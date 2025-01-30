@@ -1694,6 +1694,59 @@ void KRESTServer::PrettyPrint(bool bYesNo)
 } // PrettyPrint
 
 //-----------------------------------------------------------------------------
+KStringView KRESTServer::GetCookie(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	auto& Cookies = GetCookies();
+	auto it = Cookies.find(sName);
+	return (it == Cookies.end()) ? KStringView{} : it->second;
+
+} // GetCookie
+
+//-----------------------------------------------------------------------------
+const std::map<KStringView, KStringView>& KRESTServer::GetCookies()
+//-----------------------------------------------------------------------------
+{
+	if (m_RequestCookies == nullptr)
+	{
+		m_RequestCookies = std::make_unique<std::map<KStringView, KStringView>>();
+
+		const auto Range = Request.Headers.equal_range(KHTTPHeader::COOKIE);
+
+		for (auto it = Range.first; it != Range.second; ++it)
+		{
+			kSplit(*m_RequestCookies, it->second, ";", "=");
+		}
+	}
+
+	return *m_RequestCookies;
+
+} // GetCookies
+
+//-----------------------------------------------------------------------------
+void KRESTServer::SetCookie(KStringView sName, KStringView sValue, KStringView sOptions)
+//-----------------------------------------------------------------------------
+{
+	if (!sName.empty())
+	{
+		auto sCookie = kFormat("{}={}", sName, sValue);
+
+		if (!sOptions.empty())
+		{
+			sCookie += "; ";
+			sCookie += sOptions;
+		}
+
+		Response.Headers.Add(KHTTPHeader::SET_COOKIE, std::move(sCookie));
+	}
+	else
+	{
+		kDebug(2, "cookie can only be set with a valid name");
+	}
+
+} // SetCookie
+
+//-----------------------------------------------------------------------------
 void KRESTServer::clear()
 //-----------------------------------------------------------------------------
 {
@@ -1712,6 +1765,7 @@ void KRESTServer::clear()
 	m_iRequestBodyLength   = 0;
 	m_AuthToken.clear();
 	m_JsonLogger.reset();
+	m_RequestCookies.reset();
 	m_TempDir.clear();
 	m_bIsStreaming         = false;
 	m_bSwitchToWebSocket   = false;

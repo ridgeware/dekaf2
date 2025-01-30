@@ -205,6 +205,18 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 			ConnectTime.halt();
 		}
 
+		if (m_bAcceptCookies && (GetStatusCode() / 100 == 2 || GetStatusCode() / 100 == 3))
+		{
+			// check for Set-Cookie headers if status code is in the 2xx or 3xx range
+			const auto Range = Response.Headers.equal_range(KHTTPHeader::SET_COOKIE);
+
+			for (auto it = Range.first; it != Range.second; ++it)
+			{
+				// add each cookie
+				m_Cookies.Parse(RequestURL, it->second);
+			}
+		}
+
 		if (!CheckForRedirect(RequestURL, RequestMethod, /*bNoHostChange=*/bHaveSeparateConnectURL))
 		{
 			break;
@@ -260,18 +272,6 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 			ReceiveTime.elapsed()
 		);
 		m_TimingCallback (*this, TotalTime, sSummary);
-	}
-
-	if (m_bAcceptCookies && (GetStatusCode() / 100 == 2 || GetStatusCode() / 100 == 3))
-	{
-		// check for Set-Cookie headers if status code is in the 2xx or 3xx range
-		const auto Range = Response.Headers.equal_range(KHTTPHeader::SET_COOKIE);
-
-		for (auto it = Range.first; it != Range.second; ++it)
-		{
-			// add each cookie
-			m_Cookies.Parse(RequestURL, it->second);
-		}
 	}
 
 	if (HttpSuccess())

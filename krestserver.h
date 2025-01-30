@@ -57,6 +57,7 @@
 #include <vector>
 #include <memory>
 #include <limits>
+#include <map>
 
 /// @file krestserver.h
 /// HTTP REST server implementation
@@ -531,6 +532,26 @@ public:
 		return m_WebSocketHandlerCallback;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// return the value of received cookie sName
+	/// @param sName the name of the cookie
+	/// @return the value of the cookie if found, else the empty string
+	KStringView GetCookie(KStringView sName);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// return a map with all received cookies
+	const std::map<KStringView, KStringView>& GetCookies();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// set a cookie to be sent with the response (set-cookie header)
+	/// @param sName the name of the cookie
+	/// @param sValue the value of the cookie
+	/// @param sOptions additional options, e.g HttpOnly or Secure, separated by semicolon
+	void SetCookie(KStringView sName, KStringView sValue = KStringView{}, KStringView sOptions = KStringView{});
+	//-----------------------------------------------------------------------------
+
 //------
 protected:
 //------
@@ -604,6 +625,7 @@ private:
 	KTempDir    m_TempDir;               // create a KTempDir object
 	std::unique_ptr<KJSON> m_JsonLogger;
 	std::unique_ptr<KStopDurations> m_Timers;
+	std::unique_ptr<std::map<KStringView, KStringView>> m_RequestCookies;
 	std::function<void(const KRESTServer&)> m_PostResponseCallback; // if set, gets called after response generation
 	std::function<void(KWebSocket&)> m_WebSocketHandlerCallback; // filled by route handler during upgrade to websocket protocol, will be called every time a frame is received, or the connection is lost
 	uint16_t    m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds

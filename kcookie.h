@@ -45,6 +45,8 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include "kurl.h"
+#include "kreader.h"
+#include "kwriter.h"
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -90,7 +92,15 @@ public:
 	DEKAF2_NODISCARD
 	bool WouldSerialize(const KURL& URL) const;
 
+	/// write the cookie in netscape format to a stream
+	/// @param Out the output stream
+	bool Write(KOutStream& Out) const;
+
+	/// read cookie in netscape format from a stream
+	bool Read(KInStream& In);
+
 	/// clear the cookie
+	/// @param In the input stream
 	void clear();
 
 	/// is this cookie empty?
@@ -110,6 +120,12 @@ public:
 	{
 		return m_sValue;
 	}
+
+	/// check if the given name is valid according to RFC6265
+	static bool IsValidName(KStringView sName);
+
+	/// check if the given value is valid according to RFC6265
+	static bool IsValidValue(KStringView sValue);
 
 //------
 private:
@@ -145,6 +161,14 @@ public:
 	/// @param URL the URL for which this cookie is serialized
 	DEKAF2_NODISCARD
 	KString Serialize(const KURL& URL) const;
+
+	/// write all cookies in netscape format to a stream
+	/// @param Out the output stream
+	bool Write(KOutStream& Out) const;
+
+	/// read cookies in netscape format from a stream
+	/// @param In the input stream
+	bool Read(KInStream& In);
 
 	/// remove all cookies
 	void clear()

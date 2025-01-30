@@ -139,7 +139,7 @@ kurl::kurl ()
 
 	m_CLI
 		.Option("u,user <USER:PASS>", "username and password")
-		.Help("set username and password for the request")
+		.Help("set username and password for the request, for either basic authentication or AWS type authorization")
 	([&](KStringViewZ sUserPass)
 	{
 		auto Pieces = sUserPass.Split(":");
@@ -503,21 +503,11 @@ kurl::kurl ()
 		BuildMRQ.Flags |= Flags::FORCE_HTTP_3;
 	});
 #endif
-	m_CLI
-		.Command("reverse <IP address>")
-		.Help("run a reverse lookup on an IP address and exit")
-		.Stop()
-	([&](KStringViewZ sAddress)
-	{
-		for (auto& sHost : kHostLookupToList(sAddress))
-		{
-			KOut.WriteLine(sHost);
-		}
-	});
 
 	m_CLI
-		.Command("lookup <hostname> [4|6 [<maxresults>]]")
-		.Help("run a hostname lookup and exit, either for IPv4,6 or both")
+		.Command("dns <hostname>\n"
+				 "    [4|6 [<maxresults>]]")
+		.Help("run a hostname lookup and exit, either for IP v4, v6 or both")
 		.MinArgs(1)
 		.MaxArgs(3)
 		.Stop()
@@ -552,6 +542,18 @@ kurl::kurl ()
 	});
 
 	m_CLI
+		.Command("R,reverse <IP address>")
+		.Help("run a reverse lookup on an IP address")
+		.Stop()
+	([&](KStringViewZ sAddress)
+	{
+		for (auto& sHost : kHostLookupToList(sAddress))
+		{
+			KOut.WriteLine(sHost);
+		}
+	});
+
+	m_CLI
 		.UnknownCommand([&](KOptions::ArgList& Commands)
 	{
 		while (!Commands.empty())
@@ -560,8 +562,8 @@ kurl::kurl ()
 
 			if (URL.Protocol == url::KProtocol::UNDEFINED)
 			{
-				kDebug(2, "no protocol specified - assuming HTTP");
-				URL.Protocol = url::KProtocol::HTTP;
+				kDebug(2, "no protocol specified - assuming HTTPS");
+				URL.Protocol = url::KProtocol::HTTPS;
 			}
 
 			BuildMRQ.AddURL(std::move(URL));

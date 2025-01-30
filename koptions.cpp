@@ -638,10 +638,11 @@ void KOptions::HelpFormatter::FormatOne(KOutStream& out,
 			if (bFirst)
 			{
 				bFirst = false;
+				bool bInsertDash = (Callback.IsOption() && Callback.m_sNames.front() != '-');
 				out.WriteLine(kFormat(KRuntimeFormat(mask.sFormat),
-							   (Callback.IsOption() && Callback.m_sNames.front() != '-') ? "-" : "",
+							   bInsertDash ? "-" : "",
 							   sLimitedNames,
-							   Callback.IsOption() ? "" : " ",
+							   bInsertDash ? "" : " ",
 							   sLimited));
 
 				if (mask.bOverlapping)

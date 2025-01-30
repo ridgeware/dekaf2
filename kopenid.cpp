@@ -555,7 +555,7 @@ const KString& KJWT::GetUser() const
 
 	if (!m_bSignatureIsValid)
 	{
-		static KString s_sEmpty;
+		static const KString s_sEmpty;
 
 		if (sMaybe.size() < 40)
 		{

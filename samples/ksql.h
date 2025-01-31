@@ -25,14 +25,6 @@ public:
 	int Main (int argc, char** argv);
 
 	static constexpr KStringViewZ s_sProjectName    { "ksql"  };
-	static constexpr KStringViewZ s_sProjectVersion { "0.0.1" };
-
-//----------
-private:
-//----------
-
-	void Client (KSQL& SQL);
-
-	bool m_bQuiet { false };
+	static constexpr KStringViewZ s_sProjectVersion { "1.0.0" };
 
 }; // KSql

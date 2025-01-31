@@ -16,121 +16,39 @@ KSql::KSql ()
 } // ctor
 
 //-----------------------------------------------------------------------------
-void KSql::Client (KSQL& SQL)
-//-----------------------------------------------------------------------------
-{
-	SQL.SetFlag (KSQL::F_IgnoreSelectKeyword);
-
-	if (!m_bQuiet)
-	{
-		kPrintLine("{} v{}", s_sProjectName, s_sProjectVersion)
-			&& kPrint("{} > ", SQL.ConnectSummary())
-			&& kFlush();
-	}
-
-	KString sSQL, sLine;
-
-	for (auto& sLine : KIn)
-	{
-		sSQL += kFormat("{}\n", sLine);
-		KString sTrimmed(sLine);
-		sTrimmed.Replace('\t', ' ');
-		sTrimmed.Trim();
-
-		KString sNewDbName;
-		auto    parts      = sTrimmed.Split(" ");
-		KString sFirstWord = parts.size() ? parts[0] : ""; sFirstWord.MakeLower();
-
-		if (sFirstWord.In("quit,quit;,exit,exit;"))
-		{
-			break; // for
-		}
-		else if ((parts.size() > 1) && sFirstWord.In("use,use;"))
-		{
-			sNewDbName = parts[1];
-			sNewDbName.remove_suffix(';');
-			sNewDbName.Trim();
-			sSQL.Trim();
-			if (!sSQL.ends_with(";"))
-			{
-				sSQL += ";";
-			}
-		}
-
-		// flush command:
-		if (sTrimmed.ends_with(";"))
-		{
-			SQL.EndQuery();
-			sSQL.remove_suffix(';');
-			sSQL.Trim();
-
-			if (sSQL)
-			{
-				if (!SQL.OutputQuery (sSQL) && SQL.GetLastError())
-				{
-					kPrintLine (">> {}", SQL.GetLastError());
-				}
-				else if (SQL.GetLastError())
-				{
-					kPrintLine (":: {}", SQL.GetLastError());
-				}
-
-				if (!m_bQuiet && SQL.GetNumRowsAffected())
-				{
-					kPrintLine (":: {} rows affected.", kFormNumber(SQL.GetNumRowsAffected()));
-				}
-
-				sSQL.clear();
-			}
-		}
-
-		if (sNewDbName)
-		{
-			SQL.SetDBName(sNewDbName);
-			sNewDbName.clear();
-		}
-
-		if (!m_bQuiet)
-		{
-			kPrint ("{} > ", SQL.ConnectSummary()) && kFlush();
-		}
-	}
-
-	kPrintLine();
-
-} // Client
-
-//-----------------------------------------------------------------------------
 int KSql::Main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	{
-		// setup CLI option parsing
-		KOptions Options(false, argc, argv, KLog::STDOUT, /*bThrow*/true);
-		Options.SetBriefDescription("command line database client");
+	// setup CLI option parsing
+	KOptions Options(false, argc, argv, KLog::STDOUT, /*bThrow*/true);
+	Options.SetBriefDescription("command line database client");
 
-		KStringViewZ sDBCFile  = Options("dbc                : dbc file name"               ,          "");
-		KString      sDBType   = Options("dbtype <type>      : db type - mysql, sqlserver, sqlserver15, sybase", "");
-		KStringViewZ sUser     = Options("u,user <name>      : username"                    ,          "");
-		KStringViewZ sPassword = Options("p,pass <pass>      : password"                    ,          "");
-		KStringViewZ sDatabase = Options("db,database <name> : database to use"             ,          "");
-		KStringViewZ sHostname = Options("host <url>         : database server hostname"    , "localhost");
-		uint16_t     iDBPort   = Options("port <number>      : database server port number" ,           0);
-		             m_bQuiet  = Options("q,quiet            : only show db output"         ,       false);
+	KStringViewZ sDBCFile  = Options("dbc                : dbc file name"               ,          "");
+	KString      sDBType   = Options("dbtype <type>      : db type - mysql, sqlserver, sqlserver15, sybase", "");
+	KStringViewZ sUser     = Options("u,user <name>      : username"                    ,          "");
+	KStringViewZ sPassword = Options("p,pass <pass>      : password"                    ,          "");
+	KStringViewZ sDatabase = Options("db,database <name> : database to use"             ,          "");
+	KStringViewZ sHostname = Options("host <url>         : database server hostname"    , "localhost");
+	uint16_t     iDBPort   = Options("port <number>      : database server port number" ,           0);
+	bool         bQuiet    = Options("q,quiet            : only show db output"         ,       false);
+	KStringViewZ sFormat   = Options("f,format <format>  : output format - ascii, vertical, json, csv, html, default ascii", "ascii");
 
-		// do a final check if all required options were set
-		if (!Options.Check()) return 1;
+	// do a final check if all required options were set
+	if (!Options.Check()) return 1;
 
-		KSQL::DBT DBType = KSQL::DBT::MYSQL;
-		if (!sDBType.empty()) DBType = KSQL::TxDBType (sDBType);
+	KSQL::DBT DBType = KSQL::DBT::MYSQL;
+	if (!sDBType.empty()) DBType = KSQL::TxDBType (sDBType);
 
-		KSQL SQL;
+	KSQL SQL;
 
-		if (!sDBCFile.empty()) SQL.EnsureConnected ("", sDBCFile);
-		else SQL.SetConnect (DBType, sUser, sPassword, sDatabase, sHostname, iDBPort);
+	if (!sDBCFile.empty()) SQL.EnsureConnected ("", sDBCFile);
+	else SQL.SetConnect (DBType, sUser, sPassword, sDatabase, sHostname, iDBPort);
 
-		Client (SQL);
-	}
+	if (!bQuiet) kPrintLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
+
+	auto Format = KSQL::CreateOutputFormat(sFormat);
+
+	SQL.RunInterpreter (Format, bQuiet);
 
 	return 0;
 

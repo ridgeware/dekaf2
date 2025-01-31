@@ -692,14 +692,16 @@ public:
 	void RemoveTempResultsFile();
 
 	/// returns last error string
-	const KString& GetLastError () const { return (m_sLastErrorSetOnlyWithSetError);      }
+	const KString& GetLastError   () const { return (m_sLastErrorSetOnlyWithSetError); }
 	/// returns last error number
-	uint32_t    GetLastErrorNum () const { return (m_iErrorSetOnlyWithSetError);       }
+	uint32_t    GetLastErrorNum   () const { return (m_iErrorSetOnlyWithSetError);     }
 	/// returns true for MySQL duplicate index error
-	bool        WasDuplicateError() const { return (GetLastErrorNum() == 1062); /*TODO:this is hardcoded for MySQL only*/ }
-	int         GetLastOCIError () const { return (GetLastErrorNum()); }
+	bool        WasDuplicateError () const { return (GetLastErrorNum() == 1062); /*TODO:this is hardcoded for MySQL only*/ }
+	int         GetLastOCIError   () const { return (GetLastErrorNum());               }
 	/// returns last issued SQL statement
-	const KString& GetLastSQL ()   const { return (m_sLastSQL.str());        }
+	const KString& GetLastSQL     () const { return m_sLastSQL.str();                  }
+	/// returns last info string after an SQL command
+	const KString& GetLastInfo    () const { return m_sLastInfo;                       }
 
 	// helper struct to enable ScopedFlags with C++11 already
 	struct ResetFlagsCallable
@@ -766,7 +768,10 @@ public:
 	bool   QueryStarted ()         { return (m_bQueryStarted); }
 	void   EndQuery (bool bDestructor=false);
 
-	std::size_t OutputQuery  (KStringView sSQL, KString/*copy*/ sFormat, FILE* fpout = stdout);
+	/// create output format from input string
+	static OutputFormat CreateOutputFormat(KStringView sFormat);
+	std::size_t OutputQuery  (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout)
+		{ return OutputQuery (sSQL, CreateOutputFormat(sFormat), fpout); }
 	std::size_t OutputQuery  (KStringView sSQL, OutputFormat iFormat=FORM_ASCII, FILE* fpout = stdout);
 	KString     QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat=FORM_ASCII, std::size_t* piNumRows=NULL);
 
@@ -1264,7 +1269,7 @@ private:
 	KColInfos  m_dColInfo;
 
 //----------
-public:
+protected:
 //----------
 
 	/// sets m_sLastError, then either throws a KSQL exception if allowed to do, or returns false
@@ -1283,7 +1288,12 @@ public:
 	/// Reset error string and error status
 	void ClearError();
 	/// Reset last sql command string - only needed in multi-tenant environments for client isolation
-	void ClearLastSQL() { m_sLastSQL.clear(); }
+	void ClearLastSQL()         { m_sLastSQL.clear();             }
+
+	/// sets an informational message
+	void SetInfo(KString sInfo) { m_sLastInfo = std::move(sInfo); }
+	/// reset informational message
+	void ClearInfo()            { m_sLastInfo.clear();            }
 
 //----------
 private:
@@ -1508,11 +1518,15 @@ public:
 	/// ensure that changing the db connection takes effect in the summary
 	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); InvalidateConnectHash(); }
 
+	/// start the command line interpreter
+	void  RunInterpreter (OutputFormat Format = FORM_ASCII, bool bQuiet = false);
+
 //----------
 private:
 //----------
 
 	KSQLString m_sLastSQL;
+	KString    m_sLastInfo;
 	KString    m_sLastErrorSetOnlyWithSetError;   // error string. Never set directly, only via SetError()
 	uint32_t   m_iErrorSetOnlyWithSetError { 0 }; // db error number (e.g. ORA code). Never set directly, only via SetError()
 	Flags      m_iFlags { Flags::F_None };        // set by calling SetFlags()

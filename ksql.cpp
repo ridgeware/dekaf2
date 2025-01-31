@@ -642,6 +642,8 @@ void KSQL::ClearError()
 {
 	m_sLastErrorSetOnlyWithSetError.clear();
 	m_iErrorSetOnlyWithSetError = 0;
+	// also clear the last info, if any
+	ClearInfo();
 
 } // ClearError
 
@@ -649,6 +651,19 @@ void KSQL::ClearError()
 bool KSQL::SetError(KString sError, uint32_t iErrorNum/*=-1*/, bool bNoThrow/*=false*/)
 //-----------------------------------------------------------------------------
 {
+	// check if this is in fact no error
+	if (   m_iDBType == DBT::SQLSERVER
+		|| m_iDBType == DBT::SQLSERVER15
+		|| m_iDBType == DBT::SYBASE )
+	{
+		if (!sError.contains(" Severity "))
+		{
+			// this is not an error but an informational message
+			SetInfo(std::move(sError));
+			return true;
+		}
+	}
+
 	m_sLastErrorSetOnlyWithSetError = std::move(sError);
 	m_iErrorSetOnlyWithSetError     = iErrorNum;
 
@@ -2975,10 +2990,14 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			m_dMYSQLResult = mysql_use_result (m_dMYSQL);
 			if (!m_dMYSQLResult)
 			{
-				kDebug(1, "expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?");
 				auto iErrorNum = mysql_errno (m_dMYSQL);
 				if (iErrorNum == 0)
 				{
+					if (IsFlag(F_IgnoreSelectKeyword))
+					{
+						// this was most probably a non-select statement that yields no results, like 'use'
+						return false;
+					}
 					return SetError("KSQL: expected query results but got none. Did you intend to use ExecSQL() instead of ExecQuery() ?", iErrorNum);
 				}
 				else
@@ -7254,39 +7273,40 @@ void KSQL::ctlib_flush_results ()
 #endif
 
 //-----------------------------------------------------------------------------
-std::size_t KSQL::OutputQuery (KStringView sSQL, KString/*copy*/ sFormat, FILE* fpout/*=stdout*/)
+KSQL::OutputFormat KSQL::CreateOutputFormat(KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
-	kDebug (2, "...");
+	KSQL::OutputFormat Format = KSQL::FORM_ASCII;
 
-	sFormat.MakeLower();
+	sFormat.remove_prefix('-');
 
-	OutputFormat iFormat = FORM_ASCII;
+	switch (sFormat.CaseHash())
+	{
+		case "ascii"_casehash:
+		case "query"_casehash:
+		case "table"_casehash:
+			Format = KSQL::FORM_ASCII;
+			break;
+		case "vertical"_casehash:
+			Format = KSQL::FORM_VERTICAL;
+			break;
+		case "json"_casehash:
+			Format = KSQL::FORM_JSON;
+			break;
+		case "csv"_casehash:
+			Format = KSQL::FORM_CSV;
+			break;
+		case "html"_casehash:
+			Format = KSQL::FORM_HTML;
+			break;
+		default:
+			kDebug(1, "invalid format: {}", sFormat);
+			break;
+	}
 
-	if (kStrIn (sFormat, "-ascii,ascii,-query,query,-table,table"))
-	{
-		iFormat = FORM_ASCII;
-	}
-	else if (kStrIn (sFormat, "-vertical,vertical"))
-	{
-		iFormat = FORM_VERTICAL;
-	}
-	else if (kStrIn (sFormat, "-json,json"))
-	{
-		iFormat = FORM_JSON;
-	}
-	else if (kStrIn (sFormat, "-csv,csv"))
-	{
-		iFormat = FORM_CSV;
-	}
-	else if (kStrIn (sFormat, "-html,html"))
-	{
-		iFormat = FORM_HTML;
-	}
+	return Format;
 
-	return (OutputQuery (sSQL, iFormat, fpout));
-
-} // OutputQuery
+} // CreateOutputFormat
 
 //-----------------------------------------------------------------------------
 std::size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
@@ -9954,6 +9974,154 @@ void KSQL::PurgeTempTables ()
 	}
 
 } // PurgeTempTables
+
+//-----------------------------------------------------------------------------
+void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
+//-----------------------------------------------------------------------------
+{
+	SetFlag (KSQL::F_IgnoreSelectKeyword);
+
+	if (!bQuiet)
+	{
+		kPrint("{} > ", ConnectSummary()) && kFlush();
+	}
+
+	KString sSQL;
+	KString sLine;
+	bool    bHaveFirstWord { false };
+	bool    bIsUse         { false };
+
+	for (auto& sLine : KIn)
+	{
+		if (sSQL.empty() && sLine.In("ascii,vertical,json,csv,html"))
+		{
+			Format = CreateOutputFormat(sLine);
+			kPrintLine (":: format changed to {}", sLine);
+			kWriteLine ();
+		}
+		else if (sSQL.empty() && sLine == "help")
+		{
+			kWriteLine (":: enter SQL command, query or one of these formats for query output:");
+			kWriteLine ("::    ascii    : ascii table form (normal output)");
+			kWriteLine ("::    vertical : for very wide tables, one column at a time");
+			kWriteLine ("::    json     : JSON array");
+			kWriteLine ("::    csv      : comma-separated-value output");
+			kWriteLine ("::    html     : HTML table output");
+			kWriteLine ();
+		}
+		else
+		{
+			sSQL += sLine;
+			sSQL += '\n';
+
+			KStringView sNewDbName;
+
+			KStringView sTrimmed(sLine);
+			sTrimmed.Trim();
+			bool bExecute = sTrimmed.remove_suffix(';');
+
+			if (!bHaveFirstWord)
+			{
+				auto Parts = sTrimmed.Split("\t ");
+
+				if (!Parts.empty())
+				{
+					bHaveFirstWord = true;
+
+					switch (Parts[0].CaseHash())
+					{
+						case "quit"_casehash:
+						case "exit"_casehash:
+							if (!bQuiet)
+							{
+								kWriteLine(":: bye");
+							}
+							return;
+
+						case "use"_casehash:
+							bIsUse = true;
+							if (Parts.size() > 1)
+							{
+								sNewDbName = Parts[1];
+								bExecute   = true;
+							}
+							break;
+					}
+				}
+			}
+			else if (bIsUse)
+			{
+				auto Parts = sTrimmed.Split("\t ");
+
+				if (!Parts.empty())
+				{
+					sNewDbName = Parts[0];
+					bExecute   = true;
+				}
+			}
+
+			if (bExecute)
+			{
+				// flush command:
+				bExecute = false;
+				EndQuery();
+				sSQL.TrimRight();
+				sSQL.remove_suffix(';');
+				sSQL.Trim();
+
+				if (!sSQL.empty())
+				{
+					if (!OutputQuery (sSQL, Format) && GetLastError())
+					{
+						kPrintLine (">> {}", GetLastError());
+					}
+					else if (GetLastError())
+					{
+						kPrintLine (">> {}", GetLastError());
+					}
+					else if (sNewDbName)
+					{
+						SetDBName(sNewDbName.ToLowerASCII());
+						sNewDbName.clear();
+					}
+
+					if (!bQuiet && !GetLastInfo().empty())
+					{
+						kPrintLine(":: {}", GetLastInfo());
+					}
+
+					if (!bQuiet && GetNumRowsAffected())
+					{
+						kPrintLine (":: {} rows affected.", kFormNumber(GetNumRowsAffected()));
+					}
+
+					sSQL.clear();
+				}
+
+				bIsUse         = false;
+				bHaveFirstWord = false;
+			}
+		}
+
+		if (!bQuiet)
+		{
+			if (sSQL.empty())
+			{
+				// new command
+				kPrint ("{} > ", ConnectSummary());
+			}
+			else
+			{
+				// continue last command
+				kWrite ("    -> ");
+			}
+		}
+
+		kFlush();
+	}
+
+} // Client
+
 
 std::atomic<std::chrono::milliseconds> KSQL::s_QueryTimeout        { std::chrono::milliseconds(0) };
 std::atomic<KSQL::QueryType>           KSQL::s_QueryTypeForTimeout { QueryType::None              };

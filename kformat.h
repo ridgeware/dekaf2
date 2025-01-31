@@ -110,13 +110,13 @@ DEKAF2_PUBLIC bool kWrite(int fd, KStringView sOutput) noexcept;
 /// write sOutput to std::ostream
 DEKAF2_PUBLIC std::ostream& kWrite(std::ostream& os, KStringView sOutput) noexcept;
 /// write sOutput to stdout
-DEKAF2_PUBLIC bool kWriteLine(KStringView sOutput) noexcept;
+DEKAF2_PUBLIC bool kWriteLine(KStringView sOutput = KStringView{}) noexcept;
 /// write sOutput to FILE*
-DEKAF2_PUBLIC bool kWriteLine(std::FILE* fp, KStringView sOutput) noexcept;
+DEKAF2_PUBLIC bool kWriteLine(std::FILE* fp, KStringView sOutput = KStringView{}) noexcept;
 /// write sOutput to fd
-DEKAF2_PUBLIC bool kWriteLine(int fd, KStringView sOutput) noexcept;
+DEKAF2_PUBLIC bool kWriteLine(int fd, KStringView sOutput = KStringView{}) noexcept;
 /// write sOutput to std::ostream
-DEKAF2_PUBLIC std::ostream& kWriteLine(std::ostream& os, KStringView sOutput) noexcept;
+DEKAF2_PUBLIC std::ostream& kWriteLine(std::ostream& os, KStringView sOutput = KStringView{}) noexcept;
 
 /// writes buffered output to stdout
 DEKAF2_PUBLIC bool kFlush() noexcept;

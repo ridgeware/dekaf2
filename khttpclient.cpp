@@ -1230,10 +1230,14 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod, bool b
 					{
 						return SetError("not allowed to redirect protocol");
 					}
+					// queries are either part of the redirect, or reset
+					// - do not copy them from origin
+#if 0
 					if (Redirect.Query.empty())
 					{
 						Redirect.Query = URL.Query;
 					}
+#endif
 					if (Redirect.Port.empty() && !URL.Port.empty() && Redirect.Domain.empty())
 					{
 						Redirect.Port = URL.Port;

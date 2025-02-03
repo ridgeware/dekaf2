@@ -2204,8 +2204,9 @@ inline KString operator+(const KString::value_type* left, const KStringView& rig
 inline KString operator+(const KStringView& left, KString::value_type right)
 //-----------------------------------------------------------------------------
 {
-	KString temp(left);
+	KString temp;
 	temp.reserve(left.size() + 1);
+	temp += left;
 	temp += right;
 	return temp;
 }

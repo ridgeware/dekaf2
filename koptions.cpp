@@ -586,7 +586,7 @@ KOptions::HelpFormatter::Mask::Mask(const HelpFormatter& Formatter, bool bForCom
 
 	if (bIsRequired)
 	{
-		sFormat = kFormat("   \x1b[1m{{}}{{:<{}}}\x1b[22m {{}}{} {{}}", iMaxLen, Formatter.m_sSeparator);
+		sFormat = kFormat("   \033[1m{{}}{{:<{}}}\033[22m {{}}{} {{}}", iMaxLen, Formatter.m_sSeparator);
 	}
 	else
 	{

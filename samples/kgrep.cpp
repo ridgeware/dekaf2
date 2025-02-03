@@ -38,8 +38,8 @@ KString KGrep::Highlight(KStringView sIn, const std::vector<KStringView>& Matche
 
 	KStringView::size_type iTotalStart = 0;
 
-	KStringView sHighlightOn  = "\x1b[01;31m";
-	KStringView sHighlightOff = "\x1b[m";
+	KStringView sHighlightOn  = "\033[01;31m";
+	KStringView sHighlightOff = "\033[m";
 
 	for (auto Match : Matches)
 	{

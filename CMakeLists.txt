@@ -999,6 +999,7 @@ set(PUBLIC_HEADERS
 	khash.h
 	kheapmon.h
 	khex.h
+	khistory.h
 	khttp2.h
 	khttp3.h
 	khmac.h
@@ -1115,6 +1116,7 @@ set(PUBLIC_HEADERS
 	kwrite.h
 	kwriter.h
 	kxml.h
+	kxterm.h
 )
 
 if (DEKAF2_HAS_LIBZIP)
@@ -1264,6 +1266,7 @@ set (SOURCES
 	khash.cpp
 	kheapmon.cpp
 	khex.cpp
+	khistory.cpp
 	khttp2.cpp
 	khttp3.cpp
 	khmac.cpp
@@ -1359,6 +1362,7 @@ set (SOURCES
 	kwrite.cpp
 	kwriter.cpp
 	kxml.cpp
+	kxterm.cpp
 )
 
 if (DEKAF2_HAS_LIBZIP)

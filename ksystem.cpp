@@ -1608,51 +1608,100 @@ KTTYSize kGetTerminalSize(int fd, uint16_t iDefaultColumns, uint16_t iDefaultLin
 
 #ifndef DEKAF2_IS_WINDOWS
 
+	bool bIsStdIO = fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO;
+
 	struct winsize ts;
 
-	if (ioctl(fd, TIOCGWINSZ, &ts) != -1 && ts.ws_col && ts.ws_row)
+	if (bIsStdIO)
 	{
-		TTY.columns = ts.ws_col;
-		TTY.lines   = ts.ws_row;
-	}
-	else
-	{
-		KString sOutput;
-
-		if (fd == 0)
+		// try all three std filenos if one fails
+		if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, &ts) != -1 ||
+			 ioctl(STDIN_FILENO , TIOCGWINSZ, &ts) != -1 ||
+			 ioctl(STDERR_FILENO, TIOCGWINSZ, &ts) != -1)
+			&& ts.ws_col > 0 && ts.ws_row > 0)
 		{
-			kSystem("stty size", sOutput);
+			TTY.columns = ts.ws_col;
+			TTY.lines   = ts.ws_row;
 		}
 		else
 		{
+			KString sOutput;
+
+			kSystem("stty size", sOutput);
+
+			auto sCols = sOutput.Split(' ');
+
+			if (sCols.size() == 2)
+			{
+				TTY.lines   = sCols[0].UInt16();
+				TTY.columns = sCols[1].UInt16();
+			}
+		}
+	}
+	else
+	{
+		if (ioctl(fd, TIOCGWINSZ, &ts) != -1 && ts.ws_col && ts.ws_row)
+		{
+			TTY.columns = ts.ws_col;
+			TTY.lines   = ts.ws_row;
+		}
+		else
+		{
+			KString sOutput;
+
 			auto sName = kGetFileNameFromFileDescriptor(fd);
 
 			if (!sName.empty())
 			{
+#if DEKAF2_IS_MACOS
 				kSystem(kFormat("stty -f '{}' size", sName), sOutput);
+#else
+				kSystem(kFormat("stty -F '{}' size", sName), sOutput);
+#endif
 			}
-		}
 
-		auto sCols = sOutput.Split(' ');
+			auto sCols = sOutput.Split(' ');
 
-		if (sCols.size() == 2)
-		{
-			TTY.lines   = sCols[0].UInt16();
-			TTY.columns = sCols[1].UInt16();
+			if (sCols.size() == 2)
+			{
+				TTY.lines   = sCols[0].UInt16();
+				TTY.columns = sCols[1].UInt16();
+			}
 		}
 	}
 
 #else // is windows
 
+	bool bIsStdIO = fd == STD_INPUT_HANDLE || fd == STD_OUTPUT_HANDLE || fd == STD_ERROR_HANDLE;
+
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 
-	if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
+	if (bIsStdIO)
 	{
-		TTY.columns = csbi.srWindow.Right  - csbi.srWindow.Left;
-		TTY.lines   = csbi.srWindow.Bottom - csbi.srWindow.Top;
+		if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi) ||
+			GetConsoleScreenBufferInfo(GetStdHandle(STD_INPUT_HANDLE ), &csbi) ||
+			GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE ), &csbi))
+		{
+			TTY.columns = csbi.srWindow.Right  - csbi.srWindow.Left;
+			TTY.lines   = csbi.srWindow.Bottom - csbi.srWindow.Top;
+		}
+	}
+	else
+	{
+		if (GetConsoleScreenBufferInfo(GetStdHandle(fd), &csbi))
+		{
+			TTY.columns = csbi.srWindow.Right  - csbi.srWindow.Left;
+			TTY.lines   = csbi.srWindow.Bottom - csbi.srWindow.Top;
+		}
 	}
 
 #endif
+
+	if ((!TTY.columns || !TTY.lines) && bIsStdIO)
+	{
+		TTY.columns = kGetEnv("COLUMNS").UInt16();
+		TTY.lines   = kGetEnv("LINES").UInt16();
+	}
 
 	if (!TTY.columns || !TTY.lines)
 	{

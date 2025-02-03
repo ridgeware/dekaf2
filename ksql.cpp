@@ -66,6 +66,7 @@
 #include "khex.h"
 #include "kcsv.h"
 #include "kfrozen.h"
+#include "kxterm.h"
 #include <cstdint>
 #include <utility>
 
@@ -9981,18 +9982,24 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 {
 	SetFlag (KSQL::F_IgnoreSelectKeyword);
 
-	if (!bQuiet)
-	{
-		kPrint("{} > ", ConnectSummary()) && kFlush();
-	}
-
+	KString sPrompt = (bQuiet) ? "" : kFormat("{} > ", ConnectSummary());
+	KXTerm  Terminal;
+	Terminal.SetHistoryFile();
 	KString sSQL;
-	KString sLine;
 	bool    bHaveFirstWord { false };
 	bool    bIsUse         { false };
 
-	for (auto& sLine : KIn)
+	for (;;)
 	{
+		KString sLine;
+
+		if (!Terminal.ReadLine(sPrompt, sLine))
+		{
+			return;
+		}
+		
+		kWriteLine();
+
 		if (sSQL.empty() && sLine.In("ascii,vertical,json,csv,html"))
 		{
 			Format = CreateOutputFormat(sLine);
@@ -10009,7 +10016,7 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			kWriteLine ("::    html     : HTML table output");
 			kWriteLine ();
 		}
-		else
+		else if (!sLine.empty())
 		{
 			sSQL += sLine;
 			sSQL += '\n';
@@ -10063,7 +10070,6 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			if (bExecute)
 			{
 				// flush command:
-				bExecute = false;
 				EndQuery();
 				sSQL.TrimRight();
 				sSQL.remove_suffix(';');
@@ -10098,6 +10104,7 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 					sSQL.clear();
 				}
 
+				bExecute       = false;
 				bIsUse         = false;
 				bHaveFirstWord = false;
 			}
@@ -10108,12 +10115,12 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			if (sSQL.empty())
 			{
 				// new command
-				kPrint ("{} > ", ConnectSummary());
+				sPrompt = (bQuiet) ? "" : kFormat("{} > ", ConnectSummary());
 			}
 			else
 			{
 				// continue last command
-				kWrite ("    -> ");
+				sPrompt = (bQuiet) ? "" : "    > ";
 			}
 		}
 

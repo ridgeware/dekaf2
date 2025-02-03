@@ -120,15 +120,16 @@ namespace Unicode {
 	using utf8_t      = uint8_t;
 #endif
 
-static constexpr codepoint_t INVALID_CODEPOINT     = UINT32_MAX; ///< our flag for invalid codepoints
-static constexpr codepoint_t REPLACEMENT_CHARACTER = 0x0fffd;    ///< the replacement character to signal invalid codepoints in strings
-static constexpr codepoint_t CODEPOINT_MAX         = 0x010ffff;  ///< the largest legal unicode codepoint
-static constexpr codepoint_t SURROGATE_LOW_START   = 0x0d800;    ///< the lower bound of the low surrogate range in UTF16 encoding
-static constexpr codepoint_t SURROGATE_LOW_END     = 0x0dbff;    ///< the upper bound of the low surrogate range in UTF16 encoding
-static constexpr codepoint_t SURROGATE_HIGH_START  = 0x0dc00;    ///< the lower bound of the high surrogate range in UTF16 encoding
-static constexpr codepoint_t SURROGATE_HIGH_END    = 0x0dfff;    ///< the upper bound of the high surrogate range in UTF16 encoding
-static constexpr codepoint_t NEEDS_SURROGATE_START = 0x010000;   ///< the lower bound of codepoints that need surrogate substitution in UTF16 encoding
-static constexpr codepoint_t NEEDS_SURROGATE_END   = 0x010ffff;  ///< the upper bound of codepoints that need (or fit for) surrogate substitution in UTF16 encoding
+static constexpr codepoint_t INVALID_CODEPOINT     = UINT32_MAX;     ///< our flag for invalid codepoints
+static constexpr codepoint_t END_OF_INPUT          = UINT32_MAX - 1; ///< input is exhausted
+static constexpr codepoint_t REPLACEMENT_CHARACTER = 0x0fffd;        ///< the replacement character to signal invalid codepoints in strings
+static constexpr codepoint_t CODEPOINT_MAX         = 0x010ffff;      ///< the largest legal unicode codepoint
+static constexpr codepoint_t SURROGATE_LOW_START   = 0x0d800;        ///< the lower bound of the low surrogate range in UTF16 encoding
+static constexpr codepoint_t SURROGATE_LOW_END     = 0x0dbff;        ///< the upper bound of the low surrogate range in UTF16 encoding
+static constexpr codepoint_t SURROGATE_HIGH_START  = 0x0dc00;        ///< the lower bound of the high surrogate range in UTF16 encoding
+static constexpr codepoint_t SURROGATE_HIGH_END    = 0x0dfff;        ///< the upper bound of the high surrogate range in UTF16 encoding
+static constexpr codepoint_t NEEDS_SURROGATE_START = 0x010000;       ///< the lower bound of codepoints that need surrogate substitution in UTF16 encoding
+static constexpr codepoint_t NEEDS_SURROGATE_END   = 0x010ffff;      ///< the upper bound of codepoints that need (or fit for) surrogate substitution in UTF16 encoding
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper type to convert between UTF16 and other encodings
@@ -605,6 +606,132 @@ void SyncUTF8(Iterator& it, Iterator ie)
 			break;
 		}
 	}
+}
+
+//-----------------------------------------------------------------------------
+/// Return codepoint from repeatedly calling a ReadFunc that returns single chars
+template<typename ReadFunc>
+KUTF8_CONSTEXPR_14
+codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
+//-----------------------------------------------------------------------------
+{
+	codepoint_t ch = CodepointCast(Read());
+
+	if (KUTF8_UNLIKELY(ch == static_cast<codepoint_t>(eof)))
+	{
+		return END_OF_INPUT;
+	}
+
+	if (KUTF8_LIKELY(ch < 128))
+	{
+		return ch;
+	}
+
+	if (KUTF8_UNLIKELY(ch > 0x0ff))
+	{
+		// error, even with char sizes > one byte UTF8 single
+		// values cannot exceed 255
+		return INVALID_CODEPOINT;
+	}
+
+#if (__cplusplus >= 202002L)
+	// C++20 constexpr permits variable declarations without initialization
+	codepoint_t lower_limit;
+	codepoint_t codepoint;
+	uint16_t    remaining;
+	bool        bCheckForSurrogates;
+#else
+	// for C++ constexpr < 20 we need to initialize the vars at declaration,
+	// so let's take the most probable values (for 2 byte sequences)
+	codepoint_t lower_limit         = 0x080;
+	codepoint_t codepoint           = ch & 0x01f;
+	uint16_t    remaining           = 1;
+	bool        bCheckForSurrogates = false;
+#endif
+
+	if ((ch & 0x0e0) == 0x0c0)
+	{
+#if (__cplusplus >= 202002L)
+		// for C++20, finally init the vars here
+		lower_limit         = 0x080;
+		codepoint           = ch & 0x01f;
+		remaining           = 1;
+		bCheckForSurrogates = false;
+#endif
+	}
+	else if ((ch & 0x0f0) == 0x0e0)
+	{
+		lower_limit         = 0x0800;
+		codepoint           = ch & 0x0f;
+		remaining           = 2;
+		bCheckForSurrogates = ch == 0xbd;
+	}
+	else if ((ch & 0x0f8) == 0x0f0)
+	{
+		// do not check for too large lead byte values at this place
+		// (ch >= 0x0f5) as apparently that deranges the pipeline.
+		// Testing the final codepoint value below is about 10% faster.
+		lower_limit         = 0x010000;
+		codepoint           = ch & 0x07;
+		remaining           = 3;
+		bCheckForSurrogates = false;
+	}
+	else
+	{
+		// no automatic sync here
+		return INVALID_CODEPOINT;
+	}
+
+	for (;;)
+	{
+		ch = CodepointCast(Read());
+
+		if (ch == static_cast<codepoint_t>(eof))
+		{
+			return INVALID_CODEPOINT;
+		}
+
+		if (KUTF8_UNLIKELY(ch > 0x0f4))
+		{
+			// a UTF8 sequence cannot contain characters > 0xf4
+			break;
+		}
+
+		if (KUTF8_UNLIKELY((ch & 0x0c0) != 0x080))
+		{
+			// error, not a continuation byte
+			break;
+		}
+
+		codepoint <<= 6;
+		codepoint |= (ch & 0x03f);
+
+		if (!--remaining)
+		{
+			if (KUTF8_UNLIKELY(codepoint < lower_limit))
+			{
+				// error, ambiguous encoding
+				break;
+			}
+
+			if (KUTF8_UNLIKELY(codepoint > CODEPOINT_MAX))
+			{
+				// error, too large for Unicode codepoint
+				break;
+			}
+
+			if (KUTF8_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint)))
+			{
+				break;
+			}
+
+			return codepoint; // valid
+		}
+	}
+
+	// no sync here ..
+
+	return INVALID_CODEPOINT;
 }
 
 //-----------------------------------------------------------------------------

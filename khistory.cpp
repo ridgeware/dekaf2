@@ -169,7 +169,7 @@ bool KHistory::HaveNewer() const
 KStringView KHistory::GetOlder()
 //-----------------------------------------------------------------------------
 {
-	return (HaveOlder()) ? (--m_it)->ToView() : KStringView{};
+	return (HaveOlder()) ? (--m_it)->ToView() : KStringViewZ{};
 }
 
 //-----------------------------------------------------------------------------

@@ -431,6 +431,7 @@ void KXTerm::RestoreWindowTitle()
 		Command("\033[23t");      // pop
 #endif
 		--m_iChangedWindowTitle;
+		m_sLastWindowTitle = "\004\001";
 	}
 
 } // RestoreWindowTitle

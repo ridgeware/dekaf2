@@ -55,14 +55,15 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-void kSetTerminal(bool bRaw, uint8_t iMinAvail, uint8_t iMaxWait100ms)
+void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWait100ms)
 //-----------------------------------------------------------------------------
 {
+
 #ifndef DEKAF2_IS_WINDOWS
 
 	struct termios Settings;
 
-	::tcgetattr(STDIN_FILENO, &Settings);
+	::tcgetattr(iInputDevice, &Settings);
 
 	if (bRaw)
 	{
@@ -70,17 +71,17 @@ void kSetTerminal(bool bRaw, uint8_t iMinAvail, uint8_t iMaxWait100ms)
 	}
 	else
 	{
-		Settings.c_lflag    |= (ICANON | ECHO);
+		Settings.c_lflag    |= (ICANON | ECHO | ECHONL);
 	}
 
 	Settings.c_cc[VMIN]  = iMinAvail;
 	Settings.c_cc[VTIME] = iMaxWait100ms;
 
-	::tcsetattr(STDIN_FILENO, TCSANOW, &Settings);
+	::tcsetattr(iInputDevice, TCSANOW, &Settings);
 
 #else
 
-	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+	HANDLE hStdin = GetStdHandle(iInputDevice);
 
 	DWORD mode = 0;
 	GetConsoleMode(hStdin, &mode);
@@ -95,89 +96,168 @@ void kSetTerminal(bool bRaw, uint8_t iMinAvail, uint8_t iMaxWait100ms)
 	}
 
 #endif
+
 } // SetTerm
 
-//-----------------------------------------------------------------------------
-KXTerm::KXTerm()
-//-----------------------------------------------------------------------------
-: KXTerm(0, 0)
-{
-	QueryTermSize();
 
-} // ctor
-
-#ifndef DEKAF2_IS_WINDOWS
 //-----------------------------------------------------------------------------
-KXTerm::KXTerm(uint16_t iRows, uint16_t iColumns)
+bool KXTermCodes::HasRGBColors()
 //-----------------------------------------------------------------------------
-: m_TermIOS(InitTerminal(), TermIOSDeleter)
-, m_iRows(iRows)
-, m_iColumns(iColumns)
 {
+	KStringViewZ sTerm = ::getenv("COLORTERM");
+
+	if (sTerm.In("truecolor,24bit"))
+	{
+		return true;
+	}
+
+	sTerm = ::getenv("TERM");
+
+	if (sTerm == "iterm" || sTerm.contains("truecolor") || sTerm.starts_with("vte"))
+	{
+		return true;
+	}
+
+	return false;
+
+} // HasRGBColors
+
+//-----------------------------------------------------------------------------
+KString KXTermCodes::Color(RGB fg_rgb, RGB bg_rgb)
+//-----------------------------------------------------------------------------
+{
+	return FGColor(fg_rgb) + BGColor(bg_rgb);
 }
 
 //-----------------------------------------------------------------------------
-void KXTerm::TermIOSDeleter(void* Data)
+KString KXTermCodes::FGColor(RGB rgb)
 //-----------------------------------------------------------------------------
 {
-	KXTerm::ExitTerminal(static_cast<termios*>(Data));
-};
+	return kFormat("\033[38;2{};{};{}m", rgb.Red, rgb.Green, rgb.Blue);
+}
 
 //-----------------------------------------------------------------------------
-struct termios* KXTerm::InitTerminal()
+KString KXTermCodes::BGColor(RGB rgb)
 //-----------------------------------------------------------------------------
 {
-	auto Original = new struct termios;
+	return kFormat("\033[48;2{};{};{}m", rgb.Red, rgb.Green, rgb.Blue);
+}
 
-	if (Original)
+//-----------------------------------------------------------------------------
+KString KXTermCodes::Color(ColorCode FGC, ColorCode BGC)
+//-----------------------------------------------------------------------------
+{
+	return kFormat("\033[{};{}", GetFGColor(FGC), GetBGColor(BGC));
+}
+
+//-----------------------------------------------------------------------------
+KString KXTermCodes::FGColor(ColorCode CC)
+//-----------------------------------------------------------------------------
+{
+	return kFormat("\033[{}", GetFGColor(CC));
+}
+
+//-----------------------------------------------------------------------------
+KString KXTermCodes::BGColor(ColorCode CC)
+//-----------------------------------------------------------------------------
+{
+	return kFormat("\033[{}", GetBGColor(CC));
+}
+
+//-----------------------------------------------------------------------------
+KString KXTermCodes::GetFGColor(ColorCode CC)
+//-----------------------------------------------------------------------------
+{
+	if (CC >= 10)
 	{
-		int fd = STDIN_FILENO;
+		return kFormat("1;3{}", CC - 10);
+	}
+	else
+	{
+		return kFormat("3{}", CC - 0);
+	}
+}
 
-		::tcgetattr(fd, Original);
+//-----------------------------------------------------------------------------
+KString KXTermCodes::GetBGColor(ColorCode CC)
+//-----------------------------------------------------------------------------
+{
+	if (CC >= 10)
+	{
+		return kFormat("1;4{}", CC - 10);
+	}
+	else
+	{
+		return kFormat("4{}", CC - 0);
+	}
+}
 
-		termios Changed     = *Original;
+
+//-----------------------------------------------------------------------------
+KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iColumns)
+//-----------------------------------------------------------------------------
+: m_iInputDevice  (iInputDevice)
+, m_iOutputDevice (iOutputDevice)
+, m_iRows         (iRows)
+, m_iColumns      (iColumns)
+, m_bHasRGBColors (KXTermCodes::HasRGBColors())
+{
+
+#ifdef DEKAF2_IS_WINDOWS
+
+	kSetTerminal(m_iInputDevice, true, 1, 0);
+
+#else
+
+	m_Termios = new struct termios;
+
+	if (m_Termios)
+	{
+		::tcgetattr(m_iInputDevice, m_Termios);
+
+		termios Changed     = *m_Termios;
 		Changed.c_lflag    &= ~(ICANON | ECHO | ECHONL);
 		Changed.c_cc[VMIN]  = 1;
 		Changed.c_cc[VTIME] = 0;
 
-		::tcsetattr(fd, TCSANOW, &Changed);
+		::tcsetattr(m_iInputDevice, TCSANOW, &Changed);
 	}
 
-	return Original;
+#endif
 
-} // InitTerminal
-
-//-----------------------------------------------------------------------------
-void KXTerm::ExitTerminal(struct termios* Original)
-//-----------------------------------------------------------------------------
-{
-	if (Original)
+	if (iRows == 0 || iColumns == 0)
 	{
-		int fd = STDIN_FILENO;
-		::tcsetattr(fd, TCSANOW, Original);
-
-		delete Original;
+		QueryTermSize();
 	}
 
-} // ExitTerminal
-
-#else // is windows
+} // ctor
 
 //-----------------------------------------------------------------------------
-KXTerm::KXTerm(uint16_t iRows, uint16_t iColumns)
-//-----------------------------------------------------------------------------
-: m_iRows(iRows)
-, m_iColumns(iColumns)
-{
-	kSetTerminal(true, 1, 0);
-}
-
 KXTerm::~KXTerm()
+//-----------------------------------------------------------------------------
 {
-	kSetTerminal(false, 1, 0);
-}
+	while (m_iChangedWindowTitle)
+	{
+		RestoreWindowTitle();
+	}
 
-#endif // is windows
+#ifdef DEKAF2_IS_WINDOWS
+
+	kSetTerminal(m_iInputDevice, false, 1, 0);
+
+#else
+
+	if (m_Termios)
+	{
+		::tcsetattr(m_iInputDevice, TCSANOW, m_Termios);
+
+		delete m_Termios;
+		m_Termios = nullptr;
+	}
+
+#endif
+
+} // dtor
 
 //-----------------------------------------------------------------------------
 void KXTerm::QueryTermSize()
@@ -249,6 +329,15 @@ void KXTerm::IntSetCursor(uint16_t iRow, uint16_t iColumn, bool bCheck)
 } // SetCursor
 
 //-----------------------------------------------------------------------------
+void KXTerm::CurToColumn(uint16_t iColumn)
+//-----------------------------------------------------------------------------
+{
+	iColumn = CheckColumn(iColumn);
+	Command(Csi, kFormat("{}G", iColumn));
+	m_iCursorColumn = iColumn;
+}
+
+//-----------------------------------------------------------------------------
 void KXTerm::CurLeft(uint16_t iColumns)
 //-----------------------------------------------------------------------------
 {
@@ -297,18 +386,54 @@ void KXTerm::CurDown(uint16_t iRows)
 }
 
 //-----------------------------------------------------------------------------
-void KXTerm::Cursor(bool bOn) const
+void KXTerm::ShowCursor(bool bOn) const
 //-----------------------------------------------------------------------------
 {
 	Command(bOn ? KXTermCodes::CursorOn() : KXTermCodes::CursorOff());
 }
 
 //-----------------------------------------------------------------------------
-void KXTerm::Blink(bool bOn) const
+void KXTerm::SetBlink(bool bOn) const
 //-----------------------------------------------------------------------------
 {
 	Command(bOn ? KXTermCodes::CursorBlink() : KXTermCodes::CursorNoBlink());
 }
+
+//-----------------------------------------------------------------------------
+bool KXTerm::SetWindowTitle(KStringView sWindowTitle)
+//-----------------------------------------------------------------------------
+{
+	if (sWindowTitle != m_sLastWindowTitle)
+	{
+		m_sLastWindowTitle = sWindowTitle;
+		++m_iChangedWindowTitle;
+		Command("\033[22t"); // push
+		Command("\033]0;");  // set
+		Command(m_sLastWindowTitle);
+		Command("\033\\");
+		return true;
+	}
+
+	return false;
+
+} // SetWindowTitle
+
+//-----------------------------------------------------------------------------
+void KXTerm::RestoreWindowTitle()
+//-----------------------------------------------------------------------------
+{
+	if (m_iChangedWindowTitle)
+	{
+#ifdef DEKAF2_IS_MACOS
+		// this is actually for the terminal app, and it only offers a reset, no stack
+		Command("\033]2;\033\\"); // reset
+#else
+		Command("\033[23t");      // pop
+#endif
+		--m_iChangedWindowTitle;
+	}
+
+} // RestoreWindowTitle
 
 //-----------------------------------------------------------------------------
 void KXTerm::SaveCursor()
@@ -338,6 +463,32 @@ void KXTerm::Home()
 }
 
 //-----------------------------------------------------------------------------
+void KXTerm::ClearLine()
+//-----------------------------------------------------------------------------
+{
+	Command(KXTermCodes::ClearLine());
+	m_iCursorColumn = 0;
+}
+
+//-----------------------------------------------------------------------------
+void KXTerm::CurToStartOfNextLine()
+//-----------------------------------------------------------------------------
+{
+	Command(KXTermCodes::CurToStartOfNextLine());
+	m_iCursorRow   += CheckRowDown(1);
+	m_iCursorColumn = 0;
+}
+
+//-----------------------------------------------------------------------------
+void KXTerm::CurToStartOfPrevLine()
+//-----------------------------------------------------------------------------
+{
+	Command(KXTermCodes::CurToStartOfPrevLine());
+	m_iCursorRow   -= CheckRowUp(1);
+	m_iCursorColumn = 0;
+}
+
+//-----------------------------------------------------------------------------
 KCodePoint KXTerm::Read() const
 //-----------------------------------------------------------------------------
 {
@@ -348,17 +499,83 @@ KCodePoint KXTerm::Read() const
 	}, EOF);
 }
 
+namespace {
+inline constexpr uint8_t Control(uint8_t c) { return c - ('a' - 1); }
+}
+
 //-----------------------------------------------------------------------------
-bool KXTerm::ReadLine(KStringView sPrompt, KString& sLine)
+KCodePoint KXTerm::EscapeToControl(KCodePoint ch) const
+//-----------------------------------------------------------------------------
+{
+	if (ch != '\033') return ch;
+
+	ch = Read();
+
+	switch (ch)
+	{
+		case '[':
+			ch = Read();
+
+			switch (ch)
+			{
+				case 'A': // CUR UP
+					return Control('p');
+
+				case 'B': // CUR DOWN
+					return Control('n');
+
+				case 'C': // CUR RIGHT
+					return Control('f');
+
+				case 'D': // CUR LEFT
+					return Control('b');
+
+				case '3':
+					ch = Read();
+					switch (ch)
+					{
+						case '~':   // DEL
+							return Control('d');
+					}
+					break;
+
+				default:
+					kDebug(2, "ESC [{}", char(ch));
+					break;
+			}
+			break;
+
+		case 'b':
+			return U'∫';
+
+		case 'f':
+			return U'ƒ';
+
+		default:
+			kDebug(2, "ESC {}", char(ch));
+			break;
+	}
+
+	return 0;
+
+} // EscapeToControl
+
+//-----------------------------------------------------------------------------
+bool KXTerm::EditLine(
+	KStringView sPrompt,
+	KString&    sLine,
+	KStringView sPromptFormatStart,
+	KStringView sPromptFormatEnd
+)
 //-----------------------------------------------------------------------------
 {
 	m_iCursorColumn = 0;
 
 	if (!sPrompt.empty())
 	{
-		Hightlight();
+		Write(sPromptFormatStart);
 		Write(sPrompt);
-		NoHightlight();
+		Write(sPromptFormatEnd);
 	}
 
 	Write(sLine);
@@ -366,6 +583,7 @@ bool KXTerm::ReadLine(KStringView sPrompt, KString& sLine)
 	using UCString = std::basic_string<Unicode::codepoint_t>;
 
 	UCString sUnicode;
+	UCString sClipboard;
 
 	if (!Unicode::FromUTF8(sLine, sUnicode))
 	{
@@ -375,6 +593,8 @@ bool KXTerm::ReadLine(KStringView sPrompt, KString& sLine)
 
 	auto iPos  = sUnicode.size();
 	auto iLast = iPos;
+	std::size_t iStoredPos = 0;
+	bool bCurLineHasEdits = true;
 	auto bCursorLimits = m_bCursorLimits;
 	m_bCursorLimits = false;
 
@@ -383,118 +603,21 @@ bool KXTerm::ReadLine(KStringView sPrompt, KString& sLine)
 		auto ch = Read();
 		bool bRefreshWholeLine = false;
 
-		switch (ch)
+		// do escape processing first, replace common sequences with control codes
+		switch (EscapeToControl(ch))
 		{
-			case '\033': // ESC
-				ch = Read();
-				switch (ch)
-				{
-					case '[':
-						ch = Read();
-						switch (ch)
-						{
-							case 'A': // CUR UP
-								if (m_History.HaveOlder())
-								{
-									if (!m_History.HaveStashed())
-									{
-										// save current edit
-										m_History.Stash(Unicode::ToUTF8<KString>(sUnicode));
-									}
-									sUnicode = Unicode::FromUTF8<UCString>(m_History.GetOlder());
-									iPos     = sUnicode.size();
-									bRefreshWholeLine = true;
-								}
-								else
-								{
-									Beep();
-								}
-								break;
+			case '\000': // this came from escape processing and did not
+						 // find a replacement
+				Beep();
+				continue;
 
-							case 'B': // CUR DOWN
-								if (m_History.HaveNewer())
-								{
-									sUnicode = Unicode::FromUTF8<UCString>(m_History.GetNewer());
-									iPos     = sUnicode.size();
-									bRefreshWholeLine = true;
-								}
-								else
-								{
-									Beep();
-								}
-								break;
+			case Unicode::END_OF_INPUT:
+				Write(" *** end of input ***");
+				return false;
 
-							case 'C': // CUR RIGHT
-								if (iPos < sUnicode.size())
-								{
-									++iPos;
-									iLast = iPos;
-									CurRight(1);
-								}
-								else
-								{
-									Beep();
-								}
-								continue;
-
-							case 'D': // CUR LEFT
-								if (iPos)
-								{
-									--iPos;
-									iLast = iPos;
-									CurLeft(1);
-								}
-								else
-								{
-									Beep();
-								}
-								continue;
-
-							case 'b':
-								kDebug(2, "Word left");
-								break;
-
-							case 'f':
-								kDebug(2, "Word right");
-								break;
-
-							case '3':
-								ch = Read();
-								switch (ch)
-								{
-									case '~':   // DEL
-										if (iPos < sUnicode.size())
-										{
-											sUnicode.erase(iPos, 1);
-										}
-										else
-										{
-											Beep();
-											continue;
-										}
-										break;
-								}
-								break;
-
-							default:
-								Beep();
-								kDebug(2, "ESC [{}", char(ch));
-								break;
-						}
-						break;
-					case ']':
-						kDebug(2, "ESC ]");
-						break;
-					case 'P':
-						kDebug(2, "ESC P");
-						break;
-					case '?':
-						kDebug(2, "ESC ?");
-						break;
-					default:
-						kDebug(2, "ESC {}", char(ch));
-						break;
-				}
+			case Unicode::INVALID_CODEPOINT:
+				kDebug(2, "invalid codepoint");
+				Beep();
 				break;
 
 			case '\n':   // done ..
@@ -517,10 +640,204 @@ bool KXTerm::ReadLine(KStringView sPrompt, KString& sLine)
 				}
 				break;
 
+			case Control('d'): // DELETE
+				if (iPos < sUnicode.size())
+				{
+					sUnicode.erase(iPos, 1);
+				}
+				else
+				{
+					Beep();
+					continue;
+				}
+				break;
+
+			case Control('a'): // goto start of line
+				iPos = 0;
+				break;
+
+			case Control('e'): // goto end of line
+				iPos = sUnicode.size();
+				break;
+
+			case Control('b'): // cur left
+				if (iPos)
+				{
+					--iPos;
+					iLast = iPos;
+					CurLeft(1);
+				}
+				else
+				{
+					Beep();
+				}
+				continue;
+
+			case Control('f'): // cur right
+				if (iPos < sUnicode.size())
+				{
+					++iPos;
+					iLast = iPos;
+					CurRight(1);
+				}
+				else
+				{
+					Beep();
+				}
+				continue;
+
+			case Control('n'): // cur down
+				// if we have touched this line then it became the new active line
+				// and has no history successor
+				if (bCurLineHasEdits == false && m_History.HaveNewer())
+				{
+					sUnicode = Unicode::FromUTF8<UCString>(m_History.GetNewer());
+					iPos     = sUnicode.size();
+					bRefreshWholeLine = true;
+				}
+				else
+				{
+					Beep();
+				}
+				break;
+
+			case Control('p'): // cur up
+				if (bCurLineHasEdits)
+				{
+					m_History.Stash(Unicode::ToUTF8<KString>(sUnicode));
+				}
+				if (m_History.HaveOlder())
+				{
+					if (!m_History.HaveStashed())
+					{
+						// save current edit
+						m_History.Stash(Unicode::ToUTF8<KString>(sUnicode));
+					}
+					sUnicode = Unicode::FromUTF8<UCString>(m_History.GetOlder());
+					iPos     = sUnicode.size();
+					bRefreshWholeLine = true;
+					bCurLineHasEdits  = false;
+				}
+				else
+				{
+					Beep();
+				}
+				break;
+
+			case Control('l'): // Clear
+				ClearScreen();
+				sUnicode.clear();
+				iPos = 0;
+				iLast = 0;
+				// need to write prompt if existing
+				continue;
+
+			case Control('t'): // transpose last two chars
+				if (iPos > 1)
+				{
+					auto c1 = sUnicode[iPos-1];
+					auto c2 = sUnicode[iPos-2];
+					sUnicode[iPos-1] = c2;
+					sUnicode[iPos-2] = c1;
+					bRefreshWholeLine = true;
+					break;
+				}
+				else
+				{
+					Beep();
+				}
+				continue;
+
+			case Control('k'): // clear line after cursor and move into clipboard
+				sClipboard = sUnicode.substr(iPos, npos);
+				sUnicode.erase(iPos, npos);
+				ClearToEndOfLine();
+				continue;
+
+			case Control('u'): // clear line before cursor and move into clipboard
+				sClipboard = sUnicode.substr(0, iPos);
+				sUnicode.erase(0, iPos);
+				iPos = 0;
+				break;
+
+			case Control('w'): // clear word before cursor and move into clipboard
+				while (iPos > 0 &&  kIsSpace(sUnicode[iPos - 1])) { --iPos; }
+				while (iPos > 0 && !kIsSpace(sUnicode[iPos - 1])) { --iPos; }
+				sClipboard = sUnicode.substr(iPos, npos);
+				sUnicode.erase(iPos, npos);
+				break;
+
+			case Control('v'): // paste clipboard (non-standard, ctrl-y pauses on mac)
+				sUnicode += sClipboard;
+				iPos += sClipboard.size();
+				break;
+
+			case Control('x'): // x-x toggle between start of line and current position
+				if (iPos)
+				{
+					iStoredPos = iPos;
+					iPos = 0;
+				}
+				else
+				{
+					iPos = std::min(iStoredPos, sUnicode.size());
+				}
+				break;
+
+			case U'ƒ':  // move forward one word
+				if (iPos >= sUnicode.size())
+				{
+					Beep();
+					continue;
+				}
+				while (iPos < sUnicode.size() && !kIsSpace(sUnicode[iPos])) { ++iPos; }
+				while (iPos < sUnicode.size() &&  kIsSpace(sUnicode[iPos])) { ++iPos; }
+				break;
+
+			case U'∫':  // move backward one word
+				if (iPos == 0)
+				{
+					Beep();
+					continue;
+				}
+				while (iPos > 0 &&  kIsSpace(sUnicode[iPos - 1])) { --iPos; }
+				while (iPos > 0 && !kIsSpace(sUnicode[iPos - 1])) { --iPos; }
+				break;
+#if 0
+			case '\t':         // TAB
+			case Control('r'): // search in history, use line until cursor as search string
+				if (iPos == 0 || iPos > sUnicode.size())
+				{
+					Beep();
+				}
+				else
+				{
+					KString sSearch = Unicode::ToUTF8<KString>(sUnicode.begin(), sUnicode.begin() + iPos-1);
+					sUnicode = Unicode::FromUTF8<UCString>(m_History.Find(sSearch, true));
+					if (iPos > sUnicode.size())
+					{
+						iPos = sUnicode.size();
+					}
+					bCurLineHasEdits = false;
+				}
+				break;
+#endif
 			default:
+				bCurLineHasEdits = true;
 				if (iPos == sUnicode.size())
 				{
 					sUnicode += ch.value();
+
+					if (iLast == iPos)
+					{
+						// shortcut: just output this character at the end of line
+						WriteCodepoint(ch);
+						// and advance pos and last
+						++iPos;
+						++iLast;
+						// and continue reading
+						continue;
+					}
 				}
 				else // if (iPos < sUnicode.size())
 				{
@@ -540,39 +857,63 @@ bool KXTerm::ReadLine(KStringView sPrompt, KString& sLine)
 			// refresh line right of pos
 			if (iLast > iPos) CurLeft(iLast - iPos);
 		}
+
 		ClearToEndOfLine();
+
 		auto iStart = std::min(iLast, iPos);
-		Write(Unicode::ToUTF8<KString>(sUnicode.substr(iStart, sUnicode.size() - iStart)));
+
+		if (iStart > sUnicode.size())
+		{
+			// better safe than sorry
+			Write(" *** input error ***");
+			return false;
+		}
+
+		auto sOut   = Unicode::ToUTF8<KString>(sUnicode.begin() + iStart, sUnicode.end());
+		Write(sOut);
+
 		CurLeft(sUnicode.size() - iPos);
+
 		iLast = iPos;
 	}
 
 } // ReadLine
 
 //-----------------------------------------------------------------------------
+void KXTerm::RawWrite(KStringView sRaw) const
+//-----------------------------------------------------------------------------
+{
+	kWrite(m_iOutputDevice, sRaw.data(), sRaw.size());
+
+} // RawWrite
+
+//-----------------------------------------------------------------------------
 void KXTerm::Write(KStringView sText)
 //-----------------------------------------------------------------------------
 {
-	// get the unicode codepoint count for the text
-	auto iCount = sText.SizeUTF8();
-
-	if (CursorLimits() && (iCount + m_iCursorColumn) > Columns())
+	if (CursorLimits())
 	{
-		if (Wrap())
+		// get the unicode codepoint count for the text
+		auto iCount = sText.SizeUTF8();
+
+		if (iCount + m_iCursorColumn > Columns())
 		{
-			// not yet implemented
+			if (Wrap())
+			{
+				// not yet implemented
+			}
+			else
+			{
+				// just clip the text ..
+				iCount = Columns() - m_iCursorColumn;
+				sText  = sText.LeftUTF8(iCount);
+			}
 		}
-		else
-		{
-			// just clip the text ..
-			iCount = Columns() - m_iCursorColumn;
-			sText  = sText.LeftUTF8(iCount);
-		}
+
+		m_iCursorColumn += iCount;
 	}
 
 	RawWrite(sText);
-
-	m_iCursorColumn += iCount;
 
 } // Write
 
@@ -585,18 +926,20 @@ void KXTerm::Write(uint16_t iRow, uint16_t iColumn, KStringView sText)
 }
 
 //-----------------------------------------------------------------------------
-void KXTerm::RawWrite(KStringView sRaw) const
+void KXTerm::WriteLine(KStringView sText)
 //-----------------------------------------------------------------------------
 {
-	kWrite(
-#ifndef DEKAF2_IS_WINDOWS
-	       STDOUT_FILENO
-#else
-	       STD_OUTPUT_HANDLE
-#endif
-	       , sRaw.data(), sRaw.size());
+	Write(sText);
+	CurToStartOfNextLine();
+}
 
-} // RawWrite
+//-----------------------------------------------------------------------------
+void KXTerm::WriteLine(uint16_t iRow, uint16_t iColumn, KStringView sText)
+//-----------------------------------------------------------------------------
+{
+	Write(iRow, iColumn, sText);
+	CurToStartOfNextLine();
+}
 
 //-----------------------------------------------------------------------------
 void KXTerm::WriteCodepoint (KCodePoint chRaw)
@@ -608,11 +951,15 @@ void KXTerm::WriteCodepoint (KCodePoint chRaw)
 } // WriteCodepoint
 
 //-----------------------------------------------------------------------------
-void KXTerm::Beep()
+void KXTerm::Beep() const
 //-----------------------------------------------------------------------------
 {
-	RawWrite("\007"); // bell
-}
+	if (m_bBeep)
+	{
+		RawWrite("\007"); // bell
+	}
+
+} // Beep
 
 //-----------------------------------------------------------------------------
 void KXTerm::Command(CGroup Group, KStringView sCommand) const
@@ -682,7 +1029,7 @@ KString KXTerm::QueryTerminal(KStringView sRequest)
 	if (m_bIsTerminal == 2)
 	{
 		// we do not know yet if this is a real terminal, so switch blocking off
-		kSetTerminal(true, 0, 1);
+		kSetTerminal(m_iInputDevice, true, 0, 1);
 	}
 
 	int ch;
@@ -715,20 +1062,34 @@ KString KXTerm::QueryTerminal(KStringView sRequest)
 		}
 
 		// now switch blocking mode on
-		kSetTerminal(true, 1, 0);
+		kSetTerminal(m_iInputDevice, true, 1, 0);
 	}
 
 #endif
 
 	return sResponse;
 
-} // ReadTerminalResponse
+} // QueryTerminal
+
+//-----------------------------------------------------------------------------
+uint16_t KXTerm::CheckColumn       (uint16_t iColumns) const
+//-----------------------------------------------------------------------------
+{
+	return CursorLimits() ? std::min(iColumns, m_iColumns) : iColumns;
+}
+
+//-----------------------------------------------------------------------------
+uint16_t KXTerm::CheckRow          (uint16_t iRows) const
+//-----------------------------------------------------------------------------
+{
+	return CursorLimits() ? std::min(iRows, m_iRows) : iRows;
+}
 
 //-----------------------------------------------------------------------------
 uint16_t KXTerm::CheckColumnLeft   (uint16_t iColumns) const
 //-----------------------------------------------------------------------------
 {
-	return (CursorLimits() &&iColumns > m_iCursorColumn) ? 0 : iColumns;
+	return (CursorLimits() && iColumns > m_iCursorColumn) ? 0 : iColumns;
 }
 
 //-----------------------------------------------------------------------------

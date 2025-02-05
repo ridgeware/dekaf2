@@ -443,16 +443,13 @@ NarrowString ToUTF8(Ch sch)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) into a UTF8 string
-template<typename NarrowString, typename WideString,
-         typename std::enable_if<!std::is_integral<WideString>::value
-                              && KUTF8_detail::HasSize<WideString>::value, int>::type = 0>
+/// Convert a wide string (UTF16 or UTF32) into an UTF8 string from two iterators
+template<typename NarrowString, typename Iterator>
 KUTF8_CONSTEXPR_14
-void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
+void ToUTF8(Iterator& it, Iterator ie, NarrowString& sNarrow)
 //-----------------------------------------------------------------------------
 {
-	typename WideString::const_iterator it = sWide.cbegin();
-	typename WideString::const_iterator ie = sWide.cend();
+	using N = typename std::remove_reference<decltype(*it)>::type;
 
 	for (; KUTF8_LIKELY(it != ie); ++it)
 	{
@@ -460,7 +457,7 @@ void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 		// If we would have surrogate pairs in 32 bit strings it is an error in their
 		// construction in the first place. We will not try to reassemble them.
 		// The UTF8 encoder will convert those to replacement characters.
-		if (sizeof(typename WideString::value_type) == 2 && KUTF8_UNLIKELY(IsSurrogate(*it)))
+		if (sizeof(N) == 2 && KUTF8_UNLIKELY(IsSurrogate(*it)))
 		{
 			if (KUTF8_LIKELY(IsLeadSurrogate(*it)))
 			{
@@ -501,6 +498,34 @@ void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
 			ToUTF8(*it, sNarrow);
 		}
 	}
+}
+
+//-----------------------------------------------------------------------------
+/// Convert a wide string (UTF16 or UTF32) into a UTF8 string from two iterators
+template<typename NarrowString, typename Iterator,
+         typename std::enable_if<!KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
+KUTF8_CONSTEXPR_14
+NarrowString ToUTF8(Iterator it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+	NarrowString sNarrow{};
+	ToUTF8(it, ie, sNarrow);
+	return sNarrow;
+}
+
+//-----------------------------------------------------------------------------
+/// Convert a wide string (UTF16 or UTF32) into a UTF8 string
+template<typename NarrowString, typename WideString,
+         typename std::enable_if<!std::is_integral<WideString>::value
+                              && KUTF8_detail::HasSize<WideString>::value, int>::type = 0>
+KUTF8_CONSTEXPR_14
+void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
+//-----------------------------------------------------------------------------
+{
+	typename WideString::const_iterator it = sWide.cbegin();
+	typename WideString::const_iterator ie = sWide.cend();
+
+	ToUTF8(it, ie, sNarrow);
 }
 
 //-----------------------------------------------------------------------------

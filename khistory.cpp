@@ -46,12 +46,12 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-bool KHistory::SetFile(KString sPathname)
+bool KHistory::LoadHistory(KString sPathname)
 //-----------------------------------------------------------------------------
 {
 	if (sPathname.empty())
 	{
-		sPathname = kFormat("{}/.config/{}/term-history.txt", kGetHome(), kBasename(kGetOwnPathname()));
+		sPathname = kFormat("{}/.config/{}/terminal-history.txt", kGetHome(), kBasename(kGetOwnPathname()));
 	}
 
 	// make sure the path exists
@@ -84,12 +84,17 @@ bool KHistory::SetFile(KString sPathname)
 } // SetFile
 
 //-----------------------------------------------------------------------------
-void KHistory::SetSize(uint32_t iHistorySize)
+void KHistory::SetSize(uint32_t iHistorySize, bool bToDisk, KString sPathname)
 //-----------------------------------------------------------------------------
 {
-	if (iHistorySize < 100)
+	if (bToDisk)
 	{
-		iHistorySize = 100;
+		LoadHistory(std::move(sPathname));
+	}
+
+	if (iHistorySize > 0 && iHistorySize < iMinHistory)
+	{
+		iHistorySize = iMinHistory;
 	}
 
 	m_iMaxHistory = iHistorySize;
@@ -102,8 +107,8 @@ void KHistory::SetSize(uint32_t iHistorySize)
 bool KHistory::Add(KStringView sLine)
 //-----------------------------------------------------------------------------
 {
-	// empty lines are added, too
-	if (m_History.empty() || m_History.back() != sLine)
+	// neither empty nor duplicate lines are added
+	if (m_iMaxHistory > 0 && !sLine.empty() && (m_History.empty() || m_History.back() != sLine))
 	{
 		CheckSize();
 
@@ -129,6 +134,9 @@ void KHistory::Stash(KStringView sLine)
 {
 	m_sStash     = sLine;
 	m_bHaveStash = true;
+
+	// when stashing we jump to the end of the history
+	ResetIter();
 }
 
 //-----------------------------------------------------------------------------
@@ -186,6 +194,32 @@ KStringView KHistory::GetNewer()
 }
 
 //-----------------------------------------------------------------------------
+KStringView KHistory::Find(KStringView sSearch, bool bStartsWith)
+//-----------------------------------------------------------------------------
+{
+	auto it = m_it;
+	
+	while (it != m_History.begin())
+	{
+		++it;
+		if (bStartsWith)
+		{
+			if (it->starts_with(sSearch))
+			{
+				return *it;
+			}
+		}
+		else if (it->contains(sSearch))
+		{
+			return *it;
+		}
+	}
+
+	return {};
+
+} // Find
+
+//-----------------------------------------------------------------------------
 void KHistory::ResetIter ()
 //-----------------------------------------------------------------------------
 {
@@ -198,24 +232,37 @@ void KHistory::CheckSize()
 {
 	if (m_History.size() > m_iMaxHistory)
 	{
-		// erase 100 more to not repeat it for every new line
-		m_History.erase(m_History.begin(), (m_History.begin() + (m_History.size() - (m_iMaxHistory - 100))));
-
-		if (!m_sHistoryfile.empty())
+		if (m_iMaxHistory == 0)
 		{
-			// flush shortened list to history file
-			KOutFile File(m_sHistoryfile, std::ios_base::trunc);
+			// just remove all history
+			m_History.clear();
 
-			if (File.is_open())
+			if (!m_sHistoryfile.empty())
 			{
-				for (auto sHist : m_History)
-				{
-					File.WriteLine(sHist);
-				}
+				kRemoveFile(m_sHistoryfile);
 			}
-			else
+		}
+		else
+		{
+			// erase 100 more to not repeat it for every new line
+			m_History.erase(m_History.begin(), (m_History.begin() + (m_History.size() - (m_iMaxHistory - iDeleteForResize))));
+
+			if (!m_sHistoryfile.empty())
 			{
-				kDebug(1, "cannot open history for writing: {}", m_sHistoryfile);
+				// flush shortened list to history file
+				KOutFile File(m_sHistoryfile, std::ios_base::trunc);
+
+				if (File.is_open())
+				{
+					for (auto sHist : m_History)
+					{
+						File.WriteLine(sHist);
+					}
+				}
+				else
+				{
+					kDebug(1, "cannot open history for writing: {}", m_sHistoryfile);
+				}
 			}
 		}
 

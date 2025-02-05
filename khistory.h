@@ -56,6 +56,12 @@ class KHistory
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+	static constexpr uint32_t iDefaultHistory  = 0;
+	static constexpr uint32_t iMinHistory      = 100;
+	static constexpr uint32_t iDeleteForResize = iMinHistory / 10;
+
+	static_assert(iMinHistory      >= 100       , "do not pick too low history sizes");
+
 //-------
 public:
 //-------
@@ -64,18 +70,21 @@ public:
 
 	using Storage = std::vector<KString>;
 
-	/// set a history file - if pathname is empty a program name derived default filename will be used in ~/.config/dekaf2/
-	bool           SetFile (KString sPathname = KString{});
 	/// set the size for the history, both in memory and on disk
-	/// @param iHistorySize the size for the history, minimum 100, default 1000
-	void           SetSize (uint32_t iHistorySize);
+	/// @param iHistorySize the size for the history, minimum 100. 0 switches history off (which is the default)
+	/// @param bToDisk if true stores the history in a file
+	/// @param sPathname the file to store the history into. If empty a default filename will be used in
+	/// ~/.config/{{program name}}/terminal-history.txt
+	void           SetSize (uint32_t iHistorySize, bool bToDisk, KString sPathname = KString{});
 	/// add latest line to history
 	bool           Add     (KStringView sLine);
 	/// do we have a stashed line?
 	bool           HaveStashed() const { return m_bHaveStash; }
 	/// stash the line that was currently edited
 	void           Stash   (KStringView sLine);
-	/// get the stashed line back
+	/// get the stashed line back (this also happens automatically when you descend history
+	/// down before the last item stored, therefore normally you do not need to call this function
+	/// on your own)
 	KStringView    PopStashed();
 
 	/// get current depth in history
@@ -88,6 +97,9 @@ public:
 	KStringView    GetOlder();
 	/// get a newer line in history
 	KStringView    GetNewer();
+	/// get last found entry in history
+	/// @param bStartsWith if set to true, only entries that start with the search string are found
+	KStringView    Find(KStringView sSearch, bool bStartsWith);
 
 	/// is history empty?
 	bool           empty() const { return m_History.empty(); }
@@ -103,14 +115,14 @@ private:
 
 	void CheckSize ();
 	void ResetIter ();
+	bool LoadHistory(KString sPathname);
 
 	KString  m_sHistoryfile;
 	KString  m_sStash;
 	Storage  m_History;
-	Storage::const_iterator m_it { m_History.begin() };
-	uint32_t m_iMaxHistory       {  1000 };
+	Storage::const_iterator m_it { m_History.end() };
+	uint32_t m_iMaxHistory       { iDefaultHistory };
 	bool     m_bHaveStash        { false };
-//	bool     m_bLastWasOlder     { false };
 
 }; // KHistory
 

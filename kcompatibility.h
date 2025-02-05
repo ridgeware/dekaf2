@@ -203,6 +203,16 @@ namespace std
 	using pid_t   = int32_t;
 	using uid_t   = uint32_t;
 
+	#ifndef STDIN_FILENO
+		#define STDIN_FILENO STD_INPUT_HANDLE
+	#endif
+	#ifndef STDOUT_FILENO
+		#define STDOUT_FILENO STD_OUTPUT_HANDLE
+	#endif
+	#ifndef STDERR_FILENO
+		#define STDERR_FILENO STD_ERROR_HANDLE
+	#endif
+
 	#include <process.h>
 	#ifndef getpid
 		#define getpid _getpid

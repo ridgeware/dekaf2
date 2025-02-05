@@ -63,21 +63,25 @@ DEKAF2_NAMESPACE_BEGIN
 
 #if DEKAF2_HAS_TIMEZONES
 
-/// returns the timezone of the local timezone for this process
+/// returns the timezone of the local timezone for this process, or nullptr on error
+/// @param bThrow if set to true will throw with std::system_error if there is no local timezone
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline const chrono::time_zone* kGetLocalTimezone()                  { return chrono::current_zone();         }
+const chrono::time_zone* kGetLocalTimezone(bool bThrow);
 
-/// returns the timezone name of the local timezone for this process
+/// returns the timezone name of the local timezone for this process, or empty string on error
+/// @param bThrow if set to true will throw with std::system_error if there is no local timezone
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline KString kGetLocalTimezoneName()                               { return kGetLocalTimezone()->name();    }
+KString kGetLocalTimezoneName(bool bThrow);
 
 /// returns a sorted vector with all time zone names
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::vector<KString> kGetListOfTimezoneNames();
 
-/// returns a time zone that matches the sZoneName, or throws std::runtime_error
+/// returns a time zone that matches the sZoneName, or nullptr on error
+/// @param sZoneName the name of the time zone to search for
+/// @param bThrow if set to true will throw with std::runtime_error if there is no local timezone
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline const chrono::time_zone* kFindTimezone(KStringView sZoneName) { return chrono::locate_zone(sZoneName); }
+const chrono::time_zone* kFindTimezone(KStringView sZoneName, bool bThrow);
 
 // We deliberately do not offer a method to set the local timezone
 // as it would only have effect on C time utilities, not on the C++

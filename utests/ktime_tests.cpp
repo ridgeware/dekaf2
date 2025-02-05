@@ -224,11 +224,11 @@ TEST_CASE("KTime") {
 		auto dDiff5 = UTC3.to_sys() - UTC2;
 		CHECK ( KDuration(dDiff5).seconds() == chrono::seconds(61) );
 
-		auto tz = kFindTimezone("Europe/Paris");
+		auto tz = kFindTimezone("Europe/Paris", false);
 
 		auto oldLocale = kGetGlobalLocale();
 
-		if (kSetGlobalLocale("fr_FR.UTF-8"))
+		if (tz != nullptr && kSetGlobalLocale("fr_FR.UTF-8"))
 		{
 			KAtScopeEnd( kSetGlobalLocale(oldLocale.name()) );
 
@@ -260,23 +260,18 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.get_utc_offset() == chrono::minutes(60) );
 #ifndef DEKAF2_HAS_MUSL
 				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:%A %c}") == "Mardi Mar  1 jan 00:59:59 1974" );
-				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City")), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
+				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
 #endif
 			}
 		}
 
+		tz = kFindTimezone("Asia/Tokyo", false);
+		bool bHasTimezone = tz != nullptr;
+
+		if (bHasTimezone)
 		{
 			// these checks do not rely on global environment settings
 
-			bool bHasTimezone = false;
-
-			const chrono::time_zone* tz = nullptr;
-			try {
-				tz = kFindTimezone("Asia/Tokyo");
-				bHasTimezone = true;
-			} catch (const std::exception& ex) {
-				kPrintLine ( "cannot find timezone Asia/Tokyo" );
-			}
 
 			KLocalTime Local1(UTC1, tz);
 
@@ -313,7 +308,7 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.weekday()     == chrono::Tuesday );
 #ifndef DEKAF2_HAS_MUSL
 				if (bHasTimezone) {
-					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City")), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
+					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
 				}
 #endif
 			}
@@ -817,10 +812,13 @@ TEST_CASE("KTime") {
 		auto now2 = kParseTimestamp(sNow);
 		auto diff = KUnixTime(now2) - now;
 		CHECK ( chrono::duration_cast<chrono::seconds>(diff).count() < 3 );
-		auto tz = kFindTimezone("Asia/Tokyo");
+		auto tz = kFindTimezone("Asia/Tokyo", false);
 		KUnixTime U("12:34:56 16.08.2022");
 		CHECK ( kFormTimestamp(U) == "2022-08-16 12:34:56" );
-		CHECK ( kFormTimestamp(KLocalTime(U, tz), "{:%Y-%m-%d %H:%M:%S}") == "2022-08-16 21:34:56" );
+		if (tz)
+		{
+			CHECK ( kFormTimestamp(KLocalTime(U, tz), "{:%Y-%m-%d %H:%M:%S}") == "2022-08-16 21:34:56" );
+		}
 	}
 
 	SECTION("custom formatters")
@@ -828,13 +826,16 @@ TEST_CASE("KTime") {
 		KUnixTime U = kParseTimestamp("12:34:56 16.08.2022");
 		CHECK ( kFormat("{:%F %T}", U) == "2022-08-16 12:34:56" );
 		KUTCTime UTC("12:34:56 16.08.2022");
-		auto tz = kFindTimezone("Asia/Tokyo");
-		KLocalTime Local(UTC, tz);
+		auto tz = kFindTimezone("Asia/Tokyo", false);
+		if (tz)
+		{
+			KLocalTime Local(UTC, tz);
 #if DEKAF2_HAS_FMT_FORMAT
-		CHECK ( kFormat("{:%Z: %F %T}, {:%Z: %F %T}", UTC, Local) == "UTC: 2022-08-16 12:34:56, JST: 2022-08-16 21:34:56" );
+			CHECK ( kFormat("{:%Z: %F %T}, {:%Z: %F %T}", UTC, Local) == "UTC: 2022-08-16 12:34:56, JST: 2022-08-16 21:34:56" );
 #else
-		CHECK ( kFormat("{:%F %T}, {:%F %T}", UTC, Local) == "2022-08-16 12:34:56, 2022-08-16 21:34:56" );
+			CHECK ( kFormat("{:%F %T}, {:%F %T}", UTC, Local) == "2022-08-16 12:34:56, 2022-08-16 21:34:56" );
 #endif
+		}
 		CHECK ( kFormat("{}", UTC.hours()) == "12h" );
 		//			CHECK ( kFormat("{}", UTC.days())  == "16d" );
 		// mind you that days/months/years do not yet work.. (but would output e.g. "16[86400]s" for 16 days)
@@ -1033,12 +1034,8 @@ TEST_CASE("KTime") {
 		bool bHasLocale = false;
 
 		{ // setup flags
-			try {
-				auto* tz = kFindTimezone("Asia/Tokyo");
-				bHasTimezone = true;
-			} catch (const std::exception& ex) {
-				kPrintLine ( "cannot find timezone Asia/Tokyo" );
-			}
+			auto tz = kFindTimezone("Asia/Tokyo", false);
+			bHasTimezone = tz != nullptr;
 			std::locale loc;
 			try {
 				std::locale("ja_JP");
@@ -1054,7 +1051,7 @@ TEST_CASE("KTime") {
 			                                  // - as we do not note a timezone in the timestamp,
 			                                  // the timestamp is interpreted as local to the
 			                                  // timezone assigned to KLocalTime (Asia/Tokyo)
-			KLocalTime TokyoTime("2012-01-31 12:15:00", kFindTimezone("Asia/Tokyo"));
+			KLocalTime TokyoTime("2012-01-31 12:15:00", kFindTimezone("Asia/Tokyo", true));
 #if DEKAF2_HAS_FMT_FORMAT
 			kPrintLine("Tokyo: {:%Z %c}", TokyoTime);              // -> "Tokyo: JST Tue Jan 31 12:15:00 2012"
 			kPrintLine(std::locale("ja_JP"), "Tokyo: {:%Z %c}", TokyoTime); // -> "Tokyo: JST 火  1/31 12:15:00 2012"
@@ -1103,7 +1100,7 @@ TEST_CASE("KTime") {
 			kPrintLine("{:%Z %c}", utc);      // -> "UTC Thu Feb 28 03:15:00 2013"
 
 			                                  // transform into eastern time:
-			auto BostonTime = KLocalTime(TokyoTime, kFindTimezone("America/New_York"));
+			auto BostonTime = KLocalTime(TokyoTime, kFindTimezone("America/New_York", true));
 
 			if (BostonTime.is_leap() && !BostonTime.is_dst() && !BostonTime.is_last_day())
 			{                                 // is leap year, no DST, not last day of the month..

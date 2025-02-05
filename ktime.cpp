@@ -60,6 +60,60 @@ DEKAF2_NAMESPACE_BEGIN
 
 #if DEKAF2_HAS_TIMEZONES
 //-----------------------------------------------------------------------------
+const chrono::time_zone* kGetLocalTimezone(bool bThrow)
+//-----------------------------------------------------------------------------
+{
+	try
+	{
+		return chrono::current_zone();
+	}
+	catch (const std::system_error& ex)
+	{
+		kDebug(1, ex.what());
+		if (bThrow) throw;
+	}
+
+	return nullptr;
+
+} // kGetLocalTimezone
+
+//-----------------------------------------------------------------------------
+KString kGetLocalTimezoneName(bool bThrow)
+//-----------------------------------------------------------------------------
+{
+	try
+	{
+		return chrono::current_zone()->name();
+	}
+	catch (const std::system_error& ex)
+	{
+		kDebug(1, ex.what());
+		if (bThrow) throw;
+	}
+
+	return {};
+
+} // kGetLocalTimezoneName
+
+//-----------------------------------------------------------------------------
+const chrono::time_zone* kFindTimezone(KStringView sZoneName, bool bThrow)
+//-----------------------------------------------------------------------------
+{
+	try
+	{
+		return chrono::locate_zone(sZoneName);
+	}
+	catch (const std::runtime_error& ex)
+	{
+		kDebug(1, ex.what());
+		if (bThrow) throw;
+	}
+
+	return nullptr;
+
+} // kFindTimezoneNoThrow
+
+//-----------------------------------------------------------------------------
 std::vector<KString> kGetListOfTimezoneNames()
 //-----------------------------------------------------------------------------
 {
@@ -75,6 +129,7 @@ std::vector<KString> kGetListOfTimezoneNames()
 	return Zones;
 
 } // kGetListOfTimezones
+
 #endif
 
 //-----------------------------------------------------------------------------

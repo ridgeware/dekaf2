@@ -9982,18 +9982,29 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 {
 	SetFlag (KSQL::F_IgnoreSelectKeyword);
 
-	KString sPrompt = (bQuiet) ? "" : kFormat("{} > ", ConnectSummary());
-	KXTerm  Terminal;
-	Terminal.SetHistoryFile();
 	KString sSQL;
+	KString sPrompt;
 	bool    bHaveFirstWord { false };
 	bool    bIsUse         { false };
 
+	if (!bQuiet)
+	{
+		sPrompt = kFormat("{} > ", ConnectSummary());
+		kWriteLine(":: enter help for help, quit or exit to leave");
+	}
+
+	KXTerm Terminal;
+	// write history into default location (~/.config/{PROGRAM_NAME}/terminal-history.txt)
+	Terminal.SetHistory(1000, true);
+
 	for (;;)
 	{
+		// set a window title (will be reset at exit)
+		Terminal.SetWindowTitle(ConnectSummary());
+
 		KString sLine;
 
-		if (!Terminal.ReadLine(sPrompt, sLine))
+		if (!Terminal.EditLine(sPrompt, sLine))
 		{
 			return;
 		}
@@ -10006,6 +10017,15 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			kPrintLine (":: format changed to {}", sLine);
 			kWriteLine ();
 		}
+		else if (sSQL.empty() && sLine == "clear")
+		{
+			Terminal.ClearScreen();
+		}
+		else if (sSQL.empty() && sLine == "quiet")
+		{
+			bQuiet = !bQuiet;
+			sPrompt.clear();
+		}
 		else if (sSQL.empty() && sLine == "help")
 		{
 			kWriteLine (":: enter SQL command, query or one of these formats for query output:");
@@ -10014,6 +10034,9 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			kWriteLine ("::    json     : JSON array");
 			kWriteLine ("::    csv      : comma-separated-value output");
 			kWriteLine ("::    html     : HTML table output");
+			kWriteLine ("::    clear    : clear screen");
+			kWriteLine ("::    quiet    : toggle quiet mode");
+			kWriteLine ("::    quit     : end the interpreter");
 			kWriteLine ();
 		}
 		else if (!sLine.empty())

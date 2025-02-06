@@ -32,6 +32,7 @@ int KSql::Main(int argc, char** argv)
 	uint16_t     iDBPort   = Options("port <number>      : database server port number" ,           0);
 	bool         bQuiet    = Options("q,quiet            : only show db output"         ,       false);
 	KStringViewZ sFormat   = Options("f,format <format>  : output format - ascii, vertical, json, csv, html, default ascii", "ascii");
+	bool         bVersion  = Options("v,version          : show version information"    ,       false);
 
 	// do a final check if all required options were set
 	if (!Options.Check()) return 1;
@@ -44,7 +45,14 @@ int KSql::Main(int argc, char** argv)
 	if (!sDBCFile.empty()) SQL.EnsureConnected ("", sDBCFile);
 	else SQL.SetConnect (DBType, sUser, sPassword, sDatabase, sHostname, iDBPort);
 
-	if (!bQuiet) kPrintLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
+	if (!bQuiet)
+	{
+		kPrintLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
+		if (bVersion)
+		{
+			kPrintLine(":: {}", Dekaf::GetVersionInformation());
+		}
+	}
 
 	auto Format = KSQL::CreateOutputFormat(sFormat);
 

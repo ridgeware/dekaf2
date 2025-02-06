@@ -657,7 +657,7 @@ bool KSQL::SetError(KString sError, uint32_t iErrorNum/*=-1*/, bool bNoThrow/*=f
 		|| m_iDBType == DBT::SQLSERVER15
 		|| m_iDBType == DBT::SYBASE )
 	{
-		if (!sError.contains(" Severity "))
+		if (sError.empty() || (!sError.contains(" Severity ") && sError.contains("State")))
 		{
 			// this is not an error but an informational message
 			SetInfo(std::move(sError));
@@ -2214,6 +2214,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 				if (!bOK)
 				{
 					kDebug (3, "ctlib_execsql returned false");
+					sError = m_sCtLibLastError;
 				}
 				break;
 			#endif
@@ -3417,7 +3418,15 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				{
 					continue;
 				}
-				return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
+				// take care, some of the SQLServer "errors" are only
+				// informational messages. SetError() recognizes those
+				// and returns with 'true' instead of the normal 'false'
+				// then. Only stop the process flow here if the response
+				// is 'false'!
+				if (!SetError(m_sCtLibLastError, m_iCtLibErrorNum))
+				{
+					return false;
+				}
 			}
 
 			break; // success
@@ -4980,6 +4989,10 @@ KString KSQL::GetLastInfo()
 	if (m_dMYSQL != nullptr)
 	{
 		return mysql_info(m_dMYSQL);
+	}
+	else if (!m_sLastInfo.empty())
+	{
+		return m_sLastInfo;
 	}
 	else
 	{
@@ -10116,11 +10129,20 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 
 				if (!sSQL.empty())
 				{
-					if (!OutputQuery (sSQL, Format) && GetLastError())
+					bool bSuccess = false;
+
+					if (bIsUse)
 					{
-						kPrintLine (">> {}", GetLastError());
+						KSQLString sSafeSQL;
+						sSafeSQL.ref() = sSQL;
+						bSuccess = ExecRawSQL(sSafeSQL);
 					}
-					else if (GetLastError())
+					else
+					{
+						bSuccess = OutputQuery (sSQL, Format);
+					}
+
+					if (!bSuccess)
 					{
 						kPrintLine (">> {}", GetLastError());
 					}

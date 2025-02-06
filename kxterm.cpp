@@ -842,7 +842,7 @@ bool KXTerm::EditLine(
 				while (iPos > 0 &&  kIsSpace(sUnicode[iPos - 1])) { --iPos; }
 				while (iPos > 0 && !kIsSpace(sUnicode[iPos - 1])) { --iPos; }
 				break;
-#if 0
+
 			case '\t':         // TAB
 			case Control('r'): // search in history, use line until cursor as search string
 				if (iPos == 0 || iPos > sUnicode.size())
@@ -860,7 +860,7 @@ bool KXTerm::EditLine(
 					bCurLineHasEdits = false;
 				}
 				break;
-#endif
+
 			default:
 				bCurLineHasEdits = true;
 				if (iPos == sUnicode.size())

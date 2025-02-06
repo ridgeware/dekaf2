@@ -203,7 +203,7 @@ KStringView KHistory::Find(KStringView sSearch, bool bStartsWith)
 	
 	while (it != m_History.begin())
 	{
-		++it;
+		--it;
 		if (bStartsWith)
 		{
 			if (it->starts_with(sSearch))

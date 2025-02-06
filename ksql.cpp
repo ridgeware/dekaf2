@@ -2987,6 +2987,14 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 				return (false);
 			}
 
+			// extra safety check. in principle ExecLastRawSQL() above would
+			// return false when m_dMYSQL would be null.
+			if (!m_dMYSQL)
+			{
+				kDebug(1, "no mysql connector");
+				return false;
+			}
+
 			kDebug (3, "mysql_use_result()...");
 			m_dMYSQLResult = mysql_use_result (m_dMYSQL);
 			if (!m_dMYSQLResult)
@@ -4969,7 +4977,15 @@ KString KSQL::GetLastInfo()
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_HAS_MYSQL)
-	return mysql_info(m_dMYSQL);
+	if (m_dMYSQL != nullptr)
+	{
+		return mysql_info(m_dMYSQL);
+	}
+	else
+	{
+		kDebug(1, "no mysql connector");
+		return {};
+	}
 #else
 	return {};
 #endif

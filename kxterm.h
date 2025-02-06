@@ -256,7 +256,7 @@ public:
 	void RestoreWindowTitle();
 
 	/// is this an ANSII terminal, or a dumb terminal without cursor control?
-	bool     IsTerminal        () const { return m_bIsTerminal;                            }
+	bool     IsTerminal        () const { return m_iIsTerminal;                            }
 	/// returns true if the terminal device supports "true colors" / RGB colors (24 bits)
 	bool     HasRGBColors      () const { return m_bHasRGBColors;                          }
 
@@ -405,7 +405,7 @@ private:
 
 	uint16_t m_iChangedWindowTitle{ 0 };
 
-	uint8_t  m_bIsTerminal        { 2 }; // 2 means: not yet tested
+	uint8_t  m_iIsTerminal        { 2 }; // 2 means: not yet tested
 	bool     m_bBeep              { true  };
 	bool     m_bCursorLimits      { true  };
 	bool     m_bHasRGBColors      { false };

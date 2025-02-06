@@ -213,14 +213,44 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 
 	if (m_Termios)
 	{
-		::tcgetattr(m_iInputDevice, m_Termios);
+		bool bIsRealTerm = false;
 
-		termios Changed     = *m_Termios;
-		Changed.c_lflag    &= ~(ICANON | ECHO | ECHONL);
-		Changed.c_cc[VMIN]  = 1;
-		Changed.c_cc[VTIME] = 0;
+		auto iResult = ::tcgetattr(m_iInputDevice, m_Termios);
 
-		::tcsetattr(m_iInputDevice, TCSANOW, &Changed);
+		if (!iResult)
+		{
+			termios Changed     = *m_Termios;
+			Changed.c_lflag    &= ~(ICANON | ECHO | ECHONL);
+			Changed.c_cc[VMIN]  = 1;
+			Changed.c_cc[VTIME] = 0;
+
+			if (!::tcsetattr(m_iInputDevice, TCSANOW, &Changed))
+			{
+				termios Set;
+				if (!::tcgetattr(m_iInputDevice, &Set))
+				{
+					if (!memcmp(&Changed, &Set, sizeof(termios)))
+					{
+						// we could read back our settings, so we
+						// assume this is really a terminal
+						bIsRealTerm = true;
+					}
+				}
+			}
+		}
+		else
+		{
+			// the termios struct is not valid
+			delete m_Termios;
+			m_Termios = nullptr;
+		}
+
+		if (!bIsRealTerm)
+		{
+			kDebug(1, strerror(errno));
+			// this is not a real terminal
+			m_iIsTerminal = 0;
+		}
 	}
 
 #endif
@@ -574,9 +604,9 @@ bool KXTerm::EditLine(
 
 	if (!sPrompt.empty())
 	{
-		Write(sPromptFormatStart);
+		Command(sPromptFormatStart);
 		Write(sPrompt);
-		Write(sPromptFormatEnd);
+		Command(sPromptFormatEnd);
 	}
 
 	Write(sLine);
@@ -605,7 +635,15 @@ bool KXTerm::EditLine(
 		bool bRefreshWholeLine = false;
 
 		// do escape processing first, replace common sequences with control codes
-		switch (EscapeToControl(ch))
+		ch = EscapeToControl(ch);
+
+		if (!IsTerminal() && (ch.IsASCIICntrl() && ch != '\n'))
+		{
+			// a control char - we cannot display their effects on a non-terminal
+			continue;
+		}
+
+		switch (ch)
 		{
 			case '\000': // this came from escape processing and did not
 						 // find a replacement
@@ -786,7 +824,7 @@ bool KXTerm::EditLine(
 				break;
 
 			case U'ƒ':  // move forward one word
-				if (iPos >= sUnicode.size())
+				if (!IsTerminal() || iPos >= sUnicode.size())
 				{
 					Beep();
 					continue;
@@ -796,7 +834,7 @@ bool KXTerm::EditLine(
 				break;
 
 			case U'∫':  // move backward one word
-				if (iPos == 0)
+				if (!IsTerminal() || iPos == 0)
 				{
 					Beep();
 					continue;
@@ -831,8 +869,11 @@ bool KXTerm::EditLine(
 
 					if (iLast == iPos)
 					{
-						// shortcut: just output this character at the end of line
-						WriteCodepoint(ch);
+						if (IsTerminal())
+						{
+							// shortcut: just output this character at the end of line
+							WriteCodepoint(ch);
+						}
 						// and advance pos and last
 						++iPos;
 						++iLast;
@@ -848,32 +889,35 @@ bool KXTerm::EditLine(
 				break;
 		}
 
-		if (bRefreshWholeLine)
+		if (IsTerminal())
 		{
-			CurLeft(iLast);
-			iLast = 0;
+			if (bRefreshWholeLine)
+			{
+				CurLeft(iLast);
+				iLast = 0;
+			}
+			else
+			{
+				// refresh line right of pos
+				if (iLast > iPos) CurLeft(iLast - iPos);
+			}
+
+			ClearToEndOfLine();
+
+			auto iStart = std::min(iLast, iPos);
+
+			if (iStart > sUnicode.size())
+			{
+				// better safe than sorry
+				Write(" *** input error ***");
+				return false;
+			}
+
+			auto sOut   = Unicode::ToUTF8<KString>(sUnicode.begin() + iStart, sUnicode.end());
+			Write(sOut);
+
+			CurLeft(sUnicode.size() - iPos);
 		}
-		else
-		{
-			// refresh line right of pos
-			if (iLast > iPos) CurLeft(iLast - iPos);
-		}
-
-		ClearToEndOfLine();
-
-		auto iStart = std::min(iLast, iPos);
-
-		if (iStart > sUnicode.size())
-		{
-			// better safe than sorry
-			Write(" *** input error ***");
-			return false;
-		}
-
-		auto sOut   = Unicode::ToUTF8<KString>(sUnicode.begin() + iStart, sUnicode.end());
-		Write(sOut);
-
-		CurLeft(sUnicode.size() - iPos);
 
 		iLast = iPos;
 	}
@@ -1021,13 +1065,13 @@ KString KXTerm::QueryTerminal(KStringView sRequest)
 
 	if (sTerm.empty() || sTerm == "dumb")
 	{
-		m_bIsTerminal = 0;
+		m_iIsTerminal = 0;
 		return sResponse;
 	}
 
 	RawWrite(sRequest);
 
-	if (m_bIsTerminal == 2)
+	if (m_iIsTerminal == 2)
 	{
 		// we do not know yet if this is a real terminal, so switch blocking off
 		kSetTerminal(m_iInputDevice, true, 0, 1);
@@ -1050,16 +1094,16 @@ KString KXTerm::QueryTerminal(KStringView sRequest)
 		}
 	}
 
-	if (m_bIsTerminal == 2)
+	if (m_iIsTerminal == 2)
 	{
 		// first call - check if this is a real terminal
 		if (sResponse.empty())
 		{
-			m_bIsTerminal = 0;
+			m_iIsTerminal = 0;
 		}
 		else
 		{
-			m_bIsTerminal = 1;
+			m_iIsTerminal = 1;
 		}
 
 		// now switch blocking mode on

@@ -42,6 +42,8 @@
 #include "khistory.h"
 #include "kfilesystem.h"
 #include "klog.h"
+#include "kreader.h"
+#include "ksystem.h"
 
 DEKAF2_NAMESPACE_BEGIN
 

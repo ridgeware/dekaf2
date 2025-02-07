@@ -67,6 +67,7 @@
 #include "kcsv.h"
 #include "kfrozen.h"
 #include "kxterm.h"
+#include "koutshell.h"
 #include <cstdint>
 #include <utility>
 
@@ -10005,6 +10006,41 @@ void KSQL::PurgeTempTables ()
 
 } // PurgeTempTables
 
+namespace {
+template<typename String>
+String kGetWord(String& sUTF8)
+{
+	String sWord;
+	KString::size_type iPos = 0;
+	// loop over all whitespace
+	while (iPos < sUTF8.size() && KASCII::kIsSpace(sUTF8[iPos])) ++iPos;
+	auto iStart = iPos;
+	// collect all chars until next whitespace
+	while (iPos < sUTF8.size() && !KASCII::kIsSpace(sUTF8[iPos])) ++iPos;
+	// copy all leading non-whitespace
+	sWord = sUTF8.ToView(iStart, iPos - iStart);
+	// and erase all leading chars, whitespace or not
+	sUTF8.remove_prefix(iPos);
+
+	return sWord;
+
+} // kGetWord
+#if 0
+KStringView kFirstWord(const KStringView sUTF8)
+{
+	KStringView::size_type iPos = 0;
+	// loop over all whitespace
+	while (iPos < sUTF8.size() && KASCII::kIsSpace(sUTF8[iPos])) ++iPos;
+	auto iStart = iPos;
+	// collect all chars until next whitespace
+	while (iPos < sUTF8.size() && !KASCII::kIsSpace(sUTF8[iPos])) ++iPos;
+	// copy all leading non-whitespace
+	return sUTF8.ToView(iStart, iPos - iStart);
+
+} // kFirstWord
+#endif
+}
+
 //-----------------------------------------------------------------------------
 void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 //-----------------------------------------------------------------------------
@@ -10044,7 +10080,6 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 		{
 			Format = CreateOutputFormat(sLine);
 			kPrintLine (":: format changed to {}", sLine);
-			kWriteLine ();
 		}
 		else if (sSQL.empty() && sLine == "clear")
 		{
@@ -10055,8 +10090,15 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			bQuiet = !bQuiet;
 			sPrompt.clear();
 		}
+		else if (sSQL.empty() && sLine.starts_with("system"))
+		{
+			kGetWord(sLine);
+			sLine.Trim();
+			KOutShell Shell(sLine);
+		}
 		else if (sSQL.empty() && sLine == "help")
 		{
+			kWriteLine ();
 			kWriteLine (":: enter SQL command, query or one of these formats for query output:");
 			kWriteLine ("::    ascii    : ascii table form (normal output)");
 			kWriteLine ("::    vertical : for very wide tables, one column at a time");
@@ -10066,6 +10108,7 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			kWriteLine ("::    clear    : clear screen");
 			kWriteLine ("::    quiet    : toggle quiet mode");
 			kWriteLine ("::    quit     : end the interpreter");
+			kWriteLine ("::    system   : execute a shell command");
 			kWriteLine ();
 		}
 		else if (!sLine.empty())

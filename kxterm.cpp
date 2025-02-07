@@ -77,6 +77,10 @@ void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWa
 	Settings.c_cc[VMIN]  = iMinAvail;
 	Settings.c_cc[VTIME] = iMaxWait100ms;
 
+	kDebug(3, "setting terminal to {}, min chars {}, timeout {}ms",
+		   bRaw ? "raw char non echo mode" : "line mode with echo",
+		   iMinAvail, iMaxWait100ms * 100);
+
 	::tcsetattr(iInputDevice, TCSANOW, &Settings);
 
 #else
@@ -88,10 +92,12 @@ void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWa
 
 	if (bRaw)
 	{
+		kDebug(3, "setting terminal to raw char non echo mode");
 		SetConsoleMode(hStdin, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
 	}
 	else
 	{
+		kDebug(3, "setting terminal to line mode with echo");
 		SetConsoleMode(hStdin, mode | (ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
 	}
 
@@ -105,19 +111,24 @@ bool KXTermCodes::HasRGBColors()
 //-----------------------------------------------------------------------------
 {
 	KStringViewZ sTerm = ::getenv("COLORTERM");
+	kDebug(3, "env COLORTERM is '{}'", sTerm);
 
 	if (sTerm.In("truecolor,24bit"))
 	{
+		kDebug(3, "terminal has RGB colors");
 		return true;
 	}
 
 	sTerm = ::getenv("TERM");
+	kDebug(3, "env TERM is '{}'", sTerm);
 
 	if (sTerm == "iterm" || sTerm.contains("truecolor") || sTerm.starts_with("vte"))
 	{
+		kDebug(3, "terminal has RGB colors");
 		return true;
 	}
 
+	kDebug(3, "terminal does not have RGB colors");
 	return false;
 
 } // HasRGBColors
@@ -219,6 +230,7 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 
 		if (!iResult)
 		{
+			kDebug(3, "setting terminal to raw char non echo mode");
 			termios Changed     = *m_Termios;
 			Changed.c_lflag    &= ~(ICANON | ECHO | ECHONL);
 			Changed.c_cc[VMIN]  = 1;
@@ -235,6 +247,14 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 						// assume this is really a terminal
 						bIsRealTerm = true;
 					}
+					else
+					{
+						kDebug(2, "could not read back new config");
+						// nevertheless we set bIsRealTerm to true,
+						// as this seems to happen with real terminals,
+						// too. Needs further investigation.
+						bIsRealTerm = true;
+					}
 				}
 			}
 		}
@@ -247,7 +267,7 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 
 		if (!bIsRealTerm)
 		{
-			kDebug(1, strerror(errno));
+			kDebug(1, "this is not a terminal: {}", strerror(errno));
 			// this is not a real terminal
 			m_iIsTerminal = 0;
 		}
@@ -303,6 +323,7 @@ void KXTerm::QueryTermSize()
 	}
 	else
 	{
+		kDebug(2, "cannot query terminal size");
 		// assume defaults
 		m_iRows    = 25;
 		m_iColumns = 80;
@@ -331,10 +352,12 @@ bool KXTerm::GetCursor(uint16_t& iRow, uint16_t& iColumn)
 		{
 			m_iCursorRow    = iRow    = Parts[0].UInt16();
 			m_iCursorColumn = iColumn = Parts[1].UInt16();
+			kDebug(3, "row {} col {}", iRow, iColumn);
 			return true;
 		}
 	}
 
+	kDebug(1, "could not get cursor position");
 	return false;
 
 } // GetCursor
@@ -1065,6 +1088,7 @@ KString KXTerm::QueryTerminal(KStringView sRequest)
 
 	if (sTerm.empty() || sTerm == "dumb")
 	{
+		kDebug(3, "env TERM is '{}' - detected as not a terminal", sTerm);
 		m_iIsTerminal = 0;
 		return sResponse;
 	}
@@ -1073,6 +1097,7 @@ KString KXTerm::QueryTerminal(KStringView sRequest)
 
 	if (m_iIsTerminal == 2)
 	{
+		kDebug(3, "query '{}'", kEscapeForLogging(sRequest));
 		// we do not know yet if this is a real terminal, so switch blocking off
 		kSetTerminal(m_iInputDevice, true, 0, 1);
 	}
@@ -1099,10 +1124,12 @@ KString KXTerm::QueryTerminal(KStringView sRequest)
 		// first call - check if this is a real terminal
 		if (sResponse.empty())
 		{
+			kDebug(1, "no response - detected as not a terminal");
 			m_iIsTerminal = 0;
 		}
 		else
 		{
+			kDebug(3, "response '{}' - detected as terminal", kEscapeForLogging(sResponse));
 			m_iIsTerminal = 1;
 		}
 

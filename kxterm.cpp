@@ -709,6 +709,12 @@ bool KXTerm::EditLine(
 				{
 					sUnicode.erase(iPos, 1);
 				}
+				else if (sUnicode.empty())
+				{
+					// a ctrl-d on an empty line is like EOF
+					Write("\n");
+					return false;
+				}
 				else
 				{
 					Beep();

@@ -214,7 +214,7 @@ public:
 	/// write text at given position
 	void Write      (uint16_t iRow, uint16_t iColumn, KStringView sText);
 	/// write text at cursor position and goto next line
-	void WriteLine  (KStringView sText);
+	void WriteLine  (KStringView sText = KStringView{});
 	/// write text at given position and goto next line
 	void WriteLine  (uint16_t iRow, uint16_t iColumn, KStringView sText);
 

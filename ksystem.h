@@ -212,6 +212,14 @@ bool kIsValidIPv4 (KStringViewZ sIPAddr);
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsValidIPv6 (KStringViewZ sIPAddr);
 
+/// Return true if the string represents a private IP address, both IPv4 and IPv6
+/// @param sIP the IP address
+/// @param bExcludeDocker if set to true, addresses of the 172.x.x.x range
+/// are not treated as private IPs, as these are often the result of docker TCP proxying
+/// @return true if sIP is a private IP
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker);
+
 /// Return all host names that map to the specified IP address
 /// @param sIPAddr the IP address of the searched host
 /// @param iMax maximum count of returned addresses, default = unlimited

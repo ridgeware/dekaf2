@@ -399,6 +399,20 @@ bool kStrIn (KStringView sNeedle, const char* Haystack[])
 
 } // kStrIn
 
+//-----------------------------------------------------------------------------
+KStringView kFirstWord(const KStringView& sInput)
+//-----------------------------------------------------------------------------
+{
+	KStringView::size_type iPos = 0;
+	// loop over all whitespace
+	while (iPos < sInput.size() && KASCII::kIsSpace(sInput[iPos])) ++iPos;
+	auto iStart = iPos;
+	// collect all chars until next whitespace
+	while (iPos < sInput.size() && !KASCII::kIsSpace(sInput[iPos])) ++iPos;
+	// copy all leading non-whitespace
+	return sInput.ToView(iStart, iPos - iStart);
+
+} // kFirstWord
 
 
 namespace detail {

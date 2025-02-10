@@ -849,6 +849,64 @@ KString kHostLookup (KStringViewZ sIPAddr)
 
 } // kHostLookup
 
+//-----------------------------------------------------------------------------
+bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker)
+//-----------------------------------------------------------------------------
+{
+	bool bIsV6 = false;
+
+	if (kIsIPv6Address(sIP, sIP.front() == '['))
+	{
+		if (sIP.front() == '[')
+		{
+			sIP.remove_suffix(1);
+			sIP.remove_prefix(1);
+		}
+
+		if (sIP.starts_with("::ffff:") && sIP.rfind(':') == 6)
+		{
+			// ::ffff:192.168.1.1
+			sIP.remove_prefix(7);
+		}
+		else
+		{
+			bIsV6 = true;
+		}
+	}
+
+	kDebug(2, sIP);
+
+	if (bIsV6)
+	{
+		if (sIP == "::1") return true;
+		if (sIP.starts_with("fd")) return true;
+		if (sIP.starts_with("fe80::")) return true;
+	}
+	else
+	{
+		if (kIsIPv4Address(sIP))
+		{
+			if (sIP.starts_with("127.")) return true;
+			if (sIP.starts_with("192.168.")) return true;
+			if (sIP.starts_with("172."))
+			{
+				// docker normally sits at 172.*.*.* with its internal network
+				// and translates external IP addresses into just that one
+				if (bExcludeDocker) return false;
+				sIP.remove_prefix(4);
+				sIP.remove_suffix(sIP.size() - sIP.find('.'));
+				kDebug(2, "{}", sIP);
+				auto iIP = sIP.UInt16();
+				return (iIP >= 16 && iIP <= 31);
+			}
+			if (sIP.starts_with("10.")) return true;
+		}
+	}
+
+	kDebug(2, "{}: not private", sIP);
+	return false;
+
+} // kIsPrivateIP
 
 //-----------------------------------------------------------------------------
 uint32_t kRandom(uint32_t iMin, uint32_t iMax)

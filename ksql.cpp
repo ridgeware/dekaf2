@@ -10006,41 +10006,6 @@ void KSQL::PurgeTempTables ()
 
 } // PurgeTempTables
 
-namespace {
-template<typename String>
-String kGetWord(String& sUTF8)
-{
-	String sWord;
-	KString::size_type iPos = 0;
-	// loop over all whitespace
-	while (iPos < sUTF8.size() && KASCII::kIsSpace(sUTF8[iPos])) ++iPos;
-	auto iStart = iPos;
-	// collect all chars until next whitespace
-	while (iPos < sUTF8.size() && !KASCII::kIsSpace(sUTF8[iPos])) ++iPos;
-	// copy all leading non-whitespace
-	sWord = sUTF8.ToView(iStart, iPos - iStart);
-	// and erase all leading chars, whitespace or not
-	sUTF8.remove_prefix(iPos);
-
-	return sWord;
-
-} // kGetWord
-#if 0
-KStringView kFirstWord(const KStringView sUTF8)
-{
-	KStringView::size_type iPos = 0;
-	// loop over all whitespace
-	while (iPos < sUTF8.size() && KASCII::kIsSpace(sUTF8[iPos])) ++iPos;
-	auto iStart = iPos;
-	// collect all chars until next whitespace
-	while (iPos < sUTF8.size() && !KASCII::kIsSpace(sUTF8[iPos])) ++iPos;
-	// copy all leading non-whitespace
-	return sUTF8.ToView(iStart, iPos - iStart);
-
-} // kFirstWord
-#endif
-}
-
 //-----------------------------------------------------------------------------
 void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 //-----------------------------------------------------------------------------

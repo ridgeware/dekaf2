@@ -309,4 +309,31 @@ TEST_CASE("KSystem")
 		ii.reset();
 		CHECK ( I2.sysname != "" );
 	}
+
+	SECTION("kIsPrivateIP")
+	{
+		struct tvals
+		{
+			KStringView sInput;
+			bool bResult;
+		};
+
+		std::vector<tvals> tests
+		{{
+			{ ""                       , false },
+			{ "1.2.3.4"                , false },
+			{ "168.100.14.4"           , true  },
+			{ "10.142.55.2"            , true  },
+			{ "19.142.55.2"            , false },
+			{ "127.13.1.1"             , true  },
+			{ "::1"                    , true  },
+			{ "::ffff:10.142.55.2"     , true  },
+			{ "0:1:2:3:4:5:6:7:8"      , false },
+			{ "[0:1:2:3:4:5:6:7:8]"    , false },
+			{ "fd1a:cbed:34de::17]"    , true  },
+			{ "fe80:cbed:34de::17]"    , true  },
+			{ "fc80:cbed:34de::17]"    , false },
+		}};
+
+	}
 }

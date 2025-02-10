@@ -636,6 +636,66 @@ String& kCollapseAndTrim(String& string, const StringView& svCollapse, typename 
 }
 
 //-----------------------------------------------------------------------------
+// version for string views
+/// Get the first word from an input string, and remove it there
+/// @param sInput the input string
+/// @return the first word of the input string
+template<typename String,
+         typename std::enable_if<detail::is_string_view<String>::value == true, int>::type = 0>
+DEKAF2_PUBLIC
+String kGetWord(String& sInput)
+//-----------------------------------------------------------------------------
+{
+	typename String::size_type iPos = 0;
+	// loop over all whitespace
+	while (iPos < sInput.size() && KASCII::kIsSpace(sInput[iPos])) ++iPos;
+	auto iStart = iPos;
+	// collect all chars until next whitespace
+	while (iPos < sInput.size() && !KASCII::kIsSpace(sInput[iPos])) ++iPos;
+	// copy all leading non-whitespace
+	String sWord(sInput.data() + iStart, iPos - iStart);
+	// and erase all leading chars, whitespace or not
+	sInput.remove_prefix(iPos);
+
+	return sWord;
+
+} // kGetWord
+
+//-----------------------------------------------------------------------------
+// version for strings
+/// Get the first word from an input string, and remove it there
+/// @param sInput the input string
+/// @return the first word of the input string
+template<typename String,
+         typename std::enable_if<detail::is_string_view<String>::value == false, int>::type = 0>
+DEKAF2_PUBLIC
+String kGetWord(String& sInput)
+//-----------------------------------------------------------------------------
+{
+	typename String::size_type iPos = 0;
+	// loop over all whitespace
+	while (iPos < sInput.size() && KASCII::kIsSpace(sInput[iPos])) ++iPos;
+	auto iStart = iPos;
+	// collect all chars until next whitespace
+	while (iPos < sInput.size() && !KASCII::kIsSpace(sInput[iPos])) ++iPos;
+	// copy all leading non-whitespace
+	String sWord(sInput.data() + iStart, iPos - iStart);
+	// and erase all leading chars, whitespace or not
+	sInput.erase(0, iPos);
+
+	return sWord;
+
+} // kGetWord
+
+//-----------------------------------------------------------------------------
+/// Get the first word from an input string, but do not remove it there
+/// @param sInput the input string
+/// @return the first word of the input string
+DEKAF2_NODISCARD DEKAF2_PUBLIC 
+KStringView kFirstWord(const KStringView& sInput);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Replace variables in sString found in a map Variables, search for sOpen/sClose for lead-in and lead-out.
 /// Returns count of replaces
 template<class String, class StringView, class ReplaceMap = std::map<StringView, StringView> >

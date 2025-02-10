@@ -1580,4 +1580,130 @@ TEST_CASE("KStringUtils") {
 		}
 	}
 
+	SECTION("kGetWord KStringView")
+	{
+		struct tvals
+		{
+			using String = KStringView;
+			String sInput;
+			String sWord;
+			String sRemainder;
+		};
+
+		std::vector<tvals> tests
+		{{
+			{ ""                    , ""              , ""             },
+			{ "word"                , "word"          , ""             },
+			{ " word \t"            , "word"          , " \t"          },
+			{ "\t hello world"      , "hello"         , " world"       },
+		}};
+
+		for (auto& test : tests)
+		{
+			CHECK ( kGetWord(test.sInput) == test.sWord );
+			CHECK ( test.sInput == test.sRemainder      );
+		}
+	}
+
+	SECTION("kGetWord std::string_view")
+	{
+		struct tvals
+		{
+			using String = std::string_view;
+			String sInput;
+			String sWord;
+			String sRemainder;
+		};
+
+		std::vector<tvals> tests
+		{{
+			{ ""                    , ""              , ""             },
+			{ "word"                , "word"          , ""             },
+			{ " word \t"            , "word"          , " \t"          },
+			{ "\t hello world"      , "hello"         , " world"       },
+		}};
+
+		for (auto& test : tests)
+		{
+			CHECK ( kGetWord(test.sInput) == test.sWord );
+			CHECK ( test.sInput == test.sRemainder      );
+		}
+	}
+
+	SECTION("kGetWord KString")
+	{
+		struct tvals
+		{
+			using String = KString;
+			String sInput;
+			String sWord;
+			String sRemainder;
+		};
+
+		std::vector<tvals> tests
+		{{
+			{ ""                    , ""              , ""             },
+			{ "word"                , "word"          , ""             },
+			{ " word \t"            , "word"          , " \t"          },
+			{ "\t hello world"      , "hello"         , " world"       },
+		}};
+
+		for (auto& test : tests)
+		{
+			CHECK ( kGetWord(test.sInput) == test.sWord );
+			CHECK ( test.sInput == test.sRemainder      );
+		}
+	}
+
+	SECTION("kGetWord std::wstring")
+	{
+		struct tvals
+		{
+			using String = std::wstring;
+			String sInput;
+			String sWord;
+			String sRemainder;
+		};
+
+		std::vector<tvals> tests
+		{{
+			{ L""                    , L""              , L""             },
+			{ L"word"                , L"word"          , L""             },
+			{ L" word \t"            , L"word"          , L" \t"          },
+			{ L"\t hello world"      , L"hello"         , L" world"       },
+		}};
+
+		for (auto& test : tests)
+		{
+			CHECK ( kGetWord(test.sInput) == test.sWord );
+			CHECK ( test.sInput == test.sRemainder      );
+		}
+	}
+
+	SECTION("kFirstWord")
+	{
+		struct tvals
+		{
+			using String = KStringView;
+			String sInput;
+			String sWord;
+			String sRemainder;
+		};
+
+		std::vector<tvals> tests
+		{{
+			{ ""                    , ""              , ""               },
+			{ "word"                , "word"          , "word"           },
+			{ " word \t"            , "word"          , " word \t"       },
+			{ "\t hello world"      , "hello"         , "\t hello world" },
+		}};
+
+		for (auto& test : tests)
+		{
+			CHECK ( kFirstWord(test.sInput) == test.sWord );
+			CHECK ( test.sInput == test.sRemainder        );
+		}
+	}
+
+
 }

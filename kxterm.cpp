@@ -71,15 +71,15 @@ void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWa
 	}
 	else
 	{
-		Settings.c_lflag    |= (ICANON | ECHO | ECHONL);
+		Settings.c_lflag    |=  (ICANON | ECHO | ECHONL);
 	}
 
 	Settings.c_cc[VMIN]  = iMinAvail;
 	Settings.c_cc[VTIME] = iMaxWait100ms;
 
 	kDebug(3, "setting terminal to {}, min chars {}, timeout {}ms",
-		   bRaw ? "raw char non echo mode" : "line mode with echo",
-		   iMinAvail, iMaxWait100ms * 100);
+	       bRaw ? "raw char non echo mode" : "line mode with echo",
+	       iMinAvail, iMaxWait100ms * 100);
 
 	::tcsetattr(iInputDevice, TCSANOW, &Settings);
 
@@ -230,11 +230,13 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 
 		if (!iResult)
 		{
-			kDebug(3, "setting terminal to raw char non echo mode");
 			termios Changed     = *m_Termios;
 			Changed.c_lflag    &= ~(ICANON | ECHO | ECHONL);
 			Changed.c_cc[VMIN]  = 1;
 			Changed.c_cc[VTIME] = 0;
+
+			kDebug(3, "setting terminal to {}, min chars {}, timeout {}ms",
+			          "raw char non echo mode", 1, 0 * 100);
 
 			if (!::tcsetattr(m_iInputDevice, TCSANOW, &Changed))
 			{

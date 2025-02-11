@@ -7349,7 +7349,7 @@ std::size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASC
 	size_t     iNumRows{0};
 	auto       sResult = QueryAllRows (sSafeSQL, iFormat, &iNumRows);
 
-	kWrite (fpout, sResult);
+	kWrite (fpout, sResult) && kFlush(fpout);
 
 	return iNumRows;
 
@@ -7375,7 +7375,7 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 	static constexpr std::size_t MAXCOLWIDTH = 800;
 	KJSON json = KJSON::array();
 
-	if ((iFormat == FORM_ASCII) || (iFormat == FORM_VERTICAL))
+	if (iFormat == FORM_ASCII)
 	{
 		while (NextRow (Row))
 		{
@@ -7387,7 +7387,6 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 				{
 					const KString& sName(it.first);
 					auto iLen = sName.length();
-					kDebug (1, "set: Width[{}] = {}", sName, iLen);
 					Widths.Add (sName, iLen);
 					if (iLen > iMaxAll)
 					{
@@ -7395,7 +7394,8 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 					}
 				}
 			}
-			else if (iFormat == FORM_ASCII)
+
+			if (iFormat == FORM_ASCII)
 			{
 				for (const auto& it : Row)
 				{
@@ -7420,13 +7420,25 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 	{
 		kDebug (4, "pass-2: {}", KJSON{Row}.dump());
 
-		// output column headers:
+		// output column headers, and in the case of FORM_VERTICAL
+		// calc the header size
 		if (++iNumRows == 1)
 		{
 			switch (iFormat)
 			{
-				case FORM_JSON:
 				case FORM_VERTICAL:
+					for (const auto& it : Row)
+					{
+						const KString& sName(it.first);
+						auto iLen = sName.length();
+						if (iLen > iMaxAll)
+						{
+							iMaxAll = iLen;
+						}
+					}
+					break;
+
+				case FORM_JSON:
 					break;
 
 				case FORM_ASCII:
@@ -7597,7 +7609,6 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 			}
 
 			case FORM_VERTICAL:
-				sResult    += "\n";
 				break;
 		}
 	}

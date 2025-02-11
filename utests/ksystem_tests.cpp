@@ -330,9 +330,9 @@ TEST_CASE("KSystem")
 			{ "::ffff:10.142.55.2"     , true  },
 			{ "0:1:2:3:4:5:6:7:8"      , false },
 			{ "[0:1:2:3:4:5:6:7:8]"    , false },
-			{ "fd1a:cbed:34de::17]"    , true  },
-			{ "fe80:cbed:34de::17]"    , true  },
-			{ "fc80:cbed:34de::17]"    , false },
+			{ "fd1a:cbed:34de::17"     , true  },
+			{ "fe80:cbed:34de::17"     , true  },
+			{ "fc80:cbed:34de::17"     , false },
 		}};
 
 	}

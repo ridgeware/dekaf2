@@ -218,7 +218,7 @@ bool kIsValidIPv6 (KStringViewZ sIPAddr);
 /// are not treated as private IPs, as these are often the result of docker TCP proxying
 /// @return true if sIP is a private IP
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker);
+bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker = true);
 
 /// Return all host names that map to the specified IP address
 /// @param sIPAddr the IP address of the searched host

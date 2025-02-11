@@ -7395,21 +7395,19 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 				}
 			}
 
-			if (iFormat == FORM_ASCII)
+			for (const auto& it : Row)
 			{
-				for (const auto& it : Row)
+				const KString& sName(it.first);
+				const KString& sValue(it.second.sValue);
+				auto iLen = sValue.length();
+				auto iMax = Widths.Get (sName);
+				if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))
 				{
-					const KString& sName(it.first);
-					const KString& sValue(it.second.sValue);
-					auto iLen = sValue.length();
-					auto iMax = Widths.Get (sName);
-					if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))
-					{
-						Widths.Add (sName, iLen); // <-- max width across all data for this column
-					}
+					Widths.Add (sName, iLen); // <-- max width across all data for this column
 				}
 			}
 		}
+
 		EndQuery ();
 		ExecLastRawQuery (GetFlags(), "OutputQuery");
 	}

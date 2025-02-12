@@ -331,6 +331,8 @@ public:
 	void NoHidden              () const { Command(KXTermCodes::NoHidden               ()); }
 	void Strikethrough         () const { Command(KXTermCodes::Strikethrough          ()); }
 	void NoStrikethrough       () const { Command(KXTermCodes::NoStrikethrough        ()); }
+	/// reset all character style modes (and colors)
+	void ResetCharModes        () const { Command(KXTermCodes::ResetCharModes         ()); }
 
 	/// set both named foreground and background color (supported by all terminal devices)
 	void Color      (ColorCode FGC, ColorCode BGC) const { Command(KXTermCodes::Color(FGC, BGC)); }

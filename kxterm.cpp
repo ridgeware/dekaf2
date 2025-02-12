@@ -158,21 +158,21 @@ KString KXTermCodes::BGColor(RGB rgb)
 KString KXTermCodes::Color(ColorCode FGC, ColorCode BGC)
 //-----------------------------------------------------------------------------
 {
-	return kFormat("\033[{};{}", GetFGColor(FGC), GetBGColor(BGC));
+	return kFormat("\033[{};{}m", GetFGColor(FGC), GetBGColor(BGC));
 }
 
 //-----------------------------------------------------------------------------
 KString KXTermCodes::FGColor(ColorCode CC)
 //-----------------------------------------------------------------------------
 {
-	return kFormat("\033[{}", GetFGColor(CC));
+	return kFormat("\033[{}m", GetFGColor(CC));
 }
 
 //-----------------------------------------------------------------------------
 KString KXTermCodes::BGColor(ColorCode CC)
 //-----------------------------------------------------------------------------
 {
-	return kFormat("\033[{}", GetBGColor(CC));
+	return kFormat("\033[{}m", GetBGColor(CC));
 }
 
 //-----------------------------------------------------------------------------
@@ -676,7 +676,6 @@ bool KXTerm::EditLine(
 				continue;
 
 			case Unicode::END_OF_INPUT:
-				Write(" *** end of input ***");
 				return false;
 
 			case Unicode::INVALID_CODEPOINT:

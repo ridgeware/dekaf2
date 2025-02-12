@@ -1537,7 +1537,9 @@ void ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
 	});
 }
 
-namespace special {
+namespace CESU8 {
+
+// see https://en.wikipedia.org/wiki/CESU-8
 
 //-----------------------------------------------------------------------------
 /// Convert a wide string (UTF16 LE) that was encoded in a byte stream into a UTF8 string (for recovery purposes only)
@@ -1648,7 +1650,7 @@ ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
 	return sUTF16ByteString;
 }
 
-} // namespace special
+} // namespace CESU8
 
 } // namespace Unicode
 

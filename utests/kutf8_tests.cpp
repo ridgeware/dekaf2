@@ -103,10 +103,10 @@ TEST_CASE("UTF8") {
 	{
 		KString sUTF8("testäöü test日本語abc中文Русский");
 		CHECK(                 sUTF8.size() == 47     );
-		auto sBytes = Unicode::special::UTF8ToUTF16Bytes(sUTF8);
+		auto sBytes = Unicode::CESU8::UTF8ToUTF16Bytes(sUTF8);
 		CHECK(                 sBytes.size() == 54    );
 //		CHECK( sBytes == "" );
-		auto sUTF8New = Unicode::special::UTF16BytesToUTF8(sBytes);
+		auto sUTF8New = Unicode::CESU8::UTF16BytesToUTF8(sBytes);
 		CHECK(                 sUTF8New.size() == 47  );
 		CHECK(                 sUTF8New == sUTF8      );
 	}

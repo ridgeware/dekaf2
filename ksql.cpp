@@ -10036,6 +10036,9 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 	// write history into default location (~/.config/{PROGRAM_NAME}/terminal-history.txt)
 	Terminal.SetHistory(1000, true);
 
+	KInFile SQLFile;
+	KString sRemainderOfLine;
+
 	for (;;)
 	{
 		// set a window title (will be reset at exit)
@@ -10043,17 +10046,52 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 
 		KString sLine;
 
-		if (!Terminal.EditLine(sPrompt, sLine))
+		if (!sRemainderOfLine.empty())
 		{
-			return;
+			sLine = sRemainderOfLine;
 		}
-		
-		kWriteLine();
+		else
+		{
+			if (SQLFile.is_open())
+			{
+				for (;;)
+				{
+					if (!kReadLine(SQLFile, sLine))
+					{
+						SQLFile.close();
+						break;
+					}
+
+					KStringView sv(sLine);
+
+					sv.TrimLeft();
+
+					if (!sv.starts_with('#') && !sv.starts_with(';'))
+					{
+						break;
+					}
+				}
+			}
+			else
+			{
+				if (!Terminal.EditLine(sPrompt, sLine))
+				{
+					kWriteLine();
+					return;
+				}
+
+				kWriteLine();
+			}
+		}
 
 		if (sSQL.empty() && sLine.In("ascii,vertical,json,csv,html"))
 		{
 			Format = CreateOutputFormat(sLine);
-			kPrintLine (":: format changed to {}", sLine);
+
+			if (!bQuiet)
+			{
+				kPrintLine (":: format changed to {}", sLine);
+			}
 		}
 		else if (sSQL.empty() && sLine == "clear")
 		{
@@ -10070,6 +10108,26 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			sLine.Trim();
 			KOutShell Shell(sLine);
 		}
+		else if (sSQL.empty() && sLine.starts_with("klog"))
+		{
+			kGetWord(sLine);
+			auto iLevel = KLog::getInstance().SetLevel(kGetWord(sLine).Int16()).GetLevel();
+			if (!bQuiet)
+			{
+				kPrintLine(":: klog level set to {}", iLevel);
+			}
+		}
+		else if (sSQL.empty() && !SQLFile.is_open() && sLine.starts_with("source"))
+		{
+			kGetWord(sLine);
+			auto sFile = kGetWord(sLine);
+			SQLFile.open(sFile);
+			if (!SQLFile.is_open())
+			{
+				kPrintLine(":: cannot open file: {}", sFile);
+			}
+			sLine.clear();
+		}
 		else if (sSQL.empty() && sLine == "help")
 		{
 			kWriteLine ();
@@ -10083,6 +10141,8 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			kWriteLine ("::    quiet    : toggle quiet mode");
 			kWriteLine ("::    quit     : end the interpreter");
 			kWriteLine ("::    system   : execute a shell command");
+			kWriteLine ("::    source   : read a file and execute SQL commands");
+			kWriteLine ("::    klog <n> : set klog level 0..4");
 			kWriteLine ();
 		}
 		else if (!sLine.empty())
@@ -10098,13 +10158,13 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 
 			if (!bHaveFirstWord)
 			{
-				auto Parts = sTrimmed.Split("\t ");
+				auto sWord = kGetWord(sTrimmed);
 
-				if (!Parts.empty())
+				if (!sWord.empty())
 				{
 					bHaveFirstWord = true;
 
-					switch (Parts[0].CaseHash())
+					switch (sWord.CaseHash())
 					{
 						case "quit"_casehash:
 						case "exit"_casehash:
@@ -10116,9 +10176,10 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 
 						case "use"_casehash:
 							bIsUse = true;
-							if (Parts.size() > 1)
+							sWord = kGetWord(sTrimmed);
+							if (!sWord.empty())
 							{
-								sNewDbName = Parts[1];
+								sNewDbName = sWord;
 								bExecute   = true;
 							}
 							break;
@@ -10127,13 +10188,8 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			}
 			else if (bIsUse)
 			{
-				auto Parts = sTrimmed.Split("\t ");
-
-				if (!Parts.empty())
-				{
-					sNewDbName = Parts[0];
-					bExecute   = true;
-				}
+				auto sNewDbName = kGetWord(sTrimmed);
+				bExecute        = !sNewDbName.empty();
 			}
 
 			if (bExecute)
@@ -10156,12 +10212,36 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 					}
 					else
 					{
-						bSuccess = OutputQuery (sSQL, Format);
+						KStopTime Timer;
+						auto iResults = OutputQuery (sSQL, Format);
+						Terminal.FGColor(KXTerm::ColorCode::Blue);
+						if (iResults)
+						{
+							if (!bQuiet)
+							{
+								kPrintLine(":: {} rows in set ({})", iResults, Timer.elapsed());
+							}
+							bSuccess = true;
+						}
+						else if (GetLastError().empty())
+						{
+							if (!bQuiet)
+							{
+								kPrintLine(":: Empty set ({})", Timer.elapsed());
+							}
+							bSuccess = true;
+						}
+						Terminal.ResetCharModes();
 					}
 
 					if (!bSuccess)
 					{
-						kPrintLine (">> {}", GetLastError());
+						if (!GetLastError().empty())
+						{
+							Terminal.FGColor(KXTerm::ColorCode::BrightRed);
+							kPrintLine (">> {}", GetLastError());
+							Terminal.ResetCharModes();
+						}
 					}
 					else if (sNewDbName)
 					{
@@ -10171,12 +10251,16 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 
 					if (!bQuiet && !GetLastInfo().empty())
 					{
+						Terminal.FGColor(KXTerm::ColorCode::Green);
 						kPrintLine(":: {}", GetLastInfo());
+						Terminal.ResetCharModes();
 					}
 
 					if (!bQuiet && GetNumRowsAffected())
 					{
+						Terminal.FGColor(KXTerm::ColorCode::Green);
 						kPrintLine (":: {} rows affected.", kFormNumber(GetNumRowsAffected()));
+						Terminal.ResetCharModes();
 					}
 
 					sSQL.clear();

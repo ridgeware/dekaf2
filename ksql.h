@@ -1016,6 +1016,10 @@ public:
 	/// @param iConnectTimeoutSecs can be used to override MySQL default (which is huge/long)
 	bool EnsureConnected (uint16_t iConnectTimeoutSecs = 0);
 
+	/// Useful for db connections that are over a VPN, to see if the VPN is established.
+	/// Upon failure it returns false and sets the LastError.
+	bool PingTest (uint32_t iWaitForMSecs=1000);
+
 	void SetDBC (KStringView sFile) { m_sDBCFile = sFile; }
 	const KString& GetDBC () const { return m_sDBCFile;  }
 

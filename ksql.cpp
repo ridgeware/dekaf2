@@ -8718,6 +8718,29 @@ bool KSQL::EnsureConnected (uint16_t iConnectTimeoutSecs/*=0*/)
 } // KSQL::EnsureConnected - 2
 
 //-----------------------------------------------------------------------------
+bool KSQL::PingTest (uint32_t iWaitForMSecs/*=1000*/)
+//-----------------------------------------------------------------------------
+{
+	auto sHost = GetDBHost();
+	if (!sHost)
+	{
+		SetError (kFormat ("BUG:KSQL: cannot run PingTest() without connection parameters set."));
+		return false;
+	}
+
+	// Note: iWaitForMSecs is ignored in the hack but should be honored by the real code
+	bool bOK = (kSystem (kFormat ("ping -c 1 -t 1 {}", sHost)) == 0);
+
+	if (!bOK)
+	{
+		SetError (kFormat ("failed to reach server {} - are you connected to that network?", sHost));
+	}
+
+	return bOK;
+
+} // PingTest
+
+//-----------------------------------------------------------------------------
 void KSQL::ConnectionIDs::Add(ConnectionID iConnectionID)
 //-----------------------------------------------------------------------------
 {
@@ -10290,7 +10313,6 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 	}
 
 } // Client
-
 
 std::atomic<std::chrono::milliseconds> KSQL::s_QueryTimeout        { std::chrono::milliseconds(0) };
 std::atomic<KSQL::QueryType>           KSQL::s_QueryTypeForTimeout { QueryType::None              };

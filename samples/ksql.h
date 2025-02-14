@@ -7,12 +7,13 @@
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/kwriter.h>
 #include <dekaf2/ksql.h>
+#include <dekaf2/kerror.h>
 
 using namespace dekaf2;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// minimal command line SQL client
-class KSql
+class KSql : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

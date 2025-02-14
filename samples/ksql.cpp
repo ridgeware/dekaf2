@@ -12,6 +12,7 @@ KSql::KSql ()
 //-----------------------------------------------------------------------------
 {
 	KInit(false).SetName(s_sProjectName);
+	SetThrowOnError(true);
 
 } // ctor
 
@@ -23,16 +24,17 @@ int KSql::Main(int argc, char** argv)
 	KOptions Options(false, argc, argv, KLog::STDOUT, /*bThrow*/true);
 	Options.SetBriefDescription("command line database client");
 
-	KStringViewZ sDBCFile  = Options("dbc                : dbc file name"               ,          "");
-	KString      sDBType   = Options("dbtype <type>      : db type - mysql, sqlserver, sqlserver15, sybase", "");
-	KStringViewZ sUser     = Options("u,user <name>      : username"                    ,          "");
-	KStringViewZ sPassword = Options("p,pass <pass>      : password"                    ,          "");
-	KStringViewZ sDatabase = Options("db,database <name> : database to use"             ,          "");
-	KStringViewZ sHostname = Options("host <url>         : database server hostname"    , "localhost");
-	uint16_t     iDBPort   = Options("port <number>      : database server port number" ,           0);
-	bool         bQuiet    = Options("q,quiet            : only show db output"         ,       false);
-	KStringViewZ sFormat   = Options("f,format <format>  : output format - ascii, vertical, json, csv, html, default ascii", "ascii");
-	bool         bVersion  = Options("v,version          : show version information"    ,       false);
+	KStringViewZ sDBCFile  = Options("dbc                 : dbc file name"               ,          "");
+	KString      sDBType   = Options("dbtype <type>       : db type - mysql, sqlserver, sqlserver15, sybase", "");
+	KStringViewZ sUser     = Options("u,user <name>       : username"                    ,          "");
+	KStringViewZ sPassword = Options("p,pass <pass>       : password"                    ,          "");
+	KStringViewZ sDatabase = Options("db,database <name>  : database to use"             ,          "");
+	KStringViewZ sHostname = Options("host <url>          : database server hostname"    , "localhost");
+	uint16_t     iDBPort   = Options("port <number>       : database server port number" ,           0);
+	bool         bQuiet    = Options("q,quiet             : only show db output"         ,       false);
+	KStringViewZ sFormat   = Options("f,format <format>   : output format - ascii, vertical, json, csv, html, default ascii", "ascii");
+	bool         bVersion  = Options("v,version           : show version information"    ,       false);
+	KDuration    Timeout   = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5",  5));
 
 	// do a final check if all required options were set
 	if (!Options.Check()) return 1;
@@ -42,8 +44,21 @@ int KSql::Main(int argc, char** argv)
 
 	KSQL SQL;
 
-	if (!sDBCFile.empty()) SQL.EnsureConnected ("", sDBCFile);
-	else SQL.SetConnect (DBType, sUser, sPassword, sDatabase, sHostname, iDBPort);
+	if (!sDBCFile.empty())
+	{
+		if (!SQL.EnsureConnected ("", sDBCFile, KSQL::IniParms{}, Timeout))
+		{
+			return SetError(SQL.GetLastError());
+		}
+	}
+	else
+	{
+		SQL.SetConnect (DBType, sUser, sPassword, sDatabase, sHostname, iDBPort);
+		if (!SQL.OpenConnection(Timeout))
+		{
+			return SetError(SQL.GetLastError());
+		}
+	}
 
 	if (!bQuiet)
 	{

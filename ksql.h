@@ -198,6 +198,8 @@ public:
 		using KException::KException;
 	};
 
+	static constexpr KDuration DefaultConnectionTimeout = chrono::seconds(30);
+
 	/// value translations
 	using TXList = KProps <KString, KString, /*order-matters=*/false, /*unique-keys*/true>;
 
@@ -256,28 +258,41 @@ public:
 
 	/// default constructor
 	KSQL ();
-	/// constructor to configure connection details
+	/// constructor to configure connection details - connection will be opened later with OpenConnection()
 	/// @param iDBType the DBType
 	/// @param sUsername the user name
 	/// @param sPassword the password
 	/// @param sDatabase the database to use
 	/// @param sHostname the database server hostname
 	/// @param iDBPortNum the database server port number
-	KSQL (DBT iDBType, KStringView sUsername = {}, KStringView sPassword = {}, KStringView sDatabase = {}, KStringView sHostname = {}, uint16_t iDBPortNum = 0);
+	KSQL (
+		DBT         iDBType,
+		KStringView sUsername  = {},
+		KStringView sPassword  = {},
+		KStringView sDatabase  = {},
+		KStringView sHostname  = {},
+		uint16_t    iDBPortNum = 0
+	);
 	/// construct using DBC file.
 	/// This connector immediately also opens the connection.
 	/// @param sDBCFile dbc file to be used
-	KSQL (KStringView sDBCFile);
+	KSQL (
+		KStringView sDBCFile,
+		KDuration   ConnectionTimeout = DefaultConnectionTimeout
+	);
 	/// construct using DBC file, env variables, INI parms with connection details.
-	/// This connector is the only one that immediately also opens the connection.
+	/// This connector immediately also opens the connection.
 	/// @param sIdentifierList name used as prefix for env vars to
 	/// load the configuration from.
 	/// @param sDBCFile dbc file to be used. Can be empty.
 	/// @param INI a property sheet with ini parameters which
 	/// will be searched as last resort to find connection parameters
-	KSQL (KStringView sIdentifierList,
-	      KStringView sDBCFile,
-	      const IniParms& INI = IniParms{});
+	KSQL (
+		KStringView     sIdentifierList,
+	    KStringView     sDBCFile,
+	    const IniParms& INI = IniParms{},
+		KDuration       ConnectionTimeout = DefaultConnectionTimeout
+	);
 	/// copy constructor, only copies connection details from other instance, not internal state!
 	KSQL (const KSQL& other);
 	/// move constructor, moves all internal state
@@ -355,11 +370,11 @@ public:
 	API    GetAPISet        ()      { return (m_iAPISet); }
 	bool   SetAPISet        (API iAPISet);
 	/// Open a server connection with the configured connection parameters
-	bool   OpenConnection   (uint16_t iConnectTimeoutSecs = 0);
+	bool   OpenConnection   (KDuration ConnectionTimeout = DefaultConnectionTimeout);
 	/// Open a server connection to the first responding host in a (comma separated) list.
 	/// Reuses all other configured connection parameters for each host.
 	/// @return true on success
-	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimiter = ",", uint16_t iConnectTimeoutSecs = 0);
+	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimiter = ",", KDuration ConnectionTimeout = DefaultConnectionTimeout);
 	/// Close an open database server connection
 	void   CloseConnection  (bool bDestructor=false);
 	/// returns true on an open server connection
@@ -1008,17 +1023,17 @@ public:
 	/// load the configuration from.
 	/// @param sDBCFile dbc file to be used. Can be empty.
 	/// @param INI a property sheet with ini parameters which
-	/// @param iConnectTimeoutSecs can be used to override MySQL default (which is huge/long)
+	/// @param ConnectionTimeout can be used to override MySQL default (which is huge/long)
 	/// will be searched as last resort to find connection parameters
-	bool EnsureConnected (KStringView sIdentifierList, KString sDBCFile, const IniParms& INI = IniParms{}, uint16_t iConnectTimeoutSecs = 0);
+	bool EnsureConnected (KStringView sIdentifierList, KString sDBCFile, const IniParms& INI = IniParms{}, KDuration ConnectionTimeout = DefaultConnectionTimeout);
 
 	/// conditionally open the db connection, assuming all connection parms are already set
-	/// @param iConnectTimeoutSecs can be used to override MySQL default (which is huge/long)
-	bool EnsureConnected (uint16_t iConnectTimeoutSecs = 0);
+	/// @param ConnectionTimeout can be used to override MySQL default (which is huge/long)
+	bool EnsureConnected (KDuration ConnectionTimeout = DefaultConnectionTimeout);
 
 	/// Useful for db connections that are over a VPN, to see if the VPN is established.
 	/// Upon failure it returns false and sets the LastError.
-	bool PingTest (uint32_t iWaitForMSecs=1000);
+	bool PingTest (KDuration Timeout = chrono::seconds(1));
 
 	void SetDBC (KStringView sFile) { m_sDBCFile = sFile; }
 	const KString& GetDBC () const { return m_sDBCFile;  }
@@ -1545,7 +1560,7 @@ private:
 	API        m_iAPISet { API::NONE };
 #endif
 	uint16_t   m_iDBPortNum { 0 };
-	uint16_t   m_iConnectTimeoutSecs { 0 };
+	KDuration  m_ConnectionTimeout { KDuration::zero() };
 	KString    m_sUsername;
 	KString    m_sPassword;
 	KString    m_sHostname;

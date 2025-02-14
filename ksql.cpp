@@ -560,26 +560,27 @@ KSQL::KSQL (DBT iDBType, KStringView sUsername, KStringView sPassword, KStringVi
 } // KSQL - construct with connection details, but do not connect yet
 
 //-----------------------------------------------------------------------------
-KSQL::KSQL (KStringView sDBCFile)
+KSQL::KSQL (KStringView sDBCFile, KDuration ConnectionTimeout)
 //-----------------------------------------------------------------------------
 : KSQL () // delegate to default constructor first
 {
 	kDebug(2, "DBC file: {}", sDBCFile);
 
-	EnsureConnected ("", sDBCFile);
+	EnsureConnected ("", sDBCFile, IniParms{}, ConnectionTimeout);
 
 } // KSQL - construct and connect from a DBC file
 
 //-----------------------------------------------------------------------------
 KSQL::KSQL (KStringView sIdentifierList,
 			KStringView sDBCFile,
-			const IniParms& INI)
+			const IniParms& INI,
+			KDuration ConnectionTimeout)
 //-----------------------------------------------------------------------------
 : KSQL () // delegate to default constructor first
 {
 	kDebug(2, "Identifiers: {}, DBC file: {}", sIdentifierList, sDBCFile);
 
-	EnsureConnected (sIdentifierList, sDBCFile, INI);
+	EnsureConnected (sIdentifierList, sDBCFile, INI, ConnectionTimeout);
 
 } // KSQL - construct and connect from a DBC file or env or INI parms
 
@@ -1136,16 +1137,16 @@ bool KSQL::LoadConnect (KStringViewZ sDBCFile)
 } // LoadConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = ","*/, uint16_t iConnectTimeoutSecs/*=0*/)
+bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = ","*/, KDuration ConnectionTimeout/*=30s*/)
 //-----------------------------------------------------------------------------
 {
-	m_iConnectTimeoutSecs = iConnectTimeoutSecs; // <-- save timeout in case we have to reconnect
+	m_ConnectionTimeout = ConnectionTimeout; // <-- save timeout in case we have to reconnect
 
 	for (auto sDBHost : sListOfHosts.Split(sDelimiter))
 	{
 		SetDBHost (sDBHost);
 
-		if (OpenConnection(iConnectTimeoutSecs))
+		if (OpenConnection(ConnectionTimeout))
 		{
 			kDebug (3, "host {} is up", sDBHost);
 			return true;
@@ -1161,10 +1162,10 @@ bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = 
 } // KSQL::OpenConnection
 
 //-----------------------------------------------------------------------------
-bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
+bool KSQL::OpenConnection (KDuration ConnectionTimeout)
 //-----------------------------------------------------------------------------
 {
-	m_iConnectTimeoutSecs = iConnectTimeoutSecs; // <-- save timeout in case we have to reconnect
+	m_ConnectionTimeout = ConnectionTimeout; // <-- save timeout in case we have to reconnect
 
     #ifdef DEKAF2_HAS_ORACLE
 	static bool s_fOCI8Initialized = false;
@@ -1256,10 +1257,10 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 			return SetError("could not init mysql connector");
 		}
 
-		if (iConnectTimeoutSecs)
+		if (ConnectionTimeout > KDuration::zero())
 		{
-			kDebug (3, "mysql_options(CONNECT_TIMEOUT={})...", iConnectTimeoutSecs);
-			unsigned int iTimeoutUINT{iConnectTimeoutSecs};
+			kDebug (3, "mysql_options(CONNECT_TIMEOUT={})...", ConnectionTimeout);
+			unsigned int iTimeoutUINT{ static_cast<unsigned int>(ConnectionTimeout.seconds().count()) };
 			mysql_options (m_dMYSQL, MYSQL_OPT_CONNECT_TIMEOUT, &iTimeoutUINT);
 		}
 
@@ -1587,7 +1588,8 @@ bool KSQL::OpenConnection (uint16_t iConnectTimeoutSecs/*=0*/)
 	// - - - - - - - - - - - - - - - - -
 		if (!ctlib_login())
 		{
-			return SetError("CTLIB: connection failed");
+			// error is already set
+			return false;
 		}
 		break;
 	#endif
@@ -2070,7 +2072,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 						kDebug (1, "lost m_dMYSQL pointer.  Reopening connection ...");
 
 						CloseConnection();
-						OpenConnection(m_iConnectTimeoutSecs);
+						OpenConnection(m_ConnectionTimeout);
 
 						if (!m_dMYSQL)
 						{
@@ -2201,7 +2203,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 					kDebug (1, "lost CTLIB connection.  Reopening connection ...");
 
 					CloseConnection();
-					OpenConnection(m_iConnectTimeoutSecs);
+					OpenConnection(m_ConnectionTimeout);
 
 					if (!ctlib_is_initialized())
 					{
@@ -2334,7 +2336,7 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 		kDebug(2, "connection {} was canceled on demand, query retry aborted", m_iConnectionID);
 		// make sure all state is correctly reset
 		CloseConnection();
-		OpenConnection(m_iConnectTimeoutSecs);
+		OpenConnection(m_ConnectionTimeout);
 
 		if (sError)
 		{
@@ -2429,7 +2431,7 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 		}
 
 		CloseConnection ();
-		OpenConnection (m_iConnectTimeoutSecs);
+		OpenConnection (m_ConnectionTimeout);
 
 		if (IsConnectionOpen())
 		{
@@ -2591,7 +2593,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 	KAtScopeEnd( ClearErrorPrefix() );
 
 	EndQuery ();
-	if (!IsConnectionOpen() && !OpenConnection(m_iConnectTimeoutSecs))
+	if (!IsConnectionOpen() && !OpenConnection(m_ConnectionTimeout))
 	{
 		return (false);
 	}
@@ -2956,7 +2958,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 	EndQuery();
 
-	if (!IsConnectionOpen() && !OpenConnection(m_iConnectTimeoutSecs))
+	if (!IsConnectionOpen() && !OpenConnection(m_ConnectionTimeout))
 	{
 		return (false);
 	}
@@ -6594,6 +6596,18 @@ bool KSQL::ctlib_login ()
 		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
+	CS_INT timeval = static_cast<CS_INT>(m_ConnectionTimeout.seconds().count());
+	if (timeval > 0)
+	{
+		kDebug(KSQL2_CTDEBUG, "setting connection timeout of {}", m_ConnectionTimeout);
+		if (ct_config(m_pCtContext, CS_SET, CS_LOGIN_TIMEOUT, (CS_VOID *)&timeval, CS_UNUSED, nullptr) != CS_SUCCEED)
+		{
+			kDebug(1, "Can't config timeout");
+			ctlib_api_error ("Can't config timeout");
+			return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
+		}
+	}
+
 	kDebug (KSQL2_CTDEBUG, "ct_con_alloc()");
 	if (ct_con_alloc (m_pCtContext, &m_pCtConnection) != CS_SUCCEED)
 	{
@@ -6620,7 +6634,7 @@ bool KSQL::ctlib_login ()
 	int iTryConnect = 0;
 	while(true)
 	{
-		kDebug (KSQL2_CTDEBUG, "connecting as {} to {}.{}\n", GetDBUser(), GetDBHost(), GetDBName());
+		kDebug (KSQL2_CTDEBUG, "connecting as {} to {}:{}", GetDBUser(), GetDBHost(), GetDBName());
 		auto sHost = GetDBHost();
 		auto iRetcode = ct_connect (m_pCtConnection, sHost.data(), static_cast<CS_INT>(sHost.size()));
 		if (iRetcode == CS_SUCCEED)
@@ -6628,11 +6642,13 @@ bool KSQL::ctlib_login ()
 			break;
 		}
 		kDebug (KSQL2_CTDEBUG, "got error {} : {}", iRetcode, cs_prretcode(iRetcode));
-		if (++iTryConnect >= 3)
+		if (++iTryConnect >= 1) // we only try once
 		{
-			//try to connect 3 times.
+			//try to connect 3 times. // no more
 			ctlib_api_error ("ctlib_login>ct_connect");
-			return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
+			kDebug(KSQL2_CTDEBUG, m_sCtLibLastError);
+			if (!m_sCtLibLastError.empty()) return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
+			else return SetError(kFormat("cannot connect as {} to {}:{}", GetDBUser(), GetDBHost(), GetDBName()));
 		}
 	}
 
@@ -8518,12 +8534,12 @@ static void ApplIniAndEnvironment (const KString& sName, KProps<KString, KString
 } // ApplIniAndEnvironment
 
 //-----------------------------------------------------------------------------
-bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const IniParms& INI, uint16_t iConnectTimeoutSecs/*=0*/)
+bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const IniParms& INI, KDuration ConnectionTimeout)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "sIdentifierList={}, sDBCArg={} ...", sIdentifierList, sDBCArg);
 
-	m_iConnectTimeoutSecs = iConnectTimeoutSecs; // <-- save timeout in case we have to reconnect
+	m_ConnectionTimeout = ConnectionTimeout; // <-- save timeout in case we have to reconnect
 
 	if (IsConnectionOpen())
 	{
@@ -8681,7 +8697,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	kDebug (3, "attempting to connect ...");
 
-	if (!OpenConnection(iConnectTimeoutSecs))
+	if (!OpenConnection(ConnectionTimeout))
 	{
 		return false;
 	}
@@ -8694,10 +8710,10 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 } // KSQL::EnsureConnected - 1
 
 //-----------------------------------------------------------------------------b
-bool KSQL::EnsureConnected (uint16_t iConnectTimeoutSecs/*=0*/)
+bool KSQL::EnsureConnected (KDuration ConnectionTimeout)
 //-----------------------------------------------------------------------------
 {
-	m_iConnectTimeoutSecs = iConnectTimeoutSecs; // <-- save timeout in case we have to reconnect
+	m_ConnectionTimeout = ConnectionTimeout; // <-- save timeout in case we have to reconnect
 
 	if (IsConnectionOpen())
 	{
@@ -8707,7 +8723,7 @@ bool KSQL::EnsureConnected (uint16_t iConnectTimeoutSecs/*=0*/)
 
 	kDebug (3, "attempting to connect ...");
 
-	if (!OpenConnection(iConnectTimeoutSecs))
+	if (!OpenConnection(ConnectionTimeout))
 	{
 		return false;
 	}
@@ -8718,25 +8734,23 @@ bool KSQL::EnsureConnected (uint16_t iConnectTimeoutSecs/*=0*/)
 } // KSQL::EnsureConnected - 2
 
 //-----------------------------------------------------------------------------
-bool KSQL::PingTest (uint32_t iWaitForMSecs/*=1000*/)
+bool KSQL::PingTest (KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	auto sHost = GetDBHost();
 	if (!sHost)
 	{
-		SetError (kFormat ("BUG:KSQL: cannot run PingTest() without connection parameters set."));
-		return false;
+		return SetError (kFormat ("cannot run PingTest() without connection parameters set."));
 	}
 
-	// Note: iWaitForMSecs is ignored in the hack but should be honored by the real code
-	bool bOK = (kSystem (kFormat ("ping -c 1 -t 1 {}", sHost)) == 0);
+	auto Ping = kPing(sHost, Timeout);
 
-	if (!bOK)
+	if (Ping <= KDuration::zero())
 	{
-		SetError (kFormat ("failed to reach server {} - are you connected to that network?", sHost));
+		return SetError (kFormat ("failed to reach server {} - are you connected to that network?", sHost));
 	}
 
-	return bOK;
+	return true;
 
 } // PingTest
 

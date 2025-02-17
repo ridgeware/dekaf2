@@ -46,6 +46,9 @@
 #include "khtmlentities.h"
 #include "kexception.h"
 
+// set to 1 for debug output
+#define DEKAF2_HTMLDOM_DEBUG 0
+
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
@@ -124,27 +127,29 @@ bool KHTMLElement::Parse(KStringView sInput, bool bDummyParam)
 }
 
 //-----------------------------------------------------------------------------
-bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent, bool bIsFirstAfterLinefeed, bool bIsInsideHead) const
+bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent, bool bIsFirstAfterLinefeed, bool bIsInsideHead, uint16_t iIsPreformatted) const
 //-----------------------------------------------------------------------------
 {
 	// bIsFirstAfterLinefeed means: last output was a linefeed
 	// returns bIsFirstAfterLinefeed
 
-	auto bIsStandalone  = IsStandalone();
-	auto bIsInline      = IsInline();
-	auto bIsInlineBlock = IsInlineBlock();
-	bool bIsRoot        = m_Name.empty();
-	bool bLastWasSpace  = bIsFirstAfterLinefeed;
+	auto bIsStandalone   = IsStandalone();
+	auto bIsInline       = IsInline();
+	auto bIsInlineBlock  = IsInlineBlock();
+	bool bIsRoot         = m_Name.empty();
+	bool bLastWasSpace   = bIsFirstAfterLinefeed;
 
+#if DEKAF2_HTMLDOM_DEBUG
 #if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
 	kDebug(4, "up: <{}{}, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}, IsFirst={}", m_Name, '>', iIndent, bIsStandalone, bIsInline, bIsRoot, bIsFirstAfterLinefeed);
 #else
 	kDebug(4, "up: <{}>, Indent={}, IsStandalone={}, IsInline={}, IsRoot={}, IsFirst={}", m_Name, iIndent, bIsStandalone, bIsInline, bIsRoot, bIsFirstAfterLinefeed);
 #endif
+#endif
 
-	auto PrintIndent   = [&bIsFirstAfterLinefeed,&bLastWasSpace,chIndent,&OutStream](uint16_t iIndent)
+	auto PrintIndent   = [&bIsFirstAfterLinefeed,&bLastWasSpace,chIndent,&OutStream,&iIsPreformatted](uint16_t iIndent)
 	{
-		if (bIsFirstAfterLinefeed)
+		if (!iIsPreformatted && bIsFirstAfterLinefeed)
 		{
 			if (chIndent)
 			{
@@ -182,8 +187,9 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 
 		if (bIsStandalone)
 		{
+#if DEKAF2_HTMLDOM_DEBUG
 			kDebug(4, "down: <{}/>", m_Name);
-
+#endif
 			static constexpr bool bXHTML = false;
 
 			if (bXHTML)
@@ -219,17 +225,29 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 				bIsInsideHead = true;
 			}
 
-			if (!m_Children.empty())
+			if (!iIsPreformatted && !m_Children.empty())
 			{
 				WriteLinefeed();
 			}
+		}
+
+		// preformatted sections only start _after_ start tag emission, right here..
+		// we also still write a line break after the tag because browsers remove the
+		// first line break - this way a leading line break of the real preformatted
+		// content gets honoured
+		if (IsPreformatted() && iIsPreformatted < std::numeric_limits<decltype(iIsPreformatted)>::max())
+		{
+			// the above test for limits is only meant to avoid UB - if it overflows the DOM
+			// has quite another problem, therefore we don't report it
+			++iIsPreformatted;
 		}
 	}
 
 	for (const auto& it : m_Children)
 	{
+#if DEKAF2_HTMLDOM_DEBUG
 		kDebug(4, "child: {}", it->TypeName());
-
+#endif
 		auto iType { it->Type() };
 
 		switch (iType)
@@ -238,7 +256,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 			{
 				auto* Element = static_cast<KHTMLElement*>(it.get());
 				// print KHTMLElements here, instead of calling Serialize() below
-				bIsFirstAfterLinefeed = Element->Print(OutStream, chIndent, iIndent + (bIsRoot ? 0 : 1), bIsFirstAfterLinefeed, bIsInsideHead);
+				bIsFirstAfterLinefeed = Element->Print(OutStream, chIndent, iIndent + (bIsRoot ? 0 : 1), bIsFirstAfterLinefeed, bIsInsideHead, iIsPreformatted);
 				bLastWasSpace = bIsFirstAfterLinefeed;
 			}
 			continue;
@@ -265,7 +283,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 				OutStream.Write('[');
 				it->Serialize(OutStream);
 			}
-			else if (bLastWasSpace)
+			else if (!iIsPreformatted && bLastWasSpace)
 			{
 				// do not print a whitespace-only text element in normal output mode
 				// if preceded by whitespace
@@ -302,7 +320,8 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 				}
 
 				auto* Element = static_cast<KHTMLText*>(it.get());
-				if (!Element->sText.empty() && Element->sText.back() == '\n')
+
+				if (!iIsPreformatted && !Element->sText.empty() && Element->sText.back() == '\n')
 				{
 					bIsFirstAfterLinefeed = true;
 				}
@@ -315,7 +334,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 	{
 		if (!m_Children.empty())
 		{
-			if (!bIsInline || bIsInlineBlock)
+			if ((!bIsInline || bIsInlineBlock) && !iIsPreformatted)
 			{
 				if (!bIsFirstAfterLinefeed)
 				{
@@ -340,10 +359,12 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 		}
 	}
 
+#if DEKAF2_HTMLDOM_DEBUG
 #if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
 	kDebug(4, "down: </{}{}", m_Name, '>');
 #else
 	kDebug(4, "down: </{}>", m_Name);
+#endif
 #endif
 	return bIsFirstAfterLinefeed;
 
@@ -788,7 +809,7 @@ void KHTML::clear()
 	m_Issues.clear();
 	m_bLastWasSpace = true;
 	m_bDoNotEscape  = false;
-	m_bInsideStyle  = false;
+	m_bPreformatted = 0;
 
 } // clear
 
@@ -818,7 +839,9 @@ void KHTML::FlushText()
 void KHTML::SetIssue(KString sIssue)
 //-----------------------------------------------------------------------------
 {
+#if DEKAF2_HTMLDOM_DEBUG
 	kDebug(1, sIssue);
+#endif
 	m_Issues.push_back(std::move(sIssue));
 
 } // SetIssue
@@ -838,6 +861,7 @@ void KHTML::Object(KHTMLObject& Object)
 			auto  bIsStandalone    = KHTMLObject::IsStandalone   (TagProps);
 			auto  bIsInline        = KHTMLObject::IsInline       (TagProps);
 			auto  bIsInlineBlock   = KHTMLObject::IsInlineBlock  (TagProps);
+			auto  bIsPreformatted  = KHTMLObject::IsPreformatted (TagProps);
 			auto  iHierarchyLevels = m_Hierarchy.size();
 
 			if (Tag.IsClosing())
@@ -899,9 +923,9 @@ void KHTML::Object(KHTMLObject& Object)
 							m_Hierarchy.back()->RemoveTrailingWhitespace();
 							m_bLastWasSpace = true;
 
-							if (Tag.Name == "style")
+							if (bIsPreformatted && m_bPreformatted)
 							{
-								m_bInsideStyle = false;
+								--m_bPreformatted;
 							}
 						}
 
@@ -923,27 +947,33 @@ void KHTML::Object(KHTMLObject& Object)
 						{
 							if (!iMaxAutoClose--)
 							{
+#if DEKAF2_HTMLDOM_DEBUG
 #if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
 								kDebug(2, "could not resync, max auto close levels = {}, will drop </{}{}", m_iMaxAutoCloseLevels, Tag.Name, '>');
 #else
 								kDebug(2, "could not resync, max auto close levels = {}, will drop </{}>", m_iMaxAutoCloseLevels, Tag.Name);
+#endif
 #endif
 								break;
 							}
 
 							if (iCurrentLevel-- < 2)
 							{
+#if DEKAF2_HTMLDOM_DEBUG
 #if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
 								kDebug(2, "could not resync, reached root during descent, will drop </{}{}", Tag.Name, '>');
 #else
 								kDebug(2, "could not resync, reached root during descent, will drop </{}>", Tag.Name);
+#endif
 #endif
 								break;
 							}
 
 							if (m_Hierarchy[iCurrentLevel]->GetName() == Tag.Name)
 							{
+#if DEKAF2_HTMLDOM_DEBUG
 								kDebug(2, "resync after {} descents", m_Hierarchy.size() - 1 - iCurrentLevel);
+#endif
 								while (m_Hierarchy.size() > iCurrentLevel)
 								{
 
@@ -953,9 +983,9 @@ void KHTML::Object(KHTMLObject& Object)
 										m_Hierarchy.back()->RemoveTrailingWhitespace();
 										m_bLastWasSpace = true;
 
-										if (m_Hierarchy.back()->GetName() == "style")
+										if (KHTMLObject::IsPreformattedTag(m_Hierarchy.back()->GetName()) && m_bPreformatted)
 										{
-											m_bInsideStyle = false;
+											--m_bPreformatted;
 										}
 									}
 
@@ -995,10 +1025,9 @@ void KHTML::Object(KHTMLObject& Object)
 					{
 						m_bLastWasSpace = true;
 
-						if (Element.GetName() == "style")
+						if (KHTMLObject::IsPreformattedTag(Element.GetName()))
 						{
-							// we format the contents of style elements differently
-							m_bInsideStyle = true;
+							++m_bPreformatted;
 						}
 					}
 				}
@@ -1079,7 +1108,7 @@ void KHTML::Finished()
 void KHTML::Content(char ch)
 //-----------------------------------------------------------------------------
 {
-	if (!m_bInsideStyle)
+	if (!m_bPreformatted)
 	{
 		if (KASCII::kIsSpace(ch))
 		{

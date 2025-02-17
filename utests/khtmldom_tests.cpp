@@ -211,9 +211,36 @@ TEST_CASE("KHTML")
 		CHECK ( HTML.Serialize() == sSample );
 	}
 
+	SECTION("preformatted text")
+	{
+		static constexpr KStringView sSample   { "<pre>This is  \r\n  preformatted    text</pre>" };
+		static constexpr KStringView sExpected { "<pre>\r\nThis is  \r\n  preformatted    text</pre>\r\n" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		CHECK ( HTML.Serialize() == sExpected );
+	}
+
+	SECTION("preformatted text in outer block")
+	{
+		static constexpr KStringView sSample   { "<div><div><pre>This is  \r\n  preformatted    text</pre></div></div>" };
+		static constexpr KStringView sExpected { "<div>\r\n\t<div>\r\n\t\t<pre>\r\nThis is  \r\n  preformatted    text</pre>\r\n\t</div>\r\n</div>\r\n" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		CHECK ( HTML.Serialize() == sExpected );
+	}
+
+	SECTION("preformatted text with inlines")
+	{
+		static constexpr KStringView sSample   { "<pre>This is  \r\n  <b>preformatted</b>    text</pre>" };
+		static constexpr KStringView sExpected { "<pre>\r\nThis is  \r\n  <b>preformatted</b>    text</pre>\r\n" };
+		KHTML HTML;
+		HTML.Parse(sSample);
+		CHECK ( HTML.Serialize() == sExpected );
+	}
+
 	SECTION("block framed")
 	{
-		static constexpr KStringView sSample   { "<p>This is <b>block <i>framed</i></b> text</p>" };
+		static constexpr KStringView sSample   { "<p>This is    <b>block <i>framed</i></b>    text</p>" };
 		static constexpr KStringView sExpected { "<p>\r\n\tThis is <b>block <i>framed</i></b> text\r\n</p>\r\n" };
 		KHTML HTML;
 		HTML.Parse(sSample);

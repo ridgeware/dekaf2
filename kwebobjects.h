@@ -2527,6 +2527,29 @@ public:
 
 }; // Text
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Preformatted : public KWebObject<Preformatted>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	static constexpr KStringView s_sObjectName = "Pre";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	Preformatted(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
+	: KWebObject("pre", sID, Classes)
+	{
+	}
+
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t WebObjectType() const override { return TYPE; }
+
+}; // Preformatted
+
 } // end of namespace html
 
 DEKAF2_NAMESPACE_END

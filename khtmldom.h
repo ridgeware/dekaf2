@@ -93,7 +93,7 @@ public:
 	/// Serializes element and all children. Allows to chose indent character (0 for no indent, default = tab).
 	void Print(KStringRef& sOut, char chIndent = '\t', uint16_t iIndent = 0) const;
 	/// Serializes element and all children. Allows to chose indent character (0 for no indent, default = tab).
-	bool Print(KOutStream& OutStream, char chIndent = '\t', uint16_t iIndent = 0, bool bIsFirstAfterLinefeed = true, bool bIsInsideHead = false) const;
+	bool Print(KOutStream& OutStream, char chIndent = '\t', uint16_t iIndent = 0, bool bIsFirstAfterLinefeed = true, bool bIsInsideHead = false, uint16_t iIsPreformatted = 0) const;
 
 	using value_type     = std::unique_ptr<KHTMLObject>;
 	using ElementVector  = std::vector<value_type>;
@@ -316,22 +316,25 @@ public:
 
 	/// Is this element an inline element?
 	/// @return true if element is inline, false otherwise
-	bool IsInline()       const { return KHTMLObject::IsInline(m_Property);     }
+	bool IsInline          () const { return KHTMLObject::IsInline          (m_Property); }
 	/// Is this element an inline-block element?
 	/// @return true if element is inline-block, false otherwise
-	bool IsInlineBlock() const { return KHTMLObject::IsInlineBlock(m_Property); }
+	bool IsInlineBlock     () const { return KHTMLObject::IsInlineBlock     (m_Property); }
 	/// Is this element a standalone/void element?
 	/// @return true if element is standalone, false otherwise
-	bool IsStandalone()  const { return KHTMLObject::IsStandalone(m_Property);  }
+	bool IsStandalone      () const { return KHTMLObject::IsStandalone      (m_Property); }
 	/// Is this element a block element?
 	/// @return true if element is block, false otherwise
-	bool IsBlock()       const { return KHTMLObject::IsBlock(m_Property);       }
+	bool IsBlock           () const { return KHTMLObject::IsBlock           (m_Property); }
 	/// Is this element an embedded element?
 	/// @return true if element is embedded, false otherwise
-	bool IsEmbedded()    const { return KHTMLObject::IsEmbedded(m_Property);    }
+	bool IsEmbedded        () const { return KHTMLObject::IsEmbedded        (m_Property); }
 	/// Is this element not an inline element inside header?
 	/// @return true if element is not an inline element inside header, false otherwise
-	bool IsNotInlineInHead() const { return KHTMLObject::IsNotInlineInHead(m_Property); }
+	bool IsNotInlineInHead () const { return KHTMLObject::IsNotInlineInHead (m_Property); }
+	/// Is this element a preformatted element?
+	/// @return true if element is preformatted, false otherwise
+	bool IsPreformatted    () const { return KHTMLObject::IsPreformatted    (m_Property); }
 
 	/// Merge adjacent Text elements
 	/// @param bHierarchically If set to true will walk all children's children too. Defaults to true.
@@ -491,9 +494,9 @@ private:
 	KString                    m_sContent;
 	std::vector<KString>       m_Issues;
 	std::size_t                m_iMaxAutoCloseLevels { 2 };
-	bool                       m_bLastWasSpace { true  };
-	bool                       m_bDoNotEscape  { false };
-	bool                       m_bInsideStyle  { false };
+	bool                       m_bLastWasSpace   { true  };
+	bool                       m_bDoNotEscape    { false };
+	uint8_t                    m_bPreformatted   { 0     };
 
 }; // KHTML
 

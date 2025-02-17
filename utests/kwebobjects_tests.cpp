@@ -18,7 +18,7 @@ TEST_CASE("KWebObjects")
 			My First Web Page
 		</title>
 		<style>
-			body {
+body {
 font-family: Verdana, sans-serif; background-color: powderblue
 }
 
@@ -26,7 +26,13 @@ font-family: Verdana, sans-serif; background-color: powderblue
 text-decoration: none
 }
 
-		</style>
+</style>
+		<script charset="utf-8">
+			function test()
+			{
+				return "test";
+			}
+		</script>
 	</head>
 	<body>
 		<p>
@@ -166,6 +172,15 @@ text-decoration: none
 		html::Class NoDecoration(".nodecoration", "text-decoration: none");
 		page.AddClass(NoDecoration);
 
+		html::Script Script(R"(
+			function test()
+			{
+				return "test";
+			}
+		)");
+
+		page.Head().Add(Script);
+
 		html::Image image("http://some.image.url/at/a/path.png", "Image1", "", NoDecoration);
 		image.SetDescription("this is a test image");
 		image.SetLoading(html::Image::LAZY);
@@ -276,17 +291,18 @@ text-decoration: none
 			ti.Synchronize(Parms);
 		}
 
-		KString sCRLF = sSerialized;
-		sCRLF.Replace("\n", "\r\n");
+		KString sCRLF = page.Print();
+		sCRLF.Replace("\r\n", "\n");
 
-		CHECK( page.Print() == sCRLF );
+		CHECK( sCRLF == sSerialized );
 		CHECK( m_Config.m_fMinConfidence == 0.55 );
 		CHECK( m_Config.m_fMaxConfidence == 0.99 );
 		CHECK( m_Config.bNoDisplay       == true );
 		CHECK( m_Config.sMailTo          == "xyz");
 		CHECK( m_Config.iMotionArea      == 1000 );
 
-		auto sDiff = print_diff(page.Print(), sCRLF);
+		auto sDiff = print_diff(sCRLF, sSerialized);
+
 		if (!sDiff.empty())
 		{
 			FAIL_CHECK ( sDiff );

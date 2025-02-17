@@ -107,35 +107,40 @@ public:
 		Standalone        = 1 << 2,
 		Block             = 1 << 3,
 		Embedded          = 1 << 4,
-		NotInlineInHead   = 1 << 5
+		NotInlineInHead   = 1 << 5,
+		Preformatted      = 1 << 6
 	};
 
 	/// returns the tag property, which can be a mix of Inline, InlineBlock, Standalone or Block
-	static TagProperty GetTagProperty(KStringView sTag);
+	static TagProperty GetTagProperty (KStringView sTag);
 	/// returns true if sTag is one of the predefined inline tags
-	static bool IsInlineTag(KStringView sTag)      { return (GetTagProperty(sTag) & TagProperty::Inline     ) == TagProperty::Inline;      }
+	static bool IsInlineTag        (KStringView sTag) { return (GetTagProperty(sTag) & TagProperty::Inline         ) == TagProperty::Inline;          }
 	/// returns true if sTag is one of the predefined inline-block tags (they behave
 	/// like inline tags from the outside, but like block tags from the inside)
-	static bool IsInlineBlockTag(KStringView sTag) { return (GetTagProperty(sTag) & TagProperty::InlineBlock) == TagProperty::InlineBlock; }
+	static bool IsInlineBlockTag   (KStringView sTag) { return (GetTagProperty(sTag) & TagProperty::InlineBlock    ) == TagProperty::InlineBlock;     }
 	/// returns true if sTag is one of the predefined standalone/empty/void tags
-	static bool IsStandaloneTag(KStringView sTag)  { return (GetTagProperty(sTag) & TagProperty::Standalone ) == TagProperty::Standalone;  }
+	static bool IsStandaloneTag    (KStringView sTag) { return (GetTagProperty(sTag) & TagProperty::Standalone     ) == TagProperty::Standalone;      }
+	/// returns true if sTag is one of the predefined preformatted tags
+	static bool IsPreformattedTag  (KStringView sTag) { return (GetTagProperty(sTag) & TagProperty::Preformatted   ) == TagProperty::Preformatted;    }
 	/// returns true if sTag is one of the predefined inline tags
-	static bool IsInline(TagProperty Prop)         { return (Prop                 & TagProperty::Inline     ) == TagProperty::Inline;      }
+	static bool IsInline           (TagProperty Prop) { return (Prop                 & TagProperty::Inline         ) == TagProperty::Inline;          }
 	/// returns true if sTag is one of the predefined inline-block tags (they behave
 	/// like inline tags from the outside, but like block tags from the inside)
-	static bool IsInlineBlock(TagProperty Prop)    { return (Prop                 & TagProperty::InlineBlock) == TagProperty::InlineBlock; }
+	static bool IsInlineBlock      (TagProperty Prop) { return (Prop                 & TagProperty::InlineBlock    ) == TagProperty::InlineBlock;     }
 	/// returns true if sTag is one of the predefined standalone/empty/void tags
-	static bool IsStandalone(TagProperty Prop)     { return (Prop                 & TagProperty::Standalone ) == TagProperty::Standalone;  }
+	static bool IsStandalone       (TagProperty Prop) { return (Prop                 & TagProperty::Standalone     ) == TagProperty::Standalone;      }
+	/// returns true if sTag is one of the predefined block tags (like p or div)
+	static bool IsBlock            (TagProperty Prop) { return (Prop                 & TagProperty::Block          ) == TagProperty::Block;           }
 	/// returns true if sTag is one of the predefined embedded tags (like video or img)
-	static bool IsBlock(TagProperty Prop)          { return (Prop                 & TagProperty::Block      ) == TagProperty::Block;       }
-	/// returns true if sTag is one of the predefined embedded tags (like video or img)
-	static bool IsEmbedded(TagProperty Prop)       { return (Prop                 & TagProperty::Embedded   ) == TagProperty::Embedded;    }
-	/// returns true if sTag is one of the predefined embedded tags (like video or img)
-	static bool IsNotInlineInHead(TagProperty Prop) { return (Prop            & TagProperty::NotInlineInHead) == TagProperty::NotInlineInHead; }
+	static bool IsEmbedded         (TagProperty Prop) { return (Prop                 & TagProperty::Embedded       ) == TagProperty::Embedded;        }
+	/// returns true if sTag is one of the predefined tags that are not inline inside the head section (like meta or link)
+	static bool IsNotInlineInHead  (TagProperty Prop) { return (Prop                 & TagProperty::NotInlineInHead) == TagProperty::NotInlineInHead; }
+	/// returns true if sTag is one of the predefined preformatted tags (like pre)
+	static bool IsPreformatted     (TagProperty Prop) { return (Prop                 & TagProperty::Preformatted   ) == TagProperty::Preformatted;    }
 	/// returns true if sAttributeName is one of the predefined boolean attributes
-	static bool IsBooleanAttribute(KStringView sAttributeName);
+	static bool IsBooleanAttribute (KStringView sAttributeName);
 	/// returns a decoded entity read from InStream, which must point to the character after '&'
-	static KString DecodeEntity(KBufferedReader& InStream);
+	static KString DecodeEntity    (KBufferedReader& InStream);
 
 }; // KHTMLObject
 

@@ -10334,6 +10334,7 @@ std::atomic<KSQL::QueryType>           KSQL::s_QueryTypeForTimeout { QueryType::
 KSQL::DBCCache KSQL::s_DBCCache;
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KDuration    KSQL::DefaultConnectionTimeout;
 constexpr KStringViewZ KSQL::KSQL_CONNECTION_TEST_ONLY;
 constexpr KStringViewZ KSQL::DIFF::diff_prefix;
 constexpr KStringViewZ KSQL::DIFF::left_schema;

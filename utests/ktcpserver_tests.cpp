@@ -21,7 +21,7 @@ TEST_CASE("KTCPServer")
 	// now start a thread that waits a bit and then sends a SIGTERM
 	std::thread t1([]()
 	{
-		kMilliSleep(100);
+		kSleep(chrono::milliseconds(100));
 		kill(kGetPid(), SIGTERM);
 	});
 

@@ -812,7 +812,7 @@ bool KTCPServer::Stop()
 
 #ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
 
-	kMilliSleep(10);
+	kSleep(chrono::milliseconds(10));
 
 	// give it another shot for older systems
 	if (m_bStartIPv6)

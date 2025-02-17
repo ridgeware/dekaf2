@@ -418,7 +418,7 @@ void KSocketWatch::Watch()
 #if DEKAF2_ADD_POLLIN
 		// on Linux, sleep outside poll to minimize calls to recv()
 		// for active sockets..
-		kMilliSleep(m_Timeout.milliseconds().count());
+		kSleep(m_Timeout);
 #endif
 	}
 

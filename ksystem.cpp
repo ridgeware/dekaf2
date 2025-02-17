@@ -917,53 +917,12 @@ uint32_t kRandom(uint32_t iMin, uint32_t iMax)
 } // kRandom
 
 //-----------------------------------------------------------------------------
-void kNanoSleep (uint64_t iNanoSeconds)
+void kSleep (KDuration duration)
 //-----------------------------------------------------------------------------
 {
-	std::this_thread::sleep_for(std::chrono::nanoseconds(iNanoSeconds));
-
-} // kNanoSleep
-
-//-----------------------------------------------------------------------------
-void kMicroSleep (uint64_t iMicroSeconds)
-//-----------------------------------------------------------------------------
-{
-	std::this_thread::sleep_for(std::chrono::microseconds(iMicroSeconds));
-
-} // kMicroSleep
-
-//-----------------------------------------------------------------------------
-void kMilliSleep (uint64_t iMilliSeconds)
-//-----------------------------------------------------------------------------
-{
-	std::this_thread::sleep_for(std::chrono::milliseconds(iMilliSeconds));
-
-} // kMilliSleep
-
-//-----------------------------------------------------------------------------
-void kSleep (uint64_t iSeconds)
-//-----------------------------------------------------------------------------
-{
-	std::this_thread::sleep_for(std::chrono::seconds(iSeconds));
+	std::this_thread::sleep_for(duration);
 
 } // kSleep
-
-//-----------------------------------------------------------------------------
-void kSleepRandomMilliseconds (uint32_t iMin, uint32_t iMax)
-//-----------------------------------------------------------------------------
-{
-	uint32_t iSleep = iMin;
-
-	if (iMax > iMin)
-	{
-		iSleep = kRandom(iMin, iMax);
-	}
-
-	kDebug (2, "sleeping {} milliseconds...", iSleep);
-
-	kMilliSleep(iSleep);
-
-} // kSleepRandomMilliseconds
 
 //-----------------------------------------------------------------------------
 std::size_t kGetPageSize()

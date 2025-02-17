@@ -179,7 +179,7 @@ TEST_CASE("KHTTPClient") {
 		KStopTime Stop;
 		CHECK( Client.SendRequest() == false );
 		// allow for ten millisecond of fail time
-		CHECK( Stop.microseconds() < chrono::microseconds(10000) );
+		CHECK( Stop.elapsed().microseconds() < chrono::microseconds(10000) );
 	}
 
 	SECTION("send a stream")
@@ -196,7 +196,7 @@ TEST_CASE("KHTTPClient") {
 		KString shtml;
 		HTTP.Read(shtml);
 		CHECK( shtml == "0123456789");
-		kMilliSleep(50);
+		kSleep(chrono::milliseconds(50));
 		if (server.m_rx.size() == 11)
 		{
 			CHECK( server.m_rx[0] == "POST /abc HTTP/1.1" );

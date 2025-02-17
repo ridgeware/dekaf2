@@ -140,10 +140,10 @@ TEST_CASE("KPool")
 			{
 				for (int iLoop = 0; iLoop < 30; ++iLoop)
 				{
-					kSleepRandomMilliseconds(1, 10);
+					kSleep(chrono::milliseconds(kRandom(1, 10)));
 					auto p = Pool.get();
 					p->sString = "hello";
-					kSleepRandomMilliseconds(1, 10);
+					kSleep(chrono::milliseconds(kRandom(1, 10)));
 				}
 			}));
 		}
@@ -187,7 +187,7 @@ TEST_CASE("KPool")
 
 		for (int i = 0; i < 10; ++i)
 		{
-			kMilliSleep(1);
+			kSleep(chrono::milliseconds(1));
 			Objects.push_back(Pool.get());
 		}
 

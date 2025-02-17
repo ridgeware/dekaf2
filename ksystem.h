@@ -231,36 +231,13 @@ std::vector<KString> kHostLookupToList (KStringViewZ sIPAddr, std::size_t iMax =
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kHostLookup (KStringViewZ sIPAddr);
 
-/// Sleep for the amount of nanoseconds
+/// Sleep for the given KDuration
 DEKAF2_PUBLIC
-void kNanoSleep(uint64_t iNanoSeconds);
-
-/// Sleep for the amount of microseconds
-DEKAF2_PUBLIC
-void kMicroSleep(uint64_t iMicroSeconds);
-
-/// Sleep for the amount of milliseconds
-DEKAF2_PUBLIC
-void kMilliSleep(uint64_t iMilliSeconds);
-
-/// Sleep for the amount of seconds
-DEKAF2_PUBLIC
-void kSleep(uint64_t iSeconds);
+void kSleep(KDuration duration);
 
 /// Returns 32 bit unsigned random number in range [iMin - iMax].
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 uint32_t kRandom(uint32_t iMin = 0, uint32_t iMax = UINT32_MAX);
-
-/// Block program from running for random amount of time within the given min and max.
-DEKAF2_PUBLIC
-void kSleepRandomMilliseconds (uint32_t iMinMilliseconds, uint32_t iMaxMilliseconds);
-
-/// Block program from running for random amount of time within the given min and max.
-DEKAF2_PUBLIC
-inline void kSleepRandomSeconds (uint32_t iMinSeconds, uint32_t iMaxSeconds)
-{
-	kSleepRandomMilliseconds (iMinSeconds * 1000, iMaxSeconds * 1000);
-}
 
 /// Returns the page size used on this CPU/MMU
 DEKAF2_NODISCARD DEKAF2_PUBLIC

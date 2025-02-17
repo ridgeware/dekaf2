@@ -496,7 +496,7 @@ TEST_CASE("KRON")
 		KString sContent;
 		for (int i = 0; i < 20; ++i)
 		{
-			kMilliSleep(100);
+			kSleep(chrono::milliseconds(100));
 			sContent = kReadAll(sFilename);
 			if (!sContent.empty())
 			{

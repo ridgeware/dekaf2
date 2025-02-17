@@ -19,13 +19,13 @@ TEST_CASE("KDuration")
 		for (int i = 0; i < 9; ++i)
 		{
 			StopD.Start();
-			kMilliSleep(10);
+			kSleep(chrono::milliseconds(10));
 			StopD.Stop();
 			StopD.Start();
-			kMilliSleep(5);
+			kSleep(chrono::milliseconds(5));
 			StopD.Stop();
 			StopD.Start();
-			kMilliSleep(15);
+			kSleep(chrono::milliseconds(15));
 			StopD.Stop();
 		}
 
@@ -45,11 +45,11 @@ TEST_CASE("KDuration")
 
 		for (int i = 0; i < 9; ++i)
 		{
-			kMilliSleep(10);
+			kSleep(chrono::milliseconds(10));
 			StopD.StoreInterval(0);
-			kMilliSleep(5);
+			kSleep(chrono::milliseconds(5));
 			StopD.StoreInterval(1);
-			kMilliSleep(15);
+			kSleep(chrono::milliseconds(15));
 			StopD.StoreInterval(2);
 		}
 

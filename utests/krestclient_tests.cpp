@@ -225,7 +225,7 @@ TEST_CASE("KRESTCLIENT")
 		CHECK ( kjson::GetStringRef(oResponse, "zip" ) == "10641"  );
 
 		// force a timeout
-		kMilliSleep(1300);
+		kSleep(chrono::milliseconds(1300));
 
 		oResponse = Host.Post("user/Tom")
 						.AddHeader(KHTTPHeader::AUTHORIZATION, "1234567890")

@@ -2267,7 +2267,7 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 		return SetError(sError, iErrorNum);
 	}
 
-	LogPerformance (Timer.milliseconds(), /*bIsQuery=*/false);
+	LogPerformance (Timer.elapsed().milliseconds(), /*bIsQuery=*/false);
 
 	return (bOK);
 
@@ -3470,7 +3470,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 	m_iNumRowsBuffered  = 0;
 	m_iNumRowsAffected  = 0;
 
-	LogPerformance (Timer.milliseconds(), /*bIsQuery=*/true);
+	LogPerformance (Timer.elapsed().milliseconds(), /*bIsQuery=*/true);
 	
 	if (IsFlag(F_BufferResults))
 	{
@@ -8227,17 +8227,17 @@ bool KSQL::FormOrderBy (KStringView sCommaDelimedSort, KSQLString& sOrderBy, con
 } // FormOrderBy
 
 //-----------------------------------------------------------------------------
-bool KSQL::GetLock (KStringView sName, chrono::seconds iTimeoutSeconds)
+bool KSQL::GetLock (KStringView sName, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	if (m_iDBType == DBT::MYSQL)
 	{
-		return SingleIntQuery ("select GET_LOCK('{}', {})", sName, iTimeoutSeconds.count()) >= 1;
+		return SingleIntQuery ("select GET_LOCK('{}', {})", sName, Timeout.seconds().count()) >= 1;
 	}
 
 	// else fall through to table based locking
 
-	return GetPersistentLock(sName, iTimeoutSeconds);
+	return GetPersistentLock(sName, Timeout);
 
 } // GetLock
 
@@ -8272,7 +8272,7 @@ bool KSQL::IsLocked (KStringView sName)
 } // IsLocked
 
 //-----------------------------------------------------------------------------
-bool KSQL::GetPersistentLock (KStringView sName, chrono::seconds iTimeoutSeconds)
+bool KSQL::GetPersistentLock (KStringView sName, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	auto sTablename = kFormat ("{}_LOCK", sName);
@@ -8301,11 +8301,11 @@ bool KSQL::GetPersistentLock (KStringView sName, chrono::seconds iTimeoutSeconds
 			return true;  // the lock has been obtained
 		}
 
-		if (iTimeoutSeconds > chrono::seconds::zero())
+		if (Timeout > KDuration::zero())
 		{
 			kDebug (2, "lock failed: {}, sleeping ...", sName);
-			kMilliSleep (1000);
-			--iTimeoutSeconds;
+			kSleep ( std::min(Timeout, KDuration(chrono::seconds(1))) );
+			Timeout -= chrono::seconds(1);
 		}
 		else
 		{

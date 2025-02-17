@@ -68,7 +68,7 @@ public:
 
 	// chrono::duration is not default initialized - make sure it is 0
 	constexpr KDuration()                      noexcept : Duration(Duration::zero()) {}
-	constexpr KDuration(const Duration& other) noexcept : Duration(other) {}
+	constexpr KDuration(const Duration& other) noexcept : Duration(other           ) {}
 	constexpr KDuration(Duration&& other)      noexcept : Duration(std::move(other)) {}
 
 	using Duration::Duration;
@@ -103,38 +103,45 @@ public:
 	/// we convert automatically into time_t durations, which are counted in seconds..
 	template<typename TimeT,
 			 typename std::enable_if<std::is_same<std::time_t, TimeT>::value, int>::type = 0>
-	constexpr operator                  TimeT()         const { return seconds().count(); }
+	constexpr operator                  TimeT        () const { return seconds().count();                 }
+
+	/// returns true if duration is zero
+	constexpr bool                      Zero         () const { return *this != zero();                   }
+
+	/// returns true if duration is not zero
+	explicit
+	constexpr operator                  bool         () const { return !Zero();                           }
 
 	/// returns elapsed nanoseconds as duration type
 	DEKAF2_NODISCARD
-	constexpr chrono::nanoseconds       nanoseconds()  const { return duration<chrono::nanoseconds>();  }
+	constexpr chrono::nanoseconds       nanoseconds  () const { return duration<chrono::nanoseconds>  (); }
 	/// returns elapsed microseconds as duration type
 	DEKAF2_NODISCARD
-	constexpr chrono::microseconds      microseconds() const { return duration<chrono::microseconds>(); }
+	constexpr chrono::microseconds      microseconds () const { return duration<chrono::microseconds> (); }
 	/// returns elapsed milliseconds as duration type
 	DEKAF2_NODISCARD
-	constexpr chrono::milliseconds      milliseconds() const { return duration<chrono::milliseconds>(); }
+	constexpr chrono::milliseconds      milliseconds () const { return duration<chrono::milliseconds> (); }
 	/// returns elapsed seconds as duration type
 	DEKAF2_NODISCARD
-	constexpr chrono::seconds           seconds()      const { return duration<chrono::seconds>();      }
+	constexpr chrono::seconds           seconds      () const { return duration<chrono::seconds>      (); }
 	/// returns elapsed minutes as duration type
 	DEKAF2_NODISCARD
-	constexpr chrono::minutes           minutes()      const { return duration<chrono::minutes>();      }
+	constexpr chrono::minutes           minutes      () const { return duration<chrono::minutes>      (); }
 	/// returns elapsed hours as duration type
 	DEKAF2_NODISCARD
-	constexpr chrono::hours             hours()        const { return duration<chrono::hours>();        }
+	constexpr chrono::hours             hours        () const { return duration<chrono::hours>        (); }
 	/// returns elapsed days as duration type
 	DEKAF2_NODISCARD
-	constexpr chrono::days              days()         const { return duration<chrono::days>();              }
+	constexpr chrono::days              days         () const { return duration<chrono::days>         (); }
 	/// returns elapsed weeks as duration type
 	DEKAF2_NODISCARD
-	constexpr chrono::weeks             weeks()        const { return duration<chrono::weeks>();             }
+	constexpr chrono::weeks             weeks        () const { return duration<chrono::weeks>        (); }
 	/// returns elapsed months as duration type
 	DEKAF2_NODISCARD
-	constexpr chrono::months            months()       const { return duration<chrono::months>();            }
+	constexpr chrono::months            months       () const { return duration<chrono::months>       (); }
 	/// returns elapsed years as duration type
 	DEKAF2_NODISCARD
-	constexpr chrono::years             years()        const { return duration<chrono::years>();             }
+	constexpr chrono::years             years        () const { return duration<chrono::years>        (); }
 
 	/// output format for ToString()
 	enum Format
@@ -210,37 +217,6 @@ public:
 		return tDuration;
 	}
 
-	/// returns elapsed nanoseconds as duration type
-	DEKAF2_NODISCARD
-	chrono::nanoseconds  nanoseconds()  const { return elapsed().nanoseconds();  }
-	/// returns elapsed microseconds as duration type
-	DEKAF2_NODISCARD
-	chrono::microseconds microseconds() const { return elapsed().microseconds(); }
-	/// returns elapsed milliseconds as duration type
-	DEKAF2_NODISCARD
-	chrono::milliseconds milliseconds() const { return elapsed().milliseconds(); }
-	/// returns elapsed seconds as duration type
-	DEKAF2_NODISCARD
-	chrono::seconds      seconds()      const { return elapsed().seconds();      }
-	/// returns elapsed minutes as duration type
-	DEKAF2_NODISCARD
-	chrono::minutes      minutes()      const { return elapsed().minutes();      }
-	/// returns elapsed hours as duration type
-	DEKAF2_NODISCARD
-	chrono::hours        hours()        const { return elapsed().hours();        }
-	/// returns elapsed days as duration type
-	DEKAF2_NODISCARD
-	chrono::days         days()         const { return elapsed().days();         }
-	/// returns elapsed weeks as duration type
-	DEKAF2_NODISCARD
-	chrono::weeks        weeks()        const { return elapsed().weeks();        }
-	/// returns elapsed months as duration type
-	DEKAF2_NODISCARD
-	chrono::months       months()       const { return elapsed().months();       }
-	/// returns elapsed weeks as duration type
-	DEKAF2_NODISCARD
-	chrono::years        years()        const { return elapsed().years();        }
-
 //----------
 protected:
 //----------
@@ -281,37 +257,6 @@ public:
 	void     resume()        { if (m_bIsHalted) { m_bIsHalted = false; base::clear(); }    }
 	/// resets elapsed time, stops counter - call resume() to continue
 	void     clear()         { m_iDurationSoFar = Duration::zero(); m_bIsHalted = true;    }
-
-	/// returns elapsed nanoseconds as duration type
-	DEKAF2_NODISCARD
-	chrono::nanoseconds  nanoseconds()  const { return elapsed().nanoseconds();  }
-	/// returns elapsed microseconds as duration type
-	DEKAF2_NODISCARD
-	chrono::microseconds microseconds() const { return elapsed().microseconds(); }
-	/// returns elapsed milliseconds as duration type
-	DEKAF2_NODISCARD
-	chrono::milliseconds milliseconds() const { return elapsed().milliseconds(); }
-	/// returns elapsed seconds as duration type
-	DEKAF2_NODISCARD
-	chrono::seconds      seconds()      const { return elapsed().seconds();      }
-	/// returns elapsed minutes as duration type
-	DEKAF2_NODISCARD
-	chrono::minutes      minutes()      const { return elapsed().minutes();      }
-	/// returns elapsed hours as duration type
-	DEKAF2_NODISCARD
-	chrono::hours        hours()        const { return elapsed().hours();        }
-	/// returns elapsed days as duration type
-	DEKAF2_NODISCARD
-	chrono::days         days()         const { return elapsed().days();         }
-	/// returns elapsed weeks as duration type
-	DEKAF2_NODISCARD
-	chrono::weeks        weeks()        const { return elapsed().weeks();        }
-	/// returns elapsed months as duration type
-	DEKAF2_NODISCARD
-	chrono::months       months()       const { return elapsed().months();       }
-	/// returns elapsed weeks as duration type
-	DEKAF2_NODISCARD
-	chrono::years        years()        const { return elapsed().years();        }
 
 //----------
 private:

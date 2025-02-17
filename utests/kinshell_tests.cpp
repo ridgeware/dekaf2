@@ -71,7 +71,7 @@ TEST_CASE("KInShell")
         int iLoopCount = 10;
         while ((true == pipe.is_open()) && (0 < --iLoopCount))
         {
-            kMicroSleep(1);
+            kSleep(chrono::microseconds(1));
         }
 
         CHECK(pipe.is_open());

@@ -295,7 +295,7 @@ TEST_CASE("KSQL")
 			db.ExecQuery("select 'hello'");
 			db.ExecQuery("select sleep(100)");
 			db.SetThrow(bTOld);
-			CHECK ( Timer.seconds() < chrono::seconds(5) );
+			CHECK ( Timer.elapsed().seconds() < chrono::seconds(5) );
 		}
 
 		// set timeout to something reasonable
@@ -1451,7 +1451,7 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 			db.ExecQuery("select sleep(100)");
 			db.SetQueryTimeout(std::chrono::seconds(0));
 			db.SetThrow(bTOld);
-			CHECK ( Timer.seconds() < chrono::seconds(5) );
+			CHECK ( Timer.elapsed().seconds() < chrono::seconds(5) );
 		}
 
 		{

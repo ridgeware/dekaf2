@@ -32,7 +32,7 @@ TEST_CASE("KThreads")
 
 		auto id1 = Threads.Add(std::thread([]()
 		{
-			kMilliSleep(50);
+			kSleep(chrono::milliseconds(50));
 		}));
 
 		KString sTest = "Hello";
@@ -51,7 +51,7 @@ TEST_CASE("KThreads")
 
 		Threads.Create([]()
 		{
-			kMilliSleep(50);
+			kSleep(chrono::milliseconds(50));
 		});
 
 		Threads.Create(&Foo::Bar, &F, sTest);

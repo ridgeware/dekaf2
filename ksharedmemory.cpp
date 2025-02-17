@@ -359,7 +359,7 @@ KString KIPCMessages::Receive(std::size_t iExpectedSize, KDuration timeout, long
 					return sMessage;
 				}
 				// else sleep and retry
-				kMilliSleep(10);
+				kSleep(chrono::milliseconds(10));
 				break;
 
 			default:
@@ -400,7 +400,7 @@ bool KIPCMessages::ReceiveRaw (void* addr, std::size_t size, long msgtype, KDura
 					return false;
 				}
 				// else sleep and retry
-				kMilliSleep(10);
+				kSleep(chrono::milliseconds(10));
 				break;
 
 			default:

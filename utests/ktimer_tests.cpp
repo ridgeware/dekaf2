@@ -16,16 +16,16 @@ TEST_CASE("KTimer")
 	{
 		std::size_t iCalled = 0;
 
-		KTimer Timer(std::chrono::milliseconds(50));
+		KTimer Timer(chrono::milliseconds(50));
 
-		auto ID = Timer.CallEvery(std::chrono::milliseconds(50), [&](KUnixTime tp)
+		auto ID = Timer.CallEvery(chrono::milliseconds(50), [&](KUnixTime tp)
 		{
 	//		kDebug(1, "the current timepoint is: {}", KTimer::ToTimeT(tp));
 			++iCalled;
 
 		}, false);
 
-		kMilliSleep(500);
+		kSleep(chrono::milliseconds(500));
 
 		CHECK ( Timer.Cancel(ID) );
 		CHECK ( iCalled >= 2 );

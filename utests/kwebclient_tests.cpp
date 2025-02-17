@@ -24,7 +24,7 @@ void rest_test_no_timeout(KRESTServer& REST)
 
 void rest_test_timeout_1(KRESTServer& REST)
 {
-	kMilliSleep(1100);
+	kSleep(chrono::milliseconds(1100));
 	REST.SetRawOutput(REST.GetRequestBody());
 	REST.SetStatus(200);
 	g_bDone = true;
@@ -72,7 +72,7 @@ protected:
 		{
 			if (m_iTimeout == 1)
 			{
-				kMilliSleep(1100);
+				kSleep(chrono::milliseconds(1100));
 			}
 			tmp = "HTTP/1.1 200\r\nConnection : close\r\nContent-Length : 10\r\n\r\n0123456789";
 		}
@@ -172,7 +172,7 @@ TEST_CASE("KWebClient") {
 		// it is difficult to know when the TCP server is done
 		while (!g_bDone)
 		{
-			kMilliSleep(10);
+			kSleep(chrono::milliseconds(10));
 		}
 		kDebug(2, "========= after timeout 1 ==========");
 
@@ -251,7 +251,7 @@ TEST_CASE("KWebClient") {
 		// it is difficult to know when the TCP server is done
 		while (!g_bDone)
 		{
-			kMilliSleep(10);
+			kSleep(chrono::milliseconds(10));
 		}
 		kDebug(2, "========= after timeout 2 ==========");
 

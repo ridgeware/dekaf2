@@ -30,7 +30,7 @@ TEST_CASE("KParallel")
 
 		Threads.Create([]()
 		{
-			kMilliSleep(50);
+			kSleep(chrono::milliseconds(50));
 		});
 
 		KString sTest = "Hello";
@@ -58,7 +58,7 @@ TEST_CASE("KParallel")
 
 		kParallelForEach(vec, [](int value)
 		{
-			kMilliSleep(2);
+			kSleep(chrono::milliseconds(2));
 
 		}, 0, KBAR());
 	}

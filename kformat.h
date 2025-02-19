@@ -46,6 +46,7 @@
 #include "bits/kformat.h"
 #include "kstringview.h"
 #include "kstring.h"
+#include "kwrite.h"
 #include <ostream>
 #include <locale>
 #include <cstdio>
@@ -101,6 +102,11 @@ inline KRuntimeFormatString KRuntimeFormat(const String& sFormat)
 
 // basic output functions
 
+/// write char to stdout
+DEKAF2_PUBLIC bool kWrite(char ch) noexcept;
+/// write char to FILE ptr is in kwrite.h
+/// write char to fd is in kwrite.h
+/// write char to std::ostream is in kwrite.h
 /// write sOutput to stdout
 DEKAF2_PUBLIC bool kWrite(KStringView sOutput) noexcept;
 /// write sOutput to FILE*

@@ -151,6 +151,13 @@ std::size_t kWrite(int fd, const void* sBuffer, std::size_t iCount)
 } // kWrite
 
 //-----------------------------------------------------------------------------
+std::size_t kWrite(int fd, char ch)
+//-----------------------------------------------------------------------------
+{
+	return kWrite(fd, &ch, 1);
+}
+
+//-----------------------------------------------------------------------------
 std::size_t kWrite(FILE* fp, const void* sBuffer, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
@@ -192,6 +199,13 @@ std::size_t kWrite(FILE* fp, const void* sBuffer, std::size_t iCount)
 	return iWrote;
 
 } // kWrite
+
+//-----------------------------------------------------------------------------
+std::size_t kWrite(FILE* fp, char ch)
+//-----------------------------------------------------------------------------
+{
+	return (::fputc(ch, fp) == EOF) ? 0 : 1;
+}
 
 //-----------------------------------------------------------------------------
 std::size_t kWrite(std::ostream& Stream, const void* sBuffer, std::size_t iCount)

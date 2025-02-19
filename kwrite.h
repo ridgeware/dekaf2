@@ -72,6 +72,14 @@ std::size_t kWrite(std::ostream& Stream, const char* sBuffer)
 	return kWrite(Stream, sBuffer, std::strlen(sBuffer));
 }
 
+/// Writes one char into file descriptor, signal safe
+DEKAF2_PUBLIC
+std::size_t kWrite(int fd, char ch);
+
+/// Writes one char into FILE*, signal safe
+DEKAF2_PUBLIC
+std::size_t kWrite(FILE* fp, char ch);
+
 /// Writes one char into std::ostream, not touching the locale sentinel
 DEKAF2_PUBLIC
 std::size_t kWrite(std::ostream& Stream, char ch);

@@ -1291,7 +1291,7 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout)
 
 		unsigned long iMySQLConnectOptions = CLIENT_FOUND_ROWS; // <-- this flag corrects the behavior of GetNumRowsAffected()
 
-		static bool s_bRequestZSTD = kGetEnv("KSQL_ZSTD").Bool();
+		static bool s_bRequestZSTD = !kGetEnv("KSQL_NO_ZSTD").Bool();
 
 		if (s_bRequestZSTD)
 		{

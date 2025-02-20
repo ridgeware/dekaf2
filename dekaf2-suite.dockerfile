@@ -19,7 +19,7 @@ WORKDIR /home/dekaf2/utests/build/${buildtype}
 RUN cmake -DCMAKE_BUILD_TYPE="${buildtype}" ../../
 
 # build test
-RUN export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
+RUN export CPUCORES=$(expr $(grep -Ei '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
     cmake --build . --parallel ${CPUCORES} --target dekaf2-utests
 
 COPY /smoketests /home/dekaf2/smoketests
@@ -33,7 +33,7 @@ WORKDIR /home/dekaf2/smoketests/build/${buildtype}
 # create cmake setup
 RUN cmake -DCMAKE_BUILD_TYPE="${buildtype}" ../../
 
-RUN export CPUCORES=$(expr $(egrep '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
+RUN export CPUCORES=$(expr $(grep -Ei '^BogoMIPS' /proc/cpuinfo | wc -l) + 1); \
     cmake --build . --parallel ${CPUCORES} --target dekaf2-smoketests
 
 # change back into utests build dir

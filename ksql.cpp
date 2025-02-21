@@ -560,13 +560,13 @@ KSQL::KSQL (DBT iDBType, KStringView sUsername, KStringView sPassword, KStringVi
 } // KSQL - construct with connection details, but do not connect yet
 
 //-----------------------------------------------------------------------------
-KSQL::KSQL (KStringView sDBCFile, KDuration ConnectionTimeout)
+KSQL::KSQL (KStringView sDBCFile, KDuration ConnectionTimeout, Transport TransportFlags)
 //-----------------------------------------------------------------------------
 : KSQL () // delegate to default constructor first
 {
 	kDebug(2, "DBC file: {}", sDBCFile);
 
-	EnsureConnected ("", sDBCFile, IniParms{}, ConnectionTimeout);
+	EnsureConnected ("", sDBCFile, IniParms{}, ConnectionTimeout, TransportFlags);
 
 } // KSQL - construct and connect from a DBC file
 
@@ -574,13 +574,14 @@ KSQL::KSQL (KStringView sDBCFile, KDuration ConnectionTimeout)
 KSQL::KSQL (KStringView sIdentifierList,
 			KStringView sDBCFile,
 			const IniParms& INI,
-			KDuration ConnectionTimeout)
+			KDuration ConnectionTimeout,
+			Transport TransportFlags)
 //-----------------------------------------------------------------------------
 : KSQL () // delegate to default constructor first
 {
 	kDebug(2, "Identifiers: {}, DBC file: {}", sIdentifierList, sDBCFile);
 
-	EnsureConnected (sIdentifierList, sDBCFile, INI, ConnectionTimeout);
+	EnsureConnected (sIdentifierList, sDBCFile, INI, ConnectionTimeout, TransportFlags);
 
 } // KSQL - construct and connect from a DBC file or env or INI parms
 
@@ -1137,16 +1138,14 @@ bool KSQL::LoadConnect (KStringViewZ sDBCFile)
 } // LoadConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = ","*/, KDuration ConnectionTimeout/*=30s*/)
+bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = ","*/, KDuration ConnectionTimeout/*=30s*/, Transport TransportFlags/*=Transport::Default*/)
 //-----------------------------------------------------------------------------
 {
-	m_ConnectionTimeout = ConnectionTimeout; // <-- save timeout in case we have to reconnect
-
 	for (auto sDBHost : sListOfHosts.Split(sDelimiter))
 	{
 		SetDBHost (sDBHost);
 
-		if (OpenConnection(ConnectionTimeout))
+		if (OpenConnection(ConnectionTimeout, TransportFlags))
 		{
 			kDebug (3, "host {} is up", sDBHost);
 			return true;
@@ -1162,10 +1161,11 @@ bool KSQL::OpenConnection (KStringView sListOfHosts, KStringView sDelimiter/* = 
 } // KSQL::OpenConnection
 
 //-----------------------------------------------------------------------------
-bool KSQL::OpenConnection (KDuration ConnectionTimeout)
+bool KSQL::OpenConnection (KDuration ConnectionTimeout/*=30s*/, Transport TransportFlags/*=Transport::Default*/)
 //-----------------------------------------------------------------------------
 {
 	m_ConnectionTimeout = ConnectionTimeout; // <-- save timeout in case we have to reconnect
+	m_TransportFlags    = TransportFlags;    // same for transport flags
 
     #ifdef DEKAF2_HAS_ORACLE
 	static bool s_fOCI8Initialized = false;
@@ -1264,12 +1264,12 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout)
 			mysql_options (m_dMYSQL, MYSQL_OPT_CONNECT_TIMEOUT, &iTimeoutUINT);
 		}
 
+		#if DEKAF2_MYSQL_HAS_TLS
 		static bool s_bPreferTLS = !kGetEnv("KSQL_NO_TLS").Bool();
 
-		if (s_bPreferTLS)
+		if (s_bPreferTLS && ((TransportFlags & (Transport::PreferTLS | Transport::RequireTLS)) != Transport::NoFlags))
 		{
-		#ifdef DEKAF2_MYSQL_IS_MARIADB
-			#ifdef DEKAF2_MYSQL_HAS_TLS
+			#if DEKAF2_MYSQL_IS_MARIADB
 			// starting with mariadb 3.1.1
 			// other than the ENFORCE may make to think, this option only
 			// tries first a TLS connection, but falls back to unencrypted
@@ -1277,37 +1277,33 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout)
 			kDebug(3, "will ask for TLS connection with fallback to unencrypted");
 			my_bool bEnforceTLS = 1;
 			mysql_options(m_dMYSQL, MYSQL_OPT_SSL_ENFORCE, &bEnforceTLS);
-			#endif
-		#else
-			#ifdef DEKAF2_MYSQL_HAS_TLS
+			#else
 			// starting with mysql 5.7.11
 			// options are SSL_MODE_DISABLED, SSL_MODE_PREFERRED, SSL_MODE_REQUIRED, SSL_MODE_VERIFY_CA, SSL_MODE_VERIFY_IDENTITY
 			kDebug(3, "will ask for TLS connection with fallback to unencrypted");
-			unsigned int iEnforceTLS = SSL_MODE_PREFERRED;
+			unsigned int iEnforceTLS = (TransportFlags & Transport::RequireTLS) ? SSL_MODE_REQUIRED : SSL_MODE_PREFERRED;
 			mysql_options(m_dMYSQL, MYSQL_OPT_SSL_MODE, &iEnforceTLS);
 			#endif
-		#endif
 		}
+		#endif
 
 		unsigned long iMySQLConnectOptions = CLIENT_FOUND_ROWS; // <-- this flag corrects the behavior of GetNumRowsAffected()
 
+		#if DEKAF2_MYSQL_HAS_ZSTD
 		static bool s_bRequestZSTD = !kGetEnv("KSQL_NO_ZSTD").Bool();
 
-		if (s_bRequestZSTD)
+		if (s_bRequestZSTD && (TransportFlags & Transport::PreferZSTD) == Transport::PreferZSTD)
 		{
-		#ifdef DEKAF2_MYSQL_IS_MARIADB
-			#ifdef DEKAF2_MYSQL_HAS_ZSTD
+			#if DEKAF2_MYSQL_IS_MARIADB
 			kDebug(3, "will ask for zstd compression");
 			iMySQLConnectOptions |= (CLIENT_ZSTD_COMPRESSION | CLIENT_COMPRESS);
-			#endif
-		#else
-			#ifdef DEKAF2_MYSQL_HAS_ZSTD
+			#else
 			// starting with mysql 8.0.18
 			kDebug(3, "will ask for zstd compression");
 			mysql_options(m_dMYSQL, MYSQL_OPT_COMPRESSION_ALGORITHMS, "zstd,uncompressed");
 			#endif
-		#endif
 		}
+		#endif
 
 		kDebug (3, "mysql_real_connect()...");
 		if (!mysql_real_connect (m_dMYSQL, 
@@ -1333,6 +1329,25 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout)
 		m_iConnectionID = m_dMYSQL->thread_id;
 
 		mysql_set_character_set (m_dMYSQL, "utf8mb4"); // by default
+
+		#if DEKAF2_MYSQL_HAS_TLS && DEKAF2_MYSQL_IS_MARIADB
+		if (s_bPreferTLS && ((TransportFlags & Transport::RequireTLS) == Transport::RequireTLS))
+		{
+			// check if we really got a TLS connection (MariaDB doesn't make the distinction
+			// between prefer and enforce TLS)
+			auto sTLS = SingleRawQuery("show status where variable_name='ssl_version'", F_IgnoreSelectKeyword).GetValue(1);
+
+			if (sTLS.empty())
+			{
+				return SetError("cannot enforce encrypted database connection");
+			}
+			else
+			{
+				kDebug(2, "database connection is secured with {}", sTLS);
+			}
+		}
+		#endif
+
 		break;
 	}
 	#endif
@@ -8534,12 +8549,10 @@ static void ApplIniAndEnvironment (const KString& sName, KProps<KString, KString
 } // ApplIniAndEnvironment
 
 //-----------------------------------------------------------------------------
-bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const IniParms& INI, KDuration ConnectionTimeout)
+bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const IniParms& INI, KDuration ConnectionTimeout, Transport TransportFlags)
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "sIdentifierList={}, sDBCArg={} ...", sIdentifierList, sDBCArg);
-
-	m_ConnectionTimeout = ConnectionTimeout; // <-- save timeout in case we have to reconnect
 
 	if (IsConnectionOpen())
 	{
@@ -8697,7 +8710,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	kDebug (3, "attempting to connect ...");
 
-	if (!OpenConnection(ConnectionTimeout))
+	if (!OpenConnection(ConnectionTimeout, TransportFlags))
 	{
 		return false;
 	}
@@ -8710,11 +8723,9 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 } // KSQL::EnsureConnected - 1
 
 //-----------------------------------------------------------------------------b
-bool KSQL::EnsureConnected (KDuration ConnectionTimeout)
+bool KSQL::EnsureConnected (KDuration ConnectionTimeout, Transport TransportFlags)
 //-----------------------------------------------------------------------------
 {
-	m_ConnectionTimeout = ConnectionTimeout; // <-- save timeout in case we have to reconnect
-
 	if (IsConnectionOpen())
 	{
 		kDebug (3, "already connected to: {}", ConnectSummary());
@@ -8723,7 +8734,7 @@ bool KSQL::EnsureConnected (KDuration ConnectionTimeout)
 
 	kDebug (3, "attempting to connect ...");
 
-	if (!OpenConnection(ConnectionTimeout))
+	if (!OpenConnection(ConnectionTimeout, TransportFlags))
 	{
 		return false;
 	}

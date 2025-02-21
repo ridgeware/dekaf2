@@ -35,6 +35,9 @@ int KSql::Main(int argc, char** argv)
 	KStringViewZ sFormat   = Options("f,format <format>   : output format - ascii, vertical, json, csv, html, default ascii", "ascii");
 	bool         bVersion  = Options("v,version           : show version information"    ,       false);
 	KDuration    Timeout   = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5",  5));
+	bool         bNoComp   = Options("nocomp              : do not attempt to compress the database connection", false);
+	bool         bNoTLS    = Options("notls               : do not attempt to encrypt the database connection", false);
+	bool         bForceTLS = Options("forcetls            : force encryption for the database connection, fail otherwise", false);
 
 	// do a final check if all required options were set
 	if (!Options.Check()) return 1;
@@ -44,9 +47,17 @@ int KSql::Main(int argc, char** argv)
 
 	KSQL SQL;
 
+	KSQL::Transport TransportFlags = KSQL::Transport::NoFlags;
+
+	if (bNoTLS && bForceTLS) SetError("-notls and -forcetls options are mutually exclusive");
+
+	if (!bNoComp)     TransportFlags |= KSQL::Transport::PreferZSTD;
+	if (bForceTLS)    TransportFlags |= KSQL::Transport::RequireTLS;
+	else if (!bNoTLS) TransportFlags |= KSQL::Transport::PreferTLS;
+
 	if (!sDBCFile.empty())
 	{
-		if (!SQL.EnsureConnected ("", sDBCFile, KSQL::IniParms{}, Timeout))
+		if (!SQL.EnsureConnected ("", sDBCFile, KSQL::IniParms{}, Timeout, TransportFlags))
 		{
 			return SetError(SQL.GetLastError());
 		}
@@ -54,7 +65,7 @@ int KSql::Main(int argc, char** argv)
 	else
 	{
 		SQL.SetConnect (DBType, sUser, sPassword, sDatabase, sHostname, iDBPort);
-		if (!SQL.OpenConnection(Timeout))
+		if (!SQL.OpenConnection(Timeout, TransportFlags))
 		{
 			return SetError(SQL.GetLastError());
 		}

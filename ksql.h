@@ -256,6 +256,16 @@ public:
 		FAC_FULLTEXT          = 1 << 9       ///< FAC_FULLTEXT: requires a fulltext index on this set of columns
 	};
 
+	/// KSQL transport flags (for connection setup)
+	enum class Transport : uint8_t
+	{
+		NoFlags               = 0,           ///< no flags
+		PreferTLS             = 1 << 0,      ///< prefer TLS connection if available, plain otherwise
+		RequireTLS            = 1 << 1,      ///< require TLS connexction, fail otherwise
+		PreferZSTD            = 1 << 2,      ///< ask for ZSTD compression if available, uncompressed otherwise
+		Default               = PreferTLS | PreferZSTD ///< default: prefer TLS, prefer ZSTD
+	};
+
 	/// default constructor
 	KSQL ();
 	/// constructor to configure connection details - connection will be opened later with OpenConnection()
@@ -276,9 +286,12 @@ public:
 	/// construct using DBC file.
 	/// This connector immediately also opens the connection.
 	/// @param sDBCFile dbc file to be used
+	/// @param ConnectionTimeout timeout for connection setup, defaults to DefaultConnectionTimeout
+	/// @param TransportFlags transport details like TLS, compression. defaults to Transport::Default
 	KSQL (
 		KStringView sDBCFile,
-		KDuration   ConnectionTimeout = DefaultConnectionTimeout
+		KDuration   ConnectionTimeout = DefaultConnectionTimeout,
+		Transport   TransportFlags    = Transport::Default
 	);
 	/// construct using DBC file, env variables, INI parms with connection details.
 	/// This connector immediately also opens the connection.
@@ -287,11 +300,14 @@ public:
 	/// @param sDBCFile dbc file to be used. Can be empty.
 	/// @param INI a property sheet with ini parameters which
 	/// will be searched as last resort to find connection parameters
+	/// @param ConnectionTimeout timeout for connection setup, defaults to DefaultConnectionTimeout
+	/// @param TransportFlags transport details like TLS, compression. defaults to Transport::Default
 	KSQL (
 		KStringView     sIdentifierList,
-	    KStringView     sDBCFile,
-	    const IniParms& INI = IniParms{},
-		KDuration       ConnectionTimeout = DefaultConnectionTimeout
+		KStringView     sDBCFile,
+		const IniParms& INI               = IniParms{},
+		KDuration       ConnectionTimeout = DefaultConnectionTimeout,
+		Transport       TransportFlags    = Transport::Default
 	);
 	/// copy constructor, only copies connection details from other instance, not internal state!
 	KSQL (const KSQL& other);
@@ -370,11 +386,17 @@ public:
 	API    GetAPISet        ()      { return (m_iAPISet); }
 	bool   SetAPISet        (API iAPISet);
 	/// Open a server connection with the configured connection parameters
-	bool   OpenConnection   (KDuration ConnectionTimeout = DefaultConnectionTimeout);
+	/// @param ConnectionTimeout timeout for connection setup, defaults to DefaultConnectionTimeout
+	/// @param TransportFlags transport details like TLS, compression. defaults to Transport::Default
+	bool   OpenConnection   (KDuration ConnectionTimeout = DefaultConnectionTimeout, Transport TransportFlags = Transport::Default);
 	/// Open a server connection to the first responding host in a (comma separated) list.
 	/// Reuses all other configured connection parameters for each host.
+	/// @param sListOfHosts list of hosts to connect, takes first successful
+	/// @param sDelimiter delimiter chars for host list, defaults to comma
+	/// @param ConnectionTimeout timeout for connection setup, defaults to DefaultConnectionTimeout
+	/// @param TransportFlags transport details like TLS, compression. defaults to Transport::Default
 	/// @return true on success
-	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimiter = ",", KDuration ConnectionTimeout = DefaultConnectionTimeout);
+	bool   OpenConnection   (KStringView sListOfHosts, KStringView sDelimiter = ",", KDuration ConnectionTimeout = DefaultConnectionTimeout, Transport TransportFlags = Transport::Default);
 	/// Close an open database server connection
 	void   CloseConnection  (bool bDestructor=false);
 	/// returns true on an open server connection
@@ -1023,13 +1045,15 @@ public:
 	/// load the configuration from.
 	/// @param sDBCFile dbc file to be used. Can be empty.
 	/// @param INI a property sheet with ini parameters which
-	/// @param ConnectionTimeout can be used to override MySQL default (which is huge/long)
+	/// @param ConnectionTimeout timeout for connection setup, defaults to DefaultConnectionTimeout
+	/// @param TransportFlags transport details like TLS, compression. defaults to Transport::Default
 	/// will be searched as last resort to find connection parameters
-	bool EnsureConnected (KStringView sIdentifierList, KString sDBCFile, const IniParms& INI = IniParms{}, KDuration ConnectionTimeout = DefaultConnectionTimeout);
+	bool EnsureConnected (KStringView sIdentifierList, KString sDBCFile, const IniParms& INI = IniParms{}, KDuration ConnectionTimeout = DefaultConnectionTimeout, Transport TransportFlags = Transport::Default);
 
 	/// conditionally open the db connection, assuming all connection parms are already set
-	/// @param ConnectionTimeout can be used to override MySQL default (which is huge/long)
-	bool EnsureConnected (KDuration ConnectionTimeout = DefaultConnectionTimeout);
+	/// @param ConnectionTimeout timeout for connection setup, defaults to DefaultConnectionTimeout
+	/// @param TransportFlags transport details like TLS, compression. defaults to Transport::Default
+	bool EnsureConnected (KDuration ConnectionTimeout = DefaultConnectionTimeout, Transport TransportFlags = Transport::Default);
 
 	/// Useful for db connections that are over a VPN, to see if the VPN is established.
 	/// Upon failure it returns false and sets the LastError.
@@ -1560,7 +1584,8 @@ private:
 	API        m_iAPISet { API::NONE };
 #endif
 	uint16_t   m_iDBPortNum { 0 };
-	KDuration  m_ConnectionTimeout { KDuration::zero() };
+	KDuration  m_ConnectionTimeout { KDuration::zero()  };
+	Transport  m_TransportFlags    { Transport::Default };
 	KString    m_sUsername;
 	KString    m_sPassword;
 	KString    m_sHostname;
@@ -1689,6 +1714,7 @@ private:
 // declare the operators for KSQL's flag enums
 DEKAF2_ENUM_IS_FLAG(KSQL::Flags)
 DEKAF2_ENUM_IS_FLAG(KSQL::FAC)
+DEKAF2_ENUM_IS_FLAG(KSQL::Transport)
 DEKAF2_ENUM_IS_FLAG(KSQL::QueryType)
 
 //----------------------------------------------------------------------

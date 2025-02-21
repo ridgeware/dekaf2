@@ -1298,7 +1298,7 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout)
 		#ifdef DEKAF2_MYSQL_IS_MARIADB
 			#ifdef DEKAF2_MYSQL_HAS_ZSTD
 			kDebug(3, "will ask for zstd compression");
-			iMySQLConnectOptions |= CLIENT_ZSTD_COMPRESSION;
+			iMySQLConnectOptions |= (CLIENT_ZSTD_COMPRESSION | CLIENT_COMPRESS);
 			#endif
 		#else
 			#ifdef DEKAF2_MYSQL_HAS_ZSTD
@@ -10256,7 +10256,7 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 						{
 							if (!bQuiet)
 							{
-								kPrintLine(":: {} rows in set ({})", iResults, Timer.elapsed());
+								kPrintLine(":: {} {} in set ({})", iResults, (iResults == 1) ? "row" : "rows", Timer.elapsed());
 							}
 							bSuccess = true;
 						}

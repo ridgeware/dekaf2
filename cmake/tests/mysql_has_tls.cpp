@@ -2,7 +2,7 @@
 
 bool test ()
 {
-	return MYSQL_OPT_COMPRESSION_ALGORITHMS;
+	return MYSQL_OPT_SSL_MODE;
 }
 
 int main()

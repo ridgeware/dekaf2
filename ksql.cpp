@@ -7734,6 +7734,10 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm, FAC iFlags/*=FAC::FAC_NORMAL*/, KStringView sSplitBy/*=","*/)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "sDbCol     = {}", sDbCol);
+	kDebug (3, "sQueryParm = {}", sQueryParm);
+	kDebug (3, "sSplitBy   = {}", sSplitBy);
+
 	KSQLString sClause;
 
 	if (sQueryParm.empty())
@@ -7794,6 +7798,8 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm
 	if (iFlags & FAC_BETWEEN)
 	{
 		auto Parts = sQueryParm.Split(sSplitBy);
+		kDebug (3, "sQueryParm   = {}", sQueryParm);
+		kDebug (3, "Parts.size() = {}", Parts.size());
 
 		switch (Parts.size())
 		{
@@ -7836,7 +7842,7 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm
 				break;
 
 			default:
-				kDebug(1, "invalid Parms: {}", sQueryParm);
+				kDebug(1, "invalid BETWEEN clause (#parms={}): {}", Parts.size(), sQueryParm);
 				break;
 		}
 	}
@@ -8147,7 +8153,7 @@ KString KSQL::ToYYYYMMDD (KString/*copy*/ sDate)
 		}
 	}
 
-	kDebug (1, "date={}, yyyymmdd={}", sDate, sYYYYMMDD);
+	kDebug (3, "date={}, yyyymmdd={}", sDate, sYYYYMMDD);
 
 	return sYYYYMMDD;
 
@@ -8157,13 +8163,27 @@ KString KSQL::ToYYYYMMDD (KString/*copy*/ sDate)
 KString KSQL::FullDay (KStringView sDate)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
 	if (!sDate)
 	{
 		return "";
 	}
 
 	auto sYYYYMMDD = ToYYYYMMDD (sDate);
-	return kFormat ("{} 00:00:00,{} 23:59:59", sYYYYMMDD, sYYYYMMDD);
+
+	if (sYYYYMMDD.Contains(","))
+	{
+		// it's already a date range:
+		sYYYYMMDD.Replace (",", " 00:00:00,");
+		sYYYYMMDD += " 23:59:59";
+		return sYYYYMMDD;
+	}
+	else
+	{
+		// single day:
+		return kFormat ("{} 00:00:00,{} 23:59:59", sYYYYMMDD, sYYYYMMDD);
+	}
 
 } // FullDay
 

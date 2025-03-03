@@ -1,0 +1,16 @@
+language: cpp
+before_install:
+- sudo apt-get update -qq
+- sudo apt-get install -qq libyaml-cpp-dev cmake libgtest-dev libre2-dev
+- cd /usr/src/gtest
+- sudo cmake CMakeLists.txt
+- sudo make
+- sudo cp *.a /usr/lib
+- cd -
+script:
+- make test
+notifications:
+  email:
+    recipients:
+      - alex.suhan@gmail.com
+    on_success: always

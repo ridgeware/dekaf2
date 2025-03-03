@@ -1561,6 +1561,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${CORE_FOUNDATION}
 		${DEBUG_HELP}
 		re2
+		uap-cpp-static
 		${JEMalloc_LIBRARIES}
 		${NGHTTP2_LIBRARIES}
 		${NGHTTP3_LIBRARIES}
@@ -1899,7 +1900,7 @@ if (DEKAF2_INSTALL_LIB)
 		install(TARGETS fmt EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	endif()
 
-	install(TARGETS nlohmann-json re2 frozen date-tz EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	install(TARGETS nlohmann-json re2 frozen date-tz uap-cpp-static EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 
 	if (DEKAF2_BUILD_SHARED_DEKAF2)
 		install(TARGETS dekaf2-shared ksql2-shared EXPORT ${PROJECT_NAME}-targets   DESTINATION ${dekaf2_lib_dest})
@@ -1962,6 +1963,7 @@ endif() # DEKAF2_INSTALL_INCLUDE
 if (DEKAF2_INSTALL_SHARE)
 
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/templates"                        DESTINATION "${dekaf2_share_dest}")
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/uap-cpp/uap-core"            DESTINATION "${dekaf2_share_dest}")
 
 endif() # DEKAF2_INSTALL_SHARE
 

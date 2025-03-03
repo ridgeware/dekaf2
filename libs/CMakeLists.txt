@@ -22,6 +22,9 @@ endif()
 # add the frozen lib (constexpr set and map)
 add_subdirectory(frozen EXCLUDE_FROM_ALL)
 
+# add the user agent parser with regular expressions
+add_subdirectory(uap-cpp)
+
 if (DEKAF2_WITH_FCGI)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # add FCGI as an external project in the local "fcgi" directory:

@@ -1,6 +1,8 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.8...3.31)
 
 project(uap-cpp)
+
+if (false)
 
 IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     SET(CMAKE_BUILD_TYPE Release)
@@ -10,7 +12,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -Wall -Werror -fPIC")
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 
-
+endif()
 
 set(LIB_SOURCES
         UaParser.cpp
@@ -20,24 +22,26 @@ set(LIB_SOURCES
         internal/SnippetIndex.cpp)
 
 find_package(yaml-cpp REQUIRED)
-include_directories(${YAML_CPP_INCLUDE_DIR})
 
-find_package(re2)
+#find_package(re2)
 
 # this is the "object library" target: compiles the sources only once
 add_library(objlib OBJECT ${LIB_SOURCES})
+target_include_directories(objlib PRIVATE ${YAML_CPP_INCLUDE_DIR})
+target_link_libraries(objlib re2)
 
 # shared libraries need PIC
-set_property(TARGET objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
+#set_property(TARGET objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
 
 # shared and static libraries built from the same object files
 add_library(uap-cpp-static STATIC $<TARGET_OBJECTS:objlib>)
 set_target_properties(uap-cpp-static PROPERTIES OUTPUT_NAME uaparser_cpp)
 
-add_library(uap-cpp-shared SHARED $<TARGET_OBJECTS:objlib>)
-set_target_properties(uap-cpp-shared PROPERTIES OUTPUT_NAME uaparser_cpp)
+#add_library(uap-cpp-shared SHARED $<TARGET_OBJECTS:objlib>)
+#set_target_properties(uap-cpp-shared PROPERTIES OUTPUT_NAME uaparser_cpp)
 
 
+if (false)
 
 set(TEST_SOURCES
         UaParserTest.cpp)
@@ -58,3 +62,5 @@ add_executable(bench ${BENCH_SOURCES} $<TARGET_OBJECTS:objlib>)
 set_target_properties(bench PROPERTIES OUTPUT_NAME UaParserBench)
 
 target_link_libraries(bench re2 yaml-cpp pthread)
+
+endif()

@@ -19,7 +19,7 @@ BuildSetup ()
 {
 	# we do not care too much if the flagfile is removed
 	flagfile="/tmp/installflag-dekaf2-build-setup"
-	flagversion="5"
+	flagversion="6"
 
 	if [ ! -f "${flagfile}" ] || [ "$(cat ${flagfile})" != "${flagversion}" ]
 	then
@@ -40,9 +40,9 @@ BuildSetup ()
 
 		case "${DISTRIB}" in
 			darwin)
-				InstallSystemPackages cmake boost openssl wget
+				InstallSystemPackages cmake boost openssl wget yaml-cpp
 
-					InstallOptionalSystemPackages libzip xz zstd brotli mariadb sqlite jemalloc ncurses \
+				InstallOptionalSystemPackages libzip xz zstd brotli mariadb sqlite jemalloc ncurses \
 					libnghttp2 libnghttp3
 				;;
 			debian)
@@ -50,7 +50,7 @@ BuildSetup ()
 				sudo apt-get update -y
 
 				InstallSystemPackages cmake libboost-all${DEVPKG} openssl libssl-dev wget git sed tar gcc \
-					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g${DEVPKG}
+					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g${DEVPKG} libyaml-cpp${DEVPKG}
 
 				InstallOptionalSystemPackages libmariadb${DEVPKG} mariadb-client sqlite3 libsqlite3${DEVPKG} \
 					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} libjemalloc${DEVPKG} \
@@ -58,7 +58,7 @@ BuildSetup ()
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
-					zlib${DEVPKG} bzip2${DEVPKG}
+					zlib${DEVPKG} bzip2${DEVPKG} yaml-cpp${DEVPKG}
 
 				InstallOptionalSystemPackages mariadb-connector-c${DEVPKG} sqlite${DEVPKG} libzip${DEVPKG} \
 					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG} ncurses${DEVPKG} \

@@ -402,6 +402,30 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_ZIP)
 	endif()
 endif()
 
+# ================================ YAML-CPP ====================================
+
+find_package(yaml-cpp REQUIRED)
+
+# yaml-cpp has unfortunately changed over time the way to link to it, and
+# has not maintained a backup path.
+# It is now required to use yaml-cpp::yaml-cpp, previously it was necessary
+# to use yaml-cpp.
+# This will e.g. still hurt on AmazonLinux 2023.
+
+if (false)
+	message(STATIC "YAML_CPP_LIBRARIES: ${YAML_CPP_LIBRARIES}")
+	message(STATIC "YAML_CPP_LIBRARY_DIR: ${YAML_CPP_LIBRARY_DIR}")
+	message(STATIC "YAML_CPP_INCLUDE_DIR: ${YAML_CPP_INCLUDE_DIR}")
+endif()
+
+if ("${YAML_CPP_LIBRARIES}" STREQUAL "yaml-cpp" AND NOT "${YAML_CPP_LIBRARY_DIR}" STREQUAL "")
+	set(YAML_CPP_LIBRARIES "yaml-cpp::yaml-cpp")
+endif()
+
+if (false)
+	message(STATIC "YAML_CPP_LIBRARIES now: ${YAML_CPP_LIBRARIES}")
+endif()
+
 # ================================ LIBPROC ====================================
 
 # check if we have the libproc library (or at least its headers)
@@ -1569,6 +1593,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${DEBUG_HELP}
 		re2
 		${UAP-CPP_LIBRARIES}
+		${YAML_CPP_LIBRARIES}
 		${JEMalloc_LIBRARIES}
 		${NGHTTP2_LIBRARIES}
 		${NGHTTP3_LIBRARIES}

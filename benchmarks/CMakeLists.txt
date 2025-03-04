@@ -7,15 +7,21 @@ set(CMAKE_CXX_STANDARD 20)
 
 # older cmake versions do not support the test for IS_TOP_LEVEL
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-	set(dekaf2-utests_IS_TOP_LEVEL ON)
+	set(dekaf2-benchmarks_IS_TOP_LEVEL ON)
 else()
-	set(dekaf2-utests_IS_TOP_LEVEL OFF)
+	set(dekaf2-benchmarks_IS_TOP_LEVEL OFF)
 endif()
 
-if (dekaf2-utests_IS_TOP_LEVEL OR NOT DEKAF2_GENERATED_FILES_DIR)
+if (dekaf2-benchmarks_IS_TOP_LEVEL OR NOT DEKAF2_GENERATED_FILES_DIR)
 	set(DEKAF2_INHERIT_BUILD_FLAGS ON)
 	find_package(dekaf2 2.0 REQUIRED)
+	set(DEKAF2_NAMESPACE "dekaf2::")
+else()
+	set(DEKAF2_NAMESPACE)
 endif()
+
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 
 # keep alphabetic sort order
 set (SOURCES
@@ -40,15 +46,15 @@ set (HEADERS
 )
 
 add_executable(benchmarks EXCLUDE_FROM_ALL ${HEADERS} ${SOURCES})
-target_link_libraries(benchmarks dekaf2)
+target_link_libraries(benchmarks ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} Threads::Threads)
 target_compile_definitions(benchmarks PRIVATE DEKAF2_ENABLE_PROFILING)
 
 add_executable(faststrings EXCLUDE_FROM_ALL fast_kstring_bench.cpp)
-target_link_libraries(faststrings dekaf2)
+target_link_libraries(faststrings ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} Threads::Threads)
 target_compile_definitions(faststrings PRIVATE DEKAF2_ENABLE_PROFILING)
 
 add_executable(restserver EXCLUDE_FROM_ALL restserver.cpp)
-target_link_libraries(restserver dekaf2)
+target_link_libraries(restserver ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} Threads::Threads)
 
 set(ALL_INSTALLABLE_TARGETS
 	benchmarks

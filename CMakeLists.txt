@@ -909,6 +909,12 @@ endif()
 # add third party libraries included in source control
 add_subdirectory(libs)
 
+if (CMAKE_GENERATOR MATCHES "Xcode")
+	set(UAP-CPP_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/build/uap-cpp-objects.build/Debug/libuap-cpp-objects.a")
+else()
+	set(UAP-CPP_LIBRARIES "uap-cpp-static")
+endif()
+
 # add partial third party libraries included in source control
 add_subdirectory(from)
 
@@ -1536,6 +1542,7 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 		$<BUILD_INTERFACE:${BROTLI_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/google>
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/croncpp/include>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/uap-cpp>
 		$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGHTTP2_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGHTTP3_INCLUDE_DIRS}>
@@ -1561,7 +1568,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${CORE_FOUNDATION}
 		${DEBUG_HELP}
 		re2
-		uap-cpp-static
+		${UAP-CPP_LIBRARIES}
 		${JEMalloc_LIBRARIES}
 		${NGHTTP2_LIBRARIES}
 		${NGHTTP3_LIBRARIES}

@@ -769,7 +769,7 @@ bool kIsBinary(KStringView sBuffer);
 //-----------------------------------------------------------------------------
 /// Convert value into string and insert selectable separator every n digits, with requested precision
 /// @param i the arithmetic value to format
-/// @param chSeparator the "thousands" separator char, defaults to ','
+/// @param chSeparator the "thousands" separator char, defaults to ',', setting to '\0' disables insertion
 /// @param iEvery insert the chSeparator every iEvery chars, set to 0 to disable
 /// @param iPrecision decimal precision (also for non-floating point values), defaults to 0
 /// @param bRoundToNearest true if the output shall be rounded to nearest value, defaults to true
@@ -811,7 +811,7 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 
 			if (iDecSepPos == String::npos)
 			{
-				// there is no decimal separator - add  a character,
+				// there is no decimal separator - add a placeholder character,
 				// the value itself is not important as we replace it below
 				sResult += ',';
 				iDecSepPos = iResultSize++;
@@ -898,7 +898,7 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 
 			sResult.erase(iCutAt);
 		}
-		else
+		else if (iPrecision != uint16_t(-1))
 		{
 			auto iCount = iPrecision;
 
@@ -913,7 +913,7 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 		// not a float/double
 		iDecSepPos = sResult.size();
 
-		if (iPrecision > 0)
+		if (iPrecision > 0 && iPrecision != uint16_t(-1))
 		{
 			sResult += (chSeparator != '.') ? '.' : ',';
 
@@ -926,7 +926,7 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 		}
 	}
 
-	if (iEvery > 0)
+	if (iEvery > 0 && chSeparator)
 	{
 		// now insert the separator every N digits
 		auto iLast = iEvery;
@@ -946,7 +946,7 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 			++iDecSepPos;
 		}
 
-		if (iEvery < iPrecision)
+		if (iEvery < iPrecision && iPrecision != uint16_t(-1))
 		{
 			iPos = iDecSepPos + 1 + iEvery;
 

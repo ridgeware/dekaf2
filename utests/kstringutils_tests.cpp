@@ -1605,6 +1605,7 @@ TEST_CASE("KStringUtils") {
 		}
 	}
 
+#if DEKAF2_HAS_STD_STRING_VIEW
 	SECTION("kGetWord std::string_view")
 	{
 		struct tvals
@@ -1629,6 +1630,7 @@ TEST_CASE("KStringUtils") {
 			CHECK ( test.sInput == test.sRemainder      );
 		}
 	}
+#endif
 
 	SECTION("kGetWord KString")
 	{

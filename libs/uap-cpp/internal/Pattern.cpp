@@ -27,7 +27,7 @@ void Pattern::assign(const std::string& pattern, bool case_sensitive) {
 }
 
 bool Pattern::match(const std::string& s, Match& m) const {
-  if (regex_ && re2::RE2::PartialMatchN(s, *regex_, m.argPtrs_, groupCount_)) {
+  if (regex_ && re2::RE2::PartialMatchN(s, *regex_, m.argPtrs_, static_cast<int>(groupCount_))) {
     m.count_ = groupCount_;
     return true;
   }

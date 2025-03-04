@@ -22,7 +22,7 @@ namespace {
 struct GenericStore {
   uap_cpp::ReplaceTemplate replacement;
   uap_cpp::Pattern regExpr;
-  int index{0};
+  std::size_t index{0};
 };
 
 struct DeviceStore : GenericStore {

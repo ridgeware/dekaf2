@@ -90,7 +90,8 @@ public:
 	constexpr
 	KCodePoint() = default;
 
-	template<class CP>
+	template<class CP,
+	         typename std::enable_if<std::is_arithmetic<CP>::value, int>::type = 0>
 	constexpr
 	KCodePoint(CP cp) : m_CodePoint(CodepointCast(cp)) {}
 
@@ -377,10 +378,18 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD constexpr
+	bool IsASCII() const
+	//-----------------------------------------------------------------------------
+	{
+		return (m_CodePoint <= MAX_ASCII);
+	}
+
+	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD constexpr
 	CTYPE GetASCIIType() const
 	//-----------------------------------------------------------------------------
 	{
-		return (m_CodePoint <= MAX_ASCII) ? ASCIITable[m_CodePoint] : NOT_ASCII;
+		return (IsASCII()) ? ASCIITable[m_CodePoint] : NOT_ASCII;
 	}
 
 	//-----------------------------------------------------------------------------

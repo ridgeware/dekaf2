@@ -5,6 +5,8 @@
 
 //#include <dekaf2/kaddrplus.h>
 
+#ifdef DEKAF2_IS_GCC
+
 using namespace dekaf2;
 
 using KBitFields = dekaf2::KBitfields<2, 4, 8, 2>;
@@ -172,4 +174,8 @@ void kbitfields_bench()
 	kbitfields();
 }
 
-
+#else
+void kbitfields_bench()
+{
+}
+#endif

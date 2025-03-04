@@ -29,7 +29,7 @@ void kutf8_bench()
 		} while (Unicode::IsSurrogate(ch));
 		Unicode::ToUTF8(ch, sData);
 	}
-	KOut.FormatLine("Time: {}", kFormTimestamp(KLocalTime::now(), "%Y-%m-%d %H:%M:%S"));
+	KOut.FormatLine("Time: {}", kFormTimestamp(KLocalTime::now(), "{:%Y-%m-%d %H:%M:%S}"));
 	KOut.FormatLine("string size: {} bytes, {} codepoints, valid={}", sData.size(), Unicode::CountUTF8(sData), Unicode::ValidUTF8(sData));
 
 	auto sWide     = Unicode::FromUTF8(sData);

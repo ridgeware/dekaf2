@@ -63,7 +63,7 @@ const char*           g_empty_label{"(unnamed)"};
 //-----------------------------------------------------------------------------
 KSharedProfiler::KSharedProfiler()
 //-----------------------------------------------------------------------------
-	:	m_start{clock_t::now()}
+:	m_start{clock_t::now()}
 {
 	std::lock_guard<std::mutex> Lock(s_constructor_mutex);
 	if (!s_refcount++)
@@ -192,7 +192,7 @@ void KSharedProfiler::print()
 	kPrint (stdout,
 			"|  {:{}.{}} : {:>12} usecs : 100.0%\n",
 			"accumulated runtime", imaxlen, imaxlen,
-			 kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(m_profiled_runtime).count()));
+			kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(m_profiled_runtime).count()));
 
 	kPrint (stdout,
 			"|  {:{}.{}} : {:>12} usecs : 100.0%\n",
@@ -238,9 +238,15 @@ KSharedProfiler::data_t& KSharedProfiler::data_t::operator +=(const data_t& d)
 	return *this;
 }
 
+} // end of namespace enabled
+
 #ifndef DEKAF2_DISABLE_AUTOMATIC_PROFILER
-thread_local KSharedProfiler g_Prof;
+// this definition MUST STAY OUTSIDE namespace enabled:: - it is only the type
+// which is defined inside, not the variable!
+thread_local enabled::KSharedProfiler g_Prof;
 #endif
+
+namespace enabled {
 
 //-----------------------------------------------------------------------------
 #ifdef DEKAF2_DISABLE_AUTOMATIC_PROFILER

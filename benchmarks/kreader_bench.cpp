@@ -454,6 +454,7 @@ void compare_readers()
 			}
 		}
 	}
+#if 0
 	{
 		size_t fsize = kGetSize(filename.c_str());
 		KProf prof("read FileDesc, full file into KString");
@@ -473,6 +474,7 @@ void compare_readers()
 			}
 		}
 	}
+#endif
 	{
 		size_t fsize = kGetSize(filename.c_str());
 		KProf prof("read FileDesc, full file into resized KString");
@@ -542,6 +544,7 @@ void compare_readers()
 			}
 		}
 	}
+#if 0
 	{
 		size_t fsize = kGetSize(filename.c_str());
 		KProf prof("read KInFile, full file manually");
@@ -558,6 +561,7 @@ void compare_readers()
 			}
 		}
 	}
+#endif
 	{
 		KProf prof("kReadAll, full file");
 		prof.SetMultiplier(1000);

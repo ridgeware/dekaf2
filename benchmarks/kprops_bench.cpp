@@ -92,7 +92,7 @@ void run_kprops_bench(KProps&& kprops, const char* label1, const char* label2)
 			KProf::Force(&ct);
 			key2.Format("{} {}", key, ct);
 			KProf pp(label2);
-			kprops.Get(key2);
+			auto val = kprops.Get(key2);
 			pp.stop();
 			KProf::Force();
 		}
@@ -124,7 +124,7 @@ void run_kprops_bench_nomove(KProps&& kprops, const char* label1, const char* la
 			KProf::Force(&ct);
 			key2.Format("{} {}", key, ct);
 			KProf pp(label2);
-			kprops.Get(key2);
+			auto val = kprops.Get(key2);
 			pp.stop();
 			KProf::Force();
 		}

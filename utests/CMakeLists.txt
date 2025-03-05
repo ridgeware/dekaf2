@@ -53,6 +53,7 @@ set (USOURCES
 	kfilesystem_tests.cpp
 	kfindsetofchars_tests.cpp
 	kformat_tests.cpp
+	kformtable_tests.cpp
 	kgetruntimestack_tests.cpp
 	khash_tests.cpp
 	khmac_tests.cpp

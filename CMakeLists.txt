@@ -1024,6 +1024,7 @@ set(PUBLIC_HEADERS
 	kfileserver.h
 	kfilesystem.h
 	kformat.h
+	kformtable.h
 	kfrozen.h
 	kgetruntimestack.h
 	khash.h
@@ -1292,6 +1293,7 @@ set (SOURCES
 	kfileserver.cpp
 	kfilesystem.cpp
 	kformat.cpp
+	kformtable.cpp
 	kgetruntimestack.cpp
 	khash.cpp
 	kheapmon.cpp

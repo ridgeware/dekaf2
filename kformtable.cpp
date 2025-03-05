@@ -281,6 +281,7 @@ void KFormTable::PrintBottom()
 				Print(m_BoxChars.BottomRight);
 				Print('\n');
 			}
+			break;
 
 			case Style::JSON:
 				// check if we have to dump the json into an output stream

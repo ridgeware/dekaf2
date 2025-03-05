@@ -2437,11 +2437,11 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 		else
 		{
 			kWarning (GetLastError());
-			kWarning ("automatic retry now in progress...");
+			kWarning ("automatic retry now in progress: {}", ConnectSummary());
 
 			if (m_TimingCallback)
 			{
-				m_TimingCallback (*this, chrono::milliseconds(0), kFormat ("{}\n{}", GetLastError(), "automatic retry now in progress..."));
+				m_TimingCallback (*this, chrono::milliseconds(0), kFormat ("{}\n{}", GetLastError(), kFormat ("automatic retry now in progress: {}", ConnectSummary())));
 			}
 		}
 
@@ -2454,14 +2454,14 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 		}
 		else if (IsFlag(F_IgnoreSQLErrors))
 		{
-			kDebug (GetDebugLevel(), "NEW CONNECTION FAILED.");
+			kDebug (GetDebugLevel(), "NEW CONNECTION FAILED: {}", ConnectSummary());
 		}
 		else
 		{
-			kWarning ("NEW CONNECTION FAILED.");
+			kWarning ("NEW CONNECTION FAILED: {}", ConnectSummary());
 			if (m_TimingCallback)
 			{
-				m_TimingCallback (*this, chrono::milliseconds(0), "NEW CONNECTION FAILED.");
+				m_TimingCallback (*this, chrono::milliseconds(0), kFormat ("NEW CONNECTION FAILED: {}", ConnectSummary()));
 			}
 		}
 

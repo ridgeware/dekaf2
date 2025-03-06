@@ -51,6 +51,7 @@
 #include "kassociative.h"
 #include "kctype.h"
 #include "kcsv.h"
+#include "krow.h"
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -69,11 +70,12 @@ public:
 
 	enum Style
 	{
-		Box    = 1 << 0, ///< ASCII lines ( +-----+-----+) (default)
-		Hidden = 1 << 1, ///< no visible separators
-		HTML   = 1 << 2, ///< html markup
-		JSON   = 1 << 3, ///< json output
-		CSV    = 1 << 4  ///< csv output
+		Box      = 1 << 0, ///< ASCII lines ( +-----+-----+) (default)
+		Vertical = 1 << 1, ///< vertical ASCII lines
+		Hidden   = 1 << 2, ///< no visible separators
+		HTML     = 1 << 3, ///< html markup
+		JSON     = 1 << 4, ///< json output
+		CSV      = 1 << 5  ///< csv output
 	};
 
 	enum Alignment
@@ -83,7 +85,7 @@ public:
 		Left   = 1 << 1, ///< left aligned
 		Center = 1 << 2, ///< center aligned
 		Right  = 1 << 3, ///< right aligned
-		Wrap   = 1 << 4  ///< wrap into next line if needed, else cut
+		Wrap   = 1 << 4  ///< wrap into next line if needed (not yet supported), else cut
 	};
 
 	struct BoxChars
@@ -164,6 +166,14 @@ public:
 
 	/// add one more column definition, will be appended to the right of the existing column definitions
 	void AddColDef(ColDef ColDef);
+
+	/// add one more column definition, will be appended to the right of the existing column definitions
+	/// given arguments must be valid constructor arguments for ColDef
+	template<typename...Args>
+	void AddColDef(Args&&...args)
+	{
+		AddColDef(ColDef(std::forward<Args>(args)...));
+	}
 	/// add a vector of column definitions, will be appended to the right of the existing column definitions
 	void AddColDefs(const ColDefs& ColDefs);
 
@@ -225,12 +235,16 @@ public:
 
 	/// print any iterable type with elements that are convertible into a string view or a number (also floating point) or a duration into the output stream,
 	/// and terminate the current row
-	template<class Columns = std::vector<KStringView>>
+	template<class Columns = std::vector<KStringView>,
+	         typename std::enable_if<std::is_same<Columns, KROW>::value == false, int>::type = 0>
 	void PrintRow(const Columns& Row)
 	{
 		PrintColumns(Row);
 		PrintNextRow();
 	}
+
+	/// print a KROW and terminate the current row
+	void PrintRow(const KROW& Row);
 
 	/// print a row from a json object or multiple rows from an array of objects or arrays - no mixed forms are allowed,
 	/// and a maximum of two dimensions
@@ -238,6 +252,10 @@ public:
 
 	/// print a horizontal separator
 	void PrintSeparator();
+
+	/// print a string OUTSIDE of all internal formatting logic - only use this for very special formattings, and keep in mind that
+	/// it will not automatically adapt to all output styles
+	void PrintRaw(KStringView sRawOutput) { Print(sRawOutput); }
 
 	/// returns column count
 	size_type ColCount() const { return m_ColDefs.size(); }
@@ -247,6 +265,9 @@ public:
 
 	/// returns ref on all ColDefs
 	ColDefs& GetColDefs() { return m_ColDefs; }
+
+	/// returns count of output rows, not counting headers and separators
+	size_type GetPrintedRows() const { return m_iPrintedRows; }
 
 //----------
 private:
@@ -261,6 +282,7 @@ private:
 	void Print(KStringView str) { m_Out->Write(str); }
 
 	size_type FitWidth(size_type iColumn, KStringView sText);
+	void CheckHaveColHeaders();
 
 	KUnorderedMap<KString, size_type> m_ColNames;
 	KUnorderedMap<KString, KString>   m_ColNamesAs;
@@ -274,16 +296,19 @@ private:
 
 	ColDefs   m_ColDefs;
 
-	size_type m_iColumn         { 0 };
-	size_type m_iMaxColWidth    { size_type(-1) };
-	size_type m_iMaxColCount    { size_type(-1) };
+	size_type m_iColumn          { 0 };
+	size_type m_iMaxColWidth     { size_type(-1) };
+	size_type m_iMaxColCount     { size_type(-1) };
+	size_type m_iMaxColNameWidth { 0 };
+	size_type m_iPrintedRows     { 0 };
 
 	BoxChars  m_BoxChars;
-	Style     m_Style           { Style::Box };
-	bool      m_bHadTopPrinted  { false };
-	bool      m_bGetExtents     { false };
-	bool      m_bHaveColHeaders { false };
-	bool      m_bInTableHeader  { false };
+	Style     m_Style            { Style::Box };
+	bool      m_bHadTopPrinted   { false };
+	bool      m_bGetExtents      { false };
+	bool      m_bHaveColHeaders  { false };
+	bool      m_bInTableHeader   { false };
+	bool      m_bColDefsUserSet  { false };
 
 }; // KFormTable
 

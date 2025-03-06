@@ -38,6 +38,42 @@ R"(
 		Table.PrintColumn(false);
 		Table.Close();
 
+		CHECK ( Table.GetPrintedRows() == 2 );
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("ColDef")
+	{
+		static constexpr KStringView sExpected =
+R"(
++------------+------------+----------------------+-------+--------+
+| Title1     |   Title2   |        Title3        | Title>| Title5 |
++------------+------------+----------------------+-------+--------+
+| Col1       |    Col2    |         Col3         |  Col4 | Col5   |
++------------+------------+----------------------+-------+--------+
+|     123.45 |    344     |          12          |     0 |        |
++------------+------------+----------------------+-------+--------+
+)";
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		KFormTable Table(sOut);
+		Table.AddColDef("Title1", 10);
+		Table.AddColDef("Title2", 10, KFormTable::Center);
+		Table.AddColDef("Title3", 20, KFormTable::Center | KFormTable::Wrap);
+		Table.AddColDef("Title4",  5, KFormTable::Right);
+		Table.AddColDef("Title5");
+		CHECK ( Table.ColCount() == 5 );
+
+		Table.PrintRow( { "Col1", "Col2", "Col3", "Col4", "Col5" } );
+		Table.PrintSeparator();
+		Table.PrintColumn(123.45);
+		Table.PrintColumn(344);
+		Table.PrintColumn(chrono::seconds(12));
+		Table.PrintColumn(false);
+		Table.Close();
+
+		CHECK ( Table.GetPrintedRows() == 2 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -72,6 +108,7 @@ R"(
 		Table.PrintColumn(false);
 		Table.Close();
 
+		CHECK ( Table.GetPrintedRows() == 2 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -108,6 +145,7 @@ R"(
 		Table.PrintColumn(false);
 		Table.Close();
 
+		CHECK ( Table.GetPrintedRows() == 2 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -155,6 +193,7 @@ R"(
 		Table.PrintColumn(false);
 		Table.Close();
 
+		CHECK ( Table.GetPrintedRows() == 2 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -201,6 +240,7 @@ R"(
 
 		Table.Close();
 
+		CHECK ( Table.GetPrintedRows() == 4 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -238,6 +278,7 @@ R"(
 
 		Table.Close();
 
+		CHECK ( Table.GetPrintedRows() == 4 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -294,6 +335,7 @@ R"(
 
 		Table.Close();
 
+		CHECK ( Table.GetPrintedRows() == 4 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -357,6 +399,7 @@ R"(
 
 		Table.Close();
 
+		CHECK ( Table.GetPrintedRows() == 4 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -445,6 +488,7 @@ R"(
 
 		Table.Close();
 
+		CHECK ( Table.GetPrintedRows() == 4 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -481,6 +525,7 @@ oncer,two,threely,fourteen
 
 		// CSV outputs with canonical lf, reduce it to a simple lf
 		sOut.Replace("\r\n", "\n");
+		CHECK ( Table.GetPrintedRows() == 4 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -532,6 +577,7 @@ oncer,two,threely,fourteen,12345.678
 
 		// CSV outputs with canonical lf, reduce it to a simple lf
 		sOut.Replace("\r\n", "\n");
+		CHECK ( Table.GetPrintedRows() == 4 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -564,6 +610,7 @@ R"(
 		Table.Close();
 
 		sOut += '\n'; // compensate for the trailing newline in the sExpected string
+		CHECK ( Table.GetPrintedRows() == 4 );
 		CHECK ( sOut == sExpected );
 	}
 
@@ -615,6 +662,7 @@ R"(
 
 		KString sExp = sExpected;
 		sExp.Replace("\n", "");
+		CHECK ( Table.GetPrintedRows() == 4 );
 		CHECK ( sOut == sExp );
 	}
 
@@ -666,6 +714,101 @@ R"(
 		KString sOut = jOut.dump();
 		KString sExp = sExpected;
 		sExp.Replace("\n", "");
+		CHECK ( Table.GetPrintedRows() == 4 );
 		CHECK ( sOut == sExp );
+	}
+
+	SECTION("KROW into Box")
+	{
+		KROW Row("tablename");
+		Row.AddCol ("col1"   , "some value", KCOL::PKEY,     19);
+		Row.AddCol ("column2", "abc"       , KCOL::NOFLAG,   19);
+		Row.AddCol ("column3", "12.122"    , KCOL::NUMERIC, 250);
+		Row.AddCol ("col4"   , "17"        , KCOL::NUMERIC,  20);
+		Row.AddCol ("col5"   , true        , KCOL::BOOLEAN);
+
+		static constexpr KStringView sExpected =
+R"(
++------------+---------+---------+------+------+
+| col1       | column2 | column3 | col4 | col5 |
++------------+---------+---------+------+------+
+| some value | abc     |  12.122 |   17 | true |
+| some value | abc     |  12.122 |   17 | true |
++------------+---------+---------+------+------+
+)";
+
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		KFormTable Table(sOut);
+		Table.SetStyle(KFormTable::Style::Box);
+		Table.PrintRow(Row);
+		Table.PrintRow(Row);
+		Table.Close();
+
+		CHECK ( Table.GetPrintedRows() == 2 );
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("KROW into Vertical")
+	{
+		KROW Row("tablename");
+		Row.AddCol ("col1"   , "some value", KCOL::PKEY,     19);
+		Row.AddCol ("column2", "abc"       , KCOL::NOFLAG,   19);
+		Row.AddCol ("column3", "12.122"    , KCOL::NUMERIC, 250);
+		Row.AddCol ("col4"   , "17"        , KCOL::NUMERIC,  20);
+		Row.AddCol ("col5"   , true        , KCOL::BOOLEAN);
+
+		static constexpr KStringView sExpected =
+R"(
+col1    : some value
+column2 : abc
+column3 : 12.122
+col4    : 17
+col5    : true
+
+col1    : some value
+column2 : abc
+column3 : 12.122
+col4    : 17
+col5    : true
+
+)";
+
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		KFormTable Table(sOut);
+		Table.SetStyle(KFormTable::Style::Vertical);
+		Table.PrintRow(Row);
+		Table.PrintRow(Row);
+		Table.Close();
+
+		CHECK ( Table.GetPrintedRows() == 2 );
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("KROW with single column into Vertical")
+	{
+		KROW Row("tablename");
+		Row.AddCol ("column3", "12.122"    , KCOL::NUMERIC, 250);
+
+		static constexpr KStringView sExpected =
+R"(
+12.122
+12.122
+)";
+
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		KFormTable Table(sOut);
+		Table.SetStyle(KFormTable::Style::Vertical);
+		Table.PrintRow(Row);
+		Table.PrintRow(Row);
+		Table.Close();
+
+		CHECK ( Table.GetPrintedRows() == 2 );
+		CHECK ( sOut == sExpected );
 	}
 }

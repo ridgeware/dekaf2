@@ -51,6 +51,7 @@ KFormTable::KFormTable(KOutStream& Out, std::vector<ColDef> ColDefs)
 //-----------------------------------------------------------------------------
 : m_Out(&Out)
 , m_ColDefs(std::move(ColDefs))
+, m_bColDefsUserSet(!m_ColDefs.empty())
 {
 }
 
@@ -60,6 +61,7 @@ KFormTable::KFormTable(KStringRef& sOut, std::vector<ColDef> ColDefs)
 : m_OutStringStream(std::make_unique<KOutStringStream>(sOut))
 , m_Out(m_OutStringStream.get())
 , m_ColDefs(std::move(ColDefs))
+, m_bColDefsUserSet(!m_ColDefs.empty())
 {
 }
 
@@ -120,7 +122,17 @@ void KFormTable::Close()
 void KFormTable::AddColDef(ColDef ColDef)
 //-----------------------------------------------------------------------------
 {
-	m_ColDefs.push_back(ColDef);
+	m_ColDefs.push_back(std::move(ColDef));
+
+	auto& Col   = m_ColDefs.back();
+	auto& sName = Col.GetDispName();
+
+	if (Col.m_iWidth == 0 && !sName.empty())
+	{
+		FitWidth(m_ColDefs.size() - 1, sName);
+	}
+
+	m_bColDefsUserSet = true;
 
 } // AddColDef
 
@@ -171,7 +183,7 @@ void KFormTable::PrintSeparator()
 				}
 				Print(m_BoxChars.MiddleRight);
 			}
-				DEKAF2_FALLTHROUGH;
+			DEKAF2_FALLTHROUGH;
 			case Style::Hidden:
 				Print('\n');
 				break;
@@ -179,6 +191,7 @@ void KFormTable::PrintSeparator()
 			case Style::HTML:
 			case Style::JSON:
 			case Style::CSV:
+			case Style::Vertical:
 				break;
 		}
 	}
@@ -229,22 +242,27 @@ void KFormTable::PrintTop()
 			case Style::Hidden:
 			case Style::JSON:
 			case Style::CSV:
+			case Style::Vertical:
 				break;
 		}
 
+		CheckHaveColHeaders();
+
 		if (m_bHaveColHeaders && m_Style != Style::JSON)
 		{
-			PrintNextRow();
 			m_bInTableHeader = true;
+
+			PrintNextRow();
 
 			for (auto& Col : m_ColDefs)
 			{
-				PrintColumnInt(false, (Col.m_sDispName.empty()) ? Col.m_sColName : Col.m_sDispName);
+				PrintColumnInt(false, Col.GetDispName());
 			}
 
-			m_bInTableHeader = false;
 			PrintNextRow();
 			PrintSeparator();
+
+			m_bInTableHeader = false;
 		}
 	}
 
@@ -294,6 +312,7 @@ void KFormTable::PrintBottom()
 
 			case Style::Hidden:
 			case Style::CSV:
+			case Style::Vertical:
 				break;
 		}
 
@@ -358,12 +377,18 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 	Alignment iAlign { Alignment::Auto };
 
 	// only get column width and align information for Box, Hidden or HTML
+	// (it is important to keep iWidth at 0 if we do not want to trim the output)
 	if ((m_Style & (Style::Box | Style::Hidden | Style::HTML)) != 0)
 	{
 		// get the defaults for the current column format
 		if (m_iColumn < ColCount())
 		{
-			iWidth = m_ColDefs[m_iColumn].m_iWidth;
+			// don't trim HTML tables, except the user has set the
+			// width explicitly
+			if (m_Style != Style::HTML || m_bColDefsUserSet)
+			{
+				iWidth = m_ColDefs[m_iColumn].m_iWidth;
+			}
 			iAlign = m_ColDefs[m_iColumn].m_iAlign;
 		}
 	}
@@ -430,7 +455,10 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 	switch (m_Style)
 	{
 		case Style::Box:
-			if (!m_iColumn) Print(m_BoxChars.Vertical);
+			if (!m_iColumn)
+			{
+				Print(m_BoxChars.Vertical);
+			}
 			Print(' ');
 			break;
 
@@ -439,15 +467,27 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 			break;
 
 		case Style::HTML:
-			if (!m_iColumn) Print("\t<tr>\n");
+			if (!m_iColumn)
+			{
+				Print("\t<tr>\n");
+			}
 			Print(m_bInTableHeader ? "\t\t<th" : "\t\t<td");
-			if (iSpan > 1) Print(kFormat(" span={}", iSpan));
+
+			if (iSpan > 1)
+			{
+				Print(kFormat(" span={}", iSpan));
+			}
+
 			// don't print align=left - we take it as the default
-			if ((iAlign & Alignment::Left) != Alignment::Left) Print(" align=");
+			if ((iAlign & Alignment::Left) != Alignment::Left)
+			{
+				Print(" align=");
+			}
 			break;
 
 		case Style::JSON:
 		case Style::CSV:
+		case Style::Vertical:
 			break;
 	}
 
@@ -461,6 +501,7 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 				{
 					m_JsonRow = KJSON();
 				}
+
 				if (m_iColumn < ColCount())
 				{
 					m_JsonRow[m_ColDefs[m_iColumn].GetDispName()] = sText;
@@ -476,6 +517,7 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 				{
 					m_JsonRow = KJSON::array();
 				}
+
 				// simply add array elements
 				m_JsonRow.push_back(sText);
 			}
@@ -554,6 +596,35 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 			}
 		}
 		break;
+
+		case Style::Vertical:
+			if (m_bInTableHeader)
+			{
+				if (iSize > m_iMaxColNameWidth)
+				{
+					m_iMaxColNameWidth = iSize;
+				}
+			}
+			else
+			{
+				iFill = m_iMaxColNameWidth + 1;
+				// print colname and value
+				if (m_iColumn < ColCount())
+				{
+					auto& sName = m_ColDefs[m_iColumn].GetDispName();
+					iFill -= sName.SizeUTF8();
+					Print(sName);
+				}
+
+				while (iFill--)
+				{
+					Print(' ');
+				}
+				
+				Print(": ");
+				Print(sText);
+			}
+			break;
 	}
 
 	switch (m_Style)
@@ -574,11 +645,73 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 		case Style::JSON:
 		case Style::CSV:
 			break;
+
+		case Style::Vertical:
+			if (!m_bInTableHeader) Print('\n');
+			break;
+	}
+
+	if (!m_iColumn && !m_bInTableHeader)
+	{
+		++m_iPrintedRows;
 	}
 
 	m_iColumn += iSpan;
 
-} // PrintColumn
+} // PrintColumnInt
+
+//-----------------------------------------------------------------------------
+void KFormTable::PrintRow(const KROW& Row)
+//-----------------------------------------------------------------------------
+{
+	if (Row.empty()) return;
+
+	// special mode: single cols in Vertical style get printed
+	// without name and separating lines
+	if (Row.size() == 1 && m_Style == Style::Vertical)
+	{
+		if (!m_bGetExtents)
+		{
+			Print(Row.begin()->second);
+			Print('\n');
+			++m_iPrintedRows;
+		}
+		return;
+	}
+
+	if (!m_bGetExtents && m_ColDefs.empty())
+	{
+		m_bGetExtents = true;
+		PrintRow(Row);
+		m_bGetExtents = false;
+	}
+
+	if (m_bGetExtents && m_ColDefs.empty())
+	{
+		// print col headers once
+		for (auto& Col : Row)
+		{
+			bool bIsNum = (Col.second.GetFlags() & (KCOL::Flags::NUMERIC | KCOL::Flags::MONEY | KCOL::Flags::INT64NUMERIC)) != KCOL::Flags::NOFLAG;
+			PrintColumnInt(bIsNum, Col.first);
+			m_ColDefs[m_iColumn - 1].m_sColName = Col.first; // only if < maxcolumns
+		}
+		
+		PrintNextRow();
+	}
+
+	// do not print non-header rows for length checking if it's not Box/Hidden/HTML layout
+	if (!m_bGetExtents || (m_Style & (Style::Box | Style::Hidden | Style::HTML )) != 0)
+	{
+		for (auto& Col : Row)
+		{
+			bool bIsNum = (Col.second.GetFlags() & (KCOL::Flags::NUMERIC | KCOL::Flags::MONEY | KCOL::Flags::INT64NUMERIC)) != KCOL::Flags::NOFLAG;
+			PrintColumnInt(bIsNum, Col.second.sValue);
+		}
+
+		PrintNextRow();
+	}
+
+} // PrintRow(const KROW&)
 
 //-----------------------------------------------------------------------------
 bool KFormTable::PrintJSON(const KJSON& json)
@@ -651,7 +784,6 @@ bool KFormTable::PrintJSON(const KJSON& json)
 				KStringView sDispName = (as == m_ColNamesAs.end()) ? KStringView{} : KStringView(as->second);
 				// append a new column
 				m_ColDefs.push_back( { it.key(), sDispName, 0, bIsNumber ? Alignment::Right : Alignment::Left } );
-				m_bHaveColHeaders = !it.key().empty() || !sDispName.empty();
 				// and point to it
 				auto p = m_ColNames.insert( { it.key(), m_ColDefs.size()-1 } );
 				// point nit at
@@ -723,7 +855,7 @@ void KFormTable::PrintNextRow()
 {
 	if (!m_bGetExtents && m_iColumn > 0)
 	{
-		if (m_Style != Style::JSON)
+		if ((m_Style & (Style::JSON | Style::Vertical)) == 0)
 		{
 			for (size_type iCol = m_iColumn; iCol < ColCount(); ++iCol)
 			{
@@ -741,6 +873,10 @@ void KFormTable::PrintNextRow()
 			case Style::Box:
 			case Style::Hidden:
 				Print('\n');
+				break;
+
+			case Style::Vertical:
+				if (!m_bInTableHeader) Print('\n');
 				break;
 
 			case Style::JSON:
@@ -828,11 +964,6 @@ void KFormTable::SetColName(size_type iColumn, KString sColName)
 {
 	FitWidth(iColumn, sColName);
 
-	if (!m_bHaveColHeaders)
-	{
-		m_bHaveColHeaders = !sColName.empty();
-	}
-
 	m_ColDefs[iColumn].m_sDispName = std::move(sColName);
 
 } // SetColName
@@ -891,6 +1022,7 @@ void KFormTable::SetStyle(Style Style)
 
 		case Style::HTML:
 		case Style::Hidden:
+		case Style::Vertical:
 			break;
 	}
 
@@ -986,5 +1118,23 @@ void KFormTable::SetBoxStyle(const BoxChars& BoxChars)
 	m_Style = Style::Box;
 
 } // SetBoxStyle
+
+//-----------------------------------------------------------------------------
+void KFormTable::CheckHaveColHeaders()
+//-----------------------------------------------------------------------------
+{
+	if (!m_bHaveColHeaders)
+	{
+		for (const auto& Col : m_ColDefs)
+		{
+			if (!Col.GetDispName().empty())
+			{
+				m_bHaveColHeaders = true;
+				break;
+			}
+		}
+	}
+
+} // CheckHaveColHeaders
 
 DEKAF2_NAMESPACE_END

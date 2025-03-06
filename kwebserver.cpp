@@ -48,7 +48,7 @@ DEKAF2_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 void KWebServer::Check
 (
-	KStringView        sDocumentRoot,
+	KStringView         sDocumentRoot,
 	KStringView         sResourcePath,
 	bool                bHadTrailingSlash,
 	bool                bCreateAdHocIndex,

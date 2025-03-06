@@ -32,7 +32,7 @@ int KSql::Main(int argc, char** argv)
 	KStringViewZ sHostname = Options("host <url>          : database server hostname"    , "localhost");
 	uint16_t     iDBPort   = Options("port <number>       : database server port number" ,           0);
 	bool         bQuiet    = Options("q,quiet             : only show db output"         ,       false);
-	KStringViewZ sFormat   = Options("f,format <format>   : output format - ascii, vertical, json, csv, html, default ascii", "ascii");
+	KStringViewZ sFormat   = Options("f,format <format>   : output format - ascii, bold, thin, double, rounded, vertical, json, csv, html, default ascii", "ascii");
 	bool         bVersion  = Options("v,version           : show version information"    ,       false);
 	KDuration    Timeout   = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5",  5));
 	bool         bNoComp   = Options("nocomp              : do not attempt to compress the database connection", false);

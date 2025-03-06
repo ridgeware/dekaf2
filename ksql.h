@@ -209,7 +209,11 @@ public:
 		FORM_VERTICAL         = 'v',        ///< non-tabular
 		FORM_JSON             = 'j',
 		FORM_CSV              = 'c',
-		FORM_HTML             = 'h'
+		FORM_HTML             = 'h',
+		FORM_BOLD             = 'b',
+		FORM_ROUNDED          = 'r',
+		FORM_THIN             = 't',
+		FORM_DOUBLE           = 'd'
 	};
 
 	enum BlobType

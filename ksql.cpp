@@ -68,6 +68,7 @@
 #include "kfrozen.h"
 #include "kxterm.h"
 #include "koutshell.h"
+#include "kformtable.h"
 #include <cstdint>
 #include <utility>
 
@@ -7361,6 +7362,18 @@ KSQL::OutputFormat KSQL::CreateOutputFormat(KStringView sFormat)
 		case "html"_casehash:
 			Format = KSQL::FORM_HTML;
 			break;
+		case "bold"_casehash:
+			Format = KSQL::FORM_BOLD;
+			break;
+		case "rounded"_casehash:
+			Format = KSQL::FORM_ROUNDED;
+			break;
+		case "thin"_casehash:
+			Format = KSQL::FORM_THIN;
+			break;
+		case "double"_casehash:
+			Format = KSQL::FORM_DOUBLE;
+			break;
 		default:
 			kDebug(1, "invalid format: {}", sFormat);
 			break;
@@ -7398,6 +7411,91 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 	{
 		return sResult;
 	}
+
+#if 1
+
+	KFormTable Table(sResult);
+	Table.SetMaxColWidth(800);
+
+	KFormTable::Style Style = KFormTable::Style::Box;
+	KFormTable::BoxStyle BStyle = KFormTable::BoxStyle::ASCII;
+
+	switch (iFormat)
+	{
+		case FORM_ASCII:
+			Style = KFormTable::Style::Box;
+			BStyle = KFormTable::BoxStyle::ASCII;
+			break;
+
+		case FORM_BOLD:
+			Style = KFormTable::Style::Box;
+			BStyle = KFormTable::BoxStyle::Bold;
+			break;
+
+		case FORM_ROUNDED:
+			Style = KFormTable::Style::Box;
+			BStyle = KFormTable::BoxStyle::Rounded;
+			break;
+
+		case FORM_THIN:
+			Style = KFormTable::Style::Box;
+			BStyle = KFormTable::BoxStyle::Thin;
+			break;
+
+		case FORM_DOUBLE:
+			Style = KFormTable::Style::Box;
+			BStyle = KFormTable::BoxStyle::Double;
+			break;
+
+		case FORM_VERTICAL:
+			Style = KFormTable::Style::Vertical;
+			break;
+
+		case FORM_HTML:
+			Style = KFormTable::Style::HTML;
+			break;
+
+		case FORM_JSON:
+			Style = KFormTable::Style::JSON;
+			break;
+
+		case FORM_CSV:
+			Style = KFormTable::Style::CSV;
+			break;
+	}
+
+	Table.SetStyle(Style);
+
+	if (Table.GetStyle() == KFormTable::Style::Box)
+	{
+		Table.SetBoxStyle(BStyle);
+		Table.DryMode(true);
+
+		for (auto& Row : *this)
+		{
+			Table.PrintRow(Row);
+		}
+
+		Table.DryMode(false);
+
+		EndQuery ();
+		ExecLastRawQuery (GetFlags(), "OutputQuery");
+	}
+
+	for (auto& Row : *this)
+	{
+		Table.PrintRow(Row);
+	}
+
+	if (piNumRows)
+	{
+		*piNumRows = Table.GetPrintedRows();
+	}
+
+	Table.Close();
+	return sResult;
+
+#else
 
 	KProps<KString, std::size_t, false, true> Widths;
 	KROW Row;
@@ -7648,6 +7746,8 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 	}
 
 	return (sResult);
+
+#endif
 
 } // QueryAllRows
 
@@ -10152,7 +10252,7 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			}
 		}
 
-		if (sSQL.empty() && sLine.In("ascii,vertical,json,csv,html"))
+		if (sSQL.empty() && sLine.In("ascii,vertical,json,csv,html,rounded,thin,bold,double"))
 		{
 			Format = CreateOutputFormat(sLine);
 
@@ -10201,6 +10301,10 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			kWriteLine ();
 			kWriteLine (":: enter SQL command, query or one of these formats for query output:");
 			kWriteLine ("::    ascii    : ascii table form (normal output)");
+			kWriteLine ("::    bold     : bold table form");
+			kWriteLine ("::    thin     : thin table form");
+			kWriteLine ("::    double   : double line table form");
+			kWriteLine ("::    rounded  : rounded corner table form");
 			kWriteLine ("::    vertical : for very wide tables, one column at a time");
 			kWriteLine ("::    json     : JSON array");
 			kWriteLine ("::    csv      : comma-separated-value output");

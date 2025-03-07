@@ -128,7 +128,7 @@ KString Agent::Get() const
 KString UserAgent::Get () const
 //-----------------------------------------------------------------------------
 {
-	return kFormat("{}/{}", Browser.Get(), OS.Get());
+	return kFormat("{}/{}", browser.Get(), os.Get());
 }
 
 //-----------------------------------------------------------------------------

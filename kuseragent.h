@@ -51,19 +51,40 @@ namespace KHTTPUserAgent
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 struct Generic
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+//----------
+public:
+//----------
+
 	Generic() = default;
 	Generic(std::string sFamily)
 	: sFamily(KString(std::move(sFamily)))
 	{
 	}
 
-	KString sFamily { "Other" };
-};
+	/// returns the family string
+	const KString& GetFamily() const { return sFamily; }
 
-struct Device : Generic
+//----------
+protected:
+//----------
+
+	KString sFamily { "Other" };
+
+}; // Generic
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+struct Device : public Generic
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
+public:
+//----------
+
 	Device() = default;
 	Device (Generic generic, std::string model, std::string brand)
 	: Generic(std::move(generic))
@@ -72,12 +93,31 @@ struct Device : Generic
 	{
 	}
 
+	/// returns the model string
+	const KString& GetModel () const { return sModel; }
+	/// returns the brand string
+	const KString& GetBrand () const { return sBrand; }
+	/// returns true if family is "Spider"
+	bool           IsSpider () const { return sFamily == "Spider"; }
+
+//----------
+protected:
+//----------
+
 	KString sModel;
 	KString sBrand;
-};
 
-struct Agent : Generic
+}; // Device
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+struct Agent : public Generic
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
+public:
+//----------
+
 	Agent () = default;
 	Agent (Generic generic, std::string major, std::string minor, std::string patch)
 	: Generic(std::move(generic))
@@ -87,39 +127,77 @@ struct Agent : Generic
 	{
 	}
 
-	KString Get        () const;
-	KString GetVersion () const;
+	/// returns family and version
+	KString        Get        () const;
+	/// returns the full version string
+	KString        GetVersion () const;
+	/// returns major version string
+	const KString& GetVersionMajor () const { return sMajor; }
+	/// returns minor version string
+	const KString& GetVersionMinor () const { return sMinor; }
+	/// returns patch level version string
+	const KString& GetVersionPatch () const { return sPatch; }
+
+//----------
+protected:
+//----------
 
 	KString sMajor;
 	KString sMinor;
 	KString sPatch;
-};
 
-struct UserAgent
+}; // Agent
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class UserAgent
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
+public:
+//----------
+
 	UserAgent () = default;
-	UserAgent (Device Device, Agent OS, Agent Browser)
-	: Device(std::move(Device))
-	, OS(std::move(OS))
-	, Browser(std::move(Browser))
+	UserAgent (Device device, Agent os, Agent browser)
+	: device(std::move(device))
+	, os(std::move(os))
+	, browser(std::move(browser))
 	{
 	}
 
-	KString Get      () const;
-	bool    IsSpider () const { return Device.sFamily == "Spider"; }
-	bool    IsBot    () const { return IsSpider();                 }
+	/// returns browser and OS string
+	KString       Get        () const;
+	/// returns the Device object
+	const Device& GetDevice  () const { return device;  }
+	/// returns the OS object
+	const Agent&  GetOS      () const { return os;      }
+	/// returns the Browser object
+	const Agent&  GetBrowser () const { return browser; }
+	/// returns true if family is "Spider"
+	bool          IsSpider   () const { return GetDevice().IsSpider(); }
 
-	Device Device;
-	Agent  OS;
-	Agent  Browser;
-};
+//----------
+protected:
+//----------
+
+	Device device;
+	Agent  os;
+	Agent  browser;
+
+}; // UserAgent
 
 enum class DeviceType { Unknown = 0, Desktop, Mobile, Tablet };
 
+/// The general user agent parser. Returns all information found, including device, OS, and browser.
 UserAgent  Get           (const KString& sUserAgent);
+/// Use GetDevice if you are only interested in device information
 Device     GetDevice     (const KString& sUserAgent);
+/// Use GetOS if you are only interested in OS information
 Agent      GetOS         (const KString& sUserAgent);
+/// Use GetBrowser if you are only interested in browser information
 Agent      GetBrowser    (const KString& sUserAgent);
+/// Use GetDeviceType if you are only interested in the device type (desktop/mobile/tablet) -
+/// this is by far the fastest parser, and it does not need to load the regexes.yaml
 DeviceType GetDeviceType (const KString& sUserAgent);
 
 };

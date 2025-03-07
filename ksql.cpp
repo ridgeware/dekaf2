@@ -7525,14 +7525,24 @@ KSQLString KSQL::FormAndClause (const KSQLString& sDbCol, KStringView sQueryParm
 		}
 		return sClause;
 	}
-	else if (sQueryParm.remove_prefix ('!'))
+	else if (sQueryParm.remove_prefix ('!') || sQueryParm.remove_prefix ("<>") || sQueryParm.remove_prefix ("!="))
 	{
-		sOperator = "!=";
+		sOperator = "<>";
+		sQueryParm.Trim();
+	}
+	else if (sQueryParm.remove_prefix (">="))
+	{
+		sOperator = ">=";
 		sQueryParm.Trim();
 	}
 	else if (sQueryParm.remove_prefix ('>'))
 	{
 		sOperator = ">";
+		sQueryParm.Trim();
+	}
+	else if (sQueryParm.remove_prefix ("<="))
+	{
+		sOperator = "<=";
 		sQueryParm.Trim();
 	}
 	else if (sQueryParm.remove_prefix ('<'))

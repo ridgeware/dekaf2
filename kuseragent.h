@@ -42,123 +42,85 @@
 #pragma once
 
 #include "kstringview.h"
+#include "kstring.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC DEKAF2_DEPRECATED("no more maintained") KHTTPUserAgent
+namespace KHTTPUserAgent
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
-//------
-public:
-//------
-
-	//-----------------------------------------------------------------------------
-	KHTTPUserAgent() = default;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	constexpr
-	KHTTPUserAgent(KStringView svUserAgent)
-	//-----------------------------------------------------------------------------
+struct Generic
+{
+	Generic() = default;
+	Generic(std::string sFamily)
+	: sFamily(KString(std::move(sFamily)))
 	{
-		m_svUserAgent = Translate(svUserAgent);
 	}
 
-	//-----------------------------------------------------------------------------
-	constexpr
-	KHTTPUserAgent& operator=(KStringView svUserAgent)
-	//-----------------------------------------------------------------------------
+	KString sFamily { "Other" };
+};
+
+struct Device : Generic
+{
+	Device() = default;
+	Device (Generic generic, std::string model, std::string brand)
+	: Generic(std::move(generic))
+	, sModel(KString(std::move(model)))
+	, sBrand(KString(std::move(brand)))
 	{
-		m_svUserAgent = Translate(svUserAgent);
-		return *this;
 	}
 
-	//-----------------------------------------------------------------------------
-	constexpr
-	operator KStringView() const
-	//-----------------------------------------------------------------------------
+	KString sModel;
+	KString sBrand;
+};
+
+struct Agent : Generic
+{
+	Agent () = default;
+	Agent (Generic generic, std::string major, std::string minor, std::string patch)
+	: Generic(std::move(generic))
+	, sMajor(KString(std::move(major)))
+	, sMinor(KString(std::move(minor)))
+	, sPatch(KString(std::move(patch)))
 	{
-		return m_svUserAgent;
 	}
 
-	static constexpr KStringView IE6     = "Mozilla/4.0 (compatible; MSIE 6.01; Windows NT 6.0)";
-	static constexpr KStringView IE7     = "Mozilla/5.0 (Windows; U; MSIE 7.0; Windows NT 6.0; en-US)";
-	static constexpr KStringView IE8     = "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0; GTB6; .NET CLR 2.0.50727; .NET CLR 3.0.04506.648; .NET CLR 3.5.21022; InfoPath.2)";
-	static constexpr KStringView IE9     = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)";
-	static constexpr KStringView FF2     = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13";
-	static constexpr KStringView FF3     = "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9pre) Gecko/2008040318 Firefox/3.0pre (Swiftfox)";
-	static constexpr KStringView FF9     = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.6; rv:9.0) Gecko/20100101 Firefox/9.0";
-	static constexpr KStringView FF25    = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:25.0) Gecko/20100101 Firefox/25.0";
-	static constexpr KStringView SAFARI  = "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_8; en-us) AppleWebKit/530.19.2 (KHTML, like Gecko) Version/4.0.2 Safari/530.19";
-	static constexpr KStringView CHROME  = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.2 (KHTML, like Gecko) Chrome/15.0.874.121 Safari/535.2";
-	static constexpr KStringView WGET    = "Wget/1.10.2 (Red Hat modified)";
-	static constexpr KStringView GOOGLE  = "Googlebot/2.1 (+http://www.google.com/bot.html)";
-	static constexpr KStringView ANDROID = "Mozilla/5.0 (Linux; U; Android 2.3.4; en-us; ADR6300 Build/GRJ22) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1";
-	static constexpr KStringView IPHONE  = "Mozilla/5.0 (iPhone; U; CPU like Mac OS X; en) AppleWebKit/420+ (KHTML, like Gecko) Version/3.0 Mobile/1A543 Safari/419.3";
-	static constexpr KStringView IPAD    = "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10";
+	KString Get        () const;
+	KString GetVersion () const;
 
-//------
-protected:
-//------
+	KString sMajor;
+	KString sMinor;
+	KString sPatch;
+};
 
-	//-----------------------------------------------------------------------------
-	static constexpr KStringView Translate (KStringView svUserAgent)
-	//------------------------------------------------------------------------------
+struct UserAgent
+{
+	UserAgent () = default;
+	UserAgent (Device Device, Agent OS, Agent Browser)
+	: Device(std::move(Device))
+	, OS(std::move(OS))
+	, Browser(std::move(Browser))
 	{
-		if (svUserAgent == "google") {
-			svUserAgent = GOOGLE;
-		}
-		else if (svUserAgent == "wget") {
-			svUserAgent = WGET;
-		}
-		else if (svUserAgent == "ie9") {
-			svUserAgent = IE9;
-		}
-		else if (svUserAgent == "ie8") {
-			svUserAgent = IE8;
-		}
-		else if (svUserAgent == "ie" || svUserAgent == "ie7") {
-			svUserAgent = IE7;
-		}
-		else if (svUserAgent == "ie6") {
-			svUserAgent = IE6;
-		}
-		else if (svUserAgent == "ff" || svUserAgent == "ff2") {
-			svUserAgent = FF2;
-		}
-		else if (svUserAgent == "ff3") {
-			svUserAgent = FF3;
-		}
-		else if (svUserAgent == "ff9") {
-			svUserAgent = FF9;
-		}
-		else if (svUserAgent == "safari") {
-			svUserAgent = SAFARI;
-		}
-		else if (svUserAgent == "chrome") {
-			svUserAgent = CHROME;
-		}
-		else if (svUserAgent == "android") {
-			svUserAgent = ANDROID;
-		}
-		else if (svUserAgent == "ipad") {
-			svUserAgent = IPAD;
-		}
-		else if (svUserAgent == "iphone") {
-			svUserAgent = IPHONE;
-		}
+	}
 
-		return (svUserAgent);
+	KString Get      () const;
+	bool    IsSpider () const { return Device.sFamily == "Spider"; }
+	bool    IsBot    () const { return IsSpider();                 }
 
-	} // TranslateUserAgent
+	Device Device;
+	Agent  OS;
+	Agent  Browser;
+};
 
-//------
-private:
-//------
+enum class DeviceType { Unknown = 0, Desktop, Mobile, Tablet };
 
-	KStringView m_svUserAgent{};
+UserAgent  Get           (const KString& sUserAgent);
+Device     GetDevice     (const KString& sUserAgent);
+Agent      GetOS         (const KString& sUserAgent);
+Agent      GetBrowser    (const KString& sUserAgent);
+DeviceType GetDeviceType (const KString& sUserAgent);
 
 };
 

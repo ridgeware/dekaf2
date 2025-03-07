@@ -125,6 +125,7 @@ set (USOURCES
 	kuntar_tests.cpp
 	kurl_tests.cpp
 	kurlencode_tests.cpp
+	kuseragent_tests.cpp
 	kutf8_tests.cpp
 	kutf8iterator_tests.cpp
 	kvariant_tests.cpp

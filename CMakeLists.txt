@@ -1385,6 +1385,7 @@ set (SOURCES
 	kuntar.cpp
 	kurl.cpp
 	kurlencode.cpp
+	kuseragent.cpp
 	kversion.cpp
 	kwebclient.cpp
 	kwebobjects.cpp

@@ -70,12 +70,16 @@ public:
 
 	enum Style
 	{
-		Box      = 1 << 0, ///< ASCII lines ( +-----+-----+) (default)
-		Vertical = 1 << 1, ///< vertical ASCII lines
-		Hidden   = 1 << 2, ///< no visible separators
-		HTML     = 1 << 3, ///< html markup
-		JSON     = 1 << 4, ///< json output
-		CSV      = 1 << 5  ///< csv output
+		ASCII    = 1 << 0, ///< Box style with ASCII lines (+-----+-----+) (default)
+		Bold     = 1 << 1, ///< Box style with bold lines
+		Thin     = 1 << 2, ///< Box style with thin lines
+		Double   = 1 << 3, ///< Box style with two bold lines
+		Rounded  = 1 << 4, ///< Box style with thin lines and rounded corners
+		Spaced   = 1 << 6, ///< space as separator
+		Vertical = 1 << 5, ///< vertical ASCII lines
+		HTML     = 1 << 7, ///< html markup
+		JSON     = 1 << 8, ///< json output
+		CSV      = 1 << 9  ///< csv output
 	};
 
 	enum Alignment
@@ -101,15 +105,6 @@ public:
 		KCodePoint BottomRight;
 		KCodePoint Horizontal;
 		KCodePoint Vertical;
-	};
-
-	enum BoxStyle
-	{
-		ASCII  ,
-		Rounded,
-		Bold   ,
-		Thin   ,
-		Double
 	};
 
 	struct ColDef
@@ -147,8 +142,6 @@ public:
 	Style GetStyle() const { return m_Style; }
 	/// sets the output style
 	void SetStyle(Style Style);
-	/// sets ASCII style with one of the preselected box styles
-	void SetBoxStyle(BoxStyle BoxStyle);
 	/// sets ASCII style with a user defined box style
 	void SetBoxStyle(const BoxChars& BoxChars);
 
@@ -269,9 +262,20 @@ public:
 	/// returns count of output rows, not counting headers and separators
 	size_type GetPrintedRows() const { return m_iPrintedRows; }
 
+	/// returns true if the selected table style requires a first run on all output data to determine
+	/// column extents
+	bool WantDryMode() const;
+
+	/// return a style value for a string with a style name, like ASCII, thin, HTML ..
+	/// This is a static method and does not change the style of a KFormStyle instance
+	static Style StringToStyle(KStringView sStyle);
+
+
 //----------
 private:
 //----------
+
+	static constexpr Style Box = Style(Style::ASCII | Style::Bold | Style::Thin | Style::Double | Style::Rounded);
 
 	void PrintTop();
 	void PrintBottom();
@@ -303,7 +307,7 @@ private:
 	size_type m_iPrintedRows     { 0 };
 
 	BoxChars  m_BoxChars;
-	Style     m_Style            { Style::Box };
+	Style     m_Style            { Style::ASCII };
 	bool      m_bHadTopPrinted   { false };
 	bool      m_bGetExtents      { false };
 	bool      m_bHaveColHeaders  { false };

@@ -7339,47 +7339,7 @@ void KSQL::ctlib_flush_results ()
 KSQL::OutputFormat KSQL::CreateOutputFormat(KStringView sFormat)
 //-----------------------------------------------------------------------------
 {
-	KSQL::OutputFormat Format = KSQL::FORM_ASCII;
-
-	sFormat.remove_prefix('-');
-
-	switch (sFormat.CaseHash())
-	{
-		case "ascii"_casehash:
-		case "query"_casehash:
-		case "table"_casehash:
-			Format = KSQL::FORM_ASCII;
-			break;
-		case "vertical"_casehash:
-			Format = KSQL::FORM_VERTICAL;
-			break;
-		case "json"_casehash:
-			Format = KSQL::FORM_JSON;
-			break;
-		case "csv"_casehash:
-			Format = KSQL::FORM_CSV;
-			break;
-		case "html"_casehash:
-			Format = KSQL::FORM_HTML;
-			break;
-		case "bold"_casehash:
-			Format = KSQL::FORM_BOLD;
-			break;
-		case "rounded"_casehash:
-			Format = KSQL::FORM_ROUNDED;
-			break;
-		case "thin"_casehash:
-			Format = KSQL::FORM_THIN;
-			break;
-		case "double"_casehash:
-			Format = KSQL::FORM_DOUBLE;
-			break;
-		default:
-			kDebug(1, "invalid format: {}", sFormat);
-			break;
-	}
-
-	return Format;
+	return KFormTable::StringToStyle(sFormat);
 
 } // CreateOutputFormat
 
@@ -7400,7 +7360,7 @@ std::size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASC
 } // OutputQuery
 
 //-----------------------------------------------------------------------------
-KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_ASCII*/, std::size_t* piNumRows/*=NULL*/)
+KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=ASCII*/, std::size_t* piNumRows/*=NULL*/)
 //-----------------------------------------------------------------------------
 {
 	kDebug (2, "...");
@@ -7412,63 +7372,12 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 		return sResult;
 	}
 
-#if 1
-
 	KFormTable Table(sResult);
+	Table.SetStyle(iFormat);
 	Table.SetMaxColWidth(800);
 
-	KFormTable::Style Style = KFormTable::Style::Box;
-	KFormTable::BoxStyle BStyle = KFormTable::BoxStyle::ASCII;
-
-	switch (iFormat)
+	if (Table.WantDryMode())
 	{
-		case FORM_ASCII:
-			Style = KFormTable::Style::Box;
-			BStyle = KFormTable::BoxStyle::ASCII;
-			break;
-
-		case FORM_BOLD:
-			Style = KFormTable::Style::Box;
-			BStyle = KFormTable::BoxStyle::Bold;
-			break;
-
-		case FORM_ROUNDED:
-			Style = KFormTable::Style::Box;
-			BStyle = KFormTable::BoxStyle::Rounded;
-			break;
-
-		case FORM_THIN:
-			Style = KFormTable::Style::Box;
-			BStyle = KFormTable::BoxStyle::Thin;
-			break;
-
-		case FORM_DOUBLE:
-			Style = KFormTable::Style::Box;
-			BStyle = KFormTable::BoxStyle::Double;
-			break;
-
-		case FORM_VERTICAL:
-			Style = KFormTable::Style::Vertical;
-			break;
-
-		case FORM_HTML:
-			Style = KFormTable::Style::HTML;
-			break;
-
-		case FORM_JSON:
-			Style = KFormTable::Style::JSON;
-			break;
-
-		case FORM_CSV:
-			Style = KFormTable::Style::CSV;
-			break;
-	}
-
-	Table.SetStyle(Style);
-
-	if (Table.GetStyle() == KFormTable::Style::Box)
-	{
-		Table.SetBoxStyle(BStyle);
 		Table.DryMode(true);
 
 		for (auto& Row : *this)
@@ -7493,261 +7402,8 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=FORM_
 	}
 
 	Table.Close();
+
 	return sResult;
-
-#else
-
-	KProps<KString, std::size_t, false, true> Widths;
-	KROW Row;
-	std::size_t iNumRows = 0;
-	std::size_t iMaxAll  = 0;
-	static constexpr std::size_t MAXCOLWIDTH = 800;
-	KJSON json = KJSON::array();
-
-	if (iFormat == FORM_ASCII)
-	{
-		while (NextRow (Row))
-		{
-			kDebug (4, "pass-1: {}", KJSON{Row}.dump());
-
-			if (++iNumRows == 1) // factor col headers into col widths
-			{
-				for (const auto& it : Row)
-				{
-					const KString& sName(it.first);
-					auto iLen = sName.length();
-					Widths.Add (sName, iLen);
-					if (iLen > iMaxAll)
-					{
-						iMaxAll = iLen;
-					}
-				}
-			}
-
-			for (const auto& it : Row)
-			{
-				const KString& sName(it.first);
-				const KString& sValue(it.second.sValue);
-				auto iLen = sValue.length();
-				auto iMax = Widths.Get (sName);
-				if ((iLen > iMax) && (iLen <= MAXCOLWIDTH))
-				{
-					Widths.Add (sName, iLen); // <-- max width across all data for this column
-				}
-			}
-		}
-
-		EndQuery ();
-		ExecLastRawQuery (GetFlags(), "OutputQuery");
-	}
-
-	iNumRows = 0;
-
-	while (NextRow (Row))
-	{
-		kDebug (4, "pass-2: {}", KJSON{Row}.dump());
-
-		// output column headers, and in the case of FORM_VERTICAL
-		// calc the header size
-		if (++iNumRows == 1)
-		{
-			switch (iFormat)
-			{
-				case FORM_VERTICAL:
-					for (const auto& it : Row)
-					{
-						const KString& sName(it.first);
-						auto iLen = sName.length();
-						if (iLen > iMaxAll)
-						{
-							iMaxAll = iLen;
-						}
-					}
-					break;
-
-				case FORM_JSON:
-					break;
-
-				case FORM_ASCII:
-				{
-					bool bFirst = true;
-					for (const auto& it : Row)
-					{
-						auto& sName = it.first;
-						auto  iMax  = Widths.Get (sName);
-						sResult    += kFormat ("{}{:-<{}}-+", (bFirst) ? "+-" : "-", "", iMax);
-						bFirst      = false;
-					}
-					sResult += '\n';
-
-					bFirst = true;
-					for (const auto& it : Row)
-					{
-						auto& sName = it.first;
-						auto  iMax  = Widths.Get (sName);
-						sResult    += kFormat ("{}{:<{}.{}} |", (bFirst) ? "| " : " ", sName, iMax, iMax);
-						bFirst      = false;
-					}
-					sResult += '\n';
-
-					bFirst = true;
-					for (const auto& it : Row)
-					{
-						auto& sName = it.first;
-						auto  iMax  = Widths.Get (sName);
-						sResult    += kFormat("{}{:-<{}}-+", (bFirst) ? "+-" : "-", "", iMax);
-						bFirst      = false;
-					}
-					sResult += '\n';
-					break;
-				}
-
-				case FORM_HTML:
-					sResult += "<table>\n<tr>\n";
-					for (const auto& it : Row)
-					{
-						sResult += kFormat(" <th>{}</th>\n", it.first);
-					}
-					sResult += "</tr>\n";
-					break;
-
-				case FORM_CSV:
-					KOutCSV CSV(sResult);
-					for (const auto& it : Row)
-					{
-						CSV.WriteColumn(it.first);
-					}
-					CSV.WriteEndOfRecord();
-					break;
-			}
-		}
-
-		// output row:
-		switch (iFormat)
-		{
-			case FORM_ASCII:
-			{
-				bool bFirst = true;
-				for (const auto& it : Row)
-				{
-					auto& sName  = it.first;
-					auto& sValue = it.second.sValue;
-					auto  iMax   = Widths.Get (sName);
-					if (bFirst)
-					{
-						sResult += kFormat ("| {:<{}.{}} |", sValue, iMax, iMax);
-					}
-					else
-					{
-						sResult += kFormat ( " {:>{}.{}} |", sValue, iMax, iMax);
-					}
-					bFirst       = false;
-				}
-				sResult += '\n';
-				break;
-			}
-
-			case FORM_VERTICAL:
-				for (const auto& it : Row)
-				{
-					auto& sName  = it.first;
-					auto& sValue = it.second.sValue;
-					if (Row.size() > 1)
-					{
-						sResult += kFormat ("{:<{}} : {}\n", sName, iMaxAll, sValue);
-					}
-					else
-					{
-						// if there is only 1 column and we are vertical, skip the col header
-						sResult += sValue;
-						sResult += "\n";
-					}
-				}
-				if (Row.size() > 1)
-				{
-					sResult += "\n"; // only put a blank line separator if there are multiple columns
-				}
-				break;
-
-			case FORM_JSON:
-				{
-					KJSON obj;
-					for (const auto& it : Row)
-					{
-						auto& sName  = it.first;
-						auto& sValue = it.second.sValue;
-						obj[sName] = sValue;
-					}
-					json += obj;
-				}
-				break;
-
-			case FORM_HTML:
-				sResult += "<tr>\n";
-				for (const auto& it : Row)
-				{
-					const KString& sValue = it.second.sValue;
-					sResult += kFormat (" <td>{}</td>\n", sValue);
-				}
-				sResult += "</tr>\n";
-				break;
-
-			case FORM_CSV:
-				KOutCSV CSV(sResult);
-				for (const auto& it : Row)
-				{
-					auto& sValue = it.second.sValue;
-					CSV.WriteColumn(sValue);
-				}
-				CSV.WriteEndOfRecord();
-				break;
-		}
-
-	} // while
-
-	if (iNumRows)
-	{
-		switch (iFormat)
-		{
-			case FORM_CSV:
-				break;
-
-			case FORM_HTML:
-				sResult += "</table>\n";
-				break;
-
-			case FORM_JSON:
-				sResult = json.dump();
-				sResult += "\n";
-				break;
-
-			case FORM_ASCII:
-			{
-				bool bFirst = true;
-				for (const auto& it : Row)
-				{
-					auto& sName = it.first;
-					auto  iMax  = Widths.Get (sName);
-					sResult    += kFormat ("{}{:-<{}}-+", (bFirst) ? "+-" : "-", "", iMax);
-					bFirst      = false;
-				}
-				sResult += '\n';
-				break;
-			}
-
-			case FORM_VERTICAL:
-				break;
-		}
-	}
-
-	if (piNumRows)
-	{
-		*piNumRows = iNumRows;
-	}
-
-	return (sResult);
-
-#endif
 
 } // QueryAllRows
 
@@ -10252,7 +9908,7 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			}
 		}
 
-		if (sSQL.empty() && sLine.In("ascii,vertical,json,csv,html,rounded,thin,bold,double"))
+		if (sSQL.empty() && sLine.In("ascii,vertical,json,csv,html,rounded,thin,bold,double,spaced"))
 		{
 			Format = CreateOutputFormat(sLine);
 
@@ -10305,6 +9961,7 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 			kWriteLine ("::    thin     : thin table form");
 			kWriteLine ("::    double   : double line table form");
 			kWriteLine ("::    rounded  : rounded corner table form");
+			kWriteLine ("::    spaced   : table with space as separators");
 			kWriteLine ("::    vertical : for very wide tables, one column at a time");
 			kWriteLine ("::    json     : JSON array");
 			kWriteLine ("::    csv      : comma-separated-value output");

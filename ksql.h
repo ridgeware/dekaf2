@@ -59,6 +59,7 @@
 #include "kscopeguard.h"
 #include "kduration.h"
 #include "ktemplate.h"
+#include "kformtable.h"
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -203,18 +204,10 @@ public:
 	/// value translations
 	using TXList = KProps <KString, KString, /*order-matters=*/false, /*unique-keys*/true>;
 
-	enum OutputFormat
-	{
-		FORM_ASCII            = 'a',        ///< for OutputQuery() method
-		FORM_VERTICAL         = 'v',        ///< non-tabular
-		FORM_JSON             = 'j',
-		FORM_CSV              = 'c',
-		FORM_HTML             = 'h',
-		FORM_BOLD             = 'b',
-		FORM_ROUNDED          = 'r',
-		FORM_THIN             = 't',
-		FORM_DOUBLE           = 'd'
-	};
+	using OutputFormat = KFormTable::Style;
+
+	// helper for transition period
+	static constexpr OutputFormat FORM_ASCII = OutputFormat::ASCII;
 
 	enum BlobType
 	{
@@ -813,8 +806,8 @@ public:
 	static OutputFormat CreateOutputFormat(KStringView sFormat);
 	std::size_t OutputQuery  (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout)
 		{ return OutputQuery (sSQL, CreateOutputFormat(sFormat), fpout); }
-	std::size_t OutputQuery  (KStringView sSQL, OutputFormat iFormat=FORM_ASCII, FILE* fpout = stdout);
-	KString     QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat=FORM_ASCII, std::size_t* piNumRows=NULL);
+	std::size_t OutputQuery  (KStringView sSQL, OutputFormat iFormat=OutputFormat::ASCII, FILE* fpout = stdout);
+	KString     QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat=OutputFormat::ASCII, std::size_t* piNumRows=NULL);
 
 	void   DisableRetries() { m_bDisableRetries = true;  }
 	void   EnableRetries()  { m_bDisableRetries = false; }
@@ -1566,7 +1559,7 @@ public:
 	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); InvalidateConnectHash(); }
 
 	/// start the command line interpreter
-	void  RunInterpreter (OutputFormat Format = FORM_ASCII, bool bQuiet = false);
+	void  RunInterpreter (OutputFormat Format = OutputFormat::ASCII, bool bQuiet = false);
 
 //----------
 private:

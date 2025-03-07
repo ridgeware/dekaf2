@@ -166,7 +166,11 @@ void KFormTable::PrintSeparator()
 	{
 		switch (m_Style)
 		{
-			case Style::Box:
+			case Style::ASCII:
+			case Style::Bold:
+			case Style::Thin:
+			case Style::Double:
+			case Style::Rounded:
 			{
 				bool bFirst { true };
 				
@@ -184,7 +188,7 @@ void KFormTable::PrintSeparator()
 				Print(m_BoxChars.MiddleRight);
 			}
 			DEKAF2_FALLTHROUGH;
-			case Style::Hidden:
+			case Style::Spaced:
 				Print('\n');
 				break;
 				
@@ -212,12 +216,16 @@ void KFormTable::PrintTop()
 				Print("<table>\n");
 				break;
 
-			case Style::Box:
+			case Style::ASCII:
+			case Style::Bold:
+			case Style::Thin:
+			case Style::Double:
+			case Style::Rounded:
 			{
 				if (m_BoxChars.TopLeft == 0)
 				{
 					// make sure we have a box style set
-					SetBoxStyle(BoxStyle::ASCII);
+					SetStyle(Style::ASCII);
 				}
 
 				bool bFirst { true };
@@ -239,7 +247,7 @@ void KFormTable::PrintTop()
 			}
 			break;
 
-			case Style::Hidden:
+			case Style::Spaced:
 			case Style::JSON:
 			case Style::CSV:
 			case Style::Vertical:
@@ -280,7 +288,11 @@ void KFormTable::PrintBottom()
 				Print("</table>\n");
 				break;
 
-			case Style::Box:
+			case Style::ASCII:
+			case Style::Bold:
+			case Style::Thin:
+			case Style::Double:
+			case Style::Rounded:
 			{
 				bool bFirst { true };
 
@@ -310,7 +322,7 @@ void KFormTable::PrintBottom()
 				}
 				break;
 
-			case Style::Hidden:
+			case Style::Spaced:
 			case Style::CSV:
 			case Style::Vertical:
 				break;
@@ -376,9 +388,9 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 	size_type iSpan  { 1 };
 	Alignment iAlign { Alignment::Auto };
 
-	// only get column width and align information for Box, Hidden or HTML
+	// only get column width and align information for Box, Spaced or HTML
 	// (it is important to keep iWidth at 0 if we do not want to trim the output)
-	if ((m_Style & (Style::Box | Style::Hidden | Style::HTML)) != 0)
+	if ((m_Style & (Box | Style::Spaced | Style::HTML)) != 0)
 	{
 		// get the defaults for the current column format
 		if (m_iColumn < ColCount())
@@ -454,7 +466,11 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 
 	switch (m_Style)
 	{
-		case Style::Box:
+		case Style::ASCII:
+		case Style::Bold:
+		case Style::Thin:
+		case Style::Double:
+		case Style::Rounded:
 			if (!m_iColumn)
 			{
 				Print(m_BoxChars.Vertical);
@@ -462,8 +478,11 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 			Print(' ');
 			break;
 
-		case Style::Hidden:
-			Print(' ');
+		case Style::Spaced:
+			if (m_iColumn)
+			{
+				Print(' ');
+			}
 			break;
 
 		case Style::HTML:
@@ -528,8 +547,12 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 			m_CSV->WriteColumn(*m_Out, sText);
 			break;
 
-		case Style::Box:
-		case Style::Hidden:
+		case Style::ASCII:
+		case Style::Bold:
+		case Style::Thin:
+		case Style::Double:
+		case Style::Rounded:
+		case Style::Spaced:
 		case Style::HTML:
 		{
 			// with alignment
@@ -629,12 +652,16 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 
 	switch (m_Style)
 	{
-		case Style::Box:
+		case Style::ASCII:
+		case Style::Bold:
+		case Style::Thin:
+		case Style::Double:
+		case Style::Rounded:
 			Print(bOverflow ? '>' : ' ');
 			Print(m_BoxChars.Vertical);
 			break;
 
-		case Style::Hidden:
+		case Style::Spaced:
 			Print(bOverflow ? '>' : ' ');
 			break;
 
@@ -699,8 +726,8 @@ void KFormTable::PrintRow(const KROW& Row)
 		PrintNextRow();
 	}
 
-	// do not print non-header rows for length checking if it's not Box/Hidden/HTML layout
-	if (!m_bGetExtents || (m_Style & (Style::Box | Style::Hidden | Style::HTML )) != 0)
+	// do not print non-header rows for length checking if it's not Box/Spaced/HTML layout
+	if (!m_bGetExtents || (m_Style & (Box | Style::Spaced | Style::HTML )) != 0)
 	{
 		for (auto& Col : Row)
 		{
@@ -870,8 +897,12 @@ void KFormTable::PrintNextRow()
 				Print("\t</tr>\n");
 				break;
 
-			case Style::Box:
-			case Style::Hidden:
+			case Style::ASCII:
+			case Style::Bold:
+			case Style::Thin:
+			case Style::Double:
+			case Style::Rounded:
+			case Style::Spaced:
 				Print('\n');
 				break;
 
@@ -998,8 +1029,74 @@ void KFormTable::SetStyle(Style Style)
 
 	switch (m_Style)
 	{
-		case Style::Box:
-			SetBoxStyle(BoxStyle::ASCII);
+		case Style::ASCII:
+			m_BoxChars.TopLeft      = '+';
+			m_BoxChars.TopMiddle    = '+';
+			m_BoxChars.TopRight     = '+';
+			m_BoxChars.MiddleLeft   = '+';
+			m_BoxChars.MiddleMiddle = '+';
+			m_BoxChars.MiddleRight  = '+';
+			m_BoxChars.BottomLeft   = '+';
+			m_BoxChars.BottomMiddle = '+';
+			m_BoxChars.BottomRight  = '+';
+			m_BoxChars.Horizontal   = '-';
+			m_BoxChars.Vertical     = '|';
+			break;
+
+		case Style::Bold:
+			m_BoxChars.TopLeft      = 0x250F;
+			m_BoxChars.TopMiddle    = 0x2533;
+			m_BoxChars.TopRight     = 0x2513;
+			m_BoxChars.MiddleLeft   = 0x2523;
+			m_BoxChars.MiddleMiddle = 0x254B;
+			m_BoxChars.MiddleRight  = 0x252B;
+			m_BoxChars.BottomLeft   = 0x2517;
+			m_BoxChars.BottomMiddle = 0x253B;
+			m_BoxChars.BottomRight  = 0x251B;
+			m_BoxChars.Horizontal   = 0x2501;
+			m_BoxChars.Vertical     = 0x2503;
+			break;
+
+		case Style::Thin:
+			m_BoxChars.TopLeft      = 0x250C;
+			m_BoxChars.TopMiddle    = 0x252C;
+			m_BoxChars.TopRight     = 0x2510;
+			m_BoxChars.MiddleLeft   = 0x251C;
+			m_BoxChars.MiddleMiddle = 0x253C;
+			m_BoxChars.MiddleRight  = 0x2524;
+			m_BoxChars.BottomLeft   = 0x2514;
+			m_BoxChars.BottomMiddle = 0x2534;
+			m_BoxChars.BottomRight  = 0x2518;
+			m_BoxChars.Horizontal   = 0x2500;
+			m_BoxChars.Vertical     = 0x2502;
+			break;
+
+		case Style::Double:
+			m_BoxChars.TopLeft      = 0x2554;
+			m_BoxChars.TopMiddle    = 0x2566;
+			m_BoxChars.TopRight     = 0x2557;
+			m_BoxChars.MiddleLeft   = 0x2560;
+			m_BoxChars.MiddleMiddle = 0x256C;
+			m_BoxChars.MiddleRight  = 0x2563;
+			m_BoxChars.BottomLeft   = 0x255A;
+			m_BoxChars.BottomMiddle = 0x2569;
+			m_BoxChars.BottomRight  = 0x255D;
+			m_BoxChars.Horizontal   = 0x2550;
+			m_BoxChars.Vertical     = 0x2551;
+			break;
+
+		case Style::Rounded:
+			m_BoxChars.TopLeft      = 0x256D;
+			m_BoxChars.TopMiddle    = 0x252C;
+			m_BoxChars.TopRight     = 0x256E;
+			m_BoxChars.MiddleLeft   = 0x251C;
+			m_BoxChars.MiddleMiddle = 0x253C;
+			m_BoxChars.MiddleRight  = 0x2524;
+			m_BoxChars.BottomLeft   = 0x2570;
+			m_BoxChars.BottomMiddle = 0x2534;
+			m_BoxChars.BottomRight  = 0x256F;
+			m_BoxChars.Horizontal   = 0x2500;
+			m_BoxChars.Vertical     = 0x2502;
 			break;
 
 		case Style::CSV:
@@ -1021,7 +1118,7 @@ void KFormTable::SetStyle(Style Style)
 			break;
 
 		case Style::HTML:
-		case Style::Hidden:
+		case Style::Spaced:
 		case Style::Vertical:
 			break;
 	}
@@ -1029,93 +1126,12 @@ void KFormTable::SetStyle(Style Style)
 } // SetStyle
 
 //-----------------------------------------------------------------------------
-void KFormTable::SetBoxStyle(BoxStyle BoxStyle)
-//-----------------------------------------------------------------------------
-{
-	switch (BoxStyle)
-	{
-		case BoxStyle::ASCII:
-			m_BoxChars.TopLeft      = '+';
-			m_BoxChars.TopMiddle    = '+';
-			m_BoxChars.TopRight     = '+';
-			m_BoxChars.MiddleLeft   = '+';
-			m_BoxChars.MiddleMiddle = '+';
-			m_BoxChars.MiddleRight  = '+';
-			m_BoxChars.BottomLeft   = '+';
-			m_BoxChars.BottomMiddle = '+';
-			m_BoxChars.BottomRight  = '+';
-			m_BoxChars.Horizontal   = '-';
-			m_BoxChars.Vertical     = '|';
-			break;
-
-		case BoxStyle::Rounded:
-			m_BoxChars.TopLeft      = 0x256D;
-			m_BoxChars.TopMiddle    = 0x252C;
-			m_BoxChars.TopRight     = 0x256E;
-			m_BoxChars.MiddleLeft   = 0x251C;
-			m_BoxChars.MiddleMiddle = 0x253C;
-			m_BoxChars.MiddleRight  = 0x2524;
-			m_BoxChars.BottomLeft   = 0x2570;
-			m_BoxChars.BottomMiddle = 0x2534;
-			m_BoxChars.BottomRight  = 0x256F;
-			m_BoxChars.Horizontal   = 0x2500;
-			m_BoxChars.Vertical     = 0x2502;
-			break;
-
-		case BoxStyle::Bold:
-			m_BoxChars.TopLeft      = 0x250F;
-			m_BoxChars.TopMiddle    = 0x2533;
-			m_BoxChars.TopRight     = 0x2513;
-			m_BoxChars.MiddleLeft   = 0x2520;
-			m_BoxChars.MiddleMiddle = 0x254B;
-			m_BoxChars.MiddleRight  = 0x252B;
-			m_BoxChars.BottomLeft   = 0x2517;
-			m_BoxChars.BottomMiddle = 0x253B;
-			m_BoxChars.BottomRight  = 0x251B;
-			m_BoxChars.Horizontal   = 0x2501;
-			m_BoxChars.Vertical     = 0x2503;
-			break;
-
-		case BoxStyle::Thin:
-			m_BoxChars.TopLeft      = 0x250C;
-			m_BoxChars.TopMiddle    = 0x252C;
-			m_BoxChars.TopRight     = 0x2510;
-			m_BoxChars.MiddleLeft   = 0x251C;
-			m_BoxChars.MiddleMiddle = 0x253C;
-			m_BoxChars.MiddleRight  = 0x2524;
-			m_BoxChars.BottomLeft   = 0x2514;
-			m_BoxChars.BottomMiddle = 0x2534;
-			m_BoxChars.BottomRight  = 0x2518;
-			m_BoxChars.Horizontal   = 0x2500;
-			m_BoxChars.Vertical     = 0x2502;
-			break;
-
-		case BoxStyle::Double:
-			m_BoxChars.TopLeft      = 0x2554;
-			m_BoxChars.TopMiddle    = 0x2566;
-			m_BoxChars.TopRight     = 0x2557;
-			m_BoxChars.MiddleLeft   = 0x2560;
-			m_BoxChars.MiddleMiddle = 0x256C;
-			m_BoxChars.MiddleRight  = 0x2563;
-			m_BoxChars.BottomLeft   = 0x255A;
-			m_BoxChars.BottomMiddle = 0x2569;
-			m_BoxChars.BottomRight  = 0x255D;
-			m_BoxChars.Horizontal   = 0x2550;
-			m_BoxChars.Vertical     = 0x2551;
-			break;
-	}
-
-	m_Style = Style::Box;
-
-} // SetBoxStyle
-
-//-----------------------------------------------------------------------------
 void KFormTable::SetBoxStyle(const BoxChars& BoxChars)
 //-----------------------------------------------------------------------------
 {
 	m_BoxChars = BoxChars;
 
-	m_Style = Style::Box;
+	m_Style = Style::ASCII;
 
 } // SetBoxStyle
 
@@ -1136,5 +1152,63 @@ void KFormTable::CheckHaveColHeaders()
 	}
 
 } // CheckHaveColHeaders
+
+//-----------------------------------------------------------------------------
+bool KFormTable::WantDryMode() const
+//-----------------------------------------------------------------------------
+{
+	return ((m_Style & (Box | Style::Spaced)) != 0) && m_ColDefs.empty();
+}
+
+//-----------------------------------------------------------------------------
+KFormTable::Style KFormTable::StringToStyle(KStringView sStyle)
+//-----------------------------------------------------------------------------
+{
+	Style Style = Style::ASCII;
+
+	sStyle.remove_prefix('-');
+
+	switch (sStyle.CaseHash())
+	{
+		case "ascii"_casehash:
+		case "query"_casehash:
+		case "table"_casehash:
+			Style = Style::ASCII;
+			break;
+		case "vertical"_casehash:
+			Style = Style::Vertical;
+			break;
+		case "json"_casehash:
+			Style = Style::JSON;
+			break;
+		case "csv"_casehash:
+			Style = Style::CSV;
+			break;
+		case "html"_casehash:
+			Style = Style::HTML;
+			break;
+		case "bold"_casehash:
+			Style = Style::Bold;
+			break;
+		case "rounded"_casehash:
+			Style = Style::Rounded;
+			break;
+		case "thin"_casehash:
+			Style = Style::Thin;
+			break;
+		case "double"_casehash:
+			Style = Style::Double;
+			break;
+		case "spaced"_casehash:
+			Style = Style::Spaced;
+			break;
+		default:
+			kDebug(1, "invalid style: {}", sStyle);
+			break;
+	}
+
+	return Style;
+
+} // StringToStyle
 
 DEKAF2_NAMESPACE_END

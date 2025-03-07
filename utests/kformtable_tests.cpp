@@ -27,7 +27,7 @@ R"(
 			2
 		});
 
-		CHECK ( Table.GetStyle() == KFormTable::Style::Box );
+		CHECK ( Table.GetStyle() == KFormTable::Style::ASCII );
 		CHECK ( Table.ColCount() == 5 );
 
 		Table.PrintRow( { "Col1", "Col2", "Col3", "Col4", "Col5" } );
@@ -77,13 +77,13 @@ R"(
 		CHECK ( sOut == sExpected );
 	}
 
-	SECTION("Hidden")
+	SECTION("Spaced")
 	{
 		static constexpr KStringView sExpected =
 R"(
- Col1           Col2             Col3           Col4  Co>
+Col1           Col2             Col3           Col4  Co>
 
-     123.45     344               12               0     
+    123.45     344               12               0     
 )";
 		KString sOut;
 		sOut += '\n'; // compensate for the leading newline in the sExpected string
@@ -97,7 +97,7 @@ R"(
 			2
 		});
 
-		Table.SetStyle(KFormTable::Style::Hidden);
+		Table.SetStyle(KFormTable::Style::Spaced);
 		CHECK ( Table.ColCount() == 5 );
 
 		Table.PrintRow( { "Col1", "Col2", "Col3", "Col4", "Col5" } );
@@ -134,7 +134,7 @@ R"(
 			2
 		});
 
-		Table.SetBoxStyle(KFormTable::BoxStyle::Rounded);
+		Table.SetStyle(KFormTable::Style::Rounded);
 		CHECK ( Table.ColCount() == 5 );
 
 		Table.PrintRow( { "Col1", "Col2", "Col3", "Col4", "Col5" } );
@@ -741,7 +741,7 @@ R"(
 		sOut += '\n'; // compensate for the leading newline in the sExpected string
 
 		KFormTable Table(sOut);
-		Table.SetStyle(KFormTable::Style::Box);
+		Table.SetStyle(KFormTable::Style::ASCII);
 		Table.PrintRow(Row);
 		Table.PrintRow(Row);
 		Table.Close();

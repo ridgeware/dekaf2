@@ -52,7 +52,7 @@ namespace KHTTPUserAgent
 {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-struct Generic
+class DEKAF2_PUBLIC Generic
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 //----------
@@ -66,6 +66,7 @@ public:
 	}
 
 	/// returns the family string
+	DEKAF2_NODISCARD
 	const KString& GetFamily() const { return sFamily; }
 
 //----------
@@ -77,7 +78,7 @@ protected:
 }; // Generic
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-struct Device : public Generic
+class DEKAF2_PUBLIC Device : public Generic
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -94,10 +95,13 @@ public:
 	}
 
 	/// returns the model string
+	DEKAF2_NODISCARD
 	const KString& GetModel () const { return sModel; }
 	/// returns the brand string
+	DEKAF2_NODISCARD
 	const KString& GetBrand () const { return sBrand; }
 	/// returns true if family is "Spider"
+	DEKAF2_NODISCARD
 	bool           IsSpider () const { return sFamily == "Spider"; }
 
 //----------
@@ -110,7 +114,7 @@ protected:
 }; // Device
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-struct Agent : public Generic
+class DEKAF2_PUBLIC Agent : public Generic
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -128,14 +132,19 @@ public:
 	}
 
 	/// returns family and version
+	DEKAF2_NODISCARD
 	KString        Get        () const;
 	/// returns the full version string
+	DEKAF2_NODISCARD
 	KString        GetVersion () const;
 	/// returns major version string
+	DEKAF2_NODISCARD
 	const KString& GetVersionMajor () const { return sMajor; }
 	/// returns minor version string
+	DEKAF2_NODISCARD
 	const KString& GetVersionMinor () const { return sMinor; }
 	/// returns patch level version string
+	DEKAF2_NODISCARD
 	const KString& GetVersionPatch () const { return sPatch; }
 
 //----------
@@ -149,7 +158,7 @@ protected:
 }; // Agent
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class UserAgent
+class DEKAF2_PUBLIC UserAgent
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -166,14 +175,19 @@ public:
 	}
 
 	/// returns browser and OS string
+	DEKAF2_NODISCARD
 	KString       Get        () const;
 	/// returns the Device object
+	DEKAF2_NODISCARD
 	const Device& GetDevice  () const { return device;  }
 	/// returns the OS object
+	DEKAF2_NODISCARD
 	const Agent&  GetOS      () const { return os;      }
 	/// returns the Browser object
+	DEKAF2_NODISCARD
 	const Agent&  GetBrowser () const { return browser; }
 	/// returns true if family is "Spider"
+	DEKAF2_NODISCARD
 	bool          IsSpider   () const { return GetDevice().IsSpider(); }
 
 //----------
@@ -189,15 +203,20 @@ protected:
 enum class DeviceType { Unknown = 0, Desktop, Mobile, Tablet };
 
 /// The general user agent parser. Returns all information found, including device, OS, and browser.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 UserAgent  Get           (const KString& sUserAgent);
 /// Use GetDevice if you are only interested in device information
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Device     GetDevice     (const KString& sUserAgent);
 /// Use GetOS if you are only interested in OS information
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Agent      GetOS         (const KString& sUserAgent);
 /// Use GetBrowser if you are only interested in browser information
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 Agent      GetBrowser    (const KString& sUserAgent);
 /// Use GetDeviceType if you are only interested in the device type (desktop/mobile/tablet) -
 /// this is by far the fastest parser, and it does not need to load the regexes.yaml
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 DeviceType GetDeviceType (const KString& sUserAgent);
 
 };

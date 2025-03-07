@@ -139,6 +139,7 @@ public:
 	void DryMode(bool bYesNo) { m_bGetExtents = bYesNo; }
 
 	/// returns the current output style
+	DEKAF2_NODISCARD
 	Style GetStyle() const { return m_Style; }
 	/// sets the output style
 	void SetStyle(Style Style);
@@ -251,23 +252,29 @@ public:
 	void PrintRaw(KStringView sRawOutput) { Print(sRawOutput); }
 
 	/// returns column count
+	DEKAF2_NODISCARD
 	size_type ColCount() const { return m_ColDefs.size(); }
 
 	/// returns ref on ColDef for a certain column - expands row if smaller than iColumn
+	DEKAF2_NODISCARD
 	ColDef& GetColDef(size_type iColumn);
 
 	/// returns ref on all ColDefs
+	DEKAF2_NODISCARD
 	ColDefs& GetColDefs() { return m_ColDefs; }
 
 	/// returns count of output rows, not counting headers and separators
+	DEKAF2_NODISCARD
 	size_type GetPrintedRows() const { return m_iPrintedRows; }
 
 	/// returns true if the selected table style requires a first run on all output data to determine
 	/// column extents
+	DEKAF2_NODISCARD
 	bool WantDryMode() const;
 
 	/// return a style value for a string with a style name, like ASCII, thin, HTML ..
 	/// This is a static method and does not change the style of a KFormStyle instance
+	DEKAF2_NODISCARD
 	static Style StringToStyle(KStringView sStyle);
 
 

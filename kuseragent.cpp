@@ -46,23 +46,20 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace KHTTPUserAgent {
-
 namespace {
 
 std::unique_ptr<::uap_cpp::UserAgentParser> g_UserAgentParser;
 
 //-----------------------------------------------------------------------------
-bool InitUserAgentParser()
+bool InitUserAgentParser(const KString& sRegexFile = kReadLink(kFormat("/usr/local/{}/uap-core/regexes.yaml", DEKAF2_SHARED_DIRECTORY), true))
 //-----------------------------------------------------------------------------
 {
 	static std::once_flag s_once;
 
-	std::call_once(s_once, []
+	std::call_once(s_once, [&sRegexFile]
 	{
 		try
 		{
-			auto sRegexFile = kReadLink(kFormat("/usr/local/{}/uap-core/regexes.yaml", DEKAF2_SHARED_DIRECTORY), true);
 			kDebug (3, "initializing from {}", sRegexFile);
 			g_UserAgentParser = std::make_unique<::uap_cpp::UserAgentParser>(sRegexFile.str());
 		}
@@ -77,37 +74,28 @@ bool InitUserAgentParser()
 } // InitUserAgentParser
 
 //-----------------------------------------------------------------------------
-Device MakeDevice(::uap_cpp::Device device)
+KHTTPUserAgent::Device MakeDevice(::uap_cpp::Device device)
 //-----------------------------------------------------------------------------
 {
-	return Device(Generic(std::move(device.family)),
+	return KHTTPUserAgent::Device(KHTTPUserAgent::Generic(std::move(device.family)),
 				  std::move(device.model),
 				  std::move(device.brand));
 }
 
 //-----------------------------------------------------------------------------
-Agent MakeAgent(::uap_cpp::Agent agent)
+KHTTPUserAgent::Agent MakeAgent(::uap_cpp::Agent agent)
 //-----------------------------------------------------------------------------
 {
-	return Agent(Generic(std::move(agent.family)),
+	return KHTTPUserAgent::Agent(KHTTPUserAgent::Generic(std::move(agent.family)),
 				 std::move(agent.major),
 				 std::move(agent.minor),
 				 std::move(agent.patch));
 }
 
-//-----------------------------------------------------------------------------
-UserAgent MakeUserAgent(::uap_cpp::UserAgent ua)
-//-----------------------------------------------------------------------------
-{
-	return UserAgent(MakeDevice(std::move(ua.device)),
-					 MakeAgent(std::move(ua.os)),
-					 MakeAgent(std::move(ua.browser)));
-}
-
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
-KString Agent::GetVersion() const
+KString KHTTPUserAgent::Agent::GetVersion() const
 //-----------------------------------------------------------------------------
 {
 	return kFormat("{}.{}.{}",
@@ -118,76 +106,78 @@ KString Agent::GetVersion() const
 }
 
 //-----------------------------------------------------------------------------
-KString Agent::Get() const
+KString KHTTPUserAgent::Agent::GetString() const
 //-----------------------------------------------------------------------------
 {
 	return kFormat("{} {}", sFamily, GetVersion());
 }
 
 //-----------------------------------------------------------------------------
-KString UserAgent::Get () const
+KString KHTTPUserAgent::GetString ()
 //-----------------------------------------------------------------------------
 {
-	return kFormat("{}/{}", browser.Get(), os.Get());
+	return kFormat("{}/{}", GetBrowser().GetString(), GetOS().GetString());
 }
 
 //-----------------------------------------------------------------------------
-UserAgent Get (const KString& sUserAgent)
+const KHTTPUserAgent::Device& KHTTPUserAgent::GetDevice ()
 //-----------------------------------------------------------------------------
 {
-	if (!InitUserAgentParser())
+	if ((m_Parsed & Parsed::Device) != Parsed::Device)
 	{
-		return {};
+		m_Parsed |= Parsed::Device;
+
+		if (InitUserAgentParser())
+		{
+			m_Device = MakeDevice(g_UserAgentParser->parse_device(m_sUserAgent.str()));
+		}
 	}
 
-	return MakeUserAgent(g_UserAgentParser->parse(sUserAgent.str()));
-
-} // Get
-
-//-----------------------------------------------------------------------------
-Device GetDevice (const KString& sUserAgent)
-//-----------------------------------------------------------------------------
-{
-	if (!InitUserAgentParser())
-	{
-		return {};
-	}
-
-	return MakeDevice(g_UserAgentParser->parse_device(sUserAgent.str()));
+	return m_Device;
 
 } // GetDevice
 
 //-----------------------------------------------------------------------------
-Agent GetOS (const KString& sUserAgent)
+const KHTTPUserAgent::Agent& KHTTPUserAgent::GetOS ()
 //-----------------------------------------------------------------------------
 {
-	if (!InitUserAgentParser())
+	if ((m_Parsed & Parsed::OS) != Parsed::OS)
 	{
-		return {};
+		m_Parsed |= Parsed::OS;
+
+		if (InitUserAgentParser())
+		{
+			m_OS = MakeAgent(g_UserAgentParser->parse_os(m_sUserAgent.str()));
+		}
 	}
 
-	return MakeAgent(g_UserAgentParser->parse_os(sUserAgent.str()));
+	return m_OS;
 
 } // GetOS
 
 //-----------------------------------------------------------------------------
-Agent GetBrowser (const KString& sUserAgent)
+const KHTTPUserAgent::Agent& KHTTPUserAgent::GetBrowser ()
 //-----------------------------------------------------------------------------
 {
-	if (!InitUserAgentParser())
+	if ((m_Parsed & Parsed::Browser) != Parsed::Browser)
 	{
-		return {};
+		m_Parsed |= Parsed::Browser;
+
+		if (InitUserAgentParser())
+		{
+			m_Browser = MakeAgent(g_UserAgentParser->parse_browser(m_sUserAgent.str()));
+		}
 	}
 
-	return MakeAgent(g_UserAgentParser->parse_browser(sUserAgent.str()));
+	return m_Browser;
 
 } // GetBrowser
 
 //-----------------------------------------------------------------------------
-DeviceType GetDeviceType (const KString& sUserAgent)
+KHTTPUserAgent::DeviceType KHTTPUserAgent::GetDeviceType ()
 //-----------------------------------------------------------------------------
 {
-	switch (::uap_cpp::UserAgentParser::device_type(sUserAgent.str()))
+	switch (::uap_cpp::UserAgentParser::device_type(m_sUserAgent.str()))
 	{
 		case ::uap_cpp::DeviceType::kMobile:
 			return DeviceType::Mobile;
@@ -205,6 +195,18 @@ DeviceType GetDeviceType (const KString& sUserAgent)
 	return DeviceType::Unknown;
 }
 
-} // end of namespace KHTTPUserAgent
+//-----------------------------------------------------------------------------
+bool KHTTPUserAgent::LoadRegexes(const KString& sRegexPathName)
+//-----------------------------------------------------------------------------
+{
+	if (g_UserAgentParser)
+	{
+		kDebug(1, "user agent parser already initialized, cannot load file: {}", sRegexPathName);
+		return false;
+	}
+
+	return InitUserAgentParser(sRegexPathName);
+
+} // SetRegexPathname
 
 DEKAF2_NAMESPACE_END

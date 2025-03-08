@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2025, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -47,178 +47,175 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-namespace KHTTPUserAgent
+/// parse a http user agent header to obtain information like browser maker, version, OS, device category
+class DEKAF2_PUBLIC KHTTPUserAgent
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Generic
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
 //----------
 public:
 //----------
 
-	Generic() = default;
-	Generic(std::string sFamily)
-	: sFamily(KString(std::move(sFamily)))
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class DEKAF2_PUBLIC Generic
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-	}
+	//----------
+	public:
+	//----------
 
-	/// returns the family string
-	DEKAF2_NODISCARD
-	const KString& GetFamily() const { return sFamily; }
+		Generic() = default;
+		Generic(std::string sFamily)
+		: sFamily(KString(std::move(sFamily)))
+		{
+		}
 
-//----------
-protected:
-//----------
+		/// returns the family string
+		DEKAF2_NODISCARD
+		const KString& GetFamily() const { return sFamily; }
 
-	KString sFamily { "Other" };
+	//----------
+	protected:
+	//----------
 
-}; // Generic
+		KString sFamily { "Other" };
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Device : public Generic
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
+	}; // Generic
 
-//----------
-public:
-//----------
-
-	Device() = default;
-	Device (Generic generic, std::string model, std::string brand)
-	: Generic(std::move(generic))
-	, sModel(KString(std::move(model)))
-	, sBrand(KString(std::move(brand)))
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class DEKAF2_PUBLIC Device : public Generic
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-	}
 
-	/// returns the model string
+	//----------
+	public:
+	//----------
+
+		Device() = default;
+		Device (Generic generic, std::string model, std::string brand)
+		: Generic(std::move(generic))
+		, sModel(KString(std::move(model)))
+		, sBrand(KString(std::move(brand)))
+		{
+		}
+
+		/// returns the model string
+		DEKAF2_NODISCARD
+		const KString& GetModel () const { return sModel; }
+		/// returns the brand string
+		DEKAF2_NODISCARD
+		const KString& GetBrand () const { return sBrand; }
+		/// returns true if family is "Spider"
+		DEKAF2_NODISCARD
+		bool           IsSpider () const { return sFamily == "Spider"; }
+
+	//----------
+	protected:
+	//----------
+
+		KString sModel;
+		KString sBrand;
+
+	}; // Device
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class DEKAF2_PUBLIC Agent : public Generic
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		Agent () = default;
+		Agent (Generic generic, std::string major, std::string minor, std::string patch)
+		: Generic(std::move(generic))
+		, sMajor(KString(std::move(major)))
+		, sMinor(KString(std::move(minor)))
+		, sPatch(KString(std::move(patch)))
+		{
+		}
+
+		/// returns family and version as string
+		DEKAF2_NODISCARD
+		KString        GetString  () const;
+		/// returns the full version string
+		DEKAF2_NODISCARD
+		KString        GetVersion () const;
+		/// returns major version string
+		DEKAF2_NODISCARD
+		const KString& GetVersionMajor () const { return sMajor; }
+		/// returns minor version string
+		DEKAF2_NODISCARD
+		const KString& GetVersionMinor () const { return sMinor; }
+		/// returns patch level version string
+		DEKAF2_NODISCARD
+		const KString& GetVersionPatch () const { return sPatch; }
+
+	//----------
+	protected:
+	//----------
+
+		KString sMajor;
+		KString sMinor;
+		KString sPatch;
+
+	}; // Agent
+
+	enum class DeviceType { Unknown = 0, Desktop, Mobile, Tablet };
+
+	/// default ctor
+	KHTTPUserAgent() = default;
+	/// construct around a KHTTP user agent string
+	KHTTPUserAgent(KString sUserAgent) : m_sUserAgent(std::move(sUserAgent)) {}
+
+	/// Returns browser and OS as string
 	DEKAF2_NODISCARD
-	const KString& GetModel () const { return sModel; }
-	/// returns the brand string
+	KString       GetString();
+	/// returns device information
 	DEKAF2_NODISCARD
-	const KString& GetBrand () const { return sBrand; }
+	const Device& GetDevice     ();
+	/// returns OS information
+	DEKAF2_NODISCARD
+	const Agent&  GetOS         ();
+	/// returns browser information
+	DEKAF2_NODISCARD
+	const Agent&  GetBrowser    ();
+	/// returns device type (desktop/mobile/tablet) -
+	/// this is by far the fastest parser, and it does not need to load the regexes.yaml
+	DEKAF2_NODISCARD
+	DeviceType    GetDeviceType ();
 	/// returns true if family is "Spider"
 	DEKAF2_NODISCARD
-	bool           IsSpider () const { return sFamily == "Spider"; }
+	bool          IsSpider      () { return GetDevice().IsSpider(); }
 
-//----------
-protected:
-//----------
+	/// call this static function BEFORE any use of this class to load a regex file other than
+	/// the one at the default install location (/usr/local/share/dekaf2/..).
+	/// @param sRegexPathName full path name for a yaml file with regex definitions for the parser
+	/// @return false if user agent parsing was already initialized at time of call, or other initialization error, true otherwise
+	static bool LoadRegexes(const KString& sRegexPathName);
 
-	KString sModel;
-	KString sBrand;
-
-}; // Device
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Agent : public Generic
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	Agent () = default;
-	Agent (Generic generic, std::string major, std::string minor, std::string patch)
-	: Generic(std::move(generic))
-	, sMajor(KString(std::move(major)))
-	, sMinor(KString(std::move(minor)))
-	, sPatch(KString(std::move(patch)))
+	// purely internal enum class - needs be exposed for enum flag operations
+	enum class Parsed
 	{
-	}
-
-	/// returns family and version
-	DEKAF2_NODISCARD
-	KString        Get        () const;
-	/// returns the full version string
-	DEKAF2_NODISCARD
-	KString        GetVersion () const;
-	/// returns major version string
-	DEKAF2_NODISCARD
-	const KString& GetVersionMajor () const { return sMajor; }
-	/// returns minor version string
-	DEKAF2_NODISCARD
-	const KString& GetVersionMinor () const { return sMinor; }
-	/// returns patch level version string
-	DEKAF2_NODISCARD
-	const KString& GetVersionPatch () const { return sPatch; }
+		None    = 0,
+		Device  = 1 << 1,
+		OS      = 1 << 2,
+		Browser = 1 << 3
+	};
 
 //----------
-protected:
+private:
 //----------
 
-	KString sMajor;
-	KString sMinor;
-	KString sPatch;
+	KString m_sUserAgent;
+	Device  m_Device;
+	Agent   m_OS;
+	Agent   m_Browser;
+	Parsed  m_Parsed { Parsed::None };
 
-}; // Agent
+}; // KHTTPUserAgent
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC UserAgent
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	UserAgent () = default;
-	UserAgent (Device device, Agent os, Agent browser)
-	: device(std::move(device))
-	, os(std::move(os))
-	, browser(std::move(browser))
-	{
-	}
-
-	/// returns browser and OS string
-	DEKAF2_NODISCARD
-	KString       Get        () const;
-	/// returns the Device object
-	DEKAF2_NODISCARD
-	const Device& GetDevice  () const { return device;  }
-	/// returns the OS object
-	DEKAF2_NODISCARD
-	const Agent&  GetOS      () const { return os;      }
-	/// returns the Browser object
-	DEKAF2_NODISCARD
-	const Agent&  GetBrowser () const { return browser; }
-	/// returns true if family is "Spider"
-	DEKAF2_NODISCARD
-	bool          IsSpider   () const { return GetDevice().IsSpider(); }
-
-//----------
-protected:
-//----------
-
-	Device device;
-	Agent  os;
-	Agent  browser;
-
-}; // UserAgent
-
-enum class DeviceType { Unknown = 0, Desktop, Mobile, Tablet };
-
-/// The general user agent parser. Returns all information found, including device, OS, and browser.
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-UserAgent  Get           (const KString& sUserAgent);
-/// Use GetDevice if you are only interested in device information
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-Device     GetDevice     (const KString& sUserAgent);
-/// Use GetOS if you are only interested in OS information
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-Agent      GetOS         (const KString& sUserAgent);
-/// Use GetBrowser if you are only interested in browser information
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-Agent      GetBrowser    (const KString& sUserAgent);
-/// Use GetDeviceType if you are only interested in the device type (desktop/mobile/tablet) -
-/// this is by far the fastest parser, and it does not need to load the regexes.yaml
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-DeviceType GetDeviceType (const KString& sUserAgent);
-
-};
+DEKAF2_ENUM_IS_FLAG(KHTTPUserAgent::Parsed)
 
 DEKAF2_NAMESPACE_END

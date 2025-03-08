@@ -17,14 +17,14 @@ TEST_CASE("KHTTPUserAgent") {
 		"AppleWebKit/534.46 "
 		"(KHTML, like Gecko) Version/5.1 Mobile/9B206 Safari/7534.48.3";
 
-		auto UA = KHTTPUserAgent::Get(sUA);
+		KHTTPUserAgent UA(sUA);
 
 		CHECK ( UA.GetBrowser().Get()     == "Mobile Safari 5.1.0" );
 		CHECK ( UA.GetDevice().GetModel() == "iPhone"              );
 		CHECK ( UA.GetOS().Get()          == "iOS 5.1.1"           );
 		CHECK ( UA.IsSpider()             == false                 );
 
-		CHECK ( KHTTPUserAgent::GetDeviceType(sUA) == KHTTPUserAgent::DeviceType::Mobile );
+		CHECK ( UA.GetDeviceType() == KHTTPUserAgent::DeviceType::Mobile );
 	}
 }
 

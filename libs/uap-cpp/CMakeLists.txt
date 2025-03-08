@@ -21,12 +21,23 @@ set(LIB_SOURCES
         internal/ReplaceTemplate.cpp
         internal/SnippetIndex.cpp)
 
+set(LIB_HEADERS
+        UaParser.h
+        internal/AlternativeExpander.h
+        internal/MakeUnique.h
+        internal/Pattern.h
+        internal/ReplaceTemplate.h
+        internal/SnippetIndex.h
+        internal/SnippetMapping.h
+        internal/StringUtils.h
+        internal/StringView.h)
+
 find_package(yaml-cpp REQUIRED)
 
 #find_package(re2)
 
 # this is the "object library" target: compiles the sources only once
-add_library(uap-cpp-objects OBJECT ${LIB_SOURCES})
+add_library(uap-cpp-objects OBJECT ${LIB_SOURCES} ${LIB_HEADERS})
 target_include_directories(uap-cpp-objects PRIVATE ${YAML_CPP_INCLUDE_DIR})
 target_link_libraries(uap-cpp-objects re2)
 

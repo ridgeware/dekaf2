@@ -264,7 +264,7 @@ TEST_CASE("KSQL")
 
 		sResult = DB.FormAndClause("mycol", "!17", KSQL::FAC_NUMERIC | KSQL::FAC_BETWEEN).str();
 		sResult.CollapseAndTrim();
-		CHECK (sResult == "and mycol != 17" );
+		CHECK (sResult == "and mycol <> 17" );
 
 		sResult = DB.FormAndClause("mycol", ">17", KSQL::FAC_NUMERIC | KSQL::FAC_BETWEEN).str();
 		sResult.CollapseAndTrim();

@@ -304,7 +304,6 @@ KStringView Dekaf::GetVersionInformation()
 #ifdef DEKAF2_USE_OPTIMIZED_STRING_FIND
 //		" optimized_string_find"
 #endif
-		" multi_index"
 #ifdef DEKAF2_HAS_LIBPROC
 		" libproc"
 #endif

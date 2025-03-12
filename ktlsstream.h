@@ -280,6 +280,15 @@ public:
 		return m_Stream.ec.value() == 0;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// If a HTTP/2 handshake failed in a specific way it may be due to an OpenSSL communication problem.
+	/// In that case, it is advised to retry the connection with HTTP/1.1
+	bool ShouldRetryWithHTTP1() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bRetryWithHTTP1;
+	}
+
 //----------
 private:
 //----------
@@ -303,11 +312,13 @@ private:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	static bool handshake(KAsioTLSStream<asio_stream_type>* stream);
+	bool Handshake();
 	//-----------------------------------------------------------------------------
 
 	KAsioTLSStream<asio_stream_type> m_Stream;
 	KBufferedStreamBuf m_TLSStreamBuf { &TLSStreamReader, &TLSStreamWriter, this, this };
+	KStreamOptions m_StreamOptions;
+	bool m_bRetryWithHTTP1 { false };
 
 }; // KTLSStream
 

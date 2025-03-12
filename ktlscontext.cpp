@@ -180,8 +180,8 @@ bool KTLSContext::SetAdditionalTLSVerifyPath(KStringView sVerifyPath)
 {
 	boost::system::error_code ec;
 
-//	kDebug(2, "setting additional TLS verify path: {}", sVerifyPath);
-	kPrintLine("setting additional TLS verify path: {}", sVerifyPath);
+	kDebug(2, "setting additional TLS verify path: {}", sVerifyPath);
+//	kPrintLine("setting additional TLS verify path: {}", sVerifyPath);
 
 	// set the system default cert paths, but do not yet switch verify mode on
 	// (we do that individually for each connect on request)

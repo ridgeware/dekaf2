@@ -48,40 +48,48 @@ DEKAF2_NAMESPACE_BEGIN
 static KTLSContext s_KTLSClientContext { false, KTLSContext::Transport::Tcp };
 
 //-----------------------------------------------------------------------------
-bool KTLSStream::handshake(KAsioTLSStream<asio_stream_type>* stream)
+bool KTLSStream::Handshake()
 //-----------------------------------------------------------------------------
 {
-	if (!stream->bNeedHandshake)
+	if (!m_Stream.bNeedHandshake)
 	{
 		return true;
 	}
 
-	stream->bNeedHandshake = false;
-	
-	stream->Socket.async_handshake(stream->GetContext().GetRole(),
-								   [&](const boost::system::error_code& ec)
+	m_Stream.bNeedHandshake = false;
+
+	m_Stream.Socket.async_handshake(m_Stream.GetContext().GetRole(),
+								    [&](const boost::system::error_code& ec)
 	{
-		stream->ec = ec;
+		m_Stream.ec = ec;
 	});
 
-	stream->RunTimed();
+	m_Stream.RunTimed();
 
-	if (stream->ec.value() != 0 || !stream->Socket.lowest_layer().is_open())
+	if (m_Stream.ec.value() != 0 || !m_Stream.Socket.lowest_layer().is_open())
 	{
+		auto sMessage = m_Stream.ec.message();
 		kDebug(1, "TLS handshake failed with {}: {}",
-			   stream->sEndpoint,
-			   stream->ec.message());
+			   m_Stream.sEndpoint,
+			   sMessage);
+
+		if ((m_StreamOptions & KStreamOptions::RequestHTTP2) == KStreamOptions::RequestHTTP2
+			&& sMessage.find("bad extension") != std::string::npos)
+		{
+			kDebug(1, "the counterpart seems to not understand HTTP/2 ALPS properly");
+			m_bRetryWithHTTP1 = (m_StreamOptions & KStreamOptions::FallBackToHTTP1) == KStreamOptions::FallBackToHTTP1;
+		}
 		return false;
 	}
 
 #if OPENSSL_VERSION_NUMBER <= 0x10002000L || defined(DEKAF2_WITH_KLOG)
-	auto ssl = stream->Socket.native_handle();
+	auto ssl = m_Stream.Socket.native_handle();
 #endif
 
 #if OPENSSL_VERSION_NUMBER <= 0x10002000L
 	// OpenSSL <= 1.0.2 did not do hostname validation - let's do it manually
 
-	if (stream->GetContext().GetVerify())
+	if (m_Stream.GetContext().GetVerify())
 	{
 		// look for server certificate
 		auto* cert = ::SSL_get_peer_certificate(ssl);
@@ -137,7 +145,7 @@ bool KTLSStream::handshake(KAsioTLSStream<asio_stream_type>* stream)
 
 	return true;
 
-} // handshake
+} // Handshake
 
 //-----------------------------------------------------------------------------
 bool KTLSStream::StartManualTLSHandshake()
@@ -149,7 +157,7 @@ bool KTLSStream::StartManualTLSHandshake()
 		m_Stream.bManualHandshake = false;
 	}
 
-	return handshake(&m_Stream);
+	return Handshake();
 
 } // StartManualTLSHandshake
 
@@ -206,7 +214,7 @@ std::streamsize KTLSStream::direct_read_some(void* sBuffer, std::streamsize iCou
 {
 	if (!m_Stream.bManualHandshake)
 	{
-		if (!handshake(&m_Stream))
+		if (!Handshake())
 		{
 			return -1;
 		}
@@ -295,7 +303,7 @@ std::streamsize KTLSStream::TLSStreamWriter(const void* sBuffer, std::streamsize
 
 		if (!TLSStream.m_Stream.bManualHandshake)
 		{
-			if (!handshake(&TLSStream.m_Stream))
+			if (!TLSStream.Handshake())
 			{
 				return -1;
 			}
@@ -398,13 +406,15 @@ bool KTLSStream::Timeout(KDuration Timeout)
 bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
+	m_StreamOptions = Options;
 	m_Stream.bNeedHandshake = true;
+	m_bRetryWithHTTP1 = false;
 
 	SetUnresolvedEndPoint(Endpoint);
 
 	auto& sHostname = Endpoint.Domain.get();
 
-	auto hosts = KIOStreamSocket::ResolveTCP(sHostname, Endpoint.Port.get(), Options.GetFamily(), m_Stream.IOService, m_Stream.ec);
+	auto hosts = KIOStreamSocket::ResolveTCP(sHostname, Endpoint.Port.get(), m_StreamOptions.GetFamily(), m_Stream.IOService, m_Stream.ec);
 
 	if (Good())
 	{
@@ -413,7 +423,7 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		SSL_set_msg_callback_arg(GetNativeTLSHandle(), BIO_new_fp(stderr, BIO_NOCLOSE));
 #endif
 
-		if ((Options & KStreamOptions::VerifyCert) != 0)
+		if ((m_StreamOptions & KStreamOptions::VerifyCert) != 0)
 		{
 			GetAsioSocket().set_verify_mode(boost::asio::ssl::verify_peer
 			                              | boost::asio::ssl::verify_fail_if_no_peer_cert);
@@ -433,14 +443,14 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 		if (GetContext().GetRole() == boost::asio::ssl::stream_base::client)
 		{
-			if (Options & KStreamOptions::ManualHandshake)
+			if (m_StreamOptions & KStreamOptions::ManualHandshake)
 			{
 				SetManualTLSHandshake(true);
 			}
 
-			if (Options & KStreamOptions::RequestHTTP2)
+			if (m_StreamOptions & KStreamOptions::RequestHTTP2)
 			{
-				SetRequestHTTP2(Options & KStreamOptions::FallBackToHTTP1);
+				SetRequestHTTP2(m_StreamOptions & KStreamOptions::FallBackToHTTP1);
 			}
 		}
 

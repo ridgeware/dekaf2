@@ -387,28 +387,45 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 			// force the handshake right now, we need it before
 			// we try to send our first data (the request) to
 			// know if we must switch to HTTP/2
-			m_Connection->StartManualTLSHandshake();
-
-			// check if we negotiated HTTP/2
-			auto sALPN = m_Connection->GetALPN();
-
-			if (sALPN == "h2")
+			if (m_Connection->StartManualTLSHandshake())
 			{
-				kDebug(2, "switching to HTTP/2");
-				m_HTTP2 = std::make_unique<HTTP2Session>(*TLSStream);
+				// check if we negotiated HTTP/2
+				auto sALPN = m_Connection->GetALPN();
 
-				if (!m_HTTP2->Session.GetLastError().empty())
+				if (sALPN == "h2")
 				{
-					return SetError(m_HTTP2->Session.CopyLastError());
-				}
+					kDebug(2, "switching to HTTP/2");
+					m_HTTP2 = std::make_unique<HTTP2Session>(*TLSStream);
 
-				Request .SetHTTPVersion(KHTTPVersion::http2);
-				Response.SetHTTPVersion(KHTTPVersion::http2);
-				Response.SetInputStream(m_HTTP2->InStream);
+					if (!m_HTTP2->Session.GetLastError().empty())
+					{
+						return SetError(m_HTTP2->Session.CopyLastError());
+					}
+
+					Request .SetHTTPVersion(KHTTPVersion::http2);
+					Response.SetHTTPVersion(KHTTPVersion::http2);
+					Response.SetInputStream(m_HTTP2->InStream);
+				}
+				else if (m_StreamOptions.IsSet(KHTTPStreamOptions::FallBackToHTTP1) == false)
+				{
+					return SetError("wanted a HTTP/2 connection, but got only HTTP/1.1");
+				}
 			}
-			else if (m_StreamOptions.IsSet(KHTTPStreamOptions::FallBackToHTTP1) == false)
+			else if (TLSStream->ShouldRetryWithHTTP1())
 			{
-				return SetError("wanted a HTTP/2 connection, but got only HTTP/1.1");
+				// remove the HTTP/2 option, it harms the connection setup
+				m_StreamOptions.Unset(KHTTPStreamOptions::RequestHTTP2);
+				// get the endpoint to connect to
+				auto Endpoint = TLSStream->GetEndPoint();
+				// transform into URL (needed by KIOStreamSocket::Create())
+				KURL url;
+				url.Protocol = url::KProtocol::HTTPS;
+				url.Domain   = Endpoint.Domain;
+				url.Port     = Endpoint.Port;
+				kDebug(1, "disconnecting existing connection");
+				Disconnect();
+				kDebug(1, "creating new connection to {} with HTTP/1.1 - consider disabling HTTP/2", Endpoint.Domain);
+				return Connect(KIOStreamSocket::Create(url, true, m_StreamOptions));
 			}
 		}
 		else if (m_StreamOptions.IsSet(KHTTPStreamOptions::FallBackToHTTP1) == false)

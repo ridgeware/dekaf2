@@ -1484,7 +1484,7 @@ bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
 
 //-----------------------------------------------------------------------------
 /// Convert string from UTF8 to wide string (either UTF16 or UTF32, depending on the value_type of the string)
-template<typename WideString = std::wstring, typename NarrowString = std::string,
+template<typename WideString = std::u32string, typename NarrowString = std::string,
 		 typename std::enable_if<!std::is_function<WideString>::value
 								&& (!std::is_class<WideString>::value || KUTF8_detail::HasSize<WideString>::value), int>::type = 0>
 KUTF8_CONSTEXPR_20

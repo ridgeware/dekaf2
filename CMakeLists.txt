@@ -413,17 +413,20 @@ find_package(yaml-cpp REQUIRED)
 # This will e.g. still hurt on AmazonLinux 2023.
 
 if (false)
-	message(STATIC "YAML_CPP_LIBRARIES: ${YAML_CPP_LIBRARIES}")
-	message(STATIC "YAML_CPP_LIBRARY_DIR: ${YAML_CPP_LIBRARY_DIR}")
-	message(STATIC "YAML_CPP_INCLUDE_DIR: ${YAML_CPP_INCLUDE_DIR}")
+	message(STATUS "YAML_CPP_LIBRARIES:   ${YAML_CPP_LIBRARIES}")
+	message(STATUS "YAML_CPP_LIBRARY_DIR: ${YAML_CPP_LIBRARY_DIR}")
+	message(STATUS "YAML_CPP_INCLUDE_DIR: ${YAML_CPP_INCLUDE_DIR}")
 endif()
 
 if ("${YAML_CPP_LIBRARIES}" STREQUAL "yaml-cpp" AND NOT "${YAML_CPP_LIBRARY_DIR}" STREQUAL "")
-	set(YAML_CPP_LIBRARIES "yaml-cpp::yaml-cpp")
+	# fedora does not use the more modern name even in latest releases (41)
+	if (NOT EXISTS "/etc/fedora-release")
+		set(YAML_CPP_LIBRARIES "yaml-cpp::yaml-cpp")
+	endif()
 endif()
 
 if (false)
-	message(STATIC "YAML_CPP_LIBRARIES now: ${YAML_CPP_LIBRARIES}")
+	message(STATUS "YAML_CPP_LIBRARIES now: ${YAML_CPP_LIBRARIES}")
 endif()
 
 # ================================ LIBPROC ====================================

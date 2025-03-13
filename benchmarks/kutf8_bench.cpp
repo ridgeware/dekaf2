@@ -13,9 +13,11 @@
 #include <dekaf2/kutf8.h>
 
 #include <iconv.h>
+#ifdef DEKAF2_HAS_SIMDUTF
 #include "simdutf.h"
+#endif
 #undef HAVE_TEXTUTILS
-#if HAVE_TEXTUTILS
+#ifdef HAVE_TEXTUTILS
 #include "textutils/UtfConv.h"
 #endif
 
@@ -79,7 +81,7 @@ void kutf8_bench()
 			if (iSum > 100000) KProf::Force();
 		}
 	}
-
+#ifdef DEKAF2_HAS_SIMDUTF
 	{
 		dekaf2::KProf prof("simdutf count");
 		prof.SetMultiplier(100);
@@ -90,7 +92,7 @@ void kutf8_bench()
 			if (iCount > 100000) KProf::Force();
 		}
 	}
-
+#endif
 	{
 		dekaf2::KProf prof("LazyCountUTF8");
 		prof.SetMultiplier(100);
@@ -112,7 +114,7 @@ void kutf8_bench()
 			if (iCount > 100000) KProf::Force();
 		}
 	}
-#if HAVE_TEXTUTILS
+#ifdef HAVE_TEXTUTILS
 	{
 		dekaf2::KProf prof("CountUTF8ToUTF32");
 		prof.SetMultiplier(100);
@@ -124,6 +126,7 @@ void kutf8_bench()
 		}
 	}
 #endif
+#ifdef DEKAF2_HAS_SIMDUTF
 	{
 		dekaf2::KProf prof("SIMDUTF8to32");
 		prof.SetMultiplier(100);
@@ -137,7 +140,7 @@ void kutf8_bench()
 			if (iWrote > 100000) KProf::Force();
 		}
 	}
-
+#endif
 	{
 		dekaf2::KProf prof("FromUTF8");
 		prof.SetMultiplier(100);
@@ -148,7 +151,7 @@ void kutf8_bench()
 			if (sWide.size() > 100000) KProf::Force();
 		}
 	}
-#if HAVE_TEXTUTILS
+#ifdef HAVE_TEXTUTILS
 	{
 		dekaf2::KProf prof("UTF8ToUTF32");
 		prof.SetMultiplier(100);

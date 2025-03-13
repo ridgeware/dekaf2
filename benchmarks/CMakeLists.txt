@@ -22,7 +22,13 @@ endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-find_package(simdutf REQUIRED)
+
+find_package(simdutf)
+
+if(simdutf_FOUND)
+	set(DEKAF2_HAS_SIMDUTF 1)
+	set(DEKAF2_SIMDUTF simdutf::simdutf)
+endif()
 
 # keep alphabetic sort order
 set (SOURCES
@@ -47,8 +53,11 @@ set (HEADERS
 )
 
 add_executable(benchmarks EXCLUDE_FROM_ALL ${HEADERS} ${SOURCES})
-target_link_libraries(benchmarks ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} iconv simdutf::simdutf Threads::Threads)
+target_link_libraries(benchmarks ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} iconv ${DEKAF2_SIMDUTF} Threads::Threads)
 target_compile_definitions(benchmarks PRIVATE DEKAF2_ENABLE_PROFILING)
+if (DEKAF2_HAS_SIMDUTF)
+	target_compile_definitions(benchmarks PRIVATE DEKAF2_HAS_SIMDUTF)
+endif()
 
 add_executable(faststrings EXCLUDE_FROM_ALL fast_kstring_bench.cpp)
 target_link_libraries(faststrings ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} Threads::Threads)

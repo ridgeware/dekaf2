@@ -82,25 +82,31 @@ public:
 
 	/// internal helper, exposes the computed SHA256 digest for the canonical
 	/// request
+	DEKAF2_NODISCARD
 	const KString& GetDigest() const { return m_sCanonicalRequestDigest; }
 
 	/// internal helper, exposes the list of headers cryptographically signed
+	DEKAF2_NODISCARD
 	const KString& GetSignedHeaders() const { return m_sSignedHeaders; }
 
 	/// internal helper, exposes the datetime stamp used in the signing and
 	/// authorization requests
+	DEKAF2_NODISCARD
 	const KString& GetDateTime() const { return m_sDateTime; }
 
 	/// internal helper, exposes the date stamp used in the signing and
 	/// authorization requests
+	DEKAF2_NODISCARD
 	const KString& GetDate() const { return m_sDate; }
 
 	/// internal helper, exposes the host name used in the signing and
 	/// authorization requests
+	DEKAF2_NODISCARD
 	const KString& GetHost() const { return m_sHost; }
 
 	/// helper, exposes the generated authentication http headers. Also returned
 	/// from the Authorize() method
+	DEKAF2_NODISCARD
 	const HTTPHeaders& GetAddedHeaders() const { return m_AddedHeaders; }
 
 //------

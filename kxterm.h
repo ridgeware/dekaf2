@@ -64,6 +64,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// This parameter has no effect on Windows.
 /// @param iMaxWait100ms after how many multiples of 100ms should read return even if not enough characters are read: 0..255.
 /// This parameter has no effect on Windows
+DEKAF2_PUBLIC
 extern void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWait100ms);
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -72,7 +73,7 @@ extern void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t
 /// powered by XTerm, or even if, they speak ANSII, which was standardized in 1978.
 /// It should be mentioned that even Windows terminals, which notoriously did not support ANSII, switched
 /// to using it in 2016 with Windows 10.
-struct KXTermCodes
+struct DEKAF2_PUBLIC KXTermCodes
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -81,53 +82,85 @@ public:
 //-------
 
 	/// show cursor
+	DEKAF2_NODISCARD
 	static constexpr KStringView CursorOn               () { return "\033?25h"; }
 	/// hide cursor
+	DEKAF2_NODISCARD
 	static constexpr KStringView CursorOff              () { return "\033?25l"; }
 	/// blink cursor
+	DEKAF2_NODISCARD
 	static constexpr KStringView CursorBlink            () { return "\033[2q";  }
 	/// don't blink cursor
+	DEKAF2_NODISCARD
 	static constexpr KStringView CursorNoBlink          () { return "\033[0q";  }
 	/// save cursor position
+	DEKAF2_NODISCARD
 	static constexpr KStringView SaveCursor             () { return "\0337";    }
 	/// restore cursor position from last saved
+	DEKAF2_NODISCARD
 	static constexpr KStringView RestoreCursor          () { return "\0338";    }
 	/// clear entire screen
+	DEKAF2_NODISCARD
 	static constexpr KStringView ClearScreen            () { return "\033[2J";  }
 	/// clear from cursor to end of screen
+	DEKAF2_NODISCARD
 	static constexpr KStringView ClearToEndOfScreen     () { return "\033[0J";  }
 	/// clear from cursor to end of line
+	DEKAF2_NODISCARD
 	static constexpr KStringView ClearToEndOfLine       () { return "\033[0K";  }
 	/// clear from start of line to cursor
+	DEKAF2_NODISCARD
 	static constexpr KStringView ClearFromStartOfLine   () { return "\033[1K";  }
 	/// clear entire line
+	DEKAF2_NODISCARD
 	static constexpr KStringView ClearLine              () { return "\033[2K";  }
 	/// clear from start of screen to cursor
+	DEKAF2_NODISCARD
 	static constexpr KStringView ClearFromStartOfScreen () { return "\033[1J";  }
 	/// go to home position (0, 0)
+	DEKAF2_NODISCARD
 	static constexpr KStringView Home                   () { return "\033[H";   }
 	/// move cursor to start of next line
+	DEKAF2_NODISCARD
 	static constexpr KStringView CurToStartOfNextLine   () { return "\033[1E";  }
 	/// move cursor to start of previous line
+	DEKAF2_NODISCARD
 	static constexpr KStringView CurToStartOfPrevLine   () { return "\033[1F";  }
 	/// reset all character style modes (and colors)
+	DEKAF2_NODISCARD
 	static constexpr KStringView ResetCharModes         () { return "\033[0m";  }
 
+	DEKAF2_NODISCARD
 	static constexpr KStringView Bold                   () { return "\033[1m";  }
+	DEKAF2_NODISCARD
 	static constexpr KStringView NoBold                 () { return "\033[22m"; }
+	DEKAF2_NODISCARD
 	static constexpr KStringView Faint                  () { return "\033[2m";  }
+	DEKAF2_NODISCARD
 	static constexpr KStringView NoFaint                () { return "\033[22m"; } // this is no typo - code is shared with NoBold ..
+	DEKAF2_NODISCARD
 	static constexpr KStringView Italic                 () { return "\033[3m";  }
+	DEKAF2_NODISCARD
 	static constexpr KStringView NoItalic               () { return "\033[23m"; }
+	DEKAF2_NODISCARD
 	static constexpr KStringView Underline              () { return "\033[4m";  }
+	DEKAF2_NODISCARD
 	static constexpr KStringView NoUnderline            () { return "\033[24m"; }
+	DEKAF2_NODISCARD
 	static constexpr KStringView Blinking               () { return "\033[5m";  }
+	DEKAF2_NODISCARD
 	static constexpr KStringView NoBlinking             () { return "\033[25m"; }
+	DEKAF2_NODISCARD
 	static constexpr KStringView Inverse                () { return "\033[7m";  }
+	DEKAF2_NODISCARD
 	static constexpr KStringView NoInverse              () { return "\033[27m"; }
+	DEKAF2_NODISCARD
 	static constexpr KStringView Hidden                 () { return "\033[8m";  }
+	DEKAF2_NODISCARD
 	static constexpr KStringView NoHidden               () { return "\033[28m"; }
+	DEKAF2_NODISCARD
 	static constexpr KStringView Strikethrough          () { return "\033[9m";  }
+	DEKAF2_NODISCARD
 	static constexpr KStringView NoStrikethrough        () { return "\033[29m"; }
 
 	enum ColorCode { Default = 9, Black = 0, Red = 1, Green = 2, Yellow = 3,
@@ -137,17 +170,23 @@ public:
 	                 BrightCyan = 16, BrightWhite = 17 };
 
 	/// set both named foreground and background color (supported by all terminal devices)
+	DEKAF2_NODISCARD
 	static           KString     Color      (ColorCode FGC, ColorCode BGC);
 	/// set named foreground color (supported by all terminal devices)
+	DEKAF2_NODISCARD
 	static           KString     FGColor    (ColorCode CC);
 	/// set named background color (supported by all terminal devices)
+	DEKAF2_NODISCARD
 	static           KString     BGColor    (ColorCode CC);
 
 	/// set one of 256 foreground and background colors each (supported by all terminal devices today)
+	DEKAF2_NODISCARD
 	static           KString     Color256   (uint8_t FG_Color, uint8_t BG_Color);
 	/// set one of 256 foreground colors (supported by all terminal devices today)
+	DEKAF2_NODISCARD
 	static           KString     FGColor256 (uint8_t Color);
 	/// set one of 256 background colors (supported by all terminal devices today)
+	DEKAF2_NODISCARD
 	static           KString     BGColor256 (uint8_t Color);
 
 	/// struct to take an RGB color value with 8 bit resolution each
@@ -167,15 +206,19 @@ public:
 
 	/// set both foreground and background color in RGB values from 0..255 each (supported by
 	/// terminal devices which pass theHasRGBColors() test)
+	DEKAF2_NODISCARD
 	static           KString     Color      (RGB fg_rgb, RGB bg_rgb);
 	/// set foreground color in RGB values from 0..255 each (supported by terminal devices
 	/// which pass the HasRGBColors() test)
+	DEKAF2_NODISCARD
 	static           KString     FGColor    (RGB rgb);
 	/// set background color in RGB values from 0..255 each (supported by terminal devices
 	/// which pass the HasRGBColors() test)
+	DEKAF2_NODISCARD
 	static           KString     BGColor    (RGB rgb);
 	/// returns true if the terminal device (at stdout and declared by env vars) supports
 	/// "true colors" / RGB colors (24 bits), false if unknown or unsupported
+	DEKAF2_NODISCARD
 	static           bool        HasRGBColors ();
 
 //-------
@@ -256,15 +299,19 @@ public:
 	void RestoreWindowTitle();
 
 	/// is this an ANSII terminal, or a dumb terminal without cursor control?
+	DEKAF2_NODISCARD
 	bool     IsTerminal        () const { return m_iIsTerminal;                            }
 	/// returns true if the terminal device supports "true colors" / RGB colors (24 bits)
+	DEKAF2_NODISCARD
 	bool     HasRGBColors      () const { return m_bHasRGBColors;                          }
 
 	/// query a changed terminal size, use Rows() and Columns() to get the updated values
 	void     QueryTermSize     ();
 	/// query count of rows for the terminal
+	DEKAF2_NODISCARD
 	uint16_t Rows              () const { return m_iRows;                                  }
 	/// query count of columns for the terminal
+	DEKAF2_NODISCARD
 	uint16_t Columns           () const { return m_iColumns;                               }
 
 	// functions to control cursor movement and character output on an xterm
@@ -272,8 +319,10 @@ public:
 	/// query current cursor position from the terminal, returns false if executed on a dumb terminal without cursor control
 	bool     GetCursor         (uint16_t& Row, uint16_t& Column);
 	/// get current cursor row
+	DEKAF2_NODISCARD
 	uint16_t GetCursorRow      () const { return m_iCursorRow;                             }
 	/// get current cursor column
+	DEKAF2_NODISCARD
 	uint16_t GetCursorColumn   () const { return m_iCursorColumn;                          }
 
 	/// force the terminal to beep
@@ -365,25 +414,37 @@ private:
 	enum CGroup { Esc, Csi, Dcs, Osc, Pri };
 
 	/// blocking read, returns unicode codepoints
+	DEKAF2_NODISCARD
 	KCodePoint Read           ()                  const;
 	/// blocking read, returns single 8 bit chars
+	DEKAF2_NODISCARD
 	int      RawRead          ()                  const { return getchar();                      }
 	void     RawWrite         (KStringView sRaw)  const;
 	void     WriteCodepoint   (KCodePoint chRaw);
 	void     Command          (CGroup Group, KStringView sCommand) const;
 	void     Command          (KStringView sCommand) const;
+	DEKAF2_NODISCARD
 	KString  QueryTerminal    (KStringView sRequest);
 	void     IntSetCursor     (uint16_t iRow, uint16_t iColumn, bool bCheck);
+	DEKAF2_NODISCARD
 	KCodePoint EscapeToControl(KCodePoint)        const;
 
+	DEKAF2_NODISCARD
 	uint16_t CheckColumn      (uint16_t iColumns) const;
+	DEKAF2_NODISCARD
 	uint16_t CheckRow         (uint16_t iRows)    const;
+	DEKAF2_NODISCARD
 	uint16_t CheckColumnLeft  (uint16_t iColumns) const;
+	DEKAF2_NODISCARD
 	uint16_t CheckColumnRight (uint16_t iColumns) const;
+	DEKAF2_NODISCARD
 	uint16_t CheckRowUp       (uint16_t iRows)    const;
+	DEKAF2_NODISCARD
 	uint16_t CheckRowDown     (uint16_t iRows)    const;
 
+	DEKAF2_NODISCARD
 	bool     Wrap             ()                  const { return m_bWrap;                        }
+	DEKAF2_NODISCARD
 	bool     CursorLimits     ()                  const { return m_bCursorLimits;                }
 
 	KHistory m_History;

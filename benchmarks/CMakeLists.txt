@@ -30,8 +30,16 @@ if(simdutf_FOUND)
 	set(DEKAF2_SIMDUTF simdutf::simdutf)
 endif()
 
+find_package(Iconv QUIET)
+
+if (Iconv_FOUND)
+	set(DEKAF2_HAS_ICONV 1)
+	set(DEKAF2_ICONV iconv)
+endif()
+
 # keep alphabetic sort order
 set (SOURCES
+	textutils/UtfConv.cpp
 	kxml_bench.cpp
 	khtml_bench.cpp
 	kbitfields_bench.cpp
@@ -53,10 +61,13 @@ set (HEADERS
 )
 
 add_executable(benchmarks EXCLUDE_FROM_ALL ${HEADERS} ${SOURCES})
-target_link_libraries(benchmarks ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} iconv ${DEKAF2_SIMDUTF} Threads::Threads)
+target_link_libraries(benchmarks ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_ICONV} ${DEKAF2_SIMDUTF} Threads::Threads)
 target_compile_definitions(benchmarks PRIVATE DEKAF2_ENABLE_PROFILING)
 if (DEKAF2_HAS_SIMDUTF)
 	target_compile_definitions(benchmarks PRIVATE DEKAF2_HAS_SIMDUTF)
+endif()
+if (DEKAF2_HAS_ICONV)
+	target_compile_definitions(benchmarks PRIVATE DEKAF2_HAS_ICONV)
 endif()
 
 add_executable(faststrings EXCLUDE_FROM_ALL fast_kstring_bench.cpp)

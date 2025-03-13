@@ -12,7 +12,9 @@
 #include <dekaf2/kwriter.h>
 #include <dekaf2/kutf8.h>
 
+#ifdef DEKAF2_HAS_ICONV
 #include <iconv.h>
+#endif
 #ifdef DEKAF2_HAS_SIMDUTF
 #include "simdutf.h"
 #endif
@@ -23,6 +25,7 @@
 
 using namespace dekaf2;
 
+#ifdef DEKAF2_HAS_ICONV
 void iconv_to_utf32(const KString& sData, KString& sOutBuffer)
 {
 	static iconv_t s_cd = iconv_open("UTF-32", "UTF-8");
@@ -41,6 +44,7 @@ void iconv_to_utf32(const KString& sData, KString& sOutBuffer)
 
 	}
 }
+#endif
 
 void kutf8_bench()
 {
@@ -163,6 +167,7 @@ void kutf8_bench()
 		}
 	}
 #endif
+#ifdef DEKAF2_HAS_ICONV
 	{
 		dekaf2::KProf prof("iconv8to32");
 		prof.SetMultiplier(100);
@@ -175,7 +180,7 @@ void kutf8_bench()
 			if (sWide.size() > 100000) KProf::Force();
 		}
 	}
-
+#endif
 	{
 		dekaf2::KProf prof("ValidUTF8");
 		prof.SetMultiplier(100);

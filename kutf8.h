@@ -1238,6 +1238,24 @@ size_t CountUTF8(Iterator it, Iterator ie)
 }
 
 //-----------------------------------------------------------------------------
+/// Count number of codepoints in UTF8 range
+template<typename Iterator>
+KUTF8_CONSTEXPR_14
+size_t LazyCountUTF8(Iterator it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+	size_t iCount { 0 };
+
+	for (; KUTF8_LIKELY(it < ie) ;)
+	{
+		codepoint_t ch = CodepointCast(*it++);
+		iCount += (ch & 0x0c0) != 0x080;
+	}
+
+	return iCount;
+}
+
+//-----------------------------------------------------------------------------
 // we repeat most of the code of the simple CountUTF8 here because
 // the comparison with iMaxCount costs around 20% of performance
 /// Count number of codepoints in UTF8 range, stop at iMaxCount.

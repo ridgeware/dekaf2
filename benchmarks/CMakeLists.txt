@@ -39,7 +39,6 @@ endif()
 
 # keep alphabetic sort order
 set (SOURCES
-	textutils/UtfConv.cpp
 	kxml_bench.cpp
 	khtml_bench.cpp
 	kbitfields_bench.cpp

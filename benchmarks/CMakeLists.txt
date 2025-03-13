@@ -34,7 +34,8 @@ find_package(Iconv QUIET)
 
 if (Iconv_FOUND)
 	set(DEKAF2_HAS_ICONV 1)
-	set(DEKAF2_ICONV iconv)
+	# Iconv_LIBRARIES may be empty, then iconv is built into libc
+	set(DEKAF2_ICONV "${Iconv_LIBRARIES}")
 endif()
 
 # keep alphabetic sort order

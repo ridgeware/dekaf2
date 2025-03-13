@@ -55,8 +55,8 @@ void kutf8_bench()
 		uint32_t ch;
 		do
 		{
-			ch = kRandom(0, 0x0110000);
-//			ch = kRandom(0, 0x0800);
+//			ch = kRandom(0, 0x0110000);
+			ch = kRandom(0, 0x0800);
 
 		} while (Unicode::IsSurrogate(ch));
 		Unicode::ToUTF8(ch, sData);
@@ -69,8 +69,8 @@ void kutf8_bench()
 		uint32_t ch;
 		do
 		{
-			ch = kRandom(0, 0x0110000);
-//			ch = kRandom(0, 0x0800);
+//			ch = kRandom(0, 0x0110000);
+			ch = kRandom(0, 0x0800);
 
 		} while (Unicode::IsSurrogate(ch));
 		Unicode::ToUTF8(ch, sDataShort);
@@ -82,12 +82,14 @@ void kutf8_bench()
 
 	auto sWide      = Unicode::FromUTF8(sData);
 	auto sWideShort = Unicode::FromUTF8(sDataShort);
+#ifdef HAVE_TEXTUTILS
+	auto sWide32      = Unicode::FromUTF8<std::basic_string<UnicodeChar32>>(sData);
+	auto sWideShort32 = Unicode::FromUTF8<std::basic_string<UnicodeChar32>>(sDataShort);
+#endif
 
 	// surrogate
 //	sData.insert(0, "\xed\xad\xbf"_ksv);
 //	sWide.insert(0, 1, 0x0DB7FUL);
-
-	auto sWide1000 = sWide.substr(0, 1000);
 
 	dekaf2::KProf ps("-KUTF8");
 
@@ -183,9 +185,9 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto expected_utf32words = simdutf::utf32_length_from_utf8(sData.data(), sData.size());
+			auto size = simdutf::utf32_length_from_utf8(sData.data(), sData.size());
 			std::basic_string<char32_t> sOut;
-			sOut.resize(expected_utf32words);
+			sOut.resize(size);
 			auto iWrote = simdutf::convert_utf8_to_utf32(sData.data(), sData.size(), sOut.data());
 			if (iWrote > 100000) KProf::Force();
 		}
@@ -237,8 +239,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("UTF8ToUTF32 short");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto sWide = utf_conv::UTF8ToUTF32(sDataShort.str());
@@ -273,7 +275,7 @@ void kutf8_bench()
 	}
 #endif
 	{
-		dekaf2::KProf prof("ValidUTF8");
+		dekaf2::KProf prof("ValidUTF8 long");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -283,6 +285,39 @@ void kutf8_bench()
 		}
 	}
 
+	{
+		dekaf2::KProf prof("ValidUTF8 short");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			auto yes = Unicode::ValidUTF8(sDataShort);
+			if (yes) KProf::Force();
+		}
+	}
+#ifdef DEKAF2_HAS_SIMDUTF
+	{
+		dekaf2::KProf prof("SIMD ValidUTF8 long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto yes = simdutf::validate_utf8(sData.data(), sData.size());
+			if (yes) KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("SIMD ValidUTF8 short");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			auto yes = simdutf::validate_utf8(sDataShort.data(), sDataShort.size());
+			if (yes) KProf::Force();
+		}
+	}
+#endif
 	{
 		dekaf2::KProf prof("LeftUTF8 short (30)");
 		prof.SetMultiplier(1000);
@@ -409,13 +444,42 @@ void kutf8_bench()
 		}
 	}
 
+#ifdef DEKAF2_HAS_SIMDUTF
 	{
-		dekaf2::KProf prof("ToUTF8 short (1000)");
+		dekaf2::KProf prof("SIMDUTF32to8 short (50)");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sWideShort);
+			KString sUTF8;
+			auto size = simdutf::utf8_length_from_utf32(sWideShort.data(), sWideShort.size());
+			sUTF8.resize(size);
+			auto iWrote = simdutf::convert_utf32_to_utf8(sWideShort.data(), sWideShort.size(), sUTF8.data());
+			if (iWrote > 100000) KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("SIMDUTF32to8 large");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
-			KProf::Force(&sData);
-			auto sUTF = Unicode::ToUTF8<KString>(sWide1000);
+			KProf::Force(&sWide);
+			KString sUTF8;
+			auto size = simdutf::utf8_length_from_utf32(sWide.data(), sWide.size());
+			sUTF8.resize(size);
+			auto iWrote = simdutf::convert_utf32_to_utf8(sWide.data(), sWide.size(), sUTF8.data());
+			if (iWrote > 100000) KProf::Force();
+		}
+	}
+#endif
+	{
+		dekaf2::KProf prof("ToUTF8 short (50)");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sWideShort);
+			auto sUTF = Unicode::ToUTF8<KString>(sWideShort);
 			if (sUTF[2] == 'a') KProf::Force();
 		}
 	}
@@ -425,12 +489,98 @@ void kutf8_bench()
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
-			KProf::Force(&sData);
+			KProf::Force(&sWide);
 			auto sUTF = Unicode::ToUTF8<KString>(sWide);
 			if (sUTF[2] == 'a') KProf::Force();
 		}
 	}
+#ifdef HAVE_TEXTUTILS
+	{
+		dekaf2::KProf prof("UTF32ToUTF8 short (50)");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sWideShort);
+			auto sUTF = utf_conv::UTF32ToUTF8(sWideShort32);
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
 
+	{
+		dekaf2::KProf prof("UTF32ToUTF8 large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sWide);
+			auto sUTF = utf_conv::UTF32ToUTF8(sWide32);
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
+#endif
+#ifdef DEKAF2_HAS_SIMDUTF
+	{
+		dekaf2::KProf prof("ToUpperUTF8 SIMD short (50)");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			auto size = simdutf::utf32_length_from_utf8(sDataShort.data(), sDataShort.size());
+			std::basic_string<char32_t> sOut;
+			sOut.resize(size);
+			auto iWrote = simdutf::convert_utf8_to_utf32(sDataShort.data(), sDataShort.size(), sOut.data());
+			if (iWrote > 1234234098245) KProf::Force();
+			std::transform(sOut.begin(), sOut.end(), sOut.begin(), [](char32_t ch){ return kToUpper(ch); });
+			KString sUTF8;
+			size = simdutf::utf8_length_from_utf32(sOut.data(), sOut.size());
+			sUTF8.resize(size);
+			iWrote = simdutf::convert_utf32_to_utf8(sOut.data(), sOut.size(), sUTF8.data());
+			if (iWrote > 1234234098245) KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("ToUpperUTF8 SIMD large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto size = simdutf::utf32_length_from_utf8(sData.data(), sData.size());
+			std::basic_string<char32_t> sOut;
+			sOut.resize(size);
+			auto iWrote = simdutf::convert_utf8_to_utf32(sData.data(), sData.size(), sOut.data());
+			if (iWrote > 1234234098245) KProf::Force();
+			std::transform(sOut.begin(), sOut.end(), sOut.begin(), [](char32_t ch){ return kToUpper(ch); });
+			KString sUTF8;
+			size = simdutf::utf8_length_from_utf32(sOut.data(), sOut.size());
+			sUTF8.resize(size);
+			iWrote = simdutf::convert_utf32_to_utf8(sOut.data(), sOut.size(), sUTF8.data());
+			if (iWrote > 1234234098245) KProf::Force();
+		}
+	}
+#endif
+	{
+		dekaf2::KProf prof("ToUpperUTF8 short (50)");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			KString sUTF;
+			Unicode::ToUpperUTF8<KString>(sDataShort, sUTF);
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("ToUpperUTF8 large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			KString sUTF;
+			Unicode::ToUpperUTF8<KString>(sData, sUTF);
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
 }
 
 

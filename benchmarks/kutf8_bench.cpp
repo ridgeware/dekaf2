@@ -12,7 +12,33 @@
 #include <dekaf2/kwriter.h>
 #include <dekaf2/kutf8.h>
 
+#include <iconv.h>
+#include "simdutf.h"
+#undef HAVE_TEXTUTILS
+#if HAVE_TEXTUTILS
+#include "textutils/UtfConv.h"
+#endif
+
 using namespace dekaf2;
+
+void iconv_to_utf32(const KString& sData, KString& sOutBuffer)
+{
+	static iconv_t s_cd = iconv_open("UTF-32", "UTF-8");
+
+	auto buf8 = sData.data();
+	auto len8 = sData.size();
+	auto buf32 = sOutBuffer.data();
+	auto len32 = sOutBuffer.size();
+
+	if (!::iconv(s_cd, (char **)&buf8, &len8, &buf32, &len32))
+	{
+
+	}
+	else
+	{
+
+	}
+}
 
 void kutf8_bench()
 {
@@ -23,8 +49,8 @@ void kutf8_bench()
 		uint32_t ch;
 		do
 		{
-//			ch = kRandom(0, 0x0110000);
-			ch = kRandom(0, 0x0800);
+			ch = kRandom(0, 0x0110000);
+//			ch = kRandom(0, 0x0800);
 
 		} while (Unicode::IsSurrogate(ch));
 		Unicode::ToUTF8(ch, sData);
@@ -43,6 +69,40 @@ void kutf8_bench()
 	dekaf2::KProf ps("-KUTF8");
 
 	{
+		dekaf2::KProf prof("strlen");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			uint64_t iSum = 0;
+			KProf::Force(&sData);
+			for (auto ch : sData) iSum += ch;
+			if (iSum > 100000) KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("simdutf count");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto iCount = simdutf::count_utf8(sData.data(), sData.size());
+			if (iCount > 100000) KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("LazyCountUTF8");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto iCount = Unicode::LazyCountUTF8(sData.begin(), sData.end());
+			if (iCount > 100000) KProf::Force();
+		}
+	}
+
+	{
 		dekaf2::KProf prof("CountUTF8");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
@@ -50,6 +110,66 @@ void kutf8_bench()
 			KProf::Force(&sData);
 			auto iCount = Unicode::CountUTF8(sData);
 			if (iCount > 100000) KProf::Force();
+		}
+	}
+#if HAVE_TEXTUTILS
+	{
+		dekaf2::KProf prof("CountUTF8ToUTF32");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto iCount = utf_conv::UTF8ToUTF32(sData.data(), static_cast<unsigned int>(sData.size()), NULL, NULL, 0, NULL, 0);
+			if (iCount > 100000) KProf::Force();
+		}
+	}
+#endif
+	{
+		dekaf2::KProf prof("SIMDUTF8to32");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto expected_utf32words = simdutf::utf32_length_from_utf8(sData.data(), sData.size());
+			std::basic_string<char32_t> sOut;
+			sOut.resize(expected_utf32words);
+			auto iWrote = simdutf::convert_utf8_to_utf32(sData.data(), sData.size(), sOut.data());
+			if (iWrote > 100000) KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("FromUTF8");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto sWide = Unicode::FromUTF8<std::basic_string<char32_t>>(sData);
+			if (sWide.size() > 100000) KProf::Force();
+		}
+	}
+#if HAVE_TEXTUTILS
+	{
+		dekaf2::KProf prof("UTF8ToUTF32");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto sWide = utf_conv::UTF8ToUTF32(sData.str());
+			if (sWide.size() > 100000) KProf::Force();
+		}
+	}
+#endif
+	{
+		dekaf2::KProf prof("iconv8to32");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			KString sOut;
+			sOut.resize(sData.size());
+			iconv_to_utf32(sData, sOut);
+			if (sWide.size() > 100000) KProf::Force();
 		}
 	}
 

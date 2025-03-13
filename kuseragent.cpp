@@ -41,6 +41,8 @@
 
 #include "kuseragent.h"
 #include "kformat.h"
+#include "kfilesystem.h"
+#include "klog.h"
 #include "UaParser.h"
 #include <mutex>
 

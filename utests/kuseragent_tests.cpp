@@ -19,10 +19,10 @@ TEST_CASE("KHTTPUserAgent") {
 
 		KHTTPUserAgent UA(sUA);
 
-		CHECK ( UA.GetBrowser().Get()     == "Mobile Safari 5.1.0" );
-		CHECK ( UA.GetDevice().GetModel() == "iPhone"              );
-		CHECK ( UA.GetOS().Get()          == "iOS 5.1.1"           );
-		CHECK ( UA.IsSpider()             == false                 );
+		CHECK ( UA.GetBrowser().GetString()  == "Mobile Safari 5.1.0" );
+		CHECK ( UA.GetDevice().GetModel()    == "iPhone"              );
+		CHECK ( UA.GetOS().GetString()       == "iOS 5.1.1"           );
+		CHECK ( UA.IsSpider()                == false                 );
 
 		CHECK ( UA.GetDeviceType() == KHTTPUserAgent::DeviceType::Mobile );
 	}

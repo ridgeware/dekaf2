@@ -23,7 +23,7 @@ endif()
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-find_package(simdutf)
+find_package(simdutf QUIET)
 
 if(simdutf_FOUND)
 	set(DEKAF2_HAS_SIMDUTF 1)

@@ -93,7 +93,7 @@
  /// Convert a codepoint into a UTF8/16/32 sequence written at iterator it
  void ToUTF(Char codepoint, Iterator& it)
 
- /// Convert a codepoint into a UTF8/16/32 sequence appended to sNarrow
+ /// Convert a codepoint into a UTF8/16/32 sequence appended to sUTF
  void ToUTF(Char codepoint, UTFString& sUTF)
 
  /// Convert a codepoint into a UTF8/16/32 sequence returned as string of type UTFString.
@@ -103,7 +103,7 @@
  bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 
  /// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/16/32 string (from two iterators)
- UTF8String ToUTF(Iterator it, Iterator ie)
+ UTFString ToUTF(Iterator it, Iterator ie)
 
  /// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/16/32 string
  bool ToUTF(const InputString& sInput, UTFString& sUTF)
@@ -244,6 +244,8 @@
 #include <type_traits>
 #include <iterator>
 #include <cassert>
+#include <algorithm> // for std::transform
+#include <cstring>   // for std::memcpy
 
 static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 compiler");
 
@@ -596,6 +598,10 @@ void ToUTF(Char codepoint, Iterator& it)
 	}
 	else
 	{
+		if (KUTF8_UNLIKELY(cp > CODEPOINT_MAX || IsSurrogate(cp) || cp == 0x0fffe || cp == 0x0ffff ))
+		{
+			cp = REPLACEMENT_CHARACTER;
+		}
 		*it++ = static_cast<value_type>(cp);
 	}
 }
@@ -667,7 +673,7 @@ void ToUTF(Char codepoint, UTFString& sUTF)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a codepoint into a UTF sequence returned as string of type NarrowString.
+/// Convert a codepoint into a UTF sequence returned as string of type UTFString.
 template<typename UTFString, typename Char,
          typename std::enable_if<std::is_integral<Char>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
@@ -701,12 +707,14 @@ bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 		// do a simple memcopy
 		auto iOldSize = sUTF.size();
 		sUTF.resize(iOldSize + iInputSize);
-		void* pOut = sUTF.data() + iOldSize;
+		// pre C++17 has const .data(), so we take a ref on the first element
+		void* pOut = &sUTF[0] + iOldSize;
 		std::memcpy(pOut, input, iInputSize * iInputWidth);
 		return true;
 	}
 
-	std::size_t iTargetSize;
+	// we have to assign a value to satisfy non-C++17
+	std::size_t iTargetSize = 0;
 
 	switch (iInputWidth)
 	{
@@ -761,8 +769,12 @@ bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 
 	auto iOldSize = sUTF.size();
 	sUTF.resize (iOldSize + iTargetSize);
-	void* pOut = sUTF.data() + iOldSize;
-	std::size_t iWrote;
+	// pre C++17 has const .data(), so we take a ref on the first element
+	void* pOut = &sUTF[0] + iOldSize;
+	// we have to assign a value to satisfy non-C++17
+	std::size_t iWrote = 0;
+
+
 
 	switch (iInputWidth)
 	{
@@ -1015,7 +1027,7 @@ void SyncUTF(Iterator& it, Iterator ie)
 	}
 	else if (sizeof(N) == 2)
 	{
-		if (it != ie && IsLeadSurrogate(*it)) ++it;
+		if (it != ie && IsTrailSurrogate(*it)) ++it;
 	}
 }
 
@@ -1886,7 +1898,8 @@ bool ConvertUTF(const InpType& sInput, OutType& sOutput)
 		// do a simple memcopy
 		auto iOldSize = sOutput.size();
 		sOutput.resize(iOldSize + sInput.size());
-		void* pOut = sOutput.data() + iOldSize;
+		// pre C++17 has const .data(), so we take a ref on the first element
+		void* pOut = &sOutput[0] + iOldSize;
 		const void* pIn = sInput.data();
 		std::memcpy(pOut, pIn, sInput.size() * iInputWidth);
 		return true;
@@ -1894,7 +1907,8 @@ bool ConvertUTF(const InpType& sInput, OutType& sOutput)
 	else if (iInputWidth == 1)
 	{
 		// convert from UTF8 to 16 or 32
-		std::size_t iTargetSize;
+		// we have to assign a value to satisfy non-C++17
+		std::size_t iTargetSize = 0;
 		const void* pIn = sInput.data();
 
 		switch (iOutputWidth)
@@ -1911,8 +1925,10 @@ bool ConvertUTF(const InpType& sInput, OutType& sOutput)
 
 		auto iOldSize = sOutput.size();
 		sOutput.resize(iOldSize + iTargetSize);
-		void* pOut = sOutput.data() + iOldSize;
-		std::size_t iWrote;
+		// pre C++17 has const .data(), so we take a ref on the first element
+		void* pOut = &sOutput[0] + iOldSize;
+		// we have to assign a value to satisfy non-C++17
+		std::size_t iWrote = 0;
 
 		switch (iOutputWidth)
 		{
@@ -1939,7 +1955,8 @@ bool ConvertUTF(const InpType& sInput, OutType& sOutput)
 		auto iTargetSize = simd::utf32_length_from_utf16(static_cast<const char16_t*>(pIn), sInput.size());
 		auto iOldSize = sOutput.size();
 		sOutput.resize(iOldSize + iTargetSize);
-		void* pOut = sOutput.data() + iOldSize;
+		// pre C++17 has const .data(), so we take a ref on the first element
+		void* pOut = &sOutput[0] + iOldSize;
 		auto iWrote = simd::convert_utf16_to_utf32(static_cast<const char16_t*>(pIn), sInput.size(), static_cast<char32_t*>(pOut));
 		return iWrote == iTargetSize;
 	}
@@ -1949,7 +1966,8 @@ bool ConvertUTF(const InpType& sInput, OutType& sOutput)
 		auto iTargetSize = simd::utf16_length_from_utf32(static_cast<const char32_t*>(pIn), sInput.size());
 		auto iOldSize = sOutput.size();
 		sOutput.resize(iOldSize + iTargetSize);
-		void* pOut = sOutput.data() + iOldSize;
+		// pre C++17 has const .data(), so we take a ref on the first element
+		void* pOut = &sOutput[0] + iOldSize;
 		auto iWrote = simd::convert_utf32_to_utf16(static_cast<const char32_t*>(pIn), sInput.size(), static_cast<char16_t*>(pOut));
 		return iWrote == iTargetSize;
 	}

@@ -203,6 +203,15 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
 	set (DEKAF2_IS_APPLE_CLANG ON)
 endif()
 
+if (DEKAF2_WITH_SIMDUTF AND "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" AND NOT "${CPU_x86}" STREQUAL "")
+	# on amd64 in debug mode there are compile issues with simdutf for some
+	# instruction sets (haskell)
+	set(DEKAF2_WITH_SIMDUTF OFF)
+	message(STATUS "simdutf: switched off for debug build on amd64")
+else()
+	message(STATUS "simdutf: ${DEKAF2_WITH_SIMDUTF}")
+endif()
+
 cmake_host_system_information(RESULT TOTAL_PHYSICAL_MEMORY QUERY TOTAL_PHYSICAL_MEMORY)
 cmake_host_system_information(RESULT NUMBER_OF_PHYSICAL_CORES QUERY NUMBER_OF_PHYSICAL_CORES)
 cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)

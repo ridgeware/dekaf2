@@ -126,7 +126,7 @@ KStringViewPair CountText::NextPair()
 	size_t iSizeConsumed { 0 };
 	bool bIsEmpty { true };
 
-	Unicode::FromUTF8(m_sInput, [&iSizeConsumed, &bIsEmpty](uint32_t ch)
+	Unicode::ForEachUTF(m_sInput, [&iSizeConsumed, &bIsEmpty](uint32_t ch)
 	{
 		if (!kIsAlNum(ch))
 		{
@@ -158,7 +158,7 @@ KStringViewPair SimpleText::NextPair()
 	size_t iSizeSkel { 0 };
 	size_t iSizeWord { 0 };
 
-	Unicode::FromUTF8(m_sInput, [&iSizeSkel, &iSizeWord](uint32_t ch)
+	Unicode::ForEachUTF(m_sInput, [&iSizeSkel, &iSizeWord](uint32_t ch)
 	{
 		if (!kIsAlNum(ch))
 		{
@@ -201,7 +201,7 @@ KStringViewPair CountHTML::NextPair()
 	bool bOpenEntity { false };
 	bool bIsEmpty { true };
 
-	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
+	Unicode::ForEachUTF(m_sInput, [&](uint32_t ch)
 	{
 		if (bOpenScript)
 		{
@@ -352,7 +352,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 	bool bOpenScript { false };
 	bool bOpenEntity { false };
 
-	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
+	Unicode::ForEachUTF(m_sInput, [&](uint32_t ch)
 	{
 		if (bOpenScript)
 		{
@@ -437,7 +437,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 					}
 					else
 					{
-						Unicode::ToUTF8(ch, sPair.first);
+						Unicode::ToUTF(ch, sPair.first);
 						iSizeWord += Unicode::UTF8Bytes(ch);
 					}
 				}
@@ -469,7 +469,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 			}
 			else
 			{
-				Unicode::ToUTF8(ch, sPair.first);
+				Unicode::ToUTF(ch, sPair.first);
 				iSizeWord += Unicode::UTF8Bytes(ch);
 			}
 		}
@@ -524,7 +524,7 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 
 	std::pair<KStringView, KString> sPair;
 
-	Unicode::FromUTF8(m_sInput, [&](uint32_t ch)
+	Unicode::ForEachUTF(m_sInput, [&](uint32_t ch)
 	{
 		if (bOpenScript)
 		{
@@ -555,7 +555,7 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 					}
 				}
 			}
-			Unicode::ToUTF8(ch, sPair.second);
+			Unicode::ToUTF(ch, sPair.second);
 			iSizeSkel += Unicode::UTF8Bytes(ch);
 		}
 		else if (bOpenTag)
@@ -585,7 +585,7 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 					bOpenScript = true;
 				}
 			}
-			Unicode::ToUTF8(ch, sPair.second);
+			Unicode::ToUTF(ch, sPair.second);
 			iSizeSkel += Unicode::UTF8Bytes(ch);
 		}
 		else
@@ -615,7 +615,7 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 				}
 				else
 				{
-					Unicode::ToUTF8(ch, sPair.second);
+					Unicode::ToUTF(ch, sPair.second);
 					bLastWasSpace = false;
 				}
 				iSizeSkel += Unicode::UTF8Bytes(ch);

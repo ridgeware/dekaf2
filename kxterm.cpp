@@ -641,7 +641,7 @@ bool KXTerm::EditLine(
 	UCString sUnicode;
 	UCString sClipboard;
 
-	if (!Unicode::FromUTF8(sLine, sUnicode))
+	if (!Unicode::ConvertUTF(sLine, sUnicode))
 	{
 		kDebug(2, "input is not UTF8: {}", sLine);
 		return false;
@@ -685,7 +685,7 @@ bool KXTerm::EditLine(
 
 			case '\n':   // done ..
 				sLine.clear();
-				Unicode::ToUTF8(sUnicode, sLine);
+				Unicode::ToUTF(sUnicode, sLine);
 				m_History.Add(sLine);
 				m_bCursorLimits = bCursorLimits;
 				return true;
@@ -760,8 +760,8 @@ bool KXTerm::EditLine(
 				// and has no history successor
 				if (bCurLineHasEdits == false && m_History.HaveNewer())
 				{
-					sUnicode = Unicode::FromUTF8<UCString>(m_History.GetNewer());
-					iPos     = sUnicode.size();
+					sUnicode          = Unicode::ConvertUTF<UCString>(m_History.GetNewer());
+					iPos              = sUnicode.size();
 					bRefreshWholeLine = true;
 				}
 				else
@@ -773,17 +773,17 @@ bool KXTerm::EditLine(
 			case Control('p'): // cur up
 				if (bCurLineHasEdits)
 				{
-					m_History.Stash(Unicode::ToUTF8<KString>(sUnicode));
+					m_History.Stash(Unicode::ToUTF<KString>(sUnicode));
 				}
 				if (m_History.HaveOlder())
 				{
 					if (!m_History.HaveStashed())
 					{
 						// save current edit
-						m_History.Stash(Unicode::ToUTF8<KString>(sUnicode));
+						m_History.Stash(Unicode::ToUTF<KString>(sUnicode));
 					}
-					sUnicode = Unicode::FromUTF8<UCString>(m_History.GetOlder());
-					iPos     = sUnicode.size();
+					sUnicode          = Unicode::ConvertUTF<UCString>(m_History.GetOlder());
+					iPos              = sUnicode.size();
 					bRefreshWholeLine = true;
 					bCurLineHasEdits  = false;
 				}
@@ -881,8 +881,8 @@ bool KXTerm::EditLine(
 				}
 				else
 				{
-					KString sSearch = Unicode::ToUTF8<KString>(sUnicode.begin(), sUnicode.begin() + iPos-1);
-					sUnicode = Unicode::FromUTF8<UCString>(m_History.Find(sSearch, true));
+					KString sSearch = Unicode::ToUTF<KString>(sUnicode.begin(), sUnicode.begin() + iPos-1);
+					sUnicode = Unicode::ConvertUTF<UCString>(m_History.Find(sSearch, true));
 					if (iPos > sUnicode.size())
 					{
 						iPos = sUnicode.size();
@@ -943,7 +943,7 @@ bool KXTerm::EditLine(
 				return false;
 			}
 
-			auto sOut   = Unicode::ToUTF8<KString>(sUnicode.begin() + iStart, sUnicode.end());
+			auto sOut   = Unicode::ToUTF<KString>(sUnicode.begin() + iStart, sUnicode.end());
 			Write(sOut);
 
 			CurLeft(sUnicode.size() - iPos);
@@ -1020,7 +1020,7 @@ void KXTerm::WriteLine(uint16_t iRow, uint16_t iColumn, KStringView sText)
 void KXTerm::WriteCodepoint (KCodePoint chRaw)
 //-----------------------------------------------------------------------------
 {
-	RawWrite(KStringView(Unicode::ToUTF8<KString>(chRaw.value())));
+	RawWrite(KStringView(Unicode::ToUTF<KString>(chRaw.value())));
 	m_iCursorColumn += 1;
 
 } // WriteCodepoint

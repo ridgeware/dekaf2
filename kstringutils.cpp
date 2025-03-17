@@ -206,38 +206,6 @@ std::size_t kReplace(KStringRef& sString,
 } // kReplace
 
 //----------------------------------------------------------------------
-KString kToUpper(KStringView sInput)
-//----------------------------------------------------------------------
-{
-	KString sTransformed;
-	sTransformed.reserve(sInput.size());
-
-	Unicode::FromUTF8(sInput, [&](Unicode::codepoint_t ch)
-	{
-		Unicode::ToUTF8(kToUpper(ch), sTransformed);
-		return true;
-	});
-
-	return sTransformed;
-}
-
-//----------------------------------------------------------------------
-KString kToLower(KStringView sInput)
-//----------------------------------------------------------------------
-{
-	KString sTransformed;
-	sTransformed.reserve(sInput.size());
-
-	Unicode::FromUTF8(sInput, [&](Unicode::codepoint_t ch)
-	{
-		Unicode::ToUTF8(kToLower(ch), sTransformed);
-		return true;
-	});
-
-	return sTransformed;
-}
-
-//----------------------------------------------------------------------
 KString kToUpperLocale(KStringView sInput)
 //----------------------------------------------------------------------
 {
@@ -470,7 +438,7 @@ KString kFormString(KStringView sInp, KString::value_type separator, KString::si
 bool kIsBinary(KStringView sBuffer)
 //-----------------------------------------------------------------------------
 {
-	return !Unicode::ValidUTF8(sBuffer);
+	return !Unicode::ValidUTF(sBuffer);
 
 } // kIsBinary
 
@@ -721,7 +689,7 @@ KString kCurlyToStraight(KStringView sInput)
 	KString sTransformed;
 	sTransformed.reserve(sInput.size());
 
-	Unicode::FromUTF8 (sInput, [&sTransformed](Unicode::codepoint_t ch)
+	Unicode::ForEachUTF (sInput, [&sTransformed](Unicode::codepoint_t ch)
 	{
 		// fix "leaning" quotes and doubles to be plain ascii:
 		switch (ch)
@@ -774,7 +742,7 @@ KString kCurlyToStraight(KStringView sInput)
 				break;
 		}
 
-		Unicode::ToUTF8 (ch, sTransformed);
+		Unicode::ToUTF (ch, sTransformed);
 
 		return true;
 	});

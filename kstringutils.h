@@ -82,15 +82,25 @@ KStringRef::size_type kReplace(KStringRef& string,
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in uppercase (UTF8)
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kToUpper(KStringView sInput);
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+KString kToUpper(KStringView sInput)
 //----------------------------------------------------------------------
+{
+	KString sUpper;
+	Unicode::ToUpperUTF(sInput, sUpper);
+	return sUpper;
+}
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in lowercase (UTF8)
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kToLower(KStringView sInput);
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+KString kToLower(KStringView sInput)
 //----------------------------------------------------------------------
+{
+	KString sLower;
+	Unicode::ToLowerUTF(sInput, sLower);
+	return sLower;
+}
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
@@ -296,13 +306,13 @@ bool kHasUTF8(const String& sInput)
 }
 
 //-----------------------------------------------------------------------------
-/// returns the count of unicode codepoints (or, UTF8 sequences)
+/// returns the count of unicode codepoints (or, UTF8/UTF16/UTF32 sequences)
 template<class String>
 DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-std::size_t kSizeUTF8(const String& sInput)
+std::size_t kSizeUTF(const String& sInput)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::CountUTF8(sInput);
+	return Unicode::CountUTF(sInput);
 }
 
 //----------------------------------------------------------------------

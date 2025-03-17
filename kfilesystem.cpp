@@ -2338,7 +2338,7 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase, KStringView sEmp
 
 		KCodePoint lastCp { 0 };
 
-		Unicode::TransformUTF8(Dotted, sSafe, [bToLowercase, &lastCp](Unicode::codepoint_t uch, KString& sOut)
+		Unicode::ForEachUTF(Dotted, [bToLowercase, &sSafe, &lastCp](Unicode::codepoint_t uch)
 		{
 			KCodePoint Cp(uch);
 
@@ -2362,11 +2362,11 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase, KStringView sEmp
 
 			if (bToLowercase)
 			{
-				Unicode::ToUTF8(Cp.ToLower().value(), sOut);
+				Unicode::ToUTF(Cp.ToLower().value(), sSafe);
 			}
 			else
 			{
-				Unicode::ToUTF8(Cp.value(), sOut);
+				Unicode::ToUTF(Cp.value(), sSafe);
 			}
 			
 			return true;

@@ -670,7 +670,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 	//-----------------------------------------------------------------------------
 	{
 		auto cp = Unicode::CodepointFromUTF8(it, ie);
-		Unicode::ToUTF8(cp, sValue);
+		Unicode::ToUTF(cp, sValue);
 	};
 
 	KString  sMonthName;
@@ -1243,10 +1243,10 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 #endif
 
 	// check precondition to avoid UB
-	static_assert(std::is_unsigned<decltype(Unicode::CountUTF8(sTimestamp))>::value, "Unicode::CountUTF8() must return an unsigned type");
+	static_assert(std::is_unsigned<decltype(Unicode::CountUTF(sTimestamp))>::value, "Unicode::CountUTF() must return an unsigned type");
 
 	// this is an unsigned type - overflow will not create UB
-	auto iSize = Unicode::CountUTF8(sTimestamp) - iShortest; // this is deliberately creating an overflow if CountUTF8 is < iShortest!
+	auto iSize = Unicode::CountUTF(sTimestamp) - iShortest; // this is deliberately creating an overflow if CountUTF8 is < iShortest!
 
 	if (iSize < Sizes.size()) // the overflow would be detected here
 	{

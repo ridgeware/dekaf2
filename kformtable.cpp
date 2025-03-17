@@ -154,7 +154,7 @@ void KFormTable::Print(KCodePoint cp)
 //-----------------------------------------------------------------------------
 {
 	if (cp.IsASCII()) m_Out->Write(char(cp));
-	else m_Out->Write(Unicode::ToUTF8<KString>(cp.value()));
+	else m_Out->Write(Unicode::ToUTF<KString>(cp.value()));
 
 } // Print
 

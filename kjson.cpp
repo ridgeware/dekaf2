@@ -92,7 +92,7 @@ const char* kStripJSONExceptionMessage(const char* sMessage) noexcept
 void SetStringFromUTF8orLatin1(LJSON& json, KStringView sInput)
 //-----------------------------------------------------------------------------
 {
-	if (Unicode::ValidUTF8(sInput))
+	if (Unicode::ValidUTF(sInput))
 	{
 		json = sInput;
 	}
@@ -105,7 +105,7 @@ void SetStringFromUTF8orLatin1(LJSON& json, KStringView sInput)
 
 		for (auto ch : sInput)
 		{
-			Unicode::ToUTF8(ch, sUTF8);
+			Unicode::ToUTF(ch, sUTF8);
 		}
 	}
 

@@ -62,7 +62,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.70 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.71 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -102,6 +102,7 @@ OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
 OPTION(DEKAF2_INSTALL_SHARE "install share data" ON)
 OPTION(DEKAF2_INSTALL_INCLUDE "install include files" ON)
 OPTION(DEKAF2_ALL_LIBS "bind to all found libs (switch off and select single libs for better binary portability)" ON)
+OPTION(DEKAF2_WITH_SIMDUTF "build with simd utf implementations" ON)
 
 # =================================== C++ STANDARD =================================
 
@@ -973,6 +974,7 @@ set (BITS_HEADERS
 
 set(BITS_SIMD_HEADERS
 	bits/simd/kfindfirstof.h
+	bits/simd/kutf.h
 )
 
 if (DEKAF2_HAS_LIBBROTLI)
@@ -1268,6 +1270,7 @@ set (SOURCES
 	bits/kstring_view.cpp
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
+	bits/simd/kutf.cpp
 	dekaf2.cpp
 	kawsauth.cpp
 	kbar.cpp

@@ -80,7 +80,7 @@ void KHTMLEntity::ToMandatoryEntity(uint32_t ch, KStringRef& sOut)
 			sOut += "&gt;";
 			return;
 		default:
-			Unicode::ToUTF8(ch, sOut);
+			Unicode::ToUTF(ch, sOut);
 			return;
 	}
 
@@ -166,13 +166,13 @@ KString KHTMLEntity::Encode(KStringView sIn)
 {
 	KString sRet;
 
-	Unicode::FromUTF8(sIn, [&sRet](uint32_t ch)
+	Unicode::ForEachUTF(sIn, [&sRet](uint32_t ch)
 	{
 		auto Property = KCodePoint(ch).GetProperty();
 
 		if (Property.IsAlNum() || Property.IsSpace())
 		{
-			Unicode::ToUTF8(ch, sRet);
+			Unicode::ToUTF(ch, sRet);
 		}
 		else if (Property.IsPunct())
 		{

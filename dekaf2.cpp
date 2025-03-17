@@ -301,8 +301,8 @@ KStringView Dekaf::GetVersionInformation()
 #ifdef DEKAF2_USE_EXCEPTIONS
 		" exceptions"
 #endif
-#ifdef DEKAF2_USE_OPTIMIZED_STRING_FIND
-//		" optimized_string_find"
+#ifdef DEKAF2_WITH_SIMDUTF
+		" simdutf"
 #endif
 #ifdef DEKAF2_HAS_LIBPROC
 		" libproc"

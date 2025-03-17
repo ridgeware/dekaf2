@@ -209,7 +209,7 @@ void PrintException(const KDiffMatchPatch::string_t& sEx)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-	kException(Unicode::ToUTF8<KString>(sEx).c_str());
+	kException(Unicode::ToUTF<KString>(sEx).c_str());
 #else
 	kException(sEx);
 #endif
@@ -222,7 +222,7 @@ void PrintException(const KDiffMatchPatch::string_t& sEx)
 KString KDiff::Diff::GetText() const
 //-----------------------------------------------------------------------------
 {
-	return Unicode::ToUTF8<KString>(m_sText);
+	return Unicode::ToUTF<KString>(m_sText);
 
 } // Diff::GetText
 
@@ -230,7 +230,7 @@ KString KDiff::Diff::GetText() const
 void KDiff::Diff::SetText(const KString& sText)
 //-----------------------------------------------------------------------------
 {
-	Unicode::FromUTF8(sText, m_sText);
+	Unicode::ConvertUTF(sText, m_sText);
 
 } // Diff::SetText
 #endif
@@ -247,8 +247,8 @@ void KDiff::CreateDiff(KStringView sOldText,
 	try
 	{
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-		auto sFrom = Unicode::FromUTF8<KDiffMatchPatch::string_t>(sOldText);
-		auto sTo   = Unicode::FromUTF8<KDiffMatchPatch::string_t>(sNewText);
+		auto sFrom = Unicode::ConvertUTF<KDiffMatchPatch::string_t>(sOldText);
+		auto sTo   = Unicode::ConvertUTF<KDiffMatchPatch::string_t>(sNewText);
 		m_iMaxSize = std::max(sFrom.size(), sTo.size());
 		auto Diffs = KDiffMatchPatch::diff_main(sFrom, sTo, static_cast<KDiffMatchPatch::Mode>(Mode), 2.0f);
 #else
@@ -313,7 +313,7 @@ KString KDiff::GetUnifiedDiff()
 		{
 			auto Patches = KDiffMatchPatch().patch_make(*dget(m_Diffs));
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-			return Unicode::ToUTF8<KString>(KDiffMatchPatch::patch_toText(Patches));
+			return Unicode::ToUTF<KString>(KDiffMatchPatch::patch_toText(Patches));
 #else
 			return KDiffMatchPatch::patch_toText(Patches);
 #endif

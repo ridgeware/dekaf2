@@ -2315,7 +2315,7 @@ std::size_t DecodeInt(KStringRef& sRet, KStringView sIn, bool bAlsoNumeric)
 
 							if (DEKAF2_LIKELY(bValid))
 							{
-								Unicode::ToUTF8(iChar, sRet);
+								Unicode::ToUTF(iChar, sRet);
 
 								if (it != ie && *it  == ';')
 								{
@@ -2371,11 +2371,11 @@ std::size_t DecodeInt(KStringRef& sRet, KStringView sIn, bool bAlsoNumeric)
 
 						if (KHTMLEntity::FromNamedEntity(sEntity, cp1, cp2))
 						{
-							Unicode::ToUTF8(cp1, sRet);
+							Unicode::ToUTF(cp1, sRet);
 
 							if (cp2)
 							{
-								Unicode::ToUTF8(cp2, sRet);
+								Unicode::ToUTF(cp2, sRet);
 							}
 
 							++iReplaced;
@@ -2479,7 +2479,7 @@ KString ConvertNumerical(KStringView sIn)
 			}
 		}
 
-		Unicode::ToUTF8(iChar, sRet);
+		Unicode::ToUTF(iChar, sRet);
 	}
 
 	return sRet;
@@ -2534,11 +2534,11 @@ KString KHTMLEntity::DecodeOne(KStringView sIn)
 
 			if (DEKAF2_LIKELY(it != s_NamedEntitiesHTML4.end()))
 			{
-				Unicode::ToUTF8(it->second.iCodepoint1, sRet);
+				Unicode::ToUTF(it->second.iCodepoint1, sRet);
 
 				if (it->second.iCodepoint2)
 				{
-					Unicode::ToUTF8(it->second.iCodepoint2, sRet);
+					Unicode::ToUTF(it->second.iCodepoint2, sRet);
 				}
 				break;
 			}

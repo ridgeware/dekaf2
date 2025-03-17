@@ -2179,7 +2179,7 @@ DEKAF2_CONSTEXPR_14
 KStringView::size_type KStringView::SizeUTF8() const
 //-----------------------------------------------------------------------------
 {
-	return kSizeUTF8(*this);
+	return kSizeUTF(*this);
 }
 
 //-----------------------------------------------------------------------------

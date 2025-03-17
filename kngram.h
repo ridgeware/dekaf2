@@ -86,7 +86,7 @@ public:
 		bool bLastWasSpace { true };
 
 		// transform to uc4 and lowercase, and filter anything that is not alnum
-		Unicode::FromUTF8(sUTF8, [&sWide, &bLastWasSpace](WideChar CP) -> bool
+		Unicode::ForEachUTF(sUTF8, [&sWide, &bLastWasSpace](WideChar CP) -> bool
 		{
 			if (CP.IsAlNum())
 			{

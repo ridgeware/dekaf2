@@ -386,8 +386,8 @@ protected:
 	{
 		if (KUTF8_LIKELY(m_String != nullptr))
 		{
-			size_t iOrigLen = UTF8Bytes(m_OrigValue);
-			size_t iNewLen = UTF8Bytes(m_Value);
+			std::size_t iOrigLen = UTF8Bytes(m_OrigValue);
+			std::size_t iNewLen = UTF8Bytes(m_Value);
 
 			// create an iterator pointing to the start of the current sequence
 			typename NarrowString::iterator it = m_String->begin() + m_next - iOrigLen;
@@ -413,7 +413,7 @@ protected:
 			m_next += iAdjust;
 
 			// and finally write the replacement sequence
-			ToUTF8(m_Value, it);
+			ToUTF(m_Value, it);
 
 			// no need to update m_OrigValue with m_Value as this
 			// function is only called from the dtor or from operator++()

@@ -24,10 +24,10 @@ TEST_CASE("UTF8") {
 		for (auto& it : stest)
 		{
 			stype sTest;
-			Unicode::ToUTF8(it[0], sTest);
+			Unicode::ToUTF(it[0], sTest);
 			CHECK( sTest == it[1] );
 			stype sOut;
-			Unicode::FromUTF8(sTest, [&sOut](uint32_t ch)
+			Unicode::ForEachUTF(sTest, [&sOut](uint32_t ch)
 			{
 				sOut += static_cast<std::string::value_type>(ch);
 				return true;
@@ -49,10 +49,10 @@ TEST_CASE("UTF8") {
 		for (auto& it : stest)
 		{
 			stype sTest;
-			Unicode::ToUTF8(it[0], sTest);
+			Unicode::ToUTF(it[0], sTest);
 			CHECK( sTest == it[1] );
 			stype sOut;
-			Unicode::FromUTF8(sTest, [&sOut](uint32_t ch)
+			Unicode::ForEachUTF(sTest, [&sOut](uint32_t ch)
 			{
 				sOut += static_cast<std::string::value_type>(ch);
 				return true;
@@ -64,18 +64,18 @@ TEST_CASE("UTF8") {
 	SECTION("ValidUTF8")
 	{
 		KString sStr("testäöü test日本語abc中文Русский");
-		CHECK( Unicode::ValidUTF8(sStr) == true );
-		CHECK( Unicode::ValidUTF8(sStr.begin()+3, sStr.end()) == true );
+		CHECK( Unicode::ValidUTF(sStr) == true );
+		CHECK( Unicode::ValidUTF(sStr.begin()+3, sStr.end()) == true );
 		sStr[6] = 'a';
-		CHECK( Unicode::ValidUTF8(sStr) == false );
+		CHECK( Unicode::ValidUTF(sStr) == false );
 	}
 
 	SECTION("CountUTF8")
 	{
 		KString sStr("testäöü test日本語abc中文Русский");
 		CHECK(              sStr.size() == 47 );
-		CHECK( Unicode::CountUTF8(sStr) == 27 );
-		CHECK( Unicode::CountUTF8(sStr.begin()+2, sStr.end()) == 25 );
+		CHECK( Unicode::CountUTF(sStr) == 27 );
+		CHECK( Unicode::CountUTF(sStr.begin()+2, sStr.end()) == 25 );
 	}
 
 	SECTION("LeftUTF8")
@@ -114,7 +114,7 @@ TEST_CASE("UTF8") {
 	SECTION("ToUTF8")
 	{
 		KString sUTF;
-		Unicode::ToUTF8(128, sUTF);
+		Unicode::ToUTF(128, sUTF);
 		CHECK ( sUTF.size() == 2 );
 		CHECK ( static_cast<uint8_t>(sUTF[0]) == 0xc2 );
 		CHECK ( static_cast<uint8_t>(sUTF[1]) == 0x80 );
@@ -166,9 +166,9 @@ TEST_CASE("UTF8") {
 		for (auto& sInvalid : Test)
 		{
 			INFO ( ++i );
-			bool bValid = Unicode::ValidUTF8(sInvalid);
+			bool bValid = Unicode::ValidUTF(sInvalid);
 			CHECK ( bValid == false );
-			auto index = Unicode::InvalidUTF8(sInvalid);
+			auto index = Unicode::InvalidUTF(sInvalid);
 			CHECK ( index != sInvalid.size() );
 		}
 	}
@@ -283,8 +283,8 @@ TEST_CASE("UTF8") {
 			}
 		}
 
-		Unicode::Convert(sUTF16_in, sUTF8);
-		Unicode::Convert(sUTF8, sUTF16_out);
+		Unicode::ConvertUTF(sUTF16_in, sUTF8);
+		Unicode::ConvertUTF(sUTF8, sUTF16_out);
 
 		CHECK ( sUTF16_in.size() == sUTF16_out.size() );
 
@@ -306,15 +306,15 @@ TEST_CASE("UTF8") {
 	{
 		Unicode::codepoint_t ch = 0xed;
 		CHECK ( Unicode::IsValid(ch) );
-		auto sUTF8 = Unicode::ToUTF8<KString>(ch);
+		auto sUTF8 = Unicode::ToUTF<KString>(ch);
 		CHECK ( sUTF8.size() == 2 );
 		if (sUTF8.size() == 2)
 		{
 			CHECK ( sUTF8[0] == char(0xc3) );
 			CHECK ( sUTF8[1] == char(0xad) );
 		}
-		// sUTFw is UTF16 on Windows, and UCS4 on Unix
-		auto sUTFw = Unicode::FromUTF8(sUTF8);
+		// sUTFw is UTF16 on Windows, and UTF32 on Unix
+		auto sUTFw = Unicode::ConvertUTF<std::wstring>(sUTF8);
 		CHECK ( sUTFw.size() == 1 );
 		if (sUTFw.size() == 1)
 		{
@@ -335,15 +335,15 @@ TEST_CASE("UTF8") {
 		auto it = sInput.begin();
 		auto ie = sInput.end();
 		auto it2 = it;
-		CHECK ( Unicode::Advance(it, ie,  0) == true );
+		CHECK ( Unicode::AdvanceUTF(it, ie,  0) == true );
 		CHECK ( it == it2 );
-		CHECK ( Unicode::Advance(it, ie,  1) == true );
+		CHECK ( Unicode::AdvanceUTF(it, ie,  1) == true );
 		CHECK ( *it == 'e' );
-		CHECK ( Unicode::Advance(it, ie,  6) == true );
+		CHECK ( Unicode::AdvanceUTF(it, ie,  6) == true );
 		CHECK ( *it == ' ' );
-		CHECK ( Unicode::Advance(it, ie, 20) == true );
+		CHECK ( Unicode::AdvanceUTF(it, ie, 20) == true );
 		CHECK ( *it == ' ' );
-		CHECK ( Unicode::Advance(it, ie,  5) == false);
+		CHECK ( Unicode::AdvanceUTF(it, ie,  5) == false);
 		CHECK ( it == ie );
 	}
 
@@ -354,15 +354,15 @@ TEST_CASE("UTF8") {
 		auto it = sInput.begin();
 		auto ie = sInput.end();
 		auto it2 = it;
-		CHECK ( Unicode::Advance(it, ie,  0) == true );
+		CHECK ( Unicode::AdvanceUTF(it, ie,  0) == true );
 		CHECK ( it == it2 );
-		CHECK ( Unicode::Advance(it, ie,  1) == true );
+		CHECK ( Unicode::AdvanceUTF(it, ie,  1) == true );
 		CHECK ( (*it == wchar_t('e')) );
-		CHECK ( Unicode::Advance(it, ie,  6) == true );
+		CHECK ( Unicode::AdvanceUTF(it, ie,  6) == true );
 		CHECK ( (*it == wchar_t(' ')) );
-		CHECK ( Unicode::Advance(it, ie, 20) == true );
+		CHECK ( Unicode::AdvanceUTF(it, ie, 20) == true );
 		CHECK ( (*it == wchar_t(' ')) );
-		CHECK ( Unicode::Advance(it, ie,  5) == false);
+		CHECK ( Unicode::AdvanceUTF(it, ie,  5) == false);
 		CHECK ( it == ie );
 	}
 #endif

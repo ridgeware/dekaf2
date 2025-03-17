@@ -41,18 +41,203 @@
 #pragma once
 
 /// @file kutf8.h
-/// provides support for UTF8, UTF16 and UTF32 encoding
+/// provides support for UTF8, UTF16 and UTF32 encoding with highly vectorizable template code.
+/// Most of the methods are constexpr.
 ///
 /// The discrete UTF8 decoder in this implementation, when compiled with clang for X86_64,
-/// is nearly twice as fast than a DFA approach.
-/// This indicates that optimization in the compiler and branch prediction on modern CPUs work great.
-/// For UTF8 codepoint counting this implementation is even 4-5 times faster than a DFA approach. That
-/// is due to the reason that it does not check validity of the UTF8 while counting. It does during decode though.
+/// is nearly twice as fast than a DFA approach. For UTF8 codepoint counting this implementation is even
+/// 4-5 times faster than a DFA approach.
+///
 /// Invalid UTF8 runs are not decoded (inefficient encoding, values >= 0x0110000, too long continuation
 /// sequences, aborted continuation sequences both by end of input or start of a new codepoint) and signaled by
 /// INVALID_CODEPOINT as the decoded value. It is left to the caller if this will be translated into the
 /// REPLACEMENT_CHARACTER or lead to an abort of the operation. Input iterators will always point to the
 /// next start of a sequence after a decode, and skip invalid input.
+///
+/// This code, if configured to do so, now (2025) uses the excellent simdutf library to perform bulk operations such
+/// as converting between the various UTF versions, to validate UTF, and to case change strings. SIMD instructions
+/// push performance for bulk operations by at least 2 times (for case changes) to 5 times (for encoding conversions)
+/// and 10 times (for validation and count) compared to the discrete template code. simdutf is wrapped seamlessly
+/// into the existing template interface. Performance measurements were done on both amd64 and aarch64 with
+/// (nearly) comparable results. When using this header standalone, please #define KUTF8_WITH_SIMDUTF 1
+/// and make sure <simdutf.h> is in the include path.
+///
+/// PLEASE NOTE: When using simdutf, invalid codepoints will not be marked with the REPLACEMENT_CHARACTER,
+/// but instead lead to an abort of the entire operation. Result strings will be empty, and boolean return values false.
+/// To find out about the position of an invalid codepoint, when simdutf is enabled you have to use the
+/// InvalidUTF() method on the original input.
+///
+/// ABOUT THE INTERFACE: This code assumes that strings with 8 bit chars are UTF8 strings, strings with 16 bit
+/// chars are UTF16 strings, and strings with 32 bit chars are UTF32 strings. Same is valid for iterators. In general,
+/// there is one method version using iterators, and another using strings.
+///
+/// All methods use template types, therefore any string type that supports the usual string functions including
+/// .size(), .resize(), .begin(), .end() may be used.
+///
+/// UTF16 and UTF32 strings are assumed to have the endianess of the platform, so, in most cases low endian.
+
+/*
+
+ This header provides the following methods:
+
+ --- Convert
+
+ /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+ bool ConvertUTF(const InpType& sInput, OutType& sOutput)
+
+ /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+ OutType ConvertUTF(const InpType& sInp)
+
+ --- ToUTF
+
+ /// Convert a codepoint into a UTF8/16/32 sequence written at iterator it
+ void ToUTF(Char codepoint, Iterator& it)
+
+ /// Convert a codepoint into a UTF8/16/32 sequence appended to sNarrow
+ void ToUTF(Char codepoint, UTFString& sUTF)
+
+ /// Convert a codepoint into a UTF8/16/32 sequence returned as string of type UTFString.
+ UTFString ToUTF(Char codepoint)
+
+ /// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/16/32 string (from two iterators)
+ bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
+
+ /// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/16/32 string (from two iterators)
+ UTF8String ToUTF(Iterator it, Iterator ie)
+
+ /// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/16/32 string
+ bool ToUTF(const InputString& sInput, UTFString& sUTF)
+
+ /// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/16/32 string
+ UTFString ToUTF(const InputString& sInput)
+
+ /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/16/32 string
+ bool ToUTF(const wchar_t* it, UTFString& sUTF)
+
+ /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/16/32 string
+ UTFString ToUTF(const wchar_t* it)
+
+ --- get codepoint
+
+ /// Return next codepoint from repeatedly calling a ReadFunc that returns single chars
+ codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
+
+ /// Return next codepoint at position it in range it-ie, increment it to point
+ /// to the begin of the following codepoint. If at call it == ie -> undefined behavior
+ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
+
+ /// Return codepoint before position it in range ibegin-it, decrement it to point
+ /// to the begin of the new (previous) codepoint
+ codepoint_t PrevCodepointFromUTF8(Iterator ibegin, Iterator& it)
+
+ /// Returns a 32 bit codepoint from either UTF8, UTF16, or UTF32. If at call (it == ie) -> undefined behaviour
+ codepoint_t Codepoint(Iterator& it, Iterator ie)
+
+ --- move iterator
+
+ /// if not at the start of a UTF8/16/32 sequence then advance the input iterator until the end of the current UTF sequence
+ void SyncUTF(Iterator& it, Iterator ie)
+
+ /// advance the input iterator by n codepoints - this works with UTF8, UTF16, or UTF32
+ bool AdvanceUTF(Iterator& it, Iterator ie, std::size_t n = 1)
+
+ --- validation
+
+ /// Return iterator at position where a UTF8/16/32 string uses invalid sequences
+ Iterator InvalidUTF(Iterator it, Iterator ie)
+
+ /// Check if a UTF8/16/32 string uses only valid sequences
+ bool ValidUTF(Iterator it, Iterator ie)
+
+ /// Check if a UTF8/16/32 string uses only valid sequences
+ bool ValidUTF(const UTFString& sUTF)
+
+ /// Check if a UTF8/16/32 string uses only valid sequences
+ typename UTFString::size_type InvalidUTF(const UTFString& sUTF)
+
+ /// Returns true if the first non-ASCII codepoint is valid UTF8
+ bool HasUTF8(Iterator it, Iterator ie)
+
+ /// Returns true if the first non-ASCII codepoint is valid UTF8
+ bool HasUTF8(const UTF8String& sUTF8)
+
+ --- counting
+
+ /// Returns the count of bytes that a UTF8 representation for a given codepoint would need
+ std::size_t UTF8Bytes(Char codepoint)
+
+/// Count number of codepoints in UTF range (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
+ size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1))
+
+ /// Count number of codepoints in UTF string (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
+ size_t CountUTF(const UTFString& sUTF, std::size_t iMaxCount = std::size_t(-1))
+
+ --- substrings, iterator movement
+
+ /// Return iterator after max n UTF8 codepoints
+ Iterator LeftUTF8(Iterator it, Iterator ie, std::size_t n)
+
+ /// Return string with max n left UTF8 codepoints in sNarrow
+ ReturnString LeftUTF8(const UTF8String& sUTF8, std::size_t n)
+
+ /// Return iterator max n UTF8 codepoints before ie
+ Iterator RightUTF8(Iterator it, Iterator ie, std::size_t n)
+
+ /// Return string with max n right UTF8 codepoints in sNarrow
+ ReturnString RightUTF8(const UTF8String& sUTF8, size_t n)
+
+ /// Return string with max n UTF8 codepoints in sNarrow, starting after pos UTF8 codepoints
+ ReturnString MidUTF8(const UTF8String& sUTF8, std::size_t pos, std::size_t n)
+
+ /// Return codepoint after pos UTF8 codepoints
+ codepoint_t AtUTF8(Iterator it, Iterator ie, std::size_t pos)
+
+ --- transformation
+
+ /// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every
+ /// codepoint (which may be INVALID_CODEPOINT for input parsing errors)
+ bool ForEachUTF(Iterator it, Iterator ie, Functor func)
+
+ /// Convert string from UTF8, calling functor func for every codepoint
+ bool ForEachUTF(const UTFString& sUTF, Functor func)
+
+ /// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
+ /// functor for each codepoint.
+ bool TransformUTF(const UTFString& sInput, ReturnUTFString& sOutput, Functor func)
+
+ /// Transform a Unicode string into a lowercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
+ void ToLowerUTF(const InputString& sInput, OutputString& sOutput)
+
+ /// Transform a Unicode string into an uppercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
+ void ToUpperUTF(const InputString& sInput, OutputString& sOutput)
+
+ --- helpers
+
+ /// Returns true if the given character is a single byte run, and thus an ASCII char
+ bool IsSingleByte(utf8_t ch)
+
+ /// Returns true if the given character is a UTF8 start byte (which starts a UTF8 sequence and is followed by one to three continuation bytes)
+ bool IsStartByte(utf8_t ch)
+
+ /// Returns true if the given character is a UTF8 continuation byte (which follow the start byte of a UTF8 sequence)
+ bool IsContinuationByte(utf8_t ch)
+
+ /// Returns true if the given UTF16 character is a lead surrogate
+ bool IsLeadSurrogate(codepoint_t codepoint)
+
+ /// Returns true if the given UTF16 character is a trail surrogate
+ bool IsTrailSurrogate(codepoint_t codepoint)
+
+ /// Returns true if the given UTF16 character is a lead or trail surrogate
+ bool IsSurrogate(codepoint_t codepoint)
+
+ /// Returns true if the given Unicode codepoint is valid (= < 0x0110000, not 0x0fffe, 0x0ffff, and not in 0x0d800 .. 0x0dfff)
+ bool IsValid(codepoint_t codepoint)
+
+ /// Returns true if the given codepoint needs to be represented with a UTF16 surrogate pair
+ bool NeedsSurrogates(codepoint_t codepoint)
+
+ */
 
 #include <cstdint>
 #include <cstddef>
@@ -91,13 +276,27 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 #if defined(DEKAF2) || DEKAF_MAJOR_VERSION >= 2 \
  || (__has_include("kdefinitions.h") && __has_include("kctype.h"))
 	#define KUTF8_DEKAF2 1
+	#ifndef KUTF8_WITH_SIMDUTF
+		#ifdef DEKAF2_WITH_SIMDUTF
+			#define KUTF8_WITH_SIMDUTF 1
+		#endif
+	#endif
 #endif
 
 #if KUTF8_DEKAF2
-#include "kctype.h"
-DEKAF2_NAMESPACE_BEGIN
+	#include "kctype.h"
+	#if KUTF8_WITH_SIMDUTF
+		#include "bits/simd/kutf.h"
+	#endif
+	DEKAF2_NAMESPACE_BEGIN
 #else
-#include <cwctype>
+	#include <cwctype>
+	#if KUTF8_WITH_SIMDUTF
+		// make sure this include is found at compile time, and do not forget
+		// to link against libsimdutf.a
+		#include <simdutf.h>
+		namespace simd = ::simdutf;
+	#endif
 #endif
 
 namespace Unicode {
@@ -106,6 +305,7 @@ namespace Unicode {
 	#ifndef KUTF8_DEKAF2
 	using codepoint_t = char32_t;
 	#endif
+	using utf32_t     = char32_t;
 	using utf16_t     = char16_t;
 	#ifdef __cpp_char8_t
 	using utf8_t      = char8_t;
@@ -116,6 +316,7 @@ namespace Unicode {
 	#ifndef KUTF8_DEKAF2
 	using codepoint_t = uint32_t;
 	#endif
+	using utf32_t     = uint32_t;
 	using utf16_t     = uint16_t;
 	using utf8_t      = uint8_t;
 #endif
@@ -208,93 +409,93 @@ bool IsContinuationByte(utf8_t ch)
 //-----------------------------------------------------------------------------
 /// Returns true if the given UTF16 character is a lead surrogate
 inline constexpr
-bool IsLeadSurrogate(codepoint_t ch)
+bool IsLeadSurrogate(codepoint_t codepoint)
 //-----------------------------------------------------------------------------
 {
-	return (ch & 0x1ffc00) == 0x0d800;
+	return (codepoint & 0x1ffc00) == 0x0d800;
 }
 
 //-----------------------------------------------------------------------------
 /// Returns true if the given UTF16 character is a trail surrogate
 inline constexpr
-bool IsTrailSurrogate(codepoint_t ch)
+bool IsTrailSurrogate(codepoint_t codepoint)
 //-----------------------------------------------------------------------------
 {
-	return (ch & 0x1ffc00) == 0x0dc00;
+	return (codepoint & 0x1ffc00) == 0x0dc00;
 }
 
 //-----------------------------------------------------------------------------
 /// Returns true if the given UTF16 character is a lead or trail surrogate
 inline constexpr
-bool IsSurrogate(codepoint_t ch)
+bool IsSurrogate(codepoint_t codepoint)
 //-----------------------------------------------------------------------------
 {
-	return (ch & 0x1ff800) == 0x0d800;
+	return (codepoint & 0x1ff800) == 0x0d800;
 }
 
 //-----------------------------------------------------------------------------
 /// Returns true if the given Unicode codepoint is valid (= < 0x0110000, not 0x0fffe, 0x0ffff, and not in 0x0d800 .. 0x0dfff)
 inline constexpr
-bool IsValid(codepoint_t ch)
+bool IsValid(codepoint_t codepoint)
 //-----------------------------------------------------------------------------
 {
-	return ch <= CODEPOINT_MAX
-		&& !IsSurrogate(ch)
-		&& ch != 0x0fffe
-		&& ch != 0x0ffff;
+	return codepoint <= CODEPOINT_MAX
+	    && !IsSurrogate(codepoint)
+	    && codepoint != 0x0fffe
+	    && codepoint != 0x0ffff;
 }
 
 //-----------------------------------------------------------------------------
 /// Returns true if the given codepoint needs to be represented with a UTF16 surrogate pair
 inline constexpr
-bool NeedsSurrogates(codepoint_t ch)
+bool NeedsSurrogates(codepoint_t codepoint)
 //-----------------------------------------------------------------------------
 {
 	// the reason to test for NEEDS_SURROGATE_END is that this prevents from
 	// creating overflow surrogates from invalid codepoints, which would be
 	// difficult to detect
-	return (ch >= NEEDS_SURROGATE_START && ch <= NEEDS_SURROGATE_END);
+	return (codepoint >= NEEDS_SURROGATE_START && codepoint <= NEEDS_SURROGATE_END);
 }
 
 //-----------------------------------------------------------------------------
 /// Cast any integral type into a codepoint_t, without signed bit expansion.
-template<typename Ch>
+template<typename Char>
 constexpr
-codepoint_t CodepointCast(Ch sch)
+codepoint_t CodepointCast(Char ch)
 //-----------------------------------------------------------------------------
 {
-	static_assert(std::is_integral<Ch>::value, "can only convert integral types");
+	static_assert(std::is_integral<Char>::value, "can only convert integral types");
 
-	return (sizeof(Ch) == 1) ? static_cast<uint8_t>(sch)
-		:  (sizeof(Ch) == 2) ? static_cast<uint16_t>(sch)
-		:  static_cast<uint32_t>(sch);
+	return (sizeof(Char) == 1) ? static_cast<utf8_t>(ch)
+		:  (sizeof(Char) == 2) ? static_cast<utf16_t>(ch)
+		:  static_cast<utf32_t>(ch);
 }
 
 //-----------------------------------------------------------------------------
 /// Returns the count of bytes that a UTF8 representation for a given codepoint would need
-template<typename Ch>
+template<typename Char>
 KUTF8_CONSTEXPR_14
-size_t UTF8Bytes(Ch sch)
+std::size_t UTF8Bytes(Char codepoint)
 //-----------------------------------------------------------------------------
 {
-	codepoint_t ch = CodepointCast(sch);
+	codepoint_t cp = CodepointCast(codepoint);
 
-	if (ch < 0x0080)
+	if (cp < 0x0080)
 	{
 		return 1;
 	}
-	else if (ch < 0x0800)
+	else if (cp < 0x0800)
 	{
 		return 2;
 	}
-	else if (ch < 0x010000)
+	else if (cp < 0x010000)
 	{
 		// we return a squared question mark 0xfffd (REPLACEMENT CHARACTER)
 		// for invalid Unicode codepoints, so the bytecount is 3 as well if
 		// this is a surrogate character
 		return 3;
 	}
-	else if (ch < 0x0110000)
+	else if (cp < 0x0110000)
 	{
 		return 4;
 	}
@@ -339,117 +540,284 @@ public:
 } // end of namespace KUTF8_detail
 
 //-----------------------------------------------------------------------------
-/// Convert a codepoint into a UTF8 sequence written at iterator it
-template<typename Ch, typename Iterator,
-         typename std::enable_if<std::is_integral<Ch>::value
-							&& !KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
+/// Convert a codepoint into a UTF sequence written at iterator it
+template<typename Char, typename Iterator,
+         typename std::enable_if<std::is_integral<Char>::value
+                                 && !KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-void ToUTF8(Ch sch, Iterator& it)
+void ToUTF(Char codepoint, Iterator& it)
 //-----------------------------------------------------------------------------
 {
-	codepoint_t ch = CodepointCast(sch);
+	using value_type = typename std::remove_reference<decltype(*it)>::type;
+	constexpr size_t iOutputWidth = sizeof(value_type);
 
-	if (ch < 0x0080)
+	codepoint_t cp = CodepointCast(codepoint);
+
+	if (iOutputWidth == 1)
 	{
-		*it++ = ch;
-	}
-	else if (ch < 0x0800)
-	{
-		*it++ = (0xc0 | ((ch >> 6) & 0x1f));
-		*it++ = (0x80 | (ch & 0x3f));
-	}
-	else if (ch < 0x010000)
-	{
-		if (KUTF8_UNLIKELY(IsSurrogate(ch) || ch == 0x0fffe || ch == 0x0ffff ))
+		if (cp < 0x0080)
 		{
-			ch = REPLACEMENT_CHARACTER;
+			*it++ = cp;
 		}
-		*it++ = (0xe0 | ((ch >> 12) & 0x0f));
-		*it++ = (0x80 | ((ch >>  6) & 0x3f));
-		*it++ = (0x80 | (ch & 0x3f));
+		else if (cp < 0x0800)
+		{
+			*it++ = (0xc0 | ((cp >> 6) & 0x1f));
+			*it++ = (0x80 | (cp & 0x3f));
+		}
+		else if (cp < 0x010000)
+		{
+			if (KUTF8_UNLIKELY(IsSurrogate(cp) || cp == 0x0fffe || cp == 0x0ffff ))
+			{
+				cp = REPLACEMENT_CHARACTER;
+			}
+			*it++ = (0xe0 | ((cp >> 12) & 0x0f));
+			*it++ = (0x80 | ((cp >>  6) & 0x3f));
+			*it++ = (0x80 | (cp & 0x3f));
+		}
+		else if (cp < 0x0110000)
+		{
+			*it++ = (0xf0 | ((cp >> 18) & 0x07));
+			*it++ = (0x80 | ((cp >> 12) & 0x3f));
+			*it++ = (0x80 | ((cp >>  6) & 0x3f));
+			*it++ = (0x80 | (cp & 0x3f));
+		}
+		else
+		{
+			// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
+			// for invalid Unicode codepoints
+			ToUTF(REPLACEMENT_CHARACTER, it);
+		}
 	}
-	else if (ch < 0x0110000)
+	else if (iOutputWidth == 2 && NeedsSurrogates(cp))
 	{
-		*it++ = (0xf0 | ((ch >> 18) & 0x07));
-		*it++ = (0x80 | ((ch >> 12) & 0x3f));
-		*it++ = (0x80 | ((ch >>  6) & 0x3f));
-		*it++ = (0x80 | (ch & 0x3f));
+		SurrogatePair sp(cp);
+		*it++ = static_cast<value_type>(sp.low);
+		*it++ = static_cast<value_type>(sp.high);
 	}
 	else
 	{
-		// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
-		// for invalid Unicode codepoints
-		ToUTF8(REPLACEMENT_CHARACTER, it);
+		*it++ = static_cast<value_type>(cp);
 	}
 }
 
 //-----------------------------------------------------------------------------
 // for strings, this version is up to twice as fast than the use of back inserters
-/// Convert a codepoint into a UTF8 sequence appended to sNarrow
-template<typename Ch, typename NarrowString,
-		 typename std::enable_if<std::is_integral<Ch>::value
-							&& KUTF8_detail::HasSize<NarrowString>::value, int>::type = 0>
+/// Convert a codepoint into a UTF sequence appended to sUTF
+template<typename Char, typename UTFString,
+         typename std::enable_if<std::is_integral<Char>::value
+                                 && KUTF8_detail::HasSize<UTFString>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-void ToUTF8(Ch sch, NarrowString& sNarrow)
+void ToUTF(Char codepoint, UTFString& sUTF)
 //-----------------------------------------------------------------------------
 {
-	codepoint_t ch = CodepointCast(sch);
+	using value_type = typename UTFString::value_type;
+	constexpr size_t iOutputWidth = sizeof(value_type);
 
-	if (ch < 0x0080)
+	codepoint_t cp = CodepointCast(codepoint);
+	
+	if (iOutputWidth == 1)
 	{
-		sNarrow += ch;
-	}
-	else if (ch < 0x0800)
-	{
-		sNarrow += (0xc0 | ((ch >> 6) & 0x1f));
-		sNarrow += (0x80 | (ch & 0x3f));
-	}
-	else if (ch < 0x010000)
-	{
-		if (KUTF8_UNLIKELY(IsSurrogate(ch) || ch == 0x0fffe || ch == 0x0ffff ))
+		if (cp < 0x0080)
 		{
-			ch = REPLACEMENT_CHARACTER;
+			sUTF += cp;
 		}
-		sNarrow += (0xe0 | ((ch >> 12) & 0x0f));
-		sNarrow += (0x80 | ((ch >>  6) & 0x3f));
-		sNarrow += (0x80 | (ch & 0x3f));
+		else if (cp < 0x0800)
+		{
+			sUTF += (0xc0 | ((cp >> 6) & 0x1f));
+			sUTF += (0x80 | (cp & 0x3f));
+		}
+		else if (cp < 0x010000)
+		{
+			if (KUTF8_UNLIKELY(IsSurrogate(cp) || cp == 0x0fffe || cp == 0x0ffff ))
+			{
+				cp = REPLACEMENT_CHARACTER;
+			}
+			sUTF += (0xe0 | ((cp >> 12) & 0x0f));
+			sUTF += (0x80 | ((cp >>  6) & 0x3f));
+			sUTF += (0x80 | (cp & 0x3f));
+		}
+		else if (cp < 0x0110000)
+		{
+			sUTF += (0xf0 | ((cp >> 18) & 0x07));
+			sUTF += (0x80 | ((cp >> 12) & 0x3f));
+			sUTF += (0x80 | ((cp >>  6) & 0x3f));
+			sUTF += (0x80 | (cp & 0x3f));
+		}
+		else
+		{
+			// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
+			// for invalid Unicode codepoints
+			ToUTF(REPLACEMENT_CHARACTER, sUTF);
+		}
 	}
-	else if (ch < 0x0110000)
+	else if (KUTF8_UNLIKELY(iOutputWidth == 2 && NeedsSurrogates(cp)))
 	{
-		sNarrow += (0xf0 | ((ch >> 18) & 0x07));
-		sNarrow += (0x80 | ((ch >> 12) & 0x3f));
-		sNarrow += (0x80 | ((ch >>  6) & 0x3f));
-		sNarrow += (0x80 | (ch & 0x3f));
+		SurrogatePair sp(cp);
+		sUTF += static_cast<value_type>(sp.low);
+		sUTF += static_cast<value_type>(sp.high);
 	}
 	else
 	{
-		// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
-		// for invalid Unicode codepoints
-		ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+		if (KUTF8_UNLIKELY(cp > CODEPOINT_MAX || IsSurrogate(cp) || cp == 0x0fffe || cp == 0x0ffff ))
+		{
+			cp = REPLACEMENT_CHARACTER;
+		}
+		sUTF += static_cast<value_type>(cp);
 	}
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a codepoint into a UTF8 sequence returned as string of type NarrowString.
-template<typename NarrowString, typename Ch,
-         typename std::enable_if<std::is_integral<Ch>::value, int>::type = 0>
+/// Convert a codepoint into a UTF sequence returned as string of type NarrowString.
+template<typename UTFString, typename Char,
+         typename std::enable_if<std::is_integral<Char>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-NarrowString ToUTF8(Ch sch)
+UTFString ToUTF(Char codepoint)
 //-----------------------------------------------------------------------------
 {
-	NarrowString sNarrow{};
-	ToUTF8(sch, sNarrow);
-	return sNarrow;
+	UTFString sUTF{};
+	ToUTF(codepoint, sUTF);
+	return sUTF;
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) into an UTF8 string from two iterators
-template<typename NarrowString, typename Iterator>
+/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF string (from two iterators)
+template<typename UTFString, typename Iterator>
 KUTF8_CONSTEXPR_14
-void ToUTF8(Iterator& it, Iterator ie, NarrowString& sNarrow)
+bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 //-----------------------------------------------------------------------------
 {
-	using N = typename std::remove_reference<decltype(*it)>::type;
+	using input_value_type        = typename std::remove_reference<decltype(*it)>::type;
+	constexpr size_t iInputWidth  = sizeof(input_value_type);
+
+#if KUTF8_WITH_SIMDUTF
+
+	constexpr size_t iOutputWidth = sizeof(typename UTFString::value_type);
+
+	auto iInputSize = std::distance(it, ie);
+	const void* input = &*it;
+
+	if (iInputWidth > 1 && iInputWidth == iOutputWidth)
+	{
+		// do a simple memcopy
+		auto iOldSize = sUTF.size();
+		sUTF.resize(iOldSize + iInputSize);
+		void* pOut = sUTF.data() + iOldSize;
+		std::memcpy(pOut, input, iInputSize * iInputWidth);
+		return true;
+	}
+
+	std::size_t iTargetSize;
+
+	switch (iInputWidth)
+	{
+		case 4:
+			switch (iOutputWidth)
+			{
+				case 2:
+					iTargetSize = simd::utf16_length_from_utf32(static_cast<const char32_t*>(input), iInputSize);
+					break;
+				case 1:
+					iTargetSize = simd::utf8_length_from_utf32(static_cast<const char32_t*>(input), iInputSize);
+					break;
+				default:
+					return false;
+			}
+			break;
+
+		case 2:
+			switch (iOutputWidth)
+			{
+				case 4:
+					iTargetSize = simd::utf32_length_from_utf16(static_cast<const char16_t*>(input), iInputSize);
+					break;
+				case 1:
+					iTargetSize = simd::utf8_length_from_utf16(static_cast<const char16_t*>(input), iInputSize);
+					break;
+				default:
+					return false;
+			}
+			break;
+
+		case 1:
+			switch (iOutputWidth)
+			{
+				case 4:
+					iTargetSize = iInputSize;
+					break;
+				case 2:
+					iTargetSize = iInputSize;
+					break;
+				case 1:
+					iTargetSize = simd::utf8_length_from_latin1(static_cast<const char*>(input), iInputSize);
+					break;
+				default:
+					return false;
+			}
+			break;
+
+		default:
+			return false;
+	}
+
+	auto iOldSize = sUTF.size();
+	sUTF.resize (iOldSize + iTargetSize);
+	void* pOut = sUTF.data() + iOldSize;
+	std::size_t iWrote;
+
+	switch (iInputWidth)
+	{
+		case 4:
+			switch (iOutputWidth)
+			{
+				case 2:
+					iWrote = simd::convert_utf32_to_utf16(static_cast<const char32_t*>(input), iInputSize, static_cast<char16_t*>(pOut));
+					break;
+				case 1:
+					iWrote = simd::convert_utf32_to_utf8(static_cast<const char32_t*>(input), iInputSize, static_cast<char*>(pOut));
+					break;
+				default:
+					return false;
+			}
+			break;
+
+		case 2:
+			switch (iOutputWidth)
+			{
+				case 4:
+					iWrote = simd::convert_utf16_to_utf32(static_cast<const char16_t*>(input), iInputSize, static_cast<char32_t*>(pOut));
+					break;
+				case 1:
+					iWrote = simd::convert_utf16_to_utf8(static_cast<const char16_t*>(input), iInputSize, static_cast<char*>(pOut));
+					break;
+				default:
+					return false;
+			}
+			break;
+
+		case 1:
+			switch (iOutputWidth)
+			{
+				case 4:
+					iWrote = simd::convert_latin1_to_utf32(static_cast<const char*>(input), iInputSize, static_cast<char32_t*>(pOut));
+					break;
+				case 2:
+					iWrote = simd::convert_latin1_to_utf16(static_cast<const char*>(input), iInputSize, static_cast<char16_t*>(pOut));
+					break;
+				case 1:
+					iWrote = simd::convert_latin1_to_utf8(static_cast<const char*>(input), iInputSize, static_cast<char*>(pOut));
+					break;
+				default:
+					return false;
+			}
+			break;
+
+		default:
+			return false;
+	}
+
+	return iWrote == iTargetSize;
+
+#else
 
 	for (; KUTF8_LIKELY(it != ie); ++it)
 	{
@@ -457,7 +825,7 @@ void ToUTF8(Iterator& it, Iterator ie, NarrowString& sNarrow)
 		// If we would have surrogate pairs in 32 bit strings it is an error in their
 		// construction in the first place. We will not try to reassemble them.
 		// The UTF8 encoder will convert those to replacement characters.
-		if (sizeof(N) == 2 && KUTF8_UNLIKELY(IsSurrogate(*it)))
+		if (iInputWidth == 2 && KUTF8_UNLIKELY(IsSurrogate(*it)))
 		{
 			if (KUTF8_LIKELY(IsLeadSurrogate(*it)))
 			{
@@ -468,7 +836,7 @@ void ToUTF8(Iterator& it, Iterator ie, NarrowString& sNarrow)
 				if (KUTF8_UNLIKELY(it == ie))
 				{
 					// this is an incomplete surrogate
-					ToUTF8(INVALID_CODEPOINT, sNarrow);
+					ToUTF(INVALID_CODEPOINT, sUTF);
 				}
 				else
 				{
@@ -477,82 +845,87 @@ void ToUTF8(Iterator& it, Iterator ie, NarrowString& sNarrow)
 					if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
 					{
 						// the second surrogate is not valid
-						ToUTF8(INVALID_CODEPOINT, sNarrow);
+						ToUTF(INVALID_CODEPOINT, sUTF);
 					}
 					else
 					{
 						// and output the completed codepoint
-						ToUTF8(sp.ToCodepoint(), sNarrow);
+						ToUTF(sp.ToCodepoint(), sUTF);
 					}
 				}
 			}
 			else
 			{
 				// this was a trail surrogate withoud lead..
-				ToUTF8(INVALID_CODEPOINT, sNarrow);
+				ToUTF(INVALID_CODEPOINT, sUTF);
 			}
 		}
 		else
 		{
 			// default case
-			ToUTF8(*it, sNarrow);
+			ToUTF(*it, sUTF);
 		}
 	}
+
+	return true;
+
+#endif // KUTF8_WITH_SIMDUTF
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) into a UTF8 string from two iterators
-template<typename NarrowString, typename Iterator,
+/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF string (from two iterators)
+template<typename UTFString, typename Iterator,
          typename std::enable_if<!KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-NarrowString ToUTF8(Iterator it, Iterator ie)
+UTFString ToUTF(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	NarrowString sNarrow{};
-	ToUTF8(it, ie, sNarrow);
-	return sNarrow;
+	UTFString sUTF{};
+	ToUTF(it, ie, sUTF);
+	return sUTF;
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) into a UTF8 string
-template<typename NarrowString, typename WideString,
-         typename std::enable_if<!std::is_integral<WideString>::value
-                              && KUTF8_detail::HasSize<WideString>::value, int>::type = 0>
+/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF string
+template<typename UTFString, typename InputString,
+         typename std::enable_if<!std::is_integral<InputString>::value
+                              && KUTF8_detail::HasSize<InputString>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-void ToUTF8(const WideString& sWide, NarrowString& sNarrow)
+bool ToUTF(const InputString& sInput, UTFString& sUTF)
 //-----------------------------------------------------------------------------
 {
-	typename WideString::const_iterator it = sWide.cbegin();
-	typename WideString::const_iterator ie = sWide.cend();
-
-	ToUTF8(it, ie, sNarrow);
+	return ToUTF(sInput.begin(), sInput.end(), sUTF);
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) into a UTF8 string
-template<typename NarrowString, typename WideString,
-         typename std::enable_if<!std::is_integral<WideString>::value
-                              && KUTF8_detail::HasSize<WideString>::value, int>::type = 0>
+/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF string
+template<typename UTFString, typename InputString,
+         typename std::enable_if<!std::is_integral<InputString>::value
+                              && KUTF8_detail::HasSize<InputString>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-NarrowString ToUTF8(const WideString& sWide)
+UTFString ToUTF(const InputString& sInput)
 //-----------------------------------------------------------------------------
 {
-	NarrowString sNarrow{};
-	ToUTF8(sWide, sNarrow);
-	return sNarrow;
+	UTFString sUTF{};
+	ToUTF(sInput, sUTF);
+	return sUTF;
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wchar_t string (UTF16 or UTF32) into a UTF8 string
-template<typename NarrowString>
+/// Convert a wchar_t string (UTF16 or UTF32) into a UTF string
+template<typename UTFString>
 KUTF8_CONSTEXPR_14
-void ToUTF8(const wchar_t* it, NarrowString& sNarrow)
+bool ToUTF(const wchar_t* it, UTFString& sUTF)
 //-----------------------------------------------------------------------------
 {
-	if KUTF8_UNLIKELY(it == nullptr)
-	{
-		return;
-	}
+	if KUTF8_UNLIKELY(it == nullptr) return false;
+
+#if KUTF8_WITH_SIMDUTF
+
+	auto iSize = std::wcslen(it);
+	return ToUTF(it, it + iSize, sUTF);
+
+#else
 
 	for (; KUTF8_LIKELY(*it != 0); ++it)
 	{
@@ -571,7 +944,7 @@ void ToUTF8(const wchar_t* it, NarrowString& sNarrow)
 				if (KUTF8_UNLIKELY(*it == 0))
 				{
 					// this is an incomplete surrogate
-					ToUTF8(INVALID_CODEPOINT, sNarrow);
+					ToUTF(INVALID_CODEPOINT, sUTF);
 				}
 				else
 				{
@@ -580,56 +953,69 @@ void ToUTF8(const wchar_t* it, NarrowString& sNarrow)
 					if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
 					{
 						// the second surrogate is not valid
-						ToUTF8(INVALID_CODEPOINT, sNarrow);
+						ToUTF(INVALID_CODEPOINT, sUTF);
 					}
 					else
 					{
 						// and output the completed codepoint
-						ToUTF8(sp.ToCodepoint(), sNarrow);
+						ToUTF(sp.ToCodepoint(), sUTF);
 					}
 				}
 			}
 			else
 			{
 				// this was a trail surrogate withoud lead..
-				ToUTF8(INVALID_CODEPOINT, sNarrow);
+				ToUTF(INVALID_CODEPOINT, sUTF);
 			}
 		}
 		else
 		{
 			// default case
-			ToUTF8(*it, sNarrow);
+			ToUTF(*it, sUTF);
 		}
 	}
+
+	return true;
+
+#endif // KUTF8_WITH_SIMDUTF
 }
 
 //-----------------------------------------------------------------------------
 /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8 string
-template<typename NarrowString>
+template<typename UTFString>
 KUTF8_CONSTEXPR_14
-NarrowString ToUTF8(const wchar_t* it)
+UTFString ToUTF(const wchar_t* it)
 //-----------------------------------------------------------------------------
 {
-	NarrowString sNarrow{};
-	ToUTF8(it, sNarrow);
-	return sNarrow;
+	UTFString sUTF{};
+	ToUTF(it, sUTF);
+	return sUTF;
 }
 
 //-----------------------------------------------------------------------------
-/// if not at the start of a UTF8 sequence then advance the input iterator until the end of the current UTF8 sequence
+/// if not at the start of a UTF sequence then advance the input iterator until the end of the current UTF sequence
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-void SyncUTF8(Iterator& it, Iterator ie)
+void SyncUTF(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	for (; KUTF8_LIKELY(it != ie); ++it)
-	{
-		auto ch = CodepointCast(*it);
+	using N = typename std::remove_reference<decltype(*it)>::type;
 
-		if (!IsContinuationByte(ch))
+	if (sizeof(N) == 1)
+	{
+		for (; KUTF8_LIKELY(it != ie); ++it)
 		{
-			break;
+			auto cp = CodepointCast(*it);
+
+			if (!IsContinuationByte(cp))
+			{
+				break;
+			}
 		}
+	}
+	else if (sizeof(N) == 2)
+	{
+		if (it != ie && IsLeadSurrogate(*it)) ++it;
 	}
 }
 
@@ -659,100 +1045,103 @@ codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
 		return INVALID_CODEPOINT;
 	}
 
-#if (__cplusplus >= 202002L)
-	// C++20 constexpr permits variable declarations without initialization
-	codepoint_t lower_limit;
-	codepoint_t codepoint;
-	uint16_t    remaining;
-	bool        bCheckForSurrogates;
-#else
-	// for C++ constexpr < 20 we need to initialize the vars at declaration,
-	// so let's take the most probable values (for 2 byte sequences)
-	codepoint_t lower_limit         = 0x080;
-	codepoint_t codepoint           = ch & 0x01f;
-	uint16_t    remaining           = 1;
-	bool        bCheckForSurrogates = false;
-#endif
-
-	if ((ch & 0x0e0) == 0x0c0)
+	do
 	{
-#if (__cplusplus >= 202002L)
-		// for C++20, finally init the vars here
-		lower_limit         = 0x080;
-		codepoint           = ch & 0x01f;
-		remaining           = 1;
-		bCheckForSurrogates = false;
-#endif
-	}
-	else if ((ch & 0x0f0) == 0x0e0)
-	{
-		lower_limit         = 0x0800;
-		codepoint           = ch & 0x0f;
-		remaining           = 2;
-		bCheckForSurrogates = ch == 0xbd;
-	}
-	else if ((ch & 0x0f8) == 0x0f0)
-	{
-		// do not check for too large lead byte values at this place
-		// (ch >= 0x0f5) as apparently that deranges the pipeline.
-		// Testing the final codepoint value below is about 10% faster.
-		lower_limit         = 0x010000;
-		codepoint           = ch & 0x07;
-		remaining           = 3;
-		bCheckForSurrogates = false;
-	}
-	else
-	{
-		// no automatic sync here
-		return INVALID_CODEPOINT;
-	}
-
-	for (;;)
-	{
-		ch = CodepointCast(Read());
-
-		if (ch == static_cast<codepoint_t>(eof))
+		if ((ch & 0x0e0) == 0x0c0)
 		{
-			return INVALID_CODEPOINT;
-		}
+			codepoint_t codepoint = ch & 0x01f;
 
-		if (KUTF8_UNLIKELY(ch > 0x0f4))
-		{
+			ch = CodepointCast(Read());
+
+			if (ch == static_cast<codepoint_t>(eof)) break;
+
 			// a UTF8 sequence cannot contain characters > 0xf4
-			break;
-		}
+			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
 
-		if (KUTF8_UNLIKELY((ch & 0x0c0) != 0x080))
-		{
-			// error, not a continuation byte
-			break;
-		}
+			codepoint <<= 6;
+			codepoint |= (ch & 0x03f);
 
-		codepoint <<= 6;
-		codepoint |= (ch & 0x03f);
-
-		if (!--remaining)
-		{
-			if (KUTF8_UNLIKELY(codepoint < lower_limit))
-			{
-				// error, ambiguous encoding
-				break;
-			}
-
-			if (KUTF8_UNLIKELY(codepoint > CODEPOINT_MAX))
-			{
-				// error, too large for Unicode codepoint
-				break;
-			}
-
-			if (KUTF8_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint)))
-			{
-				break;
-			}
+			// lower limit, protect from ambiguous encoding
+			if (KUTF8_UNLIKELY(codepoint < 0x080)) break;
 
 			return codepoint; // valid
 		}
-	}
+		else if ((ch & 0x0f0) == 0x0e0)
+		{
+			codepoint_t codepoint    = ch & 0x0f;
+			bool bCheckForSurrogates = ch == 0xbd;
+
+			ch = CodepointCast(Read());
+
+			if (ch == static_cast<codepoint_t>(eof)) break;
+
+			// a UTF8 sequence cannot contain characters > 0xf4
+			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+
+			codepoint <<= 6;
+			codepoint |= (ch & 0x03f);
+
+			ch = CodepointCast(Read());
+
+			if (ch == static_cast<codepoint_t>(eof)) break;
+
+			// a UTF8 sequence cannot contain characters > 0xf4
+			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+
+			codepoint <<= 6;
+			codepoint |= (ch & 0x03f);
+
+			// lower limit, protect from ambiguous encoding
+			if (KUTF8_UNLIKELY(codepoint < 0x0800)) break;
+			if (KUTF8_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint))) break;
+
+			return codepoint; // valid
+		}
+		else if ((ch & 0x0f8) == 0x0f0)
+		{
+			// do not check for too large lead byte values at this place
+			// (ch >= 0x0f5) as apparently that deranges the pipeline.
+			// Testing the final codepoint value below is about 10% faster.
+			codepoint_t codepoint = ch & 0x07;
+
+			ch = CodepointCast(Read());
+
+			if (ch == static_cast<codepoint_t>(eof)) break;
+
+			// a UTF8 sequence cannot contain characters > 0xf4
+			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+
+			codepoint <<= 6;
+			codepoint |= (ch & 0x03f);
+
+			ch = CodepointCast(Read());
+
+			if (ch == static_cast<codepoint_t>(eof)) break;
+
+			// a UTF8 sequence cannot contain characters > 0xf4
+			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+
+			codepoint <<= 6;
+			codepoint |= (ch & 0x03f);
+
+			ch = CodepointCast(Read());
+
+			if (ch == static_cast<codepoint_t>(eof)) break;
+
+			// a UTF8 sequence cannot contain characters > 0xf4
+			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+
+			codepoint <<= 6;
+			codepoint |= (ch & 0x03f);
+
+			// lower limit, protect from ambiguous encoding
+			if (KUTF8_UNLIKELY(codepoint < 0x010000)) break;
+			if (KUTF8_UNLIKELY(codepoint > CODEPOINT_MAX)) break;
+
+			return codepoint; // valid
+		}
+
+	} while (false);
 
 	// no sync here ..
 
@@ -771,112 +1160,117 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 
 	assert(it != ie);
 
-	codepoint_t ch = CodepointCast(*it++);
+	auto ch = CodepointCast(it[0]);
 
-	if (KUTF8_LIKELY(ch < 128))
+	if (ch < 128)
 	{
+		++it;
 		return ch;
 	}
 
 	if (sizeof(N) > 1 && KUTF8_UNLIKELY(ch > 0x0ff))
 	{
+		++it;
 		// error, even with char sizes > one byte UTF8 single
 		// values cannot exceed 255
 		return INVALID_CODEPOINT;
 	}
 
-#if (__cplusplus >= 202002L)
-	// C++20 constexpr permits variable declarations without initialization
-	codepoint_t lower_limit;
-	codepoint_t codepoint;
-	uint16_t    remaining;
-	bool        bCheckForSurrogates;
-#else
-	// for C++ constexpr < 20 we need to initialize the vars at declaration,
-	// so let's take the most probable values (for 2 byte sequences)
-	codepoint_t lower_limit         = 0x080;
-	codepoint_t codepoint           = ch & 0x01f;
-	uint16_t    remaining           = 1;
-	bool        bCheckForSurrogates = false;
-#endif
-
-	if ((ch & 0x0e0) == 0x0c0)
+	do
 	{
-#if (__cplusplus >= 202002L)
-		// for C++20, finally init the vars here
-		lower_limit         = 0x080;
-		codepoint           = ch & 0x01f;
-		remaining           = 1;
-		bCheckForSurrogates = false;
-#endif
-	}
-	else if ((ch & 0x0f0) == 0x0e0)
-	{
-		lower_limit         = 0x0800;
-		codepoint           = ch & 0x0f;
-		remaining           = 2;
-		bCheckForSurrogates = ch == 0xbd;
-	}
-	else if ((ch & 0x0f8) == 0x0f0)
-	{
-		// do not check for too large lead byte values at this place
-		// (ch >= 0x0f5) as apparently that deranges the pipeline.
-		// Testing the final codepoint value below is about 10% faster.
-		lower_limit         = 0x010000;
-		codepoint           = ch & 0x07;
-		remaining           = 3;
-		bCheckForSurrogates = false;
-	}
-	else
-	{
-		SyncUTF8(it, ie);
-
-		return INVALID_CODEPOINT;
-	}
-
-	for (; KUTF8_LIKELY(it != ie); )
-	{
-		ch = CodepointCast(*it++);
-
-		if (KUTF8_UNLIKELY(ch > 0x0f4))
+		if ((ch & 0x0e0) == 0x0c0)
 		{
-			// a UTF8 sequence cannot contain characters > 0xf4
-			break;
+			codepoint_t codepoint = (ch & 0x01f) << 6;
+
+			if (std::distance(it, ie) >= 2)
+			{
+				auto ch1 = CodepointCast(it[1]);
+
+				it += 2;
+
+				// a UTF8 sequence cannot contain characters > 0xf4
+				if (KUTF8_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
+
+				codepoint |= (ch1 & 0x03f);
+
+				// lower limit, protect from ambiguous encoding
+				if (KUTF8_UNLIKELY(codepoint < 0x080)) break;
+
+				return codepoint; // valid
+			}
+		}
+		else if ((ch & 0x0f0) == 0x0e0)
+		{
+			codepoint_t codepoint    = (ch & 0x0f) << 12;
+			bool bCheckForSurrogates = ch == 0xbd;
+
+			if (std::distance(it, ie) >= 3)
+			{
+				auto ch1 = CodepointCast(it[1]);
+				auto ch2 = CodepointCast(it[2]);
+
+				it += 3;
+
+				// a UTF8 sequence cannot contain characters > 0xf4
+				if (KUTF8_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
+				if (KUTF8_UNLIKELY(ch2 > 0x0f4 || !IsContinuationByte(ch2))) break;
+
+				ch1 &= 0x03f;
+				ch2 &= 0x03f;
+
+				codepoint |= ch2;
+				codepoint |= ch1 << 6;
+
+				// lower limit, protect from ambiguous encoding
+				if (KUTF8_UNLIKELY(codepoint < 0x0800)) break;
+				if (KUTF8_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint))) break;
+
+				return codepoint; // valid
+			}
+		}
+		else if ((ch & 0x0f8) == 0x0f0)
+		{
+			// do not check for too large lead byte values at this place
+			// (ch >= 0x0f5) as apparently that deranges the pipeline.
+			// Testing the final codepoint value below is about 10% faster.
+			codepoint_t codepoint = (ch & 0x07) << 18;
+
+			if (std::distance(it, ie) >= 4)
+			{
+				auto ch1 = CodepointCast(it[1]);
+				auto ch2 = CodepointCast(it[2]);
+				auto ch3 = CodepointCast(it[3]);
+
+				it += 4;
+
+				// a UTF8 sequence cannot contain characters > 0xf4
+				if (KUTF8_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
+				if (KUTF8_UNLIKELY(ch2 > 0x0f4 || !IsContinuationByte(ch2))) break;
+				if (KUTF8_UNLIKELY(ch3 > 0x0f4 || !IsContinuationByte(ch3))) break;
+
+				ch1 &= 0x03f;
+				ch2 &= 0x03f;
+				ch3 &= 0x03f;
+
+				codepoint |= ch3;
+				codepoint |= ch2 <<  6;
+				codepoint |= ch1 << 12;
+
+				// lower limit, protect from ambiguous encoding
+				if (KUTF8_UNLIKELY(codepoint < 0x010000)) break;
+				if (KUTF8_UNLIKELY(codepoint > CODEPOINT_MAX)) break;
+
+				return codepoint; // valid
+			}
+		}
+		else
+		{
+			++it;
 		}
 
-		if (KUTF8_UNLIKELY((ch & 0x0c0) != 0x080))
-		{
-			// error, not a continuation byte
-			break;
-		}
+	} while (false);
 
-		codepoint <<= 6;
-		codepoint |= (ch & 0x03f);
-
-		if (!--remaining)
-		{
-			if (KUTF8_UNLIKELY(codepoint < lower_limit))
-			{
-				// error, ambiguous encoding
-				break;
-			}
-
-			if (KUTF8_UNLIKELY(codepoint > CODEPOINT_MAX))
-			{
-				// error, too large for Unicode codepoint
-				break;
-			}
-
-			if (KUTF8_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint)))
-			{
-				break;
-			}
-
-			return codepoint; // valid
-		}
-	}
-
-	SyncUTF8(it, ie);
+	SyncUTF(it, ie);
 
 	return INVALID_CODEPOINT;
 }
@@ -944,7 +1338,15 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 	}
 	else
 	{
-		return CodepointCast(*it++);
+		auto cp = CodepointCast(*it++);
+
+		if (KUTF8_UNLIKELY(cp > CODEPOINT_MAX ||
+		                  (cp >= SURROGATE_LOW_START && cp <= SURROGATE_HIGH_END)))
+		{
+			return INVALID_CODEPOINT;
+		}
+
+		return cp;
 	}
 }
 
@@ -956,7 +1358,7 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 /// @return true if it != ie, else false (input string exhausted)
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-bool Advance(Iterator& it, Iterator ie, std::size_t n = 1)
+bool AdvanceUTF(Iterator& it, Iterator ie, std::size_t n = 1)
 //-----------------------------------------------------------------------------
 {
 	for (; n-- > 0 && it != ie; )
@@ -971,159 +1373,158 @@ bool Advance(Iterator& it, Iterator ie, std::size_t n = 1)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
-template<typename OutType, typename InpType>
-KUTF8_CONSTEXPR_14
-void Convert(const InpType& sInp, OutType& sOut)
-//-----------------------------------------------------------------------------
-{
-	constexpr uint16_t out_width = sizeof(typename OutType::value_type);
-
-	typename InpType::const_iterator it = sInp.cbegin();
-	typename InpType::const_iterator ie = sInp.cend();
-
-	for (; KUTF8_LIKELY(it != ie);)
-	{
-		// we only get valid unicode codepoints from Codepoint()
-		// (including the replacement character)
-		codepoint_t ch = Codepoint(it, ie);
-
-		if (out_width == 1)
-		{
-			ToUTF8(ch, sOut);
-		}
-		else if (out_width == 2)
-		{
-			if (NeedsSurrogates(ch))
-			{
-				SurrogatePair sp(ch);
-				sOut += sp.low;
-				sOut += sp.high;
-			}
-			else
-			{
-				sOut += ch;
-			}
-
-		}
-		else
-		{
-			sOut += ch;
-		}
-	}
-}
-
-//-----------------------------------------------------------------------------
-/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
-template<typename OutType, typename InpType>
-KUTF8_CONSTEXPR_14
-OutType Convert(const InpType& sInp)
-//-----------------------------------------------------------------------------
-{
-	OutType sOut{};
-	Convert(sInp, sOut);
-	return sOut;
-}
-
-//-----------------------------------------------------------------------------
-/// Return iterator at position where a UTF8 string uses invalid sequences
+/// Return iterator at position where a UTF string uses invalid sequences (either of UTF8, UTF16, UTF32)
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-Iterator InvalidUTF8(Iterator it, Iterator ie)
+Iterator InvalidUTF(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
+#if KUTF8_WITH_SIMDUTF
+
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
+
+	const void* buf = &*it;
+
+	switch (iInputWidth)
+	{
+		case 4:
+		{
+			auto res = simd::validate_utf32_with_errors(static_cast<const char32_t*>(buf), std::distance(it, ie));
+			return (res.error == simd::SUCCESS) ? ie : it + res.count;
+		}
+		case 2:
+		{
+			auto res = simd::validate_utf16_with_errors(static_cast<const char16_t*>(buf), std::distance(it, ie));
+			return (res.error == simd::SUCCESS) ? ie : it + res.count;
+		}
+		case 1:
+		{
+			auto res = simd::validate_utf8_with_errors(static_cast<const char*>(buf), std::distance(it, ie));
+			return (res.error == simd::SUCCESS) ? ie : it + res.count;
+		}
+		default:
+			break;
+	}
+
+	return it;
+
+#else
+
 	for (;KUTF8_LIKELY(it != ie);)
 	{
 		auto ti = it;
 
-		if (KUTF8_UNLIKELY(CodepointFromUTF8(ti, ie) == INVALID_CODEPOINT))
-		{
-			break;
-		}
-
-		it = ti;
+		if (KUTF8_UNLIKELY(Codepoint(it, ie) == INVALID_CODEPOINT)) return ti;
 	}
 
 	return it;
+
+#endif // KUTF8_WITH_SIMDUTF
 }
 
 //-----------------------------------------------------------------------------
-/// Check if a UTF8 string uses only valid sequences
+/// Check if a UTF string uses only valid sequences (either of UTF8, UTF16, UTF32)
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-bool ValidUTF8(Iterator it, Iterator ie)
+bool ValidUTF(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	return InvalidUTF8(it, ie) == ie;
-}
+#if KUTF8_WITH_SIMDUTF
 
-//-----------------------------------------------------------------------------
-/// Check if a UTF8 string uses only valid sequences
-template<typename NarrowString>
-KUTF8_CONSTEXPR_14
-bool ValidUTF8(const NarrowString& sNarrow)
-//-----------------------------------------------------------------------------
-{
-	return ValidUTF8(sNarrow.begin(), sNarrow.end());
-}
+	using N = typename std::remove_reference<decltype(*it)>::type;
 
-//-----------------------------------------------------------------------------
-/// Check if a UTF8 string uses only valid sequences
-/// @return position of first invalid sequence, or npos if not found
-template<typename NarrowString>
-KUTF8_CONSTEXPR_14
-typename NarrowString::size_type InvalidUTF8(const NarrowString& sNarrow)
-//-----------------------------------------------------------------------------
-{
-	auto it = InvalidUTF8(sNarrow.begin(), sNarrow.end());
+	const void* buf = &*it;
 
-	if (it == sNarrow.end())
+	switch (sizeof(N))
 	{
-		return NarrowString::npos;
+		case 4:
+			return simd::validate_utf32(static_cast<const char32_t*>(buf), std::distance(it, ie));
+		case 2:
+			return simd::validate_utf16(static_cast<const char16_t*>(buf), std::distance(it, ie));
+		case 1:
+			return simd::validate_utf8(static_cast<const char*>(buf), std::distance(it, ie));
+		default:
+			break;
+	}
+
+	return false;
+
+#else
+
+	return InvalidUTF(it, ie) == ie;
+
+#endif // KUTF8_WITH_SIMDUTF
+}
+
+//-----------------------------------------------------------------------------
+/// Check if a UTF string uses only valid sequences (either of UTF8, UTF16, UTF32)
+template<typename UTFString>
+KUTF8_CONSTEXPR_14
+bool ValidUTF(const UTFString& sUTF)
+//-----------------------------------------------------------------------------
+{
+	return ValidUTF(sUTF.begin(), sUTF.end());
+}
+
+//-----------------------------------------------------------------------------
+/// Check if a UTF string uses only valid sequences (either of UTF8, UTF16, UTF32)
+/// @return position of first invalid sequence, or npos if not found
+template<typename UTFString>
+KUTF8_CONSTEXPR_14
+typename UTFString::size_type InvalidUTF(const UTFString& sUTF)
+//-----------------------------------------------------------------------------
+{
+	auto it = InvalidUTF(sUTF.begin(), sUTF.end());
+
+	if (it == sUTF.end())
+	{
+		return UTFString::npos;
 	}
 	else
 	{
-		return it - sNarrow.begin();
+		return it - sUTF.begin();
 	}
 }
 
 //-----------------------------------------------------------------------------
-/// Return iterator after max n UTF8 codepoints, begin (it) should not point inside
-/// a UTF8 sequence
+/// Return iterator after max n UTF8 codepoints
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-Iterator LeftUTF8(Iterator it, Iterator ie, size_t n)
+Iterator LeftUTF8(Iterator it, Iterator ie, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	for (; KUTF8_LIKELY(it < ie && n-- > 0) ;)
-	{
-		codepoint_t ch = CodepointCast(*it);
+	// TBD UTF16 UTF32
 
-		if (KUTF8_LIKELY(ch < 128))
-		{
-			it += 1;
-		}
-		else if ((ch & 0x0e0) == 0x0c0)
-		{
-			it += 2;
-		}
-		else if ((ch & 0x0f0) == 0x0e0)
-		{
-			it += 3;
-		}
-		else if ((ch & 0x0f8) == 0x0f0)
-		{
-			it += 4;
-		}
-		else
-		{
-			break; // invalid..
-		}
+	for (; KUTF8_LIKELY(n >= 8 && std::distance(it, ie) >= 8) ;)
+	{
+		codepoint_t ch = CodepointCast(*it++);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*it++);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*it++);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*it++);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*it++);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*it++);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*it++);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*it++);
+		n -= !IsContinuationByte(ch);
 	}
 
-	if (it > ie)
+	for (; it < ie && n > 0 ;)
 	{
-		it = ie;
+		codepoint_t ch = CodepointCast(*it++);
+		n -= !IsContinuationByte(ch);
+	}
+
+	for (; it < ie; ++it)
+	{
+		codepoint_t ch = CodepointCast(*it);
+		if (!IsContinuationByte(ch)) break;
 	}
 
 	return it;
@@ -1131,38 +1532,51 @@ Iterator LeftUTF8(Iterator it, Iterator ie, size_t n)
 
 //-----------------------------------------------------------------------------
 /// Return string with max n left UTF8 codepoints in sNarrow
-template<typename NarrowString, typename ReturnString = NarrowString>
+template<typename UTF8String, typename ReturnString = UTF8String>
 KUTF8_CONSTEXPR_14
-ReturnString LeftUTF8(const NarrowString& sNarrow, size_t n)
+ReturnString LeftUTF8(const UTF8String& sUTF8, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	auto it = LeftUTF8(sNarrow.begin(), sNarrow.end(), n);
-	return ReturnString(sNarrow.data(), it - sNarrow.begin());
+	// TBD UTF16 UTF32
+
+	auto it = LeftUTF8(sUTF8.begin(), sUTF8.end(), n);
+	return ReturnString(sUTF8.data(), it - sUTF8.begin());
 }
 
 //-----------------------------------------------------------------------------
-/// Return iterator max n UTF8 codepoints before ie, end (ie) should not point inside
-/// a UTF8 sequence
+/// Return iterator max n UTF8 codepoints before ie
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-Iterator RightUTF8(Iterator it, Iterator ie, size_t n)
+Iterator RightUTF8(Iterator it, Iterator ie, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	if (n)
-	{
-		for (; KUTF8_LIKELY(it != ie) ;)
-		{
-			// check if this char starts a UTF8 sequence
-			codepoint_t ch = CodepointCast(*--ie);
+	// TBD UTF16 UTF32
 
-			if (!IsContinuationByte(ch))
-			{
-				if (!--n)
-				{
-					break;
-				}
-			}
-		}
+	for (; KUTF8_LIKELY(n >= 8 && std::distance(it, ie) >= 8) ;)
+	{
+		codepoint_t ch = CodepointCast(*--ie);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*--ie);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*--ie);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*--ie);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*--ie);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*--ie);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*--ie);
+		n -= !IsContinuationByte(ch);
+		ch = CodepointCast(*--ie);
+		n -= !IsContinuationByte(ch);
+	}
+
+	for (; KUTF8_LIKELY(n > 0 && it != ie) ;)
+	{
+		// check if this char starts a UTF8 sequence
+		codepoint_t ch = CodepointCast(*--ie);
+		n -= !IsContinuationByte(ch);
 	}
 
 	return ie;
@@ -1170,160 +1584,160 @@ Iterator RightUTF8(Iterator it, Iterator ie, size_t n)
 
 //-----------------------------------------------------------------------------
 /// Return string with max n right UTF8 codepoints in sNarrow
-template<typename NarrowString, typename ReturnString = NarrowString>
+template<typename UTF8String, typename ReturnString = UTF8String>
 KUTF8_CONSTEXPR_14
-ReturnString RightUTF8(const NarrowString& sNarrow, size_t n)
+ReturnString RightUTF8(const UTF8String& sUTF8, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	auto it = RightUTF8(sNarrow.begin(), sNarrow.end(), n);
-	return ReturnString(sNarrow.data() + (it - sNarrow.begin()), sNarrow.end() - it);
+	// TBD UTF16 UTF32
+
+	auto it = RightUTF8(sUTF8.begin(), sUTF8.end(), n);
+	return ReturnString(sUTF8.data() + (it - sUTF8.begin()), sUTF8.end() - it);
 }
 
 //-----------------------------------------------------------------------------
 /// Return string with max n UTF8 codepoints in sNarrow, starting after pos UTF8 codepoints
-template<typename NarrowString, typename ReturnString = NarrowString>
+template<typename UTF8String, typename ReturnString = UTF8String>
 KUTF8_CONSTEXPR_14
-ReturnString MidUTF8(const NarrowString& sNarrow, size_t pos, size_t n)
+ReturnString MidUTF8(const UTF8String& sUTF8, std::size_t pos, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	auto it = LeftUTF8(sNarrow.begin(), sNarrow.end(), pos);
-	auto ie = LeftUTF8(it, sNarrow.end(), n);
-	return ReturnString(sNarrow.data() + (it - sNarrow.begin()), ie - it);
+	// TBD UTF16 UTF32
+
+	auto it = LeftUTF8(sUTF8.begin(), sUTF8.end(), pos);
+	auto ie = LeftUTF8(it, sUTF8.end(), n);
+	return ReturnString(sUTF8.data() + (it - sUTF8.begin()), ie - it);
 }
 
 //-----------------------------------------------------------------------------
-/// Count number of codepoints in UTF8 range
+/// Count number of codepoints in UTF range (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-size_t CountUTF8(Iterator it, Iterator ie)
+size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1))
 //-----------------------------------------------------------------------------
 {
-	size_t iCount { 0 };
+	using N = typename std::remove_reference<decltype(*it)>::type;
 
-	for (; KUTF8_LIKELY(it < ie) ;)
+#if KUTF8_WITH_SIMDUTF
+
+	switch (sizeof(N))
 	{
-		codepoint_t ch = CodepointCast(*it);
-
-		if (KUTF8_LIKELY(ch < 128))
+		case 4:
 		{
-			it += 1;
+			return std::distance(it, ie);
 		}
-		else if ((ch & 0x0e0) == 0x0c0)
+		case 2:
 		{
-			it += 2;
+			if (iMaxCount != std::size_t(-1) && std::distance(it, ie) > static_cast<std::ptrdiff_t>(iMaxCount))
+			{
+				// reduce the end iterator
+				ie = it + iMaxCount;
+				SyncUTF(ie, ie + 1);
+			}
+			const void* buf = &*it;
+			return simd::count_utf16(static_cast<const char16_t*>(buf), std::distance(it, ie));
 		}
-		else if ((ch & 0x0f0) == 0x0e0)
+		case 1:
 		{
-			it += 3;
+			if (iMaxCount != std::size_t(-1) && std::distance(it, ie) > static_cast<std::ptrdiff_t>(iMaxCount * 4 + 3))
+			{
+				// assuming a max of 4 bytes per codepoint, reduce the end iterator
+				ie = it + iMaxCount * 4;
+				SyncUTF(ie, ie + 4);
+			}
+			const void* buf = &*it;
+			return simd::count_utf8(static_cast<const char*>(buf), std::distance(it, ie));
 		}
-		else if ((ch & 0x0f8) == 0x0f0)
-		{
-			it += 4;
-		}
-		else
-		{
-			break; // invalid..
-		}
-
-		++iCount;
-	}
-
-	if (it > ie && iCount)
-	{
-		// the last codepoint was not complete - subtract one
-		--iCount;
-	}
-
-	return iCount;
-}
-
-//-----------------------------------------------------------------------------
-/// Count number of codepoints in UTF8 range
-template<typename Iterator>
-KUTF8_CONSTEXPR_14
-size_t LazyCountUTF8(Iterator it, Iterator ie)
-//-----------------------------------------------------------------------------
-{
-	size_t iCount { 0 };
-
-	for (; KUTF8_LIKELY(it < ie) ;)
-	{
-		codepoint_t ch = CodepointCast(*it++);
-		iCount += (ch & 0x0c0) != 0x080;
-	}
-
-	return iCount;
-}
-
-//-----------------------------------------------------------------------------
-// we repeat most of the code of the simple CountUTF8 here because
-// the comparison with iMaxCount costs around 20% of performance
-/// Count number of codepoints in UTF8 range, stop at iMaxCount.
-template<typename Iterator>
-KUTF8_CONSTEXPR_14
-size_t CountUTF8(Iterator it, Iterator ie, std::size_t iMaxCount)
-//-----------------------------------------------------------------------------
-{
-	size_t iCount { 0 };
-
-	for (; KUTF8_LIKELY(it < ie) ;)
-	{
-		codepoint_t ch = CodepointCast(*it);
-
-		if (KUTF8_LIKELY(ch < 128))
-		{
-			it += 1;
-		}
-		else if ((ch & 0x0e0) == 0x0c0)
-		{
-			it += 2;
-		}
-		else if ((ch & 0x0f0) == 0x0e0)
-		{
-			it += 3;
-		}
-		else if ((ch & 0x0f8) == 0x0f0)
-		{
-			it += 4;
-		}
-		else
-		{
-			break; // invalid..
-		}
-
-		if (KUTF8_UNLIKELY(++iCount >= iMaxCount))
-		{
+		default:
 			break;
-		}
 	}
 
-	if (it > ie && iCount)
+	return 0;
+
+#else
+
+	if (sizeof(N) == 1)
 	{
-		// the last codepoint was not complete - subtract one
-		--iCount;
+		size_t iCount { 0 };
+
+		for (; KUTF8_LIKELY(std::distance(it, ie) >= 8 && iCount < iMaxCount) ;)
+		{
+			codepoint_t ch = CodepointCast(*it++);
+			iCount += !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsContinuationByte(ch);
+		}
+
+		for (; it < ie && iCount < iMaxCount ;)
+		{
+			codepoint_t ch = CodepointCast(*it++);
+			iCount += !IsContinuationByte(ch);
+		}
+
+		return iCount;
+	}
+	else if (sizeof(N) == 2)
+	{
+		size_t iCount { 0 };
+
+		for (; KUTF8_LIKELY(std::distance(it, ie) >= 8 && iCount < iMaxCount) ;)
+		{
+			codepoint_t ch = CodepointCast(*it++);
+			iCount += !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			iCount += !IsLeadSurrogate(ch);
+		}
+
+		for (; it < ie && iCount < iMaxCount ;)
+		{
+			codepoint_t ch = CodepointCast(*it++);
+			iCount += !IsLeadSurrogate(ch);
+		}
+
+		return iCount;
+	}
+	else if (sizeof(N) == 2)
+	{
+		return std::distance(it, ie);
 	}
 
-	return iCount;
+	return 0;
+
+#endif // KUTF8_WITH_SIMDUTF
 }
 
 //-----------------------------------------------------------------------------
-/// Count number of codepoints in UTF8 string
-template<typename NarrowString>
+/// Count number of codepoints in UTF string (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
+template<typename UTFString>
 KUTF8_CONSTEXPR_14
-size_t CountUTF8(const NarrowString& sNarrow)
+size_t CountUTF(const UTFString& sUTF, std::size_t iMaxCount = std::size_t(-1))
 //-----------------------------------------------------------------------------
 {
-	return CountUTF8(sNarrow.begin(), sNarrow.end());
-}
-
-//-----------------------------------------------------------------------------
-/// Count number of codepoints in UTF8 string, stop at iMaxCount
-template<typename NarrowString>
-KUTF8_CONSTEXPR_14
-size_t CountUTF8(const NarrowString& sNarrow, std::size_t iMaxCount)
-//-----------------------------------------------------------------------------
-{
-	return CountUTF8(sNarrow.begin(), sNarrow.end(), iMaxCount);
+	return CountUTF(sUTF.begin(), sUTF.end());
 }
 
 //-----------------------------------------------------------------------------
@@ -1334,6 +1748,8 @@ KUTF8_CONSTEXPR_14
 codepoint_t PrevCodepointFromUTF8(Iterator ibegin, Iterator& it)
 //-----------------------------------------------------------------------------
 {
+	// TBD UTF16 32
+
 	auto iend = it;
 
 	while (KUTF8_LIKELY(it != ibegin))
@@ -1359,9 +1775,11 @@ codepoint_t PrevCodepointFromUTF8(Iterator ibegin, Iterator& it)
 /// Return codepoint after pos UTF8 codepoints
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-codepoint_t AtUTF8(Iterator it, Iterator ie, size_t pos)
+codepoint_t AtUTF8(Iterator it, Iterator ie, std::size_t pos)
 //-----------------------------------------------------------------------------
 {
+	// TBD UTF16 UTF32
+
 	auto it2 = LeftUTF8(it, ie, pos);
 
 	if (KUTF8_LIKELY(it2 < ie))
@@ -1376,12 +1794,14 @@ codepoint_t AtUTF8(Iterator it, Iterator ie, size_t pos)
 
 //-----------------------------------------------------------------------------
 /// Return codepoint after pos UTF8 codepoints
-template<typename NarrowString>
+template<typename UTF8String>
 KUTF8_CONSTEXPR_14
-codepoint_t AtUTF8(const NarrowString& sNarrow, size_t pos)
+codepoint_t AtUTF8(const UTF8String& sUTF8, std::size_t pos)
 //-----------------------------------------------------------------------------
 {
-	return AtUTF8(sNarrow.begin(), sNarrow.end(), pos);
+	// TBD UTF16 UTF32
+
+	return AtUTF8(sUTF8.begin(), sUTF8.end(), pos);
 }
 
 //-----------------------------------------------------------------------------
@@ -1410,27 +1830,25 @@ bool HasUTF8(Iterator it, Iterator ie)
 
 //-----------------------------------------------------------------------------
 /// Returns true if the first non-ASCII codepoint is valid UTF8
-template<typename NarrowString>
+template<typename UTF8String>
 KUTF8_CONSTEXPR_14
-bool HasUTF8(const NarrowString& sNarrow)
+bool HasUTF8(const UTF8String& sUTF8)
 //-----------------------------------------------------------------------------
 {
-	return HasUTF8(sNarrow.begin(), sNarrow.end());
+	return HasUTF8(sUTF8.begin(), sUTF8.end());
 }
 
 //-----------------------------------------------------------------------------
-/// Convert range between it and ie from UTF8, calling functor func for every
+/// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every
 /// codepoint (which may be INVALID_CODEPOINT for input parsing errors)
-template<typename Iterator, class Functor,
-         typename std::enable_if<(std::is_class<Functor>::value && !KUTF8_detail::HasSize<Functor>::value)
-		                        || std::is_function<Functor>::value, int>::type = 0>
+template<typename Iterator, class Functor>
 KUTF8_CONSTEXPR_14
-bool FromUTF8(Iterator it, Iterator ie, Functor func)
+bool ForEachUTF(Iterator it, Iterator ie, Functor func)
 //-----------------------------------------------------------------------------
 {
 	for (; KUTF8_LIKELY(it != ie);)
 	{
-		codepoint_t codepoint = CodepointFromUTF8(it, ie);
+		codepoint_t codepoint = Codepoint(it, ie);
 
 		if (!func(codepoint))
 		{
@@ -1443,116 +1861,300 @@ bool FromUTF8(Iterator it, Iterator ie, Functor func)
 
 //-----------------------------------------------------------------------------
 /// Convert string from UTF8, calling functor func for every codepoint
-template<typename NarrowString, class Functor,
-		 typename std::enable_if<(std::is_class<Functor>::value && !KUTF8_detail::HasSize<Functor>::value)
-								|| std::is_function<Functor>::value, int>::type = 0>
+template<typename UTFString, class Functor>
 KUTF8_CONSTEXPR_14
-bool FromUTF8(const NarrowString& sNarrow, Functor func)
+bool ForEachUTF(const UTFString& sUTF, Functor func)
 //-----------------------------------------------------------------------------
 {
-	return FromUTF8(sNarrow.begin(), sNarrow.end(), func);
+	return ForEachUTF(sUTF.begin(), sUTF.end(), func);
 }
 
 //-----------------------------------------------------------------------------
-/// Convert string from UTF8 to wide string (either UTF16 or UTF32)
-template<typename NarrowString, typename WideString,
-         typename std::enable_if<!std::is_function<WideString>::value
-		                        && (!std::is_class<WideString>::value || KUTF8_detail::HasSize<WideString>::value), int>::type = 0>
-KUTF8_CONSTEXPR_20
-bool FromUTF8(const NarrowString& sNarrow, WideString& sWide)
+/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+template<typename OutType, typename InpType>
+KUTF8_CONSTEXPR_14
+bool ConvertUTF(const InpType& sInput, OutType& sOutput)
 //-----------------------------------------------------------------------------
 {
-	using W = typename WideString::value_type;
+#if	KUTF8_WITH_SIMDUTF
 
-	static_assert(sizeof(W) > 1, "target string needs to be at least 16 bit wide");
+	constexpr size_t iInputWidth  = sizeof(typename InpType::value_type);
+	constexpr size_t iOutputWidth = sizeof(typename OutType::value_type);
 
-	return FromUTF8(sNarrow, [&sWide](codepoint_t uch)
+	if (iInputWidth == iOutputWidth)
 	{
-		if (sizeof(W) == 2 && NeedsSurrogates(uch))
+		// do a simple memcopy
+		auto iOldSize = sOutput.size();
+		sOutput.resize(iOldSize + sInput.size());
+		void* pOut = sOutput.data() + iOldSize;
+		const void* pIn = sInput.data();
+		std::memcpy(pOut, pIn, sInput.size() * iInputWidth);
+		return true;
+	}
+	else if (iInputWidth == 1)
+	{
+		// convert from UTF8 to 16 or 32
+		std::size_t iTargetSize;
+		const void* pIn = sInput.data();
+
+		switch (iOutputWidth)
 		{
-			SurrogatePair sp(uch);
-			sWide += static_cast<W>(sp.low);
-			sWide += static_cast<W>(sp.high);
+			case 4:
+				iTargetSize = simd::utf32_length_from_utf8(static_cast<const char*>(pIn), sInput.size());
+				break;
+			case 2:
+				iTargetSize = simd::utf16_length_from_utf8(static_cast<const char*>(pIn), sInput.size());
+				break;
+			default:
+				return false;
+		}
+
+		auto iOldSize = sOutput.size();
+		sOutput.resize(iOldSize + iTargetSize);
+		void* pOut = sOutput.data() + iOldSize;
+		std::size_t iWrote;
+
+		switch (iOutputWidth)
+		{
+			case 4:
+				iWrote = simd::convert_utf8_to_utf32(static_cast<const char*>(pIn), sInput.size(), static_cast<char32_t*>(pOut));
+				break;
+			case 2:
+				iWrote = simd::convert_utf8_to_utf16(static_cast<const char*>(pIn), sInput.size(), static_cast<char16_t*>(pOut));
+				break;
+			default:
+				return false;
+		}
+
+		return (iWrote == iTargetSize);
+	}
+	else if (iOutputWidth == 1)
+	{
+		// convert from 16 or 32 to UTF8
+		return ToUTF(sInput, sOutput);
+	}
+	else if (iInputWidth == 2 && iOutputWidth == 4)
+	{
+		const void* pIn = sInput.data();
+		auto iTargetSize = simd::utf32_length_from_utf16(static_cast<const char16_t*>(pIn), sInput.size());
+		auto iOldSize = sOutput.size();
+		sOutput.resize(iOldSize + iTargetSize);
+		void* pOut = sOutput.data() + iOldSize;
+		auto iWrote = simd::convert_utf16_to_utf32(static_cast<const char16_t*>(pIn), sInput.size(), static_cast<char32_t*>(pOut));
+		return iWrote == iTargetSize;
+	}
+	else if (iInputWidth == 4 && iOutputWidth == 2)
+	{
+		const void* pIn = sInput.data();
+		auto iTargetSize = simd::utf16_length_from_utf32(static_cast<const char32_t*>(pIn), sInput.size());
+		auto iOldSize = sOutput.size();
+		sOutput.resize(iOldSize + iTargetSize);
+		void* pOut = sOutput.data() + iOldSize;
+		auto iWrote = simd::convert_utf32_to_utf16(static_cast<const char32_t*>(pIn), sInput.size(), static_cast<char16_t*>(pOut));
+		return iWrote == iTargetSize;
+	}
+
+	return false;
+
+#else // KUTF8_WITH_SIMDUTF
+
+	auto it = sInput.begin();
+	auto ie = sInput.end();
+
+	for (; KUTF8_LIKELY(it != ie);)
+	{
+		ToUTF(Codepoint(it, ie), sOutput);
+	}
+
+	return true;
+
+#endif // KUTF8_WITH_SIMDUTF
+}
+
+//-----------------------------------------------------------------------------
+/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+template<typename OutType, typename InpType>
+KUTF8_CONSTEXPR_14
+OutType ConvertUTF(const InpType& sInp)
+//-----------------------------------------------------------------------------
+{
+	OutType sOut{};
+	ConvertUTF(sInp, sOut);
+	return sOut;
+}
+
+//-----------------------------------------------------------------------------
+/// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
+/// functor for each codepoint.
+/// @param sInput the UTF input string
+/// @param sOutput the UTF output string
+/// @param func the transformation functor, called with signature bool(codepoint_t)
+/// @return always true
+template<typename UTFString, typename ReturnUTFString, class Functor>
+bool TransformUTF(const UTFString& sInput, ReturnUTFString& sOutput, Functor func)
+//-----------------------------------------------------------------------------
+{
+	return ForEachUTF(sInput, [&sOutput, &func](codepoint_t cp)
+	{
+		ToUTF(func(cp), sOutput);
+		return true;
+	});
+}
+
+//-----------------------------------------------------------------------------
+/// Transform a Unicode string into a lowercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
+/// @param sInput the UTF8 input string
+/// @param sOutput the output UTF8 string
+template<typename InputString, typename OutputString>
+void ToLowerUTF(const InputString& sInput, OutputString& sOutput)
+//-----------------------------------------------------------------------------
+{
+	constexpr auto iInputWidth  = sizeof(typename InputString::value_type);
+	constexpr auto iOutputWidth = sizeof(typename OutputString::value_type);
+
+	if (iOutputWidth == 4)
+	{
+		using value_type = typename OutputString::value_type;
+
+		if (iInputWidth == 4)
+		{
+			// we do not need to convert, but will simply transform from input to output
+			std::transform(sInput.begin(), sInput.end(), sOutput.begin(), [](value_type cp)
+			{
+	#ifdef KUTF8_DEKAF2
+				return kToLower(cp);
+	#else
+				return std::towlower(cp);
+	#endif
+			});
 		}
 		else
 		{
-			sWide += static_cast<W>(uch);
+			// we can convert directly into the target
+			ConvertUTF(sInput, sOutput);
+			// and transform right there
+			std::transform(sOutput.begin(), sOutput.end(), sOutput.begin(), [](value_type cp)
+			{
+	#ifdef KUTF8_DEKAF2
+				return kToLower(cp);
+	#else
+				return std::towlower(cp);
+	#endif
+			});
 		}
-		return true;
-	});
-}
-
-//-----------------------------------------------------------------------------
-/// Convert string from UTF8 to wide string (either UTF16 or UTF32, depending on the value_type of the string)
-template<typename WideString = std::u32string, typename NarrowString = std::string,
-		 typename std::enable_if<!std::is_function<WideString>::value
-								&& (!std::is_class<WideString>::value || KUTF8_detail::HasSize<WideString>::value), int>::type = 0>
-KUTF8_CONSTEXPR_20
-WideString FromUTF8(const NarrowString& sNarrow)
-//-----------------------------------------------------------------------------
-{
-	WideString sWide{};
-	FromUTF8(sNarrow, sWide);
-	return sWide;
-}
-
-//-----------------------------------------------------------------------------
-/// Transform a UTF8 string into another string, narrow or wide, calling a transformation
-/// functor for each codepoint.
-/// @param sInput the UTF8 input string
-/// @param sOutput the output string, passed on to the functor
-/// @param func the transformation functor, called with signature bool(codepoint_t, ReturnString&)
-/// @return true for success, false for failure (any failure in the functor)
-template<typename NarrowString, typename ReturnString, class Functor>
-bool TransformUTF8(const NarrowString& sInput, ReturnString& sOutput, Functor func)
-//-----------------------------------------------------------------------------
-{
-	return FromUTF8(sInput, [&sOutput, &func](codepoint_t uch)
+	}
+	else
 	{
-		return func(uch, sOutput);
-	});
+
+#if	KUTF8_WITH_SIMDUTF
+
+		// we convert into an intermediate type and back to the requested output type
+		std::u32string sTemp;
+		ConvertUTF(sInput, sTemp);
+		std::transform(sTemp.begin(), sTemp.end(), sTemp.begin(), [](codepoint_t cp)
+		{
+	#ifdef KUTF8_DEKAF2
+			return kToLower(cp);
+	#else
+			return std::towlower(cp);
+	#endif
+		});
+		ConvertUTF(sTemp, sOutput);
+
+#else
+
+		sOutput.reserve(sOutput.size() + sInput.size());
+
+		TransformUTF(sInput, sOutput, [](codepoint_t cp)
+		{
+	#ifdef KUTF8_DEKAF2
+			return kToLower(cp);
+	#else
+			return std::towlower(cp);
+	#endif
+		});
+
+#endif
+
+	}
 }
 
 //-----------------------------------------------------------------------------
-/// Transform a UTF8 string into a lowercase UTF8 string.
+/// Transform a Unicode string into an uppercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
 /// @param sInput the UTF8 input string
 /// @param sOutput the output UTF8 string
-template<typename NarrowString, typename NarrowReturnString>
-void ToLowerUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
+template<typename InputString, typename OutputString>
+void ToUpperUTF(const InputString& sInput, OutputString& sOutput)
 //-----------------------------------------------------------------------------
 {
-	sOutput.reserve(sOutput.size() + sInput.size());
+	constexpr auto iInputWidth  = sizeof(typename InputString::value_type);
+	constexpr auto iOutputWidth = sizeof(typename OutputString::value_type);
 
-	TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
+	if (iOutputWidth == 4)
 	{
-#ifdef KUTF8_DEKAF2
-		ToUTF8(kToLower(uch), sOut);
-#else
-		ToUTF8(std::towlower(uch), sOut);
-#endif
-		return true;
-	});
-}
+		using value_type = typename OutputString::value_type;
 
-//-----------------------------------------------------------------------------
-/// Transform a UTF8 string into a uppercase UTF8 string.
-/// @param sInput the UTF8 input string
-/// @param sOutput the output UTF8 string
-template<typename NarrowString, typename NarrowReturnString>
-void ToUpperUTF8(const NarrowString& sInput, NarrowReturnString& sOutput)
-//-----------------------------------------------------------------------------
-{
-	sOutput.reserve(sOutput.size() + sInput.size());
-
-	TransformUTF8(sInput, sOutput, [](codepoint_t uch, NarrowReturnString& sOut)
+		if (iInputWidth == 4)
+		{
+			// we do not need to convert, but will simply transform from input to output
+			std::transform(sInput.begin(), sInput.end(), sOutput.begin(), [](value_type cp)
+			{
+	#ifdef KUTF8_DEKAF2
+				return kToUpper(cp);
+	#else
+				return std::towupper(cp);
+	#endif
+			});
+		}
+		else
+		{
+			// we can convert directly into the target
+			ConvertUTF(sInput, sOutput);
+			// and transform right there
+			std::transform(sOutput.begin(), sOutput.end(), sOutput.begin(), [](value_type cp)
+			{
+	#ifdef KUTF8_DEKAF2
+				return kToUpper(cp);
+	#else
+				return std::towupper(cp);
+	#endif
+			});
+		}
+	}
+	else
 	{
-#ifdef KUTF8_DEKAF2
-		ToUTF8(kToUpper(uch), sOut);
+
+#if	KUTF8_WITH_SIMDUTF
+
+		// we convert into an intermediate type and back to the requested output type
+		std::u32string sTemp;
+		ConvertUTF(sInput, sTemp);
+		std::transform(sTemp.begin(), sTemp.end(), sTemp.begin(), [](codepoint_t cp)
+		{
+	#ifdef KUTF8_DEKAF2
+			return kToUpper(cp);
+	#else
+			return std::towupper(cp);
+	#endif
+		});
+		ConvertUTF(sTemp, sOutput);
+
 #else
-		ToUTF8(std::towupper(uch), sOut);
+
+		sOutput.reserve(sOutput.size() + sInput.size());
+
+		TransformUTF(sInput, sOutput, [](codepoint_t cp)
+		{
+	#ifdef KUTF8_DEKAF2
+			return kToUpper(cp);
+	#else
+			return std::towupper(cp);
+	#endif
+		});
+
 #endif
-		return true;
-	});
+
+	}
 }
 
 namespace CESU8 {
@@ -1575,7 +2177,7 @@ NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 
 		if (KUTF8_UNLIKELY(it == ie))
 		{
-			ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+			ToUTF(REPLACEMENT_CHARACTER, sNarrow);
 		}
 		else
 		{
@@ -1595,28 +2197,28 @@ NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 						if (IsTrailSurrogate(sp.high))
 						{
 							++it;
-							ToUTF8(sp.ToCodepoint(), sNarrow);
+							ToUTF(sp.ToCodepoint(), sNarrow);
 						}
 						else
 						{
 							// the second surrogate is not valid
-							ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+							ToUTF(REPLACEMENT_CHARACTER, sNarrow);
 						}
 					}
 					else
 					{
-						ToUTF8(REPLACEMENT_CHARACTER, sNarrow);
+						ToUTF(REPLACEMENT_CHARACTER, sNarrow);
 					}
 				}
 				else
 				{
 					// we treat incomplete surrogates as simple ucs2
-					ToUTF8(sp.low, sNarrow);
+					ToUTF(sp.low, sNarrow);
 				}
 			}
 			else
 			{
-				ToUTF8(sp.low, sNarrow);
+				ToUTF(sp.low, sNarrow);
 			}
 		}
 	}
@@ -1641,31 +2243,31 @@ KUTF8_CONSTEXPR_14
 ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
 //-----------------------------------------------------------------------------
 {
-	using W = typename ByteString::value_type;
+	using value_type = typename ByteString::value_type;
 
-	ByteString sUTF16ByteString{};
-	sUTF16ByteString.reserve(sUTF8String.size() * 2);
+	ByteString sOut{};
+	sOut.reserve(sUTF8String.size() * 2);
 
-	TransformUTF8(sUTF8String, sUTF16ByteString, [](codepoint_t uch, ByteString& sOut)
+	ForEachUTF(sUTF8String, [&sOut](codepoint_t cp)
 	{
-		if (NeedsSurrogates(uch))
+		if (NeedsSurrogates(cp))
 		{
-			SurrogatePair sp(uch);
-			sOut += static_cast<W>(sp.low  >> 8 & 0x0ff);
-			sOut += static_cast<W>(sp.low       & 0x0ff);
-			sOut += static_cast<W>(sp.high >> 8 & 0x0ff);
-			sOut += static_cast<W>(sp.high      & 0x0ff);
+			SurrogatePair sp(cp);
+			sOut += static_cast<value_type>(sp.low  >> 8 & 0x0ff);
+			sOut += static_cast<value_type>(sp.low       & 0x0ff);
+			sOut += static_cast<value_type>(sp.high >> 8 & 0x0ff);
+			sOut += static_cast<value_type>(sp.high      & 0x0ff);
 		}
 		else
 		{
-			sOut += static_cast<W>(uch >>  8 & 0x0ff);
-			sOut += static_cast<W>(uch       & 0x0ff);
+			sOut += static_cast<value_type>(cp >>  8 & 0x0ff);
+			sOut += static_cast<value_type>(cp       & 0x0ff);
 		}
 		return true;
 
 	});
 
-	return sUTF16ByteString;
+	return sOut;
 }
 
 } // namespace CESU8

@@ -2091,7 +2091,7 @@ inline KStringView KString::LeftUTF8(size_type iCount) const &
 inline KString&& KString::LeftUTF8(size_type iCount) &&
 //-----------------------------------------------------------------------------
 {
-	return std::move(kMakeLeftUTF8(*this, iCount));
+	return std::move(kMakeLeftUTF(*this, iCount));
 }
 
 //-----------------------------------------------------------------------------
@@ -2105,7 +2105,7 @@ inline KStringViewZ KString::MidUTF8(size_type iStart) const &
 inline KString&& KString::MidUTF8(size_type iStart) &&
 //-----------------------------------------------------------------------------
 {
-	return std::move(kMakeMidUTF8(*this, iStart));
+	return std::move(kMakeMidUTF(*this, iStart));
 }
 
 //-----------------------------------------------------------------------------
@@ -2119,7 +2119,7 @@ inline KStringView KString::MidUTF8(size_type iStart, size_type iCount) const &
 inline KString&& KString::MidUTF8(size_type iStart, size_type iCount) &&
 //-----------------------------------------------------------------------------
 {
-	return std::move(kMakeMidUTF8(*this, iStart, iCount));
+	return std::move(kMakeMidUTF(*this, iStart, iCount));
 }
 
 //-----------------------------------------------------------------------------
@@ -2133,7 +2133,7 @@ inline KStringViewZ KString::RightUTF8(size_type iCount) const &
 inline KString&& KString::RightUTF8(size_type iCount) &&
 //-----------------------------------------------------------------------------
 {
-	return std::move(kMakeRightUTF8(*this, iCount));
+	return std::move(kMakeRightUTF(*this, iCount));
 }
 
 //-----------------------------------------------------------------------------

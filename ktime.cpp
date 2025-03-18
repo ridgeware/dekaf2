@@ -1262,7 +1262,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 				auto iCheckPos = it->iPos;
 
-				if (iCheckPos == 0 || Unicode::CodepointCast(it->sFormat[iCheckPos]) == Unicode::AtUTF8(sTimestamp, iCheckPos))
+				if (iCheckPos == 0 || Unicode::CodepointCast(it->sFormat[iCheckPos]) == Unicode::AtUTF(sTimestamp, iCheckPos))
 				{
 					auto tm = Parse(it->sFormat, sTimestamp);
 

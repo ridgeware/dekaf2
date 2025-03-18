@@ -82,21 +82,21 @@ TEST_CASE("UTF8") {
 	{
 		KString sStr("testäöü test日本語abc中文Русский");
 		CHECK(                sStr.size() == 47       );
-		CHECK( Unicode::LeftUTF8(sStr, 7) == "testäöü");
+		CHECK( Unicode::LeftUTF(sStr, 7) == "testäöü");
 	}
 
 	SECTION("RightUTF8")
 	{
 		KString sStr("testäöü test日本語abc中文Русский");
 		CHECK(                  sStr.size() == 47           );
-		CHECK( Unicode::RightUTF8(sStr, 10) == "c中文Русский");
+		CHECK( Unicode::RightUTF(sStr, 10) == "c中文Русский");
 	}
 
 	SECTION("MidUTF8")
 	{
 		KString sStr("testäöü test日本語abc中文Русский");
 		CHECK(                  sStr.size() == 47         );
-		CHECK( Unicode::MidUTF8(sStr, 8, 7) == "test日本語");
+		CHECK( Unicode::MidUTF(sStr, 8, 7) == "test日本語");
 	}
 
 	SECTION("UTF8ToUTF16Bytes")

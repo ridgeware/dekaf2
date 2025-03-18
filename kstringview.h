@@ -2129,7 +2129,7 @@ DEKAF2_CONSTEXPR_14
 KStringView KStringView::LeftUTF8(size_type iCount) const
 //-----------------------------------------------------------------------------
 {
-	return kLeftUTF8<KStringView, KStringView>(*this, iCount);
+	return kLeftUTF<KStringView, KStringView>(*this, iCount);
 }
 
 //-----------------------------------------------------------------------------
@@ -2139,7 +2139,7 @@ DEKAF2_CONSTEXPR_14
 KStringView KStringView::MidUTF8(size_type iStart, size_type iCount) const
 //-----------------------------------------------------------------------------
 {
-	return kMidUTF8<KStringView, KStringView>(*this, iStart, iCount);
+	return kMidUTF<KStringView, KStringView>(*this, iStart, iCount);
 }
 
 //-----------------------------------------------------------------------------
@@ -2149,7 +2149,7 @@ DEKAF2_CONSTEXPR_14
 KStringView KStringView::RightUTF8(size_type iCount) const
 //-----------------------------------------------------------------------------
 {
-	return kRightUTF8<KStringView, KStringView>(*this, iCount);
+	return kRightUTF<KStringView, KStringView>(*this, iCount);
 }
 
 //-----------------------------------------------------------------------------
@@ -2159,7 +2159,7 @@ DEKAF2_CONSTEXPR_14
 KCodePoint KStringView::AtUTF8(size_type iCount) const
 //-----------------------------------------------------------------------------
 {
-	return kAtUTF8(*this, iCount);
+	return kAtUTF(*this, iCount);
 }
 
 //-----------------------------------------------------------------------------

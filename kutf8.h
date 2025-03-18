@@ -128,7 +128,7 @@
 
  /// Return codepoint before position it in range ibegin-it, decrement it to point
  /// to the begin of the new (previous) codepoint
- codepoint_t PrevCodepointFromUTF8(Iterator ibegin, Iterator& it)
+ codepoint_t PrevCodepoint(Iterator ibegin, Iterator& it)
 
  /// Returns a 32 bit codepoint from either UTF8, UTF16, or UTF32. If at call (it == ie) -> undefined behaviour
  codepoint_t Codepoint(Iterator& it, Iterator ie)
@@ -174,23 +174,23 @@
 
  --- substrings, iterator movement
 
- /// Return iterator after max n UTF8 codepoints
- Iterator LeftUTF8(Iterator it, Iterator ie, std::size_t n)
+ /// Return iterator after max n UTF8/UTF16/UTF32 codepoints
+ Iterator LeftUTF(Iterator it, Iterator ie, std::size_t n)
 
- /// Return string with max n left UTF8 codepoints in sNarrow
- ReturnString LeftUTF8(const UTF8String& sUTF8, std::size_t n)
+ /// Return string with max n left UTF8/UTF16/UTF32 codepoints in sUTF
+ ReturnString LeftUTF(const UTFString& sUTF, std::size_t n)
 
- /// Return iterator max n UTF8 codepoints before ie
- Iterator RightUTF8(Iterator it, Iterator ie, std::size_t n)
+ /// Return iterator max n UTF8/UTF16/UTF32 codepoints before ie
+ Iterator RightUTF(Iterator it, Iterator ie, std::size_t n)
 
- /// Return string with max n right UTF8 codepoints in sNarrow
- ReturnString RightUTF8(const UTF8String& sUTF8, size_t n)
+ /// Return string with max n right UTF8/UTF16/UTF32 codepoints in sUTF
+ ReturnString RightUTF(const UTFString& sUTF, size_t n)
 
- /// Return string with max n UTF8 codepoints in sNarrow, starting after pos UTF8 codepoints
- ReturnString MidUTF8(const UTF8String& sUTF8, std::size_t pos, std::size_t n)
+ /// Return string with max n UTF8/UTF16/UTF32 codepoints in sUTF, starting after pos UTF8/UTF16/UTF32 codepoints
+ ReturnString MidUTF(const UTFString& sUTF, std::size_t pos, std::size_t n)
 
- /// Return codepoint after pos UTF8 codepoints
- codepoint_t AtUTF8(Iterator it, Iterator ie, std::size_t pos)
+ /// Return codepoint after pos UTF8/UTF16/UTF32 codepoints
+ codepoint_t AtUTF(Iterator it, Iterator ie, std::size_t pos)
 
  --- transformation
 
@@ -1441,126 +1441,195 @@ typename UTFString::size_type InvalidUTF(const UTFString& sUTF)
 }
 
 //-----------------------------------------------------------------------------
-/// Return iterator after max n UTF8 codepoints
+/// Return iterator after max n UTF8/UTF16/UTF32 codepoints
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-Iterator LeftUTF8(Iterator it, Iterator ie, std::size_t n)
+Iterator LeftUTF(Iterator it, Iterator ie, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	// TBD UTF16 UTF32
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
-	for (; KUTF8_LIKELY(n >= 8 && std::distance(it, ie) >= 8) ;)
+	if (iInputWidth == 1)
 	{
-		codepoint_t ch = CodepointCast(*it++);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*it++);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*it++);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*it++);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*it++);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*it++);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*it++);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*it++);
-		n -= !IsContinuationByte(ch);
-	}
+		for (; KUTF8_LIKELY(n >= 8 && std::distance(it, ie) >= 8) ;)
+		{
+			codepoint_t ch = CodepointCast(*it++);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsContinuationByte(ch);
+		}
 
-	for (; it < ie && n > 0 ;)
+		for (; it < ie && n > 0 ;)
+		{
+			codepoint_t ch = CodepointCast(*it++);
+			n -= !IsContinuationByte(ch);
+		}
+
+		for (; it < ie; ++it)
+		{
+			codepoint_t ch = CodepointCast(*it);
+			if (!IsContinuationByte(ch)) break;
+		}
+	}
+	else if (iInputWidth == 2)
 	{
-		codepoint_t ch = CodepointCast(*it++);
-		n -= !IsContinuationByte(ch);
-	}
+		for (; KUTF8_LIKELY(n >= 8 && std::distance(it, ie) >= 8) ;)
+		{
+			codepoint_t ch = CodepointCast(*it++);
+			n -= !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsLeadSurrogate(ch);
+			ch = CodepointCast(*it++);
+			n -= !IsLeadSurrogate(ch);
+		}
 
-	for (; it < ie; ++it)
+		for (; it < ie && n > 0 ;)
+		{
+			codepoint_t ch = CodepointCast(*it++);
+			n -= !IsLeadSurrogate(ch);
+		}
+	}
+	else if (iInputWidth == 4)
 	{
-		codepoint_t ch = CodepointCast(*it);
-		if (!IsContinuationByte(ch)) break;
+		if (it < ie)
+		{
+			it += std::min(static_cast<std::size_t>(std::distance(it, ie)), n);
+		}
 	}
-
+	
 	return it;
 }
 
 //-----------------------------------------------------------------------------
 /// Return string with max n left UTF8 codepoints in sNarrow
-template<typename UTF8String, typename ReturnString = UTF8String>
+template<typename UTFString, typename ReturnString = UTFString>
 KUTF8_CONSTEXPR_14
-ReturnString LeftUTF8(const UTF8String& sUTF8, std::size_t n)
+ReturnString LeftUTF(const UTFString& sUTF, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	// TBD UTF16 UTF32
-
-	auto it = LeftUTF8(sUTF8.begin(), sUTF8.end(), n);
-	return ReturnString(sUTF8.data(), it - sUTF8.begin());
+	auto it = LeftUTF(sUTF.begin(), sUTF.end(), n);
+	return ReturnString(sUTF.data(), it - sUTF.begin());
 }
 
 //-----------------------------------------------------------------------------
-/// Return iterator max n UTF8 codepoints before ie
+/// Return iterator max n UTF8/UTF16/UTF32 codepoints before ie
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-Iterator RightUTF8(Iterator it, Iterator ie, std::size_t n)
+Iterator RightUTF(Iterator it, Iterator ie, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	// TBD UTF16 UTF32
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
-	for (; KUTF8_LIKELY(n >= 8 && std::distance(it, ie) >= 8) ;)
+	if (iInputWidth == 1)
 	{
-		codepoint_t ch = CodepointCast(*--ie);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*--ie);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*--ie);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*--ie);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*--ie);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*--ie);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*--ie);
-		n -= !IsContinuationByte(ch);
-		ch = CodepointCast(*--ie);
-		n -= !IsContinuationByte(ch);
+		for (; KUTF8_LIKELY(n >= 8 && std::distance(it, ie) >= 8) ;)
+		{
+			codepoint_t ch = CodepointCast(*--ie);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsContinuationByte(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsContinuationByte(ch);
+		}
+
+		for (; KUTF8_LIKELY(n > 0 && it != ie) ;)
+		{
+			// check if this char starts a UTF8 sequence
+			codepoint_t ch = CodepointCast(*--ie);
+			n -= !IsContinuationByte(ch);
+		}
 	}
-
-	for (; KUTF8_LIKELY(n > 0 && it != ie) ;)
+	else if (iInputWidth == 2)
 	{
-		// check if this char starts a UTF8 sequence
-		codepoint_t ch = CodepointCast(*--ie);
-		n -= !IsContinuationByte(ch);
+		for (; KUTF8_LIKELY(n >= 8 && std::distance(it, ie) >= 8) ;)
+		{
+			codepoint_t ch = CodepointCast(*--ie);
+			n -= !IsTrailSurrogate(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsTrailSurrogate(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsTrailSurrogate(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsTrailSurrogate(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsTrailSurrogate(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsTrailSurrogate(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsTrailSurrogate(ch);
+			ch = CodepointCast(*--ie);
+			n -= !IsTrailSurrogate(ch);
+		}
+		for (; it < ie && n > 0 ;)
+		{
+			codepoint_t ch = CodepointCast(*--ie);
+			n -= !IsTrailSurrogate(ch);
+		}
+	}
+	else if (iInputWidth == 4)
+	{
+		if (it < ie)
+		{
+			it -= std::min(static_cast<std::size_t>(std::distance(it, ie)), n);
+		}
 	}
 
 	return ie;
 }
 
 //-----------------------------------------------------------------------------
-/// Return string with max n right UTF8 codepoints in sNarrow
-template<typename UTF8String, typename ReturnString = UTF8String>
+/// Return string with max n right UTF8/UTF16/UTF32 codepoints in sNarrow
+template<typename UTFString, typename ReturnString = UTFString>
 KUTF8_CONSTEXPR_14
-ReturnString RightUTF8(const UTF8String& sUTF8, std::size_t n)
+ReturnString RightUTF(const UTFString& sUTF, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	// TBD UTF16 UTF32
-
-	auto it = RightUTF8(sUTF8.begin(), sUTF8.end(), n);
-	return ReturnString(sUTF8.data() + (it - sUTF8.begin()), sUTF8.end() - it);
+	auto it = RightUTF(sUTF.begin(), sUTF.end(), n);
+	return ReturnString(sUTF.data() + (it - sUTF.begin()), sUTF.end() - it);
 }
 
 //-----------------------------------------------------------------------------
-/// Return string with max n UTF8 codepoints in sNarrow, starting after pos UTF8 codepoints
-template<typename UTF8String, typename ReturnString = UTF8String>
+/// Return string with max n UTF8/UTF16/UTF32 codepoints in sNarrow, starting after pos UTF8/UTF16/UTF32 codepoints
+template<typename UTFString, typename ReturnString = UTFString>
 KUTF8_CONSTEXPR_14
-ReturnString MidUTF8(const UTF8String& sUTF8, std::size_t pos, std::size_t n)
+ReturnString MidUTF(const UTFString& sUTF, std::size_t pos, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	// TBD UTF16 UTF32
-
-	auto it = LeftUTF8(sUTF8.begin(), sUTF8.end(), pos);
-	auto ie = LeftUTF8(it, sUTF8.end(), n);
-	return ReturnString(sUTF8.data() + (it - sUTF8.begin()), ie - it);
+	auto it = LeftUTF(sUTF.begin(), sUTF.end(), pos);
+	auto ie = LeftUTF(it, sUTF.end(), n);
+	return ReturnString(sUTF.data() + (it - sUTF.begin()), ie - it);
 }
 
 //-----------------------------------------------------------------------------
@@ -1699,26 +1768,55 @@ std::size_t CountUTF(const UTFString& sUTF, std::size_t iMaxCount = std::size_t(
 /// to the begin of the new (previous) codepoint
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-codepoint_t PrevCodepointFromUTF8(Iterator ibegin, Iterator& it)
+codepoint_t PrevCodepoint(Iterator ibegin, Iterator& it)
 //-----------------------------------------------------------------------------
 {
-	// TBD UTF16 32
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
-	auto iend = it;
-
-	while (KUTF8_LIKELY(it != ibegin))
+	if (iInputWidth == 1)
 	{
-		// check if this char starts a UTF8 sequence
-		codepoint_t ch = CodepointCast(*--it);
+		auto iend = it;
 
-		if (KUTF8_LIKELY(ch < 128))
+		while (KUTF8_LIKELY(it != ibegin))
 		{
-			return ch;
+			// check if this char starts a UTF8 sequence
+			auto ch = CodepointCast(*--it);
+
+			if (KUTF8_LIKELY(ch < 128))
+			{
+				return ch;
+			}
+			else if (!IsContinuationByte(ch))
+			{
+				Iterator nit = it;
+				return CodepointFromUTF8(nit, iend);
+			}
 		}
-		else if (!IsContinuationByte(ch))
+	}
+	else if (iInputWidth == 2)
+	{
+		if (KUTF8_LIKELY(it != ibegin))
 		{
-			Iterator nit = it;
-			return CodepointFromUTF8(nit, iend);
+			auto iend = it--;
+
+			auto ch = CodepointCast(*it);
+
+			if (IsTrailSurrogate(ch))
+			{
+				if (KUTF8_LIKELY(it != ibegin))
+				{
+					--it;
+				}
+			}
+			return Codepoint(it, iend);
+		}
+	}
+	else if (iInputWidth == 4)
+	{
+		if (KUTF8_LIKELY(it != ibegin))
+		{
+			auto iend = it--;
+			return Codepoint(it, iend);
 		}
 	}
 
@@ -1726,19 +1824,17 @@ codepoint_t PrevCodepointFromUTF8(Iterator ibegin, Iterator& it)
 }
 
 //-----------------------------------------------------------------------------
-/// Return codepoint after pos UTF8 codepoints
+/// Return codepoint after pos UTF8/UTF16/UTF32 codepoints
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-codepoint_t AtUTF8(Iterator it, Iterator ie, std::size_t pos)
+codepoint_t AtUTF(Iterator it, Iterator ie, std::size_t pos)
 //-----------------------------------------------------------------------------
 {
-	// TBD UTF16 UTF32
-
-	auto it2 = LeftUTF8(it, ie, pos);
+	auto it2 = LeftUTF(it, ie, pos);
 
 	if (KUTF8_LIKELY(it2 < ie))
 	{
-		return CodepointFromUTF8(it2, ie);
+		return Codepoint(it2, ie);
 	}
 	else
 	{
@@ -1747,15 +1843,13 @@ codepoint_t AtUTF8(Iterator it, Iterator ie, std::size_t pos)
 }
 
 //-----------------------------------------------------------------------------
-/// Return codepoint after pos UTF8 codepoints
-template<typename UTF8String>
+/// Return codepoint after pos UTF8/UTF16/UTF32 codepoints
+template<typename UTFString>
 KUTF8_CONSTEXPR_14
-codepoint_t AtUTF8(const UTF8String& sUTF8, std::size_t pos)
+codepoint_t AtUTF(const UTFString& sUTF, std::size_t pos)
 //-----------------------------------------------------------------------------
 {
-	// TBD UTF16 UTF32
-
-	return AtUTF8(sUTF8.begin(), sUTF8.end(), pos);
+	return AtUTF(sUTF.begin(), sUTF.end(), pos);
 }
 
 //-----------------------------------------------------------------------------

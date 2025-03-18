@@ -292,7 +292,7 @@ public:
 	self_type MidUTF8(size_type iStart) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		auto it = Unicode::LeftUTF8(begin(), end(), iStart);
+		auto it = Unicode::LeftUTF(begin(), end(), iStart);
 #ifndef _MSC_VER
 		return self_type(it, end() - it);
 #else
@@ -317,7 +317,7 @@ public:
 	self_type RightUTF8(size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		auto it = Unicode::RightUTF8(begin(), end(), iCount);
+		auto it = Unicode::RightUTF(begin(), end(), iCount);
 #ifndef _MSC_VER
 		return self_type(it, end() - it);
 #else

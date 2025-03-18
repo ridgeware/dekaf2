@@ -122,7 +122,7 @@ public:
 			m_next -= UTF8Bytes(m_Value);
 		}
 		typename NarrowString::const_iterator hit = m_next;
-		m_Value = PrevCodepointFromUTF8(m_begin, m_next);
+		m_Value = PrevCodepoint(m_begin, m_next);
 		m_next = hit;
 		return *this;
 	}
@@ -311,7 +311,7 @@ public:
 				}
 
 				typename NarrowString::iterator it = m_String->begin() + m_next;
-				m_Value = m_OrigValue = PrevCodepointFromUTF8(m_String->begin(), it);
+				m_Value = m_OrigValue = PrevCodepoint(m_String->begin(), it);
 			}
 		}
 		return *this;

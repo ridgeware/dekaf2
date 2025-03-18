@@ -220,79 +220,79 @@ String& kMakeRight(String& sInput, std::size_t iCount)
 }
 
 //-----------------------------------------------------------------------------
-/// returns leftmost iCount codepoints of string
+/// returns leftmost iCount UTF codepoints of string
 template<class String, class StringView = KStringView>
 DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-StringView kLeftUTF8(const String& sInput, std::size_t iCount)
+StringView kLeftUTF(const String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::LeftUTF8<String, StringView>(sInput, iCount);
+	return Unicode::LeftUTF<String, StringView>(sInput, iCount);
 }
 
 //-----------------------------------------------------------------------------
-/// reduces string to leftmost iCount codepoints of string
+/// reduces string to leftmost iCount UTF codepoints of string
 template<class String>
 DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-String& kMakeLeftUTF8(String& sInput, std::size_t iCount)
+String& kMakeLeftUTF(String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	auto it = Unicode::LeftUTF8(sInput.begin(), sInput.end(), iCount);
+	auto it = Unicode::LeftUTF(sInput.begin(), sInput.end(), iCount);
 	sInput.erase(it, sInput.end());
 	return sInput;
 }
 
 //-----------------------------------------------------------------------------
-/// returns substring starting at codepoint iStart for iCount codepoints
+/// returns substring starting at UTF codepoint iStart for iCount UTF codepoints
 template<class String, class StringView = KStringView>
 DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-StringView kMidUTF8(const String& sInput, std::size_t iStart, std::size_t iCount = npos)
+StringView kMidUTF(const String& sInput, std::size_t iStart, std::size_t iCount = npos)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::MidUTF8<String, StringView>(sInput, iStart, iCount);
+	return Unicode::MidUTF<String, StringView>(sInput, iStart, iCount);
 }
 
 //-----------------------------------------------------------------------------
-/// reduces string to starting at codepoint iStart with iCount codepoints
+/// reduces string to starting at UTF codepoint iStart with iCount UTF codepoints
 template<class String>
 DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-String& kMakeMidUTF8(String& sInput, std::size_t iStart, std::size_t iCount = npos)
+String& kMakeMidUTF(String& sInput, std::size_t iStart, std::size_t iCount = npos)
 //-----------------------------------------------------------------------------
 {
-	auto it = Unicode::LeftUTF8(sInput.begin(), sInput.end(), iStart);
+	auto it = Unicode::LeftUTF(sInput.begin(), sInput.end(), iStart);
 	sInput.erase(sInput.begin(), it);
-	return kMakeLeftUTF8(sInput, iCount);
+	return kMakeLeftUTF(sInput, iCount);
 }
 
 //-----------------------------------------------------------------------------
-/// returns rightmost iCount UTF8 codepoints of string
+/// returns rightmost iCount UTF codepoints of string
 template<class String, class StringView = KStringView>
 DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-StringView kRightUTF8(const String& sInput, std::size_t iCount)
+StringView kRightUTF(const String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::RightUTF8<String, StringView>(sInput, iCount);
+	return Unicode::RightUTF<String, StringView>(sInput, iCount);
 }
 
 //-----------------------------------------------------------------------------
-/// reduces string to rightmost iCount UTF8 codepoints of string
+/// reduces string to rightmost iCount UTF codepoints of string
 template<class String>
 DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-String& kMakeRightUTF8(String& sInput, std::size_t iCount)
+String& kMakeRightUTF(String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	auto it = Unicode::RightUTF8(sInput.begin(), sInput.end(), iCount);
+	auto it = Unicode::RightUTF(sInput.begin(), sInput.end(), iCount);
 	sInput.erase(sInput.begin(), it);
 	return sInput;
 }
 
 //-----------------------------------------------------------------------------
-/// returns KCodePoint at UTF8 position iCount
+/// returns KCodePoint at UTF position iCount
 template<class String>
 DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-KCodePoint kAtUTF8(const String& sInput, std::size_t iCount)
+KCodePoint kAtUTF(const String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::AtUTF8(sInput, iCount);
+	return Unicode::AtUTF(sInput, iCount);
 }
 
 //-----------------------------------------------------------------------------

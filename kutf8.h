@@ -198,7 +198,7 @@
  /// codepoint (which may be INVALID_CODEPOINT for input parsing errors)
  bool ForEachUTF(Iterator it, Iterator ie, Functor func)
 
- /// Convert string from UTF8, calling functor func for every codepoint
+ /// Convert string from UTF8/UTF16/UTF32, calling functor func for every codepoint
  bool ForEachUTF(const UTFString& sUTF, Functor func)
 
  /// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
@@ -542,7 +542,7 @@ public:
 } // end of namespace KUTF8_detail
 
 //-----------------------------------------------------------------------------
-/// Convert a codepoint into a UTF sequence written at iterator it
+/// Convert a codepoint into a UTF8/UTF16/UTF32 sequence written at iterator it
 template<typename Char, typename Iterator,
          typename std::enable_if<std::is_integral<Char>::value
                                  && !KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
@@ -551,7 +551,7 @@ void ToUTF(Char codepoint, Iterator& it)
 //-----------------------------------------------------------------------------
 {
 	using value_type = typename std::remove_reference<decltype(*it)>::type;
-	constexpr size_t iOutputWidth = sizeof(value_type);
+	constexpr std::size_t iOutputWidth = sizeof(value_type);
 
 	codepoint_t cp = CodepointCast(codepoint);
 
@@ -598,7 +598,7 @@ void ToUTF(Char codepoint, Iterator& it)
 	}
 	else
 	{
-		if (KUTF8_UNLIKELY(cp > CODEPOINT_MAX || IsSurrogate(cp) || cp == 0x0fffe || cp == 0x0ffff ))
+		if (KUTF8_UNLIKELY(!IsValid(cp)))
 		{
 			cp = REPLACEMENT_CHARACTER;
 		}
@@ -608,7 +608,7 @@ void ToUTF(Char codepoint, Iterator& it)
 
 //-----------------------------------------------------------------------------
 // for strings, this version is up to twice as fast than the use of back inserters
-/// Convert a codepoint into a UTF sequence appended to sUTF
+/// Convert a codepoint into a UTF8/UTF16/UTF32 sequence appended to sUTF
 template<typename Char, typename UTFString,
          typename std::enable_if<std::is_integral<Char>::value
                                  && KUTF8_detail::HasSize<UTFString>::value, int>::type = 0>
@@ -617,7 +617,7 @@ void ToUTF(Char codepoint, UTFString& sUTF)
 //-----------------------------------------------------------------------------
 {
 	using value_type = typename UTFString::value_type;
-	constexpr size_t iOutputWidth = sizeof(value_type);
+	constexpr std::size_t iOutputWidth = sizeof(value_type);
 
 	codepoint_t cp = CodepointCast(codepoint);
 	
@@ -664,7 +664,7 @@ void ToUTF(Char codepoint, UTFString& sUTF)
 	}
 	else
 	{
-		if (KUTF8_UNLIKELY(cp > CODEPOINT_MAX || IsSurrogate(cp) || cp == 0x0fffe || cp == 0x0ffff ))
+		if (KUTF8_UNLIKELY(!IsValid(cp)))
 		{
 			cp = REPLACEMENT_CHARACTER;
 		}
@@ -686,18 +686,18 @@ UTFString ToUTF(Char codepoint)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF string (from two iterators)
+/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
 template<typename UTFString, typename Iterator>
 KUTF8_CONSTEXPR_14
 bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 //-----------------------------------------------------------------------------
 {
-	using input_value_type        = typename std::remove_reference<decltype(*it)>::type;
-	constexpr size_t iInputWidth  = sizeof(input_value_type);
+	using input_value_type = typename std::remove_reference<decltype(*it)>::type;
+	constexpr std::size_t iInputWidth = sizeof(input_value_type);
 
 #if KUTF8_WITH_SIMDUTF
 
-	constexpr size_t iOutputWidth = sizeof(typename UTFString::value_type);
+	constexpr std::size_t iOutputWidth = sizeof(typename UTFString::value_type);
 
 	auto iInputSize = std::distance(it, ie);
 	const void* input = &*it;
@@ -774,8 +774,6 @@ bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 	// we have to assign a value to satisfy non-C++17
 	std::size_t iWrote = 0;
 
-
-
 	switch (iInputWidth)
 	{
 		case 4:
@@ -836,7 +834,7 @@ bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 		// Make sure all surrogate combine logic is only compiled in for 16 bit strings.
 		// If we would have surrogate pairs in 32 bit strings it is an error in their
 		// construction in the first place. We will not try to reassemble them.
-		// The UTF8 encoder will convert those to replacement characters.
+		// The UTF encoder will convert those to replacement characters.
 		if (iInputWidth == 2 && KUTF8_UNLIKELY(IsSurrogate(*it)))
 		{
 			if (KUTF8_LIKELY(IsLeadSurrogate(*it)))
@@ -885,7 +883,7 @@ bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF string (from two iterators)
+/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
 template<typename UTFString, typename Iterator,
          typename std::enable_if<!KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
@@ -898,7 +896,7 @@ UTFString ToUTF(Iterator it, Iterator ie)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF string
+/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
 template<typename UTFString, typename InputString,
          typename std::enable_if<!std::is_integral<InputString>::value
                               && KUTF8_detail::HasSize<InputString>::value, int>::type = 0>
@@ -910,7 +908,7 @@ bool ToUTF(const InputString& sInput, UTFString& sUTF)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF string
+/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
 template<typename UTFString, typename InputString,
          typename std::enable_if<!std::is_integral<InputString>::value
                               && KUTF8_detail::HasSize<InputString>::value, int>::type = 0>
@@ -924,7 +922,7 @@ UTFString ToUTF(const InputString& sInput)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wchar_t string (UTF16 or UTF32) into a UTF string
+/// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/UTF16/UTF32 string
 template<typename UTFString>
 KUTF8_CONSTEXPR_14
 bool ToUTF(const wchar_t* it, UTFString& sUTF)
@@ -932,68 +930,12 @@ bool ToUTF(const wchar_t* it, UTFString& sUTF)
 {
 	if KUTF8_UNLIKELY(it == nullptr) return false;
 
-#if KUTF8_WITH_SIMDUTF
-
 	auto iSize = std::wcslen(it);
 	return ToUTF(it, it + iSize, sUTF);
-
-#else
-
-	for (; KUTF8_LIKELY(*it != 0); ++it)
-	{
-		// Make sure all surrogate combine logic is only compiled in for 16 bit strings.
-		// If we would have surrogate pairs in 32 bit strings it is an error in their
-		// construction in the first place. We will not try to reassemble them.
-		// The UTF8 encoder will convert those to replacement characters.
-		if (sizeof(wchar_t) == 2 && KUTF8_UNLIKELY(IsSurrogate(*it)))
-		{
-			if (KUTF8_LIKELY(IsLeadSurrogate(*it)))
-			{
-				SurrogatePair sp;
-
-				sp.low = CodepointCast(*it++);
-
-				if (KUTF8_UNLIKELY(*it == 0))
-				{
-					// this is an incomplete surrogate
-					ToUTF(INVALID_CODEPOINT, sUTF);
-				}
-				else
-				{
-					sp.high = CodepointCast(*it);
-
-					if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
-					{
-						// the second surrogate is not valid
-						ToUTF(INVALID_CODEPOINT, sUTF);
-					}
-					else
-					{
-						// and output the completed codepoint
-						ToUTF(sp.ToCodepoint(), sUTF);
-					}
-				}
-			}
-			else
-			{
-				// this was a trail surrogate withoud lead..
-				ToUTF(INVALID_CODEPOINT, sUTF);
-			}
-		}
-		else
-		{
-			// default case
-			ToUTF(*it, sUTF);
-		}
-	}
-
-	return true;
-
-#endif // KUTF8_WITH_SIMDUTF
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wchar_t string (UTF16 or UTF32) into a UTF8 string
+/// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/UTF16/UTF32 string
 template<typename UTFString>
 KUTF8_CONSTEXPR_14
 UTFString ToUTF(const wchar_t* it)
@@ -1011,9 +953,9 @@ KUTF8_CONSTEXPR_14
 void SyncUTF(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	using N = typename std::remove_reference<decltype(*it)>::type;
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
-	if (sizeof(N) == 1)
+	if (iInputWidth == 1)
 	{
 		for (; KUTF8_LIKELY(it != ie); ++it)
 		{
@@ -1025,7 +967,7 @@ void SyncUTF(Iterator& it, Iterator ie)
 			}
 		}
 	}
-	else if (sizeof(N) == 2)
+	else if (iInputWidth == 2)
 	{
 		if (it != ie && IsTrailSurrogate(*it)) ++it;
 	}
@@ -1168,7 +1110,7 @@ KUTF8_CONSTEXPR_14
 codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	using N = typename std::remove_reference<decltype(*it)>::type;
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
 	assert(it != ie);
 
@@ -1180,7 +1122,7 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 		return ch;
 	}
 
-	if (sizeof(N) > 1 && KUTF8_UNLIKELY(ch > 0x0ff))
+	if (iInputWidth > 1 && KUTF8_UNLIKELY(ch > 0x0ff))
 	{
 		++it;
 		// error, even with char sizes > one byte UTF8 single
@@ -1294,15 +1236,15 @@ KUTF8_CONSTEXPR_14
 codepoint_t Codepoint(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	using N = typename std::remove_reference<decltype(*it)>::type;
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
 	assert(it != ie);
 
-	if (sizeof(N) == 1)
+	if (iInputWidth == 1)
 	{
 		return CodepointFromUTF8(it, ie);
 	}
-	else if (sizeof(N) == 2)
+	else if (iInputWidth == 2)
 	{
 		codepoint_t ch = CodepointCast(*it++);
 
@@ -1443,11 +1385,11 @@ bool ValidUTF(Iterator it, Iterator ie)
 {
 #if KUTF8_WITH_SIMDUTF
 
-	using N = typename std::remove_reference<decltype(*it)>::type;
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
 	const void* buf = &*it;
 
-	switch (sizeof(N))
+	switch (iInputWidth)
 	{
 		case 4:
 			return simd::validate_utf32(static_cast<const char32_t*>(buf), std::distance(it, ie));
@@ -1625,14 +1567,14 @@ ReturnString MidUTF8(const UTF8String& sUTF8, std::size_t pos, std::size_t n)
 /// Count number of codepoints in UTF range (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
 template<typename Iterator>
 KUTF8_CONSTEXPR_14
-size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1))
+std::size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1))
 //-----------------------------------------------------------------------------
 {
-	using N = typename std::remove_reference<decltype(*it)>::type;
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
 #if KUTF8_WITH_SIMDUTF
 
-	switch (sizeof(N))
+	switch (iInputWidth)
 	{
 		case 4:
 		{
@@ -1668,9 +1610,9 @@ size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1
 
 #else
 
-	if (sizeof(N) == 1)
+	if (iInputWidth == 1)
 	{
-		size_t iCount { 0 };
+		std::size_t iCount { 0 };
 
 		for (; KUTF8_LIKELY(std::distance(it, ie) >= 8 && iCount < iMaxCount) ;)
 		{
@@ -1700,9 +1642,9 @@ size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1
 
 		return iCount;
 	}
-	else if (sizeof(N) == 2)
+	else if (iInputWidth == 2)
 	{
-		size_t iCount { 0 };
+		std::size_t iCount { 0 };
 
 		for (; KUTF8_LIKELY(std::distance(it, ie) >= 8 && iCount < iMaxCount) ;)
 		{
@@ -1732,7 +1674,7 @@ size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1
 
 		return iCount;
 	}
-	else if (sizeof(N) == 2)
+	else if (iInputWidth == 4)
 	{
 		return std::distance(it, ie);
 	}
@@ -1746,7 +1688,7 @@ size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1
 /// Count number of codepoints in UTF string (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
 template<typename UTFString>
 KUTF8_CONSTEXPR_14
-size_t CountUTF(const UTFString& sUTF, std::size_t iMaxCount = std::size_t(-1))
+std::size_t CountUTF(const UTFString& sUTF, std::size_t iMaxCount = std::size_t(-1))
 //-----------------------------------------------------------------------------
 {
 	return CountUTF(sUTF.begin(), sUTF.end());
@@ -1890,8 +1832,8 @@ bool ConvertUTF(const InpType& sInput, OutType& sOutput)
 {
 #if	KUTF8_WITH_SIMDUTF
 
-	constexpr size_t iInputWidth  = sizeof(typename InpType::value_type);
-	constexpr size_t iOutputWidth = sizeof(typename OutType::value_type);
+	constexpr auto iInputWidth  = sizeof(typename InpType::value_type);
+	constexpr auto iOutputWidth = sizeof(typename OutType::value_type);
 
 	if (iInputWidth == iOutputWidth)
 	{

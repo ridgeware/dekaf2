@@ -430,9 +430,9 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 	}
 
 	// calculate the content
-//	bool bWrap =  (iAlign & Alignment::Wrap) == Alignment::Wrap;
-	iAlign    &= ~(iAlign & Alignment::Wrap);
-
+	// have to use the casting to suppress UBSAN warning
+	// remove the Alignment::Wrap bit
+	iAlign     = static_cast<Alignment>((static_cast<std::underlying_type<Alignment>::type>(iAlign) & ~Alignment::Wrap));
 	auto iSize = sText.SizeUTF8();
 	size_type iFill {     0 };
 	bool bOverflow  { false };

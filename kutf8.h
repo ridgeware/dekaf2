@@ -97,6 +97,34 @@
  /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/16/32 string
  UTFString ConvertUTF(const wchar_t* it)
 
+ --- transformation
+
+ /// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every codepoint
+ bool ForEachUTF(Iterator it, Iterator ie, Functor func)
+
+ /// Convert string from UTF8/UTF16/UTF32, calling functor func for every codepoint
+ bool ForEachUTF(const UTFString& sUTF, Functor func)
+
+ /// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
+ /// functor for each codepoint.
+ bool TransformUTF(Iterator it, Iterator ie, UTFString& sOutput, Functor func)
+
+ /// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
+ /// functor for each codepoint.
+ bool TransformUTF(const UTFString& sInput, ReturnUTFString& sOutput, Functor func)
+
+ /// Transform a Unicode string into a lowercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
+ void ToLowerUTF(Iterator it, Iterator ie, OutputString& sOutput)
+
+ /// Transform a Unicode string into a lowercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
+ void ToLowerUTF(const InputString& sInput, OutputString& sOutput)
+
+ /// Transform a Unicode string into an uppercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
+ void ToUpperUTF(Iterator it, Iterator ie, OutputString& sOutput)
+
+ /// Transform a Unicode string into an uppercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
+ void ToUpperUTF(const InputString& sInput, OutputString& sOutput)
+
  --- ToUTF
 
  /// Convert a codepoint into a UTF8/16/32 sequence written at iterator it
@@ -196,25 +224,6 @@
 
  /// Return codepoint after pos UTF8/UTF16/UTF32 codepoints
  codepoint_t AtUTF(Iterator it, Iterator ie, std::size_t pos)
-
- --- transformation
-
- /// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every
- /// codepoint (which may be INVALID_CODEPOINT for input parsing errors)
- bool ForEachUTF(Iterator it, Iterator ie, Functor func)
-
- /// Convert string from UTF8/UTF16/UTF32, calling functor func for every codepoint
- bool ForEachUTF(const UTFString& sUTF, Functor func)
-
- /// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
- /// functor for each codepoint.
- bool TransformUTF(const UTFString& sInput, ReturnUTFString& sOutput, Functor func)
-
- /// Transform a Unicode string into a lowercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
- void ToLowerUTF(const InputString& sInput, OutputString& sOutput)
-
- /// Transform a Unicode string into an uppercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
- void ToUpperUTF(const InputString& sInput, OutputString& sOutput)
 
  --- helpers
 
@@ -1746,44 +1755,13 @@ bool HasUTF8(const UTF8String& sUTF8)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every
-/// codepoint (which may be INVALID_CODEPOINT for input parsing errors)
-template<typename Iterator, class Functor>
-KUTF8_CONSTEXPR_14
-bool ForEachUTF(Iterator it, Iterator ie, Functor func)
-//-----------------------------------------------------------------------------
-{
-	for (; KUTF8_LIKELY(it != ie);)
-	{
-		codepoint_t codepoint = Codepoint(it, ie);
-
-		if (!func(codepoint))
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-//-----------------------------------------------------------------------------
-/// Convert string from UTF8, calling functor func for every codepoint
-template<typename UTFString, class Functor>
-KUTF8_CONSTEXPR_14
-bool ForEachUTF(const UTFString& sUTF, Functor func)
-//-----------------------------------------------------------------------------
-{
-	return ForEachUTF(sUTF.begin(), sUTF.end(), func);
-}
-
-//-----------------------------------------------------------------------------
 /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32 (from an iterator pair)
 template<typename OutType, typename Iterator>
 KUTF8_CONSTEXPR_14
 bool ConvertUTF(Iterator it, Iterator ie, OutType& sOutput)
 //-----------------------------------------------------------------------------
 {
-#if	KUTF8_WITH_SIMDUTF
+#if KUTF8_WITH_SIMDUTF
 
 	constexpr auto iInputWidth  = sizeof(typename std::remove_reference<decltype(*it)>::type);
 	constexpr auto iOutputWidth = sizeof(typename OutType::value_type);
@@ -1996,20 +1974,164 @@ UTFString ConvertUTF(const wchar_t* it)
 }
 
 //-----------------------------------------------------------------------------
+/// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every
+/// codepoint (which may be INVALID_CODEPOINT for input parsing errors)
+template<typename Iterator, class Functor>
+KUTF8_CONSTEXPR_14
+bool ForEachUTF(Iterator it, Iterator ie, Functor func)
+//-----------------------------------------------------------------------------
+{
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
+
+	if (iInputWidth == 4)
+	{
+		// we cannot use std::for_each here, because existing code expects this loop to
+		// abort once false is returned by func() (std::for_each ignores all functor returns)
+		for (; it < ie; )
+		{
+			if (!func(*it++)) return false;
+		}
+		return true;
+	}
+	else
+	{
+#if KUTF8_WITH_SIMDUTF
+		// we convert into an intermediate type
+		// do it in chunks to limit memory consumption for large strings
+		std::u32string sTemp;
+		for (;it < ie; )
+		{
+			constexpr std::size_t ChunkSize = 1000;
+
+			auto ie2 = std::min(ie, it + ChunkSize);
+			SyncUTF(ie2, ie);
+
+			if (!ConvertUTF(it, ie2, sTemp)) return false;
+
+			// we cannot use std::for_each here, because existing code expects this loop to
+			// abort once false is returned by func() (std::for_each ignores all functor returns)
+			for (const auto ch : sTemp)
+			{
+				if (!func(ch)) return false;
+			}
+
+			it = ie2;
+			sTemp.clear();
+		}
+		return true;
+#else
+		for (; it < ie;)
+		{
+			if (!func(Codepoint(it, ie))) return false;
+		}
+
+		return true;
+#endif
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+/// Convert string from UTF8, calling functor func for every codepoint
+template<typename UTFString, class Functor>
+KUTF8_CONSTEXPR_14
+bool ForEachUTF(const UTFString& sUTF, Functor func)
+//-----------------------------------------------------------------------------
+{
+	return ForEachUTF(sUTF.begin(), sUTF.end(), func);
+}
+
+//-----------------------------------------------------------------------------
+/// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
+/// functor for each codepoint.
+/// @param it the begin iterator of the input string
+/// @param ie the end iterator of the input string
+/// @param sOutput the UTF output string, will be appended
+/// @param func the transformation functor, called with signature codepoint_t(codepoint_t) - has to return transformed codepoint_t
+/// @return false in case of decoding errors, else true
+template<typename UTFString, typename Iterator, class Functor>
+bool TransformUTF(Iterator it, Iterator ie, UTFString& sOutput, Functor func)
+//-----------------------------------------------------------------------------
+{
+	constexpr auto iInputWidth  = sizeof(typename std::remove_reference<decltype(*it)>::type);
+	constexpr auto iOutputWidth = sizeof(typename UTFString::value_type);
+
+	if (iOutputWidth == 4)
+	{
+		using value_type = typename UTFString::value_type;
+
+		if (iInputWidth == 4)
+		{
+			// we do not need to convert, but will simply transform from input to output
+			std::transform(it, ie, sOutput.begin(), [&func](value_type cp) { return func(cp); });
+		}
+		else
+		{
+			// we can convert directly into the target
+			if (!ConvertUTF(it, ie, sOutput)) return false;
+			// and transform right there
+			std::transform(sOutput.begin(), sOutput.end(), sOutput.begin(), [&func](value_type cp) { return func(cp); });
+		}
+	}
+	else
+	{
+#if KUTF8_WITH_SIMDUTF
+		// we convert into an intermediate type and back to the requested output type
+		// do it in chunks to limit memory consumption for large strings
+		std::u32string sTemp;
+		for (;it < ie; )
+		{
+			constexpr std::size_t ChunkSize = 1000;
+
+			auto ie2 = std::min(ie, it + ChunkSize);
+			SyncUTF(ie2, ie);
+
+			if (!ConvertUTF(it, ie2, sTemp)) return false;
+			std::transform(sTemp.begin(), sTemp.end(), sTemp.begin(), [&func](codepoint_t cp) { return func(cp); });
+			if (!ConvertUTF(sTemp, sOutput)) return false;
+
+			it = ie2;
+			sTemp.clear();
+		}
+		return true;
+#else
+		sOutput.reserve(sOutput.size() + sInput.size());
+		return ForEachUTF(it, ie, [&sOutput, &func](codepoint_t cp) { ToUTF(func(cp), sOutput); return true; });
+#endif
+	}
+}
+
+//-----------------------------------------------------------------------------
 /// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
 /// functor for each codepoint.
 /// @param sInput the UTF input string
 /// @param sOutput the UTF output string
-/// @param func the transformation functor, called with signature bool(codepoint_t)
-/// @return always true
-template<typename UTFString, typename ReturnUTFString, class Functor>
-bool TransformUTF(const UTFString& sInput, ReturnUTFString& sOutput, Functor func)
+/// @param func the transformation functor, called with signature codepoint_t(codepoint_t) - has to return transformed codepoint_t
+/// @return false in case of decoding errors, else true
+template<typename UTFString, typename InputString, class Functor>
+bool TransformUTF(const InputString& sInput, UTFString& sOutput, Functor func)
 //-----------------------------------------------------------------------------
 {
-	return ForEachUTF(sInput, [&sOutput, &func](codepoint_t cp)
+	return TransformUTF(sInput.begin(), sInput.end(), sOutput, func);
+}
+
+//-----------------------------------------------------------------------------
+/// Transform a Unicode string into a lowercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
+/// @param it the begin iterator of the input string
+/// @param ie the end iterator of the input string
+/// @param sOutput the output UTF8 string
+template<typename Iterator, typename OutputString>
+bool ToLowerUTF(Iterator it, Iterator ie, OutputString& sOutput)
+//-----------------------------------------------------------------------------
+{
+	return TransformUTF(it, ie, sOutput, [](codepoint_t cp)
 	{
-		ToUTF(func(cp), sOutput);
-		return true;
+#ifdef KUTF8_DEKAF2
+		return kToLower(cp);
+#else
+		return std::towlower(cp);
+#endif
 	});
 }
 
@@ -2018,77 +2140,29 @@ bool TransformUTF(const UTFString& sInput, ReturnUTFString& sOutput, Functor fun
 /// @param sInput the UTF8 input string
 /// @param sOutput the output UTF8 string
 template<typename InputString, typename OutputString>
-void ToLowerUTF(const InputString& sInput, OutputString& sOutput)
+bool ToLowerUTF(const InputString& sInput, OutputString& sOutput)
 //-----------------------------------------------------------------------------
 {
-	constexpr auto iInputWidth  = sizeof(typename InputString::value_type);
-	constexpr auto iOutputWidth = sizeof(typename OutputString::value_type);
+	return ToLowerUTF(sInput.begin(), sInput.end(), sOutput);
+}
 
-	if (iOutputWidth == 4)
+//-----------------------------------------------------------------------------
+/// Transform a Unicode string into an uppercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
+/// @param it the begin iterator of the input string
+/// @param ie the end iterator of the input string
+/// @param sOutput the output UTF8 string
+template<typename Iterator, typename OutputString>
+bool ToUpperUTF(Iterator it, Iterator ie, OutputString& sOutput)
+//-----------------------------------------------------------------------------
+{
+	return TransformUTF(it, ie, sOutput, [](codepoint_t cp)
 	{
-		using value_type = typename OutputString::value_type;
-
-		if (iInputWidth == 4)
-		{
-			// we do not need to convert, but will simply transform from input to output
-			std::transform(sInput.begin(), sInput.end(), sOutput.begin(), [](value_type cp)
-			{
-	#ifdef KUTF8_DEKAF2
-				return kToLower(cp);
-	#else
-				return std::towlower(cp);
-	#endif
-			});
-		}
-		else
-		{
-			// we can convert directly into the target
-			ConvertUTF(sInput, sOutput);
-			// and transform right there
-			std::transform(sOutput.begin(), sOutput.end(), sOutput.begin(), [](value_type cp)
-			{
-	#ifdef KUTF8_DEKAF2
-				return kToLower(cp);
-	#else
-				return std::towlower(cp);
-	#endif
-			});
-		}
-	}
-	else
-	{
-
-#if	KUTF8_WITH_SIMDUTF
-
-		// we convert into an intermediate type and back to the requested output type
-		std::u32string sTemp;
-		ConvertUTF(sInput, sTemp);
-		std::transform(sTemp.begin(), sTemp.end(), sTemp.begin(), [](codepoint_t cp)
-		{
-	#ifdef KUTF8_DEKAF2
-			return kToLower(cp);
-	#else
-			return std::towlower(cp);
-	#endif
-		});
-		ConvertUTF(sTemp, sOutput);
-
+#ifdef KUTF8_DEKAF2
+		return kToUpper(cp);
 #else
-
-		sOutput.reserve(sOutput.size() + sInput.size());
-
-		TransformUTF(sInput, sOutput, [](codepoint_t cp)
-		{
-	#ifdef KUTF8_DEKAF2
-			return kToLower(cp);
-	#else
-			return std::towlower(cp);
-	#endif
-		});
-
+		return std::towupper(cp);
 #endif
-
-	}
+	});
 }
 
 //-----------------------------------------------------------------------------
@@ -2096,77 +2170,10 @@ void ToLowerUTF(const InputString& sInput, OutputString& sOutput)
 /// @param sInput the UTF8 input string
 /// @param sOutput the output UTF8 string
 template<typename InputString, typename OutputString>
-void ToUpperUTF(const InputString& sInput, OutputString& sOutput)
+bool ToUpperUTF(const InputString& sInput, OutputString& sOutput)
 //-----------------------------------------------------------------------------
 {
-	constexpr auto iInputWidth  = sizeof(typename InputString::value_type);
-	constexpr auto iOutputWidth = sizeof(typename OutputString::value_type);
-
-	if (iOutputWidth == 4)
-	{
-		using value_type = typename OutputString::value_type;
-
-		if (iInputWidth == 4)
-		{
-			// we do not need to convert, but will simply transform from input to output
-			std::transform(sInput.begin(), sInput.end(), sOutput.begin(), [](value_type cp)
-			{
-	#ifdef KUTF8_DEKAF2
-				return kToUpper(cp);
-	#else
-				return std::towupper(cp);
-	#endif
-			});
-		}
-		else
-		{
-			// we can convert directly into the target
-			ConvertUTF(sInput, sOutput);
-			// and transform right there
-			std::transform(sOutput.begin(), sOutput.end(), sOutput.begin(), [](value_type cp)
-			{
-	#ifdef KUTF8_DEKAF2
-				return kToUpper(cp);
-	#else
-				return std::towupper(cp);
-	#endif
-			});
-		}
-	}
-	else
-	{
-
-#if	KUTF8_WITH_SIMDUTF
-
-		// we convert into an intermediate type and back to the requested output type
-		std::u32string sTemp;
-		ConvertUTF(sInput, sTemp);
-		std::transform(sTemp.begin(), sTemp.end(), sTemp.begin(), [](codepoint_t cp)
-		{
-	#ifdef KUTF8_DEKAF2
-			return kToUpper(cp);
-	#else
-			return std::towupper(cp);
-	#endif
-		});
-		ConvertUTF(sTemp, sOutput);
-
-#else
-
-		sOutput.reserve(sOutput.size() + sInput.size());
-
-		TransformUTF(sInput, sOutput, [](codepoint_t cp)
-		{
-	#ifdef KUTF8_DEKAF2
-			return kToUpper(cp);
-	#else
-			return std::towupper(cp);
-	#endif
-		});
-
-#endif
-
-	}
+	return ToUpperUTF(sInput.begin(), sInput.end(), sOutput);
 }
 
 namespace CESU8 {

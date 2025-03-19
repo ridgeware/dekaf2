@@ -1224,8 +1224,6 @@ Iterator InvalidUTF(Iterator it, Iterator ie)
 			auto res = simd::validate_utf8_with_errors(static_cast<const char*>(buf), std::distance(it, ie));
 			return (res.error == simd::SUCCESS) ? ie : it + res.count;
 		}
-		default:
-			break;
 	}
 
 	return it;
@@ -1265,8 +1263,6 @@ bool ValidUTF(Iterator it, Iterator ie)
 			return simd::validate_utf16(static_cast<const char16_t*>(buf), std::distance(it, ie));
 		case 1:
 			return simd::validate_utf8(static_cast<const char*>(buf), std::distance(it, ie));
-		default:
-			break;
 	}
 
 	return false;
@@ -1297,15 +1293,7 @@ typename UTFString::size_type InvalidUTF(const UTFString& sUTF)
 //-----------------------------------------------------------------------------
 {
 	auto it = InvalidUTF(sUTF.begin(), sUTF.end());
-
-	if (it == sUTF.end())
-	{
-		return UTFString::npos;
-	}
-	else
-	{
-		return it - sUTF.begin();
-	}
+	return (it == sUTF.end()) ? UTFString::npos : it - sUTF.begin();
 }
 
 //-----------------------------------------------------------------------------
@@ -1539,8 +1527,6 @@ std::size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size
 			const void* buf = &*it;
 			return simd::count_utf8(static_cast<const char*>(buf), std::distance(it, ie));
 		}
-		default:
-			break;
 	}
 
 	return 0;

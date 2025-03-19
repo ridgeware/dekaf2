@@ -210,11 +210,27 @@ KString kToUpperLocale(KStringView sInput)
 //----------------------------------------------------------------------
 {
 	KString sTransformed;
-	sTransformed.reserve(sInput.size());
+	sTransformed.resize(sInput.size());
 
-	for (const auto& it : sInput)
+	auto it  = sInput.begin();
+	auto ie  = sInput.end();
+	auto it2 = sTransformed.begin();
+
+	for (; std::distance(it, ie) >= 8;)
 	{
-		sTransformed += static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(it)));
+		*it2++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
+	}
+
+	for (; it != ie; )
+	{
+		*it2++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
 	}
 
 	return sTransformed;
@@ -225,11 +241,27 @@ KString kToLowerLocale(KStringView sInput)
 //----------------------------------------------------------------------
 {
 	KString sTransformed;
-	sTransformed.reserve(sInput.size());
+	sTransformed.resize(sInput.size());
 
-	for (const auto& it : sInput)
+	auto it  = sInput.begin();
+	auto ie  = sInput.end();
+	auto it2 = sTransformed.begin();
+
+	for (; std::distance(it, ie) >= 8;)
 	{
-		sTransformed += static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(it)));
+		*it2++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
+		*it2++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
+	}
+
+	for (; it != ie; )
+	{
+		*it2++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
 	}
 
 	return sTransformed;
@@ -240,11 +272,27 @@ KString kToUpperASCII(KStringView sInput)
 //----------------------------------------------------------------------
 {
 	KString sTransformed;
-	sTransformed.reserve(sInput.size());
+	sTransformed.resize(sInput.size());
 
-	for (const auto& it : sInput)
+	auto it  = sInput.begin();
+	auto ie  = sInput.end();
+	auto it2 = sTransformed.begin();
+
+	for (; std::distance(it, ie) >= 8;)
 	{
-		sTransformed += KASCII::kToUpper(it);
+		*it2++ = KASCII::kToUpper(*it++);
+		*it2++ = KASCII::kToUpper(*it++);
+		*it2++ = KASCII::kToUpper(*it++);
+		*it2++ = KASCII::kToUpper(*it++);
+		*it2++ = KASCII::kToUpper(*it++);
+		*it2++ = KASCII::kToUpper(*it++);
+		*it2++ = KASCII::kToUpper(*it++);
+		*it2++ = KASCII::kToUpper(*it++);
+	}
+
+	for (; it != ie; )
+	{
+		*it2++ = KASCII::kToUpper(*it++);
 	}
 
 	return sTransformed;
@@ -255,11 +303,27 @@ KString kToLowerASCII(KStringView sInput)
 //----------------------------------------------------------------------
 {
 	KString sTransformed;
-	sTransformed.reserve(sInput.size());
+	sTransformed.resize(sInput.size());
 
-	for (const auto& it : sInput)
+	auto it  = sInput.begin();
+	auto ie  = sInput.end();
+	auto it2 = sTransformed.begin();
+
+	for (; std::distance(it, ie) >= 8;)
 	{
-		sTransformed += KASCII::kToLower(it);
+		*it2++ = KASCII::kToLower(*it++);
+		*it2++ = KASCII::kToLower(*it++);
+		*it2++ = KASCII::kToLower(*it++);
+		*it2++ = KASCII::kToLower(*it++);
+		*it2++ = KASCII::kToLower(*it++);
+		*it2++ = KASCII::kToLower(*it++);
+		*it2++ = KASCII::kToLower(*it++);
+		*it2++ = KASCII::kToLower(*it++);
+	}
+
+	for (; it != ie; )
+	{
+		*it2++ = KASCII::kToLower(*it++);
 	}
 
 	return sTransformed;

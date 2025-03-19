@@ -414,10 +414,25 @@ KString& KString::MakeUpper() &
 KString& KString::MakeLowerLocale() &
 //----------------------------------------------------------------------
 {
-	for (auto& it : m_rep)
+	auto it = begin();
+	auto ie = end();
+
+	for (; std::distance(it, ie) >= 8;)
 	{
-		it = static_cast<value_type>(std::tolower(static_cast<unsigned char>(it)));
+		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
 	}
+
+	for (; it != ie; )
+	{
+		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
+	}
+
 	return *this;
 
 } // MakeLowerLocale
@@ -426,10 +441,25 @@ KString& KString::MakeLowerLocale() &
 KString& KString::MakeUpperLocale() &
 //----------------------------------------------------------------------
 {
-	for (auto& it : m_rep)
+	auto it = begin();
+	auto ie = end();
+
+	for (; std::distance(it, ie) >= 8;)
 	{
-		it = static_cast<value_type>(std::toupper(static_cast<unsigned char>(it)));
+		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
+		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
 	}
+
+	for (; it != ie; )
+	{
+		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
+	}
+
 	return *this;
 
 } // MakeUpperLocale
@@ -438,10 +468,26 @@ KString& KString::MakeUpperLocale() &
 KString& KString::MakeLowerASCII() &
 //----------------------------------------------------------------------
 {
-	for (auto& it : m_rep)
+	auto it = begin();
+	auto ie = end();
+
+	for (; std::distance(it, ie) >= 8;)
 	{
-		it = KASCII::kToLower(it);
+		*it++ = KASCII::kToLower(*it);
+		*it++ = KASCII::kToLower(*it);
+		*it++ = KASCII::kToLower(*it);
+		*it++ = KASCII::kToLower(*it);
+		*it++ = KASCII::kToLower(*it);
+		*it++ = KASCII::kToLower(*it);
+		*it++ = KASCII::kToLower(*it);
+		*it++ = KASCII::kToLower(*it);
 	}
+
+	for (; it != ie; )
+	{
+		*it++ = KASCII::kToLower(*it);
+	}
+
 	return *this;
 
 } // MakeLowerASCII
@@ -450,10 +496,26 @@ KString& KString::MakeLowerASCII() &
 KString& KString::MakeUpperASCII() &
 //----------------------------------------------------------------------
 {
-	for (auto& it : m_rep)
+	auto it = begin();
+	auto ie = end();
+
+	for (; std::distance(it, ie) >= 8;)
 	{
-		it = KASCII::kToUpper(it);
+		*it++ = KASCII::kToUpper(*it);
+		*it++ = KASCII::kToUpper(*it);
+		*it++ = KASCII::kToUpper(*it);
+		*it++ = KASCII::kToUpper(*it);
+		*it++ = KASCII::kToUpper(*it);
+		*it++ = KASCII::kToUpper(*it);
+		*it++ = KASCII::kToUpper(*it);
+		*it++ = KASCII::kToUpper(*it);
 	}
+
+	for (; it != ie; )
+	{
+		*it++ = KASCII::kToUpper(*it);
+	}
+
 	return *this;
 
 } // MakeUpperASCII

@@ -2096,7 +2096,6 @@ bool TransformUTF(Iterator it, Iterator ie, UTFString& sOutput, Functor func)
 		}
 		return true;
 #else
-		sOutput.reserve(sOutput.size() + sInput.size());
 		return ForEachUTF(it, ie, [&sOutput, &func](codepoint_t cp) { ToUTF(func(cp), sOutput); return true; });
 #endif
 	}

@@ -24,7 +24,7 @@ TEST_CASE("UTF8") {
 		for (auto& it : stest)
 		{
 			stype sTest;
-			Unicode::ToUTF(it[0], sTest);
+			Unicode::Latin1ToUTF(it[0], sTest);
 			CHECK( sTest == it[1] );
 			stype sOut;
 			Unicode::ForEachUTF(sTest, [&sOut](uint32_t ch)
@@ -49,7 +49,7 @@ TEST_CASE("UTF8") {
 		for (auto& it : stest)
 		{
 			stype sTest;
-			Unicode::ToUTF(it[0], sTest);
+			Unicode::Latin1ToUTF(it[0], sTest);
 			CHECK( sTest == it[1] );
 			stype sOut;
 			Unicode::ForEachUTF(sTest, [&sOut](uint32_t ch)

@@ -685,7 +685,7 @@ bool KXTerm::EditLine(
 
 			case '\n':   // done ..
 				sLine.clear();
-				Unicode::ToUTF(sUnicode, sLine);
+				Unicode::ConvertUTF(sUnicode, sLine);
 				m_History.Add(sLine);
 				m_bCursorLimits = bCursorLimits;
 				return true;
@@ -773,14 +773,14 @@ bool KXTerm::EditLine(
 			case Control('p'): // cur up
 				if (bCurLineHasEdits)
 				{
-					m_History.Stash(Unicode::ToUTF<KString>(sUnicode));
+					m_History.Stash(Unicode::ConvertUTF<KString>(sUnicode));
 				}
 				if (m_History.HaveOlder())
 				{
 					if (!m_History.HaveStashed())
 					{
 						// save current edit
-						m_History.Stash(Unicode::ToUTF<KString>(sUnicode));
+						m_History.Stash(Unicode::ConvertUTF<KString>(sUnicode));
 					}
 					sUnicode          = Unicode::ConvertUTF<UCString>(m_History.GetOlder());
 					iPos              = sUnicode.size();
@@ -881,7 +881,7 @@ bool KXTerm::EditLine(
 				}
 				else
 				{
-					KString sSearch = Unicode::ToUTF<KString>(sUnicode.begin(), sUnicode.begin() + iPos-1);
+					KString sSearch = Unicode::ConvertUTF<KString>(sUnicode.begin(), sUnicode.begin() + iPos-1);
 					sUnicode = Unicode::ConvertUTF<UCString>(m_History.Find(sSearch, true));
 					if (iPos > sUnicode.size())
 					{
@@ -943,7 +943,7 @@ bool KXTerm::EditLine(
 				return false;
 			}
 
-			auto sOut   = Unicode::ToUTF<KString>(sUnicode.begin() + iStart, sUnicode.end());
+			auto sOut   = Unicode::ConvertUTF<KString>(sUnicode.begin() + iStart, sUnicode.end());
 			Write(sOut);
 
 			CurLeft(sUnicode.size() - iPos);

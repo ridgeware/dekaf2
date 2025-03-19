@@ -18,7 +18,7 @@
 #ifdef DEKAF2_HAS_SIMDUTF
 #include "simdutf.h"
 #endif
-#undef HAVE_TEXTUTILS
+//#define HAVE_TEXTUTILS 1
 #ifdef HAVE_TEXTUTILS
 #include "textutils/UtfConv.h"
 #endif
@@ -55,9 +55,9 @@ void kutf8_bench()
 		uint32_t ch;
 		do
 		{
-//			ch = kRandom(0, 0x0110000);
+			//			ch = kRandom(0, 0x0110000);
 			ch = kRandom(0, 0x0800);
-//			ch = kRandom(0, 0x0ff);
+			//			ch = kRandom(0, 0x0ff);
 
 		} while (Unicode::IsSurrogate(ch));
 		Unicode::ToUTF(ch, sData);
@@ -70,9 +70,9 @@ void kutf8_bench()
 		uint32_t ch;
 		do
 		{
-//			ch = kRandom(0, 0x0110000);
+			//			ch = kRandom(0, 0x0110000);
 			ch = kRandom(0, 0x0800);
-//			ch = kRandom(0, 0x0ff);
+			//			ch = kRandom(0, 0x0ff);
 
 		} while (Unicode::IsSurrogate(ch));
 		Unicode::ToUTF(ch, sDataShort);
@@ -128,7 +128,7 @@ void kutf8_bench()
 	}
 #endif
 	{
-		dekaf2::KProf prof("CountUTF8 long");
+		dekaf2::KProf prof("CountUTF long");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -138,7 +138,7 @@ void kutf8_bench()
 		}
 	}
 	{
-		dekaf2::KProf prof("CountUTF8 short");
+		dekaf2::KProf prof("CountUTF short");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)
 		{
@@ -149,7 +149,7 @@ void kutf8_bench()
 	}
 
 	{
-		dekaf2::KProf prof("CountUTF8Max long");
+		dekaf2::KProf prof("CountUTFMax long");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -159,7 +159,7 @@ void kutf8_bench()
 		}
 	}
 	{
-		dekaf2::KProf prof("CountUTF8Max short");
+		dekaf2::KProf prof("CountUTFMax short");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)
 		{
@@ -219,7 +219,7 @@ void kutf8_bench()
 	}
 #endif
 	{
-		dekaf2::KProf prof("FromUTF8 long");
+		dekaf2::KProf prof("ConvertUTF long");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -229,7 +229,7 @@ void kutf8_bench()
 		}
 	}
 	{
-		dekaf2::KProf prof("FromUTF8 short");
+		dekaf2::KProf prof("ConvertUTF short");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)
 		{
@@ -288,7 +288,7 @@ void kutf8_bench()
 #endif
 #ifdef DEKAF2_HAS_SIMDUTF
 	{
-		dekaf2::KProf prof("SIMD ValidUTF8 long");
+		dekaf2::KProf prof("SIMD ValidUTF long");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -299,7 +299,7 @@ void kutf8_bench()
 	}
 
 	{
-		dekaf2::KProf prof("SIMD ValidUTF8 short");
+		dekaf2::KProf prof("SIMD ValidUTF short");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)
 		{
@@ -310,7 +310,7 @@ void kutf8_bench()
 	}
 #endif
 	{
-		dekaf2::KProf prof("ValidUTF8 long");
+		dekaf2::KProf prof("ValidUTF long");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -320,7 +320,7 @@ void kutf8_bench()
 		}
 	}
 	{
-		dekaf2::KProf prof("ValidUTF8 short");
+		dekaf2::KProf prof("ValidUTF short");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)
 		{
@@ -330,7 +330,7 @@ void kutf8_bench()
 		}
 	}
 	{
-		dekaf2::KProf prof("InvalidUTF8 long");
+		dekaf2::KProf prof("InvalidUTF long");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -340,7 +340,7 @@ void kutf8_bench()
 		}
 	}
 	{
-		dekaf2::KProf prof("InvalidUTF8 short");
+		dekaf2::KProf prof("InvalidUTF short");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)
 		{
@@ -350,56 +350,56 @@ void kutf8_bench()
 		}
 	}
 	{
-		dekaf2::KProf prof("LeftUTF8 short (30)");
+		dekaf2::KProf prof("LeftUTF short (30)");
 		prof.SetMultiplier(1000);
 		for (int ct = 0; ct < 1000; ++ct)
 		{
 			KProf::Force(&sData);
-			auto it = Unicode::LeftUTF8(sData.begin(), sData.end(), 30);
+			auto it = Unicode::LeftUTF(sData.begin(), sData.end(), 30);
 			if (it == sData.end()) KProf::Force();
 		}
 	}
 
 	{
-		dekaf2::KProf prof("LeftUTF8 long (2048)");
+		dekaf2::KProf prof("LeftUTF long (2048)");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto it = Unicode::LeftUTF8(sData.begin(), sData.end(), 2048);
+			auto it = Unicode::LeftUTF(sData.begin(), sData.end(), 2048);
 			if (it == sData.end()) KProf::Force();
 		}
 	}
 
 	{
-		dekaf2::KProf prof("LeftUTF8 large");
+		dekaf2::KProf prof("LeftUTF large");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto it = Unicode::LeftUTF8(sData.begin(), sData.end(), sData.size());
+			auto it = Unicode::LeftUTF(sData.begin(), sData.end(), sData.size());
 			if (it == sData.end()) KProf::Force();
 		}
 	}
 
 	{
-		dekaf2::KProf prof("RightUTF8 large");
+		dekaf2::KProf prof("RightUTF large");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto it = Unicode::RightUTF8(sData.begin(), sData.end(), sData.size());
+			auto it = Unicode::RightUTF(sData.begin(), sData.end(), sData.size());
 			if (it == sData.end()) KProf::Force();
 		}
 	}
 
 	{
-		dekaf2::KProf prof("LeftUTF8 copy long (2048)");
+		dekaf2::KProf prof("LeftUTF copy long (2048)");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			KString sString = Unicode::LeftUTF8(sData, 2048);
+			KString sString = Unicode::LeftUTF(sData, 2048);
 			KProf::Force(&sString);
 			KProf::Force();
 		}
@@ -418,12 +418,12 @@ void kutf8_bench()
 	}
 
 	{
-		dekaf2::KProf prof("RightUTF8 copy long (2048)");
+		dekaf2::KProf prof("RightUTF copy long (2048)");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			KString sString = Unicode::RightUTF8(sData, 2048);
+			KString sString = Unicode::RightUTF(sData, 2048);
 			KProf::Force(&sString);
 			KProf::Force();
 		}
@@ -442,7 +442,7 @@ void kutf8_bench()
 	}
 
 	{
-		dekaf2::KProf prof("NextCodepointFromUTF8 (1000)");
+		dekaf2::KProf prof("NextCodepoint (1000)");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -452,14 +452,14 @@ void kutf8_bench()
 			Unicode::codepoint_t cp;
 			for (int ict = 0; ict < 1000; ++ict)
 			{
-				cp = Unicode::CodepointFromUTF8(it, ie);
+				cp = Unicode::Codepoint(it, ie);
 			}
 			if (cp) KProf::Force();
 		}
 	}
 
 	{
-		dekaf2::KProf prof("NextCodepointFromUTF8 (2 mio)");
+		dekaf2::KProf prof("NextCodepoint (2 mio)");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -469,7 +469,7 @@ void kutf8_bench()
 			Unicode::codepoint_t cp;
 			for (int ict = 0; ict < 2 * 1000 * 1000; ++ict)
 			{
-				cp = Unicode::CodepointFromUTF8(it, ie);
+				cp = Unicode::Codepoint(it, ie);
 			}
 			if (cp) KProf::Force();
 		}
@@ -505,23 +505,23 @@ void kutf8_bench()
 	}
 #endif
 	{
-		dekaf2::KProf prof("ToUTF8 short (50)");
+		dekaf2::KProf prof("ConvertUTF short (50)");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)
 		{
 			KProf::Force(&sWideShort);
-			auto sUTF = Unicode::ToUTF<KString>(sWideShort);
+			auto sUTF = Unicode::ConvertUTF<KString>(sWideShort);
 			if (sUTF[2] == 'a') KProf::Force();
 		}
 	}
 
 	{
-		dekaf2::KProf prof("ToUTF8 large");
+		dekaf2::KProf prof("ConvertUTF large");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sWide);
-			auto sUTF = Unicode::ToUTF<KString>(sWide);
+			auto sUTF = Unicode::ConvertUTF<KString>(sWide);
 			if (sUTF[2] == 'a') KProf::Force();
 		}
 	}
@@ -550,7 +550,7 @@ void kutf8_bench()
 #endif
 #ifdef DEKAF2_HAS_SIMDUTF
 	{
-		dekaf2::KProf prof("ToUpperUTF8 SIMD short (50)");
+		dekaf2::KProf prof("ToUpperUTF SIMD short (50)");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)
 		{
@@ -570,7 +570,7 @@ void kutf8_bench()
 	}
 
 	{
-		dekaf2::KProf prof("ToUpperUTF8 SIMD large");
+		dekaf2::KProf prof("ToUpperUTF SIMD large");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -590,7 +590,7 @@ void kutf8_bench()
 	}
 #endif
 	{
-		dekaf2::KProf prof("ToUpperUTF8 short (50)");
+		dekaf2::KProf prof("ToUpperUTF short (50)");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)
 		{
@@ -602,7 +602,7 @@ void kutf8_bench()
 	}
 
 	{
-		dekaf2::KProf prof("ToUpperUTF8 large");
+		dekaf2::KProf prof("ToUpperUTF large");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
@@ -658,6 +658,99 @@ void kutf8_bench()
 			if (sUTF[2] == 'a') KProf::Force();
 		}
 	}
+
+	{
+		dekaf2::KProf prof("KString::ToUpperASCII (50)");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			auto sUTF = sDataShort.ToUpperASCII();
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("KString::ToUpperASCII large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto sUTF = sData.ToUpperASCII();
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("KString::MakeUpperASCII short (50)");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			auto sUTF = sDataShort;
+			sUTF.MakeUpperASCII();
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("KString::MakeUpperASCII large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto sUTF = sData;
+			sUTF.MakeUpperASCII();
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("KString::ToUpperLocale (50)");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			auto sUTF = sDataShort.ToUpperLocale();
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("KString::ToUpperLocale large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto sUTF = sData.ToUpperLocale();
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("KString::MakeUpperLocale short (50)");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			auto sUTF = sDataShort;
+			sUTF.MakeUpperLocale();
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("KString::MakeUpperLocale large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto sUTF = sData;
+			sUTF.MakeUpperLocale();
+			if (sUTF[2] == 'a') KProf::Force();
+		}
+	}
+
 }
 
 

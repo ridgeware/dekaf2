@@ -82,11 +82,20 @@
 
  --- Convert
 
+ /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32 (from an iterator pair)
+ bool ConvertUTF(Iterator it, Iterator ie, OutType& sOutput)
+
  /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
  bool ConvertUTF(const InpType& sInput, OutType& sOutput)
 
  /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
  OutType ConvertUTF(const InpType& sInp)
+
+ /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/16/32 string
+ bool ConvertUTF(const wchar_t* it, UTFString& sUTF)
+
+ /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/16/32 string
+ UTFString ConvertUTF(const wchar_t* it)
 
  --- ToUTF
 
@@ -99,23 +108,19 @@
  /// Convert a codepoint into a UTF8/16/32 sequence returned as string of type UTFString.
  UTFString ToUTF(Char codepoint)
 
- /// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/16/32 string (from two iterators)
- bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
+ --- Latin1ToUTF
 
- /// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/16/32 string (from two iterators)
- UTFString ToUTF(Iterator it, Iterator ie)
+ /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
+ bool Latin1ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 
- /// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/16/32 string
- bool ToUTF(const InputString& sInput, UTFString& sUTF)
+ /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
+ UTFString Latin1ToUTF(Iterator it, Iterator ie)
 
- /// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/16/32 string
- UTFString ToUTF(const InputString& sInput)
+ /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
+ bool Latin1ToUTF(const Latin1String& sLatin1, UTFString& sUTF)
 
- /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/16/32 string
- bool ToUTF(const wchar_t* it, UTFString& sUTF)
-
- /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/16/32 string
- UTFString ToUTF(const wchar_t* it)
+ /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
+ UTFString Latin1ToUTF(const Latin1String& sLatin1)
 
  --- get codepoint
 
@@ -286,6 +291,7 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 #endif
 
 #if KUTF8_DEKAF2
+	#undef KUTF8_NAMESPACE // we need the namespace being the default "Unicode"
 	#include "kctype.h"
 	#if KUTF8_WITH_SIMDUTF
 		#include "bits/simd/kutf.h"
@@ -301,7 +307,11 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 	#endif
 #endif
 
-namespace Unicode {
+#ifndef KUTF8_NAMESPACE
+	#define KUTF8_NAMESPACE Unicode
+#endif
+
+namespace KUTF8_NAMESPACE {
 
 #ifdef __cpp_unicode_characters
 	#ifndef KUTF8_DEKAF2
@@ -686,86 +696,43 @@ UTFString ToUTF(Char codepoint)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
+/// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
 template<typename UTFString, typename Iterator>
 KUTF8_CONSTEXPR_14
-bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
+bool Latin1ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 //-----------------------------------------------------------------------------
 {
 	using input_value_type = typename std::remove_reference<decltype(*it)>::type;
-	constexpr std::size_t iInputWidth = sizeof(input_value_type);
+	constexpr auto iInputWidth = sizeof(input_value_type);
+
+	static_assert(iInputWidth == 1, "supporting only 8 bit strings in Latin1ToUTF");
 
 #if KUTF8_WITH_SIMDUTF
 
 	constexpr std::size_t iOutputWidth = sizeof(typename UTFString::value_type);
 
 	auto iInputSize = std::distance(it, ie);
-	const void* input = &*it;
+	if (!iInputSize) return true;
 
-	if (iInputWidth > 1 && iInputWidth == iOutputWidth)
-	{
-		// do a simple memcopy
-		auto iOldSize = sUTF.size();
-		sUTF.resize(iOldSize + iInputSize);
-		// pre C++17 has const .data(), so we take a ref on the first element
-		void* pOut = &sUTF[0] + iOldSize;
-		std::memcpy(pOut, input, iInputSize * iInputWidth);
-		return true;
-	}
+	const void* input = &*it;
 
 	// we have to assign a value to satisfy non-C++17
 	std::size_t iTargetSize = 0;
 
-	switch (iInputWidth)
+	switch (iOutputWidth)
 	{
 		case 4:
-			switch (iOutputWidth)
-			{
-				case 2:
-					iTargetSize = simd::utf16_length_from_utf32(static_cast<const char32_t*>(input), iInputSize);
-					break;
-				case 1:
-					iTargetSize = simd::utf8_length_from_utf32(static_cast<const char32_t*>(input), iInputSize);
-					break;
-				default:
-					return false;
-			}
+			iTargetSize = iInputSize;
 			break;
-
 		case 2:
-			switch (iOutputWidth)
-			{
-				case 4:
-					iTargetSize = simd::utf32_length_from_utf16(static_cast<const char16_t*>(input), iInputSize);
-					break;
-				case 1:
-					iTargetSize = simd::utf8_length_from_utf16(static_cast<const char16_t*>(input), iInputSize);
-					break;
-				default:
-					return false;
-			}
+			iTargetSize = iInputSize;
 			break;
-
 		case 1:
-			switch (iOutputWidth)
-			{
-				case 4:
-					iTargetSize = iInputSize;
-					break;
-				case 2:
-					iTargetSize = iInputSize;
-					break;
-				case 1:
-					iTargetSize = simd::utf8_length_from_latin1(static_cast<const char*>(input), iInputSize);
-					break;
-				default:
-					return false;
-			}
+			iTargetSize = simd::utf8_length_from_latin1(static_cast<const char*>(input), iInputSize);
 			break;
-
-		default:
-			return false;
 	}
+
+	if (!iTargetSize) return false;
 
 	auto iOldSize = sUTF.size();
 	sUTF.resize (iOldSize + iTargetSize);
@@ -774,55 +741,17 @@ bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 	// we have to assign a value to satisfy non-C++17
 	std::size_t iWrote = 0;
 
-	switch (iInputWidth)
+	switch (iOutputWidth)
 	{
 		case 4:
-			switch (iOutputWidth)
-			{
-				case 2:
-					iWrote = simd::convert_utf32_to_utf16(static_cast<const char32_t*>(input), iInputSize, static_cast<char16_t*>(pOut));
-					break;
-				case 1:
-					iWrote = simd::convert_utf32_to_utf8(static_cast<const char32_t*>(input), iInputSize, static_cast<char*>(pOut));
-					break;
-				default:
-					return false;
-			}
+			iWrote = simd::convert_latin1_to_utf32(static_cast<const char*>(input), iInputSize, static_cast<char32_t*>(pOut));
 			break;
-
 		case 2:
-			switch (iOutputWidth)
-			{
-				case 4:
-					iWrote = simd::convert_utf16_to_utf32(static_cast<const char16_t*>(input), iInputSize, static_cast<char32_t*>(pOut));
-					break;
-				case 1:
-					iWrote = simd::convert_utf16_to_utf8(static_cast<const char16_t*>(input), iInputSize, static_cast<char*>(pOut));
-					break;
-				default:
-					return false;
-			}
+			iWrote = simd::convert_latin1_to_utf16(static_cast<const char*>(input), iInputSize, static_cast<char16_t*>(pOut));
 			break;
-
 		case 1:
-			switch (iOutputWidth)
-			{
-				case 4:
-					iWrote = simd::convert_latin1_to_utf32(static_cast<const char*>(input), iInputSize, static_cast<char32_t*>(pOut));
-					break;
-				case 2:
-					iWrote = simd::convert_latin1_to_utf16(static_cast<const char*>(input), iInputSize, static_cast<char16_t*>(pOut));
-					break;
-				case 1:
-					iWrote = simd::convert_latin1_to_utf8(static_cast<const char*>(input), iInputSize, static_cast<char*>(pOut));
-					break;
-				default:
-					return false;
-			}
+			iWrote = simd::convert_latin1_to_utf8(static_cast<const char*>(input), iInputSize, static_cast<char*>(pOut));
 			break;
-
-		default:
-			return false;
 	}
 
 	return iWrote == iTargetSize;
@@ -831,50 +760,7 @@ bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 
 	for (; KUTF8_LIKELY(it != ie); ++it)
 	{
-		// Make sure all surrogate combine logic is only compiled in for 16 bit strings.
-		// If we would have surrogate pairs in 32 bit strings it is an error in their
-		// construction in the first place. We will not try to reassemble them.
-		// The UTF encoder will convert those to replacement characters.
-		if (iInputWidth == 2 && KUTF8_UNLIKELY(IsSurrogate(*it)))
-		{
-			if (KUTF8_LIKELY(IsLeadSurrogate(*it)))
-			{
-				SurrogatePair sp;
-
-				sp.low = CodepointCast(*it++);
-
-				if (KUTF8_UNLIKELY(it == ie))
-				{
-					// this is an incomplete surrogate
-					ToUTF(INVALID_CODEPOINT, sUTF);
-				}
-				else
-				{
-					sp.high = CodepointCast(*it);
-
-					if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
-					{
-						// the second surrogate is not valid
-						ToUTF(INVALID_CODEPOINT, sUTF);
-					}
-					else
-					{
-						// and output the completed codepoint
-						ToUTF(sp.ToCodepoint(), sUTF);
-					}
-				}
-			}
-			else
-			{
-				// this was a trail surrogate withoud lead..
-				ToUTF(INVALID_CODEPOINT, sUTF);
-			}
-		}
-		else
-		{
-			// default case
-			ToUTF(*it, sUTF);
-		}
+		ToUTF(*it, sUTF);
 	}
 
 	return true;
@@ -883,66 +769,39 @@ bool ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
+/// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
 template<typename UTFString, typename Iterator,
          typename std::enable_if<!KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-UTFString ToUTF(Iterator it, Iterator ie)
+UTFString Latin1ToUTF(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
 	UTFString sUTF{};
-	ToUTF(it, ie, sUTF);
+	Latin1ToUTF(it, ie, sUTF);
 	return sUTF;
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
-template<typename UTFString, typename InputString,
-         typename std::enable_if<!std::is_integral<InputString>::value
-                              && KUTF8_detail::HasSize<InputString>::value, int>::type = 0>
+/// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
+template<typename UTFString, typename Latin1String,
+         typename std::enable_if<!std::is_integral<Latin1String>::value
+                              && KUTF8_detail::HasSize<Latin1String>::value, int>::type = 0>
 KUTF8_CONSTEXPR_14
-bool ToUTF(const InputString& sInput, UTFString& sUTF)
+bool Latin1ToUTF(const Latin1String& sLatin1, UTFString& sUTF)
 //-----------------------------------------------------------------------------
 {
-	return ToUTF(sInput.begin(), sInput.end(), sUTF);
+	return Latin1ToUTF(sLatin1.begin(), sLatin1.end(), sUTF);
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 or UTF32) or a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
-template<typename UTFString, typename InputString,
-         typename std::enable_if<!std::is_integral<InputString>::value
-                              && KUTF8_detail::HasSize<InputString>::value, int>::type = 0>
+/// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
+template<typename UTFString, typename Latin1String>
 KUTF8_CONSTEXPR_14
-UTFString ToUTF(const InputString& sInput)
+UTFString Latin1ToUTF(const Latin1String& sLatin1)
 //-----------------------------------------------------------------------------
 {
 	UTFString sUTF{};
-	ToUTF(sInput, sUTF);
-	return sUTF;
-}
-
-//-----------------------------------------------------------------------------
-/// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/UTF16/UTF32 string
-template<typename UTFString>
-KUTF8_CONSTEXPR_14
-bool ToUTF(const wchar_t* it, UTFString& sUTF)
-//-----------------------------------------------------------------------------
-{
-	if KUTF8_UNLIKELY(it == nullptr) return false;
-
-	auto iSize = std::wcslen(it);
-	return ToUTF(it, it + iSize, sUTF);
-}
-
-//-----------------------------------------------------------------------------
-/// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/UTF16/UTF32 string
-template<typename UTFString>
-KUTF8_CONSTEXPR_14
-UTFString ToUTF(const wchar_t* it)
-//-----------------------------------------------------------------------------
-{
-	UTFString sUTF{};
-	ToUTF(it, sUTF);
+	Latin1ToUTF(sLatin1, sUTF);
 	return sUTF;
 }
 
@@ -1918,102 +1777,153 @@ bool ForEachUTF(const UTFString& sUTF, Functor func)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
-template<typename OutType, typename InpType>
+/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32 (from an iterator pair)
+template<typename OutType, typename Iterator>
 KUTF8_CONSTEXPR_14
-bool ConvertUTF(const InpType& sInput, OutType& sOutput)
+bool ConvertUTF(Iterator it, Iterator ie, OutType& sOutput)
 //-----------------------------------------------------------------------------
 {
 #if	KUTF8_WITH_SIMDUTF
 
-	constexpr auto iInputWidth  = sizeof(typename InpType::value_type);
+	constexpr auto iInputWidth  = sizeof(typename std::remove_reference<decltype(*it)>::type);
 	constexpr auto iOutputWidth = sizeof(typename OutType::value_type);
+
+	auto iInputSize = std::distance(it, ie);
+	if (iInputSize == 0) return true;
+
+	const void* pIn = &*it;
 
 	if (iInputWidth == iOutputWidth)
 	{
 		// do a simple memcopy
 		auto iOldSize = sOutput.size();
-		sOutput.resize(iOldSize + sInput.size());
-		// pre C++17 has const .data(), so we take a ref on the first element
-		void* pOut = &sOutput[0] + iOldSize;
-		const void* pIn = sInput.data();
-		std::memcpy(pOut, pIn, sInput.size() * iInputWidth);
+		sOutput.resize(iOldSize + iInputSize);
+		// pre C++17 has const .data()
+		void* pOut = &sOutput[iOldSize];
+		std::memcpy(pOut, pIn, iInputSize * iInputWidth);
 		return true;
 	}
-	else if (iInputWidth == 1)
-	{
-		// convert from UTF8 to 16 or 32
-		// we have to assign a value to satisfy non-C++17
-		std::size_t iTargetSize = 0;
-		const void* pIn = sInput.data();
 
-		switch (iOutputWidth)
-		{
-			case 4:
-				iTargetSize = simd::utf32_length_from_utf8(static_cast<const char*>(pIn), sInput.size());
-				break;
-			case 2:
-				iTargetSize = simd::utf16_length_from_utf8(static_cast<const char*>(pIn), sInput.size());
-				break;
-			default:
-				return false;
-		}
+	// we have to assign a value to satisfy non-C++17
+	std::size_t iTargetSize = 0;
 
-		auto iOldSize = sOutput.size();
-		sOutput.resize(iOldSize + iTargetSize);
-		// pre C++17 has const .data(), so we take a ref on the first element
-		void* pOut = &sOutput[0] + iOldSize;
-		// we have to assign a value to satisfy non-C++17
-		std::size_t iWrote = 0;
+	switch (iInputWidth)
+	{
+		case 4:
+			switch (iOutputWidth)
+			{
+				case 4:
+					// need this because clang does not see that the 4 : 4 case is handled by the memcpy branch above
+					break;
 
-		switch (iOutputWidth)
-		{
-			case 4:
-				iWrote = simd::convert_utf8_to_utf32(static_cast<const char*>(pIn), sInput.size(), static_cast<char32_t*>(pOut));
-				break;
-			case 2:
-				iWrote = simd::convert_utf8_to_utf16(static_cast<const char*>(pIn), sInput.size(), static_cast<char16_t*>(pOut));
-				break;
-			default:
-				return false;
-		}
+				case 2:
+					iTargetSize = simd::utf16_length_from_utf32(static_cast<const char32_t*>(pIn), iInputSize);
+					break;
 
-		return (iWrote == iTargetSize);
-	}
-	else if (iOutputWidth == 1)
-	{
-		// convert from 16 or 32 to UTF8
-		return ToUTF(sInput, sOutput);
-	}
-	else if (iInputWidth == 2 && iOutputWidth == 4)
-	{
-		const void* pIn = sInput.data();
-		auto iTargetSize = simd::utf32_length_from_utf16(static_cast<const char16_t*>(pIn), sInput.size());
-		auto iOldSize = sOutput.size();
-		sOutput.resize(iOldSize + iTargetSize);
-		// pre C++17 has const .data(), so we take a ref on the first element
-		void* pOut = &sOutput[0] + iOldSize;
-		auto iWrote = simd::convert_utf16_to_utf32(static_cast<const char16_t*>(pIn), sInput.size(), static_cast<char32_t*>(pOut));
-		return iWrote == iTargetSize;
-	}
-	else if (iInputWidth == 4 && iOutputWidth == 2)
-	{
-		const void* pIn = sInput.data();
-		auto iTargetSize = simd::utf16_length_from_utf32(static_cast<const char32_t*>(pIn), sInput.size());
-		auto iOldSize = sOutput.size();
-		sOutput.resize(iOldSize + iTargetSize);
-		// pre C++17 has const .data(), so we take a ref on the first element
-		void* pOut = &sOutput[0] + iOldSize;
-		auto iWrote = simd::convert_utf32_to_utf16(static_cast<const char32_t*>(pIn), sInput.size(), static_cast<char16_t*>(pOut));
-		return iWrote == iTargetSize;
+				case 1:
+					iTargetSize = simd::utf8_length_from_utf32(static_cast<const char32_t*>(pIn), iInputSize);
+					break;
+			}
+			break;
+
+		case 2:
+			switch (iOutputWidth)
+			{
+				case 4:
+					iTargetSize = simd::utf32_length_from_utf16(static_cast<const char16_t*>(pIn), iInputSize);
+					break;
+
+				case 2:
+					// need this because clang does not see that the 2 : 2 case is handled by the memcpy branch above
+					break;
+
+				case 1:
+					iTargetSize = simd::utf8_length_from_utf16(static_cast<const char16_t*>(pIn), iInputSize);
+					break;
+			}
+			break;
+
+		case 1:
+			switch (iOutputWidth)
+			{
+				case 4:
+					iTargetSize = simd::utf32_length_from_utf8(static_cast<const char*>(pIn), iInputSize);
+					break;
+
+				case 2:
+					iTargetSize = simd::utf16_length_from_utf8(static_cast<const char*>(pIn), iInputSize);
+					break;
+
+				case 1:
+					// need this because clang does not see that the 1 : 1 case is handled by the memcpy branch above
+					break;
+			}
+			break;
 	}
 
-	return false;
+	if (!iTargetSize) return false;
+
+	auto iOldSize = sOutput.size();
+	sOutput.resize (iOldSize + iTargetSize);
+	// pre C++17 has const .data()
+	void* pOut = &sOutput[iOldSize];
+	// we have to assign a value to satisfy non-C++17
+	std::size_t iWrote = 0;
+
+	switch (iInputWidth)
+	{
+		case 4:
+			switch (iOutputWidth)
+			{
+				case 4:
+					break;
+
+				case 2:
+					iWrote = simd::convert_utf32_to_utf16(static_cast<const char32_t*>(pIn), iInputSize, static_cast<char16_t*>(pOut));
+					break;
+
+				case 1:
+					iWrote = simd::convert_utf32_to_utf8(static_cast<const char32_t*>(pIn), iInputSize, static_cast<char*>(pOut));
+					break;
+			}
+			break;
+
+		case 2:
+			switch (iOutputWidth)
+			{
+				case 4:
+					iWrote = simd::convert_utf16_to_utf32(static_cast<const char16_t*>(pIn), iInputSize, static_cast<char32_t*>(pOut));
+					break;
+
+				case 2:
+					break;
+
+				case 1:
+					iWrote = simd::convert_utf16_to_utf8(static_cast<const char16_t*>(pIn), iInputSize, static_cast<char*>(pOut));
+					break;
+			}
+			break;
+
+		case 1:
+			switch (iOutputWidth)
+			{
+				case 4:
+					iWrote = simd::convert_utf8_to_utf32(static_cast<const char*>(pIn), iInputSize, static_cast<char32_t*>(pOut));
+					break;
+
+				case 2:
+					iWrote = simd::convert_utf8_to_utf16(static_cast<const char*>(pIn), iInputSize, static_cast<char16_t*>(pOut));
+					break;
+
+				case 1:
+					break;
+			}
+			break;
+	}
+
+	return iWrote == iTargetSize;
 
 #else // KUTF8_WITH_SIMDUTF
-
-	auto it = sInput.begin();
-	auto ie = sInput.end();
 
 	for (; KUTF8_LIKELY(it != ie);)
 	{
@@ -2027,14 +1937,62 @@ bool ConvertUTF(const InpType& sInput, OutType& sOutput)
 
 //-----------------------------------------------------------------------------
 /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+template<typename OutType, typename InpType,
+         typename std::enable_if<!std::is_integral<InpType>::value
+                              && KUTF8_detail::HasSize<InpType>::value, int>::type = 0>
+KUTF8_CONSTEXPR_14
+bool ConvertUTF(const InpType& sInput, OutType& sOutput)
+//-----------------------------------------------------------------------------
+{
+	return ConvertUTF(sInput.begin(), sInput.end(), sOutput);
+}
+
+//-----------------------------------------------------------------------------
+/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+template<typename OutType, typename Iterator,
+         typename std::enable_if<!KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
+KUTF8_CONSTEXPR_14
+OutType ConvertUTF(Iterator it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+	OutType sOut{};
+	ConvertUTF(it, ie, sOut);
+	return sOut;
+}
+
+//-----------------------------------------------------------------------------
+/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
 template<typename OutType, typename InpType>
 KUTF8_CONSTEXPR_14
 OutType ConvertUTF(const InpType& sInp)
 //-----------------------------------------------------------------------------
 {
-	OutType sOut{};
-	ConvertUTF(sInp, sOut);
-	return sOut;
+	return ConvertUTF<OutType>(sInp.begin(), sInp.end());
+}
+
+//-----------------------------------------------------------------------------
+/// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/UTF16/UTF32 string
+template<typename UTFString>
+KUTF8_CONSTEXPR_14
+bool ConvertUTF(const wchar_t* it, UTFString& sUTF)
+//-----------------------------------------------------------------------------
+{
+	if KUTF8_UNLIKELY(it == nullptr) return false;
+
+	auto iSize = std::wcslen(it);
+	return ConvertUTF(it, it + iSize, sUTF);
+}
+
+//-----------------------------------------------------------------------------
+/// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/UTF16/UTF32 string
+template<typename UTFString>
+KUTF8_CONSTEXPR_14
+UTFString ConvertUTF(const wchar_t* it)
+//-----------------------------------------------------------------------------
+{
+	UTFString sUTF{};
+	ConvertUTF(it, sUTF);
+	return sUTF;
 }
 
 //-----------------------------------------------------------------------------
@@ -2326,7 +2284,7 @@ ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
 
 } // namespace CESU8
 
-} // namespace Unicode
+} // namespace KUTF8_NAMESPACE
 
 #ifdef KUTF8_DEKAF2
 DEKAF2_NAMESPACE_END

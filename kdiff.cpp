@@ -209,7 +209,7 @@ void PrintException(const KDiffMatchPatch::string_t& sEx)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-	kException(Unicode::ToUTF<KString>(sEx).c_str());
+	kException(Unicode::ConvertUTF<KString>(sEx).c_str());
 #else
 	kException(sEx);
 #endif
@@ -222,7 +222,7 @@ void PrintException(const KDiffMatchPatch::string_t& sEx)
 KString KDiff::Diff::GetText() const
 //-----------------------------------------------------------------------------
 {
-	return Unicode::ToUTF<KString>(m_sText);
+	return Unicode::ConvertUTF<KString>(m_sText);
 
 } // Diff::GetText
 
@@ -313,7 +313,7 @@ KString KDiff::GetUnifiedDiff()
 		{
 			auto Patches = KDiffMatchPatch().patch_make(*dget(m_Diffs));
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-			return Unicode::ToUTF<KString>(KDiffMatchPatch::patch_toText(Patches));
+			return Unicode::ConvertUTF<KString>(KDiffMatchPatch::patch_toText(Patches));
 #else
 			return KDiffMatchPatch::patch_toText(Patches);
 #endif

@@ -1960,7 +1960,6 @@ UTFString ConvertUTF(const wchar_t* it)
 /// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every
 /// codepoint (which may be INVALID_CODEPOINT for input parsing errors)
 template<typename Iterator, class Functor>
-KUTF8_CONSTEXPR_14
 bool ForEachUTF(Iterator it, Iterator ie, Functor func)
 //-----------------------------------------------------------------------------
 {
@@ -2018,7 +2017,6 @@ bool ForEachUTF(Iterator it, Iterator ie, Functor func)
 //-----------------------------------------------------------------------------
 /// Convert string from UTF8, calling functor func for every codepoint
 template<typename UTFString, class Functor>
-KUTF8_CONSTEXPR_14
 bool ForEachUTF(const UTFString& sUTF, Functor func)
 //-----------------------------------------------------------------------------
 {

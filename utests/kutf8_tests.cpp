@@ -9,7 +9,7 @@
 
 using namespace dekaf2;
 
-TEST_CASE("UTF8") {
+TEST_CASE("UTF") {
 
 	SECTION("std::string")
 	{
@@ -61,7 +61,7 @@ TEST_CASE("UTF8") {
 		}
 	}
 
-	SECTION("ValidUTF8")
+	SECTION("ValidUTF")
 	{
 		KString sStr("testäöü test日本語abc中文Русский");
 		CHECK( Unicode::ValidUTF(sStr) == true );
@@ -70,7 +70,7 @@ TEST_CASE("UTF8") {
 		CHECK( Unicode::ValidUTF(sStr) == false );
 	}
 
-	SECTION("CountUTF8")
+	SECTION("CountUTF")
 	{
 		KString sStr("testäöü test日本語abc中文Русский");
 		CHECK(              sStr.size() == 47 );
@@ -78,28 +78,28 @@ TEST_CASE("UTF8") {
 		CHECK( Unicode::CountUTF(sStr.begin()+2, sStr.end()) == 25 );
 	}
 
-	SECTION("LeftUTF8")
+	SECTION("LeftUTF")
 	{
 		KString sStr("testäöü test日本語abc中文Русский");
 		CHECK(                sStr.size() == 47       );
 		CHECK( Unicode::LeftUTF(sStr, 7) == "testäöü");
 	}
 
-	SECTION("RightUTF8")
+	SECTION("RightUTF")
 	{
 		KString sStr("testäöü test日本語abc中文Русский");
 		CHECK(                  sStr.size() == 47           );
 		CHECK( Unicode::RightUTF(sStr, 10) == "c中文Русский");
 	}
 
-	SECTION("MidUTF8")
+	SECTION("MidUTF")
 	{
 		KString sStr("testäöü test日本語abc中文Русский");
 		CHECK(                  sStr.size() == 47         );
 		CHECK( Unicode::MidUTF(sStr, 8, 7) == "test日本語");
 	}
 
-	SECTION("UTF8ToUTF16Bytes")
+	SECTION("CESU8::UTF8ToUTF16Bytes")
 	{
 		KString sUTF8("testäöü test日本語abc中文Русский");
 		CHECK(                 sUTF8.size() == 47     );
@@ -111,7 +111,7 @@ TEST_CASE("UTF8") {
 		CHECK(                 sUTF8New == sUTF8      );
 	}
 
-	SECTION("ToUTF8")
+	SECTION("ToUTF")
 	{
 		KString sUTF;
 		Unicode::ToUTF(128, sUTF);
@@ -329,43 +329,196 @@ TEST_CASE("UTF8") {
 		}
 	}
 
-	SECTION("Advance UTF8")
+	SECTION("Increment UTF8")
 	{
 		KStringView sInput = "testäöü test日本語abc中文Русский ..";
 		auto it = sInput.begin();
 		auto ie = sInput.end();
 		auto it2 = it;
-		CHECK ( Unicode::AdvanceUTF(it, ie,  0) == true );
+		CHECK ( Unicode::IncrementUTF(it, ie,  0) == true );
 		CHECK ( it == it2 );
-		CHECK ( Unicode::AdvanceUTF(it, ie,  1) == true );
+		CHECK ( Unicode::IncrementUTF(it, ie,  1) == true );
 		CHECK ( *it == 'e' );
-		CHECK ( Unicode::AdvanceUTF(it, ie,  6) == true );
+		CHECK ( Unicode::IncrementUTF(it, ie,  6) == true );
 		CHECK ( *it == ' ' );
-		CHECK ( Unicode::AdvanceUTF(it, ie, 20) == true );
+		CHECK ( Unicode::IncrementUTF(it, ie, 20) == true );
 		CHECK ( *it == ' ' );
-		CHECK ( Unicode::AdvanceUTF(it, ie,  5) == false);
+		CHECK ( Unicode::IncrementUTF(it, ie,  5) == false);
 		CHECK ( it == ie );
 	}
 
 #ifdef DEKAF2_HAS_FULL_CPP_17
-	SECTION("Advance UTF32")
+	SECTION("Increment UTF32")
 	{
 		std::wstring_view sInput = L"testäöü test日本語abc中文Русский ..";
 		auto it = sInput.begin();
 		auto ie = sInput.end();
 		auto it2 = it;
-		CHECK ( Unicode::AdvanceUTF(it, ie,  0) == true );
+		CHECK ( Unicode::IncrementUTF(it, ie,  0) == true );
 		CHECK ( it == it2 );
-		CHECK ( Unicode::AdvanceUTF(it, ie,  1) == true );
+		CHECK ( Unicode::IncrementUTF(it, ie,  1) == true );
 		CHECK ( (*it == wchar_t('e')) );
-		CHECK ( Unicode::AdvanceUTF(it, ie,  6) == true );
+		CHECK ( Unicode::IncrementUTF(it, ie,  6) == true );
 		CHECK ( (*it == wchar_t(' ')) );
-		CHECK ( Unicode::AdvanceUTF(it, ie, 20) == true );
+		CHECK ( Unicode::IncrementUTF(it, ie, 20) == true );
 		CHECK ( (*it == wchar_t(' ')) );
-		CHECK ( Unicode::AdvanceUTF(it, ie,  5) == false);
+		CHECK ( Unicode::IncrementUTF(it, ie,  5) == false);
 		CHECK ( it == ie );
 	}
 #endif
 
+	SECTION("Decrement UTF8")
+	{
+		KStringView sInput = "testäöü test日本語abc中文Русский ..";
+		auto ibegin = sInput.begin();
+		auto it     = sInput.end();
+		CHECK ( Unicode::DecrementUTF(ibegin, it,   0) == true );
+		CHECK ( it == sInput.end() );
+		CHECK ( Unicode::DecrementUTF(ibegin, it,   1) == true );
+		CHECK ( *it == '.' );
+		CHECK ( Unicode::DecrementUTF(ibegin, it,  12) == true );
+		CHECK ( *it == 'c' );
+		CHECK ( Unicode::DecrementUTF(ibegin, it,   6) == true );
+		CHECK ( *it == 't' );
+		CHECK ( Unicode::DecrementUTF(ibegin, it,  12) == false);
+		CHECK ( it == ibegin );
+	}
+
+#ifdef DEKAF2_HAS_FULL_CPP_17
+	SECTION("Decrement UTF32")
+	{
+		std::wstring_view sInput = L"testäöü test日本語abc中文Русский ..";
+		auto ibegin = sInput.begin();
+		auto it     = sInput.end();
+		CHECK ( Unicode::DecrementUTF(ibegin, it,   0) == true );
+		CHECK ( it == sInput.end() );
+		CHECK ( Unicode::DecrementUTF(ibegin, it,   1) == true );
+		CHECK ( (*it == wchar_t('.')) );
+		CHECK ( Unicode::DecrementUTF(ibegin, it,  12) == true );
+		CHECK ( (*it == wchar_t('c')) );
+		CHECK ( Unicode::DecrementUTF(ibegin, it,   6) == true );
+		CHECK ( (*it == wchar_t('t')) );
+		CHECK ( Unicode::DecrementUTF(ibegin, it,  12) == false);
+		CHECK ( it == ibegin );
+	}
+#endif
+
+#ifdef DEKAF2_HAS_FULL_CPP_17
+	SECTION("ConvertUTF")
+	{
+		std::wstring   sWstring    = L"testäöü test日本語abc中文Русский ..";
+		std::string    s8Expected  =  "testäöü test日本語abc中文Русский ..";
+		std::u16string s16Expected = u"testäöü test日本語abc中文Русский ..";
+		std::u32string s32Expected = U"testäöü test日本語abc中文Русский ..";
+
+		{
+			std::string    s8Output;
+			std::u16string s16Output;
+			std::u32string s32Output;
+
+			CHECK ( Unicode::ConvertUTF(s8Expected, s8Output) );
+			CHECK ( s8Output == s8Expected );
+			CHECK ( Unicode::ConvertUTF(s16Expected, s16Output) );
+			CHECK ( s16Output == s16Expected );
+			CHECK ( Unicode::ConvertUTF(s32Expected, s32Output) );
+			CHECK ( s32Output == s32Expected );
+		}
+
+		{
+			std::string s8Output;
+
+			CHECK ( Unicode::ConvertUTF(s8Expected, s8Output) );
+			CHECK ( s8Output == s8Expected );
+		}
+
+		{
+			std::string    s8Output;
+			std::u16string s16Output;
+
+			CHECK ( Unicode::ConvertUTF(s8Expected, s16Output) );
+			CHECK ( s16Output == s16Expected );
+			CHECK ( Unicode::ConvertUTF(s16Output, s8Output) );
+			CHECK ( s8Output == s8Expected );
+		}
+
+		{
+			std::string    s8Output;
+			std::u32string s32Output;
+
+			CHECK ( Unicode::ConvertUTF(s8Expected, s32Output) );
+			CHECK ( s32Output == s32Expected );
+			CHECK ( Unicode::ConvertUTF(s32Output, s8Output) );
+			CHECK ( s8Output == s8Expected );
+		}
+
+		{
+			std::u16string s16Output;
+			std::u32string s32Output;
+
+			CHECK ( Unicode::ConvertUTF(s16Expected, s32Output) );
+			CHECK ( s32Output == s32Expected );
+			CHECK ( Unicode::ConvertUTF(s32Output, s16Output) );
+			CHECK ( s16Output == s16Expected );
+		}
+
+		{
+			std::string    s8Output;
+			std::u16string s16Output;
+			std::u32string s32Output;
+
+			CHECK ( Unicode::ConvertUTF(sWstring.c_str(), s32Output) );
+			CHECK ( s32Output == s32Expected );
+			CHECK ( Unicode::ConvertUTF(sWstring.c_str(), s16Output) );
+			CHECK ( s16Output == s16Expected );
+			CHECK ( Unicode::ConvertUTF(sWstring.c_str(), s8Output) );
+			CHECK ( s8Output == s8Expected );
+		}
+	}
+#endif
+
+	SECTION("Latin1ToUTF")
+	{
+		std::string sLatin1 = "test\xe4\xf6\xfc";
+		std::string sUTF8   = "testäöü";
+		std::string s8Output;
+		CHECK( Unicode::Latin1ToUTF(sLatin1, s8Output) );
+		CHECK( s8Output == sUTF8 );
+	}
+
+	SECTION("ToLowerUTF")
+	{
+		std::string    s8Lower     =  "testäöü test日本語abc中文русский ..";
+		std::u16string s16Lower    = u"testäöü test日本語abc中文русский ..";
+		std::u32string s32Lower    = U"testäöü test日本語abc中文русский ..";
+		std::string    s8Upper     =  "TESTÄÖÜ TEST日本語ABC中文РУССКИЙ ..";
+		std::u16string s16Upper    = u"TESTÄÖÜ TEST日本語ABC中文РУССКИЙ ..";
+		std::u32string s32Upper    = U"TESTÄÖÜ TEST日本語ABC中文РУССКИЙ ..";
+
+		{
+			std::string    s8Output;
+			std::u16string s16Output;
+			std::u32string s32Output;
+			
+			CHECK ( Unicode::ToUpperUTF(s8Lower, s8Output) );
+			CHECK ( s8Output == s8Upper );
+			CHECK ( Unicode::ToUpperUTF(s16Lower, s16Output) );
+			CHECK ( s16Output == s16Upper );
+			CHECK ( Unicode::ToUpperUTF(s32Lower, s32Output) );
+			CHECK ( s32Output == s32Upper );
+		}
+
+		{
+			std::string    s8Output;
+			std::u16string s16Output;
+			std::u32string s32Output;
+
+			CHECK ( Unicode::ToLowerUTF(s8Upper, s8Output) );
+			CHECK ( s8Output == s8Lower );
+			CHECK ( Unicode::ToLowerUTF(s16Upper, s16Output) );
+			CHECK ( (s16Output == s16Lower) );
+			CHECK ( Unicode::ToLowerUTF(s32Upper, s32Output) );
+			CHECK ( (s32Output == s32Lower) );
+		}
+	}
 }
 

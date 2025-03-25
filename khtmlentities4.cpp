@@ -44,7 +44,7 @@
 
 #include "kcompatibility.h"
 #include "khtmlentities.h"
-#include "kutf8.h"
+#include "kutf.h"
 #include "kstringutils.h"
 #include "kctype.h"
 #if !defined(_MSC_VER) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
@@ -2315,7 +2315,7 @@ std::size_t DecodeInt(KStringRef& sRet, KStringView sIn, bool bAlsoNumeric)
 
 							if (DEKAF2_LIKELY(bValid))
 							{
-								Unicode::ToUTF(iChar, sRet);
+								kutf::ToUTF(iChar, sRet);
 
 								if (it != ie && *it  == ';')
 								{
@@ -2371,11 +2371,11 @@ std::size_t DecodeInt(KStringRef& sRet, KStringView sIn, bool bAlsoNumeric)
 
 						if (KHTMLEntity::FromNamedEntity(sEntity, cp1, cp2))
 						{
-							Unicode::ToUTF(cp1, sRet);
+							kutf::ToUTF(cp1, sRet);
 
 							if (cp2)
 							{
-								Unicode::ToUTF(cp2, sRet);
+								kutf::ToUTF(cp2, sRet);
 							}
 
 							++iReplaced;
@@ -2479,7 +2479,7 @@ KString ConvertNumerical(KStringView sIn)
 			}
 		}
 
-		Unicode::ToUTF(iChar, sRet);
+		kutf::ToUTF(iChar, sRet);
 	}
 
 	return sRet;
@@ -2534,11 +2534,11 @@ KString KHTMLEntity::DecodeOne(KStringView sIn)
 
 			if (DEKAF2_LIKELY(it != s_NamedEntitiesHTML4.end()))
 			{
-				Unicode::ToUTF(it->second.iCodepoint1, sRet);
+				kutf::ToUTF(it->second.iCodepoint1, sRet);
 
 				if (it->second.iCodepoint2)
 				{
-					Unicode::ToUTF(it->second.iCodepoint2, sRet);
+					kutf::ToUTF(it->second.iCodepoint2, sRet);
 				}
 				break;
 			}

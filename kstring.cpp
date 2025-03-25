@@ -44,7 +44,7 @@
 #include "kstringutils.h"
 #include "klog.h"
 #include "kregex.h"
-#include "kutf8.h"
+#include "kutf.h"
 #include "kctype.h"
 
 DEKAF2_NAMESPACE_BEGIN
@@ -389,136 +389,6 @@ KStringView KString::ToView(size_type pos, size_type n) const
  size 3 != size 1, for fold from K to k (toupper)
  size 3 != size 2, for fold from Å to å (toupper)
  */
-
-//----------------------------------------------------------------------
-KString& KString::MakeLower() &
-//----------------------------------------------------------------------
-{
-	KString sLower = kToLower(ToView());
-	sLower.swap(*this);
-	return *this;
-
-} // MakeLower
-
-//----------------------------------------------------------------------
-KString& KString::MakeUpper() &
-//----------------------------------------------------------------------
-{
-	KString sUpper = kToUpper(ToView());
-	sUpper.swap(*this);
-	return *this;
-
-} // MakeUpper
-
-//----------------------------------------------------------------------
-KString& KString::MakeLowerLocale() &
-//----------------------------------------------------------------------
-{
-	auto it = begin();
-	auto ie = end();
-
-	for (; std::distance(it, ie) >= 8;)
-	{
-		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
-	}
-
-	for (; it != ie; )
-	{
-		*it++ = static_cast<value_type>(std::tolower(static_cast<unsigned char>(*it)));
-	}
-
-	return *this;
-
-} // MakeLowerLocale
-
-//----------------------------------------------------------------------
-KString& KString::MakeUpperLocale() &
-//----------------------------------------------------------------------
-{
-	auto it = begin();
-	auto ie = end();
-
-	for (; std::distance(it, ie) >= 8;)
-	{
-		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
-		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
-	}
-
-	for (; it != ie; )
-	{
-		*it++ = static_cast<value_type>(std::toupper(static_cast<unsigned char>(*it)));
-	}
-
-	return *this;
-
-} // MakeUpperLocale
-
-//----------------------------------------------------------------------
-KString& KString::MakeLowerASCII() &
-//----------------------------------------------------------------------
-{
-	auto it = begin();
-	auto ie = end();
-
-	for (; std::distance(it, ie) >= 8;)
-	{
-		*it++ = KASCII::kToLower(*it);
-		*it++ = KASCII::kToLower(*it);
-		*it++ = KASCII::kToLower(*it);
-		*it++ = KASCII::kToLower(*it);
-		*it++ = KASCII::kToLower(*it);
-		*it++ = KASCII::kToLower(*it);
-		*it++ = KASCII::kToLower(*it);
-		*it++ = KASCII::kToLower(*it);
-	}
-
-	for (; it != ie; )
-	{
-		*it++ = KASCII::kToLower(*it);
-	}
-
-	return *this;
-
-} // MakeLowerASCII
-
-//----------------------------------------------------------------------
-KString& KString::MakeUpperASCII() &
-//----------------------------------------------------------------------
-{
-	auto it = begin();
-	auto ie = end();
-
-	for (; std::distance(it, ie) >= 8;)
-	{
-		*it++ = KASCII::kToUpper(*it);
-		*it++ = KASCII::kToUpper(*it);
-		*it++ = KASCII::kToUpper(*it);
-		*it++ = KASCII::kToUpper(*it);
-		*it++ = KASCII::kToUpper(*it);
-		*it++ = KASCII::kToUpper(*it);
-		*it++ = KASCII::kToUpper(*it);
-		*it++ = KASCII::kToUpper(*it);
-	}
-
-	for (; it != ie; )
-	{
-		*it++ = KASCII::kToUpper(*it);
-	}
-
-	return *this;
-
-} // MakeUpperASCII
 
 //----------------------------------------------------------------------
 KString& KString::PadLeft(size_t iWidth, value_type chPad) &

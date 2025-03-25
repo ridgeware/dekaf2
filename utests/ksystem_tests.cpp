@@ -187,7 +187,7 @@ TEST_CASE("KSystem")
 	{
 		auto sFilename = kFormat("{}{}{}", TempDir.Name(), kDirSep, "test日本語abc中文Русский.file");
 #ifdef DEKAF2_IS_WINDOWS
-		auto sUTF16Filename = Unicode::FromUTF8<std::wstring>(sFilename);
+		auto sUTF16Filename = kutf::FromUTF8<std::wstring>(sFilename);
 		int fd = _wopen(sUTF16Filename.c_str(), _O_CREAT | _O_RDWR | _O_BINARY, DEKAF2_MODE_CREATE_FILE);
 #else
 		int fd = open(sFilename.c_str(), O_CREAT | O_RDWR, DEKAF2_MODE_CREATE_FILE);

@@ -1402,44 +1402,44 @@ TEST_CASE("KStringUtils") {
 	{
 		KString sStr = "œꜿęϧϯꜻꜿⱥⱡ";
 		CHECK (sStr.size() == 23 );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 
 		sStr = kLimitSizeUTF8(sStr, 23);
 		CHECK ( sStr ==  "œꜿęϧϯꜻꜿⱥⱡ" );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 		CHECK ( sStr.size() == 23 );
 
 		sStr = kLimitSizeUTF8(sStr, 11);
 		CHECK ( sStr == "œ…ⱥⱡ");
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 		CHECK ( sStr.size() == 11 );
 
 		sStr = kLimitSizeUTF8(sStr, 11);
 		CHECK ( sStr == "œ…ⱥⱡ");
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 
 		sStr = "œꜿęϧϯꜻꜿⱥⱡ";
 
 		sStr = kLimitSizeUTF8(sStr, 5);
 		CHECK ( sStr == "œⱡ" );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 		CHECK ( sStr.size() == 5 );
 
 		sStr = "œꜿęϧϯꜻꜿⱥⱡ";
 
 		sStr = kLimitSizeUTF8(sStr, 4);
 		CHECK ( sStr == "œ" );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 		CHECK ( sStr.size() == 2 );
 
 		sStr = kLimitSizeUTF8(sStr, 1);
 		CHECK ( sStr == "" );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 		CHECK ( sStr.size() == 0 );
 
 		sStr = kLimitSizeUTF8(sStr, 0);
 		CHECK ( sStr == "" );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 
 		std::string stdStr = "œpęϧϯꜻꜿⱥⱡ";
 #ifdef DEKAF2_HAS_CPP_17
@@ -1448,56 +1448,56 @@ TEST_CASE("KStringUtils") {
 		stdStr = kLimitSizeUTF8(stdStr, 11).ToStdString(); // for C++ < 17 we need the ToStdString here - the template receives bad types through the default
 #endif
 		CHECK ( stdStr == "œp…ⱡ");
-		CHECK ( Unicode::ValidUTF(stdStr) );
+		CHECK ( kutf::Valid(stdStr) );
 	}
 
 	SECTION("kLimitSizeUTF8InPlace")
 	{
 		KString sStr = "œꜿęϧϯꜻꜿⱥⱡ";
 		CHECK (sStr.size() == 23 );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 
 		kLimitSizeUTF8InPlace(sStr, 23);
 		CHECK ( sStr ==  "œꜿęϧϯꜻꜿⱥⱡ" );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 		CHECK ( sStr.size() == 23 );
 
 		kLimitSizeUTF8InPlace(sStr, 11);
 		CHECK ( sStr == "œ…ⱥⱡ");
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 		CHECK ( sStr.size() == 11 );
 
 		kLimitSizeUTF8InPlace(sStr, 11);
 		CHECK ( sStr == "œ…ⱥⱡ");
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 
 		sStr = "œꜿęϧϯꜻꜿⱥⱡ";
 
 		kLimitSizeUTF8InPlace(sStr, 5);
 		CHECK ( sStr == "œⱡ" );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 		CHECK ( sStr.size() == 5 );
 
 		sStr = "œꜿęϧϯꜻꜿⱥⱡ";
 
 		kLimitSizeUTF8InPlace(sStr, 4);
 		CHECK ( sStr == "œ" );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 		CHECK ( sStr.size() == 2 );
 
 		kLimitSizeUTF8InPlace(sStr, 1);
 		CHECK ( sStr == "" );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 		CHECK ( sStr.size() == 0 );
 
 		kLimitSizeUTF8InPlace(sStr, 0);
 		CHECK ( sStr == "" );
-		CHECK ( Unicode::ValidUTF(sStr) );
+		CHECK ( kutf::Valid(sStr) );
 
 		std::string stdStr = "œpęϧϯꜻꜿⱥⱡ";
 		kLimitSizeUTF8InPlace(stdStr, 11);
 		CHECK ( stdStr == "œp…ⱡ");
-		CHECK ( Unicode::ValidUTF(stdStr) );
+		CHECK ( kutf::Valid(stdStr) );
 	}
 
 	SECTION("kHasUTF8BOM")
@@ -1707,5 +1707,29 @@ TEST_CASE("KStringUtils") {
 		}
 	}
 
+	SECTION("kMakeUpperASCII")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "öäü"      , "öäü"     },
+			{ "HELLO"    , "HELLO"   },
+			{ "ÖÄÜ"      , "ÖÄÜ"     },
+			{ "ⴀⴃ"     , "ⴀⴃ"     },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			kMakeUpperASCII(s);
+			CHECK ( s == it.output );
+		}
+	}
 
 }

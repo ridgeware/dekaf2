@@ -40,22 +40,22 @@
 
 #pragma once
 
-/// @file kutf8iterator.h
-/// provides iterator types for utf8 strings
+/// @file kutf_iterator.h
+/// provides iterator types for utf8/utf16/utf32 strings
 
-#include "kutf8.h"
+#include "kutf.h"
 #include <iterator>
 
 #ifdef DEKAF2
 DEKAF2_NAMESPACE_BEGIN
 #endif
 
-namespace Unicode {
+namespace KUTF_NAMESPACE {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A non-modifying bidirectional iterator over a utf8 string
-template<class NarrowString>
-class UTF8ConstIterator
+/// A non-modifying bidirectional iterator over a utf string (of any bit width)
+template<class UTFString>
+class ConstIterator
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -69,13 +69,14 @@ public:
 	using const_pointer = const value_type*;
 	using size_type = std::size_t;
 	using difference_type = std::ptrdiff_t;
-	using self_type = UTF8ConstIterator;
+	using self_type = ConstIterator;
+	using orig_value_type = typename UTFString::value_type;
 
 	//-----------------------------------------------------------------------------
 	/// ctor for const string iterators
-	UTF8ConstIterator(const typename NarrowString::const_iterator it,
-	                  const typename NarrowString::const_iterator ie,
-	                  bool bToEnd = false)
+	ConstIterator(const typename UTFString::const_iterator it,
+	              const typename UTFString::const_iterator ie,
+	              bool bToEnd = false)
 	//-----------------------------------------------------------------------------
 	: m_begin(it)
 	, m_end(ie)
@@ -86,9 +87,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// ctor for const strings
-	UTF8ConstIterator(const NarrowString& String, bool bToEnd = false)
+	ConstIterator(const UTFString& String, bool bToEnd = false)
 	//-----------------------------------------------------------------------------
-	: UTF8ConstIterator(String.begin(), String.end(), bToEnd)
+	: ConstIterator(String.begin(), String.end(), bToEnd)
 	{
 	}
 
@@ -117,11 +118,11 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		// stay at .end() if value is invalid
-		if (KUTF8_LIKELY(m_Value != INVALID_CODEPOINT))
+		if (KUTF_LIKELY(m_Value != INVALID_CODEPOINT))
 		{
-			m_next -= UTF8Bytes(m_Value);
+			m_next -= UTFChars<sizeof(orig_value_type)*8>(m_Value);
 		}
-		typename NarrowString::const_iterator hit = m_next;
+		typename UTFString::const_iterator hit = m_next;
 		m_Value = PrevCodepoint(m_begin, m_next);
 		m_next = hit;
 		return *this;
@@ -135,6 +136,28 @@ public:
 		const self_type i = *this;
 		operator--();
 		return i;
+	}
+
+	//-----------------------------------------------------------------------------
+	self_type& operator+=(std::size_t iIncrement)
+	//-----------------------------------------------------------------------------
+	{
+		if (iIncrement > 0)
+		{
+			kutf::Increment(m_next, m_end, iIncrement - 1);
+		}
+		return operator++();
+	}
+
+	//-----------------------------------------------------------------------------
+	self_type& operator-=(std::size_t iDecrement)
+	//-----------------------------------------------------------------------------
+	{
+		if (iDecrement > 0)
+		{
+			kutf::Decrement(m_begin, m_next, iDecrement);
+		}
+		return operator--();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -164,6 +187,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// lower than operator
+	bool operator<(const self_type& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_next < other.m_next;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// inequality operator
 	bool operator!=(const self_type& other) const
 	//-----------------------------------------------------------------------------
@@ -175,9 +206,9 @@ public:
 protected:
 //-------
 
-	typename NarrowString::const_iterator m_begin;
-	typename NarrowString::const_iterator m_end;
-	typename NarrowString::const_iterator m_next;
+	typename UTFString::const_iterator m_begin;
+	typename UTFString::const_iterator m_end;
+	typename UTFString::const_iterator m_next;
 	value_type m_Value;
 
 };
@@ -189,8 +220,8 @@ protected:
 // To adapt to changing string buffer addresses through inserts of UTF8 codepoints,
 // this iterator has to work on character indexes, not on pointers to characters.
 // Also, any string length manipulation outside of this iterator would invalidate it.
-template<class NarrowString>
-class UTF8Iterator
+template<class UTFString>
+class Iterator
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -206,34 +237,35 @@ public:
 	using const_pointer = const value_type*;
 	using size_type = std::size_t;
 	using difference_type = std::ptrdiff_t;
-	using self_type = UTF8Iterator;
+	using self_type = Iterator;
+	using orig_value_type = typename UTFString::value_type;
 
 	//-----------------------------------------------------------------------------
 	/// ctor for strings
-	UTF8Iterator(NarrowString& String, bool bToEnd = false)
+	Iterator(UTFString& String, bool bToEnd = false)
 	//-----------------------------------------------------------------------------
 	: m_String(&String)
-	, m_next(bToEnd ? NarrowString::npos : 0)
+	, m_next(bToEnd ? UTFString::npos : 0)
 	{
 		operator++();
 	}
 
 	//-----------------------------------------------------------------------------
 	/// copy constructor
-	UTF8Iterator(const self_type& other) = default;
+	Iterator(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// move constructor
-	UTF8Iterator(self_type&& other) noexcept = default;
+	Iterator(self_type&& other) noexcept = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// dtor
-	~UTF8Iterator()
+	~Iterator()
 	//-----------------------------------------------------------------------------
 	{
-		if (KUTF8_UNLIKELY(m_Value != m_OrigValue))
+		if (m_Value != m_OrigValue)
 		{
 			SaveChangedValue();
 		}
@@ -254,22 +286,22 @@ public:
 	self_type& operator++()
 	//-----------------------------------------------------------------------------
 	{
-		if (KUTF8_LIKELY(m_String != nullptr))
+		if (KUTF_LIKELY(m_String != nullptr))
 		{
-			if (KUTF8_UNLIKELY(m_Value != m_OrigValue))
+			if (m_Value != m_OrigValue)
 			{
 				SaveChangedValue();
 			}
 
-			if (KUTF8_UNLIKELY(m_next != NarrowString::npos))
+			if (KUTF_UNLIKELY(m_next != UTFString::npos))
 			{
-				if (KUTF8_UNLIKELY(m_next == m_String->size()))
+				if (KUTF_UNLIKELY(m_next == m_String->size()))
 				{
-					m_next = NarrowString::npos;
+					m_next = UTFString::npos;
 				}
 				else
 				{
-					typename NarrowString::iterator it = m_String->begin() + m_next;
+					typename UTFString::iterator it = m_String->begin() + m_next;
 					m_Value = m_OrigValue = CodepointFromUTF8(it, m_String->end());
 					m_next = it - m_String->begin();
 				}
@@ -295,24 +327,28 @@ public:
 	self_type& operator--()
 	//-----------------------------------------------------------------------------
 	{
-		if (KUTF8_LIKELY(m_String != nullptr))
+		if (KUTF_LIKELY(m_String != nullptr))
 		{
-			if (KUTF8_UNLIKELY(m_Value != m_OrigValue))
+			if (KUTF_UNLIKELY(m_Value != m_OrigValue))
 			{
 				SaveChangedValue();
 			}
 
-			if (KUTF8_UNLIKELY(m_next != NarrowString::npos))
+			if (KUTF_UNLIKELY(m_next != UTFString::npos))
 			{
 				// stay at .end() if value is invalid
-				if (KUTF8_LIKELY(m_Value != INVALID_CODEPOINT))
+				if (KUTF_LIKELY(m_Value != INVALID_CODEPOINT))
 				{
-					m_next -= UTF8Bytes(m_Value);
+					m_next -= UTFChars<sizeof(orig_value_type)*8>(m_Value);
 				}
-
-				typename NarrowString::iterator it = m_String->begin() + m_next;
-				m_Value = m_OrigValue = PrevCodepoint(m_String->begin(), it);
 			}
+			else
+			{
+				m_next = m_String->size();
+			}
+
+			typename UTFString::iterator it = m_String->begin() + m_next;
+			m_Value = m_OrigValue = PrevCodepoint(m_String->begin(), it);
 		}
 		return *this;
 	}
@@ -376,6 +412,32 @@ public:
 		return !operator==(other);
 	}
 
+	//-----------------------------------------------------------------------------
+	self_type& operator+=(std::size_t iIncrement)
+	//-----------------------------------------------------------------------------
+	{
+		if (iIncrement > 0)
+		{
+			auto it = m_String->begin() + m_next;
+			kutf::Increment(it, m_String->end(), iIncrement - 1);
+			m_next = it - m_String->begin();
+		}
+		return operator++();
+	}
+
+	//-----------------------------------------------------------------------------
+	self_type& operator-=(std::size_t iDecrement)
+	//-----------------------------------------------------------------------------
+	{
+		if (iDecrement > 0)
+		{
+			auto it = m_String->begin() + m_next;
+			kutf::Decrement(m_String->begin(), it, iDecrement);
+			m_next = it - m_String->begin();
+		}
+		return operator--();
+	}
+
 //-------
 protected:
 //-------
@@ -384,20 +446,20 @@ protected:
 	void SaveChangedValue()
 	//-----------------------------------------------------------------------------
 	{
-		if (KUTF8_LIKELY(m_String != nullptr))
+		if (KUTF_LIKELY(m_String != nullptr))
 		{
-			std::size_t iOrigLen = UTF8Bytes(m_OrigValue);
-			std::size_t iNewLen = UTF8Bytes(m_Value);
+			std::size_t iOrigLen = UTFChars<sizeof(orig_value_type)*8>(m_OrigValue);
+			std::size_t iNewLen = UTFChars<sizeof(orig_value_type)*8>(m_Value);
 
 			// create an iterator pointing to the start of the current sequence
-			typename NarrowString::iterator it = m_String->begin() + m_next - iOrigLen;
+			typename UTFString::iterator it = m_String->begin() + m_next - iOrigLen;
 
-			if (KUTF8_UNLIKELY(iOrigLen < iNewLen))
+			if (KUTF_UNLIKELY(iOrigLen < iNewLen))
 			{
 				// make room in the string
 				m_String->insert(it - m_String->begin(), iNewLen - iOrigLen, ' ');
 			}
-			else if (KUTF8_UNLIKELY(iOrigLen > iNewLen))
+			else if (KUTF_UNLIKELY(iOrigLen > iNewLen))
 			{
 				// shorten the string
 				m_String->erase(it - m_String->begin(), iOrigLen - iNewLen);
@@ -421,14 +483,14 @@ protected:
 		}
 	}
 
-	NarrowString* m_String { nullptr };
-	size_type m_next;
+	UTFString* m_String { nullptr };
+	size_type  m_next;
 	value_type m_Value { 0 };
 	value_type m_OrigValue { 0 };
 
 };
 
-} // namespace Unicode
+} // namespace KUTF_NAMESPACE
 
 #ifdef DEKAF2
 DEKAF2_NAMESPACE_END

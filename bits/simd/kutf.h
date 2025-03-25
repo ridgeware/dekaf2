@@ -49,7 +49,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace Unicode {
+namespace kutf {
 namespace simd {
 
 enum error_code {
@@ -368,6 +368,34 @@ std::size_t convert_utf8_to_utf32(const char* input, std::size_t length, char32_
 DEKAF2_NODISCARD
 std::size_t convert_utf8_to_utf16(const char* input, std::size_t length, char16_t* utf16_output) noexcept;
 
+/**
+ * Validate the ASCII string.
+ *
+ * Overridden by each implementation.
+ *
+ * @param buf the ASCII string to validate.
+ * @param len the length of the string in bytes.
+ * @return true if and only if the string is valid ASCII.
+ */
+DEKAF2_NODISCARD
+bool validate_ascii(const char *buf, std::size_t len) noexcept;
+
+/**
+ * Validate the ASCII string and stop on error. It might be faster than
+ * validate_utf8 when an error is expected to occur early.
+ *
+ * Overridden by each implementation.
+ *
+ * @param buf the ASCII string to validate.
+ * @param len the length of the string in bytes.
+ * @return a result pair struct (of type simdutf::result containing the two
+ * fields error and count) with an error code and either position of the error
+ * (in the input in code units) if any, or the number of code units validated if
+ * successful.
+ */
+DEKAF2_NODISCARD
+result validate_ascii_with_errors(const char *buf, std::size_t len) noexcept;
+
 /***
  * Validate the UTF-8 string. This function may be best when you expect
  * the input to be almost always valid. Otherwise, consider using
@@ -471,7 +499,7 @@ DEKAF2_NODISCARD
 result validate_utf32_with_errors(const char32_t* buf, std::size_t len) noexcept;
 
 } // end of namespace simd
-} // end of namespace Unicode
+} // end of namespace kutf
 
 DEKAF2_NAMESPACE_END
 

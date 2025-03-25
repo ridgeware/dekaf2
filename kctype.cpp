@@ -70,7 +70,7 @@ KCodePoint::Property KCodePoint::GetHighUnicodeProperty() const
 	static constexpr Property Co { OtherPrivateUse  , Other  , 0 };
 	static constexpr Property On { OtherNotAssigned , Other  , 0 };
 
-	if (m_CodePoint <= 0x03134A) return Lo;
+	if (m_CodePoint <= 0x0323AF) return Lo;
 	if (m_CodePoint <  0x0E0001) return On;
 	if (m_CodePoint <= 0x0E007F) return Cf;
 	if (m_CodePoint <  0x0E0100) return On;
@@ -84,9 +84,9 @@ KCodePoint::Property KCodePoint::GetHighUnicodeProperty() const
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
-constexpr Unicode::codepoint_t KCodePoint::MAX_ASCII;
-constexpr Unicode::codepoint_t KCodePoint::MAX_CASEFOLDS;
-constexpr Unicode::codepoint_t KCodePoint::MAX_TABLE;
+constexpr kutf::codepoint_t KCodePoint::MAX_ASCII;
+constexpr kutf::codepoint_t KCodePoint::MAX_CASEFOLDS;
+constexpr kutf::codepoint_t KCodePoint::MAX_TABLE;
 constexpr std::array<KCodePoint::CTYPE, KCodePoint::MAX_ASCII + 1> KCodePoint::ASCIITable;
 
 #endif

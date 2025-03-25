@@ -43,7 +43,7 @@
 #include "kjson.h"
 #include "klog.h"
 #include "krow.h"
-#include "kutf8.h"
+#include "kutf.h"
 #include "kctype.h"
 #include "kstringutils.h"
 #include "kreader.h"
@@ -92,7 +92,7 @@ const char* kStripJSONExceptionMessage(const char* sMessage) noexcept
 void SetStringFromUTF8orLatin1(LJSON& json, KStringView sInput)
 //-----------------------------------------------------------------------------
 {
-	if (Unicode::ValidUTF(sInput))
+	if (kutf::Valid(sInput))
 	{
 		json = sInput;
 	}
@@ -105,7 +105,7 @@ void SetStringFromUTF8orLatin1(LJSON& json, KStringView sInput)
 
 		for (auto ch : sInput)
 		{
-			Unicode::ToUTF(ch, sUTF8);
+			kutf::ToUTF(ch, sUTF8);
 		}
 	}
 
@@ -1013,10 +1013,10 @@ void Escape (KStringView sInput, KStringRef& sOutput)
 			default:
 			{
 				// escape control characters (0x00..0x1F)
-				if (Unicode::CodepointCast(ch) <= MAX_CONTROL_CHARS)
+				if (kutf::CodepointCast(ch) <= MAX_CONTROL_CHARS)
 				{
 					sOutput += "\\u00";
-					sOutput += KString::to_hexstring(Unicode::CodepointCast(ch));
+					sOutput += KString::to_hexstring(kutf::CodepointCast(ch));
 				}
 				else
 				{

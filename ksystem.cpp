@@ -49,7 +49,7 @@
 #include "klog.h"
 #include "dekaf2.h"
 #include "kinshell.h"
-#include "kutf8.h"             // for Windows API conversions
+#include "kutf.h"             // for Windows API conversions
 #include "kexception.h"
 #include <thread>
 #include <cstdlib>
@@ -369,7 +369,7 @@ KString kGetWhoAmI ()
 	DWORD nSize = MAX;
 	if (GetUserName (szWhoami, &nSize))
 	{
-		Unicode::ToUTF8(szWhoami, sWhoami);
+		kutf::ToUTF8(szWhoami, sWhoami);
 	}
 #else
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -454,7 +454,7 @@ KStringViewZ kGetHostname (bool bAllowKHostname/*=true*/)
 				&nSize              // address of size of name buffer
 			);
 
-			Unicode::ToUTF8(szHostname, sHostname);
+			kutf::ToUTF8(szHostname, sHostname);
 
 			#else
 
@@ -1475,7 +1475,7 @@ const KString& kGetOwnPathname()
 			GetModuleFileNameW(hModule, wsPath.data(), static_cast<DWORD>(wsPath.size()));
 			wsPath.resize(wcsnlen(wsPath.data(), wsPath.size()));
 
-			sPath = Unicode::ToUTF8<KString>(wsPath);
+			sPath = kutf::ToUTF8<KString>(wsPath);
 			// the API returns the filename with prefixed "\\?\"
 			sPath.remove_prefix("\\\\?\\");
 		}
@@ -1596,7 +1596,7 @@ KString kGetFileNameFromFileHandle(HANDLE handle)
 
 	sBuffer.resize(dwRet);
 
-	KString sFileName = Unicode::ToUTF8<KString>(sBuffer);
+	KString sFileName = kutf::ToUTF8<KString>(sBuffer);
 
 	// the API returns the filename with prefixed "\\?\" (which signals to windows
 	// file APIs that a path name may have up to 2^15 chars instead of 2^8)

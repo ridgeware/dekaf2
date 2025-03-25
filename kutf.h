@@ -1,7 +1,7 @@
 /*
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2018, Ridgeware, Inc.
+// Copyright (c) 2018-2025, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -40,7 +40,7 @@
 
 #pragma once
 
-/// @file kutf8.h
+/// @file kutf.h
 /// provides support for UTF8, UTF16 and UTF32 encoding with highly vectorizable template code.
 /// Most of the methods are constexpr.
 ///
@@ -59,7 +59,7 @@
 /// push performance for bulk operations by at least 2 times (for case changes) to 5 times (for encoding conversions)
 /// and 10 times (for validation and count) compared to the discrete template code. simdutf is wrapped seamlessly
 /// into the existing template interface. Performance measurements were done on both amd64 and aarch64 with
-/// (nearly) comparable results. When using this header standalone, please #define KUTF8_WITH_SIMDUTF 1
+/// (nearly) comparable results. When using this header standalone, please #define KUTF_WITH_SIMDUTF 1
 /// and make sure <simdutf.h> is in the include path.
 ///
 /// PLEASE NOTE: When using simdutf, invalid codepoints will not be marked with the REPLACEMENT_CHARACTER,
@@ -83,113 +83,128 @@
  --- Convert
 
  /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32 (from an iterator pair)
- bool ConvertUTF(Iterator it, Iterator ie, OutType& sOutput)
+ bool Convert(Iterator it, Iterator ie, OutType& sOutput)
 
  /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
- bool ConvertUTF(const InpType& sInput, OutType& sOutput)
+ bool Convert(const InpType& sInput, OutType& sOutput)
 
  /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
- OutType ConvertUTF(const InpType& sInp)
+ OutType Convert(Iterator it, Iterator ie)
+
+ /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+ OutType Convert(const InpType& sInp)
 
  /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/16/32 string
- bool ConvertUTF(const wchar_t* it, UTFString& sUTF)
+ bool Convert(const wchar_t* it, OutType& Output)
 
  /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/16/32 string
- UTFString ConvertUTF(const wchar_t* it)
+ OutType Convert(const wchar_t* it)
 
  --- transformation
 
  /// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every codepoint
- bool ForEachUTF(Iterator it, Iterator ie, Functor func)
+ bool ForEach(Iterator it, Iterator ie, Functor func)
 
  /// Convert string from UTF8/UTF16/UTF32, calling functor func for every codepoint
- bool ForEachUTF(const UTFString& sUTF, Functor func)
+ bool ForEach(const UTFString& sUTF, Functor func)
 
  /// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
  /// functor for each codepoint.
- bool TransformUTF(Iterator it, Iterator ie, UTFString& sOutput, Functor func)
+ bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 
  /// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
  /// functor for each codepoint.
- bool TransformUTF(const UTFString& sInput, ReturnUTFString& sOutput, Functor func)
+ bool Transform(const InputString& sInput, OutType& Output, Functor func)
 
  /// Transform a Unicode string into a lowercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
- void ToLowerUTF(Iterator it, Iterator ie, OutputString& sOutput)
+ bool ToLower(Iterator it, Iterator ie, OutType& Output)
 
  /// Transform a Unicode string into a lowercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
- void ToLowerUTF(const InputString& sInput, OutputString& sOutput)
+ bool ToLower(const InputString& sInput, OutType& Output)
 
  /// Transform a Unicode string into an uppercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
- void ToUpperUTF(Iterator it, Iterator ie, OutputString& sOutput)
+ bool ToUpper(Iterator it, Iterator ie, OutType& Output)
 
  /// Transform a Unicode string into an uppercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
- void ToUpperUTF(const InputString& sInput, OutputString& sOutput)
+ bool ToUpper(const InputString& sInput, OutType& Output)
 
  --- ToUTF
 
  /// Convert a codepoint into a UTF8/16/32 sequence written at iterator it
  void ToUTF(Char codepoint, Iterator& it)
 
- /// Convert a codepoint into a UTF8/16/32 sequence appended to sUTF
- void ToUTF(Char codepoint, UTFString& sUTF)
+ /// Convert a codepoint into a UTF8/16/32 sequence appended to UTF
+ void ToUTF(Char codepoint, UTFContainer& UTF)
 
- /// Convert a codepoint into a UTF8/16/32 sequence returned as string of type UTFString.
- UTFString ToUTF(Char codepoint)
+ /// Convert a codepoint into a UTF8/16/32 sequence returned as object of type UTFContainer
+ UTFContainer ToUTF(Char codepoint)
 
  --- Latin1ToUTF
 
  /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
- bool Latin1ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
+ bool Latin1ToUTF(Iterator it, Iterator ie, UTFContainer& UTF)
 
  /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
- UTFString Latin1ToUTF(Iterator it, Iterator ie)
+ UTFContainer Latin1ToUTF(Iterator it, Iterator ie)
 
  /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
- bool Latin1ToUTF(const Latin1String& sLatin1, UTFString& sUTF)
+ bool Latin1ToUTF(const Latin1String& sLatin1, UTFContainer& UTF)
 
  /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
- UTFString Latin1ToUTF(const Latin1String& sLatin1)
+ UTFContainer Latin1ToUTF(const Latin1String& sLatin1)
 
  --- get codepoint
 
- /// Return next codepoint from repeatedly calling a ReadFunc that returns single chars
- codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
-
- /// Return next codepoint at position it in range it-ie, increment it to point
- /// to the begin of the following codepoint. If at call it == ie -> undefined behavior
- codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
+ /// Returns a 32 bit codepoint from either UTF8, UTF16, or UTF32. If at call (it == ie) -> undefined behaviour
+ codepoint_t Codepoint(Iterator& it, Iterator ie)
 
  /// Return codepoint before position it in range ibegin-it, decrement it to point
  /// to the begin of the new (previous) codepoint
  codepoint_t PrevCodepoint(Iterator ibegin, Iterator& it)
 
- /// Returns a 32 bit codepoint from either UTF8, UTF16, or UTF32. If at call (it == ie) -> undefined behaviour
- codepoint_t Codepoint(Iterator& it, Iterator ie)
+ /// Return next codepoint at position it in UTF8 range it-ie, increment it to point
+ /// to the begin of the following codepoint. If at call it == ie -> undefined behavior
+ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
+
+ /// Return next codepoint from repeatedly calling a ReadFunc that returns single chars
+ codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
 
  --- move iterator
 
  /// if not at the start of a UTF8/16/32 sequence then advance the input iterator until the end of the current UTF sequence
- void SyncUTF(Iterator& it, Iterator ie)
+ void Sync(Iterator& it, Iterator ie)
 
  /// increment the input iterator by n codepoints - this works with UTF8, UTF16, or UTF32
- bool IncrementUTF(Iterator& it, Iterator ie, std::size_t n = 1)
+ bool Increment(Iterator& it, Iterator ie, std::size_t n = 1)
 
- /// decrement the input iterator by n codepoints - this works with UTF8, UTF16, or UTF32
- bool DecrementUTF(Iterator it, Iterator ie&, std::size_t n = 1)
+ /// decrement the input iterator it by n codepoints - this works with UTF8, UTF16, or UTF32
+ bool Decrement(Iterator ibegin, Iterator& it, std::size_t n = 1)
 
  --- validation
 
+ /// Return iterator at position where a 8 bit string uses invalid ASCII sequences (that is, a value > 0x7f)
+ Iterator InvalidASCII(Iterator it, Iterator ie)
+
+ /// Return iterator at position where a 8 bit string uses invalid ASCII sequences (that is, a value > 0x7f)
+ std::size_t InvalidASCII(const String& sASCII)
+
+ /// Check if a 8 bit string uses only ASCII codepoints  (that is, values < 0x80)
+ bool ValidASCII(Iterator it, Iterator ie)
+
+ /// Check if a UTF string uses only ASCII codepoints  (that is, values < 0x80)
+ bool ValidASCII(const String& sASCII)
+
  /// Return iterator at position where a UTF8/16/32 string uses invalid sequences
- Iterator InvalidUTF(Iterator it, Iterator ie)
+ Iterator Invalid(Iterator it, Iterator ie)
 
  /// Check if a UTF8/16/32 string uses only valid sequences
- bool ValidUTF(Iterator it, Iterator ie)
+ bool Valid(Iterator it, Iterator ie)
 
  /// Check if a UTF8/16/32 string uses only valid sequences
- bool ValidUTF(const UTFString& sUTF)
+ bool Valid(const UTFString& sUTF)
 
  /// Check if a UTF8/16/32 string uses only valid sequences
- typename UTFString::size_type InvalidUTF(const UTFString& sUTF)
+ typename UTFString::size_type Invalid(const UTFString& sUTF)
 
  /// Returns true if the first non-ASCII codepoint is valid UTF8
  bool HasUTF8(Iterator it, Iterator ie)
@@ -199,34 +214,37 @@
 
  --- counting
 
- /// Returns the count of bytes that a UTF8 representation for a given codepoint would need
- std::size_t UTF8Bytes(Char codepoint)
+ /// Returns the count of bytes that a UTF representation for a given codepoint would need
+ std::size_t UTFChars<std::size_t iWidth = 8>(codepoint_t codepoint)
 
 /// Count number of codepoints in UTF range (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
- size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1))
+ std::size_t Count(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1))
 
  /// Count number of codepoints in UTF string (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
- size_t CountUTF(const UTFString& sUTF, std::size_t iMaxCount = std::size_t(-1))
+ std::size_t Count(const UTFContainer& UTF, std::size_t iMaxCount = std::size_t(-1))
 
  --- substrings, iterator movement
 
  /// Return iterator after max n UTF8/UTF16/UTF32 codepoints
- Iterator LeftUTF(Iterator it, Iterator ie, std::size_t n)
+ Iterator Left(Iterator it, Iterator ie, std::size_t n)
 
  /// Return string with max n left UTF8/UTF16/UTF32 codepoints in sUTF
- ReturnString LeftUTF(const UTFString& sUTF, std::size_t n)
+ ReturnString Left(const UTFString& sUTF, std::size_t n)
 
- /// Return iterator max n UTF8/UTF16/UTF32 codepoints before ie
- Iterator RightUTF(Iterator it, Iterator ie, std::size_t n)
+ /// Return iterator max n UTF8/UTF16/UTF32 codepoints before it
+ Iterator Right(Iterator ibegin, Iterator it, std::size_t n)
 
  /// Return string with max n right UTF8/UTF16/UTF32 codepoints in sUTF
- ReturnString RightUTF(const UTFString& sUTF, std::size_t n)
+ ReturnType Right(const UTFContainer& UTF, std::size_t n)
 
  /// Return string with max n UTF8/UTF16/UTF32 codepoints in sUTF, starting after pos UTF8/UTF16/UTF32 codepoints
- ReturnString MidUTF(const UTFString& sUTF, std::size_t pos, std::size_t n)
+ ReturnType Mid(const UTFContainer& UTF, std::size_t pos, std::size_t n)
 
  /// Return codepoint after pos UTF8/UTF16/UTF32 codepoints
- codepoint_t AtUTF(Iterator it, Iterator ie, std::size_t pos)
+ codepoint_t At(Iterator it, Iterator ie, std::size_t pos)
+
+ /// Return codepoint after pos UTF8/UTF16/UTF32 codepoints
+ codepoint_t At(const UTFContainer& UTF, std::size_t pos)
 
  --- helpers
 
@@ -267,23 +285,23 @@
 static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 compiler");
 
 #if defined(__GNUC__) && __GNUC__ >= 4
-	#define KUTF8_LIKELY(expression)   (__builtin_expect((expression), 1))
-	#define KUTF8_UNLIKELY(expression) (__builtin_expect((expression), 0))
+	#define KUTF_LIKELY(expression)   (__builtin_expect((expression), 1))
+	#define KUTF_UNLIKELY(expression) (__builtin_expect((expression), 0))
 #else
-	#define KUTF8_LIKELY(expression)   (expression)
-	#define KUTF8_UNLIKELY(expression) (expression)
+	#define KUTF_LIKELY(expression)   (expression)
+	#define KUTF_UNLIKELY(expression) (expression)
 #endif
 
 #if __cplusplus >= 201402L
-	#define KUTF8_CONSTEXPR_14 constexpr
+	#define KUTF_CONSTEXPR_14 constexpr
 #else
-	#define KUTF8_CONSTEXPR_14 inline
+	#define KUTF_CONSTEXPR_14 inline
 #endif
 
 #if __cplusplus >= 202002L
-	#define KUTF8_CONSTEXPR_20 constexpr
+	#define KUTF_CONSTEXPR_20 constexpr
 #else
-	#define KUTF8_CONSTEXPR_20 inline
+	#define KUTF_CONSTEXPR_20 inline
 #endif
 
 #ifdef __has_include
@@ -294,24 +312,24 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 
 #if defined(DEKAF2) || DEKAF_MAJOR_VERSION >= 2 \
  || (__has_include("kdefinitions.h") && __has_include("kctype.h"))
-	#define KUTF8_DEKAF2 1
-	#ifndef KUTF8_WITH_SIMDUTF
+	#define KUTF_DEKAF2 1
+	#ifndef KUTF_WITH_SIMDUTF
 		#ifdef DEKAF2_WITH_SIMDUTF
-			#define KUTF8_WITH_SIMDUTF 1
+			#define KUTF_WITH_SIMDUTF 1
 		#endif
 	#endif
 #endif
 
-#if KUTF8_DEKAF2
-	#undef KUTF8_NAMESPACE // we need the namespace being the default "Unicode"
+#if KUTF_DEKAF2
+	#undef KUTF_NAMESPACE // we need the namespace being the default
 	#include "kctype.h"
-	#if KUTF8_WITH_SIMDUTF
+	#if KUTF_WITH_SIMDUTF
 		#include "bits/simd/kutf.h"
 	#endif
 	DEKAF2_NAMESPACE_BEGIN
 #else
 	#include <cwctype>
-	#if KUTF8_WITH_SIMDUTF
+	#if KUTF_WITH_SIMDUTF
 		// make sure this include is found at compile time, and do not forget
 		// to link against libsimdutf.a
 		#include <simdutf.h>
@@ -319,14 +337,14 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 	#endif
 #endif
 
-#ifndef KUTF8_NAMESPACE
-	#define KUTF8_NAMESPACE Unicode
+#ifndef KUTF_NAMESPACE
+	#define KUTF_NAMESPACE kutf
 #endif
 
-namespace KUTF8_NAMESPACE {
+namespace KUTF_NAMESPACE {
 
 #ifdef __cpp_unicode_characters
-	#ifndef KUTF8_DEKAF2
+	#ifndef KUTF_DEKAF2
 	using codepoint_t = char32_t;
 	#endif
 	using utf32_t     = char32_t;
@@ -337,7 +355,7 @@ namespace KUTF8_NAMESPACE {
 	using utf8_t      = uint8_t;
 	#endif
 #else
-	#ifndef KUTF8_DEKAF2
+	#ifndef KUTF_DEKAF2
 	using codepoint_t = uint32_t;
 	#endif
 	using utf32_t     = uint32_t;
@@ -496,42 +514,55 @@ codepoint_t CodepointCast(Char ch)
 }
 
 //-----------------------------------------------------------------------------
-/// Returns the count of bytes that a UTF8 representation for a given codepoint would need
-template<typename Char>
-KUTF8_CONSTEXPR_14
-std::size_t UTF8Bytes(Char codepoint)
+/// Returns the count of characters that a UTF representation for a given codepoint would need for the chosen
+/// UTF bit width (8/16/32)
+/// @param template param iWidth: the target UTF width in bytes or bits, defaults to 8 (=UTF8)
+/// @param codepoint the codepoint to check for its output count
+/// @return the count of output units needed to represent the given codepoint
+template<std::size_t iWidth = 8>
+KUTF_CONSTEXPR_14
+std::size_t UTFChars(codepoint_t codepoint)
 //-----------------------------------------------------------------------------
 {
-	codepoint_t cp = CodepointCast(codepoint);
-
-	if (cp < 0x0080)
+	if (iWidth == 8)
 	{
-		return 1;
+		if (codepoint < 0x0080)
+		{
+			return 1;
+		}
+		else if (codepoint < 0x0800)
+		{
+			return 2;
+		}
+		else if (codepoint < 0x010000)
+		{
+			// we return a squared question mark 0xfffd (REPLACEMENT CHARACTER)
+			// for invalid Unicode codepoints, so the bytecount is 3 as well if
+			// this is a surrogate character
+			return 3;
+		}
+		else if (codepoint < 0x0110000)
+		{
+			return 4;
+		}
+		else
+		{
+			// we return a squared question mark 0xfffd (REPLACEMENT CHARACTER)
+			// for invalid Unicode codepoints, so the bytecount is 3
+			return 3;
+		}
 	}
-	else if (cp < 0x0800)
+	else if (iWidth == 16 && NeedsSurrogates(codepoint))
 	{
 		return 2;
 	}
-	else if (cp < 0x010000)
-	{
-		// we return a squared question mark 0xfffd (REPLACEMENT CHARACTER)
-		// for invalid Unicode codepoints, so the bytecount is 3 as well if
-		// this is a surrogate character
-		return 3;
-	}
-	else if (cp < 0x0110000)
-	{
-		return 4;
-	}
 	else
 	{
-		// we return a squared question mark 0xfffd (REPLACEMENT CHARACTER)
-		// for invalid Unicode codepoints, so the bytecount is 3
-		return 3;
+		return 1;
 	}
 }
 
-namespace KUTF8_detail {
+namespace KUTF_detail {
 
 #if !defined __clang__ && defined __GNUC__ && __GNUC__ < 9
 // GCC < 9 erroneously see the .size() member return value not being used,
@@ -561,19 +592,20 @@ public:
 #pragma GCC diagnostic pop
 #endif
 
-} // end of namespace KUTF8_detail
+} // end of namespace KUTF_detail
 
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8/UTF16/UTF32 sequence written at iterator it
-template<typename Char, typename Iterator,
+/// @param codepoint the codepoint to write
+/// @param it the output iterator to write at
+template<typename output_value_type, typename Char, typename Iterator,
          typename std::enable_if<std::is_integral<Char>::value
-                                 && !KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
-KUTF8_CONSTEXPR_14
-void ToUTF(Char codepoint, Iterator& it)
+                                 && !KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
+KUTF_CONSTEXPR_14
+void ToUTF(Char codepoint, Iterator it)
 //-----------------------------------------------------------------------------
 {
-	using value_type = typename std::remove_reference<decltype(*it)>::type;
-	constexpr std::size_t iOutputWidth = sizeof(value_type);
+	constexpr std::size_t iOutputWidth = sizeof(output_value_type);
 
 	codepoint_t cp = CodepointCast(codepoint);
 
@@ -590,7 +622,7 @@ void ToUTF(Char codepoint, Iterator& it)
 		}
 		else if (cp < 0x010000)
 		{
-			if (KUTF8_UNLIKELY(IsSurrogate(cp) || cp == 0x0fffe || cp == 0x0ffff ))
+			if (KUTF_UNLIKELY(IsSurrogate(cp) || cp == 0x0fffe || cp == 0x0ffff ))
 			{
 				cp = REPLACEMENT_CHARACTER;
 			}
@@ -609,109 +641,93 @@ void ToUTF(Char codepoint, Iterator& it)
 		{
 			// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
 			// for invalid Unicode codepoints
-			ToUTF(REPLACEMENT_CHARACTER, it);
+			ToUTF<output_value_type>(REPLACEMENT_CHARACTER, it);
 		}
 	}
 	else if (iOutputWidth == 2 && NeedsSurrogates(cp))
 	{
 		SurrogatePair sp(cp);
-		*it++ = static_cast<value_type>(sp.low);
-		*it++ = static_cast<value_type>(sp.high);
+		*it++ = static_cast<output_value_type>(sp.low);
+		*it++ = static_cast<output_value_type>(sp.high);
 	}
 	else
 	{
-		if (KUTF8_UNLIKELY(!IsValid(cp)))
+		if (KUTF_UNLIKELY(!IsValid(cp)))
 		{
 			cp = REPLACEMENT_CHARACTER;
 		}
-		*it++ = static_cast<value_type>(cp);
+		*it++ = static_cast<output_value_type>(cp);
 	}
 }
 
 //-----------------------------------------------------------------------------
-// for strings, this version is up to twice as fast than the use of back inserters
-/// Convert a codepoint into a UTF8/UTF16/UTF32 sequence appended to sUTF
-template<typename Char, typename UTFString,
+/// Convert a codepoint into a UTF8/UTF16/UTF32 sequence written at back_insert_iterator it
+/// @param codepoint the codepoint to write
+/// @param it the back_insert_iterator to write at
+template<typename Char, typename Iterator,
          typename std::enable_if<std::is_integral<Char>::value
-                                 && KUTF8_detail::HasSize<UTFString>::value, int>::type = 0>
-KUTF8_CONSTEXPR_14
-void ToUTF(Char codepoint, UTFString& sUTF)
+                                 && std::is_integral<typename Iterator::container_type::value_type>::value
+                                 && !KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
+KUTF_CONSTEXPR_14
+void ToUTF(Char codepoint, Iterator it)
 //-----------------------------------------------------------------------------
 {
-	using value_type = typename UTFString::value_type;
-	constexpr std::size_t iOutputWidth = sizeof(value_type);
+	ToUTF<typename Iterator::container_type::value_type, Char, Iterator>(codepoint, it);
+}
 
-	codepoint_t cp = CodepointCast(codepoint);
-	
-	if (iOutputWidth == 1)
-	{
-		if (cp < 0x0080)
-		{
-			sUTF += cp;
-		}
-		else if (cp < 0x0800)
-		{
-			sUTF += (0xc0 | ((cp >> 6) & 0x1f));
-			sUTF += (0x80 | (cp & 0x3f));
-		}
-		else if (cp < 0x010000)
-		{
-			if (KUTF8_UNLIKELY(IsSurrogate(cp) || cp == 0x0fffe || cp == 0x0ffff ))
-			{
-				cp = REPLACEMENT_CHARACTER;
-			}
-			sUTF += (0xe0 | ((cp >> 12) & 0x0f));
-			sUTF += (0x80 | ((cp >>  6) & 0x3f));
-			sUTF += (0x80 | (cp & 0x3f));
-		}
-		else if (cp < 0x0110000)
-		{
-			sUTF += (0xf0 | ((cp >> 18) & 0x07));
-			sUTF += (0x80 | ((cp >> 12) & 0x3f));
-			sUTF += (0x80 | ((cp >>  6) & 0x3f));
-			sUTF += (0x80 | (cp & 0x3f));
-		}
-		else
-		{
-			// emit the squared question mark 0xfffd (REPLACEMENT CHARACTER)
-			// for invalid Unicode codepoints
-			ToUTF(REPLACEMENT_CHARACTER, sUTF);
-		}
-	}
-	else if (KUTF8_UNLIKELY(iOutputWidth == 2 && NeedsSurrogates(cp)))
-	{
-		SurrogatePair sp(cp);
-		sUTF += static_cast<value_type>(sp.low);
-		sUTF += static_cast<value_type>(sp.high);
-	}
-	else
-	{
-		if (KUTF8_UNLIKELY(!IsValid(cp)))
-		{
-			cp = REPLACEMENT_CHARACTER;
-		}
-		sUTF += static_cast<value_type>(cp);
-	}
+//-----------------------------------------------------------------------------
+/// Convert a codepoint into a UTF8/UTF16/UTF32 sequence written at iterator it
+/// @param codepoint the codepoint to write
+/// @param it the output iterator to write at
+template<typename Char, typename Iterator,
+         typename std::enable_if<std::is_integral<Char>::value
+                                 && std::is_integral<typename Iterator::value_type>::value
+                                 && !KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
+KUTF_CONSTEXPR_14
+void ToUTF(Char codepoint, Iterator it)
+//-----------------------------------------------------------------------------
+{
+	ToUTF<typename Iterator::value_type, Char, Iterator>(codepoint, it);
+}
+
+//-----------------------------------------------------------------------------
+/// Convert a codepoint into a UTF8/UTF16/UTF32 sequence appended to UTF
+template<typename Char, typename UTFContainer,
+         typename std::enable_if<std::is_integral<Char>::value
+                                 && KUTF_detail::HasSize<UTFContainer>::value, int>::type = 0>
+KUTF_CONSTEXPR_14
+void ToUTF(Char codepoint, UTFContainer& UTF)
+/// @param codepoint the codepoint to write
+/// @param UTF the output container to write into (typically a string type)
+//-----------------------------------------------------------------------------
+{
+	ToUTF(codepoint, std::back_inserter(UTF));
 }
 
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF sequence returned as string of type UTFString.
-template<typename UTFString, typename Char,
+/// @param codepoint the codepoint to write
+/// @returns the output container written into (typically a string type)
+template<typename UTFContainer, typename Char,
          typename std::enable_if<std::is_integral<Char>::value, int>::type = 0>
-KUTF8_CONSTEXPR_14
-UTFString ToUTF(Char codepoint)
+KUTF_CONSTEXPR_14
+UTFContainer ToUTF(Char codepoint)
 //-----------------------------------------------------------------------------
 {
-	UTFString sUTF{};
-	ToUTF(codepoint, sUTF);
-	return sUTF;
+	UTFContainer UTF{};
+	ToUTF(codepoint, std::back_inserter(UTF));
+	return UTF;
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
-template<typename UTFString, typename Iterator>
-KUTF8_CONSTEXPR_14
-bool Latin1ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
+/// Convert a latin1 encoded string into a UTF8/UTF16/UTF32 string (from two iterators)
+/// @param it the start of an iterator range to read from
+/// @param ie the end of an iterator range to read from
+/// @param UTF the ouput container to write into (typically a string type)
+/// @returns false if the input was not Latin1, true otherwise
+template<typename UTFContainer, typename Iterator>
+KUTF_CONSTEXPR_14
+bool Latin1ToUTF(Iterator it, Iterator ie, UTFContainer& UTF)
 //-----------------------------------------------------------------------------
 {
 	using input_value_type = typename std::remove_reference<decltype(*it)>::type;
@@ -719,9 +735,9 @@ bool Latin1ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 
 	static_assert(iInputWidth == 1, "supporting only 8 bit strings in Latin1ToUTF");
 
-#if KUTF8_WITH_SIMDUTF
+#if KUTF_WITH_SIMDUTF
 
-	constexpr std::size_t iOutputWidth = sizeof(typename UTFString::value_type);
+	constexpr std::size_t iOutputWidth = sizeof(typename UTFContainer::value_type);
 
 	auto iInputSize = std::distance(it, ie);
 	if (!iInputSize) return true;
@@ -746,10 +762,10 @@ bool Latin1ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 
 	if (!iTargetSize) return false;
 
-	auto iOldSize = sUTF.size();
-	sUTF.resize (iOldSize + iTargetSize);
+	auto iOldSize = UTF.size();
+	UTF.resize (iOldSize + iTargetSize);
 	// pre C++17 has const .data(), so we take a ref on the first element
-	void* pOut = &sUTF[0] + iOldSize;
+	void* pOut = &UTF[iOldSize];
 	// we have to assign a value to satisfy non-C++17
 	std::size_t iWrote = 0;
 
@@ -770,65 +786,77 @@ bool Latin1ToUTF(Iterator it, Iterator ie, UTFString& sUTF)
 
 #else
 
-	for (; KUTF8_LIKELY(it != ie); ++it)
+	auto bi = std::back_inserter(UTF);
+
+	for (; KUTF_LIKELY(it != ie); ++it)
 	{
-		ToUTF(*it, sUTF);
+		ToUTF(*it, bi);
 	}
 
 	return true;
 
-#endif // KUTF8_WITH_SIMDUTF
+#endif // KUTF_WITH_SIMDUTF
 }
 
 //-----------------------------------------------------------------------------
 /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
-template<typename UTFString, typename Iterator,
-         typename std::enable_if<!KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
-KUTF8_CONSTEXPR_14
-UTFString Latin1ToUTF(Iterator it, Iterator ie)
+/// @param it the start of an iterator range to read from
+/// @param ie the end of an iterator range to read from
+/// @returns the ouput container written into (typically a string type)
+template<typename UTFContainer, typename Iterator,
+         typename std::enable_if<!KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
+KUTF_CONSTEXPR_14
+UTFContainer Latin1ToUTF(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	UTFString sUTF{};
-	Latin1ToUTF(it, ie, sUTF);
-	return sUTF;
+	UTFContainer UTF{};
+	Latin1ToUTF(it, ie, UTF);
+	return UTF;
 }
 
 //-----------------------------------------------------------------------------
 /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
-template<typename UTFString, typename Latin1String,
+/// @param sLatin1 the input string
+/// @param UTF the ouput container to write into (typically a string type)
+/// @returns false if the input was not Latin1, true otherwise
+template<typename UTFContainer, typename Latin1String,
          typename std::enable_if<!std::is_integral<Latin1String>::value
-                              && KUTF8_detail::HasSize<Latin1String>::value, int>::type = 0>
-KUTF8_CONSTEXPR_14
-bool Latin1ToUTF(const Latin1String& sLatin1, UTFString& sUTF)
+                              && KUTF_detail::HasSize<Latin1String>::value, int>::type = 0>
+KUTF_CONSTEXPR_14
+bool Latin1ToUTF(const Latin1String& sLatin1, UTFContainer& UTF)
 //-----------------------------------------------------------------------------
 {
-	return Latin1ToUTF(sLatin1.begin(), sLatin1.end(), sUTF);
+	return Latin1ToUTF(sLatin1.begin(), sLatin1.end(), UTF);
 }
 
 //-----------------------------------------------------------------------------
 /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
-template<typename UTFString, typename Latin1String>
-KUTF8_CONSTEXPR_14
-UTFString Latin1ToUTF(const Latin1String& sLatin1)
+/// @param sLatin1 the input string
+/// @returns the ouput container written into (typically a string type)
+template<typename UTFContainer, typename Latin1String>
+KUTF_CONSTEXPR_14
+UTFContainer Latin1ToUTF(const Latin1String& sLatin1)
 //-----------------------------------------------------------------------------
 {
-	UTFString sUTF{};
-	Latin1ToUTF(sLatin1, sUTF);
-	return sUTF;
+	UTFContainer UTF{};
+	Latin1ToUTF(sLatin1, UTF);
+	return UTF;
 }
 
 //-----------------------------------------------------------------------------
 /// if not at the start of a UTF sequence then advance the input iterator until the end of the current UTF sequence
+/// @param it the iterator that shall be moved forward until the start of a UTF sequence
+/// @param ie the end iterator
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
-void SyncUTF(Iterator& it, Iterator ie)
+KUTF_CONSTEXPR_14
+void Sync(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
 	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
 	if (iInputWidth == 1)
 	{
-		for (; KUTF8_LIKELY(it != ie); ++it)
+		for (; KUTF_LIKELY(it != ie); ++it)
 		{
 			auto cp = CodepointCast(*it);
 
@@ -846,24 +874,27 @@ void SyncUTF(Iterator& it, Iterator ie)
 
 //-----------------------------------------------------------------------------
 /// Return codepoint from repeatedly calling a ReadFunc that returns single chars
+/// @param Read a functor that returns one single byte from a UTF8 input source per call, e.g. from stdin
+/// @param eof an interger value that will be interpreted as the EOF marker when returned from the input source, default is -1
+/// @returns a codepoint assembled from one to four reads
 template<typename ReadFunc>
-KUTF8_CONSTEXPR_14
+KUTF_CONSTEXPR_14
 codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
 //-----------------------------------------------------------------------------
 {
 	codepoint_t ch = CodepointCast(Read());
 
-	if (KUTF8_UNLIKELY(ch == static_cast<codepoint_t>(eof)))
+	if (KUTF_UNLIKELY(ch == static_cast<codepoint_t>(eof)))
 	{
 		return END_OF_INPUT;
 	}
 
-	if (KUTF8_LIKELY(ch < 128))
+	if (KUTF_LIKELY(ch < 128))
 	{
 		return ch;
 	}
 
-	if (KUTF8_UNLIKELY(ch > 0x0ff))
+	if (KUTF_UNLIKELY(ch > 0x0ff))
 	{
 		// error, even with char sizes > one byte UTF8 single
 		// values cannot exceed 255
@@ -881,13 +912,13 @@ codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
 			if (ch == static_cast<codepoint_t>(eof)) break;
 
 			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
 
 			codepoint <<= 6;
 			codepoint |= (ch & 0x03f);
 
 			// lower limit, protect from ambiguous encoding
-			if (KUTF8_UNLIKELY(codepoint < 0x080)) break;
+			if (KUTF_UNLIKELY(codepoint < 0x080)) break;
 
 			return codepoint; // valid
 		}
@@ -901,7 +932,7 @@ codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
 			if (ch == static_cast<codepoint_t>(eof)) break;
 
 			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
 
 			codepoint <<= 6;
 			codepoint |= (ch & 0x03f);
@@ -911,14 +942,14 @@ codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
 			if (ch == static_cast<codepoint_t>(eof)) break;
 
 			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
 
 			codepoint <<= 6;
 			codepoint |= (ch & 0x03f);
 
 			// lower limit, protect from ambiguous encoding
-			if (KUTF8_UNLIKELY(codepoint < 0x0800)) break;
-			if (KUTF8_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint))) break;
+			if (KUTF_UNLIKELY(codepoint < 0x0800)) break;
+			if (KUTF_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint))) break;
 
 			return codepoint; // valid
 		}
@@ -934,7 +965,7 @@ codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
 			if (ch == static_cast<codepoint_t>(eof)) break;
 
 			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
 
 			codepoint <<= 6;
 			codepoint |= (ch & 0x03f);
@@ -944,7 +975,7 @@ codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
 			if (ch == static_cast<codepoint_t>(eof)) break;
 
 			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
 
 			codepoint <<= 6;
 			codepoint |= (ch & 0x03f);
@@ -954,14 +985,14 @@ codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
 			if (ch == static_cast<codepoint_t>(eof)) break;
 
 			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF8_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
+			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
 
 			codepoint <<= 6;
 			codepoint |= (ch & 0x03f);
 
 			// lower limit, protect from ambiguous encoding
-			if (KUTF8_UNLIKELY(codepoint < 0x010000)) break;
-			if (KUTF8_UNLIKELY(codepoint > CODEPOINT_MAX)) break;
+			if (KUTF_UNLIKELY(codepoint < 0x010000)) break;
+			if (KUTF_UNLIKELY(codepoint > CODEPOINT_MAX)) break;
 
 			return codepoint; // valid
 		}
@@ -975,9 +1006,12 @@ codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
 
 //-----------------------------------------------------------------------------
 /// Return next codepoint at position it in range it-ie, increment it to point
-/// to the begin of the following codepoint. If it == ie -> undefined behavior
+/// to the begin of the following codepoint. If at time of call it == ie -> undefined behavior
+/// @param it the start of an iterator range to read from
+/// @param ie the end of an iterator range to read from
+/// @returns an assembled codepoint
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
+KUTF_CONSTEXPR_14
 codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
@@ -985,17 +1019,15 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 
 	assert(it != ie);
 
-	auto ch = CodepointCast(it[0]);
+	auto ch = CodepointCast(*it++);
 
 	if (ch < 128)
 	{
-		++it;
 		return ch;
 	}
 
-	if (iInputWidth > 1 && KUTF8_UNLIKELY(ch > 0x0ff))
+	if (iInputWidth > 1 && KUTF_UNLIKELY(ch > 0x0ff))
 	{
-		++it;
 		// error, even with char sizes > one byte UTF8 single
 		// values cannot exceed 255
 		return INVALID_CODEPOINT;
@@ -1007,19 +1039,17 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 		{
 			codepoint_t codepoint = (ch & 0x01f) << 6;
 
-			if (std::distance(it, ie) >= 2)
+			if (it != ie)
 			{
-				auto ch1 = CodepointCast(it[1]);
-
-				it += 2;
+				auto ch1 = CodepointCast(*it++);
 
 				// a UTF8 sequence cannot contain characters > 0xf4
-				if (KUTF8_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
+				if (KUTF_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
 
 				codepoint |= (ch1 & 0x03f);
 
 				// lower limit, protect from ambiguous encoding
-				if (KUTF8_UNLIKELY(codepoint < 0x080)) break;
+				if (KUTF_UNLIKELY(codepoint < 0x080)) break;
 
 				return codepoint; // valid
 			}
@@ -1029,16 +1059,14 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 			codepoint_t codepoint    = (ch & 0x0f) << 12;
 			bool bCheckForSurrogates = ch == 0xbd;
 
-			if (std::distance(it, ie) >= 3)
+			if (std::distance(it, ie) >= 2)
 			{
-				auto ch1 = CodepointCast(it[1]);
-				auto ch2 = CodepointCast(it[2]);
-
-				it += 3;
+				auto ch1 = CodepointCast(*it++);
+				auto ch2 = CodepointCast(*it++);
 
 				// a UTF8 sequence cannot contain characters > 0xf4
-				if (KUTF8_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
-				if (KUTF8_UNLIKELY(ch2 > 0x0f4 || !IsContinuationByte(ch2))) break;
+				if (KUTF_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
+				if (KUTF_UNLIKELY(ch2 > 0x0f4 || !IsContinuationByte(ch2))) break;
 
 				ch1 &= 0x03f;
 				ch2 &= 0x03f;
@@ -1047,8 +1075,8 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 				codepoint |= ch1 << 6;
 
 				// lower limit, protect from ambiguous encoding
-				if (KUTF8_UNLIKELY(codepoint < 0x0800)) break;
-				if (KUTF8_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint))) break;
+				if (KUTF_UNLIKELY(codepoint < 0x0800)) break;
+				if (KUTF_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint))) break;
 
 				return codepoint; // valid
 			}
@@ -1060,18 +1088,16 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 			// Testing the final codepoint value below is about 10% faster.
 			codepoint_t codepoint = (ch & 0x07) << 18;
 
-			if (std::distance(it, ie) >= 4)
+			if (std::distance(it, ie) >= 3)
 			{
-				auto ch1 = CodepointCast(it[1]);
-				auto ch2 = CodepointCast(it[2]);
-				auto ch3 = CodepointCast(it[3]);
-
-				it += 4;
+				auto ch1 = CodepointCast(*it++);
+				auto ch2 = CodepointCast(*it++);
+				auto ch3 = CodepointCast(*it++);
 
 				// a UTF8 sequence cannot contain characters > 0xf4
-				if (KUTF8_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
-				if (KUTF8_UNLIKELY(ch2 > 0x0f4 || !IsContinuationByte(ch2))) break;
-				if (KUTF8_UNLIKELY(ch3 > 0x0f4 || !IsContinuationByte(ch3))) break;
+				if (KUTF_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
+				if (KUTF_UNLIKELY(ch2 > 0x0f4 || !IsContinuationByte(ch2))) break;
+				if (KUTF_UNLIKELY(ch3 > 0x0f4 || !IsContinuationByte(ch3))) break;
 
 				ch1 &= 0x03f;
 				ch2 &= 0x03f;
@@ -1082,28 +1108,27 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 				codepoint |= ch1 << 12;
 
 				// lower limit, protect from ambiguous encoding
-				if (KUTF8_UNLIKELY(codepoint < 0x010000)) break;
-				if (KUTF8_UNLIKELY(codepoint > CODEPOINT_MAX)) break;
+				if (KUTF_UNLIKELY(codepoint < 0x010000)) break;
+				if (KUTF_UNLIKELY(codepoint > CODEPOINT_MAX)) break;
 
 				return codepoint; // valid
 			}
 		}
-		else
-		{
-			++it;
-		}
 
 	} while (false);
 
-	SyncUTF(it, ie);
+	Sync(it, ie);
 
 	return INVALID_CODEPOINT;
 }
 
 //-----------------------------------------------------------------------------
 /// Returns a 32 bit codepoint from either UTF8, UTF16, or UTF32. If at call (it == ie) -> undefined behaviour
+/// @param it the start of an iterator range to read from
+/// @param ie the end of an iterator range to read from
+/// @returns an assembled codepoint
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
+KUTF_CONSTEXPR_14
 codepoint_t Codepoint(Iterator& it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
@@ -1119,15 +1144,15 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 	{
 		codepoint_t ch = CodepointCast(*it++);
 
-		if (KUTF8_UNLIKELY(IsSurrogate(ch)))
+		if (KUTF_UNLIKELY(IsSurrogate(ch)))
 		{
-			if (KUTF8_LIKELY(IsLeadSurrogate(ch)))
+			if (KUTF_LIKELY(IsLeadSurrogate(ch)))
 			{
 				SurrogatePair sp;
 
 				sp.low = ch;
 
-				if (KUTF8_UNLIKELY(it == ie))
+				if (KUTF_UNLIKELY(it == ie))
 				{
 					// this is an incomplete surrogate
 					return INVALID_CODEPOINT;
@@ -1136,7 +1161,7 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 				{
 					sp.high = CodepointCast(*it);
 
-					if (KUTF8_UNLIKELY(!IsTrailSurrogate(sp.high)))
+					if (KUTF_UNLIKELY(!IsTrailSurrogate(sp.high)))
 					{
 						// the second surrogate is not valid - do not advance input a second time
 						return INVALID_CODEPOINT;
@@ -1165,8 +1190,7 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 	{
 		auto cp = CodepointCast(*it++);
 
-		if (KUTF8_UNLIKELY(cp > CODEPOINT_MAX ||
-		                  (cp >= SURROGATE_LOW_START && cp <= SURROGATE_HIGH_END)))
+		if (KUTF_UNLIKELY(!IsValid(cp)))
 		{
 			return INVALID_CODEPOINT;
 		}
@@ -1176,13 +1200,93 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 }
 
 //-----------------------------------------------------------------------------
-/// Return iterator at position where a UTF string uses invalid sequences (either of UTF8, UTF16, UTF32)
+/// Return iterator at position where a 8 bit string uses invalid ASCII sequences (that is, a value > 0x7f)
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
-Iterator InvalidUTF(Iterator it, Iterator ie)
+KUTF_CONSTEXPR_14
+Iterator InvalidASCII(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-#if KUTF8_WITH_SIMDUTF
+	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
+	static_assert(iInputWidth == 1, "supporting only 8 bit strings in ASCII validation");
+
+#if KUTF_WITH_SIMDUTF
+
+	const void* buf = &*it;
+	auto res = simd::validate_ascii_with_errors(static_cast<const char*>(buf), std::distance(it, ie));
+	return (res.error == simd::SUCCESS) ? ie : it + res.count;
+
+#else
+
+	for (; std::distance(it, ie) >= 16; )
+	{
+		// SWAR algorithm copied from simdutf scalar implementation
+		uint64_t v1;
+		std::memcpy(&v1, &*it, 8);
+		it += 8;
+		uint64_t v2;
+		std::memcpy(&v2, &*it, 8);
+		it += 8;
+		uint64_t v{v1 | v2};
+
+		if ((v & 0x8080808080808080) != 0)
+		{
+			it -= 16;
+			for (; it != ie; ++it)
+			{
+				if (CodepointCast(*it) >= 0x080) return it;
+			}
+		}
+	}
+
+	for (; it != ie; ++it)
+	{
+		if (CodepointCast(*it) >= 0x080) return it;
+	}
+
+	return ie;
+
+#endif // KUTF_WITH_SIMDUTF
+}
+
+//-----------------------------------------------------------------------------
+/// Check if a 8 bit string uses only ASCII codepoints  (that is, values < 0x80)
+template<typename Iterator>
+KUTF_CONSTEXPR_14
+bool ValidASCII(Iterator it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+	return InvalidASCII(it, ie) == ie;
+}
+
+//-----------------------------------------------------------------------------
+/// Return iterator at position where a 8 bit string uses invalid ASCII sequences (that is, a value > 0x7f)
+template<typename String>
+KUTF_CONSTEXPR_14
+std::size_t InvalidASCII(const String& sASCII)
+//-----------------------------------------------------------------------------
+{
+	auto it = InvalidASCII(sASCII.begin(), sASCII.end());
+	return (it == sASCII.end()) ? std::size_t(-1) : it - sASCII.begin();
+}
+
+//-----------------------------------------------------------------------------
+/// Check if a UTF string uses only ASCII codepoints  (that is, values < 0x80)
+template<typename String>
+KUTF_CONSTEXPR_14
+bool ValidASCII(const String& sASCII)
+//-----------------------------------------------------------------------------
+{
+	return ValidASCII(sASCII.begin(), sASCII.end());
+}
+
+//-----------------------------------------------------------------------------
+/// Return iterator at position where a UTF string uses invalid sequences (either of UTF8, UTF16, UTF32)
+template<typename Iterator>
+KUTF_CONSTEXPR_14
+Iterator Invalid(Iterator it, Iterator ie)
+//-----------------------------------------------------------------------------
+{
+#if KUTF_WITH_SIMDUTF
 
 	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
@@ -1211,26 +1315,26 @@ Iterator InvalidUTF(Iterator it, Iterator ie)
 
 #else
 
-	for (;KUTF8_LIKELY(it != ie);)
+	for (; it != ie; )
 	{
 		auto ti = it;
 
-		if (KUTF8_UNLIKELY(Codepoint(it, ie) == INVALID_CODEPOINT)) return ti;
+		if (KUTF_UNLIKELY(Codepoint(it, ie) == INVALID_CODEPOINT)) return ti;
 	}
 
 	return it;
 
-#endif // KUTF8_WITH_SIMDUTF
+#endif // KUTF_WITH_SIMDUTF
 }
 
 //-----------------------------------------------------------------------------
 /// Check if a UTF string uses only valid sequences (either of UTF8, UTF16, UTF32)
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
-bool ValidUTF(Iterator it, Iterator ie)
+KUTF_CONSTEXPR_14
+bool Valid(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-#if KUTF8_WITH_SIMDUTF
+#if KUTF_WITH_SIMDUTF
 
 	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
@@ -1250,45 +1354,45 @@ bool ValidUTF(Iterator it, Iterator ie)
 
 #else
 
-	return InvalidUTF(it, ie) == ie;
+	return Invalid(it, ie) == ie;
 
-#endif // KUTF8_WITH_SIMDUTF
+#endif // KUTF_WITH_SIMDUTF
 }
 
 //-----------------------------------------------------------------------------
 /// Check if a UTF string uses only valid sequences (either of UTF8, UTF16, UTF32)
-template<typename UTFString>
-KUTF8_CONSTEXPR_14
-bool ValidUTF(const UTFString& sUTF)
+template<typename UTFContainer>
+KUTF_CONSTEXPR_14
+bool Valid(const UTFContainer& UTF)
 //-----------------------------------------------------------------------------
 {
-	return ValidUTF(sUTF.begin(), sUTF.end());
+	return Valid(UTF.begin(), UTF.end());
 }
 
 //-----------------------------------------------------------------------------
 /// Check if a UTF string uses only valid sequences (either of UTF8, UTF16, UTF32)
 /// @return position of first invalid sequence, or npos if not found
-template<typename UTFString>
-KUTF8_CONSTEXPR_14
-typename UTFString::size_type InvalidUTF(const UTFString& sUTF)
+template<typename UTFContainer>
+KUTF_CONSTEXPR_14
+std::size_t Invalid(const UTFContainer& UTF)
 //-----------------------------------------------------------------------------
 {
-	auto it = InvalidUTF(sUTF.begin(), sUTF.end());
-	return (it == sUTF.end()) ? UTFString::npos : it - sUTF.begin();
+	auto it = Invalid(UTF.begin(), UTF.end());
+	return (it == UTF.end()) ? std::size_t(-1) : it - UTF.begin();
 }
 
 //-----------------------------------------------------------------------------
 /// Return iterator after max n UTF8/UTF16/UTF32 codepoints
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
-Iterator LeftUTF(Iterator it, Iterator ie, std::size_t n)
+KUTF_CONSTEXPR_14
+Iterator Left(Iterator it, Iterator ie, std::size_t n)
 //-----------------------------------------------------------------------------
 {
 	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
 	if (iInputWidth == 1)
 	{
-		for (; KUTF8_LIKELY(n >= 8 && std::distance(it, ie) >= 8) ;)
+		for (; KUTF_LIKELY(n >= 8 && std::distance(it, ie) >= 8) ;)
 		{
 			codepoint_t ch = CodepointCast(*it++);
 			n -= !IsContinuationByte(ch);
@@ -1308,13 +1412,13 @@ Iterator LeftUTF(Iterator it, Iterator ie, std::size_t n)
 			n -= !IsContinuationByte(ch);
 		}
 
-		for (; it < ie && n > 0 ;)
+		for (; it != ie && n > 0 ;)
 		{
 			codepoint_t ch = CodepointCast(*it++);
 			n -= !IsContinuationByte(ch);
 		}
 
-		for (; it < ie; ++it)
+		for (; it != ie; ++it)
 		{
 			codepoint_t ch = CodepointCast(*it);
 			if (!IsContinuationByte(ch)) break;
@@ -1322,7 +1426,7 @@ Iterator LeftUTF(Iterator it, Iterator ie, std::size_t n)
 	}
 	else if (iInputWidth == 2)
 	{
-		for (; KUTF8_LIKELY(n >= 4 && std::distance(it, ie) >= 4) ;)
+		for (; KUTF_LIKELY(n >= 4 && std::distance(it, ie) >= 4) ;)
 		{
 			codepoint_t ch = CodepointCast(*it++);
 			n -= !IsLeadSurrogate(ch);
@@ -1334,7 +1438,7 @@ Iterator LeftUTF(Iterator it, Iterator ie, std::size_t n)
 			n -= !IsLeadSurrogate(ch);
 		}
 
-		for (; it < ie && n > 0 ;)
+		for (; it != ie && n > 0 ;)
 		{
 			codepoint_t ch = CodepointCast(*it++);
 			n -= !IsLeadSurrogate(ch);
@@ -1342,7 +1446,7 @@ Iterator LeftUTF(Iterator it, Iterator ie, std::size_t n)
 	}
 	else if (iInputWidth == 4)
 	{
-		if (it < ie)
+		if (it != ie)
 		{
 			it += std::min(static_cast<std::size_t>(std::distance(it, ie)), n);
 		}
@@ -1353,31 +1457,31 @@ Iterator LeftUTF(Iterator it, Iterator ie, std::size_t n)
 
 //-----------------------------------------------------------------------------
 /// Return string with max n left UTF8 codepoints in sNarrow
-template<typename UTFString, typename ReturnString = UTFString>
-KUTF8_CONSTEXPR_14
-ReturnString LeftUTF(const UTFString& sUTF, std::size_t n)
+template<typename UTFContainer, typename ReturnType = UTFContainer>
+KUTF_CONSTEXPR_14
+ReturnType Left(const UTFContainer& UTF, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	auto it = LeftUTF(sUTF.begin(), sUTF.end(), n);
-	return ReturnString(sUTF.data(), it - sUTF.begin());
+	auto it = Left(UTF.begin(), UTF.end(), n);
+	return ReturnType(UTF.data(), it - UTF.begin());
 }
 
 //-----------------------------------------------------------------------------
-/// decrement the input iterator by n codepoints - this works with UTF8, UTF16, or UTF32
+/// decrement the input iterator it by n codepoints - this works with UTF8, UTF16, or UTF32
 /// @param ibegin iterator that points to the start of the string.
 /// @param it iterator that points to the current position in the string. Will be reduced to the new position.
 /// @param n the number of unicode codepoints to advanve for iterator it (default = 1)
 /// @return true if it coult be decremented by n codepoints, else false (input string exhausted)
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
-bool DecrementUTF(Iterator ibegin, Iterator& it, std::size_t n = 1)
+KUTF_CONSTEXPR_14
+bool Decrement(Iterator ibegin, Iterator& it, std::size_t n = 1)
 //-----------------------------------------------------------------------------
 {
 	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
 	if (iInputWidth == 1)
 	{
-		for (; KUTF8_LIKELY(n >= 8 && std::distance(ibegin, it) >= 8) ;)
+		for (; KUTF_LIKELY(n >= 8 && std::distance(ibegin, it) >= 8) ;)
 		{
 			codepoint_t ch = CodepointCast(*--it);
 			n -= !IsContinuationByte(ch);
@@ -1397,7 +1501,7 @@ bool DecrementUTF(Iterator ibegin, Iterator& it, std::size_t n = 1)
 			n -= !IsContinuationByte(ch);
 		}
 
-		for (; KUTF8_LIKELY(n > 0 && ibegin != it) ;)
+		for (; KUTF_LIKELY(n > 0 && ibegin != it) ;)
 		{
 			// check if this char starts a UTF8 sequence
 			codepoint_t ch = CodepointCast(*--it);
@@ -1406,7 +1510,7 @@ bool DecrementUTF(Iterator ibegin, Iterator& it, std::size_t n = 1)
 	}
 	else if (iInputWidth == 2)
 	{
-		for (; KUTF8_LIKELY(n >= 4 && std::distance(ibegin, it) >= 4) ;)
+		for (; KUTF_LIKELY(n >= 4 && std::distance(ibegin, it) >= 4) ;)
 		{
 			codepoint_t ch = CodepointCast(*--it);
 			n -= !IsTrailSurrogate(ch);
@@ -1417,7 +1521,7 @@ bool DecrementUTF(Iterator ibegin, Iterator& it, std::size_t n = 1)
 			ch = CodepointCast(*--it);
 			n -= !IsTrailSurrogate(ch);
 		}
-		for (; ibegin < it && n > 0 ;)
+		for (; ibegin != it && n > 0 ;)
 		{
 			codepoint_t ch = CodepointCast(*--it);
 			n -= !IsTrailSurrogate(ch);
@@ -1425,7 +1529,7 @@ bool DecrementUTF(Iterator ibegin, Iterator& it, std::size_t n = 1)
 	}
 	else if (iInputWidth == 4)
 	{
-		if (ibegin < it)
+		if (ibegin != it)
 		{
 			auto iCount = std::min(static_cast<std::size_t>(std::distance(ibegin, it)), n);
 			it -= iCount;
@@ -1439,35 +1543,35 @@ bool DecrementUTF(Iterator ibegin, Iterator& it, std::size_t n = 1)
 //-----------------------------------------------------------------------------
 /// Return iterator max n UTF8/UTF16/UTF32 codepoints before it
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
-Iterator RightUTF(Iterator ibegin, Iterator it, std::size_t n)
+KUTF_CONSTEXPR_14
+Iterator Right(Iterator ibegin, Iterator it, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	DecrementUTF(ibegin, it, n);
+	Decrement(ibegin, it, n);
 	return it;
 }
 
 //-----------------------------------------------------------------------------
 /// Return string with max n right UTF8/UTF16/UTF32 codepoints in sNarrow
-template<typename UTFString, typename ReturnString = UTFString>
-KUTF8_CONSTEXPR_14
-ReturnString RightUTF(const UTFString& sUTF, std::size_t n)
+template<typename UTFContainer, typename ReturnType = UTFContainer>
+KUTF_CONSTEXPR_14
+ReturnType Right(const UTFContainer& UTF, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	auto it = RightUTF(sUTF.begin(), sUTF.end(), n);
-	return ReturnString(sUTF.data() + (it - sUTF.begin()), sUTF.end() - it);
+	auto it = Right(UTF.begin(), UTF.end(), n);
+	return ReturnType(UTF.data() + (it - UTF.begin()), UTF.end() - it);
 }
 
 //-----------------------------------------------------------------------------
 /// Return string with max n UTF8/UTF16/UTF32 codepoints in sNarrow, starting after pos UTF8/UTF16/UTF32 codepoints
-template<typename UTFString, typename ReturnString = UTFString>
-KUTF8_CONSTEXPR_14
-ReturnString MidUTF(const UTFString& sUTF, std::size_t pos, std::size_t n)
+template<typename UTFContainer, typename ReturnType = UTFContainer>
+KUTF_CONSTEXPR_14
+ReturnType Mid(const UTFContainer& UTF, std::size_t pos, std::size_t n)
 //-----------------------------------------------------------------------------
 {
-	auto it = LeftUTF(sUTF.begin(), sUTF.end(), pos);
-	auto ie = LeftUTF(it, sUTF.end(), n);
-	return ReturnString(sUTF.data() + (it - sUTF.begin()), ie - it);
+	auto it = Left(UTF.begin(), UTF.end(), pos);
+	auto ie = Left(it, UTF.end(), n);
+	return ReturnType(UTF.data() + (it - UTF.begin()), ie - it);
 }
 
 //-----------------------------------------------------------------------------
@@ -1477,24 +1581,24 @@ ReturnString MidUTF(const UTFString& sUTF, std::size_t pos, std::size_t n)
 /// @param n the number of unicode codepoints to advanve for iterator it (default = 1)
 /// @return true if it != ie, else false (input string exhausted)
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
-bool IncrementUTF(Iterator& it, Iterator ie, std::size_t n = 1)
+KUTF_CONSTEXPR_14
+bool Increment(Iterator& it, Iterator ie, std::size_t n = 1)
 //-----------------------------------------------------------------------------
 {
-	it = LeftUTF(it, ie, n);
+	it = Left(it, ie, n);
 	return it != ie;
 }
 
 //-----------------------------------------------------------------------------
 /// Count number of codepoints in UTF range (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
-std::size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1))
+KUTF_CONSTEXPR_14
+std::size_t Count(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(-1))
 //-----------------------------------------------------------------------------
 {
 	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
-#if KUTF8_WITH_SIMDUTF
+#if KUTF_WITH_SIMDUTF
 
 	switch (iInputWidth)
 	{
@@ -1508,7 +1612,7 @@ std::size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size
 			{
 				// reduce the end iterator
 				ie = it + iMaxCount;
-				SyncUTF(ie, ie + 1);
+				Sync(ie, ie + 1);
 			}
 			const void* buf = &*it;
 			return simd::count_utf16(static_cast<const char16_t*>(buf), std::distance(it, ie));
@@ -1519,7 +1623,7 @@ std::size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size
 			{
 				// assuming a max of 4 bytes per codepoint, reduce the end iterator
 				ie = it + iMaxCount * 4;
-				SyncUTF(ie, ie + 4);
+				Sync(ie, ie + 4);
 			}
 			const void* buf = &*it;
 			return simd::count_utf8(static_cast<const char*>(buf), std::distance(it, ie));
@@ -1534,7 +1638,7 @@ std::size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size
 	{
 		std::size_t iCount { 0 };
 
-		for (; KUTF8_LIKELY(std::distance(it, ie) >= 8 && iCount < iMaxCount) ;)
+		for (; KUTF_LIKELY(std::distance(it, ie) >= 8 && iCount < iMaxCount) ;)
 		{
 			codepoint_t ch = CodepointCast(*it++);
 			iCount += !IsContinuationByte(ch);
@@ -1554,7 +1658,7 @@ std::size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size
 			iCount += !IsContinuationByte(ch);
 		}
 
-		for (; it < ie && iCount < iMaxCount ;)
+		for (; it != ie && iCount < iMaxCount ;)
 		{
 			codepoint_t ch = CodepointCast(*it++);
 			iCount += !IsContinuationByte(ch);
@@ -1566,7 +1670,7 @@ std::size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size
 	{
 		std::size_t iCount { 0 };
 
-		for (; KUTF8_LIKELY(std::distance(it, ie) >= 8 && iCount < iMaxCount) ;)
+		for (; KUTF_LIKELY(std::distance(it, ie) >= 8 && iCount < iMaxCount) ;)
 		{
 			codepoint_t ch = CodepointCast(*it++);
 			iCount += !IsLeadSurrogate(ch);
@@ -1586,7 +1690,7 @@ std::size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size
 			iCount += !IsLeadSurrogate(ch);
 		}
 
-		for (; it < ie && iCount < iMaxCount ;)
+		for (; it != ie && iCount < iMaxCount ;)
 		{
 			codepoint_t ch = CodepointCast(*it++);
 			iCount += !IsLeadSurrogate(ch);
@@ -1601,24 +1705,24 @@ std::size_t CountUTF(Iterator it, Iterator ie, std::size_t iMaxCount = std::size
 
 	return 0;
 
-#endif // KUTF8_WITH_SIMDUTF
+#endif // KUTF_WITH_SIMDUTF
 }
 
 //-----------------------------------------------------------------------------
-/// Count number of codepoints in UTF string (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
-template<typename UTFString>
-KUTF8_CONSTEXPR_14
-std::size_t CountUTF(const UTFString& sUTF, std::size_t iMaxCount = std::size_t(-1))
+/// Count number of codepoints in UTF container (either of UTF8, UTF16, UTF32), stop at iMaxCount or some more
+template<typename UTFContainer>
+KUTF_CONSTEXPR_14
+std::size_t Count(const UTFContainer& UTF, std::size_t iMaxCount = std::size_t(-1))
 //-----------------------------------------------------------------------------
 {
-	return CountUTF(sUTF.begin(), sUTF.end());
+	return Count(UTF.begin(), UTF.end());
 }
 
 //-----------------------------------------------------------------------------
 /// Return codepoint before position it in range ibegin-it, decrement it to point
 /// to the begin of the new (previous) codepoint
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
+KUTF_CONSTEXPR_14
 codepoint_t PrevCodepoint(Iterator ibegin, Iterator& it)
 //-----------------------------------------------------------------------------
 {
@@ -1628,12 +1732,12 @@ codepoint_t PrevCodepoint(Iterator ibegin, Iterator& it)
 	{
 		auto iend = it;
 
-		while (KUTF8_LIKELY(it != ibegin))
+		while (KUTF_LIKELY(it != ibegin))
 		{
 			// check if this char starts a UTF8 sequence
 			auto ch = CodepointCast(*--it);
 
-			if (KUTF8_LIKELY(ch < 128))
+			if (KUTF_LIKELY(ch < 128))
 			{
 				return ch;
 			}
@@ -1646,7 +1750,7 @@ codepoint_t PrevCodepoint(Iterator ibegin, Iterator& it)
 	}
 	else if (iInputWidth == 2)
 	{
-		if (KUTF8_LIKELY(it != ibegin))
+		if (KUTF_LIKELY(it != ibegin))
 		{
 			auto iend = it--;
 
@@ -1654,7 +1758,7 @@ codepoint_t PrevCodepoint(Iterator ibegin, Iterator& it)
 
 			if (IsTrailSurrogate(ch))
 			{
-				if (KUTF8_LIKELY(it != ibegin))
+				if (KUTF_LIKELY(it != ibegin))
 				{
 					--it;
 				}
@@ -1664,7 +1768,7 @@ codepoint_t PrevCodepoint(Iterator ibegin, Iterator& it)
 	}
 	else if (iInputWidth == 4)
 	{
-		if (KUTF8_LIKELY(it != ibegin))
+		if (KUTF_LIKELY(it != ibegin))
 		{
 			auto iend = it--;
 			return Codepoint(it, iend);
@@ -1677,74 +1781,53 @@ codepoint_t PrevCodepoint(Iterator ibegin, Iterator& it)
 //-----------------------------------------------------------------------------
 /// Return codepoint after pos UTF8/UTF16/UTF32 codepoints
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
-codepoint_t AtUTF(Iterator it, Iterator ie, std::size_t pos)
+KUTF_CONSTEXPR_14
+codepoint_t At(Iterator it, Iterator ie, std::size_t pos)
 //-----------------------------------------------------------------------------
 {
-	auto it2 = LeftUTF(it, ie, pos);
-
-	if (KUTF8_LIKELY(it2 < ie))
-	{
-		return Codepoint(it2, ie);
-	}
-	else
-	{
-		return INVALID_CODEPOINT;
-	}
+	return Increment(it, ie, pos) ? Codepoint(it, ie) : INVALID_CODEPOINT;
 }
 
 //-----------------------------------------------------------------------------
 /// Return codepoint after pos UTF8/UTF16/UTF32 codepoints
-template<typename UTFString>
-KUTF8_CONSTEXPR_14
-codepoint_t AtUTF(const UTFString& sUTF, std::size_t pos)
+template<typename UTFContainer>
+KUTF_CONSTEXPR_14
+codepoint_t At(const UTFContainer& UTF, std::size_t pos)
 //-----------------------------------------------------------------------------
 {
-	return AtUTF(sUTF.begin(), sUTF.end(), pos);
+	return At(UTF.begin(), UTF.end(), pos);
 }
 
 //-----------------------------------------------------------------------------
 /// Returns true if the first non-ASCII codepoint is valid UTF8
 template<typename Iterator>
-KUTF8_CONSTEXPR_14
+KUTF_CONSTEXPR_14
 bool HasUTF8(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	for (; KUTF8_LIKELY(it != ie) ;)
-	{
-		codepoint_t ch = CodepointCast(*it);
-
-		if (KUTF8_LIKELY(ch < 128))
-		{
-			++it;
-		}
-		else
-		{
-			return CodepointFromUTF8(it, ie) != INVALID_CODEPOINT;
-		}
-	}
-
-	return false;
+	it = InvalidASCII(it, ie);
+	if (it == ie) return false;
+	return CodepointFromUTF8(it, ie) != INVALID_CODEPOINT;
 }
 
 //-----------------------------------------------------------------------------
 /// Returns true if the first non-ASCII codepoint is valid UTF8
-template<typename UTF8String>
-KUTF8_CONSTEXPR_14
-bool HasUTF8(const UTF8String& sUTF8)
+template<typename UTF8Container>
+KUTF_CONSTEXPR_14
+bool HasUTF8(const UTF8Container& UTF8)
 //-----------------------------------------------------------------------------
 {
-	return HasUTF8(sUTF8.begin(), sUTF8.end());
+	return HasUTF8(UTF8.begin(), UTF8.end());
 }
 
 //-----------------------------------------------------------------------------
 /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32 (from an iterator pair)
 template<typename OutType, typename Iterator>
-KUTF8_CONSTEXPR_14
-bool ConvertUTF(Iterator it, Iterator ie, OutType& sOutput)
+KUTF_CONSTEXPR_14
+bool Convert(Iterator it, Iterator ie, OutType& Output)
 //-----------------------------------------------------------------------------
 {
-#if KUTF8_WITH_SIMDUTF
+#if KUTF_WITH_SIMDUTF
 
 	constexpr auto iInputWidth  = sizeof(typename std::remove_reference<decltype(*it)>::type);
 	constexpr auto iOutputWidth = sizeof(typename OutType::value_type);
@@ -1757,10 +1840,10 @@ bool ConvertUTF(Iterator it, Iterator ie, OutType& sOutput)
 	if (iInputWidth == iOutputWidth)
 	{
 		// do a simple memcopy
-		auto iOldSize = sOutput.size();
-		sOutput.resize(iOldSize + iInputSize);
+		auto iOldSize = Output.size();
+		Output.resize(iOldSize + iInputSize);
 		// pre C++17 has const .data()
-		void* pOut = &sOutput[iOldSize];
+		void* pOut = &Output[iOldSize];
 		std::memcpy(pOut, pIn, iInputSize * iInputWidth);
 		return true;
 	}
@@ -1824,10 +1907,10 @@ bool ConvertUTF(Iterator it, Iterator ie, OutType& sOutput)
 
 	if (!iTargetSize) return false;
 
-	auto iOldSize = sOutput.size();
-	sOutput.resize (iOldSize + iTargetSize);
+	auto iOldSize = Output.size();
+	Output.resize (iOldSize + iTargetSize);
 	// pre C++17 has const .data()
-	void* pOut = &sOutput[iOldSize];
+	void* pOut = &Output[iOldSize];
 	// we have to assign a value to satisfy non-C++17
 	std::size_t iWrote = 0;
 
@@ -1884,83 +1967,86 @@ bool ConvertUTF(Iterator it, Iterator ie, OutType& sOutput)
 
 	return iWrote == iTargetSize;
 
-#else // KUTF8_WITH_SIMDUTF
+#else // KUTF_WITH_SIMDUTF
 
-	for (; KUTF8_LIKELY(it != ie);)
+	auto bi = std::back_inserter(Output);
+
+	for (; it != ie;)
 	{
-		ToUTF(Codepoint(it, ie), sOutput);
+		ToUTF(Codepoint(it, ie), bi);
 	}
 
 	return true;
 
-#endif // KUTF8_WITH_SIMDUTF
+#endif // KUTF_WITH_SIMDUTF
 }
 
 //-----------------------------------------------------------------------------
 /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
 template<typename OutType, typename InpType,
          typename std::enable_if<!std::is_integral<InpType>::value
-                              && KUTF8_detail::HasSize<InpType>::value, int>::type = 0>
-KUTF8_CONSTEXPR_14
-bool ConvertUTF(const InpType& sInput, OutType& sOutput)
+                              && KUTF_detail::HasSize<InpType>::value, int>::type = 0>
+KUTF_CONSTEXPR_14
+bool Convert(const InpType& sInput, OutType& Output)
 //-----------------------------------------------------------------------------
 {
-	return ConvertUTF(sInput.begin(), sInput.end(), sOutput);
+	return Convert(sInput.begin(), sInput.end(), Output);
 }
 
 //-----------------------------------------------------------------------------
 /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
 template<typename OutType, typename Iterator,
-         typename std::enable_if<!KUTF8_detail::HasSize<Iterator>::value, int>::type = 0>
-KUTF8_CONSTEXPR_14
-OutType ConvertUTF(Iterator it, Iterator ie)
+         typename std::enable_if<!KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
+KUTF_CONSTEXPR_14
+OutType Convert(Iterator it, Iterator ie)
 //-----------------------------------------------------------------------------
 {
-	OutType sOut{};
-	ConvertUTF(it, ie, sOut);
-	return sOut;
+	OutType Out{};
+	Convert(it, ie, Out);
+	return Out;
 }
 
 //-----------------------------------------------------------------------------
 /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
 template<typename OutType, typename InpType>
-KUTF8_CONSTEXPR_14
-OutType ConvertUTF(const InpType& sInp)
+KUTF_CONSTEXPR_14
+OutType Convert(const InpType& sInp)
 //-----------------------------------------------------------------------------
 {
-	return ConvertUTF<OutType>(sInp.begin(), sInp.end());
+	return Convert<OutType>(sInp.begin(), sInp.end());
 }
 
 //-----------------------------------------------------------------------------
 /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/UTF16/UTF32 string
-template<typename UTFString>
-KUTF8_CONSTEXPR_14
-bool ConvertUTF(const wchar_t* it, UTFString& sUTF)
+template<typename OutType>
+KUTF_CONSTEXPR_14
+bool Convert(const wchar_t* it, OutType& Output)
 //-----------------------------------------------------------------------------
 {
-	if KUTF8_UNLIKELY(it == nullptr) return false;
+	if KUTF_UNLIKELY(it == nullptr) return false;
 
 	auto iSize = std::wcslen(it);
-	return ConvertUTF(it, it + iSize, sUTF);
+	return Convert(it, it + iSize, Output);
 }
 
 //-----------------------------------------------------------------------------
 /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/UTF16/UTF32 string
-template<typename UTFString>
-KUTF8_CONSTEXPR_14
-UTFString ConvertUTF(const wchar_t* it)
+template<typename OutType>
+KUTF_CONSTEXPR_14
+OutType Convert(const wchar_t* it)
 //-----------------------------------------------------------------------------
 {
-	UTFString sUTF{};
-	ConvertUTF(it, sUTF);
-	return sUTF;
+	OutType Out{};
+	Convert(it, Out);
+	return Out;
 }
 
 //-----------------------------------------------------------------------------
 /// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every
-/// codepoint (which may be INVALID_CODEPOINT for input parsing errors)
+/// codepoint (which may be INVALID_CODEPOINT for input parsing errors). If the functor returns
+/// false the loop is aborted.
 template<typename Iterator, class Functor>
-bool ForEachUTF(Iterator it, Iterator ie, Functor func)
+bool ForEach(Iterator it, Iterator ie, Functor func)
 //-----------------------------------------------------------------------------
 {
 	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
@@ -1969,7 +2055,7 @@ bool ForEachUTF(Iterator it, Iterator ie, Functor func)
 	{
 		// we cannot use std::for_each here, because existing code expects this loop to
 		// abort once false is returned by func() (std::for_each ignores all functor returns)
-		for (; it < ie; )
+		for (; it != ie; )
 		{
 			if (!func(*it++)) return false;
 		}
@@ -1977,18 +2063,18 @@ bool ForEachUTF(Iterator it, Iterator ie, Functor func)
 	}
 	else
 	{
-#if KUTF8_WITH_SIMDUTF
+#if KUTF_WITH_SIMDUTF
 		// we convert into an intermediate type
 		// do it in chunks to limit memory consumption for large strings
 		std::u32string sTemp;
-		for (;it < ie; )
+		for (; it != ie; )
 		{
 			constexpr std::size_t ChunkSize = 1000;
 
 			auto ie2 = std::min(ie, it + ChunkSize);
-			SyncUTF(ie2, ie);
+			Sync(ie2, ie);
 
-			if (!ConvertUTF(it, ie2, sTemp)) return false;
+			if (!Convert(it, ie2, sTemp)) return false;
 
 			// we cannot use std::for_each here, because existing code expects this loop to
 			// abort once false is returned by func() (std::for_each ignores all functor returns)
@@ -2002,7 +2088,7 @@ bool ForEachUTF(Iterator it, Iterator ie, Functor func)
 		}
 		return true;
 #else
-		for (; it < ie;)
+		for (; it != ie;)
 		{
 			if (!func(Codepoint(it, ie))) return false;
 		}
@@ -2015,12 +2101,13 @@ bool ForEachUTF(Iterator it, Iterator ie, Functor func)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert string from UTF8, calling functor func for every codepoint
+/// Convert string from UTF8/16/32, calling functor func for every codepoint (which may be
+/// INVALID_CODEPOINT for input parsing errors). If the functor returns false the loop is aborted.
 template<typename UTFString, class Functor>
-bool ForEachUTF(const UTFString& sUTF, Functor func)
+bool ForEach(const UTFString& sUTF, Functor func)
 //-----------------------------------------------------------------------------
 {
-	return ForEachUTF(sUTF.begin(), sUTF.end(), func);
+	return ForEach(sUTF.begin(), sUTF.end(), func);
 }
 
 //-----------------------------------------------------------------------------
@@ -2028,59 +2115,61 @@ bool ForEachUTF(const UTFString& sUTF, Functor func)
 /// functor for each codepoint.
 /// @param it the begin iterator of the input string
 /// @param ie the end iterator of the input string
-/// @param sOutput the UTF output string, will be appended
+/// @param Output the UTF output container (typically a string type), will be appended to
 /// @param func the transformation functor, called with signature codepoint_t(codepoint_t) - has to return transformed codepoint_t
 /// @return false in case of decoding errors, else true
-template<typename UTFString, typename Iterator, class Functor>
-bool TransformUTF(Iterator it, Iterator ie, UTFString& sOutput, Functor func)
+template<typename OutType, typename Iterator, class Functor>
+bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 //-----------------------------------------------------------------------------
 {
 	constexpr auto iInputWidth  = sizeof(typename std::remove_reference<decltype(*it)>::type);
-	constexpr auto iOutputWidth = sizeof(typename UTFString::value_type);
+	constexpr auto iOutputWidth = sizeof(typename OutType::value_type);
 
 	if (iOutputWidth == 4)
 	{
-		using value_type = typename UTFString::value_type;
+		using value_type = typename OutType::value_type;
 
 		if (iInputWidth == 4)
 		{
 			// we do not need to convert, but will simply transform from input to output
-			auto iOriginalSize = sOutput.size();
-			sOutput.resize(iOriginalSize + std::distance(it, ie));
-			std::transform(it, ie, &sOutput[iOriginalSize], [&func](value_type cp) { return func(cp); });
+			auto iOriginalSize = Output.size();
+			Output.resize(iOriginalSize + std::distance(it, ie));
+			std::transform(it, ie, &Output[iOriginalSize], [&func](value_type cp) { return func(cp); });
 		}
 		else
 		{
 			// we can convert directly into the target
-			if (!ConvertUTF(it, ie, sOutput)) return false;
+			if (!Convert(it, ie, Output)) return false;
 			// and transform right there
-			std::transform(sOutput.begin(), sOutput.end(), sOutput.begin(), [&func](value_type cp) { return func(cp); });
+			std::transform(Output.begin(), Output.end(), Output.begin(), [&func](value_type cp) { return func(cp); });
 		}
 		return true;
 	}
 	else
 	{
-#if KUTF8_WITH_SIMDUTF
+#if KUTF_WITH_SIMDUTF
 		// we convert into an intermediate type and back to the requested output type
 		// do it in chunks to limit memory consumption for large strings
 		std::u32string sTemp;
-		for (;it < ie; )
+		for (; it != ie; )
 		{
 			constexpr std::size_t ChunkSize = 1000;
 
 			auto ie2 = std::min(ie, it + ChunkSize);
-			SyncUTF(ie2, ie);
+			Sync(ie2, ie);
 
-			if (!ConvertUTF(it, ie2, sTemp)) return false;
+			if (!Convert(it, ie2, sTemp)) return false;
+
 			std::transform(sTemp.begin(), sTemp.end(), sTemp.begin(), [&func](codepoint_t cp) { return func(cp); });
-			if (!ConvertUTF(sTemp, sOutput)) return false;
+
+			if (!Convert(sTemp, Output)) return false;
 
 			it = ie2;
 			sTemp.clear();
 		}
 		return true;
 #else
-		return ForEachUTF(it, ie, [&sOutput, &func](codepoint_t cp) { ToUTF(func(cp), sOutput); return true; });
+		return ForEach(it, ie, [&Output, &func](codepoint_t cp) { ToUTF(func(cp), Output); return true; });
 #endif
 	}
 }
@@ -2089,28 +2178,28 @@ bool TransformUTF(Iterator it, Iterator ie, UTFString& sOutput, Functor func)
 /// Transform a string in UTF8, UTF16, or UTF32 into another string in UTF8, UTF16, or UTF32 (also mixed), calling a transformation
 /// functor for each codepoint.
 /// @param sInput the UTF input string
-/// @param sOutput the UTF output string
+/// @param Output the UTF output container (typically a string type), will be appended to
 /// @param func the transformation functor, called with signature codepoint_t(codepoint_t) - has to return transformed codepoint_t
 /// @return false in case of decoding errors, else true
-template<typename UTFString, typename InputString, class Functor>
-bool TransformUTF(const InputString& sInput, UTFString& sOutput, Functor func)
+template<typename OutType, typename InputString, class Functor>
+bool Transform(const InputString& sInput, OutType& Output, Functor func)
 //-----------------------------------------------------------------------------
 {
-	return TransformUTF(sInput.begin(), sInput.end(), sOutput, func);
+	return Transform(sInput.begin(), sInput.end(), Output, func);
 }
 
 //-----------------------------------------------------------------------------
 /// Transform a Unicode string into a lowercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
 /// @param it the begin iterator of the input string
 /// @param ie the end iterator of the input string
-/// @param sOutput the output UTF8 string
-template<typename Iterator, typename OutputString>
-bool ToLowerUTF(Iterator it, Iterator ie, OutputString& sOutput)
+/// @param Output the UTF output container (typically a string type), will be appended to
+template<typename OutType, typename Iterator>
+bool ToLower(Iterator it, Iterator ie, OutType& Output)
 //-----------------------------------------------------------------------------
 {
-	return TransformUTF(it, ie, sOutput, [](codepoint_t cp)
+	return Transform(it, ie, Output, [](codepoint_t cp)
 	{
-#ifdef KUTF8_DEKAF2
+#ifdef KUTF_DEKAF2
 		return kToLower(cp);
 #else
 		return std::towlower(cp);
@@ -2121,26 +2210,26 @@ bool ToLowerUTF(Iterator it, Iterator ie, OutputString& sOutput)
 //-----------------------------------------------------------------------------
 /// Transform a Unicode string into a lowercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
 /// @param sInput the UTF8 input string
-/// @param sOutput the output UTF8 string
-template<typename InputString, typename OutputString>
-bool ToLowerUTF(const InputString& sInput, OutputString& sOutput)
+/// @param Output the UTF output container (typically a string type), will be appended to
+template<typename OutType, typename InputString>
+bool ToLower(const InputString& sInput, OutType& Output)
 //-----------------------------------------------------------------------------
 {
-	return ToLowerUTF(sInput.begin(), sInput.end(), sOutput);
+	return ToLower(sInput.begin(), sInput.end(), Output);
 }
 
 //-----------------------------------------------------------------------------
 /// Transform a Unicode string into an uppercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
 /// @param it the begin iterator of the input string
 /// @param ie the end iterator of the input string
-/// @param sOutput the output UTF8 string
-template<typename Iterator, typename OutputString>
-bool ToUpperUTF(Iterator it, Iterator ie, OutputString& sOutput)
+/// @param Output the UTF output container (typically a string type), will be appended to
+template<typename OutType, typename Iterator>
+bool ToUpper(Iterator it, Iterator ie, OutType& Output)
 //-----------------------------------------------------------------------------
 {
-	return TransformUTF(it, ie, sOutput, [](codepoint_t cp)
+	return Transform(it, ie, Output, [](codepoint_t cp)
 	{
-#ifdef KUTF8_DEKAF2
+#ifdef KUTF_DEKAF2
 		return kToUpper(cp);
 #else
 		return std::towupper(cp);
@@ -2151,131 +2240,16 @@ bool ToUpperUTF(Iterator it, Iterator ie, OutputString& sOutput)
 //-----------------------------------------------------------------------------
 /// Transform a Unicode string into an uppercase Unicode string. Input and output accept UTF8, UTF16, UTF32, also mixed
 /// @param sInput the UTF8 input string
-/// @param sOutput the output UTF8 string
-template<typename InputString, typename OutputString>
-bool ToUpperUTF(const InputString& sInput, OutputString& sOutput)
+/// @param Output the UTF output container (typically a string type), will be appended to
+template<typename OutType, typename InputString>
+bool ToUpper(const InputString& sInput, OutType& Output)
 //-----------------------------------------------------------------------------
 {
-	return ToUpperUTF(sInput.begin(), sInput.end(), sOutput);
+	return ToUpper(sInput.begin(), sInput.end(), Output);
 }
 
-namespace CESU8 {
+} // namespace KUTF_NAMESPACE
 
-// see https://en.wikipedia.org/wiki/CESU-8
-
-//-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 LE) that was encoded in a byte stream into a UTF8 string (for recovery purposes only)
-template<typename NarrowString, typename Iterator>
-KUTF8_CONSTEXPR_14
-NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
-//-----------------------------------------------------------------------------
-{
-	NarrowString sNarrow{};
-
-	for (; KUTF8_LIKELY(it != ie); )
-	{
-		SurrogatePair sp;
-		sp.low = CodepointCast(*it++) << 8;
-
-		if (KUTF8_UNLIKELY(it == ie))
-		{
-			ToUTF(REPLACEMENT_CHARACTER, sNarrow);
-		}
-		else
-		{
-			sp.low += CodepointCast(*it++);
-
-			if (KUTF8_UNLIKELY(IsLeadSurrogate(sp.low)))
-			{
-				// collect another 2 bytes for surrogate replacement
-				if (KUTF8_LIKELY(it != ie))
-				{
-					sp.high = CodepointCast(*it++) << 8;
-
-					if (KUTF8_LIKELY(it != ie))
-					{
-						sp.high += CodepointCast(*it);
-
-						if (IsTrailSurrogate(sp.high))
-						{
-							++it;
-							ToUTF(sp.ToCodepoint(), sNarrow);
-						}
-						else
-						{
-							// the second surrogate is not valid
-							ToUTF(REPLACEMENT_CHARACTER, sNarrow);
-						}
-					}
-					else
-					{
-						ToUTF(REPLACEMENT_CHARACTER, sNarrow);
-					}
-				}
-				else
-				{
-					// we treat incomplete surrogates as simple ucs2
-					ToUTF(sp.low, sNarrow);
-				}
-			}
-			else
-			{
-				ToUTF(sp.low, sNarrow);
-			}
-		}
-	}
-
-	return sNarrow;
-}
-
-//-----------------------------------------------------------------------------
-/// Convert a wide string (UTF16 LE) that was encoded in a byte stream into a UTF8 string (for recovery purposes only)
-template<typename ByteString, typename NarrowString = ByteString>
-KUTF8_CONSTEXPR_14
-NarrowString UTF16BytesToUTF8(const ByteString& sUTF16Bytes)
-//-----------------------------------------------------------------------------
-{
-	return UTF16BytesToUTF8<NarrowString>(sUTF16Bytes.begin(), sUTF16Bytes.end());
-}
-
-//-----------------------------------------------------------------------------
-/// Convert a UTF8 string into a byte stream with UTF16 LE encoding (for recovery purposes only)
-template<typename NarrowString, typename ByteString = NarrowString>
-KUTF8_CONSTEXPR_14
-ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
-//-----------------------------------------------------------------------------
-{
-	using value_type = typename ByteString::value_type;
-
-	ByteString sOut{};
-	sOut.reserve(sUTF8String.size() * 2);
-
-	ForEachUTF(sUTF8String, [&sOut](codepoint_t cp)
-	{
-		if (NeedsSurrogates(cp))
-		{
-			SurrogatePair sp(cp);
-			sOut += static_cast<value_type>(sp.low  >> 8 & 0x0ff);
-			sOut += static_cast<value_type>(sp.low       & 0x0ff);
-			sOut += static_cast<value_type>(sp.high >> 8 & 0x0ff);
-			sOut += static_cast<value_type>(sp.high      & 0x0ff);
-		}
-		else
-		{
-			sOut += static_cast<value_type>(cp >>  8 & 0x0ff);
-			sOut += static_cast<value_type>(cp       & 0x0ff);
-		}
-		return true;
-
-	});
-
-	return sOut;
-}
-
-} // namespace CESU8
-
-} // namespace KUTF8_NAMESPACE
-
-#ifdef KUTF8_DEKAF2
+#ifdef KUTF_DEKAF2
 DEKAF2_NAMESPACE_END
 #endif

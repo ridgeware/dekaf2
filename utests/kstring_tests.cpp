@@ -1551,6 +1551,46 @@ TEST_CASE("KString") {
 		}
 	}
 
+	SECTION("FromTo")
+	{
+
+		std::vector<KStringView> pvector =
+		{
+			""         ,
+			"t"        ,
+			"ö"        ,
+			"ɠ"        ,
+			"𐑅"        ,
+			"öäü"      ,
+			"hello"    ,
+			"öäü"      ,
+			"HELLO"    ,
+			"ÖÄÜ"      ,
+			"ⴀⴃ"     ,
+			"ალჯ"      ,
+			"δθμ"      ,
+			"οδυσσευς" ,
+			"οδυσσευσ" ,
+			"ꝗɠŋա𐐲𐑅"   ,
+			"жъꚁꙭ"     ,
+			"ϡϧϯꜻꜿⱥⱡⱦ" ,
+			"ꜩꝙꞣꞇ"
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s;
+			auto it2 = it.begin();
+			auto ie2 = it.end();
+			for (; it2 != ie2; )
+			{
+				auto cp = kutf::Codepoint(it2, ie2);
+				kutf::ToUTF(cp, s);
+			}
+			CHECK ( s == it );
+		}
+	}
+
 	SECTION("MakeUpper")
 	{
 		struct parms_t
@@ -1562,6 +1602,11 @@ TEST_CASE("KString") {
 		std::vector<parms_t> pvector =
 		{
 			{ ""         , ""        },
+			{ "t"        , "T"       },
+			{ "ö"        , "Ö"       },
+			{ "ɠ"        , "Ɠ"       },
+			{ "𐑅"        , "𐐝"       },
+			{ "öäü"      , "ÖÄÜ"     },
 			{ "hello"    , "HELLO"   },
 			{ "öäü"      , "ÖÄÜ"     },
 			{ "HELLO"    , "HELLO"   },
@@ -1596,6 +1641,10 @@ TEST_CASE("KString") {
 		std::vector<parms_t> pvector =
 		{
 			{ ""         , ""        },
+			{ "t"        , "T"       },
+			{ "ö"        , "Ö"       },
+			{ "ɠ"        , "Ɠ"       },
+			{ "𐑅"        , "𐐝"       },
 			{ "hello"    , "HELLO"   },
 			{ "öäü"      , "ÖÄÜ"     },
 			{ "hello"    , "hello"   },
@@ -1629,6 +1678,10 @@ TEST_CASE("KString") {
 		std::vector<parms_t> pvector =
 		{
 			{ ""         , ""        },
+			{ "t"        , "T"       },
+			{ "ö"        , "Ö"       },
+			{ "ɠ"        , "Ɠ"       },
+			{ "𐑅"        , "𐐝"       },
 			{ "hello"    , "HELLO"   },
 			{ "öäü"      , "ÖÄÜ"     },
 			{ "HELLO"    , "HELLO"   },
@@ -1669,7 +1722,7 @@ TEST_CASE("KString") {
 			{ "öäü"      , "öäü"     },
 			{ "HELLO"    , "HELLO"   },
 			{ "ÖÄÜ"      , "ÖÄÜ"     },
-			{ "ⴀⴃ"     , "ⴀⴃ"      },
+			{ "ⴀⴃ"     , "ⴀⴃ"     },
 		};
 
 		for (const auto& it : pvector)
@@ -1680,6 +1733,31 @@ TEST_CASE("KString") {
 			// check rvalue version
 			o = KString(it.input).ToUpperASCII();
 			CHECK ( o == it.output );
+		}
+	}
+
+	SECTION("MakeUpperASCII")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "öäü"      , "öäü"     },
+			{ "HELLO"    , "HELLO"   },
+			{ "ÖÄÜ"      , "ÖÄÜ"     },
+			{ "ⴀⴃ"     , "ⴀⴃ"     },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			s.MakeUpperASCII();
+			CHECK ( s == it.output );
 		}
 	}
 
@@ -1694,6 +1772,10 @@ TEST_CASE("KString") {
 		std::vector<parms_t> pvector =
 		{
 			{ ""         , ""        },
+			{ "t"        , "T"       },
+			{ "ö"        , "Ö"       },
+			{ "ɠ"        , "Ɠ"       },
+			{ "𐑅"        , "𐐝"       },
 			{ "hello"    , "HELLO"   },
 			{ "öäü"      , "ÖÄÜ"     },
 			{ "hello"    , "hello"   },
@@ -1743,6 +1825,30 @@ TEST_CASE("KString") {
 			// check rvalue version
 			o = KString(it.input).ToLowerASCII();
 			CHECK ( o == it.output );
+		}
+	}
+
+	SECTION("MakeLowerASCII")
+	{
+		struct parms_t
+		{
+			KString output;
+			KString input;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "öäü"      , "öäü"     },
+			{ "hello"    , "hello"   },
+			{ "öäü"      , "öäü"     },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			s.MakeLowerASCII();
+			CHECK ( s == it.output );
 		}
 	}
 
@@ -2184,7 +2290,7 @@ TEST_CASE("KString") {
 
 	SECTION("AtUTF8")
 	{
-		CHECK ( uint32_t(KString(""     ).AtUTF8(9)) == uint32_t(Unicode::INVALID_CODEPOINT) );
+		CHECK ( uint32_t(KString(""     ).AtUTF8(9)) == uint32_t(kutf::INVALID_CODEPOINT) );
 		CHECK ( uint32_t(KString("abcæå").AtUTF8(0)) ==   'a' );
 		CHECK ( uint32_t(KString("abcæå").AtUTF8(1)) ==   'b' );
 		CHECK ( uint32_t(KString("abcæå").AtUTF8(2)) ==   'c' );
@@ -2195,7 +2301,7 @@ TEST_CASE("KString") {
 		CHECK ( uint32_t(KString("åabcæ").AtUTF8(0)) ==   229 );
 		CHECK ( uint32_t(KString("åꜩbcꝙ").AtUTF8(3)) ==  'c' );
 		CHECK ( uint32_t(KString("åꜩbcꝙ").AtUTF8(4)) == 42841 );
-		CHECK ( uint32_t(KString("abcæå").AtUTF8(5)) == uint32_t(Unicode::INVALID_CODEPOINT) );
+		CHECK ( uint32_t(KString("abcæå").AtUTF8(5)) == uint32_t(kutf::INVALID_CODEPOINT) );
 	}
 
 	SECTION("remove_prefix")

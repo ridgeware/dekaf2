@@ -48,7 +48,7 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "kctype.h"
-#include "kutf8.h"
+#include "kutf.h"
 #include "ktemplate.h"
 #include <cinttypes>
 #include <algorithm>
@@ -80,27 +80,64 @@ KStringRef::size_type kReplace(KStringRef& string,
 							   bool bReplaceAll = true);
 //------------------------------------------------------------------------------
 
+namespace detail {
+
+void kMakeUpperASCII  (const char* it, const char* ie, char* out);
+void kMakeLowerASCII  (const char* it, const char* ie, char* out);
+void kMakeUpperLocale (const char* it, const char* ie, char* out);
+void kMakeLowerLocale (const char* it, const char* ie, char* out);
+
+} // end of namespace detail
+
 //----------------------------------------------------------------------
-/// returns a copy of the string in uppercase (UTF8)
-DEKAF2_NODISCARD DEKAF2_PUBLIC inline
-KString kToUpper(KStringView sInput)
+/// converts the string to uppercase assuming UTF encoding
+template<class String>
+DEKAF2_PUBLIC
+void kMakeUpper(String& sString)
 //----------------------------------------------------------------------
 {
-	KString sUpper;
-	Unicode::ToUpperUTF(sInput, sUpper);
-	return sUpper;
+	if (kutf::ValidASCII(sString))
+	{
+		kMakeUpperASCII(sString);
+	}
+	else
+	{
+		String sLower;
+		kutf::ToUpper(sString, sLower);
+		sLower.swap(sString);
+	}
 }
 
 //----------------------------------------------------------------------
-/// returns a copy of the string in lowercase (UTF8)
-DEKAF2_NODISCARD DEKAF2_PUBLIC inline
-KString kToLower(KStringView sInput)
+/// converts the string to lowercase assuming UTF encoding
+template<class String>
+DEKAF2_PUBLIC
+void kMakeLower(String& sString)
 //----------------------------------------------------------------------
 {
-	KString sLower;
-	Unicode::ToLowerUTF(sInput, sLower);
-	return sLower;
+	if (kutf::ValidASCII(sString))
+	{
+		kMakeLowerASCII(sString);
+	}
+	else
+	{
+		String sLower;
+		kutf::ToLower(sString, sLower);
+		sLower.swap(sString);
+	}
 }
+
+//----------------------------------------------------------------------
+/// returns a copy of the string in uppercase (UTF8)
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kToUpper(KStringView sInput);
+//----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+/// returns a copy of the string in lowercase (UTF8)
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kToLower(KStringView sInput);
+//----------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 /// returns a copy of the string in uppercase according to the current locale (does not work with UTF8 strings)
@@ -125,6 +162,86 @@ KString kToUpperASCII(KStringView sInput);
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kToLowerASCII(KStringView sInput);
 //----------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+/// converts the string to uppercase assuming ASCII encoding
+template<class InputIterator, class OutputIterator>
+DEKAF2_PUBLIC
+void kMakeUpperASCII(InputIterator it, InputIterator ie, OutputIterator Out)
+//----------------------------------------------------------------------
+{
+	detail::kMakeUpperASCII(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
+}
+
+//----------------------------------------------------------------------
+/// converts the string to uppercase assuming ASCII encoding
+template<class String>
+DEKAF2_PUBLIC
+void kMakeUpperASCII(String& sString)
+//----------------------------------------------------------------------
+{
+	kMakeUpperASCII(sString.begin(), sString.end(), sString.begin());
+}
+
+//----------------------------------------------------------------------
+/// converts the string to lowercase assuming ASCII encoding
+template<class InputIterator, class OutputIterator>
+DEKAF2_PUBLIC
+void kMakeLowerASCII(InputIterator it, InputIterator ie, OutputIterator Out)
+//----------------------------------------------------------------------
+{
+	detail::kMakeLowerASCII(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
+}
+
+//----------------------------------------------------------------------
+/// converts the string to lowercase assuming ASCII encoding
+template<class String>
+DEKAF2_PUBLIC
+void kMakeLowerASCII(String& sString)
+//----------------------------------------------------------------------
+{
+	kMakeLowerASCII(sString.begin(), sString.end(), sString.begin());
+}
+
+//----------------------------------------------------------------------
+/// converts the string to uppercase assuming current locale encoding (does not work with UTF8 strings)
+template<class InputIterator, class OutputIterator>
+DEKAF2_PUBLIC
+void kMakeUpperLocale(InputIterator it, InputIterator ie, OutputIterator Out)
+//----------------------------------------------------------------------
+{
+	detail::kMakeUpperLocale(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
+}
+
+//----------------------------------------------------------------------
+/// converts the string to uppercase assuming current locale encoding (does not work with UTF8 strings)
+template<class String>
+DEKAF2_PUBLIC
+void kMakeUpperLocale(String& sString)
+//----------------------------------------------------------------------
+{
+	kMakeUpperLocale(sString.begin(), sString.end(), sString.begin());
+}
+
+//----------------------------------------------------------------------
+/// converts the string to lowercase assuming current locale encoding (does not work with UTF8 strings)
+template<class InputIterator, class OutputIterator>
+DEKAF2_PUBLIC
+void kMakeLowerLocale(InputIterator it, InputIterator ie, OutputIterator Out)
+//----------------------------------------------------------------------
+{
+	detail::kMakeLowerLocale(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
+}
+
+//----------------------------------------------------------------------
+/// converts the string to lowercase assuming current locale encoding (does not work with UTF8 strings)
+template<class String>
+DEKAF2_PUBLIC
+void kMakeLowerLocale(String& sString)
+//----------------------------------------------------------------------
+{
+	kMakeLowerLocale(sString.begin(), sString.end(), sString.begin());
+}
 
 //-----------------------------------------------------------------------------
 /// returns leftmost iCount chars of string
@@ -226,7 +343,7 @@ DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 StringView kLeftUTF(const String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::LeftUTF<String, StringView>(sInput, iCount);
+	return kutf::Left<String, StringView>(sInput, iCount);
 }
 
 //-----------------------------------------------------------------------------
@@ -236,7 +353,7 @@ DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 String& kMakeLeftUTF(String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	auto it = Unicode::LeftUTF(sInput.begin(), sInput.end(), iCount);
+	auto it = kutf::Left(sInput.begin(), sInput.end(), iCount);
 	sInput.erase(it, sInput.end());
 	return sInput;
 }
@@ -248,7 +365,7 @@ DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 StringView kMidUTF(const String& sInput, std::size_t iStart, std::size_t iCount = npos)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::MidUTF<String, StringView>(sInput, iStart, iCount);
+	return kutf::Mid<String, StringView>(sInput, iStart, iCount);
 }
 
 //-----------------------------------------------------------------------------
@@ -258,7 +375,7 @@ DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 String& kMakeMidUTF(String& sInput, std::size_t iStart, std::size_t iCount = npos)
 //-----------------------------------------------------------------------------
 {
-	auto it = Unicode::LeftUTF(sInput.begin(), sInput.end(), iStart);
+	auto it = kutf::Left(sInput.begin(), sInput.end(), iStart);
 	sInput.erase(sInput.begin(), it);
 	return kMakeLeftUTF(sInput, iCount);
 }
@@ -270,7 +387,7 @@ DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 StringView kRightUTF(const String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::RightUTF<String, StringView>(sInput, iCount);
+	return kutf::Right<String, StringView>(sInput, iCount);
 }
 
 //-----------------------------------------------------------------------------
@@ -280,7 +397,7 @@ DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 String& kMakeRightUTF(String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	auto it = Unicode::RightUTF(sInput.begin(), sInput.end(), iCount);
+	auto it = kutf::Right(sInput.begin(), sInput.end(), iCount);
 	sInput.erase(sInput.begin(), it);
 	return sInput;
 }
@@ -292,7 +409,7 @@ DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 KCodePoint kAtUTF(const String& sInput, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::AtUTF(sInput, iCount);
+	return kutf::At(sInput, iCount);
 }
 
 //-----------------------------------------------------------------------------
@@ -302,7 +419,7 @@ DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kHasUTF8(const String& sInput)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::HasUTF8(sInput);
+	return kutf::HasUTF8(sInput);
 }
 
 //-----------------------------------------------------------------------------
@@ -312,7 +429,7 @@ DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 std::size_t kSizeUTF(const String& sInput)
 //-----------------------------------------------------------------------------
 {
-	return Unicode::CountUTF(sInput);
+	return kutf::Count(sInput);
 }
 
 //----------------------------------------------------------------------
@@ -1531,14 +1648,14 @@ DEKAF2_PUBLIC
 		// find start and end such that no UTF8 code run will be interrupted
 		auto ch = static_cast<uchar_t>(sLimitMe[iStart]);
 
-		while (iStart && Unicode::IsContinuationByte(ch))
+		while (iStart && kutf::IsContinuationByte(ch))
 		{
 			ch = static_cast<uchar_t>(sLimitMe[--iStart]);
 		}
 
 		ch = static_cast<uchar_t>(sLimitMe[iStart + iRemove]);
 
-		while (iStart + iRemove < iSize && Unicode::IsContinuationByte(ch))
+		while (iStart + iRemove < iSize && kutf::IsContinuationByte(ch))
 		{
 			ch = static_cast<uchar_t>(sLimitMe[iStart + ++iRemove]);
 		}
@@ -1551,14 +1668,14 @@ DEKAF2_PUBLIC
 		// do not cut surrogate pairs..
 		auto ch = static_cast<uchar_t>(sLimitMe[iStart]);
 
-		if (iStart && Unicode::IsTrailSurrogate(ch))
+		if (iStart && kutf::IsTrailSurrogate(ch))
 		{
 			--iStart;
 		}
 
 		ch = static_cast<uchar_t>(sLimitMe[iStart + iRemove]);
 
-		if (iStart + iRemove < iSize && Unicode::IsLeadSurrogate(ch))
+		if (iStart + iRemove < iSize && kutf::IsLeadSurrogate(ch))
 		{
 			++iRemove;
 		}

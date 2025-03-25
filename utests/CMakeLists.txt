@@ -126,8 +126,8 @@ set (USOURCES
 	kurl_tests.cpp
 	kurlencode_tests.cpp
 	kuseragent_tests.cpp
-	kutf8_tests.cpp
-	kutf8iterator_tests.cpp
+	kutf_tests.cpp
+	kutf_iterator_tests.cpp
 	kvariant_tests.cpp
 	kversion_tests.cpp
 	kwebclient_tests.cpp

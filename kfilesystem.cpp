@@ -54,7 +54,7 @@
 #include "kinshell.h"
 #include "kwriter.h"
 #include "kctype.h"
-#include "kutf8.h"
+#include "kutf.h"
 #include "keraseremove.h"
 
 DEKAF2_NAMESPACE_BEGIN
@@ -2338,11 +2338,9 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase, KStringView sEmp
 
 		KCodePoint lastCp { 0 };
 
-		Unicode::ForEachUTF(Dotted, [bToLowercase, &sSafe, &lastCp](Unicode::codepoint_t uch)
+		kutf::ForEach(Dotted, [bToLowercase, &sSafe, &lastCp](KCodePoint Cp)
 		{
-			KCodePoint Cp(uch);
-
-			if (uch != '_' && !Cp.IsAlNum())
+			if (Cp.value() != '_' && !Cp.IsAlNum())
 			{
 				if (lastCp == 0)
 				{
@@ -2362,11 +2360,11 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase, KStringView sEmp
 
 			if (bToLowercase)
 			{
-				Unicode::ToUTF(Cp.ToLower().value(), sSafe);
+				kutf::ToUTF(Cp.ToLower().value(), sSafe);
 			}
 			else
 			{
-				Unicode::ToUTF(Cp.value(), sSafe);
+				kutf::ToUTF(Cp.value(), sSafe);
 			}
 			
 			return true;

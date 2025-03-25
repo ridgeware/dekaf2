@@ -38,6 +38,13 @@ if (Iconv_FOUND)
 	set(DEKAF2_ICONV "${Iconv_LIBRARIES}")
 endif()
 
+find_package(utf8cpp QUIET)
+
+if(utf8cpp_FOUND)
+	set(DEKAF2_HAS_UTF8CPP 1)
+	set(DEKAF2_UTF8CPP utf8cpp::utf8cpp)
+endif()
+
 # keep alphabetic sort order
 set (SOURCES
 	kxml_bench.cpp
@@ -49,7 +56,7 @@ set (SOURCES
 	kreader_bench.cpp
 	kstring_bench.cpp
 	kstringview_bench.cpp
-	kutf8_bench.cpp
+	kutf_bench.cpp
 	kwriter_bench.cpp
 	main.cpp
 	other_bench.cpp
@@ -61,13 +68,16 @@ set (HEADERS
 )
 
 add_executable(benchmarks EXCLUDE_FROM_ALL ${HEADERS} ${SOURCES})
-target_link_libraries(benchmarks ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_ICONV} ${DEKAF2_SIMDUTF} Threads::Threads)
+target_link_libraries(benchmarks ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_ICONV} ${DEKAF2_SIMDUTF} ${DEKAF2_UTF8CPP} Threads::Threads)
 target_compile_definitions(benchmarks PRIVATE DEKAF2_ENABLE_PROFILING)
 if (DEKAF2_HAS_SIMDUTF)
 	target_compile_definitions(benchmarks PRIVATE DEKAF2_HAS_SIMDUTF)
 endif()
 if (DEKAF2_HAS_ICONV)
 	target_compile_definitions(benchmarks PRIVATE DEKAF2_HAS_ICONV)
+endif()
+if (DEKAF2_HAS_UTF8CPP)
+	target_compile_definitions(benchmarks PRIVATE DEKAF2_HAS_UTF8CPP)
 endif()
 
 add_executable(faststrings EXCLUDE_FROM_ALL fast_kstring_bench.cpp)

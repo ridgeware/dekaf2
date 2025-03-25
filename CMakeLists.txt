@@ -1016,6 +1016,7 @@ set(PUBLIC_HEADERS
 	kcache.h
 	kcaseless.h
 	kcasestring.h
+	kcesu8.h
 	kcgistream.h
 	kchildprocess.h
 	kchunkedtransfer.h
@@ -1152,8 +1153,8 @@ set(PUBLIC_HEADERS
 	kurl.h
 	kurlencode.h
 	kuseragent.h
-	kutf8.h
-	kutf8iterator.h
+	kutf.h
+	kutf_iterator.h
 	kvariant.h
 	kversion.h
 	kwebclient.h
@@ -1255,7 +1256,7 @@ set (PRECOMPILED_HEADERS
 	ktime.h
 	kurl.h
 	kurlencode.h
-	kutf8.h
+	kutf.h
 	kwrite.h
 	kwriter.h
 
@@ -1931,14 +1932,14 @@ if (DEKAF2_INSTALL_INCLUDE)
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt)")
 	endif()
 
-	# remove old headers, until mid-2024:
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/kcppcompat.h)")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/bits/ktemplate.h)")
 	# remove old headers, until begin-2025:
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kconnection.h)")
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslstream.h)")
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslcontext.h)")
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslclient.h)")
+	# remove old headers, until end-2025:
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kutf8.h)")
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kutf8iterator.h)")
 
 endif() # DEKAF2_INSTALL_INCLUDE
 

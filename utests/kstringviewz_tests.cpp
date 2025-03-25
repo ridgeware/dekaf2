@@ -1389,7 +1389,7 @@ TEST_CASE("KStringViewZ") {
 
 	SECTION("AtUTF8")
 	{
-		CHECK ( uint32_t(KStringViewZ(""     ).AtUTF8(9)) == uint32_t(Unicode::INVALID_CODEPOINT) );
+		CHECK ( uint32_t(KStringViewZ(""     ).AtUTF8(9)) == uint32_t(kutf::INVALID_CODEPOINT) );
 		CHECK ( uint32_t(KStringViewZ("abcæå").AtUTF8(0)) ==   'a' );
 		CHECK ( uint32_t(KStringViewZ("abcæå").AtUTF8(1)) ==   'b' );
 		CHECK ( uint32_t(KStringViewZ("abcæå").AtUTF8(2)) ==   'c' );
@@ -1400,7 +1400,7 @@ TEST_CASE("KStringViewZ") {
 		CHECK ( uint32_t(KStringViewZ("åabcæ").AtUTF8(0)) ==   229 );
 		CHECK ( uint32_t(KStringViewZ("åꜩbcꝙ").AtUTF8(3)) ==  'c' );
 		CHECK ( uint32_t(KStringViewZ("åꜩbcꝙ").AtUTF8(4)) == 42841 );
-		CHECK ( uint32_t(KStringViewZ("abcæå").AtUTF8(5)) == uint32_t(Unicode::INVALID_CODEPOINT) );
+		CHECK ( uint32_t(KStringViewZ("abcæå").AtUTF8(5)) == uint32_t(kutf::INVALID_CODEPOINT) );
 	}
 
 	SECTION("remove_prefix")

@@ -44,7 +44,7 @@
 #include "diff_match_patch.h"
 #include "klog.h"
 #include "kctype.h"
-#include "kutf8.h"
+#include "kutf.h"
 #include "kstringutils.h"
 #include <string>
 #include <type_traits>
@@ -107,11 +107,11 @@ struct DMP_utf32_helpers
 		// therefore do not decode those here
 		if (sizeof(char_t) == 1)
 		{
-			u = Unicode::CodepointCast(*i++);
+			u = kutf::CodepointCast(*i++);
 		}
 		else
 		{
-			u = Unicode::Codepoint(i, end);
+			u = kutf::Codepoint(i, end);
 		}
 
 		return i;
@@ -122,9 +122,9 @@ struct DMP_utf32_helpers
 	{
 		if (sizeof(char_t) == 2)
 		{
-			if (Unicode::NeedsSurrogates(u))
+			if (kutf::NeedsSurrogates(u))
 			{
-				Unicode::SurrogatePair sp(u);
+				kutf::SurrogatePair sp(u);
 				*o++ = static_cast<char_t>(sp.low);
 				*o++ = static_cast<char_t>(sp.high);
 			}
@@ -209,7 +209,7 @@ void PrintException(const KDiffMatchPatch::string_t& sEx)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-	kException(Unicode::ConvertUTF<KString>(sEx).c_str());
+	kException(kutf::Convert<KString>(sEx).c_str());
 #else
 	kException(sEx);
 #endif
@@ -222,7 +222,7 @@ void PrintException(const KDiffMatchPatch::string_t& sEx)
 KString KDiff::Diff::GetText() const
 //-----------------------------------------------------------------------------
 {
-	return Unicode::ConvertUTF<KString>(m_sText);
+	return kutf::Convert<KString>(m_sText);
 
 } // Diff::GetText
 
@@ -230,7 +230,7 @@ KString KDiff::Diff::GetText() const
 void KDiff::Diff::SetText(const KString& sText)
 //-----------------------------------------------------------------------------
 {
-	Unicode::ConvertUTF(sText, m_sText);
+	kutf::Convert(sText, m_sText);
 
 } // Diff::SetText
 #endif
@@ -247,8 +247,8 @@ void KDiff::CreateDiff(KStringView sOldText,
 	try
 	{
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-		auto sFrom = Unicode::ConvertUTF<KDiffMatchPatch::string_t>(sOldText);
-		auto sTo   = Unicode::ConvertUTF<KDiffMatchPatch::string_t>(sNewText);
+		auto sFrom = kutf::Convert<KDiffMatchPatch::string_t>(sOldText);
+		auto sTo   = kutf::Convert<KDiffMatchPatch::string_t>(sNewText);
 		m_iMaxSize = std::max(sFrom.size(), sTo.size());
 		auto Diffs = KDiffMatchPatch::diff_main(sFrom, sTo, static_cast<KDiffMatchPatch::Mode>(Mode), 2.0f);
 #else
@@ -313,7 +313,7 @@ KString KDiff::GetUnifiedDiff()
 		{
 			auto Patches = KDiffMatchPatch().patch_make(*dget(m_Diffs));
 #ifdef DEKAF2_KDIFF_USE_WSTRING
-			return Unicode::ConvertUTF<KString>(KDiffMatchPatch::patch_toText(Patches));
+			return kutf::Convert<KString>(KDiffMatchPatch::patch_toText(Patches));
 #else
 			return KDiffMatchPatch::patch_toText(Patches);
 #endif

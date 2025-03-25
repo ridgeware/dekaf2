@@ -41,7 +41,7 @@
 */
 
 #include "kwords.h"
-#include "kutf8.h"
+#include "kutf.h"
 #include "khtmlentities.h"
 #include "kctype.h"
 #include "kcompatibility.h"
@@ -126,7 +126,7 @@ KStringViewPair CountText::NextPair()
 	size_t iSizeConsumed { 0 };
 	bool bIsEmpty { true };
 
-	Unicode::ForEachUTF(m_sInput, [&iSizeConsumed, &bIsEmpty](uint32_t ch)
+	kutf::ForEach(m_sInput, [&iSizeConsumed, &bIsEmpty](uint32_t ch)
 	{
 		if (!kIsAlNum(ch))
 		{
@@ -135,11 +135,11 @@ KStringViewPair CountText::NextPair()
 				// abort scanning here, this is the trailing skeleton
 				return false;
 			}
-			iSizeConsumed += Unicode::UTF8Bytes(ch);
+			iSizeConsumed += kutf::UTFChars(ch);
 		}
 		else
 		{
-			iSizeConsumed += Unicode::UTF8Bytes(ch);
+			iSizeConsumed += kutf::UTFChars(ch);
 			bIsEmpty = false;
 		}
 		return true;
@@ -158,7 +158,7 @@ KStringViewPair SimpleText::NextPair()
 	size_t iSizeSkel { 0 };
 	size_t iSizeWord { 0 };
 
-	Unicode::ForEachUTF(m_sInput, [&iSizeSkel, &iSizeWord](uint32_t ch)
+	kutf::ForEach(m_sInput, [&iSizeSkel, &iSizeWord](uint32_t ch)
 	{
 		if (!kIsAlNum(ch))
 		{
@@ -167,11 +167,11 @@ KStringViewPair SimpleText::NextPair()
 				// abort scanning here, this is the trailing skeleton
 				return false;
 			}
-			iSizeSkel += Unicode::UTF8Bytes(ch);
+			iSizeSkel += kutf::UTFChars(ch);
 		}
 		else
 		{
-			iSizeWord += Unicode::UTF8Bytes(ch);
+			iSizeWord += kutf::UTFChars(ch);
 		}
 		return true;
 	});
@@ -201,7 +201,7 @@ KStringViewPair CountHTML::NextPair()
 	bool bOpenEntity { false };
 	bool bIsEmpty { true };
 
-	Unicode::ForEachUTF(m_sInput, [&](uint32_t ch)
+	kutf::ForEach(m_sInput, [&](uint32_t ch)
 	{
 		if (bOpenScript)
 		{
@@ -232,7 +232,7 @@ KStringViewPair CountHTML::NextPair()
 					}
 				}
 			}
-			iSizeConsumed += Unicode::UTF8Bytes(ch);
+			iSizeConsumed += kutf::UTFChars(ch);
 		}
 		else if (bOpenTag)
 		{
@@ -260,7 +260,7 @@ KStringViewPair CountHTML::NextPair()
 					bOpenScript = true;
 				}
 			}
-			iSizeConsumed += Unicode::UTF8Bytes(ch);
+			iSizeConsumed += kutf::UTFChars(ch);
 		}
 		else if (bOpenEntity)
 		{
@@ -287,7 +287,7 @@ KStringViewPair CountHTML::NextPair()
 					else
 					{
 						bIsEmpty = false;
-						iSizeConsumed += Unicode::UTF8Bytes(ch);
+						iSizeConsumed += kutf::UTFChars(ch);
 					}
 				}
 			}
@@ -314,12 +314,12 @@ KStringViewPair CountHTML::NextPair()
 					bOpenTagHadSpace = false;
 					sTagName.clear();
 				}
-				iSizeConsumed += Unicode::UTF8Bytes(ch);
+				iSizeConsumed += kutf::UTFChars(ch);
 			}
 			else
 			{
 				bIsEmpty = false;
-				iSizeConsumed += Unicode::UTF8Bytes(ch);
+				iSizeConsumed += kutf::UTFChars(ch);
 			}
 		}
 		return true;
@@ -352,7 +352,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 	bool bOpenScript { false };
 	bool bOpenEntity { false };
 
-	Unicode::ForEachUTF(m_sInput, [&](uint32_t ch)
+	kutf::ForEach(m_sInput, [&](uint32_t ch)
 	{
 		if (bOpenScript)
 		{
@@ -383,7 +383,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 					}
 				}
 			}
-			iSizeSkel += Unicode::UTF8Bytes(ch);
+			iSizeSkel += kutf::UTFChars(ch);
 		}
 		else if (bOpenTag)
 		{
@@ -411,7 +411,7 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 					bOpenScript = true;
 				}
 			}
-			iSizeSkel += Unicode::UTF8Bytes(ch);
+			iSizeSkel += kutf::UTFChars(ch);
 		}
 		else if (bOpenEntity)
 		{
@@ -437,8 +437,8 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 					}
 					else
 					{
-						Unicode::ToUTF(ch, sPair.first);
-						iSizeWord += Unicode::UTF8Bytes(ch);
+						kutf::ToUTF(ch, sPair.first);
+						iSizeWord += kutf::UTFChars(ch);
 					}
 				}
 			}
@@ -465,12 +465,12 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 					bOpenTagHadSpace = false;
 					sTagName.clear();
 				}
-				iSizeSkel += Unicode::UTF8Bytes(ch);
+				iSizeSkel += kutf::UTFChars(ch);
 			}
 			else
 			{
-				Unicode::ToUTF(ch, sPair.first);
-				iSizeWord += Unicode::UTF8Bytes(ch);
+				kutf::ToUTF(ch, sPair.first);
+				iSizeWord += kutf::UTFChars(ch);
 			}
 		}
 		return true;
@@ -524,7 +524,7 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 
 	std::pair<KStringView, KString> sPair;
 
-	Unicode::ForEachUTF(m_sInput, [&](uint32_t ch)
+	kutf::ForEach(m_sInput, [&](uint32_t ch)
 	{
 		if (bOpenScript)
 		{
@@ -555,8 +555,8 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 					}
 				}
 			}
-			Unicode::ToUTF(ch, sPair.second);
-			iSizeSkel += Unicode::UTF8Bytes(ch);
+			kutf::ToUTF(ch, sPair.second);
+			iSizeSkel += kutf::UTFChars(ch);
 		}
 		else if (bOpenTag)
 		{
@@ -585,8 +585,8 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 					bOpenScript = true;
 				}
 			}
-			Unicode::ToUTF(ch, sPair.second);
-			iSizeSkel += Unicode::UTF8Bytes(ch);
+			kutf::ToUTF(ch, sPair.second);
+			iSizeSkel += kutf::UTFChars(ch);
 		}
 		else
 		{
@@ -615,14 +615,14 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 				}
 				else
 				{
-					Unicode::ToUTF(ch, sPair.second);
+					kutf::ToUTF(ch, sPair.second);
 					bLastWasSpace = false;
 				}
-				iSizeSkel += Unicode::UTF8Bytes(ch);
+				iSizeSkel += kutf::UTFChars(ch);
 			}
 			else
 			{
-				iSizeWord += Unicode::UTF8Bytes(ch);
+				iSizeWord += kutf::UTFChars(ch);
 			}
 		}
 		return true;

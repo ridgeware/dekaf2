@@ -31,7 +31,7 @@
 
 #include "kdefinitions.h"
 #include "kctype.h"
-#include "kutf8.h"
+#include "kutf.h"
 #include "kstringview.h"
 #include <cctype>
 #include <array>
@@ -81,12 +81,11 @@ public:
 		clear();
 
 		std::vector<WideChar> sWide;
-		// worst case: ASCII
-		sWide.reserve(sUTF8.size());
+		sWide.reserve(kutf::Count(sUTF8));
 		bool bLastWasSpace { true };
 
-		// transform to uc4 and lowercase, and filter anything that is not alnum
-		Unicode::ForEachUTF(sUTF8, [&sWide, &bLastWasSpace](WideChar CP) -> bool
+		// transform to ucs4 and lowercase, and filter anything that is not alnum
+		kutf::ForEach(sUTF8, [&sWide, &bLastWasSpace](WideChar CP) -> bool
 		{
 			if (CP.IsAlNum())
 			{

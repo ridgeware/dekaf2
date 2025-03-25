@@ -40,7 +40,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	size_t Add(Unicode::codepoint_t iCodepoint, Unicode::codepoint_t iFoldedTo, bool bToLower)
+	size_t Add(kutf::codepoint_t iCodepoint, kutf::codepoint_t iFoldedTo, bool bToLower)
 	//-----------------------------------------------------------------------------
 	{
 		int32_t iFoldDist { 0 };
@@ -72,13 +72,13 @@ public:
 				else
 				{
 #if 0
-					if (Unicode::UTF8Bytes(iCodepoint) != Unicode::UTF8Bytes(iFoldedTo))
+					if (kutf::UTFChars(iCodepoint) != kutf::UTFChars(iFoldedTo))
 					{
 						KErr.FormatLine("size {} != size {}, for fold from {} to {} ({})",
-									   Unicode::UTF8Bytes(iCodepoint),
-									   Unicode::UTF8Bytes(iFoldedTo),
-									   Unicode::ToUTF8<KString>(iCodepoint),
-									   Unicode::ToUTF8<KString>(iFoldedTo),
+									   kutf::UTFChars(iCodepoint),
+									   kutf::UTFChars(iFoldedTo),
+									   kutf::ToUTF<KString>(iCodepoint),
+									   kutf::ToUTF<KString>(iFoldedTo),
 									   bToLower ? "lower" : "upper");
 					}
 #endif
@@ -130,7 +130,7 @@ struct CodePoint
 
 	void SetCategory(KStringView sCategory);
 
-	Unicode::codepoint_t   iCodepoint { 0 };
+	kutf::codepoint_t   iCodepoint { 0 };
 	KStringView            sCategory  { "OtherNotAssigned" };
 	KStringView            sType      { "Other" };
 	KString                sOriginalLine {};

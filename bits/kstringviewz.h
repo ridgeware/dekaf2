@@ -46,7 +46,7 @@
 
 #include "../kdefinitions.h"
 #include "../kstringview.h"
-#include "../kutf8.h"
+#include "../kutf.h"
 #include "khash.h"
 
 DEKAF2_NAMESPACE_BEGIN
@@ -292,7 +292,7 @@ public:
 	self_type MidUTF8(size_type iStart) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		auto it = Unicode::LeftUTF(begin(), end(), iStart);
+		auto it = kutf::Left(begin(), end(), iStart);
 #ifndef _MSC_VER
 		return self_type(it, end() - it);
 #else
@@ -317,7 +317,7 @@ public:
 	self_type RightUTF8(size_type iCount) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		auto it = Unicode::RightUTF(begin(), end(), iCount);
+		auto it = kutf::Right(begin(), end(), iCount);
 #ifndef _MSC_VER
 		return self_type(it, end() - it);
 #else

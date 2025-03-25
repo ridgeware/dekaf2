@@ -48,7 +48,7 @@
 #include "bits/kstring_view.h"
 #include "bits/khash.h"
 #include "ktemplate.h"
-#include "kutf8.h"
+#include "kutf.h"
 #include "kbit.h"
 #include <fmt/format.h>
 #include <cinttypes>

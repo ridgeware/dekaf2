@@ -47,7 +47,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace Unicode {
+namespace kutf {
 namespace simd {
 
 inline
@@ -146,6 +146,16 @@ std::size_t convert_utf8_to_utf32(const char* input, std::size_t length, char32_
 	return ::simdutf::convert_utf8_to_utf32(input, length, utf32_output);
 }
 
+bool validate_ascii(const char *buf, std::size_t len) noexcept
+{
+	return ::simdutf::validate_ascii(buf, len);
+}
+
+result validate_ascii_with_errors(const char *buf, std::size_t len) noexcept
+{
+	return ToResult(::simdutf::validate_ascii_with_errors(buf, len));
+}
+
 bool validate_utf8(const char* buf, std::size_t len) noexcept
 {
 	return ::simdutf::validate_utf8(buf, len);
@@ -177,7 +187,7 @@ result validate_utf32_with_errors(const char32_t* buf, std::size_t len) noexcept
 }
 
 } // end of namespace simd
-} // end of namespace Unicode
+} // end of namespace kutf
 
 DEKAF2_NAMESPACE_END
 

@@ -10,7 +10,7 @@
 #include <dekaf2/ksystem.h>
 #include <dekaf2/ktime.h>
 #include <dekaf2/kwriter.h>
-#include <dekaf2/kutf8.h>
+#include <dekaf2/kutf.h>
 
 #ifdef DEKAF2_HAS_ICONV
 #include <iconv.h>
@@ -18,7 +18,10 @@
 #ifdef DEKAF2_HAS_SIMDUTF
 #include "simdutf.h"
 #endif
-//#define HAVE_TEXTUTILS 1
+#ifdef DEKAF2_HAS_UTF8CPP
+#include <utf8cpp/utf8.h>
+#endif
+#define HAVE_TEXTUTILS 1
 #ifdef HAVE_TEXTUTILS
 #include "textutils/UtfConv.h"
 #endif
@@ -26,16 +29,35 @@
 using namespace dekaf2;
 
 #ifdef DEKAF2_HAS_ICONV
-void iconv_to_utf32(const KString& sData, KString& sOutBuffer)
+void iconv_to_utf32(const KString& sData, std::u32string& sOutBuffer)
 {
-	static iconv_t s_cd = iconv_open("UTF-32", "UTF-8");
+	static iconv_t s_cd1 = iconv_open("UTF-32", "UTF-8");
 
 	auto buf8 = sData.data();
 	auto len8 = sData.size();
 	auto buf32 = sOutBuffer.data();
 	auto len32 = sOutBuffer.size();
 
-	if (!::iconv(s_cd, (char **)&buf8, &len8, &buf32, &len32))
+	if (!::iconv(s_cd1, (char **)&buf8, &len8, (char **)&buf32, &len32))
+	{
+
+	}
+	else
+	{
+
+	}
+}
+
+void iconv_to_utf8(const std::u32string& sData, KString& sOutBuffer)
+{
+	static iconv_t s_cd2 = iconv_open("UTF-8", "UTF-32");
+
+	auto buf32 = sData.data();
+	auto len32 = sData.size();
+	auto buf8  = sOutBuffer.data();
+	auto len8  = sOutBuffer.size();
+
+	if (!::iconv(s_cd2, (char **)&buf32, &len32, &buf8, &len8))
 	{
 
 	}
@@ -59,8 +81,8 @@ void kutf8_bench()
 			ch = kRandom(0, 0x0800);
 			//			ch = kRandom(0, 0x0ff);
 
-		} while (Unicode::IsSurrogate(ch));
-		Unicode::ToUTF(ch, sData);
+		} while (kutf::IsSurrogate(ch));
+		kutf::ToUTF(ch, sData);
 	}
 
 	KString sDataShort;
@@ -74,20 +96,29 @@ void kutf8_bench()
 			ch = kRandom(0, 0x0800);
 			//			ch = kRandom(0, 0x0ff);
 
-		} while (Unicode::IsSurrogate(ch));
-		Unicode::ToUTF(ch, sDataShort);
+		} while (kutf::IsSurrogate(ch));
+		kutf::ToUTF(ch, sDataShort);
 	}
 
 	kPrintLine("Time: {}", kFormTimestamp(KLocalTime::now(), "{:%Y-%m-%d %H:%M:%S}"));
-	kPrintLine("long  size: {} bytes, {} codepoints, valid={}", sData.size(),      Unicode::CountUTF(sData),      Unicode::ValidUTF(sData)     );
-	kPrintLine("short size: {} bytes, {} codepoints, valid={}", sDataShort.size(), Unicode::CountUTF(sDataShort), Unicode::ValidUTF(sDataShort));
+	kPrintLine("long  size: {} bytes, {} codepoints, valid={}", sData.size(),      kutf::Count(sData),      kutf::Valid(sData)     );
+	kPrintLine("short size: {} bytes, {} codepoints, valid={}", sDataShort.size(), kutf::Count(sDataShort), kutf::Valid(sDataShort));
 
-	auto sWide      = Unicode::ConvertUTF<std::u32string>(sData);
-	auto sWideShort = Unicode::ConvertUTF<std::u32string>(sDataShort);
+	auto sWide      = kutf::Convert<std::u32string>(sData);
+	auto sWideShort = kutf::Convert<std::u32string>(sDataShort);
 #ifdef HAVE_TEXTUTILS
-	auto sWide32      = Unicode::ConvertUTF<std::basic_string<UnicodeChar32>>(sData);
-	auto sWideShort32 = Unicode::ConvertUTF<std::basic_string<UnicodeChar32>>(sDataShort);
+	auto sWide32      = kutf::Convert<std::basic_string<UnicodeChar32>>(sData);
+	auto sWideShort32 = kutf::Convert<std::basic_string<UnicodeChar32>>(sDataShort);
 #endif
+
+	KString sASCII;
+
+	for (std::size_t i = 0; i < 2 * 1000 * 1000; ++i)
+	{
+		sASCII += kRandom(0, 0x07f);
+	}
+
+	kPrintLine("ASCII size: {} bytes, {} codepoints, valid={}", sASCII.size(),     sASCII.size(),     kutf::ValidASCII(sASCII)    );
 
 	// surrogate
 	//	sData.insert(0, "\xed\xad\xbf"_ksv);
@@ -133,7 +164,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto iCount = Unicode::CountUTF(sData.begin(), sData.end());
+			auto iCount = kutf::Count(sData.begin(), sData.end());
 			if (iCount > 100000) KProf::Force();
 		}
 	}
@@ -143,7 +174,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 40000; ++ct)
 		{
 			KProf::Force(&sDataShort);
-			auto iCount = Unicode::CountUTF(sDataShort.begin(), sDataShort.end());
+			auto iCount = kutf::Count(sDataShort.begin(), sDataShort.end());
 			if (iCount > 100000) KProf::Force();
 		}
 	}
@@ -154,7 +185,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto iCount = Unicode::CountUTF(sData, sData.size());
+			auto iCount = kutf::Count(sData, sData.size());
 			if (iCount > 100000) KProf::Force();
 		}
 	}
@@ -164,10 +195,32 @@ void kutf8_bench()
 		for (int ct = 0; ct < 40000; ++ct)
 		{
 			KProf::Force(&sDataShort);
-			auto iCount = Unicode::CountUTF(sDataShort, sDataShort.size());
+			auto iCount = kutf::Count(sDataShort, sDataShort.size());
 			if (iCount > 100000) KProf::Force();
 		}
 	}
+#ifdef DEKAF2_HAS_UTF8CPP
+	{
+		dekaf2::KProf prof("UTF8CPP Count long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto iCount = utf8::distance(sData.begin(), sData.end());
+			if (iCount > 100000) KProf::Force();
+		}
+	}
+	{
+		dekaf2::KProf prof("UTF8CPP Count short");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			auto iCount = utf8::distance(sDataShort.begin(), sDataShort.end());
+			if (iCount > 100000) KProf::Force();
+		}
+	}
+#endif
 #ifdef HAVE_TEXTUTILS
 	{
 		dekaf2::KProf prof("CountUTF8ToUTF32 long");
@@ -219,23 +272,23 @@ void kutf8_bench()
 	}
 #endif
 	{
-		dekaf2::KProf prof("ConvertUTF long");
+		dekaf2::KProf prof("ConvertUTF 8 to 32 long");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto sWide = Unicode::ConvertUTF<std::basic_string<char32_t>>(sData);
-			if (sWide.size() > 100000) KProf::Force();
+			auto sOut = kutf::Convert<std::basic_string<char32_t>>(sData);
+			if (sOut.size() > 100000) KProf::Force();
 		}
 	}
 	{
-		dekaf2::KProf prof("ConvertUTF short");
+		dekaf2::KProf prof("ConvertUTF 8 to 32 short");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)
 		{
 			KProf::Force(&sDataShort);
-			auto sWide = Unicode::ConvertUTF<std::basic_string<char32_t>>(sDataShort);
-			if (sWide.size() > 100000) KProf::Force();
+			auto sOut = kutf::Convert<std::basic_string<char32_t>>(sDataShort);
+			if (sOut.size() > 100000) KProf::Force();
 		}
 	}
 #ifdef HAVE_TEXTUTILS
@@ -245,8 +298,8 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto sWide = utf_conv::UTF8ToUTF32(sData.str());
-			if (sWide.size() > 100000) KProf::Force();
+			auto sOut = utf_conv::UTF8ToUTF32(sData.str());
+			if (sOut.size() > 100000) KProf::Force();
 		}
 	}
 	{
@@ -260,6 +313,28 @@ void kutf8_bench()
 		}
 	}
 #endif
+#ifdef DEKAF2_HAS_UTF8CPP
+	{
+		dekaf2::KProf prof("UTF8CPP conv 8 to 32 long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto sOut = utf8::utf8to32(sData.str());
+			if (sOut.size() > 100000) KProf::Force();
+		}
+	}
+	{
+		dekaf2::KProf prof("UTF8CPP conv 8 to 32 short");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			auto sOut = utf8::utf8to32(sDataShort.str());
+			if (sOut.size() > 100000) KProf::Force();
+		}
+	}
+#endif
 #ifdef DEKAF2_HAS_ICONV
 	{
 		dekaf2::KProf prof("iconv8to32 long");
@@ -267,10 +342,10 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			KString sOut;
+			std::u32string sOut;
 			sOut.resize(sData.size());
 			iconv_to_utf32(sData, sOut);
-			if (sWide.size() > 100000) KProf::Force();
+			if (sOut.size() > 100000) KProf::Force();
 		}
 	}
 	{
@@ -279,13 +354,177 @@ void kutf8_bench()
 		for (int ct = 0; ct < 40000; ++ct)
 		{
 			KProf::Force(&sDataShort);
-			KString sOut;
+			std::u32string sOut;
 			sOut.resize(sDataShort.size());
 			iconv_to_utf32(sDataShort, sOut);
-			if (sWide.size() > 100000) KProf::Force();
+			if (sOut.size() > 100000) KProf::Force();
 		}
 	}
 #endif
+
+#ifdef DEKAF2_HAS_SIMDUTF
+	{
+		dekaf2::KProf prof("SIMDUTF32to8 long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sWide);
+			auto size = simdutf::utf8_length_from_utf32(sWide.data(), sWide.size());
+			std::string sOut;
+			sOut.resize(size);
+			auto iWrote = simdutf::convert_utf32_to_utf8(sWide.data(), sWide.size(), sOut.data());
+			if (iWrote > 100000) KProf::Force();
+		}
+	}
+	{
+		dekaf2::KProf prof("SIMDUTF32to8 short");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sWideShort);
+			auto size = simdutf::utf8_length_from_utf32(sWideShort.data(), sWideShort.size());
+			std::string sOut;
+			sOut.resize(size);
+			auto iWrote = simdutf::convert_utf32_to_utf8(sWideShort.data(), sWideShort.size(), sOut.data());
+			if (iWrote > 100000) KProf::Force();
+		}
+	}
+#endif
+	{
+		dekaf2::KProf prof("ConvertUTF 32 to 8 long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sWide);
+			auto sOut = kutf::Convert<std::string>(sWide);
+			if (sOut.size() > 100000) KProf::Force();
+		}
+	}
+	{
+		dekaf2::KProf prof("ConvertUTF 32 to 8 short");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sWideShort);
+			auto sOut = kutf::Convert<std::string>(sWideShort);
+			if (sOut.size() > 100000) KProf::Force();
+		}
+	}
+#ifdef HAVE_TEXTUTILS
+	{
+		dekaf2::KProf prof("UTF32ToUTF8 long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sWide);
+			auto sOut = utf_conv::UTF32ToUTF8(sWide32);
+			if (sOut.size() > 100000) KProf::Force();
+		}
+	}
+	{
+		dekaf2::KProf prof("UTF32ToUTF8 short");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sWideShort);
+			auto sOut = utf_conv::UTF32ToUTF8(sWideShort32);
+			if (sOut.size() > 100000) KProf::Force();
+		}
+	}
+#endif
+#ifdef DEKAF2_HAS_UTF8CPP
+	{
+		dekaf2::KProf prof("UTF8CPP conv 32 to 8 long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sWide);
+			auto sOut = utf8::utf32to8(sWide);
+			if (sOut.size() > 100000) KProf::Force();
+		}
+	}
+	{
+		dekaf2::KProf prof("UTF8CPP conv 32 to 8 short");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sWideShort);
+			auto sOut = utf8::utf32to8(sWideShort);
+			if (sOut.size() > 100000) KProf::Force();
+		}
+	}
+#endif
+#ifdef DEKAF2_HAS_ICONV
+	{
+		dekaf2::KProf prof("iconv32to8 long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sWide);
+			KString sOut;
+			sOut.resize(sWide.size()*4);
+			iconv_to_utf8(sWide, sOut);
+			if (sWide.size() > 100000) KProf::Force();
+		}
+	}
+	{
+		dekaf2::KProf prof("iconv32to8 short");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sWideShort);
+			KString sOut;
+			sOut.resize(sWideShort.size() * 4);
+			iconv_to_utf8(sWideShort, sOut);
+			if (sOut.size() > 100000) KProf::Force();
+		}
+	}
+#endif
+
+	{
+		dekaf2::KProf prof("ValidASCII long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sASCII);
+			auto yes = kutf::ValidASCII(sASCII);
+			if (!yes) KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("InvalidASCII long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sASCII);
+			auto it = kutf::InvalidASCII(sASCII);
+			if (!it) KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("No ValidASCII long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto yes = kutf::ValidASCII(sData);
+			if (yes) KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("No InvalidASCII long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto it = kutf::InvalidASCII(sData);
+			if (!it) KProf::Force();
+		}
+	}
+
 #ifdef DEKAF2_HAS_SIMDUTF
 	{
 		dekaf2::KProf prof("SIMD ValidUTF long");
@@ -315,7 +554,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto yes = Unicode::ValidUTF(sData);
+			auto yes = kutf::Valid(sData);
 			if (yes) KProf::Force();
 		}
 	}
@@ -325,17 +564,39 @@ void kutf8_bench()
 		for (int ct = 0; ct < 40000; ++ct)
 		{
 			KProf::Force(&sDataShort);
-			auto yes = Unicode::ValidUTF(sDataShort);
+			auto yes = kutf::Valid(sDataShort);
 			if (yes) KProf::Force();
 		}
 	}
+#ifdef DEKAF2_HAS_UTF8CPP
+	{
+		dekaf2::KProf prof("UTF8CPP Valid long");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			auto iCount = utf8::is_valid(sData.str());
+			if (iCount == false) KProf::Force();
+		}
+	}
+	{
+		dekaf2::KProf prof("UTF8CPP Valid short");
+		prof.SetMultiplier(40000);
+		for (int ct = 0; ct < 40000; ++ct)
+		{
+			KProf::Force(&sDataShort);
+			auto iCount = utf8::is_valid(sDataShort.str());
+			if (iCount == false) KProf::Force();
+		}
+	}
+#endif
 	{
 		dekaf2::KProf prof("InvalidUTF long");
 		prof.SetMultiplier(100);
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto yes = Unicode::InvalidUTF(sData);
+			auto yes = kutf::Invalid(sData);
 			if (yes) KProf::Force();
 		}
 	}
@@ -345,7 +606,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 40000; ++ct)
 		{
 			KProf::Force(&sDataShort);
-			auto yes = Unicode::InvalidUTF(sDataShort);
+			auto yes = kutf::Invalid(sDataShort);
 			if (yes) KProf::Force();
 		}
 	}
@@ -355,7 +616,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 1000; ++ct)
 		{
 			KProf::Force(&sData);
-			auto it = Unicode::LeftUTF(sData.begin(), sData.end(), 30);
+			auto it = kutf::Left(sData.begin(), sData.end(), 30);
 			if (it == sData.end()) KProf::Force();
 		}
 	}
@@ -366,7 +627,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto it = Unicode::LeftUTF(sData.begin(), sData.end(), 2048);
+			auto it = kutf::Left(sData.begin(), sData.end(), 2048);
 			if (it == sData.end()) KProf::Force();
 		}
 	}
@@ -377,7 +638,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto it = Unicode::LeftUTF(sData.begin(), sData.end(), sData.size());
+			auto it = kutf::Left(sData.begin(), sData.end(), sData.size());
 			if (it == sData.end()) KProf::Force();
 		}
 	}
@@ -388,7 +649,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			auto it = Unicode::RightUTF(sData.begin(), sData.end(), sData.size());
+			auto it = kutf::Right(sData.begin(), sData.end(), sData.size());
 			if (it == sData.end()) KProf::Force();
 		}
 	}
@@ -399,7 +660,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			KString sString = Unicode::LeftUTF(sData, 2048);
+			KString sString = kutf::Left(sData, 2048);
 			KProf::Force(&sString);
 			KProf::Force();
 		}
@@ -423,7 +684,7 @@ void kutf8_bench()
 		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
-			KString sString = Unicode::RightUTF(sData, 2048);
+			KString sString = kutf::Right(sData, 2048);
 			KProf::Force(&sString);
 			KProf::Force();
 		}
@@ -449,10 +710,10 @@ void kutf8_bench()
 			KProf::Force(&sData);
 			auto it = sData.begin();
 			auto ie = sData.end();
-			Unicode::codepoint_t cp;
+			kutf::codepoint_t cp;
 			for (int ict = 0; ict < 1000; ++ict)
 			{
-				cp = Unicode::Codepoint(it, ie);
+				cp = kutf::Codepoint(it, ie);
 			}
 			if (cp) KProf::Force();
 		}
@@ -466,88 +727,15 @@ void kutf8_bench()
 			KProf::Force(&sData);
 			auto it = sData.begin();
 			auto ie = sData.end();
-			Unicode::codepoint_t cp;
+			kutf::codepoint_t cp;
 			for (int ict = 0; ict < 2 * 1000 * 1000; ++ict)
 			{
-				cp = Unicode::Codepoint(it, ie);
+				cp = kutf::Codepoint(it, ie);
 			}
 			if (cp) KProf::Force();
 		}
 	}
 
-#ifdef DEKAF2_HAS_SIMDUTF
-	{
-		dekaf2::KProf prof("SIMDUTF32to8 short (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
-		{
-			KProf::Force(&sWideShort);
-			KString sUTF8;
-			auto size = simdutf::utf8_length_from_utf32(sWideShort.data(), sWideShort.size());
-			sUTF8.resize(size);
-			auto iWrote = simdutf::convert_utf32_to_utf8(sWideShort.data(), sWideShort.size(), sUTF8.data());
-			if (iWrote > 100000) KProf::Force();
-		}
-	}
-
-	{
-		dekaf2::KProf prof("SIMDUTF32to8 large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
-		{
-			KProf::Force(&sWide);
-			KString sUTF8;
-			auto size = simdutf::utf8_length_from_utf32(sWide.data(), sWide.size());
-			sUTF8.resize(size);
-			auto iWrote = simdutf::convert_utf32_to_utf8(sWide.data(), sWide.size(), sUTF8.data());
-			if (iWrote > 100000) KProf::Force();
-		}
-	}
-#endif
-	{
-		dekaf2::KProf prof("ConvertUTF short (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
-		{
-			KProf::Force(&sWideShort);
-			auto sUTF = Unicode::ConvertUTF<KString>(sWideShort);
-			if (sUTF[2] == 'a') KProf::Force();
-		}
-	}
-
-	{
-		dekaf2::KProf prof("ConvertUTF large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
-		{
-			KProf::Force(&sWide);
-			auto sUTF = Unicode::ConvertUTF<KString>(sWide);
-			if (sUTF[2] == 'a') KProf::Force();
-		}
-	}
-#ifdef HAVE_TEXTUTILS
-	{
-		dekaf2::KProf prof("UTF32ToUTF8 short (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
-		{
-			KProf::Force(&sWideShort);
-			auto sUTF = utf_conv::UTF32ToUTF8(sWideShort32);
-			if (sUTF[2] == 'a') KProf::Force();
-		}
-	}
-
-	{
-		dekaf2::KProf prof("UTF32ToUTF8 large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
-		{
-			KProf::Force(&sWide);
-			auto sUTF = utf_conv::UTF32ToUTF8(sWide32);
-			if (sUTF[2] == 'a') KProf::Force();
-		}
-	}
-#endif
 #ifdef DEKAF2_HAS_SIMDUTF
 	{
 		dekaf2::KProf prof("ToUpperUTF SIMD short (50)");
@@ -596,7 +784,7 @@ void kutf8_bench()
 		{
 			KProf::Force(&sDataShort);
 			KString sUTF;
-			Unicode::ToUpperUTF<KString>(sDataShort, sUTF);
+			kutf::ToUpper<KString>(sDataShort, sUTF);
 			if (sUTF[2] == 'a') KProf::Force();
 		}
 	}
@@ -608,7 +796,7 @@ void kutf8_bench()
 		{
 			KProf::Force(&sData);
 			KString sUTF;
-			Unicode::ToUpperUTF<KString>(sData, sUTF);
+			kutf::ToUpper<KString>(sData, sUTF);
 			if (sUTF[2] == 'a') KProf::Force();
 		}
 	}

@@ -42,7 +42,7 @@
 // named entity list. The other functions are implemented in khtmlentities5.cpp.
 
 #include "khtmlentities.h"
-#include "kutf8.h"
+#include "kutf.h"
 #include "kstringutils.h"
 #include "kctype.h"
 #include "kwrite.h"
@@ -80,7 +80,7 @@ void KHTMLEntity::ToMandatoryEntity(uint32_t ch, KStringRef& sOut)
 			sOut += "&gt;";
 			return;
 		default:
-			Unicode::ToUTF(ch, sOut);
+			kutf::ToUTF(ch, sOut);
 			return;
 	}
 
@@ -166,13 +166,13 @@ KString KHTMLEntity::Encode(KStringView sIn)
 {
 	KString sRet;
 
-	Unicode::ForEachUTF(sIn, [&sRet](uint32_t ch)
+	kutf::ForEach(sIn, [&sRet](uint32_t ch)
 	{
 		auto Property = KCodePoint(ch).GetProperty();
 
 		if (Property.IsAlNum() || Property.IsSpace())
 		{
-			Unicode::ToUTF(ch, sRet);
+			kutf::ToUTF(ch, sRet);
 		}
 		else if (Property.IsPunct())
 		{

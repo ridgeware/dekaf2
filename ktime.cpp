@@ -45,7 +45,7 @@
 #if DEKAF2_HAS_INCLUDE("kfrozen.h")
 	#include "kfrozen.h"
 #endif
-#include "kutf8.h"
+#include "kutf.h"
 #include "klog.h"
 #if DEKAF2_HAS_TIMEZONES
 	#include "kthreadsafe.h"
@@ -669,8 +669,8 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 							 KString& sValue)
 	//-----------------------------------------------------------------------------
 	{
-		auto cp = Unicode::CodepointFromUTF8(it, ie);
-		Unicode::ToUTF(cp, sValue);
+		auto cp = kutf::CodepointFromUTF8(it, ie);
+		kutf::ToUTF(cp, sValue);
 	};
 
 	KString  sMonthName;
@@ -1243,10 +1243,10 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 #endif
 
 	// check precondition to avoid UB
-	static_assert(std::is_unsigned<decltype(Unicode::CountUTF(sTimestamp))>::value, "Unicode::CountUTF() must return an unsigned type");
+	static_assert(std::is_unsigned<decltype(kutf::Count(sTimestamp))>::value, "kutf::CountUTF() must return an unsigned type");
 
 	// this is an unsigned type - overflow will not create UB
-	auto iSize = Unicode::CountUTF(sTimestamp) - iShortest; // this is deliberately creating an overflow if CountUTF8 is < iShortest!
+	auto iSize = kutf::Count(sTimestamp) - iShortest; // this is deliberately creating an overflow if CountUTF8 is < iShortest!
 
 	if (iSize < Sizes.size()) // the overflow would be detected here
 	{
@@ -1262,7 +1262,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 				auto iCheckPos = it->iPos;
 
-				if (iCheckPos == 0 || Unicode::CodepointCast(it->sFormat[iCheckPos]) == Unicode::AtUTF(sTimestamp, iCheckPos))
+				if (iCheckPos == 0 || kutf::CodepointCast(it->sFormat[iCheckPos]) == kutf::At(sTimestamp, iCheckPos))
 				{
 					auto tm = Parse(it->sFormat, sTimestamp);
 

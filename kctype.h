@@ -52,7 +52,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace Unicode {
+namespace kutf {
 
 #ifdef __cpp_unicode_characters
 using codepoint_t = char32_t;
@@ -60,7 +60,7 @@ using codepoint_t = char32_t;
 using codepoint_t = uint32_t;
 #endif
 
-} // end of namespace Unicode
+} // end of namespace kutf
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KCodePoint
@@ -71,7 +71,7 @@ class DEKAF2_PUBLIC KCodePoint
 public:
 //------
 
-	using value_type = Unicode::codepoint_t;
+	using value_type = kutf::codepoint_t;
 
 	//-----------------------------------------------------------------------------
 	/// Cast any integral type into a value_type (codepoint_t), without signed bit expansion.
@@ -95,11 +95,11 @@ public:
 	constexpr
 	KCodePoint(CP cp) : m_CodePoint(CodepointCast(cp)) {}
 
-	/// explicit conversion to const value_type (const Unicode::codepoint_t)
+	/// explicit conversion to const value_type (const kutf::codepoint_t)
 	constexpr
 	const value_type& value() const { return m_CodePoint; }
 
-	/// explicit conversion to value_type (Unicode::codepoint_t)
+	/// explicit conversion to value_type (kutf::codepoint_t)
 	DEKAF2_CONSTEXPR_14
 	value_type& value() { return m_CodePoint; }
 

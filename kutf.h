@@ -2125,8 +2125,8 @@ public:
 	using iterator_category = std::input_iterator_tag;
 	using self_type         = ReadIterator;
 	using value_type        = int;
-	using const_reference   = const value_type&;
-	using const_pointer     = const value_type*;
+	using reference         = const value_type&;
+	using pointer           = const value_type*;
 
 	/// constructs the end iterator
 	ReadIterator() : m_Value(EOF) {}
@@ -2135,8 +2135,8 @@ public:
 
 	self_type&      operator++()                  { if (m_Value != EOF) ++m_iIncrement; return *this;      }
 	const self_type operator++(int)               { const self_type i = *this; operator++(); return i;     }
-	const_reference operator* () const            { Read(); return m_Value;                                }
-	const_pointer   operator->() const            { Read(); return &m_Value;                               }
+	reference       operator* () const            { Read(); return m_Value;                                }
+	pointer         operator->() const            { Read(); return &m_Value;                               }
 
 	bool operator==(const self_type& other) const { Read(); return m_Value == EOF && other.m_Value == EOF; }
 	bool operator!=(const self_type& other) const { return !operator==(other);                             }

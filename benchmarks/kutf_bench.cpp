@@ -21,7 +21,7 @@
 #ifdef DEKAF2_HAS_UTF8CPP
 #include <utf8cpp/utf8.h>
 #endif
-#define HAVE_TEXTUTILS 1
+//#define HAVE_TEXTUTILS 1
 #ifdef HAVE_TEXTUTILS
 #include "textutils/UtfConv.h"
 #endif
@@ -727,6 +727,23 @@ void kutf8_bench()
 			KProf::Force(&sData);
 			auto it = sData.begin();
 			auto ie = sData.end();
+			kutf::codepoint_t cp;
+			for (int ict = 0; ict < 2 * 1000 * 1000; ++ict)
+			{
+				cp = kutf::Codepoint(it, ie);
+			}
+			if (cp) KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("NextCodepoint (2 mio ASCII)");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sASCII);
+			auto it = sASCII.begin();
+			auto ie = sASCII.end();
 			kutf::codepoint_t cp;
 			for (int ict = 0; ict < 2 * 1000 * 1000; ++ict)
 			{

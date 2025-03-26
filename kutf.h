@@ -75,6 +75,10 @@
 /// .size(), .resize(), .begin(), .end() may be used.
 ///
 /// UTF16 and UTF32 strings are assumed to have the endianess of the platform, so, in most cases low endian.
+///
+/// This header can also be used standalone, in which case it falls back to the C library functions for case
+/// changing instead of the at least 5 times faster dekaf2 kctype.h functions. It still provides a really fast
+/// access to UTF conversions and validations, particularly if the simdutf library is linked in.
 
 /*
 
@@ -229,7 +233,7 @@
  Iterator Left(Iterator it, Iterator ie, std::size_t n)
 
  /// Return string with max n left UTF8/UTF16/UTF32 codepoints in sUTF
- ReturnString Left(const UTFString& sUTF, std::size_t n)
+ ReturnType Left(const UTFString& sUTF, std::size_t n)
 
  /// Return iterator max n UTF8/UTF16/UTF32 codepoints before it
  Iterator Right(Iterator ibegin, Iterator it, std::size_t n)
@@ -272,12 +276,22 @@
  /// Returns true if the given codepoint needs to be represented with a UTF16 surrogate pair
  bool NeedsSurrogates(codepoint_t codepoint)
 
+ /// a tiny input iterator implementation that can be constructed around a function which returns characters
+ /// until the input is exhausted, in which case the function returns EOF, after which the iterator compares
+ /// equal with a default constructed iterator.
+
+ /// constructs the end iterator
+ ReadIterator::ReadIterator()
+ /// construct with a function that returns the next character or EOF, after which the iterator compares equal to the end iterator
+ ReadIterator::ReadIterator(std::function<value_type()> func)
+
  */
 
 #include <cstdint>
 #include <cstddef>
 #include <type_traits>
 #include <iterator>
+#include <functional>
 #include <cassert>
 #include <algorithm> // for std::transform
 #include <cstring>   // for std::memcpy
@@ -481,10 +495,7 @@ inline constexpr
 bool IsValid(codepoint_t codepoint)
 //-----------------------------------------------------------------------------
 {
-	return codepoint <= CODEPOINT_MAX
-	    && !IsSurrogate(codepoint)
-	    && codepoint != 0x0fffe
-	    && codepoint != 0x0ffff;
+	return codepoint <= CODEPOINT_MAX && !IsSurrogate(codepoint);
 }
 
 //-----------------------------------------------------------------------------
@@ -506,7 +517,7 @@ constexpr
 codepoint_t CodepointCast(Char ch)
 //-----------------------------------------------------------------------------
 {
-	static_assert(std::is_integral<Char>::value, "can only convert integral types");
+	static_assert(std::is_integral<Char>::value, "can only cast integral types");
 
 	return (sizeof(Char) == 1) ? static_cast<utf8_t>(ch)
 		:  (sizeof(Char) == 2) ? static_cast<utf16_t>(ch)
@@ -568,7 +579,7 @@ namespace KUTF_detail {
 // GCC < 9 erroneously see the .size() member return value not being used,
 // although it is in a pure SFINAE context. Using a string class which has
 // [[nodiscard]] set for the size() member would cause a build failure.
-// Hence we disable the check for the following class.
+// Hence we disable the check for this class.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
 #endif
@@ -597,7 +608,7 @@ public:
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8/UTF16/UTF32 sequence written at iterator it
 /// @param codepoint the codepoint to write
-/// @param it the output iterator to write at
+/// @param it the output iterator to write at, possibly a back_insert_iterator
 template<typename output_value_type, typename Char, typename Iterator,
          typename std::enable_if<std::is_integral<Char>::value
                                  && !KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
@@ -622,7 +633,7 @@ void ToUTF(Char codepoint, Iterator it)
 		}
 		else if (cp < 0x010000)
 		{
-			if (KUTF_UNLIKELY(IsSurrogate(cp) || cp == 0x0fffe || cp == 0x0ffff ))
+			if (KUTF_UNLIKELY(IsSurrogate(cp)))
 			{
 				cp = REPLACEMENT_CHARACTER;
 			}
@@ -873,138 +884,6 @@ void Sync(Iterator& it, Iterator ie)
 }
 
 //-----------------------------------------------------------------------------
-/// Return codepoint from repeatedly calling a ReadFunc that returns single chars
-/// @param Read a functor that returns one single byte from a UTF8 input source per call, e.g. from stdin
-/// @param eof an interger value that will be interpreted as the EOF marker when returned from the input source, default is -1
-/// @returns a codepoint assembled from one to four reads
-template<typename ReadFunc>
-KUTF_CONSTEXPR_14
-codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
-//-----------------------------------------------------------------------------
-{
-	codepoint_t ch = CodepointCast(Read());
-
-	if (KUTF_UNLIKELY(ch == static_cast<codepoint_t>(eof)))
-	{
-		return END_OF_INPUT;
-	}
-
-	if (KUTF_LIKELY(ch < 128))
-	{
-		return ch;
-	}
-
-	if (KUTF_UNLIKELY(ch > 0x0ff))
-	{
-		// error, even with char sizes > one byte UTF8 single
-		// values cannot exceed 255
-		return INVALID_CODEPOINT;
-	}
-
-	do
-	{
-		if ((ch & 0x0e0) == 0x0c0)
-		{
-			codepoint_t codepoint = ch & 0x01f;
-
-			ch = CodepointCast(Read());
-
-			if (ch == static_cast<codepoint_t>(eof)) break;
-
-			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
-
-			codepoint <<= 6;
-			codepoint |= (ch & 0x03f);
-
-			// lower limit, protect from ambiguous encoding
-			if (KUTF_UNLIKELY(codepoint < 0x080)) break;
-
-			return codepoint; // valid
-		}
-		else if ((ch & 0x0f0) == 0x0e0)
-		{
-			codepoint_t codepoint    = ch & 0x0f;
-			bool bCheckForSurrogates = ch == 0xbd;
-
-			ch = CodepointCast(Read());
-
-			if (ch == static_cast<codepoint_t>(eof)) break;
-
-			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
-
-			codepoint <<= 6;
-			codepoint |= (ch & 0x03f);
-
-			ch = CodepointCast(Read());
-
-			if (ch == static_cast<codepoint_t>(eof)) break;
-
-			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
-
-			codepoint <<= 6;
-			codepoint |= (ch & 0x03f);
-
-			// lower limit, protect from ambiguous encoding
-			if (KUTF_UNLIKELY(codepoint < 0x0800)) break;
-			if (KUTF_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint))) break;
-
-			return codepoint; // valid
-		}
-		else if ((ch & 0x0f8) == 0x0f0)
-		{
-			// do not check for too large lead byte values at this place
-			// (ch >= 0x0f5) as apparently that deranges the pipeline.
-			// Testing the final codepoint value below is about 10% faster.
-			codepoint_t codepoint = ch & 0x07;
-
-			ch = CodepointCast(Read());
-
-			if (ch == static_cast<codepoint_t>(eof)) break;
-
-			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
-
-			codepoint <<= 6;
-			codepoint |= (ch & 0x03f);
-
-			ch = CodepointCast(Read());
-
-			if (ch == static_cast<codepoint_t>(eof)) break;
-
-			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
-
-			codepoint <<= 6;
-			codepoint |= (ch & 0x03f);
-
-			ch = CodepointCast(Read());
-
-			if (ch == static_cast<codepoint_t>(eof)) break;
-
-			// a UTF8 sequence cannot contain characters > 0xf4
-			if (KUTF_UNLIKELY(ch > 0x0f4) || !IsContinuationByte(ch)) break;
-
-			codepoint <<= 6;
-			codepoint |= (ch & 0x03f);
-
-			// lower limit, protect from ambiguous encoding
-			if (KUTF_UNLIKELY(codepoint < 0x010000)) break;
-			if (KUTF_UNLIKELY(codepoint > CODEPOINT_MAX)) break;
-
-			return codepoint; // valid
-		}
-
-	} while (false);
-
-	// no sync here ..
-
-	return INVALID_CODEPOINT;
-}
-
-//-----------------------------------------------------------------------------
 /// Return next codepoint at position it in range it-ie, increment it to point
 /// to the begin of the following codepoint. If at time of call it == ie -> undefined behavior
 /// @param it the start of an iterator range to read from
@@ -1019,18 +898,15 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 
 	assert(it != ie);
 
-	auto ch = CodepointCast(*it++);
+	auto ch = CodepointCast(*it); ++it;
 
-	if (ch < 128)
-	{
-		return ch;
-	}
+	if (ch < 128) return ch;
 
-	if (iInputWidth > 1 && KUTF_UNLIKELY(ch > 0x0ff))
+	if (iInputWidth > 1 && ch > 0x0ff)
 	{
 		// error, even with char sizes > one byte UTF8 single
 		// values cannot exceed 255
-		return INVALID_CODEPOINT;
+		return (ch == CodepointCast(EOF)) ? END_OF_INPUT : INVALID_CODEPOINT;
 	}
 
 	do
@@ -1039,47 +915,43 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 		{
 			codepoint_t codepoint = (ch & 0x01f) << 6;
 
-			if (it != ie)
-			{
-				auto ch1 = CodepointCast(*it++);
+			if (it == ie) break;
+			auto ch1 = CodepointCast(*it); ++it;
 
-				// a UTF8 sequence cannot contain characters > 0xf4
-				if (KUTF_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
+			// a UTF8 sequence cannot contain characters > 0xf4
+			if (!IsContinuationByte(ch1)) break;
 
-				codepoint |= (ch1 & 0x03f);
+			codepoint |= (ch1 & 0x03f);
 
-				// lower limit, protect from ambiguous encoding
-				if (KUTF_UNLIKELY(codepoint < 0x080)) break;
+			// lower limit, protect from ambiguous encoding
+			if (codepoint < 0x080) break;
 
-				return codepoint; // valid
-			}
+			return codepoint; // valid
 		}
 		else if ((ch & 0x0f0) == 0x0e0)
 		{
 			codepoint_t codepoint    = (ch & 0x0f) << 12;
 			bool bCheckForSurrogates = ch == 0xbd;
 
-			if (std::distance(it, ie) >= 2)
-			{
-				auto ch1 = CodepointCast(*it++);
-				auto ch2 = CodepointCast(*it++);
+			if (it == ie) break;
+			auto ch1 = CodepointCast(*it); ++it;
+			if (it == ie) break;
+			auto ch2 = CodepointCast(*it); ++it;
 
-				// a UTF8 sequence cannot contain characters > 0xf4
-				if (KUTF_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
-				if (KUTF_UNLIKELY(ch2 > 0x0f4 || !IsContinuationByte(ch2))) break;
+			if (!IsContinuationByte(ch1)) break;
+			if (!IsContinuationByte(ch2)) break;
 
-				ch1 &= 0x03f;
-				ch2 &= 0x03f;
+			ch1 &= 0x03f;
+			ch2 &= 0x03f;
 
-				codepoint |= ch2;
-				codepoint |= ch1 << 6;
+			codepoint |= ch2;
+			codepoint |= ch1 << 6;
 
-				// lower limit, protect from ambiguous encoding
-				if (KUTF_UNLIKELY(codepoint < 0x0800)) break;
-				if (KUTF_UNLIKELY(bCheckForSurrogates && IsSurrogate(codepoint))) break;
+			// lower limit, protect from ambiguous encoding
+			if (codepoint < 0x0800) break;
+			if (bCheckForSurrogates && IsSurrogate(codepoint)) break;
 
-				return codepoint; // valid
-			}
+			return codepoint; // valid
 		}
 		else if ((ch & 0x0f8) == 0x0f0)
 		{
@@ -1088,31 +960,30 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 			// Testing the final codepoint value below is about 10% faster.
 			codepoint_t codepoint = (ch & 0x07) << 18;
 
-			if (std::distance(it, ie) >= 3)
-			{
-				auto ch1 = CodepointCast(*it++);
-				auto ch2 = CodepointCast(*it++);
-				auto ch3 = CodepointCast(*it++);
+			if (it == ie) break;
+			auto ch1 = CodepointCast(*it); ++it;
+			if (it == ie) break;
+			auto ch2 = CodepointCast(*it); ++it;
+			if (it == ie) break;
+			auto ch3 = CodepointCast(*it); ++it;
 
-				// a UTF8 sequence cannot contain characters > 0xf4
-				if (KUTF_UNLIKELY(ch1 > 0x0f4 || !IsContinuationByte(ch1))) break;
-				if (KUTF_UNLIKELY(ch2 > 0x0f4 || !IsContinuationByte(ch2))) break;
-				if (KUTF_UNLIKELY(ch3 > 0x0f4 || !IsContinuationByte(ch3))) break;
+			if (!IsContinuationByte(ch1)) break;
+			if (!IsContinuationByte(ch2)) break;
+			if (!IsContinuationByte(ch3)) break;
 
-				ch1 &= 0x03f;
-				ch2 &= 0x03f;
-				ch3 &= 0x03f;
+			ch1 &= 0x03f;
+			ch2 &= 0x03f;
+			ch3 &= 0x03f;
 
-				codepoint |= ch3;
-				codepoint |= ch2 <<  6;
-				codepoint |= ch1 << 12;
+			codepoint |= ch3;
+			codepoint |= ch2 <<  6;
+			codepoint |= ch1 << 12;
 
-				// lower limit, protect from ambiguous encoding
-				if (KUTF_UNLIKELY(codepoint < 0x010000)) break;
-				if (KUTF_UNLIKELY(codepoint > CODEPOINT_MAX)) break;
+			// lower limit, protect from ambiguous encoding
+			if (codepoint < 0x010000) break;
+			if (codepoint > CODEPOINT_MAX) break;
 
-				return codepoint; // valid
-			}
+			return codepoint; // valid
 		}
 
 	} while (false);
@@ -1144,15 +1015,15 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 	{
 		codepoint_t ch = CodepointCast(*it++);
 
-		if (KUTF_UNLIKELY(IsSurrogate(ch)))
+		if (IsSurrogate(ch))
 		{
-			if (KUTF_LIKELY(IsLeadSurrogate(ch)))
+			if (IsLeadSurrogate(ch))
 			{
 				SurrogatePair sp;
 
 				sp.low = ch;
 
-				if (KUTF_UNLIKELY(it == ie))
+				if (it == ie)
 				{
 					// this is an incomplete surrogate
 					return INVALID_CODEPOINT;
@@ -1161,7 +1032,7 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 				{
 					sp.high = CodepointCast(*it);
 
-					if (KUTF_UNLIKELY(!IsTrailSurrogate(sp.high)))
+					if (!IsTrailSurrogate(sp.high))
 					{
 						// the second surrogate is not valid - do not advance input a second time
 						return INVALID_CODEPOINT;
@@ -1190,12 +1061,7 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 	{
 		auto cp = CodepointCast(*it++);
 
-		if (KUTF_UNLIKELY(!IsValid(cp)))
-		{
-			return INVALID_CODEPOINT;
-		}
-
-		return cp;
+		return (IsValid(cp)) ? cp : INVALID_CODEPOINT;
 	}
 }
 
@@ -1219,7 +1085,7 @@ Iterator InvalidASCII(Iterator it, Iterator ie)
 
 	for (; std::distance(it, ie) >= 16; )
 	{
-		// SWAR algorithm copied from simdutf scalar implementation
+		// credits: SWAR algorithm adapted from simdutf scalar implementation, license: MIT
 		uint64_t v1;
 		std::memcpy(&v1, &*it, 8);
 		it += 8;
@@ -1451,7 +1317,7 @@ Iterator Left(Iterator it, Iterator ie, std::size_t n)
 			it += std::min(static_cast<std::size_t>(std::distance(it, ie)), n);
 		}
 	}
-	
+
 	return it;
 }
 
@@ -1670,17 +1536,9 @@ std::size_t Count(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(
 	{
 		std::size_t iCount { 0 };
 
-		for (; KUTF_LIKELY(std::distance(it, ie) >= 8 && iCount < iMaxCount) ;)
+		for (; KUTF_LIKELY(std::distance(it, ie) >= 4 && iCount < iMaxCount) ;)
 		{
 			codepoint_t ch = CodepointCast(*it++);
-			iCount += !IsLeadSurrogate(ch);
-			ch = CodepointCast(*it++);
-			iCount += !IsLeadSurrogate(ch);
-			ch = CodepointCast(*it++);
-			iCount += !IsLeadSurrogate(ch);
-			ch = CodepointCast(*it++);
-			iCount += !IsLeadSurrogate(ch);
-			ch = CodepointCast(*it++);
 			iCount += !IsLeadSurrogate(ch);
 			ch = CodepointCast(*it++);
 			iCount += !IsLeadSurrogate(ch);
@@ -2156,6 +2014,7 @@ bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 			constexpr std::size_t ChunkSize = 1000;
 
 			auto ie2 = std::min(ie, it + ChunkSize);
+
 			Sync(ie2, ie);
 
 			if (!Convert(it, ie2, sTemp)) return false;
@@ -2247,6 +2106,63 @@ bool ToUpper(const InputString& sInput, OutType& Output)
 {
 	return ToUpper(sInput.begin(), sInput.end(), Output);
 }
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a tiny input iterator implementation that can be constructed around a function which returns characters
+/// until the input is exhausted, in which case the function returns EOF, after which the iterator compares
+/// equal with a default constructed iterator.
+/// Example:
+/// @code
+/// ReadIterator it(::getchar);
+/// ReadIterator ie;
+/// auto cp = CodepointFromUTF8(it, ie);
+/// @endcode
+class ReadIterator
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+public:
+
+	using iterator_category = std::input_iterator_tag;
+	using self_type         = ReadIterator;
+	using value_type        = int;
+	using const_reference   = const value_type&;
+	using const_pointer     = const value_type*;
+
+	/// constructs the end iterator
+	ReadIterator() : m_Value(EOF) {}
+	/// construct with a function that returns the next character or EOF, after which the iterator compares equal to the end iterator
+	ReadIterator(std::function<value_type()> func) : m_Func(std::move(func)) {}
+
+	self_type&      operator++()                  { if (m_Value != EOF) ++m_iIncrement; return *this;  }
+	const self_type operator++(int)               { const self_type i = *this; operator++(); return i; }
+	const_reference operator* () const            { Read(); return m_Value;                            }
+	const_pointer   operator->() const            { Read(); return &m_Value;                           }
+
+	bool operator==(const self_type& other) const { return m_Value == EOF && other.m_Value == EOF;     }
+	bool operator!=(const self_type& other) const { return !operator==(other);                         }
+
+private:
+
+	// Other than a std::istream_iterator we cannot read the actual character already when the operator++
+	// is called - in a keyboard driven utf8 input this would block until the next key is pressed
+	// - which is not expected e.g. after a command was entered with return at the end.
+	// Therefore we record the count of operator++ calls, and execute them once the iterator is first
+	// dereferenced.
+	void Read() const
+	{
+		while (m_iIncrement)
+		{
+			--m_iIncrement;
+			m_Value = m_Func();
+			if (m_Value == EOF) m_iIncrement = 0;
+		}
+	}
+
+	std::function<value_type()> m_Func;
+	mutable std::size_t         m_iIncrement { 1 };
+	mutable value_type          m_Value      { 0 };
+
+}; // ReadIterator
 
 } // namespace KUTF_NAMESPACE
 

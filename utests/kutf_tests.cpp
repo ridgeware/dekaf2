@@ -284,9 +284,11 @@ TEST_CASE("UTF") {
 			}
 		}
 
-		kutf::Convert(sUTF16_in, sUTF8);
-		kutf::Convert(sUTF8, sUTF16_out);
-
+		CHECK ( kutf::Valid(sUTF16_in)                );
+		CHECK ( kutf::Convert(sUTF16_in, sUTF8)       );
+		CHECK ( kutf::Valid(sUTF8)                    );
+		CHECK ( kutf::Convert(sUTF8, sUTF16_out)      );
+		CHECK ( kutf::Valid(sUTF16_out)               );
 		CHECK ( sUTF16_in.size() == sUTF16_out.size() );
 
 		auto it = std::mismatch(sUTF16_in.begin(), sUTF16_in.end(), sUTF16_out.begin(), sUTF16_out.end());

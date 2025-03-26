@@ -544,33 +544,31 @@ void KXTerm::CurToStartOfPrevLine()
 	m_iCursorColumn = 0;
 }
 
-//-----------------------------------------------------------------------------
-KCodePoint KXTerm::Read() const
-//-----------------------------------------------------------------------------
-{
-	return kutf::CodepointFromUTF8Reader([this]()
-	{
-		return RawRead();
-
-	}, EOF);
-}
-
 namespace {
 inline constexpr uint8_t Control(uint8_t c) { return c - ('a' - 1); }
 }
 
 //-----------------------------------------------------------------------------
-KCodePoint KXTerm::EscapeToControl(KCodePoint ch) const
+KCodePoint KXTerm::Read(kutf::ReadIterator& it, const kutf::ReadIterator& ie)
 //-----------------------------------------------------------------------------
 {
+	return kutf::CodepointFromUTF8(it, ie);
+}
+
+//-----------------------------------------------------------------------------
+KCodePoint KXTerm::ReadEscaped(kutf::ReadIterator& it, const kutf::ReadIterator& ie)
+//-----------------------------------------------------------------------------
+{
+	auto ch = Read(it, ie);
+
 	if (ch != '\033') return ch;
 
-	ch = Read();
+	ch = Read(it, ie);
 
 	switch (ch)
 	{
 		case '[':
-			ch = Read();
+			ch = Read(it, ie);
 
 			switch (ch)
 			{
@@ -587,7 +585,8 @@ KCodePoint KXTerm::EscapeToControl(KCodePoint ch) const
 					return Control('b');
 
 				case '3':
-					ch = Read();
+					ch = Read(it, ie);
+
 					switch (ch)
 					{
 						case '~':   // DEL
@@ -654,13 +653,15 @@ bool KXTerm::EditLine(
 	auto bCursorLimits = m_bCursorLimits;
 	m_bCursorLimits = false;
 
+	kutf::ReadIterator it(&KXTerm::RawRead);
+	kutf::ReadIterator ie;
+
 	for (;;)
 	{
-		auto ch = Read();
-		bool bRefreshWholeLine = false;
-
 		// do escape processing first, replace common sequences with control codes
-		ch = EscapeToControl(ch);
+		auto ch = ReadEscaped(it, ie);
+
+		bool bRefreshWholeLine = false;
 
 		if (!IsTerminal() && (ch.IsASCIICntrl() && ch != '\n'))
 		{

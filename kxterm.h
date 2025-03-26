@@ -413,12 +413,9 @@ private:
 
 	enum CGroup { Esc, Csi, Dcs, Osc, Pri };
 
-	/// blocking read, returns unicode codepoints
-	DEKAF2_NODISCARD
-	KCodePoint Read           ()                  const;
 	/// blocking read, returns single 8 bit chars
 	DEKAF2_NODISCARD
-	int      RawRead          ()                  const { return getchar();                      }
+	static int RawRead        ()                          { return getchar();                    }
 	void     RawWrite         (KStringView sRaw)  const;
 	void     WriteCodepoint   (KCodePoint chRaw);
 	void     Command          (CGroup Group, KStringView sCommand) const;
@@ -426,8 +423,13 @@ private:
 	DEKAF2_NODISCARD
 	KString  QueryTerminal    (KStringView sRequest);
 	void     IntSetCursor     (uint16_t iRow, uint16_t iColumn, bool bCheck);
+
+	/// blocking read, returns unicode codepoints
 	DEKAF2_NODISCARD
-	KCodePoint EscapeToControl(KCodePoint)        const;
+	static KCodePoint Read    (kutf::ReadIterator& it, const kutf::ReadIterator& ie);
+	/// blocking read, returns unicode codepoints, unescapes ANSII sequences
+	DEKAF2_NODISCARD
+	static KCodePoint ReadEscaped(kutf::ReadIterator& it, const kutf::ReadIterator& ie);
 
 	DEKAF2_NODISCARD
 	uint16_t CheckColumn      (uint16_t iColumns) const;

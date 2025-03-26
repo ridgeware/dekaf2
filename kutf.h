@@ -2133,13 +2133,13 @@ public:
 	/// construct with a function that returns the next character or EOF, after which the iterator compares equal to the end iterator
 	ReadIterator(std::function<value_type()> func) : m_Func(std::move(func)) {}
 
-	self_type&      operator++()                  { if (m_Value != EOF) ++m_iIncrement; return *this;  }
-	const self_type operator++(int)               { const self_type i = *this; operator++(); return i; }
-	const_reference operator* () const            { Read(); return m_Value;                            }
-	const_pointer   operator->() const            { Read(); return &m_Value;                           }
+	self_type&      operator++()                  { if (m_Value != EOF) ++m_iIncrement; return *this;      }
+	const self_type operator++(int)               { const self_type i = *this; operator++(); return i;     }
+	const_reference operator* () const            { Read(); return m_Value;                                }
+	const_pointer   operator->() const            { Read(); return &m_Value;                               }
 
-	bool operator==(const self_type& other) const { return m_Value == EOF && other.m_Value == EOF;     }
-	bool operator!=(const self_type& other) const { return !operator==(other);                         }
+	bool operator==(const self_type& other) const { Read(); return m_Value == EOF && other.m_Value == EOF; }
+	bool operator!=(const self_type& other) const { return !operator==(other);                             }
 
 private:
 
@@ -2147,7 +2147,7 @@ private:
 	// is called - in a keyboard driven utf8 input this would block until the next key is pressed
 	// - which is not expected e.g. after a command was entered with return at the end.
 	// Therefore we record the count of operator++ calls, and execute them once the iterator is first
-	// dereferenced.
+	// dereferenced or operator== is called.
 	void Read() const
 	{
 		while (m_iIncrement)

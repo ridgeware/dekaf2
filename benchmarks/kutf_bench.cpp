@@ -841,6 +841,50 @@ void kutf8_bench()
 	}
 
 	{
+		dekaf2::KProf prof("kutf::ToUpper UTF32 large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sWide);
+			std::u32string sTarget;
+			kutf::ToUpper(sWide, sTarget);
+			if (sTarget[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("std::towupper UTF32 large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sWide);
+			std::u32string sTarget;
+			sTarget.resize(sWide.size());
+			std::transform(sWide.begin(), sWide.end(), sTarget.begin(),[](uint32_t ch){ return std::towupper(ch); });
+			if (sTarget[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("std::towupper UTF8 large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			std::string sUpperUTF8;
+			auto it = sData.begin();
+			auto ie = sData.end();
+			auto bi = std::back_inserter(sUpperUTF8);
+			for (; it != ie; )
+			{
+				auto cp = std::towupper(kutf::Codepoint(it, ie));
+				kutf::ToUTF(cp, bi);
+			}
+			if (sUpperUTF8[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
 		dekaf2::KProf prof("KString::MakeUpper short (50)");
 		prof.SetMultiplier(40000);
 		for (int ct = 0; ct < 40000; ++ct)

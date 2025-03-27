@@ -105,6 +105,24 @@ void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWa
 
 } // SetTerm
 
+//-----------------------------------------------------------------------------
+KXTermCodes::RGB::RGB(KStringView sColorValue)
+//-----------------------------------------------------------------------------
+{
+	sColorValue.remove_prefix('#');
+
+	if (sColorValue.size() == 6 || sColorValue.Trim().size() == 6)
+	{
+		Red   = sColorValue.Left (   2).UInt16(/*bIsHex*/true);
+		Green = sColorValue.Mid  (2, 2).UInt16(/*bIsHex*/true);
+		Blue  = sColorValue.Right(   2).UInt16(/*bIsHex*/true);
+	}
+	else
+	{
+		kDebug(3, "invalid RGB color string: {}", sColorValue.LeftUTF8(20));
+	}
+
+} // ctor
 
 //-----------------------------------------------------------------------------
 bool KXTermCodes::HasRGBColors()

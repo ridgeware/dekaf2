@@ -9,6 +9,7 @@
 #include <dekaf2/kformat.h>
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/kparallel.h>
+#include <dekaf2/kxterm.h>
 
 using namespace dekaf2;
 
@@ -38,18 +39,16 @@ KString KGrep::Highlight(KStringView sIn, const std::vector<KStringView>& Matche
 
 	KStringView::size_type iTotalStart = 0;
 
-	KStringView sHighlightOn  = "\033[01;31m";
-	KStringView sHighlightOff = "\033[m";
-
 	for (auto Match : Matches)
 	{
 		auto iStart = Match.data() - sIn.data();
 		auto iSize  = Match.size();
 
 		sOut += sIn.ToView(iTotalStart, iStart - iTotalStart);
-		sOut += sHighlightOn;
+		sOut += KXTermCodes::Bold();
+		sOut += KXTermCodes::FGColor(KXTermCodes::ColorCode::Red);
 		sOut += sIn.ToView(iStart, iSize);
-		sOut += sHighlightOff;
+		sOut += KXTermCodes::ResetCharModes();
 
 		iTotalStart += (iStart - iTotalStart) + iSize;
 	}
@@ -135,7 +134,17 @@ void KGrep::Grep(KInStream& InStream, KStringView sFilename)
 		{
 			if (m_bPrintFilename)
 			{
+				if (m_bIsTerminal)
+				{
+					kWrite(KXTermCodes::FGColor(KXTermCodes::ColorCode::Magenta));
+				}
+
 				kPrint("{}:", sFilename);
+
+				if (m_bIsTerminal)
+				{
+					kWrite(KXTermCodes::ResetCharModes());
+				}
 			}
 
 			if (!m_bInvertMatch && m_bIsTerminal)

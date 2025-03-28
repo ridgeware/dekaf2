@@ -81,8 +81,20 @@ public:
 
 	/// ctor setting options (default = None) and timeout (default = GetDefaultTimeout())
 	KStreamOptions(Options Options = None, KDuration Timeout = GetDefaultTimeout());
+	/// ctor setting options and timeout as chrono::seconds
+	KStreamOptions(Options Options, chrono::seconds Timeout)
+	: KStreamOptions(Options, KDuration(Timeout)) {}
+	/// ctor setting options and timeout as chrono::minutes
+	KStreamOptions(Options Options, chrono::minutes Timeout)
+	: KStreamOptions(Options, KDuration(Timeout)) {}
 	/// ctor setting timeout. Options will be set to None
 	KStreamOptions(KDuration Timeout);
+	/// ctor setting timeout as chrono::seconds. Options will be set to None
+	KStreamOptions(chrono::seconds Timeout)
+	: KStreamOptions(KDuration(Timeout)) {}
+	/// ctor setting timeout as chrono::minutes. Options will be set to None
+	KStreamOptions(chrono::minutes Timeout)
+	: KStreamOptions(KDuration(Timeout)) {}
 	/// ctor setting verify mode. Other options will be set to None, timeout is GetDefaultTimeout()
 	// make sure it really only gets called from bool
 	template<typename T, typename std::enable_if<std::is_same<T, bool>::value, int>::type = 0>
@@ -168,9 +180,21 @@ public:
 	/// ctor setting options (default = DefaultsForHTTP) and timeout (default = GetDefaultTimeout())
 	KHTTPStreamOptions(Options Options = DefaultsForHTTP, KDuration Timeout = GetDefaultTimeout())
 	: KStreamOptions(Options, Timeout) {}
+	/// ctor setting options and timeout as chrono::seconds
+	KHTTPStreamOptions(Options Options, chrono::seconds Timeout)
+	: KHTTPStreamOptions(Options, KDuration(Timeout)) {}
+	/// ctor setting options and timeout as chrono::minutes
+	KHTTPStreamOptions(Options Options, chrono::minutes Timeout)
+	: KHTTPStreamOptions(Options, KDuration(Timeout)) {}
 	/// ctor setting timeout. Options will be set to DefaultsForHTTP
 	KHTTPStreamOptions(KDuration Timeout)
 	: KHTTPStreamOptions(DefaultsForHTTP, Timeout) {}
+	/// ctor setting timeout as chrono::seconds. Options will be set to DefaultsForHTTP
+	KHTTPStreamOptions(chrono::seconds Timeout)
+	: KHTTPStreamOptions(KDuration(Timeout)) {}
+	/// ctor setting timeout as chrono::minutes. Options will be set to DefaultsForHTTP
+	KHTTPStreamOptions(chrono::minutes Timeout)
+	: KHTTPStreamOptions(KDuration(Timeout)) {}
 	/// ctor setting verify mode. Other options will be set to DefaultsForHTTP, timeout is GetDefaultTimeout()
 	// make sure it really only gets called from bool
 	template<typename T, typename std::enable_if<std::is_same<T, bool>::value, int>::type = 0>

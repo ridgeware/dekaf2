@@ -149,7 +149,8 @@ public:
 	void Raw(uint64_t iInteger)
 	//-----------------------------------------------------------------------------
 	{
-		m_sLogline += KString::to_string(iInteger);
+		// we want to display npos etc. as negative values, hence the cast
+		m_sLogline += KString::to_string(static_cast<int64_t>(iInteger));
 
 	} // Raw
 
@@ -508,7 +509,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						Log.Write(HTTP.GetSentBytes());
 						break;
 
-					case 'S': // rx bytes
+					case 'S': // rx + tx bytes
 						Log.Write(HTTP.GetReceivedBytes() + HTTP.GetSentBytes());
 						break;
 

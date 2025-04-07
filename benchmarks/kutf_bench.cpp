@@ -24,6 +24,7 @@
 //#define HAVE_TEXTUTILS 1
 #ifdef HAVE_TEXTUTILS
 #include "textutils/UtfConv.h"
+#include "textutils/UnicodeCharMap.h"
 #endif
 
 using namespace dekaf2;
@@ -883,6 +884,34 @@ void kutf8_bench()
 			if (sUpperUTF8[2] == 'a') KProf::Force();
 		}
 	}
+
+#ifdef HAVE_TEXTUTILS
+	{
+		dekaf2::KProf prof("textutils toupper UTF32 large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sWide32);
+			UString32 sTarget = sWide32;
+			unicodecharmap::toupper(sTarget);
+			if (sTarget[2] == 'a') KProf::Force();
+		}
+	}
+
+	{
+		dekaf2::KProf prof("textutils toupper UTF8 large");
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
+		{
+			KProf::Force(&sData);
+			std::string sUpperUTF8 = sData;
+			unicodecharmap::toupper(sUpperUTF8);
+			if (sUpperUTF8[2] == 'a') KProf::Force();
+		}
+	}
+
+
+#endif
 
 	{
 		dekaf2::KProf prof("KString::MakeUpper short (50)");

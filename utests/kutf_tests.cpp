@@ -258,9 +258,9 @@ TEST_CASE("UTF") {
 
 	SECTION("UTF16")
 	{
-		std::basic_string<uint16_t> sUTF16_in;
+		std::u16string sUTF16_in;
 		std::string sUTF8;
-		std::basic_string<uint16_t> sUTF16_out;
+		std::u16string sUTF16_out;
 
 //		for (kutf::codepoint_t ch = 0x010020; ch <= 0x010020; ++ch)
 		for (kutf::codepoint_t ch = 0; ch <= kutf::CODEPOINT_MAX; ++ch)

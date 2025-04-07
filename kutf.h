@@ -145,16 +145,16 @@
 
  --- Latin1ToUTF
 
- /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
+ /// Convert a latin1 encoded string into a UTF8/UTF16/UTF32 string (from two iterators)
  bool Latin1ToUTF(Iterator it, Iterator ie, UTFContainer& UTF)
 
- /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
+ /// Convert a latin1 encoded string into a UTF8/UTF16/UTF32 string (from two iterators)
  UTFContainer Latin1ToUTF(Iterator it, Iterator ie)
 
- /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
+ /// Convert a latin1 encoded string into a UTF8/UTF16/UTF32 string
  bool Latin1ToUTF(const Latin1String& sLatin1, UTFContainer& UTF)
 
- /// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
+ /// Convert a latin1 encoded string into a UTF8/UTF16/UTF32 string
  UTFContainer Latin1ToUTF(const Latin1String& sLatin1)
 
  --- get codepoint
@@ -490,7 +490,7 @@ bool IsSurrogate(codepoint_t codepoint)
 }
 
 //-----------------------------------------------------------------------------
-/// Returns true if the given Unicode codepoint is valid (= < 0x0110000, not 0x0fffe, 0x0ffff, and not in 0x0d800 .. 0x0dfff)
+/// Returns true if the given Unicode codepoint is valid (= < 0x0110000, and not in 0x0d800 .. 0x0dfff)
 inline constexpr
 bool IsValid(codepoint_t codepoint)
 //-----------------------------------------------------------------------------
@@ -810,7 +810,7 @@ bool Latin1ToUTF(Iterator it, Iterator ie, UTFContainer& UTF)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string (from two iterators)
+/// Convert a latin1 encoded string into a UTF8/UTF16/UTF32 string (from two iterators)
 /// @param it the start of an iterator range to read from
 /// @param ie the end of an iterator range to read from
 /// @returns the ouput container written into (typically a string type)
@@ -826,7 +826,7 @@ UTFContainer Latin1ToUTF(Iterator it, Iterator ie)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
+/// Convert a latin1 encoded string into a UTF8/UTF16/UTF32 string
 /// @param sLatin1 the input string
 /// @param UTF the ouput container to write into (typically a string type)
 /// @returns false if the input was not Latin1, true otherwise
@@ -841,7 +841,7 @@ bool Latin1ToUTF(const Latin1String& sLatin1, UTFContainer& UTF)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert a latin1 encoded narrow string into a UTF8/UTF16/UTF32 string
+/// Convert a latin1 encoded string into a UTF8/UTF16/UTF32 string
 /// @param sLatin1 the input string
 /// @returns the ouput container written into (typically a string type)
 template<typename UTFContainer, typename Latin1String>
@@ -867,11 +867,9 @@ void Sync(Iterator& it, Iterator ie)
 
 	if (iInputWidth == 1)
 	{
-		for (; KUTF_LIKELY(it != ie); ++it)
+		for (; it != ie; ++it)
 		{
-			auto cp = CodepointCast(*it);
-
-			if (!IsContinuationByte(cp))
+			if (!IsContinuationByte(CodepointCast(*it)))
 			{
 				break;
 			}
@@ -905,7 +903,7 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 	if (iInputWidth > 1 && ch > 0x0ff)
 	{
 		// error, even with char sizes > one byte UTF8 single
-		// values cannot exceed 255
+		// values cannot exceed 255 (with the exception of EOF)
 		return (ch == CodepointCast(EOF)) ? END_OF_INPUT : INVALID_CODEPOINT;
 	}
 
@@ -1312,10 +1310,7 @@ Iterator Left(Iterator it, Iterator ie, std::size_t n)
 	}
 	else if (iInputWidth == 4)
 	{
-		if (it != ie)
-		{
-			it += std::min(static_cast<std::size_t>(std::distance(it, ie)), n);
-		}
+		it += std::min(static_cast<std::size_t>(std::distance(it, ie)), n);
 	}
 
 	return it;
@@ -1395,12 +1390,9 @@ bool Decrement(Iterator ibegin, Iterator& it, std::size_t n = 1)
 	}
 	else if (iInputWidth == 4)
 	{
-		if (ibegin != it)
-		{
-			auto iCount = std::min(static_cast<std::size_t>(std::distance(ibegin, it)), n);
-			it -= iCount;
-			n  -= iCount;
-		}
+		auto iCount = std::min(static_cast<std::size_t>(std::distance(ibegin, it)), n);
+		it -= iCount;
+		n  -= iCount;
 	}
 
 	return !n;

@@ -64,7 +64,7 @@ TEST_CASE("UTF") {
 
 	SECTION("Valid")
 	{
-		KString sStr("testäöü test日本語abc中文Русский");
+		KString sStr("testäöü test日本語abc中文Русскийɠ𐑅");
 		CHECK( kutf::Valid(sStr) == true );
 		CHECK( kutf::Valid(sStr.begin()+3, sStr.end()) == true );
 		sStr[6] = 'a';
@@ -73,42 +73,42 @@ TEST_CASE("UTF") {
 
 	SECTION("Count")
 	{
-		KString sStr("testäöü test日本語abc中文Русский");
-		CHECK(              sStr.size() == 47 );
-		CHECK( kutf::Count(sStr) == 27 );
-		CHECK( kutf::Count(sStr.begin()+2, sStr.end()) == 25 );
+		KString sStr("testäöü test日本語abc中文Русскийɠ𐑅");
+		CHECK(              sStr.size() == 53 );
+		CHECK( kutf::Count(sStr) == 29 );
+		CHECK( kutf::Count(sStr.begin()+2, sStr.end()) == 27 );
 	}
 
 	SECTION("Left")
 	{
-		KString sStr("testäöü test日本語abc中文Русский");
-		CHECK(                sStr.size() == 47       );
+		KString sStr("testäöü test日本語abc中文Русскийɠ𐑅");
+		CHECK(                sStr.size() == 53       );
 		CHECK( kutf::Left(sStr, 7) == "testäöü");
 	}
 
 	SECTION("Right")
 	{
-		KString sStr("testäöü test日本語abc中文Русский");
-		CHECK(                  sStr.size() == 47           );
-		CHECK( kutf::Right(sStr, 10) == "c中文Русский");
+		KString sStr("testäöü test日本語abc中文Русскийɠ𐑅");
+		CHECK(                  sStr.size() == 53           );
+		CHECK( kutf::Right(sStr, 10) == "文Русскийɠ𐑅");
 	}
 
 	SECTION("Mid")
 	{
-		KString sStr("testäöü test日本語abc中文Русский");
-		CHECK(                  sStr.size() == 47         );
+		KString sStr("testäöü test日本語abc中文Русскийɠ𐑅");
+		CHECK(                  sStr.size() == 53         );
 		CHECK( kutf::Mid(sStr, 8, 7) == "test日本語");
 	}
 
 	SECTION("CESU8::UTF8ToUTF16Bytes")
 	{
-		KString sUTF8("testäöü test日本語abc中文Русский");
-		CHECK(                 sUTF8.size() == 47     );
+		KString sUTF8("testäöü test日本語abc中文Русскийɠ𐑅");
+		CHECK(                 sUTF8.size() == 53     );
 		auto sBytes = kutf::CESU8::UTF8ToUTF16Bytes(sUTF8);
-		CHECK(                 sBytes.size() == 54    );
+		CHECK(                 sBytes.size() == 60    );
 //		CHECK( sBytes == "" );
 		auto sUTF8New = kutf::CESU8::UTF16BytesToUTF8(sBytes);
-		CHECK(                 sUTF8New.size() == 47  );
+		CHECK(                 sUTF8New.size() == 53  );
 		CHECK(                 sUTF8New == sUTF8      );
 	}
 

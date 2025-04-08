@@ -42,7 +42,9 @@ TEST_CASE("KBase64")
 		{
 			KString sEncoded = KBase64::Encode(it[0]);
 			CHECK ( sEncoded == it[1] );
-			KString sDecoded = KBase64::Decode(it[1]);
+			KString sDecoded = KBase64::Decode(sEncoded);
+			CHECK ( sDecoded == it[0] );
+			sDecoded = KBase64::Decode(it[1]);
 			CHECK ( sDecoded == it[0] );
 		}
 	}
@@ -75,6 +77,7 @@ TEST_CASE("KBase64Url")
 	SECTION("Encode/Decode all characters")
 	{
 		KString sEncoded = KBase64Url::Encode(sData);
+		CHECK ( sEncoded.empty() == false );
 		KString sDecoded = KBase64Url::Decode(sEncoded);
 		CHECK ( sDecoded == sData );
 		// test that both algorithms produce the same output,
@@ -99,7 +102,9 @@ TEST_CASE("KBase64Url")
 		{
 			KString sEncoded = KBase64Url::Encode(it[0]);
 			CHECK ( sEncoded == it[1] );
-			KString sDecoded = KBase64Url::Decode(it[1]);
+			KString sDecoded = KBase64::Decode(sEncoded);
+			CHECK ( sDecoded == it[0] );
+			sDecoded = KBase64Url::Decode(it[1]);
 			CHECK ( sDecoded == it[0] );
 		}
 	}

@@ -40,14 +40,19 @@
 //
 */
 
+#include "kconfiguration.h"
 #include "kbase64.h"
 #include "klog.h"
 
-#include <boost/archive/iterators/base64_from_binary.hpp>
-#include <boost/archive/iterators/binary_from_base64.hpp>
-#include <boost/archive/iterators/insert_linebreaks.hpp>
-#include <boost/archive/iterators/transform_width.hpp>
-#include <boost/archive/iterators/remove_whitespace.hpp>
+#if !DEKAF2_WITH_SIMDUTF
+	#include <boost/archive/iterators/base64_from_binary.hpp>
+	#include <boost/archive/iterators/binary_from_base64.hpp>
+	#include <boost/archive/iterators/insert_linebreaks.hpp>
+	#include <boost/archive/iterators/transform_width.hpp>
+	#include <boost/archive/iterators/remove_whitespace.hpp>
+#else
+	#include "from/simdutf/simdutf.h"
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -55,12 +60,32 @@ DEKAF2_NAMESPACE_BEGIN
 KString KBase64::Encode(KStringView sInput, bool bWithLinebreaks)
 //-----------------------------------------------------------------------------
 {
+	KString out;
+
+#if DEKAF2_WITH_SIMDUTF
+
+	auto iSize = simdutf::base64_length_from_binary(sInput.size(), simdutf::base64_options::base64_default);
+	auto iReserve = iSize;
+	if (bWithLinebreaks) iReserve += iSize / 76;
+	out.reserve(iReserve);
+	out.resize(iSize);
+	auto iWrote = simdutf::binary_to_base64(sInput.data(), sInput.size(), &out[0], simdutf::base64_options::base64_default);
+	if (bWithLinebreaks)
+	{
+		for (std::size_t iPos = 76; iPos < out.size(); iPos += 77)
+		{
+			out.insert(iPos, 1, '\n');
+		}
+	}
+	if (iWrote != iSize) out.clear();
+	return out;
+
+#else
+
 	using namespace boost::archive::iterators;
 	using iterator_type = KStringView::const_iterator;
 	using base64_enc_lf = insert_linebreaks<base64_from_binary<transform_width<iterator_type, 6, 8> >, 76>;
 	using base64_enc    = base64_from_binary<transform_width<iterator_type, 6, 8> >;
-
-	KString out;
 
 	// calculate final size for encoded string
 	KString::size_type iSize = sInput.size() * 8 / 6 + sInput.size() % 3;
@@ -82,6 +107,8 @@ KString KBase64::Encode(KStringView sInput, bool bWithLinebreaks)
 	// append the padding
 	out.append((3 - sInput.size() % 3) % 3, '=');
 
+#endif
+
 	return out;
 
 } // Encode
@@ -90,11 +117,20 @@ KString KBase64::Encode(KStringView sInput, bool bWithLinebreaks)
 KString KBase64::Decode(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
+	KString out;
+
+#if DEKAF2_WITH_SIMDUTF
+
+	auto iSize = simdutf::maximal_binary_length_from_base64(sInput.data(), sInput.size());
+	out.resize(iSize);
+	auto res = simdutf::base64_to_binary(sInput.data(), sInput.size(), &out[0], simdutf::base64_options::base64_default);
+	if (res.count < iSize) out.resize(res.count);
+
+#else
+
 	using namespace boost::archive::iterators;
 	using iterator_type = KStringView::const_iterator;
 	using base64_dec    = transform_width<binary_from_base64<remove_whitespace<iterator_type> >, 8, 6>;
-
-	KString out;
 
 	DEKAF2_TRY
 	{
@@ -133,10 +169,13 @@ KString KBase64::Decode(KStringView sInput)
 		out.clear();
 	}
 
+#endif
+
 	return out;
 
 } // Decode
 
+#if !DEKAF2_WITH_SIMDUTF
 
 // copied from boost, adapted for URL safe character set
 // https://www.boost.org/doc/libs/1_68_0/boost/archive/iterators/base64_from_binary.hpp
@@ -191,16 +230,27 @@ public:
 
 } // namespace detail (end of copy from boost)
 
+#endif
 
 //-----------------------------------------------------------------------------
 KString KBase64Url::Encode(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
+	KString out;
+
+#if DEKAF2_WITH_SIMDUTF
+
+	auto iSize = simdutf::base64_length_from_binary(sInput.size(), simdutf::base64_options::base64_url);
+	out.resize(iSize);
+	auto iWrote = simdutf::binary_to_base64(sInput.data(), sInput.size(), &out[0], simdutf::base64_options::base64_url);
+	if (iWrote != iSize) out.clear();
+	return out;
+
+#else
+
 	using namespace boost::archive::iterators;
 	using iterator_type = KStringView::const_iterator;
 	using base64_enc    = detail::base64url_from_binary<transform_width<iterator_type, 6, 8> >;
-
-	KString out;
 
 	// calculate final size for encoded string
 	KString::size_type iSize = sInput.size() * 8 / 6;
@@ -210,9 +260,12 @@ KString KBase64Url::Encode(KStringView sInput)
 	// transform to base64
 	out.assign(base64_enc(sInput.begin()), base64_enc(sInput.end()));
 
+#endif
 	return out;
 
 } // Encode
+
+#if !DEKAF2_WITH_SIMDUTF
 
 // copied from boost, adapted for URL safe character set (works with
 // both character sets actually)
@@ -278,15 +331,26 @@ public:
 
 } // namespace detail (end of copy from boost)
 
+#endif
+
 //-----------------------------------------------------------------------------
 KString KBase64Url::Decode(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
+	KString out;
+
+#if DEKAF2_WITH_SIMDUTF
+
+	auto iSize = simdutf::maximal_binary_length_from_base64(sInput.data(), sInput.size());
+	out.resize(iSize);
+	auto res = simdutf::base64_to_binary(sInput.data(), sInput.size(), &out[0], simdutf::base64_options::base64_url_with_padding);
+	if (res.count < iSize) out.resize(res.count);
+
+#else
+
 	using namespace boost::archive::iterators;
 	using iterator_type = KStringView::const_iterator;
 	using base64_dec    = transform_width<detail::binary_from_base64url<remove_whitespace<iterator_type> >, 8, 6>;
-
-	KString out;
 
 	DEKAF2_TRY
 	{
@@ -324,6 +388,8 @@ KString KBase64Url::Decode(KStringView sInput)
 		kDebug(1, "invalid base64: {}..", sInput.Left(40));
 		out.clear();
 	}
+
+#endif
 
 	return out;
 

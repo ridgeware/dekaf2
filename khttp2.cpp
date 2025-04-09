@@ -120,6 +120,7 @@ KStringView Stream::GetPath()
 		}
 		else
 		{
+			m_URI.Query.WantStartSeparator();
 			m_URI.Query.Serialize(m_sPath);
 		}
 	}

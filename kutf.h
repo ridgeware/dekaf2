@@ -1084,10 +1084,18 @@ Iterator InvalidASCII(Iterator it, Iterator ie)
 	for (; std::distance(it, ie) >= 16; )
 	{
 		// credits: SWAR algorithm adapted from simdutf scalar implementation, license: MIT
+#if __cplusplus >= 202002L
 		uint64_t v1;
+#else
+		uint64_t v1 { 0 };
+#endif
 		std::memcpy(&v1, &*it, 8);
 		it += 8;
+#if __cplusplus >= 202002L
 		uint64_t v2;
+#else
+		uint64_t v2 { 0 };
+#endif
 		std::memcpy(&v2, &*it, 8);
 		it += 8;
 		uint64_t v{v1 | v2};

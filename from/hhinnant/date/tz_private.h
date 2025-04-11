@@ -290,7 +290,11 @@ struct transition
     operator<<(std::ostream& os, const transition& t)
     {
         using date::operator<<;
+#if !DEKAF2_HAS_STD_TIME_STREAM_OPS || __cplusplus < 202002L
+        date::operator<<(os, t.timepoint) << "Z ";
+#else
         os << t.timepoint << "Z ";
+#endif
         if (t.info->offset >= std::chrono::seconds{0})
             os << '+';
         os << make_time(t.info->offset);

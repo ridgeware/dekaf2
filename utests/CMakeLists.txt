@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.13)
 
 project(dekaf2-utests)
 
-set(CMAKE_CXX_STANDARD 20)
+if (EXISTS "/etc/amazon-linux-release-cpe" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	set(CMAKE_CXX_STANDARD 17)
+else()
+	set(CMAKE_CXX_STANDARD 20)
+endif()
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # older cmake versions do not support the test for IS_TOP_LEVEL
@@ -136,6 +140,7 @@ set (USOURCES
 	kwords_tests.cpp
 	kwriter_tests.cpp
 	kxml_tests.cpp
+	kyaml_tests.cpp
 	kzip_tests.cpp
 	simd_tests.cpp
 	string_balance_tests.cpp

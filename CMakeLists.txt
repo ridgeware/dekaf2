@@ -106,7 +106,14 @@ OPTION(DEKAF2_WITH_SIMDUTF "build with simd utf implementations" ON)
 
 # =================================== C++ STANDARD =================================
 
-set(DEKAF2_CXX_STANDARD 20)
+if (EXISTS "/etc/amazon-linux-release-cpe" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	set(DEKAF2_CXX_STANDARD 17)
+	message(STATUS "Amazon Linux with ${CMAKE_CXX_COMPILER_ID} detected: lowering C++ mode to C++17")
+else()
+	set(DEKAF2_CXX_STANDARD 20)
+	message(STATUS "using C++ mode C++20")
+endif()
+
 set(CMAKE_CXX_STANDARD ${DEKAF2_CXX_STANDARD})
 #set(CMAKE_CXX_CLANG_TIDY clang-tidy -checks=-*,readability-*)
 

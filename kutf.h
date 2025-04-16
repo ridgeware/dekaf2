@@ -1680,6 +1680,10 @@ bool HasUTF8(const UTF8Container& UTF8)
 
 //-----------------------------------------------------------------------------
 /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32 (from an iterator pair)
+/// @param it input iterator
+/// @param ie end iterator
+/// @param Output the UTF output container (typically a string type), will be appended to
+/// @return false in case of decoding errors, else true
 template<typename OutType, typename Iterator>
 KUTF_CONSTEXPR_14
 bool Convert(Iterator it, Iterator ie, OutType& Output)
@@ -1841,6 +1845,9 @@ bool Convert(Iterator it, Iterator ie, OutType& Output)
 
 //-----------------------------------------------------------------------------
 /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+/// @param sInput the UTF input container (typically a string type)
+/// @param Output the UTF output container (typically a string type), will be appended to
+/// @return false in case of decoding errors, else true
 template<typename OutType, typename InpType,
          typename std::enable_if<!std::is_integral<InpType>::value
                               && KUTF_detail::HasSize<InpType>::value, int>::type = 0>
@@ -1852,7 +1859,10 @@ bool Convert(const InpType& sInput, OutType& Output)
 }
 
 //-----------------------------------------------------------------------------
-/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+/// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32 (from an iterator pair)
+/// @param it input iterator
+/// @param ie end iterator
+/// @return a UTF container (typically a string type)
 template<typename OutType, typename Iterator,
          typename std::enable_if<!KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
 KUTF_CONSTEXPR_14
@@ -1866,36 +1876,43 @@ OutType Convert(Iterator it, Iterator ie)
 
 //-----------------------------------------------------------------------------
 /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
+/// @param sInput the UTF input container (typically a string type)
+/// @return a UTF container (typically a string type)
 template<typename OutType, typename InpType>
 KUTF_CONSTEXPR_14
-OutType Convert(const InpType& sInp)
+OutType Convert(const InpType& sInput)
 //-----------------------------------------------------------------------------
 {
-	return Convert<OutType>(sInp.begin(), sInp.end());
+	return Convert<OutType>(sInput.begin(), sInput.end());
 }
 
 //-----------------------------------------------------------------------------
 /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/UTF16/UTF32 string
+/// @param pWChar the input pointer to a wchar_t*
+/// @param Output the UTF output container (typically a string type), will be appended to
+/// @return false in case of decoding errors, else true
 template<typename OutType>
 KUTF_CONSTEXPR_14
-bool Convert(const wchar_t* it, OutType& Output)
+bool Convert(const wchar_t* pWChar, OutType& Output)
 //-----------------------------------------------------------------------------
 {
-	if KUTF_UNLIKELY(it == nullptr) return false;
+	if KUTF_UNLIKELY(pWChar == nullptr) return false;
 
-	auto iSize = std::wcslen(it);
-	return Convert(it, it + iSize, Output);
+	auto iSize = std::wcslen(pWChar);
+	return Convert(pWChar, pWChar + iSize, Output);
 }
 
 //-----------------------------------------------------------------------------
 /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/UTF16/UTF32 string
+/// @param pWChar the input pointer to a wchar_t*
+/// @return Output the UTF output container (typically a string type)
 template<typename OutType>
 KUTF_CONSTEXPR_14
-OutType Convert(const wchar_t* it)
+OutType Convert(const wchar_t* pWChar)
 //-----------------------------------------------------------------------------
 {
 	OutType Out{};
-	Convert(it, Out);
+	Convert(pWChar, Out);
 	return Out;
 }
 
@@ -1903,6 +1920,10 @@ OutType Convert(const wchar_t* it)
 /// Convert range between it and ie from UTF8/UTF16/UTF32, calling functor func for every
 /// codepoint (which may be INVALID_CODEPOINT for input parsing errors). If the functor returns
 /// false the loop is aborted.
+/// @param it input iterator
+/// @param ie end iterator
+/// @param func a functor to call for each codepoint in range
+/// @return true if all calls to func were successful, false otherwise
 template<typename Iterator, class Functor>
 bool ForEach(Iterator it, Iterator ie, Functor func)
 //-----------------------------------------------------------------------------
@@ -1925,6 +1946,7 @@ bool ForEach(Iterator it, Iterator ie, Functor func)
 		// we convert into an intermediate type
 		// do it in chunks to limit memory consumption for large strings
 		std::u32string sTemp;
+
 		for (; it != ie; )
 		{
 			constexpr std::size_t ChunkSize = 1000;
@@ -1961,6 +1983,9 @@ bool ForEach(Iterator it, Iterator ie, Functor func)
 //-----------------------------------------------------------------------------
 /// Convert string from UTF8/16/32, calling functor func for every codepoint (which may be
 /// INVALID_CODEPOINT for input parsing errors). If the functor returns false the loop is aborted.
+/// @param sUTF the UTF input container (typically a string type)
+/// @param func a functor to call for each codepoint in the container
+/// @return true if all calls to func were successful, false otherwise
 template<typename UTFString, class Functor>
 bool ForEach(const UTFString& sUTF, Functor func)
 //-----------------------------------------------------------------------------
@@ -1986,20 +2011,20 @@ bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 	if (iOutputWidth == 4)
 	{
 		using value_type = typename OutType::value_type;
+		auto iOriginalSize = Output.size();
 
 		if (iInputWidth == 4)
 		{
 			// we do not need to convert, but will simply transform from input to output
-			auto iOriginalSize = Output.size();
 			Output.resize(iOriginalSize + std::distance(it, ie));
-			std::transform(it, ie, &Output[iOriginalSize], [&func](value_type cp) { return func(cp); });
+			std::transform(it, ie, Output.begin() + iOriginalSize, [&func](value_type cp) { return func(cp); });
 		}
 		else
 		{
 			// we can convert directly into the target
 			if (!Convert(it, ie, Output)) return false;
-			// and transform right there
-			std::transform(Output.begin(), Output.end(), Output.begin(), [&func](value_type cp) { return func(cp); });
+			// and transform right there - make sure to not transform again the existing string.
+			std::transform(Output.begin() + iOriginalSize, Output.end(), Output.begin() + iOriginalSize, [&func](value_type cp) { return func(cp); });
 		}
 		return true;
 	}
@@ -2009,6 +2034,7 @@ bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 		// we convert into an intermediate type and back to the requested output type
 		// do it in chunks to limit memory consumption for large strings
 		std::u32string sTemp;
+
 		for (; it != ie; )
 		{
 			constexpr std::size_t ChunkSize = 1000;

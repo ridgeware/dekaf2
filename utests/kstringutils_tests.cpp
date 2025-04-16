@@ -4,6 +4,7 @@
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kstack.h>
 #include <dekaf2/kinstringstream.h>
+#include <dekaf2/ksystem.h>
 #include <vector>
 #include <set>
 
@@ -1729,6 +1730,37 @@ TEST_CASE("KStringUtils") {
 			KString s(it.input);
 			kMakeUpperASCII(s);
 			CHECK ( s == it.output );
+		}
+	}
+
+	SECTION("kMakeUpperLocale")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "HELLO"    , "HELLO"   },
+			{ "\xE4\xF6\xFC", "\xC4\xD6\xDC" },
+			{ "\xC4\xD6\xDC", "\xC4\xD6\xDC" },
+		};
+
+		auto oldLoc = kGetGlobalLocale();
+
+		if (kSetGlobalLocale("de_DE"))
+		{
+			for (const auto& it : pvector)
+			{
+				KString s(it.input);
+				kMakeUpperLocale(s);
+				CHECK ( s == it.output );
+			}
+
+			kSetGlobalLocale(oldLoc);
 		}
 	}
 

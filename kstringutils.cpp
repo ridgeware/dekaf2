@@ -208,91 +208,71 @@ std::size_t kReplace(KStringRef& sString,
 namespace detail {
 
 //----------------------------------------------------------------------
-void kMakeUpperASCII(const char* it, const char* ie, char* out)
+void kTransform(const char* it, const char* ie, char* out, char(*transformer)(char))
 //----------------------------------------------------------------------
 {
 	for (; std::distance(it, ie) >= 8; )
 	{
-		*out++ = KASCII::kToUpper(*it++);
-		*out++ = KASCII::kToUpper(*it++);
-		*out++ = KASCII::kToUpper(*it++);
-		*out++ = KASCII::kToUpper(*it++);
-		*out++ = KASCII::kToUpper(*it++);
-		*out++ = KASCII::kToUpper(*it++);
-		*out++ = KASCII::kToUpper(*it++);
-		*out++ = KASCII::kToUpper(*it++);
+		*out++ = transformer(*it++);
+		*out++ = transformer(*it++);
+		*out++ = transformer(*it++);
+		*out++ = transformer(*it++);
+		*out++ = transformer(*it++);
+		*out++ = transformer(*it++);
+		*out++ = transformer(*it++);
+		*out++ = transformer(*it++);
 	}
 
 	for (; it != ie; )
 	{
-		*out++ = KASCII::kToUpper(*it++);
+		*out++ = transformer(*it++);
 	}
+}
+
+//----------------------------------------------------------------------
+void kMakeUpperASCII(const char* it, const char* ie, char* out)
+//----------------------------------------------------------------------
+{
+	kTransform(it, ie, out, &KASCII::kToUpper);
 }
 
 //----------------------------------------------------------------------
 void kMakeLowerASCII(const char* it, const char* ie, char* out)
 //----------------------------------------------------------------------
 {
-	for (; std::distance(it, ie) >= 8; )
-	{
-		*out++ = KASCII::kToLower(*it++);
-		*out++ = KASCII::kToLower(*it++);
-		*out++ = KASCII::kToLower(*it++);
-		*out++ = KASCII::kToLower(*it++);
-		*out++ = KASCII::kToLower(*it++);
-		*out++ = KASCII::kToLower(*it++);
-		*out++ = KASCII::kToLower(*it++);
-		*out++ = KASCII::kToLower(*it++);
-	}
+	kTransform(it, ie, out, &KASCII::kToLower);
+}
 
-	for (; it != ie; )
-	{
-		*out++ = KASCII::kToLower(*it++);
-	}
+namespace {
+
+//----------------------------------------------------------------------
+char kToUpperLocale(char ch)
+//----------------------------------------------------------------------
+{
+	return static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+}
+
+//----------------------------------------------------------------------
+char kToLowerLocale(char ch)
+//----------------------------------------------------------------------
+{
+	return static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+}
+
 }
 
 //----------------------------------------------------------------------
 void kMakeUpperLocale(const char* it, const char* ie, char* out)
 //----------------------------------------------------------------------
 {
-	for (; std::distance(it, ie) >= 8; )
-	{
-		*out++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
-	}
-
-	for (; it != ie; )
-	{
-		*out++ = static_cast<KString::value_type>(std::toupper(static_cast<unsigned char>(*it++)));
-	}
+	kTransform(it, ie, out, &kToUpperLocale);
 }
 
 //----------------------------------------------------------------------
 void kMakeLowerLocale(const char* it, const char* ie, char* out)
 //----------------------------------------------------------------------
 {
-	for (; std::distance(it, ie) >= 8; )
-	{
-		*out++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
-		*out++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
-	}
-
-	for (; it != ie; )
-	{
-		*out++ = static_cast<KString::value_type>(std::tolower(static_cast<unsigned char>(*it++)));
-	}
+	kTransform(it, ie, out, &kToLowerLocale);
 }
 
 } // end of namespace detail

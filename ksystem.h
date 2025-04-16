@@ -351,6 +351,16 @@ inline std::size_t kGetMicroTicksPerChildProcesses()
 DEKAF2_PUBLIC
 bool kSetGlobalLocale(KStringViewZ sLocale = KStringViewZ{});
 
+/// Set the global locale for all threads. You should
+/// in general leave the global locale untouched - the exception is a server application that does
+/// not reply to the local user, but over the internet. In which case you may probably want to set
+/// the global locale to en_US.UTF-8 (or any other UTF-8 locale if you prefer), and use _local_
+/// locales for serving different regions.
+/// @par locale the std::locale value.
+/// @return true if locale could be set, false otherwise
+DEKAF2_PUBLIC
+bool kSetGlobalLocale(const std::locale& locale);
+
 /// @return the currently set global locale
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 std::locale kGetGlobalLocale();

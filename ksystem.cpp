@@ -1343,23 +1343,40 @@ std::size_t TicksFromRusage(int who)
 } // namespace detail
 
 //-----------------------------------------------------------------------------
-bool kSetGlobalLocale(KStringViewZ sLocale)
+bool kSetGlobalLocale(const std::locale& locale)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY
 	{
-		std::locale::global(std::locale(sLocale.c_str()));
+		std::locale::global(locale);
 
-		kDebug(1, "changed global locale to {}", sLocale);
+		kDebug(1, "changed global locale to {}", locale.name());
 	}
 	DEKAF2_CATCH (const std::exception& ex)
 	{
-		kDebug(1, "failed to change global locale to {}: {}", sLocale, ex.what());
+		kDebug(1, "failed to change global locale to {}: {}", locale.name(), ex.what());
 
 		return false;
 	}
 
 	return true;
+
+} // kSetGlobalLocale
+
+//-----------------------------------------------------------------------------
+bool kSetGlobalLocale(KStringViewZ sLocale)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY
+	{
+		return kSetGlobalLocale(std::locale(sLocale.c_str()));
+	}
+	DEKAF2_CATCH (const std::exception& ex)
+	{
+		kDebug(1, "failed to change global locale to {}: {}", sLocale, ex.what());
+	}
+
+	return false;
 
 } // kSetGlobalLocale
 

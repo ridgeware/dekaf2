@@ -916,7 +916,6 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 			if (it == ie) break;
 			auto ch1 = CodepointCast(*it); ++it;
 
-			// a UTF8 sequence cannot contain characters > 0xf4
 			if (!IsContinuationByte(ch1)) break;
 
 			codepoint |= (ch1 & 0x03f);
@@ -1573,7 +1572,7 @@ KUTF_CONSTEXPR_14
 std::size_t Count(const UTFContainer& UTF, std::size_t iMaxCount = std::size_t(-1))
 //-----------------------------------------------------------------------------
 {
-	return Count(UTF.begin(), UTF.end());
+	return Count(UTF.begin(), UTF.end(), iMaxCount);
 }
 
 //-----------------------------------------------------------------------------

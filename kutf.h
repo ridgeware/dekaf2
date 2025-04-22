@@ -189,7 +189,7 @@
  /// Return iterator at position where a 8 bit string uses invalid ASCII sequences (that is, a value > 0x7f)
  Iterator InvalidASCII(Iterator it, Iterator ie)
 
- /// Return iterator at position where a 8 bit string uses invalid ASCII sequences (that is, a value > 0x7f)
+ /// Return position where a 8 bit string uses invalid ASCII sequences (that is, a value > 0x7f)
  std::size_t InvalidASCII(const String& sASCII)
 
  /// Check if a 8 bit string uses only ASCII codepoints  (that is, values < 0x80)
@@ -207,7 +207,7 @@
  /// Check if a UTF8/16/32 string uses only valid sequences
  bool Valid(const UTFString& sUTF)
 
- /// Check if a UTF8/16/32 string uses only valid sequences
+ /// Return position where a UTF8/16/32 string uses invalid sequences
  typename UTFString::size_type Invalid(const UTFString& sUTF)
 
  /// Returns true if the first non-ASCII codepoint is valid UTF8
@@ -2156,7 +2156,7 @@ public:
 	/// constructs the end iterator
 	ReadIterator() : m_Value(EOF) {}
 	/// construct with a function that returns the next character or EOF, after which the iterator compares equal to the end iterator
-	ReadIterator(std::function<value_type()> func) : m_Func(std::move(func)) {}
+	ReadIterator(std::function<value_type()> func) : m_Func(std::move(func)), m_iIncrement(1) {}
 
 	self_type&      operator++()                  { if (m_Value != EOF) ++m_iIncrement; return *this;      }
 	const self_type operator++(int)               { const self_type i = *this; operator++(); return i;     }
@@ -2184,7 +2184,7 @@ private:
 	}
 
 	std::function<value_type()> m_Func;
-	mutable std::size_t         m_iIncrement { 1 };
+	mutable std::size_t         m_iIncrement { 0 };
 	mutable value_type          m_Value      { 0 };
 
 }; // ReadIterator

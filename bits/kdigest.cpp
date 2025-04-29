@@ -70,6 +70,9 @@ const evp_md_st* KDigest::GetMessageDigest(Digest digest)
 			return EVP_blake2b512();
 #endif
 	}
-}
+
+	return nullptr;
+
+} // GetMessageDigest
 
 DEKAF2_NAMESPACE_END

@@ -209,7 +209,7 @@ const evp_cipher_st* KAES::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
 			break;
 	}
 
-	return {};
+	return nullptr;
 
 } // GetCipher
 

@@ -1010,6 +1010,7 @@ set(PUBLIC_HEADERS
 	dekaf2.h
 	dekaf2all.h
 	kaddrplus.h
+	kaes.h
 	kallocator.h
 	kassociative.h
 	katomic_object.h
@@ -1294,6 +1295,7 @@ set (SOURCES
 	bits/simd/kfindfirstof.cpp
 	bits/simd/kutf.cpp
 	dekaf2.cpp
+	kaes.cpp
 	kawsauth.cpp
 	kbar.cpp
 	kbase64.cpp

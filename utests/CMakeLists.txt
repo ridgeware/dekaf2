@@ -31,6 +31,7 @@ set (UHEADERS
 # keep alphabetic sort order
 set (USOURCES
 	main.cpp
+	kaes_tests.cpp
 	kctype_tests.cpp
 	kallocator_tests.cpp
 	kassociative_tests.cpp

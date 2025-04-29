@@ -1,0 +1,319 @@
+/*
+ //
+ // DEKAF(tm): Lighter, Faster, Smarter(tm)
+ //
+ // Copyright (c) 2025, Ridgeware, Inc.
+ //
+ // +-------------------------------------------------------------------------+
+ // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+ // |/+---------------------------------------------------------------------+/|
+ // |/|                                                                     |/|
+ // |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+ // |/|                                                                     |/|
+ // |\|   OPEN SOURCE LICENSE                                               |\|
+ // |/|                                                                     |/|
+ // |\|   Permission is hereby granted, free of charge, to any person       |\|
+ // |/|   obtaining a copy of this software and associated                  |/|
+ // |\|   documentation files (the "Software"), to deal in the              |\|
+ // |/|   Software without restriction, including without limitation        |/|
+ // |\|   the rights to use, copy, modify, merge, publish,                  |\|
+ // |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+ // |\|   and to permit persons to whom the Software is furnished to        |\|
+ // |/|   do so, subject to the following conditions:                       |/|
+ // |\|                                                                     |\|
+ // |/|   The above copyright notice and this permission notice shall       |/|
+ // |\|   be included in all copies or substantial portions of the          |\|
+ // |/|   Software.                                                         |/|
+ // |\|                                                                     |\|
+ // |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+ // |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+ // |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+ // |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+ // |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+ // |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+ // |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+ // |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+ // |/|                                                                     |/|
+ // |/+---------------------------------------------------------------------+/|
+ // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+ // +-------------------------------------------------------------------------+
+ //
+ */
+
+#pragma once
+
+/// @file kaes.h
+/// symmetrical AES encryption/decryption
+
+#include "kstream.h"
+#include "kstringview.h"
+#include "kstring.h"
+#include "kerror.h"
+#include "bits/kdigest.h"
+
+struct evp_cipher_st;
+struct evp_cipher_ctx_st;
+
+DEKAF2_NAMESPACE_BEGIN
+
+#define DEKAF2_AES_WITH_ECB 0
+#define DEKAF2_AES_WITH_CCM 0
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// base class for symmetrical AES encryption
+class DEKAF2_PUBLIC KAES : public KDigest, public KErrorBase
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	enum Algorithm { AES };
+	enum Direction { Decrypt = 0, Encrypt = 1 };
+	enum Bits      { B128, B192, B256 };
+	enum Mode
+	{
+#if DEKAF2_AES_WITH_ECB
+		ECB,
+#endif
+		CBC,
+#if DEKAF2_AES_WITH_CCM
+		CCM,
+#endif
+		GCM
+	};
+
+	/// AES encryption/decryption with a string to output into - always call Finalize() or destructor to terminate the string
+	/// @param sOutput the string to output into
+	/// @param direction either Decrypt or Encrypt
+	/// @param algorithm always AES for now
+	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param bits one of B128, B192, B256 - defaults to B256
+	/// @param bInlineIVandTag whether the IV and possible tag should for encryption be inserted at the start
+	///  of the ciphertext, and read there for decryption - defaults to true
+	KAES(
+		KStringRef&  sOutput,
+		Direction    direction,
+		Algorithm    algorithm       = AES,
+		Mode         mode            = GCM,
+		Bits         bits            = B256,
+		bool         bInlineIVandTag = true
+	);
+
+	/// AES encryption/decryption with a stream to output into - always call Finalize() or destructor to flush the stream
+	/// @param sOutStream the stream to output into - for GCM it has to be seekable, otherwise an error is set
+	/// @param direction either Decrypt or Encrypt
+	/// @param algorithm always AES for now
+	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param bits one of B128, B192, B256 - defaults to B256
+	/// @param bInlineIVandTag whether the IV and possible tag should for encryption be inserted at the start
+	///  of the ciphertext, and read there for decryption - defaults to true
+	KAES(
+		KOutStream&  OutStream,
+		Direction    direction,
+		Algorithm    algorithm       = AES,
+		Mode         mode            = GCM,
+		Bits         bits            = B256,
+		bool         bInlineIVandTag = true
+	);
+
+	/// copy construction
+	KAES(const KAES&) = delete;
+	/// move construction
+	KAES(KAES&&) noexcept;
+	// destruction
+	~KAES();
+
+	/// copy assignment
+	KAES& operator=(const KAES&) = delete;
+
+	/// set a password and optionally a salt - will be used to compute the key for the cipher
+	/// - call either this or SetKey() after construction
+	bool SetPassword(KStringView sPassword, KStringView sSalt = "");
+	/// set the encryption key - call either this or SetPassword() after construction
+	bool SetKey(KStringView sKey);
+
+	/// returns needed key length in bytes, if you want to create a valid key yourself and set it with SetKey()
+	uint16_t GetNeededKeyLength() const { return m_iKeyLength; }
+	/// returns needed IV length in bytes, if you want to create a valid IV yourself and set it with SetInitializationVector()
+	uint16_t GetNeededIVLength() const { return m_iIVLength; }
+	/// returns block size of the chosen cipher - the input/output functions are independent from the
+	/// block size, this is for information only
+	uint16_t GetBlockSize() const { return m_iBlockSize; }
+	/// returns the name of the chosen cipher - for information only
+	KStringView GetCipherName() const { return m_sCipherName; }
+	/// returns wether this instance is for encryption or decryption
+	Direction GetDirection() const { return m_Direction; }
+
+	/// appends more data from a string
+	bool Add(KStringView sInput);
+	/// appends more data from a stream
+	bool Add(KInStream& InputStream);
+	/// appends more data from a stream
+	bool Add(KInStream&& InputStream);
+
+	/// appends more data from a string
+	KAES& operator+=(KStringView sInput)
+	{
+		Add(sInput);
+		return *this;
+	}
+	/// appends more data from a string
+	void operator()(KStringView sInput)
+	{
+		Add(sInput);
+	}
+	/// appends more data from a stream
+	void operator()(KInStream& InputStream)
+	{
+		Add(InputStream);
+	}
+
+	/// finalize by filling up output to full block size
+	bool Finalize();
+
+	/// for encryption: get the initialization vector as string - you will only need this if you do not want to pass
+	/// IV and authentication tag at the start of the ciphertext - call after adding input data
+	const KString& GetInitializationVector() const { return m_sIV; }
+
+	/// for encryption: get the authentication tag as string - you will only need this if you do not want to pass
+	/// IV and authentication tag at the start of the ciphertext - call after finalizing the encryption
+	const KString& GetAuthenticationTag() const { return m_sTag; }
+
+	/// for decryption: set the initialization vector from a string - you will only need this if you do not want to pass
+	/// IV and authentication tag at the start of the ciphertext - call before adding any input data
+	/// for encryption: if you want to set your own initialization vector instead of a random one, call this
+	/// before adding any input data.
+	bool SetInitializationVector(KStringView sTag);
+
+	/// for decryption: set the authentication tag from a string - you will only need this if you do not want to pass
+	/// IV and authentication tag at the start of the ciphertext and if the selected cipher supports authentication,
+	/// like GCM - call before finalizing the decryption
+	bool SetAuthenticationTag(KStringView sTag);
+
+	/// static: return cipher for algorithm, mode and bits
+	static const evp_cipher_st* GetCipher(Algorithm algorithm, Mode mode, Bits bits);
+
+	/// static: generate a key of iKeyLen bytes size derived from sPassword and sSalt, using an sha256 hmac
+	/// (HKDF, see RFC 5869)
+	static KString CreateKeyFromPasswordHKDF(
+		uint16_t    iKeyLen,
+		KStringView sPassword,
+		KStringView sSalt       = ""
+	 );
+
+	/// static: generate a key of iKeyLen bytes size derived from sPassword and sSalt, using algorithm digest
+	/// with iIterations rounds (PKCS5_PBKDF2_HMAC, see RFC 2898) - better use the HKDF version
+	static KString CreateKeyFromPasswordPKCS5(
+		uint16_t    iKeyLen,
+		KStringView sPassword,
+		KStringView sSalt       = "",
+		Digest      digest      = SHA1,
+		uint16_t    iIterations = 1024
+	 );
+
+//------
+private:
+//------
+
+	bool Initialize(
+		Algorithm    algorithm,
+		Mode         mode,
+		Bits         bits
+	);
+
+	bool CompleteInitialization();
+	void SetOutput(KStringRef& sOutput);
+	void SetOutput(KOutStream& OutStream);
+	bool AddString(KStringView sInput);
+	bool AddStream(KStringView sInput);
+	bool FinalizeString();
+	bool FinalizeStream();
+	void Release() noexcept;
+
+	static KString GetOpenSSLError();
+
+	const evp_cipher_st* m_Cipher        { nullptr };
+	evp_cipher_ctx_st*   m_evpctx        { nullptr };
+	uint16_t             m_iKeyLength    { 0 };
+	uint16_t             m_iIVLength     { 0 };
+	uint16_t             m_iTagLength    { 0 };
+	uint16_t             m_iBlockSize    { 0 };
+	uint16_t             m_iGetIVLength  { 0 };
+	uint16_t             m_iGetTagLength { 0 };
+	KStringView          m_sCipherName;
+	KString              m_sIV;
+	KString              m_sTag;
+	KOutStream*          m_OutStream     { nullptr };
+	KStringRef*          m_OutString     { nullptr };
+	std::streampos       m_StartOfStream {       0 };
+	Direction            m_Direction;
+	bool                 m_bInlineIVandTag { false };
+	bool                 m_bKeyIsSet       { false };
+	bool                 m_bInitCompleted  { false };
+
+}; // KAES
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// AES encryption
+class DEKAF2_PUBLIC KToAES : public KAES
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// AES encryption with a string to output into - always call Finalize() or destructor to terminate the string
+	/// @param sOutput the string to output into
+	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param bits one of B128, B192, B256 - defaults to B256
+	KToAES(KStringRef& sOutput, KAES::Mode mode = KAES::GCM, KAES::Bits bits = KAES::B256)
+	: KAES(sOutput, KAES::Encrypt, KAES::AES, mode, bits)
+	{
+	}
+
+	/// AES encryption with a stream to output into - always call Finalize() or destructor to terminate the string
+	/// @param sOutput the string to output into
+	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param bits one of B128, B192, B256 - defaults to B256
+	KToAES(KOutStream& OutStream, KAES::Mode mode = KAES::GCM, KAES::Bits bits = KAES::B256)
+	: KAES(OutStream, KAES::Encrypt, KAES::AES, mode, bits)
+	{
+	}
+
+}; // KToAES
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// AES decryption
+class DEKAF2_PUBLIC KFromAES : public KAES
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// AES decryption with a string to output into - always call Finalize() or destructor to terminate the string
+	/// @param sOutput the string to output into
+	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param bits one of B128, B192, B256 - defaults to B256
+	KFromAES(KStringRef& sOutput, KAES::Mode mode = KAES::GCM, KAES::Bits bits = KAES::B256)
+	: KAES(sOutput, KAES::Decrypt, KAES::AES, mode, bits)
+	{
+	}
+
+	/// AES decryption with a stream to output into - always call Finalize() or destructor to terminate the string
+	/// @param sOutput the string to output into
+	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param bits one of B128, B192, B256 - defaults to B256
+	KFromAES(KOutStream& OutStream, KAES::Mode mode = KAES::GCM, KAES::Bits bits = KAES::B256)
+	: KAES(OutStream, KAES::Decrypt, KAES::AES, mode, bits)
+	{
+	}
+
+}; // KFromAES
+
+DEKAF2_NAMESPACE_END
+

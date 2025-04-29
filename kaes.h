@@ -51,6 +51,10 @@
 #include "kerror.h"
 #include "bits/kdigest.h"
 
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L
+
+#define DEKAF2_HAS_AES 1
+
 struct evp_cipher_st;
 struct evp_cipher_ctx_st;
 
@@ -317,3 +321,4 @@ public:
 
 DEKAF2_NAMESPACE_END
 
+#endif

@@ -41,17 +41,18 @@
  */
 
 #include "kaes.h"
+
+#if DEKAF2_HAS_AES
+
 #include "kencode.h"
 #include "klog.h"
 #include "kwrite.h"  // for kGetWritePosition()
 #include "kscopeguard.h"
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
-#include <openssl/kdferr.h>
 #include <openssl/core_names.h>
 #include <openssl/rand.h>
 #include <openssl/err.h>
-#include <openssl/evperr.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -223,9 +224,11 @@ KString KAES::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword,
 
 	::OSSL_PARAM params[5], *p = params;
 	*p++ = ::OSSL_PARAM_construct_utf8_string (OSSL_KDF_PARAM_DIGEST, const_cast<char*>(SN_sha256), 0);
-	*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY   , const_cast<char*>("secret") , 6);
-	*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO  , const_cast<char*>("label")  , 5);
-	*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT  , const_cast<char*>("salt")   , 4);
+	*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY   , const_cast<char*>(sPassword.data()), sPassword.size());
+	if (!sSalt.empty())
+	{
+		*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT, const_cast<char*>(sSalt.data()), sSalt.size());
+	}
 	*p   = ::OSSL_PARAM_construct_end();
 
 	KString sKey;
@@ -619,6 +622,9 @@ bool KAES::FinalizeString()
 {
 	if (!m_evpctx || HasError()) return false;
 
+	// clear the outstring on any error return
+	KScopeGuard guard([this]{ m_OutString->clear(); });
+
 	auto iOrigSize = m_OutString->size();
 	m_OutString->resize(iOrigSize + m_iBlockSize);
 	auto pOut = reinterpret_cast<unsigned char*>(m_OutString->data()) + iOrigSize;
@@ -651,6 +657,9 @@ bool KAES::FinalizeString()
 		}
 	}
 
+	// disable the guard, the string is valid
+	guard.release();
+
 	m_OutString->resize(iOrigSize + iOutLen);
 
 	Release();
@@ -669,6 +678,8 @@ bool KAES::FinalizeStream()
 	m_OutString = &sBuffer;
 	KAtScopeEnd(m_OutString = nullptr);
 
+	// we can not easily erase the written output in case the finalization
+	// is invalid - we simply return with false and leave the action to the caller
 	if (!FinalizeString()) return false;
 
 	m_OutStream->Write(sBuffer);
@@ -704,3 +715,5 @@ bool KAES::Finalize()
 } // Finalize
 
 DEKAF2_NAMESPACE_END
+
+#endif

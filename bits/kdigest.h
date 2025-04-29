@@ -45,6 +45,7 @@
 /// @file kdigest.h
 /// (cryptographic) message digest algorithms
 
+#include "../kdefinitions.h"
 #include <openssl/opensslv.h>
 
 #if !defined(DEKAF2_HAS_BLAKE2) \

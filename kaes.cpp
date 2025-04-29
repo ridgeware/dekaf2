@@ -50,7 +50,9 @@
 #include "kscopeguard.h"
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L
 #include <openssl/core_names.h>
+#endif
 #include <openssl/rand.h>
 #include <openssl/err.h>
 
@@ -150,7 +152,7 @@ KString KAES::GetOpenSSLError()
 	{
 		sError.resize(256);
 		::ERR_error_string_n(ec, &sError[0], sError.size());
-		auto iSize = ::strlen(&sError[0]);
+		auto iSize = ::strnlen(&sError[0], sError.size());
 		sError.resize(iSize);
 	}
 
@@ -218,6 +220,8 @@ const evp_cipher_st* KAES::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
 KString KAES::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword, KStringView sSalt)
 //---------------------------------------------------------------------------
 {
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L
+
 	::EVP_KDF* kdf = ::EVP_KDF_fetch(nullptr, "HKDF", nullptr);
 	::EVP_KDF_CTX* kctx = EVP_KDF_CTX_new(kdf);
 	::EVP_KDF_free(kdf);
@@ -231,8 +235,7 @@ KString KAES::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword,
 	}
 	*p   = ::OSSL_PARAM_construct_end();
 
-	KString sKey;
-	sKey.resize(iKeyLen);
+	KString sKey(iKeyLen, '\0');
 
 	if (::EVP_KDF_derive(kctx, reinterpret_cast<unsigned char*>(&sKey[0]), sKey.size(), params) <= 0)
 	{
@@ -244,7 +247,35 @@ KString KAES::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword,
 
 	return sKey;
 
-} // CreateKeyFromPassword
+#elif OPENSSL_VERSION_NUMBER >= 0x010100000L
+
+	KString sKey(iKeyLen, '\0');
+	std::size_t iOutlen = sKey.size();
+
+	EVP_PKEY_CTX* pctx = ::EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
+
+	if (::EVP_PKEY_derive_init(pctx) <= 0                    ||
+		::EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()) <= 0  ||
+		::EVP_PKEY_CTX_set1_hkdf_key(pctx, reinterpret_cast<unsigned char*>(const_cast<char*>(sPassword.data())), static_cast<int>(sPassword.size())) <= 0 ||
+		(!sSalt.empty() && ::EVP_PKEY_CTX_set1_hkdf_salt(pctx, reinterpret_cast<unsigned char*>(const_cast<char*>(sSalt.data())), static_cast<int>(sSalt.size())) <= 0)  ||
+		::EVP_PKEY_derive(pctx, reinterpret_cast<unsigned char*>(&sKey[0]), &iOutlen) <= 0)
+	{
+		sKey.clear();
+		kWarning("cannot generate key: {}", GetOpenSSLError());
+	}
+
+	::EVP_PKEY_CTX_free(pctx);
+
+	return sKey;
+
+#else
+
+	kWarning("a HDKF key derivate was requested, but this OpenSSL version only supports PKCS5_PBKDF2_HMAC");
+	return CreateKeyFromPasswordPKCS5(iKeyLen, sPassword, sSalt);
+
+#endif
+
+} // CreateKeyFromPasswordHKDF
 
 //---------------------------------------------------------------------------
 KString KAES::CreateKeyFromPasswordPKCS5
@@ -276,7 +307,7 @@ KString KAES::CreateKeyFromPasswordPKCS5
 
 	return sKey;
 
-} // CreateKeyFromPassword
+} // CreateKeyFromPasswordPKCS5
 
 //---------------------------------------------------------------------------
 bool KAES::Initialize(
@@ -287,7 +318,11 @@ bool KAES::Initialize(
 //---------------------------------------------------------------------------
 {
 	m_Cipher      = GetCipher(algorithm, mode, bits);
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L
 	m_sCipherName = ::EVP_CIPHER_get0_name (m_Cipher);
+#else
+	m_sCipherName = ::EVP_CIPHER_name (m_Cipher);
+#endif
 	m_evpctx      = ::EVP_CIPHER_CTX_new();
 
 	if (!m_evpctx)
@@ -296,23 +331,36 @@ bool KAES::Initialize(
 	}
 
 	// start the initialization
-	if (!::EVP_CipherInit_ex2(
+	// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
+	// is only supported from v3.0.0 onward
+	if (!::EVP_CipherInit(
 		m_evpctx,
 		m_Cipher,
 		nullptr,
 		nullptr,
-		m_Direction,
-		nullptr)
+		m_Direction)
 	)
 	{
 		return SetError(kFormat("cannot initialize cipher {}: {}", m_sCipherName, GetOpenSSLError()));
 	}
 
 	// get required key and IV lengths
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L
+	m_iBlockSize  = static_cast<std::size_t>(::EVP_CIPHER_CTX_get_block_size (m_evpctx));
 	m_iKeyLength  = static_cast<std::size_t>(::EVP_CIPHER_CTX_get_key_length (m_evpctx));
 	m_iIVLength   = static_cast<std::size_t>(::EVP_CIPHER_CTX_get_iv_length  (m_evpctx));
 	m_iTagLength  = static_cast<std::size_t>(::EVP_CIPHER_CTX_get_tag_length (m_evpctx));
-	m_iBlockSize  = static_cast<std::size_t>(::EVP_CIPHER_CTX_get_block_size (m_evpctx));
+#else
+	m_iBlockSize  = static_cast<std::size_t>(::EVP_CIPHER_CTX_block_size     (m_evpctx));
+	m_iKeyLength  = static_cast<std::size_t>(::EVP_CIPHER_CTX_key_length     (m_evpctx));
+	m_iIVLength   = static_cast<std::size_t>(::EVP_CIPHER_CTX_iv_length      (m_evpctx));
+#if DEKAF2_AES_WITH_CCM
+	if (mode == CCM) m_iTagLength = 12;
+	else
+#endif
+	if (mode == GCM) m_iTagLength = 16;
+	else             m_iTagLength =  0;
+#endif
 
 	kDebug(3, "direction: {}, cipher: {}, keylen: {}, IV len: {}, taglen: {}, blocksize: {}",
 		   m_Direction ? "encrypt" : "decrypt", m_sCipherName, m_iKeyLength, m_iIVLength,
@@ -332,13 +380,14 @@ bool KAES::SetKey(KStringView sKey)
 	}
 
 	// continue the initialization by adding the key
-	if (!::EVP_CipherInit_ex2(
+	// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
+	// is only supported from v3.0.0 onward
+	if (!::EVP_CipherInit(
 		m_evpctx,
 		nullptr,
 		reinterpret_cast<const unsigned char*>(sKey.data()),
 		nullptr,
-		m_Direction,
-		nullptr)
+		m_Direction)
 	)
 	{
 		SetError(kFormat("cannot initialize cipher {}: {}", m_sCipherName, GetOpenSSLError()));
@@ -390,13 +439,14 @@ bool KAES::CompleteInitialization()
 			}
 
 			// complete the initialization by adding key and IV
-			if (!::EVP_CipherInit_ex2(
+			// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
+			// is only supported from v3.0.0 onward
+			if (!::EVP_CipherInit(
 				m_evpctx,
 				nullptr,
 				nullptr,
 				reinterpret_cast<const unsigned char*>(m_sIV.data()),
-				m_Direction,
-				nullptr)
+				m_Direction)
 			)
 			{
 				SetError(kFormat("cannot initialize cipher {}: {}", m_sCipherName, GetOpenSSLError()));
@@ -497,10 +547,7 @@ bool KAES::AddString(KStringView sInput)
 {
 	if (!m_evpctx || HasError()) return false;
 
-	if (!m_bInitCompleted)
-	{
-		if (!CompleteInitialization()) return false;
-	}
+	if (!m_bInitCompleted && !CompleteInitialization()) return false;
 
 	if (GetDirection() == Decrypt)
 	{
@@ -528,14 +575,15 @@ bool KAES::AddString(KStringView sInput)
 			if (m_iGetIVLength > 0) return true;
 
 			// complete the initialization by adding the IV
-			if (!::EVP_CipherInit_ex2(
-									  m_evpctx,
-									  nullptr,
-									  nullptr,
-									  reinterpret_cast<const unsigned char*>(m_sIV.data()),
-									  m_Direction,
-									  nullptr)
-				)
+			// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
+			// is only supported from v3.0.0 onward
+			if (!::EVP_CipherInit(
+				m_evpctx,
+				nullptr,
+				nullptr,
+				reinterpret_cast<const unsigned char*>(m_sIV.data()),
+				m_Direction)
+			)
 			{
 				Release();
 				return SetError(kFormat("cannot set IV {}: {}", m_sCipherName, GetOpenSSLError()));
@@ -546,12 +594,13 @@ bool KAES::AddString(KStringView sInput)
 	// finally go on with encrypting or decrypting the ciphertext
 	auto iOrigSize = m_OutString->size();
 	m_OutString->resize(iOrigSize + sInput.size() + m_iBlockSize);
-	auto pOut = reinterpret_cast<unsigned char*>(m_OutString->data()) + iOrigSize;
+	// we need operator[] to keep this compatible to C++11 / GCC6
+	auto pOut = reinterpret_cast<unsigned char*>(&m_OutString->operator[](0) + iOrigSize);
 	int iOutLen;
 
 	if (!::EVP_CipherUpdate(
 		m_evpctx,
-		reinterpret_cast<unsigned char*>(pOut),
+		pOut,
 		&iOutLen,
 		reinterpret_cast<const unsigned char*>(sInput.data()),
 		static_cast<int>(sInput.size()))
@@ -564,7 +613,7 @@ bool KAES::AddString(KStringView sInput)
 
 	return true;
 
-} // EncryptString
+} // AddString
 
 //---------------------------------------------------------------------------
 bool KAES::AddStream(KStringView sInput)
@@ -579,7 +628,7 @@ bool KAES::AddStream(KStringView sInput)
 	m_OutStream->Write(sBuffer);
 	return m_OutStream->Good();
 
-} // EncryptStream
+} // AddStream
 
 //---------------------------------------------------------------------------
 bool KAES::Add(KStringView sInput)
@@ -606,7 +655,7 @@ bool KAES::Add(KInStream& InputStream)
 		if (iReadChunk < Buffer.size()) return true;
 	}
 
-} // Update
+} // Add
 
 //---------------------------------------------------------------------------
 bool KAES::Add(KInStream&& InputStream)
@@ -614,7 +663,7 @@ bool KAES::Add(KInStream&& InputStream)
 {
 	return Add(InputStream);
 
-} // Encrypt
+} // Add
 
 //---------------------------------------------------------------------------
 bool KAES::FinalizeString()
@@ -623,11 +672,16 @@ bool KAES::FinalizeString()
 	if (!m_evpctx || HasError()) return false;
 
 	// clear the outstring on any error return
-	KScopeGuard guard([this]{ m_OutString->clear(); });
+	// we use a named lambda because we want compatibility with C++11, which needs
+	// a type for KScopeGuard..
+	auto namedLambdaGuard  = [this]() noexcept { m_OutString->clear(); };
+	// construct the scope guard with a type
+	auto guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
 	auto iOrigSize = m_OutString->size();
 	m_OutString->resize(iOrigSize + m_iBlockSize);
-	auto pOut = reinterpret_cast<unsigned char*>(m_OutString->data()) + iOrigSize;
+	// we need operator[] to keep this compatible to C++11 / GCC6
+	auto pOut = reinterpret_cast<unsigned char*>(&m_OutString->operator[](0) + iOrigSize);
 
 	if (m_iTagLength && GetDirection() == Decrypt)
 	{

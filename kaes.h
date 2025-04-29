@@ -51,7 +51,7 @@
 #include "kerror.h"
 #include "bits/kdigest.h"
 
-#if OPENSSL_VERSION_NUMBER >= 0x030000000L
+#if OPENSSL_VERSION_NUMBER >= 0x010000000L
 
 #define DEKAF2_HAS_AES 1
 
@@ -200,7 +200,8 @@ public:
 	static const evp_cipher_st* GetCipher(Algorithm algorithm, Mode mode, Bits bits);
 
 	/// static: generate a key of iKeyLen bytes size derived from sPassword and sSalt, using an sha256 hmac
-	/// (HKDF, see RFC 5869)
+	/// (HKDF, see RFC 5869) - when called with OpenSSL < v1.1.0 this function delegates to
+	/// CreateKeyFromPasswordPKCS5() as the HKDF algorithm is not available before v1.1.0
 	static KString CreateKeyFromPasswordHKDF(
 		uint16_t    iKeyLen,
 		KStringView sPassword,
@@ -213,7 +214,7 @@ public:
 		uint16_t    iKeyLen,
 		KStringView sPassword,
 		KStringView sSalt       = "",
-		Digest      digest      = SHA1,
+		Digest      digest      = SHA256,
 		uint16_t    iIterations = 1024
 	 );
 
@@ -321,4 +322,4 @@ public:
 
 DEKAF2_NAMESPACE_END
 
-#endif
+#endif // of OPENSSL_VERSION_NUMBER >= 0x010000000L

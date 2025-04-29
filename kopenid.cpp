@@ -495,7 +495,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 				break;
 			}
 
-			KRSAVerify::ALGORITHM Algorithm;
+			KRSAVerify::Digest Algorithm;
 
 			if (sAlgorithm == "RS256")
 			{

@@ -48,13 +48,13 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
-KRSASign::KRSASign(ALGORITHM Algorithm, KStringView sMessage)
+KRSASign::KRSASign(Digest digest, KStringView sMessage)
 //---------------------------------------------------------------------------
 // The real update function is EVP_SignUpdate, but as that is defined as a macro
 // (on EVP_DigestUpdate) the compiler cannot take it as a function argument. Therefore
 // we insert the aliased target directly. Needs changes should the alias change in
 // OpenSSL.
-: KMessageDigestBase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate))
+: KMessageDigestBase(digest, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate))
 {
 	if (!sMessage.empty())
 	{
@@ -91,13 +91,13 @@ KString KRSASign::Sign(const KRSAKey& Key) const
 } // Signature
 
 //---------------------------------------------------------------------------
-KRSAVerify::KRSAVerify(ALGORITHM Algorithm, KStringView sMessage)
+KRSAVerify::KRSAVerify(Digest digest, KStringView sMessage)
 //---------------------------------------------------------------------------
 // The real update function is EVP_VerifyUpdate, but as that is defined as a macro
 // (on EVP_DigestUpdate) the compiler cannot take it as a function argument. Therefore
 // we insert the aliased target directly. Needs changes should the alias change in
 // OpenSSL.
-: KMessageDigestBase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate))
+: KMessageDigestBase(digest, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate))
 {
 	if (!sMessage.empty())
 	{

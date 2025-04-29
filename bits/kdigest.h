@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter(tm)
  //
- // Copyright (c) 2019, Ridgeware, Inc.
+ // Copyright (c) 2018, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -42,22 +42,26 @@
 
 #pragma once
 
-/// @file krsasign.h
-/// RSA signatures
+/// @file kdigest.h
+/// (cryptographic) message digest algorithms
 
-#include "kstream.h"
-#include "kstringview.h"
-#include "kstring.h"
-#include "krsakey.h"
-#include "kmessagedigest.h"
+#include <openssl/opensslv.h>
 
+#if !defined(DEKAF2_HAS_BLAKE2) \
+  && (OPENSSL_VERSION_NUMBER >= 0x030000000L \
+    || (OPENSSL_VERSION_NUMBER >= 0x010100000 && OPENSSL_VERSION_NUMBER < 0x020000000L))
+	#define DEKAF2_HAS_BLAKE2 1
+	struct evp_md_st;
+#else
+	struct env_md_st;
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KRSASign gives the interface for all RSA signature algorithms. The
-/// framework allows to calculate signatures out of strings and streams.
-class DEKAF2_PUBLIC KRSASign : public detail::KMessageDigestBase
+/// KDigestAlgorithms constructs the basic algorithms for message digest
+/// computations, used by KMessageDigest and KRSASign
+class DEKAF2_PUBLIC KDigest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -65,29 +69,22 @@ class DEKAF2_PUBLIC KRSASign : public detail::KMessageDigestBase
 public:
 //------
 
-	KRSASign(Digest digest, KStringView sMessage = KStringView{});
+	enum Digest
+	{
+		MD5,
+		SHA1,
+		SHA224,
+		SHA256,
+		SHA384,
+		SHA512,
+#if DEKAF2_HAS_BLAKE2
+		BLAKE2S,
+		BLAKE2B,
+#endif
+	};
 
-	/// returns the signature
-	KString Sign(const KRSAKey& Key) const;
+	static const evp_md_st* GetMessageDigest(Digest digest);
 
-}; // KRSASign
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KRSAVerify gives the interface for all RSA signature verification algorithms. The
-/// framework allows to calculate signatures out of strings and streams.
-class DEKAF2_PUBLIC KRSAVerify : public detail::KMessageDigestBase
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	KRSAVerify(Digest digest, KStringView sMessage = KStringView{});
-
-	/// verifies the signature
-	bool Verify(const KRSAKey& Key, KStringView sSignature) const;
-
-}; // KRSASign
+};
 
 DEKAF2_NAMESPACE_END

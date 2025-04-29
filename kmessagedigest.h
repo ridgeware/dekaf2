@@ -49,50 +49,29 @@
 #include "kstream.h"
 #include "kstringview.h"
 #include "kstring.h"
-
+#include "bits/kdigest.h"
 
 #if OPENSSL_VERSION_NUMBER >= 0x030000000L \
   || (OPENSSL_VERSION_NUMBER >= 0x010100000 && OPENSSL_VERSION_NUMBER < 0x020000000L)
-struct evp_md_ctx_st;
+	struct evp_md_ctx_st;
 #else
-struct env_md_ctx_st;
+	struct env_md_ctx_st;
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
 
-#if !defined(DEKAF2_HAS_BLAKE2) \
-  && (OPENSSL_VERSION_NUMBER >= 0x030000000L \
-    || (OPENSSL_VERSION_NUMBER >= 0x010100000 && OPENSSL_VERSION_NUMBER < 0x020000000L))
-
-#define DEKAF2_HAS_BLAKE2 1
-
-#endif
+namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KMessageDigestBase constructs the basic algorithms for message digest
 /// computations, used by KMessageDigest and KRSASign
-class DEKAF2_PUBLIC KMessageDigestBase
+class DEKAF2_PUBLIC KMessageDigestBase : public KDigest
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
 public:
 //------
-
-	enum ALGORITHM
-	{
-		NONE,
-		MD5,
-		SHA1,
-		SHA224,
-		SHA256,
-		SHA384,
-		SHA512,
-#if DEKAF2_HAS_BLAKE2
-		BLAKE2S,
-		BLAKE2B,
-#endif
-	};
 
 	/// copy construction
 	KMessageDigestBase(const KMessageDigestBase&) = delete;
@@ -139,7 +118,7 @@ protected:
 	using UpdateFunc = int(*)(void*, const void*, size_t);
 
 	/// construction
-	KMessageDigestBase(ALGORITHM Algorithm, UpdateFunc _Updater);
+	KMessageDigestBase(Digest digest, UpdateFunc _Updater);
 
 	/// prepares for new computation
 	void clear();
@@ -155,12 +134,14 @@ protected:
 #endif
 	UpdateFunc Updater { nullptr }; // is a EVP_Update function
 
-}; // KMessageDigest
+}; // KMessageDigestBase
+
+} // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KMessageDigest gives the interface for all message digest algorithms. The
 /// framework allows to calculate digests out of strings and streams.
-class DEKAF2_PUBLIC KMessageDigest : public KMessageDigestBase
+class DEKAF2_PUBLIC KMessageDigest : public detail::KMessageDigestBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -169,7 +150,7 @@ public:
 //------
 
 	/// construction
-	KMessageDigest(ALGORITHM Algorithm, KStringView sMessage = KStringView{});
+	KMessageDigest(enum Digest digest, KStringView sMessage = KStringView{});
 
 	/// copy construction
 	KMessageDigest(const KMessageDigest&) = delete;

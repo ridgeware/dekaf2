@@ -975,6 +975,7 @@ set (BITS_HEADERS
 	bits/kasiostream.h
 	bits/kbaseshell.h
 	bits/kbasepipe.h
+	bits/kdigest.h
 	bits/kfilesystem.h
 	bits/kfindsetofchars.h
 	bits/kformat.h
@@ -1284,6 +1285,7 @@ set (SOURCES
 	# KEEP ALPHABETIZED
 	bits/kbasepipe.cpp
 	bits/kbaseshell.cpp
+	bits/kdigest.cpp
 	bits/kfindsetofchars.cpp
 	bits/klogwriter.cpp
 	bits/klogserializer.cpp

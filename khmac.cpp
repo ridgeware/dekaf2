@@ -43,29 +43,30 @@
 #include "khmac.h"
 #include "kencode.h"
 #include "klog.h"
+#include <openssl/opensslv.h>
 #include <openssl/hmac.h>
 
 // OpenSSL 3.0 introduces a new HMAC interface and makes the
 // old one deprecated. For now simply ignore the deprecation.
 #if OPENSSL_VERSION_NUMBER >= 0x030000000
-#ifdef DEKAF2_IS_CLANG
-#pragma clang diagnostic push
-#ifdef DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-#endif
-#ifdef DEKAF2_IS_GCC
-#pragma GCC diagnostic push
-#ifdef DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-#endif
+	#ifdef DEKAF2_IS_CLANG
+		#pragma clang diagnostic push
+		#ifdef DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS
+			#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+		#endif
+	#endif
+	#ifdef DEKAF2_IS_GCC
+		#pragma GCC diagnostic push
+		#ifdef DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS
+			#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+		#endif
+	#endif
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
-KHMAC::KHMAC(ALGORITHM Algorithm, KStringView sKey, KStringView sMessage)
+KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
 #if OPENSSL_VERSION_NUMBER < 0x010100000
@@ -81,50 +82,7 @@ KHMAC::KHMAC(ALGORITHM Algorithm, KStringView sKey, KStringView sMessage)
 		return;
 	}
 
-	const EVP_MD*(*callback)(void) = nullptr;
-
-	switch (Algorithm)
-	{
-		case MD5:
-			callback = EVP_md5;
-			break;
-
-		case SHA1:
-			callback = EVP_sha1;
-			break;
-
-		case SHA224:
-			callback = EVP_sha224;
-			break;
-
-		case SHA256:
-			callback = EVP_sha256;
-			break;
-
-		case SHA384:
-			callback = EVP_sha384;
-			break;
-
-		case SHA512:
-			callback = EVP_sha512;
-			break;
-
-#if DEKAF2_HAS_BLAKE2
-		case BLAKE2S:
-			callback = EVP_blake2s256;
-			break;
-
-		case BLAKE2B:
-			callback = EVP_blake2b512;
-			break;
-#endif
-		case NONE:
-            kDebug(1, "no algorithm selected");
-            Release();
-            return;
-	}
-
-	if (1 != HMAC_Init_ex(hmacctx, sKey.data(), static_cast<int>(sKey.size()), callback(), nullptr))
+	if (1 != HMAC_Init_ex(hmacctx, sKey.data(), static_cast<int>(sKey.size()), GetMessageDigest(digest), nullptr))
 	{
 		kDebug(1, "cannot initialize algorithm");
 		Release();
@@ -270,10 +228,10 @@ KString KHMAC::HexDigest() const
 DEKAF2_NAMESPACE_END
 
 #if OPENSSL_VERSION_NUMBER >= 0x030000000
-#ifdef DEKAF2_IS_GCC
-#pragma GCC diagnostic pop
-#endif
-#ifdef DEKAF2_IS_CLANG
-#pragma clang diagnostic pop
-#endif
+	#ifdef DEKAF2_IS_GCC
+		#pragma GCC diagnostic pop
+	#endif
+	#ifdef DEKAF2_IS_CLANG
+		#pragma clang diagnostic pop
+	#endif
 #endif

@@ -47,17 +47,19 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace detail {
+
 //---------------------------------------------------------------------------
-KMessageDigestBase::KMessageDigestBase(ALGORITHM Algorithm, UpdateFunc _Updater)
+KMessageDigestBase::KMessageDigestBase(Digest digest, UpdateFunc _Updater)
 //---------------------------------------------------------------------------
-	: Updater(_Updater)
+: Updater(_Updater)
 {
 	// 0x000906000 == 0.9.6 dev
 	// 0x010100000 == 1.1.0
 #if OPENSSL_VERSION_NUMBER < 0x010100000
-	evpctx = EVP_MD_CTX_create();
+	evpctx = ::EVP_MD_CTX_create();
 #else
-	evpctx = EVP_MD_CTX_new();
+	evpctx = ::EVP_MD_CTX_new();
 #endif
 
 	if (!evpctx)
@@ -67,50 +69,7 @@ KMessageDigestBase::KMessageDigestBase(ALGORITHM Algorithm, UpdateFunc _Updater)
 		return;
 	}
 
-	const EVP_MD*(*callback)(void) = nullptr;
-
-	switch (Algorithm)
-	{
-		case MD5:
-			callback = EVP_md5;
-			break;
-
-		case SHA1:
-			callback = EVP_sha1;
-			break;
-
-		case SHA224:
-			callback = EVP_sha224;
-			break;
-
-		case SHA256:
-			callback = EVP_sha256;
-			break;
-
-		case SHA384:
-			callback = EVP_sha384;
-			break;
-
-		case SHA512:
-			callback = EVP_sha512;
-			break;
-
-#if DEKAF2_HAS_BLAKE2
-		case BLAKE2S:
-			callback = EVP_blake2s256;
-			break;
-
-		case BLAKE2B:
-			callback = EVP_blake2b512;
-			break;
-#endif
-		case NONE:
-            kDebug(1, "no algorithm selected");
-            Release();
-            return;
-	}
-
-	if (1 != EVP_SignInit(evpctx, callback()))
+	if (1 != ::EVP_SignInit(evpctx, GetMessageDigest(digest)))
 	{
 		kDebug(1, "cannot initialize algorithm");
 		Release();
@@ -127,9 +86,9 @@ void KMessageDigestBase::Release() noexcept
 	if (evpctx)
 	{
 #if OPENSSL_VERSION_NUMBER < 0x010100000
-		EVP_MD_CTX_destroy(evpctx);
+		::EVP_MD_CTX_destroy(evpctx);
 #else
-		EVP_MD_CTX_free(evpctx);
+		::EVP_MD_CTX_free(evpctx);
 #endif
 		evpctx = nullptr;
 	}
@@ -148,12 +107,12 @@ void KMessageDigestBase::clear()
 	}
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000
-	const EVP_MD* md = EVP_MD_CTX_md(evpctx);
+	const EVP_MD* md = ::EVP_MD_CTX_md(evpctx);
 #else
-	const EVP_MD* md = EVP_MD_CTX_get0_md(evpctx);
+	const EVP_MD* md = ::EVP_MD_CTX_get0_md(evpctx);
 #endif
 
-	if (1 != EVP_DigestInit_ex(evpctx, md, nullptr))
+	if (1 != ::EVP_DigestInit_ex(evpctx, md, nullptr))
 	{
 		kDebug(1, "failed");
 		Release();
@@ -165,7 +124,7 @@ void KMessageDigestBase::clear()
 //---------------------------------------------------------------------------
 KMessageDigestBase::KMessageDigestBase(KMessageDigestBase&& other) noexcept
 //---------------------------------------------------------------------------
-	: evpctx(other.evpctx)
+: evpctx(other.evpctx)
 {
 	other.evpctx = nullptr;
 
@@ -238,10 +197,12 @@ bool KMessageDigestBase::Update(KInStream&& InputStream)
 
 } // Update
 
+} // end of namespace detail
+
 //---------------------------------------------------------------------------
-KMessageDigest::KMessageDigest(ALGORITHM Algorithm, KStringView sMessage)
+KMessageDigest::KMessageDigest(enum Digest digest, KStringView sMessage)
 //---------------------------------------------------------------------------
-	: KMessageDigestBase(Algorithm, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate))
+	: KMessageDigestBase(digest, reinterpret_cast<UpdateFunc>(::EVP_DigestUpdate))
 {
 	if (!sMessage.empty())
 	{
@@ -267,7 +228,7 @@ const KString& KMessageDigest::Digest() const
 		std::array<unsigned char, EVP_MAX_MD_SIZE> Buffer;
 		unsigned int iDigestLen;
 
-		if (1 != EVP_DigestFinal_ex(evpctx, Buffer.data(), &iDigestLen))
+		if (1 != ::EVP_DigestFinal_ex(evpctx, Buffer.data(), &iDigestLen))
 		{
 			kDebug(1, "cannot read digest");
 		}
@@ -294,7 +255,7 @@ KString KMessageDigest::HexDigest() const
 
 } // HexDigest
 
-static_assert(std::is_nothrow_move_constructible<KMessageDigestBase>::value,
+static_assert(std::is_nothrow_move_constructible<detail::KMessageDigestBase>::value,
 			  "KMessageDigestBase is intended to be nothrow move constructible, but is not!");
 
 static_assert(std::is_nothrow_move_constructible<KMessageDigest>::value,

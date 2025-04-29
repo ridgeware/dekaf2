@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter(tm)
  //
- // Copyright (c) 2019, Ridgeware, Inc.
+ // Copyright (c) 2018, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -40,54 +40,36 @@
  //
  */
 
-#pragma once
-
-/// @file krsasign.h
-/// RSA signatures
-
-#include "kstream.h"
-#include "kstringview.h"
-#include "kstring.h"
-#include "krsakey.h"
-#include "kmessagedigest.h"
-
+#include "kdigest.h"
+#include <openssl/evp.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KRSASign gives the interface for all RSA signature algorithms. The
-/// framework allows to calculate signatures out of strings and streams.
-class DEKAF2_PUBLIC KRSASign : public detail::KMessageDigestBase
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//---------------------------------------------------------------------------
+const evp_md_st* KDigest::GetMessageDigest(Digest digest)
+//---------------------------------------------------------------------------
 {
-
-//------
-public:
-//------
-
-	KRSASign(Digest digest, KStringView sMessage = KStringView{});
-
-	/// returns the signature
-	KString Sign(const KRSAKey& Key) const;
-
-}; // KRSASign
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KRSAVerify gives the interface for all RSA signature verification algorithms. The
-/// framework allows to calculate signatures out of strings and streams.
-class DEKAF2_PUBLIC KRSAVerify : public detail::KMessageDigestBase
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	KRSAVerify(Digest digest, KStringView sMessage = KStringView{});
-
-	/// verifies the signature
-	bool Verify(const KRSAKey& Key, KStringView sSignature) const;
-
-}; // KRSASign
+	switch (digest)
+	{
+		case MD5:
+			return EVP_md5();
+		case SHA1:
+			return EVP_sha1();
+		case SHA224:
+			return EVP_sha224();
+		case SHA256:
+			return EVP_sha256();
+		case SHA384:
+			return EVP_sha384();
+		case SHA512:
+			return EVP_sha512();
+#if DEKAF2_HAS_BLAKE2
+		case BLAKE2S:
+			return EVP_blake2s256();
+		case BLAKE2B:
+			return EVP_blake2b512();
+#endif
+	}
+}
 
 DEKAF2_NAMESPACE_END

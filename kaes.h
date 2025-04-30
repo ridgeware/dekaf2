@@ -51,7 +51,8 @@
 #include "kerror.h"
 #include "bits/kdigest.h"
 
-#if OPENSSL_VERSION_NUMBER >= 0x010000000L
+// PKCS5_PBKDF2_HMAC was introduced with OpenSSL v1.0.2
+#if OPENSSL_VERSION_NUMBER >= 0x010002000L
 
 #define DEKAF2_HAS_AES 1
 
@@ -322,4 +323,4 @@ public:
 
 DEKAF2_NAMESPACE_END
 
-#endif // of OPENSSL_VERSION_NUMBER >= 0x010000000L
+#endif // of OPENSSL_VERSION_NUMBER >= 0x010002000L

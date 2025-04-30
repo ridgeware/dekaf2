@@ -48,6 +48,8 @@
 #include "klog.h"
 #include "kwrite.h"  // for kGetWritePosition()
 #include "kscopeguard.h"
+#include "kcrashexit.h"
+
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
 #if OPENSSL_VERSION_NUMBER >= 0x030000000L
@@ -593,7 +595,10 @@ bool KAES::AddString(KStringView sInput)
 
 	// finally go on with encrypting or decrypting the ciphertext
 	auto iOrigSize = m_OutString->size();
-	m_OutString->resize(iOrigSize + sInput.size() + m_iBlockSize);
+	// check if we have to provide more output to accomodate a block size of > 1 - a block
+	// size of 1 means that there is no buffering
+	auto iLocalBlockSize = (m_iBlockSize <= 1) ? 0 : m_iBlockSize;
+	m_OutString->resize(iOrigSize + sInput.size() + iLocalBlockSize);
 	// we need operator[] to keep this compatible to C++11 / GCC6
 	auto pOut = reinterpret_cast<unsigned char*>(&m_OutString->operator[](0) + iOrigSize);
 	int iOutLen;
@@ -609,7 +614,9 @@ bool KAES::AddString(KStringView sInput)
 		return SetError(kFormat("{} failed: {}", m_Direction ? "encryption" : "decryption", GetOpenSSLError()));
 	}
 
-	m_OutString->resize(iOrigSize + iOutLen);
+	kAssert(iLocalBlockSize < static_cast<uint16_t>(iOutLen), "iLocalBlockSize too small");
+
+	if (iLocalBlockSize) m_OutString->resize(iOrigSize + iOutLen);
 
 	return true;
 
@@ -679,7 +686,13 @@ bool KAES::FinalizeString()
 	auto guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
 	auto iOrigSize = m_OutString->size();
-	m_OutString->resize(iOrigSize + m_iBlockSize);
+
+	if (m_iBlockSize > 1)
+	{
+		// prepare for a final flush from the operation
+		m_OutString->resize(iOrigSize + m_iBlockSize);
+	}
+
 	// we need operator[] to keep this compatible to C++11 / GCC6
 	auto pOut = reinterpret_cast<unsigned char*>(&m_OutString->operator[](0) + iOrigSize);
 
@@ -687,7 +700,11 @@ bool KAES::FinalizeString()
 	{
 		if (m_sTag.empty()) return SetError("missing authentication tag");
 		if (m_sTag.size() != m_iTagLength) return SetError(kFormat("tag size of {} but need {}", m_sTag.size(), m_iTagLength));
-		::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_SET_TAG, static_cast<int>(m_iTagLength), m_sTag.data());
+
+		if (!::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_SET_TAG, static_cast<int>(m_iTagLength), m_sTag.data()))
+		{
+			return SetError(kFormat("{}: cannot set tag: {}", "decryption", GetOpenSSLError()));
+		}
 	}
 
 	int iOutLen;
@@ -702,7 +719,11 @@ bool KAES::FinalizeString()
 	if (m_iTagLength && GetDirection() == Encrypt)
 	{
 		m_sTag.resize(m_iTagLength);
-		::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_GET_TAG, static_cast<int>(m_iTagLength), &m_sTag[0]);
+
+		if (!::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_GET_TAG, static_cast<int>(m_iTagLength), &m_sTag[0]))
+		{
+			return SetError(kFormat("{}: cannot get tag: {}", "encryption", GetOpenSSLError()));
+		}
 
 		if (m_bInlineIVandTag && !m_OutStream && m_OutString)
 		{
@@ -714,7 +735,15 @@ bool KAES::FinalizeString()
 	// disable the guard, the string is valid
 	guard.release();
 
-	m_OutString->resize(iOrigSize + iOutLen);
+	if (m_iBlockSize > 1)
+	{
+		m_OutString->resize(iOrigSize + iOutLen);
+	}
+	else
+	{
+		// check if the assumption holds true that blocksize 1 means no further flush
+		kAssert(iOutLen == 0, "blocksize is 1, but outlen is > 0");
+	}
 
 	Release();
 

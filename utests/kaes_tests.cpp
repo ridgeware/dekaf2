@@ -72,6 +72,26 @@ TEST_CASE("KAES")
 		CHECK ( sDecrypted == sClearText );
 	}
 
+	SECTION("AES CBC 192")
+	{
+		KString sClearText = "this is a secret message for your eyes only";
+		KStringView sPassword = "MySecretPassword";
+
+		KString sEncrypted;
+		KToAES Encryptor(sEncrypted, KAES::CBC, KAES::B192);
+		Encryptor.SetPassword(sPassword);
+		Encryptor(sClearText);
+		CHECK ( Encryptor.Finalize() );
+
+		KString sDecrypted;
+		KFromAES Decryptor(sDecrypted, KAES::CBC, KAES::B192);
+		Decryptor.SetPassword(sPassword);
+		Decryptor(sEncrypted);
+		CHECK ( Decryptor.Finalize() );
+
+		CHECK ( sDecrypted == sClearText );
+	}
+
 	SECTION("AES CBC 256")
 	{
 		KString sClearText = "this is a secret message for your eyes only";
@@ -113,6 +133,26 @@ TEST_CASE("KAES")
 		CHECK ( sDecrypted == sClearText );
 	}
 
+	SECTION("AES CCM 192")
+	{
+		KString sClearText = "this is a secret message for your eyes only";
+		KStringView sPassword = "MySecretPassword";
+
+		KString sEncrypted;
+		KToAES Encryptor(sEncrypted, KAES::CCM, KAES::B192);
+		Encryptor.SetPassword(sPassword);
+		Encryptor(sClearText);
+		CHECK ( Encryptor.Finalize() );
+
+		KString sDecrypted;
+		KFromAES Decryptor(sDecrypted, KAES::CCM, KAES::B192);
+		Decryptor.SetPassword(sPassword);
+		Decryptor(sEncrypted);
+		CHECK ( Decryptor.Finalize() );
+
+		CHECK ( sDecrypted == sClearText );
+	}
+
 	SECTION("AES CCM 256")
 	{
 		KString sClearText = "this is a secret message for your eyes only";
@@ -147,6 +187,26 @@ TEST_CASE("KAES")
 
 		KString sDecrypted;
 		KFromAES Decryptor(sDecrypted, KAES::GCM, KAES::B128);
+		Decryptor.SetPassword(sPassword);
+		Decryptor(sEncrypted);
+		CHECK ( Decryptor.Finalize() );
+
+		CHECK ( sDecrypted == sClearText );
+	}
+
+	SECTION("AES GCM 192")
+	{
+		KString sClearText = "this is a secret message for your eyes only";
+		KStringView sPassword = "MySecretPassword";
+
+		KString sEncrypted;
+		KToAES Encryptor(sEncrypted, KAES::GCM, KAES::B192);
+		Encryptor.SetPassword(sPassword);
+		Encryptor(sClearText);
+		CHECK ( Encryptor.Finalize() );
+
+		KString sDecrypted;
+		KFromAES Decryptor(sDecrypted, KAES::GCM, KAES::B192);
 		Decryptor.SetPassword(sPassword);
 		Decryptor(sEncrypted);
 		CHECK ( Decryptor.Finalize() );

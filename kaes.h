@@ -357,7 +357,6 @@ public:
 /// Decryptor.Add(sEncrypted);        ///< add the ciphertext
 /// Decryptor.Finalize();             ///< finalize the decryption (also called by destructor)
 /// @endcode
-/// please note that we used the child classes KToAES and KFromAES instead of KAES for ease of typing.
 ///
 class DEKAF2_PUBLIC KFromAES : public KAES
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

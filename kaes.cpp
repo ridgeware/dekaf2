@@ -719,6 +719,11 @@ bool KAES::FinalizeString()
 {
 	if (!m_evpctx || HasError()) return false;
 
+#if OPENSSL_VERSION_NUMBER < 0x030000000L
+	// do not call EVP_CipherFinal_ex() in CCM mode - it fails with old OpenSSL versions (and is not needed)
+	if (GetDirection() == Decrypt && GetMode() == Mode::CCM) return true;
+#endif
+
 	// clear the outstring on any error return
 	// we use a named lambda because we want compatibility with C++11, which needs
 	// a type for KScopeGuard..

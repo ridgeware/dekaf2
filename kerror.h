@@ -70,8 +70,9 @@ public:
 
 	using base::base;
 
-	/// should we throw on errors, or should they only be noted in GetError() (on construction, throwing is off)
-	void SetThrowOnError(bool bYes) { m_bThrow = bYes; }
+	/// should we throw on errors, or should they only be noted in GetError() (on construction, throwing is off
+	/// - once we switch this on, any already collected error leads to throwing, too)
+	void SetThrowOnError(bool bYes);
 
 	/// returns true if this class would throw on error
 	DEKAF2_NODISCARD
@@ -112,12 +113,12 @@ protected:
 	/// set an error description according to latest errno
 	bool SetErrnoError(KStringView sPrefix = "os error: ",       KStringView sFunction = KSourceLocation::current().function_name()) const;
 
-	// throw when setting error string?
-	bool m_bThrow { false };
-
 //----------
 private:
 //----------
+
+	// throw when setting error string?
+	bool m_bThrow { false };
 
 }; // KErrorBase
 

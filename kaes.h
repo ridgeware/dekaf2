@@ -61,11 +61,55 @@ struct evp_cipher_ctx_st;
 
 DEKAF2_NAMESPACE_BEGIN
 
-#define DEKAF2_AES_WITH_ECB 0
-#define DEKAF2_AES_WITH_CCM 0
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// base class for symmetrical AES encryption
+/// Symmetrical AES encryption.
+///
+/// Supported modes are ECB, CBC, CCM and GCM.
+/// - Avoid ECB if you do not know its limitations.
+/// - Prefer GCM if you want to make sure the message has not been tampered with.
+/// - CCM mode allows only one single input round, and is slower than GCM.
+/// - If you do not need message integrity checks use CBC, else GCM
+///
+/// Per default, KAES computes needed initialization vectors itself, and inserts these, as well as possible
+/// authentication tags in CCM and GCM modes, at the start of the ciphertext and extracts these there
+/// on decryption.
+///
+/// Currently KAES does not support AAD data (for CCM and GCM).
+///
+/// After instantiation you have to set either a password and optional salt, or a key of the right size, see
+/// SetPassword() and SetKey().
+/// Please note that when you use a salted password you have to send both the password and the salt
+/// to the decryptor, as the salt is not included in the ciphertext.
+///
+/// You can compute keys with password based key derivation functions, see CreateKeyFromPasswordHKDF()
+/// and CreateKeyFromPasswordPKCS5(). The former is are also internally used when you set a password
+/// instead of a key.
+///
+/// If you chose to _not_ inline the initialization vector and possible authentication tag into the ciphertext
+/// you have to send both (or only the IV for CBC mode) to the decryptor, and use SetInitializationVector()
+/// and SetAuthenticationTag() to feed them into KAES for decryption.
+///
+/// A typical encryption - decryption setup may look like:
+/// @code
+/// KString sPlainText = "this is a secret message for your eyes only";
+/// KStringView sPassword = "MySecretPassword";
+///
+/// KString sEncrypted;               ///< will take the ciphertext
+/// KToAES Encryptor(sEncrypted);     ///< uses default mode GCM with 256 bits
+/// Encryptor.SetThrowOnError(true);  ///< make sure we throw in case of errors
+/// Encryptor.SetPassword(sPassword); ///< set key derived from password
+/// Encryptor.Add(sPlainText);        ///< add the plaintext
+/// Encryptor.Finalize();             ///< finalize the encryption (also called by destructor)
+///
+/// KString sDecrypted;
+/// KFromAES Decryptor(sDecrypted);
+/// Decryptor.SetThrowOnError(true);
+/// Decryptor.SetPassword(sPassword);
+/// Decryptor.Add(sEncrypted);
+/// Decryptor.Finalize();
+/// @endcode
+/// please note that we used the child classes KToAES and KFromAES instead of KAES for ease of typing.
+///
 class DEKAF2_PUBLIC KAES : public KDigest, public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -77,23 +121,13 @@ public:
 	enum Algorithm { AES };
 	enum Direction { Decrypt = 0, Encrypt = 1 };
 	enum Bits      { B128, B192, B256 };
-	enum Mode
-	{
-#if DEKAF2_AES_WITH_ECB
-		ECB,
-#endif
-		CBC,
-#if DEKAF2_AES_WITH_CCM
-		CCM,
-#endif
-		GCM
-	};
+	enum Mode      { ECB, CBC, CCM, GCM };
 
 	/// AES encryption/decryption with a string to output into - always call Finalize() or destructor to terminate the string
 	/// @param sOutput the string to output into
 	/// @param direction either Decrypt or Encrypt
 	/// @param algorithm always AES for now
-	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param mode either ECB, CBC, CCM or GCM - defaults to GCM
 	/// @param bits one of B128, B192, B256 - defaults to B256
 	/// @param bInlineIVandTag whether the IV and possible tag should for encryption be inserted at the start
 	///  of the ciphertext, and read there for decryption - defaults to true
@@ -110,7 +144,7 @@ public:
 	/// @param sOutStream the stream to output into - for GCM it has to be seekable, otherwise an error is set
 	/// @param direction either Decrypt or Encrypt
 	/// @param algorithm always AES for now
-	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param mode either ECB, CBC, CCM or GCM - defaults to GCM
 	/// @param bits one of B128, B192, B256 - defaults to B256
 	/// @param bInlineIVandTag whether the IV and possible tag should for encryption be inserted at the start
 	///  of the ciphertext, and read there for decryption - defaults to true
@@ -150,6 +184,8 @@ public:
 	KStringView GetCipherName() const { return m_sCipherName; }
 	/// returns wether this instance is for encryption or decryption
 	Direction GetDirection() const { return m_Direction; }
+	/// returns the cipher mode
+	Mode GetMode() const { return m_Mode; }
 
 	/// appends more data from a string
 	bool Add(KStringView sInput);
@@ -225,13 +261,13 @@ private:
 
 	bool Initialize(
 		Algorithm    algorithm,
-		Mode         mode,
 		Bits         bits
 	);
 
 	bool CompleteInitialization();
 	void SetOutput(KStringRef& sOutput);
 	void SetOutput(KOutStream& OutStream);
+	bool SetTag();
 	bool AddString(KStringView sInput);
 	bool AddStream(KStringView sInput);
 	bool FinalizeString();
@@ -255,6 +291,7 @@ private:
 	KStringRef*          m_OutString     { nullptr };
 	std::streampos       m_StartOfStream {       0 };
 	Direction            m_Direction;
+	Mode                 m_Mode;
 	bool                 m_bInlineIVandTag { false };
 	bool                 m_bKeyIsSet       { false };
 	bool                 m_bInitCompleted  { false };
@@ -262,7 +299,21 @@ private:
 }; // KAES
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// AES encryption
+/// Symmetrical AES encryption. See class KAES for full documentation
+///
+/// A typical encryption setup may look like:
+/// @code
+/// KString sPlainText = "this is a secret message for your eyes only";
+/// KStringView sPassword = "MySecretPassword";
+///
+/// KString sEncrypted;               ///< will take the ciphertext
+/// KToAES Encryptor(sEncrypted);     ///< uses default mode GCM with 256 bits
+/// Encryptor.SetThrowOnError(true);  ///< make sure we throw in case of errors
+/// Encryptor.SetPassword(sPassword); ///< set key derived from password
+/// Encryptor.Add(sPlainText);        ///< add the plaintext
+/// Encryptor.Finalize();             ///< finalize the encryption (also called by destructor)
+/// @endcode
+///
 class DEKAF2_PUBLIC KToAES : public KAES
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -273,7 +324,7 @@ public:
 
 	/// AES encryption with a string to output into - always call Finalize() or destructor to terminate the string
 	/// @param sOutput the string to output into
-	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param mode either ECB, CBC, CCM or GCM - defaults to GCM
 	/// @param bits one of B128, B192, B256 - defaults to B256
 	KToAES(KStringRef& sOutput, KAES::Mode mode = KAES::GCM, KAES::Bits bits = KAES::B256)
 	: KAES(sOutput, KAES::Encrypt, KAES::AES, mode, bits)
@@ -282,7 +333,7 @@ public:
 
 	/// AES encryption with a stream to output into - always call Finalize() or destructor to terminate the string
 	/// @param sOutput the string to output into
-	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param mode either ECB, CBC, CCM or GCM - defaults to GCM
 	/// @param bits one of B128, B192, B256 - defaults to B256
 	KToAES(KOutStream& OutStream, KAES::Mode mode = KAES::GCM, KAES::Bits bits = KAES::B256)
 	: KAES(OutStream, KAES::Encrypt, KAES::AES, mode, bits)
@@ -292,7 +343,22 @@ public:
 }; // KToAES
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// AES decryption
+/// Symmetrical AES decryption. See class KAES for full documentation
+///
+/// A typical decryption setup may look like:
+/// @code
+/// KString sEncrypted;               ///< fill it with the ciphertext
+/// KStringView sPassword = "MySecretPassword";
+///
+/// KString sDecrypted;               ///< will take the plaintext
+/// KFromAES Decryptor(sDecrypted);   ///< uses default mode GCM with 256 bits
+/// Decryptor.SetThrowOnError(true);  ///< make sure we throw in case of errors
+/// Decryptor.SetPassword(sPassword); ///< set key derived from password
+/// Decryptor.Add(sEncrypted);        ///< add the ciphertext
+/// Decryptor.Finalize();             ///< finalize the decryption (also called by destructor)
+/// @endcode
+/// please note that we used the child classes KToAES and KFromAES instead of KAES for ease of typing.
+///
 class DEKAF2_PUBLIC KFromAES : public KAES
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -303,7 +369,7 @@ public:
 
 	/// AES decryption with a string to output into - always call Finalize() or destructor to terminate the string
 	/// @param sOutput the string to output into
-	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param mode either ECB, CBC, CCM or GCM - defaults to GCM
 	/// @param bits one of B128, B192, B256 - defaults to B256
 	KFromAES(KStringRef& sOutput, KAES::Mode mode = KAES::GCM, KAES::Bits bits = KAES::B256)
 	: KAES(sOutput, KAES::Decrypt, KAES::AES, mode, bits)
@@ -312,7 +378,7 @@ public:
 
 	/// AES decryption with a stream to output into - always call Finalize() or destructor to terminate the string
 	/// @param sOutput the string to output into
-	/// @param mode either CBC or GCM, and if configured also ECB and CCM - defaults to GCM
+	/// @param mode either ECB, CBC, CCM or GCM - defaults to GCM
 	/// @param bits one of B128, B192, B256 - defaults to B256
 	KFromAES(KOutStream& OutStream, KAES::Mode mode = KAES::GCM, KAES::Bits bits = KAES::B256)
 	: KAES(OutStream, KAES::Decrypt, KAES::AES, mode, bits)

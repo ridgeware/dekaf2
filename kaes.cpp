@@ -72,9 +72,10 @@ KAES::KAES(
 //---------------------------------------------------------------------------
 : m_OutString(&sOutput)
 , m_Direction(direction)
+, m_Mode(mode)
 , m_bInlineIVandTag(bInlineIVandTag)
 {
-	Initialize(algorithm, mode, bits);
+	Initialize(algorithm, bits);
 
 } // ctor
 
@@ -90,9 +91,10 @@ KAES::KAES(
 //---------------------------------------------------------------------------
 : m_OutStream(&OutStream)
 , m_Direction(direction)
+, m_Mode(mode)
 , m_bInlineIVandTag(bInlineIVandTag)
 {
-	if (Initialize(algorithm, mode, bits))
+	if (Initialize(algorithm, bits))
 	{
 		if (m_Direction == Encrypt && m_bInlineIVandTag && m_iTagLength)
 		{
@@ -171,8 +173,6 @@ const evp_cipher_st* KAES::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
 		case AES:
 			switch (mode)
 			{
-
-#if DEKAF2_AES_WITH_ECB
 				case ECB:
 					switch (bits)
 					{
@@ -181,7 +181,7 @@ const evp_cipher_st* KAES::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
 						case B256: return ::EVP_aes_256_ecb();
 					}
 					break;
-#endif
+
 				case CBC:
 					switch (bits)
 					{
@@ -191,7 +191,6 @@ const evp_cipher_st* KAES::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
 					}
 					break;
 
-#if DEKAF2_AES_WITH_CCM
 				case CCM:
 					switch (bits)
 					{
@@ -200,7 +199,7 @@ const evp_cipher_st* KAES::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
 						case B256: return ::EVP_aes_256_ccm();
 					}
 					break;
-#endif
+
 				case GCM:
 					switch (bits)
 					{
@@ -312,14 +311,10 @@ KString KAES::CreateKeyFromPasswordPKCS5
 } // CreateKeyFromPasswordPKCS5
 
 //---------------------------------------------------------------------------
-bool KAES::Initialize(
-	Algorithm   algorithm,
-	Mode        mode,
-	Bits        bits
-)
+bool KAES::Initialize(Algorithm algorithm, Bits bits)
 //---------------------------------------------------------------------------
 {
-	m_Cipher      = GetCipher(algorithm, mode, bits);
+	m_Cipher      = GetCipher(algorithm, GetMode(), bits);
 #if OPENSSL_VERSION_NUMBER >= 0x030000000L
 	m_sCipherName = ::EVP_CIPHER_get0_name (m_Cipher);
 #else
@@ -356,12 +351,9 @@ bool KAES::Initialize(
 	m_iBlockSize  = static_cast<std::size_t>(::EVP_CIPHER_CTX_block_size     (m_evpctx));
 	m_iKeyLength  = static_cast<std::size_t>(::EVP_CIPHER_CTX_key_length     (m_evpctx));
 	m_iIVLength   = static_cast<std::size_t>(::EVP_CIPHER_CTX_iv_length      (m_evpctx));
-#if DEKAF2_AES_WITH_CCM
-	if (mode == CCM) m_iTagLength = 12;
-	else
-#endif
-	if (mode == GCM) m_iTagLength = 16;
-	else             m_iTagLength =  0;
+	if      (GetMode() == CCM) m_iTagLength = 12;
+	else if (GetMode() == GCM) m_iTagLength = 16;
+	else                       m_iTagLength =  0;
 #endif
 
 	kDebug(3, "direction: {}, cipher: {}, keylen: {}, IV len: {}, taglen: {}, blocksize: {}",
@@ -440,7 +432,7 @@ bool KAES::CompleteInitialization()
 				}
 			}
 
-			// complete the initialization by adding key and IV
+			// complete the initialization by adding the IV
 			// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
 			// is only supported from v3.0.0 onward
 			if (!::EVP_CipherInit(
@@ -528,6 +520,22 @@ void KAES::SetOutput(KOutStream& OutStream)
 };
 
 //---------------------------------------------------------------------------
+bool KAES::SetTag()
+//---------------------------------------------------------------------------
+{
+	if (m_sTag.empty()) return SetError("missing authentication tag");
+	if (m_sTag.size() != m_iTagLength) return SetError(kFormat("tag size of {} but need {}", m_sTag.size(), m_iTagLength));
+
+	if (!::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_SET_TAG, static_cast<int>(m_iTagLength), m_sTag.data()))
+	{
+		return SetError(kFormat("{}: cannot set tag: {}", "decryption", GetOpenSSLError()));
+	}
+
+	return true;
+
+} // SetTag
+
+//---------------------------------------------------------------------------
 void KAES::Release() noexcept
 //---------------------------------------------------------------------------
 {
@@ -597,11 +605,33 @@ bool KAES::AddString(KStringView sInput)
 	auto iOrigSize = m_OutString->size();
 	// check if we have to provide more output to accomodate a block size of > 1 - a block
 	// size of 1 means that there is no buffering
-	auto iLocalBlockSize = (m_iBlockSize <= 1) ? 0 : m_iBlockSize;
+	auto iLocalBlockSize = (GetBlockSize() <= 1) ? 0 : GetBlockSize();
 	m_OutString->resize(iOrigSize + sInput.size() + iLocalBlockSize);
 	// we need operator[] to keep this compatible to C++11 / GCC6
 	auto pOut = reinterpret_cast<unsigned char*>(&m_OutString->operator[](0) + iOrigSize);
 	int iOutLen;
+
+	if (GetMode() == Mode::CCM)
+	{
+		if (m_iTagLength && GetDirection() == Decrypt)
+		{
+			// for CCM we need to set the tag BEFORE the decryption takes place, not
+			// before the finalization as with all other ciphers..
+			if (!SetTag()) return false;
+		}
+
+		// tell the total input size for CCM - we can only call AddString once..
+		if (!::EVP_CipherUpdate(
+			m_evpctx,
+			nullptr,
+			&iOutLen,
+			nullptr,
+			static_cast<int>(sInput.size()))
+		)
+		{
+			return SetError(kFormat("{} failed: {}", m_Direction ? "encryption" : "decryption", GetOpenSSLError()));
+		}
+	}
 
 	if (!::EVP_CipherUpdate(
 		m_evpctx,
@@ -614,7 +644,7 @@ bool KAES::AddString(KStringView sInput)
 		return SetError(kFormat("{} failed: {}", m_Direction ? "encryption" : "decryption", GetOpenSSLError()));
 	}
 
-	kAssert(iLocalBlockSize < static_cast<uint16_t>(iOutLen), "iLocalBlockSize too small");
+	kAssert(m_OutString->size() - iOrigSize >= static_cast<uint16_t>(iOutLen), "iLocalBlockSize too small");
 
 	if (iLocalBlockSize) m_OutString->resize(iOrigSize + iOutLen);
 
@@ -653,13 +683,24 @@ bool KAES::Add(KStringView sInput)
 bool KAES::Add(KInStream& InputStream)
 //---------------------------------------------------------------------------
 {
-	std::array<char, KDefaultCopyBufSize> Buffer;
-
-	for (;;)
+	if (GetMode() == Mode::CCM)
 	{
-		auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
-		if (!Add(KStringView(Buffer.data(), iReadChunk))) return false;
-		if (iReadChunk < Buffer.size()) return true;
+		// in CCM mode we have to push the whole data in one run
+		KString sBuffer;
+		if (!kReadAll(InputStream, sBuffer)) return SetError("cannot read whole stream");
+		return Add(sBuffer);
+	}
+	else
+	{
+		// in all other modes push blocks of input data
+		std::array<char, KDefaultCopyBufSize> Buffer;
+
+		for (;;)
+		{
+			auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
+			if (!Add(KStringView(Buffer.data(), iReadChunk))) return false;
+			if (iReadChunk < Buffer.size()) return true;
+		}
 	}
 
 } // Add
@@ -687,7 +728,7 @@ bool KAES::FinalizeString()
 
 	auto iOrigSize = m_OutString->size();
 
-	if (m_iBlockSize > 1)
+	if (GetBlockSize() > 1)
 	{
 		// prepare for a final flush from the operation
 		m_OutString->resize(iOrigSize + m_iBlockSize);
@@ -696,15 +737,9 @@ bool KAES::FinalizeString()
 	// we need operator[] to keep this compatible to C++11 / GCC6
 	auto pOut = reinterpret_cast<unsigned char*>(&m_OutString->operator[](0) + iOrigSize);
 
-	if (m_iTagLength && GetDirection() == Decrypt)
+	if (m_iTagLength && GetDirection() == Decrypt && GetMode() != Mode::CCM)
 	{
-		if (m_sTag.empty()) return SetError("missing authentication tag");
-		if (m_sTag.size() != m_iTagLength) return SetError(kFormat("tag size of {} but need {}", m_sTag.size(), m_iTagLength));
-
-		if (!::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_SET_TAG, static_cast<int>(m_iTagLength), m_sTag.data()))
-		{
-			return SetError(kFormat("{}: cannot set tag: {}", "decryption", GetOpenSSLError()));
-		}
+		if (!SetTag()) return false;
 	}
 
 	int iOutLen;
@@ -735,7 +770,7 @@ bool KAES::FinalizeString()
 	// disable the guard, the string is valid
 	guard.release();
 
-	if (m_iBlockSize > 1)
+	if (GetBlockSize() > 1)
 	{
 		m_OutString->resize(iOrigSize + iOutLen);
 	}

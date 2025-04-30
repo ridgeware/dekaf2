@@ -8,8 +8,6 @@ using namespace dekaf2;
 
 TEST_CASE("KAES")
 {
-#if DEKAF2_AES_WITH_ECB
-
 	SECTION("AES ECB 128")
 	{
 		KString sClearText = "this is a secret message for your eyes only";
@@ -49,8 +47,6 @@ TEST_CASE("KAES")
 
 		CHECK ( sDecrypted == sClearText );
 	}
-
-#endif
 
 	SECTION("AES CBC 128")
 	{
@@ -112,7 +108,6 @@ TEST_CASE("KAES")
 		CHECK ( sDecrypted == sClearText );
 	}
 
-#if DEKAF2_AES_WITH_CCM
 	SECTION("AES CCM 128")
 	{
 		KString sClearText = "this is a secret message for your eyes only";
@@ -172,7 +167,6 @@ TEST_CASE("KAES")
 
 		CHECK ( sDecrypted == sClearText );
 	}
-#endif
 
 	SECTION("AES GCM 128")
 	{

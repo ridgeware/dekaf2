@@ -79,7 +79,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// copy construction is deleted (to avoid ambiguities with the value constructor)
+	/// copy construction
 	KOutStream(const self_type& other) = default;
 	//-----------------------------------------------------------------------------
 

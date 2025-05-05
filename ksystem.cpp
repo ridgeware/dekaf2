@@ -2261,7 +2261,7 @@ bool kStdOutIsTerminal()
 //-----------------------------------------------------------------------------
 {
 #if !DEKAF2_IS_WINDOWS
-	return KFileStat(1).Type() == KFileType::CHARACTER;
+	return KFileStat(STDOUT_FILENO).Type() == KFileType::CHARACTER;
 #else
 	// on windows we don't know..
 	return false;

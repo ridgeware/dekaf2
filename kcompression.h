@@ -223,7 +223,7 @@ class DEKAF2_PUBLIC KUnCompressIStream : public detail::KCompressionBase, public
 public:
 //------
 
-	/// constructs an uncompressor without target writer - set one with open()
+	/// constructs an uncompressor without input reader - set one with open()
 	/// before attempting to read from it
 	KUnCompressIStream() = default;
 	/// constructs an uncompressor with a KStringView as the source

@@ -1807,6 +1807,9 @@ if (DEKAF2_INSTALL_BIN)
 	add_executable(ksql samples/ksql.h samples/ksql.cpp)
 	target_link_libraries(ksql ksql2${DEKAF2_LINK_SHARED} dekaf2${DEKAF2_LINK_SHARED})
 
+	add_executable(krypt samples/krypt.cpp)
+	target_link_libraries(krypt dekaf2${DEKAF2_LINK_SHARED})
+
 	add_executable(statinfo samples/statinfo.cpp)
 	target_link_libraries(statinfo dekaf2${DEKAF2_LINK_SHARED})
 
@@ -1994,7 +1997,7 @@ endif() # DEKAF2_INSTALL_LIB
 
 if (DEKAF2_INSTALL_BIN)
 
-	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql statinfo DESTINATION ${dekaf2_bin_dest})
+	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql krypt statinfo DESTINATION ${dekaf2_bin_dest})
 	if (DEKAF2_HAS_NCURSES)
 		install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
 	endif()

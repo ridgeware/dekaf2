@@ -573,6 +573,9 @@ bool KAES::AddString(KStringView sInput)
 			if (m_iGetTagLength > 0) return true;
 		}
 
+		// and set the tag for decoding - we now either have it from inline or set from outside
+		if (m_iTagLength && !SetTag()) return false;
+
 		// shall we extract a leading IV from the input ciphertext?
 		if (m_iGetIVLength)
 		{
@@ -613,13 +616,6 @@ bool KAES::AddString(KStringView sInput)
 
 	if (GetMode() == Mode::CCM)
 	{
-		if (m_iTagLength && GetDirection() == Decrypt)
-		{
-			// for CCM we need to set the tag BEFORE the decryption takes place, not
-			// before the finalization as with all other ciphers..
-			if (!SetTag()) return false;
-		}
-
 		// tell the total input size for CCM - we can only call AddString once..
 		if (!::EVP_CipherUpdate(
 			m_evpctx,
@@ -741,11 +737,6 @@ bool KAES::FinalizeString()
 
 	// we need operator[] to keep this compatible to C++11 / GCC6
 	auto pOut = reinterpret_cast<unsigned char*>(&m_OutString->operator[](0) + iOrigSize);
-
-	if (m_iTagLength && GetDirection() == Decrypt && GetMode() != Mode::CCM)
-	{
-		if (!SetTag()) return false;
-	}
 
 	int iOutLen;
 

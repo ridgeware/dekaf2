@@ -64,30 +64,36 @@ DEKAF2_NAMESPACE_BEGIN
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Symmetrical AES encryption.
 ///
-/// Supported modes are ECB, CBC, CCM and GCM.
-/// - Avoid ECB if you do not know its limitations.
-/// - Prefer GCM if you want to make sure the message has not been tampered with.
-/// - CCM mode allows only one single input round, and is slower than GCM.
-/// - If you do not need message integrity checks use CBC, else GCM
+/// Supported modes are ECB, CBC, CCM and GCM:
+/// - Avoid ECB if you do not know about its limitations
+/// - CCM mode allows only one single input round, and is slower than GCM - only choose it if the
+///   protocol requires you to
+/// - If you do not need message integrity checks you may want to use CBC, this saves you some
+///   bytes per cyphertext (when IV and tag are included, as there is no tag of size 12-16 bytes)
+///   - otherwise use GCM
+/// - Prefer GCM if you want to make sure the message has not been tampered with, or if you simply
+///   want to make a safe choice
 ///
 /// Per default, KAES computes needed initialization vectors itself, and inserts these, as well as possible
 /// authentication tags in CCM and GCM modes, at the start of the ciphertext and extracts these there
-/// on decryption.
+/// on decryption. You can suppress this, but then you have to transport these over another channel
+/// to the recipient of the ciphertext.
 ///
-/// Currently KAES does not support AAD data (for CCM and GCM).
+/// Currently KAES does not support AAD data (for CCM and GCM modes).
 ///
 /// After instantiation you have to set either a password and optional salt, or a key of the right size, see
 /// SetPassword() and SetKey().
 /// Please note that when you use a salted password you have to send both the password and the salt
-/// to the decryptor, as the salt is not included in the ciphertext.
+/// to the decryptor via another channel, as the salt is not included in the ciphertext.
 ///
 /// You can compute keys with password based key derivation functions, see CreateKeyFromPasswordHKDF()
 /// and CreateKeyFromPasswordPKCS5(). The former is are also internally used when you set a password
 /// instead of a key.
 ///
 /// If you chose to _not_ inline the initialization vector and possible authentication tag into the ciphertext
-/// you have to send both (or only the IV for CBC mode) to the decryptor, and use SetInitializationVector()
-/// and SetAuthenticationTag() to feed them into KAES for decryption.
+/// you have to send both (or only the IV for CBC mode, or neither for ECB) to the decryptor via another
+/// channel, and use SetInitializationVector() and SetAuthenticationTag() to feed them into KAES for
+/// decryption directly after construction.
 ///
 /// A typical encryption - decryption setup may look like:
 /// @code
@@ -108,7 +114,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// Decryptor.Add(sEncrypted);
 /// Decryptor.Finalize();
 /// @endcode
-/// please note that we used the child classes KToAES and KFromAES instead of KAES for ease of typing.
+/// please note that we used the derived classes KToAES and KFromAES instead of KAES for ease of typing.
 ///
 class DEKAF2_PUBLIC KAES : public KDigest, public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -230,7 +236,7 @@ public:
 
 	/// for decryption: set the authentication tag from a string - you will only need this if you do not want to pass
 	/// IV and authentication tag at the start of the ciphertext and if the selected cipher supports authentication,
-	/// like GCM - call before finalizing the decryption
+	/// like GCM - call before adding any input data
 	bool SetAuthenticationTag(KStringView sTag);
 
 	/// static: return cipher for algorithm, mode and bits

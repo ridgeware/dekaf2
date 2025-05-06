@@ -51,8 +51,7 @@
 #include "kstring.h"
 #include "bits/kdigest.h"
 
-#if OPENSSL_VERSION_NUMBER >= 0x030000000L \
-  || (OPENSSL_VERSION_NUMBER >= 0x010100000 && OPENSSL_VERSION_NUMBER < 0x020000000L)
+#if OPENSSL_VERSION_NUMBER >= 0x010100000L
 	struct evp_md_ctx_st;
 #else
 	struct env_md_ctx_st;
@@ -126,8 +125,7 @@ protected:
 	/// releases context
 	void Release() noexcept;
 
-#if OPENSSL_VERSION_NUMBER >= 0x030000000L \
-  || (OPENSSL_VERSION_NUMBER >= 0x010100000 && OPENSSL_VERSION_NUMBER < 0x020000000L)
+#if OPENSSL_VERSION_NUMBER >= 0x010100000L
 	evp_md_ctx_st* evpctx { nullptr }; // is a EVP_MD_CTX
 #else
 	env_md_ctx_st* evpctx { nullptr }; // is a ENV_MD_CTX

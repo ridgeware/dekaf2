@@ -51,7 +51,12 @@
 #include "kstring.h"
 #include "bits/kdigest.h"
 
-struct hmac_ctx_st;
+#if OPENSSL_VERSION_NUMBER < 0x030000000L
+	struct hmac_ctx_st;
+#else
+	struct evp_mac_ctx_st;
+	struct evp_mac_st;
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -76,10 +81,6 @@ public:
 	{
 		Release();
 	}
-	/// copy assignment
-	KHMAC& operator=(const KHMAC&) = delete;
-	/// move assignment
-	KHMAC& operator=(KHMAC&&);
 
 	/// appends a string to the digest
 	bool Update(KStringView sInput);
@@ -115,7 +116,13 @@ protected:
 
 	void Release();
 
-	hmac_ctx_st* hmacctx { nullptr };
+#if OPENSSL_VERSION_NUMBER < 0x030000000L
+	hmac_ctx_st* m_hmacctx { nullptr };
+#else
+	evp_mac_ctx_st* m_hmacctx { nullptr };
+	evp_mac_st* m_hmac { nullptr };
+#endif
+
 	mutable KString m_sHMAC;
 
 }; // KHMAC

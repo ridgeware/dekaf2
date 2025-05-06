@@ -46,12 +46,13 @@
 /// (cryptographic) message digest algorithms
 
 #include "../kdefinitions.h"
+#include "../kstringview.h"
 #include <openssl/opensslv.h>
 
-#if !defined(DEKAF2_HAS_BLAKE2) \
-  && (OPENSSL_VERSION_NUMBER >= 0x030000000L \
-    || (OPENSSL_VERSION_NUMBER >= 0x010100000 && OPENSSL_VERSION_NUMBER < 0x020000000L))
-	#define DEKAF2_HAS_BLAKE2 1
+#if OPENSSL_VERSION_NUMBER >= 0x010100000L
+	#ifndef DEKAF2_HAS_BLAKE2
+		#define DEKAF2_HAS_BLAKE2 1
+	#endif
 	struct evp_md_st;
 #else
 	struct env_md_st;
@@ -84,8 +85,12 @@ public:
 #endif
 	};
 
+	/// returns the EVP_MD* for the digest
 	static const evp_md_st* GetMessageDigest(Digest digest);
 
-};
+	/// returns a string that can be used in the method interfaces of OpenSSL for the digest
+	static const KStringViewZ ToString(Digest digest);
+
+}; // KDigest
 
 DEKAF2_NAMESPACE_END

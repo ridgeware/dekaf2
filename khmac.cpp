@@ -43,24 +43,11 @@
 #include "khmac.h"
 #include "kencode.h"
 #include "klog.h"
-#include <openssl/opensslv.h>
-#include <openssl/hmac.h>
 
-// OpenSSL 3.0 introduces a new HMAC interface and makes the
-// old one deprecated. For now simply ignore the deprecation.
 #if OPENSSL_VERSION_NUMBER >= 0x030000000
-	#ifdef DEKAF2_IS_CLANG
-		#pragma clang diagnostic push
-		#ifdef DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS
-			#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-		#endif
-	#endif
-	#ifdef DEKAF2_IS_GCC
-		#pragma GCC diagnostic push
-		#ifdef DEKAF2_HAS_WARN_DEPRECATED_DECLARATIONS
-			#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-		#endif
-	#endif
+	#include <openssl/evp.h>
+#else
+	#include <openssl/hmac.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -69,20 +56,44 @@ DEKAF2_NAMESPACE_BEGIN
 KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 //---------------------------------------------------------------------------
 {
-#if OPENSSL_VERSION_NUMBER < 0x010100000
-	hmacctx = new HMAC_CTX();
+#if OPENSSL_VERSION_NUMBER < 0x010100000L
+	m_hmacctx = new ::HMAC_CTX();
+#elif OPENSSL_VERSION_NUMBER < 0x030000000L
+	m_hmacctx = ::HMAC_CTX_new();
 #else
-	hmacctx = HMAC_CTX_new();
+	m_hmac  = ::EVP_MAC_fetch(nullptr, "hmac", nullptr);
+
+	if (!m_hmac)
+	{
+		kDebug(1, "cannot create mac");
+		Release();
+		return;
+	}
+
+	::OSSL_PARAM params[3];
+	size_t params_n = 0;
+
+//  we could also select a cipher like "aes-128-cbc"
+//	params[params_n++] = ::OSSL_PARAM_construct_utf8_string("cipher", const_cast<char*>(sCipher.data()), sCipher.size());
+	auto sDigest = ToString(digest);
+	params[params_n++] = ::OSSL_PARAM_construct_utf8_string("digest", const_cast<char*>(sDigest.data()), sDigest.size());
+	params[params_n]   = ::OSSL_PARAM_construct_end();
+
+	m_hmacctx = ::EVP_MAC_CTX_new(m_hmac);
 #endif
 
-	if (!hmacctx)
+	if (!m_hmacctx)
 	{
 		kDebug(1, "cannot create context");
 		Release();
 		return;
 	}
 
-	if (1 != HMAC_Init_ex(hmacctx, sKey.data(), static_cast<int>(sKey.size()), GetMessageDigest(digest), nullptr))
+#if OPENSSL_VERSION_NUMBER < 0x030000000L
+	if (1 != ::HMAC_Init_ex(m_hmacctx, sKey.data(), static_cast<int>(sKey.size()), GetMessageDigest(digest), nullptr))
+#else
+	if (!::EVP_MAC_init(m_hmacctx, reinterpret_cast<const unsigned char*>(sKey.data()), sKey.size(), params))
+#endif
 	{
 		kDebug(1, "cannot initialize algorithm");
 		Release();
@@ -97,38 +108,35 @@ KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 //---------------------------------------------------------------------------
 KHMAC::KHMAC(KHMAC&& other)
 //---------------------------------------------------------------------------
-	: hmacctx(other.hmacctx)
-	, m_sHMAC(std::move(other.m_sHMAC))
+: m_hmacctx(other.m_hmacctx)
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L
+, m_hmac(other.m_hmac)
+#endif
+, m_sHMAC(std::move(other.m_sHMAC))
 {
-	other.hmacctx = nullptr;
-
-} // move ctor
-
-//---------------------------------------------------------------------------
-KHMAC& KHMAC::operator=(KHMAC&& other)
-//---------------------------------------------------------------------------
-{
-	Release();
-	hmacctx = other.hmacctx;
-	other.hmacctx = nullptr;
-	m_sHMAC = std::move(other.m_sHMAC);
-	return *this;
-	
+	other.m_hmacctx = nullptr;
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L
+	other.m_hmac = nullptr;
+#endif
 } // move ctor
 
 //---------------------------------------------------------------------------
 void KHMAC::Release()
 //---------------------------------------------------------------------------
 {
-	if (hmacctx)
+	if (m_hmacctx)
 	{
-#if OPENSSL_VERSION_NUMBER < 0x010100000
-		HMAC_CTX_cleanup(hmacctx);
+#if OPENSSL_VERSION_NUMBER < 0x010100000L
+		::HMAC_CTX_cleanup(m_hmacctx);
 		delete hmacctx;
+#elif OPENSSL_VERSION_NUMBER < 0x030000000L
+		::HMAC_CTX_free(m_hmacctx);
 #else
-		HMAC_CTX_free(hmacctx);
+		::EVP_MAC_CTX_free(m_hmacctx);
+		::EVP_MAC_free(m_hmac);
+		m_hmac = nullptr;
 #endif
-		hmacctx = nullptr;
+		m_hmacctx = nullptr;
 	}
 	m_sHMAC.clear();
 
@@ -138,12 +146,16 @@ void KHMAC::Release()
 bool KHMAC::Update(KStringView sInput)
 //---------------------------------------------------------------------------
 {
-	if (!hmacctx)
+	if (!m_hmacctx)
 	{
 		return false;
 	}
 
-	if (1 != HMAC_Update(hmacctx, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
+#if OPENSSL_VERSION_NUMBER < 0x030000000L
+	if (1 != ::HMAC_Update(m_hmacctx, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
+#else
+	if (!::EVP_MAC_update(m_hmacctx, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
+#endif
 	{
 		kDebug(1, "failed");
 		return false;
@@ -157,7 +169,7 @@ bool KHMAC::Update(KStringView sInput)
 bool KHMAC::Update(KInStream& InputStream)
 //---------------------------------------------------------------------------
 {
-	if (!hmacctx)
+	if (!m_hmacctx)
 	{
 		return false;
 	}
@@ -168,7 +180,11 @@ bool KHMAC::Update(KInStream& InputStream)
 	{
 		auto iReadChunk = InputStream.Read(Buffer.data(), Buffer.size());
 
-		if (1 != HMAC_Update(hmacctx, Buffer.data(), iReadChunk))
+#if OPENSSL_VERSION_NUMBER < 0x030000000L
+		if (1 != ::HMAC_Update(m_hmacctx, Buffer.data(), iReadChunk))
+#else
+		if (!::EVP_MAC_update(m_hmacctx, Buffer.data(), iReadChunk))
+#endif
 		{
 			kDebug(1, "failed");
 			return false;
@@ -197,9 +213,14 @@ const KString& KHMAC::Digest() const
 	if (m_sHMAC.empty())
 	{
 		std::array<unsigned char, EVP_MAX_MD_SIZE> Buffer;
-		unsigned int iDigestLen;
 
-		if (1 != HMAC_Final(hmacctx, Buffer.data(), &iDigestLen))
+#if OPENSSL_VERSION_NUMBER < 0x030000000L
+		unsigned int iDigestLen;
+		if (1 != ::HMAC_Final(m_hmacctx, Buffer.data(), &iDigestLen))
+#else
+		std::size_t iDigestLen;
+		if (!::EVP_MAC_final(m_hmacctx, Buffer.data(), &iDigestLen, Buffer.size()))
+#endif
 		{
 			kDebug(1, "cannot read HMAC");
 		}
@@ -226,12 +247,3 @@ KString KHMAC::HexDigest() const
 } // HexDigest
 
 DEKAF2_NAMESPACE_END
-
-#if OPENSSL_VERSION_NUMBER >= 0x030000000
-	#ifdef DEKAF2_IS_GCC
-		#pragma GCC diagnostic pop
-	#endif
-	#ifdef DEKAF2_IS_CLANG
-		#pragma clang diagnostic pop
-	#endif
-#endif

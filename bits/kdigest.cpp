@@ -51,27 +51,41 @@ const evp_md_st* KDigest::GetMessageDigest(Digest digest)
 {
 	switch (digest)
 	{
-		case MD5:
-			return EVP_md5();
-		case SHA1:
-			return EVP_sha1();
-		case SHA224:
-			return EVP_sha224();
-		case SHA256:
-			return EVP_sha256();
-		case SHA384:
-			return EVP_sha384();
-		case SHA512:
-			return EVP_sha512();
+		case MD5:     return EVP_md5();
+		case SHA1:    return EVP_sha1();
+		case SHA224:  return EVP_sha224();
+		case SHA256:  return EVP_sha256();
+		case SHA384:  return EVP_sha384();
+		case SHA512:  return EVP_sha512();
 #if DEKAF2_HAS_BLAKE2
-		case BLAKE2S:
-			return EVP_blake2s256();
-		case BLAKE2B:
-			return EVP_blake2b512();
+		case BLAKE2S: return EVP_blake2s256();
+		case BLAKE2B: return EVP_blake2b512();
 #endif
 	}
 
 	return nullptr;
+
+} // GetMessageDigest
+
+//---------------------------------------------------------------------------
+const KStringViewZ KDigest::ToString(Digest digest)
+//---------------------------------------------------------------------------
+{
+	switch (digest)
+	{
+		case MD5:     return "md5";
+		case SHA1:    return "sha1";
+		case SHA224:  return "sha224";
+		case SHA256:  return "sha256";
+		case SHA384:  return "sha384";
+		case SHA512:  return "sha512";
+#if DEKAF2_HAS_BLAKE2
+		case BLAKE2S: return "blake2s256";
+		case BLAKE2B: return "blake2b512";
+#endif
+	}
+
+	return "";
 
 } // GetMessageDigest
 

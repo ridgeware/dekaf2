@@ -22,15 +22,6 @@ KRESTRoutes::MemberFunctionTable<__ProjectName__> __ProjectName__Routes[]
 
 using namespace dekaf2;
 
-constexpr KStringView g_sAdditionalHelp {
-	"cgi cli usage:\n"
-	"   __LowerProjectName__ -cgi <file> :: where <file> contains request + headers + post data\n"
-	"\n"
-	"aws-lambda usage:\n"
-	"   (note: all environment is ignored)\n"
-	"   __LowerProjectName__ [<options>] <lambda-arg> [<lambda-arg> ...]"
-};
-
 //-----------------------------------------------------------------------------
 void __ProjectName__::SetupInputFile (KOptions::ArgList& ArgList)
 //-----------------------------------------------------------------------------
@@ -85,54 +76,35 @@ void __ProjectName__::SetupOptions (KOptions& Options)
 		// .SetHelpSeparator          ("::")            // the column separator between option and help text
 		// .SetLinefeedBetweenOptions (false)           // add linefeed between separate options or commands?
 		// .SetWrappedHelpIndent      (1)               // the indent for continuation help text
-		.SetSpacingPerSection      (true)               // whether commands and options get the same or separate column layout
-		.SetAdditionalHelp         (g_sAdditionalHelp); // extra help text at end of generated help
+		.SetSpacingPerSection      (true);              // whether commands and options get the same or separate column layout
+
+	// ---- insert project specific options here ----
 
 	Options
-		.Option("cgi")
-		.MinArgs(0)
-		.Help("force CGI mode")
-	([&](KOptions::ArgList& sArgs)
+		.Option("version")
+		.Help("show software version and exit")
+		.Stop()
+	([&]()
 	{
-		if (m_ServerOptions.Type != KREST::UNDEFINED)
+		KRESTRoutes Routes;
+		KRESTServer::Options Options;
+		KRESTServer HTTP(Routes, Options);
+		ApiVersion (HTTP);
+
+		for (auto& it : HTTP.json.tx.items())
 		{
-			throw KOptions::Error("Request type set twice");
+			KString sName  = it.key();
+			if (it.value().is_string())
+			{
+				KString sValue = it.value();
+				KOut.FormatLine (":: {:<22} : {}", sName, sValue);
+			}
+			else if (it.value().is_number() || it.value().is_boolean())
+			{
+				int iValue = it.value();
+				KOut.FormatLine (":: {:<22} : {}", sName, iValue);
+			}
 		}
-
-		m_ServerOptions.Type = KREST::CGI;
-		SetupInputFile(sArgs);
-	});
-
-#ifdef DEKAF2_WITH_FCGI
-	Options
-		.Option("fcgi")
-		.MinArgs(0)
-		.Help("force FCGI mode")
-	([&](KOptions::ArgList& sArgs)
-	{
-		if (m_ServerOptions.Type != KREST::UNDEFINED)
-		{
-			throw KOptions::Error("Request type set twice");
-		}
-
-		m_ServerOptions.Type = KREST::FCGI;
-		SetupInputFile(sArgs);
-	});
-#endif
-
-	Options
-		.Option("lambda")
-		.MinArgs(0)
-		.Help("force AWS Lambda mode")
-	([&](KOptions::ArgList& sArgs)
-	{
-		if (m_ServerOptions.Type != KREST::UNDEFINED)
-		{
-			throw KOptions::Error("Request type set twice");
-		}
-
-		m_ServerOptions.Type = KREST::LAMBDA;
-		SetupInputFile(sArgs);
 	});
 
 	Options
@@ -140,6 +112,7 @@ void __ProjectName__::SetupOptions (KOptions& Options)
 		.Type(KOptions::Unsigned)
 		.Range(1, 65535)
 		.Help("force HTTP server mode, requires port number")
+		.Section("general REST server options:")
 	([&](KStringViewZ sPort)
 	{
 		if (m_ServerOptions.Type != KREST::UNDEFINED)
@@ -210,49 +183,6 @@ void __ProjectName__::SetupOptions (KOptions& Options)
 	});
 
 	Options
-		.Option("cert <file>", "need certificate filepath")
-		.Type(KOptions::File)
-		.Help("TLS certificate filepath")
-	([&](KStringViewZ Arg)
-	{
-		m_ServerOptions.sCert = Arg;
-	});
-
-	Options
-		.Option("key <file>", "need key filepath")
-		.Type(KOptions::File)
-		.Help("TLS private key filepath")
-	([&](KStringViewZ Arg)
-	{
-		m_ServerOptions.sKey = Arg;
-	});
-
-	Options
-		.Option("tlspass <pass>", "need TLS CERT password")
-		.Help("TLS certificate password, if any")
-	([&](KStringViewZ sArg)
-	 {
-		m_ServerOptions.sTLSPassword = sArg;
-	});
-
-	Options
-		.Option("dh <file>", "need diffie-hellman prime filepath")
-		.Type(KOptions::File)
-		.Help("TLS DH prime filepath (.pem) (generate with 'openssl dhparam -out dh2048.pem 2048')")
-	([&](KStringViewZ sArg)
-	{
-		m_ServerOptions.sDHPrimes = sArg;
-	});
-
-	Options
-		.Option("ciphers <suites>", "need cipher suites")
-		.Help("colon delimited list of permitted cipher suites for TLS")
-	([&](KStringViewZ sCipherSuites)
-	{
-		m_ServerOptions.sAllowedCipherSuites = sCipherSuites;
-	});
-
-	Options
 		.Option("baseroute </path>", "need base route prefix")
 		.Help("route prefix, e.g. '/__LowerProjectName__'")
 	([&](KStringViewZ sArg)
@@ -263,16 +193,6 @@ void __ProjectName__::SetupOptions (KOptions& Options)
 		}
 
 		m_ServerOptions.sBaseRoute = sArg;
-	});
-
-	Options
-		.Option("ssolevel <0..2>", "SSO level")
-		.Type(KOptions::Unsigned)
-		.Range(1, 2)
-		.Help("set SSO authentication level, default = 0 (off), header check = 1, real check = 2")
-	([&](KStringViewZ sSSOLevel)
-	{
-		m_ServerOptions.iSSOLevel = sSSOLevel.UInt16();
 	});
 
 	Options
@@ -333,8 +253,103 @@ void __ProjectName__::SetupOptions (KOptions& Options)
 	});
 
 	Options
+		.Option("cert <file>", "need certificate filepath")
+		.Type(KOptions::File)
+		.Help("TLS certificate filepath")
+		.Section("TLS options:")
+([&](KStringViewZ Arg)
+	{
+		m_ServerOptions.sCert = Arg;
+	});
+
+	Options
+		.Option("key <file>", "need key filepath")
+		.Type(KOptions::File)
+		.Help("TLS private key filepath")
+	([&](KStringViewZ Arg)
+	{
+		m_ServerOptions.sKey = Arg;
+	});
+
+	Options
+		.Option("tlspass <pass>", "need TLS CERT password")
+		.Help("TLS certificate password, if any")
+	([&](KStringViewZ sArg)
+	 {
+		m_ServerOptions.sTLSPassword = sArg;
+	});
+
+	Options
+		.Option("dh <file>", "need diffie-hellman prime filepath")
+		.Type(KOptions::File)
+		.Help("TLS DH prime filepath (.pem) (generate with 'openssl dhparam -out dh2048.pem 2048')")
+	([&](KStringViewZ sArg)
+	{
+		m_ServerOptions.sDHPrimes = sArg;
+	});
+
+	Options
+		.Option("ciphers <suites>", "need cipher suites")
+		.Help("colon delimited list of permitted cipher suites for TLS")
+	([&](KStringViewZ sCipherSuites)
+	{
+		m_ServerOptions.sAllowedCipherSuites = sCipherSuites;
+	});
+
+	if (!s_SSOProvider.empty())
+	{
+		Options
+			.Option("ssolevel <0..2>", "SSO level")
+			.Type(KOptions::Unsigned)
+			.Range(1, 2)
+			.Help("set SSO authentication level, default = 0 (off), header check = 1, real check = 2")
+		([&](KStringViewZ sSSOLevel)
+		{
+			m_ServerOptions.iSSOLevel = sSSOLevel.UInt16();
+		});
+	}
+
+	Options
+		.Option("dbc <file>", "dbc file name")
+		.Type(KOptions::File)
+		.Help("set database connection")
+		.Section("database related options")
+	([&](KStringViewZ sFileName)
+	{
+		// set the static DBC file
+		DB::SetDBCFilename (sFileName);
+	});
+
+	Options
+		.Option("schema")
+		.Help("check (possibly upgrade) the database schema")
+		.Stop()
+	([&]()
+	{
+		auto pdb = DB::Get ();
+
+		uint16_t iAmAt = pdb->GetSchema ("__UpperProjectName___SCHEMA");
+		uint16_t iWant = DB::CURRENT_SCHEMA;
+		if (iAmAt != iWant)
+		{
+			pdb->EnsureSchema (/*bForce=*/false);
+		}
+	});
+
+	Options
+		.Option("schemaforce")
+		.Help("force recreation of the schema (be careful)")
+		.Stop()
+	([&]()
+	{
+		kDebug (1, "schema FORCE logic");
+		DB::Get ()->EnsureSchema (/*bForce=*/true);
+	});
+
+	Options
 		.Option("sim <url>", "url")
 		.Help("simulate request to a __LowerProjectName__ method (will use GET unless -X is used)")
+		.Section("options for simulation mode (local testing):")
 	([&](KStringViewZ sArg)
 	{
 		m_ServerOptions.Simulate.API = sArg;
@@ -385,66 +400,52 @@ void __ProjectName__::SetupOptions (KOptions& Options)
 	});
 
 	Options
-		.Option("dbc <file>", "dbc file name")
-		.Type(KOptions::File)
-		.Help("set database connection")
-	([&](KStringViewZ sFileName)
+		.Option("cgi <file>")
+		.MinArgs(0)
+		.Help("force CGI mode, where <file> contains request + headers + post data")
+		.Section("cgi cli usage:")
+	([&](KOptions::ArgList& sArgs)
 	{
-		// set the static DBC file
-		DB::SetDBCFilename (sFileName);
-	});
-
-	Options
-		.Option("schema")
-		.Help("check (possibly upgrade) the database schema")
-		.Stop()
-	([&]()
-	{
-		auto pdb = DB::Get ();
-
-		uint16_t iAmAt = pdb->GetSchema ("__UpperProjectName___SCHEMA");
-		uint16_t iWant = DB::CURRENT_SCHEMA;
-		if (iAmAt != iWant)
+		if (m_ServerOptions.Type != KREST::UNDEFINED)
 		{
-			pdb->EnsureSchema (/*bForce=*/false);
+			throw KOptions::Error("Request type set twice");
 		}
+
+		m_ServerOptions.Type = KREST::CGI;
+		SetupInputFile(sArgs);
 	});
 
+#ifdef DEKAF2_WITH_FCGI
 	Options
-		.Option("schemaforce")
-		.Help("force recreation of the schema (be careful)")
-		.Stop()
-	([&]()
+		.Option("fcgi")
+		.MinArgs(0)
+		.Help("force FCGI mode")
+	([&](KOptions::ArgList& sArgs)
 	{
-		kDebug (1, "schema FORCE logic");
-		DB::Get ()->EnsureSchema (/*bForce=*/true);
-	});
-
-	Options
-		.Option("version")
-		.Help("show software version and exit")
-		.Stop()
-	([&]()
-	{
-		KRESTRoutes Routes;
-		KRESTServer::Options Options;
-		KRESTServer HTTP(Routes, Options);
-		ApiVersion (HTTP);
-
-		for (auto& it : HTTP.json.tx.items())
+		if (m_ServerOptions.Type != KREST::UNDEFINED)
 		{
-			KString sName  = it.key();
-			if (it.value().is_string())
-			{
-				KString sValue = it.value();
-				KOut.FormatLine (":: {:<22} : {}", sName, sValue);
-			}
-			else if (it.value().is_number() || it.value().is_boolean())
-			{
-				int iValue = it.value();
-				KOut.FormatLine (":: {:<22} : {}", sName, iValue);
-			}
+			throw KOptions::Error("Request type set twice");
 		}
+
+		m_ServerOptions.Type = KREST::FCGI;
+		SetupInputFile(sArgs);
+	});
+#endif
+
+	Options
+		.Option("lambda [<lambda-arg> ...]")
+		.MinArgs(0)
+		.Help("force AWS Lambda mode")
+		.Section("aws-lambda usage:")
+	([&](KOptions::ArgList& sArgs)
+	{
+		if (m_ServerOptions.Type != KREST::UNDEFINED)
+		{
+			throw KOptions::Error("Request type set twice");
+		}
+
+		m_ServerOptions.Type = KREST::LAMBDA;
+		SetupInputFile(sArgs);
 	});
 
 } // ctor

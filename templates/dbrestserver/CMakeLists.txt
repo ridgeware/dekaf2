@@ -67,7 +67,7 @@ configure_file("build_config.h.in" "${GENERATED_FILES_DIR}/build_config.h" @ONLY
 
 # Compile all __LowerProjectName__ objects
 add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
-target_link_libraries(${PROJECT_NAME} dekaf2 ksql2)
+target_link_libraries(${PROJECT_NAME} dekaf2::dekaf2 dekaf2::ksql2)
 target_include_directories(${PROJECT_NAME}
 	PRIVATE
 	$<BUILD_INTERFACE:${GENERATED_FILES_DIR}>

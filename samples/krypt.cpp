@@ -156,15 +156,14 @@ private:
 	}
 
 	//-----------------------------------------------------------------------------
-	KOutStream GetOutStream(KStringViewZ sOutfile)
+	KOutStream GetOutStream(KStringViewZ sOutfile, KOutFile& OutFile)
 	//-----------------------------------------------------------------------------
 	{
 		if (!sOutfile.empty())
 		{
-			KOutFile of;
-			of.open(sOutfile, std::ios_base::out | std::ios_base::trunc);
-			if (!of.is_open()) throw KError { kFormat("cannot open output file: {}", sOutfile) };
-			return of;
+			OutFile.open(sOutfile, std::ios_base::out | std::ios_base::trunc);
+			if (!OutFile.is_open()) throw KError { kFormat("cannot open output file: {}", sOutfile) };
+			return OutFile.OutStream();
 		}
 		else
 		{
@@ -228,7 +227,8 @@ public:
 			Cipher.Finalize();
 		}
 
-		auto OutStream = GetOutStream(sOutfile);
+		KOutFile OutFile;
+		auto OutStream = GetOutStream(sOutfile, OutFile);
 
 		if (direction == KBlockCipher::Encrypt)
 		{
@@ -261,7 +261,7 @@ int main(int argc, char** argv)
 	}
 	catch (const std::exception& ex)
 	{
-		kPrintLine(">> {}: {}", "krypt", ex.what());
+		KErr.FormatLine(">> {}: {}", "krypt", ex.what());
 	}
 	return 1;
 }

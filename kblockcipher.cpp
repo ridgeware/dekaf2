@@ -61,8 +61,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
-KAES::KAES(
-	KStringRef&  sOutput,
+KBlockCipher::KBlockCipher(
 	Direction    direction,
 	Algorithm    algorithm,
 	Mode         mode,
@@ -70,8 +69,7 @@ KAES::KAES(
 	bool         bInlineIVandTag
 )
 //---------------------------------------------------------------------------
-: m_OutString(&sOutput)
-, m_Direction(direction)
+: m_Direction(direction)
 , m_Mode(mode)
 , m_bInlineIVandTag(bInlineIVandTag)
 {
@@ -80,35 +78,7 @@ KAES::KAES(
 } // ctor
 
 //---------------------------------------------------------------------------
-KAES::KAES(
-	KOutStream&  OutStream,
-	Direction    direction,
-	Algorithm    algorithm,
-	Mode         mode,
-	Bits         bits,
-	bool         bInlineIVandTag
-)
-//---------------------------------------------------------------------------
-: m_OutStream(&OutStream)
-, m_Direction(direction)
-, m_Mode(mode)
-, m_bInlineIVandTag(bInlineIVandTag)
-{
-	if (Initialize(algorithm, bits))
-	{
-		if (m_Direction == Encrypt && m_bInlineIVandTag && m_iTagLength)
-		{
-			// check if the stream is repositionable, and note the current position
-			// to insert the tag later
-			m_StartOfStream = kGetWritePosition(*m_OutStream);
-			if (m_StartOfStream < 0) SetError("cannot read stream position");
-		}
-	}
-
-} // ctor
-
-//---------------------------------------------------------------------------
-KAES::KAES(KAES&& other) noexcept
+KBlockCipher::KBlockCipher(KBlockCipher&& other) noexcept
 //---------------------------------------------------------------------------
 : m_Cipher(other.m_Cipher)
 , m_evpctx(other.m_evpctx)
@@ -136,7 +106,7 @@ KAES::KAES(KAES&& other) noexcept
 } // move ctor
 
 //---------------------------------------------------------------------------
-KAES::~KAES()
+KBlockCipher::~KBlockCipher()
 //---------------------------------------------------------------------------
 {
 	Finalize();
@@ -145,7 +115,7 @@ KAES::~KAES()
 } // dtor
 
 //---------------------------------------------------------------------------
-KString KAES::GetOpenSSLError()
+KString KBlockCipher::GetOpenSSLError()
 //---------------------------------------------------------------------------
 {
 	KString sError;
@@ -165,7 +135,7 @@ KString KAES::GetOpenSSLError()
 } // GetOpenSSLError
 
 //---------------------------------------------------------------------------
-const evp_cipher_st* KAES::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
+const evp_cipher_st* KBlockCipher::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
 //---------------------------------------------------------------------------
 {
 	switch (algorithm)
@@ -191,6 +161,51 @@ const evp_cipher_st* KAES::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
 					}
 					break;
 
+				case OFB:
+					switch (bits)
+					{
+						case B128: return ::EVP_aes_128_ofb();
+						case B192: return ::EVP_aes_192_ofb();
+						case B256: return ::EVP_aes_256_ofb();
+					}
+					break;
+
+				case CFB1:
+					switch (bits)
+					{
+						case B128: return ::EVP_aes_128_cfb1();
+						case B192: return ::EVP_aes_192_cfb1();
+						case B256: return ::EVP_aes_256_cfb1();
+					}
+					break;
+
+				case CFB8:
+					switch (bits)
+					{
+						case B128: return ::EVP_aes_128_cfb8();
+						case B192: return ::EVP_aes_192_cfb8();
+						case B256: return ::EVP_aes_256_cfb8();
+					}
+					break;
+
+				case CFB128:
+					switch (bits)
+					{
+						case B128: return ::EVP_aes_128_cfb128();
+						case B192: return ::EVP_aes_192_cfb128();
+						case B256: return ::EVP_aes_256_cfb128();
+					}
+					break;
+
+				case CTR:
+					switch (bits)
+					{
+						case B128: return ::EVP_aes_128_ctr();
+						case B192: return ::EVP_aes_192_ctr();
+						case B256: return ::EVP_aes_256_ctr();
+					}
+					break;
+
 				case CCM:
 					switch (bits)
 					{
@@ -209,8 +224,199 @@ const evp_cipher_st* KAES::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
 					}
 					break;
 
+				case OCB:
+					switch (bits)
+					{
+						case B128: return ::EVP_aes_128_ocb();
+						case B192: return ::EVP_aes_192_ocb();
+						case B256: return ::EVP_aes_256_ocb();
+					}
+					break;
+
+				case XTS:
+					switch (bits)
+					{
+						case B128: return ::EVP_aes_128_xts();
+						case B192: break;
+						case B256: return ::EVP_aes_256_xts();
+					}
+					break;
+
 			} // AES
 			break;
+
+		case ARIA:
+#if DEKAF2_HAS_ARIA
+			switch (mode)
+			{
+				case ECB:
+					switch (bits)
+					{
+						case B128: return ::EVP_aria_128_ecb();
+						case B192: return ::EVP_aria_192_ecb();
+						case B256: return ::EVP_aria_256_ecb();
+					}
+					break;
+
+				case CBC:
+					switch (bits)
+					{
+						case B128: return ::EVP_aria_128_cbc();
+						case B192: return ::EVP_aria_192_cbc();
+						case B256: return ::EVP_aria_256_cbc();
+					}
+					break;
+
+				case OFB:
+					switch (bits)
+					{
+						case B128: return ::EVP_aria_128_ofb();
+						case B192: return ::EVP_aria_192_ofb();
+						case B256: return ::EVP_aria_256_ofb();
+					}
+					break;
+
+				case CFB1:
+					switch (bits)
+					{
+						case B128: return ::EVP_aria_128_cfb1();
+						case B192: return ::EVP_aria_192_cfb1();
+						case B256: return ::EVP_aria_256_cfb1();
+					}
+					break;
+
+				case CFB8:
+					switch (bits)
+					{
+						case B128: return ::EVP_aria_128_cfb8();
+						case B192: return ::EVP_aria_192_cfb8();
+						case B256: return ::EVP_aria_256_cfb8();
+					}
+					break;
+
+				case CFB128:
+					switch (bits)
+					{
+						case B128: return ::EVP_aria_128_cfb128();
+						case B192: return ::EVP_aria_192_cfb128();
+						case B256: return ::EVP_aria_256_cfb128();
+					}
+					break;
+
+				case CTR:
+					switch (bits)
+					{
+						case B128: return ::EVP_aria_128_ctr();
+						case B192: return ::EVP_aria_192_ctr();
+						case B256: return ::EVP_aria_256_ctr();
+					}
+					break;
+
+				case CCM:
+					switch (bits)
+					{
+						case B128: return ::EVP_aria_128_ccm();
+						case B192: return ::EVP_aria_192_ccm();
+						case B256: return ::EVP_aria_256_ccm();
+					}
+					break;
+
+				case GCM:
+					switch (bits)
+					{
+						case B128: return ::EVP_aria_128_gcm();
+						case B192: return ::EVP_aria_192_gcm();
+						case B256: return ::EVP_aria_256_gcm();
+					}
+					break;
+
+				case OCB:
+				case XTS:
+					// these don't exist for ARIA
+					break;
+
+			} // ARIA
+#endif
+			break;
+
+		case Camellia:
+			switch (mode)
+			{
+				case ECB:
+					switch (bits)
+					{
+						case B128: return ::EVP_camellia_128_ecb();
+						case B192: return ::EVP_camellia_192_ecb();
+						case B256: return ::EVP_camellia_256_ecb();
+					}
+					break;
+
+				case CBC:
+					switch (bits)
+					{
+						case B128: return ::EVP_camellia_128_cbc();
+						case B192: return ::EVP_camellia_192_cbc();
+						case B256: return ::EVP_camellia_256_cbc();
+					}
+					break;
+
+				case OFB:
+					switch (bits)
+					{
+						case B128: return ::EVP_camellia_128_ofb();
+						case B192: return ::EVP_camellia_192_ofb();
+						case B256: return ::EVP_camellia_256_ofb();
+					}
+					break;
+
+				case CFB1:
+					switch (bits)
+					{
+						case B128: return ::EVP_camellia_128_cfb1();
+						case B192: return ::EVP_camellia_192_cfb1();
+						case B256: return ::EVP_camellia_256_cfb1();
+					}
+					break;
+
+				case CFB8:
+					switch (bits)
+					{
+						case B128: return ::EVP_camellia_128_cfb8();
+						case B192: return ::EVP_camellia_192_cfb8();
+						case B256: return ::EVP_camellia_256_cfb8();
+					}
+					break;
+
+				case CFB128:
+					switch (bits)
+					{
+						case B128: return ::EVP_camellia_128_cfb128();
+						case B192: return ::EVP_camellia_192_cfb128();
+						case B256: return ::EVP_camellia_256_cfb128();
+					}
+					break;
+
+				case CTR:
+					switch (bits)
+					{
+						case B128: return ::EVP_camellia_128_ctr();
+						case B192: return ::EVP_camellia_192_ctr();
+						case B256: return ::EVP_camellia_256_ctr();
+					}
+					break;
+
+				case CCM:
+				case GCM:
+				case OCB:
+				case XTS:
+					// these don't exist for Camellia
+					break;
+
+			} // Camellia
+			break;
+
+		case ChaCha20_Poly1305:
+			return EVP_chacha20_poly1305();
 	}
 
 	return nullptr;
@@ -218,7 +424,55 @@ const evp_cipher_st* KAES::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
 } // GetCipher
 
 //---------------------------------------------------------------------------
-KString KAES::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword, KStringView sSalt)
+KStringView KBlockCipher::ToString(Algorithm algorithm)
+//---------------------------------------------------------------------------
+{
+	switch (algorithm)
+	{
+		case AES:               return "AES";
+		case ARIA:              return "ARIA";
+		case Camellia:          return "Camellia";
+		case ChaCha20_Poly1305: return "ChaCha20_Poly1305";
+	}
+	return "";
+}
+
+//---------------------------------------------------------------------------
+KStringView KBlockCipher::ToString(Mode mode)
+//---------------------------------------------------------------------------
+{
+	switch (mode)
+	{
+		case ECB:    return "ECB";
+		case CBC:    return "CBC";
+		case OFB:    return "OFB";
+		case CFB1:   return "CFB1";
+		case CFB8:   return "CFB8";
+		case CFB128: return "CFB128";
+		case CTR:    return "CTR";
+		case CCM:    return "CCM";
+		case GCM:    return "GCM";
+		case OCB:    return "OCB";
+		case XTS:    return "XTS";
+	}
+	return "";
+}
+
+//---------------------------------------------------------------------------
+KStringView KBlockCipher::ToString(Bits bits)
+//---------------------------------------------------------------------------
+{
+	switch (bits)
+	{
+		case B128: return "128";
+		case B192: return "192";
+		case B256: return "256";
+	}
+	return "";
+}
+
+//---------------------------------------------------------------------------
+KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword, KStringView sSalt)
 //---------------------------------------------------------------------------
 {
 #if OPENSSL_VERSION_NUMBER >= 0x030000000L
@@ -279,7 +533,7 @@ KString KAES::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword,
 } // CreateKeyFromPasswordHKDF
 
 //---------------------------------------------------------------------------
-KString KAES::CreateKeyFromPasswordPKCS5
+KString KBlockCipher::CreateKeyFromPasswordPKCS5
 (
  uint16_t    iKeyLen,
  KStringView sPassword,
@@ -311,10 +565,19 @@ KString KAES::CreateKeyFromPasswordPKCS5
 } // CreateKeyFromPasswordPKCS5
 
 //---------------------------------------------------------------------------
-bool KAES::Initialize(Algorithm algorithm, Bits bits)
+bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 //---------------------------------------------------------------------------
 {
 	m_Cipher      = GetCipher(algorithm, GetMode(), bits);
+
+	if (!m_Cipher)
+	{
+#if !DEKAF2_HAS_ARIA
+		if (algorithm == ARIA) return SetError("you need at least OpenSSL v1.1.1 for ARIA support");
+#endif
+		return SetError(kFormat("no cipher for {}-{}-{}", ToString(algorithm), ToString(GetMode()), ToString(bits)));
+	}
+
 #if OPENSSL_VERSION_NUMBER >= 0x030000000L
 	m_sCipherName = ::EVP_CIPHER_get0_name (m_Cipher);
 #else
@@ -365,7 +628,7 @@ bool KAES::Initialize(Algorithm algorithm, Bits bits)
 } // Initialize
 
 //---------------------------------------------------------------------------
-bool KAES::SetKey(KStringView sKey)
+bool KBlockCipher::SetKey(KStringView sKey)
 //---------------------------------------------------------------------------
 {
 	if (sKey.size() < GetNeededKeyLength())
@@ -396,7 +659,7 @@ bool KAES::SetKey(KStringView sKey)
 } // SetKey
 
 //---------------------------------------------------------------------------
-bool KAES::SetPassword(KStringView sPassword, KStringView sSalt)
+bool KBlockCipher::SetPassword(KStringView sPassword, KStringView sSalt)
 //---------------------------------------------------------------------------
 {
 	return SetKey(CreateKeyFromPasswordHKDF(GetNeededKeyLength(), sPassword, sSalt));
@@ -404,11 +667,12 @@ bool KAES::SetPassword(KStringView sPassword, KStringView sSalt)
 } // SetPassword
 
 //---------------------------------------------------------------------------
-bool KAES::CompleteInitialization()
+bool KBlockCipher::CompleteInitialization()
 //---------------------------------------------------------------------------
 {
 	if (m_bInitCompleted) return true;
 
+	if (!m_OutString) return SetError("no output was set");
 	if (!m_bKeyIsSet) return SetError("no key or password was set");
 
 	if (!m_evpctx || HasError()) return false;
@@ -451,12 +715,11 @@ bool KAES::CompleteInitialization()
 
 		if (m_bInlineIVandTag)
 		{
-			if (!m_OutString) return SetError("no output string");
-
 			// check if we will compute a tag, and if yes keep an empty
 			// placeholder at the very beginning of the ciphertext
 			if (m_iTagLength)
 			{
+				// the validity of m_OutString was tested above
 				m_OutString->append(m_iTagLength, '\0');
 			}
 			if (GetNeededIVLength())
@@ -481,46 +744,61 @@ bool KAES::CompleteInitialization()
 } // CompleteInitialization
 
 //---------------------------------------------------------------------------
-bool KAES::SetInitializationVector(KStringView sIV)
+bool KBlockCipher::SetInitializationVector(KStringView sIV)
 //---------------------------------------------------------------------------
 {
 	if (!GetNeededIVLength()) return SetError("initialization vector not supported for selected cipher");
-	if (GetNeededIVLength() != sIV.size())
-	{
-		SetError(kFormat("initialization vector for {} must have {} bits, but has only {}",
-						 m_sCipherName, GetNeededIVLength() * 8, m_sIV.size() * 8));
-	}
+	if (GetNeededIVLength() != sIV.size()) return SetError(kFormat("initialization vector for {} must have {} bits, but has only {}",
+																   m_sCipherName, GetNeededIVLength() * 8, m_sIV.size() * 8));
 	m_sIV = sIV;
 	return true;
 }
 
 //---------------------------------------------------------------------------
-bool KAES::SetAuthenticationTag(KStringView sTag)
+bool KBlockCipher::SetAuthenticationTag(KStringView sTag)
 //---------------------------------------------------------------------------
 {
 	if (!m_iTagLength) return SetError("authentication tag not supported for selected cipher");
+
 	m_sTag = sTag;
+
 	return true;
 }
 
 //---------------------------------------------------------------------------
-void KAES::SetOutput(KStringRef& sOutput)
+bool KBlockCipher::SetOutput(KStringRef& sOutput)
 //---------------------------------------------------------------------------
 {
+	if (m_OutStream || m_OutString) return SetError("output was already set");
+
 	m_OutStream = nullptr;
 	m_OutString = &sOutput;
+
+	return true;
 }
 
 //---------------------------------------------------------------------------
-void KAES::SetOutput(KOutStream& OutStream)
+bool KBlockCipher::SetOutput(KOutStream& OutStream)
 //---------------------------------------------------------------------------
 {
+	if (m_OutStream || m_OutString) return SetError("output was already set");
+
 	m_OutStream = &OutStream;
 	m_OutString = nullptr;
+
+	if (m_Direction == Encrypt && m_bInlineIVandTag && m_iTagLength)
+	{
+		// check if the stream is repositionable, and note the current position
+		// to insert the tag later
+		m_StartOfStream = kGetWritePosition(*m_OutStream);
+		if (m_StartOfStream < 0) return SetError("cannot read current output stream position");
+	}
+
+	return true;
 };
 
 //---------------------------------------------------------------------------
-bool KAES::SetTag()
+bool KBlockCipher::SetTag()
 //---------------------------------------------------------------------------
 {
 	if (m_sTag.empty()) return SetError("missing authentication tag");
@@ -536,7 +814,7 @@ bool KAES::SetTag()
 } // SetTag
 
 //---------------------------------------------------------------------------
-void KAES::Release() noexcept
+void KBlockCipher::Release() noexcept
 //---------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
@@ -552,7 +830,7 @@ void KAES::Release() noexcept
 } // Release
 
 //---------------------------------------------------------------------------
-bool KAES::AddString(KStringView sInput)
+bool KBlockCipher::AddString(KStringView sInput)
 //---------------------------------------------------------------------------
 {
 	if (!m_evpctx || HasError()) return false;
@@ -649,7 +927,7 @@ bool KAES::AddString(KStringView sInput)
 } // AddString
 
 //---------------------------------------------------------------------------
-bool KAES::AddStream(KStringView sInput)
+bool KBlockCipher::AddStream(KStringView sInput)
 //---------------------------------------------------------------------------
 {
 	KStringRef sBuffer;
@@ -664,7 +942,7 @@ bool KAES::AddStream(KStringView sInput)
 } // AddStream
 
 //---------------------------------------------------------------------------
-bool KAES::Add(KStringView sInput)
+bool KBlockCipher::Add(KStringView sInput)
 //---------------------------------------------------------------------------
 {
 	if (sInput.empty()) return true;
@@ -676,7 +954,7 @@ bool KAES::Add(KStringView sInput)
 } // Encrypt
 
 //---------------------------------------------------------------------------
-bool KAES::Add(KInStream& InputStream)
+bool KBlockCipher::Add(KInStream& InputStream)
 //---------------------------------------------------------------------------
 {
 	if (GetMode() == Mode::CCM)
@@ -702,7 +980,7 @@ bool KAES::Add(KInStream& InputStream)
 } // Add
 
 //---------------------------------------------------------------------------
-bool KAES::Add(KInStream&& InputStream)
+bool KBlockCipher::Add(KInStream&& InputStream)
 //---------------------------------------------------------------------------
 {
 	return Add(InputStream);
@@ -710,7 +988,7 @@ bool KAES::Add(KInStream&& InputStream)
 } // Add
 
 //---------------------------------------------------------------------------
-bool KAES::FinalizeString()
+bool KBlockCipher::FinalizeString()
 //---------------------------------------------------------------------------
 {
 	if (!m_evpctx || HasError()) return false;
@@ -785,7 +1063,7 @@ bool KAES::FinalizeString()
 } // FinalizeString
 
 //---------------------------------------------------------------------------
-bool KAES::FinalizeStream()
+bool KBlockCipher::FinalizeStream()
 //---------------------------------------------------------------------------
 {
 	KStringRef sBuffer;
@@ -818,7 +1096,7 @@ bool KAES::FinalizeStream()
 } // FinalizeStream
 
 //---------------------------------------------------------------------------
-bool KAES::Finalize()
+bool KBlockCipher::Finalize()
 //---------------------------------------------------------------------------
 {
 	if (m_OutString) return FinalizeString();

@@ -1012,6 +1012,7 @@ set(PUBLIC_HEADERS
 	kaddrplus.h
 	kaes.h
 	kallocator.h
+	karia.h
 	kassociative.h
 	katomic_object.h
 	kawsauth.h
@@ -1020,13 +1021,16 @@ set(PUBLIC_HEADERS
 	kbcrypt.h
 	kbit.h
 	kbitfields.h
+	kblockcipher.h
 	kbuffer.h
 	kbufferedreader.h
 	kcache.h
+	kcamellia.h
 	kcaseless.h
 	kcasestring.h
 	kcesu8.h
 	kcgistream.h
+	kchacha.h
 	kchildprocess.h
 	kchunkedtransfer.h
 	kcompatibility.h
@@ -1295,11 +1299,11 @@ set (SOURCES
 	bits/simd/kfindfirstof.cpp
 	bits/simd/kutf.cpp
 	dekaf2.cpp
-	kaes.cpp
 	kawsauth.cpp
 	kbar.cpp
 	kbase64.cpp
 	kbcrypt.cpp
+	kblockcipher.cpp
 	kbufferedreader.cpp
 	kcaseless.cpp
 	kcasestring.cpp

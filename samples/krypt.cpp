@@ -41,7 +41,7 @@
 
 #include <dekaf2/koptions.h>
 #include <dekaf2/kerror.h>
-#include <dekaf2/kaes.h>
+#include <dekaf2/kblockcipher.h>
 #include <dekaf2/kencode.h>
 #include <dekaf2/kcompression.h>
 #include <dekaf2/ksystem.h>
@@ -63,44 +63,54 @@ private:
 	//-----------------------------------------------------------------------------
 	{
 		KString sContent;
-		if (!kReadAll(sFilename, sContent)) throw KError { kFormat("cannot read file: {}", sFilename) };
+		if (!kReadAll((sFilename.empty()) ? KIn : KInFile(sFilename), sContent)) throw KError { kFormat("cannot read file: {}", sFilename) };
 		return sContent;
 	}
 
 	//-----------------------------------------------------------------------------
-	KAES::Algorithm GetAlgorithm(KStringView sAlgorithm)
+	KBlockCipher::Algorithm GetAlgorithm(KStringView sAlgorithm)
 	//-----------------------------------------------------------------------------
 	{
 		switch (sAlgorithm.CaseHash())
 		{
-			case "aes"_casehash: return KAES::AES;
+			case "aes"_casehash:      return KBlockCipher::AES;
+			case "aria"_casehash:     return KBlockCipher::ARIA;
+			case "camellia"_casehash: return KBlockCipher::Camellia;
+			case "chacha"_casehash:   return KBlockCipher::ChaCha20_Poly1305;
 		}
 		throw KError { kFormat("invalid algorithm: {}", sAlgorithm) };
 	}
 
 	//-----------------------------------------------------------------------------
-	KAES::Mode GetMode(KStringView sMode)
+	KBlockCipher::Mode GetMode(KStringView sMode)
 	//-----------------------------------------------------------------------------
 	{
 		switch (sMode.CaseHash())
 		{
-			case "ecb"_casehash: return KAES::ECB;
-			case "cbc"_casehash: return KAES::CBC;
-			case "ccm"_casehash: return KAES::CCM;
-			case "gcm"_casehash: return KAES::GCM;
+			case "ecb"_casehash:    return KBlockCipher::ECB;
+			case "cbc"_casehash:    return KBlockCipher::CBC;
+			case "ofb"_casehash:    return KBlockCipher::OFB;
+			case "cfb1"_casehash:   return KBlockCipher::CFB1;
+			case "cfb8"_casehash:   return KBlockCipher::CFB8;
+			case "cfb128"_casehash: return KBlockCipher::CFB128;
+			case "ctr"_casehash:    return KBlockCipher::CTR;
+			case "ccm"_casehash:    return KBlockCipher::CCM;
+			case "gcm"_casehash:    return KBlockCipher::GCM;
+			case "ocb"_casehash:    return KBlockCipher::OCB;
+			case "xts"_casehash:    return KBlockCipher::XTS;
 		}
 		throw KError { kFormat("invalid mode: {}", sMode) };
 	}
 
 	//-----------------------------------------------------------------------------
-	KAES::Bits GetBits(KStringView sBits)
+	KBlockCipher::Bits GetBits(KStringView sBits)
 	//-----------------------------------------------------------------------------
 	{
 		switch (sBits.Hash())
 		{
-			case "128"_hash: return KAES::B128;
-			case "192"_hash: return KAES::B192;
-			case "256"_hash: return KAES::B256;
+			case "128"_hash: return KBlockCipher::B128;
+			case "192"_hash: return KBlockCipher::B192;
+			case "256"_hash: return KBlockCipher::B256;
 		}
 		throw KError { kFormat("invalid block length: {}", sBits) };
 	}
@@ -114,12 +124,12 @@ private:
 		if (bCompress)
 		{
 			KZSTD ZSTD(sContent);
-			ZSTD.Write((kFileExists(sInput)) ? GetFileContent(sInput) : KString(sInput));
+			ZSTD.Write((sInput.empty() || kFileExists(sInput)) ? GetFileContent(sInput) : KString(sInput));
 			ZSTD.close();
 		}
 		else
 		{
-			sContent = (kFileExists(sInput)) ? GetFileContent(sInput) : KString(sInput);
+			sContent = (sInput.empty() || kFileExists(sInput)) ? GetFileContent(sInput) : KString(sInput);
 		}
 
 		return sContent;
@@ -129,33 +139,31 @@ private:
 	KString GetCiphertextInput(KStringViewZ sInput, bool bBase64, bool bHexEncoded)
 	//-----------------------------------------------------------------------------
 	{
-		KString sContent;
-
-		if (kFileExists(sInput)) sContent = GetFileContent(sInput);
-		else sContent = sInput;
+		KString sContent = (sInput.empty() || kFileExists(sInput)) ? GetFileContent(sInput) : KString(sInput);
 
 		if (bBase64)
 		{
-			KDec::Base64InPlace(sContent);
+			return KDec::Base64(sContent);
 		}
 		else if (bHexEncoded)
 		{
-			KDec::HexInPlace(sContent);
+			return KDec::Hex(sContent);
 		}
-
-		return sContent;
+		else
+		{
+			return sContent;
+		}
 	}
 
 	//-----------------------------------------------------------------------------
-	KOutStream GetOutStream(KStringViewZ sOutfile)
+	KOutStream GetOutStream(KStringViewZ sOutfile, KOutFile& OutFile)
 	//-----------------------------------------------------------------------------
 	{
 		if (!sOutfile.empty())
 		{
-			KOutFile of;
-			of.open(sOutfile, std::ios_base::out | std::ios_base::trunc);
-			if (!of.is_open()) throw KError { kFormat("cannot open output file: {}", sOutfile) };
-			return of;
+			OutFile.open(sOutfile, std::ios_base::out | std::ios_base::trunc);
+			if (!OutFile.is_open()) throw KError { kFormat("cannot open output file: {}", sOutfile) };
+			return OutFile.OutStream();
 		}
 		else
 		{
@@ -181,14 +189,14 @@ public:
 		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
 		// define cli options
-		KString      sAlgorithm    = Options("a,algorithm  : algorithm, defaults to AES", "AES");
-		KStringView  sBits         = Options("b,bit        : block length, either 128, 192, or 256, defaults to 256", 256);
-		KString      sMode         = Options("m,mode       : encryption mode, either ECB, CBC, CCM, or GCM, defaults to GCM", "GCM");
+		KStringView  sAlgorithm    = Options("a,algorithm  : algorithm: AES, ARIA, Camellia, ChaCha, defaults to AES", "AES");
+		KStringView  sBits         = Options("b,bit        : key size, either 128, 192, or 256 bit, defaults to 256", "256");
+		KStringView  sMode         = Options("m,mode       : encryption mode, either ECB, CBC, OCB, OFB, CFB1, CFB8, CFB128, CTR, CCM, GCM, or XTS, defaults to GCM", "GCM");
 		KStringView  sPassword     = Options("p,password   : password");
-		KStringViewZ sEncrypt      = Options("e,encrypt <plain |file> : encrypt, followed by plaintext  or filename to encrypt", "");
-		KStringViewZ sDecrypt      = Options("x,decrypt <cipher|file> : decrypt, followed by ciphertext or filename to decrypt", "");
-		KStringViewZ sOutfile      = Options("o,output  <file>        : output file name, defaults to stdout", "");
-
+		bool         bEncrypt      = Options("e,encrypt    : encrypt", "");
+		bool         bDecrypt      = Options("x,decrypt    : decrypt", "");
+		KStringViewZ sInput        = Options("i,input  <file|data> : input file name or input data, defaults to stdin", "");
+		KStringViewZ sOutfile      = Options("o,output <file>      : output file name, defaults to stdout", "");
 		bool         bHexEncoded   = Options("hex          : ciphertext is hex encoded"   , false);
 		bool         bBase64       = Options("base64       : ciphertext is base64 encoded", false);
 		bool         bBase64one    = Options("one64        : ciphertext is base64 encoded without linebreaks", false);
@@ -198,29 +206,31 @@ public:
 		if (!Options.Check()) return 1;
 
 		if (bBase64one) bBase64 = true;
-		if (!sEncrypt.empty() && !sDecrypt.empty()) throw KError { "can only either encrypt or decrypt" };
-		if ( sEncrypt.empty() &&  sDecrypt.empty()) throw KError { "missing input, use either encrypt or decrypt option" };
+		if ( bEncrypt &&  bDecrypt) throw KError { "can only either encrypt or decrypt" };
+		if (!bEncrypt && !bDecrypt) throw KError { "missing input, use either encrypt or decrypt option" };
 
 		auto algorithm = GetAlgorithm(sAlgorithm);
-		auto direction = (sEncrypt.empty()) ? KAES::Direction::Decrypt : KAES::Direction::Encrypt;
+		auto direction = (bDecrypt) ? KBlockCipher::Decrypt : KBlockCipher::Encrypt;
 		auto mode      = GetMode(sMode);
 		auto bits      = GetBits(sBits);
-		auto sContent  = (direction == KAES::Encrypt)
-			? GetPlaintextInput(sEncrypt, bCompress)
-			: GetCiphertextInput(sDecrypt, bBase64, bHexEncoded);
+		auto sContent  = (direction == KBlockCipher::Encrypt)
+			? GetPlaintextInput(sInput, bCompress)
+			: GetCiphertextInput(sInput, bBase64, bHexEncoded);
 
 		KString sOut;
 		{
-			KAES AES(sOut, direction, algorithm, mode, bits);
-			AES.SetThrowOnError(true);
-			AES.SetPassword(sPassword);
-			AES.Add(sContent);
-			AES.Finalize();
+			KBlockCipher Cipher(direction, algorithm, mode, bits);
+			Cipher.SetThrowOnError(true);
+			Cipher.SetOutput(sOut);
+			Cipher.SetPassword(sPassword);
+			Cipher.Add(sContent);
+			Cipher.Finalize();
 		}
 
-		auto OutStream = GetOutStream(sOutfile);
+		KOutFile OutFile;
+		auto OutStream = GetOutStream(sOutfile, OutFile);
 
-		if (direction == KAES::Direction::Encrypt)
+		if (direction == KBlockCipher::Encrypt)
 		{
 			if (bBase64) OutStream.Write(KEnc::Base64(sOut, !bBase64one));
 			else if (bHexEncoded) OutStream.Write(KEnc::Hex(sOut));
@@ -251,7 +261,7 @@ int main(int argc, char** argv)
 	}
 	catch (const std::exception& ex)
 	{
-		kPrintLine(">> {}: {}", "krypt", ex.what());
+		KErr.FormatLine(">> {}: {}", "krypt", ex.what());
 	}
 	return 1;
 }

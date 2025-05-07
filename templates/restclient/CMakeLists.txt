@@ -52,7 +52,7 @@ __HeaderFiles__)
 
 # Compile all __LowerProjectName__ objects
 add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
-target_link_libraries(${PROJECT_NAME} dekaf2)
+target_link_libraries(${PROJECT_NAME} dekaf2::dekaf2)
 
 # ================================= INSTALLATION =====================================
 

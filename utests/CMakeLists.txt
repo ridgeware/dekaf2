@@ -31,7 +31,6 @@ set (UHEADERS
 # keep alphabetic sort order
 set (USOURCES
 	main.cpp
-	kaes_tests.cpp
 	kctype_tests.cpp
 	kallocator_tests.cpp
 	kassociative_tests.cpp
@@ -40,6 +39,7 @@ set (USOURCES
 	kbcrypt_tests.cpp
 	kbit_tests.cpp
 	kbitfields_tests.cpp
+	kblockcipher_tests.cpp
 	kcache_tests.cpp
 	kcaseless_tests.cpp
 	kcasestring_tests.cpp

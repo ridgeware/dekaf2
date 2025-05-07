@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter(tm)
  //
- // Copyright (c) 2018, Ridgeware, Inc.
+ // Copyright (c) 2025, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -40,53 +40,35 @@
  //
  */
 
-#include "kdigest.h"
-#include <openssl/evp.h>
+#pragma once
+
+#include "kblockcipher.h"
+
+#if DEKAF2_HAS_AES
 
 DEKAF2_NAMESPACE_BEGIN
 
-//---------------------------------------------------------------------------
-const evp_md_st* KDigest::GetMessageDigest(Digest digest)
-//---------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Camellia encryption/decryption
+class DEKAF2_PUBLIC KCamellia : public KBlockCipher
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	switch (digest)
+
+//------
+public:
+//------
+
+	/// ARIA encryption/decryption
+	/// @param direction either Decrypt or Encrypt
+	/// @param mode either ECB, CBC, OFB, CFB1, CFB8, CFB128 or CTR - defaults to CBC
+	/// @param bits one of B128, B192, B256 - defaults to B256
+	KCamellia(KBlockCipher::Direction direction, KBlockCipher::Mode mode = KBlockCipher::CBC, KBlockCipher::Bits bits = KBlockCipher::B256)
+	: KBlockCipher(direction, KBlockCipher::Camellia, mode, bits)
 	{
-		case MD5:     return EVP_md5();
-		case SHA1:    return EVP_sha1();
-		case SHA224:  return EVP_sha224();
-		case SHA256:  return EVP_sha256();
-		case SHA384:  return EVP_sha384();
-		case SHA512:  return EVP_sha512();
-#if DEKAF2_HAS_BLAKE2
-		case BLAKE2S: return EVP_blake2s256();
-		case BLAKE2B: return EVP_blake2b512();
-#endif
 	}
 
-	return nullptr;
-
-} // GetMessageDigest
-
-//---------------------------------------------------------------------------
-const KStringViewZ KDigest::ToString(Digest digest)
-//---------------------------------------------------------------------------
-{
-	switch (digest)
-	{
-		case MD5:     return "md5";
-		case SHA1:    return "sha1";
-		case SHA224:  return "sha224";
-		case SHA256:  return "sha256";
-		case SHA384:  return "sha384";
-		case SHA512:  return "sha512";
-#if DEKAF2_HAS_BLAKE2
-		case BLAKE2S: return "blake2s256";
-		case BLAKE2B: return "blake2b512";
-#endif
-	}
-
-	return "";
-
-} // GetMessageDigest
+}; // KCamellia
 
 DEKAF2_NAMESPACE_END
+
+#endif

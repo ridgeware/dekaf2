@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter(tm)
  //
- // Copyright (c) 2018, Ridgeware, Inc.
+ // Copyright (c) 2025, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -40,53 +40,33 @@
  //
  */
 
-#include "kdigest.h"
-#include <openssl/evp.h>
+#pragma once
+
+#include "kblockcipher.h"
+
+#if DEKAF2_HAS_AES
 
 DEKAF2_NAMESPACE_BEGIN
 
-//---------------------------------------------------------------------------
-const evp_md_st* KDigest::GetMessageDigest(Digest digest)
-//---------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// ChaCha20_Poly1305 encryption/decryption
+class DEKAF2_PUBLIC KChaCha : public KBlockCipher
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	switch (digest)
+
+//------
+public:
+//------
+
+	/// ChaCha20_Poly1305 encryption/decryption
+	/// @param direction either Decrypt or Encrypt
+	KChaCha(KBlockCipher::Direction direction)
+	: KBlockCipher(direction, KBlockCipher::ChaCha20_Poly1305)
 	{
-		case MD5:     return EVP_md5();
-		case SHA1:    return EVP_sha1();
-		case SHA224:  return EVP_sha224();
-		case SHA256:  return EVP_sha256();
-		case SHA384:  return EVP_sha384();
-		case SHA512:  return EVP_sha512();
-#if DEKAF2_HAS_BLAKE2
-		case BLAKE2S: return EVP_blake2s256();
-		case BLAKE2B: return EVP_blake2b512();
-#endif
 	}
 
-	return nullptr;
-
-} // GetMessageDigest
-
-//---------------------------------------------------------------------------
-const KStringViewZ KDigest::ToString(Digest digest)
-//---------------------------------------------------------------------------
-{
-	switch (digest)
-	{
-		case MD5:     return "md5";
-		case SHA1:    return "sha1";
-		case SHA224:  return "sha224";
-		case SHA256:  return "sha256";
-		case SHA384:  return "sha384";
-		case SHA512:  return "sha512";
-#if DEKAF2_HAS_BLAKE2
-		case BLAKE2S: return "blake2s256";
-		case BLAKE2B: return "blake2b512";
-#endif
-	}
-
-	return "";
-
-} // GetMessageDigest
+}; // KChaCha
 
 DEKAF2_NAMESPACE_END
+
+#endif

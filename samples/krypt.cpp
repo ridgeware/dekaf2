@@ -207,7 +207,7 @@ public:
 
 		if (bBase64one) bBase64 = true;
 		if ( bEncrypt &&  bDecrypt) throw KError { "can only either encrypt or decrypt" };
-		if (!bEncrypt && !bDecrypt) throw KError { "missing input, use either encrypt or decrypt option" };
+		if (!bEncrypt && !bDecrypt) throw KError { "please set either encrypt or decrypt option" };
 
 		auto algorithm = GetAlgorithm(sAlgorithm);
 		auto direction = (bDecrypt) ? KBlockCipher::Decrypt : KBlockCipher::Encrypt;

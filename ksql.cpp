@@ -69,6 +69,7 @@
 #include "kxterm.h"
 #include "koutshell.h"
 #include "kformtable.h"
+#include "kencode.h"
 #include <cstdint>
 #include <utility>
 
@@ -77,57 +78,57 @@
 #endif
 
 #ifdef DEKAF2_HAS_MYSQL
-  #ifdef WIN32
-    #define NO_CLIENT_LONG_LONG // <-- for mysql header file
-  #endif
-  #ifdef cygwin
-    #undef STDCALL
-  #endif
-  #include <mysql.h>          // mysql top include
-  #if DEKAF2_HAS_INCLUDE(<mysql/errmsg.h>)
-    #include <mysql/errmsg.h>   // mysql error codes (start with CR_)
-  #elif DEKAF2_HAS_INCLUDE(<mariadb/errmsg.h>)
-    #include <mariadb/errmsg.h>
-  #else
-    #error "cannot find header file with mysql error codes"
-  #endif
+#ifdef WIN32
+#define NO_CLIENT_LONG_LONG // <-- for mysql header file
+#endif
+#ifdef cygwin
+#undef STDCALL
+#endif
+#include <mysql.h>          // mysql top include
+#if DEKAF2_HAS_INCLUDE(<mysql/errmsg.h>)
+#include <mysql/errmsg.h>   // mysql error codes (start with CR_)
+#elif DEKAF2_HAS_INCLUDE(<mariadb/errmsg.h>)
+#include <mariadb/errmsg.h>
+#else
+#error "cannot find header file with mysql error codes"
+#endif
 #endif
 
 #ifdef DEKAF2_HAS_SQLITE3
-  #include "ksqlite.h"
+#include "ksqlite.h"
 #endif
 
 #ifdef DEKAF2_HAS_DBLIB
-  #ifndef __STDC_VERSION__
-	// FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
-	// C++ unfortunately does not require to set it, so we match it with the
-	// value of __cplusplus
-	#define __STDC_VERSION__ __cplusplus
-  #endif
-  // dependent headers when building DBLIB (these are *not* part of our distribution):
-  #include <sqlfront.h>        // dblib top level include
-  #include <sqldb.h>           // dblib top level include
+#ifndef __STDC_VERSION__
+// FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
+// C++ unfortunately does not require to set it, so we match it with the
+// value of __cplusplus
+#define __STDC_VERSION__ __cplusplus
+#endif
+// dependent headers when building DBLIB (these are *not* part of our distribution):
+#include <sqlfront.h>        // dblib top level include
+#include <sqldb.h>           // dblib top level include
 
-  int dblib_msg_handler(DBPROCESS * dbproc, DBINT msgno, int msgstate, int severity, char *msgtext, char *srvname, char *procname, int line);
-  int dblib_err_handler(DBPROCESS * dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr);
+int dblib_msg_handler(DBPROCESS * dbproc, DBINT msgno, int msgstate, int severity, char *msgtext, char *srvname, char *procname, int line);
+int dblib_err_handler(DBPROCESS * dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr);
 #endif
 
 #ifdef DEKAF2_HAS_CTLIB
-	#ifndef __STDC_VERSION__
-	  // FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
-	  // C++ unfortunately does not require to set it, so we match it with the
-	  // value of __cplusplus
-	  #define __STDC_VERSION__ __cplusplus
-	#endif
-  #include <ctpublic.h>        // CTLIB, alternative to DBLIB for Sybase and MS SQL Server
-  #include <sybdb.h>	       // "sybdb.h is the only other file you need" (FreeTDS doc) -- ctpublic.h should actually already include it
-  #define KSQL2_CTDEBUG 3
+#ifndef __STDC_VERSION__
+// FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
+// C++ unfortunately does not require to set it, so we match it with the
+// value of __cplusplus
+#define __STDC_VERSION__ __cplusplus
+#endif
+#include <ctpublic.h>        // CTLIB, alternative to DBLIB for Sybase and MS SQL Server
+#include <sybdb.h>	       // "sybdb.h is the only other file you need" (FreeTDS doc) -- ctpublic.h should actually already include it
+#define KSQL2_CTDEBUG 3
 #endif
 
 #if DEKAF2_IS_WINDOWS
-	#if defined(GetObject)
-		#undef GetObject
-	#endif
+#if defined(GetObject)
+#undef GetObject
+#endif
 #endif
 
 // FYI: from ocidfn.h
@@ -180,13 +181,13 @@ DEKAF2_NAMESPACE_BEGIN
 
 struct SQLTX
 {
-	KStringView sOriginal;
-	KStringView sMySQL;
-	KStringView sSQLite3;
-	KStringView sOraclePre8;
-	KStringView sOracle;
-	KStringView sSybase;
-	KStringView sInformix;
+KStringView sOriginal;
+KStringView sMySQL;
+KStringView sSQLite3;
+KStringView sOraclePre8;
+KStringView sOracle;
+KStringView sSybase;
+KStringView sInformix;
 };
 
 constexpr SQLTX g_Translations[] = {
@@ -561,28 +562,28 @@ KSQL::KSQL (DBT iDBType, KStringView sUsername, KStringView sPassword, KStringVi
 } // KSQL - construct with connection details, but do not connect yet
 
 //-----------------------------------------------------------------------------
-KSQL::KSQL (KStringView sDBCFile, KDuration ConnectionTimeout, Transport TransportFlags)
+KSQL::KSQL (KStringView sDBC, KDuration ConnectionTimeout, Transport TransportFlags)
 //-----------------------------------------------------------------------------
 : KSQL () // delegate to default constructor first
 {
-	kDebug(2, "DBC file: {}", sDBCFile);
+	kDebug(2, "DBC file: {}", sDBC);
 
-	EnsureConnected ("", sDBCFile, IniParms{}, ConnectionTimeout, TransportFlags);
+	EnsureConnected ("", sDBC, IniParms{}, ConnectionTimeout, TransportFlags);
 
 } // KSQL - construct and connect from a DBC file
 
 //-----------------------------------------------------------------------------
 KSQL::KSQL (KStringView sIdentifierList,
-			KStringView sDBCFile,
+			KStringView sDBC,
 			const IniParms& INI,
 			KDuration ConnectionTimeout,
 			Transport TransportFlags)
 //-----------------------------------------------------------------------------
 : KSQL () // delegate to default constructor first
 {
-	kDebug(2, "Identifiers: {}, DBC file: {}", sIdentifierList, sDBCFile);
+	kDebug(2, "Identifiers: {}, DBC file: {}", sIdentifierList, sDBC);
 
-	EnsureConnected (sIdentifierList, sDBCFile, INI, ConnectionTimeout, TransportFlags);
+	EnsureConnected (sIdentifierList, sDBC, INI, ConnectionTimeout, TransportFlags);
 
 } // KSQL - construct and connect from a DBC file or env or INI parms
 
@@ -602,7 +603,7 @@ KSQL::KSQL (const KSQL& other)
 
 	if (!other.GetDBUser().empty())
 	{
-		m_sDBCFile = other.m_sDBCFile;
+		m_sDBC = other.m_sDBC;
 		SetConnect (other.GetDBType(), other.GetDBUser(), other.GetDBPass(), other.GetDBName(), other.GetDBHost(), other.GetDBPort());
 	}
 
@@ -1017,7 +1018,7 @@ bool KSQL::SaveConnect (KStringViewZ sDBCFile)
 } // SaveConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::DecodeDBCData (KStringView sBuffer, KStringViewZ sDBCFile)
+bool KSQL::DecodeDBCData (KStringView sBuffer, KStringViewZ sDBC)
 //-----------------------------------------------------------------------------
 {
 	std::unique_ptr<DBCFileBase> dbc;
@@ -1047,16 +1048,16 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringViewZ sDBCFile)
 		   This version of the software can't process the data, but it may be a future version of DBC,
 		   so provide a helpful error message.
 		*/
-		return SetError(kFormat ("unrecognized DBC version in DBC file '{}'.", sDBCFile));
+		return SetError(kFormat ("unrecognized DBC version in DBC file '{}'.", sDBC));
 	}
 	else
 	{
-		return SetError(kFormat ("invalid header on DBC file '{}'.", sDBCFile));
+		return SetError(kFormat ("invalid header on DBC file '{}'.", sDBC));
 	}
 
 	if (!dbc->SetBuffer(sBuffer))
 	{
-		return SetError(kFormat ("corrupted DBC file '{}'.", sDBCFile));
+		return SetError(kFormat ("corrupted DBC file '{}'.", sDBC));
 	}
 
 	m_iDBType    = dbc->GetDBT();
@@ -1072,10 +1073,10 @@ bool KSQL::DecodeDBCData (KStringView sBuffer, KStringViewZ sDBCFile)
 } // DecodeDBCData
 
 //-----------------------------------------------------------------------------
-bool KSQL::SetConnect (KStringViewZ sDBCFile, KStringView sDBCFileContent)
+bool KSQL::SetConnect (KStringViewZ sDBC, KStringView sDBCContent)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, sDBCFile);
+	kDebug (3, sDBC);
 
 	if (IsConnectionOpen())
 	{
@@ -1091,50 +1092,64 @@ bool KSQL::SetConnect (KStringViewZ sDBCFile, KStringView sDBCFileContent)
 	m_sHostname.clear();
 
 	// take care that the new instance is not a ref on the old one
-	if (sDBCFile.data() != m_sDBCFile.data())
+	if (sDBC.data() != m_sDBC.data())
 	{
-		m_sDBCFile.clear();
+		m_sDBC.clear();
 	}
 
-	if (sDBCFileContent.empty())
+	if (sDBCContent.empty())
 	{
-		return SetError(kFormat ("empty DBC file '{}'", sDBCFile));
+		return SetError(kFormat ("empty DBC file '{}'", sDBC));
 	}
 
-	if (!DecodeDBCData(sDBCFileContent, sDBCFile))
+	if (!DecodeDBCData(sDBCContent, sDBC))
 	{
 		return false;
 	}
 
 	InvalidateConnectSummary();
 
-	m_sDBCFile = sDBCFile;
+	m_sDBC = sDBC;
 
 	return (true);
 
 } // SetConnect
 
 //-----------------------------------------------------------------------------
-bool KSQL::LoadConnect (KStringViewZ sDBCFile)
+bool KSQL::LoadConnect (KStringViewZ sDBC)
 //-----------------------------------------------------------------------------
 {
-	kDebug (3, sDBCFile);
+	kDebug (3, sDBC);
+
+	// load connection parameters from a DBC file or literal hex-encoded DBC blob
 
 	if (IsConnectionOpen())
 	{
 		return SetError ("can't call LoadConnect on an OPEN DATABASE");
 	}
 
-	kDebug (GetDebugLevel(), "opening '{}'...", sDBCFile);
+	KString sBuffer;
 
-	auto sBuffer = s_DBCCache.Get(sDBCFile);
-
-	if (sBuffer->empty())
+	// DBC file
+	if (kFileExists (sDBC))
 	{
-		return SetError(kFormat("dbc file empty or unexisting: {}", sDBCFile));
+		kDebug (3, "reading file: {} ...", sDBC);
+		sBuffer = s_DBCCache.Get(sDBC);
 	}
 
-	return SetConnect (sDBCFile, sBuffer.get());
+	// hex-encoded DBC blob
+	else if (LooksLikeHexEncoded (sDBC))
+	{
+		kDebug (3, "decoding blob: {} ...", sDBC);
+		sBuffer = KDecode::Hex(sDBC);
+	}
+
+	if (sBuffer.empty())
+	{
+		return SetError(kFormat("dbc empty or unexisting: {}", sDBC));
+	}
+
+	return SetConnect (sDBC, sBuffer);
 
 } // LoadConnect
 
@@ -8361,7 +8376,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	if (sDBCArg)
 	{
-		if (kFileExists(sDBCArg))
+		if (kFileExists (sDBCArg) || LooksLikeHexEncoded (sDBCArg))
 		{
 			kDebug (3, "using dbc={} which was passed into the KSQL constructor", sDBCArg);
 
@@ -8420,7 +8435,7 @@ bool KSQL::EnsureConnected (KStringView sIdentifierList, KString sDBCArg, const 
 			if (sDBC)
 			{
 				kDebug (3, "looking for: {}", sDBC);
-				if (kFileExists (sDBC))
+				if (kFileExists (sDBC) || LooksLikeHexEncoded(sDBC))
 				{
 					if (!LoadConnect (sDBC))
 					{

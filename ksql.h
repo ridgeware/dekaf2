@@ -282,11 +282,11 @@ public:
 	);
 	/// construct using DBC file.
 	/// This connector immediately also opens the connection.
-	/// @param sDBCFile dbc file to be used
+	/// @param sDBC dbc file (or hex-encoded blob) to be used
 	/// @param ConnectionTimeout timeout for connection setup, defaults to DefaultConnectionTimeout
 	/// @param TransportFlags transport details like TLS, compression. defaults to Transport::Default
 	KSQL (
-		KStringView sDBCFile,
+		KStringView sDBC,
 		KDuration   ConnectionTimeout = DefaultConnectionTimeout,
 		Transport   TransportFlags    = Transport::Default
 	);
@@ -294,14 +294,14 @@ public:
 	/// This connector immediately also opens the connection.
 	/// @param sIdentifierList name used as prefix for env vars to
 	/// load the configuration from.
-	/// @param sDBCFile dbc file to be used. Can be empty.
+	/// @param sDBC dbc file (or hex-encoded blob) to be used. Can be empty.
 	/// @param INI a property sheet with ini parameters which
 	/// will be searched as last resort to find connection parameters
 	/// @param ConnectionTimeout timeout for connection setup, defaults to DefaultConnectionTimeout
 	/// @param TransportFlags transport details like TLS, compression. defaults to Transport::Default
 	KSQL (
 		KStringView     sIdentifierList,
-		KStringView     sDBCFile,
+		KStringView     sDBC,
 		const IniParms& INI               = IniParms{},
 		KDuration       ConnectionTimeout = DefaultConnectionTimeout,
 		Transport       TransportFlags    = Transport::Default
@@ -375,11 +375,15 @@ public:
 	/// configure server port to connect to
 	bool   SetDBPort (int iDBPortNum);
 
-	/// load connection parameters from a DBC file
-	bool   LoadConnect      (KStringViewZ sDBCFile);
+	/// load connection parameters from a DBC file or literal hex-encoded DBC blob
+	bool   LoadConnect      (KStringViewZ sDBC);
+
 	/// save connection parameters into a DBC file
 	bool   SaveConnect      (KStringViewZ sDBCFile);
-	bool   SetConnect       (KStringViewZ sDBCFile, KStringView sDBCFileContent);
+
+	/// set connection parameters from DBC data
+	bool   SetConnect       (KStringViewZ sDBC, KStringView sDBCContent);
+
 	API    GetAPISet        ()      { return (m_iAPISet); }
 	bool   SetAPISet        (API iAPISet);
 	/// Open a server connection with the configured connection parameters
@@ -1040,12 +1044,12 @@ public:
 	///
 	/// @param sIdentifierList name used as prefix for env vars to
 	/// load the configuration from.
-	/// @param sDBCFile dbc file to be used. Can be empty.
+	/// @param sDBC dbc file (or hex-encoded blob) to be used. Can be empty.
 	/// @param INI a property sheet with ini parameters which
 	/// @param ConnectionTimeout timeout for connection setup, defaults to DefaultConnectionTimeout
 	/// @param TransportFlags transport details like TLS, compression. defaults to Transport::Default
 	/// will be searched as last resort to find connection parameters
-	bool EnsureConnected (KStringView sIdentifierList, KString sDBCFile, const IniParms& INI = IniParms{}, KDuration ConnectionTimeout = DefaultConnectionTimeout, Transport TransportFlags = Transport::Default);
+	bool EnsureConnected (KStringView sIdentifierList, KString sDBC, const IniParms& INI = IniParms{}, KDuration ConnectionTimeout = DefaultConnectionTimeout, Transport TransportFlags = Transport::Default);
 
 	/// conditionally open the db connection, assuming all connection parms are already set
 	/// @param ConnectionTimeout timeout for connection setup, defaults to DefaultConnectionTimeout
@@ -1056,8 +1060,8 @@ public:
 	/// Upon failure it returns false and sets the LastError.
 	bool PingTest (KDuration Timeout = chrono::seconds(1));
 
-	void SetDBC (KStringView sFile) { m_sDBCFile = sFile; }
-	const KString& GetDBC () const { return m_sDBCFile;  }
+	void SetDBC (KStringView sArg) { m_sDBC = sArg; }
+	const KString& GetDBC () const { return m_sDBC;  }
 
 	/// returns the connection ID for the current connection, or 0
 	ConnectionID GetConnectionID(bool bQueryIfUnknown = true);
@@ -1067,6 +1071,18 @@ public:
 
 	/// kills running query of connection with ID iConnectionID
 	bool KillQuery(ConnectionID iConnectionID);
+
+	/// helper for hex-encoded DBC blobs
+	static bool LooksLikeHexEncoded (KStringViewZ sDBC)
+	{
+		return ( ! sDBC.ToUpper().MatchRegex("^[0-9A-F]*$").empty() );
+	}
+
+	/// helper for CLIs using DBC arguments
+	static bool LooksLikeValidDBC (KStringViewZ sDBCArg)
+	{
+		return (kFileExists (sDBCArg) || LooksLikeHexEncoded (sDBCArg));
+	}
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// keeping current query state of a connection
@@ -1649,7 +1665,7 @@ private:
 	bool       m_bFileIsOpen { false };
 	bool       m_bQueryStarted { false };
 	bool       m_bMayThrow { false };
-	KString    m_sDBCFile;
+	KString    m_sDBC;
 	KString    m_sNeverReadMeDirectlyTmpResultsFile;
 	uint64_t   m_iRowNum { 0 };
 	KROW::Index m_iNumColumns { 0 };
@@ -1704,7 +1720,7 @@ private:
 	uint32_t m_iCtLibErrorNum { 0 };
 	#endif
 
-	bool DecodeDBCData(KStringView sBuffer, KStringViewZ sDBCFile);
+	bool DecodeDBCData(KStringView sBuffer, KStringViewZ sDBC);
 
 }; // KSQL
 

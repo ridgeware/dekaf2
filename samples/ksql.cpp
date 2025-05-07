@@ -64,8 +64,8 @@ int KSql::Main(int argc, char** argv)
 	KOptions Options(false, argc, argv, KLog::STDOUT, /*bThrow*/true);
 	Options.SetBriefDescription("command line database client");
 
-	KStringViewZ sDBCFile  = Options("dbc                 : dbc file name"               ,          "");
-	KString      sDBType   = Options("dbtype <type>       : db type - mysql, sqlserver, sqlserver15, sybase", "");
+	KStringViewZ sDBC      = Options("dbc                 : dbc file name or hex-encoded blob",              "");
+	KString      sDBType   = Options("dbtype <type>       : db type: mysql, sqlserver, sqlserver15, sybase", "");
 	KStringViewZ sUser     = Options("u,user <name>       : username"                    ,          "");
 	KStringViewZ sPassword = Options("p,pass <pass>       : password"                    ,          "");
 	KStringViewZ sDatabase = Options("db,database <name>  : database to use"             ,          "");
@@ -95,9 +95,9 @@ int KSql::Main(int argc, char** argv)
 	if (bForceTLS)    TransportFlags |= KSQL::Transport::RequireTLS;
 	else if (!bNoTLS) TransportFlags |= KSQL::Transport::PreferTLS;
 
-	if (!sDBCFile.empty())
+	if (!sDBC.empty())
 	{
-		if (!SQL.EnsureConnected ("", sDBCFile, KSQL::IniParms{}, Timeout, TransportFlags))
+		if (!SQL.EnsureConnected ("", sDBC, KSQL::IniParms{}, Timeout, TransportFlags))
 		{
 			return SetError(SQL.GetLastError());
 		}

@@ -78,57 +78,57 @@
 #endif
 
 #ifdef DEKAF2_HAS_MYSQL
-#ifdef WIN32
-#define NO_CLIENT_LONG_LONG // <-- for mysql header file
-#endif
-#ifdef cygwin
-#undef STDCALL
-#endif
-#include <mysql.h>          // mysql top include
-#if DEKAF2_HAS_INCLUDE(<mysql/errmsg.h>)
-#include <mysql/errmsg.h>   // mysql error codes (start with CR_)
-#elif DEKAF2_HAS_INCLUDE(<mariadb/errmsg.h>)
-#include <mariadb/errmsg.h>
-#else
-#error "cannot find header file with mysql error codes"
-#endif
+  #ifdef WIN32
+    #define NO_CLIENT_LONG_LONG // <-- for mysql header file
+  #endif
+  #ifdef cygwin
+    #undef STDCALL
+  #endif
+  #include <mysql.h>          // mysql top include
+  #if DEKAF2_HAS_INCLUDE(<mysql/errmsg.h>)
+    #include <mysql/errmsg.h>   // mysql error codes (start with CR_)
+  #elif DEKAF2_HAS_INCLUDE(<mariadb/errmsg.h>)
+    #include <mariadb/errmsg.h>
+  #else
+    #error "cannot find header file with mysql error codes"
+  #endif
 #endif
 
 #ifdef DEKAF2_HAS_SQLITE3
-#include "ksqlite.h"
+  #include "ksqlite.h"
 #endif
 
 #ifdef DEKAF2_HAS_DBLIB
-#ifndef __STDC_VERSION__
-// FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
-// C++ unfortunately does not require to set it, so we match it with the
-// value of __cplusplus
-#define __STDC_VERSION__ __cplusplus
-#endif
-// dependent headers when building DBLIB (these are *not* part of our distribution):
-#include <sqlfront.h>        // dblib top level include
-#include <sqldb.h>           // dblib top level include
+  #ifndef __STDC_VERSION__
+	// FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
+	// C++ unfortunately does not require to set it, so we match it with the
+	// value of __cplusplus
+	#define __STDC_VERSION__ __cplusplus
+  #endif
+  // dependent headers when building DBLIB (these are *not* part of our distribution):
+  #include <sqlfront.h>        // dblib top level include
+  #include <sqldb.h>           // dblib top level include
 
-int dblib_msg_handler(DBPROCESS * dbproc, DBINT msgno, int msgstate, int severity, char *msgtext, char *srvname, char *procname, int line);
-int dblib_err_handler(DBPROCESS * dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr);
+  int dblib_msg_handler(DBPROCESS * dbproc, DBINT msgno, int msgstate, int severity, char *msgtext, char *srvname, char *procname, int line);
+  int dblib_err_handler(DBPROCESS * dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr);
 #endif
 
 #ifdef DEKAF2_HAS_CTLIB
-#ifndef __STDC_VERSION__
-// FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
-// C++ unfortunately does not require to set it, so we match it with the
-// value of __cplusplus
-#define __STDC_VERSION__ __cplusplus
-#endif
-#include <ctpublic.h>        // CTLIB, alternative to DBLIB for Sybase and MS SQL Server
-#include <sybdb.h>	       // "sybdb.h is the only other file you need" (FreeTDS doc) -- ctpublic.h should actually already include it
-#define KSQL2_CTDEBUG 3
+	#ifndef __STDC_VERSION__
+	  // FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
+	  // C++ unfortunately does not require to set it, so we match it with the
+	  // value of __cplusplus
+	  #define __STDC_VERSION__ __cplusplus
+	#endif
+  #include <ctpublic.h>        // CTLIB, alternative to DBLIB for Sybase and MS SQL Server
+  #include <sybdb.h>	       // "sybdb.h is the only other file you need" (FreeTDS doc) -- ctpublic.h should actually already include it
+  #define KSQL2_CTDEBUG 3
 #endif
 
 #if DEKAF2_IS_WINDOWS
-#if defined(GetObject)
-#undef GetObject
-#endif
+	#if defined(GetObject)
+		#undef GetObject
+	#endif
 #endif
 
 // FYI: from ocidfn.h
@@ -181,13 +181,13 @@ DEKAF2_NAMESPACE_BEGIN
 
 struct SQLTX
 {
-KStringView sOriginal;
-KStringView sMySQL;
-KStringView sSQLite3;
-KStringView sOraclePre8;
-KStringView sOracle;
-KStringView sSybase;
-KStringView sInformix;
+	KStringView sOriginal;
+	KStringView sMySQL;
+	KStringView sSQLite3;
+	KStringView sOraclePre8;
+	KStringView sOracle;
+	KStringView sSybase;
+	KStringView sInformix;
 };
 
 constexpr SQLTX g_Translations[] = {

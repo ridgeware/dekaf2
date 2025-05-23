@@ -3,29 +3,132 @@
 #%
 #% findcol - find a column by naming pattern in a MySQL database
 #%
-#% usage: findcol <grepfor> -u<username> -p<password> [-h<hostname>] [<dbname>]
+#% usage: findcol [<options>] <grepfor>
+#%
+#% where <options> are:
+#%   -x              :: debugging option (must come first)
+#%   -dbtype <type>  :: mysql or sqlserver (defaults to mysql)
+#%   -dbc <dbcfile>  :: specify connection with a DBC (dekaf2 database connection) file
+#%   -u <username>   :: or, specify db username (mysql only)
+#%   -p <password>   :: and db password (mysql only)
+#%   -h <hostname>   :: and db hostname (mysql only)
 #%
 #% history:
 #%   keef
 #%
 
-if [ $# -lt 3 ]; then
+if [[ ${1} = -x ]]; then
+	shift
+	set -x
+fi
+
+#====================
+# MAIN
+#====================
+
+dbtype="mysql"
+GREPFOR=""
+DBC=""
+LOGIN=""
+TEMP="/tmp/findcol$$.sql"
+
+while [[ $# -gt 0 ]]
+do
+	case ${1} in
+	-dbtype)
+		dbtype="${2}"; shift
+		case ${dbtype} in
+		mysql|sqlserver)
+			# keep going...
+			;;
+		*)
+			awk '/^#%/ {print substr($0,3)}' $0
+			exit 1
+			;;
+		esac
+		;;
+	-u|-p|-h)
+		LOGIN="${LOGIN} -${1}${2}"; shift
+		;;
+	-u*|-p*|-h*)
+		LOGIN="${LOGIN} ${1}"
+		;;
+	-dbc)
+		DBC="${2}"; shift
+		LOGIN="-dbc ${DBC}"
+		;;
+	-*)
+		echo ">> unknown option: ${1}"
+		awk '/^#%/ {print substr($0,3)}' $0
+		exit 1
+		;;
+	*)
+		if [[ -n ${GREPFOR} ]]; then
+			echo ">> unknown argument: ${1}"
+			awk '/^#%/ {print substr($0,3)}' $0
+			exit 1
+		else
+			GREPFOR=$(echo "$1" | tr '[a-z]' '[A-Z]')
+		fi
+		;;
+	esac
+	shift
+done
+
+if [[ -z ${GREPFOR} ]]; then
+	awk '/^#%/ {print substr($0,3)}' $0
+	exit 1
+elif [[ -n ${DBC} ]] && [[ ! -f ${DBC} ]]; then
+	echo ">> missing dbc: ${DBC}"
+	awk '/^#%/ {print substr($0,3)}' $0
+	exit 1
+elif [[ -z ${DBC} ]] && [[ -z ${LOGIN} ]]; then
+	echo ">> missing login info..."
 	awk '/^#%/ {print substr($0,3)}' $0
 	exit 1
 fi
 
-GREPFOR=$(echo "$1" | tr '[a-z]' '[A-Z]'); shift
-LOGIN="$*"
+case ${dbtype} in
+	mysql)
+		cat <<-EOF | sed -e 's/^|//' > ${TEMP}
+			|select table_schema dbname
+			|	  , table_name
+			|	  , column_name
+			|	  , data_type
+			|	  , is_nullable
+			|	  , column_default
+			|  from INFORMATION_SCHEMA.COLUMNS
+			| where upper(column_name) like '%${GREPFOR}%'
+			|	and table_schema not in ('information_schema','master')
+			| order by 1, 2, 3;
+		EOF
+		;;
+	sqlserver)
+		if [[ -z ${DBC} ]]; then
+			echo ">> sorry, with sqlserver you need to specify -dbc"
+			exit 1
+		fi
+		cat <<-EOF | sed -e 's/^|//' > ${TEMP}
+			|select (schema_name(T.schema_id) as dbname
+			|     , T.name)                   as table_name
+			|     , C.name                    as column_name
+			|  from sys.columns C
+			|  join sys.tables  T   ON c.object_id = t.object_id
+			| where c.name LIKE '%${GREPFOR}%'
+			| order by TableName, ColumnName;
+		EOF
+		;;
+	*)
+		awk '/^#%/ {print substr($0,3)}' $0
+		exit 1
+		;;				
+esac
 
-cat <<-EOF | sed -e 's/^|//' | mysql --table $LOGIN
-	|select table_schema dbname
-	|	  , table_name
-	|	  , column_name
-	|	  , data_type
-	|	  , is_nullable
-	|	  , column_default
-	|  from INFORMATION_SCHEMA.COLUMNS
-	| where upper(column_name) like '%${GREPFOR}%'
-	|	and table_schema not in ('information_schema','master')
-	| order by 1, 2, 3;
-EOF
+if [[ -n ${DBC} ]]; then
+	ksql -dbc ${DBC} -e "${TEMP}"
+else
+	mysql --table ${LOGIN} -e "${TEMP}"
+fi
+
+rm -f "${TEMP}"
+

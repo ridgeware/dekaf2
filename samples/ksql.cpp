@@ -44,6 +44,7 @@
 #include <dekaf2/kstream.h>
 #include <dekaf2/kexception.h>
 #include <dekaf2/kformat.h>
+#include <dekaf2/kfilesystem.h>
 
 using namespace dekaf2;
 
@@ -64,36 +65,60 @@ int KSql::Main(int argc, char** argv)
 	KOptions Options(false, argc, argv, KLog::STDOUT, /*bThrow*/true);
 	Options.SetBriefDescription("command line database client");
 
-	KStringViewZ sDBC      = Options("dbc                 : dbc file name or hex-encoded blob",              "");
-	KString      sDBType   = Options("dbtype <type>       : db type: mysql, sqlserver, sqlserver15, sybase", "");
-	KStringViewZ sUser     = Options("u,user <name>       : username"                    ,          "");
-	KStringViewZ sPassword = Options("p,pass <pass>       : password"                    ,          "");
-	KStringViewZ sDatabase = Options("db,database <name>  : database to use"             ,          "");
-	KStringViewZ sHostname = Options("host <url>          : database server hostname"    , "localhost");
-	uint16_t     iDBPort   = Options("port <number>       : database server port number" ,           0);
-	bool         bQuiet    = Options("q,quiet             : only show db output"         ,       false);
-	KStringViewZ sFormat   = Options("f,format <format>   : output format - ascii, bold, thin, double, rounded, spaced, vertical, json, csv, html, default ascii", "ascii");
-	bool         bVersion  = Options("v,version           : show version information"    ,       false);
-	KDuration    Timeout   = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5",  5));
-	bool         bNoComp   = Options("nocomp              : do not attempt to compress the database connection", false);
-	bool         bNoTLS    = Options("notls               : do not attempt to encrypt the database connection", false);
-	bool         bForceTLS = Options("forcetls            : force encryption for the database connection, fail otherwise", false);
+	KStringViewZ sDBC       = Options("dbc                 : dbc file name or hex-encoded blob",              "");
+	KString      sDBType    = Options("dbtype <type>       : db type: mysql, sqlserver, sqlserver15, sybase", "");
+	KStringViewZ sUser      = Options("u,user <name>       : username"                    ,          "");
+	KStringViewZ sPassword  = Options("p,pass <pass>       : password"                    ,          "");
+	KStringViewZ sDatabase  = Options("db,database <name>  : database to use"             ,          "");
+	KStringViewZ sHostname  = Options("host <url>          : database server hostname"    , "localhost");
+	uint16_t     iDBPort    = Options("port <number>       : database server port number" ,           0);
+	bool         bQuiet     = Options("q,quiet             : only show db output"         ,       false);
+	KStringViewZ sFormat    = Options("f,format <format>   : output format - ascii, bold, thin, double, rounded, spaced, vertical, json, csv, html, default ascii", "ascii");
+	bool         bVersion   = Options("v,version           : show version information"    ,       false);
+	KDuration    Timeout    = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5",  5));
+	bool         bNoComp    = Options("nocomp              : do not attempt to compress the database connection", false);
+	bool         bNoTLS     = Options("notls               : do not attempt to encrypt the database connection", false);
+	bool         bForceTLS  = Options("forcetls            : force encryption for the database connection, fail otherwise", false);
+	KStringViewZ sInfile    = Options("e,exec <file>       : execute the give SQL file", "");
+
+	if (sInfile)
+	{
+		bQuiet = true;
+	}
 
 	// do a final check if all required options were set
-	if (!Options.Check()) return 1;
+	if (!Options.Check())
+	{
+		return 1;
+	}
 
 	KSQL::DBT DBType = KSQL::DBT::MYSQL;
-	if (!sDBType.empty()) DBType = KSQL::TxDBType (sDBType);
+	if (!sDBType.empty())
+	{
+		DBType = KSQL::TxDBType (sDBType);
+	}
 
 	KSQL SQL;
 
 	KSQL::Transport TransportFlags = KSQL::Transport::NoFlags;
 
-	if (bNoTLS && bForceTLS) SetError("-notls and -forcetls options are mutually exclusive");
+	if (bNoTLS && bForceTLS)
+	{
+		SetError("-notls and -forcetls options are mutually exclusive");
+	}
 
-	if (!bNoComp)     TransportFlags |= KSQL::Transport::PreferZSTD;
-	if (bForceTLS)    TransportFlags |= KSQL::Transport::RequireTLS;
-	else if (!bNoTLS) TransportFlags |= KSQL::Transport::PreferTLS;
+	if (!bNoComp)
+	{
+		TransportFlags |= KSQL::Transport::PreferZSTD;
+	}
+	if (bForceTLS)
+	{
+		TransportFlags |= KSQL::Transport::RequireTLS;
+	}
+	else if (!bNoTLS)
+	{
+		TransportFlags |= KSQL::Transport::PreferTLS;
+	}
 
 	if (!sDBC.empty())
 	{
@@ -111,7 +136,7 @@ int KSql::Main(int argc, char** argv)
 		}
 	}
 
-	if (!bQuiet)
+	if (! bQuiet)
 	{
 		kPrintLine(":: {} v{}", s_sProjectName, s_sProjectVersion);
 		if (bVersion)
@@ -122,7 +147,20 @@ int KSql::Main(int argc, char** argv)
 
 	auto Format = KSQL::CreateOutputFormat(sFormat);
 
-	SQL.RunInterpreter (Format, bQuiet);
+	if (sInfile)
+	{
+		KString sSQL;
+		if (!kReadFile (sInfile, sSQL))
+		{
+			return SetError (kFormat ("could not read: {}", sInfile));
+		}
+
+		SQL.OutputQuery (sSQL, Format);
+	}
+	else
+	{
+		SQL.RunInterpreter (Format, bQuiet);
+	}
 
 	return 0;
 

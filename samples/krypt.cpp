@@ -121,6 +121,7 @@ private:
 	{
 		KString sContent;
 
+#if DEKAF2_HAS_LIBZSTD
 		if (bCompress)
 		{
 			KZSTD ZSTD(sContent);
@@ -128,6 +129,7 @@ private:
 			ZSTD.close();
 		}
 		else
+#endif
 		{
 			sContent = (sInput.empty() || kFileExists(sInput)) ? GetFileContent(sInput) : KString(sInput);
 		}
@@ -200,7 +202,11 @@ public:
 		bool         bHexEncoded   = Options("hex          : ciphertext is hex encoded"   , false);
 		bool         bBase64       = Options("base64       : ciphertext is base64 encoded", false);
 		bool         bBase64one    = Options("one64        : ciphertext is base64 encoded without linebreaks", false);
+#if DEKAF2_HAS_LIBZSTD
 		bool         bCompress     = Options("c,compress   : compress before encryption/decompress after decryption", false);
+#else
+		bool         bCompress     = false;
+#endif
 
 		// do a final check if all required options were set
 		if (!Options.Check()) return 1;
@@ -238,8 +244,16 @@ public:
 		}
 		else // decrypt
 		{
-			if (bCompress) KUnZSTD(sOut).Read(OutStream);
-			else OutStream.Write(sOut);
+#if DEKAF2_HAS_LIBZSTD
+			if (bCompress)
+			{
+				KUnZSTD(sOut).Read(OutStream);
+			}
+			else
+#endif
+			{
+				OutStream.Write(sOut);
+			}
 		}
 
 		// only append a linefeed if we're not writing into a file nor pipe

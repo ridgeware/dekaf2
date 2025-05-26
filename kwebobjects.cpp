@@ -856,7 +856,7 @@ Text::self& Text::AddText(KStringView sContent) &
 //-----------------------------------------------------------------------------
 RawText::RawText(KString sContent)
 //-----------------------------------------------------------------------------
-: KHTMLText(std::move(sContent))
+: KHTMLText(std::move(sContent), true)
 {
 }
 

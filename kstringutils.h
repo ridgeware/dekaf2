@@ -1874,4 +1874,44 @@ KStringView kWriteUTF8BOM();
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kFormBytes(std::size_t iBytes, KStringView sSeparator = KStringView{}, char chDecimalSeparator = '.', uint16_t iDivisor = 1024);
 
+/// safely erase a string/container type - content is first overwritten by default constructed elements, then removed
+template <typename T>
+DEKAF2_PUBLIC
+typename std::enable_if<detail::has_capacity<T>::value == true, void>::type
+kSafeErase(T& Container)
+{
+	auto iCap = Container.capacity();
+	Container.assign(iCap, typename T::value_type());
+	Container.clear();
+}
+
+/// safely erase a container type - content is first overwritten by default constructed elements, then removed
+template <typename T>
+DEKAF2_PUBLIC
+typename std::enable_if<detail::has_capacity<T>::value == false, void>::type
+kSafeErase(T& Container)
+{
+	std::fill(Container.begin(), Container.end(), typename T::value_type());
+	Container.clear();
+}
+
+/// safely zeroize a string/container type - content is overwritten by default constructed elements
+template <typename T>
+DEKAF2_PUBLIC
+typename std::enable_if<detail::has_capacity<T>::value == true, void>::type
+kSafeZeroize(T& Container)
+{
+	auto iCap = Container.size();
+	Container.assign(iCap, typename T::value_type());
+}
+
+/// safely zeroize a container type - content is overwritten by default constructed elements
+template <typename T>
+DEKAF2_PUBLIC
+typename std::enable_if<detail::has_capacity<T>::value == false, void>::type
+kSafeZeroize(T& Container)
+{
+	std::fill(Container.begin(), Container.end(), typename T::value_type());
+}
+
 DEKAF2_NAMESPACE_END

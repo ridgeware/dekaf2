@@ -145,6 +145,7 @@ struct has_subscript_operator<T, Index, std::void_t<
 	}
 
 DEKAF2_HAS_MEMBER_FUNCTION(size,      has_size     );
+DEKAF2_HAS_MEMBER_FUNCTION(capacity,  has_capacity );
 DEKAF2_HAS_MEMBER_FUNCTION(Parse,     has_Parse    );
 DEKAF2_HAS_MEMBER_FUNCTION(Serialize, has_Serialize);
 

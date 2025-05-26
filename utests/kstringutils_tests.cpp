@@ -7,6 +7,8 @@
 #include <dekaf2/ksystem.h>
 #include <vector>
 #include <set>
+#include <list>
+#include <array>
 
 using namespace dekaf2;
 
@@ -1762,6 +1764,39 @@ TEST_CASE("KStringUtils") {
 
 			kSetGlobalLocale(oldLoc);
 		}
+	}
+
+	SECTION("kSafeErase string")
+	{
+		KString str { "This is a simple non-SSO string that will be zeroed out" };
+		kSafeErase(str);
+		CHECK ( str.empty() );
+	}
+
+	SECTION("kSafeErase vector")
+	{
+		KString str { "This is a simple non-SSO string that will be zeroed out" };
+		std::vector<char> vec;
+		std::copy(str.begin(), str.end(), std::back_inserter(vec));
+		kSafeErase(vec);
+		CHECK ( vec.empty() );
+	}
+
+	SECTION("kSafeErase list")
+	{
+		KString str { "This is a simple non-SSO string that will be zeroed out" };
+		std::list<char> list;
+		std::copy(str.begin(), str.end(), std::back_inserter(list));
+		kSafeErase(list);
+		CHECK ( list.empty() );
+	}
+
+	SECTION("kSafeErase array")
+	{
+		KString str { "This is a simple non-SSO string that will be zeroed out" };
+		std::array<char, 55> array;
+		std::copy(str.begin(), str.end(), array.begin());
+		kSafeZeroize(array);
 	}
 
 }

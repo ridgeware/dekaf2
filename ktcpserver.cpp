@@ -353,6 +353,11 @@ bool KTCPServer::TCPServer(bool ipv6)
 			{
 				if (!m_bQuit)
 				{
+					if (ec.value() == boost::asio::error::interrupted || ec.value() == boost::asio::error::try_again)
+					{
+						kDebug(3, "ignored error: {}", ec.message());
+						continue;
+					}
 					return SetError(kFormat("accept error: {}", ec.message()));
 				}
 				return true;
@@ -404,6 +409,11 @@ bool KTCPServer::TCPServer(bool ipv6)
 			{
 				if (!m_bQuit)
 				{
+					if (ec.value() == boost::asio::error::interrupted || ec.value() == boost::asio::error::try_again)
+					{
+						kDebug(3, "ignored error: {}", ec.message());
+						continue;
+					}
 					return SetError(kFormat("accept error: {}", ec.message()));
 				}
 				return true;
@@ -517,6 +527,11 @@ bool KTCPServer::UnixServer()
 			{
 				if (!m_bQuit)
 				{
+					if (ec.value() == boost::asio::error::interrupted || ec.value() == boost::asio::error::try_again)
+					{
+						kDebug(3, "ignored error: {}", ec.message());
+						continue;
+					}
 					return SetError(kFormat("accept error: {}", ec.message()));
 				}
 				return true;

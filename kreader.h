@@ -292,7 +292,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KInStream
-	KInStream(self_type&& other) = default;
+	KInStream(self_type&& other);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -302,11 +302,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	self_type& operator=(self_type&& other) = default;
+	self_type& operator=(self_type&& other);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	virtual ~KInStream() = default;
+	virtual ~KInStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -380,11 +380,8 @@ public:
 	/// Please note that this method does _not_ return the stream reference,
 	/// but a boolean. std::istreams would not read a file with a missing newline
 	/// at the end successfully, but report an error. This function succeeds.
-	bool ReadLine(KStringRef& sLine, std::size_t iMaxRead = npos)
+	bool ReadLine(KStringRef& sLine, std::size_t iMaxRead = npos);
 	//-----------------------------------------------------------------------------
-	{
-		return kReadLine(istream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter, iMaxRead);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Reads a line of text and returns it. Stops at delimiter
@@ -395,7 +392,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		KString sLine;
-		kReadLine(istream(), sLine, m_sTrimRight, m_sTrimLeft, m_chDelimiter, iMaxRead);
+		ReadLine(sLine, iMaxRead);
 		return sLine;
 	}
 
@@ -615,7 +612,7 @@ public:
 	void SetReaderImmutable()
 	//-----------------------------------------------------------------------------
 	{
-		m_bImmutable = true;
+		m_Config = m_Config->SetImmutable(m_Config);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -714,11 +711,52 @@ protected:
 private:
 //-------
 
-	std::istream*       m_InStream;
-	KString             m_sTrimRight;
-	KString             m_sTrimLeft;
-	KString::value_type m_chDelimiter;
-	bool                m_bImmutable;
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class Config
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	//-------
+	public:
+	//-------
+
+		static Config* Create       (KStringView             sRightTrim,
+									 KStringView             sLeftTrim,
+									 KStringView::value_type chDelimiter,
+									 bool                    bImmutable);
+		static void    Delete       (Config* Conf);
+
+		bool           IsStatic     () const { return m_bIsStatic;    }
+		bool           IsImmutable  () const { return m_bIsImmutable; }
+		KString::value_type
+		               GetDelimiter () const { return m_chDelimiter;  }
+		const KString& GetLeftTrim  () const { return m_sLeftTrim;    }
+		const KString& GetRightTrim () const { return m_sRightTrim;   }
+
+		static Config* SetImmutable (Config* Conf);
+		static Config* SetDelimiter (Config* Conf, KString::value_type chNewDelimiter);
+		static Config* SetLeftTrim  (Config* Conf, KStringView sNewLeftTrim);
+		static Config* SetRightTrim (Config* Conf, KStringView sNewRightTrim);
+
+	//-------
+	private:
+	//-------
+
+		Config(KStringView             sRightTrim,
+			   KStringView             sLeftTrim,
+			   KStringView::value_type chDelimiter,
+			   bool                    bImmutable,
+			   bool                    bIsStatic);
+
+		KString             m_sRightTrim;
+		KString             m_sLeftTrim;
+		KString::value_type m_chDelimiter;
+		bool                m_bIsImmutable;
+		bool                m_bIsStatic;
+
+	}; // Config
+
+	std::istream* m_InStream;
+	Config*       m_Config;
 
 }; // KInStream
 

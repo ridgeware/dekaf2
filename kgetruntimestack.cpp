@@ -96,7 +96,6 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 			}
 
 			KInShell Shell;
-			Shell.SetReaderRightTrim("\n\r\t ");
 
 			if (Shell.Open (sCmdLine))
 			{
@@ -135,17 +134,14 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 				}
 
 				KInShell Shell;
-				Shell.SetReaderRightTrim("\n\r\t ");
 
 				if (Shell.Open (sCmdLine))
 				{
 					KString sLineBuf;
 					KString sResult;
 
-					while (Shell.ReadLine (sLineBuf))
+					while (Shell.ReadLine (sResult))
 					{
-						sResult = sLineBuf;
-
 						if (Shell.ReadLine (sLineBuf))
 						{
 							if (!sLineBuf.starts_with("??:")) {

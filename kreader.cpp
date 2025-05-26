@@ -444,7 +444,7 @@ bool kReadLine(std::istream& Stream,
                KStringView sTrimRight,
                KStringView sTrimLeft,
                KString::value_type delimiter,
-			   std::size_t iMaxRead)
+               std::size_t iMaxRead)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(!Stream.good()))
@@ -540,9 +540,9 @@ KInStream::const_kreader_line_iterator::self_type& KInStream::const_kreader_line
 	{
 		if (!kReadLine(m_it->istream(),
 		               m_sBuffer,
-		               m_it->m_sTrimRight,
-		               m_it->m_sTrimLeft,
-		               m_it->m_chDelimiter))
+		               m_it->m_Config->GetRightTrim(),
+		               m_it->m_Config->GetLeftTrim(),
+		               m_it->m_Config->GetDelimiter()))
 		{
 			m_it = nullptr;
 		}
@@ -565,19 +565,209 @@ const KInStream::const_kreader_line_iterator::self_type KInStream::const_kreader
 } // postfix
 
 //-----------------------------------------------------------------------------
+KInStream::Config* KInStream::Config::Create(
+	KStringView             sRightTrim,
+	KStringView             sLeftTrim,
+	KStringView::value_type chDelimiter,
+	bool                    bImmutable
+)
+//-----------------------------------------------------------------------------
+{
+	constexpr KString::value_type chDefaultDelimiter { '\n' };
+	constexpr KStringView sDefaultRightTrim { detail::kLineRightTrims };
+
+	static Config s_Config_default   (sDefaultRightTrim, KStringView{}, chDefaultDelimiter, false, true);
+	static Config s_Config_immutable (KStringView{}    , KStringView{}, chDefaultDelimiter,  true, true);
+	static Config s_Config_notrim    (KStringView{}    , KStringView{}, chDefaultDelimiter, false, true);
+
+	if (chDelimiter == chDefaultDelimiter)
+	{
+		if (sLeftTrim.empty())
+		{
+			if (bImmutable)
+			{
+				if (sRightTrim.empty())              return &s_Config_immutable;
+			}
+			else
+			{
+				if (sRightTrim.empty())              return &s_Config_notrim;
+				if (sRightTrim == sDefaultRightTrim) return &s_Config_default;
+			}
+		}
+	}
+
+	return new Config(sRightTrim, sLeftTrim, chDelimiter, bImmutable, false);
+
+} // Config::Create
+
+//-----------------------------------------------------------------------------
+void KInStream::Config::Delete(Config* Conf)
+//-----------------------------------------------------------------------------
+{
+	if (Conf && !Conf->IsStatic())
+	{
+		delete Conf;
+	}
+
+} // Config::Delete
+
+//-----------------------------------------------------------------------------
+KInStream::Config::Config(KStringView sRightTrim,
+						  KStringView sLeftTrim,
+						  KStringView::value_type chDelimiter,
+						  bool        bImmutable,
+						  bool        bIsStatic)
+//-----------------------------------------------------------------------------
+: m_sRightTrim  (sRightTrim)
+, m_sLeftTrim   (sLeftTrim)
+, m_chDelimiter (chDelimiter)
+, m_bIsImmutable(bImmutable)
+, m_bIsStatic   (bIsStatic)
+{
+}
+
+//-----------------------------------------------------------------------------
+KInStream::Config* KInStream::Config::SetImmutable(Config* Conf)
+//-----------------------------------------------------------------------------
+{
+	if (!Conf->IsImmutable())
+	{
+		if (Conf->IsStatic())
+		{
+			return Create(Conf->GetRightTrim(), Conf->GetLeftTrim(), Conf->GetDelimiter(), true);
+		}
+		else
+		{
+			Conf->m_bIsImmutable = true;
+		}
+	}
+
+	return Conf;
+
+} // Config::SetImmutable
+
+//-----------------------------------------------------------------------------
+KInStream::Config* KInStream::Config::SetDelimiter(Config* Conf, KString::value_type chNewDelimiter)
+//-----------------------------------------------------------------------------
+{
+	if (Conf->GetDelimiter() != chNewDelimiter)
+	{
+		if (Conf->IsImmutable())
+		{
+			kDebug(2, "class is made immutable - cannot change to {}", chNewDelimiter);
+		}
+		else
+		{
+			if (Conf->IsStatic())
+			{
+				return Create(Conf->GetRightTrim(), Conf->GetLeftTrim(), chNewDelimiter, Conf->IsImmutable());
+			}
+			else
+			{
+				Conf->m_chDelimiter = chNewDelimiter;
+			}
+		}
+	}
+
+	return Conf;
+
+} // Config::SetDelimiter
+
+//-----------------------------------------------------------------------------
+KInStream::Config* KInStream::Config::SetLeftTrim(Config* Conf, KStringView sNewLeftTrim)
+//-----------------------------------------------------------------------------
+{
+	if (Conf->GetLeftTrim() != sNewLeftTrim)
+	{
+		if (Conf->IsImmutable())
+		{
+			kDebug(2, "class is made immutable - cannot change to {}", sNewLeftTrim);
+		}
+		else
+		{
+			if (Conf->IsStatic())
+			{
+				return Create(Conf->GetRightTrim(), sNewLeftTrim, Conf->GetDelimiter(), Conf->IsImmutable());
+			}
+			else
+			{
+				Conf->m_sLeftTrim = sNewLeftTrim;
+			}
+		}
+	}
+
+	return Conf;
+
+} // Config::SetLeftTrim
+
+//-----------------------------------------------------------------------------
+KInStream::Config* KInStream::Config::SetRightTrim(Config* Conf, KStringView sNewRightTrim)
+//-----------------------------------------------------------------------------
+{
+	if (Conf->GetRightTrim() != sNewRightTrim)
+	{
+		if (Conf->IsImmutable())
+		{
+			kDebug(2, "class is made immutable - cannot change to {}", sNewRightTrim);
+		}
+		else
+		{
+			if (Conf->IsStatic())
+			{
+				return Create(sNewRightTrim, Conf->GetLeftTrim(), Conf->GetDelimiter(), Conf->IsImmutable());
+			}
+			else
+			{
+				Conf->m_sRightTrim = sNewRightTrim;
+			}
+		}
+	}
+
+	return Conf;
+
+} // Config::SetRightTrim
+
+//-----------------------------------------------------------------------------
 KInStream::KInStream(std::istream&           InStream,
-					 KStringView             sTrimRight,
-					 KStringView             sTrimLeft,
+					 KStringView             sRightTrim,
+					 KStringView             sLeftTrim,
 					 KStringView::value_type chDelimiter,
 					 bool                    bImmutable)
 //-----------------------------------------------------------------------------
-	: m_InStream   (&InStream  )
-	, m_sTrimRight (sTrimRight )
-	, m_sTrimLeft  (sTrimLeft  )
-	, m_chDelimiter(chDelimiter)
-	, m_bImmutable (bImmutable )
+	: m_InStream (&InStream  )
+	, m_Config   (Config::Create(sRightTrim, sLeftTrim, chDelimiter, bImmutable))
 {
 }
+
+//-----------------------------------------------------------------------------
+KInStream::KInStream(self_type&& other)
+//-----------------------------------------------------------------------------
+{
+	this->m_InStream = other.m_InStream;
+	this->m_Config   = other.m_Config;
+	other.m_InStream = nullptr;
+	other.m_Config   = nullptr;
+}
+
+//-----------------------------------------------------------------------------
+KInStream& KInStream::operator=(KInStream&& other)
+//-----------------------------------------------------------------------------
+{
+	Config::Delete(this->m_Config);
+	this->m_InStream = other.m_InStream;
+	this->m_Config   = other.m_Config;
+	other.m_InStream = nullptr;
+	other.m_Config   = nullptr;
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KInStream::~KInStream()
+//-----------------------------------------------------------------------------
+{
+	Config::Delete(m_Config);
+
+} // dtor
 
 //-----------------------------------------------------------------------------
 /// Read a range of characters and append to sBuffer. Returns count of successfully read characters.
@@ -635,53 +825,52 @@ std::size_t KInStream::Read(KOutStream& Stream, std::size_t iCount)
 } // Read
 
 //-----------------------------------------------------------------------------
-/// Set the end-of-line character (defaults to LF)
+bool KInStream::ReadLine(KStringRef& sLine, std::size_t iMaxRead)
+//-----------------------------------------------------------------------------
+{
+	return kReadLine(istream(),
+					 sLine,
+					 m_Config->GetRightTrim(),
+					 m_Config->GetLeftTrim(),
+					 m_Config->GetDelimiter(),
+					 iMaxRead);
+}
+
+//-----------------------------------------------------------------------------
 bool KInStream::SetReaderEndOfLine(char chDelimiter)
 //-----------------------------------------------------------------------------
 {
-	if (!m_bImmutable)
-	{
-		m_chDelimiter = chDelimiter;
-	}
-	else
-	{
-		kDebug(2, "{} is made immutable - cannot change to {}", "line delimiter", chDelimiter);
-	}
-	return !m_bImmutable;
+	if (m_Config->IsImmutable()) return false;
+
+	m_Config = m_Config->SetDelimiter(m_Config, chDelimiter);
+
+	return true;
 
 } // SetReaderEndOfLine
 
 //-----------------------------------------------------------------------------
 /// Set the left trim characters for line based reading (default to none)
-bool KInStream::SetReaderLeftTrim(KStringView sTrimLeft)
+bool KInStream::SetReaderLeftTrim(KStringView sLeftTrim)
 //-----------------------------------------------------------------------------
 {
-	if (!m_bImmutable)
-	{
-		m_sTrimLeft  = sTrimLeft;
-	}
-	else
-	{
-		kDebug(2, "{} is made immutable - cannot change to {}", "trimming", sTrimLeft);
-	}
-	return !m_bImmutable;
+	if (m_Config->IsImmutable()) return false;
+
+	m_Config = m_Config->SetLeftTrim(m_Config, sLeftTrim);
+
+	return true;
 
 } // SetReaderLeftTrim
 
 //-----------------------------------------------------------------------------
 /// Set the right trim characters for line based reading (default to LF)
-bool KInStream::SetReaderRightTrim(KStringView sTrimRight)
+bool KInStream::SetReaderRightTrim(KStringView sRightTrim)
 //-----------------------------------------------------------------------------
 {
-	if (!m_bImmutable)
-	{
-		m_sTrimRight = sTrimRight;
-	}
-	else
-	{
-		kDebug(2, "{} is made immutable - cannot change to {}", "trimming", sTrimRight);
-	}
-	return !m_bImmutable;
+	if (m_Config->IsImmutable()) return false;
+
+	m_Config = m_Config->SetRightTrim(m_Config, sRightTrim);
+
+	return true;
 
 } // SetReaderRightTrim
 

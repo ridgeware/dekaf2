@@ -85,7 +85,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move construct a KOutStream
-	KOutStream(self_type&& other) = default;
+	KOutStream(self_type&& other);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -95,11 +95,11 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// move assignment
-	self_type& operator=(self_type&& other) = default;
+	self_type& operator=(self_type&& other);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	virtual ~KOutStream() = default;
+	virtual ~KOutStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -216,22 +216,29 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Fixates eol settings
-	self_type& SetWriterImmutable();
+	self_type& SetWriterImmutable()
 	//-----------------------------------------------------------------------------
+	{
+		m_Config = m_Config->SetImmutable(m_Config);
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
-	/// Set the end-of-line sequence (defaults to "LF", may differ depending on platform).  If the
-	/// delimiter is NUL, NUL (two consecutive zeroes), the delimiter may not be changed anymore.
-	self_type& SetWriterEndOfLine(KStringView sLineDelimiter = "\n");
+	/// Set the end-of-line sequence (defaults to "LF")
+	self_type& SetWriterEndOfLine(KStringView sLineDelimiter = "\n")
 	//-----------------------------------------------------------------------------
+	{
+		m_Config = m_Config->SetDelimiter(m_Config, sLineDelimiter);
+		return *this;
+	}
 
 	//-----------------------------------------------------------------------------
-	/// Get the end-of-line sequence (defaults to "LF", may differ depending on platform)
+	/// Get the end-of-line sequence (defaults to "LF")
 	DEKAF2_NODISCARD
 	const KString& GetWriterEndOfLine() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_sLineDelimiter;
+		return m_Config->GetDelimiter();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -377,9 +384,38 @@ protected:
 private:
 //-------
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class Config
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	//-------
+	public:
+	//-------
+
+		static Config* Create       (KStringView sDelimiter, bool bImmutable);
+		static void    Delete       (Config* Conf);
+
+		bool           IsStatic     () const { return m_bIsStatic;    }
+		bool           IsImmutable  () const { return m_bIsImmutable; }
+		const KString& GetDelimiter () const { return m_sDelimiter;   }
+
+		static Config* SetImmutable (Config* Conf);
+		static Config* SetDelimiter (Config* Conf, KStringView sNewDelimiter);
+
+	//-------
+	private:
+	//-------
+
+		Config(KStringView sDelimiter, bool bImmutable, bool bIsStatic);
+
+		KString m_sDelimiter;
+		bool    m_bIsImmutable;
+		bool    m_bIsStatic;
+
+	}; // Config
+
 	std::ostream* m_OutStream;
-	KString       m_sLineDelimiter;
-	bool          m_bImmutable;
+	Config*       m_Config;
 
 }; // KOutStream
 

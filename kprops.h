@@ -463,8 +463,17 @@ public:
 		{
 			if (!svDelim.empty())
 			{
-				Input.SetReaderEndOfLine(svDelim.front());
-				Input.SetReaderRightTrim(svDelim);
+				auto ch = svDelim.front();
+				Input.SetReaderEndOfLine(ch);
+				if (ch == '\n' && svDelim.size() == 1)
+				{
+					// make sure we also handle windows linebreaks
+					Input.SetReaderRightTrim("\r\n");
+				}
+				else
+				{
+					Input.SetReaderRightTrim(svDelim);
+				}
 			}
 			KFindSetOfChars Delim(svDelim);
 			KString sLine;

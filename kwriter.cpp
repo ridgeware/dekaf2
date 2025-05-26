@@ -76,17 +76,136 @@ KOutStream& kGetNullOutStream()
 }
 
 //-----------------------------------------------------------------------------
-/// value constructor
-KOutStream::KOutStream(std::ostream& OutStream, KStringView sLineDelimiter, bool bImmutable)
+KOutStream::Config::Config(KStringView sDelimiter, bool bImmutable, bool bIsStatic)
 //-----------------------------------------------------------------------------
-	: m_OutStream     (&OutStream    )
-	, m_sLineDelimiter(sLineDelimiter)
-	, m_bImmutable    (bImmutable    )
+: m_sDelimiter   (sDelimiter)
+, m_bIsImmutable (bImmutable)
+, m_bIsStatic    (bIsStatic)
 {
 }
 
 //-----------------------------------------------------------------------------
-/// Read a range of characters and append to Stream. Returns stream reference that resolves to false on failure.
+KOutStream::Config* KOutStream::Config::Create(KStringView sDelimiter, bool bImmutable)
+//-----------------------------------------------------------------------------
+{
+	static constexpr KStringView s_DefaultDelimiter = "\n";
+	static constexpr KStringView s_HTTPDelimiter    = "\r\n";
+
+	static Config s_Config_default   (s_DefaultDelimiter, false, true);
+	static Config s_Config_http      (s_HTTPDelimiter   , false, true);
+	static Config s_Config_immutable (s_DefaultDelimiter,  true, true);
+
+	if (bImmutable)
+	{
+		if (sDelimiter == s_DefaultDelimiter) return &s_Config_immutable;
+	}
+	else
+	{
+		if (sDelimiter == s_DefaultDelimiter) return &s_Config_default;
+		if (sDelimiter == s_HTTPDelimiter   ) return &s_Config_http;
+	}
+
+	return new Config(sDelimiter, bImmutable, false);
+
+} // Config::Create
+
+//-----------------------------------------------------------------------------
+void KOutStream::Config::Delete(Config* Conf)
+//-----------------------------------------------------------------------------
+{
+	if (Conf && !Conf->IsStatic())
+	{
+		delete Conf;
+	}
+
+} // Config::Delete
+
+//-----------------------------------------------------------------------------
+KOutStream::Config* KOutStream::Config::SetImmutable(Config* Conf)
+//-----------------------------------------------------------------------------
+{
+	if (!Conf->IsImmutable())
+	{
+		if (Conf->IsStatic())
+		{
+			return Create(Conf->GetDelimiter(), true);
+		}
+		else
+		{
+			Conf->m_bIsImmutable = true;
+		}
+	}
+
+	return Conf;
+
+} // Config::SetImmutable
+
+//-----------------------------------------------------------------------------
+KOutStream::Config* KOutStream::Config::SetDelimiter(Config* Conf, KStringView sNewDelimiter)
+//-----------------------------------------------------------------------------
+{
+	if (Conf->GetDelimiter() != sNewDelimiter)
+	{
+		if (Conf->IsImmutable())
+		{
+			kDebug(2, "class is made immutable - cannot change to {}", sNewDelimiter);
+		}
+		else
+		{
+			if (Conf->IsStatic())
+			{
+				return Create(sNewDelimiter, Conf->IsImmutable());
+			}
+			else
+			{
+				Conf->m_sDelimiter = sNewDelimiter;
+			}
+		}
+	}
+
+	return Conf;
+
+} // Config::SetDelimiter
+
+//-----------------------------------------------------------------------------
+KOutStream::KOutStream(std::ostream& OutStream, KStringView sLineDelimiter, bool bImmutable)
+//-----------------------------------------------------------------------------
+	: m_OutStream (&OutStream)
+	, m_Config    (Config::Create(sLineDelimiter, bImmutable))
+{
+}
+
+//-----------------------------------------------------------------------------
+KOutStream::KOutStream(self_type&& other)
+//-----------------------------------------------------------------------------
+{
+	this->m_OutStream = other.m_OutStream;
+	this->m_Config    = other.m_Config;
+	other.m_OutStream = nullptr;
+	other.m_Config    = nullptr;
+}
+
+//-----------------------------------------------------------------------------
+KOutStream& KOutStream::operator=(KOutStream&& other)
+//-----------------------------------------------------------------------------
+{
+	Config::Delete(this->m_Config);
+	this->m_OutStream = other.m_OutStream;
+	this->m_Config    = other.m_Config;
+	other.m_OutStream = nullptr;
+	other.m_Config    = nullptr;
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KOutStream::~KOutStream()
+//-----------------------------------------------------------------------------
+{
+	Config::Delete(m_Config);
+
+} // dtor
+
+//-----------------------------------------------------------------------------
 KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 //-----------------------------------------------------------------------------
 {
@@ -114,32 +233,6 @@ KOutStream::self_type& KOutStream::Write(KInStream& Stream, size_t iCount)
 	return *this;
 
 } // Write
-
-//-----------------------------------------------------------------------------
-/// Fixates eol settings
-KOutStream& KOutStream::SetWriterImmutable()
-//-----------------------------------------------------------------------------
-{
-	m_bImmutable = true;
-	return *this;
-
-} // SetWriterImmutable
-
-//-----------------------------------------------------------------------------
-KOutStream& KOutStream::SetWriterEndOfLine(KStringView sLineDelimiter)
-//-----------------------------------------------------------------------------
-{
-	if (m_bImmutable)
-	{
-		kDebug(2, "line delimiter is made immutable - cannot change to {}", sLineDelimiter);
-	}
-	else
-	{
-		m_sLineDelimiter = sLineDelimiter;
-	}
-	return *this;
-
-} // SetWriterEndOfLine
 
 
 template class KWriter<std::ofstream>;

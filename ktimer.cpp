@@ -58,11 +58,14 @@ KTimer::KTimer(KDuration MaxIdle)
 KTimer::~KTimer()
 //---------------------------------------------------------------------------
 {
+	// signal the thread to shutdown
+	*m_bShutdown = true;
+
+	// make sure we are not right in initialization of a new thread
+	std::lock_guard<std::mutex> Lock(m_ThreadCreationMutex);
+
 	if (m_TimingThread)
 	{
-		// signal the thread to shutdown
-		*m_bShutdown = true;
-
 		if (!m_bDestructWithJoin)
 		{
 			// detach the thread, we do not want to wait until it has joined
@@ -83,6 +86,8 @@ KTimer::~KTimer()
 KTimer::ID_t KTimer::AddTimer(Timer timer)
 //---------------------------------------------------------------------------
 {
+	std::lock_guard<std::mutex> Lock(m_ThreadCreationMutex);
+
 	if (timer.ID == InvalidID)
 	{
 		timer.ID = GetNextID();
@@ -104,8 +109,6 @@ KTimer::ID_t KTimer::AddTimer(Timer timer)
 			ID = InvalidID;
 		}
 	}
-
-	std::lock_guard<std::mutex> Lock(m_ThreadCreationMutex);
 
 	if (!m_TimingThread)
 	{
@@ -312,6 +315,10 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 	// both instances will point to the same bool
 	auto bShutdown(m_bShutdown);
 
+	// return immediately if this thread was created after the instance
+	// was shutdown
+	if (*bShutdown) return;
+
 	// and copy this thread's shared ptr as well, to keep us alive
 	// even after KTimer goes away
 	auto MySelf(m_TimingThread);
@@ -399,6 +406,8 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 			CancelledCallbacks.clear();
 
 		} // end of scope for unique lock
+
+		if (*bShutdown) return;
 
 		// now call all due callbacks
 		for (auto& Due : DueCallbacks)

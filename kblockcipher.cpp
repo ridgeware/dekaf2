@@ -471,6 +471,7 @@ KStringView KBlockCipher::ToString(Bits bits)
 	return "";
 }
 
+#if	DEKAF2_HAS_HKDF
 //---------------------------------------------------------------------------
 KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword, KStringView sSalt)
 //---------------------------------------------------------------------------
@@ -478,7 +479,7 @@ KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sP
 #if OPENSSL_VERSION_NUMBER >= 0x030000000L
 
 	::EVP_KDF* kdf = ::EVP_KDF_fetch(nullptr, "HKDF", nullptr);
-	::EVP_KDF_CTX* kctx = EVP_KDF_CTX_new(kdf);
+	::EVP_KDF_CTX* kctx = ::EVP_KDF_CTX_new(kdf);
 	::EVP_KDF_free(kdf);
 
 	::OSSL_PARAM params[5], *p = params;
@@ -502,7 +503,7 @@ KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sP
 
 	return sKey;
 
-#elif OPENSSL_VERSION_NUMBER >= 0x010100000L
+#else
 
 	KString sKey(iKeyLen, '\0');
 	std::size_t iOutlen = sKey.size();
@@ -523,14 +524,10 @@ KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sP
 
 	return sKey;
 
-#else
-
-	kWarning("a HDKF key derivate was requested, but this OpenSSL version only supports PKCS5_PBKDF2_HMAC");
-	return CreateKeyFromPasswordPKCS5(iKeyLen, sPassword, sSalt);
-
 #endif
 
 } // CreateKeyFromPasswordHKDF
+#endif
 
 //---------------------------------------------------------------------------
 KString KBlockCipher::CreateKeyFromPasswordPKCS5
@@ -662,7 +659,7 @@ bool KBlockCipher::SetKey(KStringView sKey)
 bool KBlockCipher::SetPassword(KStringView sPassword, KStringView sSalt)
 //---------------------------------------------------------------------------
 {
-	return SetKey(CreateKeyFromPasswordHKDF(GetNeededKeyLength(), sPassword, sSalt));
+	return SetKey(CreateKeyFromPassword(GetNeededKeyLength(), sPassword, sSalt));
 
 } // SetPassword
 
@@ -1079,10 +1076,15 @@ bool KBlockCipher::FinalizeStream()
 	if (m_iTagLength && GetDirection() == Encrypt && m_bInlineIVandTag && m_OutStream)
 	{
 		// insert the auth tag right at the begin of the stream
-		if (m_StartOfStream < 0) return SetError("cannot insert authentication tag into stream");
-		if (!kSetWritePosition(*m_OutStream, m_StartOfStream)) return SetError("cannot insert authentication tag into stream");
-		m_OutStream->Write(m_sTag);
-		if (!kForward(*m_OutStream)) return SetError("cannot insert authentication tag into stream");
+		auto CurPos = kGetWritePosition(*m_OutStream);
+		if (m_StartOfStream < 0                               ||
+			CurPos < 0                                        ||
+			!kSetWritePosition(*m_OutStream, m_StartOfStream) ||
+			!m_OutStream->Write(m_sTag)                       ||
+			!kSetWritePosition(*m_OutStream, CurPos))
+		{
+			return SetError("cannot insert authentication tag into stream");
+		}
 	}
 
 	m_OutStream->Flush();

@@ -57,8 +57,13 @@
 
 #define DEKAF2_HAS_AES 1
 
+// HKDF was introduced with OpenSSL v1.1.0
+#if OPENSSL_VERSION_NUMBER >= 0x010100000L
+	#define DEKAF2_HAS_HKDF 1
+#endif
+
 #if OPENSSL_VERSION_NUMBER >= 0x010101000L
-#define DEKAF2_HAS_ARIA 1
+	#define DEKAF2_HAS_ARIA 1
 #endif
 
 struct evp_cipher_st;
@@ -93,11 +98,11 @@ DEKAF2_NAMESPACE_BEGIN
 ///
 /// After instantiation you have to set either a password and optional salt, or a key of the right size, see
 /// SetPassword() and SetKey().
-/// Please note that when you use a salted password you have to send both the password and the salt
+/// Please note that when you use a password _with_ salt you have to send both the password and the salt
 /// to the decryptor via another channel, as the salt is not included in the ciphertext.
 ///
 /// You can compute keys with password based key derivation functions, see CreateKeyFromPasswordHKDF()
-/// and CreateKeyFromPasswordPKCS5(). The former is are also internally used when you set a password
+/// and CreateKeyFromPasswordPKCS5(). The former is also internally used when you set a password
 /// instead of a key.
 ///
 /// If you chose to _not_ inline the initialization vector and possible authentication tag into the ciphertext
@@ -202,6 +207,18 @@ public:
 		Add(sInput);
 		return *this;
 	}
+	/// appends more data from a stream
+	KBlockCipher& operator+=(KInStream& InputStream)
+	{
+		Add(InputStream);
+		return *this;
+	}
+	/// appends more data from a stream
+	KBlockCipher& operator+=(KInStream&& InputStream)
+	{
+		Add(std::move(InputStream));
+		return *this;
+	}
 	/// appends more data from a string
 	void operator()(KStringView sInput)
 	{
@@ -212,8 +229,13 @@ public:
 	{
 		Add(InputStream);
 	}
+	/// appends more data from a stream
+	void operator()(KInStream&& InputStream)
+	{
+		Add(std::move(InputStream));
+	}
 
-	/// finalize by filling up output to full block size
+	/// finalize by padding output to full block size (if necessary for the selected mode) - will also called by destructor if not done before
 	bool Finalize();
 
 	/// for encryption: get the initialization vector as string - you will only need this if you do not want to pass
@@ -241,21 +263,39 @@ public:
 	/// static: generate a key of iKeyLen bytes size derived from sPassword and sSalt, using an sha256 hmac
 	/// (HKDF, see RFC 5869) - when called with OpenSSL < v1.1.0 this function delegates to
 	/// CreateKeyFromPasswordPKCS5() as the HKDF algorithm is not available before v1.1.0
+	static KString CreateKeyFromPassword(
+		uint16_t    iKeyLen,
+		KStringView sPassword,
+		KStringView sSalt       = ""
+	)
+	{
+#if	DEKAF2_HAS_HKDF
+		return CreateKeyFromPasswordHKDF(iKeyLen, sPassword, sSalt);
+#else
+		return CreateKeyFromPasswordPKCS5(iKeyLen, sPassword, sSalt);
+#endif
+	}
+
+#if	DEKAF2_HAS_HKDF
+	/// static: generate a key of iKeyLen bytes size derived from sPassword and sSalt, using an sha256 hmac
+	/// (HKDF, see RFC 5869) - the HKDF algorithm is not available before OpenSSL v1.1.0
 	static KString CreateKeyFromPasswordHKDF(
 		uint16_t    iKeyLen,
 		KStringView sPassword,
 		KStringView sSalt       = ""
-	 );
+	);
+#endif
 
 	/// static: generate a key of iKeyLen bytes size derived from sPassword and sSalt, using algorithm digest
-	/// with iIterations rounds (PKCS5_PBKDF2_HMAC, see RFC 2898) - better use the HKDF version
+	/// with iIterations rounds (PKCS5_PBKDF2_HMAC, see RFC 2898) - better use the HKDF version, or
+	/// CreateKeyFromPassword(), which either picks HKDF if available, or PKCS5 if not
 	static KString CreateKeyFromPasswordPKCS5(
 		uint16_t    iKeyLen,
 		KStringView sPassword,
 		KStringView sSalt       = "",
 		Digest      digest      = SHA256,
 		uint16_t    iIterations = 1024
-	 );
+	);
 
 	static KStringView ToString(Algorithm algorithm);
 	static KStringView ToString(Mode mode);
@@ -265,11 +305,7 @@ public:
 private:
 //------
 
-	bool Initialize(
-		Algorithm    algorithm,
-		Bits         bits
-	);
-
+	bool Initialize(Algorithm algorithm, Bits bits);
 	bool CompleteInitialization();
 	bool SetTag();
 	bool AddString(KStringView sInput);

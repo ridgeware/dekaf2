@@ -242,8 +242,12 @@ public:
 
 	/// returns a KUnixTime with the current time
 	DEKAF2_NODISCARD    static KUnixTime   now()                             { return clock::now(); }
-
-	DEKAF2_NODISCARD constexpr static KFormatString<KUnixTime> DefaultFormatString();
+	DEKAF2_NODISCARD
+	constexpr           static KUnixTime   min()                    noexcept { return base::min();  }
+	DEKAF2_NODISCARD
+	constexpr           static KUnixTime   max()                    noexcept { return base::max();  }
+	DEKAF2_NODISCARD
+	constexpr           static KFormatString<KUnixTime> DefaultFormatString();
 
 //--------
 private:

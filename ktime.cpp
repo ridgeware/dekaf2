@@ -741,7 +741,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 				break;
 
 			case 'u':
-				// usec digit
+				// µsec digit
 				if (!AddDigit(ch, 999, tm.microsecond)) return Invalid;
 				break;
 

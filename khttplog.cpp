@@ -607,7 +607,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						break;
 
 					case 'T': // used time in various formats
-						if (sVariable == "us")
+						if (sVariable == "us" || sVariable == "µs")
 						{
 							Log.Write(chrono::duration_cast<chrono::microseconds>(HTTP.GetTimeToLastByte()).count());
 						}

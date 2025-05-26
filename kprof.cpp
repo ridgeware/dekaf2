@@ -167,7 +167,7 @@ void KSharedProfiler::print()
 			}
 			dispname += &it.first[1];
 			kPrint (stdout,
-					"|  {:{}.{}} : {:>12} usecs : {:5.1f}%\n",
+					"|  {:{}.{}} : {:>12} µsecs : {:5.1f}%\n",
 					dispname,
 					imaxlen, imaxlen,
 					kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()),
@@ -177,7 +177,7 @@ void KSharedProfiler::print()
 		{
 			dispname += it.first;
 			kPrint (stdout,
-					"|  {:{}.{}} : {:>12} usecs : {:5.1f}% : {:>10} calls : {:>16} nsecs\n",
+					"|  {:{}.{}} : {:>12} µsecs : {:5.1f}% : {:>10} calls : {:>16} nsecs\n",
 					dispname,
 					imaxlen, imaxlen,
 					kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count()),
@@ -190,12 +190,12 @@ void KSharedProfiler::print()
 	kWrite (stdout, "\n");
 
 	kPrint (stdout,
-			"|  {:{}.{}} : {:>12} usecs : 100.0%\n",
+			"|  {:{}.{}} : {:>12} µsecs : 100.0%\n",
 			"accumulated runtime", imaxlen, imaxlen,
 			kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(m_profiled_runtime).count()));
 
 	kPrint (stdout,
-			"|  {:{}.{}} : {:>12} usecs : 100.0%\n",
+			"|  {:{}.{}} : {:>12} µsecs : 100.0%\n",
 			"wall clock", imaxlen, imaxlen,
 			kFormNumber(std::chrono::duration_cast<std::chrono::microseconds>(clock_t::now()-m_start).count()));
 

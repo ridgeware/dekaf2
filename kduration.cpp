@@ -155,7 +155,7 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 			switch (Interval)
 			{
 				case NanoSeconds : return "ns";
-				case MicroSeconds: return "us";
+				case MicroSeconds: return "µs";
 				case MilliSeconds: return "ms";
 				case Seconds     : return "s";
 				case Minutes     : return "m";
@@ -236,13 +236,13 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 			if (iNanoSecs)
 			{
 				PrintLong("msec" , NANOSECS_PER_MILLISEC);
-				PrintLong("usec" , NANOSECS_PER_MICROSEC);
+				PrintLong("µsec" , NANOSECS_PER_MICROSEC);
 				PrintInt ("nsec" , iNanoSecs);
 			}
 		}
 		break;
 
-		// short same length format, e.g. "103.23 us"
+		// short same length format, e.g. "103.23 µs"
 		case Format::Brief:
 		{
 			// the parens are important to avoid a clash with defined min and max macros,
@@ -285,7 +285,7 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 				}
 				else if (iAbsNanoSecs >= NANOSECS_PER_MICROSEC || Interval == BaseInterval::MicroSeconds)
 				{
-					PrintFloat ("us", iNanoSecs, NANOSECS_PER_MICROSEC, iPrecision, 0);
+					PrintFloat ("µs", iNanoSecs, NANOSECS_PER_MICROSEC, iPrecision, 0);
 				}
 				else
 				{
@@ -603,7 +603,7 @@ KDurations::self& KDurations::operator+=(const KDurations& other)
 		m_Durations.resize(other.size());
 	}
 
-	const auto iSize = size();
+	const auto iSize = std::min(size(), other.size());
 
 	for (size_type i = 0; i < iSize; ++i)
 	{
@@ -635,7 +635,7 @@ KDurations::self& KDurations::operator-=(const KDurations& other)
 		m_Durations.resize(other.size());
 	}
 
-	const auto iSize = size();
+	const auto iSize = std::min(size(), other.size());
 
 	for (size_type i = 0; i < iSize; ++i)
 	{

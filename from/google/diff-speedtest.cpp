@@ -41,10 +41,10 @@ void Test()
 	{
 		KStopTime Timer;
 		Diff.CreateDiff(sText1, sText2, Options.mode, Options.san);
-		iUSecs += Timer.microseconds();
+		iUSecs += Timer.elapsed().microseconds().count();
 	}
 
-	KOut.FormatLine("elapsed time (avg of {}): {} us", iMax, iUSecs / iMax);
+	KOut.FormatLine("elapsed time (avg of {}): {} µs", iMax, iUSecs / iMax);
 
 	if (Options.sOutputFile)
 	{

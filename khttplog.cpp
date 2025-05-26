@@ -49,6 +49,37 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+//-----------------------------------------------------------------------------
+bool KHTTPLogBase::SetFormat(LOG_FORMAT LogFormat, KStringView sFormat)
+//-----------------------------------------------------------------------------
+{
+	if (LogFormat == LOG_FORMAT::PARSED)
+	{
+		if (!sFormat.empty())
+		{
+			kDebug(2, "log format: {}", sFormat);
+			m_sFormat   = sFormat;
+		}
+		else
+		{
+			kWarning("no format string defined for PARSED log format");
+			return false;
+		}
+	}
+	else
+	{
+		if (!sFormat.empty())
+		{
+			kDebug(1, "will ignore format string, log format is not set to PARSED");
+		}
+	}
+
+	m_LogFormat = LogFormat;
+
+	return true;
+
+} // SetFormat
+
 namespace {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -673,28 +704,11 @@ bool KHTTPLog::Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringVi
 {
 	if (m_LogStream == nullptr)
 	{
-		if (LogFormat == LOG_FORMAT::PARSED)
+		if (!SetFormat(LogFormat, sFormat))
 		{
-			if (!sFormat.empty())
-			{
-				kDebug(2, "log format: {}", sFormat);
-				m_sFormat   = sFormat;
-			}
-			else
-			{
-				kWarning("no format string defined for PARSED log format");
-				return false;
-			}
-		}
-		else
-		{
-			if (!sFormat.empty())
-			{
-				kDebug(1, "will ignore format string, log format is not set to PARSED");
-			}
+			return false;
 		}
 
-		m_LogFormat = LogFormat;
 		m_LogStream = kOpenOutStream(sAccessLogFile, std::ios::app);
 
 		if (is_open())
@@ -717,5 +731,186 @@ bool KHTTPLog::Open(LOG_FORMAT LogFormat, KStringViewZ sAccessLogFile, KStringVi
 	}
 
 } // Open
+
+//-----------------------------------------------------------------------------
+bool KHTTPLogParser::Open(KStringViewZ sAccessLogFile, KUnixTime StartDate)
+//-----------------------------------------------------------------------------
+{
+	m_StartDate = StartDate;
+	
+	m_LogFile = std::make_unique<KInFile>(sAccessLogFile);
+
+	if (m_LogFile->is_open())
+	{
+		m_LogStream = m_LogFile.get();
+		kDebug(1, "opened log file: {}", sAccessLogFile);
+		return m_LogStream->Good();
+	}
+	else
+	{
+		kDebug(1, "could not open log file: {}", sAccessLogFile);
+		return false;
+	}
+
+} // Open
+
+//-----------------------------------------------------------------------------
+bool KHTTPLogParser::Open(KInStream& InStream, KUnixTime StartDate)
+//-----------------------------------------------------------------------------
+{
+	m_StartDate = StartDate;
+	m_LogStream = &InStream;
+
+	return m_LogStream->Good();
+
+} // Open
+
+//-----------------------------------------------------------------------------
+KStringView KHTTPLogParser::Data::GetString(bool bNoQuotes)
+//-----------------------------------------------------------------------------
+{
+	KStringView sField;
+
+	SkipSpaces();
+
+	if (!m_sLine.empty())
+	{
+		if (!bNoQuotes && m_sLine.front() == '"')
+		{
+			// KStringView::substr() has internal checks for overflow
+			sField = m_sLine.substr(1, m_sLine.find('"', 1) - 1);
+			m_sLine.remove_prefix(sField.size() + 2);
+		}
+		else
+		{
+			sField = m_sLine.substr(0, m_sLine.find(' ', 1));
+			m_sLine.remove_prefix(sField.size());
+
+			if (sField.size() == 1 && *(sField.begin()) == '-')
+			{
+				sField.clear();
+			}
+		}
+	}
+	else
+	{
+		m_bValid = false;
+	}
+
+	return sField;
+
+} // GetString
+
+//-----------------------------------------------------------------------------
+KUnixTime KHTTPLogParser::Data::GetTime()
+//-----------------------------------------------------------------------------
+{
+	SkipSpaces();
+
+	if (m_sLine.front() == '[')
+	{
+		// KStringView::substr() has internal checks for overflow
+		auto sField = m_sLine.substr(1, m_sLine.find(']', 1) - 1);
+		m_sLine.remove_prefix(sField.size() + 2);
+		KUnixTime TimeStamp(sField);
+
+		if (!TimeStamp.ok())
+		{
+			m_bValid = false;
+		}
+		else
+		{
+			return TimeStamp;
+		}
+	}
+	else
+	{
+		m_bValid = false;
+	}
+
+	return {};
+
+} // GetTime
+
+//-----------------------------------------------------------------------------
+KHTTPLogParser::Data::Data(KString sLine)
+//-----------------------------------------------------------------------------
+: m_sInput(std::move(sLine))
+, m_sLine(m_sInput)
+, m_bValid(true) // we check later
+{
+	// COMMON format
+	sRemoteIP       = GetString(true);
+	sIdentity       = GetString(true);
+	sUser           = GetString(true);
+	Timestamp       = GetTime();
+	auto sRequest   = GetString();
+	// first word is method
+	auto sMethod    = sRequest.substr(0, sRequest.find(' '));
+	sRequest.remove_prefix(sMethod.size() + 1);
+	Method          = KHTTPMethod(sMethod);
+	auto iNextSpace = sRequest.find(' ');
+	Resource        = KResource(sRequest.substr(0, iNextSpace));
+	sRequest.remove_prefix(iNextSpace + 1);
+	HTTPVersion     = KHTTPVersion(sRequest);
+	iHTTPStatus     = GetNumber();
+	iContentLength  = GetNumber();
+
+	if (IsValid())
+	{
+		// here starts COMBINED
+		sReferrer = GetString();
+
+		if (IsValid())
+		{
+			sUserAgent = GetString();
+
+			// here starts EXTENDED
+			sHost      = GetString();
+
+			if (IsValid())
+			{
+				iRXBytes      = GetNumber();
+				iTXBytes      = GetNumber();
+				iProcessID    = GetNumber();
+				TotalTime     = KDuration(chrono::microseconds(GetNumber()));
+				sForwardedFor = GetString();
+			}
+			else m_bValid = true;
+		}
+		else m_bValid = true;
+	}
+}
+
+//-----------------------------------------------------------------------------
+KHTTPLogParser::Data KHTTPLogParser::Next(KUnixTime EndDate)
+//-----------------------------------------------------------------------------
+{
+	if (!is_open()) return {};
+
+	for (;;)
+	{
+		auto log = Data(m_LogStream->ReadLine());
+
+		if (!log.IsValid())
+		{
+			if (!m_LogStream->Good()) return {};
+			// else repeat
+		}
+		// log is valid - check range
+		else if (log.Timestamp >= m_StartDate)
+		{
+			if (log.Timestamp < EndDate)
+			{
+				return log;
+			}
+			else
+			{
+				return {};
+			}
+		}
+	}
+
+} // Next
 
 DEKAF2_NAMESPACE_END

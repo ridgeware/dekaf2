@@ -72,6 +72,7 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "oga"_ksv  , OGA        },
 		{ "wav"_ksv  , WAV        },
 		{ "weba"_ksv , WEBA       },
+		{ "mp3"_ksv  , MP3        },
 
 		{ "7z"_ksv   , SEVENZIP   },
 		{ "bin"_ksv  , BINARY     },
@@ -136,9 +137,11 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "tsv"_ksv  , TSV        },
 		{ "ics"_ksv  , CALENDAR   },
 		{ "po"_ksv   , PO         },
+		{ "md"_ksv   , MD         },
 
 		{ "avi"_ksv  , AVI        },
 		{ "mpeg"_ksv , MPEG       },
+		{ "mp4"_ksv  , MP4        },
 		{ "ogv"_ksv  , OGV        },
 		{ "webm"_ksv , WEBM       },
 	};
@@ -248,12 +251,15 @@ bool KMIME::IsCompressible()
 		case PPTX.Hash():
 		case RAR.Hash():
 		case ZIP.Hash():
+		case ZSTD.Hash():
 		case SEVENZIP.Hash():
 		case JPEG.Hash():
 		case GIF.Hash():
 		case PNG.Hash():
 		case AVI.Hash():
 		case MPEG.Hash():
+		case MP3.Hash():
+		case MP4.Hash():
 		case OGV.Hash():
 			return false;
 

@@ -194,6 +194,7 @@ public:
 	static constexpr KStringViewZ OGA                    = "audio/ogg";
 	static constexpr KStringViewZ WAV                    = "audio/wav";
 	static constexpr KStringViewZ WEBA                   = "audio/webm";
+	static constexpr KStringViewZ MP3                    = "audio/mpeg";
 
 	static constexpr KStringViewZ BINARY                 = "application/octet-stream";
 	static constexpr KStringViewZ BR                     = "application/brotli";
@@ -265,9 +266,11 @@ public:
 	static constexpr KStringViewZ TSV                    = "text/tab-separated-values";
 	static constexpr KStringViewZ CALENDAR               = "text/calendar";
 	static constexpr KStringViewZ PO                     = "text/x-gettext-translation";
+	static constexpr KStringViewZ MD                     = "text/markdown";
 
 	static constexpr KStringViewZ AVI                    = "video/x-msvideo";
 	static constexpr KStringViewZ MPEG                   = "video/mpeg";
+	static constexpr KStringViewZ MP4                    = "video/mp4";
 	static constexpr KStringViewZ OGV                    = "video/ogg";
 	static constexpr KStringViewZ WEBM                   = "video/webm";
 

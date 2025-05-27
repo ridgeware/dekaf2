@@ -885,9 +885,14 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KInFile(KStringViewZ sv, ios_base::openmode mode = ios_base::in)
-	    : base_type(kToFilesystemPath(sv), mode | ios_base::binary)
+	/// Open an input file
+	/// @param sFilename the name of the file to open
+	/// @param mode an additional mode flag, added to the default in and binary flags
+	/// (actually, none of the remaining modes makes sense for input files, therefore better
+	/// leave it untouched at 0)
+	KInFile(KStringViewZ sFilename, std::ios_base::openmode mode = 0)
 	//-----------------------------------------------------------------------------
+	: base_type(kToFilesystemPath(sFilename), mode | std::ios_base::in | std::ios_base::binary)
 	{
 	}
 
@@ -895,8 +900,8 @@ public:
 	// depending on the iostream type, move construction is allowed
 	template<typename T = base_type, typename std::enable_if<std::is_move_constructible<T>::value == true, int>::type = 0>
 	KInFile(KInFile&& other)
-	    : base_type(std::move(other))
 	//-----------------------------------------------------------------------------
+	: base_type(std::move(other))
 	{
 	}
 
@@ -907,10 +912,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void open(KStringViewZ sFilename, ios_base::openmode mode = ios_base::in)
+	/// Open an input file
+	/// @param sFilename the name of the file to open
+	/// @param mode an additional mode flag, added to the default in and binary flags
+	/// (actually, none of the remaining modes makes sense for input files, therefore better
+	/// leave it untouched at 0)
+	void open(KStringViewZ sFilename, std::ios_base::openmode mode = 0)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::open(kToFilesystemPath(sFilename), mode | ios_base::binary);
+		base_type::open(kToFilesystemPath(sFilename), mode | std::ios_base::in | std::ios_base::binary);
 	}
 
 };

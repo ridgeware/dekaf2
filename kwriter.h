@@ -552,9 +552,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	KOutFile(KStringViewZ sz, ios_base::openmode mode = ios_base::out)
-	    : base_type(kToFilesystemPath(sz), mode | ios_base::binary)
+	/// Open an output file
+	/// @param sFilename the name of the file to open
+	/// @param mode an additional mode flag, added to the default out and binary flags
+	/// (like std::ios_base::app, ate, trunc, noreplace)
+	KOutFile(KStringViewZ sz, std::ios_base::openmode mode = 0)
 	//-----------------------------------------------------------------------------
+	: base_type(kToFilesystemPath(sz), mode | std::ios_base::out | std::ios_base::binary)
 	{
 	}
 
@@ -562,8 +566,8 @@ public:
 	// depending on the iostream type, move construction is allowed
 	template<typename T = base_type, typename std::enable_if<std::is_move_constructible<T>::value == true, int>::type = 0>
 	KOutFile(KOutFile&& other)
-	    : base_type(std::move(other))
 	//-----------------------------------------------------------------------------
+	: base_type(std::move(other))
 	{
 	}
 
@@ -574,10 +578,14 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	void open(KStringViewZ sFilename, ios_base::openmode mode = ios_base::out)
+	/// Open an output file
+	/// @param sFilename the name of the file to open
+	/// @param mode an additional mode flag, added to the default out and binary flags
+	/// (like std::ios_base::app, ate, trunc, noreplace)
+	void open(KStringViewZ sFilename, std::ios_base::openmode mode = 0)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::open(kToFilesystemPath(sFilename), mode | ios_base::binary);
+		base_type::open(kToFilesystemPath(sFilename), mode | std::ios_base::out | std::ios_base::binary);
 	}
 
 };

@@ -889,8 +889,8 @@ public:
 	/// @param sFilename the name of the file to open
 	/// @param mode an additional mode flag, added to the default in and binary flags
 	/// (actually, none of the remaining modes makes sense for input files, therefore better
-	/// leave it untouched at 0)
-	KInFile(KStringViewZ sFilename, std::ios_base::openmode mode = 0)
+	/// leave it untouched)
+	KInFile(KStringViewZ sFilename, std::ios_base::openmode mode = std::ios_base::in)
 	//-----------------------------------------------------------------------------
 	: base_type(kToFilesystemPath(sFilename), mode | std::ios_base::in | std::ios_base::binary)
 	{
@@ -916,8 +916,8 @@ public:
 	/// @param sFilename the name of the file to open
 	/// @param mode an additional mode flag, added to the default in and binary flags
 	/// (actually, none of the remaining modes makes sense for input files, therefore better
-	/// leave it untouched at 0)
-	void open(KStringViewZ sFilename, std::ios_base::openmode mode = 0)
+	/// leave it untouched)
+	void open(KStringViewZ sFilename, std::ios_base::openmode mode = std::ios_base::in)
 	//-----------------------------------------------------------------------------
 	{
 		base_type::open(kToFilesystemPath(sFilename), mode | std::ios_base::in | std::ios_base::binary);

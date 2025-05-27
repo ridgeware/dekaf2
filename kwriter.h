@@ -556,7 +556,7 @@ public:
 	/// @param sFilename the name of the file to open
 	/// @param mode an additional mode flag, added to the default out and binary flags
 	/// (like std::ios_base::app, ate, trunc, noreplace)
-	KOutFile(KStringViewZ sz, std::ios_base::openmode mode = 0)
+	KOutFile(KStringViewZ sz, std::ios_base::openmode mode = std::ios_base::out)
 	//-----------------------------------------------------------------------------
 	: base_type(kToFilesystemPath(sz), mode | std::ios_base::out | std::ios_base::binary)
 	{
@@ -582,7 +582,7 @@ public:
 	/// @param sFilename the name of the file to open
 	/// @param mode an additional mode flag, added to the default out and binary flags
 	/// (like std::ios_base::app, ate, trunc, noreplace)
-	void open(KStringViewZ sFilename, std::ios_base::openmode mode = 0)
+	void open(KStringViewZ sFilename, std::ios_base::openmode mode = std::ios_base::out)
 	//-----------------------------------------------------------------------------
 	{
 		base_type::open(kToFilesystemPath(sFilename), mode | std::ios_base::out | std::ios_base::binary);

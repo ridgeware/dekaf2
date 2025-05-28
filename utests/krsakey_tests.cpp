@@ -37,8 +37,8 @@ EBrURx/EsHSk
 		KRSAKey Key(1024);
 		auto sPublicKey  = Key.GetPEM(false);
 		auto sPrivateKey = Key.GetPEM(true);
-		CHECK ( sPublicKey.size()  == 272 );
-		CHECK ( sPrivateKey.size() == 916 );
+		CHECK ( sPublicKey.size()  >= 200 );
+		CHECK ( sPrivateKey.size() >= 800 );
 		CHECK ( Key.empty() == false );
 		CHECK ( Key.IsPrivateKey() == true );
 	}

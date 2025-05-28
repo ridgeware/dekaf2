@@ -107,10 +107,12 @@ KString KDigest::GetOpenSSLError(KStringView sMessage)
 			iPos += 2;
 		}
 
-		sError.resize(iPos + 256);
-		::ERR_error_string_n(ec, &sError[iPos], sError.size());
-		auto iSize = ::strnlen(&sError[iPos], sError.size());
-		sError.resize(iPos + iSize);
+		constexpr uint16_t iMaxError = 256;
+
+		sError.resize(iPos + iMaxError);
+		::ERR_error_string_n(ec, &sError[iPos], iMaxError);
+		auto iErrorSize = ::strnlen(&sError[iPos], iMaxError);
+		sError.resize(iPos + iErrorSize);
 	}
 
 	return sError;

@@ -167,7 +167,7 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wpessimizing-move>)
 			endif()
 
-			if (DEKAF2_HAS_WARN_NO_DEPRECATED_COPY)
+			if (DEKAF2_HAS_WARN_NO_DEPRECATED_COPY AND NOT (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8))
 				# adding -Wno-deprecated-copy for boost-1.78 on Apple clang 13.1.6 (ARM64)
 				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-copy>)
 			endif()

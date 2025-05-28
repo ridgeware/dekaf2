@@ -2247,6 +2247,8 @@ KStringViewZ KOptions::Values::operator [] (std::size_t index) const
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 	constexpr KStringViewZ KOptions::CLIParms::Arg_t::s_sDoubleDash;
 	constexpr KStringView  KOptions::UNKNOWN_ARG;
+	// this looks stupid, but gcc 6 wouldn't compile in debug mode without:
+	constexpr KStringView::size_type KOptions::iMaxAdHocOptionLength;
 #endif
 
 DEKAF2_NAMESPACE_END

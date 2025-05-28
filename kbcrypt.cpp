@@ -278,4 +278,10 @@ uint16_t KBCrypt::GetWorkload()
 
 } // GetWorkload
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+// this looks stupid, but gcc 6 wouldn't compile in debug mode without:
+constexpr uint16_t KBCrypt::iBCryptHashSize;
+constexpr uint16_t KBCrypt::iRandomBytes;
+#endif
+
 DEKAF2_NAMESPACE_END

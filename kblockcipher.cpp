@@ -771,7 +771,8 @@ bool KBlockCipher::SetOutput(KOutStream& OutStream)
 	}
 
 	return true;
-};
+
+} // SetOutput
 
 //---------------------------------------------------------------------------
 bool KBlockCipher::SetTag()

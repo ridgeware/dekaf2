@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter(tm)
  //
- // Copyright (c) 2019, Ridgeware, Inc.
+ // Copyright (c) 2025, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -40,88 +40,129 @@
  //
  */
 
+#include "krsa.h"
+#include "bits/kdigest.h"
+
 #include <openssl/evp.h>
-#include <openssl/pem.h>
-#include "krsasign.h"
-#include "klog.h"
+#include <openssl/rsa.h>
+#include <openssl/engine.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
 //---------------------------------------------------------------------------
-KRSASign::KRSASign(Digest digest, KStringView sMessage)
+KRSAEncrypt::KRSAEncrypt(const KRSAKey& Key, bool bEME_OAEP)
 //---------------------------------------------------------------------------
-// The real update function is EVP_SignUpdate, but as that is defined as a macro
-// (on EVP_DigestUpdate) the compiler cannot take it as a function argument. Therefore
-// we insert the aliased target directly. Needs changes should the alias change in
-// OpenSSL.
-: KMessageDigestBase(digest, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate))
 {
-	if (!sMessage.empty())
+	m_ctx = ::EVP_PKEY_CTX_new(Key.GetEVPPKey(), nullptr);
+
+	if (!m_ctx ||
+		::EVP_PKEY_encrypt_init(m_ctx) <= 0 ||
+		::EVP_PKEY_CTX_set_rsa_padding(m_ctx, bEME_OAEP ? RSA_PKCS1_OAEP_PADDING : RSA_PKCS1_PADDING) <= 0)
 	{
-		Update(sMessage);
+		SetError(KDigest::GetOpenSSLError("cannot initialize context"));
 	}
 
 } // ctor
 
 //---------------------------------------------------------------------------
-KString KRSASign::Sign(const KRSAKey& Key) const
+KRSAEncrypt::~KRSAEncrypt()
 //---------------------------------------------------------------------------
 {
-	KString sSignature;
-
-	if (evpctx && !Key.empty())
+	if (m_ctx)
 	{
-		sSignature.resize(EVP_PKEY_size(Key.GetEVPPKey()));
-		unsigned int iDigestLen { 0 };
+		::EVP_PKEY_CTX_free(m_ctx);
+	}
 
-		if (1 != EVP_SignFinal(evpctx, reinterpret_cast<unsigned char*>(sSignature.data()), &iDigestLen, Key.GetEVPPKey()))
+} // dtor
+
+//---------------------------------------------------------------------------
+KString KRSAEncrypt::Encrypt(KStringView sInput) const
+//---------------------------------------------------------------------------
+{
+	KString sEncrypted;
+
+	if (!HasError())
+	{
+		std::size_t iOutLen;
+		// get outlen
+		if (::EVP_PKEY_encrypt(m_ctx, nullptr, &iOutLen, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()) == 1)
 		{
-			SetError(GetOpenSSLError("cannot read signature"));
+			sEncrypted.resize(iOutLen);
+
+			if (::EVP_PKEY_encrypt(m_ctx, reinterpret_cast<unsigned char*>(&sEncrypted[0]), &iOutLen, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()) > 0)
+			{
+				if (iOutLen < sEncrypted.size())
+				{
+					sEncrypted.resize(iOutLen);
+				}
+
+				return sEncrypted;
+			}
+
+			sEncrypted.clear();
 		}
-
-		sSignature.resize(iDigestLen);
-	}
-	else
-	{
-		SetError("no context");
 	}
 
-	return sSignature;
+	SetError(KDigest::GetOpenSSLError("cannot encrypt"));
 
-} // Signature
+	return sEncrypted;
+
+} // Encrypt
 
 //---------------------------------------------------------------------------
-KRSAVerify::KRSAVerify(Digest digest, KStringView sMessage)
+KRSADecrypt::KRSADecrypt(const KRSAKey& Key, bool bEME_OAEP)
 //---------------------------------------------------------------------------
-// The real update function is EVP_VerifyUpdate, but as that is defined as a macro
-// (on EVP_DigestUpdate) the compiler cannot take it as a function argument. Therefore
-// we insert the aliased target directly. Needs changes should the alias change in
-// OpenSSL.
-: KMessageDigestBase(digest, reinterpret_cast<UpdateFunc>(EVP_DigestUpdate))
 {
-	if (!sMessage.empty())
+	m_ctx = ::EVP_PKEY_CTX_new(Key.GetEVPPKey(), nullptr);
+
+	if (!m_ctx ||
+		::EVP_PKEY_decrypt_init(m_ctx) <= 0 ||
+		::EVP_PKEY_CTX_set_rsa_padding(m_ctx, bEME_OAEP ? RSA_PKCS1_OAEP_PADDING : RSA_PKCS1_PADDING) <= 0)
 	{
-		Update(sMessage);
+		SetError(KDigest::GetOpenSSLError("cannot initialize context"));
 	}
 
 } // ctor
 
 //---------------------------------------------------------------------------
-bool KRSAVerify::Verify(const KRSAKey& Key, KStringView _sSignature) const
+KRSADecrypt::~KRSADecrypt()
 //---------------------------------------------------------------------------
 {
-	if (evpctx && !Key.empty())
+	if (m_ctx)
 	{
-		if (1 != EVP_VerifyFinal(evpctx, reinterpret_cast<const unsigned char*>(_sSignature.data()), static_cast<int>(_sSignature.size()), Key.GetEVPPKey()))
-		{
-			return SetError(GetOpenSSLError("cannot verify signature"));
-		}
-		// this was the right signature
-		return true;
+		::EVP_PKEY_CTX_free(m_ctx);
 	}
 
-	return SetError("no context");
+} // dtor
 
-} // Verify
+//---------------------------------------------------------------------------
+KString KRSADecrypt::Decrypt(KStringView sInput) const
+//---------------------------------------------------------------------------
+{
+	KString sDecrypted;
+
+	if (!HasError())
+	{
+		std::size_t iOutLen;
+		// get outlen
+		if (::EVP_PKEY_decrypt(m_ctx, nullptr, &iOutLen, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()) == 1)
+		{
+			sDecrypted.resize(iOutLen);
+
+			if (::EVP_PKEY_decrypt(m_ctx, reinterpret_cast<unsigned char*>(&sDecrypted[0]), &iOutLen, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()) > 0)
+			{
+				sDecrypted.resize(iOutLen);
+				return sDecrypted;
+			}
+
+			sDecrypted.clear();
+		}
+	}
+
+	SetError(KDigest::GetOpenSSLError("cannot decrypt"));
+
+	return sDecrypted;
+
+} // Decrypt
 
 DEKAF2_NAMESPACE_END

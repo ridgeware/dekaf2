@@ -47,14 +47,15 @@
 
 #include "kstringview.h"
 #include "kjson.h"
+#include "kerror.h"
 
 struct evp_pkey_st;
 
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// RSA key class to transform formats
-class DEKAF2_PUBLIC KRSAKey
+/// RSA key class to transform formats, holds either a private or a public key
+class DEKAF2_PUBLIC KRSAKey : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -80,7 +81,13 @@ public:
 		KStringView qi;
 	};
 
+	/// default ctor
 	KRSAKey() = default;
+	/// construct a new key with the given keylen - choose values from 1024 to 16384, probably as power of 2
+	KRSAKey(uint16_t iKeylen)
+	{
+		Create(iKeylen);
+	}
 	/// construct the key from parameters
 	KRSAKey(const Parameters& parms)
 	{
@@ -91,18 +98,18 @@ public:
 	{
 		Create(json);
 	}
-	/// construct the key from PEM strings
-	KRSAKey(KStringView sPubKey, KStringView sPrivKey = KStringView{})
+	/// construct the key from a PEM string
+	/// @param sPEMKey the string containing the PEM key
+	/// @param sPassword the password to read the PEM key, defaults to no password
+	KRSAKey(KStringView sPEMKey, KStringViewZ sPassword = KStringViewZ{})
 	{
-		Create(sPubKey, sPrivKey);
+		Create(sPEMKey, sPassword);
 	}
-
 	/// copy construction
 	KRSAKey(const KRSAKey&) = delete;
-
 	/// move construction
 	KRSAKey(KRSAKey&& other) noexcept;
-
+	// dtor
 	~KRSAKey()
 	{
 		clear();
@@ -117,6 +124,8 @@ public:
 	void clear();
 	/// test if key is set
 	bool empty() const { return !m_EVPPKey; }
+	/// create a new key with len keylen - choose values from 1024 to 16384, probably as power of 2
+	bool Create(uint16_t iKeylen);
 	/// create the key from parameters
 	bool Create(const Parameters& parms);
 	/// create the key from JSON
@@ -124,16 +133,24 @@ public:
 	{
 		return Create(Parameters(json));
 	}
-	/// create the key from PEM strings
-	bool Create(KStringView sPubKey, KStringView sPrivKey = KStringView{});
-	/// get the key
+	/// create the key from a PEM string
+	/// @param sPEMKey the string containing the PEM key
+	/// @param sPassword the password to read the PEM key, defaults to no password
+	/// @return true if the key could be read, false otherwise
+	bool Create(KStringView sPEMKey, KStringViewZ sPassword = KStringViewZ{});
+	/// get the key, may return nullptr in case of error or default construction
 	evp_pkey_st* GetEVPPKey() const;
+	/// is this a private key?
+	bool IsPrivateKey() const { return m_bIsPrivateKey; }
+	/// get either the public or private key as a PEM string
+	KString GetPEM(bool bPrivateKey, KStringViewZ sPassword = KStringViewZ{});
 
 //------
 private:
 //------
 
-	evp_pkey_st* m_EVPPKey { nullptr }; // is a EVP_PKEY
+	evp_pkey_st* m_EVPPKey       { nullptr }; // is a EVP_PKEY
+	bool         m_bIsPrivateKey { false   };
 
 }; // KRSAKey
 

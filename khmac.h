@@ -49,6 +49,7 @@
 #include "kstream.h"
 #include "kstringview.h"
 #include "kstring.h"
+#include "kerror.h"
 #include "bits/kdigest.h"
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000L
@@ -63,7 +64,7 @@ DEKAF2_NAMESPACE_BEGIN
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KHMAC gives the interface for all HMAC algorithms. The
 /// framework allows to calculate HMACs out of strings and streams.
-class DEKAF2_PUBLIC KHMAC : public KDigest
+class DEKAF2_PUBLIC KHMAC : public KDigest, public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

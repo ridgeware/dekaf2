@@ -65,8 +65,8 @@ KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 
 	if (!m_hmac)
 	{
-		kDebug(1, "cannot create mac");
 		Release();
+		SetError(GetOpenSSLError("cannot create MAC"));
 		return;
 	}
 
@@ -84,8 +84,8 @@ KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 
 	if (!m_hmacctx)
 	{
-		kDebug(1, "cannot create context");
 		Release();
+		SetError(GetOpenSSLError("cannot create context"));
 		return;
 	}
 
@@ -95,10 +95,12 @@ KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 	if (!::EVP_MAC_init(m_hmacctx, reinterpret_cast<const unsigned char*>(sKey.data()), sKey.size(), params))
 #endif
 	{
-		kDebug(1, "cannot initialize algorithm");
 		Release();
+		SetError(GetOpenSSLError("cannot initialize algorithm"));
+		return;
 	}
-	else if (!sMessage.empty())
+
+	if (!sMessage.empty())
 	{
 		Update(sMessage);
 	}
@@ -157,8 +159,7 @@ bool KHMAC::Update(KStringView sInput)
 	if (!::EVP_MAC_update(m_hmacctx, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
 #endif
 	{
-		kDebug(1, "failed");
-		return false;
+		return SetError(GetOpenSSLError("update failed"));
 	}
 
 	return true;
@@ -186,8 +187,7 @@ bool KHMAC::Update(KInStream& InputStream)
 		if (!::EVP_MAC_update(m_hmacctx, Buffer.data(), iReadChunk))
 #endif
 		{
-			kDebug(1, "failed");
-			return false;
+			return SetError(GetOpenSSLError("update failed"));
 		}
 
 		if (iReadChunk < Buffer.size())
@@ -222,13 +222,14 @@ const KString& KHMAC::Digest() const
 		if (!::EVP_MAC_final(m_hmacctx, Buffer.data(), &iDigestLen, Buffer.size()))
 #endif
 		{
-			kDebug(1, "cannot read HMAC");
+			SetError(GetOpenSSLError("cannot read HMAC"));
 		}
 		else
 		{
 			m_sHMAC.reserve(iDigestLen);
 
-			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit) {
+			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit)
+			{
 				m_sHMAC += Buffer[iDigit];
 			}
 		}

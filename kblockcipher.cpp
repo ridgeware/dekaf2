@@ -56,7 +56,6 @@
 #include <openssl/core_names.h>
 #endif
 #include <openssl/rand.h>
-#include <openssl/err.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -113,26 +112,6 @@ KBlockCipher::~KBlockCipher()
 	Release();
 
 } // dtor
-
-//---------------------------------------------------------------------------
-KString KBlockCipher::GetOpenSSLError()
-//---------------------------------------------------------------------------
-{
-	KString sError;
-
-	auto ec = ::ERR_get_error();
-
-	if (ec)
-	{
-		sError.resize(256);
-		::ERR_error_string_n(ec, &sError[0], sError.size());
-		auto iSize = ::strnlen(&sError[0], sError.size());
-		sError.resize(iSize);
-	}
-
-	return sError;
-
-} // GetOpenSSLError
 
 //---------------------------------------------------------------------------
 const evp_cipher_st* KBlockCipher::GetCipher(Algorithm algorithm, Mode mode, Bits bits)
@@ -496,7 +475,7 @@ KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sP
 	if (::EVP_KDF_derive(kctx, reinterpret_cast<unsigned char*>(&sKey[0]), sKey.size(), params) <= 0)
 	{
 		sKey.clear();
-		kWarning("cannot generate key: {}", GetOpenSSLError());
+		kWarning(GetOpenSSLError("cannot generate key"));
 	}
 
 	::EVP_KDF_CTX_free(kctx);
@@ -517,7 +496,7 @@ KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sP
 		::EVP_PKEY_derive(pctx, reinterpret_cast<unsigned char*>(&sKey[0]), &iOutlen) <= 0)
 	{
 		sKey.clear();
-		kWarning("cannot generate key: {}", GetOpenSSLError());
+		kWarning(GetOpenSSLError("cannot generate key"));
 	}
 
 	::EVP_PKEY_CTX_free(pctx);
@@ -554,7 +533,7 @@ KString KBlockCipher::CreateKeyFromPasswordPKCS5
 	))
 	{
 		sKey.clear();
-		kWarning("cannot generate key: {}", GetOpenSSLError());
+		kWarning(GetOpenSSLError("cannot generate key"));
 	}
 
 	return sKey;
@@ -584,7 +563,7 @@ bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 
 	if (!m_evpctx)
 	{
-		return SetError(kFormat("cannot create context: {}", GetOpenSSLError()));
+		return SetError(GetOpenSSLError("cannot create context"));
 	}
 
 	// start the initialization
@@ -598,7 +577,7 @@ bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 		m_Direction)
 	)
 	{
-		return SetError(kFormat("cannot initialize cipher {}: {}", m_sCipherName, GetOpenSSLError()));
+		return SetError(GetOpenSSLError(kFormat("cannot initialize cipher {}", m_sCipherName)));
 	}
 
 	// get required key and IV lengths
@@ -644,7 +623,7 @@ bool KBlockCipher::SetKey(KStringView sKey)
 		m_Direction)
 	)
 	{
-		SetError(kFormat("cannot initialize cipher {}: {}", m_sCipherName, GetOpenSSLError()));
+		SetError(GetOpenSSLError(kFormat("cannot initialize cipher {}", m_sCipherName)));
 		Release();
 		return false;
 	}
@@ -687,7 +666,7 @@ bool KBlockCipher::CompleteInitialization()
 
 				if (1 != ::RAND_bytes(reinterpret_cast<unsigned char*>(&m_sIV[0]), static_cast<int>(m_sIV.size())))
 				{
-					SetError(kFormat("cannot get random IV bytes {}: {}", m_sCipherName, GetOpenSSLError()));
+					SetError(GetOpenSSLError(kFormat("cannot get random IV bytes {}", m_sCipherName)));
 					Release();
 					return false;
 				}
@@ -704,7 +683,7 @@ bool KBlockCipher::CompleteInitialization()
 				m_Direction)
 			)
 			{
-				SetError(kFormat("cannot initialize cipher {}: {}", m_sCipherName, GetOpenSSLError()));
+				SetError(GetOpenSSLError(kFormat("cannot initialize cipher {}", m_sCipherName)));
 				Release();
 				return false;
 			}
@@ -803,7 +782,7 @@ bool KBlockCipher::SetTag()
 
 	if (!::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_SET_TAG, static_cast<int>(m_iTagLength), m_sTag.data()))
 	{
-		return SetError(kFormat("{}: cannot set tag: {}", "decryption", GetOpenSSLError()));
+		return SetError(GetOpenSSLError(kFormat("{}: cannot set tag", "decryption")));
 	}
 
 	return true;
@@ -874,7 +853,7 @@ bool KBlockCipher::AddString(KStringView sInput)
 			)
 			{
 				Release();
-				return SetError(kFormat("cannot set IV {}: {}", m_sCipherName, GetOpenSSLError()));
+				return SetError(GetOpenSSLError(kFormat("cannot set IV {}", m_sCipherName)));
 			}
 		}
 	}
@@ -900,7 +879,7 @@ bool KBlockCipher::AddString(KStringView sInput)
 			static_cast<int>(sInput.size()))
 		)
 		{
-			return SetError(kFormat("{} failed: {}", m_Direction ? "encryption" : "decryption", GetOpenSSLError()));
+			return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
 		}
 	}
 
@@ -912,7 +891,7 @@ bool KBlockCipher::AddString(KStringView sInput)
 		static_cast<int>(sInput.size()))
 	)
 	{
-		return SetError(kFormat("{} failed: {}", m_Direction ? "encryption" : "decryption", GetOpenSSLError()));
+		return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
 	}
 
 	kAssert(m_OutString->size() - iOrigSize >= static_cast<uint16_t>(iOutLen), "iLocalBlockSize too small");
@@ -1017,9 +996,7 @@ bool KBlockCipher::FinalizeString()
 
 	if (!::EVP_CipherFinal_ex(m_evpctx, pOut, &iOutLen))
 	{
-		return SetError(kFormat("{}: finalization failed: {}",
-								m_Direction ? "encryption" : "decryption",
-								GetOpenSSLError()));
+		return SetError(GetOpenSSLError(kFormat("{}: finalization failed", m_Direction ? "encryption" : "decryption")));
 	}
 
 	if (m_iTagLength && GetDirection() == Encrypt)
@@ -1028,7 +1005,7 @@ bool KBlockCipher::FinalizeString()
 
 		if (!::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_GET_TAG, static_cast<int>(m_iTagLength), &m_sTag[0]))
 		{
-			return SetError(kFormat("{}: cannot get tag: {}", "encryption", GetOpenSSLError()));
+			return SetError(GetOpenSSLError(kFormat("{}: cannot get tag", "encryption")));
 		}
 
 		if (m_bInlineIVandTag && !m_OutStream && m_OutString)

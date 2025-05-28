@@ -314,8 +314,6 @@ private:
 	bool FinalizeStream();
 	void Release() noexcept;
 
-	static KString GetOpenSSLError();
-
 	const evp_cipher_st* m_Cipher        { nullptr };
 	evp_cipher_ctx_st*   m_evpctx        { nullptr };
 	uint16_t             m_iKeyLength    { 0 };

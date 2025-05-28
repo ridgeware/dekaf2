@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter(tm)
  //
- // Copyright (c) 2018, Ridgeware, Inc.
+ // Copyright (c) 2025, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -42,28 +42,20 @@
 
 #pragma once
 
-/// @file kdigest.h
-/// (cryptographic) message digest algorithms
+/// @file krsa.h
+/// RSA encryption/decryption
 
-#include "../kdefinitions.h"
-#include "../kstringview.h"
-#include <openssl/opensslv.h>
+#include "kstringview.h"
+#include "kstring.h"
+#include "krsakey.h"
+#include "kerror.h"
 
-#if OPENSSL_VERSION_NUMBER >= 0x010100000L
-	#ifndef DEKAF2_HAS_BLAKE2
-		#define DEKAF2_HAS_BLAKE2 1
-	#endif
-	struct evp_md_st;
-#else
-	struct env_md_st;
-#endif
+struct evp_pkey_ctx_st;
 
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// KDigestAlgorithms constructs the basic algorithms for message digest
-/// computations, used by KMessageDigest and KRSASign
-class DEKAF2_PUBLIC KDigest
+class DEKAF2_PUBLIC KRSAEncrypt : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -71,29 +63,66 @@ class DEKAF2_PUBLIC KDigest
 public:
 //------
 
-	enum Digest
+	/// construct an RSA encryptor
+	/// @param Key the (public) RSA key to use for encryption
+	/// @param bEME_OAP use secure EME_OAP padding, or vulnerable
+	/// non-OAEP padding (for older implementations). Defaults to true for EME_OAP.
+	KRSAEncrypt(const KRSAKey& Key, bool bEME_OAEP = true);
+	~KRSAEncrypt();
+
+	/// encrypt with RSA
+	/// @param sInput the input data to encrypt
+	/// @return the ciphertext
+	KString Encrypt(KStringView sInput) const;
+
+	/// call operator returns the encrypted input
+	KString operator()(KStringView sInput) const
 	{
-		MD5,
-		SHA1,
-		SHA224,
-		SHA256,
-		SHA384,
-		SHA512,
-#if DEKAF2_HAS_BLAKE2
-		BLAKE2S,
-		BLAKE2B,
-#endif
-	};
+		return Encrypt(sInput);
+	}
 
-	/// returns the EVP_MD* for the digest
-	static const evp_md_st* GetMessageDigest(Digest digest);
+//------
+private:
+//------
 
-	/// returns a string that can be used in the method interfaces of OpenSSL for the digest
-	static const KStringViewZ ToString(Digest digest);
+	evp_pkey_ctx_st* m_ctx { nullptr };
 
-	/// returns an error message for the last OpenSSL error
-	static KString GetOpenSSLError(KStringView sMessage = KStringView{});
+}; // KRSAEncrypt
 
-}; // KDigest
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC KRSADecrypt : public KErrorBase
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// construct an RSA decryptor
+	/// @param Key the (private) RSA key to use for decryption
+	/// @param bEME_OAP use secure EME_OAP padding, or vulnerable
+	/// non-OAEP padding (for older implementations). Defaults to true for EME_OAP.
+	KRSADecrypt(const KRSAKey& Key, bool bEME_OAEP = true);
+	~KRSADecrypt();
+
+	/// decrypt with RSA
+	/// @param sInput the ciphertext data to decrypt
+	/// @return the plaintext
+	KString Decrypt(KStringView sInput) const;
+
+	/// call operator returns the decrypted input
+	KString operator()(KStringView sInput) const
+	{
+		return Decrypt(sInput);
+	}
+
+//------
+private:
+//------
+
+	evp_pkey_ctx_st* m_ctx { nullptr };
+
+}; // KRSADecrypt
+
 
 DEKAF2_NAMESPACE_END

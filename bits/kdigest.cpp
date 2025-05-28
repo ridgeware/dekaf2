@@ -42,6 +42,7 @@
 
 #include "kdigest.h"
 #include <openssl/evp.h>
+#include <openssl/err.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -88,5 +89,32 @@ const KStringViewZ KDigest::ToString(Digest digest)
 	return "";
 
 } // GetMessageDigest
+
+//---------------------------------------------------------------------------
+KString KDigest::GetOpenSSLError(KStringView sMessage)
+//---------------------------------------------------------------------------
+{
+	KString sError(sMessage);
+	auto iPos = sMessage.size();
+
+	auto ec = ::ERR_get_error();
+
+	if (ec)
+	{
+		if (iPos)
+		{
+			sError += ": ";
+			iPos += 2;
+		}
+
+		sError.resize(iPos + 256);
+		::ERR_error_string_n(ec, &sError[iPos], sError.size());
+		auto iSize = ::strnlen(&sError[iPos], sError.size());
+		sError.resize(iPos + iSize);
+	}
+
+	return sError;
+
+} // GetOpenSSLError
 
 DEKAF2_NAMESPACE_END

@@ -64,15 +64,15 @@ KMessageDigestBase::KMessageDigestBase(Digest digest, UpdateFunc _Updater)
 
 	if (!evpctx)
 	{
-		kDebug(1, "cannot create context");
 		Release();
+		SetError(GetOpenSSLError("cannot create context"));
 		return;
 	}
 
 	if (1 != ::EVP_SignInit(evpctx, GetMessageDigest(digest)))
 	{
-		kDebug(1, "cannot initialize algorithm");
 		Release();
+		SetError(GetOpenSSLError("cannot initialize algorithm"));
 	}
 
 } // ctor
@@ -114,8 +114,8 @@ void KMessageDigestBase::clear()
 
 	if (1 != ::EVP_DigestInit_ex(evpctx, md, nullptr))
 	{
-		kDebug(1, "failed");
 		Release();
+		SetError("failed");
 		return;
 	}
 
@@ -152,8 +152,7 @@ bool KMessageDigestBase::Update(KStringView sInput)
 
 	if (1 != Updater(evpctx, sInput.data(), sInput.size()))
 	{
-		kDebug(1, "failed");
-		return false;
+		return SetError(GetOpenSSLError("update failed"));
 	}
 
 	return true;
@@ -177,8 +176,7 @@ bool KMessageDigestBase::Update(KInStream& InputStream)
 
 		if (1 != Updater(evpctx, Buffer.data(), iReadChunk))
 		{
-			kDebug(1, "failed");
-			return false;
+			return SetError(GetOpenSSLError("update failed"));
 		}
 
 		if (iReadChunk < Buffer.size())
@@ -230,7 +228,7 @@ const KString& KMessageDigest::Digest() const
 
 		if (1 != ::EVP_DigestFinal_ex(evpctx, Buffer.data(), &iDigestLen))
 		{
-			kDebug(1, "cannot read digest");
+			SetError(GetOpenSSLError("cannot read digest"));
 		}
 		else
 		{

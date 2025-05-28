@@ -102,6 +102,9 @@ set (USOURCES
 	krestserver_tests.cpp
 	kron_tests.cpp
 	krow_tests.cpp
+	krsa_tests.cpp
+	krsakey_tests.cpp
+	krsasign_tests.cpp
 	ksharedmemory_tests.cpp
 	ksharedptr_tests.cpp
 	ksharedref_tests.cpp

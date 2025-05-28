@@ -64,7 +64,7 @@ namespace detail {
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KMessageDigestBase constructs the basic algorithms for message digest
 /// computations, used by KMessageDigest and KRSASign
-class DEKAF2_PUBLIC KMessageDigestBase : public KDigest
+class DEKAF2_PUBLIC KMessageDigestBase : public KDigest, public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

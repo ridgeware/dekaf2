@@ -7242,7 +7242,7 @@ bool KSQL::ctlib_prepare_results ()
 		}
 
 		kDebug (KSQL2_CTDEBUG, " col#{:02}: name='{}', maxlength={}, datatype={}",
-				ii+1, ColInfo.sColName, ColInfo.iMaxDataLen, ColInfo.iKSQLDataType);
+				ii+1, ColInfo.sColName, ColInfo.iMaxDataLen, KCOL::FlagsToString(ColInfo.iKSQLDataType));
 
 		// allocate at least 20 bytes, which will cover datetimes and numerics:
 		ColInfo.iMaxDataLen = std::max (ColInfo.iMaxDataLen+2, KCOL::Len(20));

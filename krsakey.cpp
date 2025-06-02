@@ -124,7 +124,7 @@ bool KRSAKey::Create(uint16_t iKeylen)
 		KUniquePtr<RSA,    ::RSA_free> rsa(RSA_new());
 		KUniquePtr<BIGNUM, ::BN_free > bn (BN_new() );
 
-		m_EVPPKey = EVP_PKEY_new();
+		m_EVPPKey = ::EVP_PKEY_new();
 
 		if (::BN_set_word(bn.get(), RSA_F4) != 1
 		 || ::RSA_generate_key_ex(rsa.get(), iKeylen, bn.get(), nullptr) != 1

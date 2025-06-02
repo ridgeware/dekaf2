@@ -1028,6 +1028,20 @@ TEST_CASE("KTime") {
 		CHECK       ( ( t2 >= t1 ) );
 	}
 
+	SECTION("months")
+	{
+		auto Date1 = KUTCTime(chrono::year(2024)/1/31);
+		Date1 += chrono::months(1);
+		CHECK ( Date1.hours  ().count() == 0 );
+		CHECK ( Date1.minutes().count() == 0 );
+		CHECK ( Date1.seconds().count() == 0 );
+		CHECK ( Date1.month() == chrono::February   );
+		CHECK ( Date1.day()   == chrono::day(29)    );
+		CHECK ( Date1.last_day() == chrono::day(29) );
+		CHECK ( Date1.year()  == chrono::year(2024) );
+		CHECK ( Date1.is_leap()== true              );
+	}
+
 	SECTION("samples")
 	{
 		bool bHasTimezone = false;

@@ -79,6 +79,8 @@ TEST_CASE("KDate")
 		CHECK ( Date1.to_string() == "2024-08-16"   );
 		CHECK ( kFormat("{:%d/%m/%Y}", Date1) == "16/08/2024" );
 
+		CHECK ( KDate(chrono::year(2024)/2/29) == KDate(chrono::month(2)/29/2024) );
+
 		Date1 = KDate(chrono::year(2023)/3/8);
 		Date1 += chrono::months(1);
 		CHECK ( Date1.month() == chrono::April      );
@@ -86,6 +88,14 @@ TEST_CASE("KDate")
 		CHECK ( Date1.last_day() == chrono::day(30) );
 		CHECK ( Date1.year()  == chrono::year(2023) );
 		CHECK ( Date1.is_leap()== false             );
+
+		Date1 = KDate(chrono::year(2024)/1/31);
+		Date1 += chrono::months(1);
+		CHECK ( Date1.month() == chrono::February   );
+		CHECK ( Date1.day()   == chrono::day(29)    );
+		CHECK ( Date1.last_day() == chrono::day(29) );
+		CHECK ( Date1.year()  == chrono::year(2024) );
+		CHECK ( Date1.is_leap()== true              );
 
 		Date1 = KDate(chrono::year(2023)/2/28);
 		Date1 += chrono::days(1);

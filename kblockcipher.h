@@ -148,7 +148,7 @@ public:
 	/// Symmetrical encryption/decryption. Set an output string or stream before starting to add input data.
 	/// @param direction either Decrypt or Encrypt
 	/// @param algorithm AES, ARIA, Camellia or ChaCha20_Poly1305
-	/// @param mode either ECB, CBC, CCM or GCM - defaults to GCM (without meaning for ChaCha20)
+	/// @param mode either ECB, CBC, OFB, CFB1, CFB8, CFB128, CTR, CCM, GCM, OCB or XTS - defaults to GCM (without meaning for ChaCha20)
 	/// @param bits one of B128, B192, B256 - defaults to B256 (without meaning for ChaCha20)
 	/// @param bInlineIVandTag whether the IV and possible tag should for encryption be inserted at the start
 	///  of the ciphertext, and read there for decryption - defaults to true
@@ -175,9 +175,9 @@ public:
 	bool SetPassword(KStringView sPassword, KStringView sSalt = "");
 	/// set the encryption key - call either this or SetPassword() after construction
 	bool SetKey(KStringView sKey);
-	/// set the output to a string ref if not yet done in construction
+	/// set the output to a string ref - must be called before any input is processed
 	bool SetOutput(KStringRef& sOutput);
-	/// set the outpput to a stream ref if not yet done in construction
+	/// set the outpput to a stream ref - must be called before any input is processed
 	bool SetOutput(KOutStream& OutStream);
 
 	/// returns needed key length in bytes, if you want to create a valid key yourself and set it with SetKey()
@@ -297,8 +297,11 @@ public:
 		uint16_t    iIterations = 1024
 	);
 
+	/// return the algorithm as a string
 	static KStringView ToString(Algorithm algorithm);
+	/// return the mode as a string
 	static KStringView ToString(Mode mode);
+	/// return the bit size as a string
 	static KStringView ToString(Bits bits);
 
 //------

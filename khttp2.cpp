@@ -1054,11 +1054,11 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 			if (Stream->HasRXBuffered())
 			{
-				kDebug(1, "[stream {}] closed, but have still RX data buffered - will not yet delete", StreamID);
+				kDebug(4, "[stream {}] closed, but have still RX data buffered - will not yet delete", StreamID);
 			}
 			else
 			{
-				kDebug(1, "[stream {}] closed, no more RX data - will delete and exit", StreamID, iRead);
+				kDebug(4, "[stream {}] closed, no more RX data - will delete and exit", StreamID, iRead);
 				DeleteStream(StreamID);
 				break;
 			}

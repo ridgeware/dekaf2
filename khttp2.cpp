@@ -440,9 +440,7 @@ Stream* Session::GetStream(Stream::ID StreamID)
 
 	if (it == m_Streams.end())
 	{
-		// do not make this an error - it happens after closing a stream
-		// and a following check if the stream is at eof
-		kDebug(4, "cannot find stream ID {}", StreamID);
+		SetError(kFormat("cannot find stream ID {}", StreamID));
 		return nullptr;
 	}
 
@@ -649,6 +647,11 @@ int Session::OnDataChunkRecv (uint8_t flags, Stream::ID stream_id, KConstBuffer 
 	if (Stream)
 	{
 		Stream->Receive(data);
+	}
+	else
+	{
+		SetError(kFormat("[stream {}] not found - dropping {} RX bytes", stream_id, data.size()));
+		return NGHTTP2_PROTOCOL_ERROR;
 	}
 
 	return NGHTTP2_NO_ERROR;
@@ -1027,6 +1030,7 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 	if (!Stream)
 	{
+		SetError(kFormat("[stream {}] not found! - cannot read {} bytes", StreamID, len));
 		return -1;
 	}
 
@@ -1047,8 +1051,17 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 		if (Stream->IsClosed())
 		{
 			iRead = Stream->GetReceiveBuffer().size();
-			DeleteStream(StreamID);
-			break;
+
+			if (Stream->HasRXBuffered())
+			{
+				kDebug(1, "[stream {}] closed, but have still RX data buffered - will not yet delete", StreamID);
+			}
+			else
+			{
+				kDebug(1, "[stream {}] closed, no more RX data - will delete and exit", StreamID, iRead);
+				DeleteStream(StreamID);
+				break;
+			}
 		}
 
 		if (Stream->GetReceiveBuffer().remaining() == 0)

@@ -123,6 +123,9 @@ public:
 	/// of a data chunk. It is written into the ReceiveBuffer (if existing), and any overflowing data gets stored in
 	/// a temporary FIFO buffer (which gets later emptied when a new receive buffer is set)
 	void          Receive            (KConstBuffer data);
+	/// returns true if there is still data in the RX spill buffer that needs to get requested before
+	/// closing the stream
+	bool          HasRXBuffered      () const         { return !m_RXSpillBuffer.empty(); }
 
 //----------
 private:
@@ -269,7 +272,7 @@ private:
 
 	static nghttp2_ssize OnDataSourceReadCallback(
 		nghttp2_session *session,
-												  Stream::ID stream_id,
+		Stream::ID stream_id,
 		uint8_t* buf, size_t length,
 		uint32_t* data_flags, void* source,
 		void *user_data
@@ -285,7 +288,7 @@ private:
 
 	static int OnStreamCloseCallback(
 		nghttp2_session* session,
-									 Stream::ID stream_id, uint32_t error_code,
+		Stream::ID stream_id, uint32_t error_code,
 		void* user_data
 	);
 

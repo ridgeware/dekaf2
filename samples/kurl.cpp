@@ -541,6 +541,22 @@ kurl::kurl ()
 #endif
 
 	m_CLI
+		.Option("L,location")
+		.Hidden()
+	([&]()
+	{
+		// -L (follow redirects) is the default with kurl, just skip it
+	});
+
+	m_CLI
+		.Option("max-redirs <n>")
+		.MinArgs(1).MaxArgs(1)
+		.Range(1, 1000)
+		.Type(KOptions::ArgTypes::Unsigned)
+		.Help("follow up to <n> HTTP redirects (default 3, 0 switches off)")
+		.Set(BuildMRQ.iMaxRedirects);
+
+	m_CLI
 		.Command("dns <hostname>\n"
 				 "    [4|6 [<maxresults>]]")
 		.Help("run a hostname lookup and exit, either for IP v4, v6 or both")
@@ -785,6 +801,8 @@ void kurl::ServerQuery ()
 		{
 			HTTP.RequestCompression(true, RQ->Config.sRequestCompression);
 		}
+
+		HTTP.AllowRedirects(RQ->Config.iMaxRedirects);
 
 		for (const auto& Header : RQ->Config.Headers)
 		{

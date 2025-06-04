@@ -1963,11 +1963,6 @@ if (DEKAF2_INSTALL_INCLUDE)
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt)")
 	endif()
 
-	# remove old headers, until begin-2025:
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kconnection.h)")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslstream.h)")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslcontext.h)")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksslclient.h)")
 	# remove old headers, until end-2025:
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kutf8.h)")
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kutf8iterator.h)")
@@ -2050,6 +2045,14 @@ if (DEKAF2_INSTALL_SHARE)
 
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/templates"                        DESTINATION "${dekaf2_share_dest}")
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/uap-cpp/uap-core"            DESTINATION "${dekaf2_share_dest}")
+	install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/libs/uap-cpp/uap-core/regexes.yaml"   DESTINATION "${dekaf2_share_dest}/uap-core")
+
+	# remove old shared, until mid-2026:
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_share_dest}/uap-core/LICENSE)"          )
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_share_dest}/uap-core/package.json)"     )
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_share_dest}/uap-core/update.sh)"        )
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_share_dest}/uap-core/regexes.diff)"     )
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_share_dest}/uap-core/regexes.yaml.last)")
 
 endif() # DEKAF2_INSTALL_SHARE
 

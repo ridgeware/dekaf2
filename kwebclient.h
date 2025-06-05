@@ -177,8 +177,9 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Set count of allowed redirects (default 3, 0 disables)
-	self& AllowRedirects(uint16_t iMaxRedirects = 3)
+	/// Set count of allowed redirects (default 20, 0 disables)
+	// for a discussion about allowed redirect counts see here: https://stackoverflow.com/a/36041063
+	self& AllowRedirects(uint16_t iMaxRedirects = 20)
 	//-----------------------------------------------------------------------------
 	{
 		m_iMaxRedirects = iMaxRedirects;
@@ -283,7 +284,7 @@ private:
 
 	ResponseCallback_t m_ResponseCallback        { nullptr };
 	KCookies         m_Cookies;
-	uint16_t         m_iMaxRedirects             { 3       };
+	uint16_t         m_iMaxRedirects             { 20      };
 	bool             m_bAllowOneRetry            { true    };
 	bool             m_bAcceptCookies            { true    };
 	bool             m_bQueryToWWWFormConversion { true    };

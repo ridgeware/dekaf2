@@ -553,7 +553,7 @@ kurl::kurl ()
 		.MinArgs(1).MaxArgs(1)
 		.Range(1, 1000)
 		.Type(KOptions::ArgTypes::Unsigned)
-		.Help("follow up to <n> HTTP redirects (default 3, 0 switches off)")
+		.Help("follow up to <n> HTTP redirects (default 20, 0 switches off)")
 		.Set(BuildMRQ.iMaxRedirects);
 
 	m_CLI

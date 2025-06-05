@@ -1,0 +1,204 @@
+#! /bin/bash
+
+#%
+#% kerf - KEEF's Simple PERF Script to measure CDN hits, initial payload size and edge speed
+#%
+#% usage: kerf [-json] <url>
+#%
+#% where:
+#%   <url>     :: the URL that you want to hit
+#%   -json     :: produce output in JSON format instead of an ASCII table
+#%
+#% will reveal:
+#%  * CDN      :: which CDN (if any) is in use
+#%  * EDGE     :: which edge node location it pulled from (if it can figure it out)
+#%  * MSECS    :: number of milliseconds to pull that main payload from the edge
+#%  * BYTES    :: number of bytes on the main payload (see below)
+#%
+#% notes:
+#%   * depends on: curl, awk, sed, tr, dos2unix and possibly other standard unix utlities
+#%   * this script *only* loads the initial page, which (for some sites) might contain
+#%     virtually nothing other than a JS include
+#%   * this is *not* a replacement for Google's CWV (core web vitals) b/c it does not
+#%     render the page
+#%   * the load size column is only the base page without: assets, scripts and style sheets
+#%
+
+if [[ ${1} = -x ]]; then
+	shift
+	set -x
+fi
+
+#==============================
+OnlyHeaders ()
+#==============================
+{
+	dos2unix 2>/dev/null | awk '(NF == 0) {
+		exit 0
+	}
+	{
+		print $0
+	}'
+
+} # OnlyHeaders
+
+#==============================
+OnlyBody ()
+#==============================
+{
+	dos2unix 2>/dev/null | awk 'BEGIN {
+		bBody = 0
+	}
+	(bBody) {
+		print $0
+	}
+	(NF == 0) {
+		bBody = 1
+	}'
+
+} # OnlyBody
+
+#==============================
+msecs ()
+#==============================
+{
+	date '+%s%N' | cut -c1-13
+
+} # msecs
+
+#==============================
+GetGEO ()
+#==============================
+{
+	local raw=$(curl -s ipinfo.io | sed -e 's/"//g' -e 's/,//g')
+	local city=$(echo "${raw}" | awk -F: '($1 ~ "city") { print $2 }' | sed -e 's/^[ ]*//g')
+	local region=$(echo "${raw}" | awk -F: '($1 ~ "region") { print $2 }' | sed -e 's/^[ ]*//g')
+
+	echo "${city} ${region}"
+
+} # GetGEO
+
+#====================
+# MAIN
+#====================
+
+BAR="----------------------------------------------------------------------"
+bJSON=0
+bWEB=0
+
+if [[ -n ${REQUEST_METHOD} ]]; then
+	url=$(echo "${QUERY_STRING}" | sed -e 's/^.*q=//')
+	bJSON=1
+	bWEB=1
+else
+	if [[ $# -lt 1 ]]; then
+		awk '/^#%/ {print substr($0,3)}' $0
+		exit 1
+	fi
+
+	curl --version > /dev/null 2>&1
+	if [[ $? -ne 0 ]]; then
+		echo ">> missing 'curl' which the script depends on."
+		exit 1
+	fi
+
+	awk --version > /dev/null 2>&1
+	if [[ $? -ne 0 ]]; then
+		echo ">> missing 'awk' which the script depends on."
+		exit 1
+	fi
+
+	if [[ ${1} == -json ]]; then
+		bJSON=1
+		shift
+	fi
+	url="$1"
+fi
+
+geo=$(GetGEO)
+
+if [[ $bWEB -eq 1 ]]; then
+	cat <<-EOF | sed -e 's/^|//'
+	|content-type: application/json; charset=utf-8
+	|
+	EOF
+fi
+
+if [[ $bJSON -eq 1 ]]; then
+	printf "{\n"
+else
+	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
+	printf "| %-9.9s | %-22.22s| %-8.8s| %-10.10s| %-20.20s| %10.10s | %12.12s | %.50s\n" TIME GEO CDN CACHE EDGE/POP MSECS BYTES URL
+	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
+fi
+
+now=$(date '+%a %H:%M')
+start=$(msecs)
+raw=$(curl \
+	 -H 'accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7' \
+	 -H 'accept-language: en-US,en;q=0.9,de;q=0.8,es;q=0.7,fr;q=0.6,zh-CN;q=0.5,zh;q=0.4,la;q=0.3,id;q=0.2' \
+	 -H "referer: ${url}" \
+	 -H 'user-agent: Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36' \
+	 -si \
+	 "${url}")
+end=$(msecs)
+let msecs=(${end} - ${start})
+bytes=$(echo "${raw}" | wc -c | awk '{printf "%u\n", $1}') # <-- size includes headers
+
+headers=$(echo -- "${raw}" | OnlyHeaders | tr '[A-Z]' '[a-z]')
+body=$(echo -- "${raw}" | OnlyBody)
+
+case "${headers}" in
+	# x-cache: miss from cloudfront
+	# via: 1.1 7c4cd83ba4241facb063af680ad7954a.cloudfront.net (cloudfront)
+	# x-amz-cf-pop: bos50-c3
+	# alt-svc: h3=":443"; ma=86400
+	# x-amz-cf-id: ud_cymylevgekpcskvq2xramaqkk-vmbvrhk3abarex4v2r12obitq==
+	# x-cache: miss from cloudfront
+	*x-amzn-cdn*|*x-amz-cf*)
+		cdn="AMAZON"
+		hit=$(echo "${headers}" | awk '/x-amz-cf-pop/{ print $2 }' | tr '[a-z]' '[A-Z]')
+		pop=$(echo "${headers}" | awk '/x-cache:/{ print $2 }' | tr '[a-z]' '[A-Z]')
+		;;
+
+	# x-served-by: cache-syd10125-syd, cache-syd10125-syd, cache-bos4637-bos
+	# x-cache: miss, hit, hit
+	# x-cache-hits: 0, 610, 1
+	*x-served-by:*)
+		cdn="FASTLY"
+		hit=$(echo "${headers}" | awk '/x-cache:/ { print $NF }' | tr '[a-z]' '[A-Z]')
+		pop=$(echo "${headers}" | awk '/x-served-by:/ { print $NF }' | sed -e 's/cache-//' | tr '[a-z]' '[A-Z]')
+		;;
+
+	*akamai*|*x-ak-protocol*)
+		cdn="AKAMAI"
+		hit=""
+		pop=""
+		;;
+	*)
+		cdn="?"
+		hit=""
+		pop=""
+		;;		
+esac
+
+if [[ $bJSON -eq 1 ]]; then
+	cat <<-EOF | sed -e 's/^|//'
+	|	"now": "${now}",
+	|	"geo": "${geo}",
+	|	"cdn": "${cdn}",
+	|	"hit": "${hit}",
+	|	"pop": "${pop}",
+	|	"msecs": ${msecs},
+	|	"bytes": ${bytes},
+	|	"url": "${url}"
+	EOF
+else
+	printf "| %-9.9s | %-22.22s| %-8.8s| %-10.10s| %-20.20s| %10.10s | %12.12s | %s\n" "${now}" "${geo}" "${cdn}" "${hit}" "${pop}" "${msecs}" "${bytes}" "${url}"
+fi
+
+if [[ $bJSON -eq 1 ]]; then
+	printf "}\n"
+else
+	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
+fi

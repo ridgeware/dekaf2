@@ -1,4 +1,4 @@
-#! /bin/ksh
+#! /bin/bash
 
 #%
 #% thumbs - generate thumbnails in /export/home/media

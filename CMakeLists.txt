@@ -2043,7 +2043,6 @@ endif() # DEKAF2_INSTALL_INCLUDE
 if (DEKAF2_INSTALL_SHARE)
 
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/templates"                        DESTINATION "${dekaf2_share_dest}")
-	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/uap-cpp/uap-core"            DESTINATION "${dekaf2_share_dest}")
 	install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/libs/uap-cpp/uap-core/regexes.yaml"   DESTINATION "${dekaf2_share_dest}/uap-core")
 
 	# remove old shared, until mid-2026:

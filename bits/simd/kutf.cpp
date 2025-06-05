@@ -42,8 +42,17 @@
 
 #if DEKAF2_WITH_SIMDUTF
 
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
 #include "../../from/simdutf/simdutf.h"
 #include "../../from/simdutf/simdutf.cpp"
+
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic pop
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -2,13 +2,14 @@
 
 Die ()
 {
+	rm -f simdutf.h.new simdutf.cpp.new
 	echo "${*} - abort"
 	exit 1
 }
 
 CleanupNoChange ()
 {
-	rm simdutf.h.new simdutf.cpp.new
+	rm -f simdutf.h.new simdutf.cpp.new
 	echo "data unchanged since last check"
 	exit 2
 }

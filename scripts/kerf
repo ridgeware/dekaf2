@@ -82,6 +82,18 @@ GetGEO ()
 
 } # GetGEO
 
+#==============================
+Ensure ()
+#==============================
+{
+	${1} --version > /dev/null 2>&1
+	if [[ $? -ne 0 ]]; then
+		echo ">> kerf: this script requires '${1}' which appears to not be installed on your system."
+		exit 1
+	fi
+
+} # Ensure
+
 #====================
 # MAIN
 #====================
@@ -151,15 +163,19 @@ if [[ $bCGI -eq 1 ]]; then
 	fi
 fi
 
+Ensure dos2unix
+Ensure curl
+Ensure awk
+
 if [[ $bJSON -eq 1 ]]; then
 	printf "{\n"
 elif [[ $bNoHEAD -eq 0 ]]; then
 	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%-4.4s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
-	printf "| %-9.9s | %-22.22s| %-8.8s| %-10.10s| %-20.20s| %10.10s | %12.12s | %-4.4s | %.50s\n" TIME GEO CDN CACHE EDGE/POP MSECS BYTES HTTP URL
+	printf "| %-9.9s | %-22.22s| %-8.8s| %-10.10s| %-20.20s| %10.10s | %12.12s | %-4.4s | %.50s\n" "TIME(UTC)" GEO CDN CACHE EDGE/POP MSECS BYTES HTTP URL
 	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%-4.4s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
 fi
 
-now=$(date '+%a %H:%M')
+now=$(date -u '+%a %H:%M')
 start=$(msecs)
 raw=$(curl \
 	 -H 'accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7' \
@@ -232,7 +248,7 @@ else
 
 	# federate to other locations:
 	if [[ $bNoHEAD -eq 0 ]] && [[ $bNoFED -eq 0 ]]; then
-		curl -s "https://www.ridgeware.com/kerf.cgi?nohead=1&q=${url}"           # <-- Joe's personal server
+		#url -s "https://www.ridgeware.com/kerf.cgi?nohead=1&q=${url}"           # <-- Joe's personal server
 		curl -s "https://xapis.onelink-edge.com/xapis/Kerf?federate=1&q=${url}"  # <-- GLWeb x 4: NVA, IRL, TOK and SYD
 	fi
 fi

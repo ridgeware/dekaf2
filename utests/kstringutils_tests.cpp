@@ -1232,8 +1232,20 @@ TEST_CASE("KStringUtils") {
 
 	SECTION("kFirstTrue")
 	{
-		auto sResult = kFirstTrue<KStringViewZ>(kFileExists, "this", "that", "something");
+		auto sResult = kFirstTrue<KStringViewZ>(kFileExists, "/ueyajf/dfthis1", "/ueyajf/rthjthat", "/ueyajf/fthjsomething");
 		CHECK ( sResult == "" );
+
+		auto sResult2 = kFirstTrue<KStringView>([](KStringView sParm){ return sParm == "correct"; }, "false", "true", "correct", "not so");
+		CHECK ( sResult2 == "correct" );
+	}
+
+	SECTION("kFirstFalse")
+	{
+		auto sResult = kFirstFalse<KStringViewZ>(kFileExists, "/ueyajf/sddfsgthis", "/ueyajf/osdijgfthat", "/ueyajf/dksfgsomething");
+		CHECK ( sResult == "/ueyajf/sddfsgthis" );
+
+		auto sResult2 = kFirstFalse<KStringView>([](KStringView sParm){ return sParm == "correct"; }, "correct", "true", "false", "not so");
+		CHECK ( sResult2 == "true" );
 	}
 
 	SECTION("kFromString")

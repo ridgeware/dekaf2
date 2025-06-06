@@ -1376,6 +1376,34 @@ First kFirstTrue(Functor func, const First& first, More&&...more)
 }
 
 //-----------------------------------------------------------------------------
+/// return first if func returns false for first - if true returns default constructed First (e.g. the empty string, if First is a string class)
+template<class First, class Functor>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+First kFirstFalse(Functor func, const First& first)
+//-----------------------------------------------------------------------------
+{
+	if (!func(first))
+	{
+		return first;
+	}
+	return First{};
+}
+
+//-----------------------------------------------------------------------------
+/// return the first in a sequence of objects on which func returns false - if none matches, returns default constructed First (e.g. the empty string, if First is a string class)
+template<class First, class Functor, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+First kFirstFalse(Functor func, const First& first, More&&...more)
+//-----------------------------------------------------------------------------
+{
+	if (!func(first))
+	{
+		return first;
+	}
+	return kFirstFalse<First, Functor>(func, std::forward<More>(more)...);
+}
+
+//-----------------------------------------------------------------------------
 template<class String = KString>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false, bool bIsNeg = false)

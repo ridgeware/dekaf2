@@ -1304,7 +1304,7 @@ Integer kToInt(const String sNumber, uint16_t iBase = 10) noexcept
 //-----------------------------------------------------------------------------
 template<class First>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-First kFirstNonZero(First iFirst)
+const First& kFirstNonZero(const First& iFirst)
 //-----------------------------------------------------------------------------
 {
 	return iFirst;
@@ -1314,7 +1314,7 @@ First kFirstNonZero(First iFirst)
 /// return the first in a sequence of objects that is not zero (or false)
 template<class First, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-First kFirstNonZero(First iFirst, More&&...more)
+const First& kFirstNonZero(const First& iFirst, More&&...more)
 //-----------------------------------------------------------------------------
 {
 	if (iFirst)
@@ -1327,7 +1327,7 @@ First kFirstNonZero(First iFirst, More&&...more)
 //-----------------------------------------------------------------------------
 template<class First>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-First kFirstNonEmpty(First sFirst)
+const First& kFirstNonEmpty(const First& sFirst)
 //-----------------------------------------------------------------------------
 {
 	return sFirst;
@@ -1337,7 +1337,7 @@ First kFirstNonEmpty(First sFirst)
 /// return the first in a sequence of objects that is not .empty()
 template<class First, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-First kFirstNonEmpty(First sFirst, More&&...more)
+const First& kFirstNonEmpty(const First& sFirst, More&&...more)
 //-----------------------------------------------------------------------------
 {
 	if (!sFirst.empty())
@@ -1345,6 +1345,37 @@ First kFirstNonEmpty(First sFirst, More&&...more)
 		return sFirst;
 	}
 	return kFirstNonEmpty<First>(std::forward<More>(more)...);
+}
+
+//-----------------------------------------------------------------------------
+/// return first if func returns true for first - if false returns default constructed First (e.g. the empty string, if First is a string class)
+template<class Functor, class First>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+const First& kFirstTrue(Functor func, const First& first)
+//-----------------------------------------------------------------------------
+{
+	if (func(first))
+	{
+		return first;
+	}
+
+	static const First s_empty_first{};
+
+	return s_empty_first;
+}
+
+//-----------------------------------------------------------------------------
+/// return the first in a sequence of objects on which func returns true - if none matches, returns default constructed First (e.g. the empty string, if First is a string class)
+template<class Functor, class First, class...More, typename std::enable_if<sizeof...(More) != 0, int>::type = 0>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+First kFirstTrue(Functor func, const First& first, More&&...more)
+//-----------------------------------------------------------------------------
+{
+	if (func(first))
+	{
+		return first;
+	}
+	return kFirstTrue<Functor, First>(func, std::forward<More>(more)...);
 }
 
 //-----------------------------------------------------------------------------

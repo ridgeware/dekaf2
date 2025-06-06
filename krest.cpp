@@ -365,7 +365,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				RealExecute(Options,
 							Routes,
 							Stream,
-							kFirstNonEmpty<KStringView>(kGetEnv(KCGIInStream::REMOTE_ADDR), "127.0.0.1"),
+							kFirstNonEmpty(kGetEnv(KCGIInStream::REMOTE_ADDR), "127.0.0.1"),
 							url::KProtocol::HTTP,
 							0);
 				return true; // we return true because the request was served

@@ -174,19 +174,40 @@ bool kExists (KStringViewZ sPath)
 } // kExists
 
 //-----------------------------------------------------------------------------
-bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile)
+bool kNonEmptyFileExists (KStringViewZ sPath)
 //-----------------------------------------------------------------------------
 {
 	KFileStat Stat(sPath);
 
 	if (Stat.IsFile())
 	{
-		if (bTestForEmptyFile && Stat.Size() == 0)
+		if (Stat.Size() == 0)
 		{
 			kDebug (3, "entry exists, but is empty: {}", sPath);
 			return false;    // <-- exists, is a file but is zero length
 		}
 
+		kDebug (3, "file exists: {}", sPath);
+		return true;    // <-- exists and is a file
+	}
+
+	if (Stat.Exists())
+	{
+		kDebug (3, "entry exists, but is a {}, not a {}: {}", Stat.Type().Serialize(), "file", sPath);
+	}
+
+	return false;
+
+} // kFileExists
+
+//-----------------------------------------------------------------------------
+bool kFileExists (KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	KFileStat Stat(sPath);
+
+	if (Stat.IsFile())
+	{
 		kDebug (3, "file exists: {}", sPath);
 		return true;    // <-- exists and is a file
 	}

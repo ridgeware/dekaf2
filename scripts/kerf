@@ -10,6 +10,8 @@
 #%   -json     :: produce output in JSON format instead of an ASCII table
 #%   -ascii    :: produce output in ASCII table format (the default)
 #%   -nohead   :: suppress header and footer in ASCII table
+#%   -nofed    :: do not federate request to other servers
+#%   -debug    :: output response headers as debug output
 #%
 #% will reveal:
 #%  * CDN      :: which CDN (if any) is in use
@@ -64,7 +66,7 @@ OnlyBody ()
 msecs ()
 #==============================
 {
-	date '+%s%N' | cut -c1-13
+	date '+%s%N' | sed -e 's/N//g' | cut -c5-13
 
 } # msecs
 
@@ -88,12 +90,15 @@ BAR="----------------------------------------------------------------------"
 bJSON=0
 bCGI=0
 bNoHEAD=0
+bNoFED=0
+bDebug=0
 
 if [[ -n ${REQUEST_METHOD} ]]; then
 	bCGI=1
 	url=$(echo "${QUERY_STRING}" | sed -e 's/^.*q=//')
-	echo -- "${QUERY_STRING}" | grep -q nohead
+	echo "${QUERY_STRING}" | grep -q nohead
 	[[ $? -eq 0 ]] && bNoHEAD=1
+	bNoFED=1
 else
 	while [[ $# -gt 0 ]]
 	do
@@ -106,6 +111,12 @@ else
 				;;
 			-nohead)
 				bNoHEAD=1
+				;;
+			-nofed)
+				bNoFED=1
+				;;
+			-debug)
+				bDebug=1
 				;;
 			*)
 				if [[ -n ${url} ]]; then
@@ -143,9 +154,9 @@ fi
 if [[ $bJSON -eq 1 ]]; then
 	printf "{\n"
 elif [[ $bNoHEAD -eq 0 ]]; then
-	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
-	printf "| %-9.9s | %-22.22s| %-8.8s| %-10.10s| %-20.20s| %10.10s | %12.12s | %.50s\n" TIME GEO CDN CACHE EDGE/POP MSECS BYTES URL
-	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
+	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%-4.4s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
+	printf "| %-9.9s | %-22.22s| %-8.8s| %-10.10s| %-20.20s| %10.10s | %12.12s | %-4.4s | %.50s\n" TIME GEO CDN CACHE EDGE/POP MSECS BYTES HTTP URL
+	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%-4.4s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
 fi
 
 now=$(date '+%a %H:%M')
@@ -161,8 +172,14 @@ end=$(msecs)
 let msecs=(${end} - ${start})
 bytes=$(echo "${raw}" | wc -c | awk '{printf "%u\n", $1}') # <-- size includes headers
 
-headers=$(echo -- "${raw}" | OnlyHeaders | tr '[A-Z]' '[a-z]')
-body=$(echo -- "${raw}" | OnlyBody)
+headers=$(echo "${raw}" | OnlyHeaders | tr '[A-Z]' '[a-z]')
+body=$(echo "${raw}" | OnlyBody)
+status=$(echo "${headers}" | head -1 | awk '{print $2}')
+location=$(echo "${headers}" | awk '/location:/{ print $2 }')
+
+if [[ -n ${location} ]]; then
+	url="location => ${location}"
+fi
 
 case "${headers}" in
 	# x-cache: miss from cloudfront
@@ -208,12 +225,13 @@ if [[ $bJSON -eq 1 ]]; then
 	|	"msecs": ${msecs},
 	|	"bytes": ${bytes},
 	|	"url": "${url}"
+	|	"status": "${status}"
 	EOF
 else
-	printf "| %-9.9s | %-22.22s| %-8.8s| %-10.10s| %-20.20s| %10.10s | %12.12s | %s\n" "${now}" "${geo}" "${cdn}" "${hit}" "${pop}" "${msecs}" "${bytes}" "${url}"
+	printf "| %-9.9s | %-22.22s| %-8.8s| %-10.10s| %-20.20s| %10.10s | %12.12s | %-4.4s | %s\n" "${now}" "${geo}" "${cdn}" "${hit}" "${pop}" "${msecs}" "${bytes}" "${status}" "${url}"
 
 	# federate to other locations:
-	if [[ $bNoHEAD -eq 0 ]] && [[ $bCGI -eq 0 ]]; then
+	if [[ $bNoHEAD -eq 0 ]] && [[ $bNoFED -eq 0 ]]; then
 		curl -s "https://www.ridgeware.com/kerf.cgi?nohead=1&q=${url}"           # <-- Joe's personal server
 		curl -s "https://xapis.onelink-edge.com/xapis/Kerf?federate=1&q=${url}"  # <-- GLWeb x 4: NVA, IRL, TOK and SYD
 	fi
@@ -222,5 +240,12 @@ fi
 if [[ $bJSON -eq 1 ]]; then
 	printf "}\n"
 elif [[ $bNoHEAD -eq 0 ]]; then
-	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
+	printf "+-%-9.9s-+-%-22.22s+-%-8.8s+-%-10.10s+-%-20.20s+-%10.10s-+-%12.12s-+-%-4.4s-+-%.50s\n" ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR} ${BAR}
+fi
+
+if [[ ${bDebug} -eq 1 ]]; then
+	cat <<-EOF
+		:: response headers from: ${url}
+		${headers}
+	EOF
 fi

@@ -90,9 +90,10 @@ bCGI=0
 bNoHEAD=0
 
 if [[ -n ${REQUEST_METHOD} ]]; then
-	url=$(echo "${QUERY_STRING}" | sed -e 's/^.*q=//')
-	bJSON=1
 	bCGI=1
+	url=$(echo "${QUERY_STRING}" | sed -e 's/^.*q=//')
+	echo -- "${QUERY_STRING}" | grep -q nohead
+	[[ $? -eq 0 ]] && bNoHEAD=1
 else
 	while [[ $# -gt 0 ]]
 	do
@@ -210,6 +211,12 @@ if [[ $bJSON -eq 1 ]]; then
 	EOF
 else
 	printf "| %-9.9s | %-22.22s| %-8.8s| %-10.10s| %-20.20s| %10.10s | %12.12s | %s\n" "${now}" "${geo}" "${cdn}" "${hit}" "${pop}" "${msecs}" "${bytes}" "${url}"
+
+	# federate to other locations:
+	if [[ $bNoHEAD -eq 0 ]] && [[ $bCGI -eq 0 ]]; then
+		curl -s "https://www.ridgeware.com/kerf.cgi?nohead=1&q=${url}"           # <-- Joe's personal server
+		curl -s "https://xapis.onelink-edge.com/xapis/Kerf?federate=1&q=${url}"  # <-- GLWeb x 4: NVA, IRL, TOK and SYD
+	fi
 fi
 
 if [[ $bJSON -eq 1 ]]; then

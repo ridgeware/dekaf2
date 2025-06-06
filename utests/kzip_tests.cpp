@@ -33,9 +33,9 @@ TEST_CASE("KZip") {
 			KOutFile(sFile2).WriteLine(sDigit).WriteLine(sDigit);
 			KOutFile(sFile3).WriteLine(sAlpha).WriteLine(sDigit);
 
-			CHECK ( kFileExists(sFile1, true) );
-			CHECK ( kFileExists(sFile2, true) );
-			CHECK ( kFileExists(sFile3, true) );
+			CHECK ( kNonEmptyFileExists(sFile1) );
+			CHECK ( kNonEmptyFileExists(sFile2) );
+			CHECK ( kNonEmptyFileExists(sFile3) );
 		}
 
 		KTempDir ZipDir;

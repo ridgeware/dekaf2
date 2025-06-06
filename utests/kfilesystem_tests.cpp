@@ -73,7 +73,7 @@ TEST_CASE("KFilesystem")
 			}
 		}
 
-		CHECK( kFileExists(sFile, true) == true );
+		CHECK( kNonEmptyFileExists(sFile) == true );
 		CHECK( kGetSize(sFile) == 63 * 2 );
 
 		kRemoveFile(sFile);
@@ -99,7 +99,7 @@ TEST_CASE("KFilesystem")
 
 	SECTION("change mode")
 	{
-		CHECK( kFileExists(sFile, true) == true );
+		CHECK( kNonEmptyFileExists(sFile) == true );
 
 		auto iOldMode = kGetMode(sFile);
 		auto iNewMode = iOldMode | 0700;
@@ -119,7 +119,7 @@ TEST_CASE("KFilesystem")
 
 	SECTION("KFile stats")
 	{
-		CHECK( kFileExists(sFile, true) == true );
+		CHECK( kNonEmptyFileExists(sFile) == true );
 		CHECK( kDirExists(sDirectory)   == true );
 		CHECK( kGetSize(sFile)          == 63   );
 #ifndef DEKAF2_IS_WINDOWS

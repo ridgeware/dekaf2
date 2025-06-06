@@ -5028,14 +5028,13 @@ KString KSQL::GetLastInfo()
 	{
 		return m_sLastInfo;
 	}
-	else
+	else if (GetDBType() == DBT::NONE || GetDBType() == DBT::MYSQL)
 	{
 		kDebug(1, "no mysql connector");
 		return {};
 	}
-#else
-	return {};
 #endif
+	return {};
 
 } // KSQL::GeLastInfo
 
@@ -9865,7 +9864,7 @@ void KSQL::PurgeTempTables ()
 } // PurgeTempTables
 
 //-----------------------------------------------------------------------------
-void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
+bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFile)
 //-----------------------------------------------------------------------------
 {
 	SetFlag (KSQL::F_IgnoreSelectKeyword);
@@ -9887,6 +9886,21 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 
 	KInFile SQLFile;
 	KString sRemainderOfLine;
+	bool    bReturnAtClose { false };
+
+	if (!sSQLFile.empty())
+	{
+		SQLFile.open(sSQLFile);
+
+		if (!SQLFile.is_open())
+		{
+			auto sError = kFormat("cannot open SQL file: {}", sSQLFile);
+			kPrintLine (KErr, ">> {}", sError);
+			return SetError(sError);
+		}
+
+		bReturnAtClose = true;
+	}
 
 	for (;;)
 	{
@@ -9908,6 +9922,12 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 					if (!kReadLine(SQLFile, sLine))
 					{
 						SQLFile.close();
+
+						if (bReturnAtClose)
+						{
+							return true;
+						}
+
 						break;
 					}
 
@@ -9926,7 +9946,15 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 				if (!Terminal.EditLine(sPrompt, sLine))
 				{
 					kWriteLine();
-					return;
+
+					if (Terminal.HasError())
+					{
+						return SetError(Terminal.GetLastError());
+					}
+					else
+					{
+						return true;
+					}
 				}
 
 				kWriteLine();
@@ -10026,7 +10054,7 @@ void KSQL::RunInterpreter (OutputFormat Format, bool bQuiet)
 							{
 								kWriteLine(":: bye");
 							}
-							return;
+							return true;
 
 						case "use"_casehash:
 							bIsUse = true;

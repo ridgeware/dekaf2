@@ -196,17 +196,24 @@ KString KCOL::FlagsToString (Flags iFlags)
 {
 	KString sPretty;
 
-	if (iFlags & PKEY)            {  sPretty += "[PKEY]";            }
-	if (iFlags & NONCOLUMN)       {  sPretty += "[NONCOLUMN]";       }
-	if (iFlags & EXPRESSION)      {  sPretty += "[EXPRESSION]";      }
-	if (iFlags & INSERTONLY)      {  sPretty += "[INSERTONLY]";      }
-	if (iFlags & NUMERIC)         {  sPretty += "[NUMERIC]";         }
-	if (iFlags & MONEY)           {  sPretty += "[MONEY]";           }
-	if (iFlags & NULL_IS_NOT_NIL) {  sPretty += "[NULL_IS_NOT_NIL]"; }
-	if (iFlags & BOOLEAN)         {  sPretty += "[BOOLEAN]";         }
-	if (iFlags & JSON)            {  sPretty += "[JSON]";            }
-	if (iFlags & INT64NUMERIC)    {  sPretty += "[INT64NUMERIC]";    }
-	if (iFlags & INCREMENT)       {  sPretty += "[INCREMENT]";       }
+	if (iFlags == NOFLAG)
+	{
+		sPretty = "[STRING]";
+	}
+	else
+	{
+		if (iFlags & PKEY)            {  sPretty += "[PKEY]";            }
+		if (iFlags & NONCOLUMN)       {  sPretty += "[NONCOLUMN]";       }
+		if (iFlags & EXPRESSION)      {  sPretty += "[EXPRESSION]";      }
+		if (iFlags & INSERTONLY)      {  sPretty += "[INSERTONLY]";      }
+		if (iFlags & NUMERIC)         {  sPretty += "[NUMERIC]";         }
+		if (iFlags & MONEY)           {  sPretty += "[MONEY]";           }
+		if (iFlags & NULL_IS_NOT_NIL) {  sPretty += "[NULL_IS_NOT_NIL]"; }
+		if (iFlags & BOOLEAN)         {  sPretty += "[BOOLEAN]";         }
+		if (iFlags & JSON)            {  sPretty += "[JSON]";            }
+		if (iFlags & INT64NUMERIC)    {  sPretty += "[INT64NUMERIC]";    }
+		if (iFlags & INCREMENT)       {  sPretty += "[INCREMENT]";       }
+	}
 
 	return (sPretty);
 

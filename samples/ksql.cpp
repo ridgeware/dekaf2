@@ -75,11 +75,11 @@ int KSql::Main(int argc, char** argv)
 	bool         bQuiet     = Options("q,quiet             : only show db output"         ,       false);
 	KStringViewZ sFormat    = Options("f,format <format>   : output format - ascii, bold, thin, double, rounded, spaced, vertical, json, csv, html, default ascii", "ascii");
 	bool         bVersion   = Options("v,version           : show version information"    ,       false);
-	KDuration    Timeout    = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5",  5));
-	bool         bNoComp    = Options("nocomp              : do not attempt to compress the database connection", false);
-	bool         bNoTLS     = Options("notls               : do not attempt to encrypt the database connection", false);
+	KDuration    Timeout    = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5"       ,    5));
+	bool         bNoComp    = Options("nocomp              : do not attempt to compress the database connection"          , false);
+	bool         bNoTLS     = Options("notls               : do not attempt to encrypt the database connection"           , false);
 	bool         bForceTLS  = Options("forcetls            : force encryption for the database connection, fail otherwise", false);
-	KStringViewZ sInfile    = Options("e,exec <file>       : execute the give SQL file", "");
+	KStringViewZ sInfile    = Options("e,exec <file>       : execute the given SQL file"  ,          "");
 
 	if (sInfile)
 	{
@@ -147,22 +147,7 @@ int KSql::Main(int argc, char** argv)
 
 	auto Format = KSQL::CreateOutputFormat(sFormat);
 
-	if (sInfile)
-	{
-		KString sSQL;
-		if (!kReadFile (sInfile, sSQL))
-		{
-			return SetError (kFormat ("could not read: {}", sInfile));
-		}
-
-		SQL.OutputQuery (sSQL, Format);
-	}
-	else
-	{
-		SQL.RunInterpreter (Format, bQuiet);
-	}
-
-	return 0;
+	return !SQL.RunInterpreter (Format, bQuiet, sInfile);
 
 } // Main
 

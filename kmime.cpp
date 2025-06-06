@@ -192,7 +192,7 @@ bool KMIME::ByInspection(KStringViewZ sFilename, KStringView Default)
 //-----------------------------------------------------------------------------
 {
 #ifndef DEKAF2_IS_WINDOWS
-	if (kFileExists(sFilename, true))
+	if (kNonEmptyFileExists(sFilename))
 	{
 		KInShell Shell(kFormat("file --mime-type '{}'", sFilename));
 

@@ -1230,6 +1230,12 @@ TEST_CASE("KStringUtils") {
 		CHECK ( sRet == "hello" );
 	}
 
+	SECTION("kFirstTrue")
+	{
+		auto sResult = kFirstTrue(kFileExists, KStringViewZ("this"), "that", "something");
+		CHECK ( sResult == "" );
+	}
+
 	SECTION("kFromString")
 	{
 		{

@@ -146,10 +146,15 @@ bool kExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Checks if a file exists.
-/// @param bTestForEmptyFile If true treats a file as non-existing if its size is 0
+/// Checks if a file exists
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool kFileExists (KStringViewZ sPath, bool bTestForEmptyFile = false);
+bool kFileExists (KStringViewZ sPath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Checks if a file exists and is not empty
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool kNonEmptyFileExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

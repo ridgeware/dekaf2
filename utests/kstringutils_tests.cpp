@@ -1232,7 +1232,7 @@ TEST_CASE("KStringUtils") {
 
 	SECTION("kFirstTrue")
 	{
-		auto sResult = kFirstTrue(kFileExists, KStringViewZ("this"), "that", "something");
+		auto sResult = kFirstTrue<KStringViewZ>(kFileExists, "this", "that", "something");
 		CHECK ( sResult == "" );
 	}
 

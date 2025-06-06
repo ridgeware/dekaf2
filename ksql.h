@@ -258,7 +258,7 @@ public:
 	{
 		NoFlags               = 0,           ///< no flags
 		PreferTLS             = 1 << 0,      ///< prefer TLS connection if available, plain otherwise
-		RequireTLS            = 1 << 1,      ///< require TLS connexction, fail otherwise
+		RequireTLS            = 1 << 1,      ///< require TLS connection, fail otherwise
 		PreferZSTD            = 1 << 2,      ///< ask for ZSTD compression if available, uncompressed otherwise
 		Default               = PreferTLS | PreferZSTD ///< default: prefer TLS, prefer ZSTD
 	};
@@ -1575,7 +1575,7 @@ public:
 	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); InvalidateConnectHash(); }
 
 	/// start the command line interpreter
-	void  RunInterpreter (OutputFormat Format = OutputFormat::ASCII, bool bQuiet = false);
+	bool  RunInterpreter (OutputFormat Format = OutputFormat::ASCII, bool bQuiet = false, KStringViewZ sSQLFile = KStringViewZ{});
 
 //----------
 private:

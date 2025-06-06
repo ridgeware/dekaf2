@@ -147,22 +147,7 @@ int KSql::Main(int argc, char** argv)
 
 	auto Format = KSQL::CreateOutputFormat(sFormat);
 
-	if (sInfile)
-	{
-		KString sSQL;
-		if (!kReadFile (sInfile, sSQL))
-		{
-			return SetError (kFormat ("could not read: {}", sInfile));
-		}
-
-		SQL.OutputQuery (sSQL, Format);
-	}
-	else
-	{
-		SQL.RunInterpreter (Format, bQuiet);
-	}
-
-	return 0;
+	return !SQL.RunInterpreter (Format, bQuiet, sInfile);
 
 } // Main
 

@@ -660,8 +660,7 @@ bool KXTerm::EditLine(
 
 	if (!kutf::Convert(sLine, sUnicode))
 	{
-		kDebug(2, "input is not UTF8: {}", sLine);
-		return false;
+		return SetError(kFormat("input is not UTF8: {}", sLine));
 	}
 
 	auto iPos  = sUnicode.size();
@@ -959,7 +958,7 @@ bool KXTerm::EditLine(
 			{
 				// better safe than sorry
 				Write(" *** input error ***");
-				return false;
+				return SetError(" *** input error ***");
 			}
 
 			auto sOut   = kutf::Convert<KString>(sUnicode.begin() + iStart, sUnicode.end());

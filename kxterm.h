@@ -49,6 +49,7 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include "khistory.h"
+#include "kerror.h"
 
 #ifndef DEKAF2_IS_WINDOWS
 struct termios;
@@ -233,7 +234,7 @@ private:
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Talk with a terminal (emulator), with cursor control, colorisation, line editing with emacs commands,
 /// and history
-class KXTerm
+class KXTerm : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

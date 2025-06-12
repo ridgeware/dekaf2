@@ -1620,6 +1620,8 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout/*=30s*/, Transport Transp
 		if (!ctlib_login())
 		{
 			// error is already set
+			// ctlib_logout releases all memory reserved for login
+			ctlib_logout();
 			return false;
 		}
 		break;
@@ -3407,7 +3409,13 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 
 			if(IsFlag(F_AutoReset))
 			{
-				ctlib_login();
+				if (!ctlib_login())
+				{
+					// error already set
+					// free resources already bound by the login process
+					ctlib_logout();
+					return false;
+				}
 			}
 
 			ctlib_flush_results ();
@@ -6873,6 +6881,8 @@ bool KSQL::ctlib_nextrow ()
 		return false;
 	}
 
+	kAssert(m_dColInfo.size() == m_iNumColumns, "ctlib_nextrow: m_iNumColums != m_dColInfo.size()");
+
 	// make sure SQL nullptr values get left as zero-terminated C strings:
 	for (auto& Col : m_dColInfo)
 	{
@@ -7389,12 +7399,13 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=ASCII
 	KFormTable Table(sResult);
 	Table.SetStyle(iFormat);
 	Table.SetMaxColWidth(800);
+	KROW Row;
 
 	if (Table.WantDryMode())
 	{
 		Table.DryMode(true);
 
-		for (auto& Row : *this)
+		while (NextRow(Row))
 		{
 			Table.PrintRow(Row);
 		}
@@ -7405,7 +7416,10 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=ASCII
 		ExecLastRawQuery (GetFlags(), "OutputQuery");
 	}
 
-	for (auto& Row : *this)
+	// for a weird reason gcc 11.5 crashes here with ctlib when iterating
+	// for the second time here (if WantDryMode() was true) in an auto for loop
+	// - using a while loop works however
+	while (NextRow(Row))
 	{
 		Table.PrintRow(Row);
 	}

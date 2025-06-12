@@ -40,6 +40,9 @@
  */
 
 #include "kuseragent.h"
+
+#if DEKAF2_HAS_USER_AGENT_PARSER
+
 #include "kformat.h"
 #include "kfilesystem.h"
 #include "klog.h"
@@ -212,3 +215,5 @@ bool KHTTPUserAgent::LoadRegexes(const KString& sRegexPathName)
 } // SetRegexPathname
 
 DEKAF2_NAMESPACE_END
+
+#endif

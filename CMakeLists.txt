@@ -103,6 +103,7 @@ OPTION(DEKAF2_INSTALL_SHARE "install share data" ON)
 OPTION(DEKAF2_INSTALL_INCLUDE "install include files" ON)
 OPTION(DEKAF2_ALL_LIBS "bind to all found libs (switch off and select single libs for better binary portability)" ON)
 OPTION(DEKAF2_WITH_SIMDUTF "build with simd utf implementations" ON)
+OPTION(DEKAF2_WITH_USER_AGENT_PARSER "build with user agent parser" ON)
 
 # =================================== C++ STANDARD =================================
 
@@ -434,29 +435,43 @@ endif()
 
 # ================================ YAML-CPP ====================================
 
-find_package(yaml-cpp REQUIRED)
+if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_YAML)
+	find_package(yaml-cpp)
+	# there is no YAML_CPP_FOUND, so test for the libs
+	if (NOT "${YAML_CPP_LIBRARIES}" STREQUAL "")
+		# yaml-cpp has unfortunately changed over time the way to link to it, and
+		# has not maintained a backup path.
+		# It is now required to use yaml-cpp::yaml-cpp, previously it was necessary
+		# to use yaml-cpp.
+		# This will e.g. still hurt on AmazonLinux 2023.
 
-# yaml-cpp has unfortunately changed over time the way to link to it, and
-# has not maintained a backup path.
-# It is now required to use yaml-cpp::yaml-cpp, previously it was necessary
-# to use yaml-cpp.
-# This will e.g. still hurt on AmazonLinux 2023.
+		if (false)
+			message(STATUS "YAML_CPP_LIBRARIES:   ${YAML_CPP_LIBRARIES}")
+			message(STATUS "YAML_CPP_LIBRARY_DIR: ${YAML_CPP_LIBRARY_DIR}")
+			message(STATUS "YAML_CPP_INCLUDE_DIR: ${YAML_CPP_INCLUDE_DIR}")
+		endif()
 
-if (false)
-	message(STATUS "YAML_CPP_LIBRARIES:   ${YAML_CPP_LIBRARIES}")
-	message(STATUS "YAML_CPP_LIBRARY_DIR: ${YAML_CPP_LIBRARY_DIR}")
-	message(STATUS "YAML_CPP_INCLUDE_DIR: ${YAML_CPP_INCLUDE_DIR}")
-endif()
+		if ("${YAML_CPP_LIBRARIES}" STREQUAL "yaml-cpp" AND NOT "${YAML_CPP_LIBRARY_DIR}" STREQUAL "")
+			# fedora does not use the more modern name even in latest releases (41)
+			if (NOT EXISTS "/etc/fedora-release")
+				set(YAML_CPP_LIBRARIES "yaml-cpp::yaml-cpp")
+			endif()
+		endif()
 
-if ("${YAML_CPP_LIBRARIES}" STREQUAL "yaml-cpp" AND NOT "${YAML_CPP_LIBRARY_DIR}" STREQUAL "")
-	# fedora does not use the more modern name even in latest releases (41)
-	if (NOT EXISTS "/etc/fedora-release")
-		set(YAML_CPP_LIBRARIES "yaml-cpp::yaml-cpp")
+		if (false)
+			message(STATUS "YAML_CPP_LIBRARIES now: ${YAML_CPP_LIBRARIES}")
+		endif()
+
+		set(DEKAF2_HAS_LIBYAML 1)
+
 	endif()
 endif()
 
-if (false)
-	message(STATUS "YAML_CPP_LIBRARIES now: ${YAML_CPP_LIBRARIES}")
+if (NOT DEKAF2_HAS_LIBYAML)
+	if (DEKAF2_WITH_USER_AGENT_PARSER)
+		message(STATUS "missig libyaml, therefore no user agent parser")
+		set (DEKAF2_WITH_USER_AGENT_PARSER "")
+	endif()
 endif()
 
 # ================================ LIBPROC ====================================
@@ -706,6 +721,7 @@ message(STATUS "optional libraries:")
 LibState("${DEKAF2_HAS_LIBZIP}"    "ZIP      :" "${LIBZIP_LIBRARIES}" )
 LibState("${DEKAF2_HAS_LIBLZMA}"   "LZMA     :" "${LIBLZMA_LIBRARIES}")
 LibState("${DEKAF2_HAS_LIBZSTD}"   "ZSTD     :" "${ZSTD_LIBRARIES}"   )
+LibState("${DEKAF2_HAS_LIBYAML}"   "YAML     :" "${YAML_CPP_LIBRARIES}")
 LibState("${DEKAF2_HAS_MYSQL}"     "MYSQL    :" "${MYSQL_LIBRARIES}"  )
 LibState("${DEKAF2_HAS_SQLITE3}"   "SQLITE   :" "${SQLITE3_LIBRARIES}")
 LibState("${DEKAF2_HAS_LIBBROTLI}" "BROTLI   :" "${BROTLI_LIBRARIES}" )
@@ -937,6 +953,11 @@ endif()
 
 # =============================== GENERATED FILES =================================
 
+if (DEKAF2_WITH_USER_AGENT_PARSER)
+	# need this setting before creating the configuration header
+	set(DEKAF2_HAS_USER_AGENT_PARSER 1)
+endif()
+
 # create the configuration header file
 configure_file("bits/kconfiguration.h.in" "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 
@@ -966,10 +987,13 @@ endif()
 # add third party libraries included in source control
 add_subdirectory(libs)
 
-if (CMAKE_GENERATOR MATCHES "Xcode")
-	set(UAP-CPP_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/build/uap-cpp-objects.build/Debug/libuap-cpp-objects.a")
-else()
-	set(UAP-CPP_LIBRARIES "uap-cpp-static")
+if (DEKAF2_WITH_USER_AGENT_PARSER)
+	if (CMAKE_GENERATOR MATCHES "Xcode")
+		set(UAP-CPP_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/build/uap-cpp-objects.build/Debug/libuap-cpp-objects.a")
+	else()
+		set(UAP-CPP_LIBRARIES "uap-cpp-static")
+	endif()
+	message(STATUS "built with user agent parser")
 endif()
 
 # add partial third party libraries included in source control
@@ -1672,9 +1696,11 @@ add_library                (dekaf2-objects OBJECT ${DEKAF2_SOURCE_FILES})
 target_include_directories (dekaf2-objects ${DEKAF2_INCLUDE_DIRECTORIES})
 target_link_libraries      (dekaf2-objects ${DEKAF2_LINK_LIBRARIES})
 target_compile_definitions (dekaf2-objects ${DEKAF2_COMPILE_DEFINITIONS})
-add_dependencies           (dekaf2-objects uap-cpp-static)
+if (DEKAF2_HAS_USER_AGENT_PARSER)
+	add_dependencies       (dekaf2-objects uap-cpp-static)
+endif()
 if (DEKAF2_USE_PRECOMPILED_HEADERS)
-  target_precompile_headers(dekaf2-objects PRIVATE ${PRECOMPILED_HEADERS})
+	target_precompile_headers(dekaf2-objects PRIVATE ${PRECOMPILED_HEADERS})
 endif()
 
 # we have to build the bcrypt objects in a separate target, as otherwise the
@@ -1980,7 +2006,11 @@ if (DEKAF2_INSTALL_LIB)
 		install(TARGETS fmt EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	endif()
 
-	install(TARGETS nlohmann-json re2 frozen date-tz uap-cpp-static EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	install(TARGETS nlohmann-json re2 frozen date-tz EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+
+	if (DEKAF2_HAS_USER_AGENT_PARSER)
+		install(TARGETS uap-cpp-static EXPORT ${PROJECT_NAME}-targets               DESTINATION ${dekaf2_lib_dest})
+	endif()
 
 	if (DEKAF2_BUILD_SHARED_DEKAF2)
 		install(TARGETS dekaf2-shared ksql2-shared EXPORT ${PROJECT_NAME}-targets   DESTINATION ${dekaf2_lib_dest})

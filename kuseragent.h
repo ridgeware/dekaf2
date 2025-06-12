@@ -41,6 +41,10 @@
 
 #pragma once
 
+#include "kdefinitions.h"
+
+#if DEKAF2_HAS_USER_AGENT_PARSER
+
 #include "kstringview.h"
 #include "kstring.h"
 
@@ -219,3 +223,5 @@ private:
 DEKAF2_ENUM_IS_FLAG(KHTTPUserAgent::Parsed)
 
 DEKAF2_NAMESPACE_END
+
+#endif // DEKAF2_HAS_USER_AGENT_PARSER

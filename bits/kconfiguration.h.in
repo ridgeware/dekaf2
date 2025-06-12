@@ -103,6 +103,8 @@
 #cmakedefine DEKAF2_HAS_LIBZIP 1
 #cmakedefine DEKAF2_HAS_LIBBROTLI 1
 #cmakedefine DEKAF2_HAS_LIBZSTD 1
+#cmakedefine DEKAF2_HAS_LIBYAML 1
+#cmakedefine DEKAF2_HAS_USER_AGENT_PARSER 1
 #cmakedefine DEKAF2_HAS_LIBLZMA 1
 #cmakedefine DEKAF2_HAS_NGHTTP2 1
 #cmakedefine DEKAF2_HAS_NGHTTP3 1

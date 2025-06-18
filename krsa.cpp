@@ -45,7 +45,6 @@
 
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
-#include <openssl/engine.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

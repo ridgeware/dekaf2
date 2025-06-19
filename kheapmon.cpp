@@ -59,6 +59,13 @@ namespace detail   {
 thread_local int iLastError { 0 };
 
 //---------------------------------------------------------------------------
+bool IsStandardMalloc()
+//---------------------------------------------------------------------------
+{
+	return false;
+}
+
+//---------------------------------------------------------------------------
 bool CheckError(int iError)
 //---------------------------------------------------------------------------
 {
@@ -310,6 +317,11 @@ DEKAF2_NAMESPACE_END
 DEKAF2_NAMESPACE_BEGIN
 namespace Heap      {
 
+#if defined(DEKAF2_HAS_JEMALLOC)
+bool    IsStandardMalloc()    { return false;     }
+#else
+bool    IsStandardMalloc()    { return true;      }
+#endif
 int     LastError   ()        { return EPERM;     }
 KString GetStats    (bool)    { return KString{}; }
 

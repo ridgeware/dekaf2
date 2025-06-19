@@ -55,6 +55,10 @@ DEKAF2_NAMESPACE_BEGIN
 
 namespace Heap {
 
+/// returns true if the standard malloc implementation is used - which probably means that
+/// no extended heap profiling is available
+DEKAF2_NODISCARD
+bool IsStandardMalloc();
 /// return last error code - translate with strerror() .. (thread local implementation)
 DEKAF2_NODISCARD
 int LastError();

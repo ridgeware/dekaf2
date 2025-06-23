@@ -23,7 +23,7 @@ TEST_CASE("KHTTPClient")
 {
 	SECTION("TLS Get")
 	{
-		KString sHTML = kHTTPGet("https://www.google.fr/");
+		KString sHTML = kHTTPGet("https://www.google.com/");
 		CHECK ( sHTML.empty() == false );
 
 		KFile File;
@@ -39,14 +39,14 @@ TEST_CASE("KHTTPClient")
 //		HTTP.SetProxy("https://192.168.1.1:3128");
 // if above .SetProxy() call is commented out uses proxy set by env var "HTTPS_PROXY"
 
-		CHECK ( HTTP.ReusesConnection("https://www.google.fr") == false );
-		KString sHTML = HTTP.Get("https://www.google.fr");
+		CHECK ( HTTP.ReusesConnection("https://www.google.com") == false );
+		KString sHTML = HTTP.Get("https://www.google.com");
 		CHECK ( sHTML.empty() == false );
 		CHECK ( HTTP.GetStatusCode() == 200 );
 
-		CHECK ( HTTP.ReusesConnection("https://www.google.fr") == true );
+		CHECK ( HTTP.ReusesConnection("https://www.google.com") == true );
 		// second request, check reuse in KLog
-		sHTML = HTTP.Get("https://www.google.fr/imghp");
+		sHTML = HTTP.Get("https://www.google.com/imghp");
 		CHECK ( sHTML.empty() == false );
 		CHECK ( HTTP.GetStatusCode() == 200 );
 		kDebug(1, json.dump(1, '\t'));
@@ -58,10 +58,10 @@ TEST_CASE("KHTTPClient")
 		KJSON json;
 		HTTP.SetServiceSummary(&json);
 		// this tests a redirect to https://www.google.fr
-		auto sResult = HTTP.Get("https://google.fr");
+		auto sResult = HTTP.Get("https://google.com");
 		CHECK ( HTTP.HttpSuccess() == true );
-		CHECK ( HTTP.GetConnectedEndpoint().Domain == "www.google.fr" );
-		CHECK ( HTTP.GetConnectedEndpoint().Serialize() == "www.google.fr:443" );
+		CHECK ( HTTP.GetConnectedEndpoint().Domain == "www.google.com" );
+		CHECK ( HTTP.GetConnectedEndpoint().Serialize() == "www.google.com:443" );
 		CHECK ( sResult.empty() == false );
 		sResult = HTTP.Get("https://wxy.judgvbdfasjh.skjhgds.org");
 		CHECK ( HTTP.HttpSuccess() == false );

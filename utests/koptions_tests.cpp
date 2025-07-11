@@ -26,6 +26,7 @@ TEST_CASE("KOptions")
 	};
 
 	Accomplished a;
+	std::vector<KString> ArgVec;
 	KOptions Options(false);
 
 	// deprecated
@@ -119,6 +120,20 @@ TEST_CASE("KOptions")
 		.Option("neg")
 		.Help("a negative number");
 
+	Options
+		.Option("all")
+		.Help("all you can eat")
+		.AllArgs()
+		.Callback([&](KOptions::ArgList& Args)
+		{
+			ArgVec.clear();
+			while (!Args.empty())
+			{
+				ArgVec.push_back(Args.pop());
+			}
+		});
+
+
 	struct Something
 	{
 		Something() = default;
@@ -144,6 +159,26 @@ TEST_CASE("KOptions")
 		.Set(something);
 
 	Options.Command("run").Help("start running")([](){});
+
+	SECTION("varargs")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-ebts", "first",
+			"-all", "first", "second",
+			"-Ii", "952",
+			"--test", "done"
+		};
+
+		Options.AllowAdHocArgs();
+		int iResult = Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iResult == 0 );
+		CHECK( a.bEmpty    == true );
+		CHECK( a.bTest     == true );
+		CHECK( a.bSingle   == true );
+		CHECK( a.sSingleArg == "first" );
+		CHECK( kJoined(ArgVec) == "first,second,-Ii,952,--test,done" );
+	}
 
 	SECTION("multiple ad-hoc values without declaring .AllowAdHocArgs()")
 	{

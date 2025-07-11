@@ -1729,11 +1729,21 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 					it->bConsumed = true;
 
 					auto iMaxArgs = Callback->m_iMaxArgs;
+					auto bAllArgs = Callback->GetAllArgs();
 
-					// isolate parms until next option and add them to the ArgList
-					for (auto it2 = it + 1; iMaxArgs-- > 0 && it2 != Parms.end() && !it2->IsOption(); ++it2)
+					// isolate parms until next option (if bAllArgs is false) and add them to the ArgList
+					// if bAllArgs is true add all parms to the ArgList
+					// in both cases stop if iMaxArgs is reached
+					for (auto it2 = it + 1; iMaxArgs-- > 0 && it2 != Parms.end() && (bAllArgs || !it2->IsOption()); ++it2)
 					{
-						Args.push_front(ModifyArgument(it2->sArg, Callback));
+						auto sArg = it2->sArg;
+
+						if (bAllArgs && it2->IsOption())
+						{
+							sArg = KStringViewZ(sArg.data() - it2->DashCount());
+						}
+
+						Args.push_front(ModifyArgument(sArg, Callback));
 
 						if (Args.size() <= Callback->m_iMinArgs)
 						{

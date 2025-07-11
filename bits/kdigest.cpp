@@ -88,7 +88,7 @@ const KStringViewZ KDigest::ToString(Digest digest)
 
 	return "";
 
-} // GetMessageDigest
+} // ToString
 
 //---------------------------------------------------------------------------
 KString KDigest::GetOpenSSLError(KStringView sMessage)

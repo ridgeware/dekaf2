@@ -8,13 +8,14 @@
 # Note: C++20 is supported starting with 3.12, targets from subdirectories with 3.13
 #
 # Starting with cmake 3.27, the minimal supported cmake version is 2.8.12
+# Starting with cmake 4.0,  the minimal supported cmake version is 3.5
 #
 message(STATUS "======================== starting cmake configuration ========================")
 
 if(CMAKE_VERSION VERSION_LESS "3.27.0")
 	cmake_minimum_required(VERSION 2.8.12)
 else()
-	cmake_minimum_required(VERSION 3.13...3.31)
+	cmake_minimum_required(VERSION 3.13...4.0)
 endif()
 #
 # ================================= BUILD SYSTEM SETUP =============================
@@ -62,7 +63,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.73 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.74 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})

@@ -306,8 +306,9 @@ private:
 			fIsUnknown   = 1 <<  7,
 			fIsFinal     = 1 <<  8,
 			fIsStop      = 1 <<  9,
-			fIsAdHoc     = 1 << 10
-		};
+			fIsAdHoc     = 1 << 10,
+			fGetAllArgs  = 1 << 11
+	};
 
 		CallbackParam() = default;
 		CallbackParam(KStringView sNames, KStringView sMissingArgs, uint16_t fFlags, uint16_t iMinArgs, uint16_t iMaxArgs, CallbackN Func);
@@ -365,6 +366,11 @@ private:
 		/// returns true if the string shall be converted to uppercase
 		DEKAF2_NODISCARD
 		bool         ToUpper()     const { return m_iFlags & fToUpper;      }
+		/// returns true if there shall be made no difference between options and commands when
+		/// getting remaining args (in range of min/max args) - normally arg fetching is stopped with
+		/// the next dashed option
+		DEKAF2_NODISCARD
+		bool         GetAllArgs()  const { return m_iFlags & fGetAllArgs;   }
 
 	}; // CallbackParam
 
@@ -411,6 +417,9 @@ public:
 		OptionalParm& Final()                     { m_iFlags |= fIsFinal;   return *this; }
 		/// mark this arg as an ad hoc arg (never do this manually, the parser does it internally)
 		OptionalParm& AdHoc()                     { m_iFlags |= fIsAdHoc;   return *this; }
+		/// get all following args (until MaxArgs count), even if they start with a dash (which normally ends variable args and
+		/// starts a new option)
+		OptionalParm& AllArgs()                   { m_iFlags |= fGetAllArgs;return *this; }
 		/// adds given flag(s)
 		OptionalParm& AddFlag(Flag flag)          { m_iFlags |= flag;       return *this; }
 		/// set the callback for the parameter as a function void(KOptions::ArgList&)

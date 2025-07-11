@@ -43,6 +43,7 @@
 #include "khmac.h"
 #include "kencode.h"
 #include "klog.h"
+#include <array>
 
 #if OPENSSL_VERSION_NUMBER >= 0x030000000
 	#include <openssl/evp.h>

@@ -706,6 +706,25 @@ Button::self& Button::SetType(BUTTONTYPE type) &
 } // SetType
 
 //-----------------------------------------------------------------------------
+Output::Output(KStringView sName,
+			   KStringView sText,
+			   KStringView sID,
+			   const Classes& Classes)
+//-----------------------------------------------------------------------------
+: KWebObject("output", sID, Classes)
+{
+	if (!sName.empty())
+	{
+		SetName(sName);
+	}
+	if (!sText.empty())
+	{
+		AddText(sText);
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
 Input::Input(KStringView sName,
 			 KStringView sValue,
 			 INPUTTYPE   type,

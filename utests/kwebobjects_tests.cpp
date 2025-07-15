@@ -77,7 +77,7 @@ text-decoration: none
 						Display
 					</legend>
 					<label><input max="0.99" min="0.01" name="confidence" step="0.025" type="number" value="0.55">confidence value, from 0.0 .. 1.0</label><br>
-					<label><input max="0.99" min="0.01" name="maxconfidence" step="0.025" type="number" value="0.99">max confidence value, from 0.0 .. 1.0</label><br>
+					<label><input id="maxconfid" max="0.99" min="0.01" name="maxconfidence" oninput="output1.value = Math.round(maxconfid.valueAsNumber * 100.0) + '%';" step="0.025" type="range" value="0.99">max confidence value, from 0.0 .. 1.0</label><output id="output1" name="output">0%</output><br>
 					<label><input name="nodetect" type="checkbox">no object detection</label><br>
 					<label><input checked name="nodisplay" type="checkbox">do not open camera windows</label><br>
 					<label><input name="nooverlay" type="checkbox">no detection overlay</label><br>
@@ -202,7 +202,7 @@ text-decoration: none
 			form += html::Button("Schaltfläche 2").SetName("q").SetValue("button2");
 			form += html::Button("Schaltfläche 3").SetName("q").SetValue("button3").SetFormMethod(html::Button::POST).SetFormEncType(html::Button::FORMDATA);
 		}
-		
+
 		{
 			auto& par = div.Add(html::Paragraph("TextPar", NoDecoration));
 			par.AddText("hello world");
@@ -241,7 +241,13 @@ text-decoration: none
 				auto& group = form.Add(html::FieldSet("Display"));
 				group += html::NumericInput<double>(m_Config.m_fMinConfidence, "confidence").SetLabelAfter("confidence value, from 0.0 .. 1.0").SetRange(0.01, 0.99).SetStep(0.0250);
 				group += html::Break();
-				group += html::NumericInput<double>(m_Config.m_fMaxConfidence, "maxconfidence").SetLabelAfter("max confidence value, from 0.0 .. 1.0").SetRange(0.01, 0.99).SetStep(0.0250);
+				group += html::NumericInput<double>(m_Config.m_fMaxConfidence, "maxconfidence", "maxconfid")
+					.SetLabelAfter("max confidence value, from 0.0 .. 1.0")
+					.SetRange(0.01, 0.99)
+					.SetStep(0.0250)
+					.SetType(html::Input::INPUTTYPE::RANGE)
+					.SetAttribute("oninput", "output1.value = Math.round(maxconfid.valueAsNumber * 100.0) + '%';");
+				group += html::Output("output", kFormat("{}%", std::round(m_Config.m_fMaxConfidence * 100.0)), "output1");
 				group += html::Break();
 				group += html::CheckBox<bool>(m_Config.bNoDetect   , "nodetect"  ).SetLabelAfter("no object detection"       );
 				group += html::Break();

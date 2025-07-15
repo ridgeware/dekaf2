@@ -1550,13 +1550,15 @@ int Session::OnAckedStreamData (Stream::ID StreamID, std::size_t iTotalReceived)
 } // OnAckedStreamData
 
 
-
+namespace {
 
 KStringView RCBufToView(nghttp3_rcbuf* buf)
 {
 	auto bbuf = nghttp3_rcbuf_get_buf(buf);
 	return KStringView(reinterpret_cast<char*>(bbuf.base), bbuf.len);
 }
+
+} // end of anonymous namespace
 
 int Session::on_recv_header(
 	nghttp3_conn* h3conn,

@@ -760,6 +760,27 @@ protected:
 		return std::move(SetRowSpan(iMax));
 	}
 
+	self& SetFor(KStringView sIDs) &
+	{
+		SetAttribute("for", sIDs, true);
+		return This();
+	}
+
+	self&& SetFor(KStringView sIDs) &&
+	{
+		return std::move(SetFor(sIDs));
+	}
+
+	self& SetForm(KStringView sID) &
+	{
+		SetAttribute("form", sID, true);
+		return This();
+	}
+
+	self&& SetForm(KStringView sID) &&
+	{
+		return std::move(SetForm(sID));
+	}
 
 //----------
 private:
@@ -1421,6 +1442,35 @@ public:
 }; // Button
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Output : public KWebObject<Output>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	static constexpr KStringView s_sObjectName = "Output";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	using self = Output;
+
+	Output(KStringView sName  = KStringView{},
+		   KStringView sText  = KStringView{},
+		   KStringView sID    = KStringView{},
+		   const Classes& Classes = html::Classes{});
+
+	using KWebObject::SetFor;
+	using KWebObject::SetForm;
+	using KWebObject::SetName;
+
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t WebObjectType() const override { return TYPE; }
+
+}; // Output
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Input : public KWebObject<Input>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1732,6 +1782,16 @@ public:
 	self&& SetStep(float step) &&
 	{
 		return std::move(SetStep(step));
+	}
+
+	self& SetAttribute(KStringView sName, KStringView sValue) &
+	{
+		m_Base.SetAttribute(sName, sValue);
+		return This();
+	}
+	self&& SetAttribute(KStringView sName, KStringView sValue) &&
+	{
+		return std::move(SetAttribute(sName, sValue));
 	}
 
 	Input& GetBase()
@@ -2506,7 +2566,7 @@ public:
 
 	virtual KStringView TypeName() const override { return s_sObjectName;  }
 
-}; // Text
+}; // RawText
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC LineBreak : public KHTMLText
@@ -2525,7 +2585,7 @@ public:
 
 	virtual KStringView TypeName() const override { return s_sObjectName;  }
 
-}; // Text
+}; // LineBreak
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Preformatted : public KWebObject<Preformatted>

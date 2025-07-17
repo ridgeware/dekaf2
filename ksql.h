@@ -920,7 +920,7 @@ public:
 			, sActionRight(std::move(sActionRight))
 			{}
 
-			KString                 sComment;
+			KString    sComment;
 			KSQLString sActionLeft;
 			KSQLString sActionRight;
 

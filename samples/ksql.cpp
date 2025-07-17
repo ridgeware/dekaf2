@@ -61,36 +61,147 @@ KSql::KSql ()
 int KSql::Main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
+	kDebug (1, "Main starting");
+
 	// setup CLI option parsing
+#if 0
 	KOptions Options(false, argc, argv, KLog::STDOUT, /*bThrow*/true);
+#else
+	KOptions Options(false);
+#endif
 	Options.SetBriefDescription("command line database client");
+
+	kDebug (1, "Options about to be defined");
 
 	KStringViewZ sDBC       = Options("dbc                 : dbc file name or hex-encoded blob",              "");
 	KString      sDBType    = Options("dbtype <type>       : db type: mysql, sqlserver, sqlserver15, sybase", "");
-	KStringViewZ sUser      = Options("u,user <name>       : username"                    ,          "");
-	KStringViewZ sPassword  = Options("p,pass <pass>       : password"                    ,          "");
-	KStringViewZ sDatabase  = Options("db,database <name>  : database to use"             ,          "");
+	KStringViewZ sUser      = Options("u,-user <name>      : username"                    ,          "");
+	KStringViewZ sPassword  = Options("p,-pass <pass>      : password"                    ,          "");
+	KStringViewZ sDatabase  = Options("db,-database <name> : database to use"             ,          "");
 	KStringViewZ sHostname  = Options("host <url>          : database server hostname"    , "localhost");
 	uint16_t     iDBPort    = Options("port <number>       : database server port number" ,           0);
-	bool         bQuiet     = Options("q,quiet             : only show db output"         ,       false);
-	KStringViewZ sFormat    = Options("f,format <format>   : output format - ascii, bold, thin, double, rounded, spaced, vertical, json, csv, html, default ascii", "ascii");
-	bool         bVersion   = Options("v,version           : show version information"    ,       false);
+	bool         bQuiet     = Options("q,-quiet            : only show db output"         ,       false);
+	KStringViewZ sFormat    = Options("f,-format <format>  : output format - ascii, bold, thin, double, rounded, spaced, vertical, json, csv, html, default ascii", "ascii");
+	bool         bVersion   = Options("v,-version          : show version information"    ,       false);
 	KDuration    Timeout    = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5"       ,    5));
 	bool         bNoComp    = Options("nocomp              : do not attempt to compress the database connection"          , false);
 	bool         bNoTLS     = Options("notls               : do not attempt to encrypt the database connection"           , false);
 	bool         bForceTLS  = Options("forcetls            : force encryption for the database connection, fail otherwise", false);
 	KStringViewZ sInfile    = Options("e,exec <file>       : execute the given SQL file"  ,          "");
 
+	kDebug (1, "my Option about to be defined");
+
+	Options
+		.Command ("diff <dbc1> <dbc2> [<table1> [...]>")
+		.Help ("diff any two databases and optionally restrict to certain tables")
+		.MinArgs(2)
+		.MaxArgs(34463)
+		.Stop()
+	([&](KOptions::ArgList& ArgList)
+	{
+		auto    sLeftDBC  = ArgList.pop();
+		auto    sRightDBC = ArgList.pop();
+		KString sTableList;
+
+		while (!ArgList.empty())
+		{
+			if (sTableList)
+			{
+				sTableList += ",";
+			}
+			sTableList += ArgList.pop();
+		}
+
+		KSQL LeftDB;
+		if (!LeftDB.LoadConnect (sLeftDBC) /*|| !LeftDB.PingTest()*/ || !LeftDB.EnsureConnected())
+		{
+			KErr.FormatLine (">> dbc1: {}", LeftDB.GetLastError());
+			return 1;
+		}
+
+		KSQL RightDB;
+		if (!RightDB.LoadConnect (sRightDBC) /*|| !RightDB.PingTest()*/ || !RightDB.EnsureConnected())
+		{
+			KErr.FormatLine (">> dbc2: {}", RightDB.GetLastError());
+			return 1;
+		}
+
+		KOut.FormatLine (":: {} : loading  left schema: {}", kFormTimestamp (kNow(), "{:%a %T}"), LeftDB.ConnectSummary());
+		auto LeftSchema = LeftDB.LoadSchema();
+		if (LeftDB.GetLastError() /*!LeftSchema || LeftSchema.is_null() || (LeftSchema == KJSON{})*/)
+		{
+			KErr.FormatLine (">> dbc1: {}", LeftDB.GetLastError());
+			return 1;
+	
+		}
+
+		KOut.FormatLine (":: {} : loading right schema: {}", kFormTimestamp (kNow(), "{:%a %T}"), LeftDB.ConnectSummary());
+		auto RightSchema = RightDB.LoadSchema();
+		if (RightDB.GetLastError() /*!RightSchema || RightSchema.is_null() || (RightSchema == KJSON{})*/)
+		{
+			KErr.FormatLine (">> dbc2: {}", RightDB.GetLastError());
+			return 1;
+	
+		}
+
+		KSQL::DIFF::Diffs diffs;
+		KString           sSummary;
+
+		auto iDiffs = LeftDB.DiffSchemas (LeftSchema, RightSchema, diffs, sSummary);
+
+		if (sSummary)
+		{
+			KOut.WriteLine (sSummary);
+		}
+
+		#if 0
+		size_t iDiff{0};
+		for (const auto& diff : diffs)
+		{
+			KOut.FormatLine (":: {} : diff [{:03}]:", kFormTimestamp (kNow(), "{:%a %T}"), ++iDiff);
+			KOut.FormatLine (":: {} :      comment: {}", kFormTimestamp (kNow(), "{:%a %T}"), diff.sComment);
+			KOut.FormatLine (":: {} :  action-left: {}", kFormTimestamp (kNow(), "{:%a %T}"), diff.sActionLeft);
+			KOut.FormatLine (":: {} : action-right: {}", kFormTimestamp (kNow(), "{:%a %T}"), diff.sActionRight);
+			KOut.WriteLine ("");
+
+		} // for each diff
+		#endif
+
+		if (iDiffs > 0)
+		{
+			SetError (kFormat ("{} : {} diffs found.", kFormTimestamp (kNow(), "{:%a %T}"), iDiffs));
+		}
+		else
+		{
+			KOut.FormatLine (":: {} : no diffs found.", kFormTimestamp (kNow(), "{:%a %T}"));
+		}
+
+		return (iDiffs) ? 1 : 0;
+	});
+
+	kDebug (1, "all Options defined");
+
 	if (sInfile)
 	{
 		bQuiet = true;
 	}
 
+#if 0
 	// do a final check if all required options were set
+	kDebug (1, "running Options.check()");
 	if (!Options.Check())
 	{
 		return 1;
 	}
+	kDebug (1, "Options.check() done");
+#else
+	int iRetval = Options.Parse(argc, argv, KOut);
+
+	if (Options.Terminate() || iRetval)
+	{
+		return iRetval; // either error or completed
+	}
+#endif
 
 	KSQL::DBT DBType = KSQL::DBT::MYSQL;
 	if (!sDBType.empty())

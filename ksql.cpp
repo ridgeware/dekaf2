@@ -9157,13 +9157,33 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 
 	if (!ExecSQL("use {}", sDBName))
 	{
+		SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
 		return KJSON{};
 	}
 
 	auto Guard = ScopedFlags(F_IgnoreSelectKeyword);
 
-	if (!ExecQuery("show tables like '{}%'", sStartsWith))
+	switch (GetDBType())
 	{
+	case DBT::MYSQL:
+		if (!ExecQuery("show tables like '{}%'", sStartsWith))
+		{
+			SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+			return KJSON{};
+		}
+		break;
+
+	case DBT::SQLSERVER:
+	case DBT::SQLSERVER15:
+		if (!ExecQuery ("select name from SYS.TABLES order by name"))
+		{
+			SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+			return KJSON{};
+		}
+		break;
+
+	default:
+		SetError(kFormat("{}: DB Type not supported: {}", ConnectSummary(), TxDBType(GetDBType())));
 		return KJSON{};
 	}
 
@@ -9184,8 +9204,27 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 
 	for (const auto& sTable : Tables)
 	{
-		if (!ExecQuery("show create table {}", sTable))
+		switch (GetDBType())
 		{
+		case DBT::MYSQL:
+			if (!ExecQuery("show create table {}", sTable))
+			{
+				SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+				return KJSON{};
+			}
+			break;
+
+		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
+			if (!ExecQuery ("exec sp_columns {}", sTable))
+			{
+				SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+				return KJSON{};
+			}
+			break;
+
+		default:
+			SetError(kFormat("{}: DB Type not supported: {}", ConnectSummary(), TxDBType(GetDBType())));
 			return KJSON{};
 		}
 
@@ -9293,16 +9332,16 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	                             = options(DIFF::include_columns_on_missing_tables);
 	      bool     bShowMetaInfo = options(DIFF::show_meta_info);
 	const KString& sDiffPrefix   = options(DIFF::diff_prefix   );
-	const KString& sLeftSchema   = options(DIFF::left_schema   );
-	const KString& sRightSchema  = options(DIFF::right_schema  );
+//	const KString& sLeftSchema   = options(DIFF::left_schema   );
+//	const KString& sRightSchema  = options(DIFF::right_schema  );
 	const KString& sLeftPrefix   = options(DIFF::left_prefix   );
 	const KString& sRightPrefix  = options(DIFF::right_prefix  );
 #else
 	bool bShowMissingTablesWithColumns = kjson::GetBool(options, DIFF::include_columns_on_missing_tables);
 	bool       bShowMetaInfo = kjson::GetBool(options, DIFF::show_meta_info);
 	const auto& sDiffPrefix  = kjson::GetStringRef(options, DIFF::diff_prefix );
-	const auto& sLeftSchema  = kjson::GetStringRef(options, DIFF::left_schema );
-	const auto& sRightSchema = kjson::GetStringRef(options, DIFF::right_schema);
+//	const auto& sLeftSchema  = kjson::GetStringRef(options, DIFF::left_schema );
+//	const auto& sRightSchema = kjson::GetStringRef(options, DIFF::right_schema);
 	const auto& sLeftPrefix  = kjson::GetStringRef(options, DIFF::left_prefix );
 	const auto& sRightPrefix = kjson::GetStringRef(options, DIFF::right_prefix);
 #endif
@@ -9469,14 +9508,14 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 
 		if (left.is_null())
 		{
-			sSummary += kFormat (" <-- table is only in {}\n", sRightSchema);
+			sSummary += kFormat (" <-- table is only in {}\n", options[DIFF::right_schema]);
 			sRightCreate = FormatSQL ("drop table {}", sTablename);
 			iCreateTable = 'L'; // left
 			++iTableDiffs;
 		}
 		else if (right.is_null())
 		{
-			sSummary += kFormat (" <-- table is only in {}\n", sLeftSchema);
+			sSummary += kFormat (" <-- table is only in {}\n", options[DIFF::left_schema]);
 			sLeftCreate = FormatSQL ("drop table {}", sTablename);
 			iCreateTable = 'R'; // right
 			++iTableDiffs;
@@ -9591,7 +9630,6 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 			}
 		}
 
-		sSummary += "\n";
 		switch (iCreateTable)
 		{
 		case 'L':

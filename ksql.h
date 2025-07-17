@@ -948,6 +948,12 @@ public:
 	                            {DIFF::right_prefix,">"}
 	                         });
 
+	/// LoadSchema for MySQL
+	KJSON _LoadSchema_MySQL (KStringView sDBName="", KStringView sStartsWith="", const KJSON& options={});
+
+	/// LoadSchema for SQLServer
+	KJSON _LoadSchema_SS (KStringView sDBName="", KStringView sStartsWith="", const KJSON& options={});
+
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper object to proxy access to KSQL and reset the Throw/NoThrow state after use
 	template<class SQL>

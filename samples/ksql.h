@@ -64,6 +64,7 @@ public:
 	KSql ();
 
 	int Main (int argc, char** argv);
+	int Diff (KStringViewZ sLeftDBC, KStringViewZ sRightDBC, KStringView sTableList);
 
 	static constexpr KStringViewZ s_sProjectName    { "ksql"  };
 	static constexpr KStringViewZ s_sProjectVersion { "1.0.0" };

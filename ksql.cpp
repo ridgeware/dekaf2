@@ -9074,6 +9074,32 @@ bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
 KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""*/, const KJSON& options/*={}*/)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
+
+	switch (GetDBType())
+	{
+	case DBT::MYSQL:
+		return _LoadSchema_MySQL (sDBName, sStartsWith, options);
+		break;
+
+	case DBT::SQLSERVER:
+	case DBT::SQLSERVER15:
+		return _LoadSchema_SS (sDBName, sStartsWith, options);
+		break;
+
+	default:
+		SetError(kFormat("{}: DB Type not supported: {}", ConnectSummary(), TxDBType(GetDBType())));
+		return KJSON{};
+	}
+
+} // LoadSchema
+
+//-----------------------------------------------------------------------------
+KJSON KSQL::_LoadSchema_MySQL (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""*/, const KJSON& options/*={}*/)
+//-----------------------------------------------------------------------------
+{
+	kDebug (3, "...");
+
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	// tables obtained via:
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -9147,7 +9173,7 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 		sDBName = GetDBName();
 	}
 
-	KJSON jSchema;
+	KJSON oSchema;
 
 	if (sDBName.empty())
 	{
@@ -9163,27 +9189,9 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 
 	auto Guard = ScopedFlags(F_IgnoreSelectKeyword);
 
-	switch (GetDBType())
+	if (!ExecQuery("show tables like '{}%'", sStartsWith))
 	{
-	case DBT::MYSQL:
-		if (!ExecQuery("show tables like '{}%'", sStartsWith))
-		{
-			SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
-			return KJSON{};
-		}
-		break;
-
-	case DBT::SQLSERVER:
-	case DBT::SQLSERVER15:
-		if (!ExecQuery ("select name from SYS.TABLES order by name"))
-		{
-			SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
-			return KJSON{};
-		}
-		break;
-
-	default:
-		SetError(kFormat("{}: DB Type not supported: {}", ConnectSummary(), TxDBType(GetDBType())));
+		SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
 		return KJSON{};
 	}
 
@@ -9195,15 +9203,23 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 	}
 
 #ifdef DEKAF2_WRAPPED_KJSON
-	const bool bIgnoreCollate = options(DIFF::ignore_collate);
-	const bool bShowMetaInfo  = options(DIFF::show_meta_info);
+	const bool     bIgnoreCollate = options(DIFF::ignore_collate);
+	const bool     bShowMetaInfo  = options(DIFF::show_meta_info);
 #else
-	const auto bIgnoreCollate = kjson::GetBool(options, DIFF::ignore_collate);
-	const auto bShowMetaInfo  = kjson::GetBool(options, DIFF::show_meta_info);
+	const auto     bIgnoreCollate = kjson::GetBool(options, DIFF::ignore_collate);
+	const auto     bShowMetaInfo  = kjson::GetBool(options, DIFF::show_meta_info);
 #endif
+
+	KString sTableList  = kjson::GetString (options, "table_list").ToUpper();
 
 	for (const auto& sTable : Tables)
 	{
+		if (sTableList && !kStrIn (sTable.ToUpper(), sTableList))
+		{
+			kDebug (3, "skipping table {} b/c its not in the table list", sTable);
+			continue;
+		}
+
 		switch (GetDBType())
 		{
 		case DBT::MYSQL:
@@ -9245,8 +9261,8 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 		auto CreateTableLines = sCreateTable.Split("\n", ", ");
 
 		// create a new table info
-		KJSON jTable;
-		jTable["tablename"] = sTable;
+		KJSON oTable;
+		oTable["tablename"] = sTable;
 
 		for (auto sLine : CreateTableLines)
 		{
@@ -9264,14 +9280,14 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 
 				KStringView sColName(sLine.data(), iPos);
 				sLine.remove_prefix(iPos + 2);
-				jTable["columns"].push_back(KJSON
+				oTable["columns"].push_back(KJSON
 				{
 					{ sColName, sLine }
 				});
 			}
 			else if (sLine.remove_prefix("PRIMARY KEY "))
 			{
-				jTable["columns"].push_back(KJSON
+				oTable["columns"].push_back(KJSON
 				{
 					{ "PRIMARY KEY", sLine }
 				});
@@ -9303,17 +9319,173 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 				return KJSON{};
 			}
 
-			jTable["meta_info"] = row;
+			oTable["meta_info"] = row;
 		}
 
-		kDebug (3, jTable.dump(1,'\t'));
+		kDebug (3, oTable.dump(1,'\t'));
 
-		jSchema["tables"].push_back(jTable);
+		oSchema["tables"].push_back(oTable);
 	}
 
-	return jSchema;
+	return oSchema;
 
-} // LoadSchema
+} // _LoadSchema_MySQL
+
+//-----------------------------------------------------------------------------
+KJSON KSQL::_LoadSchema_SS (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""*/, const KJSON& options/*={}*/)
+//-----------------------------------------------------------------------------
+{
+	kDebug (3, "...");
+
+	if (!sDBName)
+	{
+		sDBName = GetDBName();
+	}
+
+	KJSON oSchema;
+
+	if (sDBName.empty())
+	{
+		SetError("no database name");
+		return KJSON{};
+	}
+
+	if (!ExecSQL("use {}", sDBName))
+	{
+		SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+		return KJSON{};
+	}
+
+	auto Guard = ScopedFlags(F_IgnoreSelectKeyword);
+
+	if (!ExecQuery ("select name from SYS.TABLES order by name"))
+	{
+		SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+		return KJSON{};
+	}
+
+	KString sTableList  = kjson::GetString (options, "table_list").ToUpper();
+
+	std::vector<KString> Tables;
+
+	for (const auto& row : *this)
+	{
+		KString sTable = row.GetValue(0).ToUpper();
+
+		if (sTableList && !kStrIn (sTable.ToUpper(), sTableList))
+		{
+			kDebug (3, "skipping table {} b/c its not in the table list", sTable);
+			continue;
+		}
+
+		Tables.push_back(sTable);
+	}
+
+#if 0 // TODO
+#ifdef DEKAF2_WRAPPED_KJSON
+	const bool bIgnoreCollate = options(DIFF::ignore_collate);
+	const bool bShowMetaInfo  = options(DIFF::show_meta_info);
+#else
+	const auto bIgnoreCollate = kjson::GetBool(options, DIFF::ignore_collate);
+	const auto bShowMetaInfo  = kjson::GetBool(options, DIFF::show_meta_info);
+#endif
+#endif
+
+	for (const auto& sTable : Tables)
+	{
+		if (!ExecQuery ("exec sp_columns {}", sTable))
+		{
+			SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+			return KJSON{};
+		}
+
+		KJSON oTable;
+		oTable["tablename"] = sTable;
+		oTable["columns"]   = KJSON::array();
+		oTable["indexes"]   = KJSON::array();
+
+		KROW col;
+		while (NextRow (col)) // loop through columns
+		{
+			KString    sColName   = col["COLUMN_NAME"]; sColName.Trim(); sColName.MakeUpper();
+			auto       sTypeName  = col["TYPE_NAME"];
+			KSQLString sDataType  = FormatSQL("{}", sTypeName); // by default
+			//to       iDataType  = col["DATA_TYPE"].UInt32();
+			auto       iPrecision = col["PRECISION"].UInt32();
+			auto       iLength    = col["LENGTH"].UInt32();
+			auto       iScale     = col["SCALE"].UInt32();
+			//to       iRadix     = col["RADIX"].UInt32();
+			KString    sNull      = col["NULLABLE"].Contains("NO") ? "not null" : "    null";
+
+			if (kStrIn (sTypeName, "char,varchar,nvarchar"))
+			{
+				sDataType += FormatSQL("({})", iLength);
+			}
+			else if (sTypeName.Contains("identity") || sTypeName.Contains("identifier"))
+			{
+				sDataType = "int";
+			}
+			else if (sTypeName == "binary")
+			{
+				sDataType = FormatSQL("char({})", iLength*2); // binary(4) --> char(8)
+			}
+			else if (sTypeName == "bit")
+			{
+				sDataType = "smallint";
+			}
+			else if (sTypeName == "ntext")
+			{
+				sDataType = "text";
+			}
+			else if (sTypeName == "smalldatetime")
+			{
+				sDataType = "datetime";
+			}
+			else if (sTypeName == "image")
+			{
+				sDataType = "blob";
+			}
+			else if (kStrIn(sTypeName,"numeric,money,float"))
+			{
+				if (!iScale && (sTypeName == "float"))
+				{
+					iScale = 4;  // floats default to 4 decimal places when scale=null
+				}
+				sDataType = FormatSQL("decimal({},{})", iPrecision, iScale);
+			}
+
+			KJSON oColumn;
+			oColumn[sColName] = kFormat ("{} {}\n", sDataType, col["nullable"]);
+			oTable["columns"] += oColumn;
+
+		} // columns
+
+		if (!ExecQuery ("exec sp_helpindex {}", sTable))
+		{
+			SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
+			return KJSON{};
+		}
+
+		KROW idx;
+		while (NextRow (idx)) // loop through indexes
+		{
+			bool bUnique = idx["index_description"].Contains("unique");
+			bool bPKEY   = (idx["index_description"].Contains("primary key") || idx["index_description"].Contains(" clustered, unique"));
+			
+			oTable["indexes"] += {
+				{ "name",    idx["index_name"]       },
+				{ "unique",  bUnique ? "unique" : "" },
+				{ "pkey",    bPKEY                   },
+				{ "columns", idx["index_keys"]       }
+			};
+		}
+
+		oSchema["tables"].push_back(oTable);
+	}
+
+	return oSchema;
+
+} // _LoadSchema_SS
 
 //-----------------------------------------------------------------------------
 size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
@@ -9323,31 +9495,28 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 						  const KJSON& options/*={}*/)
 //-----------------------------------------------------------------------------
 {
+	kDebug (3, "...");
 	size_t  iTotalDiffs { 0 };
 	sSummary.clear();        // <-- return result (verbosity)
 	Diffs.clear();           // <-- return result (SQL commands)
-
+ 
 #ifdef DEKAF2_WRAPPED_KJSON
 	      bool     bShowMissingTablesWithColumns
 	                             = options(DIFF::include_columns_on_missing_tables);
 	      bool     bShowMetaInfo = options(DIFF::show_meta_info);
 	const KString& sDiffPrefix   = options(DIFF::diff_prefix   );
-//	const KString& sLeftSchema   = options(DIFF::left_schema   );
-//	const KString& sRightSchema  = options(DIFF::right_schema  );
 	const KString& sLeftPrefix   = options(DIFF::left_prefix   );
 	const KString& sRightPrefix  = options(DIFF::right_prefix  );
 #else
 	bool bShowMissingTablesWithColumns = kjson::GetBool(options, DIFF::include_columns_on_missing_tables);
 	bool       bShowMetaInfo = kjson::GetBool(options, DIFF::show_meta_info);
 	const auto& sDiffPrefix  = kjson::GetStringRef(options, DIFF::diff_prefix );
-//	const auto& sLeftSchema  = kjson::GetStringRef(options, DIFF::left_schema );
-//	const auto& sRightSchema = kjson::GetStringRef(options, DIFF::right_schema);
 	const auto& sLeftPrefix  = kjson::GetStringRef(options, DIFF::left_prefix );
 	const auto& sRightPrefix = kjson::GetStringRef(options, DIFF::right_prefix);
 #endif
 
 	static const KJSON s_jEmpty;
-
+ 
 	//-----------------------------------------------------------------------------
 	auto FindTable = [](const KJSON& Array, const KString& sProperty, const KString& sName) -> const KJSON&
 	//-----------------------------------------------------------------------------
@@ -9359,15 +9528,15 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 				return jElement;
 			}
 		}
-
+ 
 		return s_jEmpty;
-
+ 
 	}; // lambda: FindTable
-
+ 
 	//-----------------------------------------------------------------------------
 	auto FindField = [](const KJSON& Array, const KString& sName) -> const KJSON&
 	//-----------------------------------------------------------------------------
-	{
+ 	{
 		for (const auto& jElement : Array)
 		{
 			if (jElement.items().begin().key() == sName)
@@ -9379,11 +9548,11 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 		return s_jEmpty;
 
 	}; // lambda: FindField
-
+ 
 	//-----------------------------------------------------------------------------
 	auto PrintColumn = [&sDiffPrefix] (KStringView sPrefix, const KJSON& jColumn, KStringRef& sResult)
 	//-----------------------------------------------------------------------------
-	{
+ 	{
 		if (jColumn.is_object() && !jColumn.empty())
 		{
 			auto it = jColumn.items().begin();
@@ -9397,13 +9566,13 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 				it.value().get_ref<const KString&>());
 #endif
 		}
-
+ 
 	}; // lambda: PrintColumn
-
+ 
 	//-----------------------------------------------------------------------------
 	auto FormCreateAction = [this] (KStringView sTablename, const KJSON& jColumn, KSQLString& sResult)
 	//-----------------------------------------------------------------------------
-	{
+ 	{
 		if (jColumn.is_object() && !jColumn.empty())
 		{
 			auto        it       = jColumn.items().begin();
@@ -9422,24 +9591,23 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 				sResult += FormatSQL ("  , {:<25} {}\n", sName, sValue);
 			}
 		}
-
+ 
 	}; // lambda: FormCreateAction
 
 	//-----------------------------------------------------------------------------
 	auto FormAlterAction  = [this] (KStringView sTablename, const KJSON& jColumn, KStringView sVerb) -> KSQLString
 	//-----------------------------------------------------------------------------
-	{
+ 	{
 		KSQLString sResult;
-
 		if (jColumn.is_object() && !jColumn.empty())
 		{
 			auto        it       = jColumn.items().begin();
 			const auto& sName    = it.key();
-#ifdef DEKAF2_WRAPPED_KJSON
+ #ifdef DEKAF2_WRAPPED_KJSON
 			const auto& sValue   = it.value().String();
-#else
+ #else
 			const auto& sValue   = it.value().get_ref<const KString&>();
-#endif
+ #endif
 			bool        bIsIndex = sValue.StartsWith("(");
 
 			if (sName == "PRIMARY KEY")
@@ -9596,7 +9764,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 		} // if left table is not null
 
 		if (right.is_array()) // i.e. table exists on right
-		{
+ 		{
 			for (const auto& oRightColumn : right)
 			{
 				auto sField = oRightColumn.items().begin().key();
@@ -9628,8 +9796,8 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 					PrintColumn (sRightPrefix, oRightColumn, sSummary);
 				}
 			}
-		}
-
+ 		}
+ 
 		switch (iCreateTable)
 		{
 		case 'L':
@@ -9649,7 +9817,7 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 			);
 			break;
 		}
-
+ 
 		if (Diffs.empty())
 		{
 			sSummary.clear(); // <-- this happens when columns match but are in a different order in the two databases
@@ -9747,10 +9915,10 @@ size_t KSQL::DiffSchemas (const KJSON& LeftSchema,
 	catch (const KJSON::exception& jex)
 	{
 		SetError(jex.what());
-	}
-
+ 	}
+ 
 	return iTotalDiffs;
-
+ 
 } // DiffSchemas
 
 //-----------------------------------------------------------------------------

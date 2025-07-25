@@ -7786,51 +7786,51 @@ bool KSQL::IsFullTextStopwordInnoDB(KStringView sWord)
 #ifdef DEKAF2_HAS_FROZEN
 	static constexpr auto s_FullTextStopwordsInnoDB { frozen::make_unordered_set (
 #else
-	static const std::unordered_set<KStringView> s_FullTextStopwordsInnoDB
+	static const std::unordered_set<std::size_t> s_FullTextStopwordsInnoDB
 #endif
 	{
-	  "a"_ksv,
-	  "about"_ksv,
-	  "an"_ksv,
-	  "are"_ksv,
-	  "as"_ksv,
-	  "at"_ksv,
-	  "be"_ksv,
-	  "by"_ksv,
-	  "com"_ksv,
-	  "de"_ksv,
-	  "en"_ksv,
-	  "for"_ksv,
-	  "from"_ksv,
-	  "how"_ksv,
-	  "i"_ksv,
-	  "in"_ksv,
-	  "is"_ksv,
-	  "it"_ksv,
-	  "la"_ksv,
-	  "of"_ksv,
-	  "on"_ksv,
-	  "or"_ksv,
-	  "that"_ksv,
-	  "the"_ksv,
-	  "this"_ksv,
-	  "to"_ksv,
-	  "und"_ksv,
-	  "was"_ksv,
-	  "what"_ksv,
-	  "when"_ksv,
-	  "where"_ksv,
-	  "who"_ksv,
-	  "will"_ksv,
-	  "with"_ksv,
-	  "www"_ksv,
+	  "a"_casehash,
+	  "about"_casehash,
+	  "an"_casehash,
+	  "are"_casehash,
+	  "as"_casehash,
+	  "at"_casehash,
+	  "be"_casehash,
+	  "by"_casehash,
+	  "com"_casehash,
+	  "de"_casehash,
+	  "en"_casehash,
+	  "for"_casehash,
+	  "from"_casehash,
+	  "how"_casehash,
+	  "i"_casehash,
+	  "in"_casehash,
+	  "is"_casehash,
+	  "it"_casehash,
+	  "la"_casehash,
+	  "of"_casehash,
+	  "on"_casehash,
+	  "or"_casehash,
+	  "that"_casehash,
+	  "the"_casehash,
+	  "this"_casehash,
+	  "to"_casehash,
+	  "und"_casehash,
+	  "was"_casehash,
+	  "what"_casehash,
+	  "when"_casehash,
+	  "where"_casehash,
+	  "who"_casehash,
+	  "will"_casehash,
+	  "with"_casehash,
+	  "www"_casehash,
 	}
 #ifdef DEKAF2_HAS_FROZEN
 	)}
 #endif
 	;
 
-	return s_FullTextStopwordsInnoDB.count (sWord);
+	return s_FullTextStopwordsInnoDB.count (sWord.CaseHash());
 
 } // IsFullTextStopwordInnoDB
 

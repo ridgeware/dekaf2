@@ -1728,6 +1728,33 @@ TEST_CASE("KStringUtils") {
 		}
 	}
 
+	SECTION("kMakeLowerASCII")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""     , ""      },
+			{ "hello", "hello" },
+			{ "öäü"  , "öäü"   },
+			{ "Hello", "hello" },
+			{ "HELLO", "hello" },
+			{ "öäü"  , "öäü"   },
+			{ "ÖÄÜ"  , "ÖÄÜ"   },
+			{ "ⴀⴃ"     , "ⴀⴃ"     },
+		};
+
+		for (const auto& it : pvector)
+		{
+			KString s(it.input);
+			kMakeLowerASCII(s);
+			CHECK ( s == it.output );
+		}
+	}
+
 	SECTION("kMakeUpperASCII")
 	{
 		struct parms_t
@@ -1742,6 +1769,7 @@ TEST_CASE("KStringUtils") {
 			{ "öäü"      , "öäü"     },
 			{ "HELLO"    , "HELLO"   },
 			{ "ÖÄÜ"      , "ÖÄÜ"     },
+			{ "öäü"      , "öäü"     },
 			{ "ⴀⴃ"     , "ⴀⴃ"     },
 		};
 
@@ -1750,6 +1778,49 @@ TEST_CASE("KStringUtils") {
 			KString s(it.input);
 			kMakeUpperASCII(s);
 			CHECK ( s == it.output );
+		}
+	}
+
+	SECTION("kMakeLowerLocale")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""            , ""             },
+			{ " "           , " "            },
+			{ "*+,-./"      , "*+,-./"       },
+			{ "!\"#$%&'()"  , "!\"#$%&'()"   },
+			{ "[\\]^_`{|}~" , "[\\]^_`{|}~"  },
+			{ "0123346789"  , "0123346789"   },
+			{ ":;<=>?@"     , ":;<=>?@"      },
+			{ "hello"       , "hello"        },
+			{ "Hello"       , "hello"        },
+			{ "hELLO"       , "hello"        },
+			{ "HELLO"       , "hello"        },
+			{ "Ä"           , "\xE3\x84"     },
+			{ "Ü"           , "\xE3\x9C"     },
+			{ "ä"           , "\xE3\xA4"     },
+			{ "ü"           , "\xE3\xBC"     },
+			{ "\x8C"        , "\x8C"         },
+			{ "\x9C"        , "\x9C"         },
+		};
+
+		auto oldLoc = kGetGlobalLocale();
+
+		if (kSetGlobalLocale("de_DE"))
+		{
+			for (const auto& it : pvector)
+			{
+				KString s(it.input);
+				kMakeLowerLocale(s);
+				CHECK ( s == it.output );
+			}
+
+			kSetGlobalLocale(oldLoc);
 		}
 	}
 
@@ -1762,11 +1833,23 @@ TEST_CASE("KStringUtils") {
 		};
 
 		std::vector<parms_t> pvector = {
-			{ ""         , ""        },
-			{ "hello"    , "HELLO"   },
-			{ "HELLO"    , "HELLO"   },
-			{ "\xE4\xF6\xFC", "\xC4\xD6\xDC" },
-			{ "\xC4\xD6\xDC", "\xC4\xD6\xDC" },
+			{ ""            , ""             },
+			{ " "           , " "            },
+			{ "*+,-./"      , "*+,-./"       },
+			{ "!\"#$%&'()"  , "!\"#$%&'()"   },
+			{ "[\\]^_`{|}~" , "[\\]^_`{|}~"  },
+			{ "0123346789"  , "0123346789"   },
+			{ ":;<=>?@"     , ":;<=>?@"      },
+			{ "hello"       , "HELLO"        },
+			{ "Hello"       , "HELLO"        },
+			{ "hELLO"       , "HELLO"        },
+			{ "HELLO"       , "HELLO"        },
+			{ "Ä"           , "\xC3\x84"     },
+			{ "Ü"           , "\xC3\x9C"     },
+			{ "ä"           , "\xC3\xA4"     },
+			{ "ü"           , "\xC3\xBC"     },
+			{ "\x8C"        , "\x8C"         },
+			{ "\x9C"        , "\x9C"         },
 		};
 
 		auto oldLoc = kGetGlobalLocale();
@@ -1778,6 +1861,66 @@ TEST_CASE("KStringUtils") {
 				KString s(it.input);
 				kMakeUpperLocale(s);
 				CHECK ( s == it.output );
+			}
+
+			kSetGlobalLocale(oldLoc);
+		}
+	}
+
+	SECTION("kToLowerLocale")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""            , ""             },
+			{ "hello"       , "hello"        },
+			{ "Hello"       , "hello"        },
+			{ "HELLO"       , "hello"        },
+			{ "\xE4\xF6\xFC", "\xE4\xF6\xFC" },
+			{ "\xC4\xD6\xDC", "\xE4\xF6\xFC" }
+		};
+
+		auto oldLoc = kGetGlobalLocale();
+
+		if (kSetGlobalLocale("de_DE"))
+		{
+			for (const auto& it : pvector)
+			{
+				CHECK ( kToLowerLocale (it.input) == it.output );
+			}
+
+			kSetGlobalLocale(oldLoc);
+		}
+	}
+
+	SECTION("kToUpperLocale")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""         , ""        },
+			{ "hello"    , "HELLO"   },
+			{ "Hello"    , "HELLO"   },
+			{ "HELLO"    , "HELLO"   },
+			{ "\xE4\xF6\xFC", "\xC4\xD6\xDC" },
+			{ "\xC4\xD6\xDC", "\xC4\xD6\xDC" },
+		};
+
+		auto oldLoc = kGetGlobalLocale();
+
+		if (kSetGlobalLocale("de_DE"))
+		{
+			for (const auto& it : pvector)
+			{
+				CHECK ( kToUpperLocale(it.input) == it.output );
 			}
 
 			kSetGlobalLocale(oldLoc);

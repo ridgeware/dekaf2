@@ -4,6 +4,8 @@
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kprops.h>
 #include <dekaf2/kcompatibility.h>
+#include <dekaf2/ksystem.h>
+#include <dekaf2/khex.h>
 #include <vector>
 #include <list>
 
@@ -1549,6 +1551,88 @@ TEST_CASE("KStringView") {
 	{
 		KStringView sv { "TeS@t中文Русский" };
 		CHECK ( sv.ToUpperASCII() == "TES@T中文Русский" );
+	}
+
+	SECTION("ToLowerLocale")
+	{
+		struct parms_t
+		{
+			KStringView input;
+			KStringView output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""            , ""             },
+			{ " "           , " "            },
+			{ "*+,-./"      , "*+,-./"       },
+			{ "!\"#$%&'()"  , "!\"#$%&'()"   },
+			{ "[\\]^_`{|}~" , "[\\]^_`{|}~"  },
+			{ "0123346789"  , "0123346789"   },
+			{ ":;<=>?@"     , ":;<=>?@"      },
+			{ "hello"       , "hello"        },
+			{ "Hello"       , "hello"        },
+			{ "hELLO"       , "hello"        },
+			{ "HELLO"       , "hello"        },
+			{ "Ä"           , "\xE3\x84"     },
+			{ "Ü"           , "\xE3\x9C"     },
+			{ "ä"           , "\xE3\xA4"     },
+			{ "ü"           , "\xE3\xBC"     },
+			{ "\x8C"        , "\x8C"         },
+			{ "\x9C"        , "\x9C"         },
+		};
+
+		auto oldLoc = kGetGlobalLocale();
+
+		if (kSetGlobalLocale("de_DE"))
+		{
+			for (const auto& it : pvector)
+			{
+				CHECK ( it.input.ToLowerLocale() == it.output );
+			}
+
+			kSetGlobalLocale(oldLoc);
+		}
+	}
+
+	SECTION("ToUpperLocale")
+	{
+		struct parms_t
+		{
+			KString input;
+			KString output;
+		};
+
+		std::vector<parms_t> pvector = {
+			{ ""            , ""             },
+			{ " "           , " "            },
+			{ "*+,-./"      , "*+,-./"       },
+			{ "!\"#$%&'()"  , "!\"#$%&'()"   },
+			{ "[\\]^_`{|}~" , "[\\]^_`{|}~"  },
+			{ "0123346789"  , "0123346789"   },
+			{ ":;<=>?@"     , ":;<=>?@"      },
+			{ "hello"       , "HELLO"        },
+			{ "Hello"       , "HELLO"        },
+			{ "hELLO"       , "HELLO"        },
+			{ "HELLO"       , "HELLO"        },
+			{ "Ä"           , "\xC3\x84"     },
+			{ "Ü"           , "\xC3\x9C"     },
+			{ "ä"           , "\xC3\xA4"     },
+			{ "ü"           , "\xC3\xBC"     },
+			{ "\x8C"        , "\x8C"         },
+			{ "\x9C"        , "\x9C"         },
+		};
+
+		auto oldLoc = kGetGlobalLocale();
+
+		if (kSetGlobalLocale("de_DE"))
+		{
+			for (const auto& it : pvector)
+			{
+				CHECK ( it.input.ToUpperLocale() == it.output );
+			}
+
+			kSetGlobalLocale(oldLoc);
+		}
 	}
 
 	SECTION("append")

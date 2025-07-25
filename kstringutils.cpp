@@ -352,7 +352,7 @@ KString kToUpperLocale(KStringView sInput)
 	auto ie  = sInput.end();
 	auto out = sTransformed.begin();
 
-	kMakeLowerLocale(it, ie, out);
+	kMakeUpperLocale(it, ie, out);
 
 	return sTransformed;
 }
@@ -368,7 +368,7 @@ KString kToLowerLocale(KStringView sInput)
 	auto ie  = sInput.end();
 	auto out = sTransformed.begin();
 
-	kMakeUpperLocale(it, ie, out);
+	kMakeLowerLocale(it, ie, out);
 
 	return sTransformed;
 }

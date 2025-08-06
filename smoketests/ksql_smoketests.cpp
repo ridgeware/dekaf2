@@ -1392,9 +1392,7 @@ TEST_CASE("KSQL")
 		});
 		CHECK ( iChanges == 14 );
 		CHECK ( sDiff == R"(TESTSCHEMA22_KSQL <-- table is only in right schema
-
 TESTSCHEMA2_KSQL <-- table is only in right schema
-
 )" );
 //		KOut.WriteLine(sDiff);
 
@@ -1428,7 +1426,6 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 < astring char(100) NOT NULL
 > astring char(10) NOT NULL
 > newstring char(200) DEFAULT NULL
-
 < TESTSCHEMA1_KSQL: engine = InnoDB
 > TESTSCHEMA1_KSQL: engine = MyISAM
 < TESTSCHEMA1_KSQL: max_index_length = 0

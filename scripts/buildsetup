@@ -19,7 +19,7 @@ BuildSetup ()
 {
 	# we do not care too much if the flagfile is removed
 	flagfile="/tmp/installflag-dekaf2-build-setup"
-	flagversion="6"
+	flagversion="7"
 
 	if [ ! -f "${flagfile}" ] || [ "$(cat ${flagfile})" != "${flagversion}" ]
 	then
@@ -54,7 +54,7 @@ BuildSetup ()
 
 				InstallOptionalSystemPackages libmariadb${DEVPKG} mariadb-client sqlite3 libsqlite3${DEVPKG} \
 					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} libjemalloc${DEVPKG} \
-					libncurses${DEVPKG} libnghttp2${DEVPKG} libnghttp3${DEVPKG}
+					libncurses${DEVPKG} libnghttp2${DEVPKG} libnghttp3${DEVPKG} uuid${DEVPKG}
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
@@ -62,7 +62,7 @@ BuildSetup ()
 
 				InstallOptionalSystemPackages mariadb-connector-c${DEVPKG} sqlite${DEVPKG} libzip${DEVPKG} \
 					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG} ncurses${DEVPKG} \
-					libnghttp2${DEVPKG} libnghttp3${DEVPKG}
+					libnghttp2${DEVPKG} libnghttp3${DEVPKG} libuuid${DEVPKG}
 				;;
 		esac
 

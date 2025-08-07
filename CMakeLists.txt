@@ -114,6 +114,7 @@ OPTION(DEKAF2_WITH_USER_AGENT_PARSER "build with user agent parser" ON)
 if (EXISTS "/etc/amazon-linux-release-cpe" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	set(DEKAF2_CXX_STANDARD 17)
 	message(STATUS "Amazon Linux with ${CMAKE_CXX_COMPILER_ID} detected: lowering C++ mode to C++17")
+	set(DEKAF2_FORCE_STATIC_LIBUUID TRUE)
 else()
 	set(DEKAF2_CXX_STANDARD 20)
 	message(STATUS "using C++20")
@@ -705,6 +706,27 @@ else ()
 
 endif (DOXYGEN_FOUND)
 
+# =============================== libuuid =======================================
+
+if (DEKAF2_FORCE_STATIC_LIBUUID)
+	set(BACKUP_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+	set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+endif()
+
+find_package(UUID QUIET)
+
+if (DEKAF2_FORCE_STATIC_LIBUUID)
+	set(CMAKE_FIND_LIBRARY_SUFFIXES ${BACKUP_CMAKE_FIND_LIBRARY_SUFFIXES})
+	unset(BACKUP_CMAKE_FIND_LIBRARY_SUFFIXES)
+endif()
+
+if (UUID_FOUND)
+	set(DEKAF2_HAS_LIBUUID OK)
+elseif(IS_WINDOWS)
+	set(UUID_FOUND OK)
+	set(UUID_LIBRARIES "Rpcrt4.lib")
+endif()
+
 # ====================== show list of found/notfound libs =======================
 
 function(RightPadString output str padchar length)
@@ -760,6 +782,7 @@ LibState("${DEKAF2_HAS_LIBZIP}"    "ZIP      :" "${LIBZIP_VERSION}"   "${LIBZIP_
 LibState("${DEKAF2_HAS_LIBLZMA}"   "LZMA     :" "${LIBLZMA_VERSION}"  "${LIBLZMA_LIBRARIES}" )
 LibState("${DEKAF2_HAS_LIBZSTD}"   "ZSTD     :" "${ZSTD_VERSION}"     "${ZSTD_LIBRARIES}"    )
 LibState("${DEKAF2_HAS_LIBYAML}"   "YAML     :" "${YAML_CPP_VERSION}" "${YAML_CPP_LIBRARIES}")
+LibState("${UUID_FOUND}"           "UUID     :" "${UUID_VERSION}"     "${UUID_LIBRARIES}"    )
 LibState("${DEKAF2_HAS_MYSQL}"     "MYSQL    :" "${MYSQL_VERSION}"    "${MYSQL_LIBRARIES}"   )
 LibState("${DEKAF2_HAS_SQLITE3}"   "SQLITE   :" "${SQLITE3_VERSION}"  "${SQLITE3_LIBRARIES}" )
 LibState("${DEKAF2_HAS_LIBBROTLI}" "BROTLI   :" "${BROTLI_VERSION}"   "${BROTLI_LIBRARIES}"  )
@@ -1253,6 +1276,7 @@ set(PUBLIC_HEADERS
 	kuseragent.h
 	kutf.h
 	kutf_iterator.h
+	kuuid.h
 	kvariant.h
 	kversion.h
 	kwebclient.h
@@ -1506,6 +1530,7 @@ set (SOURCES
 	kurl.cpp
 	kurlencode.cpp
 	kuseragent.cpp
+	kuuid.cpp
 	kversion.cpp
 	kwebclient.cpp
 	kwebobjects.cpp
@@ -1693,6 +1718,7 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 		$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGHTTP2_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGHTTP3_INCLUDE_DIRS}>
+		$<BUILD_INTERFACE:${UUID_INCLUDE_DIRS}>
 )
 
 set(DEKAF2_LINK_LIBRARIES
@@ -1720,6 +1746,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${JEMalloc_LIBRARIES}
 		${NGHTTP2_LIBRARIES}
 		${NGHTTP3_LIBRARIES}
+		${UUID_LIBRARIES}
 )
 
 set(DEKAF2_COMPILE_DEFINITIONS

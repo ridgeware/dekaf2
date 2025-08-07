@@ -136,6 +136,7 @@ set (USOURCES
 	kuseragent_tests.cpp
 	kutf_tests.cpp
 	kutf_iterator_tests.cpp
+	kuuid_tests.cpp
 	kvariant_tests.cpp
 	kversion_tests.cpp
 	kwebclient_tests.cpp

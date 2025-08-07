@@ -72,6 +72,9 @@ set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 
 include(ExternalProject)
 
+# don't be verbose
+set(CMAKE_REQUIRED_QUIET TRUE)
+
 # ================================= CONFIG OPTIONS =================================
 
 # these are all configurable project options
@@ -113,7 +116,7 @@ if (EXISTS "/etc/amazon-linux-release-cpe" AND CMAKE_CXX_COMPILER_ID STREQUAL "C
 	message(STATUS "Amazon Linux with ${CMAKE_CXX_COMPILER_ID} detected: lowering C++ mode to C++17")
 else()
 	set(DEKAF2_CXX_STANDARD 20)
-	message(STATUS "using C++ mode C++20")
+	message(STATUS "using C++20")
 endif()
 
 set(CMAKE_CXX_STANDARD ${DEKAF2_CXX_STANDARD})
@@ -322,7 +325,6 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_FREETDS)
 	# FreeTDS (for KSQL) - if not available it's simply skipped
 	find_package(FreeTDS QUIET)
 	if(FREETDS_FOUND)
-		message(STATUS "configuring with FreeTDS/CTLIB")
 		set(DEKAF2_HAS_FREETDS 1)
 		set(DEKAF2_HAS_CTLIB 1)
 	else()
@@ -347,12 +349,12 @@ endif()
 # ================================= Threads ===================================
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
+find_package(Threads REQUIRED QUIET)
 
 # ============================== ZLIB / BZIP2 =================================
 
-find_package(ZLIB REQUIRED)
-find_package(BZip2 REQUIRED)
+find_package(ZLIB REQUIRED QUIET)
+find_package(BZip2 REQUIRED QUIET)
 
 # =========================== Force static libs? ==============================
 
@@ -371,7 +373,7 @@ endif()
 # ================================ OPENSSL ===================================
 
 # always required
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL REQUIRED QUIET)
 if (OPENSSL_VERSION VERSION_GREATER_EQUAL "3.3")
 	# OpenSSL released QUIC first with v3.2.0, but we want at least v3.3,
 	# because SSL_poll() was implemented only then
@@ -428,9 +430,6 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_ZIP)
 
 	if (LIBZIP_FOUND)
 		set(DEKAF2_HAS_LIBZIP 1)
-	else()
-		set(LIBZIP_LIBRARY "")
-		set(LIBZIP_INCLUDE_DIR "")
 	endif()
 endif()
 
@@ -464,7 +463,6 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_YAML)
 		endif()
 
 		set(DEKAF2_HAS_LIBYAML 1)
-
 	endif()
 endif()
 
@@ -481,7 +479,7 @@ endif()
 # Warning: QUIET option is not supported and leads to failed search
 # but because without QUIET we get a nasty warning on other OS than MacOS
 # we now only search on MacOS
-if (IS_MACOS)
+if (APPLE)
 	find_package(libproc)
 	if (libproc_FOUND)
 		set(DEKAF2_HAS_LIBPROC 1)
@@ -501,19 +499,13 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_MYSQL)
 		if(MYSQL_VERSION_STRING STREQUAL "")
 			set(DEKAF2_HAS_MYSQL 1)
 			message(STATUS "MySQL found, but CMAKE is unable to report MySQL version, DEKAF2_HAS_MYSQL set to 1.")
-		else()
-			message(STATUS "configuring with MySQL ${MYSQL_VERSION_STRING}")
 		endif()
-		message(STATUS "detected as mariadb: ${MYSQL_IS_MARIADB}")
 		set(DEKAF2_MYSQL_IS_MARIADB ${MYSQL_IS_MARIADB})
 	else()
 		find_package(unofficial-libmariadb QUIET)
 		if (unofficial-libmariadb_FOUND)
 			set(DEKAF2_MYSQL_IS_MARIADB 1)
 			set(DEKAF2_HAS_MYSQL 1)
-			message(STATUS "configuring with MariaDB")
-		else()
-			message(STATUS "MySQL not found - will build without. Please install MySQL if you want to use KSQL.")
 		endif()
 	endif()
 endif()
@@ -524,7 +516,6 @@ endif()
 # SQLite3 (for KSQL and KSQLite) - if not available it's simply skipped
 find_package(SQLite3 QUIET)
 if(SQLITE3_FOUND)
-	message(STATUS "configuring with SQLite3")
 	set(DEKAF2_HAS_SQLITE3 1)
 endif()
 
@@ -535,14 +526,19 @@ endif()
 set(CURSES_NEED_NCURSES TRUE)
 find_package(Curses QUIET)
 if(CURSES_FOUND)
-	message(STATUS "configuring with NCurses")
 	set(DEKAF2_HAS_NCURSES 1)
+	if(EXISTS "${CURSES_INCLUDE_DIR}/curses.h")
+		# extract the version number
+		file(STRINGS "${CURSES_INCLUDE_DIR}/curses.h" CURSES_HEADER_CONTENTS REGEX "#define NCURSES_VERSION +\"[0-9\.]+\"")
+		string(REGEX REPLACE ".*#define NCURSES_VERSION +\"([0-9\.]+)\".*" "\\1" CURSES_VERSION "${CURSES_HEADER_CONTENTS}")
+		unset(CURSES_HEADER_CONTENTS)
+	endif()
 endif()
 
 # =============================== NGHTTP2/3 ==================================
 
 if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_NGHTTP2)
-	find_package(NGHTTP2)
+	find_package(NGHTTP2 QUIET)
 	if (NGHTTP2_FOUND)
 		set(DEKAF2_HAS_NGHTTP2 1)
 	endif()
@@ -551,7 +547,7 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_NGHTTP2)
 		if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_NGHTTP3)
 			# only search for nghttp3 if we have an openssl version supporting QUIC
 			# - this makes some ifdefs shorter..
-			find_package(NGHTTP3)
+			find_package(NGHTTP3 QUIET)
 			if (NGHTTP3_FOUND)
 				set(DEKAF2_HAS_NGHTTP3 1)
 			endif()
@@ -585,7 +581,7 @@ endif ()
 # boost asio (header only) needs system and date_time
 # dekaf2's http part needs iostreams
 
-find_package(Boost 1.54 COMPONENTS system iostreams serialization)
+find_package(Boost 1.54 COMPONENTS system iostreams serialization QUIET)
 
 # following are the boost modules that vcpkg would need for a
 # successful build
@@ -619,8 +615,10 @@ if (NOT Boost_FOUND)
 	endif()
 endif()
 
-message(STATUS "boost-hdrs: ${Boost_INCLUDE_DIR}")
-message(STATUS "boost-libs: ${Boost_LIBRARIES}")
+if (false)
+	message(STATUS "boost-hdrs: ${Boost_INCLUDE_DIR}")
+	message(STATUS "boost-libs: ${Boost_LIBRARIES}")
+endif()
 
 if (IS_WINDOWS_NONONO)
 	# windows local sockets require more changes than simply
@@ -670,15 +668,18 @@ if (DEKAF2_USE_JEMALLOC)
 		)
 	endif()
 
-	find_package(JEMalloc)
+	find_package(JEMalloc QUIET)
 	if (JEMalloc_FOUND)
 		set(DEKAF2_HAS_JEMALLOC 1)
 	endif()
 endif()
 
+# =================================== Doxygen ====================================
+
 # add a target to generate API documentation with Doxygen
 # please make sure the graphviz package is installed, too, not only doxygen
-find_package(Doxygen)
+find_package(Doxygen QUIET)
+
 if (DOXYGEN_FOUND)
 
 	# configure doxygen config file
@@ -704,32 +705,74 @@ else ()
 
 endif (DOXYGEN_FOUND)
 
-# ================== show list of found/notfound optional libs ==================
+# ====================== show list of found/notfound libs =======================
 
-function(LibState State Name Lib)
-	if ("${State}" STREQUAL "")
-		message(STATUS "${Name} not found")
+function(RightPadString output str padchar length)
+	string (LENGTH "${str}" strlen)
+	math   (EXPR   strlen "${length} - ${strlen}")
+	if (strlen GREATER 0)
+		foreach(i RANGE 1 ${strlen})
+			string(APPEND pad ${padchar})
+		endforeach()
+		string(APPEND str ${pad})
+	endif()
+	set(${output} "${str}" PARENT_SCOPE)
+endfunction()
+
+function(LibState State Name Version Lib)
+	if (NOT State)
+		message(STATUS "  ${Name} not found")
 	else()
-		if ("${Lib}" STREQUAL "")
-			message(STATUS "${Name} found")
+		if (NOT Lib)
+			message(STATUS "  ${Name} found ${Version}")
 		else()
-			message(STATUS "${Name} found (${Lib})")
+			RightPadString(PaddedVersion "${Version}" " " 8)
+			if (APPLE)
+				string(REPLACE
+					"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/"
+					""
+					Lib
+					"${Lib}"
+				)
+				string(REPLACE
+					"MacOSX.sdk/System/Library/Frameworks/"
+					""
+					Lib
+					"${Lib}"
+				)
+			endif()
+			message(STATUS "  ${Name} found ${PaddedVersion} (${Lib})")
 		endif()
 	endif()
 endfunction()
 
+message(STATUS "")
+message(STATUS "required libraries:")
+LibState("${Threads_FOUND}"        "Threads  :" ""                    "${Threads_LIBRARIES}" )
+LibState("${ZLIB_FOUND}"           "ZLIB     :" "${ZLIB_VERSION}"     "${ZLIB_LIBRARIES}"    )
+LibState("${BZip2_FOUND}"          "BZip2    :" "${BZIP2_VERSION}"    "${BZIP2_LIBRARIES}"   )
+LibState("${OPENSSL_FOUND}"        "OpenSSL  :" "${OPENSSL_VERSION}"  "${OPENSSL_LIBRARIES}" )
+LibState("${Boost_FOUND}"          "Boost    :" "${Boost_VERSION}"    "${Boost_LIBRARIES}"   )
+message(STATUS "")
+
 message(STATUS "optional libraries:")
-LibState("${DEKAF2_HAS_LIBZIP}"    "ZIP      :" "${LIBZIP_LIBRARIES}"  )
-LibState("${DEKAF2_HAS_LIBLZMA}"   "LZMA     :" "${LIBLZMA_LIBRARIES}" )
-LibState("${DEKAF2_HAS_LIBZSTD}"   "ZSTD     :" "${ZSTD_LIBRARIES}"    )
-LibState("${DEKAF2_HAS_LIBYAML}"   "YAML     :" "${YAML_CPP_LIBRARIES}")
-LibState("${DEKAF2_HAS_MYSQL}"     "MYSQL    :" "${MYSQL_LIBRARIES}"   )
-LibState("${DEKAF2_HAS_SQLITE3}"   "SQLITE   :" "${SQLITE3_LIBRARIES}" )
-LibState("${DEKAF2_HAS_LIBBROTLI}" "BROTLI   :" "${BROTLI_LIBRARIES}"  )
-LibState("${DEKAF2_HAS_NGHTTP2}"   "NGHTTP2  :" "${NGHTTP2_LIBRARIES}" )
-LibState("${DEKAF2_HAS_NGHTTP3}"   "NGHTTP3  :" "${NGHTTP3_LIBRARIES}" )
-LibState("${DEKAF2_HAS_FREETDS}"   "FreeTDS  :" "${FREETDS_LIBRARIES}" )
-LibState("${DEKAF2_HAS_JEMALLOC}"  "JEMALLOC :" "${JEMalloc_LIBRARIES}")
+LibState("${DEKAF2_HAS_LIBZIP}"    "ZIP      :" "${LIBZIP_VERSION}"   "${LIBZIP_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_LIBLZMA}"   "LZMA     :" "${LIBLZMA_VERSION}"  "${LIBLZMA_LIBRARIES}" )
+LibState("${DEKAF2_HAS_LIBZSTD}"   "ZSTD     :" "${ZSTD_VERSION}"     "${ZSTD_LIBRARIES}"    )
+LibState("${DEKAF2_HAS_LIBYAML}"   "YAML     :" "${YAML_CPP_VERSION}" "${YAML_CPP_LIBRARIES}")
+LibState("${DEKAF2_HAS_MYSQL}"     "MYSQL    :" "${MYSQL_VERSION}"    "${MYSQL_LIBRARIES}"   )
+LibState("${DEKAF2_HAS_SQLITE3}"   "SQLITE   :" "${SQLITE3_VERSION}"  "${SQLITE3_LIBRARIES}" )
+LibState("${DEKAF2_HAS_LIBBROTLI}" "BROTLI   :" "${BROTLI_VERSION}"   "${BROTLI_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_NGHTTP2}"   "NGHTTP2  :" "${NGHTTP2_VERSION}"  "${NGHTTP2_LIBRARIES}" )
+LibState("${DEKAF2_HAS_NGHTTP3}"   "NGHTTP3  :" "${NGHTTP3_VERSION}"  "${NGHTTP3_LIBRARIES}" )
+LibState("${DEKAF2_HAS_FREETDS}"   "FreeTDS  :" "${FREETDS_VERSION}"  "${FREETDS_LIBRARIES}" )
+LibState("${DEKAF2_HAS_JEMALLOC}"  "JEMALLOC :" "${JEMALLOC_VERSION}" "${JEMalloc_LIBRARIES}")
+LibState("${DOXYGEN_FOUND}"        "Doxygen  :" "${DOXYGEN_VERSION}"  "${DOXYGEN_EXECUTABLE}")
+LibState("${DEKAF2_HAS_NCURSES}"   "NCurses  :" "${CURSES_VERSION}"   "${CURSES_LIBRARIES}"  )
+if (APPLE)
+	LibState("${libproc_FOUND}"        "LibProc  :" "${libproc_VERSION}"  "${libproc_LIBRARIES}" )
+endif()
+message(STATUS "")
 
 # =============================== COMPILE TESTS =================================
 
@@ -988,6 +1031,9 @@ endif()
 # add third party libraries included in source control
 add_subdirectory(libs)
 
+# don't be verbose again..
+set(CMAKE_REQUIRED_QUIET TRUE)
+
 if (DEKAF2_WITH_USER_AGENT_PARSER)
 	if (CMAKE_GENERATOR MATCHES "Xcode")
 		set(UAP-CPP_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/build/uap-cpp-objects.build/Debug/libuap-cpp-objects.a")
@@ -1001,6 +1047,9 @@ endif()
 add_subdirectory(from)
 
 set (CMAKE_BUILD_TYPE "${BACKUP_BUILD_TYPE}")
+
+# don't be verbose again..
+set(CMAKE_REQUIRED_QUIET TRUE)
 
 # =============================== HEADER FILES ====================================
 

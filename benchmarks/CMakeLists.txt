@@ -4,6 +4,7 @@ project(dekaf2-benchmarks)
 
 set(CMAKE_CXX_STANDARD 20)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_REQUIRED_QUIET TRUE)
 
 # older cmake versions do not support the test for IS_TOP_LEVEL
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)

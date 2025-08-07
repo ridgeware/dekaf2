@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.8...3.31)
 # project(libs)
 
-include(ExternalProject)
-
 if (NOT DEKAF2_USE_SYSTEM_FMTLIB)
 	# add the format lib
+	set(CMAKE_REQUIRED_QUIET TRUE)
 	add_subdirectory(fmt-10.0.0)
 endif()
 
@@ -33,6 +32,8 @@ if (DEKAF2_WITH_FCGI)
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/libfcgi)
+
+	include(ExternalProject)
 
 	ExternalProject_Add(
 		ext_libfcgi

@@ -146,6 +146,11 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 					}
 				}
 
+				if (!ConnectURL.User.empty() || !ConnectURL.Password.empty())
+				{
+					BasicAuthentication(ConnectURL.User.get(), ConnectURL.Password.get());
+				}
+
 				TransmitTime.resume();
 				
 				if (SendRequest (sRequestBody, MIME))

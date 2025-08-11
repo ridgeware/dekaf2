@@ -124,6 +124,7 @@ set (USOURCES
 	ksystem_tests.cpp
 	ksystemstats_tests.cpp
 	ktcpserver_tests.cpp
+	ktemperature_tests.cpp
 	kthreadpool_tests.cpp
 	kthreads_tests.cpp
 	kthreadsafe_tests.cpp

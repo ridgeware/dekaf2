@@ -1260,6 +1260,7 @@ set(PUBLIC_HEADERS
 	ktcpclient.h
 	ktcpserver.h
 	ktcpstream.h
+	ktemperature.h
 	ktemplate.h
 	kthreadpool.h
 	kthreads.h

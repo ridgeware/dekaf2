@@ -4,6 +4,7 @@
 #if DEKAF2_HAS_LIBUUID || DEKAF2_IS_WINDOWS
 
 #include <dekaf2/kstringview.h>
+#include <dekaf2/kstringstream.h>
 
 using namespace dekaf2;
 
@@ -45,6 +46,24 @@ TEST_CASE("KUUID")
 		CHECK ( uuid.empty() == true );
 		CHECK ( uuid.ToString().size() == 36 );
 		CHECK ( uuid == "00000000-0000-0000-0000-000000000000" );
+	}
+
+	SECTION("formatting (fmt)")
+	{
+		KUUID uuid1;
+		auto uuid2 = uuid1;
+		auto s = kFormat("{}", uuid1);
+		CHECK ( s == uuid2.ToString() );
+	}
+
+	SECTION("formatting (std::ostream)")
+	{
+		KUUID uuid1;
+		auto uuid2 = uuid1;
+		KString s;
+		KOutStringStream oss(s);
+		oss << uuid1;
+		CHECK ( s == uuid2.ToString() );
 	}
 
 }

@@ -114,7 +114,6 @@ OPTION(DEKAF2_WITH_USER_AGENT_PARSER "build with user agent parser" ON)
 if (EXISTS "/etc/amazon-linux-release-cpe" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	set(DEKAF2_CXX_STANDARD 17)
 	message(STATUS "Amazon Linux with ${CMAKE_CXX_COMPILER_ID} detected: lowering C++ mode to C++17")
-	set(DEKAF2_FORCE_STATIC_LIBUUID TRUE)
 else()
 	set(DEKAF2_CXX_STANDARD 20)
 	message(STATUS "using C++20")
@@ -708,17 +707,7 @@ endif (DOXYGEN_FOUND)
 
 # =============================== libuuid =======================================
 
-if (DEKAF2_FORCE_STATIC_LIBUUID)
-	set(BACKUP_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
-	set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-endif()
-
 find_package(UUID QUIET)
-
-if (DEKAF2_FORCE_STATIC_LIBUUID)
-	set(CMAKE_FIND_LIBRARY_SUFFIXES ${BACKUP_CMAKE_FIND_LIBRARY_SUFFIXES})
-	unset(BACKUP_CMAKE_FIND_LIBRARY_SUFFIXES)
-endif()
 
 if (UUID_FOUND)
 	set(DEKAF2_HAS_LIBUUID OK)

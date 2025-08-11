@@ -50,6 +50,7 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include <array>
+#include <ostream>
 
 
 DEKAF2_NAMESPACE_BEGIN
@@ -108,6 +109,36 @@ private:
 
 }; // KUUID
 
+inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, const KUUID& UUID)
+{
+	auto s = UUID.ToString();
+	stream.write(s.data(), s.size());
+	return stream;
+}
+
 DEKAF2_NAMESPACE_END
+
+#if DEKAF2_HAS_INCLUDE("kformat.h")
+
+// kFormat formatters
+
+#include "kformat.h"
+
+namespace DEKAF2_FORMAT_NAMESPACE
+{
+
+template <>
+struct formatter<DEKAF2_PREFIX KUUID> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KUUID& UUID, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(UUID.ToString(), ctx);
+	}
+};
+
+} // end of DEKAF2_FORMAT_NAMESPACE
+
+#endif // of has #include "kformat.h"
 
 #endif // DEKAF2_HAS_LIBUUID || DEKAF2_IS_WINDOWS

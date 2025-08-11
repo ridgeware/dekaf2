@@ -58,6 +58,7 @@
 #include <chrono>
 #include <set>
 #include <array>
+#include <ostream>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -1624,6 +1625,7 @@ template<> struct hash<DEKAF2_PREFIX KLocalTime>
 
 } // end of namespace std
 
+#endif // of has #include "bits/khash.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -1721,4 +1723,3 @@ inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KUTCTime tim
 }
 
 DEKAF2_NAMESPACE_END
-#endif // of has #include "bits/khash.h"

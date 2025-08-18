@@ -87,6 +87,13 @@ public:
 	/// get the accepted deviation for two values being compared equal
 	static constexpr value_type Epsilon ()       { return 1e-9;                  }
 
+	constexpr KTemperature& operator*=(double other)      { m_Temp *= other; return *this; }
+	constexpr KTemperature& operator/=(double other)      { m_Temp /= other; return *this; }
+	constexpr KTemperature& operator*=(int other)         { m_Temp *= other; return *this; }
+	constexpr KTemperature& operator/=(int other)         { m_Temp /= other; return *this; }
+	constexpr KTemperature& operator*=(std::size_t other) { m_Temp *= other; return *this; }
+	constexpr KTemperature& operator/=(std::size_t other) { m_Temp /= other; return *this; }
+
 //------
 protected:
 //------
@@ -125,6 +132,8 @@ public:
 
 	constexpr KCelsius& operator+=(const KCelsius& other) { m_Temp += other.m_Temp; return *this; }
 	constexpr KCelsius& operator-=(const KCelsius& other) { m_Temp -= other.m_Temp; return *this; }
+	constexpr KCelsius& operator+()                       {                         return *this; }
+	constexpr KCelsius& operator-()                       { m_Temp = -m_Temp;       return *this; }
 
 	/// return the unit string for Celsius (°C)
 	constexpr const char* Unit() const { return "°C"; }
@@ -134,6 +143,9 @@ public:
 	/// @par bWithUnit if true, the unit (°C) will be printed, too, defaults to true
 	/// @return a KString with the given precision and possible unit
 	KString String(uint8_t iPrecision = 0, bool bWithUnit = true) const { return base::ToString(iPrecision, bWithUnit ? Unit() : ""); }
+
+	using base::operator*=;
+	using base::operator/=;
 
 }; // KCelsius
 
@@ -168,6 +180,9 @@ public:
 	/// @return a KString with the given precision and possible unit
 	KString String(uint8_t iPrecision = 0, bool bWithUnit = true) const { return base::ToString(iPrecision, bWithUnit ? Unit() : ""); }
 
+	using base::operator*=;
+	using base::operator/=;
+
 }; // KKelvin
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -191,6 +206,8 @@ public:
 
 	constexpr KFahrenheit& operator+=(const KFahrenheit& other) { m_Temp += other.m_Temp; return *this; }
 	constexpr KFahrenheit& operator-=(const KFahrenheit& other) { m_Temp -= other.m_Temp; return *this; }
+	constexpr KFahrenheit& operator+()                          {                         return *this; }
+	constexpr KFahrenheit& operator-()                          { m_Temp = -m_Temp;       return *this; }
 
 	/// return the unit string for Fahrenheit (°F)
 	constexpr const char* Unit() const { return "°F"; }
@@ -200,6 +217,9 @@ public:
 	/// @par bWithUnit if true, the unit (°F) will be printed, too, defaults to true
 	/// @return a KString with the given precision and possible unit
 	KString String(uint8_t iPrecision = 0, bool bWithUnit = true) const { return base::ToString(iPrecision, bWithUnit ? Unit() : ""); }
+
+	using base::operator*=;
+	using base::operator/=;
 
 }; // KFahrenheit
 
@@ -221,6 +241,24 @@ template<typename T1, typename T2,
 constexpr T1 operator-(T1 left, const T2& right)
 {
 	left -= T1(right);
+	return left;
+}
+
+template<typename T1, typename T2,
+         typename std::enable_if<std::is_base_of<detail::KTemperature, T1>::value &&
+                                 (std::is_floating_point<T2>::value || std::is_integral<T2>::value), int>::type = 0>
+constexpr T1 operator*(T1 left, const T2& right)
+{
+	left *= right;
+	return left;
+}
+
+template<typename T1, typename T2,
+         typename std::enable_if<std::is_base_of<detail::KTemperature, T1>::value &&
+                                 (std::is_floating_point<T2>::value || std::is_integral<T2>::value), int>::type = 0>
+constexpr T1 operator/(T1 left, const T2& right)
+{
+	left /= right;
 	return left;
 }
 

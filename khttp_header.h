@@ -135,6 +135,7 @@ public:
 		PUBLIC_KEY_PINS,
 		RANGE,
 		REFERER,
+		REFRESH,
 		RETRY_AFTER,
 		SEC_WEBSOCKET_ACCEPT,
 		SEC_WEBSOCKET_KEY,
@@ -369,6 +370,8 @@ public:
 				return "range";
 			case REFERER:
 				return "referer";
+			case REFRESH:
+				return "refresh";
 			case RETRY_AFTER:
 				return "retry-after";
 			case SEC_WEBSOCKET_ACCEPT:
@@ -631,6 +634,8 @@ public:
 				return RANGE;
 			case "Referer"_casehash:
 				return REFERER;
+			case "Refresh"_casehash:
+				return REFRESH;
 			case "Retry-After"_casehash:
 				return RETRY_AFTER;
 			case "Sec-WebSocket-Accept"_casehash:

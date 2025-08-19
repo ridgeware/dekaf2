@@ -63,7 +63,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.78 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.79 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -111,13 +111,8 @@ OPTION(DEKAF2_WITH_USER_AGENT_PARSER "build with user agent parser" ON)
 
 # =================================== C++ STANDARD =================================
 
-if (EXISTS "/etc/amazon-linux-release-cpe" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-	set(DEKAF2_CXX_STANDARD 17)
-	message(STATUS "Amazon Linux with ${CMAKE_CXX_COMPILER_ID} detected: lowering C++ mode to C++17")
-else()
-	set(DEKAF2_CXX_STANDARD 20)
-	message(STATUS "using C++20")
-endif()
+set(DEKAF2_CXX_STANDARD 20)
+message(STATUS "using C++20")
 
 set(CMAKE_CXX_STANDARD ${DEKAF2_CXX_STANDARD})
 #set(CMAKE_CXX_CLANG_TIDY clang-tidy -checks=-*,readability-*)

@@ -1392,9 +1392,19 @@ void KFileStat::FromStat(struct stat& StatStruct, bool bAddForSymlinks)
 	// which the file type was a symbolic link, we copy all of the values from
 	// the link target EXCEPT the file type..
 	m_inode = StatStruct.st_ino;
+#if DEKAF2_IS_MACOS
+	m_atime = KUnixTime(StatStruct.st_atimespec);
+	m_mtime = KUnixTime(StatStruct.st_mtimespec);
+	m_ctime = KUnixTime(StatStruct.st_ctimespec);
+#elif _POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700
+	m_atime = KUnixTime(StatStruct.st_atim);
+	m_mtime = KUnixTime(StatStruct.st_mtim);
+	m_ctime = KUnixTime(StatStruct.st_ctim);
+#else
 	m_atime = KUnixTime(StatStruct.st_atime);
 	m_mtime = KUnixTime(StatStruct.st_mtime);
 	m_ctime = KUnixTime(StatStruct.st_ctime);
+#endif
 	m_mode  = StatStruct.st_mode & ~S_IFMT;
 	m_uid   = StatStruct.st_uid;
 	m_gid   = StatStruct.st_gid;

@@ -172,6 +172,12 @@ public:
 
 	/// construct from time_t timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14          KUnixTime(time_t time)       noexcept : KUnixTime(from_time_t(time)) {}
+	/// construct from struct timespec timepoint (constexpr)
+	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const struct timespec& ts)
+	                                                          noexcept : KUnixTime(from_timespec(ts)) {}
+	/// construct from struct timeval timepoint (constexpr)
+	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const struct timeval& tv)
+															  noexcept : KUnixTime(from_timeval(tv) ) {}
 	/// construct from std::tm timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const std::tm& tm) noexcept : KUnixTime(    from_tm(tm)  ) {}
 	// we need this constructor because otherwise gcc versions < 9 complain about conversion ambiguities
@@ -208,6 +214,12 @@ public:
 	/// converts to std::time_t timepoint
 	DEKAF2_NODISCARD
 	DEKAF2_CONSTEXPR_14 std::time_t to_time_t ()              const noexcept { return to_time_t(*this);                                      }
+	/// converts to struct timespec timepoint (constexpr)
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 struct timespec to_timespec ()        const noexcept { return to_timespec(*this);                                    }
+	/// converts to struct timeval timepoint (constexpr)
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 struct timeval to_timeval ()          const noexcept { return to_timeval(*this);                                     }
 	/// converts to std::tm timepoint (constexpr)
 	DEKAF2_NODISCARD
 	DEKAF2_CONSTEXPR_14 std::tm     to_tm     ()              const noexcept { return to_tm(*this);                                          }
@@ -227,6 +239,18 @@ public:
 	/// converts from system_clock timepoint to time_t timepoint (constexpr)
 	DEKAF2_NODISCARD
 	DEKAF2_CONSTEXPR_14 static std::time_t to_time_t(time_point tp) noexcept { return time_t(chrono::duration_cast<chrono::seconds>(tp.time_since_epoch()).count()); }
+	/// converts from KUnixTime to struct timespec (constexpr)
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 static struct timespec to_timespec(KUnixTime tp) noexcept;
+	/// converts from system_clock timepoint to struct timespec (constexpr)
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 static struct timespec to_timespec(time_point tp) noexcept { return to_timespec(KUnixTime(tp)); }
+	/// converts from KUnixTime to struct timeval (constexpr)
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 static struct timeval to_timeval(KUnixTime tp) noexcept;
+	/// converts from system_clock timepoint to struct timeval (constexpr)
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 static struct timeval to_timeval(time_point tp) noexcept { return to_timeval(KUnixTime(tp)); }
 	/// converts from KUnixTime to std::tm timepoint (constexpr)
 	DEKAF2_NODISCARD
 	DEKAF2_CONSTEXPR_14 static std::tm     to_tm(KUnixTime tp)      noexcept;
@@ -234,9 +258,15 @@ public:
 	DEKAF2_NODISCARD
 	DEKAF2_CONSTEXPR_14 static std::tm     to_tm(time_point tp)     noexcept { return to_tm(KUnixTime(tp)); }
 
-	/// converts from time_t timepoint to system_clock timeppoint (constexpr)
+	/// converts from time_t timepoint to system_clock timepoint (constexpr)
 	DEKAF2_NODISCARD
 	DEKAF2_CONSTEXPR_14 static KUnixTime   from_time_t(std::time_t tTime) noexcept { return KUnixTime(chrono::seconds(tTime)); }
+	/// converts from struct timespec timepoint to system_clock timepoint (constexpr)
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 static KUnixTime   from_timespec(const struct timespec& ts) noexcept;
+	/// converts from struct timeval timepoint to system_clock timepoint (constexpr)
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 static KUnixTime   from_timeval(const struct timeval& tv) noexcept;
 	/// converts from std::tm timepoint to system_clock timepoint (constexpr)
 	DEKAF2_NODISCARD
 	DEKAF2_CONSTEXPR_14 static KUnixTime   from_tm    (const std::tm& tm) noexcept;
@@ -283,7 +313,59 @@ DEKAF2_CONSTEXPR_14 KUnixTime operator-(const T& left, const KUnixTime& right)
 { return right - left; }
 
 //-----------------------------------------------------------------------------
-// constexpr implementation of std::tm to std::time_t conversion
+// constexpr implementation of struct timespec to KUnixTime conversion
+DEKAF2_NODISCARD
+DEKAF2_CONSTEXPR_14 KUnixTime KUnixTime::from_timespec(const struct timespec& ts) noexcept
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+	return KUnixTime(chrono::seconds(ts.tv_sec) + chrono::nanoseconds(ts.tv_nsec));
+#else
+	return KUnixTime(chrono::seconds(ts.tv_sec) + chrono::microseconds(ts.tv_nsec / 1000));
+#endif
+}
+
+//-----------------------------------------------------------------------------
+// constexpr implementation of KUnixTime to struct timespec conversion
+DEKAF2_NODISCARD
+DEKAF2_CONSTEXPR_14 struct timespec KUnixTime::to_timespec(KUnixTime tp) noexcept
+//-----------------------------------------------------------------------------
+{
+	// we have chrono::floor<> also before C++17 (through the date lib)
+	auto s = chrono::floor<chrono::seconds>(tp);
+	auto ns = chrono::duration_cast<chrono::nanoseconds>(tp.to_sys_time() - s);
+	struct timespec ts;
+	ts.tv_sec  = s.time_since_epoch().count();
+	ts.tv_nsec = ns.count();
+	return ts;
+}
+
+//-----------------------------------------------------------------------------
+// constexpr implementation of struct timeval to KUnixTime conversion
+DEKAF2_NODISCARD
+DEKAF2_CONSTEXPR_14 KUnixTime KUnixTime::from_timeval(const struct timeval& tv) noexcept
+//-----------------------------------------------------------------------------
+{
+	return KUnixTime(chrono::seconds(tv.tv_sec) + chrono::microseconds(tv.tv_usec));
+}
+
+//-----------------------------------------------------------------------------
+// constexpr implementation of KUnixTime to struct timeval conversion
+DEKAF2_NODISCARD
+DEKAF2_CONSTEXPR_14 struct timeval KUnixTime::to_timeval(KUnixTime tp) noexcept
+//-----------------------------------------------------------------------------
+{
+	// we have chrono::floor<> also before C++17 (through the date lib)
+	auto s = chrono::floor<chrono::seconds>(tp);
+	auto us = chrono::duration_cast<chrono::microseconds>(tp.to_sys_time() - s);
+	struct timeval tv;
+	tv.tv_sec  = s.time_since_epoch().count();
+	tv.tv_usec = static_cast<decltype(tv.tv_usec)>(us.count());
+	return tv;
+}
+
+//-----------------------------------------------------------------------------
+// constexpr implementation of std::tm to KUnixTime conversion
 DEKAF2_CONSTEXPR_14 KUnixTime KUnixTime::from_tm(const std::tm& tm) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -297,7 +379,7 @@ DEKAF2_CONSTEXPR_14 KUnixTime KUnixTime::from_tm(const std::tm& tm) noexcept
 }
 
 //-----------------------------------------------------------------------------
-// constexpr implementation of std::time_t to std::tm conversion for UTC timepoints
+// constexpr implementation of KUnixTime to std::tm conversion for UTC timepoints
 DEKAF2_CONSTEXPR_14 std::tm KUnixTime::to_tm(KUnixTime tp) noexcept
 //-----------------------------------------------------------------------------
 {

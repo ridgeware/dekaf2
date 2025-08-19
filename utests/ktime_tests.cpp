@@ -1042,6 +1042,33 @@ TEST_CASE("KTime") {
 		CHECK ( Date1.is_leap()== true              );
 	}
 
+	SECTION("timespec")
+	{
+#if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+		KUnixTime ut1 = KUnixTime(std::chrono::system_clock::time_point(std::chrono::nanoseconds(1755600821117444763)));
+		struct timespec ts = ut1.to_timespec();
+		CHECK ( ts.tv_sec  == 1755600821 );
+		CHECK ( ts.tv_nsec ==  117444763 );
+#else
+		KUnixTime ut1 = KUnixTime(std::chrono::system_clock::time_point(std::chrono::microseconds(1755600821117444)));
+		struct timespec ts = ut1.to_timespec();
+		CHECK ( ts.tv_sec  == 1755600821 );
+		CHECK ( ts.tv_nsec ==  117444000 );
+#endif
+		KUnixTime ut2(ts);
+		CHECK ( ut1 == ut2 );
+	}
+
+	SECTION("timeval")
+	{
+		KUnixTime ut1 = KUnixTime(std::chrono::system_clock::time_point(std::chrono::microseconds(1755600821117444)));
+		struct timeval tv = ut1.to_timeval();
+		CHECK ( tv.tv_sec  == 1755600821 );
+		CHECK ( tv.tv_usec ==     117444 );
+		KUnixTime ut2(tv);
+		CHECK ( ut1 == ut2 );
+	}
+
 	SECTION("samples")
 	{
 		bool bHasTimezone = false;

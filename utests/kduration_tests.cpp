@@ -39,6 +39,36 @@ TEST_CASE("KDuration")
 		CHECK ( ms <= chrono::milliseconds(15) );
 	}
 
+	SECTION("timespec")
+	{
+		struct timespec ts;
+		ts.tv_sec = 16;
+		ts.tv_nsec = 234465478;
+		KDuration d(ts);
+		CHECK ( d.nanoseconds().count() == 16234465478 );
+		auto ts2 = d.to_timespec();
+		CHECK ( ts2.tv_sec  == 16 );
+		CHECK ( ts2.tv_nsec == 234465478 );
+		struct timespec ts3(d);
+		CHECK ( ts3.tv_sec  == 16 );
+		CHECK ( ts3.tv_nsec == 234465478 );
+	}
+
+	SECTION("timeval")
+	{
+		struct timeval tv;
+		tv.tv_sec = 16;
+		tv.tv_usec = 234465;
+		KDuration d(tv);
+		CHECK ( d.microseconds().count() == 16234465 );
+		auto tv2 = d.to_timeval();
+		CHECK ( tv2.tv_sec  == 16 );
+		CHECK ( tv2.tv_usec == 234465 );
+		struct timeval tv3(d);
+		CHECK ( tv3.tv_sec  == 16 );
+		CHECK ( tv3.tv_usec == 234465 );
+	}
+
 	SECTION("KDurations")
 	{
 		KStopDurations StopD;

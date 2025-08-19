@@ -81,6 +81,14 @@ public:
 	template<typename T, typename std::enable_if<std::is_same<time_t, T>::value, int>::type = 0>
 	constexpr KDuration(T tSeconds) : Duration(chrono::seconds(tSeconds)) {}
 
+	/// construct from a struct timespec
+	explicit
+	constexpr KDuration(const struct timespec& ts) : Duration(chrono::seconds(ts.tv_sec) + chrono::nanoseconds(ts.tv_nsec)) {}
+
+	/// construct from a struct timeval
+	explicit
+	constexpr KDuration(const struct timeval&  tv) : Duration(chrono::seconds(tv.tv_sec) + chrono::microseconds(tv.tv_usec)) {}
+
 	/// reset the duration to zero
 	constexpr void                           clear()                { *this = Duration::zero(); }
 
@@ -112,6 +120,14 @@ public:
 	explicit
 	constexpr operator                  bool         () const { return !Zero();                           }
 
+	/// returns struct timespec duration
+	explicit
+	constexpr operator           struct timespec     () const { return to_timespec();                     }
+
+	/// returns struct timeval duration
+	explicit
+	constexpr operator           struct timeval      () const { return to_timeval();                      }
+
 	/// returns elapsed nanoseconds as duration type
 	DEKAF2_NODISCARD
 	constexpr chrono::nanoseconds       nanoseconds  () const { return duration<chrono::nanoseconds>  (); }
@@ -142,6 +158,12 @@ public:
 	/// returns elapsed years as duration type
 	DEKAF2_NODISCARD
 	constexpr chrono::years             years        () const { return duration<chrono::years>        (); }
+	/// returns struct timespec as duration type
+	DEKAF2_NODISCARD
+	constexpr struct timespec           to_timespec  () const { return { seconds().count(), chrono::nanoseconds(nanoseconds() - seconds()).count()   } ; }
+	/// returns struct timeval as duration type
+	DEKAF2_NODISCARD
+	constexpr struct timeval            to_timeval   () const { return { seconds().count(), static_cast<int32_t>(chrono::microseconds(microseconds() - seconds()).count()) } ; }
 
 	/// output format for ToString()
 	enum Format

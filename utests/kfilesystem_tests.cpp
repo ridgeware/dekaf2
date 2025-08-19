@@ -271,9 +271,36 @@ TEST_CASE("KFilesystem")
 		KString sNested { sDirectory };
 		sNested += "/far/down/here.txt";
 
+		auto tNow1 = kNow();
+		kSleep(chrono::milliseconds(100));
+		CHECK ( kTouchFile(sNested)   );
+		auto tNow2 = kNow();
+		CHECK ( kFileExists(sNested)  );
+		auto tFirstTouch = KFileStat(sNested).ModificationTime();
+		CHECK ( tNow1 < tFirstTouch  );
+		CHECK ( tNow2 > tFirstTouch  );
+		kSleep(chrono::milliseconds(100));
+		CHECK ( kTouchFile(sNested)   );
+		auto tSecondTouch = KFileStat(sNested).ModificationTime();
+		CHECK ( tFirstTouch < tSecondTouch );
+		CHECK ( kRemoveFile(sNested)  );
+		CHECK ( !kFileExists(sNested) );
 		CHECK ( kTouchFile(sNested)   );
 		CHECK ( kFileExists(sNested)  );
+	}
+
+	SECTION("kTouchFile existing")
+	{
+		KString sNested { sDirectory };
+		sNested += "/far/down/here2.txt";
+		kWriteFile(sNested, "this is a test file");
+		CHECK ( kFileExists(sNested)  );
+		auto tFirstTouch = KFileStat(sNested).ModificationTime();
+		kSleep(chrono::milliseconds(100));
 		CHECK ( kTouchFile(sNested)   );
+		CHECK ( KFileStat(sNested).Size() == 19 );
+		auto tSecondTouch = KFileStat(sNested).ModificationTime();
+		CHECK ( tFirstTouch < tSecondTouch );
 		CHECK ( kRemoveFile(sNested)  );
 		CHECK ( !kFileExists(sNested) );
 		CHECK ( kTouchFile(sNested)   );

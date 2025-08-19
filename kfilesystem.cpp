@@ -1062,35 +1062,61 @@ bool kCreateHardlink(KStringViewZ sOrigin, KStringViewZ sHardlink)
 bool kTouchFile(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_FILE */)
 //-----------------------------------------------------------------------------
 {
-	// we need to use a KOutFile here, as FILE* on Windows does not understand
-	// UTF8 file names
-	KOutFile File(sPath, std::ios::app);
-
-	if (!File.is_open())
+	// check if file exists
+	if (kFileExists(sPath))
 	{
-		// else we may miss a path component
-		KString sDir = kDirname(sPath);
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+		std::error_code ec;
 
-		if (kCreateDir(sDir))
+		fs::last_write_time(kToFilesystemPath(sPath), fs::file_time_type::clock::now(), ec);
+
+		if (ec)
 		{
-			File.open(sPath, std::ios::app);
+			kDebug(2, ec.message());
+			return false;
+		}
+#else
+		// try to manipulate the times with nanosecond precision
+		if (::utimensat(AT_FDCWD, sPath.c_str(), nullptr, 0))
+		{
+			kDebug(1, "cannot touch '{}': {}", sPath, strerror(errno));
+			return false;
+		}
+#endif
+	}
+	else
+	{
+		// Create a new file
+		// we need to use a KOutFile here, as FILE* on Windows does not understand
+		// UTF8 file names
+		KOutFile File(sPath);
 
-			if (!File.is_open())
+		if (!File.is_open())
+		{
+			// else we may miss a path component
+			KString sDir = kDirname(sPath);
+
+			if (kCreateDir(sDir))
 			{
-				// give up
+				File.open(sPath);
+
+				if (!File.is_open())
+				{
+					// give up
+					return false;
+				}
+
+				File.close();
+
+				if (iMode != DEKAF2_MODE_CREATE_FILE)
+				{
+					return kChangeMode(sPath, iMode);
+				}
+			}
+			else
+			{
 				return false;
 			}
-
-			File.close();
-
-			if (iMode != DEKAF2_MODE_CREATE_FILE)
-			{
-				return kChangeMode(sPath, iMode);
-			}
-		}
-		else
-		{
-			return false;
 		}
 	}
 

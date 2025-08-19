@@ -307,7 +307,7 @@ bool kCreateHardlink(KStringViewZ sOrigin, KStringViewZ sHardlink);
 
 //-----------------------------------------------------------------------------
 /// Create a file if it does not exist, including the directory component.
-/// If the file exists, advance its last mod timestamp.
+/// If the file exists, advance its last mod and access timestamps to the current time.
 DEKAF2_PUBLIC
 bool kTouchFile(KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_FILE);
 //-----------------------------------------------------------------------------

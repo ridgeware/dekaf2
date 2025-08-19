@@ -54,7 +54,12 @@
 	#include "kthreadsafe.h"
 #endif
 #include <cinttypes>
-#include <ctime>
+#include <ctime>      // struct timespec, time_t
+#ifndef DEKAF2_IS_WINDOWS
+	#include <sys/time.h> // struct timeval
+#else
+	#include <winsock.h>  // struct timeval
+#endif
 #include <chrono>
 #include <set>
 #include <array>

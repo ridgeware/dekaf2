@@ -47,6 +47,12 @@
 #include "kstring.h"
 #include <vector>
 #include <type_traits>
+#include <ctime>      // struct timespec, time_t
+#ifndef DEKAF2_IS_WINDOWS
+	#include <sys/time.h> // struct timeval
+#else
+	#include <winsock.h>  // struct timeval
+#endif
 
 /// @file kduration.h
 /// keep and measure durations

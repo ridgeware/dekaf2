@@ -137,7 +137,7 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 //-----------------------------------------------------------------------------
 {
 	KTempDir TempDir;
-	KWebServer WebServer(TempDir);
+	KWebServer WebServer(TempDir, {});
 
 	WebServer.Serve(HTTP.Route->sDocumentRoot,
 	                HTTP.Request.Resource.Path.get(),

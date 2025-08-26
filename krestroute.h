@@ -466,8 +466,21 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Add a basic web server for static files
 	/// @param sWWWDir the base directory of the web server
+	/// @param sRoute a REST route, wildcards allowed: /my/path/*/img/* , minimum ("/*") - no default
+	/// @param jConfig json configuration, should include properties parser (ParserType), autoindex (bool), upload (bool), styles (string)
+	void AddWebServer(KString sWWWDir, KString sRoute, KJSON jConfig);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Add a basic web server for static files
+	/// @param sWWWDir the base directory of the web server
 	/// @param sRoute a REST route, wildcards allowed: /my/path/*/img/* , defaults to all ("/*")
-	void AddWebServer(KString sWWWDir, KString sRoute = "/*", bool bWithAdHocIndex = false, bool bAllowUpload = false);
+	/// @param bWithAdHocIndex if true the web server generates index.html files automatically - defaults to false
+	/// @param bAllowUpload if true, uploads and deletes are permitted - defaults to false
+	/// @param sStyles style sheet to use instead of the default style sheet. Either a URL/path (ending with .css)
+	/// @param sIndexfile filename to search for as the index file for a repository - default empty, which searches index.html
+	/// or plain CSS definitions. Defaults to the empty string, forcing the default style sheet.
+	void AddWebServer(KString sWWWDir, KString sRoute = "/*", bool bWithAdHocIndex = false, bool bAllowUpload = false, KStringView sStyles = "", KStringView sIndexfile = "");
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

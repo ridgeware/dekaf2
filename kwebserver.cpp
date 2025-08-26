@@ -228,6 +228,14 @@ KHTTPMethod KWebServer::Serve
 		RouteCheck
 	);
 
+	KStringView sResource = sResourcePath;
+	// remove the route prefix from the resource path
+	if (!sResource.remove_prefix(sRoute))
+	{
+		kDebug(1, "invalid document path (internal error): {}", sResource);
+		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("invalid path: {}", sResource) };
+	}
+
 	if (!IsValid())
 	{
 		// this should have been thrown already, probably more precisely
@@ -306,7 +314,7 @@ KHTTPMethod KWebServer::Serve
 					// move the files from the temp location into the upload folder
 					if (File.GetCompleted())
 					{
-						auto sTo   = kFormat("{}{}{}{}", sDocumentRoot, sResourcePath, kDirSep, File.GetFilename());
+						auto sTo   = kFormat("{}{}{}{}", sDocumentRoot, sResource, kDirSep, File.GetFilename());
 						kMove(sFrom, sTo);
 					}
 					else
@@ -341,7 +349,7 @@ KHTTPMethod KWebServer::Serve
 					}
 
 					auto sCreateDir = kFormat("{}{}{}",
-					                          sResourcePath,
+					                          sResource,
 					                          kDirSep,
 					                          kMakeSafePathname(sBody, false)
 					                          );
@@ -361,7 +369,7 @@ KHTTPMethod KWebServer::Serve
 					}
 
 					auto sRemoveFile = kFormat("{}{}{}",
-					                           sResourcePath,
+					                           sResource,
 					                           kDirSep,
 					                           kMakeSafeFilename(sBody, false)
 					                           );
@@ -381,7 +389,7 @@ KHTTPMethod KWebServer::Serve
 					}
 
 					auto sRemoveDir = kFormat("{}{}{}",
-					                          sResourcePath,
+					                          sResource,
 					                          kDirSep,
 					                          kMakeSafePathname(sBody, false)
 					                          );
@@ -433,7 +441,7 @@ KHTTPMethod KWebServer::Serve
 			{
 				// this is a plain PUT (or POST) of data, the file name is taken
 				// from the last part of the URL
-				auto sName = kMakeSafeFilename(kBasename(sResourcePath));
+				auto sName = kMakeSafeFilename(kBasename(sResource));
 
 				if (sName.empty())
 				{
@@ -470,9 +478,9 @@ KHTTPMethod KWebServer::Serve
 
 		case KHTTPMethod::DELETE:
 		{
-			auto sName = kFormat("{}{}{}", sDocumentRoot, kDirSep, sResourcePath);
+			auto sName = kFormat("{}{}{}", sDocumentRoot, kDirSep, sResource);
 
-			kDebug(2, "deleting file: {}", sResourcePath);
+			kDebug(2, "deleting file: {}", sResource);
 
 			if (!kRemove(sName, KFileTypes::ALL))
 			{

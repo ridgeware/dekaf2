@@ -347,34 +347,52 @@ KRESTRoutes::RouteBuilder KRESTRoutes::AddRoute(KString sRoute)
 } // AddRoute
 
 //-----------------------------------------------------------------------------
-void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute, bool bWithAdHocIndex, bool bAllowUpload)
+void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute, KJSON jConfig)
 //-----------------------------------------------------------------------------
 {
-	KJSON Config {{ "parser", "NOREAD" }};
+	kDebug(2, "route : {}\nwww   : {}\nconfig: {}", sRoute, sWWWDir, jConfig.dump());
 
-	if (bWithAdHocIndex)
+	if (kjson::GetBool(jConfig, "upload"))
 	{
-		Config.push_back({"autoindex", true});
-	}
-
-	if (bAllowUpload)
-	{
-		Config.push_back({"upload", true});
-	}
-
-	kDebug(2, "route : {}\nwww   : {}\nconfig: {}", sRoute, sWWWDir, Config.dump());
-
-	if (bAllowUpload)
-	{
-		m_Routes.push_back(KRESTRoute("GET"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, Config));
-		m_Routes.push_back(KRESTRoute("PUT"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, Config));
-		m_Routes.push_back(KRESTRoute("DELETE" , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, Config));
-		m_Routes.push_back(KRESTRoute("POST"   , false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(Config)));
+		m_Routes.push_back(KRESTRoute("GET"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
+		m_Routes.push_back(KRESTRoute("POST"   , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
+		m_Routes.push_back(KRESTRoute("PUT"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
+		m_Routes.push_back(KRESTRoute("DELETE" , false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(jConfig)));
 	}
 	else
 	{
-		m_Routes.push_back(KRESTRoute("GET"    , false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(Config)));
+		m_Routes.push_back(KRESTRoute("GET"    , false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(jConfig)));
 	}
+
+} // AddWebServer
+
+//-----------------------------------------------------------------------------
+void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute, bool bWithAdHocIndex, bool bAllowUpload, KStringView sStyles, KStringView sIndexfile)
+//-----------------------------------------------------------------------------
+{
+	KJSON jConfig {{ "parser", "NOREAD" }};
+
+	if (bWithAdHocIndex)
+	{
+		jConfig.push_back({"autoindex", true});
+	}
+
+	if (bAllowUpload)
+	{
+		jConfig.push_back({"upload", true});
+	}
+
+	if (!sStyles.empty())
+	{
+		jConfig.push_back({"styles", sStyles});
+	}
+
+	if (!sIndexfile.empty())
+	{
+		jConfig.push_back({"indexfile", sIndexfile});
+	}
+
+	AddWebServer(std::move(sWWWDir), std::move(sRoute), std::move(jConfig));
 
 } // AddWebServer
 
@@ -524,12 +542,17 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Par
 void KRESTRoutes::WebServer(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
-	KWebServer WebServer(HTTP.GetTempDirReference());
+	kDebug(2, "config: {}", HTTP.Route->Config.dump());
+	// we have to use the KJSONv1 style here to support older systems
+	// (but that bears no performance penalty)
+	auto  bWithAutoIndex = kjson::GetBool     (HTTP.Route->Config, "autoindex");
+	kDebug(2, "auto index: {}", bWithAutoIndex);
+	auto  bWithUpload    = kjson::GetBool     (HTTP.Route->Config, "upload"   );
+	kDebug(2, "upload: {}", bWithUpload);
 
-	auto bWithAutoIndex = kjson::GetBool(HTTP.Route->Config, "autoindex");
-	auto bWithUpload    = kjson::GetBool(HTTP.Route->Config, "upload"   );
+	KWebServer WebServer(HTTP.GetTempDirReference(), HTTP.Route->Config);
 
-	if (bWithUpload && (HTTP.RequestPath.Method == KHTTPMethod::POST || 
+	if (bWithUpload && (HTTP.RequestPath.Method == KHTTPMethod::POST ||
 	                    HTTP.RequestPath.Method == KHTTPMethod::PUT) )
 	{
 		WebServer.SetInputStream(HTTP.InStream());

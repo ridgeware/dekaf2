@@ -76,8 +76,12 @@ public:
 	/// Simple web server implementation - errors lead to KHTTPErrors thrown
 	/// @param TempDir reference to a KTempDir instance
 	/// @param sDirIndexFile file name to serve when resource is a directory, per default index.html
-	KWebServer(KTempDir& TempDir, KString sDirIndexFile = "index.html")
-	: KFileServer(std::move(sDirIndexFile))
+	/// @param jConfig json configuration, used properties: indexfile, styles, tohead, tobodytop, tobodybottom
+	/// where index is the file name to serve when resource is a directory, per default index.html
+	/// styles is the style sheet to use instead of the default style sheet. Either a URL/path (ending with .css)
+	/// or plain CSS definitions. Defaults to the empty string, forcing the default style sheet.
+	KWebServer(KTempDir& TempDir, const KJSON& jConfig)
+	: KFileServer(jConfig)
 	, m_TempDir(TempDir)
 	{
 	}

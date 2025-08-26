@@ -48,6 +48,18 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
+KFileServer::KFileServer(const KJSON& jConfig)
+//-----------------------------------------------------------------------------
+: m_jConfig(jConfig)
+, m_sDirIndexFile(kjson::GetStringRef(jConfig, "indexfile"))
+{
+	if (m_sDirIndexFile.empty())
+	{
+		m_sDirIndexFile = "index.html";
+	}
+}
+
+//-----------------------------------------------------------------------------
 bool KFileServer::Open(KStringView sDocumentRoot,
                        KStringView sRequest,
                        KStringView sRoute,
@@ -159,9 +171,11 @@ namespace {
 constexpr KStringView sIndexStyles = R"(
 body {
 	font-family: Verdana, sans-serif;
+	background-color: #bbcddf; 
 }
 table {
-	border: 1px solid #bbbbbb;
+	border: 1px solid #555555;
+	border-radius: 2px;
 }
 td, th {
 	padding: 0px 5px 0px 5px;
@@ -171,20 +185,21 @@ a {
 	width: fit-content;
 	text-decoration: none;
 	text-color: black;
-	background-color: #ffffff;
-	border: 0px solid #bbbbbb;
 	transition-duration: 0.1s;
 }
-a:hover {
-	box-shadow: 0 12px 16px 0 rgba(0,0,0,0.25),0 17px 50px 0 rgba(0,0,0,0.20);
+input[type='text'] {
+	border: 1px solid black;
+	border-radius: 2px;
+	width: 100%;
 }
-button {
-	background-color: #ffffff;
-	border: 0.5px solid #cccccc;
+button, input[type='submit'], input::file-selector-button {
+	background-color: #cbddff;
+	border: 1px solid black;
+	border-radius: 6px;
 	cursor: pointer;
 	transition-duration: 0.1s;
 }
-button:hover {
+a:hover, button:hover, input[type='submit']:hover, input::file-selector-button:hover {
 	box-shadow: 0 12px 16px 0 rgba(0,0,0,0.25),0 17px 50px 0 rgba(0,0,0,0.20);
 }
 )";
@@ -284,7 +299,28 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 	KString sTitle = kFormat("Index of /{} :", sDirectory);
 
 	html::Page page(sTitle, "en");
-	page.AddStyle(sIndexStyles);
+
+	auto& sStyles = kjson::GetStringRef(m_jConfig, "styles");
+
+	if (sStyles.empty())
+	{
+		// no CSS styles added - use default styles
+		page.AddStyle(sIndexStyles);
+	}
+	else if (sStyles.ends_with(".css"))
+	{
+		// this is a path to css styles - use a style link in the header
+		page.Head().Add(html::StyleSheet(sStyles));
+	}
+	else
+	{
+		// this is a stylesheet - copy it into the header
+		page.AddStyle(sStyles);
+	}
+
+	page.Head().AddRawText(kjson::GetStringRef(m_jConfig, "addtohead"));
+	page.Body().AddRawText(kjson::GetStringRef(m_jConfig, "addtobodytop"));
+
 	auto& body = page.Body();
 
 	if (bWithIndex)
@@ -338,27 +374,35 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 		auto& table = body.Add(html::Table());
 		{
 			auto& row  = table.Add(html::TableRow());
-			auto& col1 = row.Add(html::TableData());
+			auto& form = row.Add(html::Form());
+			form.SetMethod(html::Form::POST);
+
+			auto& col1 = form.Add(html::TableData());
 			col1.Add(html::HTML("label").AddText("Add Directory:"));
 
-			auto& col2 = row.Add(html::TableData().SetAlign(html::TableData::RIGHT));
-			auto& form = col2.Add(html::Form());
-			form.SetMethod(html::Form::POST);
-			form += html::Input("createDir").SetType(html::Input::TEXT);
-			form += html::Input().SetType(html::Input::SUBMIT).SetValue("Create");
+			auto& col2 = form.Add(html::TableData());
+			col2 += html::Input("createDir").SetType(html::Input::TEXT);
+
+			auto& col3 = form.Add(html::TableData().SetAlign(html::TableData::RIGHT));
+			col3 += html::Input().SetType(html::Input::SUBMIT).SetValue("Create");
 		}
 		{
 			auto& row  = table.Add(html::TableRow());
-			auto& col1 = row.Add(html::TableData());
+			auto& form = row.Add(html::Form());
+			form.SetMethod(html::Form::POST).SetEncType(html::Form::FORMDATA);
+
+			auto& col1 = form.Add(html::TableData());
 			col1.Add(html::HTML("label").AddText("Add File:"));
 
-			auto& col2 = row.Add(html::TableData().SetAlign(html::TableData::RIGHT));
-			auto& form = col2.Add(html::Form());
-			form.SetMethod(html::Form::POST).SetEncType(html::Form::FORMDATA);
-			form += html::Input("upload1").SetType(html::Input::FILE);
-			form += html::Input().SetType(html::Input::SUBMIT).SetValue("Upload");
+			auto& col2 = form.Add(html::TableData());
+			col2 += html::Input("upload1").SetType(html::Input::FILE);
+
+			auto& col3 = form.Add(html::TableData().SetAlign(html::TableData::RIGHT));
+			col3 += html::Input().SetType(html::Input::SUBMIT).SetValue("Upload");
 		}
 	}
+
+	page.Body().AddRawText(kjson::GetStringRef(m_jConfig, "addtobodybottom"));
 
 	m_sIndex = page.Serialize();
 

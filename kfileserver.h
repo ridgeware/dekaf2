@@ -69,11 +69,11 @@ public:
 //------
 
 	/// Simple file server implementation - errors lead to KHTTPErrors thrown
-	/// @param sDirIndexFile file name to serve when resource is a directory, per default index.html
-	KFileServer(KString sDirIndexFile = "index.html")
-	: m_sDirIndexFile(std::move(sDirIndexFile))
-	{
-	}
+	/// @param jConfig json configuration, used properties: indexfile, styles, addtohead, addtobodytop, addtobodybottom
+	/// where index is the file name to serve when resource is a directory, per default index.html
+	/// styles is the style sheet to use instead of the default style sheet. Either a URL/path (ending with .css)
+	/// or plain CSS definitions. Defaults to the empty string, forcing the default style sheet.
+	KFileServer(const KJSON& jConfig);
 
 	/// Prepare for file access. May throw.
 	/// @param sDocumentRoot The file system directory that contains all served files.
@@ -144,13 +144,14 @@ protected:
 
 	void GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex, bool bWithDelete);
 
-	KString     m_sDirIndexFile;
-	KString     m_sFileSystemPath;
-	KString     m_sIndex;
-	KMIME       m_mime    { KMIME::NONE };
-	KFileStat   m_FileStat;
-	bool        m_bReDirectory  { false };
-	bool        m_bIsAdHocIndex { false };
+	const KJSON& m_jConfig;
+	KString      m_sDirIndexFile;
+	KString      m_sFileSystemPath;
+	KString      m_sIndex;
+	KMIME        m_mime    { KMIME::NONE };
+	KFileStat    m_FileStat;
+	bool         m_bReDirectory  { false };
+	bool         m_bIsAdHocIndex { false };
 
 }; // KFileServer
 

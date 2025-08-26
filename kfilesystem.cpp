@@ -797,7 +797,7 @@ bool kRemove (KStringViewZ sPath, KFileTypes Types)
 } // kRemove
 
 //-----------------------------------------------------------------------------
-bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
+bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */, bool bCreateIntermediates /* = true */)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
@@ -821,7 +821,15 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 	}
 
 	fsPath = kToFilesystemPath(sIntPath);
-	bIsNew = fs::create_directories(fsPath, ec);
+
+	if (bCreateIntermediates)
+	{
+		bIsNew = fs::create_directories(fsPath, ec);
+	}
+	else
+	{
+		bIsNew = fs::create_directory(fsPath, ec);
+	}
 
 	if (ec)
 	{
@@ -868,13 +876,22 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 		return true;
 	}
 
+	// and return false here if we are not supposed to create intermediate directories
+	if (!bCreateIntermediates)
+	{
+		kDebug(2, "{}: {}", sPath, strerror(errno));
+		return false;
+	}
+
 	// else test each part of the directory chain
+
+	auto PathVec = sPath.Split(detail::kAllowedDirSep, "", 0, true, false);
 
 	KString sNewPath;
 
-	for (const auto& it : sPath.Split(detail::kAllowedDirSep, "", 0, true, false))
+	for (auto it = PathVec.begin(); it != PathVec.end();)
 	{
-		if (!it.empty())
+		if (!it->empty())
 		{
 			if (sNewPath.empty())
 			{
@@ -891,7 +908,7 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 			{
 				sNewPath += kDirSep;
 			}
-			sNewPath += it;
+			sNewPath += *it++;
 
 			Stat = KFileStat(sNewPath);
 
@@ -906,11 +923,21 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */)
 				return false;
 			}
 
-			if (::mkdir(sNewPath.c_str(), iMode))
+			// like std::filesystem::create_directories() and cli mkdir -p create
+			// intermediate directories always with 0777, only the last directory
+			// with the chosen mode
+			int iThisMode = (it == PathVec.end()) ? iMode : DEKAF2_MODE_CREATE_DIR;
+
+			if (::mkdir(sNewPath.c_str(), iThisMode))
 			{
 				kDebug(2, "{}: {}", sNewPath, strerror(errno));
 				return false;
 			}
+		}
+		else
+		{
+			// step over empty element
+			++it;
 		}
 	}
 

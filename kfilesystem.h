@@ -267,17 +267,21 @@ bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode = DEKAF2_
 
 //-----------------------------------------------------------------------------
 /// Create a directory (folder) hierarchically
+/// @param sPath the full or relative path of the directory to create
+/// @param iMode the perms for the directory to create, defaults to 0777
+/// @param bCreateIntermediates create intermediate directories as well, not just the final directory, defaults to true
+///
 DEKAF2_PUBLIC
-bool kCreateDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR);
+bool kCreateDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR, bool bCreateIntermediates = true);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Alias for kCreateDir
 DEKAF2_PUBLIC
-inline bool kMakeDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR)
+inline bool kMakeDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR, bool bCreateIntermediates = true)
 //-----------------------------------------------------------------------------
 {
-	return kCreateDir (sPath, iMode);
+	return kCreateDir (sPath, iMode, bCreateIntermediates);
 }
 
 //-----------------------------------------------------------------------------

@@ -80,6 +80,7 @@ TEST_CASE("KHTTPClient")
 		// request the reference
 		HTTP.RequestCompression(true, "gzip, deflate");
 		auto sReference = HTTP.Get(URL);
+		sReference.Trim();
 		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "gzip" );
 		CHECK ( sReference.starts_with("<!DOCTYPE html>") );
 		CHECK ( sReference.Right(7) == "</html>" );
@@ -88,6 +89,7 @@ TEST_CASE("KHTTPClient")
 		// request the zstd version
 		HTTP.RequestCompression(true, "zstd");
 		auto sZSTD = HTTP.Get(URL);
+		sZSTD.Trim();
 		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "zstd" );
 		CHECK ( sZSTD.starts_with("<!DOCTYPE html>") );
 		CHECK ( sZSTD.ends_with("</html>") );
@@ -96,6 +98,7 @@ TEST_CASE("KHTTPClient")
 		// request the brotli version
 		HTTP.RequestCompression(true, "br");
 		auto sBrotli = HTTP.Get(URL);
+		sBrotli.Trim();
 		CHECK ( HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "br" );
 		CHECK ( sBrotli.starts_with("<!DOCTYPE html>") );
 		CHECK ( sBrotli.ends_with("</html>") );

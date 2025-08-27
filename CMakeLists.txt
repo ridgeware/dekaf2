@@ -581,7 +581,8 @@ endif ()
 # boost asio (header only) needs system and date_time
 # dekaf2's http part needs iostreams
 
-find_package(Boost 1.54 COMPONENTS system iostreams serialization QUIET)
+# starting with boost 1.89 system is no more a component, so remove it here
+find_package(Boost 1.54 COMPONENTS iostreams serialization QUIET)
 
 # following are the boost modules that vcpkg would need for a
 # successful build

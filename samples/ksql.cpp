@@ -228,9 +228,18 @@ int KSql::Diff (KStringViewZ sLeftDBC, KStringViewZ sRightDBC, KStringView sTabl
 		return 1;
 	}
 
+	KString sLeft     {kBasename (sLeftDBC)};  sLeft.TrimRight(".dbc");
+	KString sRight    {kBasename (sRightDBC)}; sRight.TrimRight(".dbc");
+	uint8_t iMax    = (sLeft.size() > sRight.size()) ? sLeft.size() : sRight.size();
+
 	KSQL::DIFF::Diffs diffs;
 	KString           sSummary;
-	auto              iDiffs = LeftDB.DiffSchemas (LeftSchema, RightSchema, diffs, sSummary);
+	auto              iDiffs = LeftDB.DiffSchemas (LeftSchema, RightSchema, diffs, sSummary, {
+	                            {KSQL::DIFF::left_schema,  "left schema"},
+	                            {KSQL::DIFF::left_prefix,  kFormat (":: {:>{}.{}}:",sLeft,iMax,iMax)},
+	                            {KSQL::DIFF::right_schema, "right schema"},
+	                            {KSQL::DIFF::right_prefix, kFormat (":: {:>{}.{}}:",sRight,iMax,iMax)},
+	                           });
 
 	if (sSummary)
 	{

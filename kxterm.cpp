@@ -39,7 +39,6 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kxterm.h"
 #include "kwrite.h"
 #include "kctype.h"
 #include "kutf.h"
@@ -51,6 +50,8 @@
 #else
 	#include <windows.h>
 #endif
+
+#include "kxterm.h" // keep this at the end of includes, it removes a freak RGB definition in windows headers
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -98,7 +99,7 @@ void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWa
 	else
 	{
 		kDebug(3, "setting terminal to line mode with echo");
-		SetConsoleMode(hStdin, mode | (ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
+		SetConsoleMode(hStdin, mode | (ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
 	}
 
 #endif
@@ -619,10 +620,12 @@ KCodePoint KXTerm::ReadEscaped(kutf::ReadIterator& it, const kutf::ReadIterator&
 			break;
 
 		case 'b':
-			return U'∫';
+			return 0x222B;
+//			return U'∫';
 
 		case 'f':
-			return U'ƒ';
+			return 0x0192;
+//			return U'ƒ';
 
 		default:
 			kDebug(2, "ESC {}", char(ch));
@@ -871,7 +874,8 @@ bool KXTerm::EditLine(
 				}
 				break;
 
-			case U'ƒ':  // move forward one word
+//			case U'ƒ':  // move forward one word
+			case 0x0192:
 				if (!IsTerminal() || iPos >= sUnicode.size())
 				{
 					Beep();
@@ -881,7 +885,8 @@ bool KXTerm::EditLine(
 				while (iPos < sUnicode.size() &&  kIsSpace(sUnicode[iPos])) { ++iPos; }
 				break;
 
-			case U'∫':  // move backward one word
+//			case U'∫':  // move backward one word
+			case 0x222B:
 				if (!IsTerminal() || iPos == 0)
 				{
 					Beep();

@@ -369,7 +369,7 @@ KString kGetWhoAmI ()
 	DWORD nSize = MAX;
 	if (GetUserName (szWhoami, &nSize))
 	{
-		kutf::ToUTF8(szWhoami, sWhoami);
+		kutf::Convert(szWhoami, sWhoami);
 	}
 #else
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -454,7 +454,7 @@ KStringViewZ kGetHostname (bool bAllowKHostname/*=true*/)
 				&nSize              // address of size of name buffer
 			);
 
-			kutf::ToUTF8(szHostname, sHostname);
+			kutf::Convert(szHostname, sHostname);
 
 			#else
 
@@ -1492,7 +1492,7 @@ const KString& kGetOwnPathname()
 			GetModuleFileNameW(hModule, wsPath.data(), static_cast<DWORD>(wsPath.size()));
 			wsPath.resize(wcsnlen(wsPath.data(), wsPath.size()));
 
-			sPath = kutf::ToUTF8<KString>(wsPath);
+			kutf::Convert(wsPath, sPath);
 			// the API returns the filename with prefixed "\\?\"
 			sPath.remove_prefix("\\\\?\\");
 		}
@@ -1613,7 +1613,7 @@ KString kGetFileNameFromFileHandle(HANDLE handle)
 
 	sBuffer.resize(dwRet);
 
-	KString sFileName = kutf::ToUTF8<KString>(sBuffer);
+	KString sFileName = kutf::Convert<KString>(sBuffer);
 
 	// the API returns the filename with prefixed "\\?\" (which signals to windows
 	// file APIs that a path name may have up to 2^15 chars instead of 2^8)

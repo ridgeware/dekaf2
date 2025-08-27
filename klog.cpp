@@ -394,6 +394,10 @@ KLog& KLog::SetLevel(int iLevel)
 KLog& KLog::SetName(KStringView sName)
 //---------------------------------------------------------------------------
 {
+#if DEKAF2_IS_WINDOWS
+	sName.remove_suffix(".exe");
+#endif
+
 	if (sName.size() > 5)
 	{
 		sName.erase(5, KStringView::npos);

@@ -52,7 +52,11 @@
 #include "kerror.h"
 
 #ifndef DEKAF2_IS_WINDOWS
-struct termios;
+	struct termios;
+#else
+	#ifdef RGB
+		#undef RGB
+	#endif
 #endif
 
 DEKAF2_NAMESPACE_BEGIN

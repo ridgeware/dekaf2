@@ -95,7 +95,7 @@ KStringView Stream::GetAuthority()
 	{
 		m_sAuthority  = m_URI.Domain;
 
-		if (m_URI.Port != 0)
+		if (m_URI.Port.get() != 0)
 		{
 			m_sAuthority += ':';
 			m_sAuthority += m_URI.Port.Serialize();

@@ -111,8 +111,13 @@ OPTION(DEKAF2_WITH_USER_AGENT_PARSER "build with user agent parser" ON)
 
 # =================================== C++ STANDARD =================================
 
-set(DEKAF2_CXX_STANDARD 20)
-message(STATUS "using C++20")
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	set(DEKAF2_CXX_STANDARD 20)
+	message(STATUS "using C++20")
+else()
+	set(DEKAF2_CXX_STANDARD 17)
+	message(STATUS "using C++17")
+endif()
 
 set(CMAKE_CXX_STANDARD ${DEKAF2_CXX_STANDARD})
 #set(CMAKE_CXX_CLANG_TIDY clang-tidy -checks=-*,readability-*)
@@ -431,7 +436,7 @@ endif()
 # ================================ YAML-CPP ====================================
 
 if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_YAML)
-	find_package(yaml-cpp)
+	find_package(yaml-cpp QUIET)
 	# there is no YAML_CPP_FOUND, so test for the libs
 	if (NOT "${YAML_CPP_LIBRARIES}" STREQUAL "")
 		# yaml-cpp has unfortunately changed over time the way to link to it, and

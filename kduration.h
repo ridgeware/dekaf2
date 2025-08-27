@@ -51,7 +51,7 @@
 #ifndef DEKAF2_IS_WINDOWS
 	#include <sys/time.h> // struct timeval
 #else
-	#include <winsock.h>  // struct timeval
+	#include <Winsock2.h> // struct timeval
 #endif
 
 /// @file kduration.h
@@ -166,10 +166,14 @@ public:
 	constexpr chrono::years             years        () const { return duration<chrono::years>        (); }
 	/// returns struct timespec as duration type
 	DEKAF2_NODISCARD
-	constexpr struct timespec           to_timespec  () const { return { seconds().count(), chrono::nanoseconds(nanoseconds() - seconds()).count()   } ; }
+	constexpr struct timespec           to_timespec  () const { return { seconds().count(), static_cast<int32_t>(chrono::nanoseconds(nanoseconds() - seconds()).count())   } ; }
 	/// returns struct timeval as duration type
 	DEKAF2_NODISCARD
+#if !DEKAF2_IS_WINDOWS
 	constexpr struct timeval            to_timeval   () const { return { seconds().count(), static_cast<int32_t>(chrono::microseconds(microseconds() - seconds()).count()) } ; }
+#else
+	constexpr struct timeval            to_timeval   () const { return { static_cast<int32_t>(seconds().count()), static_cast<int32_t>(chrono::microseconds(microseconds() - seconds()).count()) }; }
+#endif
 
 	/// output format for ToString()
 	enum Format

@@ -78,13 +78,7 @@ uint64_t SSL_Poll(uint64_t what, ::SSL* ssl)
 	poll.desc   = SSL_as_poll_descriptor(ssl);
 	poll.events = what;
 
-	constexpr struct timeval timeout = []
-	{
-		struct timeval tv;
-		tv.tv_sec  = 0;
-		tv.tv_usec = 0;
-		return tv;
-	}();
+	constexpr struct timeval timeout { 0, 0};
 
 	size_t iResults = 0;
 
@@ -184,7 +178,7 @@ KStringView Stream::GetAuthority()
 	{
 		m_sAuthority  = m_URI.Domain;
 
-		if (m_URI.Port != 0)
+		if (m_URI.Port.get() != 0)
 		{
 			m_sAuthority += ':';
 			m_sAuthority += m_URI.Port.Serialize();

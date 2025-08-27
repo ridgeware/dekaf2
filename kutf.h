@@ -312,6 +312,14 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 	#define KUTF_CONSTEXPR_14 inline
 #endif
 
+#if __cplusplus >= 201703L
+	#define KUTF_CONSTEXPR_17 constexpr
+	#define KUTF_CONSTEXPR_IF constexpr
+#else
+	#define KUTF_CONSTEXPR_17 inline
+	#define KUTF_CONSTEXPR_IF
+#endif
+
 #if __cplusplus >= 202002L
 	#define KUTF_CONSTEXPR_20 constexpr
 #else
@@ -2007,7 +2015,7 @@ bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 	constexpr auto iInputWidth  = sizeof(typename std::remove_reference<decltype(*it)>::type);
 	constexpr auto iOutputWidth = sizeof(typename OutType::value_type);
 
-	if (iOutputWidth == 4)
+	if KUTF_CONSTEXPR_IF(iOutputWidth == 4)
 	{
 		using value_type = typename OutType::value_type;
 		auto iOriginalSize = Output.size();

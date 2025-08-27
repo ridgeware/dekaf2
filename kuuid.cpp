@@ -58,6 +58,12 @@ unsigned char* FromUUID(UUID& uuid)
 }
 
 inline
+UUID* ToUUID(const unsigned char* data)
+{
+	return static_cast<UUID*>(const_cast<void*>(static_cast<const void*>(data)));
+}
+
+inline
 UUID* ToUUID(unsigned char* data)
 {
 	return static_cast<UUID*>(static_cast<void*>(data));
@@ -118,7 +124,7 @@ void KUUID::FromString(KStringView sUUID)
 
 #elif DEKAF2_IS_WINDOWS
 
-	if (::UuidFromString(sUUID.data(), ToUUID(m_UUID.data())) != RPC_S_OK)
+	if (::UuidFromStringA(const_cast<unsigned char*>(reinterpret_cast<const unsigned char*>(sUUID.data())), ToUUID(m_UUID.data())) != RPC_S_OK)
 	{
 		clear();
 	}
@@ -206,7 +212,7 @@ bool KUUID::operator==(const KUUID& other) const
 #elif DEKAF2_IS_WINDOWS
 
 	RPC_STATUS status;
-	return ::UuidEqual(ToUUID(m_UUID.data()), toUUID(other.m_UUID.data()), &status);
+	return ::UuidEqual(ToUUID(m_UUID.data()), ToUUID(other.m_UUID.data()), &status);
 
 #endif
 }

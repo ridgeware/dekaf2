@@ -2869,7 +2869,11 @@ operator<<(std::ostream& os, const time_zone& z)
         os << s.format_ << "   ";
         os << s.until_year_ << ' ' << s.until_date_;
         os << "   ";
+#if !DEKAF2_HAS_STD_TIME_STREAM_OPS || __cplusplus < 202002L
         date::operator<<(os, s.until_utc_) << " UTC";
+#else
+        os << s.until_utc_ << " UTC";
+#endif
         os << "   " << s.until_std_ << " STD";
         os << "   " << s.until_loc_;
         os << "   " << make_time(s.initial_save_);

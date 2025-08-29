@@ -111,13 +111,8 @@ OPTION(DEKAF2_WITH_USER_AGENT_PARSER "build with user agent parser" ON)
 
 # =================================== C++ STANDARD =================================
 
-if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	set(DEKAF2_CXX_STANDARD 20)
-	message(STATUS "using C++20")
-else()
-	set(DEKAF2_CXX_STANDARD 17)
-	message(STATUS "using C++17")
-endif()
+set(DEKAF2_CXX_STANDARD 20)
+message(STATUS "using C++20")
 
 set(CMAKE_CXX_STANDARD ${DEKAF2_CXX_STANDARD})
 #set(CMAKE_CXX_CLANG_TIDY clang-tidy -checks=-*,readability-*)

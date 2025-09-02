@@ -71,7 +71,7 @@ bool KQuicStream::Handshake()
 
 	m_bNeedHandshake = false;
 
-	kDebug(3, "trying to connect");
+	kDebug(3, "starting TLS Quic handshake");
 
 	// switch to non-blocking mode for the handshake
 
@@ -377,7 +377,7 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 			continue;
 		}
 
-#if 0
+#if OPENSSL_VERSION_NUMBER >= 0x30400000L
 		// this is currently bugged at least with OpenSSL/MacOS 3.2/3 - simply do not
 		// connect here, will happen later at handshake (using the address set
 		// with ::SSL_set1_initial_peer_addr() below
@@ -388,6 +388,7 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 			m_NativeSocket = -1;
 			continue;
 		}
+
 #endif
 		// set to non-blocking
 		if (!::BIO_socket_nbio(m_NativeSocket, 1))
@@ -433,6 +434,8 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 			return SetError(kFormat("failed to set initial peer address: {}", ipaddress.get()));
 		}
 	}
+
+	kDebug (2, "using endpoint address {}", GetEndPointAddress());
 
 	{
 		// create a BIO to wrap the socket
@@ -487,14 +490,11 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 	if (GetContext().GetRole() == boost::asio::ssl::stream_base::client)
 	{
-#if 0
-		SetALPN("http/1.0");
-#else
-		if (Options & KStreamOptions::RequestHTTP3)
+		if (Options.IsSet(KStreamOptions::RequestHTTP3))
 		{
 			SetRequestHTTP3();
 		}
-#endif
+
 		// start an immediate handshake here
 		if (!Handshake())
 		{

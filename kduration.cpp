@@ -148,7 +148,9 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 
 	}; // PrintFloat
 
+	//-----------------------------------------------------------------------------
 	auto IntervalToString = [](BaseInterval Interval, bool bLong) -> KStringView
+	//-----------------------------------------------------------------------------
 	{
 		if (!bLong)
 		{
@@ -204,6 +206,7 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 	{
 		if (Format == Format::Brief)
 		{
+			if (iPrecision == 1) --iPrecision;
 			PrintFloat(IntervalToString(Interval, false), 0, 1, iPrecision, 0);
 		}
 		else
@@ -257,38 +260,47 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 
 				if (iAbsNanoSecs >= NANOSECS_PER_YEAR || Interval == BaseInterval::Years)
 				{
+					if (iPrecision == 1 && (Interval == BaseInterval::Years || iAbsNanoSecs >= 10 * NANOSECS_PER_YEAR)) --iPrecision;
 					PrintFloat ("y ", iNanoSecs, NANOSECS_PER_YEAR, iPrecision, 0);
 				}
 				else if (iAbsNanoSecs >= NANOSECS_PER_WEEK || Interval == BaseInterval::Weeks)
 				{
+					if (iPrecision == 1 && (Interval == BaseInterval::Weeks || iAbsNanoSecs >= 10 * NANOSECS_PER_WEEK)) --iPrecision;
 					PrintFloat ("w ", iNanoSecs, NANOSECS_PER_WEEK, iPrecision, 0);
 				}
 				else if (iAbsNanoSecs >= NANOSECS_PER_DAY || Interval == BaseInterval::Days)
 				{
+					if (iPrecision == 1 && (Interval == BaseInterval::Days || iAbsNanoSecs >= 10 * NANOSECS_PER_DAY)) --iPrecision;
 					PrintFloat ("d ", iNanoSecs, NANOSECS_PER_DAY, iPrecision, 0);
 				}
 				else if (iAbsNanoSecs >= NANOSECS_PER_HOUR || Interval == BaseInterval::Hours)
 				{
+					if (iPrecision == 1 && (Interval == BaseInterval::Hours || iAbsNanoSecs >= 10 * NANOSECS_PER_HOUR)) --iPrecision;
 					PrintFloat ("h ", iNanoSecs, NANOSECS_PER_HOUR, iPrecision, 0);
 				}
 				else if (iAbsNanoSecs >= NANOSECS_PER_MIN || Interval == BaseInterval::Minutes)
 				{
+					if (iPrecision == 1 && (Interval == BaseInterval::Minutes || iAbsNanoSecs >= 10 * NANOSECS_PER_MIN)) --iPrecision;
 					PrintFloat ("m ", iNanoSecs, NANOSECS_PER_MIN, iPrecision, 0);
 				}
 				else if (iAbsNanoSecs >= NANOSECS_PER_SEC || Interval == BaseInterval::Seconds)
 				{
+					if (iPrecision == 1 && (Interval == BaseInterval::Seconds || iAbsNanoSecs >= 10 * NANOSECS_PER_SEC)) --iPrecision;
 					PrintFloat ("s ", iNanoSecs, NANOSECS_PER_SEC, iPrecision, 0);
 				}
 				else if (iAbsNanoSecs >= NANOSECS_PER_MILLISEC || Interval == BaseInterval::MilliSeconds)
 				{
+					if (iPrecision == 1 && (Interval == BaseInterval::MilliSeconds || iAbsNanoSecs >= 10 * NANOSECS_PER_MILLISEC)) --iPrecision;
 					PrintFloat ("ms", iNanoSecs, NANOSECS_PER_MILLISEC, iPrecision, 0);
 				}
 				else if (iAbsNanoSecs >= NANOSECS_PER_MICROSEC || Interval == BaseInterval::MicroSeconds)
 				{
+					if (iPrecision == 1 && (Interval == BaseInterval::MicroSeconds || iAbsNanoSecs >= 10 * NANOSECS_PER_MICROSEC)) --iPrecision;
 					PrintFloat ("µs", iNanoSecs, NANOSECS_PER_MICROSEC, iPrecision, 0);
 				}
 				else
 				{
+					if (iPrecision == 1 && (Interval == BaseInterval::NanoSeconds || iAbsNanoSecs >= 10)) --iPrecision;
 					PrintFloat ("ns", iNanoSecs, 1, iPrecision, 0);
 				}
 			}

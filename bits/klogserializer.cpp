@@ -216,21 +216,12 @@ void KLogTTYSerializer::AddMultiLineMessage(KStringView sPrefix, KStringView sMe
 void KLogTTYSerializer::Serialize(bool bHiRes)
 //---------------------------------------------------------------------------
 {
-	// desired format:
+	// desired formats:
 	// | WAR | MYPRO | 17202 | 12345 | 2001-08-24 10:37:04 | Function: select count(*) from foo
+	// HiRes:
+	// | 11:34:48 | 55717 |     0 | + 29.0 µ | 337.8  | KHTTPClient::Parse(): HTTP-200 OK
 
-	KString sLevel;
-
-	if (m_iLevel < 0)
-	{
-		sLevel = "WAR";
-	}
-	else
-	{
-		sLevel.Format("DB{}", m_iLevel);
-	}
-
-	auto sPrefix = PrintStatus(sLevel, bHiRes);
+	auto sPrefix = PrintStatus(bHiRes);
 
 	auto PrefixWithoutFunctionSize = sPrefix.size();
 
@@ -265,16 +256,37 @@ void KLogTTYSerializer::Serialize(bool bHiRes)
 } // Serialize
 
 //---------------------------------------------------------------------------
-KString KLogTTYSerializer::PrintStatus(KStringView sLevel, bool bHiRes)
+KString KLogTTYSerializer::LevelAsString()
 //---------------------------------------------------------------------------
 {
-	// desired format:
+	KString sLevel;
+
+	if (m_iLevel < 0)
+	{
+		sLevel = "WAR";
+	}
+	else
+	{
+		sLevel.Format("DB{}", m_iLevel);
+	}
+
+	return sLevel;
+
+} // LevelAsString
+
+//---------------------------------------------------------------------------
+KString KLogTTYSerializer::PrintStatus(bool bHiRes)
+//---------------------------------------------------------------------------
+{
+	// desired formats:
 	// | WAR | MYPRO | 17202 | 12345 | 2001-08-24 10:37:04 |
+	// HiRes:
+	// | 11:34:48 | 55717 |     0 | + 29.0 µ | 337.8  | KHTTPClient::Parse(): HTTP-200 OK
 
 	if (!bHiRes)
 	{
 		return kFormat("| {:3.3s} | {:5.5s} | {:5d} | {:5d} | {:%Y-%m-%d %H:%M:%S} | ",
-					   sLevel, m_sShortName, m_Pid, m_Tid, m_Time);
+					   LevelAsString(), m_sShortName, m_Pid, m_Tid, m_Time);
 	}
 	else
 	{
@@ -309,7 +321,8 @@ KString KLogTTYSerializer::PrintStatus(KStringView sLevel, bool bHiRes)
 		uint64_t iThread = m_Tid < s_iStartThread ? m_Tid + 65535 - s_iStartThread : m_Tid - s_iStartThread;
 #endif
 
-		return kFormat("| {:%H:%M:%S} | {:5d} | {:5d} | + {:>6.6s} | {:>6.6s} | ",
+		return kFormat("|{:2}| {:%H:%M:%S} | {:5d} | {:5d} | + {:>6.6s} | {:>6.6s} | ",
+					   m_iLevel,
 					   m_Time,
 					   m_Pid,
 					   iThread,
@@ -359,14 +372,14 @@ KString KLogHTTPHeaderSerializer::GetTimeStamp(KStringView sWhat)
 } // GetTimeStamp
 
 //---------------------------------------------------------------------------
-KString KLogHTTPHeaderSerializer::PrintStatus(KStringView sLevel, bool bHiRes)
+KString KLogHTTPHeaderSerializer::PrintStatus(bool bHiRes)
 //---------------------------------------------------------------------------
 {
 	// desired format:
 	// | WAR |      12345 |
 
 	auto sMicroseconds = kFormNumber(m_iElapsedMicroSeconds.count());
-	return kFormat("| {:3.3s} | {:>10.10s} | ", sLevel, sMicroseconds);
+	return kFormat("| {:3.3s} | {:>10.10s} | ", LevelAsString(), sMicroseconds);
 
 } // Serialize
 

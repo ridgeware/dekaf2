@@ -150,7 +150,8 @@ protected:
 //----------
 
 	virtual void Serialize(bool bHiRes) override;
-	virtual KString PrintStatus(KStringView sLevel, bool bHiRes);
+	virtual KString PrintStatus(bool bHiRes);
+	KString LevelAsString();
 
 	void AddMultiLineMessage(KStringView sPrefix, KStringView sMessage);
 
@@ -200,7 +201,7 @@ public:
 protected:
 //----------
 
-	virtual KString PrintStatus(KStringView sLevel, bool bHiRes) override;
+	virtual KString PrintStatus(bool bHiRes) override;
 
 	KStopTime m_Clock;
 	std::chrono::microseconds m_iElapsedMicroSeconds { 0 };

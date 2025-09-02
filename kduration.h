@@ -180,7 +180,7 @@ public:
 	{
 		Smart = 0, ///< human readable, auto adapting to value
 		Long,      ///< verbose ("1 yr, 2 wks, 3 days, 6 hrs, 23 min, 10 sec")
-		Brief      ///< brief, auto adapting to value, same size for all ("23.2 ms", "421.3 µs")
+		Brief      ///< brief, auto adapting to value, same size for all ("23.2 ms", "421 µs")
 	};
 
 	/// minimum interval to use for ToString()

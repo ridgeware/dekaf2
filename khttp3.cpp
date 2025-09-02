@@ -1364,10 +1364,13 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 				break;
 			}
 
-			if (!IsReadReady(GetTimeout()))
+			if (!Stream->IsClosed())
 			{
-				kDebug(1, "connection timed out");
-				return iRead;
+				if (!IsReadReady(GetTimeout()))
+				{
+					kDebug(1, "[stream {}] connection timed out", StreamID);
+					return iRead;
+				}
 			}
 		}
 	}

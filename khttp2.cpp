@@ -440,7 +440,9 @@ Stream* Session::GetStream(Stream::ID StreamID)
 
 	if (it == m_Streams.end())
 	{
-		SetError(kFormat("cannot find stream ID {}", StreamID));
+		// do not make this an error - it happens after closing a stream
+		// and a following check if the stream is at eof
+		kDebug(4, "cannot find stream ID {}", StreamID);
 		return nullptr;
 	}
 
@@ -1030,7 +1032,6 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 	if (!Stream)
 	{
-		SetError(kFormat("[stream {}] not found! - cannot read {} bytes", StreamID, len));
 		return -1;
 	}
 
@@ -1054,14 +1055,9 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 			if (Stream->HasRXBuffered())
 			{
-				kDebug(4, "[stream {}] closed, but have still RX data buffered - will not yet delete", StreamID);
+				kDebug(4, "[stream {}] closed, but have still RX data buffered", StreamID);
 			}
-			else
-			{
-				kDebug(4, "[stream {}] closed, no more RX data - will delete and exit", StreamID, iRead);
-				DeleteStream(StreamID);
-				break;
-			}
+			break;
 		}
 
 		if (Stream->GetReceiveBuffer().remaining() == 0)

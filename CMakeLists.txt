@@ -579,6 +579,16 @@ endif ()
 # starting with boost 1.89 system is no more a component, so remove it here
 find_package(Boost 1.54 COMPONENTS iostreams serialization QUIET)
 
+if (Boost_FOUND)
+	if (Boost_VERSION VERSION_LESS 1.89.0 OR Boost_VERSION VERSION_GREATER 1000)
+		# but if we find that the boost version is < 1.89, or greater 1000 (which
+		# represents the old numbering macro back in the days) then repeat the
+		# search and include the system component as well - linking on old versions
+		# will otherwise fail
+		find_package(Boost 1.54 COMPONENTS system iostreams serialization QUIET)
+	endif()
+endif ()
+
 # following are the boost modules that vcpkg would need for a
 # successful build
 #
@@ -591,7 +601,7 @@ find_package(Boost 1.54 COMPONENTS iostreams serialization QUIET)
 
 if (EXISTS "${Boost_INCLUDE_DIR}/multi_index")
 	# vcpackage makes multi_index a component..
-	find_package(Boost 1.54 COMPONENTS multi_index)
+	find_package(Boost 1.54 COMPONENTS system iostreams serialization multi_index QUIET)
 endif()
 
 if (NOT Boost_FOUND)

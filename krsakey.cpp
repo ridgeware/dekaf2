@@ -412,6 +412,22 @@ KString KRSAKey::GetPEM(bool bPrivateKey, KStringView sPassword)
 } // GetPEM
 
 //---------------------------------------------------------------------------
+bool KRSAKey::Load(KStringViewZ sFilename, KStringViewZ sPassword)
+//---------------------------------------------------------------------------
+{
+	return Create(kReadAll(sFilename), sPassword);
+
+} // Load
+
+//---------------------------------------------------------------------------
+bool KRSAKey::Save(KStringViewZ sFilename, bool bPrivateKey, KStringView sPassword)
+//---------------------------------------------------------------------------
+{
+	return kWriteFile(sFilename, GetPEM(bPrivateKey, sPassword), bPrivateKey ? 0600 : 0666);
+
+} // Save
+
+//---------------------------------------------------------------------------
 KRSAKey::Parameters::Parameters(const KJSON& json)
 //---------------------------------------------------------------------------
 	:  n(kjson::GetStringRef(json, "n" ))

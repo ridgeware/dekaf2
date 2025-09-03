@@ -55,6 +55,64 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+//---------------------------------------------------------------------------
+KUnixTime from_ASN1_time(const ASN1_TIME* asn1_time)
+//---------------------------------------------------------------------------
+{
+	if (!asn1_time || !asn1_time->data || asn1_time->length < 13) return {};
+
+	KStringView sTime(reinterpret_cast<const char*>(asn1_time->data), asn1_time->length);
+
+	KStringView sFormat = "YYYYMMDDhhmmss";
+
+	if (sTime.size() > 14 && sTime[14] == 'Z')
+	{
+		sTime = sTime.Left(14);
+	}
+	else if (sTime[12] == 'Z')
+	{
+		sFormat.remove_prefix(2);
+		sTime = sTime.Left(12);
+	}
+	else
+	{
+		// error
+		return {};
+	}
+
+	return kParseTimestamp(sFormat, sTime);
+
+} // from_ASN1_time
+
+#if 0
+
+// this only works starting with openssl 1.1.1, and it outputs into struct tm
+// so we go with our own code atm
+
+//---------------------------------------------------------------------------
+KUnixTime from_ASN1_time(const ASN1_TIME* asn1_time)
+//---------------------------------------------------------------------------
+{
+	if (asn1_time)
+	{
+		struct tm tm;
+
+		if (ASN1_TIME_to_tm(asn1_time, &tm))
+		{
+			return KUnixTime::from_tm(tm);
+		}
+	}
+
+	return {};
+
+} // from_ASN1_time
+
+#endif
+
+} // end of anonymous namespace
+
 //---------------------------------------------------------------------------
 KRSACert::KRSACert(KRSACert&& other) noexcept
 //---------------------------------------------------------------------------
@@ -121,7 +179,7 @@ bool KRSACert::Create
 	if (ValidFrom.time_since_epoch().count() == 0)
 	{
 		// validity starts now
-		if (!::X509_gmtime_adj(X509_get_notBefore(m_X509Cert), 0))
+		if (!::X509_gmtime_adj(X509_getm_notBefore(m_X509Cert), 0))
 		{
 			return SetError(KDigest::GetOpenSSLError("error setting start time to now"));
 		}
@@ -129,16 +187,16 @@ bool KRSACert::Create
 	else
 	{
 		// validity starts at a certain point in time
-		if (!::X509_gmtime_adj(X509_get_notBefore(m_X509Cert), (ValidFrom - KUnixTime::now()).seconds().count()))
+		if (!::X509_gmtime_adj(X509_getm_notBefore(m_X509Cert), (ValidFrom - KUnixTime::now()).seconds().count()))
 		{
-			return SetError(KDigest::GetOpenSSLError("error setting start time"));
+			return SetError(KDigest::GetOpenSSLError(kFormat("error setting start time to {:}", ValidFrom)));
 		}
 	}
 
 	// validity ends at timepoint
-	if (!::X509_gmtime_adj(X509_get_notAfter(m_X509Cert), ValidFor.seconds().count()))
+	if (!::X509_gmtime_adj(X509_getm_notAfter(m_X509Cert), ValidFor.seconds().count()))
 	{
-		return SetError(KDigest::GetOpenSSLError("error setting validity"));
+		return SetError(KDigest::GetOpenSSLError(kFormat("error setting validity to {}", ValidFor)));
 	}
 
 	// public key for cert
@@ -170,11 +228,39 @@ bool KRSACert::Create
 	}
 
 	// sign the certificate
-	if (!::X509_sign(m_X509Cert, Key.GetEVPPKey(), EVP_sha1()))
+	if (!::X509_sign(m_X509Cert, Key.GetEVPPKey(),
+#if OPENSSL_VERSION_NUMBER >= 0x010101000
+		EVP_sha3_256()
+#else
+		EVP_sha1()
+#endif
+	))
 	{
-		SetError(KDigest::GetOpenSSLError("error signing cert"));
-		clear();
-		return false;
+		return SetError(KDigest::GetOpenSSLError("error signing cert"));
+	}
+
+	return true;
+
+} // Create
+
+//---------------------------------------------------------------------------
+bool KRSACert::Create(KStringView sPEMCert)
+//---------------------------------------------------------------------------
+{
+	clear();
+
+	KUniquePtr<BIO, ::BIO_free_all> cert_bio(::BIO_new(::BIO_s_mem()));
+
+	if (static_cast<size_t>(::BIO_write(cert_bio.get(), sPEMCert.data(), static_cast<int>(sPEMCert.size()))) != sPEMCert.size())
+	{
+		return SetError(KDigest::GetOpenSSLError("cannot load cert"));
+	}
+
+	m_X509Cert = ::PEM_read_bio_X509(cert_bio.get(), nullptr, nullptr, nullptr);
+
+	if (!m_X509Cert)
+	{
+		return SetError(KDigest::GetOpenSSLError("cannot load cert"));
 	}
 
 	return true;
@@ -223,5 +309,61 @@ KString KRSACert::GetPEM()
 	return sPEMCert;
 
 } // GetPEM
+
+//---------------------------------------------------------------------------
+bool KRSACert::Load(KStringViewZ sFilename)
+//---------------------------------------------------------------------------
+{
+	return Create(kReadAll(sFilename));
+
+} // Load
+
+//---------------------------------------------------------------------------
+bool KRSACert::Save(KStringViewZ sFilename)
+//---------------------------------------------------------------------------
+{
+	return kWriteFile(sFilename, GetPEM());
+
+} // Save
+
+//---------------------------------------------------------------------------
+KUnixTime KRSACert::ValidFrom() const
+//---------------------------------------------------------------------------
+{
+	if (m_X509Cert)
+	{
+		return from_ASN1_time(X509_get0_notBefore(m_X509Cert));
+	}
+
+	return {};
+
+} // ValidFrom
+
+//---------------------------------------------------------------------------
+KUnixTime KRSACert::ValidUntil() const
+//---------------------------------------------------------------------------
+{
+	if (m_X509Cert)
+	{
+		return from_ASN1_time(X509_get0_notAfter(m_X509Cert));
+	}
+
+	return {};
+
+} // ValidUntil
+
+//---------------------------------------------------------------------------
+bool KRSACert::IsValidAt(KUnixTime Time) const
+//---------------------------------------------------------------------------
+{
+	return (ValidFrom() <= Time && ValidUntil() >= Time);
+}
+
+//---------------------------------------------------------------------------
+bool KRSACert::IsValidNow() const
+//---------------------------------------------------------------------------
+{
+	return IsValidAt(KUnixTime::now());
+}
 
 DEKAF2_NAMESPACE_END

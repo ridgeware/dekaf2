@@ -133,7 +133,7 @@ public:
 	{
 		return Create(Parameters(json));
 	}
-	/// create the key from a PEM string
+	/// get the key from a PEM string
 	/// @param sPEMKey the string containing the PEM key
 	/// @param sPassword the password to read the PEM key, defaults to no password
 	/// @return true if the key could be read, false otherwise
@@ -144,6 +144,10 @@ public:
 	bool IsPrivateKey() const { return m_bIsPrivateKey; }
 	/// get either the public or private key as a PEM string
 	KString GetPEM(bool bPrivateKey, KStringView sPassword = KStringView{});
+	/// load key from file (PEM format)
+	bool Load(KStringViewZ sFilename, KStringViewZ sPassword = KStringViewZ{});
+	/// save key to file (PEM format)
+	bool Save(KStringViewZ sFilename, bool bPrivateKey, KStringView sPassword = KStringView{});
 
 //------
 private:

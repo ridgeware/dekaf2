@@ -68,6 +68,7 @@ public:
 	/// default ctor
 	KRSACert() = default;
 
+	/// construct with a new cert
 	KRSACert
 	(
 		const KRSAKey& Key,
@@ -79,6 +80,13 @@ public:
 	)
 	{
 		Create(Key, sDomain, sCountryCode, sOrganization, ValidFor, ValidFrom);
+	}
+
+	/// construct the cert from a PEM string
+	/// @param sPEMCert the string containing the PEM cert
+	KRSACert(KStringView sPEMCert)
+	{
+		Create(sPEMCert);
 	}
 
 	KRSACert(const KRSACert& other) = delete;
@@ -102,7 +110,11 @@ public:
 	/// create a new cert
 	/// @param Key a KRSAKey used for signing
 	/// @param sDomain the domain validated by the cert
-	/// @param sCountryCode
+	/// @param sCountryCode a 2-letter country code
+	/// @param sOrganization an organization name, company name, default empty
+	/// @param ValidFor a duration for the cert's validity, default 1 year
+	/// @param ValidFrom the start time for the cert's validity, default now
+	/// @returns false on error, true otherwise
 	bool Create
 	(
 		const KRSAKey& Key,
@@ -112,11 +124,27 @@ public:
 		KDuration      ValidFor      = chrono::years(1),
 		KUnixTime      ValidFrom     = KUnixTime()
 	);
+	/// get the cert from a PEM string
+	bool Create(KStringView sPEMCert);
 
 	/// get the cert, may return nullptr in case of error or default construction
 	x509_st* GetCert() const;
 	/// get the cert as a PEM string
 	KString GetPEM();
+
+	/// load cert from file (PEM format)
+	bool Load(KStringViewZ sFilename);
+	/// save cert to file (PEM format)
+	bool Save(KStringViewZ sFilename);
+
+	/// return time from which on this cert is valid
+	KUnixTime ValidFrom() const;
+	/// return time until which this cert is valid
+	KUnixTime ValidUntil() const;
+	/// checks if a cert is valid at a certain timepoint
+	bool IsValidAt(KUnixTime Time) const;
+	/// checks if a cert is valid now
+	bool IsValidNow() const;
 
 //------
 private:

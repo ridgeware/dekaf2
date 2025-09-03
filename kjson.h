@@ -91,6 +91,17 @@
 // disable _json literals in global namespace
 #define JSON_USE_GLOBAL_UDLS 0
 
+#ifdef DEKAF2_HAS_INCOMPLETE_CPP_17
+	// this is needed for some gcc 6.x versions which do
+	// have a __cplusplus > 201402L but do not support
+	// all C++17 features, e.g. no <optional> and inline
+	// variables - nlohmann::json starting with v3.12.0
+	// would break the build on those old gcc by its own
+	// C++ detection - we override it here
+	#define JSON_HAS_CPP_14
+	#define JSON_HAS_CPP_11
+#endif
+
 #include <nlohmann/json.hpp>
 
 #include "kstring.h"

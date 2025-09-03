@@ -1229,6 +1229,7 @@ set(PUBLIC_HEADERS
 	kron.h
 	krow.h
 	krsa.h
+	krsacert.h
 	krsakey.h
 	krsasign.h
 	kscopeguard.h
@@ -1496,6 +1497,7 @@ set (SOURCES
 	kron.cpp
 	krow.cpp
 	krsa.cpp
+	krsacert.cpp
 	krsakey.cpp
 	krsasign.cpp
 	ksharedmemory.cpp

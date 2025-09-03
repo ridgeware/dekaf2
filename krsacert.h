@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter(tm)
  //
- // Copyright (c) 2019, Ridgeware, Inc.
+ // Copyright (c) 2025, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -42,20 +42,22 @@
 
 #pragma once
 
-/// @file krsakey.h
-/// RSA key conversions
+/// @file krsacert.h
+/// create an x509 cert with KRSAKey
 
 #include "kstringview.h"
-#include "kjson.h"
 #include "kerror.h"
+#include "krsakey.h"
+#include "ktime.h"
+#include "kduration.h"
 
-struct evp_pkey_st;
+struct x509_st;
 
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// RSA key class to transform formats, holds either a private or a public key
-class DEKAF2_PUBLIC KRSAKey : public KErrorBase
+/// RSA key class to create an x509 cert signed by a KRSAKey
+class DEKAF2_PUBLIC KRSACert : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -63,94 +65,64 @@ class DEKAF2_PUBLIC KRSAKey : public KErrorBase
 public:
 //------
 
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// Parameter struct to create an RSA key
-	struct Parameters
-	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	{
-		/// constructs the parameter set from a json node
-		Parameters(const KJSON& json);
-
-		KStringView n;
-		KStringView e;
-		KStringView d;
-		KStringView p;
-		KStringView q;
-		KStringView dp;
-		KStringView dq;
-		KStringView qi;
-	};
-
 	/// default ctor
-	KRSAKey() = default;
-	/// construct a new key with the given keylen - choose values from 1024 to 16384, probably as power of 2
-	KRSAKey(uint16_t iKeylen)
+	KRSACert() = default;
+
+	KRSACert
+	(
+		const KRSAKey& Key,
+		KStringView    sDomain,
+		KStringView    sCountryCode,
+		KStringView    sOrganization = "",
+		KDuration      ValidFor      = chrono::years(1),
+		KUnixTime      ValidFrom     = KUnixTime()
+	)
 	{
-		Create(iKeylen);
+		Create(Key, sDomain, sCountryCode, sOrganization, ValidFor, ValidFrom);
 	}
-	/// construct the key from parameters
-	KRSAKey(const Parameters& parms)
-	{
-		Create(parms);
-	}
-	/// construct the key from JSON
-	KRSAKey(const KJSON& json)
-	{
-		Create(json);
-	}
-	/// construct the key from a PEM string
-	/// @param sPEMKey the string containing the PEM key
-	/// @param sPassword the password to read the PEM key, defaults to no password
-	KRSAKey(KStringView sPEMKey, KStringViewZ sPassword = KStringViewZ{})
-	{
-		Create(sPEMKey, sPassword);
-	}
-	/// copy construction
-	KRSAKey(const KRSAKey&) = delete;
-	/// move construction
-	KRSAKey(KRSAKey&& other) noexcept;
+
+	KRSACert(const KRSACert& other) = delete;
+	KRSACert(KRSACert&& other) noexcept;
 	// dtor
-	~KRSAKey()
+	~KRSACert()
 	{
 		clear();
 	}
 
 	/// copy assignment
-	KRSAKey& operator=(const KRSAKey&) = delete;
+	KRSACert& operator=(const KRSACert&) = delete;
 	/// move assignment
-	KRSAKey& operator=(KRSAKey&& other) noexcept;
+	KRSACert& operator=(KRSACert&& other) noexcept;
 
-	/// reset the key
+	/// reset the cert
 	void clear();
-	/// test if key is set
-	bool empty() const { return !m_EVPPKey; }
-	/// create a new key with len keylen - choose values from 1024 to 16384, probably as power of 2
-	bool Create(uint16_t iKeylen);
-	/// create the key from parameters
-	bool Create(const Parameters& parms);
-	/// create the key from JSON
-	bool Create(const KJSON& json)
-	{
-		return Create(Parameters(json));
-	}
-	/// create the key from a PEM string
-	/// @param sPEMKey the string containing the PEM key
-	/// @param sPassword the password to read the PEM key, defaults to no password
-	/// @return true if the key could be read, false otherwise
-	bool Create(KStringView sPEMKey, KStringViewZ sPassword = KStringViewZ{});
-	/// get the key, may return nullptr in case of error or default construction
-	evp_pkey_st* GetEVPPKey() const;
-	/// is this a private key?
-	bool IsPrivateKey() const { return m_bIsPrivateKey; }
-	/// get either the public or private key as a PEM string
-	KString GetPEM(bool bPrivateKey, KStringView sPassword = KStringView{});
+	/// test if cert is set
+	bool empty() const { return !m_X509Cert; }
+
+	/// create a new cert
+	/// @param Key a KRSAKey used for signing
+	/// @param sDomain the domain validated by the cert
+	/// @param sCountryCode
+	bool Create
+	(
+		const KRSAKey& Key,
+		KStringView    sDomain,
+		KStringView    sCountryCode,
+		KStringView    sOrganization = "",
+		KDuration      ValidFor      = chrono::years(1),
+		KUnixTime      ValidFrom     = KUnixTime()
+	);
+
+	/// get the cert, may return nullptr in case of error or default construction
+	x509_st* GetCert() const;
+	/// get the cert as a PEM string
+	KString GetPEM();
 
 //------
 private:
 //------
 
-	evp_pkey_st* m_EVPPKey       { nullptr }; // is a EVP_PKEY
-	bool         m_bIsPrivateKey { false   };
+	x509_st* m_X509Cert { nullptr };
 
 }; // KRSAKey
 

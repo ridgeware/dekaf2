@@ -356,7 +356,7 @@ evp_pkey_st* KRSAKey::GetEVPPKey() const
 } // GetEVPPKey
 
 //---------------------------------------------------------------------------
-KString KRSAKey::GetPEM(bool bPrivateKey, KStringViewZ sPassword)
+KString KRSAKey::GetPEM(bool bPrivateKey, KStringView sPassword)
 //---------------------------------------------------------------------------
 {
 	KString sPEMKey;
@@ -379,7 +379,7 @@ KString KRSAKey::GetPEM(bool bPrivateKey, KStringViewZ sPassword)
 		{
 			if (sPassword.size() <= std::numeric_limits<int>::max())
 			{
-				keystr = reinterpret_cast<unsigned char*>(const_cast<KStringViewZ::value_type*>(&sPassword[0]));
+				keystr = reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sPassword[0]));
 				keylen = static_cast<int>(sPassword.size());
 			}
 		}

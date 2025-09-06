@@ -63,7 +63,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.79 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.80 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1927,6 +1927,9 @@ if (DEKAF2_INSTALL_BIN)
 	add_executable(krypt samples/krypt.cpp)
 	target_link_libraries(krypt dekaf2${DEKAF2_LINK_SHARED})
 
+	add_executable(ktunnel samples/ktunnel.cpp samples/ktunnel.h)
+	target_link_libraries(ktunnel dekaf2${DEKAF2_LINK_SHARED})
+
 	add_executable(statinfo samples/statinfo.cpp)
 	target_link_libraries(statinfo dekaf2${DEKAF2_LINK_SHARED})
 
@@ -2113,7 +2116,7 @@ endif() # DEKAF2_INSTALL_LIB
 
 if (DEKAF2_INSTALL_BIN)
 
-	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql krypt statinfo DESTINATION ${dekaf2_bin_dest})
+	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql krypt ktunnel statinfo DESTINATION ${dekaf2_bin_dest})
 	if (DEKAF2_HAS_NCURSES)
 		install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
 	endif()

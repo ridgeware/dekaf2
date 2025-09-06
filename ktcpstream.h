@@ -165,6 +165,10 @@ public:
 		return m_Stream.ec.value() == 0;
 	}
 
+	//-----------------------------------------------------------------------------
+	std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) override final;
+	//-----------------------------------------------------------------------------
+
 //----------
 private:
 //----------

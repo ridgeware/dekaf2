@@ -189,7 +189,7 @@ bool KRSACert::Create
 		// validity starts at a certain point in time
 		if (!::X509_gmtime_adj(X509_getm_notBefore(m_X509Cert), (ValidFrom - KUnixTime::now()).seconds().count()))
 		{
-			return SetError(KDigest::GetOpenSSLError(kFormat("error setting start time to {:}", ValidFrom)));
+			return SetError(KDigest::GetOpenSSLError(kFormat("error setting start time to {:%F %T}", ValidFrom)));
 		}
 	}
 

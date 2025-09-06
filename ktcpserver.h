@@ -77,6 +77,7 @@
 #include "kthreadpool.h"
 #include "khttp_version.h"
 #include "kstreamoptions.h"
+#include "kiostreamsocket.h"
 #include "kerror.h"
 #include <cinttypes>
 #include <thread>
@@ -272,13 +273,25 @@ protected:
 	/// Virtual hook to override with a completely new session management logic
 	/// (either calling Accept(), CreateParameters(), Init() and Request() below,
 	/// or anything else)
-	virtual void Session(KStream& stream, KStringView sRemoteEndPoint, int iSocketFd);
+	virtual void Session(KIOStreamSocket& stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Virtual hook that is called immediately after accepting a new stream.
 	/// Default does nothing. Could be used to set stream parameters. If
 	/// return value is false connection is terminated.
+	virtual bool Accepted(KIOStreamSocket& stream);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// DEPRECATED
+	/// this is the old signature for the Session method - avoid it and use the new signature with KIOStreamSocket
+	virtual void Session(KStream& stream, KStringView sRemoteEndPoint, int iSocketFd);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// DEPRECATED
+	/// this is the old signature for the Accepted method - avoid it and use the new signature with KIOStreamSocket
 	virtual bool Accepted(KStream& stream, KStringView sRemoteEndPoint);
 	//-----------------------------------------------------------------------------
 
@@ -360,7 +373,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	void RunSession(KStream& stream, KString sRemoteEndPoint, int iSocketFd);
+	void RunSession(KIOStreamSocket& stream);
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP

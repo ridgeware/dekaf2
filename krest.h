@@ -196,7 +196,7 @@ private:
 		}
 
 		//-----------------------------------------------------------------------------
-		void Session (KStream& Stream, KStringView sRemoteEndpoint, int iSocketFd) override final;
+		void Session (KIOStreamSocket& Stream) override final;
 		//-----------------------------------------------------------------------------
 
 	//----------

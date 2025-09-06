@@ -498,16 +498,25 @@ bool KIOStreamSocket::SetSSLError()
 } // SetSSLError
 
 //-----------------------------------------------------------------------------
-bool KIOStreamSocket::CheckIfReady(int what, KDuration Timeout)
+int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	if (what & POLLIN)
 	{
-		auto SSL = GetNativeTLSHandle();
-
-		if (SSL && ::SSL_pending(SSL) > 0)
+		if (IsTLS())
 		{
-			return true;
+			auto SSL = GetNativeTLSHandle();
+
+			if (SSL)
+			{
+				auto iReady = ::SSL_pending(SSL);
+
+				if (iReady > 0)
+				{
+					kDebug(3, "have SSL bytes: {}", iReady);
+					return POLLIN;
+				}
+			}
 		}
 	}
 
@@ -523,8 +532,8 @@ bool KIOStreamSocket::CheckIfReady(int what, KDuration Timeout)
 		return SetErrnoError("error during poll: ");
 	}
 
-	// data available
-	return true;
+	// event(s) triggered
+	return iResult;
 
 } // CheckIfReady
 

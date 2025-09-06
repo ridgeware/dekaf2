@@ -79,7 +79,6 @@ int kPoll(int handle, int what, KDuration Timeout)
 			if (errno == EAGAIN)
 			{
 				// interrupt
-				kDebug(2, "have an EAGAIN ..");
 				continue;
 			}
 			return errno;

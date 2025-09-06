@@ -102,15 +102,21 @@ public:
 	/// Disconnect the stream
 	virtual bool Disconnect() = 0;
 
+	/// is this stream open
 	virtual bool is_open() const = 0;
 
 	/// tests for a closed connection of the remote side by trying to peek one byte
 	virtual bool IsDisconnected() = 0;
 
-	/// Gets the underlying OS level native socket of the stream
+	/// gets the underlying OS level native socket of the stream
 	virtual native_socket_type GetNativeSocket() = 0;
 
+	/// is this stream good for reading and writing?
 	virtual bool Good() const = 0;
+
+	/// read directly from the stream, not using the std::streambuf hierarchy - returns only as many characters as
+	/// are immediately available - do not mix these reads with streambuf based reads, they are not synchronized
+	virtual std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) = 0;
 
 	// ------ the virtual methods that can be implemented by a child -------
 
@@ -204,10 +210,10 @@ public:
 	bool IsWriteReady()                          { return CheckIfReady(POLLOUT, m_Timeout); }
 	/// can we write to this stream? Returns with false after specified timeout
 	bool IsWriteReady(KDuration Timeout)         { return CheckIfReady(POLLOUT, Timeout  ); }
-	/// check any ::poll() flag with the general timeout
-	bool CheckIfReady(int what)                  { return CheckIfReady(what,    m_Timeout); }
-	/// check any ::poll() flag with the specified timeout
-	bool CheckIfReady(int what, KDuration Timeout);
+	/// check any ::poll() flag with the general timeout - returns 0 or the event(s) that triggered
+	int CheckIfReady(int what)                   { return CheckIfReady(what,    m_Timeout); }
+	/// check any ::poll() flag with the specified timeout - returns 0 or the event(s) that triggered
+	int CheckIfReady(int what, KDuration Timeout);
 
 	// ------ static factory methods -------
 
@@ -335,6 +341,7 @@ public:
 	virtual bool IsDisconnected() override final { return !is_open(); }
 	virtual native_socket_type GetNativeSocket() override final { return -1; }
 	virtual bool Good() const override final { return good(); }
+	virtual std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) override final { return -1; };
 
 }; // KStreamSocketAdaptor
 

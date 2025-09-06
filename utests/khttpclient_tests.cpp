@@ -38,7 +38,7 @@ public:
 
 protected:
 
-	virtual bool Accepted(KStream& stream, KStringView sRemoteEndpoint) override
+	virtual bool Accepted(KIOStreamSocket& stream) override
 	{
 		stream.SetReaderRightTrim("\r\n");
 		stream.SetWriterEndOfLine("\r\n");

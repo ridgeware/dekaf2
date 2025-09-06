@@ -50,7 +50,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, int iSocketFd)
+void KREST::RESTServer::Session (KIOStreamSocket& Stream)
 //-----------------------------------------------------------------------------
 {
 	KRESTServer RESTServer(m_Routes, m_Options);
@@ -72,13 +72,13 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 				m_Options.DisconnectCallback(iParam);
 			}
 		};
-		m_SocketWatch.Add(iSocketFd, std::move(Params));
+		m_SocketWatch.Add(Stream.GetNativeSocket(), std::move(Params));
 	}
 
 #endif
 
 	RESTServer.Accept(Stream,
-				   sRemoteEndpoint,
+				   Stream.GetEndPointAddress().Serialize(),
 				   IsTLS() ? url::KProtocol::HTTPS : url::KProtocol::HTTP,
 				   GetPort());
 
@@ -125,7 +125,7 @@ void KREST::RESTServer::Session (KStream& Stream, KStringView sRemoteEndpoint, i
 			// it has already been removed from the watch
 			if (!RESTServer.IsDisconnected())
 			{
-				m_SocketWatch.Remove(iSocketFd);
+				m_SocketWatch.Remove(Stream.GetNativeSocket());
 			}
 		}
 #endif

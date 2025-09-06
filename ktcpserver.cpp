@@ -116,7 +116,15 @@ static KString to_string(const endpoint_type& endpoint)
 }
 
 //-----------------------------------------------------------------------------
+// deprecated signature
 bool KTCPServer::Accepted(KStream& stream, KStringView sRemoteEndPoint)
+//-----------------------------------------------------------------------------
+{
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::Accepted(KIOStreamSocket& stream)
 //-----------------------------------------------------------------------------
 {
 	return true;
@@ -137,6 +145,7 @@ KString KTCPServer::Request(KStringRef& qstr, Parameters& parameters)
 }
 
 //-----------------------------------------------------------------------------
+// deprecated signature
 void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint, int iSocketFd)
 //-----------------------------------------------------------------------------
 {
@@ -167,7 +176,15 @@ void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint, int iSock
 } // Session
 
 //-----------------------------------------------------------------------------
-void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint, int iSocketFd)
+void KTCPServer::Session(KIOStreamSocket& stream)
+//-----------------------------------------------------------------------------
+{
+	Session(stream, stream.GetEndPointAddress().Serialize(), stream.GetNativeSocket());
+
+} // Session
+ 
+//-----------------------------------------------------------------------------
+void KTCPServer::RunSession(KIOStreamSocket& stream)
 //-----------------------------------------------------------------------------
 {
 	// make sure we adjust this thread's log level to the global log level,
@@ -178,13 +195,13 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint, int iSocke
 	if (!m_iPort)
 	{
 		kDebug(3, "accepting new unix socket connection from {}",
-			   sRemoteEndPoint);
+			   stream.GetEndPointAddress());
 	}
 	else
 #endif
 	{
 		kDebug(3, "accepting new TCP connection from {} on port {}",
-			   sRemoteEndPoint,
+			   stream.GetEndPointAddress(),
 			   m_iPort);
 	}
 
@@ -192,7 +209,7 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint, int iSocke
 	{
 		// run the actual Session code protected by
 		// an exception handler
-		Session(stream, sRemoteEndPoint, iSocketFd);
+		Session(stream);
 	}
 	
 	DEKAF2_CATCH(const std::exception& e)
@@ -218,13 +235,13 @@ void KTCPServer::RunSession(KStream& stream, KString sRemoteEndPoint, int iSocke
 	if (!m_iPort)
 	{
 		kDebug(3, "closing unix socket connection with {}",
-			   sRemoteEndPoint);
+			   stream.GetEndPointAddress());
 	}
 	else
 #endif
 	{
 		kDebug(3, "closing TCP connection with {} on port {}",
-			   sRemoteEndPoint,
+			   stream.GetEndPointAddress(),
 			   m_iPort);
 	}
 
@@ -377,14 +394,14 @@ bool KTCPServer::TCPServer(bool ipv6)
 			m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 			{
 #endif
-				RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetNativeSocket());
+				RunSession(*moved_stream);
 				// the thread pool keeps the object alive until it is
 				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
 				moved_stream->Disconnect();
 #if 0
 				// for now hide this library debug output
-				kDebug(1, "ssl task pool size: {}, idle threads: {} total threads: {}",
+				kDebug(1, "TLS task pool size: {}, idle threads: {} total threads: {}",
 					   m_ThreadPool.n_queued(),
 					   m_ThreadPool.n_idle(),
 					   m_ThreadPool.size());
@@ -433,14 +450,14 @@ bool KTCPServer::TCPServer(bool ipv6)
 			m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
 			{
 #endif
-				RunSession(*moved_stream, to_string(remote_endpoint), moved_stream->GetNativeSocket());
+				RunSession(*moved_stream);
 				// the thread pool keeps the object alive until it is
 				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection
 				moved_stream->Disconnect();
 #if 0
 				// for now hide this library debug output
-				kDebug(1, "task pool size: {}, idle threads: {} total threads: {}",
+				kDebug(1, "TCP task pool size: {}, idle threads: {} total threads: {}",
 					   m_ThreadPool.n_queued(),
 					   m_ThreadPool.n_idle(),
 					   m_ThreadPool.size());
@@ -539,6 +556,8 @@ bool KTCPServer::UnixServer()
 
 			kDebug(2, "accepting connection from local unix socket");
 
+			stream->SetConnectedEndPointAddress(m_sSocketFile);
+
 #if !DEKAF2_HAS_CPP_14
 			// unfortunately C++11 does not know how to move a variable into a lambda scope
 			auto* Stream = stream.release();
@@ -549,7 +568,7 @@ bool KTCPServer::UnixServer()
 			m_ThreadPool.push([ this, moved_stream = std::move(stream) ]()
 			{
 #endif
-				RunSession(*moved_stream, m_sSocketFile, moved_stream->GetNativeSocket());
+				RunSession(*moved_stream);
 				// the thread pool keeps the object alive until it is
 				// overwritten in round-robin, therefore we have to call
 				// Disconnect explicitly now to shut down the connection

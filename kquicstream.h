@@ -174,7 +174,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount);
+	std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) override final;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

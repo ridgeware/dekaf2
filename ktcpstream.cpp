@@ -47,6 +47,25 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
+std::streamsize KTCPStream::direct_read_some(void* sBuffer, std::streamsize iCount)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iRead { 0 };
+
+	GetAsioSocket().async_read_some(boost::asio::buffer(sBuffer, iCount),
+	[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+	{
+		m_Stream.ec = ec;
+		iRead = bytes_transferred;
+	});
+
+	m_Stream.RunTimed();
+
+	return iRead;
+
+} // direct_read_some
+
+//-----------------------------------------------------------------------------
 std::streamsize KTCPStream::TCPStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
@@ -59,14 +78,7 @@ std::streamsize KTCPStream::TCPStreamReader(void* sBuffer, std::streamsize iCoun
 	{
 		auto& IOStream = *static_cast<KTCPStream*>(stream_);
 
-		IOStream.m_Stream.Socket.async_read_some(boost::asio::buffer(sBuffer, iCount),
-		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
-		{
-			IOStream.m_Stream.ec = ec;
-			iRead = bytes_transferred;
-		});
-
-		IOStream.m_Stream.RunTimed();
+		iRead = IOStream.direct_read_some(sBuffer, iCount);
 
 #ifdef DEKAF2_WITH_KLOG
 		if (iRead == 0 || IOStream.m_Stream.ec.value() != 0 || !IOStream.m_Stream.Socket.is_open())

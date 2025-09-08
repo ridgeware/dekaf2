@@ -498,7 +498,7 @@ bool KIOStreamSocket::SetSSLError()
 } // SetSSLError
 
 //-----------------------------------------------------------------------------
-int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout)
+int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAnError)
 //-----------------------------------------------------------------------------
 {
 	if (what & POLLIN)
@@ -520,20 +520,32 @@ int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout)
 		}
 	}
 
-	auto iResult = kPoll(GetNativeSocket(), what, Timeout);
-
-	if (iResult == 0)
+	for (;;)
 	{
-		// timed out, no events
-		return SetError(kFormat("connection with {} timed out after {}", GetEndPoint(), Timeout));
-	}
-	else if (iResult < 0)
-	{
-		return SetErrnoError("error during poll: ");
-	}
+		auto iResult = kPoll(GetNativeSocket(), what, Timeout);
 
-	// event(s) triggered
-	return iResult;
+		if (iResult == 0)
+		{
+			// timed out, no events
+			if (bTimeoutIsAnError)
+			{
+				SetError(kFormat("connection with {} timed out after {}", GetEndPoint(), Timeout));
+			}
+			return 0;
+		}
+		else if (iResult < 0)
+		{
+			if (errno != EINTR)
+			{
+				continue;
+			}
+			SetErrnoError("error during poll: ");
+			return 0;
+		}
+
+		// event(s) triggered
+		return iResult;
+	}
 
 } // CheckIfReady
 

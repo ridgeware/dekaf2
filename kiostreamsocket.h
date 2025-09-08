@@ -203,17 +203,19 @@ public:
 	KStringView GetALPN();
 
 	/// can we read from this stream? Returns with false after general timeout
-	bool IsReadReady()                           { return CheckIfReady(POLLIN,  m_Timeout); }
+	bool IsReadReady()                           { return CheckIfReady(POLLIN,  m_Timeout, true); }
 	/// can we read from this stream? Returns with false after specified timeout
-	bool IsReadReady(KDuration Timeout)          { return CheckIfReady(POLLIN,  Timeout  ); }
+	bool IsReadReady(KDuration Timeout, bool bTimeoutIsAnError = false)
+	                                { return CheckIfReady(POLLIN,  Timeout , bTimeoutIsAnError ); }
 	/// can we write to this stream? Returns with false after general timeout
-	bool IsWriteReady()                          { return CheckIfReady(POLLOUT, m_Timeout); }
+	bool IsWriteReady()                          { return CheckIfReady(POLLOUT, m_Timeout, true); }
 	/// can we write to this stream? Returns with false after specified timeout
-	bool IsWriteReady(KDuration Timeout)         { return CheckIfReady(POLLOUT, Timeout  ); }
+	bool IsWriteReady(KDuration Timeout, bool bTimeoutIsAnError = false)
+	                                { return CheckIfReady(POLLOUT, Timeout , bTimeoutIsAnError ); }
 	/// check any ::poll() flag with the general timeout - returns 0 or the event(s) that triggered
-	int CheckIfReady(int what)                   { return CheckIfReady(what,    m_Timeout); }
+	int CheckIfReady(int what)                   { return CheckIfReady(what,    m_Timeout, true); }
 	/// check any ::poll() flag with the specified timeout - returns 0 or the event(s) that triggered
-	int CheckIfReady(int what, KDuration Timeout);
+	int CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAnError = false);
 
 	// ------ static factory methods -------
 

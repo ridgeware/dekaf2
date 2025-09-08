@@ -313,19 +313,10 @@ void KPoll::Watch()
 
 } // Watch
 
-#if !DEKAF2_IS_OSX && !DEKAF2_IS_WINDOWS
-	// Linux requires at least POLLIN being set to detect disconnects,
-	// and requires an additional check with recv()
-	#define DEKAF2_ADD_POLLIN 1
-#endif
-
 //-----------------------------------------------------------------------------
 void KSocketWatch::Watch()
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_ADD_POLLIN
-	std::array<char, 4> buffer;
-#endif
 	std::vector<pollfd> fds;
 
 	while (!m_bStop)
@@ -343,25 +334,19 @@ void KSocketWatch::Watch()
 				continue;
 			}
 
+#if DEKAF2_IS_MACOS
 			for (auto& pfd : fds)
 			{
-#if DEKAF2_ADD_POLLIN
-				pfd.events |= POLLIN;
-#else
 				// let MacOS detect disconnects
-				pfd.events |= POLLERR | POLLHUP;
-#endif
+				// (this looks silly, but test it - it is needed!)
+				pfd.events |= POLLHUP;
 			}
+#endif
 		}
 
 #if DEKAF2_IS_WINDOWS
-		// on Windows, poll with timeout
 		auto iEvents = ::WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), static_cast<ULONG>(m_Timeout.milliseconds().count()));
-#elif DEKAF2_ADD_POLLIN
-		// on Linux, return immediately from poll
-		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), 0);
 #else
-		// on MacOS, poll with timeout
 		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), static_cast<int>(m_Timeout.milliseconds().count()));
 #endif
 
@@ -380,30 +365,6 @@ void KSocketWatch::Watch()
 			{
 				if (pfd.revents)
 				{
-#if DEKAF2_ADD_POLLIN
-					// remove POLLIN from events
-					pfd.revents &= ~POLLIN;
-
-					if (pfd.revents == 0)
-					{
-						// check if socket is disconnected
-						if (::recv(pfd.fd, buffer.data(), buffer.size(), MSG_PEEK | MSG_DONTWAIT) != 0)
-						{
-							// still alive
-							if (--iEvents == 0)
-							{
-								break;
-							}
-							else
-							{
-								continue;
-							}
-						}
-
-						// set disconnect event
-						pfd.revents |= POLLHUP;
-					}
-#endif
 					Triggered(pfd.fd, pfd.revents);
 
 					if (--iEvents == 0)
@@ -413,12 +374,6 @@ void KSocketWatch::Watch()
 				}
 			}
 		}
-
-#if DEKAF2_ADD_POLLIN
-		// on Linux, sleep outside poll to minimize calls to recv()
-		// for active sockets..
-		kSleep(m_Timeout);
-#endif
 	}
 
 } // Watch

@@ -245,6 +245,11 @@ void KTCPServer::RunSession(KIOStreamSocket& stream)
 			   m_iPort);
 	}
 
+	// the thread pool keeps the object alive until it is
+	// overwritten in round-robin, therefore we have to call
+	// Disconnect explicitly now to shut down the connection
+	stream.Disconnect();
+
 } // RunSession
 
 //-----------------------------------------------------------------------------
@@ -332,140 +337,91 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 	AtomicStarted Started(m_iStarted);
 
+	std::unique_ptr<KTLSContext> TLSContext;
+
 	if (IsTLS())
 	{
 		// the TLS version of the server
 
-		KTLSContext TLSContext(true);
+		TLSContext = std::make_unique<KTLSContext>(true);
 
-		if (!TLSContext.SetTLSCertificates(m_sCert, m_sKey, m_sPassword))
+		if (!TLSContext->SetTLSCertificates(m_sCert, m_sKey, m_sPassword))
 		{
-			return SetError(TLSContext.CopyLastError()); // already logged
+			return SetError(TLSContext->CopyLastError()); // already logged
 		}
 
-		if (!TLSContext.SetDHPrimes(m_sDHPrimes))
+		if (!TLSContext->SetDHPrimes(m_sDHPrimes))
 		{
-			return SetError(TLSContext.CopyLastError()); // already logged
+			return SetError(TLSContext->CopyLastError()); // already logged
 		}
 
-		if (!TLSContext.SetAllowedCipherSuites(m_sAllowedCipherSuites))
+		if (!TLSContext->SetAllowedCipherSuites(m_sAllowedCipherSuites))
 		{
-			return SetError(TLSContext.CopyLastError()); // already logged
+			return SetError(TLSContext->CopyLastError()); // already logged
 		}
 
 		if (m_HTTPVersion & KHTTPVersion::http2)
 		{
-			TLSContext.SetAllowHTTP2(m_HTTPVersion & KHTTPVersion::http11);
+			TLSContext->SetAllowHTTP2(m_HTTPVersion & KHTTPVersion::http11);
 		}
-
-		for (;;)
-		{
-			auto stream = CreateKTLSServer(TLSContext, m_Timeout);
-
-			endpoint_type remote_endpoint;
-			boost::system::error_code ec;
-			acceptor->accept(stream->GetTCPSocket(), remote_endpoint, ec);
-
-			if (ec)
-			{
-				if (!m_bQuit)
-				{
-					if (ec.value() == boost::asio::error::interrupted || ec.value() == boost::asio::error::try_again)
-					{
-						kDebug(3, "ignored error: {}", ec.message());
-						continue;
-					}
-					return SetError(kFormat("accept error: {}", ec.message()));
-				}
-				return true;
-			}
-
-			kDebug(2, "accepting TLS connection from {}", to_string(remote_endpoint));
-
-			stream->SetConnectedEndPointAddress(to_string(remote_endpoint));
-
-#if !DEKAF2_HAS_CPP_14 || defined(_MSC_VER)
-			// unfortunately C++11 does not know how to move a variable into a lambda scope
-			auto* Stream = stream.release();
-			m_ThreadPool.push([ this, Stream, remote_endpoint ]()
-			{
-				std::unique_ptr<KTLSStream> moved_stream { Stream };
-#else
-			m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
-			{
-#endif
-				RunSession(*moved_stream);
-				// the thread pool keeps the object alive until it is
-				// overwritten in round-robin, therefore we have to call
-				// Disconnect explicitly now to shut down the connection
-				moved_stream->Disconnect();
-#if 0
-				// for now hide this library debug output
-				kDebug(1, "TLS task pool size: {}, idle threads: {} total threads: {}",
-					   m_ThreadPool.n_queued(),
-					   m_ThreadPool.n_idle(),
-					   m_ThreadPool.size());
-#endif
-			});
-		}
-
 	}
-	else
+
+	for (;;)
 	{
-		// the TCP version of the server
+		endpoint_type remote_endpoint;
+		boost::system::error_code ec;
+		std::unique_ptr<KIOStreamSocket> stream;
 
-		for (;;)
+		if (IsTLS())
 		{
-			auto stream = CreateKTCPStream(m_Timeout);
+			auto tlsstream = CreateKTLSServer(*TLSContext.get(), m_Timeout);
 
-			endpoint_type remote_endpoint;
-			boost::system::error_code ec;
-			acceptor->accept(stream->GetTCPSocket(), remote_endpoint, ec);
+			acceptor->accept(tlsstream->GetTCPSocket(), remote_endpoint, ec);
 
-			if (ec)
-			{
-				if (!m_bQuit)
-				{
-					if (ec.value() == boost::asio::error::interrupted || ec.value() == boost::asio::error::try_again)
-					{
-						kDebug(3, "ignored error: {}", ec.message());
-						continue;
-					}
-					return SetError(kFormat("accept error: {}", ec.message()));
-				}
-				return true;
-			}
+			stream = std::move(tlsstream);
+		}
+		else
+		{
+			auto tcpstream = CreateKTCPStream(m_Timeout);
 
-			kDebug(2, "accepting TCP connection from {}", to_string(remote_endpoint));
+			acceptor->accept(tcpstream->GetTCPSocket(), remote_endpoint, ec);
 
-			stream->SetConnectedEndPointAddress(to_string(remote_endpoint));
-
-#if !DEKAF2_HAS_CPP_14 || defined(_MSC_VER)
-			// unfortunately C++11 does not know how to move a variable into a lambda scope
-			auto* Stream = stream.release();
-			m_ThreadPool.push([ this, Stream, remote_endpoint ]()
-			{
-				std::unique_ptr<KTCPStream> moved_stream { Stream };
-#else
-			m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
-			{
-#endif
-				RunSession(*moved_stream);
-				// the thread pool keeps the object alive until it is
-				// overwritten in round-robin, therefore we have to call
-				// Disconnect explicitly now to shut down the connection
-				moved_stream->Disconnect();
-#if 0
-				// for now hide this library debug output
-				kDebug(1, "TCP task pool size: {}, idle threads: {} total threads: {}",
-					   m_ThreadPool.n_queued(),
-					   m_ThreadPool.n_idle(),
-					   m_ThreadPool.size());
-#endif
-			});
+			stream = std::move(tcpstream);
 		}
 
-	}
+		if (IsShuttingDown())
+		{
+			return true;
+		}
+
+		if (ec)
+		{
+			if (ec.value() == boost::asio::error::interrupted || ec.value() == boost::asio::error::try_again)
+			{
+				kDebug(3, "ignored error: {}", ec.message());
+				continue;
+			}
+			return SetError(kFormat("accept error: {}", ec.message()));
+		}
+
+		kDebug(2, "accepting TLS connection from {}", to_string(remote_endpoint));
+
+		stream->SetConnectedEndPointAddress(to_string(remote_endpoint));
+
+#if !DEKAF2_HAS_CPP_14 || defined(_MSC_VER)
+		// unfortunately C++11 does not know how to move a variable into a lambda scope
+		auto* Stream = stream.release();
+		m_ThreadPool.push([ this, Stream, remote_endpoint ]()
+		{
+			std::unique_ptr<KIOStreamSocket> moved_stream { Stream };
+#else
+		m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
+		{
+#endif
+			RunSession(*moved_stream);
+		});
+
+	} // for (;;)
 
 	}
 	DEKAF2_CATCH(const std::exception& e)
@@ -540,18 +496,19 @@ bool KTCPServer::UnixServer()
 			boost::system::error_code ec;
 			acceptor->accept(stream->GetUnixSocket(), ec);
 
+			if (IsShuttingDown())
+			{
+				return true;
+			}
+
 			if (ec)
 			{
-				if (!m_bQuit)
+				if (ec.value() == boost::asio::error::interrupted || ec.value() == boost::asio::error::try_again)
 				{
-					if (ec.value() == boost::asio::error::interrupted || ec.value() == boost::asio::error::try_again)
-					{
-						kDebug(3, "ignored error: {}", ec.message());
-						continue;
-					}
-					return SetError(kFormat("accept error: {}", ec.message()));
+					kDebug(3, "ignored error: {}", ec.message());
+					continue;
 				}
-				return true;
+				return SetError(kFormat("accept error: {}", ec.message()));
 			}
 
 			kDebug(2, "accepting connection from local unix socket");
@@ -563,16 +520,12 @@ bool KTCPServer::UnixServer()
 			auto* Stream = stream.release();
 			m_ThreadPool.push([ this, Stream ]()
 			{
-				std::unique_ptr<KUnixStream> moved_stream { Stream };
+				std::unique_ptr<KIOStreamSocket> moved_stream { Stream };
 #else
 			m_ThreadPool.push([ this, moved_stream = std::move(stream) ]()
 			{
 #endif
 				RunSession(*moved_stream);
-				// the thread pool keeps the object alive until it is
-				// overwritten in round-robin, therefore we have to call
-				// Disconnect explicitly now to shut down the connection
-				moved_stream->Disconnect();
 			});
 		}
 
@@ -814,10 +767,12 @@ bool KTCPServer::StopServerThread(ServerType SType)
 bool KTCPServer::Stop()
 //-----------------------------------------------------------------------------
 {
-	if (!IsRunning())
+	if (!IsRunning() || IsShuttingDown())
 	{
 		return true;
 	}
+
+	KLog::getInstance().SyncLevel();
 
 	kDebug(2, "closing listeners");
 
@@ -991,6 +946,11 @@ KTCPServer::~KTCPServer()
 	}
 	
 	Stop();
+
+	kSafeErase(m_sCert);
+	kSafeErase(m_sKey);
+	kSafeErase(m_sPassword);
+	kSafeErase(m_sDHPrimes);
 }
 
 //-----------------------------------------------------------------------------

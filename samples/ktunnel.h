@@ -61,9 +61,20 @@
 using namespace dekaf2;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-struct CommonConfig
+class CommonConfig
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
+public:
+//----------
+
+	template<class... Args>
+	void Message (KFormatString<Args...> sFormat, Args&&... args) const
+	{
+		PrintMessage(kFormat(sFormat, std::forward<Args>(args)...));
+	}
+
 	KTCPEndPoint           DefaultTarget;
 	KUnorderedSet<KString> Secrets;
 	KDuration              Timeout        { chrono::seconds(15)        };
@@ -71,6 +82,13 @@ struct CommonConfig
 	KDuration              ConnectTimeout { chrono::seconds(15)        };
 	KDuration              PollTimeout    { chrono::milliseconds(2000) };
 	uint16_t               iMaxTunnels    { 20 };
+	bool                   bQuiet         { false };
+
+//----------
+private:
+//----------
+
+	void PrintMessage (KStringView sMessage) const;
 
 }; // CommonConfig
 
@@ -100,7 +118,6 @@ protected:
 private:
 //----------
 
-	void        Run      (KIOStreamSocket& Downstream, KIOStreamSocket& Upstream, bool bWriteToUpstream);
 	void        DataPump (KIOStreamSocket& Left, KIOStreamSocket& Right, bool bWriteToUpstream);
 
 	KIOStreamSocket*                 m_Downstream { nullptr };
@@ -137,18 +154,18 @@ public:
 protected:
 //----------
 
-	KString ReadLine   (KIOStreamSocket& Stream);
-	bool WriteLine     (KIOStreamSocket& Stream, KStringView sLine);
+	KString     ReadLine           (KIOStreamSocket& Stream);
+	bool        WriteLine          (KIOStreamSocket& Stream, KStringView sLine);
+	std::size_t GetNewConnectionID ();
 
 	void ControlStream (KIOStreamSocket& Stream);
-	void DataPump      (KIOStreamSocket& Left, KIOStreamSocket& Right, std::size_t iID, bool bToUpstream);
 	bool DataStream    (KIOStreamSocket& Upstream, std::size_t iID);
 	bool CheckSecret   (KIOStreamSocket& Stream);
 	bool CheckMagic    (KIOStreamSocket& Stream);
 	bool CheckConnect  (KIOStreamSocket& Stream, const KTCPEndPoint& ConnectTo);
 	bool CheckCommand  (KIOStreamSocket& Stream);
 	void Session       (KIOStreamSocket& Stream) override final;
-
+ 
 //----------
 private:
 //----------
@@ -158,11 +175,10 @@ private:
 	bool                        RemoveConnection (std::size_t iID);
 
 	KThreadSafe<KUnorderedMap<std::size_t, std::shared_ptr<Connection>>>
-	                         m_Connections;
-	KThreadSafe<KIOStreamSocket*>
-	                         m_ControlStream;
-	std::atomic<std::size_t> m_iConnection { 0 };
-	const CommonConfig&      m_Config;
+	                              m_Connections;
+	KThreadSafe<KIOStreamSocket*> m_ControlStream;
+	std::atomic<std::size_t>      m_iConnection { 0 };
+	const CommonConfig&           m_Config;
 
 }; // ExposedServer
 
@@ -209,8 +225,8 @@ class KTunnel : public KErrorBase
 private:
 //----------
 
-	void StartExposedHost   ();
-	void StartProtectedHost ();
+	void ExposedHost   ();
+	void ProtectedHost ();
 
 //----------
 public:

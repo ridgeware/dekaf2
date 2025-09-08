@@ -57,9 +57,9 @@
 //
 //                                  control connection
 //                                   <-----TLS--|--<
-//                                  /           |   \
+//                                  /           |   \ (protected)
 //  client >--TCP/TLS--> KTunnel <-+   firewall |    <- KTunnel >--TCP/TLS--> target(s)
-//              data    (exposed)   \           |   / (protected)   data
+//              data    (exposed)   \           |   /               data
 //                                   <-----TLS--|--<
 //                                  data connection(s)
 
@@ -79,10 +79,27 @@ static constexpr std::size_t iMaxControlLine   = 100;
 static constexpr uint16_t    iBitsForNewRSAKey = 4096;
 
 //-----------------------------------------------------------------------------
+void CommonConfig::PrintMessage(KStringView sMessage) const
+//-----------------------------------------------------------------------------
+{
+	if (!bQuiet)
+	{
+		kWriteLine(sMessage);
+	}
+	else
+	{
+		kDebug(1, sMessage);
+	}
+
+} // CommonConfig::PrintMessage
+
+//-----------------------------------------------------------------------------
 void Connection::DataPump(KIOStreamSocket& Left, KIOStreamSocket& Right, bool bWriteToUpstream)
 //-----------------------------------------------------------------------------
 {
-	auto Guard = KSimpleScopeGuard([this, &Left, &Right]
+	// we use a named lambda because we want compatibility with C++11, which needs
+	// a type for KScopeGuard..
+	auto namedLambdaGuard  = [this, &Left, &Right]() noexcept
 	{
 		if (!m_bShutdown)
 		{
@@ -93,19 +110,31 @@ void Connection::DataPump(KIOStreamSocket& Left, KIOStreamSocket& Right, bool bW
 			// set the flag to shutdown
 			m_bShutdown = true;
 		}
-	});
+	};
+
+	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
 	// read until eof
 	KReservedBuffer<4096> Data;
 
 	KStopTime LastData;
 
+	uint16_t iReadErrors { 0 };
+
 	for (;;)
 	{
-		auto Events = Left.CheckIfReady(POLLIN, m_Config.PollTimeout);
+		auto Events = Left.CheckIfReady(POLLIN | POLLHUP, m_Config.PollTimeout, false);
 
 		if (m_bShutdown)
 		{
+			kDebug(1, "{}: shutdown requested from other half", Left.GetEndPointAddress());
+			// the other half has already finished
+			break;
+		}
+
+		if (Left.HasError())
+		{
+			kDebug(1, "{}: error: {}", Left.GetEndPointAddress(), Left.GetLastError());
 			// the other half has already finished
 			break;
 		}
@@ -115,30 +144,56 @@ void Connection::DataPump(KIOStreamSocket& Left, KIOStreamSocket& Right, bool bW
 			if (LastData.elapsed() > m_Config.Timeout)
 			{
 				// eof/timeout
+				kDebug(1, "{}: timeout", Left.GetEndPointAddress());
 				break;
 			}
 		}
+		else if ((Events & POLLHUP) == POLLHUP)
+		{
+			kDebug(1, "{}: disconnect", Left.GetEndPointAddress());
+			break;
+		}
+		else if ((Events & (POLLERR | POLLNVAL)) != 0)
+		{
+			kDebug(1, "{}: error", Left.GetEndPointAddress());
+			break;
+		}
 		else if ((Events & POLLIN) == POLLIN)
 		{
+			kDebug(3, "{}: read some", Left.GetEndPointAddress());
 			auto iRead = Left.direct_read_some(Data.CharData(), Data.capacity());
+			kDebug(2, "{}: read {} chars", Left.GetEndPointAddress(), iRead);
 
 			if (iRead > 0)
 			{
+				iReadErrors = 0;
+
 				Data.resize(iRead);
 
 				if (!Right.Write(Data.data(), Data.size()).Flush())
 				{
 					// write error
+					kDebug(1, "{}: write error", kNow(), Right.GetEndPointAddress());
 					return;
 				}
 			}
+			else if (iRead == 0)
+			{
+				// for some weird reason, on Linux we get two consecutive
+				// POLLIN, but the read_some then aborts immediately with 0
+				// chars read - then at the third round it blocks until the
+				// set timeout - this does not happen on MacOS
+				++iReadErrors;
+				if (iReadErrors == 2)
+				{
+					// read error
+					kDebug(1, "{}: read error count == 2 - disconnect", Right.GetEndPointAddress());
+					break;
+				}
+				kDebug(3, "{}: read error count == 1 - continue", Right.GetEndPointAddress());
+			}
 
 			Data.reset();
-		}
-
-		if ((Events & (POLLHUP | POLLERR)) != 0)
-		{
-			break;
 		}
 	}
 
@@ -246,7 +301,7 @@ void Connection::ConnectHostnames(std::size_t iID, KTCPEndPoint DownstreamHost, 
 
 	if (!Downstream->Good())
 	{
-		kPrintLine("failed to connect to downstream host {} for channel ID {}", DownstreamHost, iID);
+		Config.Message("failed to connect to downstream host {} for channel ID {}", DownstreamHost, iID);
 		return;
 	}
 
@@ -259,7 +314,7 @@ void Connection::ConnectHostnames(std::size_t iID, KTCPEndPoint DownstreamHost, 
 
 	if (!Upstream->Good())
 	{
-		kPrintLine("failed to connect to upstream host {} for channel ID {}", UpstreamHost, iID);
+		Config.Message("failed to connect to upstream host {} for channel ID {}", UpstreamHost, iID);
 		return;
 	}
 
@@ -316,12 +371,16 @@ void ExposedServer::ControlStream(KIOStreamSocket& Stream)
 		WriteLine(Stream, sHelo);
 	}
 
-	kDebug(1, "opened control stream");
+	m_Config.Message("opened control stream from {}", Stream.GetEndPointAddress());
 
-	auto Guard = KSimpleScopeGuard([]
+	// we use a named lambda because we want compatibility with C++11, which needs
+	// a type for KScopeGuard..
+	auto namedLambdaGuard = [&Stream,this]() noexcept
 	{
-		kPrintLine("closed control stream");
-	});
+		m_Config.Message("closed control stream from {}", Stream.GetEndPointAddress());
+	};
+
+	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
 	for (;;)
 	{
@@ -335,7 +394,7 @@ void ExposedServer::ControlStream(KIOStreamSocket& Stream)
 		// check if the stream is still good
 		if (!Control.KInStream::Good() || !Control.KOutStream::Good())
 		{
-			kPrintLine("broken control stream - disconnecting");
+			m_Config.Message("broken control stream from {} - disconnecting", Stream.GetEndPointAddress());
 			// no
 			return;
 		}
@@ -346,13 +405,25 @@ void ExposedServer::ControlStream(KIOStreamSocket& Stream)
 
 		if (sResponse != sPong)
 		{
-			kPrintLine("broken control stream - disconnecting");
+			m_Config.Message("broken control stream from {} - disconnecting", Stream.GetEndPointAddress());
 			// error
 			return;
 		}
 	}
 
 } // ControlStream
+
+//-----------------------------------------------------------------------------
+std::size_t ExposedServer::GetNewConnectionID()
+//-----------------------------------------------------------------------------
+{
+	std::size_t iConnectionID = ++m_iConnection;
+	// overflow?
+	if (!iConnectionID) iConnectionID = ++m_iConnection;
+
+	return iConnectionID;
+
+} // GetNewConnectionID
 
 //-----------------------------------------------------------------------------
 bool ExposedServer::DataStream(KIOStreamSocket& Upstream, std::size_t iID)
@@ -368,17 +439,17 @@ bool ExposedServer::DataStream(KIOStreamSocket& Upstream, std::size_t iID)
 	{
 		Upstream.SetTimeout(m_Config.Timeout);
 
-		kDebug(1, "connecting data stream {}..", iID);
+		kDebug(1, "connecting data stream {} from {} ..", iID, Upstream.GetEndPointAddress());
 		// will throw if connection ID is not found
-		auto Conn = GetConnection(iID, true);
+		auto Connection = GetConnection(iID, true);
 		kDebug(1, "data stream {} connected!", iID);
 
 		// register the upstream with the connection id
-		Conn->SetUpstreamAndRun(Upstream);
+		Connection->SetUpstreamAndRun(Upstream);
 	}
 	catch(const KError& ex)
 	{
-		kPrintLine(">> {}", ex.what());
+		m_Config.Message(">> {}", ex.what());
 		return false;
 	}
 
@@ -394,7 +465,7 @@ bool ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 	// initiating the data connection from the second instance to this one, then
 	// pumping data from this instance to the second (> upstream)
 
-	kDebug(1, "incoming connection for target {}", Endpoint);
+	kDebug(1, "incoming connection from {} for target {}", Downstream.GetEndPointAddress(), Endpoint);
 
 	if (m_Connections.shared()->size() >= m_Config.iMaxTunnels)
 	{
@@ -405,23 +476,25 @@ bool ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 
 	if (Endpoint.empty() || Endpoint.Port.get() == 0)
 	{
-		kPrintLine("missing target endpoint definition with domain:port");
+		m_Config.Message("missing target endpoint definition with domain:port");
 		return false;
 	}
 
 	// is already set from KTCPServer ?
 	Downstream.SetTimeout(m_Config.Timeout);
 
-	std::size_t iConnectionID = ++m_iConnection;
-	// overflow?
-	if (!iConnectionID) iConnectionID = ++m_iConnection;
+	auto iConnectionID = GetNewConnectionID();
 
-	auto Guard = KSimpleScopeGuard([iConnectionID]
+	// we use a named lambda because we want compatibility with C++11, which needs
+	// a type for KScopeGuard..
+	auto namedLambdaGuard  = [iConnectionID, &Downstream]() noexcept
 	{
-		kDebug(1, "closed forward stream {}", iConnectionID);
-	});
+		kDebug(1, "closed forward stream {} from {}", iConnectionID, Downstream.GetEndPointAddress());
+	};
 
-	auto Conn = AddConnection(iConnectionID, Downstream);
+	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
+
+	auto Connection = AddConnection(iConnectionID, Downstream);
 
 	kDebug(1, "requesting reverse forward stream {}", iConnectionID);
 
@@ -431,7 +504,7 @@ bool ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 
 		if (!Control.get())
 		{
-			kPrintLine("have forward request, but no control stream");
+			m_Config.Message("have forward request, but no control stream");
 			return false;
 		}
 
@@ -439,7 +512,7 @@ bool ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 	}
 
 
-	Conn->WaitForUpstreamAndRun(m_Config.ConnectTimeout);
+	Connection->WaitForUpstreamAndRun(m_Config.ConnectTimeout);
 
 	// TODO maybe later.. write the initial incoming data (if any) to upstream
 //	Conn.GetUpstream().WriteLine(sInitialData).Flush();
@@ -456,11 +529,11 @@ bool ExposedServer::CheckSecret(KIOStreamSocket& Stream)
 
 	if (m_Config.Secrets.empty() || !m_Config.Secrets.contains(sSecret))
 	{
-		kDebug(1, "invalid secret: {}", sSecret);
+		kDebug(1, "invalid secret from {}: {}", Stream.GetEndPointAddress(), sSecret);
 		return false;
 	}
 
-	kDebug(1, "successful login with secret: {}", sSecret);
+	kDebug(1, "successful login from {} with secret: {}", Stream.GetEndPointAddress(), sSecret);
 
 	return true;
 
@@ -611,7 +684,7 @@ void ExposedRawServer::Session (KIOStreamSocket& Stream)
 }
 
 //-----------------------------------------------------------------------------
-void KTunnel::StartExposedHost()
+void KTunnel::ExposedHost()
 //-----------------------------------------------------------------------------
 {
 	if (!m_bGenerateCert && !m_sCertFile.empty() && !kNonEmptyFileExists(m_sCertFile))
@@ -658,16 +731,16 @@ void KTunnel::StartExposedHost()
 			{
 				m_bGenerateCert = true;
 
-				kPrintLine("cert expired at {:%F %T} - will generate new self-signed cert", MyCert.ValidUntil());
+				m_Config.Message("cert expired at {:%F %T} - will generate new self-signed cert", MyCert.ValidUntil());
 
 				if (kRename(m_sCertFile, kFormat("{}.bak", m_sCertFile)))
 				{
-					kPrintLine("renamed old cert to {}.bak", m_sCertFile);
+					m_Config.Message("renamed old cert to {}.bak", m_sCertFile);
 				}
 			}
 			else
 			{
-				kPrintLine("cert valid until {:%F %T}", MyCert.ValidUntil());
+				m_Config.Message("cert valid until {:%F %T}", MyCert.ValidUntil());
 			}
 		}
 	}
@@ -687,18 +760,18 @@ void KTunnel::StartExposedHost()
 			if (m_bGenerateCert)
 			{
 				if (!MyKey.Save(m_sKeyFile, true, m_sTLSPassword)) throw KError(MyKey.GetLastError());
-				kPrintLine("new private key with {} bits created: {}", iBitsForNewRSAKey, m_sKeyFile);
+				m_Config.Message("new private key with {} bits created: {}", iBitsForNewRSAKey, m_sKeyFile);
 			}
 			else
 			{
-				kPrintLine("ephemeral private key with {} bits created", iBitsForNewRSAKey);
+				m_Config.Message("ephemeral private key with {} bits created", iBitsForNewRSAKey);
 			}
 		}
 		else
 		{
 			// load key from file
 			if (!MyKey.Load(m_sKeyFile, m_sTLSPassword)) throw KError(MyKey.GetLastError());
-			kPrintLine("loaded private key from: {}", m_sKeyFile);
+			m_Config.Message("loaded private key from: {}", m_sKeyFile);
 		}
 
 		// create a self signed cert
@@ -708,11 +781,11 @@ void KTunnel::StartExposedHost()
 		if (m_bGenerateCert)
 		{
 			if (!MyCert.Save(m_sCertFile)) throw (MyCert.GetLastError());
-			kPrintLine("new cert created: {}", m_sCertFile);
+			m_Config.Message("new cert created: {}", m_sCertFile);
 		}
 		else
 		{
-			kPrintLine("ephemeral cert created");
+			m_Config.Message("ephemeral cert created");
 		}
 
 		// set the cert
@@ -734,7 +807,7 @@ void KTunnel::StartExposedHost()
 		m_Config.iMaxTunnels
 	);
 
-	kPrintLine("listening on port {} for control connection, and on port {} for forward data connections", m_iPort, m_iRawPort);
+	m_Config.Message("listening on port {} for control connection, and on port {} for forward data connections", m_iPort, m_iRawPort);
 
 	// listen on TLS
 	m_ExposedServer->Start(m_Config.Timeout, /* bBlock= */ false);
@@ -742,10 +815,10 @@ void KTunnel::StartExposedHost()
 	// listen on TCP
 	m_ExposedRawServer->Start(m_Config.Timeout, /* bBlock= */ true);
 
-} // StartExposedHost
+} // ExposedHost
 
 //-----------------------------------------------------------------------------
-void KTunnel::StartProtectedHost()
+void KTunnel::ProtectedHost()
 //-----------------------------------------------------------------------------
 {
 	KStreamOptions Options;
@@ -754,12 +827,11 @@ void KTunnel::StartProtectedHost()
 
 	for (;;)
 	{
-		kPrint("connecting {}..", m_ExposedHost);
+		m_Config.Message("connecting {}..", m_ExposedHost);
 		auto Control = CreateKTLSClient(m_ExposedHost, Options);
 
 		if (Control->Good())
 		{
-			kWrite("\nlogin..");
 			Control->SetTimeout(chrono::seconds(15));
 			Control->WriteLine(kFormat("{}{}\n{}", sMagic, *m_Config.Secrets.begin(), sControlStream));
 			Control->Flush();
@@ -768,19 +840,19 @@ void KTunnel::StartProtectedHost()
 
 			if (!Control->ReadLine(sLine, iMaxControlLine))
 			{
-				kWriteLine( "failed!");
+				m_Config.Message("login failed!");
 				// error
 				return;
 			}
 
 			if (sLine != sHelo)
 			{
-				kWriteLine(" failed!");
+				m_Config.Message("login failed!");
 				// error
 				return;
 			}
 
-			kWriteLine("\ncontrol stream opened - now waiting for data connections..");
+			m_Config.Message("control stream opened - now waiting for data connections");
 
 			// now increase the timeout to allow for a once-per-minute ping
 			Control->SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
@@ -799,7 +871,7 @@ void KTunnel::StartProtectedHost()
 				switch (sCommand.Hash())
 				{
 					case sPing.Hash():
-						kDebug(1, "got ping");
+						kDebug(3, "got ping");
 						// respond with pong
 						Control->WriteLine(sPong);
 						Control->Flush();
@@ -808,7 +880,7 @@ void KTunnel::StartProtectedHost()
 					case sStart.Hash():
 					{
 						// open a new stream to endpoint, and data stream to exposed host
-						kDebug(1, "got start command: {}", sLine);
+						kDebug(3, "got start command: {}", sLine);
 						auto sID = kGetWord(sLine);
 						sLine.Trim();
 						KTCPEndPoint TargetHost(sLine);
@@ -818,22 +890,22 @@ void KTunnel::StartProtectedHost()
 
 					default:
 						// error
-						kPrintLine("got bad control command: {}", sCommand);
+						m_Config.Message("got bad control command: {}", sCommand);
 						Control->Disconnect();
 						break;
 				}
 			}
-			kPrintLine("lost connection - now sleeping for {} and retrying", m_Config.ConnectTimeout);
+			m_Config.Message("lost connection - now sleeping for {} and retrying", m_Config.ConnectTimeout);
 		}
 		else
 		{
-			kPrintLine("cannot connect - now sleeping for {} and retrying", m_Config.ConnectTimeout);
+			m_Config.Message("cannot connect - now sleeping for {} and retrying", m_Config.ConnectTimeout);
 		}
 
 		kSleep(m_Config.ConnectTimeout);
 	}
 
-} // StartProtectedHost
+} // ProtectedHost
 
 //-----------------------------------------------------------------------------
 int KTunnel::Main(int argc, char** argv)
@@ -863,6 +935,7 @@ int KTunnel::Main(int argc, char** argv)
 	m_sTLSPassword         = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
 	m_sAllowedCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
 	m_bGenerateCert        = Options("generate     : if exposed host, save private key and cert to disk for next usage if files are not existing", false);
+	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);
 
 	// do a final check if all required options were set
 	if (!Options.Check()) return 1;
@@ -897,15 +970,15 @@ int KTunnel::Main(int argc, char** argv)
 		if (m_Config.DefaultTarget.Port.get() == 0) SetError("endpoind needs an explicit port number");
 		if (!m_iRawPort) SetError("exposed host needs a forward port being configured");
 		if (m_bGenerateCert && (m_sKeyFile.empty() || m_sCertFile.empty())) SetError("to generate key and cert file, both need to be named with the -key and -cert options");
-		kPrintLine("starting as exposed host");
+		m_Config.Message("starting as exposed host");
 
-		StartExposedHost();
+		ExposedHost();
 	}
 	else
 	{
-		kPrintLine("starting as protected host, connecting exposed host at {}", m_ExposedHost);
+		m_Config.Message("starting as protected host, connecting exposed host at {}", m_ExposedHost);
 
-		StartProtectedHost();
+		ProtectedHost();
 	}
 
 	return 0;

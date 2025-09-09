@@ -83,6 +83,7 @@
 #include "kfilesystem.h"
 #include "dekaf2.h"
 #include "ksignals.h"
+#include "krsacert.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -282,7 +283,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY {
-	
+
 	boost::asio::ip::v6_only v6_only(false);
 
 	kDebug(2, "opening listener on port {}, asking for {}", m_iPort, (ipv6) ? "dual stack" : "IPv4 only");
@@ -344,6 +345,19 @@ bool KTCPServer::TCPServer(bool ipv6)
 		// the TLS version of the server
 
 		TLSContext = std::make_unique<KTLSContext>(true);
+
+		if (m_sCert.empty())
+		{
+			// create a self signed cert if TLS was requested but no cert given
+			if (m_sKey.empty())
+			{
+				// if no key was given, create one
+				kDebug(2, "generating an ephemeral server key");
+				m_sKey = KRSAKey(4096).GetPEM(true, m_sPassword);
+			}
+			kDebug(2, "generating an ephemeral server cert");
+			m_sCert = KRSACert(KRSAKey(m_sKey, m_sPassword), "localhost", "US").GetPEM();
+		}
 
 		if (!TLSContext->SetTLSCertificates(m_sCert, m_sKey, m_sPassword))
 		{
@@ -639,15 +653,6 @@ bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 	{
 		promise.set_value(2);
 		return SetError(kFormat("Server is already running on port {}", m_iPort));
-	}
-
-	if (IsTLS())
-	{
-		if (m_sCert.empty())
-		{
-			promise.set_value(3);
-			return SetError(kFormat("cannot start TLS server on port {}, have no certificate", m_iPort));
-		}
 	}
 
 	if (m_bBlock)

@@ -203,9 +203,9 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 			{
 				KLog::getInstance().SetMode(KLog::SERVER);
 
-				bool bUseTLS = !Options.sCert.empty() || !Options.sKey.empty();
+				bool bUseTLS = !Options.sCert.empty() || !Options.sKey.empty() || Options.bCreateEphemeralCert;
 
-				if (bUseTLS)
+				if (bUseTLS && !Options.bCreateEphemeralCert)
 				{
 					if (Options.sCert.empty())
 					{
@@ -226,12 +226,19 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					}
 				}
 
-				if (!RESTServer::IsPortAvailable(Options.iPort))
+				uint16_t iPort = Options.iPort;
+
+				if (iPort == 0)
 				{
-					return SetError(kFormat("port {} is in use - abort", Options.iPort));
+					iPort = bUseTLS ? 443 : 80;
 				}
 
-				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", Options.iPort);
+				if (!RESTServer::IsPortAvailable(iPort))
+				{
+					return SetError(kFormat("port {} is in use - abort", iPort));
+				}
+
+				kDebug(1, "starting standalone {} server on port {}...", bUseTLS ? "HTTPS" : "HTTP", iPort);
 				Options.Out = KRESTServer::HTTP;
 
 				m_SocketWatch     = std::make_unique<KSocketWatch>(chrono::milliseconds(250));
@@ -240,7 +247,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 																 Routes,
 																 *m_SocketWatch,
 																 *m_WebSocketServer,
-																 Options.iPort,
+																 iPort,
 																 bUseTLS,
 																 Options.iMaxConnections);
 
@@ -250,7 +257,10 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					{
 						if (!m_Server->LoadTLSCertificates(Options.sCert, Options.sKey, Options.sTLSPassword))
 						{
-							return SetError("could not load TLS certificate");
+							if (!Options.bCreateEphemeralCert)
+							{
+								return SetError("could not load TLS certificate");
+							}
 						}
 					}
 					else
@@ -283,10 +293,12 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
+
 				if (!m_Server->Start(chrono::seconds(Options.iTimeout), Options.bBlocking))
 				{
 					return SetError(m_Server->CopyLastError()); // already logged
 				}
+
 				return true;
 			}
 
@@ -304,12 +316,15 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 																 *m_WebSocketServer,
 																 Options.sSocketFile,
 																 Options.iMaxConnections);
+
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
+
 				if (!m_Server->Start(chrono::seconds(Options.iTimeout), Options.bBlocking))
 				{
 					return SetError(m_Server->CopyLastError()); // already logged
 				}
+
 				return true;
 			}
 #endif
@@ -318,20 +333,24 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 			{
 				KLog::getInstance().SetMode(KLog::SERVER);
 				kDebug (3, "normal CGI request...");
+
 				KCGIInStream CGI(KIn);
 				if (!Options.KLogHeader.empty())
 				{
 					CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(Options.KLogHeader), Options.KLogHeader);
 				}
+
 				KStream Stream(CGI, KOut);
 				Options.Out = KRESTServer::HTTP;
 				Options.iMaxKeepaliveRounds = 1; // no keepalive in CGI mode..
+
 				RealExecute(Options,
 							Routes,
 							Stream,
 							kGetEnv(KCGIInStream::REMOTE_ADDR),
 							url::KProtocol(kGetEnv(KCGIInStream::SERVER_PORT)), // TODO check for this conversion
 							kGetEnv(KCGIInStream::SERVER_PROTOCOL).UInt16());
+
 				return true; // we return true because the request was served
 			}
 
@@ -345,14 +364,17 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				kDebug(3, "normal LAMBA request...");
 				KLambdaInStream Lambda(KIn);
 				KStream Stream(Lambda, KOut);
+
 				Options.Out = KRESTServer::LAMBDA;
 				Options.iMaxKeepaliveRounds = 1; // no keepalive in Lambda mode..
+
 				RealExecute(Options,
 							Routes,
 							Stream,
 							"0.0.0.0",
 							url::KProtocol::HTTP,
 							0); // TODO get remote IP, proto, port from env var
+
 				return true; // we return true because the request was served
 			}
 
@@ -361,13 +383,16 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				KLog::getInstance().SetMode(KLog::CLI); // CLI mode is the default anyway..
 				kDebug (2, "normal CLI request...");
 				KStream Stream(KIn, KOut);
+
 				Options.Out = KRESTServer::CLI;
+
 				RealExecute(Options,
 							Routes,
 							Stream,
 							kFirstNonEmpty(kGetEnv(KCGIInStream::REMOTE_ADDR), "127.0.0.1"),
 							url::KProtocol::HTTP,
 							0);
+
 				return true; // we return true because the request was served
 			}
 

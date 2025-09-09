@@ -92,7 +92,7 @@ public:
 	}; // SimulationParms
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// define options for the rest service
+	/// define options for the REST service
 	struct Options : public KRESTServer::Options
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -114,6 +114,9 @@ public:
 		bool bBlocking { true };
 		/// are the PEM cert and key and dh prime filenames (default) or buffers with the actual PEMs?
 		bool bPEMsAreFilenames { true };
+		/// if no cert or key are existing, nonetheless start TLS by generating one-time (ephemeral)
+		/// self-signed cert and key? (You will have to override the warnings in browsers to use them)
+		bool bCreateEphemeralCert { true };
 		/// the PEM certificate
 		KString sCert;
 		/// the PEM private key

@@ -57,6 +57,9 @@
 #include <thread>
 #include <future>
 #include <memory>
+#include <mutex>
+#include <condition_variable>
+#include <list>
 
 using namespace dekaf2;
 
@@ -76,6 +79,7 @@ public:
 	}
 
 	KTCPEndPoint           DefaultTarget;
+	KTCPEndPoint           ExposedHost;
 	KUnorderedSet<KString> Secrets;
 	KDuration              Timeout        { chrono::seconds(15)        };
 	KDuration              ControlPing    { chrono::seconds(60)        };
@@ -92,6 +96,77 @@ private:
 
 }; // CommonConfig
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class Message
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	//----------
+public:
+	//----------
+
+	enum Type
+	{
+		Login       = 0,
+		LoginTX,
+		Control,
+		Connect,
+		Data,
+		Disconnect,
+		None        = -1
+	};
+
+	Message() = default;
+	Message(Type _type, std::size_t iChannel, KStringView sMessage = KStringView{});
+
+	void           Read       (KIOStreamSocket& Stream);
+	void           Write      (KIOStreamSocket& Stream) const;
+
+	Type           GetType    () const { return m_Type;     }
+	const KString& GetMessage () const { return m_sMessage; }
+	std::size_t    GetChannel () const { return m_iChannel; }
+
+	void           SetType    (Type _type)           { m_Type     = _type;               }
+	void           SetMessage (KString sMessage)     { m_sMessage = std::move(sMessage); }
+	void           SetChannel (std::size_t iChannel) { m_iChannel = iChannel;            }
+
+	void           clear      ();
+	std::size_t    size       () const { return m_sMessage.size(); }
+
+	void           Debug      (uint16_t iLevel) const { kDebug(iLevel, "{:>4} {:>4} {}: {}", size(), GetChannel(), PrintType(), PrintData()); }
+	KStringView    PrintType  () const;
+
+//----------
+private:
+//----------
+
+	KStringView    PrintData  () const;
+
+	uint8_t        ReadByte   (KIOStreamSocket& Stream) const;
+	void           WriteByte  (KIOStreamSocket& Stream, uint8_t iByte) const;
+
+	KString        m_sMessage;
+	std::size_t    m_iChannel { 0 };
+	Type           m_Type     { None };
+
+}; // Message
+
+//-----------------------------------------------------------------------------
+inline KIOStreamSocket& operator <<(KIOStreamSocket& stream, const Message& message)
+//-----------------------------------------------------------------------------
+{
+	message.Write(stream);
+	stream.Flush();
+	return stream;
+}
+
+//-----------------------------------------------------------------------------
+inline KIOStreamSocket& operator >>(KIOStreamSocket& stream, Message& message)
+//-----------------------------------------------------------------------------
+{
+	message.Read(stream);
+	return stream;
+}
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Connection
@@ -102,35 +177,59 @@ class Connection
 public:
 //----------
 
-	static void ConnectHostnames (std::size_t iID, KTCPEndPoint DownstreamHost, KTCPEndPoint UpstreamHost, const CommonConfig& Config);
+	Connection (std::size_t iID, std::function<void(const Message&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
 
-	Connection (std::size_t iID, KIOStreamSocket& Downstream, KIOStreamSocket& Upstream, const CommonConfig& Config);
-	Connection (std::size_t iID, KIOStreamSocket& Downstream, const CommonConfig& Config);
+	void        SetDirectStream       (KIOStreamSocket* DirectStream) { m_DirectStream = DirectStream; }
 
-	bool        WaitForUpstreamAndRun (KDuration ConnectTimeout);
-	bool        SetUpstreamAndRun     (KIOStreamSocket& upstream);
+	void        PumpToTunnel          ();
+	void        PumpFromTunnel        ();
 
-//----------
-protected:
-//----------
+	void        SendData              (std::shared_ptr<Message> FromTunnel);
+	void        Disconnect            ();
+
+	std::size_t GetID                 () const { return m_iID; }
 
 //----------
 private:
 //----------
 
-	void        DataPump (KIOStreamSocket& Left, KIOStreamSocket& Right, bool bWriteToUpstream);
-
-	KIOStreamSocket*                 m_Downstream { nullptr };
-	KIOStreamSocket*                 m_Upstream   { nullptr };
-	const CommonConfig&              m_Config;
-	std::size_t                      m_iID        { 0 };
-	std::promise<void>               m_HaveUpstream;
-	std::promise<void>               m_UpstreamDone;
-	std::promise<void>               m_DownstreamDone;
-	bool                             m_bShutdown  { false };
+//	KThreadSafe<std::list<std::shared_ptr<Message>>> m_MessageQueue;
+	std::list<std::shared_ptr<Message>> m_MessageQueue;
+	std::function<void(const Message&)> m_Tunnel;
+	KIOStreamSocket*                    m_DirectStream { nullptr };
+	std::mutex                          m_QueueMutex;
+	std::condition_variable             m_FreshData;
+	std::size_t                         m_iID          { 0 };
+	bool                                m_bQuit        { false };
 
 }; // Connection
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class Connections
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	Connections(std::size_t iMaxConnections) : m_iMaxConnections(iMaxConnections) {}
+
+	std::shared_ptr<Connection> Create (std::function<void(const Message&)> TunnelSend, std::size_t iID, KIOStreamSocket* DirectStream = nullptr);
+	std::shared_ptr<Connection> Get    (std::size_t iID, bool bAndRemove);
+	bool                        Remove (std::size_t iID);
+	std::size_t                 size   () const;
+
+//----------
+private:
+//----------
+
+	KThreadSafe<KUnorderedMap<std::size_t, std::shared_ptr<Connection>>> m_Connections;
+
+	std::size_t m_iConnection     { 0 };
+	std::size_t m_iMaxConnections { 50 };
+
+}; // Connections
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class ExposedServer : public KTCPServer
@@ -144,41 +243,35 @@ public:
 	template<typename... Args>
 	ExposedServer (const CommonConfig& config, Args&&... args)
 	: KTCPServer (std::forward<Args>(args)...)
+	, m_Connections(config.iMaxTunnels)
 	, m_Config(config)
 	{
 	}
 
-	bool ForwardStream (KIOStreamSocket& Downstream, const KTCPEndPoint& Endpoint, KStringView sInitialData = "");
+	void ForwardStream (KIOStreamSocket& Downstream, const KTCPEndPoint& Endpoint, KStringView sInitialData = "");
 
 //----------
 protected:
 //----------
 
-	KString     ReadLine           (KIOStreamSocket& Stream);
-	bool        WriteLine          (KIOStreamSocket& Stream, KStringView sLine);
-	std::size_t GetNewConnectionID ();
+	void SendMessageToUpstream (const Message& message);
 
-	void ControlStream (KIOStreamSocket& Stream);
-	bool DataStream    (KIOStreamSocket& Upstream, std::size_t iID);
-	bool CheckSecret   (KIOStreamSocket& Stream);
-	bool CheckMagic    (KIOStreamSocket& Stream);
-	bool CheckConnect  (KIOStreamSocket& Stream, const KTCPEndPoint& ConnectTo);
-	bool CheckCommand  (KIOStreamSocket& Stream);
-	void Session       (KIOStreamSocket& Stream) override final;
- 
+	void ControlStreamTX (KIOStreamSocket& Stream);
+	void ControlStream   (KIOStreamSocket& Stream);
+	bool CheckSecret     (KIOStreamSocket& Stream);
+	bool CheckMagic      (KIOStreamSocket& Stream);
+	void Session         (KIOStreamSocket& Stream) override final;
+
 //----------
 private:
 //----------
 
-	std::shared_ptr<Connection> AddConnection    (std::size_t iID, KIOStreamSocket& Downstream);
-	std::shared_ptr<Connection> GetConnection    (std::size_t iID, bool bAndRemove);
-	bool                        RemoveConnection (std::size_t iID);
-
-	KThreadSafe<KUnorderedMap<std::size_t, std::shared_ptr<Connection>>>
-	                              m_Connections;
+	Connections                   m_Connections;
 	KThreadSafe<KIOStreamSocket*> m_ControlStream;
-	std::atomic<std::size_t>      m_iConnection { 0 };
+	KThreadSafe<KIOStreamSocket*> m_ControlStreamTX;
 	const CommonConfig&           m_Config;
+	std::promise<void>            m_WaitForTX;
+	std::promise<void>            m_Quit;
 
 }; // ExposedServer
 
@@ -215,6 +308,34 @@ private:
 
 }; // ExposedRawServer
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class ProtectedHost
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	ProtectedHost(const CommonConfig& Config);
+
+	void Run();
+
+//----------
+private:
+//----------
+
+	void SendMessageToDownstream(const Message& message);
+	void TimingCallback(KUnixTime Time);
+	void ConnectToTarget(std::size_t iID, KTCPEndPoint Target);
+
+	Connections                   m_Connections;
+	KThreadSafe<KIOStreamSocket*> m_ControlStreamTX;
+	KThreads                      m_Threads;
+	const CommonConfig&           m_Config;
+	KTimer::ID_t                  m_TimerID { KTimer::InvalidID };
+
+}; // ProtectedHost
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class KTunnel : public KErrorBase
@@ -225,8 +346,10 @@ class KTunnel : public KErrorBase
 private:
 //----------
 
-	void ExposedHost   ();
-	void ProtectedHost ();
+	void StartExposedHost   ();
+	void StartProtectedHost ();
+
+	void SendMessageToExposed (const Message& message);
 
 //----------
 public:
@@ -237,7 +360,7 @@ public:
 	/// is this the exposed host?
 	bool IsExposed          () const
 	{
-		return m_ExposedHost.empty();
+		return m_Config.ExposedHost.empty();
 	}
 
 //----------
@@ -247,9 +370,7 @@ private:
 	std::unique_ptr<ExposedServer>    m_ExposedServer;
 	std::unique_ptr<ExposedRawServer> m_ExposedRawServer;
 
-	KThreads     m_Threads;
 	CommonConfig m_Config;
-	KTCPEndPoint m_ExposedHost;
 	KString      m_sCertFile;
 	KString      m_sKeyFile;
 	KString      m_sTLSPassword;

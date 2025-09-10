@@ -130,6 +130,7 @@ TEST_CASE("KWebClient") {
 		Options.iPort     = 7653;
 		Options.bPollForDisconnect = false;
 		Options.bBlocking = false;
+		Options.bCreateEphemeralCert = false;
 
 		KREST REST;
 		REST.Execute(Options, Routes);
@@ -201,6 +202,7 @@ TEST_CASE("KWebClient") {
 		Options.sSocketFile = kFormat("{}/socket", MySocketDir.Name());
 		Options.bPollForDisconnect = false;
 		Options.bBlocking   = false;
+		Options.bCreateEphemeralCert = false;
 
 		KREST REST;
 		REST.Execute(Options, Routes);

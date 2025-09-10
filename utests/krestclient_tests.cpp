@@ -74,6 +74,7 @@ TEST_CASE("KRESTCLIENT")
 		Options.iPort = 6780;
 		Options.iTimeout = 1;
 		Options.bBlocking = false;
+		Options.bCreateEphemeralCert = false;
 		// we set the option although we have no SSO route to check the server code
 		Options.AuthLevel = KRESTServer::Options::ALLOW_ALL_WITH_AUTH_HEADER;
 

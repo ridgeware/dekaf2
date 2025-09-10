@@ -450,6 +450,7 @@ TEST_CASE("KREST")
 		Options.iPort     = 30303;
 		Options.bBlocking = false;
 //		Options.iTimeout  = 300;
+		Options.bCreateEphemeralCert = false;
 
 		KREST REST;
 

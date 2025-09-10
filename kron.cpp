@@ -181,7 +181,7 @@ Kron::Job::Job(const KJSON& jConfig)
 	m_MaxExecutionTime = std::chrono::seconds(kjson::GetUInt(jConfig, "MaxExecutionTime"));
 	m_tOnce            = kjson::GetInt       (jConfig, "tOnce"       );
 	KString sDef       = kjson::GetStringRef (jConfig, "Definition"  );
-	auto jEnviron      = kjson::GetArray     (jConfig, "Environment" );
+	auto& jEnviron     = kjson::GetArray     (jConfig, "Environment" );
 #endif
 	if (jEnviron.is_array() && !jEnviron.empty())
 	{

@@ -39,6 +39,8 @@
  // +-------------------------------------------------------------------------+
  */
 
+#pragma once
+
 #include <dekaf2/koptions.h>
 #include <dekaf2/kerror.h>
 #include <dekaf2/ktlsstream.h>
@@ -193,7 +195,6 @@ public:
 private:
 //----------
 
-//	KThreadSafe<std::list<std::shared_ptr<Message>>> m_MessageQueue;
 	std::list<std::shared_ptr<Message>> m_MessageQueue;
 	std::function<void(const Message&)> m_Tunnel;
 	KIOStreamSocket*                    m_DirectStream { nullptr };
@@ -348,8 +349,6 @@ private:
 
 	void StartExposedHost   ();
 	void StartProtectedHost ();
-
-	void SendMessageToExposed (const Message& message);
 
 //----------
 public:

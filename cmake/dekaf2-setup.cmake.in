@@ -261,6 +261,9 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			# increase amount of permitted constexpr depth (default is 512)
 			add_compile_options(/constexpr:depth 2048)
 
+			# switch most warnings on
+			#add_compile_options(/W4)
+
 		else ()
 
 			message (STATUS "compiler type not detected, using default opions")

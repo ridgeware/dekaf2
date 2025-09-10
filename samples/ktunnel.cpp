@@ -199,7 +199,8 @@ void Message::Read(KIOStreamSocket& Stream)
 	clear();
 
 	std::size_t iLength;
-	iLength = ReadByte(Stream) * 256;
+	iLength  = ReadByte(Stream);
+	iLength *= 256;
 	iLength += ReadByte(Stream);
 
 	m_Type = static_cast<Type>(ReadByte(Stream));
@@ -211,7 +212,8 @@ void Message::Read(KIOStreamSocket& Stream)
 		throw KError(sErr);
 	}
 
-	m_iChannel  = ReadByte(Stream) * 256;
+	m_iChannel  = ReadByte(Stream);
+	m_iChannel *= 256;
 	m_iChannel += ReadByte(Stream);
 
 	auto iRead = Stream.Read(m_sMessage, iLength);
@@ -281,7 +283,7 @@ void Connection::PumpToTunnel()
 			kDebug(2, "timeout from {}", m_DirectStream->GetEndPointAddress())
 			break;
 		}
-		else if ((iEvents & POLLIN) == POLLIN)
+		else if ((iEvents & POLLIN) != 0)
 		{
 			auto iRead = m_DirectStream->direct_read_some(Data.CharData(), Data.capacity());
 			kDebug(3, "{}: read {} chars", m_DirectStream->GetEndPointAddress(), iRead);
@@ -293,7 +295,7 @@ void Connection::PumpToTunnel()
 			}
 		}
 
-		if ((iEvents & POLLHUP) == POLLHUP)
+		if ((iEvents & POLLHUP) != 0)
 		{
 			// disconnected
 			kDebug(2, "got disconnected from {}", m_DirectStream->GetEndPointAddress())
@@ -1194,11 +1196,11 @@ void KTunnel::StartExposedHost()
 
 		// create a self signed cert
 		KRSACert MyCert;
-		if (!MyCert.Create(MyKey, "localhost", "US", "", chrono::months(12))) throw (MyCert.GetLastError());
+		if (!MyCert.Create(MyKey, "localhost", "US", "", chrono::months(12))) throw KError(MyCert.GetLastError());
 
 		if (m_bGenerateCert)
 		{
-			if (!MyCert.Save(m_sCertFile)) throw (MyCert.GetLastError());
+			if (!MyCert.Save(m_sCertFile)) throw KError(MyCert.GetLastError());
 			m_Config.Message("new cert created: {}", m_sCertFile);
 		}
 		else
@@ -1234,13 +1236,6 @@ void KTunnel::StartExposedHost()
 	m_ExposedRawServer->Start(m_Config.Timeout, /* bBlock= */ true);
 
 } // StartExposedHost
-
-//-----------------------------------------------------------------------------
-void KTunnel::SendMessageToExposed (const Message& message)
-//-----------------------------------------------------------------------------
-{
-
-} // SendMessageToExposed
 
 //-----------------------------------------------------------------------------
 void KTunnel::StartProtectedHost()

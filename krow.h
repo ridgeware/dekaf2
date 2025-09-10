@@ -726,13 +726,11 @@ public:
 	}
 #endif
 
+	void PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const;
+
 //----------
 private:
 //----------
-
-	DEKAF2_PRIVATE
-	void PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const;
-
 	mutable KString m_sTablename;
 	mutable KString m_sLastError;
 

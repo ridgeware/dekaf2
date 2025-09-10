@@ -114,13 +114,16 @@ KXTermCodes::RGB::RGB(KStringView sColorValue)
 
 	if (sColorValue.size() == 6 || sColorValue.Trim().size() == 6)
 	{
-		Red   = sColorValue.Left (   2).UInt16(/*bIsHex*/true);
-		Green = sColorValue.Mid  (2, 2).UInt16(/*bIsHex*/true);
-		Blue  = sColorValue.Right(   2).UInt16(/*bIsHex*/true);
+		Red   = static_cast<uint8_t>(sColorValue.Left (   2).UInt16(/*bIsHex*/true));
+		Green = static_cast<uint8_t>(sColorValue.Mid  (2, 2).UInt16(/*bIsHex*/true));
+		Blue  = static_cast<uint8_t>(sColorValue.Right(   2).UInt16(/*bIsHex*/true));
 	}
 	else
 	{
 		kDebug(3, "invalid RGB color string: {}", sColorValue.LeftUTF8(20));
+		Red   = 0;
+		Green = 0;
+		Blue  = 0;
 	}
 
 } // ctor
@@ -1008,7 +1011,7 @@ void KXTerm::Write(KStringView sText)
 			}
 		}
 
-		m_iCursorColumn += iCount;
+		m_iCursorColumn += static_cast<uint16_t>(iCount);
 	}
 
 	RawWrite(sText);

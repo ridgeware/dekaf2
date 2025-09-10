@@ -56,7 +56,11 @@ DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// dekaf2 error base class
+#if !_MSC_VER
 class DEKAF2_PUBLIC KErrorBase : private KError
+#else
+class DEKAF2_PUBLIC KErrorBase : protected KError
+#endif
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

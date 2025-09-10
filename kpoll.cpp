@@ -56,7 +56,13 @@ int kPoll(int handle, int what, KDuration Timeout)
 {
 	struct pollfd pollfd;
 	pollfd.fd      = handle;
+#if !DEKAF2_IS_WINDOWS
 	pollfd.events  = what;
+#else
+	// don't set any output flags on windows, WSAPoll will then fail instead
+	// of ignoring them like on MacOS or Linux
+	pollfd.events = what & (POLLPRI | POLLRDBAND | POLLRDNORM | POLLWRNORM);
+#endif
 
 	for (;;)
 	{
@@ -74,6 +80,7 @@ int kPoll(int handle, int what, KDuration Timeout)
 			return 0;
 		}
 
+#if !DEKAF2_IS_WINDOWS
 		if (iResult < 0)
 		{
 			if (errno == EAGAIN)
@@ -81,9 +88,39 @@ int kPoll(int handle, int what, KDuration Timeout)
 				// interrupt
 				continue;
 			}
-			return errno;
-		}
 
+			kDebug(3, "error {}: {}", errno, strerror(errno));
+			return 0;
+		}
+#else
+		if (iResult == SOCKET_ERROR)
+		{
+			if (kWouldLog(3))
+			{
+				auto iExtendedError = WSAGetLastError();
+
+				switch (iExtendedError)
+				{
+				case WSAENETDOWN:
+					kDebug(3, "WSAENETDOWN");
+					break;
+				case WSAEFAULT:
+					kDebug(3, "WSAEFAULT");
+					break;
+				case WSAEINVAL:
+					kDebug(3, "WSAEINVAL");
+					break;
+				case WSAENOBUFS:
+					kDebug(3, "WSAENOBUFS");
+					break;
+				default:
+					kDebug(3, "Unknown Error: {}", iExtendedError);
+					break;
+				}
+			}
+			return 0;
+		}
+#endif
 		// data available
 		return pollfd.revents;
 	}

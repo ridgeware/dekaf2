@@ -300,7 +300,7 @@ detail::KParsedWebTimestamp::raw_time detail::KParsedWebTimestamp::Parse(KString
 
 		if (it != detail::AbbreviatedMonths.end())
 		{
-			tm.month  = static_cast<int>(it - detail::AbbreviatedMonths.begin()) + 1;
+			tm.month  = static_cast<int16_t>(it - detail::AbbreviatedMonths.begin()) + 1;
 			tm.year   = kToInt<uint16_t>(Part[3]);
 			tm.hour   = kToInt<uint16_t>(Part[4]);
 			tm.minute = kToInt<uint16_t>(Part[5]);
@@ -341,7 +341,7 @@ detail::KParsedWebTimestamp::raw_time detail::KParsedWebTimestamp::Parse(KString
 								Offset *= -1;
 							}
 
-							tm.utc_offset_minutes = chrono::minutes(Offset).count();
+							tm.utc_offset_minutes = static_cast<int16_t>(chrono::minutes(Offset).count());
 						}
 					}
 					else
@@ -356,7 +356,7 @@ detail::KParsedWebTimestamp::raw_time detail::KParsedWebTimestamp::Parse(KString
 
 					if (Offset != chrono::minutes(-1))
 					{
-						tm.utc_offset_minutes = chrono::minutes(Offset).count();
+						tm.utc_offset_minutes = static_cast<int16_t>(chrono::minutes(Offset).count());
 					}
 					else
 					{
@@ -869,7 +869,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 		if (it != AbbreviatedMonths.end())
 		{
-			tm.month = static_cast<int>(it - AbbreviatedMonths.begin()) + 1;
+			tm.month = static_cast<int16_t>(it - AbbreviatedMonths.begin()) + 1;
 		}
 		else
 		{
@@ -884,7 +884,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 			}
 			else
 			{
-				tm.month = static_cast<int>(it2 - Months.begin()) + 1;
+				tm.month = static_cast<int16_t>(it2 - Months.begin()) + 1;
 			}
 		}
 	}
@@ -902,7 +902,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 	if (tm.has_tz)
 	{
-		tm.utc_offset_minutes = TimezoneOffset.count();
+		tm.utc_offset_minutes = static_cast<int16_t>(TimezoneOffset.count());
 	}
 
 	tm.is_valid = true;

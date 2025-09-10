@@ -230,11 +230,11 @@ kurl::kurl ()
 		.Option("H,header <key:value>", "request header with key:value")
 		.Help("add HTTP header to the request (can be used multiple times)"
 			  " or load a file with @filename with one header per line")
-	([&](KStringViewZ sHeader)
+	([&](KStringViewZ sHeaderOrFile)
 	{
-		if (sHeader.front() == '@')
+		if (sHeaderOrFile.front() == '@')
 		{
-			auto sHeaderFile = sHeader;
+			auto sHeaderFile = sHeaderOrFile;
 			sHeaderFile.TrimLeft('@');
 
 			KString sHeaders;
@@ -255,7 +255,7 @@ kurl::kurl ()
 		}
 		else
 		{
-			auto Pair = kSplitToPair (sHeader, ":");
+			auto Pair = kSplitToPair (sHeaderOrFile, ":");
 			if (!Pair.first.empty())
 			{
 				// use a pre-C++17-safe insert_or_assign

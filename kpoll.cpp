@@ -50,6 +50,50 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace
+{
+
+//-----------------------------------------------------------------------------
+KStringView GetPollError()
+//-----------------------------------------------------------------------------
+{
+	KStringView sWhat;
+
+#if !DEKAF2_IS_WINDOWS
+
+	sWhat = ::strerror(errno);
+
+#else
+
+	auto iExtendedError = WSAGetLastError();
+
+	switch (iExtendedError)
+	{
+		case WSAENETDOWN:
+			sWhat = "WSAENETDOWN";
+			break;
+		case WSAEFAULT:
+			sWhat = "WSAEFAULT";
+			break;
+		case WSAEINVAL:
+			sWhat = "WSAEINVAL";
+			break;
+		case WSAENOBUFS:
+			sWhat = "WSAENOBUFS");
+			break;
+		default:
+			sWhat = "unknown error";
+			break;
+	}
+
+#endif
+
+	return sWhat;
+
+} // GetPollError
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 int kPoll(int handle, int what, KDuration Timeout)
 //-----------------------------------------------------------------------------
@@ -89,35 +133,13 @@ int kPoll(int handle, int what, KDuration Timeout)
 				continue;
 			}
 
-			kDebug(3, "error {}: {}", errno, strerror(errno));
+			kDebug(3, GetPollError());
 			return 0;
 		}
 #else
 		if (iResult == SOCKET_ERROR)
 		{
-			if (kWouldLog(3))
-			{
-				auto iExtendedError = WSAGetLastError();
-
-				switch (iExtendedError)
-				{
-				case WSAENETDOWN:
-					kDebug(3, "WSAENETDOWN");
-					break;
-				case WSAEFAULT:
-					kDebug(3, "WSAEFAULT");
-					break;
-				case WSAEINVAL:
-					kDebug(3, "WSAEINVAL");
-					break;
-				case WSAENOBUFS:
-					kDebug(3, "WSAENOBUFS");
-					break;
-				default:
-					kDebug(3, "Unknown Error: {}", iExtendedError);
-					break;
-				}
-			}
+			kDebug(3, GetPollError());
 			return 0;
 		}
 #endif
@@ -181,6 +203,11 @@ void KPoll::Add(int fd, Parameters Parms)
 //-----------------------------------------------------------------------------
 {
 	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+
+#if DEKAF2_IS_WINDOWS
+	// see kPoll
+	Parms.iEvents &= (POLLPRI | POLLRDBAND | POLLRDNORM | POLLWRNORM);
+#endif
 
 #ifdef DEKAF2_HAS_CPP_17
 	m_FileDescriptors.insert_or_assign(fd, std::move(Parms));
@@ -322,14 +349,22 @@ void KPoll::Watch()
 		auto iEvents = ::WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), static_cast<INT>(m_Timeout.milliseconds().count()));
 #endif
 
+#if !DEKAF2_IS_WINDOWS
 		if (iEvents < 0)
 		{
 			if (errno != EINTR)
 			{
-				kDebug(1, "stopping watcher: poll returned with error: {}", strerror(errno));
+				kDebug(1, "stopping watcher: poll returned with error: {}", GetPollError());
 				return;
 			}
 		}
+#else
+		if (iEvents == SOCKET_ERROR)
+		{
+			kDebug(1, "stopping watcher: poll returned with error: {}", GetPollError());
+			return;
+		}
+#endif
 		else if (iEvents > 0)
 		{
 			// find the file descriptors that have events:
@@ -387,14 +422,22 @@ void KSocketWatch::Watch()
 		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), static_cast<int>(m_Timeout.milliseconds().count()));
 #endif
 
+#if !DEKAF2_IS_WINDOWS
 		if (iEvents < 0)
 		{
 			if (errno != EINTR)
 			{
-				kDebug(1, "stopping watcher: poll returned with error: {}", strerror(errno));
+				kDebug(1, "stopping watcher: poll returned with error: {}", GetPollError());
 				return;
 			}
 		}
+#else
+		if (iEvents == SOCKET_ERROR)
+		{
+			kDebug(1, "stopping watcher: poll returned with error: {}", GetPollError());
+			return;
+		}
+#endif
 		else if (iEvents > 0)
 		{
 			// find the file descriptors that have events:

@@ -79,7 +79,7 @@ KStringView GetPollError()
 			sWhat = "WSAEINVAL";
 			break;
 		case WSAENOBUFS:
-			sWhat = "WSAENOBUFS");
+			sWhat = "WSAENOBUFS";
 			break;
 		default:
 			sWhat = "unknown error";

@@ -65,11 +65,7 @@ private:
 		KString sContent;
 		if (!kReadAll((sFilename.empty()) ? KIn : KInFile(sFilename), sContent))
 		{
-#if !DEKAF2_IS_WINDOWS
 			throw KError(kFormat("cannot read file: {}", sFilename));
-#else
-			SetError(kFormat("cannot read file: {}", sFilename));
-#endif
 		}
 		return sContent;
 	}
@@ -85,12 +81,7 @@ private:
 			case "camellia"_casehash: return KBlockCipher::Camellia;
 			case "chacha"_casehash:   return KBlockCipher::ChaCha20_Poly1305;
 		}
-#if !DEKAF2_IS_WINDOWS
 		throw KError { kFormat("invalid algorithm: {}", sAlgorithm) };
-#else
-		SetError(kFormat("invalid algorithm: {}", sAlgorithm));
-		return KBlockCipher::AES;
-#endif
 	}
 
 	//-----------------------------------------------------------------------------
@@ -111,12 +102,7 @@ private:
 			case "ocb"_casehash:    return KBlockCipher::OCB;
 			case "xts"_casehash:    return KBlockCipher::XTS;
 		}
-#if !DEKAF2_IS_WINDOWS
 		throw KError { kFormat("invalid mode: {}", sMode) };
-#else
-		SetError(kFormat("invalid mode: {}", sMode));
-		return KBlockCipher::ECB;
-#endif
 	}
 
 	//-----------------------------------------------------------------------------
@@ -129,12 +115,7 @@ private:
 			case "192"_hash: return KBlockCipher::B192;
 			case "256"_hash: return KBlockCipher::B256;
 		}
-#if !DEKAF2_IS_WINDOWS
 		throw KError { kFormat("invalid block length: {}", sBits) };
-#else
-		SetError(kFormat("invalid block length: {}", sBits));
-		return KBlockCipher::B256;
-#endif
 	}
 
 	//-----------------------------------------------------------------------------
@@ -186,11 +167,7 @@ private:
 		if (!sOutfile.empty())
 		{
 			OutFile.open(sOutfile, std::ios_base::out | std::ios_base::trunc);
-#if !DEKAF2_IS_WINDOWS
 			if (!OutFile.is_open()) throw KError { kFormat("cannot open output file: {}", sOutfile) };
-#else
-			if (!OutFile.is_open()) SetError(kFormat("cannot open output file: {}", sOutfile));
-#endif
 			return OutFile.OutStream();
 		}
 		else
@@ -238,13 +215,9 @@ public:
 		if (!Options.Check()) return 1;
 
 		if (bBase64one) bBase64 = true;
-#if !DEKAF2_IS_WINDOWS
 		if ( bEncrypt &&  bDecrypt) throw KError { "can only either encrypt or decrypt" };
 		if (!bEncrypt && !bDecrypt) throw KError { "please set either encrypt or decrypt option" };
-#else
-		if ( bEncrypt &&  bDecrypt) return SetError("can only either encrypt or decrypt");
-		if (!bEncrypt && !bDecrypt) return SetError("please set either encrypt or decrypt option");
-#endif
+
 		auto algorithm = GetAlgorithm(sAlgorithm);
 		auto direction = (bDecrypt) ? KBlockCipher::Decrypt : KBlockCipher::Encrypt;
 		auto mode      = GetMode(sMode);

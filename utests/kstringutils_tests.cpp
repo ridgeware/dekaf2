@@ -964,6 +964,13 @@ TEST_CASE("KStringUtils") {
 			{ "117.73 M",  123453462 }
 		};
 
+		std::vector<std::pair<KStringView, uint64_t>> svector5 {
+			{ "10123K",   10123456 },
+			{  "1679K",    1678987 },
+			{ "10123 ",      10123 },
+			{   "123M",  123453462 }
+		};
+
 		for (auto& p : svector1)
 		{
 			KString s;
@@ -1003,6 +1010,13 @@ TEST_CASE("KStringUtils") {
 		{
 			KString s;
 			s = kFormBytes(p.second, 2, " ");
+			CHECK ( s == p.first );
+		}
+
+		for (auto& p : svector5)
+		{
+			KString s;
+			s = kFormScaledNumber(p.second, 0, "", 1000, 5);
 			CHECK ( s == p.first );
 		}
 	}

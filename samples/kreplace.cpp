@@ -55,7 +55,7 @@ using namespace dekaf2;
 void KReplace::Stats::Print(KOutStream& os)
 //-----------------------------------------------------------------------------
 {
-	os.FormatLine("{} files, {} hits, {}", iFiles, iFound, kFormBytes(iBytes, " "));
+	os.FormatLine("{} files, {} hits, {}", iFiles, iFound, kFormBytes(iBytes, 1, " "));
 }
 
 //-----------------------------------------------------------------------------
@@ -125,7 +125,7 @@ void KReplace::Search(const KString sFilename)
 
 	if (!m_bQuiet)
 	{
-		KOut.Format(" - {}", kFormBytes(sContent.size(), " "));
+		KOut.Format(" - {}", kFormBytes(sContent.size(), 1, " "));
 	}
 
 	std::size_t iFound { 0 };

@@ -1964,6 +1964,12 @@ KStringView kWriteUTF8BOM();
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kFormBytes(std::size_t iBytes, KStringView sSeparator = KStringView{}, char chDecimalSeparator = '.', uint16_t iDivisor = 1024);
 
+/// @param iNumber the bytes to transform
+/// @param iDigits says how many digits to retain (0 by default)
+/// note: this is ENGLISH oriented (B, M, K) sorry.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kFormRoundedNumber (uint64_t iNumber, uint8_t iDigits);
+
 /// safely erase a string/container type - content is first overwritten by default constructed elements, then removed
 template <typename T>
 DEKAF2_PUBLIC

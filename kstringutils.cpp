@@ -1014,4 +1014,12 @@ KString kFormBytes(std::size_t iBytes, KStringView sSeparator, char chDecimalSep
 
 } // kFormBytes
 
+//-----------------------------------------------------------------------------
+KString kFormRoundedNumber (uint64_t iNumber, uint8_t iDigits)
+//-----------------------------------------------------------------------------
+{
+	return "TODO";
+
+} // kFormRoundedNumber
+
 DEKAF2_NAMESPACE_END

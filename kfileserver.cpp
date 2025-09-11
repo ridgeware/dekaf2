@@ -256,7 +256,7 @@ void AddIndexItem(html::Table& table, const KDirectory::DirEntry& Item, bool bWi
 	}
 	else
 	{
-		row += html::TableData(kFormBytes(Item.Size(), " ")).SetAlign(html::TableData::RIGHT);
+		row += html::TableData(kFormBytes(Item.Size(), 1, " ")).SetAlign(html::TableData::RIGHT);
 	}
 
 	if (bWithDelete)

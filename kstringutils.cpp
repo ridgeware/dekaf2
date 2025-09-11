@@ -981,45 +981,57 @@ KStringView kWriteUTF8BOM()
 	return KStringView { "\xef\xbb\xbf" };
 }
 
+namespace detail
+{
+
 //-----------------------------------------------------------------------------
-KString kFormBytes(std::size_t iBytes, KStringView sSeparator, char chDecimalSeparator, uint16_t iDivisor)
+KString kFormScaledUnsignedNumber (
+	uint64_t    iNumber,
+	uint16_t    iPrecision,
+	KStringView sSeparator,
+	uint16_t    iDivisor,
+	uint16_t    iMaxDigits,
+	KStringView sUnits,
+	bool        bIsNegative
+)
 //-----------------------------------------------------------------------------
 {
-	KString sBytes;
+	static constexpr uint64_t maxvals[16] {
+		9, 9, 99, 999, 9999, 99999, 999999, 9999999, 99999999, 999999999, 9999999999,
+		99999999999, 999999999999, 9999999999999, 99999999999999, 999999999999999
+	};
+
+	KString sNumber;
 	uint16_t    iMagnitude { 0 };
 	std::size_t iDivideBy  { 1 };
-	std::size_t iOrigBytes { iBytes };
+	uint64_t    iOrigBytes { iNumber };
+	uint64_t    iMaxNumber { maxvals[iMaxDigits & 0x0f] };
 
-	while (iBytes > 999 && iMagnitude < 8)
+	while (iNumber > iMaxNumber && iMagnitude < sUnits.size() - 1)
 	{
-		iBytes    /= iDivisor;
+		iNumber   /= iDivisor;
 		iDivideBy *= iDivisor;
 		++iMagnitude;
 	}
 
-	sBytes = kFormat("{:.1f}", double(iOrigBytes) / iDivideBy);
+	sNumber = kFormat("{}{:.{}f}",
+	                  bIsNegative ? "-" : "",
+	                  double(iOrigBytes) / iDivideBy,
+	                  iPrecision);
 
-	sBytes.remove_suffix(".0");
+	sNumber.remove_suffix(".0");
 
 	if (!sSeparator.empty())
 	{
-		sBytes += sSeparator;
+		sNumber += sSeparator;
 	}
 
-	static constexpr const char Unit[] = { 'B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y' };
+	sNumber += sUnits[iMagnitude];
 
-	sBytes += Unit[iMagnitude];
+	return sNumber;
 
-	return sBytes;
+} // kFormScaledUnsignedNumber
 
-} // kFormBytes
-
-//-----------------------------------------------------------------------------
-KString kFormRoundedNumber (uint64_t iNumber, uint8_t iDigits)
-//-----------------------------------------------------------------------------
-{
-	return "TODO";
-
-} // kFormRoundedNumber
+} // end of detail namespace
 
 DEKAF2_NAMESPACE_END

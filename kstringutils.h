@@ -1956,19 +1956,149 @@ KOutStream& kWriteUTF8BOM(KOutStream& OutStream);
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kWriteUTF8BOM();
 
+namespace detail
+{
+
+static constexpr KStringView sByteUnits   { "BKMGTPEZY" };
+static constexpr KStringView sNumberUnits { " KMBTPEZY" };
+
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kFormScaledUnsignedNumber (
+	uint64_t    iNumber,
+	uint16_t    iPrecision,
+	KStringView sSeparator,
+	uint16_t    iDivisor,
+	uint16_t    iMaxDigits,
+	KStringView sUnits,
+	bool        bIsNegative
+);
+
+} // end of namespace detail
+
+/// @param iNumber the number to transform
+/// @param iPrecision how many digits to retain after the decimal separator (1 by default)
+/// @param sSeparator the separator between the number and the unit, default none
+/// @param iDivisor the divisor to apply for each magnitude, defaults to 1000
+/// @param iMaxDigits how many max digits before the decimal separator (3 by default)
+/// @return the formatted number as a KString
+template <class T,
+          typename std::enable_if<std::is_unsigned<T>    ::value &&
+                                  std::is_arithmetic<T>  ::value &&
+                                  !detail::is_duration<T>::value, int>::type = 0>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kFormScaledNumber (
+	T           iNumber,
+	uint16_t    iPrecision = 1,
+	KStringView sSeparator = KStringView{},
+	uint16_t    iDivisor   = 1000,
+	uint16_t    iMaxDigits = 3,
+	KStringView sUnits     = detail::sNumberUnits
+)
+{
+	return detail::kFormScaledUnsignedNumber (
+		iNumber,
+		iPrecision,
+		sSeparator,
+		iDivisor,
+		iMaxDigits,
+		sUnits,
+		false
+	);
+}
+
+/// @param iNumber the number to transform
+/// @param iPrecision how many digits to retain after the decimal separator (1 by default)
+/// @param sSeparator the separator between the number and the unit, default none
+/// @param iDivisor the divisor to apply for each magnitude, defaults to 1000
+/// @param iMaxDigits how many max digits before the decimal separator (3 by default)
+/// @return the formatted number as a KString
+template <class T,
+          typename std::enable_if<std::is_signed<T>      ::value &&
+                                  std::is_arithmetic<T>  ::value &&
+                                  !detail::is_duration<T>::value, int>::type = 0>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kFormScaledNumber (
+	T           iNumber,
+	uint16_t    iPrecision = 1,
+	KStringView sSeparator = KStringView{},
+	uint16_t    iDivisor   = 1000,
+	uint16_t    iMaxDigits = 3,
+	KStringView sUnits     = detail::sNumberUnits
+)
+{
+	bool bIsNegative { false };
+
+	auto iUnsignedNumber = static_cast<uint64_t>(iNumber);
+
+	if (iNumber < 0)
+	{
+		bIsNegative = true;
+		iUnsignedNumber = (~iUnsignedNumber + 1);
+	}
+
+	return detail::kFormScaledUnsignedNumber (
+		iUnsignedNumber,
+		iPrecision,
+		sSeparator,
+		iDivisor,
+		iMaxDigits,
+		sUnits,
+		bIsNegative
+	);
+}
+
 /// @param iBytes the bytes to transform
 /// @param sSeparator the separator between the number and the unit, default none
-/// @param chDecimalSeparator the decimal separator, default . (dot)
 /// @param iDivisor the divisor to apply for each magnitude, defaults to 1024, could reasonably be set to 1000 as well.
+/// @param iPrecision how many digits to retain after the decimal separator (1 by default)
 /// @return a string with the count of input bytes transformed into the relevant tera/giga/mega/kilo/byte unit
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kFormBytes(std::size_t iBytes, KStringView sSeparator = KStringView{}, char chDecimalSeparator = '.', uint16_t iDivisor = 1024);
+DEKAF2_NODISCARD inline DEKAF2_PUBLIC
+KString kFormBytes (
+	std::size_t iBytes,
+	uint16_t    iPrecision = 1,
+	KStringView sSeparator = KStringView{},
+	uint16_t    iDivisor = 1024
+)
+{
+	return detail::kFormScaledUnsignedNumber (
+		iBytes,
+		iPrecision,
+		sSeparator,
+		iDivisor,
+		3,
+		detail::sByteUnits,
+		false
+	);
+}
 
-/// @param iNumber the bytes to transform
-/// @param iDigits says how many digits to retain (0 by default)
-/// note: this is ENGLISH oriented (B, M, K) sorry.
+/// @param iNumber the number to transform
+/// @param iPrecision how many digits to retain after the decimal separator (1 by default)
+/// @param sSeparator the separator between the number and the unit, default none
+/// @param iDivisor the divisor to apply for each magnitude, defaults to 1000
+/// @param iMaxDigits how many max digits before the decimal separator (3 by default)
+/// @return the formatted number as a KString
+template <class T,
+          typename std::enable_if<std::is_arithmetic<T>  ::value &&
+                                  !detail::is_duration<T>::value, int>::type = 0>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kFormRoundedNumber (uint64_t iNumber, uint8_t iDigits);
+KString kFormRoundedNumber (
+	T           iNumber,
+	uint16_t    iPrecision = 0,
+	KStringView sSeparator = KStringView{},
+	uint16_t    iDivisor   = 1000,
+	uint16_t    iMaxDigits = 3,
+	KStringView sUnits     = detail::sNumberUnits
+)
+{
+	return kFormScaledNumber (
+		iNumber,
+		iPrecision,
+		sSeparator,
+		iDivisor,
+		3,
+		sUnits
+	);
+}
 
 /// safely erase a string/container type - content is first overwritten by default constructed elements, then removed
 template <typename T>

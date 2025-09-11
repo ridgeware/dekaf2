@@ -934,6 +934,79 @@ TEST_CASE("KStringUtils") {
 		CHECK( s == "-99.99" );
 	}
 
+	SECTION("kFormScaledNumber")
+	{
+		std::vector<std::pair<KStringView, uint64_t>> svector1 {
+			{    "10M",   10123456 },
+			{     "2M",    1678987 },
+			{    "10K",      10123 },
+			{   "123M",  123453462 }
+		};
+
+		std::vector<std::pair<KStringView, uint64_t>> svector2 {
+			{  "10.1M",   10123456 },
+			{   "1.7M",    1678987 },
+			{  "10.1K",      10123 },
+			{ "123.5M",  123453462 }
+		};
+
+		std::vector<std::pair<KStringView, uint64_t>> svector3 {
+			{   "9.7M",   10123456 },
+			{   "1.6M",    1678987 },
+			{   "9.9K",      10123 },
+			{ "117.7M",  123453462 }
+		};
+
+		std::vector<std::pair<KStringView, uint64_t>> svector4 {
+			{   "9.65 M",   10123456 },
+			{   "1.60 M",    1678987 },
+			{   "9.89 K",      10123 },
+			{ "117.73 M",  123453462 }
+		};
+
+		for (auto& p : svector1)
+		{
+			KString s;
+			s = kFormRoundedNumber(p.second);
+			CHECK ( s == p.first );
+		}
+
+		for (auto& p : svector2)
+		{
+			KString s;
+			s = kFormRoundedNumber(p.second, 1);
+			CHECK ( s == p.first );
+		}
+
+		for (auto& p : svector1)
+		{
+			KString s;
+			s = kFormScaledNumber(p.second, 0);
+			CHECK ( s == p.first );
+		}
+
+		for (auto& p : svector2)
+		{
+			KString s;
+			s = kFormScaledNumber(p.second);
+			CHECK ( s == p.first );
+		}
+
+		for (auto& p : svector3)
+		{
+			KString s;
+			s = kFormBytes(p.second);
+			CHECK ( s == p.first );
+		}
+
+		for (auto& p : svector4)
+		{
+			KString s;
+			s = kFormBytes(p.second, 2, " ");
+			CHECK ( s == p.first );
+		}
+	}
+
 	SECTION("kToInt")
 	{
 		SECTION("std::string")

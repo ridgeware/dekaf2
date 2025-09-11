@@ -54,7 +54,7 @@
 #include <memory>
 
 #if (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000) \
-	&& !defined(_MSC_VER) \
+	&& !defined(DEKAF2_IS_MSC) \
 	&& defined(DEKAF2_HAS_CPP_14)
 		#define DEKAF2_KHTTP_HEADER_CONSTEXPR_14 constexpr
 #else

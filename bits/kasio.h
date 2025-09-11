@@ -51,7 +51,7 @@
 	#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 	// doesn't find builtin on at least VS 2022
 	#define BOOST_DISABLE_CURRENT_LOCATION
 #endif

@@ -975,7 +975,7 @@ void KOptions::Help(KOutStream& out)
 		}
 		DEKAF2_CATCH (const NoError& error)
 		{
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 			const char* p = error.what();
 #endif
 		}
@@ -1867,7 +1867,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 
 	DEKAF2_CATCH (const NoError& error)
 	{
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 		const char* p = error.what();
 #endif
 	}

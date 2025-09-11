@@ -127,6 +127,18 @@
 	#endif
 #endif
 
+#if !defined DEKAF2_IS_CLANG
+	#if defined _MSC_FULL_VER
+		#define DEKAF2_IS_MSC 1
+		#define DEKAF2_MSC_VERSION_MAJOR _MSC_VER
+		#define DEKAF2_MSC_VERSION _MSC_FULL_VER
+	#elif defined _MSC_VER
+		#define DEKAF2_IS_MSC 1
+		#define DEKAF2_MSC_VERSION_MAJOR _MSC_VER
+		#define DEKAF2_MSC_VERSION 1
+	#endif
+#endif
+
 #if defined _GLIBCXX_RELEASE
 	// e.g.: 11
 	#define DEKAF2_GLIBCXX_VERSION_MAJOR _GLIBCXX_RELEASE
@@ -168,12 +180,31 @@
 	#define DEKAF2_IS_UNIX 1
 #endif
 
-#if !defined(DEKAF2_IS_UNIX) && (defined(_MSC_VER))
-	#define DEKAF2_IS_WINDOWS 1
+#if !defined(DEKAF2_IS_WINDOWS) && (defined(_WIN32))
+	#if DEKAF2_IS_UNIX
+		#error "cannot have both _WIN32 and DEKAF2_IS_UNIX defined"
+	#else
+		#define DEKAF2_IS_WINDOWS 1
+	#endif
+#endif
+
+#if DEKAF2_IS_WINDOWS
+	// min/max macros interfere with the C++ versions - define this before
+	// including any windows system headers
+	#ifndef NOMINMAX
+		#define NOMINMAX
+	#endif
+
+	#ifndef WIN32_LEAN_AND_MEAN
+		#define WIN32_LEAN_AND_MEAN
+	#endif
+
 	#ifndef _CRT_SECURE_NO_WARNINGS
- 		// works on < VS 2013
 		#define _CRT_SECURE_NO_WARNINGS
 	#endif
+#endif
+
+#if DEKAF2_IS_MSC
 	// works on >= VS 2013
 	#pragma warning(disable:4996)
 	// "warning C4307: '*': integral constant overflow" (on an unsigned type..) - this is a comp bug
@@ -299,7 +330,7 @@
 
 #if defined(__clang__) || defined(__GNUC__)
 	#define DEKAF2_DEPRECATED(msg) __attribute__((__deprecated__(msg)))
-#elif defined(_MSC_VER)
+#elif defined(DEKAF2_IS_MSC)
 	#define DEKAF2_DEPRECATED(msg) __declspec(deprecated(msg))
 #else
 	#define DEKAF2_DEPRECATED(msg)
@@ -410,7 +441,7 @@
 // compiler is smarter than us in almost all cases
 #if DEKAF2_HAS_ATTRIBUTE(always_inline)
 	#define DEKAF2_ALWAYS_INLINE inline __attribute__((__always_inline__))
-#elif defined(_MSC_VER)
+#elif defined(DEKAF2_IS_MSC)
 	#define DEKAF2_ALWAYS_INLINE __forceinline
 #else
 	#define DEKAF2_ALWAYS_INLINE inline
@@ -418,7 +449,7 @@
 
 #if DEKAF2_HAS_ATTRIBUTE(noinline)
 	#define DEKAF2_NEVER_INLINE __attribute__((__noinline__))
-#elif defined(_MSC_VER)
+#elif defined(DEKAF2_IS_MSC)
 	#define DEKAF2_NEVER_INLINE __declspec(noinline)
 #else
 	#define DEKAF2_NEVER_INLINE

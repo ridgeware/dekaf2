@@ -76,7 +76,7 @@
 // Therefore, in debug mode with gcc < 8 we simply switch SSE off and
 // fall back to traditional code
 
-#if (defined(__SSE4_2__) || defined _MSC_VER) \
+#if (defined(__SSE4_2__) || defined DEKAF2_IS_MSC) \
  && (!DEKAF2_IS_GCC || (DEKAF2_GCC_VERSION_MAJOR >= 8 || defined(NDEBUG)))
 	#define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
 #else

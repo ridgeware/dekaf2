@@ -259,7 +259,7 @@ private:
 
 }; // KSharedProfiler
 
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 
 #pragma optimize("", off)
 
@@ -287,7 +287,7 @@ public:
 	static void Force(void *p)
 	//-----------------------------------------------------------------------------
 	{
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 		KeepVar(p);
 #else
 		__asm__ __volatile__ ("" : "+g"(p) : "g"(p) : "memory");
@@ -299,7 +299,7 @@ public:
 	static void Force()
 	//-----------------------------------------------------------------------------
 	{
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 		KeepMe();
 #else
 		__asm__ __volatile__ ("" : : : "memory");

@@ -70,7 +70,7 @@ enum DefaultFileCeateFlags
 	DEKAF2_MODE_CREATE_DIR  = 0777
 };
 
-#ifdef _WIN32
+#ifdef DEKAF2_IS_WINDOWS
 constexpr char kDirSep { '\\' };
 namespace detail {
 constexpr KStringViewZ kLineRightTrims { "\r\n" };

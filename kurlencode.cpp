@@ -252,7 +252,7 @@ bool kIsIPv4Address(KStringView sAddress)
 
 } // kIsIPv4Address
 
-#ifndef _MSC_VER
+#ifndef DEKAF2_IS_MSC
 template void kUrlDecode(KStringRef& sDecode, bool pPlusAsSpace = false);
 template void kUrlDecode(const KStringView& sSource, KStringRef& sTarget, bool bPlusAsSpace = false);
 template KString kUrlDecode(const KStringView& sSource, bool bPlusAsSpace = false);
@@ -261,6 +261,6 @@ template void kUrlEncode (const KStringView& sSource, KStringRef& sTarget, const
 template class KURLEncoded<uint16_t>;
 template class KURLEncoded<KString>;
 template class KURLEncoded<KProps<KString, KString>, '&', '='>;
-#endif // of _MSC_VER
+#endif // of DEKAF2_IS_MSC
 
 DEKAF2_NAMESPACE_END

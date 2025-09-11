@@ -432,7 +432,7 @@ public:
 
 	enum TagType { NONE, OPEN, CLOSE, STANDALONE };
 
-#if (DEKAF2_HAS_INCOMPLETE_CPP_17) || defined(_MSC_VER)
+#if (DEKAF2_HAS_INCOMPLETE_CPP_17) || defined(DEKAF2_IS_MSC)
 	// older GCCs need a default constructor here as they do not honor the using directive below
 	KHTMLTag() = default;
 #endif

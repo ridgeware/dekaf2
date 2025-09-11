@@ -1078,7 +1078,7 @@ LJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 			}
 			DEKAF2_CATCH(const LJSON::exception& exc)
 			{
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 				exc.what();
 #endif
 				// not a valid json object / array, store it as a string
@@ -1112,7 +1112,7 @@ LJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 				}
 				DEKAF2_CATCH(const LJSON::exception& exc)
 				{
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 					exc.what();
 #endif
 					// not a valid json object / array, store it as a string

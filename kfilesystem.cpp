@@ -248,7 +248,7 @@ KStringView kExtension(KStringView sFilePath)
 	// Given a filesystem path, return the file extension
 	if (!sFilePath.empty())
 	{
-#ifdef _WIN32
+#ifdef DEKAF2_IS_WINDOWS
 		auto pos = sFilePath.find_last_of("/\\:.");
 #else
 		auto pos = sFilePath.find_last_of("/.");
@@ -275,7 +275,7 @@ KStringView kRemoveExtension(KStringView sFilePath)
 	// Given a filesystem path, remove the file extension
 	if (!sFilePath.empty())
 	{
-#ifdef _WIN32
+#ifdef DEKAF2_IS_WINDOWS
 		auto pos = sFilePath.find_last_of("/\\:.");
 #else
 		auto pos = sFilePath.find_last_of("/.");

@@ -56,7 +56,7 @@
 // their fs strings.
 
 #if !DEKAF2_IS_UNIX
-	#if DEKAF2_HAS_CPP_17 && !DEKAF2_IS_CLANG
+	#if DEKAF2_HAS_CPP_17
 		#if DEKAF2_HAS_INCLUDE(<filesystem>)
 			#include <filesystem>
 			#define DEKAF2_HAS_STD_FILESYSTEM 1

@@ -180,7 +180,7 @@ KStringViewPair kSplitToPair(
 
 }  // kSplitToPair
 
-#if !defined(_MSC_VER) && (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION_MAJOR > 5)
+#if !defined(DEKAF2_IS_MSC) && (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION_MAJOR > 5)
 // precompile for std::vector<KStringView>
 template
 std::size_t kSplit(
@@ -192,6 +192,6 @@ std::size_t kSplit(
         bool        bCombineDelimiters = false,      // default: create an element for each delimiter char found
         bool        bQuotesAreEscapes  = false       // default: treat double quotes like any other char
 );
-#endif // of _MSC_VER
+#endif // of DEKAF2_IS_MSC
 
 DEKAF2_NAMESPACE_END

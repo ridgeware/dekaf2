@@ -494,7 +494,7 @@ KStringView kFirstWord(const KStringView& sInput)
 namespace detail {
 
 // table with base36 integer values for lower and upper case ASCII
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 const uint8_t LookupBase36[256] =
 #else
 constexpr uint8_t LookupBase36[256] =

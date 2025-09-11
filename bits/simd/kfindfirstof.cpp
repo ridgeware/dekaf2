@@ -128,11 +128,11 @@ DEKAF2_NAMESPACE_END
 	// are hard to replace in neon
 	#include "../../from/sse2neon/sse2neon.h"
 #else
-	#if defined(__SSE4_2__) || defined _MSC_VER
+	#if defined(__SSE4_2__) || defined DEKAF2_IS_MSC
 		#include <emmintrin.h>
 		#include <nmmintrin.h>
 		#include <smmintrin.h>
-		#ifdef _MSC_VER
+		#ifdef DEKAF2_IS_MSC
 			#include <intrin.h>
 		#endif
 	#endif
@@ -151,7 +151,7 @@ DEKAF2_ALWAYS_INLINE
 void OperatorOrEqual(__m128i& a, __m128i b)
 //-----------------------------------------------------------------------------
 {
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 	a.m128i_i64[0] |= b.m128i_i64[0];
 	a.m128i_i64[1] |= b.m128i_i64[1];
 #else
@@ -468,7 +468,7 @@ std::size_t scanHaystackBlockNot(KStringView haystack,
 		OperatorOrEqual(mask, _mm_cmpestrm(arr2, static_cast<int>(needles.size() - j), arr1, useSize, 0b00000000));
 	}
 
-#ifndef _MSC_VER
+#ifndef DEKAF2_IS_MSC
 	uint16_t val = mask[0];
 #else
 	uint16_t val = *reinterpret_cast<uint16_t*>(&mask);
@@ -590,7 +590,7 @@ std::size_t reverseScanHaystackBlockNot(KStringView haystack,
 		OperatorOrEqual(mask, _mm_cmpestrm(arr2, static_cast<int>(needles.size() - j), arr1, useSize, 0));
 	}
 
-#ifndef _MSC_VER
+#ifndef DEKAF2_IS_MSC
 	uint16_t val = mask[0];
 #else
 	uint16_t val = *reinterpret_cast<uint16_t*>(&mask);

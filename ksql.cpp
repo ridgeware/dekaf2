@@ -73,7 +73,7 @@
 #include <cstdint>
 #include <utility>
 
-#ifndef _WIN32
+#ifndef DEKAF2_IS_WINDOWS
 #include <sys/time.h>
 #endif
 

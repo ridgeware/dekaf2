@@ -52,7 +52,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 KStopTime::ConstructHalted KStopTime::Halted;
 KStopWatch::ConstructHalted KStopWatch::Halted;
 #endif

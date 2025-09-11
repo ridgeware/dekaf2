@@ -69,7 +69,7 @@
 #include <thread>
 #include "bits/kasio.h"
 #include <boost/system/system_error.hpp>
-#ifndef _MSC_VER
+#ifndef DEKAF2_IS_MSC
 #include <boost/exception/diagnostic_information.hpp>
 #endif
 
@@ -222,7 +222,7 @@ void KTCPServer::RunSession(KIOStreamSocket& stream)
 
 	DEKAF2_CATCH(const boost::exception& e)
 	{
-#ifndef _MSC_VER
+#ifndef DEKAF2_IS_MSC
 		kWarning(boost::diagnostic_information(e));
 #endif
 	}
@@ -422,7 +422,7 @@ bool KTCPServer::TCPServer(bool ipv6)
 
 		stream->SetConnectedEndPointAddress(to_string(remote_endpoint));
 
-#if !DEKAF2_HAS_CPP_14 || defined(_MSC_VER)
+#if !DEKAF2_HAS_CPP_14 || defined(DEKAF2_IS_MSC)
 		// unfortunately C++11 does not know how to move a variable into a lambda scope
 		auto* Stream = stream.release();
 		m_ThreadPool.push([ this, Stream, remote_endpoint ]()

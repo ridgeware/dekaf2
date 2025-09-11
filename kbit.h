@@ -205,7 +205,7 @@ void kFromLittleEndian(T& value) noexcept
 namespace detail {
 
 #if !DEKAF2_BITS_HAS_BITOPS
-#ifndef _MSC_VER
+#if !DEKAF2_IS_MSC
 
 DEKAF2_NODISCARD inline DEKAF2_PUBLIC constexpr
 int ctz(unsigned iValue) noexcept
@@ -261,7 +261,7 @@ int popcount(unsigned long long iValue) noexcept
 	return __builtin_popcountll(iValue);
 }
 
-#else  // _MSC_VER
+#else  // DEKAF2_IS_MSC
 
 DEKAF2_NODISCARD inline DEKAF2_PUBLIC
 int ctz(unsigned iValue) noexcept
@@ -381,7 +381,7 @@ int popcount(unsigned long long iValue) noexcept
 #endif
 }
 
-#endif // _MSC_VER
+#endif // DEKAF2_IS_MSC
 #endif // DEKAF2_BITS_HAS_BITOPS
 
 } // end of namespace detail

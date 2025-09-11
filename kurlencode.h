@@ -659,7 +659,7 @@ protected:
 
 }; // KURLEncoded
 
-#ifndef _MSC_VER
+#ifndef DEKAF2_IS_MSC
 extern template void kUrlDecode(KStringRef& sDecode, bool pPlusAsSpace = false);
 extern template void kUrlDecode(const KStringView& sSource, KStringRef& sTarget, bool bPlusAsSpace = false);
 extern template KString kUrlDecode(const KStringView& sSource, bool bPlusAsSpace = false);
@@ -668,7 +668,7 @@ extern template void kUrlEncode (const KStringView& sSource, KStringRef& sTarget
 extern template class KURLEncoded<uint16_t>;
 extern template class KURLEncoded<KString>;
 extern template class KURLEncoded<KProps<KString, KString, true, false>, '&', '='>;
-#endif // of _MSC_VER
+#endif // of DEKAF2_IS_MSC
 
 using URLEncodedUInt   = KURLEncoded<uint16_t>;
 using URLEncodedString = KURLEncoded<KString>;

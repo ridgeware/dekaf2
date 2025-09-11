@@ -307,7 +307,7 @@ std::size_t kSplit (
 
 } // kSplit with string of delimiters
 
-#if !defined(_MSC_VER) && (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION_MAJOR > 5)
+#if !defined(DEKAF2_IS_MSC) && (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION_MAJOR > 5)
 // precompile for std::vector<KStringView>
 extern template
 DEKAF2_PUBLIC
@@ -320,7 +320,7 @@ std::size_t kSplit(
         bool        bCombineDelimiters = false,                // default: create an element for each delimiter char found
         bool        bQuotesAreEscapes  = false                 // default: treat double quotes like any other char
 );
-#endif // of _MSC_VER
+#endif // of DEKAF2_IS_MSC
 
 //-----------------------------------------------------------------------------
 /// Simplified version for single delimiter char.

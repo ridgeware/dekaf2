@@ -47,7 +47,7 @@
 #include "kutf.h"
 #include "kstringutils.h"
 #include "kctype.h"
-#if !defined(_MSC_VER) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
+#if !defined(DEKAF2_IS_MSC) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
 #include "kfrozen.h"
 #else
 #include <unordered_map>
@@ -2205,7 +2205,7 @@ struct codes_t
     { "zwnj"                             , {   0x200C }},
 };
 
-#if defined(DEKAF2_HAS_FROZEN) && !defined(_MSC_VER)
+#if defined(DEKAF2_HAS_FROZEN) && !defined(DEKAF2_IS_MSC)
 	#ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
 	static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entities);
 	#else
@@ -2357,7 +2357,7 @@ std::size_t DecodeInt(KStringRef& sRet, KStringView sIn, bool bAlsoNumeric)
 					if (it != start)
 					{
 						// find entity
-#ifdef _MSC_VER
+#ifdef DEKAF2_IS_MSC
 						KStringView sEntity(&*start, it-start);
 #else
 						KStringView sEntity(start, it-start);

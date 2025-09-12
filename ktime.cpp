@@ -1195,7 +1195,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 	}();
 
-#if DEKAF2_HAS_FULL_CPP_17 && !defined(DEKAF2_IS_MSC)
+#if DEKAF2_HAS_FULL_CPP_17 && !defined(DEKAF2_IS_MSC) && !(DEKAF2_IS_WINDOWS && DEKAF2_IS_CLANG)
 	// do a second constexpr sanity check, this time over the generated lookup table
 	static constexpr bool bArrayIsSane = []() constexpr -> bool
 	{

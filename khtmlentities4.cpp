@@ -72,7 +72,7 @@ struct codes_t
 
 // The named entities from HTML5
 
-#if defined(DEKAF2_HAS_FROZEN) && !defined(_MSC_VER) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
+#if defined(DEKAF2_HAS_FROZEN) && !defined(DEKAF2_MSVCLIB_VERSION) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))
 	static constexpr std::pair<KStringView, codes_t> s_Entities[]
 #else
 	const std::unordered_map<KStringView, codes_t> s_NamedEntitiesHTML4
@@ -2205,7 +2205,7 @@ struct codes_t
     { "zwnj"                             , {   0x200C }},
 };
 
-#if defined(DEKAF2_HAS_FROZEN) && !defined(DEKAF2_IS_MSC)
+#if defined(DEKAF2_HAS_FROZEN) && !defined(DEKAF2_MSVCLIB_VERSION)
 	#ifdef DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS
 	static constexpr auto s_NamedEntitiesHTML4 = frozen::make_unordered_map(s_Entities);
 	#else
@@ -2357,7 +2357,7 @@ std::size_t DecodeInt(KStringRef& sRet, KStringView sIn, bool bAlsoNumeric)
 					if (it != start)
 					{
 						// find entity
-#ifdef DEKAF2_IS_MSC
+#ifdef DEKAF2_MSVCLIB_VERSION
 						KStringView sEntity(&*start, it-start);
 #else
 						KStringView sEntity(start, it-start);

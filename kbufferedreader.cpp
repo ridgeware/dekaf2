@@ -44,6 +44,7 @@
 #include "kstring.h"
 #include "kstringutils.h"
 #include "klog.h"
+#include "kcompatibility.h"
 #include <algorithm>
 
 #ifdef DEKAF2_IS_WINDOWS

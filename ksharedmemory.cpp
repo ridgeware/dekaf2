@@ -45,6 +45,7 @@
 #include "ksystem.h"
 #include "klog.h"
 #include "kcrashexit.h"
+#include "kcompatibility.h"
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/ipc.h>

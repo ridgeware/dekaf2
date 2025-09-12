@@ -1,7 +1,8 @@
 /*
+//
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2024, Ridgeware, Inc.
+// Copyright (c) 2025, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -36,89 +37,73 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
+//
+//
 */
 
-#include "kerror.h"
-#include "klog.h"
 #include "kcompatibility.h"
-#include <boost/system/error_code.hpp>
-#include <errno.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-void KErrorBase::SetThrowOnError(bool bYes)
+void strcpy_n(char* sTarget, const char* sSource, std::size_t iMax)
 //-----------------------------------------------------------------------------
 {
-	m_bThrow = bYes;
-
-	if (m_bThrow && HasError())
+	// we substract one for the 0 byte
+	if (sTarget && sSource && iMax--)
 	{
-		throw base(*this);
-	}
-
-} // SetThrowOnError
-
-//-----------------------------------------------------------------------------
-bool KErrorBase::SetError(const KErrorBase& Error) const
-//-----------------------------------------------------------------------------
-{
-	// keeps this classes members as they are, but copies over all from the base class
-	const_cast<base*>(static_cast<const base*>(this))->operator=(Error);
-	return false;
-}
-
-//-----------------------------------------------------------------------------
-bool KErrorBase::SetError(KStringViewZ sError, uint16_t iErrorCode, KStringView sFunction) const
-//-----------------------------------------------------------------------------
-{
-	if (!sError.empty())
-	{
-		if (DEKAF2_UNLIKELY(1 <= KLog::s_iThreadLogLevel))
+		while (iMax-- && *sSource)
 		{
-			KLog::getInstance().debug_fun(1, sFunction, sError);
+			*sTarget++ = *sSource++;
 		}
+		*sTarget = '\0';
 	}
 
-	SetError(KErrorBase(sError, iErrorCode));
+} // strcpy_n
 
-	if (m_bThrow && HasError())
+#ifdef DEKAF2_IS_WINDOWS
+//-----------------------------------------------------------------------------
+const char* strerror (int errnum);
+//-----------------------------------------------------------------------------
+{
+	static thread_local std::array<char, 128> Buffer;
+
+	if (::strerror_s(Buffer.data(), Buffer.size(), errnum) != 0)
 	{
-		throw base(*this);
+		strcpy_n(Buffer.data(), "unknown error", Buffer.size());
 	}
 
-	return false;
-
-} // SetError
-
-//-----------------------------------------------------------------------------
-bool KErrorBase::SetError(const boost::system::error_code& ec, KStringView sFunction) const
-//-----------------------------------------------------------------------------
-{
-	return SetError(ec.message(), ec.value(), sFunction);
+	return Buffer.data();
 }
 
 //-----------------------------------------------------------------------------
-bool KErrorBase::SetErrnoError(KStringView sPrefix, KStringView sFunction) const
+int open(const char *path, int oflag)
 //-----------------------------------------------------------------------------
 {
-	return SetError(kFormat("{}{}", sPrefix, strerror(errno)), errno, sFunction);
+	return ::_open(path, oflag);
 }
 
 //-----------------------------------------------------------------------------
-void KErrorBase::ClearError()
+int open(const char *path, int oflag, int mode)
 //-----------------------------------------------------------------------------
 {
-	clear();
+	return ::_open(path, oflag, mode);
 }
 
-#if 0
-// test for debugging ..
-static_assert(std::is_nothrow_move_constructible<std::runtime_error>::value, "std::runtime_error is not nothrow move constructible, but should be");
+//-----------------------------------------------------------------------------
+int close(int fd)
+//-----------------------------------------------------------------------------
+{
+	return ::_close(fd);
+}
+
+//-----------------------------------------------------------------------------
+int read(int fd, void *buf, size_t nbyte)
+//-----------------------------------------------------------------------------
+{
+	return ::_read(fd, buf, nbyte);
+}
 #endif
-
-static_assert(!std::is_nothrow_move_constructible<std::runtime_error>::value || std::is_nothrow_move_constructible<KErrorBase>::value,
-			  "KErrorBase is intended to be nothrow move constructible, but is not!");
 
 
 DEKAF2_NAMESPACE_END

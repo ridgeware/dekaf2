@@ -45,6 +45,7 @@
 
 #include "../klog.h"
 #include "../ksignals.h"
+#include "../kcompatibility.h"
 #include <errno.h>
 
 #ifndef DEKAF2_IS_WINDOWS

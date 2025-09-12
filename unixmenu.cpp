@@ -49,6 +49,7 @@
 #include "kwriter.h"
 #include "ksystem.h"
 #include "kfilesystem.h"
+#include "kcompatibility.h"
 
 #include <stdio.h>
 #include <curses.h>

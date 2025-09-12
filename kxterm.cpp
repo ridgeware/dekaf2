@@ -43,6 +43,8 @@
 #include "kctype.h"
 #include "kutf.h"
 #include "klog.h"
+#include "ksystem.h"
+#include "kcompatibility.h"
 #include <string>
 
 #ifndef DEKAF2_IS_WINDOWS
@@ -132,7 +134,7 @@ KXTermCodes::RGB::RGB(KStringView sColorValue)
 bool KXTermCodes::HasRGBColors()
 //-----------------------------------------------------------------------------
 {
-	KStringViewZ sTerm = ::getenv("COLORTERM");
+	KStringViewZ sTerm = kGetEnv("COLORTERM");
 	kDebug(3, "env COLORTERM is '{}'", sTerm);
 
 	if (sTerm.In("truecolor,24bit"))
@@ -141,7 +143,7 @@ bool KXTermCodes::HasRGBColors()
 		return true;
 	}
 
-	sTerm = ::getenv("TERM");
+	sTerm = kGetEnv("TERM");
 	kDebug(3, "env TERM is '{}'", sTerm);
 
 	if (sTerm == "iterm" || sTerm.contains("truecolor") || sTerm.starts_with("vte"))

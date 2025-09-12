@@ -42,6 +42,7 @@
 
 #include "klog.h"
 #include "ksystem.h"
+#include "kcompatibility.h"
 
 #if !DEKAF2_IS_WINDOWS
 	#include <sys/types.h>
@@ -61,7 +62,7 @@ KStringView GetPollError()
 
 #if !DEKAF2_IS_WINDOWS
 
-	sWhat = ::strerror(errno);
+	sWhat = strerror(errno);
 
 #else
 

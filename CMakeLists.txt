@@ -1416,6 +1416,7 @@ set (SOURCES
 	kcgistream.cpp
 	kchildprocess.cpp
 	kchunkedtransfer.cpp
+	kcompatibility.cpp
 	kcompression.cpp
 	kcookie.cpp
 	kcountingstreambuf.cpp

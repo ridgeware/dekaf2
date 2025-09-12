@@ -49,6 +49,7 @@
 #include "kfilesystem.h"
 #include "kreader.h"
 #include "ksystem.h"
+#include "kcompatibility.h"
 #include <jemalloc/jemalloc.h>
 
 DEKAF2_NAMESPACE_BEGIN

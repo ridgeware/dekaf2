@@ -46,6 +46,12 @@
 /// @file kdefinitions.h
 /// dekaf2 preprocessor defines
 
+#ifdef _WIN32
+	#ifndef _CRT_SECURE_NO_WARNINGS
+		#define _CRT_SECURE_NO_WARNINGS
+	#endif
+#endif
+
 #include <climits>
 #include <cstdint>
 #include <cstddef>
@@ -188,15 +194,21 @@
 	#endif
 #endif
 
+#if defined(DEKAF2_IS_WINDOWS) && !defined __GLIBC__ && !defined __LIBCPP_VERSION
+	#if defined DEKAF2_MSC_VERSION
+		#define DEKAF2_MSVCLIB_VERSION DEKAF2_MSC_VERSION
+		#define DEKAF2_MSVCLIB_VERSION_MAJOR DEKAF2_MSC_VERSION_MAJOR
+	#else
+		#define DEKAF2_MSVCLIB_VERSION 1
+		#define DEKAF2_MSVCLIB_VERSION_MAJOR 1
+	#endif
+#endif
+
 #if DEKAF2_IS_WINDOWS
 	// min/max macros interfere with the C++ versions - define this before
 	// including any windows system headers
 	#ifndef NOMINMAX
 		#define NOMINMAX
-	#endif
-
-	#ifndef _CRT_SECURE_NO_WARNINGS
-		#define _CRT_SECURE_NO_WARNINGS
 	#endif
 #endif
 

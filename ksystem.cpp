@@ -131,7 +131,7 @@ KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault)
 bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ szValue)
 //-----------------------------------------------------------------------------
 {
-#ifdef WIN32
+#ifdef DEKAF2_IS_WINDOWS
 	errno_t err = _putenv_s(szEnvVar.c_str(), szValue.c_str());
 	if (err)
 	{
@@ -148,7 +148,7 @@ bool kSetEnv (KStringViewZ szEnvVar, KStringViewZ szValue)
 	{
 		kWarning("cannot set {} = {}, {}", szEnvVar, szValue, strerror(errno));
 	}
-#endif  // WIN32
+#endif  // DEKAF2_IS_WINDOWS
 	return (bOK);
 
 } // kSetEnv
@@ -173,7 +173,7 @@ bool kSetEnv (const std::vector<std::pair<KString, KString>>& Environment)
 bool kUnsetEnv (KStringViewZ szEnvVar)
 //-----------------------------------------------------------------------------
 {
-#ifdef WIN32
+#ifdef DEKAF2_IS_WINDOWS
 	return kSetEnv(szEnvVar, "");
 #else
 	bool bOK = (::unsetenv(szEnvVar.c_str()) == 0);
@@ -202,7 +202,7 @@ bool kSetCWD (KStringViewZ sPath)
 #else
 	if (::chdir(sPath.c_str()))
 	{
-		kWarning("chdir failed: {}", ::strerror(errno));
+		kWarning("chdir failed: {}", strerror(errno));
 		return false;
 	}
 	return true;
@@ -232,7 +232,7 @@ KString kGetCWD ()
 	}
 	else
 	{
-		kWarning("cannot get current working directory: {}", ::strerror(errno));
+		kWarning("cannot get current working directory: {}", strerror(errno));
 		sPath.erase();
 	}
 	return sPath;
@@ -367,7 +367,7 @@ KString kGetWhoAmI ()
 	enum { MAX = 100 };
 	wchar_t szWhoami[MAX + 1] = { 0 };
 	DWORD nSize = MAX;
-	if (GetUserName (szWhoami, &nSize))
+	if (GetUserNameW (szWhoami, &nSize))
 	{
 		kutf::Convert(szWhoami, sWhoami);
 	}
@@ -449,7 +449,7 @@ KStringViewZ kGetHostname (bool bAllowKHostname/*=true*/)
 
 			wchar_t szHostname[MAXNAMELEN + 1]{}; szHostname[0] = 0;
 			DWORD nSize = MAXNAMELEN;
-			GetComputerName (
+			GetComputerNameW (
 				szHostname,       // name buffer
 				&nSize              // address of size of name buffer
 			);
@@ -2118,10 +2118,10 @@ detail::KUNameBase::KUNameBase() noexcept
 	}
 
 	HKEY hkey;
-	RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows NT\\CurrentVersion", 0, KEY_QUERY_VALUE, &hkey);
+	RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows NT\\CurrentVersion", 0, KEY_QUERY_VALUE, &hkey);
 	BYTE version;
 	long unsigned int size = sizeof(version);
-	RegQueryValueEx(hkey, L"DisplayVersion", NULL, NULL, &version, &size);
+	RegQueryValueExW(hkey, L"DisplayVersion", NULL, NULL, &version, &size);
 	char* pStart = m_UTSName.version;
 	char* pEnd   = pStart + sizeof(m_UTSName.version) - 1;
 	auto result  = std::to_chars(pStart, pEnd, static_cast<uint8_t>(version), 10);

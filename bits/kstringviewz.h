@@ -293,7 +293,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		auto it = kutf::Left(begin(), end(), iStart);
-#ifndef DEKAF2_IS_MSC
+#ifndef DEKAF2_MSVCLIB_VERSION
 		return self_type(it, end() - it);
 #else
 		return self_type(data() + (it - begin()), end() - it);
@@ -318,7 +318,7 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		auto it = kutf::Right(begin(), end(), iCount);
-#ifndef DEKAF2_IS_MSC
+#ifndef DEKAF2_MSVCLIB_VERSION
 		return self_type(it, end() - it);
 #else
 		return self_type(data() + (it - begin()), end() - it);

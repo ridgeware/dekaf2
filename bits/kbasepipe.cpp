@@ -50,6 +50,7 @@
 #include "../klog.h"
 #include "../kstring.h"
 #include "../kformat.h"
+#include "../kcompatibility.h"
 #include <csignal>
 #include <thread>
 

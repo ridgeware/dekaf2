@@ -45,6 +45,7 @@
 #include "../kdefinitions.h"
 #include "../krow.h"
 #include "../kstring.h"
+#include "../kcompatibility.h"
 #include <cinttypes>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -178,7 +179,7 @@ private:
 		Data()
 		{
 			FillBufferWithNoise(this, sizeof(Data));
-			strcpy(szLeader, "KSQLDBC1");
+			strcpy_n(szLeader, "KSQLDBC1", 10);
 		}
 
 		char           szLeader[10]; // <-- length of leader can never change as struct gets rev'ed
@@ -252,7 +253,7 @@ private:
 		Data()
 		{
 			FillBufferWithNoise(this, sizeof(Data));
-			strcpy(szLeader, "KSQLDBC2");
+			strcpy_n(szLeader, "KSQLDBC2", 10);
 		}
 
 		char          szLeader[10]; // <-- length of leader can never change as struct gets rev'ed
@@ -323,7 +324,7 @@ private:
 		Data()
 		{
 			FillBufferWithNoise(this, sizeof(Data));
-			strcpy(szLeader, "KSQLDBC3");
+			strcpy_n(szLeader, "KSQLDBC3", 10);
 		}
 
 		char          szLeader[10]; // <-- length of leader can never change as struct gets rev'ed

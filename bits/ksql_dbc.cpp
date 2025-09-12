@@ -147,7 +147,7 @@ bool DBCFileBase::SetString(void* pStr, KStringViewZ sStr, uint16_t iMaxLen)
 	{
 		auto szStr = static_cast<char*>(pStr);
 		// strncpy() actually zeroes the remainder of the string - we do not want that
-		std::strcpy(szStr, sStr.c_str());
+		strcpy_n(szStr, sStr.c_str(), iMaxLen);
 		encrypt(szStr);
 		return true;
 	}

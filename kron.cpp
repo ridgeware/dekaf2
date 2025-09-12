@@ -50,6 +50,7 @@
 #include "kexception.h"
 #include "bits/kron_utils.h"
 #include "croncpp.h"
+#include "kcompatibility.h"
 
 DEKAF2_NAMESPACE_BEGIN
 

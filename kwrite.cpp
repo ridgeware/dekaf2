@@ -41,6 +41,7 @@
 
 #include "kwrite.h"
 #include "klog.h"
+#include "kcompatibility.h"
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <io.h>

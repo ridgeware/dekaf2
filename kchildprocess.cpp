@@ -50,6 +50,7 @@
 #include "ksplit.h"
 #include "kduration.h"
 #include "ksignals.h"
+#include "kcompatibility.h"
 #include <thread>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -151,7 +152,7 @@ void kDaemonize(bool bChangeDir)
 
 		if (pid < 0)
 		{
-			kWarning("cannot fork: {}", std::strerror(errno));
+			kWarning("cannot fork: {}", strerror(errno));
 			exit(1);
 		}
 
@@ -165,7 +166,7 @@ void kDaemonize(bool bChangeDir)
 	{
 		if (errno != EPERM)
 		{
-			kWarning("setsid failed: {}", std::strerror(errno));
+			kWarning("setsid failed: {}", strerror(errno));
 			exit(1);
 		}
 	}
@@ -178,7 +179,7 @@ void kDaemonize(bool bChangeDir)
 
 	if (pid < 0)
 	{
-		kWarning("cannot fork again: {}", std::strerror(errno));
+		kWarning("cannot fork again: {}", strerror(errno));
 		exit(1);
 	}
 
@@ -186,7 +187,7 @@ void kDaemonize(bool bChangeDir)
 	{
 		if (chdir("/"))
 		{
-			kWarning("chdir to / failed: {}", std::strerror(errno));
+			kWarning("chdir to / failed: {}", strerror(errno));
 			exit(1);
 		}
 	}

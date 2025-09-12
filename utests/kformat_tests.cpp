@@ -6,6 +6,7 @@
 #include <dekaf2/kcasestring.h>
 #include <dekaf2/kwriter.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/kcompatibility.h>
 
 using namespace dekaf2;
 
@@ -55,7 +56,7 @@ TEST_CASE("kFormat")
 	{
 		char buffer[70];
 		std::memset(buffer, '-', 70);
-		strcpy(buffer, "test 123456789012345678901234567890");
+		strcpy_n(buffer, "test 123456789012345678901234567890", 70);
 		CHECK ( kFormat("hello {}", buffer) == "hello test 123456789012345678901234567890" );
 	}
 
@@ -63,7 +64,7 @@ TEST_CASE("kFormat")
 	{
 		char buffer[70];
 		std::memset(buffer, '+', 70);
-		strcpy(buffer, "test 123456789012345678901234567890");
+		strcpy_n(buffer, "test 123456789012345678901234567890", 70);
 		CHECK ( kFormat("hello {}", KStringView(buffer)) == "hello test 123456789012345678901234567890" );
 	}
 
@@ -71,7 +72,7 @@ TEST_CASE("kFormat")
 	{
 		std::array<char, 70> buffer;
 		std::memset(buffer.data(), '!', buffer.size());
-		strcpy(buffer.data(), "test 123456789012345678901234567890");
+		strcpy_n(buffer.data(), "test 123456789012345678901234567890", 70);
 		CHECK ( kFormat("hello {}", buffer.data()) == "hello test 123456789012345678901234567890" );
 	}
 

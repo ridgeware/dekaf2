@@ -4483,10 +4483,14 @@ bool KSQL::ResetBuffer ()
 		m_bFileIsOpen = false;
 	}
 
-#ifdef DEKAF2_IS_UNIX
-	m_bpBufferedResults = fopen (GetTempResultsFile().c_str(), "re");
+#ifdef DEKAF2_IS_WINDOWS
+	auto errcode = fopen_s (&m_bpBufferedResults, GetTempResultsFile().c_str(), "r");
+	if (errcode)
+	{
+		return SetError(strerror(errcode));
+	}
 #else
-	m_bpBufferedResults = fopen (GetTempResultsFile().c_str(), "r");
+	m_bpBufferedResults = fopen (GetTempResultsFile().c_str(), "re");
 #endif
 	if (!m_bpBufferedResults)
 	{

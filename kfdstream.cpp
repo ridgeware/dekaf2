@@ -137,7 +137,11 @@ void KInputFDStream::close()
 {
 	if (m_FileDesc >= 0)
 	{
+#if DEKAF2_IS_WINDOWS
+		if (_close(m_FileDesc))
+#else
 		if (::close(m_FileDesc))
+#endif
 		{
 			kWarning("Cannot close file: {}", strerror(errno));
 		}
@@ -197,7 +201,11 @@ void KOutputFDStream::close()
 	{
 		base_type::flush();
 
+#if DEKAF2_IS_WINDOWS
+		if (_close(m_FileDesc))
+#else
 		if (::close(m_FileDesc))
+#endif
 		{
 			kWarning("Cannot close file: {}", strerror(errno));
 		}
@@ -268,7 +276,11 @@ void KInOutFDStream::close()
 
 	if (m_FileDescR >= 0)
 	{
+#if DEKAF2_IS_WINDOWS
+		if (_close(m_FileDescR))
+#else
 		if (::close(m_FileDescR))
+#endif
 		{
 			kWarning("Cannot close file: {}", strerror(errno));
 		}
@@ -279,7 +291,11 @@ void KInOutFDStream::close()
 	{
 		if (m_FileDescW >= 0)
 		{
+#if DEKAF2_IS_WINDOWS
+			if (_close(m_FileDescW))
+#else
 			if (::close(m_FileDescW))
+#endif
 			{
 				kWarning("Cannot close file: {}", strerror(errno));
 			}

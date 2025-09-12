@@ -114,7 +114,27 @@ DEKAF2_NAMESPACE_BEGIN
 KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault)
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_IS_WINDOWS
+	static thread_local std::array<char, 256> Buffer;
+	std::size_t iRead { 0 };
+	auto err = getenv_s(&iRead, Buffer.data(), Buffer.size(), szEnvVar.c_str());
+
+	if (err)
+	{
+		kWarning("cannot get {}", szEnvVar);
+	}
+
+	if (iRead == 0 || Buffer[0] == '\0')
+	{
+		return szDefault;
+	}
+	else
+	{
+		return Buffer.data();
+	}
+#else
 	KStringViewZ sValue = ::getenv(szEnvVar.c_str());
+
 	if (!sValue.empty())
 	{
 		return (sValue);
@@ -123,6 +143,7 @@ KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault)
 	{
 		return (szDefault);
 	}
+#endif
 
 } // kGetEnv
 

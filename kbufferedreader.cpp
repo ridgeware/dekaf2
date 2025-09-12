@@ -296,7 +296,11 @@ KBufferedFileReader::~KBufferedFileReader()
 {
 	if (m_bOwnsFileDescriptor)
 	{
+#ifdef DEKAF2_IS_WINDOWS
+		if (_close(m_fd))
+#else
 		if (close(m_fd))
+#endif
 		{
 			kDebug(1, "cannot close: {}", strerror(errno));
 		}

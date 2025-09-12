@@ -49,6 +49,10 @@
 #include "kdefinitions.h"
 #include <type_traits>
 
+#if !DEKAF2_IS_WINDOWS
+	#include <unistd.h>
+#endif
+
 DEKAF2_NAMESPACE_BEGIN
 
 /// suppress compiler warnings on seemingly unused variables
@@ -82,7 +86,6 @@ void strcpy_n(char* sTarget, const char* sSource, std::size_t iMax);
 const char* strerror (int errnum);
 int open(const char *path, int oflag);
 int open(const char *path, int oflag, int mode);
-int close(int fd);
 int read(int fd, void *buf, size_t nbyte);
 #endif
 

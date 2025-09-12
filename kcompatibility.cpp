@@ -41,7 +41,13 @@
 //
 */
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "kcompatibility.h"
+
+#if DEKAF2_IS_WINDOWS
+	#include <io.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -63,7 +69,7 @@ void strcpy_n(char* sTarget, const char* sSource, std::size_t iMax)
 
 #ifdef DEKAF2_IS_WINDOWS
 //-----------------------------------------------------------------------------
-const char* strerror (int errnum);
+const char* strerror (int errnum)
 //-----------------------------------------------------------------------------
 {
 	static thread_local std::array<char, 128> Buffer;
@@ -88,13 +94,6 @@ int open(const char *path, int oflag, int mode)
 //-----------------------------------------------------------------------------
 {
 	return ::_open(path, oflag, mode);
-}
-
-//-----------------------------------------------------------------------------
-int close(int fd)
-//-----------------------------------------------------------------------------
-{
-	return ::_close(fd);
 }
 
 //-----------------------------------------------------------------------------

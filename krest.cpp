@@ -55,7 +55,8 @@ void KREST::RESTServer::Session (KIOStreamSocket& Stream)
 {
 	KRESTServer RESTServer(m_Routes, m_Options);
 
-#ifndef DEKAF2_IS_WINDOWS
+	// keep a local copy of the socket for KSocketWatch
+	auto nativeSocket = Stream.GetNativeSocket();
 
 	if (m_Options.bPollForDisconnect)
 	{
@@ -72,10 +73,8 @@ void KREST::RESTServer::Session (KIOStreamSocket& Stream)
 				m_Options.DisconnectCallback(iParam);
 			}
 		};
-		m_SocketWatch.Add(Stream.GetNativeSocket(), std::move(Params));
+		m_SocketWatch.Add(nativeSocket, std::move(Params));
 	}
-
-#endif
 
 	RESTServer.Accept(Stream,
 				   Stream.GetEndPointAddress().Serialize(),
@@ -118,17 +117,17 @@ void KREST::RESTServer::Session (KIOStreamSocket& Stream)
 	// more existing
 	if (!KTCPServer::IsShuttingDown())
 	{
-#ifndef DEKAF2_IS_WINDOWS
 		if (m_Options.bPollForDisconnect)
 		{
 			// if the connection is already marked as disconnected
 			// it has already been removed from the watch
 			if (!RESTServer.IsDisconnected())
 			{
-				m_SocketWatch.Remove(Stream.GetNativeSocket());
+				// use the local copy of the socket fd for removal,
+				// as the Stream.GetNativeSocket() may already be -1
+				m_SocketWatch.Remove(nativeSocket);
 			}
 		}
-#endif
 	}
 
 	RESTServer.Disconnect();

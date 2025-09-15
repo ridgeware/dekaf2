@@ -56,11 +56,14 @@ void strcpy_n(char* sTarget, const char* sSource, std::size_t iMax)
 //-----------------------------------------------------------------------------
 {
 	// we substract one for the 0 byte
-	if (sTarget && sSource && iMax--)
+	if (sTarget && iMax--)
 	{
-		while (iMax-- && *sSource)
+		if (sSource)
 		{
-			*sTarget++ = *sSource++;
+			while (iMax-- && *sSource)
+			{
+				*sTarget++ = *sSource++;
+			}
 		}
 		*sTarget = '\0';
 	}

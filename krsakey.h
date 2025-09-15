@@ -54,7 +54,7 @@ struct evp_pkey_st;
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// RSA key class to transform formats, holds either a private or a public key
+/// RSA key class to transform formats or create a new key, holds either a private/public or a public key
 class DEKAF2_PUBLIC KRSAKey : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

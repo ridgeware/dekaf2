@@ -1052,6 +1052,8 @@ public:
 
 	TableHeader(KStringView sContent = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{});
 
+	using KWebObject::SetColSpan;
+	using KWebObject::SetRowSpan;
 	using KWebObject::SetAlign;
 	using KWebObject::SetVAlign;
 

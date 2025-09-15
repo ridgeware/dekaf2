@@ -47,6 +47,7 @@
 
 #include <unordered_map>
 #include <vector>
+#include <chrono>
 
 #ifdef DEKAF2
 	#include "kstring.h"
@@ -178,18 +179,20 @@ struct DEKAF2_PUBLIC DBConnector
 	DBConnector(const DBConnector& other);
 	DBConnector(DBConnector&&) = default;
 	// ctor
-	DBConnector(StringViewZ sFilename, Mode iMode);
+	DBConnector(StringViewZ sFilename, Mode iMode, std::chrono::milliseconds BusyTimeout);
 	// dtor
 	~DBConnector();
 
 	/// Connect to database (fails if connection is already established)
-	bool Connect(StringViewZ sFilename, Mode iMode);
+	bool Connect(StringViewZ sFilename, Mode iMode, std::chrono::milliseconds BusyTimeout);
 	/// Returns count of rows affected by last query
 	size_type AffectedRows();
 	/// Returns row ID of last inserted row or 0
 	size_type LastInsertID();
 	/// Returns the filename of the connected database
 	StringViewZ Filename() const;
+	/// Set a busy timeout (to change the one given at creation of the connection)
+	bool SetBusyTimeout(std::chrono::milliseconds BusyTimeout);
 
 	/// Returns last error (if any)
 	StringViewZ Error() const;
@@ -202,6 +205,7 @@ struct DEKAF2_PUBLIC DBConnector
 
 	sqlite3* m_DB { nullptr };
 	Mode m_iMode { READONLY };
+	std::chrono::milliseconds m_BusyTimeout;
 
 }; // DBConnector
 
@@ -233,11 +237,11 @@ public:
 	Database(Database&&) = default;
 	Database& operator=(const Database&);
 	Database& operator=(Database&&) = default;
-	/// Open database in file with given name, use given mode to open
-	Database(StringViewZ sFilename, Mode iMode = Mode::READONLY);
+	/// Open database in file with given name, use given mode to open, set a busy timeout (10 sec per default)
+	Database(StringViewZ sFilename, Mode iMode = Mode::READONLY, std::chrono::milliseconds BusyTimeout = std::chrono::seconds(10));
 
 	/// Connect to database - closes an established connection
-	bool Connect(StringViewZ sFilename, Mode iMode = Mode::READONLY);
+	bool Connect(StringViewZ sFilename, Mode iMode = Mode::READONLY, std::chrono::milliseconds BusyTimeout = std::chrono::seconds(10));
 	/// Create a prepared statement
 	Statement Prepare(StringView sQuery);
 	/// Execute an ad-hoc query, returns success
@@ -258,6 +262,14 @@ public:
 	bool Good() const { return Connector()->Good(); }
 	/// Returns name of database file
 	StringViewZ Filename() const noexcept { return Connector()->Filename(); }
+	/// start a transaction for multiple updates
+	bool BeginTransaction();
+	/// commit a transaction
+	bool CommitTransaction();
+	/// cancel a transaction
+	bool RollbackTransaction();
+	/// Set a busy timeout (to change the one given at creation of the connection)
+	bool SetBusyTimeout(std::chrono::milliseconds BusyTimeout) { return Connector()->SetBusyTimeout(BusyTimeout); }
 	/// Set de/encryption key for current database
 	bool Key(StringView sKey);
 	/// Set new key for current database, valid Key() must have been set before

@@ -59,10 +59,10 @@ inline bool Success(int ec)
 }
 
 //--------------------------------------------------------------------------------
-detail::DBConnector::DBConnector(StringViewZ sFilename, Mode iMode)
+detail::DBConnector::DBConnector(StringViewZ sFilename, Mode iMode, std::chrono::milliseconds BusyTimeout)
 //--------------------------------------------------------------------------------
 {
-	Connect(sFilename, iMode);
+	Connect(sFilename, iMode, BusyTimeout);
 
 } // ctor DBConnector
 
@@ -70,7 +70,7 @@ detail::DBConnector::DBConnector(StringViewZ sFilename, Mode iMode)
 detail::DBConnector::DBConnector(const DBConnector& other)
 //--------------------------------------------------------------------------------
 {
-	Connect(other.Filename(), other.m_iMode);
+	Connect(other.Filename(), other.m_iMode, other.m_BusyTimeout);
 
 } // copy ctor DBConnector
 
@@ -83,7 +83,7 @@ detail::DBConnector::~DBConnector()
 } // dtor DBConnector
 
 //--------------------------------------------------------------------------------
-bool detail::DBConnector::Connect(StringViewZ sFilename, Mode iMode)
+bool detail::DBConnector::Connect(StringViewZ sFilename, Mode iMode, std::chrono::milliseconds BusyTimeout)
 //--------------------------------------------------------------------------------
 {
 	if (m_DB == nullptr)
@@ -109,6 +109,7 @@ bool detail::DBConnector::Connect(StringViewZ sFilename, Mode iMode)
 		auto ec = sqlite3_open_v2(sFilename.c_str(), &m_DB, iFlags, nullptr);
 		if (Success(ec))
 		{
+			SetBusyTimeout(BusyTimeout);
 			return true;
 		}
 		else
@@ -124,6 +125,24 @@ bool detail::DBConnector::Connect(StringViewZ sFilename, Mode iMode)
 	return false;
 
 } // Connect
+
+//--------------------------------------------------------------------------------
+bool detail::DBConnector::SetBusyTimeout(std::chrono::milliseconds BusyTimeout)
+//--------------------------------------------------------------------------------
+{
+	m_BusyTimeout = BusyTimeout;
+
+	auto ec = sqlite3_busy_timeout(m_DB, static_cast<int>(m_BusyTimeout.count()));
+
+	if (!Success(ec))
+	{
+		kDebug(1, Error());
+		return false;
+	}
+
+	return true;
+
+} // SetBusyTimeout
 
 //--------------------------------------------------------------------------------
 StringViewZ detail::DBConnector::Filename() const
@@ -182,9 +201,9 @@ int detail::DBConnector::IsError() const
 //=================================== Database ===================================
 
 //--------------------------------------------------------------------------------
-Database::Database(StringViewZ sFilename, Mode iMode)
+Database::Database(StringViewZ sFilename, Mode iMode, std::chrono::milliseconds BusyTimeout)
 //--------------------------------------------------------------------------------
-	: m_Connector(std::make_shared<detail::DBConnector>(sFilename, iMode))
+	: m_Connector(std::make_shared<detail::DBConnector>(sFilename, iMode, BusyTimeout))
 {
 } // ctor
 
@@ -205,11 +224,11 @@ Database& Database::operator=(const Database& other)
 } // operator=()
 
 //--------------------------------------------------------------------------------
-bool Database::Connect(StringViewZ sFilename, Mode iMode)
+bool Database::Connect(StringViewZ sFilename, Mode iMode, std::chrono::milliseconds BusyTimeout)
 //--------------------------------------------------------------------------------
 {
 	m_Connector = std::make_shared<detail::DBConnector>();
-	return Connector()->Connect(sFilename, iMode);
+	return Connector()->Connect(sFilename, iMode, BusyTimeout);
 
 } // Connect
 
@@ -275,6 +294,30 @@ Database::result_type Database::Execute(StringViewZ sQuery)
 	return ResultSet;
 
 } // Execute
+
+//-----------------------------------------------------------------------------
+bool Database::BeginTransaction()
+//-----------------------------------------------------------------------------
+{
+	return ExecuteVoid("BEGIN IMMEDIATE");
+
+} // BeginTransaction
+
+//-----------------------------------------------------------------------------
+bool Database::CommitTransaction()
+//-----------------------------------------------------------------------------
+{
+	return ExecuteVoid("COMMIT");
+
+} // CommitTransaction
+
+//-----------------------------------------------------------------------------
+bool Database::RollbackTransaction()
+//-----------------------------------------------------------------------------
+{
+	return ExecuteVoid("ROLLBACK");
+
+} // RollbackTransaction
 
 //--------------------------------------------------------------------------------
 bool Database::Key(StringView sKey)

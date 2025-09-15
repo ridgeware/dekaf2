@@ -186,7 +186,7 @@ public:
 	void        PumpToTunnel          ();
 	void        PumpFromTunnel        ();
 
-	void        SendData              (std::shared_ptr<Message> FromTunnel);
+	void        SendData              (std::unique_ptr<Message> FromTunnel);
 	void        Disconnect            ();
 
 	std::size_t GetID                 () const { return m_iID; }
@@ -195,7 +195,7 @@ public:
 private:
 //----------
 
-	std::list<std::shared_ptr<Message>> m_MessageQueue;
+	std::list<std::unique_ptr<Message>> m_MessageQueue;
 	std::function<void(const Message&)> m_Tunnel;
 	KIOStreamSocket*                    m_DirectStream { nullptr };
 	std::mutex                          m_QueueMutex;
@@ -216,7 +216,7 @@ public:
 
 	Connections(std::size_t iMaxConnections) : m_iMaxConnections(iMaxConnections) {}
 
-	std::shared_ptr<Connection> Create (std::function<void(const Message&)> TunnelSend, std::size_t iID, KIOStreamSocket* DirectStream = nullptr);
+	std::shared_ptr<Connection> Create (std::size_t iID, std::function<void(const Message&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
 	std::shared_ptr<Connection> Get    (std::size_t iID, bool bAndRemove);
 	bool                        Remove (std::size_t iID);
 	std::size_t                 size   () const;

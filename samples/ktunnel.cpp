@@ -55,16 +55,17 @@
 // The exposed KTunnel opens one TLS communications port for internal
 // communication, and one or more TCP forward ports for different targets.
 //
-//                                    control stream
+//                                    <downstream<
 //                                   <-----TLS--|--<
 //                                  /           |   \ (protected)
-//  client >--TCP/TLS--> KTunnel <-+   firewall |    <- KTunnel >--TCP/TLS--> target(s)
+//  client >--TCP/TLS--> KTunnel <-<   firewall |    <- KTunnel >--TCP/TLS--> target(s)
 //              data    (exposed)   \           |   /               data
 //                                   <-----TLS--|--<
-//                                    data stream(s)
-
+//                                     >upstream>
+//
 // The control and data streams between the tunnel endpoints are multiplexed
 // by a simple protocol over two TLS connections, initiated from upstream:
+//
 // - any message block starts with a 16 bit integer telling
 //   the length of the following message, in network order (MSB first)
 //   NOT including the first 5 bytes of the message (which are always constant)
@@ -73,9 +74,10 @@
 //   (MSB first)
 // - channel ID 0 is the control channel
 // - channel IDs from 1 upward are used for end-to-end tcp connections
-// message types are:
+//
+// Message types are:
 // - Login, Control, Connect, Data, Disconnect
-// - Login messages bear endpoint name and its secret as name:secret,
+// - Login messages bear endpoint "user" name and its secret as name:secret,
 //   much like in basic auth
 // - Control messages are used to keep the tunnel alive when there is no
 //   other communication, and to check for its health
@@ -84,7 +86,16 @@
 //   the ipv6 address part
 // - Data messages contain the payload data
 // - Disconnect messages indicate a disconnect from one side to the other
-
+//
+// We have to use these announced-size messages because OpenSSL has no way
+// to reliably tell if on an open read connection there are new bytes available
+// for reading. SSL_pending() is supposed to give this information, but does not
+// permit to set a timeout, hence polling it is always a tradeoff between cpu load
+// and speed. The new SSL_poll() is also not allowing to set a timeout, hence it
+// is rather useless outside of QUIC. Therefore, all protocols running on top of
+// TLS have to create their own protocol layer to workaround these limitations.
+// In HTTPS it is chunked transfer, and in our case it's the message datagrams.
+//
 // Due to issues with OpenSSL in multithreaded up/down streams we use
 // two separate streams, one for upstream, the other for downstream.
 // Those streams can transport up to 65000 tunneled streams.
@@ -270,12 +281,12 @@ void Connection::PumpToTunnel()
 		return;
 	}
 
-	// read until eof
 	KReservedBuffer<4096> Data;
 
+	// read until disconnect or timeout
 	for (;;)
 	{
-		auto iEvents = m_DirectStream->CheckIfReady(POLLIN | POLLHUP, m_DirectStream->GetTimeout(), true);
+		auto iEvents = m_DirectStream->CheckIfReady(POLLIN | POLLHUP);
 
 		if (iEvents == 0)
 		{
@@ -285,7 +296,7 @@ void Connection::PumpToTunnel()
 		}
 		else if ((iEvents & POLLIN) != 0)
 		{
-			auto iRead = m_DirectStream->direct_read_some(Data.CharData(), Data.capacity());
+			auto iRead = m_DirectStream->direct_read_some(Data.data(), Data.capacity());
 			kDebug(3, "{}: read {} chars", m_DirectStream->GetEndPointAddress(), iRead);
 
 			if (iRead > 0)
@@ -359,7 +370,7 @@ void Connection::PumpFromTunnel()
 } // Connection::PumpFromTunnel
 
 //-----------------------------------------------------------------------------
-void Connection::SendData(std::shared_ptr<Message> FromTunnel)
+void Connection::SendData(std::unique_ptr<Message> FromTunnel)
 //-----------------------------------------------------------------------------
 {
 	{
@@ -402,7 +413,7 @@ std::size_t Connections::size() const
 }
 
 //-----------------------------------------------------------------------------
-std::shared_ptr<Connection> Connections::Create(std::function<void(const Message&)> TunnelSend, std::size_t iID, KIOStreamSocket* DirectStream)
+std::shared_ptr<Connection> Connections::Create(std::size_t iID, std::function<void(const Message&)> TunnelSend, KIOStreamSocket* DirectStream)
 //-----------------------------------------------------------------------------
 {
 	auto Connections = m_Connections.unique();
@@ -458,12 +469,14 @@ std::shared_ptr<Connection> Connections::Get(std::size_t iID, bool bAndRemove)
 
 	if (it != Connections->end())
 	{
+		if (!bAndRemove)
+		{
+			return it->second;
+		}
+
 		auto Connection = it->second;
 
-		if (bAndRemove)
-		{
-			Connections->erase(it);
-		}
+		Connections->erase(it);
 
 		return Connection;
 	}
@@ -483,6 +496,7 @@ bool Connections::Remove(std::size_t iID)
 	if (it != Connections->end())
 	{
 		Connections->erase(it);
+
 		return true;
 	}
 
@@ -689,7 +703,7 @@ void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 	// is already set from KTCPServer ?
 	Downstream.SetTimeout(m_Config.Timeout);
 
-	auto Connection = m_Connections.Create(std::bind(&ExposedServer::SendMessageToUpstream, this, std::placeholders::_1), 0, &Downstream);
+	auto Connection = m_Connections.Create(0, std::bind(&ExposedServer::SendMessageToUpstream, this, std::placeholders::_1), &Downstream);
 
 	if (!Connection)
 	{
@@ -834,7 +848,6 @@ void ProtectedHost::SendMessageToDownstream(const Message& message)
 {
 	auto Control = m_ControlStreamTX.unique();
 
-	// check for nullptr
 	if (!Control)
 	{
 		throw KError("control stream is nullptr on write attempt");
@@ -1025,7 +1038,7 @@ void ProtectedHost::Run()
 							KTCPEndPoint TargetHost(FromControl->GetMessage());
 							kDebug(3, "got connect request: {} for channel {}", TargetHost, iID);
 
-							auto Connection = m_Connections.Create(std::bind(&ProtectedHost::SendMessageToDownstream, this, std::placeholders::_1), iID, nullptr);
+							auto Connection = m_Connections.Create(iID, std::bind(&ProtectedHost::SendMessageToDownstream, this, std::placeholders::_1), nullptr);
 
 							if (Connection)
 							{
@@ -1134,52 +1147,46 @@ void KTunnel::StartExposedHost()
 	{
 		// load and check validity
 		KRSACert MyCert;
+		MyCert.SetThrowOnError(true);
 
-		if (!MyCert.Load(m_sCertFile))
+		MyCert.Load(m_sCertFile);
+
+		auto now = KUnixTime::now();
+
+		if (MyCert.ValidFrom() > now)
 		{
-			throw KError(kFormat("cannot load cert: {}", MyCert.GetLastError()));
+			throw KError(kFormat("cert not yet valid: {:%F %T}", MyCert.ValidFrom()));
+		}
+		else if (MyCert.ValidUntil() < (now + chrono::weeks(1)))
+		{
+			m_bGenerateCert = true;
+
+			m_Config.Message("cert expired at {:%F %T} - will generate new self-signed cert", MyCert.ValidUntil());
+
+			if (kRename(m_sCertFile, kFormat("{}.bak", m_sCertFile)))
+			{
+				m_Config.Message("renamed old cert to {}.bak", m_sCertFile);
+			}
 		}
 		else
 		{
-			auto now = KUnixTime::now();
-
-			if (MyCert.ValidFrom() > now)
-			{
-				throw KError(kFormat("cert not yet valid: {:%F %T}", MyCert.ValidFrom()));
-			}
-			else if (MyCert.ValidUntil() < (now + chrono::weeks(1)))
-			{
-				m_bGenerateCert = true;
-
-				m_Config.Message("cert expired at {:%F %T} - will generate new self-signed cert", MyCert.ValidUntil());
-
-				if (kRename(m_sCertFile, kFormat("{}.bak", m_sCertFile)))
-				{
-					m_Config.Message("renamed old cert to {}.bak", m_sCertFile);
-				}
-			}
-			else
-			{
-				m_Config.Message("cert valid until {:%F %T}", MyCert.ValidUntil());
-			}
+			m_Config.Message("cert valid until {:%F %T}", MyCert.ValidUntil());
 		}
 	}
 
 	if (!kNonEmptyFileExists(m_sCertFile))
 	{
 		KRSAKey MyKey;
+		MyKey.SetThrowOnError(true);
 
 		if (!kNonEmptyFileExists(m_sKeyFile))
 		{
 			// create a new private key
-			if (!MyKey.Create(iBitsForNewRSAKey))
-			{
-				throw KError(MyKey.GetLastError());
-			}
+			MyKey.Create(iBitsForNewRSAKey);
 
 			if (m_bGenerateCert)
 			{
-				if (!MyKey.Save(m_sKeyFile, true, m_sTLSPassword)) throw KError(MyKey.GetLastError());
+				MyKey.Save(m_sKeyFile, true, m_sTLSPassword);
 				m_Config.Message("new private key with {} bits created: {}", iBitsForNewRSAKey, m_sKeyFile);
 			}
 			else
@@ -1190,17 +1197,19 @@ void KTunnel::StartExposedHost()
 		else
 		{
 			// load key from file
-			if (!MyKey.Load(m_sKeyFile, m_sTLSPassword)) throw KError(MyKey.GetLastError());
+			MyKey.Load(m_sKeyFile, m_sTLSPassword);
 			m_Config.Message("loaded private key from: {}", m_sKeyFile);
 		}
 
 		// create a self signed cert
 		KRSACert MyCert;
-		if (!MyCert.Create(MyKey, "localhost", "US", "", chrono::months(12))) throw KError(MyCert.GetLastError());
+		MyCert.SetThrowOnError(true);
+
+		MyCert.Create(MyKey, "localhost", "US", "", chrono::months(12));
 
 		if (m_bGenerateCert)
 		{
-			if (!MyCert.Save(m_sCertFile)) throw KError(MyCert.GetLastError());
+			MyCert.Save(m_sCertFile);
 			m_Config.Message("new cert created: {}", m_sCertFile);
 		}
 		else

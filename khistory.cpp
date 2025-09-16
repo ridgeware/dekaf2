@@ -53,11 +53,13 @@ bool KHistory::LoadHistory(KString sPathname)
 {
 	if (sPathname.empty())
 	{
-		sPathname = kFormat("{}/.config/{}/terminal-history.txt", kGetHome(), kBasename(kGetOwnPathname()));
+		sPathname = kFormat("{}{}terminal-history.txt", kGetConfigPath(true), kDirSep);
 	}
-
-	// make sure the path exists
-	kCreateDir(KString(kDirname(sPathname)));
+	else
+	{
+		// make sure the path exists
+		kCreateDir(KString(kDirname(sPathname)));
+	}
 
 	m_sHistoryfile = sPathname;
 

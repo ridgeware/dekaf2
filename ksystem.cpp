@@ -1533,6 +1533,29 @@ const KString& kGetOwnPathname()
 } // kGetOwnPathname
 
 //-----------------------------------------------------------------------------
+const KString& kGetConfigPath(bool bCreateDirectory)
+//-----------------------------------------------------------------------------
+{
+	static KString sPathname = []() -> KString
+	{
+		// ${HOME}/.config/{{program name}}
+		return kFormat("{}{}.config{}{}", kGetHome(), kDirSep, kDirSep, kBasename(kGetOwnPathname()));
+
+	}();
+
+	if (bCreateDirectory)
+	{
+		if (!kDirExists(sPathname))
+		{
+			kCreateDir(sPathname, DEKAF2_MODE_CREATE_CONFIG_DIR, true);
+		}
+	}
+
+	return sPathname;
+
+} // kGetConfigPath
+
+//-----------------------------------------------------------------------------
 HANDLE kGetHandleFromFileDescriptor(int fd)
 //-----------------------------------------------------------------------------
 {

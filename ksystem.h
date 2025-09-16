@@ -386,6 +386,13 @@ char kGetThousandsSeparator(const std::locale& locale = std::locale());
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 const KString& kGetOwnPathname();
 
+/// @return the full path name of a config directory for this application, located at
+/// ~/.config/{{program name}}/
+/// @param bCreate default true - if true, the directory will be created if not existing.
+/// When creating the directory, the access will be restricted to the current user (mode 0700)
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+const KString& kGetConfigPath(bool bCreateDirectory = true);
+
 #ifndef DEKAF2_IS_WINDOWS
 // pretty useless on non-Windows, but declare for compatibility
 using HANDLE = intptr_t;

@@ -300,6 +300,8 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 
 	html::Page page(sTitle, "en");
 
+	page.Head().AddRawText(kjson::GetStringRef(m_jConfig, "addtohead"));
+
 	auto& sStyles = kjson::GetStringRef(m_jConfig, "styles");
 
 	if (sStyles.empty())
@@ -318,7 +320,6 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 		page.AddStyle(sStyles);
 	}
 
-	page.Head().AddRawText(kjson::GetStringRef(m_jConfig, "addtohead"));
 	page.Body().AddRawText(kjson::GetStringRef(m_jConfig, "addtobodytop"));
 
 	auto& body = page.Body();

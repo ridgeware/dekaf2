@@ -529,7 +529,7 @@ int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAn
 			// timed out, no events
 			if (bTimeoutIsAnError)
 			{
-				SetError(kFormat("connection with {} timed out after {}", GetEndPoint(), Timeout));
+				SetError(kFormat("connection with {} timed out after {}", GetEndPoint().empty() ? GetEndPointAddress() : GetEndPoint(), Timeout));
 			}
 			return 0;
 		}

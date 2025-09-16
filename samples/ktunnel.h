@@ -56,12 +56,13 @@
 #include <dekaf2/kbuffer.h>
 #include <dekaf2/kthreads.h>
 #include <dekaf2/kscopeguard.h>
+#include <dekaf2/ksourcelocation.h>
 #include <thread>
 #include <future>
 #include <memory>
 #include <mutex>
 #include <condition_variable>
-#include <list>
+#include <queue>
 
 using namespace dekaf2;
 
@@ -109,8 +110,11 @@ public:
 
 	enum Type
 	{
-		Login       = 0,
-		LoginTX,
+		LoginTX     = 0,
+		LoginRX,
+		Helo,
+		Ping,
+		Pong,
 		Control,
 		Connect,
 		Data,
@@ -135,7 +139,7 @@ public:
 	void           clear      ();
 	std::size_t    size       () const { return m_sMessage.size(); }
 
-	void           Debug      (uint16_t iLevel) const { kDebug(iLevel, "{:>4} {:>4} {}: {}", size(), GetChannel(), PrintType(), PrintData()); }
+	KString        Debug      () const;
 	KStringView    PrintType  () const;
 
 //----------
@@ -143,6 +147,8 @@ private:
 //----------
 
 	KStringView    PrintData  () const;
+
+	void           Throw      (KString sError, KStringView sFunction = KSourceLocation::current().function_name()) const;
 
 	uint8_t        ReadByte   (KIOStreamSocket& Stream) const;
 	void           WriteByte  (KIOStreamSocket& Stream, uint8_t iByte) const;
@@ -195,7 +201,7 @@ public:
 private:
 //----------
 
-	std::list<std::unique_ptr<Message>> m_MessageQueue;
+	std::queue<std::unique_ptr<Message>> m_MessageQueue;
 	std::function<void(const Message&)> m_Tunnel;
 	KIOStreamSocket*                    m_DirectStream { nullptr };
 	std::mutex                          m_QueueMutex;
@@ -219,6 +225,7 @@ public:
 	std::shared_ptr<Connection> Create (std::size_t iID, std::function<void(const Message&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
 	std::shared_ptr<Connection> Get    (std::size_t iID, bool bAndRemove);
 	bool                        Remove (std::size_t iID);
+	bool                        Exists (std::size_t iID);
 	std::size_t                 size   () const;
 
 //----------
@@ -257,8 +264,8 @@ protected:
 
 	void SendMessageToUpstream (const Message& message);
 
+	void ControlStreamRX (KIOStreamSocket& Stream);
 	void ControlStreamTX (KIOStreamSocket& Stream);
-	void ControlStream   (KIOStreamSocket& Stream);
 	bool CheckSecret     (KIOStreamSocket& Stream);
 	bool CheckMagic      (KIOStreamSocket& Stream);
 	void Session         (KIOStreamSocket& Stream) override final;
@@ -268,10 +275,10 @@ private:
 //----------
 
 	Connections                   m_Connections;
-	KThreadSafe<KIOStreamSocket*> m_ControlStream;
 	KThreadSafe<KIOStreamSocket*> m_ControlStreamTX;
+	KThreadSafe<KIOStreamSocket*> m_ControlStreamRX;
 	const CommonConfig&           m_Config;
-	std::promise<void>            m_WaitForTX;
+	std::promise<void>            m_WaitForRX;
 	std::promise<void>            m_Quit;
 
 }; // ExposedServer
@@ -326,12 +333,13 @@ public:
 private:
 //----------
 
-	void SendMessageToDownstream(const Message& message);
+	void SendMessageToDownstream(const Message& message, bool bThrowIfNoStream = true);
 	void TimingCallback(KUnixTime Time);
 	void ConnectToTarget(std::size_t iID, KTCPEndPoint Target);
 
 	Connections                   m_Connections;
-	KThreadSafe<KIOStreamSocket*> m_ControlStreamTX;
+	KThreadSafe<std::unique_ptr<KIOStreamSocket>>
+	                              m_ControlStreamTX;
 	KThreads                      m_Threads;
 	const CommonConfig&           m_Config;
 	KTimer::ID_t                  m_TimerID { KTimer::InvalidID };
@@ -376,6 +384,5 @@ private:
 	KString      m_sAllowedCipherSuites;
 	uint16_t     m_iPort;
 	uint16_t     m_iRawPort;
-	bool         m_bGenerateCert;
 
 }; // KTunnel

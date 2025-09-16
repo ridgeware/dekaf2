@@ -106,9 +106,6 @@
 using namespace dekaf2;
 
 static constexpr KStringView sMagic            = { "\r\n\r\nkTuNnEl\n" };
-static constexpr KStringView sPing             = { "ping"    };
-static constexpr KStringView sPong             = { "pong"    };
-static constexpr KStringView sHelo             = { "helo"    };
 static constexpr uint16_t    iBitsForNewRSAKey = 4096;
 
 //-----------------------------------------------------------------------------
@@ -171,8 +168,11 @@ KStringView Message::PrintType() const
 {
 	switch (GetType())
 	{
-		case Login:      return "Login";
 		case LoginTX:    return "LoginTX";
+		case LoginRX:    return "LoginRX";
+		case Helo:       return "Helo";
+		case Ping:       return "Ping";
+		case Pong:       return "Pong";
 		case Control:    return "Control";
 		case Connect:    return "Connect";
 		case Data:       return "Data";
@@ -190,18 +190,29 @@ KStringView Message::PrintData() const
 {
 	switch (GetType())
 	{
-		case Login:      return GetMessage();
-		case LoginTX:    return GetMessage();
-		case Control:    return GetMessage();
-		case Connect:    return GetMessage();
-		case Data:       return "";
+		case LoginTX:
+		case LoginRX:
+		case Helo:
+		case Ping:
+		case Pong:
+		case Control:
+		case Connect:
 		case Disconnect: return GetMessage();
+
+		case Data:
 		case None:       return "";
 	}
 
 	return "";
 
 } // Message::PrintData
+
+//-----------------------------------------------------------------------------
+KString Message::Debug() const
+//-----------------------------------------------------------------------------
+{
+	return kFormat("ch: {} sz: {} {}: {}", GetChannel(), size(), PrintType(), PrintData());
+}
 
 //-----------------------------------------------------------------------------
 void Message::Read(KIOStreamSocket& Stream)
@@ -218,9 +229,7 @@ void Message::Read(KIOStreamSocket& Stream)
 
 	if (m_Type > Disconnect)
 	{
-		auto sErr = kFormat("{}: bad message type: {}", Stream.GetEndPointAddress(), m_Type);
-		kDebug(1, sErr);
-		throw KError(sErr);
+		Throw(kFormat("{}: bad message type: {}", Stream.GetEndPointAddress(), m_Type));
 	}
 
 	m_iChannel  = ReadByte(Stream);
@@ -231,9 +240,7 @@ void Message::Read(KIOStreamSocket& Stream)
 
 	if (iRead != iLength)
 	{
-		auto sErr = kFormat("could not read message: only {} of {} bytes", iRead, iLength);
-		kDebug(1, sErr);
-		throw KError(sErr);
+		Throw(kFormat("could not read message: only {} of {} bytes", iRead, iLength));
 	}
 
 } // Read
@@ -244,12 +251,12 @@ void Message::Write(KIOStreamSocket& Stream) const
 {
 	if (m_Type > Disconnect)
 	{
-		throw KError("invalid type");
+		Throw("invalid type");
 	}
 
 	if (m_sMessage.size() > std::numeric_limits<uint16_t>::max())
 	{
-		throw KError(kFormat("message too long: {} bytes", m_sMessage.size()));
+		Throw(kFormat("message too long: {} bytes", m_sMessage.size()));
 	}
 
 	WriteByte(Stream, (m_sMessage.size() / 256) & 0xff);
@@ -260,7 +267,7 @@ void Message::Write(KIOStreamSocket& Stream) const
 
 	if (!Stream.Write( m_sMessage ).Good())
 	{
-		throw KError(kFormat("cannot write to {}", Stream.GetEndPointAddress()));
+		Throw(kFormat("cannot write to {}", Stream.GetEndPointAddress()));
 	}
 
 } // Write
@@ -273,6 +280,15 @@ void Message::clear()
 }
 
 //-----------------------------------------------------------------------------
+void Message::Throw(KString sError, KStringView sFunction) const
+//-----------------------------------------------------------------------------
+{
+	KLog::getInstance().debug_fun(1, sFunction, sError);
+	throw KError(sError);
+
+} // Throw
+
+//-----------------------------------------------------------------------------
 void Connection::PumpToTunnel()
 //-----------------------------------------------------------------------------
 {
@@ -281,48 +297,58 @@ void Connection::PumpToTunnel()
 		return;
 	}
 
-	KReservedBuffer<4096> Data;
-
-	// read until disconnect or timeout
-	for (;;)
+	try
 	{
-		auto iEvents = m_DirectStream->CheckIfReady(POLLIN | POLLHUP);
+		KReservedBuffer<4096> Data;
 
-		if (iEvents == 0)
+		// read until disconnect or timeout
+		for (;;)
 		{
-			// timeout
-			kDebug(2, "timeout from {}", m_DirectStream->GetEndPointAddress())
-			break;
-		}
-		else if ((iEvents & POLLIN) != 0)
-		{
-			auto iRead = m_DirectStream->direct_read_some(Data.data(), Data.capacity());
-			kDebug(3, "{}: read {} chars", m_DirectStream->GetEndPointAddress(), iRead);
+			KStopTime Stop;
+			auto iEvents = m_DirectStream->CheckIfReady(POLLIN | POLLHUP);
+			kDebug(3, "poll: events: {:b} ({:x}), took {}", iEvents, iEvents, Stop.elapsed());
 
-			if (iRead > 0)
+			if (iEvents == 0)
 			{
-				Data.resize(iRead);
-				m_Tunnel(Message(Message::Data, m_iID, KStringView(Data.data(), Data.size())));
+				// timeout
+				kDebug(2, "timeout from {}", m_DirectStream->GetEndPointAddress())
+				break;
 			}
+			else if ((iEvents & POLLIN) != 0)
+			{
+				Stop.clear();
+				auto iRead = m_DirectStream->direct_read_some(Data.data(), Data.capacity());
+				kDebug(3, "{}: read {} chars, took {}", m_DirectStream->GetEndPointAddress(), iRead, Stop.elapsed());
+
+				if (iRead > 0)
+				{
+					Data.resize(iRead);
+					m_Tunnel(Message(Message::Data, m_iID, KStringView(Data.data(), Data.size())));
+				}
+			}
+
+			if ((iEvents & POLLHUP) != 0)
+			{
+				// disconnected
+				kDebug(2, "got disconnected from {}", m_DirectStream->GetEndPointAddress())
+				break;
+			}
+			else if ((iEvents & (POLLERR | POLLNVAL)) != 0)
+			{
+				// error
+				kDebug(2, "got error from {}", m_DirectStream->GetEndPointAddress())
+				break;
+			}
+
+			Data.reset();
 		}
 
-		if ((iEvents & POLLHUP) != 0)
-		{
-			// disconnected
-			kDebug(2, "got disconnected from {}", m_DirectStream->GetEndPointAddress())
-			break;
-		}
-		else if ((iEvents & (POLLERR | POLLNVAL)) != 0)
-		{
-			// error
-			kDebug(2, "got error from {}", m_DirectStream->GetEndPointAddress())
-			break;
-		}
-
-		Data.reset();
+		m_Tunnel(Message(Message::Disconnect, m_iID));
 	}
-
-	m_Tunnel(Message(Message::Disconnect, m_iID));
+	catch (const std::exception& ex)
+	{
+		kDebug(1, ex.what());
+	}
 
 } // Connection::PumpToTunnel
 
@@ -335,36 +361,43 @@ void Connection::PumpFromTunnel()
 		return;
 	}
 
-	for (;!m_bQuit;)
+	try
 	{
-		std::unique_lock<std::mutex> Lock(m_QueueMutex);
-
-		for (;!m_MessageQueue.empty();)
+		for (;!m_bQuit;)
 		{
-			auto Message = m_MessageQueue.front().get();
+			std::unique_lock<std::mutex> Lock(m_QueueMutex);
 
-			if (Message)
+			for (;!m_MessageQueue.empty();)
 			{
-				if (Message->GetType() == Message::Data)
+				auto Message = m_MessageQueue.front().get();
+
+				if (Message)
 				{
-					if (!m_DirectStream || m_DirectStream->Write(Message->GetMessage()).Flush().Good() == false)
+					if (Message->GetType() == Message::Data)
 					{
-						throw KError("cannot write to direct stream");
+						if (!m_DirectStream || m_DirectStream->Write(Message->GetMessage()).Flush().Good() == false)
+						{
+							throw KError("cannot write to direct stream");
+						}
+					}
+					else if (Message->GetType() == Message::Disconnect)
+					{
+						Disconnect();
 					}
 				}
-				else if (Message->GetType() == Message::Disconnect)
-				{
-					Disconnect();
-				}
+
+				m_MessageQueue.pop();
 			}
 
-			m_MessageQueue.pop_front();
+			if (!m_bQuit)
+			{
+				m_FreshData.wait(Lock);
+			}
 		}
-
-		if (!m_bQuit)
-		{
-			m_FreshData.wait(Lock);
-		}
+	}
+	catch (const std::exception& ex)
+	{
+		kDebug(1, ex.what());
 	}
 
 } // Connection::PumpFromTunnel
@@ -375,7 +408,7 @@ void Connection::SendData(std::unique_ptr<Message> FromTunnel)
 {
 	{
 		std::lock_guard<std::mutex> Lock(m_QueueMutex);
-		m_MessageQueue.push_back(std::move(FromTunnel));
+		m_MessageQueue.push(std::move(FromTunnel));
 	}
 
 	m_FreshData.notify_one();
@@ -483,7 +516,7 @@ std::shared_ptr<Connection> Connections::Get(std::size_t iID, bool bAndRemove)
 
 	return {};
 
-} // GetConnection
+} // Connections::GetConnection
 
 //-----------------------------------------------------------------------------
 bool Connections::Remove(std::size_t iID)
@@ -502,33 +535,43 @@ bool Connections::Remove(std::size_t iID)
 
 	return false;
 
-} // RemoveConnection
+} // Connections::RemoveConnection
+
+//-----------------------------------------------------------------------------
+bool Connections::Exists(std::size_t iID)
+//-----------------------------------------------------------------------------
+{
+	auto Connections = m_Connections.shared();
+
+	return Connections->find(iID) != Connections->end();
+
+} // Connections::Exists
 
 //-----------------------------------------------------------------------------
 void ExposedServer::SendMessageToUpstream(const Message& message)
 //-----------------------------------------------------------------------------
 {
-	auto Control = m_ControlStream.unique();
+	auto Control = m_ControlStreamTX.unique();
 
 	if (!Control)
 	{
 		throw KError("control stream is nullptr on write attempt");
 	}
 
-	message.Debug(2);
+	kDebug(3, message.Debug());
 
 	*(Control.get()) << message; // flushes itself
 
 } // ExposedServer::SendMessageToUpstream
 
 //-----------------------------------------------------------------------------
-void ExposedServer::ControlStream(KIOStreamSocket& Stream)
+void ExposedServer::ControlStreamTX(KIOStreamSocket& Stream)
 //-----------------------------------------------------------------------------
 {
 	Stream.SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
 
 	{
-		auto Control = m_ControlStream.unique();
+		auto Control = m_ControlStreamTX.unique();
 
 		if (Control.get() != nullptr)
 		{
@@ -538,7 +581,7 @@ void ExposedServer::ControlStream(KIOStreamSocket& Stream)
 		Control.get() = &Stream;
 
 		// finally say hi
-		Stream << Message(Message::Control, 0, sHelo); // flushes itself
+		Stream << Message(Message::Helo, 0);
 	}
 
 	m_Config.Message("opened control stream from {}", Stream.GetEndPointAddress());
@@ -548,17 +591,17 @@ void ExposedServer::ControlStream(KIOStreamSocket& Stream)
 	auto namedLambdaGuard = [&Stream,this]() noexcept
 	{
 		// make sure the write control stream is safely removed
-		m_ControlStream.unique().get() = nullptr;
+		m_ControlStreamTX.unique().get() = nullptr;
 		m_Config.Message("closed control stream from {}", Stream.GetEndPointAddress());
 	};
 
 	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
 	// reset the promises
-	m_WaitForTX = std::promise<void>();
+	m_WaitForRX = std::promise<void>();
 	m_Quit      = std::promise<void>();
 
-	auto Wait = m_WaitForTX.get_future();
+	auto Wait = m_WaitForRX.get_future();
 	auto Quit = m_Quit.get_future();
 
 	if (Wait.wait_for(chrono::seconds(15)) != std::future_status::ready)
@@ -571,30 +614,16 @@ void ExposedServer::ControlStream(KIOStreamSocket& Stream)
 	Quit.get();
 	kDebug(3, "closing control stream");
 
-} // ControlStream
+} // ControlStreamTX
 
 //-----------------------------------------------------------------------------
-void ExposedServer::ControlStreamTX(KIOStreamSocket& Stream)
+void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 //-----------------------------------------------------------------------------
 {
 	Stream.SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
 
-	// keep a free pointer on the stream, we will only use it for reading
-	auto* Reader = &Stream;
-
-	{
-		auto Control = m_ControlStreamTX.unique();
-
-		if (Control.get() != nullptr)
-		{
-			kDebug(2, "already had TX control stream");
-		}
-
-		Control.get() = &Stream;
-
-		// finally say hi
-		Stream << Message(Message::Control, 0, sHelo); // flushes itself
-	}
+	// finally say hi
+	Stream << Message(Message::Helo, 0);
 
 	m_Config.Message("opened TX control stream from {}", Stream.GetEndPointAddress());
 
@@ -603,7 +632,7 @@ void ExposedServer::ControlStreamTX(KIOStreamSocket& Stream)
 	auto namedLambdaGuard = [&Stream,this]() noexcept
 	{
 		// make sure the write control stream is safely removed
-		m_ControlStreamTX.unique().get() = nullptr;
+		m_ControlStreamRX.unique().get() = nullptr;
 		m_Config.Message("closed TX control stream from {}", Stream.GetEndPointAddress());
 
 		m_Quit.set_value();
@@ -611,7 +640,7 @@ void ExposedServer::ControlStreamTX(KIOStreamSocket& Stream)
 
 	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
-	m_WaitForTX.set_value();
+	m_WaitForRX.set_value();
 
 	std::unique_ptr<Message> FromUpstream;
 
@@ -622,42 +651,47 @@ void ExposedServer::ControlStreamTX(KIOStreamSocket& Stream)
 			FromUpstream = std::make_unique<Message>();
 		}
 
-		*Reader >> *FromUpstream;
+		Stream >> *FromUpstream;
 
-		FromUpstream->Debug(3);
+		kDebug(3, FromUpstream->Debug());
+
+		// get a shorthand for the channel
+		auto chan = FromUpstream->GetChannel();
 
 		switch (FromUpstream->GetType())
 		{
-			case Message::Login:
-			case Message::LoginTX:
-				throw KError("received login in an established connection");
-
-			case Message::Control:
-				if (FromUpstream->GetChannel() != 0)
+			case Message::Ping:
+				// check if the channel is alive on our end
+				if (!chan || m_Connections.Exists(chan))
 				{
-					throw KError(kFormat("received control message on channel {}", FromUpstream->GetChannel()));
+					SendMessageToUpstream(Message(Message::Pong, chan));
 				}
-				if (FromUpstream->GetMessage() == sPing)
+				else
 				{
-					SendMessageToUpstream(Message(Message::Control, 0, sPong));
-				}
-				else if (FromUpstream->GetMessage() == sPong)
-				{
-					// do nothing
+					SendMessageToUpstream(Message(Message::Disconnect, chan));
 				}
 				break;
 
-			case Message::Connect:
-				throw KError("received connect message from upstream");
+			case Message::Pong:
+				// do nothing
+				break;
+
+			case Message::Control:
+				if (chan != 0)
+				{
+					throw KError(kFormat("received control message on channel {}", chan));
+				}
+				// we currently do not exchange any control data here
+				break;
 
 			case Message::Data:
 			{
 				// find the connection and give it the data
-				auto Connection = m_Connections.Get(FromUpstream->GetChannel(), false);
+				auto Connection = m_Connections.Get(chan, false);
 
 				if (!Connection)
 				{
-					SendMessageToUpstream(Message(Message::Disconnect, FromUpstream->GetChannel()));
+					SendMessageToUpstream(Message(Message::Disconnect, chan));
 				}
 				else
 				{
@@ -669,22 +703,30 @@ void ExposedServer::ControlStreamTX(KIOStreamSocket& Stream)
 			case Message::Disconnect:
 			{
 				// find the connection and disconnect it
-				auto Connection = m_Connections.Get(FromUpstream->GetChannel(), true);
+				auto Connection = m_Connections.Get(chan, true);
 
 				if (Connection)
 				{
-					// put the disconnect into the queue
+					// put the disconnect into the downstream queue
 					Connection->SendData(std::move(FromUpstream));
 				}
 				break;
 			}
+
+			case Message::Connect:
+				throw KError("received connect message from upstream");
+
+			case Message::LoginTX:
+			case Message::LoginRX:
+			case Message::Helo:
+				throw KError("received login handshake in an established connection");
 
 			case Message::None:
 				throw KError("received invalid message type");
 		}
 	}
 
-} // ControlStreamTX
+} // ControlStreamRX
 
 //-----------------------------------------------------------------------------
 void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoint& Endpoint, KStringView sInitialData)
@@ -747,9 +789,9 @@ bool ExposedServer::CheckSecret(KIOStreamSocket& Stream)
 
 	Stream >> Login;
 
-	bool bIsTX = Login.GetType() == Message::LoginTX;
+	bool bIsTX = Login.GetType() == Message::LoginRX;
 
-	if (!bIsTX && Login.GetType() != Message::Login)
+	if (!bIsTX && Login.GetType() != Message::LoginTX)
 	{
 		return false;
 	}
@@ -780,11 +822,11 @@ bool ExposedServer::CheckSecret(KIOStreamSocket& Stream)
 
 	if (bIsTX)
 	{
-		ControlStreamTX(Stream);
+		ControlStreamRX(Stream);
 	}
 	else
 	{
-		ControlStream(Stream);
+		ControlStreamTX(Stream);
 	}
 
 	return true;
@@ -843,17 +885,24 @@ void ExposedRawServer::Session (KIOStreamSocket& Stream)
 }
 
 //-----------------------------------------------------------------------------
-void ProtectedHost::SendMessageToDownstream(const Message& message)
+void ProtectedHost::SendMessageToDownstream(const Message& message, bool bThrowIfNoStream)
 //-----------------------------------------------------------------------------
 {
 	auto Control = m_ControlStreamTX.unique();
 
-	if (!Control)
+	if (!Control.get())
 	{
-		throw KError("control stream is nullptr on write attempt");
+		if (bThrowIfNoStream)
+		{
+			throw KError("control stream is nullptr on write attempt");
+		}
+		else
+		{
+			return;
+		}
 	}
 
-	message.Debug(2);
+	kDebug(3, message.Debug());
 
 	*(Control.get()) << message;
 
@@ -911,16 +960,7 @@ void ProtectedHost::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 void ProtectedHost::TimingCallback(KUnixTime Time)
 //-----------------------------------------------------------------------------
 {
-	auto Control = m_ControlStreamTX.unique();
-
-	// check for nullptr
-	if (!Control)
-	{
-		// simply return, do not throw!
-		return;
-	}
-
-	*(Control.get()) << Message(Message::Control, 0, sPing); // flushes itself
+	SendMessageToDownstream(Message(Message::Ping, 0), false);
 
 } // ProtectedHost::TimingCallback
 
@@ -943,16 +983,15 @@ void ProtectedHost::Run()
 			{
 				Control->SetTimeout(m_Config.ConnectTimeout);
 				Control->Write(sMagic);
-				*Control << Message(Message::Login, 0, *m_Config.Secrets.begin());
+				*Control << Message(Message::LoginTX, 0, *m_Config.Secrets.begin());
 
 				{
 					// wait for the response
 					Message Response;
 					*Control >> Response;
 
-					if (Response.GetType() != Message::Control &&
-						Response.GetChannel() != 0 &&
-						Response.GetMessage() != sHelo)
+					if (Response.GetType() != Message::Helo &&
+						Response.GetChannel() != 0)
 					{
 						// error
 						m_Config.Message("login failed!");
@@ -973,16 +1012,15 @@ void ProtectedHost::Run()
 				}
 				ControlTX->SetTimeout(m_Config.ConnectTimeout);
 				ControlTX->Write(sMagic);
-				*ControlTX << Message(Message::LoginTX, 0, *m_Config.Secrets.begin());
+				*ControlTX << Message(Message::LoginRX, 0, *m_Config.Secrets.begin());
 
 				{
 					// wait for the response
 					Message Response;
 					*ControlTX >> Response;
 
-					if (Response.GetType() != Message::Control &&
-						Response.GetChannel() != 0 &&
-						Response.GetMessage() != sHelo)
+					if (Response.GetType() != Message::Helo &&
+						Response.GetChannel() != 0)
 					{
 						// error
 						m_Config.Message("login failed!");
@@ -991,7 +1029,7 @@ void ProtectedHost::Run()
 				}
 
 				// set the shared write instance
-				m_ControlStreamTX.unique().get() = ControlTX.get();
+				m_ControlStreamTX.unique().get() = std::move(ControlTX);
 
 				// we'll only ever *read* now through Control in this thread
 
@@ -1006,47 +1044,49 @@ void ProtectedHost::Run()
 
 					*Control >> *FromControl;
 
-					FromControl->Debug(3);
+					kDebug(3, FromControl->Debug());
 
 					kDebug(2, "open connections: {}", m_Connections.size());
 
+					// get a shorthand for the channel
+					auto chan = FromControl->GetChannel();
+
 					switch (FromControl->GetType())
 					{
+						case Message::Ping:
+							// respond with pong TODO check upstream connection
+							SendMessageToDownstream(Message(Message::Pong, chan));
+							break;
+
+						case Message::Pong:
+							// do nothing
+							break;
+
 						case Message::Control:
-							if (FromControl->GetChannel() != 0)
+							if (chan != 0)
 							{
-								kDebug(1, "bad channel for control message: {}", FromControl->GetChannel());
+								kDebug(1, "bad channel for control message: {}", chan);
 								Control->Disconnect();
 								break;
 							}
-							else if (FromControl->GetMessage() == sPing)
-							{
-								// respond with pong
-								SendMessageToDownstream(Message(Message::Control, 0, sPong));
-							}
-							else if (FromControl->GetMessage() == sPong)
-							{
-								// do nothing
-								kDebug(3, "received a pong");
-							}
+							// we currently do not exchange control messages
 							break;
 
 						case Message::Connect:
 						{
 							// open a new stream to endpoint, and data stream to exposed host
-							auto iID = FromControl->GetChannel();
 							KTCPEndPoint TargetHost(FromControl->GetMessage());
-							kDebug(3, "got connect request: {} for channel {}", TargetHost, iID);
+							kDebug(3, "got connect request: {} for channel {}", TargetHost, chan);
 
-							auto Connection = m_Connections.Create(iID, std::bind(&ProtectedHost::SendMessageToDownstream, this, std::placeholders::_1), nullptr);
+							auto Connection = m_Connections.Create(chan, std::bind(&ProtectedHost::SendMessageToDownstream, this, std::placeholders::_1, true), nullptr);
 
 							if (Connection)
 							{
-								m_Threads.Create(&ProtectedHost::ConnectToTarget, this, iID, std::move(TargetHost));
+								m_Threads.Create(&ProtectedHost::ConnectToTarget, this, chan, std::move(TargetHost));
 							}
 							else
 							{
-								SendMessageToDownstream(Message(Message::Disconnect, FromControl->GetChannel()));
+								SendMessageToDownstream(Message(Message::Disconnect, chan));
 							}
 
 							break;
@@ -1054,11 +1094,11 @@ void ProtectedHost::Run()
 
 						case Message::Data:
 						{
-							auto Connection = m_Connections.Get(FromControl->GetChannel(), false);
+							auto Connection = m_Connections.Get(chan, false);
 
 							if (!Connection)
 							{
-								SendMessageToDownstream(Message(Message::Disconnect, FromControl->GetChannel()));
+								SendMessageToDownstream(Message(Message::Disconnect, chan));
 							}
 							else
 							{
@@ -1069,7 +1109,7 @@ void ProtectedHost::Run()
 
 						case Message::Disconnect:
 						{
-							auto Connection = m_Connections.Get(FromControl->GetChannel(), false);
+							auto Connection = m_Connections.Get(chan, false);
 
 							if (Connection)
 							{
@@ -1079,16 +1119,15 @@ void ProtectedHost::Run()
 							break;
 						}
 
-						case Message::Login:
+						case Message::Helo:
 						case Message::LoginTX:
+						case Message::LoginRX:
 						case Message::None:
 							kDebug(1, "bad message type");
 							Control->Disconnect();
 							break;
 					}
 				}
-				// make sure the write control stream is safely removed
-				m_ControlStreamTX.unique().get() = nullptr;
 
 				m_Config.Message("lost connection - now sleeping for {} and retrying", m_Config.ConnectTimeout);
 			}
@@ -1097,12 +1136,16 @@ void ProtectedHost::Run()
 				m_Config.Message("cannot connect - now sleeping for {} and retrying", m_Config.ConnectTimeout);
 			}
 
+			// make sure the write control stream is safely removed
+			m_ControlStreamTX.unique()->reset();
 			kSleep(m_Config.ConnectTimeout);
 		}
 		catch(const std::exception& ex)
 		{
+			m_ControlStreamTX.unique()->reset();
 			m_Config.Message("{}", ex.what());
 		}
+
 	}
 
 } // ProtectedHost::Run
@@ -1120,12 +1163,12 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 void KTunnel::StartExposedHost()
 //-----------------------------------------------------------------------------
 {
-	if (!m_bGenerateCert && !m_sCertFile.empty() && !kNonEmptyFileExists(m_sCertFile))
+	if (!m_sCertFile.empty() && !kNonEmptyFileExists(m_sCertFile))
 	{
 		throw KError(kFormat("cert file not found: {}", m_sCertFile));
 	}
 
-	if (!m_bGenerateCert && !m_sKeyFile.empty() && !kNonEmptyFileExists(m_sKeyFile))
+	if (!m_sKeyFile.empty() && !kNonEmptyFileExists(m_sKeyFile))
 	{
 		throw KError(kFormat("key file not found: {}", m_sKeyFile));
 	}
@@ -1141,6 +1184,22 @@ void KTunnel::StartExposedHost()
 	if (!m_sAllowedCipherSuites.empty())
 	{
 		m_ExposedServer->SetAllowedCipherSuites(m_sAllowedCipherSuites);
+	}
+
+	if (m_sCertFile.empty() || m_sKeyFile.empty())
+	{
+		KString sDefaultTLSDir = kFormat("{}{}tls", kGetConfigPath(), kDirSep);
+		kCreateDir(sDefaultTLSDir, 0700, true);
+
+		if (m_sCertFile.empty())
+		{
+			m_sCertFile = kFormat("{}{}cert.pem", sDefaultTLSDir, kDirSep);
+		}
+
+		if (m_sKeyFile.empty())
+		{
+			m_sKeyFile = kFormat("{}{}privkey.pem", sDefaultTLSDir, kDirSep);
+		}
 	}
 
 	if (kNonEmptyFileExists(m_sCertFile))
@@ -1159,13 +1218,12 @@ void KTunnel::StartExposedHost()
 		}
 		else if (MyCert.ValidUntil() < (now + chrono::weeks(1)))
 		{
-			m_bGenerateCert = true;
-
 			m_Config.Message("cert expired at {:%F %T} - will generate new self-signed cert", MyCert.ValidUntil());
 
 			if (kRename(m_sCertFile, kFormat("{}.bak", m_sCertFile)))
 			{
 				m_Config.Message("renamed old cert to {}.bak", m_sCertFile);
+				// we will now create a new cert below
 			}
 		}
 		else
@@ -1183,16 +1241,8 @@ void KTunnel::StartExposedHost()
 		{
 			// create a new private key
 			MyKey.Create(iBitsForNewRSAKey);
-
-			if (m_bGenerateCert)
-			{
-				MyKey.Save(m_sKeyFile, true, m_sTLSPassword);
-				m_Config.Message("new private key with {} bits created: {}", iBitsForNewRSAKey, m_sKeyFile);
-			}
-			else
-			{
-				m_Config.Message("ephemeral private key with {} bits created", iBitsForNewRSAKey);
-			}
+			MyKey.Save(m_sKeyFile, true, m_sTLSPassword);
+			m_Config.Message("new private key with {} bits created: {}", iBitsForNewRSAKey, m_sKeyFile);
 		}
 		else
 		{
@@ -1206,23 +1256,15 @@ void KTunnel::StartExposedHost()
 		MyCert.SetThrowOnError(true);
 
 		MyCert.Create(MyKey, "localhost", "US", "", chrono::months(12));
+		MyCert.Save(m_sCertFile);
+		m_Config.Message("new cert created: {}", m_sCertFile);
 
-		if (m_bGenerateCert)
-		{
-			MyCert.Save(m_sCertFile);
-			m_Config.Message("new cert created: {}", m_sCertFile);
-		}
-		else
-		{
-			m_Config.Message("ephemeral cert created");
-		}
-
-		// set the cert
+		// set the cert and key
 		m_ExposedServer->SetTLSCertificates(MyCert.GetPEM(), MyKey.GetPEM(true, m_sTLSPassword), m_sTLSPassword);
 	}
 	else
 	{
-		// load the cert
+		// load the cert and key
 		m_ExposedServer->LoadTLSCertificates(m_sCertFile, m_sKeyFile, m_sTLSPassword);
 	}
 
@@ -1279,11 +1321,10 @@ int KTunnel::Main(int argc, char** argv)
 	m_Config.DefaultTarget = Options("t,target     : if exposed host, takes the domain:port of a default target, if no other target had been specified in the incoming data connect", "");
 	m_Config.iMaxTunnels   = Options("m,maxtunnels : if exposed host, maximum number of tunnels to open, defaults to 10 - if protected host, the setting has no effect.", 10);
 	m_Config.Timeout       = chrono::seconds(Options("to,timeout <seconds> : data connection timeout in seconds (default 30)", 30));
-	m_sCertFile            = Options("cert <file>  : if exposed host, TLS certificate filepath (.pem) - if option is unused an ephemeral cert is created (self-signed, in memory)", "");
-	m_sKeyFile             = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused an ephemeral key is created (in memory)", "");
+	m_sCertFile            = Options("cert <file>  : if exposed host, TLS certificate filepath (.pem) - if option is unused a self-signed cert is created", "");
+	m_sKeyFile             = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused a new key is created", "");
 	m_sTLSPassword         = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
 	m_sAllowedCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
-	m_bGenerateCert        = Options("generate     : if exposed host, save private key and cert to disk for next usage if files are not existing", false);
 	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);
 
 	// do a final check if all required options were set
@@ -1318,7 +1359,6 @@ int KTunnel::Main(int argc, char** argv)
 		if (m_Config.DefaultTarget.empty()) SetError("exposed host needs a default target");
 		if (m_Config.DefaultTarget.Port.get() == 0) SetError("endpoind needs an explicit port number");
 		if (!m_iRawPort) SetError("exposed host needs a forward port being configured");
-		if (m_bGenerateCert && (m_sKeyFile.empty() || m_sCertFile.empty())) SetError("to generate key and cert file, both need to be named with the -key and -cert options");
 		m_Config.Message("starting as exposed host");
 
 		StartExposedHost();

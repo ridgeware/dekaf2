@@ -2158,24 +2158,29 @@ namespace {
 bool IntWriteFile(KStringViewZ sPath, std::ios_base::openmode OpenMode, KStringView sContents, int iMode)
 //-----------------------------------------------------------------------------
 {
+	KOutFile file(sPath, OpenMode);
+
+	if (!file.is_open())
 	{
-		KOutFile file(sPath, OpenMode);
-
-		if (!file.is_open())
-		{
-			kWarning ("cannot open file: {}", sPath);
-			return (false);
-		}
-
-		file.Write(sContents);
+		kWarning ("cannot open file: {}", sPath);
+		return false;
 	}
 
 	if (iMode != DEKAF2_MODE_CREATE_FILE)
 	{
-		kChangeMode (sPath, iMode);
+		if (!kChangeMode (sPath, iMode))
+		{
+			return false;
+		}
+
 	}
 
-	return (true);
+	if (!file.Write(sContents).Good())
+	{
+		return false;
+	}
+
+	return true;
 
 } // IntWriteFile
 

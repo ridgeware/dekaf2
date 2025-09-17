@@ -44,6 +44,7 @@
 #include "kstring.h"
 #include "kformat.h"
 #include "klog.h"
+#include "ksystem.h"
 #include "bits/kunique_deleter.h"
 #include "bits/kdigest.h" // for Digest::GetOpenSSLError()
 #include <openssl/evp.h>

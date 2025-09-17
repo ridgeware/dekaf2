@@ -57,6 +57,9 @@
 #include <dekaf2/kthreads.h>
 #include <dekaf2/kscopeguard.h>
 #include <dekaf2/ksourcelocation.h>
+#include <dekaf2/krest.h>
+#include <dekaf2/khttperror.h>
+#include <dekaf2/kwebobjects.h>
 #include <thread>
 #include <future>
 #include <memory>
@@ -239,8 +242,10 @@ private:
 
 }; // Connections
 
+class ExposedRawServer;
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class ExposedServer : public KTCPServer
+class ExposedServer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -248,13 +253,17 @@ class ExposedServer : public KTCPServer
 public:
 //----------
 
-	template<typename... Args>
-	ExposedServer (const CommonConfig& config, Args&&... args)
-	: KTCPServer (std::forward<Args>(args)...)
-	, m_Connections(config.iMaxTunnels)
-	, m_Config(config)
+	struct Config : public CommonConfig
 	{
-	}
+		KString  sCertFile;
+		KString  sKeyFile;
+		KString  sTLSPassword;
+		KString  sAllowedCipherSuites;
+		uint16_t iPort    { 0 };
+		uint16_t iRawPort { 0 };
+	};
+
+	ExposedServer (const Config& config);
 
 	void ForwardStream (KIOStreamSocket& Downstream, const KTCPEndPoint& Endpoint, KStringView sInitialData = "");
 
@@ -266,20 +275,19 @@ protected:
 
 	void ControlStreamRX (KIOStreamSocket& Stream);
 	void ControlStreamTX (KIOStreamSocket& Stream);
-	bool CheckSecret     (KIOStreamSocket& Stream);
-	bool CheckMagic      (KIOStreamSocket& Stream);
-	void Session         (KIOStreamSocket& Stream) override final;
+	bool Login           (KIOStreamSocket& Stream);
 
 //----------
 private:
 //----------
 
-	Connections                   m_Connections;
-	KThreadSafe<KIOStreamSocket*> m_ControlStreamTX;
-	KThreadSafe<KIOStreamSocket*> m_ControlStreamRX;
-	const CommonConfig&           m_Config;
-	std::promise<void>            m_WaitForRX;
-	std::promise<void>            m_Quit;
+	Connections                       m_Connections;
+	KThreadSafe<KIOStreamSocket*>     m_ControlStreamTX;
+	KThreadSafe<KIOStreamSocket*>     m_ControlStreamRX;
+	std::unique_ptr<ExposedRawServer> m_ExposedRawServer;
+	const Config&                     m_Config;
+	std::promise<void>                m_WaitForRX;
+	std::promise<void>                m_Quit;
 
 }; // ExposedServer
 
@@ -327,8 +335,6 @@ public:
 
 	ProtectedHost(const CommonConfig& Config);
 
-	void Run();
-
 //----------
 private:
 //----------
@@ -352,13 +358,6 @@ class KTunnel : public KErrorBase
 {
 
 //----------
-private:
-//----------
-
-	void StartExposedHost   ();
-	void StartProtectedHost ();
-
-//----------
 public:
 //----------
 
@@ -374,15 +373,6 @@ public:
 private:
 //----------
 
-	std::unique_ptr<ExposedServer>    m_ExposedServer;
-	std::unique_ptr<ExposedRawServer> m_ExposedRawServer;
-
-	CommonConfig m_Config;
-	KString      m_sCertFile;
-	KString      m_sKeyFile;
-	KString      m_sTLSPassword;
-	KString      m_sAllowedCipherSuites;
-	uint16_t     m_iPort;
-	uint16_t     m_iRawPort;
+	ExposedServer::Config             m_Config;
 
 }; // KTunnel

@@ -53,7 +53,8 @@
 // the exposed KTunnel (setup per forwarded connection).
 //
 // The exposed KTunnel opens one TLS communications port for internal
-// communication, and one or more TCP forward ports for different targets.
+// communication and general REST services, and one or more TCP forward
+// ports for different targets.
 //
 //                                    <downstream<
 //                                   <-----TLS--|--<
@@ -104,9 +105,6 @@
 #include "ktunnel.h"
 
 using namespace dekaf2;
-
-static constexpr KStringView sMagic            = { "\r\n\r\nkTuNnEl\n" };
-static constexpr uint16_t    iBitsForNewRSAKey = 4096;
 
 //-----------------------------------------------------------------------------
 void CommonConfig::PrintMessage(KStringView sMessage) const
@@ -782,7 +780,7 @@ void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 } // ForwardStream
 
 //-----------------------------------------------------------------------------
-bool ExposedServer::CheckSecret(KIOStreamSocket& Stream)
+bool ExposedServer::Login(KIOStreamSocket& Stream)
 //-----------------------------------------------------------------------------
 {
 	Message Login;
@@ -831,49 +829,111 @@ bool ExposedServer::CheckSecret(KIOStreamSocket& Stream)
 
 	return true;
 
-} // CheckSecret
+} // Login
 
 //-----------------------------------------------------------------------------
-bool ExposedServer::CheckMagic(KIOStreamSocket& Stream)
+ExposedServer::ExposedServer (const Config& config)
 //-----------------------------------------------------------------------------
+: m_Connections(config.iMaxTunnels)
+, m_Config(config)
 {
-	// check for the magic - if not existing this is an incoming client
-	// connection for the exposed host with raw payload
-	for (auto it = sMagic.begin(); it != sMagic.end(); ++it)
+	KREST::Options Settings;
+
+	Settings.Type                    = KREST::HTTP;
+	Settings.iPort                   = m_Config.iPort;
+	Settings.iMaxConnections         = m_Config.iMaxTunnels * 2 + 20;
+	Settings.iTimeout                = m_Config.Timeout.seconds().count();
+	Settings.KLogHeader              = "";
+	Settings.bBlocking               = false;
+	Settings.bMicrosecondTimerHeader = true;
+	Settings.TimerHeader             = "x-microseconds";
+	Settings.sCert                   = m_Config.sCertFile;
+	Settings.sKey                    = m_Config.sKeyFile;
+	Settings.sTLSPassword            = m_Config.sTLSPassword;
+	Settings.sAllowedCipherSuites    = m_Config.sAllowedCipherSuites;
+	Settings.bCreateEphemeralCert    = true;
+
+	Settings.AddHeader(KHTTPHeader::SERVER, "ktunnel");
+	Settings.AddHeader("x-server", "ktunnel");
+
+	KRESTRoutes Routes;
+
+	Routes.AddRoute("/Version").Get([](KRESTServer& HTTP)
 	{
-		auto ch = Stream.Read();
+		html::Page Page("Version", "en_US");
+		Page.Body() += html::Text("ktunnel v1.0");
+		HTTP.SetRawOutput(Page.Serialize());
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE , KMIME::HTML_UTF8);
 
-		if (ch == std::istream::traits_type::eof())
-		{
-			// eof reached
-			return false;
-		}
+	}).Parse(KRESTRoute::ParserType::NOREAD);
 
-		if (ch != *it)
-		{
-			// this is a raw payload stream
-			// TODO we may later consider to start a REST server here to configure the
-			// connections
-//			ForwardStream(Stream, m_Config.DefaultTarget, sMagic.Left(it - sMagic.begin()));
-			// stop further processing when stream has ended
-			return false;
-		}
-	}
-
-	return true;
-
-} // CheckMagic
-
-//-----------------------------------------------------------------------------
-// handles one incoming connection - check if it is a control session starting with #magic"
-void ExposedServer::Session (KIOStreamSocket& Stream)
-//-----------------------------------------------------------------------------
-{
-	if (CheckMagic(Stream))
+	Routes.AddRoute("/Configure").Get([](KRESTServer& HTTP)
 	{
-		CheckSecret(Stream);
-	}
-}
+		/// TODO
+
+	}).Parse(KRESTRoute::ParserType::NOREAD);
+
+	Routes.AddRoute("/Tunnel").Get([this](KRESTServer& HTTP)
+	{
+		auto* StreamSocket = HTTP.GetStreamSocket();
+
+		if (!StreamSocket) throw KHTTPError(KHTTPError::H5xx_ERROR, "internal error");
+
+		Login(*StreamSocket);
+
+		// fast exit without any further data sent
+		HTTP.SetDisconnected();
+
+		throw KHTTPError(KHTTPError::H4xx_GONE, "");
+
+	}).Parse(KRESTRoute::ParserType::NOREAD);
+
+	// set a default route
+	Routes.SetDefaultRoute([](KRESTServer& HTTP)
+	{
+		if (HTTP.RequestPath.sRoute == "/favicon.ico" ||
+			HTTP.RequestPath.sRoute.starts_with("/apple-touch-icon"))
+		{
+			HTTP.Response.SetStatus(KHTTPError::H4xx_NOTFOUND);
+		}
+		else if (HTTP.RequestPath.sRoute == "/robots.txt")
+		{
+			HTTP.SetRawOutput("User-agent: *\nDisallow: /\n");
+			HTTP.Response.SetStatus(KHTTPError::H2xx_OK);
+			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+		}
+		else
+		{
+			HTTP.Response.SetStatus(KHTTPError::H302_MOVED_TEMPORARILY);
+			HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, "/Configure/");
+		}
+	});
+
+	// create the REST server instance
+	KREST Http;
+
+	// and run it
+	m_Config.Message("starting TLS REST server on port {}", Settings.iPort);
+	if (!Http.Execute(Settings, Routes)) throw KError(Http.Error());
+
+
+	// start the server to forward raw data
+	m_ExposedRawServer = std::make_unique<ExposedRawServer>
+	(
+		this,
+		m_Config.DefaultTarget,
+		m_Config.iRawPort,
+		false,
+		m_Config.iMaxTunnels
+	);
+
+	m_Config.Message("listening on port {} for forward data connections", m_Config.iRawPort);
+
+	// listen on TCP
+	m_ExposedRawServer->Start(m_Config.Timeout, /* bBlock= */ true);
+
+} // ExposedServer::ExposedServer
+
 
 //-----------------------------------------------------------------------------
 // handles one incoming connection
@@ -965,7 +1025,11 @@ void ProtectedHost::TimingCallback(KUnixTime Time)
 } // ProtectedHost::TimingCallback
 
 //-----------------------------------------------------------------------------
-void ProtectedHost::Run()
+ProtectedHost::ProtectedHost(const CommonConfig& Config)
+//-----------------------------------------------------------------------------
+: m_Connections(Config.iMaxTunnels)
+, m_Config(Config)
+, m_TimerID(Dekaf::getInstance().GetTimer().CallEvery(m_Config.ControlPing, std::bind(&ProtectedHost::TimingCallback, this, std::placeholders::_1)))
 //-----------------------------------------------------------------------------
 {
 	KStreamOptions Options;
@@ -982,7 +1046,12 @@ void ProtectedHost::Run()
 			if (Control->Good())
 			{
 				Control->SetTimeout(m_Config.ConnectTimeout);
-				Control->Write(sMagic);
+				Control->WriteLine("GET /Tunnel HTTP/1.1");
+				Control->WriteLine(kFormat("host: {}", m_Config.ExposedHost));
+				Control->WriteLine(kFormat("useragent: ktunnel/1.0"));
+				Control->WriteLine();
+				Control->Flush();
+
 				*Control << Message(Message::LoginTX, 0, *m_Config.Secrets.begin());
 
 				{
@@ -1011,7 +1080,12 @@ void ProtectedHost::Run()
 					throw KError("cannot establish second control connection");
 				}
 				ControlTX->SetTimeout(m_Config.ConnectTimeout);
-				ControlTX->Write(sMagic);
+				ControlTX->WriteLine("GET /Tunnel HTTP/1.1");
+				ControlTX->WriteLine(kFormat("host: {}", m_Config.ExposedHost));
+				ControlTX->WriteLine(kFormat("useragent: ktunnel/1.0"));
+				ControlTX->WriteLine();
+				ControlTX->Flush();
+
 				*ControlTX << Message(Message::LoginRX, 0, *m_Config.Secrets.begin());
 
 				{
@@ -1148,155 +1222,7 @@ void ProtectedHost::Run()
 
 	}
 
-} // ProtectedHost::Run
-
-//-----------------------------------------------------------------------------
-ProtectedHost::ProtectedHost(const CommonConfig& Config)
-//-----------------------------------------------------------------------------
-: m_Connections(Config.iMaxTunnels)
-, m_Config(Config)
-, m_TimerID(Dekaf::getInstance().GetTimer().CallEvery(m_Config.ControlPing, std::bind(&ProtectedHost::TimingCallback, this, std::placeholders::_1)))
-{
-}
-
-//-----------------------------------------------------------------------------
-void KTunnel::StartExposedHost()
-//-----------------------------------------------------------------------------
-{
-	if (!m_sCertFile.empty() && !kNonEmptyFileExists(m_sCertFile))
-	{
-		throw KError(kFormat("cert file not found: {}", m_sCertFile));
-	}
-
-	if (!m_sKeyFile.empty() && !kNonEmptyFileExists(m_sKeyFile))
-	{
-		throw KError(kFormat("key file not found: {}", m_sKeyFile));
-	}
-
-	m_ExposedServer = std::make_unique<ExposedServer>
-	(
-		m_Config,
-		m_iPort,
-		true,
-		m_Config.iMaxTunnels + 2 // we have two control connections
-	);
-
-	if (!m_sAllowedCipherSuites.empty())
-	{
-		m_ExposedServer->SetAllowedCipherSuites(m_sAllowedCipherSuites);
-	}
-
-	if (m_sCertFile.empty() || m_sKeyFile.empty())
-	{
-		KString sDefaultTLSDir = kFormat("{}{}tls", kGetConfigPath(), kDirSep);
-		kCreateDir(sDefaultTLSDir, 0700, true);
-
-		if (m_sCertFile.empty())
-		{
-			m_sCertFile = kFormat("{}{}cert.pem", sDefaultTLSDir, kDirSep);
-		}
-
-		if (m_sKeyFile.empty())
-		{
-			m_sKeyFile = kFormat("{}{}privkey.pem", sDefaultTLSDir, kDirSep);
-		}
-	}
-
-	if (kNonEmptyFileExists(m_sCertFile))
-	{
-		// load and check validity
-		KRSACert MyCert;
-		MyCert.SetThrowOnError(true);
-
-		MyCert.Load(m_sCertFile);
-
-		auto now = KUnixTime::now();
-
-		if (MyCert.ValidFrom() > now)
-		{
-			throw KError(kFormat("cert not yet valid: {:%F %T}", MyCert.ValidFrom()));
-		}
-		else if (MyCert.ValidUntil() < (now + chrono::weeks(1)))
-		{
-			m_Config.Message("cert expired at {:%F %T} - will generate new self-signed cert", MyCert.ValidUntil());
-
-			if (kRename(m_sCertFile, kFormat("{}.bak", m_sCertFile)))
-			{
-				m_Config.Message("renamed old cert to {}.bak", m_sCertFile);
-				// we will now create a new cert below
-			}
-		}
-		else
-		{
-			m_Config.Message("cert valid until {:%F %T}", MyCert.ValidUntil());
-		}
-	}
-
-	if (!kNonEmptyFileExists(m_sCertFile))
-	{
-		KRSAKey MyKey;
-		MyKey.SetThrowOnError(true);
-
-		if (!kNonEmptyFileExists(m_sKeyFile))
-		{
-			// create a new private key
-			MyKey.Create(iBitsForNewRSAKey);
-			MyKey.Save(m_sKeyFile, true, m_sTLSPassword);
-			m_Config.Message("new private key with {} bits created: {}", iBitsForNewRSAKey, m_sKeyFile);
-		}
-		else
-		{
-			// load key from file
-			MyKey.Load(m_sKeyFile, m_sTLSPassword);
-			m_Config.Message("loaded private key from: {}", m_sKeyFile);
-		}
-
-		// create a self signed cert
-		KRSACert MyCert;
-		MyCert.SetThrowOnError(true);
-
-		MyCert.Create(MyKey, "localhost", "US", "", chrono::months(12));
-		MyCert.Save(m_sCertFile);
-		m_Config.Message("new cert created: {}", m_sCertFile);
-
-		// set the cert and key
-		m_ExposedServer->SetTLSCertificates(MyCert.GetPEM(), MyKey.GetPEM(true, m_sTLSPassword), m_sTLSPassword);
-	}
-	else
-	{
-		// load the cert and key
-		m_ExposedServer->LoadTLSCertificates(m_sCertFile, m_sKeyFile, m_sTLSPassword);
-	}
-
-	// start the server to forward raw data
-	m_ExposedRawServer = std::make_unique<ExposedRawServer>
-	(
-		m_ExposedServer.get(),
-		m_Config.DefaultTarget,
-		m_iRawPort,
-		false,
-		m_Config.iMaxTunnels
-	);
-
-	m_Config.Message("listening on port {} for control connection, and on port {} for forward data connections", m_iPort, m_iRawPort);
-
-	// listen on TLS
-	m_ExposedServer->Start(m_Config.Timeout, /* bBlock= */ false);
-
-	// listen on TCP
-	m_ExposedRawServer->Start(m_Config.Timeout, /* bBlock= */ true);
-
-} // StartExposedHost
-
-//-----------------------------------------------------------------------------
-void KTunnel::StartProtectedHost()
-//-----------------------------------------------------------------------------
-{
-	ProtectedHost Protected(m_Config);
-
-	Protected.Run();
-
-} // ProtectedHost
+} // ProtectedHost::ctor
 
 //-----------------------------------------------------------------------------
 int KTunnel::Main(int argc, char** argv)
@@ -1311,36 +1237,37 @@ int KTunnel::Main(int argc, char** argv)
 	// setup CLI option parsing
 	KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
-	KStringView sSecrets;
-
 	// define cli options
-	m_Config.ExposedHost   = Options("e,exposed    : exposed host - the host to keep an ongoing control connection to. Expects domain name or IP address. If not defined, then this is the exposed host itself.", "");
-	m_iPort                = Options("p,port       : port number to listen at for TLS connections (if exposed host), or connect to (if protected host) - defaults to 443.", 443);
-	m_iRawPort             = Options("f,forward    : port number to listen at for raw TCP connections that will be forwarded (if exposed host)", 0);
-	sSecrets               = Options("s,secret     : if exposed host, takes comma separated list of secrets for login by protected hosts, or one single secret if this is the protected host.").String();
-	m_Config.DefaultTarget = Options("t,target     : if exposed host, takes the domain:port of a default target, if no other target had been specified in the incoming data connect", "");
-	m_Config.iMaxTunnels   = Options("m,maxtunnels : if exposed host, maximum number of tunnels to open, defaults to 10 - if protected host, the setting has no effect.", 10);
-	m_Config.Timeout       = chrono::seconds(Options("to,timeout <seconds> : data connection timeout in seconds (default 30)", 30));
-	m_sCertFile            = Options("cert <file>  : if exposed host, TLS certificate filepath (.pem) - if option is unused a self-signed cert is created", "");
-	m_sKeyFile             = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused a new key is created", "");
-	m_sTLSPassword         = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
-	m_sAllowedCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
-	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);
+	m_Config.ExposedHost= Options("e,exposed    : exposed host - the host to keep an ongoing control connection to. Expects domain name or IP address. If not defined, then this is the exposed host itself.", "");
+	m_Config.iPort     = Options("p,port       : port number to listen at for TLS connections (if exposed host), or connect to (if protected host) - defaults to 443.", 443);
+	m_Config.iRawPort  = Options("f,forward    : port number to listen at for raw TCP connections that will be forwarded (if exposed host)", 0);
+	KStringView sSecrets      = Options("s,secret     : if exposed host, takes comma separated list of secrets for login by protected hosts, or one single secret if this is the protected host.").String();
+	m_Config.DefaultTarget
+	                          = Options("t,target     : if exposed host, takes the domain:port of a default target, if no other target had been specified in the incoming data connect", "");
+	m_Config.iMaxTunnels= Options("m,maxtunnels : if exposed host, maximum number of tunnels to open, defaults to 10 - if protected host, the setting has no effect.", 10);
+	m_Config.Timeout    = chrono::seconds(Options("to,timeout <seconds> : data connection timeout in seconds (default 30)", 30));
+	m_Config.sCertFile = Options("cert <file>  : if exposed host, TLS certificate filepath (.pem) - if option is unused a self-signed cert is created", "");
+	m_Config.sKeyFile  = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused a new key is created", "");
+	m_Config.sTLSPassword
+	                          = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
+	m_Config.sAllowedCipherSuites
+	                          = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
+	m_Config.bQuiet     = Options("q,quiet      : do not output status to stdout", false);
 
 	// do a final check if all required options were set
 	if (!Options.Check()) return 1;
 
-	if (!m_iPort)
+	if (!m_Config.iPort)
 	{
 		SetError("need valid port number");
 	}
 
 	if (m_Config.ExposedHost.Port.empty())
 	{
-		m_Config.ExposedHost.Port.get() = m_iPort;
+		m_Config.ExposedHost.Port.get() = m_Config.iPort;
 	}
 
-	if (!IsExposed() && (!m_sCertFile.empty() || !m_sKeyFile.empty()))
+	if (!IsExposed() && (!m_Config.sCertFile.empty() || !m_Config.sKeyFile.empty()))
 	{
 		SetError("the protected host may not have a cert or key option");
 	}
@@ -1358,16 +1285,16 @@ int KTunnel::Main(int argc, char** argv)
 	{
 		if (m_Config.DefaultTarget.empty()) SetError("exposed host needs a default target");
 		if (m_Config.DefaultTarget.Port.get() == 0) SetError("endpoind needs an explicit port number");
-		if (!m_iRawPort) SetError("exposed host needs a forward port being configured");
+		if (!m_Config.iRawPort) SetError("exposed host needs a forward port being configured");
 		m_Config.Message("starting as exposed host");
 
-		StartExposedHost();
+		ExposedServer Exposed(m_Config);
 	}
 	else
 	{
 		m_Config.Message("starting as protected host, connecting exposed host at {}", m_Config.ExposedHost);
 
-		StartProtectedHost();
+		ProtectedHost Protected(m_Config);
 	}
 
 	return 0;

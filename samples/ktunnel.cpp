@@ -1030,7 +1030,6 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 : m_Connections(Config.iMaxTunnels)
 , m_Config(Config)
 , m_TimerID(Dekaf::getInstance().GetTimer().CallEvery(m_Config.ControlPing, std::bind(&ProtectedHost::TimingCallback, this, std::placeholders::_1)))
-//-----------------------------------------------------------------------------
 {
 	KStreamOptions Options;
 	// connect timeout to exposed host, also wait timeout between two tries
@@ -1238,21 +1237,19 @@ int KTunnel::Main(int argc, char** argv)
 	KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
 
 	// define cli options
-	m_Config.ExposedHost= Options("e,exposed    : exposed host - the host to keep an ongoing control connection to. Expects domain name or IP address. If not defined, then this is the exposed host itself.", "");
-	m_Config.iPort     = Options("p,port       : port number to listen at for TLS connections (if exposed host), or connect to (if protected host) - defaults to 443.", 443);
-	m_Config.iRawPort  = Options("f,forward    : port number to listen at for raw TCP connections that will be forwarded (if exposed host)", 0);
-	KStringView sSecrets      = Options("s,secret     : if exposed host, takes comma separated list of secrets for login by protected hosts, or one single secret if this is the protected host.").String();
-	m_Config.DefaultTarget
-	                          = Options("t,target     : if exposed host, takes the domain:port of a default target, if no other target had been specified in the incoming data connect", "");
-	m_Config.iMaxTunnels= Options("m,maxtunnels : if exposed host, maximum number of tunnels to open, defaults to 10 - if protected host, the setting has no effect.", 10);
-	m_Config.Timeout    = chrono::seconds(Options("to,timeout <seconds> : data connection timeout in seconds (default 30)", 30));
-	m_Config.sCertFile = Options("cert <file>  : if exposed host, TLS certificate filepath (.pem) - if option is unused a self-signed cert is created", "");
-	m_Config.sKeyFile  = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused a new key is created", "");
-	m_Config.sTLSPassword
-	                          = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
+	m_Config.ExposedHost   = Options("e,exposed    : exposed host - the host to keep an ongoing control connection to. Expects domain name or IP address. If not defined, then this is the exposed host itself.", "");
+	m_Config.iPort         = Options("p,port       : port number to listen at for TLS connections (if exposed host), or connect to (if protected host) - defaults to 443.", 443);
+	m_Config.iRawPort      = Options("f,forward    : port number to listen at for raw TCP connections that will be forwarded (if exposed host)", 0);
+	KStringView sSecrets   = Options("s,secret     : if exposed host, takes comma separated list of secrets for login by protected hosts, or one single secret if this is the protected host.").String();
+	m_Config.DefaultTarget = Options("t,target     : if exposed host, takes the domain:port of a default target, if no other target had been specified in the incoming data connect", "");
+	m_Config.iMaxTunnels   = Options("m,maxtunnels : if exposed host, maximum number of tunnels to open, defaults to 10 - if protected host, the setting has no effect.", 10);
+	m_Config.Timeout       = chrono::seconds(Options("to,timeout <seconds> : data connection timeout in seconds (default 30)", 30));
+	m_Config.sCertFile     = Options("cert <file>  : if exposed host, TLS certificate filepath (.pem) - if option is unused a self-signed cert is created", "");
+	m_Config.sKeyFile      = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused a new key is created", "");
+	m_Config.sTLSPassword  = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
 	m_Config.sAllowedCipherSuites
-	                          = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
-	m_Config.bQuiet     = Options("q,quiet      : do not output status to stdout", false);
+	                       = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
+	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);
 
 	// do a final check if all required options were set
 	if (!Options.Check()) return 1;

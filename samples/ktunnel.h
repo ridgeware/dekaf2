@@ -333,22 +333,22 @@ class ProtectedHost
 public:
 //----------
 
-	ProtectedHost(const CommonConfig& Config);
+	ProtectedHost (const CommonConfig& Config);
 
 //----------
 private:
 //----------
 
-	void SendMessageToDownstream(const Message& message, bool bThrowIfNoStream = true);
-	void TimingCallback(KUnixTime Time);
-	void ConnectToTarget(std::size_t iID, KTCPEndPoint Target);
+	void SendMessageToDownstream (const Message& message, bool bThrowIfNoStream = true);
+	void TimingCallback          (KUnixTime Time);
+	void ConnectToTarget         (std::size_t iID, KTCPEndPoint Target);
 
-	Connections                   m_Connections;
+	Connections          m_Connections;
 	KThreadSafe<std::unique_ptr<KIOStreamSocket>>
-	                              m_ControlStreamTX;
-	KThreads                      m_Threads;
-	const CommonConfig&           m_Config;
-	KTimer::ID_t                  m_TimerID { KTimer::InvalidID };
+	                     m_ControlStreamTX;
+	KThreads             m_Threads;
+	const CommonConfig&  m_Config;
+	KTimer::ID_t         m_TimerID { KTimer::InvalidID };
 
 }; // ProtectedHost
 
@@ -373,6 +373,6 @@ public:
 private:
 //----------
 
-	ExposedServer::Config             m_Config;
+	ExposedServer::Config m_Config;
 
 }; // KTunnel

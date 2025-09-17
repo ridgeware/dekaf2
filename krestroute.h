@@ -421,6 +421,8 @@ public:
 		self& Patch (KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod::PATCH,  std::move(Callback)); }
 		/// add a callback for a DELETE request
 		self& Delete(KRESTRoute::RESTCallback Callback)   { return SetCallback(KHTTPMethod::DELETE, std::move(Callback)); }
+		/// add a callback for an OPTIONS request
+		self& Options(KRESTRoute::RESTCallback Callback)  { return SetCallback(KHTTPMethod::OPTIONS,std::move(Callback)); }
 		/// set options for this route
 		self& Options(KRESTRoute::Options Options)        { m_Options = std::move(Options);   return *this; }
 		/// set parser type for this route, default is JSON

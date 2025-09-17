@@ -55,6 +55,10 @@ void KREST::RESTServer::Session (KIOStreamSocket& Stream)
 {
 	KRESTServer RESTServer(m_Routes, m_Options);
 
+	// keep a pointer of the stream socket for REST routes that may want to
+	// interact directly with the socket
+	RESTServer.SetStreamSocket(Stream);
+
 	// keep a local copy of the socket for KSocketWatch
 	auto nativeSocket = Stream.GetNativeSocket();
 

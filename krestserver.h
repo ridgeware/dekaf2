@@ -552,6 +552,22 @@ public:
 	void SetCookie(KStringView sName, KStringView sValue = KStringView{}, KStringView sOptions = KStringView{});
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// set the underlying stream socket of this connection - this is typically called by the method that builds a KRESTServer object
+	void SetStreamSocket(KIOStreamSocket& StreamSocket)
+	//-----------------------------------------------------------------------------
+	{
+		m_StreamSocket = &StreamSocket;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// get the underlying stream socket of this connection
+	KIOStreamSocket* GetStreamSocket() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_StreamSocket;
+	}
+
 //------
 protected:
 //------
@@ -628,6 +644,7 @@ private:
 	std::unique_ptr<std::map<KStringView, KStringView>> m_RequestCookies;
 	std::function<void(const KRESTServer&)> m_PostResponseCallback; // if set, gets called after response generation
 	std::function<void(KWebSocket&)> m_WebSocketHandlerCallback; // filled by route handler during upgrade to websocket protocol, will be called every time a frame is received, or the connection is lost
+	KIOStreamSocket* m_StreamSocket { nullptr }; // the underlying KIOStreamSocket, if existing
 	uint16_t    m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds
 	bool        m_bKeepAlive;            // whether connection will be kept alive
 	bool        m_bLostConnection;       // whether we lost our peer during flight

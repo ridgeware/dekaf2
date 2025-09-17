@@ -343,7 +343,7 @@ public:
 	virtual bool IsDisconnected() override final { return !is_open(); }
 	virtual native_socket_type GetNativeSocket() override final { return -1; }
 	virtual bool Good() const override final { return good(); }
-	virtual std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) override final { return -1; };
+	virtual std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) override final { return 0; };
 
 }; // KStreamSocketAdaptor
 

@@ -1538,9 +1538,21 @@ const KString& kGetConfigPath(bool bCreateDirectory)
 {
 	static KString sPathname = []() -> KString
 	{
-		// ${HOME}/.config/{{program name}}
-		return kFormat("{}{}.config{}{}", kGetHome(), kDirSep, kDirSep, kBasename(kGetOwnPathname()));
+		auto sHome = kGetHome();
 
+#if DEKAF2_IS_UNIX
+		if (sHome.empty() || sHome == "/")
+		{
+			kDebug(2, "assuming container environment, as ${{HOME}} is '{}'", sHome);
+			// set the path to /home/{{program name }}
+			return kFormat("{}home{}{}", kDirSep, kDirSep, kBasename(kGetOwnPathname()));
+		}
+		else
+#endif
+		{
+			// ${HOME}/.config/{{program name}}
+			return kFormat("{}{}.config{}{}", sHome, kDirSep, kDirSep, kBasename(kGetOwnPathname()));
+		}
 	}();
 
 	if (bCreateDirectory)

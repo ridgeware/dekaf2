@@ -227,7 +227,7 @@ bool KRSACert::Create
 		return SetError(KDigest::GetOpenSSLError("error setting name"));
 	}
 
-	// sign the certificate
+	// sign the certificate with the private key
 	if (!::X509_sign(m_X509Cert, Key.GetEVPPKey(),
 #if OPENSSL_VERSION_NUMBER >= 0x010101000
 		EVP_sha3_256()
@@ -365,5 +365,302 @@ bool KRSACert::IsValidNow() const
 {
 	return IsValidAt(KUnixTime::now());
 }
+
+//---------------------------------------------------------------------------
+bool KRSACert::CheckByNID(KStringViewZ sCheckme, int nid) const
+//---------------------------------------------------------------------------
+{
+	if (!m_X509Cert)
+	{
+		return false;
+	}
+
+	auto* name = ::X509_get_subject_name(m_X509Cert);
+
+	if (!name)
+	{
+		return SetError(KDigest::GetOpenSSLError("cannot read subject"));
+	}
+
+	int idx = -1;
+
+	for (;;)
+	{
+		idx = ::X509_NAME_get_index_by_NID(name, nid, idx);
+
+		if (idx < 0)
+		{
+			return false;
+		}
+
+		auto* name_entry = ::X509_NAME_get_entry(name, idx);
+
+		if (name_entry == nullptr)
+		{
+			return SetError(KDigest::GetOpenSSLError("cannot read name entry"));
+		}
+
+		auto* domain = ::X509_NAME_ENTRY_get_data(name_entry);
+
+		if (domain == nullptr)
+		{
+			return SetError(KDigest::GetOpenSSLError("cannot read data"));
+		}
+
+		unsigned char* utf8 { nullptr };
+
+		auto ec = ::ASN1_STRING_to_UTF8(&utf8, domain);
+
+		if (utf8)
+		{
+			if (ec >= 0)
+			{
+				if (sCheckme == reinterpret_cast<char*>(utf8))
+				{
+					OPENSSL_free(utf8);
+					return true;
+				}
+			}
+			OPENSSL_free(utf8);
+		}
+
+		if (ec < 0)
+		{
+			return SetError(KDigest::GetOpenSSLError());
+		}
+	}
+
+	return false;
+
+} // CheckDomain
+
+//---------------------------------------------------------------------------
+bool KRSACert::CheckDomain(KStringViewZ sDomain) const
+//---------------------------------------------------------------------------
+{
+	return CheckByNID(sDomain, NID_commonName);
+}
+
+//---------------------------------------------------------------------------
+bool KRSACert::CheckCountryCode(KStringViewZ sCountryCode) const
+//---------------------------------------------------------------------------
+{
+	return CheckByNID(sCountryCode, NID_countryName);
+}
+
+//---------------------------------------------------------------------------
+bool KRSACert::CheckOrganization(KStringViewZ sOrganization) const
+//---------------------------------------------------------------------------
+{
+	return CheckByNID(sOrganization, NID_organizationName);
+}
+
+//---------------------------------------------------------------------------
+KString KRSACert::GetDefaultPrivateKeyFilename()
+//---------------------------------------------------------------------------
+{
+	return kFormat("{}{}privkey.pem", GetDefaultTLSDirectory(), kDirSep);
+}
+
+//---------------------------------------------------------------------------
+KString KRSACert::GetDefaultCertFilename()
+//---------------------------------------------------------------------------
+{
+	return kFormat("{}{}cert.pem", GetDefaultTLSDirectory(), kDirSep);
+}
+
+//---------------------------------------------------------------------------
+KString KRSACert::GetDefaultTLSDirectory()
+//---------------------------------------------------------------------------
+{
+	return kFormat("{}{}tls", kGetConfigPath(), kDirSep);
+}
+
+//---------------------------------------------------------------------------
+KString KRSACert::CheckOrCreateKeyAndCert
+(
+	bool        bThrowOnError,
+	KString     sKeyFilename,
+	KString     sCertFilename,
+	KString     sPassword,
+	KStringView sDomain,
+	KStringView sCountryCode,
+	KStringView sOrganization,
+	KDuration   ValidFor,
+	KUnixTime   ValidFrom,
+	uint16_t    iKeyLength
+)
+//---------------------------------------------------------------------------
+{
+	//---------------------------------------------------------------------------
+	auto SetError = [bThrowOnError](KString sError) -> KString
+	//---------------------------------------------------------------------------
+	{
+		kDebug(1, sError);
+
+		if (bThrowOnError)
+		{
+			throw KError(sError);
+		}
+
+		return sError;
+	};
+
+	//---------------------------------------------------------------------------
+	auto CreateDirForFile = [](KStringViewZ sFilename) -> KString
+	//---------------------------------------------------------------------------
+	{
+		KString sDirname = kDirname(sFilename, false);
+
+		if (!kDirExists(sDirname))
+		{
+			if (!kCreateDir(sDirname, 0700, true))
+			{
+				return kFormat("cannot create tls config dir: {}", sDirname);
+			}
+		}
+
+		return {};
+	};
+
+	if (sKeyFilename.empty())
+	{
+		sKeyFilename  = GetDefaultPrivateKeyFilename();
+	}
+
+	if (sCertFilename.empty())
+	{
+		sCertFilename = GetDefaultCertFilename();
+	}
+
+	auto sError = CreateDirForFile(sKeyFilename);
+
+	if (!sError.empty())
+	{
+		return SetError(sError);
+	}
+
+	sError = CreateDirForFile(sCertFilename);
+
+	if (!sError.empty())
+	{
+		return SetError(sError);
+	}
+
+	// if the key file does not exist, create a new key and store it
+	if (!kFileExists(sKeyFilename))
+	{
+		// create a new key if TLS was requested but no key given
+		KRSAKey Key(iKeyLength);
+
+		Key.SetThrowOnError(bThrowOnError);
+
+		// save key on disk for next run
+		if (!Key.Save(sKeyFilename, true, sPassword))
+		{
+			return SetError(Key.GetLastError());
+		}
+
+		if (kFileExists(sCertFilename))
+		{
+			// we have to invalidate any existing cert with a new key
+			if (kRename(sCertFilename, kFormat("{}.bak", sCertFilename)))
+			{
+				kDebug(1, "renamed old cert to {}.bak because we had to create a new key", sCertFilename);
+			}
+			else
+			{
+				return SetError(kFormat("cannot rename cert file: {}", sCertFilename));
+			}
+		}
+	}
+
+	// if a cert exists, check its validity
+	if (kFileExists(sCertFilename))
+	{
+		KRSACert Cert;
+		Cert.SetThrowOnError(bThrowOnError);
+
+		if (!Cert.Load(sCertFilename))
+		{
+			return SetError(Cert.GetLastError());
+		}
+
+		if (!Cert.CheckDomain(KString(sDomain)))
+		{
+			return SetError(kFormat("cert '{}' is not valid for domain '{}'", sCertFilename, sDomain));
+		}
+
+		if (!Cert.CheckCountryCode(KString(sCountryCode)))
+		{
+			return SetError(kFormat("cert '{}' is not valid for country code '{}'", sCertFilename, sCountryCode));
+		}
+
+		if (!sOrganization.empty() && !Cert.CheckOrganization(KString(sOrganization)))
+		{
+			return SetError(kFormat("cert '{}' is not valid for organization '{}'", sCertFilename, sOrganization));
+		}
+
+		auto now = KUnixTime::now();
+
+		if (Cert.ValidFrom() > now)
+		{
+			return SetError(kFormat("cert '{}' not yet valid: {:%F %T}", sCertFilename, Cert.ValidFrom()));
+		}
+
+		if (Cert.ValidUntil() < (now + chrono::weeks(1)))
+		{
+			if (Cert.ValidUntil() <= now)
+			{
+				kDebug(1, "cert expired at {:%F %T}. We will renew it.", Cert.ValidUntil());
+			}
+			else
+			{
+				kDebug(1, "cert expires at {:%F %T}, which is in less than a week. We will renew it.", Cert.ValidUntil());
+			}
+
+			if (kRename(sCertFilename, kFormat("{}.bak", sCertFilename)))
+			{
+				kDebug(3, "renamed old cert to {}.bak", sCertFilename);
+			}
+			else
+			{
+				return SetError(kFormat("cannot rename cert file: {}", sCertFilename));
+			}
+		}
+	}
+
+	// generate a self-signed cert if the file does not exist
+	if (!kFileExists(sCertFilename))
+	{
+		KRSACert Cert;
+		Cert.SetThrowOnError(bThrowOnError);
+
+		KRSAKey Key;
+
+		Key.SetThrowOnError(bThrowOnError);
+
+		if (!Key.Load(sKeyFilename, sPassword))
+		{
+			SetError(Key.GetLastError());
+		}
+
+		// create a self signed cert
+		if (!Cert.Create(Key, sDomain, sCountryCode, sOrganization, ValidFor, ValidFrom))
+		{
+			return SetError(Cert.GetLastError());
+		}
+
+		// save cert on disk
+		if (!Cert.Save(sCertFilename))
+		{
+			return SetError(Cert.GetLastError());
+		}
+	}
+
+	// success
+	return {};
+
+} // CreateKeyAndSelfSignedCertFiles
 
 DEKAF2_NAMESPACE_END

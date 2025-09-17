@@ -195,13 +195,13 @@ void KTCPServer::RunSession(KIOStreamSocket& stream)
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	if (!m_iPort)
 	{
-		kDebug(3, "accepting new unix socket connection from {}",
+		kDebug(3, "handling new unix socket connection from {}",
 			   stream.GetEndPointAddress());
 	}
 	else
 #endif
 	{
-		kDebug(3, "accepting new TCP connection from {} on port {}",
+		kDebug(3, "handling new TCP connection from {} on port {}",
 			   stream.GetEndPointAddress(),
 			   m_iPort);
 	}
@@ -279,6 +279,35 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 } // IsPortAvailable
 
 //-----------------------------------------------------------------------------
+bool KTCPServer::CreateSelfSignedCertAndKey()
+//-----------------------------------------------------------------------------
+{
+	if (m_sCert.empty() && m_sKey.empty())
+	{
+		auto sKeyFilename  = KRSACert::GetDefaultPrivateKeyFilename();
+		auto sCertFilename = KRSACert::GetDefaultCertFilename();
+
+		auto sError = KRSACert::CheckOrCreateKeyAndCert
+		(
+			WouldThrowOnError(),
+			sKeyFilename,
+			sCertFilename,
+			m_sPassword
+		 );
+
+		if (!sError.empty())
+		{
+			return SetError(sError);
+		}
+
+		LoadTLSCertificates(sCertFilename, sKeyFilename, m_sPassword);
+	}
+
+	return true;
+
+} // CreateSelfSignedCertAndKey
+
+//-----------------------------------------------------------------------------
 bool KTCPServer::TCPServer(bool ipv6)
 //-----------------------------------------------------------------------------
 {
@@ -344,20 +373,15 @@ bool KTCPServer::TCPServer(bool ipv6)
 	{
 		// the TLS version of the server
 
-		TLSContext = std::make_unique<KTLSContext>(true);
-
 		if (m_sCert.empty())
 		{
-			// create a self signed cert if TLS was requested but no cert given
-			if (m_sKey.empty())
+			if (!CreateSelfSignedCertAndKey())
 			{
-				// if no key was given, create one
-				kDebug(2, "generating an ephemeral server key");
-				m_sKey = KRSAKey(4096).GetPEM(true, m_sPassword);
+				return false; // already logged
 			}
-			kDebug(2, "generating an ephemeral server cert");
-			m_sCert = KRSACert(KRSAKey(m_sKey, m_sPassword), "localhost", "US").GetPEM();
 		}
+
+		TLSContext = std::make_unique<KTLSContext>(true);
 
 		if (!TLSContext->SetTLSCertificates(m_sCert, m_sKey, m_sPassword))
 		{

@@ -114,6 +114,8 @@ bool KRSAKey::Create(uint16_t iKeylen)
 {
 	clear();
 
+	kDebug(2, "creating a new RSA key with keylen {}", iKeylen);
+
 #if OPENSSL_VERSION_NUMBER >= 0x030000000
 
 	m_EVPPKey = ::EVP_RSA_gen(iKeylen);
@@ -142,6 +144,8 @@ bool KRSAKey::Create(uint16_t iKeylen)
 	}
 
 	m_bIsPrivateKey = true;
+
+	kDebug(2, "key successfully created");
 
 	return true;
 

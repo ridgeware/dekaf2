@@ -105,4 +105,33 @@ TEST_CASE("KDuration")
 		CHECK ( b <  a );
 		CHECK ( b <= a );
 	}
+
+	SECTION("ToString")
+	{
+
+	}
+
+	SECTION("format")
+	{
+		std::vector<std::pair<KStringView, KDuration>> svector1 {
+			{    "4.1 y",   chrono::seconds(127834275)  },
+#if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+			{   "1.2 µs",   chrono::nanoseconds(1235)   },
+			{   "235 ns",   chrono::nanoseconds(235)    },
+#else
+			{     "1 µs",   chrono::nanoseconds(1235)   },
+			{     "0 µs",   chrono::nanoseconds(235)    },
+#endif
+			{     "10 s",   chrono::milliseconds(10123) },
+			{     "14 y",   chrono::hours(123453)       },
+			{    "12 µs",   chrono::microseconds(12)    }
+		};
+
+		for (auto& p : svector1)
+		{
+			KString s;
+			s = kFormat("{}", p.second);
+			CHECK ( s == p.first );
+		}
+	}
 }

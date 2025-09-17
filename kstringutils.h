@@ -1967,6 +1967,7 @@ KString kFormScaledUnsignedNumber (
 	uint64_t    iNumber,
 	uint16_t    iPrecision,
 	KStringView sSeparator,
+	bool        bDeleteZeroDecimals,
 	uint16_t    iDivisor,
 	uint16_t    iMaxDigits,
 	KStringView sUnits,
@@ -1978,6 +1979,7 @@ KString kFormScaledUnsignedNumber (
 /// @param iNumber the number to transform
 /// @param iPrecision how many digits to retain after the decimal separator (1 by default)
 /// @param sSeparator the separator between the number and the unit, default none
+/// @param bDeleteZeroDecimals if true, all trailing 0 decimals will be removed - defaults to false
 /// @param iDivisor the divisor to apply for each magnitude, defaults to 1000
 /// @param iMaxDigits how many max digits before the decimal separator (3 by default)
 /// @return the formatted number as a KString
@@ -1990,6 +1992,7 @@ KString kFormScaledNumber (
 	T           iNumber,
 	uint16_t    iPrecision = 1,
 	KStringView sSeparator = KStringView{},
+	bool        bDeleteZeroDecimals = false,
 	uint16_t    iDivisor   = 1000,
 	uint16_t    iMaxDigits = 3,
 	KStringView sUnits     = detail::sNumberUnits
@@ -1999,6 +2002,7 @@ KString kFormScaledNumber (
 		iNumber,
 		iPrecision,
 		sSeparator,
+		bDeleteZeroDecimals,
 		iDivisor,
 		iMaxDigits,
 		sUnits,
@@ -2009,6 +2013,7 @@ KString kFormScaledNumber (
 /// @param iNumber the number to transform
 /// @param iPrecision how many digits to retain after the decimal separator (1 by default)
 /// @param sSeparator the separator between the number and the unit, default none
+/// @param bDeleteZeroDecimals if true, all trailing 0 decimals will be removed - defaults to false
 /// @param iDivisor the divisor to apply for each magnitude, defaults to 1000
 /// @param iMaxDigits how many max digits before the decimal separator (3 by default)
 /// @return the formatted number as a KString
@@ -2021,6 +2026,7 @@ KString kFormScaledNumber (
 	T           iNumber,
 	uint16_t    iPrecision = 1,
 	KStringView sSeparator = KStringView{},
+	bool        bDeleteZeroDecimals = false,
 	uint16_t    iDivisor   = 1000,
 	uint16_t    iMaxDigits = 3,
 	KStringView sUnits     = detail::sNumberUnits
@@ -2040,6 +2046,7 @@ KString kFormScaledNumber (
 		iUnsignedNumber,
 		iPrecision,
 		sSeparator,
+		bDeleteZeroDecimals,
 		iDivisor,
 		iMaxDigits,
 		sUnits,
@@ -2048,22 +2055,27 @@ KString kFormScaledNumber (
 }
 
 /// @param iBytes the bytes to transform
-/// @param sSeparator the separator between the number and the unit, default none
-/// @param iDivisor the divisor to apply for each magnitude, defaults to 1024, could reasonably be set to 1000 as well.
 /// @param iPrecision how many digits to retain after the decimal separator (1 by default)
+/// @param sSeparator the separator between the number and the unit, default none
+/// @param bDeleteZeroDecimals if true, all trailing 0 decimals will be removed - defaults to true
+/// @param iDivisor the divisor to apply for each magnitude, defaults to 1024, could reasonably be set to 1000 as well.
+/// @param iMaxDigits how many max digits before the decimal separator (3 by default)
 /// @return a string with the count of input bytes transformed into the relevant tera/giga/mega/kilo/byte unit
 DEKAF2_NODISCARD inline DEKAF2_PUBLIC
 KString kFormBytes (
 	std::size_t iBytes,
 	uint16_t    iPrecision = 1,
 	KStringView sSeparator = KStringView{},
-	uint16_t    iDivisor = 1024
+	bool        bDeleteZeroDecimals = true,
+	uint16_t    iDivisor = 1024,
+	uint16_t    iMaxDigits = 3
 )
 {
 	return detail::kFormScaledUnsignedNumber (
 		iBytes,
 		iPrecision,
 		sSeparator,
+		bDeleteZeroDecimals,
 		iDivisor,
 		3,
 		detail::sByteUnits,
@@ -2074,6 +2086,7 @@ KString kFormBytes (
 /// @param iNumber the number to transform
 /// @param iPrecision how many digits to retain after the decimal separator (1 by default)
 /// @param sSeparator the separator between the number and the unit, default none
+/// @param bDeleteZeroDecimals if true, all trailing 0 decimals will be removed - defaults to false
 /// @param iDivisor the divisor to apply for each magnitude, defaults to 1000
 /// @param iMaxDigits how many max digits before the decimal separator (3 by default)
 /// @return the formatted number as a KString
@@ -2085,6 +2098,7 @@ KString kFormRoundedNumber (
 	T           iNumber,
 	uint16_t    iPrecision = 0,
 	KStringView sSeparator = KStringView{},
+	bool        bDeleteZeroDecimals = false,
 	uint16_t    iDivisor   = 1000,
 	uint16_t    iMaxDigits = 3,
 	KStringView sUnits     = detail::sNumberUnits
@@ -2094,6 +2108,7 @@ KString kFormRoundedNumber (
 		iNumber,
 		iPrecision,
 		sSeparator,
+		bDeleteZeroDecimals,
 		iDivisor,
 		3,
 		sUnits

@@ -989,6 +989,7 @@ KString kFormScaledUnsignedNumber (
 	uint64_t    iNumber,
 	uint16_t    iPrecision,
 	KStringView sSeparator,
+	bool        bDeleteZeroDecimals,
 	uint16_t    iDivisor,
 	uint16_t    iMaxDigits,
 	KStringView sUnits,
@@ -1019,14 +1020,23 @@ KString kFormScaledUnsignedNumber (
 	                  double(iOrigBytes) / iDivideBy,
 	                  iPrecision);
 
-	sNumber.remove_suffix(".0");
-
-	if (!sSeparator.empty())
+	if (iPrecision)
 	{
-		sNumber += sSeparator;
+		while (sNumber.remove_suffix('0')) {};
+		sNumber.remove_suffix('.');
 	}
 
-	sNumber += sUnits[iMagnitude];
+	auto ch = sUnits[iMagnitude];
+
+	if (ch != ' ' && ch != '\0')
+	{
+		if (!sSeparator.empty())
+		{
+			sNumber += sSeparator;
+		}
+
+		sNumber += ch;
+	}
 
 	return sNumber;
 

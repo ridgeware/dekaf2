@@ -41,8 +41,6 @@
 //
 */
 
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "kcompatibility.h"
 
 #if DEKAF2_IS_WINDOWS

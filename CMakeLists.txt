@@ -1610,6 +1610,10 @@ if (DEKAF2_WITH_PEDANTIC_WARNINGS)
 	endif()
 endif()
 
+if (IS_WINDOWS)
+	add_compile_definitions(_CRT_SECURE_NO_WARNINGS _SCL_SECURE_NO_WARNINGS NOMINMAX)
+endif()
+
 # we have to create the timezone library even when dekaf2 itself has
 # std::chrono timezones - the reason is that users may compile with
 # C++ < 20, in which case the std headers do not expose the timezone

@@ -68,7 +68,9 @@ enum
 extern "C" {
 
 #ifdef DEKAF2_IS_WINDOWS
-	struct siginfo_t {};
+	// declare at least one element in the struct, otherwise clang warns about
+	// differing struct sizes in C (0) and C++ (1)
+	struct siginfo_t { int i; };
 #endif
 
 /// display signal that led to crash (if any) and force a stackdump
@@ -83,7 +85,7 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo = nullptr, void* context 
 DEKAF2_PUBLIC
 void kCrashExit (int iSignalNum=0);
 
-}
+} // end of extern C
 
 using KCrashCallback = std::function<void(KStringView sMessage)>;
 

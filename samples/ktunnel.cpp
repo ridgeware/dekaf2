@@ -138,9 +138,7 @@ uint8_t Message::ReadByte(KIOStreamSocket& Stream) const
 
 	if (iChar == std::istream::traits_type::eof())
 	{
-		auto sError = kFormat("{}: at end of file: {}", Stream.GetEndPointAddress(), Stream.GetLastError());
-		kDebug(1, sError);
-		throw KError(sError);
+		Throw(kFormat("{}: at end of file: {}", Stream.GetEndPointAddress(), Stream.GetLastError()));
 	}
 
 	return static_cast<uint8_t>(iChar);
@@ -153,9 +151,7 @@ void Message::WriteByte (KIOStreamSocket& Stream, uint8_t iByte) const
 {
 	if (!Stream.Write(iByte).Good())
 	{
-		auto sError = kFormat("cannot write to {}", Stream.GetEndPointAddress());
-		kDebug(1, sError);
-		throw KError(sError);
+		Throw(kFormat("cannot write to {}", Stream.GetEndPointAddress()));
 	}
 
 } // WriteByte
@@ -879,12 +875,10 @@ ExposedServer::ExposedServer (const Config& config)
 
 		if (!StreamSocket) throw KHTTPError(KHTTPError::H5xx_ERROR, "internal error");
 
+		// tell the KRESTServer that this stream is now no more HTTP. but in our control
+		HTTP.Stream(false, false);
+
 		Login(*StreamSocket);
-
-		// fast exit without any further data sent
-		HTTP.SetDisconnected();
-
-		throw KHTTPError(KHTTPError::H4xx_GONE, "");
 
 	}).Parse(KRESTRoute::ParserType::NOREAD);
 
@@ -915,7 +909,6 @@ ExposedServer::ExposedServer (const Config& config)
 	// and run it
 	m_Config.Message("starting TLS REST server on port {}", Settings.iPort);
 	if (!Http.Execute(Settings, Routes)) throw KError(Http.Error());
-
 
 	// start the server to forward raw data
 	m_ExposedRawServer = std::make_unique<ExposedRawServer>

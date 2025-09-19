@@ -207,8 +207,7 @@
 	#ifndef _SCL_SECURE_NO_WARNINGS
 		#define _SCL_SECURE_NO_WARNINGS
 	#endif
-	// min/max macros interfere with the C++ versions - define this before
-	// including any windows system headers
+	// this one as well..
 	#ifndef NOMINMAX
 		#define NOMINMAX
 	#endif

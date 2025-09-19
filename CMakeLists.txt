@@ -146,12 +146,9 @@ if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
 		SET(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 	endif()
 
-else()
-
-	# clear any build type to make understood we build a multi configuration setup
-	set(CMAKE_BUILD_TYPE "")
-
 endif()
+
+message(STATUS "CMake build type: ${CMAKE_BUILD_TYPE}")
 
 if (DEKAF2_DUAL_TARGET)
 	# we only support the Release and Debug output locations - other

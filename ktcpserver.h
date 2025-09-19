@@ -107,7 +107,9 @@ public:
 	/// Construct a server, but do not yet start it.
 	/// @param iPort Port to bind to
 	/// @param bTLS If true will use TLS
-	KTCPServer(uint16_t iPort, bool bTLS, uint16_t iMaxConnections = 50);
+	/// @param iMaxConnections maximum simultaneous connection count, defaults to 50
+	/// @param bStoreNewCerts if new (ephemeral) certs are created, should they be persisted to disk for next start? defaults to true
+	KTCPServer(uint16_t iPort, bool bTLS, uint16_t iMaxConnections = 50, bool bStoreNewCerts = true);
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
@@ -420,6 +422,7 @@ private:
 	bool              m_bStartIPv6            {  true };
 	bool              m_bHaveSeparatev4Thread { false };
 	bool              m_bIsTLS                { false };
+	bool              m_bStoreNewCerts        {  true };
 
 }; // KTCPServer
 

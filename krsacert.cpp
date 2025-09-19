@@ -42,9 +42,11 @@
 
 #include "krsacert.h"
 #include "kstring.h"
+#include "kstringutils.h"
 #include "kformat.h"
 #include "klog.h"
 #include "ksystem.h"
+#include "kscopeguard.h"
 #include "bits/kunique_deleter.h"
 #include "bits/kdigest.h" // for Digest::GetOpenSSLError()
 #include <openssl/evp.h>
@@ -401,16 +403,16 @@ bool KRSACert::CheckByNID(KStringViewZ sCheckme, int nid) const
 			return SetError(KDigest::GetOpenSSLError("cannot read name entry"));
 		}
 
-		auto* domain = ::X509_NAME_ENTRY_get_data(name_entry);
+		auto* value = ::X509_NAME_ENTRY_get_data(name_entry);
 
-		if (domain == nullptr)
+		if (value == nullptr)
 		{
 			return SetError(KDigest::GetOpenSSLError("cannot read data"));
 		}
 
 		unsigned char* utf8 { nullptr };
 
-		auto ec = ::ASN1_STRING_to_UTF8(&utf8, domain);
+		auto ec = ::ASN1_STRING_to_UTF8(&utf8, value);
 
 		if (utf8)
 		{
@@ -481,8 +483,151 @@ KString KRSACert::GetDefaultTLSDirectory()
 KString KRSACert::CheckOrCreateKeyAndCert
 (
 	bool        bThrowOnError,
-	KString     sKeyFilename,
-	KString     sCertFilename,
+	KString&    sKey,
+	KString&    sCert,
+	KString     sPassword,
+	KStringView sDomain,
+	KStringView sCountryCode,
+	KStringView sOrganization,
+	KDuration   ValidFor,
+	KUnixTime   ValidFrom,
+	uint16_t    iKeyLength
+)
+//---------------------------------------------------------------------------
+{
+	//---------------------------------------------------------------------------
+	auto SetError = [bThrowOnError, &sKey, &sCert](KString sError) -> KString
+	//---------------------------------------------------------------------------
+	{
+		kDebug(1, sError);
+
+		kSafeErase(sKey);
+		kSafeErase(sCert);
+
+		if (bThrowOnError)
+		{
+			throw KError(sError);
+		}
+
+		return sError;
+	};
+
+	// if the key is empty, create a new key
+	if (sKey.empty())
+	{
+		// create a new key if TLS was requested but no key given
+		KRSAKey Key(iKeyLength);
+
+		Key.SetThrowOnError(bThrowOnError);
+
+		if (Key.HasError())
+		{
+			return SetError(Key.GetLastError());
+		}
+
+		// get key
+		sKey = Key.GetPEM(true, sPassword);
+
+		if (Key.HasError())
+		{
+			return SetError(Key.GetLastError());
+		}
+
+		// we have to invalidate any existing cert with a new key
+		sCert.clear();
+	}
+
+	// if a cert exists, check its validity
+	if (!sCert.empty())
+	{
+		KRSACert Cert(sCert);
+
+		Cert.SetThrowOnError(bThrowOnError);
+
+		if (Cert.HasError())
+		{
+			return SetError(Cert.GetLastError());
+		}
+
+		if (!Cert.CheckDomain(KString(sDomain)))
+		{
+			return SetError(kFormat("given cert is not valid for domain '{}'", sDomain));
+		}
+
+		if (!Cert.CheckCountryCode(KString(sCountryCode)))
+		{
+			return SetError(kFormat("given cert is not valid for country code '{}'", sCountryCode));
+		}
+
+		if (!sOrganization.empty() && !Cert.CheckOrganization(KString(sOrganization)))
+		{
+			return SetError(kFormat("given cert is not valid for organization '{}'", sOrganization));
+		}
+
+		auto now = KUnixTime::now();
+
+		if (Cert.ValidFrom() > now)
+		{
+			return SetError(kFormat("given cert is not yet valid: {:%F %T}", Cert.ValidFrom()));
+		}
+
+		if (Cert.ValidUntil() < (now + chrono::weeks(1)))
+		{
+			if (Cert.ValidUntil() <= now)
+			{
+				kDebug(1, "cert expired at {:%F %T}. We will renew it.", Cert.ValidUntil());
+			}
+			else
+			{
+				kDebug(1, "cert expires at {:%F %T}, which is in less than a week. We will renew it.", Cert.ValidUntil());
+			}
+
+			sCert.clear();
+		}
+	}
+
+	// generate a self-signed cert if it does not exist
+	if (sCert.empty())
+	{
+		KRSAKey Key(sKey, sPassword);
+
+		Key.SetThrowOnError(bThrowOnError);
+
+		if (Key.HasError())
+		{
+			SetError(Key.GetLastError());
+		}
+
+		KRSACert Cert;
+
+		Cert.SetThrowOnError(bThrowOnError);
+
+		// create a self signed cert
+		if (!Cert.Create(Key, sDomain, sCountryCode, sOrganization, ValidFor, ValidFrom))
+		{
+			return SetError(Cert.GetLastError());
+		}
+
+		// get cert as PEM
+		sCert = Cert.GetPEM();
+
+		if (Cert.HasError())
+		{
+			return SetError(Cert.GetLastError());
+		}
+	}
+
+	// success
+	return {};
+
+} // CheckOrCreateKeyAndCert
+
+//---------------------------------------------------------------------------
+KString KRSACert::CheckOrCreateKeyAndCertFile
+(
+	bool        bThrowOnError,
+	KString     sKeyFile,
+	KString     sCertFile,
 	KString     sPassword,
 	KStringView sDomain,
 	KStringView sCountryCode,
@@ -524,144 +669,129 @@ KString KRSACert::CheckOrCreateKeyAndCert
 		return {};
 	};
 
-	if (sKeyFilename.empty())
+	bool bNewKey  { false };
+	bool bHadCert { false };
+
+	KString sKey;
+	KString sCert;
+	KString sExistingCert;
+	KString sError;
+
+	// we use a named lambda because we want compatibility with C++11, which needs
+	// a type for KScopeGuard..
+	auto namedLambdaGuard = [&sKey, &sCert, &sExistingCert]() noexcept
 	{
-		sKeyFilename  = GetDefaultPrivateKeyFilename();
+		// safe erase all key and cert buffers on exit
+		kSafeErase(sKey);
+		kSafeErase(sCert);
+		kSafeErase(sExistingCert);
+	};
+
+	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
+
+	if (sKeyFile.empty())
+	{
+		sKeyFile = GetDefaultPrivateKeyFilename();
 	}
 
-	if (sCertFilename.empty())
+	// if the key file exists already, read its content
+	if (kNonEmptyFileExists(sKeyFile))
 	{
-		sCertFilename = GetDefaultCertFilename();
+		sKey = kReadAll(sKeyFile);
+	}
+	else
+	{
+		sError = CreateDirForFile(sKeyFile);
+
+		if (!sError.empty())
+		{
+			return SetError(sError);
+		}
+
+		bNewKey = true;
 	}
 
-	auto sError = CreateDirForFile(sKeyFilename);
+	if (sCertFile.empty())
+	{
+		sCertFile = GetDefaultCertFilename();
+	}
+
+	// if the cert file exists already, read its content
+	if (kNonEmptyFileExists(sCertFile))
+	{
+		sCert = kReadAll(sCertFile);
+		bHadCert = true;
+	}
+	else
+	{
+		sError = CreateDirForFile(sCertFile);
+
+		if (!sError.empty())
+		{
+			return SetError(sError);
+		}
+	}
+
+	sExistingCert = sCert;
+
+	sError = CheckOrCreateKeyAndCert
+	(
+		bThrowOnError,
+		sKey,
+		sCert,
+		sPassword,
+		sDomain,
+		sCountryCode,
+		sOrganization,
+		ValidFor,
+		ValidFrom,
+		iKeyLength
+	);
 
 	if (!sError.empty())
 	{
 		return SetError(sError);
 	}
 
-	sError = CreateDirForFile(sCertFilename);
-
-	if (!sError.empty())
+	if (bNewKey && !kWriteFile(sKeyFile, sKey, 0600))
 	{
-		return SetError(sError);
+		return SetError(kFormat("cannot write key file {}", sKeyFile));
 	}
 
-	// if the key file does not exist, create a new key and store it
-	if (!kFileExists(sKeyFilename))
+	if (sExistingCert != sCert)
 	{
-		// create a new key if TLS was requested but no key given
-		KRSAKey Key(iKeyLength);
-
-		Key.SetThrowOnError(bThrowOnError);
-
-		// save key on disk for next run
-		if (!Key.Save(sKeyFilename, true, sPassword))
+		if (bHadCert)
 		{
-			return SetError(Key.GetLastError());
-		}
+			KStringView sReason;
 
-		if (kFileExists(sCertFilename))
-		{
-			// we have to invalidate any existing cert with a new key
-			if (kRename(sCertFilename, kFormat("{}.bak", sCertFilename)))
+			if (bNewKey)
 			{
-				kDebug(1, "renamed old cert to {}.bak because we had to create a new key", sCertFilename);
+				sReason = "we had to create a new key";
 			}
 			else
 			{
-				return SetError(kFormat("cannot rename cert file: {}", sCertFilename));
+				sReason = "it expired";
 			}
-		}
-	}
 
-	// if a cert exists, check its validity
-	if (kFileExists(sCertFilename))
-	{
-		KRSACert Cert;
-		Cert.SetThrowOnError(bThrowOnError);
-
-		if (!Cert.Load(sCertFilename))
-		{
-			return SetError(Cert.GetLastError());
-		}
-
-		if (!Cert.CheckDomain(KString(sDomain)))
-		{
-			return SetError(kFormat("cert '{}' is not valid for domain '{}'", sCertFilename, sDomain));
-		}
-
-		if (!Cert.CheckCountryCode(KString(sCountryCode)))
-		{
-			return SetError(kFormat("cert '{}' is not valid for country code '{}'", sCertFilename, sCountryCode));
-		}
-
-		if (!sOrganization.empty() && !Cert.CheckOrganization(KString(sOrganization)))
-		{
-			return SetError(kFormat("cert '{}' is not valid for organization '{}'", sCertFilename, sOrganization));
-		}
-
-		auto now = KUnixTime::now();
-
-		if (Cert.ValidFrom() > now)
-		{
-			return SetError(kFormat("cert '{}' not yet valid: {:%F %T}", sCertFilename, Cert.ValidFrom()));
-		}
-
-		if (Cert.ValidUntil() < (now + chrono::weeks(1)))
-		{
-			if (Cert.ValidUntil() <= now)
+			if (kRename(sCertFile, kFormat("{}.bak", sCertFile)))
 			{
-				kDebug(1, "cert expired at {:%F %T}. We will renew it.", Cert.ValidUntil());
+				kDebug(1, "renamed old cert to {}.bak because {}", sCertFile, sReason);
 			}
 			else
 			{
-				kDebug(1, "cert expires at {:%F %T}, which is in less than a week. We will renew it.", Cert.ValidUntil());
-			}
-
-			if (kRename(sCertFilename, kFormat("{}.bak", sCertFilename)))
-			{
-				kDebug(3, "renamed old cert to {}.bak", sCertFilename);
-			}
-			else
-			{
-				return SetError(kFormat("cannot rename cert file: {}", sCertFilename));
+				return SetError(kFormat("cannot rename cert file: {}", sCertFile));
 			}
 		}
-	}
 
-	// generate a self-signed cert if the file does not exist
-	if (!kFileExists(sCertFilename))
-	{
-		KRSACert Cert;
-		Cert.SetThrowOnError(bThrowOnError);
-
-		KRSAKey Key;
-
-		Key.SetThrowOnError(bThrowOnError);
-
-		if (!Key.Load(sKeyFilename, sPassword))
+		if (!kWriteFile(sCertFile, sCert, 0644))
 		{
-			SetError(Key.GetLastError());
-		}
-
-		// create a self signed cert
-		if (!Cert.Create(Key, sDomain, sCountryCode, sOrganization, ValidFor, ValidFrom))
-		{
-			return SetError(Cert.GetLastError());
-		}
-
-		// save cert on disk
-		if (!Cert.Save(sCertFilename))
-		{
-			return SetError(Cert.GetLastError());
+			return SetError(kFormat("cannot write cert file {}", sCertFile));
 		}
 	}
 
 	// success
 	return {};
 
-} // CreateKeyAndSelfSignedCertFiles
+} // CheckOrCreateKeyAndCertFile
 
 DEKAF2_NAMESPACE_END

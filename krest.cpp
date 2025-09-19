@@ -252,7 +252,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 																 *m_WebSocketServer,
 																 iPort,
 																 bUseTLS,
-																 Options.iMaxConnections);
+																 Options.iMaxConnections,
+																 Options.bStoreEphemeralCert);
 
 				if (bUseTLS)
 				{

@@ -134,6 +134,7 @@ public:
 		Settings.iTimeout             = Options("timeout <seconds>     : server timeout (default 5)", 5);
 		Settings.sCert                = Options("cert <file>           : TLS certificate filepath (.pem), defaults to self-signed ephemeral cert", "");
 		Settings.sKey                 = Options("key <file>            : TLS private key filepath (.pem), defaults to ephemeral key", "");
+		Settings.bStoreEphemeralCert  = Options("persist               : should a self-signed cert be persisted to disk and reused at next start?", false);
 		Settings.bCreateEphemeralCert =!Options("notls                 : do NOT switch to TLS mode if cert and key were not provided", false);
 		Settings.sTLSPassword         = Options("tlspass <pass>        : TLS certificate password, if any", "");
 		Settings.sAllowedCipherSuites = Options("ciphers <suites>      : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");

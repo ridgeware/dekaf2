@@ -282,25 +282,45 @@ bool KTCPServer::IsPortAvailable(uint16_t iPort)
 bool KTCPServer::CreateSelfSignedCertAndKey()
 //-----------------------------------------------------------------------------
 {
-	if (m_sCert.empty() && m_sKey.empty())
+	if (m_sCert.empty())
 	{
-		auto sKeyFilename  = KRSACert::GetDefaultPrivateKeyFilename();
-		auto sCertFilename = KRSACert::GetDefaultCertFilename();
-
-		auto sError = KRSACert::CheckOrCreateKeyAndCert
-		(
-			WouldThrowOnError(),
-			sKeyFilename,
-			sCertFilename,
-			m_sPassword
-		 );
-
-		if (!sError.empty())
+		if (!m_bStoreNewCerts)
 		{
-			return SetError(sError);
-		}
+			// create truly ephemeral certs
+			auto sError = KRSACert::CheckOrCreateKeyAndCert
+			(
+				WouldThrowOnError(),
+				m_sKey,
+				m_sCert,
+				m_sPassword
+			);
 
-		LoadTLSCertificates(sCertFilename, sKeyFilename, m_sPassword);
+			if (!sError.empty())
+			{
+				return SetError(sError);
+			}
+		}
+		else
+		{
+			// persist cert to disk after creation
+			auto sKeyFilename  = KRSACert::GetDefaultPrivateKeyFilename();
+			auto sCertFilename = KRSACert::GetDefaultCertFilename();
+
+			auto sError = KRSACert::CheckOrCreateKeyAndCertFile
+			(
+				WouldThrowOnError(),
+				sKeyFilename,
+				sCertFilename,
+				m_sPassword
+			);
+
+			if (!sError.empty())
+			{
+				return SetError(sError);
+			}
+
+			LoadTLSCertificates(sCertFilename, sKeyFilename, m_sPassword);
+		}
 	}
 
 	return true;
@@ -939,11 +959,12 @@ bool KTCPServer::RegisterShutdownWithSignals(const std::vector<int>& Signals)
 
 
 //-----------------------------------------------------------------------------
-KTCPServer::KTCPServer(uint16_t iPort, bool bTLS, uint16_t iMaxConnections)
+KTCPServer::KTCPServer(uint16_t iPort, bool bTLS, uint16_t iMaxConnections, bool bStoreNewCerts)
 //-----------------------------------------------------------------------------
 	: m_ThreadPool(iMaxConnections)
 	, m_iPort(iPort)
 	, m_bIsTLS(bTLS)
+	, m_bStoreNewCerts(bStoreNewCerts)
 {
 }
 

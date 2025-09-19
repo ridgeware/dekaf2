@@ -427,7 +427,7 @@ bool KRSAKey::Load(KStringViewZ sFilename, KStringViewZ sPassword)
 bool KRSAKey::Save(KStringViewZ sFilename, bool bPrivateKey, KStringView sPassword)
 //---------------------------------------------------------------------------
 {
-	return kWriteFile(sFilename, GetPEM(bPrivateKey, sPassword), bPrivateKey ? 0600 : 0666);
+	return kWriteFile(sFilename, GetPEM(bPrivateKey, sPassword), bPrivateKey ? 0600 : 0644);
 
 } // Save
 

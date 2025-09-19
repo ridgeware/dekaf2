@@ -150,31 +150,60 @@ public:
 	bool CheckCountryCode(KStringViewZ sCountryCode) const;
 	bool CheckOrganization(KStringViewZ sOrganization) const;
 
-	/// Create a new private key and a self signed certificate - will also check for validity of existing cert
+	/// Create a new private key and a self signed certificate to disk - will also check for validity of existing cert
 	/// and replace it if valid for less than a week from now or already expired
 	/// @param bThrowOnError if true the function will throw on error, else return false
+	/// @param sKeyFilename the file name to store the key at, defaults to "~/.config/{{program name}}/tls/privkey.pem"
+	/// @param sCertFilename the file name to store the cert at, defaults to "~/.config/{{program name}}/tls/cert.pem"
+	/// @param sPassword a password for the private key, default empty (no password)
 	/// @param sDomain the domain name for the certificate, defaults to "localhost"
 	/// @param sCountryCode a 2-letter country code, defaults to "US"
 	/// @param sOrganization an organization name, company name, default empty
 	/// @param ValidFor a duration for the cert's validity, default 1 year
 	/// @param ValidFrom the start time for the cert's validity, default now
 	/// @param iKeyLength the key length, defaults to 4096
-	/// @param sKeyFilename the file name to store the key at, defaults to "~/.config/{{program name}}/tls/privkey.pem"
-	/// @param sCertFilename the file name to store the cert at, defaults to "~/.config/{{program name}}/tls/cert.pem"
+	/// @returns a struct with three components: an error string, or an empty string if no error occured,
+	/// a PEM copy of the private key, and a PEM copy of the cert
+	static KString CheckOrCreateKeyAndCertFile
+	(
+		bool        bThrowOnError     = false,
+		KString     sKeyFile          = KString{},
+		KString     sCertFile         = KString{},
+		KString     sPassword         = KString{},
+		KStringView sDomain           = "localhost",
+		KStringView sCountryCode      = "US",
+		KStringView sOrganization     = "",
+		KDuration   ValidFor          = chrono::years(1),
+		KUnixTime   ValidFrom         = KUnixTime(),
+		uint16_t    iKeyLength        = 4096
+	);
+
+	/// Create a new private key and a self signed certificate - will also check for validity of existing cert
+	/// and replace it if valid for less than a week from now or already expired
+	/// @param bThrowOnError if true the function will throw on error, else return false
+	/// @param sKey a PEM key, if empty a new key will be generated and returned
+	/// @param sCert a PEM cert, if empty or expired a new cert will be generated and returned
 	/// @param sPassword a password for the private key, default empty (no password)
-	/// @returns an error string, or an empty string if no error occured
+	/// @param sDomain the domain name for the certificate, defaults to "localhost"
+	/// @param sCountryCode a 2-letter country code, defaults to "US"
+	/// @param sOrganization an organization name, company name, default empty
+	/// @param ValidFor a duration for the cert's validity, default 1 year
+	/// @param ValidFrom the start time for the cert's validity, default now
+	/// @param iKeyLength the key length, defaults to 4096
+	/// @returns a struct with three components: an error string, or an empty string if no error occured,
+	/// a PEM copy of the private key, and a PEM copy of the cert
 	static KString CheckOrCreateKeyAndCert
 	(
-		bool        bThrowOnError = false,
-		KString     sKeyFilename  = KString{},
-		KString     sCertFilename = KString{},
-		KString     sPassword     = KString{},
-		KStringView sDomain       = "localhost",
-		KStringView sCountryCode  = "US",
-		KStringView sOrganization = "",
-		KDuration   ValidFor      = chrono::years(1),
-		KUnixTime   ValidFrom     = KUnixTime(),
-		uint16_t    iKeyLength    = 4096
+		bool        bThrowOnError,
+		KString&    sKey,
+		KString&    sCert,
+		KString     sPassword         = KString{},
+		KStringView sDomain           = "localhost",
+		KStringView sCountryCode      = "US",
+		KStringView sOrganization     = "",
+		KDuration   ValidFor          = chrono::years(1),
+		KUnixTime   ValidFrom         = KUnixTime(),
+		uint16_t    iKeyLength        = 4096
 	);
 
 	/// @returns the default private key filename "~/.config/{{program name}}/tls/privkey.pem"

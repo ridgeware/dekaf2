@@ -293,7 +293,7 @@ void Connection::PumpToTunnel()
 
 	try
 	{
-		KReservedBuffer<4096> Data;
+		KReservedBuffer<KDefaultCopyBufSize> Data;
 
 		// read until disconnect or timeout
 		for (;;)
@@ -846,8 +846,9 @@ ExposedServer::ExposedServer (const Config& config)
 	Settings.sCert                   = m_Config.sCertFile;
 	Settings.sKey                    = m_Config.sKeyFile;
 	Settings.sTLSPassword            = m_Config.sTLSPassword;
-	Settings.sAllowedCipherSuites    = m_Config.sAllowedCipherSuites;
+	Settings.sAllowedCipherSuites    = m_Config.sCipherSuites;
 	Settings.bCreateEphemeralCert    = true;
+	Settings.bStoreEphemeralCert     = m_Config.bPersistCert;
 
 	Settings.AddHeader(KHTTPHeader::SERVER, "ktunnel");
 	Settings.AddHeader("x-server", "ktunnel");
@@ -1240,8 +1241,8 @@ int KTunnel::Main(int argc, char** argv)
 	m_Config.sCertFile     = Options("cert <file>  : if exposed host, TLS certificate filepath (.pem) - if option is unused a self-signed cert is created", "");
 	m_Config.sKeyFile      = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused a new key is created", "");
 	m_Config.sTLSPassword  = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
-	m_Config.sAllowedCipherSuites
-	                       = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
+	m_Config.bPersistCert  = Options("persist      : should a self-signed cert be persisted to disk and reused at next start?", false);
+	m_Config.sCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
 	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);
 
 	// do a final check if all required options were set

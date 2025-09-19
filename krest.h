@@ -117,6 +117,10 @@ public:
 		/// if no cert or key are existing, nonetheless start TLS by generating one-time (ephemeral)
 		/// self-signed cert and key? (You will have to override the warnings in browsers to use them)
 		bool bCreateEphemeralCert { true };
+		/// if an ephemeral cert has been created, should it be written to disk to persist it?
+		/// path will be "~/.config/{{program name}}/tls/cert.pem" - this path will also be searched
+		/// next time if no other cert has been given, and automatically loaded
+		bool bStoreEphemeralCert { true };
 		/// the PEM certificate
 		KString sCert;
 		/// the PEM private key

@@ -258,9 +258,10 @@ public:
 		KString  sCertFile;
 		KString  sKeyFile;
 		KString  sTLSPassword;
-		KString  sAllowedCipherSuites;
+		KString  sCipherSuites;
 		uint16_t iPort    { 0 };
 		uint16_t iRawPort { 0 };
+		bool     bPersistCert { false };
 	};
 
 	ExposedServer (const Config& config);

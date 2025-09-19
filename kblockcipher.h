@@ -74,7 +74,7 @@ DEKAF2_NAMESPACE_BEGIN
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Symmetrical block cipher encryption.
 ///
-/// Supported algorithms are AES, ARIA, Camilla and ChaCha20_Poly1305 (where the latter is
+/// Supported algorithms are AES, ARIA, Camellia and ChaCha20_Poly1305 (where the latter is
 /// technically a stream cipher).
 ///
 /// Supported modes (not for all algorithms though) are ECB, CBC, OFB, CFB1, CFB8, CFB128,

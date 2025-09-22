@@ -208,7 +208,12 @@ public:
 			if (!bQuiet) kPrintLine(":: serving files from: {}", sWWWDir);
 		}
 
-		if (!sServer.empty()) Settings.AddHeader(KHTTPHeader::SERVER, sServer);
+		if (!sServer.empty())
+		{
+			Settings.AddHeader(KHTTPHeader::SERVER, sServer);
+			// reverse proxies and LBs often override the server header, so lets add a second one
+			Settings.AddHeader("x-server", sServer);
+		}
 
 		// create the REST server instance
 		KREST Http;

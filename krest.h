@@ -203,7 +203,7 @@ private:
 		}
 
 		//-----------------------------------------------------------------------------
-		void Session (KIOStreamSocket& Stream) override final;
+		void Session (std::unique_ptr<KIOStreamSocket>& Stream) override final;
 		//-----------------------------------------------------------------------------
 
 	//----------

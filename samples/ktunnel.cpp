@@ -932,10 +932,10 @@ ExposedServer::ExposedServer (const Config& config)
 //-----------------------------------------------------------------------------
 // handles one incoming connection
 // - a raw tcp stream to forward via TLS to the protected host
-void ExposedRawServer::Session (KIOStreamSocket& Stream)
+void ExposedRawServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 //-----------------------------------------------------------------------------
 {
-	m_ExposedServer.ForwardStream(Stream, m_Target);
+	m_ExposedServer.ForwardStream(*Stream, m_Target);
 }
 
 //-----------------------------------------------------------------------------

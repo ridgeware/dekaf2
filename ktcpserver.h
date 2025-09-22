@@ -275,14 +275,14 @@ protected:
 	/// Virtual hook to override with a completely new session management logic
 	/// (either calling Accept(), CreateParameters(), Init() and Request() below,
 	/// or anything else)
-	virtual void Session(KIOStreamSocket& stream);
+	virtual void Session(std::unique_ptr<KIOStreamSocket>& stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Virtual hook that is called immediately after accepting a new stream.
 	/// Default does nothing. Could be used to set stream parameters. If
 	/// return value is false connection is terminated.
-	virtual bool Accepted(KIOStreamSocket& stream);
+	virtual bool Accepted(std::unique_ptr<KIOStreamSocket>& stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -380,7 +380,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	void RunSession(KIOStreamSocket& stream);
+	void RunSession(std::unique_ptr<KIOStreamSocket>& stream);
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP

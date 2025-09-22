@@ -58,91 +58,6 @@ static constexpr KStringViewZ s_sWebsocket_sec_key_suffix = "258EAFA5-E914-47DA-
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
-StreamType GetStreamType(KStream& Stream)
-//-----------------------------------------------------------------------------
-{
-	{
-		auto S = dynamic_cast<KTLSStream*>(&Stream);
-
-		if (S)
-		{
-			return StreamType::TLS;
-		}
-	}
-
-	{
-		auto S = dynamic_cast<KTCPStream*>(&Stream);
-
-		if (S)
-		{
-			return StreamType::TCP;
-		}
-	}
-
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-	{
-		auto S = dynamic_cast<KUnixStream*>(&Stream);
-
-		if (S)
-		{
-			return StreamType::UNIX;
-		}
-	}
-#endif
-
-	return StreamType::NONE;
-
-} // GetStreamType
-
-//-----------------------------------------------------------------------------
-KTCPStream::asio_stream_type&& GetAsioTCPStream (KStream& Stream)
-//-----------------------------------------------------------------------------
-{
-	auto S = dynamic_cast<KTCPStream*>(&Stream);
-
-	if (!S)
-	{
-		throw KWebSocketError("not a KTCPStream");
-	}
-
-	return std::move(S->GetAsioSocket());
-
-} // GetAsioTCPStream
-
-//-----------------------------------------------------------------------------
-// this one _has_ to be an explicit RVALUE because of older GCCs (< 11)
-KTLSStream::asio_stream_type&& GetAsioTLSStream (KStream& Stream)
-//-----------------------------------------------------------------------------
-{
-	auto S = dynamic_cast<KTLSStream*>(&Stream);
-
-	if (!S)
-	{
-		throw KWebSocketError("not a KTLSStream");
-	}
-
-	return std::move(S->GetAsioSocket());
-
-} // GetAsioTLSStream
-
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-//-----------------------------------------------------------------------------
-KUnixStream::asio_stream_type&& GetAsioUnixStream(KStream& Stream)
-//-----------------------------------------------------------------------------
-{
-	auto S = dynamic_cast<KUnixStream*>(&Stream);
-
-	if (!S)
-	{
-		throw KWebSocketError("not a KUnixStream");
-	}
-
-	return std::move(S->GetAsioSocket());
-
-} // GetAsioUnixStream
-#endif
-
-//-----------------------------------------------------------------------------
 bool FrameHeader::Decode(uint8_t byte)
 //-----------------------------------------------------------------------------
 {
@@ -435,7 +350,7 @@ void Frame::SetPayload(KString sPayload, bool bIsBinary)
 } // SetPayload
 
 //-----------------------------------------------------------------------------
-bool Frame::Read(KStream& Stream, bool bMaskTx)
+bool Frame::Read(KIOStreamSocket& Stream, bool bMaskTx)
 //-----------------------------------------------------------------------------
 {
 	// buffer for the payload
@@ -494,7 +409,7 @@ bool Frame::Read(KStream& Stream, bool bMaskTx)
 } // Read
 
 //-----------------------------------------------------------------------------
-bool Frame::Write(KOutStream& OutStream, bool bMask)
+bool Frame::Write(KIOStreamSocket& OutStream, bool bMask)
 //-----------------------------------------------------------------------------
 {
 	if (bMask)
@@ -632,7 +547,7 @@ bool CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bThrowIfInvali
 } // end of namespace kwebsocket
 
 //-----------------------------------------------------------------------------
-KWebSocket::KWebSocket(KStream& Stream, std::function<void(KWebSocket&)> WebSocketHandler)
+KWebSocket::KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<void(KWebSocket&)> WebSocketHandler)
 //-----------------------------------------------------------------------------
 : m_Stream(std::move(Stream))
 , m_Handler(std::move(WebSocketHandler))

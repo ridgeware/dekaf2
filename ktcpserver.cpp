@@ -125,7 +125,7 @@ bool KTCPServer::Accepted(KStream& stream, KStringView sRemoteEndPoint)
 }
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::Accepted(KIOStreamSocket& stream)
+bool KTCPServer::Accepted(std::unique_ptr<KIOStreamSocket>& stream)
 //-----------------------------------------------------------------------------
 {
 	return true;
@@ -177,15 +177,16 @@ void KTCPServer::Session(KStream& stream, KStringView sRemoteEndPoint, int iSock
 } // Session
 
 //-----------------------------------------------------------------------------
-void KTCPServer::Session(KIOStreamSocket& stream)
+void KTCPServer::Session(std::unique_ptr<KIOStreamSocket>& stream)
 //-----------------------------------------------------------------------------
 {
-	Session(stream, stream.GetEndPointAddress().Serialize(), stream.GetNativeSocket());
+	// provide a fallback to the old Session signature
+	Session(*stream, stream->GetEndPointAddress().Serialize(), stream->GetNativeSocket());
 
 } // Session
  
 //-----------------------------------------------------------------------------
-void KTCPServer::RunSession(KIOStreamSocket& stream)
+void KTCPServer::RunSession(std::unique_ptr<KIOStreamSocket>& stream)
 //-----------------------------------------------------------------------------
 {
 	// make sure we adjust this thread's log level to the global log level,
@@ -196,14 +197,14 @@ void KTCPServer::RunSession(KIOStreamSocket& stream)
 	if (!m_iPort)
 	{
 		kDebug(3, "handling new unix socket connection from {}",
-			   stream.GetEndPointAddress());
+		          stream->GetEndPointAddress());
 	}
 	else
-#endif
+#endif // DEKAF2_HAS_UNIX_SOCKETS
 	{
 		kDebug(3, "handling new TCP connection from {} on port {}",
-			   stream.GetEndPointAddress(),
-			   m_iPort);
+		          stream->GetEndPointAddress(),
+		          m_iPort);
 	}
 
 	DEKAF2_TRY
@@ -212,18 +213,18 @@ void KTCPServer::RunSession(KIOStreamSocket& stream)
 		// an exception handler
 		Session(stream);
 	}
-	
-	DEKAF2_CATCH(const std::exception& e)
+
+	DEKAF2_CATCH(const std::exception& ex)
 	{
 		// This is the lowest stack level of a new thread. If we would
 		// not catch the exception here the whole program would abort.
-		kException(e);
+		kDebug(1, ex.what());
 	}
 
-	DEKAF2_CATCH(const boost::exception& e)
+	DEKAF2_CATCH(const boost::exception& ex)
 	{
 #ifndef DEKAF2_IS_MSC
-		kWarning(boost::diagnostic_information(e));
+		kDebug(1, boost::diagnostic_information(ex));
 #endif
 	}
 
@@ -232,24 +233,30 @@ void KTCPServer::RunSession(KIOStreamSocket& stream)
 		kWarning("unknown exception");
 	}
 
+	if (!stream)
+	{
+		// the stream got moved or reset - just return
+		return;
+	}
+
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	if (!m_iPort)
 	{
 		kDebug(3, "closing unix socket connection with {}",
-			   stream.GetEndPointAddress());
+		          stream->GetEndPointAddress());
 	}
 	else
-#endif
+#endif // DEKAF2_HAS_UNIX_SOCKETS
 	{
 		kDebug(3, "closing TCP connection with {} on port {}",
-			   stream.GetEndPointAddress(),
-			   m_iPort);
+		          stream->GetEndPointAddress(),
+		          m_iPort);
 	}
 
 	// the thread pool keeps the object alive until it is
 	// overwritten in round-robin, therefore we have to call
 	// Disconnect explicitly now to shut down the connection
-	stream.Disconnect();
+	stream->Disconnect();
 
 } // RunSession
 
@@ -469,15 +476,17 @@ bool KTCPServer::TCPServer(bool ipv6)
 #if !DEKAF2_HAS_CPP_14 || defined(DEKAF2_IS_MSC)
 		// unfortunately C++11 does not know how to move a variable into a lambda scope
 		auto* Stream = stream.release();
-		m_ThreadPool.push([ this, Stream, remote_endpoint ]()
+		m_ThreadPool.push([ this, Stream, remote_endpoint ]() mutable
 		{
 			std::unique_ptr<KIOStreamSocket> moved_stream { Stream };
-#else
-		m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]()
-		{
-#endif
-			RunSession(*moved_stream);
+			RunSession(moved_stream);
 		});
+#else
+		m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]() mutable
+		{
+			RunSession(moved_stream);
+		});
+#endif
 
 	} // for (;;)
 
@@ -549,10 +558,10 @@ bool KTCPServer::UnixServer()
 
 		for (;;)
 		{
-			auto stream = CreateKUnixStream(m_Timeout);
+			auto unixstream = CreateKUnixStream(m_Timeout);
 
 			boost::system::error_code ec;
-			acceptor->accept(stream->GetUnixSocket(), ec);
+			acceptor->accept(unixstream->GetUnixSocket(), ec);
 
 			if (IsShuttingDown())
 			{
@@ -571,20 +580,25 @@ bool KTCPServer::UnixServer()
 
 			kDebug(2, "accepting connection from local unix socket");
 
-			stream->SetConnectedEndPointAddress(m_sSocketFile);
+			unixstream->SetConnectedEndPointAddress(m_sSocketFile);
+
+			// down convert the type to a KIOStreamSocket*
+			std::unique_ptr<KIOStreamSocket> stream = std::move(unixstream);
 
 #if !DEKAF2_HAS_CPP_14
 			// unfortunately C++11 does not know how to move a variable into a lambda scope
 			auto* Stream = stream.release();
-			m_ThreadPool.push([ this, Stream ]()
+			m_ThreadPool.push([ this, Stream ]() mutable
 			{
 				std::unique_ptr<KIOStreamSocket> moved_stream { Stream };
-#else
-			m_ThreadPool.push([ this, moved_stream = std::move(stream) ]()
-			{
-#endif
-				RunSession(*moved_stream);
+				RunSession(moved_stream);
 			});
+#else
+			m_ThreadPool.push([ this, moved_stream = std::move(stream) ]() mutable
+			{
+				RunSession(moved_stream);
+			});
+#endif
 		}
 
 		// remove the socket

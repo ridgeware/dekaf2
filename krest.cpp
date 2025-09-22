@@ -45,22 +45,50 @@
 #include "klambdastream.h"
 #include "kfilesystem.h"
 #include "kstringutils.h"
+#include "kscopeguard.h"
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-void KREST::RESTServer::Session (KIOStreamSocket& Stream)
+void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 //-----------------------------------------------------------------------------
 {
 	KRESTServer RESTServer(m_Routes, m_Options);
 
 	// keep a pointer of the stream socket for REST routes that may want to
 	// interact directly with the socket
-	RESTServer.SetStreamSocket(Stream);
+	RESTServer.SetStreamSocket(*Stream);
 
 	// keep a local copy of the socket for KSocketWatch
-	auto nativeSocket = Stream.GetNativeSocket();
+	auto nativeSocket = Stream->GetNativeSocket();
+
+	// we use a named lambda because we want compatibility with C++11, which needs
+	// a type for KScopeGuard..
+	auto namedLambdaGuard = [this, nativeSocket, &RESTServer]() noexcept
+	{
+		// get out of here if the tcp server is shutting down - otherwise
+		// UBSAN complains about accessing the derived class, which is no
+		// more existing
+		if (!KTCPServer::IsShuttingDown())
+		{
+			if (m_Options.bPollForDisconnect)
+			{
+				// if the connection is already marked as disconnected
+				// it has already been removed from the watch
+				if (!RESTServer.IsDisconnected())
+				{
+					// use the local copy of the socket fd for removal,
+					// as the Stream.GetNativeSocket() may already be -1
+					m_SocketWatch.Remove(nativeSocket);
+				}
+			}
+
+			RESTServer.Disconnect();
+		}
+	};
+
+	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
 	if (m_Options.bPollForDisconnect)
 	{
@@ -70,20 +98,27 @@ void KREST::RESTServer::Session (KIOStreamSocket& Stream)
 		Params.bOnce      = true; // trigger only once - when the connection is gone it is gone
 		Params.Callback   = [this, &RESTServer](int fd, uint16_t events, std::size_t iParam)
 		{
-			RESTServer.SetDisconnected();
-
-			if (m_Options.DisconnectCallback)
+			if (!KTCPServer::IsShuttingDown())
 			{
-				m_Options.DisconnectCallback(iParam);
+				RESTServer.SetDisconnected();
+
+				if (m_Options.DisconnectCallback)
+				{
+					m_Options.DisconnectCallback(iParam);
+				}
 			}
 		};
+
 		m_SocketWatch.Add(nativeSocket, std::move(Params));
 	}
 
-	RESTServer.Accept(Stream,
-				   Stream.GetEndPointAddress().Serialize(),
-				   IsTLS() ? url::KProtocol::HTTPS : url::KProtocol::HTTP,
-				   GetPort());
+	RESTServer.Accept
+	(
+		*Stream,
+		Stream->GetEndPointAddress().Serialize(),
+		IsTLS() ? url::KProtocol::HTTPS : url::KProtocol::HTTP,
+		GetPort()
+	);
 
 	RESTServer.Execute();
 
@@ -99,14 +134,6 @@ void KREST::RESTServer::Session (KIOStreamSocket& Stream)
 			if (handle > 0)
 			{
 				kDebug(2, "successfully upgraded to websocket protocol for '{}'", RESTServer.Route->sRoute);
-#if 0
-				kwebsocket::Frame Frame(Stream);
-				auto sContent = Frame.Payload();
-				std::reverse(sContent.begin(), sContent.end());
-				Frame.Text(sContent);
-				Frame.Write(Stream, false);
-				Stream.Flush();
-#endif
 			}
 		}
 		else
@@ -115,26 +142,6 @@ void KREST::RESTServer::Session (KIOStreamSocket& Stream)
 				   RESTServer.Route->sRoute);
 		}
 	}
-
-	// get out of here if the tcp server is shutting down - otherwise
-	// UBSAN complains about accessing the derived class, which is no
-	// more existing
-	if (!KTCPServer::IsShuttingDown())
-	{
-		if (m_Options.bPollForDisconnect)
-		{
-			// if the connection is already marked as disconnected
-			// it has already been removed from the watch
-			if (!RESTServer.IsDisconnected())
-			{
-				// use the local copy of the socket fd for removal,
-				// as the Stream.GetNativeSocket() may already be -1
-				m_SocketWatch.Remove(nativeSocket);
-			}
-		}
-	}
-
-	RESTServer.Disconnect();
 
 } // Session
 

@@ -44,10 +44,7 @@
 /// @file kwebsocket.h
 /// HTTP web socket helper code
 
-#include "kstream.h"
-#include "ktcpstream.h"
-#include "ktlsstream.h"
-#include "kunixstream.h"
+#include "kiostreamsocket.h"
 #include "kexception.h"
 #include "khttp_request.h"
 #include "kassociative.h"
@@ -64,23 +61,6 @@ class DEKAF2_PUBLIC KWebSocketError : public KException
 };
 
 namespace kwebsocket {
-
-enum StreamType
-{
-	NONE,
-	TCP,
-	TLS
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-	, UNIX
-#endif
-};
-
-DEKAF2_PUBLIC StreamType                      GetStreamType    (KStream& Stream);
-DEKAF2_PUBLIC KTCPStream::asio_stream_type&&  GetAsioTCPStream (KStream& Stream);
-DEKAF2_PUBLIC KTLSStream::asio_stream_type&&  GetAsioTLSStream (KStream& Stream);
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-DEKAF2_PUBLIC KUnixStream::asio_stream_type&& GetAsioUnixStream(KStream& Stream);
-#endif
 
 /// a websocket frame type
 enum FrameType : uint8_t
@@ -151,15 +131,15 @@ public:
 		SetPayload(std::move(sPayload), bIsBinary);
 	}
 	/// construct from stream, decodes one or multiple frames with payload, may send pong frames
-	Frame(KStream& Stream)
+	Frame(KIOStreamSocket& Stream)
 	{
 		Read(Stream, false);
 	}
 
 	/// decodes one or multiple frames with payload from input stream, may send pong frames
-	bool           Read       (KStream& Stream, bool bMaskTx);
+	bool           Read       (KIOStreamSocket& Stream, bool bMaskTx);
 	/// writes one full frame with payload to output stream
-	bool           Write      (KOutStream& OutStream, bool bMaskTx);
+	bool           Write      (KIOStreamSocket& OutStream, bool bMaskTx);
 	/// creates mask key and masks payload - call only as a websocket client
 	void           Mask       ();
 	/// if the frame was announced as masked, unmasks it and clears the mask flag
@@ -213,7 +193,7 @@ class DEKAF2_PUBLIC KWebSocket
 public:
 //----------
 
-	KWebSocket(KStream& Stream, std::function<void(KWebSocket&)> WebSocketHandler);
+	KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<void(KWebSocket&)> WebSocketHandler);
 
 	void CallHandler(kwebsocket::Frame Frame);
 
@@ -221,7 +201,7 @@ public:
 private:
 //----------
 
-	KStream m_Stream;
+	std::unique_ptr<KIOStreamSocket> m_Stream;
 	std::function<void(KWebSocket&)> m_Handler;
 
 }; // KWebSocket

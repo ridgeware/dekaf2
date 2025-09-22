@@ -892,8 +892,11 @@ public:
 
 	}; // DirEntry
 
-	using DirEntries     = std::vector<DirEntry>;
+	using self           = KDirectory;
+	using value_type     = DirEntry;
+	using DirEntries     = std::vector<value_type>;
 	using const_iterator = DirEntries::const_iterator;
+	using iterator       = DirEntries::iterator;
 	using size_type      = DirEntries::size_type;
 
 	/// default ctor
@@ -910,10 +913,16 @@ public:
 
 	/// returns const_iterator to the start of the directory list
 	DEKAF2_NODISCARD
-	const_iterator cbegin() const { return m_DirEntries.begin(); }
+	const_iterator cbegin() const { return m_DirEntries.cbegin(); }
 	/// returns const_iterator to the end of the directory list
 	DEKAF2_NODISCARD
-	const_iterator cend() const { return m_DirEntries.end(); }
+	const_iterator cend() const { return m_DirEntries.cend(); }
+	/// returns iterator to the begin of the directory list
+	DEKAF2_NODISCARD
+	iterator begin() { return m_DirEntries.begin(); }
+	/// returns iterator to the end of the directory list
+	DEKAF2_NODISCARD
+	iterator end() { return m_DirEntries.end(); }
 	/// returns const_iterator to the begin of the directory list
 	DEKAF2_NODISCARD
 	const_iterator begin() const { return m_DirEntries.begin(); }
@@ -934,10 +943,7 @@ public:
 
 	/// get the directory enty at position pos, never throws, returns empty entry if out of bounds
 	DEKAF2_NODISCARD
-	const DirEntry& at(size_type pos) const noexcept
-	{
-		return (pos < size()) ? m_DirEntries[pos] : s_Empty;
-	}
+	const DirEntry& at(size_type pos) const noexcept;
 
 	/// get the directory enty at position pos, never throws, returns empty entry if out of bounds
 	DEKAF2_NODISCARD
@@ -1008,6 +1014,32 @@ public:
 
 	/// sort the directory list
 	void Sort(SortBy = SortBy::NAME, bool bReverse = false);
+	/// returns the first item in the directory list, empty if list is empty
+	const DirEntry& front() const noexcept;
+	/// returns the last item in the directory list, empty if list is empty
+	const DirEntry& back() const noexcept;
+	/// insert one item into the directory list, before pos
+	iterator insert(const_iterator pos, value_type File);
+	/// append one item at the end of the directory list
+	void push_back(value_type File) { m_DirEntries.push_back(std::move(File)); }
+	/// append a whole directory list to this list
+	void append(KDirectory Directory);
+	/// erase the item in the directory list at pos, return next item
+	iterator erase(iterator pos);
+	/// erase the item in the directory list at pos, return next item
+	iterator erase(const_iterator pos);
+	/// erase items in the directory list from first to last, return item after last
+	iterator erase(iterator first, iterator last);
+	/// erase items in the directory list from first to last, return item after last
+	iterator erase(const_iterator first, const_iterator last);
+	/// append a whole directory list to this list
+	self& operator+=(KDirectory Directory)
+	{
+		append(std::move(Directory));
+		return *this;
+	}
+	// there is no point in adding non-copy-constructible classes
+//	KDirectory& operator+(KDirectory other);
 
 //----------
 protected:

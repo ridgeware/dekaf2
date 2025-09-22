@@ -2031,6 +2031,151 @@ void KDirectory::Sort(SortBy SortBy, bool bReverse)
 
 } // Sort
 
+//-----------------------------------------------------------------------------
+const KDirectory::DirEntry& KDirectory::at(size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return (pos < size()) ? m_DirEntries[pos] : s_Empty;
+}
+
+//-----------------------------------------------------------------------------
+const KDirectory::DirEntry& KDirectory::front() const noexcept
+//-----------------------------------------------------------------------------
+{
+	return (!empty()) ? m_DirEntries.front() : s_Empty;
+}
+
+//-----------------------------------------------------------------------------
+const KDirectory::DirEntry& KDirectory::back() const noexcept
+//-----------------------------------------------------------------------------
+{
+	return (!empty()) ? m_DirEntries.back() : s_Empty;
+}
+
+//-----------------------------------------------------------------------------
+KDirectory::iterator KDirectory::insert(const_iterator pos, value_type File)
+//-----------------------------------------------------------------------------
+{
+	if (pos > end())
+	{
+		pos = end();
+	}
+	else if (pos < begin())
+	{
+		pos = begin();
+	}
+
+	return m_DirEntries.insert(pos, std::move(File));
+
+} // insert
+
+//-----------------------------------------------------------------------------
+void KDirectory::append(KDirectory Directory)
+//-----------------------------------------------------------------------------
+{
+	for (auto& File : Directory)
+	{
+		m_DirEntries.insert(end(), std::move(File));
+	}
+
+} // append
+
+//-----------------------------------------------------------------------------
+KDirectory::iterator KDirectory::erase(iterator pos)
+//-----------------------------------------------------------------------------
+{
+	if (pos > end())
+	{
+		return end();
+	}
+	else if (pos < begin())
+	{
+		return end();
+	}
+
+	return m_DirEntries.erase(pos);
+
+} // erase
+
+//-----------------------------------------------------------------------------
+KDirectory::iterator KDirectory::erase(const_iterator pos)
+//-----------------------------------------------------------------------------
+{
+	if (pos > end())
+	{
+		return end();
+	}
+	else if (pos < begin())
+	{
+		return end();
+	}
+
+	return m_DirEntries.erase(pos);
+
+} // erase
+
+//-----------------------------------------------------------------------------
+KDirectory::iterator KDirectory::erase(const_iterator first, const_iterator last)
+//-----------------------------------------------------------------------------
+{
+	if (first > end())
+	{
+		return end();
+	}
+	else if (first < begin())
+	{
+		return end();
+	}
+
+	if (last > end())
+	{
+		return end();
+	}
+	else if (last < begin())
+	{
+		return end();
+	}
+
+	if (first >= last)
+	{
+		return end();
+	}
+
+	return m_DirEntries.erase(first, last);
+
+} // erase
+
+//-----------------------------------------------------------------------------
+KDirectory::iterator KDirectory::erase(iterator first, iterator last)
+//-----------------------------------------------------------------------------
+{
+	if (first > end())
+	{
+		return end();
+	}
+	else if (first < begin())
+	{
+		return end();
+	}
+
+	if (last > end())
+	{
+		return end();
+	}
+	else if (last < begin())
+	{
+		return end();
+	}
+
+	if (first >= last)
+	{
+		return end();
+	}
+
+	return m_DirEntries.erase(first, last);
+
+} // erase
+
 // don't test KDirectory if its base class KErrorBase is not nothrow_move_constructible
 // (this is the case with a combination of old clang and some libstdc++)
 static_assert(!std::is_nothrow_move_constructible<KErrorBase>::value || std::is_nothrow_move_constructible<KDirectory>::value,

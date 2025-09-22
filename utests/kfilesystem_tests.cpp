@@ -259,6 +259,36 @@ TEST_CASE("KFilesystem")
 		CHECK ( Dir.begin()->Path().find(kFormat("{}{}", kDirSep, kDirSep)) == KString::npos );
 	}
 
+	SECTION("KDirectory3")
+	{
+		KDirectory Dir(sDirectory);
+		CHECK ( Dir.size() == 2 );
+		CHECK ( Dir[0].Filename() == "KFilesystem.test" );
+		CHECK ( Dir[1].Filename() == "test.txt" );
+		Dir.push_back({ "/a/b/c", "new.txt", KFileType::FILE});
+		CHECK ( Dir.size() == 3 );
+		auto it = Dir.Find("test.txt");
+		CHECK ( it != Dir.end() );
+		it = Dir.erase(it);
+		CHECK ( Dir.size() == 2 );
+		CHECK ( it != Dir.end() );
+		CHECK ( it->Filename() == "new.txt" );
+
+		KDirectory Dir2;
+		Dir2.push_back({ "/a/b/c/d", "new.txt", KFileType::FILE});
+		Dir2.push_back({ "/a/b/c/d", "new2.txt", KFileType::FILE});
+		Dir2.push_back({ "/a/b/c/d", "new3.txt", KFileType::FILE});
+
+		Dir += std::move(Dir2);
+		CHECK ( Dir.size() == 5 );
+		Dir.erase(Dir.begin(), Dir.begin() + 2);
+		CHECK ( Dir.size() == 3 );
+		// note that this is one after the end
+		Dir.erase(Dir.begin(), Dir.end());
+		CHECK ( Dir.size() == 0 );
+		CHECK ( Dir.empty() );
+	}
+
 	SECTION("KDiskStat")
 	{
 		KDiskStat Stat(sDirectory);

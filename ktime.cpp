@@ -875,8 +875,14 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		{
 			auto& Months = detail::GetDefaultLocalMonthNames(true);
 
-			// now search the local month names
-			auto it2 = std::find(Months.begin(), Months.end(), sMonthName);
+			// now search the local month names - we now implement this as a starts_with() search,
+			// because this helps better to get over changing locale definitions in operating systems.
+			// Apple has e.g. changed month and day names considerably with MacOS 26.
+			// TODO consider making this case insensitive, too.
+			auto it2 = std::find_if(Months.begin(), Months.end(), [&sMonthName](const KString& sName)
+			{
+				return sName.starts_with(sMonthName);
+			});
 
 			if (it2 == Months.end())
 			{

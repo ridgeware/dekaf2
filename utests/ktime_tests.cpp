@@ -7,6 +7,10 @@
 #include <dekaf2/kstringutils.h>
 #include <array>
 
+#ifdef DEKAF2_IS_MACOS
+#include <availability.h>
+#endif
+
 using namespace dekaf2;
 
 TEST_CASE("KTime") {
@@ -259,8 +263,14 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.weekday()         == chrono::Tuesday );
 				CHECK ( Local1.get_utc_offset() == chrono::minutes(60) );
 #ifndef DEKAF2_HAS_MUSL
+#ifdef __MAC_26_0
+				// YES. THEY CHANGED THE MONTH AND DAY LOCALE NAMES WITH MACOS26.
+				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:%A %c}") == "mardi mar.  1 janv. 00:59:59 1974" );
+				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo. 31 Dez. 17:59:59 1973" );
+#else
 				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:%A %c}") == "Mardi Mar  1 jan 00:59:59 1974" );
 				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
+#endif
 #endif
 			}
 		}
@@ -308,7 +318,11 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.weekday()     == chrono::Tuesday );
 #ifndef DEKAF2_HAS_MUSL
 				if (bHasTimezone) {
+#ifdef __MAC_26_0
+					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo. 31 Dez. 17:59:59 1973" );
+#else
 					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
+#endif
 				}
 #endif
 			}
@@ -620,6 +634,17 @@ TEST_CASE("KTime") {
 		{
 			KAtScopeEnd( kSetGlobalLocale(oldLocale.name()) );
 
+#ifdef __MAC_26_0
+			CHECK ( kGetLocalMonthName( chrono::February,  true) == "févr."    );
+			CHECK ( kGetLocalMonthName( chrono::August  ,  true) == "août"     );
+			CHECK ( kGetLocalMonthName( chrono::January , false) == "janvier"  );
+			CHECK ( kGetLocalMonthName( chrono::December, false) == "décembre" );
+
+			CHECK ( kGetLocalDayName( chrono::Monday   ,  true) == "lun."     );
+			CHECK ( kGetLocalDayName( chrono::Wednesday,  true) == "mer."     );
+			CHECK ( kGetLocalDayName( chrono::Monday   , false) == "lundi"    );
+			CHECK ( kGetLocalDayName( chrono::Wednesday, false) == "mercredi" );
+#else
 			CHECK ( kGetLocalMonthName( chrono::February,  true) == "fév"      );
 			CHECK ( kGetLocalMonthName( chrono::August  ,  true) == "aoû"      );
 			CHECK ( kGetLocalMonthName( chrono::January , false) == "janvier"  );
@@ -629,6 +654,7 @@ TEST_CASE("KTime") {
 			CHECK ( kGetLocalDayName( chrono::Wednesday,  true) == "Mer"      );
 			CHECK ( kGetLocalDayName( chrono::Monday   , false) == "Lundi"    );
 			CHECK ( kGetLocalDayName( chrono::Wednesday, false) == "Mercredi" );
+#endif
 		}
 		/*
 

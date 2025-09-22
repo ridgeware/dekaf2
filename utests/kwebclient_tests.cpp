@@ -57,10 +57,10 @@ public:
 
 protected:
 
-	virtual bool Accepted(KIOStreamSocket& stream) override
+	virtual bool Accepted(std::unique_ptr<KIOStreamSocket>& stream) override
 	{
-		stream.SetReaderRightTrim("\r\n");
-		stream.SetWriterEndOfLine("\r\n");
+		stream->SetReaderRightTrim("\r\n");
+		stream->SetWriterEndOfLine("\r\n");
 		return true;
 	}
 

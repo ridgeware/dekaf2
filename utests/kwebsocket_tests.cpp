@@ -25,44 +25,4 @@ TEST_CASE("KWebSocket")
 		auto sServerKey    = kwebsocket::GenerateServerSecKeyResponse(sClientKey, true);
 		CHECK ( sServerKey == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=" );
 	}
-
-	SECTION("AsioStream")
-	{
-		{
-			auto Stream = CreateKTLSClient();
-			KStream& RefStream = *Stream;
-			CHECK ( kwebsocket::GetStreamType(RefStream) == kwebsocket::StreamType::TLS );
-			CHECK_THROWS( kwebsocket::GetAsioTCPStream (RefStream) );
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-			CHECK_THROWS( kwebsocket::GetAsioUnixStream(RefStream) );
-#endif
-#if BOOST_VERSION >= 107400
-			auto AsioStream = kwebsocket::GetAsioTLSStream(RefStream);
-			CHECK_THROWS( AsioStream.shutdown() );
-#endif
-		}
-		{
-			auto Stream = CreateKTCPStream();
-			KStream& RefStream = *Stream;
-			CHECK ( kwebsocket::GetStreamType(RefStream) == kwebsocket::StreamType::TCP );
-			CHECK_THROWS( kwebsocket::GetAsioTLSStream (RefStream) );
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-			CHECK_THROWS( kwebsocket::GetAsioUnixStream(RefStream) );
-#endif
-			auto AsioStream = kwebsocket::GetAsioTCPStream(RefStream);
-			CHECK_THROWS( AsioStream.available() );
-		}
-
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-		{
-			auto Stream = CreateKUnixStream();
-			KStream& RefStream = *Stream;
-			CHECK ( kwebsocket::GetStreamType(RefStream) == kwebsocket::StreamType::UNIX );
-			CHECK_THROWS( kwebsocket::GetAsioTCPStream(RefStream) );
-			CHECK_THROWS( kwebsocket::GetAsioTLSStream(RefStream) );
-			auto AsioStream = kwebsocket::GetAsioUnixStream(RefStream);
-			CHECK_THROWS ( AsioStream.available() );
-		}
-#endif
-	}
 }

@@ -204,7 +204,7 @@ bool KCookie::Parse(const KURL& URL, KStringView sInput)
 
 				case "Domain"_hash:
 					// we treat all cookies as to be sent to the current domain only..
-					if (kGetBaseDomain(m_Domain) == kGetBaseDomain(Pair.second))
+					if (url::GetRootDomain(m_Domain).ToLowerASCII() == url::GetRootDomain(Pair.second).ToLowerASCII())
 					{
 						m_bAllowSubDomains = true;
 						m_Domain = Pair.second;

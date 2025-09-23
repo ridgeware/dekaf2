@@ -785,7 +785,7 @@ TEST_CASE ("KURL")
         }
 }
 
-TEST_CASE ("KURL formerly missing")
+TEST_CASE ("KURL2") // formerly missing
 {
     SECTION ("KURL base domain")
     {
@@ -1003,7 +1003,7 @@ TEST_CASE ("KURL formerly missing")
 		URL = svURL;
         svURL = URL.Password;
         CHECK ( svURL == "secret" );
-        KString bar = URL.Query.get().find("foo")->second;
+        KString bar = URL.Query.find("foo")->second;
         CHECK ( bar == "bar" );
         URL.Query.get().Set("foo", "röb");
         URL.Query->Set("you", "whø");
@@ -1023,31 +1023,31 @@ TEST_CASE ("KURL formerly missing")
 
         URL = "http://that.server.name/with_a_path"_ksv;
         CHECK ( URL.IsHttpURL() == true );
-        CHECK ( URL.Domain.get() == "that.server.name" );
-        CHECK ( URL.Path.get() == "/with_a_path" );
+        CHECK ( URL.Domain == "that.server.name" );
+        CHECK ( URL.Path == "/with_a_path" );
 		CHECK ( URL.Serialize() == "http://that.server.name/with_a_path" );
 
         URL = "log.server.my.domain:35";
         CHECK ( URL.IsHttpURL() == false );
-        CHECK ( URL.Domain.get() == "log.server.my.domain" );
-		CHECK ( URL.Port.get() == 35 );
+        CHECK ( URL.Domain == "log.server.my.domain" );
+		CHECK ( URL.Port == 35 );
 #ifndef DEKAF2_IS_WINDOWS
 		CHECK ( URL.Port == 35 );
 #endif
-        CHECK ( URL.Path.get() == "" );
+        CHECK ( URL.Path == "" );
 		CHECK ( URL.Serialize() == "log.server.my.domain:35" );
 
 		URL = "/path/to/file"_ksz;
 		CHECK ( URL.IsHttpURL() == false );
 		CHECK ( URL.Domain.empty() == true );
-		CHECK ( URL.Path.get() == "/path/to/file" );
+		CHECK ( URL.Path == "/path/to/file" );
 		CHECK ( URL.Serialize() == "/path/to/file" );
 
 		URL = "//domain.com:35/path/to/file"_ks;
 		CHECK ( URL.IsHttpURL() == true );
-		CHECK ( URL.Domain.get() == "domain.com" );
-		CHECK ( URL.Port.get() == 35 );
-		CHECK ( URL.Path.get() == "/path/to/file" );
+		CHECK ( URL.Domain == "domain.com" );
+		CHECK ( URL.Port == 35 );
+		CHECK ( URL.Path == "/path/to/file" );
 		CHECK ( URL.Serialize() == "//domain.com:35/path/to/file" );
     }
 
@@ -1056,27 +1056,27 @@ TEST_CASE ("KURL formerly missing")
         KURL URL;
         URL = "http://any.one/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css";
         CHECK ( URL.IsHttpURL() == true );
-        CHECK ( URL.Domain.get() == "any.one" );
-        CHECK ( URL.Path.get() == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
+        CHECK ( URL.Domain == "any.one" );
+        CHECK ( URL.Path == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
 
         URL = "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css";
-        CHECK ( URL.Domain.get() == "" );
-        CHECK ( URL.Path.get() == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
+        CHECK ( URL.Domain == "" );
+        CHECK ( URL.Path == "/A.css,,_style.css+css,,_custom005.css+vendor,,_masterslider,,_style,,_masterslider.css+vendor,,_masterslider,,_skins,,_default,,_style.css+vendor,,_masterslider,,_style,,_ms-fullscreen.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.carousel.css+vendor,,_OwlCarousel2-2.2.1,,_dist,,_assets,,_owl.theme.default.css,Mcc.WnnFPiCXw1.css.pagespeed.cf.oRioQJq-Az.css" );
 	}
     
 	SECTION("KURL broken")
 	{
 		KURL URL;
 		URL = "/assets/heise/heise/css/heise.css?4e5ca4e953c65b217210";
-		CHECK ( URL.Domain.get() == "" );
+		CHECK ( URL.Domain == "" );
 		CHECK ( URL.Serialize() == "/assets/heise/heise/css/heise.css?4e5ca4e953c65b217210" );
 
 		URL = "/stil/ho/ho.css?4af42cac6c10ef07d3df";
-		CHECK ( URL.Domain.get() == "" );
+		CHECK ( URL.Domain == "" );
 		CHECK ( URL.Serialize() == "/stil/ho/ho.css?4af42cac6c10ef07d3df" );
 
 		URL = "/avw-bin/ivw/CP/barfoo/ho/4006197/0.gif?d=1872002745";
-		CHECK ( URL.Domain.get() == "" );
+		CHECK ( URL.Domain == "" );
 		CHECK ( URL.Serialize() == "/avw-bin/ivw/CP/barfoo/ho/4006197/0.gif?d=1872002745" );
 	}
 
@@ -1084,22 +1084,34 @@ TEST_CASE ("KURL formerly missing")
 	{
 		KURL URL;
 		URL = "https://localhost/Some/Path/5C86463AA7BAFCE4?url=http://some.host.com/resources/images/image1.gif";
-		CHECK ( URL.Protocol.get() == "https://" );
-		CHECK ( URL.Domain.get() == "localhost" );
-		CHECK ( URL.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( URL.Protocol == "https://" );
+		CHECK ( URL.Domain == "localhost" );
+		CHECK ( URL.Path == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( URL.Query["url"] == "http://some.host.com/resources/images/image1.gif" );
 
 		URL = "/Some/Path/5C86463AA7BAFCE4?url=http://some.host.com/resources/images/image1.gif";
-		CHECK ( URL.Protocol.get() == "" );
-		CHECK ( URL.Domain.get() == "" );
-		CHECK ( URL.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( URL.Protocol == "" );
+		CHECK ( URL.Domain == "" );
+		CHECK ( URL.Path == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( URL.Query["url"] == "http://some.host.com/resources/images/image1.gif" );
 
 		URL = "//localhost/Some/Path/5C86463AA7BAFCE4?url=http://some.host.com/resources/images/image1.gif";
-		CHECK ( URL.Protocol.get() == "//" );
-		CHECK ( URL.Domain.get() == "localhost" );
-		CHECK ( URL.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( URL.Protocol == "//" );
+		CHECK ( URL.Domain == "localhost" );
+		CHECK ( URL.Path == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( URL.Query["url"] == "http://some.host.com/resources/images/image1.gif" );
+	}
+
+	SECTION("KURL hack attempt")
+	{
+		KURL URL;
+		URL = "https://abc.def%2eghi/jfk";
+		CHECK ( URL.Protocol == "https://" );
+		CHECK ( URL.Domain == "abc.def.ghi"_ksv );
+		URL.Domain = "abc.de";
+		CHECK ( URL.Domain == "abc.de"_ks );
+		CHECK ( URL.Path == "/jfk" );
+		CHECK ( URL.Query.empty() );
 	}
 
 	SECTION("KResource")
@@ -1108,13 +1120,13 @@ TEST_CASE ("KURL formerly missing")
 		KURL URL;
 		URL = "https://user:pass@localhost:876/Some/Path/5C86463AA7BAFCE4";
 		Resource = URL;
-		CHECK ( Resource.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( Resource.Path == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( Resource.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
 		Resource = "https://user:pass@localhost:876/Some/Path/5C86463AA7BAFCE4";
-		CHECK ( Resource.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( Resource.Path == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( Resource.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
 		Resource = "/Some/Path/5C86463AA7BAFCE4";
-		CHECK ( Resource.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( Resource.Path == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( Resource.Serialize() == "/Some/Path/5C86463AA7BAFCE4" );
 		Resource = "Some/Path/5C86463AA7BAFCE4";
 		CHECK ( Resource.Serialize() == "/Path/5C86463AA7BAFCE4" );
@@ -1125,7 +1137,7 @@ TEST_CASE ("KURL formerly missing")
 		Resource = "/Some/";
 		CHECK ( Resource.Serialize() == "/Some/" );
 		Resource = "https://localhost/Some/Path/5C86463AA7BAFCE4?url=http://some.host.com/resources/images/image1.gif";
-		CHECK ( Resource.Path.get() == "/Some/Path/5C86463AA7BAFCE4" );
+		CHECK ( Resource.Path == "/Some/Path/5C86463AA7BAFCE4" );
 		CHECK ( Resource.Serialize() == "/Some/Path/5C86463AA7BAFCE4?url=http%3A//some.host.com/resources/images/image1.gif" );
 	}
 
@@ -1312,11 +1324,11 @@ TEST_CASE ("KURLPort")
 {
 	{
 		url::KPort port("123");
-		CHECK ( port.get() == 123 );
+		CHECK ( port == 123 );
 	}
 	{
 		url::KPort port(333);
-		CHECK ( port.get() == 333 );
+		CHECK ( port == 333 );
 	}
 	url::KPort port = 123;
 	port = 1234;
@@ -1327,8 +1339,8 @@ TEST_CASE ("KURLPort")
 	CHECK ( sPort == "12345" );
 
 	KURL URL = "http://test.com:12345/path/to";
-	CHECK ( URL.Port.get() == 12345 );
-	URL.Port.get() = 54321;
+	CHECK ( URL.Port == 12345 );
+	URL.Port = 54321;
 	CHECK ( URL.Serialize() == "http://test.com:54321/path/to" );
 }
 
@@ -1423,25 +1435,25 @@ TEST_CASE("KURL::FILE")
 	KURL URL;
 	URL = "file:///etc/fstab"; // good
 	CHECK ( (URL.Protocol == url::KProtocol::FILE) );
-	CHECK ( URL.Domain.get() == "" );
-	CHECK ( URL.Path.get() == "/etc/fstab" );
+	CHECK ( URL.Domain == "" );
+	CHECK ( URL.Path == "/etc/fstab" );
 	CHECK ( URL.Serialize() == "file:///etc/fstab" );
 
 	URL = "file://localhost/etc/fstab"; // good
 	CHECK ( (URL.Protocol == url::KProtocol::FILE) );
-	CHECK ( URL.Domain.get() == "localhost" );
-	CHECK ( URL.Path.get() == "/etc/fstab" );
+	CHECK ( URL.Domain == "localhost" );
+	CHECK ( URL.Path == "/etc/fstab" );
 	CHECK ( URL.Serialize() == "file://localhost/etc/fstab" );
 
 	URL = "file://etc/fstab"; // bad
 	CHECK ( (URL.Protocol == url::KProtocol::FILE) );
-	CHECK ( URL.Domain.get() == "etc" ); // bad, but expected
-	CHECK ( URL.Path.get() == "/fstab" ); // bad, but expected
+	CHECK ( URL.Domain == "etc" ); // bad, but expected
+	CHECK ( URL.Path == "/fstab" ); // bad, but expected
 	CHECK ( URL.Serialize() == "file://etc/fstab" ); // bad, but expected
 
 	URL = "file:/etc/fstab"; // good
 	CHECK ( (URL.Protocol == url::KProtocol::FILE) );
-	CHECK ( URL.Domain.get() == "" );
-	CHECK ( URL.Path.get() == "/etc/fstab" );
+	CHECK ( URL.Domain == "" );
+	CHECK ( URL.Path == "/etc/fstab" );
 	CHECK ( URL.Serialize() == "file:///etc/fstab" ); // different to original, but good and correct
 }

@@ -48,8 +48,6 @@
 #include "klog.h"
 
 DEKAF2_NAMESPACE_BEGIN
-namespace kwebsocket {
-
 namespace {
 
 // this suffix is defined in RFC 6455
@@ -58,7 +56,7 @@ static constexpr KStringViewZ s_sWebsocket_sec_key_suffix = "258EAFA5-E914-47DA-
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
-bool FrameHeader::Decode(uint8_t byte)
+bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 //-----------------------------------------------------------------------------
 {
 /* from RFC 6455:
@@ -196,7 +194,7 @@ bool FrameHeader::Decode(uint8_t byte)
 } // Decode
 
 //-----------------------------------------------------------------------------
-KString FrameHeader::Serialize() const
+KString KWebSocket::FrameHeader::Serialize() const
 //-----------------------------------------------------------------------------
 {
 	KString sHeader;
@@ -252,7 +250,7 @@ KString FrameHeader::Serialize() const
 } // Serialize
 
 //-----------------------------------------------------------------------------
-void Frame::Ping(KString sMessage)
+void KWebSocket::Frame::Ping(KString sMessage)
 //-----------------------------------------------------------------------------
 {
 	Binary(std::move(sMessage));
@@ -261,7 +259,7 @@ void Frame::Ping(KString sMessage)
 } // Ping
 
 //-----------------------------------------------------------------------------
-void Frame::Pong(KString sMessage)
+void KWebSocket::Frame::Pong(KString sMessage)
 //-----------------------------------------------------------------------------
 {
 	Binary(std::move(sMessage));
@@ -270,7 +268,7 @@ void Frame::Pong(KString sMessage)
 } // Pong
 
 //-----------------------------------------------------------------------------
-void Frame::Close()
+void KWebSocket::Frame::Close()
 //-----------------------------------------------------------------------------
 {
 	Binary("");
@@ -280,7 +278,7 @@ void Frame::Close()
 } // Close
 
 //-----------------------------------------------------------------------------
-void Frame::XOR(KStringRef& sBuffer)
+void KWebSocket::Frame::XOR(KStringRef& sBuffer)
 //-----------------------------------------------------------------------------
 {
 	std::array<char, 4> m
@@ -298,10 +296,10 @@ void Frame::XOR(KStringRef& sBuffer)
 		sBuffer[iPos] ^= m[iPos % 4];
 	}
 
-} // UnMask
+} // XOR
 
 //-----------------------------------------------------------------------------
-void Frame::Mask()
+void KWebSocket::Frame::Mask()
 //-----------------------------------------------------------------------------
 {
 	m_bMask       = true;
@@ -312,7 +310,7 @@ void Frame::Mask()
 } // Mask
 
 //-----------------------------------------------------------------------------
-void Frame::UnMask()
+void KWebSocket::Frame::UnMask()
 //-----------------------------------------------------------------------------
 {
 	if (m_bMask)
@@ -324,7 +322,7 @@ void Frame::UnMask()
 } // UnMask
 
 //-----------------------------------------------------------------------------
-void Frame::UnMask(KStringRef& sBuffer)
+void KWebSocket::Frame::UnMask(KStringRef& sBuffer)
 //-----------------------------------------------------------------------------
 {
 	if (m_bMask)
@@ -336,7 +334,7 @@ void Frame::UnMask(KStringRef& sBuffer)
 } // UnMask
 
 //-----------------------------------------------------------------------------
-void Frame::SetPayload(KString sPayload, bool bIsBinary)
+void KWebSocket::Frame::SetPayload(KString sPayload, bool bIsBinary)
 //-----------------------------------------------------------------------------
 {
 	m_sPayload    = std::move(sPayload);
@@ -350,7 +348,7 @@ void Frame::SetPayload(KString sPayload, bool bIsBinary)
 } // SetPayload
 
 //-----------------------------------------------------------------------------
-bool Frame::Read(KIOStreamSocket& Stream, bool bMaskTx)
+bool KWebSocket::Frame::Read(KIOStreamSocket& Stream, bool bMaskTx)
 //-----------------------------------------------------------------------------
 {
 	// buffer for the payload
@@ -409,7 +407,7 @@ bool Frame::Read(KIOStreamSocket& Stream, bool bMaskTx)
 } // Read
 
 //-----------------------------------------------------------------------------
-bool Frame::Write(KIOStreamSocket& OutStream, bool bMask)
+bool KWebSocket::Frame::Write(KIOStreamSocket& OutStream, bool bMask)
 //-----------------------------------------------------------------------------
 {
 	if (bMask)
@@ -423,7 +421,7 @@ bool Frame::Write(KIOStreamSocket& OutStream, bool bMask)
 } // Write
 
 //-----------------------------------------------------------------------------
-KString GenerateClientSecKey()
+KString KWebSocket::GenerateClientSecKey()
 //-----------------------------------------------------------------------------
 {
 	KString sKey;
@@ -445,7 +443,7 @@ KString GenerateClientSecKey()
 } // GenerateClientSecKey
 
 //-----------------------------------------------------------------------------
-bool ClientSecKeyLooksValid(KStringView sSecKey, bool bThrowIfInvalid)
+bool KWebSocket::ClientSecKeyLooksValid(KStringView sSecKey, bool bThrowIfInvalid)
 //-----------------------------------------------------------------------------
 {
 	if (sSecKey.size() != 24)
@@ -479,7 +477,7 @@ bool ClientSecKeyLooksValid(KStringView sSecKey, bool bThrowIfInvalid)
 } // ClientSecKeyLooksValid
 
 //-----------------------------------------------------------------------------
-KString GenerateServerSecKeyResponse(KString sSecKey, bool bThrowIfInvalid)
+KString KWebSocket::GenerateServerSecKeyResponse(KString sSecKey, bool bThrowIfInvalid)
 //-----------------------------------------------------------------------------
 {
 	if (ClientSecKeyLooksValid(sSecKey, bThrowIfInvalid))
@@ -498,7 +496,7 @@ KString GenerateServerSecKeyResponse(KString sSecKey, bool bThrowIfInvalid)
 } // GenerateServerSecKeyResponse
 
 //-----------------------------------------------------------------------------
-bool CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bThrowIfInvalid)
+bool KWebSocket::CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bThrowIfInvalid)
 //-----------------------------------------------------------------------------
 {
 	if (Request.Headers.Get(KHTTPHeader::UPGRADE).ToLowerASCII() != "websocket")
@@ -523,9 +521,11 @@ bool CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bThrowIfInvali
 		return Error("websockets require GET requests for session initiation");
 	}
 
+	// this implementation specifically requires http/1.1 (RFC 6455) - we do not yet
+	// support http/2 (RFC 8441) or http/3 (RFC 9220)
 	if (Request.GetHTTPVersion() != KHTTPVersion::http11)
 	{
-		return Error("websockets require HTTP/1.1, not any earlier or later version");
+		return Error("this server websocket implementation requires HTTP/1.1, not any earlier or later version");
 	}
 
 	if (Request.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII() != "upgrade")
@@ -544,7 +544,6 @@ bool CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bThrowIfInvali
 
 } // CheckForWebSocketUpgrade
 
-} // end of namespace kwebsocket
 
 //-----------------------------------------------------------------------------
 KWebSocket::KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<void(KWebSocket&)> WebSocketHandler)
@@ -552,18 +551,51 @@ KWebSocket::KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<v
 : m_Stream(std::move(Stream))
 , m_Handler(std::move(WebSocketHandler))
 {
+	if (!m_Stream)
+	{
+		throw KWebSocketError("no stream socket set");
+	}
+
+	if (!m_Handler)
+	{
+		throw KWebSocketError("no websocket handler set");
+	}
+
 } // ctor
+
+//-----------------------------------------------------------------------------
+void KWebSocket::CallHandler(class Frame Frame)
+//-----------------------------------------------------------------------------
+{
+	m_Frame = std::move(Frame);
+	m_Handler(*this);
+
+} // CallHandler
+
+//-----------------------------------------------------------------------------
+void KWebSocket::Finish()
+//-----------------------------------------------------------------------------
+{
+	if (!m_Finish)
+	{
+		throw KWebSocketError("no finish callback");
+	}
+
+	m_Finish();
+
+} // Finish
 
 //-----------------------------------------------------------------------------
 KWebSocketServer::KWebSocketServer()
 //-----------------------------------------------------------------------------
 {
+/*
 	// start the executor thread
 	m_Executor = std::make_unique<std::thread>([]()
 	{
-
+		// TODO implement KPoll interface
 	});
-
+*/
 } // ctor
 
 //-----------------------------------------------------------------------------
@@ -585,14 +617,36 @@ KWebSocketServer::Handle KWebSocketServer::AddWebSocket(KWebSocket WebSocket)
 //-----------------------------------------------------------------------------
 {
 	Handle handle { ++m_iLastID };
-/*
+
+	if (!handle)
+	{
+		// overflow..
+		handle = ++m_iLastID;
+	}
+
+	WebSocket.SetFinishCallback([handle, this]()
+	{
+		auto Connections = m_Connections.unique();
+
+		auto it = Connections->find(handle);
+
+		if (it == Connections->end())
+		{
+			kDebug(2, "connection already removed");
+			return;
+		}
+
+		Connections->erase(it);
+
+	});
+
 	auto p = m_Connections.unique()->insert({handle, std::move(WebSocket)});
 
 	if (!p.second)
 	{
 		throw KWebSocketError("cannot add websocket");
 	}
-*/
+
 	return handle;
 
 } // AddConnection

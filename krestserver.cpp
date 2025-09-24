@@ -734,7 +734,7 @@ bool KRESTServer::Execute()
 
 			RequestPath = KRESTPath(Request.Method, sURLPath);
 
-			m_bSwitchToWebSocket = kwebsocket::CheckForWebSocketUpgrade(Request, true);
+			m_bSwitchToWebSocket = KWebSocket::CheckForWebSocketUpgrade(Request, true);
 
 			// find the right route
 			Route = &m_Routes.FindRoute(RequestPath, Request.Resource.Query, m_bSwitchToWebSocket, m_Options.bCheckForWrongMethod);
@@ -842,7 +842,7 @@ bool KRESTServer::Execute()
 				// we will still call the route handler, but in general it should only set up
 				// the websocket callback, and not add additional output
 				const auto& sClientSecKey = Request.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_KEY);
-				Response.Headers.Add(KHTTPHeader::SEC_WEBSOCKET_ACCEPT, kwebsocket::GenerateServerSecKeyResponse(sClientSecKey, true));
+				Response.Headers.Add(KHTTPHeader::SEC_WEBSOCKET_ACCEPT, KWebSocket::GenerateServerSecKeyResponse(sClientSecKey, true));
 				Response.Headers.Add(KHTTPHeader::CONNECTION, "Upgrade");
 				Response.Headers.Add(KHTTPHeader::UPGRADE, "websocket");
 				Response.SetStatus(101);
@@ -1769,6 +1769,7 @@ void KRESTServer::clear()
 	m_TempDir.clear();
 	m_bIsStreaming         = false;
 	m_bSwitchToWebSocket   = false;
+	m_bKeepWebSocketThread = false;
 	// do not clear m_Timer, the main Execute loop takes care of it
 
 	m_iJSONPrint =

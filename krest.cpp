@@ -127,13 +127,23 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 		// the client requests a switch to the websocket protocol
 		if (RESTServer.GetWebSocketHandler())
 		{
-			// now move the connection to the websocket event handler, and return this
-			// thread into the pool
-			auto handle = m_WebSocketServer.AddWebSocket(KWebSocket(Stream, RESTServer.GetWebSocketHandler()));
-
-			if (handle > 0)
+			if (!RESTServer.KeepWebSocketInRunningThread())
 			{
-				kDebug(2, "successfully upgraded to websocket protocol for '{}'", RESTServer.Route->sRoute);
+				// now move the connection to the websocket event handler, and return this
+				// thread into the pool
+				auto handle = m_WebSocketServer.AddWebSocket(KWebSocket(Stream, RESTServer.GetWebSocketHandler()));
+
+				if (handle > 0)
+				{
+					kDebug(2, "successfully upgraded to websocket protocol for '{}'", RESTServer.Route->sRoute);
+				}
+			}
+			else
+			{
+				// create a websocket instance
+				KWebSocket WebSocket(Stream, RESTServer.GetWebSocketHandler());
+				// and run it right here through its own handler
+				RESTServer.GetWebSocketHandler()(WebSocket);
 			}
 		}
 		else

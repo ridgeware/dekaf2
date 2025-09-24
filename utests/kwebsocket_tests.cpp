@@ -7,7 +7,7 @@ TEST_CASE("KWebSocket")
 {
 	SECTION("sec-key")
 	{
-		auto sKey = kwebsocket::GenerateClientSecKey();
+		auto sKey = KWebSocket::GenerateClientSecKey();
 
 		CHECK ( sKey.size() == 24 );
 
@@ -18,11 +18,11 @@ TEST_CASE("KWebSocket")
 			CHECK ( sKey[23] == '=' );
 		}
 
-		CHECK ( kwebsocket::ClientSecKeyLooksValid(sKey, true) );
+		CHECK ( KWebSocket::ClientSecKeyLooksValid(sKey, true) );
 
 		// following is the sample key combo from RFC 6455
 		KString sClientKey = "dGhlIHNhbXBsZSBub25jZQ==";
-		auto sServerKey    = kwebsocket::GenerateServerSecKeyResponse(sClientKey, true);
+		auto sServerKey    = KWebSocket::GenerateServerSecKeyResponse(sClientKey, true);
 		CHECK ( sServerKey == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=" );
 	}
 }

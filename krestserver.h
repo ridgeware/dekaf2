@@ -516,6 +516,23 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// call this if a websocket upgraded connection shall be handled in its own thread, and not in a common socket server
+	void SetKeepWebSocketInRunningThread()
+	//-----------------------------------------------------------------------------
+	{
+		m_bKeepWebSocketThread = true;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// @return true if this connection shall be handled in its own thread, and not in a common socket server
+	DEKAF2_NODISCARD
+	bool KeepWebSocketInRunningThread()
+	//-----------------------------------------------------------------------------
+	{
+		return m_bKeepWebSocketThread;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// sets a callback that will be called every time a websocket frame is received, or the connection is lost
 	void SetWebSocketHandler(std::function<void(KWebSocket&)> WebSocketHandler)
 	//-----------------------------------------------------------------------------
@@ -650,6 +667,7 @@ private:
 	bool        m_bLostConnection;       // whether we lost our peer during flight
 	bool        m_bIsStreaming;          // true if we switched to streaming output
 	bool        m_bSwitchToWebSocket;    // true if we will switch to the websocket protocol
+	bool        m_bKeepWebSocketThread;  // true if we will handle the websocket in the running thread, and not in a common socket server
 
 	int m_iJSONPrint {
 #ifdef NDEBUG

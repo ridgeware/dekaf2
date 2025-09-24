@@ -165,6 +165,7 @@ public:
 	using base::GetVerifyCerts;
 	using base::AllowQueryToWWWFormConversion;
 	using base::AcceptCookies;
+	using base::GetCookies;
 	using base::SetTimingCallback;
 	using base::SetServiceSummary;
 	using base::GetConnectedEndpoint;

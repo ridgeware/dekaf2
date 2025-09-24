@@ -1277,6 +1277,7 @@ set(PUBLIC_HEADERS
 	kwebobjects.h
 	kwebserver.h
 	kwebsocket.h
+	kwebsocketclient.h
 	kwords.h
 	kwrite.h
 	kwriter.h
@@ -1532,6 +1533,7 @@ set (SOURCES
 	kwebobjects.cpp
 	kwebserver.cpp
 	kwebsocket.cpp
+	kwebsocketclient.cpp
 	kwords.cpp
 	kwrite.cpp
 	kwriter.cpp

@@ -334,21 +334,53 @@ void KWebSocket::Frame::UnMask(KStringRef& sBuffer)
 } // UnMask
 
 //-----------------------------------------------------------------------------
-void KWebSocket::Frame::SetPayload(KString sPayload, bool bIsBinary)
+void KWebSocket::Frame::SetFlags(bool bIsBinary, bool bIsContinuation, bool bIsLast)
 //-----------------------------------------------------------------------------
 {
-	m_sPayload    = std::move(sPayload);
 	m_iPayloadLen = m_sPayload.size();
 	m_Opcode      = bIsBinary ? FrameType::Binary : FrameType::Text;
 	m_iExtension  = 0;
-	m_bIsFin      = true;
+	m_bIsFin      = bIsLast;
 	m_bMask       = false;
 	m_iMaskingKey = 0;
+
+} // SetFlags
+
+//-----------------------------------------------------------------------------
+void KWebSocket::Frame::SetPayload(KString sPayload, bool bIsBinary)
+//-----------------------------------------------------------------------------
+{
+	m_sPayload = std::move(sPayload);
+	SetFlags(bIsBinary, false, true);
 
 } // SetPayload
 
 //-----------------------------------------------------------------------------
-bool KWebSocket::Frame::Read(KIOStreamSocket& Stream, bool bMaskTx)
+bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMaskTx, KInStream& Payload, bool bIsBinary, std::size_t len)
+//-----------------------------------------------------------------------------
+{
+	bool bIsLast   = { false };
+
+	for (;bIsLast;)
+	{
+		auto iFragment = std::min(len, KDefaultCopyBufSize);
+		auto iRead = Payload.Read(m_sPayload, iFragment);
+		len -= iRead;
+		bIsLast = len == 0 || Payload.istream().eof();
+		bool bIsCont = !bIsLast && iRead == KDefaultCopyBufSize;
+		SetFlags(bIsBinary, bIsCont, bIsLast);
+		if (!Write(OutStream, bMaskTx))
+		{
+			return false;
+		}
+	}
+
+	return true;
+
+} // Write
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bMaskTx)
 //-----------------------------------------------------------------------------
 {
 	// buffer for the payload
@@ -357,9 +389,9 @@ bool KWebSocket::Frame::Read(KIOStreamSocket& Stream, bool bMaskTx)
 	for(;;)
 	{
 		// read the header
-		for (;!Decode(Stream.Read());) {}
+		for (;!Decode(InStream.Read());) {}
 		// read the payload
-		auto iRead = Stream.Read(sBuffer, AnnouncedSize());
+		auto iRead = InStream.Read(sBuffer, AnnouncedSize());
 		// decode the incoming data
 		UnMask(sBuffer);
 
@@ -370,7 +402,7 @@ bool KWebSocket::Frame::Read(KIOStreamSocket& Stream, bool bMaskTx)
 			{
 				Frame Pong;
 				Pong.Pong(sBuffer);
-				Pong.Write(Stream, bMaskTx);
+				Pong.Write(OutStream, bMaskTx);
 			}
 			break;
 
@@ -407,7 +439,7 @@ bool KWebSocket::Frame::Read(KIOStreamSocket& Stream, bool bMaskTx)
 } // Read
 
 //-----------------------------------------------------------------------------
-bool KWebSocket::Frame::Write(KIOStreamSocket& OutStream, bool bMask)
+bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMask)
 //-----------------------------------------------------------------------------
 {
 	if (bMask)
@@ -416,7 +448,8 @@ bool KWebSocket::Frame::Write(KIOStreamSocket& OutStream, bool bMask)
 	}
 
 	return OutStream.Write(FrameHeader::Serialize()) &&
-			OutStream.Write(Payload());
+			OutStream.Write(Payload()) &&
+			OutStream.Flush();
 
 } // Write
 
@@ -496,7 +529,7 @@ KString KWebSocket::GenerateServerSecKeyResponse(KString sSecKey, bool bThrowIfI
 } // GenerateServerSecKeyResponse
 
 //-----------------------------------------------------------------------------
-bool KWebSocket::CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bThrowIfInvalid)
+bool KWebSocket::CheckForUpgradeRequest(const KInHTTPRequest& Request, bool bThrowIfInvalid)
 //-----------------------------------------------------------------------------
 {
 	if (Request.Headers.Get(KHTTPHeader::UPGRADE).ToLowerASCII() != "websocket")
@@ -542,8 +575,59 @@ bool KWebSocket::CheckForWebSocketUpgrade(const KInHTTPRequest& Request, bool bT
 
 	return true;
 
-} // CheckForWebSocketUpgrade
+} // CheckForUpgradeRequest
 
+//-----------------------------------------------------------------------------
+bool KWebSocket::CheckForUpgradeResponse(KStringView sClientSecKey, KStringView sProtocols, const KOutHTTPResponse& Response, bool bThrowIfInvalid)
+//-----------------------------------------------------------------------------
+{
+	auto SetError = [bThrowIfInvalid](KStringViewZ sError)
+	{
+		kDebug(1, sError);
+
+		if (bThrowIfInvalid)
+		{
+			throw KWebSocketError(sError);
+		}
+
+		return false;
+	};
+
+	auto BadHeader = [&Response, &SetError](KHTTPHeader Header)
+	{
+		return SetError(kFormat("{} header has bad value: '{}'", Header, Response.Headers.Get(Header)));
+	};
+
+	if (Response.GetStatusCode() != 101)
+	{
+		return SetError(kFormat("bad status code, expected 101, got {}", Response.GetStatusCode()));
+	}
+
+	if (Response.Headers.Get(KHTTPHeader::UPGRADE).ToLowerASCII() != "websocket")
+	{
+		return BadHeader(KHTTPHeader::UPGRADE);
+	}
+
+	if (Response.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII() != "upgrade")
+	{
+		return BadHeader(KHTTPHeader::CONNECTION);
+	}
+
+	if (Response.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_ACCEPT) != GenerateServerSecKeyResponse(sClientSecKey, false))
+	{
+		return BadHeader(KHTTPHeader::SEC_WEBSOCKET_ACCEPT);
+	}
+
+	auto& sProtocol = Response.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_PROTOCOL);
+
+	if (!sProtocol.In(sProtocols))
+	{
+		return BadHeader(KHTTPHeader::SEC_WEBSOCKET_PROTOCOL);
+	}
+
+	return true;
+
+} // CheckForUpgradeResponse
 
 //-----------------------------------------------------------------------------
 KWebSocket::KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<void(KWebSocket&)> WebSocketHandler)

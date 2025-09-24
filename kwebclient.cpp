@@ -171,7 +171,15 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 						}
 					}
 
-					if (RequestMethod != KHTTPMethod::HEAD &&
+					bool bWasWebsocketUpgradeRequest = Request.Headers.contains(KHTTPHeader::SEC_WEBSOCKET_KEY) &&
+					                                   Request.Headers.Get(KHTTPHeader::UPGRADE) == "websocket" &&
+					                                   Request.Headers.Get(KHTTPHeader::CONNECTION) == "Upgrade";
+
+					// do not read on the socket if this is an accepted websocket upgrade
+					// after a previous upgrade request
+					// or a HEAD or TRACE request (which return empty)
+					if (!(bWasWebsocketUpgradeRequest && Response.Headers.contains(KHTTPHeader::SEC_WEBSOCKET_ACCEPT)) &&
+						RequestMethod != KHTTPMethod::HEAD &&
 						RequestMethod != KHTTPMethod::TRACE)
 					{
 						ReceiveTime.resume();

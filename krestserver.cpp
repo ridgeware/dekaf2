@@ -734,7 +734,7 @@ bool KRESTServer::Execute()
 
 			RequestPath = KRESTPath(Request.Method, sURLPath);
 
-			m_bSwitchToWebSocket = KWebSocket::CheckForWebSocketUpgrade(Request, true);
+			m_bSwitchToWebSocket = KWebSocket::CheckForUpgradeRequest(Request, true);
 
 			// find the right route
 			Route = &m_Routes.FindRoute(RequestPath, Request.Resource.Query, m_bSwitchToWebSocket, m_Options.bCheckForWrongMethod);

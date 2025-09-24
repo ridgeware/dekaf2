@@ -47,6 +47,7 @@
 #include "kiostreamsocket.h"
 #include "kexception.h"
 #include "khttp_request.h"
+#include "khttp_response.h"
 #include "kassociative.h"
 #include "kthreadsafe.h"
 #include <vector>
@@ -139,17 +140,25 @@ public:
 			SetPayload(std::move(sPayload), bIsBinary);
 		}
 		/// construct from stream, decodes one or multiple frames with payload, may send pong frames
-		Frame(KIOStreamSocket& Stream)
+		Frame(KStream& Stream)
 		{
-			Read(Stream, false);
+			Read(Stream, Stream, false);
+		}
+
+		/// construct from stream, decodes one or multiple frames with payload, may send pong frames
+		Frame(KInStream& InStream, KOutStream& OutStream)
+		{
+			Read(InStream, OutStream, false);
 		}
 
 		/// decodes one or multiple frames with payload from input stream, may send pong frames -
 		/// masking is required from client to server, and forbidden from server to client
-		bool           Read       (KIOStreamSocket& Stream, bool bMaskTx);
+		bool           Read       (KInStream& InStream, KOutStream& OutStream, bool bMaskTx);
 		/// writes one full frame with payload to output stream -
 		/// masking is required from client to server, and forbidden from server to client
-		bool           Write      (KIOStreamSocket& OutStream, bool bMaskTx);
+		bool           Write      (KOutStream& OutStream, bool bMaskTx);
+		/// set binary or text payload from input stream, and write it, possibly in multiple frames
+		bool           Write      (KOutStream& OutStream, bool bMaskTx, KInStream& Payload, bool bIsBinary, std::size_t len = npos);
 		/// creates mask key and masks payload - call only as a websocket client
 		void           Mask       ();
 		/// if the frame was announced as masked, unmasks it and clears the mask flag
@@ -181,6 +190,7 @@ public:
 	private:
 	//----------
 
+		void           SetFlags   (bool bIsBinary, bool bIsContinuation, bool bIsLast);
 		void           XOR        (KStringRef& sBuffer);
 		void           UnMask     (KStringRef& sBuffer);
 
@@ -210,7 +220,9 @@ public:
 	/// generate the server response on a client's sec key
 	static KString GenerateServerSecKeyResponse (KString sSecKey, bool bThrowIfInvalid);
 	/// check if a client requests a websocket upgrade of the HTTP/1.1 connection
-	static bool    CheckForWebSocketUpgrade     (const KInHTTPRequest& Request, bool bThrowIfInvalid);
+	static bool    CheckForUpgradeRequest       (const KInHTTPRequest& Request, bool bThrowIfInvalid);
+	/// check if the server response on a client upgrade request is valid
+	static bool    CheckForUpgradeResponse      (KStringView sClientSecKey, KStringView sProtocols, const KOutHTTPResponse& Response, bool bThrowIfInvalid);
 
 //----------
 private:

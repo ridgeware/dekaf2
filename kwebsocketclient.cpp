@@ -49,7 +49,8 @@ DEKAF2_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 KWebSocketClient::KWebSocketClient(KHTTPStreamOptions Options)
 //-----------------------------------------------------------------------------
-: KWebClient(Options)
+// we can only use HTTP/1.1 for now
+: KWebClient(Options.Unset(KStreamOptions::RequestHTTP2 | KStreamOptions::RequestHTTP3))
 {
 	// per default, allow proxy configuration through environment
 	KHTTPClient::AutoConfigureProxy(true);
@@ -155,22 +156,21 @@ KWebSocketClient& KWebSocketClient::AddHeader (KHTTPHeader Header, KStringView s
 bool KWebSocketClient::Connect (KStringView sWebSocketProtocols)
 //-----------------------------------------------------------------------------
 {
-	if (sWebSocketProtocols.empty())
-	{
-		return SetError("websocket protocol request may not be empty, but is");
-	}
-
 	KString sError;
 	KOutStringStream OutStream(sError);
 
 	bool bResult { false };
 	auto sClientSecKey = KWebSocket::GenerateClientSecKey();
 
-	AddHeader(KHTTPHeader::UPGRADE               , "websocket"         );
-	AddHeader(KHTTPHeader::CONNECTION            , "Upgrade"           );
-	AddHeader(KHTTPHeader::SEC_WEBSOCKET_KEY     , sClientSecKey       );
-	AddHeader(KHTTPHeader::SEC_WEBSOCKET_PROTOCOL, sWebSocketProtocols );
-	AddHeader(KHTTPHeader::SEC_WEBSOCKET_VERSION , "13"                );
+	AddHeader(KHTTPHeader::UPGRADE               , "websocket"   );
+	AddHeader(KHTTPHeader::CONNECTION            , "Upgrade"     );
+	AddHeader(KHTTPHeader::SEC_WEBSOCKET_KEY     , sClientSecKey );
+	AddHeader(KHTTPHeader::SEC_WEBSOCKET_VERSION , "13"          );
+
+	if (!sWebSocketProtocols.empty())
+	{
+		AddHeader(KHTTPHeader::SEC_WEBSOCKET_PROTOCOL, sWebSocketProtocols );
+	}
 
 	if (m_URL.Protocol != url::KProtocol::UNIX)
 	{
@@ -265,6 +265,23 @@ bool KWebSocketClient::Write(KString sBuffer)
 } // Write
 
 //-----------------------------------------------------------------------------
+std::istream::int_type KWebSocketClient::Read()
+//-----------------------------------------------------------------------------
+{
+	if (!Good()                ||
+	    !GetNextFrameIfEmpty() ||
+	    m_sRXBuffer.empty())
+	{
+		return std::istream::traits_type::eof();
+	}
+
+	auto ch = m_sRXBuffer.front();
+	m_sRXBuffer.remove_prefix(1);
+	return ch;
+
+} // Read
+
+//-----------------------------------------------------------------------------
 std::size_t KWebSocketClient::Read(KOutStream& stream, std::size_t len)
 //-----------------------------------------------------------------------------
 {
@@ -272,14 +289,9 @@ std::size_t KWebSocketClient::Read(KOutStream& stream, std::size_t len)
 
 	if (len > 0 && Good())
 	{
-		if (m_sRXBuffer.empty())
+		if (!GetNextFrameIfEmpty())
 		{
-			if (!m_RXFrame.Read(Response.UnfilteredStream(), Request.UnfilteredStream(), false))
-			{
-				return 0;
-			}
-
-			m_sRXBuffer = m_RXFrame.Payload();
+			return 0;
 		}
 
 		auto iFragment = std::min(m_sRXBuffer.size(), len);
@@ -300,6 +312,38 @@ std::size_t KWebSocketClient::Read(KOutStream& stream, std::size_t len)
 } // Read
 
 //-----------------------------------------------------------------------------
+bool KWebSocketClient::GetNextFrameIfEmpty()
+//-----------------------------------------------------------------------------
+{
+	if (m_sRXBuffer.empty())
+	{
+		if (!Good())
+		{
+			return false;
+		}
+
+		for(;;)
+		{
+			if (!m_RXFrame.Read(Response.UnfilteredStream(), Request.UnfilteredStream(), false))
+			{
+				return false;
+			}
+
+			// simply skip empty input frames
+			if (!m_RXFrame.empty())
+			{
+				break;
+			}
+		}
+
+		m_sRXBuffer = m_RXFrame.Payload();
+	}
+
+	return true;
+
+} // GetNextFrameIfEmpty
+
+//-----------------------------------------------------------------------------
 std::size_t KWebSocketClient::Read(KStringRef& sBuffer, std::size_t len)
 //-----------------------------------------------------------------------------
 {
@@ -307,14 +351,9 @@ std::size_t KWebSocketClient::Read(KStringRef& sBuffer, std::size_t len)
 
 	if (len > 0)
 	{
-		if (m_sRXBuffer.empty())
+		if (!GetNextFrameIfEmpty())
 		{
-			if (!m_RXFrame.Read(Response.UnfilteredStream(), Request.UnfilteredStream(), false))
-			{
-				return 0;
-			}
-
-			m_sRXBuffer = m_RXFrame.Payload();
+			return 0;
 		}
 
 		auto iRead = std::min(m_sRXBuffer.size(), len);

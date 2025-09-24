@@ -172,8 +172,8 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 					}
 
 					bool bWasWebsocketUpgradeRequest = Request.Headers.contains(KHTTPHeader::SEC_WEBSOCKET_KEY) &&
-					                                   Request.Headers.Get(KHTTPHeader::UPGRADE) == "websocket" &&
-					                                   Request.Headers.Get(KHTTPHeader::CONNECTION) == "Upgrade";
+					                                   Request.Headers.Get(KHTTPHeader::UPGRADE).ToLowerASCII() == "websocket" &&
+					                                   Request.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII() == "upgrade";
 
 					// do not read on the socket if this is an accepted websocket upgrade
 					// after a previous upgrade request

@@ -618,11 +618,14 @@ bool KWebSocket::CheckForUpgradeResponse(KStringView sClientSecKey, KStringView 
 		return BadHeader(KHTTPHeader::SEC_WEBSOCKET_ACCEPT);
 	}
 
-	auto& sProtocol = Response.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_PROTOCOL);
-
-	if (!sProtocol.In(sProtocols))
+	if (!sProtocols.empty())
 	{
-		return BadHeader(KHTTPHeader::SEC_WEBSOCKET_PROTOCOL);
+		auto& sProtocol = Response.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_PROTOCOL);
+
+		if (!sProtocol.In(sProtocols))
+		{
+			return BadHeader(KHTTPHeader::SEC_WEBSOCKET_PROTOCOL);
+		}
 	}
 
 	return true;

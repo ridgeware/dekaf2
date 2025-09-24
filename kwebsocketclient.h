@@ -105,19 +105,25 @@ public:
 
 	// the web socket abstraction for reading and writing
 
-	/// write from stream
+	/// write from stream, creates one or more sent frames with continuation
 	bool Write(KInStream& stream, std::size_t len = npos);
 
-	/// write from string
+	/// write from string, creates one sent frame
 	bool Write(KString sBuffer);
 
-	/// read into outstream, returns read character count
+	/// Read a character
+	/// @returns std::istream::traits_type::eof() (== -1) if no input available
+	std::istream::int_type Read();
+
+	/// read into outstream, returns read character count - always only reads max one
+	/// WebSocket frame
 	std::size_t Read(KOutStream& stream, std::size_t len = npos);
 
-	/// append to sBuffer, returns read character count
+	/// append to sBuffer, returns read character count - always only reads max one
+	/// WebSocket frame
 	std::size_t Read(KStringRef& sBuffer, std::size_t len = npos);
 
-	/// read one line into sBuffer, including EOL
+	/// read one line into sBuffer, including EOL - not yet implemented
 	bool ReadLine(KStringRef& sBuffer, std::size_t maxlen = npos);
 
 	// inherited protected methods lifted into public access
@@ -154,6 +160,7 @@ public:
 protected:
 //----------
 
+	bool GetNextFrameIfEmpty();
 
 	KURL        m_URL;
 	KString     m_sPath;

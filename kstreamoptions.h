@@ -59,6 +59,8 @@ class DEKAF2_PUBLIC KStreamOptions {
 public:
 //------
 
+	using self = KStreamOptions;
+
 	/// general stream options
 	enum Options : uint8_t
 	{
@@ -102,10 +104,10 @@ public:
 	: KStreamOptions(Options(bVerify ? VerifyCert : None)) {} ///< constructor to help legacy class interfaces
 
 	/// adds the requested Options to the existing options
-	void Set(Options Options);
+	self& Set(Options Options);
 
 	/// removes the requested Options from the existing options
-	void Unset(Options Options);
+	self& Unset(Options Options);
 
 	/// return the configured options
 	Options Get()      const { return m_Options; }
@@ -120,7 +122,7 @@ public:
 	int GetNativeFamily() const;
 
 	/// set the timeout
-	void SetTimeout(KDuration Timeout) { m_Timeout = Timeout; }
+	self& SetTimeout(KDuration Timeout) { m_Timeout = Timeout; return *this; }
 
 	/// returns timeout set
 	KDuration GetTimeout() const { return m_Timeout; }
@@ -195,6 +197,8 @@ public:
 	/// ctor setting timeout as chrono::minutes. Options will be set to DefaultsForHTTP
 	KHTTPStreamOptions(chrono::minutes Timeout)
 	: KHTTPStreamOptions(KDuration(Timeout)) {}
+	KHTTPStreamOptions(const KStreamOptions& Options)
+	: KStreamOptions(Options)                {}
 	/// ctor setting verify mode. Other options will be set to DefaultsForHTTP, timeout is GetDefaultTimeout()
 	// make sure it really only gets called from bool
 	template<typename T, typename std::enable_if<std::is_same<T, bool>::value, int>::type = 0>

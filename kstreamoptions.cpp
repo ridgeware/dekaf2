@@ -78,18 +78,20 @@ KStreamOptions::KStreamOptions(KDuration Timeout)
 } // ctor
 
 //-----------------------------------------------------------------------------
-void KStreamOptions::Set(Options Options)
+KStreamOptions& KStreamOptions::Set(Options Options)
 //-----------------------------------------------------------------------------
 {
 	m_Options |= GetDefaults(Options);
+	return *this;
 
 } // Set
 
 //-----------------------------------------------------------------------------
-void KStreamOptions::Unset(Options Options)
+KStreamOptions& KStreamOptions::Unset(Options Options)
 //-----------------------------------------------------------------------------
 {
 	m_Options &= ~GetDefaults(Options);
+	return *this;
 
 } // Unset
 

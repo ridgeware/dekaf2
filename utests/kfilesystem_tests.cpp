@@ -263,6 +263,7 @@ TEST_CASE("KFilesystem")
 	{
 		KDirectory Dir(sDirectory);
 		CHECK ( Dir.size() == 2 );
+		Dir.Sort(KDirectory::SortBy::SIZE, true);
 		CHECK ( Dir[0].Filename() == "KFilesystem.test" );
 		CHECK ( Dir[1].Filename() == "test.txt" );
 		Dir.push_back({ "/a/b/c", "new.txt", KFileType::FILE});

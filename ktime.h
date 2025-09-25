@@ -337,9 +337,14 @@ DEKAF2_CONSTEXPR_14 struct timespec KUnixTime::to_timespec(KUnixTime tp) noexcep
 //-----------------------------------------------------------------------------
 {
 	// we have chrono::floor<> also before C++17 (through the date lib)
-	auto s = chrono::floor<chrono::seconds>(tp);
+	auto s  = chrono::floor<chrono::seconds>(tp);
 	auto ns = chrono::duration_cast<chrono::nanoseconds>(tp.to_sys_time() - s);
-	return { s.time_since_epoch().count() , static_cast<int32_t>(ns.count()) };
+	struct timespec ts =
+	{
+		static_cast<decltype(ts.tv_sec)>(s.time_since_epoch().count()),
+		static_cast<decltype(ts.tv_nsec)>(ns.count())
+	};
+	return ts;
 }
 
 //-----------------------------------------------------------------------------
@@ -358,13 +363,14 @@ DEKAF2_CONSTEXPR_14 struct timeval KUnixTime::to_timeval(KUnixTime tp) noexcept
 //-----------------------------------------------------------------------------
 {
 	// we have chrono::floor<> also before C++17 (through the date lib)
-	auto s = chrono::floor<chrono::seconds>(tp);
+	auto s  = chrono::floor<chrono::seconds>(tp);
 	auto us = chrono::duration_cast<chrono::microseconds>(tp.to_sys_time() - s);
-#ifndef DEKAF2_IS_WINDOWS
-	return { s.time_since_epoch().count(), static_cast<int32_t>(us.count()) };
-#else
-	return { static_cast<int32_t>(s.time_since_epoch().count()), static_cast<int32_t>(us.count()) };
-#endif
+	struct timeval tv =
+	{
+		static_cast<decltype(tv.tv_sec)>(s.time_since_epoch().count()),
+		static_cast<decltype(tv.tv_usec)>(us.count())
+	};
+	return tv;
 }
 
 //-----------------------------------------------------------------------------

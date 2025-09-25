@@ -166,14 +166,26 @@ public:
 	constexpr chrono::years             years        () const { return duration<chrono::years>        (); }
 	/// returns struct timespec as duration type
 	DEKAF2_NODISCARD
-	constexpr struct timespec           to_timespec  () const { return { seconds().count(), static_cast<int32_t>(chrono::nanoseconds(nanoseconds() - seconds()).count())   } ; }
+	constexpr struct timespec           to_timespec  () const
+	{
+		struct timespec ts =
+		{
+			static_cast<decltype(ts.tv_sec)>(seconds().count()),
+			static_cast<decltype(ts.tv_nsec)>(chrono::nanoseconds(nanoseconds() - seconds()).count())
+		};
+		return ts;
+	}
 	/// returns struct timeval as duration type
 	DEKAF2_NODISCARD
-#if !DEKAF2_IS_WINDOWS
-	constexpr struct timeval            to_timeval   () const { return { seconds().count(), static_cast<int32_t>(chrono::microseconds(microseconds() - seconds()).count()) } ; }
-#else
-	constexpr struct timeval            to_timeval   () const { return { static_cast<int32_t>(seconds().count()), static_cast<int32_t>(chrono::microseconds(microseconds() - seconds()).count()) }; }
-#endif
+	constexpr struct timeval            to_timeval   () const
+	{
+		struct timeval tv =
+		{
+			static_cast<decltype(tv.tv_sec)>(seconds().count()),
+			static_cast<decltype(tv.tv_usec)>(chrono::microseconds(microseconds() - seconds()).count())
+		};
+		return tv;
+	}
 
 	/// output format for ToString()
 	enum Format

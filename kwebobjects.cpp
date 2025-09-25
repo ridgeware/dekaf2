@@ -923,6 +923,7 @@ constexpr KStringView Select::s_sObjectName;
 constexpr KStringView Text::s_sObjectName;
 constexpr KStringView RawText::s_sObjectName;
 constexpr KStringView LineBreak::s_sObjectName;
+constexpr KStringView Output::s_sObjectName;
 #endif
 
 } // end of namespace html

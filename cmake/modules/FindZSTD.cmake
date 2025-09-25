@@ -16,7 +16,6 @@ endif()
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
 	ZSTD
-	HANDLE_VERSION_RANGE
 	REQUIRED_VARS ZSTD_LIBRARY ZSTD_INCLUDE_DIR
 	VERSION_VAR ZSTD_VERSION
 )

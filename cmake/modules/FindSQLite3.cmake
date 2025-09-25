@@ -11,7 +11,6 @@ endif()
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
 	SQLite3
-	HANDLE_VERSION_RANGE
 	REQUIRED_VARS SQLITE3_LIBRARY SQLITE3_INCLUDE_DIR
 	VERSION_VAR SQLITE3_VERSION
 )

@@ -21,7 +21,6 @@ endif()
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
 	JEMalloc
-	HANDLE_VERSION_RANGE
 	REQUIRED_VARS JEMalloc_LIBRARY JEMalloc_INCLUDE_DIR
 	VERSION_VAR JEMALLOC_VERSION
 )

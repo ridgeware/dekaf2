@@ -12,7 +12,6 @@ endif()
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
 	NGHTTP3
-	HANDLE_VERSION_RANGE
 	REQUIRED_VARS NGHTTP3_LIBRARY NGHTTP3_INCLUDE_DIR
 	VERSION_VAR NGHTTP3_VERSION
 )

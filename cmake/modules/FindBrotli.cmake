@@ -11,7 +11,6 @@ find_library(BROTLIENC_STATIC_LIBRARY NAMES brotlienc-static)
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
 	Brotli
-	HANDLE_VERSION_RANGE
 	REQUIRED_VARS BROTLICOMMON_LIBRARY BROTLIDEC_LIBRARY BROTLIENC_LIBRARY BROTLI_INCLUDE_DIR
 )
 

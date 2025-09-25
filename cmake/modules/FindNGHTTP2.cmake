@@ -12,7 +12,6 @@ endif()
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
 	NGHTTP2
-	HANDLE_VERSION_RANGE
 	REQUIRED_VARS NGHTTP2_LIBRARY NGHTTP2_INCLUDE_DIR
 	VERSION_VAR NGHTTP2_VERSION
 )

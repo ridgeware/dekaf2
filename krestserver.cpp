@@ -913,7 +913,7 @@ bool KRESTServer::Execute()
 
 			if (!m_bKeepAlive)
 			{
-				if (kWouldLog(2))
+				if (!m_bSwitchToWebSocket && kWouldLog(2))
 				{
 					if (m_Options.Out == HTTP)
 					{

@@ -92,17 +92,33 @@ public:
 			Pong         = 10,
 		};
 
+		virtual ~FrameHeader();
+
+		bool        Read            (KInStream& Stream);
+		/// write the frame header to a stream
+		bool        Write           (KOutStream& Stream);
 		/// decode a websocket frame header step by step
 		/// @return false until full header has been decoded
-		bool        Decode(uint8_t byte);
+		bool        Decode          (uint8_t byte);
 		/// @return a string with the serialized header
-		KString     Serialize()           const;
+		KString     Serialize       ()             const;
 		/// @return the frame type (Text, Binary, Ping, Pong, Continuation, Close)
-		FrameType   Type()                const { return m_Opcode;      }
+		FrameType   Type            ()             const { return m_Opcode;      }
 		/// @return the Finished flag
-		bool        Finished()            const { return m_bIsFin;      }
+		bool        Finished        ()             const { return m_bIsFin;      }
 		/// @return the payload size decoded from the header
-		uint64_t    AnnouncedSize()       const { return m_iPayloadLen; }
+		uint64_t    AnnouncedSize   ()             const { return m_iPayloadLen; }
+		/// has this frame been sent with xoring?
+		bool        IsMaskedRx      ()             const { return m_bMask;       }
+		/// returns the size of the preamble expected in front of the payload - this is helpful for
+		/// protocol nesting
+		virtual
+		std::size_t GetPreambleSize ()             const;
+		/// gets the pointer to a buffer of GetPreambleSize() size to fill in the preamble at reading
+		/// and read the preamble at writing
+		virtual
+		char*       GetPreambleBuf  ()             const;
+
 
 	//----------
 	protected:
@@ -181,25 +197,32 @@ public:
 		/// create a close frame
 		void           Close      ();
 		/// returns payload
-		KString&       Payload    ()                 { return m_sPayload;        }
-		/// returns payload
-		const KString& Payload    () const           { return m_sPayload;        }
+		const KString& GetPayload () const           { return m_sPayload;           }
 		/// returns true if frame has no payload
-		bool           empty      () const           { return Payload().empty(); }
+		bool           empty      () const           { return GetPayload().empty(); }
 		/// returns size of the payload
-		std::size_t    size       () const           { return Payload().size();  }
+		std::size_t    size       () const           { return GetPayload().size();  }
 
-		iterator       begin      ()                 { return Payload().begin(); }
-		iterator       end        ()                 { return Payload().end();   }
-		const_iterator begin      () const           { return Payload().begin(); }
-		const_iterator end        () const           { return Payload().end();   }
+		iterator       begin      ()                 { return GetPayloadRef().begin(); }
+		iterator       end        ()                 { return GetPayloadRef().end();   }
+		const_iterator begin      () const           { return GetPayload().begin();    }
+		const_iterator end        () const           { return GetPayload().end();      }
+
+	//----------
+	protected:
+	//----------
+
+		/// set header flags for this frame
+		void           SetFlags   (bool bIsBinary, bool bIsContinuation, bool bIsLast);
+		/// returns payload
+		KString&       GetPayloadRef ()              { return m_sPayload;           }
 
 	//----------
 	private:
 	//----------
 
-		void           SetFlags   (bool bIsBinary, bool bIsContinuation, bool bIsLast);
 		void           XOR        (KStringRef& sBuffer);
+		void           XOR        (char* pBuf, std::size_t iSize);
 		void           UnMask     (KStringRef& sBuffer);
 
 		KString m_sPayload;

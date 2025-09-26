@@ -82,6 +82,25 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
  +---------------------------------------------------------------+
 
  */
+
+	auto AdjustLen = [this]()
+	{
+		if (m_Opcode & (FrameType::Text | FrameType::Binary))
+		{
+			auto iPreambleSize = GetPreambleSize();
+
+			if (m_iPayloadLen >= iPreambleSize)
+			{
+				m_iPayloadLen -= iPreambleSize;
+			}
+			else
+			{
+				kDebug(1, "preamble len {} > payload len {}", iPreambleSize, m_iPayloadLen);
+				m_iPayloadLen = 0;
+			}
+		}
+	};
+
 	switch (m_iFramePos & 0x7f)
 	{
 		case 0: // the start
@@ -100,6 +119,7 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 				{
 					// we're done
 					m_iFramePos = 0;
+					AdjustLen();
 					return true;
 				}
 				else
@@ -133,6 +153,7 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 				{
 					// we're done
 					m_iFramePos = 0;
+					AdjustLen();
 					return true;
 				}
 				else
@@ -164,6 +185,7 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 			{
 				// we're done
 				m_iFramePos = 0;
+				AdjustLen();
 				return true;
 			}
 			break;
@@ -183,6 +205,7 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 			m_iMaskingKey  |= byte;
 			// we're done
 			m_iFramePos = 0;
+			AdjustLen();
 			return true;
 
 		default:
@@ -193,6 +216,39 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 	return false;
 
 } // Decode
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::FrameHeader::Read(KInStream& Stream)
+//-----------------------------------------------------------------------------
+{
+	for (;;)
+	{
+		if (!Stream.Good())
+		{
+			return false;
+		}
+		if (Decode(Stream.Read()))
+		{
+			return true;
+		}
+	}
+	return false;
+
+} // Read
+
+//-----------------------------------------------------------------------------
+std::size_t KWebSocket::FrameHeader::GetPreambleSize() const
+//-----------------------------------------------------------------------------
+{
+	return 0;
+}
+
+//-----------------------------------------------------------------------------
+char* KWebSocket::FrameHeader::GetPreambleBuf() const
+//-----------------------------------------------------------------------------
+{
+	return nullptr;
+}
 
 //-----------------------------------------------------------------------------
 KString KWebSocket::FrameHeader::Serialize() const
@@ -206,13 +262,20 @@ KString KWebSocket::FrameHeader::Serialize() const
 	byte |= static_cast<uint8_t>(m_Opcode) & 0x0f;
 	sHeader += byte;
 
-	byte  = m_bMask ? 0x80 : 0;
-	uint8_t iLen;
-	if (m_iPayloadLen <= 125)
+	auto iTotalPayloadLen = m_iPayloadLen;
+
+	if (m_Opcode & (FrameType::Text | FrameType::Binary))
 	{
-		iLen = m_iPayloadLen;
+		iTotalPayloadLen += GetPreambleSize();
 	}
-	else if (m_iPayloadLen < (1 << 16))
+
+	uint8_t iLen;
+
+	if (iTotalPayloadLen <= 125)
+	{
+		iLen = iTotalPayloadLen;
+	}
+	else if (iTotalPayloadLen < (1 << 16))
 	{
 		iLen = 126;
 	}
@@ -220,22 +283,24 @@ KString KWebSocket::FrameHeader::Serialize() const
 	{
 		iLen = 127;
 	}
+
+	byte  = m_bMask ? 0x80 : 0;
 	byte |= iLen & 0x7f;
 	sHeader += byte;
 
 	if (iLen == 127)
 	{
-		sHeader += m_iPayloadLen >> 56;
-		sHeader += m_iPayloadLen >> 48;
-		sHeader += m_iPayloadLen >> 40;
-		sHeader += m_iPayloadLen >> 32;
-		sHeader += m_iPayloadLen >> 24;
-		sHeader += m_iPayloadLen >> 16;
+		sHeader += iTotalPayloadLen >> 56;
+		sHeader += iTotalPayloadLen >> 48;
+		sHeader += iTotalPayloadLen >> 40;
+		sHeader += iTotalPayloadLen >> 32;
+		sHeader += iTotalPayloadLen >> 24;
+		sHeader += iTotalPayloadLen >> 16;
 	}
 	if (iLen > 125)
 	{
-		sHeader += m_iPayloadLen >>  8;
-		sHeader += m_iPayloadLen >>  0;
+		sHeader += iTotalPayloadLen >>  8;
+		sHeader += iTotalPayloadLen >>  0;
 	}
 
 	if (m_bMask)
@@ -249,6 +314,20 @@ KString KWebSocket::FrameHeader::Serialize() const
 	return sHeader;
 
 } // Serialize
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::FrameHeader::Write(KOutStream& Stream)
+//-----------------------------------------------------------------------------
+{
+	return Stream.Write(Serialize()).Good();
+
+} // Write
+
+//-----------------------------------------------------------------------------
+KWebSocket::FrameHeader::~FrameHeader()
+//-----------------------------------------------------------------------------
+{
+} // virtual dtor
 
 //-----------------------------------------------------------------------------
 void KWebSocket::Frame::Ping(KString sMessage)
@@ -275,29 +354,36 @@ void KWebSocket::Frame::Close()
 	Binary("");
 	m_Opcode = FrameType::Close;
 
-
 } // Close
+
+//-----------------------------------------------------------------------------
+void KWebSocket::Frame::XOR(char* pBuf, std::size_t iSize)
+//-----------------------------------------------------------------------------
+{
+	if (iSize > 0)
+	{
+		std::array<char, 4> m
+		{
+			static_cast<char>(m_iMaskingKey >> 24),
+			static_cast<char>(m_iMaskingKey >> 16),
+			static_cast<char>(m_iMaskingKey >>  8),
+			static_cast<char>(m_iMaskingKey >>  0)
+		};
+
+		for (std::size_t iPos = 0; iPos < iSize; ++iPos)
+		{
+			*pBuf++ ^= m[iPos % 4];
+		}
+	}
+
+} // XOR
 
 //-----------------------------------------------------------------------------
 void KWebSocket::Frame::XOR(KStringRef& sBuffer)
 //-----------------------------------------------------------------------------
 {
-	std::array<char, 4> m
-	{
-		static_cast<char>(m_iMaskingKey >> 24),
-		static_cast<char>(m_iMaskingKey >> 16),
-		static_cast<char>(m_iMaskingKey >>  8),
-		static_cast<char>(m_iMaskingKey >>  0)
-	};
-
-	auto iLen = sBuffer.size();
-
-	for (std::size_t iPos = 0; iPos < iLen; ++iPos)
-	{
-		sBuffer[iPos] ^= m[iPos % 4];
-	}
-
-} // XOR
+	XOR(&sBuffer[0], sBuffer.size());
+}
 
 //-----------------------------------------------------------------------------
 void KWebSocket::Frame::Mask()
@@ -326,7 +412,7 @@ void KWebSocket::Frame::UnMask()
 void KWebSocket::Frame::UnMask(KStringRef& sBuffer)
 //-----------------------------------------------------------------------------
 {
-	if (m_bMask)
+	if (IsMaskedRx())
 	{
 		XOR(sBuffer);
 		m_bMask = false;
@@ -339,7 +425,7 @@ void KWebSocket::Frame::SetFlags(bool bIsBinary, bool bIsContinuation, bool bIsL
 //-----------------------------------------------------------------------------
 {
 	m_iPayloadLen = m_sPayload.size();
-	m_Opcode      = bIsBinary ? FrameType::Binary : FrameType::Text;
+	m_Opcode      = bIsContinuation ? FrameType::Continuation : bIsBinary ? FrameType::Binary : FrameType::Text;
 	m_iExtension  = 0;
 	m_bIsFin      = bIsLast;
 	m_bMask       = false;
@@ -361,6 +447,7 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMaskTx, KInStream& Pa
 //-----------------------------------------------------------------------------
 {
 	bool bIsLast   = { false };
+	bool bIsFirst  = {  true };
 
 	for (;bIsLast;)
 	{
@@ -368,12 +455,15 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMaskTx, KInStream& Pa
 		auto iRead = Payload.Read(m_sPayload, iFragment);
 		len -= iRead;
 		bIsLast = len == 0 || Payload.istream().eof();
-		bool bIsCont = !bIsLast && iRead == KDefaultCopyBufSize;
+		bool bIsCont = !bIsFirst && !bIsLast && iRead == KDefaultCopyBufSize;
 		SetFlags(bIsBinary, bIsCont, bIsLast);
+
 		if (!Write(OutStream, bMaskTx))
 		{
 			return false;
 		}
+
+		bIsFirst = false;
 	}
 
 	return true;
@@ -390,9 +480,61 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 	for(;;)
 	{
 		// read the header
-		for (;!Decode(InStream.Read());) {}
+		FrameHeader::Read(InStream);
+
+		switch (Type())
+		{
+			case FrameType::Text:
+			case FrameType::Binary:
+			{
+				// read the preamble, if any
+				auto iPreambleSize = GetPreambleSize();
+
+				if (iPreambleSize)
+				{
+					if (iPreambleSize % 4 != 0)
+					{
+						kDebug(1, "the size of the preamble ({}) must be a multiple of 4 but is not", iPreambleSize);
+						return false;
+					}
+
+					auto pPreambleBuf = GetPreambleBuf();
+
+					if (pPreambleBuf)
+					{
+						auto iRead = InStream.Read(pPreambleBuf, iPreambleSize);
+
+						if (iRead != iPreambleSize)
+						{
+							return false;
+						}
+
+						if (IsMaskedRx())
+						{
+							XOR(pPreambleBuf, iPreambleSize);
+						}
+					}
+					else
+					{
+						kDebug(1, "no preamble read buffer, but have a preamble of size {}", iPreambleSize);
+						return false;
+					}
+				}
+			}
+			break;
+
+			default:
+				break;
+		}
+
 		// read the payload
 		auto iRead = InStream.Read(sBuffer, AnnouncedSize());
+
+		if (iRead != AnnouncedSize())
+		{
+			return false;
+		}
+
 		// decode the incoming data
 		UnMask(sBuffer);
 
@@ -408,22 +550,20 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 			break;
 
 			case FrameType::Pong:
-			{
-			}
-			break;
+				break;
+
+			case FrameType::Close:
+				// TODO
+				break;
 
 			case FrameType::Continuation:
 				m_sPayload += sBuffer;
 				break;
 
-			default:
+			case FrameType::Text:
+			case FrameType::Binary:
 				m_sPayload = std::move(sBuffer);
 				break;
-		}
-
-		if (iRead != AnnouncedSize())
-		{
-			return false;
 		}
 
 		if (Finished())
@@ -448,9 +588,42 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMask)
 		Mask();
 	}
 
-	return OutStream.Write(FrameHeader::Serialize()) &&
-			OutStream.Write(Payload()) &&
-			OutStream.Flush();
+	if (!FrameHeader::Write(OutStream)) return false;
+
+	if (Type() & (FrameType::Text | FrameType::Binary))
+	{
+		auto iPreambleSize = GetPreambleSize();
+
+		if (iPreambleSize)
+		{
+			if (iPreambleSize % 4 != 0)
+			{
+				kDebug(1, "the size of the preamble ({}) must be a multiple of 4 but is not", iPreambleSize);
+				return false;
+			}
+
+			auto pPreambleBuf = GetPreambleBuf();
+
+			if (!pPreambleBuf)
+			{
+				kDebug(1, "no preamble read buffer, but have a preamble of size {}", iPreambleSize);
+				return false;
+			}
+
+			if (bMask)
+			{
+				XOR(pPreambleBuf, iPreambleSize);
+			}
+
+			if (!OutStream.Write(pPreambleBuf, iPreambleSize))
+			{
+				kDebug(1, "cannot write preamble of size {}", iPreambleSize);
+				return false;
+			}
+		}
+	}
+
+	return OutStream.Write(GetPayload()) && OutStream.Flush();
 
 } // Write
 

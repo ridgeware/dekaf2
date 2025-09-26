@@ -485,7 +485,7 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, Parameters& Para
 		throw KHTTPError { KHTTPError::H4xx_BADMETHOD, "invalid request method" };
 	}
 
-	kDebug (2, "looking up: {} {}" , Path.Method.Serialize(), Path.sRoute);
+	kDebug (2, "looking up: {} {}{}" , Path.Method.Serialize(), Path.sRoute, bIsWebSocket ? " (websocket)" : "");
 
 	// check for a matching route
 	for (const auto& it : m_Routes)

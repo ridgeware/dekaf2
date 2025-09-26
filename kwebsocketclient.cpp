@@ -336,7 +336,7 @@ bool KWebSocketClient::GetNextFrameIfEmpty()
 			}
 		}
 
-		m_sRXBuffer = m_RXFrame.Payload();
+		m_sRXBuffer = m_RXFrame.GetPayload();
 	}
 
 	return true;

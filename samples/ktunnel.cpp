@@ -122,39 +122,13 @@ void CommonConfig::PrintMessage(KStringView sMessage) const
 } // CommonConfig::PrintMessage
 
 //-----------------------------------------------------------------------------
-Message::Message(Type _type, std::size_t iChannel, KStringView sMessage)
+Message::Message(Type _type, std::size_t iChannel, KString sMessage)
 //-----------------------------------------------------------------------------
-: m_sMessage(sMessage)
-, m_iChannel(iChannel)
-, m_Type(_type)
+: Frame(std::move(sMessage), true)
 {
+	SetType(_type);
+	SetChannel(iChannel);
 }
-
-//-----------------------------------------------------------------------------
-uint8_t Message::ReadByte(KIOStreamSocket& Stream) const
-//-----------------------------------------------------------------------------
-{
-	auto iChar = Stream.Read();
-
-	if (iChar == std::istream::traits_type::eof())
-	{
-		Throw(kFormat("{}: at end of file: {}", Stream.GetEndPointAddress(), Stream.GetLastError()));
-	}
-
-	return static_cast<uint8_t>(iChar);
-
-} // ReadByte
-
-//-----------------------------------------------------------------------------
-void Message::WriteByte (KIOStreamSocket& Stream, uint8_t iByte) const
-//-----------------------------------------------------------------------------
-{
-	if (!Stream.Write(iByte).Good())
-	{
-		Throw(kFormat("cannot write to {}", Stream.GetEndPointAddress()));
-	}
-
-} // WriteByte
 
 //-----------------------------------------------------------------------------
 KStringView Message::PrintType() const
@@ -209,59 +183,78 @@ KString Message::Debug() const
 }
 
 //-----------------------------------------------------------------------------
+void Message::SetChannel(std::size_t iChannel)
+//-----------------------------------------------------------------------------
+{
+	auto it = m_Preamble.begin();
+	*++it = (iChannel >> 16) & 0xff;
+	*++it = (iChannel >>  8) & 0xff;
+	*++it =  iChannel        & 0xff;
+
+} // SetChannel
+
+//-----------------------------------------------------------------------------
+std::size_t Message::GetChannel() const
+//-----------------------------------------------------------------------------
+{
+	std::size_t iChannel;
+	auto it = m_Preamble.begin();
+
+	iChannel  = *++it;
+	iChannel *= 256;
+	iChannel += *++it;
+	iChannel *= 256;
+	iChannel += *++it;
+
+	return iChannel;
+
+} // GetChannel
+
+//-----------------------------------------------------------------------------
+std::size_t Message::GetPreambleSize() const
+//-----------------------------------------------------------------------------
+{
+	return m_Preamble.size();
+}
+
+//-----------------------------------------------------------------------------
+char* Message::GetPreambleBuf() const
+//-----------------------------------------------------------------------------
+{
+	return m_Preamble.data();
+}
+
+//-----------------------------------------------------------------------------
 void Message::Read(KIOStreamSocket& Stream)
 //-----------------------------------------------------------------------------
 {
 	clear();
 
-	std::size_t iLength;
-	iLength  = ReadByte(Stream);
-	iLength *= 256;
-	iLength += ReadByte(Stream);
-
-	m_Type = static_cast<Type>(ReadByte(Stream));
-
-	if (m_Type > Disconnect)
+	if (!Frame::Read(Stream, Stream, false))
 	{
-		Throw(kFormat("{}: bad message type: {}", Stream.GetEndPointAddress(), m_Type));
-	}
-
-	m_iChannel  = ReadByte(Stream);
-	m_iChannel *= 256;
-	m_iChannel += ReadByte(Stream);
-
-	auto iRead = Stream.Read(m_sMessage, iLength);
-
-	if (iRead != iLength)
-	{
-		Throw(kFormat("could not read message: only {} of {} bytes", iRead, iLength));
+		Throw(kFormat("cannot read from {}", Stream.GetEndPointAddress()));
 	}
 
 } // Read
 
 //-----------------------------------------------------------------------------
-void Message::Write(KIOStreamSocket& Stream) const
+void Message::Write(KIOStreamSocket& Stream, bool bMask)
 //-----------------------------------------------------------------------------
 {
-	if (m_Type > Disconnect)
+	if (GetType() > Disconnect)
 	{
 		Throw("invalid type");
 	}
 
-	if (m_sMessage.size() > std::numeric_limits<uint16_t>::max())
-	{
-		Throw(kFormat("message too long: {} bytes", m_sMessage.size()));
-	}
-
-	WriteByte(Stream, (m_sMessage.size() / 256) & 0xff);
-	WriteByte(Stream,  m_sMessage.size() & 0xff );
-	WriteByte(Stream,  m_Type );
-	WriteByte(Stream, (m_iChannel / 256) & 0xff);
-	WriteByte(Stream,  m_iChannel        & 0xff);
-
-	if (!Stream.Write( m_sMessage ).Good())
+	if (!Frame::Write(Stream, bMask))
 	{
 		Throw(kFormat("cannot write to {}", Stream.GetEndPointAddress()));
+	}
+
+	if (bMask)
+	{
+		// the frame is now toast because of the websocket xoring, better clear it right away
+		clear();
 	}
 
 } // Write
@@ -317,7 +310,8 @@ void Connection::PumpToTunnel()
 				if (iRead > 0)
 				{
 					Data.resize(iRead);
-					m_Tunnel(Message(Message::Data, m_iID, KStringView(Data.data(), Data.size())));
+					Message data(Message::Data, m_iID, KStringView(Data.data(), Data.size()));
+					m_Tunnel(data);
 				}
 			}
 
@@ -337,7 +331,8 @@ void Connection::PumpToTunnel()
 			Data.reset();
 		}
 
-		m_Tunnel(Message(Message::Disconnect, m_iID));
+		Message disconnect(Message::Disconnect, m_iID);
+		m_Tunnel(disconnect);
 	}
 	catch (const std::exception& ex)
 	{
@@ -424,7 +419,7 @@ void Connection::Disconnect()
 }
 
 //-----------------------------------------------------------------------------
-Connection::Connection (std::size_t iID, std::function<void(const Message&)> TunnelSend, KIOStreamSocket* DirectStream)
+Connection::Connection (std::size_t iID, std::function<void(Message&)> TunnelSend, KIOStreamSocket* DirectStream)
 //-----------------------------------------------------------------------------
 : m_Tunnel(std::move(TunnelSend))
 , m_DirectStream(DirectStream)
@@ -440,7 +435,7 @@ std::size_t Connections::size() const
 }
 
 //-----------------------------------------------------------------------------
-std::shared_ptr<Connection> Connections::Create(std::size_t iID, std::function<void(const Message&)> TunnelSend, KIOStreamSocket* DirectStream)
+std::shared_ptr<Connection> Connections::Create(std::size_t iID, std::function<void(Message&)> TunnelSend, KIOStreamSocket* DirectStream)
 //-----------------------------------------------------------------------------
 {
 	auto Connections = m_Connections.unique();
@@ -542,7 +537,25 @@ bool Connections::Exists(std::size_t iID)
 } // Connections::Exists
 
 //-----------------------------------------------------------------------------
-void ExposedServer::SendMessageToUpstream(const Message& message)
+bool WebSocketOrPlainSocket::ReadMessage(KIOStreamSocket& Stream, Message& message)
+//-----------------------------------------------------------------------------
+{
+	message.Read(Stream);
+	return true;
+
+} // WebSocketOrPlainSocket::ReadMessage
+
+//-----------------------------------------------------------------------------
+bool WebSocketOrPlainSocket::WriteMessage(KIOStreamSocket& Stream, Message& message)
+//-----------------------------------------------------------------------------
+{
+	message.Write(Stream, IsWebSocket() && m_bMaskTx);
+	return true;
+
+} // WebSocketOrPlainSocket::WriteMessage
+
+//-----------------------------------------------------------------------------
+void ExposedServer::SendMessageToUpstream(Message& message)
 //-----------------------------------------------------------------------------
 {
 	auto Control = m_ControlStreamTX.unique();
@@ -554,7 +567,7 @@ void ExposedServer::SendMessageToUpstream(const Message& message)
 
 	kDebug(3, message.Debug());
 
-	*(Control.get()) << message; // flushes itself
+	WriteMessage(*(Control.get()), message);
 
 } // ExposedServer::SendMessageToUpstream
 
@@ -575,7 +588,8 @@ void ExposedServer::ControlStreamTX(KIOStreamSocket& Stream)
 		Control.get() = &Stream;
 
 		// finally say hi
-		Stream << Message(Message::Helo, 0);
+		Message helo(Message::Helo, 0);
+		WriteMessage(Stream, helo);
 	}
 
 	m_Config.Message("opened control stream from {}", Stream.GetEndPointAddress());
@@ -617,7 +631,10 @@ void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 	Stream.SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
 
 	// finally say hi
-	Stream << Message(Message::Helo, 0);
+	{
+		Message helo(Message::Helo, 0);
+		WriteMessage(Stream, helo);
+	}
 
 	m_Config.Message("opened TX control stream from {}", Stream.GetEndPointAddress());
 
@@ -645,7 +662,7 @@ void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 			FromUpstream = std::make_unique<Message>();
 		}
 
-		Stream >> *FromUpstream;
+		ReadMessage(Stream, *FromUpstream);
 
 		kDebug(3, FromUpstream->Debug());
 
@@ -658,11 +675,13 @@ void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 				// check if the channel is alive on our end
 				if (!chan || m_Connections.Exists(chan))
 				{
-					SendMessageToUpstream(Message(Message::Pong, chan));
+					Message pong(Message::Pong, chan);
+					SendMessageToUpstream(pong);
 				}
 				else
 				{
-					SendMessageToUpstream(Message(Message::Disconnect, chan));
+					Message disconnect(Message::Disconnect, chan);
+					SendMessageToUpstream(disconnect);
 				}
 				break;
 
@@ -685,7 +704,8 @@ void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 
 				if (!Connection)
 				{
-					SendMessageToUpstream(Message(Message::Disconnect, chan));
+					Message disconnect(Message::Disconnect, chan);
+					SendMessageToUpstream(disconnect);
 				}
 				else
 				{
@@ -759,12 +779,16 @@ void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 
 	kDebug(1, "requesting forward connection {} to {}", iID, Endpoint);
 
-	SendMessageToUpstream(Message(Message::Connect, iID, Endpoint.Serialize()));
+	{
+		Message connect(Message::Connect, iID, Endpoint.Serialize());
+		SendMessageToUpstream(connect);
+	}
 
 	if (!sInitialData.empty())
 	{
 		// write the initial incoming data (if any) to upstream
-		SendMessageToUpstream(Message(Message::Data, iID, sInitialData));
+		Message initialData(Message::Data, iID, sInitialData);
+		SendMessageToUpstream(initialData);
 	}
 
 	auto pump = std::thread(&Connection::PumpFromTunnel, Connection.get());
@@ -780,8 +804,7 @@ bool ExposedServer::Login(KIOStreamSocket& Stream)
 //-----------------------------------------------------------------------------
 {
 	Message Login;
-
-	Stream >> Login;
+	ReadMessage(Stream, Login);
 
 	bool bIsTX = Login.GetType() == Message::LoginRX;
 
@@ -790,7 +813,7 @@ bool ExposedServer::Login(KIOStreamSocket& Stream)
 		return false;
 	}
 
-	auto& sMessage = Login.GetMessage();
+	auto sMessage = Login.GetMessage();
 
 	KString sName;
 	KString sSecret;
@@ -828,9 +851,18 @@ bool ExposedServer::Login(KIOStreamSocket& Stream)
 } // Login
 
 //-----------------------------------------------------------------------------
+void ExposedServer::WSLogin(KWebSocket& WebSocket)
+//-----------------------------------------------------------------------------
+{
+	Login(WebSocket.Stream());
+
+} // Login (KWebSocket)
+
+//-----------------------------------------------------------------------------
 ExposedServer::ExposedServer (const Config& config)
 //-----------------------------------------------------------------------------
-: m_Connections(config.iMaxTunnels)
+: WebSocketOrPlainSocket(false, false)
+, m_Connections(config.iMaxTunnels)
 , m_Config(config)
 {
 	KREST::Options Settings;
@@ -872,16 +904,29 @@ ExposedServer::ExposedServer (const Config& config)
 
 	Routes.AddRoute("/Tunnel").Get([this](KRESTServer& HTTP)
 	{
+		// get the stream socket from the REST server instance
 		auto* StreamSocket = HTTP.GetStreamSocket();
-
+		// throw if the stream is unavailable
 		if (!StreamSocket) throw KHTTPError(KHTTPError::H5xx_ERROR, "internal error");
-
-		// tell the KRESTServer that this stream is now no more HTTP. but in our control
+		// tell the KRESTServer that this stream is now no more HTTP, but in our control
 		HTTP.Stream(false, false);
-
+		// and log the stream in and continue in this thread
 		Login(*StreamSocket);
 
 	}).Parse(KRESTRoute::ParserType::NOREAD);
+
+	Routes.AddRoute("/WebSocket").Get([this](KRESTServer& HTTP)
+	{
+		// set the flag for websockets
+		SetIsWebSocket(true);
+		// we are the "server", therefore we do not mask our messages
+		SetMaskTx(false);
+		// set the handler for websockets in the REST server instance
+		HTTP.SetWebSocketHandler(std::bind(&ExposedServer::WSLogin, this, std::placeholders::_1));
+		// ask for per-thread execution in the REST server instance
+		HTTP.SetKeepWebSocketInRunningThread();
+
+	}).Parse(KRESTRoute::ParserType::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
 
 	// set a default route
 	Routes.SetDefaultRoute([](KRESTServer& HTTP)
@@ -939,7 +984,7 @@ void ExposedRawServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 }
 
 //-----------------------------------------------------------------------------
-void ProtectedHost::SendMessageToDownstream(const Message& message, bool bThrowIfNoStream)
+void ProtectedHost::SendMessageToDownstream(Message& message, bool bThrowIfNoStream)
 //-----------------------------------------------------------------------------
 {
 	auto Control = m_ControlStreamTX.unique();
@@ -958,7 +1003,7 @@ void ProtectedHost::SendMessageToDownstream(const Message& message, bool bThrowI
 
 	kDebug(3, message.Debug());
 
-	*(Control.get()) << message;
+	WriteMessage(*(Control.get()), message);
 
 } // ProtectedHost::SendMessageToDownstream
 
@@ -1014,43 +1059,77 @@ void ProtectedHost::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 void ProtectedHost::TimingCallback(KUnixTime Time)
 //-----------------------------------------------------------------------------
 {
-	SendMessageToDownstream(Message(Message::Ping, 0), false);
+	Message ping(Message::Ping, 0);
+	SendMessageToDownstream(ping, false);
 
 } // ProtectedHost::TimingCallback
 
 //-----------------------------------------------------------------------------
 ProtectedHost::ProtectedHost(const CommonConfig& Config)
 //-----------------------------------------------------------------------------
-: m_Connections(Config.iMaxTunnels)
+: WebSocketOrPlainSocket(true, Config.bUseWebSockets)
+, m_Connections(Config.iMaxTunnels)
 , m_Config(Config)
 , m_TimerID(Dekaf::getInstance().GetTimer().CallEvery(m_Config.ControlPing, std::bind(&ProtectedHost::TimingCallback, this, std::placeholders::_1)))
 {
-	KStreamOptions Options;
+	KHTTPStreamOptions Options;
 	// connect timeout to exposed host, also wait timeout between two tries
 	Options.SetTimeout(m_Config.ConnectTimeout);
+	// only do HTTP/1.1
+	Options.Unset(KStreamOptions::RequestHTTP2);
 
 	for (;;)
 	{
 		try
 		{
 			m_Config.Message("connecting {}..", m_Config.ExposedHost);
-			auto Control = CreateKTLSClient(m_Config.ExposedHost, Options);
 
-			if (Control->Good())
+			std::unique_ptr<KIOStreamSocket> Control;
+			std::unique_ptr<KIOStreamSocket> ControlTX;
+
+			if (IsWebSocket())
 			{
-				Control->SetTimeout(m_Config.ConnectTimeout);
-				Control->WriteLine("GET /Tunnel HTTP/1.1");
-				Control->WriteLine(kFormat("host: {}", m_Config.ExposedHost));
-				Control->WriteLine(kFormat("useragent: ktunnel/1.0"));
-				Control->WriteLine();
-				Control->Flush();
+				KURL ExposedHost;
+				ExposedHost.Protocol = url::KProtocol::HTTPS;
+				ExposedHost.Domain   = m_Config.ExposedHost.Domain;
+				ExposedHost.Port     = m_Config.ExposedHost.Port;
+				ExposedHost.Path     = "/WebSocket";
 
-				*Control << Message(Message::LoginTX, 0, *m_Config.Secrets.begin());
+				KWebSocketClient HTTP(ExposedHost, Options);
+
+				HTTP.SetTimeout(m_Config.ConnectTimeout);
+				HTTP.SetBinary();
+
+				if (HTTP.Connect())
+				{
+					Control = std::move(HTTP.GetStream());
+				}
+			}
+			else
+			{
+				// TODO change to KWebClient or remove
+				Control = CreateKTLSClient(m_Config.ExposedHost, Options);
+
+				if (Control->Good())
+				{
+					Control->SetTimeout(m_Config.ConnectTimeout);
+					Control->WriteLine("GET /Tunnel HTTP/1.1");
+					Control->WriteLine(kFormat("host: {}", m_Config.ExposedHost));
+					Control->WriteLine(kFormat("useragent: ktunnel/1.0"));
+					Control->WriteLine();
+					Control->Flush();
+				}
+			}
+
+			if (Control && Control->Good())
+			{
+				Message login(Message::LoginTX, 0, *m_Config.Secrets.begin());
+				WriteMessage(*Control, login);
 
 				{
 					// wait for the response
 					Message Response;
-					*Control >> Response;
+					ReadMessage(*Control, Response);
 
 					if (Response.GetType() != Message::Helo &&
 						Response.GetChannel() != 0)
@@ -1066,25 +1145,54 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 				// now increase the timeout to allow for a once-per-minute ping
 				Control->SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
 
-				auto ControlTX = CreateKTLSClient(m_Config.ExposedHost, Options);
-
-				if (!ControlTX->Good())
+				if (IsWebSocket())
 				{
-					throw KError("cannot establish second control connection");
-				}
-				ControlTX->SetTimeout(m_Config.ConnectTimeout);
-				ControlTX->WriteLine("GET /Tunnel HTTP/1.1");
-				ControlTX->WriteLine(kFormat("host: {}", m_Config.ExposedHost));
-				ControlTX->WriteLine(kFormat("useragent: ktunnel/1.0"));
-				ControlTX->WriteLine();
-				ControlTX->Flush();
+					KURL ExposedHost;
+					ExposedHost.Protocol = url::KProtocol::HTTPS;
+					ExposedHost.Domain   = m_Config.ExposedHost.Domain;
+					ExposedHost.Port     = m_Config.ExposedHost.Port;
+					ExposedHost.Path     = "/WebSocket";
 
-				*ControlTX << Message(Message::LoginRX, 0, *m_Config.Secrets.begin());
+					KWebSocketClient HTTP(ExposedHost, Options);
+
+					HTTP.SetTimeout(m_Config.ConnectTimeout);
+					HTTP.SetBinary();
+
+					if (HTTP.Connect())
+					{
+						ControlTX = std::move(HTTP.GetStream());
+					}
+
+					if (!ControlTX || !ControlTX->Good())
+					{
+						throw KError("cannot establish second control connection");
+					}
+				}
+				else
+				{
+					ControlTX = CreateKTLSClient(m_Config.ExposedHost, Options);
+
+					if (!ControlTX->Good())
+					{
+						throw KError("cannot establish second control connection");
+					}
+					ControlTX->SetTimeout(m_Config.ConnectTimeout);
+					ControlTX->WriteLine("GET /Tunnel HTTP/1.1");
+					ControlTX->WriteLine(kFormat("host: {}", m_Config.ExposedHost));
+					ControlTX->WriteLine(kFormat("useragent: ktunnel/1.0"));
+					ControlTX->WriteLine();
+					ControlTX->Flush();
+				}
+
+				{
+					Message login(Message::LoginRX, 0, *m_Config.Secrets.begin());
+					WriteMessage(*ControlTX, login);
+				}
 
 				{
 					// wait for the response
 					Message Response;
-					*ControlTX >> Response;
+					ReadMessage(*ControlTX, Response);
 
 					if (Response.GetType() != Message::Helo &&
 						Response.GetChannel() != 0)
@@ -1109,7 +1217,7 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 						FromControl = std::make_unique<Message>();
 					}
 
-					*Control >> *FromControl;
+					ReadMessage(*Control, *FromControl);
 
 					kDebug(3, FromControl->Debug());
 
@@ -1121,9 +1229,12 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 					switch (FromControl->GetType())
 					{
 						case Message::Ping:
+						{
 							// respond with pong TODO check upstream connection
-							SendMessageToDownstream(Message(Message::Pong, chan));
+							Message pong(Message::Pong, chan);
+							SendMessageToDownstream(pong);
 							break;
+						}
 
 						case Message::Pong:
 							// do nothing
@@ -1153,7 +1264,8 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 							}
 							else
 							{
-								SendMessageToDownstream(Message(Message::Disconnect, chan));
+								Message disconnect(Message::Disconnect, chan);
+								SendMessageToDownstream(disconnect);
 							}
 
 							break;
@@ -1165,7 +1277,8 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 
 							if (!Connection)
 							{
-								SendMessageToDownstream(Message(Message::Disconnect, chan));
+								Message disconnect(Message::Disconnect, chan);
+								SendMessageToDownstream(disconnect);
 							}
 							else
 							{
@@ -1244,6 +1357,7 @@ int KTunnel::Main(int argc, char** argv)
 	m_Config.bPersistCert  = Options("persist      : should a self-signed cert be persisted to disk and reused at next start?", false);
 	m_Config.sCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
 	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);
+	m_Config.bUseWebSockets= Options("w,websocket  : if protected host, use websocket protocol (exposed host speaks both, raw and websockets)", false);
 
 	// do a final check if all required options were set
 	if (!Options.Check()) return 1;

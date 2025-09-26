@@ -60,6 +60,8 @@
 #include <dekaf2/krest.h>
 #include <dekaf2/khttperror.h>
 #include <dekaf2/kwebobjects.h>
+#include <dekaf2/kwebsocket.h>
+#include <dekaf2/kwebsocketclient.h>
 #include <thread>
 #include <future>
 #include <memory>
@@ -93,6 +95,7 @@ public:
 	KDuration              PollTimeout    { chrono::milliseconds(2000) };
 	uint16_t               iMaxTunnels    { 20 };
 	bool                   bQuiet         { false };
+	bool                   bUseWebSockets { false };
 
 //----------
 private:
@@ -103,7 +106,7 @@ private:
 }; // CommonConfig
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class Message
+class Message : protected KWebSocket::Frame
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -125,22 +128,30 @@ public:
 		None        = -1
 	};
 
+	/// default construct
 	Message() = default;
-	Message(Type _type, std::size_t iChannel, KStringView sMessage = KStringView{});
+	/// construct from discrete parameters
+	Message(Type _type, std::size_t iChannel, KString sMessage = KString{});
 
+	/// read from a streamsocket
 	void           Read       (KIOStreamSocket& Stream);
-	void           Write      (KIOStreamSocket& Stream) const;
+	/// write to a streamsocket - if this is in websocket protocol and we are a "client", then
+	/// bMask must be set to true, else to false
+	void           Write      (KIOStreamSocket& Stream, bool bMask);
 
-	Type           GetType    () const { return m_Type;     }
-	const KString& GetMessage () const { return m_sMessage; }
-	std::size_t    GetChannel () const { return m_iChannel; }
+	Type           GetType    () const { return static_cast<Type>(m_Preamble[0]); }
+	const KString& GetMessage () const { return GetPayload(); }
+	std::size_t    GetChannel () const;
 
-	void           SetType    (Type _type)           { m_Type     = _type;               }
-	void           SetMessage (KString sMessage)     { m_sMessage = std::move(sMessage); }
-	void           SetChannel (std::size_t iChannel) { m_iChannel = iChannel;            }
+	std::size_t    GetPreambleSize()            const override final;
+	char*          GetPreambleBuf()             const override final;
+
+	void           SetType    (Type _type)           { m_Preamble[0] = _type;                 }
+	void           SetMessage (KString sMessage)     { SetPayload(std::move(sMessage), true); }
+	void           SetChannel (std::size_t iChannel);
 
 	void           clear      ();
-	std::size_t    size       () const { return m_sMessage.size(); }
+	std::size_t    size       () const { return GetPayload().size(); }
 
 	KString        Debug      () const;
 	KStringView    PrintType  () const;
@@ -150,34 +161,11 @@ private:
 //----------
 
 	KStringView    PrintData  () const;
-
 	void           Throw      (KString sError, KStringView sFunction = KSourceLocation::current().function_name()) const;
 
-	uint8_t        ReadByte   (KIOStreamSocket& Stream) const;
-	void           WriteByte  (KIOStreamSocket& Stream, uint8_t iByte) const;
-
-	KString        m_sMessage;
-	std::size_t    m_iChannel { 0 };
-	Type           m_Type     { None };
+	mutable std::array<char, 4> m_Preamble{};
 
 }; // Message
-
-//-----------------------------------------------------------------------------
-inline KIOStreamSocket& operator <<(KIOStreamSocket& stream, const Message& message)
-//-----------------------------------------------------------------------------
-{
-	message.Write(stream);
-	stream.Flush();
-	return stream;
-}
-
-//-----------------------------------------------------------------------------
-inline KIOStreamSocket& operator >>(KIOStreamSocket& stream, Message& message)
-//-----------------------------------------------------------------------------
-{
-	message.Read(stream);
-	return stream;
-}
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Connection
@@ -188,7 +176,7 @@ class Connection
 public:
 //----------
 
-	Connection (std::size_t iID, std::function<void(const Message&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
+	Connection (std::size_t iID, std::function<void(Message&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
 
 	void        SetDirectStream       (KIOStreamSocket* DirectStream) { m_DirectStream = DirectStream; }
 
@@ -205,7 +193,7 @@ private:
 //----------
 
 	std::queue<std::unique_ptr<Message>> m_MessageQueue;
-	std::function<void(const Message&)> m_Tunnel;
+	std::function<void(Message&)>       m_Tunnel;
 	KIOStreamSocket*                    m_DirectStream { nullptr };
 	std::mutex                          m_QueueMutex;
 	std::condition_variable             m_FreshData;
@@ -225,7 +213,7 @@ public:
 
 	Connections(std::size_t iMaxConnections) : m_iMaxConnections(iMaxConnections) {}
 
-	std::shared_ptr<Connection> Create (std::size_t iID, std::function<void(const Message&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
+	std::shared_ptr<Connection> Create (std::size_t iID, std::function<void(Message&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
 	std::shared_ptr<Connection> Get    (std::size_t iID, bool bAndRemove);
 	bool                        Remove (std::size_t iID);
 	bool                        Exists (std::size_t iID);
@@ -245,7 +233,43 @@ private:
 class ExposedRawServer;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class ExposedServer
+class WebSocketOrPlainSocket
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	WebSocketOrPlainSocket(bool bSetMaskTx, bool bSetIsWebSocket)
+	: m_bMaskTx(bSetMaskTx)
+	, m_bIsWebSocket(bSetIsWebSocket)
+	{
+	}
+
+	bool ReadMessage     (KIOStreamSocket& Stream, Message& message);
+	bool WriteMessage    (KIOStreamSocket& Stream, Message& message);
+
+	bool IsWebSocket     () const                  { return m_bIsWebSocket;   }
+
+//----------
+protected:
+//----------
+
+	void SetMaskTx       (bool bYesNo)             { m_bMaskTx = bYesNo;      }
+	void SetIsWebSocket  (bool bYesNo = true)      { m_bIsWebSocket = bYesNo; }
+
+//----------
+private:
+//----------
+
+	bool m_bMaskTx      { false };
+	bool m_bIsWebSocket { false };
+
+}; // WebSocketOrPlainSocket
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class ExposedServer : protected WebSocketOrPlainSocket
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -272,11 +296,12 @@ public:
 protected:
 //----------
 
-	void SendMessageToUpstream (const Message& message);
+	void SendMessageToUpstream (Message& message);
 
 	void ControlStreamRX (KIOStreamSocket& Stream);
 	void ControlStreamTX (KIOStreamSocket& Stream);
 	bool Login           (KIOStreamSocket& Stream);
+	void WSLogin         (KWebSocket& WebSocket);
 
 //----------
 private:
@@ -326,7 +351,7 @@ private:
 }; // ExposedRawServer
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class ProtectedHost
+class ProtectedHost : protected WebSocketOrPlainSocket
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -340,7 +365,7 @@ public:
 private:
 //----------
 
-	void SendMessageToDownstream (const Message& message, bool bThrowIfNoStream = true);
+	void SendMessageToDownstream (Message& message, bool bThrowIfNoStream = true);
 	void TimingCallback          (KUnixTime Time);
 	void ConnectToTarget         (std::size_t iID, KTCPEndPoint Target);
 

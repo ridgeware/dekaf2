@@ -46,6 +46,7 @@
 #include "kmessagedigest.h"
 #include "kcrashexit.h"
 #include "klog.h"
+#include "khttperror.h"
 
 DEKAF2_NAMESPACE_BEGIN
 namespace {
@@ -598,9 +599,11 @@ bool KWebSocket::CheckForUpgradeResponse(KStringView sClientSecKey, KStringView 
 		return SetError(kFormat("{} header has bad value: '{}'", Header, Response.Headers.Get(Header)));
 	};
 
-	if (Response.GetStatusCode() != 101)
+	if (Response.GetStatusCode() != KHTTPError::H1xx_SWITCHING_PROTOCOLS)
 	{
-		return SetError(kFormat("bad status code, expected 101, got {}", Response.GetStatusCode()));
+		return SetError(kFormat("bad status code, expected {}, got {}",
+		                        static_cast<uint16_t>(KHTTPError::H1xx_SWITCHING_PROTOCOLS),
+		                        Response.GetStatusCode()));
 	}
 
 	if (Response.Headers.Get(KHTTPHeader::UPGRADE).ToLowerASCII() != "websocket")

@@ -843,9 +843,8 @@ bool KRESTServer::Execute()
 				// the websocket callback, and not add additional output
 				const auto& sClientSecKey = Request.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_KEY);
 				Response.Headers.Add(KHTTPHeader::SEC_WEBSOCKET_ACCEPT, KWebSocket::GenerateServerSecKeyResponse(sClientSecKey, true));
-				Response.Headers.Add(KHTTPHeader::CONNECTION, "Upgrade");
 				Response.Headers.Add(KHTTPHeader::UPGRADE, "websocket");
-				Response.SetStatus(101);
+				Response.SetStatus(KHTTPError::H1xx_SWITCHING_PROTOCOLS);
 			}
 
 			// We offer a keep-alive if the client did not explicitly
@@ -1031,7 +1030,14 @@ void KRESTServer::WriteHeaders()
 		}
 	}
 
-	Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive || m_bSwitchToWebSocket ? "keep-alive" : "close");
+	if (Response.GetStatusCode() == KHTTPError::H1xx_SWITCHING_PROTOCOLS)
+	{
+		Response.Headers.Set(KHTTPHeader::CONNECTION, "Upgrade");
+	}
+	else
+	{
+		Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive || m_bSwitchToWebSocket ? "keep-alive" : "close");
+	}
 
 	{
 		// the headers get written directly to the unfiltered stream,

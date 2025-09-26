@@ -133,6 +133,9 @@ public:
 	public:
 	//----------
 
+		using iterator       = KString::iterator;
+		using const_iterator = KString::const_iterator;
+
 		Frame() = default;
 		/// construct with payload, text or binary
 		Frame(KString sPayload, bool bIsBinary)
@@ -185,6 +188,11 @@ public:
 		bool           empty      () const           { return Payload().empty(); }
 		/// returns size of the payload
 		std::size_t    size       () const           { return Payload().size();  }
+
+		iterator       begin      ()                 { return Payload().begin(); }
+		iterator       end        ()                 { return Payload().end();   }
+		const_iterator begin      () const           { return Payload().begin(); }
+		const_iterator end        () const           { return Payload().end();   }
 
 	//----------
 	private:

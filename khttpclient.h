@@ -505,6 +505,14 @@ public:
 	self& ClearAuthentication();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Returns a unique ptr ref of the stream socket of the current connection
+	std::unique_ptr<KIOStreamSocket>& GetStream()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Connection;
+	}
+
 //------
 protected:
 //------

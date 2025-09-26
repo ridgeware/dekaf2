@@ -121,6 +121,10 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 	// avoid a copy, use a ref
 	const KURL& ConnectURL = bHaveSeparateConnectURL ? HostURL : RequestURL;
 
+	bool bIsWebsocketUpgradeRequest = Request.Headers.contains(KHTTPHeader::SEC_WEBSOCKET_KEY) &&
+	                                  Request.Headers.Get(KHTTPHeader::UPGRADE).ToLowerASCII() == "websocket" &&
+	                                  Request.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII() == "upgrade";
+
 	for(;;)
 	{
 		ConnectTime.resume();
@@ -171,16 +175,13 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 						}
 					}
 
-					bool bWasWebsocketUpgradeRequest = Request.Headers.contains(KHTTPHeader::SEC_WEBSOCKET_KEY) &&
-					                                   Request.Headers.Get(KHTTPHeader::UPGRADE).ToLowerASCII() == "websocket" &&
-					                                   Request.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII() == "upgrade";
-
 					// do not read on the socket if this is an accepted websocket upgrade
 					// after a previous upgrade request
 					// or a HEAD or TRACE request (which return empty)
-					if (!(bWasWebsocketUpgradeRequest && Response.Headers.contains(KHTTPHeader::SEC_WEBSOCKET_ACCEPT)) &&
-						RequestMethod != KHTTPMethod::HEAD &&
-						RequestMethod != KHTTPMethod::TRACE)
+					if (!(bIsWebsocketUpgradeRequest &&
+					      GetStatusCode() == KHTTPError::H1xx_SWITCHING_PROTOCOLS) &&
+					    RequestMethod != KHTTPMethod::HEAD &&
+					    RequestMethod != KHTTPMethod::TRACE)
 					{
 						ReceiveTime.resume();
 						iRead += Read (*Out);
@@ -196,8 +197,8 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 						// check for error 598 - NETWORK READ/WRITE ERROR,
 						// allow one retry, but only if it was a reused connection
 						if (Response.GetStatusCode() == KHTTPError::H5xx_READTIMEOUT &&
-							!iRetries++ &&
-							bReuseConnection)
+						    !iRetries++ &&
+						    bReuseConnection)
 						{
 							if (m_bAllowOneRetry)
 							{
@@ -287,7 +288,9 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 		m_TimingCallback (*this, TotalTime, sSummary);
 	}
 
-	if (HttpSuccess())
+	if (HttpSuccess() ||
+	    (bIsWebsocketUpgradeRequest &&
+	     GetStatusCode() == KHTTPError::H1xx_SWITCHING_PROTOCOLS))
 	{
 		return true; // return with success..
 	}

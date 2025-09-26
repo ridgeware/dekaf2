@@ -154,8 +154,15 @@ public:
 		constexpr
 		Options() = default;
 
+		// make sure it really only gets called from OPT
+		template<typename T, typename std::enable_if<std::is_same<T, OPT>::value, int>::type = 0>
 		constexpr
-		Options(bool bSSO) : m_Options(bSSO ? SSO_AUTH : NONE) {} // fallback for old bAuth parameter in route construction
+		Options(T opt) : m_Options(opt) {}
+
+		// make sure it really only gets called from bool
+		template<typename T, typename std::enable_if<std::is_same<T, bool>::value, int>::type = 0>
+		constexpr
+		Options(T bSSO) : m_Options(bSSO ? SSO_AUTH : NONE) {} // fallback for old bAuth parameter in route construction
 
 		DEKAF2_CONSTEXPR_14
 		Options(std::initializer_list<OPT> il) { for (auto opt : il) Set(opt); }

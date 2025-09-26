@@ -1162,7 +1162,9 @@ bool KHTTPClient::Parse()
 
 	// make sure also a network read error triggers a meaningful status
 	// code / string (Response.Good() calls Response.Fail() and ensures this)
-	if (!Response.Good() && !StatusIsRedirect())
+	if (!Response.Good()    &&
+	    !StatusIsRedirect() &&
+	    Response.GetStatusCode() != KHTTPError::H1xx_SWITCHING_PROTOCOLS)
 	{
 		// we do not close the connection right here because inheriting
 		// classes may still want to read the response body, but we mark

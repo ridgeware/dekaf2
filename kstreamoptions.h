@@ -100,7 +100,7 @@ public:
 	/// ctor setting verify mode. Other options will be set to None, timeout is GetDefaultTimeout()
 	// make sure it really only gets called from bool
 	template<typename T, typename std::enable_if<std::is_same<T, bool>::value, int>::type = 0>
-	KStreamOptions(bool bVerify)
+	KStreamOptions(T bVerify)
 	: KStreamOptions(Options(bVerify ? VerifyCert : None)) {} ///< constructor to help legacy class interfaces
 
 	/// adds the requested Options to the existing options

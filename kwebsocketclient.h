@@ -84,8 +84,8 @@ public:
 
 	/// Send the upgrade request without body to the target
 	/// Throws or sets error object for non-200 responses.
-	/// @param sWebSocketProtocols requested web socket protocols, like "chat, superchat", comma separated
-	bool Connect (KStringView sWebSocketProtocols);
+	/// @param sWebSocketProtocols requested web socket protocols, like "chat, superchat", comma separated, default empty
+	bool Connect (KStringView sWebSocketProtocols = KStringView{});
 
 	/// Set the Path for the upgrade request - will be appended to a base path set at the constructor
 	self& Path      (KString sPath);
@@ -155,6 +155,7 @@ public:
 	using base::SetServiceSummary;
 	using base::GetConnectedEndpoint;
 	using base::GetEndpointAddress;
+	using base::GetStream;
 
 //----------
 protected:

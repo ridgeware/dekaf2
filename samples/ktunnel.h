@@ -106,6 +106,7 @@ private:
 }; // CommonConfig
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// the message protocol used on top of the websocket frame, basically adding channels and (own) types
 class Message : protected KWebSocket::Frame
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -124,6 +125,8 @@ public:
 		Control,
 		Connect,
 		Data,
+		Pause,
+		Resume,
 		Disconnect,
 		None        = -1
 	};
@@ -139,28 +142,48 @@ public:
 	/// bMask must be set to true, else to false
 	void           Write      (KIOStreamSocket& Stream, bool bMask);
 
+	/// returns the message type
 	Type           GetType    () const { return static_cast<Type>(m_Preamble[0]); }
+	/// returns the message as a ref
 	const KString& GetMessage () const { return GetPayload(); }
+	/// returns the channel ID this message was sent to
 	std::size_t    GetChannel () const;
 
-	std::size_t    GetPreambleSize()            const override final;
-	char*          GetPreambleBuf()             const override final;
-
+	/// sets the message type
 	void           SetType    (Type _type)           { m_Preamble[0] = _type;                 }
+	/// sets the message (payload)
 	void           SetMessage (KString sMessage)     { SetPayload(std::move(sMessage), true); }
+	/// sets the channel the message is sent to
 	void           SetChannel (std::size_t iChannel);
 
+	/// clears the message
 	void           clear      ();
+	/// returns the payload size
 	std::size_t    size       () const { return GetPayload().size(); }
 
+	/// returns max channel number
+	static constexpr
+	std::size_t    MaxChannel ()       { return (1 << 24) - 1;       }
+
+	/// returns a debug string with core data about the message
 	KString        Debug      () const;
+	/// prints the message type in ASCII
 	KStringView    PrintType  () const;
+
+//----------
+protected:
+//----------
+
+	std::size_t    GetPreambleSize () const override final;
+	char*          GetPreambleBuf  () const override final;
 
 //----------
 private:
 //----------
 
+	/// prints the message content except for Data and Unknown types
 	KStringView    PrintData  () const;
+	/// throws and prints a description as of why
 	void           Throw      (KString sError, KStringView sFunction = KSourceLocation::current().function_name()) const;
 
 	mutable std::array<char, 4> m_Preamble{};
@@ -183,22 +206,38 @@ public:
 	void        PumpToTunnel          ();
 	void        PumpFromTunnel        ();
 
+	/// puts data into the direct connection's queue, may force a Pause frame if queue is too large
 	void        SendData              (std::unique_ptr<Message> FromTunnel);
 	void        Disconnect            ();
 
-	std::size_t GetID                 () const { return m_iID; }
+	std::size_t GetID                 () const { return m_iID;      }
+
+	/// pause sending frames for this connection
+	void        Pause                 ()       { m_bPaused = true;  }
+	/// resume sending frames for this connection
+	void        Resume                ();
+	/// check if this connection shall pause sending frames
+	bool        IsPaused              () const { return m_bPaused;  }
+
+	/// max size for the message queue for one connection
+	static constexpr
+	std::size_t MaxMessageQueueSize   ()       { return 20;         }
 
 //----------
 private:
 //----------
 
 	std::queue<std::unique_ptr<Message>> m_MessageQueue;
-	std::function<void(Message&)>       m_Tunnel;
-	KIOStreamSocket*                    m_DirectStream { nullptr };
-	std::mutex                          m_QueueMutex;
-	std::condition_variable             m_FreshData;
-	std::size_t                         m_iID          { 0 };
-	bool                                m_bQuit        { false };
+	std::function<void(Message&)>        m_Tunnel;
+	KIOStreamSocket*                     m_DirectStream { nullptr };
+	std::mutex                           m_QueueMutex;
+	std::condition_variable              m_FreshData;
+	std::mutex                           m_TunnelMutex;
+	std::condition_variable              m_ResumeTunnel;
+	std::size_t                          m_iID          { 0 };
+	bool                                 m_bRXPaused    { false };
+	bool                                 m_bPaused      { false };
+	bool                                 m_bQuit        { false };
 
 }; // Connection
 

@@ -90,6 +90,8 @@ public:
 	DEKAF2_NODISCARD
 	uint16_t GetLastErrorCode() const { return value(); }
 
+	/// Returns the cause of an error if the return string is non-empty. Otherwise no error occured.
+	/// Redirects to GetLastError()
 	DEKAF2_NODISCARD
 	KStringViewZ Error() const { return GetLastError(); }
 

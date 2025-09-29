@@ -144,6 +144,8 @@ KStringView Message::PrintType() const
 		case Control:    return "Control";
 		case Connect:    return "Connect";
 		case Data:       return "Data";
+		case Pause:      return "Pause";
+		case Resume:     return "Resume";
 		case Disconnect: return "Disconnect";
 		case None:       return "None";
 	}
@@ -165,6 +167,8 @@ KStringView Message::PrintData() const
 		case Pong:
 		case Control:
 		case Connect:
+		case Pause:
+		case Resume:
 		case Disconnect: return GetMessage();
 
 		case Data:
@@ -186,6 +190,11 @@ KString Message::Debug() const
 void Message::SetChannel(std::size_t iChannel)
 //-----------------------------------------------------------------------------
 {
+	if (iChannel > MaxChannel())
+	{
+		Throw(kFormat("channel too high: {:x}, max: {:x}", iChannel, MaxChannel()));
+	}
+
 	auto it = m_Preamble.begin();
 	*++it = (iChannel >> 16) & 0xff;
 	*++it = (iChannel >>  8) & 0xff;
@@ -276,6 +285,26 @@ void Message::Throw(KString sError, KStringView sFunction) const
 } // Throw
 
 //-----------------------------------------------------------------------------
+void Connection::Resume()
+//-----------------------------------------------------------------------------
+{
+	{
+		std::lock_guard Lock(m_TunnelMutex);
+
+		if (!m_bPaused)
+		{
+			// return right here, do not send notifications
+			return;
+		}
+		// resume
+		m_bPaused = false;
+	}
+
+	m_ResumeTunnel.notify_one();
+
+} // Resume
+
+//-----------------------------------------------------------------------------
 void Connection::PumpToTunnel()
 //-----------------------------------------------------------------------------
 {
@@ -303,6 +332,17 @@ void Connection::PumpToTunnel()
 			}
 			else if ((iEvents & POLLIN) != 0)
 			{
+				if (IsPaused())
+				{
+					// we are requested to hold on sending data.. wait on a semaphore
+					// until we get woken up again
+					std::unique_lock Lock(m_TunnelMutex);
+					// 	protect from spurious wakeups by checking IsPaused()
+					m_ResumeTunnel.wait(Lock, [this]{ return !IsPaused(); });
+					// now poll again to see if our input stream is still available
+					continue;
+				}
+
 				Stop.clear();
 				auto iRead = m_DirectStream->direct_read_some(Data.data(), Data.capacity());
 				kDebug(3, "{}: read {} chars, took {}", m_DirectStream->GetEndPointAddress(), iRead, Stop.elapsed());
@@ -347,7 +387,7 @@ void Connection::PumpFromTunnel()
 {
 	if (!m_DirectStream || !m_Tunnel)
 	{
-		return;
+		throw KError(kFormat("[{}] no stream for channel", GetID()));
 	}
 
 	try
@@ -358,28 +398,58 @@ void Connection::PumpFromTunnel()
 
 			for (;!m_MessageQueue.empty();)
 			{
-				auto Message = m_MessageQueue.front().get();
+				// get next message from top
+				auto MessageToDirect = m_MessageQueue.front().get();
 
-				if (Message)
+				if (MessageToDirect)
 				{
-					if (Message->GetType() == Message::Data)
+					if (MessageToDirect->GetType() == Message::Data)
 					{
-						if (!m_DirectStream || m_DirectStream->Write(Message->GetMessage()).Flush().Good() == false)
+						// check if we can immediately write data
+						if (!m_DirectStream->IsWriteReady(KDuration()))
 						{
-							throw KError("cannot write to direct stream");
+							// no - get out of the lock
+							Lock.unlock();
+							// and wait until timeout for write readiness
+							if (!m_DirectStream->IsWriteReady())
+							{
+								throw KError(kFormat("[{}] cannot write to direct stream ({})", GetID(), 1));
+							}
+							// we can now write again, acquire the lock again
+							Lock.lock();
+						}
+						// write the message
+						if (m_DirectStream->Write(MessageToDirect->GetMessage()).Flush().Good() == false)
+						{
+							throw KError(kFormat("[{}] cannot write to direct stream ({})", GetID(), 2));
 						}
 					}
-					else if (Message->GetType() == Message::Disconnect)
+					else if (MessageToDirect->GetType() == Message::Disconnect)
 					{
 						Disconnect();
 					}
 				}
-
+				// remove the message from the top
 				m_MessageQueue.pop();
+
+				// check if we had formerly sent a Pause frame, and we have again room
+				// in the output queue
+				if (m_bRXPaused && m_MessageQueue.size() < MaxMessageQueueSize() / 2)
+				{
+					// yes, unlock
+					Lock.unlock();
+					// and request to resume from the other end of the tunnel
+					Message RequestResume(Message::Resume, GetID());
+					m_Tunnel(RequestResume);
+					m_bRXPaused = true;
+					// and lock again
+					Lock.lock();
+				}
 			}
 
 			if (!m_bQuit)
 			{
+				// and wait for new data coming in
 				m_FreshData.wait(Lock);
 			}
 		}
@@ -395,12 +465,27 @@ void Connection::PumpFromTunnel()
 void Connection::SendData(std::unique_ptr<Message> FromTunnel)
 //-----------------------------------------------------------------------------
 {
+	bool bRequestPause = false;
+
 	{
 		std::lock_guard<std::mutex> Lock(m_QueueMutex);
+
 		m_MessageQueue.push(std::move(FromTunnel));
+
+		if (m_MessageQueue.size() >= MaxMessageQueueSize())
+		{
+			bRequestPause = true;
+		}
 	}
 
 	m_FreshData.notify_one();
+
+	if (bRequestPause)
+	{
+		Message RequestPause(Message::Pause, GetID());
+		m_Tunnel(RequestPause);
+		m_bRXPaused = true;
+	}
 
 } // Connection::SendData
 
@@ -457,13 +542,12 @@ std::shared_ptr<Connection> Connections::Create(std::size_t iID, std::function<v
 		iID = ++m_iConnection;
 
 		// overflow?
-		if (iID > std::numeric_limits<uint16_t>::max())
+		if (iID > Message::MaxChannel())
 		{
-			// we only count in 16 bit due to the protocol and then reuse the IDs;
 			iID = m_iConnection = 1;
 		}
 	}
-	else if (iID > std::numeric_limits<uint16_t>::max())
+	else if (iID > Message::MaxChannel())
 	{
 		kDebug(1, "illegal ID value {}", iID);
 		return {};
@@ -713,6 +797,41 @@ void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 				}
 				break;
 			}
+
+			case Message::Pause:
+			{
+				// find the connection and tell it to pause sending data
+				auto Connection = m_Connections.Get(chan, false);
+
+				if (!Connection)
+				{
+					Message disconnect(Message::Disconnect, chan);
+					SendMessageToUpstream(disconnect);
+				}
+				else
+				{
+					Connection->Pause();
+				}
+				break;
+			}
+
+			case Message::Resume:
+			{
+				// find the connection and tell it to resume sending data
+				auto Connection = m_Connections.Get(chan, false);
+
+				if (!Connection)
+				{
+					Message disconnect(Message::Disconnect, chan);
+					SendMessageToUpstream(disconnect);
+				}
+				else
+				{
+					Connection->Resume();
+				}
+				break;
+			}
+
 
 			case Message::Disconnect:
 			{
@@ -1115,7 +1234,7 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 					Control->SetTimeout(m_Config.ConnectTimeout);
 					Control->WriteLine("GET /Tunnel HTTP/1.1");
 					Control->WriteLine(kFormat("host: {}", m_Config.ExposedHost));
-					Control->WriteLine(kFormat("useragent: ktunnel/1.0"));
+					Control->WriteLine(kFormat("{}: ktunnel/1.0", KHTTPHeader::USER_AGENT));
 					Control->WriteLine();
 					Control->Flush();
 				}
@@ -1287,6 +1406,38 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 							break;
 						}
 
+						case Message::Pause:
+						{
+							auto Connection = m_Connections.Get(chan, false);
+
+							if (!Connection)
+							{
+								Message disconnect(Message::Disconnect, chan);
+								SendMessageToDownstream(disconnect);
+							}
+							else
+							{
+								Connection->Pause();
+							}
+							break;
+						}
+
+						case Message::Resume:
+						{
+							auto Connection = m_Connections.Get(chan, false);
+
+							if (!Connection)
+							{
+								Message disconnect(Message::Disconnect, chan);
+								SendMessageToDownstream(disconnect);
+							}
+							else
+							{
+								Connection->Resume();
+							}
+							break;
+						}
+
 						case Message::Disconnect:
 						{
 							auto Connection = m_Connections.Get(chan, false);
@@ -1350,10 +1501,10 @@ int KTunnel::Main(int argc, char** argv)
 	KStringView sSecrets   = Options("s,secret     : if exposed host, takes comma separated list of secrets for login by protected hosts, or one single secret if this is the protected host.").String();
 	m_Config.DefaultTarget = Options("t,target     : if exposed host, takes the domain:port of a default target, if no other target had been specified in the incoming data connect", "");
 	m_Config.iMaxTunnels   = Options("m,maxtunnels : if exposed host, maximum number of tunnels to open, defaults to 10 - if protected host, the setting has no effect.", 10);
-	m_Config.Timeout       = chrono::seconds(Options("to,timeout <seconds> : data connection timeout in seconds (default 30)", 30));
 	m_Config.sCertFile     = Options("cert <file>  : if exposed host, TLS certificate filepath (.pem) - if option is unused a self-signed cert is created", "");
 	m_Config.sKeyFile      = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused a new key is created", "");
 	m_Config.sTLSPassword  = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
+	m_Config.Timeout       = chrono::seconds(Options("to,timeout <seconds> : data connection timeout in seconds (default 30)", 30));
 	m_Config.bPersistCert  = Options("persist      : should a self-signed cert be persisted to disk and reused at next start?", false);
 	m_Config.sCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
 	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);

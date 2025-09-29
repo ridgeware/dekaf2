@@ -111,7 +111,7 @@ public:
 		/// has this frame been sent with xoring?
 		bool        IsMaskedRx      ()             const { return m_bMask;       }
 		/// returns the size of the preamble expected in front of the payload - this is helpful for
-		/// protocol nesting
+		/// protocol nesting. The value must be a multiple of 4.
 		virtual
 		std::size_t GetPreambleSize ()             const;
 		/// gets the pointer to a buffer of GetPreambleSize() size to fill in the preamble at reading

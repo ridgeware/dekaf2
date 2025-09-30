@@ -62,6 +62,7 @@
 #include <dekaf2/kwebobjects.h>
 #include <dekaf2/kwebsocket.h>
 #include <dekaf2/kwebsocketclient.h>
+#include <dekaf2/kencode.h>
 #include <thread>
 #include <future>
 #include <memory>
@@ -95,7 +96,6 @@ public:
 	KDuration              PollTimeout    { chrono::milliseconds(2000) };
 	uint16_t               iMaxTunnels    { 20 };
 	bool                   bQuiet         { false };
-	bool                   bUseWebSockets { false };
 
 //----------
 private:
@@ -272,7 +272,7 @@ private:
 class ExposedRawServer;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class WebSocketOrPlainSocket
+class WebSocketDirection
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -280,35 +280,30 @@ class WebSocketOrPlainSocket
 public:
 //----------
 
-	WebSocketOrPlainSocket(bool bSetMaskTx, bool bSetIsWebSocket)
+	WebSocketDirection(bool bSetMaskTx)
 	: m_bMaskTx(bSetMaskTx)
-	, m_bIsWebSocket(bSetIsWebSocket)
 	{
 	}
 
 	bool ReadMessage     (KIOStreamSocket& Stream, Message& message);
 	bool WriteMessage    (KIOStreamSocket& Stream, Message& message);
 
-	bool IsWebSocket     () const                  { return m_bIsWebSocket;   }
-
 //----------
 protected:
 //----------
 
 	void SetMaskTx       (bool bYesNo)             { m_bMaskTx = bYesNo;      }
-	void SetIsWebSocket  (bool bYesNo = true)      { m_bIsWebSocket = bYesNo; }
 
 //----------
 private:
 //----------
 
 	bool m_bMaskTx      { false };
-	bool m_bIsWebSocket { false };
 
-}; // WebSocketOrPlainSocket
+}; // WebSocketDirection
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class ExposedServer : protected WebSocketOrPlainSocket
+class ExposedServer : protected WebSocketDirection
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -390,7 +385,7 @@ private:
 }; // ExposedRawServer
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class ProtectedHost : protected WebSocketOrPlainSocket
+class ProtectedHost : protected WebSocketDirection
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

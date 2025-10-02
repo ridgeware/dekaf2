@@ -42,9 +42,9 @@
 // KTunnel can be started either as an exposed host (that can listen on ports
 // reachable by one or more clients) or as a protected host (so called because
 // it typically will be protected behind a firewall or network configuration
-// (like mobile IP networks) that does not allow incoming connections).
+// (like mobile IP networks) that do not allow incoming connections).
 //
-// The protected KTunnel connects via TLS (upgrading to websockets) to the
+// The protected KTunnel connects via HTTPS (upgrading to websockets) to the
 // exposed KTunnel, and opens more TLS data streams inside the websocket
 // connection as requested by the exposed KTunnel, typically on request of
 // incoming TCP connections to the latter, being either raw or TLS or whatever
@@ -57,16 +57,16 @@
 // communication and general REST services, and one or more TCP forward
 // ports for different targets.
 //
-//                                    <downstream<
-//                                   <-----TLS--|--<
-//                                  /           |   \ (protected)
-//  client >--TCP/TLS--> KTunnel <-<   firewall |    <- KTunnel >--TCP/TLS--> target(s)
-//              data    (exposed)   \           |   /               data
-//                                   <-----TLS--|--<
-//                                     >upstream>
+//         e.g. port 1234         e.g. port 443
+//                                              |
+// client >>--TCP/TLS-->> KTunnel <<----TLS websocket----<< KTunnel >>--TCP/TLS-->> target(s)
+//            data in    (exposed)              |         (protected)   data in
+//          any protocol                        |                     any protocol
+//                                     firewall |
+//                       or e.g. mobile network |
 //
 // The control and data streams between the tunnel endpoints are multiplexed
-// by a simple protocol over two TLS websocket connections, initiated from upstream.
+// by a simple protocol over a TLS websocket connection, initiated from upstream.
 // This protocol extends the websocket protocol with the ability to add a detailed
 // message type, and the multiplex channel ID.
 //
@@ -95,19 +95,7 @@
 //   channel, telling the respective other end of the channel to pause or
 //   resume transmission through the tunnel
 //
-// We have to use these announced-size messages because OpenSSL has no way
-// to reliably tell if on an open read connection there are new bytes available
-// for reading. SSL_pending() is supposed to give this information, but does not
-// permit to set a timeout, hence polling it is always a tradeoff between cpu load
-// and speed. The new SSL_poll() is also not allowing to set a timeout, hence it
-// is rather useless outside of QUIC. Therefore, all protocols running on top of
-// TLS have to create their own protocol layer to workaround these limitations.
-// In HTTPS it is chunked transfer, and in our case it's the message datagrams.
-//
-// Due to issues with OpenSSL in multithreaded up/down streams we use
-// two separate streams, one for upstream, the other for downstream.
-// Those streams can transport up to 16 million tunneled streams.
-// Both are initiated from the protected host.
+// The tunnel connection can transport up to 16 million tunneled streams.
 
 #include "ktunnel.h"
 
@@ -143,11 +131,11 @@ KStringView Message::PrintType() const
 {
 	switch (GetType())
 	{
-		case LoginTX:    return "LoginTX";
-		case LoginRX:    return "LoginRX";
+		case Login:      return "Login";
 		case Helo:       return "Helo";
 		case Ping:       return "Ping";
 		case Pong:       return "Pong";
+		case Idle:       return "Idle";
 		case Control:    return "Control";
 		case Connect:    return "Connect";
 		case Data:       return "Data";
@@ -167,19 +155,36 @@ KStringView Message::PrintData() const
 {
 	switch (GetType())
 	{
-		case LoginTX:
-		case LoginRX:
+		case Login:
 		case Helo:
 		case Ping:
 		case Pong:
+		case Idle:
 		case Control:
 		case Connect:
 		case Pause:
 		case Resume:
-		case Disconnect: return GetMessage();
+		case Disconnect:
+			if (!kIsBinary(GetMessage()))
+			{
+				return GetMessage();
+			}
+			return "";
+
+		case None:
+			return "";
 
 		case Data:
-		case None:       return "";
+		{
+			KStringView sStart = GetMessage().LeftUTF8(20);
+
+			if (!kIsBinary(sStart))
+			{
+				return sStart;
+			}
+
+			return "";
+		}
 	}
 
 	return "";
@@ -190,7 +195,7 @@ KStringView Message::PrintData() const
 KString Message::Debug() const
 //-----------------------------------------------------------------------------
 {
-	return kFormat("ch: {} sz: {} {}: {}", GetChannel(), size(), PrintType(), PrintData());
+	return kFormat("[{}]: {} {} chars: {}", GetChannel(), PrintType(), size(), PrintData());
 }
 
 //-----------------------------------------------------------------------------
@@ -248,7 +253,7 @@ void Message::Read(KIOStreamSocket& Stream)
 
 	if (!Frame::Read(Stream, Stream, false))
 	{
-		Throw(kFormat("cannot read from {}", Stream.GetEndPointAddress()));
+		Throw(kFormat("[{}]: cannot read from {}", GetChannel(), Stream.GetEndPointAddress()));
 	}
 
 } // Read
@@ -264,7 +269,7 @@ void Message::Write(KIOStreamSocket& Stream, bool bMask)
 
 	if (!Frame::Write(Stream, bMask))
 	{
-		Throw(kFormat("cannot write to {}", Stream.GetEndPointAddress()));
+		Throw(kFormat("[{}]: cannot write to {}", GetChannel(), Stream.GetEndPointAddress()));
 	}
 
 	if (bMask)
@@ -295,17 +300,15 @@ void Message::Throw(KString sError, KStringView sFunction) const
 void Connection::Resume()
 //-----------------------------------------------------------------------------
 {
-	{
-		std::lock_guard Lock(m_TunnelMutex);
+	std::lock_guard Lock(m_TunnelMutex);
 
-		if (!m_bPaused)
-		{
-			// return right here, do not send notifications
-			return;
-		}
-		// resume
-		m_bPaused = false;
+	if (!m_bPaused)
+	{
+		// return right here, do not send notifications
+		return;
 	}
+	// resume
+	m_bPaused = false;
 
 	m_ResumeTunnel.notify_one();
 
@@ -322,64 +325,71 @@ void Connection::PumpToTunnel()
 
 	try
 	{
-		KReservedBuffer<KDefaultCopyBufSize> Data;
+		KReservedBuffer<KDefaultCopyBufSize - 12> Data;
 
 		// read until disconnect or timeout
 		for (;;)
 		{
 			KStopTime Stop;
 			auto iEvents = m_DirectStream->CheckIfReady(POLLIN | POLLHUP);
-			kDebug(3, "poll: events: {:b} ({:x}), took {}", iEvents, iEvents, Stop.elapsed());
+			kDebug(3, "[{}]: poll: events: {:b} ({:x}), took {}", GetID(), iEvents, iEvents, Stop.elapsed());
 
 			if (iEvents == 0)
 			{
 				// timeout
-				kDebug(2, "timeout from {}", m_DirectStream->GetEndPointAddress())
+				kDebug(2, "[{}]: timeout from {}", GetID(), m_DirectStream->GetEndPointAddress())
 				break;
 			}
 			else if ((iEvents & POLLIN) != 0)
 			{
 				if (IsPaused())
 				{
+					kDebug(2, "[{}]: paused", GetID());
 					// we are requested to hold on sending data.. wait on a semaphore
 					// until we get woken up again
 					std::unique_lock Lock(m_TunnelMutex);
 					// 	protect from spurious wakeups by checking IsPaused()
 					m_ResumeTunnel.wait(Lock, [this]{ return !IsPaused(); });
+					kDebug(2, "[{}]: unpaused", GetID());
 					// now poll again to see if our input stream is still available
 					continue;
 				}
 
 				Stop.clear();
 				auto iRead = m_DirectStream->direct_read_some(Data.data(), Data.capacity());
-				kDebug(3, "{}: read {} chars, took {}", m_DirectStream->GetEndPointAddress(), iRead, Stop.elapsed());
+				kDebug(3, "[{}]: {}: read {} chars, took {}", GetID(), m_DirectStream->GetEndPointAddress(), iRead, Stop.elapsed());
 
 				if (iRead > 0)
 				{
 					Data.resize(iRead);
 					Message data(Message::Data, m_iID, KStringView(Data.data(), Data.size()));
-					m_Tunnel(data);
+					m_Tunnel(std::move(data));
+				}
+				else
+				{
+					// timeout or disconnected
+					kDebug(2, "[{}]: disconnected from {}", GetID(), m_DirectStream->GetEndPointAddress())
+					break;
 				}
 			}
 
 			if ((iEvents & POLLHUP) != 0)
 			{
 				// disconnected
-				kDebug(2, "got disconnected from {}", m_DirectStream->GetEndPointAddress())
+				kDebug(2, "[{}]: got disconnected from {}", GetID(), m_DirectStream->GetEndPointAddress())
 				break;
 			}
 			else if ((iEvents & (POLLERR | POLLNVAL)) != 0)
 			{
 				// error
-				kDebug(2, "got error from {}", m_DirectStream->GetEndPointAddress())
+				kDebug(2, "[{}]: got error from {}", GetID(), m_DirectStream->GetEndPointAddress())
 				break;
 			}
 
 			Data.reset();
 		}
 
-		Message disconnect(Message::Disconnect, m_iID);
-		m_Tunnel(disconnect);
+		m_Tunnel(Message(Message::Disconnect, m_iID));
 	}
 	catch (const std::exception& ex)
 	{
@@ -406,35 +416,36 @@ void Connection::PumpFromTunnel()
 			for (;!m_MessageQueue.empty();)
 			{
 				// get next message from top
-				auto MessageToDirect = m_MessageQueue.front().get();
+				auto& MessageToDirect = m_MessageQueue.front();
 
-				if (MessageToDirect)
+				if (MessageToDirect.GetType() == Message::Data)
 				{
-					if (MessageToDirect->GetType() == Message::Data)
+					KStopTime Stop;
+					// check if we can immediately write data
+					if (!m_DirectStream->IsWriteReady(KDuration()))
 					{
-						// check if we can immediately write data
-						if (!m_DirectStream->IsWriteReady(KDuration()))
+						// no - get out of the lock
+						Lock.unlock();
+						// and wait until timeout for write readiness
+						if (!m_DirectStream->IsWriteReady())
 						{
-							// no - get out of the lock
-							Lock.unlock();
-							// and wait until timeout for write readiness
-							if (!m_DirectStream->IsWriteReady())
-							{
-								throw KError(kFormat("[{}] cannot write to direct stream ({})", GetID(), 1));
-							}
-							// we can now write again, acquire the lock again
-							Lock.lock();
+							throw KError(kFormat("[{}] cannot write to direct stream ({})", GetID(), 1));
 						}
-						// write the message
-						if (m_DirectStream->Write(MessageToDirect->GetMessage()).Flush().Good() == false)
-						{
-							throw KError(kFormat("[{}] cannot write to direct stream ({})", GetID(), 2));
-						}
+						// we can now write again, acquire the lock again
+						Lock.lock();
 					}
-					else if (MessageToDirect->GetType() == Message::Disconnect)
+					kDebug(3, "polled for {}", Stop.elapsedAndClear());
+					// write the message
+					if (m_DirectStream->Write(MessageToDirect.GetMessage()).Flush().Good() == false)
 					{
-						Disconnect();
+						throw KError(kFormat("[{}] cannot write to direct stream ({})", GetID(), 2));
 					}
+					kDebug(3, "[{}]: {}: wrote {} chars, took {}", GetID(), m_DirectStream->GetEndPointAddress(), MessageToDirect.size(), Stop.elapsed());
+				}
+				else if (MessageToDirect.GetType() == Message::Disconnect)
+				{
+					kDebug(3, "[{}]: got disconnect frame for {}", GetID(), m_DirectStream->GetEndPointAddress());
+					Disconnect();
 				}
 				// remove the message from the top
 				m_MessageQueue.pop();
@@ -443,56 +454,52 @@ void Connection::PumpFromTunnel()
 				// in the output queue
 				if (m_bRXPaused && m_MessageQueue.size() < MaxMessageQueueSize() / 2)
 				{
-					// yes, unlock
-					Lock.unlock();
-					// and request to resume from the other end of the tunnel
-					Message RequestResume(Message::Resume, GetID());
-					m_Tunnel(RequestResume);
-					m_bRXPaused = true;
-					// and lock again
-					Lock.lock();
+					// request to resume from the other end of the tunnel
+					m_Tunnel(Message(Message::Resume, GetID()));
+					m_bRXPaused = false;
 				}
 			}
 
 			if (!m_bQuit)
 			{
 				// and wait for new data coming in
-				m_FreshData.wait(Lock);
+				KStopTime Stop;
+				m_FreshData.wait(Lock, [this]{ return !m_MessageQueue.empty(); });
+				kDebug(3, "[{}]: {}: waited for new data, took {}", GetID(), m_DirectStream->GetEndPointAddress(), Stop.elapsed());
 			}
 		}
 	}
 	catch (const std::exception& ex)
 	{
 		kDebug(1, ex.what());
+		// TODO throw?
 	}
 
 } // Connection::PumpFromTunnel
 
 //-----------------------------------------------------------------------------
-void Connection::SendData(std::unique_ptr<Message> FromTunnel)
+void Connection::SendData(Message&& FromTunnel)
 //-----------------------------------------------------------------------------
 {
-	bool bRequestPause = false;
-
+	KStopTime Stop;
 	{
 		std::lock_guard<std::mutex> Lock(m_QueueMutex);
 
 		m_MessageQueue.push(std::move(FromTunnel));
 
-		if (m_MessageQueue.size() >= MaxMessageQueueSize())
+		kDebug(3, "[{}]: queued {} chars, took {}", GetID(), m_MessageQueue.back().size(), Stop.elapsedAndClear());
+
+		if (!m_bRXPaused && m_MessageQueue.size() >= MaxMessageQueueSize())
 		{
-			bRequestPause = true;
+			m_Tunnel(Message(Message::Pause, GetID()));
+			m_bRXPaused = true;
+			kDebug(3, "[{}]: requested pause, took {}", GetID(), Stop.elapsedAndClear());
 		}
-	}
 
-	m_FreshData.notify_one();
+		m_FreshData.notify_one();
 
-	if (bRequestPause)
-	{
-		Message RequestPause(Message::Pause, GetID());
-		m_Tunnel(RequestPause);
-		m_bRXPaused = true;
 	}
+	kDebug(3, "[{}]: notified writer thread, took {}", GetID(), Stop.elapsed());
 
 } // Connection::SendData
 
@@ -511,7 +518,7 @@ void Connection::Disconnect()
 }
 
 //-----------------------------------------------------------------------------
-Connection::Connection (std::size_t iID, std::function<void(Message&)> TunnelSend, KIOStreamSocket* DirectStream)
+Connection::Connection (std::size_t iID, std::function<void(Message&&)> TunnelSend, KIOStreamSocket* DirectStream)
 //-----------------------------------------------------------------------------
 : m_Tunnel(std::move(TunnelSend))
 , m_DirectStream(DirectStream)
@@ -527,7 +534,7 @@ std::size_t Connections::size() const
 }
 
 //-----------------------------------------------------------------------------
-std::shared_ptr<Connection> Connections::Create(std::size_t iID, std::function<void(Message&)> TunnelSend, KIOStreamSocket* DirectStream)
+std::shared_ptr<Connection> Connections::Create(std::size_t iID, std::function<void(Message&&)> TunnelSend, KIOStreamSocket* DirectStream)
 //-----------------------------------------------------------------------------
 {
 	auto Connections = m_Connections.unique();
@@ -544,31 +551,53 @@ std::shared_ptr<Connection> Connections::Create(std::size_t iID, std::function<v
 		return {};
 	}
 
-	if (iID == 0)
-	{
-		iID = ++m_iConnection;
+	bool bFindFreeID { false };
 
-		// overflow?
-		if (iID > Message::MaxChannel())
+	std::size_t iIterations { 0 };
+
+	for (;;)
+	{
+		++iIterations;
+
+		if (iIterations >= Message::MaxChannel())
 		{
-			iID = m_iConnection = 1;
+			kDebug(1, "cannot generate a new ID value");
+		}
+
+		if (iID == 0)
+		{
+			bFindFreeID = true;
+			iID = ++m_iConnection;
+
+			// overflow?
+			if (iID > Message::MaxChannel())
+			{
+				iID = m_iConnection = 1;
+			}
+		}
+		else if (iID > Message::MaxChannel())
+		{
+			kDebug(1, "illegal ID value {}", iID);
+			return {};
+		}
+
+		auto pair = Connections->insert({ iID, std::make_shared<Connection>(iID, TunnelSend, DirectStream) });
+
+		if (!pair.second)
+		{
+			if (bFindFreeID)
+			{
+				continue;
+			}
+
+			kDebug(1, "connection ID {} already existing", iID);
+			return {};
+		}
+		else
+		{
+			return pair.first->second;
 		}
 	}
-	else if (iID > Message::MaxChannel())
-	{
-		kDebug(1, "illegal ID value {}", iID);
-		return {};
-	}
-
-	auto pair = Connections->insert({ iID, std::make_shared<Connection>(iID, TunnelSend, DirectStream) });
-
-	if (!pair.second)
-	{
-		kDebug(1, "connection ID {} already existing", iID);
-		return {};
-	}
-
-	return pair.first->second;
 
 } // Connections::Create
 
@@ -628,162 +657,206 @@ bool Connections::Exists(std::size_t iID)
 } // Connections::Exists
 
 //-----------------------------------------------------------------------------
-bool WebSocketDirection::ReadMessage(KIOStreamSocket& Stream, Message& message)
+bool WebSocketDirection::HaveStream() const
 //-----------------------------------------------------------------------------
 {
-	message.Read(Stream);
-	return true;
+	return bool(m_TunnelStream);
+}
+
+//-----------------------------------------------------------------------------
+void WebSocketDirection::SetStream(std::unique_ptr<KIOStreamSocket> Stream)
+//-----------------------------------------------------------------------------
+{
+	m_TunnelStream = std::move(Stream);
+}
+
+//-----------------------------------------------------------------------------
+KIOStreamSocket& WebSocketDirection::GetStream()
+//-----------------------------------------------------------------------------
+{
+	if (!m_TunnelStream)
+	{
+		throw KError("no stream");
+	}
+	return *m_TunnelStream.get();
+}
+
+//-----------------------------------------------------------------------------
+void WebSocketDirection::ResetStream()
+//-----------------------------------------------------------------------------
+{
+	m_TunnelStream.reset();
+}
+
+//-----------------------------------------------------------------------------
+void WebSocketDirection::ReadMessage(Message& message)
+//-----------------------------------------------------------------------------
+{
+	if (!m_TunnelStream)
+	{
+		throw KError("no tunnel stream for read");
+	}
+
+	for (;;)
+	{
+		// return latest after set stream timeout
+		if (!m_TunnelStream->IsReadReady())
+		{
+			throw KError(m_TunnelStream->GetLastError());
+		}
+
+		std::lock_guard StreamLock(m_TLSMutex);
+
+		// return immediately from poll
+		if (m_TunnelStream->IsReadReady(KDuration()))
+		{
+			message.Read(*m_TunnelStream);
+			kDebug(3, message.Debug());
+
+			break;
+		}
+
+		// stream changed state while acquiring lock, repeat waiting
+	}
 
 } // WebSocketDirection::ReadMessage
 
 //-----------------------------------------------------------------------------
-bool WebSocketDirection::WriteMessage(KIOStreamSocket& Stream, Message& message)
+void WebSocketDirection::WriteMessage(Message&& message)
 //-----------------------------------------------------------------------------
 {
-	message.Write(Stream, m_bMaskTx);
-	return true;
+	if (!m_TunnelStream)
+	{
+		throw KError("no tunnel stream for write");
+	}
+
+	for (;;)
+	{
+		// return latest after set stream timeout
+		if (!m_TunnelStream->IsWriteReady())
+		{
+			throw KError(m_TunnelStream->GetLastError());
+		}
+
+		std::lock_guard StreamLock(m_TLSMutex);
+
+		// return immediately from poll
+		if (m_TunnelStream->IsWriteReady(KDuration()))
+		{
+			kDebug(3, message.Debug());
+			auto mtype = message.GetType();
+			KStopTime Stop;
+			message.Write(*m_TunnelStream, m_bMaskTx);
+			kDebug(3, "took {}", Stop.elapsed());
+
+			if (mtype == Message::Data)
+			{
+				m_LastTx.clear();
+				m_IdleNotBefore = KStopTime::now() + chrono::milliseconds(500);
+			}
+			else if (mtype == Message::Idle)
+			{
+//				kDebug(2, "wrote Idle message");
+				m_IdleNotBefore = KStopTime::now() + chrono::milliseconds(500);
+			}
+
+			break;
+		}
+
+		// stream changed state while acquiring lock, repeat waiting
+	}
 
 } // WebSocketDirection::WriteMessage
 
 //-----------------------------------------------------------------------------
-void ExposedServer::SendMessageToUpstream(Message& message)
+void WebSocketDirection::TimerLoop()
 //-----------------------------------------------------------------------------
 {
-	auto Control = m_ControlStreamTX.unique();
-
-	if (!Control)
+	for (;!m_bQuit;)
 	{
-		throw KError("control stream is nullptr on write attempt");
-	}
+		kSleep(chrono::milliseconds(250));
 
-	kDebug(3, message.Debug());
-
-	WriteMessage(*(Control.get()), message);
-
-} // ExposedServer::SendMessageToUpstream
-
-//-----------------------------------------------------------------------------
-void ExposedServer::ControlStreamTX(KIOStreamSocket& Stream)
-//-----------------------------------------------------------------------------
-{
-	Stream.SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
-
-	{
-		auto Control = m_ControlStreamTX.unique();
-
-		if (Control.get() != nullptr)
+		if (m_TunnelStream)
 		{
-			kDebug(2, "already had control stream");
+			std::unique_lock<std::mutex> Lock(m_TLSMutex);
+
+			auto now = KStopTime::now();
+
+			auto LastTx = now - m_LastTx.startedAt();
+
+			if (LastTx >= chrono::milliseconds(500) && LastTx <= chrono::milliseconds(1600))
+			{
+				if (m_IdleNotBefore <= now)
+				{
+					Lock.unlock();
+					WriteMessage(Message(Message::Idle, 0));
+				}
+			}
 		}
-
-		Control.get() = &Stream;
-
-		// finally say hi
-		Message helo(Message::Helo, 0);
-		WriteMessage(Stream, helo);
 	}
 
-	m_Config.Message("opened control stream from {}", Stream.GetEndPointAddress());
-
-	// we use a named lambda because we want compatibility with C++11, which needs
-	// a type for KScopeGuard..
-	auto namedLambdaGuard = [&Stream,this]() noexcept
-	{
-		// make sure the write control stream is safely removed
-		m_ControlStreamTX.unique().get() = nullptr;
-		m_Config.Message("closed control stream from {}", Stream.GetEndPointAddress());
-	};
-
-	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
-
-	// reset the promises
-	m_WaitForRX = std::promise<void>();
-	m_Quit      = std::promise<void>();
-
-	auto Wait = m_WaitForRX.get_future();
-	auto Quit = m_Quit.get_future();
-
-	if (Wait.wait_for(chrono::seconds(15)) != std::future_status::ready)
-	{
-		kDebug(1, "waited too long for TX control stream");
-		return;
-	}
-
-	// and wait until the other thread is done
-	Quit.get();
-	kDebug(3, "closing control stream");
-
-} // ControlStreamTX
+} // WebSocketDirection::TimerLoop
 
 //-----------------------------------------------------------------------------
-void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
+void ExposedServer::ControlStream()
 //-----------------------------------------------------------------------------
 {
-	Stream.SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
+	GetStream().SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
 
 	// finally say hi
-	{
-		Message helo(Message::Helo, 0);
-		WriteMessage(Stream, helo);
-	}
+	WriteMessage(Message(Message::Helo, 0));
 
-	m_Config.Message("opened TX control stream from {}", Stream.GetEndPointAddress());
+	m_Config.Message("[{}]: opened control stream from {}", 0, GetStream().GetEndPointAddress());
 
 	// we use a named lambda because we want compatibility with C++11, which needs
 	// a type for KScopeGuard..
-	auto namedLambdaGuard = [&Stream,this]() noexcept
+	auto namedLambdaGuard = [this]() noexcept
 	{
 		// make sure the write control stream is safely removed
-		m_ControlStreamRX.unique().get() = nullptr;
-		m_Config.Message("closed TX control stream from {}", Stream.GetEndPointAddress());
-
-		m_Quit.set_value();
+		m_Config.Message("[{}]: closed control stream from {}", 0, GetStream().GetEndPointAddress());
+		ResetStream();
 	};
 
 	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
-
-	m_WaitForRX.set_value();
-
-	std::unique_ptr<Message> FromUpstream;
 
 	for (;;)
 	{
-		if (!FromUpstream)
-		{
-			FromUpstream = std::make_unique<Message>();
-		}
+		Message FromUpstream;
+		ReadMessage(FromUpstream);
 
-		ReadMessage(Stream, *FromUpstream);
-
-		kDebug(3, FromUpstream->Debug());
+		kDebug(3, "open connections: {}", m_Connections.size());
 
 		// get a shorthand for the channel
-		auto chan = FromUpstream->GetChannel();
+		auto chan = FromUpstream.GetChannel();
 
-		switch (FromUpstream->GetType())
+		switch (FromUpstream.GetType())
 		{
 			case Message::Ping:
 				// check if the channel is alive on our end
 				if (!chan || m_Connections.Exists(chan))
 				{
-					Message pong(Message::Pong, chan);
-					SendMessageToUpstream(pong);
+					FromUpstream.SetType(Message::Pong);
+					WriteMessage(std::move(FromUpstream));
 				}
 				else
 				{
-					Message disconnect(Message::Disconnect, chan);
-					SendMessageToUpstream(disconnect);
+					WriteMessage(Message(Message::Disconnect, chan));
 				}
 				break;
 
 			case Message::Pong:
-				// do nothing
+				// do nothing (should check if payload is that of last Ping sent,
+				// but we do not send payloads with Ping)
+				break;
+
+			case Message::Idle:
+				// really do nothing, this is only meant to keep the data pumps going
 				break;
 
 			case Message::Control:
 				if (chan != 0)
 				{
-					throw KError(kFormat("received control message on channel {}", chan));
+					throw KError(kFormat("[{}]: received control message on non-zero channel", chan));
 				}
 				// we currently do not exchange any control data here
 				break;
@@ -795,8 +868,7 @@ void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 
 				if (!Connection)
 				{
-					Message disconnect(Message::Disconnect, chan);
-					SendMessageToUpstream(disconnect);
+					WriteMessage(Message(Message::Disconnect, chan));
 				}
 				else
 				{
@@ -812,8 +884,7 @@ void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 
 				if (!Connection)
 				{
-					Message disconnect(Message::Disconnect, chan);
-					SendMessageToUpstream(disconnect);
+					WriteMessage(Message(Message::Disconnect, chan));
 				}
 				else
 				{
@@ -829,8 +900,7 @@ void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 
 				if (!Connection)
 				{
-					Message disconnect(Message::Disconnect, chan);
-					SendMessageToUpstream(disconnect);
+					WriteMessage(Message(Message::Disconnect, chan));
 				}
 				else
 				{
@@ -856,8 +926,7 @@ void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 			case Message::Connect:
 				throw KError("received connect message from upstream");
 
-			case Message::LoginTX:
-			case Message::LoginRX:
+			case Message::Login:
 			case Message::Helo:
 				throw KError("received login handshake in an established connection");
 
@@ -866,7 +935,7 @@ void ExposedServer::ControlStreamRX(KIOStreamSocket& Stream)
 		}
 	}
 
-} // ControlStreamRX
+} // ControlStream
 
 //-----------------------------------------------------------------------------
 void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoint& Endpoint, KStringView sInitialData)
@@ -885,7 +954,7 @@ void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 	// is already set from KTCPServer ?
 	Downstream.SetTimeout(m_Config.Timeout);
 
-	auto Connection = m_Connections.Create(0, std::bind(&ExposedServer::SendMessageToUpstream, this, std::placeholders::_1), &Downstream);
+	auto Connection = m_Connections.Create(0, [this](Message&& msg){ WriteMessage(std::move(msg)); }, &Downstream);
 
 	if (!Connection)
 	{
@@ -898,23 +967,19 @@ void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 	// a type for KScopeGuard..
 	auto namedLambdaGuard = [iID, &Downstream]() noexcept
 	{
-		kDebug(1, "closed forward stream {} from {}", iID, Downstream.GetEndPointAddress());
+		kDebug(1, "[{}]: closed forward stream from {}", iID, Downstream.GetEndPointAddress());
 	};
 
 	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
-	kDebug(1, "requesting forward connection {} to {}", iID, Endpoint);
+	kDebug(1, "[{}]: requesting forward connection to {}", iID, Endpoint);
 
-	{
-		Message connect(Message::Connect, iID, Endpoint.Serialize());
-		SendMessageToUpstream(connect);
-	}
+	WriteMessage(Message(Message::Connect, iID, Endpoint.Serialize()));
 
 	if (!sInitialData.empty())
 	{
 		// write the initial incoming data (if any) to upstream
-		Message initialData(Message::Data, iID, sInitialData);
-		SendMessageToUpstream(initialData);
+		WriteMessage(Message(Message::Data, iID, sInitialData));
 	}
 
 	auto pump = std::thread(&Connection::PumpFromTunnel, Connection.get());
@@ -926,17 +991,15 @@ void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 } // ForwardStream
 
 //-----------------------------------------------------------------------------
-bool ExposedServer::Login(KIOStreamSocket& Stream)
+void ExposedServer::Login(KWebSocket& WebSocket)
 //-----------------------------------------------------------------------------
 {
 	Message Login;
-	ReadMessage(Stream, Login);
+	Login.Read(WebSocket.Stream());
 
-	bool bIsTX = Login.GetType() == Message::LoginRX;
-
-	if (!bIsTX && Login.GetType() != Message::LoginTX)
+	if (Login.GetType() != Message::Login)
 	{
-		return false;
+		return;
 	}
 
 	auto sMessage = KDecode::Base64(Login.GetMessage());
@@ -957,37 +1020,22 @@ bool ExposedServer::Login(KIOStreamSocket& Stream)
 
 	if (m_Config.Secrets.empty() || !m_Config.Secrets.contains(sSecret))
 	{
-		kDebug(1, "invalid secret from {}: {}", Stream.GetEndPointAddress(), sSecret);
-		return false;
+		kDebug(1, "invalid secret from {}: {}", WebSocket.Stream().GetEndPointAddress(), sSecret);
+		return;
 	}
 
-	kDebug(1, "successful login from {} ({}) with secret: {}", Stream.GetEndPointAddress(), sName, sSecret);
+	kDebug(1, "successful login from {} ({}) with secret: {}", WebSocket.Stream().GetEndPointAddress(), sName, sSecret);
 
-	if (bIsTX)
-	{
-		ControlStreamRX(Stream);
-	}
-	else
-	{
-		ControlStreamTX(Stream);
-	}
+	SetStream(WebSocket.MoveStream());
 
-	return true;
+	ControlStream();
 
 } // Login
 
 //-----------------------------------------------------------------------------
-void ExposedServer::WSLogin(KWebSocket& WebSocket)
-//-----------------------------------------------------------------------------
-{
-	Login(WebSocket.Stream());
-
-} // Login (KWebSocket)
-
-//-----------------------------------------------------------------------------
 ExposedServer::ExposedServer (const Config& config)
 //-----------------------------------------------------------------------------
-: WebSocketDirection(false)
+: WebSocketDirection(false) // we are the "server", therefore we do not mask our messages
 , m_Connections(config.iMaxTunnels)
 , m_Config(config)
 {
@@ -1030,10 +1078,8 @@ ExposedServer::ExposedServer (const Config& config)
 
 	Routes.AddRoute("/Tunnel").Get([this](KRESTServer& HTTP)
 	{
-		// we are the "server", therefore we do not mask our messages
-		SetMaskTx(false);
 		// set the handler for websockets in the REST server instance
-		HTTP.SetWebSocketHandler(std::bind(&ExposedServer::WSLogin, this, std::placeholders::_1));
+		HTTP.SetWebSocketHandler(std::bind(&ExposedServer::Login, this, std::placeholders::_1));
 		// ask for per-thread execution in the REST server instance
 		HTTP.SetKeepWebSocketInRunningThread();
 
@@ -1095,30 +1141,6 @@ void ExposedRawServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 }
 
 //-----------------------------------------------------------------------------
-void ProtectedHost::SendMessageToDownstream(Message& message, bool bThrowIfNoStream)
-//-----------------------------------------------------------------------------
-{
-	auto Control = m_ControlStreamTX.unique();
-
-	if (!Control.get())
-	{
-		if (bThrowIfNoStream)
-		{
-			throw KError("control stream is nullptr on write attempt");
-		}
-		else
-		{
-			return;
-		}
-	}
-
-	kDebug(3, message.Debug());
-
-	WriteMessage(*(Control.get()), message);
-
-} // ProtectedHost::SendMessageToDownstream
-
-//-----------------------------------------------------------------------------
 void ProtectedHost::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 //-----------------------------------------------------------------------------
 {
@@ -1166,12 +1188,16 @@ void ProtectedHost::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 
 } // ConnectToTarget
 
+
 //-----------------------------------------------------------------------------
 void ProtectedHost::TimingCallback(KUnixTime Time)
 //-----------------------------------------------------------------------------
 {
-	Message ping(Message::Ping, 0);
-	SendMessageToDownstream(ping, false);
+	if (HaveStream())
+	{
+		KStopTime RTT;
+		WriteMessage(Message(Message::Ping, 0, kToStringView(RTT)));
+	}
 
 } // ProtectedHost::TimingCallback
 
@@ -1196,34 +1222,30 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 		{
 			m_Config.Message("connecting {}..", m_Config.ExposedHost);
 
-			std::unique_ptr<KIOStreamSocket> Control;
-			std::unique_ptr<KIOStreamSocket> ControlTX;
-
 			KURL ExposedHost;
 			ExposedHost.Protocol = url::KProtocol::HTTPS;
 			ExposedHost.Domain   = m_Config.ExposedHost.Domain;
 			ExposedHost.Port     = m_Config.ExposedHost.Port;
 			ExposedHost.Path     = "/Tunnel";
 
-			KWebSocketClient HTTP(ExposedHost, Options);
+			KWebSocketClient WebSocket(ExposedHost, Options);
 
-			HTTP.SetTimeout(m_Config.ConnectTimeout);
-			HTTP.SetBinary();
+			WebSocket.SetTimeout(m_Config.ConnectTimeout);
+			WebSocket.SetBinary();
 
-			if (!HTTP.Connect())
+			if (!WebSocket.Connect())
 			{
 				throw KError("cannot establish first control connection");
 			}
 
-			Control = std::move(HTTP.GetStream());
+			SetStream(std::move(WebSocket.GetStream()));
 
 			{
-				Message login(Message::LoginTX, 0, KEncode::Base64(*m_Config.Secrets.begin()));
-				WriteMessage(*Control, login);
+				WriteMessage(Message(Message::Login, 0, KEncode::Base64(*m_Config.Secrets.begin())));
 
 				// wait for the response
 				Message Response;
-				ReadMessage(*Control, Response);
+				ReadMessage(Response);
 
 				if (Response.GetType() != Message::Helo &&
 					Response.GetChannel() != 0)
@@ -1235,81 +1257,49 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 			}
 
 			// now increase the timeout to allow for a once-per-minute ping
-			Control->SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
-
-			KWebSocketClient HTTP2(ExposedHost, Options);
-
-			HTTP2.SetTimeout(m_Config.ConnectTimeout);
-			HTTP2.SetBinary();
-
-			if (!HTTP2.Connect())
-			{
-				throw KError("cannot establish second control connection");
-			}
-
-			ControlTX = std::move(HTTP2.GetStream());
-
-			{
-				Message login(Message::LoginRX, 0, KEncode::Base64(*m_Config.Secrets.begin()));
-				WriteMessage(*ControlTX, login);
-
-				// wait for the response
-				Message Response;
-				ReadMessage(*ControlTX, Response);
-
-				if (Response.GetType() != Message::Helo &&
-					Response.GetChannel() != 0)
-				{
-					// error
-					m_Config.Message("login failed!");
-					return;
-				}
-			}
-
-			// set the shared write instance
-			m_ControlStreamTX.unique().get() = std::move(ControlTX);
-
-			// we'll only ever *read* now through Control in this thread
+			GetStream().SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
 
 			m_Config.Message("control stream opened - now waiting for data streams");
 
-			std::unique_ptr<Message> FromControl;
-
-			for (;Control->Good();)
+			for (;GetStream().Good();)
 			{
-				if (!FromControl)
-				{
-					FromControl = std::make_unique<Message>();
-				}
+				Message FromControl;
+				ReadMessage(FromControl);
 
-				ReadMessage(*Control, *FromControl);
-
-				kDebug(3, FromControl->Debug());
-
-				kDebug(2, "open connections: {}", m_Connections.size());
+				kDebug(3, "open connections: {}", m_Connections.size());
 
 				// get a shorthand for the channel
-				auto chan = FromControl->GetChannel();
+				auto chan = FromControl.GetChannel();
 
-				switch (FromControl->GetType())
+				switch (FromControl.GetType())
 				{
 					case Message::Ping:
 					{
-						// respond with pong TODO check upstream connection
-						Message pong(Message::Pong, chan);
-						SendMessageToDownstream(pong);
+						// respond with pong
+						FromControl.SetType(Message::Pong);
+						WriteMessage(std::move(FromControl));
 						break;
 					}
 
 					case Message::Pong:
-						// do nothing
+						// do nothing, but note RTT
+						if (FromControl.size() == sizeof(KStopTime))
+						{
+							auto RTT(kFromStringView<KStopTime>(FromControl.GetMessage()));
+							m_RTT = RTT.elapsed();
+							kDebug(1, "roundtrip: {}", m_RTT);
+						}
+						break;
+
+					case Message::Idle:
+						// really do nothing
 						break;
 
 					case Message::Control:
 						if (chan != 0)
 						{
 							kDebug(1, "bad channel for control message: {}", chan);
-							Control->Disconnect();
+							GetStream().Disconnect();
 							break;
 						}
 						// we currently do not exchange control messages
@@ -1318,10 +1308,10 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 					case Message::Connect:
 					{
 						// open a new stream to endpoint, and data stream to exposed host
-						KTCPEndPoint TargetHost(FromControl->GetMessage());
+						KTCPEndPoint TargetHost(FromControl.GetMessage());
 						kDebug(3, "got connect request: {} for channel {}", TargetHost, chan);
 
-						auto Connection = m_Connections.Create(chan, std::bind(&ProtectedHost::SendMessageToDownstream, this, std::placeholders::_1, true), nullptr);
+						auto Connection = m_Connections.Create(chan, [this](Message&& msg){ WriteMessage(std::move(msg)); }, nullptr);
 
 						if (Connection)
 						{
@@ -1329,8 +1319,7 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 						}
 						else
 						{
-							Message disconnect(Message::Disconnect, chan);
-							SendMessageToDownstream(disconnect);
+							WriteMessage(Message(Message::Disconnect, chan));
 						}
 
 						break;
@@ -1342,8 +1331,7 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 
 						if (!Connection)
 						{
-							Message disconnect(Message::Disconnect, chan);
-							SendMessageToDownstream(disconnect);
+							WriteMessage(Message(Message::Disconnect, chan));
 						}
 						else
 						{
@@ -1358,8 +1346,7 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 
 						if (!Connection)
 						{
-							Message disconnect(Message::Disconnect, chan);
-							SendMessageToDownstream(disconnect);
+							WriteMessage(Message(Message::Disconnect, chan));
 						}
 						else
 						{
@@ -1374,8 +1361,7 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 
 						if (!Connection)
 						{
-							Message disconnect(Message::Disconnect, chan);
-							SendMessageToDownstream(disconnect);
+							WriteMessage(Message(Message::Disconnect, chan));
 						}
 						else
 						{
@@ -1397,11 +1383,10 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 					}
 
 					case Message::Helo:
-					case Message::LoginTX:
-					case Message::LoginRX:
+					case Message::Login:
 					case Message::None:
 						kDebug(1, "bad message type");
-						Control->Disconnect();
+						GetStream().Disconnect();
 						break;
 				}
 			}
@@ -1415,7 +1400,7 @@ ProtectedHost::ProtectedHost(const CommonConfig& Config)
 		}
 
 		// make sure the write control stream is safely removed
-		m_ControlStreamTX.unique()->reset();
+		ResetStream();
 		kSleep(m_Config.ConnectTimeout);
 	}
 

@@ -117,11 +117,11 @@ public:
 
 	enum Type
 	{
-		LoginTX     = 0,
-		LoginRX,
+		Login       = 1,
 		Helo,
 		Ping,
 		Pong,
+		Idle,
 		Control,
 		Connect,
 		Data,
@@ -199,7 +199,7 @@ class Connection
 public:
 //----------
 
-	Connection (std::size_t iID, std::function<void(Message&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
+	Connection (std::size_t iID, std::function<void(Message&&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
 
 	void        SetDirectStream       (KIOStreamSocket* DirectStream) { m_DirectStream = DirectStream; }
 
@@ -207,7 +207,7 @@ public:
 	void        PumpFromTunnel        ();
 
 	/// puts data into the direct connection's queue, may force a Pause frame if queue is too large
-	void        SendData              (std::unique_ptr<Message> FromTunnel);
+	void        SendData              (Message&& FromTunnel);
 	void        Disconnect            ();
 
 	std::size_t GetID                 () const { return m_iID;      }
@@ -227,8 +227,8 @@ public:
 private:
 //----------
 
-	std::queue<std::unique_ptr<Message>> m_MessageQueue;
-	std::function<void(Message&)>        m_Tunnel;
+	std::queue<Message>                  m_MessageQueue;
+	std::function<void(Message&&)>       m_Tunnel;
 	KIOStreamSocket*                     m_DirectStream { nullptr };
 	std::mutex                           m_QueueMutex;
 	std::condition_variable              m_FreshData;
@@ -252,7 +252,7 @@ public:
 
 	Connections(std::size_t iMaxConnections) : m_iMaxConnections(iMaxConnections) {}
 
-	std::shared_ptr<Connection> Create (std::size_t iID, std::function<void(Message&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
+	std::shared_ptr<Connection> Create (std::size_t iID, std::function<void(Message&&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
 	std::shared_ptr<Connection> Get    (std::size_t iID, bool bAndRemove);
 	bool                        Remove (std::size_t iID);
 	bool                        Exists (std::size_t iID);
@@ -269,9 +269,13 @@ private:
 
 }; // Connections
 
-class ExposedRawServer;
-
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The web socket protocol requires to XOR the data sent by a "client" to the endpoint that was originally
+/// responding as a web "server" (but not into the other direction). This appears erratic, as websockets are
+/// supposed to be bidirectional transports with no distinction for the data, but it makes sense at least for
+/// non-TLS transports to mask the sent data in a way that a middleware box could not manipulate it in
+/// good spirit of seeing HTTP traffic. But this means we need to know the "direction" of the bidirectional
+/// transport all the time we access the stream sockets.
 class WebSocketDirection
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -280,27 +284,54 @@ class WebSocketDirection
 public:
 //----------
 
+	/// construct with bSetMaskTx set to true if this is a "client", else with false
 	WebSocketDirection(bool bSetMaskTx)
 	: m_bMaskTx(bSetMaskTx)
 	{
+		m_Timer = std::thread(&WebSocketDirection::TimerLoop, this);
 	}
 
-	bool ReadMessage     (KIOStreamSocket& Stream, Message& message);
-	bool WriteMessage    (KIOStreamSocket& Stream, Message& message);
+	~WebSocketDirection()
+	{
+		m_bQuit = true;
+		m_Timer.join();
+	}
+
+	/// read a message from the stream, blocks until timeout, then throws
+	void ReadMessage     (Message&  message);
+	/// write a message to the stream, blocks until timeout, then throws
+	void WriteMessage    (Message&& message);
 
 //----------
 protected:
 //----------
 
-	void SetMaskTx       (bool bYesNo)             { m_bMaskTx = bYesNo;      }
+	/// returns true if a stream is set
+	bool HaveStream      () const;
+	/// set the stream for input and output
+	void SetStream       (std::unique_ptr<KIOStreamSocket> Stream);
+	/// get a stream ref, throws if no stream
+	KIOStreamSocket& GetStream();
+	/// resets the stream
+	void ResetStream     ();
 
 //----------
 private:
 //----------
 
-	bool m_bMaskTx      { false };
+	void TimerLoop       ();
+
+	std::unique_ptr<KIOStreamSocket> m_TunnelStream;
+	std::mutex                       m_TLSMutex;   // protects the tunnel stream, m_LastTx and m_IdleNotBefore
+	std::thread                      m_Timer;
+	KStopTime                        m_LastTx;
+	KStopTime::Clock::time_point     m_IdleNotBefore;
+	bool                             m_bMaskTx       { false };
+	bool                             m_bQuit         { false };
 
 }; // WebSocketDirection
+
+class ExposedRawServer;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class ExposedServer : protected WebSocketDirection
@@ -330,24 +361,16 @@ public:
 protected:
 //----------
 
-	void SendMessageToUpstream (Message& message);
-
-	void ControlStreamRX (KIOStreamSocket& Stream);
-	void ControlStreamTX (KIOStreamSocket& Stream);
-	bool Login           (KIOStreamSocket& Stream);
-	void WSLogin         (KWebSocket& WebSocket);
+	void ControlStream   ();
+	void Login           (KWebSocket& WebSocket);
 
 //----------
 private:
 //----------
 
 	Connections                       m_Connections;
-	KThreadSafe<KIOStreamSocket*>     m_ControlStreamTX;
-	KThreadSafe<KIOStreamSocket*>     m_ControlStreamRX;
 	std::unique_ptr<ExposedRawServer> m_ExposedRawServer;
 	const Config&                     m_Config;
-	std::promise<void>                m_WaitForRX;
-	std::promise<void>                m_Quit;
 
 }; // ExposedServer
 
@@ -399,15 +422,13 @@ public:
 private:
 //----------
 
-	void SendMessageToDownstream (Message& message, bool bThrowIfNoStream = true);
 	void TimingCallback          (KUnixTime Time);
 	void ConnectToTarget         (std::size_t iID, KTCPEndPoint Target);
 
 	Connections          m_Connections;
-	KThreadSafe<std::unique_ptr<KIOStreamSocket>>
-	                     m_ControlStreamTX;
 	KThreads             m_Threads;
 	const CommonConfig&  m_Config;
+	KDuration            m_RTT;
 	KTimer::ID_t         m_TimerID { KTimer::InvalidID };
 
 }; // ProtectedHost

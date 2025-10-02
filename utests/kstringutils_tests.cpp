@@ -5,6 +5,7 @@
 #include <dekaf2/kstack.h>
 #include <dekaf2/kinstringstream.h>
 #include <dekaf2/ksystem.h>
+#include <dekaf2/kduration.h>
 #include <vector>
 #include <set>
 #include <list>
@@ -2052,4 +2053,15 @@ TEST_CASE("KStringUtils") {
 		kSafeZeroize(array);
 	}
 
+	SECTION("kToStringView")
+	{
+		KStopTime Stop1;
+		KString s1 = kToStringView(Stop1);
+		CHECK ( s1.size() == sizeof(KStopTime) );
+		auto Stop2 = kFromStringView<KStopTime>(s1);
+		CHECK ( Stop1.startedAt() == Stop2.startedAt() );
+		KStopTime Stop3;
+		kFromStringView(Stop3, s1);
+		CHECK ( Stop3.startedAt() == Stop1.startedAt() );
+	}
 }

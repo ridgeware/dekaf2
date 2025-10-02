@@ -2155,4 +2155,32 @@ kSafeZeroize(T& Container)
 	std::fill(Container.begin(), Container.end(), typename T::value_type());
 }
 
+/// serialize any trivially copyable type into a KStringView
+template <typename T>
+DEKAF2_PUBLIC DEKAF2_NODISCARD
+typename std::enable_if<std::is_trivially_copyable<T>::value, KStringView>::type
+kToStringView(T& Trivial)
+{
+	return KStringView(reinterpret_cast<const char*>(&Trivial), sizeof(Trivial));
+}
+
+/// deserialize any trivially copyable type from a KStringView
+template <typename T>
+DEKAF2_PUBLIC DEKAF2_NODISCARD
+typename std::enable_if<std::is_trivially_copyable<T>::value, T>::type
+kFromStringView(KStringView sData)
+{
+	return T(*reinterpret_cast<T*>(const_cast<char*>(sData.data())));
+}
+
+/// deserialize any trivially copyable type from a KStringView
+template <typename T>
+DEKAF2_PUBLIC // do not make this nodiscard
+typename std::enable_if<std::is_trivially_copyable<T>::value, T&>::type
+kFromStringView(T& Trivial, KStringView sData)
+{
+	Trivial = (*reinterpret_cast<T*>(const_cast<char*>(sData.data())));
+	return Trivial;
+}
+
 DEKAF2_NAMESPACE_END

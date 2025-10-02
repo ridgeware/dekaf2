@@ -238,26 +238,35 @@ public:
 
 	using Clock    = chrono::steady_clock;
 
+	/// static: return the current time of the used clock
+	static Clock::time_point now() { return Clock::now(); }
+
 	/// tag to force construction without starting the timer
 	static struct ConstructHalted {} Halted;
 
 	/// constructs and starts counting
-	KStopTime() : m_Start(Clock::now()) {}
+	KStopTime(Clock::time_point tStart = now()) : m_Start(tStart) {}
 	/// constructs without starting - use clear() to start counting
 	explicit KStopTime(ConstructHalted) {}
 
+	/// returns start time (as a chrono::steady_clock)
+	DEKAF2_NODISCARD
+	Clock::time_point startedAt() const { return m_Start; }
+	/// set start time to a specific time
+	void setStart(Clock::time_point tStart) { m_Start = tStart; }
+
 	/// resets start time to now
-	void clear() { m_Start = Clock::now(); }
+	void clear() { m_Start = now(); }
 	/// returns elapsed time as KDuration
 	DEKAF2_NODISCARD
-	KDuration elapsed(Clock::time_point tNow = Clock::now()) const { return tNow - m_Start; }
+	KDuration elapsed(Clock::time_point tNow = now()) const { return tNow - startedAt(); }
 	/// returns elapsed time and resets start time after readout
 	DEKAF2_NODISCARD
 	KDuration elapsedAndClear()
 	{
-		auto tNow = Clock::now();
+		auto tNow      = now();
 		auto tDuration = elapsed(tNow);
-		m_Start = tNow;
+		     m_Start   = tNow;
 		return tDuration;
 	}
 

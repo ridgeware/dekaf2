@@ -134,4 +134,15 @@ TEST_CASE("KDuration")
 			CHECK ( s == p.first );
 		}
 	}
+
+	SECTION("KStopTime")
+	{
+		KStopTime Stop(KStopTime::Halted);
+		kSleep(chrono::milliseconds(20));
+		Stop.clear();
+		kSleep(chrono::milliseconds(50));
+		auto took = Stop.elapsed();
+		CHECK ( took > chrono::milliseconds(40) );
+		CHECK ( took < chrono::milliseconds(60) );
+	}
 }

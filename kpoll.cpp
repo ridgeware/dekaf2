@@ -128,7 +128,7 @@ int kPoll(int handle, int what, KDuration Timeout)
 #if !DEKAF2_IS_WINDOWS
 		if (iResult < 0)
 		{
-			if (errno == EAGAIN)
+			if (errno == EINTR)
 			{
 				// interrupt
 				continue;

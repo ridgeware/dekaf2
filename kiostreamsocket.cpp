@@ -535,7 +535,7 @@ int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAn
 		}
 		else if (iResult < 0)
 		{
-			if (errno != EINTR)
+			if (errno == EINTR)
 			{
 				continue;
 			}

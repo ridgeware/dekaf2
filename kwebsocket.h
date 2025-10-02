@@ -243,6 +243,8 @@ public:
 	Frame& Frame() { return m_Frame; }
 	/// returns a reference to the stream socket for this instance
 	KIOStreamSocket& Stream() { return *m_Stream.get(); }
+	/// move the stream socket out of the KWebSocket class
+	std::unique_ptr<KIOStreamSocket> MoveStream() { return std::move(m_Stream); }
 
 	/// generate a client's sec key
 	static KString GenerateClientSecKey         ();

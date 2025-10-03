@@ -73,7 +73,21 @@
 using namespace dekaf2;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class CommonConfig
+struct CommonConfig
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KUnorderedSet<KString> Secrets;
+	KDuration              Timeout        { chrono::seconds(15)        };
+	KDuration              ControlPing    { chrono::seconds(60)        };
+	KDuration              ConnectTimeout { chrono::seconds(15)        };
+	KDuration              PollTimeout    { chrono::milliseconds(2000) };
+	uint16_t               iMaxTunnels    { 20 };
+	bool                   bQuiet         { false };
+
+}; // CommonConfig
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class ExtendedConfig : public CommonConfig
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -89,13 +103,6 @@ public:
 
 	KTCPEndPoint           DefaultTarget;
 	KTCPEndPoint           ExposedHost;
-	KUnorderedSet<KString> Secrets;
-	KDuration              Timeout        { chrono::seconds(15)        };
-	KDuration              ControlPing    { chrono::seconds(60)        };
-	KDuration              ConnectTimeout { chrono::seconds(15)        };
-	KDuration              PollTimeout    { chrono::milliseconds(2000) };
-	uint16_t               iMaxTunnels    { 20 };
-	bool                   bQuiet         { false };
 
 //----------
 private:
@@ -103,7 +110,7 @@ private:
 
 	void PrintMessage (KStringView sMessage) const;
 
-}; // CommonConfig
+}; // ExtendedConfig
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the message protocol used on top of the websocket frame, basically adding channels and (own) types
@@ -276,7 +283,7 @@ private:
 /// non-TLS transports to mask the sent data in a way that a middleware box could not manipulate it in
 /// good spirit of seeing HTTP traffic. But this means we need to know the "direction" of the bidirectional
 /// transport all the time we access the stream sockets.
-class WebSocketDirection
+class Tunnel
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -285,58 +292,77 @@ public:
 //----------
 
 	/// construct with bSetMaskTx set to true if this is a "client", else with false
-	WebSocketDirection(bool bSetMaskTx)
-	: m_bMaskTx(bSetMaskTx)
-	{
-		m_Timer = std::thread(&WebSocketDirection::TimerLoop, this);
-	}
+	Tunnel
+	(
+		const CommonConfig&              Config,
+		std::unique_ptr<KIOStreamSocket> Stream,
+		bool                             bIsClient
+	);
 
-	~WebSocketDirection()
-	{
-		m_bQuit = true;
-		m_Timer.join();
-	}
+	// dtor
+	~Tunnel();
 
-	/// read a message from the stream, blocks until timeout, then throws
-	void ReadMessage     (Message&  message);
-	/// write a message to the stream, blocks until timeout, then throws
-	void WriteMessage    (Message&& message);
+	/// if we are establishing the connection we have to login with user/secret
+	bool                        Login             (KStringView sUser, KStringView sSecret);
+	/// connect an incoming direct stream with the tunnel and the endpoint at the other side of the tunnel
+	std::shared_ptr<Connection> Connect           (KIOStreamSocket* DirectStream, const KTCPEndPoint& Endpoint);
+	/// returns the ip address of the opposite tunnel endpoint
+	KTCPEndPoint                GetEndPointAddress() const;
+
+	/// run the event handler for this tunnel - may throw or return on error
+	void Run             ();
 
 //----------
 protected:
 //----------
 
-	/// returns true if a stream is set
-	bool HaveStream      () const;
-	/// set the stream for input and output
-	void SetStream       (std::unique_ptr<KIOStreamSocket> Stream);
-	/// get a stream ref, throws if no stream
-	KIOStreamSocket& GetStream();
-	/// resets the stream
-	void ResetStream     ();
+	/// returns true if a stream is set and is good for reading and writing
+	bool HaveTunnel      () const;
+	/// read a message from the stream, blocks until timeout, then throws
+	void ReadMessage     (Message&  message);
+	/// write a message to the stream, blocks until timeout, then throws
+	void WriteMessage    (Message&& message);
+	/// waits for the other tunnel side to connect
+	void WaitForLogin    ();
+	/// set timeout for the tunnel connection
+	void SetTimeout      (KDuration Timeout);
+	/// force pings to check the tunnel
+	void PingTest        (KUnixTime Time);
+	/// connects to an outside target from one tunnel end
+	void ConnectToTarget (std::size_t iID, KTCPEndPoint Target);
 
 //----------
 private:
 //----------
 
+	/// danger!
+	KIOStreamSocket* GetStream() { return m_Tunnel.shared()->Stream.get(); }
+
 	void TimerLoop       ();
 
-	// TODO create a struct to wrap into KThreadSafe
-	std::mutex                       m_TLSMutex;   // protects the tunnel stream, m_LastTx and m_IdleNotBefore
-	std::unique_ptr<KIOStreamSocket> m_TunnelStream;
-	KStopTime                        m_LastTx;
-	KStopTime::Clock::time_point     m_IdleNotBefore;
+	struct TunnelEnv
+	{
+		std::unique_ptr<KIOStreamSocket> Stream;
+		KStopTime                        LastTx;
+		KStopTime::Clock::time_point     SendIdleNotBefore;
+	};
 
-	std::thread                      m_Timer;
-	bool                             m_bMaskTx       { false };
-	bool                             m_bQuit         { false };
+	const CommonConfig&    m_Config;
+	KThreadSafe<TunnelEnv> m_Tunnel;
+	Connections            m_Connections;
+	KThreads               m_Threads;
+	KDuration              m_RTT;
+	KTimer::ID_t           m_TimerID { KTimer::InvalidID };
+	std::thread            m_Timer;
+	bool                   m_bIsClient     { false };
+	bool                   m_bQuit         { false };
 
-}; // WebSocketDirection
+}; // Tunnel
 
 class ExposedRawServer;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class ExposedServer : protected WebSocketDirection
+class ExposedServer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -344,7 +370,7 @@ class ExposedServer : protected WebSocketDirection
 public:
 //----------
 
-	struct Config : public CommonConfig
+	struct Config : public ExtendedConfig
 	{
 		KString  sCertFile;
 		KString  sKeyFile;
@@ -357,20 +383,19 @@ public:
 
 	ExposedServer (const Config& config);
 
-	void ForwardStream (KIOStreamSocket& Downstream, const KTCPEndPoint& Endpoint, KStringView sInitialData = "");
+	void ForwardStream (KIOStreamSocket& Downstream, const KTCPEndPoint& Endpoint);
 
 //----------
 protected:
 //----------
 
-	void ControlStream   ();
-	void Login           (KWebSocket& WebSocket);
+	void ControlStream (std::unique_ptr<KIOStreamSocket> Stream);
 
 //----------
 private:
 //----------
 
-	Connections                       m_Connections;
+	std::unique_ptr<Tunnel>           m_Tunnel;
 	std::unique_ptr<ExposedRawServer> m_ExposedRawServer;
 	const Config&                     m_Config;
 
@@ -410,7 +435,7 @@ private:
 }; // ExposedRawServer
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class ProtectedHost : protected WebSocketDirection
+class ProtectedHost
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -418,20 +443,13 @@ class ProtectedHost : protected WebSocketDirection
 public:
 //----------
 
-	ProtectedHost (const CommonConfig& Config);
+	ProtectedHost (const ExtendedConfig& Config);
 
 //----------
 private:
 //----------
 
-	void TimingCallback          (KUnixTime Time);
-	void ConnectToTarget         (std::size_t iID, KTCPEndPoint Target);
-
-	Connections          m_Connections;
-	KThreads             m_Threads;
-	const CommonConfig&  m_Config;
-	KDuration            m_RTT;
-	KTimer::ID_t         m_TimerID { KTimer::InvalidID };
+	const ExtendedConfig&  m_Config;
 
 }; // ProtectedHost
 

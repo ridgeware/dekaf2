@@ -394,7 +394,7 @@ kurl::kurl ()
 
 	m_CLI
 		.Option("b,cookie <data|filename>")
-		.Help("loads cookies as if sent by the server with set-cookie. If value does not contain a '=' "
+		.Help("sets cookies as if sent by the server with set-cookie. If value does not contain a '=' "
 			  "it is supposed to be a filename in netscape cookie format to load")
 	([&](KStringViewZ sCookie)
 	{
@@ -441,7 +441,7 @@ kurl::kurl ()
 		.Set(BuildMRQ.sRequestCompression);
 
 	m_CLI
-		.Option("no-compressed,uncompressed")
+		.Option("no-compressed,no-compression,\n uncompressed")
 		.Help("do not request a compressed response")
 		.Set(BuildMRQ.sRequestCompression, "-");
 
@@ -594,7 +594,7 @@ kurl::kurl ()
 	});
 
 	m_CLI
-		.Command("R,reverse <IP address>")
+		.Command("reverse <IP address>")
 		.Help("run a reverse lookup on an IP address")
 		.Stop()
 	([&](KStringViewZ sAddress)

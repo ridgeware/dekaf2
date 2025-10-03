@@ -300,13 +300,14 @@ void Message::Throw(KString sError, KStringView sFunction) const
 void Connection::Resume()
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard Lock(m_TunnelMutex);
+	std::lock_guard<std::mutex> Lock(m_TunnelMutex);
 
 	if (!m_bPaused)
 	{
 		// return right here, do not send notifications
 		return;
 	}
+
 	// resume
 	m_bPaused = false;
 
@@ -347,7 +348,7 @@ void Connection::PumpToTunnel()
 					kDebug(2, "[{}]: paused", GetID());
 					// we are requested to hold on sending data.. wait on a semaphore
 					// until we get woken up again
-					std::unique_lock Lock(m_TunnelMutex);
+					std::unique_lock<std::mutex> Lock(m_TunnelMutex);
 					// 	protect from spurious wakeups by checking IsPaused()
 					m_ResumeTunnel.wait(Lock, [this]{ return !IsPaused(); });
 					kDebug(2, "[{}]: unpaused", GetID());
@@ -705,7 +706,7 @@ void WebSocketDirection::ReadMessage(Message& message)
 			throw KError(m_TunnelStream->GetLastError());
 		}
 
-		std::lock_guard StreamLock(m_TLSMutex);
+		std::lock_guard<std::mutex> StreamLock(m_TLSMutex);
 
 		// return immediately from poll
 		if (m_TunnelStream->IsReadReady(KDuration()))
@@ -738,7 +739,7 @@ void WebSocketDirection::WriteMessage(Message&& message)
 			throw KError(m_TunnelStream->GetLastError());
 		}
 
-		std::lock_guard StreamLock(m_TLSMutex);
+		std::lock_guard<std::mutex> StreamLock(m_TLSMutex);
 
 		// return immediately from poll
 		if (m_TunnelStream->IsWriteReady(KDuration()))

@@ -321,11 +321,13 @@ private:
 
 	void TimerLoop       ();
 
-	std::unique_ptr<KIOStreamSocket> m_TunnelStream;
+	// TODO create a struct to wrap into KThreadSafe
 	std::mutex                       m_TLSMutex;   // protects the tunnel stream, m_LastTx and m_IdleNotBefore
-	std::thread                      m_Timer;
+	std::unique_ptr<KIOStreamSocket> m_TunnelStream;
 	KStopTime                        m_LastTx;
 	KStopTime::Clock::time_point     m_IdleNotBefore;
+
+	std::thread                      m_Timer;
 	bool                             m_bMaskTx       { false };
 	bool                             m_bQuit         { false };
 

@@ -50,6 +50,7 @@
 #include "kctype.h"
 #include "kutf.h"
 #include "ktemplate.h"
+#include "kcrashexit.h"
 #include <cinttypes>
 #include <algorithm>
 #include <cstring>
@@ -2157,7 +2158,7 @@ kSafeZeroize(T& Container)
 
 /// serialize any trivially copyable type into a KStringView
 template <typename T>
-DEKAF2_PUBLIC DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 typename std::enable_if<std::is_trivially_copyable<T>::value, KStringView>::type
 kToStringView(T& Trivial)
 {
@@ -2166,10 +2167,11 @@ kToStringView(T& Trivial)
 
 /// deserialize any trivially copyable type from a KStringView
 template <typename T>
-DEKAF2_PUBLIC DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 typename std::enable_if<std::is_trivially_copyable<T>::value, T>::type
 kFromStringView(KStringView sData)
 {
+	kAssert(sData.size() == sizeof(T), "sizeof(T) is not equal the string size");
 	return T(*reinterpret_cast<T*>(const_cast<char*>(sData.data())));
 }
 
@@ -2179,6 +2181,7 @@ DEKAF2_PUBLIC // do not make this nodiscard
 typename std::enable_if<std::is_trivially_copyable<T>::value, T&>::type
 kFromStringView(T& Trivial, KStringView sData)
 {
+	kAssert(sData.size() == sizeof(T), "sizeof(T) is not equal the string size");
 	Trivial = (*reinterpret_cast<T*>(const_cast<char*>(sData.data())));
 	return Trivial;
 }

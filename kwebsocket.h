@@ -158,13 +158,13 @@ public:
 		{
 			SetPayload(std::move(sPayload), bIsBinary);
 		}
-		/// construct from stream, decodes one or multiple frames with payload, may send pong frames
+		/// construct from Stream, decodes one or multiple frames with payload, may send pong frames
 		Frame(KStream& Stream)
 		{
 			Read(Stream, Stream, false);
 		}
 
-		/// construct from stream, decodes one or multiple frames with payload, may send pong frames
+		/// construct from InStream / OutStream, decodes one or multiple frames with payload, may send pong frames
 		Frame(KInStream& InStream, KOutStream& OutStream)
 		{
 			Read(InStream, OutStream, false);
@@ -234,28 +234,28 @@ public:
 	KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<void(KWebSocket&)> WebSocketHandler);
 
 	/// set the finish callback for this instance
-	void SetFinishCallback(std::function<void()> Finish) { m_Finish = std::move(Finish); }
+	void               SetFinishCallback            (std::function<void()> Finish) { m_Finish = std::move(Finish); }
 	/// call the finish callback to end this instance
-	void Finish();
+	void               Finish                       ();
 	/// called upon reception of a new frame by a connection controller, will call the registered handler function
-	void CallHandler(Frame Frame);
+	void               CallHandler                  (Frame Frame);
 	/// returns a reference to the current frame
-	Frame& Frame() { return m_Frame; }
+	Frame&             GetFrame                     ()                             { return m_Frame;               }
 	/// returns a reference to the stream socket for this instance
-	KIOStreamSocket& Stream() { return *m_Stream.get(); }
+	KIOStreamSocket&   GetStream                    ()                             { return *m_Stream.get();       }
 	/// move the stream socket out of the KWebSocket class
-	std::unique_ptr<KIOStreamSocket> MoveStream() { return std::move(m_Stream); }
+	std::unique_ptr<KIOStreamSocket> MoveStream     ()                             { return std::move(m_Stream);   }
 
 	/// generate a client's sec key
-	static KString GenerateClientSecKey         ();
+	static KString     GenerateClientSecKey         ();
 	/// returns true if sec key looks valid (note, we only check for size and suffix '==', we do not decode the full base64)
-	static bool    ClientSecKeyLooksValid       (KStringView sSecKey, bool bThrowIfInvalid);
+	static bool        ClientSecKeyLooksValid       (KStringView sSecKey, bool bThrowIfInvalid);
 	/// generate the server response on a client's sec key
-	static KString GenerateServerSecKeyResponse (KString sSecKey, bool bThrowIfInvalid);
+	static KString     GenerateServerSecKeyResponse (KString sSecKey, bool bThrowIfInvalid);
 	/// check if a client requests a websocket upgrade of the HTTP/1.1 connection
-	static bool    CheckForUpgradeRequest       (const KInHTTPRequest& Request, bool bThrowIfInvalid);
+	static bool        CheckForUpgradeRequest       (const KInHTTPRequest& Request, bool bThrowIfInvalid);
 	/// check if the server response on a client upgrade request is valid
-	static bool    CheckForUpgradeResponse      (KStringView sClientSecKey, KStringView sProtocols, const KOutHTTPResponse& Response, bool bThrowIfInvalid);
+	static bool        CheckForUpgradeResponse      (KStringView sClientSecKey, KStringView sProtocols, const KOutHTTPResponse& Response, bool bThrowIfInvalid);
 
 //----------
 private:
@@ -264,7 +264,7 @@ private:
 	std::unique_ptr<KIOStreamSocket> m_Stream;
 	std::function<void(KWebSocket&)> m_Handler;
 	std::function<void()>            m_Finish;
-	class Frame                      m_Frame;
+	Frame                            m_Frame;
 
 }; // KWebSocket
 

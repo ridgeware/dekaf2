@@ -104,7 +104,7 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 	// a type for KScopeGuard..
 	auto namedLambdaGuard = [this, &EndpointAddress]() noexcept
 	{
-		// make sure the write control stream is safely removed
+		// make sure the control stream is safely removed
 		m_Tunnel.reset();
 		m_Config.Message("[{}]: closed control stream from {}", 0, EndpointAddress);
 	};
@@ -187,6 +187,14 @@ ExposedServer::ExposedServer (const Config& config)
 
 	Routes.AddRoute("/Tunnel").Get([this](KRESTServer& HTTP)
 	{
+		// check user/secret
+		auto Creds = HTTP.Request.GetBasicAuthParms();
+
+		if (m_Config.Secrets.empty() || !m_Config.Secrets.contains(Creds.sPassword))
+		{
+			throw KError(kFormat("invalid secret from {}: {}", HTTP.GetRemoteIP(), Creds.sPassword));
+		}
+
 		// set the handler for websockets in the REST server instance
 		HTTP.SetWebSocketHandler([this](KWebSocket& WebSocket)
 		{
@@ -269,6 +277,15 @@ ProtectedHost::ProtectedHost(const ExtendedConfig& Config)
 	{
 		try
 		{
+			KString sUsername = "";
+			KString sSecret   = *m_Config.Secrets.begin();
+
+			if (sSecret.empty())
+			{
+				kPrintLine("need a secret to login at {}", m_Config.ExposedHost);
+				return;
+			}
+
 			m_Config.Message("connecting {}..", m_Config.ExposedHost);
 
 			KURL ExposedHost;
@@ -281,22 +298,16 @@ ProtectedHost::ProtectedHost(const ExtendedConfig& Config)
 
 			WebSocket.SetTimeout(m_Config.ConnectTimeout);
 			WebSocket.SetBinary();
+			WebSocket.BasicAuthentication(sUsername, sSecret);
 
 			if (!WebSocket.Connect())
 			{
 				throw KError("cannot establish tunnel connection");
 			}
 
-			// we are the "client" side of the tunnel
-			KTunnel Tunnel(m_Config, std::move(WebSocket.GetStream()), "", *m_Config.Secrets.begin());
-/* TODO
-			// a client has to actively call Login
-			if (!Tunnel.Login())
-			{
-				m_Config.Message("login failed!");
-				return;
-			}
-*/
+			// we are the "client" side of the tunnel and have to login with user/pass
+			KTunnel Tunnel(m_Config, std::move(WebSocket.GetStream()), sUsername, sSecret);
+
 			m_Config.Message("control stream opened - now waiting for data streams");
 
 			Tunnel.Run();

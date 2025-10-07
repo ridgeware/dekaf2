@@ -1003,6 +1003,11 @@ public:
 		m_HTTPVersion = Version;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// static method to return a basic auth user/pass struct from an input string (including the leading "Basic ")
+	static BasicAuthParms DecodeBasicAuthFromString(KStringView sInput);
+	//-----------------------------------------------------------------------------
+
 //------
 public:
 //------

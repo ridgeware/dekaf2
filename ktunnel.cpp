@@ -55,19 +55,24 @@
 //
 // Message types are:
 // - Login, Control, Connect, Data, Pause, Resume, Disconnect, Ping, Pong
-// - Login messages bear endpoint "user" name and its secret as name:secret
-//   in base64, much like in basic auth
+// - Login messages bear endpoint "user" name and its secret as "Basic name:secret",
+//   where name:secret is encoded in base64, much like in basic auth. There
+//   may be other schemes by future implementations.
 // - Ping/Pong messages are used to keep the tunnel alive when there is no
 //   other communication, and to check for its health and for the health of
-//   specific channels. The websocket ping is not used.
+//   specific channels. The websocket ping is not used. Pings always start
+//   from the connecting end, as that is the side that has to re-establish
+//   a lost connection (but would be supported the other way round as well).
+//   A ping can contain a payload, which has to be echoed in the answer pong.
+// - Control messages are as of now unused, and would only be valid at channel 0.
 // - Connect messages contain a string with the endpoint address to connect
 //   to, either as domain:port or ipv4:port or [ipv6]:port, note the [] around
 //   the ipv6 address part
-// - Data messages contain the payload data
+// - Data messages contain the payload data in either direction.
 // - Disconnect messages indicate a disconnect from one side to the other
 // - Pause and Resume messages implement a flow control per individual data
 //   channel, telling the respective other end of the channel to pause or
-//   resume transmission through the tunnel
+//   resume transmission through the tunnel.
 //
 // The tunnel connection can transport up to 16 million tunneled streams.
 
@@ -509,11 +514,6 @@ std::shared_ptr<KTunnel::Connection> KTunnel::Connections::Create(std::size_t iI
 	{
 		kDebug(1, "max tunnel limit of {} reached - refusing new forward connection", m_iMaxConnections);
 
-		if (DirectStream)
-		{
-			DirectStream->WriteLine("max tunnel limit reached").Flush();
-		}
-
 		return {};
 	}
 
@@ -523,12 +523,12 @@ std::shared_ptr<KTunnel::Connection> KTunnel::Connections::Create(std::size_t iI
 
 	for (;;)
 	{
-		++iIterations;
-
-		if (iIterations >= Message::MaxChannel())
+		if (iIterations == Message::MaxChannel())
 		{
 			kDebug(1, "cannot generate a new ID value");
 		}
+
+		++iIterations;
 
 		if (iID == 0)
 		{
@@ -646,7 +646,7 @@ KTunnel::KTunnel
 
 	if (!bIsClient)
 	{
-		WaitForLogin();
+		m_bWaitForLogin = true;
 	}
 	else
 	{
@@ -655,18 +655,8 @@ KTunnel::KTunnel
 			m_bMaskTx = true;
 		}
 
-		m_TimerID = Dekaf::getInstance().GetTimer().CallEvery
-		(
-			m_Config.ControlPing,
-			std::bind(&KTunnel::PingTest, this, std::placeholders::_1)
-		);
-
 		Login(sUser, sSecret);
 	}
-
-	SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
-
-	m_Timer = std::thread(&KTunnel::TimerLoop, this);
 
 } // KTunnel::KTunnel
 
@@ -682,7 +672,8 @@ KTunnel::~KTunnel()
 	}
 
 	m_Timer.join();
-}
+
+} // KTunnel::~KTunnel
 
 //-----------------------------------------------------------------------------
 void KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& ConnectToEndpoint)
@@ -955,7 +946,7 @@ void KTunnel::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 bool KTunnel::Login(KStringView sUser, KStringView sSecret)
 //-----------------------------------------------------------------------------
 {
-	WriteMessage(Message(Message::Login, 0, KEncode::Base64(kFormat("{}:{}", sUser, sSecret))));
+	WriteMessage(Message(Message::Login, 0, kFormat("Basic {}", KEncode::Base64(kFormat("{}:{}", sUser, sSecret)))));
 
 	// wait for the response
 	Message Response;
@@ -983,31 +974,17 @@ void KTunnel::WaitForLogin()
 		return;
 	}
 
-	auto sMessage = KDecode::Base64(Login.GetMessage());
+	auto Creds = KHTTPHeaders::DecodeBasicAuthFromString(Login.GetMessage());
 
-	KString sName;
-	KString sSecret;
-
-	auto iPos = sMessage.find(':');
-
-	if (iPos != KString::npos)
+	if (m_Config.Secrets.empty() || !m_Config.Secrets.contains(Creds.sPassword))
 	{
-		sSecret = sMessage.Mid(iPos + 1);
-	}
-	else
-	{
-		sSecret = sMessage;
-	}
-
-	if (m_Config.Secrets.empty() || !m_Config.Secrets.contains(sSecret))
-	{
-		throw KError(kFormat("invalid secret from {}: {}", GetEndPointAddress(), sSecret));
+		throw KError(kFormat("invalid secret from {}: {}", GetEndPointAddress(), Creds.sPassword));
 	}
 
 	// finally say hi
 	WriteMessage(Message(Message::Helo, 0));
 
-	kDebug(1, "successful login from {} ({}) with secret", GetEndPointAddress(), sName);
+	kDebug(1, "successful login from {} ({}) with valid secret", GetEndPointAddress(), Creds.sUsername);
 
 } // KTunnel::WaitForLogin
 
@@ -1027,6 +1004,23 @@ void KTunnel::PingTest(KUnixTime Time)
 void KTunnel::Run()
 //-----------------------------------------------------------------------------
 {
+	if (m_bWaitForLogin)
+	{
+		WaitForLogin();
+	}
+	else
+	{
+		m_TimerID = Dekaf::getInstance().GetTimer().CallEvery
+		(
+			m_Config.ControlPing,
+			std::bind(&KTunnel::PingTest, this, std::placeholders::_1)
+		);
+	}
+
+	SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
+
+	m_Timer = std::thread(&KTunnel::TimerLoop, this);
+
 	for (;HaveTunnel();)
 	{
 		Message FromTunnel;

@@ -464,25 +464,29 @@ std::vector<KHTTPHeader::Range> KHTTPHeaders::GetRanges(uint64_t iResourceSize) 
 KHTTPHeaders::BasicAuthParms KHTTPHeaders::GetBasicAuthParms() const
 //-----------------------------------------------------------------------------
 {
+	return DecodeBasicAuthFromString(Headers.Get(KHTTPHeader::AUTHORIZATION));
+
+} // GetBasicAuthParms
+
+//-----------------------------------------------------------------------------
+KHTTPHeaders::BasicAuthParms KHTTPHeaders::DecodeBasicAuthFromString(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
 	BasicAuthParms Parms;
 
-	const auto it = Headers.find(KHTTPHeader::AUTHORIZATION);
-	if (it != Headers.end())
+	if (sInput.starts_with("Basic "))
 	{
-		if (it->second.starts_with("Basic "))
+		auto sDecoded = KBase64::Decode(sInput.Mid(6));
+		auto iPos = sDecoded.find(':');
+		if (iPos != KString::npos)
 		{
-			auto sDecoded = KBase64::Decode(it->second.Mid(6));
-			auto iPos = sDecoded.find(':');
-			if (iPos != KString::npos)
-			{
-				Parms.sUsername = sDecoded.Left(iPos);
-				Parms.sPassword = sDecoded.Mid(iPos+1);
-			}
+			Parms.sUsername = sDecoded.Left(iPos);
+			Parms.sPassword = sDecoded.Mid(iPos+1);
 		}
 	}
 
 	return Parms;
 
-} // GetBasicAuthParms
+} // DecodeBasicAuthFromString
 
 DEKAF2_NAMESPACE_END

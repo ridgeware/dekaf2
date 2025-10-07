@@ -74,6 +74,8 @@ class KTunnel
 public:
 //----------
 
+	//------------------------- subclasses of KTunnel -------------------------
+
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// Config setup for KTunnel
 	struct Config
@@ -83,7 +85,8 @@ public:
 		KUnorderedSet<KString> Secrets;
 		/// timeout for incoming and outgoing connections (not for the tunnel itself)
 		KDuration              Timeout        { chrono::seconds(15)        };
-		/// interval to query tunnel health - should be low enough to avoid firewall and proxy timeouts
+		/// interval to query tunnel health - should be low enough to avoid firewall and proxy timeouts,
+		/// and because it is also used to calculate the connection timeout should be same on both ends
 		KDuration              ControlPing    { chrono::seconds(60)        };
 		/// timeout for connection setup, either for the tunnel itself or for any of the tunneled connections
 		KDuration              ConnectTimeout { chrono::seconds(15)        };
@@ -179,6 +182,8 @@ public:
 	}; // Message
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// runs one single connection in the multiplexed tunnel - uses two threads to pump data in and out of
+	/// tunnel and outside connection
 	class Connection
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -187,17 +192,23 @@ public:
 	public:
 	//----------
 
+		/// ctor, gets a unique ID (channel), a function pointer to send messages, and either a connected stream to the outside target or nullptr
 		Connection (std::size_t iID, std::function<void(Message&&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
 
+		/// set the outside connection stream if not given with the ctor
 		void        SetDirectStream       (KIOStreamSocket* DirectStream) { m_DirectStream = DirectStream; }
 
+		/// runs the data pump into the tunnel
 		void        PumpToTunnel          ();
+		/// runs the data pump out of the tunnel
 		void        PumpFromTunnel        ();
 
 		/// puts data into the direct connection's queue, may force a Pause frame if queue is too large
 		void        SendData              (Message&& FromTunnel);
+		/// shuts this connection down
 		void        Disconnect            ();
 
+		/// returns the unique ID (channel) for this connection
 		std::size_t GetID                 () const { return m_iID;      }
 
 		/// pause sending frames for this connection
@@ -230,6 +241,7 @@ public:
 	}; // Connection
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// holds all multiplexed connections through the tunnel, thread safe
 	class Connections
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -238,12 +250,18 @@ public:
 	public:
 	//----------
 
+		/// ctor, takes the max connection count
 		Connections(std::size_t iMaxConnections) : m_iMaxConnections(iMaxConnections) {}
 
+		/// create and store a new connection. If iID is 0 (the normal case) it will be generated as a unique ID. TunnelSend is a function to send messages, DirectStream takes the outside connection's stream if already existing
 		std::shared_ptr<Connection> Create (std::size_t iID, std::function<void(Message&&)> TunnelSend, KIOStreamSocket* DirectStream = nullptr);
+		/// look for an existing connection
 		std::shared_ptr<Connection> Get    (std::size_t iID, bool bAndRemove);
+		/// remove one connection
 		bool                        Remove (std::size_t iID);
+		/// checks for existance of a connection by its ID (channel)
 		bool                        Exists (std::size_t iID);
+		/// returns current count of connections
 		std::size_t                 size   () const;
 
 	//----------
@@ -256,6 +274,8 @@ public:
 		std::size_t m_iMaxConnections { 50 };
 
 	}; // Connections
+
+	//------------------------- start of KTunnel -------------------------
 
 	/// Construct around a KIOStreamSocket. If either user or secret are given, this instance
 	/// will try to login at the opposite instance (and, in websocket terms, be a "client" and XOR
@@ -278,7 +298,7 @@ public:
 	/// on error or return after connection is closed from the other end
 	void         Connect            (KIOStreamSocket* DirectStream, const KTCPEndPoint& ConnectToEndpoint);
 
-	/// run the event handler for this tunnel - may throw or return on error
+	/// run the event handler for this tunnel - may throw or return on error, otherwise blocking the current thread
 	void         Run                ();
 
 	/// returns the ip address of the opposite tunnel endpoint
@@ -329,6 +349,7 @@ private:
 	KDuration              m_RTT;
 	KTimer::ID_t           m_TimerID       { KTimer::InvalidID };
 	std::thread            m_Timer;
+	bool                   m_bWaitForLogin { false };
 	bool                   m_bMaskTx       { false };
 	bool                   m_bQuit         { false };
 

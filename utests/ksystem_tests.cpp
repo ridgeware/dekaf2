@@ -336,4 +336,9 @@ TEST_CASE("KSystem")
 		}};
 
 	}
+
+	SECTION("kGetUptime")
+	{
+		CHECK ( kGetUptime().seconds().count() > 5 );
+	}
 }

@@ -182,7 +182,7 @@ public:
 	                                                          noexcept : KUnixTime(from_timespec(ts)) {}
 	/// construct from struct timeval timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const struct timeval& tv)
-															  noexcept : KUnixTime(from_timeval(tv) ) {}
+	                                                          noexcept : KUnixTime(from_timeval(tv) ) {}
 	/// construct from std::tm timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const std::tm& tm) noexcept : KUnixTime(    from_tm(tm)  ) {}
 	// we need this constructor because otherwise gcc versions < 9 complain about conversion ambiguities

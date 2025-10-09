@@ -512,7 +512,11 @@ KDuration kPing(KStringView sHostname, KDuration Timeout = chrono::seconds(5));
 
 /// is the current stdout a terminal or not
 /// @returns true if terminal, false otherwise
-DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kStdOutIsTerminal();
+
+/// returns the system uptime
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KDuration kGetUptime();
 
 DEKAF2_NAMESPACE_END

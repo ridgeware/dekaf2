@@ -62,7 +62,7 @@
 #ifdef DEKAF2_IS_WINDOWS
 	#include <cwchar>
 	#include <ws2tcpip.h>
-	#include <sysinfoapi.h>    // for getTotalSystemMemory()
+	#include <sysinfoapi.h>    // for GetTickCount64()
 	#include <consoleapi2.h>   // for GetConsoleScreenBufferInfo()
 	#include <fileapi.h>       // for GetFinalPathNameByHandle()
 	#include <io.h>            // for _get_osfhandle()
@@ -72,13 +72,14 @@
 	#include <charconv>        // for std::to_chars()
 #else
 	#include <unistd.h>        // for sysconf()
-	#include <sys/types.h>     // for getpwuid()
+	#include <sys/types.h>     // for getpwuid(), sysctl()
 	#include <pwd.h>           // for getpwuid()
 	#include <arpa/inet.h>
 	#include <sys/ioctl.h>     // for ioctl(), TIOCGWINSZ
 	#include <grp.h>           // for getgrgid()
 	#ifdef DEKAF2_IS_MACOS
 		// MacOS
+		#include <sys/sysctl.h>    // for sysctl()
 		#include <sys/syslimits.h> // for MAX_PATH
 		#include <fcntl.h>         // for fcntl()
 		#ifdef DEKAF2_X86
@@ -89,6 +90,7 @@
 		#include <dlfcn.h>
 	#else
 		// Unix
+		#include <sys/sysinfo.h> // for sysinfo()
 		#include <sys/syscall.h>
 		#include <limits.h>    // for MAX_PATH
 		#ifdef DEKAF2_GLIBC_VERSION
@@ -382,9 +384,7 @@ KString kGetWhoAmI ()
 	KString sWhoami;
 
 #ifdef DEKAF2_IS_WINDOWS
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// WINDOWS:
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 	enum { MAX = 100 };
 	wchar_t szWhoami[MAX + 1] = { 0 };
 	DWORD nSize = MAX;
@@ -392,12 +392,13 @@ KString kGetWhoAmI ()
 	{
 		kutf::Convert(szWhoami, sWhoami);
 	}
+
 #else
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 	// on UNIX, we do *not* cache the kGetWhoami() result, to allow
 	// identity changes through setuid():
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	sWhoami = kGetUsername(kGetUid());
+
 #endif
 
 	kDebug (2, sWhoami);
@@ -454,17 +455,13 @@ KStringViewZ kGetHostname (bool bAllowKHostname/*=true*/)
 	{
 		Names()
 		{
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// set (and cache) /etc/khostname:
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			if (kFileExists("/etc/khostname"))
 			{
 				sKHostname = kReadAll("/etc/khostname");
 			}
 
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 			// set (and cache) OS hostname:
-			// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 			#ifdef DEKAF2_IS_WINDOWS
 
@@ -2324,5 +2321,48 @@ bool kStdOutIsTerminal()
 #endif
 
 } // kStdOutIsTerminal
+
+//-----------------------------------------------------------------------------
+KDuration kGetUptime()
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_MACOS
+
+	struct timeval tvBoot;
+	std::size_t iLen = sizeof(tvBoot);
+	int mib[2] = { CTL_KERN, KERN_BOOTTIME };
+
+	if (sysctl(mib, 2, &tvBoot, &iLen, nullptr, 0) < 0)
+	{
+		kDebug(1, strerror(errno));
+		return KDuration { -1 } ;
+	}
+
+	return KUnixTime::now() - KUnixTime(tvBoot);
+
+#elif DEKAF2_IS_UNIX
+
+	struct sysinfo info;
+
+	if (sysinfo(&info) != 0)
+	{
+		kDebug(1, strerror(errno));
+		return KDuration { -1 } ;
+	}
+
+	return chrono::seconds(info.uptime);
+
+#elif DEKAF2_IS_WINDOWS
+
+	return chrono::milliseconds(GetTickCount64());
+
+#else
+
+	return KDuration { -1 } ;
+
+#endif
+
+} // kGetUptime
+
 
 DEKAF2_NAMESPACE_END

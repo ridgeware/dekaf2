@@ -44,6 +44,7 @@
 
 #if DEKAF2_IS_GCC
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Woverflow"
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 

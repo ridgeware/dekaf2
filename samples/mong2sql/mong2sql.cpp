@@ -73,18 +73,6 @@ int Mong2SQL::Main(int argc, char* argv[])
 	KOptions Options(true, KLog::STDOUT, /*bThrow*/true);
 	Options.SetBriefDescription("convert a MongoDB collection to one or more tables in a MySQL db");
 	Options.SetAdditionalHelp(
-		"mong2sql : convert a MongoDB collection to one or more tables in a MySQL db\n"
-		"\n"
-		"usage: mong2sql [<options>] <collection>\n"
-		"\n"
-		"where <options> are:\n"
-		"  -in <file>       :: use input file a full dump of the collection\n"
-		"  -mongo \"...\"     :: specify the MongoDB connection string\n"
-		"  -dbc <dbc>       :: specify the MySQL database connection\n"
-		"  -continue <field> :: enable delta sync mode using MongoDB field for incremental updates\n"
-		"  -v, -verbose     :: enable verbose output with progress information\n"
-		"  -q, -quiet       :: disable verbose output\n"
-		"\n"
 		"notes:\n"
 		"  * one of -in or -mongo needs to be specified\n"
 		"  * if no connection parms are specified for MySQL, then SQL is just\n"
@@ -142,9 +130,11 @@ int Mong2SQL::Main(int argc, char* argv[])
 
 	Options.UnknownCommand([&](KOptions::ArgList& Args)
 	{
+		kDebug (3, "unknown arg lambda");
 		if (!Args.empty())
 		{
 			m_Config.sCollectionName = Args.pop();
+			kDebug (3, "collection set to: {}", m_Config.sCollectionName);
 		}
 	});
 

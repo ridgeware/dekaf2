@@ -55,6 +55,7 @@
 #include <mongocxx/uri.hpp>
 
 #include <bsoncxx/json.hpp>
+#include <bsoncxx/builder/stream/document.hpp>
 
 #include <algorithm>
 #include <array>
@@ -89,6 +90,10 @@ int Mong2SQL::Main(int argc, char* argv[])
 	Options.Option("mongo <connection_string>")
 		.Help("specify the MongoDB connection string")
 		.Set(m_Config.sMongoConnectionString);
+
+	Options.Option("prefix <table_prefix>")
+		.Help("specify a prefix for all MySQL table names (will be uppercased and end with _)")
+		.Set(m_Config.sTablePrefix);
 
 	Options.Option("dbc <file>")
 		.Help("specify the MySQL database connection (DBC file)")
@@ -221,11 +226,7 @@ bool Mong2SQL::LoadDBC()
 	m_Config.bHasDBC = true;
 	m_Config.bVerbose = true;  // Auto-enable verbosity when using database connection
     
-	if (m_Config.bVerbose)
-	{
-		KOut.FormatLine(":: Connected to MySQL: {}", m_SQL.ConnectSummary());
-	}
-	kDebug(1, "Connected using DBC: {}", m_Config.sDBC);
+	Verbose(1, "MySQL: connecting: {} ...", m_SQL.ConnectSummary());
 	return true;
 
 } // LoadDBC
@@ -244,6 +245,67 @@ void Mong2SQL::ProcessCollection()
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, "...");
+	
+	// Check for "all" collections special case
+	if (m_Config.sCollectionName.ToLower() == "all")
+	{
+		if (!m_Config.sInputFile.empty())
+		{
+			KErr.FormatLine(">> error: collection 'all' cannot be used with file input (-in flag)");
+			return;
+		}
+		
+		// Get all collections from MongoDB
+		std::vector<KString> collections = GetAllCollectionsFromMongoDB();
+		if (collections.empty())
+		{
+			KErr.FormatLine(">> no collections found or error occurred");
+			return;
+		}
+		
+		// Process each collection
+		for (const auto& sCollection : collections)
+		{
+			Verbose(1, "Processing collection: {}", sCollection);
+			
+			// Temporarily set the collection name
+			KString sOriginalCollection = m_Config.sCollectionName;
+			m_Config.sCollectionName = sCollection;
+			
+			std::vector<KJSON> documents;
+			bool bSuccess = false;
+			
+			if (m_Config.bContinueMode)
+			{
+				bSuccess = ProcessFromMongoDBDelta(documents);
+			}
+			else
+			{
+				bSuccess = ProcessFromMongoDB(documents);
+			}
+			
+			if (bSuccess && !documents.empty())
+			{
+				kDebug(1, "processing {} documents for collection '{}'", documents.size(), sCollection);
+				ProcessDocuments(documents, sCollection);
+			}
+			else if (!bSuccess)
+			{
+				KErr.FormatLine(">> failed to process collection '{}'", sCollection);
+			}
+			else
+			{
+				Verbose(1, "Collection '{}' is empty, skipping", sCollection);
+			}
+			
+			// Restore original collection name
+			m_Config.sCollectionName = sOriginalCollection;
+		}
+		
+		return;
+	}
+	
+	// Normal single collection processing
 	std::vector<KJSON> documents;
 	bool bSuccess { false };
 
@@ -281,11 +343,7 @@ bool Mong2SQL::ProcessFromFile(std::vector<KJSON>& documents)
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, "...");
-	if (m_Config.bVerbose)
-	{
-		KOut.FormatLine(":: Reading from file: {}", m_Config.sInputFile);
-	}
-	kDebug(2, "reading from file: {}", m_Config.sInputFile);
+	Verbose(2, "Reading from file: {}", m_Config.sInputFile);
 	if (!kFileExists(m_Config.sInputFile))
 	{
 		SetError(kFormat("Input file does not exist: {}", m_Config.sInputFile));
@@ -339,15 +397,13 @@ bool Mong2SQL::ProcessFromMongoDB(std::vector<KJSON>& documents)
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, "...");
-	if (m_Config.bVerbose)
-	{
-		KOut.FormatLine(":: Connecting to MongoDB: {}", m_Config.sMongoConnectionString);
-	}
-	kDebug(2, "connecting to MongoDB: {}", m_Config.sMongoConnectionString);
+	Verbose(1, "MongoDB: connecting: {}", m_Config.sMongoConnectionString);
+	
+	// Initialize MongoDB driver
+	InitializeMongoDB();
+	
 	try
 	{
-		static mongocxx::instance Instance{};
-
 		mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
 		mongocxx::client client{uri};
 
@@ -360,32 +416,29 @@ bool Mong2SQL::ProcessFromMongoDB(std::vector<KJSON>& documents)
 		auto database   = client[sDatabaseName.c_str()];
 		auto collection = database[m_Config.sCollectionName.c_str()];
 
-		kDebug(1, "Processing collection '{}' from MongoDB: {}", m_Config.sCollectionName, m_Config.sMongoConnectionString);
-
-		kDebug(2, "querying collection '{}' in database '{}'", m_Config.sCollectionName, sDatabaseName);
+		Verbose(1, "MongoDB: querying collection: {} ...", m_Config.sCollectionName);
 		auto cursor = collection.find({});
 
-		std::size_t docCount = 0;
-		for (auto&& doc : cursor)
+		std::size_t iDocCount = 0;
+		for (const auto& doc : cursor)
 		{
 			KString sJsonDoc = bsoncxx::to_json(doc);
-
 			KJSON document;
 			KString sError;
 			if (!kjson::Parse(document, sJsonDoc, sError))
 			{
-				KErr.FormatLine (">> failed to parse BSON document: {} - Error: {}", sJsonDoc, sError);
+				KErr.FormatLine(">> failed to parse MongoDB document: {} - Error: {}", sJsonDoc, sError);
 				continue;
 			}
 
 			documents.emplace_back(std::move(document));
-			++docCount;
-			if (docCount % 1000 == 0)
+			++iDocCount;
+			if (iDocCount % 1000 == 0)
 			{
-				kDebug(2, "loaded {} documents from MongoDB", docCount);
+				kDebug(2, "loaded {} documents from MongoDB", iDocCount);
 			}
 		}
-		kDebug(1, "loaded {} documents from MongoDB", docCount);
+		Verbose (1, "MongoDB: loaded {} documents off {} collection", kFormNumber(iDocCount), m_Config.sCollectionName);
 	}
 	catch (const std::exception& ex)
 	{
@@ -401,7 +454,7 @@ bool Mong2SQL::ProcessFromMongoDB(std::vector<KJSON>& documents)
 bool Mong2SQL::ProcessFromMongoDBDelta(std::vector<KJSON>& documents)
 //-----------------------------------------------------------------------------
 {
-	kDebug(1, "processing MongoDB delta sync for field '{}'", m_Config.sContinueField);
+	Verbose (1, "MongoDB: synching {} off {}", m_Config.sCollectionName, m_Config.sContinueField);
     
 	// Convert MongoDB field name to MySQL column name using existing rules
 	KString sTableName = ConvertCollectionNameToTableName(m_Config.sCollectionName);
@@ -409,7 +462,7 @@ bool Mong2SQL::ProcessFromMongoDBDelta(std::vector<KJSON>& documents)
     
 	// Get the last modified timestamp from MySQL
 	KString sLastModified = GetLastModifiedFromMySQL(sTableName, sMySQLColumn);
-	kDebug(1, "last modified in MySQL table '{}' column '{}': '{}'", sTableName, sMySQLColumn, sLastModified);
+	Verbose (1, "MySQL: max({}.{}) = {}", sTableName, sMySQLColumn, sLastModified);
     
 	// Connect to MongoDB with filter
 	kDebug(2, "connecting to MongoDB with delta filter: {}", m_Config.sMongoConnectionString);
@@ -438,6 +491,138 @@ KString Mong2SQL::GetLastModifiedFromMySQL(KStringView sTableName, KStringView s
 }
 
 //-----------------------------------------------------------------------------
+std::vector<KString> Mong2SQL::GetAllCollectionsFromMongoDB()
+//-----------------------------------------------------------------------------
+{
+	kDebug(1, "getting all collections from MongoDB");
+	std::vector<KString> collections;
+	
+	if (m_Config.sMongoConnectionString.empty())
+	{
+		SetError("MongoDB connection string is required for 'all' collections");
+		return collections;
+	}
+
+	// Initialize MongoDB driver
+	InitializeMongoDB();
+
+	try
+	{
+		mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
+		mongocxx::client client{uri};
+		
+		// Extract database name from connection string or use default
+		KString sDatabaseName = uri.database();
+		if (sDatabaseName.empty())
+		{
+			sDatabaseName = "test"; // MongoDB default database
+		}
+		
+		auto database = client[sDatabaseName.c_str()];
+		
+		Verbose(1, "MongoDB: listing (and sizing) collections ...");
+		
+		// Structure to hold collection name and size for sorting
+		struct CollectionInfo {
+			KString name;
+			std::int64_t size;
+		};
+		std::vector<CollectionInfo> collectionInfos;
+		
+		// Get list of collections
+		auto cursor = database.list_collections();
+		for (const auto& doc : cursor)
+		{
+			auto nameElement = doc["name"];
+			if (nameElement && nameElement.type() == bsoncxx::type::k_string)
+			{
+				auto stringView = nameElement.get_string().value;
+				KString sCollectionName{stringView.data(), stringView.size()};
+				
+				// Skip system collections
+				if (!sCollectionName.starts_with("system."))
+				{
+					kDebug(2, "found collection: {}", sCollectionName);
+					
+					// Get collection size using totalSize()
+					std::int64_t collectionSize = 0;
+					try
+					{
+						auto collection = database[sCollectionName.c_str()];
+						
+						// Run db.collection.totalSize() command
+						auto command = bsoncxx::builder::stream::document{} 
+							<< "collStats" << sCollectionName.c_str()
+							<< bsoncxx::builder::stream::finalize;
+						
+						auto result = database.run_command(command.view());
+						auto sizeElement = result.view()["totalSize"];
+						
+						if (sizeElement && (sizeElement.type() == bsoncxx::type::k_int32 || 
+											sizeElement.type() == bsoncxx::type::k_int64))
+						{
+							if (sizeElement.type() == bsoncxx::type::k_int32)
+							{
+								collectionSize = sizeElement.get_int32().value;
+							}
+							else
+							{
+								collectionSize = sizeElement.get_int64().value;
+							}
+						}
+						
+						kDebug(2, "collection '{}' size: {} bytes", sCollectionName, collectionSize);
+					}
+					catch (const std::exception& ex)
+					{
+						kDebug(1, "warning: could not get size for collection '{}': {}", sCollectionName, ex.what());
+						collectionSize = 0; // Default to 0 if size query fails
+					}
+					
+					collectionInfos.push_back({sCollectionName, collectionSize});
+				}
+			}
+		}
+		
+		// Sort collections by size (smallest to largest)
+		std::sort(collectionInfos.begin(), collectionInfos.end(), 
+			[](const CollectionInfo& a, const CollectionInfo& b) {
+				return a.size < b.size;
+			});
+		
+		// Extract sorted collection names
+		collections.reserve(collectionInfos.size());
+		for (const auto& info : collectionInfos)
+		{
+			collections.push_back(info.name);
+		}
+		
+		Verbose(1, "MongoDB: found {} collections, sorted by size (smallest to largest)", collections.size());
+	}
+	catch (const std::exception& ex)
+	{
+		SetError(kFormat("MongoDB error while listing collections: {}", ex.what()));
+		return collections;
+	}
+	
+	return collections;
+}
+
+//-----------------------------------------------------------------------------
+void Mong2SQL::VerboseImpl(int iLevel, const KString& sMessage) const
+//-----------------------------------------------------------------------------
+{
+	if (m_Config.bVerbose)
+	{
+		KOut.FormatLine(":: {:%a %T}: {}", kNow(), sMessage);
+	}
+	else
+	{
+		kDebug(iLevel, "{}", sMessage);
+	}
+}
+
+//-----------------------------------------------------------------------------
 KString Mong2SQL::ConvertMongoFieldToMySQLColumn(KStringView sMongoField)
 //-----------------------------------------------------------------------------
 {
@@ -463,26 +648,28 @@ void Mong2SQL::ProcessDocuments(const std::vector<KJSON>& documents, KStringView
 
 	KString sTableName = ConvertCollectionNameToTableName(sCollectionName);
 	TableSchema& rootTable = EnsureTableSchema(sTableName);
+	
+	// Root table (main collection) should always have a primary key
+	if (rootTable.sPrimaryKey.empty())
+	{
+		rootTable.sPrimaryKey = GenerateTablePKEY(rootTable.sTableName);
+	}
 
 	if (m_Config.m_bCreateTables)
 	{
 		kDebug(1, "collecting schema information from {} documents", documents.size());
-		std::size_t docCount = 0;
+		std::size_t iDocCount = 0;
 		for (const auto& document : documents)
 		{
 			CollectSchemaForDocument(document, rootTable, KString{});
-			++docCount;
-			if (docCount % 1000 == 0)
+			++iDocCount;
+			if (iDocCount % 1000 == 0)
 			{
-				kDebug(2, "analyzed {} documents for schema", docCount);
+				kDebug(2, "analyzed {} documents for schema", iDocCount);
 			}
 		}
 
-		if (m_Config.bVerbose)
-		{
-			KOut.FormatLine(":: Generating DDL for {} tables", m_TableOrder.size());
-		}
-		kDebug(1, "generating DDL for {} tables", m_TableOrder.size());
+		Verbose(1, "Generating DDL for {} tables", m_TableOrder.size());
 		for (const auto& tableName : m_TableOrder)
 		{
 			kDebug(2, "generating DDL for table: {}", tableName);
@@ -491,10 +678,7 @@ void Mong2SQL::ProcessDocuments(const std::vector<KJSON>& documents, KStringView
 	}
 
 	// Second pass: Generate INSERT statements for all documents
-	if (m_Config.bVerbose)
-	{
-		KOut.FormatLine(":: inserting {} rows into {} ...", kFormNumber(documents.size()), sTableName);
-	}
+	Verbose(1, "inserting {} rows into {} ...", kFormNumber(documents.size()), sTableName);
     
 	std::size_t iSequence { 0 };
 	KBAR pbar;
@@ -506,32 +690,14 @@ void Mong2SQL::ProcessDocuments(const std::vector<KJSON>& documents, KStringView
 	for (const auto& document : documents)
 	{
 		++iSequence;
-		try
+		
+		// EmitDocumentInsert now handles all error reporting internally
+		// It will exit(1) if a critical error occurs
+		EmitDocumentInsert(document, sTableName, iSequence);
+		
+		if (m_Config.bVerbose && documents.size() > 1)
 		{
-			EmitDocumentInsert(document, sTableName, iSequence);
-			if (m_Config.bVerbose && documents.size() > 1)
-			{
-				pbar.Move();
-			}
-		}
-		catch (const std::exception& ex)
-		{
-			// Break the progress bar if active
-			if (m_Config.bVerbose && documents.size() > 1)
-			{
-				pbar.Break();
-			}
-            
-			// Get the primary key value for error reporting
-			KString sPrimaryKey = ExtractPrimaryKeyFromDocument(document);
-			KErr.FormatLine(">> insert into {}, row {}: $oid={}, failed: {}", sTableName, iSequence, sPrimaryKey, ex.what());
-			if (m_Config.bHasDBC && !m_SQL.GetLastError().empty())
-			{
-				KErr.FormatLine(">> MySQL error: {}", m_SQL.GetLastError());
-			}
-            
-			// Crash and do not continue
-			std::exit(1);
+			pbar.Move();
 		}
 	}
     
@@ -543,16 +709,31 @@ void Mong2SQL::ProcessDocuments(const std::vector<KJSON>& documents, KStringView
 } // ProcessDocuments
 
 //-----------------------------------------------------------------------------
-KString Mong2SQL::ConvertCollectionNameToTableName(KStringView sCollectionName)
+KString Mong2SQL::ConvertCollectionNameToTableName(KStringView sCollectionName) const
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, "...");
-	KString sTableName = sCollectionName;
+	
+	// First break up compound words to make them readable
+	KString sTableName = BreakupCompoundWords(sCollectionName);
+	
+	// Convert to uppercase
 	sTableName = sTableName.ToUpper();
 
-	if (sTableName.ends_with('S') && sTableName.size() > 1)
+	// Apply proper singularization to the last word (after word breaking)
+	sTableName = ApplySingularizationToTableName(sTableName);
+	
+	// Remove any trailing underscores that might have been left from word breaking
+	while (!sTableName.empty() && sTableName.back() == '_')
 	{
-		sTableName.remove_suffix(1);
+		sTableName.pop_back();
+	}
+
+	// Apply table prefix if specified
+	KString sPrefix = NormalizeTablePrefix(m_Config.sTablePrefix);
+	if (!sPrefix.empty())
+	{
+		sTableName = sPrefix + sTableName;
 	}
 
 	return sTableName;
@@ -560,7 +741,7 @@ KString Mong2SQL::ConvertCollectionNameToTableName(KStringView sCollectionName)
 } // ConvertCollectionNameToTableName
 
 //-----------------------------------------------------------------------------
-KString Mong2SQL::ConvertFieldNameToColumnName(KStringView sFieldName)
+KString Mong2SQL::ConvertFieldNameToColumnName(KStringView sFieldName) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (3, "...");
@@ -580,15 +761,304 @@ KString Mong2SQL::ConvertFieldNameToColumnName(KStringView sFieldName)
 } // ConvertFieldNameToColumnName
 
 //-----------------------------------------------------------------------------
-KString Mong2SQL::GenerateTableHash(KStringView sTableName)
+KString Mong2SQL::NormalizeTablePrefix(KStringView sPrefix) const
+//-----------------------------------------------------------------------------
+{
+	kDebug(3, "normalizing table prefix: '{}'", sPrefix);
+	
+	if (sPrefix.empty())
+	{
+		return KString{};
+	}
+	
+	KString sResult = KString{sPrefix}.ToUpper();
+	
+	// Remove any trailing underscores first
+	while (!sResult.empty() && sResult.back() == '_')
+	{
+		sResult.pop_back();
+	}
+	
+	// Add exactly one underscore at the end
+	if (!sResult.empty())
+	{
+		sResult += '_';
+	}
+	
+	kDebug(3, "normalized table prefix: '{}' -> '{}'", sPrefix, sResult);
+	return sResult;
+	
+} // NormalizeTablePrefix
+
+//-----------------------------------------------------------------------------
+KString Mong2SQL::BreakupCompoundWords(KStringView sInput) const
+//-----------------------------------------------------------------------------
+{
+	kDebug(3, "breaking up compound words: '{}'", sInput);
+	
+	if (sInput.empty())
+	{
+		return KString{};
+	}
+	
+	// Common English word patterns ordered by length (longest first) for proper matching
+	static const std::vector<KString> commonWords = {
+		// Longest words first (12+ chars)
+		"translationprojects", "translatedcontents", "websiteqielements", "videotutorials",
+		"notification", "translation", "translationproject", "websiteqi", "analytics", 
+		"scheduler", "processor", "controller", "permission", "secondary", "tertiary",
+		
+		// 10-11 chars
+		"translated", "translate", "internet", "explorer", "download", "advanced", 
+		"standard", "internal", "external", "pipeline", "tutorial", "sitemap",
+		
+		// 8-9 chars  
+		"document", "provider", "element", "service", "project", "content", "website",
+		"desktop", "android", "windows", "firefox", "browser", "message", "warning",
+		"success", "monitor", "counter", "manager", "handler", "template", "revision",
+		"inactive", "disabled", "enabled", "premium", "primary", "unbabel",
+		
+		// 6-7 chars
+		"report", "server", "client", "search", "filter", "button", "result", 
+		"status", "member", "access", "session", "config", "setting", "option",
+		"backup", "archive", "history", "version", "active", "public", "private",
+		"remote", "global", "default", "custom", "special", "safari", "chrome",
+		"metric", "worker", "layout", "style",
+		
+		// 5 chars
+		"super", "inter", "trans", "multi", "under", "image", "video", "audio", 
+		"upload", "login", "token", "value", "param", "cache", "draft", "final",
+		"local", "basic", "macro", "extra", "queue", "theme", "alert", "error",
+		"debug", "trace", "timer", "model", "linux",
+		
+		// 4 chars  
+		"post", "semi", "anti", "over", "site", "page", "user", "admin", "link",
+		"file", "sort", "list", "item", "menu", "form", "field", "input", "output",
+		"type", "kind", "group", "team", "role", "auth", "temp", "lite", "mini",
+		"micro", "meta", "main", "lead", "mail", "chat", "info", "stats", "view",
+		"html", "json", "babel", "tier",
+		
+		// 4-6 chars (including plurals and common words)  
+		"events", "event", "presses", "press", "plans", "plan",
+		"elements", "projects", "contents", "services", "documents", "tutorials", "websites",
+		"reports", "servers", "clients", "buttons", "results", "members", "sessions", 
+		"configs", "settings", "options", "backups", "archives", "versions", "themes",
+		"alerts", "errors", "timers", "models", "sites", "pages", "users", "admins", 
+		"links", "files", "sorts", "lists", "items", "menus", "forms", "fields", 
+		"inputs", "outputs", "types", "kinds", "groups", "teams", "roles", "mails", 
+		"chats", "infos", "stats", "views", "logs", "jobs", "apps", "docs", "urls", 
+		"keys", "apis", "nets", "zips",
+		
+		// 3 chars
+		"web", "job", "log", "data", "api", "url", "key", "tmp", "pro", "net", 
+		"app", "ios", "mac", "css", "xml", "csv", "pdf", "doc", "txt", "zip", 
+		"tar", "sql",
+		
+		// 2 chars
+		"un", "re", "up", "in", "on", "js", "db", "qi", "gz"
+	};
+	
+	KString sResult;
+	KString sLower = KString{sInput}.ToLower();
+	std::size_t iPos = 0;
+	
+	while (iPos < sLower.size())
+	{
+		bool bFoundWord = false;
+		std::size_t iBestMatch = 0;
+		
+		// Try to find the longest matching word starting at current position
+		for (const auto& word : commonWords)
+		{
+			if (iPos + word.size() <= sLower.size() && 
+				sLower.substr(iPos, word.size()) == word &&
+				word.size() > iBestMatch)
+			{
+				// Make sure we're at a word boundary (not in the middle of a longer word)
+				// Check that the next character (if exists) suggests end of word
+				bool bValidBoundary = true;
+				if (iPos + word.size() < sLower.size())
+				{
+					char nextChar = sLower[iPos + word.size()];
+					// If next char is lowercase and current word doesn't end with common suffixes,
+					// it might be part of a longer word
+					if (std::islower(nextChar) && 
+						!word.ends_with("ed") && !word.ends_with("er") && !word.ends_with("ing") &&
+						!word.ends_with("ly") && !word.ends_with("tion") && !word.ends_with("sion") &&
+						!word.ends_with("ness") && !word.ends_with("ment") && !word.ends_with("able") &&
+						!word.ends_with("ible") && !word.ends_with("ful") && !word.ends_with("less"))
+					{
+						// Check if this might be a compound - look for vowel patterns
+						if (word.size() >= 3) // Only for substantial words
+						{
+							bValidBoundary = true; // Accept it as a word boundary
+						}
+						else
+						{
+							bValidBoundary = false;
+						}
+					}
+				}
+				
+				if (bValidBoundary)
+				{
+					iBestMatch = word.size();
+					bFoundWord = true;
+				}
+			}
+		}
+		
+		if (bFoundWord && iBestMatch > 0)
+		{
+			// Add the word with proper casing
+			if (!sResult.empty())
+			{
+				sResult += "_";
+			}
+			
+			KString sWord = sInput.substr(iPos, iBestMatch);
+			sResult += sWord.ToUpper();
+			iPos += iBestMatch;
+		}
+		else
+		{
+			// No word found - try to find a reasonable break point or add multiple characters
+			std::size_t iNextPos = iPos + 1;
+			
+			// Look ahead to find a vowel pattern or reasonable break point
+			// Don't break single characters unless absolutely necessary
+			while (iNextPos < sLower.size() && iNextPos - iPos < 6)
+			{
+				// Look for vowel-consonant or consonant-vowel boundaries
+				char currentChar = sLower[iNextPos - 1];
+				char nextChar = sLower[iNextPos];
+				
+				bool isCurrentVowel = (currentChar == 'a' || currentChar == 'e' || currentChar == 'i' || 
+									   currentChar == 'o' || currentChar == 'u');
+				bool isNextVowel = (nextChar == 'a' || nextChar == 'e' || nextChar == 'i' || 
+								   nextChar == 'o' || nextChar == 'u');
+				
+				// Break at vowel-consonant or consonant-vowel boundaries, but prefer longer segments
+				if ((isCurrentVowel && !isNextVowel) || (!isCurrentVowel && isNextVowel))
+				{
+					if (iNextPos - iPos >= 3) // Minimum 3 characters
+					{
+						break;
+					}
+				}
+				iNextPos++;
+			}
+			
+			// Add the segment (minimum 1 character, but prefer longer segments)
+			if (!sResult.empty() && sResult.back() != '_')
+			{
+				sResult += "_";
+			}
+			
+			KString sSegment = sInput.substr(iPos, iNextPos - iPos);
+			sResult += sSegment.ToUpper();
+			iPos = iNextPos;
+		}
+	}
+	
+	// Clean up any double underscores
+	std::size_t iDoublePos = 0;
+	while ((iDoublePos = sResult.find("__", iDoublePos)) != KString::npos)
+	{
+		sResult.replace(iDoublePos, 2, "_");
+	}
+	
+	// Remove leading/trailing underscores
+	while (!sResult.empty() && sResult.front() == '_')
+	{
+		sResult.erase(0, 1);
+	}
+	while (!sResult.empty() && sResult.back() == '_')
+	{
+		sResult.pop_back();
+	}
+	
+	kDebug(3, "compound words: '{}' -> '{}'", sInput, sResult);
+	return sResult;
+	
+} // BreakupCompoundWords
+
+//-----------------------------------------------------------------------------
+KString Mong2SQL::ApplySingularizationToTableName(KStringView sTableName) const
+//-----------------------------------------------------------------------------
+{
+	kDebug(3, "applying singularization to table name: '{}'", sTableName);
+	
+	if (sTableName.empty())
+	{
+		return KString{};
+	}
+	
+	KString sResult = sTableName;
+	
+	// Find the last word (after the last underscore)
+	std::size_t iLastUnderscore = sResult.find_last_of('_');
+	
+	if (iLastUnderscore != KString::npos && iLastUnderscore < sResult.size() - 1)
+	{
+		// There's an underscore and it's not at the end
+		KString sPrefix = sResult.substr(0, iLastUnderscore + 1); // Include the underscore
+		KString sLastWord = sResult.substr(iLastUnderscore + 1);
+		
+		// Apply singularization to the last word only
+		KString sLastWordLower = sLastWord.ToLower();
+		
+		// Special case: if the last word is just "S", remove it entirely (it's a plural marker)
+		if (sLastWordLower == "s")
+		{
+			sResult = sPrefix.substr(0, sPrefix.size() - 1); // Remove the trailing underscore too
+		}
+		else
+		{
+			KString sSingularWord = ConvertPluralToSingular(sLastWordLower);
+			sResult = sPrefix + sSingularWord.ToUpper();
+		}
+	}
+	else
+	{
+		// No underscore, singularize the entire string
+		KString sLower = sResult.ToLower();
+		sResult = ConvertPluralToSingular(sLower).ToUpper();
+	}
+	
+	kDebug(3, "singularized table name: '{}' -> '{}'", sTableName, sResult);
+	return sResult;
+	
+} // ApplySingularizationToTableName
+
+//-----------------------------------------------------------------------------
+void Mong2SQL::InitializeMongoDB()
+//-----------------------------------------------------------------------------
+{
+	kDebug(3, "initializing MongoDB driver");
+	
+	// Initialize MongoDB C++ driver instance (only once per application)
+	static mongocxx::instance instance{};
+	static bool initialized = false;
+	
+	if (!initialized)
+	{
+		kDebug(2, "MongoDB driver initialized");
+		initialized = true;
+	}
+	
+} // InitializeMongoDB
+
+//-----------------------------------------------------------------------------
+KString Mong2SQL::GenerateTablePKEY(KStringView sTableName)
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "...");
 	KString sLowerTableName = sTableName;
 	sLowerTableName = sLowerTableName.ToLower();
-	return kFormat("{}_hash", sLowerTableName);
+	return kFormat("{}_oid", sLowerTableName);
 
-} // GenerateTableHash
+} // GenerateTablePKEY
 
 //-----------------------------------------------------------------------------
 Mong2SQL::TableSchema& Mong2SQL::EnsureTableSchema(KStringView sTableName, KStringView sParentTable, KStringView sParentKeyColumn)
@@ -602,7 +1072,8 @@ Mong2SQL::TableSchema& Mong2SQL::EnsureTableSchema(KStringView sTableName, KStri
 	{
 		TableSchema schema;
 		schema.sTableName = sKey;
-		schema.sPrimaryKey = GenerateTableHash(schema.sTableName);
+		// Don't automatically generate primary key - only set when _id field is found
+		schema.sPrimaryKey = KString{}; // Empty until _id is discovered
 		schema.sParentTable = sParentTable;
 		schema.sParentKeyColumn = sParentKeyColumn;
 
@@ -674,6 +1145,11 @@ void Mong2SQL::CollectSchemaForDocument(const KJSON& document, TableSchema& tabl
 		if (it.key() == "_id" && it->is_object() && it->contains("$oid"))
 		{
 			table.bHasObjectId = true;
+			// Set the primary key name now that we found an _id field
+			if (table.sPrimaryKey.empty())
+			{
+				table.sPrimaryKey = GenerateTablePKEY(table.sTableName);
+			}
 			std::size_t iLength = std::max<std::size_t>(24, 16); // MongoDB ObjectId is 24 chars
 			AddColumn(table, table.sPrimaryKey, SqlType::Text, iLength, /*isNullable*/false);
 			continue; // Skip further processing of _id field
@@ -762,6 +1238,11 @@ void Mong2SQL::CollectArraySchema(const KJSON& array, TableSchema& parentTable, 
 			if (sValueColumn == "_id_oid")
 			{
 				childTable.bHasObjectId = true;
+				// Set the primary key name now that we found an _id field
+				if (childTable.sPrimaryKey.empty())
+				{
+					childTable.sPrimaryKey = GenerateTablePKEY(childTable.sTableName);
+				}
 				iLength = std::max<std::size_t>(iLength, 16);
 				AddColumn(childTable, childTable.sPrimaryKey, SqlType::Text, iLength, /*isNullable*/false);
 				continue;
@@ -968,6 +1449,13 @@ KString Mong2SQL::SanitizeColumnName(KStringView sName) const
 	{
 		sResult += "_";
 	}
+	
+	// MySQL column name limit is 64 characters - truncate if necessary
+	if (sResult.size() > 64)
+	{
+		Verbose (1, "truncating column name '{}' from {} to 64 characters", sResult, sResult.size());
+		sResult = sResult.Left(64);
+	}
     
 	kDebug(3, "sanitized '{}' -> '{}'", sName, sResult);
 	return sResult;
@@ -1024,7 +1512,12 @@ void Mong2SQL::EmitDocumentInsert(const KJSON& document, KStringView sTableName,
 
 	FlattenDocument(document, KString{}, rowValues);
 
-	GenerateInsertSQL(table, rowValues);
+	// Insert the row - if it fails critically, the method will handle error reporting
+	if (!InsertOrUpdateOneRow(table, rowValues, sPrimaryValue, iSequence))
+	{
+		// Critical error occurred - stop processing
+		std::exit(1);
+	}
 
 	ProcessNestedArrays(document, table, KString{}, sPrimaryValue);
 
@@ -1082,20 +1575,25 @@ void Mong2SQL::EmitArrayInserts(const KJSON& array, TableSchema& parentTable, co
 	for (const auto& element : array)
 	{
 		++iCounter;
-		// For array elements, generate a hash-based primary key since they don't have _id
-		KString sInput = kFormat("{}:{}", childTable.sTableName, element.dump());
-		auto iHashValue = kHash(sInput.c_str());
-		KString sChildPrimary = kFormat("{:016x}", static_cast<unsigned long long>(iHashValue));
-
 		std::map<KString, KString> rowValues;
-		rowValues[childTable.sPrimaryKey] = sChildPrimary;
+		
+		// Add parent foreign key if needed
 		if (!childTable.sParentKeyColumn.empty())
 		{
 			rowValues[childTable.sParentKeyColumn] = sParentPKValue;
 		}
 
+		KString sChildPrimary; // Will remain empty if no _id exists
+		
 		if (element.is_object())
 		{
+			// Extract primary key from _id field if it exists
+			sChildPrimary = ExtractPrimaryKeyFromDocument(element);
+			if (!sChildPrimary.empty() && !childTable.sPrimaryKey.empty())
+			{
+				rowValues[childTable.sPrimaryKey] = sChildPrimary;
+			}
+			
 			FlattenDocument(element, KString{}, rowValues);
 			ProcessNestedArrays(element, childTable, KString{}, sChildPrimary);
 		}
@@ -1109,7 +1607,13 @@ void Mong2SQL::EmitArrayInserts(const KJSON& array, TableSchema& parentTable, co
 			rowValues[sValueColumn] = ToSqlLiteral(element);
 		}
 
-		GenerateInsertSQL(childTable, rowValues);
+		// Insert the array element row - if it fails critically, the method will handle error reporting
+		KString sPrimaryKeyForError = sChildPrimary.empty() ? sParentPKValue : sChildPrimary;
+		if (!InsertOrUpdateOneRow(childTable, rowValues, sPrimaryKeyForError, iCounter))
+		{
+			// Critical error occurred - stop processing
+			std::exit(1);
+		}
 	}
 
 } // EmitArrayInserts
@@ -1183,23 +1687,174 @@ KString Mong2SQL::BuildColumnName(const KString& sPrefix, KStringView sKey) cons
 } // BuildColumnName
 
 //-----------------------------------------------------------------------------
+KString Mong2SQL::ConvertPluralToSingular(KStringView sPlural) const
+//-----------------------------------------------------------------------------
+{
+	kDebug(3, "converting plural '{}' to singular", sPlural);
+	
+	if (sPlural.empty())
+	{
+		return KString{sPlural};
+	}
+	
+	KString sLower = KString{sPlural}.ToLower();
+	
+	// Handle irregular plurals first (most important exceptions)
+	static const std::map<KStringView, KStringView> irregulars = {
+		// Common irregular plurals
+		{"children", "child"},
+		{"people", "person"},
+		{"men", "man"},
+		{"women", "woman"},
+		{"feet", "foot"},
+		{"teeth", "tooth"},
+		{"geese", "goose"},
+		{"mice", "mouse"},
+		{"oxen", "ox"},
+		
+		// Words ending in 'f' or 'fe' that become 'ves'
+		{"lives", "life"},
+		{"wives", "wife"},
+		{"knives", "knife"},
+		{"leaves", "leaf"},
+		{"shelves", "shelf"},
+		{"wolves", "wolf"},
+		{"halves", "half"},
+		{"calves", "calf"},
+		
+		// Latin/Greek plurals
+		{"data", "datum"},
+		{"criteria", "criterion"},
+		{"phenomena", "phenomenon"},
+		{"alumni", "alumnus"},
+		{"cacti", "cactus"},
+		{"fungi", "fungus"},
+		{"nuclei", "nucleus"},
+		{"syllabi", "syllabus"},
+		{"analyses", "analysis"},
+		{"bases", "basis"},
+		{"crises", "crisis"},
+		{"diagnoses", "diagnosis"},
+		{"hypotheses", "hypothesis"},
+		{"oases", "oasis"},
+		{"parentheses", "parenthesis"},
+		{"synopses", "synopsis"},
+		{"theses", "thesis"},
+		
+		// Words that don't change
+		{"sheep", "sheep"},
+		{"deer", "deer"},
+		{"fish", "fish"},
+		{"species", "species"},
+		{"series", "series"},
+		{"means", "means"},
+		{"aircraft", "aircraft"},
+		{"spacecraft", "spacecraft"}
+	};
+	
+	auto it = irregulars.find(sLower);
+	if (it != irregulars.end())
+	{
+		kDebug(3, "found irregular plural '{}' -> '{}'", sPlural, it->second);
+		return KString{it->second};
+	}
+	
+	// Handle regular pluralization rules
+	KString sResult = sLower;
+	
+	// Words ending in 'ies' -> 'y' (e.g., "cities" -> "city", "countries" -> "country")
+	if (sResult.ends_with("ies") && sResult.size() > 3)
+	{
+		sResult.remove_suffix(3);
+		sResult += 'y';
+	}
+	// Words ending in 'oes' -> 'o' (e.g., "heroes" -> "hero", "potatoes" -> "potato")
+	else if (sResult.ends_with("oes") && sResult.size() > 3)
+	{
+		sResult.remove_suffix(2);
+	}
+	// Words ending in 'ves' -> 'f' (e.g., "thieves" -> "thief")
+	else if (sResult.ends_with("ves") && sResult.size() > 3)
+	{
+		sResult.remove_suffix(3);
+		sResult += 'f';
+	}
+	// Words ending in 'ses' -> 's' (e.g., "classes" -> "class", "glasses" -> "glass")
+	else if (sResult.ends_with("ses") && sResult.size() > 3)
+	{
+		sResult.remove_suffix(2);
+	}
+	// Words ending in 'ches' -> 'ch' (e.g., "churches" -> "church", "beaches" -> "beach")
+	else if (sResult.ends_with("ches") && sResult.size() > 4)
+	{
+		sResult.remove_suffix(2);
+	}
+	// Words ending in 'shes' -> 'sh' (e.g., "dishes" -> "dish", "brushes" -> "brush")
+	else if (sResult.ends_with("shes") && sResult.size() > 4)
+	{
+		sResult.remove_suffix(2);
+	}
+	// Words ending in 'xes' -> 'x' (e.g., "boxes" -> "box", "taxes" -> "tax")
+	else if (sResult.ends_with("xes") && sResult.size() > 3)
+	{
+		sResult.remove_suffix(2);
+	}
+	// Words ending in 'zes' -> 'z' (e.g., "quizzes" -> "quiz")
+	else if (sResult.ends_with("zes") && sResult.size() > 3)
+	{
+		sResult.remove_suffix(2);
+	}
+	// Special case: words ending in 'es' where 'e' is part of the root
+	// This handles "locales" -> "locale", "templates" -> "template", etc.
+	else if (sResult.ends_with("es") && sResult.size() > 2)
+	{
+		// Check if removing just 's' makes sense (keep the 'e')
+		KString sCandidate = sResult;
+		sCandidate.remove_suffix(1); // Remove just the 's', keep the 'e'
+		
+		// List of words where we should keep the 'e'
+		static const std::set<KStringView> keepE = {
+			"locale", "template", "attribute", "module", "profile", "schedule",
+			"console", "service", "resource", "response", "message", "package",
+			"interface", "database", "cache", "image", "file", "table", "node",
+			"route", "source", "device", "engine", "frame", "scene", "theme",
+			"scheme", "volume", "phrase", "clause", "course", "house", "mouse",
+			"horse", "nurse", "purse", "verse", "case", "base", "phase", "chase",
+			"site", "page", "type", "name", "time", "line", "code", "mode", "role",
+			"rule", "style", "title", "value", "score", "store", "state", "stage"
+		};
+		
+		if (keepE.find(sCandidate) != keepE.end())
+		{
+			sResult = sCandidate;
+		}
+		else
+		{
+			// Default: remove 'es' entirely
+			sResult.remove_suffix(2);
+		}
+	}
+	// Simple plural: just remove 's' (e.g., "users" -> "user", "items" -> "item")
+	else if (sResult.ends_with('s') && sResult.size() > 1)
+	{
+		sResult.remove_suffix(1);
+	}
+	
+	kDebug(3, "converted plural '{}' -> singular '{}'", sPlural, sResult);
+	return sResult;
+}
+
+//-----------------------------------------------------------------------------
 KString Mong2SQL::BuildChildTableName(KStringView sParentTable, KStringView sKey) const
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "...");
 	KString sSuffix = sKey;
 	KString sOriginalSuffix = sSuffix;
+	
+	// Convert to singular using English pluralization rules
+	sSuffix = ConvertPluralToSingular(sSuffix);
 	sSuffix = sSuffix.ToUpper();
-    
-	// Better pluralization: remove "es" before "s" for words like "aliases" -> "alias"
-	if (sSuffix.ends_with("ES") && sSuffix.size() > 2)
-	{
-		sSuffix.remove_suffix(2);
-	}
-	else if (sSuffix.ends_with('S') && sSuffix.size() > 1)
-	{
-		sSuffix.remove_suffix(1);
-	}
 
 	KString sResult;
 	if (sSuffix.empty())
@@ -1445,7 +2100,7 @@ void Mong2SQL::GenerateCreateTableSQL(const TableSchema& table)
 	kDebug(1, "{}: issuing create table...", table.sTableName);
 	if (m_Config.bOutputToStdout)
 	{
-		KOut.WriteLine(sDropSQL);
+		KOut.FormatLine("{};", sDropSQL);
 		KOut.WriteLine("# ----------------------------------------------------------------------");
 		KOut.FormatLine("create table {}", table.sTableName);
 		KOut.WriteLine("# ----------------------------------------------------------------------");
@@ -1461,11 +2116,11 @@ void Mong2SQL::GenerateCreateTableSQL(const TableSchema& table)
 	{
 		if (!m_SQL.ExecSQL("{}", sDropSQL))
 		{
-			KErr.FormatLine(">> failed to execute SQL: {}", sDropSQL);
+			KErr.FormatLine(">> failed to execute SQL: {}\n{}", m_SQL.GetLastError(), sDropSQL);
 		}
 		if (!m_SQL.ExecSQL("{}", sCreateSQL))
 		{
-			KErr.FormatLine(">> failed to execute SQL: {}", sCreateSQL);
+			KErr.FormatLine(">> failed to execute SQL: {}\n{}", m_SQL.GetLastError(), sCreateSQL);
 		}
 	}
 
@@ -1505,10 +2160,10 @@ void Mong2SQL::GenerateCreateTableSQL(const TableSchema& table)
 } // GenerateCreateTableSQL
 
 //-----------------------------------------------------------------------------
-void Mong2SQL::GenerateInsertSQL(const TableSchema& table, const std::map<KString, KString>& rowValues)
+bool Mong2SQL::InsertOrUpdateOneRow(const TableSchema& table, const std::map<KString, KString>& rowValues, const KString& sPrimaryKey, std::size_t iSequence)
 //-----------------------------------------------------------------------------
 {
-	kDebug(1, "...");
+	kDebug(1, "inserting/updating row {} in table {}", iSequence, table.sTableName);
 	
 	// Create KROW and populate with column values
 	KROW row(table.sTableName);
@@ -1558,7 +2213,7 @@ void Mong2SQL::GenerateInsertSQL(const TableSchema& table, const std::map<KStrin
 	// Generate INSERT/UPDATE statement using KSQL
 	if (m_Config.bOutputToStdout)
 	{
-		KOut.FormatLine("{}", row.FormInsert(m_SQL.GetDBType(), /*bIdentityInsert=*/false, /*bIgnore=*/false));
+		KOut.FormatLine("{};", row.FormInsert(m_SQL.GetDBType(), /*bIdentityInsert=*/false, /*bIgnore=*/false));
 	}
 	else
 	{
@@ -1571,11 +2226,31 @@ void Mong2SQL::GenerateInsertSQL(const TableSchema& table, const std::map<KStrin
 
 		if (!bOK)
 		{
-			throw std::runtime_error(m_SQL.GetLastError());
+			// Handle the error directly here instead of throwing
+			KString sErrorMessage = m_SQL.GetLastError();
+			
+			// Check if this is MySQL error 1366 (Incorrect string value)
+			// This is often due to character encoding issues and should be recoverable
+			if (m_SQL.GetLastErrorNum() == 1366)
+			{
+				// Log error but indicate we can continue
+				KErr.FormatLine(">> insert into {}, row {}: $oid={}, failed (continuing): {}\n{}", 
+					table.sTableName, iSequence, sPrimaryKey, sErrorMessage, m_SQL.GetLastSQL());
+				return true; // Continue processing
+			}
+			else
+			{
+				// Log error and indicate we should stop
+				KErr.FormatLine(">> insert into {}, row {}: $oid={}, failed: {}\n{}", 
+					table.sTableName, iSequence, sPrimaryKey, sErrorMessage, m_SQL.GetLastSQL());
+				return false; // Stop processing
+			}
 		}
 	}
+	
+	return true; // Success - continue processing
 
-} // GenerateInsertSQL
+} // InsertOrUpdateOneRow
 
 //-----------------------------------------------------------------------------
 int main(int argc, char** argv)

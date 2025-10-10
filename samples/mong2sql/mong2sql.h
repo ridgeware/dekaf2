@@ -49,6 +49,7 @@
 #include <dekaf2/ksql.h>
 
 #include <map>
+#include <set>
 #include <vector>
 
 using namespace dekaf2;
@@ -76,6 +77,7 @@ private:
 		KString sMongoConnectionString;
 		KString sCollectionName;
 		KString sDBC;
+		KString sTablePrefix;
 		bool    m_bCreateTables { true };
 		bool    bOutputToStdout { true };
 		bool    bHasDBC { false };
@@ -111,19 +113,23 @@ private:
 		bool                          bHasObjectId { false };
 	};
 
-	void        ShowVersion ();
 	void        ProcessCollection ();
 	bool        ProcessFromFile (std::vector<KJSON>& documents);
 	bool        ProcessFromMongoDB (std::vector<KJSON>& documents);
 	bool        ProcessFromMongoDBDelta (std::vector<KJSON>& documents);
+	std::vector<KString> GetAllCollectionsFromMongoDB ();
 	void        ProcessDocuments (const std::vector<KJSON>& documents, KStringView sCollectionName);
-	KString     ConvertCollectionNameToTableName (KStringView sCollectionName);
-	KString     ConvertFieldNameToColumnName (KStringView sFieldName);
-	KString     GenerateTableHash (KStringView sTableName);
+	KString     ConvertCollectionNameToTableName (KStringView sCollectionName) const;
+	KString     ConvertFieldNameToColumnName (KStringView sMongoField) const;
+	KString     NormalizeTablePrefix (KStringView sPrefix) const;
+	KString     BreakupCompoundWords (KStringView sInput) const;
+	KString     ApplySingularizationToTableName (KStringView sTableName) const;
+	void        InitializeMongoDB ();
+	KString     GenerateTablePKEY (KStringView sTableName);
 	KString     ConvertMongoFieldToMySQLColumn (KStringView sContinueField);
 	void        GenerateCreateTableSQL (const TableSchema& table);
-	void        GenerateInsertSQL (const TableSchema& table, const std::map<KString, KString>& rowValues);
-
+	bool        InsertOrUpdateOneRow (const TableSchema& table, const std::map<KString, KString>& rowValues, const KString& sPrimaryKey, std::size_t iSequence);
+	void        ShowVersion ();
 	TableSchema& EnsureTableSchema (KStringView sTableName, KStringView sParentTable = KStringView{}, KStringView sParentKeyColumn = KStringView{});
 	void        CollectSchemaForDocument (const KJSON& document, TableSchema& table, const KString& sPrefix);
 	void        CollectArraySchema (const KJSON& array, TableSchema& parentTable, const KString& sKey);
@@ -140,11 +146,15 @@ private:
 	void        FlattenDocument (const KJSON& document, const KString& sPrefix, std::map<KString, KString>& rowValues);
 	KString     BuildColumnName (const KString& sPrefix, KStringView sKey) const;
 	KString     BuildChildTableName (KStringView sParentTable, KStringView sKey) const;
+	KString     ConvertPluralToSingular (KStringView sPlural) const;
 	KString     ExtractLeafColumnName (KStringView sQualified) const;
 	KString     ToSqlLiteral (const KJSON& value) const;
 	static KString EscapeSqlString (KStringView sValue);
 	KString     ExtractPrimaryKeyFromDocument (const KJSON& document) const;
 	KString     GetLastModifiedFromMySQL (KStringView sTableName, KStringView sMySQLColumn);
+	
+	// Unified verbose output and debug logging
+	void        VerboseImpl (int iLevel, const KString& sMessage) const;
 
 	// MySQL reserved words from https://dev.mysql.com/doc/refman/8.4/en/keywords.html
 	static constexpr KStringViewZ MYSQL_RESERVED_WORDS {
@@ -193,3 +203,6 @@ private:
 	std::map<KString, std::size_t>     m_RowCounters;
 
 }; // Mong2SQL
+
+// Macro for unified verbose output and debug logging
+#define Verbose(iLevel, sFormat, ...) VerboseImpl(iLevel, kFormat(sFormat, ##__VA_ARGS__))

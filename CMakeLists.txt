@@ -1948,6 +1948,8 @@ if (DEKAF2_INSTALL_BIN)
 	add_executable(diff-speedtest EXCLUDE_FROM_ALL from/google/diff-speedtest.cpp)
 	target_link_libraries(diff-speedtest dekaf2${DEKAF2_LINK_SHARED})
 
+	add_subdirectory(samples/mong2sql)
+
 endif()
 
 # ============================ UNIT AND SMOKE TESTS ==================================

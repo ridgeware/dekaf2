@@ -14,14 +14,10 @@ project(mong2sql
 
 set(CMAKE_CXX_STANDARD 20)
 
-# we need the share_dest early, so define it here
-#set(share_dest "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}")
-
 find_package(PkgConfig REQUIRED)
 
 # ================================= CONFIG OPTIONS =================================
 
-OPTION(MONG2SQL_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
 OPTION(MONG2SQL_WITH_PEDANTIC_WARNINGS "enable pedantic warnings" ON)
 
 # ==================================== BUILD TYPE ==================================
@@ -52,23 +48,6 @@ else()
 	endif()
 endif()
 
-#if ("${MONG2SQL_INSTALL_TARGET}" STREQUAL "")
-#	set(MONG2SQL_INSTALL_TARGET
-#		lib
-#		cli
-#		server
-#	)
-#endif()
-
-#if (MONG2SQL_USE_PRECOMPILED_HEADERS)
-#	if (CMAKE_VERSION VERSION_LESS "3.16.0")
-#		message(STATUS "need cmake version >= 3.16 for precompiled headers (have ${CMAKE_VERSION}) - disabled")
-#		set(MONG2SQL_USE_PRECOMPILED_HEADERS OFF)
-#	else()
-#		message(STATUS "build mong2sql with precompiled headers")
-#	endif()
-#endif()
-
 # =================================== LIBRARIES ====================================
 
 # MongoDB C++ driver
@@ -81,6 +60,10 @@ endif()
 
 if(NOT bsoncxx_FOUND)
     pkg_check_modules(BSONCXX REQUIRED libbsoncxx)
+endif()
+
+if (NOT mongocxx_FOUND)
+	return()
 endif()
 
 set(MONG2SQL_MONGO_LIBS "")
@@ -129,18 +112,14 @@ file(MAKE_DIRECTORY "${GENERATED_FILES_DIR}")
 configure_file("cmake/${PROJECT_NAME}-config.cmake.in" "${GENERATED_FILES_DIR}/${PROJECT_NAME}-config.cmake" @ONLY)
 
 # ==================================== MONG2SQL =========================================
+
 if (MONG2SQL_WITH_PEDANTIC_WARNINGS)
 	add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-add_library(mong2sql-objects OBJECT ${SOURCES} ${HEADERS})
-target_link_libraries(mong2sql-objects
-	PRIVATE
-		dekaf2
-		xapislib
-		${MONG2SQL_MONGO_LIBS}
-)
-target_include_directories(mong2sql-objects
+add_executable(mong2sql ${SOURCES} ${HEADERS})
+
+target_include_directories(mong2sql
 	PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:include>
@@ -150,41 +129,18 @@ target_include_directories(mong2sql-objects
 )
 
 if(MONG2SQL_MONGO_INCLUDE_DIRS)
-	target_include_directories(mong2sql-objects
+	target_include_directories(mong2sql
 		PRIVATE
 			${MONG2SQL_MONGO_INCLUDE_DIRS}
 	)
 endif()
 
-if(MONG2SQL_MONGO_LIBRARY_DIRS)
-	target_link_directories(mong2sql-objects
-		PRIVATE
-			${MONG2SQL_MONGO_LIBRARY_DIRS}
-	)
-endif()
-
-#if (MONG2SQL_USE_PRECOMPILED_HEADERS)
-#	target_precompile_headers(mong2sql-objects PRIVATE ${PRECOMPILED_HEADERS} ${HEADERS})
-#endif()
-
-add_executable(mong2sql $<TARGET_OBJECTS:mong2sql-objects>)
 target_link_libraries(mong2sql
 	PRIVATE
 		dekaf2
 		ksql2
 		${MONG2SQL_MONGO_LIBS}
 )
-target_include_directories(mong2sql
-	PRIVATE
-	${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-if(MONG2SQL_MONGO_INCLUDE_DIRS)
-	target_include_directories(mong2sql
-		PRIVATE
-			${MONG2SQL_MONGO_INCLUDE_DIRS}
-	)
-endif()
 
 if(MONG2SQL_MONGO_LIBRARY_DIRS)
 	target_link_directories(mong2sql

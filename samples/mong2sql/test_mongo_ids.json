@@ -1,0 +1,2 @@
+{"_id": {"$oid": "58878bd8cc51e3446ccff6b4"}, "name": "Test Site 1", "status": "active"}
+{"_id": {"$oid": "58878bd8cc51e3446ccff6b5"}, "name": "Test Site 2", "status": "inactive"}

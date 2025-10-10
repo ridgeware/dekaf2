@@ -1,0 +1,26 @@
+# mong2sql-config.cmake - package configuration file
+
+# if no build type is used, pick the release version of the library
+if (NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE "Release")
+endif()
+
+if (@DEKAF2_DUAL_TARGET@)
+	# we only support the Release and Debug output locations - other
+	# build types have to pick either or
+	if (CMAKE_BUILD_TYPE STREQUAL "Debug"
+	 OR CMAKE_BUILD_TYPE STREQUAL "debug")
+		set(MONG2SQL_OUTPUT_PATH "/Debug")
+	elseif (NOT CMAKE_BUILD_TYPE AND NOT "@CMAKE_BUILD_TYPE@" STREQUAL "")
+		set(MONG2SQL_OUTPUT_PATH "/@CMAKE_BUILD_TYPE@")
+	else()
+		set(MONG2SQL_OUTPUT_PATH "/Release")
+	endif()
+else()
+	# simply leave the output path empty when we output only to one target location
+	# (we are already inside the lib/mong2sql directory..)
+	set(MONG2SQL_OUTPUT_PATH)
+endif()
+
+get_filename_component(SELF_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+include(${SELF_DIR}${MONG2SQL_OUTPUT_PATH}/mong2sql.cmake)

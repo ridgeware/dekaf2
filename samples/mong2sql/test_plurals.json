@@ -1,0 +1,1 @@
+{"_id": {"$oid": "581321fdd79d46c636815cfa"}, "primaryDomainAliases": ["domain1.com", "domain2.com"], "translateDomains": ["site1.com", "site2.com"], "excludePages": ["/page1", "/page2"], "roles": [{"name": "admin"}, {"name": "user"}], "locales": [{"code": "en"}, {"code": "fr"}], "categories": ["cat1", "cat2"], "boxes": ["box1", "box2"], "glasses": ["glass1", "glass2"]}

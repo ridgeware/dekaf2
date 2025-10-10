@@ -674,9 +674,16 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 		{
 			Keys.Add (it.first, it.second);
 		}
-		else if (it.second.HasFlag (KCOL::EXPRESSION | KCOL::BOOLEAN))
+		else if (it.second.HasFlag (KCOL::EXPRESSION))
 		{
 			sSQL.ref() += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, it.second.sValue);
+			bComma = true;
+		}
+		else if (it.second.HasFlag (KCOL::BOOLEAN))
+		{
+			KString sValue = it.second.sValue;
+			sValue.Trim();
+			sSQL.ref() += kFormat ("\t{}{}={}\n", (bComma) ? "," : "", it.first, sValue ? sValue : "false");
 			bComma = true;
 		}
 		else

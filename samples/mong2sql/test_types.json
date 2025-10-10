@@ -1,0 +1,2 @@
+{"_id": {"$oid": "58878bd8cc51e3446ccff6b4"}, "name": "Test Site", "active": true, "score": 95.5, "count": 42}
+{"_id": {"$oid": "58878bd8cc51e3446ccff6b5"}, "name": "Another Site", "active": false, "score": 87.2, "count": 38}

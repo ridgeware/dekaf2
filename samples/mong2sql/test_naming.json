@@ -1,0 +1,2 @@
+{"_id": {"$oid": "581321fdd79d46c636815cfa"}, "__v": 2, "_pay_problem": 123.45, "_staging": "test_value", "_tl2": true, "normal_field": "normal", "field__with__doubles": "doubles", "nested": {"__inner_v": 1, "_inner_field": "inner"}, "test_array": [{"__array_v": 1, "_array_field": "array_value"}]}
+{"_id": {"$oid": "581321fdd79d46c636815cfb"}, "___triple": "triple_underscores", "field___more": "more_underscores", "mixed__field_": "mixed"}

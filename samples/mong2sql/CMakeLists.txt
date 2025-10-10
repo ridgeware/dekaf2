@@ -55,14 +55,14 @@ find_package(mongocxx CONFIG)
 find_package(bsoncxx CONFIG)
 
 if(NOT mongocxx_FOUND)
-    pkg_check_modules(MONGOCXX REQUIRED libmongocxx)
+    pkg_check_modules(MONGOCXX libmongocxx)
 endif()
 
 if(NOT bsoncxx_FOUND)
-    pkg_check_modules(BSONCXX REQUIRED libbsoncxx)
+    pkg_check_modules(BSONCXX libbsoncxx)
 endif()
 
-if (NOT mongocxx_FOUND)
+if (NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)
 	return()
 endif()
 

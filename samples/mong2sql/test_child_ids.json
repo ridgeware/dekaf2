@@ -1,0 +1,1 @@
+{"_id": {"$oid": "581321fdd79d46c636815cfa"}, "users": [{"_id": {"$oid": "581321fdd79d46c636815cfb"}, "name": "John", "email": "john@example.com"}, {"_id": {"$oid": "581321fdd79d46c636815cfc"}, "name": "Jane", "email": "jane@example.com"}], "tags": ["important", "urgent"]}

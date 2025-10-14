@@ -80,8 +80,12 @@ int Mong2SQL::Main(int argc, char* argv[])
 		"    generated to stdout\n"
 		"  * -continue mode requires both -mongo and -dbc connections\n"
 		"  * verbosity is automatically enabled when using -dbc\n"
+		"\n"
+		"special actions:\n"
+		"  all       :: processes all collections in the MongoDB database (requires -mongo)\n"
+		"  list      :: lists all collections with sizes, sorted smallest to largest (requires -mongo)\n"
 	);
-	Options.SetAdditionalArgDescription("<collection>");
+	Options.SetAdditionalArgDescription("<collection>|list|all");
 
 	Options.Option("in <file>")
 		.Help("use input file a full dump of the collection")
@@ -102,7 +106,6 @@ int Mong2SQL::Main(int argc, char* argv[])
 	Options.Option("continue <lastmod_key>")
 		.Help("enable delta sync mode using specified MongoDB field for incremental updates")
 		.Set(m_Config.sContinueField)
-		.Final()
 		([&]()
 		{
 			m_Config.bContinueMode = true;
@@ -111,7 +114,6 @@ int Mong2SQL::Main(int argc, char* argv[])
 
 	Options.Option("v,verbose")
 		.Help("enable verbose output with progress information")
-		.Final()
 		([&]()
 		{
 			m_Config.bVerbose = true;
@@ -119,7 +121,6 @@ int Mong2SQL::Main(int argc, char* argv[])
 
 	Options.Option("q,quiet")
 		.Help("disable verbose output")
-		.Final()
 		([&]()
 		{
 			m_Config.bVerbose = false;
@@ -127,11 +128,25 @@ int Mong2SQL::Main(int argc, char* argv[])
 
 	Options.Option("V,version")
 		.Help("show version information")
-		.Final()
 		([&]()
 		{
 			ShowVersion();
 		});
+
+	Options.Option("nodata")
+		.Help("generate DDL only, skip data inserts")
+		([&]()
+		{
+			m_Config.bNoData = true;
+		});
+
+	Options.Option("first")
+		.Help("first sync mode: skip collections if target MySQL table already exists")
+		([&]()
+		{
+			m_Config.bFirstSynch = true;
+		});
+
 
 	Options.UnknownCommand([&](KOptions::ArgList& Args)
 	{
@@ -226,7 +241,7 @@ bool Mong2SQL::LoadDBC()
 	m_Config.bHasDBC = true;
 	m_Config.bVerbose = true;  // Auto-enable verbosity when using database connection
     
-	Verbose(1, "MySQL: connecting: {} ...", m_SQL.ConnectSummary());
+	Verbose(1, "  MySQL: connecting: {} ...", m_SQL.ConnectSummary());
 	return true;
 
 } // LoadDBC
@@ -259,49 +274,37 @@ void Mong2SQL::ProcessCollection()
 		std::vector<KString> collections = GetAllCollectionsFromMongoDB();
 		if (collections.empty())
 		{
-			KErr.FormatLine(">> no collections found or error occurred");
+			KErr.FormatLine(">> no collections found in MongoDB");
 			return;
 		}
 		
 		// Process each collection
-		for (const auto& sCollection : collections)
+		for (const auto& collection : collections)
 		{
-			Verbose(1, "Processing collection: {}", sCollection);
-			
-			// Temporarily set the collection name
-			KString sOriginalCollection = m_Config.sCollectionName;
-			m_Config.sCollectionName = sCollection;
-			
-			std::vector<KJSON> documents;
-			bool bSuccess = false;
-			
-			if (m_Config.bContinueMode)
-			{
-				bSuccess = ProcessFromMongoDBDelta(documents);
-			}
-			else
-			{
-				bSuccess = ProcessFromMongoDB(documents);
-			}
-			
-			if (bSuccess && !documents.empty())
-			{
-				kDebug(1, "processing {} documents for collection '{}'", documents.size(), sCollection);
-				ProcessDocuments(documents, sCollection);
-			}
-			else if (!bSuccess)
-			{
-				KErr.FormatLine(">> failed to process collection '{}'", sCollection);
-			}
-			else
-			{
-				Verbose(1, "Collection '{}' is empty, skipping", sCollection);
-			}
-			
-			// Restore original collection name
-			m_Config.sCollectionName = sOriginalCollection;
+			m_Config.sCollectionName = collection;
+			ProcessCollection();
 		}
 		
+		return;
+	}
+	
+	// Check for "list" collections special case
+	if (m_Config.sCollectionName.ToLower() == "list")
+	{
+		if (!m_Config.sInputFile.empty())
+		{
+			KErr.FormatLine(">> error: collection 'list' cannot be used with file input (-in flag)");
+			return;
+		}
+		
+		if (m_Config.sMongoConnectionString.empty())
+		{
+			KErr.FormatLine(">> error: collection 'list' requires MongoDB connection (-mongo flag)");
+			return;
+		}
+		
+		// List all collections with sizes
+		ListAllCollectionsWithSizes();
 		return;
 	}
 	
@@ -397,38 +400,53 @@ bool Mong2SQL::ProcessFromMongoDB(std::vector<KJSON>& documents)
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, "...");
-	Verbose(1, "MongoDB: connecting: {}", m_Config.sMongoConnectionString);
 	
-	// Initialize MongoDB driver
+	// Initialize MongoDB driver and establish connection
 	InitializeMongoDB();
+	if (!ConnectToMongoDB())
+	{
+		return false;
+	}
 	
 	try
 	{
 		mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
-		mongocxx::client client{uri};
-
 		KString sDatabaseName = uri.database();
 		if (sDatabaseName.empty())
 		{
 			sDatabaseName = "test"; // MongoDB default database
 		}
 
-		auto database   = client[sDatabaseName.c_str()];
+		auto database   = (*m_MongoClient)[sDatabaseName.c_str()];
 		auto collection = database[m_Config.sCollectionName.c_str()];
 
-		Verbose(1, "MongoDB: querying collection: {} ...", m_Config.sCollectionName);
+		// Look up collection size if available
+		auto sizeIt = m_CollectionSizes.find(m_Config.sCollectionName);
+		if (sizeIt != m_CollectionSizes.end())
+		{
+			Verbose(1, "MongoDB: {}: querying collection ({})...", m_Config.sCollectionName, kFormBytes(sizeIt->second));
+		}
+		else
+		{
+			Verbose(1, "MongoDB: {}: querying collection...", m_Config.sCollectionName);
+		}
 		auto cursor = collection.find({});
 
 		std::size_t iDocCount = 0;
 		for (const auto& doc : cursor)
 		{
 			KString sJsonDoc = bsoncxx::to_json(doc);
+			
+			// Sanitize MongoDB JSON to handle BSON values that aren't valid JSON (nan, inf, etc.)
+			sJsonDoc = SanitizeMongoJSON(sJsonDoc);
+			
 			KJSON document;
 			KString sError;
 			if (!kjson::Parse(document, sJsonDoc, sError))
 			{
-				KErr.FormatLine(">> failed to parse MongoDB document: {} - Error: {}", sJsonDoc, sError);
-				continue;
+				KErr.FormatLine(">> FATAL: failed to parse MongoDB document: {} - Error: {}", sJsonDoc, sError);
+				KErr.FormatLine(">> This indicates invalid JSON from MongoDB. Terminating.");
+				std::exit(1);
 			}
 
 			documents.emplace_back(std::move(document));
@@ -438,7 +456,7 @@ bool Mong2SQL::ProcessFromMongoDB(std::vector<KJSON>& documents)
 				kDebug(2, "loaded {} documents from MongoDB", iDocCount);
 			}
 		}
-		Verbose (1, "MongoDB: loaded {} documents off {} collection", kFormNumber(iDocCount), m_Config.sCollectionName);
+		Verbose (1, "MongoDB: {}: loaded {} documents off collection", m_Config.sCollectionName, kFormNumber(iDocCount));
 	}
 	catch (const std::exception& ex)
 	{
@@ -462,7 +480,7 @@ bool Mong2SQL::ProcessFromMongoDBDelta(std::vector<KJSON>& documents)
     
 	// Get the last modified timestamp from MySQL
 	KString sLastModified = GetLastModifiedFromMySQL(sTableName, sMySQLColumn);
-	Verbose (1, "MySQL: max({}.{}) = {}", sTableName, sMySQLColumn, sLastModified);
+	Verbose (1, "  MySQL: max({}.{}) = {}", sTableName, sMySQLColumn, sLastModified);
     
 	// Connect to MongoDB with filter
 	kDebug(2, "connecting to MongoDB with delta filter: {}", m_Config.sMongoConnectionString);
@@ -503,13 +521,16 @@ std::vector<KString> Mong2SQL::GetAllCollectionsFromMongoDB()
 		return collections;
 	}
 
-	// Initialize MongoDB driver
+	// Initialize MongoDB driver and establish connection
 	InitializeMongoDB();
+	if (!ConnectToMongoDB())
+	{
+		return {};
+	}
 
 	try
 	{
 		mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
-		mongocxx::client client{uri};
 		
 		// Extract database name from connection string or use default
 		KString sDatabaseName = uri.database();
@@ -518,7 +539,7 @@ std::vector<KString> Mong2SQL::GetAllCollectionsFromMongoDB()
 			sDatabaseName = "test"; // MongoDB default database
 		}
 		
-		auto database = client[sDatabaseName.c_str()];
+		auto database = (*m_MongoClient)[sDatabaseName.c_str()];
 		
 		Verbose(1, "MongoDB: listing (and sizing) collections ...");
 		
@@ -590,11 +611,13 @@ std::vector<KString> Mong2SQL::GetAllCollectionsFromMongoDB()
 				return a.size < b.size;
 			});
 		
-		// Extract sorted collection names
+		// Extract sorted collection names and store sizes
 		collections.reserve(collectionInfos.size());
+		m_CollectionSizes.clear(); // Clear any previous data
 		for (const auto& info : collectionInfos)
 		{
 			collections.push_back(info.name);
+			m_CollectionSizes[info.name] = info.size;
 		}
 		
 		Verbose(1, "MongoDB: found {} collections, sorted by size (smallest to largest)", collections.size());
@@ -606,6 +629,108 @@ std::vector<KString> Mong2SQL::GetAllCollectionsFromMongoDB()
 	}
 	
 	return collections;
+}
+
+//-----------------------------------------------------------------------------
+void Mong2SQL::ListAllCollectionsWithSizes()
+//-----------------------------------------------------------------------------
+{
+	kDebug(1, "listing all collections with sizes from MongoDB");
+	
+	// Initialize MongoDB driver and establish connection
+	InitializeMongoDB();
+	if (!ConnectToMongoDB())
+	{
+		return;
+	}
+	
+	try
+	{
+		mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
+		
+		// Extract database name from connection string or use default
+		KString sDatabaseName = uri.database();
+		if (sDatabaseName.empty())
+		{
+			sDatabaseName = "test"; // MongoDB default database
+		}
+		
+		auto database = (*m_MongoClient)[sDatabaseName.c_str()];
+		
+		// Structure to hold collection name and size for sorting
+		struct CollectionInfo {
+			KString name;
+			std::int64_t size;
+		};
+		std::vector<CollectionInfo> collectionInfos;
+		
+		// Get list of collections
+		auto cursor = database.list_collections();
+		for (const auto& doc : cursor)
+		{
+			auto nameElement = doc["name"];
+			if (nameElement && nameElement.type() == bsoncxx::type::k_string)
+			{
+				auto stringView = nameElement.get_string().value;
+				KString sCollectionName{stringView.data(), stringView.size()};
+				
+				// Skip system collections
+				if (!sCollectionName.starts_with("system."))
+				{
+					// Get collection size using totalSize()
+					std::int64_t collectionSize = 0;
+					try
+					{
+						auto collection = database[sCollectionName.c_str()];
+						
+						// Run db.collection.totalSize() command
+						auto command = bsoncxx::builder::stream::document{} 
+							<< "collStats" << sCollectionName.c_str()
+							<< bsoncxx::builder::stream::finalize;
+						
+						auto result = database.run_command(command.view());
+						auto sizeElement = result.view()["totalSize"];
+						
+						if (sizeElement && (sizeElement.type() == bsoncxx::type::k_int32 || 
+											sizeElement.type() == bsoncxx::type::k_int64))
+						{
+							if (sizeElement.type() == bsoncxx::type::k_int32)
+							{
+								collectionSize = sizeElement.get_int32().value;
+							}
+							else
+							{
+								collectionSize = sizeElement.get_int64().value;
+							}
+						}
+					}
+					catch (const std::exception& ex)
+					{
+						kDebug(2, "failed to get size for collection '{}': {}", sCollectionName, ex.what());
+						collectionSize = 0; // Default to 0 if size query fails
+					}
+					
+					collectionInfos.push_back({sCollectionName, collectionSize});
+				}
+			}
+		}
+		
+		// Sort collections by size (smallest to largest)
+		std::sort(collectionInfos.begin(), collectionInfos.end(), 
+			[](const CollectionInfo& a, const CollectionInfo& b) {
+				return a.size < b.size;
+			});
+		
+		// Output formatted list
+		for (const auto& info : collectionInfos)
+		{
+			KOut.FormatLine("{:>8}  {}", kFormBytes(info.size), info.name);
+		}
+	}
+	catch (const std::exception& ex)
+	{
+		SetError(kFormat("failed to list collections: {}", ex.what()));
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -647,6 +772,14 @@ void Mong2SQL::ProcessDocuments(const std::vector<KJSON>& documents, KStringView
 	m_RowCounters.clear();
 
 	KString sTableName = ConvertCollectionNameToTableName(sCollectionName);
+	
+	// Check for first sync mode - skip if table already exists
+	if (m_Config.bFirstSynch && TableExistsInMySQL(sTableName))
+	{
+		Verbose(1, "  MySQL: table {} already exists, skipping (-first mode)", sTableName);
+		return;
+	}
+	
 	TableSchema& rootTable = EnsureTableSchema(sTableName);
 	
 	// Root table (main collection) should always have a primary key
@@ -669,41 +802,49 @@ void Mong2SQL::ProcessDocuments(const std::vector<KJSON>& documents, KStringView
 			}
 		}
 
-		Verbose(1, "Generating DDL for {} tables", m_TableOrder.size());
+		Verbose(1, "  MySQL: generating DDL for {} table{}", m_TableOrder.size(), (m_TableOrder.size() == 1) ? "" : "s");
 		for (const auto& tableName : m_TableOrder)
 		{
-			kDebug(2, "generating DDL for table: {}", tableName);
-			GenerateCreateTableSQL(m_TableSchemas.at(tableName));
+			const auto& tableSchema = m_TableSchemas.at(tableName);
+			Verbose(1, "  MySQL: creating table {} with {} columns ...", tableName, tableSchema.Columns.size());
+			GenerateCreateTableSQL(tableSchema);
 		}
 	}
 
-	// Second pass: Generate INSERT statements for all documents
-	Verbose(1, "inserting {} rows into {} ...", kFormNumber(documents.size()), sTableName);
-    
-	std::size_t iSequence { 0 };
-	KBAR pbar;
-	if (m_Config.bVerbose && documents.size() > 1)
+	// Second pass: Generate INSERT statements for all documents (unless -nodata is specified)
+	if (!m_Config.bNoData)
 	{
-		pbar.Start(documents.size());
-	}
-    
-	for (const auto& document : documents)
-	{
-		++iSequence;
+		Verbose(1, "  MySQL: inserting {} rows into {} ...", kFormNumber(documents.size()), sTableName);
 		
-		// EmitDocumentInsert now handles all error reporting internally
-		// It will exit(1) if a critical error occurs
-		EmitDocumentInsert(document, sTableName, iSequence);
+		std::size_t iSequence { 0 };
+		KBAR pbar;
+		if (m_Config.bVerbose && documents.size() > 1)
+		{
+			pbar.Start(documents.size());
+		}
+		
+		for (const auto& document : documents)
+		{
+			++iSequence;
+			
+			// EmitDocumentInsert now handles all error reporting internally
+			// It will exit(1) if a critical error occurs
+			EmitDocumentInsert(document, sTableName, iSequence);
+			
+			if (m_Config.bVerbose && documents.size() > 1)
+			{
+				pbar.Move();
+			}
+		}
 		
 		if (m_Config.bVerbose && documents.size() > 1)
 		{
-			pbar.Move();
+			pbar.Finish();
 		}
 	}
-    
-	if (m_Config.bVerbose && documents.size() > 1)
+	else
 	{
-		pbar.Finish();
+		Verbose(1, "  MySQL: skipping data inserts (-nodata specified)");
 	}
 
 } // ProcessDocuments
@@ -714,8 +855,18 @@ KString Mong2SQL::ConvertCollectionNameToTableName(KStringView sCollectionName) 
 {
 	kDebug(1, "...");
 	
-	// First break up compound words to make them readable
-	KString sTableName = BreakupCompoundWords(sCollectionName);
+	// Don't break up compound words - just use the collection name as-is
+	KString sTableName = KString{sCollectionName};
+	
+	// Strip leading and trailing punctuation (underscores, dashes, dots, etc.)
+	while (!sTableName.empty() && !std::isalnum(sTableName.front()))
+	{
+		sTableName.erase(0, 1);
+	}
+	while (!sTableName.empty() && !std::isalnum(sTableName.back()))
+	{
+		sTableName.pop_back();
+	}
 	
 	// Convert to uppercase
 	sTableName = sTableName.ToUpper();
@@ -983,6 +1134,8 @@ KString Mong2SQL::BreakupCompoundWords(KStringView sInput) const
 	
 } // BreakupCompoundWords
 
+
+
 //-----------------------------------------------------------------------------
 KString Mong2SQL::ApplySingularizationToTableName(KStringView sTableName) const
 //-----------------------------------------------------------------------------
@@ -1046,8 +1199,99 @@ void Mong2SQL::InitializeMongoDB()
 		kDebug(2, "MongoDB driver initialized");
 		initialized = true;
 	}
+}
+
+//-----------------------------------------------------------------------------
+bool Mong2SQL::ConnectToMongoDB()
+//-----------------------------------------------------------------------------
+{
+	kDebug(2, "establishing MongoDB connection");
 	
-} // InitializeMongoDB
+	if (m_MongoClient)
+	{
+		kDebug(3, "MongoDB client already connected");
+		return true;
+	}
+	
+	try
+	{
+		mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
+		m_MongoClient = std::make_unique<mongocxx::client>(uri);
+		
+		Verbose(1, "MongoDB: connecting: {}", m_Config.sMongoConnectionString);
+		kDebug(2, "MongoDB client connected successfully");
+		return true;
+	}
+	catch (const std::exception& ex)
+	{
+		KErr.FormatLine(">> failed to connect to MongoDB: {}", ex.what());
+		m_MongoClient.reset();
+		return false;
+	}
+}
+
+//-----------------------------------------------------------------------------
+KString Mong2SQL::SanitizeMongoJSON(KStringView sJsonDoc) const
+//-----------------------------------------------------------------------------
+{
+	kDebug(3, "sanitizing MongoDB JSON");
+	
+	KString sResult = sJsonDoc;
+	
+	// Replace MongoDB-specific invalid JSON values with valid JSON equivalents
+	// MongoDB BSON supports these values, but they're not valid JSON
+	
+	// Handle 'nan' (Not a Number) - replace with null
+	sResult.Replace(" : nan", " : null");
+	sResult.Replace(": nan", ": null");
+	sResult.Replace(" :nan", " :null");
+	sResult.Replace(":nan", ":null");
+	
+	// Handle 'inf' and '-inf' (Infinity) - replace with null
+	sResult.Replace(" : inf", " : null");
+	sResult.Replace(": inf", ": null");
+	sResult.Replace(" :inf", " :null");
+	sResult.Replace(":inf", ":null");
+	sResult.Replace(" : -inf", " : null");
+	sResult.Replace(": -inf", ": null");
+	sResult.Replace(" :-inf", " :null");
+	sResult.Replace(":-inf", ":null");
+	
+	// Handle other potential MongoDB-specific values that aren't valid JSON
+	// Note: MongoDB dates and ObjectIds are already handled properly by bsoncxx::to_json()
+	
+	return sResult;
+}
+
+//-----------------------------------------------------------------------------
+bool Mong2SQL::TableExistsInMySQL(KStringView sTableName)
+//-----------------------------------------------------------------------------
+{
+	kDebug(2, "checking if table '{}' exists in MySQL", sTableName);
+	
+	if (!m_Config.bHasDBC)
+	{
+		// If no database connection, we can't check - assume it doesn't exist
+		kDebug(3, "no database connection, assuming table does not exist");
+		return false;
+	}
+	
+	// Query INFORMATION_SCHEMA to check if table exists
+	auto sResult = m_SQL.SingleStringQuery("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{}'", sTableName);
+	
+	if (!sResult.empty())
+	{
+		auto count = sResult.Int64();
+		bool bExists = (count > 0);
+		kDebug(2, "table '{}' exists: {}", sTableName, bExists ? "yes" : "no");
+		return bExists;
+	}
+	else
+	{
+		kDebug(1, "failed to check table existence: {}", m_SQL.GetLastError());
+		return false; // Assume it doesn't exist if query fails
+	}
+}
 
 //-----------------------------------------------------------------------------
 KString Mong2SQL::GenerateTablePKEY(KStringView sTableName)
@@ -1211,6 +1455,12 @@ void Mong2SQL::CollectArraySchema(const KJSON& array, TableSchema& parentTable, 
 
 	KString sChildTableName = SanitizeColumnName(BuildChildTableName(parentTable.sTableName, sKey));
 	auto& childTable = EnsureTableSchema(sChildTableName, parentTable.sTableName, parentTable.sPrimaryKey);
+	
+	// Ensure child table has a primary key for potential grandchild relationships
+	if (childTable.sPrimaryKey.empty())
+	{
+		childTable.sPrimaryKey = GenerateTablePKEY(childTable.sTableName);
+	}
 
 	std::size_t iElementIndex = 0;
 	for (const auto& element : array)
@@ -1225,7 +1475,9 @@ void Mong2SQL::CollectArraySchema(const KJSON& array, TableSchema& parentTable, 
 		else if (element.is_array())
 		{
 			kDebug(3, "array element {} is nested array with {} elements", iElementIndex + 1, element.size());
-			AddColumn(childTable, SanitizeColumnName(ExtractLeafColumnName(sKey)), SqlType::Text, 0);
+			// Recursively handle nested arrays - create proper child table with foreign keys
+			KString sNestedKey = SanitizeColumnName(ExtractLeafColumnName(sKey));
+			CollectArraySchema(element, childTable, sNestedKey);
 		}
 		else
 		{
@@ -1375,7 +1627,16 @@ KString Mong2SQL::SqlTypeToString(const ColumnInfo& info) const
 		{
 			if (info.iMaxLength == 0 || info.iMaxLength > 255)
 			{
-				return "text";
+				// TEXT can store up to 65,535 bytes (64KB)
+				// If we're getting close to that limit, use LONGTEXT instead
+				if (info.iMaxLength > 60000) // Leave some safety margin below 65KB
+				{
+					return "longtext";
+				}
+				else
+				{
+					return "text";
+				}
 			}
 
 			std::size_t iRounded = ((info.iMaxLength + 9) / 10) * 10;
@@ -1821,10 +2082,33 @@ KString Mong2SQL::ConvertPluralToSingular(KStringView sPlural) const
 			"scheme", "volume", "phrase", "clause", "course", "house", "mouse",
 			"horse", "nurse", "purse", "verse", "case", "base", "phase", "chase",
 			"site", "page", "type", "name", "time", "line", "code", "mode", "role",
-			"rule", "style", "title", "value", "score", "store", "state", "stage"
+			"rule", "style", "title", "value", "score", "store", "state", "stage",
+			"office", "notice", "choice", "voice", "price", "slice", "advice",
+			"device", "service", "practice", "justice", "police", "finance",
+			"affiliate", "associate", "candidate", "delegate", "estimate", "template",
+			"pipeline", "baseline", "outline", "online", "offline", "antine"
 		};
 		
+		// Check if the candidate word itself is in keepE, or if it ends with a word in keepE
+		bool bKeepE = false;
 		if (keepE.find(sCandidate) != keepE.end())
+		{
+			bKeepE = true;
+		}
+		else
+		{
+			// Check if the word ends with any word in keepE (for compound words)
+			for (const auto& sKeepWord : keepE)
+			{
+				if (sCandidate.ends_with(sKeepWord))
+				{
+					bKeepE = true;
+					break;
+				}
+			}
+		}
+		
+		if (bKeepE)
 		{
 			sResult = sCandidate;
 		}
@@ -2095,7 +2379,21 @@ void Mong2SQL::GenerateCreateTableSQL(const TableSchema& table)
 		sCreateSQL += sLine;
 		sCreateSQL += "\n";
 	}
-	sCreateSQL += ");";
+	
+	// Add FOREIGN KEY constraint if this is a child table
+	// NOTE: Commented out due to dependency issues in DDL execution
+	/*
+	if (!table.sParentTable.empty() && !table.sParentKeyColumn.empty())
+	{
+		// Find the foreign key column name (should be parent table name + "_oid")
+		KString sForeignKeyColumn = table.sParentKeyColumn;
+		sCreateSQL += kFormat("    ,constraint fk_{}_{} foreign key ({}) references {} ({})\n", 
+			table.sTableName.ToLower(), table.sParentTable.ToLower(),
+			sForeignKeyColumn, table.sParentTable, sForeignKeyColumn);
+	}
+	*/
+	
+	sCreateSQL += ") engine=InnoDB default charset=utf8mb4;";
 
 	kDebug(1, "{}: issuing create table...", table.sTableName);
 	if (m_Config.bOutputToStdout)
@@ -2109,7 +2407,20 @@ void Mong2SQL::GenerateCreateTableSQL(const TableSchema& table)
 		{
 			KOut.WriteLine(sLine);
 		}
-		KOut.WriteLine(");");
+		
+		// Add FOREIGN KEY constraint if this is a child table
+		// NOTE: Commented out due to dependency issues in DDL execution
+		/*
+		if (!table.sParentTable.empty() && !table.sParentKeyColumn.empty())
+		{
+			KString sForeignKeyColumn = table.sParentKeyColumn;
+			KOut.FormatLine("    ,constraint fk_{}_{} foreign key ({}) references {} ({})", 
+				table.sTableName.ToLower(), table.sParentTable.ToLower(),
+				sForeignKeyColumn, table.sParentTable, sForeignKeyColumn);
+		}
+		*/
+		
+		KOut.WriteLine(") engine=InnoDB default charset=utf8mb4;");
 		KOut.WriteLine();
 	}
 	else

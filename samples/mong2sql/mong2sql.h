@@ -48,7 +48,11 @@
 #include <dekaf2/kjson.h>
 #include <dekaf2/ksql.h>
 
+#include <mongocxx/client.hpp>
+#include <mongocxx/uri.hpp>
+
 #include <map>
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -84,6 +88,8 @@ private:
 		bool    bVerbose { false };
 		KString sContinueField;
 		bool    bContinueMode { false };
+		bool    bNoData { false };
+		bool    bFirstSynch { false };
 	};
 
 	enum class SqlType
@@ -118,6 +124,7 @@ private:
 	bool        ProcessFromMongoDB (std::vector<KJSON>& documents);
 	bool        ProcessFromMongoDBDelta (std::vector<KJSON>& documents);
 	std::vector<KString> GetAllCollectionsFromMongoDB ();
+	void        ListAllCollectionsWithSizes ();
 	void        ProcessDocuments (const std::vector<KJSON>& documents, KStringView sCollectionName);
 	KString     ConvertCollectionNameToTableName (KStringView sCollectionName) const;
 	KString     ConvertFieldNameToColumnName (KStringView sMongoField) const;
@@ -125,6 +132,9 @@ private:
 	KString     BreakupCompoundWords (KStringView sInput) const;
 	KString     ApplySingularizationToTableName (KStringView sTableName) const;
 	void        InitializeMongoDB ();
+	bool        ConnectToMongoDB ();
+	KString     SanitizeMongoJSON (KStringView sJsonDoc) const;
+	bool        TableExistsInMySQL (KStringView sTableName);
 	KString     GenerateTablePKEY (KStringView sTableName);
 	KString     ConvertMongoFieldToMySQLColumn (KStringView sContinueField);
 	void        GenerateCreateTableSQL (const TableSchema& table);
@@ -179,7 +189,7 @@ private:
 		",MINUTE_MICROSECOND,MINUTE_SECOND,MOD,MODIFIES,NATURAL,NOT,NO_WRITE_TO_BINLOG,NTH_VALUE,NTILE"
 		",NULL,NUMERIC"
 		",OF,ON,OPTIMIZE,OPTIMIZER_COSTS,OPTION,OPTIONALLY,OR,ORDER,OUT,OUTER,OUTFILE,OVER"
-		",PARTITION,PERCENT_RANK,PERSIST,PERSIST_ONLY,PRECISION,PRIMARY,PROCEDURE,PURGE"
+		",PARTITION,PERCENT_RANK,PERSIST,PERSIST_ONLY,PORTION,PRECISION,PRIMARY,PROCEDURE,PURGE"
 		",RANGE,RANK,READ,READS,READ_WRITE,REAL,RECURSIVE,REFERENCES,REGEXP,RELEASE"
 		",RENAME,REPEAT,REPLACE,REQUIRE,RESIGNAL,RESTRICT,RETURN,REVOKE,RIGHT,RLIKE,ROW,ROWS,ROW_NUMBER"
 		",SCHEMA,SCHEMAS,SELECT,SENSITIVE,SEPARATOR,SET,SHOW,SIGNAL,SMALLINT,SPATIAL,SPECIFIC,SQL"
@@ -197,10 +207,12 @@ private:
 
 	Config m_Config;
 	KSQL    m_SQL;
+	std::unique_ptr<mongocxx::client>  m_MongoClient;
 	using SchemaMap = std::map<KString, TableSchema>;
 	SchemaMap                          m_TableSchemas;
 	std::vector<KString>               m_TableOrder;
 	std::map<KString, std::size_t>     m_RowCounters;
+	std::map<KString, std::int64_t>    m_CollectionSizes;
 
 }; // Mong2SQL
 

@@ -72,6 +72,12 @@ public:
     
 	int Main (int argc, char* argv[]);
 
+	template<class... Args>
+	void Verbose (int iLevel, KFormatString<Args...> sFormat, Args&&... args) const
+	{
+		VerboseImpl (iLevel, kFormat (sFormat, std::forward<Args>(args)...));
+	}
+
 //------
 private:
 //------
@@ -217,4 +223,5 @@ private:
 }; // Mong2SQL
 
 // Macro for unified verbose output and debug logging
-#define Verbose(iLevel, sFormat, ...) VerboseImpl(iLevel, kFormat(sFormat, ##__VA_ARGS__))
+//#define Verbose(iLevel, sFormat, ...) VerboseImpl(iLevel, kFormat(sFormat, __VA_ARGS__))
+

@@ -47,6 +47,9 @@
 #include <dekaf2/kreader.h>
 #include <dekaf2/khash.h>
 #include <dekaf2/kbar.h>
+#include <random>
+#include <thread>
+#include <chrono>
 
 #include <mongocxx/client.hpp>
 #include <mongocxx/collection.hpp>
@@ -408,60 +411,115 @@ bool Mong2SQL::ProcessFromMongoDB(std::vector<KJSON>& documents)
 		return false;
 	}
 	
-	try
+	const int MAX_RETRIES = 3;
+	int iRetryCount = 0;
+	
+	while (iRetryCount <= MAX_RETRIES)
 	{
-		mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
-		KString sDatabaseName = uri.database();
-		if (sDatabaseName.empty())
+		try
 		{
-			sDatabaseName = "test"; // MongoDB default database
-		}
-
-		auto database   = (*m_MongoClient)[sDatabaseName.c_str()];
-		auto collection = database[m_Config.sCollectionName.c_str()];
-
-		// Look up collection size if available
-		auto sizeIt = m_CollectionSizes.find(m_Config.sCollectionName);
-		if (sizeIt != m_CollectionSizes.end())
-		{
-			Verbose(1, "MongoDB: {}: querying collection ({})...", m_Config.sCollectionName, kFormBytes(sizeIt->second));
-		}
-		else
-		{
-			Verbose(1, "MongoDB: {}: querying collection...", m_Config.sCollectionName);
-		}
-		auto cursor = collection.find({});
-
-		std::size_t iDocCount = 0;
-		for (const auto& doc : cursor)
-		{
-			KString sJsonDoc = bsoncxx::to_json(doc);
-			
-			// Sanitize MongoDB JSON to handle BSON values that aren't valid JSON (nan, inf, etc.)
-			sJsonDoc = SanitizeMongoJSON(sJsonDoc);
-			
-			KJSON document;
-			KString sError;
-			if (!kjson::Parse(document, sJsonDoc, sError))
+			mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
+			KString sDatabaseName = uri.database();
+			if (sDatabaseName.empty())
 			{
-				KErr.FormatLine(">> FATAL: failed to parse MongoDB document: {} - Error: {}", sJsonDoc, sError);
-				KErr.FormatLine(">> This indicates invalid JSON from MongoDB. Terminating.");
-				std::exit(1);
+				sDatabaseName = "test"; // MongoDB default database
 			}
 
-			documents.emplace_back(std::move(document));
-			++iDocCount;
-			if (iDocCount % 1000 == 0)
+			auto database   = (*m_MongoClient)[sDatabaseName.c_str()];
+			auto collection = database[m_Config.sCollectionName.c_str()];
+
+			// Look up collection size if available
+			auto sizeIt = m_CollectionSizes.find(m_Config.sCollectionName);
+			if (sizeIt != m_CollectionSizes.end())
 			{
-				kDebug(2, "loaded {} documents from MongoDB", iDocCount);
+				Verbose(1, "MongoDB: {}: querying collection ({})...", m_Config.sCollectionName, kFormBytes(sizeIt->second));
+			}
+			else
+			{
+				Verbose(1, "MongoDB: {}: querying collection...", m_Config.sCollectionName);
+			}
+			auto cursor = collection.find({});
+
+			std::size_t iDocCount = 0;
+			for (const auto& doc : cursor)
+			{
+				KString sJsonDoc = bsoncxx::to_json(doc);
+				
+				// Sanitize MongoDB JSON to handle BSON values that aren't valid JSON (nan, inf, etc.)
+				sJsonDoc = SanitizeMongoJSON(sJsonDoc);
+				
+				KJSON document;
+				KString sError;
+				if (!kjson::Parse(document, sJsonDoc, sError))
+				{
+					KErr.FormatLine(">> FATAL: failed to parse MongoDB document: {} - Error: {}", sJsonDoc, sError);
+					KErr.FormatLine(">> This indicates invalid JSON from MongoDB. Terminating.");
+					std::exit(1);
+				}
+
+				documents.emplace_back(std::move(document));
+				++iDocCount;
+				if (iDocCount % 1000 == 0)
+				{
+					kDebug(2, "loaded {} documents from MongoDB", iDocCount);
+				}
+			}
+			Verbose (1, "MongoDB: {}: loaded {} documents off collection", m_Config.sCollectionName, kFormNumber(iDocCount));
+			
+			// Success - break out of retry loop
+			break;
+		}
+		catch (const std::exception& ex)
+		{
+			KString sErrorMsg = ex.what();
+			bool bIsTimeoutError = sErrorMsg.contains("timeout") || 
+								   sErrorMsg.contains("socket error") || 
+								   sErrorMsg.contains("getMore") ||
+								   sErrorMsg.contains("network") ||
+								   sErrorMsg.contains("connection");
+			
+			if (bIsTimeoutError && iRetryCount < MAX_RETRIES)
+			{
+				// Generate random sleep time between 5-30 seconds
+				std::random_device rd;
+				std::mt19937 gen(rd());
+				std::uniform_int_distribution<> dis(5, 30);
+				int iSleepSeconds = dis(gen);
+				
+				Verbose(1, "MongoDB: {}: timeout/network error (attempt {} of {}), retrying in {} seconds...", 
+						m_Config.sCollectionName, iRetryCount + 1, MAX_RETRIES + 1, iSleepSeconds);
+				kDebug(1, "MongoDB error details: {}", sErrorMsg);
+				
+				std::this_thread::sleep_for(std::chrono::seconds(iSleepSeconds));
+				
+				// Clear documents for retry
+				documents.clear();
+				
+				// Reconnect to MongoDB
+				m_MongoClient.reset();
+				if (!ConnectToMongoDB())
+				{
+					SetError(kFormat("MongoDB reconnection failed for collection '{}' after timeout", m_Config.sCollectionName));
+					return false;
+				}
+				
+				iRetryCount++;
+			}
+			else
+			{
+				// Non-timeout error or max retries exceeded
+				if (bIsTimeoutError)
+				{
+					SetError(kFormat("MongoDB timeout error while processing collection '{}' (failed after {} retries): {}", 
+									m_Config.sCollectionName, MAX_RETRIES + 1, sErrorMsg));
+				}
+				else
+				{
+					SetError(kFormat("MongoDB error while processing collection '{}': {}", m_Config.sCollectionName, sErrorMsg));
+				}
+				return false;
 			}
 		}
-		Verbose (1, "MongoDB: {}: loaded {} documents off collection", m_Config.sCollectionName, kFormNumber(iDocCount));
-	}
-	catch (const std::exception& ex)
-	{
-		SetError(kFormat("MongoDB error: {}", ex.what()));
-		return false;
 	}
 
 	return true;

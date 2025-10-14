@@ -82,13 +82,14 @@ int Mong2SQL::Main(int argc, char* argv[])
 		"  * if no connection parms are specified for MySQL, then SQL is just\n"
 		"    generated to stdout\n"
 		"  * -continue mode requires both -mongo and -dbc connections\n"
+		"  * -compare mode requires both -mongo and -dbc connections\n"
 		"  * verbosity is automatically enabled when using -dbc\n"
 		"\n"
 		"special actions:\n"
 		"  all       :: processes all collections in the MongoDB database (requires -mongo)\n"
 		"  list      :: lists all collections with sizes, sorted smallest to largest (requires -mongo)\n"
 	);
-	Options.SetAdditionalArgDescription("<collection>|list|all");
+	Options.SetAdditionalArgDescription("list|all|<collection[s]> [...]");
 
 	Options.Option("in <file>")
 		.Help("use input file a full dump of the collection")
@@ -145,25 +146,34 @@ int Mong2SQL::Main(int argc, char* argv[])
 
 	Options.Option("first")
 		.Help("first sync mode: skip collections if target MySQL table already exists")
+		.Set(m_Config.bFirstSynch);
+
+	Options.Option("compare")
+		.Help("compare MongoDB collections with MySQL tables and show sync status")
 		([&]()
 		{
-			m_Config.bFirstSynch = true;
+			m_Config.bCompareMode = true;
 		});
-
 
 	Options.UnknownCommand([&](KOptions::ArgList& Args)
 	{
 		kDebug (3, "unknown arg lambda");
-		if (!Args.empty())
+		while (!Args.empty())
 		{
-			m_Config.sCollectionName = Args.pop();
-			kDebug (3, "collection set to: {}", m_Config.sCollectionName);
+			KString sCollection = Args.pop();
+			m_Config.vCollectionNames.push_back(sCollection);
+			kDebug (3, "collection added: {}", sCollection);
+		}
+		// Set the first collection as the primary one for backward compatibility
+		if (!m_Config.vCollectionNames.empty())
+		{
+			m_Config.sCollectionName = m_Config.vCollectionNames[0];
 		}
 	});
 
 	Options.Parse(argc, argv);
 
-	if (m_Config.sCollectionName.empty())
+	if (m_Config.sCollectionName.empty() && !m_Config.bCompareMode)
 	{
 		SetError("collection name is required");
 		return 1;
@@ -201,6 +211,23 @@ int Mong2SQL::Main(int argc, char* argv[])
 		}
 		kDebug(1, "continue mode enabled: field='{}', mongo='{}', dbc='{}'", 
 			m_Config.sContinueField, m_Config.sMongoConnectionString, m_Config.sDBC);
+	}
+
+	// Validate compare mode requirements
+	if (m_Config.bCompareMode)
+	{
+		if (m_Config.sMongoConnectionString.empty())
+		{
+			SetError("-compare mode requires -mongo connection string");
+			return 1;
+		}
+		if (m_Config.sDBC.empty())
+		{
+			SetError("-compare mode requires -dbc connection for MySQL");
+			return 1;
+		}
+		kDebug(1, "compare mode enabled: mongo='{}', dbc='{}'", 
+			m_Config.sMongoConnectionString, m_Config.sDBC);
 	}
 
 	if (!LoadDBC())
@@ -264,6 +291,20 @@ void Mong2SQL::ProcessCollection()
 {
 	kDebug(1, "...");
 	
+	// Check for compare mode first (before "all" collection processing)
+	if (m_Config.bCompareMode)
+	{
+		if (!m_Config.sInputFile.empty())
+		{
+			KErr.FormatLine(">> error: -compare cannot be used with file input (-in flag)");
+			return;
+		}
+		
+		// Compare MongoDB to MySQL (handles both "all" and specific collections)
+		CompareMongoToMySQL();
+		return;
+	}
+	
 	// Check for "all" collections special case
 	if (m_Config.sCollectionName.ToLower() == "all")
 	{
@@ -284,8 +325,7 @@ void Mong2SQL::ProcessCollection()
 		// Process each collection
 		for (const auto& collection : collections)
 		{
-			m_Config.sCollectionName = collection;
-			ProcessCollection();
+			ProcessSingleCollection(collection);
 		}
 		
 		return;
@@ -311,7 +351,31 @@ void Mong2SQL::ProcessCollection()
 		return;
 	}
 	
+	// Process multiple collections if specified
+	if (m_Config.vCollectionNames.size() > 1)
+	{
+		for (const auto& collection : m_Config.vCollectionNames)
+		{
+			ProcessSingleCollection(collection);
+		}
+		return;
+	}
+	
 	// Normal single collection processing
+	ProcessSingleCollection(m_Config.sCollectionName);
+
+} // ProcessCollection
+
+//-----------------------------------------------------------------------------
+void Mong2SQL::ProcessSingleCollection(const KString& sCollectionName)
+//-----------------------------------------------------------------------------
+{
+	kDebug(1, "processing single collection: {}", sCollectionName);
+	
+	// Temporarily set the collection name for processing
+	KString sOriginalCollectionName = m_Config.sCollectionName;
+	m_Config.sCollectionName = sCollectionName;
+	
 	std::vector<KJSON> documents;
 	bool bSuccess { false };
 
@@ -330,19 +394,26 @@ void Mong2SQL::ProcessCollection()
 
 	if (!bSuccess)
 	{
+		// Restore original collection name
+		m_Config.sCollectionName = sOriginalCollectionName;
 		return;
 	}
 
 	if (documents.empty())
 	{
-		KErr.FormatLine (">> no documents found for collection '{}'", m_Config.sCollectionName);
+		KErr.FormatLine (">> no documents found for collection '{}'", sCollectionName);
+		// Restore original collection name
+		m_Config.sCollectionName = sOriginalCollectionName;
 		return;
 	}
 
-	kDebug(1, "processing {} documents for collection '{}'", documents.size(), m_Config.sCollectionName);
-	ProcessDocuments(documents, m_Config.sCollectionName);
+	kDebug(1, "processing {} documents for collection '{}'", documents.size(), sCollectionName);
+	ProcessDocuments(documents, sCollectionName);
+	
+	// Restore original collection name
+	m_Config.sCollectionName = sOriginalCollectionName;
 
-} // ProcessCollection
+} // ProcessSingleCollection
 
 //-----------------------------------------------------------------------------
 bool Mong2SQL::ProcessFromFile(std::vector<KJSON>& documents)
@@ -792,6 +863,271 @@ void Mong2SQL::ListAllCollectionsWithSizes()
 }
 
 //-----------------------------------------------------------------------------
+void Mong2SQL::CompareMongoToMySQL()
+//-----------------------------------------------------------------------------
+{
+	kDebug(1, "comparing MongoDB collections with MySQL tables");
+	
+	// Get list of collections to process
+	std::vector<KString> collectionsToProcess;
+	
+	if (m_Config.sCollectionName.ToLower() == "all")
+	{
+		// Get all collections from MongoDB
+		collectionsToProcess = GetAllCollectionsFromMongoDB();
+		if (collectionsToProcess.empty())
+		{
+			KErr.FormatLine(">> no collections found in MongoDB");
+			return;
+		}
+	}
+	else if (m_Config.vCollectionNames.size() > 1)
+	{
+		// Process multiple specific collections
+		collectionsToProcess = m_Config.vCollectionNames;
+	}
+	else
+	{
+		// Process single specific collection
+		collectionsToProcess.push_back(m_Config.sCollectionName);
+	}
+	
+	// Structure to hold all table comparison data
+	struct TableComparison {
+		KString mongoCollection;
+		std::int64_t mongoSize;
+		std::int64_t mongoCount;
+		KString mysqlTable;
+		std::int64_t mysqlCount;
+		bool tableExists;
+		KString comment;
+	};
+	std::vector<TableComparison> allComparisons;
+	
+	// Process each collection
+	for (const auto& sCollectionName : collectionsToProcess)
+	{
+		Verbose(1, "MongoDB: {}: analyzing collection schema...", sCollectionName);
+		
+		// Temporarily set collection name for processing
+		KString sOriginalCollectionName = m_Config.sCollectionName;
+		m_Config.sCollectionName = sCollectionName;
+		
+		// Get MongoDB collection stats
+		std::int64_t mongoSize = 0;
+		std::int64_t mongoCount = 0;
+		
+		try
+		{
+			// Initialize MongoDB driver and establish connection if needed
+			InitializeMongoDB();
+			if (!ConnectToMongoDB())
+			{
+				continue;
+			}
+			
+			mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
+			KString sDatabaseName = uri.database();
+			if (sDatabaseName.empty())
+			{
+				sDatabaseName = "test";
+			}
+			
+			auto database = (*m_MongoClient)[sDatabaseName.c_str()];
+			auto collection = database[sCollectionName.c_str()];
+			
+			// Get collection stats
+			auto command = bsoncxx::builder::stream::document{} 
+				<< "collStats" << sCollectionName.c_str()
+				<< bsoncxx::builder::stream::finalize;
+			
+			auto result = database.run_command(command.view());
+			
+			// Get size
+			auto sizeElement = result.view()["totalSize"];
+			if (sizeElement && (sizeElement.type() == bsoncxx::type::k_int32 || 
+								sizeElement.type() == bsoncxx::type::k_int64))
+			{
+				mongoSize = (sizeElement.type() == bsoncxx::type::k_int32) ?
+							sizeElement.get_int32().value : sizeElement.get_int64().value;
+			}
+			
+			// Get count
+			auto countElement = result.view()["count"];
+			if (countElement && (countElement.type() == bsoncxx::type::k_int32 || 
+								 countElement.type() == bsoncxx::type::k_int64))
+			{
+				mongoCount = (countElement.type() == bsoncxx::type::k_int32) ?
+							 countElement.get_int32().value : countElement.get_int64().value;
+			}
+		}
+		catch (const std::exception& ex)
+		{
+			kDebug(2, "failed to get stats for collection '{}': {}", sCollectionName, ex.what());
+		}
+		
+		// Process the collection to determine all MySQL tables that would be generated
+		std::vector<KJSON> documents;
+		bool bSuccess = false;
+		
+		// Load documents from MongoDB (but don't insert into MySQL)
+		if (m_Config.bContinueMode)
+		{
+			bSuccess = ProcessFromMongoDBDelta(documents);
+		}
+		else
+		{
+			bSuccess = ProcessFromMongoDB(documents);
+		}
+		
+		if (bSuccess && !documents.empty())
+		{
+			// Temporarily disable table creation and data insertion for comparison mode
+			bool bOriginalCreateTables = m_Config.m_bCreateTables;
+			bool bOriginalOutputToStdout = m_Config.bOutputToStdout;
+			bool bOriginalNoData = m_Config.bNoData;
+			
+			m_Config.m_bCreateTables = false;  // Don't create tables
+			m_Config.bOutputToStdout = true;   // Capture DDL output
+			m_Config.bNoData = true;           // Don't insert data
+			
+			// Clear any existing table definitions
+			m_TableSchemas.clear();
+			
+			// Process documents to generate table definitions (but don't create tables or insert data)
+			ProcessDocuments(documents, sCollectionName);
+			
+			// Restore original settings
+			m_Config.m_bCreateTables = bOriginalCreateTables;
+			m_Config.bOutputToStdout = bOriginalOutputToStdout;
+			m_Config.bNoData = bOriginalNoData;
+			
+			// Show discovered tables for this collection
+			Verbose(1, "MongoDB: {}: discovered {} table{}", sCollectionName, m_TableSchemas.size(), 
+					(m_TableSchemas.size() == 1) ? "" : "s");
+			for (const auto& [tableName, tableDef] : m_TableSchemas)
+			{
+				auto counterIt = m_RowCounters.find(tableName);
+				std::int64_t elementCount = (counterIt != m_RowCounters.end()) ? counterIt->second : 0;
+				Verbose(1, "  -> {} ({} elements)", tableName, kFormNumber(elementCount));
+			}
+			
+			// Now we have all table definitions in m_TableSchemas
+			// Create comparison entries for each table
+			for (const auto& [tableName, tableDef] : m_TableSchemas)
+			{
+				TableComparison comp;
+				comp.mongoCollection = sCollectionName;
+				comp.mongoSize = mongoSize;
+				// Use the actual element count for this specific table (from m_RowCounters)
+				auto counterIt = m_RowCounters.find(tableName);
+				comp.mongoCount = (counterIt != m_RowCounters.end()) ? counterIt->second : 0;
+				comp.mysqlTable = tableName;
+				
+				// Check if MySQL table exists and get count
+				comp.tableExists = TableExistsInMySQL(tableName);
+				if (comp.tableExists)
+				{
+					try
+					{
+						auto sCountResult = m_SQL.SingleStringQuery("SELECT COUNT(*) FROM {}", tableName);
+						comp.mysqlCount = sCountResult.Int64();
+					}
+					catch (const std::exception& ex)
+					{
+						kDebug(2, "failed to count rows in table '{}': {}", tableName, ex.what());
+						comp.mysqlCount = -1; // Indicate error
+					}
+				}
+				else
+				{
+					comp.mysqlCount = -1; // Table doesn't exist
+				}
+				
+				// Generate comment based on comparison
+				if (!comp.tableExists)
+				{
+					comp.comment = "TABLE NON-EXTANT";
+				}
+				else if (comp.mysqlCount == -1)
+				{
+					comp.comment = "COUNT ERROR";
+				}
+				else if (comp.mongoCount == comp.mysqlCount)
+				{
+					comp.comment = "looks in synch";
+				}
+				else if (comp.mysqlCount > comp.mongoCount)
+				{
+					std::int64_t diff = comp.mysqlCount - comp.mongoCount;
+					comp.comment = kFormat("MySQL has {} extra row{}", kFormNumber(diff), (diff == 1) ? "" : "s");
+				}
+				else // comp.mysqlCount < comp.mongoCount
+				{
+					std::int64_t diff = comp.mongoCount - comp.mysqlCount;
+					comp.comment = kFormat("MySQL missing {} row{}", kFormNumber(diff), (diff == 1) ? "" : "s");
+				}
+				
+				allComparisons.push_back(comp);
+			}
+		}
+		else
+		{
+			// If we couldn't process the collection, create a basic comparison entry
+			TableComparison comp;
+			comp.mongoCollection = sCollectionName;
+			comp.mongoSize = mongoSize;
+			comp.mongoCount = mongoCount;
+			comp.mysqlTable = ConvertCollectionNameToTableName(sCollectionName);
+			comp.tableExists = false;
+			comp.mysqlCount = -1;
+			comp.comment = "PROCESSING ERROR";
+			
+			allComparisons.push_back(comp);
+		}
+		
+		// Restore original collection name
+		m_Config.sCollectionName = sOriginalCollectionName;
+	}
+	
+	// Sort by collection name, then by table name
+	std::sort(allComparisons.begin(), allComparisons.end(), 
+		[](const TableComparison& a, const TableComparison& b) {
+			if (a.mongoCollection != b.mongoCollection)
+				return a.mongoCollection < b.mongoCollection;
+			return a.mysqlTable < b.mysqlTable;
+		});
+	
+	// Output formatted comparison table
+	KOut.FormatLine("");
+	KOut.FormatLine("   MONGO     MONGO     MONGO                | MYSQL                                       |");
+	KOut.FormatLine("    SIZE  ELEMENTS     COLLECTION           | TABLENAME                          COUNT(*) | COMMENT");
+	KOut.FormatLine(" -------  -------- ------------------------ | ----------                       ---------- | ---------------");
+	
+	for (const auto& comp : allComparisons)
+	{
+		KString sMySQLCount;
+		if (comp.mysqlCount == -1)
+		{
+			sMySQLCount = "N/A";
+		}
+		else
+		{
+			sMySQLCount = kFormat("{}", kFormNumber(comp.mysqlCount));
+		}
+		
+		KOut.FormatLine("{:>8}  {:>8} {:<24} | {:<32} {:>10} | {}",
+						kFormBytes(comp.mongoSize),
+						kFormNumber(comp.mongoCount),
+						comp.mongoCollection,
+						comp.mysqlTable,
+						sMySQLCount,
+						comp.comment);
+	}
+	KOut.FormatLine("");
+}
+
+//-----------------------------------------------------------------------------
 void Mong2SQL::VerboseImpl(int iLevel, const KString& sMessage) const
 //-----------------------------------------------------------------------------
 {
@@ -846,20 +1182,22 @@ void Mong2SQL::ProcessDocuments(const std::vector<KJSON>& documents, KStringView
 		rootTable.sPrimaryKey = GenerateTablePKEY(rootTable.sTableName);
 	}
 
+	// Always collect schema information from documents (needed for both table creation and comparison)
+	kDebug(1, "collecting schema information from {} documents", documents.size());
+	std::size_t iDocCount = 0;
+	for (const auto& document : documents)
+	{
+		CollectSchemaForDocument(document, rootTable, KString{});
+		++iDocCount;
+		if (iDocCount % 1000 == 0)
+		{
+			kDebug(2, "analyzed {} documents for schema", iDocCount);
+		}
+	}
+
+	// Only generate DDL if table creation is enabled
 	if (m_Config.m_bCreateTables)
 	{
-		kDebug(1, "collecting schema information from {} documents", documents.size());
-		std::size_t iDocCount = 0;
-		for (const auto& document : documents)
-		{
-			CollectSchemaForDocument(document, rootTable, KString{});
-			++iDocCount;
-			if (iDocCount % 1000 == 0)
-			{
-				kDebug(2, "analyzed {} documents for schema", iDocCount);
-			}
-		}
-
 		Verbose(1, "  MySQL: generating DDL for {} table{}", m_TableOrder.size(), (m_TableOrder.size() == 1) ? "" : "s");
 		for (const auto& tableName : m_TableOrder)
 		{
@@ -1440,6 +1778,12 @@ void Mong2SQL::CollectSchemaForDocument(const KJSON& document, TableSchema& tabl
 	}
     
 	kDebug(3, "collecting schema for document with {} fields, prefix: '{}'", document.size(), sPrefix);
+	
+	// Count this document for the main table (only if this is a root document, not a nested object)
+	if (sPrefix.empty())
+	{
+		m_RowCounters[table.sTableName]++;
+	}
 
 	for (auto it = document.begin(); it != document.end(); ++it)
 	{
@@ -1523,6 +1867,9 @@ void Mong2SQL::CollectArraySchema(const KJSON& array, TableSchema& parentTable, 
 	std::size_t iElementIndex = 0;
 	for (const auto& element : array)
 	{
+		// Count each array element for the child table
+		m_RowCounters[childTable.sTableName]++;
+		
 		kDebug(3, "processing array element {} of {}", iElementIndex + 1, array.size());
 		if (element.is_object())
 		{

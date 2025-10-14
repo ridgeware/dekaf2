@@ -85,7 +85,8 @@ private:
 	{
 		KString sInputFile;
 		KString sMongoConnectionString;
-		KString sCollectionName;
+		KString sCollectionName;  // Keep for backward compatibility
+		std::vector<KString> vCollectionNames;  // Support multiple collections
 		KString sDBC;
 		KString sTablePrefix;
 		bool    m_bCreateTables { true };
@@ -96,6 +97,7 @@ private:
 		bool    bContinueMode { false };
 		bool    bNoData { false };
 		bool    bFirstSynch { false };
+		bool    bCompareMode { false };
 	};
 
 	enum class SqlType
@@ -126,11 +128,13 @@ private:
 	};
 
 	void        ProcessCollection ();
+	void        ProcessSingleCollection (const KString& sCollectionName);
 	bool        ProcessFromFile (std::vector<KJSON>& documents);
 	bool        ProcessFromMongoDB (std::vector<KJSON>& documents);
 	bool        ProcessFromMongoDBDelta (std::vector<KJSON>& documents);
 	std::vector<KString> GetAllCollectionsFromMongoDB ();
 	void        ListAllCollectionsWithSizes ();
+	void        CompareMongoToMySQL ();
 	void        ProcessDocuments (const std::vector<KJSON>& documents, KStringView sCollectionName);
 	KString     ConvertCollectionNameToTableName (KStringView sCollectionName) const;
 	KString     ConvertFieldNameToColumnName (KStringView sMongoField) const;

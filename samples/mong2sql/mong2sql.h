@@ -124,6 +124,7 @@ private:
 		std::vector<KString>          ColumnOrder;
 		KString                       sParentTable;
 		KString                       sParentKeyColumn;
+		KString                       sMongoPath;  // MongoDB document path (e.g., "drafts/operations/tags")
 		bool                          bHasObjectId { false };
 	};
 
@@ -150,7 +151,7 @@ private:
 	void        GenerateCreateTableSQL (const TableSchema& table);
 	bool        InsertOrUpdateOneRow (const TableSchema& table, const std::map<KString, KString>& rowValues, const KString& sPrimaryKey, std::size_t iSequence);
 	void        ShowVersion ();
-	TableSchema& EnsureTableSchema (KStringView sTableName, KStringView sParentTable = KStringView{}, KStringView sParentKeyColumn = KStringView{});
+	TableSchema& EnsureTableSchema (KStringView sTableName, KStringView sParentTable = KStringView{}, KStringView sParentKeyColumn = KStringView{}, KStringView sMongoPath = KStringView{});
 	void        CollectSchemaForDocument (const KJSON& document, TableSchema& table, const KString& sPrefix);
 	void        CollectArraySchema (const KJSON& array, TableSchema& parentTable, const KString& sKey);
 	void        AddColumn (TableSchema& table, const KString& sColumnName, SqlType type, std::size_t iLength = 0, bool isNullable = true);

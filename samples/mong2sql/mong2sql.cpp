@@ -1009,7 +1009,10 @@ void Mong2SQL::CompareMongoToMySQL()
 			{
 				auto counterIt = m_RowCounters.find(tableName);
 				std::int64_t elementCount = (counterIt != m_RowCounters.end()) ? counterIt->second : 0;
-				Verbose(1, "  -> {} ({} elements)", tableName, kFormNumber(elementCount));
+				
+				// Format the MongoDB path for display
+				KString sDisplayPath = tableDef.sMongoPath.empty() ? sCollectionName : tableDef.sMongoPath;
+				Verbose(1, "  {} -> {} ({} elements)", sDisplayPath, tableName, kFormNumber(elementCount));
 			}
 			
 			// Now we have all table definitions in m_TableSchemas
@@ -1174,7 +1177,7 @@ void Mong2SQL::ProcessDocuments(const std::vector<KJSON>& documents, KStringView
 		return;
 	}
 	
-	TableSchema& rootTable = EnsureTableSchema(sTableName);
+	TableSchema& rootTable = EnsureTableSchema(sTableName, KStringView{}, KStringView{}, sCollectionName);
 	
 	// Root table (main collection) should always have a primary key
 	if (rootTable.sPrimaryKey.empty())
@@ -1701,7 +1704,7 @@ KString Mong2SQL::GenerateTablePKEY(KStringView sTableName)
 } // GenerateTablePKEY
 
 //-----------------------------------------------------------------------------
-Mong2SQL::TableSchema& Mong2SQL::EnsureTableSchema(KStringView sTableName, KStringView sParentTable, KStringView sParentKeyColumn)
+Mong2SQL::TableSchema& Mong2SQL::EnsureTableSchema(KStringView sTableName, KStringView sParentTable, KStringView sParentKeyColumn, KStringView sMongoPath)
 //-----------------------------------------------------------------------------
 {
 	kDebug(2, "ensuring schema for table: {}", sTableName);
@@ -1716,6 +1719,7 @@ Mong2SQL::TableSchema& Mong2SQL::EnsureTableSchema(KStringView sTableName, KStri
 		schema.sPrimaryKey = KString{}; // Empty until _id is discovered
 		schema.sParentTable = sParentTable;
 		schema.sParentKeyColumn = sParentKeyColumn;
+		schema.sMongoPath = sMongoPath;
 
 		auto result = m_TableSchemas.emplace(schema.sTableName, std::move(schema));
 		it = result.first;
@@ -1856,7 +1860,19 @@ void Mong2SQL::CollectArraySchema(const KJSON& array, TableSchema& parentTable, 
 	}
 
 	KString sChildTableName = SanitizeColumnName(BuildChildTableName(parentTable.sTableName, sKey));
-	auto& childTable = EnsureTableSchema(sChildTableName, parentTable.sTableName, parentTable.sPrimaryKey);
+	
+	// Build MongoDB path for child table
+	KString sChildMongoPath;
+	if (!parentTable.sMongoPath.empty())
+	{
+		sChildMongoPath = parentTable.sMongoPath + "/" + sKey;
+	}
+	else
+	{
+		sChildMongoPath = sKey;
+	}
+	
+	auto& childTable = EnsureTableSchema(sChildTableName, parentTable.sTableName, parentTable.sPrimaryKey, sChildMongoPath);
 	
 	// Ensure child table has a primary key for potential grandchild relationships
 	if (childTable.sPrimaryKey.empty())
@@ -2235,7 +2251,7 @@ void Mong2SQL::EmitArrayInserts(const KJSON& array, TableSchema& parentTable, co
 	}
 
 	KString sChildTableName = BuildChildTableName(parentTable.sTableName, sKey);
-	auto& childTable = EnsureTableSchema(sChildTableName, parentTable.sTableName, parentTable.sPrimaryKey);
+	auto& childTable = EnsureTableSchema(sChildTableName, parentTable.sTableName, parentTable.sPrimaryKey, KStringView{});
 	std::size_t& iCounter = m_RowCounters[childTable.sTableName];
 
 	for (const auto& element : array)
@@ -2415,7 +2431,19 @@ KString Mong2SQL::ConvertPluralToSingular(KStringView sPlural) const
 		{"series", "series"},
 		{"means", "means"},
 		{"aircraft", "aircraft"},
-		{"spacecraft", "spacecraft"}
+		{"spacecraft", "spacecraft"},
+		
+		// Common words ending in 'ines' that should just lose 's'
+		{"machines", "machine"},
+		{"engines", "engine"},
+		{"magazines", "magazine"},
+		{"medicines", "medicine"},
+		{"routines", "routine"},
+		{"cuisines", "cuisine"},
+		{"marines", "marine"},
+		{"turbines", "turbine"},
+		{"vaccines", "vaccine"},
+		{"doctrines", "doctrine"}
 	};
 	
 	auto it = irregulars.find(sLower);

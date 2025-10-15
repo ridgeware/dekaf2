@@ -99,4 +99,30 @@ TEST_CASE("KThreadPool")
 		Queue.clear();
 		CHECK ( Queue.n_queued() == 0 );
 	}
+
+	SECTION("stepwise growth and shrink")
+	{
+		std::atomic<int> iCounter { 0 };
+
+		{
+			KThreadPool Queue(50, KThreadPool::PrestartSome, KThreadPool::ShrinkSome);
+
+			for (int i = 0; i < 1000; ++i)
+			{
+				Queue.push([&iCounter]()
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(100));
+					++iCounter;
+				});
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(150));
+
+			Queue.push([&iCounter](){ ++iCounter; });
+
+			CHECK ( Queue.size() == 50 );
+		}
+
+		CHECK ( iCounter == 1001 );
+	}
 }

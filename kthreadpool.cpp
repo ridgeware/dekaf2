@@ -36,7 +36,7 @@
  *
  *  January 2021, Joachim Schurig
  *   - allowing arbitrary return types (futures) for any task (function)
- *    pushed to the task queue
+ *     pushed to the task queue
  *
  *  February 2021, Joachim Schurig
  *   - adding diagnostics/statistics output
@@ -48,6 +48,10 @@
  *   - making sure detached threads (from resizes) are properly finished
  *     when stopping all threads
  *
+ *  October 2025, Joachim Schurig
+ *   - adding growth and shrink policy setup, permitting to dynamically
+ *     resize the thread pool depending on usage
+ *
  *********************************************************/
 
 
@@ -58,10 +62,10 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-KThreadPool::KThreadPool(std::size_t nThreads)
+KThreadPool::KThreadPool(std::size_t nThreads, GrowthPolicy Growth, ShrinkPolicy Shrink)
 //-----------------------------------------------------------------------------
 {
-	resize(nThreads ? nThreads : std::thread::hardware_concurrency());
+	resize(nThreads ? nThreads : std::thread::hardware_concurrency(), Growth, Shrink);
 
 } // ctor
 
@@ -101,10 +105,25 @@ bool KThreadPool::restart()
 } // restart
 
 //-----------------------------------------------------------------------------
-bool KThreadPool::resize(std::size_t nThreads)
+void KThreadPool::set_strategy(GrowthPolicy Growth, ShrinkPolicy Shrink)
 //-----------------------------------------------------------------------------
 {
 	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
+
+	m_Growth = Growth;
+	m_Shrink = Shrink;
+
+} // set_strategy
+
+//-----------------------------------------------------------------------------
+bool KThreadPool::resize(std::size_t nThreads, GrowthPolicy Growth, ShrinkPolicy Shrink)
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
+
+	m_Growth = Growth;
+	m_Shrink = Shrink;
+	ma_iMaxThreads   = nThreads;
 
 	// will be reset to current value with next push of a task
 	ma_iMaxWaitingTasks = 0;
@@ -113,56 +132,204 @@ bool KThreadPool::resize(std::size_t nThreads)
 
 	if (oldNThreads < nThreads)
 	{
-		// the number of threads is increased
-		m_threads .resize(nThreads);
-		m_abort   .resize(nThreads);
-
-		for (std::size_t i = oldNThreads; i < nThreads; ++i)
-		{
-			m_abort[i] = std::make_shared<std::atomic<eAbort>>(eAbort::None);
-
-			if (!run_thread(i))
-			{
-				// could not start thread - stop increasing thread count
-				m_threads.resize(i);
-				m_abort  .resize(i);
-				return false;
-			}
-		}
+		grow(n_queued());
 	}
 	else if (oldNThreads > nThreads)
 	{
-		// the number of threads is decreased
-		for (size_t i = oldNThreads - 1; i >= nThreads; --i)
-		{
-			// increase counter for threads that have to finish
-			// - they are now detached and cannot be joined anymore
-			++ma_iDetachedThreadsToFinish;
-			*m_abort[i] = eAbort::Resize; // this thread will finish
-			m_threads[i]->detach();
-
-			if (i == 0)
-			{
-				break;
-			}
-		}
-
-		// stop the detached threads that were waiting
-		m_cond_var.notify_all();
-
-		m_threads .resize(nThreads); // safe to delete because the threads are detached
-		m_abort   .resize(nThreads); // safe to delete because the threads have copies of shared_ptr of the flags, not originals
-
-		// This comes too early for most stopped threads, but we need to
-		// reset it as otherwise the count remains wrong forever. As we
-		// typically use this for the shutdown callback on destruction
-		// this does not affect normal use cases
-		ma_iAlreadyStopped = 0;
+		shrink(n_queued());
 	}
 
 	return true;
 
 } // resize
+
+//-----------------------------------------------------------------------------
+bool KThreadPool::grow(std::size_t iQueued)
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
+
+	auto oldNThreads = m_threads.size();
+
+	std::size_t iMaxThreads = ma_iMaxThreads;
+
+	if (oldNThreads < iMaxThreads)
+	{
+		std::size_t iAddMax = iMaxThreads - oldNThreads;
+		std::size_t iAddImmediately { std::min(iQueued, iAddMax) };
+
+		switch (m_Growth)
+		{
+			case PrestartNone:
+				iAddImmediately = std::min(iAddImmediately, iAddMax);
+				break;
+
+			case PrestartOne:
+				iAddImmediately = std::min(iAddImmediately + 1, iAddMax);
+				break;
+
+			case PrestartSome:
+				iAddImmediately = std::min(iAddImmediately + 10, iAddMax);
+				break;
+
+			case PrestartAll:
+				iAddImmediately = iAddMax;
+				break;
+		}
+
+		if (iAddImmediately)
+		{
+			// the number of threads is increased
+			auto iNewMax = oldNThreads + iAddImmediately;
+			kDebug(2, "growing threadpool by {} to {}", iAddImmediately, iNewMax);
+
+			m_threads .resize(iNewMax);
+			m_abort   .resize(iNewMax);
+
+			for (std::size_t i = oldNThreads; i < iNewMax; ++i)
+			{
+				m_abort[i] = std::make_shared<std::atomic<eAbort>>(eAbort::None);
+
+				if (!run_thread(i))
+				{
+					// could not start thread - stop increasing thread count
+					m_threads.resize(i);
+					m_abort  .resize(i);
+					return false;
+				}
+			}
+
+			// reset the last resize timer to make sure we do not shrink too quickly
+			m_LastResize = std::chrono::steady_clock::now();
+		}
+
+		return true;
+	}
+
+	return false;
+
+} // grow
+
+//-----------------------------------------------------------------------------
+bool KThreadPool::shrink(std::size_t iQueued)
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
+
+	auto oldNThreads = m_threads.size();
+
+	std::size_t iShrinkImmediately { 0 };
+
+	std::size_t iMaxThreads = ma_iMaxThreads;
+	bool bForce { false };
+
+	if (oldNThreads > iMaxThreads)
+	{
+		iShrinkImmediately = oldNThreads - iMaxThreads;
+		bForce = true;
+	}
+
+	if (m_Shrink != ShrinkNever)
+	{
+		std::size_t iHaveIdle = ma_n_idle;
+		iHaveIdle -= std::min(iHaveIdle, iShrinkImmediately);
+
+		if (iHaveIdle)
+		{
+			iHaveIdle -= std::min(iHaveIdle, iQueued);
+			iShrinkImmediately += calc_shrink(iHaveIdle);
+		}
+	}
+
+	if (iShrinkImmediately)
+	{
+		auto now = std::chrono::steady_clock::now();
+
+		// only shrink if last resize is longer than 10 seconds ago
+		if (bForce || now - m_LastResize >= std::chrono::seconds(10))
+		{
+			if (iShrinkImmediately > oldNThreads)
+			{
+				kDebug(1, "shrink {} > size {}", iShrinkImmediately, oldNThreads);
+				return false;
+			}
+
+			auto iNewMax = oldNThreads - iShrinkImmediately;
+
+			kDebug(2, "shrinking threadpool by {} to {}", iShrinkImmediately, iNewMax);
+
+			for (size_t i = oldNThreads - 1; i >= iNewMax; --i)
+			{
+				// increase counter for threads that have to finish
+				// - they are now detached and cannot be joined anymore
+				++ma_iDetachedThreadsToFinish;
+				*m_abort[i] = eAbort::Resize; // this thread will finish
+				m_threads[i]->detach();
+
+				if (i == 0)
+				{
+					break;
+				}
+			}
+
+			// stop the detached threads that were waiting
+			m_cond_var.notify_all();
+
+			m_threads .resize(iNewMax); // safe to delete because the threads are detached
+			m_abort   .resize(iNewMax); // safe to delete because the threads have copies of shared_ptr of the flags, not originals
+
+			// This comes too early for most stopped threads, but we need to
+			// reset it as otherwise the count remains wrong forever. As we
+			// typically use this for the shutdown callback on destruction
+			// this does not affect normal use cases
+			ma_iAlreadyStopped = 0;
+
+			// and restart the timer
+			m_LastResize = now;
+
+			return true;
+		}
+	}
+
+	return false;
+
+} // shrink
+
+//-----------------------------------------------------------------------------
+std::size_t KThreadPool::calc_shrink(std::size_t iHaveIdle) const
+//-----------------------------------------------------------------------------
+{
+	if (iHaveIdle)
+	{
+		switch (m_Shrink)
+		{
+			case ShrinkNever:
+				iHaveIdle = 0;
+				break;
+
+			case ShrinkSome:
+				if (iHaveIdle > 10)
+				{
+					iHaveIdle -= 10;
+				}
+				else
+				{
+					iHaveIdle = 0;
+				}
+				break;
+
+			case ShrinkOne:
+				iHaveIdle = iHaveIdle - 1;
+				break;
+
+			case ShrinkImmediately:
+				break;
+		}
+	}
+
+	return iHaveIdle;
+
+} // calc_shrink
 
 //-----------------------------------------------------------------------------
 void KThreadPool::pause(bool bYesNo)
@@ -364,11 +531,20 @@ void KThreadPool::push_packaged_task(std::packaged_task<void()> task)
 {
 	std::unique_lock<std::mutex> lock(m_cond_mutex);
 
-	auto iWaiting = m_queue.push(std::move(task)) - 1;
+	auto iWaiting = m_queue.push(std::move(task));
 
-	if (iWaiting > ma_iMaxWaitingTasks)
+	if (iWaiting - 1 > ma_iMaxWaitingTasks)
 	{
-		ma_iMaxWaitingTasks = iWaiting;
+		ma_iMaxWaitingTasks = iWaiting - 1;
+	}
+
+	if (ma_n_idle == 0)
+	{
+		grow(iWaiting);
+	}
+	else if (iWaiting <= 1)
+	{
+		shrink(iWaiting);
 	}
 
 	lock.unlock();
@@ -384,6 +560,7 @@ KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
 {
 	Diagnostics Diag;
 
+	Diag.iMaxThreads      = ma_iMaxThreads;
 	Diag.iTotalThreads    = size() + ma_iDetachedThreadsToFinish - ma_iAlreadyStopped;
 	Diag.iIdleThreads     = n_idle();
 	Diag.iUsedThreads     = Diag.iTotalThreads - Diag.iIdleThreads;

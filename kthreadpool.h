@@ -53,7 +53,7 @@
 
 #pragma once
 
-#include "kdefinitions.h"
+#include "kdefinitions.h" // for DEKAF2_NAMESPACE, DEKAF2_NODISCARD and DEKAF2_PUBLIC
 #include <functional>
 #include <thread>
 #include <atomic>
@@ -62,6 +62,7 @@
 #include <future>
 #include <mutex>
 #include <queue>
+#include <chrono>
 
 /// @file kthreadpool.h
 /// thread pool to run user's tasks (all types of callables) with signature
@@ -174,6 +175,22 @@ class DEKAF2_PUBLIC KThreadPool
 public:
 //------
 
+	enum GrowthPolicy
+	{
+		PrestartNone      = 0, ///< do never preemptively start threads
+		PrestartOne       = 1, ///< start one idle thread on top of the busy ones
+		PrestartSome      = 2, ///< start ten idle threads on top of the busy ones
+		PrestartAll       = 3, ///< start all threads immediately
+	};
+
+	enum ShrinkPolicy
+	{
+		ShrinkNever       = 0, ///< do not shrink
+		ShrinkSome        = 1, ///< shrink in blocks of 10
+		ShrinkOne         = 2, ///< shrink and leave one idle thread
+		ShrinkImmediately = 3, ///< shrink and leave zero idle threads
+	};
+
 	//-----------------------------------------------------------------------------
 	/// Construct an empty thread pool - it will not start unless you resize it!
 	KThreadPool() = default;
@@ -187,7 +204,7 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Construct a thread pool with nThreads size - if nThreads == 0 starts as many
 	/// threads as CPU threads are available
-	KThreadPool(std::size_t nThreads);
+	KThreadPool(std::size_t nThreads, GrowthPolicy Growth = PrestartSome, ShrinkPolicy Shrink = ShrinkSome);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -197,7 +214,8 @@ public:
 
 	struct Diagnostics
 	{
-		std::size_t iTotalThreads    { 0 }; ///< total number of threads
+		std::size_t iMaxThreads      { 0 }; ///< max number of threads allowed
+		std::size_t iTotalThreads    { 0 }; ///< total number of threads spawned now
 		std::size_t iIdleThreads     { 0 }; ///< number of idle threads
 		std::size_t iUsedThreads     { 0 }; ///< number of used threads
 		std::size_t iTotalTasks      { 0 }; ///< total number of serviced tasks
@@ -260,7 +278,12 @@ public:
 	/// Change the number of threads in the pool - this method does not block
 	/// @param nThreads number of total threads
 	/// @return false if some threads could not be started - check new size with size() then
-	bool resize(std::size_t nThreads);
+	bool resize(std::size_t nThreads, GrowthPolicy Growth = PrestartAll, ShrinkPolicy Shrink = ShrinkNever);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// set the strategies for growing and shrinking the pool
+	void set_strategy(GrowthPolicy Growth, ShrinkPolicy Shrink);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -389,6 +412,13 @@ private:
 	};
 
 	void push_packaged_task(std::packaged_task<void()> task);
+	std::size_t calc_shrink(std::size_t iHaveIdle) const;
+
+	/// try to grow the pool by the chosen growth strategy - call if there are no idle threads, but queued tasks (and pass the count of tasks in iQueued)
+	bool grow(std::size_t iQueued);
+
+	/// try to shrink the pool by the chosen growth strategy - call if there are idle threads, but no queued tasks
+	bool shrink(std::size_t iQueued);
 
 	/// start one thread
 	/// @return false if thread could not be started
@@ -402,17 +432,22 @@ private:
 	std::vector<std::shared_ptr<std::atomic<eAbort>>>     m_abort;
 	detail::threadpool::Queue<std::packaged_task<void()>> m_queue;
 
-	std::atomic<std::size_t> ma_iTotalTasks              { 0 };
-	std::atomic<std::size_t> ma_iMaxWaitingTasks         { 0 };
-	std::atomic<std::size_t> ma_n_idle                   { 0 };
-	std::atomic<std::size_t> ma_iAlreadyStopped          { 0 };
-	std::atomic<std::size_t> ma_iDetachedThreadsToFinish { 0 };
-	std::atomic<bool>        ma_interrupt                { false };
+	std::atomic<std::size_t>     ma_iMaxThreads              { 0 };
+	std::atomic<std::size_t>     ma_iTotalTasks              { 0 };
+	std::atomic<std::size_t>     ma_iMaxWaitingTasks         { 0 };
+	std::atomic<std::size_t>     ma_n_idle                   { 0 };
+	std::atomic<std::size_t>     ma_iAlreadyStopped          { 0 };
+	std::atomic<std::size_t>     ma_iDetachedThreadsToFinish { 0 };
+	std::atomic<bool>            ma_interrupt                { false };
 
 	mutable std::recursive_mutex m_resize_mutex;
-	mutable std::mutex       m_cond_mutex;
-	std::condition_variable  m_cond_var;
-	ShutdownCallback         m_shutdown_callback;
+	mutable std::mutex           m_cond_mutex;
+	std::condition_variable      m_cond_var;
+	std::chrono::steady_clock::time_point
+	                             m_LastResize;
+	ShutdownCallback             m_shutdown_callback;
+	GrowthPolicy                 m_Growth                    { GrowthPolicy::PrestartSome };
+	ShrinkPolicy                 m_Shrink                    { ShrinkPolicy::ShrinkSome   };
 
 }; // KThreadPool
 

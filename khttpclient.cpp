@@ -241,7 +241,6 @@ void KHTTPClient::clear()
 	Request.clear();
 	Response.clear();
 	ClearError();
-	m_Authenticator.reset();
 	m_bHaveHostSet = false;
 
 	// do not reset m_bUseHTTPProxyProtocol here - it stays valid until
@@ -249,6 +248,7 @@ void KHTTPClient::clear()
 	// m_sForcedHost
 	// m_iMaxRedirects
 	// m_bRequestCompression
+	// m_Authenticator
 	// remain valid until destruction
 
 } // clear

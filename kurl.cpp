@@ -278,6 +278,14 @@ Protocols s_Canonical [KProtocol::UNKNOWN+1] =
 	{  587, ""       , "smtps://"  },
 	{   80, ""       , "ws://"     },
 	{  443, ""       , "wss://"    },
+	{  554, ""       , "rtsp://"   },
+	{  322, ""       , "rtsps://"  },
+	{ 1935, ""       , "rtmp://"   },
+	{  443, ""       , "rtmps://"  },
+	{    0, ""       , "whep://"   },
+	{    0, ""       , "wheps://"  },
+	{    0, ""       , "srt://"    },
+	{    0, ""       , "udp://"    },
 	{    0, ""       , ""          }  // Empty placeholder for UNKNOWN, use m_sProto.
 };
 

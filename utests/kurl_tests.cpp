@@ -1457,3 +1457,13 @@ TEST_CASE("KURL::FILE")
 	CHECK ( URL.Path == "/etc/fstab" );
 	CHECK ( URL.Serialize() == "file:///etc/fstab" ); // different to original, but good and correct
 }
+
+TEST_CASE("KURL::UNKNOWN_PROTO")
+{
+	KURL URL;
+	URL = "ftxz://domain.org:1234/test";
+	CHECK ( (URL.Protocol == "ftxz://") );
+	CHECK ( URL.Domain == "domain.org" );
+	CHECK ( URL.Path == "/test" );
+	CHECK ( URL.Serialize() == "ftxz://domain.org:1234/test" );
+}

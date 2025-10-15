@@ -743,7 +743,15 @@ public:
 		SMTPS     = 16,
 		WS        = 17,
 		WSS       = 18,
-		UNKNOWN   = 19  // UNKNOWN _has_ to be the last value
+		RTSP      = 19,
+		RTSPS     = 20,
+		RTMP      = 21,
+		RTMPS     = 22,
+		WHEP      = 23,
+		WHEPS     = 24,
+		SRT       = 25,
+		UDP       = 26,
+		UNKNOWN   = 27  // UNKNOWN _has_ to be the last value
 	};
 
 	//-------------------------------------------------------------------------

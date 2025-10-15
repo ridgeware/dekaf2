@@ -95,7 +95,7 @@ TEST_CASE("KHTTPClient") {
 
 	SECTION("check serialization")
 	{
-		KTinyHTTPServer server(7654, false);
+		KTinyHTTPServer server(7654, false, 3);
 		server.Start(chrono::seconds(2), false);
 		server.clear();
 
@@ -127,7 +127,7 @@ TEST_CASE("KHTTPClient") {
 	SECTION("check unix sockets")
 	{
 		auto sSocketFile = kFormat("{}/test1.socket", TempDir.Name());
-		KTinyHTTPServer server(sSocketFile);
+		KTinyHTTPServer server(sSocketFile, 3);
 		server.Start(chrono::seconds(2), false);
 		server.clear();
 
@@ -184,7 +184,7 @@ TEST_CASE("KHTTPClient") {
 
 	SECTION("send a stream")
 	{
-		KTinyHTTPServer server(7654, false);
+		KTinyHTTPServer server(7654, false, 3);
 		server.Start(chrono::seconds(2), false);
 		server.clear();
 

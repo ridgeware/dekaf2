@@ -33,7 +33,7 @@ class SimpleServer : public KTCPServer
 public:
 
 	SimpleServer(KREST::Options& Options)
-	: KTCPServer(Options.iPort, false, Options.iMaxConnections)
+	: KTCPServer(Options.iPort, false, Options.iMaxConnections, false, Options.Growth, Options.Shrink)
 	{
 	}
 

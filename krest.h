@@ -100,8 +100,13 @@ public:
 		ServerType Type { UNDEFINED };
 		/// listen port (default none)
 		uint16_t iPort { 0 };
-		/// max simultaneous connections (default 20)
-		uint16_t iMaxConnections { 20 };
+		/// max worker threads (default 50). One connection uses one worker thread.
+		/// If there are no idle worker threads, the connection request is put in an rx wait queue.
+		uint16_t iMaxConnections { 50 };
+		/// Growth policy for creation of new worker threads
+		KThreadPool::GrowthPolicy Growth { KThreadPool::PrestartSome };
+		/// Shrink policy for removal of idle worker threads
+		KThreadPool::ShrinkPolicy Shrink { KThreadPool::ShrinkSome };
 		/// timeout in seconds (default 5)
 		uint16_t iTimeout { 5 };
 		/// signals that will shutdown the server (default SIGINT, SIGTERM)

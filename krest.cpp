@@ -270,7 +270,9 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 																 iPort,
 																 bUseTLS,
 																 Options.iMaxConnections,
-																 Options.bStoreEphemeralCert);
+																 Options.bStoreEphemeralCert,
+																 Options.Growth,
+																 Options.Shrink);
 
 				if (bUseTLS)
 				{
@@ -336,7 +338,9 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 																 *m_SocketWatch,
 																 *m_WebSocketServer,
 																 Options.sSocketFile,
-																 Options.iMaxConnections);
+																 Options.iMaxConnections,
+																 Options.Growth,
+																 Options.Shrink);
 
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);

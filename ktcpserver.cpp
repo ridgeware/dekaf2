@@ -973,9 +973,16 @@ bool KTCPServer::RegisterShutdownWithSignals(const std::vector<int>& Signals)
 
 
 //-----------------------------------------------------------------------------
-KTCPServer::KTCPServer(uint16_t iPort, bool bTLS, uint16_t iMaxConnections, bool bStoreNewCerts)
+KTCPServer::KTCPServer(
+	uint16_t iPort,
+	bool     bTLS,
+	uint16_t iMaxThreads,
+	bool     bStoreNewCerts,
+	KThreadPool::GrowthPolicy Growth,
+	KThreadPool::ShrinkPolicy Shrink
+)
 //-----------------------------------------------------------------------------
-	: m_ThreadPool(iMaxConnections)
+	: m_ThreadPool(iMaxThreads, Growth, Shrink)
 	, m_iPort(iPort)
 	, m_bIsTLS(bTLS)
 	, m_bStoreNewCerts(bStoreNewCerts)
@@ -984,9 +991,14 @@ KTCPServer::KTCPServer(uint16_t iPort, bool bTLS, uint16_t iMaxConnections, bool
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 //-----------------------------------------------------------------------------
-KTCPServer::KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections)
+KTCPServer::KTCPServer(
+	KStringView sSocketFile,
+	uint16_t    iMaxThreads,
+	KThreadPool::GrowthPolicy Growth,
+	KThreadPool::ShrinkPolicy Shrink
+)
 //-----------------------------------------------------------------------------
-	: m_ThreadPool(iMaxConnections)
+	: m_ThreadPool(iMaxThreads, Growth, Shrink)
 	, m_sSocketFile(sSocketFile)
 	, m_iPort(0)
 {

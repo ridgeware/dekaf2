@@ -107,16 +107,36 @@ public:
 	/// Construct a server, but do not yet start it.
 	/// @param iPort Port to bind to
 	/// @param bTLS If true will use TLS
-	/// @param iMaxConnections maximum simultaneous connection count, defaults to 50
-	/// @param bStoreNewCerts if new (ephemeral) certs are created, should they be persisted to disk for next start? defaults to true
-	KTCPServer(uint16_t iPort, bool bTLS, uint16_t iMaxConnections = 50, bool bStoreNewCerts = true);
+	/// @param iMaxThreads maximum simultaneous worker thread count, defaults to 50.
+	/// More connections can be handled, but will have to wait in an rx queue until a worker thread is available.
+	/// @param bStoreNewCerts if new (ephemeral) certs are created, should they be persisted to disk for next start?
+	/// defaults to true
+	/// @param Growth policy for creation of new worker threads
+	/// @param Shrink policy for removal of idle worker threads
+	KTCPServer (
+		uint16_t iPort,
+		bool     bTLS,
+		uint16_t iMaxThreads    = 50,
+		bool     bStoreNewCerts = true,
+		KThreadPool::GrowthPolicy Growth = KThreadPool::PrestartSome,
+		KThreadPool::ShrinkPolicy Shrink = KThreadPool::ShrinkSome
+	);
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	//-----------------------------------------------------------------------------
 	/// Construct a server, but do not yet start it.
 	/// @param sSocketFile Unix domain socket to bind to
-	KTCPServer(KStringView sSocketFile, uint16_t iMaxConnections = 50);
+	/// @param iMaxThreads maximum simultaneous worker thread count, defaults to 50.
+	/// More connections can be handled, but will have to wait in an rx queue until a worker thread is available.
+	/// @param Growth policy for creation of new worker threads
+	/// @param Shrink policy for removal of idle worker threads
+	KTCPServer(
+		KStringView sSocketFile,
+		uint16_t    iMaxThreads = 50,
+		KThreadPool::GrowthPolicy Growth = KThreadPool::PrestartSome,
+		KThreadPool::ShrinkPolicy Shrink = KThreadPool::ShrinkSome
+	);
 	//-----------------------------------------------------------------------------
 #endif
 

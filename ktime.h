@@ -417,6 +417,14 @@ DEKAF2_CONSTEXPR_14 std::tm KUnixTime::to_tm(KUnixTime tp) noexcept
 
 } // KUnixTime::to_tm
 
+/// returns the KDuration until a certain point in time, from now on
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KDuration kUntil(KUnixTime timepoint);
+
+/// returns the KDuration since a certain point in time, until now
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KDuration kSince(KUnixTime timepoint);
+
 //-----------------------------------------------------------------------------
 constexpr KUnixTime KConstDate::to_unix () const noexcept
 //-----------------------------------------------------------------------------

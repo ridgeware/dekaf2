@@ -108,7 +108,76 @@ TEST_CASE("KDuration")
 
 	SECTION("ToString")
 	{
+		KDuration D(chrono::nanoseconds(2387464723123874534));
+		CHECK ( D.ToString(KDuration::Smart    ) == "75.7 yrs" );
+		CHECK ( D.ToString(KDuration::Long     ) == "75 yrs, 36 wks, 5 days, 16 hrs, 38 mins, 43 secs, 123 msecs, 874 µsecs, 534 nsecs" );
+		CHECK ( D.ToString(KDuration::Brief    ) == "76 y" );
+		CHECK ( D.ToString(KDuration::Condensed) == "3947w3d16h38m43s123ms874µs534ns" );
+		D = chrono::seconds(23482);
+		CHECK ( D.ToString(KDuration::Condensed) == "6h31m22s" );
+		D = chrono::seconds(1);
+		CHECK ( D.ToString(KDuration::Condensed) == "1s" );
+		D = chrono::milliseconds(734);
+		CHECK ( D.ToString(KDuration::Condensed) == "734ms" );
+		D = chrono::milliseconds(734);
+		CHECK ( D.ToString(KDuration::Brief) == "734 ms" );
+		D = chrono::milliseconds(1055);
+		CHECK ( D.ToString(KDuration::Brief) == "1.1 s" );
+	}
 
+	SECTION("FromString")
+	{
+		KDuration D("75.7 yrs");
+		CHECK ( D.ToString(KDuration::Smart    ) == "75.7 yrs" );
+		D = KDuration("75 yrs, 36 wks, 5 days, 16 hrs, 38 mins, 43 secs, 123 msecs, 874 µsecs, 534 nsecs");
+		CHECK ( D.ToString(KDuration::Long     ) == "75 yrs, 36 wks, 5 days, 16 hrs, 38 mins, 43 secs, 123 msecs, 874 µsecs, 534 nsecs" );
+		D = KDuration("-75 yrs, 36 wks, 5 days, 16 hrs, 38 mins, 43 secs, 123 msecs, 874 µsecs, 534 nsecs");
+		CHECK ( D.ToString(KDuration::Long     ) == "-75 yrs, 36 wks, 5 days, 16 hrs, 38 mins, 43 secs, 123 msecs, 874 µsecs, 534 nsecs" );
+		D = KDuration("76 y");
+		CHECK ( D.ToString(KDuration::Brief    ) == "76 y" );
+		D = KDuration("-76 y");
+		CHECK ( D.ToString(KDuration::Brief    ) == "-76 y" );
+		D = KDuration("3947w3d16h38m43s123ms874µs534ns");
+		CHECK ( D.ToString(KDuration::Condensed) == "3947w3d16h38m43s123ms874µs534ns" );
+		D = KDuration("-3947w3d16h38m43s123ms874µs534ns");
+		CHECK ( D.ToString(KDuration::Condensed) == "-3947w3d16h38m43s123ms874µs534ns" );
+		D = KDuration("6h31m22s");
+		CHECK ( D.ToString(KDuration::Condensed) == "6h31m22s" );
+		D = KDuration("1s");
+		CHECK ( D.ToString(KDuration::Condensed) == "1s" );
+		D = KDuration("734ms");
+		CHECK ( D.ToString(KDuration::Condensed) == "734ms" );
+		D = KDuration("+734ms");
+		CHECK ( D.ToString(KDuration::Condensed) == "734ms" );
+		D = KDuration("-734ms");
+		CHECK ( D.ToString(KDuration::Condensed) == "-734ms" );
+		D = KDuration("734 ms");
+		CHECK ( D.ToString(KDuration::Brief) == "734 ms" );
+		D = KDuration("1.1 s");
+		CHECK ( D.ToString(KDuration::Brief) == "1.1 s" );
+		D = KDuration("874µs");
+		CHECK ( D.ToString(KDuration::Brief) == "874 µs" );
+		D = KDuration("874us");
+		CHECK ( D.ToString(KDuration::Brief) == "874 µs" );
+		D = KDuration("874 microseconds");
+		CHECK ( D.ToString(KDuration::Brief) == "874 µs" );
+		D = KDuration("874µ");
+		CHECK ( D.ToString(KDuration::Brief) == "874 µs" );
+
+		// bad format
+
+		D = KDuration("1.1 ");
+		CHECK ( D.ToString(KDuration::Brief) == "0 ns" );
+		D = KDuration("+-100s");
+		CHECK ( D.ToString(KDuration::Brief) == "0 ns" );
+		D = KDuration("17k");
+		D = KDuration("ns");
+		CHECK ( D.ToString(KDuration::Brief) == "0 ns" );
+		CHECK ( D.ToString(KDuration::Brief) == "0 ns" );
+		D = KDuration("3947w3d16h38m-43s123ms874µs534ns");
+		CHECK ( D.ToString(KDuration::Condensed) == "0ns" );
+		D = KDuration("75 yrs, -36 wks, 5 days, 16 hrs, 38 mins, 43 secs, 123 msecs, 874 µsecs, 534 nsecs");
+		CHECK ( D.ToString(KDuration::Long     ) == "less than a nanosecond" );
 	}
 
 	SECTION("format")

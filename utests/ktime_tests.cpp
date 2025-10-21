@@ -99,7 +99,7 @@ TEST_CASE("KTime") {
 		CHECK ( kTranslateSeconds(1            , true ) == "1 sec" );
 		CHECK ( kTranslateSeconds(2            , true ) == "2 secs" );
 		CHECK ( kTranslateSeconds(1326257      , true ) == "2 wks, 1 day, 8 hrs, 24 mins, 17 secs" );
-		CHECK ( kTranslateSeconds(-1326257     , true ) == "-2.2 wks" );
+		CHECK ( kTranslateSeconds(-1326257     , true ) == "-2 wks, 1 day, 8 hrs, 24 mins, 17 secs" );
 		CHECK ( kTranslateSeconds(6348747235   , true ) == "201 yrs, 16 wks, 3 days, 20 hrs, 53 mins, 55 secs" );
 		CHECK ( kTranslateSeconds(23872        , true ) == "6 hrs, 37 mins, 52 secs" );
 	}
@@ -124,7 +124,7 @@ TEST_CASE("KTime") {
 		CHECK ( kTranslateDuration(nanoseconds::max()  , true) == "292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs, 854 msecs, 775 µsecs, 807 nsecs" );
 		CHECK ( kTranslateDuration(nanoseconds::min()  , true) == "a very long negative time" );
 		CHECK ( kTranslateDuration(nanoseconds::min()
-								   +nanoseconds(1)     , true) == "-292.5 yrs" );
+								   +nanoseconds(1)     , true) == "-292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs, 854 msecs, 775 µsecs, 807 nsecs" );
 	}
 
 	SECTION("KBrokenDownTime")

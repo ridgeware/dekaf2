@@ -42,6 +42,12 @@
 
 #include "kduration.h"
 #include "klog.h"
+#if DEKAF2_HAS_INCLUDE("kctype.h")
+	#define DEKAF2_KDURATION_HAS_KCTYPE 1
+	#include "kctype.h"
+#else
+	#include <ctype.h>
+#endif
 #if DEKAF2_HAS_INCLUDE("kformat.h")
 	#include "kformat.h"
 #else
@@ -71,7 +77,7 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 	{
 		if (iValue)
 		{
-			if (!sOut.empty())
+			if (!sOut.empty() && sOut != "-")
 			{
 				sOut += ", ";
 			}
@@ -88,6 +94,22 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 			{
 				sOut += chPlural;
 			}
+		}
+
+	}; // PrintInt
+
+	//-----------------------------------------------------------------------------
+	auto PrintShortInt = [&sOut](KStringView sLabel, int_t iValue)
+	//-----------------------------------------------------------------------------
+	{
+		if (iValue)
+		{
+#ifndef DEKAF2_KSTRING_IS_STD_STRING
+			sOut += KString::to_string(iValue);
+#else
+			sOut += std::to_string(iValue);
+#endif
+			sOut += sLabel;
 		}
 
 	}; // PrintInt
@@ -197,17 +219,17 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 	int_t iNanoSecs   = nanoseconds().count();
 	bool  bIsNegative = iNanoSecs < 0;
 
-	if (bIsNegative && Format == Format::Long)
-	{
-		Format = Format::Smart;
-	}
-
 	if (iNanoSecs == 0)
 	{
 		if (Format == Format::Brief)
 		{
 			if (iPrecision == 1) --iPrecision;
 			PrintFloat(IntervalToString(Interval, false), 0, 1, iPrecision, 0);
+		}
+		else if (Format == Format::Condensed)
+		{
+			sOut  = "0";
+			sOut += IntervalToString(Interval, false);;
 		}
 		else
 		{
@@ -217,18 +239,40 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 		return sOut;
 	}
 
+	auto PrintLong = [&iNanoSecs,&PrintInt](KStringView sLabel, int_t iDivider)
+	{
+		auto iValue = iNanoSecs / iDivider;
+		iNanoSecs  -= (iValue * iDivider);
+		PrintInt (sLabel, iValue );
+	};
+
+	auto PrintShort = [&iNanoSecs,&PrintShortInt](KStringView sLabel, int_t iDivider)
+	{
+		auto iValue = iNanoSecs / iDivider;
+		iNanoSecs  -= (iValue * iDivider);
+		PrintShortInt (sLabel, iValue );
+	};
+
 	switch (Format)
 	{
 		// e.g. "1 yr, 2 wks, 3 days, 6 hrs, 23 min, 10 sec"
 		case Format::Long:
 		{
-			auto PrintLong = [&iNanoSecs,&PrintInt](KStringView sLabel, int_t iDivider)
+			if (bIsNegative)
 			{
-				auto iValue = iNanoSecs / iDivider;
-				iNanoSecs  -= (iValue * iDivider);
-				PrintInt (sLabel, iValue );
-			};
+				sOut = "-";
 
+				if (iNanoSecs > (std::numeric_limits<int_t>::min)())
+				{
+					iNanoSecs *= -1;
+				}
+				else
+				{
+					sOut = "a very long negative time";
+					break;
+				}
+			}
+			
 			PrintLong("yr" , NANOSECS_PER_YEAR);
 			PrintLong("wk" , NANOSECS_PER_WEEK);
 			PrintLong("day", NANOSECS_PER_DAY );
@@ -238,12 +282,47 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 
 			if (iNanoSecs)
 			{
-				PrintLong("msec" , NANOSECS_PER_MILLISEC);
-				PrintLong("µsec" , NANOSECS_PER_MICROSEC);
-				PrintInt ("nsec" , iNanoSecs);
+				PrintLong("msec", NANOSECS_PER_MILLISEC);
+				PrintLong("µsec", NANOSECS_PER_MICROSEC);
+				PrintInt ("nsec", iNanoSecs);
 			}
 		}
 		break;
+
+		// e.g. "2w3d6h23m10s" or "-2w3d6h23m10s"
+		case Format::Condensed:
+		{
+			if (bIsNegative)
+			{
+				sOut = "-";
+
+				if (iNanoSecs > (std::numeric_limits<int_t>::min)())
+				{
+					iNanoSecs *= -1;
+				}
+				else
+				{
+					sOut = "< -292.5 y";
+					break;
+				}
+			}
+			// how long is a year?
+//			PrintShort("y", NANOSECS_PER_YEAR);
+			PrintShort("w", NANOSECS_PER_WEEK);
+			PrintShort("d", NANOSECS_PER_DAY );
+			PrintShort("h", NANOSECS_PER_HOUR);
+			PrintShort("m", NANOSECS_PER_MIN );
+			PrintShort("s", NANOSECS_PER_SEC );
+
+			if (iNanoSecs)
+			{
+				PrintShort("ms", NANOSECS_PER_MILLISEC);
+				PrintShort("µs", NANOSECS_PER_MICROSEC);
+				PrintShortInt ("ns", iNanoSecs);
+			}
+		}
+		break;
+
 
 		// short scaled format, e.g. "103.23 µs"
 		case Format::Brief:
@@ -252,7 +331,7 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 			// particularly on windows
 			if (iNanoSecs <= (std::numeric_limits<int_t>::min)())
 			{
-				sOut = "> -292.5 y";
+				sOut = "< -292.5 y";
 			}
 			else
 			{
@@ -390,6 +469,320 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 	return sOut;
 
 } // ToString
+
+//-----------------------------------------------------------------------------
+KDuration::KDuration(KStringView sDuration)
+//-----------------------------------------------------------------------------
+: Duration(Duration::zero())
+{
+	// supported formats:
+	// Smart
+	// 75.7 yrs
+	// Long
+	// 75 yrs, 36 wks, 5 days, 16 hrs, 38 mins, 43 secs, 123 msecs, 874 µsecs, 534 nsecs
+	// Brief
+	// 76 y
+	// or
+	// 1.5 y
+	// Condensed
+	// 3947w3d16h38m43s123ms874µs534ns
+	// or
+	// 1d14h24m2.92s
+	// and negative values
+
+	KDuration duration;
+	int8_t bIsPositive   { 1 };
+
+	auto it = sDuration.begin();
+	auto ie = sDuration.end();
+
+	uint32_t iNumber     { 0 };
+	uint32_t iFraction   { 0 };
+	KStringView sUnit;
+
+	enum State { SkipWS1, ParseNum, ParseFraction, SkipWS2, ParseUnit, SkipComma };
+
+	State state { SkipWS1 };
+
+	for (;it != ie;)
+	{
+		switch (state)
+		{
+			case SkipWS1:
+			case SkipWS2:
+#if DEKAF2_KDURATION_HAS_KCTYPE
+				while (KASCII::kIsSpace(*it))
+#else
+				while (std::isspace(*it))
+#endif
+				{
+					if (++it == ie)
+					{
+						break;
+					}
+				}
+				if (state == SkipWS1)
+				{
+					if (it != ie && duration.IsZero())
+					{
+						if (*it == '-')
+						{
+							++it;
+							bIsPositive = -1;
+						}
+						else if (*it == '+')
+						{
+							++it;
+						}
+					}
+					state = ParseNum;
+				}
+				else
+				{
+					state = ParseUnit;
+				}
+				break;
+
+			case ParseNum:
+#if DEKAF2_KDURATION_HAS_KCTYPE
+				while (KASCII::kIsDigit(*it))
+#else
+				while (std::isdigit(*it))
+#endif
+				{
+					iNumber *= 10;
+					iNumber += *it - '0';
+
+					if (++it == ie)
+					{
+						break;
+					}
+				}
+
+				if (it != ie && *it == '.')
+				{
+					++it;
+					state = ParseFraction;
+				}
+				else
+				{
+					state = SkipWS2;
+				}
+				break;
+
+			case ParseFraction:
+			{
+				uint16_t iMultiplier { 1000 };
+#if DEKAF2_KDURATION_HAS_KCTYPE
+				while (KASCII::kIsDigit(*it))
+#else
+				while (std::isdigit(*it))
+#endif
+				{
+					if (iMultiplier > 1)
+					{
+						iMultiplier /= 10;
+					}
+					iFraction *= 10;
+					iFraction += *it - '0';
+
+					if (++it == ie)
+					{
+						break;
+					}
+				}
+				iFraction *= iMultiplier;
+				state = SkipWS2;
+				break;
+			}
+
+			case ParseUnit:
+			{
+				sUnit = KStringView(it, ie - it);
+
+#if DEKAF2_KDURATION_HAS_KCTYPE
+				while (KASCII::kIsAlpha(*it) ||
+
+#else
+				while (std::isalpha(*it)) ||
+#endif
+					   *it == KStringView("µ").front() ||
+					   *it == KStringView("µ")[1])
+				{
+					if (++it == ie)
+					{
+						break;
+					}
+				}
+
+				if (it != ie)
+				{
+					sUnit.remove_suffix(ie - it);
+				}
+
+				if (sUnit.empty())
+				{
+					kDebug(2, "value ({}) without unit", iNumber);
+					return;
+				}
+
+				if (iFraction > 999)
+				{
+					kDebug(3, "iFraction > 999, rounding to next integer: {}", iFraction);
+					iFraction = 0;
+					++iNumber;
+				}
+
+				enum Unit { none, minutes, milliseconds, microseconds };
+				Unit unit { none };
+
+				// evaluate unit partially
+				switch (sUnit.front())
+				{
+					case 'y':
+						duration += chrono::days(365 * iNumber);
+						duration += chrono::seconds(iFraction * (24 * 60 * 60 * 365 / 1000));
+						break;
+
+					case 'w':
+						duration += chrono::days(7 * iNumber);
+						duration += chrono::milliseconds(iFraction * 24 * 60 * 60 * 7);
+						break;
+
+					case 'd':
+						duration += chrono::days(iNumber);
+						duration += chrono::milliseconds(iFraction * 24 * 60 * 60);
+						break;
+
+					case 'h':
+						duration += chrono::hours(iNumber);
+						duration += chrono::milliseconds(iFraction * 60 * 60);
+						break;
+
+					case 's':
+						duration += chrono::seconds(iNumber);
+						duration += chrono::milliseconds(iFraction);
+						break;
+
+					case 'n':
+						duration += chrono::nanoseconds(iNumber);
+						// we drop any fractional value
+						break;
+
+					case 'u':
+						unit = microseconds;
+						break;
+
+					// ambiguous cases
+
+					case 'm':
+					{
+						if (sUnit.size() > 1)
+						{
+							// ms or msecs or milliseconds or microseconds or minutes
+							if (sUnit[1] == 'i')
+							{
+								if (sUnit.size() > 2)
+								{
+									if (sUnit[2] == 'l')
+									{
+										unit = milliseconds;
+									}
+									else if (sUnit[2] == 'n')
+									{
+										unit = minutes;
+									}
+									else if (sUnit[2] == 'c')
+									{
+										unit = microseconds;
+									}
+								}
+								else
+								{
+									unit = minutes;
+								}
+							}
+							else if (sUnit[1] == 's')
+							{
+								unit = milliseconds;
+							}
+							else
+							{
+								kDebug(2, "invalid unit: {}", sUnit);
+								return;
+							}
+						}
+						else
+						{
+							unit = minutes;
+						}
+
+						break;
+					}
+
+					// the KStringView constructor is constexpr, as well
+					// as the subscript access
+					case KStringView("µ").front():
+						if (sUnit.size() > 1)
+						{
+							if (sUnit[1] == KStringView("µ")[1])
+							{
+								unit = microseconds;
+								break;
+							}
+						}
+						kDebug(2, "invalid unit: {}", sUnit);
+						return;
+
+					default:
+						kDebug(2, "invalid unit: {}", sUnit);
+						return;
+				}
+
+				switch (unit)
+				{
+					case minutes:
+						duration += chrono::minutes(iNumber);
+						duration += chrono::milliseconds(iFraction * 60);
+						break;
+
+					case milliseconds:
+						duration += chrono::milliseconds(iNumber);
+						duration += chrono::microseconds(iFraction);
+						break;
+
+					case microseconds:
+						duration += chrono::microseconds(iNumber);
+						duration += chrono::nanoseconds(iFraction);
+						break;
+
+					default:
+						break;
+				}
+
+				iNumber   = 0;
+				iFraction = 0;
+
+				state = SkipComma;
+				break;
+			}
+
+			case SkipComma:
+				if (*it == ',')
+				{
+					++it;
+				}
+
+				state = SkipWS1;
+				break;
+		}
+
+	}
+
+	// assign the parsed value
+	*this = duration * bIsPositive;
+
+} // KDuration string ctor
 
 //-----------------------------------------------------------------------------
 void KMultiDuration::clear()

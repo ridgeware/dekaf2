@@ -85,19 +85,19 @@ private:
 	{
 		KString sInputFile;
 		KString sMongoConnectionString;
-		KString sCollectionName;  // Keep for backward compatibility
-		std::vector<KString> vCollectionNames;  // Support multiple collections
+		KString sCollectionNames;
 		KString sDBC;
 		KString sTablePrefix;
-		bool    m_bCreateTables { true };
+		KString sMode {"COPY"};
+		bool    bCreateTables { true };
 		bool    bOutputToStdout { true };
 		bool    bHasDBC { false };
 		bool    bVerbose { false };
-		KString sContinueField;
 		bool    bContinueMode { false };
+		KString sContinueField;
 		bool    bNoData { false };
 		bool    bFirstSynch { false };
-		bool    bCompareMode { false };
+		uint8_t iThreads { 12 };
 	};
 
 	enum class SqlType
@@ -124,56 +124,30 @@ private:
 		std::vector<KString>          ColumnOrder;
 		KString                       sParentTable;
 		KString                       sParentKeyColumn;
-		KString                       sMongoPath;  // MongoDB document path (e.g., "drafts/operations/tags")
 		bool                          bHasObjectId { false };
 	};
 
-	void        ProcessCollection ();
-	void        ProcessSingleCollection (const KString& sCollectionName);
-	bool        ProcessFromFile (std::vector<KJSON>& documents);
-	bool        ProcessFromMongoDB (std::vector<KJSON>& documents);
-	bool        ProcessFromMongoDBDelta (std::vector<KJSON>& documents);
-	std::vector<KString> GetAllCollectionsFromMongoDB ();
-	void        ListAllCollectionsWithSizes ();
-	void        CompareMongoToMySQL ();
-	void        ProcessDocuments (const std::vector<KJSON>& documents, KStringView sCollectionName);
-	KString     ConvertCollectionNameToTableName (KStringView sCollectionName) const;
-	KString     ConvertFieldNameToColumnName (KStringView sMongoField) const;
-	KString     NormalizeTablePrefix (KStringView sPrefix) const;
-	KString     BreakupCompoundWords (KStringView sInput) const;
-	KString     ApplySingularizationToTableName (KStringView sTableName) const;
 	void        InitializeMongoDB ();
 	bool        ConnectToMongoDB ();
-	KString     SanitizeMongoJSON (KStringView sJsonDoc) const;
-	bool        TableExistsInMySQL (KStringView sTableName);
-	KString     GenerateTablePKEY (KStringView sTableName);
-	KString     ConvertMongoFieldToMySQLColumn (KStringView sContinueField);
-	void        GenerateCreateTableSQL (const TableSchema& table);
-	bool        InsertOrUpdateOneRow (const TableSchema& table, const std::map<KString, KString>& rowValues, const KString& sPrimaryKey, std::size_t iSequence);
 	void        ShowVersion ();
-	TableSchema& EnsureTableSchema (KStringView sTableName, KStringView sParentTable = KStringView{}, KStringView sParentKeyColumn = KStringView{}, KStringView sMongoPath = KStringView{});
-	void        CollectSchemaForDocument (const KJSON& document, TableSchema& table, const KString& sPrefix);
-	void        CollectArraySchema (const KJSON& array, TableSchema& parentTable, const KString& sKey);
-	void        AddColumn (TableSchema& table, const KString& sColumnName, SqlType type, std::size_t iLength = 0, bool isNullable = true);
-	SqlType     InferSqlType (const KJSON& value) const;
-	SqlType     MergeSqlTypes (SqlType existing, SqlType candidate) const;
-	KString     SqlTypeToString (const ColumnInfo& info) const;
-	KString     SanitizeColumnName (KStringView sName) const;  // CRITICAL: Must be deterministic for schema/INSERT consistency
-	static bool IsHex24 (KStringView sValue);
-	bool        IsReservedWord (KStringView sValue) const;
-	void        EmitDocumentInsert (const KJSON& document, KStringView sTableName, std::size_t iSequence);
-	void        EmitArrayInserts (const KJSON& array, TableSchema& parentTable, const KString& sKey, const KString& sParentPKValue);
-	void        ProcessNestedArrays (const KJSON& node, TableSchema& currentTable, const KString& sPrefix, const KString& sCurrentPKValue);
-	void        FlattenDocument (const KJSON& document, const KString& sPrefix, std::map<KString, KString>& rowValues);
-	KString     BuildColumnName (const KString& sPrefix, KStringView sKey) const;
-	KString     BuildChildTableName (KStringView sParentTable, KStringView sKey) const;
-	KString     ConvertPluralToSingular (KStringView sPlural) const;
-	KString     ExtractLeafColumnName (KStringView sQualified) const;
-	KString     ToSqlLiteral (const KJSON& value) const;
-	static KString EscapeSqlString (KStringView sValue);
-	KString     ExtractPrimaryKeyFromDocument (const KJSON& document) const;
-	KString     GetLastModifiedFromMySQL (KStringView sTableName, KStringView sMySQLColumn);
+	bool        GetCollectionFromFile();
+	bool        GetCollectionsFromMongoDB ();
+	void        SortCollectionsBySize ();
+
+	int         ListCollections ();
+	KJSON       DigestCollection (const KJSON& oCollection) const;
+	int         CompareCollectionsToMySQL();
+	int         CopyCollections() const;
+	void        CopyCollection (const KJSON& oCollection) const;
+	KString     GenerateCreateTableDDL (const KJSON& table) const;
 	
+	// Document processing helpers
+	KString     ExtractPrimaryKeyFromDocument (const KJSON& document) const;
+	void        FlattenDocumentToRow (const KJSON& document, const KString& sPrefix, std::map<KString, KString>& rowValues) const;
+	KString     ToSqlLiteral (const KJSON& value) const;
+	bool        InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std::map<KString, KString>& rowValues, KStringView sPrimaryKey) const;
+	void        ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJSON& allTables, KStringView sTableName, const KString& sPrefix, KStringView sParentPK) const;
+
 	// Unified verbose output and debug logging
 	void        VerboseImpl (int iLevel, const KString& sMessage) const;
 
@@ -215,10 +189,47 @@ private:
 	};
 
 	bool LoadDBC ();
+	
+	// Helper methods for schema collection and DDL generation (legacy - use member variables)
+	TableSchema& EnsureTableSchema (KStringView sTableName, KStringView sParentTable = KStringView{}, KStringView sParentKeyColumn = KStringView{});
+	void        CollectSchemaForDocument (const KJSON& document, TableSchema& table, const KString& sPrefix);
+	void        CollectArraySchema (const KJSON& array, TableSchema& parentTable, const KString& sKey);
+	void        AddColumn (TableSchema& table, const KString& sColumnName, SqlType type, std::size_t iLength, bool isNullable = true);
+	SqlType     InferSqlType (const KJSON& value) const;
+	SqlType     MergeSqlTypes (SqlType existing, SqlType candidate) const;
+	KString     SqlTypeToString (const ColumnInfo& info) const;
+	void        GenerateCreateTableSQL (const TableSchema& table);
+	
+	// Thread-safe helper methods (use local KJSON structures)
+	void        CollectSchemaForDocumentLocal (const KJSON& document, KStringView sTableName, const KString& sPrefix, KJSON& localTables, KJSON& localTableOrder) const;
+	void        CollectArraySchemaLocal (const KJSON& array, KStringView sParentTableName, const KString& sKey, KJSON& localTables, KJSON& localTableOrder) const;
+	void        AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlType type, std::size_t iLength, bool isNullable = true) const;
+	KJSON&      EnsureTableSchemaLocal (KStringView sTableName, KJSON& localTables, KJSON& localTableOrder, KStringView sCollectionPath, KStringView sParentTable = KStringView{}, KStringView sParentKeyColumn = KStringView{}) const;
+	
+	// Naming and conversion helpers
+	KString     ConvertCollectionNameToTableName (KStringView sCollectionName) const;
+	KString     ConvertFieldNameToColumnName (KStringView sFieldName) const;
+	KString     SanitizeColumnName (KStringView sName) const;
+	KString     BuildColumnName (const KString& sPrefix, KStringView sKey) const;
+	KString     BuildChildTableName (KStringView sParentTable, KStringView sKey) const;
+	KString     ExtractLeafColumnName (KStringView sQualified) const;
+	KString     GenerateTablePKEY (KStringView sTableName) const;
+	KString     NormalizeTablePrefix (KStringView sPrefix) const;
+	KString     ApplySingularizationToTableName (KStringView sTableName) const;
+	KString     ConvertPluralToSingular (KStringView sPlural) const;
+	KString     SanitizeMongoJSON (KStringView sJsonDoc) const;
+	bool        TableExistsInMySQL (KStringView sTableName);
 
 	Config m_Config;
 	KSQL    m_SQL;
 	std::unique_ptr<mongocxx::client>  m_MongoClient;
+	
+	// New unified KJSON structure (gradually migrating to this)
+	KJSON   m_Collections;  // Array of collection objects with metadata, tables, columns, etc.
+	
+	std::mutex m_Mutex;
+
+	// Legacy structures (will be removed after migration complete)
 	using SchemaMap = std::map<KString, TableSchema>;
 	SchemaMap                          m_TableSchemas;
 	std::vector<KString>               m_TableOrder;

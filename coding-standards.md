@@ -22,21 +22,45 @@ Example DEKAF2 project banner:
 
 ```cpp
 /*
-// .----------------.  .----------------.  .----------------.  .----------------.  .----------------.
-// | .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |
-// | |  ____  ____  | || |      __      | || |   ______     | || |     _____    | || |    _______   | |
-// | | |_  _||_  _| | || |     /  \     | || |  |_   __ \   | || |      | |     | || |  |  (__ \_|  | |
-// | |   \ \  / /   | || |    / /\ \    | || |    | |__) |  | || |      | |     | || |   '.___`-.   | |
-// | |    > `' <    | || |   / ____ \   | || |    |  ___/   | || |      | |     | || |  |`\____) |  | |
-// | |  _/ /'`\ \_  | || | _/ /    \ \_ | || |   _| |_      | || |     _| |_    | || |  |_______.'  | |
-// | | |____||____| | || ||____|  |____|| || |  |_____|     | || |    |_____|   | || |              | |
-// | |              | || |              | || |              | || |              | || |              | |
-// | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
-//  '----------------'  '----------------'  '----------------'  '----------------'  '----------------'
-//
-// Don Muzquiz, ora pro nobis
-//
-*/
+ //
+ // DEKAF(tm): Lighter, Faster, Smarter (tm)
+ //
+ // Copyright (c) 2025, Ridgeware, Inc.
+ //
+ // +-------------------------------------------------------------------------+
+ // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+ // |/+---------------------------------------------------------------------+/|
+ // |/|                                                                     |/|
+ // |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+ // |/|                                                                     |/|
+ // |\|   OPEN SOURCE LICENSE                                               |\|
+ // |/|                                                                     |/|
+ // |\|   Permission is hereby granted, free of charge, to any person       |\|
+ // |/|   obtaining a copy of this software and associated                  |/|
+ // |\|   documentation files (the "Software"), to deal in the              |\|
+ // |/|   Software without restriction, including without limitation        |/|
+ // |\|   the rights to use, copy, modify, merge, publish,                  |\|
+ // |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+ // |\|   and to permit persons to whom the Software is furnished to        |\|
+ // |/|   do so, subject to the following conditions:                       |/|
+ // |\|                                                                     |\|
+ // |/|   The above copyright notice and this permission notice shall       |/|
+ // |\|   be included in all copies or substantial portions of the          |\|
+ // |/|   Software.                                                         |/|
+ // |\|                                                                     |\|
+ // |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+ // |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+ // |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+ // |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+ // |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+ // |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+ // |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+ // |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+ // |/|                                                                     |/|
+ // |/+---------------------------------------------------------------------+/|
+ // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+ // +-------------------------------------------------------------------------+
+ */
 ```
 
 ## Indentation (K100)
@@ -70,12 +94,12 @@ Use 80 dashes above and below each function definition, and close the scope with
 
 ```cpp
 //--------------------------------------------------------------------------------
-Void XAPIS::ApiLeverageReport (KRESTServer& HTTP)
+KStringView KBlockCipher::ToString (Algorithm algorithm)
 //--------------------------------------------------------------------------------
 {
 	// function body
 
-} // ApiLeverageReport
+} // ToString
 ```
 
 Keep triple-slash (`///`) documentation immediately above the signature; place the upper bar above those comments as allowed by K102.
@@ -238,7 +262,7 @@ Avoid adding `const` to the smart pointer when calling helpers such as `GetDB`. 
 
 ### Class and Struct Names (K200)
 
-Adopt the project prefixing convention: `X` for XAPIS classes, `K` for DEKAF2 types, etc. Class names start with an uppercase letter; never begin a class with lowercase. Note that `X` isn't a hard and fast rule for XAPIS - we have several examples that don't use this prefix. `K` in DEKAF2 is more consistent. Additional DEKAF2 global helpers use `k` like `kDebug` or `kSplit`.
+Adopt the project prefixing convention: `K` for DEKAF2 types, etc. Class names start with an uppercase letter; never begin a class with lowercase. `K` in DEKAF2 is used consistently. DEKAF2 standalone functions use `k` like `kWrite` or `kSplit`.
 
 ### Method and Function Names (K201)
 
@@ -324,9 +348,6 @@ Use dashed lines for major section breaks:
 
 ```cpp
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// GET:  /xapis/BlockSegmentData/<translation_key>/<content_url_hash>
-// POST: /xapis/BlockSegmentData/<translation_key>/<content_url_hash>
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ```
 
 ### Inline Comments
@@ -335,7 +356,7 @@ Use `//` for single-line comments, with space after slashes:
 
 ```cpp
 auto sTargetKeys = HTTP.GetQueryParmSafe ("target_keys"); // optional
-pdb->SetTranslationKey (sLinkedTKey);                      // throws on bad tkey
+pdb->SetTranslationKey (sLinkedTKey);                     // throws on bad tkey
 ```
 
 ### Block Comments
@@ -391,15 +412,15 @@ select  UP.user_key
       , U.first_name
       , U.last_name
       , U.company_name
-from    XAPIS_USER_PROJECT UP
-join    XAPIS_USER U using (user_key)
+from    USER_PROJECT UP
+join    USER U using (user_key)
 where   UP.project_key = '89F0-F9E7-86CF-0AEF'
 order by UP.user_key;
 ```
 
 ### Table Aliases (K302)
 
-Alias tables and derived subqueries with uppercase abbreviations that mirror the table name (`UP` for `XAPIS_USER_PROJECT`, `PS` for a `page_segments` CTE, etc.). Coordinate conflicts with the team and stay consistent so column references like `PS.approx_word_count` always match the alias casing.
+Alias tables and derived subqueries with uppercase abbreviations that mirror the table name (`UP` for `USER_PROJECT`, `PS` for a `page_segments` CTE, etc.). Coordinate conflicts with the team and stay consistent so column references like `PS.approx_word_count` always match the alias casing.
 
 ### Column References (K302b)
 
@@ -411,7 +432,7 @@ pdb->FormatSQL(
 	"  from {}\n"
 	" where {} = '{}'\n",
 		XDB::user_key, XDB::email, XDB::first_name,
-		pdb->FormTablename(XDB::XAPIS_USER, "U"),
+		pdb->FormTablename(XDB::USER, "U"),
 		XDB::user_key,
 		sUserKey);
 ```
@@ -423,8 +444,8 @@ pdb->FormatSQL(
 	"  from {}\n"
 	"  join {} using ({})\n",
 		XDB::project_key, XDB::email,
-		pdb->FormTablename(XDB::XAPIS_USER_PROJECT, "UP"),
-		pdb->FormTablename(XDB::XAPIS_USER, "U"),
+		pdb->FormTablename(XDB::USER_PROJECT, "UP"),
+		pdb->FormTablename(XDB::USER, "U"),
 		XDB::user_key);
 ```
 
@@ -433,8 +454,8 @@ pdb->FormatSQL(
 Use explicit `join` clauses to keep conditions out of the `where` block and make switches between inner/outer joins painless. Prefer `using` when the join keys share the same name.
 
 ```sql
-join BB_PERF_DATA_LATEST PDL using (internal_ip)
-join BB_ONELINK_SERVER   S   using (internal_ip)
+join PERF_DATA_LATEST PDL using (internal_ip)
+join SERVER_NAME      S   using (internal_ip)
 ```
 
 ### Embedding Dynamic SQL (K304)
@@ -450,8 +471,8 @@ pdb->FormatSQL(
 	"  join {} on CBA.block_hash = BS.block_hash\n"
 	" where CBA.linked_translation_key = '{}'\n"
 	"   and BS.translation_key         = '{}'\n",
-		pdb->FormTablename(XDB::XAPIS_BLOCK_SEGMENT, "BS", DEKAF2_FUNCTION_NAME),
-		pdb->FormTablename(XDB::XAPIS_CONTENT_BLOCK_ACTIVE, "CBA"),
+		pdb->FormTablename(XDB::BLOCK_SEGMENT, "BS", DEKAF2_FUNCTION_NAME),
+		pdb->FormTablename(XDB::CONTENT_BLOCK_ACTIVE, "CBA"),
 		sLinkedTKey,
 		sLinkedTKey);
 ```
@@ -470,9 +491,9 @@ pdb->FormatSQL(
 	"          and {} <> '{}'\n"
 	"     )\n"
 	"  ) W\n",
-		pdb->FormTablename(XDB::XAPIS_SEGMENT_TRANSLATION, "ST"),
+		pdb->FormTablename(XDB::SEGMENT_TRANSLATION, "ST"),
 		XDB::translation_key,
-		pdb->FormTablename(XDB::XAPIS_PROJECT_TRANSLATION, "PT", DEKAF2_FUNCTION_NAME),
+		pdb->FormTablename(XDB::PROJECT_TRANSLATION, "PT", DEKAF2_FUNCTION_NAME),
 		XDB::linked_translation_key,
 		sLinkedTKey,
 		XDB::translation_key,
@@ -489,14 +510,14 @@ DDL, insert, update, and delete statements follow the same tab/space rules (K100
 
 ### Exception Formatting
 
-Use brace initialization for ApiError, with a space before the opening brace:
+Use brace initialization for KHTTPError, with a space before the opening brace:
 
 ```cpp
-throw ApiError { ApiError::H4xx_BADREQUEST, "missing required parameters" };
-throw ApiError { ApiError::H5xx_ERROR, db.GetLastError() };
+throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing required parameters" };
+throw KHTTPError { KHTTPError::H5xx_ERROR, db.GetLastError() };
 
 // With kFormat:
-throw ApiError { ApiError::H4xx_BADREQUEST, kFormat ("Invalid content_url_hash={}", sUrlHash) };
+throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat ("Invalid content_url_hash={}", sUrlHash) };
 ```
 
 ## Conditional Compilation
@@ -506,7 +527,7 @@ throw ApiError { ApiError::H4xx_BADREQUEST, kFormat ("Invalid content_url_hash={
 Use `kDebug` with numeric levels:
 
 ```cpp
-kDebug (1, "...");                          // Level 1 - function entry and important information commonly needed
+kDebug (1, "...");                         // Level 1 - function entry and important information commonly needed
 kDebug (2, "target[jliff]: {}", jliff);    // Level 2 - enough info to understand what's going on, but not redundant info
 kDebug (3, "raw data: {}", rawData);       // Level 3 - any info that might be useful, including raw data dumps
 ```
@@ -546,7 +567,7 @@ Use `auto` liberally with clear variable names:
 
 ```cpp
 auto  sTxMethods     = kjson::GetStringRef (pdb->GetProjectTranslationRecord(), "translation_methods").ToUpper();
-const auto sUrlHash  = HTTP.GetQueryParmSafe (":content_url_hash");
+const auto sUrlHash  = HTTP.GetQueryParm (":content_url_hash");
 auto  iUrlHash       = sUrlHash.UInt64();
 auto  iCount         = oRow["count"].UInt16();
 ```
@@ -644,11 +665,11 @@ Check parameters early and throw immediately:
 ```cpp
 if (sLinkedTKey.empty() || sUrlHash.empty())
 {
-	throw ApiError { ApiError::H4xx_BADREQUEST, "missing required parameters" };
+	throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing required parameters" };
 }
 if (!VerifyHashString(sUrlHash))
 {
-	throw ApiError { ApiError::H4xx_BADREQUEST, kFormat ("Invalid content_url_hash={}", sUrlHash) };
+	throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat ("Invalid content_url_hash={}", sUrlHash) };
 }
 ```
 
@@ -660,18 +681,13 @@ if (!VerifyHashString(sUrlHash))
 
 ## Include Order
 
-1. Local project headers (`"xapis.h"`)
-2. Local utility headers (`"tkey.h"`, `"termmanager.h"`)
-3. External library headers (`<dekaf2/...>`, `<xliff/...>`)
-4. Standard library headers (if any)
+1. Local headers (`"kstring.h"`)
+2. External library headers (`<openssl/...>`, `<uuid/...>`)
+3. Standard library headers (if any)
 
 ```cpp
-#include "xapis.h"
-#include "tkey.h"
-#include "termmanager.h"
-#include <dekaf2/kjson.h>
-#include <dekaf2/kstringutils.h>
-#include <xliff/jlifftools.h>
+#include "kstring.h"
+#include <openssl/evp.h>
 ```
 
 ## Summary Checklist
@@ -685,5 +701,5 @@ if (!VerifyHashString(sUrlHash))
 - [ ] Format SQL with lowercase keywords, uppercase aliases, and the vertical gutter (K300-K306)
 - [ ] Space around binary operators and after commas
 - [ ] Use `auto` with descriptive names
-- [ ] Throw ApiError with brace initialization (space before `{`)
+- [ ] Throw KHTTPError with brace initialization (space before `{`)
 - [ ] Use proper KJSON API patterns: `kjson::Parse()`, `Select()`, typed accessors, iterator pattern (K400-K403)

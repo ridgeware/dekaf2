@@ -95,6 +95,10 @@ public:
 	explicit
 	constexpr KDuration(const struct timeval&  tv) : Duration(chrono::seconds(tv.tv_sec) + chrono::microseconds(tv.tv_usec)) {}
 
+	/// construct from a duration string
+	explicit
+	KDuration(KStringView sDuration);
+
 	/// reset the duration to zero
 	constexpr void                           clear()                { *this = Duration::zero(); }
 
@@ -120,11 +124,11 @@ public:
 	constexpr operator                  TimeT        () const { return seconds().count();                 }
 
 	/// returns true if duration is zero
-	constexpr bool                      Zero         () const { return *this != zero();                   }
+	constexpr bool                      IsZero       () const { return *this == zero();                   }
 
 	/// returns true if duration is not zero
 	explicit
-	constexpr operator                  bool         () const { return !Zero();                           }
+	constexpr operator                  bool         () const { return !IsZero();                           }
 
 	/// returns struct timespec duration
 	explicit
@@ -192,7 +196,8 @@ public:
 	{
 		Smart = 0, ///< human readable, auto adapting to value
 		Long,      ///< verbose ("1 yr, 2 wks, 3 days, 6 hrs, 23 min, 10 sec")
-		Brief      ///< brief, auto adapting to value, same size for all ("23.2 ms", "421 µs")
+		Brief,     ///< brief, auto adapting to value, same size for all ("23.2 ms", "421 µs")
+		Condensed  ///< golang-like: 1d14h24m2.92s
 	};
 
 	/// minimum interval to use for ToString()
@@ -216,7 +221,7 @@ public:
 #endif
 
 	/// returns formatted string with duration
-	/// @param format one of Smart, Long, Brief, default Smart
+	/// @param format one of Smart, Long, Brief, Condensed, default Smart
 	/// @param Interval minimum interval (resolution)
 	/// @param iPrecision floating point precision to use for Brief format
 	DEKAF2_NODISCARD
@@ -224,7 +229,20 @@ public:
 					 BaseInterval Interval   = BaseInterval::NanoSeconds,
 					 uint8_t      iPrecision = 1) const;
 
+	/// parse from a duration string
+	void FromString(KStringView sDuration)
+	{
+		*this = KDuration(sDuration);
+	}
+
 }; // KDuration
+
+/// parse a duration string and return a duration
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+KDuration kParseDuration(KStringView sDuration)
+{
+	return KDuration(sDuration);
+}
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Measure the time between two or more events, continuously

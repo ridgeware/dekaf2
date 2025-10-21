@@ -133,6 +133,22 @@ std::vector<KString> kGetListOfTimezoneNames()
 #endif
 
 //-----------------------------------------------------------------------------
+KDuration kUntil(KUnixTime timepoint)
+//-----------------------------------------------------------------------------
+{
+	return timepoint - KUnixTime::now();
+
+} // kUntil
+
+//-----------------------------------------------------------------------------
+KDuration kSince(KUnixTime timepoint)
+//-----------------------------------------------------------------------------
+{
+	return KUnixTime::now() - timepoint;
+
+} // kSince
+
+//-----------------------------------------------------------------------------
 KUnixTime detail::KParsedTimestampBase::to_unix() const
 //-----------------------------------------------------------------------------
 {
@@ -152,10 +168,10 @@ KUnixTime detail::KParsedTimestampBase::to_unix() const
 			+ chrono::hours(m_tm.hour)
 			+ chrono::minutes(m_tm.minute)
 			+ chrono::seconds(m_tm.second)
-			+ chrono::milliseconds(m_tm.millisecond)
-			+ chrono::microseconds(m_tm.microsecond)
 #if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
-			+ chrono::nanoseconds(m_tm.nanosecond)
+			+ chrono::nanoseconds(m_tm.subseconds)
+#else
+			+ chrono::microseconds(m_tm.subseconds / 1000)
 #endif
 			- chrono::minutes(m_tm.utc_offset_minutes);
 
@@ -167,10 +183,10 @@ KUnixTime detail::KParsedTimestampBase::to_unix() const
 		+ chrono::hours(m_tm.hour)
 		+ chrono::minutes(m_tm.minute)
 		+ chrono::seconds(m_tm.second)
-		+ chrono::milliseconds(m_tm.millisecond)
-		+ chrono::microseconds(m_tm.microsecond)
 #if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
-		+ chrono::nanoseconds(m_tm.nanosecond)
+		+ chrono::nanoseconds(m_tm.subseconds)
+#else
+		+ chrono::microseconds(m_tm.subseconds / 1000)
 #endif
 		- chrono::minutes(m_tm.utc_offset_minutes);
 
@@ -198,10 +214,10 @@ KUTCTime detail::KParsedTimestampBase::to_utc() const
 				chrono::hours(m_tm.hour),
 				chrono::minutes(m_tm.minute),
 				chrono::seconds(m_tm.second),
-				chrono::milliseconds(m_tm.millisecond)
-				+ chrono::microseconds(m_tm.microsecond)
 #if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
-				+ chrono::nanoseconds(m_tm.nanosecond)
+				chrono::nanoseconds(m_tm.subseconds)
+#else
+				chrono::microseconds(m_tm.subseconds / 1000)
 #endif
 			}
 		};
@@ -211,11 +227,11 @@ KUTCTime detail::KParsedTimestampBase::to_utc() const
 		auto d = chrono::hours(m_tm.hour)
 					+ chrono::minutes(m_tm.minute)
 					+ chrono::seconds(m_tm.second)
-					+ chrono::milliseconds(m_tm.millisecond)
 #if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
-					+ chrono::nanoseconds(m_tm.nanosecond)
+					+ chrono::nanoseconds(m_tm.subseconds);
+#else
+					+ chrono::microseconds(m_tm.subseconds / 1000);
 #endif
-					+ chrono::microseconds(m_tm.microsecond);
 
 		if (m_tm.utc_offset_minutes > 0)
 		{
@@ -643,25 +659,30 @@ chrono::minutes kGetTimezoneOffset(KStringViewZ sTimezone)
 
 } // kGetTimezoneOffset
 
+namespace {
+
+//-----------------------------------------------------------------------------
+template<typename Value>
+bool AddDigit(char ch, uint32_t iMax, Value& iValue)
+//-----------------------------------------------------------------------------
+{
+	if (!KASCII::kIsDigit(ch))
+	{
+		return false;
+	}
+
+	iValue *= 10;
+	iValue += ch - '0';
+	return iValue <= iMax;
+};
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView sFormat, KStringView sTimestamp)
 //-----------------------------------------------------------------------------
 {
 	static constexpr raw_time Invalid{};
-
-	//-----------------------------------------------------------------------------
-	auto AddDigit = [](char ch, int16_t iMax, int16_t& iValue) -> bool
-	//-----------------------------------------------------------------------------
-	{
-		if (!KASCII::kIsDigit(ch))
-		{
-			return false;
-		}
-
-		iValue *= 10;
-		iValue += ch - '0';
-		return iValue <= iMax;
-	};
 
 	//-----------------------------------------------------------------------------
 	auto AddUnicodeChar = [](KStringView::const_iterator& it,
@@ -676,12 +697,13 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 	KString  sMonthName;
 	KString  sTimezoneName;
 	raw_time tm               {   };
-	int16_t  iTimezoneHours   { 0 };
-	int16_t  iTimezoneMinutes { 0 };
-	uint16_t iTimezonePos     { 0 };
-	uint16_t iYearPos         { 0 };
-	uint16_t iDayPos          { 0 };
-	int16_t  iTimezoneIsNeg   { 0 };
+	uint8_t  iTimezoneHours   { 0 };
+	uint8_t  iTimezoneMinutes { 0 };
+	uint8_t  iTimezonePos     { 0 };
+	uint8_t  iYearPos         { 0 };
+	uint8_t  iDayPos          { 0 };
+	int8_t   iTimezoneIsNeg   { 0 };
+	uint8_t  iNanosecDigits   { 0 };
 
 	auto iTs = sTimestamp.begin();
 	auto eTs = sTimestamp.end();
@@ -736,18 +758,9 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 				break;
 
 			case 'S':
-				// msec digit
-				if (!AddDigit(ch, 999, tm.millisecond)) return Invalid;
-				break;
-
-			case 'u':
-				// µsec digit
-				if (!AddDigit(ch, 999, tm.microsecond)) return Invalid;
-				break;
-
-			case 'U':
-				// nsec digit
-				if (!AddDigit(ch, 999, tm.nanosecond)) return Invalid;
+				// subsecond digit (up to nanosecond resolution)
+				if (!AddDigit(ch, 999999999, tm.subseconds)) return Invalid;
+				++iNanosecDigits;
 				break;
 
 			case 'D':
@@ -840,6 +853,14 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		return Invalid;
 	}
 
+	if (iNanosecDigits)
+	{
+		while (iNanosecDigits++ < 9)
+		{
+			tm.subseconds *= 10;
+		}
+	}
+
 	if (iYearPos < 4 && tm.year < 100)
 	{
 		// posix says:
@@ -928,16 +949,16 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 	}; // TimeFormat
 
-	using FormatArray = std::array<TimeFormat, 132>;
+	using FormatArray = std::array<TimeFormat, 137>;
 
 	// order formats by size
 	static constexpr FormatArray Formats
 	{{
-		{ "YYYY-MM-DDThh:mm:ss.SSSuuuZZZ:ZZ",10 }, // 2024-03-08T17:10:42.440000+00:00, AWS timestamp with timezone
+		{ "YYYY-MM-DDThh:mm:ss.SSSSSSZZZ:ZZ",10 }, // 2024-03-08T17:10:42.440000+00:00, AWS timestamp with timezone
 
 		{ "???, DD NNN YYYY hh:mm:ss ZZZZZ", 25 }, // WWW timestamp with timezone
 
-		{ "YYYY-MM-DDThh:mm:ss.SSSuuuUUUZ" , 19 }, // 2024-03-17T15:03:45.881460216Z, AWS timestamp with nanoseconds, UTC
+		{ "YYYY-MM-DDThh:mm:ss.SSSSSSSSSZ" , 19 }, // 2024-03-17T15:03:45.881460216Z, AWS timestamp with nanoseconds, UTC
 		{ "???, DD NNN YYYY hh:mm:ss zzzz" , 22 }, // WWW timestamp with abbreviated timezone name
 		{ "??, DD NNN YYYY hh:mm:ss ZZZZZ" , 21 }, // WWW timestamp with timezone and two letter day name
 		{ "??? NNN DD hh:mm:ss YYYY ZZZZZ" , 24 }, // Fri Oct 24 15:32:27 2014 +0400 (Git log)
@@ -949,22 +970,28 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		{ "??, DD NNN YYYY hh:mm:ss zzzz"  , 21 }, // WWW timestamp with abbreviated timezone name and two letter day name
 		{ "YYYY NNN DD hh:mm:ss.SSS zzzz"  , 20 }, // 2017 Mar 03 05:12:41.211 CEST
 		{ "??? NNN DD hh:mm:ss zzzz YYYY"  , 13 }, // Fri Oct 24 15:32:27 EDT 2014 (date output)
+		{ "YYYY-MM-DDThh:mm:ss.SSSSSSSSZ"  , 10 }, // 2024-03-17T15:03:45.88146021Z, AWS timestamp with 10 nanoseconds, UTC
 
 		{ "YYYY NNN DD hh:mm:ss.SSS zzz"   , 24 }, // 2017 Mar 03 05:12:41.211 PDT
 		{ "YYYY-MM-DD hh:mm:ss.SSSZZZZZ"   , 19 }, // 2018-04-13 22:08:13.211-0700
 		{ "YYYY-MM-DD hh:mm:ss,SSSZZZZZ"   , 19 }, // 2018-04-13 22:08:13,211-0700
 		{ "??, DD NNN YYYY hh:mm:ss zzz"   , 24 }, // WWW timestamp with abbreviated timezone name and two letter day name
 		{ "??? NNN DD hh:mm:ss zzz YYYY"   ,  7 }, // Fri Oct 24 15:32:27 EDT 2014 (date output)
+		{ "YYYY-MM-DDThh:mm:ss.SSSSSSSZ"   , 10 }, // 2024-03-17T15:03:45.8814602Z, AWS timestamp with 100 nanoseconds, UTC
+
+		{ "YYYY-MM-DDThh:mm:ss.SSSSSSZ"    , 10 }, // 2024-10-19T14:24:29.490163Z, AWS timestamp with microseconds, UTC
 
 		{ "DD/NNN/YYYY:hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017:06:36:15 -0700
 		{ "DD/NNN/YYYY hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017 06:36:15 -0700
 		{ "NNN DD hh:mm:ss ZZZZZ YYYY"     , 15 }, // Jan 21 18:20:11 +0000 2017
+		{ "YYYY-MM-DDThh:mm:ss.SSSSSZ"     , 10 }, // 2024-10-19T14:24:29.490163Z, AWS timestamp with 10 microseconds, UTC
 
 		{ "YYYY-MM-DD hh:mm:ss ZZZZZ"      , 19 }, // 2017-10-14 22:11:20 +0000 (date output with -rfc-3339 option)
+		{ "YYYY-MM-DDThh:mm:ss.SSSSZ"      , 10 }, // 2024-10-19T14:24:29.490163Z, AWS timestamp with 100 microseconds, UTC
 
 		{ "NNN DD, YYYY hh:mm:ss aa"       , 21 }, // Dec 02, 2017 2:39:58 AM
 		{ "YYYY-MM-DD hh:mm:ssZZZZZ"       , 10 }, // 2017-10-14 22:11:20+0000
-		{ "YYYY-MM-DDThh:mm:ss.SSS?"       , 19 }, // 2002-12-06T19:23:15.372Z
+		{ "YYYY-MM-DDThh:mm:ss.SSSZ"       , 19 }, // 2002-12-06T19:23:15.372Z
 		{ "YYYY-MM-DDThh:mm:ssZZZZZ"       , 10 }, // 2017-10-14T22:11:20+0000
 		{ "YYYY NNN DD hh:mm:ss zzz"       , 20 }, // 2017 Mar 03 05:12:41 PDT
 		{ "YYYY NNN DD hh:mm:ss.SSS"       ,  4 }, // 2002 Dec 06 19:23:15.372
@@ -976,14 +1003,14 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		{ "YYYY-MM-DDThh:mm:ss.SSS"        , 10 }, // 2002-12-06T19:23:15.372
 		{ "YYYY-MM-DD*hh:mm:ss:SSS"        , 10 }, // 2002-12-06*19:23:15:372
 
-		{ "YYYYMMDDhhmmss.SSSuuuZ"         , 14 }, // 20141024192327.000000Z (LDAP RFC-2252/X.680/X.208) *
+		{ "YYYYMMDDhhmmss.SSSSSSZ"         , 14 }, // 20141024192327.000000Z (LDAP RFC-2252/X.680/X.208) *
 
 		{ "YYYYMMDD hh:mm:ss.SSS"          , 17 }, // 20211230 12:23:54.372
 
 		{ "NNN DD hh:mm:ss YYYY"           ,  9 }, // Apr 17 00:00:35 2010
 		{ "NNN DD YYYY hh:mm:ss"           ,  3 }, // May 01 1967 14:16:24
 		{ "hh:mm:ss NNN DD YYYY"           ,  2 }, // 14:16:24 May 01 1967
-		{ "YYYY-MM-DDThh:mm:ss?"           , 10 }, // 2002-12-06T19:23:15Z
+		{ "YYYY-MM-DDThh:mm:ssZ"           , 10 }, // 2002-12-06T19:23:15Z
 		{ "DD NNN YYYY hh:mm:ss"           ,  2 }, // 17 Apr 1998 14:32:12
 		{ "DD-NNN-YYYY hh:mm:ss"           ,  2 }, // 17-Apr-1998 14:32:12
 		{ "DD/NNN/YYYY hh:mm:ss"           , 11 }, // 17/Apr/1998 14:32:12

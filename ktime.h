@@ -1044,9 +1044,12 @@ protected:
 
 	struct raw_time
 	{
-		int16_t hour, minute, second, millisecond, microsecond, nanosecond, day, month, year, utc_offset_minutes;
 		const char* tzname;
-		bool has_tz, is_valid;
+		uint32_t    subseconds;
+		uint16_t    year;
+		int16_t     utc_offset_minutes;
+		uint8_t     hour, minute, second, day, month;
+		bool        has_tz, is_valid;
 	};
 
 //--------
@@ -1393,11 +1396,10 @@ DEKAF2_NODISCARD DEKAF2_PUBLIC
 	return detail::FormTimestamp(time, "[{:%d/%b/%Y:%H:%M:%S +0000}]");
 }
 
-/// Parse any timestamp that matches a format string built from h m s D M Y, and a S U z Z N ?
+/// Parse any timestamp that matches a format string built from h m s D M Y, and a S z Z N ?
 /// Y(ear) could be 2 or 4 digits,
 /// aa = am/pm, case insensitive
-/// SSS = milliseconds
-/// UUU = microseconds
+/// SSS = subseconds, up to 9 digits (for nanosecond resolution)
 /// zzz = time zone like "EST"
 /// ZZZZZ = time zone like "-0630",
 /// NNN = abbreviated month name like "Jan", both in English and the user's locale

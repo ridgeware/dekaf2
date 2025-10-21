@@ -165,7 +165,10 @@ int Mong2SQL::Main(int argc, char* argv[])
 
 	Options.Option("first")
 		.Help("first sync mode: skip collections if target MySQL table already exists")
-		.Set(m_Config.bFirstSynch);
+		([&]()
+		{
+			m_Config.bFirstSynch = true;
+		});
 
 	Options.Option("compare")
 		.Help("compare MongoDB collections with MySQL tables and show sync status")

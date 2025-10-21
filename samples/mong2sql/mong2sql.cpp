@@ -148,6 +148,13 @@ int Mong2SQL::Main(int argc, char* argv[])
 			ShowVersion();
 		});
 
+	Options.Option("f,force")
+		.Help("ignore mongo collection cache in /var/tmp/{dbname}")
+		([&]()
+		{
+			m_Config.bForce = true;
+		});
+
 	Options.Option("nodata")
 		.Help("generate DDL only, skip data inserts")
 		([&]()
@@ -696,7 +703,7 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 	KString       sContents;
 	
 	// cached in /var/tmp
-	if (kFileExists (sCacheFile) && kReadFile (sCacheFile, sContents) && sContents)
+	if (!m_Config.bForce && kFileExists (sCacheFile) && kReadFile (sCacheFile, sContents) && sContents)
 	{
 		KString sError;
 		KJSON   oLoaded;
@@ -819,7 +826,9 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 				oTable["num_documents"] = tableData["num_documents"];
 				oTable["num_columns"] = tableData["columns"].size();
 				oTable["has_object_id"] = tableData["has_object_id"];
+				oTable["primary_key"] = tableData["primary_key"];
 				oTable["parent_table"] = tableData["parent_table"];
+				oTable["parent_key_column"] = tableData["parent_key_column"];
 				
 				// Store column metadata
 				KJSON oColumns = KJSON::array();
@@ -862,6 +871,8 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 	{
 		kDebug (1, "{}: wrote cache file: {}", sCollectionName, sCacheFile);
 	}
+
+	kDebug (1, "{}: collection built and stored to cache: {}", sCollectionName, sCacheFile);
 
 	return oBuilt;
 
@@ -967,6 +978,34 @@ int Mong2SQL::CopyCollections ()
 } // CopyCollections
 
 //-----------------------------------------------------------------------------
+void Mong2SQL::ShowBar (KBAR& bar, KStringView sCollectionName, uint64_t iInsertCount/*=0*/, uint64_t iUpdateCount/*=0*/)
+//-----------------------------------------------------------------------------
+{
+	bool bShowBar  = (!m_Config.sDBC.empty()); // show progress bar if SQL is not going to stdout
+	if (!bShowBar)
+	{
+		return;
+	}
+
+	std::unique_lock Lock(m_Mutex);
+	auto sLine = kFormat (":: {:%a %T} [{:30.30}] collection {:<50} {:>12} out of {:12}",
+		kNow(), bar.GetBar(30,'_'), sCollectionName, kFormNumber(bar.GetSoFar()), kFormNumber(bar.GetExpected()));
+
+	if (iInsertCount)
+	{
+		sLine += kFormat (" {} inserts", kFormNumber(iInsertCount));
+	}
+
+	if (iUpdateCount)
+	{
+		sLine += kFormat (" {} updates", kFormNumber(iUpdateCount));
+	}
+
+	KOut.FormatLine ("{}", sLine);
+
+} // ShowBar
+
+//-----------------------------------------------------------------------------
 void Mong2SQL::CopyCollection (const KJSON& oCollection)
 //-----------------------------------------------------------------------------
 {
@@ -975,18 +1014,13 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 	// Note: this method assumes that m_Collections has been filled out by calling DigestCollections()
 
 	KString sCollectionName = oCollection.Select("collection_name");
-	auto    iExpected       = oCollection.Select("size_bytes").UInt64();
-	bool    bShowBar        = (!m_Config.sDBC.empty()); // show progress bar if SQL is not going to stdout
+	auto    iExpected       = oCollection.Select("num_documents").UInt64();
+	auto    iTenPercent     = (iExpected / 10);
+	size_t  iInsertCount {0};
 	KBAR    bar (iExpected, /*width=*/30, KBAR::STATIC);
 
-	if (bShowBar)
-	{
-		std::unique_lock Lock(m_Mutex);
-		KOut.FormatLine (":: {:%a %T} [{:30.30}] collection {:<50} {:12} out of {:12}",
-			kNow(), bar.GetBar(30,'_'), sCollectionName, bar.GetSoFar(), iExpected);
-	}
-
 	kDebug (1, "copying collection: {}", sCollectionName);
+	ShowBar (bar, sCollectionName);
 
 	// Ensure collection is digested (has table metadata)
 	if (!oCollection.contains("tables") || oCollection["tables"].empty())
@@ -1108,8 +1142,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 		// Fetch all documents from MongoDB
 		auto cursor = collection.find({});
 
-		std::size_t iDocCount = 0;
-		std::size_t iInsertCount = 0;
+		std::size_t iDocCount {0};
 		
 		for (const auto& doc : cursor)
 		{
@@ -1117,14 +1150,13 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 			
 			// Convert BSON to JSON
 			KString sJsonDoc  = bsoncxx::to_json(doc);
-			auto    iDocBytes = sJsonDoc.size();
 			sJsonDoc = SanitizeMongoJSON(sJsonDoc);
 			
 			KJSON document;
 			KString sError;
 			if (!kjson::Parse(document, sJsonDoc, sError))
 			{
-				kDebug(1, "{}: failed to parse document {}: {}", sCollectionName, iDocCount, sError);
+				KErr.FormatLine (">> {}:{} failed to parse document: {}", sCollectionName, iDocCount, sError);
 				continue;
 			}
 			
@@ -1144,13 +1176,17 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 			
 			if (!pRootTable)
 			{
-				kDebug(1, "{}: no root table found, skipping inserts", sCollectionName);
+				KErr.FormatLine (">> {}:{}: no root table found, skipping inserts", sCollectionName, iDocCount);
 				break;
 			}
 			
 			// Flatten document into row values
 			std::map<KString, KString> rowValues;
-			rowValues[pRootTable->Select("tablename").String() + "_oid"] = sPrimaryKey; // Add primary key
+			KString sTablePK = pRootTable->Select("primary_key").String();
+			if (!sTablePK.empty() && !sPrimaryKey.empty())
+			{
+				rowValues[sTablePK] = sPrimaryKey; // Add primary key using actual column name from schema
+			}
 			FlattenDocumentToRow(document, KString{}, rowValues);
 			
 			// Insert the root document row
@@ -1162,13 +1198,11 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 			// Process nested arrays (child tables)
 			ProcessDocumentArrays(db, document, tables, pRootTable->Select("tablename"), KString{}, sPrimaryKey);
 			
-			bar.Move (iDocBytes);
+			bar.Move ();
 
-			if (bShowBar && !(iDocCount % 1000))
+			if (iTenPercent && !(iDocCount % iTenPercent))
 			{
-				std::unique_lock Lock(m_Mutex);
-				KOut.FormatLine (":: {:%a %T} [{:30.30}] collection {:<50} {:12} out of {:12}",
-					kNow(), bar.GetBar(30,'_'), sCollectionName, bar.GetSoFar(), iExpected);
+				ShowBar (bar, sCollectionName, iInsertCount);
 			}
 		}
 		
@@ -1179,12 +1213,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 		KErr.FormatLine(">> {}: MongoDB error during insert: {}", sCollectionName, ex.what());
 	}
 	
-	if (bShowBar)
-	{
-		std::unique_lock Lock(m_Mutex);
-		KOut.FormatLine (":: {:%a %T} [{:30.30}] collection {:<50} {:12} out of {:12}",
-			kNow(), bar.GetBar(30,'_'), sCollectionName, bar.GetSoFar(), iExpected);
-	}
+	ShowBar (bar, sCollectionName, iInsertCount);
 
 } // CopyCollection
 
@@ -1201,20 +1230,9 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 		return KString{};
 	}
 	
-	// Determine primary key
-	KString sPrimaryKey;
+	// Determine primary key from schema metadata
+	KString sPrimaryKey = table["primary_key"].String();
 	bool bHasObjectId = table["has_object_id"].Bool();
-	
-	// Find primary key column (look for the _oid column)
-	for (const auto& col : columns)
-	{
-		KString sColName = col["name"].String();
-		if (sColName.ends_with("_oid"))
-		{
-			sPrimaryKey = sColName;
-			break;
-		}
-	}
 	
 	// Build CREATE TABLE statement
 	KString sSQL = kFormat(
@@ -1422,7 +1440,9 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 		}
 		
 		// Check if this is the primary key column
-		if (sColName.ends_with("_oid"))
+		// Use the actual primary key from the schema, not just any _oid column
+		KString sTablePK = tableSchema["primary_key"].String();
+		if (!sTablePK.empty() && sColName == sTablePK)
 		{
 			flags |= KCOL::PKEY;
 		}
@@ -1444,7 +1464,8 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 	if (m_Config.sDBC.empty())
 	{
 		// Output to stdout
-		KOut.FormatLine("{};", row.FormInsert(KSQL::DBT::MYSQL, /*bIdentityInsert=*/false, /*bIgnore=*/false));
+		// Use bIdentityInsert=true because MongoDB _oid columns have explicit values (not auto-increment)
+		KOut.FormatLine("{};", row.FormInsert(KSQL::DBT::MYSQL, /*bIdentityInsert=*/true, /*bIgnore=*/false));
 		return true;
 	}
 	else
@@ -1514,17 +1535,21 @@ void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJS
 			{
 				std::map<KString, KString> childRowValues;
 				
-				// Add parent foreign key
-				KString sParentKeyCol = pChildTable->Select("parent_table").String() + "_oid";
-				childRowValues[sParentKeyCol] = KString{sParentPK};
+				// Add parent foreign key (use the stored parent_key_column from schema)
+				KString sParentKeyCol = pChildTable->Select("parent_key_column").String();
+				if (!sParentKeyCol.empty())
+				{
+					childRowValues[sParentKeyCol] = KString{sParentPK};
+				}
 				
 				if (element.is_object())
 				{
 					// Extract child primary key if exists
 					KString sChildPK = ExtractPrimaryKeyFromDocument(element);
-					if (!sChildPK.empty())
+					KString sChildTablePK = pChildTable->Select("primary_key").String();
+					if (!sChildPK.empty() && !sChildTablePK.empty())
 					{
-						childRowValues[sChildTableName + "_oid"] = sChildPK;
+						childRowValues[sChildTablePK] = sChildPK; // Use actual PK column name from schema
 					}
 					
 					// Flatten child document
@@ -2282,10 +2307,8 @@ void Mong2SQL::CollectArraySchemaLocal (const KJSON& array, KStringView sParentT
 	KString sChildTableName = SanitizeColumnName(BuildChildTableName(sParentTableName, sKey));
 	KJSON& childTable = EnsureTableSchemaLocal(sChildTableName, localTables, localTableOrder, sChildPath, sParentTableName, sParentPK);
 	
-	if (childTable["primary_key"].String().empty())
-	{
-		childTable["primary_key"] = GenerateTablePKEY(sChildTableName);
-	}
+	// Don't automatically generate primary key for child tables
+	// Only set if the child documents have their own _id field
 
 	for (const auto& element : array)
 	{

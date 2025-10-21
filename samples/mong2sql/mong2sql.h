@@ -47,6 +47,7 @@
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kjson.h>
 #include <dekaf2/ksql.h>
+#include <dekaf2/kbar.h>
 
 #include <mongocxx/client.hpp>
 #include <mongocxx/uri.hpp>
@@ -93,6 +94,7 @@ private:
 		bool    bOutputToStdout { true };
 		bool    bHasDBC { false };
 		bool    bVerbose { false };
+		bool    bForce { false };
 		bool    bContinueMode { false };
 		KString sContinueField;
 		bool    bNoData { false };
@@ -142,6 +144,7 @@ private:
 	KString     GenerateCreateTableDDL (const KJSON& table) const;
 	
 	// Document processing helpers
+	void        ShowBar (KBAR& bar, KStringView sCollectionName, uint64_t iInsertCount=0, uint64_t iUpdateCount=0);
 	KString     ExtractPrimaryKeyFromDocument (const KJSON& document) const;
 	void        FlattenDocumentToRow (const KJSON& document, const KString& sPrefix, std::map<KString, KString>& rowValues) const;
 	KString     ToSqlLiteral (const KJSON& value) const;

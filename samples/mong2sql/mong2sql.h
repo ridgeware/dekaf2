@@ -137,8 +137,8 @@ private:
 	int         ListCollections ();
 	KJSON       DigestCollection (const KJSON& oCollection) const;
 	int         CompareCollectionsToMySQL();
-	int         CopyCollections() const;
-	void        CopyCollection (const KJSON& oCollection) const;
+	int         CopyCollections();
+	void        CopyCollection (const KJSON& oCollection);
 	KString     GenerateCreateTableDDL (const KJSON& table) const;
 	
 	// Document processing helpers

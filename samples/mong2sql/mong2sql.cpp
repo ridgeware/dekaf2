@@ -153,6 +153,7 @@ int Mong2SQL::Main(int argc, char* argv[])
 		([&]()
 		{
 			m_Config.bNoData = true;
+			m_Config.iThreads = 1;
 		});
 
 	Options.Option("first")
@@ -172,6 +173,7 @@ int Mong2SQL::Main(int argc, char* argv[])
 		{
 			m_Config.sMode = "DUMP";
 			m_Config.bNoData = true;  // Disable inserts when dumping
+			m_Config.iThreads = 1;
 		});
 
 	Options.Option("list")
@@ -180,6 +182,7 @@ int Mong2SQL::Main(int argc, char* argv[])
 		{
 			m_Config.sMode = "LIST";
 			m_Config.bNoData = true;  // Disable inserts
+			m_Config.iThreads = 1;
 		});
 
 	Options.UnknownCommand([&](KOptions::ArgList& Args)
@@ -270,6 +273,20 @@ int Mong2SQL::Main(int argc, char* argv[])
 		}
 	}
 
+	// all the actions except LIST require scanning the collections:
+	if (m_Config.sMode.ToUpper().Hash() != "LIST"_hash)
+	{
+		kParallelForEach (m_Collections, [&](KJSON& cc)
+		{
+			// replace this array element (cc) with the expanded collection:
+			{
+				std::unique_lock Lock(m_Mutex);
+				cc = DigestCollection (cc);
+			}
+		}, m_Config.iThreads);
+	}
+	
+	// now perform the action:
 	switch (m_Config.sMode.ToUpper().Hash())
 	{
 	case "DUMP"_hash:
@@ -868,12 +885,6 @@ int Mong2SQL::CompareCollectionsToMySQL ()
 
 	kParallelForEach (m_Collections, [&](KJSON& cc)
 	{
-		// replace this array element (cc) with the expanded collection:
-		{
-			std::unique_lock Lock(m_Mutex);
-			cc = DigestCollection (cc);
-		}
-
 		KString     sSection;
 		auto        iCount = cc["num_documents"].Int64();
 		const auto& Tables = cc["tables"];
@@ -940,14 +951,13 @@ int Mong2SQL::CompareCollectionsToMySQL ()
 } // CompareCollectionsToMySQL
 
 //-----------------------------------------------------------------------------
-int Mong2SQL::CopyCollections () const
+int Mong2SQL::CopyCollections ()
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
 
-	kParallelForEach (m_Collections, [&](const KJSON& cc)
+	kParallelForEach (m_Collections, [&](const KJSON& oCollection)
 	{
-		auto oCollection = DigestCollection (cc);
 		CopyCollection (oCollection);
 
 	}, m_Config.iThreads);
@@ -957,7 +967,7 @@ int Mong2SQL::CopyCollections () const
 } // CopyCollections
 
 //-----------------------------------------------------------------------------
-void Mong2SQL::CopyCollection (const KJSON& oCollection) const
+void Mong2SQL::CopyCollection (const KJSON& oCollection)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
@@ -965,6 +975,17 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection) const
 	// Note: this method assumes that m_Collections has been filled out by calling DigestCollections()
 
 	KString sCollectionName = oCollection.Select("collection_name");
+	auto    iExpected       = oCollection.Select("size_bytes").UInt64();
+	bool    bShowBar        = (!m_Config.sDBC.empty()); // show progress bar if SQL is not going to stdout
+	KBAR    bar (iExpected, /*width=*/30, KBAR::STATIC);
+
+	if (bShowBar)
+	{
+		std::unique_lock Lock(m_Mutex);
+		KOut.FormatLine (":: {:%a %T} [{:30.30}] collection {:<50} {:12} out of {:12}",
+			kNow(), bar.GetBar(30,'_'), sCollectionName, bar.GetSoFar(), iExpected);
+	}
+
 	kDebug (1, "copying collection: {}", sCollectionName);
 
 	// Ensure collection is digested (has table metadata)
@@ -979,7 +1000,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection) const
 	// Thread-safe: Create local database connection
 	KSQL db;
 	bool bHasDB = false;
-	
+
 	if (!m_Config.sDBC.empty())
 	{
 		if (!db.LoadConnect(m_Config.sDBC) || !db.OpenConnection())
@@ -1057,17 +1078,6 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection) const
 	// Phase 2: Insert data (if not disabled)
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	// Handle continue mode (partial collection processing)
-	if (m_Config.bContinueMode)
-	{
-		// TODO: Implement partial collection processing
-		// This will require:
-		// 1. Query MongoDB with a filter based on m_Config.sContinueField
-		// 2. Only process documents where field > last_processed_value
-		KErr.FormatLine(">> {}: continue mode not yet implemented", sCollectionName);
-		return;
-	}
-	
 	// Create local MongoDB connection (thread-safe)
 	try
 	{
@@ -1084,8 +1094,20 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection) const
 		
 		kDebug(1, "{}: querying MongoDB for documents...", sCollectionName);
 		
+		// Handle continue mode (partial collection processing)
+		if (m_Config.bContinueMode)
+		{
+			// TODO: Implement partial collection processing
+			// This will require:
+			// 1. Query MongoDB with a filter based on m_Config.sContinueField
+			// 2. Only process documents where field > last_processed_value
+			KErr.FormatLine(">> {}: continue mode not yet implemented", sCollectionName);
+			return;
+		}
+
 		// Fetch all documents from MongoDB
 		auto cursor = collection.find({});
+
 		std::size_t iDocCount = 0;
 		std::size_t iInsertCount = 0;
 		
@@ -1094,7 +1116,8 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection) const
 			++iDocCount;
 			
 			// Convert BSON to JSON
-			KString sJsonDoc = bsoncxx::to_json(doc);
+			KString sJsonDoc  = bsoncxx::to_json(doc);
+			auto    iDocBytes = sJsonDoc.size();
 			sJsonDoc = SanitizeMongoJSON(sJsonDoc);
 			
 			KJSON document;
@@ -1139,9 +1162,13 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection) const
 			// Process nested arrays (child tables)
 			ProcessDocumentArrays(db, document, tables, pRootTable->Select("tablename"), KString{}, sPrimaryKey);
 			
-			if (iDocCount % 1000 == 0)
+			bar.Move (iDocBytes);
+
+			if (bShowBar && !(iDocCount % 1000))
 			{
-				kDebug(2, "{}: processed {} documents", sCollectionName, iDocCount);
+				std::unique_lock Lock(m_Mutex);
+				KOut.FormatLine (":: {:%a %T} [{:30.30}] collection {:<50} {:12} out of {:12}",
+					kNow(), bar.GetBar(30,'_'), sCollectionName, bar.GetSoFar(), iExpected);
 			}
 		}
 		
@@ -1152,6 +1179,13 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection) const
 		KErr.FormatLine(">> {}: MongoDB error during insert: {}", sCollectionName, ex.what());
 	}
 	
+	if (bShowBar)
+	{
+		std::unique_lock Lock(m_Mutex);
+		KOut.FormatLine (":: {:%a %T} [{:30.30}] collection {:<50} {:12} out of {:12}",
+			kNow(), bar.GetBar(30,'_'), sCollectionName, bar.GetSoFar(), iExpected);
+	}
+
 } // CopyCollection
 
 //-----------------------------------------------------------------------------
@@ -1183,7 +1217,12 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 	}
 	
 	// Build CREATE TABLE statement
-	KString sSQL = kFormat("create table {} (\n", sTableName);
+	KString sSQL = kFormat(
+		"# ----------------------------------------------------------------------\n"
+		"create table {}\n"
+		"# ----------------------------------------------------------------------\n"
+		"(\n",
+			sTableName);
 	
 	// Sort columns: primary key first, then alphabetically
 	std::vector<KJSON> sortedColumns;
@@ -1240,7 +1279,7 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 		sSQL += "\n";
 	}
 	
-	sSQL += ") engine=InnoDB default charset=utf8mb4;";
+	sSQL += ") engine=InnoDB default charset=utf8mb4;\n";
 	
 	return sSQL;
 	
@@ -1348,6 +1387,8 @@ KString Mong2SQL::ToSqlLiteral (const KJSON& value) const
 bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std::map<KString, KString>& rowValues, KStringView sPrimaryKey) const
 //-----------------------------------------------------------------------------
 {
+	kDebug (1, "...");
+
 	KString sTableName = tableSchema["tablename"].String();
 	const auto& columns = tableSchema["columns"];
 	
@@ -1915,6 +1956,14 @@ KString Mong2SQL::SanitizeColumnName (KStringView sName) const
 	if (sResult.size() > 64)
 	{
 		sResult = sResult.Left(64);
+	}
+	
+	// Check for reserved word collision and escape with trailing underscore
+	// Reserved words are uppercase, so convert to upper for comparison
+	if (kStrIn(sResult.ToUpper(), MYSQL_RESERVED_WORDS))
+	{
+		sResult += "_";
+		kDebug(2, "escaped reserved word column: {} -> {}", sName, sResult);
 	}
 	
 	return sResult;

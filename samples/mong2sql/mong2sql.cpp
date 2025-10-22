@@ -64,7 +64,10 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <cstdlib>
+#include <fstream>
+#include <vector>
 
 
 //-----------------------------------------------------------------------------
@@ -464,7 +467,7 @@ bool Mong2SQL::GetCollectionsFromMongoDB ()
 					WantNames.erase (FoundIt);
 				}
 
-				auto oCollection = LoadCollectionFromCache (sCollectionName);
+				auto oCollection = LoadMetaDataFromCache (sCollectionName);
 
 				if (oCollection.empty())
 				{
@@ -601,50 +604,202 @@ bool Mong2SQL::GetCollectionFromFile()
 		return false;
 	}
 
-	KInFile InFile(m_Config.sInputFile);
-	if (!InFile.is_open())
+	// Check if file exists
+	if (!kFileExists(m_Config.sInputFile))
 	{
-		KErr.FormatLine (">> failed to read collection from: {}", m_Config.sInputFile);
+		KErr.FormatLine (">> file does not exist: {}", m_Config.sInputFile);
 		return false;
 	}
 
-	m_Collections    = KJSON::array();
-	auto oCollection = KJSON::array();
-
-	KString  sLine;
-	uint32_t iLines { 0 };
-	uint64_t iBytes { 0 };
-
-	while (InFile.ReadLine(sLine))
+	// Auto-detect file format by reading first few bytes
+	bool bIsBSON = false;
 	{
-		sLine.Trim();
-		++iLines;
-		iBytes += sLine.size();
-		if (sLine.empty() || sLine.starts_with('#'))
+		std::ifstream testFile(m_Config.sInputFile.c_str(), std::ios::binary);
+		if (testFile.is_open())
 		{
-			continue; // Skip empty lines and comments
+			unsigned char header[4] = {0};
+			testFile.read(reinterpret_cast<char*>(header), 4);
+			
+			if (testFile.gcount() == 4)
+			{
+				// BSON documents start with a 4-byte little-endian int32 (document size)
+				// Read it as an int32 to validate
+				int32_t iDocBytes = header[0] | (header[1] << 8) | (header[2] << 16) | (header[3] << 24);
+				
+				kDebug(2, "file header bytes: 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} (size={})", 
+				       header[0], header[1], header[2], header[3], iDocBytes);
+				
+				// BSON detection: first 4 bytes form a reasonable document size
+				// BSON minimum is 5 bytes (4 byte size + 1 byte null terminator)
+				// Maximum reasonable size is 16MB (MongoDB default max document size)
+				if (iDocBytes >= 5 && iDocBytes <= 16 * 1024 * 1024)
+				{
+					bIsBSON = true;
+				}
+				// JSON detection: explicitly check for JSON starters
+				else if (header[0] == '{' || header[0] == '[')
+				{
+					bIsBSON = false;
+				}
+				// If size looks unreasonable and doesn't start with JSON, still try JSON
+				else
+				{
+					bIsBSON = false;
+				}
+			}
+			
+			testFile.close();
 		}
-
-		if (iLines % 1000 == 0)
-		{
-			kDebug(2, "processed {} lines", iLines);
-		}
-
-		KJSON   document;
-		KString sError;
-		if (!kjson::Parse(document, sLine, sError))
-		{
-			KErr.FormatLine ("{}:{}: failed to parse line: {}\n>> {}", m_Config.sInputFile, iLines, sLine, sError);
-			continue;
-		}
-
-		oCollection += document;
 	}
 
+	kDebug (1, "infile {} looks like {}", m_Config.sInputFile, bIsBSON ? "BSON" : "JSON");
+
+	m_Collections       = KJSON::array();
+	auto     oDocuments = KJSON::array();
+	uint32_t iDocCount  = 0;
+	uint64_t iBytes     = 0;
+
+	if (bIsBSON)
+	{
+		Verbose(1, "detected BSON format, converting to JSON...");
+		
+		// Read BSON file
+		std::ifstream bsonFile(m_Config.sInputFile.c_str(), std::ios::binary | std::ios::ate);
+		if (!bsonFile.is_open())
+		{
+			KErr.FormatLine (">> failed to read BSON file: {}", m_Config.sInputFile);
+			return false;
+		}
+		
+		std::streamsize fileSize = bsonFile.tellg();
+		bsonFile.seekg(0, std::ios::beg);
+		iBytes = fileSize;
+		
+		// Read entire file into buffer
+		std::vector<char> buffer(fileSize);
+		if (!bsonFile.read(buffer.data(), fileSize))
+		{
+			KErr.FormatLine (">> failed to read BSON file contents: {}", m_Config.sInputFile);
+			return false;
+		}
+		bsonFile.close();
+		
+		// Parse BSON documents
+		uint32_t iOffset = 0;
+		while (iOffset < buffer.size())
+		{
+			if (iOffset + 4 > buffer.size())
+			{
+				break; // Not enough bytes for a document size
+			}
+			
+			// Read document size (first 4 bytes, little-endian int32)
+			int32_t iDocBytes = *reinterpret_cast<const int32_t*>(&buffer[iOffset]);
+			
+			if ((iDocBytes <= 0) || ((iOffset + iDocBytes) > buffer.size()))
+			{
+				KErr.FormatLine (">> {}: invalid BSON document at offset {}: ran out of bytes", m_Config.sInputFile, iOffset);
+				return false;
+			}
+			
+			try
+			{
+				// Create a BSON document view
+				bsoncxx::document::view docView(reinterpret_cast<const uint8_t*>(&buffer[iOffset]), iDocBytes);
+				
+				// Convert BSON to JSON string
+				KString sJsonDoc = bsoncxx::to_json(docView);
+				sJsonDoc = SanitizeMongoJSON(sJsonDoc);
+				
+				// Parse JSON
+				KJSON   oDocument;
+				KString sError;
+				if (!kjson::Parse(oDocument, sJsonDoc, sError))
+				{
+					KErr.FormatLine (">> {}: failed to parse BSON document at offset {}: {}", m_Config.sInputFile, iOffset, sError);
+					return false;
+				}
+				else
+				{
+					oDocuments += oDocument;
+
+					++iDocCount;
+					if (iDocCount % 1000 == 0)
+					{
+						kDebug(1, "processed {} BSON documents", iDocCount);
+					}
+					else
+					{
+						kDebug(3, "processed {} BSON documents, array now has {}", iDocCount, oDocuments.size());
+					}
+				}
+			}
+			catch (const std::exception& ex)
+			{
+				KErr.FormatLine (">> {}: failed to parse BSON document at offset {}: {}", m_Config.sInputFile, iOffset, ex.what());
+				return false;
+			}
+			
+			iOffset += iDocBytes;
+		}
+		
+		Verbose(1, "converted {} BSON documents to JSON", iDocCount);
+	}
+	else
+	{
+		Verbose(1, "detected JSON format, parsing line by line...");
+		
+		// Original JSON line-by-line parsing
+		KInFile InFile(m_Config.sInputFile);
+		if (!InFile.is_open())
+		{
+			KErr.FormatLine (">> failed to read JSON file: {}", m_Config.sInputFile);
+			return false;
+		}
+
+		KString sLine;
+		uint32_t iLines = 0;
+
+		while (InFile.ReadLine(sLine))
+		{
+			sLine.Trim();
+			++iLines;
+			iBytes += sLine.size();
+			if (sLine.empty() || sLine.starts_with('#'))
+			{
+				continue; // Skip empty lines and comments
+			}
+
+			if (iLines % 1000 == 0)
+			{
+				kDebug(1, "processed {} lines", iLines);
+			}
+			else
+			{
+				kDebug(3, "processed {} lines, array has {}", iLines, oDocuments.size());
+			}
+
+			KJSON   oDocument;
+			KString sError;
+			if (!kjson::Parse(oDocument, sLine, sError))
+			{
+				KErr.FormatLine ("{}:{}: failed to parse line: {}\n>> {}", m_Config.sInputFile, iLines, sLine, sError);
+				return false;
+			}
+
+			oDocuments += oDocument;
+
+			++iDocCount;
+		}
+	}
+
+	kDebug(1, "documents array has {}", oDocuments.size());
+
 	m_Collections += KJSON {
-		{ "collection_name", m_Config.sCollectionNames/*sic*/ },
-		{ "size_bytes",      iBytes                           },
-		{ "num_documents",   iLines                           }
+		{ collection_name, m_Config.sCollectionNames/*sic*/ },
+		{ size_bytes,      iBytes                           },
+		{ num_documents,   iDocCount                        },
+		{ documents,       oDocuments                       }
 	};
 
 	return true;
@@ -691,13 +846,11 @@ int Mong2SQL::ListCollections ()
 } // ListCollections
 
 //-----------------------------------------------------------------------------
-KJSON Mong2SQL::LoadCollectionFromCache (KStringView sCollectionName) const
+KJSON Mong2SQL::LoadMetaDataFromCache (KStringView sCollectionName) const
 //-----------------------------------------------------------------------------
 {
-	mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
-	KString       sDatabaseName   = uri.database();
-	KString       sCacheFile      = kFormat ("/var/tmp/{}/{}.json", sDatabaseName, sCollectionName);
-	KString       sContents;
+	auto    sCacheFile = DeduceCacheFile (sCollectionName);
+	KString sContents;
 
 	// cached in /var/tmp
 	if (!m_Config.bForce && kFileExists (sCacheFile) && kReadFile (sCacheFile, sContents) && sContents)
@@ -713,7 +866,24 @@ KJSON Mong2SQL::LoadCollectionFromCache (KStringView sCollectionName) const
 
 	return {}; // not loaded
 
-} // LoadCollectionFromCache
+} // LoadMetaDataFromCache
+
+//-----------------------------------------------------------------------------
+KString Mong2SQL::DeduceCacheFile (KStringView sCollectionName) const
+//-----------------------------------------------------------------------------
+{
+	if (!m_Config.sMongoConnectionString)
+	{
+		return {};
+	}
+
+	mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
+	KString       sDatabaseName   = uri.database();
+	auto          sCacheFile      = kFormat ("/var/tmp/{}/{}.json", sDatabaseName, sCollectionName);
+	
+	return sCacheFile;
+
+} // DeduceCacheFile
 
 //-----------------------------------------------------------------------------
 KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
@@ -721,19 +891,21 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 {
 	kDebug (1, "...");
 
-	mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
-	KString       sDatabaseName   = uri.database();
-	KString       sCollectionName = oCollection[collection_name];
-	int64_t       iNumDocuments   = oCollection[num_documents].Int64();
-	KString       sCacheFile      = kFormat ("/var/tmp/{}/{}.json", sDatabaseName, sCollectionName);
+	// digestion means:
+	// * all meta data built (tables, columns, etc.)
+	// * num_documents in the collection was counted and set
+
+	KString sCollectionName = oCollection[collection_name];
+	int64_t iNumDocuments   = oCollection[num_documents].Int64();
+	auto     sCacheFile     = DeduceCacheFile (sCollectionName);
 	
-	// already digested:
-	if (iNumDocuments >= 0) // -1 means they have not been processed
+	if ((iNumDocuments >= 0) && !oCollection[tables].empty() && (oCollection[tables].size() > 0))
 	{
+		// already digested
 		return std::move (oCollection);
 	}
 
-	auto oLoaded = LoadCollectionFromCache (sCollectionName);
+	auto oLoaded = LoadMetaDataFromCache (sCollectionName);
 	if (!oLoaded.empty())
 	{
 		return oLoaded;
@@ -743,163 +915,180 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 	oBuilt[collection_name] = sCollectionName;
 	oBuilt[size_bytes]      = oCollection[size_bytes].UInt64();
 	oBuilt[tables]          = KJSON::array();
-
-	// Create local MongoDB connection (thread-safe, cannot share connections across threads)
-	try
+	auto oDocuments         = oCollection[documents];
+	if (oDocuments.empty())
 	{
-		mongocxx::uri localUri{m_Config.sMongoConnectionString.c_str()};
-		mongocxx::client localClient{localUri};
-		KString sDbName = localUri.database();
-		if (sDbName.empty())
+		oDocuments = KJSON::array();
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// read collection from MongoDB
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	auto iDocCount = oDocuments.size();
+	if (!iDocCount && m_Config.sMongoConnectionString)
+	{
+		try
 		{
-			sDbName = "test";
-		}
-		
-		auto database   = localClient[sDbName.c_str()];
-		auto collection = database[sCollectionName.c_str()];
-		
-		kDebug (1, "{}: querying collection for schema analysis...", sCollectionName);
-		
-		// Fetch all documents from MongoDB collection
-		auto cursor = collection.find({});
-		std::vector<KJSON> documents;
-		uint64_t iDocCount = 0;
-		
-		for (const auto& doc : cursor)
-		{
-			KString sJsonDoc = bsoncxx::to_json(doc);
-			sJsonDoc = SanitizeMongoJSON(sJsonDoc);
-			
-			KJSON   document;
-			KString sError;
-			if (!kjson::Parse(document, sJsonDoc, sError))
+			mongocxx::uri localUri{m_Config.sMongoConnectionString.c_str()};
+			mongocxx::client localClient{localUri};
+			KString sDbName = localUri.database();
+			if (sDbName.empty())
 			{
-				kDebug (1, "{}: failed to parse document: {}", sCollectionName, sError);
-				continue;
+				sDbName = "test";
 			}
-			
-			documents.emplace_back(std::move(document));
-			++iDocCount;
-			
-			if (iDocCount % 1000 == 0)
+		
+			auto database   = localClient[sDbName.c_str()];
+			auto collection = database[sCollectionName.c_str()];
+		
+			kDebug (1, "{}: querying collection for schema analysis...", sCollectionName);
+		
+			// Fetch all documents from MongoDB collection
+			auto cursor = collection.find({});
+		
+			for (const auto& doc : cursor)
 			{
-				kDebug (2, "{}: loaded {} documents", sCollectionName, iDocCount);
+				KString sJsonDoc = bsoncxx::to_json(doc);
+				sJsonDoc = SanitizeMongoJSON(sJsonDoc);
+			
+				KJSON   oDocument;
+				KString sError;
+				if (!kjson::Parse(oDocument, sJsonDoc, sError))
+				{
+					kDebug (1, "{}: failed to parse document: {}", sCollectionName, sError);
+					continue;
+				}
+			
+				oDocuments += oDocument;
+				++iDocCount;
+			
+				if (iDocCount % 1000 == 0)
+				{
+					kDebug (2, "{}: loaded {} documents", sCollectionName, iDocCount);
+				}
 			}
 		}
-		
-		kDebug (1, "{}: loaded {} documents, analyzing schema...", sCollectionName, iDocCount);
-		oBuilt[num_documents] = iDocCount;
-		
-		// Local schema tracking structures (thread-safe, no member variables)
-		KJSON localTables = KJSON::object();      // tables keyed by name
-		KJSON localTableOrder = KJSON::array();   // ordered list of table names
-		
-		// Deduce MySQL tables from documents
-		if (!documents.empty())
+		catch (const std::exception& ex)
 		{
-			KString sTableName = ConvertCollectionNameToTableName(sCollectionName);
+			kDebug (1, "{}: MongoDB error during digestion: {}", sCollectionName, ex.what());
+			oBuilt["error"] = ex.what();
+		}
+
+	} // if we loaded from MongoDB
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// process collection to gather meta data
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	kDebug (1, "{}: analyzing {} documents to deduce schema...", sCollectionName, iDocCount);
+	oBuilt[num_documents] = iDocCount;
+		
+	// Local schema tracking structures (thread-safe, no member variables)
+	KJSON localTables = KJSON::object();      // tables keyed by name
+	KJSON localTableOrder = KJSON::array();   // ordered list of table names
+		
+	// Deduce MySQL tables from documents
+	if (oDocuments.size() > 0)
+	{
+		KString sTableName = ConvertCollectionNameToTableName(sCollectionName);
 			
-			// Initialize root table with collection path
-			KJSON& rootTable = localTables[sTableName];
-			rootTable[table_name] = sTableName;
-			rootTable[primary_key] = "";
-			rootTable[parent_table] = "";
-			rootTable[parent_key_column] = "";
-			rootTable[has_object_id] = false;
-			rootTable[collection_path] = sCollectionName;  // Root path is just the collection name
-			rootTable[num_documents] = -1;  // Will be set after processing documents
-			rootTable[columns] = KJSON::object();
-			rootTable[column_order] = KJSON::array();
-			localTableOrder += sTableName;
+		// Initialize root table with collection path
+		KJSON& rootTable = localTables[sTableName];
+		rootTable[table_name] = sTableName;
+		rootTable[primary_key] = "";
+		rootTable[parent_table] = "";
+		rootTable[parent_key_column] = "";
+		rootTable[has_object_id] = false;
+		rootTable[collection_path] = sCollectionName;  // Root path is just the collection name
+		rootTable[num_documents] = -1;  // Will be set after processing documents
+		rootTable[columns] = KJSON::object();
+		rootTable[column_order] = KJSON::array();
+		localTableOrder += sTableName;
 			
-			// Set primary key for root table
-			KString sPrimaryKey = GenerateTablePKEY(sTableName);
-			rootTable[primary_key] = sPrimaryKey;
+		// Set primary key for root table
+		KString sPrimaryKey = GenerateTablePKEY(sTableName);
+		rootTable[primary_key] = sPrimaryKey;
 			
 			// Collect schema from all documents
-			for (const auto& document : documents)
+		for (const auto& document : oDocuments)
+		{
+			CollectSchemaForDocumentLocal(document, sTableName, KString{}, localTables, localTableOrder);
+		}
+			
+		// Set document count for root table
+		localTables[sTableName][num_documents] = iDocCount;
+			
+		kDebug (1, "{}: discovered {} table(s)", sCollectionName, localTables.size());
+			
+		// Compute max column name width for all tables
+		std::size_t iMaxColumnWidth = 0;
+		for (auto itTable = localTables.begin(); itTable != localTables.end(); ++itTable)
+		{
+			const auto& tableData = *itTable;
+			const auto& oColumns = tableData[columns];
+			for (auto itCol = oColumns.begin(); itCol != oColumns.end(); ++itCol)
 			{
-				CollectSchemaForDocumentLocal(document, sTableName, KString{}, localTables, localTableOrder);
+				iMaxColumnWidth = std::max(iMaxColumnWidth, itCol.key().size());
 			}
+		}
+		oBuilt[max_column_width] = iMaxColumnWidth;
 			
-			// Set document count for root table
-			localTables[sTableName][num_documents] = iDocCount;
+		// Generate DDL for all tables and store metadata
+		for (const auto& tableName : localTableOrder)
+		{
+			const auto& tableData = localTables[tableName.String()];
 			
-			kDebug (1, "{}: discovered {} table(s)", sCollectionName, localTables.size());
-			
-			// Compute max column name width for all tables
-			std::size_t iMaxColumnWidth = 0;
-			for (auto itTable = localTables.begin(); itTable != localTables.end(); ++itTable)
+			KJSON oTable;
+			oTable[table_name] = tableData[table_name];
+			oTable[collection_path] = tableData[collection_path];
+			oTable[num_documents] = tableData[num_documents];
+			oTable[num_columns] = tableData[columns].size();
+			oTable[has_object_id] = tableData[has_object_id];
+			oTable[primary_key] = tableData[primary_key];
+			oTable[parent_table] = tableData[parent_table];
+			oTable[parent_key_column] = tableData[parent_key_column];
+				
+			// Store column metadata
+			KJSON oColumns = KJSON::array();
+			const auto& columnOrder = tableData[column_order];
+			for (const auto& columnName : columnOrder)
 			{
-				const auto& tableData = *itTable;
-				const auto& oColumns = tableData[columns];
-				for (auto itCol = oColumns.begin(); itCol != oColumns.end(); ++itCol)
-				{
-					iMaxColumnWidth = std::max(iMaxColumnWidth, itCol.key().size());
-				}
+				KString sColName = columnName.String();
+				const auto& columnInfo = tableData[columns][sColName];
+				KJSON oColumn;
+				oColumn[column_name] = sColName;
+				oColumn[sql_type] = columnInfo[sql_type];
+				oColumn[nullable] = columnInfo[nullable];
+				oColumn[max_length] = columnInfo[max_length];
+				oColumn[has_non_null] = columnInfo[has_non_null].Bool();
+				oColumn[has_non_zero] = columnInfo[has_non_zero].Bool();
+				oColumns += oColumn;
 			}
-			oBuilt[max_column_width] = iMaxColumnWidth;
+			oTable[columns] = oColumns;
 			
-			// Generate DDL for all tables and store metadata
-			for (const auto& tableName : localTableOrder)
-			{
-				const auto& tableData = localTables[tableName.String()];
-				
-				KJSON oTable;
-				oTable[table_name] = tableData[table_name];
-				oTable[collection_path] = tableData[collection_path];
-				oTable[num_documents] = tableData[num_documents];
-				oTable[num_columns] = tableData[columns].size();
-				oTable[has_object_id] = tableData[has_object_id];
-				oTable[primary_key] = tableData[primary_key];
-				oTable[parent_table] = tableData[parent_table];
-				oTable[parent_key_column] = tableData[parent_key_column];
-				
-				// Store column metadata
-				KJSON oColumns = KJSON::array();
-				const auto& columnOrder = tableData[column_order];
-				for (const auto& columnName : columnOrder)
-				{
-					KString sColName = columnName.String();
-					const auto& columnInfo = tableData[columns][sColName];
-					KJSON oColumn;
-					oColumn[column_name] = sColName;
-					oColumn[sql_type] = columnInfo[sql_type];
-					oColumn[nullable] = columnInfo[nullable];
-					oColumn[max_length] = columnInfo[max_length];
-					oColumn[has_non_null] = columnInfo[has_non_null].Bool();
-					oColumn[has_non_zero] = columnInfo[has_non_zero].Bool();
-					oColumns += oColumn;
-				}
-				oTable[columns] = oColumns;
-				
-				oBuilt[tables] += oTable;
-			}
+			oBuilt[tables] += oTable;
+		}
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// Store in cache (if it came from MongoDB)
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	if (! m_Config.sInputFile)
+	{
+		kMakeDir (KString{kDirname (sCacheFile)});
+		kRemoveFile (sCacheFile);
+
+		if (!kWriteFile (sCacheFile, oBuilt.dump(1,'\t')))
+		{
+			kDebug (1, "{}: could not write cache file: {}", sCollectionName, sCacheFile);
 		}
 		else
 		{
-			kDebug (1, "{}: no documents found in collection", sCollectionName);
+			kDebug (1, "{}: wrote cache file: {}", sCollectionName, sCacheFile);
 		}
-	}
-	catch (const std::exception& ex)
-	{
-		kDebug (1, "{}: MongoDB error during digestion: {}", sCollectionName, ex.what());
-		oBuilt["error"] = ex.what();
+
+		kDebug (1, "{}: collection built and stored to cache: {}", sCollectionName, sCacheFile);
 	}
 
-	// Store in cache
-	kMakeDir (KString{kDirname (sCacheFile)});
-	kRemoveFile (sCacheFile);
-	if (!kWriteFile (sCacheFile, oBuilt.dump(1,'\t')))
-	{
-		kDebug (1, "{}: could not write cache file: {}", sCollectionName, sCacheFile);
-	}
-	else
-	{
-		kDebug (1, "{}: wrote cache file: {}", sCollectionName, sCacheFile);
-	}
-
-	kDebug (1, "{}: collection built and stored to cache: {}", sCollectionName, sCacheFile);
+	oBuilt[documents] = oDocuments;
 
 	return oBuilt;
 
@@ -995,6 +1184,21 @@ int Mong2SQL::CopyCollections ()
 {
 	kDebug (1, "...");
 
+	if (m_Config.sInputFile)
+	{
+		auto oCollection = DigestCollection (m_Collections[0]);
+		auto oDocuments  = oCollection[documents];
+
+		if (oDocuments.empty())
+		{
+			KErr.FormatLine (">> BUG: documents not loaded:\n{}", oCollection.dump(1,'\t'));
+			return 1;
+		}
+
+		CopyCollection (oCollection);
+		return 0;
+	}
+
 	kParallelForEach (m_Collections, [&](const KJSON& ro)
 	{
 		auto oCollection = DigestCollection (ro);
@@ -1007,7 +1211,7 @@ int Mong2SQL::CopyCollections ()
 } // CopyCollections
 
 //-----------------------------------------------------------------------------
-void Mong2SQL::ShowBar (KBAR& bar, KStringView sCollectionName, uint64_t iInsertCount/*=0*/, uint64_t iUpdateCount/*=0*/)
+void Mong2SQL::ShowBar (KBAR& bar, KStringView sCollectionName, uint16_t iCreateTables/*=0*/, uint64_t iInserts/*=0*/, uint64_t iUpdates/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	bool bShowBar  = (!m_Config.sDBC.empty()); // show progress bar if SQL is not going to stdout
@@ -1020,14 +1224,19 @@ void Mong2SQL::ShowBar (KBAR& bar, KStringView sCollectionName, uint64_t iInsert
 	auto sLine = kFormat (":: {:%a %T} [{:30.30}] collection {}, {} out of {}",
 		kNow(), bar.GetBar(30,'_'), sCollectionName, kFormNumber(bar.GetSoFar()), kFormNumber(bar.GetExpected()));
 
-	if (iInsertCount)
+	if (iCreateTables)
 	{
-		sLine += kFormat (", {} inserts", kFormNumber(iInsertCount));
+		sLine += kFormat (", {} create tables", kFormNumber(iCreateTables));
 	}
 
-	if (iUpdateCount)
+	if (iInserts)
 	{
-		sLine += kFormat (", {} updates", kFormNumber(iUpdateCount));
+		sLine += kFormat (", {} inserts", kFormNumber(iInserts));
+	}
+
+	if (iUpdates)
+	{
+		sLine += kFormat (", {} updates", kFormNumber(iUpdates));
 	}
 
 	KOut.FormatLine ("{}", sLine);
@@ -1042,19 +1251,20 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 
 	// Note: this method assumes that m_Collections has been filled out by calling DigestCollections()
 
-	KString sCollectionName = oCollection.Select("collection_name");
-	auto    iExpected       = oCollection.Select("num_documents").Int64();
-	auto    iTenPercent     = (iExpected / 10);
-	size_t  iInsertCount {0};
-	KBAR    bar (iExpected, /*width=*/30, KBAR::STATIC);
+	KString  sCollectionName = oCollection.Select("collection_name");
+	auto     iExpected       = oCollection.Select("num_documents").Int64();
+	KBAR     bar (iExpected, /*width=*/30, KBAR::STATIC);
+	uint64_t iCreateTables {0};
+	uint64_t iInserts {0};
+	uint64_t iUpdates {0};
 
 	kDebug (1, "copying collection: {}", sCollectionName);
-	ShowBar (bar, sCollectionName);
+	ShowBar (bar, sCollectionName, iCreateTables, iInserts, iUpdates);
 
 	// Ensure collection is digested (has table metadata)
 	if (!oCollection.contains("tables") || oCollection[tables].empty())
 	{
-		kDebug (1, "no tables defined for this collection: {}", sCollectionName);
+		KErr.FormatLine (">> BUG: no tables defined for this collection: {}\n{}", sCollectionName, oCollection.dump(1,'\t'));
 		return;
 	}
 	
@@ -1064,7 +1274,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 	KSQL db;
 	bool bHasDB = false;
 
-	if (!m_Config.sDBC.empty())
+	if (m_Config.sDBC)
 	{
 		if (!db.LoadConnect(m_Config.sDBC) || !db.OpenConnection())
 		{
@@ -1128,8 +1338,12 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 				KOut.WriteLine(sCreateSQL);
 				KOut.WriteLine();
 			}
-		}
-	}
+
+			++iCreateTables;
+
+		} // for each table
+
+	} // if DDL
 	
 	if (m_Config.bNoData)
 	{
@@ -1141,18 +1355,40 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 	// Phase 2: Insert data (if not disabled)
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	// Create local MongoDB connection (thread-safe)
-	try
+	uint64_t iDocCount {0};
+
+	if (oCollection.contains(documents) && oCollection[documents].is_array())
 	{
+		kDebug (1, "collection is already loaded");
+		for (const auto& document : oCollection[documents])
+		{
+			++iDocCount;
+			if (!CopyMongoDocument (document, oTables, sCollectionName, db, bar, iInserts, iUpdates))
+			{
+				break;
+			}
+		}
+	}
+
+	else if (!m_Config.sMongoConnectionString)
+	{
+		KErr.FormatLine (">> BUG: no collection loaded and no MongoDB config");
+		return;
+	}
+
+	// Create local MongoDB connection (thread-safe)
+	else try
+	{
+		kDebug (1, "collection is already loaded");
 		mongocxx::uri mongoUri{m_Config.sMongoConnectionString.c_str()};
 		mongocxx::client mongoClient{mongoUri};
 		KString sDbName = mongoUri.database();
-		if (sDbName.empty())
+		if (!sDbName)
 		{
 			sDbName = "test";
 		}
 		
-		auto database = mongoClient[sDbName.c_str()];
+		auto database   = mongoClient[sDbName.c_str()];
 		auto collection = database[sCollectionName.c_str()];
 		
 		kDebug(1, "{}: querying MongoDB for documents...", sCollectionName);
@@ -1171,8 +1407,6 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 		// Fetch all documents from MongoDB
 		auto cursor = collection.find({});
 
-		std::size_t iDocCount {0};
-		
 		for (const auto& doc : cursor)
 		{
 			++iDocCount;
@@ -1189,68 +1423,88 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 				continue;
 			}
 			
-			// Extract primary key from document
-			KString sPrimaryKey = ExtractPrimaryKeyFromDocument(document);
-			
-			// Find root table schema
-			const KJSON* pRootTable = nullptr;
-			for (const auto& table : oTables)
+			if (!CopyMongoDocument (document, oTables, sCollectionName, db, bar, iInserts, iUpdates))
 			{
-				if (table[parent_table].String().empty())
-				{
-					pRootTable = &table;
-					break;
-				}
-			}
-			
-			if (!pRootTable)
-			{
-				KErr.FormatLine (">> {}:{}: no root table found, skipping inserts", sCollectionName, iDocCount);
 				break;
 			}
-			
-			// Flatten document into row values
-			std::map<KString, KString> rowValues;
-			KString sTablename = pRootTable->Select("table_name");
-			KString sTablePK   = GenerateTablePKEY (sTablename);
-			if (!sTablePK.empty() && !sPrimaryKey.empty())
-			{
-				rowValues[sTablePK] = sPrimaryKey; // Add primary key using actual column name from schema
-			}
-			else
-			{
-				KErr.FormatLine (">> {}:{}: no pkey value, sTablePK={}, sPrimaryKey={}", sCollectionName, iDocCount, sTablePK, sPrimaryKey);
-				break;
-			}
-			FlattenDocumentToRow(document, KString{}, rowValues);
-			
-			// Insert the root document row
-			if (InsertDocumentRow(db, *pRootTable, rowValues, sPrimaryKey))
-			{
-				++iInsertCount;
-			}
-			
-			// Process nested arrays (child tables)
-			ProcessDocumentArrays(db, document, oTables, sTablename, KString{}, sPrimaryKey);
-			
-			bar.Move ();
 
-			if (iTenPercent && !(iDocCount % iTenPercent))
-			{
-				ShowBar (bar, sCollectionName, iInsertCount);
-			}
-		}
+		} // for each document from MongoDB
 		
-		kDebug(1, "{}: inserted {} of {} documents", sCollectionName, iInsertCount, iDocCount);
+		kDebug(1, "{}: inserted {} of {} documents", sCollectionName, iInserts, iDocCount);
 	}
 	catch (const std::exception& ex)
 	{
 		KErr.FormatLine(">> {}: MongoDB error during insert: {}", sCollectionName, ex.what());
 	}
 	
-	ShowBar (bar, sCollectionName, iInsertCount);
+	ShowBar (bar, sCollectionName, iCreateTables, iInserts, iUpdates);
 
 } // CopyCollection
+
+//-----------------------------------------------------------------------------
+bool Mong2SQL::CopyMongoDocument (const KJSON& document, const KJSON& oTables, KStringView sCollectionName, KSQL& db, KBAR& bar, uint64_t& iInserts, uint64_t& iUpdates)
+//-----------------------------------------------------------------------------
+{
+	kDebug (1, "...");
+
+	auto iExpected   = bar.GetExpected();
+	auto iTenPercent = (iExpected / 10);
+
+	// Extract primary key from document
+	KString sPrimaryKey = ExtractPrimaryKeyFromDocument(document);
+			
+	// Find root table schema
+	const KJSON* pRootTable = nullptr;
+	for (const auto& table : oTables)
+	{
+		if (table[parent_table].String().empty())
+		{
+			pRootTable = &table;
+			break;
+		}
+	}
+			
+	if (!pRootTable)
+	{
+		KErr.FormatLine (">> {}:{}: no root table found, skipping inserts", sCollectionName, bar.GetSoFar());
+		return false;
+	}
+			
+	// Flatten document into row values
+	std::map<KString, KString> rowValues;
+	KString sTablename = pRootTable->Select("table_name");
+	KString sTablePK   = GenerateTablePKEY (sTablename);
+
+	if (sTablePK && sPrimaryKey)
+	{
+		rowValues[sTablePK] = sPrimaryKey; // Add primary key using actual column name from schema
+	}
+	else
+	{
+		KErr.FormatLine (">> {}:{}: no pkey value, sTablePK={}, sPrimaryKey={}", sCollectionName, bar.GetSoFar(), sTablePK, sPrimaryKey);
+		return false;
+	}
+	FlattenDocumentToRow(document, KString{}, rowValues);
+			
+	// Insert the root document row
+	if (InsertDocumentRow(db, *pRootTable, rowValues, sPrimaryKey, iInserts, iUpdates))
+	{
+		++iInserts;
+	}
+			
+	// Process nested arrays (child tables)
+	ProcessDocumentArrays(db, document, oTables, sTablename, KString{}, sPrimaryKey, iInserts, iUpdates);
+			
+	bar.Move ();
+
+	if (iTenPercent && !(bar.GetSoFar() % iTenPercent))
+	{
+		ShowBar (bar, sCollectionName, /*iCreateTables=*/0, iInserts, iUpdates);
+	}
+
+	return true;
+
+} // CopyMongoDocument
 
 //-----------------------------------------------------------------------------
 KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
@@ -1448,7 +1702,7 @@ KString Mong2SQL::ToSqlLiteral (const KJSON& value) const
 } // ToSqlLiteral
 
 //-----------------------------------------------------------------------------
-bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std::map<KString, KString>& rowValues, KStringView sPrimaryKey) const
+bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std::map<KString, KString>& rowValues, KStringView sPrimaryKey, uint64_t& iInserts, uint64_t& iUpdates) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
@@ -1522,11 +1776,12 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 	}
 	
 	// Generate INSERT statement
-	if (m_Config.sDBC.empty())
+	if (!m_Config.sDBC)
 	{
 		// Output to stdout
 		// Use bIdentityInsert=true because MongoDB _oid columns have explicit values (not auto-increment)
 		KOut.FormatLine("{};", row.FormInsert(KSQL::DBT::MYSQL, /*bIdentityInsert=*/true, /*bIgnore=*/false));
+		++iInserts;
 		return true;
 	}
 	else
@@ -1534,16 +1789,24 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 		// Execute on database
 		auto bOK = db.Insert(row);
 		
-		if (!bOK && db.WasDuplicateError())
+		if (bOK)
+		{
+			++iInserts;
+		}
+		else if (db.WasDuplicateError())
 		{
 			// Try update if duplicate key
 			bOK = db.Update(row);
+			if (bOK)
+			{
+				++iUpdates;
+			}
 		}
 		
 		if (!bOK)
 		{
 			// Log error
-			KErr.FormatLine(">> insert into {}, $oid={}: {}", sTableName, sPrimaryKey, db.GetLastError());
+			KErr.FormatLine(">> insert into {}, $oid={}: {}\n{}", sTableName, sPrimaryKey, db.GetLastError(), db.GetLastSQL());
 			return false;
 		}
 		
@@ -1553,7 +1816,7 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 } // InsertDocumentRow
 
 //-----------------------------------------------------------------------------
-void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJSON& allTables, KStringView sTableName, const KString& sPrefix, KStringView sParentPK) const
+void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJSON& allTables, KStringView sTableName, const KString& sPrefix, KStringView sParentPK, uint64_t& iInserts, uint64_t& iUpdates) const
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "processing arrays in document");
@@ -1617,10 +1880,10 @@ void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJS
 					FlattenDocumentToRow(element, KString{}, childRowValues);
 					
 					// Insert child row
-					InsertDocumentRow(db, *pChildTable, childRowValues, sChildPK);
+					InsertDocumentRow(db, *pChildTable, childRowValues, sChildPK, iInserts, iUpdates);
 					
 					// Recursively process nested arrays
-					ProcessDocumentArrays(db, element, allTables, sChildTableName, KString{}, sChildPK);
+					ProcessDocumentArrays(db, element, allTables, sChildTableName, KString{}, sChildPK, iInserts, iUpdates);
 				}
 				else if (element.is_array())
 				{
@@ -1635,14 +1898,14 @@ void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJS
 					childRowValues[sValueCol] = ToSqlLiteral(element);
 					
 					// Insert child row
-					InsertDocumentRow(db, *pChildTable, childRowValues, sParentPK);
+					InsertDocumentRow(db, *pChildTable, childRowValues, sParentPK, iInserts, iUpdates);
 				}
 			}
 		}
 		else if (value.is_object())
 		{
 			// Nested object (not array) - process its arrays recursively
-			ProcessDocumentArrays(db, value, allTables, sTableName, sColumnName, sParentPK);
+			ProcessDocumentArrays(db, value, allTables, sTableName, sColumnName, sParentPK, iInserts, iUpdates);
 		}
 	}
 	

@@ -137,20 +137,22 @@ private:
 	void        SortCollectionsBySize ();
 
 	int         ListCollections ();
-	KJSON       LoadCollectionFromCache (KStringView sCollectionName) const;
+	KJSON       LoadMetaDataFromCache (KStringView sCollectionName) const;
+	KString     DeduceCacheFile (KStringView sCollectionName) const;
 	KJSON       DigestCollection (const KJSON& oCollection) const;
 	int         CompareCollectionsToMySQL();
 	int         CopyCollections();
 	void        CopyCollection (const KJSON& oCollection);
+	bool        CopyMongoDocument (const KJSON& document, const KJSON& oTables, KStringView sCollectionName, KSQL& db, KBAR& bar, uint64_t& iInserts, uint64_t& iUpdates);
 	KString     GenerateCreateTableDDL (const KJSON& table) const;
 	
 	// Document processing helpers
-	void        ShowBar (KBAR& bar, KStringView sCollectionName, uint64_t iInsertCount=0, uint64_t iUpdateCount=0);
+	void        ShowBar (KBAR& bar, KStringView sCollectionName, uint16_t iCreateTables=0, uint64_t iInserts=0, uint64_t iUpdates=0);
 	KString     ExtractPrimaryKeyFromDocument (const KJSON& document) const;
 	void        FlattenDocumentToRow (const KJSON& document, const KString& sPrefix, std::map<KString, KString>& rowValues) const;
 	KString     ToSqlLiteral (const KJSON& value) const;
-	bool        InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std::map<KString, KString>& rowValues, KStringView sPrimaryKey) const;
-	void        ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJSON& allTables, KStringView sTableName, const KString& sPrefix, KStringView sParentPK) const;
+	bool        InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std::map<KString, KString>& rowValues, KStringView sPrimaryKey, uint64_t& iInserts, uint64_t& iUpdates) const;
+	void        ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJSON& allTables, KStringView sTableName, const KString& sPrefix, KStringView sParentPK, uint64_t& iInserts, uint64_t& iUpdates) const;
 
 	// Unified verbose output and debug logging
 	void        VerboseImpl (int iLevel, const KString& sMessage) const;
@@ -159,6 +161,7 @@ private:
 	static constexpr KStringViewZ collection_path { "collection_path" };
 	static constexpr KStringViewZ column_order { "column_order" };
 	static constexpr KStringViewZ columns { "columns" };
+	static constexpr KStringViewZ documents { "documents" };
 	static constexpr KStringViewZ has_non_null { "has_non_null" };
 	static constexpr KStringViewZ has_non_zero { "has_non_zero" };
 	static constexpr KStringViewZ has_object_id { "has_object_id" };

@@ -270,6 +270,7 @@ int Mong2SQL::Main(int argc, char* argv[])
 
 	if (m_Config.sInputFile)
 	{
+		Verbose (1, "reading and sizing {} collection from file: {}", m_Config.sCollectionNames, m_Config.sInputFile);
 		if (!GetCollectionFromFile())
 		{
 			return 1;
@@ -277,25 +278,13 @@ int Mong2SQL::Main(int argc, char* argv[])
 	}
 	else
 	{
+		Verbose (1, "reading and sizing collection{} from mongo...", m_Config.sCollectionNames.Contains(",") ? "s" : "");
 		if (!GetCollectionsFromMongoDB())
 		{
 			return 1;
 		}
 	}
 
-	// all the actions except LIST require scanning the collections:
-	if (m_Config.sMode.ToUpper().Hash() != "LIST"_hash)
-	{
-		kParallelForEach (m_Collections, [&](KJSON& cc)
-		{
-			// replace this array element (cc) with the expanded collection:
-			{
-				std::unique_lock Lock(m_Mutex);
-				cc = DigestCollection (cc);
-			}
-		}, m_Config.iThreads);
-	}
-	
 	// now perform the action:
 	switch (m_Config.sMode.ToUpper().Hash())
 	{
@@ -475,46 +464,54 @@ bool Mong2SQL::GetCollectionsFromMongoDB ()
 					WantNames.erase (FoundIt);
 				}
 
-				// Get collection size using totalSize()
-				uint64_t iSizeBytes = 0;
-				try
+				auto oCollection = LoadCollectionFromCache (sCollectionName);
+
+				if (oCollection.empty())
 				{
-					auto collection = database[sCollectionName.c_str()];
-						
-					// Run db.collection.totalSize() command
-					auto command = bsoncxx::builder::stream::document{} 
-						<< "collStats" << sCollectionName.c_str()
-						<< bsoncxx::builder::stream::finalize;
-						
-					auto result = database.run_command(command.view());
-					auto sizeElement = result.view()["totalSize"];
-						
-					if (sizeElement && (sizeElement.type() == bsoncxx::type::k_int32 || 
-										sizeElement.type() == bsoncxx::type::k_int64))
+					// Get collection size using totalSize()
+					uint64_t iSizeBytes = 0;
+					try
 					{
-						if (sizeElement.type() == bsoncxx::type::k_int32)
-						{
-							iSizeBytes = sizeElement.get_int32().value;
-						}
-						else
-						{
-							iSizeBytes = sizeElement.get_int64().value;
-						}
-					}
+						auto collection = database[sCollectionName.c_str()];
 						
-					kDebug(2, "collection '{}' size: {} bytes", sCollectionName, iSizeBytes);
-				}
-				catch (const std::exception& ex)
-				{
-					kDebug(1, "warning: could not get size for collection '{}': {}", sCollectionName, ex.what());
-					iSizeBytes = 0; // Default to 0 if size query fails
-				}
+						// Run db.collection.totalSize() command
+						auto command = bsoncxx::builder::stream::document{} 
+							<< "collStats" << sCollectionName.c_str()
+							<< bsoncxx::builder::stream::finalize;
+						
+						auto result = database.run_command(command.view());
+						auto sizeElement = result.view()["totalSize"];
+						
+						if (sizeElement && (sizeElement.type() == bsoncxx::type::k_int32 || 
+											sizeElement.type() == bsoncxx::type::k_int64))
+						{
+							if (sizeElement.type() == bsoncxx::type::k_int32)
+							{
+								iSizeBytes = sizeElement.get_int32().value;
+							}
+							else
+							{
+								iSizeBytes = sizeElement.get_int64().value;
+							}
+						}
+						
+						kDebug(2, "collection '{}' size: {} bytes", sCollectionName, iSizeBytes);
+					}
+					catch (const std::exception& ex)
+					{
+						kDebug(1, "warning: could not get size for collection '{}': {}", sCollectionName, ex.what());
+						iSizeBytes = 0; // Default to 0 if size query fails
+					}
 					
-				m_Collections += KJSON {
-					{ "collection_name", sCollectionName },
-					{ "size_bytes",      iSizeBytes      },
-					{ "num_documents",   -1              }
-				};
+					oCollection = KJSON {
+						{ "collection_name", sCollectionName },
+						{ "size_bytes",      iSizeBytes      },
+						{ "num_documents",   -1              }
+					};
+
+				} // if no cache
+
+				m_Collections += oCollection;
 			}
 
 		} // for each collection found in the mongo db
@@ -573,7 +570,7 @@ void Mong2SQL::SortCollectionsBySize()
 	// Sort indices based on size_bytes
 	std::sort(indices.begin(), indices.end(), [this](std::size_t a, std::size_t b)
 	{
-		return m_Collections[a]["size_bytes"].UInt64() < m_Collections[b]["size_bytes"].UInt64();
+		return m_Collections[a][size_bytes].UInt64() < m_Collections[b][size_bytes].UInt64();
 	});
 	
 	// Build new sorted array
@@ -680,10 +677,10 @@ int Mong2SQL::ListCollections ()
 
 	for (const auto& cc : m_Collections)
 	{
-		auto iCount = cc["num_collection"].Int64();
+		auto iCount = cc[num_documents].Int64();
 		KOut.FormatLine ("| {:<50.50}| {:>10.10} | {:>10.10} |",
-			cc["collection_name"],
-			kFormBytes(cc["size_bytes"].UInt64()),
+			cc[collection_name],
+			kFormBytes(cc[size_bytes].UInt64()),
 			(iCount >= 0) ? kFormNumber(iCount) : "");
 	}
 
@@ -694,17 +691,14 @@ int Mong2SQL::ListCollections ()
 } // ListCollections
 
 //-----------------------------------------------------------------------------
-KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
+KJSON Mong2SQL::LoadCollectionFromCache (KStringView sCollectionName) const
 //-----------------------------------------------------------------------------
 {
-	kDebug (1, "...");
-
 	mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
 	KString       sDatabaseName   = uri.database();
-	KString       sCollectionName = oCollection["collection_name"];
 	KString       sCacheFile      = kFormat ("/var/tmp/{}/{}.json", sDatabaseName, sCollectionName);
 	KString       sContents;
-	
+
 	// cached in /var/tmp
 	if (!m_Config.bForce && kFileExists (sCacheFile) && kReadFile (sCacheFile, sContents) && sContents)
 	{
@@ -717,10 +711,38 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 		}
 	}
 
+	return {}; // not loaded
+
+} // LoadCollectionFromCache
+
+//-----------------------------------------------------------------------------
+KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
+//-----------------------------------------------------------------------------
+{
+	kDebug (1, "...");
+
+	mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
+	KString       sDatabaseName   = uri.database();
+	KString       sCollectionName = oCollection[collection_name];
+	int64_t       iNumDocuments   = oCollection[num_documents].Int64();
+	KString       sCacheFile      = kFormat ("/var/tmp/{}/{}.json", sDatabaseName, sCollectionName);
+	
+	// already digested:
+	if (iNumDocuments >= 0) // -1 means they have not been processed
+	{
+		return std::move (oCollection);
+	}
+
+	auto oLoaded = LoadCollectionFromCache (sCollectionName);
+	if (!oLoaded.empty())
+	{
+		return oLoaded;
+	}
+
 	KJSON oBuilt;
-	oBuilt["collection_name"] = sCollectionName;
-	oBuilt["size_bytes"]      = oCollection["size_bytes"].UInt64();
-	oBuilt["tables"]          = KJSON::array();
+	oBuilt[collection_name] = sCollectionName;
+	oBuilt[size_bytes]      = oCollection[size_bytes].UInt64();
+	oBuilt[tables]          = KJSON::array();
 
 	// Create local MongoDB connection (thread-safe, cannot share connections across threads)
 	try
@@ -766,7 +788,7 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 		}
 		
 		kDebug (1, "{}: loaded {} documents, analyzing schema...", sCollectionName, iDocCount);
-		oBuilt["num_documents"] = iDocCount;
+		oBuilt[num_documents] = iDocCount;
 		
 		// Local schema tracking structures (thread-safe, no member variables)
 		KJSON localTables = KJSON::object();      // tables keyed by name
@@ -779,20 +801,20 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 			
 			// Initialize root table with collection path
 			KJSON& rootTable = localTables[sTableName];
-			rootTable["table_name"] = sTableName;
-			rootTable["primary_key"] = "";
-			rootTable["parent_table"] = "";
-			rootTable["parent_key_column"] = "";
-			rootTable["has_object_id"] = false;
-			rootTable["collection_path"] = sCollectionName;  // Root path is just the collection name
-			rootTable["num_documents"] = 0;  // Will be set after processing documents
-			rootTable["columns"] = KJSON::object();
-			rootTable["column_order"] = KJSON::array();
+			rootTable[table_name] = sTableName;
+			rootTable[primary_key] = "";
+			rootTable[parent_table] = "";
+			rootTable[parent_key_column] = "";
+			rootTable[has_object_id] = false;
+			rootTable[collection_path] = sCollectionName;  // Root path is just the collection name
+			rootTable[num_documents] = -1;  // Will be set after processing documents
+			rootTable[columns] = KJSON::object();
+			rootTable[column_order] = KJSON::array();
 			localTableOrder += sTableName;
 			
 			// Set primary key for root table
 			KString sPrimaryKey = GenerateTablePKEY(sTableName);
-			rootTable["primary_key"] = sPrimaryKey;
+			rootTable[primary_key] = sPrimaryKey;
 			
 			// Collect schema from all documents
 			for (const auto& document : documents)
@@ -801,7 +823,7 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 			}
 			
 			// Set document count for root table
-			localTables[sTableName]["num_documents"] = iDocCount;
+			localTables[sTableName][num_documents] = iDocCount;
 			
 			kDebug (1, "{}: discovered {} table(s)", sCollectionName, localTables.size());
 			
@@ -810,13 +832,13 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 			for (auto itTable = localTables.begin(); itTable != localTables.end(); ++itTable)
 			{
 				const auto& tableData = *itTable;
-				const auto& columns = tableData["columns"];
-				for (auto itCol = columns.begin(); itCol != columns.end(); ++itCol)
+				const auto& oColumns = tableData[columns];
+				for (auto itCol = oColumns.begin(); itCol != oColumns.end(); ++itCol)
 				{
 					iMaxColumnWidth = std::max(iMaxColumnWidth, itCol.key().size());
 				}
 			}
-			oBuilt["max_column_width"] = iMaxColumnWidth;
+			oBuilt[max_column_width] = iMaxColumnWidth;
 			
 			// Generate DDL for all tables and store metadata
 			for (const auto& tableName : localTableOrder)
@@ -824,34 +846,34 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 				const auto& tableData = localTables[tableName.String()];
 				
 				KJSON oTable;
-				oTable["tablename"] = tableData["table_name"];
-				oTable["collection_path"] = tableData["collection_path"];
-				oTable["num_documents"] = tableData["num_documents"];
-				oTable["num_columns"] = tableData["columns"].size();
-				oTable["has_object_id"] = tableData["has_object_id"];
-				oTable["primary_key"] = tableData["primary_key"];
-				oTable["parent_table"] = tableData["parent_table"];
-				oTable["parent_key_column"] = tableData["parent_key_column"];
+				oTable[table_name] = tableData[table_name];
+				oTable[collection_path] = tableData[collection_path];
+				oTable[num_documents] = tableData[num_documents];
+				oTable[num_columns] = tableData[columns].size();
+				oTable[has_object_id] = tableData[has_object_id];
+				oTable[primary_key] = tableData[primary_key];
+				oTable[parent_table] = tableData[parent_table];
+				oTable[parent_key_column] = tableData[parent_key_column];
 				
 				// Store column metadata
 				KJSON oColumns = KJSON::array();
-				const auto& columnOrder = tableData["column_order"];
+				const auto& columnOrder = tableData[column_order];
 				for (const auto& columnName : columnOrder)
 				{
 					KString sColName = columnName.String();
-					const auto& columnInfo = tableData["columns"][sColName];
+					const auto& columnInfo = tableData[columns][sColName];
 					KJSON oColumn;
-					oColumn["name"] = sColName;
-					oColumn["type"] = columnInfo["sql_type"];
-					oColumn["nullable"] = columnInfo["nullable"];
-					oColumn["max_length"] = columnInfo["max_length"];
-					oColumn["has_non_null"] = columnInfo["has_non_null"].Bool();
-					oColumn["has_non_zero"] = columnInfo["has_non_zero"].Bool();
+					oColumn[column_name] = sColName;
+					oColumn[sql_type] = columnInfo[sql_type];
+					oColumn[nullable] = columnInfo[nullable];
+					oColumn[max_length] = columnInfo[max_length];
+					oColumn[has_non_null] = columnInfo[has_non_null].Bool();
+					oColumn[has_non_zero] = columnInfo[has_non_zero].Bool();
 					oColumns += oColumn;
 				}
-				oTable["columns"] = oColumns;
+				oTable[columns] = oColumns;
 				
-				oBuilt["tables"] += oTable;
+				oBuilt[tables] += oTable;
 			}
 		}
 		else
@@ -899,11 +921,12 @@ int Mong2SQL::CompareCollectionsToMySQL ()
 	KOut.FormatLine ("| {:<50.50}| {:>10.10} | {:>10.10} | {:<50.50}| {:>10.10} |", "MONGO-COLLECTION", "MONGO-SIZE", "DOCUMENTS", "SQL-TABLE", "#ROWS");
 	KOut.FormatLine ("+-{:<50.50}+-{:>10.10}-+-{:>10.10}-+-{:<50.50}+-{:>10.10}-+", KLog::BAR, KLog::BAR, KLog::BAR, KLog::BAR, KLog::BAR);
 
-	kParallelForEach (m_Collections, [&](KJSON& cc)
+	kParallelForEach (m_Collections, [&](const KJSON& ro)
 	{
 		KString     sSection;
-		auto        iCount = cc["num_documents"].Int64();
-		const auto& Tables = cc["tables"];
+		auto        cc     = DigestCollection (ro);
+		auto        iCount = cc[num_documents].Int64();
+		const auto& Tables = cc[tables];
 		uint16_t    iTab{0};
 		KSQL        db;
 
@@ -916,8 +939,8 @@ int Mong2SQL::CompareCollectionsToMySQL ()
 		for (const auto& tt : Tables)
 		{
 			++iTab;
-			KString sTablename = tt["tablename"];
-			        iCount     = tt["num_documents"].UInt64();
+			KString sTablename = tt[table_name];
+			        iCount     = tt[num_documents].Int64();
 			auto    iRows      = db.SingleIntQuery ("select count(*) from {}", sTablename);
 			KString sRows      = (iRows >= 0) ? kFormNumber(iRows) : "";
 			KString sComment;
@@ -932,8 +955,8 @@ int Mong2SQL::CompareCollectionsToMySQL ()
 			}
 
 			sSection += kFormat ("| {:<50.50}| {:>10.10} | {:>10.10} | {:<50.50}| {:>10.10} | {}\n",
-				(iTab == 1)   ? cc["collection_name"]                 : tt["collection_path"],
-				(iTab == 1)   ? kFormBytes(cc["size_bytes"].UInt64()) : "",
+				(iTab == 1)   ? cc[collection_name]                 : tt[collection_path],
+				(iTab == 1)   ? kFormBytes(cc[size_bytes].UInt64()) : "",
 				(iCount >= 0) ? kFormNumber(iCount)                   : "",
 				sTablename,
 				sRows,
@@ -943,8 +966,8 @@ int Mong2SQL::CompareCollectionsToMySQL ()
 		if (!iTab)
 		{
 			sSection += kFormat ("| {:<50.50}| {:>10.10} | {:>10.10} | {:<50.50}| {:>10.10} | {}\n",
-				cc["collection_name"],
-				kFormBytes(cc["size_bytes"].UInt64()),
+				cc[collection_name],
+				kFormBytes(cc[size_bytes].UInt64()),
 				kFormNumber(iCount),
 				"", // tablename
 				"", // rows
@@ -972,8 +995,9 @@ int Mong2SQL::CopyCollections ()
 {
 	kDebug (1, "...");
 
-	kParallelForEach (m_Collections, [&](const KJSON& oCollection)
+	kParallelForEach (m_Collections, [&](const KJSON& ro)
 	{
+		auto oCollection = DigestCollection (ro);
 		CopyCollection (oCollection);
 
 	}, m_Config.iThreads);
@@ -1019,7 +1043,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 	// Note: this method assumes that m_Collections has been filled out by calling DigestCollections()
 
 	KString sCollectionName = oCollection.Select("collection_name");
-	auto    iExpected       = oCollection.Select("num_documents").UInt64();
+	auto    iExpected       = oCollection.Select("num_documents").Int64();
 	auto    iTenPercent     = (iExpected / 10);
 	size_t  iInsertCount {0};
 	KBAR    bar (iExpected, /*width=*/30, KBAR::STATIC);
@@ -1028,13 +1052,13 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 	ShowBar (bar, sCollectionName);
 
 	// Ensure collection is digested (has table metadata)
-	if (!oCollection.contains("tables") || oCollection["tables"].empty())
+	if (!oCollection.contains("tables") || oCollection[tables].empty())
 	{
 		kDebug (1, "no tables defined for this collection: {}", sCollectionName);
 		return;
 	}
 	
-	const auto& tables = oCollection["tables"];
+	const auto& oTables = oCollection[tables];
 	
 	// Thread-safe: Create local database connection
 	KSQL db;
@@ -1056,9 +1080,9 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	if (m_Config.bCreateTables)
 	{
-		for (const auto& table : tables)
+		for (const auto& table : oTables)
 		{
-			KString sTableName = table["tablename"].String();
+			KString sTableName = table[table_name].String();
 			
 			// Check if table exists (for -first mode)
 			if (m_Config.bFirstSynch && bHasDB)
@@ -1170,9 +1194,9 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 			
 			// Find root table schema
 			const KJSON* pRootTable = nullptr;
-			for (const auto& table : tables)
+			for (const auto& table : oTables)
 			{
-				if (table["parent_table"].String().empty())
+				if (table[parent_table].String().empty())
 				{
 					pRootTable = &table;
 					break;
@@ -1187,7 +1211,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 			
 			// Flatten document into row values
 			std::map<KString, KString> rowValues;
-			KString sTablename = pRootTable->Select("tablename");
+			KString sTablename = pRootTable->Select("table_name");
 			KString sTablePK   = GenerateTablePKEY (sTablename);
 			if (!sTablePK.empty() && !sPrimaryKey.empty())
 			{
@@ -1207,7 +1231,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 			}
 			
 			// Process nested arrays (child tables)
-			ProcessDocumentArrays(db, document, tables, sTablename, KString{}, sPrimaryKey);
+			ProcessDocumentArrays(db, document, oTables, sTablename, KString{}, sPrimaryKey);
 			
 			bar.Move ();
 
@@ -1232,18 +1256,18 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 //-----------------------------------------------------------------------------
 {
-	KString sTableName = table["tablename"].String();
-	const auto& columns = table["columns"];
+	KString sTableName = table[table_name].String();
+	const auto& oColumns = table[columns];
 	
-	if (columns.empty())
+	if (oColumns.empty())
 	{
 		kDebug(1, "{}: no columns found", sTableName);
 		return KString{};
 	}
 	
 	// Determine primary key from schema metadata
-	KString sPrimaryKey = table["primary_key"].String();
-	bool bHasObjectId = table["has_object_id"].Bool();
+	KString sPrimaryKey = table[primary_key].String();
+	bool bHasObjectId = table[has_object_id].Bool();
 	
 	// Build CREATE TABLE statement
 	KString sSQL = kFormat(
@@ -1257,16 +1281,16 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 	std::vector<KJSON> activeColumns;
 	std::size_t iMaxNameWidth = 0;
 	std::size_t iMaxTypeWidth = 0;
-	for (const auto& col : columns)
+	for (const auto& col : oColumns)
 	{
-		bool bHasNonNull = col["has_non_null"].Bool();
-		bool bHasNonZero = col["has_non_zero"].Bool();
-		KString sType = col["type"].String();
+		bool bHasNonNull = col[has_non_null].Bool();
+		bool bHasNonZero = col[has_non_zero].Bool();
+		KString sType = col[sql_type].String();
 		
 		// Skip columns that have only null values across the entire collection
 		if (!bHasNonNull)
 		{
-			kDebug(2, "{}: skipping all-null column: {}", sTableName, col["name"].String());
+			kDebug(2, "{}: skipping all-null column: {}", sTableName, col[column_name].String());
 			continue;
 		}
 		
@@ -1274,13 +1298,13 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 		if ((sType.starts_with("int") || sType.starts_with("bigint") || 
 		     sType.starts_with("float") || sType.starts_with("double")) && !bHasNonZero)
 		{
-			kDebug(2, "{}: skipping all-zero column: {}", sTableName, col["name"].String());
+			kDebug(2, "{}: skipping all-zero column: {}", sTableName, col[column_name].String());
 			continue;
 		}
 		
 		activeColumns.push_back(col);
-		iMaxNameWidth = std::max(iMaxNameWidth, col["name"].String().size());
-		iMaxTypeWidth = std::max(iMaxTypeWidth, col["type"].String().size());
+		iMaxNameWidth = std::max(iMaxNameWidth, col[column_name].String().size());
+		iMaxTypeWidth = std::max(iMaxTypeWidth, col[sql_type].String().size());
 	}
 	
 	// If no columns remain after filtering, return empty
@@ -1294,9 +1318,9 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 	for (std::size_t ii = 0; ii < activeColumns.size(); ++ii)
 	{
 		const auto& col = activeColumns[ii];
-		KString sColName = col["name"].String();
-		KString sType = col["type"].String();
-		bool bNullable = col["nullable"].Bool();
+		KString sColName = col[column_name].String();
+		KString sType = col[sql_type].String();
+		bool bNullable = col[nullable].Bool();
 		bool bIsPK = (bHasObjectId && sColName == sPrimaryKey);
 		
 		// Build modifiers string
@@ -1429,21 +1453,21 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 {
 	kDebug (1, "...");
 
-	KString sTableName = tableSchema["tablename"].String();
-	const auto& columns = tableSchema["columns"];
+	KString sTableName = tableSchema[table_name].String();
+	const auto& oColumns = tableSchema[columns];
 	
 	kDebug(3, "inserting row into table: {}", sTableName);
 	
 	// Create KROW and populate with column values
 	KROW row(sTableName);
 	
-	for (const auto& col : columns)
+	for (const auto& col : oColumns)
 	{
-		KString sColName = col["name"].String();
-		KString sColType = col["type"].String();
-		bool bNullable = col["nullable"].Bool();
-		bool bHasNonNull = col["has_non_null"].Bool();
-		bool bHasNonZero = col["has_non_zero"].Bool();
+		KString sColName = col[column_name].String();
+		KString sColType = col[sql_type].String();
+		bool bNullable = col[nullable].Bool();
+		bool bHasNonNull = col[has_non_null].Bool();
+		bool bHasNonZero = col[has_non_zero].Bool();
 		
 		// Skip columns that have only null values across the entire collection
 		if (!bHasNonNull)
@@ -1478,7 +1502,7 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 		
 		// Check if this is the primary key column
 		// Use the actual primary key from the schema, not just any _oid column
-		KString sTablePK = tableSchema["primary_key"].String();
+		KString sTablePK = tableSchema[primary_key].String();
 		if (!sTablePK.empty() && sColName == sTablePK)
 		{
 			flags |= KCOL::PKEY;
@@ -1487,7 +1511,7 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 		if (it != rowValues.end())
 		{
 			// Add column with value
-			std::size_t iMaxLen = col["max_length"].UInt64();
+			std::size_t iMaxLen = col[max_length].UInt64();
 			row.AddCol(sColName, it->second, flags, iMaxLen);
 		}
 		else if (bNullable)
@@ -1554,7 +1578,7 @@ void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJS
 			const KJSON* pChildTable = nullptr;
 			for (const auto& table : allTables)
 			{
-				if (table["tablename"].String() == sChildTableName)
+				if (table[table_name].String() == sChildTableName)
 				{
 					pChildTable = &table;
 					break;
@@ -2247,15 +2271,15 @@ KJSON& Mong2SQL::EnsureTableSchemaLocal (KStringView sTableName, KJSON& localTab
 	if (!localTables.contains(sTableName))
 	{
 		KJSON& newTable = localTables[KString{sTableName}];
-		newTable["table_name"] = sTableName;
-		newTable["primary_key"] = "";
-		newTable["parent_table"] = sParentTable;
-		newTable["parent_key_column"] = sParentKeyColumn;
-		newTable["has_object_id"] = false;
-		newTable["collection_path"] = sCollectionPath;
-		newTable["num_documents"] = 0;  // Initialize counter
-		newTable["columns"] = KJSON::object();
-		newTable["column_order"] = KJSON::array();
+		newTable[table_name] = sTableName;
+		newTable[primary_key] = "";
+		newTable[parent_table] = sParentTable;
+		newTable[parent_key_column] = sParentKeyColumn;
+		newTable[has_object_id] = false;
+		newTable[collection_path] = sCollectionPath;
+		newTable[num_documents] = 0;  // Initialize counter
+		newTable[columns] = KJSON::object();
+		newTable[column_order] = KJSON::array();
 		
 		localTableOrder += KString{sTableName};
 		kDebug(2, "created new local table schema: {}", sTableName);
@@ -2288,16 +2312,16 @@ void Mong2SQL::CollectSchemaForDocumentLocal (const KJSON& document, KStringView
 	{
 		if (it.key() == "_id" && it->is_object() && it->contains("$oid"))
 		{
-			tableData["has_object_id"] = true;
-			if (tableData["primary_key"].String().empty())
+			tableData[has_object_id] = true;
+			if (tableData[primary_key].String().empty())
 			{
 				KString sPK = GenerateTablePKEY(sTableName);
-				tableData["primary_key"] = sPK;
+				tableData[primary_key] = sPK;
 			}
 			std::size_t iLength = std::max<std::size_t>(24, 16);
 			// Create a non-null string value for primary key column
 			KJSON nonNullValue = "";
-			AddColumnLocal(tableData, tableData["primary_key"].String(), SqlType::Text, iLength, false, nonNullValue);
+			AddColumnLocal(tableData, tableData[primary_key].String(), SqlType::Text, iLength, false, nonNullValue);
 			continue;
 		}
 		
@@ -2338,11 +2362,11 @@ void Mong2SQL::CollectArraySchemaLocal (const KJSON& array, KStringView sParentT
 	}
 
 	// Get parent's collection path and build child path
-	KString sParentPath = localTables[KString{sParentTableName}]["collection_path"].String();
+	KString sParentPath = localTables[KString{sParentTableName}][collection_path].String();
 	KString sLeafField = ExtractLeafColumnName(sKey);  // Extract the field name portion
 	KString sChildPath = kFormat("{}/{}", sParentPath, sLeafField);
 
-	KString sParentPK = localTables[KString{sParentTableName}]["primary_key"].String();
+	KString sParentPK = localTables[KString{sParentTableName}][primary_key].String();
 	KString sChildTableName = SanitizeColumnName(BuildChildTableName(sParentTableName, sKey));
 	KJSON& childTable = EnsureTableSchemaLocal(sChildTableName, localTables, localTableOrder, sChildPath, sParentTableName, sParentPK);
 	
@@ -2352,7 +2376,7 @@ void Mong2SQL::CollectArraySchemaLocal (const KJSON& array, KStringView sParentT
 	for (const auto& element : array)
 	{
 		// Increment document count for each array element
-		childTable["num_documents"] = childTable["num_documents"].Int64() + 1;
+		childTable[num_documents] = childTable[num_documents].Int64() + 1;
 		
 		if (element.is_object())
 		{
@@ -2397,74 +2421,74 @@ void Mong2SQL::AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlTyp
 		}
 	}
 	
-	kDebug(3, "adding local column '{}' to table '{}', isNull={}, isZero={}", sColumnName, tableData["table_name"].String(), bIsNull, bIsZero);
+	kDebug(3, "adding local column '{}' to table '{}', isNull={}, isZero={}", sColumnName, tableData[table_name].String(), bIsNull, bIsZero);
 	
-	KJSON& columns = tableData["columns"];
+	KJSON& oColumns = tableData[columns];
 	KString sColKey{sColumnName};
 	
-	if (!columns.contains(sColKey))
+	if (!oColumns.contains(sColKey))
 	{
 		// New column
-		tableData["column_order"] += sColKey;
+		tableData[column_order] += sColKey;
 		
-		KJSON& columnInfo = columns[sColKey];
-		columnInfo["type"] = static_cast<int>(type);
-		columnInfo["nullable"] = isNullable;
-		columnInfo["max_length"] = iLength;
-		columnInfo["has_non_null"] = !bIsNull;  // Track if we've seen non-null data
-		columnInfo["has_non_zero"] = !bIsZero;  // Track if we've seen non-zero data (for numeric types)
+		KJSON& columnInfo = oColumns[sColKey];
+		columnInfo[sql_type] = static_cast<int>(type);
+		columnInfo[nullable] = isNullable;
+		columnInfo[max_length] = iLength;
+		columnInfo[has_non_null] = !bIsNull;  // Track if we've seen non-null data
+		columnInfo[has_non_zero] = !bIsZero;  // Track if we've seen non-zero data (for numeric types)
 		
 		// Compute SQL type string
 		ColumnInfo tempInfo;
 		tempInfo.Type = type;
 		tempInfo.iMaxLength = iLength;
 		tempInfo.bNullable = isNullable;
-		columnInfo["sql_type"] = SqlTypeToString(tempInfo);
+		columnInfo[sql_type] = SqlTypeToString(tempInfo);
 	}
 	else
 	{
 		// Existing column - merge types
-		KJSON& columnInfo = columns[sColKey];
-		SqlType existingType = static_cast<SqlType>(columnInfo["type"].Int64());
+		KJSON& columnInfo = oColumns[sColKey];
+		SqlType existingType = static_cast<SqlType>(columnInfo[sql_type].Int64());
 		SqlType mergedType = MergeSqlTypes(existingType, type);
-		columnInfo["type"] = static_cast<int>(mergedType);
+		columnInfo[sql_type] = static_cast<int>(mergedType);
 		
 		if (!isNullable)
 		{
-			columnInfo["nullable"] = false;
+			columnInfo[nullable] = false;
 		}
 		
 		// Update has_non_null flag: once true, stays true
 		if (!bIsNull)
 		{
-			columnInfo["has_non_null"] = true;
+			columnInfo[has_non_null] = true;
 		}
 		
 		// Update has_non_zero flag: once true, stays true
 		if (!bIsZero)
 		{
-			columnInfo["has_non_zero"] = true;
+			columnInfo[has_non_zero] = true;
 		}
 		
 		if (mergedType == SqlType::Text)
 		{
-			std::size_t currentMaxLength = columnInfo["max_length"].UInt64();
+			std::size_t currentMaxLength = columnInfo[max_length].UInt64();
 			if (iLength > currentMaxLength)
 			{
-				columnInfo["max_length"] = iLength;
+				columnInfo[max_length] = iLength;
 			}
 		}
 		else
 		{
-			columnInfo["max_length"] = 0;
+			columnInfo[max_length] = 0;
 		}
 		
 		// Recompute SQL type string
 		ColumnInfo tempInfo;
 		tempInfo.Type = mergedType;
-		tempInfo.iMaxLength = columnInfo["max_length"].UInt64();
-		tempInfo.bNullable = columnInfo["nullable"].Bool();
-		columnInfo["sql_type"] = SqlTypeToString(tempInfo);
+		tempInfo.iMaxLength = columnInfo[max_length].UInt64();
+		tempInfo.bNullable = columnInfo[nullable].Bool();
+		columnInfo[sql_type] = SqlTypeToString(tempInfo);
 	}
 
 } // AddColumnLocal

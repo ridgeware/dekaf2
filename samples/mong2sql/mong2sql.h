@@ -137,6 +137,7 @@ private:
 	void        SortCollectionsBySize ();
 
 	int         ListCollections ();
+	KJSON       LoadCollectionFromCache (KStringView sCollectionName) const;
 	KJSON       DigestCollection (const KJSON& oCollection) const;
 	int         CompareCollectionsToMySQL();
 	int         CopyCollections();
@@ -153,6 +154,27 @@ private:
 
 	// Unified verbose output and debug logging
 	void        VerboseImpl (int iLevel, const KString& sMessage) const;
+
+	static constexpr KStringViewZ collection_name { "collection_name" };
+	static constexpr KStringViewZ collection_path { "collection_path" };
+	static constexpr KStringViewZ column_order { "column_order" };
+	static constexpr KStringViewZ columns { "columns" };
+	static constexpr KStringViewZ has_non_null { "has_non_null" };
+	static constexpr KStringViewZ has_non_zero { "has_non_zero" };
+	static constexpr KStringViewZ has_object_id { "has_object_id" };
+	static constexpr KStringViewZ max_column_width { "max_column_width" };
+	static constexpr KStringViewZ max_length { "max_length" };
+	static constexpr KStringViewZ column_name { "column_name" };
+	static constexpr KStringViewZ nullable { "nullable" };
+	static constexpr KStringViewZ num_columns { "num_columns" };
+	static constexpr KStringViewZ num_documents { "num_documents" };
+	static constexpr KStringViewZ parent_key_column { "parent_key_column" };
+	static constexpr KStringViewZ parent_table { "parent_table" };
+	static constexpr KStringViewZ primary_key { "primary_key" };
+	static constexpr KStringViewZ size_bytes { "size_bytes" };
+	static constexpr KStringViewZ sql_type { "sql_type" };
+	static constexpr KStringViewZ table_name { "table_name" };
+	static constexpr KStringViewZ tables { "tables" };
 
 	// MySQL reserved words from https://dev.mysql.com/doc/refman/8.4/en/keywords.html
 	static constexpr KStringViewZ MYSQL_RESERVED_WORDS {

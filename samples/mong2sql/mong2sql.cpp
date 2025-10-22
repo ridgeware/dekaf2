@@ -1185,10 +1185,16 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 			
 			// Flatten document into row values
 			std::map<KString, KString> rowValues;
-			KString sTablePK = pRootTable->Select("primary_key").String();
+			KString sTablename = pRootTable->Select("tablename");
+			KString sTablePK   = GenerateTablePKEY (sTablename);
 			if (!sTablePK.empty() && !sPrimaryKey.empty())
 			{
 				rowValues[sTablePK] = sPrimaryKey; // Add primary key using actual column name from schema
+			}
+			else
+			{
+				KErr.FormatLine (">> {}:{}: no pkey value, sTablePK={}, sPrimaryKey={}", sCollectionName, iDocCount, sTablePK, sPrimaryKey);
+				break;
 			}
 			FlattenDocumentToRow(document, KString{}, rowValues);
 			
@@ -1199,7 +1205,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 			}
 			
 			// Process nested arrays (child tables)
-			ProcessDocumentArrays(db, document, tables, pRootTable->Select("tablename"), KString{}, sPrimaryKey);
+			ProcessDocumentArrays(db, document, tables, sTablename, KString{}, sPrimaryKey);
 			
 			bar.Move ();
 
@@ -1245,36 +1251,19 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 		"(\n",
 			sTableName);
 	
-	// Sort columns: primary key first, then alphabetically
-	std::vector<KJSON> sortedColumns;
-	for (const auto& col : columns)
-	{
-		sortedColumns.push_back(col);
-	}
-	
-	std::stable_sort(sortedColumns.begin(), sortedColumns.end(), [&](const KJSON& a, const KJSON& b)
-	{
-		KString sNameA = a["name"].String();
-		KString sNameB = b["name"].String();
-		bool aIsPK = (bHasObjectId && sNameA == sPrimaryKey);
-		bool bIsPK = (bHasObjectId && sNameB == sPrimaryKey);
-		if (aIsPK != bIsPK) return aIsPK;
-		return sNameA < sNameB;
-	});
-	
 	// Calculate max widths for alignment
 	std::size_t iMaxNameWidth = 0;
 	std::size_t iMaxTypeWidth = 0;
-	for (const auto& col : sortedColumns)
+	for (const auto& col : columns)
 	{
 		iMaxNameWidth = std::max(iMaxNameWidth, col["name"].String().size());
 		iMaxTypeWidth = std::max(iMaxTypeWidth, col["type"].String().size());
 	}
 	
 	// Generate column definitions with aligned columns
-	for (std::size_t i = 0; i < sortedColumns.size(); ++i)
+	for (std::size_t ii = 0; ii < columns.size(); ++ii)
 	{
-		const auto& col = sortedColumns[i];
+		const auto& col = columns[ii];
 		KString sColName = col["name"].String();
 		KString sType = col["type"].String();
 		bool bNullable = col["nullable"].Bool();
@@ -1293,7 +1282,7 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 			sType, iMaxTypeWidth,
 			sModifiers);
 		
-		if (i + 1 < sortedColumns.size())
+		if ((ii + 1) < columns.size())
 		{
 			sSQL += ",";
 		}
@@ -1333,7 +1322,7 @@ KString Mong2SQL::ExtractPrimaryKeyFromDocument (const KJSON& document) const
 void Mong2SQL::FlattenDocumentToRow (const KJSON& document, const KString& sPrefix, std::map<KString, KString>& rowValues) const
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "flattening document to row");
+	kDebug(2, "{}", document.dump(1,'\t'));
 	
 	if (!document.is_object())
 	{
@@ -2050,9 +2039,7 @@ KString Mong2SQL::ExtractLeafColumnName (KStringView sQualified) const
 KString Mong2SQL::GenerateTablePKEY (KStringView sTableName) const
 //-----------------------------------------------------------------------------
 {
-	KString sLower = sTableName;
-	sLower = sLower.ToLower();
-	return kFormat("{}_oid", sLower);
+	return kFormat("{}_oid", sTableName.ToLower());
 
 } // GenerateTablePKEY
 

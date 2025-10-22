@@ -993,17 +993,17 @@ void Mong2SQL::ShowBar (KBAR& bar, KStringView sCollectionName, uint64_t iInsert
 	}
 
 	std::unique_lock Lock(m_Mutex);
-	auto sLine = kFormat (":: {:%a %T} [{:30.30}] collection {:<50} {:>12} out of {:12}",
+	auto sLine = kFormat (":: {:%a %T} [{:30.30}] collection {}, {} out of {}",
 		kNow(), bar.GetBar(30,'_'), sCollectionName, kFormNumber(bar.GetSoFar()), kFormNumber(bar.GetExpected()));
 
 	if (iInsertCount)
 	{
-		sLine += kFormat (" {} inserts", kFormNumber(iInsertCount));
+		sLine += kFormat (", {} inserts", kFormNumber(iInsertCount));
 	}
 
 	if (iUpdateCount)
 	{
-		sLine += kFormat (" {} updates", kFormNumber(iUpdateCount));
+		sLine += kFormat (", {} updates", kFormNumber(iUpdateCount));
 	}
 
 	KOut.FormatLine ("{}", sLine);

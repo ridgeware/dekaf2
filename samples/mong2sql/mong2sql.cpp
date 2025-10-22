@@ -845,6 +845,8 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 					oColumn["type"] = columnInfo["sql_type"];
 					oColumn["nullable"] = columnInfo["nullable"];
 					oColumn["max_length"] = columnInfo["max_length"];
+					oColumn["has_non_null"] = columnInfo["has_non_null"].Bool();
+					oColumn["has_non_zero"] = columnInfo["has_non_zero"].Bool();
 					oColumns += oColumn;
 				}
 				oTable["columns"] = oColumns;
@@ -1251,19 +1253,47 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 		"(\n",
 			sTableName);
 	
-	// Calculate max widths for alignment
+	// Filter out all-null and all-zero columns and calculate max widths for alignment
+	std::vector<KJSON> activeColumns;
 	std::size_t iMaxNameWidth = 0;
 	std::size_t iMaxTypeWidth = 0;
 	for (const auto& col : columns)
 	{
+		bool bHasNonNull = col["has_non_null"].Bool();
+		bool bHasNonZero = col["has_non_zero"].Bool();
+		KString sType = col["type"].String();
+		
+		// Skip columns that have only null values across the entire collection
+		if (!bHasNonNull)
+		{
+			kDebug(2, "{}: skipping all-null column: {}", sTableName, col["name"].String());
+			continue;
+		}
+		
+		// Skip numeric columns that have only zero values (treat like null)
+		if ((sType.starts_with("int") || sType.starts_with("bigint") || 
+		     sType.starts_with("float") || sType.starts_with("double")) && !bHasNonZero)
+		{
+			kDebug(2, "{}: skipping all-zero column: {}", sTableName, col["name"].String());
+			continue;
+		}
+		
+		activeColumns.push_back(col);
 		iMaxNameWidth = std::max(iMaxNameWidth, col["name"].String().size());
 		iMaxTypeWidth = std::max(iMaxTypeWidth, col["type"].String().size());
 	}
 	
-	// Generate column definitions with aligned columns
-	for (std::size_t ii = 0; ii < columns.size(); ++ii)
+	// If no columns remain after filtering, return empty
+	if (activeColumns.empty())
 	{
-		const auto& col = columns[ii];
+		kDebug(1, "{}: no non-null columns found, skipping table creation", sTableName);
+		return KString{};
+	}
+	
+	// Generate column definitions with aligned columns
+	for (std::size_t ii = 0; ii < activeColumns.size(); ++ii)
+	{
+		const auto& col = activeColumns[ii];
 		KString sColName = col["name"].String();
 		KString sType = col["type"].String();
 		bool bNullable = col["nullable"].Bool();
@@ -1282,7 +1312,7 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 			sType, iMaxTypeWidth,
 			sModifiers);
 		
-		if ((ii + 1) < columns.size())
+		if ((ii + 1) < activeColumns.size())
 		{
 			sSQL += ",";
 		}
@@ -1412,6 +1442,21 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 		KString sColName = col["name"].String();
 		KString sColType = col["type"].String();
 		bool bNullable = col["nullable"].Bool();
+		bool bHasNonNull = col["has_non_null"].Bool();
+		bool bHasNonZero = col["has_non_zero"].Bool();
+		
+		// Skip columns that have only null values across the entire collection
+		if (!bHasNonNull)
+		{
+			continue;
+		}
+		
+		// Skip numeric columns that have only zero values (treat like null)
+		if ((sColType.starts_with("int") || sColType.starts_with("bigint") || 
+		     sColType.starts_with("float") || sColType.starts_with("double")) && !bHasNonZero)
+		{
+			continue;
+		}
 		
 		auto it = rowValues.find(sColName);
 		
@@ -2217,7 +2262,9 @@ KJSON& Mong2SQL::EnsureTableSchemaLocal (KStringView sTableName, KJSON& localTab
 		
 		if (!sParentKeyColumn.empty())
 		{
-			AddColumnLocal(newTable, sParentKeyColumn, SqlType::Text, 16, false);
+			// Create a non-null string value for parent key column
+			KJSON nonNullValue = "";
+			AddColumnLocal(newTable, sParentKeyColumn, SqlType::Text, 16, false, nonNullValue);
 		}
 	}
 	
@@ -2248,7 +2295,9 @@ void Mong2SQL::CollectSchemaForDocumentLocal (const KJSON& document, KStringView
 				tableData["primary_key"] = sPK;
 			}
 			std::size_t iLength = std::max<std::size_t>(24, 16);
-			AddColumnLocal(tableData, tableData["primary_key"].String(), SqlType::Text, iLength, false);
+			// Create a non-null string value for primary key column
+			KJSON nonNullValue = "";
+			AddColumnLocal(tableData, tableData["primary_key"].String(), SqlType::Text, iLength, false, nonNullValue);
 			continue;
 		}
 		
@@ -2272,7 +2321,7 @@ void Mong2SQL::CollectSchemaForDocumentLocal (const KJSON& document, KStringView
 			{
 				iLength = value.String().size();
 			}
-			AddColumnLocal(tableData, sSanitizedColumnName, InferSqlType(value), iLength);
+			AddColumnLocal(tableData, sSanitizedColumnName, InferSqlType(value), iLength, true, value);
 		}
 	}
 
@@ -2322,17 +2371,33 @@ void Mong2SQL::CollectArraySchemaLocal (const KJSON& array, KStringView sParentT
 			{
 				iLength = element.String().size();
 			}
-			AddColumnLocal(childTable, sValueColumn, InferSqlType(element), iLength);
+			AddColumnLocal(childTable, sValueColumn, InferSqlType(element), iLength, true, element);
 		}
 	}
 
 } // CollectArraySchemaLocal
 
 //-----------------------------------------------------------------------------
-void Mong2SQL::AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlType type, std::size_t iLength, bool isNullable) const
+void Mong2SQL::AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlType type, std::size_t iLength, bool isNullable, const KJSON& value) const
 //-----------------------------------------------------------------------------
 {
-	kDebug(3, "adding local column '{}' to table '{}'", sColumnName, tableData["table_name"].String());
+	bool bIsNull = value.is_null();
+	bool bIsZero = false;
+	
+	// Check if value is numeric zero
+	if ((type == SqlType::Integer || type == SqlType::Float) && !bIsNull)
+	{
+		if (value.is_number_integer() || value.is_number_unsigned())
+		{
+			bIsZero = (value.Int64() == 0);
+		}
+		else if (value.is_number_float())
+		{
+			bIsZero = (value.Float() == 0.0);
+		}
+	}
+	
+	kDebug(3, "adding local column '{}' to table '{}', isNull={}, isZero={}", sColumnName, tableData["table_name"].String(), bIsNull, bIsZero);
 	
 	KJSON& columns = tableData["columns"];
 	KString sColKey{sColumnName};
@@ -2346,6 +2411,8 @@ void Mong2SQL::AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlTyp
 		columnInfo["type"] = static_cast<int>(type);
 		columnInfo["nullable"] = isNullable;
 		columnInfo["max_length"] = iLength;
+		columnInfo["has_non_null"] = !bIsNull;  // Track if we've seen non-null data
+		columnInfo["has_non_zero"] = !bIsZero;  // Track if we've seen non-zero data (for numeric types)
 		
 		// Compute SQL type string
 		ColumnInfo tempInfo;
@@ -2365,6 +2432,18 @@ void Mong2SQL::AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlTyp
 		if (!isNullable)
 		{
 			columnInfo["nullable"] = false;
+		}
+		
+		// Update has_non_null flag: once true, stays true
+		if (!bIsNull)
+		{
+			columnInfo["has_non_null"] = true;
+		}
+		
+		// Update has_non_zero flag: once true, stays true
+		if (!bIsZero)
+		{
+			columnInfo["has_non_zero"] = true;
 		}
 		
 		if (mergedType == SqlType::Text)

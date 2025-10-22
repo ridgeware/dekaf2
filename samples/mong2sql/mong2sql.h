@@ -206,7 +206,7 @@ private:
 	// Thread-safe helper methods (use local KJSON structures)
 	void        CollectSchemaForDocumentLocal (const KJSON& document, KStringView sTableName, const KString& sPrefix, KJSON& localTables, KJSON& localTableOrder) const;
 	void        CollectArraySchemaLocal (const KJSON& array, KStringView sParentTableName, const KString& sKey, KJSON& localTables, KJSON& localTableOrder) const;
-	void        AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlType type, std::size_t iLength, bool isNullable = true) const;
+	void        AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlType type, std::size_t iLength, bool isNullable, const KJSON& value) const;
 	KJSON&      EnsureTableSchemaLocal (KStringView sTableName, KJSON& localTables, KJSON& localTableOrder, KStringView sCollectionPath, KStringView sParentTable = KStringView{}, KStringView sParentKeyColumn = KStringView{}) const;
 	
 	// Naming and conversion helpers

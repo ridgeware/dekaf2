@@ -138,16 +138,16 @@ private:
 	int         CompareCollectionsToMySQL();
 	int         CopyCollections();
 	void        CopyCollection (const KJSON& oCollection);
-	bool        CopyMongoDocument (const KJSON& document, const KJSON& oTables, KStringView sCollectionName, KSQL& db, KBAR& bar, uint64_t& iInserts, uint64_t& iUpdates);
+	bool        CopyMongoDocument (const KJSON& document, const KJSON& oTables, KStringView sCollectionName, KSQL& db, KBAR& bar, KString& sCreatedTables, uint64_t& iInserts, uint64_t& iUpdates);
 	KString     GenerateCreateTableDDL (const KJSON& table) const;
 	
 	// Document processing helpers
-	void        ShowBar (KBAR& bar, KStringView sCollectionName, uint16_t iCreateTables=0, uint64_t iInserts=0, uint64_t iUpdates=0);
+	void        ShowBar (KBAR& bar, KStringView sCollectionName, KStringView sCreatedTables="", uint64_t iInserts=0, uint64_t iUpdates=0);
 	KString     ExtractPrimaryKeyFromDocument (const KJSON& document) const;
 	void        FlattenDocumentToRow (const KJSON& document, const KString& sPrefix, std::map<KString, KString>& rowValues) const;
 	KString     ToSqlLiteral (const KJSON& value) const;
-	bool        InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std::map<KString, KString>& rowValues, KStringView sPrimaryKey, uint64_t& iInserts, uint64_t& iUpdates) const;
-	void        ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJSON& allTables, KStringView sTableName, const KString& sPrefix, KStringView sParentPK, uint64_t& iInserts, uint64_t& iUpdates) const;
+	bool        InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std::map<KString, KString>& rowValues, KStringView sPrimaryKey, KString& sCreatedTables, uint64_t& iInserts, uint64_t& iUpdates) const;
+	void        ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJSON& allTables, KStringView sTableName, const KString& sPrefix, KStringView sParentPK, KString& sCreatedTables, uint64_t& iInserts, uint64_t& iUpdates) const;
 
 	// Unified verbose output and debug logging
 	void        VerboseImpl (int iLevel, const KString& sMessage) const;

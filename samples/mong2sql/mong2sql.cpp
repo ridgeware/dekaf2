@@ -1244,7 +1244,7 @@ int Mong2SQL::CopyCollections ()
 } // CopyCollections
 
 //-----------------------------------------------------------------------------
-void Mong2SQL::ShowBar (KBAR& bar, KStringView sCollectionName, uint16_t iCreateTables/*=0*/, uint64_t iInserts/*=0*/, uint64_t iUpdates/*=0*/)
+void Mong2SQL::ShowBar (KBAR& bar, KStringView sCollectionName, KStringView sCreatedTables/*=""*/, uint64_t iInserts/*=0*/, uint64_t iUpdates/*=0*/)
 //-----------------------------------------------------------------------------
 {
 	bool bShowBar  = (!m_Config.sDBC.empty()); // show progress bar if SQL is not going to stdout
@@ -1254,22 +1254,12 @@ void Mong2SQL::ShowBar (KBAR& bar, KStringView sCollectionName, uint16_t iCreate
 	}
 
 	std::unique_lock Lock(m_Mutex);
-	auto sLine = kFormat (":: {:%a %T} [{:30.30}] collection {}, {} out of {}",
-		kNow(), bar.GetBar(30,'_'), sCollectionName, kFormNumber(bar.GetSoFar()), kFormNumber(bar.GetExpected()));
+	auto sLine = kFormat (":: {:%a %T} [{:30.30}] collection {}, ({}i + {}u) out of {}",
+		kNow(), bar.GetBar(30,'_'), sCollectionName, kFormNumber(iInserts), kFormNumber(iUpdates), kFormNumber(bar.GetExpected()));
 
-	if (iCreateTables)
+	if (sCreatedTables)
 	{
-		sLine += kFormat (", {} create tables", kFormNumber(iCreateTables));
-	}
-
-	if (iInserts)
-	{
-		sLine += kFormat (", {} inserts", kFormNumber(iInserts));
-	}
-
-	if (iUpdates)
-	{
-		sLine += kFormat (", {} updates", kFormNumber(iUpdates));
+		sLine += kFormat (": table{} {}", sCreatedTables.Contains(",") ? "s" : "", sCreatedTables);
 	}
 
 	KOut.FormatLine ("{}", sLine);
@@ -1287,17 +1277,17 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 	KString  sCollectionName = oCollection.Select("collection_name");
 	auto     iExpected       = oCollection.Select("num_documents").Int64();
 	KBAR     bar (iExpected, /*width=*/30, KBAR::STATIC);
-	uint64_t iCreateTables {0};
+	KString  sCreatedTables;
 	uint64_t iInserts {0};
 	uint64_t iUpdates {0};
 
 	kDebug (1, "copying collection: {}", sCollectionName);
-	ShowBar (bar, sCollectionName, iCreateTables, iInserts, iUpdates);
+	ShowBar (bar, sCollectionName, sCreatedTables, iInserts, iUpdates);
 
 	// Ensure collection is digested (has table metadata)
 	if (!oCollection.contains("tables") || oCollection[tables].empty())
 	{
-		KOut.FormatLine (":: ignoring empty collection: {}", sCollectionName);
+		kDebug (1, "ignoring empty collection: {}", sCollectionName);
 		return;
 	}
 	
@@ -1325,7 +1315,8 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 	{
 		for (const auto& table : oTables)
 		{
-			KString sTableName = table[table_name].String();
+			KString sTableName = table[table_name];
+			KString sPath      = table[collection_path];
 			
 			// Check if table exists (for -first mode)
 			if (m_Config.bFirstSynch && bHasDB)
@@ -1333,7 +1324,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 				auto iExists = db.SingleIntQuery("select count(*) from INFORMATION_SCHEMA.TABLES where table_schema = database() and table_name = '{}'", sTableName);
 				if (iExists > 0)
 				{
-					kDebug(1, "{}: table {} already exists, skipping DDL (-first mode)", sCollectionName, sTableName);
+					Verbose (1, "{}: table {} already exists, skipping DDL (-first mode)", sCollectionName, sTableName);
 					continue;
 				}
 			}
@@ -1344,10 +1335,13 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 			// Generate CREATE TABLE statement
 			KString sCreateSQL = GenerateCreateTableDDL(table);
 			
+			Verbose (1, "{} -> {} ...", sPath, sTableName);
+			sCreatedTables += kFormat ("{}{}", sCreatedTables ? "," : "", sTableName);
+
 			// Execute or output DDL
 			if (bHasDB)
 			{
-				if (!m_Config.bFirstSynch) // Don't drop in first synch mode
+				if (! m_Config.bFirstSynch) // Don't drop in first synch mode
 				{
 					if (!db.ExecSQL("{}", sDropSQL))
 					{
@@ -1360,11 +1354,10 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 					KErr.FormatLine(">> {}: failed to create table {}: {}\n{}", sCollectionName, sTableName, db.GetLastError(), db.GetLastSQL());
 					return;
 				}
-				kDebug(1, "{}: created table {}", sCollectionName, sTableName);
 			}
 			else
 			{
-				if (!m_Config.bFirstSynch)
+				if (! m_Config.bFirstSynch)
 				{
 					KOut.WriteLine(sDropSQL);
 				}
@@ -1372,15 +1365,13 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 				KOut.WriteLine();
 			}
 
-			++iCreateTables;
-
 		} // for each table
 
 	} // if DDL
 	
 	if (m_Config.bNoData)
 	{
-		kDebug(1, "{}: skipping data inserts (-nodata)", sCollectionName);
+		Verbose (1, "{}: skipping data inserts (-nodata)", sCollectionName);
 		return;
 	}
 	
@@ -1396,7 +1387,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 		for (const auto& document : oCollection[documents])
 		{
 			++iDocCount;
-			if (!CopyMongoDocument (document, oTables, sCollectionName, db, bar, iInserts, iUpdates))
+			if (!CopyMongoDocument (document, oTables, sCollectionName, db, bar, sCreatedTables, iInserts, iUpdates))
 			{
 				break;
 			}
@@ -1456,26 +1447,26 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 				continue;
 			}
 			
-			if (!CopyMongoDocument (document, oTables, sCollectionName, db, bar, iInserts, iUpdates))
+			if (!CopyMongoDocument (document, oTables, sCollectionName, db, bar, sCreatedTables, iInserts, iUpdates))
 			{
 				break;
 			}
 
 		} // for each document from MongoDB
 		
-		kDebug(1, "{}: inserted {} of {} documents", sCollectionName, iInserts, iDocCount);
+		kDebug(1, "{}: inserted {} of {} documents", sCollectionName, sCreatedTables, iInserts, iDocCount);
 	}
 	catch (const std::exception& ex)
 	{
 		KErr.FormatLine(">> {}: MongoDB error during insert: {}", sCollectionName, ex.what());
 	}
 	
-	ShowBar (bar, sCollectionName, iCreateTables, iInserts, iUpdates);
+	ShowBar (bar, sCollectionName, sCreatedTables, iInserts, iUpdates);
 
 } // CopyCollection
 
 //-----------------------------------------------------------------------------
-bool Mong2SQL::CopyMongoDocument (const KJSON& document, const KJSON& oTables, KStringView sCollectionName, KSQL& db, KBAR& bar, uint64_t& iInserts, uint64_t& iUpdates)
+bool Mong2SQL::CopyMongoDocument (const KJSON& document, const KJSON& oTables, KStringView sCollectionName, KSQL& db, KBAR& bar, KString& sCreatedTables, uint64_t& iInserts, uint64_t& iUpdates)
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
@@ -1520,19 +1511,19 @@ bool Mong2SQL::CopyMongoDocument (const KJSON& document, const KJSON& oTables, K
 	FlattenDocumentToRow(document, KString{}, rowValues);
 			
 	// Insert the root document row
-	if (InsertDocumentRow(db, *pRootTable, rowValues, sPrimaryKey, iInserts, iUpdates))
+	if (!InsertDocumentRow(db, *pRootTable, rowValues, sPrimaryKey, sCreatedTables, iInserts, iUpdates))
 	{
-		++iInserts;
+		return false;
 	}
 			
 	// Process nested arrays (child tables)
-	ProcessDocumentArrays(db, document, oTables, sTablename, KString{}, sPrimaryKey, iInserts, iUpdates);
+	ProcessDocumentArrays(db, document, oTables, sTablename, KString{}, sPrimaryKey, sCreatedTables, iInserts, iUpdates);
 			
 	bar.Move ();
 
 	if (iTenPercent && !(bar.GetSoFar() % iTenPercent))
 	{
-		ShowBar (bar, sCollectionName, /*iCreateTables=*/0, iInserts, iUpdates);
+		ShowBar (bar, sCollectionName, sCreatedTables, iInserts, iUpdates);
 	}
 
 	return true;
@@ -1735,14 +1726,21 @@ KString Mong2SQL::ToSqlLiteral (const KJSON& value) const
 } // ToSqlLiteral
 
 //-----------------------------------------------------------------------------
-bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std::map<KString, KString>& rowValues, KStringView sPrimaryKey, uint64_t& iInserts, uint64_t& iUpdates) const
+bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std::map<KString, KString>& rowValues, KStringView sPrimaryKey, KString& sCreatedTables, uint64_t& iInserts, uint64_t& iUpdates) const
 //-----------------------------------------------------------------------------
 {
 	kDebug (1, "...");
 
-	KString sTableName = tableSchema[table_name].String();
-	const auto& oColumns = tableSchema[columns];
+	KString     sTableName = tableSchema[table_name].String();
+	const auto& oColumns   = tableSchema[columns];
 	
+	kDebug (1, "bFirstSynch={} && !kStrIn({},{}) ==> {}", m_Config.bFirstSynch ? "true" : "false", sTableName, sCreatedTables,  (m_Config.bFirstSynch && !kStrIn (sTableName, sCreatedTables)) ? "true" : "false");
+	if (m_Config.bFirstSynch && !kStrIn (sTableName, sCreatedTables))
+	{
+		kDebug (1, "skipping data insert b/c -first enabled and table {} exists", sTableName);
+		return true;
+	}
+
 	kDebug(3, "inserting row into table: {}", sTableName);
 	
 	// Create KROW and populate with column values
@@ -1863,7 +1861,7 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 } // InsertDocumentRow
 
 //-----------------------------------------------------------------------------
-void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJSON& allTables, KStringView sTableName, const KString& sPrefix, KStringView sParentPK, uint64_t& iInserts, uint64_t& iUpdates) const
+void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJSON& allTables, KStringView sTableName, const KString& sPrefix, KStringView sParentPK, KString& sCreatedTables, uint64_t& iInserts, uint64_t& iUpdates) const
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "processing arrays in document");
@@ -1927,10 +1925,10 @@ void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJS
 					FlattenDocumentToRow(element, KString{}, childRowValues);
 					
 					// Insert child row
-					InsertDocumentRow(db, *pChildTable, childRowValues, sChildPK, iInserts, iUpdates);
+					InsertDocumentRow(db, *pChildTable, childRowValues, sChildPK, sCreatedTables, iInserts, iUpdates);
 					
 					// Recursively process nested arrays
-					ProcessDocumentArrays(db, element, allTables, sChildTableName, KString{}, sChildPK, iInserts, iUpdates);
+					ProcessDocumentArrays(db, element, allTables, sChildTableName, KString{}, sChildPK, sCreatedTables, iInserts, iUpdates);
 				}
 				else if (element.is_array())
 				{
@@ -1945,14 +1943,14 @@ void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJS
 					childRowValues[sValueCol] = ToSqlLiteral(element);
 					
 					// Insert child row
-					InsertDocumentRow(db, *pChildTable, childRowValues, sParentPK, iInserts, iUpdates);
+					InsertDocumentRow(db, *pChildTable, childRowValues, sParentPK, sCreatedTables, iInserts, iUpdates);
 				}
 			}
 		}
 		else if (value.is_object())
 		{
 			// Nested object (not array) - process its arrays recursively
-			ProcessDocumentArrays(db, value, allTables, sTableName, sColumnName, sParentPK, iInserts, iUpdates);
+			ProcessDocumentArrays(db, value, allTables, sTableName, sColumnName, sParentPK, sCreatedTables, iInserts, iUpdates);
 		}
 	}
 	

@@ -721,6 +721,11 @@ bool Mong2SQL::GetCollectionFromFile()
 				}
 				else
 				{
+					if (oDocument.dump().contains ("site is turned off"))
+					{
+						kWriteFile ("t", oDocument.dump());
+					}
+
 					oDocuments += oDocument;
 
 					++iDocCount;
@@ -1717,22 +1722,22 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 	
 	for (const auto& col : oColumns)
 	{
-		KString sColName = col[column_name].String();
-		KString sColType = col[sql_type].String();
-		bool bNullable = col[nullable].Bool();
-		bool bHasNonNull = col[has_non_null].Bool();
-		bool bHasNonZero = col[has_non_zero].Bool();
+		KString sColName    = col[column_name].String();
+		KString sColType    = col[sql_type].String();
+		//ol    bNullable   = col[nullable].Bool();
+		bool    bHasNonNull = col[has_non_null].Bool();
+		bool    bHasNonZero = col[has_non_zero].Bool();
 		
-		// Skip columns that have only null values across the entire collection
 		if (!bHasNonNull)
 		{
+			kDebug (2, "{}: Skip columns that have only null values across the entire collection", sColName);
 			continue;
 		}
 		
-		// Skip numeric columns that have only zero values (treat like null)
 		if ((sColType.starts_with("int") || sColType.starts_with("bigint") || 
 		     sColType.starts_with("float") || sColType.starts_with("double")) && !bHasNonZero)
 		{
+			kDebug (2, "{}: Skip numeric columns that have only zero values (treat like null)", sColName);
 			continue;
 		}
 		
@@ -1743,15 +1748,22 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 		// Set type-specific flags based on SQL type
 		if (sColType.starts_with("int") || sColType.starts_with("bigint"))
 		{
+			kDebug (1, "{}={}: {}", sColName, it->second, "INTEGER");
 			flags |= KCOL::NUMERIC;
 		}
 		else if (sColType.starts_with("tinyint(1)"))
 		{
+			kDebug (1, "{}={}: {}", sColName, it->second, "BOOLEAN");
 			flags |= KCOL::BOOLEAN;
 		}
 		else if (sColType.starts_with("float") || sColType.starts_with("double"))
 		{
+			kDebug (1, "{}={}: {}", sColName, it->second, "FLOAT");
 			flags |= KCOL::NUMERIC;
+		}
+		else
+		{
+			kDebug (1, "{}={}: {}", sColName, it->second, "DEFAULT:STRING");
 		}
 		
 		// Check if this is the primary key column
@@ -1759,20 +1771,27 @@ bool Mong2SQL::InsertDocumentRow (KSQL& db, const KJSON& tableSchema, const std:
 		KString sTablePK = tableSchema[primary_key].String();
 		if (!sTablePK.empty() && sColName == sTablePK)
 		{
+			kDebug (1, "{}={}: {}", sColName, it->second, "PKEY");
 			flags |= KCOL::PKEY;
 		}
 		
 		if (it != rowValues.end())
 		{
+			if (kStrIn (it->second,"null,NULL,NaN"))
+			{
+				kDebug (2, "{}={}: do not add null column to insert statement", sColName, it->second);
+				continue;
+			}
+
 			// Add column with value
 			std::size_t iMaxLen = col[max_length].UInt64();
-			row.AddCol(sColName, it->second, flags, iMaxLen);
+			row.AddCol (sColName, it->second, flags, iMaxLen);
 		}
-		else if (bNullable)
-		{
-			// Add NULL value for missing nullable columns
-			row.AddCol(sColName, KString{}, flags, 0);
-		}
+		//else if (bNullable)
+		//{
+		//	// Add NULL value for missing nullable columns
+		//	row.AddCol(sColName, KString{}, flags, 0);
+		//}
 	}
 	
 	// Generate INSERT statement
@@ -2695,7 +2714,7 @@ void Mong2SQL::AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlTyp
 		tableData[column_order] += sColKey;
 		
 		KJSON& columnInfo = oColumns[sColKey];
-		columnInfo[sql_type] = static_cast<int>(type);
+		columnInfo[sql_type_enum] = static_cast<int>(type);  // Store enum value
 		columnInfo[nullable] = isNullable;
 		columnInfo[max_length] = iLength;
 		columnInfo[has_non_null] = !bIsNull;  // Track if we've seen non-null data
@@ -2706,15 +2725,15 @@ void Mong2SQL::AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlTyp
 		tempInfo.Type = type;
 		tempInfo.iMaxLength = iLength;
 		tempInfo.bNullable = isNullable;
-		columnInfo[sql_type] = SqlTypeToString(tempInfo);
+		columnInfo[sql_type] = SqlTypeToString(tempInfo);  // Store string value
 	}
 	else
 	{
 		// Existing column - merge types
 		KJSON& columnInfo = oColumns[sColKey];
-		SqlType existingType = static_cast<SqlType>(columnInfo[sql_type].Int64());
+		SqlType existingType = static_cast<SqlType>(columnInfo[sql_type_enum].Int64());  // Read enum value
 		SqlType mergedType = MergeSqlTypes(existingType, type);
-		columnInfo[sql_type] = static_cast<int>(mergedType);
+		columnInfo[sql_type_enum] = static_cast<int>(mergedType);  // Store enum value
 		
 		if (!isNullable)
 		{

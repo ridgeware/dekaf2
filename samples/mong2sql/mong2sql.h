@@ -176,6 +176,7 @@ private:
 	static constexpr KStringViewZ primary_key { "primary_key" };
 	static constexpr KStringViewZ size_bytes { "size_bytes" };
 	static constexpr KStringViewZ sql_type { "sql_type" };
+	static constexpr KStringViewZ sql_type_enum { "sql_type_enum" };
 	static constexpr KStringViewZ table_name { "table_name" };
 	static constexpr KStringViewZ tables { "tables" };
 

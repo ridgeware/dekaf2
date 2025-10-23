@@ -181,7 +181,7 @@ int Mong2SQL::Main(int argc, char* argv[])
 		});
 
 	Options.Option("dump")
-		.Help("dump the m_Collections KJSON structure and exit (for debugging)")
+		.Help("dump the raw mongo collection and exit (for debugging)")
 		([&]()
 		{
 			m_Config.sMode = "DUMP";
@@ -234,7 +234,7 @@ int Mong2SQL::Main(int argc, char* argv[])
 	}
 
 	// Validate continue mode requirements
-	if (m_Config.sMode.Hash() == "CONTINUE"_hash)
+	if (IsMode ("CONTINUE"))
 	{
 		if (m_Config.sMongoConnectionString.empty())
 		{
@@ -255,7 +255,7 @@ int Mong2SQL::Main(int argc, char* argv[])
 			m_Config.sContinueField, m_Config.sMongoConnectionString, m_Config.sDBC);
 	}
 
-	if (!m_Config.sDBC && (m_Config.sMode.ToUpper().Hash() == "COMPARE"_hash))
+	if (IsMode ("COMPARE"))
 	{
 		SetError ("compare requires that -dbc is specified on the cli");
 		return 1;
@@ -291,11 +291,11 @@ int Mong2SQL::Main(int argc, char* argv[])
 	// now perform the action:
 	switch (m_Config.sMode.ToUpper().Hash())
 	{
-	case "DUMP"_hash:
-		KOut.WriteLine (m_Collections.dump(1,'\t'));
-		break;
 	case "LIST"_hash:
 		return ListCollections();
+		break;
+	case "DUMP"_hash:
+		return DumpCollections();
 		break;
 	case "COMPARE"_hash:
 		return CompareCollectionsToMySQL();
@@ -721,11 +721,6 @@ bool Mong2SQL::GetCollectionFromFile()
 				}
 				else
 				{
-					if (oDocument.dump().contains ("site is turned off"))
-					{
-						kWriteFile ("t", oDocument.dump());
-					}
-
 					oDocuments += oDocument;
 
 					++iDocCount;
@@ -1011,11 +1006,24 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 		// Set primary key for root table
 		KString sPrimaryKey = GenerateTablePKEY(sTableName);
 		rootTable[primary_key] = sPrimaryKey;
-			
-			// Collect schema from all documents
+		
+		// FIRST PASS: Collect key cardinality statistics for nested objects
+		// This detects fields with dynamic hash keys that should be pivoted
+		std::map<KString, std::set<KString>> keyCardinality;  // field_path -> set of unique keys
+		std::map<KString, std::size_t> documentCounts;       // field_path -> count of documents with this field
+		
 		for (const auto& document : oDocuments)
 		{
-			CollectSchemaForDocumentLocal(document, sTableName, KString{}, localTables, localTableOrder);
+			TrackKeyCardinality(document, KString{}, keyCardinality, documentCounts);
+		}
+		
+		// Analyze statistics to determine which fields should be pivoted
+		std::set<KString> pivotFields = AnalyzeKeyCardinality(keyCardinality, documentCounts, sCollectionName);
+		
+		// SECOND PASS: Collect schema from all documents
+		for (const auto& document : oDocuments)
+		{
+			CollectSchemaForDocumentLocal(document, sTableName, KString{}, localTables, localTableOrder, pivotFields);
 		}
 			
 		// Set document count for root table
@@ -1098,6 +1106,26 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 	return oBuilt;
 
 } // DigestCollection
+
+//-----------------------------------------------------------------------------
+int Mong2SQL::DumpCollections () const
+//-----------------------------------------------------------------------------
+{
+	kDebug (1, "...");
+
+	for (const auto& ro : m_Collections)
+	{
+		auto oCollection = DigestCollection (ro);
+
+		for (auto& oDocument : oCollection[documents])
+		{
+			KOut.WriteLine (oDocument.dump());
+		}
+	}
+
+	return 0;
+
+} // DumpCollections
 
 //-----------------------------------------------------------------------------
 int Mong2SQL::CompareCollectionsToMySQL ()
@@ -1269,7 +1297,7 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 	// Ensure collection is digested (has table metadata)
 	if (!oCollection.contains("tables") || oCollection[tables].empty())
 	{
-		KErr.FormatLine (">> BUG: no tables defined for this collection: {}\n{}", sCollectionName, oCollection.dump(1,'\t'));
+		KOut.FormatLine (":: ignoring empty collection: {}", sCollectionName);
 		return;
 	}
 	
@@ -1323,13 +1351,13 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 				{
 					if (!db.ExecSQL("{}", sDropSQL))
 					{
-						KErr.FormatLine(">> {}: failed to drop table {}: {}", sCollectionName, sTableName, db.GetLastError());
+						KErr.FormatLine(">> {}: failed to drop table {}: {}\n{}", sCollectionName, sTableName, db.GetLastError(), db.GetLastSQL());
 					}
 				}
 				
 				if (!db.ExecSQL("{}", sCreateSQL))
 				{
-					KErr.FormatLine(">> {}: failed to create table {}: {}", sCollectionName, sTableName, db.GetLastError());
+					KErr.FormatLine(">> {}: failed to create table {}: {}\n{}", sCollectionName, sTableName, db.GetLastError(), db.GetLastSQL());
 					return;
 				}
 				kDebug(1, "{}: created table {}", sCollectionName, sTableName);
@@ -1931,185 +1959,6 @@ void Mong2SQL::ProcessDocumentArrays (KSQL& db, const KJSON& document, const KJS
 } // ProcessDocumentArrays
 
 //-----------------------------------------------------------------------------
-Mong2SQL::TableSchema& Mong2SQL::EnsureTableSchema (KStringView sTableName, KStringView sParentTable, KStringView sParentKeyColumn)
-//-----------------------------------------------------------------------------
-{
-	kDebug(2, "ensuring schema for table: {}", sTableName);
-	KString sKey = sTableName;
-	auto it = m_TableSchemas.find(sKey);
-
-	if (it == m_TableSchemas.end())
-	{
-		TableSchema schema;
-		schema.sTableName = sKey;
-		schema.sPrimaryKey = KString{};
-		schema.sParentTable = sParentTable;
-		schema.sParentKeyColumn = sParentKeyColumn;
-
-		auto result = m_TableSchemas.emplace(schema.sTableName, std::move(schema));
-		it = result.first;
-		m_TableOrder.push_back(it->first);
-		m_RowCounters[it->first] = 0;
-		kDebug(2, "created new table schema: {}", sKey);
-
-		if (!sParentTable.empty())
-		{
-			std::size_t iParentLength = 16;
-			auto parentIt = m_TableSchemas.find(KString(sParentTable));
-			if (parentIt != m_TableSchemas.end())
-			{
-				auto parentColIt = parentIt->second.Columns.find(KString(sParentKeyColumn));
-				if (parentColIt != parentIt->second.Columns.end())
-				{
-					iParentLength = parentColIt->second.iMaxLength;
-				}
-			}
-			AddColumn(it->second, KString(sParentKeyColumn), SqlType::Text, iParentLength, false);
-		}
-	}
-
-	return it->second;
-
-} // EnsureTableSchema
-
-//-----------------------------------------------------------------------------
-void Mong2SQL::CollectSchemaForDocument (const KJSON& document, TableSchema& table, const KString& sPrefix)
-//-----------------------------------------------------------------------------
-{
-	kDebug(3, "collecting schema for document, prefix: '{}'", sPrefix);
-	if (!document.is_object())
-	{
-		return;
-	}
-	
-	if (sPrefix.empty())
-	{
-		m_RowCounters[table.sTableName]++;
-	}
-
-	for (auto it = document.begin(); it != document.end(); ++it)
-	{
-		if (it.key() == "_id" && it->is_object() && it->contains("$oid"))
-		{
-			table.bHasObjectId = true;
-			if (table.sPrimaryKey.empty())
-			{
-				table.sPrimaryKey = GenerateTablePKEY(table.sTableName);
-			}
-			std::size_t iLength = std::max<std::size_t>(24, 16);
-			AddColumn(table, table.sPrimaryKey, SqlType::Text, iLength, false);
-			continue;
-		}
-		
-		KString sKey = ConvertFieldNameToColumnName(it.key());
-		KString sRawColumnName = BuildColumnName(sPrefix, sKey);
-		KString sSanitizedColumnName = SanitizeColumnName(sRawColumnName);
-		const auto& value = *it;
-
-		if (value.is_object())
-		{
-			CollectSchemaForDocument(value, table, sSanitizedColumnName);
-		}
-		else if (value.is_array())
-		{
-			CollectArraySchema(value, table, sSanitizedColumnName);
-		}
-		else
-		{
-			std::size_t iLength = 0;
-			if (value.is_string())
-			{
-				iLength = value.String().size();
-			}
-			AddColumn(table, sSanitizedColumnName, InferSqlType(value), iLength);
-		}
-	}
-
-} // CollectSchemaForDocument
-
-//-----------------------------------------------------------------------------
-void Mong2SQL::CollectArraySchema (const KJSON& array, TableSchema& parentTable, const KString& sKey)
-//-----------------------------------------------------------------------------
-{
-	kDebug(3, "collecting array schema for key '{}' with {} elements", sKey, array.size());
-	if (!array.is_array() || array.empty())
-	{
-		return;
-	}
-
-	KString sChildTableName = SanitizeColumnName(BuildChildTableName(parentTable.sTableName, sKey));
-	auto& childTable = EnsureTableSchema(sChildTableName, parentTable.sTableName, parentTable.sPrimaryKey);
-	
-	if (childTable.sPrimaryKey.empty())
-	{
-		childTable.sPrimaryKey = GenerateTablePKEY(childTable.sTableName);
-	}
-
-	for (const auto& element : array)
-	{
-		m_RowCounters[childTable.sTableName]++;
-		
-		if (element.is_object())
-		{
-			CollectSchemaForDocument(element, childTable, KString{});
-		}
-		else if (element.is_array())
-		{
-			KString sNestedKey = SanitizeColumnName(ExtractLeafColumnName(sKey));
-			CollectArraySchema(element, childTable, sNestedKey);
-		}
-		else
-		{
-			KString sValueColumn = SanitizeColumnName(ExtractLeafColumnName(sKey));
-			std::size_t iLength = 0;
-			if (element.is_string())
-			{
-				iLength = element.String().size();
-			}
-			AddColumn(childTable, sValueColumn, InferSqlType(element), iLength);
-		}
-	}
-
-} // CollectArraySchema
-
-//-----------------------------------------------------------------------------
-void Mong2SQL::AddColumn (TableSchema& table, const KString& sColumnName, SqlType type, std::size_t iLength, bool isNullable)
-//-----------------------------------------------------------------------------
-{
-	kDebug(3, "adding column '{}' to table '{}'", sColumnName, table.sTableName);
-	auto result = table.Columns.emplace(sColumnName, ColumnInfo{});
-	auto& info = result.first->second;
-
-	if (result.second)
-	{
-		table.ColumnOrder.push_back(sColumnName);
-		info.Type = type;
-		info.bNullable = isNullable;
-	}
-	else
-	{
-		info.Type = MergeSqlTypes(info.Type, type);
-		if (!isNullable)
-		{
-			info.bNullable = false;
-		}
-	}
-
-	if (info.Type == SqlType::Text)
-	{
-		if (iLength > info.iMaxLength)
-		{
-			info.iMaxLength = iLength;
-		}
-	}
-	else
-	{
-		info.iMaxLength = 0;
-	}
-
-} // AddColumn
-
-//-----------------------------------------------------------------------------
 Mong2SQL::SqlType Mong2SQL::InferSqlType (const KJSON& value) const
 //-----------------------------------------------------------------------------
 {
@@ -2165,87 +2014,6 @@ KString Mong2SQL::SqlTypeToString (const ColumnInfo& info) const
 	}
 
 } // SqlTypeToString
-
-//-----------------------------------------------------------------------------
-void Mong2SQL::GenerateCreateTableSQL (const TableSchema& table)
-//-----------------------------------------------------------------------------
-{
-	kDebug(1, "{}: generating DDL with {} columns", table.sTableName, table.ColumnOrder.size());
-	if (table.ColumnOrder.empty())
-	{
-		return;
-	}
-
-	std::vector<KString> columns;
-	for (const auto& column : table.ColumnOrder)
-	{
-		if (!table.bHasObjectId && column == table.sPrimaryKey)
-		{
-			continue;
-		}
-		columns.push_back(column);
-	}
-
-	if (columns.empty())
-	{
-		return;
-	}
-
-	std::stable_sort(columns.begin(), columns.end(), [&](const KString& a, const KString& b)
-	{
-		bool aIsPK = (table.bHasObjectId && a == table.sPrimaryKey);
-		bool bIsPK = (table.bHasObjectId && b == table.sPrimaryKey);
-		if (aIsPK != bIsPK) return aIsPK;
-		return a < b;
-	});
-
-	KString sDropSQL = kFormat("drop table if exists {};", table.sTableName);
-	KString sCreateSQL = kFormat("create table {} (\n", table.sTableName);
-	
-	for (std::size_t i = 0; i < columns.size(); ++i)
-	{
-		const auto& sColumn = columns[i];
-		const auto& info = table.Columns.at(sColumn);
-		bool bIsPK = (table.bHasObjectId && sColumn == table.sPrimaryKey);
-		
-		sCreateSQL += "    ";
-		sCreateSQL += sColumn;
-		sCreateSQL += "  ";
-		sCreateSQL += SqlTypeToString(info);
-		sCreateSQL += "  ";
-		sCreateSQL += (info.bNullable && !bIsPK) ? "null" : "not null";
-		if (bIsPK)
-		{
-			sCreateSQL += " primary key";
-		}
-		if (i + 1 < columns.size())
-		{
-			sCreateSQL += ",";
-		}
-		sCreateSQL += "\n";
-	}
-	
-	sCreateSQL += ") engine=InnoDB default charset=utf8mb4;";
-
-	if (m_Config.bOutputToStdout)
-	{
-		KOut.WriteLine(sDropSQL);
-		KOut.WriteLine(sCreateSQL);
-		KOut.WriteLine();
-	}
-	else if (m_Config.bHasDBC)
-	{
-		if (!m_SQL.ExecSQL("{}", sDropSQL))
-		{
-			KErr.FormatLine(">> failed to drop table: {}", m_SQL.GetLastError());
-		}
-		if (!m_SQL.ExecSQL("{}", sCreateSQL))
-		{
-			KErr.FormatLine(">> failed to create table: {}", m_SQL.GetLastError());
-		}
-	}
-
-} // GenerateCreateTableSQL
 
 //-----------------------------------------------------------------------------
 KString Mong2SQL::ConvertCollectionNameToTableName (KStringView sCollectionName) const
@@ -2545,6 +2313,89 @@ bool Mong2SQL::TableExistsInMySQL (KStringView sTableName)
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+void Mong2SQL::TrackKeyCardinality (const KJSON& document, const KString& sPrefix, std::map<KString, std::set<KString>>& keyCardinality, std::map<KString, std::size_t>& documentCounts) const
+//-----------------------------------------------------------------------------
+{
+	if (!document.is_object())
+	{
+		return;
+	}
+	
+	for (auto it = document.begin(); it != document.end(); ++it)
+	{
+		KString sKey = ConvertFieldNameToColumnName(it.key());
+		const auto& value = *it;
+		
+		if (value.is_object() && !value.contains("$oid") && !value.contains("$date"))
+		{
+			// Count the number of keys IN this object
+			// Track using simple field name (not full path) for matching during schema collection
+			for (auto objIt = value.begin(); objIt != value.end(); ++objIt)
+			{
+				keyCardinality[sKey].insert(KString{objIt.key()});
+			}
+			documentCounts[sKey]++;
+			
+			// DON'T recurse - we only care about direct children, not nested objects
+		}
+		else if (value.is_array())
+		{
+			// Track keys in array elements
+			for (const auto& element : value)
+			{
+				if (element.is_object())
+				{
+					// Track keys in array element objects
+					TrackKeyCardinality(element, "", keyCardinality, documentCounts);
+				}
+			}
+		}
+	}
+	
+} // TrackKeyCardinality
+
+//-----------------------------------------------------------------------------
+std::set<KString> Mong2SQL::AnalyzeKeyCardinality (const std::map<KString, std::set<KString>>& keyCardinality, const std::map<KString, std::size_t>& documentCounts, KStringView sCollectionName) const
+//-----------------------------------------------------------------------------
+{
+	std::set<KString> pivotFields;
+	constexpr double CARDINALITY_THRESHOLD = 5.0;  // If avg keys per document > 5, pivot
+	
+	kDebug (1, "analyzing {} fields for pivot detection in collection '{}'", keyCardinality.size(), sCollectionName);
+	
+	for (const auto& [fieldPath, uniqueKeys] : keyCardinality)
+	{
+		auto docCountIt = documentCounts.find(fieldPath);
+		if (docCountIt == documentCounts.end() || docCountIt->second == 0)
+		{
+			continue;
+		}
+		
+		double ratio = static_cast<double>(uniqueKeys.size()) / static_cast<double>(docCountIt->second);
+		
+		if (ratio > CARDINALITY_THRESHOLD)
+		{
+			Verbose (1, "{}: pivot detected: field '{}' - {} unique keys / {} documents = {:.2f}: we will make this a subtable ...",
+				sCollectionName, fieldPath, uniqueKeys.size(), docCountIt->second, ratio);
+			pivotFields.insert(fieldPath);
+		}
+		else if (uniqueKeys.size() > 20)
+		{
+			kDebug(2, "{}: field '{}' has {} unique keys across {} documents (ratio: {:.2f}) - below threshold",
+				sCollectionName, fieldPath, uniqueKeys.size(), docCountIt->second, ratio);
+		}
+	}
+	
+	if (pivotFields.empty())
+	{
+		kDebug (1, "no high-cardinality fields detected for pivoting");
+	}
+	
+	return pivotFields;
+	
+} // AnalyzeKeyCardinality
+
+//-----------------------------------------------------------------------------
 KJSON& Mong2SQL::EnsureTableSchemaLocal (KStringView sTableName, KJSON& localTables, KJSON& localTableOrder, KStringView sCollectionPath, KStringView sParentTable, KStringView sParentKeyColumn) const
 //-----------------------------------------------------------------------------
 {
@@ -2579,7 +2430,7 @@ KJSON& Mong2SQL::EnsureTableSchemaLocal (KStringView sTableName, KJSON& localTab
 } // EnsureTableSchemaLocal
 
 //-----------------------------------------------------------------------------
-void Mong2SQL::CollectSchemaForDocumentLocal (const KJSON& document, KStringView sTableName, const KString& sPrefix, KJSON& localTables, KJSON& localTableOrder) const
+void Mong2SQL::CollectSchemaForDocumentLocal (const KJSON& document, KStringView sTableName, const KString& sPrefix, KJSON& localTables, KJSON& localTableOrder, const std::set<KString>& pivotFields) const
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "collecting local schema for document, table: '{}', prefix: '{}'", sTableName, sPrefix);
@@ -2612,13 +2463,64 @@ void Mong2SQL::CollectSchemaForDocumentLocal (const KJSON& document, KStringView
 		KString sSanitizedColumnName = SanitizeColumnName(sRawColumnName);
 		const auto& value = *it;
 
-		if (value.is_object())
+		if (value.is_object() && !value.contains("$oid") && !value.contains("$date"))
 		{
-			CollectSchemaForDocumentLocal(value, sTableName, sSanitizedColumnName, localTables, localTableOrder);
+			// Build field path for pivot detection
+			KString sFieldPath = sPrefix.empty() ? sKey : kFormat("{}.{}", sPrefix, sKey);
+			
+			// Check if this field should be pivoted
+			if (pivotFields.count(sFieldPath) > 0)
+			{
+				// PIVOT: Create child table with dynamic keys
+				kDebug(2, "pivoting field '{}' into child table", sFieldPath);
+				
+				KString sParentPath = tableData[collection_path].String();
+				KString sChildPath = kFormat("{}/{}", sParentPath, sKey);
+				KString sParentPK = tableData[primary_key].String();
+				KString sChildTableName = SanitizeColumnName(BuildChildTableName(sTableName, sKey));
+				
+				KJSON& childTable = EnsureTableSchemaLocal(sChildTableName, localTables, localTableOrder, sChildPath, sTableName, sParentPK);
+				
+				// Add parent FK column
+				if (!sParentPK.empty())
+				{
+					KJSON nonNullValue = "";
+					AddColumnLocal(childTable, sParentPK, SqlType::Text, 24, false, nonNullValue);
+				}
+				
+				// Add the dynamic key column
+				KString sKeyColumnName = kFormat("{}_key", sKey);
+				KJSON keyValue = "";
+				AddColumnLocal(childTable, sKeyColumnName, SqlType::Text, 50, false, keyValue);
+				
+				// Process each hash key's value
+				for (auto hashIt = value.begin(); hashIt != value.end(); ++hashIt)
+				{
+					childTable[num_documents] = childTable[num_documents].Int64() + 1;
+					
+					const auto& hashValue = *hashIt;
+					if (hashValue.is_object())
+					{
+						// Flatten the hash value's properties as columns
+						CollectSchemaForDocumentLocal(hashValue, sChildTableName, KString{}, localTables, localTableOrder, pivotFields);
+					}
+					else
+					{
+						// Single value - create a generic "value" column
+						std::size_t iLength = hashValue.is_string() ? hashValue.String().size() : 0;
+						AddColumnLocal(childTable, "value", InferSqlType(hashValue), iLength, true, hashValue);
+					}
+				}
+			}
+			else
+			{
+				// Normal nested object - flatten
+				CollectSchemaForDocumentLocal(value, sTableName, sSanitizedColumnName, localTables, localTableOrder, pivotFields);
+			}
 		}
 		else if (value.is_array())
 		{
-			CollectArraySchemaLocal(value, sTableName, sSanitizedColumnName, localTables, localTableOrder);
+			CollectArraySchemaLocal(value, sTableName, sSanitizedColumnName, localTables, localTableOrder, pivotFields);
 		}
 		else
 		{
@@ -2634,7 +2536,7 @@ void Mong2SQL::CollectSchemaForDocumentLocal (const KJSON& document, KStringView
 } // CollectSchemaForDocumentLocal
 
 //-----------------------------------------------------------------------------
-void Mong2SQL::CollectArraySchemaLocal (const KJSON& array, KStringView sParentTableName, const KString& sKey, KJSON& localTables, KJSON& localTableOrder) const
+void Mong2SQL::CollectArraySchemaLocal (const KJSON& array, KStringView sParentTableName, const KString& sKey, KJSON& localTables, KJSON& localTableOrder, const std::set<KString>& pivotFields) const
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, "collecting local array schema for key '{}' with {} elements", sKey, array.size());
@@ -2662,12 +2564,12 @@ void Mong2SQL::CollectArraySchemaLocal (const KJSON& array, KStringView sParentT
 		
 		if (element.is_object())
 		{
-			CollectSchemaForDocumentLocal(element, sChildTableName, KString{}, localTables, localTableOrder);
+			CollectSchemaForDocumentLocal(element, sChildTableName, KString{}, localTables, localTableOrder, pivotFields);
 		}
 		else if (element.is_array())
 		{
 			KString sNestedKey = SanitizeColumnName(ExtractLeafColumnName(sKey));
-			CollectArraySchemaLocal(element, sChildTableName, sNestedKey, localTables, localTableOrder);
+			CollectArraySchemaLocal(element, sChildTableName, sNestedKey, localTables, localTableOrder, pivotFields);
 		}
 		else
 		{

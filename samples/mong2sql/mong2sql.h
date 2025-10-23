@@ -118,16 +118,10 @@ private:
 		std::size_t  iMaxLength { 0 };
 	};
 
-	struct TableSchema
+	bool        IsMode(KStringView sMode)
 	{
-		KString sTableName;
-		KString sPrimaryKey;
-		std::map<KString, ColumnInfo> Columns;
-		std::vector<KString>          ColumnOrder;
-		KString                       sParentTable;
-		KString                       sParentKeyColumn;
-		bool                          bHasObjectId { false };
-	};
+		return (m_Config.sMode.ToUpper() == sMode.ToUpper());
+	}
 
 	void        InitializeMongoDB ();
 	bool        ConnectToMongoDB ();
@@ -140,6 +134,7 @@ private:
 	KJSON       LoadMetaDataFromCache (KStringView sCollectionName) const;
 	KString     DeduceCacheFile (KStringView sCollectionName) const;
 	KJSON       DigestCollection (const KJSON& oCollection) const;
+	int         DumpCollections () const;
 	int         CompareCollectionsToMySQL();
 	int         CopyCollections();
 	void        CopyCollection (const KJSON& oCollection);
@@ -219,19 +214,16 @@ private:
 
 	bool LoadDBC ();
 	
-	// Helper methods for schema collection and DDL generation (legacy - use member variables)
-	TableSchema& EnsureTableSchema (KStringView sTableName, KStringView sParentTable = KStringView{}, KStringView sParentKeyColumn = KStringView{});
-	void        CollectSchemaForDocument (const KJSON& document, TableSchema& table, const KString& sPrefix);
-	void        CollectArraySchema (const KJSON& array, TableSchema& parentTable, const KString& sKey);
-	void        AddColumn (TableSchema& table, const KString& sColumnName, SqlType type, std::size_t iLength, bool isNullable = true);
+	// Helper methods for schema collection and DDL generation
 	SqlType     InferSqlType (const KJSON& value) const;
 	SqlType     MergeSqlTypes (SqlType existing, SqlType candidate) const;
 	KString     SqlTypeToString (const ColumnInfo& info) const;
-	void        GenerateCreateTableSQL (const TableSchema& table);
 	
 	// Thread-safe helper methods (use local KJSON structures)
-	void        CollectSchemaForDocumentLocal (const KJSON& document, KStringView sTableName, const KString& sPrefix, KJSON& localTables, KJSON& localTableOrder) const;
-	void        CollectArraySchemaLocal (const KJSON& array, KStringView sParentTableName, const KString& sKey, KJSON& localTables, KJSON& localTableOrder) const;
+	void        TrackKeyCardinality (const KJSON& document, const KString& sPrefix, std::map<KString, std::set<KString>>& keyCardinality, std::map<KString, std::size_t>& documentCounts) const;
+	std::set<KString> AnalyzeKeyCardinality (const std::map<KString, std::set<KString>>& keyCardinality, const std::map<KString, std::size_t>& documentCounts, KStringView sCollectionName) const;
+	void        CollectSchemaForDocumentLocal (const KJSON& document, KStringView sTableName, const KString& sPrefix, KJSON& localTables, KJSON& localTableOrder, const std::set<KString>& pivotFields = std::set<KString>{}) const;
+	void        CollectArraySchemaLocal (const KJSON& array, KStringView sParentTableName, const KString& sKey, KJSON& localTables, KJSON& localTableOrder, const std::set<KString>& pivotFields = std::set<KString>{}) const;
 	void        AddColumnLocal (KJSON& tableData, KStringView sColumnName, SqlType type, std::size_t iLength, bool isNullable, const KJSON& value) const;
 	KJSON&      EnsureTableSchemaLocal (KStringView sTableName, KJSON& localTables, KJSON& localTableOrder, KStringView sCollectionPath, KStringView sParentTable = KStringView{}, KStringView sParentKeyColumn = KStringView{}) const;
 	
@@ -253,17 +245,9 @@ private:
 	KSQL    m_SQL;
 	std::unique_ptr<mongocxx::client>  m_MongoClient;
 	
-	// New unified KJSON structure (gradually migrating to this)
 	KJSON   m_Collections;  // Array of collection objects with metadata, tables, columns, etc.
 	
 	std::mutex m_Mutex;
-
-	// Legacy structures (will be removed after migration complete)
-	using SchemaMap = std::map<KString, TableSchema>;
-	SchemaMap                          m_TableSchemas;
-	std::vector<KString>               m_TableOrder;
-	std::map<KString, std::size_t>     m_RowCounters;
-	std::map<KString, std::int64_t>    m_CollectionSizes;
 
 }; // Mong2SQL
 

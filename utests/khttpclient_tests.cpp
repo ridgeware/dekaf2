@@ -76,20 +76,41 @@ TEST_CASE("KHTTPClient") {
 			CHECK( cx->istream().good() == true );
 		}
 		KHTTPClient cHTTP(std::move(cx));
+		cHTTP.BasicAuthentication("testuser", "testpass");
 		cHTTP.Resource(URL);
 		CHECK( cHTTP.SendRequest() == true );
 		KString shtml;
 		cHTTP.Read(shtml);
 		CHECK( shtml == "0123456789");
-		CHECK( server.m_rx.size() == 5 );
-		if (server.m_rx.size() == 5)
+		CHECK( server.m_rx.size() == 6 );
+		if (server.m_rx.size() == 6)
 		{
 			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
 			CHECK( server.m_rx[1] == "host: 127.0.0.1:7654");
-			CHECK( server.m_rx[2] == kFormat("accept-encoding: {}", KHTTPCompression::GetCompressors()) );
-			CHECK( server.m_rx[3] == "user-agent: dekaf/" DEKAF_VERSION );
-			CHECK( server.m_rx[4] == "");
+			CHECK( server.m_rx[2] == "authorization: Basic dGVzdHVzZXI6dGVzdHBhc3M=" );
+			CHECK( server.m_rx[3] == kFormat("accept-encoding: {}", KHTTPCompression::GetCompressors()) );
+			CHECK( server.m_rx[4] == "user-agent: dekaf/" DEKAF_VERSION );
+			CHECK( server.m_rx[5] == "");
 		}
+
+		// second round
+		server.clear();
+		cHTTP.TokenAuthentication("PIUHuuhisdfuUYI78329YRDtfuyighUGYyt");
+		CHECK( cHTTP.SendRequest() == true );
+		shtml.clear();
+		cHTTP.Read(shtml);
+		CHECK( shtml == "0123456789");
+		CHECK( server.m_rx.size() == 6 );
+		if (server.m_rx.size() == 6)
+		{
+			CHECK( server.m_rx[0] == "GET /path?query=val&another=here HTTP/1.1" );
+			CHECK( server.m_rx[1] == "host: 127.0.0.1:7654");
+			CHECK( server.m_rx[2] == "authorization: Bearer PIUHuuhisdfuUYI78329YRDtfuyighUGYyt" );
+			CHECK( server.m_rx[3] == kFormat("accept-encoding: {}", KHTTPCompression::GetCompressors()) );
+			CHECK( server.m_rx[4] == "user-agent: dekaf/" DEKAF_VERSION );
+			CHECK( server.m_rx[5] == "");
+		}
+
 		server.Stop();
 	}
 

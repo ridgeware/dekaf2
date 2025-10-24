@@ -150,9 +150,16 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 					}
 				}
 
+				bool bClearAuth { false };
+
 				if (!ConnectURL.User.empty() || !ConnectURL.Password.empty())
 				{
 					BasicAuthentication(ConnectURL.User.get(), ConnectURL.Password.get());
+					// the user doesn't know that we set the auth header (from the URL),
+					// therefore we are responsible to remove it after sending the request
+					// - otherwise it would stay for followup requests even if there was
+					// no user:pass scheme in following URLs
+					bClearAuth = true;
 				}
 
 				TransmitTime.resume();
@@ -211,6 +218,12 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 							kDebug(3, "connection retry disabled");
 						}
 					}
+				}
+
+				if (bClearAuth)
+				{
+					// clear authenticator if we had set it up automatically
+					ClearAuthentication();
 				}
 			}
 		}

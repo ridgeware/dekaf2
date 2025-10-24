@@ -202,6 +202,21 @@ bool KHTTPClient::DigestAuthenticator::NeedsContentData() const
 
 } // DigestAuthenticator::NeedsContentData
 
+//-----------------------------------------------------------------------------
+KHTTPClient::TokenAuthenticator::TokenAuthenticator(KString _sToken, KString _sTokenType)
+//-----------------------------------------------------------------------------
+: sResponse(kFormat("{} {}", _sTokenType, _sToken))
+{
+} // TokenAuthenticator::ctor
+
+//-----------------------------------------------------------------------------
+const KString& KHTTPClient::TokenAuthenticator::GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody)
+//-----------------------------------------------------------------------------
+{
+	return sResponse;
+
+} // TokenAuthenticator::GetAuthHeader
+
 #if DEKAF2_HAS_NGHTTP2
 //-----------------------------------------------------------------------------
 KHTTPClient::HTTP2Session::HTTP2Session(KTLSStream& TLSStream)
@@ -834,6 +849,16 @@ KHTTPClient& KHTTPClient::DigestAuthentication(KString sUsername,
 	return *this;
 
 } // DigestAuthentication
+
+//-----------------------------------------------------------------------------
+KHTTPClient& KHTTPClient::TokenAuthentication(KString sToken, KString sTokenType)
+//-----------------------------------------------------------------------------
+{
+	m_Authenticator = std::make_unique<TokenAuthenticator>(std::move(sToken),
+														   std::move(sTokenType));
+	return *this;
+
+} // TokenAuthentication
 
 //-----------------------------------------------------------------------------
 KHTTPClient& KHTTPClient::ClearAuthentication()

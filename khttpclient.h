@@ -176,6 +176,32 @@ public:
 
 	}; // DigestAuthenticator
 
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// Token authentication method
+	class TokenAuthenticator : public Authenticator
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//------
+	public:
+	//------
+
+		/// default ctor
+		TokenAuthenticator() = default;
+		/// construct token authenticator from token and tokent type
+		/// @param _sToken the token for token auth
+		/// @param _sTokenType the token type for token auth, defaults to "Bearer"
+		TokenAuthenticator(KString _sToken, KString _sTokenType = "Bearer");
+		virtual const KString& GetAuthHeader(const KOutHTTPRequest& Request, KStringView sBody) override;
+
+	//------
+	protected:
+	//------
+
+		KString sResponse;
+
+	}; // TokenAuthenticator
+
 	//-----------------------------------------------------------------------------
 	/// default ctor
 	KHTTPClient(KHTTPStreamOptions Options = KHTTPStreamOptions{});
@@ -501,7 +527,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Removes previously set authentication header
+	/// Forces token authentication header, per default with a Bearer token
+	self& TokenAuthentication(KString sToken, KString sTokenType = "Bearer");
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Removes previously set authentication header and authenticator
 	self& ClearAuthentication();
 	//-----------------------------------------------------------------------------
 

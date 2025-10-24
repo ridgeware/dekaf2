@@ -110,6 +110,25 @@ TEST_CASE("KWebClient") {
 			CHECK( server.m_rx[8] == "some body");
 		}
 		CHECK( sRet == "0123456789" );
+
+		server.clear();
+
+		// second round w/o basic auth in the url
+		sRet = HTTP.Post("http://127.0.0.1:7653/path", "some body\r\n", KMIME::HTML_UTF8);
+
+		CHECK( server.m_rx.size() == 8 );
+		if (server.m_rx.size() == 8)
+		{
+			CHECK( server.m_rx[0] == "POST /path HTTP/1.1" );
+			CHECK( server.m_rx[1] == "host: 127.0.0.1:7653");
+			CHECK( server.m_rx[2] == kFormat("accept-encoding: {}", KHTTPCompression::GetCompressors()) );
+			CHECK( server.m_rx[3] == "user-agent: dekaf/" DEKAF_VERSION );
+			CHECK( server.m_rx[4] == "content-length: 11");
+			CHECK( server.m_rx[5] == "content-type: text/html; charset=UTF-8" );
+			CHECK( server.m_rx[6] == "");
+			CHECK( server.m_rx[7] == "some body");
+		}
+		CHECK( sRet == "0123456789" );
 	}
 
 	SECTION("timeout TCP")

@@ -100,6 +100,10 @@ private:
 		bool    bNoData { false };
 		bool    bFirstSynch { false };
 		uint8_t iThreads { 12 };
+		uint64_t iLimitBegin { 0 };  // start index for limit range (0-based)
+		uint64_t iLimitEnd { 0 };    // end index for limit range (0 = no limit)
+		bool    bLimitFromEnd { false }; // true if ":N" format (last N documents)
+		KString sGrep;                // regex filter for document selection
 	};
 
 	enum class SqlType

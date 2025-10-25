@@ -48,6 +48,7 @@
 #include <dekaf2/khash.h>
 #include <dekaf2/kbar.h>
 #include <dekaf2/kparallel.h>
+#include <dekaf2/kregex.h>
 #include <random>
 #include <thread>
 #include <chrono>
@@ -197,6 +198,45 @@ int Mong2SQL::Main(int argc, char* argv[])
 			m_Config.bNoData = true;  // Disable inserts
 			m_Config.iThreads = 1;
 		});
+
+	Options.Option("limit <range>")
+		.Help("limit documents processed: N (first N matching), N:M (from N to M), :N (last N)")
+		([&](KStringViewZ sRange)
+		{
+			// Parse range: "100", "1000:2000", ":2000"
+			if (sRange.contains(':'))
+			{
+				auto parts = sRange.Split(':');
+				if (parts.size() == 2)
+				{
+					if (parts[0].empty())
+					{
+						// ":N" format - last N documents
+						m_Config.iLimitEnd = parts[1].UInt64();
+						m_Config.iLimitBegin = 0;
+						m_Config.bLimitFromEnd = true;  // Mark as "last N" format
+					}
+					else
+					{
+						// "N:M" format - from N to M
+						m_Config.iLimitBegin = parts[0].UInt64();
+						m_Config.iLimitEnd = parts[1].UInt64();
+						m_Config.bLimitFromEnd = false;
+					}
+				}
+			}
+			else
+			{
+				// "N" format - first N matching documents
+				m_Config.iLimitBegin = 0;
+				m_Config.iLimitEnd = sRange.UInt64();
+				m_Config.bLimitFromEnd = false;
+			}
+		});
+
+	Options.Option("grep <regex>")
+		.Help("only process documents whose flattened JSON matches the given regex")
+		.Set(m_Config.sGrep);
 
 	Options.UnknownCommand([&](KOptions::ArgList& Args)
 	{
@@ -941,38 +981,127 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 			auto collection = database[sCollectionName.c_str()];
 		
 			kDebug (1, "{}: querying collection for schema analysis...", sCollectionName);
+	
+		// Calculate skip and target count for range queries
+		uint64_t iSkip = m_Config.iLimitBegin;
+		uint64_t iTargetCount = 0;  // Number of matching documents we want (0 = unlimited)
 		
-			// Fetch all documents from MongoDB collection
-			auto cursor = collection.find({});
-		
-			for (const auto& doc : cursor)
+		if (m_Config.iLimitEnd > 0)
+		{
+			if (m_Config.bLimitFromEnd)
 			{
-				KString sJsonDoc = bsoncxx::to_json(doc);
-				sJsonDoc = SanitizeMongoJSON(sJsonDoc);
-			
-				KJSON   oDocument;
-				KString sError;
-				if (!kjson::Parse(oDocument, sJsonDoc, sError))
+				// ":N" format - last N documents (need to skip to near end)
+				int64_t iTotalCount = collection.count_documents({});
+				if (iTotalCount > static_cast<int64_t>(m_Config.iLimitEnd))
 				{
-					kDebug (1, "{}: failed to parse document: {}", sCollectionName, sError);
-					continue;
+					iSkip = iTotalCount - m_Config.iLimitEnd;
+					Verbose(1, "{}: limiting to last {} documents (skip {})", 
+						sCollectionName, m_Config.iLimitEnd, iSkip);
 				}
-			
-				oDocuments += oDocument;
-				++iDocCount;
-			
-				if (iDocCount % 1000 == 0)
+				else
 				{
-					kDebug (2, "{}: loaded {} documents", sCollectionName, iDocCount);
+					iSkip = 0;
+					Verbose(1, "{}: collection has {} documents, using all for last {}", 
+						sCollectionName, iTotalCount, m_Config.iLimitEnd);
+				}
+				// For ":N" we don't set iTargetCount - we let MongoDB handle the limit via skip
+			}
+			else
+			{
+				// "N" or "N:M" format - first N (matching) documents or range
+				iTargetCount = m_Config.iLimitEnd - m_Config.iLimitBegin;
+				if (m_Config.sGrep.empty())
+				{
+					Verbose(1, "{}: limiting to {} documents starting at {}", 
+						sCollectionName, iTargetCount, m_Config.iLimitBegin);
+				}
+				else
+				{
+					Verbose(1, "{}: scanning for {} matching documents (starting at {})", 
+						sCollectionName, iTargetCount, m_Config.iLimitBegin);
 				}
 			}
 		}
-		catch (const std::exception& ex)
+		
+		// Build query options (only skip, not limit - limit applied after grep)
+		mongocxx::options::find findOpts{};
+		if (iSkip > 0)
 		{
-			kDebug (1, "{}: MongoDB error during digestion: {}", sCollectionName, ex.what());
-			oBuilt["error"] = ex.what();
+			findOpts.skip(iSkip);
 		}
-
+		
+		// Compile grep regex if specified
+		KRegex grepRegex("");
+		if (!m_Config.sGrep.empty())
+		{
+			try
+			{
+				grepRegex = KRegex(m_Config.sGrep);
+				Verbose(1, "{}: filtering documents with regex: {}", sCollectionName, m_Config.sGrep);
+			}
+			catch (const std::exception& ex)
+			{
+				KErr.FormatLine(">> invalid grep regex '{}': {}", m_Config.sGrep, ex.what());
+				return oBuilt;
+			}
+		}
+		
+		// Fetch documents from MongoDB collection
+		auto cursor = collection.find({}, findOpts);
+		uint64_t iScannedCount = 0;
+	
+		for (const auto& doc : cursor)
+		{
+			KString sJsonDoc = bsoncxx::to_json(doc);
+			sJsonDoc = SanitizeMongoJSON(sJsonDoc);
+		
+			KJSON   oDocument;
+			KString sError;
+			if (!kjson::Parse(oDocument, sJsonDoc, sError))
+			{
+				kDebug (1, "{}: failed to parse document: {}", sCollectionName, sError);
+				continue;
+			}
+		
+			++iScannedCount;
+		
+			// Apply grep filter if specified
+			if (!m_Config.sGrep.empty())
+			{
+				KString sFlattenedDoc = oDocument.dump();
+				if (!grepRegex.Matches(sFlattenedDoc))
+				{
+					continue;  // Skip documents that don't match
+				}
+			}
+		
+			oDocuments += oDocument;
+			++iDocCount;
+		
+			// Apply limit AFTER grep filter
+			if (iTargetCount > 0 && iDocCount >= iTargetCount)
+			{
+				kDebug (2, "{}: reached target count of {} documents (scanned {})", 
+					sCollectionName, iDocCount, iScannedCount);
+				break;
+			}
+		
+			if (iDocCount % 1000 == 0)
+			{
+				kDebug (2, "{}: loaded {} documents (scanned {})", sCollectionName, iDocCount, iScannedCount);
+			}
+		}
+		
+		if (!m_Config.sGrep.empty())
+		{
+			Verbose(1, "{}: matched {} documents out of {} scanned", sCollectionName, iDocCount, iScannedCount);
+		}
+	}
+	catch (const std::exception& ex)
+	{
+		kDebug (1, "{}: MongoDB error during digestion: {}", sCollectionName, ex.what());
+		oBuilt["error"] = ex.what();
+	}
 	} // if we loaded from MongoDB
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1082,23 +1211,30 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// Store in cache (if it came from MongoDB)
+	// Store in cache (if it came from MongoDB and no filters were applied)
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	if (! m_Config.sInputFile)
+	bool bIsFiltered = (m_Config.iLimitEnd > 0 || !m_Config.sGrep.empty());
+	
+	if (!m_Config.sInputFile)
 	{
-		kMakeDir (KString{kDirname (sCacheFile)});
-		kRemoveFile (sCacheFile);
-
-		if (!kWriteFile (sCacheFile, oBuilt.dump(1,'\t')))
+		if (bIsFiltered)
 		{
-			kDebug (1, "{}: could not write cache file: {}", sCollectionName, sCacheFile);
+			Verbose(1, "{}: skipping cache write (filtered results)", sCollectionName);
 		}
 		else
 		{
-			kDebug (1, "{}: wrote cache file: {}", sCollectionName, sCacheFile);
-		}
+			kMakeDir (KString{kDirname (sCacheFile)});
+			kRemoveFile (sCacheFile);
 
-		kDebug (1, "{}: collection built and stored to cache: {}", sCollectionName, sCacheFile);
+			if (!kWriteFile (sCacheFile, oBuilt.dump(1,'\t')))
+			{
+				kDebug (1, "{}: could not write cache file: {}", sCollectionName, sCacheFile);
+			}
+			else
+			{
+				kDebug (1, "{}: wrote cache file: {}", sCollectionName, sCacheFile);
+			}
+		}
 	}
 
 	oBuilt[documents] = oDocuments;
@@ -2326,15 +2462,19 @@ void Mong2SQL::TrackKeyCardinality (const KJSON& document, const KString& sPrefi
 		
 		if (value.is_object() && !value.contains("$oid") && !value.contains("$date"))
 		{
-			// Count the number of keys IN this object
-			// Track using simple field name (not full path) for matching during schema collection
+			// Build the flattened field path (e.g., "seo_keywords_form_abandonment")
+			KString sFieldPath = sPrefix.empty() ? sKey : kFormat("{}_{}", sPrefix, sKey);
+			
+			// Always track keys at this level
 			for (auto objIt = value.begin(); objIt != value.end(); ++objIt)
 			{
-				keyCardinality[sKey].insert(KString{objIt.key()});
+				keyCardinality[sFieldPath].insert(KString{objIt.key()});
 			}
-			documentCounts[sKey]++;
+			documentCounts[sFieldPath]++;
 			
-			// DON'T recurse - we only care about direct children, not nested objects
+			// Also recurse to find nested hash structures
+			// This handles cases like: seo_keywords.form_abandonment.{language_codes}
+			TrackKeyCardinality(value, sFieldPath, keyCardinality, documentCounts);
 		}
 		else if (value.is_array())
 		{
@@ -2463,14 +2603,11 @@ void Mong2SQL::CollectSchemaForDocumentLocal (const KJSON& document, KStringView
 
 		if (value.is_object() && !value.contains("$oid") && !value.contains("$date"))
 		{
-			// Build field path for pivot detection
-			KString sFieldPath = sPrefix.empty() ? sKey : kFormat("{}.{}", sPrefix, sKey);
-			
-			// Check if this field should be pivoted
-			if (pivotFields.count(sFieldPath) > 0)
+			// Check if this field should be pivoted (match against sanitized column name)
+			if (pivotFields.count(sSanitizedColumnName) > 0)
 			{
 				// PIVOT: Create child table with dynamic keys
-				kDebug(2, "pivoting field '{}' into child table", sFieldPath);
+				kDebug(2, "pivoting field '{}' into child table", sSanitizedColumnName);
 				
 				KString sParentPath = tableData[collection_path].String();
 				KString sChildPath = kFormat("{}/{}", sParentPath, sKey);

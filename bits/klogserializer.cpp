@@ -219,7 +219,7 @@ void KLogTTYSerializer::Serialize(bool bHiRes)
 	// desired formats:
 	// | WAR | MYPRO | 17202 | 12345 | 2001-08-24 10:37:04 | Function: select count(*) from foo
 	// HiRes:
-	// | 11:34:48 | 55717 |     0 | + 29.0 µ | 337.8  | KHTTPClient::Parse(): HTTP-200 OK
+	// | 11:34:48.123456 | 55717 |     0 | +123µs | 123ms | KHTTPClient::Parse(): HTTP-200 OK
 
 	auto sPrefix = PrintStatus(bHiRes);
 
@@ -281,7 +281,8 @@ KString KLogTTYSerializer::PrintStatus(bool bHiRes)
 	// desired formats:
 	// | WAR | MYPRO | 17202 | 12345 | 2001-08-24 10:37:04 |
 	// HiRes:
-	// | 11:34:48 | 55717 |     0 | + 29.0 µ | 337.8  | KHTTPClient::Parse(): HTTP-200 OK
+	// | 11:34:48.123456 | 55717 |     0 | +9.0µs | 7.8ms | KHTTPClient::Parse(): HTTP-200 OK
+	// | 11:34:48.123457 | 55717 |     0 | +123µs | 123ms | KHTTPClient::Parse(): HTTP-200 OK
 
 	if (!bHiRes)
 	{
@@ -321,9 +322,10 @@ KString KLogTTYSerializer::PrintStatus(bool bHiRes)
 		uint64_t iThread = m_Tid < s_iStartThread ? m_Tid + 65535 - s_iStartThread : m_Tid - s_iStartThread;
 #endif
 
-		return kFormat("|{:2}| {:%H:%M:%S} | {:5d} | {:5d} | + {:>6.6s} | {:>6.6s} | ",
+		return kFormat("|{:2}| {:%H:%M:%S}.{:06} | {:5d} | {:5d} | +{:>5.5s} | {:>5.5s} | ",
 					   m_iLevel,
 					   m_Time,
+					   m_Time.subseconds().microseconds().count(),
 					   m_Pid,
 					   iThread,
 					   thisTicks,

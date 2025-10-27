@@ -806,7 +806,7 @@ public:
 
 		uint64_t  GetStart() const { return m_iStart;          }
 		uint64_t  GetEnd()   const { return m_iEnd;            }
-		uint64_t  GetSize()  const { return m_iEnd - m_iStart; }
+		uint64_t  GetSize()  const { return (m_iEnd - m_iStart) + 1; }
 
 		void SetStart(uint64_t iStart) { m_iStart = iStart;    }
 		void SetEnd  (uint64_t iEnd  ) { m_iEnd   = iEnd;      }
@@ -821,7 +821,7 @@ public:
 	}; // Range
 
 	/// split a range header value in a vector of Range
-	static std::vector<Range> GetRanges(KStringView sContent, uint64_t iResourceSize);
+	static std::vector<Range> GetRanges(KStringView sContent, uint64_t iResourceSize, bool bThrow = false);
 
 //------
 private:

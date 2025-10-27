@@ -40,6 +40,7 @@
 */
 
 #include "khttp_header.h"
+#include "khttperror.h"
 #include "kstring.h"
 #include "kctype.h"
 #include "kbase64.h"
@@ -136,54 +137,107 @@ uint16_t KHTTPHeader::CalcQualityValue(KStringView sContent, KStringView::size_t
 } // CalcQualityValue
 
 //-----------------------------------------------------------------------------
-std::vector<KHTTPHeader::Range> KHTTPHeader::GetRanges(KStringView sContent, std::uint64_t iResourceSize)
+std::vector<KHTTPHeader::Range> KHTTPHeader::GetRanges(KStringView sContent, std::uint64_t iResourceSize, bool bThrow)
 //-----------------------------------------------------------------------------
 {
 	std::vector<Range> Ranges;
 
-	if (sContent.remove_prefix("bytes="))
+	// are there ranges?
+	if (!sContent.empty() && iResourceSize)
 	{
-		for (const auto vRange : sContent.Split(","))
+		auto iResourceEnd = iResourceSize - 1;
+
+		if (sContent.remove_prefix("bytes="))
 		{
-			auto rp = kSplitToPair(vRange, "-");
+			for (const auto vRange : sContent.Split(","))
+			{
+				auto rp = kSplitToPair(vRange, "-");
 
-			uint64_t iStart;
-			uint64_t iEnd;
+				uint64_t iStart { 0 };
+				uint64_t iEnd   { 0 };
 
-			if (rp.first.empty())
-			{
-				iEnd   = std::min(iResourceSize, rp.second.UInt64());
-				iStart = iResourceSize - iEnd;
-				iEnd   = iResourceSize;
-			}
-			else if (rp.second.empty())
-			{
-				iStart = rp.first.UInt64();
-				iEnd   = iResourceSize;
-			}
-			else
-			{
-				iStart = rp.first.UInt64();
-				iEnd   = std::min(iResourceSize, rp.second.UInt64());
-			}
-
-			if (iStart < iEnd)
-			{
-				// now check for overlaps - we don't allow them
-				for (auto& RG : Ranges)
+				if (rp.first.empty())
 				{
-					if (RG.GetStart() <= iStart && RG.GetEnd() >= iStart)
+					if (!rp.second.empty())
 					{
-						return {};
+						iEnd   = std::min(iResourceEnd, rp.second.UInt64());
+						iStart = iResourceEnd - iEnd;
+						iEnd   = iResourceEnd;
 					}
-					else if (RG.GetStart() <= iEnd && RG.GetEnd() >= iEnd)
+					else
 					{
-						return {};
+						if (bThrow)
+						{
+							throw KHTTPError { KHTTPError::H4xx_RANGE_NOT_SATISFIABLE , kFormat("bad ranges: {}", sContent) };
+						}
+						return {{ 0, 0 }};
 					}
 				}
+				else if (rp.second.empty())
+				{
+					iStart = rp.first.UInt64();
+					iEnd   = iResourceEnd;
+				}
+				else
+				{
+					iStart = rp.first.UInt64();
+					iEnd   = std::min(iResourceEnd, rp.second.UInt64());
+				}
 
-				Ranges.emplace_back(iStart, iEnd);
+				if (iStart <= iEnd)
+				{
+					// now check for overlaps - we don't allow them
+					for (auto& RG : Ranges)
+					{
+						if (RG.GetStart() <= iStart && RG.GetEnd() >= iStart)
+						{
+							kDebug(1, "have range overlap at start {}", iStart);
+
+							if (bThrow)
+							{
+								throw KHTTPError { KHTTPError::H4xx_RANGE_NOT_SATISFIABLE , kFormat("overlapping ranges: {}", sContent) };
+							}
+
+							return {{ 0, 0 }};
+						}
+						else if (RG.GetStart() <= iEnd && RG.GetEnd() >= iEnd)
+						{
+							kDebug(1, "have range overlap at end {}", iEnd);
+
+							if (bThrow)
+							{
+								throw KHTTPError { KHTTPError::H4xx_RANGE_NOT_SATISFIABLE , kFormat("overlapping ranges: {}", sContent) };
+							}
+
+							return {{ 0, 0 }};
+						}
+					}
+
+					Ranges.emplace_back(iStart, iEnd);
+				}
+				else
+				{
+					kDebug(1, "start > end: {} {}", iStart, iEnd);
+
+					if (bThrow)
+					{
+						throw KHTTPError { KHTTPError::H4xx_RANGE_NOT_SATISFIABLE , kFormat("start > end: {}", sContent) };
+					}
+
+					return {{ 0, 0 }};
+				}
 			}
+		}
+		else
+		{
+			kDebug(1, "bad range request: {}", sContent);
+
+			if (bThrow)
+			{
+				throw KHTTPError { KHTTPError::H4xx_RANGE_NOT_SATISFIABLE , kFormat("bad ranges: {}", sContent) };
+			}
+
+			return {{ 0, 0 }};
 		}
 	}
 

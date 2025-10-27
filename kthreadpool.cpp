@@ -121,9 +121,9 @@ bool KThreadPool::resize(std::size_t nThreads, GrowthPolicy Growth, ShrinkPolicy
 {
 	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
 
-	m_Growth = Growth;
-	m_Shrink = Shrink;
-	ma_iMaxThreads   = nThreads;
+	m_Growth       = Growth;
+	m_Shrink       = Shrink;
+	ma_iMaxThreads = nThreads;
 
 	// will be reset to current value with next push of a task
 	ma_iMaxWaitingTasks = 0;
@@ -197,6 +197,11 @@ bool KThreadPool::grow(std::size_t iQueued)
 					m_abort  .resize(i);
 					return false;
 				}
+			}
+
+			if (ma_iMaxThreadsEver < iNewMax)
+			{
+				ma_iMaxThreadsEver = iNewMax;
 			}
 
 			// reset the last resize timer to make sure we do not shrink too quickly
@@ -560,6 +565,7 @@ KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
 {
 	Diagnostics Diag;
 
+	Diag.iMaxThreadsEver  = ma_iMaxThreadsEver;
 	Diag.iMaxThreads      = ma_iMaxThreads;
 	Diag.iTotalThreads    = size() + ma_iDetachedThreadsToFinish - ma_iAlreadyStopped;
 	Diag.iIdleThreads     = n_idle();

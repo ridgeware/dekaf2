@@ -214,7 +214,8 @@ public:
 
 	struct Diagnostics
 	{
-		std::size_t iMaxThreads      { 0 }; ///< max number of threads allowed
+		std::size_t iMaxThreadsEver  { 0 }; ///< max number of threads that were allowed at any time
+		std::size_t iMaxThreads      { 0 }; ///< max number of threads allowed currently
 		std::size_t iTotalThreads    { 0 }; ///< total number of threads spawned now
 		std::size_t iIdleThreads     { 0 }; ///< number of idle threads
 		std::size_t iUsedThreads     { 0 }; ///< number of used threads
@@ -432,6 +433,7 @@ private:
 	std::vector<std::shared_ptr<std::atomic<eAbort>>>     m_abort;
 	detail::threadpool::Queue<std::packaged_task<void()>> m_queue;
 
+	std::atomic<std::size_t>     ma_iMaxThreadsEver          { 0 };
 	std::atomic<std::size_t>     ma_iMaxThreads              { 0 };
 	std::atomic<std::size_t>     ma_iTotalTasks              { 0 };
 	std::atomic<std::size_t>     ma_iMaxWaitingTasks         { 0 };

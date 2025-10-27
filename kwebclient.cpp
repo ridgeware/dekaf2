@@ -185,13 +185,16 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 					// do not read on the socket if this is an accepted websocket upgrade
 					// after a previous upgrade request
 					// or a HEAD or TRACE request (which return empty)
+					// also, honour the ReadMax() setting - if 0 do not even start reading
+					// the response here
 					if (!(bIsWebsocketUpgradeRequest &&
 					      GetStatusCode() == KHTTPError::H1xx_SWITCHING_PROTOCOLS) &&
 					    RequestMethod != KHTTPMethod::HEAD &&
-					    RequestMethod != KHTTPMethod::TRACE)
+					    RequestMethod != KHTTPMethod::TRACE &&
+					    m_iReadMax != 0)
 					{
 						ReceiveTime.resume();
-						iRead += Read (*Out);
+						iRead += Read (*Out, m_iReadMax);
 						ReceiveTime.halt();
 					}
 				}

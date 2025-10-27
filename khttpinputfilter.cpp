@@ -245,12 +245,14 @@ size_t KInHTTPFilter::Read(KOutStream& OutStream, size_t len)
 
 		return Count.Count();
 	}
-	else
+	else if (len)
 	{
 		OutStream.Write(In, len);
-
-		return len;
 	}
+
+	// this may be wrong for OutStream.Write() if the input stream did not
+	// have len bytes
+	return len;
 
 } // Read
 

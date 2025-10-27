@@ -259,6 +259,16 @@ public:
 		return m_Cookies;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// set the upper limit for read bytes from the HTTP response body - leave at default (-1) for full response, set to
+	/// 0 to not read anything after receiving the response headers (and read the response manually in own code),
+	/// or to any other value to make sure to never read more than a certain size.
+	void ReadMax(std::size_t iReadMax)
+	//-----------------------------------------------------------------------------
+	{
+		m_iReadMax = iReadMax;
+	}
+
 //------
 protected:
 //------
@@ -271,8 +281,9 @@ protected:
 	using base::Serialize;
 	using base::Parse;
 	using base::Write;
-	using base::Read;
-	using base::ReadLine;
+	// we keep base::Read and base::ReadLine visible in the public interface
+	// because it now makes sense to use them manually when setting
+	// ReadMax() to a limiting value
 
 	TimingCallback_t m_TimingCallback            { nullptr };
 	KDuration        m_iWarnIfOverMilliseconds   { 0       }; // keep the 'i' to make it compatible to old versions
@@ -284,6 +295,7 @@ private:
 
 	ResponseCallback_t m_ResponseCallback        { nullptr };
 	KCookies         m_Cookies;
+	std::size_t      m_iReadMax                  { npos    };
 	uint16_t         m_iMaxRedirects             { 20      };
 	bool             m_bAllowOneRetry            { true    };
 	bool             m_bAcceptCookies            { true    };

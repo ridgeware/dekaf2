@@ -171,6 +171,7 @@ public:
 	using time_point = clock::time_point;
 	using duration   = clock::duration;
 
+	/// default ctor, initializes with epoch (0)
 	                             KUnixTime() = default;
 	DEKAF2_CONSTEXPR_14          KUnixTime(const base& other) noexcept : base(other) {}
 	DEKAF2_CONSTEXPR_14          KUnixTime(base&& other)      noexcept : base(std::move(other)) {}
@@ -234,9 +235,12 @@ public:
 	/// converts to string
 	DEKAF2_NODISCARD    KString     to_string (KFormatString<const KUnixTime&> sFormat) const noexcept;
 	DEKAF2_NODISCARD    KString     to_string () const noexcept;
-
+	/// returns true if time is not the epoch (0)
 	DEKAF2_NODISCARD
 	DEKAF2_CONSTEXPR_14 bool        ok        ()              const noexcept { return time_since_epoch() != duration::zero();                }
+	/// returns subseconds relative to last full second as a duration
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 KDuration   subseconds()              const noexcept { return time_since_epoch() - chrono::floor<chrono::seconds>(time_since_epoch());       }
 
 	/// converts from KUnixTime to time_t timepoint (constexpr)
 	DEKAF2_NODISCARD
@@ -528,11 +532,11 @@ public:
 	/// return seconds
 	DEKAF2_NODISCARD
 	constexpr chrono::seconds seconds     () const noexcept { return chrono::seconds(m_second); }
-	/// return subseconds (either nano- or microseconds, depending on the std::chrono library)
+	/// return subseconds since last full second (either nano- or microseconds, depending on the std::chrono library)
 	DEKAF2_NODISCARD
 	constexpr precision       subseconds  () const noexcept { return m_subseconds;              }
 
-	/// return the duration into the day
+	/// return the duration since midnight (either nano- or microseconds, depending on the std::chrono library)
 	DEKAF2_NODISCARD
 	constexpr precision       to_duration () const noexcept
 	{

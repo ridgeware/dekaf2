@@ -435,6 +435,7 @@ public:
 
 	using base            = BasicJSON;
 
+	using value_type      = KJSON2;
 	using reference       = KJSON2&;
 	using rvalue_reference= KJSON2&&;
 	using const_reference = const KJSON2&;
@@ -955,6 +956,12 @@ public:
 	{
 		using std::swap;
 		swap(left.ToBase(), right.ToBase());
+	}
+
+	friend void     iter_swap   (iterator left, iterator right) noexcept
+	{
+		using std::swap;
+		swap(left->ToBase(), right->ToBase());
 	}
 
 	DEKAF2_NODISCARD

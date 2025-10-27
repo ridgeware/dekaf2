@@ -153,6 +153,7 @@ public:
 	enum DIR     { LTR, RTL };
 	enum ALIGN   { LEFT, CENTER, RIGHT };
 	enum VALIGN  { VTOP, VMIDDLE, VBOTTOM };
+	enum Preload { None, Metadata, Auto };
 
 	using Pixels = uint32_t;
 
@@ -192,6 +193,7 @@ protected:
 	static KStringView FromEncType (ENCTYPE encoding);
 	static KStringView FromAlign   (ALIGN   align   );
 	static KStringView FromVAlign  (VALIGN  valign  );
+	static KStringView FromPreload (Preload preload );
 
 	virtual void Reset(KWebObjectBase* Element);
 	virtual void Sync(KWebObjectBase* Element, KStringView sValue);
@@ -393,15 +395,37 @@ protected:
 	KWebObject(KWebObject&&) = default;
 #endif
 
-	self& SetSource(KStringView sSource) &
+	self& SetLink(KStringView sURL, bool bDoNotEscape = true) &
 	{
-		SetAttribute("src", sSource, true);
+		SetAttribute("href", sURL, true, bDoNotEscape);
 		return This();
 	}
 
-	self&& SetSource(KStringView sSource) &&
+	self&& SetLink(KStringView sURL, bool bDoNotEscape = true) &&
 	{
-		return std::move(SetSource(sSource));
+		return std::move(SetLink(sURL, bDoNotEscape));
+	}
+
+	self& SetSource(KStringView sURL, bool bDoNotEscape = true) &
+	{
+		SetAttribute("src", sURL, true, bDoNotEscape);
+		return This();
+	}
+
+	self&& SetSource(KStringView sURL, bool bDoNotEscape = true) &&
+	{
+		return std::move(SetSource(sURL, bDoNotEscape));
+	}
+
+	self& SetPoster(KStringView sURL, bool bDoNotEscape = true) &
+	{
+		SetAttribute("poster", sURL, true, bDoNotEscape);
+		return This();
+	}
+
+	self&& SetPoster(KStringView sURL, bool bDoNotEscape = true) &&
+	{
+		return std::move(SetPoster(sURL, bDoNotEscape));
 	}
 
 	self& SetDescription(KStringView sDescription) &
@@ -512,17 +536,6 @@ protected:
 	self&& SetTarget(TARGET target) &&
 	{
 		return std::move(SetTarget(target));
-	}
-
-	self& SetLink(KStringView sURL) &
-	{
-		SetAttribute("href", sURL, true);
-		return This();
-	}
-
-	self&& SetLink(KStringView sURL) &&
-	{
-		return std::move(SetLink(sURL));
 	}
 
 	self& SetRel(KStringView sRel) &
@@ -780,6 +793,116 @@ protected:
 	self&& SetForm(KStringView sID) &&
 	{
 		return std::move(SetForm(sID));
+	}
+
+	self& SetAutoplay() &
+	{
+		SetAttribute("autoplay", "", false);
+		return This();
+	}
+
+	self&& SetAutoplay() &&
+	{
+		return std::move(SetAutoplay());
+	}
+
+	self& SetControls() &
+	{
+		SetAttribute("controls", "", false);
+		return This();
+	}
+
+	self&& SetControls() &&
+	{
+		return std::move(SetControls());
+	}
+
+	self& SetLoop(bool bYesNo) &
+	{
+		SetAttribute("loop", bYesNo);
+		return This();
+	}
+
+	self&& SetLoop(bool bYesNo) &&
+	{
+		return std::move(SetLoop(bYesNo));
+	}
+
+	self& SetPlaysInline(bool bYesNo) &
+	{
+		SetAttribute("playsinline", bYesNo);
+		return This();
+	}
+
+	self&& SetPlaysInline(bool bYesNo) &&
+	{
+		return std::move(SetPlaysInline(bYesNo));
+	}
+
+	self& SetMuted(bool bYesNo) &
+	{
+		SetAttribute("muted", bYesNo);
+		return This();
+	}
+
+	self&& SetMuted(bool bYesNo) &&
+	{
+		return std::move(SetMuted(bYesNo));
+	}
+
+	self& SetType(KStringView sMIME) &
+	{
+		SetAttribute("type", sMIME, true);
+		return This();
+	}
+
+	self&& SetType(KStringView sMIME) &&
+	{
+		return std::move(SetType(sMIME));
+	}
+
+	self& SetAllow(KStringView sWhat) &
+	{
+		SetAttribute("allow", sWhat);
+		return This();
+	}
+
+	self&& SetAllow(KStringView sWhat) &&
+	{
+		return std::move(SetAllow(sWhat));
+	}
+
+	self& SetAllowFullscreen(bool bYes) &
+	{
+		SetAttribute("allowfullscreen", bYes);
+		return This();
+	}
+
+	self&& SetAllowFullscreen(bool bYes) &&
+	{
+		return std::move(SetAllowFullscreen(bYes));
+	}
+
+	self& SetScrolling(bool bYes) &
+	{
+		SetAttribute("scrolling", bYes);
+		return This();
+	}
+
+	self&& SetScrolling(bool bYes) &&
+	{
+		return std::move(SetScrolling(bYes));
+	}
+
+	self& SetPreload(Preload preload) &
+	{
+		SetAttribute("preload", FromPreload(preload));
+		return This();
+	}
+
+	self&& SetPreload(Preload preload) &&
+	{
+		return std::move(SetPreload(preload));
 	}
 
 //----------
@@ -2611,6 +2734,135 @@ public:
 	virtual std::size_t WebObjectType() const override { return TYPE; }
 
 }; // Preformatted
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC IFrame : public KWebObject<IFrame>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	static constexpr KStringView s_sObjectName = "IFrame";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	IFrame(KStringView sURL = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
+	: KWebObject("iframe", sID, Classes)
+	{
+		SetSource(sURL);
+	}
+
+	using KWebObject::SetSource;
+	using KWebObject::SetLoading;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+	using KWebObject::SetAllow;
+	using KWebObject::SetAllowFullscreen;
+	using KWebObject::SetScrolling;
+
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t WebObjectType() const override { return TYPE; }
+
+}; // IFrame
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Video : public KWebObject<Video>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	static constexpr KStringView s_sObjectName = "Video";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	Video(KStringView sURL = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
+	: KWebObject("video", sID, Classes)
+	{
+		SetSource(sURL);
+	}
+
+	using KWebObject::SetSource;
+	using KWebObject::SetPoster;
+	using KWebObject::SetPreload;
+	using KWebObject::SetAutoplay;
+	using KWebObject::SetControls;
+	using KWebObject::SetLoop;
+	using KWebObject::SetPlaysInline;
+	using KWebObject::SetMuted;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t WebObjectType() const override { return TYPE; }
+
+}; // Video
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Audio : public KWebObject<Audio>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	static constexpr KStringView s_sObjectName = "Audio";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	Audio(KStringView sURL = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
+	: KWebObject("audio", sID, Classes)
+	{
+		SetSource(sURL);
+	}
+
+	using KWebObject::SetSource;
+	using KWebObject::SetAutoplay;
+	using KWebObject::SetPreload;
+	using KWebObject::SetControls;
+	using KWebObject::SetLoop;
+	using KWebObject::SetMuted;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t WebObjectType() const override { return TYPE; }
+
+}; // Video
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Source : public KWebObject<Source>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	static constexpr KStringView s_sObjectName = "Source";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	Source(KStringView sURL = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
+	: KWebObject("source", sID, Classes)
+	{
+		SetSource(sURL);
+	}
+
+	using KWebObject::SetSource;
+	using KWebObject::SetType;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+
+	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual std::size_t WebObjectType() const override { return TYPE; }
+
+}; // Video
 
 } // end of namespace html
 

@@ -380,9 +380,9 @@ public:
 
 	bool Has(KStringView sAttributeName) const;
 
-	KHTMLAttributes& Set(KString sAttributeName, KString sAttributeValue, char Quote='"')
+	KHTMLAttributes& Set(KString sAttributeName, KString sAttributeValue, char Quote='"', bool bDoNotEscape = false)
 	{
-		Set(KHTMLAttribute(std::move(sAttributeName), std::move(sAttributeValue), Quote));
+		Set(KHTMLAttribute(std::move(sAttributeName), std::move(sAttributeValue), Quote, bDoNotEscape));
 		return *this;
 	}
 

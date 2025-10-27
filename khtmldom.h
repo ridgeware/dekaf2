@@ -200,7 +200,8 @@ public:
 	/// @param sName the attribute name
 	/// @param sValue the attribute value
 	/// @param bRemoveIfEmptyValue removes attribute if value is empty
-	self& SetAttribute(KString sName, KString sValue, bool bRemoveIfEmptyValue = false);
+	/// @param bDoNotEscape set to true if value string is already entity encoded (or should not become encoded, like for the src attribute)
+	self& SetAttribute(KString sName, KString sValue, bool bRemoveIfEmptyValue = false, bool bDoNotEscape = false);
 
 	/// Set an attribute
 	/// @param sName the attribute name
@@ -216,7 +217,7 @@ public:
 	/// @param sName the attribute name
 	/// @param iValue numeric attribute value
 	template<typename Numeric,
-	         typename std::enable_if<std::is_arithmetic<Numeric>::value   == true
+	         typename std::enable_if<std::is_arithmetic<Numeric>::value == true
 	                              && std::is_same<Numeric, bool>::value == false, int>::type = 0>
 	self& SetAttribute(KString sName, Numeric iValue)
 	{

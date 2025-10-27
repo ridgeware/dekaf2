@@ -747,7 +747,7 @@ KHTMLElement::self& KHTMLElement::SetBoolAttribute(KString sName, bool bYesNo)
 } // SetBoolAttribute
 
 //-----------------------------------------------------------------------------
-KHTMLElement::self& KHTMLElement::SetAttribute(KString sName, KString sValue, bool bRemoveIfEmptyValue)
+KHTMLElement::self& KHTMLElement::SetAttribute(KString sName, KString sValue, bool bRemoveIfEmptyValue, bool bDoNotEscape)
 //-----------------------------------------------------------------------------
 {
 	if (bRemoveIfEmptyValue && sValue.empty())
@@ -756,7 +756,7 @@ KHTMLElement::self& KHTMLElement::SetAttribute(KString sName, KString sValue, bo
 	}
 	else
 	{
-		m_Attributes.Set(std::move(sName), std::move(sValue));
+		m_Attributes.Set(std::move(sName), std::move(sValue), '"', bDoNotEscape);
 	}
 	return *this;
 

@@ -225,6 +225,23 @@ KStringView KWebObjectBase::FromVAlign(VALIGN valign)
 } // FromVAlign
 
 //-----------------------------------------------------------------------------
+KStringView KWebObjectBase::FromPreload(Preload preload)
+//-----------------------------------------------------------------------------
+{
+	switch (preload)
+	{
+		case None:
+			return "none";
+		case Metadata:
+			return "metadata";
+		case Auto:
+			return "auto";
+	}
+	return {};
+
+} // FromPreload
+
+//-----------------------------------------------------------------------------
 void KWebObjectBase::SetTextBefore(KStringView sLabel)
 //-----------------------------------------------------------------------------
 {
@@ -924,6 +941,10 @@ constexpr KStringView Text::s_sObjectName;
 constexpr KStringView RawText::s_sObjectName;
 constexpr KStringView LineBreak::s_sObjectName;
 constexpr KStringView Output::s_sObjectName;
+constexpr KStringView IFrame::s_sObjectName;
+constexpr KStringView Video::s_sObjectName;
+constexpr KStringView Audio::s_sObjectName;
+constexpr KStringView Source::s_sObjectName;
 #endif
 
 } // end of namespace html

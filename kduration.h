@@ -79,8 +79,11 @@ public:
 
 	using Duration::Duration;
 
+	/// static duration of zero
 	static constexpr KDuration zero() { return KDuration(Duration::zero()); }
+	/// static longest negative duration
 	static constexpr KDuration min()  { return KDuration(Duration::min() ); }
+	/// static longest positive duration
 	static constexpr KDuration max()  { return KDuration(Duration::max() ); }
 
 	/// construct from a time_t, considering the duration counted as seconds
@@ -190,22 +193,27 @@ public:
 		};
 		return tv;
 	}
+	/// return the absolute duration - if the duration was KDuration::min() it is reduced to KDuration::max(),
+	/// which is one nanosecond less than the correct value (but otherwise the type would overflow)
+	DEKAF2_NODISCARD
+	KDuration                           to_abs       () const;
 
 	/// output format for ToString()
 	enum Format
 	{
 		Smart = 0, ///< human readable, auto adapting to value
 		Long,      ///< verbose ("1 yr, 2 wks, 3 days, 6 hrs, 23 min, 10 sec")
-		Brief,     ///< brief, auto adapting to value, same size for all ("23.2 ms", "421 µs")
-		Condensed  ///< golang-like: 1d14h24m2.92s
+		Brief,     ///< brief, auto adapting to value, same size for all ("23.2ms", "421µs")
+		Condensed, ///< golang-like: 1d14h24m2s
+		Spaced     ///< golang-like with spaces: 1d 14h 24m 2s
 	};
 
 	/// minimum interval to use for ToString()
 	enum BaseInterval
 	{
 		NanoSeconds = 0,
-		MilliSeconds,
 		MicroSeconds,
+		MilliSeconds,
 		Seconds,
 		Minutes,
 		Hours,

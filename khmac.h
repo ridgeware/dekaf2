@@ -111,6 +111,9 @@ public:
 	/// returns the HMAC in hexadecimal notation
 	KString HexDigest() const;
 
+	friend bool operator==(const KHMAC& left, const KHMAC& right) { return left.m_Digest == right.m_Digest && left.Digest() == right.Digest(); }
+	friend bool operator!=(const KHMAC& left, const KHMAC& right) { return !operator==(left, right); }
+
 //------
 protected:
 //------
@@ -125,6 +128,7 @@ protected:
 #endif
 
 	mutable KString m_sHMAC;
+	enum Digest m_Digest;
 
 }; // KHMAC
 
@@ -143,6 +147,9 @@ public:
 
 }; // KHMAC_MD5
 
+inline bool operator==(const KHMAC_MD5& left, const KHMAC_MD5& right) { return left.Digest() == right.Digest(); }
+inline bool operator!=(const KHMAC_MD5& left, const KHMAC_MD5& right) { return !operator==(left, right);        }
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHMAC_SHA1 : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -156,7 +163,10 @@ public:
 	: KHMAC(SHA1, sKey, sMessage)
 	{}
 
-}; // KSHA1
+}; // KHMAC_SHA1
+
+inline bool operator==(const KHMAC_SHA1& left, const KHMAC_SHA1& right) { return left.Digest() == right.Digest(); }
+inline bool operator!=(const KHMAC_SHA1& left, const KHMAC_SHA1& right) { return !operator==(left, right);        }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHMAC_SHA224 : public KHMAC
@@ -173,6 +183,9 @@ public:
 
 }; // KHMAC_SHA224
 
+inline bool operator==(const KHMAC_SHA224& left, const KHMAC_SHA224& right) { return left.Digest() == right.Digest(); }
+inline bool operator!=(const KHMAC_SHA224& left, const KHMAC_SHA224& right) { return !operator==(left, right);        }
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHMAC_SHA256 : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -187,6 +200,9 @@ public:
 	{}
 
 }; // KHMAC_SHA256
+
+inline bool operator==(const KHMAC_SHA256& left, const KHMAC_SHA256& right) { return left.Digest() == right.Digest(); }
+inline bool operator!=(const KHMAC_SHA256& left, const KHMAC_SHA256& right) { return !operator==(left, right);        }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHMAC_SHA384 : public KHMAC
@@ -203,6 +219,9 @@ public:
 
 }; // KHMAC_SHA384
 
+inline bool operator==(const KHMAC_SHA384& left, const KHMAC_SHA384& right) { return left.Digest() == right.Digest(); }
+inline bool operator!=(const KHMAC_SHA384& left, const KHMAC_SHA384& right) { return !operator==(left, right);        }
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHMAC_SHA512 : public KHMAC
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -217,6 +236,9 @@ public:
 	{}
 
 }; // KHMAC_SHA512
+
+inline bool operator==(const KHMAC_SHA512& left, const KHMAC_SHA512& right) { return left.Digest() == right.Digest(); }
+inline bool operator!=(const KHMAC_SHA512& left, const KHMAC_SHA512& right) { return !operator==(left, right);        }
 
 #if DEKAF2_HAS_BLAKE2
 
@@ -235,6 +257,9 @@ public:
 
 }; // KHMAC_BLAKE2S
 
+inline bool operator==(const KHMAC_BLAKE2S& left, const KHMAC_BLAKE2S& right) { return left.Digest() == right.Digest(); }
+inline bool operator!=(const KHMAC_BLAKE2S& left, const KHMAC_BLAKE2S& right) { return !operator==(left, right);        }
+
 using KHMAC256 = KHMAC_BLAKE2S;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -251,6 +276,9 @@ public:
 	{}
 
 }; // KHMAC_BLAKE2B
+
+inline bool operator==(const KHMAC_BLAKE2B& left, const KHMAC_BLAKE2B& right) { return left.Digest() == right.Digest(); }
+inline bool operator!=(const KHMAC_BLAKE2B& left, const KHMAC_BLAKE2B& right) { return !operator==(left, right);        }
 
 using KHMAC512 = KHMAC_BLAKE2B;
 

@@ -71,4 +71,23 @@ TEST_CASE("KMessageDigest") {
 	{
 		CHECK ( KSHA224("The quick brown fox jumps over the lazy dog").HexDigest() == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
 	}
+
+	SECTION("equality")
+	{
+		{
+			KMessageDigest sha_1(KDigest::SHA256, "The quick brown fox jumps over the lazy dog");
+			KMessageDigest sha_2(KDigest::SHA256, "The quick brown fox jumps over the lazy dog");
+			KMessageDigest sha_3(KDigest::SHA384, "The quick brown fox jumps over the lazy dog");
+			CHECK      ( (sha_1 == sha_2) );
+			CHECK_FALSE( (sha_1 != sha_2) );
+			CHECK_FALSE( (sha_1 == sha_3) );
+			CHECK      ( (sha_1 != sha_3) );
+		}
+		{
+			KSHA224 sha_1("The quick brown fox jumps over the lazy dog");
+			KSHA224 sha_2("The quick brown fox jumps over the lazy dog");
+			CHECK      ( (sha_1 == sha_2) );
+			CHECK_FALSE( (sha_1 != sha_2) );
+		}
+	}
 }

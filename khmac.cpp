@@ -56,6 +56,7 @@ DEKAF2_NAMESPACE_BEGIN
 //---------------------------------------------------------------------------
 KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 //---------------------------------------------------------------------------
+: m_Digest(digest)
 {
 #if OPENSSL_VERSION_NUMBER < 0x010100000L
 	m_hmacctx = new ::HMAC_CTX();

@@ -53,4 +53,23 @@ TEST_CASE("KHMAC") {
 	{
 		CHECK ( KHMAC_SHA256("key", "The quick brown fox jumps over the lazy dog").HexDigest() == "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8" );
 	}
+
+	SECTION("equality")
+	{
+		{
+			KHMAC mac_1(KDigest::SHA256, "The quick brown fox jumps over the lazy dog");
+			KHMAC mac_2(KDigest::SHA256, "The quick brown fox jumps over the lazy dog");
+			KHMAC mac_3(KDigest::SHA384, "The quick brown fox jumps over the lazy dog");
+			CHECK      ( (mac_1 == mac_2) );
+			CHECK_FALSE( (mac_1 != mac_2) );
+			CHECK_FALSE( (mac_1 == mac_3) );
+			CHECK      ( (mac_1 != mac_3) );
+		}
+		{
+			KHMAC256 mac_1("The quick brown fox jumps over the lazy dog");
+			KHMAC256 mac_2("The quick brown fox jumps over the lazy dog");
+			CHECK      ( (mac_1 == mac_2) );
+			CHECK_FALSE( (mac_1 != mac_2) );
+		}
+	}
 }

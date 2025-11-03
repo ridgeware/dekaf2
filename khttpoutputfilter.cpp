@@ -314,9 +314,6 @@ void KOutHTTPFilter::Flush()
 		m_OutStream->Flush();
 	}
 
-	m_bAllowCompression = true;
-	m_bChunked          = false;
-
 } // Flush
 
 //-----------------------------------------------------------------------------

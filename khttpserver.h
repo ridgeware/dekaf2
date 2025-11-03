@@ -204,6 +204,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Flush data in the output buffers
+	void Flush()
+	//-----------------------------------------------------------------------------
+	{
+		return Response.Flush();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Automatically check if the output in this connection can be compressed, and
 	/// enable compression. This depends on the Accept-Encoding request header and
 	/// the client HTTP version. This option is active per default after construction of this class.
@@ -231,6 +239,7 @@ public:
 	void AllowCompression(bool bYesNo)
 	//-----------------------------------------------------------------------------
 	{
+		ConfigureCompression(bYesNo);
 		Response.AllowCompression(bYesNo);
 	}
 

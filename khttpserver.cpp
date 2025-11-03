@@ -53,11 +53,12 @@ void KHTTPServer::clear()
 	ClearError();
 	Request.clear();
 	Response.clear();
+	AllowCompression(true);
 	// we also clear the authenticated user, as the connection may be proxied
 	// and shared by multiple users
 	m_sAuthenticatedUser.clear();
-	m_bConfigureCompression = true;
-}
+
+} // clear
 
 //-----------------------------------------------------------------------------
 KHTTPServer::KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort)

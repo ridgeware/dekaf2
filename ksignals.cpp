@@ -244,7 +244,7 @@ void KSignals::SetDefaultHandler(int iSignal)
 {
 	auto DefaultHandler = [](int iSignal)
 	{
-		kDebug(2, "dekaf2 default handler for {}, now calling exit({})", kTranslateSignal(iSignal), EXIT_SUCCESS);
+		kDebug(2, "dekaf2 default handler for {} called, now calling exit({})", kTranslateSignal(iSignal), EXIT_SUCCESS);
 		std::exit(EXIT_SUCCESS);
 	};
 

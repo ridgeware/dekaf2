@@ -151,6 +151,7 @@ public:
 	using base::Authentication;
 	using base::BasicAuthentication;
 	using base::DigestAuthentication;
+	using base::TokenAuthentication;
 	using base::ClearAuthentication;
 	using base::SetTimeout;
 	using base::SetProxy;

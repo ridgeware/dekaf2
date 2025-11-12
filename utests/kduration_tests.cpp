@@ -113,16 +113,46 @@ TEST_CASE("KDuration")
 		CHECK ( D.ToString(KDuration::Long     , KDuration::NanoSeconds) == "75 yrs, 36 wks, 5 days, 16 hrs, 38 mins, 43 secs, 123 msecs, 874 µsecs, 534 nsecs" );
 		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "76y" );
 		CHECK ( D.ToString(KDuration::Condensed, KDuration::NanoSeconds) == "3947w3d16h38m43s123ms874µs534ns" );
+		CHECK ( D.ToString(KDuration::Spaced   , KDuration::NanoSeconds) == "3947w 3d 16h 38m 43s 123ms 874µs 534ns" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "27632'16:38:43.123874534" );
 		D = chrono::seconds(23482);
 		CHECK ( D.ToString(KDuration::Condensed, KDuration::NanoSeconds) == "6h31m22s" );
+		CHECK ( D.ToString(KDuration::Spaced   , KDuration::NanoSeconds) == "6h 31m 22s" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "0'06:31:22.000000000" );
 		D = chrono::seconds(1);
 		CHECK ( D.ToString(KDuration::Condensed, KDuration::NanoSeconds) == "1s" );
+		CHECK ( D.ToString(KDuration::Spaced   , KDuration::NanoSeconds) == "1s" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "0'00:00:01.000000000" );
 		D = chrono::milliseconds(734);
 		CHECK ( D.ToString(KDuration::Condensed, KDuration::NanoSeconds) == "734ms" );
+		CHECK ( D.ToString(KDuration::Spaced   , KDuration::NanoSeconds) == "734ms" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "0'00:00:00.734000000" );
 		D = chrono::milliseconds(734);
 		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "734ms" );
 		D = chrono::milliseconds(1055);
 		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "1.1s" );
+
+		D = chrono::nanoseconds(-2387464723123874534);
+		CHECK ( D.ToString(KDuration::Smart    , KDuration::NanoSeconds) == "-75.7 yrs" );
+		CHECK ( D.ToString(KDuration::Long     , KDuration::NanoSeconds) == "-75 yrs, 36 wks, 5 days, 16 hrs, 38 mins, 43 secs, 123 msecs, 874 µsecs, 534 nsecs" );
+		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "-76y" );
+		CHECK ( D.ToString(KDuration::Condensed, KDuration::NanoSeconds) == "-3947w3d16h38m43s123ms874µs534ns" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "-27632'16:38:43.123874534" );
+		D = chrono::seconds(-23482);
+		CHECK ( D.ToString(KDuration::Condensed, KDuration::NanoSeconds) == "-6h31m22s" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "-0'06:31:22.000000000" );
+		D = chrono::seconds(-1);
+		CHECK ( D.ToString(KDuration::Condensed, KDuration::NanoSeconds) == "-1s" );
+		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "-1.0s" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "-0'00:00:01.000000000" );
+		D = chrono::milliseconds(-734);
+		CHECK ( D.ToString(KDuration::Condensed, KDuration::NanoSeconds) == "-734ms" );
+		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "-734ms" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "-0'00:00:00.734000000" );
+		D = chrono::milliseconds(-1055);
+		CHECK ( D.ToString(KDuration::Condensed, KDuration::NanoSeconds) == "-1s55ms" );
+		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "-1.1s" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "-0'00:00:01.055000000" );
 	}
 
 	SECTION("FromString")
@@ -149,10 +179,22 @@ TEST_CASE("KDuration")
 		CHECK ( D.ToString(KDuration::Spaced                           ) == "3947w 3d 16h 38m 43s 123ms 874µs 534ns" );
 		CHECK ( D.ToString(KDuration::Spaced   , KDuration::NanoSeconds) == "3947w 3d 16h 38m 43s 123ms 874µs 534ns" );
 		CHECK ( D.ToString(KDuration::Spaced   , KDuration::Seconds    ) == "3947w 3d 16h 38m 43s" );
+		D = KDuration("27632'16:38:43.123874534");
+		CHECK ( D.ToString(KDuration::Fixed                            ) == "27632'16:38:43.123874534" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "27632'16:38:43.123874534" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::MicroSeconds)== "27632'16:38:43.123874" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::Seconds    ) == "27632'16:38:43" );
+		D = KDuration("0'00:38:43.000874534");
+		CHECK ( D.ToString(KDuration::Fixed                            ) == "0'00:38:43.000874534" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::MicroSeconds)== "0'00:38:43.000874" );
 		D = KDuration("-3947w 3d 16h 38m 43s 123ms 874µs 534ns");
 		CHECK ( D.ToString(KDuration::Spaced                           ) == "-3947w 3d 16h 38m 43s 123ms 874µs 534ns" );
 		CHECK ( D.ToString(KDuration::Spaced   , KDuration::NanoSeconds) == "-3947w 3d 16h 38m 43s 123ms 874µs 534ns" );
 		CHECK ( D.ToString(KDuration::Spaced   , KDuration::Seconds    ) == "-3947w 3d 16h 38m 43s" );
+		D = KDuration("-27632'16:38:43.123874534");
+		CHECK ( D.ToString(KDuration::Fixed                            ) == "-27632'16:38:43.123874534" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::NanoSeconds) == "-27632'16:38:43.123874534" );
+		CHECK ( D.ToString(KDuration::Fixed    , KDuration::Seconds    ) == "-27632'16:38:43" );
 		D = KDuration("6h31m22s");
 		CHECK ( D.ToString(KDuration::Condensed, KDuration::NanoSeconds) == "6h31m22s");
 		D = KDuration("1s");
@@ -167,6 +209,8 @@ TEST_CASE("KDuration")
 		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "734ms" );
 		D = KDuration("1.1 s");
 		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "1.1s"  );
+		D = KDuration("-1.1 s");
+		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "-1.1s"  );
 		D = KDuration("874µs");
 		CHECK ( D.ToString(KDuration::Brief    , KDuration::NanoSeconds) == "874µs" );
 		D = KDuration("874us");

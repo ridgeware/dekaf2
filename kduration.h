@@ -205,7 +205,8 @@ public:
 		Long,      ///< verbose ("1 yr, 2 wks, 3 days, 6 hrs, 23 min, 10 sec")
 		Brief,     ///< brief, auto adapting to value, same size for all ("23.2ms", "421µs")
 		Condensed, ///< golang-like: 1d14h24m2s
-		Spaced     ///< golang-like with spaces: 1d 14h 24m 2s
+		Spaced,    ///< golang-like with spaces: 1d 14h 24m 2s
+		Fixed      ///< 0'00:02:31.123456
 	};
 
 	/// minimum interval to use for ToString()
@@ -348,7 +349,7 @@ private:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Keeps multiple durations
+/// Keeps the total duration and count of multiple durations
 class DEKAF2_PUBLIC KMultiDuration : public KDuration
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -406,7 +407,7 @@ private:
 }; // KMultiDuration
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Measures multiple consecutive time intervals
+/// Measures multiple time intervals and keeps their total duration and count
 class DEKAF2_PUBLIC KStopDuration : public KMultiDuration
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -437,7 +438,7 @@ private:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Keeps multiple consecutive time intervals
+/// Keeps multiple consecutive time intervals and averages them
 class DEKAF2_PUBLIC KDurations
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -521,7 +522,7 @@ private:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Measures multiple consecutive time intervals
+/// Measures multiple consecutive time intervals and averages them
 class DEKAF2_PUBLIC KStopDurations : public KDurations
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

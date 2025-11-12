@@ -122,7 +122,8 @@ TEST_CASE("KTime") {
 		CHECK ( kTranslateDuration(nanoseconds(1)      , false) == "1 nanosec" );
 		CHECK ( kTranslateDuration(nanoseconds::max()  , false) == "292.5 yrs" );
 		CHECK ( kTranslateDuration(nanoseconds::max()  , true) == "292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs, 854 msecs, 775 µsecs, 807 nsecs" );
-		CHECK ( kTranslateDuration(nanoseconds::min()  , true) == "a very long negative time" );
+		// when printing negative two's complement min we now reduce it by 1 ns to avoid an integer overflow and cause UB
+		CHECK ( kTranslateDuration(nanoseconds::min()  , true) == "-292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs, 854 msecs, 775 µsecs, 807 nsecs" );
 		CHECK ( kTranslateDuration(nanoseconds::min()
 								   +nanoseconds(1)     , true) == "-292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs, 854 msecs, 775 µsecs, 807 nsecs" );
 	}

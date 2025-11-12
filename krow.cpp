@@ -257,22 +257,7 @@ KSQLString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KStr
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as its own escape char (i.e. it gets doubled up).
 	KSQLString sEscaped;
-	auto& sRef = sEscaped.ref();
-	sRef.reserve(sCol.size());
-
-	for (KStringView::size_type iStart; (iStart = sCol.find_first_of(sCharsToEscape)) != KStringView::npos; )
-	{
-		sRef += sCol.substr(0, iStart);
-		auto ch = sCol[iStart];
-		if (!ch) ch = '0'; // NUL needs special treatment
-		sRef += (iEscapeChar) ? iEscapeChar : ch;
-		sRef += ch;
-		// prepare for next round
-		sCol.remove_prefix(++iStart);
-	}
-	// add the remainder of the input string
-	sRef += sCol;
-
+	sEscaped.ref() = kEscapeChars(sCol, sCharsToEscape, iEscapeChar);
 	return sEscaped;
 
 } // EscapeChars

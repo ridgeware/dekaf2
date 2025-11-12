@@ -1622,13 +1622,39 @@ T kFromString(KStringView sValue, uint16_t iBase = 10)
 }
 
 //-----------------------------------------------------------------------------
-/// Escape or hex encode problematic characters, append to sLog
+/// Escape problematic characters for command input in sInput, return escaped string
+/// @param sInput the input string
+/// @param sCharsToEscape the list of chars to escape
+/// @param chEscapeChar the escape character, typically a backslash. If it is \0, the escaped character
+/// itself is used as the escape char, it then gets doubled
+/// @returns the escaped string
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kEscapeChars(KStringView sInput, KStringView sCharsToEscape, KString::value_type chEscapeChar);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Escape problematic characters for command input in sInput, return escaped string
+/// @param sInput the input string
+/// @returns the escaped string
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+inline KString kEscapeForCommands(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	return kEscapeChars(sInput, "'\"\\`\0", '\\');
+}
+
+//-----------------------------------------------------------------------------
+/// Escape or hex encode problematic characters in sInput, append to sLog
+/// @param sLog a reference for the output string
+/// @param sInput the input string
 DEKAF2_PUBLIC
 void kEscapeForLogging(KStringRef& sLog, KStringView sInput);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Escape or hex encode problematic characters
+/// Escape or hex encode problematic characters in sInput, return escaped string
+/// @param sInput the input string
+/// @returns the escaped string
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline KString kEscapeForLogging(KStringView sInput)
 //-----------------------------------------------------------------------------

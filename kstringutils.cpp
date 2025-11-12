@@ -657,6 +657,32 @@ bool kIsURL(KStringView str) noexcept
 }
 
 //-----------------------------------------------------------------------------
+KString kEscapeChars(KStringView sInput, KStringView sCharsToEscape, KString::value_type chEscapeChar)
+//-----------------------------------------------------------------------------
+{
+	KString sEscaped;
+	sEscaped.reserve(sInput.size());
+
+	KFindSetOfChars Escapables(sCharsToEscape);
+
+	for (KStringView::size_type iStart; (iStart = Escapables.find_first_in(sInput)) != KStringView::npos; )
+	{
+		sEscaped += sInput.substr(0, iStart);
+		auto ch = sInput[iStart];
+		if (!ch) ch = '0'; // NUL needs special treatment
+		sEscaped += (chEscapeChar) ? chEscapeChar : ch; // double the char if chEscapeChar is \0
+		sEscaped += ch;
+		// prepare for next round
+		sInput.remove_prefix(++iStart);
+	}
+	// add the remainder of the input string
+	sEscaped += sInput;
+
+	return sEscaped;
+
+} // kEscapeChars
+
+//-----------------------------------------------------------------------------
 void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 //-----------------------------------------------------------------------------
 {

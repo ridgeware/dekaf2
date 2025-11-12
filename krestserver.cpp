@@ -1776,7 +1776,7 @@ void KRESTServer::clear()
 	m_bIsStreaming         = false;
 	m_bSwitchToWebSocket   = false;
 	m_bKeepWebSocketThread = false;
-	// do not clear m_Timer, the main Execute loop takes care of it
+	// do not clear m_Timers, the main Execute loop takes care of it
 
 	m_iJSONPrint =
 #ifdef NDEBUG

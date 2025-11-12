@@ -472,12 +472,12 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// @return the count in microsecond ticks for a request until the last byte was sent
+	/// @return the duration of a request until the last byte was sent
 	DEKAF2_NODISCARD
-	chrono::microseconds GetTimeToLastByte() const
+	KDuration GetTimeToLastByte() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Timers ? m_Timers->duration().microseconds() : chrono::microseconds(0);
+		return m_Timers ? m_Timers->duration() : KDuration::zero();
 	}
 
 	//-----------------------------------------------------------------------------

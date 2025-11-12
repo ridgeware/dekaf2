@@ -327,7 +327,7 @@ void KHTTPLog::WriteJSONAccessLog(const KRESTServer& HTTP) const
 	Log.Write("tx-comp"   , HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) );
 	Log.Write("forwarded" , HTTP.Response.Headers.Get(KHTTPHeader::X_FORWARDED_FOR)  );
 	Log.Write("user"      , kjson::GetString(HTTP.GetAuthToken(), "sub")             );
-	Log.Write("TTLB"      , HTTP.GetTimeToLastByte().count()                         );
+	Log.Write("TTLB"      , HTTP.GetTimeToLastByte().microseconds().count()          );
 
 	kLogger(*m_LogStream, Log.Dump());
 
@@ -380,7 +380,7 @@ void KHTTPLog::WriteAccessLog(const KRESTServer& HTTP) const
 			// %P The process ID of the child that serviced the request - we take the thread id
 			Log += kGetTid();
 			// %D The time taken to serve the request, in microseconds
-			Log += kFormat("{};", HTTP.GetTimeToLastByte());
+			Log += kFormat("{};", HTTP.GetTimeToLastByte().microseconds());
 			// \"%{X-Forwarded-For}i\"
 			Log.Quote(HTTP.Request.Headers.Get(KHTTPHeader::X_FORWARDED_FOR));
 		}
@@ -508,7 +508,7 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 						break;
 
 					case 'T': // TTLB in seconds..
-						Log.Write(chrono::duration_cast<chrono::seconds>(HTTP.GetTimeToLastByte()).count());
+						Log.Write(HTTP.GetTimeToLastByte().seconds().count());
 						break;
 
 					case 'u': // remote user
@@ -640,15 +640,15 @@ void KHTTPLog::WriteParsedAccessLog(const KRESTServer& HTTP) const
 					case 'T': // used time in various formats
 						if (sVariable == "us" || sVariable == "µs")
 						{
-							Log.Write(chrono::duration_cast<chrono::microseconds>(HTTP.GetTimeToLastByte()).count());
+							Log.Write(HTTP.GetTimeToLastByte().microseconds().count());
 						}
 						else if (sVariable == "ms")
 						{
-							Log.Write(chrono::duration_cast<chrono::milliseconds>(HTTP.GetTimeToLastByte()).count());
+							Log.Write(HTTP.GetTimeToLastByte().milliseconds().count());
 						}
 						else if (sVariable == "s")
 						{
-							Log.Write(chrono::duration_cast<chrono::seconds>(HTTP.GetTimeToLastByte()).count());
+							Log.Write(HTTP.GetTimeToLastByte().seconds().count());
 						}
 						else
 						{

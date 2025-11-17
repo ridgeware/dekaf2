@@ -198,7 +198,6 @@ public:
 
 	static constexpr KStringViewZ BINARY                 = "application/octet-stream";
 	static constexpr KStringViewZ BR                     = "application/brotli";
-	static constexpr KStringViewZ JAVASCRIPT             = "application/javascript";
 	static constexpr KStringViewZ JSON                   = "application/json";
 	static constexpr KStringViewZ JSON_PATCH             = "application/json-patch+json";
 	static constexpr KStringViewZ XML                    = "application/xml";
@@ -223,7 +222,7 @@ public:
 	static constexpr KStringViewZ SEVENZIP               = "application/x-7z-compressed";
 	static constexpr KStringViewZ SH                     = "application/x-sh";
 	static constexpr KStringViewZ TAR                    = "application/x-tar";
-	static constexpr KStringViewZ TS                     = "application/typescript";
+	static constexpr KStringViewZ TYPESCRIPT             = "application/typescript";
 	static constexpr KStringViewZ VSD                    = "application/vnd.visio";
 	static constexpr KStringViewZ WASM                   = "application/wasm";
 	static constexpr KStringViewZ XHTML                  = "application/xhtml+xml";
@@ -267,6 +266,14 @@ public:
 	static constexpr KStringViewZ CALENDAR               = "text/calendar";
 	static constexpr KStringViewZ PO                     = "text/x-gettext-translation";
 	static constexpr KStringViewZ MD                     = "text/markdown";
+	static constexpr KStringViewZ JAVASCRIPT             = "text/javascript";
+	static constexpr KStringViewZ JAVA                   = "text/x-java";
+	static constexpr KStringViewZ CSHARP                 = "text/x-csharp";
+	static constexpr KStringViewZ GOLANG                 = "text/x-golang";
+	static constexpr KStringViewZ PHP                    = "text/x-php";
+	static constexpr KStringViewZ PYTHON                 = "text/x-python";
+	static constexpr KStringViewZ RUBY                   = "text/x-ruby";
+	static constexpr KStringViewZ TEX                    = "text/x-tex";
 
 	static constexpr KStringViewZ AVI                    = "video/x-msvideo";
 	static constexpr KStringViewZ MPEG                   = "video/mpeg";

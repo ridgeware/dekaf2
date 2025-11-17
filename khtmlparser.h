@@ -197,9 +197,9 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	KHTMLText() = default;
-	KHTMLText(KString _sText, bool _bIsEntityEncoded = false)
-	: sText(std::move(_sText))
-	, bIsEntityEncoded(_bIsEntityEncoded)
+	KHTMLText(KString sText, bool bIsEntityEncoded = false)
+	: m_sText(std::move(sText))
+	, m_bIsEntityEncoded(bIsEntityEncoded)
 	{
 	}
 
@@ -213,8 +213,23 @@ public:
 	virtual std::size_t Type() const override { return TYPE; }
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLText>(*this); }
 
-	KString sText;
-	bool    bIsEntityEncoded { false };
+	/// @returns the text of this text element
+	const KString& GetText        () const { return m_sText;            }
+	/// @returns true if the text of this text element is already entity encoded
+	bool           IsEntityEncoded() const { return m_bIsEntityEncoded; }
+
+	KHTMLText& AddLeft (const KHTMLText& other);
+	KHTMLText& AddRight(const KHTMLText& other);
+
+	KHTMLText& TrimLeft()  { m_sText.TrimLeft();  return *this; }
+	KHTMLText& TrimRight() { m_sText.TrimRight(); return *this; }
+
+//------
+protected:
+//------
+
+	KString m_sText;
+	bool    m_bIsEntityEncoded { false };
 
 }; // KHTMLText
 
@@ -289,14 +304,21 @@ public:
 	{
 	}
 
+	/// parses attribute from an input stream
 	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false);
+	/// serializes attribute into an output stream
 	void Serialize(KOutStream& OutStream) const;
+	/// serializes attribute into an output string
 	void Serialize(KStringRef& sOut) const;
 
+	/// clears attribute name and value
 	void clear();
+	/// @returns true if attribute is empty
 	bool empty() const;
 
+	/// @returns the attribute name
 	const KString& GetName()  const { return m_sName;  }
+	/// @returns the attribute value
 	const KString& GetValue() const { return m_sValue; }
 
 //------
@@ -356,57 +378,74 @@ public:
 
 	using AttributeList = std::set<KHTMLAttribute, less_for_attribute>;
 
+	/// @returns an iterator to the begin of the attribute list
 	AttributeList::iterator begin()
 	{
 		return m_Attributes.begin();
 	}
 
+	/// @returns an iterator to the end of the attribute list
 	AttributeList::iterator end()
 	{
 		return m_Attributes.end();
 	}
 
+	/// @returns a const_iterator to the begin of the attribute list
 	AttributeList::const_iterator begin() const
 	{
 		return m_Attributes.begin();
 	}
 
+	/// @returns a const_iterator to the end of the attribute list
 	AttributeList::const_iterator end() const
 	{
 		return m_Attributes.end();
 	}
 
+	/// @returns the value of an attribute with the given name (or an empty string if the attribute does not exist)
 	KStringView Get(KStringView sAttributeName) const;
 
+	///@returns true if an attribute with the given name exists
 	bool Has(KStringView sAttributeName) const;
 
+	/// sets an attribute's name and value, creates a new attribute if the name was not yet existing
 	KHTMLAttributes& Set(KString sAttributeName, KString sAttributeValue, char Quote='"', bool bDoNotEscape = false)
 	{
 		Set(KHTMLAttribute(std::move(sAttributeName), std::move(sAttributeValue), Quote, bDoNotEscape));
 		return *this;
 	}
 
+	/// sets an attribute, creates a new attribute if the name was not yet existing
 	KHTMLAttributes& Set(KHTMLAttribute Attribute);
 
+	/// sets all attributes from another attribute list, creates new attributes if the name was not yet existing
 	KHTMLAttributes& Set(const KHTMLAttributes& Attributes);
 
+	/// sets an attribute, creates a new attribute if the name was not yet existing
 	KHTMLAttributes& operator+=(KHTMLAttribute Attribute)
 	{
 		return Set(std::move(Attribute));
 	}
 
+	/// sets all attributes from another attribute list, creates new attributes if the name was not yet existing
 	KHTMLAttributes& operator+=(KHTMLAttributes Attributes)
 	{
 		return Set(std::move(Attributes));
 	}
 
+	/// removes an attribute with the given name, if existing
 	void Remove(KStringView sAttributeName);
 
+	/// parses attributes from an input stream
 	bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false);
+	/// serializes all attributes into an output stream
 	void Serialize(KOutStream& OutStream) const;
+	/// serializes all attributes into an output string
 	void Serialize(KStringRef& sOut) const;
 
+	/// clears all attributes
 	void clear();
+	/// @returns true if the attribute list is empty
 	bool empty() const;
 
 //------
@@ -430,7 +469,7 @@ public:
 
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
-	enum TagType { NONE, OPEN, CLOSE, STANDALONE };
+	enum class TagType { None, Open, Close, Standalone };
 
 #if (DEKAF2_HAS_INCOMPLETE_CPP_17) || defined(DEKAF2_IS_MSC)
 	// older GCCs need a default constructor here as they do not honor the using directive below
@@ -440,28 +479,55 @@ public:
 	using KHTMLObject::KHTMLObject;
 	using KHTMLObject::Parse;
 
+	/// parse this tag from a stream
 	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false) override;
+	/// serialize this tag to a stream
 	virtual void Serialize(KOutStream& OutStream) const override;
+	/// serialize this tag to a string
 	virtual void Serialize(KStringRef& sOut) const override;
 
+	/// clears the tag
 	virtual void clear() override;
+	/// is this tag empty / not yet parsed ?
 	virtual bool empty() const override;
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
+	virtual KStringView TypeName() const override { return s_sObjectName; }
 	virtual std::size_t Type() const override { return TYPE; }
+	/// creates a copy of this class, even when called without the exact type information
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLTag>(*this); }
 
-	bool IsInline() const     { return KHTMLObject::IsInlineTag(Name); }
-	bool IsOpening() const    { return TagType == OPEN;                }
-	bool IsClosing() const    { return TagType == CLOSE;               }
-	bool IsStandalone() const { return TagType == STANDALONE;          }
+	/// @returns true if this is an inline tag
+	bool IsInline    () const { return KHTMLObject::IsInlineTag(m_sName); }
+	/// @returns true if this is an opening tag
+	bool IsOpening   () const { return m_TagType == TagType::Open;        }
+	/// @returns true if this is a closing tag
+	bool IsClosing   () const { return m_TagType == TagType::Close;       }
+	/// @returns true if this is a standalone tag
+	bool IsStandalone() const { return m_TagType == TagType::Standalone;  }
+
+	/// @returns the tag name
+	const KString&         GetName      () const { return m_sName;        }
+	/// @returns the tag attributes
+	const KHTMLAttributes& GetAttributes() const { return m_Attributes;   }
+	/// @returns the tag type (Open/Close/Standalone)
+	TagType                GetTagType   () const { return m_TagType;      }
+
+	/// @returns true if this tag has an attribute with the given name
+	bool        HasAttribute (KStringView sAttributeName) const { return GetAttributes().Has(sAttributeName); }
+	/// @returns the value of an attribute with the given name (or the empty string if not found)
+	KStringView GetAttribute (KStringView sAttributeName) const { return GetAttributes().Get(sAttributeName); }
+
+	/// @returns the tag name as an rvalue reference
+	KString&&         MoveName      () { return std::move(m_sName);       }
+	/// @returns the attributes as an rvalue reference
+	KHTMLAttributes&& MoveAttributes() { return std::move(m_Attributes);  }
 
 //------
-public:
+protected:
 //------
 
-	KString         Name;
-	KHTMLAttributes Attributes;
-	TagType         TagType { NONE };
+	KString         m_sName;
+	KHTMLAttributes m_Attributes;
+	enum TagType    m_TagType { TagType::None };
 
 }; // KHTMLTag
 
@@ -480,7 +546,7 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	KHTMLComment(KString sValue = KString{})
-	: KHTMLStringObject(LEAD_IN, LEAD_OUT, std::move(sValue))
+	: KHTMLStringObject(s_sLeadIn, s_sLeadOut, std::move(sValue))
 	{}
 
 	// forward all constructors
@@ -490,8 +556,8 @@ public:
 	virtual std::size_t Type() const override { return TYPE; }
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLComment>(*this); }
 
-	static constexpr KStringView LEAD_IN  = "<!--";
-	static constexpr KStringView LEAD_OUT = "-->";
+	static constexpr KStringView s_sLeadIn  = "<!--";
+	static constexpr KStringView s_sLeadOut = "-->";
 
 //------
 protected:
@@ -516,7 +582,7 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	KHTMLDocumentType(KString sValue = KString{})
-	: KHTMLStringObject(LEAD_IN, LEAD_OUT, std::move(sValue))
+	: KHTMLStringObject(s_sLeadIn, s_sLeadOut, std::move(sValue))
 	{}
 
 	// forward all constructors
@@ -526,8 +592,8 @@ public:
 	virtual std::size_t Type() const override { return TYPE; }
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLDocumentType>(*this); }
 
-	static constexpr KStringView LEAD_IN  = "<!DOCTYPE ";
-	static constexpr KStringView LEAD_OUT = ">";
+	static constexpr KStringView s_sLeadIn  = "<!DOCTYPE ";
+	static constexpr KStringView s_sLeadOut = ">";
 
 //------
 protected:
@@ -552,7 +618,7 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	KHTMLProcessingInstruction(KString sValue = KString{})
-	: KHTMLStringObject(LEAD_IN, LEAD_OUT, std::move(sValue))
+	: KHTMLStringObject(s_sLeadIn, s_sLeadOut, std::move(sValue))
 	{}
 
 	// forward all constructors
@@ -562,8 +628,8 @@ public:
 	virtual std::size_t Type() const override { return TYPE; }
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLProcessingInstruction>(*this); }
 
-	static constexpr KStringView LEAD_IN  = "<?";
-	static constexpr KStringView LEAD_OUT = "?>";
+	static constexpr KStringView s_sLeadIn  = "<?";
+	static constexpr KStringView s_sLeadOut = "?>";
 
 //------
 protected:
@@ -588,7 +654,7 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	KHTMLCData(KString sValue = KString{})
-	: KHTMLStringObject(LEAD_IN, LEAD_OUT, std::move(sValue))
+	: KHTMLStringObject(s_sLeadIn, s_sLeadOut, std::move(sValue))
 	{}
 
 	// forward all constructors
@@ -598,8 +664,8 @@ public:
 	virtual std::size_t Type() const override { return TYPE; }
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLCData>(*this); }
 
-	static constexpr KStringView LEAD_IN  = "<![CDATA[";
-	static constexpr KStringView LEAD_OUT = "]]>";
+	static constexpr KStringView s_sLeadIn  = "<![CDATA[";
+	static constexpr KStringView s_sLeadOut = "]]>";
 
 //------
 protected:

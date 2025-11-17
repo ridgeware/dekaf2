@@ -411,13 +411,13 @@ bool KHTMLText::Parse(KStringView sInput, bool bDecodeEntities)
 {
 	if (bDecodeEntities)
 	{
-		sText = KHTMLEntity::Decode(sInput);
-		bIsEntityEncoded = false;
+		m_sText = KHTMLEntity::Decode(sInput);
+		m_bIsEntityEncoded = false;
 	}
 	else
 	{
-		sText = sInput;
-		bIsEntityEncoded = true;
+		m_sText = sInput;
+		m_bIsEntityEncoded = true;
 	}
 	return true;
 }
@@ -426,13 +426,13 @@ bool KHTMLText::Parse(KStringView sInput, bool bDecodeEntities)
 void KHTMLText::Serialize(KOutStream& OutStream) const
 //-----------------------------------------------------------------------------
 {
-	if (bIsEntityEncoded)
+	if (IsEntityEncoded())
 	{
-		OutStream.Write(sText);
+		OutStream.Write(GetText());
 	}
 	else
 	{
-		EncodeMandatoryHTMLContent(OutStream, sText);
+		EncodeMandatoryHTMLContent(OutStream, GetText());
 	}
 }
 
@@ -440,13 +440,13 @@ void KHTMLText::Serialize(KOutStream& OutStream) const
 void KHTMLText::Serialize(KStringRef& sOut) const
 //-----------------------------------------------------------------------------
 {
-	if (bIsEntityEncoded)
+	if (IsEntityEncoded())
 	{
-		sOut += sText;
+		sOut += GetText();
 	}
 	else
 	{
-		EncodeMandatoryHTMLContent(sOut, sText);
+		EncodeMandatoryHTMLContent(sOut, GetText());
 	}
 }
 
@@ -454,15 +454,57 @@ void KHTMLText::Serialize(KStringRef& sOut) const
 void KHTMLText::clear()
 //-----------------------------------------------------------------------------
 {
-	sText.clear();
-	bIsEntityEncoded = false;
+	m_sText.clear();
+	m_bIsEntityEncoded = false;
 }
 
 //-----------------------------------------------------------------------------
 bool KHTMLText::empty() const
 //-----------------------------------------------------------------------------
 {
-	return sText.empty();
+	return m_sText.empty();
+}
+
+//-----------------------------------------------------------------------------
+KHTMLText& KHTMLText::AddLeft(const KHTMLText& other)
+//-----------------------------------------------------------------------------
+{
+	// adapt entity encoding
+	if (IsEntityEncoded() == other.IsEntityEncoded())
+	{
+		m_sText.insert(0, other.m_sText);
+	}
+	else if (IsEntityEncoded())
+	{
+		m_sText.insert(0, KHTMLEntity::EncodeMandatory(other.m_sText));
+	}
+	else
+	{
+		m_sText.insert(0, KHTMLEntity::Decode(other.m_sText));
+	}
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+KHTMLText& KHTMLText::AddRight(const KHTMLText& other)
+//-----------------------------------------------------------------------------
+{
+	// adapt entity encoding
+	if (IsEntityEncoded() == other.IsEntityEncoded())
+	{
+		m_sText += other.m_sText;
+	}
+	else if (IsEntityEncoded())
+	{
+		m_sText += KHTMLEntity::EncodeMandatory(other.m_sText);
+	}
+	else
+	{
+		m_sText += KHTMLEntity::Decode(other.m_sText);
+	}
+
+	return *this;
 }
 
 //-----------------------------------------------------------------------------
@@ -568,13 +610,13 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 
 	m_bIsEntityEncoded = !bDecodeEntities;
 
-	enum pstate { START, KEY, BEFORE_EQUAL, AFTER_EQUAL, VALUE };
-	pstate state { START };
+	enum class State { Start, Key, BeforeEqual, AfterEqual, Value };
+	State state { State::Start };
 
 	if (!sOpening.empty())
 	{
 		m_sName = sOpening;
-		state = KEY;
+		state = State::Key;
 	}
 
 	std::iostream::int_type ch;
@@ -583,7 +625,7 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 	{
 		switch (state)
 		{
-			case START:
+			case State::Start:
 				if (ch == '>')
 				{
 					// normal exit (no attribute)
@@ -593,18 +635,18 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 				else if (!KASCII::kIsSpace(ch))
 				{
 					m_sName.assign(1, KASCII::kToLower(ch));
-					state = KEY;
+					state = State::Key;
 				}
 				break;
 
-			case KEY:
+			case State::Key:
 				if (KASCII::kIsSpace(ch))
 				{
-					state = BEFORE_EQUAL;
+					state = State::BeforeEqual;
 				}
 				else if (ch == '=')
 				{
-					state = AFTER_EQUAL;
+					state = State::AfterEqual;
 				}
 				else if (ch == '>')
 				{
@@ -618,10 +660,10 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 				}
 				break;
 
-			case BEFORE_EQUAL:
+			case State::BeforeEqual:
 				if (ch == '=')
 				{
-					state = AFTER_EQUAL;
+					state = State::AfterEqual;
 				}
 				else if (!KASCII::kIsSpace(ch))
 				{
@@ -631,7 +673,7 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 				}
 				break;
 
-			case AFTER_EQUAL:
+			case State::AfterEqual:
 				if (!KASCII::kIsSpace(ch))
 				{
 					if (ch == '\'' || ch == '"')
@@ -650,11 +692,11 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 							m_sValue.assign(1, ch);
 						}
 					}
-					state = VALUE;
+					state = State::Value;
 				}
 				break;
 
-			case VALUE:
+			case State::Value:
 				if (DEKAF2_UNLIKELY(bDecodeEntities && ch == '&'))
 				{
 					m_sValue += KHTMLObject::DecodeEntity(InStream);
@@ -908,9 +950,9 @@ void KHTMLAttributes::Serialize(KOutStream& OutStream) const
 void KHTMLTag::clear()
 //-----------------------------------------------------------------------------
 {
-	Name.clear();
-	Attributes.clear();
-	TagType = NONE;
+	m_sName.clear();
+	m_Attributes.clear();
+	m_TagType = TagType::None;
 
 } // clear
 
@@ -918,7 +960,7 @@ void KHTMLTag::clear()
 bool KHTMLTag::empty() const
 //-----------------------------------------------------------------------------
 {
-	return Name.empty();
+	return m_sName.empty();
 
 } // empty
 
@@ -928,8 +970,8 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 {
 	clear();
 
-	enum pstate { START, OPEN, NAME, CLOSE };
-	pstate state { START };
+	enum class State { Start, Open, Name, Close };
+	State state { State::Start };
 	std::iostream::int_type ch;
 	std::size_t iCloseCount { 0 }; // helper to unread in case of invalid html
 
@@ -939,23 +981,23 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 	{
 		if (iOSize > 1)
 		{
-			Name = sOpening.substr(1, KStringView::npos);
+			m_sName = sOpening.substr(1, KStringView::npos);
 		}
-		state = OPEN;
+		state = State::Open;
 	}
 
-	TagType = TagType::OPEN;
+	m_TagType = TagType::Open;
 
 	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::iostream::traits_type::eof()))
 	{
 		switch (state)
 		{
-			case START:
+			case State::Start:
 				if (!KASCII::kIsSpace(ch))
 				{
 					if (ch == '<')
 					{
-						state = OPEN;
+						state = State::Open;
 						break;
 					}
 					// this is no tag
@@ -965,7 +1007,7 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				break;
 
 
-			case OPEN:
+			case State::Open:
 				if (ch == '>')
 				{
 					// error (no tag, probably a comment)
@@ -975,12 +1017,12 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				}
 				else if (ch == '/' && !IsClosing())
 				{
-					TagType = TagType::CLOSE;
+					m_TagType = TagType::Close;
 				}
 				else if (KASCII::kIsAlNum(ch))
 				{
-					Name.assign(1, KASCII::kToLower(ch));
-					state = NAME;
+					m_sName.assign(1, KASCII::kToLower(ch));
+					state = State::Name;
 				}
 				else
 				{
@@ -991,11 +1033,11 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				}
 				break;
 
-			case NAME:
+			case State::Name:
 				if (KASCII::kIsSpace(ch))
 				{
-					Attributes.Parse(InStream, KStringView{}, bDecodeEntities);
-					state = CLOSE;
+					m_Attributes.Parse(InStream, KStringView{}, bDecodeEntities);
+					state = State::Close;
 				}
 				else if (ch == '>')
 				{
@@ -1005,16 +1047,16 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				else if (ch == '/')
 				{
 					// we should now not have attributes following!
-					TagType = TagType::STANDALONE;
-					state = CLOSE;
+					m_TagType = TagType::Standalone;
+					state = State::Close;
 				}
 				else
 				{
-					Name += KASCII::kToLower(ch);
+					m_sName += KASCII::kToLower(ch);
 				}
 				break;
 
-			case CLOSE:
+			case State::Close:
 				++iCloseCount;
 
 				if (!KASCII::kIsSpace(ch))
@@ -1028,7 +1070,7 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 					{
 						// it would be good to check for !bClosing here as well,
 						// but - garbage in, garbage out
-						TagType = TagType::STANDALONE;
+						m_TagType = TagType::Standalone;
 					}
 					else
 					{
@@ -1075,13 +1117,13 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 			OutStream.Write('/');
 		}
 
-		OutStream.Write(Name);
+		OutStream.Write(GetName());
 
-		Attributes.Serialize(OutStream);
+		GetAttributes().Serialize(OutStream);
 
 		if (DEKAF2_UNLIKELY(IsStandalone()))
 		{
-			if (!Attributes.empty())
+			if (!GetAttributes().empty())
 			{
 				OutStream.Write(' ');
 			}
@@ -1435,7 +1477,7 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 				if (!tag.empty())
 				{
 					Object(tag);
-					if (DEKAF2_UNLIKELY(tag.Name == "script" && !tag.IsClosing()))
+					if (DEKAF2_UNLIKELY(tag.GetName() == "script" && !tag.IsClosing()))
 					{
 						SkipScript(InStream);
 					}
@@ -1542,14 +1584,14 @@ void KHTMLParser::Finished()
 } // Finished
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-constexpr KStringView KHTMLComment::LEAD_IN;
-constexpr KStringView KHTMLComment::LEAD_OUT;
-constexpr KStringView KHTMLDocumentType::LEAD_IN;
-constexpr KStringView KHTMLDocumentType::LEAD_OUT;
-constexpr KStringView KHTMLProcessingInstruction::LEAD_IN;
-constexpr KStringView KHTMLProcessingInstruction::LEAD_OUT;
-constexpr KStringView KHTMLCData::LEAD_IN;
-constexpr KStringView KHTMLCData::LEAD_OUT;
+constexpr KStringView KHTMLComment::s_sLeadIn;
+constexpr KStringView KHTMLComment::s_sLeadOut;
+constexpr KStringView KHTMLDocumentType::s_sLeadIn;
+constexpr KStringView KHTMLDocumentType::s_sLeadOut;
+constexpr KStringView KHTMLProcessingInstruction::s_sLeadIn;
+constexpr KStringView KHTMLProcessingInstruction::s_sLeadOut;
+constexpr KStringView KHTMLCData::s_sLeadIn;
+constexpr KStringView KHTMLCData::s_sLeadOut;
 constexpr std::size_t KHTMLText::TYPE;
 constexpr KStringView KHTMLText::s_sObjectName;
 constexpr std::size_t KHTMLTag::TYPE;

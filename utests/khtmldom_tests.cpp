@@ -394,7 +394,7 @@ R"(<html>
 			if (Element.begin()->get()->Type() == KHTMLText::TYPE)
 			{
 				auto Text = static_cast<KHTMLText*>(Element.begin()->get());
-				CHECK (Text->sText == "before1.text1.text2.after1.");
+				CHECK (Text->GetText() == "before1.text1.text2.after1.");
 			}
 		}
 	}

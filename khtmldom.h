@@ -78,10 +78,8 @@ public:
 	KHTMLElement(KString sName, KHTMLAttributes Attributes);
 	/// Construct an element with name, ID, and class
 	KHTMLElement(KString sName, KStringView sID = KStringView{}, KStringView sClass = KStringView{});
-	/// Copy construct an element from a KHTMLTag
-	KHTMLElement(const KHTMLTag& Tag);
-	/// Move construct an element from a KHTMLTag
-	KHTMLElement(KHTMLTag&& Tag);
+	/// Construct an element from a KHTMLTag
+	KHTMLElement(KHTMLTag Tag);
 
 	/// Set element name from sInput
 	virtual bool Parse(KStringView sInput, bool bDummyParam = false) override;
@@ -359,9 +357,15 @@ private:
 
 	self& SetBoolAttribute (KString sName, bool bYesNo);
 	/// Append right to left, and return reference to left
-	static KHTMLText& AppendTextObject(KHTMLText& left, KHTMLText& right);
+	static KHTMLText& AppendTextObject(KHTMLText& left, KHTMLText& right)
+	{
+		return left.AddRight(right);
+	}
 	/// Insert right at start of left, and return reference to left
-	static KHTMLText& PrependTextObject(KHTMLText& left, KHTMLText& right);
+	static KHTMLText& PrependTextObject(KHTMLText& left, KHTMLText& right)
+	{
+		return left.AddLeft(right);
+	}
 
 	KString                    m_Name;
 	KHTMLAttributes            m_Attributes;

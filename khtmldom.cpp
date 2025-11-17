@@ -67,23 +67,11 @@ KHTMLElement::KHTMLElement(const KHTMLElement& other)
 } // copy ctor
 
 //-----------------------------------------------------------------------------
-KHTMLElement::KHTMLElement(const KHTMLTag& Tag)
+KHTMLElement::KHTMLElement(KHTMLTag Tag)
 //-----------------------------------------------------------------------------
 {
-	m_Name       = Tag.Name;
-	m_Attributes = Tag.Attributes;
-	m_Property   = GetTagProperty(m_Name);
-	// we should check here if the attribute values are entity encoded, in
-	// which case we should decode them - but we use this constructor only
-	// during parsing of a DOM where the entities decode is active already
-}
-
-//-----------------------------------------------------------------------------
-KHTMLElement::KHTMLElement(KHTMLTag&& Tag)
-//-----------------------------------------------------------------------------
-{
-	m_Name       = std::move(Tag.Name);
-	m_Attributes = std::move(Tag.Attributes);
+	m_Name       = std::move(Tag.MoveName());
+	m_Attributes = std::move(Tag.MoveAttributes());
 	m_Property   = GetTagProperty(m_Name);
 	// we should check here if the attribute values are entity encoded, in
 	// which case we should decode them - but we use this constructor only
@@ -289,7 +277,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 				// if preceded by whitespace
 				const auto* TextElement = static_cast<const KHTMLText*>(it.get());
 
-				if (TextElement->sText != " ")
+				if (TextElement->GetText() != " ")
 				{
 					it->Serialize(OutStream);
 				}
@@ -321,7 +309,7 @@ bool KHTMLElement::Print(KOutStream& OutStream, char chIndent, uint16_t iIndent,
 
 				auto* Element = static_cast<KHTMLText*>(it.get());
 
-				if (!iIsPreformatted && !Element->sText.empty() && Element->sText.back() == '\n')
+				if (!iIsPreformatted && !Element->GetText().empty() && Element->GetText().back() == '\n')
 				{
 					bIsFirstAfterLinefeed = true;
 				}
@@ -436,51 +424,6 @@ KHTMLElement::self& KHTMLElement::AddRawText(KStringView sContent)
 } // AddRawText
 
 //-----------------------------------------------------------------------------
-KHTMLText& KHTMLElement::AppendTextObject(KHTMLText& left, KHTMLText& right)
-//-----------------------------------------------------------------------------
-{
-	// adapt entity encoding
-	if (left.bIsEntityEncoded == right.bIsEntityEncoded)
-	{
-		left.sText += right.sText;
-	}
-	else if (left.bIsEntityEncoded)
-	{
-		left.sText += KHTMLEntity::EncodeMandatory(right.sText);
-	}
-	else
-	{
-		left.sText += KHTMLEntity::Decode(right.sText);
-	}
-
-	return left;
-
-} // AppendTextObject
-
-//-----------------------------------------------------------------------------
-KHTMLText& KHTMLElement::PrependTextObject(KHTMLText& left, KHTMLText& right)
-//-----------------------------------------------------------------------------
-{
-	// adapt entity encoding
-	if (left.bIsEntityEncoded == right.bIsEntityEncoded)
-	{
-		left.sText.insert(0, right.sText);
-	}
-	else if (left.bIsEntityEncoded)
-	{
-		left.sText.append(" ");
-		left.sText.insert(0, KHTMLEntity::EncodeMandatory(right.sText));
-	}
-	else
-	{
-		left.sText.insert(0, KHTMLEntity::Decode(right.sText));
-	}
-
-	return left;
-
-} // PrependTextObject
-
-//-----------------------------------------------------------------------------
 KHTMLText& KHTMLElement::Insert(iterator it, KHTMLText Object, Merge merge)
 //-----------------------------------------------------------------------------
 {
@@ -511,7 +454,7 @@ KHTMLText& KHTMLElement::Insert(iterator it, KHTMLText Object, Merge merge)
 
 	// if we end up here we could not merge the text, and will though create
 	// a new child
-	if (Object.sText.empty())
+	if (Object.empty())
 	{
 		kDebug(1, "adding an empty KHTMLText object is considered harmful");
 	}
@@ -540,7 +483,7 @@ KHTMLText& KHTMLElement::Add(KHTMLText Object, Merge merge)
 
 	// if we end up here we could not merge the text, and will though create
 	// a new child
-	if (Object.sText.empty())
+	if (Object.empty())
 	{
 		kDebug(1, "adding an empty KHTMLText object is considered harmful");
 	}
@@ -609,9 +552,9 @@ bool KHTMLElement::RemoveLeadingWhitespace(bool bStopAtBlockElement)
 			{
 				auto* Text = static_cast<KHTMLText*>(Child);
 
-				Text->sText.TrimLeft();
+				Text->TrimLeft();
 
-				if (Text->sText.empty())
+				if (Text->empty())
 				{
 					it = m_Children.erase(it);
 				}
@@ -674,9 +617,9 @@ bool KHTMLElement::RemoveTrailingWhitespace(bool bStopAtBlockElement)
 			{
 				auto* Text = static_cast<KHTMLText*>(Child);
 
-				Text->sText.TrimRight();
+				Text->TrimRight();
 
-				if (Text->sText.empty())
+				if (Text->empty())
 				{
 					it = m_Children.erase(it);
 				}
@@ -857,7 +800,7 @@ void KHTML::Object(KHTMLObject& Object)
 		case KHTMLTag::TYPE:
 		{
 			auto& Tag              = static_cast<KHTMLTag&>(Object);
-			auto  TagProps         = KHTMLObject::GetTagProperty (Tag.Name);
+			auto  TagProps         = KHTMLObject::GetTagProperty (Tag.GetName());
 			auto  bIsStandalone    = KHTMLObject::IsStandalone   (TagProps);
 			auto  bIsInline        = KHTMLObject::IsInline       (TagProps);
 			auto  bIsInlineBlock   = KHTMLObject::IsInlineBlock  (TagProps);
@@ -866,7 +809,7 @@ void KHTML::Object(KHTMLObject& Object)
 
 			if (Tag.IsClosing())
 			{
-				if (!Tag.Attributes.empty())
+				if (!Tag.GetAttributes().empty())
 				{
 					SetIssue(kFormat("invalid html - closing tag has attributes: {}", Tag.ToString()));
 				}
@@ -883,13 +826,13 @@ void KHTML::Object(KHTMLObject& Object)
 
 					if (   Children.empty()
 						|| Children.back()->Type() != KHTMLElement::TYPE
-						|| static_cast<KHTMLElement*>(Children.back().get())->GetName() != Tag.Name)
+						|| static_cast<KHTMLElement*>(Children.back().get())->GetName() != Tag.GetName())
 					{
 						SetIssue(kFormat("invalid html - standalone tag closed without immediately opening it - treating it as a new standalone: {}", Tag.ToString()));
 						m_Hierarchy.back()->Add(KHTMLElement(Tag));
 
 						// is this content ("phrasing context")?
-						if (bIsInline && Tag.Name != "br") // we treat <br> like a space
+						if (bIsInline && Tag.GetName() != "br") // we treat <br> like a space
 						{
 							m_bLastWasSpace = false;
 						}
@@ -906,7 +849,7 @@ void KHTML::Object(KHTMLObject& Object)
 				}
 				else if (iHierarchyLevels > 1) // normal closing tag
 				{
-					if (m_Hierarchy.back()->GetName() == Tag.Name)
+					if (m_Hierarchy.back()->GetName() == Tag.GetName())
 					{
 						if (bIsInlineBlock)
 						{
@@ -936,7 +879,7 @@ void KHTML::Object(KHTMLObject& Object)
 #if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
 						SetIssue(kFormat("invalid html - start and end tag differ: <{}{} -> </{}{}", m_Hierarchy.back()->GetName(), '>', Tag.Name, '>'));
 #else
-						SetIssue(kFormat("invalid html - start and end tag differ: <{}> -> </{}>", m_Hierarchy.back()->GetName(), Tag.Name));
+						SetIssue(kFormat("invalid html - start and end tag differ: <{}> -> </{}>", m_Hierarchy.back()->GetName(), Tag.GetName()));
 #endif
 
 						// now try to resync
@@ -969,7 +912,7 @@ void KHTML::Object(KHTMLObject& Object)
 								break;
 							}
 
-							if (m_Hierarchy[iCurrentLevel]->GetName() == Tag.Name)
+							if (m_Hierarchy[iCurrentLevel]->GetName() == Tag.GetName())
 							{
 #if DEKAF2_HTMLDOM_DEBUG
 								kDebug(2, "resync after {} descents", m_Hierarchy.size() - 1 - iCurrentLevel);
@@ -1033,7 +976,7 @@ void KHTML::Object(KHTMLObject& Object)
 				}
 				else
 				{
-					if (Tag.Name == "br")
+					if (Tag.GetName() == "br")
 					{
 						// we treat <br> like a space
 						m_bLastWasSpace = true;

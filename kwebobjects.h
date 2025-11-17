@@ -2611,10 +2611,10 @@ protected:
 		{
 			auto sValAttr = option->GetAttribute("value");
 			if ((!sValAttr.empty() && sValAttr == sValue) ||
-				(textelement->sText == sValue))
+				(textelement->GetText() == sValue))
 			{
 				// we're selected
-				m_Result = textelement->sText;
+				m_Result = textelement->GetText();
 				option->SetSelected(true);
 				return;
 			}

@@ -252,8 +252,7 @@ void KWebObjectBase::SetTextBefore(KStringView sLabel)
 		if (begin()->get()->Type() == KHTMLText::TYPE)
 		{
 			auto& element = static_cast<KHTMLText&>(*(begin()->get()));
-			element.sText = sLabel;
-			element.bIsEntityEncoded = false;
+			element = KHTMLText(sLabel, false);
 		}
 		else
 		{
@@ -277,8 +276,7 @@ void KWebObjectBase::SetTextAfter(KStringView sLabel)
 		if (it->get()->Type() == KHTMLText::TYPE)
 		{
 			auto& element = static_cast<KHTMLText&>(*(it->get()));
-			element.sText = sLabel;
-			element.bIsEntityEncoded = false;
+			element = KHTMLText(sLabel, false);
 		}
 		else
 		{
@@ -885,7 +883,7 @@ Text::Text(KStringView sContent)
 Text::self& Text::AddText(KStringView sContent) &
 //-----------------------------------------------------------------------------
 {
-	sText += sContent;
+	m_sText += sContent;
 	return *this;
 }
 
@@ -900,7 +898,10 @@ RawText::RawText(KString sContent)
 RawText::self& RawText::AddRawText(KStringView sContent) &
 //-----------------------------------------------------------------------------
 {
-	sText += sContent;
+	// we need to make sure this is always set to true when adding
+	// text, even when RawText() was default constructed
+	m_bIsEntityEncoded = true;
+	m_sText += sContent;
 	return *this;
 }
 

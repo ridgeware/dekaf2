@@ -82,52 +82,5 @@ std::thread::id KRunThreads::Store(std::thread thread)
 
 } // Store
 
-//-----------------------------------------------------------------------------
-void KBlockOnID::Data::Lock(std::size_t ID)
-//-----------------------------------------------------------------------------
-{
-	lockmap_t::iterator it;
-
-	{
-		auto id_mutexes = m_id_mutexes.unique();
-
-		it = id_mutexes->find(ID);
-		
-		if (it == id_mutexes->end())
-		{
-			it = id_mutexes->emplace(ID, std::make_unique<std::mutex>()).first;
-		}
-	}
-
-	it->second->lock();
-
-} // Data::Lock
-
-//-----------------------------------------------------------------------------
-bool KBlockOnID::Data::Unlock(std::size_t ID)
-//-----------------------------------------------------------------------------
-{
-	lockmap_t::const_iterator it;
-	bool bFoundLock;
-
-	{
-		auto id_mutexes = m_id_mutexes.shared();
-		it = id_mutexes->find(ID);
-		bFoundLock = it != id_mutexes->end();
-	}
-
-	if (bFoundLock)
-	{
-		it->second->unlock();
-	}
-	else
-	{
-		kWarning("cannot unlock lock for ID {}", ID);
-	}
-
-	return bFoundLock;
-
-} // Data::Unlock
-
 DEKAF2_NAMESPACE_END
 

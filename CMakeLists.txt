@@ -1190,6 +1190,7 @@ set(PUBLIC_HEADERS
 	kjson.h
 	kjson2.h
 	klambdastream.h
+	klockmap.h
 	klog.h
 	kmail.h
 	kmakecopyable.h

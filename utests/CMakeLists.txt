@@ -78,6 +78,7 @@ set (USOURCES
 	kjoin_tests.cpp
 	kjson_tests.cpp
 	kjson2_tests.cpp
+	klockmap_tests.cpp
 	klog_tests.cpp
 	kmessagedigest_tests.cpp
 	kmime_tests.cpp

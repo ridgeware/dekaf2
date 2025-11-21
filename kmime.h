@@ -511,9 +511,9 @@ class DEKAF2_PUBLIC KMIMEFileInline : public KMIMEPart
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
-	//----------
+//----------
 public:
-	//----------
+//----------
 
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter

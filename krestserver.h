@@ -157,8 +157,9 @@ public:
 		/// Set a general purpose callback function that will be called after route matching, and before route callbacks.
 		/// Could be used e.g. for additional authentication, like basic. May throw to abort calling the route's callback.
 		std::function<void(KRESTServer&)> PostRouteCallback;
-		/// DoS prevention - max rounds in keep-alive (default 10)
-		mutable uint16_t iMaxKeepaliveRounds { 10 };
+		/// DoS prevention - max rounds in keep-alive (default 50) - actually, this doesn't help much against DoS, and for some
+		/// protocols it may be benficial to set this value much higher (streaming e.g.). But 50 seems already a good compromise.
+		mutable uint16_t iMaxKeepaliveRounds { 50 };
 		/// Which of the three output formats HTTP, LAMBDA, CLI (default HTTP) ?
 		mutable OutputType Out { HTTP };
 		/// Which authentication level: ALLOW_ALL, ALLOW_ALL_WITH_AUTH_HEADER, VERIFY_AUTH_HEADER ? (default = ALLOW_ALL)

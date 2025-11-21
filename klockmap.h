@@ -87,7 +87,7 @@ private:
 	//-----------------------------------------------------------------------------
 	/// Lock a key
 	template<typename K>
-	LockMap::iterator LockKey(K&& key)
+	typename LockMap::iterator LockKey(K&& key)
 	//-----------------------------------------------------------------------------
 	{
 		typename LockMap::iterator it;
@@ -112,7 +112,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	/// Unlock a key
-	void UnlockKey(LockMap::iterator it)
+	void UnlockKey(typename LockMap::iterator it)
 	//-----------------------------------------------------------------------------
 	{
 		auto Mutexes = m_MutexMap.unique();
@@ -161,7 +161,7 @@ public:
 		}
 
 		KLockMap& m_Locks;
-		KLockMap::LockMap::iterator m_it;
+		typename KLockMap::LockMap::iterator m_it;
 
 	}; // Lock
 

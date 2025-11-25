@@ -252,6 +252,13 @@ const KString& KHTTPServer::GetRequestPath() const
 }
 
 //-----------------------------------------------------------------------------
+void KHTTPServer::SetRequestPath(url::KPath url)
+//-----------------------------------------------------------------------------
+{
+	Request.Resource.Path = url;
+}
+
+//-----------------------------------------------------------------------------
 /// get one query parm value as a const string ref
 const KString& KHTTPServer::GetQueryParm(KStringView sKey) const
 //-----------------------------------------------------------------------------

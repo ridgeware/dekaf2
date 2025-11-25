@@ -312,6 +312,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// poke something into the request path (onlu use under special circumstances)
+	//-----------------------------------------------------------------------------
+	void SetRequestPath(url::KPath url);
+
+	//-----------------------------------------------------------------------------
 	/// get one query parm value as a const string ref
 	/// @param sKey the name of the requested query parm
 	/// @return the value for the requested query parm

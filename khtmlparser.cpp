@@ -70,9 +70,11 @@ void EncodeMandatoryAttributeValue(Output& Out, KStringView sValue, char ChQuote
 					Out += "&quot;";
 				}
 				break;
+
 			case '&':
 				Out += "&amp;";
 				break;
+
 			case '\'':
 				if (ChQuote == '"')
 				{
@@ -83,12 +85,15 @@ void EncodeMandatoryAttributeValue(Output& Out, KStringView sValue, char ChQuote
 					Out += "&apos;";
 				}
 				break;
+
 			case '<':
 				Out += "&lt;";
 				break;
+
 			case '>':
 				Out += "&gt;";
 				break;
+
 			default:
 				Out += ch;
 				break;
@@ -109,12 +114,15 @@ void EncodeMandatoryHTMLContent(Output& Out, KStringView sContent)
 			case '&':
 				Out += "&amp;";
 				break;
+
 			case '<':
 				Out += "&lt;";
 				break;
+
 			case '>':
 				Out += "&gt;";
 				break;
+
 			default:
 				Out += ch;
 				break;

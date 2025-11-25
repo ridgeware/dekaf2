@@ -58,19 +58,53 @@ class KHTTP : public KErrorBase
 public:
 //----------
 
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct UserParms
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		KString sPass;
+		KString sPath;
+		bool    bReadOnly { false };
+	};
+
+	using UserConf = KUnorderedMultiMap<KString, UserParms>;
+
 	//-----------------------------------------------------------------------------
-	KUnorderedMap<KString, KString> SetupUsers(KStringViewZ sUserAndPass, KStringViewZ sUsersFile)
+	void SetupUser(UserConf& Conf, KStringView sUserParms)
 	//-----------------------------------------------------------------------------
 	{
-		KUnorderedMap<KString, KString> UserAndPass;
-
-		if (!sUserAndPass.empty())
+		if (!sUserParms.empty())
 		{
 			// check if we get a pair from here
-			auto Parts = sUserAndPass.Split(":");
-			if (Parts.size() != 2) SetError("need username:password");
-			UserAndPass.emplace(Parts[0], Parts[1]);
+			auto Parts = sUserParms.Split(":");
+
+			if (Parts.size() == 2)
+			{
+				Conf.emplace(Parts[0], UserParms{ Parts[1], "/", false });
+			}
+			else if (Parts.size() == 3)
+			{
+				Conf.emplace(Parts[0], UserParms{ Parts[1], Parts[2], false });
+			}
+			else if (Parts.size() == 4)
+			{
+				if (!Parts[3].In("ro,rw")) SetError("invalid format for user parameters: requires user:pass:/path:ro|rw");
+				Conf.emplace(Parts[0], UserParms{ Parts[1], Parts[2], Parts[3] == "ro" });
+			}
+			else
+			{
+				SetError("need username:password[:/path]");
+			}
 		}
+	}
+
+	//-----------------------------------------------------------------------------
+	UserConf SetupUsers(KStringViewZ sUserParms, KStringViewZ sUsersFile)
+	//-----------------------------------------------------------------------------
+	{
+		UserConf Conf;
+
+		SetupUser(Conf, sUserParms);
 
 		if (!sUsersFile.empty())
 		{
@@ -83,20 +117,14 @@ public:
 
 				if (!sLine.empty() && !sLine.starts_with('#'))
 				{
-					auto Parts = sLine.Split(":");
-					if (!Parts.empty())
-					{
-						if (Parts.size() != 2) SetError("need lines with username:password");
-						auto p = UserAndPass.emplace(Parts[0], Parts [1]);
-						if (p.second == false) SetError(kFormat("duplicate user: {}", Parts[0]));
-					}
+					SetupUser(Conf, sLine);
 				}
 			}
 
-			if (UserAndPass.empty()) SetError("no user and pass definitions found");
+			if (Conf.empty()) SetError("no user and pass definitions found");
 		}
 
-		return UserAndPass;
+		return Conf;
 
 	} // SetupUsers
 
@@ -120,8 +148,8 @@ public:
 		KStringViewZ sWWWDir          = Options("www <directory>       : base directory for HTTP server (served content)");
 		bool bCreateAdHocIndex        = Options("autoindex             : create an automatic index.html for directories if index.html is not found, default false", false);
 		bool bAllowUpload             = Options("upload                : allow upload into directory, default false", false);
-		KStringViewZ sUserAndPass     = Options("user <user:password>  : set username and password for web access, default is open access", "");
-		KStringViewZ sUsersFile       = Options("users <pathname>      : set pathname for file with list of lines of user:pass", "");
+		KStringViewZ sUserParms       = Options("user <user:password[[:/path]:ro|rw]> : set username and password for web access, default is open access", "");
+		KStringViewZ sUsersFile       = Options("users <pathname>      : set pathname for file with list of lines of user:pass:/path:ro|rw");
 		KStringViewZ sRoute           = Options("route </path>         : route to serve from, defaults to \"/*\"", "/*");
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		Settings.iPort                = Options("http <port>           : port number to bind to", 0);
@@ -175,18 +203,38 @@ public:
 		Settings.TimerHeader = "x-microseconds";
 
 		// set up basic authentication
-		const auto UserAndPass = SetupUsers(sUserAndPass, sUsersFile);
-		if (!UserAndPass.empty())
+		const auto UserParms = SetupUsers(sUserParms, sUsersFile);
+
+		if (!UserParms.empty())
 		{
-			Settings.PreRouteCallback = [&UserAndPass](KRESTServer& HTTP)
+			Settings.PreRouteCallback = [&UserParms](KRESTServer& HTTP)
 			{
-				auto Basic = HTTP.Request.GetBasicAuthParms();
-				auto it = UserAndPass.find(Basic.sUsername);
-				if (it == UserAndPass.end() || it->second != Basic.sPassword)
+				auto Basic  = HTTP.Request.GetBasicAuthParms();
+				auto up     = UserParms.equal_range(Basic.sUsername);
+				bool bWrite = HTTP.Request.Method != KHTTPMethod::GET     &&
+				              HTTP.Request.Method != KHTTPMethod::OPTIONS &&
+				              HTTP.Request.Method != KHTTPMethod::HEAD;
+
+				for (auto it = up.first; it != up.second; ++it)
 				{
-					HTTP.Response.Headers.Set(KHTTPHeader::WWW_AUTHENTICATE, "Basic realm=\"KHTTP\"");
-					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authorized" };
+					if (it->second.sPass == Basic.sPassword)
+					{
+						// password is correct
+						if (HTTP.Request.Resource.Path.get().starts_with(it->second.sPath))
+						{
+							// this path is matched
+							if (!bWrite || it->second.bReadOnly == false)
+							{
+								// rw/ro mode matches - return without throwing (= success)
+								return;
+							}
+						}
+					}
 				}
+
+				// no matching user config found - request authentication
+				HTTP.Response.Headers.Set(KHTTPHeader::WWW_AUTHENTICATE, "Basic realm=\"KHTTP\"");
+				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authorized" };
 			};
 		}
 		else

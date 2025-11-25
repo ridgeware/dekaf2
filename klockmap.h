@@ -56,7 +56,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// Provides an execution barrier that only lets one of multiple equal keys
 /// pass. All other instances with the same key have to wait until
 /// the first one finishes, then the next, and so on.
-template<typename Key = std::size_t, typename Mutex = std::mutex>
+template<typename Key, typename Mutex = std::mutex>
 class DEKAF2_PUBLIC KLockMap
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -80,10 +80,6 @@ private:
 	using LockMap = KUnorderedMap<Key, std::unique_ptr<ObjectAndControl>>;
 	KThreadSafe<LockMap> m_MutexMap;
 
-//----------
-private:
-//----------
-
 	//-----------------------------------------------------------------------------
 	/// Lock a key
 	template<typename K>
@@ -99,7 +95,7 @@ private:
 
 			if (it == Mutexes->end())
 			{
-				it = Mutexes->emplace(key, std::make_unique<ObjectAndControl>()).first;
+				it = Mutexes->emplace(std::forward<K>(key), std::make_unique<ObjectAndControl>()).first;
 			}
 
 			it->second->inc();
@@ -201,5 +197,65 @@ public:
 	}
 
 }; // KLockMap
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Using the std::hash value of an object as its identity, therefore risking collisions on same hash values,
+/// but removing the need to store a large object for an equality comparison. For integral types, identity
+/// is the type's value, not its hash, to avoid double hashing.
+/// Provides an execution barrier that only lets one of multiple equal keys
+/// pass. All other instances with the same key have to wait until
+/// the first one finishes, then the next, and so on.
+template<typename Key, typename Mutex = std::mutex>
+class DEKAF2_PUBLIC KShallowLockMap : public KLockMap<std::size_t, Mutex>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	using base = KLockMap<std::size_t, Mutex>;
+
+//----------
+public:
+//----------
+
+	//-----------------------------------------------------------------------------
+	/// creates a new lock for the given key, using only the hash value of the key as identity
+	template<typename T = Key>
+	auto Create(const Key& key)
+	-> typename std::enable_if<std::is_integral<T>::value == false, typename base::Lock>::type
+	//-----------------------------------------------------------------------------
+	{
+		return base::Create(std::hash<Key>()(key));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// creates a new lock for the given key, using only the hash value of the key as identity
+	template<typename T = Key>
+	auto Create(const Key& key)
+	-> typename std::enable_if<std::is_integral<T>::value == true, typename base::Lock>::type
+	//-----------------------------------------------------------------------------
+	{
+		return base::Create(static_cast<std::size_t>(key));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// tests if a key would block right now
+	template<typename T = Key>
+	auto WouldBlock(const Key& key) const
+	-> typename std::enable_if<std::is_integral<T>::value == false, bool>::type
+	//-----------------------------------------------------------------------------
+	{
+		return base::WouldBlock(std::hash<Key>()(key));
+	}
+
+	//-----------------------------------------------------------------------------
+	/// tests if a key would block right now
+	template<typename T = Key>
+	auto WouldBlock(const Key& key) const
+	-> typename std::enable_if<std::is_integral<T>::value == true, bool>::type
+	//-----------------------------------------------------------------------------
+	{
+		return base::WouldBlock(static_cast<std::size_t>(key));
+	}
+
+}; // KShallowLockMap
 
 DEKAF2_NAMESPACE_END

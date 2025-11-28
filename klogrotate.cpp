@@ -324,7 +324,7 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 		// truncate the file early
 		kResizeFile(conf.sLogFilename, sBuffer.size());
 
-		if (!LogFile.KOutFile::Rewind())
+		if (!LogFile.KOutStream::Rewind())
 		{
 			kDebug(1, "cannot seek to start: {}", conf.sLogFilename);
 			return {};

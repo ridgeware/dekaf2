@@ -63,7 +63,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.84 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.85 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1192,6 +1192,7 @@ set(PUBLIC_HEADERS
 	klambdastream.h
 	klockmap.h
 	klog.h
+	klogrotate.h
 	kmail.h
 	kmakecopyable.h
 	kmessagedigest.h
@@ -1469,6 +1470,7 @@ set (SOURCES
 	kjson2.cpp
 	klambdastream.cpp
 	klog.cpp
+	klogrotate.cpp
 	kmail.cpp
 	kmessagedigest.cpp
 	kmime.cpp

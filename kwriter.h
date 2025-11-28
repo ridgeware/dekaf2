@@ -353,7 +353,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Reposition the input device of the std::ostream to the end position. Fails on non-seekable streams.
+	/// Reposition the input device of the std::ostream to the beginning. Fails on non-seekable streams.
 	bool Rewind()
 	//-----------------------------------------------------------------------------
 	{
@@ -361,7 +361,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Reposition the input device of the std::ostream by iCount bytes towards the end position. Fails on non-seekable streams.
+	/// Reposition the input device of the std::ostream by iCount bytes towards the beginning. Fails on non-seekable streams.
 	bool Rewind(std::size_t iCount)
 	//-----------------------------------------------------------------------------
 	{

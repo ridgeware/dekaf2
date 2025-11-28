@@ -2348,6 +2348,42 @@ bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode /* = DEKA
 } // kAppendFile
 
 //-----------------------------------------------------------------------------
+bool kResizeFile (KStringViewZ sPath, std::size_t iNewSize)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_HAS_STD_FILESYSTEM
+
+	std::error_code ec;
+
+	fs::create_hard_link(kToFilesystemPath(sPath), iNewSize, ec);
+
+	if (ec)
+	{
+		kDebug(2, ec.message());
+		return false;
+	}
+
+	return true;
+
+#elif DEKAF2_IS_UNIX
+
+	auto iResult = ::truncate(sPath.c_str(), static_cast<::off_t>(iNewSize));
+
+	if (iResult)
+	{
+		kDebug(1, ::strerror(errno));
+		return false;
+	}
+
+	return true;
+
+#endif
+
+	return false;
+
+} // kResizeFile
+
+//-----------------------------------------------------------------------------
 bool kReadTextFile (KStringViewZ sPath, KStringRef& sContents, bool bToUnixLineFeeds/*=true*/, std::size_t iMaxRead/*=npos*/)
 //-----------------------------------------------------------------------------
 {

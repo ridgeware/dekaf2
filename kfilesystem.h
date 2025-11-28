@@ -267,6 +267,13 @@ bool kAppendFile (KStringViewZ sPath, KStringView sContents, int iMode = DEKAF2_
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Change size of a file. If smaller than existing, surplus content is removed (at the end),
+/// if larger than existing, 0 bytes are filled in (at the end)
+DEKAF2_PUBLIC
+bool kResizeFile (KStringViewZ sPath, std::size_t iNewSize);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Create a directory (folder) hierarchically
 /// @param sPath the full or relative path of the directory to create
 /// @param iMode the perms for the directory to create, defaults to 0777

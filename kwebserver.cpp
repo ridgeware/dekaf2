@@ -441,15 +441,21 @@ KHTTPMethod KWebServer::Serve
 			{
 				// this is a plain PUT (or POST) of data, the file name is taken
 				// from the last part of the URL
-				auto sName = kMakeSafeFilename(kBasename(sResource));
+				auto sName = kBasename(sResource);
+				auto sDir  = kDirname(sResource, true, false);
 
-				if (sName.empty())
+				if (!kIsSafeFilename(sName))
 				{
-					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing target name in URL" };
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "bad target name in URL" };
+				}
+
+				if (!kIsSafePathname(sName, true, true))
+				{
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "bad target path in URL" };
 				}
 
 				auto sFrom = kFormat("{}{}{}", m_TempDir.Name(), kDirSep, sName);
-				auto sTo   = kFormat("{}{}{}", sDocumentRoot, kDirSep, sName);
+				auto sTo   = kFormat("{}{}{}", sDocumentRoot, sDir, sName);
 
 				KOutFile OutFile(sFrom);
 
@@ -467,7 +473,10 @@ KHTTPMethod KWebServer::Serve
 
 				kDebug(2, "received {} for file: {}", kFormBytes(kFileSize(sFrom)), sName);
 
-				kMove(sFrom, sTo);
+				if (!kMove(sFrom, sTo, KCopyOptions::Default | KCopyOptions::CreateMissingPath))
+				{
+					throw KHTTPError { KHTTPError::H5xx_ERROR, "cannot write file" };
+				}
 			}
 			else
 			{

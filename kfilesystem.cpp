@@ -316,7 +316,7 @@ KStringView kBasename(KStringView sFilePath)
 } // kBasename
 
 //-----------------------------------------------------------------------------
-KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash)
+KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash, bool bReturnDotForNoDir)
 //-----------------------------------------------------------------------------
 {
 	// Given a filesystem path, return the "dirname":
@@ -331,7 +331,7 @@ KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash)
 		}
 	}
 
-	return (bWithTrailingSlash) ? detail::kCurrentDirWithSep : detail::kCurrentDir;
+	return (bReturnDotForNoDir) ? (bWithTrailingSlash) ? detail::kCurrentDirWithSep : detail::kCurrentDir : "";
 
 }  // kDirname()
 
@@ -707,7 +707,7 @@ bool kCopy (KStringViewZ sOldPath, KStringViewZ sNewPath, KCopyOptions Options)
 
 //-----------------------------------------------------------------------------
 /// move a file or directory
-bool kMove (KStringViewZ sOldPath, KStringViewZ sNewPath)
+bool kMove (KStringViewZ sOldPath, KStringViewZ sNewPath, KCopyOptions Options)
 //-----------------------------------------------------------------------------
 {
 	if (kRename(sOldPath, sNewPath))
@@ -717,7 +717,7 @@ bool kMove (KStringViewZ sOldPath, KStringViewZ sNewPath)
 	}
 
 	// else copy and delete
-	KIntCopy Copy(KCopyOptions::Default | KCopyOptions::DeleteAfterCopy);
+	KIntCopy Copy(Options | KCopyOptions::DeleteAfterCopy);
 
 	return Copy.Copy(sOldPath, sNewPath);
 

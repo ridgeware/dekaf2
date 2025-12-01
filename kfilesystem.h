@@ -222,8 +222,12 @@ bool kCopy (KStringViewZ sOldPath, KStringViewZ sNewPath, KCopyOptions Options =
 
 //-----------------------------------------------------------------------------
 /// move a file or directory, also across file system boundaries, keeps access modes and symlinks
+/// @param sOldPath the origin for the move
+/// @param sNewPath the new location for the move
+/// @param Options see KCopyOptions for the copy options.. defaults to KCopyOptions::Default + DeleteAfterCopy (always added)
+/// @return false on (partial) failure, true on success.
 DEKAF2_PUBLIC
-bool kMove (KStringViewZ sOldPath, KStringViewZ sNewPath);
+bool kMove (KStringViewZ sOldPath, KStringViewZ sNewPath, KCopyOptions Options = KCopyOptions::Default);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -318,50 +322,69 @@ bool kCreateHardlink(KStringViewZ sOrigin, KStringViewZ sHardlink);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Create a file if it does not exist, including the directory component.
+/// Create a file if it does not exist, including the directory components.
 /// If the file exists, advance its last mod and access timestamps to the current time.
+/// @param sFilePath the file path to create
+/// @param iMode file creation mode, defaults to 0666
 DEKAF2_PUBLIC
-bool kTouchFile(KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_FILE);
+bool kTouchFile(KStringViewZ sFilePath, int iMode = DEKAF2_MODE_CREATE_FILE);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Isolate the extension of a path (filename extension after a dot)
+/// @param sFilePath the input file path
+/// @returns the filename extension (without dot)
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kExtension(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Remove the extension from a path (filename extension after a dot)
+/// @param sFilePath the input file path
+/// @returns the filename without extension (and without dot)
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kRemoveExtension(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Isolate the basename of a path (filename without directory)
+/// @param sFilePath the input file path
+/// @returns the filename without path components
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kBasename(KStringView sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Isolate the dirname of a path (directory name without the fileame)
+/// @param sFilePath the input file path
+/// @param bWithTrailingSlash if true a trailing slash will be included in the dirname - defaults to false
+/// @param bReturnDotForNoDir if true a dot (or a dot plus slash, if bWithTrailingSlash is true) will be
+/// returned for an input file path without path component, otherwise an empty string - defaults to true
+/// @returns the path components of a filename path
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash = false);
+KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash = false, bool bReturnDotForNoDir = true);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get last modification time of a file, returns -1 if file not found
+/// @param sFilePath the input file path
+/// @returns the last modification time as KUnixTime
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KUnixTime kGetLastMod(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found or is not a regular file
+/// @param sFilePath the input file path
+/// @returns the size of the file, or npos if the file does not exist or is not a regular file
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 size_t kFileSize(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found or is not a regular file
+/// @param sFilePath the input file path
+/// @returns the size of the file, or npos if the file does not exist or is not a regular file
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline size_t kGetNumBytes(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
@@ -371,7 +394,7 @@ inline size_t kGetNumBytes(KStringViewZ sFilePath)
 
 //-----------------------------------------------------------------------------
 /// Returns true if a file name is safe to use, means it cannot escape from a
-/// directory or uses problematic characters
+/// directory or uses problematic characters, and is not empty
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsSafeFilename(KStringView sName);
 //-----------------------------------------------------------------------------
@@ -380,6 +403,10 @@ bool kIsSafeFilename(KStringView sName);
 /// Returns a file name that is safe to use, means it cannot escape from a
 /// directory or uses problematic characters. The input string is the base for
 /// the file name
+/// @param sName the input file name
+/// @param bToLowercase if true, all characters will be converted to lower case - defaults to true
+/// @param sEmptyName what to return if the input file name was empty - defaults to "none"
+/// @returns the safe file name
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kMakeSafeFilename(KStringView sName, bool bToLowercase = true, KStringView sEmptyName = "none");
 //-----------------------------------------------------------------------------
@@ -388,8 +415,9 @@ KString kMakeSafeFilename(KStringView sName, bool bToLowercase = true, KStringVi
 /// Returns true if a path name is safe to use, means it cannot escape from a
 /// directory or uses problematic characters
 /// @param sName the path to check
-/// @param bAllowAbsolutePath if false, only relative paths are allowed (= no leading slash)
-/// @param bAllowTrailingSlash if true, a directory separator as last character is permitted
+/// @param bAllowAbsolutePath if false, only relative paths are allowed (= no leading slash) - defaults to false
+/// @param bAllowTrailingSlash if true, a directory separator as last character is permitted - defaults to false
+/// @returns true if path is safe, otherwise false
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsSafePathname(KStringView sName, bool bAllowAbsolutePath = false, bool bAllowTrailingSlash = false);
 //-----------------------------------------------------------------------------
@@ -398,6 +426,9 @@ bool kIsSafePathname(KStringView sName, bool bAllowAbsolutePath = false, bool bA
 /// Returns a path name that is safe to use, means it cannot escape from a
 /// directory or uses problematic characters. The input string is the base for
 /// the path name
+/// @param bToLowercase if true, all characters will be converted to lower case - defaults to true
+/// @param sEmptyName what to return if the input file name was empty - defaults to "none"
+/// @returns the safe path name
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kMakeSafePathname(KStringView sName, bool bToLowercase = true, KStringView sEmptyName = "none");
 //-----------------------------------------------------------------------------

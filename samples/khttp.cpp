@@ -149,7 +149,7 @@ public:
 		bool bCreateAdHocIndex        = Options("autoindex             : create an automatic index.html for directories if index.html is not found, default false", false);
 		bool bAllowUpload             = Options("upload                : allow upload into directory, default false", false);
 		KStringViewZ sUserParms       = Options("user <user:password[[:/path]:ro|rw]> : set username and password for web access, default is open access", "");
-		KStringViewZ sUsersFile       = Options("users <pathname>      : set pathname for file with list of lines of user:pass:/path:ro|rw");
+		KStringViewZ sUsersFile       = Options("users <pathname>      : set pathname for file with list of lines of user:pass:/path:ro|rw", "");
 		KStringViewZ sRoute           = Options("route </path>         : route to serve from, defaults to \"/*\"", "/*");
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		Settings.iPort                = Options("http <port>           : port number to bind to", 0);

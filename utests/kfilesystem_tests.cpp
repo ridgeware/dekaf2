@@ -173,6 +173,14 @@ TEST_CASE("KFilesystem")
 
 	SECTION("name manipulations")
 	{
+		CHECK ( kDirname("") == "." );
+#ifdef DEKAF2_IS_WINDOWS
+		CHECK ( kDirname("", true) == ".\\" );
+#else
+		CHECK ( kDirname("", true) == "./" );
+#endif
+		CHECK ( kDirname("",  true, false) == "" );
+		CHECK ( kDirname("", false, false) == "" );
 		KStringView sPathname = "/this/is/a/name.txt";
 		CHECK ( kExtension(sPathname) == "txt" );
 		CHECK ( kExtension("/this.is/a./name") == "" );

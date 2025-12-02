@@ -45,6 +45,7 @@
 #include "kcompression.h"
 #include "kregex.h"
 #include "kinshell.h"
+#include "dekaf2.h"
 
 DEKAF2_NAMESPACE_BEGIN
 

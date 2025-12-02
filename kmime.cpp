@@ -1192,7 +1192,7 @@ constexpr KStringViewZ KMIME::RAR;
 constexpr KStringViewZ KMIME::RTF;
 constexpr KStringViewZ KMIME::SH;
 constexpr KStringViewZ KMIME::TAR;
-constexpr KStringViewZ KMIME::TS;
+constexpr KStringViewZ KMIME::TYPESCRIPT;
 constexpr KStringViewZ KMIME::VSD;
 constexpr KStringViewZ KMIME::WASM;
 constexpr KStringViewZ KMIME::XHTML;

@@ -423,10 +423,10 @@ KString& KString::TrimLeft(value_type chTrim) &
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimLeft(KStringView sTrim) &
+KString& KString::TrimLeft(const KFindSetOfChars& TrimSet) &
 //----------------------------------------------------------------------
 {
-	kTrimLeft(*this, sTrim);
+	kTrimLeft(*this, TrimSet);
 	return *this;
 }
 
@@ -447,10 +447,10 @@ KString& KString::TrimRight(value_type chTrim) &
 }
 
 //----------------------------------------------------------------------
-KString& KString::TrimRight(KStringView sTrim) &
+KString& KString::TrimRight(const KFindSetOfChars& TrimSet) &
 //----------------------------------------------------------------------
 {
-	kTrimRight(*this, sTrim);
+	kTrimRight(*this, TrimSet);
 	return *this;
 }
 
@@ -471,10 +471,10 @@ KString& KString::Trim(value_type chTrim) &
 }
 
 //----------------------------------------------------------------------
-KString& KString::Trim(KStringView sTrim) &
+KString& KString::Trim(const KFindSetOfChars& TrimSet) &
 //----------------------------------------------------------------------
 {
-	kTrim(*this, sTrim);
+	kTrim(*this, TrimSet);
 	return *this;
 }
 

@@ -52,10 +52,9 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-size_t kFind(
-        const KStringView haystack,
-        const KStringView needle,
-        size_t pos)
+std::size_t kFind(const KStringView haystack,
+                  const KStringView needle,
+                  std::size_t pos) noexcept
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
@@ -77,7 +76,7 @@ size_t kFind(
 	if (DEKAF2_UNLIKELY(haystack.empty()))
 	{
 		// glibc memmem fails if haystack is null
-		return KStringView::npos;
+		return npos;
 	}
 
 	// glibc has an excellent memmem implementation, so we use it if available.
@@ -92,7 +91,7 @@ size_t kFind(
 
 	if (DEKAF2_UNLIKELY(!found))
 	{
-		return KStringView::npos;
+		return npos;
 	}
 	else
 	{
@@ -108,10 +107,9 @@ size_t kFind(
 } // kFind
 
 //-----------------------------------------------------------------------------
-size_t kRFind(
-        const KStringView haystack,
-        const KStringView needle,
-        size_t pos)
+std::size_t kRFind(const KStringView haystack,
+                   const KStringView needle,
+                   std::size_t pos) noexcept
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
@@ -146,7 +144,7 @@ size_t kRFind(
 				break;
 			}
 
-			pos = static_cast<size_t>(found - haystack.data());
+			pos = static_cast<std::size_t>(found - haystack.data());
 
 			if (std::memcmp(haystack.data() + pos + 1,
 			                needle.data() + 1,
@@ -176,7 +174,7 @@ size_t kRFind(
 		}
 	}
 
-	return KStringView::npos;
+	return npos;
 
 #else
 
@@ -187,10 +185,10 @@ size_t kRFind(
 } // kRFind
 
 //-----------------------------------------------------------------------------
-size_t kFindFirstOfUnescaped(const KStringView haystack,
-							 const KFindSetOfChars& needles,
-							 KStringView::value_type chEscape,
-							 KStringView::size_type pos)
+std::size_t kFindFirstOfUnescaped(const KStringView haystack,
+								  const KFindSetOfChars& needles,
+								  KStringView::value_type chEscape,
+								  KStringView::size_type pos) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto iFound = needles.find_first_in(haystack, pos);
@@ -233,10 +231,10 @@ size_t kFindFirstOfUnescaped(const KStringView haystack,
 } // kFindFirstOfUnescaped
 
 //-----------------------------------------------------------------------------
-size_t kFindUnescaped(const KStringView haystack,
-                      KStringView::value_type needle,
-                      KStringView::value_type chEscape,
-                      KStringView::size_type pos)
+std::size_t kFindUnescaped(const KStringView haystack,
+                           KStringView::value_type needle,
+                           KStringView::value_type chEscape,
+                           KStringView::size_type pos) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto iFound = haystack.find (needle, pos);
@@ -279,10 +277,10 @@ size_t kFindUnescaped(const KStringView haystack,
 } // kFindUnescaped
 
 //-----------------------------------------------------------------------------
-size_t kFindUnescaped(const KStringView haystack,
-                      const KStringView needle,
-                      KStringView::value_type chEscape,
-                      KStringView::size_type pos)
+std::size_t kFindUnescaped(const KStringView haystack,
+                           const KStringView needle,
+                           KStringView::value_type chEscape,
+                           KStringView::size_type pos) noexcept
 //-----------------------------------------------------------------------------
 {
 	auto iFound = haystack.find (needle, pos);
@@ -592,10 +590,10 @@ KStringView& KStringView::TrimLeft(value_type chTrim)
 }
 
 //----------------------------------------------------------------------
-KStringView& KStringView::TrimLeft(const KStringView sTrim)
+KStringView& KStringView::TrimLeft(const KFindSetOfChars& TrimSet)
 //----------------------------------------------------------------------
 {
-	kTrimLeft(*this, sTrim);
+	kTrimLeft(*this, TrimSet);
 	return *this;
 }
 
@@ -615,10 +613,10 @@ KStringView& KStringView::TrimRight(value_type chTrim)
 }
 
 //----------------------------------------------------------------------
-KStringView& KStringView::TrimRight(const KStringView sTrim)
+KStringView& KStringView::TrimRight(const KFindSetOfChars& TrimSet)
 //----------------------------------------------------------------------
 {
-	kTrimRight(*this, sTrim);
+	kTrimRight(*this, TrimSet);
 	return *this;
 }
 
@@ -626,7 +624,7 @@ KStringView& KStringView::TrimRight(const KStringView sTrim)
 KStringView& KStringView::Trim()
 //----------------------------------------------------------------------
 {
-	return Trim(detail::kASCIISpaces);
+	return Trim(detail::kASCIISpacesSet);
 }
 
 //----------------------------------------------------------------------
@@ -638,11 +636,11 @@ KStringView& KStringView::Trim(value_type chTrim)
 }
 
 //----------------------------------------------------------------------
-KStringView& KStringView::Trim(const KStringView sTrim)
+KStringView& KStringView::Trim(const KFindSetOfChars& TrimSet)
 //----------------------------------------------------------------------
 {
-	TrimRight(sTrim);
-	TrimLeft(sTrim);
+	TrimRight(TrimSet);
+	TrimLeft(TrimSet);
 	return *this;
 }
 

@@ -212,7 +212,7 @@ public:
 	using base_type::ends_with;
 	using base_type::contains;
 
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(__GLIBC__)
+#if 0 && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(__GLIBC__)
 	// we have a super fast implementation for these signatures in GLIBC, let
 	// them supersede base_type's version
 	DEKAF2_NODISCARD_PEDANTIC

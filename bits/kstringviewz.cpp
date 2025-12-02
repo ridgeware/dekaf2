@@ -47,7 +47,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(__GLIBC__)
+#if 0 && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(__GLIBC__)
 // In contrast to most of the other optimized find functions we do not
 // delegate this one to KStringView. The reason is that for find_first_of()
 // we can use the ultra fast glibc strcspn() function, it even outrivals
@@ -118,7 +118,7 @@ KStringViewZ::size_type KStringViewZ::find_first_of(KStringView sv, size_type po
 } // find_first_of
 #endif
 
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(__GLIBC__)
+#if 0 && defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) && defined(__GLIBC__)
 // In contrast to most of the other optimized find functions we do not
 // delegate this one to KStringView. The reason is that for find_first_not_of()
 // we can use the ultra fast glibc strspn() function, it even outrivals

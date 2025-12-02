@@ -537,18 +537,15 @@ String& kPadRight(String& string, size_t iWidth, typename String::value_type chP
 }
 
 //-----------------------------------------------------------------------------
-/// removes any character in svTrim from the left of the string
-template<class String, class StringView,
-         typename std::enable_if<detail::is_str<StringView>::value, int>::type = 0>
+/// removes any character in svTrim from the left of the string - TrimSet implicitly constructs
+/// from any string
+template<class String>
 DEKAF2_PUBLIC
-String& kTrimLeft(String& string, const StringView& svTrim)
+String& kTrimLeft(String& string, const KFindSetOfChars& TrimSet)
 //-----------------------------------------------------------------------------
 {
-	auto iDelete = string.find_first_not_of(svTrim);
-	if (iDelete)
-	{
-		string.erase(static_cast<typename String::size_type>(0), iDelete);
-	}
+	auto iDelete = TrimSet.find_first_not_in(string);
+	string.erase(static_cast<typename String::size_type>(0), iDelete);
 	return string;
 }
 
@@ -562,10 +559,7 @@ String& kTrimLeft(String& string, Compare cmp)
 {
 	auto it = std::find_if_not(string.begin(), string.end(), cmp);
 	auto iDelete = static_cast<typename String::size_type>(it - string.begin());
-	if (iDelete)
-	{
-		string.erase(static_cast<typename String::size_type>(0), iDelete);
-	}
+	string.erase(static_cast<typename String::size_type>(0), iDelete);
 	return string;
 }
 
@@ -583,14 +577,14 @@ String& kTrimLeft(String& string)
 }
 
 //-----------------------------------------------------------------------------
-/// removes any character in svTrim from the right of the string
-template<class String, class StringView,
-         typename std::enable_if<detail::is_str<StringView>::value, int>::type = 0>
+/// removes any character in TrimSet from the right of the string - TrimSet implicitly constructs
+/// from any string
+template<class String>
 DEKAF2_PUBLIC
-String& kTrimRight(String& string, const StringView& svTrim)
+String& kTrimRight(String& string, const KFindSetOfChars& TrimSet)
 //-----------------------------------------------------------------------------
 {
-	auto iDelete = string.find_last_not_of(svTrim);
+	auto iDelete = TrimSet.find_last_not_in(string);
 	if (iDelete == String::npos)
 	{
 		string.clear();
@@ -612,10 +606,7 @@ String& kTrimRight(String& string, Compare cmp)
 {
 	auto it = std::find_if_not(string.rbegin(), string.rend(), cmp);
 	auto iDelete = static_cast<typename String::size_type>(it - string.rbegin());
-	if (iDelete)
-	{
-		string.erase(string.size() - iDelete);
-	}
+	string.erase(string.size() - iDelete);
 	return string;
 }
 
@@ -644,15 +635,15 @@ String& kTrim(String& string)
 }
 
 //-----------------------------------------------------------------------------
-/// removes any character in svTrim from the left and right of the string
-template<class String, class StringView,
-         typename std::enable_if<detail::is_str<StringView>::value, int>::type = 0>
+/// removes any character in TrimSet from the left and right of the string - TrimSet implicitly constructs
+/// from any string
+template<class String>
 DEKAF2_PUBLIC
-String& kTrim(String& string, const StringView& svTrim)
+String& kTrim(String& string, const KFindSetOfChars& TrimSet)
 //-----------------------------------------------------------------------------
 {
-	kTrimRight(string, svTrim);
-	return kTrimLeft(string, svTrim);
+	kTrimRight(string, TrimSet);
+	return kTrimLeft(string, TrimSet);
 }
 
 //-----------------------------------------------------------------------------

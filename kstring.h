@@ -64,6 +64,7 @@ DEKAF2_NAMESPACE_BEGIN
 class KString;
 class KStringView;
 class KStringViewZ;
+class KFindSetOfChars;
 
 #if defined(DEKAF2_IS_APPLE_CLANG) && DEKAF2_CLANG_VERSION < 120000
 /// a string type used for string& pars in parameter lists (output string parameters)
@@ -322,9 +323,9 @@ public:
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_of(value_type c, size_type pos = 0)                       const;
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_first_of(KStringView sv, size_type pos = 0)                     const;
-	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_first_of(const value_type* s, size_type pos = 0)                const;
+	size_type find_first_of(const KFindSetOfChars& CharSet, size_type pos = 0)     const;
+//	DEKAF2_NODISCARD_PEDANTIC
+//	size_type find_first_of(const value_type* s, size_type pos = 0)                const;
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_of(const value_type* s, size_type pos, size_type n)       const;
 	template<typename T,
@@ -335,9 +336,9 @@ public:
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_of(value_type c, size_type pos = npos)                     const;
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_last_of(KStringView sv, size_type pos = npos)                   const;
-	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_last_of(const value_type* s, size_type pos = npos)              const;
+	size_type find_last_of(const KFindSetOfChars& CharSet, size_type pos = npos)   const;
+//	DEKAF2_NODISCARD_PEDANTIC
+//	size_type find_last_of(const value_type* s, size_type pos = npos)              const;
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_of(const value_type* s, size_type pos, size_type n)        const;
 	template<typename T,
@@ -348,9 +349,9 @@ public:
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_not_of(value_type c, size_type pos = 0)                   const { return find_first_not_of(&c, pos, 1);                  }
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_first_not_of(KStringView sv, size_type pos = 0)                 const;
-	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_first_not_of(const value_type* s, size_type pos = 0)            const;
+	size_type find_first_not_of(const KFindSetOfChars& CharSet, size_type pos = 0) const;
+//	DEKAF2_NODISCARD_PEDANTIC
+//	size_type find_first_not_of(const value_type* s, size_type pos = 0)            const;
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_not_of(const value_type* s, size_type pos, size_type n)   const;
 	template<typename T,
@@ -361,9 +362,9 @@ public:
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_not_of(value_type c, size_type pos = npos)                 const { return find_last_not_of(&c, pos, 1);                   }
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_last_not_of(KStringView sv, size_type pos = npos)               const;
-	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_last_not_of(const value_type* s, size_type pos = npos)          const;
+	size_type find_last_not_of(const KFindSetOfChars& CharSet, size_type pos = npos) const;
+//	DEKAF2_NODISCARD_PEDANTIC
+//	size_type find_last_not_of(const value_type* s, size_type pos = npos)          const;
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_not_of(const value_type* s, size_type pos, size_type n)    const;
 	template<typename T,
@@ -749,9 +750,9 @@ public:
 	/// removes chTrim from the left of the string
 	self&& TrimLeft(value_type chTrim) && { return std::move(TrimLeft(chTrim)); }
 	/// removes any character in sTrim from the left of the string
-	self& TrimLeft(KStringView sTrim) &;
+	self& TrimLeft(const KFindSetOfChars& sTrim) &;
 	/// removes any character in sTrim from the left of the string
-	self&& TrimLeft(KStringView sTrim) &&;
+	self&& TrimLeft(const KFindSetOfChars& sTrim) &&;
 
 	/// removes white space from the right of the string
 	self& TrimRight() &;
@@ -762,9 +763,9 @@ public:
 	/// removes chTrim from the right of the string
 	self&& TrimRight(value_type chTrim) && { return std::move(TrimRight(chTrim)); }
 	/// removes any character in sTrim from the right of the string
-	self& TrimRight(KStringView sTrim)&;
+	self& TrimRight(const KFindSetOfChars& sTrim)&;
 	/// removes any character in sTrim from the right of the string
-	self&& TrimRight(KStringView sTrim) &&;
+	self&& TrimRight(const KFindSetOfChars& sTrim) &&;
 
 	/// removes white space from the left and right of the string
 	self& Trim() &;
@@ -775,9 +776,9 @@ public:
 	/// removes chTrim from the left and right of the string
 	self&& Trim(value_type chTrim) && { return std::move(Trim(chTrim)); }
 	/// removes any character in sTrim from the left and right of the string
-	self& Trim(KStringView sTrim) &;
+	self& Trim(const KFindSetOfChars& sTrim) &;
 	/// removes any character in sTrim from the left and right of the string
-	self&& Trim(KStringView sTrim) &&;
+	self&& Trim(const KFindSetOfChars& sTrim) &&;
 
 	/// Collapses multiple white space to one space
 	self& Collapse() &;
@@ -1404,20 +1405,11 @@ inline KString::size_type KString::find_first_of(value_type c, size_type pos) co
 	return find(c, pos);
 }
 
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-
 //-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_of(KStringView sv, size_type pos) const
+inline KString::size_type KString::find_first_of(const KFindSetOfChars& CharSet, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return kFindFirstOf(KStringView(*this), sv, pos);
-}
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_of(const value_type* s, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return find_first_of(KStringView(s), pos);
+	return kFindFirstOf(KStringView(*this), CharSet, pos);
 }
 
 //-----------------------------------------------------------------------------
@@ -1426,38 +1418,6 @@ inline KString::size_type KString::find_first_of(const value_type* s, size_type 
 {
 	return find_first_of(KStringView(s, n), pos);
 }
-
-#else
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_of(KStringView sv, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return find_first_of(sv.data(), pos, sv.size());
-}
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_of(const value_type* s, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return m_rep.find_first_of(s, pos);
-}
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_of(const value_type* s, size_type pos, size_type n) const
-//-----------------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(n == 1))
-	{
-		return find(*s, pos);
-	}
-	else
-	{
-		return m_rep.find_first_of(s, pos, n);
-	}
-}
-
-#endif
 
 //-----------------------------------------------------------------------------
 template<typename T,
@@ -1468,7 +1428,7 @@ template<typename T,
 KString::size_type KString::find_first_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return find_first_of(KStringView(sv), pos);
+	return find_first_of(KFindSetOfChars(KStringView(sv)), pos);
 }
 
 
@@ -1479,20 +1439,11 @@ inline KString::size_type KString::find_last_of(value_type c, size_type pos) con
 	return rfind(c, pos);
 }
 
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-
 //-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_of(KStringView sv, size_type pos) const
+inline KString::size_type KString::find_last_of(const KFindSetOfChars& CharSet, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return kFindLastOf(KStringView(*this), sv, pos);
-}
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_of(const value_type* s, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return find_last_of(KStringView(s), pos);
+	return kFindLastOf(KStringView(*this), CharSet, pos);
 }
 
 //-----------------------------------------------------------------------------
@@ -1501,39 +1452,6 @@ inline KString::size_type KString::find_last_of(const value_type* s, size_type p
 {
 	return find_last_of(KStringView(s, n), pos);
 }
-
-#else
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_of(KStringView sv, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return find_last_of(sv.data(), pos, sv.size());
-
-}
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_of(const value_type* s, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return m_rep.find_last_of(s, pos);
-}
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_of(const value_type* s, size_type pos, size_type n) const
-//-----------------------------------------------------------------------------
-{
-	if (DEKAF2_UNLIKELY(n == 1))
-	{
-		return rfind(*s, pos);
-	}
-	else
-	{
-		return m_rep.find_last_of(s, pos, n);
-	}
-}
-
-#endif
 
 //-----------------------------------------------------------------------------
 template<typename T,
@@ -1544,16 +1462,14 @@ template<typename T,
 KString::size_type KString::find_last_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return find_last_of(KStringView(sv), pos);
+	return find_last_of(KFindSetOfChars(KStringView(sv)), pos);
 }
 
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-
 //-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_not_of(const value_type* s, size_type pos) const
+inline KString::size_type KString::find_first_not_of(const KFindSetOfChars& CharSet, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return find_first_not_of(KStringView(s), pos);
+	return kFindFirstNotOf(KStringView(*this), CharSet, pos);
 }
 
 //-----------------------------------------------------------------------------
@@ -1564,38 +1480,6 @@ inline KString::size_type KString::find_first_not_of(const value_type* s, size_t
 }
 
 //-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_not_of(KStringView sv, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return kFindFirstNotOf(KStringView(*this), sv, pos);
-}
-
-#else
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_not_of(const value_type* s, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return m_rep.find_first_not_of(s, pos);
-}
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_not_of(const value_type* s, size_type pos, size_type n) const
-//-----------------------------------------------------------------------------
-{
-	return m_rep.find_first_not_of(s, pos, n);
-}
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_first_not_of(KStringView sv, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return find_first_not_of(sv.data(), pos, sv.size());
-}
-
-#endif
-
-//-----------------------------------------------------------------------------
 template<typename T,
 	typename std::enable_if<
 		detail::is_kstringview_assignable<T, false>::value
@@ -1604,23 +1488,14 @@ template<typename T,
 KString::size_type KString::find_first_not_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return find_first_not_of(KStringView(sv), pos);
-}
-
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_not_of(KStringView sv, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return kFindLastNotOf(KStringView(*this), sv, pos);
+	return find_first_not_of(KFindSetOfChars(KStringView(sv)), pos);
 }
 
 //-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_not_of(const value_type* s, size_type pos) const
+inline KString::size_type KString::find_last_not_of(const KFindSetOfChars& CharSet, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return find_last_not_of(KStringView(s), pos);
+	return kFindLastNotOf(KStringView(*this), CharSet, pos);
 }
 
 //-----------------------------------------------------------------------------
@@ -1629,31 +1504,6 @@ inline KString::size_type KString::find_last_not_of(const value_type* s, size_ty
 {
 	return find_last_not_of(KStringView(s, n), pos);
 }
-
-#else
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_not_of(const value_type* s, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return m_rep.find_last_not_of(s, pos);
-}
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_not_of(const value_type* s, size_type pos, size_type n) const
-//-----------------------------------------------------------------------------
-{
-	return m_rep.find_last_not_of(s, pos, n);
-}
-
-//-----------------------------------------------------------------------------
-inline KString::size_type KString::find_last_not_of(KStringView sv, size_type pos) const
-//-----------------------------------------------------------------------------
-{
-	return find_last_not_of(sv.data(), pos, sv.size());
-}
-
-#endif
 
 //-----------------------------------------------------------------------------
 template<typename T,
@@ -1664,7 +1514,7 @@ template<typename T,
 KString::size_type KString::find_last_not_of(const T& sv, size_type pos) const
 //-----------------------------------------------------------------------------
 {
-	return find_last_not_of(KStringView(sv), pos);
+	return find_last_not_of(KFindSetOfChars(KStringView(sv)), pos);
 }
 
 //------------------------------------------------------------------------------
@@ -1936,24 +1786,24 @@ inline bool KString::In(KStringView sHaystack, value_type iDelim) const
 }
 
 //-----------------------------------------------------------------------------
-inline KString::self&& KString::TrimLeft(KStringView sTrim) &&
+inline KString::self&& KString::TrimLeft(const KFindSetOfChars& TrimSet) &&
 //-----------------------------------------------------------------------------
 {
-	return std::move(TrimLeft(sTrim));
+	return std::move(TrimLeft(TrimSet));
 }
 
 //-----------------------------------------------------------------------------
-inline KString::self&& KString::TrimRight(KStringView sTrim) &&
+inline KString::self&& KString::TrimRight(const KFindSetOfChars& TrimSet) &&
 //-----------------------------------------------------------------------------
 {
-	return std::move(TrimRight(sTrim));
+	return std::move(TrimRight(TrimSet));
 }
 
 //-----------------------------------------------------------------------------
-inline KString::self&& KString::Trim(KStringView sTrim) &&
+inline KString::self&& KString::Trim(const KFindSetOfChars& TrimSet) &&
 //-----------------------------------------------------------------------------
 {
-	return std::move(Trim(sTrim));
+	return std::move(Trim(TrimSet));
 }
 
 //-----------------------------------------------------------------------------

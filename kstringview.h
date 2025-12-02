@@ -106,107 +106,10 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-class KStringView;
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-size_t kFind(const KStringView haystack,
-			 const KStringView needle,
-			 size_t pos = 0);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-size_t kRFind(const KStringView haystack,
-              const KStringView needle,
-              size_t pos = std::string::npos);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-size_t kFind(const KStringView haystack,
-             char needle,
-             size_t pos = 0) noexcept;
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-size_t kFindNot(const KStringView haystack,
-                char needle,
-                size_t pos = 0) noexcept;
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline
-size_t kRFind(const KStringView haystack,
-              char needle,
-              size_t pos = std::string::npos) noexcept;
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-size_t kRFindNot(const KStringView haystack,
-                 char needle,
-                 size_t pos = std::string::npos) noexcept;
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-size_t kFindFirstOf(KStringView haystack,
-                    const KStringView needles,
-                    size_t pos = 0);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-size_t kFindFirstNotOf(KStringView haystack,
-                       const KStringView needles,
-                       size_t pos = 0);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-size_t kFindLastOf(KStringView haystack,
-                   const KStringView needles,
-                   size_t pos = npos);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-size_t kFindLastNotOf(KStringView haystack,
-                      const KStringView needles,
-                      size_t pos = npos);
-//-----------------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-bool kStartsWith(const KStringView sInput, const KStringView sPattern) noexcept;
-//----------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-bool kEndsWith(const KStringView sInput, const KStringView sPattern) noexcept;
-//----------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool kContains(const KStringView sInput, const KStringView sPattern) noexcept;
-//----------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
-bool kContains(const KStringView sInput, char ch) noexcept;
-//----------------------------------------------------------------------
-
-//----------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool kContainsWord(const KStringView sInput, const KStringView sPattern) noexcept;
-//----------------------------------------------------------------------
-
 // forward declarations
 class KString;
 class KStringViewZ;
+class KFindSetOfChars;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// dekaf2's own string view class - a wrapper around std::string_view or
@@ -906,11 +809,8 @@ public:
 	// std::C++20
 	/// does the string start with sPattern?
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
-	bool starts_with(const self_type other) const noexcept
+	bool starts_with(const self_type other) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kStartsWith(*this, other);
-	}
 
 	//-----------------------------------------------------------------------------
 	// std::C++20
@@ -926,11 +826,8 @@ public:
 	// std::C++20
 	/// does the string end with sPattern?
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
-	bool ends_with(const self_type other) const noexcept
+	bool ends_with(const self_type other) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kEndsWith(*this, other);
-	}
 
 	//-----------------------------------------------------------------------------
 	// std::C++20
@@ -946,21 +843,15 @@ public:
 	// std::C++23
 	/// does the string contain the sPattern?
 	DEKAF2_NODISCARD
-	bool contains(const self_type other) const noexcept
+	bool contains(const self_type other) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kContains(*this, other);
-	}
 
 	//-----------------------------------------------------------------------------
 	// std::C++23
 	/// does the string contain the ch?
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
-	bool contains(value_type ch) const noexcept
+	bool contains(value_type ch) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kContains(*this, ch);
-	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -989,7 +880,7 @@ public:
 	bool Contains(const self_type other) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return kContains(*this, other);
+		return contains(other);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -999,7 +890,7 @@ public:
 	bool Contains(value_type ch) const noexcept
 	//-----------------------------------------------------------------------------
 	{
-		return kContains(*this, ch);
+		return contains(ch);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -1135,8 +1026,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// removes any character in sTrim from the left of the string
-	self& TrimLeft(const KStringView sTrim);
+	/// removes any character in TrimSet from the left of the string - TrimSet can be implicitly constructed
+	/// from any string
+	self& TrimLeft(const KFindSetOfChars& TrimSet);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -1153,8 +1045,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// removes any character in sTrim from the right of the string
-	self& TrimRight(const KStringView sTrim);
+	/// removes any character in TrimSet from the right of the string - TrimSet can be implicitly constructed
+	/// from any string
+	self& TrimRight(const KFindSetOfChars& TrimSet);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -1171,8 +1064,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
-	/// removes any character in sTrim from the left and right of the string
-	self& Trim(const KStringView sTrim);
+	/// removes any character in TrimSet from the left and right of the string - TrimSet can be implicitly constructed
+	/// from any string
+	self& Trim(const KFindSetOfChars& TrimSet);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -1272,62 +1166,36 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find(const self_type str, size_type pos = 0) const noexcept
+	size_type find(const self_type str, size_type pos = 0) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kFind(*this, str, pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
-	size_type find(value_type ch, size_type pos = 0) const noexcept
+	size_type find(value_type ch, size_type pos = 0) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kFind(*this, ch, pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type rfind(value_type ch, size_type pos = npos) const noexcept
+	size_type rfind(value_type ch, size_type pos = npos) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kRFind(*this, ch, pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type rfind(const self_type sv, size_type pos = npos) const noexcept
+	size_type rfind(const self_type sv, size_type pos = npos) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kRFind(*this, sv, pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_first_of(const self_type sv, size_type pos = 0) const noexcept
+	size_type find_first_of(const KFindSetOfChars& CharSet, size_type pos = 0) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kFindFirstOf(*this, sv, pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_first_of(const value_type* s, size_type pos) const noexcept
+	size_type find_first_of(const value_type* s, size_type pos, size_type count) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return find_first_of(self_type(s), pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_first_of(const value_type* s, size_type pos, size_type count) const noexcept
-	//-----------------------------------------------------------------------------
-	{
-		return find_first_of(self_type(s, count), pos);
-	}
-
-	//-----------------------------------------------------------------------------
-	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
 	size_type find_first_of(value_type ch, size_type pos = 0) const noexcept
 	//-----------------------------------------------------------------------------
 	{
@@ -1336,27 +1204,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_last_of(const self_type sv, size_type pos = npos) const noexcept
+	size_type find_last_of(const KFindSetOfChars& CharSet, size_type pos = npos) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kFindLastOf(*this, sv, pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_last_of(const value_type* s, size_type pos) const noexcept
+	size_type find_last_of(const value_type* s, size_type pos, size_type count) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return find_last_of(self_type(s), pos);
-	}
-
-	//-----------------------------------------------------------------------------
-	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_last_of(const value_type* s, size_type pos, size_type count) const noexcept
-	//-----------------------------------------------------------------------------
-	{
-		return find_last_of(self_type(s, count), pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
@@ -1368,67 +1222,33 @@ public:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_first_not_of(const self_type sv, size_type pos = 0) const noexcept
+	size_type find_first_not_of(const KFindSetOfChars& CharSet, size_type pos = 0) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kFindFirstNotOf(*this, sv, pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_first_not_of(const value_type* s, size_type pos) const noexcept
+	size_type find_first_not_of(const value_type* s, size_type pos, size_type count) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return find_first_not_of(self_type(s), pos);
-	}
-
-	//-----------------------------------------------------------------------------
-	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_first_not_of(const value_type* s, size_type pos, size_type count) const noexcept
-	//-----------------------------------------------------------------------------
-	{
-		return find_first_not_of(self_type(s, count), pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
-	size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept
+	size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kFindNot(*this, ch, pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_last_not_of(const self_type sv, size_type pos = npos) const noexcept
+	size_type find_last_not_of(const KFindSetOfChars& CharSet, size_type pos = npos) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kFindLastNotOf(*this, sv, pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_last_not_of(const value_type* s, size_type pos) const noexcept
+	size_type find_last_not_of(const value_type* s, size_type pos, size_type count) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return find_last_not_of(self_type(s), pos);
-	}
-
-	//-----------------------------------------------------------------------------
-	DEKAF2_NODISCARD_PEDANTIC
-	size_type find_last_not_of(const value_type* s, size_type pos, size_type count) const noexcept
-	//-----------------------------------------------------------------------------
-	{
-		return find_last_not_of(self_type(s, count), pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
-	size_type find_last_not_of(value_type ch, size_type pos = npos) const noexcept
+	size_type find_last_not_of(value_type ch, size_type pos = npos) const noexcept;
 	//-----------------------------------------------------------------------------
-	{
-		return kRFindNot(*this, ch, pos);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// is string one of the values in sHaystack, delimited by iDelim?
@@ -1633,8 +1453,8 @@ bool operator>=(const KStringView left, const KStringView right)
 // ======================= end comparisons ========================
 
 
-// ** KStringView is now completed **
-
+// ** KStringView is now completed with the exception of the find_first/last/not_of **
+// ** signatures with KStringView or char* as parameter
 
 using KStringViewPair = std::pair<KStringView, KStringView>;
 
@@ -1651,11 +1471,33 @@ DEKAF2_NAMESPACE_END
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-size_t kFind(
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+// not inline
+std::size_t kFind(const KStringView haystack,
+                  const KStringView needle,
+                  std::size_t pos = 0) noexcept;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+// not inline
+std::size_t kRFind(const KStringView haystack,
+                   const KStringView needle,
+                   std::size_t pos = npos) noexcept;
+//-----------------------------------------------------------------------------
+
+//----------------------------------------------------------------------
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+// not inline
+bool kContainsWord(const KStringView sInput, const KStringView sPattern) noexcept;
+//----------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_14
+std::size_t kFind(
 		const KStringView haystack,
         const char needle,
-        size_t pos) noexcept
+        std::size_t pos = 0) noexcept
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
@@ -1686,11 +1528,11 @@ size_t kFind(
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-size_t kFindNot(
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_14
+std::size_t kFindNot(
 		const KStringView haystack,
 		const char needle,
-		size_t pos) noexcept
+		std::size_t pos = 0) noexcept
 //-----------------------------------------------------------------------------
 {
 	const auto iHaystackSize = haystack.size();
@@ -1710,10 +1552,12 @@ size_t kFindNot(
 }
 
 //-----------------------------------------------------------------------------
-size_t kRFind(
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+inline
+std::size_t kRFind(
         const KStringView haystack,
         const char needle,
-        size_t pos) noexcept
+        std::size_t pos = npos) noexcept
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND)
@@ -1747,11 +1591,11 @@ size_t kRFind(
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14
-size_t kRFindNot(
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_14
+std::size_t kRFindNot(
 		const KStringView haystack,
 		const char needle,
-		size_t pos) noexcept
+		std::size_t pos = npos) noexcept
 //-----------------------------------------------------------------------------
 {
 	const auto iHaystackSize = haystack.size();
@@ -1777,101 +1621,81 @@ size_t kRFindNot(
 }
 
 //-----------------------------------------------------------------------------
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline
-size_t kFindFirstOf(
-		KStringView haystack,
-		const KStringView needles,
-        size_t pos)
+std::size_t kFindFirstOf(KStringView haystack,
+                         const KFindSetOfChars& needles,
+                         std::size_t pos = 0)
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
-	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-	return KFindSetOfChars(needles).find_first_in(haystack, pos);
-#else
-	return static_cast<KStringView::rep_type>(haystack).find_first_of(needles, pos);
-#endif
+	return needles.find_first_in(haystack, pos);
 }
 
 //-----------------------------------------------------------------------------
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline
-size_t kFindFirstNotOf(
-		KStringView haystack,
-		const KStringView needles,
-        size_t pos)
+std::size_t kFindFirstNotOf(KStringView haystack,
+                            const KFindSetOfChars& needles,
+                            std::size_t pos = 0)
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
-	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-	return KFindSetOfChars(needles).find_first_not_in(haystack, pos);
-#else
-	return static_cast<KStringView::rep_type>(haystack).find_first_not_of(needles, pos);
-#endif
+	return needles.find_first_not_in(haystack, pos);
 }
 
 //-----------------------------------------------------------------------------
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline
-size_t kFindLastOf(
-		KStringView haystack,
-		const KStringView needles,
-        size_t pos)
+std::size_t kFindLastOf(KStringView haystack,
+                        const KFindSetOfChars& needles,
+                        std::size_t pos = npos)
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
-	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-	return KFindSetOfChars(needles).find_last_in(haystack, pos);
-#else
-	return static_cast<KStringView::rep_type>(haystack).find_last_of(needles, pos);
-#endif
+	return needles.find_last_in(haystack, pos);
 }
 
 //-----------------------------------------------------------------------------
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline
-size_t kFindLastNotOf(
-		KStringView haystack,
-		const KStringView needles,
-        size_t pos)
+std::size_t kFindLastNotOf(KStringView haystack,
+                           const KFindSetOfChars& needles,
+                           std::size_t pos = npos)
 //-----------------------------------------------------------------------------
 {
-#if defined(DEKAF2_USE_OPTIMIZED_STRING_FIND) \
-	|| defined(DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW)
-	return KFindSetOfChars(needles).find_last_not_in(haystack, pos);
-#else
-	return static_cast<KStringView::rep_type>(haystack).find_last_not_of(needles, pos);
-#endif
+	return needles.find_last_not_in(haystack, pos);
 }
 
 //-----------------------------------------------------------------------------
 /// Find delimiter chars prefixed by even number of escape characters (0, 2, ...).
 /// Ignore delimiter chars prefixed by odd number of escapes.
 DEKAF2_PUBLIC
-size_t kFindFirstOfUnescaped(const KStringView haystack,
-							 const KFindSetOfChars& needles,
-							 KStringView::value_type chEscape,
-							 KStringView::size_type pos = 0);
+std::size_t kFindFirstOfUnescaped(const KStringView haystack,
+                                  const KFindSetOfChars& needles,
+                                  KStringView::value_type chEscape,
+                                  KStringView::size_type pos = 0) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Find delimiter char prefixed by even number of escape characters (0, 2, ...).
 /// Ignore delimiter chars prefixed by odd number of escapes.
 DEKAF2_PUBLIC
-size_t kFindUnescaped(const KStringView haystack,
-                      KStringView::value_type needle,
-                      KStringView::value_type chEscape,
-                      KStringView::size_type pos = 0);
+std::size_t kFindUnescaped(const KStringView haystack,
+                           KStringView::value_type needle,
+                           KStringView::value_type chEscape,
+                           KStringView::size_type pos = 0) noexcept;
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Find delimiter string prefixed by even number of escape characters (0, 2, ...).
 /// Ignore delimiter string prefixed by odd number of escapes.
 DEKAF2_PUBLIC
-size_t kFindUnescaped(const KStringView haystack,
-					  const KStringView needle,
-                      KStringView::value_type chEscape,
-                      KStringView::size_type pos = 0);
+std::size_t kFindUnescaped(const KStringView haystack,
+                           const KStringView needle,
+                           KStringView::value_type chEscape,
+                           KStringView::size_type pos = 0) noexcept;
 //-----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kStartsWith(const KStringView sInput, const KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
@@ -1892,7 +1716,7 @@ bool kStartsWith(const KStringView sInput, const KStringView sPattern) noexcept
 } // kStartsWith
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kEndsWith(const KStringView sInput, const KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
@@ -1914,7 +1738,7 @@ bool kEndsWith(const KStringView sInput, const KStringView sPattern) noexcept
 } // kEndsWith
 
 //----------------------------------------------------------------------
-inline DEKAF2_PUBLIC
+DEKAF2_NODISCARD inline DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, const KStringView sPattern) noexcept
 //----------------------------------------------------------------------
 {
@@ -1922,12 +1746,159 @@ bool kContains(const KStringView sInput, const KStringView sPattern) noexcept
 }
 
 //----------------------------------------------------------------------
-DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC
 bool kContains(const KStringView sInput, const char ch) noexcept
 //----------------------------------------------------------------------
 {
 	return kFind(sInput, ch) != KStringView::npos;
 }
+
+// ** the KStringView inlines that call the above free functions **
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::find(const KStringView str, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kFind(*this, str, pos);
+}
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14
+KStringView::size_type KStringView::find(value_type ch, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kFind(*this, ch, pos);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::rfind(value_type ch, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kRFind(*this, ch, pos);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::rfind(const self_type sv, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kRFind(*this, sv, pos);
+}
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14
+KStringView::size_type KStringView::find_last_not_of(value_type ch, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kRFindNot(*this, ch, pos);
+}
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14
+KStringView::size_type KStringView::find_first_not_of(value_type ch, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kFindNot(*this, ch, pos);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::find_first_of(const KFindSetOfChars& CharSet, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kFindFirstOf(*this, CharSet, pos);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::find_first_of(const value_type* s, size_type pos, size_type count) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return find_first_of(KStringView(s, count), pos);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::find_last_of(const KFindSetOfChars& CharSet, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kFindLastOf(*this, CharSet, pos);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::find_last_of(const value_type* s, size_type pos, size_type count) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return find_last_of(KStringView(s, count), pos);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::find_first_not_of(const KFindSetOfChars& CharSet, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kFindFirstNotOf(*this, CharSet, pos);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::find_first_not_of(const value_type* s, size_type pos, size_type count) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return find_first_not_of(KStringView(s, count), pos);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::find_last_not_of(const KFindSetOfChars& CharSet, size_type pos) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kFindLastNotOf(*this, CharSet, pos);
+}
+
+//-----------------------------------------------------------------------------
+inline
+KStringView::size_type KStringView::find_last_not_of(const value_type* s, size_type pos, size_type count) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return find_last_not_of(KStringView(s, count), pos);
+}
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14
+bool KStringView::starts_with(const KStringView other) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kStartsWith(*this, other);
+}
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14
+bool KStringView::ends_with(const KStringView other) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kEndsWith(*this, other);
+}
+
+//-----------------------------------------------------------------------------
+inline
+bool KStringView::contains(const KStringView other) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kContains(*this, other);
+}
+
+//-----------------------------------------------------------------------------
+DEKAF2_CONSTEXPR_14
+bool KStringView::contains(value_type ch) const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kContains(*this, ch);
+}
+
 
 inline namespace literals {
 

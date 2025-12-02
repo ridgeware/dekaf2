@@ -837,7 +837,43 @@ bool KTCPEndPoint::operator<(const KTCPEndPoint& other) const
 }
 
 //-------------------------------------------------------------------------
-bool kNormalizeURLPath(url::KPath& Path)
+bool kIsSafeURLPath(KStringView sPath)
+//-------------------------------------------------------------------------
+{
+	// split into path components
+	for (auto it : kSplits(sPath, '/'))
+	{
+		if (it.empty())
+		{
+			continue;
+		}
+
+		it.Trim();
+
+		if (it.empty())
+		{
+			return false;
+		}
+		else if (it == ".")
+		{
+			return false;
+		}
+		else if (it == "..")
+		{
+			return false;
+		}
+		else
+		{
+			// ordinary directory
+		}
+	}
+
+	return true;
+
+} // kIsSafeURLPath
+
+//-------------------------------------------------------------------------
+bool kNormalizeURLPath(KStringRef& sPath)
 //-------------------------------------------------------------------------
 {
 	// "/user/./test/../sub/file"  -> "/user/sub/file"
@@ -849,13 +885,12 @@ bool kNormalizeURLPath(url::KPath& Path)
 	// "../"                       -> "/"
 	// "/test/../../"              -> "/"
 
-	auto& sPath = Path.get();
 	std::vector<KStringView> Normalized;
 	bool bWarned { false };
-	bool bTrailingSlash = sPath.back() == '/';
+	bool bTrailingSlash = !sPath.empty() && sPath.back() == '/';
 
 	// split into path components
-	for (auto it : sPath.Split('/'))
+	for (auto it : kSplits(sPath, '/'))
 	{
 		if (it.empty())
 		{
@@ -919,23 +954,15 @@ bool kNormalizeURLPath(url::KPath& Path)
 		sNormalized += '/';
 	}
 
-	if (sNormalized != Path.get())
+	if (sNormalized != sPath)
 	{
-		Path = sNormalized;
+		sPath = sNormalized;
 		return true;
 	}
 
 	return false;
 
 } // kNormalizeURLPath
-
-//-------------------------------------------------------------------------
-bool kNormalizeURL(KURL& URL)
-//-------------------------------------------------------------------------
-{
-	return kNormalizeURLPath(URL.Path);
-
-} // kNormalizeURL
 
 // old boost::multi_index versions are not noexcept move constructible, so we drop this
 // test in case..

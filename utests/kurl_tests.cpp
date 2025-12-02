@@ -1470,20 +1470,81 @@ TEST_CASE("KURL::UNKNOWN_PROTO")
 
 TEST_CASE("KURL::Normalize")
 {
-	std::vector<std::pair<KStringView, KStringView>> tests {
-		{ "/user/./test/../sub/file"   , "/user/sub/file"  },
-		{ "/test/../../path"           , "/path"           },
-		{ "/test/ /../..//path"        , "/path"           },
-		{ ""                           , "/"               },
-		{ ".."                         , "/"               },
-		{ "/test/../.."                , "/"               },
-		{ "/user/./test/../ sub /file/", "/user/sub/file/" },
-		{ "/test/../../path/"          , "/path/"          },
-		{ "../"                        , "/"               },
-		{ "/test/../../"               , "/"               }
+	std::vector<std::pair<KStringView, KStringView>> negative_tests {
+		{ "/user/./test/../sub/file"    , "/user/sub/file"  },
+		{ "/test/../../path"            , "/path"           },
+		{ "/test/ /../..//path"         , "/path"           },
+		{ ""                            , "/"               },
+		{ ".."                          , "/"               },
+		{ "/test/../.."                 , "/"               },
+		{ "/user/./test/../ sub /file/" , "/user/sub/file/" },
+		{ "/test/../../path/"           , "/path/"          },
+		{ "../"                         , "/"               },
+		{ "/test/../../"                , "/"               }
 	};
 
-	for (auto& it : tests)
+	std::vector<KStringView> positive_tests {
+		{ "/user/sub/file"  },
+		{ "/path"           },
+		{ "/"               },
+		{ "/user/sub/file/" },
+	};
+
+	for (auto& it : negative_tests)
+	{
+		// while an empty input yields a / as output
+		// in kNormalizeURLPath() it returns true in kIsSafeURLPath(KStringView)
+		bool bExpect = it.first.empty();
+		bool bIsSafe = kIsSafeURLPath(it.first);
+		INFO  ( it.first           );
+		CHECK ( bIsSafe == bExpect );
+	}
+
+	for (auto& it : positive_tests)
+	{
+		bool bIsSafe = kIsSafeURLPath(it);
+		INFO  ( it              );
+		CHECK ( bIsSafe == true );
+	}
+
+	for (auto& it : negative_tests)
+	{
+		// while an empty or relative input yields a / as output
+		// in kNormalizeURLPath() it returns true in kIsSafeURLPath(KStringView)
+		bool bExpect = it.first.empty() || it.first == ".." || it.first == "../";
+		url::KPath Path(it.first);
+		bool bIsSafe = kIsSafeURLPath(Path);
+		INFO  ( it.first           );
+		CHECK ( bIsSafe == bExpect );
+	}
+
+	for (auto& it : positive_tests)
+	{
+		url::KPath Path(it);
+		bool bIsSafe = kIsSafeURLPath(Path);
+		INFO  ( it              );
+		CHECK ( bIsSafe == true );
+	}
+
+	for (auto& it : negative_tests)
+	{
+		KString sPath(it.first);
+		bool bChanged = kNormalizeURLPath(sPath);
+		INFO  ( it.first );
+		CHECK ( sPath    == it.second );
+		CHECK ( bChanged == true      );
+	}
+
+	for (auto& it : positive_tests)
+	{
+		KString sPath(it);
+		bool bChanged = kNormalizeURLPath(sPath);
+		INFO  ( it );
+		CHECK ( sPath    == it    );
+		CHECK ( bChanged == false );
+	}
+
+	for (auto& it : negative_tests)
 	{
 		url::KPath Path(it.first);
 		bool bChanged = kNormalizeURLPath(Path);
@@ -1491,4 +1552,13 @@ TEST_CASE("KURL::Normalize")
 		CHECK ( Path.get() == it.second );
 		CHECK ( bChanged   == true      );
 	}
+
+	for (auto& it : positive_tests)
+	{
+	   url::KPath Path(it);
+	   bool bChanged = kNormalizeURLPath(Path);
+	   INFO  ( it );
+	   CHECK ( Path.get() == it    );
+	   CHECK ( bChanged   == false );
+   }
 }

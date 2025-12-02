@@ -1518,13 +1518,44 @@ public:
 DEKAF2_PUBLIC inline
 KString kGetBaseDomain (KStringView sHostName) { return url::GetDomainIdentity(sHostName); }
 
-/// normalize a url path like "/a/b/../../c" to "/c", never descend below the root though
-DEKAF2_PUBLIC
-bool kNormalizeURLPath(url::KPath& Path);
+/// checks if a url path contains directory traversals
+/// @returns true if url path does not contain a directory traversal attempt, false otherwise
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool kIsSafeURLPath(KStringView sPath);
+
+/// checks if a url path contains directory traversals
+/// @returns true if url path does not contain a directory traversal attempt, false otherwise
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+bool kIsSafeURLPath(const url::KPath& Path)
+{
+	return kIsSafeURLPath(Path.get());
+}
+
+/// checks if a url path contains directory traversals
+/// @returns true if url path does not contain a directory traversal attempt, false otherwise
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+bool kIsSafeURL(const KURL& URL)
+{
+	return kIsSafeURLPath(URL.Path);
+}
 
 /// normalize a url path like "/a/b/../../c" to "/c", never descend below the root though
 DEKAF2_PUBLIC
-bool kNormalizeURL(KURL& URL);
+bool kNormalizeURLPath(KStringRef& sPath);
+
+/// normalize a url path like "/a/b/../../c" to "/c", never descend below the root though
+DEKAF2_PUBLIC inline
+bool kNormalizeURLPath(url::KPath& Path)
+{
+	return kNormalizeURLPath(Path.get());
+}
+
+/// normalize a url path like "/a/b/../../c" to "/c", never descend below the root though
+DEKAF2_PUBLIC inline
+bool kNormalizeURL(KURL& URL)
+{
+	return kNormalizeURLPath(URL.Path);
+}
 
 DEKAF2_NAMESPACE_END
 

@@ -118,16 +118,19 @@ protected:
 		KString     sRequestCompression;
 		KString     sUsername;
 		KString     sPassword;
-		KString     sAWSProvider;    //<provider1[:provider2[:region[:service]]]> --aws-sigv4 "aws:amz:us-west-1:es" --user "key:secret"
+		KString     sAWSProvider;        //<provider1[:provider2[:region[:service]]]> --aws-sigv4 "aws:amz:us-west-1:es" --user "key:secret"
 		HeaderMap   Headers;
-		KCookies    Cookies;         // request cookies, loaded with -b,cookie
-		KString     sLoadCookieJar;  // input filename for cookies
-		KString     sStoreCookieJar; // output filename for set-cookies
-		KHTTPMethod Method          { KHTTPMethod::GET };
-		enum Flags  Flags           { Flags::NONE };
-		uint16_t    iSecondsTimeout { 5 };
-		uint16_t    iMaxRedirects   { 20 };
+		KCookies    Cookies;             // request cookies, loaded with -b,cookie
+		KString     sLoadCookieJar;      // input filename for cookies
+		KString     sStoreCookieJar;     // output filename for set-cookies
+		KHTTPMethod Method               { KHTTPMethod::GET };
+		enum Flags  Flags                { Flags::NONE };
+		uint16_t    iSecondsTimeout      { 5 };
+		uint16_t    iMaxRedirects        { 20 };
 		bool        bMethodExplicitlySet { false };
+
+		bool        HasFlag(enum Flags flag) const;
+		void        SetFlag(enum Flags flag);
 
 	}; // BaseRequest
 

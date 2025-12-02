@@ -59,6 +59,20 @@
 using namespace DEKAF2_NAMESPACE_NAME;
 
 //-----------------------------------------------------------------------------
+inline bool kurl::BaseRequest::HasFlag(enum Flags flag) const
+//-----------------------------------------------------------------------------
+{
+	return (Flags & flag) != 0;
+}
+
+//-----------------------------------------------------------------------------
+inline void kurl::BaseRequest::SetFlag(enum Flags flag)
+//-----------------------------------------------------------------------------
+{
+	Flags |= flag;
+}
+
+//-----------------------------------------------------------------------------
 kurl::kurl ()
 //-----------------------------------------------------------------------------
 {
@@ -86,7 +100,7 @@ kurl::kurl ()
 		.Help("show http response headers in output")
 	([&]()
 	{
-		BuildMRQ.Flags |= Flags::RESPONSE_HEADERS;
+		BuildMRQ.SetFlag(Flags::RESPONSE_HEADERS);
 	});
 
 	m_CLI
@@ -94,7 +108,7 @@ kurl::kurl ()
 		.Help("do not verify TLS certificates")
 	([&]()
 	{
-		BuildMRQ.Flags |= Flags::INSECURE_CERTS;
+		BuildMRQ.SetFlag(Flags::INSECURE_CERTS);
 	});
 
 	m_CLI
@@ -102,7 +116,7 @@ kurl::kurl ()
 		.Help("pretty print XML or JSON data")
 	([&]()
 	{
-		BuildMRQ.Flags |= Flags::PRETTY;
+		BuildMRQ.SetFlag(Flags::PRETTY);
 	});
 
 	m_CLI
@@ -110,7 +124,7 @@ kurl::kurl ()
 		.Help("verbose status output")
 	([&]()
 	{
-		BuildMRQ.Flags |= (Flags::VERBOSE | Flags::REQUEST_HEADERS | Flags::RESPONSE_HEADERS);
+		BuildMRQ.SetFlag(Flags::VERBOSE | Flags::REQUEST_HEADERS | Flags::RESPONSE_HEADERS);
 	});
 
 	m_CLI
@@ -134,7 +148,7 @@ kurl::kurl ()
 		.Help("quiet (silent) operation")
 	([&]()
 	{
-		BuildMRQ.Flags |= Flags::QUIET;
+		BuildMRQ.SetFlag(Flags::QUIET);
 	});
 
 	m_CLI
@@ -299,7 +313,7 @@ kurl::kurl ()
 		{
 			throw KOptions::Error("Connection header already set");
 		}
-		BuildMRQ.Flags |= Flags::CONNECTION_CLOSE;
+		BuildMRQ.SetFlag(Flags::CONNECTION_CLOSE);
 	});
 
 	m_CLI
@@ -398,7 +412,7 @@ kurl::kurl ()
 			  "it is supposed to be a filename in netscape cookie format to load")
 	([&](KStringViewZ sCookie)
 	{
-		BuildMRQ.Flags |= Flags::ALLOW_SET_COOKIE;
+		BuildMRQ.SetFlag(Flags::ALLOW_SET_COOKIE);
 
 		if (sCookie.find('=') == KStringViewZ::npos)
 		{
@@ -424,7 +438,7 @@ kurl::kurl ()
 		.Help("saves cookies sent by the server with set-cookie in netscape cookie format")
 	([&](KStringViewZ sCookieJar)
 	{
-		BuildMRQ.Flags |= Flags::ALLOW_SET_COOKIE;
+		BuildMRQ.SetFlag(Flags::ALLOW_SET_COOKIE);
 		BuildMRQ.sLoadCookieJar = sCookieJar;
 	});
 
@@ -483,11 +497,11 @@ kurl::kurl ()
 		.Help("force IPv4 connection")
 	([&]()
 	{
-		if (BuildMRQ.Flags & FORCE_IPV6)
+		if (BuildMRQ.HasFlag(FORCE_IPV6))
 		{
 			throw KOptions::Error("--ipv4 and --ipv6 options are mutually exclusive");
 		}
-		BuildMRQ.Flags |= Flags::FORCE_IPV4;
+		BuildMRQ.SetFlag(Flags::FORCE_IPV4);
 	});
 
 	m_CLI
@@ -495,11 +509,11 @@ kurl::kurl ()
 		.Help("force IPv6 connection")
 	([&]()
 	{
-		if (BuildMRQ.Flags & FORCE_IPV4)
+		if (BuildMRQ.HasFlag(FORCE_IPV4))
 		{
 			throw KOptions::Error("--ipv4 and --ipv6 options are mutually exclusive");
 		}
-		BuildMRQ.Flags |= Flags::FORCE_IPV6;
+		BuildMRQ.SetFlag(Flags::FORCE_IPV6);
 	});
 
 	m_CLI
@@ -507,11 +521,11 @@ kurl::kurl ()
 		.Help("force http/1.1 protocol, do not allow upgrade to http/2")
 	([&]()
 	{
-		if (BuildMRQ.Flags & (FORCE_HTTP_2 | FORCE_HTTP_3))
+		if (BuildMRQ.HasFlag(FORCE_HTTP_2 | FORCE_HTTP_3))
 		{
 			throw KOptions::Error("--http1, --http2 and --http3 options are mutually exclusive");
 		}
-		BuildMRQ.Flags |= Flags::FORCE_HTTP_1;
+		BuildMRQ.SetFlag(Flags::FORCE_HTTP_1);
 	});
 
 	m_CLI
@@ -519,11 +533,11 @@ kurl::kurl ()
 		.Help("force http/2 protocol, do not allow downgrade to http/1.1")
 	([&]()
 	{
-		if (BuildMRQ.Flags & (FORCE_HTTP_1 | FORCE_HTTP_3))
+		if (BuildMRQ.HasFlag(FORCE_HTTP_1 | FORCE_HTTP_3))
 		{
 			throw KOptions::Error("--http1, --http2 and --http3 options are mutually exclusive");
 		}
-		BuildMRQ.Flags |= Flags::FORCE_HTTP_2;
+		BuildMRQ.SetFlag(Flags::FORCE_HTTP_2);
 	});
 
 #if DEKAF2_HAS_NGHTTP3
@@ -532,11 +546,11 @@ kurl::kurl ()
 		.Help("force http/3 protocol, do not allow downgrade to http/1.1 or http/2")
 	([&]()
 	{
-		if (BuildMRQ.Flags & (FORCE_HTTP_1 | FORCE_HTTP_2))
+		if (BuildMRQ.HasFlag(FORCE_HTTP_1 | FORCE_HTTP_2))
 		{
 			throw KOptions::Error("--http1, --http2 and --http3 options are mutually exclusive");
 		}
-		BuildMRQ.Flags |= Flags::FORCE_HTTP_3;
+		BuildMRQ.SetFlag(Flags::FORCE_HTTP_3);
 	});
 #endif
 
@@ -737,7 +751,7 @@ void kurl::ServerQuery ()
 		}
 
 		// overwrite default - KWebClient per default accepts all set-cookies
-		HTTP.AcceptCookies(RQ->Config.Flags & Flags::ALLOW_SET_COOKIE);
+		HTTP.AcceptCookies(RQ->Config.HasFlag(Flags::ALLOW_SET_COOKIE));
 
 		KOutFile OutFile;
 
@@ -758,32 +772,32 @@ void kurl::ServerQuery ()
 			                             : KHTTPStreamOptions::None;
 
 #if DEKAF2_HAS_NGHTTP3
-			if (RQ->Config.Flags & Flags::FORCE_HTTP_3)
+			if (RQ->Config.HasFlag(Flags::FORCE_HTTP_3))
 			{
 				Options = KHTTPStreamOptions::RequestHTTP3;
 			}
 			else 
 #endif
-			if (RQ->Config.Flags & Flags::FORCE_HTTP_2)
+			if (RQ->Config.HasFlag(Flags::FORCE_HTTP_2))
 			{
 				Options = KHTTPStreamOptions::RequestHTTP2;
 			}
-			else if (RQ->Config.Flags & Flags::FORCE_HTTP_1)
+			else if (RQ->Config.HasFlag(Flags::FORCE_HTTP_1))
 			{
 				Options = KHTTPStreamOptions::None;
 			}
 
-			if ((RQ->Config.Flags & Flags::INSECURE_CERTS) == 0)
+			if (RQ->Config.HasFlag(Flags::INSECURE_CERTS) == false)
 			{
 				Options.Set(KHTTPStreamOptions::VerifyCert);
 			}
 
-			if (RQ->Config.Flags & Flags::FORCE_IPV4)
+			if (RQ->Config.HasFlag(Flags::FORCE_IPV4))
 			{
 				Options.Set(KHTTPStreamOptions::ForceIPv4);
 			}
 
-			if (RQ->Config.Flags & Flags::FORCE_IPV6)
+			if (RQ->Config.HasFlag(Flags::FORCE_IPV6))
 			{
 				Options.Set(KHTTPStreamOptions::ForceIPv6);
 			}
@@ -858,7 +872,7 @@ void kurl::ServerQuery ()
 			continue;
 		}
 
-		if (RQ->Config.Flags & Flags::REQUEST_HEADERS)
+		if (RQ->Config.HasFlag(Flags::REQUEST_HEADERS))
 		{
 			KModifyingOutputStreamBuf Modifier(KErr.ostream());
 			Modifier.Replace("", "> ");
@@ -868,14 +882,14 @@ void kurl::ServerQuery ()
 			HTTP.Response.KHTTPResponseHeaders::Serialize(KErr);
 		}
 
-		if (RQ->Config.Flags & Flags::RESPONSE_HEADERS)
+		if (RQ->Config.HasFlag(Flags::RESPONSE_HEADERS))
 		{
 			HTTP.Response.KHTTPResponseHeaders::Serialize(Out);
 		}
 
 		bool bPrinted = false;
 
-		if (RQ->Config.Flags & Flags::PRETTY)
+		if (RQ->Config.HasFlag(Flags::PRETTY))
 		{
 			if (HTTP.Response.ContentType() == KMIME::JSON)
 			{
@@ -914,7 +928,7 @@ void kurl::ServerQuery ()
 			Out.Write (sResponse);
 		}
 
-		if (RQ->Config.Flags & Flags::CONNECTION_CLOSE)
+		if (RQ->Config.HasFlag(Flags::CONNECTION_CLOSE))
 		{
 			HTTP.Disconnect();
 		}

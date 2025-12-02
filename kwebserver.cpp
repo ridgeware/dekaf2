@@ -96,6 +96,15 @@ void KWebServer::Check
 
 	if (this->RedirectAsDirectory())
 	{
+		if (bIsDelete)
+		{
+			// if this is a delete request and points to a directory then do not
+			// force a redirect with a slash at the end, but instead remove the
+			// directory with all its content
+			m_bIsValid = true;
+			return;
+		}
+		
 		// redirect
 		KString sRedirect = sResourcePath;
 		sRedirect += '/';
@@ -442,20 +451,14 @@ KHTTPMethod KWebServer::Serve
 				// this is a plain PUT (or POST) of data, the file name is taken
 				// from the last part of the URL
 				auto sName = kBasename(sResource);
-				auto sDir  = kDirname(sResource, true, false);
 
 				if (!kIsSafeFilename(sName))
 				{
 					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "bad target name in URL" };
 				}
 
-				if (!kIsSafePathname(sName, true, true))
-				{
-					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "bad target path in URL" };
-				}
-
 				auto sFrom = kFormat("{}{}{}", m_TempDir.Name(), kDirSep, sName);
-				auto sTo   = kFormat("{}{}{}", sDocumentRoot, sDir, sName);
+				auto& sTo  = GetFileSystemPath();
 
 				KOutFile OutFile(sFrom);
 
@@ -477,6 +480,8 @@ KHTTPMethod KWebServer::Serve
 				{
 					throw KHTTPError { KHTTPError::H5xx_ERROR, "cannot write file" };
 				}
+
+				kDebug(2, "stored at {}", sTo.ToView(sDocumentRoot.size()));
 			}
 			else
 			{
@@ -487,9 +492,9 @@ KHTTPMethod KWebServer::Serve
 
 		case KHTTPMethod::DELETE:
 		{
-			auto sName = kFormat("{}{}{}", sDocumentRoot, kDirSep, sResource);
+			auto& sName = GetFileSystemPath();
 
-			kDebug(2, "deleting file: {}", sResource);
+			kDebug(2, "deleting: {}", sName.ToView(sDocumentRoot.size()));
 
 			if (!kRemove(sName, KFileTypes::ALL))
 			{

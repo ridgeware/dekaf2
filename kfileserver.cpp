@@ -77,25 +77,19 @@ bool KFileServer::Open(KStringView sDocumentRoot,
 		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("invalid path: {}", sRequest) };
 	}
 
-	KString sNormalizedRequest;
-
 	if (!sRequest.empty())
 	{
-		sRequest.remove_prefix(1); // the leading slash
-
-		if (!sRequest.empty())
+		if (!kIsSafeURLPath(sRequest))
 		{
-			sNormalizedRequest = kNormalizePath(sRequest, true);
-
-			if (sNormalizedRequest.empty())
-			{
-				kDebug(1, "invalid document path: {}", sRequest);
-
-				throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid path: /{}", sRequest) };
-			}
+			kDebug(1, "invalid document path: {}", sRequest);
+			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid path: /{}", sRequest) };
 		}
 
-		sRequest = sNormalizedRequest;
+		if (!sRequest.remove_prefix('/'))
+		{
+			kDebug(1, "invalid document path: {}", sRequest);
+			throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat("invalid path: /{}", sRequest) };
+		}
 	}
 
 	m_sFileSystemPath = sDocumentRoot;

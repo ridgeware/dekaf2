@@ -163,7 +163,7 @@ void KSnippets::IsolateSnippets(KStringView sBuffer, KStringView sLeadIn, KStrin
 
 		sBuffer.remove_prefix(iStart + sLeadIn.size());
 
-		auto sName = sBuffer.Left(sBuffer.find_first_of(" \r\n\b\t"));
+		auto sName = sBuffer.Left(detail::kASCIISpacesSet.find_first_in(sBuffer));
 
 		if (sName.empty())
 		{
@@ -189,7 +189,7 @@ void KSnippets::IsolateSnippets(KStringView sBuffer, KStringView sLeadIn, KStrin
 			sSnippet = sBuffer.ToView(0, iEnd);
 
 			// now search back until lead in, and check that there is a white space
-			auto iBegin = sSnippet.find_last_of(" \r\n\b\t");
+			auto iBegin = detail::kASCIISpacesSet.find_last_in(sSnippet);
 
 			if (iBegin == KStringView::npos)
 			{

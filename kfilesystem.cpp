@@ -303,8 +303,11 @@ KStringView kBasename(KStringView sFilePath)
 	// that is, just the filename itself without any directory elements
 	if (!sFilePath.empty())
 	{
+#if DEKAF2_IS_WINDOWS
 		auto pos = sFilePath.find_last_of(detail::kAllowedDirSep);
-
+#else
+		auto pos = sFilePath.find_last_of(kDirSep);
+#endif
 		if (pos != KStringView::npos)
 		{
 			return sFilePath.substr(pos + 1);
@@ -323,7 +326,11 @@ KStringView kDirname(KStringView sFilePath, bool bWithTrailingSlash, bool bRetur
 	// that is, the directory name component of the file path
 	if (!sFilePath.empty())
 	{
+#if DEKAF2_IS_WINDOWS
 		auto pos = sFilePath.find_last_of(detail::kAllowedDirSep);
+#else
+		auto pos = sFilePath.find_last_of(kDirSep);
+#endif
 
 		if (pos != KStringView::npos)
 		{

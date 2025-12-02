@@ -578,7 +578,7 @@ std::vector<KStringView> KStringView::MatchRegexGroups(const KStringView sRegEx,
 KStringView& KStringView::TrimLeft()
 //----------------------------------------------------------------------
 {
-	return TrimLeft(detail::kASCIISpaces);
+	return TrimLeft(detail::kASCIISpacesSet);
 }
 
 //----------------------------------------------------------------------
@@ -601,7 +601,7 @@ KStringView& KStringView::TrimLeft(const KFindSetOfChars& TrimSet)
 KStringView& KStringView::TrimRight()
 //----------------------------------------------------------------------
 {
-	return TrimRight(detail::kASCIISpaces);
+	return TrimRight(detail::kASCIISpacesSet);
 }
 
 //----------------------------------------------------------------------

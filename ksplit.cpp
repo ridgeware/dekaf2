@@ -186,8 +186,8 @@ template
 std::size_t kSplit(
 		std::vector<KStringView>& cContainer,
         KStringView svBuffer,
-        const KFindSetOfChars& Delim   = ",",                  // default: comma delimiter
-        const KFindSetOfChars& Trim    = detail::kASCIISpaces, // default: trim all whitespace
+        const KFindSetOfChars& Delim   = ",",                     // default: comma delimiter
+        const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
         const char  chEscape = '\0',                 // default: ignore escapes
         bool        bCombineDelimiters = false,      // default: create an element for each delimiter char found
         bool        bQuotesAreEscapes  = false       // default: treat double quotes like any other char

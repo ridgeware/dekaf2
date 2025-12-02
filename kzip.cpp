@@ -854,7 +854,11 @@ bool KZip::WriteFile(KStringViewZ sFilename, KStringViewZ sDispname)
 
 	if (sDispname.empty())
 	{
+#if DEKAF2_IS_WINDOWS
 		auto pos = sFilename.find_last_of(detail::kAllowedDirSep);
+#else
+		auto pos = sFilename.find_last_of(kDirSep);
+#endif
 
 		if (pos != KStringView::npos)
 		{

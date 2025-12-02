@@ -324,8 +324,6 @@ public:
 	size_type find_first_of(value_type c, size_type pos = 0)                       const;
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_of(const KFindSetOfChars& CharSet, size_type pos = 0)     const;
-//	DEKAF2_NODISCARD_PEDANTIC
-//	size_type find_first_of(const value_type* s, size_type pos = 0)                const;
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_of(const value_type* s, size_type pos, size_type n)       const;
 	template<typename T,
@@ -337,8 +335,6 @@ public:
 	size_type find_last_of(value_type c, size_type pos = npos)                     const;
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_of(const KFindSetOfChars& CharSet, size_type pos = npos)   const;
-//	DEKAF2_NODISCARD_PEDANTIC
-//	size_type find_last_of(const value_type* s, size_type pos = npos)              const;
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_of(const value_type* s, size_type pos, size_type n)        const;
 	template<typename T,
@@ -350,8 +346,6 @@ public:
 	size_type find_first_not_of(value_type c, size_type pos = 0)                   const { return find_first_not_of(&c, pos, 1);                  }
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_not_of(const KFindSetOfChars& CharSet, size_type pos = 0) const;
-//	DEKAF2_NODISCARD_PEDANTIC
-//	size_type find_first_not_of(const value_type* s, size_type pos = 0)            const;
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_first_not_of(const value_type* s, size_type pos, size_type n)   const;
 	template<typename T,
@@ -363,8 +357,6 @@ public:
 	size_type find_last_not_of(value_type c, size_type pos = npos)                 const { return find_last_not_of(&c, pos, 1);                   }
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_not_of(const KFindSetOfChars& CharSet, size_type pos = npos) const;
-//	DEKAF2_NODISCARD_PEDANTIC
-//	size_type find_last_not_of(const value_type* s, size_type pos = npos)          const;
 	DEKAF2_NODISCARD_PEDANTIC
 	size_type find_last_not_of(const value_type* s, size_type pos, size_type n)    const;
 	template<typename T,
@@ -1933,7 +1925,6 @@ inline KString&& KString::Left(size_type iCount) &&
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_NODISCARD
 inline KStringViewZ KString::Mid(size_type iStart) const &
 //-----------------------------------------------------------------------------
 {
@@ -1941,7 +1932,6 @@ inline KStringViewZ KString::Mid(size_type iStart) const &
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_NODISCARD
 inline KString&& KString::Mid(size_type iStart) &&
 //-----------------------------------------------------------------------------
 {
@@ -1949,7 +1939,6 @@ inline KString&& KString::Mid(size_type iStart) &&
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_NODISCARD
 inline KStringView KString::Mid(size_type iStart, size_type iCount) const &
 //-----------------------------------------------------------------------------
 {
@@ -1957,7 +1946,6 @@ inline KStringView KString::Mid(size_type iStart, size_type iCount) const &
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_NODISCARD
 inline KString&& KString::Mid(size_type iStart, size_type iCount) &&
 //-----------------------------------------------------------------------------
 {

@@ -439,7 +439,7 @@ KStringView KOptions::HelpFormatter::WrapOutput(KStringView& sInput, std::size_t
 
 		if (!(sInput.size() > iMaxSize && KASCII::kIsSpace(sInput[sWrapped.size()])))
 		{
-			auto iLastSpace = AdjustPos(sWrapped.find_last_of(detail::kASCIISpaces), 0);
+			auto iLastSpace = AdjustPos(detail::kASCIISpacesSet.find_last_in(sWrapped), 0);
 			auto iLastPunct = AdjustPos(sWrapped.find_last_of("-.,;:|?!/"), 1);
 
 			if (sInput.size() - iLastSpace < iMaxSize)

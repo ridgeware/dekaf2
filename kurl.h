@@ -699,7 +699,7 @@ extern template class DEKAF2_PUBLIC URIComponent<URLEncodedString, URIPart::Path
 extern template class DEKAF2_PUBLIC URIComponent<URLEncodedQuery,  URIPart::Query,    '?',  true,  false, false>;
 extern template class DEKAF2_PUBLIC URIComponent<URLEncodedString, URIPart::Fragment, '#',  true,  false, true >;
 
-DEKAF2_NAMESPACE_END
+} // end of namespace detail
 
 using KUser     = detail::URIComponent<URLEncodedString, URIPart::User,     '\0', false, true,  true >;
 using KPassword = detail::URIComponent<URLEncodedString, URIPart::Password, '\0', false, true,  true >;
@@ -1517,6 +1517,14 @@ public:
 /// @param sHostName hostname to be converted into the base domain
 DEKAF2_PUBLIC inline
 KString kGetBaseDomain (KStringView sHostName) { return url::GetDomainIdentity(sHostName); }
+
+/// normalize a url path like "/a/b/../../c" to "/c", never descend below the root though
+DEKAF2_PUBLIC
+bool kNormalizeURLPath(url::KPath& Path);
+
+/// normalize a url path like "/a/b/../../c" to "/c", never descend below the root though
+DEKAF2_PUBLIC
+bool kNormalizeURL(KURL& URL);
 
 DEKAF2_NAMESPACE_END
 

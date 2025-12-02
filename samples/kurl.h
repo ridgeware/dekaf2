@@ -90,7 +90,8 @@ public:
 		FORCE_HTTP_3     = 1 << 9,
 		FORCE_IPV4       = 1 << 10,
 		FORCE_IPV6       = 1 << 11,
-		ALLOW_SET_COOKIE = 1 << 12
+		ALLOW_SET_COOKIE = 1 << 12,
+		KEEP_PATH_AS_IS  = 1 << 13
 	};
 
 //----------

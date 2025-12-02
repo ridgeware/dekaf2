@@ -571,6 +571,14 @@ kurl::kurl ()
 		.Set(BuildMRQ.iMaxRedirects);
 
 	m_CLI
+		.Option("path-as-is")
+		.Help("do not normalize a request path like \"/a/../b\" to \"/b\"")
+	([&]()
+	{
+		BuildMRQ.SetFlag(Flags::KEEP_PATH_AS_IS);
+	});
+
+	m_CLI
 		.Command("dns <hostname>\n"
 				 "    [4|6 [<maxresults>]]")
 		.Help("run a hostname lookup and exit, either for IP v4, v6 or both")
@@ -836,21 +844,34 @@ void kurl::ServerQuery ()
 			SocketURL.Path.get() = RQ->Config.sUnixSocket;
 		}
 
-		KStopTime tDuration;
+		KURL RequestURL = RQ->URL;
 
-		KString sResponse;
+		if (RQ->Config.HasFlag(Flags::KEEP_PATH_AS_IS) == false)
+		{
+			// normalize the query path
+			if (kNormalizeURL(RequestURL))
+			{
+				if (RQ->Config.HasFlag(Flags::VERBOSE))
+				{
+					kPrintLine("* Rebuilt URL path to: {}", RequestURL.Path);
+				}
+			}
+		}
+
+		KString   sResponse;
+		KStopTime tDuration;
 
 		if (RQ->URL.Protocol != url::KProtocol::FILE)
 		{
-			sResponse = HTTP.HttpRequest2Host(SocketURL, RQ->URL, RQ->Config.Method, RQ->Config.sRequestBody, RQ->Config.sRequestMIME);
+			sResponse = HTTP.HttpRequest2Host(SocketURL, RequestURL, RQ->Config.Method, RQ->Config.sRequestBody, RQ->Config.sRequestMIME);
 		}
 		else
 		{
-			if (!RQ->URL.Domain.get().empty() && !(RQ->URL.Domain.get() == "localhost" || RQ->URL.Domain.get() == "127.0.0.1"))
+			if (!RequestURL.Domain.get().empty() && !(RequestURL.Domain.get() == "localhost" || RequestURL.Domain.get() == "127.0.0.1"))
 			{
-				throw KError(kFormat("cannot read non-local file: {}", RQ->URL.Domain.get()));
+				throw KError(kFormat("cannot read non-local file: {}", RequestURL.Domain.get()));
 			}
-			KStringViewZ sPath = RQ->URL.Path.get();
+			KStringViewZ sPath = RequestURL.Path.get();
 			sResponse = kReadAll(sPath);
 			HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::CreateByInspection(sPath).Serialize());
 		}
@@ -868,7 +889,7 @@ void kurl::ServerQuery ()
 		if (HTTP.Response.iStatusCode == 0)
 		{
 			// no connection
-			KErr.FormatLine("{}: {}", RQ->URL, HTTP.Error());
+			KErr.FormatLine("{}: {}", RequestURL, HTTP.Error());
 			continue;
 		}
 

@@ -1467,3 +1467,28 @@ TEST_CASE("KURL::UNKNOWN_PROTO")
 	CHECK ( URL.Path == "/test" );
 	CHECK ( URL.Serialize() == "ftxz://domain.org:1234/test" );
 }
+
+TEST_CASE("KURL::Normalize")
+{
+	std::vector<std::pair<KStringView, KStringView>> tests {
+		{ "/user/./test/../sub/file"   , "/user/sub/file"  },
+		{ "/test/../../path"           , "/path"           },
+		{ "/test/ /../..//path"        , "/path"           },
+		{ ""                           , "/"               },
+		{ ".."                         , "/"               },
+		{ "/test/../.."                , "/"               },
+		{ "/user/./test/../ sub /file/", "/user/sub/file/" },
+		{ "/test/../../path/"          , "/path/"          },
+		{ "../"                        , "/"               },
+		{ "/test/../../"               , "/"               }
+	};
+
+	for (auto& it : tests)
+	{
+		url::KPath Path(it.first);
+		bool bChanged = kNormalizeURLPath(Path);
+		INFO  ( it.first );
+		CHECK ( Path.get() == it.second );
+		CHECK ( bChanged   == true      );
+	}
+}

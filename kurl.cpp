@@ -45,6 +45,7 @@
 #include "kstringutils.h"
 #include "kurl.h"
 #include "kstack.h"
+#include <vector>
 
 
 DEKAF2_NAMESPACE_BEGIN
@@ -835,7 +836,108 @@ bool KTCPEndPoint::operator<(const KTCPEndPoint& other) const
 	return false;
 }
 
-// old boost::multi_index versions are not noexcept move constructable, so we drop this
+//-------------------------------------------------------------------------
+bool kNormalizeURLPath(url::KPath& Path)
+//-------------------------------------------------------------------------
+{
+	// "/user/./test/../sub/file"  -> "/user/sub/file"
+	// "/user/./test/../sub/file/" -> "/user/sub/file/"
+	// "relative/path"             -> it is impossible to construct a path without leading slash
+	// "/test/../../path"          -> "/path"
+	// "/test/../../path/"         -> "/path/"
+	// ""                          -> "/"
+	// "../"                       -> "/"
+	// "/test/../../"              -> "/"
+
+	auto& sPath = Path.get();
+	std::vector<KStringView> Normalized;
+	bool bWarned { false };
+	bool bTrailingSlash = sPath.back() == '/';
+
+	// split into path components
+	for (auto it : sPath.Split('/'))
+	{
+		if (it.empty())
+		{
+			continue;
+		}
+
+		it.Trim();
+
+		if (it.empty())
+		{
+			// do not stack
+			continue;
+		}
+		else if (it == ".")
+		{
+			// this is just junk
+			continue;
+		}
+		else if (it == "..")
+		{
+			if (!Normalized.empty())
+			{
+				Normalized.pop_back();
+			}
+			else
+			{
+				if (!bWarned)
+				{
+					// emit this warning only once
+					kDebug(1, "invalid normalization path: {}", sPath);
+					bWarned = true;
+				}
+			}
+		}
+		else
+		{
+			// ordinary directory
+			Normalized.push_back(it);
+		}
+	}
+
+	KString sNormalized;
+
+	if (!Normalized.empty())
+	{
+		sNormalized.reserve(sPath.size());
+
+		for (auto it : Normalized)
+		{
+			sNormalized += '/';
+			sNormalized += it;
+		}
+
+		if (bTrailingSlash)
+		{
+			sNormalized += '/';
+		}
+	}
+	else
+	{
+		sNormalized += '/';
+	}
+
+	if (sNormalized != Path.get())
+	{
+		Path = sNormalized;
+		return true;
+	}
+
+	return false;
+
+} // kNormalizeURLPath
+
+//-------------------------------------------------------------------------
+bool kNormalizeURL(KURL& URL)
+//-------------------------------------------------------------------------
+{
+	return kNormalizeURLPath(URL.Path);
+
+} // kNormalizeURL
+
+// old boost::multi_index versions are not noexcept move constructible, so we drop this
 // test in case..
 static_assert(!std::is_nothrow_move_constructible<URLEncodedQuery>::value ||
 			  std::is_nothrow_move_constructible<KURL>::value,

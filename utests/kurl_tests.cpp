@@ -953,7 +953,7 @@ TEST_CASE ("KURL2") // formerly missing
 		URL = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
-        CHECK ( sSerialized == "http://example.com/path/foo%3Abogus" );
+        CHECK ( sSerialized == "http://example.com/path/foo:bogus" );
 
         svURL = "http://example.com/path+test/foo%20bogus?foo+bogus%2Btest#foo%20bogus+test";
 		URL = svURL;
@@ -991,7 +991,7 @@ TEST_CASE ("KURL2") // formerly missing
 		URL = svURL;
         sSerialized.clear();
         URL.Serialize(sSerialized);
-        CHECK ( sSerialized == "http://example.com/path/foo%3Abogus" );
+        CHECK ( sSerialized == "http://example.com/path/foo:bogus" );
 
         svURL = "http://example.com/path+test/foo%20bogus?foo+bogus%2Btest#foo%20bogus+test";
 		URL = svURL;

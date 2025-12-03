@@ -63,9 +63,9 @@ KUrlEncodingTables KUrlEncodingTables::MyInstance {};
 
 const char* KUrlEncodingTables::s_sExcludes[] =
 {
-//  "",     // used by Schema .. Port                https://tools.ietf.org/html/rfc3986#section-3
-    ";,=/", // used by Path (actually there is more) https://tools.ietf.org/html/rfc3986#section-3.3
-    "/?"    // used by Query and Fragment            https://tools.ietf.org/html/rfc3986#section-3.4
+//  "",      // used by Schema .. Port                https://tools.ietf.org/html/rfc3986#section-3
+    ":;,=/", // used by Path (actually there is more) https://tools.ietf.org/html/rfc3986#section-3.3
+    "/?"     // used by Query and Fragment            https://tools.ietf.org/html/rfc3986#section-3.4
 };
 
 bool* KUrlEncodingTables::EncodingTable[TABLECOUNT];

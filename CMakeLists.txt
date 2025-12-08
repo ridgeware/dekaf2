@@ -1957,9 +1957,15 @@ endif()
 
 # ============================ UNIT AND SMOKE TESTS ==================================
 
-add_subdirectory(utests)
-add_subdirectory(smoketests)
-add_subdirectory(benchmarks)
+if (IS_DIRECTORY utests)
+	add_subdirectory(utests)
+endif()
+if (IS_DIRECTORY smoketests)
+	add_subdirectory(smoketests)
+endif()
+if (IS_DIRECTORY benchmarks)
+	add_subdirectory(benchmarks)
+endif()
 
 # ======================== CLEANUP BEFORE INSTALLATION ===============================
 

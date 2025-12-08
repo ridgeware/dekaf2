@@ -1,3 +1,10 @@
-build/
-.DS_Store
+**/.DS_Store
+Dockerfile
+*.dockerfile
 .git/
+.dockerignore
+benchmarks/
+build/
+compat/
+debug/
+doc/

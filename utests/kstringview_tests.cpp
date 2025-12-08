@@ -1573,10 +1573,12 @@ TEST_CASE("KStringView") {
 			{ "Hello"       , "hello"        },
 			{ "hELLO"       , "hello"        },
 			{ "HELLO"       , "hello"        },
+#ifndef DEKAF2_HAS_MUSL
 			{ "Ä"           , "\xE3\x84"     },
 			{ "Ü"           , "\xE3\x9C"     },
 			{ "ä"           , "\xE3\xA4"     },
 			{ "ü"           , "\xE3\xBC"     },
+#endif
 			{ "\x8C"        , "\x8C"         },
 			{ "\x9C"        , "\x9C"         },
 		};

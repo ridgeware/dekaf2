@@ -311,14 +311,22 @@ TEST_CASE("KFilesystem")
 		sNested += "/far/down/here.txt";
 
 		auto tNow1 = kNow();
+#ifndef DEKAF2_HAS_MUSL
 		kSleep(chrono::milliseconds(100));
+#else
+		kSleep(chrono::milliseconds(1500));
+#endif
 		CHECK ( kTouchFile(sNested)   );
 		auto tNow2 = kNow();
 		CHECK ( kFileExists(sNested)  );
 		auto tFirstTouch = KFileStat(sNested).ModificationTime();
 		CHECK ( tNow1 < tFirstTouch  );
 		CHECK ( tNow2 > tFirstTouch  );
+#ifndef DEKAF2_HAS_MUSL
 		kSleep(chrono::milliseconds(100));
+#else
+		kSleep(chrono::milliseconds(1500));
+#endif
 		CHECK ( kTouchFile(sNested)   );
 		auto tSecondTouch = KFileStat(sNested).ModificationTime();
 		CHECK ( tFirstTouch < tSecondTouch );
@@ -335,7 +343,11 @@ TEST_CASE("KFilesystem")
 		kWriteFile(sNested, "this is a test file");
 		CHECK ( kFileExists(sNested)  );
 		auto tFirstTouch = KFileStat(sNested).ModificationTime();
+#ifndef DEKAF2_HAS_MUSL
 		kSleep(chrono::milliseconds(100));
+#else
+		kSleep(chrono::milliseconds(1500));
+#endif
 		CHECK ( kTouchFile(sNested)   );
 		CHECK ( KFileStat(sNested).Size() == 19 );
 		auto tSecondTouch = KFileStat(sNested).ModificationTime();

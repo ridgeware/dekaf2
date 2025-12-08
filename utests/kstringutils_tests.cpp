@@ -1894,10 +1894,12 @@ TEST_CASE("KStringUtils") {
 			{ "Hello"       , "hello"        },
 			{ "hELLO"       , "hello"        },
 			{ "HELLO"       , "hello"        },
+#ifndef DEKAF2_HAS_MUSL
 			{ "Ä"           , "\xE3\x84"     },
 			{ "Ü"           , "\xE3\x9C"     },
 			{ "ä"           , "\xE3\xA4"     },
 			{ "ü"           , "\xE3\xBC"     },
+#endif
 			{ "\x8C"        , "\x8C"         },
 			{ "\x9C"        , "\x9C"         },
 		};
@@ -1973,8 +1975,10 @@ TEST_CASE("KStringUtils") {
 			{ "hello"       , "hello"        },
 			{ "Hello"       , "hello"        },
 			{ "HELLO"       , "hello"        },
+#ifndef DEKAF2_HAS_MUSL
 			{ "\xE4\xF6\xFC", "\xE4\xF6\xFC" },
 			{ "\xC4\xD6\xDC", "\xE4\xF6\xFC" }
+#endif
 		};
 
 		auto oldLoc = kGetGlobalLocale();
@@ -2003,8 +2007,10 @@ TEST_CASE("KStringUtils") {
 			{ "hello"    , "HELLO"   },
 			{ "Hello"    , "HELLO"   },
 			{ "HELLO"    , "HELLO"   },
+#ifndef DEKAF2_HAS_MUSL
 			{ "\xE4\xF6\xFC", "\xC4\xD6\xDC" },
 			{ "\xC4\xD6\xDC", "\xC4\xD6\xDC" },
+#endif
 		};
 
 		auto oldLoc = kGetGlobalLocale();

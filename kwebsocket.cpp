@@ -914,4 +914,115 @@ KWebSocketServer::Handle KWebSocketServer::AddWebSocket(KWebSocket WebSocket)
 
 } // AddConnection
 
+//-----------------------------------------------------------------------------
+KWebSocketWorker::KWebSocketWorker(KWebSocket& WebSocket, bool bMaskTx)
+//-----------------------------------------------------------------------------
+: m_Stream(WebSocket.MoveStream())
+, m_bMaskTx(bMaskTx)
+{
+}
+
+//-----------------------------------------------------------------------------
+bool KWebSocketWorker::Read(KWebSocket::Frame& Frame)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Stream)
+	{
+		return false;
+	}
+
+	for (;;)
+	{
+		{
+			// return latest after set stream timeout
+			if (!m_Stream->IsReadReady(m_ReadTimeout))
+			{
+				return false;
+			}
+		}
+
+		{
+			std::unique_lock<std::mutex> Lock(m_StreamMutex);
+
+			// return immediately from poll
+			if (m_Stream->IsReadReady(KDuration()))
+			{
+				if (!Frame.Read(*m_Stream, *m_Stream, m_bMaskTx))
+				{
+					return false;
+				}
+
+				break;
+			}
+		}
+
+		// stream changed state while acquiring lock, repeat waiting
+	}
+
+	return true;
+
+} // KWebSocketWorker::Read
+
+//-----------------------------------------------------------------------------
+bool KWebSocketWorker::Read(KString& sFrame)
+//-----------------------------------------------------------------------------
+{
+	KWebSocket::Frame Frame;
+
+	if (!Read(Frame))
+	{
+		return false;
+	}
+
+	sFrame = Frame.GetPayload();
+
+	return true;
+
+} // KWebSocketWorker::Read
+
+//-----------------------------------------------------------------------------
+bool KWebSocketWorker::Write(KWebSocket::Frame Frame)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Stream)
+	{
+		return false;
+	}
+
+	for (;;)
+	{
+		{
+			// return latest after set stream timeout
+			if (!m_Stream->IsWriteReady(m_WriteTimeout))
+			{
+				return false;
+			}
+		}
+
+		{
+			std::unique_lock<std::mutex> Lock(m_StreamMutex);
+
+			// return immediately from poll
+			if (m_Stream->IsWriteReady(KDuration()))
+			{
+				Frame.Write(*m_Stream, m_bMaskTx);
+				break;
+			}
+		}
+
+		// stream changed state while acquiring lock, repeat waiting
+	}
+
+	return true;
+
+} // KWebSocketWorker::Write
+
+//-----------------------------------------------------------------------------
+bool KWebSocketWorker::Write(KString sFrame, bool bIsBinary)
+//-----------------------------------------------------------------------------
+{
+	return Write(KWebSocket::Frame(std::move(sFrame), bIsBinary));
+
+} // KWebSocketWorker::Write
+
 DEKAF2_NAMESPACE_END

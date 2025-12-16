@@ -298,4 +298,46 @@ private:
 
 }; // KWebSocketServer
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// takes one web socket and handles reading and writing of frames, one single websocket per thread
+class DEKAF2_PUBLIC KWebSocketWorker
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// construct with active web socket, set bMaskTx to true if this is a client - takes ownership of
+	/// the web socket stream
+	KWebSocketWorker(KWebSocket& WebSocket, bool bMaskTx);
+	/// set read timeout, probably in the minutes to hours range (defaults to 60 minutes)
+	void SetReadTimeout(KDuration ReadTimeout)   { m_ReadTimeout  = ReadTimeout;  }
+	/// set write timeout. probably in the seconds range (defaults to 30 seconds)
+	void SetWriteTimeout(KDuration WriteTimeout) { m_WriteTimeout = WriteTimeout; }
+	/// read one full data frame from the web socket
+	/// @returns false if timeout
+	bool Read(KWebSocket::Frame& Frame);
+	/// write one full data frame to web socket
+	/// @returns false if unsuccessful
+	bool Write(KWebSocket::Frame Frame);
+	/// read one full data frame from the web socket, store in string
+	/// @returns false if timeout
+	bool Read(KString& sFrame);
+	/// write one full data frame from string to web socket
+	/// @returns false if unsuccessful
+	bool Write(KString sFrame, bool bIsBinary = true);
+
+//----------
+private:
+//----------
+
+	std::unique_ptr<KIOStreamSocket> m_Stream;
+	std::mutex                       m_StreamMutex;
+	KDuration                        m_ReadTimeout  { chrono::minutes(60) };
+	KDuration                        m_WriteTimeout { chrono::seconds(30) };
+	bool                             m_bMaskTx { false };
+
+}; // KWebSocketWorker
+
 DEKAF2_NAMESPACE_END

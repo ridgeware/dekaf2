@@ -62,8 +62,8 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 {
 /* from RFC 6455:
 
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-------+-+-------------+-------------------------------+
  |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
  |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
@@ -251,6 +251,47 @@ char* KWebSocket::FrameHeader::GetPreambleBuf() const
 }
 
 //-----------------------------------------------------------------------------
+KStringView KWebSocket::FrameHeader::FrameTypeToString(FrameType Type)
+//-----------------------------------------------------------------------------
+{
+	switch (Type)
+	{
+		case FrameType::Continuation: return "Continuation";
+		case FrameType::Text:         return "Text";
+		case FrameType::Binary:       return "Binary";
+		case FrameType::Close:        return "Close";
+		case FrameType::Ping:         return "Ping";
+		case FrameType::Pong:         return "Pong";
+	}
+
+	return "";
+}
+
+//-----------------------------------------------------------------------------
+KStringView KWebSocket::FrameHeader::StatusCodeToString(uint16_t iStatusCode)
+//-----------------------------------------------------------------------------
+{
+	switch (iStatusCode)
+	{
+		case 1000: return "Normal Closure";
+		case 1001: return "Going Away";
+		case 1002: return "Protocol Error";
+		case 1003: return "Unsupported Data";
+		case 1004: return "Reserved";
+		case 1005: return "No Status Received";
+		case 1006: return "Abnormal Closure";
+		case 1007: return "Invalid Payload Data";
+		case 1008: return "Policy Violation";
+		case 1009: return "Message Too Big";
+		case 1010: return "Mandatory Extension";
+		case 1011: return "Internal Server Error";
+		case 1015: return "TLS handshake"; // may not appear in a Close frame
+	}
+
+	return "unknown status";
+}
+
+//-----------------------------------------------------------------------------
 KString KWebSocket::FrameHeader::Serialize() const
 //-----------------------------------------------------------------------------
 {
@@ -348,10 +389,14 @@ void KWebSocket::Frame::Pong(KString sMessage)
 } // Pong
 
 //-----------------------------------------------------------------------------
-void KWebSocket::Frame::Close()
+void KWebSocket::Frame::Close(uint16_t iStatusCode, KString sReason)
 //-----------------------------------------------------------------------------
 {
-	Binary("");
+	// make room for status code - see RFC 6455 for format
+	sReason.insert(0, 2, ' ');
+	sReason[0] = iStatusCode / 256;
+	sReason[1] = iStatusCode & 256;
+	Binary(std::move(sReason));
 	m_Opcode = FrameType::Close;
 
 } // Close
@@ -553,8 +598,31 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 				break;
 
 			case FrameType::Close:
-				// TODO
-				break;
+				{
+					m_iStatusCode = Status::NoStatusReceived;
+
+					if (sBuffer.size() > 1)
+					{
+						// get first two bytes for an error code
+						m_iStatusCode = static_cast<uint8_t>(sBuffer[0]) * 256;
+						m_iStatusCode += static_cast<uint8_t>(sBuffer[1]);
+						sBuffer.erase(0, 2);
+						kDebug(2, "connection closed with status code {} ({}){}{}",
+						          m_iStatusCode, StatusCodeToString(m_iStatusCode),
+						          sBuffer.empty() ? "" : ": ",
+						          sBuffer);
+					}
+					else
+					{
+						kDebug(2, "connection closed without status code");
+					}
+
+					// reply with close and the same payload
+					Frame Close;
+					Close.Close(m_iStatusCode, sBuffer);
+					Close.Write(OutStream, bMaskTx);
+				}
+				return false;
 
 			case FrameType::Continuation:
 				m_sPayload += sBuffer;
@@ -623,6 +691,7 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMask)
 		}
 	}
 
+	kDebug(3, "writing {} bytes for frame type {}", size(), FrameTypeToString(Type()));
 	return OutStream.Write(GetPayload()) && OutStream.Flush();
 
 } // Write
@@ -693,7 +762,7 @@ KString KWebSocket::GenerateServerSecKeyResponse(KString sSecKey, bool bThrowIfI
 
 		SHA1 += s_sWebsocket_sec_key_suffix;
 
-		return KEncode::Base64(SHA1.Digest());
+		return KEncode::Base64(SHA1.Digest(), false);
 	}
 	else
 	{
@@ -967,16 +1036,38 @@ bool KWebSocketWorker::Read(KWebSocket::Frame& Frame)
 bool KWebSocketWorker::Read(KString& sFrame)
 //-----------------------------------------------------------------------------
 {
+	sFrame.clear();
+
 	KWebSocket::Frame Frame;
 
-	if (!Read(Frame))
+	for (;;)
 	{
-		return false;
+		if (!Read(Frame))
+		{
+			return false;
+		}
+
+		switch (Frame.Type())
+		{
+			// this is what we waited for
+			case KWebSocket::Frame::FrameType::Text:
+			case KWebSocket::Frame::FrameType::Binary:
+				sFrame = Frame.GetPayload();
+				return true;
+
+			// answered by the Frame reader itself, simply return false
+			case KWebSocket::Frame::FrameType::Close:
+				return false;
+
+			// these are handled by the Frame reader itself, just continue reading
+			case KWebSocket::Frame::FrameType::Ping:
+			case KWebSocket::Frame::FrameType::Pong:
+			case KWebSocket::Frame::FrameType::Continuation:
+				break;
+		}
 	}
 
-	sFrame = Frame.GetPayload();
-
-	return true;
+	return false;
 
 } // KWebSocketWorker::Read
 
@@ -1024,5 +1115,15 @@ bool KWebSocketWorker::Write(KString sFrame, bool bIsBinary)
 	return Write(KWebSocket::Frame(std::move(sFrame), bIsBinary));
 
 } // KWebSocketWorker::Write
+
+//-----------------------------------------------------------------------------
+bool KWebSocketWorker::Close(uint16_t iStatusCode, KString sReason)
+//-----------------------------------------------------------------------------
+{
+	KWebSocket::Frame Frame;
+	Frame.Close(iStatusCode, sReason);
+	return Write(std::move(Frame));
+
+} // KWebSocketWorker::Close
 
 DEKAF2_NAMESPACE_END

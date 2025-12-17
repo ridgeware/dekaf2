@@ -92,6 +92,21 @@ public:
 			Pong         = 10,
 		};
 
+		enum Status : uint16_t
+		{
+			NormalClosure       = 1000,
+			GoingAway           = 1001,
+			ProtocolError       = 1002,
+			UnsupportedData     = 1003,
+			Reserved            = 1004,
+			NoStatusReceived    = 1005,
+			Abnormal            = 1006,
+			InvalidPayloadData  = 1007,
+			PolicyViolation     = 1008,
+			MessageTooBig       = 1009,
+			InternalServerError = 1010,
+ 		};
+
 		virtual ~FrameHeader();
 
 		bool        Read            (KInStream& Stream);
@@ -118,7 +133,13 @@ public:
 		/// and read the preamble at writing
 		virtual
 		char*       GetPreambleBuf  ()             const;
+		/// returns a status code that is only set with a Close frame, so after the conversation ends
+		uint16_t    GetStatusCode   ()             const { return m_iStatusCode; }
 
+		/// @return the given frame type as string (Text, Binary, Ping, Pong, Continuation, Close)
+		static KStringView FrameTypeToString (FrameType Type);
+		/// @return the status code, if well known, as string
+		static KStringView StatusCodeToString(uint16_t iStatusCode);
 
 	//----------
 	protected:
@@ -130,6 +151,7 @@ public:
 		uint8_t   m_iExtension  { 0 };
 		bool      m_bIsFin      { false };
 		bool      m_bMask       { false };
+		uint16_t  m_iStatusCode { 0 }; // will be set with a Close frame
 
 	//----------
 	private:
@@ -195,7 +217,9 @@ public:
 		/// create a pong frame
 		void           Pong       (KString sMessage);
 		/// create a close frame
-		void           Close      ();
+	/// @param iStatusCode a value between 1000 and 1011, or own range
+	/// @param sReason a string with a reason for the close - not needed for codes 1000-1011
+		void           Close      (uint16_t iStatusCode = 1000, KString sReason = KString{});
 		/// returns payload
 		const KString& GetPayload () const           { return m_sPayload;           }
 		/// returns true if frame has no payload
@@ -325,8 +349,15 @@ public:
 	/// @returns false if timeout
 	bool Read(KString& sFrame);
 	/// write one full data frame from string to web socket
+	/// @param sFrame the data to write
+	/// @param bIsBinary set to false if this is UTF8 text, else to true
 	/// @returns false if unsuccessful
-	bool Write(KString sFrame, bool bIsBinary = true);
+	bool Write(KString sFrame, bool bIsBinary = false);
+	/// send a Close frame to finish the connection
+	/// @param iStatusCode a value between 1000 and 1011, or own range
+	/// @param sReason a string with a reason for the close - not needed for codes 1000-1011
+	/// @returns false if unsuccessful
+	bool Close(uint16_t iStatusCode = 1000, KString sReason = KString{});
 
 //----------
 private:

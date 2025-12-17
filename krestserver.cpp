@@ -1105,9 +1105,10 @@ void KRESTServer::Output()
 
 	bool bOutputContent { true };
 
-	// do not create a response body for 202 and 3xxs
+	// do not create a response body for 101, 202 and 3xxs
 	if (Response.GetStatusCode() == KHTTPError::H2xx_NO_CONTENT ||
-		Response.GetStatusCode() / 100 == 3)
+		Response.GetStatusCode() / 100 == 3 ||
+		Response.GetStatusCode() == KHTTPError::H1xx_SWITCHING_PROTOCOLS)
 	{
 		m_iContentLength = 0;
 		bOutputContent   = false;

@@ -14,7 +14,7 @@ project(mong2sql
 
 set(CMAKE_CXX_STANDARD 20)
 
-find_package(PkgConfig REQUIRED)
+find_package(PkgConfig QUIET)
 
 # ================================= CONFIG OPTIONS =================================
 
@@ -51,15 +51,15 @@ endif()
 # =================================== LIBRARIES ====================================
 
 # MongoDB C++ driver
-find_package(mongocxx CONFIG)
-find_package(bsoncxx CONFIG)
+find_package(mongocxx CONFIG QUIET)
+find_package(bsoncxx CONFIG QUIET)
 
-if(NOT mongocxx_FOUND)
-    pkg_check_modules(MONGOCXX libmongocxx)
+if(NOT mongocxx_FOUND AND PkgConfig_FOUND)
+    pkg_check_modules(MONGOCXX libmongocxx QUIET)
 endif()
 
-if(NOT bsoncxx_FOUND)
-    pkg_check_modules(BSONCXX libbsoncxx)
+if(NOT bsoncxx_FOUND AND PkgConfig_FOUND)
+    pkg_check_modules(BSONCXX libbsoncxx QUIET)
 endif()
 
 if (NOT mongocxx_FOUND OR NOT bsoncxx_FOUND)

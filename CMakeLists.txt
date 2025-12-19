@@ -112,7 +112,6 @@ OPTION(DEKAF2_WITH_USER_AGENT_PARSER "build with user agent parser" ON)
 # =================================== C++ STANDARD =================================
 
 set(DEKAF2_CXX_STANDARD 20)
-message(STATUS "using C++20")
 
 set(CMAKE_CXX_STANDARD ${DEKAF2_CXX_STANDARD})
 #set(CMAKE_CXX_CLANG_TIDY clang-tidy -checks=-*,readability-*)
@@ -207,21 +206,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
 	set (DEKAF2_IS_APPLE_CLANG ON)
 endif()
 
-if (DEKAF2_WITH_SIMDUTF AND "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" AND NOT "${CPU_x86}" STREQUAL "")
-	# on amd64 in debug mode there are compile issues with simdutf for some
-	# instruction sets (haskell)
-	set(DEKAF2_WITH_SIMDUTF OFF)
-	message(STATUS "simdutf: switched off for debug build on amd64")
-elseif (DEKAF2_WITH_SIMDUTF AND "${CPU_ARM}" STREQUAL "32")
-	set(DEKAF2_WITH_SIMDUTF OFF)
-	message(STATUS "simdutf: switched off for arm32, the discrete implementation is faster")
-elseif (DEKAF2_WITH_SIMDUTF AND "${CPU_ARM}" STREQUAL "64" AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8)
-	set(DEKAF2_WITH_SIMDUTF OFF)
-	message(STATUS "simdutf: switched off for arm64 with gcc < 8, missing vld1q_u32_x2 instruction")
-else()
-	message(STATUS "simdutf: ${DEKAF2_WITH_SIMDUTF}")
-endif()
-
 cmake_host_system_information(RESULT TOTAL_PHYSICAL_MEMORY QUERY TOTAL_PHYSICAL_MEMORY)
 cmake_host_system_information(RESULT NUMBER_OF_PHYSICAL_CORES QUERY NUMBER_OF_PHYSICAL_CORES)
 cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
@@ -299,6 +283,25 @@ endif()
 
 if (NOT DEKAF2_BUILD_STATIC_DEKAF2 AND NOT DEKAF2_BUILD_SHARED_DEKAF2)
 	message(FATAL "do not switch both shared and static options off")
+endif()
+
+if (DEKAF2_WITH_SIMDUTF AND "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" AND NOT "${CPU_x86}" STREQUAL "")
+	# on amd64 in debug mode there are compile issues with simdutf for some
+	# instruction sets (haskell)
+	set(DEKAF2_WITH_SIMDUTF OFF)
+	message(STATUS "simdutf: switched off for debug build on amd64")
+elseif (DEKAF2_WITH_SIMDUTF AND "${CPU_ARM}" STREQUAL "32")
+	set(DEKAF2_WITH_SIMDUTF OFF)
+	message(STATUS "simdutf: switched off for arm32, the discrete implementation is faster")
+elseif (DEKAF2_WITH_SIMDUTF AND "${CPU_ARM}" STREQUAL "64" AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8)
+	set(DEKAF2_WITH_SIMDUTF OFF)
+	message(STATUS "simdutf: switched off for arm64 with gcc < 8, missing vld1q_u32_x2 instruction")
+else()
+	message(STATUS "simdutf: ${DEKAF2_WITH_SIMDUTF}")
+endif()
+
+if (DEKAF2_LINK_TIME_OPTIMIZATION AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+	message(STATUS "requesting link time optimization")
 endif()
 
 # ================================ CMAKE INTERNALS =================================
@@ -1957,13 +1960,16 @@ endif()
 
 # ============================ UNIT AND SMOKE TESTS ==================================
 
-if (IS_DIRECTORY utests)
+if (IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/utests")
+	message(STATUS "adding unit tests")
 	add_subdirectory(utests)
 endif()
-if (IS_DIRECTORY smoketests)
+if (IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/smoketests")
+	message(STATUS "adding smoke tests")
 	add_subdirectory(smoketests)
 endif()
-if (IS_DIRECTORY benchmarks)
+if (IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks")
+	message(STATUS "adding benchmark tests")
 	add_subdirectory(benchmarks)
 endif()
 
@@ -2168,7 +2174,9 @@ endif() # DEKAF2_INSTALL_INCLUDE
 if (DEKAF2_INSTALL_SHARE)
 
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/templates"                        DESTINATION "${dekaf2_share_dest}")
-	install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/libs/uap-cpp/uap-core/regexes.yaml"   DESTINATION "${dekaf2_share_dest}/uap-core")
+	if (DEKAF2_HAS_USER_AGENT_PARSER)
+		install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/libs/uap-cpp/uap-core/regexes.yaml" DESTINATION "${dekaf2_share_dest}/uap-core")
+	endif()
 
 	# remove old shared, until mid-2026:
 	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_share_dest}/uap-core/LICENSE)"          )

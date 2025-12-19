@@ -1103,15 +1103,26 @@ void KRESTServer::Output()
 
 	ThrowIfDisconnected();
 
-	bool bOutputContent { true };
+	// do we have output after all? we need to check this before announcing compressed output,
+	// because for compressed output we would switch to chunked output, which would output
+	// some bytes even for empty bodies - which e.g. in case of websocket upgrades would
+	// cause browsers other than Firefox to choke.
+	bool bOutputContent = !m_sRawOutput.empty() ||
+	                       m_Stream             ||
+	                      !m_sMessage.empty()   ||
+	                      !json.tx.is_null()    ||
+	                      !xml.tx.empty()       ||
+	                      (m_JsonLogger && !m_JsonLogger->empty() && !m_Options.KLogHeader.empty());
 
-	// do not create a response body for 101, 202 and 3xxs
-	if (Response.GetStatusCode() == KHTTPError::H2xx_NO_CONTENT ||
-		Response.GetStatusCode() / 100 == 3 ||
-		Response.GetStatusCode() == KHTTPError::H1xx_SWITCHING_PROTOCOLS)
+	// do not create a response body for 101, 202 and 3xxs, or if no output anyway
+	bOutputContent = bOutputContent &&
+	                 Response.GetStatusCode() != KHTTPError::H1xx_SWITCHING_PROTOCOLS &&
+	                 Response.GetStatusCode() != KHTTPError::H2xx_NO_CONTENT          &&
+	                 Response.GetStatusCode() / 100 != 3;
+
+	if (!bOutputContent)
 	{
 		m_iContentLength = 0;
-		bOutputContent   = false;
 		Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
 	}
 
@@ -1136,7 +1147,7 @@ void KRESTServer::Output()
 
 			if (!bOutputContent)
 			{
-				// we do not have content to output (per the HTTP protocol)
+				// we do not have content to output (per the HTTP protocol, or because there was none)
 			}
 			else if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{
@@ -1269,7 +1280,7 @@ void KRESTServer::Output()
 
 			if (!bOutputContent)
 			{
-				// we do not have content to output (per the HTTP protocol)
+				// we do not have content to output (per the HTTP protocol, or because there was none)
 			}
 			else if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{
@@ -1315,6 +1326,7 @@ void KRESTServer::Output()
 			}
 
 			KJSON& jheaders = tjson["headers"] = KJSON::object();
+
 			for (const auto& header : Response.Headers)
 			{
 				jheaders += { header.first, header.second };
@@ -1332,7 +1344,7 @@ void KRESTServer::Output()
 
 			if (!bOutputContent)
 			{
-				// we do not have content to output (per the HTTP protocol)
+				// we do not have content to output (per the HTTP protocol, or because there was none)
 			}
 			else if (DEKAF2_UNLIKELY(!m_sRawOutput.empty()))
 			{

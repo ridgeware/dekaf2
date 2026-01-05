@@ -506,6 +506,58 @@ public:
 		bool operator!=(const const_iterator& other) const { return iteratorbase::operator!=(other.ToBase()); }
 	};
 
+	class reverse_iterator : public base::reverse_iterator
+	{
+	public:
+		using iteratorbase = base::reverse_iterator; // gcc < 9 complains when using base instead of iteratorbase
+		using parent       = KJSON2;
+		using reference    = parent::reference;
+		using pointer      = parent::pointer;
+		// import ctors
+		using base::reverse_iterator::reverse_iterator;
+		// converting ctor
+		reverse_iterator(iteratorbase it) : iteratorbase(it) {}
+		// overwrite operator to wrap reference type
+		reference operator*() const { return parent::MakeRef(iteratorbase::operator*());  }
+		// overwrite operator to wrap pointer type
+		pointer operator->()  const { return parent::MakePtr(iteratorbase::operator->()); }
+		// overwrite method to wrap reference type
+		reference value()     const { return parent::MakeRef(iteratorbase::value());      }
+		// return base reference for this
+		const iteratorbase& ToBase() const { return *this; }
+		// make the equality comparison available for the wrapped type
+		bool operator==(const reverse_iterator& other) const { return this->ToBase() == other.ToBase(); }
+		// make the unequality comparison available for the wrapped type
+		bool operator!=(const reverse_iterator& other) const { return this->ToBase() != other.ToBase(); }
+	};
+
+	class const_reverse_iterator : public base::const_reverse_iterator
+	{
+	public:
+		using iteratorbase    = base::const_reverse_iterator; // gcc < 9 complains when using base instead of iteratorbase
+		using parent          = KJSON2;
+		using const_reference = parent::const_reference;
+		using reference       = const_reference;
+		using const_pointer   = parent::const_pointer;
+		using pointer         = const_pointer;
+		// import ctors
+		using base::const_reverse_iterator::const_reverse_iterator;
+		// converting ctor
+		const_reverse_iterator(iteratorbase it) : iteratorbase(it) {}
+		// overwrite operator to wrap reference type
+		reference operator*() const { return parent::MakeRef(iteratorbase::operator*());  }
+		// overwrite operator to wrap pointer type
+		pointer operator->()  const { return parent::MakePtr(iteratorbase::operator->()); }
+		// overwrite method to wrap reference type
+		reference value()     const { return parent::MakeRef(iteratorbase::value());      }
+		// return base reference for this
+		const iteratorbase& ToBase() const { return *this; }
+		// make the equality comparison available for the wrapped type
+		bool operator==(const const_reverse_iterator& other) const { return this->ToBase() == other.ToBase(); }
+		// make the unequality comparison available for the wrapped type
+		bool operator!=(const const_reverse_iterator& other) const { return this->ToBase() != other.ToBase(); }
+	};
+
 	// imported types
 
 	template<typename iterator_t>
@@ -667,7 +719,7 @@ public:
 #endif
 #endif
 
-	// we have to declare the conversions for fundamental types once explicit (as std::string
+	// we have to declare the conversions for fundamental types once explicitly (as std::string
 	// has an operator=(value_type) that would take any of those), and again with SFINAE
 	// to catch all subtypes, matching therefore better or equal to the JSON base class
 	explicit operator uint64_t () const noexcept { return UInt64();         }
@@ -916,6 +968,19 @@ public:
 	const_iterator  cbegin      ()         const noexcept { return base::cbegin();         }
 	DEKAF2_NODISCARD_PEDANTIC
 	const_iterator  cend        ()         const noexcept { return base::cend();           }
+
+	DEKAF2_NODISCARD_PEDANTIC
+	const_reverse_iterator  rbegin  ()     const noexcept { return crbegin();              }
+	DEKAF2_NODISCARD_PEDANTIC
+	const_reverse_iterator  rend    ()     const noexcept { return crend();                }
+	DEKAF2_NODISCARD_PEDANTIC
+	reverse_iterator        rbegin  ()           noexcept { return base::rbegin();         }
+	DEKAF2_NODISCARD_PEDANTIC
+	reverse_iterator        rend    ()           noexcept { return base::rend();           }
+	DEKAF2_NODISCARD_PEDANTIC
+	const_reverse_iterator  crbegin ()     const noexcept { return base::crbegin();        }
+	DEKAF2_NODISCARD_PEDANTIC
+	const_reverse_iterator  crend   ()     const noexcept { return base::crend();          }
 
 	// checked front/back
 	DEKAF2_NODISCARD_PEDANTIC

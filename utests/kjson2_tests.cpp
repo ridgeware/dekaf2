@@ -1431,6 +1431,32 @@ TEST_CASE("KJSON2")
 		};
 		CHECK ( kFormat("{}", j1) == R"([1,2,3,4,{"object":{"currency":"USD","value":42.99}}])" );
 	}
+
+	SECTION("iterate")
+	{
+		KJSON2 j = { 1, 2, 3 };
+		auto it = j.begin();
+		CHECK ( *it == 1 );
+		++it;
+		CHECK ( *it == 2 );
+		++it;
+		CHECK ( *it == 3 );
+		++it;
+		CHECK ( it == j.end() );
+	}
+
+	SECTION("reverse iterate")
+	{
+		KJSON2 j = { 1, 2, 3 };
+		auto it = j.rbegin();
+		CHECK ( *it == 3 );
+		++it;
+		CHECK ( *it == 2 );
+		++it;
+		CHECK ( *it == 1 );
+		++it;
+		CHECK ( it == j.rend() );
+	}
 }
 #endif
 #endif

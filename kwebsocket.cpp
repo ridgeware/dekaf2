@@ -1033,11 +1033,9 @@ bool KWebSocketWorker::Read(KWebSocket::Frame& Frame)
 } // KWebSocketWorker::Read
 
 //-----------------------------------------------------------------------------
-bool KWebSocketWorker::Read(KString& sFrame)
+bool KWebSocketWorker::ReadInt(std::function<bool(const KString&)> Func)
 //-----------------------------------------------------------------------------
 {
-	sFrame.clear();
-
 	KWebSocket::Frame Frame;
 
 	for (;;)
@@ -1052,8 +1050,7 @@ bool KWebSocketWorker::Read(KString& sFrame)
 			// this is what we waited for
 			case KWebSocket::Frame::FrameType::Text:
 			case KWebSocket::Frame::FrameType::Binary:
-				sFrame = Frame.GetPayload();
-				return true;
+				return Func(Frame.GetPayload());
 
 			// answered by the Frame reader itself, simply return false
 			case KWebSocket::Frame::FrameType::Close:
@@ -1068,6 +1065,42 @@ bool KWebSocketWorker::Read(KString& sFrame)
 	}
 
 	return false;
+
+} // KWebSocketWorker::ReadInt
+
+//-----------------------------------------------------------------------------
+bool KWebSocketWorker::Read(KString& sFrame)
+//-----------------------------------------------------------------------------
+{
+	sFrame.clear();
+
+	return ReadInt([&sFrame](const KString& sPayload)
+	{
+		sFrame = sPayload;
+		return true;
+	});
+
+} // KWebSocketWorker::Read
+
+//-----------------------------------------------------------------------------
+bool KWebSocketWorker::Read(KJSON& jFrame)
+//-----------------------------------------------------------------------------
+{
+	jFrame = KJSON{};
+
+	return ReadInt([&jFrame](const KString& sPayload)
+	{
+		KString sError;
+		kjson::Parse(jFrame, sPayload, sError);
+
+		if (!sError.empty())
+		{
+			kDebug(1, sError);
+			return false;
+		}
+
+		return true;
+	});
 
 } // KWebSocketWorker::Read
 
@@ -1113,6 +1146,14 @@ bool KWebSocketWorker::Write(KString sFrame, bool bIsBinary)
 //-----------------------------------------------------------------------------
 {
 	return Write(KWebSocket::Frame(std::move(sFrame), bIsBinary));
+
+} // KWebSocketWorker::Write
+
+//-----------------------------------------------------------------------------
+bool KWebSocketWorker::Write(const KJSON& jFrame, bool bIsBinary)
+//-----------------------------------------------------------------------------
+{
+	return Write(KWebSocket::Frame(jFrame.dump(), bIsBinary));
 
 } // KWebSocketWorker::Write
 

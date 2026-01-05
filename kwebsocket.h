@@ -50,6 +50,7 @@
 #include "khttp_response.h"
 #include "kassociative.h"
 #include "kthreadsafe.h"
+#include "kjson.h"
 #include <vector>
 #include <atomic>
 #include <thread>
@@ -342,17 +343,25 @@ public:
 	/// read one full data frame from the web socket
 	/// @returns false if timeout
 	bool Read(KWebSocket::Frame& Frame);
-	/// write one full data frame to web socket
-	/// @returns false if unsuccessful
-	bool Write(KWebSocket::Frame Frame);
 	/// read one full data frame from the web socket, store in string
 	/// @returns false if timeout
 	bool Read(KString& sFrame);
+	/// read one full data frame from the web socket, store in json
+	/// @returns false if timeout
+	bool Read(KJSON& sFrame);
+	/// write one full data frame to web socket
+	/// @returns false if unsuccessful
+	bool Write(KWebSocket::Frame Frame);
 	/// write one full data frame from string to web socket
 	/// @param sFrame the data to write
 	/// @param bIsBinary set to false if this is UTF8 text, else to true
 	/// @returns false if unsuccessful
 	bool Write(KString sFrame, bool bIsBinary = false);
+	/// write one full data frame from json to web socket
+	/// @param jFrame the json data to write
+	/// @param bIsBinary set to false if this is UTF8 text, else to true
+	/// @returns false if unsuccessful
+	bool Write(const KJSON& jFrame, bool bIsBinary = false);
 	/// send a Close frame to finish the connection
 	/// @param iStatusCode a value between 1000 and 1011, or own range
 	/// @param sReason a string with a reason for the close - not needed for codes 1000-1011
@@ -362,6 +371,8 @@ public:
 //----------
 private:
 //----------
+
+	bool ReadInt(std::function<bool(const KString&)> Func);
 
 	std::unique_ptr<KIOStreamSocket> m_Stream;
 	std::mutex                       m_StreamMutex;

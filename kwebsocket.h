@@ -51,9 +51,14 @@
 #include "kassociative.h"
 #include "kthreadsafe.h"
 #include "kjson.h"
+#include "kstring.h"
+#include "kstringview.h"
+#include "kstream.h"
 #include <vector>
 #include <atomic>
 #include <thread>
+#include <memory>
+#include <functional>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -204,7 +209,7 @@ public:
 		/// creates mask key and masks payload - call only as a websocket client
 		void           Mask       ();
 		/// if the frame was announced as masked, unmasks it and clears the mask flag
-		void           UnMask     ();
+		void           UnMask     ()                 { UnMask(GetPayloadRef());              }
 		/// set binary or text payload
 		void           SetPayload (KString sPayload, bool bIsBinary);
 		/// set text payload
@@ -222,11 +227,11 @@ public:
 	/// @param sReason a string with a reason for the close - not needed for codes 1000-1011
 		void           Close      (uint16_t iStatusCode = 1000, KString sReason = KString{});
 		/// returns payload
-		const KString& GetPayload () const           { return m_sPayload;           }
+		const KString& GetPayload () const           { return m_sPayload;              }
 		/// returns true if frame has no payload
-		bool           empty      () const           { return GetPayload().empty(); }
+		bool           empty      () const           { return GetPayload().empty();    }
 		/// returns size of the payload
-		std::size_t    size       () const           { return GetPayload().size();  }
+		std::size_t    size       () const           { return GetPayload().size();     }
 
 		iterator       begin      ()                 { return GetPayloadRef().begin(); }
 		iterator       end        ()                 { return GetPayloadRef().end();   }
@@ -246,8 +251,8 @@ public:
 	private:
 	//----------
 
-		void           XOR        (KStringRef& sBuffer);
 		void           XOR        (char* pBuf, std::size_t iSize);
+		void           XOR        (KStringRef& sBuffer) { XOR(&sBuffer[0], sBuffer.size()); }
 		void           UnMask     (KStringRef& sBuffer);
 
 		KString m_sPayload;
@@ -359,9 +364,8 @@ public:
 	bool Write(KString sFrame, bool bIsBinary = false);
 	/// write one full data frame from json to web socket
 	/// @param jFrame the json data to write
-	/// @param bIsBinary set to false if this is UTF8 text, else to true
 	/// @returns false if unsuccessful
-	bool Write(const KJSON& jFrame, bool bIsBinary = false);
+	bool Write(const KJSON& jFrame);
 	/// send a Close frame to finish the connection
 	/// @param iStatusCode a value between 1000 and 1011, or own range
 	/// @param sReason a string with a reason for the close - not needed for codes 1000-1011

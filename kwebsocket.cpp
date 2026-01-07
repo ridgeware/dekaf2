@@ -407,7 +407,9 @@ void KWebSocket::Frame::XOR(char* pBuf, std::size_t iSize)
 {
 	if (iSize > 0)
 	{
-		std::array<char, 4> m
+		kDebug(3, "applying mask {:#08x} on buffer of size {}", m_iMaskingKey, iSize);
+
+		std::array<char, 4> Mask
 		{
 			static_cast<char>(m_iMaskingKey >> 24),
 			static_cast<char>(m_iMaskingKey >> 16),
@@ -415,20 +417,37 @@ void KWebSocket::Frame::XOR(char* pBuf, std::size_t iSize)
 			static_cast<char>(m_iMaskingKey >>  0)
 		};
 
-		for (std::size_t iPos = 0; iPos < iSize; ++iPos)
+		for (; iSize >= 4; iSize -= 4)
 		{
-			*pBuf++ ^= m[iPos % 4];
+			*pBuf++ ^= Mask[0];
+			*pBuf++ ^= Mask[1];
+			*pBuf++ ^= Mask[2];
+			*pBuf++ ^= Mask[3];
+		}
+
+		switch (iSize)
+		{
+			case 3:
+				*pBuf++ ^= Mask[0];
+				*pBuf++ ^= Mask[1];
+				*pBuf++ ^= Mask[2];
+				break;
+
+			case 2:
+				*pBuf++ ^= Mask[0];
+				*pBuf++ ^= Mask[1];
+				break;
+
+			case 1:
+				*pBuf++ ^= Mask[0];
+				break;
+
+			default:
+				break;
 		}
 	}
 
 } // XOR
-
-//-----------------------------------------------------------------------------
-void KWebSocket::Frame::XOR(KStringRef& sBuffer)
-//-----------------------------------------------------------------------------
-{
-	XOR(&sBuffer[0], sBuffer.size());
-}
 
 //-----------------------------------------------------------------------------
 void KWebSocket::Frame::Mask()
@@ -440,18 +459,6 @@ void KWebSocket::Frame::Mask()
 	XOR(m_sPayload);
 
 } // Mask
-
-//-----------------------------------------------------------------------------
-void KWebSocket::Frame::UnMask()
-//-----------------------------------------------------------------------------
-{
-	if (m_bMask)
-	{
-		XOR(m_sPayload);
-		m_bMask = false;
-	}
-
-} // UnMask
 
 //-----------------------------------------------------------------------------
 void KWebSocket::Frame::UnMask(KStringRef& sBuffer)
@@ -1150,10 +1157,11 @@ bool KWebSocketWorker::Write(KString sFrame, bool bIsBinary)
 } // KWebSocketWorker::Write
 
 //-----------------------------------------------------------------------------
-bool KWebSocketWorker::Write(const KJSON& jFrame, bool bIsBinary)
+bool KWebSocketWorker::Write(const KJSON& jFrame)
 //-----------------------------------------------------------------------------
 {
-	return Write(KWebSocket::Frame(jFrame.dump(), bIsBinary));
+	// json is UTF8 when dumped, therefore set text mode
+	return Write(KWebSocket::Frame(jFrame.dump(), false/*bIsBinary*/));
 
 } // KWebSocketWorker::Write
 

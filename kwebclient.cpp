@@ -123,7 +123,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 
 	bool bIsWebsocketUpgradeRequest = Request.Headers.contains(KHTTPHeader::SEC_WEBSOCKET_KEY) &&
 	                                  Request.Headers.Get(KHTTPHeader::UPGRADE).ToLowerASCII() == "websocket" &&
-	                                  Request.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII() == "upgrade";
+	                                  kStrIn("upgrade", Request.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII().Split());
 
 	for(;;)
 	{

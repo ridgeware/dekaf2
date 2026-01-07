@@ -811,8 +811,9 @@ bool KWebSocket::CheckForUpgradeRequest(const KInHTTPRequest& Request, bool bThr
 		return Error("this server websocket implementation requires HTTP/1.1, not any earlier or later version");
 	}
 
-	if (Request.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII() != "upgrade")
+	if (!kStrIn("upgrade", Request.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII().Split()))
 	{
+		// check if it is a comma separated option
 		return Error("missing header: Connection: Upgrade");
 	}
 
@@ -860,7 +861,7 @@ bool KWebSocket::CheckForUpgradeResponse(KStringView sClientSecKey, KStringView 
 		return BadHeader(KHTTPHeader::UPGRADE);
 	}
 
-	if (Response.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII() != "upgrade")
+	if (!kStrIn("upgrade", Response.Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII().Split()))
 	{
 		return BadHeader(KHTTPHeader::CONNECTION);
 	}

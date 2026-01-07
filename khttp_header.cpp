@@ -393,16 +393,18 @@ bool KHTTPHeaders::HasContent(bool bForRequest) const
 			return false;
 		}
 
-		auto& sConnection = Headers.Get(KHTTPHeader::CONNECTION);
+		auto sValue = Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII();
+
+		auto Values = sValue.Split();
 
 		if (DEKAF2_LIKELY(GetHTTPVersion() != KHTTPVersion::http10))
 		{
-			return sConnection == "close";
+			return kStrIn("close", Values);
 		}
 		else
 		{
-			return sConnection.empty() // "close" is the default with HTTP/1.0!
-				|| sConnection == "close";
+			// "close" is the default with HTTP/1.0!
+			return !kStrIn("keep-alive", Values);
 		}
 	}
 	else
@@ -493,15 +495,18 @@ bool KHTTPHeaders::HasKeepAlive() const
 {
 	auto sValue = Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII();
 
+	// the CONNECTION header may have multiple values like "keep-alive, upgrade"
+	auto Values = sValue.Split();
+
 	if (GetHTTPVersion() == KHTTPVersion::http10)
 	{
 		// close is default with HTTP < 1.1 - but we allow the client to override
-		return sValue == "keep-alive" || sValue == "keepalive";
+		return kStrIn("keep-alive", Values);
 	}
 	else
 	{
 		// keepalive is default with HTTP/1.1 and HTTP/2
-		return sValue.empty() || sValue == "keep-alive" || sValue == "keepalive";
+		return !kStrIn("close", Values);
 	}
 
 } // HasKeepAlive

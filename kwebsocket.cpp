@@ -584,8 +584,14 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 
 		if (iRead != AnnouncedSize())
 		{
+			kDebug(1, "cannot read {} bytes of payload, got only {}", AnnouncedSize(), iRead);
 			return false;
 		}
+
+		kDebug(3, "read {} bytes of {}payload for frame type {}",
+		           iRead,
+		           IsMaskedRx() ? "masked " : "",
+		           Frame::FrameTypeToString(Type()));
 
 		// decode the incoming data
 		UnMask(sBuffer);
@@ -598,10 +604,12 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 				Frame Pong;
 				Pong.Pong(sBuffer);
 				Pong.Write(OutStream, bMaskTx);
+				m_sPayload = std::move(sBuffer);
 			}
 			break;
 
 			case FrameType::Pong:
+				m_sPayload = std::move(sBuffer);
 				break;
 
 			case FrameType::Close:
@@ -618,6 +626,7 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 						          m_iStatusCode, StatusCodeToString(m_iStatusCode),
 						          sBuffer.empty() ? "" : ": ",
 						          sBuffer);
+						m_sPayload = sBuffer;
 					}
 					else
 					{
@@ -1067,6 +1076,12 @@ bool KWebSocketWorker::ReadInt(std::function<bool(const KString&)> Func)
 			// these are handled by the Frame reader itself, just continue reading
 			case KWebSocket::Frame::FrameType::Ping:
 			case KWebSocket::Frame::FrameType::Pong:
+				kDebug(3, "received {} frame with payload '{}' ({} bytes), will continue reading",
+				           KWebSocket::Frame::FrameTypeToString(Frame.Type()),
+				           Frame.GetPayload(),
+				           Frame.GetPayload().size());
+				break;
+
 			case KWebSocket::Frame::FrameType::Continuation:
 				break;
 		}
@@ -1165,6 +1180,16 @@ bool KWebSocketWorker::Write(const KJSON& jFrame)
 	return Write(KWebSocket::Frame(jFrame.dump(), false/*bIsBinary*/));
 
 } // KWebSocketWorker::Write
+
+//-----------------------------------------------------------------------------
+bool KWebSocketWorker::Ping(KString sMessage)
+//-----------------------------------------------------------------------------
+{
+	KWebSocket::Frame Frame;
+	Frame.Ping(std::move(sMessage));
+	return Write(Frame);
+
+} // KWebSocketWorker::Ping
 
 //-----------------------------------------------------------------------------
 bool KWebSocketWorker::Close(uint16_t iStatusCode, KString sReason)

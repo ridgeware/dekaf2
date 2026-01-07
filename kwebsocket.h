@@ -366,6 +366,11 @@ public:
 	/// @param jFrame the json data to write
 	/// @returns false if unsuccessful
 	bool Write(const KJSON& jFrame);
+	/// write a ping with or without content to the opposite endpoint (to keep a connection open)
+	/// @param sMessage an arbitrary message to send with the ping (it will be returned with the
+	/// response pong)
+	/// @returns false if unsuccessful
+	bool Ping(KString sMessage = KString{});
 	/// send a Close frame to finish the connection
 	/// @param iStatusCode a value between 1000 and 1011, or own range
 	/// @param sReason a string with a reason for the close - not needed for codes 1000-1011

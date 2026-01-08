@@ -121,13 +121,33 @@ public:
 	/// returns the family as native value
 	int GetNativeFamily() const;
 
-	/// set the timeout
+	/// set the timeout, default is 15 seconds
 	self& SetTimeout(KDuration Timeout) { m_Timeout = Timeout; return *this; }
+
+	/// set the keepalive interval that will be set with these options, default is KDuration::zero (off)
+	self& SetKeepAliveInterval(KDuration tKeepAlive) { m_KeepAliveInterval = tKeepAlive; return *this; }
+
+	/// set the linger timeout that will be set with these options, default is KDuration::zero (off)
+	self& SetLingerTimeout(KDuration tLinger) { m_LingerTimeout = tLinger; return *this; }
 
 	/// returns timeout set
 	KDuration GetTimeout() const { return m_Timeout; }
 
+	/// returns keepalive interval (that will be set with these options)
+	KDuration GetKeepAliveInterval() const { return m_KeepAliveInterval; }
+
+	/// returns linger timeout (that will be set with these options)
+	KDuration GetLingerTimeout() const { return m_LingerTimeout; }
+
 	operator Options() const { return Get();     }
+
+	/// will be called by KTCPStream, KTLSStream, and KQuicStream after creating the socket to set
+	/// keepalive and linger options - call this manually for own stream types
+	/// @param socket the file descriptor for the open socket
+	/// @param bIgnoreIfDefault do not set if respective value is default (use if applied after
+	/// creating socket, to avoid setting the default again)
+	/// @returns false for failure
+	bool ApplySocketOptions(int socket, bool bIgnoreIfDefault = false);
 
 	/// transform DefaultsForHTTP so that they will be resolved to
 	/// application wide defaults for HTTP (either with HTTP1 and/or HTTP2 and/or verify)
@@ -162,10 +182,14 @@ private:
 //------
 
 	static Options s_DefaultOptions;
-	static constexpr KDuration s_DefaultTimeout { chrono::seconds(15) };
+	static constexpr KDuration s_DefaultTimeout           { chrono::seconds(15) };
+	static constexpr KDuration s_DefaultKeepAliveInterval { chrono::seconds( 0) };
+	static constexpr KDuration s_DefaultLingerTimeout     { chrono::seconds( 0) };
 
-	KDuration m_Timeout { s_DefaultTimeout };
-	Options   m_Options { None             };
+	KDuration m_Timeout           { s_DefaultTimeout           };
+	KDuration m_KeepAliveInterval { s_DefaultKeepAliveInterval };
+	KDuration m_LingerTimeout     { s_DefaultLingerTimeout     };
+	Options   m_Options           { None                       };
 
 }; // KStreamOptions
 
@@ -211,6 +235,32 @@ DEKAF2_ENUM_IS_FLAG(KStreamOptions::Options)
 
 using TLSOptions = KStreamOptions::Options;
 
+/// set the application wide stream option defaults for HTTP - this function is not thread safe, set it right
+/// at the start of your application before threading out. Initial defaults are RequestHTTP2 | FallBackToHTTP1.
+/// Setting the DefaultsForHTTP bit will expand to the previous default settings and merge with any other
+/// given option.
 inline bool kSetTLSDefaults(TLSOptions Options) { return KStreamOptions::SetDefaults(Options); }
+
+/// get the TCP keepalive interval set for this socket - 0 if no keepalive
+/// @param socket the socket to query
+/// @returns the keepalive interval for this socket
+KDuration kGetTCPKeepAliveInterval(int socket);
+
+/// set the TCP keepalive interval for this socket - use KDuration::zero() for no keepalive
+/// @param socket the socket to query
+/// @param tKeepAliveInterval the keepalive interval for this socket
+/// @returns false on failure
+bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepAliveInterval);
+
+/// get the linger timeout set for this socket - 0 if lingering is off
+/// @param socket the socket to query
+/// @returns the linger timeout for this socket
+KDuration kGetLingerTimeout(int socket);
+
+/// set the linger timeout for this socket - use KDuration::zero() for no lingering
+/// @param socket the socket to query
+/// @param tLingerTimeout the linger timeout for this socket
+/// @returns false on failure
+bool kSetLingerTimeout(int socket, KDuration tLingerTimeout);
 
 DEKAF2_NAMESPACE_END

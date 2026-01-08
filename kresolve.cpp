@@ -210,7 +210,7 @@ CreateUDPQuery(
 #endif
 	}
 
-} // 
+} // CreateUDPQuery
 
 } // end of anonymous namespace
 
@@ -261,7 +261,7 @@ ResolveTCP(
 
 	return Hosts;
 
-} // kResolveTCP
+} // ResolveTCP
 
 //-----------------------------------------------------------------------------
 resolver_results_udp_type
@@ -310,7 +310,7 @@ ResolveUDP(
 
 	return Hosts;
 
-} // kResolveUDP
+} // ResolveUDP
 
 //-----------------------------------------------------------------------------
 resolver_results_tcp_type

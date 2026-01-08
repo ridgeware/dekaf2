@@ -579,6 +579,19 @@ kurl::kurl ()
 	});
 
 	m_CLI
+		.Option("keepalive-time <n>")
+		.MinArgs(1).MaxArgs(1)
+		.Range(0, 60*60*24)
+		.Type(KOptions::ArgTypes::Unsigned)
+		.Help("send TCP keepalive requests on idle every <n> seconds (default 60, 0 switches off)")
+		.Set(BuildMRQ.iSecondsKeepAlive);
+
+	m_CLI
+		.Option("no-keepalive")
+		.Help("do not send TCP keepalive requests")
+		.Set(BuildMRQ.iSecondsKeepAlive, "0");
+
+	m_CLI
 		.Command("dns <hostname>\n"
 				 "    [4|6 [<maxresults>]]")
 		.Help("run a hostname lookup and exit, either for IP v4, v6 or both")
@@ -794,6 +807,8 @@ void kurl::ServerQuery ()
 			{
 				Options = KHTTPStreamOptions::None;
 			}
+
+			Options.SetKeepAliveInterval(chrono::seconds(RQ->Config.iSecondsKeepAlive));
 
 			if (RQ->Config.HasFlag(Flags::INSECURE_CERTS) == false)
 			{

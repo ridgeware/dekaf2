@@ -68,12 +68,17 @@ TEST_CASE("KHTTPClient") {
 		server.clear();
 
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
-		auto cx = KIOStreamSocket::Create(URL);
+		KStreamOptions Options;
+		Options.SetKeepAliveInterval(chrono::seconds(60));
+		Options.SetLingerTimeout(chrono::seconds(5));
+		auto cx = KIOStreamSocket::Create(URL, false, Options);
 		CHECK( cx->Good() == true );
 		if (cx->Good() == true)
 		{
 			CHECK( cx->ostream().good() == true );
 			CHECK( cx->istream().good() == true );
+			CHECK( kGetTCPKeepAliveInterval(cx->GetNativeSocket()) == chrono::seconds(60) );
+			CHECK( kGetLingerTimeout(cx->GetNativeSocket())        == chrono::seconds( 5) );
 		}
 		KHTTPClient cHTTP(std::move(cx));
 		cHTTP.BasicAuthentication("testuser", "testpass");

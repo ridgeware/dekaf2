@@ -44,6 +44,8 @@
 
 #if !DEKAF2_IS_WINDOWS
 	#include <sys/socket.h>
+	#include <netinet/in.h>
+	#include <netinet/tcp.h>
 #else
 	#include <Winsock2.h>
 #endif
@@ -108,6 +110,32 @@ KStreamOptions::Options KStreamOptions::GetDefaults(Options Options)
 	return Options;
 
 } // GetTLSDefaults
+
+//-----------------------------------------------------------------------------
+bool KStreamOptions::ApplySocketOptions(int socket, bool bIgnoreIfDefault)
+//-----------------------------------------------------------------------------
+{
+	bool bReturn { true };
+
+	if (!bIgnoreIfDefault || GetKeepAliveInterval() > KDuration::zero())
+	{
+		if (!kSetTCPKeepAliveInterval(socket, GetKeepAliveInterval()))
+		{
+			bReturn = false;
+		}
+	}
+
+	if (!bIgnoreIfDefault || GetLingerTimeout() > KDuration::zero())
+	{
+		if (!kSetLingerTimeout(socket, GetLingerTimeout()))
+		{
+			bReturn = false;
+		}
+	}
+
+	return bReturn;
+
+} // ApplySocketOptions
 
 //-----------------------------------------------------------------------------
 bool KStreamOptions::SetDefaults(Options Options)
@@ -190,5 +218,181 @@ KString KStreamOptions::CreateALPNString(KStringView sALPN)
 	return sResult;
 
 } // CreateALPNString
+
+//-----------------------------------------------------------------------------
+KDuration kGetTCPKeepAliveInterval(int socket)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_UNIX
+
+	// first check if keepalive is enabled
+	int iInt { 0 };
+	::socklen_t iSize { sizeof(iInt) };
+
+	if (-1 == ::getsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &iInt, &iSize) || !iSize)
+	{
+		kDebug(1, "cannot get SO_KEEPALIVE from fd {}: {}", socket, strerror(errno));
+		return KDuration::zero();
+	}
+
+	if (!iInt)
+	{
+		return KDuration::zero();
+	}
+
+	iInt = 0;
+	iSize = sizeof(iInt);
+
+	#if DEKAF2_IS_MACOS
+	constexpr int iOption { TCP_KEEPALIVE };
+	#else
+	constexpr int iOption { TCP_KEEPIDLE };
+	#endif
+
+	if (-1 == ::getsockopt(socket, IPPROTO_TCP, iOption, &iInt, &iSize) || !iSize)
+	{
+		kDebug(1, "cannot get TCP_KEEPIDLE from fd {}: {}", socket, strerror(errno));
+		return KDuration::zero();
+	}
+
+	return chrono::seconds(iInt);
+
+#elif DEKAF2_IS_WINDOWS
+
+	return KDuration::zero() // TODO
+
+#else
+
+	return KDuration::zero()
+
+#endif
+
+} // kGetTCPKeepAliveInterval
+
+//-----------------------------------------------------------------------------
+KDuration kGetLingerTimeout(int socket)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_UNIX
+
+	struct ::linger linger;
+	::socklen_t iSize { sizeof(linger) };
+
+	#if DEKAF2_IS_MACOS
+	constexpr int iOption { SO_LINGER_SEC };
+	#else
+	constexpr int iOption { SO_LINGER };
+	#endif
+
+	if (-1 == ::getsockopt(socket, SOL_SOCKET, iOption, &linger, &iSize) || !iSize)
+	{
+		kDebug(1, "cannot get SO_LINGER from fd {}: {}", socket, strerror(errno));
+		return KDuration::zero();
+	}
+
+	if (!linger.l_onoff)
+	{
+		return KDuration::zero();
+	}
+
+	return chrono::seconds(linger.l_linger);
+
+#elif DEKAF2_IS_WINDOWS
+
+	return KDuration::zero() // TODO
+
+#else
+
+	return KDuration::zero()
+
+#endif
+
+} // kGetLingerTimeout
+
+//-----------------------------------------------------------------------------
+bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepaliveInterval)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_UNIX
+
+	int iSeconds { static_cast<int>(tKeepaliveInterval.seconds().count()) };
+	int iOnOff   { iSeconds > 0 ? 1 : 0 };
+
+	if (-1 == ::setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &iOnOff, sizeof(iOnOff)))
+	{
+		kDebug(1, "cannot set SO_KEEPALIVE to {} on fd {}: {}", iOnOff, socket, strerror(errno));
+		return false;
+	}
+
+	if (iOnOff)
+	{
+	#if DEKAF2_IS_MACOS
+		constexpr int iOption { TCP_KEEPALIVE };
+	#else
+		constexpr int iOption { TCP_KEEPIDLE };
+	#endif
+
+		// set interval
+		if (-1 == ::setsockopt(socket, IPPROTO_TCP, iOption, &iSeconds, sizeof(iSeconds)))
+		{
+			kDebug(1, "cannot set TCP_KEEPIDLE to {} on fd {}: {}", iSeconds, socket, strerror(errno));
+			return false;
+		}
+	}
+
+	kDebug(3, "set TCP_KEEPIDLE to {}s on fd {}", iSeconds, socket);
+
+	return true;
+
+#elif DEKAF2_IS_WINDOWS
+
+	return false; // TODO
+
+#else
+
+	return false;
+
+#endif
+
+} // kSetTCPKeepAliveInterval
+
+//-----------------------------------------------------------------------------
+bool kSetLingerTimeout(int socket, KDuration tLingerTimeout)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_UNIX
+
+	int iSeconds { static_cast<int>(tLingerTimeout.seconds().count()) };
+	int iOnOff   { iSeconds > 0 ? 1 : 0 };
+
+	struct ::linger linger;
+	linger.l_onoff  = iOnOff;
+	linger.l_linger = iSeconds;
+
+	#if DEKAF2_IS_MACOS
+	constexpr int iOption { SO_LINGER_SEC };
+	#else
+	constexpr int iOption { SO_LINGER };
+	#endif
+
+	if (-1 == ::setsockopt(socket, SOL_SOCKET, iOption, &linger, sizeof(linger)))
+	{
+		kDebug(1, "cannot set SO_LINGER to {} with {}s on fd {}: {}", iOnOff, iSeconds, socket, strerror(errno));
+		return false;
+	}
+
+	kDebug(3, "set SO_LINGER to {}s on fd {}", iSeconds, socket);
+
+	return true;
+
+#elif DEKAF2_IS_WINDOWS
+
+#else
+
+	return false;
+
+#endif
+
+} // kSetLingerTimeout
 
 DEKAF2_NAMESPACE_END

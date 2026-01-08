@@ -126,7 +126,8 @@ protected:
 		KString     sStoreCookieJar;     // output filename for set-cookies
 		KHTTPMethod Method               { KHTTPMethod::GET };
 		enum Flags  Flags                { Flags::NONE };
-		uint16_t    iSecondsTimeout      { 5 };
+		uint16_t    iSecondsTimeout      {  5 };
+		uint16_t    iSecondsKeepAlive    { 60 };
 		uint16_t    iMaxRedirects        { 20 };
 		bool        bMethodExplicitlySet { false };
 

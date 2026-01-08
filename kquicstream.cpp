@@ -504,6 +504,8 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		}
 	}
 
+	Options.ApplySocketOptions(GetNativeSocket(), true);
+
 	kDebug(2, "connected to {} {}", "endpoint", GetEndPointAddress());
 
 	return true;

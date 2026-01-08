@@ -217,6 +217,8 @@ bool KTCPStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		return SetError(m_Stream.ec.message());
 	}
 
+	Options.ApplySocketOptions(GetNativeSocket(), true);
+
 	kDebug(2, "connected to {} {}", "endpoint", GetEndPointAddress());
 
 	return true;

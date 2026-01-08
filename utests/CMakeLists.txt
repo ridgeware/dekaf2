@@ -75,6 +75,7 @@ set (USOURCES
 	khttpserver_tests.cpp
 	kinpipe_tests.cpp
 	kinshell_tests.cpp
+	kipaddress_tests.cpp
 	kjoin_tests.cpp
 	kjson_tests.cpp
 	kjson2_tests.cpp
@@ -134,7 +135,6 @@ set (USOURCES
 	ktimeseries_tests.cpp
 	kuntar_tests.cpp
 	kurl_tests.cpp
-	kurlencode_tests.cpp
 	kuseragent_tests.cpp
 	kutf_tests.cpp
 	kutf_iterator_tests.cpp

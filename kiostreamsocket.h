@@ -74,16 +74,8 @@ public:
 	using native_tls_handle_type     = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>::native_handle_type;
 #if (DEKAF2_CLASSIC_ASIO)
 	using native_socket_type         = boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<boost::asio::ip::tcp>>::native_handle_type;
-	using resolver_results_tcp_type  = boost::asio::ip::tcp::resolver::iterator;
-	using resolver_endpoint_tcp_type = resolver_results_tcp_type;
-	using resolver_results_udp_type  = boost::asio::ip::udp::resolver::iterator;
-	using resolver_endpoint_udp_type = resolver_results_udp_type;
 #else
 	using native_socket_type         = boost::asio::basic_socket<boost::asio::ip::tcp>::native_handle_type;
-	using resolver_results_tcp_type  = boost::asio::ip::tcp::resolver::results_type;
-	using resolver_endpoint_tcp_type = boost::asio::ip::tcp::resolver::endpoint_type;
-	using resolver_results_udp_type  = boost::asio::ip::udp::resolver::results_type;
-	using resolver_endpoint_udp_type = boost::asio::ip::udp::resolver::endpoint_type;
 #endif
 
 	KIOStreamSocket(std::streambuf* StreamBuf, KDuration Timeout = KStreamOptions::GetDefaultTimeout())
@@ -226,64 +218,6 @@ public:
 	/// create a stream socket around any std::iostream
 	static std::unique_ptr<KIOStreamSocket> 
 	Create(std::iostream& IOStream);
-
-	// ------ static resolver methods -------
-
-	/// lookup a hostname, returns list of found addresses
-	static resolver_results_tcp_type 
-	ResolveTCP(
-		KStringViewZ sHostname,
-		uint16_t iPort,
-		KStreamOptions::Family Family,
-		boost::asio::io_service& IOService,
-		boost::system::error_code& ec
-	);
-
-	/// lookup a hostname, returns list of found addresses
-	static resolver_results_udp_type 
-	ResolveUDP(
-		KStringViewZ sHostname,
-		uint16_t iPort,
-		KStreamOptions::Family Family,
-		boost::asio::io_service& IOService,
-		boost::system::error_code& ec
-	);
-
-	/// reverse lookup an IP address, returns list of found addresses
-	static resolver_results_tcp_type 
-	ReverseLookup(
-		KStringViewZ sIPAddr,
-		boost::asio::io_service& IOService,
-		boost::system::error_code& ec
-	);
-
-	/// print one endpoint address into a string
-	static KString 
-	PrintResolvedAddress(
-#if (DEKAF2_CLASSIC_ASIO)
-		resolver_endpoint_tcp_type endpoint
-#else
-		const resolver_endpoint_tcp_type& endpoint
-#endif
-	);
-
-	/// add a hostname and its address to the list of known hosts (like /etc/hosts)
-	/// -this function is not thread safe, use it at init of program
-	static void
-	AddKnownHostAddress(
-		KStringView sHostname,
-		KStringView sIPAddress
-	);
-
-	/// search for a hostname and its address in the list of known hosts (like /etc/hosts)
-	/// @param sHostname the hostname to look up
-	/// @param Family the address family searched for
-	/// @return the resolved IP address or the original hostname
-	static KStringViewZ
-	GetKnownHostAddress(
-		KStringViewZ sHostname,
-		KStreamOptions::Family Family
-	);
 
 //----------
 protected:

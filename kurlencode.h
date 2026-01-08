@@ -52,6 +52,7 @@
 #include "kwriter.h"
 #include <cinttypes>
 #include "kctype.h"
+#include "kipaddress.h"
 
 
 DEKAF2_NAMESPACE_BEGIN
@@ -316,19 +317,6 @@ String kUrlEncode (KStringView sSource, URIPart encoding = URIPart::Protocol)
 	kUrlEncode(sSource, sTarget, encoding);
 	return sTarget;
 }
-
-/// checks if an IP address is a IPv6 address like '[a0:ef::c425:12]'
-/// @param sAddress the string to test
-/// @param bNeedsBraces if true, address has to be in square braces [ ], if false they must not be present
-/// @return true if sAddress holds an IPv6 numerical address
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool kIsIPv6Address(KStringView sAddress, bool bNeedsBraces);
-
-/// checks if an IP address is a IPv4 address like '1.2.3.4'
-/// @param sAddress the string to test
-/// @return true if sAddress holds an IPv4 numerical address
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool kIsIPv4Address(KStringView sAddress);
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// wrapper for types that have a percent-decoded and percent-encoded form

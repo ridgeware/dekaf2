@@ -34,6 +34,7 @@ set (USOURCES
 	kinshell_smoketests.cpp
 	ktlsstream_smoketests.cpp
 	ksql_smoketests.cpp
+	kresolve_smoketests.cpp
 	ksystem_smoketests.cpp
 )
 

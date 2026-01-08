@@ -48,6 +48,7 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "kduration.h"
+#include "kipaddress.h"        // remove when deleting deprecated kIsValidIPv4/kIsValidIPv6
 #include "bits/kstringviewz.h"
 #include <locale>
 #ifndef DEKAF2_IS_WINDOWS
@@ -167,69 +168,6 @@ int kSystem (KStringView sCommand, KStringRef& sOutput);
 /// @return exit code of the command that was run: 0 is normally an indication of success.
 DEKAF2_PUBLIC
 int kSystem (KStringView sCommand);
-
-/// Resolve the given hostname into either/or IPv4 IP addresses or IPv6 addresses.
-/// @param sHostname the hostname to resolve
-/// @param bIPv4 try IPv4 resolver, default = true
-/// @param bIPv6 try IPv6 resolver, default = true
-/// @param iMax maximum count of returned addresses, default = unlimited
-/// @return resolved IP addresses (as a std::vector<KString>), or if hostname fails to resolve, an empty vector.
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-std::vector<KString> kResolveHostToList (KStringViewZ sHostname, bool bIPv4 = true, bool bIPv6 = true, std::size_t iMax = npos);
-
-/// Resolve the given hostname into either an IPv4 IP address or an IPv6 address. If both versions are checked, the first found takes precedence.
-/// If multiple addresses of the same kind are found, the first one takes precedence.
-/// @param sHostname the hostname to resolve
-/// @param bIPv4 try IPv4 resolver, default = true
-/// @param bIPv6 try IPv6 resolver, default = true
-/// @return resolved IP address (as a string), or if hostname fails to resolve, an empty string.
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kResolveHost (KStringViewZ sHostname, bool bIPv4 = true, bool bIPv6 = true);
-
-/// Resolve the given hostname into an IPv4 IP address, e.g. "50.1.2.3".
-/// @param sHostname the hostname to resolve
-/// @return resolved IP address (as a string), or if hostname fails to resolve, an empty string.
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline KString kResolveHostIPV4 (KStringViewZ sHostname)
-{
-	return kResolveHost (sHostname, true, false);
-}
-
-/// Resolve the given hostname into an IPv6 IP address, e.g. "fe80::be27:ebff:fad4:49e7".
-/// @param sHostname the hostname to resolve
-/// @return resolved IP address (as a string), or if hostname fails to resolve, an empty string.
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline KString kResolveHostIPV6 (KStringViewZ sHostname)
-{
-	return kResolveHost (sHostname, false, true);
-}
-
-/// Return true if the string represents a valid IPV4 address
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool kIsValidIPv4 (KStringViewZ sIPAddr);
-
-/// Return true if the string represents a valid IPV6 address
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool kIsValidIPv6 (KStringViewZ sIPAddr);
-
-/// Return true if the string represents a private IP address, both IPv4 and IPv6
-/// @param sIP the IP address
-/// @param bExcludeDocker if set to true, addresses of the 172.x.x.x range
-/// are not treated as private IPs, as these are often the result of docker TCP proxying
-/// @return true if sIP is a private IP
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker = true);
-
-/// Return all host names that map to the specified IP address
-/// @param sIPAddr the IP address of the searched host
-/// @param iMax maximum count of returned addresses, default = unlimited
-/// @return resolved host names (as a std::vector<KString>), or if address fails to resolve, an empty vector.
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-std::vector<KString> kHostLookupToList (KStringViewZ sIPAddr, std::size_t iMax = npos);
-
-/// Return the first host name that maps to the specified IP address
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kHostLookup (KStringViewZ sIPAddr);
 
 /// Sleep for the given KDuration
 DEKAF2_PUBLIC
@@ -518,5 +456,25 @@ bool kStdOutIsTerminal();
 /// returns the system uptime
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KDuration kGetUptime();
+
+/// DEPRECATED: use kIsIPv4Address() instead -
+/// checks if an IP address is a IPv4 address like '1.2.3.4'
+/// @param sAddress the string to test
+/// @return true if sAddress holds an IPv4 numerical address
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+bool kIsValidIPv4(KStringView sAddress)
+{
+	return kIsIPv4Address(sAddress);
+}
+
+/// DEPRECATED: use kIsIPv6Address() instead -
+/// checks if an IP address is a IPv6 address without [] braces, like 'a0:ef::c425:12'
+/// @param sAddress the string to test
+/// @return true if sAddress holds an IPv6 numerical address
+DEKAF2_NODISCARD DEKAF2_PUBLIC inline
+bool kIsValidIPv6(KStringView sAddress)
+{
+	return kIsIPv6Address(sAddress, false);
+}
 
 DEKAF2_NAMESPACE_END

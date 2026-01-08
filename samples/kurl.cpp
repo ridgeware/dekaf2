@@ -53,7 +53,7 @@
 #include <dekaf2/kawsauth.h>
 #include <dekaf2/kparallel.h>
 #include <dekaf2/kmodifyingstreambuf.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/kresolve.h>
 #include <dekaf2/kfilesystem.h>
 
 using namespace DEKAF2_NAMESPACE_NAME;
@@ -374,7 +374,7 @@ kurl::kurl ()
 		{
 			throw KOptions::Error("need hostname:IP-address combination");
 		}
-		KIOStreamSocket::AddKnownHostAddress(sArg.ToView(0, iPos), sArg.ToView(iPos+1));
+		KResolve::AddKnownHostAddress(sArg.ToView(0, iPos), sArg.ToView(iPos+1));
 	});
 
 	m_CLI
@@ -621,7 +621,7 @@ kurl::kurl ()
 		.Stop()
 	([&](KStringViewZ sAddress)
 	{
-		for (auto& sHost : kHostLookupToList(sAddress))
+		for (auto& sHost : kReverseLookupToList(sAddress))
 		{
 			KOut.WriteLine(sHost);
 		}

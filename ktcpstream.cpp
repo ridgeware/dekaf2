@@ -41,6 +41,7 @@
  */
 
 #include "ktcpstream.h"
+#include "kresolve.h"
 #include "klog.h"
 #include "kurl.h"
 
@@ -188,19 +189,19 @@ bool KTCPStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 	auto& sHostname = Endpoint.Domain.get();
 
-	auto hosts = KIOStreamSocket::ResolveTCP(sHostname, Endpoint.Port.get(), Options.GetFamily(), m_Stream.IOService, m_Stream.ec);
+	auto hosts = KResolve::ResolveTCP(sHostname, Endpoint.Port.get(), Options.GetFamily(), m_Stream.IOService, m_Stream.ec);
 
 	if (Good())
 	{
 		boost::asio::async_connect(GetTCPSocket(), hosts,
 		                           [&](const boost::system::error_code& ec,
 #if (DEKAF2_CLASSIC_ASIO)
-			                           resolver_endpoint_tcp_type endpoint)
+			                           KResolve::resolver_endpoint_tcp_type endpoint)
 #else
-			                           const resolver_endpoint_tcp_type& endpoint)
+			                           const KResolve::resolver_endpoint_tcp_type& endpoint)
 #endif
 		{
-			m_Stream.sEndpoint  = PrintResolvedAddress(endpoint);
+			m_Stream.sEndpoint  = KResolve::PrintResolvedAddress(endpoint);
 			m_Stream.ec         = ec;
 			// parse the endpoint back into our basic KTCPEndpoint
 			SetEndPointAddress(m_Stream.sEndpoint);

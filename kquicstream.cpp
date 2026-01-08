@@ -43,6 +43,7 @@
 
 #if DEKAF2_HAS_OPENSSL_QUIC
 
+#include "kresolve.h"
 #include "klog.h"
 #include "kscopeguard.h"
 #include <openssl/opensslv.h>
@@ -345,7 +346,7 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	if (sIPAddress.empty())
 	{
 		// check the known hostnames
-		sIPAddress = KIOStreamSocket::GetKnownHostAddress(sHostname, Options.GetFamily());
+		sIPAddress = KResolve::GetKnownHostAddress(sHostname, Options.GetFamily());
 		// sIPAddress now either contains a known IP address, or the original hostname..
 	}
 

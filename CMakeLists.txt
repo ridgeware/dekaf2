@@ -63,7 +63,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.90 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.91 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1189,6 +1189,7 @@ set(PUBLIC_HEADERS
 	kinshell.h
 	kinstringstream.h
 	kiostreamsocket.h
+	kipaddress.h
 	kjoin.h
 	kjson.h
 	kjson2.h
@@ -1224,6 +1225,7 @@ set(PUBLIC_HEADERS
 	kreference_proxy.h
 	kregex.h
 	kreplacer.h
+	kresolve.h
 	krest.h
 	krestclient.h
 	krestroute.h
@@ -1469,6 +1471,7 @@ set (SOURCES
 	kinshell.cpp
 	kinstringstream.cpp
 	kiostreamsocket.cpp
+	kipaddress.cpp
 	kjson.cpp
 	kjson2.cpp
 	klambdastream.cpp
@@ -1496,6 +1499,7 @@ set (SOURCES
 	kreader.cpp
 	kregex.cpp
 	kreplacer.cpp
+	kresolve.cpp
 	krest.cpp
 	krestclient.cpp
 	krestroute.cpp

@@ -95,11 +95,3 @@ TEST_CASE("KTLSClient 4")
 	CHECK ( !sResponse.empty() );
 	CHECK ( HTTP.Response.iStatusCode == 200 );
 }
-
-TEST_CASE("name resolution")
-{
-	auto sIP = kResolveHostIPV4("www.google.com");
-
-	CHECK ( sIP.empty() == false );
-}
-

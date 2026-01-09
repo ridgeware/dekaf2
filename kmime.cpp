@@ -494,7 +494,7 @@ KMIME KMIMEPart::ContentType() const
 
 	if (CreateMultiPartBoundary())
 	{
-		sContentType += kFormat("; boundary=----=_KMIME_Part_1_{}.{}----", m_iRandom1, m_iRandom2);
+		sContentType += kFormat("; boundary=\"----=_KMIME_Part_1_{}.{}----\"", m_iRandom1, m_iRandom2);
 	}
 
 	return KMIME(std::move(sContentType));

@@ -203,7 +203,7 @@ eyJtZXNzYWdlIjoiaW1wb3J0YW50IiwicGFydHMiOlsib25lIiwidHdvIiwidGhyZWUiXX0=
 
 		sFormData = Normalized(Parts.Serialize(true));
 		KString sContentType = Parts.ContentType();
-		KString sExpectedContentType = Normalized((R"(multipart/form-data; boundary=----=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----)"));
+		KString sExpectedContentType = Normalized((R"(multipart/form-data; boundary="----=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----")"));
 		KString sExpected2 = Normalized(R"(------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
 Content-Type: text/plain; charset=UTF-8
 Content-Disposition: form-data; name="TheName"

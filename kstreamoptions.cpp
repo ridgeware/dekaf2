@@ -223,8 +223,6 @@ KString KStreamOptions::CreateALPNString(KStringView sALPN)
 KDuration kGetTCPKeepAliveInterval(int socket)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_IS_UNIX
-
 	// first check if keepalive is enabled
 	int iInt { 0 };
 	::socklen_t iSize { sizeof(iInt) };
@@ -243,11 +241,11 @@ KDuration kGetTCPKeepAliveInterval(int socket)
 	iInt = 0;
 	iSize = sizeof(iInt);
 
-	#if DEKAF2_IS_MACOS
+#if DEKAF2_IS_MACOS
 	constexpr int iOption { TCP_KEEPALIVE };
-	#else
+#else
 	constexpr int iOption { TCP_KEEPIDLE };
-	#endif
+#endif
 
 	if (-1 == ::getsockopt(socket, IPPROTO_TCP, iOption, &iInt, &iSize) || !iSize)
 	{
@@ -257,32 +255,20 @@ KDuration kGetTCPKeepAliveInterval(int socket)
 
 	return chrono::seconds(iInt);
 
-#elif DEKAF2_IS_WINDOWS
-
-	return KDuration::zero() // TODO
-
-#else
-
-	return KDuration::zero()
-
-#endif
-
 } // kGetTCPKeepAliveInterval
 
 //-----------------------------------------------------------------------------
 KDuration kGetLingerTimeout(int socket)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_IS_UNIX
-
 	struct ::linger linger;
 	::socklen_t iSize { sizeof(linger) };
 
-	#if DEKAF2_IS_MACOS
+#if DEKAF2_IS_MACOS
 	constexpr int iOption { SO_LINGER_SEC };
-	#else
+#else
 	constexpr int iOption { SO_LINGER };
-	#endif
+#endif
 
 	if (-1 == ::getsockopt(socket, SOL_SOCKET, iOption, &linger, &iSize) || !iSize)
 	{
@@ -297,24 +283,12 @@ KDuration kGetLingerTimeout(int socket)
 
 	return chrono::seconds(linger.l_linger);
 
-#elif DEKAF2_IS_WINDOWS
-
-	return KDuration::zero() // TODO
-
-#else
-
-	return KDuration::zero()
-
-#endif
-
 } // kGetLingerTimeout
 
 //-----------------------------------------------------------------------------
 bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepaliveInterval)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_IS_UNIX
-
 	int iSeconds { static_cast<int>(tKeepaliveInterval.seconds().count()) };
 	int iOnOff   { iSeconds > 0 ? 1 : 0 };
 
@@ -326,11 +300,11 @@ bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepaliveInterval)
 
 	if (iOnOff)
 	{
-	#if DEKAF2_IS_MACOS
+#if DEKAF2_IS_MACOS
 		constexpr int iOption { TCP_KEEPALIVE };
-	#else
+#else
 		constexpr int iOption { TCP_KEEPIDLE };
-	#endif
+#endif
 
 		// set interval
 		if (-1 == ::setsockopt(socket, IPPROTO_TCP, iOption, &iSeconds, sizeof(iSeconds)))
@@ -344,24 +318,12 @@ bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepaliveInterval)
 
 	return true;
 
-#elif DEKAF2_IS_WINDOWS
-
-	return false; // TODO
-
-#else
-
-	return false;
-
-#endif
-
 } // kSetTCPKeepAliveInterval
 
 //-----------------------------------------------------------------------------
 bool kSetLingerTimeout(int socket, KDuration tLingerTimeout)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_IS_UNIX
-
 	int iSeconds { static_cast<int>(tLingerTimeout.seconds().count()) };
 	int iOnOff   { iSeconds > 0 ? 1 : 0 };
 
@@ -369,11 +331,11 @@ bool kSetLingerTimeout(int socket, KDuration tLingerTimeout)
 	linger.l_onoff  = iOnOff;
 	linger.l_linger = iSeconds;
 
-	#if DEKAF2_IS_MACOS
+#if DEKAF2_IS_MACOS
 	constexpr int iOption { SO_LINGER_SEC };
-	#else
+#else
 	constexpr int iOption { SO_LINGER };
-	#endif
+#endif
 
 	if (-1 == ::setsockopt(socket, SOL_SOCKET, iOption, &linger, sizeof(linger)))
 	{
@@ -384,14 +346,6 @@ bool kSetLingerTimeout(int socket, KDuration tLingerTimeout)
 	kDebug(3, "set SO_LINGER to {}s on fd {}", iSeconds, socket);
 
 	return true;
-
-#elif DEKAF2_IS_WINDOWS
-
-#else
-
-	return false;
-
-#endif
 
 } // kSetLingerTimeout
 

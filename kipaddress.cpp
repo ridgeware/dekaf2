@@ -194,8 +194,6 @@ bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker)
 		}
 	}
 
-	kDebug(2, sIP);
-
 	if (bIsV6)
 	{
 		if (sIP == "::1") return true;

@@ -45,6 +45,7 @@
 #include "bits/kasio.h"
 #include "kiostreamsocket.h"
 #include "klog.h"
+#include <unordered_map>
 
 DEKAF2_NAMESPACE_BEGIN
 

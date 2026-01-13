@@ -329,22 +329,30 @@ int Mong2SQL::Main(int argc, char* argv[])
 	}
 
 	// now perform the action:
-	switch (m_Config.sMode.ToUpper().Hash())
+	try
 	{
-	case "LIST"_hash:
-		return ListCollections();
-		break;
-	case "DUMP"_hash:
-		return DumpCollections();
-		break;
-	case "COMPARE"_hash:
-		return CompareCollectionsToMySQL();
-		break;
-	case "COPY"_hash:
-		return CopyCollections();
-		break;
-	default:
-		KErr.FormatLine (">> unknown mode: {}", m_Config.sMode);
+		switch (m_Config.sMode.ToUpper().Hash())
+		{
+		case "LIST"_hash:
+			return ListCollections();
+			break;
+		case "DUMP"_hash:
+			return DumpCollections();
+			break;
+		case "COMPARE"_hash:
+			return CompareCollectionsToMySQL();
+			break;
+		case "COPY"_hash:
+			return CopyCollections();
+			break;
+		default:
+			KErr.FormatLine (">> unknown mode: {}", m_Config.sMode);
+			return 1;
+		}
+	}
+	catch (const std::exception& ex)
+	{
+		KErr.FormatLine (">> crash: {}", ex.what());
 		return 1;
 	}
 
@@ -1390,12 +1398,22 @@ void Mong2SQL::ShowBar (KBAR& bar, KStringView sCollectionName, KStringView sCre
 	}
 
 	std::unique_lock Lock(m_Mutex);
-	auto sLine = kFormat (":: {:%a %T} [{:30.30}] collection {}, ({}i + {}u) out of {}",
-		kNow(), bar.GetBar(30,'_'), sCollectionName, kFormNumber(iInserts), kFormNumber(iUpdates), kFormNumber(bar.GetExpected()));
+	auto sLine = kFormat (":: {:%a %T} [{:30.30}] collection {}, {} out of {}",
+		kNow(), bar.GetBar(30,'_'), sCollectionName, kFormNumber(bar.GetSoFar()), kFormNumber(bar.GetExpected()));
 
 	if (sCreatedTables)
 	{
 		sLine += kFormat (": table{} {}", sCreatedTables.Contains(",") ? "s" : "", sCreatedTables);
+	}
+
+	if (iInserts)
+	{
+		sLine += kFormat (", {} inserts", kFormNumber(iInserts));
+	}
+
+	if (iUpdates)
+	{
+		sLine += kFormat (", {} updates", kFormNumber(iUpdates));
 	}
 
 	KOut.FormatLine ("{}", sLine);
@@ -1649,6 +1667,7 @@ bool Mong2SQL::CopyMongoDocument (const KJSON& document, const KJSON& oTables, K
 	// Insert the root document row
 	if (!InsertDocumentRow(db, *pRootTable, rowValues, sPrimaryKey, sCreatedTables, iInserts, iUpdates))
 	{
+		KErr.FormatLine (">> {}:{}: sTablePK={}, sPrimaryKey={}, ERROR: {}", sCollectionName, bar.GetSoFar(), sTablePK, sPrimaryKey, db.GetLastError());
 		return false;
 	}
 			

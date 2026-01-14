@@ -226,6 +226,7 @@ public:
 							if (!bWrite || it->second.bReadOnly == false)
 							{
 								// rw/ro mode matches - return without throwing (= success)
+								HTTP.SetAuthenticatedUser(Basic.sUsername);
 								return;
 							}
 						}

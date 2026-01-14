@@ -42,8 +42,27 @@
 
 #if DEKAF2_WITH_SIMDUTF
 
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Woverflow"
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
+#if DEKAF2_IS_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wextra-semi"
+#endif
+
 #include "../../from/simdutf/simdutf.h"
 #include "../../from/simdutf/simdutf.cpp"
+
+#if DEKAF2_IS_CLANG
+#pragma clang diagnostic pop
+#endif
+
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic pop
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 

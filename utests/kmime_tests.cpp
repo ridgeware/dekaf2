@@ -4,13 +4,14 @@
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/koutstringstream.h>
 #include <dekaf2/kjson.h>
+#include <dekaf2/kuuid.h>
 #include <vector>
 
 using namespace dekaf2;
 
 namespace {
 
-#ifndef DEKAF2_HAS_CPP_14
+#if DEKAF2_HAS_CPP_14
 KString Normalized(KStringView sInput)
 {
 	KString sOut { sInput };
@@ -152,9 +153,11 @@ TEST_CASE("KMIME")
 	}
 
 // C++11 has problems destroying the KMIMEMultiPartFormData ..
-#ifndef DEKAF2_HAS_CPP_14
+#if DEKAF2_HAS_CPP_14
 	SECTION("KMIMEMultiPart")
 	{
+		KString sRegex = "KMIME=_l[0-9]+_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
 		KMIMEMultiPartFormData Parts;
 		Parts += KMIMEText("TheName", "TheValue");
 		Parts += KMIMEFile("", "This is file1 Русский\nWith line2\n", "file1.txt", KMIME::TEXT_UTF8);
@@ -165,19 +168,20 @@ TEST_CASE("KMIME")
 							{ "parts"  , { "one", "two", "three" } }
 						   }.dump(),
 						   KMIME::JSON);
-		// serialize for SMTP
-		auto sFormData = Normalized(Parts.Serialize());
-		sFormData.ReplaceRegex("_KMIME_Part_[0-9]+_[0-9]+\\.[0-9]+-", "_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]-");
-		KString sExpected1 = Normalized(R"(Content-Type: multipart/form-data;
- boundary="----=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----"
 
-------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
+		// serialize for SMTP
+		auto sFormData = Normalized(Parts.Serialize(false));
+		sFormData.ReplaceRegex(sRegex, "KMIME=_l[LEVEL]_[UUID]");
+		KString sExpected1 = Normalized(R"(Content-Type: multipart/form-data;
+ boundary="KMIME=_l[LEVEL]_[UUID]"
+
+--KMIME=_l[LEVEL]_[UUID]
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Content-Disposition: form-data; name="TheName"
 
 TheValue
-------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
+--KMIME=_l[LEVEL]_[UUID]
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Content-Disposition: form-data; filename="file1.txt"
@@ -185,53 +189,54 @@ Content-Disposition: form-data; filename="file1.txt"
 This is file1 =D0=A0=D1=83=D1=81=D1=81=D0=BA=D0=B8=D0=B9
 With line2
 
-------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
+--KMIME=_l[LEVEL]_[UUID]
 Content-Type: image/jpeg
 Content-Transfer-Encoding: base64
 Content-Disposition: form-data; filename="file2.jpg"
 
 VGhpcyBpcyBmaWxlMiDQoNGD0YHRgdC60LjQuQp3aXRoIGxpbmUyCg==
-------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
+--KMIME=_l[LEVEL]_[UUID]
 Content-Type: application/json
 Content-Transfer-Encoding: base64
 Content-Disposition: inline
 
 eyJtZXNzYWdlIjoiaW1wb3J0YW50IiwicGFydHMiOlsib25lIiwidHdvIiwidGhyZWUiXX0=
-------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]------
+--KMIME=_l[LEVEL]_[UUID]--
 )");
 		CHECK ( sFormData == sExpected1 );
 
+		// serialize for HTTP
 		sFormData = Normalized(Parts.Serialize(true));
-		KString sContentType = Parts.ContentType();
-		KString sExpectedContentType = Normalized((R"(multipart/form-data; boundary="----=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----")"));
-		KString sExpected2 = Normalized(R"(------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
+		KString sContentType = Parts.ContentType().Serialize();
+		KString sExpectedContentType = Normalized((R"(multipart/form-data; boundary="KMIME=_l[LEVEL]_[UUID]")"));
+		KString sExpected2 = Normalized(R"(--KMIME=_l[LEVEL]_[UUID]
 Content-Type: text/plain; charset=UTF-8
 Content-Disposition: form-data; name="TheName"
 
 TheValue
-------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
+--KMIME=_l[LEVEL]_[UUID]
 Content-Type: text/plain; charset=UTF-8
 Content-Disposition: form-data; filename="file1.txt"
 
 This is file1 Русский
 With line2
 
-------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
+--KMIME=_l[LEVEL]_[UUID]
 Content-Type: image/jpeg
 Content-Disposition: form-data; filename="file2.jpg"
 
 This is file2 Русский
 with line2
 
-------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]----
+--KMIME=_l[LEVEL]_[UUID]
 Content-Type: application/json
 Content-Disposition: inline
 
 {"message":"important","parts":["one","two","three"]}
-------=_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]------
+--KMIME=_l[LEVEL]_[UUID]--
 )");
-		sContentType.ReplaceRegex("_KMIME_Part_[0-9]+_[0-9]+\\.[0-9]+-", "_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]-");
-		sFormData   .ReplaceRegex("_KMIME_Part_[0-9]+_[0-9]+\\.[0-9]+-", "_KMIME_Part_[SEQ]_[RANDOM1].[RANDOM2]-");
+		sContentType.ReplaceRegex(sRegex, "KMIME=_l[LEVEL]_[UUID]");
+		sFormData   .ReplaceRegex(sRegex, "KMIME=_l[LEVEL]_[UUID]");
 		CHECK ( sContentType == sExpectedContentType );
 		CHECK ( sFormData    == sExpected2 );
 	}

@@ -51,6 +51,7 @@
 #include "kinshell.h"
 #include "kfilesystem.h"
 #include "kinstringstream.h"
+#include "kuuid.h"
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -432,7 +433,6 @@ KMIMEPart::KMIMEPart(KMIME MIME)
 //-----------------------------------------------------------------------------
 : m_MIME(std::move(MIME))
 {
-	CreateMultiPartBoundary();
 }
 
 //-----------------------------------------------------------------------------
@@ -440,7 +440,6 @@ KMIMEPart::KMIMEPart(KString sMessage, KMIME MIME)
 //-----------------------------------------------------------------------------
 : m_MIME(std::move(MIME)), m_Data(std::move(sMessage))
 {
-	CreateMultiPartBoundary();
 }
 
 //-----------------------------------------------------------------------------
@@ -450,25 +449,28 @@ KMIMEPart::KMIMEPart(KString sControlName, KString sValue, KMIME MIME)
 , m_Data(std::move(sValue))
 , m_sControlName(std::move(sControlName))
 {
-	CreateMultiPartBoundary();
 }
 
 //-----------------------------------------------------------------------------
-bool KMIMEPart::CreateMultiPartBoundary() const
+const KString& KMIMEPart::GetBoundaryRandom() const
 //-----------------------------------------------------------------------------
 {
-	if (IsMultiPart())
+	if (m_sRandom.empty())
 	{
-		if (!m_iRandom1 && !m_iRandom2)
-		{
-			m_iRandom1 = kRandom();
-			m_iRandom2 = kRandom();
-		}
-		return true;
+		m_sRandom = KUUID().Serialize();
 	}
-	return false;
 
-} // CreateMultiPartBoundary
+	return m_sRandom;
+
+} // CreateBoundaryRandom
+
+//-----------------------------------------------------------------------------
+KString KMIMEPart::GetMultiPartBoundary(std::size_t iLevel) const
+//-----------------------------------------------------------------------------
+{
+	return kFormat("KMIME=_l{}_{}", iLevel, GetBoundaryRandom());
+
+} // GetMultiPartBoundary
 
 //-----------------------------------------------------------------------------
 bool KMIMEPart::IsMultiPart() const
@@ -492,9 +494,9 @@ KMIME KMIMEPart::ContentType() const
 {
 	KString sContentType = m_MIME.Serialize();
 
-	if (CreateMultiPartBoundary())
+	if (IsMultiPart())
 	{
-		sContentType += kFormat("; boundary=\"----=_KMIME_Part_1_{}.{}----\"", m_iRandom1, m_iRandom2);
+		sContentType += kFormat("; boundary=\"{}\"", GetMultiPartBoundary(1));
 	}
 
 	return KMIME(std::move(sContentType));
@@ -525,6 +527,7 @@ bool KMIMEPart::Serialize(KStringRef& sOut, bool bForHTTP, const KReplacer& Repl
 				if (!bForHTTP)
 				{
 					sOut += "Content-Transfer-Encoding: ";
+
 					if (IsBinary())
 					{
 						sOut += "base64";
@@ -533,15 +536,18 @@ bool KMIMEPart::Serialize(KStringRef& sOut, bool bForHTTP, const KReplacer& Repl
 					{
 						sOut += "quoted-printable";
 					}
+
 					sOut += "\r\n";
 				}
 
 				sOut += "Content-Disposition: ";
+
 				if ((!m_sControlName.empty() || !m_sFileName.empty()) && ParentMIME != KMIME::MULTIPART_RELATED)
 				{
 					if (ParentMIME == KMIME::MULTIPART_FORM_DATA)
 					{
 						sOut += "form-data";
+
 						if (!m_sControlName.empty())
 						{
 							sOut += "; name=\"";
@@ -615,29 +621,9 @@ bool KMIMEPart::Serialize(KStringRef& sOut, bool bForHTTP, const KReplacer& Repl
 	{
 		++recursion;
 
-		uint32_t iRandom1;
-		uint32_t iRandom2;
-
-		if (recursion == 1)
-		{
-			if (!m_iRandom1 && !m_iRandom2)
-			{
-				m_iRandom1 = kRandom();
-				m_iRandom2 = kRandom();
-			}
-			iRandom1 = m_iRandom1;
-			iRandom2 = m_iRandom2;
-		}
-		else
-		{
-			iRandom1 = kRandom();
-			iRandom2 = kRandom();
-		}
-
-		KString sBoundary;
 		// having the '=' in the boundary guarantees for base64 and quoted printable encoding
 		// that the boundary is unique
-		sBoundary.Format("----=_KMIME_Part_{}_{}.{}----", recursion, iRandom1, iRandom2);
+		KString sBoundary = GetMultiPartBoundary(recursion);
 
 		if (!(bForHTTP && recursion == 1))
 		{
@@ -788,7 +774,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 
 			// create a multipart/related structure (it will be removed
 			// automatically by the serializer if there are no related files..)
-			MIME(KMIME::MULTIPART_RELATED);
+			SetMIME(KMIME::MULTIPART_RELATED);
 
 			// create a multipart/alternative structure inside the
 			// multipart/related (will be removed by the serializer if there
@@ -850,7 +836,7 @@ KMIMEDirectory::KMIMEDirectory(KStringViewZ sPathname)
 		else
 		{
 			// just create a multipart/mixed with all files
-			MIME(KMIME::MULTIPART_MIXED);
+			SetMIME(KMIME::MULTIPART_MIXED);
 
 			for (auto& it : Dir)
 			{

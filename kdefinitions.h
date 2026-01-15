@@ -287,6 +287,12 @@
 	#define DEKAF2_CONSTEXPR_20 inline
 #endif
 
+#ifdef DEKAF2_HAS_CPP_23
+	#define DEKAF2_CONSTEXPR_23 constexpr
+#else
+	#define DEKAF2_CONSTEXPR_23 inline
+#endif
+
 // unfortunately GCC < 7 require the repetition of a constexpr variable
 // in the .cpp even if in c++17 mode
 #if !defined(DEKAF2_HAS_FULL_CPP_17)

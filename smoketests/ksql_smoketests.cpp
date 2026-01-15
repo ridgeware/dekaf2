@@ -57,7 +57,6 @@ enum {
 typedef const char* LPCTSTR;
 
 int64_t DumpRows (KSQL& db);
-void  TestEscapes (int iTestNum, LPCTSTR pszString, LPCTSTR pszStringX, int iDBType);
 
 KStringViewZ g_sDbcFile;
 
@@ -125,7 +124,7 @@ KString GenRandomString(int iMinSize, int iMaxSize)
 } // GenRandomString
 
 //-----------------------------------------------------------------------------
-static bool SqlServerIdentityInsert (KSQL& db, LPCTSTR pszTablename, KStringView sOnOff)
+static bool SqlServerIdentityInsert (KSQL& db, KStringView sTablename, KStringView sOnOff)
 //-----------------------------------------------------------------------------
 {
 	if (db.GetDBType() == KSQL::DBT::SQLSERVER ||
@@ -134,7 +133,7 @@ static bool SqlServerIdentityInsert (KSQL& db, LPCTSTR pszTablename, KStringView
 		// avoid this errors:
 		// Cannot insert explicit value for identity column in table 'XXX' when IDENTITY_INSERT is set to OFF.
 		// Explicit value must be specified for identity column in table 'XXX' either when IDENTITY_INSERT is set to ON or when a replication user is inserting into a NOT FOR REPLICATION identity column.
-		return (db.ExecSQL ("set identity_insert {} {}", pszTablename, sOnOff));
+		return (db.ExecSQL ("set identity_insert {} {}", sTablename, sOnOff));
 	}
 	else
 	{
@@ -194,7 +193,9 @@ void Check_CtSend(KSQL& db)
 
 } // Check_CtSend
 
+//-----------------------------------------------------------------------------
 void KillConnectionTest(KSQL& db)
+//-----------------------------------------------------------------------------
 {
 	// check if this is a MySQL connection
 	if (db.GetDBType() != KSQL::DBT::MYSQL)

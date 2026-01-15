@@ -53,6 +53,13 @@
 /// @file krestroute.h
 /// Primitives for REST routing
 
+#if DEKAF2_IS_WINDOWS
+	// see khttp_method.h
+	#ifdef DELETE
+		#undef DELETE
+	#endif
+#endif
+
 DEKAF2_NAMESPACE_BEGIN
 
 class KRESTServer;

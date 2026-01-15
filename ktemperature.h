@@ -78,11 +78,13 @@ public:
 	/// get the temperature representation as a double
 	constexpr double   Double           () const { return get();                 }
 	/// get the temperature representation rounded to an int
-	constexpr int      Int              () const { return std::lround(Double()); }
+	DEKAF2_CONSTEXPR_23
+	          int      Int              () const { return std::lround(Double()); }
 	/// get the temperature representation as a double
 	constexpr explicit operator double  () const { return Double();              }
 	/// get the temperature representation rounded to an int
-	constexpr explicit operator int     () const { return Int();                 }
+	DEKAF2_CONSTEXPR_23
+	          explicit operator int     () const { return Int();                 }
 
 	/// get the accepted deviation for two values being compared equal
 	static constexpr value_type Epsilon ()       { return 1e-9;                  }

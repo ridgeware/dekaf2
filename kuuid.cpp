@@ -40,8 +40,6 @@
 
 #include "kuuid.h"
 
-#undef DEKAF2_HAS_LIBUUID
-
 #if DEKAF2_HAS_LIBUUID
 
 	#include <uuid/uuid.h>

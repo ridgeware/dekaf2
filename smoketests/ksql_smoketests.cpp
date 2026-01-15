@@ -54,8 +54,6 @@ enum {
 	MAXLEN_REQBUFFER  = 5000
 };
 
-typedef const char* LPCTSTR;
-
 int64_t DumpRows (KSQL& db);
 
 KStringViewZ g_sDbcFile;

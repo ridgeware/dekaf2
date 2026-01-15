@@ -874,7 +874,7 @@ void KTunnel::TimerLoop()
 			{
 				auto now = KStopTime::now();
 
-				auto LastTx = now - Tunnel->LastTx.startedAt();
+				auto LastTx = now - Tunnel->LastTx.getStart();
 
 				if (LastTx >= chrono::milliseconds(500) && LastTx <= chrono::milliseconds(1600))
 				{

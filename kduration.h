@@ -70,7 +70,7 @@ class DEKAF2_PUBLIC KDuration : public chrono::nanoseconds
 public:
 //----------
 
-	using Duration  = chrono::nanoseconds;
+	using Duration = chrono::nanoseconds;
 
 	// chrono::duration is not default initialized - make sure it is 0
 	constexpr KDuration()                      noexcept : Duration(Duration::zero()) {}
@@ -263,7 +263,7 @@ class DEKAF2_PUBLIC KStopTime
 public:
 //----------
 
-	using Clock    = chrono::steady_clock;
+	using Clock = chrono::steady_clock;
 
 	/// static: return the current time of the used clock
 	static Clock::time_point now() { return Clock::now(); }
@@ -278,20 +278,23 @@ public:
 
 	/// returns start time (as a chrono::steady_clock)
 	DEKAF2_NODISCARD
-	Clock::time_point startedAt() const { return m_Start; }
+	Clock::time_point getStart() const { return m_Start; }
 	/// set start time to a specific time
+	/// @param tStart the new start time
 	void setStart(Clock::time_point tStart) { m_Start = tStart; }
-
-	/// resets start time to now
-	void clear() { m_Start = now(); }
+	/// resets start time
+	/// @param tNow the new start time, defaults to the current time
+	void clear(Clock::time_point tNow = now()) { setStart(tNow); }
 	/// returns elapsed time as KDuration
+	/// @param tNow the time now, defaults to the current time
 	DEKAF2_NODISCARD
-	KDuration elapsed(Clock::time_point tNow = now()) const { return tNow - startedAt(); }
+	KDuration elapsed(Clock::time_point tNow = now()) const { return tNow - getStart(); }
 	/// returns elapsed time and resets start time after readout
+	/// @param tNow the new start time, defaults to the current time
+	/// @returns the duration between the old and the new start time
 	DEKAF2_NODISCARD
-	KDuration elapsedAndClear()
+	KDuration elapsedAndClear(Clock::time_point tNow = now())
 	{
-		auto tNow      = now();
 		auto tDuration = elapsed(tNow);
 		     m_Start   = tNow;
 		return tDuration;

@@ -44,14 +44,10 @@
 /// provides support for UUIDs
 
 #include "kdefinitions.h"
-
-#if DEKAF2_HAS_LIBUUID || DEKAF2_IS_WINDOWS
-
 #include "kstringview.h"
 #include "kstring.h"
 #include <array>
 #include <ostream>
-
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -140,5 +136,3 @@ struct formatter<DEKAF2_PREFIX KUUID> : formatter<string_view>
 } // end of DEKAF2_FORMAT_NAMESPACE
 
 #endif // of has #include "kformat.h"
-
-#endif // DEKAF2_HAS_LIBUUID || DEKAF2_IS_WINDOWS

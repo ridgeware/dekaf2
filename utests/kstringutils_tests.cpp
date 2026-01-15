@@ -2065,9 +2065,9 @@ TEST_CASE("KStringUtils") {
 		KString s1 = kToStringView(Stop1);
 		CHECK ( s1.size() == sizeof(KStopTime) );
 		auto Stop2 = kFromStringView<KStopTime>(s1);
-		CHECK ( Stop1.startedAt() == Stop2.startedAt() );
+		CHECK ( Stop1.getStart() == Stop2.getStart() );
 		KStopTime Stop3;
 		kFromStringView(Stop3, s1);
-		CHECK ( Stop3.startedAt() == Stop1.startedAt() );
+		CHECK ( Stop3.getStart() == Stop1.getStart() );
 	}
 }

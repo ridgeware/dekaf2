@@ -654,7 +654,11 @@ KDuration::KDuration(KStringView sDuration)
 
 			case ParseUnit:
 			{
+#if DEKAF2_IS_WINDOWS
+				sUnit = KStringView(&*it, ie - it);
+#else
 				sUnit = KStringView(it, ie - it);
+#endif
 
 #if DEKAF2_KDURATION_HAS_KCTYPE
 				while (KASCII::kIsAlpha(*it) ||

@@ -2362,7 +2362,7 @@ bool kResizeFile (KStringViewZ sPath, std::size_t iNewSize)
 
 	std::error_code ec;
 
-	fs::create_hard_link(kToFilesystemPath(sPath), iNewSize, ec);
+	fs::resize_file(kToFilesystemPath(sPath), iNewSize, ec);
 
 	if (ec)
 	{

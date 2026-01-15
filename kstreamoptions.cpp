@@ -48,6 +48,7 @@
 	#include <netinet/tcp.h>
 #else
 	#include <Winsock2.h>
+	#include <ws2tcpip.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -227,7 +228,11 @@ KDuration kGetTCPKeepAliveInterval(int socket)
 	int iInt { 0 };
 	::socklen_t iSize { sizeof(iInt) };
 
+#if DEKAF2_IS_WINDOWS
+	if (-1 == ::getsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, reinterpret_cast<char*>(&iInt), &iSize) || !iSize)
+#else
 	if (-1 == ::getsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &iInt, &iSize) || !iSize)
+#endif
 	{
 		kDebug(1, "cannot get SO_KEEPALIVE from fd {}: {}", socket, strerror(errno));
 		return KDuration::zero();
@@ -247,7 +252,11 @@ KDuration kGetTCPKeepAliveInterval(int socket)
 	constexpr int iOption { TCP_KEEPIDLE };
 #endif
 
+#if DEKAF2_IS_WINDOWS
+	if (-1 == ::getsockopt(socket, IPPROTO_TCP, iOption, reinterpret_cast<char*>(&iInt), &iSize) || !iSize)
+#else
 	if (-1 == ::getsockopt(socket, IPPROTO_TCP, iOption, &iInt, &iSize) || !iSize)
+#endif
 	{
 		kDebug(1, "cannot get TCP_KEEPIDLE from fd {}: {}", socket, strerror(errno));
 		return KDuration::zero();
@@ -270,7 +279,11 @@ KDuration kGetLingerTimeout(int socket)
 	constexpr int iOption { SO_LINGER };
 #endif
 
+#ifdef DEKAF2_IS_WINDOWS
+	if (-1 == ::getsockopt(socket, SOL_SOCKET, iOption, reinterpret_cast<char*>(&linger), &iSize) || !iSize)
+#else
 	if (-1 == ::getsockopt(socket, SOL_SOCKET, iOption, &linger, &iSize) || !iSize)
+#endif
 	{
 		kDebug(1, "cannot get SO_LINGER from fd {}: {}", socket, strerror(errno));
 		return KDuration::zero();
@@ -292,7 +305,11 @@ bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepaliveInterval)
 	int iSeconds { static_cast<int>(tKeepaliveInterval.seconds().count()) };
 	int iOnOff   { iSeconds > 0 ? 1 : 0 };
 
+#ifdef DEKAF2_IS_WINDOWS
+	if (-1 == ::setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, reinterpret_cast<const char*>(&iOnOff), sizeof(iOnOff)))
+#else
 	if (-1 == ::setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &iOnOff, sizeof(iOnOff)))
+#endif
 	{
 		kDebug(1, "cannot set SO_KEEPALIVE to {} on fd {}: {}", iOnOff, socket, strerror(errno));
 		return false;
@@ -307,7 +324,11 @@ bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepaliveInterval)
 #endif
 
 		// set interval
+#ifdef DEKAF2_IS_WINDOWS
+		if (-1 == ::setsockopt(socket, IPPROTO_TCP, iOption, reinterpret_cast<const char*>(&iSeconds), sizeof(iSeconds)))
+#else
 		if (-1 == ::setsockopt(socket, IPPROTO_TCP, iOption, &iSeconds, sizeof(iSeconds)))
+#endif
 		{
 			kDebug(1, "cannot set TCP_KEEPIDLE to {} on fd {}: {}", iSeconds, socket, strerror(errno));
 			return false;
@@ -337,7 +358,11 @@ bool kSetLingerTimeout(int socket, KDuration tLingerTimeout)
 	constexpr int iOption { SO_LINGER };
 #endif
 
+#if DEKAF2_IS_WINDOWS
+	if (-1 == ::setsockopt(socket, SOL_SOCKET, iOption, reinterpret_cast<const char*>(&linger), sizeof(linger)))
+#else
 	if (-1 == ::setsockopt(socket, SOL_SOCKET, iOption, &linger, sizeof(linger)))
+#endif
 	{
 		kDebug(1, "cannot set SO_LINGER to {} with {}s on fd {}: {}", iOnOff, iSeconds, socket, strerror(errno));
 		return false;

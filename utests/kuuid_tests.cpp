@@ -16,11 +16,13 @@ TEST_CASE("KUUID")
 		KUUID uuid;
 		CHECK ( uuid.empty() == false );
 		CHECK ( uuid.ToString().size() == 36 );
+		CHECK ( uuid.ToString().MatchRegex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}") );
 //		CHECK ( uuid.ToString() == "" );
 
 		uuid = KUUID::Create(KUUID::MACTime);
 		CHECK ( uuid.empty() == false );
 		CHECK ( uuid.ToString().size() == 36 );
+		CHECK ( uuid.ToString().MatchRegex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}") );
 		CHECK ( uuid != KStringView("") );
 
 		uuid = KUUID::Create(KUUID::Null);

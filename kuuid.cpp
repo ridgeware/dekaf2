@@ -40,7 +40,7 @@
 
 #include "kuuid.h"
 
-#if DEKAF2_HAS_LIBUUID || DEKAF2_IS_WINDOWS
+#undef DEKAF2_HAS_LIBUUID
 
 #if DEKAF2_HAS_LIBUUID
 
@@ -50,6 +50,8 @@
 
 	#include <windows.h>
 	#include <rpcdce.h>
+
+namespace {
 
 inline
 unsigned char* FromUUID(UUID& uuid)
@@ -69,6 +71,14 @@ UUID* ToUUID(unsigned char* data)
 	return static_cast<UUID*>(static_cast<void*>(data));
 }
 
+} // end of anonymous namespace
+
+#else
+
+	#include "kstringutils.h"
+	#include "khex.h"
+	#include "ksystem.h"
+
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -81,15 +91,15 @@ KUUID::KUUID(Variant var)
 
 	switch (var)
 	{
-		case dekaf2::KUUID::Variant::Null:
+		case KUUID::Variant::Null:
 			clear();
 			break;
 
-		case dekaf2::KUUID::Variant::Random:
+		case KUUID::Variant::Random:
 			::uuid_generate_random(m_UUID.data());
 			break;
 
-		case dekaf2::KUUID::Variant::MACTime:
+		case KUUID::Variant::MACTime:
 			::uuid_generate_time(m_UUID.data());
 			break;
 	}
@@ -98,12 +108,41 @@ KUUID::KUUID(Variant var)
 
 	switch (var)
 	{
-		case dekaf2::KUUID::Variant::Null:
+		case KUUID::Variant::Null:
 			clear();
 			break;
 
 		default:
 			::UuidCreate(ToUUID(m_UUID.data()));
+			break;
+	}
+
+#else
+
+	switch (var)
+	{
+		case KUUID::Variant::Null:
+			clear();
+			break;
+
+		default:
+			{
+				// this generates a relatively weak random number,
+				// instead of 128 bits of randomness it only gives
+				// ~ 67 bits - but this is really only a last resort
+				// code, normally we use one of the real UUID
+				// generators
+				auto p = m_UUID.data();
+
+				for (uint16_t i = 0; i < 4; ++i)
+				{
+					uint32_t r = kRandom();
+					*p++ = r & 0xff;
+					*p++ = (r >>= 8) & 0xff;
+					*p++ = (r >>= 8) & 0xff;
+					*p++ = (r >>= 8) & 0xff;
+				}
+			}
 			break;
 	}
 
@@ -129,6 +168,49 @@ void KUUID::FromString(KStringView sUUID)
 		clear();
 	}
 
+#else
+
+	// a1ae410d-9bc7-478a-b2fa-1266927a1dd7
+	if (sUUID.size() != 36  ||
+	    sUUID[ 8]    != '-' ||
+	    sUUID[13]    != '-' ||
+	    sUUID[18]    != '-' ||
+	    sUUID[23]    != '-')
+	{
+		clear();
+	}
+	else
+	{
+		static constexpr std::array<unsigned char, 16> Digits {
+			 0,  2,  4,  6,
+			 9, 11,
+			14, 16,
+			19, 21,
+			24, 26, 28, 30, 32, 34
+		};
+
+		auto p = m_UUID.begin();
+
+		for (auto iPos : Digits)
+		{
+			int b1 = kFromHexChar(sUUID[iPos]);
+
+			if (b1 <= 15)
+			{
+				int b2 = kFromHexChar(sUUID[iPos+1]);
+
+				if (b2 <= 15)
+				{
+					*p++ = (b1 << 4) + b2;
+					continue;
+				}
+			}
+
+			clear();
+			break;
+		}
+	}
+
 #endif
 
 } // FromString
@@ -147,7 +229,7 @@ KString KUUID::ToString() const
 {
 #if DEKAF2_HAS_LIBUUID
 
-	dekaf2::KString sUUID(36, '\0');
+	KString sUUID(36, '\0');
 	::uuid_unparse_lower(m_UUID.data(), sUUID.data());
 	return sUUID;
 
@@ -162,6 +244,34 @@ KString KUUID::ToString() const
 	}
 
 	RpcStringFreeA(&uuid_str);
+
+	return sUUID;
+
+#else
+
+	KString sUUID;
+	sUUID.reserve(36);
+
+	auto* p = m_UUID.begin();
+
+	auto Put = [&sUUID, &p](uint16_t iCount)
+	{
+		if (!sUUID.empty())
+		{
+			sUUID += '-';
+		}
+
+		while (iCount--)
+		{
+			kHexAppend(sUUID, static_cast<char>(*p++));
+		}
+	};
+
+	Put(4);
+	Put(2);
+	Put(2);
+	Put(2);
+	Put(6);
 
 	return sUUID;
 
@@ -181,6 +291,10 @@ void KUUID::clear()
 
 	::UuidCreateNil(ToUUID(m_UUID.data()));
 
+#else
+
+	::memset(m_UUID.data(), 0, m_UUID.size());
+
 #endif
 
 } // clear
@@ -198,6 +312,18 @@ bool KUUID::empty() const
 	RPC_STATUS status;
 	return ::UuidIsNil(ToUUID(m_UUID.data()), &status);
 
+#else
+
+	for (auto ch : m_UUID)
+	{
+		if (ch != '\0')
+		{
+			return false;
+		}
+	}
+
+	return true;
+
 #endif
 }
 
@@ -214,9 +340,11 @@ bool KUUID::operator==(const KUUID& other) const
 	RPC_STATUS status;
 	return ::UuidEqual(ToUUID(m_UUID.data()), ToUUID(other.m_UUID.data()), &status);
 
+#else
+
+	return m_UUID == other.m_UUID;
+
 #endif
 }
 
 DEKAF2_NAMESPACE_END
-
-#endif // DEKAF2_HAS_LIBUUID || DEKAF2_IS_WINDOWS

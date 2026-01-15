@@ -47,6 +47,8 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
 constexpr char sxDigit[] = "0123456789ABCDEF";
 
 enum ETYPE : uint8_t
@@ -78,6 +80,27 @@ constexpr ETYPE sEncodeCodepoints[256] =
 	YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, // 0xE0
 	YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, YY, // 0xF0
 };
+
+//-----------------------------------------------------------------------------
+void FlushRaw(KString& out, uint16_t iDecode, KString::value_type LeadChar, KString::value_type ch = 'f')
+//-----------------------------------------------------------------------------
+{
+	out += '=';
+
+	if (iDecode == 1)
+	{
+		out += LeadChar;
+	}
+
+	// 'f' signals that the input starved, as 'f' is a valid xdigit
+	if (ch != 'f')
+	{
+		out += ch;
+	}
+
+} // FlushRaw
+
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 KString KQuotedPrintable::Encode(KStringView sInput, bool bForMailHeaders)
@@ -169,25 +192,6 @@ KString KQuotedPrintable::Encode(KStringView sInput, bool bForMailHeaders)
 	return out;
 
 } // Encode
-
-//-----------------------------------------------------------------------------
-void FlushRaw(KString& out, uint16_t iDecode, KString::value_type LeadChar, KString::value_type ch = 'f')
-//-----------------------------------------------------------------------------
-{
-	out += '=';
-
-	if (iDecode == 1)
-	{
-		out += LeadChar;
-	}
-
-	// 'f' signals that the input starved, as 'f' is a valid xdigit
-	if (ch != 'f')
-	{
-		out += ch;
-	}
-
-} // FlushRaw
 
 //-----------------------------------------------------------------------------
 KString KQuotedPrintable::Decode(KStringView sInput, bool bDotStuffing)

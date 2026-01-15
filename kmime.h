@@ -512,7 +512,7 @@ public:
 
 	/// sFilename is loaded as data for this part. MIME type is automatically detected,
 	/// or can be set explicitly through the MIME parameter
-	template <typename KMime = KMIME, std::enable_if<std::is_same<KMIME, KMime>::value, int>::type = 0>
+	template <typename KMime = KMIME, typename std::enable_if<std::is_same<KMIME, KMime>::value, int>::type = 0>
 	KMIMEFile(KStringView sControlName, KStringViewZ sFilename, KMime MIME = KMIME::NONE) : KMIMEPart(std::move(MIME)) { File(sControlName, sFilename); }
 	/// set a KMIMEFile from sData, with sDispname and MIME MIME type
 	KMIMEFile(KStringView sControlName, KStringView sData, KStringView sDispname, KMIME MIME = KMIME::NONE);

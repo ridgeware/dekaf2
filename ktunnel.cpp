@@ -603,11 +603,13 @@ bool KTunnel::Connections::Remove(std::size_t iID)
 
 	if (it != Connections->end())
 	{
+		kDebug(3, "removing ID {}", iID);
 		Connections->erase(it);
 
 		return true;
 	}
 
+	kDebug(1, "could not find ID {}", iID);
 	return false;
 
 } // Connections::RemoveConnection
@@ -697,9 +699,11 @@ void KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& Connect
 
 	// we use a named lambda because we want compatibility with C++11, which needs
 	// a type for KScopeGuard..
-	auto namedLambdaGuard = [iID, DirectStream]() noexcept
+	auto namedLambdaGuard = [this, iID, DirectStream]() noexcept
 	{
 		kDebug(1, "[{}]: closed forward stream from {}", iID, DirectStream->GetEndPointAddress());
+		// and remove this tunnel connection from the list of connections
+		m_Connections.Remove(iID);
 	};
 
 	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);

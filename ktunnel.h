@@ -339,7 +339,7 @@ private:
 	{
 		std::unique_ptr<KIOStreamSocket> Stream;
 		KStopTime                        LastTx;
-		KStopTime::Clock::time_point     SendIdleNotBefore;
+		KSteadyTime                      SendIdleNotBefore;
 	};
 
 	Config                 m_Config;

@@ -254,8 +254,8 @@ KDuration kParseDuration(KStringView sDuration)
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Measure the time between two or more events, continuously
-class DEKAF2_PUBLIC KStopTime
+/// A steady clock to measure intervals without interference from clock adjustments
+class DEKAF2_PUBLIC KSteadyTime : public chrono::steady_clock::time_point
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -263,48 +263,118 @@ class DEKAF2_PUBLIC KStopTime
 public:
 //----------
 
-	using Clock = chrono::steady_clock;
+	using self       = KSteadyTime;
+	using clock      = chrono::steady_clock;
+	using base       = clock::time_point;
+	using time_point = clock::time_point;
+	using duration   = clock::duration;
 
-	/// static: return the current time of the used clock
-	static Clock::time_point now() { return Clock::now(); }
+	/// default ctor, initializes with epoch(0)
+	                             KSteadyTime() = default;
+	DEKAF2_CONSTEXPR_14          KSteadyTime(const base& other) noexcept : base(other) {}
+	DEKAF2_CONSTEXPR_14          KSteadyTime(base&& other)      noexcept : base(std::move(other)) {}
+
+	using base::base;
+
+	template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+	DEKAF2_FULL_CONSTEXPR_17 self& operator+=(const T& Duration) noexcept { base::operator += (Duration.template duration<duration>()); return *this; }
+	template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+	DEKAF2_FULL_CONSTEXPR_17 self& operator-=(const T& Duration) noexcept { base::operator -= (Duration.template duration<duration>()); return *this; }
+
+	using base::operator+=;
+	using base::operator-=;
+
+	/// static: returns a KSteadyTime with the current time
+	DEKAF2_NODISCARD    static KSteadyTime now()                             { return clock::now(); }
+	DEKAF2_NODISCARD
+	constexpr           static KSteadyTime min()                    noexcept { return base::min();  }
+	DEKAF2_NODISCARD
+	constexpr           static KSteadyTime max()                    noexcept { return base::max();  }
+
+//--------
+private:
+//--------
+
+	// we do not permit addition or subtraction of years and months
+	// - they will always lead to unexpected results
+	constexpr void operator+=(chrono::months) noexcept {}
+	constexpr void operator+=(chrono::years ) noexcept {}
+	constexpr void operator-=(chrono::months) noexcept {}
+	constexpr void operator-=(chrono::years ) noexcept {}
+
+}; // KSteadyTime
+
+DEKAF2_CONSTEXPR_14 KDuration operator-(const KSteadyTime& left, const KSteadyTime& right)
+{ return KSteadyTime::base(left) - KSteadyTime::base(right); }
+
+template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_14 KSteadyTime operator+(const KSteadyTime& left, const T& right)
+{ return KSteadyTime(left.time_since_epoch() + right.template duration<KSteadyTime::duration>()); }
+
+template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_14 KSteadyTime operator+(const T& left, const KSteadyTime& right)
+{ return right + left; }
+
+template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_14 KSteadyTime operator-(const KSteadyTime& left, const T& right)
+{ return KSteadyTime(left.time_since_epoch() - right.template duration<KSteadyTime::duration>()); }
+
+template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_14 KSteadyTime operator-(const T& left, const KSteadyTime& right)
+{ return right - left; }
+
+/// returns the KDuration until a certain point in time, from now on
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KDuration kUntil(KSteadyTime timepoint);
+
+/// returns the KDuration since a certain point in time, until now
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KDuration kSince(KSteadyTime timepoint);
+
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Measure the time between two or more events, continuously
+class DEKAF2_PUBLIC KStopTime : public KSteadyTime
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	using base = KSteadyTime;
 
 	/// tag to force construction without starting the timer
 	static struct ConstructHalted {} Halted;
 
 	/// constructs and starts counting
-	KStopTime(Clock::time_point tStart = now()) : m_Start(tStart) {}
+	KStopTime(time_point tStart = now()) : base(tStart) {}
 	/// constructs without starting - use clear() to start counting
 	explicit KStopTime(ConstructHalted) {}
 
-	/// returns start time (as a chrono::steady_clock)
+	/// returns start time (as a chrono::steady_clock::time_point)
 	DEKAF2_NODISCARD
-	Clock::time_point getStart() const { return m_Start; }
+	KSteadyTime getStart() const { return *this; }
 	/// set start time to a specific time
 	/// @param tStart the new start time
-	void setStart(Clock::time_point tStart) { m_Start = tStart; }
+	void setStart(KSteadyTime tStart) { *this = tStart; }
 	/// resets start time
 	/// @param tNow the new start time, defaults to the current time
-	void clear(Clock::time_point tNow = now()) { setStart(tNow); }
+	void clear(KSteadyTime tNow = now()) { setStart(tNow); }
 	/// returns elapsed time as KDuration
 	/// @param tNow the time now, defaults to the current time
 	DEKAF2_NODISCARD
-	KDuration elapsed(Clock::time_point tNow = now()) const { return tNow - getStart(); }
+	KDuration elapsed(KSteadyTime tNow = now()) const { return tNow - getStart(); }
 	/// returns elapsed time and resets start time after readout
 	/// @param tNow the new start time, defaults to the current time
 	/// @returns the duration between the old and the new start time
 	DEKAF2_NODISCARD
-	KDuration elapsedAndClear(Clock::time_point tNow = now())
+	KDuration elapsedAndClear(KSteadyTime tNow = now())
 	{
 		auto tDuration = elapsed(tNow);
-		     m_Start   = tNow;
+		setStart(tNow);
 		return tDuration;
 	}
-
-//----------
-protected:
-//----------
-
-	Clock::time_point m_Start;
 
 }; // KStopTime
 

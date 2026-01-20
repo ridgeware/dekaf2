@@ -401,11 +401,11 @@ void Dekaf::StartDefaultTimer()
 		}
 
 		// and start the timer that updates the time keepers
-		m_OneSecTimerID = m_Timer->CallEvery(
-											 std::chrono::seconds(1),
-											 [this](KUnixTime tp) {
-												 this->OneSecTimer(tp);
-											 }, false);
+		m_OneSecTimerID = m_Timer->CallEvery(std::chrono::seconds(1), [this](KUnixTime tp)
+		{
+			this->OneSecTimer(tp);
+		}
+		, false);
 	}
 }
 
@@ -465,15 +465,23 @@ void Dekaf::Daemonize()
 {
 #ifndef DEKAF2_IS_WINDOWS
 
-	// we need to stop the thread with the default timer, otherwise
-	// parent will not return
-	StopDefaultTimer();
+	bool bRestartTimer = (m_Timer != nullptr);
+
+	if (bRestartTimer)
+	{
+		// we need to stop the thread with the default timer, otherwise
+		// parent will not return
+		StopDefaultTimer();
+	}
 
 	// now try to become a daemon
 	detail::kDaemonize();
 
-	// and start the timer again
-	StartDefaultTimer();
+	if (bRestartTimer)
+	{
+		// and start the timer again
+		StartDefaultTimer();
+	}
 
 #else
 
@@ -495,9 +503,10 @@ pid_t Dekaf::Fork()
 
 	if (bRestartTimer)
 	{
-		// if we would not stop the timer it might just right now be in a locked
-		// state, which would block child timers forever
-		StopDefaultTimer();
+		// if we would not pause the timer in the parent process it might
+		// just right now be in a locked state, which would block child
+		// timers forever
+		m_Timer->Pause();
 	}
 
 	if ((pid = fork()))
@@ -506,10 +515,10 @@ pid_t Dekaf::Fork()
 
 		kDebug(2, "new pid: {}", pid);
 
-		// restart the timer if it had been running before
+		// resume the timer if it had been running before
 		if (bRestartTimer)
 		{
-			StartDefaultTimer();
+			m_Timer->Resume();
 		}
 
 		return pid;
@@ -521,13 +530,18 @@ pid_t Dekaf::Fork()
 	kBlockAllSignals();
 
 	// parent's timer thread is now out of scope,
-	// we have to start our own (and before we
-	// start the signal thread, because we want
-	// the timer to have an empty sigmask)
+	// we have to cleanup KTimer and start our own
+	// thread (and before we start the signal thread,
+	// because we want the timer to have an empty
+	// sigmask)
 	if (bRestartTimer)
 	{
-		m_Timer.reset(); // should be nullptr anyway
+		// remove the thread's carcass after the fork()
+		m_Timer->CleanupChildAfterFork();
+		// remove remaining memory for a child KTimer class
+		m_Timer.reset();
 		m_OneSecTimers.clear();
+		// now start a pristine KTimer in the child
 		StartDefaultTimer();
 	}
 

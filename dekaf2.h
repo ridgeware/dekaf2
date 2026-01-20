@@ -205,6 +205,9 @@ public:
 	/// Fork a dekaf2 application. We need to run this inside the Dekaf2 class
 	/// because we have to start threads like those for timer and signal again
 	/// after forking. Also, we need to reset some of Dekaf's member variables.
+	/// Because threads are not copied on fork(), but may have set (then abandoned)
+	/// mutexes, only ever Fork() when no other threads are started. This Fork() only
+	/// cares for dekaf2's own signal and timer threads.
 	/// @return returns the child pid to the parent, and 0 to the child. A negative
 	/// result is an error that should be retrieved with strerror(errno).
 	pid_t Fork();

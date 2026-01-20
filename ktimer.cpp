@@ -60,6 +60,8 @@ KTimer::~KTimer()
 {
 	// signal the thread to shutdown
 	*m_bShutdown = true;
+	// and release if paused
+	m_bPause = false;
 
 	// make sure we are not right in initialization of a new thread
 	std::lock_guard<std::mutex> Lock(m_ThreadCreationMutex);
@@ -304,6 +306,44 @@ private:
 } // end of anonymous namespace
 
 //---------------------------------------------------------------------------
+void KTimer::Pause()
+//---------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_ThreadCreationMutex);
+
+	m_bPause = true;
+
+	if (m_TimingThread)
+	{
+		do
+		{
+			std::this_thread::sleep_for(m_MaxIdle / 4);
+		}
+		while (!m_bIsPaused);
+	}
+	else
+	{
+		m_bIsPaused = true;
+	}
+
+} // Pause
+
+//---------------------------------------------------------------------------
+void KTimer::Resume()
+//---------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_ThreadCreationMutex);
+
+	m_bPause = false;
+
+	if (!m_TimingThread)
+	{
+		m_bIsPaused = false;
+	}
+
+} // Resume
+
+//---------------------------------------------------------------------------
 void KTimer::TimingLoop(KDuration MaxIdle)
 //---------------------------------------------------------------------------
 {
@@ -353,6 +393,19 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 		// enable logging in this thread, the global instance of
 		// KTimer is started long before any option parsing
 		KLog::SyncLevel();
+
+		if (m_bPause)
+		{
+			m_bIsPaused = true;
+
+			do
+			{
+				std::this_thread::sleep_for(chrono::milliseconds(100));
+			}
+			while (m_bPause);
+
+			m_bIsPaused = false;
+		}
 
 		if (*bShutdown || Dekaf::IsShutDown())
 		{

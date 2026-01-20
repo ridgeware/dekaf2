@@ -61,9 +61,11 @@ DEKAF2_NAMESPACE_BEGIN
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KTimer can be used to call functions both repeatedly after a fixed
 /// time interval or once after expiration of a time interval, or at
-/// a fixed time point. Granularity is low (1 second), it is intended for
-/// cleanup purposes or similar repetitive tasks, not high precision
-/// timing.
+/// a fixed time point. It can take up to one second (or, actually,
+/// the MaxIdle time given at construction) until a new timer is started,
+/// but from then on repeat intervals can be as short as needed, down
+/// to micro- (MacOS) or nanoseconds (Linux).
+/// KTimer does not start a timing thread until a timer is started.
 class DEKAF2_PUBLIC KTimer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -107,6 +109,17 @@ public:
 
 	//---------------------------------------------------------------------------
 	KTimer& operator=(KTimer&&) = delete;
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// forces the main timing thread to pause before next round of execution, waits for Resume().
+	/// Pause() will not return before the timing thread has paused.
+	void Pause();
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	/// if the main timing thread had been paused it will now resume
+	void Resume();
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -273,6 +286,15 @@ public:
 		m_bDestructWithJoin = true;
 	}
 
+	//---------------------------------------------------------------------------
+	/// only call this directly after a fork() in the child instance, to make sure the rest of the class
+	/// understands there is no thread running anymore..
+	void CleanupChildAfterFork()
+	//---------------------------------------------------------------------------
+	{
+		m_TimingThread.reset();
+	}
+
 //----------
 private:
 //----------
@@ -357,6 +379,8 @@ private:
 	std::shared_ptr<std::atomic<bool>> m_bShutdown;
 	KDuration                          m_MaxIdle;
 	bool                               m_bDestructWithJoin { false };
+	std::atomic<bool>                  m_bPause { false };
+	std::atomic<bool>                  m_bIsPaused {false };
 
 	using map_t = std::unordered_map<ID_t, Timer>;
 	KThreadSafe<map_t>                 m_Timers;

@@ -259,6 +259,10 @@
 	#define DEKAF2_HAS_CPP_23 1
 #endif
 
+#if (__cplusplus > 202302L)
+	#define DEKAF2_HAS_CPP_26 1
+#endif
+
 #ifdef DEKAF2_HAS_CPP_14
 	#define DEKAF2_CONSTEXPR_14 constexpr
 #else

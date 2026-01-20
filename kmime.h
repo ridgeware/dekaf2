@@ -200,6 +200,7 @@ public:
 	static constexpr KStringViewZ BR                     = "application/brotli";
 	static constexpr KStringViewZ JSON                   = "application/json";
 	static constexpr KStringViewZ JSON_PATCH             = "application/json-patch+json";
+	static constexpr KStringViewZ JLIFF                  = "application/x-xliff+json"; // made up for dekaf2
 	static constexpr KStringViewZ XML                    = "application/xml";
 	static constexpr KStringViewZ SWF                    = "application/x-shockwave-flash";
 	static constexpr KStringViewZ WWW_FORM_URLENCODED    = "application/x-www-form-urlencoded";
@@ -226,6 +227,8 @@ public:
 	static constexpr KStringViewZ VSD                    = "application/vnd.visio";
 	static constexpr KStringViewZ WASM                   = "application/wasm";
 	static constexpr KStringViewZ XHTML                  = "application/xhtml+xml";
+	static constexpr KStringViewZ XLIFF12                = "application/x-xliff+xml";
+	static constexpr KStringViewZ XLIFF2                 = "application/xliff+xml";
 	static constexpr KStringViewZ XLS                    = "application/vnd.ms-excel";
 	static constexpr KStringViewZ XLSX                   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	static constexpr KStringViewZ ZIP                    = "application/zip";

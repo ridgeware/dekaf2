@@ -395,11 +395,6 @@ void Dekaf::StartDefaultTimer()
 		// create a KTimer
 		m_Timer = std::make_unique<KTimer>();
 
-		if (!m_Timer)
-		{
-			kCrashExit();
-		}
-
 		// and start the timer that updates the time keepers
 		m_OneSecTimerID = m_Timer->CallEvery(std::chrono::seconds(1), [this](KUnixTime tp)
 		{

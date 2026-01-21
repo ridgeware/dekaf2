@@ -289,11 +289,8 @@ public:
 	//---------------------------------------------------------------------------
 	/// only call this directly after a fork() in the child instance, to make sure the rest of the class
 	/// understands there is no thread running anymore..
-	void CleanupChildAfterFork()
+	void CleanupChildAfterFork();
 	//---------------------------------------------------------------------------
-	{
-		m_TimingThread.reset();
-	}
 
 //----------
 private:
@@ -374,16 +371,15 @@ private:
 		enum Flags    Flags    { None              };
 	};
 
-	std::mutex                         m_ThreadCreationMutex;
-	std::shared_ptr<std::thread>       m_TimingThread;
-	std::shared_ptr<std::atomic<bool>> m_bShutdown;
 	KDuration                          m_MaxIdle;
+	std::mutex                         m_ThreadCreationMutex;
+	std::unique_ptr<std::thread>       m_TimingThread;
+	bool                               m_bShutdown         { false };
+	bool                               m_bPause            { false };
+	bool                               m_bIsPaused         { false };
 	bool                               m_bDestructWithJoin { false };
-	std::atomic<bool>                  m_bPause { false };
-	std::atomic<bool>                  m_bIsPaused {false };
 
-	using map_t = std::unordered_map<ID_t, Timer>;
-	KThreadSafe<map_t>                 m_Timers;
+	KThreadSafe<std::unordered_map<ID_t, Timer>> m_Timers;
 
 }; // KTimer
 

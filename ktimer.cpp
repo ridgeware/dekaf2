@@ -49,8 +49,8 @@ DEKAF2_NAMESPACE_BEGIN
 //---------------------------------------------------------------------------
 KTimer::KTimer(KDuration MaxIdle)
 //---------------------------------------------------------------------------
-: m_bShutdown(std::make_shared<std::atomic<bool>>(false))
-, m_MaxIdle(MaxIdle)
+: m_MaxIdle(MaxIdle)
+, m_bShutdown(false)
 {
 } // ctor
 
@@ -58,31 +58,45 @@ KTimer::KTimer(KDuration MaxIdle)
 KTimer::~KTimer()
 //---------------------------------------------------------------------------
 {
-	// signal the thread to shutdown
-	*m_bShutdown = true;
-	// and release if paused
-	m_bPause = false;
-
-	// make sure we are not right in initialization of a new thread
-	std::lock_guard<std::mutex> Lock(m_ThreadCreationMutex);
-
-	if (m_TimingThread)
+	// if m_bShutdown is already true CleanupChildAfterFork() had been called,
+	// and this is already a dead instance
+	if (!m_bShutdown)
 	{
-		if (!m_bDestructWithJoin)
+		// signal the thread to shutdown
+		m_bShutdown = true;
+		// and release if paused
+		m_bPause = false;
+
+		// make sure we are not right in initialization of a new thread
+		std::lock_guard<std::mutex> Lock(m_ThreadCreationMutex);
+
+		if (m_TimingThread)
 		{
-			// detach the thread, we do not want to wait until it has joined
-			m_TimingThread->detach();
-			kDebug(2, "detached timer thread");
-		}
-		else
-		{
-			// wait until thread has finished
-			m_TimingThread->join();
-			kDebug(2, "joined timer thread");
+			if (!m_bDestructWithJoin)
+			{
+				// detach the thread, we do not want to wait until it has joined
+				m_TimingThread->detach();
+				kDebug(2, "detached timer thread");
+			}
+			else
+			{
+				// wait until thread has finished
+				m_TimingThread->join();
+				kDebug(2, "joined timer thread");
+			}
 		}
 	}
 
 } // dtor
+
+//---------------------------------------------------------------------------
+void KTimer::CleanupChildAfterFork()
+//---------------------------------------------------------------------------
+{
+	m_bShutdown = true;
+	memset(&m_TimingThread, 0, sizeof(m_TimingThread));
+
+} // CleanupChildAfterFork
 
 //---------------------------------------------------------------------------
 KTimer::ID_t KTimer::AddTimer(Timer timer)
@@ -114,7 +128,7 @@ KTimer::ID_t KTimer::AddTimer(Timer timer)
 
 	if (!m_TimingThread)
 	{
-		m_TimingThread = std::make_shared<std::thread>(&KTimer::TimingLoop, this, m_MaxIdle);
+		m_TimingThread = std::make_unique<std::thread>(&KTimer::TimingLoop, this, m_MaxIdle);
 	}
 
 	return ID;
@@ -351,17 +365,9 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 	// the signal handler thread had not been started at init of dekaf2)
 	kBlockAllSignals();
 
-	// create a copy of the class variable, as this is a shared_ptr,
-	// both instances will point to the same bool
-	auto bShutdown(m_bShutdown);
-
 	// return immediately if this thread was created after the instance
 	// was shutdown
-	if (*bShutdown) return;
-
-	// and copy this thread's shared ptr as well, to keep us alive
-	// even after KTimer goes away
-	auto MySelf(m_TimingThread);
+	if (m_bShutdown) return;
 
 	kDebug(2, "new timer thread started with max idle {}", MaxIdle);
 
@@ -407,7 +413,7 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 			m_bIsPaused = false;
 		}
 
-		if (*bShutdown || Dekaf::IsShutDown())
+		if (m_bShutdown || Dekaf::IsShutDown())
 		{
 			// exit this thread.. parent class is gone
 			return;
@@ -460,7 +466,7 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 
 		} // end of scope for unique lock
 
-		if (*bShutdown) return;
+		if (m_bShutdown) return;
 
 		// now call all due callbacks
 		for (auto& Due : DueCallbacks)

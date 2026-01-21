@@ -17,6 +17,7 @@ TEST_CASE("KTimer")
 		std::size_t iCalled = 0;
 
 		KTimer Timer(chrono::milliseconds(50));
+		Timer.DestructWithJoin();
 
 		auto ID = Timer.CallEvery(chrono::milliseconds(50), [&](KUnixTime tp)
 		{

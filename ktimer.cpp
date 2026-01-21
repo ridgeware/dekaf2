@@ -94,7 +94,9 @@ void KTimer::CleanupChildAfterFork()
 //---------------------------------------------------------------------------
 {
 	m_bShutdown = true;
-	memset(&m_TimingThread, 0, sizeof(m_TimingThread));
+	// clear the unique_ptr with the thread - the thread doesn't exist anymore,
+	// and there is no way to cleanly destroy it
+	memset(reinterpret_cast<void*>(&m_TimingThread), 0, sizeof(m_TimingThread));
 
 } // CleanupChildAfterFork
 

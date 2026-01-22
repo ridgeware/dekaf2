@@ -1310,7 +1310,11 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		else
 		{
 			// no, we have no UTF8
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+			for (; reinterpret_cast<const char*>(&*pair.first) != reinterpret_cast<const char*>(&*pair.second); ++pair.first)
+#else
 			for (; pair.first != pair.second; ++pair.first)
+#endif
 			{
 				auto it = pair.first;
 

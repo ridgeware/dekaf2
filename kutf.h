@@ -1972,13 +1972,13 @@ bool ForEach(Iterator it, Iterator ie, Functor func)
 		for (; it != ie; )
 		{
 			constexpr std::size_t ChunkSize = 1000;
-#if !DEKAF2_IS_WINDOWS
-			auto ie2 = std::min(ie, it + ChunkSize);
-#else
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
 			auto ie2 = ie;
 			--ie2;
 			if (&*it + ChunkSize <= &*ie2) ie2 = it + ChunkSize;
 			else ++ie2;
+#else
+			auto ie2 = std::min(ie, it + ChunkSize);
 #endif
 			Sync(ie2, ie);
 
@@ -2067,7 +2067,14 @@ bool Transform(Iterator it, Iterator ie, OutType& Output, Functor func)
 		{
 			constexpr std::size_t ChunkSize = 1000;
 
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+			auto ie2 = ie;
+			--ie2;
+			if (&*it + ChunkSize <= &*ie2) ie2 = it + ChunkSize;
+			else ++ie2;
+#else
 			auto ie2 = std::min(ie, it + ChunkSize);
+#endif
 
 			Sync(ie2, ie);
 

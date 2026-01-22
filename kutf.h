@@ -1082,6 +1082,9 @@ Iterator InvalidASCII(Iterator it, Iterator ie)
 
 #if KUTF_WITH_SIMDUTF
 
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+	if (it == ie) return ie;
+#endif
 	const void* buf = &*it;
 	auto res = simd::validate_ascii_with_errors(static_cast<const char*>(buf), std::distance(it, ie));
 	return (res.error == simd::SUCCESS) ? ie : it + res.count;
@@ -1169,6 +1172,9 @@ Iterator Invalid(Iterator it, Iterator ie)
 
 	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+	if (it == ie) return ie;
+#endif
 	const void* buf = &*it;
 
 	switch (iInputWidth)
@@ -1217,6 +1223,9 @@ bool Valid(Iterator it, Iterator ie)
 
 	constexpr auto iInputWidth = sizeof(typename std::remove_reference<decltype(*it)>::type);
 
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+	if (it == ie) return true;
+#endif
 	const void* buf = &*it;
 
 	switch (iInputWidth)
@@ -1487,6 +1496,9 @@ std::size_t Count(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(
 				ie = it + iMaxCount;
 				Sync(ie, ie + 1);
 			}
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+			if (it == ie) return 0;
+#endif
 			const void* buf = &*it;
 			return simd::count_utf16(static_cast<const char16_t*>(buf), std::distance(it, ie));
 		}
@@ -1498,6 +1510,9 @@ std::size_t Count(Iterator it, Iterator ie, std::size_t iMaxCount = std::size_t(
 				ie = it + iMaxCount * 4;
 				Sync(ie, ie + 4);
 			}
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+			if (it == ie) return 0;
+#endif
 			const void* buf = &*it;
 			return simd::count_utf8(static_cast<const char*>(buf), std::distance(it, ie));
 		}
@@ -1957,8 +1972,14 @@ bool ForEach(Iterator it, Iterator ie, Functor func)
 		for (; it != ie; )
 		{
 			constexpr std::size_t ChunkSize = 1000;
-
+#if !DEKAF2_IS_WINDOWS
 			auto ie2 = std::min(ie, it + ChunkSize);
+#else
+			auto ie2 = ie;
+			--ie2;
+			if (&*it + ChunkSize <= &*ie2) ie2 = it + ChunkSize;
+			else ++ie2;
+#endif
 			Sync(ie2, ie);
 
 			if (!Convert(it, ie2, sTemp)) return false;

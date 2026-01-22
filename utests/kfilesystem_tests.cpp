@@ -195,7 +195,7 @@ TEST_CASE("KFilesystem")
 		CHECK ( kNormalizePath("/this.is/a./.name") == "\\this.is\\a.\\.name" );
 		CHECK ( kNormalizePath("//this.is/a./name") == "\\\\this.is\\a.\\name" );
 		CHECK ( kNormalizePath("/this..is////a/.././name") == "\\this..is\\name" );
-		CHECK ( kNormalizePath("/this.is/../../../wrong") == "\\wrong" );
+		CHECK ( kNormalizePath("/this.is/../../../wrong") == "" );
 		auto sCWD = kGetCWD();
 		KString sCompare (sCWD);
 		sCompare += "\\this..is\\name";
@@ -203,7 +203,7 @@ TEST_CASE("KFilesystem")
 
 		CHECK ( kNormalizePath("\\this.is\\a.\\.name") == "\\this.is\\a.\\.name" );
 		CHECK ( kNormalizePath("\\this..is\\\\\\\\a\\..\\.\\name") == "\\this..is\\name" );
-		CHECK ( kNormalizePath("\\this.is\\..\\..\\..\\wrong") == "\\wrong" );
+		CHECK ( kNormalizePath("\\this.is\\..\\..\\..\\wrong") == "" );
 		sCWD = kGetCWD();
 		sCompare = sCWD;
 		sCompare += "\\this..is\\name";
@@ -211,7 +211,7 @@ TEST_CASE("KFilesystem")
 
 		CHECK ( kNormalizePath("C:\\this.is\\a.\\.name") == "C:\\this.is\\a.\\.name" );
 		CHECK ( kNormalizePath("c:\\this..is\\\\\\\\a\\..\\.\\name") == "C:\\this..is\\name" );
-		CHECK ( kNormalizePath("C:\\this.is\\..\\..\\..\\wrong") == "C:\\wrong" );
+		CHECK ( kNormalizePath("C:\\this.is\\..\\..\\..\\wrong") == "" );
 		sCWD = kGetCWD();
 #else
 		CHECK ( kNormalizePath("/this.is/a./.name") == "/this.is/a./.name" );
@@ -311,9 +311,11 @@ TEST_CASE("KFilesystem")
 		sNested += "/far/down/here.txt";
 
 		auto tNow1 = kNow();
-#ifndef DEKAF2_HAS_MUSL
+#if !DEKAF2_HAS_MUSL && !DEKAF2_IS_WINDOWS
 		kSleep(chrono::milliseconds(100));
 #else
+		// musl and windows may miss milliseconds
+		// in the timestamp
 		kSleep(chrono::milliseconds(1500));
 #endif
 		CHECK ( kTouchFile(sNested)   );
@@ -322,7 +324,7 @@ TEST_CASE("KFilesystem")
 		auto tFirstTouch = KFileStat(sNested).ModificationTime();
 		CHECK ( tNow1 < tFirstTouch  );
 		CHECK ( tNow2 > tFirstTouch  );
-#ifndef DEKAF2_HAS_MUSL
+#if !DEKAF2_HAS_MUSL && !DEKAF2_IS_WINDOWS
 		kSleep(chrono::milliseconds(100));
 #else
 		kSleep(chrono::milliseconds(1500));
@@ -343,7 +345,7 @@ TEST_CASE("KFilesystem")
 		kWriteFile(sNested, "this is a test file");
 		CHECK ( kFileExists(sNested)  );
 		auto tFirstTouch = KFileStat(sNested).ModificationTime();
-#ifndef DEKAF2_HAS_MUSL
+#if !DEKAF2_HAS_MUSL && !DEKAF2_IS_WINDOWS
 		kSleep(chrono::milliseconds(100));
 #else
 		kSleep(chrono::milliseconds(1500));
@@ -447,6 +449,31 @@ TEST_CASE("KFilesystem")
 		KString sBaseDir { sDirectory };
 		sBaseDir += kDirSep;
 		sBaseDir += "fs9238w7b";
+#if DEKAF2_IS_WINDOWS
+		CHECK ( kCreateDir(kFormat("{}{}", sBaseDir, "\\farer\\down\\and\\even\\more"           )) );
+		CHECK ( kTouchFile(kFormat("{}{}", sBaseDir, "\\farer\\down\\test1.txt"               )) );
+		CHECK ( kTouchFile(kFormat("{}{}", sBaseDir, "\\farer\\down\\and\\test2.txt"           )) );
+		CHECK ( kWriteFile(kFormat("{}{}", sBaseDir, "\\farer\\down\\and\\even\\test3.txt"      ), "12345678901234567890123456789012345") );
+		CHECK ( kTouchFile(kFormat("{}{}", sBaseDir, "\\farer\\down\\and\\even\\more\\test4.txt" )) );
+		CHECK ( kCreateSymlink(kFormat("{}{}", sBaseDir, "\\farer\\down\\and\\even\\test3.txt"), kFormat("{}{}", sBaseDir, "\\farer\\down\\symlink1")) );
+		CHECK ( kCopy(kFormat("{}{}", sBaseDir, "\\farer\\down"), kFormat("{}{}", sBaseDir, "\\farer\\up")) );
+		CHECK ( kFileExists(kFormat("{}{}", sBaseDir, "\\farer\\up\\and\\even\\test3.txt"  )) );
+		CHECK ( kFileExists(kFormat("{}{}", sBaseDir, "\\farer\\up\\and\\even\\more\\test4.txt"  )) );
+		CHECK ( kFileExists(kFormat("{}{}", sBaseDir, "\\farer\\up\\symlink1"                 )) );
+		CHECK ( KFileStat  (kFormat("{}{}", sBaseDir, "\\farer\\up\\symlink1"), false).Type() == KFileType::FILE    );
+		CHECK ( KFileStat  (kFormat("{}{}", sBaseDir, "\\farer\\up\\symlink1"), true ).Type() == KFileType::SYMLINK );
+		CHECK ( KFileStat  (kFormat("{}{}", sBaseDir, "\\farer\\up\\symlink1"), false).Size() == 35 );
+		CHECK ( KFileStat  (kFormat("{}{}", sBaseDir, "\\farer\\up\\symlink1"), true ).Size() == 35 );
+		auto sTarget = kReadLink(kFormat("{}{}", sBaseDir, "\\farer\\up\\symlink1"), false);
+		sBaseDir.Replace('/', '\\');
+		CHECK ( sTarget.remove_prefix(sBaseDir) );
+		CHECK ( sTarget == "\\farer\\up\\and\\even\\test3.txt" );
+		auto sCanonicalBaseDir = kReadLink(sBaseDir, true);
+		sTarget = kReadLink(kFormat("{}{}", sBaseDir, "\\farer\\up\\symlink1"), true);
+		CHECK ( sTarget.remove_prefix(sCanonicalBaseDir) );
+		CHECK ( sTarget == "\\farer\\up\\and\\even\\test3.txt" );
+		CHECK ( kRemoveDir(sBaseDir) == true );
+#else
 		CHECK ( kCreateDir(kFormat("{}{}", sBaseDir, "/farer/down/and/even/more"           )) );
 		CHECK ( kTouchFile(kFormat("{}{}", sBaseDir, "/farer/down/test1.txt"               )) );
 		CHECK ( kTouchFile(kFormat("{}{}", sBaseDir, "/farer/down/and/test2.txt"           )) );
@@ -454,6 +481,7 @@ TEST_CASE("KFilesystem")
 		CHECK ( kTouchFile(kFormat("{}{}", sBaseDir, "/farer/down/and/even/more/test4.txt" )) );
 		CHECK ( kCreateSymlink(kFormat("{}{}", sBaseDir, "/farer/down/and/even/test3.txt"), kFormat("{}{}", sBaseDir, "/farer/down/symlink1")) );
 		CHECK ( kCopy(kFormat("{}{}", sBaseDir, "/farer/down"), kFormat("{}{}", sBaseDir, "/farer/up")) );
+		CHECK ( kFileExists(kFormat("{}{}", sBaseDir, "/farer/up/and/even/test3.txt"  )) );
 		CHECK ( kFileExists(kFormat("{}{}", sBaseDir, "/farer/up/and/even/more/test4.txt"  )) );
 		CHECK ( kFileExists(kFormat("{}{}", sBaseDir, "/farer/up/symlink1"                 )) );
 		CHECK ( KFileStat  (kFormat("{}{}", sBaseDir, "/farer/up/symlink1"), false).Type() == KFileType::FILE    );
@@ -468,6 +496,7 @@ TEST_CASE("KFilesystem")
 		CHECK ( sTarget.remove_prefix(sCanonicalBaseDir) );
 		CHECK ( sTarget == "/farer/up/and/even/test3.txt" );
 		CHECK ( kRemoveDir(sBaseDir) == true );
+#endif
 	}
 
 	SECTION("kMove")

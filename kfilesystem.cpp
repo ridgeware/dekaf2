@@ -521,6 +521,9 @@ public:
 			m_sNewBaseDir = sNewPath;
 #ifdef DEKAF2_IS_WINDOWS
 			while (m_sOldBaseDir.size() > 1 && (m_sOldBaseDir.back() == kDirSep || m_sOldBaseDir.back() == '/')) m_sOldBaseDir.remove_suffix(1);
+			// make sure the old base dir is entirely in windows dirsep notation - we try to remove it
+			// from a normalized windows path below for copied symlinks
+			m_sOldBaseDir.Replace('/', '\\', true);
 			while (m_sNewBaseDir.size() > 1 && (m_sNewBaseDir.back() == kDirSep || m_sNewBaseDir.back() == '/')) m_sNewBaseDir.remove_suffix(1);
 #else
 			while (m_sOldBaseDir.size() > 1 && m_sOldBaseDir.back() == kDirSep) m_sOldBaseDir.remove_suffix(1);
@@ -692,7 +695,11 @@ private:
 
 	} // Copy
 
+#if DEKAF2_IS_WINDOWS
+	KString      m_sOldBaseDir;
+#else
 	KStringView  m_sOldBaseDir;
+#endif
 	KStringView  m_sNewBaseDir;
 	std::vector<std::pair<KString, KString>> m_PendingSymLinks;
 	KCopyOptions m_Options;

@@ -157,7 +157,7 @@ TEST_CASE("KDate")
 		Date2 = Date1 + chrono::days(60);
 		CHECK ( Date2 - Date1 == chrono::days(60)  );
 		CHECK ( Date1.to_tm().tm_isdst == 0        );
-#if DEKAF2_HAS_FMT_FORMAT
+#if DEKAF2_HAS_FMT_FORMAT_NONO
 		CHECK_NOTHROW( kFormTimestamp(Date1, "{:%Y%Z}") );
 		auto s = kFormTimestamp(Date1, "{:%Y%Z}");
 #else

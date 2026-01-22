@@ -157,8 +157,13 @@ KStringView GetRootDomain (KStringView sHostName)
 	auto pair = SplitAndIndexDomain(sHostName);
 
 	if (pair.iIndex == 0 && pair.Domains.size() == 1 && !pair.Domains[0].empty()) return sHostName;
-	
+#if !DEKAF2_IS_WINDOWS
 	return (pair.bValid) ? KStringView(pair.Domains[pair.iIndex].data(), sHostName.end() - pair.Domains[pair.iIndex].begin()) : KStringView{};
+#else
+	auto ie = sHostName.end();
+	--ie;
+	return (pair.bValid) ? KStringView(pair.Domains[pair.iIndex].data(), 1 + reinterpret_cast<const char*>(&*ie)) - reinterpret_cast<const char*>(&*pair.Domains[pair.iIndex].begin())) : KStringView{};
+#endif
 
 } // GetRootDomain
 

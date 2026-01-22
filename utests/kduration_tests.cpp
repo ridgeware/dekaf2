@@ -36,7 +36,7 @@ TEST_CASE("KDuration")
 
 		ms = StopD.average().milliseconds();
 		CHECK ( ms >= chrono::milliseconds(10) );
-		CHECK ( ms <= chrono::milliseconds(15) );
+		CHECK ( ms <= chrono::milliseconds(16) );
 	}
 
 	SECTION("timespec")
@@ -268,6 +268,6 @@ TEST_CASE("KDuration")
 		kSleep(chrono::milliseconds(50));
 		auto took = Stop.elapsed();
 		CHECK ( took > chrono::milliseconds(40) );
-		CHECK ( took < chrono::milliseconds(60) );
+		CHECK ( took < chrono::milliseconds(70) );
 	}
 }

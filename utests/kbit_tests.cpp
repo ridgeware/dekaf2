@@ -11,7 +11,7 @@ TEST_CASE("KBit")
 	{
 		uint64_t a = 0x0102030405060708;
 		auto b = kByteSwap(a);
-#if DEKAF2_BITS < 64
+#if DEKAF2_BITS < 64 || DEKAF2_IS_WINDOWS
 		// circumvent a problem in catch
 		CHECK ( (b == 0x0807060504030201) );
 #else

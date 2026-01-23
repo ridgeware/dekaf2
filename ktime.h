@@ -231,7 +231,7 @@ public:
 	DEKAF2_CONSTEXPR_14 std::tm     to_tm     ()              const noexcept { return to_tm(*this);                                          }
 	/// converts to std::chrono::sys_time
 	DEKAF2_NODISCARD
-	DEKAF2_CONSTEXPR_14 chrono::sys_time<duration>to_sys_time() const noexcept { return *this;                                               }
+	DEKAF2_CONSTEXPR_14 chrono::sys_time<duration> to_sys_time() const noexcept { return *this;                                              }
 	/// converts to string
 	DEKAF2_NODISCARD    KString     to_string (KFormatString<const KUnixTime&> sFormat) const noexcept;
 	DEKAF2_NODISCARD    KString     to_string () const noexcept;
@@ -1218,6 +1218,26 @@ DEKAF2_CONSTEXPR_14 bool TimeFormatStringIsOK(const String& sFormat)
 DEKAF2_NODISCARD DEKAF2_PUBLIC 
 KString BuildTimeFormatString(KStringView sFormat);
 
+DEKAF2_NODISCARD
+DEKAF2_CONSTEXPR_14 bool TimeIsValid(const struct tm& time)
+{
+	// we have to test the same ranges as fmt does in debug mode
+	return (time.tm_sec  >=  0 && time.tm_sec  <=  61 &&
+	        time.tm_min  >=  0 && time.tm_min  <=  59 &&
+	        time.tm_hour >=  0 && time.tm_hour <=  23 &&
+	        time.tm_mday >=  1 && time.tm_mday <=  31 &&
+	        time.tm_mon  >=  0 && time.tm_mon  <=  11 &&
+	        time.tm_wday >=  0 && time.tm_wday <=   6 &&
+	        time.tm_yday >=  0 && time.tm_yday <= 365);
+}
+
+template<typename DateTime>
+DEKAF2_NODISCARD
+DEKAF2_CONSTEXPR_14 bool TimeIsValid(const DateTime& time)
+{
+	return time.ok();
+}
+
 // set default format string if empty
 template<typename DateTime,
 	// defer old time_t type uses
@@ -1361,7 +1381,9 @@ template<typename DateTime = detail::ForFormat>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
                   KString kFormTimestamp          (const DateTime& time = DateTime::now(), KFormatString<const DateTime&> sFormat = "")
 {
-//	return kFormat(sFormat, time);
+#ifndef NDEBUG
+	if (!detail::TimeIsValid(time)) return "";
+#endif
 	return detail::FormTimestamp(time, sFormat);
 }
 
@@ -1374,6 +1396,9 @@ template<typename DateTime = detail::ForFormat>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
                    KString kFormTimestamp          (const std::locale& locale, const DateTime& time = DateTime::now(), KFormatString<const DateTime&> sFormat = "")
 {
+#ifndef NDEBUG
+	if (!detail::TimeIsValid(time)) return "";
+#endif
 	return detail::FormTimestamp(locale, time, sFormat);
 }
 
@@ -1382,8 +1407,11 @@ DEKAF2_NODISCARD DEKAF2_PUBLIC
 /// @return the timestamp string
 template<typename DateTime = detail::ForFormat>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline             KString kFormHTTPTimestamp      (const DateTime& time = DateTime::now())     
+                   KString kFormHTTPTimestamp      (const DateTime& time = DateTime::now())
 {
+#ifndef NDEBUG
+	if (!detail::TimeIsValid(time)) return "";
+#endif
 	return detail::FormWebTimestamp(time, "GMT");
 }
 
@@ -1392,8 +1420,11 @@ inline             KString kFormHTTPTimestamp      (const DateTime& time = DateT
 /// @return the timestamp string
 template<typename DateTime = detail::ForFormat>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline             KString kFormSMTPTimestamp      (const DateTime& time = DateTime::now())     
+                   KString kFormSMTPTimestamp      (const DateTime& time = DateTime::now())     
 {
+#ifndef NDEBUG
+	if (!detail::TimeIsValid(time)) return "";
+#endif
 	return detail::FormWebTimestamp(time, "-0000");
 }
 
@@ -1405,6 +1436,9 @@ template<typename DateTime = detail::ForFormat>
 DEKAF2_NODISCARD DEKAF2_PUBLIC
                    KString kFormCommonLogTimestamp (const DateTime& time = DateTime::now())
 {
+#ifndef NDEBUG
+	if (!detail::TimeIsValid(time)) return "";
+#endif
 	return detail::FormTimestamp(time, "[{:%d/%b/%Y:%H:%M:%S +0000}]");
 }
 

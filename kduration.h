@@ -276,6 +276,17 @@ public:
 
 	using base::base;
 
+	/// converts to std::chrono::steady_time
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 chrono::time_point<clock, duration> to_steady_time() const noexcept { return *this; }
+
+	/// returns true if time is not the epoch (0)
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 bool               ok ()              const noexcept { return time_since_epoch() != duration::zero(); }
+	/// returns subseconds relative to last full second as a duration
+	DEKAF2_NODISCARD
+	DEKAF2_CONSTEXPR_14 KDuration   subseconds()              const noexcept { return time_since_epoch() - chrono::floor<chrono::seconds>(time_since_epoch()); }
+
 	template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
 	DEKAF2_FULL_CONSTEXPR_17 self& operator+=(const T& Duration) noexcept { base::operator += (Duration.template duration<duration>()); return *this; }
 	template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>

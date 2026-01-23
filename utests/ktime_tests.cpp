@@ -1230,4 +1230,28 @@ TEST_CASE("KTime") {
 			                                  // -> "that was 11 years, 1 months and 14 days (a total of 133 months or 4060 days or 580 weeks) ago"
 		}
 	}
+
+	SECTION("empty")
+	{
+		{
+			struct tm time{};
+			auto s = kFormTimestamp(time);
+			CHECK ( s == "" );
+		}
+		{
+			KUnixTime time{};
+			auto s = kFormTimestamp(time);
+			CHECK ( s == "" );
+		}
+		{
+			KUTCTime time{};
+			auto s = kFormTimestamp(time);
+			CHECK ( s == "" );
+		}
+		{
+			KLocalTime time{};
+			auto s = kFormTimestamp(time);
+			CHECK ( s == "" );
+		}
+	}
 }

@@ -390,6 +390,7 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 
 	std::vector<DueCallback> DueCallbacks;
 	std::vector<ID_t>        CancelledCallbacks;
+	uint16_t                 iLooped { 0 };
 
 	for (;;)
 	{
@@ -423,6 +424,14 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 				m_bIsPaused = false;
 			}
 
+			if (++iLooped > 10)
+			{
+				// sync to real time after max 10 unsynced rounds
+				iLooped = 0;
+				tNow    = KUnixTime::now();
+				tNext   = tNow;
+			}
+
 			// do we have an expired timer?
 			if (tNext >= tNextTimer) break;
 
@@ -437,8 +446,14 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 		// KTimer is started long before any option parsing
 		KLog::SyncLevel();
 
-		tNow       = KUnixTime::now();
-		tNext      = tNow + MaxIdle;
+		if (iLooped > 1)
+		{
+			// only query real time if not just done above,
+			// or in last loop
+			tNow   = KUnixTime::now();
+			tNext  = tNow;
+		}
+		tNext     += MaxIdle;
 		tNextTimer = tNow + Infinite;
 
 		{

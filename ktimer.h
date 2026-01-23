@@ -377,7 +377,11 @@ private:
 	bool                               m_bShutdown         { false };
 	bool                               m_bPause            { false };
 	bool                               m_bIsPaused         { false };
+#ifdef NDEBUG
 	bool                               m_bDestructWithJoin { false };
+#else
+	bool                               m_bDestructWithJoin {  true };
+#endif
 
 	KThreadSafe<std::unordered_map<ID_t, Timer>> m_Timers;
 

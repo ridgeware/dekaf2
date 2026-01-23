@@ -1311,11 +1311,15 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		{
 			// no, we have no UTF8
 #if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
-			for (; reinterpret_cast<const char*>(&*pair.first) != reinterpret_cast<const char*>(&*pair.second); ++pair.first)
+			for (;; ++pair.first)
+			{
+				auto a = reinterpret_cast<const char*>(&*pair.first);
+				auto b = reinterpret_cast<const char*>(&*pair.second);
+				if (a != b) break;
 #else
 			for (; pair.first != pair.second; ++pair.first)
-#endif
 			{
+#endif
 				auto it = pair.first;
 
 				auto iCheckPos = it->iPos;

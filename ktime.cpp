@@ -1200,9 +1200,13 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 #else
 		SizeArray S {}; // gcc8..
 #endif
-		// clear the table in a constexpr way that gcc 8 understands (use begin() and not
-		// end() to satisfy iterator checks)
+		// clear the table in a constexpr way that gcc 8 understands
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+		// (use begin() and not end() to satisfy iterator checks for Windows)
 		for (auto& it : S) { it.first = Formats.begin(); it.second = Formats.begin(); }
+#else
+		for (auto& it : S) { it.first = Formats.end(); it.second = Formats.end(); }
+#endif
 
 		SizeArray::iterator last_it = S.end();
 

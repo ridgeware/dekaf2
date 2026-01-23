@@ -171,9 +171,7 @@ DEKAF2_PUBLIC
 void kMakeUpperASCII(InputIterator it, InputIterator ie, OutputIterator Out)
 //----------------------------------------------------------------------
 {
-#if !DEKAF2_IS_WINDOWS
-	detail::kMakeUpperASCII(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
-#else
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
 	// the windows std lib throws when referencing the end iter of a stringview, so we
 	// let it reference the element before and add one to the pointer
 	if (ie > it)
@@ -181,6 +179,8 @@ void kMakeUpperASCII(InputIterator it, InputIterator ie, OutputIterator Out)
 		--ie;
 		detail::kMakeUpperASCII(static_cast<const char*>(&*it), static_cast<const char*>(&*ie)+1, static_cast<char*>(&*Out));
 	}
+#else
+	detail::kMakeUpperASCII(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
 #endif
 }
 
@@ -201,14 +201,14 @@ DEKAF2_PUBLIC
 void kMakeLowerASCII(InputIterator it, InputIterator ie, OutputIterator Out)
 //----------------------------------------------------------------------
 {
-#if !DEKAF2_IS_WINDOWS
-	detail::kMakeLowerASCII(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
-#else
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
 	if (ie > it)
 	{
 		--ie;
 		detail::kMakeLowerASCII(static_cast<const char*>(&*it), static_cast<const char*>(&*ie) + 1, static_cast<char*>(&*Out));
 	}
+#else
+	detail::kMakeLowerASCII(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
 #endif
 }
 
@@ -229,14 +229,14 @@ DEKAF2_PUBLIC
 void kMakeUpperLocale(InputIterator it, InputIterator ie, OutputIterator Out)
 //----------------------------------------------------------------------
 {
-#if !DEKAF2_IS_WINDOWS
-	detail::kMakeUpperLocale(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
-#else
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
 	if (ie > it)
 	{
 		--ie;
 		detail::kMakeUpperLocale(static_cast<const char*>(&*it), static_cast<const char*>(&*ie) + 1, static_cast<char*>(&*Out));
 	}
+#else
+	detail::kMakeUpperLocale(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
 #endif
 }
 
@@ -257,14 +257,14 @@ DEKAF2_PUBLIC
 void kMakeLowerLocale(InputIterator it, InputIterator ie, OutputIterator Out)
 //----------------------------------------------------------------------
 {
-#if !DEKAF2_IS_WINDOWS
-	detail::kMakeLowerLocale(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
-#else
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
 	if (ie > it)
 	{
 		--ie;
 		detail::kMakeLowerLocale(static_cast<const char*>(&*it), static_cast<const char*>(&*ie) + 1, static_cast<char*>(&*Out));
 	}
+#else
+	detail::kMakeLowerLocale(static_cast<const char*>(&*it), static_cast<const char*>(&*ie), static_cast<char*>(&*Out));
 #endif
 }
 

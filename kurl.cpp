@@ -142,7 +142,14 @@ KStringView GetDomainSuffix (KStringView sHostName)
 		}
 		else if (pair.iIndex < pair.Domains.size() - 1)
 		{
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+			auto ie = sHostName.end();
+			if (ie == sHostName.begin()) return "";
+			--ie;
+			return KStringView(pair.Domains[pair.iIndex + 1].data(), 1 + reinterpret_cast<const char*>(&*ie) - reinterpret_cast<const char*>(&*pair.Domains[pair.iIndex + 1].begin()));
+#else
 			return KStringView(pair.Domains[pair.iIndex + 1].data(), sHostName.end() - pair.Domains[pair.iIndex + 1].begin());
+#endif
 		}
 	}
 
@@ -159,6 +166,7 @@ KStringView GetRootDomain (KStringView sHostName)
 	if (pair.iIndex == 0 && pair.Domains.size() == 1 && !pair.Domains[0].empty()) return sHostName;
 #if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
 	auto ie = sHostName.end();
+	if (ie == sHostName.begin()) return "";
 	--ie;
 	return (pair.bValid) ? KStringView(pair.Domains[pair.iIndex].data(), 1 + reinterpret_cast<const char*>(&*ie) - reinterpret_cast<const char*>(&*pair.Domains[pair.iIndex].begin())) : KStringView{};
 #else
@@ -175,7 +183,14 @@ KStringView GetSubDomain (KStringView sHostName)
 
 	if (pair.bValid && pair.iIndex > 0)
 	{
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+		auto ie = pair.Domains[pair.iIndex-1].end();
+		if (ie == pair.Domains[pair.iIndex-1].begin()) return "";
+		--ie;
+		return KStringView(pair.Domains[0].data(), 1 + reinterpret_cast<const char*>(&*ie) - reinterpret_cast<const char*>(&*pair.Domains[0].begin()));
+#else
 		return KStringView(pair.Domains[0].data(), pair.Domains[pair.iIndex-1].end() - pair.Domains[0].begin());
+#endif
 	}
 
 	return {};

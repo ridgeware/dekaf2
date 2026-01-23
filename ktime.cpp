@@ -1289,8 +1289,16 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		if (iSize != sTimestamp.size() - iShortest)
 		{
 			// yes, we have UTF8
+#if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
+			for (;; ++pair.first)
+			{
+				auto* a = reinterpret_cast<const char*>(&*pair.first);
+				auto* b = reinterpret_cast<const char*>(&*pair.second);
+				if (a == b) break;
+#else
 			for (; pair.first != pair.second; ++pair.first)
 			{
+#endif
 				auto it = pair.first;
 
 				auto iCheckPos = it->iPos;
@@ -1313,9 +1321,9 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 #if DEKAF2_IS_WINDOWS && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL > 0
 			for (;; ++pair.first)
 			{
-				auto a = reinterpret_cast<const char*>(&*pair.first);
-				auto b = reinterpret_cast<const char*>(&*pair.second);
-				if (a != b) break;
+				auto* a = reinterpret_cast<const char*>(&*pair.first);
+				auto* b = reinterpret_cast<const char*>(&*pair.second);
+				if (a == b) break;
 #else
 			for (; pair.first != pair.second; ++pair.first)
 			{

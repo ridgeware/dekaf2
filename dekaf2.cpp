@@ -410,7 +410,6 @@ void Dekaf::StopDefaultTimer()
 {
 	if (m_Timer)
 	{
-		m_Timer->DestructWithJoin();
 		m_Timer.reset();
 	}
 }
@@ -565,11 +564,6 @@ void Dekaf::ShutDown(bool bImmediately)
 {
 	if (m_Timer)
 	{
-		if (!bImmediately)
-		{
-			m_Timer->DestructWithJoin();
-		}
-
 		m_Timer.reset();
 	}
 

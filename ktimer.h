@@ -61,7 +61,7 @@ DEKAF2_NAMESPACE_BEGIN
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KTimer can be used to call functions both repeatedly after a fixed
 /// time interval or once after expiration of a time interval, or at
-/// a fixed time point. It can take up to one second (or, actually,
+/// a fixed time point. It can take up to 50 milliseconds (or, actually,
 /// the MaxIdle time given at construction) until a new timer is started,
 /// but from then on repeat intervals can be as short as needed, down
 /// to micro- (MacOS) or nanoseconds (Linux).
@@ -87,8 +87,8 @@ public:
 	//---------------------------------------------------------------------------
 	/// create a new KTimer instance
 	/// @param MaxIdle the maximum wait time until a new timer loop is started - new timers are only
-	/// integrated when a new loop iteration starts
-	KTimer(KDuration MaxIdle = std::chrono::seconds(1));
+	/// integrated when a new loop iteration starts - defaults to 50 milliseconds
+	KTimer(KDuration MaxIdle = std::chrono::milliseconds(50));
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -279,14 +279,6 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
-	/// If called, the KTimer object will wait for its timer thread to terminate before leaving the constructor
-	void DestructWithJoin()
-	//---------------------------------------------------------------------------
-	{
-		m_bDestructWithJoin = true;
-	}
-
-	//---------------------------------------------------------------------------
 	/// only call this directly after a fork() in the child instance, to make sure the rest of the class
 	/// understands there is no thread running anymore..
 	void CleanupChildAfterFork();
@@ -377,11 +369,7 @@ private:
 	bool                               m_bShutdown         { false };
 	bool                               m_bPause            { false };
 	bool                               m_bIsPaused         { false };
-#ifdef NDEBUG
-	bool                               m_bDestructWithJoin { false };
-#else
-	bool                               m_bDestructWithJoin {  true };
-#endif
+	bool                               m_bAddedTimer       { false };
 
 	KThreadSafe<std::unordered_map<ID_t, Timer>> m_Timers;
 

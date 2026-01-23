@@ -229,8 +229,8 @@ public:
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	/// Prepares for process shutdown by stopping the timer object. If bImmediately
-	/// is false may wait up to one second for the timer to join.
+	/// Prepares for process shutdown by stopping the timer object.
+	/// @param bImmediately is currently unused
 	void ShutDown(bool bImmediately = true);
 	//---------------------------------------------------------------------------
 

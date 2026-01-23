@@ -72,18 +72,9 @@ KTimer::~KTimer()
 
 		if (m_TimingThread)
 		{
-			if (!m_bDestructWithJoin)
-			{
-				// detach the thread, we do not want to wait until it has joined
-				m_TimingThread->detach();
-				kDebug(2, "detached timer thread");
-			}
-			else
-			{
-				// wait until thread has finished
-				m_TimingThread->join();
-				kDebug(2, "joined timer thread");
-			}
+			// wait until thread has finished
+			m_TimingThread->join();
+			kDebug(2, "joined timer thread");
 		}
 	}
 
@@ -121,6 +112,7 @@ KTimer::ID_t KTimer::AddTimer(Timer timer)
 		if (ret.second)
 		{
 			ID = ret.first->second.ID;
+			m_bAddedTimer = true;
 		}
 		else
 		{
@@ -221,6 +213,8 @@ bool KTimer::Restart(ID_t ID)
 
 	it->second.ExpiresAt = KUnixTime::now() + it->second.Interval;
 
+	m_bAddedTimer = true;
+
 	return true;
 
 } // Restart
@@ -247,6 +241,8 @@ bool KTimer::Restart(ID_t ID, KDuration interval)
 	it->second.Interval  = interval;
 	it->second.ExpiresAt = KUnixTime::now() + it->second.Interval;
 
+	m_bAddedTimer = true;
+
 	return true;
 
 } // Restart
@@ -271,6 +267,8 @@ bool KTimer::Restart(ID_t ID, KUnixTime timepoint)
 	}
 
 	it->second.ExpiresAt = timepoint;
+
+	m_bAddedTimer = true;
 
 	return true;
 
@@ -373,9 +371,9 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 
 	kDebug(2, "new timer thread started with max idle {}", MaxIdle);
 
-	auto tNow = KUnixTime::now();
-
-	KUnixTime tNext = tNow + MaxIdle;
+	auto      tNow       = KUnixTime::now();
+	KUnixTime tNext      = tNow + MaxIdle;
+	KUnixTime tNextTimer = tNow + Infinite;
 
 	// find closest deadline
 	{
@@ -383,9 +381,9 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 
 		for (auto& it : Timers.get())
 		{
-			if (it.second.ExpiresAt < tNext)
+			if (it.second.ExpiresAt < tNextTimer)
 			{
-				tNext = it.second.ExpiresAt;
+				tNextTimer = it.second.ExpiresAt;
 			}
 		}
 	}
@@ -396,38 +394,58 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 	for (;;)
 	{
 //		kDebug(4, "next deadline in {}", tNext - tNow);
-		std::this_thread::sleep_until(tNext);
+		for (;;)
+		{
+			if (tNext > tNextTimer)
+			{
+				tNext = tNextTimer;
+			}
+
+			std::this_thread::sleep_until(tNext);
+
+			// exit immediately if class or program are ended
+			if (m_bShutdown || Dekaf::IsShutDown()) return;
+
+			// pause until resume?
+			if (m_bPause)
+			{
+				m_bIsPaused = true;
+
+				do
+				{
+					std::this_thread::sleep_for(chrono::milliseconds(100));
+
+					// exit immediately if class or program are ended
+					if (m_bShutdown || Dekaf::IsShutDown()) return;
+				}
+				while (m_bPause);
+
+				m_bIsPaused = false;
+			}
+
+			// do we have an expired timer?
+			if (tNext >= tNextTimer) break;
+
+			// or a new timer added?
+			if (m_bAddedTimer) break;
+
+			// else prepare for next sleep
+			tNext += MaxIdle;
+		}
 
 		// enable logging in this thread, the global instance of
 		// KTimer is started long before any option parsing
 		KLog::SyncLevel();
 
-		if (m_bPause)
-		{
-			m_bIsPaused = true;
-
-			do
-			{
-				std::this_thread::sleep_for(chrono::milliseconds(100));
-			}
-			while (m_bPause);
-
-			m_bIsPaused = false;
-		}
-
-		if (m_bShutdown || Dekaf::IsShutDown())
-		{
-			// exit this thread.. parent class is gone
-			return;
-		}
-
-		tNow = KUnixTime::now();
-
-		tNext  = tNow;
-		tNext += MaxIdle;
+		tNow       = KUnixTime::now();
+		tNext      = tNow + MaxIdle;
+		tNextTimer = tNow + Infinite;
 
 		{
 			auto Timers = m_Timers.unique();
+
+			// reset flag
+			m_bAddedTimer = false;
 
 			// check all timers for their expiration date
 			for (auto& it : Timers.get())
@@ -451,11 +469,10 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 				}
 
 				// check for closest deadline
-				if (Timer.ExpiresAt < tNext)
+				if (Timer.ExpiresAt < tNextTimer)
 				{
-					tNext = Timer.ExpiresAt;
+					tNextTimer = Timer.ExpiresAt;
 				}
-
 			}
 
 			for (auto ID : CancelledCallbacks)

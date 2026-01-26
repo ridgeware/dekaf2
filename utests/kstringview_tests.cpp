@@ -1579,8 +1579,8 @@ TEST_CASE("KStringView") {
 			{ "ä"           , "\xE3\xA4"     },
 			{ "ü"           , "\xE3\xBC"     },
 #endif
-			{ "\x8C"        , "\x8C"         },
-			{ "\x9C"        , "\x9C"         },
+			{ "\xC4"        , "\xE4"         },
+			{ "\xD6"        , "\xF6"         },
 		};
 
 		auto oldLoc = kGetGlobalLocale();
@@ -1616,12 +1616,14 @@ TEST_CASE("KStringView") {
 			{ "Hello"       , "HELLO"        },
 			{ "hELLO"       , "HELLO"        },
 			{ "HELLO"       , "HELLO"        },
+#ifndef DEKAF2_HAS_MUSL
 			{ "Ä"           , "\xC3\x84"     },
-			{ "Ü"           , "\xC3\x9C"     },
+			{ "Ö"           , "\xC3\x96"     },
 			{ "ä"           , "\xC3\xA4"     },
 			{ "ü"           , "\xC3\xBC"     },
-			{ "\x8C"        , "\x8C"         },
-			{ "\x9C"        , "\x9C"         },
+#endif
+			{ "\xE4"        , "\xC4"         },
+			{ "\xF6"        , "\xD6"         },
 		};
 
 		auto oldLoc = kGetGlobalLocale();

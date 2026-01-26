@@ -353,7 +353,13 @@ TEST_CASE("UTF") {
 #ifdef DEKAF2_HAS_FULL_CPP_17
 	SECTION("Increment UTF32")
 	{
+#if DEKAF2_IS_WINDOWS
+		KStringView sNarrowInput = "testäöü test日本語abc中文Русский ..";
+		std::u32string sInput;
+		kutf::Convert(sNarrowInput, sInput);
+#else
 		std::wstring_view sInput = L"testäöü test日本語abc中文Русский ..";
+#endif
 		auto it = sInput.begin();
 		auto ie = sInput.end();
 		auto it2 = it;
@@ -390,7 +396,13 @@ TEST_CASE("UTF") {
 #ifdef DEKAF2_HAS_FULL_CPP_17
 	SECTION("Decrement UTF32")
 	{
+#if DEKAF2_IS_WINDOWS
+		KStringView sNarrowInput = "testäöü test日本語abc中文Русский ..";
+		std::u32string sInput;
+		kutf::Convert(sNarrowInput, sInput);
+#else
 		std::wstring_view sInput = L"testäöü test日本語abc中文Русский ..";
+#endif
 		auto ibegin = sInput.begin();
 		auto it     = sInput.end();
 		CHECK ( kutf::Decrement(ibegin, it,   0) == true );

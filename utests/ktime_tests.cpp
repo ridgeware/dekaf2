@@ -260,6 +260,7 @@ TEST_CASE("KTime") {
 				CHECK ( Local1.hours12().count() == 12    );
 				CHECK ( Local1.is_pm()           == false );
 #ifndef DEKAF2_HAS_MUSL
+				// windows has the zone as MEZ (on a German Windows) - we keep it as an error
 				CHECK ( Local1.get_zone_abbrev() == "CET" );
 #else
 				CHECK ( Local1.get_zone_abbrev() == "CEMT" ); // ??
@@ -273,6 +274,9 @@ TEST_CASE("KTime") {
 				// YES. THEY CHANGED THE MONTH AND DAY LOCALE NAMES WITH MACOS26.
 				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:%A %c}") == "mardi mar.  1 janv. 00:59:59 1974" );
 				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo. 31 Dez. 17:59:59 1973" );
+#elif DEKAF2_IS_WINDOWS
+				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:%A %c}") == "mardi 01/01/1974 00:59:59" );
+				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag 31.12.1973 17:59:59" );
 #else
 				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:%A %c}") == "Mardi Mar  1 jan 00:59:59 1974" );
 				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
@@ -316,6 +320,7 @@ TEST_CASE("KTime") {
 			CHECK ( Local1.seconds().count() == 59    );
 			CHECK ( Local1.hours12().count() == 8     );
 			CHECK ( Local1.is_pm()           == false );
+			// windows has the zone as GMT+9 (on a German Windows) - we keep it as an error
 			CHECK ( Local1.get_zone_abbrev() == "JST" );
 			CHECK ( Local1.get_zone_name()   == "Asia/Tokyo" );
 			if (bHasLocale)
@@ -326,6 +331,8 @@ TEST_CASE("KTime") {
 				if (bHasTimezone) {
 #ifdef __MAC_26_0
 					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo. 31 Dez. 17:59:59 1973" );
+#elif DEKAF2_IS_WINDOWS
+					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag 31.12.1973 17:59:59" );
 #else
 					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
 #endif
@@ -748,6 +755,7 @@ TEST_CASE("KTime") {
 
 		if (KUnixTime::duration(1) == chrono::microseconds(1))
 		{
+			// MacOS
 			CHECK ( UMax.to_string() == "32103-01-10 04:00:54"  );
 #if DEKAF2_HAS_FMT_FORMAT
 			CHECK ( UMin.to_string() == "-28164-12-21 04:00:54" );
@@ -757,12 +765,19 @@ TEST_CASE("KTime") {
 		}
 		else if (KUnixTime::duration(1) == chrono::nanoseconds(1))
 		{
+			// Linux
 			CHECK ( UMax.to_string() == "2262-04-11 23:47:16"  );
 			CHECK ( UMin.to_string() == "1677-09-21 23:47:16" );
 		}
-		else
+		else if (KUnixTime::duration(1) == chrono::nanoseconds(100))
 		{
-			INFO("bad system clock duration type of larger than microseconds");
+			// Windows
+			CHECK ( UMax.to_string() == "31197-09-14 02:48:05"  );
+			CHECK ( UMin.to_string() == "-27258-04-19 02:48:05" );
+		}
+		else if (KUnixTime::duration(1) > chrono::microseconds(1))
+		{
+			INFO  ( kFormat("bad system clock duration of {} (larger than a microsecond)", KUnixTime::duration(1)) );
 			CHECK ( false );
 		}
 

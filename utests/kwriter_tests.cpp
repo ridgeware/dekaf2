@@ -342,7 +342,9 @@ TEST_CASE("KWriter") {
 		KString sLine = "one line of text\n";
 
 		{
-			std::ofstream F1(sFile);
+			// we need the std::ios_base::binary for Windows - it would
+			// convert any written \n to \r\n in text mode
+			std::ofstream F1(sFile, std::ios_base::binary);
 			CHECK ( F1.is_open() );
 			CHECK ( F1.good() );
 			F1.write(sLine.data(), sLine.size());
@@ -360,7 +362,9 @@ TEST_CASE("KWriter") {
 			KOutStream& outstream3 = outstream2;
 		}
 		{
-			KWriter<std::ofstream> File(sFile);
+			// we need the std::ios_base::binary for Windows - it would
+			// convert any written \n to \r\n in text mode
+			KWriter<std::ofstream> File(sFile, std::ios_base::binary);
 			CHECK ( File.is_open() );
 			CHECK ( File.Good() );
 			File.Write(sLine);
@@ -374,6 +378,8 @@ TEST_CASE("KWriter") {
 			CHECK ( kRemoveFile(sFile) );
 		}
 		{
+			// we do NOT need the std::ios_base::binary for Windows -
+			// KOutFile sets it automatically
 			KOutFile OutFile(sFile);
 			CHECK ( OutFile.is_open() );
 			CHECK ( OutFile.Good() );

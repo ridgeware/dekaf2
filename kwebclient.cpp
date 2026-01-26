@@ -86,6 +86,7 @@ KWebClient::KWebClient(KHTTPStreamOptions Options /*=KHTTPStreamOptions{}*/)
 bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, KURL RequestURL, KHTTPMethod RequestMethod/* = KHTTPMethod::GET*/, KStringView sRequestBody/* = ""*/, KMIME MIME/* = KMIME::JSON*/)
 //-----------------------------------------------------------------------------
 {
+	m_iReadBytes = 0;
 	// placeholder for a web form we may generate from query parms
 	KString sWWWForm;
 
@@ -111,7 +112,6 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 	KStopWatch TransmitTime (KStopWatch::Halted);
 	KStopWatch ReceiveTime  (KStopWatch::Halted);
 
-	std::size_t iRead      { 0 };
 	uint16_t    iRedirects { 0 };
 	uint16_t    iRetries   { 0 };
 
@@ -194,7 +194,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 					    m_iReadMax != 0)
 					{
 						ReceiveTime.resume();
-						iRead += Read (*Out, m_iReadMax);
+						m_iReadBytes += Read (*Out, m_iReadMax);
 						ReceiveTime.halt();
 					}
 				}
@@ -276,7 +276,7 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 			{ "request_method",      RequestMethod.Serialize()  },
 			{ "url",                 RequestURL.Serialize()     },
 			{ "bytes_request_body",  sRequestBody.size()        },
-			{ "bytes_response_body", iRead                      },
+			{ "bytes_response_body", m_iReadBytes               },
 			{ "error_string",        Error()                    },
 			{ "msecs_connect",       ConnectTime .elapsed().milliseconds().count() },
 			{ "msecs_transmit",      TransmitTime.elapsed().milliseconds().count() },

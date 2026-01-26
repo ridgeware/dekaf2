@@ -267,6 +267,15 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// if content had been sent outside of the normal output framework tell
+	/// the sent size for logging purposes
+	void AddSentContentSize(std::size_t iSentContent)
+	//-----------------------------------------------------------------------------
+	{
+		m_iTXBytes += iSentContent;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// set raw (non-json/non-xml) output
 	/// @param sRaw the string to output
 	void SetRawOutput(KString sRaw)

@@ -269,6 +269,14 @@ public:
 		m_iReadMax = iReadMax;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// return the count of bytes read from the response body - this may be helpful in streaming output
+	std::size_t GetReadResponseSize() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_iReadBytes;
+	}
+
 //------
 protected:
 //------
@@ -296,6 +304,7 @@ private:
 	ResponseCallback_t m_ResponseCallback        { nullptr };
 	KCookies         m_Cookies;
 	std::size_t      m_iReadMax                  { npos    };
+	std::size_t      m_iReadBytes                { 0       };
 	uint16_t         m_iMaxRedirects             { 20      };
 	bool             m_bAllowOneRetry            { true    };
 	bool             m_bAcceptCookies            { true    };

@@ -6,6 +6,7 @@
 #include <vector>
 #ifdef DEKAF2_HAS_CPP_17
 	#include <string_view>
+	using namespace std::string_literals;
 #endif
 
 using namespace dekaf2;
@@ -334,7 +335,7 @@ TEST_CASE("UTF") {
 
 	SECTION("Increment UTF8")
 	{
-		KStringView sInput = "testäöü test日本語abc中文Русский ..";
+		KStringView sInput = "testäöü test日本語abc中文Русскийɠ𐑅 ..";
 		auto it = sInput.begin();
 		auto ie = sInput.end();
 		auto it2 = it;
@@ -344,22 +345,16 @@ TEST_CASE("UTF") {
 		CHECK ( *it == 'e' );
 		CHECK ( kutf::Increment(it, ie,  6) == true );
 		CHECK ( *it == ' ' );
-		CHECK ( kutf::Increment(it, ie, 20) == true );
+		CHECK ( kutf::Increment(it, ie, 22) == true );
 		CHECK ( *it == ' ' );
 		CHECK ( kutf::Increment(it, ie,  5) == false);
 		CHECK ( it == ie );
 	}
 
 #ifdef DEKAF2_HAS_FULL_CPP_17
-	SECTION("Increment UTF32")
+	SECTION("Increment wstring")
 	{
-#if DEKAF2_IS_WINDOWS
-		KStringView sNarrowInput = "testäöü test日本語abc中文Русский ..";
-		std::u32string sInput;
-		kutf::Convert(sNarrowInput, sInput);
-#else
-		std::wstring_view sInput = L"testäöü test日本語abc中文Русский ..";
-#endif
+		std::wstring_view sInput = L"testäöü test日本語abc中文Русскийɠ𐑅 ..";
 		auto it = sInput.begin();
 		auto ie = sInput.end();
 		auto it2 = it;
@@ -369,7 +364,43 @@ TEST_CASE("UTF") {
 		CHECK ( (*it == wchar_t('e')) );
 		CHECK ( kutf::Increment(it, ie,  6) == true );
 		CHECK ( (*it == wchar_t(' ')) );
-		CHECK ( kutf::Increment(it, ie, 20) == true );
+		CHECK ( kutf::Increment(it, ie, 22) == true );
+		CHECK ( (*it == wchar_t(' ')) );
+		CHECK ( kutf::Increment(it, ie,  5) == false);
+		CHECK ( it == ie );
+	}
+
+	SECTION("Increment UTF16")
+	{
+		std::u16string_view sInput = u"testäöü test日本語abc中文Русскийɠ𐑅 ..";
+		auto it = sInput.begin();
+		auto ie = sInput.end();
+		auto it2 = it;
+		CHECK ( kutf::Increment(it, ie,  0) == true );
+		CHECK ( it == it2 );
+		CHECK ( kutf::Increment(it, ie,  1) == true );
+		CHECK ( (*it == wchar_t('e')) );
+		CHECK ( kutf::Increment(it, ie,  6) == true );
+		CHECK ( (*it == wchar_t(' ')) );
+		CHECK ( kutf::Increment(it, ie, 22) == true );
+		CHECK ( (*it == wchar_t(' ')) );
+		CHECK ( kutf::Increment(it, ie,  5) == false);
+		CHECK ( it == ie );
+	}
+
+	SECTION("Increment UTF32")
+	{
+		std::u32string_view sInput = U"testäöü test日本語abc中文Русскийɠ𐑅 ..";
+		auto it = sInput.begin();
+		auto ie = sInput.end();
+		auto it2 = it;
+		CHECK ( kutf::Increment(it, ie,  0) == true );
+		CHECK ( it == it2 );
+		CHECK ( kutf::Increment(it, ie,  1) == true );
+		CHECK ( (*it == wchar_t('e')) );
+		CHECK ( kutf::Increment(it, ie,  6) == true );
+		CHECK ( (*it == wchar_t(' ')) );
+		CHECK ( kutf::Increment(it, ie, 22) == true );
 		CHECK ( (*it == wchar_t(' ')) );
 		CHECK ( kutf::Increment(it, ie,  5) == false);
 		CHECK ( it == ie );
@@ -378,14 +409,14 @@ TEST_CASE("UTF") {
 
 	SECTION("Decrement UTF8")
 	{
-		KStringView sInput = "testäöü test日本語abc中文Русский ..";
+		KStringView sInput = "testäöü test日本語abc中文Русскийɠ𐑅 ..";
 		auto ibegin = sInput.begin();
 		auto it     = sInput.end();
 		CHECK ( kutf::Decrement(ibegin, it,   0) == true );
 		CHECK ( it == sInput.end() );
 		CHECK ( kutf::Decrement(ibegin, it,   1) == true );
 		CHECK ( *it == '.' );
-		CHECK ( kutf::Decrement(ibegin, it,  12) == true );
+		CHECK ( kutf::Decrement(ibegin, it,  14) == true );
 		CHECK ( *it == 'c' );
 		CHECK ( kutf::Decrement(ibegin, it,   6) == true );
 		CHECK ( *it == 't' );
@@ -394,22 +425,50 @@ TEST_CASE("UTF") {
 	}
 
 #ifdef DEKAF2_HAS_FULL_CPP_17
-	SECTION("Decrement UTF32")
+	SECTION("Decrement wstring")
 	{
-#if DEKAF2_IS_WINDOWS
-		KStringView sNarrowInput = "testäöü test日本語abc中文Русский ..";
-		std::u32string sInput;
-		kutf::Convert(sNarrowInput, sInput);
-#else
-		std::wstring_view sInput = L"testäöü test日本語abc中文Русский ..";
-#endif
+		std::wstring_view sInput = L"testäöü test日本語abc中文Русскийɠ𐑅 ..";
 		auto ibegin = sInput.begin();
 		auto it     = sInput.end();
 		CHECK ( kutf::Decrement(ibegin, it,   0) == true );
 		CHECK ( it == sInput.end() );
 		CHECK ( kutf::Decrement(ibegin, it,   1) == true );
 		CHECK ( (*it == wchar_t('.')) );
-		CHECK ( kutf::Decrement(ibegin, it,  12) == true );
+		CHECK ( kutf::Decrement(ibegin, it,  14) == true );
+		CHECK ( (*it == wchar_t('c')) );
+		CHECK ( kutf::Decrement(ibegin, it,   6) == true );
+		CHECK ( (*it == wchar_t('t')) );
+		CHECK ( kutf::Decrement(ibegin, it,  12) == false);
+		CHECK ( it == ibegin );
+	}
+
+	SECTION("Decrement UTF16")
+	{
+		std::u16string_view sInput = u"testäöü test日本語abc中文Русскийɠ𐑅 ..";
+		auto ibegin = sInput.begin();
+		auto it     = sInput.end();
+		CHECK ( kutf::Decrement(ibegin, it,   0) == true );
+		CHECK ( it == sInput.end() );
+		CHECK ( kutf::Decrement(ibegin, it,   1) == true );
+		CHECK ( (*it == wchar_t('.')) );
+		CHECK ( kutf::Decrement(ibegin, it,  14) == true );
+		CHECK ( (*it == wchar_t('c')) );
+		CHECK ( kutf::Decrement(ibegin, it,   6) == true );
+		CHECK ( (*it == wchar_t('t')) );
+		CHECK ( kutf::Decrement(ibegin, it,  12) == false);
+		CHECK ( it == ibegin );
+	}
+
+	SECTION("Decrement UTF32")
+	{
+		std::u32string_view sInput = U"testäöü test日本語abc中文Русскийɠ𐑅 ..";
+		auto ibegin = sInput.begin();
+		auto it     = sInput.end();
+		CHECK ( kutf::Decrement(ibegin, it,   0) == true );
+		CHECK ( it == sInput.end() );
+		CHECK ( kutf::Decrement(ibegin, it,   1) == true );
+		CHECK ( (*it == wchar_t('.')) );
+		CHECK ( kutf::Decrement(ibegin, it,  14) == true );
 		CHECK ( (*it == wchar_t('c')) );
 		CHECK ( kutf::Decrement(ibegin, it,   6) == true );
 		CHECK ( (*it == wchar_t('t')) );

@@ -272,6 +272,8 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 			# switch most warnings on
 			#add_compile_options(/W4)
+			# make sure all source files are seen as UTF-8
+			add_compile_options(/utf-8)
 
 		else ()
 

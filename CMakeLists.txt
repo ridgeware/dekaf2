@@ -68,7 +68,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.94 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.0.95 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -390,14 +390,19 @@ find_package(BZip2 REQUIRED QUIET)
 # now force static libs if requested
 
 if (DEKAF2_FORCE_STATIC_LIBS)
+	# .dll.lib is preset in cmake - no idea who uses that
+	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".dll.lib" DLLLIB_SFX_FOUND)
 	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".lib" LIB_SFX_FOUND)
-	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".la" A_SFX_FOUND)
+	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".a" A_SFX_FOUND)
 	set(CMAKE_FIND_LIBRARY_SUFFIXES "")
-	if(A_SFX_FOUND GREATER 0)
+	if (A_SFX_FOUND GREATER_EQUAL 0)
 		list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 	endif()
-	if(LIB_SFX_FOUND GREATER 0)
+	if (LIB_SFX_FOUND GREATER_EQUAL 0)
 		list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES ".lib")
+	endif()
+	if (DLLLIB_SFX_FOUND GREATER_EQUAL 0)
+		list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES ".dll.lib")
 	endif()
 	message(STATUS "forcing static libraries: ${CMAKE_FIND_LIBRARY_SUFFIXES}")
 endif()

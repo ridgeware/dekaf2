@@ -67,6 +67,13 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 	cmake_policy(SET CMP0167 OLD)
 endif()
 
+if (WIN32)
+	if (NOT VCPKG_TARGET_TRIPLET)
+		# make sure vcpkg picks static libs
+		set(VCPKG_TARGET_TRIPLET "x64-windows-static")
+	endif()
+endif()
+
 # declare the project
 project(dekaf2 VERSION 2.0.95 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 

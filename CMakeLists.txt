@@ -53,6 +53,11 @@ cmake_minimum_required(VERSION 3.13...3.31)
 
 # allow version number in project command
 cmake_policy(SET CMP0048 NEW)
+if (WIN32 AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.15.0)
+	# do not set MSVC runtime lib in CMAKE_CXX_FLAGS_XXX, but use 
+	# CMAKE_MSVC_RUNTIME_LIBRARY settings
+	cmake_policy(SET CMP0091 NEW)
+endif()
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 	# allow mixed case find_package names (Boost needs this with cmake 3.27)
 	cmake_policy(SET CMP0144 OLD)
@@ -90,6 +95,7 @@ OPTION(DEKAF2_WITH_KLOG "build with KLOG" ON)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
 OPTION(DEKAF2_FORCE_STATIC_LIBS "force linking with static libs except for system libs" OFF)
+OPTION(DEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS "force linking with static libs including system libs on Windows" ON)
 OPTION(DEKAF2_USE_SHARED_BOOST "link dynamically to boost" OFF)
 OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
 OPTION(DEKAF2_WITH_PEDANTIC_WARNINGS "enable pedantic warnings" ON)
@@ -219,8 +225,27 @@ endif()
 
 if (IS_WINDOWS)
 	# on Windows, disable asan/ubsan
-	set(DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
+	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 	# we check for unix style local sockets on Windows 10 or later once we know the boost version
+	# disable wrapped json, it does not build properly on Windows
+	set (DEKAF2_WRAPPED_KJSON OFF)
+	message (STATUS "wrapped KJSON switched off on Windows")
+	if (DEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS)
+		set (DEKAF2_FORCE_STATIC_LIBS ON)
+	endif()
+	if (DEKAF2_PREFER_STATIC_LIBS OR DEKAF2_FORCE_STATIC_LIBS)
+		message (STATUS "linking against static runtime for windows")
+		if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.15.0)
+			# link against static runtime for windows
+			set (CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+		else()
+			# this will force warnings about both /MD and /MT set, but the latter wins
+			add_compile_options($<$<CONFIG:DEBUG>:/MTd>)
+			add_compile_options($<$<CONFIG:RELEASE>:/MT>)
+		endif()
+	else()
+		message (STATUS "linking against dynamic runtime for windows")
+	endif()
 else ()
 	# on Unixes, enable unix sockets and pipes
 	set(DEKAF2_HAS_UNIX_SOCKETS ON)
@@ -329,16 +354,25 @@ endif()
 
 # =========================== Prefer static libs? =============================
 
-# now prefer static libs if requested
+# now prefer static libs if requested - we push both .a and .lib at the front
+# (MacOS knows .lib as well, not only Windows)
 
 if (DEKAF2_PREFER_STATIC_LIBS OR DEKAF2_FORCE_STATIC_LIBS)
+	# make a backup of the original list
 	set(LIBSFX_BACKUP ${CMAKE_FIND_LIBRARY_SUFFIXES})
+	# push .lib to front
+	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".lib" LIBSFX_FOUND)
+	if (LIBSFX_FOUND GREATER 0)
+		list(REMOVE_AT CMAKE_FIND_LIBRARY_SUFFIXES ${LIBSFX_FOUND})
+		list(INSERT CMAKE_FIND_LIBRARY_SUFFIXES 0 ".lib")
+	endif()
+	# push .a to front
 	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".a" LIBSFX_FOUND)
 	if (LIBSFX_FOUND GREATER 0)
 		list(REMOVE_AT CMAKE_FIND_LIBRARY_SUFFIXES ${LIBSFX_FOUND})
 		list(INSERT CMAKE_FIND_LIBRARY_SUFFIXES 0 ".a")
-		message(STATUS "prefering static libraries: ${CMAKE_FIND_LIBRARY_SUFFIXES}")
 	endif()
+	message(STATUS "prefering static libraries: ${CMAKE_FIND_LIBRARY_SUFFIXES}")
 endif()
 
 # ================================= Threads ===================================
@@ -356,11 +390,14 @@ find_package(BZip2 REQUIRED QUIET)
 # now force static libs if requested
 
 if (DEKAF2_FORCE_STATIC_LIBS)
-	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".lib" LIBSFX_FOUND)
-	if (LIBSFX_FOUND GREATER 0)
-		set(CMAKE_FIND_LIBRARY_SUFFIXES ".a;.lib")
-	else()
-		set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".lib" LIB_SFX_FOUND)
+	list(FIND CMAKE_FIND_LIBRARY_SUFFIXES ".la" A_SFX_FOUND)
+	set(CMAKE_FIND_LIBRARY_SUFFIXES "")
+	if(A_SFX_FOUND GREATER 0)
+		list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+	endif()
+	if(LIB_SFX_FOUND GREATER 0)
+		list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES ".lib")
 	endif()
 	message(STATUS "forcing static libraries: ${CMAKE_FIND_LIBRARY_SUFFIXES}")
 endif()

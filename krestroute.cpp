@@ -440,13 +440,14 @@ std::size_t KRESTRoutes::RegexMatchPath(KStringRef& sPath, const Rewrites& Rewri
 
 	for (const auto& it : Rewrites)
 	{
-		kDebug(2, "evaluating {} to match {} > {}", sPath, it.RegexFrom.Pattern(), it.sTo);
-
 		if (it.RegexFrom.Replace(sPath, it.sTo) > 0)
 		{
-			kDebug(1, "matched, changed path to {}", sPath);
-
+			kDebug(1, "matched {}, changed to {}", it.RegexFrom.Pattern(), sPath);
 			++iRewrites;
+		}
+		else
+		{
+			kDebug(3, "{} does not match {}", it.RegexFrom.Pattern(), sPath);
 		}
 	}
 

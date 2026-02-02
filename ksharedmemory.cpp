@@ -65,7 +65,7 @@ KSemaphoreMutex::KSemaphoreMutex(key_t iIPCKey) noexcept
 {
 	if (!m_iIPCKey)
 	{
-		m_iIPCKey = kRandom(1);
+		m_iIPCKey = kRandom(1, std::numeric_limits<key_t>::max());
 	}
 
 	m_iSem = semget (m_iIPCKey, 0, IPC_PRIVATE);

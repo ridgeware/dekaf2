@@ -125,21 +125,14 @@ KUUID::KUUID(Variant var)
 
 		default:
 			{
-				// this generates a relatively weak random number,
-				// instead of 128 bits of randomness it only gives
-				// ~ 67 bits - but this is really only a last resort
-				// code, normally we use one of the real UUID
-				// generators
-				auto p = m_UUID.data();
+				kGetRandom(m_UUID.data(), m_UUID.size());
 
-				for (uint16_t i = 0; i < 4; ++i)
-				{
-					uint32_t r = kRandom();
-					*p++ = r & 0xff;
-					*p++ = (r >>= 8) & 0xff;
-					*p++ = (r >>= 8) & 0xff;
-					*p++ = (r >>= 8) & 0xff;
-				}
+				// set version to 4
+				m_UUID[6] &= 0x0f;
+				m_UUID[6] |= 0x40;
+				// set MSB of clk_seq_hi_res to %10
+				m_UUID[8] &= 0x3f;
+				m_UUID[8] |= 0x80;
 			}
 			break;
 	}

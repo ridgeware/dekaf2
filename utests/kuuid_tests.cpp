@@ -16,13 +16,16 @@ TEST_CASE("KUUID")
 		KUUID uuid;
 		CHECK ( uuid.empty() == false );
 		CHECK ( uuid.ToString().size() == 36 );
-		CHECK ( uuid.ToString().MatchRegex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}") );
+		INFO  ( uuid.ToString() );
+		CHECK ( uuid.ToString().MatchRegex("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}") );
 //		CHECK ( uuid.ToString() == "" );
 
 		uuid = KUUID::Create(KUUID::MACTime);
 		CHECK ( uuid.empty() == false );
 		CHECK ( uuid.ToString().size() == 36 );
-		CHECK ( uuid.ToString().MatchRegex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}") );
+		INFO  ( uuid.ToString() );
+		// be aware for the regex that on Windows we will never get a MACTime, but always a random UUID, hence the [14]
+		CHECK ( uuid.ToString().MatchRegex("[0-9a-f]{8}-[0-9a-f]{4}-[14][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}") );
 		CHECK ( uuid != KStringView("") );
 
 		uuid = KUUID::Create(KUUID::Null);
@@ -56,6 +59,7 @@ TEST_CASE("KUUID")
 		auto uuid2 = uuid1;
 		auto s = kFormat("{}", uuid1);
 		CHECK ( s == uuid2.ToString() );
+		CHECK ( s.MatchRegex("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}") );
 	}
 
 	SECTION("formatting (std::ostream)")
@@ -66,6 +70,7 @@ TEST_CASE("KUUID")
 		KOutStringStream oss(s);
 		oss << uuid1;
 		CHECK ( s == uuid2.ToString() );
+		CHECK ( s.MatchRegex("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}") );
 	}
 
 }

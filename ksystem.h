@@ -173,9 +173,17 @@ int kSystem (KStringView sCommand);
 DEKAF2_PUBLIC
 void kSleep(KDuration duration);
 
+/// Returns 32 bit unsigned random number
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+uint32_t kRandom();
+
 /// Returns 32 bit unsigned random number in range [iMin - iMax].
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-uint32_t kRandom(uint32_t iMin = 0, uint32_t iMax = UINT32_MAX);
+uint32_t kRandom(uint32_t iMin, uint32_t iMax);
+
+/// Returns up to 256 random bytes
+DEKAF2_PUBLIC
+bool kGetRandom(void* buf, std::size_t iCount);
 
 /// Returns the page size used on this CPU/MMU
 DEKAF2_NODISCARD DEKAF2_PUBLIC

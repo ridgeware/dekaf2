@@ -637,6 +637,17 @@ protected:
 		return std::move(SetMultiple(bYesNo));
 	}
 
+	self& SetAccept(KStringView sAcceptWhat) &
+	{
+		SetAttribute("accept", sAcceptWhat);
+		return This();
+	}
+
+	self&& SetAccept(KStringView sAcceptWhat) &&
+	{
+		return std::move(SetAccept(sAcceptWhat));
+	}
+
 	self& SetPlaceholder(KStringView sPlaceholder) &
 	{
 		SetAttribute("placeholder", sPlaceholder, true);
@@ -1638,6 +1649,7 @@ public:
 	using KWebObject::SetHeigth;
 	using KWebObject::SetWidth;
 	using KWebObject::SetMultiple;
+	using KWebObject::SetAccept;
 	using KWebObject::SetName;
 	using KWebObject::SetValue;
 	using KWebObject::SetSize;
@@ -1799,6 +1811,15 @@ public:
 	self&& SetMultiple(bool bYesNo) &&
 	{
 		return std::move(SetMultiple(bYesNo));
+	}
+	self& SetAccept(KStringView sAcceptWhat) &
+	{
+		m_Base.SetAccept(sAcceptWhat);
+		return This();
+	}
+	self&& SetAccept(KStringView sAcceptWhat) &&
+	{
+		return std::move(SetAccept(sAcceptWhat));
 	}
 	self& SetFormNoValidate(bool bYesNo) &
 	{

@@ -375,6 +375,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// check user's identity and access - throws if not permitted
+	/// (version to be manually called with JWT string received outside the HTTP AUTH header)
+	void VerifyAuthentication(KStringView sAuthHeader);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Get a temporary directory that is guaranteed to exist until this REST request is answered.
 	/// All content and the directory will be removed after the REST connection got closed.
 	/// @return a string with the path name of the temporary directory

@@ -159,6 +159,13 @@ const KString& KRESTServer::GetRequestBody() const
 void KRESTServer::VerifyAuthentication()
 //-----------------------------------------------------------------------------
 {
+	VerifyAuthentication(Request.Headers.Get(KHTTPHeader::AUTHORIZATION));
+}
+
+//-----------------------------------------------------------------------------
+void KRESTServer::VerifyAuthentication(KStringView sAuthorization)
+//-----------------------------------------------------------------------------
+{
 	switch (m_Options.AuthLevel)
 	{
 		case Options::ALLOW_ALL:
@@ -168,7 +175,7 @@ void KRESTServer::VerifyAuthentication()
 
 		case Options::ALLOW_ALL_WITH_AUTH_HEADER:
 			kDebug(2, "ALLOW_ALL_WITH_AUTH_HEADER");
-			if (!Request.Headers.Get(KHTTPHeader::AUTHORIZATION).empty())
+			if (!sAuthorization.empty())
 			{
 				SetAuthenticatedUser("pseudo-auth");
 				return;
@@ -182,9 +189,7 @@ void KRESTServer::VerifyAuthentication()
 		case Options::VERIFY_AUTH_HEADER:
 			{
 				kDebug(2, "VERIFY_AUTH_HEADER");
-				auto& Authorization = Request.Headers.Get(KHTTPHeader::AUTHORIZATION);
-
-				if (!Authorization.empty())
+				if (!sAuthorization.empty())
 				{
 					if (m_Options.Authenticators.empty())
 					{
@@ -200,7 +205,7 @@ void KRESTServer::VerifyAuthentication()
 							sScope = m_Options.sAuthScope;
 						}
 
-						if (m_AuthToken.Check(Authorization, m_Options.Authenticators, sScope))
+						if (m_AuthToken.Check(sAuthorization, m_Options.Authenticators, sScope))
 						{
 							// success
 							SetAuthenticatedUser(kjson::GetString(GetAuthToken(), "sub"));
@@ -748,7 +753,7 @@ bool KRESTServer::Execute()
 			// for Authorization permission)
 			if (Request.Method != KHTTPMethod::OPTIONS)
 			{
-				if (Route->Option(KRESTRoute::Options::GENERIC_AUTH))
+				if (Route->Option.Has(KRESTRoute::Options::GENERIC_AUTH))
 				{
 					if (m_Options.AuthCallback)
 					{
@@ -760,7 +765,7 @@ bool KRESTServer::Execute()
 					}
 				}
 
-				if (Route->Option(KRESTRoute::Options::SSO_AUTH))
+				if (Route->Option.Has(KRESTRoute::Options::SSO_AUTH))
 				{
 					// check if this route permits other authentication methods (probably triggered
 					// in AuthCallback()) and has confirmed a valid user
@@ -771,7 +776,8 @@ bool KRESTServer::Execute()
 					}
 				}
 
-				if (Route->Option(KRESTRoute::Options::GENERIC_AUTH)
+				// and/or generic auth
+				if (Route->Option.Has(KRESTRoute::Options::GENERIC_AUTH)
 					&& GetAuthenticatedUser().empty())
 				{
 					// generic auth was requested, but neither SSO nor any other authentication method

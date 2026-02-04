@@ -142,6 +142,8 @@ public:
 		char*       GetPreambleBuf  ()             const;
 		/// returns a status code that is only set with a Close frame, so after the conversation ends
 		uint16_t    GetStatusCode   ()             const { return m_iStatusCode; }
+		/// reset frame header to initial state
+		void        clear           ();
 
 		/// @return the given frame type as string (Text, Binary, Ping, Pong, Continuation, Close)
 		static KStringView FrameTypeToString (FrameType Type);
@@ -237,6 +239,8 @@ public:
 		bool           empty      () const           { return GetPayload().empty();    }
 		/// returns size of the payload
 		std::size_t    size       () const           { return GetPayload().size();     }
+		/// reset frame to initial state
+		void           clear      ();
 
 		iterator       begin      ()                 { return GetPayloadRef().begin(); }
 		iterator       end        ()                 { return GetPayloadRef().end();   }

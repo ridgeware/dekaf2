@@ -131,7 +131,7 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 			{
 				// now move the connection to the websocket event handler, and return this
 				// thread into the pool
-				auto handle = m_WebSocketServer.AddWebSocket(KWebSocket(Stream, RESTServer.GetWebSocketHandler(), true));
+				auto handle = m_WebSocketServer.AddWebSocket(KWebSocket(Stream, RESTServer.GetWebSocketHandler(), false));
 
 				if (handle > 0)
 				{
@@ -141,7 +141,7 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 			else
 			{
 				// create a websocket instance
-				KWebSocket WebSocket(Stream, RESTServer.GetWebSocketHandler(), true);
+				KWebSocket WebSocket(Stream, RESTServer.GetWebSocketHandler(), false);
 				// and run it right here through its own handler
 				RESTServer.GetWebSocketHandler()(WebSocket);
 			}

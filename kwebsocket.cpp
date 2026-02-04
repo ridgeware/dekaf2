@@ -57,6 +57,14 @@ static constexpr KStringViewZ s_sWebsocket_sec_key_suffix = "258EAFA5-E914-47DA-
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
+void KWebSocket::FrameHeader::clear()
+//-----------------------------------------------------------------------------
+{
+	*this = FrameHeader();
+
+} // clear
+
+//-----------------------------------------------------------------------------
 bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 //-----------------------------------------------------------------------------
 {
@@ -369,6 +377,14 @@ KWebSocket::FrameHeader::~FrameHeader()
 //-----------------------------------------------------------------------------
 {
 } // virtual dtor
+
+//-----------------------------------------------------------------------------
+void KWebSocket::Frame::clear()
+//-----------------------------------------------------------------------------
+{
+	*this = Frame();
+
+} // clear
 
 //-----------------------------------------------------------------------------
 void KWebSocket::Frame::Ping(KString sMessage)
@@ -930,6 +946,8 @@ KWebSocket::KWebSocket(KWebSocket&& other)
 bool KWebSocket::Read()
 //-----------------------------------------------------------------------------
 {
+	m_Frame.clear();
+
 	if (!m_Stream)
 	{
 		return false;
@@ -938,10 +956,13 @@ bool KWebSocket::Read()
 	for (;;)
 	{
 		{
-			// return latest after set stream timeout
-			if (!m_Stream->IsReadReady(m_ReadTimeout))
+			if (m_Stream->rdbuf()->in_avail() <= 0)
 			{
-				return false;
+				// return latest after set stream timeout
+				if (!m_Stream->IsReadReady(m_ReadTimeout))
+				{
+					return false;
+				}
 			}
 		}
 
@@ -949,7 +970,7 @@ bool KWebSocket::Read()
 			std::unique_lock<std::mutex> Lock(m_StreamMutex);
 
 			// return immediately from poll
-			if (m_Stream->IsReadReady(KDuration()))
+			if (m_Stream->rdbuf()->in_avail() > 0 || m_Stream->IsReadReady(KDuration()))
 			{
 				if (!m_Frame.Read(*m_Stream, *m_Stream, m_bMaskTx))
 				{

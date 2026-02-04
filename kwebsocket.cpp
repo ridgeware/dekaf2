@@ -895,10 +895,11 @@ bool KWebSocket::CheckForUpgradeResponse(KStringView sClientSecKey, KStringView 
 } // CheckForUpgradeResponse
 
 //-----------------------------------------------------------------------------
-KWebSocket::KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<void(KWebSocket&)> WebSocketHandler)
+KWebSocket::KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<void(KWebSocket&)> WebSocketHandler, bool bMaskTx)
 //-----------------------------------------------------------------------------
 : m_Stream(std::move(Stream))
 , m_Handler(std::move(WebSocketHandler))
+, m_bMaskTx(bMaskTx)
 {
 	if (!m_Stream)
 	{
@@ -911,6 +912,213 @@ KWebSocket::KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<v
 	}
 
 } // ctor
+
+//-----------------------------------------------------------------------------
+KWebSocket::KWebSocket(KWebSocket&& other)
+//-----------------------------------------------------------------------------
+: m_Stream(std::move(other.m_Stream))
+, m_Handler(std::move(other.m_Handler))
+, m_Finish(std::move(other.m_Finish))
+, m_Frame(std::move(other.m_Frame))
+, m_ReadTimeout(other.m_ReadTimeout)
+, m_WriteTimeout(other.m_WriteTimeout)
+, m_bMaskTx(other.m_bMaskTx)
+{
+} // move ctor
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Read()
+//-----------------------------------------------------------------------------
+{
+	if (!m_Stream)
+	{
+		return false;
+	}
+
+	for (;;)
+	{
+		{
+			// return latest after set stream timeout
+			if (!m_Stream->IsReadReady(m_ReadTimeout))
+			{
+				return false;
+			}
+		}
+
+		{
+			std::unique_lock<std::mutex> Lock(m_StreamMutex);
+
+			// return immediately from poll
+			if (m_Stream->IsReadReady(KDuration()))
+			{
+				if (!m_Frame.Read(*m_Stream, *m_Stream, m_bMaskTx))
+				{
+					return false;
+				}
+
+				break;
+			}
+		}
+
+		// stream changed state while acquiring lock, repeat waiting
+	}
+
+	return true;
+
+} // KWebSocket::Read
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::ReadInt(std::function<bool(const KString&)> Func)
+//-----------------------------------------------------------------------------
+{
+	for (;;)
+	{
+		if (!Read())
+		{
+			return false;
+		}
+
+		switch (m_Frame.Type())
+		{
+			// this is what we waited for
+			case KWebSocket::Frame::FrameType::Text:
+			case KWebSocket::Frame::FrameType::Binary:
+				return Func(m_Frame.GetPayload());
+
+			// answered by the Frame reader itself, simply return false
+			case KWebSocket::Frame::FrameType::Close:
+				return false;
+
+			// these are handled by the Frame reader itself, just continue reading
+			case KWebSocket::Frame::FrameType::Ping:
+			case KWebSocket::Frame::FrameType::Pong:
+				kDebug(3, "received {} frame with payload '{}' ({} bytes), will continue reading",
+				           KWebSocket::Frame::FrameTypeToString(m_Frame.Type()),
+				           m_Frame.GetPayload(),
+				           m_Frame.GetPayload().size());
+				break;
+
+			case KWebSocket::Frame::FrameType::Continuation:
+				break;
+		}
+	}
+
+	return false;
+
+} // KWebSocket::ReadInt
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Read(KString& sFrame)
+//-----------------------------------------------------------------------------
+{
+	sFrame.clear();
+
+	return ReadInt([&sFrame](const KString& sPayload)
+	{
+		sFrame = sPayload;
+		return true;
+	});
+
+} // KWebSocketWorker::Read
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Read(KJSON& jFrame)
+//-----------------------------------------------------------------------------
+{
+	jFrame = KJSON{};
+
+	return ReadInt([&jFrame](const KString& sPayload)
+	{
+		KString sError;
+		kjson::Parse(jFrame, sPayload, sError);
+
+		if (!sError.empty())
+		{
+			kDebug(1, sError);
+			return false;
+		}
+
+		return true;
+	});
+
+} // KWebSocket::Read
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Write(KWebSocket::Frame Frame)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Stream)
+	{
+		return false;
+	}
+
+	m_Frame = std::move(Frame);
+
+	for (;;)
+	{
+		{
+			// return latest after set stream timeout
+			if (!m_Stream->IsWriteReady(m_WriteTimeout))
+			{
+				return false;
+			}
+		}
+
+		{
+			std::unique_lock<std::mutex> Lock(m_StreamMutex);
+
+			// return immediately from poll
+			if (m_Stream->IsWriteReady(KDuration()))
+			{
+				m_Frame.Write(*m_Stream, m_bMaskTx);
+				break;
+			}
+		}
+
+		// stream changed state while acquiring lock, repeat waiting
+	}
+
+	return true;
+
+} // KWebSocket::Write
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Write(KString sFrame, bool bIsBinary)
+//-----------------------------------------------------------------------------
+{
+	return Write(KWebSocket::Frame(std::move(sFrame), bIsBinary));
+
+} // KWebSocket::Write
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Write(const KJSON& jFrame)
+//-----------------------------------------------------------------------------
+{
+	// json is UTF8 when dumped, therefore set text mode
+	return Write(KWebSocket::Frame(jFrame.dump(), false/*bIsBinary*/));
+
+} // KWebSocket::Write
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Ping(KString sMessage)
+//-----------------------------------------------------------------------------
+{
+	KWebSocket::Frame Frame;
+	Frame.Ping(std::move(sMessage));
+	return Write(Frame);
+
+} // KWebSocket::Ping
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Close(uint16_t iStatusCode, KString sReason)
+//-----------------------------------------------------------------------------
+{
+	KWebSocket::Frame Frame;
+	Frame.Close(iStatusCode, sReason);
+	return Write(std::move(Frame));
+
+} // KWebSocket::Close
+
 
 //-----------------------------------------------------------------------------
 void KWebSocket::CallHandler(class Frame Frame)
@@ -999,206 +1207,5 @@ KWebSocketServer::Handle KWebSocketServer::AddWebSocket(KWebSocket WebSocket)
 	return handle;
 
 } // AddConnection
-
-//-----------------------------------------------------------------------------
-KWebSocketWorker::KWebSocketWorker(KWebSocket& WebSocket, bool bMaskTx)
-//-----------------------------------------------------------------------------
-: m_Stream(WebSocket.MoveStream())
-, m_bMaskTx(bMaskTx)
-{
-}
-
-//-----------------------------------------------------------------------------
-bool KWebSocketWorker::Read(KWebSocket::Frame& Frame)
-//-----------------------------------------------------------------------------
-{
-	if (!m_Stream)
-	{
-		return false;
-	}
-
-	for (;;)
-	{
-		{
-			// return latest after set stream timeout
-			if (!m_Stream->IsReadReady(m_ReadTimeout))
-			{
-				return false;
-			}
-		}
-
-		{
-			std::unique_lock<std::mutex> Lock(m_StreamMutex);
-
-			// return immediately from poll
-			if (m_Stream->IsReadReady(KDuration()))
-			{
-				if (!Frame.Read(*m_Stream, *m_Stream, m_bMaskTx))
-				{
-					return false;
-				}
-
-				break;
-			}
-		}
-
-		// stream changed state while acquiring lock, repeat waiting
-	}
-
-	return true;
-
-} // KWebSocketWorker::Read
-
-//-----------------------------------------------------------------------------
-bool KWebSocketWorker::ReadInt(std::function<bool(const KString&)> Func)
-//-----------------------------------------------------------------------------
-{
-	KWebSocket::Frame Frame;
-
-	for (;;)
-	{
-		if (!Read(Frame))
-		{
-			return false;
-		}
-
-		switch (Frame.Type())
-		{
-			// this is what we waited for
-			case KWebSocket::Frame::FrameType::Text:
-			case KWebSocket::Frame::FrameType::Binary:
-				return Func(Frame.GetPayload());
-
-			// answered by the Frame reader itself, simply return false
-			case KWebSocket::Frame::FrameType::Close:
-				return false;
-
-			// these are handled by the Frame reader itself, just continue reading
-			case KWebSocket::Frame::FrameType::Ping:
-			case KWebSocket::Frame::FrameType::Pong:
-				kDebug(3, "received {} frame with payload '{}' ({} bytes), will continue reading",
-				           KWebSocket::Frame::FrameTypeToString(Frame.Type()),
-				           Frame.GetPayload(),
-				           Frame.GetPayload().size());
-				break;
-
-			case KWebSocket::Frame::FrameType::Continuation:
-				break;
-		}
-	}
-
-	return false;
-
-} // KWebSocketWorker::ReadInt
-
-//-----------------------------------------------------------------------------
-bool KWebSocketWorker::Read(KString& sFrame)
-//-----------------------------------------------------------------------------
-{
-	sFrame.clear();
-
-	return ReadInt([&sFrame](const KString& sPayload)
-	{
-		sFrame = sPayload;
-		return true;
-	});
-
-} // KWebSocketWorker::Read
-
-//-----------------------------------------------------------------------------
-bool KWebSocketWorker::Read(KJSON& jFrame)
-//-----------------------------------------------------------------------------
-{
-	jFrame = KJSON{};
-
-	return ReadInt([&jFrame](const KString& sPayload)
-	{
-		KString sError;
-		kjson::Parse(jFrame, sPayload, sError);
-
-		if (!sError.empty())
-		{
-			kDebug(1, sError);
-			return false;
-		}
-
-		return true;
-	});
-
-} // KWebSocketWorker::Read
-
-//-----------------------------------------------------------------------------
-bool KWebSocketWorker::Write(KWebSocket::Frame Frame)
-//-----------------------------------------------------------------------------
-{
-	if (!m_Stream)
-	{
-		return false;
-	}
-
-	for (;;)
-	{
-		{
-			// return latest after set stream timeout
-			if (!m_Stream->IsWriteReady(m_WriteTimeout))
-			{
-				return false;
-			}
-		}
-
-		{
-			std::unique_lock<std::mutex> Lock(m_StreamMutex);
-
-			// return immediately from poll
-			if (m_Stream->IsWriteReady(KDuration()))
-			{
-				Frame.Write(*m_Stream, m_bMaskTx);
-				break;
-			}
-		}
-
-		// stream changed state while acquiring lock, repeat waiting
-	}
-
-	return true;
-
-} // KWebSocketWorker::Write
-
-//-----------------------------------------------------------------------------
-bool KWebSocketWorker::Write(KString sFrame, bool bIsBinary)
-//-----------------------------------------------------------------------------
-{
-	return Write(KWebSocket::Frame(std::move(sFrame), bIsBinary));
-
-} // KWebSocketWorker::Write
-
-//-----------------------------------------------------------------------------
-bool KWebSocketWorker::Write(const KJSON& jFrame)
-//-----------------------------------------------------------------------------
-{
-	// json is UTF8 when dumped, therefore set text mode
-	return Write(KWebSocket::Frame(jFrame.dump(), false/*bIsBinary*/));
-
-} // KWebSocketWorker::Write
-
-//-----------------------------------------------------------------------------
-bool KWebSocketWorker::Ping(KString sMessage)
-//-----------------------------------------------------------------------------
-{
-	KWebSocket::Frame Frame;
-	Frame.Ping(std::move(sMessage));
-	return Write(Frame);
-
-} // KWebSocketWorker::Ping
-
-//-----------------------------------------------------------------------------
-bool KWebSocketWorker::Close(uint16_t iStatusCode, KString sReason)
-//-----------------------------------------------------------------------------
-{
-	KWebSocket::Frame Frame;
-	Frame.Close(iStatusCode, sReason);
-	return Write(std::move(Frame));
-
-} // KWebSocketWorker::Close
 
 DEKAF2_NAMESPACE_END

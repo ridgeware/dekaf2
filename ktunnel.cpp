@@ -221,7 +221,7 @@ void KTunnel::Message::Read(KIOStreamSocket& Stream)
 {
 	clear();
 
-	if (!Frame::Read(Stream, Stream, false))
+	if (!Frame::Read(Stream, false))
 	{
 		Throw(kFormat("[{}]: cannot read from {}", GetChannel(), Stream.GetEndPointAddress()));
 	}

@@ -54,6 +54,7 @@
 #include "kstring.h"
 #include "kstringview.h"
 #include "kstream.h"
+#include "kduration.h"
 #include <vector>
 #include <atomic>
 #include <thread>
@@ -201,10 +202,14 @@ public:
 		/// decodes one or multiple frames with payload from input stream, may send pong frames -
 		/// masking is required from client to server, and forbidden from server to client
 		bool           Read       (KInStream& InStream, KOutStream& OutStream, bool bMaskTx);
+		/// decodes one or multiple frames with payload from input stream, may send pong frames -
+		/// masking is required from client to server, and forbidden from server to client
+		bool           Read       (KStream& Stream, bool bMaskTx) { return Read(Stream, Stream, bMaskTx); }
 		/// writes one full frame with payload to output stream -
 		/// masking is required from client to server, and forbidden from server to client
 		bool           Write      (KOutStream& OutStream, bool bMaskTx);
-		/// set binary or text payload from input stream, and write it, possibly in multiple frames
+		/// set binary or text payload from input stream, and write it, possibly in multiple frames -
+		/// masking is required from client to server, and forbidden from server to client
 		bool           Write      (KOutStream& OutStream, bool bMaskTx, KInStream& Payload, bool bIsBinary, std::size_t len = npos);
 		/// creates mask key and masks payload - call only as a websocket client
 		void           Mask       ();
@@ -261,7 +266,56 @@ public:
 
 
 	/// construct with stream socket (will be owned by the new instance) and a callback function to handle new incoming frames
-	KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<void(KWebSocket&)> WebSocketHandler);
+	KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream,
+	           std::function<void(KWebSocket&)> WebSocketHandler,
+	           bool bMaskTx);
+
+	KWebSocket(KWebSocket&& other);
+
+	/// set read timeout, probably in the minutes to hours range (defaults to 60 minutes)
+	void SetReadTimeout(KDuration ReadTimeout)   { m_ReadTimeout  = ReadTimeout;  }
+
+	/// set write timeout. probably in the seconds range (defaults to 30 seconds)
+	void SetWriteTimeout(KDuration WriteTimeout) { m_WriteTimeout = WriteTimeout; }
+
+	/// read one full data frame from the web socket, store in internal frame buffer
+	/// @returns false if timeout
+	bool Read();
+
+	/// read one full data frame from the web socket, store in string
+	/// @returns false if timeout
+	bool Read(KString& sFrame);
+
+	/// read one full data frame from the web socket, store in json
+	/// @returns false if timeout
+	bool Read(KJSON& sFrame);
+
+	/// write one full data frame to web socket
+	/// @returns false if unsuccessful
+	bool Write(KWebSocket::Frame Frame);
+
+	/// write one full data frame from string to web socket
+	/// @param sFrame the data to write
+	/// @param bIsBinary set to false if this is UTF8 text, else to true
+	/// @returns false if unsuccessful
+	bool Write(KString sFrame, bool bIsBinary = false);
+
+	/// write one full data frame from json to web socket
+	/// @param jFrame the json data to write
+	/// @returns false if unsuccessful
+	bool Write(const KJSON& jFrame);
+
+	/// write a ping with or without content to the opposite endpoint (to keep a connection open)
+	/// @param sMessage an arbitrary message to send with the ping (it will be returned with the
+	/// response pong)
+	/// @returns false if unsuccessful
+	bool Ping(KString sMessage = KString{});
+
+	/// send a Close frame to finish the connection
+	/// @param iStatusCode a value between 1000 and 1011, or own range
+	/// @param sReason a string with a reason for the close - not needed for codes 1000-1011
+	/// @returns false if unsuccessful
+	bool Close(uint16_t iStatusCode = 1000, KString sReason = KString{});
 
 	/// set the finish callback for this instance
 	void               SetFinishCallback            (std::function<void()> Finish) { m_Finish = std::move(Finish); }
@@ -291,10 +345,17 @@ public:
 private:
 //----------
 
+	bool ReadInt(std::function<bool(const KString&)> Func);
+
 	std::unique_ptr<KIOStreamSocket> m_Stream;
 	std::function<void(KWebSocket&)> m_Handler;
 	std::function<void()>            m_Finish;
 	Frame                            m_Frame;
+
+	std::mutex                       m_StreamMutex;
+	KDuration                        m_ReadTimeout  { chrono::minutes(60) };
+	KDuration                        m_WriteTimeout { chrono::seconds(30) };
+	bool                             m_bMaskTx { false };
 
 }; // KWebSocket
 
@@ -327,68 +388,5 @@ private:
 	std::atomic<bool>             m_bStop    { false };
 
 }; // KWebSocketServer
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// takes one web socket and handles reading and writing of frames, one single websocket per thread
-class DEKAF2_PUBLIC KWebSocketWorker
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	/// construct with active web socket, set bMaskTx to true if this is a client - takes ownership of
-	/// the web socket stream
-	KWebSocketWorker(KWebSocket& WebSocket, bool bMaskTx);
-	/// set read timeout, probably in the minutes to hours range (defaults to 60 minutes)
-	void SetReadTimeout(KDuration ReadTimeout)   { m_ReadTimeout  = ReadTimeout;  }
-	/// set write timeout. probably in the seconds range (defaults to 30 seconds)
-	void SetWriteTimeout(KDuration WriteTimeout) { m_WriteTimeout = WriteTimeout; }
-	/// read one full data frame from the web socket
-	/// @returns false if timeout
-	bool Read(KWebSocket::Frame& Frame);
-	/// read one full data frame from the web socket, store in string
-	/// @returns false if timeout
-	bool Read(KString& sFrame);
-	/// read one full data frame from the web socket, store in json
-	/// @returns false if timeout
-	bool Read(KJSON& sFrame);
-	/// write one full data frame to web socket
-	/// @returns false if unsuccessful
-	bool Write(KWebSocket::Frame Frame);
-	/// write one full data frame from string to web socket
-	/// @param sFrame the data to write
-	/// @param bIsBinary set to false if this is UTF8 text, else to true
-	/// @returns false if unsuccessful
-	bool Write(KString sFrame, bool bIsBinary = false);
-	/// write one full data frame from json to web socket
-	/// @param jFrame the json data to write
-	/// @returns false if unsuccessful
-	bool Write(const KJSON& jFrame);
-	/// write a ping with or without content to the opposite endpoint (to keep a connection open)
-	/// @param sMessage an arbitrary message to send with the ping (it will be returned with the
-	/// response pong)
-	/// @returns false if unsuccessful
-	bool Ping(KString sMessage = KString{});
-	/// send a Close frame to finish the connection
-	/// @param iStatusCode a value between 1000 and 1011, or own range
-	/// @param sReason a string with a reason for the close - not needed for codes 1000-1011
-	/// @returns false if unsuccessful
-	bool Close(uint16_t iStatusCode = 1000, KString sReason = KString{});
-
-//----------
-private:
-//----------
-
-	bool ReadInt(std::function<bool(const KString&)> Func);
-
-	std::unique_ptr<KIOStreamSocket> m_Stream;
-	std::mutex                       m_StreamMutex;
-	KDuration                        m_ReadTimeout  { chrono::minutes(60) };
-	KDuration                        m_WriteTimeout { chrono::seconds(30) };
-	bool                             m_bMaskTx { false };
-
-}; // KWebSocketWorker
 
 DEKAF2_NAMESPACE_END

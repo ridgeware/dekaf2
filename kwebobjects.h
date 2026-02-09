@@ -637,6 +637,18 @@ protected:
 		return std::move(SetMultiple(bYesNo));
 	}
 
+	self& SetDirectory(bool bYesNo) &
+	{
+		SetAttribute("directory", bYesNo);
+		SetAttribute("webkitdirectory", bYesNo);
+		return This();
+	}
+
+	self&& SetDirectory(bool bYesNo) &&
+	{
+		return std::move(SetDirectory(bYesNo));
+	}
+
 	self& SetAccept(KStringView sAcceptWhat) &
 	{
 		SetAttribute("accept", sAcceptWhat);
@@ -1638,6 +1650,7 @@ public:
 	self&  SetStep(float step) &;
 	self&& SetStep(float step) && { return std::move(SetStep(step)); }
 
+	using KWebObject::SetAttribute;
 	using KWebObject::SetDescription;
 	using KWebObject::SetAutofocus;
 	using KWebObject::SetDisabled;
@@ -1649,6 +1662,7 @@ public:
 	using KWebObject::SetHeigth;
 	using KWebObject::SetWidth;
 	using KWebObject::SetMultiple;
+	using KWebObject::SetDirectory;
 	using KWebObject::SetAccept;
 	using KWebObject::SetName;
 	using KWebObject::SetValue;
@@ -1811,6 +1825,15 @@ public:
 	self&& SetMultiple(bool bYesNo) &&
 	{
 		return std::move(SetMultiple(bYesNo));
+	}
+	self& SetDirectory(bool bYesNo) &
+	{
+		m_Base.SetDirectory(bYesNo);
+		return This();
+	}
+	self&& SetDirectory(bool bYesNo) &&
+	{
+		return std::move(SetDirectory(bYesNo));
 	}
 	self& SetAccept(KStringView sAcceptWhat) &
 	{

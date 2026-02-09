@@ -1,5 +1,6 @@
 #include "catch.hpp"
 #include <dekaf2/kaes.h>
+#include <dekaf2/ksystem.h>
 #include <vector>
 
 #if DEKAF2_HAS_AES
@@ -297,6 +298,174 @@ TEST_CASE("KAES")
 		CHECK ( sEncrypted1 != sEncrypted4 );
 	}
 
+	SECTION("Incremental IV")
+	{
+		KBlockCipher Enc(
+			KBlockCipher::Encrypt,
+			KBlockCipher::AES,
+			KBlockCipher::GCM,
+			KBlockCipher::B256,
+			false,
+			true
+		);
+
+		KBlockCipher Dec(
+			KBlockCipher::Decrypt,
+			KBlockCipher::AES,
+			KBlockCipher::GCM,
+			KBlockCipher::B256,
+			false,
+			true
+		);
+
+		auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+
+		CHECK ( Enc.SetKey(sKey) );
+		CHECK ( Dec.SetKey(sKey) );
+		CHECK ( Enc.SetAutoIncrementNonceAsIV() );
+		CHECK ( Dec.SetAutoIncrementNonceAsIV() );
+
+		KString sOrig = "abcdefghijklmnopqrstuvwxyz0123456789";
+		KString sEncrypted;
+		KString sDecrypted;
+
+		CHECK ( Enc.SetOutput(sEncrypted) );
+		CHECK ( Enc.Add(sOrig)     );
+		CHECK ( Enc.Add("abcdefg") );
+		sOrig += "abcdefg";
+		CHECK ( Enc.Finalize() );
+
+		KString sStart = sEncrypted.Left(15);
+		sEncrypted.remove_prefix(15);
+
+		CHECK ( Dec.SetOutput(sDecrypted) );
+		CHECK ( Dec.Add(sStart)     );
+		CHECK ( Dec.Add(sEncrypted) );
+		CHECK ( Dec.Finalize()      );
+
+		CHECK ( sOrig == sDecrypted );
+
+		sOrig = "01abcdefghijklmnopqrstuvwxyz0123456789";
+		sEncrypted.clear();
+		sDecrypted.clear();
+
+		CHECK ( Enc.SetOutput(sEncrypted) );
+		CHECK ( Enc.Add(sOrig)     );
+		CHECK ( Enc.Add("01abcdefg") );
+		sOrig += "01abcdefg";
+		CHECK ( Enc.Finalize() );
+
+		sStart = sEncrypted.Left(15);
+		sEncrypted.remove_prefix(15);
+
+		CHECK ( Dec.SetOutput(sDecrypted) );
+		CHECK ( Dec.Add(sStart)     );
+		CHECK ( Dec.Add(sEncrypted) );
+		CHECK ( Dec.Finalize()      );
+
+		CHECK ( sOrig == sDecrypted );
+	}
+
+	SECTION("Incremental IV inline")
+	{
+		KBlockCipher Enc(
+			KBlockCipher::Encrypt,
+			KBlockCipher::AES,
+			KBlockCipher::GCM,
+			KBlockCipher::B256,
+			true,
+			true
+		);
+
+		KBlockCipher Dec(
+			KBlockCipher::Decrypt,
+			KBlockCipher::AES,
+			KBlockCipher::GCM,
+			KBlockCipher::B256,
+			true,
+			true
+		);
+
+		auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+
+		CHECK ( Enc.SetKey(sKey) );
+		CHECK ( Dec.SetKey(sKey) );
+		CHECK ( Enc.SetAutoIncrementNonceAsIV() );
+		CHECK ( Dec.SetAutoIncrementNonceAsIV() );
+
+		KString sOrig = "abcdefghijklmnopqrstuvwxyz0123456789";
+		KString sEncrypted;
+		KString sDecrypted;
+
+		CHECK ( Enc.SetOutput(sEncrypted) );
+		CHECK ( Enc.Add(sOrig)     );
+		CHECK ( Enc.Add("abcdefg") );
+		sOrig += "abcdefg";
+		CHECK ( Enc.Finalize() );
+
+		KString sStart = sEncrypted.Left(15);
+		sEncrypted.remove_prefix(15);
+
+		CHECK ( Dec.SetOutput(sDecrypted) );
+		CHECK ( Dec.Add(sStart)     );
+		CHECK ( Dec.Add(sEncrypted) );
+		CHECK ( Dec.Finalize()      );
+
+		CHECK ( sOrig == sDecrypted );
+	}
+
+	SECTION("Incremental IV no inline tag")
+	{
+		KBlockCipher Enc(
+			KBlockCipher::Encrypt,
+			KBlockCipher::AES,
+			KBlockCipher::GCM,
+			KBlockCipher::B256,
+			false,
+			false
+		);
+
+		KBlockCipher Dec(
+			KBlockCipher::Decrypt,
+			KBlockCipher::AES,
+			KBlockCipher::GCM,
+			KBlockCipher::B256,
+			false,
+			false
+		);
+
+		auto sKey = kGetRandom(Enc.GetNeededKeyLength());
+
+		CHECK ( Enc.SetKey(sKey) );
+		CHECK ( Dec.SetKey(sKey) );
+		CHECK ( Enc.SetAutoIncrementNonceAsIV() );
+		CHECK ( Dec.SetAutoIncrementNonceAsIV() );
+
+		KString sOrig = "abcdefghijklmnopqrstuvwxyz0123456789";
+		KString sEncrypted;
+		KString sDecrypted;
+
+		CHECK ( Enc.SetOutput(sEncrypted) );
+		CHECK ( Enc.Add(sOrig)     );
+		CHECK ( Enc.Add("abcdefg") );
+		sOrig += "abcdefg";
+		CHECK ( Enc.Finalize() );
+
+		auto sTag = Enc.GetAuthenticationTag();
+		auto sIV = Enc.GetInitializationVector();
+
+		KString sStart = sEncrypted.Left(15);
+		sEncrypted.remove_prefix(15);
+
+		CHECK ( Dec.SetOutput(sDecrypted) );
+		CHECK ( Dec.SetAuthenticationTag(sTag) );
+		CHECK ( Dec.SetInitializationVector(sIV) );
+		CHECK ( Dec.Add(sStart)     );
+		CHECK ( Dec.Add(sEncrypted) );
+		CHECK ( Dec.Finalize()      );
+
+		CHECK ( sOrig == sDecrypted );
+	}
 }
 
 #endif

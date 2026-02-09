@@ -150,14 +150,17 @@ public:
 	/// @param algorithm AES, ARIA, Camellia or ChaCha20_Poly1305
 	/// @param mode either ECB, CBC, OFB, CFB1, CFB8, CFB128, CTR, CCM, GCM, OCB or XTS - defaults to GCM (without meaning for ChaCha20)
 	/// @param bits one of B128, B192, B256 - defaults to B256 (without meaning for ChaCha20)
-	/// @param bInlineIVandTag whether the IV and possible tag should for encryption be inserted at the start
-	///  of the ciphertext, and read there for decryption - defaults to true
+	/// @param bInlineIV whether the IV should for encryption be inserted at the start
+	/// of the ciphertext, and looked up there for decryption - defaults to true
+	/// @param bInlineTag whether the possible tag should for encryption be inserted at the start
+	/// of the ciphertext, and looked up there for decryption - defaults to true
 	KBlockCipher(
 		Direction    direction,
 		Algorithm    algorithm       = AES,
 		Mode         mode            = GCM,
 		Bits         bits            = B256,
-		bool         bInlineIVandTag = true
+		bool         bInlineIV       = true,
+		bool         bInlineTag      = true
 	);
 
 	/// copy construction
@@ -191,6 +194,8 @@ public:
 	KStringView GetCipherName() const { return m_sCipherName; }
 	/// returns wether this instance is for encryption or decryption
 	Direction GetDirection() const { return m_Direction; }
+	/// returns the cipher algorithm
+	Algorithm GetAlgorithm() const { return m_Algorithm; }
 	/// returns the cipher mode
 	Mode GetMode() const { return m_Mode; }
 
@@ -240,22 +245,33 @@ public:
 
 	/// for encryption: get the initialization vector as string - you will only need this if you do not want to pass
 	/// IV and authentication tag at the start of the ciphertext - call after adding input data
-	const KString& GetInitializationVector() const { return m_sIV; }
+	const KString& GetInitializationVector() const { return m_sLastIV; }
 
 	/// for encryption: get the authentication tag as string - you will only need this if you do not want to pass
 	/// IV and authentication tag at the start of the ciphertext - call after finalizing the encryption
-	const KString& GetAuthenticationTag() const { return m_sTag; }
+	const KString& GetAuthenticationTag() const { return m_sLastTag; }
 
 	/// for decryption: set the initialization vector from a string - you will only need this if you do not want to pass
 	/// IV and authentication tag at the start of the ciphertext - call before adding any input data
 	/// for encryption: if you want to set your own initialization vector instead of a random one, call this
 	/// before adding any input data.
-	bool SetInitializationVector(KStringView sTag);
+	bool SetInitializationVector(KStringView sIV);
+
+	/// if using GCM, CCM, Chacha20 you may set the IV to a simple counter that gets incremented with
+	/// each round of encryption. However, this requires that you use a different key for each encryption
+	/// session, as one should never encode twice with the same key and IV. But this is e.g. useful for
+	/// sequential message exchange that initially agrees on a new key, as then you do not have to exchange
+	/// the IV for every new round.
+  	bool SetAutoIncrementNonceAsIV(uint64_t iCount = 1);
 
 	/// for decryption: set the authentication tag from a string - you will only need this if you do not want to pass
 	/// IV and authentication tag at the start of the ciphertext and if the selected cipher supports authentication,
 	/// like GCM - call before adding any input data
 	bool SetAuthenticationTag(KStringView sTag);
+
+	/// run one single round of SetOutput(), Add(), Finalize() - can be called repeatedly, will generate independent
+	/// encrypt/decrypt rounds reusing the same algorithm and password/key
+	bool SingleRound(KStringView sInput, KStringRef& sOutput);
 
 	/// static: return cipher for algorithm, mode and bits
 	static const evp_cipher_st* GetCipher(Algorithm algorithm, Mode mode, Bits bits);
@@ -311,11 +327,15 @@ private:
 	bool Initialize(Algorithm algorithm, Bits bits);
 	bool CompleteInitialization();
 	bool SetTag();
+	bool SetIV();
 	bool AddString(KStringView sInput);
 	bool AddStream(KStringView sInput);
 	bool FinalizeString();
 	bool FinalizeStream();
+	void PrepareNextRound();
 	void Release() noexcept;
+	uint64_t GetNextIncrementalIV();
+	KString PrintIncrementalIV(uint64_t iIV);
 
 	const evp_cipher_st* m_Cipher        { nullptr };
 	evp_cipher_ctx_st*   m_evpctx        { nullptr };
@@ -328,14 +348,21 @@ private:
 	KStringView          m_sCipherName;
 	KString              m_sIV;
 	KString              m_sTag;
+	KString              m_sLastIV;
+	KString              m_sLastTag;
 	KOutStream*          m_OutStream     { nullptr };
 	KStringRef*          m_OutString     { nullptr };
 	std::streampos       m_StartOfStream {       0 };
+	uint64_t             m_iNonceIV      {       0 };
 	Direction            m_Direction;
+	Algorithm            m_Algorithm;
 	Mode                 m_Mode;
-	bool                 m_bInlineIVandTag { false };
+	bool                 m_bInlineIV       { false };
+	bool                 m_bInlineTag      { false };
 	bool                 m_bKeyIsSet       { false };
 	bool                 m_bInitCompleted  { false };
+	bool                 m_bTagIsSet       { false };
+	bool                 m_bIVIsSet        { false };
 
 }; // KBlockCipher
 

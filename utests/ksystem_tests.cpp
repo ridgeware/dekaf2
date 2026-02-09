@@ -82,7 +82,9 @@ TEST_CASE("KSystem")
 		auto i = kRandom(17, 43);
 		CHECK ( (i >= 17 && i <= 43) == true );
 		i = kRandom();
-		CHECK ( (i >= 0 && i <= std::numeric_limits<decltype(i)>::max()) );
+		// don't test for i >= 0, gcc 12 thinks it needs to teach us that
+		// is always true and hence an error
+		CHECK ( (i <= std::numeric_limits<decltype(i)>::max()) );
 	}
 
 	SECTION("kGetRandom 1")

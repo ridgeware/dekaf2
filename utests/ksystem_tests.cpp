@@ -77,10 +77,23 @@ TEST_CASE("KSystem")
 		CHECK ( i != 0 );
 	}
 
-	SECTION("Random")
+	SECTION("kRandom")
 	{
 		auto i = kRandom(17, 43);
 		CHECK ( (i >= 17 && i <= 43) == true );
+		i = kRandom();
+		CHECK ( (i >= 0 && i <= std::numeric_limits<decltype(i)>::max()) );
+	}
+
+	SECTION("kGetRandom 1")
+	{
+		std::array<char, 60> r;
+		CHECK ( kGetRandom(r.data(), r.size()) );
+	}
+
+	SECTION("kGetRandom 2")
+	{
+		CHECK ( kGetRandom(20).size() == 20 );
 	}
 
 	SECTION("kSystem")

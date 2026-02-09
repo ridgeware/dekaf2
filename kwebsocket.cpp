@@ -732,21 +732,7 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMask)
 KString KWebSocket::GenerateClientSecKey()
 //-----------------------------------------------------------------------------
 {
-	KString sKey;
-
-	for (uint16_t i = 0; i < 16 / 4; ++i)
-	{
-		auto iRand = kRandom();
-		sKey += iRand;
-		iRand >>= 8;
-		sKey += iRand;
-		iRand >>= 8;
-		sKey += iRand;
-		iRand >>= 8;
-		sKey += iRand;
-	}
-
-	return KEncode::Base64(sKey);
+	return KEncode::Base64(kGetRandom(16));
 
 } // GenerateClientSecKey
 

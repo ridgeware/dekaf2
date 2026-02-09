@@ -181,9 +181,13 @@ uint32_t kRandom();
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 uint32_t kRandom(uint32_t iMin, uint32_t iMax);
 
-/// Returns up to 256 random bytes
+/// Returns cryptographically secure random bytes
 DEKAF2_PUBLIC
 bool kGetRandom(void* buf, std::size_t iCount);
+
+/// Returns cryptographically secure random bytes
+DEKAF2_PUBLIC
+KString kGetRandom(std::size_t iCount);
 
 /// Returns the page size used on this CPU/MMU
 DEKAF2_NODISCARD DEKAF2_PUBLIC

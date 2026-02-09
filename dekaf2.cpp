@@ -303,11 +303,6 @@ uint32_t Dekaf::GetRandomValue(uint32_t iMin, uint32_t iMax)
 bool Dekaf::GetRandomBytes(void* buf, std::size_t iCount)
 //---------------------------------------------------------------------------
 {
-	if (iCount > 256)
-	{
-		kDebug(1, "requested too many random bytes: {} > 256", iCount);
-		return false;
-	}
 	if (!buf)
 	{
 		kDebug(1, "buffer is invalid");

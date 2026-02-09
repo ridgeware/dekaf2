@@ -70,6 +70,7 @@
 #include "koutshell.h"
 #include "kformtable.h"
 #include "kencode.h"
+#include "kuuid.h"
 #include <cstdint>
 #include <utility>
 
@@ -625,7 +626,7 @@ const KString& KSQL::GetTempResultsFile()
 {
 	if (m_sNeverReadMeDirectlyTmpResultsFile.empty())
 	{
-		m_sNeverReadMeDirectlyTmpResultsFile.Format ("{}/ksql-{}-{}-{}.res", GetTempDir(), kGetPid(), kGetTid(), kRandom());
+		m_sNeverReadMeDirectlyTmpResultsFile.Format ("{}/ksql-{}.res", GetTempDir(), KUUID());
 	}
 	return m_sNeverReadMeDirectlyTmpResultsFile;
 

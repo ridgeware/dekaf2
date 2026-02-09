@@ -166,17 +166,14 @@ uint16_t DBCFileBase::DecodeVersion(const void* pStr)
 	auto iLen  = strnlen(szStr, 10);
 	auto vCh   = szStr[iLen-1];
 	return vCh - '0';
+
 } // DBCFileBase::DecodeVersion
 
 //-----------------------------------------------------------------------------
 void DBCFileBase::FillBufferWithNoise(void* pBuffer, std::size_t iSize)
 //-----------------------------------------------------------------------------
 {
-	auto iBuffer = static_cast<uint32_t*>(pBuffer);
-	for (std::size_t iCt = 0; iCt < iSize / sizeof(uint32_t); ++ iCt)
-	{
-		iBuffer[iCt] = static_cast<uint32_t>(kRandom(0, UINT32_MAX));
-	}
+	kGetRandom(pBuffer, iSize);
 
 } // DBCFileBase::FillBufferWithNoise
 

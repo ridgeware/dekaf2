@@ -61,25 +61,7 @@ DEKAF2_NAMESPACE_BEGIN
 bool KBCrypt::GenerateSalt(Token& Salt)
 //-----------------------------------------------------------------------------
 {
-	KString sInput;
-	sInput.reserve(iRandomBytes);
-
-#if DEKAF2_IS_UNIX
-	sInput = kReadAll("/dev/urandom", iRandomBytes);
-	
-	if (sInput.size() < iRandomBytes)
-	{
-		sInput.clear();
-	}
-
-	if (sInput.empty())
-#endif
-	{
-		for (uint16_t iCount = 0; iCount < iRandomBytes; ++iCount)
-		{
-			sInput += static_cast<char>(kRandom(0, 255));
-		}
-	}
+	KString sInput = kGetRandom(iRandomBytes);
 
 	if (sInput.size() != iRandomBytes)
 	{

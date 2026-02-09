@@ -14,7 +14,7 @@ namespace {
 
 std::atomic<bool> g_bDone { false };
 
-KTempDir MySocketDir;
+KTempDir MySocketDir(true, 95);
 
 void rest_test_no_timeout(KRESTServer& REST)
 {

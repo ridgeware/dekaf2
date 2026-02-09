@@ -282,18 +282,19 @@ bool kResizeFile (KStringViewZ sPath, std::size_t iNewSize);
 /// @param sPath the full or relative path of the directory to create
 /// @param iMode the perms for the directory to create, defaults to 0777
 /// @param bCreateIntermediates create intermediate directories as well, not just the final directory, defaults to true
-///
+/// @param bCreateExclusively return false if directory already exists
+/// @returns true if directory exists after call, false if directory does not exist or bCreateExclusively was set and directory exists already
 DEKAF2_PUBLIC
-bool kCreateDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR, bool bCreateIntermediates = true);
+bool kCreateDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR, bool bCreateIntermediates = true, bool bCreateExclusively = false);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// Alias for kCreateDir
 DEKAF2_PUBLIC
-inline bool kMakeDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR, bool bCreateIntermediates = true)
+inline bool kMakeDir (KStringViewZ sPath, int iMode = DEKAF2_MODE_CREATE_DIR, bool bCreateIntermediates = true, bool bCreateExclusively = false)
 //-----------------------------------------------------------------------------
 {
-	return kCreateDir (sPath, iMode, bCreateIntermediates);
+	return kCreateDir (sPath, iMode, bCreateIntermediates, bCreateExclusively);
 }
 
 //-----------------------------------------------------------------------------
@@ -1168,8 +1169,9 @@ public:
 
 	/// Create temp directory
 	/// @param bDeleteOnDestruction delete directory and contents on destruction?
-	KTempDir (bool bDeleteOnDestruction = true)
-	: m_bDeleteOnDestruction(bDeleteOnDestruction)
+	KTempDir (bool bDeleteOnDestruction = true, uint16_t iMaxPathLen = std::numeric_limits<uint16_t>::max())
+	: m_iMaxPathLen(iMaxPathLen)
+	, m_bDeleteOnDestruction(bDeleteOnDestruction)
 	{
 	}
 
@@ -1197,14 +1199,17 @@ public:
 
 	/// create the temp folder - static method
 	DEKAF2_NODISCARD
-	static KString MakeDir();
+	static KString MakeDir(uint16_t iMaxPathLen = std::numeric_limits<uint16_t>::max());
 
 //----------
 private:
 //----------
 
-	KString m_sTempDirName;
-	bool m_bDeleteOnDestruction;
+	static KString GeneratePathname(uint16_t iMaxPathLen);
+
+	KString  m_sTempDirName;
+	uint16_t m_iMaxPathLen;
+	bool     m_bDeleteOnDestruction;
 
 }; // KTempDir
 

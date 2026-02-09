@@ -13,7 +13,7 @@
 using namespace dekaf2;
 
 namespace {
-KTempDir TempDir;
+KTempDir TempDir(true, 95);
 }
 
 class KTinyHTTPServer : public KTCPServer

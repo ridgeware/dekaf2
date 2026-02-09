@@ -56,6 +56,7 @@
 #include "kctype.h"
 #include "kutf.h"
 #include "keraseremove.h"
+#include "kuuid.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -811,7 +812,10 @@ bool kRemove (KStringViewZ sPath, KFileTypes Types)
 } // kRemove
 
 //-----------------------------------------------------------------------------
-bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */, bool bCreateIntermediates /* = true */)
+bool kCreateDir(KStringViewZ sPath,
+                int  iMode /* = DEKAF2_MODE_CREATE_DIR */,
+                bool bCreateIntermediates   /* = true  */,
+                bool bCreateExclusively     /* = false */)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
@@ -851,6 +855,11 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */, bo
 		return false;
 	}
 
+	if (bCreateExclusively && !bIsNew)
+	{
+		return false;
+	}
+
 	if (bIsNew && iMode != DEKAF2_MODE_CREATE_DIR)
 	{
 		fs::permissions(fsPath, static_cast<fs::perms>(iMode), ec);
@@ -875,7 +884,7 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */, bo
 
 	if (Stat.IsDirectory())
 	{
-		return true;
+		return !bCreateExclusively;
 	}
 
 	if (Stat.Exists())
@@ -928,6 +937,13 @@ bool kCreateDir(KStringViewZ sPath, int iMode /* = DEKAF2_MODE_CREATE_DIR */, bo
 
 			if (Stat.IsDirectory())
 			{
+				if (bCreateExclusively && it == PathVec.end())
+				{
+					// this was the last part of the path, and it existed
+					// already => fail in exclusive mode
+					return false;
+				}
+				// else continue looping
 				continue;
 			}
 
@@ -2765,7 +2781,7 @@ const KString& KTempDir::Name()
 {
 	if (m_sTempDirName.empty())
 	{
-		m_sTempDirName = MakeDir();
+		m_sTempDirName = MakeDir(m_iMaxPathLen);
 	}
 
 	return m_sTempDirName;
@@ -2773,19 +2789,60 @@ const KString& KTempDir::Name()
 } // Name
 
 //-----------------------------------------------------------------------------
-KString KTempDir::MakeDir ()
+KString KTempDir::GeneratePathname(uint16_t iMaxPathLen)
+//-----------------------------------------------------------------------------
+{
+	auto sPathname = kGetTemp();
+	sPathname     += kDirSep;
+	auto sName     = kFirstNonEmpty(Dekaf::getInstance().GetProgName(), "dekaf");
+	auto sUUID     = KUUID().ToString();
+
+	if (iMaxPathLen > sPathname.size() + sName.length() + sUUID.size())
+	{
+		// there is enough space for the full name scheme
+		sPathname += sName;
+		sPathname += '-';
+		sPathname += sUUID;
+	}
+	else if (iMaxPathLen >= sPathname.size() + sUUID.size())
+	{
+		// there is enough space for the full UUID
+		sPathname += sUUID;
+	}
+	else if (iMaxPathLen > sPathname.size())
+	{
+		// restricted space, just use some random chars
+		sUUID.RemoveChars("-");
+
+		auto iMax = iMaxPathLen - sPathname.size();
+
+		if (sUUID.size() > iMax)
+		{
+			sUUID.erase(iMax, KString::npos);
+		}
+
+		sPathname += sUUID;
+	}
+	else
+	{
+		// fail..
+		kDebug(1, "cannot generate temp path name with length restricted to {} chars, need a minimum of {}", iMaxPathLen, sPathname.size() + 1);
+		sPathname.clear();
+	}
+
+	return sPathname;
+
+} // GeneratePathname
+
+//-----------------------------------------------------------------------------
+KString KTempDir::MakeDir (uint16_t iMaxPathLen)
 //-----------------------------------------------------------------------------
 {
 	KString sDirName;
 
 	for (int i = 0; i < 100; ++i)
 	{
-		sDirName = kFormat ("{}{}{}-{}-{}",
-							kGetTemp(),
-							kDirSep,
-							kFirstNonEmpty(Dekaf::getInstance().GetProgName(), "dekaf"),
-							kGetTid(),
-							kRandom (10000, 99999));
+		sDirName = GeneratePathname(iMaxPathLen);
 
 		if (kDirExists(sDirName))
 		{
@@ -2793,7 +2850,8 @@ KString KTempDir::MakeDir ()
 		}
 		else
 		{
-			if (kCreateDir (sDirName))
+			// create directory in exclusive mode
+			if (kCreateDir (sDirName, DEKAF2_MODE_CREATE_DIR, false, true))
 			{
 				kDebug(2, "{}d temp directory: {}", "create", sDirName);
 

@@ -942,13 +942,10 @@ bool KWebSocket::Read()
 	for (;;)
 	{
 		{
-			if (m_Stream->rdbuf()->in_avail() <= 0)
+			// return latest after set stream timeout
+			if (!m_Stream->IsReadReady(m_ReadTimeout))
 			{
-				// return latest after set stream timeout
-				if (!m_Stream->IsReadReady(m_ReadTimeout))
-				{
-					return false;
-				}
+				return false;
 			}
 		}
 
@@ -956,7 +953,7 @@ bool KWebSocket::Read()
 			std::unique_lock<std::mutex> Lock(m_StreamMutex);
 
 			// return immediately from poll
-			if (m_Stream->rdbuf()->in_avail() > 0 || m_Stream->IsReadReady(KDuration()))
+			if (m_Stream->IsReadReady(KDuration()))
 			{
 				if (!m_Frame.Read(*m_Stream, *m_Stream, m_bMaskTx))
 				{

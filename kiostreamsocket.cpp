@@ -111,6 +111,17 @@ int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAn
 {
 	if (what & POLLIN)
 	{
+		if (rdbuf())
+		{
+			auto iInStreambuf = rdbuf()->in_avail();
+
+			if (iInStreambuf > 0)
+			{
+				kDebug(3, "have bytes in streambuf: {}", iInStreambuf);
+				return POLLIN;
+			}
+		}
+
 		if (IsTLS())
 		{
 			auto SSL = GetNativeTLSHandle();

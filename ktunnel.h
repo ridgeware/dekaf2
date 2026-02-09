@@ -43,6 +43,7 @@
 
 #include "kiostreamsocket.h"
 #include "kassociative.h"
+#include "kblockcipher.h"
 #include "kurl.h"
 #include "kthreadsafe.h"
 #include "kthreads.h"
@@ -92,12 +93,15 @@ public:
 		KDuration              ConnectTimeout { chrono::seconds(15)        };
 		/// count of max multiplexed connections per tunnel - technical upper limit is 16 millions
 		std::size_t            iMaxTunneledConnections { 100 };
+		/// encode payload with AES?
+		bool                   bAESPayload    { false };
 
 	}; // Config
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// the message protocol used on top of the websocket frame,
-	/// basically adding multiplex channels and (own) message types
+	/// basically adding multiplex channels and (own) message types,
+	/// and encryption/decryption if configured
 	class Message : protected KWebSocket::Frame
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
@@ -127,11 +131,15 @@ public:
 		/// construct from discrete parameters
 		Message(Type _type, std::size_t iChannel, KString sMessage = KString{});
 
-		/// read from a streamsocket
-		void           Read       (KIOStreamSocket& Stream);
+		/// read from a streamsocket, decrypt message with Decryptor if not nullptr
+		void           Read       (KIOStreamSocket& Stream, KBlockCipher* Decryptor = nullptr);
 		/// write to a streamsocket - if this is in websocket protocol and we are a "client", then
-		/// bMask must be set to true, else to false
-		void           Write      (KIOStreamSocket& Stream, bool bMask);
+		/// bMask must be set to true, else to false,
+		/// encrypt message with Encryptor if not nullptr
+		void           Write      (KIOStreamSocket& Stream, bool bMask, KBlockCipher* Encryptor = nullptr);
+		/// returns true if the received (read) message could be decrypted by the given decryptor - is only needed if the decryptor
+		/// is not already known, to try a few keys
+		bool           Decrypt    (KBlockCipher* Decryptor);
 
 		/// returns the message type
 		Type           GetType    () const { return static_cast<Type>(m_Preamble[0]); }
@@ -324,6 +332,10 @@ protected:
 	void PingTest        (KUnixTime Time);
 	/// connects to an outside target from one tunnel end
 	void ConnectToTarget (std::size_t iID, KTCPEndPoint Target);
+	/// setup payload AES encryption with sSecret
+	void SetupEncryption (KStringView sUser, KStringView sSecret);
+	/// setup payload AES encryption by trying to decode a message with a list of secrets
+	bool SetupEncryption (Message& message, const KUnorderedSet<KString>& Secrets);
 
 //----------
 private:
@@ -338,6 +350,8 @@ private:
 	struct TunnelEnv
 	{
 		std::unique_ptr<KIOStreamSocket> Stream;
+		std::unique_ptr<KBlockCipher>    Encryptor;
+		std::unique_ptr<KBlockCipher>    Decryptor;
 		KStopTime                        LastTx;
 		KSteadyTime                      SendIdleNotBefore;
 	};

@@ -41,8 +41,13 @@
 
 // The control and data streams between the tunnel endpoints are multiplexed
 // by a simple protocol over a single stream.
+//
 // This protocol extends the websocket protocol with the ability to add a detailed
-// message type, and the multiplex channel ID.
+// message type, and the multiplex channel ID. Additionally, all websocket payload
+// data can be encrypted with aes256-GCM and a session key, which allows to
+// even use unsecure websockets and protect the exchanged data against eavesdropping
+// and tampering. This payload encryption can also be used if the TLS certificate
+// store can not be trusted.
 //
 // - the payload data length and other details of the transport is encoded in
 //   the standard websocket header, a value of 4 is substracted from the payload
@@ -216,7 +221,7 @@ char* KTunnel::Message::GetPreambleBuf() const
 }
 
 //-----------------------------------------------------------------------------
-void KTunnel::Message::Read(KIOStreamSocket& Stream)
+void KTunnel::Message::Read(KIOStreamSocket& Stream, KBlockCipher* Decryptor)
 //-----------------------------------------------------------------------------
 {
 	clear();
@@ -226,15 +231,45 @@ void KTunnel::Message::Read(KIOStreamSocket& Stream)
 		Throw(kFormat("[{}]: cannot read from {}", GetChannel(), Stream.GetEndPointAddress()));
 	}
 
+	if (Decryptor)
+	{
+		if (!Decrypt(Decryptor))
+		{
+			Throw(Decryptor->GetLastError());
+		}
+	}
+
 } // Read
 
 //-----------------------------------------------------------------------------
-void KTunnel::Message::Write(KIOStreamSocket& Stream, bool bMask)
+void KTunnel::Message::Write(KIOStreamSocket& Stream, bool bMask, KBlockCipher* Encryptor)
 //-----------------------------------------------------------------------------
 {
 	if (GetType() > Disconnect)
 	{
 		Throw("invalid type");
+	}
+
+	if (Encryptor)
+	{
+		KString sTemp;
+
+		if (!Encryptor->SetOutput(sTemp)  ||
+			!Encryptor->Add(KStringView(GetPreambleBuf(), GetPreambleSize())) ||
+			!Encryptor->Add(GetPayload()) ||
+			!Encryptor->Finalize())
+		{
+			Throw(Encryptor->GetLastError());
+		}
+
+		if (sTemp.size() < m_Preamble.size())
+		{
+			Throw("encrypted message has no preamble");
+		}
+
+		std::copy(sTemp.end() - m_Preamble.size(), sTemp.end(), m_Preamble.begin());
+		sTemp.remove_suffix(m_Preamble.size());
+		SetPayload(std::move(sTemp), true);
 	}
 
 	if (!Frame::Write(Stream, bMask))
@@ -249,6 +284,33 @@ void KTunnel::Message::Write(KIOStreamSocket& Stream, bool bMask)
 	}
 
 } // Write
+
+//-----------------------------------------------------------------------------
+bool KTunnel::Message::Decrypt(KBlockCipher* Decryptor)
+//-----------------------------------------------------------------------------
+{
+	KString sTemp;
+
+	if (!Decryptor->SetOutput(sTemp)  ||
+		!Decryptor->Add(KStringView(GetPreambleBuf(), GetPreambleSize())) ||
+		!Decryptor->Add(GetPayload()) ||
+		!Decryptor->Finalize())
+	{
+		return false;
+	}
+
+	if (sTemp.size() < m_Preamble.size())
+	{
+		Throw("decrypted message has no preamble");
+	}
+
+	std::copy(sTemp.end() - m_Preamble.size(), sTemp.end(), m_Preamble.begin());
+	sTemp.remove_suffix(m_Preamble.size());
+	GetPayloadRef() = std::move(sTemp);
+
+	return true;
+
+} // Decrypt
 
 //-----------------------------------------------------------------------------
 void KTunnel::Message::clear()
@@ -634,7 +696,7 @@ KTunnel::KTunnel
 	bool                             bNeverMask
 )
 //-----------------------------------------------------------------------------
-: m_Config(std::move(Config))
+: m_Config(Config)
 , m_Connections(Config.iMaxTunneledConnections)
 {
 	if (!Stream)
@@ -792,7 +854,7 @@ void KTunnel::ReadMessage(Message& message)
 			// return immediately from poll
 			if (Tunnel->Stream->IsReadReady(KDuration()))
 			{
-				message.Read(*Tunnel->Stream);
+				message.Read(*Tunnel->Stream, Tunnel->Decryptor.get());
 				kDebug(3, message.Debug());
 
 				break;
@@ -839,7 +901,7 @@ void KTunnel::WriteMessage(Message&& message)
 				kDebug(3, message.Debug());
 				auto mtype = message.GetType();
 				KStopTime Stop;
-				message.Write(*Tunnel->Stream, m_bMaskTx);
+				message.Write(*Tunnel->Stream, m_bMaskTx, Tunnel->Encryptor.get());
 				kDebug(3, "took {}", Stop.elapsed());
 
 				if (mtype == Message::Data)
@@ -947,10 +1009,164 @@ void KTunnel::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 } // KTunnel::ConnectToTarget
 
 //-----------------------------------------------------------------------------
+void KTunnel::SetupEncryption (KStringView sUser, KStringView sSecret)
+//-----------------------------------------------------------------------------
+{
+	if (sUser.empty())
+	{
+		sUser = "<none>";
+	}
+
+	kDebug(2, "setting up payload encryption for user {} with session secret", sUser);
+
+	KString sSessionSecret;
+
+	{
+		// configure payload encryption if requested
+		auto Tunnel = m_Tunnel.unique();
+
+		Tunnel->Decryptor = std::make_unique<KBlockCipher>
+		(
+			KBlockCipher::Decrypt,
+			KBlockCipher::AES,
+			KBlockCipher::GCM,
+			KBlockCipher::B256,
+			false, // do not inline the IV - we use a counter
+			true   // inline the verification tag
+		 );
+
+		// get a session secret with the required size
+		sSessionSecret = kGetRandom(Tunnel->Decryptor->GetNeededKeyLength());
+
+		// create initial tx encryptor with IV and tag inline
+		Tunnel->Encryptor = std::make_unique<KBlockCipher>(KBlockCipher::Encrypt);
+		// set the shared secret
+		Tunnel->Encryptor->SetPassword(sSecret);
+	}
+
+	// now send one message with the shared secret, announcing the session secret
+	KJSON oLogin {
+		{ "user", sUser   },
+		{ "pass", sSecret },
+		{ "skey", KEncode::Base64(sSessionSecret) }
+	};
+
+	// write with the shared secret
+	WriteMessage(Message(Message::Login, 0, oLogin.Dump()));
+
+	auto Tunnel = m_Tunnel.unique();
+
+	// replace the initial encryptor with the session encryptor, which
+	// will allow us to not exchange the IV, as now it can be a simple
+	// counter that will be kept synchronous on both sides
+	Tunnel->Encryptor = std::make_unique<KBlockCipher>
+	(
+		KBlockCipher::Encrypt,
+		KBlockCipher::AES,
+		KBlockCipher::GCM,
+		KBlockCipher::B256,
+		false, // do not inline the IV - we use a counter
+		true   // inline the verification tag
+	);
+
+	Tunnel->Encryptor->SetKey(sSessionSecret);
+	Tunnel->Decryptor->SetKey(sSessionSecret);
+
+	Tunnel->Encryptor->SetAutoIncrementNonceAsIV();
+	Tunnel->Decryptor->SetAutoIncrementNonceAsIV();
+
+} // SetupEncryption
+
+//-----------------------------------------------------------------------------
+bool KTunnel::SetupEncryption (Message& message, const KUnorderedSet<KString>& Secrets)
+//-----------------------------------------------------------------------------
+{
+	// try all secrets to find the right one
+	for (auto& sSecret : Secrets)
+	{
+		KBlockCipher Cipher(KBlockCipher::Decrypt);
+		Cipher.SetPassword(sSecret);
+		Cipher.SetThrowOnError(false);
+
+		if (message.Decrypt(&Cipher))
+		{
+			// this was the right decryptor
+			// check the message type
+			if (message.GetType() != Message::Login)
+			{
+				kDebug(1, "wrong message type in login attempt: {}", message.PrintType());
+				return false;
+			}
+
+			// now check the JSON in the incoming message and setup the session key
+			KJSON oLogin = kjson::Parse(message.GetMessage());
+
+			if (!oLogin.is_object())
+			{
+				// this is not an object, therefore also not our protocol
+				kDebug(1, "invalid json type in login attempt");
+				return false;
+			}
+
+			// get the session secret
+			auto sSessionSecret = KDecode::Base64(kjson::GetStringRef(oLogin, "skey"));
+
+			if (sSessionSecret.empty())
+			{
+				kDebug(1, "no session secret in login attempt");
+				return false;
+			}
+
+			kDebug(1, "successful login of {}", kjson::GetStringRef(oLogin, "user"));
+
+			auto Tunnel = m_Tunnel.unique();
+
+			Tunnel->Encryptor = std::make_unique<KBlockCipher>
+			(
+				KBlockCipher::Encrypt,
+				KBlockCipher::AES,
+				KBlockCipher::GCM,
+				KBlockCipher::B256,
+				false, // do not inline the IV - we use a counter
+				true   // inline the verification tag
+			);
+
+			Tunnel->Decryptor = std::make_unique<KBlockCipher>
+			(
+				KBlockCipher::Decrypt,
+				KBlockCipher::AES,
+				KBlockCipher::GCM,
+				KBlockCipher::B256,
+				false, // do not inline the IV - we use a counter
+				true   // inline the verification tag
+			);
+
+			Tunnel->Encryptor->SetKey(sSessionSecret);
+			Tunnel->Decryptor->SetKey(sSessionSecret);
+
+			Tunnel->Encryptor->SetAutoIncrementNonceAsIV();
+			Tunnel->Decryptor->SetAutoIncrementNonceAsIV();
+
+			return true;
+		}
+	}
+
+	return false;
+
+} // SetupEncryption
+
+//-----------------------------------------------------------------------------
 bool KTunnel::Login(KStringView sUser, KStringView sSecret)
 //-----------------------------------------------------------------------------
 {
-	WriteMessage(Message(Message::Login, 0, kFormat("Basic {}", KEncode::Base64(kFormat("{}:{}", sUser, sSecret)))));
+	if (m_Config.bAESPayload)
+	{
+		SetupEncryption(sUser, sSecret);
+	}
+	else
+	{
+		WriteMessage(Message(Message::Login, 0, kFormat("Basic {}", KEncode::Base64(kFormat("{}:{}", sUser, sSecret)))));
+	}
 
 	// wait for the response
 	Message Response;
@@ -958,7 +1174,7 @@ bool KTunnel::Login(KStringView sUser, KStringView sSecret)
 
 	if (Response.GetType() != Message::Helo && Response.GetChannel() != 0)
 	{
-		// error
+		kDebug(1, "no HELO response at login");
 		return false;
 	}
 
@@ -973,22 +1189,33 @@ void KTunnel::WaitForLogin()
 	Message Login;
 	ReadMessage(Login);
 
-	if (Login.GetType() != Message::Login)
+	if (m_Config.bAESPayload)
 	{
-		return;
+		if (!SetupEncryption(Login, m_Config.Secrets))
+		{
+			throw KError(kFormat("invalid encryption from {}", GetEndPointAddress()));
+		}
 	}
 
-	auto Creds = KHTTPHeaders::DecodeBasicAuthFromString(Login.GetMessage());
-
-	if (m_Config.Secrets.empty() || !m_Config.Secrets.contains(Creds.sPassword))
+	if (Login.GetType() != Message::Login)
 	{
-		throw KError(kFormat("invalid secret from {}: {}", GetEndPointAddress(), Creds.sPassword));
+		throw KError(kFormat("invalid message type {}", Login.PrintType()));
+	}
+
+	if (!m_Config.bAESPayload)
+	{
+		auto Creds = KHTTPHeaders::DecodeBasicAuthFromString(Login.GetMessage());
+
+		if (m_Config.Secrets.empty() || !m_Config.Secrets.contains(Creds.sPassword))
+		{
+			throw KError(kFormat("invalid secret from {}: {}", GetEndPointAddress(), Creds.sPassword));
+		}
+
+		kDebug(1, "successful login from {} ({}) with valid secret", GetEndPointAddress(), Creds.sUsername);
 	}
 
 	// finally say hi
 	WriteMessage(Message(Message::Helo, 0));
-
-	kDebug(1, "successful login from {} ({}) with valid secret", GetEndPointAddress(), Creds.sUsername);
 
 } // KTunnel::WaitForLogin
 

@@ -150,20 +150,28 @@ ExposedServer::ExposedServer (const Config& config)
 {
 	KREST::Options Settings;
 
-	Settings.Type                    = KREST::HTTP;
-	Settings.iPort                   = m_Config.iPort;
-	Settings.iMaxConnections         = m_Config.iMaxTunneledConnections * 2 + 20;
-	Settings.iTimeout                = m_Config.Timeout.seconds().count();
-	Settings.KLogHeader              = "";
-	Settings.bBlocking               = false;
-	Settings.bMicrosecondTimerHeader = true;
-	Settings.TimerHeader             = "x-microseconds";
-	Settings.sCert                   = m_Config.sCertFile;
-	Settings.sKey                    = m_Config.sKeyFile;
-	Settings.sTLSPassword            = m_Config.sTLSPassword;
-	Settings.sAllowedCipherSuites    = m_Config.sCipherSuites;
-	Settings.bCreateEphemeralCert    = true;
-	Settings.bStoreEphemeralCert     = m_Config.bPersistCert;
+	Settings.Type                     = KREST::HTTP;
+	Settings.iPort                    = m_Config.iPort;
+	Settings.iMaxConnections          = m_Config.iMaxTunneledConnections * 2 + 20;
+	Settings.iTimeout                 = m_Config.Timeout.seconds().count();
+	Settings.KLogHeader               = "";
+	Settings.bBlocking                = false;
+	Settings.bMicrosecondTimerHeader  = true;
+	Settings.TimerHeader              = "x-microseconds";
+
+	if (m_Config.bNoTLS)
+	{
+		Settings.bCreateEphemeralCert = false;
+	}
+	else
+	{
+		Settings.sCert                = m_Config.sCertFile;
+		Settings.sKey                 = m_Config.sKeyFile;
+		Settings.sTLSPassword         = m_Config.sTLSPassword;
+		Settings.sAllowedCipherSuites = m_Config.sCipherSuites;
+		Settings.bCreateEphemeralCert = true;
+		Settings.bStoreEphemeralCert  = m_Config.bPersistCert;
+	}
 
 	Settings.AddHeader(KHTTPHeader::SERVER, "ktunnel");
 	Settings.AddHeader("x-server", "ktunnel");
@@ -187,13 +195,17 @@ ExposedServer::ExposedServer (const Config& config)
 
 	Routes.AddRoute("/Tunnel").Get([this](KRESTServer& HTTP)
 	{
-		// check user/secret
+		// check user/secret - NOT!
+		// we do this now with the first frame coming through the tunnel,
+		// as this allows us to encrypt the login even on non-TLS connections
+#if 0
 		auto Creds = HTTP.Request.GetBasicAuthParms();
 
 		if (m_Config.Secrets.empty() || !m_Config.Secrets.contains(Creds.sPassword))
 		{
 			throw KError(kFormat("invalid secret from {}: {}", HTTP.GetRemoteIP(), Creds.sPassword));
 		}
+#endif
 
 		// set the handler for websockets in the REST server instance
 		HTTP.SetWebSocketHandler([this](KWebSocket& WebSocket)
@@ -231,7 +243,10 @@ ExposedServer::ExposedServer (const Config& config)
 	KREST Http;
 
 	// and run it
-	m_Config.Message("starting TLS REST server on port {}", Settings.iPort);
+	m_Config.Message("starting {} server on port {}",
+	                 m_Config.bNoTLS ? "TCP" : "TLS REST",
+	                 Settings.iPort);
+
 	if (!Http.Execute(Settings, Routes)) throw KError(Http.Error());
 
 	// start the server to forward raw data
@@ -266,12 +281,12 @@ ProtectedHost::ProtectedHost(const ExtendedConfig& Config)
 //-----------------------------------------------------------------------------
 : m_Config(Config)
 {
-	KHTTPStreamOptions Options;
+	KHTTPStreamOptions StreamOptions;
 	// connect timeout to exposed host, also wait timeout between two tries
-	Options.SetTimeout(m_Config.ConnectTimeout);
+	StreamOptions.SetTimeout(m_Config.ConnectTimeout);
 	// only do HTTP/1.1, we haven't implemented websockets for any later protocol
 	// (but as we are not a browser that doesn't mean any disadvantage)
-	Options.Unset(KStreamOptions::RequestHTTP2);
+	StreamOptions.Unset(KStreamOptions::RequestHTTP2);
 
 	for (;;)
 	{
@@ -286,19 +301,22 @@ ProtectedHost::ProtectedHost(const ExtendedConfig& Config)
 				return;
 			}
 
-			m_Config.Message("connecting {}..", m_Config.ExposedHost);
-
 			KURL ExposedHost;
-			ExposedHost.Protocol = url::KProtocol::HTTPS;
+			ExposedHost.Protocol = m_Config.bNoTLS ? url::KProtocol::HTTP : url::KProtocol::HTTPS;
 			ExposedHost.Domain   = m_Config.ExposedHost.Domain;
 			ExposedHost.Port     = m_Config.ExposedHost.Port;
 			ExposedHost.Path     = "/Tunnel";
 
-			KWebSocketClient WebSocket(ExposedHost, Options);
+			KWebSocketClient WebSocket(ExposedHost, StreamOptions);
 
 			WebSocket.SetTimeout(m_Config.ConnectTimeout);
 			WebSocket.SetBinary();
+#if 0
+			// we do not use basic auth anymore
 			WebSocket.BasicAuthentication(sUsername, sSecret);
+#endif
+
+			m_Config.Message("connecting {}..", ExposedHost);
 
 			if (!WebSocket.Connect())
 			{
@@ -350,6 +368,8 @@ int Tunnel::Main(int argc, char** argv)
 	m_Config.sCertFile     = Options("cert <file>  : if exposed host, TLS certificate filepath (.pem) - if option is unused a self-signed cert is created", "");
 	m_Config.sKeyFile      = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused a new key is created", "");
 	m_Config.sTLSPassword  = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
+	m_Config.bNoTLS        = Options("notls        : do not use TLS, but unencrypted HTTP", false);
+	m_Config.bAESPayload   = Options("aes          : encrypt payload with AES (additional to a TLS connection)", false);
 	m_Config.Timeout       = chrono::seconds(Options("to,timeout <seconds> : data connection timeout in seconds (default 30)", 30));
 	m_Config.bPersistCert  = Options("persist      : should a self-signed cert be persisted to disk and reused at next start?", false);
 	m_Config.sCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
@@ -387,13 +407,16 @@ int Tunnel::Main(int argc, char** argv)
 		if (m_Config.DefaultTarget.empty()) SetError("exposed host needs a default target");
 		if (m_Config.DefaultTarget.Port.get() == 0) SetError("endpoind needs an explicit port number");
 		if (!m_Config.iRawPort) SetError("exposed host needs a forward port being configured");
-		m_Config.Message("starting as exposed host");
+
+		m_Config.Message("starting as exposed host with{} TLS", m_Config.bNoTLS ? "out" : "");
 
 		ExposedServer Exposed(m_Config);
 	}
 	else
 	{
-		m_Config.Message("starting as protected host, connecting exposed host at {}", m_Config.ExposedHost);
+		m_Config.Message("starting as protected host, connecting exposed host with{} TLS at {}",
+		                 m_Config.bNoTLS ? "out" : "",
+		                 m_Config.ExposedHost);
 
 		ProtectedHost Protected(m_Config);
 	}

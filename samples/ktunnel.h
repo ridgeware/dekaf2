@@ -76,6 +76,7 @@ public:
 
 	KTCPEndPoint           DefaultTarget;
 	KTCPEndPoint           ExposedHost;
+	bool                   bNoTLS         { false };
 	bool                   bQuiet         { false };
 
 //----------

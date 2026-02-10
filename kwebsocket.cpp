@@ -93,7 +93,9 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 
 	auto AdjustLen = [this]()
 	{
-		if (m_Opcode & (FrameType::Text | FrameType::Binary))
+		// if we have an encoder we first read the whole payload to decode it
+		// and later split it in preamble and data, if needed
+		if (!m_bHaveEncoder && (m_Opcode & (FrameType::Text | FrameType::Binary)))
 		{
 			auto iPreambleSize = GetPreambleSize();
 
@@ -313,7 +315,9 @@ KString KWebSocket::FrameHeader::Serialize() const
 
 	auto iTotalPayloadLen = m_iPayloadLen;
 
-	if (m_Opcode & (FrameType::Text | FrameType::Binary))
+	// if we have an encoder the complete content is now sitting in the
+	// payload buffer even if there was/is a preamble
+	if (!m_bHaveEncoder && (m_Opcode & (FrameType::Text | FrameType::Binary)))
 	{
 		iTotalPayloadLen += GetPreambleSize();
 	}
@@ -373,52 +377,19 @@ bool KWebSocket::FrameHeader::Write(KOutStream& Stream)
 } // Write
 
 //-----------------------------------------------------------------------------
-KWebSocket::FrameHeader::~FrameHeader()
+void KWebSocket::FrameHeader::SetFlags(bool bIsBinary, bool bIsContinuation, bool bIsLast)
 //-----------------------------------------------------------------------------
 {
-} // virtual dtor
+	m_Opcode      = bIsContinuation ? FrameType::Continuation : bIsBinary ? FrameType::Binary : FrameType::Text;
+	m_iExtension  = 0;
+	m_bIsFin      = bIsLast;
+	m_bMask       = false;
+	m_iMaskingKey = 0;
+
+} // SetFlags
 
 //-----------------------------------------------------------------------------
-void KWebSocket::Frame::clear()
-//-----------------------------------------------------------------------------
-{
-	*this = Frame();
-
-} // clear
-
-//-----------------------------------------------------------------------------
-void KWebSocket::Frame::Ping(KString sMessage)
-//-----------------------------------------------------------------------------
-{
-	Binary(std::move(sMessage));
-	m_Opcode = FrameType::Ping;
-
-} // Ping
-
-//-----------------------------------------------------------------------------
-void KWebSocket::Frame::Pong(KString sMessage)
-//-----------------------------------------------------------------------------
-{
-	Binary(std::move(sMessage));
-	m_Opcode = FrameType::Pong;
-
-} // Pong
-
-//-----------------------------------------------------------------------------
-void KWebSocket::Frame::Close(uint16_t iStatusCode, KString sReason)
-//-----------------------------------------------------------------------------
-{
-	// make room for status code - see RFC 6455 for format
-	sReason.insert(0, 2, ' ');
-	sReason[0] = iStatusCode / 256;
-	sReason[1] = iStatusCode & 256;
-	Binary(std::move(sReason));
-	m_Opcode = FrameType::Close;
-
-} // Close
-
-//-----------------------------------------------------------------------------
-void KWebSocket::Frame::XOR(char* pBuf, std::size_t iSize)
+void KWebSocket::FrameHeader::XOR(char* pBuf, std::size_t iSize) const
 //-----------------------------------------------------------------------------
 {
 	if (iSize > 0)
@@ -466,12 +437,56 @@ void KWebSocket::Frame::XOR(char* pBuf, std::size_t iSize)
 } // XOR
 
 //-----------------------------------------------------------------------------
+KWebSocket::FrameHeader::~FrameHeader()
+//-----------------------------------------------------------------------------
+{
+} // virtual dtor
+
+//-----------------------------------------------------------------------------
+void KWebSocket::Frame::clear()
+//-----------------------------------------------------------------------------
+{
+	*this = Frame();
+
+} // clear
+
+//-----------------------------------------------------------------------------
+void KWebSocket::Frame::Ping(KString sMessage)
+//-----------------------------------------------------------------------------
+{
+	SetOpcode(FrameType::Ping);
+	Binary(std::move(sMessage));
+
+} // Ping
+
+//-----------------------------------------------------------------------------
+void KWebSocket::Frame::Pong(KString sMessage)
+//-----------------------------------------------------------------------------
+{
+	SetOpcode(FrameType::Pong);
+	Binary(std::move(sMessage));
+
+} // Pong
+
+//-----------------------------------------------------------------------------
+void KWebSocket::Frame::Close(uint16_t iStatusCode, KString sReason)
+//-----------------------------------------------------------------------------
+{
+	SetOpcode(FrameType::Close);
+	// make room for status code - see RFC 6455 for format
+	sReason.insert(0, 2, ' ');
+	sReason[0] = iStatusCode / 256;
+	sReason[1] = iStatusCode & 256;
+	Binary(std::move(sReason));
+
+} // Close
+
+//-----------------------------------------------------------------------------
 void KWebSocket::Frame::Mask()
 //-----------------------------------------------------------------------------
 {
-	m_bMask       = true;
-	m_iMaskingKey = kRandom();
-
+	SetHasMask();
+	SetMaskingKey(kRandom());
 	XOR(m_sPayload);
 
 } // Mask
@@ -483,23 +498,10 @@ void KWebSocket::Frame::UnMask(KStringRef& sBuffer)
 	if (IsMaskedRx())
 	{
 		XOR(sBuffer);
-		m_bMask = false;
+		SetHasMask(false);
 	}
 
 } // UnMask
-
-//-----------------------------------------------------------------------------
-void KWebSocket::Frame::SetFlags(bool bIsBinary, bool bIsContinuation, bool bIsLast)
-//-----------------------------------------------------------------------------
-{
-	m_iPayloadLen = m_sPayload.size();
-	m_Opcode      = bIsContinuation ? FrameType::Continuation : bIsBinary ? FrameType::Binary : FrameType::Text;
-	m_iExtension  = 0;
-	m_bIsFin      = bIsLast;
-	m_bMask       = false;
-	m_iMaskingKey = 0;
-
-} // SetFlags
 
 //-----------------------------------------------------------------------------
 void KWebSocket::Frame::SetPayload(KString sPayload, bool bIsBinary)
@@ -507,8 +509,124 @@ void KWebSocket::Frame::SetPayload(KString sPayload, bool bIsBinary)
 {
 	m_sPayload = std::move(sPayload);
 	SetFlags(bIsBinary, false, true);
+	SetPayloadLen(m_sPayload.size());
 
 } // SetPayload
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Frame::DecodeAndSplitPreamble(KStringView sBuffer)
+//-----------------------------------------------------------------------------
+{
+	// let payload grow and append to the end - this happens when a
+	// continuation frame follows a text or binary frame
+	if (!Decode(sBuffer, m_sPayload))
+	{
+		return false;
+	}
+
+	if (Type() & (FrameType::Text | FrameType::Binary))
+	{
+		// get the preamble if existing
+		auto iPreambleSize = GetPreambleSize();
+
+		if (iPreambleSize)
+		{
+			if (iPreambleSize % 4 != 0)
+			{
+				kDebug(1, "the size of the preamble ({}) must be a multiple of 4 but is not", iPreambleSize);
+				return false;
+			}
+			else if (iPreambleSize > m_sPayload.size())
+			{
+				kDebug(1, "preamble not entirely in received frame");
+				return false;
+			}
+
+			auto pPreambleBuf = GetPreambleBuf();
+
+			if (pPreambleBuf)
+			{
+				std::memcpy(pPreambleBuf, &m_sPayload[0], iPreambleSize);
+				m_sPayload.erase(0, iPreambleSize);
+			}
+		}
+	}
+
+	return true;
+
+} // DecodeAndSplitPreamble
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Frame::TryDecode()
+//-----------------------------------------------------------------------------
+{
+	KString sTemp = GetPreamble();
+	sTemp += m_sPayload;
+
+	m_sPayload.clear();
+
+	if (!DecodeAndSplitPreamble(sTemp))
+	{
+		m_sPayload = sTemp.Mid(GetPreambleSize());
+		return false;
+	}
+
+	return true;
+
+} // TryDecode
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Frame::ReadPreambleFromStream(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	switch (Type())
+	{
+		case FrameType::Text:
+		case FrameType::Binary:
+		{
+			// read the preamble, if any
+			auto iPreambleSize = GetPreambleSize();
+
+			if (iPreambleSize)
+			{
+				if (iPreambleSize % 4 != 0)
+				{
+					kDebug(1, "the size of the preamble ({}) must be a multiple of 4 but is not", iPreambleSize);
+					return false;
+				}
+
+				auto pPreambleBuf = GetPreambleBuf();
+
+				if (pPreambleBuf)
+				{
+					auto iRead = InStream.Read(pPreambleBuf, iPreambleSize);
+
+					if (iRead != iPreambleSize)
+					{
+						return false;
+					}
+
+					if (IsMaskedRx())
+					{
+						XOR(pPreambleBuf, iPreambleSize);
+					}
+				}
+				else
+				{
+					kDebug(1, "no preamble read buffer, but have a preamble of size {}", iPreambleSize);
+					return false;
+				}
+			}
+		}
+		break;
+
+		default:
+			break;
+	}
+
+	return true;
+
+} // ReadPreambleFromStream
 
 //-----------------------------------------------------------------------------
 bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMaskTx, KInStream& Payload, bool bIsBinary, std::size_t len)
@@ -525,6 +643,7 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMaskTx, KInStream& Pa
 		bIsLast = len == 0 || Payload.istream().eof();
 		bool bIsCont = !bIsFirst && !bIsLast && iRead == KDefaultCopyBufSize;
 		SetFlags(bIsBinary, bIsCont, bIsLast);
+		SetPayloadLen(m_sPayload.size());
 
 		if (!Write(OutStream, bMaskTx))
 		{
@@ -543,56 +662,22 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 //-----------------------------------------------------------------------------
 {
 	// buffer for the payload
-	KString sBuffer;
+	KString   sBuffer;
+	// make sure the payload is empty
+	m_sPayload.clear();
 
 	for(;;)
 	{
 		// read the header
 		FrameHeader::Read(InStream);
 
-		switch (Type())
+		if (!GetHaveEncoder())
 		{
-			case FrameType::Text:
-			case FrameType::Binary:
+			// without encoder, read the preamble directly from the stream
+			if (!ReadPreambleFromStream(InStream))
 			{
-				// read the preamble, if any
-				auto iPreambleSize = GetPreambleSize();
-
-				if (iPreambleSize)
-				{
-					if (iPreambleSize % 4 != 0)
-					{
-						kDebug(1, "the size of the preamble ({}) must be a multiple of 4 but is not", iPreambleSize);
-						return false;
-					}
-
-					auto pPreambleBuf = GetPreambleBuf();
-
-					if (pPreambleBuf)
-					{
-						auto iRead = InStream.Read(pPreambleBuf, iPreambleSize);
-
-						if (iRead != iPreambleSize)
-						{
-							return false;
-						}
-
-						if (IsMaskedRx())
-						{
-							XOR(pPreambleBuf, iPreambleSize);
-						}
-					}
-					else
-					{
-						kDebug(1, "no preamble read buffer, but have a preamble of size {}", iPreambleSize);
-						return false;
-					}
-				}
+				return false;
 			}
-			break;
-
-			default:
-				break;
 		}
 
 		// read the payload
@@ -609,60 +694,76 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 		           IsMaskedRx() ? "masked " : "",
 		           Frame::FrameTypeToString(Type()));
 
-		// decode the incoming data
+		// decode the incoming data, ignore already received parts
 		UnMask(sBuffer);
 
-		// check the type
+		if (GetEncodeFrame())
+		{
+			// if this frame had been encoded, decode it into the payload,
+			// and finally split into preamble and payload
+			if (!DecodeAndSplitPreamble(sBuffer))
+			{
+				return false;
+			}
+		}
+		else
+		{
+			// if the frame was not encoded ..
+			if (Type() != FrameType::Continuation)
+			{
+				// either just move the received data into the payload
+				m_sPayload = std::move(sBuffer);
+			}
+			else
+			{
+				// or append it if this is a continuation
+				m_sPayload += sBuffer;
+			}
+		}
+
+		// check the type and do some postprocessing
 		switch (Type())
 		{
 			case FrameType::Ping:
 			{
 				Frame Pong;
-				Pong.Pong(sBuffer);
+				Pong.Pong(GetPayload());
 				Pong.Write(OutStream, bMaskTx);
-				m_sPayload = std::move(sBuffer);
 			}
 			break;
 
 			case FrameType::Pong:
-				m_sPayload = std::move(sBuffer);
 				break;
 
 			case FrameType::Close:
 				{
-					m_iStatusCode = Status::NoStatusReceived;
-
-					if (sBuffer.size() > 1)
+					if (m_sPayload.size() > 1)
 					{
 						// get first two bytes for an error code
-						m_iStatusCode = static_cast<uint8_t>(sBuffer[0]) * 256;
-						m_iStatusCode += static_cast<uint8_t>(sBuffer[1]);
-						sBuffer.erase(0, 2);
+						SetStatusCode(static_cast<uint8_t>(m_sPayload[0]) * 256
+						            + static_cast<uint8_t>(m_sPayload[1]));
+						m_sPayload.erase(0, 2);
 						kDebug(2, "connection closed with status code {} ({}){}{}",
-						          m_iStatusCode, StatusCodeToString(m_iStatusCode),
-						          sBuffer.empty() ? "" : ": ",
-						          sBuffer);
-						m_sPayload = sBuffer;
+						          GetStatusCode(), StatusCodeToString(GetStatusCode()),
+						          m_sPayload.empty() ? "" : ": ",
+						          m_sPayload);
 					}
 					else
 					{
 						kDebug(2, "connection closed without status code");
+						SetStatusCode(Status::NoStatusReceived);
 					}
 
 					// reply with close and the same payload
 					Frame Close;
-					Close.Close(m_iStatusCode, sBuffer);
+					Close.Close(GetStatusCode(), GetPayload());
 					Close.Write(OutStream, bMaskTx);
 				}
 				return false;
 
 			case FrameType::Continuation:
-				m_sPayload += sBuffer;
-				break;
-
 			case FrameType::Text:
 			case FrameType::Binary:
-				m_sPayload = std::move(sBuffer);
 				break;
 		}
 
@@ -671,7 +772,6 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 			return true;
 		}
 
-		// Stream.Read() appends to sBuffer, therefore let us clear it here
 		sBuffer.clear();
 	}
 
@@ -680,9 +780,48 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 } // Read
 
 //-----------------------------------------------------------------------------
+bool KWebSocket::FrameHeader::GetEncodeFrame() const
+//-----------------------------------------------------------------------------
+{
+	// returns true if we have an active encoder and the frame type is NOT Close
+	// (but we encode it positively to skip bad opcodes)
+	return GetHaveEncoder() &&
+		(Type() & ( FrameType::Text         |
+		            FrameType::Binary       |
+				    FrameType::Continuation |
+				    FrameType::Ping         |
+				    FrameType::Pong ));
+
+} // EncodeFrame
+
+//-----------------------------------------------------------------------------
 bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMask)
 //-----------------------------------------------------------------------------
 {
+	if (GetEncodeFrame())
+	{
+		KString sTemp = GetPreamble();
+
+		if (sTemp.empty())
+		{
+			sTemp = std::move(m_sPayload);
+		}
+		else
+		{
+			sTemp += m_sPayload;
+		}
+
+		m_sPayload.clear();
+
+		if (!Encode(sTemp, m_sPayload))
+		{
+			return false;
+		}
+
+		// adjust payload size
+		SetPayloadLen(GetPayload().size());
+	}
+
 	if (bMask)
 	{
 		Mask();
@@ -690,7 +829,7 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMask)
 
 	if (!FrameHeader::Write(OutStream)) return false;
 
-	if (Type() & (FrameType::Text | FrameType::Binary))
+	if (!GetHaveEncoder() && (Type() & (FrameType::Text | FrameType::Binary)))
 	{
 		auto iPreambleSize = GetPreambleSize();
 
@@ -727,6 +866,20 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMask)
 	return OutStream.Write(GetPayload()) && OutStream.Flush();
 
 } // Write
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Frame::Encode(KStringView sInput, KString& sEncoded)
+//-----------------------------------------------------------------------------
+{
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+bool KWebSocket::Frame::Decode(KStringView sEncoded, KString& sDecoded)
+//-----------------------------------------------------------------------------
+{
+	return false;
+}
 
 //-----------------------------------------------------------------------------
 KString KWebSocket::GenerateClientSecKey()

@@ -140,6 +140,7 @@ public:
 		/// and read the preamble at writing
 		virtual
 		char*       GetPreambleBuf  ()             const;
+		KStringView GetPreamble     ()             const { return KStringView { GetPreambleBuf(), GetPreambleSize() }; }
 		/// returns a status code that is only set with a Close frame, so after the conversation ends
 		uint16_t    GetStatusCode   ()             const { return m_iStatusCode; }
 		/// reset frame header to initial state
@@ -154,19 +155,42 @@ public:
 	protected:
 	//----------
 
-		uint64_t  m_iPayloadLen { 0 };
-		uint32_t  m_iMaskingKey { 0 };
-		FrameType m_Opcode      { Continuation };
-		uint8_t   m_iExtension  { 0 };
-		bool      m_bIsFin      { false };
-		bool      m_bMask       { false };
-		uint16_t  m_iStatusCode { 0 }; // will be set with a Close frame
+		/// set the opcode
+		void      SetOpcode         (FrameType Opcode)   { m_Opcode = Opcode;        }
+		/// set header flags
+		void      SetFlags          (bool bIsBinary, bool bIsContinuation, bool bIsLast);
+		/// set payload length
+		void      SetPayloadLen     (std::size_t iLen)   { m_iPayloadLen = iLen;     }
+		/// set the masking key
+		void      SetMaskingKey     (uint32_t iMask)     { m_iMaskingKey = iMask;    }
+		void      SetHasMask        (bool bYesNo = true) { m_bMask = bYesNo;         }
+		void      SetStatusCode     (uint16_t iStatus)   { m_iStatusCode = iStatus;  }
+		/// get the masking key
+		uint32_t  GetMaskingKey     ()             const { return m_iMaskingKey;     }
+		void      XOR               (char* pBuf, std::size_t iSize) const;
+		void      XOR               (KStringRef& sBuffer) const { XOR(&sBuffer[0], sBuffer.size()); }
+
+		/// set flag that we have an encoder/decoder
+		void      SetHaveEncoder    (bool bYesNo = true)         { m_bHaveEncoder = bYesNo; };
+		/// do we have an encoder?
+		bool      GetHaveEncoder    ()              const { return m_bHaveEncoder;   };
+		/// shall this frame be encoded / decoded ? (yes if we have an encoder and the opcode is valid and not Close)
+		bool      GetEncodeFrame    ()              const;
+
 
 	//----------
 	private:
 	//----------
 
-		uint8_t   m_iFramePos   { 0 };
+		uint64_t  m_iPayloadLen     { 0 };
+		uint32_t  m_iMaskingKey     { 0 };
+		uint16_t  m_iStatusCode     { 0 }; // will be set with a Close frame
+		FrameType m_Opcode          { Continuation };
+		uint8_t   m_iFramePos       { 0 };
+		uint8_t   m_iExtension      { 0 };
+		bool      m_bIsFin          { false };
+		bool      m_bMask           { false };
+		bool      m_bHaveEncoder    { false };
 
 	}; // FrameHeader
 
@@ -251,17 +275,23 @@ public:
 	protected:
 	//----------
 
-		/// set header flags for this frame
-		void           SetFlags   (bool bIsBinary, bool bIsContinuation, bool bIsLast);
 		/// returns payload
 		KString&       GetPayloadRef ()              { return m_sPayload;           }
+
+		/// transparent encoding interface, appends to sEncoded
+		virtual bool   Encode   (KStringView sInput,   KString& sEncoded);
+		/// transparent decoding interface, appends to sDecoded
+		virtual bool   Decode   (KStringView sEncoded, KString& sDecoded);
+		/// try to decode content if the previous read was without decoder (called by children that have setup another decoder now e.g.)
+		bool           TryDecode();
 
 	//----------
 	private:
 	//----------
 
-		void           XOR        (char* pBuf, std::size_t iSize);
-		void           XOR        (KStringRef& sBuffer) { XOR(&sBuffer[0], sBuffer.size()); }
+		bool           DecodeAndSplitPreamble(KStringView sBuffer);
+		bool           ReadPreambleFromStream(KInStream& InStream);
+
 		void           UnMask     (KStringRef& sBuffer);
 
 		KString m_sPayload;

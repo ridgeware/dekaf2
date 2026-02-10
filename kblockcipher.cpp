@@ -664,7 +664,7 @@ KString KBlockCipher::PrintIncrementalIV(uint64_t iIV)
 
 	if (iIV != 0)
 	{
-		kDebug(1, "incremental IV {:x} too large for IV length of {}", iIV, sIV.size());
+		kDebug(1, "incremental IV too large for IV length of {} - shortened", sIV.size());
 	}
 
 	return sIV;
@@ -858,7 +858,7 @@ bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 #endif
 
 	kDebug(3, "direction: {}, cipher: {}, keylen: {}, IV len: {}{}, taglen: {}{}, blocksize: {}",
-		   m_Direction ? "encrypt" : "decrypt",
+		   m_Direction ? "encryption" : "decryption",
 		   m_sCipherName,
 		   m_iKeyLength,
 		   m_iIVLength,
@@ -935,8 +935,11 @@ bool KBlockCipher::StartNewData()
 			// placeholder at the very beginning of the ciphertext
 			if (m_iTagLength)
 			{
-				// the validity of m_OutString was tested above
-				kDebug(3, "inline: appending tag placeholder of size {} at pos {}", m_iTagLength, m_OutString->size());
+				kDebug(3, "inline: appending {} of size {} at pos {}",
+				          "tag placeholder",
+				          m_iTagLength,
+				          m_OutString->size());
+
 				m_OutString->append(m_iTagLength, '\0');
 			}
 		}
@@ -948,7 +951,12 @@ bool KBlockCipher::StartNewData()
 			if (GetNeededIVLength())
 			{
 				kAssert(m_sIV.size() == GetNeededIVLength(), "IV length != required length");
-				kDebug(3, "inline: appending iv of size {} at pos {}", m_sIV.size(), m_OutString->size());
+
+				kDebug(3, "inline: appending {} of size {} at pos {}",
+				          "IV",
+				          m_sIV.size(),
+				          m_OutString->size());
+
 				m_OutString->append(m_sIV);
 			}
 		}
@@ -992,10 +1000,12 @@ bool KBlockCipher::AddString(KStringView sInput)
 
 	if (!m_bInitCompleted && !StartNewData()) return false;
 
+	kDebug(3, "{}: adding string of size {}",
+	          GetDirection() == Decrypt ? "decryption" : "encryption",
+	          sInput.size());
+
 	if (GetDirection() == Decrypt)
 	{
-		kDebug(2, "decode: adding string of size {}", sInput.size());
-
 		if (m_iTagLength && !m_bTagIsSet)
 		{
 			// shall we extract a leading auth tag from the input ciphertext?
@@ -1031,10 +1041,6 @@ bool KBlockCipher::AddString(KStringView sInput)
 			// set the IV for decoding - we now either have it from inline or set from outside
 			if (!SetIV()) return false;
 		}
-	}
-	else
-	{
-		kDebug(2, "encode: adding string of size {}: {}", sInput.size(), sInput.LeftUTF8(20));
 	}
 
 	if (sInput.empty()) return true;
@@ -1191,7 +1197,12 @@ bool KBlockCipher::FinalizeString()
 
 		if (m_bInlineTag && !m_OutStream && m_OutString)
 		{
-			kDebug(3, "inserting tag of size {} inline at pos {}: {}", m_sTag.size(), m_iStartOfString, KEncode::Hex(m_sTag));
+			kDebug(3, "{}: inserting tag of size {} inline at pos {}: {}",
+			          "encryption",
+			          m_sTag.size(),
+			          m_iStartOfString,
+			          KEncode::Hex(m_sTag));
+
 			// insert the auth tag right at the begin of the string (which could be offset
 			// if the string was not empty initially)
 			std::copy(m_sTag.begin(), m_sTag.end(), m_OutString->begin() + m_iStartOfString);
@@ -1215,11 +1226,17 @@ bool KBlockCipher::FinalizeString()
 
 	if (GetDirection() == Encrypt)
 	{
-		kDebug(3, "output has size {}, starts with {}", m_OutString->size(), KEncode::Hex(m_OutString->substr(0, 20)));
+		kDebug(3, "{}: output has size {}, starts with {}",
+		          "encryption",
+		          m_OutString->size(),
+		          KEncode::Hex(m_OutString->substr(0, 20)));
 	}
 	else
 	{
-		kDebug(3, "output has size {}, starts with {}", m_OutString->size(), kEscapeForLogging(m_OutString->substr(0, 30)));
+		kDebug(3, "{}: output has size {}, starts with {}",
+		          "decryption",
+		          m_OutString->size(),
+		          kEscapeForLogging(m_OutString->substr(0, 30)));
 	}
 
 	// do not release the context, we may want to run a new round
@@ -1251,8 +1268,15 @@ bool KBlockCipher::FinalizeStream()
 	    m_bInlineTag &&
 	    m_OutStream)
 	{
+		kDebug(3, "{}: inserting tag of size {} inline at pos {}: {}",
+		          "encryption",
+		          m_sTag.size(),
+		          static_cast<size_t>(m_iStartOfStream),
+		          KEncode::Hex(m_sTag));
+
 		// insert the auth tag right at the begin of the stream
 		auto CurPos = kGetWritePosition(*m_OutStream);
+
 		if (m_iStartOfStream < 0                               ||
 			CurPos < 0                                         ||
 			!kSetWritePosition(*m_OutStream, m_iStartOfStream) ||

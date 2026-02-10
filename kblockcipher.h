@@ -325,7 +325,7 @@ private:
 //------
 
 	bool Initialize(Algorithm algorithm, Bits bits);
-	bool CompleteInitialization();
+	bool StartNewData();
 	bool SetTag();
 	bool SetIV();
 	bool AddString(KStringView sInput);
@@ -350,10 +350,11 @@ private:
 	KString              m_sTag;
 	KString              m_sLastIV;
 	KString              m_sLastTag;
-	KOutStream*          m_OutStream     { nullptr };
-	KStringRef*          m_OutString     { nullptr };
-	std::streampos       m_StartOfStream {       0 };
-	uint64_t             m_iNonceIV      {       0 };
+	KOutStream*          m_OutStream      { nullptr };
+	KStringRef*          m_OutString      { nullptr };
+	std::size_t          m_iStartOfString {       0 };
+	std::streampos       m_iStartOfStream {       0 };
+	uint64_t             m_iNonceIV       {       0 };
 	Direction            m_Direction;
 	Algorithm            m_Algorithm;
 	Mode                 m_Mode;

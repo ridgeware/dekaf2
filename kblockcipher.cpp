@@ -93,7 +93,8 @@ KBlockCipher::KBlockCipher(KBlockCipher&& other) noexcept
 , m_sTag(std::move(other.m_sTag))
 , m_OutStream(other.m_OutStream)
 , m_OutString(other.m_OutString)
-, m_StartOfStream(other.m_StartOfStream)
+, m_iStartOfString(other.m_iStartOfString)
+, m_iStartOfStream(other.m_iStartOfStream)
 , m_Direction(other.m_Direction)
 , m_bInlineIV(other.m_bInlineIV)
 , m_bInlineTag(other.m_bInlineTag)
@@ -545,6 +546,263 @@ KString KBlockCipher::CreateKeyFromPasswordPKCS5
 } // CreateKeyFromPasswordPKCS5
 
 //---------------------------------------------------------------------------
+bool KBlockCipher::SetKey(KStringView sKey)
+//---------------------------------------------------------------------------
+{
+	if (sKey.size() < GetNeededKeyLength())
+	{
+		return SetError(kFormat("key length is {} bytes, but at least {} bytes are required", sKey.size(), m_iKeyLength));
+	}
+
+	// continue the initialization by adding the key
+	// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
+	// is only supported from v3.0.0 onward
+	if (!::EVP_CipherInit(
+		m_evpctx,
+		nullptr,
+		reinterpret_cast<const unsigned char*>(sKey.data()),
+		nullptr,
+		m_Direction)
+	)
+	{
+		SetError(GetOpenSSLError(kFormat("cannot initialize cipher {}", m_sCipherName)));
+		return false;
+	}
+
+	m_bKeyIsSet = true;
+
+	return true;
+
+} // SetKey
+
+//---------------------------------------------------------------------------
+bool KBlockCipher::SetPassword(KStringView sPassword, KStringView sSalt)
+//---------------------------------------------------------------------------
+{
+	return SetKey(CreateKeyFromPassword(GetNeededKeyLength(), sPassword, sSalt));
+
+} // SetPassword
+
+//---------------------------------------------------------------------------
+bool KBlockCipher::SetInitializationVector(KStringView sIV)
+//---------------------------------------------------------------------------
+{
+	if (!GetNeededIVLength())
+	{
+		return SetError("initialization vector not supported for selected cipher");
+	}
+
+	if (GetNeededIVLength() != sIV.size())
+	{
+		return SetError(kFormat("initialization vector for {} must have {} bits, but has only {}",
+		                        m_sCipherName, GetNeededIVLength() * 8, sIV.size() * 8));
+	}
+
+	m_sIV = sIV;
+	m_sLastIV = m_sIV;
+
+	return true;
+
+} // SetInitializationVector
+
+//---------------------------------------------------------------------------
+bool KBlockCipher::SetAutoIncrementNonceAsIV(uint64_t iCount)
+//---------------------------------------------------------------------------
+{
+	if (!GetNeededIVLength())
+	{
+		return SetError("initialization vector not supported for selected cipher");
+	}
+
+	if (GetMode() != Mode::GCM &&
+	    GetMode() != Mode::CCM &&
+	    GetAlgorithm() != Algorithm::ChaCha20_Poly1305)
+	{
+		return SetError(kFormat("selected cipher {} in mode {} does not support nonce IVs",
+		                        GetCipherName(), ToString(GetMode())));
+	}
+
+	if (iCount == 0) ++iCount;
+	m_iNonceIV = iCount;
+
+	return true;
+
+} // SetAutoIncrementNonceAsIV
+
+//---------------------------------------------------------------------------
+uint64_t KBlockCipher::GetNextIncrementalIV()
+//---------------------------------------------------------------------------
+{
+	// we use this computation to make sure we start with 1 instead of 2
+	// when per default setting the nonce counter to 1 at start
+	if (m_iNonceIV > 0)
+	{
+		// make sure we never return the same nonce twice
+		return m_iNonceIV++;
+	}
+	else
+	{
+		// 0 means: we do not use incremental nonces
+		return 0;
+	}
+
+} // GetNextIncrementalIV
+
+//---------------------------------------------------------------------------
+KString KBlockCipher::PrintIncrementalIV(uint64_t iIV)
+//---------------------------------------------------------------------------
+{
+	KString sIV(GetNeededIVLength(), '\0');
+
+	auto it = sIV.end();
+
+	for (auto ct = sizeof(iIV); ct-- > 0 && it != sIV.begin();)
+	{
+		*--it = iIV & 0xff;
+		iIV >>= 8;
+	}
+
+	if (iIV != 0)
+	{
+		kDebug(1, "incremental IV {:x} too large for IV length of {}", iIV, sIV.size());
+	}
+
+	return sIV;
+
+} // PrintIncrementalIV
+
+//---------------------------------------------------------------------------
+bool KBlockCipher::SetAuthenticationTag(KStringView sTag)
+//---------------------------------------------------------------------------
+{
+	if (!m_iTagLength) return SetError("authentication tag not supported for selected cipher");
+
+	m_sTag = sTag;
+	m_sLastTag = sTag;
+
+	return true;
+
+} // SetAuthenticationTag
+
+//---------------------------------------------------------------------------
+bool KBlockCipher::SetOutput(KStringRef& sOutput)
+//---------------------------------------------------------------------------
+{
+	if (m_OutStream || m_OutString) return SetError("output was already set");
+
+	m_iStartOfString = sOutput.size();
+
+	if (m_iStartOfString)
+	{
+		kDebug(2, "output string has initial size {} - will append new data, this might not be what you want", m_iStartOfString);
+	}
+
+	m_OutStream = nullptr;
+	m_OutString = &sOutput;
+
+	return true;
+
+} // SetOutput
+
+//---------------------------------------------------------------------------
+bool KBlockCipher::SetOutput(KOutStream& OutStream)
+//---------------------------------------------------------------------------
+{
+	if (m_OutStream || m_OutString) return SetError("output was already set");
+
+	m_OutStream = &OutStream;
+	m_OutString = nullptr;
+
+	if (m_Direction == Encrypt &&
+		((m_bInlineIV  && GetNeededIVLength()) ||
+		 (m_bInlineTag && m_iTagLength)))
+	{
+		// check if the stream is repositionable, and note the current position
+		// to insert the tag later
+		m_iStartOfStream = kGetWritePosition(*m_OutStream);
+		if (m_iStartOfStream < 0) return SetError("cannot read current output stream position");
+	}
+
+	return true;
+
+} // SetOutput
+
+//---------------------------------------------------------------------------
+bool KBlockCipher::SetTag()
+//---------------------------------------------------------------------------
+{
+	if (m_sTag.empty()) return SetError("missing authentication tag");
+	if (m_sTag.size() != m_iTagLength) return SetError(kFormat("tag size of {} but need {}", m_sTag.size(), m_iTagLength));
+
+	kDebug(3, "set tag {}", KEncode::Hex(m_sTag));
+
+	if (!::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_SET_TAG, static_cast<int>(m_iTagLength), m_sTag.data()))
+	{
+		return SetError(GetOpenSSLError(kFormat("{}: cannot set tag", "decryption")));
+	}
+
+	m_sLastTag = m_sTag;
+	m_bTagIsSet = true;
+
+	return true;
+
+} // SetTag
+
+//---------------------------------------------------------------------------
+bool KBlockCipher::SetIV()
+//---------------------------------------------------------------------------
+{
+	if (m_sIV.empty()) return SetError("missing initialization vector");
+	if (m_sIV.size() != m_iIVLength) return SetError(kFormat("IV size of {} but need {}", m_sIV.size(), m_iIVLength));
+
+	kDebug(3, "set IV {}", KEncode::Hex(m_sIV));
+
+	// complete the initialization by adding the IV
+	// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
+	// is only supported from v3.0.0 onward
+	if (!::EVP_CipherInit(
+		m_evpctx,
+		nullptr,
+		nullptr,
+		reinterpret_cast<const unsigned char*>(m_sIV.data()),
+		m_Direction)
+	)
+	{
+		return SetError(GetOpenSSLError(kFormat("cannot set IV {}", m_sCipherName)));
+	}
+
+	m_sLastIV = m_sIV;
+	m_bIVIsSet = true;
+
+	return true;
+
+} // SetIV
+
+//---------------------------------------------------------------------------
+void KBlockCipher::PrepareNextRound()
+//---------------------------------------------------------------------------
+{
+	m_sTag.clear();
+	m_sIV.clear();
+	m_bInitCompleted = false;
+	m_bTagIsSet = false;
+	m_bIVIsSet = false;
+
+} // PrepareNextRound
+
+//---------------------------------------------------------------------------
+void KBlockCipher::Release() noexcept
+//---------------------------------------------------------------------------
+{
+	if (m_evpctx)
+	{
+		::EVP_CIPHER_CTX_free(m_evpctx);
+		m_evpctx = nullptr;
+	}
+
+} // Release
+
+//---------------------------------------------------------------------------
 bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 //---------------------------------------------------------------------------
 {
@@ -614,45 +872,7 @@ bool KBlockCipher::Initialize(Algorithm algorithm, Bits bits)
 } // Initialize
 
 //---------------------------------------------------------------------------
-bool KBlockCipher::SetKey(KStringView sKey)
-//---------------------------------------------------------------------------
-{
-	if (sKey.size() < GetNeededKeyLength())
-	{
-		return SetError(kFormat("key length is {} bytes, but at least {} bytes are required", sKey.size(), m_iKeyLength));
-	}
-
-	// continue the initialization by adding the key
-	// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
-	// is only supported from v3.0.0 onward
-	if (!::EVP_CipherInit(
-		m_evpctx,
-		nullptr,
-		reinterpret_cast<const unsigned char*>(sKey.data()),
-		nullptr,
-		m_Direction)
-	)
-	{
-		SetError(GetOpenSSLError(kFormat("cannot initialize cipher {}", m_sCipherName)));
-		return false;
-	}
-
-	m_bKeyIsSet = true;
-
-	return true;
-
-} // SetKey
-
-//---------------------------------------------------------------------------
-bool KBlockCipher::SetPassword(KStringView sPassword, KStringView sSalt)
-//---------------------------------------------------------------------------
-{
-	return SetKey(CreateKeyFromPassword(GetNeededKeyLength(), sPassword, sSalt));
-
-} // SetPassword
-
-//---------------------------------------------------------------------------
-bool KBlockCipher::CompleteInitialization()
+bool KBlockCipher::StartNewData()
 //---------------------------------------------------------------------------
 {
 	if (m_bInitCompleted) return true;
@@ -689,6 +909,8 @@ bool KBlockCipher::CompleteInitialization()
 				}
 			}
 
+			kDebug(3, "iv {}", KEncode::Hex(m_sIV));
+
 			// complete the initialization by adding the IV
 			// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
 			// is only supported from v3.0.0 onward
@@ -714,6 +936,7 @@ bool KBlockCipher::CompleteInitialization()
 			if (m_iTagLength)
 			{
 				// the validity of m_OutString was tested above
+				kDebug(3, "inline: appending tag placeholder of size {} at pos {}", m_iTagLength, m_OutString->size());
 				m_OutString->append(m_iTagLength, '\0');
 			}
 		}
@@ -725,6 +948,7 @@ bool KBlockCipher::CompleteInitialization()
 			if (GetNeededIVLength())
 			{
 				kAssert(m_sIV.size() == GetNeededIVLength(), "IV length != required length");
+				kDebug(3, "inline: appending iv of size {} at pos {}", m_sIV.size(), m_OutString->size());
 				m_OutString->append(m_sIV);
 			}
 		}
@@ -740,7 +964,7 @@ bool KBlockCipher::CompleteInitialization()
 		if (m_bInlineIV)
 		{
 			// extract an inserted IV from the start of the ciphertext
-			m_iGetIVLength  = m_iIVLength;
+			m_iGetIVLength = m_iIVLength;
 		}
 		else if (GetNeededIVLength() > 0)
 		{
@@ -758,209 +982,7 @@ bool KBlockCipher::CompleteInitialization()
 
 	return true;
 
-} // CompleteInitialization
-
-//---------------------------------------------------------------------------
-bool KBlockCipher::SetInitializationVector(KStringView sIV)
-//---------------------------------------------------------------------------
-{
-	if (!GetNeededIVLength())
-	{
-		return SetError("initialization vector not supported for selected cipher");
-	}
-
-	if (GetNeededIVLength() != sIV.size())
-	{
-		return SetError(kFormat("initialization vector for {} must have {} bits, but has only {}",
-		                        m_sCipherName, GetNeededIVLength() * 8, sIV.size() * 8));
-	}
-
-	m_sIV = sIV;
-	m_sLastIV = m_sIV;
-
-	return true;
-
-} // SetInitializationVector
-
-//---------------------------------------------------------------------------
-bool KBlockCipher::SetAutoIncrementNonceAsIV(uint64_t iCount)
-//---------------------------------------------------------------------------
-{
-	if (!GetNeededIVLength())
-	{
-		return SetError("initialization vector not supported for selected cipher");
-	}
-
-	if (GetMode() != Mode::GCM &&
-	    GetMode() != Mode::CCM &&
-	    GetAlgorithm() != Algorithm::ChaCha20_Poly1305)
-	{
-		return SetError(kFormat("selected cipher {} in mode {} does not support nonce IVs",
-		                        GetCipherName(), ToString(GetMode())));
-	}
-
-	if (iCount == 0) ++iCount;
-	m_iNonceIV = iCount;
-
-	return true;
-
-} // SetAutoIncrementNonceAsIV
-
-//---------------------------------------------------------------------------
-uint64_t KBlockCipher::GetNextIncrementalIV()
-//---------------------------------------------------------------------------
-{
-	// we use this computation to make sure we start with 1 instead of 2
-	// when per default setting the nonce counter to 1 at start
-	if (m_iNonceIV > 0)
-	{
-		// make sure we never return the same nonce twice
-		auto iNonce = m_iNonceIV++;
-		return iNonce;
-	}
-	else
-	{
-		// 0 means: we do not use incremental nonces
-		return 0;
-	}
-
-} // GetNextIncrementalIV
-
-//---------------------------------------------------------------------------
-KString KBlockCipher::PrintIncrementalIV(uint64_t iIV)
-//---------------------------------------------------------------------------
-{
-	KString sIV(GetNeededIVLength(), '\0');
-
-	auto it = sIV.end() - sizeof(iIV);
-
-	if (it < sIV.begin())
-	{
-		kDebug(1, "IV too small for incremental IV type");
-		it = sIV.begin();
-	}
-
-	for (; it != sIV.end(); ++it)
-	{
-		*it = iIV & 0xff;
-		iIV >>= 8;
-	}
-
-	return sIV;
-
-} // PrintIncrementalIV
-
-//---------------------------------------------------------------------------
-bool KBlockCipher::SetAuthenticationTag(KStringView sTag)
-//---------------------------------------------------------------------------
-{
-	if (!m_iTagLength) return SetError("authentication tag not supported for selected cipher");
-
-	m_sTag = sTag;
-	m_sLastTag = m_sTag;
-
-	return true;
-
-} // SetAuthenticationTag
-
-//---------------------------------------------------------------------------
-bool KBlockCipher::SetOutput(KStringRef& sOutput)
-//---------------------------------------------------------------------------
-{
-	if (m_OutStream || m_OutString) return SetError("output was already set");
-
-	m_OutStream = nullptr;
-	m_OutString = &sOutput;
-
-	return true;
-
-} // SetOutput
-
-//---------------------------------------------------------------------------
-bool KBlockCipher::SetOutput(KOutStream& OutStream)
-//---------------------------------------------------------------------------
-{
-	if (m_OutStream || m_OutString) return SetError("output was already set");
-
-	m_OutStream = &OutStream;
-	m_OutString = nullptr;
-
-	if (m_Direction == Encrypt &&
-		((m_bInlineIV  && GetNeededIVLength()) ||
-		 (m_bInlineTag && m_iTagLength)))
-	{
-		// check if the stream is repositionable, and note the current position
-		// to insert the tag later
-		m_StartOfStream = kGetWritePosition(*m_OutStream);
-		if (m_StartOfStream < 0) return SetError("cannot read current output stream position");
-	}
-
-	return true;
-
-} // SetOutput
-
-//---------------------------------------------------------------------------
-bool KBlockCipher::SetTag()
-//---------------------------------------------------------------------------
-{
-	if (m_sTag.empty()) return SetError("missing authentication tag");
-	if (m_sTag.size() != m_iTagLength) return SetError(kFormat("tag size of {} but need {}", m_sTag.size(), m_iTagLength));
-
-	kDebug(3, "set tag {}", KEncode::Base64(m_sTag));
-
-	if (!::EVP_CIPHER_CTX_ctrl(m_evpctx, EVP_CTRL_AEAD_SET_TAG, static_cast<int>(m_iTagLength), m_sTag.data()))
-	{
-		return SetError(GetOpenSSLError(kFormat("{}: cannot set tag", "decryption")));
-	}
-
-	m_sLastTag = m_sTag;
-	m_bTagIsSet = true;
-
-	return true;
-
-} // SetTag
-
-//---------------------------------------------------------------------------
-bool KBlockCipher::SetIV()
-//---------------------------------------------------------------------------
-{
-	if (m_sIV.empty()) return SetError("missing initialization vector");
-	if (m_sIV.size() != m_iIVLength) return SetError(kFormat("IV size of {} but need {}", m_sIV.size(), m_iIVLength));
-
-	kDebug(3, "set IV {} ({})", KEncode::Base64(m_sIV), m_sIV);
-
-	// complete the initialization by adding the IV
-	// we use EVP_CipherInit() and not EVP_CipherInit_ex2() because the latter
-	// is only supported from v3.0.0 onward
-	if (!::EVP_CipherInit(
-		m_evpctx,
-		nullptr,
-		nullptr,
-		reinterpret_cast<const unsigned char*>(m_sIV.data()),
-		m_Direction)
-	)
-	{
-		return SetError(GetOpenSSLError(kFormat("cannot set IV {}", m_sCipherName)));
-	}
-
-	m_sLastIV = m_sIV;
-	m_bIVIsSet = true;
-
-	return true;
-
-} // SetIV
-
-//---------------------------------------------------------------------------
-void KBlockCipher::Release() noexcept
-//---------------------------------------------------------------------------
-{
-	if (m_evpctx)
-	{
-		::EVP_CIPHER_CTX_free(m_evpctx);
-		m_evpctx = nullptr;
-	}
-
-} // Release
+} // StartNewData
 
 //---------------------------------------------------------------------------
 bool KBlockCipher::AddString(KStringView sInput)
@@ -968,10 +990,12 @@ bool KBlockCipher::AddString(KStringView sInput)
 {
 	if (!m_evpctx || HasError()) return false;
 
-	if (!m_bInitCompleted && !CompleteInitialization()) return false;
+	if (!m_bInitCompleted && !StartNewData()) return false;
 
 	if (GetDirection() == Decrypt)
 	{
+		kDebug(2, "decode: adding string of size {}", sInput.size());
+
 		if (m_iTagLength && !m_bTagIsSet)
 		{
 			// shall we extract a leading auth tag from the input ciphertext?
@@ -1007,6 +1031,10 @@ bool KBlockCipher::AddString(KStringView sInput)
 			// set the IV for decoding - we now either have it from inline or set from outside
 			if (!SetIV()) return false;
 		}
+	}
+	else
+	{
+		kDebug(2, "encode: adding string of size {}: {}", sInput.size(), sInput.LeftUTF8(20));
 	}
 
 	if (sInput.empty()) return true;
@@ -1163,9 +1191,10 @@ bool KBlockCipher::FinalizeString()
 
 		if (m_bInlineTag && !m_OutStream && m_OutString)
 		{
-			kDebug(3, "inserting tag of size {} inline: {}", m_sTag.size(), KEncode::Base64(m_sTag));
-			// insert the auth tag right at the begin of the string
-			std::copy(m_sTag.begin(), m_sTag.begin() + m_sTag.size(), m_OutString->begin());
+			kDebug(3, "inserting tag of size {} inline at pos {}: {}", m_sTag.size(), m_iStartOfString, KEncode::Hex(m_sTag));
+			// insert the auth tag right at the begin of the string (which could be offset
+			// if the string was not empty initially)
+			std::copy(m_sTag.begin(), m_sTag.end(), m_OutString->begin() + m_iStartOfString);
 		}
 
 		m_sLastTag = m_sTag;
@@ -1182,6 +1211,15 @@ bool KBlockCipher::FinalizeString()
 	{
 		// check if the assumption holds true that blocksize 1 means no further flush
 		kAssert(iOutLen == 0, "blocksize is 1, but outlen is > 0");
+	}
+
+	if (GetDirection() == Encrypt)
+	{
+		kDebug(3, "output has size {}, starts with {}", m_OutString->size(), KEncode::Hex(m_OutString->substr(0, 20)));
+	}
+	else
+	{
+		kDebug(3, "output has size {}, starts with {}", m_OutString->size(), kEscapeForLogging(m_OutString->substr(0, 30)));
 	}
 
 	// do not release the context, we may want to run a new round
@@ -1215,10 +1253,10 @@ bool KBlockCipher::FinalizeStream()
 	{
 		// insert the auth tag right at the begin of the stream
 		auto CurPos = kGetWritePosition(*m_OutStream);
-		if (m_StartOfStream < 0                               ||
-			CurPos < 0                                        ||
-			!kSetWritePosition(*m_OutStream, m_StartOfStream) ||
-			!m_OutStream->Write(m_sTag)                       ||
+		if (m_iStartOfStream < 0                               ||
+			CurPos < 0                                         ||
+			!kSetWritePosition(*m_OutStream, m_iStartOfStream) ||
+			!m_OutStream->Write(m_sTag)                        ||
 			!kSetWritePosition(*m_OutStream, CurPos))
 		{
 			return SetError("cannot insert authentication tag into stream");
@@ -1253,18 +1291,6 @@ bool KBlockCipher::SingleRound(KStringView sInput, KStringRef& sOutput)
 	return SetOutput(sOutput) && Add(sInput) && Finalize();
 
 } // SingleRound
-
-//---------------------------------------------------------------------------
-void KBlockCipher::PrepareNextRound()
-//---------------------------------------------------------------------------
-{
-	m_sTag.clear();
-	m_sIV.clear();
-	m_bInitCompleted = false;
-	m_bTagIsSet = false;
-	m_bIVIsSet = false;
-
-} // PrepareNextRound
 
 DEKAF2_NAMESPACE_END
 

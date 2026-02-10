@@ -1075,7 +1075,7 @@ void KTunnel::SetupEncryption (KStringView sUser, KStringView sSecret)
 	};
 
 	// write with the shared secret
-	WriteMessage(Message(Message::Login, 0, oLogin.Dump()));
+	WriteMessage(Message(Message::Login, 0, oLogin.dump()));
 
 	auto Tunnel = m_Tunnel.unique();
 

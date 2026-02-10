@@ -47,6 +47,7 @@
 #include "kcrashexit.h"
 #include "klog.h"
 #include "khttperror.h"
+#include "dekaf2.h"
 
 DEKAF2_NAMESPACE_BEGIN
 namespace {

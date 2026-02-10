@@ -44,6 +44,7 @@
 #include "kcompatibility.h"
 
 #if DEKAF2_IS_WINDOWS
+	#include <array>
 	#include <io.h>
 #endif
 

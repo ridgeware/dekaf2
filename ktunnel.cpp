@@ -221,22 +221,74 @@ char* KTunnel::Message::GetPreambleBuf() const
 }
 
 //-----------------------------------------------------------------------------
+bool KTunnel::Message::Encode(KStringView sInput, KString& sEncoded)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Cipher)
+	{
+		kDebug(1, "no cipher");
+		return false;
+	}
+
+	if (m_Cipher->GetDirection() != KBlockCipher::Direction::Encrypt)
+	{
+		kDebug(1, "wrong direction");
+		return false;
+	}
+
+	if (!m_Cipher->SetOutput(sEncoded) ||
+		!m_Cipher->Add(sInput)         ||
+		!m_Cipher->Finalize())
+	{
+		return false;
+	}
+
+	return true;
+
+} // Encode
+
+//-----------------------------------------------------------------------------
+bool KTunnel::Message::Decode(KStringView sEncoded, KString& sDecoded)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Cipher)
+	{
+		kDebug(1, "no cipher");
+		return false;
+	}
+
+	if (m_Cipher->GetDirection() != KBlockCipher::Direction::Decrypt)
+	{
+		kDebug(1, "wrong direction");
+		return false;
+	}
+
+	if (!m_Cipher->SetOutput(sDecoded) ||
+		!m_Cipher->Add(sEncoded)       ||
+		!m_Cipher->Finalize())
+	{
+		return false;
+	}
+
+	return true;
+
+} // Decode
+
+//-----------------------------------------------------------------------------
 void KTunnel::Message::Read(KIOStreamSocket& Stream, KBlockCipher* Decryptor)
 //-----------------------------------------------------------------------------
 {
 	clear();
 
+	if (Decryptor)
+	{
+		m_Cipher = Decryptor;
+		SetHaveEncoder(true);
+	}
+
 	if (!Frame::Read(Stream, false))
 	{
 		Throw(kFormat("[{}]: cannot read from {}", GetChannel(), Stream.GetEndPointAddress()));
-	}
-
-	if (Decryptor)
-	{
-		if (!Decrypt(Decryptor))
-		{
-			Throw(Decryptor->GetLastError());
-		}
 	}
 
 } // Read
@@ -252,24 +304,8 @@ void KTunnel::Message::Write(KIOStreamSocket& Stream, bool bMask, KBlockCipher* 
 
 	if (Encryptor)
 	{
-		KString sTemp;
-
-		if (!Encryptor->SetOutput(sTemp)  ||
-			!Encryptor->Add(KStringView(GetPreambleBuf(), GetPreambleSize())) ||
-			!Encryptor->Add(GetPayload()) ||
-			!Encryptor->Finalize())
-		{
-			Throw(Encryptor->GetLastError());
-		}
-
-		if (sTemp.size() < m_Preamble.size())
-		{
-			Throw("encrypted message has no preamble");
-		}
-
-		std::copy(sTemp.end() - m_Preamble.size(), sTemp.end(), m_Preamble.begin());
-		sTemp.remove_suffix(m_Preamble.size());
-		SetPayload(std::move(sTemp), true);
+		m_Cipher = Encryptor;
+		SetHaveEncoder(true);
 	}
 
 	if (!Frame::Write(Stream, bMask))
@@ -289,26 +325,13 @@ void KTunnel::Message::Write(KIOStreamSocket& Stream, bool bMask, KBlockCipher* 
 bool KTunnel::Message::Decrypt(KBlockCipher* Decryptor)
 //-----------------------------------------------------------------------------
 {
-	KString sTemp;
-
-	if (!Decryptor->SetOutput(sTemp)  ||
-		!Decryptor->Add(KStringView(GetPreambleBuf(), GetPreambleSize())) ||
-		!Decryptor->Add(GetPayload()) ||
-		!Decryptor->Finalize())
+	if (Decryptor)
 	{
-		return false;
+		m_Cipher = Decryptor;
+		SetHaveEncoder(true);
 	}
 
-	if (sTemp.size() < m_Preamble.size())
-	{
-		Throw("decrypted message has no preamble");
-	}
-
-	std::copy(sTemp.end() - m_Preamble.size(), sTemp.end(), m_Preamble.begin());
-	sTemp.remove_suffix(m_Preamble.size());
-	GetPayloadRef() = std::move(sTemp);
-
-	return true;
+	return TryDecode();
 
 } // Decrypt
 

@@ -175,6 +175,8 @@ public:
 
 		std::size_t    GetPreambleSize () const override final;
 		char*          GetPreambleBuf  () const override final;
+		bool           Encode          (KStringView sInput,   KString& sEncoded) override final;
+		bool           Decode          (KStringView sEncoded, KString& sDecoded) override final;
 
 	//----------
 	private:
@@ -186,6 +188,7 @@ public:
 		void           Throw      (KString sError, KStringView sFunction = KSourceLocation::current().function_name()) const;
 
 		mutable std::array<char, 4> m_Preamble{};
+		KBlockCipher*               m_Cipher { nullptr };
 
 	}; // Message
 

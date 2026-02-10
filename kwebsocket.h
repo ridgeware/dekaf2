@@ -42,7 +42,7 @@
 #pragma once
 
 /// @file kwebsocket.h
-/// HTTP web socket helper code
+/// HTTP web socket code
 
 #include "kiostreamsocket.h"
 #include "kexception.h"
@@ -55,6 +55,7 @@
 #include "kstringview.h"
 #include "kstream.h"
 #include "kduration.h"
+#include "ktimer.h"
 #include <vector>
 #include <atomic>
 #include <thread>
@@ -306,6 +307,8 @@ public:
 
 	KWebSocket(KWebSocket&& other);
 
+	~KWebSocket();
+
 	/// set read timeout, probably in the minutes to hours range (defaults to 60 minutes)
 	void SetReadTimeout(KDuration ReadTimeout)   { m_ReadTimeout  = ReadTimeout;  }
 
@@ -351,6 +354,11 @@ public:
 	/// @returns false if unsuccessful
 	bool Close(uint16_t iStatusCode = 1000, KString sReason = KString{});
 
+	/// force automatic pings being sent to the counterpart to keep the connection alive
+	/// @param PingInterval the time interval at which to send pings, defaults to five minutes, 0 switches AutoPing off
+	/// @returns true if automatic pings could be setup, false otherwise
+	bool AutoPing(KDuration PingInterval = chrono::minutes(5));
+
 	/// set the finish callback for this instance
 	void               SetFinishCallback            (std::function<void()> Finish) { m_Finish = std::move(Finish); }
 	/// call the finish callback to end this instance
@@ -381,15 +389,16 @@ private:
 
 	bool ReadInt(std::function<bool(const KString&)> Func);
 
+	Frame                            m_Frame;
 	std::unique_ptr<KIOStreamSocket> m_Stream;
 	std::function<void(KWebSocket&)> m_Handler;
 	std::function<void()>            m_Finish;
-	Frame                            m_Frame;
-
 	std::mutex                       m_StreamMutex;
 	KDuration                        m_ReadTimeout  { chrono::minutes(60) };
 	KDuration                        m_WriteTimeout { chrono::seconds(30) };
-	bool                             m_bMaskTx { false };
+	KDuration                        m_PingInterval;
+	KTimer::ID_t                     m_TimerID      { KTimer::InvalidID };
+	bool                             m_bMaskTx      { false };
 
 }; // KWebSocket
 

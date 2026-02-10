@@ -1071,15 +1071,24 @@ KWebSocket::KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<v
 //-----------------------------------------------------------------------------
 KWebSocket::KWebSocket(KWebSocket&& other)
 //-----------------------------------------------------------------------------
-: m_Stream(std::move(other.m_Stream))
-, m_Handler(std::move(other.m_Handler))
-, m_Finish(std::move(other.m_Finish))
-, m_Frame(std::move(other.m_Frame))
-, m_ReadTimeout(other.m_ReadTimeout)
-, m_WriteTimeout(other.m_WriteTimeout)
-, m_bMaskTx(other.m_bMaskTx)
+: m_Frame        (std::move(other.m_Frame  ))
+, m_Stream       (std::move(other.m_Stream ))
+, m_Handler      (std::move(other.m_Handler))
+, m_Finish       (std::move(other.m_Finish ))
+, m_ReadTimeout  (other.m_ReadTimeout )
+, m_WriteTimeout (other.m_WriteTimeout)
+, m_PingInterval (other.m_PingInterval)
+, m_bMaskTx      (other.m_bMaskTx     )
 {
 } // move ctor
+
+//-----------------------------------------------------------------------------
+KWebSocket::~KWebSocket()
+//-----------------------------------------------------------------------------
+{
+	AutoPing(KDuration::zero());
+
+} // dtor
 
 //-----------------------------------------------------------------------------
 bool KWebSocket::Read()
@@ -1227,7 +1236,11 @@ bool KWebSocket::Write(KWebSocket::Frame Frame)
 			// return immediately from poll
 			if (m_Stream->IsWriteReady(KDuration()))
 			{
-				m_Frame.Write(*m_Stream, m_bMaskTx);
+				if (!m_Frame.Write(*m_Stream, m_bMaskTx))
+				{
+					return false;
+				}
+
 				break;
 			}
 		}
@@ -1276,6 +1289,38 @@ bool KWebSocket::Close(uint16_t iStatusCode, KString sReason)
 
 } // KWebSocket::Close
 
+//-----------------------------------------------------------------------------
+bool KWebSocket::AutoPing(KDuration PingInterval)
+//-----------------------------------------------------------------------------
+{
+	if (m_PingInterval == PingInterval)
+	{
+		return true;
+	}
+
+	auto& Timer = Dekaf::getInstance().GetTimer();
+
+	if (m_TimerID != KTimer::InvalidID)
+	{
+		Timer.Cancel(m_TimerID);
+		m_TimerID = KTimer::InvalidID;
+	}
+
+	m_PingInterval = PingInterval;
+
+	if (m_PingInterval.IsZero())
+	{
+		return true;
+	}
+
+	m_TimerID = Timer.CallEvery(m_PingInterval, [this](KUnixTime tNow)
+	{
+		Ping();
+	});
+
+	return m_TimerID != KTimer::InvalidID;
+
+} // AutoPing
 
 //-----------------------------------------------------------------------------
 void KWebSocket::CallHandler(class Frame Frame)

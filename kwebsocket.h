@@ -156,19 +156,34 @@ public:
 	protected:
 	//----------
 
-		/// set the opcode
-		void      SetOpcode         (FrameType Opcode)   { m_Opcode = Opcode;        }
-		/// set header flags
-		void      SetFlags          (bool bIsBinary, bool bIsContinuation, bool bIsLast);
+		/// set the opcode, AND the fin flag
+		/// @param Opcode the opcode to set for the frame
+		/// @param bIsFin is this the last frame, or will others follow with continuation - defaults to true (= last)
+		void      SetOpcodeAndFin   (FrameType Opcode, bool bIsFin = true);
+		/// set the opcode to Text, Binary, or Continuation depending on the boolean parms
+		/// @param bIsBinary is this a Binary or Text frame
+		/// @param bIsContinuation is this a continuation frame to a previous frame
+		/// @param bIsFin is this the last frame, or will others follow with continuation - defaults to true (= last)
+		void      SetOpcodeAndFin   (bool bIsBinary, bool bIsContinuation, bool bIsFin);
+		/// @param bIsFin is this the last frame, or will others follow with continuation
+		void      SetFin            (bool bIsFin = true) { m_bIsFin = bIsFin;        }
 		/// set payload length
+		/// @param iLen the payload len
 		void      SetPayloadLen     (std::size_t iLen)   { m_iPayloadLen = iLen;     }
 		/// set the masking key
+		/// @param iMask the masing key
 		void      SetMaskingKey     (uint32_t iMask)     { m_iMaskingKey = iMask;    }
 		void      SetHasMask        (bool bYesNo = true) { m_bMask = bYesNo;         }
+		/// set the status code
 		void      SetStatusCode     (uint16_t iStatus)   { m_iStatusCode = iStatus;  }
 		/// get the masking key
 		uint32_t  GetMaskingKey     ()             const { return m_iMaskingKey;     }
-		void      XOR               (char* pBuf, std::size_t iSize) const;
+		/// XOR a buffer
+		/// @param pBuf the address of the buffer
+		/// @param iSize the size of the buffer
+		void      XOR               (void* pBuffer, std::size_t iSize) const;
+		/// XOR a string
+		/// @param sBuffer the string to XOR
 		void      XOR               (KStringRef& sBuffer) const { XOR(&sBuffer[0], sBuffer.size()); }
 
 		/// set flag that we have an encoder/decoder
@@ -177,7 +192,6 @@ public:
 		bool      GetHaveEncoder    ()              const { return m_bHaveEncoder;   };
 		/// shall this frame be encoded / decoded ? (yes if we have an encoder and the opcode is valid and not Close)
 		bool      GetEncodeFrame    ()              const;
-
 
 	//----------
 	private:
@@ -209,10 +223,12 @@ public:
 		using const_iterator = KString::const_iterator;
 
 		Frame() = default;
+		/// construct with frame type, payload, and fin flag
+		Frame(FrameType Opcode, KString sPayload, bool bIsFin = true);
 		/// construct with payload, text or binary
 		Frame(KString sPayload, bool bIsBinary)
+		: Frame(bIsBinary ? FrameType::Binary : FrameType::Text, std::move(sPayload))
 		{
-			SetPayload(std::move(sPayload), bIsBinary);
 		}
 		/// construct from Stream, decodes one or multiple frames with payload, may send pong frames
 		Frame(KStream& Stream)
@@ -242,12 +258,10 @@ public:
 		void           Mask       ();
 		/// if the frame was announced as masked, unmasks it and clears the mask flag
 		void           UnMask     ()                 { UnMask(GetPayloadRef());              }
-		/// set binary or text payload
-		void           SetPayload (KString sPayload, bool bIsBinary);
 		/// set text payload
-		void           Text       (KString sText  )  { SetPayload(std::move(sText),  false); }
+		void           Text       (KString sText  );
 		/// set binary payload
-		void           Binary     (KString sBuffer)  { SetPayload(std::move(sBuffer), true); }
+		void           Binary     (KString sBuffer);
 		/// set binary payload
 		void           Binary     (const void* Buffer, std::size_t iSize) { Binary(KString(static_cast<const char*>(Buffer), iSize)); }
 		/// create a ping frame
@@ -276,6 +290,8 @@ public:
 	protected:
 	//----------
 
+		/// set payload
+		void           SetPayload (KString sPayload);
 		/// returns payload
 		KString&       GetPayloadRef ()              { return m_sPayload;           }
 

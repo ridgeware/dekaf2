@@ -149,9 +149,9 @@ public:
 		std::size_t    GetChannel () const;
 
 		/// sets the message type
-		void           SetType    (Type _type)           { m_Preamble[0] = _type;                 }
+		void           SetType    (Type _type)           { m_Preamble[0] = _type;       }
 		/// sets the message (payload)
-		void           SetMessage (KString sMessage)     { SetPayload(std::move(sMessage), true); }
+		void           SetMessage (KString sMessage)     { Binary(std::move(sMessage)); }
 		/// sets the channel the message is sent to
 		void           SetChannel (std::size_t iChannel);
 

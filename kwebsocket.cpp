@@ -66,6 +66,15 @@ void KWebSocket::FrameHeader::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
+void KWebSocket::FrameHeader::SetOpcodeAndFin(FrameType Opcode, bool bIsFin)
+//-----------------------------------------------------------------------------
+{
+	m_Opcode = Opcode;
+	m_bIsFin = bIsFin;
+
+} // SetOpcode
+
+//-----------------------------------------------------------------------------
 bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 //-----------------------------------------------------------------------------
 {
@@ -120,7 +129,7 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 			m_Opcode     = static_cast<FrameType>((byte & 0x0f));
 			break;
 
-		case 1: // mask and first 7 length bits
+		case 1: // mask flag and first 7 length bits
 			m_bMask       = (byte & 0x80);
 			m_iPayloadLen = (byte & 0x7f);
 
@@ -378,32 +387,30 @@ bool KWebSocket::FrameHeader::Write(KOutStream& Stream)
 } // Write
 
 //-----------------------------------------------------------------------------
-void KWebSocket::FrameHeader::SetFlags(bool bIsBinary, bool bIsContinuation, bool bIsLast)
+void KWebSocket::FrameHeader::SetOpcodeAndFin(bool bIsBinary, bool bIsContinuation, bool bIsFin)
 //-----------------------------------------------------------------------------
 {
-	m_Opcode      = bIsContinuation ? FrameType::Continuation : bIsBinary ? FrameType::Binary : FrameType::Text;
-	m_iExtension  = 0;
-	m_bIsFin      = bIsLast;
-	m_bMask       = false;
-	m_iMaskingKey = 0;
+	SetOpcodeAndFin(bIsContinuation ? FrameType::Continuation : bIsBinary ? FrameType::Binary : FrameType::Text, bIsFin);
 
-} // SetFlags
+} // SetOpcode
 
 //-----------------------------------------------------------------------------
-void KWebSocket::FrameHeader::XOR(char* pBuf, std::size_t iSize) const
+void KWebSocket::FrameHeader::XOR(void* pBuffer, std::size_t iSize) const
 //-----------------------------------------------------------------------------
 {
 	if (iSize > 0)
 	{
 		kDebug(3, "applying mask {:#08x} on buffer of size {}", m_iMaskingKey, iSize);
 
-		std::array<char, 4> Mask
+		std::array<uint8_t, 4> Mask
 		{
-			static_cast<char>(m_iMaskingKey >> 24),
-			static_cast<char>(m_iMaskingKey >> 16),
-			static_cast<char>(m_iMaskingKey >>  8),
-			static_cast<char>(m_iMaskingKey >>  0)
+			static_cast<uint8_t>(m_iMaskingKey >> 24),
+			static_cast<uint8_t>(m_iMaskingKey >> 16),
+			static_cast<uint8_t>(m_iMaskingKey >>  8),
+			static_cast<uint8_t>(m_iMaskingKey >>  0)
 		};
+
+		uint8_t* pBuf = static_cast<uint8_t*>(pBuffer);
 
 		for (; iSize >= 4; iSize -= 4)
 		{
@@ -452,11 +459,29 @@ void KWebSocket::Frame::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
+void KWebSocket::Frame::Text(KString sText)
+//-----------------------------------------------------------------------------
+{
+	SetOpcodeAndFin(FrameType::Text);
+	SetPayload(std::move(sText));
+
+} // Text
+
+//-----------------------------------------------------------------------------
+void KWebSocket::Frame::Binary(KString sBuffer)
+//-----------------------------------------------------------------------------
+{
+	SetOpcodeAndFin(FrameType::Binary);
+	SetPayload(std::move(sBuffer));
+
+} // Binary
+
+//-----------------------------------------------------------------------------
 void KWebSocket::Frame::Ping(KString sMessage)
 //-----------------------------------------------------------------------------
 {
-	SetOpcode(FrameType::Ping);
-	Binary(std::move(sMessage));
+	SetOpcodeAndFin(FrameType::Ping);
+	SetPayload(std::move(sMessage));
 
 } // Ping
 
@@ -464,8 +489,8 @@ void KWebSocket::Frame::Ping(KString sMessage)
 void KWebSocket::Frame::Pong(KString sMessage)
 //-----------------------------------------------------------------------------
 {
-	SetOpcode(FrameType::Pong);
-	Binary(std::move(sMessage));
+	SetOpcodeAndFin(FrameType::Pong);
+	SetPayload(std::move(sMessage));
 
 } // Pong
 
@@ -473,12 +498,12 @@ void KWebSocket::Frame::Pong(KString sMessage)
 void KWebSocket::Frame::Close(uint16_t iStatusCode, KString sReason)
 //-----------------------------------------------------------------------------
 {
-	SetOpcode(FrameType::Close);
+	SetOpcodeAndFin(FrameType::Close);
 	// make room for status code - see RFC 6455 for format
 	sReason.insert(0, 2, ' ');
 	sReason[0] = iStatusCode / 256;
 	sReason[1] = iStatusCode & 256;
-	Binary(std::move(sReason));
+	SetPayload(std::move(sReason));
 
 } // Close
 
@@ -505,11 +530,10 @@ void KWebSocket::Frame::UnMask(KStringRef& sBuffer)
 } // UnMask
 
 //-----------------------------------------------------------------------------
-void KWebSocket::Frame::SetPayload(KString sPayload, bool bIsBinary)
+void KWebSocket::Frame::SetPayload(KString sPayload)
 //-----------------------------------------------------------------------------
 {
 	m_sPayload = std::move(sPayload);
-	SetFlags(bIsBinary, false, true);
 	SetPayloadLen(m_sPayload.size());
 
 } // SetPayload
@@ -640,17 +664,17 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMaskTx, KInStream& Pa
 	{
 		auto iFragment = std::min(len, KDefaultCopyBufSize);
 		auto iRead = Payload.Read(m_sPayload, iFragment);
+		SetPayloadLen(iRead);
 		len -= iRead;
 		bIsLast = len == 0 || Payload.istream().eof();
-		bool bIsCont = !bIsFirst && !bIsLast && iRead == KDefaultCopyBufSize;
-		SetFlags(bIsBinary, bIsCont, bIsLast);
-		SetPayloadLen(m_sPayload.size());
+		SetOpcodeAndFin(bIsBinary, !bIsFirst, bIsLast);
 
 		if (!Write(OutStream, bMaskTx))
 		{
 			return false;
 		}
 
+		m_sPayload.clear();
 		bIsFirst = false;
 	}
 
@@ -794,6 +818,15 @@ bool KWebSocket::FrameHeader::GetEncodeFrame() const
 				    FrameType::Pong ));
 
 } // EncodeFrame
+
+//-----------------------------------------------------------------------------
+KWebSocket::Frame::Frame(FrameType Opcode, KString sPayload, bool bIsFin)
+//-----------------------------------------------------------------------------
+{
+	SetOpcodeAndFin(Opcode, bIsFin);
+	SetPayload(std::move(sPayload));
+
+} // ctor
 
 //-----------------------------------------------------------------------------
 bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMask)
@@ -1266,7 +1299,7 @@ bool KWebSocket::Write(const KJSON& jFrame)
 //-----------------------------------------------------------------------------
 {
 	// json is UTF8 when dumped, therefore set text mode
-	return Write(KWebSocket::Frame(jFrame.dump(), false/*bIsBinary*/));
+	return Write(KWebSocket::Frame(Frame::FrameType::Text, jFrame.dump()));
 
 } // KWebSocket::Write
 
@@ -1274,9 +1307,7 @@ bool KWebSocket::Write(const KJSON& jFrame)
 bool KWebSocket::Ping(KString sMessage)
 //-----------------------------------------------------------------------------
 {
-	KWebSocket::Frame Frame;
-	Frame.Ping(std::move(sMessage));
-	return Write(Frame);
+	return Write(KWebSocket::Frame(Frame::FrameType::Ping, std::move(sMessage)));
 
 } // KWebSocket::Ping
 

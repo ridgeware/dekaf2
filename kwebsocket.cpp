@@ -502,7 +502,7 @@ void KWebSocket::Frame::Close(uint16_t iStatusCode, KString sReason)
 	// make room for status code - see RFC 6455 for format
 	sReason.insert(0, 2, ' ');
 	sReason[0] = iStatusCode / 256;
-	sReason[1] = iStatusCode & 256;
+	sReason[1] = iStatusCode % 256;
 	SetPayload(std::move(sReason));
 
 } // Close

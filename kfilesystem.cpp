@@ -2776,6 +2776,74 @@ KString kMakeSafePathname(KStringView sName, bool bToLowercase, KStringView sEmp
 } // kMakeSafePathname
 
 //-----------------------------------------------------------------------------
+KString kGenerateTempPath(KStringView sExtension, uint16_t iMaxPathLen)
+//-----------------------------------------------------------------------------
+{
+	auto sTemp   = kGetTemp();
+	auto sName   = kFirstNonEmpty(Dekaf::getInstance().GetProgName(), "dekaf");
+	auto iExtLen = sExtension.empty() ? 0 : sExtension.size() + 1;
+
+	KString sPathname;
+
+	for (int i = 0; i < 100; ++i)
+	{
+		sPathname   = sTemp;
+		sPathname  += kDirSep;
+		auto sUUID  = KUUID().ToString();
+
+		if (iMaxPathLen > sPathname.size() + sName.length() + sUUID.size() + iExtLen)
+		{
+			// there is enough space for the full name scheme
+			sPathname += sName;
+			sPathname += '-';
+			sPathname += sUUID;
+		}
+		else if (iMaxPathLen >= sPathname.size() + sUUID.size() + iExtLen)
+		{
+			// there is enough space for the full UUID
+			sPathname += sUUID;
+		}
+		else if (iMaxPathLen > sPathname.size() + iExtLen)
+		{
+			// restricted space, just use some random chars
+			sUUID.RemoveChars("-");
+
+			auto iMax = iMaxPathLen - (sPathname.size() + iExtLen);
+
+			if (sUUID.size() > iMax)
+			{
+				sUUID.erase(iMax, KString::npos);
+			}
+
+			sPathname += sUUID;
+		}
+		else
+		{
+			// fail..
+			kDebug(1, "cannot generate temp path name with length restricted to {} chars, need a minimum of {}", iMaxPathLen, sPathname.size() + 1 + iExtLen);
+			sPathname.clear();
+			break;
+		}
+
+		if (iExtLen)
+		{
+			sPathname += '.';
+			sPathname += sExtension;
+		}
+
+		if (!kExists(sPathname))
+		{
+			break;
+		}
+
+		sPathname.clear();
+	}
+
+	return sPathname;
+
+} // kGenerateTempPath
+
+//-----------------------------------------------------------------------------
 const KString& KTempDir::Name()
 //-----------------------------------------------------------------------------
 {
@@ -2789,52 +2857,6 @@ const KString& KTempDir::Name()
 } // Name
 
 //-----------------------------------------------------------------------------
-KString KTempDir::GeneratePathname(uint16_t iMaxPathLen)
-//-----------------------------------------------------------------------------
-{
-	auto sPathname = kGetTemp();
-	sPathname     += kDirSep;
-	auto sName     = kFirstNonEmpty(Dekaf::getInstance().GetProgName(), "dekaf");
-	auto sUUID     = KUUID().ToString();
-
-	if (iMaxPathLen > sPathname.size() + sName.length() + sUUID.size())
-	{
-		// there is enough space for the full name scheme
-		sPathname += sName;
-		sPathname += '-';
-		sPathname += sUUID;
-	}
-	else if (iMaxPathLen >= sPathname.size() + sUUID.size())
-	{
-		// there is enough space for the full UUID
-		sPathname += sUUID;
-	}
-	else if (iMaxPathLen > sPathname.size())
-	{
-		// restricted space, just use some random chars
-		sUUID.RemoveChars("-");
-
-		auto iMax = iMaxPathLen - sPathname.size();
-
-		if (sUUID.size() > iMax)
-		{
-			sUUID.erase(iMax, KString::npos);
-		}
-
-		sPathname += sUUID;
-	}
-	else
-	{
-		// fail..
-		kDebug(1, "cannot generate temp path name with length restricted to {} chars, need a minimum of {}", iMaxPathLen, sPathname.size() + 1);
-		sPathname.clear();
-	}
-
-	return sPathname;
-
-} // GeneratePathname
-
-//-----------------------------------------------------------------------------
 KString KTempDir::MakeDir (uint16_t iMaxPathLen)
 //-----------------------------------------------------------------------------
 {
@@ -2842,21 +2864,14 @@ KString KTempDir::MakeDir (uint16_t iMaxPathLen)
 
 	for (int i = 0; i < 100; ++i)
 	{
-		sDirName = GeneratePathname(iMaxPathLen);
+		sDirName = kGenerateTempPath(KStringView{}, iMaxPathLen);
 
-		if (kDirExists(sDirName))
+		// create directory in exclusive mode
+		if (kCreateDir (sDirName, DEKAF2_MODE_CREATE_DIR, false, true))
 		{
-			continue;
-		}
-		else
-		{
-			// create directory in exclusive mode
-			if (kCreateDir (sDirName, DEKAF2_MODE_CREATE_DIR, false, true))
-			{
-				kDebug(2, "{}d temp directory: {}", "create", sDirName);
+			kDebug(2, "{}d temp directory: {}", "create", sDirName);
 
-				return sDirName;
-			}
+			return sDirName;
 		}
 	}
 

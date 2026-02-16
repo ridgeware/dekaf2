@@ -1094,6 +1094,12 @@ private:
 
 }; // KDirectory
 
+/// generate a pathname in the temp directory that is random and at time of generation unique
+/// @param sExtension add as file extension to the generated path name, defaults to the empty string
+/// @param iMaxPathLen maximum length of generated path, defaults to 0xffff. If value is too small an empty string is returned
+/// @returns a pathname in the temp directory that is at time of generation unique
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kGenerateTempPath(KStringView sExtension = KStringView{}, uint16_t iMaxPathLen = std::numeric_limits<uint16_t>::max());
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Get disk capacity
@@ -1169,6 +1175,7 @@ public:
 
 	/// Create temp directory
 	/// @param bDeleteOnDestruction delete directory and contents on destruction?
+	/// @param iMaxPathLen maximum length of generated path, defaults to 0xffff. If value is too small an empty string is returned
 	KTempDir (bool bDeleteOnDestruction = true, uint16_t iMaxPathLen = std::numeric_limits<uint16_t>::max())
 	: m_iMaxPathLen(iMaxPathLen)
 	, m_bDeleteOnDestruction(bDeleteOnDestruction)
@@ -1182,15 +1189,9 @@ public:
 	const KString& Name();
 
 	/// do we have a temp directory?
-	operator bool()
-	{
-		return !Name().empty();
-	}
+	operator bool() { return !Name().empty(); }
 
-	operator const KString&()
-	{
-		return Name();
-	}
+	operator const KString&() { return Name(); }
 
 	/// reset status to the one directly after construction, so,
 	/// removes all files if bDeleteOnDestruction was set, and
@@ -1205,12 +1206,101 @@ public:
 private:
 //----------
 
-	static KString GeneratePathname(uint16_t iMaxPathLen);
-
 	KString  m_sTempDirName;
 	uint16_t m_iMaxPathLen;
 	bool     m_bDeleteOnDestruction;
 
 }; // KTempDir
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// generate a temp file, and remove it with the destructor if requested to
+template<typename FileStream = KOutFile>
+class DEKAF2_PUBLIC KTempFile
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// Create temp file
+	/// @param sExtension add as file extension to the generated path name, defaults to the empty string
+	/// @param bDeleteOnDestruction delete directory and contents on destruction?
+	/// @param iMaxPathLen maximum length of generated path, defaults to 0xffff. If value is too small an empty string is returned
+	KTempFile (KString sExtension = KString{}, bool bDeleteOnDestruction = true, uint16_t iMaxPathLen = std::numeric_limits<uint16_t>::max())
+	: m_sExtension(std::move(sExtension))
+	, m_iMaxPathLen(iMaxPathLen)
+	, m_bDeleteOnDestruction(bDeleteOnDestruction)
+	{
+		Create();
+	}
+
+	~KTempFile ()
+	{
+		if (m_bDeleteOnDestruction && !m_sTempFileName.empty())
+		{
+			Close();
+			kRemoveFile(m_sTempFileName);
+		}
+	}
+
+	/// get the name of the temp file
+	DEKAF2_NODISCARD
+	const KString& Name() { return m_sTempFileName; }
+
+	/// get the stream of the temp file
+	DEKAF2_NODISCARD
+	FileStream& Stream() { return m_File; }
+
+	FileStream* operator->() { return &Stream(); }
+	FileStream& operator*()  { return  Stream(); }
+
+	/// close the stream of the temp file
+	void Close() { if (is_open()) m_File.close(); }
+
+	/// open the stream of the temp file again - will not truncate the file content
+	bool Reopen()
+	{
+		if (is_open()) return false;
+		m_File.open(m_sTempFileName);
+		return is_open();
+	}
+
+//----------
+private:
+//----------
+
+	/// create the temp file if not yet done
+	void Create()
+	{
+		if (m_sTempFileName.empty())
+		{
+			KString sFileName;
+
+			sFileName = kGenerateTempPath(m_sExtension, m_iMaxPathLen);
+#if DEKAF2_HAS_CPP_23
+			// create file in exclusive mode to exclude races
+			m_File.open(sFileName, std::ios_base::noreplace);
+#else
+			// create file and truncate it, to defer content poisoning
+			m_File.open(sFileName.c_str(), std::ios_base::trunc);
+#endif
+			if (m_File.is_open())
+			{
+				m_sTempFileName = sFileName;
+			}
+		}
+	}
+
+	/// returns true if the temp file is opened
+	bool is_open() const { return m_File.is_open(); }
+
+	FileStream m_File;
+	KString    m_sExtension;
+	KString    m_sTempFileName;
+	uint16_t   m_iMaxPathLen;
+	bool       m_bDeleteOnDestruction;
+
+}; // KTempFile
 
 DEKAF2_NAMESPACE_END

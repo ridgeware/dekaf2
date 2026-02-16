@@ -6,6 +6,7 @@
 #include <fstream>
 #include <dekaf2/kreader.h>
 #include <dekaf2/kwriter.h>
+#include <dekaf2/kstream.h>
 
 using namespace dekaf2;
 
@@ -296,6 +297,71 @@ TEST_CASE("KFilesystem")
 		Dir.erase(Dir.begin(), Dir.end());
 		CHECK ( Dir.size() == 0 );
 		CHECK ( Dir.empty() );
+	}
+
+	SECTION("KTempFile")
+	{
+		KString sFilename;
+		{
+			KTempFile<KOutFile> TempFile;
+			sFilename = TempFile.Name();
+			CHECK ( kFileExists(TempFile.Name()) );
+			CHECK ( TempFile.Name().empty() == false );
+			CHECK ( TempFile->Write("test").Flush().Good() );
+			TempFile.Close();
+			CHECK ( kFileExists(TempFile.Name()) );
+			CHECK ( TempFile.Reopen() == true );
+			CHECK ( kFileExists(TempFile.Name()) );
+		}
+		CHECK ( kFileExists(sFilename) == false );
+
+		{
+			KTempFile<KOutFile> TempFile("txt");
+			sFilename = TempFile.Name();
+			CHECK ( kExtension(TempFile.Name()) == "txt" );
+			CHECK ( kFileExists(TempFile.Name()) );
+			CHECK ( TempFile.Name().empty() == false );
+			CHECK ( TempFile->Write("test").Flush().Good() );
+			TempFile.Close();
+			CHECK ( kFileExists(TempFile.Name()) );
+			CHECK ( TempFile.Reopen() == true );
+			CHECK ( kFileExists(TempFile.Name()) );
+		}
+		CHECK ( kFileExists(sFilename) == false );
+
+		{
+			KTempFile<KOutFile> TempFile("txt", false);
+			sFilename = TempFile.Name();
+			CHECK ( kExtension(TempFile.Name()) == "txt" );
+			CHECK ( kFileExists(TempFile.Name()) );
+			CHECK ( TempFile.Name().empty() == false );
+			CHECK ( TempFile->Write("test").Flush().Good() );
+			TempFile.Close();
+			CHECK ( kFileExists(TempFile.Name()) );
+			CHECK ( TempFile.Reopen() == true );
+			CHECK ( kFileExists(TempFile.Name()) );
+		}
+		CHECK ( kFileExists(sFilename) == true );
+		CHECK ( kRemoveFile(sFilename) == true );
+
+		{
+#if DEKAF2_HAS_CPP_14
+			KTempFile TempFile;
+#else
+			KTempFile<> TempFile;
+#endif
+			CHECK ( kFileExists(TempFile.Name()) );
+		}
+
+		{
+			KTempFile<KFile> TempFile;
+			CHECK ( kFileExists(TempFile.Name()) );
+		}
+
+		{
+			KTempFile<std::ofstream> TempFile;
+			CHECK ( kFileExists(TempFile.Name()) );
+		}
 	}
 
 	SECTION("KDiskStat")

@@ -56,6 +56,33 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+#ifndef DEKAF2_IS_WINDOWS
+KThreadSafe<KUnorderedMap<KString, KString>> KMIME::s_ExtMap;
+bool KMIME::s_bHasExtensions { false };
+#endif
+
+//-----------------------------------------------------------------------------
+KString KMIME::GetExtension(KStringView sFilename)
+//-----------------------------------------------------------------------------
+{
+	KString sExtension = kExtension(sFilename);
+
+	if (sExtension.empty())
+	{
+		sExtension = kBasename(sFilename);
+
+		if (sExtension.front() == '.')
+		{
+			sExtension.erase(0, 1);
+		}
+	}
+
+	sExtension.MakeLowerASCII();
+
+	return sExtension;
+
+} // GetExtension
+
 //-----------------------------------------------------------------------------
 bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 //-----------------------------------------------------------------------------
@@ -165,27 +192,32 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 	static constexpr auto s_Extension_Map = frozen::make_unordered_map(s_MIME_Extensions);
 #endif
 
-	KString sExtension = kExtension(sFilename);
+	auto sExtension = GetExtension(sFilename);
 
-	if (sExtension.empty())
 	{
-		sExtension = sFilename;
-		
-		if (sExtension.front() == '.')
+		auto it = s_Extension_Map.find(sExtension);
+
+		if (it != s_Extension_Map.end())
 		{
-			sExtension.erase(0, 1);
+			m_mime = it->second;
+			return true;
 		}
 	}
 
-	sExtension.MakeLowerASCII();
-
-	auto it = s_Extension_Map.find(sExtension);
-
-	if (it != s_Extension_Map.end())
+#ifndef DEKAF2_IS_WINDOWS
+	if (s_bHasExtensions)
 	{
-		m_mime = it->second;
-		return true;
+		auto DynMap = s_ExtMap.shared();
+
+		auto it = DynMap->find(sExtension);
+
+		if (it != DynMap->end())
+		{
+			m_mime = it->second;
+			return true;
+		}
 	}
+#endif
 
 	m_mime = Default;
 	return false;
@@ -225,6 +257,8 @@ bool KMIME::ByInspection(KStringViewZ sFilename, KStringView Default)
 
 			if (m_mime != NONE)
 			{
+				s_ExtMap.unique()->insert({ GetExtension(sFilename), m_mime });
+				s_bHasExtensions = true;
 				return true;
 			}
 		}

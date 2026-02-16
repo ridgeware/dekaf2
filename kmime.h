@@ -47,6 +47,10 @@
 #include "kreader.h"
 #include "kreplacer.h"
 #include "kerror.h"
+#ifndef DEKAF2_IS_WINDOWS
+	#include "kthreadsafe.h"
+	#include "kassociative.h"
+#endif
 
 #ifndef DEKAF2_HAS_CPP_17
 	#include <boost/container/vector.hpp>
@@ -290,6 +294,13 @@ private:
 
 	KStringView PastType() const;
 	KStringView PastTree() const;
+
+	static KString GetExtension(KStringView sFilename);
+
+#ifndef DEKAF2_IS_WINDOWS
+	static KThreadSafe<KUnorderedMap<KString, KString>> s_ExtMap;
+	static bool s_bHasExtensions;
+#endif
 
 	KString m_mime { NONE };
 

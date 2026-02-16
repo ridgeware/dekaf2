@@ -66,8 +66,39 @@ TEST_CASE("KMIME")
 
 		CHECK( a.ByExtension("css") );
 		CHECK( a == KMIME::CSS );
-
 	}
+
+#ifndef DEKAF2_IS_WINDOWS
+	SECTION("by inspection")
+	{
+		KMIME a;
+
+		KTempFile<KOutFile> TempFile("zzz");
+
+		TempFile->Write(R"({"name":"test","short_name":"short_test"})");
+		TempFile.Close();
+
+		CHECK( a.ByExtension( "aa.zzz") == false );
+		CHECK( a == KMIME::NONE );
+
+		CHECK( a.ByInspection(TempFile.Name()) );
+		CHECK( a == KMIME::JSON );
+
+		CHECK( a.ByExtension( "aa.zzz") );
+		CHECK( a == KMIME::JSON );
+
+		KTempFile<std::ofstream> TempFile2("zzz");
+		KStringView sOut(R"(<html><head></head><body><p>test</p></body></html>)");
+		TempFile2->write(sOut.data(), sOut.size());
+		TempFile2.Close();
+
+		CHECK( a.ByInspection(TempFile2.Name()) );
+		CHECK( a == "text/html" );
+
+		CHECK( a.ByExtension( "aa.zzz") );
+		CHECK( a == KMIME::JSON );
+	}
+#endif
 
 	SECTION("parts")
 	{

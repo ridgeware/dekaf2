@@ -58,7 +58,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// join for sequential containers, outputs to strings and streams
 template<typename Container, typename Result,
 	typename std::enable_if<detail::is_map_type<Container>::value == false
-								&& std::is_constructible<KString, typename Container::value_type>::value == true, int>::type = 0 >
+								&& std::is_constructible<KStringView, typename Container::value_type>::value == true, int>::type = 0 >
 void kJoin (Result& Out,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
@@ -76,7 +76,7 @@ void kJoin (Result& Out,
 
 		for (;;)
 		{
-			Out += *it;
+			Out += KStringView(*it);
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{
@@ -97,7 +97,7 @@ void kJoin (Result& Out,
 /// join for sequential containers, outputs to strings and streams, converts through kFormat
 template<typename Container, typename Result,
 	typename std::enable_if<detail::is_map_type<Container>::value == false
-								&& std::is_constructible<KString, typename Container::value_type>::value == false, int>::type = 0 >
+								&& std::is_constructible<KStringView, typename Container::value_type>::value == false, int>::type = 0 >
 void kJoin (Result& Out,
 			const Container& ctContainer,
 			KStringView svDelim = ",",
@@ -136,7 +136,7 @@ void kJoin (Result& Out,
 /// join for associative containers, outputs to strings and streams
 template<typename Container, typename Result,
 	typename std::enable_if<detail::is_map_type<Container>::value == true
-								&& std::is_constructible<KString, typename Container::key_type>::value == true
+								&& std::is_constructible<KStringView, typename Container::key_type>::value == true
 								&& std::is_constructible<KString, typename Container::mapped_type>::value == true, int>::type = 0 >
 void kJoin (Result& Out,
 			const Container& ctContainer,
@@ -153,9 +153,9 @@ void kJoin (Result& Out,
 
 		for (;;)
 		{
-			Out += it->first;
+			Out += KStringView(it->first);
 			Out += svPairDelim;
-			Out += it->second;
+			Out += KStringView(it->second);
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{
@@ -176,8 +176,8 @@ void kJoin (Result& Out,
 /// join for associative containers, outputs to strings and streams, converts through kFormat
 template<typename Container, typename Result,
 	typename std::enable_if<detail::is_map_type<Container>::value == true
-								&& (std::is_constructible<KString, typename Container::key_type>::value == false
-								 || std::is_constructible<KString, typename Container::mapped_type>::value == false), int>::type = 0 >
+								&& (std::is_constructible<KStringView, typename Container::key_type>::value == false
+								 || std::is_constructible<KStringView, typename Container::mapped_type>::value == false), int>::type = 0 >
 void kJoin (Result& Out,
 			const Container& ctContainer,
 			KStringView svDelim = ",",

@@ -312,7 +312,7 @@ void KHTTPLog::WriteJSONAccessLog(const KRESTServer& HTTP) const
 	PrintJSONLog Log;
 
 	Log.Write("time"      , kFormCommonLogTimestamp().Mid(1, 26)                     ); // cut off the framing []
-	Log.Write("remoteIP"  , HTTP.GetRemoteIP()                                       );
+	Log.Write("remote_ip" , HTTP.GetRemoteIP()                                       );
 	Log.Write("host"      , HTTP.Request.Headers.Get(KHTTPHeader::HOST)              );
 	Log.Write("request"   , HTTP.Request.Resource.Path.get()                         );
 	Log.Write("query"     , HTTP.Request.Resource.Query.Serialize()                  );
@@ -322,10 +322,10 @@ void KHTTPLog::WriteJSONAccessLog(const KRESTServer& HTTP) const
 	Log.Write("rx-recv"   , HTTP.GetReceivedBytes()                                  );
 	Log.Write("tx-size"   , HTTP.GetContentLength()                                  );
 	Log.Write("tx-sent"   , HTTP.GetSentBytes()                                      );
-	Log.Write("userAgent" , HTTP.Request.Headers.Get(KHTTPHeader::USER_AGENT)        );
+	Log.Write("user_agent", HTTP.Request.Headers.Get(KHTTPHeader::USER_AGENT)        );
 	Log.Write("referer"   , HTTP.Request.Headers.Get(KHTTPHeader::REFERER)           );
 	Log.Write("tx-comp"   , HTTP.Response.Headers.Get(KHTTPHeader::CONTENT_ENCODING) );
-	Log.Write("forwarded" , HTTP.Response.Headers.Get(KHTTPHeader::X_FORWARDED_FOR)  );
+	Log.Write("forwarded_for",HTTP.Response.Headers.Get(KHTTPHeader::X_FORWARDED_FOR));
 	Log.Write("user"      , kjson::GetString(HTTP.GetAuthToken(), "sub")             );
 	Log.Write("TTLB"      , HTTP.GetTimeToLastByte().microseconds().count()          );
 

@@ -119,7 +119,6 @@ TEST_CASE("KIPAddress")
 			{ "fe80:cbed:34de::17"     , true  },
 			{ "fc80:cbed:34de::17"     , false },
 		}};
-
 	}
 
 	SECTION("More")
@@ -131,4 +130,200 @@ TEST_CASE("KIPAddress")
 		CHECK (!kIsIPv6Address (sTestIP, false));
 	}
 
+	SECTION("KIPAddress4")
+	{
+		std::vector<std::pair<KStringView, KStringView>> Tests {
+			{ ""               , "0.0.0.0" },
+			{ "test"           , "0.0.0.0" },
+			{ ".1.2.3.4"       , "0.0.0.0" },
+			{ "1.2"            , "0.0.0.0" },
+			{ "1.2.t.4"        , "0.0.0.0" },
+			{ "1.2.3.4."       , "0.0.0.0" },
+			{ "100.123.321.12" , "0.0.0.0" },
+			{ "1a.12.44.2"     , "0.0.0.0" },
+			{ "1:2:2:3"        , "0.0.0.0" },
+			{ "[1.2.3.4]"      , "0.0.0.0" },
+			{ "192.168.52.126" , "192.168.52.126" },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPAddress4 IP(t.first);
+			INFO  ( t.first );
+			CHECK ( IP.ToString() == t.second );
+		}
+	}
+
+	SECTION("KIPAddress6 unabridged")
+	{
+		std::vector<std::pair<KStringView, KStringView>> Tests {
+			{ ""                                         , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "[]"                                       , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ ":"                                        , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "::"                                       , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "1.2.3.4"                                  , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "test"                                     , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "ffee:ed924:1123:4e6:22::"                 , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "1:2:3:4:5:6:7:8:9"                        , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:"      , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00:" , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00::", "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "1122:3344:5566:7788:99aa::bbcc:ddee:ff00" , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "[1122:3344:5566:7788:99aa:bbcc::"         , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "1122:3344:5566:7788:99aa:bbcc::]"         , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "1122:3344:5566:7788:99aa:bbcc::"          , "1122:3344:5566:7788:99aa:bbcc:0000:0000" },
+			{ "1122:3344:5566:7788:99aa:bbcc::0"         , "1122:3344:5566:7788:99aa:bbcc:0000:0000" },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00"  , "1122:3344:5566:7788:99aa:bbcc:ddee:ff00" },
+			{ "[1122:3344:5566:7788:99aa:bbcc:ddee:ff00]", "1122:3344:5566:7788:99aa:bbcc:ddee:ff00" },
+			{ "::0"                                      , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "::1"                                      , "0000:0000:0000:0000:0000:0000:0000:0001" },
+			{ "::1:2"                                    , "0000:0000:0000:0000:0000:0000:0001:0002" },
+			{ "::ddee:ff00"                              , "0000:0000:0000:0000:0000:0000:ddee:ff00" },
+			{ "11::ddee:ff00"                            , "0011:0000:0000:0000:0000:0000:ddee:ff00" },
+			{ "11::ddee::ff00"                           , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "11:::ddee:ff00"                           , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "1122:3344::bbcc:ddee:ff00"                , "1122:3344:0000:0000:0000:bbcc:ddee:ff00" },
+			{ "1122:3344:55::bbcc:ddee:ff00"             , "1122:3344:0055:0000:0000:bbcc:ddee:ff00" },
+			{ "1122:3344:155::bbcc:ddee:ff00"            , "1122:3344:0155:0000:0000:bbcc:ddee:ff00" },
+			{ "1122:3344:5566::bbcc:ddee:ff00"           , "1122:3344:5566:0000:0000:bbcc:ddee:ff00" },
+			{ "1122:3344::"                              , "1122:3344:0000:0000:0000:0000:0000:0000" },
+			{ "::ffff:192.168.123.242"                   , "0000:0000:0000:0000:0000:ffff:c0a8:7bf2" },
+			{ "0000:0000:0000:0000:0000:ffff:192.168.123.242", "0000:0000:0000:0000:0000:ffff:c0a8:7bf2" },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPAddress6 IP(t.first); 
+			INFO  ( t.first ); 
+			CHECK ( IP.ToString(false, true) == t.second );
+		}
+	}
+
+	SECTION("KIPAddress6")
+	{
+		std::vector<std::pair<KStringView, KStringView>> Tests {
+			{ ""                                         , "::" },
+			{ "[]"                                       , "::" },
+			{ ":"                                        , "::" },
+			{ "::"                                       , "::" },
+			{ "1.2.3.4"                                  , "::" },
+			{ "test"                                     , "::" },
+			{ "ffee:ed924:1123:4e6:22::"                 , "::" },
+			{ "1:2:3:4:5:6:7:8:9"                        , "::" },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:"      , "::" },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00:" , "::" },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00::", "::" },
+			{ "1122:3344:5566:7788:99aa::bbcc:ddee:ff00" , "::" },
+			{ "1122:3344:5566:7788:99aa:bbcc:dd00:0"     , "1122:3344:5566:7788:99aa:bbcc:dd00:0" },
+			{ "[1122:3344:5566:7788:99aa:bbcc::"         , "::" },
+			{ "1122:3344:5566:7788:99aa:bbcc::]"         , "::" },
+			{ "1122:3344:5566:7788:99aa:bbcc::"          , "1122:3344:5566:7788:99aa:bbcc::" },
+			{ "1122:3344:5566:7788:99aa:bbcc::0"         , "1122:3344:5566:7788:99aa:bbcc::" },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:0"     , "1122:3344:5566:7788:99aa:bbcc:ddee:0" },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00"  , "1122:3344:5566:7788:99aa:bbcc:ddee:ff00" },
+			{ "[1122:3344:5566:7788:99aa:bbcc:ddee:ff00]", "1122:3344:5566:7788:99aa:bbcc:ddee:ff00" },
+			{ "1122:0:0:7788:99aa:0:0:ff00"              , "1122::7788:99aa:0:0:ff00" },
+			{ "1122:0:0:7788:0:0:0:ff00"                 , "1122:0:0:7788::ff00" },
+			{ "::0"                                      , "::" },
+			{ "::1"                                      , "::1" },
+			{ "::1:2"                                    , "::1:2" },
+			{ "::ddee:ff00"                              , "::ddee:ff00" },
+			{ "11::ddee:ff00"                            , "11::ddee:ff00" },
+			{ "11::ddee::ff00"                           , "::" },
+			{ "11:::ddee:ff00"                           , "::" },
+			{ "1122:3344::bbcc:ddee:ff00"                , "1122:3344::bbcc:ddee:ff00" },
+			{ "1122:3344:5::bbcc:ddee:ff00"              , "1122:3344:5::bbcc:ddee:ff00" },
+			{ "1122:3344:55::bbcc:ddee:ff00"             , "1122:3344:55::bbcc:ddee:ff00" },
+			{ "1122:3344:155::bbcc:ddee:ff00"            , "1122:3344:155::bbcc:ddee:ff00" },
+			{ "1122:3344:5566::bbcc:ddee:ff00"           , "1122:3344:5566::bbcc:ddee:ff00" },
+			{ "1122:3344::"                              , "1122:3344::" },
+			{ "::ffff:192.168.123.242"                   , "::ffff:192.168.123.242" },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPAddress6 IP(t.first);
+			INFO  ( t.first );
+			CHECK ( IP.ToString(false, false) == t.second );
+		}
+	}
+
+	SECTION("IPv4 to IPv6")
+	{
+		{
+			KIPAddress4 IPv4("124.156.34.21");
+			CHECK ( IPv4.IsValid() );
+			KIPAddress6 IPv6(IPv4);
+			CHECK ( IPv6.IsValid() );
+			CHECK ( IPv6.IsV4Mapped() );
+			CHECK ( IPv6.ToString() == "::ffff:124.156.34.21");
+		}
+	}
+
+	SECTION("IPv6 to IPv4")
+	{
+		{
+			KIPAddress6 IPv6("::ffff:124.156.34.21");
+			CHECK ( IPv6.IsValid() );
+			CHECK ( IPv6.IsV4Mapped() );
+			KIPAddress4 IPv4(IPv6);
+			CHECK ( IPv4.IsValid() );
+			CHECK ( IPv4.ToString() == "124.156.34.21");
+		}
+		{
+			KIPAddress6 IPv6("fd99:2131:bbf7:37f6:14ee:7791:e8e8:fc50");
+			CHECK ( IPv6.IsValid() );
+			CHECK ( IPv6.IsV4Mapped() == false );
+			KIPAddress4 IPv4(IPv6);
+			CHECK ( IPv4.IsValid() == false );
+			CHECK ( IPv4.ToString() == "0.0.0.0");
+		}
+	}
+
+	SECTION("KIPAddress")
+	{
+		KIPAddress IP("192.168.17.231");
+		CHECK ( IP.Is4() == true  );
+		CHECK ( IP.Is6() == false );
+		CHECK ( IP.ToString() == "192.168.17.231" );
+		CHECK ( IP.IsConvertibleTo6() == true );
+		CHECK ( IP.IsValid() == true );
+		CHECK ( IP.IsLoopback() == false );
+		CHECK ( IP.IsMulticast() == false );
+		CHECK ( IP.IsUnspecified() == false );
+		CHECK ( IP.To6().ToString() == "::ffff:192.168.17.231" );
+
+		IP = KIPAddress("fd99:2131:bbf7:37f6:14ee:7791:e8e8:fc50");
+		CHECK ( IP.Is4() == false  );
+		CHECK ( IP.Is6() == true );
+		CHECK ( IP.ToString() == "fd99:2131:bbf7:37f6:14ee:7791:e8e8:fc50" );
+		CHECK ( IP.IsConvertibleTo6() == true );
+		CHECK ( IP.IsConvertibleTo4() == false );
+		CHECK ( IP.IsValid() == true );
+		CHECK ( IP.IsLoopback() == false );
+		CHECK ( IP.IsMulticast() == false );
+		CHECK ( IP.IsUnspecified() == false );
+
+		IP = KIPAddress4("127.0.0.1");
+		CHECK ( IP.Is4() == true  );
+		CHECK ( IP.Is6() == false );
+		CHECK ( IP.ToString() == "127.0.0.1" );
+		CHECK ( IP.IsConvertibleTo6() == true );
+		CHECK ( IP.IsConvertibleTo4() == true );
+		CHECK ( IP.IsValid() == true );
+		CHECK ( IP.IsLoopback() == true );
+		CHECK ( IP.IsMulticast() == false );
+		CHECK ( IP.IsUnspecified() == false );
+
+		IP = KIPAddress4::Loopback();
+		CHECK ( IP.Is4() == true  );
+		CHECK ( IP.Is6() == false );
+		CHECK ( IP.ToString() == "127.0.0.1" );
+		CHECK ( IP.IsConvertibleTo6() == true );
+		CHECK ( IP.IsConvertibleTo4() == true );
+		CHECK ( IP.IsValid() == true );
+		CHECK ( IP.IsLoopback() == true );
+		CHECK ( IP.IsMulticast() == false );
+		CHECK ( IP.IsUnspecified() == false );
+	}
 }

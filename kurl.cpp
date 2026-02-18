@@ -45,6 +45,7 @@
 #include "kstringutils.h"
 #include "kurl.h"
 #include "kstack.h"
+#include "kipaddress.h"
 #include <vector>
 
 
@@ -838,6 +839,21 @@ bool KTCPEndPoint::Serialize(KOutStream& sTarget) const
 		    && Port.Serialize      (sTarget);
 	}
 }
+
+//-------------------------------------------------------------------------
+bool KTCPEndPoint::IsIPv4Address() const
+//-------------------------------------------------------------------------
+{
+	return kIsIPv4Address(Domain.get());
+}
+
+//-------------------------------------------------------------------------
+bool KTCPEndPoint::IsIPv6Address() const
+//-------------------------------------------------------------------------
+{
+	return kIsIPv6Address(Domain.get(), true);
+}
+
 //-------------------------------------------------------------------------
 bool operator==(const KTCPEndPoint& left, const KTCPEndPoint& right)
 //-------------------------------------------------------------------------

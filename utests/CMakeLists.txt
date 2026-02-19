@@ -76,6 +76,7 @@ set (USOURCES
 	kinpipe_tests.cpp
 	kinshell_tests.cpp
 	kipaddress_tests.cpp
+	kipnetwork_tests.cpp
 	kjoin_tests.cpp
 	kjson_tests.cpp
 	kjson2_tests.cpp

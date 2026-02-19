@@ -1239,6 +1239,7 @@ set(PUBLIC_HEADERS
 	kinstringstream.h
 	kiostreamsocket.h
 	kipaddress.h
+	kipnetwork.h
 	kjoin.h
 	kjson.h
 	kjson2.h
@@ -1521,6 +1522,7 @@ set (SOURCES
 	kinstringstream.cpp
 	kiostreamsocket.cpp
 	kipaddress.cpp
+	kipnetwork.cpp
 	kjson.cpp
 	kjson2.cpp
 	klambdastream.cpp

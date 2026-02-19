@@ -130,7 +130,7 @@ TEST_CASE("KIPAddress")
 		CHECK (!kIsIPv6Address (sTestIP, false));
 	}
 
-	SECTION("KIPAddress4")
+	SECTION("KIPAddress4 bad")
 	{
 		std::vector<std::pair<KStringView, KStringView>> Tests {
 			{ ""               , "0.0.0.0" },
@@ -143,24 +143,52 @@ TEST_CASE("KIPAddress")
 			{ "1a.12.44.2"     , "0.0.0.0" },
 			{ "1:2:2:3"        , "0.0.0.0" },
 			{ "[1.2.3.4]"      , "0.0.0.0" },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress4 IP(t.first, ec);
+			INFO  ( t.first );
+			CHECK ( ec.value() > 0 );
+			CHECK ( IP.ToString() == t.second );
+		}
+
+		for (auto& t : Tests)
+		{
+			INFO  ( t.first );
+			CHECK_THROWS ( KIPAddress4(t.first) );
+		}
+	}
+
+	SECTION("KIPAddress4 good")
+	{
+		std::vector<std::pair<KStringView, KStringView>> Tests {
 			{ "192.168.52.126" , "192.168.52.126" },
 		};
 
 		for (auto& t : Tests)
 		{
-			KIPAddress4 IP(t.first);
+			KIPError ec;
+			KIPAddress4 IP(t.first, ec);
 			INFO  ( t.first );
+			CHECK ( ec.value() == 0 );
 			CHECK ( IP.ToString() == t.second );
+		}
+
+		for (auto& t : Tests)
+		{
+			INFO  ( t.first );
+			CHECK_NOTHROW( KIPAddress4(t.first) );
 		}
 	}
 
-	SECTION("KIPAddress6 unabridged")
+	SECTION("KIPAddress6 unabridged bad")
 	{
 		std::vector<std::pair<KStringView, KStringView>> Tests {
 			{ ""                                         , "0000:0000:0000:0000:0000:0000:0000:0000" },
 			{ "[]"                                       , "0000:0000:0000:0000:0000:0000:0000:0000" },
 			{ ":"                                        , "0000:0000:0000:0000:0000:0000:0000:0000" },
-			{ "::"                                       , "0000:0000:0000:0000:0000:0000:0000:0000" },
 			{ "1.2.3.4"                                  , "0000:0000:0000:0000:0000:0000:0000:0000" },
 			{ "test"                                     , "0000:0000:0000:0000:0000:0000:0000:0000" },
 			{ "ffee:ed924:1123:4e6:22::"                 , "0000:0000:0000:0000:0000:0000:0000:0000" },
@@ -171,6 +199,30 @@ TEST_CASE("KIPAddress")
 			{ "1122:3344:5566:7788:99aa::bbcc:ddee:ff00" , "0000:0000:0000:0000:0000:0000:0000:0000" },
 			{ "[1122:3344:5566:7788:99aa:bbcc::"         , "0000:0000:0000:0000:0000:0000:0000:0000" },
 			{ "1122:3344:5566:7788:99aa:bbcc::]"         , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "11::ddee::ff00"                           , "0000:0000:0000:0000:0000:0000:0000:0000" },
+			{ "11:::ddee:ff00"                           , "0000:0000:0000:0000:0000:0000:0000:0000" },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress6 IP(t.first, ec);
+			INFO  ( t.first );
+			CHECK ( ec.value() > 0 );
+			CHECK ( IP.ToString(false, true) == t.second );
+		}
+
+		for (auto& t : Tests)
+		{
+			INFO  ( t.first );
+			CHECK_THROWS ( KIPAddress6(t.first) );
+		}
+	}
+
+	SECTION("KIPAddress6 unabridged good")
+	{
+		std::vector<std::pair<KStringView, KStringView>> Tests {
+			{ "::"                                       , "0000:0000:0000:0000:0000:0000:0000:0000" },
 			{ "1122:3344:5566:7788:99aa:bbcc::"          , "1122:3344:5566:7788:99aa:bbcc:0000:0000" },
 			{ "1122:3344:5566:7788:99aa:bbcc::0"         , "1122:3344:5566:7788:99aa:bbcc:0000:0000" },
 			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00"  , "1122:3344:5566:7788:99aa:bbcc:ddee:ff00" },
@@ -180,8 +232,6 @@ TEST_CASE("KIPAddress")
 			{ "::1:2"                                    , "0000:0000:0000:0000:0000:0000:0001:0002" },
 			{ "::ddee:ff00"                              , "0000:0000:0000:0000:0000:0000:ddee:ff00" },
 			{ "11::ddee:ff00"                            , "0011:0000:0000:0000:0000:0000:ddee:ff00" },
-			{ "11::ddee::ff00"                           , "0000:0000:0000:0000:0000:0000:0000:0000" },
-			{ "11:::ddee:ff00"                           , "0000:0000:0000:0000:0000:0000:0000:0000" },
 			{ "1122:3344::bbcc:ddee:ff00"                , "1122:3344:0000:0000:0000:bbcc:ddee:ff00" },
 			{ "1122:3344:55::bbcc:ddee:ff00"             , "1122:3344:0055:0000:0000:bbcc:ddee:ff00" },
 			{ "1122:3344:155::bbcc:ddee:ff00"            , "1122:3344:0155:0000:0000:bbcc:ddee:ff00" },
@@ -193,19 +243,27 @@ TEST_CASE("KIPAddress")
 
 		for (auto& t : Tests)
 		{
-			KIPAddress6 IP(t.first); 
-			INFO  ( t.first ); 
+			KIPError ec;
+			KIPAddress6 IP(t.first, ec);
+			INFO  ( t.first );
+			CHECK ( ec.value() == 0 );
 			CHECK ( IP.ToString(false, true) == t.second );
+		}
+
+		for (auto& t : Tests)
+		{
+			KIPAddress6 IP(t.first);
+			INFO  ( t.first );
+			CHECK_NOTHROW( KIPAddress6(t.first) );
 		}
 	}
 
-	SECTION("KIPAddress6")
+	SECTION("KIPAddress6 bad")
 	{
 		std::vector<std::pair<KStringView, KStringView>> Tests {
 			{ ""                                         , "::" },
 			{ "[]"                                       , "::" },
 			{ ":"                                        , "::" },
-			{ "::"                                       , "::" },
 			{ "1.2.3.4"                                  , "::" },
 			{ "test"                                     , "::" },
 			{ "ffee:ed924:1123:4e6:22::"                 , "::" },
@@ -214,9 +272,33 @@ TEST_CASE("KIPAddress")
 			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00:" , "::" },
 			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00::", "::" },
 			{ "1122:3344:5566:7788:99aa::bbcc:ddee:ff00" , "::" },
-			{ "1122:3344:5566:7788:99aa:bbcc:dd00:0"     , "1122:3344:5566:7788:99aa:bbcc:dd00:0" },
 			{ "[1122:3344:5566:7788:99aa:bbcc::"         , "::" },
 			{ "1122:3344:5566:7788:99aa:bbcc::]"         , "::" },
+			{ "11::ddee::ff00"                           , "::" },
+			{ "11:::ddee:ff00"                           , "::" },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress6 IP(t.first, ec);
+			INFO  ( t.first );
+			CHECK ( ec.value() > 0 );
+			CHECK ( IP.ToString(false, false) == t.second );
+		}
+
+		for (auto& t : Tests)
+		{
+			INFO  ( t.first );
+			CHECK_THROWS ( KIPAddress6(t.first) );
+		}
+	}
+
+	SECTION("KIPAddress6 good")
+	{
+		std::vector<std::pair<KStringView, KStringView>> Tests {
+			{ "::"                                       , "::" },
+			{ "1122:3344:5566:7788:99aa:bbcc:dd00:0"     , "1122:3344:5566:7788:99aa:bbcc:dd00:0" },
 			{ "1122:3344:5566:7788:99aa:bbcc::"          , "1122:3344:5566:7788:99aa:bbcc::" },
 			{ "1122:3344:5566:7788:99aa:bbcc::0"         , "1122:3344:5566:7788:99aa:bbcc::" },
 			{ "1122:3344:5566:7788:99aa:bbcc:ddee:0"     , "1122:3344:5566:7788:99aa:bbcc:ddee:0" },
@@ -229,8 +311,6 @@ TEST_CASE("KIPAddress")
 			{ "::1:2"                                    , "::1:2" },
 			{ "::ddee:ff00"                              , "::ddee:ff00" },
 			{ "11::ddee:ff00"                            , "11::ddee:ff00" },
-			{ "11::ddee::ff00"                           , "::" },
-			{ "11:::ddee:ff00"                           , "::" },
 			{ "1122:3344::bbcc:ddee:ff00"                , "1122:3344::bbcc:ddee:ff00" },
 			{ "1122:3344:5::bbcc:ddee:ff00"              , "1122:3344:5::bbcc:ddee:ff00" },
 			{ "1122:3344:55::bbcc:ddee:ff00"             , "1122:3344:55::bbcc:ddee:ff00" },
@@ -242,9 +322,17 @@ TEST_CASE("KIPAddress")
 
 		for (auto& t : Tests)
 		{
-			KIPAddress6 IP(t.first);
+			KIPError ec;
+			KIPAddress6 IP(t.first, ec);
 			INFO  ( t.first );
+			CHECK ( ec.value() == 0 );
 			CHECK ( IP.ToString(false, false) == t.second );
+		}
+
+		for (auto& t : Tests)
+		{
+			INFO  ( t.first );
+			CHECK_NOTHROW ( KIPAddress6(t.first) );
 		}
 	}
 
@@ -274,9 +362,12 @@ TEST_CASE("KIPAddress")
 			KIPAddress6 IPv6("fd99:2131:bbf7:37f6:14ee:7791:e8e8:fc50");
 			CHECK ( IPv6.IsValid() );
 			CHECK ( IPv6.IsV4Mapped() == false );
-			KIPAddress4 IPv4(IPv6);
+			KIPError ec;
+			KIPAddress4 IPv4(IPv6, ec);
+			CHECK ( ec.value() > 0 );
 			CHECK ( IPv4.IsValid() == false );
 			CHECK ( IPv4.ToString() == "0.0.0.0");
+			CHECK_THROWS( KIPAddress4(IPv6) );
 		}
 	}
 

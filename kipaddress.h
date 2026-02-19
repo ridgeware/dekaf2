@@ -40,15 +40,26 @@
 //
 */
 
+// partly modeled after concepts and code parts of boost::asio::ip::address_4
+// / address_6 which are
+//
+// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+// end of boost::asio copyright
+
 #pragma once
 
 /// @file kipaddress.h
-/// ip address checks
+/// ip address checks and classes to store IPv4 and IPv6 addresses
 
 #include "kdefinitions.h"
 #include "kstringview.h"
 #include "kformat.h"
 #include "khash.h"
+#include "kexception.h"
 #include <array>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -74,6 +85,12 @@ bool kIsIPv4Address(KStringView sAddress);
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker = true);
 
+/// exception class for dekaf2 IP address errors
+class KIPError : public KError
+{
+	using KError::KError;
+};
+
 class KIPAddress6;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -87,29 +104,45 @@ class DEKAF2_PUBLIC KIPAddress4
 public:
 //----------
 
+	using self   = KIPAddress4;
 	using BytesT = std::array<uint8_t, 4>;
 
+	/// default contstructor, does not throw
 	constexpr          KIPAddress4() noexcept = default;
 
+	/// construct from bytes in network byte order, does not throw
 	constexpr explicit KIPAddress4(const BytesT& IP) noexcept
 	                   : m_IP(IP)
 	                   {}
 
+	/// construct from bytes in host byte order, does not throw
 	constexpr explicit KIPAddress4(uint32_t IP) noexcept
 	                   : m_IP { static_cast<uint8_t>(IP >> 24), static_cast<uint8_t>(IP >> 16),
-	                            static_cast<uint8_t>(IP >> 8), static_cast<uint8_t>(IP) }
+	                            static_cast<uint8_t>(IP >> 8) , static_cast<uint8_t>(IP) }
 	                   {}
 
-	constexpr explicit KIPAddress4(const KIPAddress6& IPv6) noexcept
+	/// construct from IPv6 address, not throwing but returning possible error in ec
+	constexpr          KIPAddress4(const KIPAddress6& IPv6, KIPError& ec) noexcept
+	                   : m_IP(FromIPv6(IPv6, ec))
+	                   {}
+
+	/// construct from IPv6 address, will throw on error
+	          explicit KIPAddress4(const KIPAddress6& IPv6)
 	                   : m_IP(FromIPv6(IPv6))
 	                   {}
 
-	          explicit KIPAddress4(KStringView sAddress) noexcept
+	/// construct from IPv4 address in string notation, not throwing but returning possible error in ec
+	                   KIPAddress4(KStringView sAddress, KIPError& ec) noexcept
+	                   : m_IP(FromString(sAddress, ec))
+	                   {}
+
+	/// construct from IPv4 address in string notation, will throw on error
+	          explicit KIPAddress4(KStringView sAddress)
 	                   : m_IP(FromString(sAddress))
 	                   {}
 
 	/// get address as string
-	          KString  ToString () const noexcept;
+	KString ToString () const noexcept;
 
 	explicit operator KString() const noexcept
 	{
@@ -132,6 +165,22 @@ public:
 	{
 		return m_IP;
 	}
+
+	/// decrement this address by one
+	self&               Dec() noexcept;
+	/// increment this address by one
+	self&               Inc() noexcept;
+	/// return an address decremented by one, leaving this address unchanged
+	DEKAF2_NODISCARD
+	KIPAddress4         Prev() const noexcept;
+	/// return an address incremented by one, leaving this address unchanged
+	DEKAF2_NODISCARD
+	KIPAddress4         Next() const noexcept;
+
+	self& operator++()    noexcept { return Inc(); }
+	self& operator--()    noexcept { return Dec(); }
+	self  operator++(int) noexcept;
+	self  operator--(int) noexcept;
 
 	/// is address unspecified?
 	DEKAF2_NODISCARD
@@ -229,9 +278,10 @@ public:
 private:
 //----------
 
-	static BytesT FromString(KStringView sAddress) noexcept;
-
-	static constexpr BytesT FromIPv6(const KIPAddress6& IPv6) noexcept;
+	static           BytesT FromString (KStringView sAddress, KIPError& ec) noexcept;
+	static           BytesT FromString (KStringView sAddress);
+	static constexpr BytesT FromIPv6   (const KIPAddress6& IPv6, KIPError& ec) noexcept;
+	static           BytesT FromIPv6   (const KIPAddress6& IPv6);
 
 	BytesT m_IP { 0, 0, 0, 0 };
 
@@ -250,28 +300,47 @@ class DEKAF2_PUBLIC KIPAddress6
 public:
 //----------
 
+	using self   = KIPAddress6;
 	using BytesT = std::array<uint8_t, 16>;
 	using ScopeT = uint32_t;
 
+	/// default constructor, does not throw
 	constexpr          KIPAddress6() noexcept = default;
 
+	/// construct from bytes in network byte order, does not throw
 	constexpr explicit KIPAddress6(const BytesT& IP, ScopeT Scope = 0) noexcept
 	                   : m_IP(IP)
 	                   , m_Scope(Scope)
 	                   {}
 
+	/// construct from IPv4 address, does not throw
 	constexpr explicit KIPAddress6(const KIPAddress4& IPv4) noexcept
 	                   : m_IP(FromIPv4(IPv4))
 	                   {}
 
-	          explicit KIPAddress6(KStringView sAddress, ScopeT Scope = 0) noexcept
+	/// construct from IPv6 address in string notation, not throwing but returning possible error in ec
+	                   KIPAddress6(KStringView sAddress, ScopeT Scope, KIPError& ec) noexcept
+	                   : m_IP(FromString(sAddress, ec))
+	                   , m_Scope(Scope)
+	                   {}
+
+	/// construct from IPv6 address in string notation, will throw on error
+	          explicit KIPAddress6(KStringView sAddress, ScopeT Scope = 0)
 	                   : m_IP(FromString(sAddress))
 	                   , m_Scope(Scope)
 	                   {}
 
+	/// construct from IPv6 address in string notation, not throwing but returning possible error in ec
+	                   KIPAddress6(KStringView sAddress, KIPError& ec) noexcept
+	                   : KIPAddress6(sAddress, 0, ec)
+	                   {}
+
 	/// get address as string
+	/// @param bWithBraces if true print leading and trailing [ ] around address, defaults to false
+	/// @param bUnabridged if true print IPv6 address including all zeroes and without mapped IPv4 addresses, defaults to false
+	/// @returns the string representation of the IPv6 address
 	DEKAF2_NODISCARD
-	          KString   ToString (bool bWithBraces = false, bool bUnabridged = false) const noexcept;
+	KString ToString (bool bWithBraces = false, bool bUnabridged = false) const noexcept;
 
 	explicit operator KString() const noexcept
 	{
@@ -295,6 +364,22 @@ public:
 	{
 	  return m_Scope;
 	}
+
+	/// decrement this address by one
+	self&               Dec() noexcept;
+	/// increment this address by one
+	self&               Inc() noexcept;
+	/// return an address decremented by one, leaving this address unchanged
+	DEKAF2_NODISCARD
+	KIPAddress6         Prev() const noexcept;
+	/// return an address incremented by one, leaving this address unchanged
+	DEKAF2_NODISCARD
+	KIPAddress6         Next() const noexcept;
+
+	self& operator++()    noexcept { return Inc(); }
+	self& operator--()    noexcept { return Dec(); }
+	self  operator++(int) noexcept;
+	self  operator--(int) noexcept;
 
 	/// is address the loopback address?
 	DEKAF2_NODISCARD
@@ -387,14 +472,14 @@ public:
 
 	DEKAF2_NODISCARD
 	friend constexpr bool operator==(const KIPAddress6& a1,
-									 const KIPAddress6& a2) noexcept
+	                                 const KIPAddress6& a2) noexcept
 	{
 		return a1.m_IP == a2.m_IP && a1.m_Scope == a2.m_Scope;
 	}
 
 	DEKAF2_NODISCARD
 	friend constexpr bool operator<(const KIPAddress6& a1,
-									const KIPAddress6& a2) noexcept
+	                                const KIPAddress6& a2) noexcept
 	{
 		if (a1.m_IP < a2.m_IP) return true;
 		if (a1.m_IP > a2.m_IP) return false;
@@ -419,16 +504,13 @@ public:
 private:
 //----------
 
-	static BytesT FromString(KStringView sAddress) noexcept;
+	static BytesT FromString(KStringView sAddress, KIPError& ec) noexcept;
+	static BytesT FromString(KStringView sAddress);
 
 	static constexpr BytesT FromIPv4(const KIPAddress4& IPv4) noexcept
 	{
-		BytesT IP { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
-		IP[12] = IPv4.m_IP[0];
-		IP[13] = IPv4.m_IP[1];
-		IP[14] = IPv4.m_IP[2];
-		IP[15] = IPv4.m_IP[3];
-		return IP;
+		return BytesT { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff,
+		                IPv4.m_IP[0], IPv4.m_IP[1], IPv4.m_IP[2], IPv4.m_IP[3] };
 	}
 
 	BytesT m_IP    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -439,7 +521,7 @@ private:
 DEKAF2_COMPARISON_OPERATORS_WITH_ATTR(constexpr, KIPAddress6)
 
 //-----------------------------------------------------------------------------
-constexpr KIPAddress4::BytesT KIPAddress4::FromIPv6(const KIPAddress6& IPv6) noexcept
+constexpr KIPAddress4::BytesT KIPAddress4::FromIPv6(const KIPAddress6& IPv6, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
 	BytesT IP;
@@ -450,6 +532,7 @@ constexpr KIPAddress4::BytesT KIPAddress4::FromIPv6(const KIPAddress6& IPv6) noe
 	}
 	else
 	{
+		ec = KIPError("not a mapped IPv4 address");
 		IP = BytesT { 0, 0, 0, 0 };
 	}
 
@@ -466,21 +549,32 @@ class DEKAF2_PUBLIC KIPAddress
 public:
 //----------
 
+	using self = KIPAddress;
+
+	// default constructor, does not throw
 	constexpr          KIPAddress() noexcept = default;
 
+	// construct from IPv4 address, does not throw
 	constexpr          KIPAddress(KIPAddress4 IPAddress4) noexcept
 	                   : m_v4(std::move(IPAddress4))
 	                   , m_v6(KIPAddress6::BytesT{0})
 	                   , m_Type(IPv4)
 	                   {}
 
+	// construct from IPv6 address, does not throw
 	constexpr          KIPAddress(KIPAddress6 IPAddress6) noexcept
 	                   : m_v4(KIPAddress4::BytesT{0})
 	                   , m_v6(std::move(IPAddress6))
 	                   , m_Type(IPv6)
 	                   {}
 
-	          explicit KIPAddress(KStringView sAddress) noexcept
+	// construct from IPv4 or IPv6 string representation, not throwing but returning possible error in ec
+	                   KIPAddress(KStringView sAddress, KIPError& ec) noexcept
+	                   : KIPAddress(FromString(sAddress, ec))
+	                   {}
+
+	// construct from IPv4 or IPv6 string representation, throws on error
+	          explicit KIPAddress(KStringView sAddress)
 	                   : KIPAddress(FromString(sAddress))
 	                   {}
 
@@ -542,6 +636,22 @@ public:
 		}
 	}
 
+	/// decrement this address by one
+	self&               Dec() noexcept;
+	/// increment this address by one
+	self&               Inc() noexcept;
+	/// return an address decremented by one, leaving this address unchanged
+	DEKAF2_NODISCARD
+	KIPAddress          Prev() const noexcept;
+	/// return an address incremented by one, leaving this address unchanged
+	DEKAF2_NODISCARD
+	KIPAddress          Next() const noexcept;
+
+	self& operator++()    noexcept { return Inc(); }
+	self& operator--()    noexcept { return Dec(); }
+	self  operator++(int) noexcept;
+	self  operator--(int) noexcept;
+
 	/// returns true if the address either is an IPv4 address or can be converted into one
 	DEKAF2_NODISCARD
 	constexpr bool IsConvertibleTo4() const noexcept
@@ -561,8 +671,8 @@ public:
 	DEKAF2_NODISCARD
 	constexpr bool IsLoopback() const noexcept
 	{
-	  return Is4() ? m_v4.IsLoopback()
-		           : Is6() ? m_v6.IsLoopback() : false;
+		return Is4() ? m_v4.IsLoopback()
+		             : Is6() ? m_v6.IsLoopback() : false;
 	}
 
 	/// is address unspecifed?
@@ -570,7 +680,7 @@ public:
 	constexpr bool IsUnspecified() const noexcept
 	{
 		return Is4() ? m_v4.IsUnspecified()
-					 : Is6() ? m_v6.IsUnspecified() : true;
+		             : Is6() ? m_v6.IsUnspecified() : true;
 	}
 
 	/// is address valid?
@@ -585,12 +695,12 @@ public:
 	constexpr bool IsMulticast() const noexcept
 	{
 		return Is4() ? m_v4.IsMulticast()
-					 : Is6() ? m_v6.IsMulticast() : false;
+		             : Is6() ? m_v6.IsMulticast() : false;
 	}
 
 	DEKAF2_NODISCARD
 	friend constexpr bool operator==(const KIPAddress& a1,
-									 const KIPAddress& a2) noexcept
+	                                 const KIPAddress& a2) noexcept
 	{
 	  if (a1.m_Type != a2.m_Type) return false;
 	  if (a1.Is4()) return a1.m_v4 == a2.m_v4;
@@ -600,7 +710,7 @@ public:
 
 	DEKAF2_NODISCARD
 	friend constexpr bool operator<(const KIPAddress& a1,
-									const KIPAddress& a2) noexcept
+	                                const KIPAddress& a2) noexcept
 	{
 	  if (a1.m_Type < a2.m_Type) return true;
 	  if (a1.m_Type > a2.m_Type) return false;
@@ -613,7 +723,8 @@ public:
 private:
 //----------
 
-	static KIPAddress FromString(KStringView sAddress) noexcept;
+	static KIPAddress FromString(KStringView sAddress, KIPError& ec) noexcept;
+	static KIPAddress FromString(KStringView sAddress);
 
 	KIPAddress4 m_v4;
 	KIPAddress6 m_v6;

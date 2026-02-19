@@ -47,7 +47,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-KIPAddress4::BytesT KIPAddress4::FromString(KStringView sAddress) noexcept
+KIPAddress4::BytesT KIPAddress4::FromString(KStringView sAddress, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
 	BytesT   IP;
@@ -60,9 +60,9 @@ KIPAddress4::BytesT KIPAddress4::FromString(KStringView sAddress) noexcept
 		if (ch == '.')
 		{
 			if (bLastWasDot) break;
-			bLastWasDot = true;
+			bLastWasDot   = true;
 			IP[iBlocks-1] = iByte;
-			iByte       = 0;
+			iByte         = 0;
 			continue;
 		}
 
@@ -84,12 +84,35 @@ KIPAddress4::BytesT KIPAddress4::FromString(KStringView sAddress) noexcept
 	}
 	else
 	{
+		ec = KIPError("KIPAddress4: invalid IPv4 address");
 		IP = BytesT { 0, 0, 0, 0};
 	}
 
 	return IP;
 
 } // KIPAddress4::FromString
+
+//-----------------------------------------------------------------------------
+KIPAddress4::BytesT KIPAddress4::FromString(KStringView sAddress)
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	auto Bytes = FromString(sAddress, ec);
+	if (ec) throw ec;
+	return Bytes;
+
+} // KIPAddress4::FromString
+
+//-----------------------------------------------------------------------------
+KIPAddress4::BytesT KIPAddress4::FromIPv6(const KIPAddress6& IPv6)
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	auto IP = FromIPv6(IPv6, ec);
+	if (ec) throw ec;
+	return IP;
+
+} // KIPAddress4::FromIPv6
 
 //-----------------------------------------------------------------------------
 KString KIPAddress4::ToString () const noexcept
@@ -100,21 +123,98 @@ KString KIPAddress4::ToString () const noexcept
 } // KIPAddress4::ToString
 
 //-----------------------------------------------------------------------------
-KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
+KIPAddress4& KIPAddress4::Dec() noexcept
 //-----------------------------------------------------------------------------
 {
-	constexpr BytesT Empty { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	for (int i = 3; i >= 0; --i)
+	{
+		if (m_IP[i] > 0)
+		{
+			--m_IP[i];
+			break;
+		}
+
+		m_IP[i] = 0xff;
+	}
+
+	return *this;
+
+} // KIPAddress4::Dec
+
+//-----------------------------------------------------------------------------
+KIPAddress4& KIPAddress4::Inc() noexcept
+//-----------------------------------------------------------------------------
+{
+	for (int i = 3; i >= 0; --i)
+	{
+		if (m_IP[i] < 0xff)
+		{
+			++m_IP[i];
+			break;
+		}
+
+		m_IP[i] = 0;
+	}
+
+	return *this;
+
+} // KIPAddress4::Inc
+
+//-----------------------------------------------------------------------------
+KIPAddress4 KIPAddress4::operator++(int) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto tmp(*this);
+	++*this;
+	return tmp;
+}
+
+//-----------------------------------------------------------------------------
+KIPAddress4 KIPAddress4::operator--(int) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto tmp(*this);
+	--*this;
+	return tmp;
+}
+
+//-----------------------------------------------------------------------------
+KIPAddress4 KIPAddress4::Prev() const noexcept
+//-----------------------------------------------------------------------------
+{
+	auto IP = *this;
+	IP.Dec();
+	return IP;
+
+} // KIPAddress4::Prev
+
+//-----------------------------------------------------------------------------
+KIPAddress4 KIPAddress4::Next() const noexcept
+//-----------------------------------------------------------------------------
+{
+	auto IP = *this;
+	IP.Inc();
+	return IP;
+
+} // KIPAddress4::Inc
+
+//-----------------------------------------------------------------------------
+KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) noexcept
+//-----------------------------------------------------------------------------
+{
 #define DEKAF2_DEBUG_KIPADDRESS 0
 #if DEKAF2_DEBUG_KIPADDRESS
 	// to debug, set IP to pattern - should have no effect:
-	BytesT IP { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x12 } ; // { Empty };
+	BytesT IP { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x12 };
 #else
 	BytesT IP;
 #endif
 
+	constexpr BytesT Empty { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
 	if (sAddress.remove_prefix('[') && !sAddress.remove_suffix(']'))
 	{
-		// unpaired []
+		ec = KIPError("KIPAddress6: unpaired []");
 		return Empty;
 	}
 
@@ -123,8 +223,10 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 	// (0000:0000:0000:0000:0000:ffff:123.111.100.143)
 	if (sAddress.size() > 45 || sAddress.size() < 3)
 	{
-		// we don't specifically test for "::" here (which is a "valid"
-		// IPv6 address) because the return value of Empty is correct
+		if (sAddress != "::")
+		{
+			ec = KIPError("KIPAddress6: invalid size");
+		}
 		return Empty;
 	}
 
@@ -146,6 +248,7 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 		{
 			if (++iLastColons > 2)
 			{
+				ec = KIPError("KIPAddress6: more than two consecutive colons");
 				return Empty;
 			}
 
@@ -153,6 +256,7 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 			{
 				if (iBlock > 7)
 				{
+					ec = KIPError("KIPAddress6: invalid block count");
 					return Empty;
 				}
 				// we have a value to store
@@ -169,6 +273,7 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 				{
 					// only one substitution by :: is permitted
 					// a :: counts at least for one block
+					ec = KIPError("KIPAddress6: more than one ::");
 					return Empty;
 				}
 				// mark the block at which the double colon emerged
@@ -183,6 +288,7 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 				 iBlock > 6       ||
 				(iDoubleColonBlock == iInvalid && iBlock != 6))
 			{
+				ec = KIPError("KIPAddress6: invalid mapped IPv4");
 				return Empty;
 			}
 
@@ -198,6 +304,7 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 
 			if (IPv4.IsUnspecified())
 			{
+				ec = KIPError("KIPAddress6: invalid mapped IPv4");
 				return Empty;
 			}
 
@@ -216,6 +323,7 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 		{
 			if (iBlock > 7)
 			{
+				ec = KIPError("KIPAddress6: invalid block count");
 				return Empty;
 			}
 
@@ -223,6 +331,7 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 
 			if (iNibble > 15 || ++iNibbleCount > 4)
 			{
+				ec = KIPError("KIPAddress6: invalid hex");
 				return Empty;
 			}
 
@@ -241,6 +350,7 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 	{
 		if (iBlock > 7)
 		{
+			ec = KIPError("KIPAddress6: invalid block count");
 			return Empty;
 		}
 		// fill last word
@@ -254,6 +364,7 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 		|| (iBlock  < 8 && iDoubleColonBlock == iInvalid)
 		||  iLastColons == 1)
 	{
+		ec = KIPError("KIPAddress6: invalid block count");
 		return Empty;
 	}
 
@@ -278,6 +389,17 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress) noexcept
 	}
 
 	return IP;
+
+} // KIPAddress6::FromString
+
+//-----------------------------------------------------------------------------
+KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress)
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	auto Bytes = FromString(sAddress, ec);
+	if (ec) throw ec;
+	return Bytes;
 
 } // KIPAddress6::FromString
 
@@ -405,26 +527,173 @@ KString KIPAddress6::ToString (bool bWithBraces, bool bUnabridged) const noexcep
 } // KIPAddress6::ToString
 
 //-----------------------------------------------------------------------------
-KIPAddress KIPAddress::FromString(KStringView sAddress) noexcept
+KIPAddress6& KIPAddress6::Dec() noexcept
 //-----------------------------------------------------------------------------
 {
-	KIPAddress4 a4(sAddress);
+	for (int i = 15; i >= 0; --i)
+	{
+		if (m_IP[i] > 0)
+		{
+			--m_IP[i];
+			break;
+		}
 
-	if (a4.IsValid())
+		m_IP[i] = 0xff;
+	}
+
+	return *this;
+
+} // KIPAddress6::Dec
+
+//-----------------------------------------------------------------------------
+KIPAddress6& KIPAddress6::Inc() noexcept
+//-----------------------------------------------------------------------------
+{
+	for (int i = 15; i >= 0; --i)
+	{
+		if (m_IP[i] < 0xff)
+		{
+			++m_IP[i];
+			break;
+		}
+
+		m_IP[i] = 0;
+	}
+
+	return *this;
+
+} // KIPAddress6::Inc
+
+//-----------------------------------------------------------------------------
+KIPAddress6 KIPAddress6::operator++(int) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto tmp(*this);
+	++*this;
+	return tmp;
+}
+
+//-----------------------------------------------------------------------------
+KIPAddress6 KIPAddress6::operator--(int) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto tmp(*this);
+	--*this;
+	return tmp;
+}
+
+//-----------------------------------------------------------------------------
+KIPAddress6 KIPAddress6::Prev() const noexcept
+//-----------------------------------------------------------------------------
+{
+	auto IP = *this;
+	IP.Dec();
+	return IP;
+
+} // KIPAddress6::Prev
+
+//-----------------------------------------------------------------------------
+KIPAddress6 KIPAddress6::Next() const noexcept
+//-----------------------------------------------------------------------------
+{
+	auto IP = *this;
+	IP.Inc();
+	return IP;
+
+} // KIPAddress6::Next
+
+//-----------------------------------------------------------------------------
+KIPAddress KIPAddress::FromString(KStringView sAddress, KIPError& ec) noexcept
+//-----------------------------------------------------------------------------
+{
+	KIPAddress4 a4(sAddress, ec);
+
+	if (!ec)
 	{
 		return KIPAddress(a4);
 	}
 
-	KIPAddress6 a6(sAddress);
+	ec = KIPError();
 
-	if (a6.IsValid())
+	KIPAddress6 a6(sAddress, ec);
+
+	if (!ec)
 	{
 		return KIPAddress(a6);
 	}
 
 	return {};
 
-} // KIPAddress::ToString
+} // KIPAddress::FromString
+
+//-----------------------------------------------------------------------------
+KIPAddress KIPAddress::FromString(KStringView sAddress)
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	auto IP = FromString(sAddress, ec);
+	if (ec) throw ec;
+	return IP;
+
+} // KIPAddress::FromString
+
+//-----------------------------------------------------------------------------
+KIPAddress& KIPAddress::Dec() noexcept
+//-----------------------------------------------------------------------------
+{
+		 if (Is4()) m_v4.Dec();
+	else if (Is6()) m_v6.Dec();
+	return *this;
+
+} // KIPAddress::Dec
+
+//-----------------------------------------------------------------------------
+KIPAddress& KIPAddress::Inc() noexcept
+//-----------------------------------------------------------------------------
+{
+	     if (Is4()) m_v4.Inc();
+	else if (Is6()) m_v6.Inc();
+	return *this;
+
+} // KIPAddress::Inc
+
+//-----------------------------------------------------------------------------
+KIPAddress KIPAddress::operator++(int) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto tmp(*this);
+	++*this;
+	return tmp;
+}
+
+//-----------------------------------------------------------------------------
+KIPAddress KIPAddress::operator--(int) noexcept
+//-----------------------------------------------------------------------------
+{
+	auto tmp(*this);
+	--*this;
+	return tmp;
+}
+
+//-----------------------------------------------------------------------------
+KIPAddress KIPAddress::Prev() const noexcept
+//-----------------------------------------------------------------------------
+{
+	auto IP = *this;
+	IP.Dec();
+	return IP;
+
+} // KIPAddress6::Prev
+
+//-----------------------------------------------------------------------------
+KIPAddress KIPAddress::Next() const noexcept
+//-----------------------------------------------------------------------------
+{
+	auto IP = *this;
+	IP.Inc();
+	return IP;
+
+} // KIPAddress::Next
 
 //-----------------------------------------------------------------------------
 bool kIsIPv6Address(KStringView sAddress, bool bNeedsBraces)

@@ -145,25 +145,6 @@ KIPNetwork4::KIPNetwork4(KStringView sNetwork)
 
 
 //-----------------------------------------------------------------------------
-KIPAddress4 KIPNetwork4::Netmask() const noexcept
-//-----------------------------------------------------------------------------
-{
-	uint32_t iMaskBits = 0xffffffff;
-
-	if (PrefixLength() == 0)
-	{
-		iMaskBits = 0;
-	}
-	else
-	{
-		iMaskBits <<= (32 - PrefixLength());
-	}
-
-	return KIPAddress4(iMaskBits);
-
-} // KIPNetwork4::Netmask
-
-//-----------------------------------------------------------------------------
 KIPAddress4 KIPNetwork4::AddressFromString(KStringView sNetwork, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {

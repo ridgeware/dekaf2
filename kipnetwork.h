@@ -83,7 +83,10 @@ public:
 //----------
 
 	/// returns the prefix length of the network
-	uint8_t PrefixLength() const noexcept { return m_iPrefixLength; }
+	constexpr uint8_t  PrefixLength() const noexcept
+	{
+		return m_iPrefixLength;
+	}
 
 //----------
 protected:
@@ -173,7 +176,10 @@ public:
 	}
 
 	/// return netmask
-	KIPAddress4 Netmask() const noexcept;
+	constexpr KIPAddress4 Netmask() const noexcept
+	{
+		return KIPAddress4(PrefixLength() == 0 ? 0 : 0xffffffff << (32 - PrefixLength()) );
+	}
 
 	/// return address of the network
 	constexpr KIPAddress4 Network() const noexcept
@@ -300,7 +306,7 @@ public:
 	bool Contains(const KIPAddress6& IP) const noexcept;
 
 	/// return network without any host bits set
-	constexpr KIPNetwork6 Canonical() const noexcept
+	KIPNetwork6 Canonical() const noexcept
 	{
 		return KIPNetwork6(Network(), PrefixLength());
 	}

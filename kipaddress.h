@@ -729,7 +729,7 @@ private:
 	KIPAddress4 m_v4;
 	KIPAddress6 m_v6;
 
-	enum AddressType : uint8_t { Invalid, IPv4, IPv6 } m_Type;
+	enum AddressType : uint8_t { Invalid, IPv4, IPv6 } m_Type { Invalid };
 
 }; // KIPAddress
 
@@ -799,7 +799,7 @@ namespace std
 template<>
 struct hash<DEKAF2_PREFIX KIPAddress4>
 {
-	DEKAF2_CONSTEXPR_14 std::size_t operator()(const DEKAF2_PREFIX KIPAddress4& IP) const noexcept
+	std::size_t operator()(const DEKAF2_PREFIX KIPAddress4& IP) const noexcept
 	{
 		auto Bytes = IP.ToBytes();
 		return DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size());
@@ -809,7 +809,7 @@ struct hash<DEKAF2_PREFIX KIPAddress4>
 template<>
 struct hash<DEKAF2_PREFIX KIPAddress6>
 {
-	DEKAF2_CONSTEXPR_14 std::size_t operator()(const DEKAF2_PREFIX KIPAddress6& IP) const noexcept
+	std::size_t operator()(const DEKAF2_PREFIX KIPAddress6& IP) const noexcept
 	{
 		auto Bytes = IP.ToBytes();
 		return DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size());
@@ -819,7 +819,7 @@ struct hash<DEKAF2_PREFIX KIPAddress6>
 template<>
 struct hash<DEKAF2_PREFIX KIPAddress>
 {
-	DEKAF2_CONSTEXPR_14 std::size_t operator()(const DEKAF2_PREFIX KIPAddress& IP) const noexcept
+	std::size_t operator()(const DEKAF2_PREFIX KIPAddress& IP) const noexcept
 	{
 		auto IP6 = IP.To6();
 		auto Bytes = IP6.ToBytes();

@@ -300,9 +300,9 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 				--iStartv4;
 			}
 
-			KIPAddress4 IPv4(sAddress.Mid(iStartv4));
+			KIPAddress4 IPv4(sAddress.Mid(iStartv4), ec);
 
-			if (IPv4.IsUnspecified())
+			if (ec)
 			{
 				ec = KIPError("KIPAddress6: invalid mapped IPv4");
 				return Empty;
@@ -321,7 +321,12 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 		}
 		else
 		{
-			if (iBlock > 7)
+			if (iBlock == 0 && iNibbleCount == 0 && iLastColons == 1)
+			{
+				ec = KIPError("KIPAddress6: leading :");
+				return Empty;
+			}
+			else if (iBlock > 7)
 			{
 				ec = KIPError("KIPAddress6: invalid block count");
 				return Empty;
@@ -610,7 +615,7 @@ KIPAddress KIPAddress::FromString(KStringView sAddress, KIPError& ec) noexcept
 
 	if (!ec)
 	{
-		return KIPAddress(a4);
+		return KIPAddress(std::move(a4));
 	}
 
 	ec = KIPError();
@@ -619,7 +624,7 @@ KIPAddress KIPAddress::FromString(KStringView sAddress, KIPError& ec) noexcept
 
 	if (!ec)
 	{
-		return KIPAddress(a6);
+		return KIPAddress(std::move(a6));
 	}
 
 	return {};

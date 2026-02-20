@@ -66,8 +66,67 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+class KIPNetwork;
+class KIPNetwork6;
+
+namespace detail {
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KIPNetwork4
+class DEKAF2_PUBLIC KIPNetworkBase
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+	friend class DEKAF2_PREFIX KIPNetwork;
+
+//----------
+public:
+//----------
+
+	/// returns the prefix length of the network
+	uint8_t PrefixLength() const noexcept { return m_iPrefixLength; }
+
+//----------
+protected:
+//----------
+
+	constexpr          KIPNetworkBase() = default;
+	constexpr          KIPNetworkBase(uint8_t iPrefixLength, uint8_t iPrefixMax, KError& ec)
+	                   : m_iPrefixLength(std::min(iPrefixLength, iPrefixMax))
+	                   { if (iPrefixLength > iPrefixMax && !ec) ec = KIPError("prefix too large"); }
+
+	constexpr explicit KIPNetworkBase(uint8_t iPrefixLength, uint8_t iPrefixMax)
+	                   : m_iPrefixLength(std::min(iPrefixLength, iPrefixMax))
+	                   { if (iPrefixLength > iPrefixMax) throw KIPError("prefix too large"); }
+
+	static KStringView AddressStringFromString (KStringView sNetwork, KIPError& ec) noexcept;
+	static uint8_t     PrefixLengthFromString  (KStringView sNetwork, uint8_t iMaxPrefixLength, KIPError& ec) noexcept;
+
+	uint8_t m_iPrefixLength { 0 };
+
+//----------
+private:
+//----------
+
+	enum NetworkType : uint8_t { Invalid, IPv4, IPv6 };
+
+	constexpr void SetIPv4(bool bYesNo) noexcept
+	{
+		m_Type = bYesNo ? IPv4 : IPv6;
+	}
+
+	constexpr NetworkType GetNetworkType() const noexcept
+	{
+		return m_Type;
+	}
+
+	NetworkType m_Type { Invalid };
+
+}; // KNetworkBase
+
+} // end of namespace detail
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC KIPNetwork4 : public detail::KIPNetworkBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -75,30 +134,22 @@ class DEKAF2_PUBLIC KIPNetwork4
 public:
 //----------
 
+	using base = detail::KIPNetworkBase;
+
 	/// default constructor
 	constexpr          KIPNetwork4() noexcept = default;
 
 	/// construct from IPv4 and prefix length, not throwing but returning possible error in ec
 	constexpr          KIPNetwork4(const KIPAddress4& IP, uint8_t iPrefixLength, KIPError& ec) noexcept
-	                   : m_IP(IP)
-	                   , m_iPrefixLength(std::min(uint8_t(32), iPrefixLength))
-	{
-		if (iPrefixLength > 32)
-		{
-			ec = KIPError("prefix length > 32");
-		}
-	}
+	                   : base(iPrefixLength, 32, ec)
+	                   , m_IP(IP)
+	                   {}
 
 	/// construct from IPv4 and prefix length, throws on error
 	constexpr          KIPNetwork4(const KIPAddress4& IP, uint8_t iPrefixLength)
-	                   : m_IP(IP)
-	                   , m_iPrefixLength(iPrefixLength)
-	{
-		if (iPrefixLength > 32)
-		{
-			throw KIPError("prefix length > 32");
-		}
-	}
+	                   : base(iPrefixLength, 32)
+	                   , m_IP(IP)
+	                   {}
 
 	/// construct from IPv4 address and netmask, not throwing but returning possible error in ec
 	                   KIPNetwork4(const KIPAddress4& IP, const KIPAddress4& Mask, KIPError& ec) noexcept;
@@ -112,8 +163,6 @@ public:
 
 	/// returns the IPv4 address of the network as used in construction
 	constexpr KIPAddress4 Address() const noexcept { return m_IP; }
-	/// returns the prefix length of the network
-	uint8_t PrefixLength() const noexcept { return m_iPrefixLength; }
 
 	/// get network as string
 	KString ToString () const noexcept;
@@ -144,6 +193,9 @@ public:
 	/// returns true if this network contains the given IPv4 address
 	bool Contains(const KIPAddress4& IP) const noexcept;
 
+	/// returns true if this network contains the given IPv6 address (for mapped v6 addresses..)
+	bool Contains(const KIPAddress6& IP) const noexcept;
+
 	/// return network without any host bits set
 	constexpr KIPNetwork4 Canonical() const noexcept
 	{
@@ -158,6 +210,9 @@ public:
 
 	/// is network a subnet of another network?
 	bool IsSubnetOf(const KIPNetwork4& other) const;
+
+	/// is network a subnet of another network?
+	bool IsSubnetOf(const KIPNetwork6& other) const;
 
 	DEKAF2_NODISCARD
 	friend constexpr bool operator==(const KIPNetwork4& n1,
@@ -178,16 +233,14 @@ private:
 //----------
 
 	static uint8_t     CalcPrefixFromMask     (const KIPAddress4& Mask, KIPError& ec) noexcept;
-	static KIPAddress4 NetworkFromString      (KStringView sNetwork, KIPError& ec) noexcept;
-	static uint8_t     PrefixLengthFromString (KStringView sNetwork, KIPError& ec) noexcept;
+	static KIPAddress4 AddressFromString      (KStringView sNetwork, KIPError& ec) noexcept;
 
 	KIPAddress4 m_IP;
-	uint8_t     m_iPrefixLength { 0 };
 
 }; // KIPNetwork4
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KIPNetwork6
+class DEKAF2_PUBLIC KIPNetwork6 : public detail::KIPNetworkBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -195,45 +248,33 @@ class DEKAF2_PUBLIC KIPNetwork6
 public:
 //----------
 
+	using base = detail::KIPNetworkBase;
+
 	/// default constructor
 	constexpr          KIPNetwork6() noexcept = default;
 
 	/// construct from IPv6 and prefix length, not throwing but returning possible error in ec
-	constexpr explicit KIPNetwork6(const KIPAddress6& IP, uint8_t iPrefixLength, KIPError& ec) noexcept
-	                   : m_IP(IP)
-	                   , m_iPrefixLength(std::min(uint8_t(128), iPrefixLength))
-	{
-		if (iPrefixLength > 128)
-		{
-			ec = KIPError("prefix length > 128");
-		}
-	}
+	constexpr          KIPNetwork6(const KIPAddress6& IP, uint8_t iPrefixLength, KIPError& ec) noexcept
+	                   : base(iPrefixLength, 128, ec)
+	                   , m_IP(IP)
+	                   {}
 
 	/// construct from IPv6 and prefix length, throws on error
-	constexpr explicit KIPNetwork6(const KIPAddress6& IP, uint8_t iPrefixLength)
-	                   : m_IP(IP)
-	                   , m_iPrefixLength(iPrefixLength)
-	{
-		if (iPrefixLength > 128)
-		{
-			throw KIPError("prefix length > 128");
-		}
-	}
-
-	/// construct from IPv6 address and netmask, not throwing but returning possible error in ec
-			  explicit KIPNetwork6(const KIPNetwork6& IP, const KIPNetwork6& Mask, KIPError& ec) noexcept;
-	/// construct from IPv6 address and netmask, throws on error
-			  explicit KIPNetwork6(const KIPNetwork6& IP, const KIPNetwork6& Mask);
+	constexpr          KIPNetwork6(const KIPAddress6& IP, uint8_t iPrefixLength)
+	                   : base(iPrefixLength, 128)
+	                   , m_IP(IP)
+	                   {}
 
 	/// construct from IPv6 address and prefix length in string notation, not throwing but returning possible error in ec
-			  explicit KIPNetwork6(KStringView sNetwork, KIPError& ec) noexcept;
+		               KIPNetwork6(KStringView sNetwork, KIPError& ec) noexcept;
 	/// construct from IPv6 address and prefix length in string notation, throws on error
-			  explicit KIPNetwork6(KStringView sNetwork);
+		      explicit KIPNetwork6(KStringView sNetwork);
+
+	/// construct from IPv4 network, never throws
+	          explicit KIPNetwork6(const KIPNetwork4& Net4) noexcept;
 
 	/// returns the IPv6 address of the network as used in construction
 	constexpr KIPAddress6 Address() const noexcept { return m_IP; }
-	/// returns the prefix length of the network
-	uint8_t PrefixLength() const noexcept { return m_iPrefixLength; }
 
 	/// get network as string
 	KString ToString () const noexcept;
@@ -252,6 +293,9 @@ public:
 	/// return host range
 	std::pair<KIPAddress6, KIPAddress6> Hosts() const noexcept;
 
+	/// returns true if this network contains the given IPv4 address
+	bool Contains(const KIPAddress4& IP) const noexcept;
+
 	/// returns true if this network contains the given IPv6 address
 	bool Contains(const KIPAddress6& IP) const noexcept;
 
@@ -266,6 +310,9 @@ public:
 	{
 		return PrefixLength() == 128;
 	}
+
+	/// is network a subnet of another network?
+	bool IsSubnetOf(const KIPNetwork4& other) const;
 
 	/// is network a subnet of another network?
 	bool IsSubnetOf(const KIPNetwork6& other) const;
@@ -289,13 +336,114 @@ private:
 //----------
 
 	static uint8_t     CalcPrefixFromMask     (const KIPAddress6& Mask, KIPError& ec) noexcept;
-	static KIPNetwork6 NetworkFromString      (KStringView sNetwork, KIPError& ec) noexcept;
-	static uint8_t     PrefixLengthFromString (KStringView sNetwork, KIPError& ec) noexcept;
+	static KIPAddress6 AddressFromString      (KStringView sNetwork, KIPError& ec) noexcept;
 
 	KIPAddress6 m_IP;
-	uint8_t     m_iPrefixLength { 0 };
 
 }; // KIPNetwork6
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC KIPNetwork
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// default constructor, does not throw
+	constexpr          KIPNetwork() noexcept = default;
+
+	/// construct from KIPNetwork4, does not throw
+	constexpr          KIPNetwork(KIPNetwork4 IP) noexcept
+	                   : m_Net4(std::move(IP))
+	                   { m_Net4.SetIPv4(true); }
+
+	/// construct from KIPNetwork6, does not throw
+	constexpr          KIPNetwork(KIPNetwork6 IP) noexcept
+	                   : m_Net6(std::move(IP))
+	                   { m_Net4.SetIPv4(false); }
+
+	/// construct from address and prefix length in string notation, not throwing but returning possible error in ec
+	                   KIPNetwork(KStringView sNetwork, KIPError& ec) noexcept
+	                   : KIPNetwork(FromString(sNetwork, ec))
+	                   {}
+	/// construct from address and prefix length in string notation, throws on error
+	          explicit KIPNetwork(KStringView sNetwork)
+	                   : KIPNetwork(FromString(sNetwork))
+	                   {}
+
+	/// is network an IPv4 network?.
+	DEKAF2_NODISCARD
+	constexpr bool Is4() const noexcept
+	{
+		return GetType() == detail::KIPNetworkBase::NetworkType::IPv4;
+	}
+
+	/// is network an IPv6 network?.
+	DEKAF2_NODISCARD
+	constexpr bool Is6() const noexcept
+	{
+		return GetType() == detail::KIPNetworkBase::NetworkType::IPv6;
+	}
+
+	/// returns the KIPNetwork4, may be empty, test with Is4() for validity
+	constexpr const KIPNetwork4& get4() const noexcept { return m_Net4; }
+
+	/// returns the KIPNetwork6, may be empty, test with Is4() for validity
+	constexpr const KIPNetwork6& get6() const noexcept { return m_Net6; }
+
+	/// get address as string
+	DEKAF2_NODISCARD
+	KString ToString() const noexcept;
+
+	explicit operator KString() const noexcept
+	{
+		return ToString();
+	}
+
+	/// returns true if this network contains the given address
+	bool Contains(const KIPAddress& IP) const noexcept;
+
+	/// is this indeed a host address and not a network?
+	constexpr bool IsHost() const noexcept;
+
+	/// is network a subnet of another network?
+	bool IsSubnetOf(const KIPNetwork& other) const;
+
+	DEKAF2_NODISCARD
+	friend constexpr bool operator==(const KIPNetwork& n1,
+									 const KIPNetwork& n2) noexcept
+	{
+		if (n1.GetType() != n2.GetType()) return false;
+		if (n1.Is4()) return n1.m_Net4 == n2.m_Net4;
+		if (n1.Is6()) return n1.m_Net4 == n2.m_Net4;
+		return true;
+	}
+
+	DEKAF2_NODISCARD
+	friend constexpr bool operator!=(const KIPNetwork& n1,
+									 const KIPNetwork& n2) noexcept
+	{
+		return !operator==(n1, n2);
+	}
+
+//----------
+private:
+//----------
+
+	constexpr detail::KIPNetworkBase::NetworkType GetType() const noexcept
+	{
+		return m_Net4.GetNetworkType();
+	}
+
+	static KIPNetwork FromString(KStringView sNetwork, KIPError& ec) noexcept;
+	static KIPNetwork FromString(KStringView sNetwork);
+
+	KIPNetwork4 m_Net4;
+	KIPNetwork6 m_Net6;
+
+}; // KIPNetwork
 
 inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KIPNetwork4 Net)
 {
@@ -305,6 +453,13 @@ inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KIPNetwork4 
 }
 
 inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KIPNetwork6 Net)
+{
+	auto s = Net.ToString();
+	stream.write(s.data(), s.size());
+	return stream;
+}
+
+inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KIPNetwork Net)
 {
 	auto s = Net.ToString();
 	stream.write(s.data(), s.size());
@@ -331,6 +486,16 @@ struct formatter<DEKAF2_PREFIX KIPNetwork6> : formatter<string_view>
 {
 	template <typename FormatContext>
 	auto format(const DEKAF2_PREFIX KIPNetwork6& Net, FormatContext& ctx) const
+	{
+		return formatter<string_view>::format(Net.ToString(), ctx);
+	}
+};
+
+template <>
+struct formatter<DEKAF2_PREFIX KIPNetwork> : formatter<string_view>
+{
+	template <typename FormatContext>
+	auto format(const DEKAF2_PREFIX KIPNetwork& Net, FormatContext& ctx) const
 	{
 		return formatter<string_view>::format(Net.ToString(), ctx);
 	}

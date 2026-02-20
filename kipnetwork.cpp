@@ -41,14 +41,75 @@
 */
 
 #include "kipnetwork.h"
+#include "kstringutils.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
+uint8_t detail::KIPNetworkBase::PrefixLengthFromString (KStringView sNetwork, uint8_t iMaxPrefixLength, KIPError& ec) noexcept
+//-----------------------------------------------------------------------------
+{
+	uint8_t iPrefixLength { 0 };
+
+	if (!ec)
+	{
+		auto iSlashPos = sNetwork.rfind('/');
+
+		// if size == 0 overflows (without UB) to npos, which is fine
+		if (iSlashPos >= sNetwork.size() - 1)
+		{
+			ec = KIPError("no prefix set");
+		}
+		else
+		{
+			for (auto i = iSlashPos + 1; i < sNetwork.size(); ++i)
+			{
+				iPrefixLength *= 10;
+				iPrefixLength += sNetwork[i] - '0';
+			}
+
+			if (iPrefixLength > iMaxPrefixLength)
+			{
+				ec = KIPError("prefix too large");
+				iPrefixLength = iMaxPrefixLength;
+			}
+		}
+	}
+
+	return iPrefixLength;
+
+} // detail::KIPNetworkBase::PrefixLengthFromString
+
+//-----------------------------------------------------------------------------
+KStringView detail::KIPNetworkBase::AddressStringFromString(KStringView sNetwork, KIPError& ec) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (!ec)
+	{
+		auto iSlashPos = sNetwork.rfind('/');
+
+		// if size == 0 overflows (without UB) to npos, which is fine
+		if (iSlashPos >= sNetwork.size() - 1)
+		{
+			ec = KIPError("no prefix set");
+		}
+		else
+		{
+			sNetwork.remove_suffix(sNetwork.size() - iSlashPos);
+
+			return sNetwork;
+		}
+	}
+
+	return {};
+
+} // detail::KIPNetworkBase::AddressStringFromString
+
+//-----------------------------------------------------------------------------
 KIPNetwork4::KIPNetwork4(const KIPAddress4& IP, const KIPAddress4& Mask, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
-: m_IP(IP)
-, m_iPrefixLength(CalcPrefixFromMask(Mask, ec))
+: base(CalcPrefixFromMask(Mask, ec), 32, ec)
+, m_IP(IP)
 {
 }
 
@@ -61,6 +122,64 @@ KIPNetwork4::KIPNetwork4(const KIPAddress4& IP, const KIPAddress4& Mask)
 	m_iPrefixLength = CalcPrefixFromMask(Mask, ec);
 	if (ec) throw ec;
 }
+
+//-----------------------------------------------------------------------------
+KIPNetwork4::KIPNetwork4(KStringView sNetwork, KIPError& ec) noexcept
+//-----------------------------------------------------------------------------
+: m_IP(AddressFromString(sNetwork, ec))
+{
+	m_iPrefixLength = PrefixLengthFromString(sNetwork, 32, ec);
+
+} // KIPNetwork4::KIPNetwork4
+
+//-----------------------------------------------------------------------------
+KIPNetwork4::KIPNetwork4(KStringView sNetwork)
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	m_IP = AddressFromString(sNetwork, ec);
+	m_iPrefixLength = PrefixLengthFromString(sNetwork, 32, ec);
+	if (ec) throw ec;
+
+} // KIPNetwork4::KIPNetwork4
+
+
+//-----------------------------------------------------------------------------
+KIPAddress4 KIPNetwork4::Netmask() const noexcept
+//-----------------------------------------------------------------------------
+{
+	uint32_t iMaskBits = 0xffffffff;
+
+	if (PrefixLength() == 0)
+	{
+		iMaskBits = 0;
+	}
+	else
+	{
+		iMaskBits <<= (32 - PrefixLength());
+	}
+
+	return KIPAddress4(iMaskBits);
+
+} // KIPNetwork4::Netmask
+
+//-----------------------------------------------------------------------------
+KIPAddress4 KIPNetwork4::AddressFromString(KStringView sNetwork, KIPError& ec) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (!ec)
+	{
+		auto sAddress = AddressStringFromString(sNetwork, ec);
+
+		if (!ec)
+		{
+			return KIPAddress4(sAddress, ec);
+		}
+	}
+
+	return {};
+
+} // KIPNetwork4::AddressFromString
 
 //-----------------------------------------------------------------------------
 uint8_t KIPNetwork4::CalcPrefixFromMask(const KIPAddress4& Mask, KIPError& ec) noexcept
@@ -126,104 +245,6 @@ uint8_t KIPNetwork4::CalcPrefixFromMask(const KIPAddress4& Mask, KIPError& ec) n
 } // KIPNetwork4::CalcPrefixFromMask
 
 //-----------------------------------------------------------------------------
-KIPNetwork4::KIPNetwork4(KStringView sNetwork, KIPError& ec) noexcept
-//-----------------------------------------------------------------------------
-: m_IP(NetworkFromString(sNetwork, ec))
-, m_iPrefixLength(PrefixLengthFromString(sNetwork, ec))
-{
-} // KIPNetwork4::KIPNetwork4
-
-//-----------------------------------------------------------------------------
-KIPNetwork4::KIPNetwork4(KStringView sNetwork)
-//-----------------------------------------------------------------------------
-{
-	KIPError ec;
-	m_IP = NetworkFromString(sNetwork, ec);
-	m_iPrefixLength = PrefixLengthFromString(sNetwork, ec);
-	if (ec) throw ec;
-
-} // KIPNetwork4::KIPNetwork4
-
-
-//-----------------------------------------------------------------------------
-KIPAddress4 KIPNetwork4::Netmask() const noexcept
-//-----------------------------------------------------------------------------
-{
-	uint32_t iMaskBits = 0xffffffff;
-
-	if (PrefixLength() == 0)
-	{
-		iMaskBits = 0;
-	}
-	else
-	{
-		iMaskBits <<= (32 - PrefixLength());
-	}
-
-	return KIPAddress4(iMaskBits);
-
-} // KIPNetwork4::Netmask
-
-//-----------------------------------------------------------------------------
-KIPAddress4 KIPNetwork4::NetworkFromString(KStringView sNetwork, KIPError& ec) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (!ec)
-	{
-		auto iSlashPos = sNetwork.rfind('/');
-
-		// if size == 0 overflows (without UB) to npos, which is fine
-		if (iSlashPos >= sNetwork.size() - 1)
-		{
-			ec = KIPError("no prefix set");
-		}
-		else
-		{
-			sNetwork.remove_suffix(sNetwork.size() - iSlashPos);
-			return KIPAddress4(sNetwork, ec);
-		}
-	}
-
-	return {};
-
-} // KIPNetwork4::NetworkFromString
-
-//-----------------------------------------------------------------------------
-uint8_t KIPNetwork4::PrefixLengthFromString (KStringView sNetwork, KIPError& ec) noexcept
-//-----------------------------------------------------------------------------
-{
-	uint8_t iPrefixLength { 0 };
-
-	if (!ec)
-	{
-		auto iSlashPos = sNetwork.rfind('/');
-
-		// if size == 0 overflows (without UB) to npos, which is fine
-		if (iSlashPos >= sNetwork.size() - 1)
-		{
-			ec = KIPError("no prefix set");
-		}
-		else
-		{
-			for (auto i = iSlashPos + 1; i < sNetwork.size(); ++i)
-			{
-				iPrefixLength *= 10;
-				iPrefixLength += sNetwork[i] - '0';
-			}
-
-			if (iPrefixLength > 32)
-			{
-				ec = KIPError("prefix > 32");
-				iPrefixLength = 32;
-			}
-		}
-	}
-
-	return iPrefixLength;
-
-} // KIPNetwork4::PrefixLengthFromString
-
-//-----------------------------------------------------------------------------
 KString KIPNetwork4::ToString () const noexcept
 //-----------------------------------------------------------------------------
 {
@@ -247,6 +268,21 @@ bool KIPNetwork4::IsSubnetOf(const KIPNetwork4& other) const
 } // KIPNetwork4::IsSubnetOf
 
 //-----------------------------------------------------------------------------
+bool KIPNetwork4::IsSubnetOf(const KIPNetwork6& other) const
+//-----------------------------------------------------------------------------
+{
+	if (other.PrefixLength() >= PrefixLength() + 96)
+	{
+		return false;
+	}
+
+	const KIPNetwork6 net6(*this);
+
+	return net6.IsSubnetOf(other);
+
+} // KIPNetwork4::IsSubnetOf
+
+//-----------------------------------------------------------------------------
 std::pair<KIPAddress4, KIPAddress4> KIPNetwork4::Hosts() const noexcept
 //-----------------------------------------------------------------------------
 {
@@ -265,6 +301,78 @@ bool KIPNetwork4::Contains(const KIPAddress4& IP) const noexcept
 	return p.first <= IP && p.second > IP;
 
 } // KIPNetwork4::Contains
+
+//-----------------------------------------------------------------------------
+bool KIPNetwork4::Contains(const KIPAddress6& IP) const noexcept
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	KIPAddress4 IP4(IP, ec);
+
+	if (ec)
+	{
+		return false;
+	}
+
+	auto p = Hosts();
+
+	return p.first <= IP4 && p.second > IP;
+
+} // KIPNetwork4::Contains
+
+//-----------------------------------------------------------------------------
+KIPNetwork6::KIPNetwork6(const KIPNetwork4& Net4) noexcept
+//-----------------------------------------------------------------------------
+: base(Net4.PrefixLength() + 96, 128)
+, m_IP(Net4.Address())
+{
+} // KIPNetwork6::KIPNetwork6
+
+//-----------------------------------------------------------------------------
+KIPNetwork6::KIPNetwork6(KStringView sNetwork, KIPError& ec) noexcept
+//-----------------------------------------------------------------------------
+: m_IP(AddressFromString(sNetwork, ec))
+{
+	m_iPrefixLength = PrefixLengthFromString(sNetwork, 128, ec);
+
+} // KIPNetwork6::KIPNetwork6
+
+//-----------------------------------------------------------------------------
+KIPNetwork6::KIPNetwork6(KStringView sNetwork)
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	m_IP = AddressFromString(sNetwork, ec);
+	m_iPrefixLength = PrefixLengthFromString(sNetwork, 128, ec);
+	if (ec) throw ec;
+
+} // KIPNetwork6::KIPNetwork6
+
+//-----------------------------------------------------------------------------
+KIPAddress6 KIPNetwork6::AddressFromString(KStringView sNetwork, KIPError& ec) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (!ec)
+	{
+		auto sAddress = AddressStringFromString(sNetwork, ec);
+
+		if (!ec)
+		{
+			return KIPAddress6(sAddress, ec);
+		}
+	}
+
+	return {};
+
+} // KIPNetwork6::AddressFromString
+
+//-----------------------------------------------------------------------------
+KString KIPNetwork6::ToString () const noexcept
+//-----------------------------------------------------------------------------
+{
+	return kFormat("{}/{}", m_IP, m_iPrefixLength);
+
+} // KIPNetwork6::ToString
 
 //-----------------------------------------------------------------------------
 KIPAddress6 KIPNetwork6::Network() const noexcept
@@ -318,6 +426,14 @@ std::pair<KIPAddress6, KIPAddress6> KIPNetwork6::Hosts() const noexcept
 } // KIPNetwork6::Hosts
 
 //-----------------------------------------------------------------------------
+bool KIPNetwork6::IsSubnetOf(const KIPNetwork4& other) const
+//-----------------------------------------------------------------------------
+{
+	return IsSubnetOf(KIPNetwork6(other));
+
+} // KIPNetwork6::IsSubnetOf
+
+//-----------------------------------------------------------------------------
 bool KIPNetwork6::IsSubnetOf(const KIPNetwork6& other) const
 //-----------------------------------------------------------------------------
 {
@@ -342,5 +458,99 @@ bool KIPNetwork6::Contains(const KIPAddress6& IP) const noexcept
 
 } // KIPNetwork6::Contains
 
+//-----------------------------------------------------------------------------
+bool KIPNetwork6::Contains(const KIPAddress4& IP) const noexcept
+//-----------------------------------------------------------------------------
+{
+	KIPAddress6 IP6(IP);
+
+	auto p = Hosts();
+
+	return p.first <= IP6 && p.second > IP;
+
+} // KIPNetwork4::Contains
+
+//-----------------------------------------------------------------------------
+KIPNetwork KIPNetwork::FromString(KStringView sNetwork, KIPError& ec) noexcept
+//-----------------------------------------------------------------------------
+{
+	KIPNetwork4 n4(sNetwork, ec);
+
+	if (!ec)
+	{
+		return KIPNetwork(std::move(n4));
+	}
+
+	ec = KIPError();
+
+	KIPNetwork6 n6(sNetwork, ec);
+
+	if (!ec)
+	{
+		return KIPNetwork(std::move(n6));
+	}
+
+	return {};
+
+} // KIPNetwork::FromString
+
+//-----------------------------------------------------------------------------
+KIPNetwork KIPNetwork::FromString(KStringView sNetwork)
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	auto Net = FromString(sNetwork, ec);
+	if (ec) throw ec;
+	return Net;
+
+} // KIPNetwork::FromString
+
+//-----------------------------------------------------------------------------
+KString KIPNetwork::ToString() const noexcept
+//-----------------------------------------------------------------------------
+{
+	if (Is4()) return m_Net4.ToString();
+	if (Is6()) return m_Net6.ToString();
+	return {};
+
+} // KIPNetwork::ToString
+
+//-----------------------------------------------------------------------------
+bool KIPNetwork::Contains(const KIPAddress& IP) const noexcept
+//-----------------------------------------------------------------------------
+{
+	if (IP.Is4()) return Contains(IP.To4());
+	if (IP.Is6()) return Contains(IP.To6());
+	return false;
+
+} // KIPNetwork::Contains
+
+//-----------------------------------------------------------------------------
+constexpr bool KIPNetwork::IsHost() const noexcept
+//-----------------------------------------------------------------------------
+{
+	if (Is4()) return m_Net4.IsHost();
+	if (Is6()) return m_Net6.IsHost();
+	return false;
+
+} // KIPNetwork::IsHost
+
+//-----------------------------------------------------------------------------
+bool KIPNetwork::IsSubnetOf(const KIPNetwork& other) const
+//-----------------------------------------------------------------------------
+{
+	if (other.Is4())
+	{
+		if (Is4()) return get4().IsSubnetOf(other.get4());
+		if (Is6()) return get6().IsSubnetOf(other.get4());
+	}
+	else if (other.Is6())
+	{
+		if (Is4()) return get4().IsSubnetOf(other.get6());
+		if (Is6()) return get6().IsSubnetOf(other.get6());
+	}
+	return false;
+
+} // KIPNetwork::IsSubnetOf
 
 DEKAF2_NAMESPACE_END

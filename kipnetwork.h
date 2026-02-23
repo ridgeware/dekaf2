@@ -439,7 +439,7 @@ public:
 private:
 //----------
 
-	void SetIPv4(bool bYesNo) { m_Net4.SetIPv4(bYesNo); }
+	constexpr void SetIPv4(bool bYesNo) { m_Net4.SetIPv4(bYesNo); }
 
 	constexpr detail::KIPNetworkBase::NetworkType GetType() const noexcept
 	{

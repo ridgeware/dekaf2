@@ -119,7 +119,7 @@ KIPNetwork4::KIPNetwork4(const KIPAddress4& IP, const KIPAddress4& Mask)
 : m_IP(IP)
 {
 	KIPError ec;
-	m_iPrefixLength = CalcPrefixFromMask(Mask, ec);
+	SetPrefixLength(CalcPrefixFromMask(Mask, ec));
 	if (ec) throw ec;
 }
 
@@ -128,7 +128,7 @@ KIPNetwork4::KIPNetwork4(KStringView sNetwork, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 : m_IP(AddressFromString(sNetwork, ec))
 {
-	m_iPrefixLength = PrefixLengthFromString(sNetwork, 32, ec);
+	SetPrefixLength(PrefixLengthFromString(sNetwork, 32, ec));
 
 } // KIPNetwork4::KIPNetwork4
 
@@ -138,7 +138,7 @@ KIPNetwork4::KIPNetwork4(KStringView sNetwork)
 {
 	KIPError ec;
 	m_IP = AddressFromString(sNetwork, ec);
-	m_iPrefixLength = PrefixLengthFromString(sNetwork, 32, ec);
+	SetPrefixLength(PrefixLengthFromString(sNetwork, 32, ec));
 	if (ec) throw ec;
 
 } // KIPNetwork4::KIPNetwork4
@@ -229,7 +229,7 @@ uint8_t KIPNetwork4::CalcPrefixFromMask(const KIPAddress4& Mask, KIPError& ec) n
 KString KIPNetwork4::ToString () const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kFormat("{}/{}", m_IP, m_iPrefixLength);
+	return kFormat("{}/{}", m_IP, PrefixLength());
 
 } // KIPNetwork4::ToString
 
@@ -314,7 +314,7 @@ KIPNetwork6::KIPNetwork6(KStringView sNetwork, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 : m_IP(AddressFromString(sNetwork, ec))
 {
-	m_iPrefixLength = PrefixLengthFromString(sNetwork, 128, ec);
+	SetPrefixLength(PrefixLengthFromString(sNetwork, 128, ec));
 
 } // KIPNetwork6::KIPNetwork6
 
@@ -324,7 +324,7 @@ KIPNetwork6::KIPNetwork6(KStringView sNetwork)
 {
 	KIPError ec;
 	m_IP = AddressFromString(sNetwork, ec);
-	m_iPrefixLength = PrefixLengthFromString(sNetwork, 128, ec);
+	SetPrefixLength(PrefixLengthFromString(sNetwork, 128, ec));
 	if (ec) throw ec;
 
 } // KIPNetwork6::KIPNetwork6
@@ -351,7 +351,7 @@ KIPAddress6 KIPNetwork6::AddressFromString(KStringView sNetwork, KIPError& ec) n
 KString KIPNetwork6::ToString () const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kFormat("{}/{}", m_IP, m_iPrefixLength);
+	return kFormat("{}/{}", m_IP, PrefixLength());
 
 } // KIPNetwork6::ToString
 

@@ -153,10 +153,7 @@ public:
 	DEKAF2_NODISCARD
 	constexpr uint32_t  ToUInt   () const noexcept
 	{
-		return (static_cast<uint32_t>(m_IP[0]) << 24)
-			 | (static_cast<uint32_t>(m_IP[1]) << 16)
-			 | (static_cast<uint32_t>(m_IP[2]) << 8)
-			 |  static_cast<uint32_t>(m_IP[3]);
+		return ToUInt(m_IP);
 	}
 
 	/// get address in network byte order
@@ -186,7 +183,8 @@ public:
 	DEKAF2_NODISCARD
 	constexpr bool      IsUnspecified() const noexcept
 	{
-		return m_IP == BytesT { 0, 0, 0, 0 };
+		return m_IP[0] == 0 && m_IP[1] == 0
+		    && m_IP[2] == 0 && m_IP[3] == 0;
 	}
 
 	/// is address unspecifed?
@@ -235,14 +233,14 @@ public:
 	friend constexpr bool operator==(const KIPAddress4& a1,
 	                                 const KIPAddress4& a2) noexcept
 	{
-	  return a1.m_IP == a2.m_IP;
+	  return IsEqual(a1.m_IP, a2.m_IP);
 	}
 
 	DEKAF2_NODISCARD
 	friend constexpr bool operator<(const KIPAddress4& a1,
 	                                const KIPAddress4& a2) noexcept
 	{
-	  return a1.ToUInt() < a2.ToUInt();
+	  return IsLess(a1.m_IP, a2.m_IP);
 	}
 
 	/// get any address (= empty address)
@@ -277,6 +275,32 @@ public:
 //----------
 private:
 //----------
+
+	static constexpr uint32_t ToUInt   (const BytesT& a) noexcept
+	{
+		return (static_cast<uint32_t>(a[0]) << 24)
+			 | (static_cast<uint32_t>(a[1]) << 16)
+			 | (static_cast<uint32_t>(a[2]) <<  8)
+			 |  static_cast<uint32_t>(a[3]);
+	}
+
+	static constexpr bool   IsEqual    (const BytesT& a1, const BytesT& a2) noexcept
+	{
+#ifdef DEKAF2_HAS_CPP_20
+		return a1 == a2;
+#else
+		return a1[0] == a2[0] && a1[1] == a2[1] && a1[2] == a2[2] && a1[3] == a2[3];
+#endif
+	}
+
+	static constexpr bool   IsLess     (const BytesT& a1, const BytesT& a2) noexcept
+	{
+#ifdef DEKAF2_HAS_CPP_20
+		return a1 < a2;
+#else
+		return ToUInt(a1) < ToUInt(a2);
+#endif
+	}
 
 	static           BytesT FromString (KStringView sAddress, KIPError& ec) noexcept;
 	static           BytesT FromString (KStringView sAddress);
@@ -385,14 +409,28 @@ public:
 	DEKAF2_NODISCARD
 	constexpr bool      IsLoopback() const noexcept
 	{
-		return m_IP == BytesT { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
+		return ((m_IP[ 0] == 0) && (m_IP[ 1] == 0)
+			 && (m_IP[ 2] == 0) && (m_IP[ 3] == 0)
+			 && (m_IP[ 4] == 0) && (m_IP[ 5] == 0)
+			 && (m_IP[ 6] == 0) && (m_IP[ 7] == 0)
+			 && (m_IP[ 8] == 0) && (m_IP[ 9] == 0)
+			 && (m_IP[10] == 0) && (m_IP[11] == 0)
+			 && (m_IP[12] == 0) && (m_IP[13] == 0)
+			 && (m_IP[14] == 0) && (m_IP[15] == 1));
 	}
 
 	/// is address unspecified?
 	DEKAF2_NODISCARD
 	constexpr bool      IsUnspecified() const noexcept
 	{
-		return m_IP == BytesT { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+		return ((m_IP[ 0] == 0) && (m_IP[ 1] == 0)
+			 && (m_IP[ 2] == 0) && (m_IP[ 3] == 0)
+			 && (m_IP[ 4] == 0) && (m_IP[ 5] == 0)
+			 && (m_IP[ 6] == 0) && (m_IP[ 7] == 0)
+			 && (m_IP[ 8] == 0) && (m_IP[ 9] == 0)
+			 && (m_IP[10] == 0) && (m_IP[11] == 0)
+			 && (m_IP[12] == 0) && (m_IP[13] == 0)
+			 && (m_IP[14] == 0) && (m_IP[15] == 0));
 	}
 
 	/// is address unspecifed?
@@ -474,16 +512,21 @@ public:
 	friend constexpr bool operator==(const KIPAddress6& a1,
 	                                 const KIPAddress6& a2) noexcept
 	{
-		return a1.m_IP == a2.m_IP && a1.m_Scope == a2.m_Scope;
+		return IsEqual(a1.m_IP, a2.m_IP) && a1.m_Scope == a2.m_Scope;
 	}
 
 	DEKAF2_NODISCARD
 	friend constexpr bool operator<(const KIPAddress6& a1,
 	                                const KIPAddress6& a2) noexcept
 	{
-		if (a1.m_IP < a2.m_IP) return true;
-		if (a1.m_IP > a2.m_IP) return false;
-		return a1.m_Scope < a2.m_Scope;
+		auto i = Compare(a1.m_IP, a2.m_IP);
+
+		if (!i)
+		{
+			return a1.m_Scope < a2.m_Scope;
+		}
+
+		return i < 0;
 	}
 
 	/// get any address (= empty address)
@@ -503,6 +546,28 @@ public:
 //----------
 private:
 //----------
+
+	static constexpr bool   IsEqual    (const BytesT& a1, const BytesT& a2) noexcept
+	{
+#ifdef DEKAF2_HAS_CPP_20
+		return a1 == a2;
+#else
+		return a1[ 0] == a2[ 0] && a1[ 1] == a2[ 1] && a1[ 2] == a2[ 2] && a1[ 3] == a2[ 3] &&
+		       a1[ 4] == a2[ 4] && a1[ 5] == a2[ 5] && a1[ 6] == a2[ 6] && a1[ 7] == a2[ 7] &&
+		       a1[ 8] == a2[ 8] && a1[ 9] == a2[ 9] && a1[10] == a2[10] && a1[11] == a2[11] &&
+		       a1[12] == a2[12] && a1[13] == a2[13] && a1[14] == a2[14] && a1[15] == a2[15];
+#endif
+	}
+
+	static constexpr int16_t  Compare  (const BytesT& a1, const BytesT& a2) noexcept
+	{
+		for (uint16_t i = 0; i < 16; ++i)
+		{
+			if (a1[i] < a2[i]) return -1;
+			if (a1[i] > a2[i]) return  1;
+		}
+		return 0;
+	}
 
 	static BytesT FromString(KStringView sAddress, KIPError& ec) noexcept;
 	static BytesT FromString(KStringView sAddress);
@@ -524,19 +589,15 @@ DEKAF2_COMPARISON_OPERATORS_WITH_ATTR(constexpr, KIPAddress6)
 constexpr KIPAddress4::BytesT KIPAddress4::FromIPv6(const KIPAddress6& IPv6, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
-	BytesT IP;
-
 	if (IPv6.IsV4Mapped())
 	{
-		IP = BytesT { IPv6.m_IP[12], IPv6.m_IP[13], IPv6.m_IP[14], IPv6.m_IP[15] };
+		return BytesT { IPv6.m_IP[12], IPv6.m_IP[13], IPv6.m_IP[14], IPv6.m_IP[15] };
 	}
 	else
 	{
 		ec = KIPError("not a mapped IPv4 address");
-		IP = BytesT { 0, 0, 0, 0 };
+		return BytesT { 0, 0, 0, 0 };
 	}
-
-	return IP;
 
 } // KIPAddress4::FromIPv6
 
@@ -619,6 +680,7 @@ public:
 			case AddressType::IPv6:
 				return KIPAddress4(m_v6);
 		}
+		return {};
 	}
 
 	/// get address as KIPAddress6 if possible, else as unspecified address
@@ -634,6 +696,7 @@ public:
 			case AddressType::IPv6:
 				return m_v6;
 		}
+		return {};
 	}
 
 	/// decrement this address by one

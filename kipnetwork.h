@@ -101,14 +101,15 @@ protected:
 	                   : m_iPrefixLength(std::min(iPrefixLength, iPrefixMax))
 	                   { if (iPrefixLength > iPrefixMax) throw KIPError("prefix too large"); }
 
+	void               SetPrefixLength         (uint8_t iPrefixLength) { m_iPrefixLength = iPrefixLength; }
 	static KStringView AddressStringFromString (KStringView sNetwork, KIPError& ec) noexcept;
 	static uint8_t     PrefixLengthFromString  (KStringView sNetwork, uint8_t iMaxPrefixLength, KIPError& ec) noexcept;
-
-	uint8_t m_iPrefixLength { 0 };
 
 //----------
 private:
 //----------
+
+	uint8_t m_iPrefixLength { 0 };
 
 	enum NetworkType : uint8_t { Invalid, IPv4, IPv6 };
 
@@ -224,7 +225,7 @@ public:
 	friend constexpr bool operator==(const KIPNetwork4& n1,
 	                                 const KIPNetwork4& n2) noexcept
 	{
-		return n1.m_IP == n2.m_IP && n1.m_iPrefixLength == n2.m_iPrefixLength;
+		return n1.m_IP == n2.m_IP && n1.PrefixLength() == n2.PrefixLength();
 	}
 
 	DEKAF2_NODISCARD
@@ -327,7 +328,7 @@ public:
 	friend constexpr bool operator==(const KIPNetwork6& n1,
 	                                 const KIPNetwork6& n2) noexcept
 	{
-		return n1.m_IP == n2.m_IP && n1.m_iPrefixLength == n2.m_iPrefixLength;
+		return n1.m_IP == n2.m_IP && n1.PrefixLength() == n2.PrefixLength();
 	}
 
 	DEKAF2_NODISCARD
@@ -363,12 +364,12 @@ public:
 	/// construct from KIPNetwork4, does not throw
 	constexpr          KIPNetwork(KIPNetwork4 IP) noexcept
 	                   : m_Net4(std::move(IP))
-	                   { m_Net4.SetIPv4(true); }
+	                   { SetIPv4(true); }
 
 	/// construct from KIPNetwork6, does not throw
 	constexpr          KIPNetwork(KIPNetwork6 IP) noexcept
 	                   : m_Net6(std::move(IP))
-	                   { m_Net4.SetIPv4(false); }
+	                   { SetIPv4(false); }
 
 	/// construct from address and prefix length in string notation, not throwing but returning possible error in ec
 	                   KIPNetwork(KStringView sNetwork, KIPError& ec) noexcept
@@ -437,6 +438,8 @@ public:
 //----------
 private:
 //----------
+
+	void SetIPv4(bool bYesNo) { m_Net4.SetIPv4(bYesNo); }
 
 	constexpr detail::KIPNetworkBase::NetworkType GetType() const noexcept
 	{

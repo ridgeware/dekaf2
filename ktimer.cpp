@@ -532,4 +532,9 @@ KTimer::ID_t KTimer::GetNextID()
 
 } // GetNextID
 
+#if DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KDuration KTimer::Infinite;
+#endif
+
+
 DEKAF2_NAMESPACE_END

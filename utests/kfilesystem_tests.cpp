@@ -124,7 +124,7 @@ TEST_CASE("KFilesystem")
 		CHECK( kDirExists(sDirectory)   == true );
 		CHECK( kGetSize(sFile)          == 63   );
 #ifndef DEKAF2_IS_WINDOWS
-		CHECK( kGetSize(sDirectory)     == npos );
+		CHECK( kGetSize(sDirectory)     == ssize_t(npos) );
 #else
 		CHECK( kGetSize(sDirectory)     == -1   );
 #endif
@@ -345,11 +345,7 @@ TEST_CASE("KFilesystem")
 		CHECK ( kRemoveFile(sFilename) == true );
 
 		{
-#if DEKAF2_HAS_CPP_14
-			KTempFile TempFile;
-#else
 			KTempFile<> TempFile;
-#endif
 			CHECK ( kFileExists(TempFile.Name()) );
 		}
 

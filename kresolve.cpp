@@ -82,7 +82,7 @@ CreateTCPQuery(
 			ec
 		);
 #else
-	#if BOOST_ASIO_HAS_STRING_VIEW
+	#if DEKAF2_HAS_STD_STRING_VIEW && BOOST_ASIO_HAS_STRING_VIEW
 		return Resolver.resolve(
 			std::string_view(sHostname),
 			std::string_view(sPort),
@@ -112,7 +112,7 @@ CreateTCPQuery(
 			ec
 		);
 #else
-	#if BOOST_ASIO_HAS_STRING_VIEW
+	#if DEKAF2_HAS_STD_STRING_VIEW && BOOST_ASIO_HAS_STRING_VIEW
 		return Resolver.resolve(
 			Family == KStreamOptions::Family::IPv4 ? boost::asio::ip::tcp::v4() : boost::asio::ip::tcp::v6(),
 			std::string_view(sHostname),
@@ -161,7 +161,7 @@ CreateUDPQuery(
 			ec
 		);
 #else
-	#if BOOST_ASIO_HAS_STRING_VIEW
+	#if DEKAF2_HAS_STD_STRING_VIEW && BOOST_ASIO_HAS_STRING_VIEW
 		return Resolver.resolve(
 			std::string_view(sHostname),
 			std::string_view(sPort),
@@ -191,7 +191,7 @@ CreateUDPQuery(
 			ec
 		);
 #else
-	#if BOOST_ASIO_HAS_STRING_VIEW
+	#if DEKAF2_HAS_STD_STRING_VIEW && BOOST_ASIO_HAS_STRING_VIEW
 		return Resolver.resolve(
 			Family == KStreamOptions::Family::IPv4 ? boost::asio::ip::udp::v4() : boost::asio::ip::udp::v6(),
 			std::string_view(sHostname),
@@ -332,7 +332,7 @@ ReverseLookup(
 #ifdef DEKAF2_CLASSIC_ASIO
 		endpoint.address (boost::asio::ip::address_v6::from_string (std::string(sIPAddr.substr(1, sIPAddr.size() - 2)), ec));
 #else
-	#if defined(BOOST_ASIO_HAS_STRING_VIEW)
+	#if DEKAF2_HAS_STD_STRING_VIEW && BOOST_ASIO_HAS_STRING_VIEW
 		endpoint.address (boost::asio::ip::make_address_v6 (std::string_view(sIPAddr.substr(1, sIPAddr.size() - 2)), ec));
 	#else
 		endpoint.address (boost::asio::ip::make_address_v6 (std::string(sIPAddr.substr(1, sIPAddr.size() - 2)), ec));
@@ -344,7 +344,7 @@ ReverseLookup(
 #ifdef DEKAF2_CLASSIC_ASIO
 		endpoint.address (boost::asio::ip::address_v4::from_string (std::string(sIPAddr), ec));
 #else
-	#if defined(BOOST_ASIO_HAS_STRING_VIEW)
+	#if DEKAF2_HAS_STD_STRING_VIEW && BOOST_ASIO_HAS_STRING_VIEW
 		endpoint.address (boost::asio::ip::make_address_v4 (std::string_view(sIPAddr), ec));
 	#else
 		endpoint.address (boost::asio::ip::make_address_v4 (std::string(sIPAddr), ec));
@@ -357,7 +357,7 @@ ReverseLookup(
 #ifdef DEKAF2_CLASSIC_ASIO
 		endpoint.address (boost::asio::ip::address_v6::from_string (std::string(sIPAddr), ec));
 #else
-	#if defined(BOOST_ASIO_HAS_STRING_VIEW)
+	#if DEKAF2_HAS_STD_STRING_VIEW && BOOST_ASIO_HAS_STRING_VIEW
 		endpoint.address (boost::asio::ip::make_address_v6 (std::string_view(sIPAddr), ec));
 	#else
 		endpoint.address (boost::asio::ip::make_address_v6 (std::string(sIPAddr), ec));

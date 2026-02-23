@@ -309,5 +309,18 @@ TEST_CASE("KIPNetwork")
 		}
 	}
 
-
+#if DEKAF2_IS_64_BITS
+	SECTION("sizes")
+	{
+		KIPNetwork4 ip4;
+		CHECK ( sizeof(ip4) ==  6 );
+		KIPNetwork6 ip6;
+		CHECK ( sizeof(ip6) == 24 );
+		KIPNetwork  ip;
+		CHECK ( sizeof(ip)  == 32 );
+		CHECK ( alignof(KIPNetwork4) == 1 );
+		CHECK ( alignof(KIPNetwork6) == 4 );
+		CHECK ( alignof(KIPNetwork ) == 4 );
+	}
+#endif
 }

@@ -948,7 +948,6 @@ public:
 
 	/// returns true if date is valid (time is always valid)
 	DEKAF2_NODISCARD
-	DEKAF2_CONSTEXPR_14
 	bool                ok        ()  const noexcept { return KConstDate::ok(); }
 
 	/// get the current time as local time or any other timezone, default timezone is the system's local zone

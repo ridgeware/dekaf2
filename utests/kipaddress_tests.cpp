@@ -385,7 +385,7 @@ TEST_CASE("KIPAddress")
 		CHECK ( IP.To6().ToString() == "::ffff:192.168.17.231" );
 
 		IP = KIPAddress("fd99:2131:bbf7:37f6:14ee:7791:e8e8:fc50");
-		CHECK ( IP.Is4() == false  );
+		CHECK ( IP.Is4() == false );
 		CHECK ( IP.Is6() == true );
 		CHECK ( IP.ToString() == "fd99:2131:bbf7:37f6:14ee:7791:e8e8:fc50" );
 		CHECK ( IP.IsConvertibleTo6() == true );
@@ -417,4 +417,19 @@ TEST_CASE("KIPAddress")
 		CHECK ( IP.IsMulticast() == false );
 		CHECK ( IP.IsUnspecified() == false );
 	}
+
+#if DEKAF2_IS_64_BITS
+	SECTION("sizes")
+	{
+		KIPAddress4 ip4;
+		CHECK ( sizeof(ip4) == 4 );
+		KIPAddress6 ip6;
+		CHECK ( sizeof(ip6) == 20 );
+		KIPAddress  ip;
+		CHECK ( sizeof(ip)  == 28 );
+		CHECK ( alignof(KIPAddress4) == 1 );
+		CHECK ( alignof(KIPAddress6) == 4 );
+		CHECK ( alignof(KIPAddress ) == 4 );
+	}
+#endif
 }

@@ -374,4 +374,10 @@ bool kSetLingerTimeout(int socket, KDuration tLingerTimeout)
 
 } // kSetLingerTimeout
 
+#if DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KDuration KStreamOptions::s_DefaultTimeout;
+constexpr KDuration KStreamOptions::s_DefaultKeepAliveInterval;
+constexpr KDuration KStreamOptions::s_DefaultLingerTimeout;
+#endif
+
 DEKAF2_NAMESPACE_END

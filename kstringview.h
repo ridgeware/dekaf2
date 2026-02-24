@@ -1464,12 +1464,6 @@ static constexpr KStringView kASCIISpaces { " \f\n\r\t\v\b" };
 
 } // end of namespace detail
 
-DEKAF2_NAMESPACE_END
-
-#include "bits/kfindsetofchars.h"
-
-DEKAF2_NAMESPACE_BEGIN
-
 //-----------------------------------------------------------------------------
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 // not inline
@@ -1539,7 +1533,7 @@ std::size_t kFindNot(
 
 	if (DEKAF2_LIKELY(pos < iHaystackSize))
 	{
-		for (auto it = haystack.begin() + pos; it != haystack.end();)
+		for (auto it = haystack.begin() + pos, ie = haystack.end(); it != ie;)
 		{
 			if (*it++ != needle)
 			{
@@ -1568,14 +1562,7 @@ std::size_t kRFind(
 		return KStringView::npos;
 	}
 
-	if (pos >= iHaystackSize)
-	{
-		pos = iHaystackSize;
-	}
-	else
-	{
-		++pos;
-	}
+	pos = (pos >= iHaystackSize) ? iHaystackSize : pos + 1;
 
 	auto found = static_cast<const char*>(memrchr(haystack.data(), needle, pos));
 
@@ -1600,25 +1587,24 @@ std::size_t kRFindNot(
 {
 	const auto iHaystackSize = haystack.size();
 
-	if (pos >= iHaystackSize)
-	{
-		pos = iHaystackSize;
-	}
-	else
-	{
-		++pos;
-	}
+	pos = (pos >= iHaystackSize) ? iHaystackSize : pos + 1;
 
-	for (auto it = haystack.begin() + pos; it != haystack.begin();)
+	for (auto it = haystack.begin() + pos, ie = haystack.begin(); it != ie;)
 	{
 		if (*--it != needle)
 		{
-			return it - haystack.begin();
+			return it - ie;
 		}
 	}
 
 	return KStringView::npos;
 }
+
+DEKAF2_NAMESPACE_END
+
+#include "bits/kfindsetofchars.h"
+
+DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 DEKAF2_NODISCARD DEKAF2_PUBLIC

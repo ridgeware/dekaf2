@@ -81,6 +81,12 @@ class DEKAF2_PUBLIC KFindSetOfChars
 	static constexpr uint8_t Mask = 3 << 6;
 	static_assert(Multi == 0, "Multi enum must be zero to match the algorithm");
 
+	#define DEKAF2_FINDSETOFCHARS_CONSTEXPR DEKAF2_CONSTEXPR_14
+
+#else
+
+	#define DEKAF2_FINDSETOFCHARS_CONSTEXPR
+
 #endif
 
 //------
@@ -105,15 +111,19 @@ public:
 	}
 
 	/// find first occurence of needles in haystack, start search at pos (default 0)
+	DEKAF2_FINDSETOFCHARS_CONSTEXPR
 	size_type find_first_in(KStringView sHaystack, const size_type pos = 0) const;
 
 	/// find first occurence of character in haystack that is not in needles, start search at pos (default 0)
+	DEKAF2_FINDSETOFCHARS_CONSTEXPR
 	size_type find_first_not_in(KStringView sHaystack, const size_type pos = 0) const;
 
 	/// find last occurence of needles in haystack, start backward search at pos (default: end of string)
+	DEKAF2_FINDSETOFCHARS_CONSTEXPR
 	size_type find_last_in(KStringView sHaystack, size_type pos = KStringView::npos) const;
 
 	/// find last occurence of character in haystack that is not in needles, start backward search at pos (default: end of string)
+	DEKAF2_FINDSETOFCHARS_CONSTEXPR
 	size_type find_last_not_in(KStringView sHaystack, size_type pos = KStringView::npos) const;
 
 	/// is the set of characters empty?
@@ -159,10 +169,16 @@ private:
 	DEKAF2_CONSTEXPR_14
 	void SetSingleChar(value_type ch) { m_table[1] = ch; }
 
+	DEKAF2_CONSTEXPR_14
+	size_type find_first_in(KStringView sHaystack, size_type pos, bool bNot) const;
+
+	DEKAF2_CONSTEXPR_14
+	size_type find_last_in (KStringView sHaystack, size_type pos, bool bNot) const;
+
 	// Note: we use a char array instead of a std::array<char> because the
 	// latter is not completely constexpr until C++20
 
-	value_type m_table[256] = { 0 }; // minimal initialization
+	value_type m_table[256] = { 0 };
 
 #endif
 
@@ -295,8 +311,6 @@ KFindSetOfChars::KFindSetOfChars(KStringView sNeedles)
 			break;
 
 		default:
-			// clear the table in a constexpr way
-			for (auto* p = m_table, *e = p + 256; p != e; ++p) { *p = 0; }
 			// assign the needles to the table
 			for (auto c : sNeedles)
 			{
@@ -325,8 +339,6 @@ KFindSetOfChars::KFindSetOfChars(const value_type* sNeedles)
 		}
 		else
 		{
-			// clear the table in a constexpr way
-			for (auto* p = m_table, *e = p + 256; p != e; ++p) { *p = 0; }
 			// assign the needles to the table
 			for(;;)
 			{
@@ -355,6 +367,86 @@ bool KFindSetOfChars::contains(const value_type ch) const
 	                     : m_table[static_cast<unsigned char>(ch)] & 0x01;
 }
 
+DEKAF2_CONSTEXPR_14
+KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos) const
+{
+	return find_first_in(sHaystack, pos, false);
+}
+
+DEKAF2_CONSTEXPR_14
+KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(KStringView sHaystack, const size_type pos) const
+{
+	return find_first_in(sHaystack, pos, true);
+}
+
+DEKAF2_CONSTEXPR_14
+KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, size_type pos) const
+{
+	return find_last_in(sHaystack, pos, false);
+}
+
+DEKAF2_CONSTEXPR_14
+KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaystack, size_type pos) const
+{
+	return find_last_in(sHaystack, pos, true);
+}
+
+DEKAF2_CONSTEXPR_14
+KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos, bool bNot) const
+{
+	switch (GetState())
+	{
+		case State::Empty:
+			return (!bNot || sHaystack.empty()) ? KStringView::npos : 0;
+
+		case State::Single:
+			return bNot ? kFindNot(sHaystack, GetSingleChar(), pos) : kFind(sHaystack, GetSingleChar(), pos);
+
+		case State::Multi:
+			if (pos < sHaystack.size())
+			{
+				for (auto it = sHaystack.begin() + pos, ie = sHaystack.end(); it != ie; ++it)
+				{
+					if ((m_table[static_cast<unsigned char>(*it)] & 0x01) != bNot)
+					{
+						return it - sHaystack.begin();
+					}
+				}
+			}
+			break;
+	}
+
+	return KStringView::npos;
+
+} // find_first_in
+
+DEKAF2_CONSTEXPR_14
+KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, size_type pos, bool bNot) const
+{
+	switch (GetState())
+	{
+		case State::Empty:
+			return (!bNot || sHaystack.empty()) ? KStringView::npos : sHaystack.size() - 1;
+
+		case State::Single:
+			return bNot ? kRFindNot(sHaystack, GetSingleChar(), pos) : kRFind(sHaystack, GetSingleChar(), pos);
+
+		case State::Multi:
+			pos = (pos >= sHaystack.size()) ? sHaystack.size() : pos + 1;
+
+			for (auto it = sHaystack.begin() + pos, ie = sHaystack.begin(); it != ie;)
+			{
+				if ((m_table[static_cast<unsigned char>(*--it)] & 0x01) != bNot)
+				{
+					return it - sHaystack.begin();
+				}
+			}
+			break;
+	}
+
+	return KStringView::npos;
+
+} // find_last_in
 #endif
 
 namespace detail {

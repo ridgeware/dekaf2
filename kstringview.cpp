@@ -202,8 +202,8 @@ std::size_t kFindFirstOfUnescaped(const KStringView haystack,
 
 	while (iFound != KStringView::npos)
 	{
-		size_t iEscapes { 0 };
-		size_t iStart { iFound };
+		uint16_t iEscapes { 0 }; // overflow is OK, we are only interested in the LSB bit
+		auto iStart { iFound };
 
 		while (iStart)
 		{
@@ -248,8 +248,8 @@ std::size_t kFindUnescaped(const KStringView haystack,
 
 	while (iFound != KStringView::npos)
 	{
-		size_t iEscapes { 0 };
-		size_t iStart { iFound };
+		uint16_t iEscapes { 0 }; // overflow is OK, we are only interested in the LSB bit
+		auto iStart { iFound };
 
 		while (iStart)
 		{
@@ -294,8 +294,8 @@ std::size_t kFindUnescaped(const KStringView haystack,
 
 	while (iFound != KStringView::npos)
 	{
-		size_t iEscapes { 0 };
-		size_t iStart { iFound };
+		uint16_t iEscapes { 0 }; // overflow is OK, we are only interested in the LSB bit
+		auto iStart { iFound };
 
 		while (iStart)
 		{

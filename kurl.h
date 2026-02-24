@@ -1402,11 +1402,19 @@ public:
 	{}
 
 	//-------------------------------------------------------------------------
+	/// construct from an IP address and port
+	KTCPEndPoint(const KIPAddress& IPAddress, url::KPort port)
+	//-------------------------------------------------------------------------
+		: Domain(IPAddress.ToString(true))
+		, Port(std::move(port))
+	{}
+
+	//-------------------------------------------------------------------------
 	/// construct from a domain and port
-	KTCPEndPoint(KStringView sDomain, uint16_t iPort)
+	KTCPEndPoint(KStringView sDomain, url::KPort port)
 	//-------------------------------------------------------------------------
 	    : Domain(sDomain)
-		, Port(KString::to_string(iPort))
+		, Port(port)
 	{}
 
 	//-------------------------------------------------------------------------

@@ -714,10 +714,11 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	if (DEKAF2_UNLIKELY(method == KHTTPMethod::CONNECT))
 	{
 		// for HTTPS proxying the CONNECT query has the server
-		// domain and port
-		Request.Endpoint = url;
+		// domain and port - it will be serialized in
+		// KHTTPRequestHeaders::SerializeRequestLine()
+		Request.SetRemoteEndpoint(url);
 
-		if (Request.Endpoint.empty())
+		if (Request.GetRemoteEndpoint().empty())
 		{
 			return SetError("Endpoint is empty with CONNECT method");
 		}
@@ -729,10 +730,10 @@ bool KHTTPClient::Resource(const KURL& url, KHTTPMethod method)
 	{
 		// for HTTP proxying the resource request string has to include
 		// the server domain and port
-		Request.Endpoint = url;
+		Request.SetRemoteEndpoint(url);
 		Request.Resource = url;
 
-		if (Request.Endpoint.empty())
+		if (Request.GetRemoteEndpoint().empty())
 		{
 			return SetError("Endpoint is empty in HTTP proxy mode");
 		}

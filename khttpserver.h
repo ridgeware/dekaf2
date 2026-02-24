@@ -72,7 +72,16 @@ public:
 	/// Construct HTTP server around a stream
 	/// @param Stream the IO stream
 	/// @param sRemoteEndpoint IP address of the direct connection
-	KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort);
+	/// @param Proto the protocol scheme used for the direct connection
+	/// @param iPort the port number for the direct connection's endpoint
+	/// @param iTrustedProxyCount count of trusted proxies in front of this server, defaults to 0 -
+	/// better use the TrustedProxies list to give trust to proxies by their IP address
+	/// @param TrustedProxies  ist of proxies by address that are trusted by this server, defaults to empty list -
+	/// if not empty this overrides any iTrustedProxyCount setting
+	KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint,
+	            url::KProtocol Proto, uint16_t iPort,
+	            uint16_t iTrustedProxyCount = 0,
+	            const std::vector<KIPNetwork>& TrustedProxies = {});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -95,8 +104,17 @@ public:
 	/// Associate a stream with the HTTP server
 	/// @param Stream the IO stream
 	/// @param sRemoteEndpoint IP address of the direct connection
+	/// @param Proto the protocol scheme used for the direct connection
+	/// @param iPort the port number for the direct connection's endpoint
+	/// @param iTrustedProxyCount count of trusted proxies in front of this server, defaults to 0 -
+	/// better use the TrustedProxies list to give trust to proxies by their IP address
+	/// @param TrustedProxies  ist of proxies by address that are trusted by this server, defaults to empty list -
+	/// if not empty this overrides any iTrustedProxyCount setting
 	/// @return true if Stream is ready for IO, false otherwise
-	bool Accept(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort);
+	bool Accept(KStream& Stream, KStringView sRemoteEndpoint,
+	            url::KProtocol Proto, uint16_t iPort,
+	            uint16_t iTrustedProxyCount = 0,
+	            const std::vector<KIPNetwork>& TrustedProxies = {});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -262,15 +280,21 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	// we repeat the method from KHTTPRequest here as we want to look into
-	// the remote endpoint data of the tcp connection if we do not find the IP
-	// in the headers - and the connection details are only known here..
-	/// Searches for the original requester's IP address in the Forwarded,
-	/// X-Forwarded-For and X-ProxyUser-IP headers (in that order, first found wins),
-	/// and if that remains without success returns the IP address of the immediate
-	/// client connection as for GetConnectedClientIP()
+	// we repeat the method from KHTTPRequest here as it removes the [] around
+	// IPv6 addresses if existing
+	/// Searches for the trusted original requester's IP address in the Forwarded,
+	/// X-Forwarded-For and X-ProxyUser-IP headers (in that order, first found wins)
+	/// while checking for trusted proxies, and if that remains without success
+	/// returns the IP address of the immediate client connection as for GetConnectedClientIP()
 	/// @return a string with the IP address of the original requester
 	KString GetRemoteIP() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// we repeat the method from KHTTPRequest here as it returns a string
+	/// Searches the most remote trusted proxy found in the headers
+	/// @return a string with the IP address of the most remote trusted proxy
+	KString GetRemoteProxy() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -312,9 +336,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// poke something into the request path (onlu use under special circumstances)
-	//-----------------------------------------------------------------------------
+	/// poke something into the request path (only use under special circumstances)
 	void SetRequestPath(url::KPath url);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// get one query parm value as a const string ref

@@ -1344,6 +1344,71 @@ TEST_CASE ("KURLPort")
 	CHECK ( URL.Serialize() == "http://test.com:54321/path/to" );
 }
 
+TEST_CASE("KTCPEndPoint")
+{
+	{
+		KTCPEndPoint EP(KURL("127.0.0.1:8080"));
+		CHECK ( EP.Serialize() == "127.0.0.1:8080" );
+	}
+	{
+		KTCPEndPoint EP(url::KDomain("127.0.0.1"), 8080);
+		CHECK ( EP.Serialize() == "127.0.0.1:8080" );
+	}
+	{
+		KTCPEndPoint EP(url::KDomain("127.0.0.1"), url::KPort(8080));
+		CHECK ( EP.Serialize() == "127.0.0.1:8080" );
+	}
+	{
+		KTCPEndPoint EP(KIPAddress("127.0.0.1"), 8080);
+		CHECK ( EP.Serialize() == "127.0.0.1:8080" );
+	}
+	{
+		KTCPEndPoint EP(KIPAddress("127.0.0.1"), url::KPort(8080));
+		CHECK ( EP.Serialize() == "127.0.0.1:8080" );
+	}
+	{
+		KTCPEndPoint EP("127.0.0.1", 8080);
+		CHECK ( EP.Serialize() == "127.0.0.1:8080" );
+	}
+	{
+		KTCPEndPoint EP("127.0.0.1:8080");
+		CHECK ( EP.Serialize() == "127.0.0.1:8080" );
+	}
+
+	{
+		KTCPEndPoint EP(KURL("[ac42::1234:5678]:8080"));
+		CHECK ( EP.Serialize() == "[ac42::1234:5678]:8080" );
+	}
+	{
+		KTCPEndPoint EP(url::KDomain("[ac42::1234:5678]"), 8080);
+		CHECK ( EP.Serialize() == "[ac42::1234:5678]:8080" );
+	}
+	{
+		KTCPEndPoint EP(url::KDomain("[ac42::1234:5678]"), url::KPort(8080));
+		CHECK ( EP.Serialize() == "[ac42::1234:5678]:8080" );
+	}
+	{
+		KTCPEndPoint EP(KIPAddress("ac42::1234:5678"), 8080);
+		CHECK ( EP.Serialize() == "[ac42::1234:5678]:8080" );
+	}
+	{
+		KTCPEndPoint EP(KIPAddress("[ac42::1234:5678]"), 8080);
+		CHECK ( EP.Serialize() == "[ac42::1234:5678]:8080" );
+	}
+	{
+		KTCPEndPoint EP(KIPAddress("[ac42::1234:5678]"), url::KPort(8080));
+		CHECK ( EP.Serialize() == "[ac42::1234:5678]:8080" );
+	}
+	{
+		KTCPEndPoint EP("[ac42::1234:5678]", 8080);
+		CHECK ( EP.Serialize() == "[ac42::1234:5678]:8080" );
+	}
+	{
+		KTCPEndPoint EP("[ac42::1234:5678]:8080");
+		CHECK ( EP.Serialize() == "[ac42::1234:5678]:8080" );
+	}
+}
+
 TEST_CASE("URIComponent")
 {
 	url::KQuery Query { "key1=val1&key2=val2&key3=val3" };

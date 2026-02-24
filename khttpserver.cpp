@@ -61,15 +61,21 @@ void KHTTPServer::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-KHTTPServer::KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort)
+KHTTPServer::KHTTPServer(KStream& Stream, KStringView sRemoteEndpoint,
+                         url::KProtocol Proto, uint16_t iPort,
+                         uint16_t iTrustedProxyCount,
+                         const std::vector<KIPNetwork>& TrustedProxies)
 //-----------------------------------------------------------------------------
 {
-	Accept(Stream, sRemoteEndpoint, std::move(Proto), iPort);
+	Accept(Stream, sRemoteEndpoint, std::move(Proto), iPort, iTrustedProxyCount, TrustedProxies);
 
 } // Ctor
 
 //-----------------------------------------------------------------------------
-bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint, url::KProtocol Proto, uint16_t iPort)
+bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint,
+                         url::KProtocol Proto, uint16_t iPort,
+                         uint16_t iTrustedProxyCount,
+                         const std::vector<KIPNetwork>& TrustedProxies)
 //-----------------------------------------------------------------------------
 {
 	ClearError();
@@ -83,6 +89,9 @@ bool KHTTPServer::Accept(KStream& Stream, KStringView sRemoteEndpoint, url::KPro
 	Stream.SetReaderRightTrim("\r\n");
 	Stream.SetWriterEndOfLine("\r\n");
 
+	Request.SetRemoteEndpoint(sRemoteEndpoint);
+	Request.SetTrustedProxyCount(iTrustedProxyCount);
+	Request.SetTrustedProxies(TrustedProxies);
 	Request.SetInputStream(Stream);
 	Response.SetOutputStream(Stream);
 
@@ -197,16 +206,36 @@ uint16_t KHTTPServer::GetConnectedClientPort() const
 KString KHTTPServer::GetRemoteIP() const
 //-----------------------------------------------------------------------------
 {
-	auto sBrowserIP = Request.GetRemoteIP();
+	auto sBrowserIP = Request.GetRemoteEndpoint().Domain.get();
 
 	if (sBrowserIP.empty())
 	{
 		sBrowserIP = GetConnectedClientIP();
 	}
 
+	if (sBrowserIP.remove_prefix('['))
+	{
+		sBrowserIP.remove_suffix(']');
+	}
+
 	return sBrowserIP;
 
 } // GetRemoteIP
+
+//-----------------------------------------------------------------------------
+KString KHTTPServer::GetRemoteProxy() const
+//-----------------------------------------------------------------------------
+{
+	auto ProxyIP = Request.GetRemoteProxy();
+
+	if (ProxyIP.IsUnspecified())
+	{
+		return {};
+	}
+
+	return ProxyIP.ToString();
+
+} // GetRemoteProxy
 
 //-----------------------------------------------------------------------------
 url::KProtocol KHTTPServer::GetRemoteProto() const
@@ -228,19 +257,14 @@ url::KProtocol KHTTPServer::GetRemoteProto() const
 uint16_t KHTTPServer::GetRemotePort() const
 //-----------------------------------------------------------------------------
 {
-	auto iPort = Request.GetRemotePort();
+	auto& EP = Request.GetRemoteEndpoint();
 
-	if (iPort == 0)
+	if (!EP.Domain.empty())
 	{
-		if (Request.GetRemoteIP().empty())
-		{
-			// we only take the connected client port if
-			// we do not have any proxying involved
-			iPort = GetConnectedClientPort();
-		}
+		return EP.Port;
 	}
 
-	return iPort;
+	return GetConnectedClientPort();
 
 } // GetRemotePort
 

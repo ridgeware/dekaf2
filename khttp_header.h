@@ -51,6 +51,8 @@
 #include "khttp_version.h"
 #include "kmime.h"
 #include "kerror.h"
+#include "kipnetwork.h"
+#include "kurl.h"
 #include <memory>
 
 #if (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000) \
@@ -159,6 +161,7 @@ public:
 		X_FORWARDED_SERVER,
 		X_FRAME_OPTIONS,
 		X_POWERED_BY,
+		X_SERVER,
 		X_XSS_PROTECTION,
 		OTHER
 	};
@@ -418,6 +421,8 @@ public:
 				return "x-frame-options";
 			case X_POWERED_BY:
 				return "x-powered-by";
+			case X_SERVER:
+				return "x-server";
 			case X_XSS_PROTECTION:
 				return "x-xss-protection";
 		}
@@ -682,6 +687,8 @@ public:
 				return X_FRAME_OPTIONS;
 			case "X-Powered-By"_casehash:
 				return X_POWERED_BY;
+			case "X-Server"_casehash:
+				return X_SERVER;
 			case "x-xss-protection"_casehash:
 				return X_XSS_PROTECTION;
 		}
@@ -1033,5 +1040,110 @@ private:
 	mutable KMIME   m_sContentType;
 
 }; // KHTTPHeaders
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// analyses KHTTPHeaders to find out about trustworthy information in FORWARDED, X-FORWARDED-FOR,
+/// X-FORWARDED-HOST, X-FORWARDED-PROTO, X-FORWARDED-SERVER, X-SERVER
+class KHTTPTrustedRemoteEndpoint
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	KHTTPTrustedRemoteEndpoint() = default;
+
+	explicit
+	KHTTPTrustedRemoteEndpoint(
+		const KHTTPHeaders&            Headers,
+		uint16_t                       iTrustedProxyCount = 0
+	);
+
+	KHTTPTrustedRemoteEndpoint(
+		const KHTTPHeaders&            Headers,
+		const std::vector<KIPNetwork>& TrustedProxies
+	);
+
+	/// returns the trusted remote endpoint
+	const KTCPEndPoint& GetRemoteEndpoint() const
+	{
+		return m_RemoteEndpoint;
+	}
+
+	/// returns the trusted remote protocol
+	url::KProtocol GetRemoteProto() const
+	{
+		return m_RemoteProto;
+	}
+
+	/// returns the trusted original requester's host header in the Forwarded or X-Forwarded-Host header
+	const KTCPEndPoint& GetRemoteHost() const
+	{
+		return m_RemoteHost;
+	}
+
+	/// returns the most remote trusted proxy found in the headers
+	const KIPAddress& GetRemoteProxy() const
+	{
+		return m_RemoteProxy;
+	}
+
+// *********************************** INPUT *************************************
+
+	/// set direct upstream's or downstream's endpoint
+	void SetRemoteEndpoint(KTCPEndPoint EndPoint)
+	{
+		m_DirectEndpoint = std::move(EndPoint);
+	}
+
+	/// set trusted proxy count
+	/// @param iTrustedProxyCount count of trusted proxies in front of this server -
+	/// better use the SetTrustedProxies() method to give trust to proxies by their IP address
+	void SetTrustedProxyCount(uint16_t iTrustedProxyCount)
+	{
+		m_iTrustedProxyCount = iTrustedProxyCount;
+	}
+
+	/// set trusted proxies by their IP addresses
+	/// @param TrustedProxies  ist of proxies by address that are trusted by this server -
+	/// this overrides any iTrustedProxyCount setting
+	void SetTrustedProxies(const std::vector<KIPNetwork>& TrustedProxies)
+	{
+		m_TrustedProxies = TrustedProxies.empty() ? nullptr : &TrustedProxies;
+	}
+
+	/// check and parse Headers
+	bool Analyze(const KHTTPHeaders::KHeaderMap& Headers) noexcept;
+
+	void clear() noexcept;
+//------
+private:
+//------
+
+	static KString  GetConcatenatedHeaders  (const KHTTPHeader& HeaderName, const KHTTPHeaders::KHeaderMap& Headers) noexcept;
+	static uint16_t GetAndRemovePortnumber  (KStringView& sAddress) noexcept;
+	bool            IsTrustedProxy          (const KIPAddress& IP, uint16_t iAddresses) const noexcept;
+
+	/// for incoming requests we need the domain and port of the direct upstream
+	KTCPEndPoint       m_DirectEndpoint;
+	/// for outgoing HTTPS CONNECT and proxied HTTP requests we need the domain and port
+	/// of the target server,
+	/// for incoming requests: the domain and port of the remote endpoint, from FORWARD or X_FORWARDED_FOR header
+	KTCPEndPoint       m_RemoteEndpoint;
+	/// for incoming requests: the protocol schema - from FORWARD or X-FORWARDED-PROTO header
+	/// (this is not the protocol used on the direct connection to upstream)
+	url::KProtocol     m_RemoteProto;
+	/// for incoming requests: the original host header - from trusted FORWARD or X-FORWARDED-HOST headers
+	KTCPEndPoint       m_RemoteHost;
+	/// for incoming requests: the most remote trusted incoming proxy
+	KIPAddress         m_RemoteProxy;
+
+	/// the list of trusted proxies in front of us
+	const std::vector<KIPNetwork>* m_TrustedProxies { nullptr };
+	/// count of trusted proxies in front of us if m_TrustedProxies is empty
+	uint16_t           m_iTrustedProxyCount { 0 };
+
+}; // KHTTPTrustedRemoteEndpoint
 
 DEKAF2_NAMESPACE_END

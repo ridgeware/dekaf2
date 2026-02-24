@@ -117,7 +117,9 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 		*Stream,
 		Stream->GetEndPointAddress().Serialize(),
 		IsTLS() ? url::KProtocol::HTTPS : url::KProtocol::HTTP,
-		GetPort()
+		GetPort(),
+		m_Options.iTrustedProxyCount,
+		m_Options.TrustedProxies
 	);
 
 	RESTServer.Execute();
@@ -179,7 +181,7 @@ bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStre
 
 	KRESTServer RESTServer(Routes, Options);
 	
-	RESTServer.Accept(Stream, sRemoteIP, std::move(Proto), iPort);
+	RESTServer.Accept(Stream, sRemoteIP, std::move(Proto), iPort, Options.iTrustedProxyCount, Options.TrustedProxies);
 	bool bRet = RESTServer.Execute();
 
 	if (RESTServer.SwitchToWebSocket())

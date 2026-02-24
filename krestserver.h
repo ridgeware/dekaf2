@@ -53,6 +53,7 @@
 #include "kpoll.h"
 #include "khttplog.h"
 #include "kwebsocket.h"
+#include "kipnetwork.h"
 #include <utility>
 #include <vector>
 #include <memory>
@@ -123,6 +124,14 @@ public:
 		/// @param Header the KHTTPHeader to add
 		/// @param sValue the value for the header
 		void AddHeader(KHTTPHeader Header, KString sValue);
+		/// Add comma separated list of proxies to the list of trusted proxies
+		/// @param sProxies the comma separated IP addresses of trusted proxies (+ /prefix if a whole subnet is to be added)
+		/// @code
+		/// .AddTrustedProxies("192.168.1.100");
+		/// .AddTrustedProxies("192.168.1.100,10.10.12.118,fc00:ad23:fe54::9921:1843");
+		/// .AddTrustedProxies("192.168.1.0/24,10.10.12.0,fc00:ad23:fe54::9921:0000/112");
+		/// @endcode
+		void AddTrustedProxies(KStringView sProxies);
 		/// Configure the KHTTPLog object with its Open() method
 		KHTTPLog Logger;
 		/// Fixed route prefix
@@ -157,6 +166,13 @@ public:
 		/// Set a general purpose callback function that will be called after route matching, and before route callbacks.
 		/// Could be used e.g. for additional authentication, like basic. May throw to abort calling the route's callback.
 		std::function<void(KRESTServer&)> PostRouteCallback;
+		/// Set a list of proxies by address that are trusted by this server, defaults to empty list -
+		/// if not empty this overrides any iTrustedProxyCount setting.
+		/// See also AddTrustedProxies() method
+		std::vector<KIPNetwork> TrustedProxies;
+		/// Set count of trusted proxies in front of this server, defaults to 0 - better use the TrustedProxies list to give
+		/// trust to proxies by their IP address
+		uint16_t iTrustedProxyCount { 0 };
 		/// DoS prevention - max rounds in keep-alive (default 50) - actually, this doesn't help much against DoS, and for some
 		/// protocols it may be benficial to set this value much higher (streaming e.g.). But 50 seems already a good compromise.
 		mutable uint16_t iMaxKeepaliveRounds { 50 };
@@ -189,15 +205,19 @@ public:
 	const Options& GetOptions() const { return m_Options; };
 
 	//-----------------------------------------------------------------------------
-	/// @param Options the options for the KRESTServer
 	/// @param Routes the KRESTRoutes object with all routing callbacks
+	/// @param Options the options for the KRESTServer
 	KRESTServer(const KRESTRoutes& Routes,
 				const Options&     Options);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// @param Options the options for the KRESTServer
+	/// @param Stream the input/output stream
+	/// @param sRemoteEndpoint IP address of the direct connection
+	/// @param Proto the protocol scheme used for the direct connection
+	/// @param iPort the port number for the direct connection's endpoint
 	/// @param Routes the KRESTRoutes object with all routing callbacks
+	/// @param Options the options for the KRESTServer
 	KRESTServer(KStream&           Stream,
 				KStringView        sRemoteEndpoint,
 				url::KProtocol     Proto,

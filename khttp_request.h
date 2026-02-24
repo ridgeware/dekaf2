@@ -45,7 +45,6 @@
 #include "khttp_header.h"
 #include "khttpoutputfilter.h"
 #include "khttpinputfilter.h"
-#include "kurl.h"
 #include "kstring.h"
 
 DEKAF2_NAMESPACE_BEGIN
@@ -106,7 +105,7 @@ public:
 }; // KInHTTPRequestLine
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KHTTPRequestHeaders : public KHTTPHeaders
+class DEKAF2_PUBLIC KHTTPRequestHeaders : public KHTTPHeaders, public KHTTPTrustedRemoteEndpoint
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -151,22 +150,6 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Searches for the original requester's IP address in the Forwarded,
-	/// X-Forwarded-For and X-ProxyUser-IP headers (in that order, first found wins)
-	KString GetRemoteIP() const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Searches for the original requester's port in the Forwarded header
-	uint16_t GetRemotePort() const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Searches for the original requester's protocol in the Forwarded and X-Forwarded-Proto header
-	url::KProtocol GetRemoteProto() const;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Returns either zstd, xz, lzma, gzip, deflate or bzip2 if either compression is supported by
 	/// the client and the HTTP protocol is at least 1.1
 	KStringView SupportedCompression() const;
@@ -181,9 +164,6 @@ public:
 	/// for logging purposes on incoming requests we store a copy of the original
 	/// request line
 	KInHTTPRequestLine RequestLine;
-	/// for HTTPS CONNECT and proxied HTTP requests we need the domain and port
-	/// of the target server
-	KTCPEndPoint       Endpoint;
 
 }; // KHTTPRequestHeaders
 
@@ -263,7 +243,7 @@ protected:
 		return KHTTPRequestHeaders::Serialize(Stream);
 	}
 
-};
+}; // KOutHTTPRequest
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KInHTTPRequest : public KHTTPRequestHeaders, public KInHTTPFilter
@@ -351,6 +331,6 @@ protected:
 		return KHTTPRequestHeaders::Serialize(Stream);
 	}
 
-};
+}; // KInHTTPRequest
 
 DEKAF2_NAMESPACE_END

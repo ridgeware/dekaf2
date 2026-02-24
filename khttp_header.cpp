@@ -46,6 +46,9 @@
 #include "kbase64.h"
 #include "ktime.h"
 #include "kstringutils.h"
+#if !DEKAF2_HAS_CPP_20
+	#include <boost/foreach.hpp>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -547,5 +550,309 @@ KHTTPHeaders::BasicAuthParms KHTTPHeaders::DecodeBasicAuthFromString(KStringView
 	return Parms;
 
 } // DecodeBasicAuthFromString
+
+
+//-----------------------------------------------------------------------------
+KString KHTTPTrustedRemoteEndpoint::GetConcatenatedHeaders(
+	const KHTTPHeader&              HeaderName,
+	const KHTTPHeaders::KHeaderMap& Headers
+) noexcept
+//-----------------------------------------------------------------------------
+{
+	KString sForwarded;
+
+	auto ForwardHeaders = Headers.equal_range(HeaderName);
+
+	// concatenate all found forwarded headers
+	for (auto it = ForwardHeaders.first; it != ForwardHeaders.second; ++it)
+	{
+		KStringView sHeader = it->second;
+		// removing the spaces here is not a security check,
+		// it only helps to avoid tripping on empty headers.
+		// we will check for empty comma sequences below
+		sHeader.Trim(detail::kASCIISpacesSet);
+
+		if (!sHeader.empty())
+		{
+			if (!sForwarded.empty())
+			{
+				sForwarded += ',';
+			}
+
+			sForwarded += sHeader.ToLowerASCII();
+		}
+	}
+
+	return sForwarded;
+
+} // KHTTPTrustedRemoteEndpoint::GetConcatenatedHeaders
+
+//-----------------------------------------------------------------------------
+uint16_t KHTTPTrustedRemoteEndpoint::GetAndRemovePortnumber(KStringView& sAddress) noexcept
+//-----------------------------------------------------------------------------
+{
+	// 192.168.1.1       -> 0
+	// 192.168.1.1:12345 -> 12345
+	// [1234:5678:90ab:cdef:0123:4567:89ab:cdef]       -> 0
+	// [1234:5678:90ab:cdef:0123:4567:89ab:cdef]:12345 -> 12345
+	// the [] for IPv6 is required!
+	uint16_t iPortnumber { 0 };
+	uint16_t iFactor     { 1 };
+
+	for (auto i = sAddress.size(); i-- > 0;)
+	{
+		auto ch = sAddress[i];
+
+		if (ch == ']' || ch == ':')
+		{
+			auto iDelete = sAddress.size() - i;
+
+			if (iDelete > 1)
+			{
+				sAddress.remove_suffix(iDelete);
+			}
+
+			return iPortnumber;
+		}
+		else if (ch == '.')
+		{
+			// this was the last byte of an IPv4
+			return 0;
+		}
+		else if (!KASCII::kIsDigit(ch))
+		{
+			return 0;
+		}
+		else
+		{
+			if (sAddress.size() - i > 5)
+			{
+				return 0;
+			}
+			iPortnumber += (ch - '0') * iFactor;
+			iFactor *= 10;
+		}
+	}
+
+	return 0;
+
+} // KHTTPTrustedRemoteEndpoint::GetAndRemovePortnumber
+
+//-----------------------------------------------------------------------------
+bool KHTTPTrustedRemoteEndpoint::IsTrustedProxy(const KIPAddress& IP, uint16_t iAddresses) const noexcept
+//-----------------------------------------------------------------------------
+{
+	if (m_TrustedProxies && !m_TrustedProxies->empty())
+	{
+		// check if this IP is in our trusted proxy list
+		for (const auto& Proxy : *m_TrustedProxies)
+		{
+			// the trusted proxy IP address may be a network like 10.12.1.0/24
+			if (Proxy.Contains(IP))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	return m_iTrustedProxyCount > iAddresses;
+
+} // KHTTPTrustedRemoteEndpoint::IsTrustedProxy
+
+//-----------------------------------------------------------------------------
+bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers) noexcept
+//-----------------------------------------------------------------------------
+{
+	KIPError   ec;
+	KIPAddress RemoteIP (m_DirectEndpoint.Domain.Serialize(), ec);
+
+	if (ec)
+	{
+		kDebug(1, "invalid IP of direct endpoint: {}", m_DirectEndpoint);
+		return false;
+	}
+
+	// may be 0
+	uint16_t iRemotePort = m_DirectEndpoint.Port;
+	uint16_t iCount { 0 };
+
+	// check if we trust our direct neighbour, else don't even
+	// start to inspect the forwarded headers
+	if (IsTrustedProxy(RemoteIP, iCount))
+	{
+		// first check for Forwarded: headers - they override the x-forwarded- family
+		auto sForwarded = GetConcatenatedHeaders(KHTTPHeader::FORWARDED, Headers);
+
+		if (!sForwarded.empty())
+		{
+			// for=12.34.56.78, for="[2001:db8:cafe::17]:12345", for=23.45.67.89:12345;secret=egah2CGj55fSJFs, for=10.1.2.3
+			// there's also proto=, by=, host=
+			auto Forwards = sForwarded.Split();
+
+#if DEKAF2_HAS_CPP_20
+			for (const auto& sForward : Forwards | std::views::reverse)
+#else
+			BOOST_REVERSE_FOREACH (const auto& sForward, Forwards)
+#endif
+			{
+				if (sForward.empty())
+				{
+					// this string is empty.. abort here
+					break;
+				}
+				else if (sForward.size() > 255)
+				{
+					// this string is way too long..
+					break;
+				}
+
+				constexpr KFindSetOfChars BySemicolon(";");
+
+				const auto Parts = sForward.Split<KMap<KStringView,KStringView>>(BySemicolon, "=");
+
+				// now search for the for=
+				auto sFor = Parts["for"];
+
+				if (sFor.empty())
+				{
+					// no for= part - abort here
+					break;
+				}
+
+				if (sFor.remove_prefix('"') && !sFor.remove_suffix('"'))
+				{
+					// bad double quoting - no trailing quote for lead
+					break;
+				}
+
+				// we may have a :port here as well, see https://www.rfc-editor.org/rfc/rfc7239#section-6
+				auto iPort = GetAndRemovePortnumber(sFor);
+
+				KIPError ec;
+				KIPAddress IP(sFor, ec);
+
+				if (ec)
+				{
+					// invalid IP address
+					kDebug(2, ec.what());
+					break;
+				}
+
+				// we accept this tuple as valid
+				++iCount;
+				// save last IP as remote IP
+				RemoteIP      = std::move(IP);
+				// save last port as remote port
+				iRemotePort   = iPort;
+				// check if we have 'by'
+				m_RemoteProxy = KIPAddress(Parts["by"], ec);
+				// check if we have 'host'
+				m_RemoteHost  = url::KDomain(Parts["host"]);
+				// check if we have 'proto'
+				m_RemoteProto = url::KProtocol(Parts["proto"]);
+
+				// check if we would trust this last IP as our proxy
+				if (!IsTrustedProxy(RemoteIP, iCount))
+				{
+					break;
+				}
+			}
+		}
+		// only inspect x-forwarded-for if there were no forwarded headers,
+		// regardless of being trusted or valid
+		else
+		{
+			// now check for x-forwarded-for: headers
+			sForwarded = GetConcatenatedHeaders(KHTTPHeader::X_FORWARDED_FOR, Headers);
+
+			if (sForwarded.empty())
+			{
+				// now check for x-proxyuser-ip: headers
+				sForwarded = GetConcatenatedHeaders("x-proxyuser-ip", Headers);
+			}
+
+			if (!sForwarded.empty())
+			{
+				// do not delete the Forwarded-borne values (they contains the
+				// direct neighbour's IP and its port)
+
+				// x-forwarded-for: 12.34.56.78, 2001:db8:cafe::17,23.45.67.89,10.1.2.3
+				auto Forwards = sForwarded.Split();
+
+#if DEKAF2_HAS_CPP_20
+				for (const auto& sForward : Forwards | std::views::reverse)
+#else
+				BOOST_REVERSE_FOREACH (const auto& sForward, Forwards)
+#endif
+				{
+					if (sForward.empty())
+					{
+						// this string is empty.. abort here
+						break;
+					}
+					else if (sForward.size() > 255)
+					{
+						// this string is way too long..
+						break;
+					}
+
+					KIPError ec;
+					KIPAddress IP(sForward, ec);
+
+					if (ec)
+					{
+						// invalid IP address
+						kDebug(2, ec.what());
+						break;
+					}
+
+					// we accept this tuple as valid
+					++iCount;
+					// save last IP as remote IP
+					RemoteIP    = std::move(IP);
+					// delete the remote port, it is no more valid nor passed on by x-forwarded-for
+					iRemotePort = 0;
+
+					// shall we trust the x-forwarded-proto/x-forwarded-host headers?
+					// we only take them for real if the last forwarder was a trusted proxy
+					// (which means we would assume any trusted proxy to remove invalid
+
+					// x-forwarded-proto/x-forwarded-host headers)
+					// we concatenate same headers to trigger a failure if more than one header is present
+					m_RemoteProto = url::KProtocol(GetConcatenatedHeaders(KHTTPHeader::X_FORWARDED_PROTO, Headers));
+					m_RemoteHost  = url::KDomain  (GetConcatenatedHeaders(KHTTPHeader::X_FORWARDED_HOST , Headers));
+
+					// check if we would trust this last IP as our proxy
+					if (!IsTrustedProxy(RemoteIP, iCount))
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	// build the remote endpoint from IP and port
+	m_RemoteEndpoint = KTCPEndPoint(RemoteIP, iRemotePort);
+
+	return true;
+
+} // KHTTPTrustedRemoteEndpoint::Analyze
+
+//-----------------------------------------------------------------------------
+void KHTTPTrustedRemoteEndpoint::clear() noexcept
+//-----------------------------------------------------------------------------
+{
+	m_DirectEndpoint.clear();
+	m_RemoteEndpoint.clear();
+	m_RemoteProto.clear();
+	m_RemoteHost.clear();
+	m_RemoteProxy.clear();
+	m_TrustedProxies = nullptr;
+	m_iTrustedProxyCount = 0;
+
+} // KHTTPTrustedRemoteEndpoint::clear
 
 DEKAF2_NAMESPACE_END

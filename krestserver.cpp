@@ -70,6 +70,28 @@ void KRESTServer::Options::AddHeader(KHTTPHeader Header, KString sValue)
 } // AddHeader
 
 //-----------------------------------------------------------------------------
+void KRESTServer::Options::AddTrustedProxies(KStringView sProxies)
+//-----------------------------------------------------------------------------
+{
+	auto Proxies = sProxies.Split();
+
+	for (auto& sProxy : Proxies)
+	{
+		KIPError ec;
+		KIPNetwork Proxy(sProxy, true, ec);
+		if (ec)
+		{
+			kDebug(1, ec.what());
+		}
+		else
+		{
+			TrustedProxies.push_back(std::move(Proxy));
+		}
+	}
+
+} // AddTrustedProxies
+
+//-----------------------------------------------------------------------------
 KRESTServer::KRESTServer(const KRESTRoutes& Routes,
 						 const Options&     options)
 //-----------------------------------------------------------------------------
@@ -86,7 +108,7 @@ KRESTServer::KRESTServer(KStream&           Stream,
 						 const KRESTRoutes& Routes,
 						 const Options&     Options)
 //-----------------------------------------------------------------------------
-: KHTTPServer(Stream, sRemoteEndpoint, std::move(Proto), iPort)
+: KHTTPServer(Stream, sRemoteEndpoint, std::move(Proto), iPort, Options.iTrustedProxyCount, Options.TrustedProxies)
 , m_Routes(Routes)
 , m_Options(Options)
 {
@@ -595,7 +617,7 @@ bool KRESTServer::Execute()
 			kDebug (2, "keepalive round {}", m_iRound + 1);
 			kSetCrashContext(kFormat("KRestServer, Host: {} Remote IP: {}",
 									 m_Options.sServername,
-									 Request.GetRemoteIP()));
+									 GetRemoteIP()));
 			clear();
 
 			// per default we output JSON
@@ -660,7 +682,7 @@ bool KRESTServer::Execute()
 									   Request.Method.Serialize(),
 									   Request.Resource.Serialize(),
 									   m_Options.sServername,
-									   Request.GetRemoteIP())
+									   GetRemoteIP())
 							  );
 
 			if (Request.Method == KHTTPMethod::INVALID)
@@ -1652,7 +1674,7 @@ void KRESTServer::RecordRequestForReplay ()
 
 		// we can now write the request into the recording file
 		oss.WriteLine();
-		oss.FormatLine("# {} :: from IP {}", kFormTimestamp(), Request.GetRemoteIP());
+		oss.FormatLine("# {} :: from IP {}", kFormTimestamp(), GetRemoteIP());
 
 		if (!Response.Good())
 		{

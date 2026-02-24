@@ -102,8 +102,8 @@ protected:
 	                   { if (iPrefixLength > iPrefixMax) throw KIPError("prefix too large"); }
 
 	void               SetPrefixLength         (uint8_t iPrefixLength) { m_iPrefixLength = iPrefixLength; }
-	static KStringView AddressStringFromString (KStringView sNetwork, KIPError& ec) noexcept;
-	static uint8_t     PrefixLengthFromString  (KStringView sNetwork, uint8_t iMaxPrefixLength, KIPError& ec) noexcept;
+	static KStringView AddressStringFromString (KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept;
+	static uint8_t     PrefixLengthFromString  (KStringView sNetwork, uint8_t iMaxPrefixLength, bool bAcceptSingleHost, KIPError& ec) noexcept;
 
 //----------
 private:
@@ -161,9 +161,15 @@ public:
 	                   KIPNetwork4(const KIPAddress4& IP, const KIPAddress4& Mask);
 
 	/// construct from IPv4 address and prefix length in string notation, not throwing but returning possible error in ec
-	                   KIPNetwork4(KStringView sNetwork, KIPError& ec) noexcept;
+	/// @param bAcceptSingleHost if true accepting a network without prefix as single host
+	                   KIPNetwork4(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept;
+	/// construct from IPv4 address and prefix length in string notation, not throwing but returning possible error in ec
+	                   KIPNetwork4(KStringView sNetwork, KIPError& ec) noexcept
+	                   : KIPNetwork4(sNetwork, false, ec)
+	                   {}
 	/// construct from IPv4 address and prefix length in string notation, throws on error
-	          explicit KIPNetwork4(KStringView sNetwork);
+	/// @param bAcceptSingleHost if true accepting a network without prefix as single host, defaults to false
+	          explicit KIPNetwork4(KStringView sNetwork, bool bAcceptSingleHost = false);
 
 	/// returns the IPv4 address of the network as used in construction
 	constexpr KIPAddress4 Address() const noexcept { return m_IP; }
@@ -239,8 +245,8 @@ public:
 private:
 //----------
 
-	static uint8_t     CalcPrefixFromMask     (const KIPAddress4& Mask, KIPError& ec) noexcept;
-	static KIPAddress4 AddressFromString      (KStringView sNetwork, KIPError& ec) noexcept;
+	static uint8_t     CalcPrefixFromMask (const KIPAddress4& Mask, KIPError& ec) noexcept;
+	static KIPAddress4 AddressFromString  (KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept;
 
 	KIPAddress4 m_IP;
 
@@ -273,9 +279,15 @@ public:
 	                   {}
 
 	/// construct from IPv6 address and prefix length in string notation, not throwing but returning possible error in ec
-		               KIPNetwork6(KStringView sNetwork, KIPError& ec) noexcept;
+	/// @param bAcceptSingleHost if true accepting a network without prefix as single host
+	                   KIPNetwork6(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept;
+	/// construct from IPv6 address and prefix length in string notation, not throwing but returning possible error in ec
+	                   KIPNetwork6(KStringView sNetwork, KIPError& ec) noexcept
+	                   : KIPNetwork6(sNetwork, false, ec)
+	                   {}
 	/// construct from IPv6 address and prefix length in string notation, throws on error
-		      explicit KIPNetwork6(KStringView sNetwork);
+	/// @param bAcceptSingleHost if true accepting a network without prefix as single host, defaults to false
+	          explicit KIPNetwork6(KStringView sNetwork, bool bAcceptSingleHost = false);
 
 	/// construct from IPv4 network, never throws
 	          explicit KIPNetwork6(const KIPNetwork4& Net4) noexcept;
@@ -342,8 +354,7 @@ public:
 private:
 //----------
 
-	static uint8_t     CalcPrefixFromMask     (const KIPAddress6& Mask, KIPError& ec) noexcept;
-	static KIPAddress6 AddressFromString      (KStringView sNetwork, KIPError& ec) noexcept;
+	static KIPAddress6 AddressFromString(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept;
 
 	KIPAddress6 m_IP;
 
@@ -372,12 +383,18 @@ public:
 	                   { SetIPv4(false); }
 
 	/// construct from address and prefix length in string notation, not throwing but returning possible error in ec
+	/// @param bAcceptSingleHost if true accepting a network without prefix as single host
+	                   KIPNetwork(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept
+	                   : KIPNetwork(FromString(sNetwork, bAcceptSingleHost, ec))
+	                   {}
+	/// construct from address and prefix length in string notation, not throwing but returning possible error in ec
 	                   KIPNetwork(KStringView sNetwork, KIPError& ec) noexcept
-	                   : KIPNetwork(FromString(sNetwork, ec))
+	                   : KIPNetwork(sNetwork, false, ec)
 	                   {}
 	/// construct from address and prefix length in string notation, throws on error
-	          explicit KIPNetwork(KStringView sNetwork)
-	                   : KIPNetwork(FromString(sNetwork))
+	/// @param bAcceptSingleHost if true accepting a network without prefix as single host, defaults to false
+	          explicit KIPNetwork(KStringView sNetwork, bool bAcceptSingleHost = false)
+	                   : KIPNetwork(FromString(sNetwork, bAcceptSingleHost))
 	                   {}
 
 	/// is network an IPv4 network?.
@@ -446,8 +463,8 @@ private:
 		return m_Net4.GetNetworkType();
 	}
 
-	static KIPNetwork FromString(KStringView sNetwork, KIPError& ec) noexcept;
-	static KIPNetwork FromString(KStringView sNetwork);
+	static KIPNetwork FromString(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept;
+	static KIPNetwork FromString(KStringView sNetwork, bool bAcceptSingleHost);
 
 	KIPNetwork4 m_Net4;
 	KIPNetwork6 m_Net6;

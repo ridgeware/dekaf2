@@ -42,11 +42,12 @@
 
 #include "kipnetwork.h"
 #include "kstringutils.h"
+#include "kctype.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-uint8_t detail::KIPNetworkBase::PrefixLengthFromString (KStringView sNetwork, uint8_t iMaxPrefixLength, KIPError& ec) noexcept
+uint8_t detail::KIPNetworkBase::PrefixLengthFromString (KStringView sNetwork, uint8_t iMaxPrefixLength, bool bAcceptSingleHost, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
 	uint8_t iPrefixLength { 0 };
@@ -58,14 +59,30 @@ uint8_t detail::KIPNetworkBase::PrefixLengthFromString (KStringView sNetwork, ui
 		// if size == 0 overflows (without UB) to npos, which is fine
 		if (iSlashPos >= sNetwork.size() - 1)
 		{
-			ec = KIPError("no prefix set");
+			if (bAcceptSingleHost)
+			{
+				iPrefixLength = iMaxPrefixLength;
+			}
+			else
+			{
+				ec = KIPError("no prefix set");
+			}
 		}
 		else
 		{
 			for (auto i = iSlashPos + 1; i < sNetwork.size(); ++i)
 			{
+				auto ch = sNetwork[i];
+
+				if (!KASCII::kIsDigit(ch))
+				{
+					ec = KIPError("invalid digit in prefix");
+					iPrefixLength = 0;
+					break;
+				}
+
 				iPrefixLength *= 10;
-				iPrefixLength += sNetwork[i] - '0';
+				iPrefixLength += ch - '0';
 			}
 
 			if (iPrefixLength > iMaxPrefixLength)
@@ -81,7 +98,7 @@ uint8_t detail::KIPNetworkBase::PrefixLengthFromString (KStringView sNetwork, ui
 } // detail::KIPNetworkBase::PrefixLengthFromString
 
 //-----------------------------------------------------------------------------
-KStringView detail::KIPNetworkBase::AddressStringFromString(KStringView sNetwork, KIPError& ec) noexcept
+KStringView detail::KIPNetworkBase::AddressStringFromString(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!ec)
@@ -91,6 +108,11 @@ KStringView detail::KIPNetworkBase::AddressStringFromString(KStringView sNetwork
 		// if size == 0 overflows (without UB) to npos, which is fine
 		if (iSlashPos >= sNetwork.size() - 1)
 		{
+			if (bAcceptSingleHost)
+			{
+				return sNetwork;
+			}
+
 			ec = KIPError("no prefix set");
 		}
 		else
@@ -124,33 +146,33 @@ KIPNetwork4::KIPNetwork4(const KIPAddress4& IP, const KIPAddress4& Mask)
 }
 
 //-----------------------------------------------------------------------------
-KIPNetwork4::KIPNetwork4(KStringView sNetwork, KIPError& ec) noexcept
+KIPNetwork4::KIPNetwork4(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
-: m_IP(AddressFromString(sNetwork, ec))
+: m_IP(AddressFromString(sNetwork, bAcceptSingleHost, ec))
 {
-	SetPrefixLength(PrefixLengthFromString(sNetwork, 32, ec));
+	SetPrefixLength(PrefixLengthFromString(sNetwork, 32, bAcceptSingleHost, ec));
 
 } // KIPNetwork4::KIPNetwork4
 
 //-----------------------------------------------------------------------------
-KIPNetwork4::KIPNetwork4(KStringView sNetwork)
+KIPNetwork4::KIPNetwork4(KStringView sNetwork, bool bAcceptSingleHost)
 //-----------------------------------------------------------------------------
 {
 	KIPError ec;
-	m_IP = AddressFromString(sNetwork, ec);
-	SetPrefixLength(PrefixLengthFromString(sNetwork, 32, ec));
+	m_IP = AddressFromString(sNetwork, bAcceptSingleHost, ec);
+	SetPrefixLength(PrefixLengthFromString(sNetwork, 32, bAcceptSingleHost, ec));
 	if (ec) throw ec;
 
 } // KIPNetwork4::KIPNetwork4
 
 
 //-----------------------------------------------------------------------------
-KIPAddress4 KIPNetwork4::AddressFromString(KStringView sNetwork, KIPError& ec) noexcept
+KIPAddress4 KIPNetwork4::AddressFromString(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!ec)
 	{
-		auto sAddress = AddressStringFromString(sNetwork, ec);
+		auto sAddress = AddressStringFromString(sNetwork, bAcceptSingleHost, ec);
 
 		if (!ec)
 		{
@@ -310,32 +332,32 @@ KIPNetwork6::KIPNetwork6(const KIPNetwork4& Net4) noexcept
 } // KIPNetwork6::KIPNetwork6
 
 //-----------------------------------------------------------------------------
-KIPNetwork6::KIPNetwork6(KStringView sNetwork, KIPError& ec) noexcept
+KIPNetwork6::KIPNetwork6(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
-: m_IP(AddressFromString(sNetwork, ec))
+: m_IP(AddressFromString(sNetwork, bAcceptSingleHost, ec))
 {
-	SetPrefixLength(PrefixLengthFromString(sNetwork, 128, ec));
+	SetPrefixLength(PrefixLengthFromString(sNetwork, 128, bAcceptSingleHost, ec));
 
 } // KIPNetwork6::KIPNetwork6
 
 //-----------------------------------------------------------------------------
-KIPNetwork6::KIPNetwork6(KStringView sNetwork)
+KIPNetwork6::KIPNetwork6(KStringView sNetwork, bool bAcceptSingleHost)
 //-----------------------------------------------------------------------------
 {
 	KIPError ec;
-	m_IP = AddressFromString(sNetwork, ec);
-	SetPrefixLength(PrefixLengthFromString(sNetwork, 128, ec));
+	m_IP = AddressFromString(sNetwork, bAcceptSingleHost, ec);
+	SetPrefixLength(PrefixLengthFromString(sNetwork, 128, bAcceptSingleHost, ec));
 	if (ec) throw ec;
 
 } // KIPNetwork6::KIPNetwork6
 
 //-----------------------------------------------------------------------------
-KIPAddress6 KIPNetwork6::AddressFromString(KStringView sNetwork, KIPError& ec) noexcept
+KIPAddress6 KIPNetwork6::AddressFromString(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (!ec)
 	{
-		auto sAddress = AddressStringFromString(sNetwork, ec);
+		auto sAddress = AddressStringFromString(sNetwork, bAcceptSingleHost, ec);
 
 		if (!ec)
 		{
@@ -452,10 +474,10 @@ bool KIPNetwork6::Contains(const KIPAddress4& IP) const noexcept
 } // KIPNetwork4::Contains
 
 //-----------------------------------------------------------------------------
-KIPNetwork KIPNetwork::FromString(KStringView sNetwork, KIPError& ec) noexcept
+KIPNetwork KIPNetwork::FromString(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
-	KIPNetwork4 n4(sNetwork, ec);
+	KIPNetwork4 n4(sNetwork, bAcceptSingleHost, ec);
 
 	if (!ec)
 	{
@@ -476,11 +498,11 @@ KIPNetwork KIPNetwork::FromString(KStringView sNetwork, KIPError& ec) noexcept
 } // KIPNetwork::FromString
 
 //-----------------------------------------------------------------------------
-KIPNetwork KIPNetwork::FromString(KStringView sNetwork)
+KIPNetwork KIPNetwork::FromString(KStringView sNetwork, bool bAcceptSingleHost)
 //-----------------------------------------------------------------------------
 {
 	KIPError ec;
-	auto Net = FromString(sNetwork, ec);
+	auto Net = FromString(sNetwork, bAcceptSingleHost, ec);
 	if (ec) throw ec;
 	return Net;
 

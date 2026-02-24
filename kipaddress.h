@@ -163,6 +163,12 @@ public:
 		return m_IP;
 	}
 
+	/// clear to empty/unspecified address
+	constexpr void      clear() noexcept
+	{
+		*this = KIPAddress4();
+	}
+
 	/// decrement this address by one
 	self&               Dec() noexcept;
 	/// increment this address by one
@@ -387,6 +393,12 @@ public:
 	constexpr ScopeT    Scope() const noexcept
 	{
 	  return m_Scope;
+	}
+
+	/// clear to empty/unspecified address
+	constexpr void      clear() noexcept
+	{
+		*this = KIPAddress6();
 	}
 
 	/// decrement this address by one
@@ -655,10 +667,10 @@ public:
 
 	/// get address as string
 	DEKAF2_NODISCARD
-	KString ToString() const noexcept
+	KString ToString(bool bWithBraces = false, bool bUnabridged = false) const noexcept
 	{
 		if (Is4()) return m_v4.ToString();
-		if (Is6()) return m_v6.ToString();
+		if (Is6()) return m_v6.ToString(bWithBraces, bUnabridged);
 		return {};
 	}
 
@@ -697,6 +709,14 @@ public:
 				return m_v6;
 		}
 		return {};
+	}
+
+	/// clear to empty/unspecified address
+	constexpr void clear() noexcept
+	{
+		if (Is4()) m_v4.clear();
+		else if (Is6()) m_v6.clear();
+		m_Type = AddressType::Invalid;
 	}
 
 	/// decrement this address by one

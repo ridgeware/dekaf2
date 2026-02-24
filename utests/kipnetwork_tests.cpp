@@ -22,6 +22,7 @@ TEST_CASE("KIPNetwork")
 			{ "1:2:2:3"        , "0.0.0.0/0" },
 			{ "[1.2.3.4]"      , "0.0.0.0/0" },
 			{ "192.168.52.0/33", "192.168.52.0/32" },
+			{ "192.168.52.0/a3", "192.168.52.0/0" },
 		};
 
 		for (auto& t : Tests)
@@ -79,6 +80,7 @@ TEST_CASE("KIPNetwork")
 			{ "200a:ea44:5302:0989:ff7e:c24e:9a3b:aaea"        , "::/0" },
 			{ "200a:er44:5302:0989:ff7e:c24e:9a3b:aaea/56"     , "::/0" },
 			{ "200a::e344:5302:0989:ff7e:c24e:9a3b:aaea/56"    , "::/0" },
+			{ "200a::e344:5302:0989:ff7e:c24e:9a3b:aaea/5e6"   , "::/0" },
 			{ "200a::5302:0989::9a3b:aaea/56"                  , "::/0" },
 			{ ":200a:e344:5302:0989:ff7e:c24e:9a3b/56"         , "::/0" },
 			{ "200a:e344:5302:0989:ff7e:c24e:9a3b:/56"         , "::/0" },
@@ -313,7 +315,7 @@ TEST_CASE("KIPNetwork")
 	SECTION("sizes")
 	{
 		KIPNetwork4 ip4;
-		CHECK ( sizeof(ip4) ==  6 );
+		CHECK ( sizeof(ip4) == 6 );
 		KIPNetwork6 ip6;
 		CHECK ( sizeof(ip6) == 24 );
 		KIPNetwork  ip;

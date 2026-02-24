@@ -39,6 +39,8 @@
 // +-------------------------------------------------------------------------+
 */
 
+#define DEKAF2_HTTP_HEADER_VIEW_PIPELINE (DEKAF2_HAS_CPP_20 && __cpp_lib_ranges >= 202110L)
+
 #include "khttp_header.h"
 #include "khttperror.h"
 #include "kstring.h"
@@ -46,7 +48,7 @@
 #include "kbase64.h"
 #include "ktime.h"
 #include "kstringutils.h"
-#if !DEKAF2_HAS_CPP_20
+#if !DEKAF2_HTTP_HEADER_VIEW_PIPELINE
 	#include <boost/foreach.hpp>
 #endif
 
@@ -691,7 +693,7 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 			// there's also proto=, by=, host=
 			auto Forwards = sForwarded.Split();
 
-#if DEKAF2_HAS_CPP_20
+#if DEKAF2_HTTP_HEADER_VIEW_PIPELINE
 			for (const auto& sForward : Forwards | std::views::reverse)
 #else
 			BOOST_REVERSE_FOREACH (const auto& sForward, Forwards)
@@ -781,7 +783,7 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 				// x-forwarded-for: 12.34.56.78, 2001:db8:cafe::17,23.45.67.89,10.1.2.3
 				auto Forwards = sForwarded.Split();
 
-#if DEKAF2_HAS_CPP_20
+#if DEKAF2_HTTP_HEADER_VIEW_PIPELINE
 				for (const auto& sForward : Forwards | std::views::reverse)
 #else
 				BOOST_REVERSE_FOREACH (const auto& sForward, Forwards)

@@ -679,7 +679,13 @@ public:
 		return ToString();
 	}
 
-	/// get address as KIPAddress4 if possible, else as unspecified address
+	/// returns the KIPAddress4 as const ref, may be empty, test with Is4() before for validity
+	constexpr const KIPAddress4& get4() const noexcept { return m_v4; }
+
+	/// returns the KIPAddress6 as const ref, may be empty, test with Is6() before for validity
+	constexpr const KIPAddress6& get6() const noexcept { return m_v6; }
+
+	/// get address as KIPAddress4, if possible converted from IPv6 as well, else as unspecified address
 	DEKAF2_NODISCARD
 	constexpr KIPAddress4 To4() const noexcept
 	{
@@ -695,7 +701,7 @@ public:
 		return {};
 	}
 
-	/// get address as KIPAddress6 if possible, else as unspecified address
+	/// get address as KIPAddress6 if necessary converted from IPv4 as well, else as unspecified address
 	DEKAF2_NODISCARD
 	constexpr KIPAddress6 To6() const noexcept
 	{

@@ -76,7 +76,7 @@ uint8_t detail::KIPNetworkBase::PrefixLengthFromString (KStringView sNetwork, ui
 
 				if (!KASCII::kIsDigit(ch))
 				{
-					ec = KIPError("invalid digit in prefix");
+					ec = KIPError("invalid digit in prefix", 445);
 					iPrefixLength = 0;
 					break;
 				}
@@ -87,7 +87,7 @@ uint8_t detail::KIPNetworkBase::PrefixLengthFromString (KStringView sNetwork, ui
 
 			if (iPrefixLength > iMaxPrefixLength)
 			{
-				ec = KIPError("prefix too large");
+				ec = KIPError("prefix too large", 444);
 				iPrefixLength = iMaxPrefixLength;
 			}
 		}
@@ -319,7 +319,17 @@ bool KIPNetwork4::Contains(const KIPAddress6& IP) const noexcept
 
 	auto p = Hosts();
 
-	return p.first <= IP4 && p.second > IP;
+	return p.first <= IP4 && p.second > IP4;
+
+} // KIPNetwork4::Contains
+
+//-----------------------------------------------------------------------------
+bool KIPNetwork4::Contains(const KIPAddress& IP) const noexcept
+//-----------------------------------------------------------------------------
+{
+	if (IP.Is4()) return Contains(IP.get4());
+	if (IP.Is6()) return Contains(IP.get6());
+	return false;
 
 } // KIPNetwork4::Contains
 
@@ -469,7 +479,17 @@ bool KIPNetwork6::Contains(const KIPAddress4& IP) const noexcept
 
 	auto p = Hosts();
 
-	return p.first <= IP6 && p.second > IP;
+	return p.first <= IP6 && p.second > IP6;
+
+} // KIPNetwork4::Contains
+
+//-----------------------------------------------------------------------------
+bool KIPNetwork6::Contains(const KIPAddress& IP) const noexcept
+//-----------------------------------------------------------------------------
+{
+	if (IP.Is4()) return Contains(IP.get4());
+	if (IP.Is6()) return Contains(IP.get6());
+	return false;
 
 } // KIPNetwork4::Contains
 
@@ -479,21 +499,24 @@ KIPNetwork KIPNetwork::FromString(KStringView sNetwork, bool bAcceptSingleHost, 
 {
 	KIPNetwork4 n4(sNetwork, bAcceptSingleHost, ec);
 
-	if (!ec)
+	// 444 is our 'prefix too large' error - it does not invalidate the address,
+	// and we do not change into IPv6 mode - this was an IPv4 address
+	// 445 is our 'invalid digit in prefix' error - same as above
+	if (!ec || ec.value() == 444 || ec.value() == 445)
 	{
 		return KIPNetwork(std::move(n4));
 	}
 
-	ec = KIPError();
+	ec.clear();
 
-	KIPNetwork6 n6(sNetwork, ec);
+	KIPNetwork6 n6(sNetwork, bAcceptSingleHost, ec);
 
-	if (!ec)
+	if (!ec || ec.value() == 444 || ec.value() == 445)
 	{
 		return KIPNetwork(std::move(n6));
 	}
 
-	return {};
+	return KIPNetwork6{};
 
 } // KIPNetwork::FromString
 
@@ -519,11 +542,31 @@ KString KIPNetwork::ToString() const noexcept
 } // KIPNetwork::ToString
 
 //-----------------------------------------------------------------------------
+bool KIPNetwork::Contains(const KIPAddress4& IP) const noexcept
+//-----------------------------------------------------------------------------
+{
+	if (Is4()) return m_Net4.Contains(IP);
+	if (Is6()) return m_Net6.Contains(IP);
+	return false;
+
+} // KIPNetwork::Contains
+
+//-----------------------------------------------------------------------------
+bool KIPNetwork::Contains(const KIPAddress6& IP) const noexcept
+//-----------------------------------------------------------------------------
+{
+	if (Is4()) return m_Net4.Contains(IP);
+	if (Is6()) return m_Net6.Contains(IP);
+	return false;
+
+} // KIPNetwork::Contains
+
+//-----------------------------------------------------------------------------
 bool KIPNetwork::Contains(const KIPAddress& IP) const noexcept
 //-----------------------------------------------------------------------------
 {
-	if (IP.Is4()) return Contains(IP.To4());
-	if (IP.Is6()) return Contains(IP.To6());
+	if (Is4()) return m_Net4.Contains(IP);
+	if (Is6()) return m_Net6.Contains(IP);
 	return false;
 
 } // KIPNetwork::Contains

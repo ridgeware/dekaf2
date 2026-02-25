@@ -209,6 +209,9 @@ public:
 	/// returns true if this network contains the given IPv6 address (for mapped v6 addresses..)
 	bool Contains(const KIPAddress6& IP) const noexcept;
 
+	/// returns true if this network contains the given IPv4 or IPv6 address (for mapped v6 addresses..)
+	bool Contains(const KIPAddress& IP) const noexcept;
+
 	/// return network without any host bits set
 	constexpr KIPNetwork4 Canonical() const noexcept
 	{
@@ -318,6 +321,9 @@ public:
 	/// returns true if this network contains the given IPv6 address
 	bool Contains(const KIPAddress6& IP) const noexcept;
 
+	/// returns true if this network contains the given IPv4 or IPv6 address
+	bool Contains(const KIPAddress& IP) const noexcept;
+
 	/// return network without any host bits set
 	KIPNetwork6 Canonical() const noexcept
 	{
@@ -411,10 +417,10 @@ public:
 		return GetType() == detail::KIPNetworkBase::NetworkType::IPv6;
 	}
 
-	/// returns the KIPNetwork4, may be empty, test with Is4() for validity
+	/// returns the KIPNetwork4 as const ref, may be empty, test with Is4() before for validity
 	constexpr const KIPNetwork4& get4() const noexcept { return m_Net4; }
 
-	/// returns the KIPNetwork6, may be empty, test with Is4() for validity
+	/// returns the KIPNetwork6 as const ref, may be empty, test with Is6() before for validity
 	constexpr const KIPNetwork6& get6() const noexcept { return m_Net6; }
 
 	/// get address as string
@@ -425,6 +431,12 @@ public:
 	{
 		return ToString();
 	}
+
+	/// returns true if this network contains the given address
+	bool Contains(const KIPAddress4& IP) const noexcept;
+
+	/// returns true if this network contains the given address
+	bool Contains(const KIPAddress6& IP) const noexcept;
 
 	/// returns true if this network contains the given address
 	bool Contains(const KIPAddress& IP) const noexcept;

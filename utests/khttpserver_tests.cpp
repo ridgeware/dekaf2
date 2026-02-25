@@ -62,7 +62,69 @@ X-Forwarded-For: 203.0.113.195, 70.41.3.18, 150.172.238.178
 		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
 	}
 
-	SECTION("GetRemoteIP 2")
+	SECTION("GetRemoteIP 2.1")
+	{
+		KStringView sRequest;
+		sRequest =
+(R"(GET / HTTP/1.1
+Host: www.test.com
+X-Forwarded-For: 203.0.113.195, 70.41.3.18, 150.172.238.178
+
+)");
+		KString sResponse;
+		KInStringStream iss(sRequest);
+		KOutStringStream oss(sResponse);
+		KStream stream(iss, oss);
+		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80, 2);
+		Browser.Parse();
+		CHECK ( Browser.GetRemoteIP() == "70.41.3.18" );
+		CHECK ( Browser.GetRemotePort() == 0 );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
+	}
+
+	SECTION("GetRemoteIP 2.2")
+	{
+		KStringView sRequest;
+		sRequest =
+(R"(GET / HTTP/1.1
+Host: www.test.com
+X-Forwarded-For: 203.0.113.195, 98.224.54.56, 70.41.3.18, 150.172.238.178
+
+)");
+		KString sResponse;
+		KInStringStream iss(sRequest);
+		KOutStringStream oss(sResponse);
+		KStream stream(iss, oss);
+		std::vector<KIPNetwork> Proxies{ KIPNetwork("192.168.178.1", true), KIPNetwork("70.41.3.1/24", true), KIPNetwork("150.172.238.178", true) };
+		KHTTPServer Browser(stream, "192.168.178.1:234", url::KProtocol::HTTP, 80, 0, Proxies);
+		Browser.Parse();
+		CHECK ( Browser.GetRemoteIP() == "98.224.54.56" );
+		CHECK ( Browser.GetRemotePort() == 0 );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
+	}
+
+	SECTION("GetRemoteIP 2.3")
+	{
+		KStringView sRequest;
+		sRequest =
+(R"(GET / HTTP/1.1
+Host: www.test.com
+X-Forwarded-For: 203.0.113.195, 98.224.54.56, 70.41.3.18, ::ffff:150.172.238.178
+
+)");
+		KString sResponse;
+		KInStringStream iss(sRequest);
+		KOutStringStream oss(sResponse);
+		KStream stream(iss, oss);
+		std::vector<KIPNetwork> Proxies{ KIPNetwork("192.168.178.1", true), KIPNetwork("70.41.3.1/24", true), KIPNetwork("150.172.238.178", true) };
+		KHTTPServer Browser(stream, "[::ffff:192.168.178.1]:234", url::KProtocol::HTTP, 80, 0, Proxies);
+		Browser.Parse();
+		CHECK ( Browser.GetRemoteIP() == "98.224.54.56" );
+		CHECK ( Browser.GetRemotePort() == 0 );
+		CHECK ( ( Browser.GetRemoteProto() == url::KProtocol::HTTP ) );
+	}
+
+	SECTION("GetRemoteIP 2.4")
 	{
 		KStringView sRequest;
 		sRequest =

@@ -79,12 +79,13 @@ void KRESTServer::Options::AddTrustedProxies(KStringView sProxies)
 	{
 		KIPError ec;
 		KIPNetwork Proxy(sProxy, true, ec);
-		if (ec)
+		if (ec && ec.value() != 444 && ec.value() != 445)
 		{
-			kDebug(1, ec.what());
+			kDebug(1, "{}: {}", sProxy, ec.what());
 		}
 		else
 		{
+			kDebug(3, "adding trusted proxy: {}", Proxy);
 			TrustedProxies.push_back(std::move(Proxy));
 		}
 	}

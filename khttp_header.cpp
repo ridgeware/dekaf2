@@ -652,10 +652,12 @@ bool KHTTPTrustedRemoteEndpoint::IsTrustedProxy(const KIPAddress& IP, uint16_t i
 			// the trusted proxy IP address may be a network like 10.12.1.0/24
 			if (Proxy.Contains(IP))
 			{
+				kDebug(3, "IP {} in trusted proxies: {}", IP, Proxy);
 				return true;
 			}
 		}
 
+		kDebug(3, "IP {} not in trusted proxies", IP);
 		return false;
 	}
 
@@ -667,6 +669,8 @@ bool KHTTPTrustedRemoteEndpoint::IsTrustedProxy(const KIPAddress& IP, uint16_t i
 bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers) noexcept
 //-----------------------------------------------------------------------------
 {
+	kDebug(3, "direct endpoint: {}", m_DirectEndpoint);
+
 	KIPError   ec;
 	KIPAddress RemoteIP (m_DirectEndpoint.Domain.Serialize(), ec);
 
@@ -689,6 +693,7 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 
 		if (!sForwarded.empty())
 		{
+			kDebug(3, "got {} header: {}", KHTTPHeader::FORWARDED, sForwarded);
 			// for=12.34.56.78, for="[2001:db8:cafe::17]:12345", for=23.45.67.89:12345;secret=egah2CGj55fSJFs, for=10.1.2.3
 			// there's also proto=, by=, host=
 			auto Forwards = sForwarded.Split();
@@ -702,11 +707,13 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 				if (sForward.empty())
 				{
 					// this string is empty.. abort here
+					kDebug(3, "empty fragment");
 					break;
 				}
 				else if (sForward.size() > 255)
 				{
 					// this string is way too long..
+					kDebug(3, "fragment too long: {}", sForward.size());
 					break;
 				}
 
@@ -738,9 +745,11 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 				if (ec)
 				{
 					// invalid IP address
-					kDebug(2, ec.what());
+					kDebug(2, "{}: {}", sFor, ec.what());
 					break;
 				}
+
+				kDebug(3, "accept fragment IP: {}", IP);
 
 				// we accept this tuple as valid
 				++iCount;
@@ -754,6 +763,8 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 				m_RemoteHost  = url::KDomain(Parts["host"]);
 				// check if we have 'proto'
 				m_RemoteProto = url::KProtocol(Parts["proto"]);
+
+				kDebug(3, "by={}, host={}, proto={}", m_RemoteProxy, m_RemoteHost, m_RemoteProto.getProtocolName());
 
 				// check if we would trust this last IP as our proxy
 				if (!IsTrustedProxy(RemoteIP, iCount))
@@ -777,8 +788,7 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 
 			if (!sForwarded.empty())
 			{
-				// do not delete the Forwarded-borne values (they contains the
-				// direct neighbour's IP and its port)
+				kDebug(3, "got {} header: {}", KHTTPHeader::X_FORWARDED_FOR, sForwarded);
 
 				// x-forwarded-for: 12.34.56.78, 2001:db8:cafe::17,23.45.67.89,10.1.2.3
 				auto Forwards = sForwarded.Split();
@@ -792,11 +802,13 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 					if (sForward.empty())
 					{
 						// this string is empty.. abort here
+						kDebug(3, "empty fragment");
 						break;
 					}
 					else if (sForward.size() > 255)
 					{
 						// this string is way too long..
+						kDebug(3, "fragment too long: {}", sForward.size());
 						break;
 					}
 
@@ -806,9 +818,11 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 					if (ec)
 					{
 						// invalid IP address
-						kDebug(2, ec.what());
+						kDebug(2, "{}: {}", sForward, ec.what());
 						break;
 					}
+
+					kDebug(3, "accept fragment IP: {}", IP);
 
 					// we accept this tuple as valid
 					++iCount;
@@ -818,13 +832,17 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 					iRemotePort = 0;
 
 					// shall we trust the x-forwarded-proto/x-forwarded-host headers?
-					// we only take them for real if the last forwarder was a trusted proxy
-					// (which means we would assume any trusted proxy to remove invalid
-
+					// we only take them for real if the direct forwarder was a trusted proxy
+					// (which means we would assume it to remove invalid
 					// x-forwarded-proto/x-forwarded-host headers)
-					// we concatenate same headers to trigger a failure if more than one header is present
-					m_RemoteProto = url::KProtocol(GetConcatenatedHeaders(KHTTPHeader::X_FORWARDED_PROTO, Headers));
-					m_RemoteHost  = url::KDomain  (GetConcatenatedHeaders(KHTTPHeader::X_FORWARDED_HOST , Headers));
+					if (iCount == 1)
+					{
+						// we concatenate same headers to trigger a failure if more than one header is present
+						m_RemoteProto = url::KProtocol(GetConcatenatedHeaders(KHTTPHeader::X_FORWARDED_PROTO, Headers));
+						kDebug(3, "{}: {}", KHTTPHeader::X_FORWARDED_PROTO, m_RemoteProto.getProtocolName());
+						m_RemoteHost  = url::KDomain  (GetConcatenatedHeaders(KHTTPHeader::X_FORWARDED_HOST , Headers));
+						kDebug(3, "{}: {}", KHTTPHeader::X_FORWARDED_HOST, m_RemoteHost);
+					}
 
 					// check if we would trust this last IP as our proxy
 					if (!IsTrustedProxy(RemoteIP, iCount))
@@ -836,8 +854,35 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 		}
 	}
 
+	if (RemoteIP.Is6() && RemoteIP.IsConvertibleTo4())
+	{
+		auto sOld = RemoteIP.ToString();
+		RemoteIP = RemoteIP.To4();
+		kDebug(3, "converting remote IP from mapped IP {} to full IPv4 IP {}", sOld, RemoteIP);
+	}
+
 	// build the remote endpoint from IP and port
 	m_RemoteEndpoint = KTCPEndPoint(RemoteIP, iRemotePort);
+
+	if (kWouldLog(2))
+	{
+		kDebug(2, "remote endpoint: {}", m_RemoteEndpoint);
+
+		if (m_RemoteProto != url::KProtocol::UNDEFINED)
+		{
+			kDebug(2, "remote protocol: {}", m_RemoteProto.getProtocolName());
+		}
+
+		if (!m_RemoteHost.empty())
+		{
+			kDebug(2, "original host  : {}", m_RemoteHost);
+		}
+
+		if (m_RemoteProxy.IsValid())
+		{
+			kDebug(2, "remote proxy   : {}", m_RemoteProxy);
+		}
+	}
 
 	return true;
 
@@ -847,13 +892,10 @@ bool KHTTPTrustedRemoteEndpoint::Analyze(const KHTTPHeaders::KHeaderMap& Headers
 void KHTTPTrustedRemoteEndpoint::clear() noexcept
 //-----------------------------------------------------------------------------
 {
-	m_DirectEndpoint.clear();
 	m_RemoteEndpoint.clear();
 	m_RemoteProto.clear();
 	m_RemoteHost.clear();
 	m_RemoteProxy.clear();
-	m_TrustedProxies = nullptr;
-	m_iTrustedProxyCount = 0;
 
 } // KHTTPTrustedRemoteEndpoint::clear
 

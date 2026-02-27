@@ -55,8 +55,8 @@
 	#ifndef DEKAF2_HAS_MUSL
 		#include <execinfo.h>          // for backtrace
 	#endif
-#include <cxxabi.h>            // for demangling
-#include <unistd.h>
+	#include <cxxabi.h>            // for demangling
+	#include <unistd.h>
 #endif
 
 #include <stdio.h>

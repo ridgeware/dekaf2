@@ -13,7 +13,11 @@ TEST_CASE("KJulianDate")
 
 		CHECK ( utp.to_string() == "2015-11-27 19:27:35" );
 		CHECK ( utp.subseconds().milliseconds().count() == 884 );
-		CHECK ( utp.subseconds().microseconds().count() == 884802 );
+#if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+		CHECK ( utp.subseconds().microseconds().count() == 884788 );
+#else
+		CHECK ( utp.subseconds().microseconds().count() == 884789 );
+#endif
 
 		jtp = KJulianDate(utp);
 

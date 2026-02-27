@@ -89,13 +89,13 @@ auto jdate_clock::from_sys(std::chrono::sys_time<Duration> const& tp) noexcept
 
 	if DEKAF2_CONSTEXPR_IF (sys_time<ddays>{sys_time<Duration>::min()} < sys_time<ddays>{epoch})
 	{
-		return jdate_time{tp - epoch};
+		return jdate_time<duration>{tp - epoch};
 	}
 	else
 	{
 		// Duration overflows at the epoch.  Sub in new Duration that won't overflow.
 		using D = std::chrono::duration<int64_t, ratio<1, 10'000'000>>;
-		return jdate_time{round<D>(tp) - epoch};
+		return jdate_time<duration>{round<D>(tp) - epoch};
 	}
 }
 
@@ -103,7 +103,7 @@ template <class Duration> DEKAF2_CONSTEXPR_14
 auto jdate_clock::to_sys(jdate_time<Duration> const& tp) noexcept
 {
 	using namespace std::chrono;
-	return sys_time{tp - chrono::clock_cast<jdate_clock>(sys_days{})};
+	return sys_time<Duration>{tp - chrono::clock_cast<jdate_clock>(sys_days{})};
 }
 
 inline

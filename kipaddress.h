@@ -308,6 +308,18 @@ public:
 	  return IsLess(a1.GetConstValuePtr(), a2.GetConstValuePtr());
 	}
 
+	DEKAF2_NODISCARD
+	static constexpr bool IsEqual(const value_type* a1, const value_type* a2) noexcept
+	{
+		return a1[0] == a2[0] && a1[1] == a2[1] && a1[2] == a2[2] && a1[3] == a2[3];
+	}
+
+	DEKAF2_NODISCARD
+	static constexpr bool IsLess(const value_type* a1, const value_type* a2) noexcept
+	{
+		return ToUInt(a1) < ToUInt(a2);
+	}
+
 	/// get any address (= empty address)
 	DEKAF2_NODISCARD
 	static constexpr KIPAddress4 Any() noexcept
@@ -401,16 +413,6 @@ private:
 	static constexpr bool IsCGNAT(const value_type* IP) noexcept
 	{
 		return (ToUInt(IP) & 0xffc00000) == 0x64400000;
-	}
-
-	static constexpr bool IsEqual(const value_type* a1, const value_type* a2) noexcept
-	{
-		return a1[0] == a2[0] && a1[1] == a2[1] && a1[2] == a2[2] && a1[3] == a2[3];
-	}
-
-	static constexpr bool IsLess(const value_type* a1, const value_type* a2) noexcept
-	{
-		return ToUInt(a1) < ToUInt(a2);
 	}
 
 	static           KString ToString  (const value_type* IP) noexcept;

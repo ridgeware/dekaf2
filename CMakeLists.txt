@@ -959,6 +959,21 @@ else()
 endif()
 
 if (CMAKE_CXX_STANDARD GREATER 17)
+	try_compile(DEKAF2_STD_CHRONO_HAS_CLOCK_CAST
+				"${DEKAF2_GENERATED_FILES_DIR}"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/chrono_clock_cast_test.cpp"
+				COMPILE_DEFINITIONS "--std=c++20")
+
+	if(DEKAF2_STD_CHRONO_HAS_CLOCK_CAST)
+		message(STATUS "we have clock_cast support in std::chrono")
+	else()
+		message(STATUS "we do not have clock_cast support in std::chrono - will configure for date-tz lib as replacement")
+	endif()
+else()
+	message(STATUS "no clock_cast support in std::chrono before C++20 - will configure for date-tz lib as replacement")
+endif()
+
+if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_HAS_U8STRING
 				"${DEKAF2_GENERATED_FILES_DIR}"
 				"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/u8string_test.cpp"
@@ -1243,6 +1258,7 @@ set(PUBLIC_HEADERS
 	kjoin.h
 	kjson.h
 	kjson2.h
+	kjuliandate.h
 	klambdastream.h
 	klockmap.h
 	klog.h
@@ -1525,6 +1541,7 @@ set (SOURCES
 	kipnetwork.cpp
 	kjson.cpp
 	kjson2.cpp
+	kjuliandate.cpp
 	klambdastream.cpp
 	klog.cpp
 	klogrotate.cpp

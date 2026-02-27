@@ -1,0 +1,23 @@
+#include "catch.hpp"
+
+#include <dekaf2/kjuliandate.h>
+
+using namespace dekaf2;
+
+TEST_CASE("KJulianDate")
+{
+	SECTION("KJulianDate")
+	{
+		KJulianDate jtp(2457354.310832);
+		KUnixTime utp(jtp);
+
+		CHECK ( utp.to_string() == "2015-11-27 19:27:35" );
+		CHECK ( utp.subseconds().milliseconds().count() == 884 );
+		CHECK ( utp.subseconds().microseconds().count() == 884802 );
+
+		jtp = KJulianDate(utp);
+
+		CHECK ( jtp.to_string() == "2457354.310832" );
+		CHECK ( jtp.to_double() ==  2457354.310832  );
+	}
+}

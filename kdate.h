@@ -92,7 +92,7 @@
 	#undef DEKAF2_STD_CHRONO_HAS_LOCAL_T
 #endif
 
-#if DEKAF2_USE_HINNANT_DATE || !DEKAF2_HAS_CHRONO_ROUND
+#if DEKAF2_USE_HINNANT_DATE || !DEKAF2_HAS_CHRONO_ROUND || !DEKAF2_STD_CHRONO_HAS_CLOCK_CAST
 	#if DEKAF2_HAS_INCLUDE(<date/date.h>)
 		// date:: only creates the is_clock check when we have void_t - and we supply
 		// a void_t also for C++ < 17
@@ -228,6 +228,10 @@ using date::floor;
 using date::ceil;
 using date::round;
 using date::abs;
+#endif
+
+#if !DEKAF2_STD_CHRONO_HAS_CLOCK_CAST
+using date::clock_cast;
 #endif
 
 #if DEKAF2_IS_GCC && defined(DEKAF2_HAS_WARN_LITERAL_SUFFIX)

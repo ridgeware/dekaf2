@@ -327,8 +327,14 @@ bool KIPNetwork4::Contains(const KIPAddress6& IP) const noexcept
 bool KIPNetwork4::Contains(const KIPAddress& IP) const noexcept
 //-----------------------------------------------------------------------------
 {
-	if (IP.Is4()) return Contains(IP.get4());
-	if (IP.Is6()) return Contains(IP.get6());
+//	if (IP.Is4()) return Contains(IP.get4());
+//	if (IP.Is6()) return Contains(IP.get6());
+	if (IP.Is4())
+	{
+		auto* IP4 = IP.GetConstValuePtr4();
+		return Contains(KIPAddress4(KIPAddress4::BytesT { IP4[0], IP4[1], IP4[2], IP4[3] } ));
+	}
+	if (IP.Is6()) return Contains(IP.m_IP);
 	return false;
 
 } // KIPNetwork4::Contains
@@ -487,8 +493,14 @@ bool KIPNetwork6::Contains(const KIPAddress4& IP) const noexcept
 bool KIPNetwork6::Contains(const KIPAddress& IP) const noexcept
 //-----------------------------------------------------------------------------
 {
-	if (IP.Is4()) return Contains(IP.get4());
-	if (IP.Is6()) return Contains(IP.get6());
+//	if (IP.Is4()) return Contains(IP.get4());
+//	if (IP.Is6()) return Contains(IP.get6());
+	if (IP.Is4())
+	{
+		auto* IP4 = IP.GetConstValuePtr4();
+		return Contains(KIPAddress4(KIPAddress4::BytesT { IP4[0], IP4[1], IP4[2], IP4[3] } ));
+	}
+	if (IP.Is6()) return Contains(IP.m_IP);
 	return false;
 
 } // KIPNetwork4::Contains

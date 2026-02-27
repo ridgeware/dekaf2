@@ -465,8 +465,7 @@ TEST_CASE("KIPNetwork")
 			{ "172.17.0.0/12"            , "::ffff:172.26.71.7"    },
 		};
 
-		for (auto& t : Tests)
-		{
+		for (auto& t : Tests) {
 			KIPError ec;
 			KIPNetwork Net(t.first);
 			INFO ( t.first );

@@ -426,10 +426,303 @@ TEST_CASE("KIPAddress")
 		KIPAddress6 ip6;
 		CHECK ( sizeof(ip6) == 20 );
 		KIPAddress  ip;
-		CHECK ( sizeof(ip)  == 28 );
+		CHECK ( sizeof(ip)  == 24 );
 		CHECK ( alignof(KIPAddress4) == 1 );
 		CHECK ( alignof(KIPAddress6) == 4 );
 		CHECK ( alignof(KIPAddress ) == 4 );
 	}
 #endif
+
+	SECTION("KIPAddress4 IsLinkLocal bad")
+	{
+		std::vector<KStringView> Tests {
+			{ "192.168.1.132"  },
+			{ "10.168.0.4"     },
+			{ "169.255.0.0"    },
+			{ "169.252.0.0"    },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress4 IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsLinkLocal() == false );
+		}
+	}
+
+	SECTION("KIPAddress4 IsLinkLocal good")
+	{
+		std::vector<KStringView> Tests {
+			{ "169.254.0.1"     },
+			{ "169.254.12.143"  },
+			{ "169.254.255.255" },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress4 IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsLinkLocal() == true );
+		}
+	}
+
+	SECTION("KIPAddress4 IsPrivate bad")
+	{
+		static_assert(KIPAddress4(192,169,23,55).IsPrivate() == false, "must not be private");
+
+		std::vector<KStringView> Tests {
+			{ "192.164.1.132"  },
+			{ "11.168.0.4"     },
+			{ "169.255.0.0"    },
+			{ "169.252.0.0"    },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress4 IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsPrivate() == false );
+		}
+	}
+
+	SECTION("KIPAddress4 IsPrivate good")
+	{
+		static_assert(KIPAddress4(192,168,23,55).IsPrivate(), "must be private");
+
+		std::vector<KStringView> Tests {
+			{ "192.168.0.1"     },
+			{ "192.168.170.11"  },
+			{ "10.168.53.235"   },
+			{ "172.30.34.53"    },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress4 IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsPrivate() == true );
+		}
+	}
+
+	SECTION("KIPAddress4 IsCGNAT")
+	{
+		static_assert(KIPAddress4(100,100,11,31).IsCGNAT(), "must be CGNAT");
+		static_assert(KIPAddress4(100,127,255,255).IsCGNAT(), "must be CGNAT");
+		static_assert(KIPAddress4(100,128,0,0).IsCGNAT() == false, "must not be CGNAT");
+	}
+
+	SECTION("KIPAddress4 IsLoopback")
+	{
+		static_assert(KIPAddress4(127,0,0,1).IsLoopback(), "must be loopback");
+		static_assert(KIPAddress4(127,127,255,255).IsLoopback(), "must be loopback");
+		static_assert(KIPAddress4(128,128,0,0).IsLoopback() == false, "must not be loopback");
+	}
+
+	SECTION("KIPAddress6 IsLinkLocal bad")
+	{
+		std::vector<KStringView> Tests {
+			{ "fe79::1"         },
+			{ "::0"             },
+			{ "::1"             },
+			{ "fc3e:4563::1"    },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress6 IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsLinkLocal() == false );
+		}
+	}
+
+	SECTION("KIPAddress6 IsLinkLocal good")
+	{
+		std::vector<KStringView> Tests {
+			{ "fe80::1"              },
+			{ "fe80:ffff:9728::1234" },
+			{ "fe80:0123::1"         },
+			{ "febf:0123::1"         },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress6 IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsLinkLocal() == true );
+		}
+	}
+
+	SECTION("KIPAddress6 IsPrivate bad")
+	{
+		static_assert(KIPAddress6(0,0,0,0,0,0,0,0).IsPrivate() == false, "must not be private");
+
+		std::vector<KStringView> Tests {
+			{ "fe80::1"              },
+			{ "fe80:ffff:9728::1234" },
+			{ "fe80:0123::1"         },
+			{ "::1"                  },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00" }
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress6 IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsPrivate() == false );
+		}
+	}
+
+	SECTION("KIPAddress6 IsPrivate good")
+	{
+		static_assert(KIPAddress4(192,168,23,55).IsPrivate(), "must be private");
+
+		std::vector<KStringView> Tests {
+			{ "fd00::1"     },
+			{ "fd99:2931:bafe:7af6:4ee:7e20:8d02:2a2c" },
+			{ "fdc3:5af9:a9a1:0:9:b549:6b63:63c1"      },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress6 IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsPrivate() == true );
+		}
+	}
+
+	SECTION("KIPAddress6 IsLoopback")
+	{
+		static_assert(KIPAddress6(0,0,0,0,0,0,0,1).IsLoopback(), "must be loopback");
+		static_assert(KIPAddress6(0,0,0,0,0,0,0,0).IsLoopback() == false, "must not be loopback");
+		static_assert(KIPAddress6(0xffff,0xfe35,0,0,0,0,0,0).IsLoopback() == false, "must not be loopback");
+	}
+
+	SECTION("KIPAddress IsLinkLocal bad")
+	{
+		std::vector<KStringView> Tests {
+			{ "192.168.1.132"  },
+			{ "10.168.0.4"     },
+			{ "169.255.0.0"    },
+			{ "169.252.0.0"    },
+			{ "fe79::1"        },
+			{ "::0"            },
+			{ "::1"            },
+			{ "fc3e:4563::1"   },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsLinkLocal() == false );
+		}
+	}
+
+	SECTION("KIPAddress IsLinkLocal good")
+	{
+		std::vector<KStringView> Tests {
+			{ "169.254.0.1"     },
+			{ "169.254.12.143"  },
+			{ "169.254.255.255" },
+			{ "fe80::1"              },
+			{ "fe80:ffff:9728::1234" },
+			{ "fe80:0123::1"         },
+			{ "febf:0123::1"         },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsLinkLocal() == true );
+		}
+	}
+
+	SECTION("KIPAddress IsPrivate bad")
+	{
+		static_assert(KIPAddress4(192,169,23,55).IsPrivate() == false, "must not be private");
+
+		std::vector<KStringView> Tests {
+			{ "192.164.1.132"  },
+			{ "11.168.0.4"     },
+			{ "169.255.0.0"    },
+			{ "169.252.0.0"    },
+			{ "fe80::1"              },
+			{ "fe80:ffff:9728::1234" },
+			{ "fe80:0123::1"         },
+			{ "::1"                  },
+			{ "1122:3344:5566:7788:99aa:bbcc:ddee:ff00" }
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsPrivate() == false );
+		}
+	}
+
+	SECTION("KIPAddress IsPrivate good")
+	{
+		static_assert(KIPAddress4(192,168,23,55).IsPrivate(), "must be private");
+
+		std::vector<KStringView> Tests {
+			{ "192.168.0.1"     },
+			{ "192.168.170.11"  },
+			{ "10.168.53.235"   },
+			{ "172.30.34.53"    },
+			{ "fd00::1"         },
+			{ "fd99:2931:bafe:7af6:4ee:7e20:8d02:2a2c" },
+			{ "fdc3:5af9:a9a1:0:9:b549:6b63:63c1"      },
+		};
+
+		for (auto& t : Tests)
+		{
+			KIPError ec;
+			KIPAddress IP(t, ec);
+			INFO  ( t );
+			CHECK ( ec.value() == 0 );
+			CHECK ( IP.IsPrivate() == true );
+		}
+	}
+
+	SECTION("KIPAddress IsCGNAT")
+	{
+		static_assert(KIPAddress(KIPAddress4(100,100,11,31)).IsCGNAT(), "must be CGNAT");
+		static_assert(KIPAddress(KIPAddress4(100,127,255,255)).IsCGNAT(), "must be CGNAT");
+		static_assert(KIPAddress(KIPAddress4(100,128,0,0)).IsCGNAT() == false, "must not be CGNAT");
+	}
+
+	SECTION("KIPAddress IsLoopback")
+	{
+		static_assert(KIPAddress(KIPAddress4(127,0,0,1)).IsLoopback(), "must be loopback");
+		static_assert(KIPAddress(KIPAddress4(127,127,255,255)).IsLoopback(), "must be loopback");
+		static_assert(KIPAddress(KIPAddress4(128,128,0,0)).IsLoopback() == false, "must not be loopback");
+		static_assert(KIPAddress(KIPAddress6(0,0,0,0,0,0,0,1)).IsLoopback(), "must be loopback");
+		static_assert(KIPAddress(KIPAddress6(0,0,0,0,0,0,0,0)).IsLoopback() == false, "must not be loopback");
+		static_assert(KIPAddress(KIPAddress6(0xffff,0xfe35,0,0,0,0,0,0)).IsLoopback() == false, "must not be loopback");
+	}
+
 }

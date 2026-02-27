@@ -47,7 +47,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-KIPAddress4::BytesT KIPAddress4::FromString(KStringView sAddress, KIPError& ec) noexcept
+KIPAddress4::Bytes4 KIPAddress4::FromString(KStringView sAddress, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
 	BytesT   IP;
@@ -85,7 +85,7 @@ KIPAddress4::BytesT KIPAddress4::FromString(KStringView sAddress, KIPError& ec) 
 	else
 	{
 		ec = KIPError("KIPAddress4: invalid IPv4 address");
-		IP = BytesT { 0, 0, 0, 0};
+		IP = Bytes4 { 0, 0, 0, 0};
 	}
 
 	return IP;
@@ -93,7 +93,7 @@ KIPAddress4::BytesT KIPAddress4::FromString(KStringView sAddress, KIPError& ec) 
 } // KIPAddress4::FromString
 
 //-----------------------------------------------------------------------------
-KIPAddress4::BytesT KIPAddress4::FromString(KStringView sAddress)
+KIPAddress4::Bytes4 KIPAddress4::FromString(KStringView sAddress)
 //-----------------------------------------------------------------------------
 {
 	KIPError ec;
@@ -104,7 +104,15 @@ KIPAddress4::BytesT KIPAddress4::FromString(KStringView sAddress)
 } // KIPAddress4::FromString
 
 //-----------------------------------------------------------------------------
-KIPAddress4::BytesT KIPAddress4::FromIPv6(const KIPAddress6& IPv6)
+KString KIPAddress4::ToString (const value_type* IP) noexcept
+//-----------------------------------------------------------------------------
+{
+	return kFormat("{}.{}.{}.{}", IP[0], IP[1], IP[2], IP[3]);
+
+} // KIPAddress4::ToString
+
+//-----------------------------------------------------------------------------
+KIPAddress4::Bytes4 KIPAddress4::FromIPv6(const KIPAddress6& IPv6)
 //-----------------------------------------------------------------------------
 {
 	KIPError ec;
@@ -115,48 +123,36 @@ KIPAddress4::BytesT KIPAddress4::FromIPv6(const KIPAddress6& IPv6)
 } // KIPAddress4::FromIPv6
 
 //-----------------------------------------------------------------------------
-KString KIPAddress4::ToString () const noexcept
-//-----------------------------------------------------------------------------
-{
-	return kFormat("{}.{}.{}.{}", m_IP[0], m_IP[1], m_IP[2], m_IP[3]);
-
-} // KIPAddress4::ToString
-
-//-----------------------------------------------------------------------------
-KIPAddress4& KIPAddress4::Dec() noexcept
+void KIPAddress4::Dec(value_type* IP) noexcept
 //-----------------------------------------------------------------------------
 {
 	for (int i = 3; i >= 0; --i)
 	{
-		if (m_IP[i] > 0)
+		if (IP[i] > 0)
 		{
-			--m_IP[i];
+			--IP[i];
 			break;
 		}
 
-		m_IP[i] = 0xff;
+		IP[i] = 0xff;
 	}
-
-	return *this;
 
 } // KIPAddress4::Dec
 
 //-----------------------------------------------------------------------------
-KIPAddress4& KIPAddress4::Inc() noexcept
+void KIPAddress4::Inc(value_type* IP) noexcept
 //-----------------------------------------------------------------------------
 {
 	for (int i = 3; i >= 0; --i)
 	{
-		if (m_IP[i] < 0xff)
+		if (IP[i] < 0xff)
 		{
-			++m_IP[i];
+			++IP[i];
 			break;
 		}
 
-		m_IP[i] = 0;
+		IP[i] = 0;
 	}
-
-	return *this;
 
 } // KIPAddress4::Inc
 
@@ -646,8 +642,8 @@ KIPAddress KIPAddress::FromString(KStringView sAddress)
 KIPAddress& KIPAddress::Dec() noexcept
 //-----------------------------------------------------------------------------
 {
-		 if (Is4()) m_v4.Dec();
-	else if (Is6()) m_v6.Dec();
+	     if (Is4()) KIPAddress4::Dec(GetValuePtr4());
+	else if (Is6()) m_IP.Dec();
 	return *this;
 
 } // KIPAddress::Dec
@@ -656,8 +652,8 @@ KIPAddress& KIPAddress::Dec() noexcept
 KIPAddress& KIPAddress::Inc() noexcept
 //-----------------------------------------------------------------------------
 {
-	     if (Is4()) m_v4.Inc();
-	else if (Is6()) m_v6.Inc();
+	     if (Is4()) KIPAddress4::Inc(GetValuePtr4());
+	else if (Is6()) m_IP.Inc();
 	return *this;
 
 } // KIPAddress::Inc

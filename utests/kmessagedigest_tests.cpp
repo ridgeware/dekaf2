@@ -10,6 +10,8 @@ TEST_CASE("KMessageDigest") {
 
 	SECTION("test vectors on empty string")
 	{
+		KMD5 md5;
+		CHECK ( md5.HexDigest()    == "d41d8cd98f00b204e9800998ecf8427e" );
 		KSHA224 sha224;
 		CHECK ( sha224.HexDigest() == "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f" );
 		KSHA256 sha256;
@@ -26,6 +28,9 @@ TEST_CASE("KMessageDigest") {
 
 	SECTION("known digests for nonempty strings")
 	{
+		KMD5 md5;
+		md5.Update("The quick brown fox jumps over the lazy dog");
+		CHECK ( md5.HexDigest()    == "9e107d9d372bb6826bd81d3542a419d6" );
 		KSHA224 sha224;
 		sha224.Update("The quick brown fox jumps over the lazy dog");
 		CHECK ( sha224.HexDigest() == "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525" );
@@ -41,6 +46,12 @@ TEST_CASE("KMessageDigest") {
 
 	SECTION("known digests for nonempty strings, multiple updates")
 	{
+		KMD5 md5("The ");
+		md5.Update("quick brown");
+		md5.Update(" fox jumps over ");
+		md5.Update("the lazy dog");
+		CHECK ( md5.HexDigest() == "9e107d9d372bb6826bd81d3542a419d6" );
+
 		KSHA224 sha224("The ");
 		sha224.Update("quick brown");
 		sha224.Update(" fox jumps over ");

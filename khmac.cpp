@@ -147,7 +147,7 @@ void KHMAC::Release()
 } // Release
 
 //---------------------------------------------------------------------------
-bool KHMAC::Update(KStringView sInput)
+bool KHMAC::Update(const void* pAddress, std::size_t iSize)
 //---------------------------------------------------------------------------
 {
 	if (!m_hmacctx)
@@ -156,9 +156,9 @@ bool KHMAC::Update(KStringView sInput)
 	}
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000L
-	if (1 != ::HMAC_Update(m_hmacctx, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
+	if (1 != ::HMAC_Update(m_hmacctx, static_cast<const unsigned char*>(pAddress), iSize))
 #else
-	if (!::EVP_MAC_update(m_hmacctx, reinterpret_cast<const unsigned char*>(sInput.data()), sInput.size()))
+	if (!::EVP_MAC_update(m_hmacctx, static_cast<const unsigned char*>(pAddress), iSize))
 #endif
 	{
 		return SetError(GetOpenSSLError("update failed"));

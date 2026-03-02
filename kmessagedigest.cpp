@@ -142,7 +142,7 @@ KMessageDigestBase& KMessageDigestBase::operator=(KMessageDigestBase&& other) no
 } // move ctor
 
 //---------------------------------------------------------------------------
-bool KMessageDigestBase::Update(KStringView sInput)
+bool KMessageDigestBase::Update(const void* pAddress, std::size_t iSize)
 //---------------------------------------------------------------------------
 {
 	if (!evpctx)
@@ -150,7 +150,7 @@ bool KMessageDigestBase::Update(KStringView sInput)
 		return false;
 	}
 
-	if (1 != Updater(evpctx, sInput.data(), sInput.size()))
+	if (1 != Updater(evpctx, pAddress, iSize))
 	{
 		return SetError(GetOpenSSLError("update failed"));
 	}

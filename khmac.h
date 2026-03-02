@@ -83,8 +83,13 @@ public:
 		Release();
 	}
 
+	/// appends a buffer to the digest
+	bool Update(const void* pAddress, std::size_t iSize);
 	/// appends a string to the digest
-	bool Update(KStringView sInput);
+	bool Update(KStringView sInput)
+	{
+		return Update(sInput.data(), sInput.size());
+	}
 	/// appends a stream to the digest
 	bool Update(KInStream& InputStream);
 	/// appends a stream to the digest

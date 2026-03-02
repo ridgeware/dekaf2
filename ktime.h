@@ -1296,7 +1296,7 @@ template<typename DateTime,
 	     && !std::is_pointer<DateTime>::value
 	, int>::type = 0
 >
-DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_20
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 KString FormTimestamp (const DateTime& time, KFormatString<const DateTime&> sFormat)
 {
 #ifndef NDEBUG
@@ -1314,7 +1314,7 @@ template<typename DateTime,
 	     && !std::is_pointer<DateTime>::value
 	, int>::type = 0
 >
-DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_20
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 KString FormTimestamp (const std::locale& locale, const DateTime& time, KFormatString<const DateTime&> sFormat)
 {
 #ifndef NDEBUG
@@ -1333,7 +1333,7 @@ template<typename DateTime,
 	     && !std::is_pointer<DateTime>::value
 	, int>::type = 0
 >
-DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_20
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 KString FormWebTimestamp (const DateTime& time, KStringView sTimezoneDesignator)
 {
 #ifndef NDEBUG

@@ -189,16 +189,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_20
 	KHTTPHeader& operator=(KHTTPHeader other) noexcept
 	//-----------------------------------------------------------------------------
 	{
-		swap(*this, other);
+		m_header  = std::move(other.m_header);
+		m_sHeader = std::move(other.m_sHeader);
 		return *this;
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_CONSTEXPR_20
 	friend void swap(KHTTPHeader& left, KHTTPHeader& right) noexcept
 	//-----------------------------------------------------------------------------
 	{

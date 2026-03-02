@@ -129,7 +129,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// return the const KString& version of the MIME type
-	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_20
+	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_STRING
 	const KString& Serialize() const
 	//-----------------------------------------------------------------------------
 	{
@@ -138,7 +138,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// return the KStringViewZ version of the MIME type
-	DEKAF2_CONSTEXPR_20
+	DEKAF2_CONSTEXPR_STRING
 	operator KStringViewZ() const
 	//-----------------------------------------------------------------------------
 	{

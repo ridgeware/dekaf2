@@ -59,58 +59,54 @@ namespace chrono {
 struct jdate_clock;
 
 template <class Duration>
-using jdate_time = std::chrono::time_point<jdate_clock, Duration>;
+using jdate_time = time_point<jdate_clock, Duration>;
 
 struct jdate_clock
 {
 	using rep        = double;
-	using period     = std::chrono::days::period;
-	using duration   = std::chrono::duration<rep, period>;
-	using time_point = std::chrono::time_point<jdate_clock>;
+	using period     = chrono::days::period;
+	using duration   = chrono::duration<rep, period>;
+	using time_point = chrono::time_point<jdate_clock>;
 
 	static constexpr bool is_steady = false;
 
 	static time_point now() noexcept;
 
 	template <class Duration> DEKAF2_CONSTEXPR_14
-	static auto from_sys(std::chrono::sys_time<Duration> const& tp) noexcept;
+	static auto from_sys(chrono::sys_time<Duration> const& tp) noexcept;
 
 	template <class Duration> DEKAF2_CONSTEXPR_14
-	static auto to_sys(jdate_time<Duration> const& tp) noexcept;
+	static auto to_sys(chrono::jdate_time<Duration> const& tp) noexcept;
 };
 
 template <class Duration> DEKAF2_CONSTEXPR_14
-auto jdate_clock::from_sys(std::chrono::sys_time<Duration> const& tp) noexcept
+auto jdate_clock::from_sys(chrono::sys_time<Duration> const& tp) noexcept
 {
-	using namespace std;
-	using namespace chrono;
-	auto constexpr epoch = sys_days{November/24/-4713} + 12h;
-	using ddays = std::chrono::duration<long double, days::period>;
+	auto constexpr epoch = chrono::sys_days { November/24/-4713 } + 12h;
+	using ddays = chrono::duration<long double, chrono::days::period>;
 
-	if DEKAF2_CONSTEXPR_IF (sys_time<ddays>{sys_time<Duration>::min()} < sys_time<ddays>{epoch})
+	if DEKAF2_CONSTEXPR_IF (chrono::sys_time<ddays>{chrono::sys_time<Duration>::min()} < chrono::sys_time<ddays>{epoch})
 	{
 		return jdate_time<duration>{tp - epoch};
 	}
 	else
 	{
 		// Duration overflows at the epoch.  Sub in new Duration that won't overflow.
-		using D = std::chrono::duration<int64_t, ratio<1, 10'000'000>>;
-		return jdate_time<duration>{round<D>(tp) - epoch};
+		using D = chrono::duration<int64_t, std::ratio<1, 10'000'000>>;
+		return jdate_time<duration>{chrono::round<D>(tp) - epoch};
 	}
 }
 
 template <class Duration> DEKAF2_CONSTEXPR_14
 auto jdate_clock::to_sys(jdate_time<Duration> const& tp) noexcept
 {
-	using namespace std::chrono;
-	return sys_time<Duration>{tp - chrono::clock_cast<jdate_clock>(sys_days{})};
+	return chrono::sys_time<Duration>{tp - chrono::clock_cast<jdate_clock>(chrono::sys_days{})};
 }
 
 inline
 jdate_clock::time_point jdate_clock::now() noexcept
 {
-	using namespace std::chrono;
-	return chrono::clock_cast<jdate_clock>(system_clock::now());
+	return chrono::clock_cast<jdate_clock>(chrono::system_clock::now());
 }
 
 } // end of namespace dekaf2::chrono

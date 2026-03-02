@@ -1004,12 +1004,14 @@ private:
 	static KIPAddress FromString(KStringView sAddress, KIPError& ec) noexcept;
 	static KIPAddress FromString(KStringView sAddress);
 
-	constexpr const KIPAddress4::value_type* GetConstValuePtr4() const noexcept
+	DEKAF2_FULL_CONSTEXPR_17
+	const KIPAddress4::value_type* GetConstValuePtr4() const noexcept
 	{
 		return &m_IP.m_IP[12];
 	}
 
-	constexpr KIPAddress4::value_type* GetValuePtr4() noexcept
+	DEKAF2_FULL_CONSTEXPR_17
+	KIPAddress4::value_type* GetValuePtr4() noexcept
 	{
 		return &m_IP.m_IP[12];
 	}

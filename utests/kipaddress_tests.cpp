@@ -708,6 +708,7 @@ TEST_CASE("KIPAddress")
 		}
 	}
 
+#if DEKAF2_HAS_CPP_20
 	SECTION("KIPAddress IsCGNAT")
 	{
 		static_assert(KIPAddress(KIPAddress4(100,100,11,31)).IsCGNAT(), "must be CGNAT");
@@ -724,5 +725,6 @@ TEST_CASE("KIPAddress")
 		static_assert(KIPAddress(KIPAddress6(0,0,0,0,0,0,0,0)).IsLoopback() == false, "must not be loopback");
 		static_assert(KIPAddress(KIPAddress6(0xffff,0xfe35,0,0,0,0,0,0)).IsLoopback() == false, "must not be loopback");
 	}
+#endif
 
 }

@@ -766,9 +766,6 @@ find_package(UUID QUIET)
 
 if (UUID_FOUND)
 	set(DEKAF2_HAS_LIBUUID OK)
-elseif(IS_WINDOWS)
-	set(UUID_FOUND OK)
-	set(UUID_LIBRARIES "Rpcrt4.lib")
 endif()
 
 # ====================== show list of found/notfound libs =======================

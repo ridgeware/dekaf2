@@ -39,127 +39,97 @@
 */
 
 #include "kuuid.h"
+#include "kmessagedigest.h"
 
 #if DEKAF2_HAS_LIBUUID
-
 	#include <uuid/uuid.h>
-
-#elif DEKAF2_IS_WINDOWS
-
-	#include <windows.h>
-	#include <rpcdce.h>
-
-namespace {
-
-inline
-unsigned char* FromUUID(UUID& uuid)
-{
-	return static_cast<unsigned char*>(static_cast<void*>(&uuid));
-}
-
-inline
-UUID* ToUUID(const unsigned char* data)
-{
-	return static_cast<UUID*>(const_cast<void*>(static_cast<const void*>(data)));
-}
-
-inline
-UUID* ToUUID(unsigned char* data)
-{
-	return static_cast<UUID*>(static_cast<void*>(data));
-}
-
-} // end of anonymous namespace
-
-#else
-
-	#include "kstringutils.h"
-	#include "khex.h"
-	#include "ksystem.h"
-
 #endif
+
+#include "kstringutils.h"
+#include "khex.h"
+#include "ksystem.h"
+#include <mutex>
 
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-KUUID::KUUID(Variant var)
+KUUID::KUUID(Version version) noexcept
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_LIBUUID
-
-	switch (var)
+	switch (version)
 	{
-		case KUUID::Variant::Null:
+		default:
+		case KUUID::Version::Null:
 			clear();
 			break;
 
-		case KUUID::Variant::Random:
-			::uuid_generate_random(m_UUID.data());
-			break;
-
-		case KUUID::Variant::MACTime:
+#if DEKAF2_HAS_LIBUUID
+		case KUUID::Version::MACTime:
 			::uuid_generate_time(m_UUID.data());
 			break;
-	}
-
-#elif DEKAF2_IS_WINDOWS
-
-	switch (var)
-	{
-		case KUUID::Variant::Null:
-			clear();
-			break;
-
-		default:
-			::UuidCreate(ToUUID(m_UUID.data()));
-			break;
-	}
-
-#else
-
-	switch (var)
-	{
-		case KUUID::Variant::Null:
-			clear();
-			break;
-
-		default:
-			{
-				kGetRandom(m_UUID.data(), m_UUID.size());
-
-				// set version to 4
-				m_UUID[6] &= 0x0f;
-				m_UUID[6] |= 0x40;
-				// set MSB of clk_seq_hi_res to %10
-				m_UUID[8] &= 0x3f;
-				m_UUID[8] |= 0x80;
-			}
-			break;
-	}
-
 #endif
+
+		case KUUID::Version::Random:
+			kGetRandom(m_UUID.data(), m_UUID.size());
+			// set version to 4
+			m_UUID[6] &= 0x0f;
+			m_UUID[6] |= Version::Random << 4;
+			// set MSB of clk_seq_hi_res to %10
+			m_UUID[8] &= 0x3f;
+			m_UUID[8] |= 0x80;
+			break;
+
+		case KUUID::Version::TimeRandom:
+			kGetRandom(m_UUID.data() + 6, m_UUID.size() - 6);
+			SetTime(m_UUID);
+			// set version to 7
+			m_UUID[6] &= 0x0f;
+			m_UUID[6] |= Version::TimeRandom << 4;
+			// set MSB of clk_seq_hi_res to %10
+			m_UUID[8] &= 0x3f;
+			m_UUID[8] |= 0x80;
+			break;
+	}
 
 } // ctor
 
 //-----------------------------------------------------------------------------
-void KUUID::FromString(KStringView sUUID)
+KUUID::KUUID(const KUUID& Namespace, KStringView sName, bool bForceLegacyMD5)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_LIBUUID
-
-	if (::uuid_parse(sUUID.data(), m_UUID.data()) != 0)
+	if (!Namespace.empty())
 	{
-		clear();
+		KMessageDigest Digest(bForceLegacyMD5 ? KMessageDigest::MD5 : KMessageDigest::SHA1);
+
+		Digest.Update(Namespace.GetUUID().data(), Namespace.GetUUID().size());
+		Digest.Update(sName);
+
+		auto& sDigest = Digest.Digest();
+
+		if (sDigest.size() >= m_UUID.size())
+		{
+			// copy the hash into the UUID
+			std::copy(sDigest.begin(), sDigest.begin() + m_UUID.size(), m_UUID.begin());
+			// set version
+			m_UUID[6] &= 0x0f;
+			m_UUID[6] |= (bForceLegacyMD5 ? Version::NamedMD5 : Version::NamedSHA1) << 4;
+			// set MSB of clk_seq_hi_res to %10
+			m_UUID[8] &= 0x3f;
+			m_UUID[8] |= 0x80;
+			return;
+		}
 	}
 
-#elif DEKAF2_IS_WINDOWS
+	// failure..
+	m_UUID.fill(0);
 
-	if (::UuidFromStringA(const_cast<unsigned char*>(reinterpret_cast<const unsigned char*>(sUUID.data())), ToUUID(m_UUID.data())) != RPC_S_OK)
-	{
-		clear();
-	}
+} // ctor named version
 
-#else
+//-----------------------------------------------------------------------------
+KUUID::UUID KUUID::FromStringStrict(KStringView sUUID) noexcept
+//-----------------------------------------------------------------------------
+{
+	UUID uuid;
 
 	// a1ae410d-9bc7-478a-b2fa-1266927a1dd7
 	if (sUUID.size() != 36  ||
@@ -168,7 +138,7 @@ void KUUID::FromString(KStringView sUUID)
 	    sUUID[18]    != '-' ||
 	    sUUID[23]    != '-')
 	{
-		clear();
+		uuid = Empty;
 	}
 	else
 	{
@@ -180,7 +150,7 @@ void KUUID::FromString(KStringView sUUID)
 			24, 26, 28, 30, 32, 34
 		};
 
-		auto p = m_UUID.begin();
+		auto p = uuid.begin();
 
 		for (auto iPos : Digits)
 		{
@@ -197,49 +167,19 @@ void KUUID::FromString(KStringView sUUID)
 				}
 			}
 
-			clear();
+			uuid = Empty;
 			break;
 		}
 	}
 
-#endif
+	return uuid;
 
-} // FromString
-
-//-----------------------------------------------------------------------------
-KUUID& KUUID::operator=(KStringView sUUID)
-//-----------------------------------------------------------------------------
-{
-	FromString(sUUID);
-	return *this;
-}
+} // FromStringStrict
 
 //-----------------------------------------------------------------------------
 KString KUUID::ToString() const
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_LIBUUID
-
-	KString sUUID(36, '\0');
-	::uuid_unparse_lower(m_UUID.data(), sUUID.data());
-	return sUUID;
-
-#elif DEKAF2_IS_WINDOWS
-
-	RPC_CSTR uuid_str;
-	KString sUUID;
-
-	if (UuidToStringA(ToUUID(m_UUID.data()), &uuid_str) == RPC_S_OK)
-	{
-		sUUID = (char*)uuid_str;
-	}
-
-	RpcStringFreeA(&uuid_str);
-
-	return sUUID;
-
-#else
-
 	KString sUUID;
 	sUUID.reserve(36);
 
@@ -266,76 +206,117 @@ KString KUUID::ToString() const
 
 	return sUUID;
 
-#endif
-
 } // ToString
 
 //-----------------------------------------------------------------------------
-void KUUID::clear()
+uint16_t KUUID::GetVariant() const noexcept
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_LIBUUID
-
-	::uuid_clear(m_UUID.data());
-
-#elif DEKAF2_IS_WINDOWS
-
-	::UuidCreateNil(ToUUID(m_UUID.data()));
-
-#else
-
-	::memset(m_UUID.data(), 0, m_UUID.size());
-
-#endif
-
-} // clear
+	auto b = m_UUID[8];
+	if ((b & 0x80) == 0) return 0; // MSB 1 bit of b8 used
+	if ((b & 0x40) == 0) return 1; // MSB 2 bit of b8 used
+	if ((b & 0x20) == 0) return 2; // MSB 3 bit of b8 used
+	return 3;                      // MSB 3 bit of b8 used
+}
 
 //-----------------------------------------------------------------------------
-bool KUUID::empty() const
+KStringView KUUID::GetMAC() const noexcept
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_LIBUUID
+	KStringView sMAC;
 
-	return ::uuid_is_null(m_UUID.data());
-
-#elif DEKAF2_IS_WINDOWS
-
-	RPC_STATUS status;
-	return ::UuidIsNil(ToUUID(m_UUID.data()), &status);
-
-#else
-
-	for (auto ch : m_UUID)
+	switch (GetVersion())
 	{
-		if (ch != '\0')
+		case Version::MACTime:
+		case Version::MACTimeDCE:
+		case Version::MACTimeSort:
+			sMAC = KStringView(reinterpret_cast<const char*>(m_UUID.data()) + 10, 6);
+			break;
+	}
+
+	return sMAC;
+
+} // GetMAC
+
+//-----------------------------------------------------------------------------
+KUnixTime KUUID::GetTime() const noexcept
+//-----------------------------------------------------------------------------
+{
+	KUnixTime tTime;
+
+	switch (GetVersion())
+	{
+		case Version::MACTimeSort:
+		case Version::TimeRandom:
 		{
-			return false;
+			chrono::milliseconds msecs { 0 };
+			for (uint16_t i = 0; i < 6; ++i)
+			{
+				msecs *= 256;
+				msecs += chrono::milliseconds(m_UUID[i]);
+			}
+			tTime = KUnixTime(msecs);
+			break;
 		}
 	}
 
-	return true;
+	return tTime;
 
-#endif
-}
+} // GetTime
 
 //-----------------------------------------------------------------------------
-bool KUUID::operator==(const KUUID& other) const
+void KUUID::SetTime(UUID& uuid)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_LIBUUID
+	// insert the current time in milliseconds into the first 6 bytes of the uuid,
+	// make sure we have monotonic increasing time stamps
+	// to allow for more than 1000 UUIDs per second we use the LSB 4 bit of uuid[6]
+	// and the MSB 6 bit of uuid[7] for the full microsecond resolution, and hence
+	// 1 million UUIDs per second
+	// see https://datatracker.ietf.org/doc/html/rfc9562.html#name-monotonicity-and-counters
 
-	return ::uuid_compare(m_UUID.data(), other.m_UUID.data()) == 0;
+	static std::mutex TMutex;
+	static chrono::microseconds tLast { 0 };
 
-#elif DEKAF2_IS_WINDOWS
+	chrono::microseconds usecs;
 
-	RPC_STATUS status;
-	return ::UuidEqual(ToUUID(m_UUID.data()), ToUUID(other.m_UUID.data()), &status);
+	{
+		std::lock_guard<std::mutex> Lock(TMutex);
 
-#else
+		usecs = chrono::duration_cast<chrono::microseconds>(KUnixTime::now().time_since_epoch());
 
-	return m_UUID == other.m_UUID;
+		if (usecs <= tLast)
+		{
+			usecs = ++tLast;
+		}
+		else if (usecs > tLast)
+		{
+			tLast = usecs;
+		}
+	}
 
+	uint64_t iTicks = usecs.count() / 1000;
+
+	for (int16_t i = 5; i >= 0; --i)
+	{
+		uuid[i] = iTicks & 0xff;
+		iTicks /= 256;
+	}
+
+	uint16_t iExt = usecs.count() % 1000;
+
+	uuid[6]  = (iExt >> 6);
+	uuid[7] &= 0x03;
+	uuid[7] |= (iExt << 2) & 0xfc;
+
+} // SetTime
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KUUID::UUID KUUID::Empty;
+constexpr KUUID::UUID KUUID::ns::DNS;
+constexpr KUUID::UUID KUUID::ns::URL;
+constexpr KUUID::UUID KUUID::ns::OID;
+constexpr KUUID::UUID KUUID::ns::X500;
 #endif
-}
 
 DEKAF2_NAMESPACE_END

@@ -1267,6 +1267,7 @@ set(PUBLIC_HEADERS
 	kmodifyingstreambuf.h
 	kmpsearch.h
 	kmru.h
+	knetworkinterface.h
 	kngram.h
 	koptions.h
 	kopenid.h
@@ -1547,6 +1548,7 @@ set (SOURCES
 	kmime.cpp
 	kmodifyingstreambuf.cpp
 	kmpsearch.cpp
+	knetworkinterface.cpp
 	kopenid.cpp
 	koptions.cpp
 	koutpipe.cpp

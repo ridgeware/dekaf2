@@ -138,7 +138,7 @@ KMACAddress::MAC KMACAddress::ReadFromInterface(KStringViewZ sInterfaceName, int
 			break;
 		}
 
-		auto* ptr = ifr.ifr_hwaddr.sa_data;
+		auto* ptr = (unsigned char*)(ifr.ifr_hwaddr.sa_data);
 
 		mac = MAC { ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5] };
 

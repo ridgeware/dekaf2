@@ -62,6 +62,11 @@
 #include "kexception.h"
 #include <array>
 
+#if DEKAF2_HAS_INCLUDE(<netinet/in.h>)
+	#define DEKAF2_IPADDRESS_HAS_NETINET_IN_H 1
+	#include <netinet/in.h>
+#endif
+
 DEKAF2_NAMESPACE_BEGIN
 
 /// checks if an IP address is a IPv6 address like '[a0:ef::c425:12]'
@@ -146,6 +151,19 @@ public:
 	constexpr          KIPAddress4(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4) noexcept
 	                   : m_IP(BytesT{ b1, b2, b3, b4 })
 	                   {}
+
+#if DEKAF2_IPADDRESS_HAS_NETINET_IN_H
+	/// construct from in_addr - bytes in network byte order
+	constexpr          KIPAddress4(const in_addr& in4)
+	                   : m_IP { static_cast<uint8_t>(in4.s_addr), static_cast<uint8_t>(in4.s_addr >> 8),
+	                            static_cast<uint8_t>(in4.s_addr >> 16) , static_cast<uint8_t>(in4.s_addr >> 24) }
+	                   {}
+
+	/// construct from sockaddr_in - bytes in network byte order
+	constexpr          KIPAddress4(const sockaddr_in& in4)
+					   : KIPAddress4(in4.sin_addr)
+					   {}
+#endif
 
 	/// construct from IPv6 address, not throwing but returning possible error in ec
 	constexpr          KIPAddress4(const KIPAddress6& IPv6, KIPError& ec) noexcept
@@ -356,9 +374,9 @@ private:
 	static constexpr uint32_t ToUInt (const value_type* a) noexcept
 	{
 		return (static_cast<uint32_t>(a[0]) << 24)
-		| (static_cast<uint32_t>(a[1]) << 16)
-		| (static_cast<uint32_t>(a[2]) <<  8)
-		|  static_cast<uint32_t>(a[3]);
+		     | (static_cast<uint32_t>(a[1]) << 16)
+		     | (static_cast<uint32_t>(a[2]) <<  8)
+		     |  static_cast<uint32_t>(a[3]);
 	}
 
 	static void Dec(value_type* a) noexcept;
@@ -479,6 +497,22 @@ public:
 	                                  static_cast<unsigned char>(w8) })
 	                   , m_Scope(Scope)
 	                   {}
+
+#if DEKAF2_IPADDRESS_HAS_NETINET_IN_H
+	/// construct from in6_addr - bytes in network byte order
+	constexpr          KIPAddress6(const in6_addr& in6, ScopeT Scope = 0)
+	                   : m_IP(BytesT{ in6.s6_addr[ 0], in6.s6_addr[ 1], in6.s6_addr[ 2], in6.s6_addr[ 3],
+	                                  in6.s6_addr[ 4], in6.s6_addr[ 5], in6.s6_addr[ 6], in6.s6_addr[ 7],
+	                                  in6.s6_addr[ 8], in6.s6_addr[ 9], in6.s6_addr[10], in6.s6_addr[11],
+	                                  in6.s6_addr[12], in6.s6_addr[13], in6.s6_addr[14], in6.s6_addr[15] })
+	                   , m_Scope(Scope)
+	                   {}
+
+	/// construct from sockaddr_in6 - bytes in network byte order
+	constexpr          KIPAddress6(const sockaddr_in6& in6)
+	                   : KIPAddress6(in6.sin6_addr, in6.sin6_scope_id)
+	                   {}
+#endif
 
 	/// construct from IPv4 address, does not throw
 	constexpr explicit KIPAddress6(const KIPAddress4& IPv4) noexcept

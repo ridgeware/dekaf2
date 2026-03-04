@@ -105,9 +105,21 @@ protected:
 	static KStringView AddressStringFromString (KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept;
 	static uint8_t     PrefixLengthFromString  (KStringView sNetwork, uint8_t iMaxPrefixLength, bool bAcceptSingleHost, KIPError& ec) noexcept;
 
+	static uint8_t     CalcPrefixFromMask      (const KIPAddress4& Mask, KIPError& ec) noexcept
+	{
+		return CalcPrefixFromMask(Mask.ToBytes().data(), Mask.ToBytes().size(), ec);
+	}
+
+	static uint8_t     CalcPrefixFromMask      (const KIPAddress6& Mask, KIPError& ec) noexcept
+	{
+		return CalcPrefixFromMask(Mask.ToBytes().data(), Mask.ToBytes().size(), ec);
+	}
+
 //----------
 private:
 //----------
+
+	static uint8_t     CalcPrefixFromMask      (const detail::IP::value_type* Mask, uint16_t iMaskLen, KIPError& ec) noexcept;
 
 	uint8_t m_iPrefixLength { 0 };
 
@@ -156,7 +168,11 @@ public:
 	                   {}
 
 	/// construct from IPv4 address and netmask, not throwing but returning possible error in ec
-	                   KIPNetwork4(const KIPAddress4& IP, const KIPAddress4& Mask, KIPError& ec) noexcept;
+	                   KIPNetwork4(const KIPAddress4& IP, const KIPAddress4& Mask, KIPError& ec) noexcept
+	                   : base(CalcPrefixFromMask(Mask, ec), 32, ec)
+	                   , m_IP(IP)
+	                   {}
+
 	/// construct from IPv4 address and netmask, throws on error
 	                   KIPNetwork4(const KIPAddress4& IP, const KIPAddress4& Mask);
 
@@ -248,7 +264,6 @@ public:
 private:
 //----------
 
-	static uint8_t     CalcPrefixFromMask (const KIPAddress4& Mask, KIPError& ec) noexcept;
 	static KIPAddress4 AddressFromString  (KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept;
 
 	KIPAddress4 m_IP;
@@ -280,6 +295,15 @@ public:
 	                   : base(iPrefixLength, 128)
 	                   , m_IP(IP)
 	                   {}
+
+	/// construct from IPv6 and prefix length, not throwing but returning possible error in ec
+	                   KIPNetwork6(const KIPAddress6& IP, const KIPAddress6& Mask, KIPError& ec) noexcept
+	                   : base(CalcPrefixFromMask(Mask, ec), 128, ec)
+	                   , m_IP(IP)
+	                   {}
+
+	/// construct from IPv6 and prefix length, throws on error
+	                   KIPNetwork6(const KIPAddress6& IP, const KIPAddress6& Mask);
 
 	/// construct from IPv6 address and prefix length in string notation, not throwing but returning possible error in ec
 	/// @param bAcceptSingleHost if true accepting a network without prefix as single host

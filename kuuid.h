@@ -47,6 +47,7 @@
 #include "kstringview.h"
 #include "kstring.h"
 #include "ktime.h"
+#include "khex.h"
 #include <array>
 #include <ostream>
 
@@ -240,7 +241,7 @@ private:
 
 	static UUID FromStringStrict(KStringView sUUID) noexcept;
 
-	static DEKAF2_CONSTEXPR_20
+	static constexpr
 	UUID FromString(KStringView sUUID, bool bStrict) noexcept
 	{
 		if (bStrict)
@@ -248,54 +249,7 @@ private:
 			return FromStringStrict(sUUID);
 		}
 
-		UUID uuid;
-
-		uint8_t iNibbleCount { 0 };
-		uint8_t iNibble      { 0 };
-		auto    it = uuid.begin();
-
-		for (auto ch : sUUID)
-		{
-			if (ch == '-')
-			{
-				if ((iNibbleCount & 1) != 0)
-				{
-					break;
-				}
-				continue;
-			}
-
-			auto i = kFromHexChar(ch);
-
-			if (i > 15)
-			{
-				break;
-			}
-
-			iNibble += i;
-
-			if ((++iNibbleCount & 1) == 0)
-			{
-				if (it == uuid.end())
-				{
-					break;
-				}
-
-				*it++ = iNibble;
-				iNibble = 0;
-			}
-			else
-			{
-				iNibble <<= 4;
-			}
-		}
-
-		if (iNibbleCount != uuid.size() * 2)
-		{
-			uuid = Empty;
-		}
-
-		return uuid;
+		return kBytesFromHex<UUID>(sUUID, "-");
 	}
 
 	static

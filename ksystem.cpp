@@ -2126,11 +2126,11 @@ KDuration kGetUptime()
 
 	struct timeval tvBoot;
 	std::size_t iLen = sizeof(tvBoot);
-	int mib[2] = { CTL_KERN, KERN_BOOTTIME };
+	std::array<int, 2> mib { CTL_KERN, KERN_BOOTTIME };
 
-	if (sysctl(mib, 2, &tvBoot, &iLen, nullptr, 0) < 0)
+	if (::sysctl(mib.data(), 2, &tvBoot, &iLen, nullptr, 0) < 0)
 	{
-		kDebug(1, strerror(errno));
+		kDebug(1, ::strerror(errno));
 		return KDuration { -1 } ;
 	}
 
@@ -2140,9 +2140,9 @@ KDuration kGetUptime()
 
 	struct sysinfo info;
 
-	if (sysinfo(&info) != 0)
+	if (::sysinfo(&info) != 0)
 	{
-		kDebug(1, strerror(errno));
+		kDebug(1, ::strerror(errno));
 		return KDuration { -1 } ;
 	}
 

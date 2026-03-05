@@ -60,6 +60,10 @@
 	#else
 		// Unix
 		#include <sys/sysinfo.h> // for sysinfo()
+		#if DEKAF2_HAS_INCLUDE(<linux/if_link.h>)
+			#define DEKAF2_HAS_IF_LINK_H 1
+			#include <linux/if_link.h> // for rtnl_link_stats
+		#endif
 	#endif
 #endif
 
@@ -79,7 +83,7 @@ KMACAddress::MAC KMACAddress::ReadFromInterface(KStringViewZ sInterfaceName, int
 
 		std::array<int, 6> mib { CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST };
 
-		if ((mib[5] = ::if_nametoindex(sInterfaceName.c_str())) == 0)
+		if ((mib[5] = static_cast<int>(::if_nametoindex(sInterfaceName.c_str()))) == 0)
 		{
 			kDebug(1, ::strerror(errno));
 			break;
@@ -311,7 +315,7 @@ KString KNetworkInterface::PrintFlags  (IFFlags Flags) noexcept
 KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces()
 //-----------------------------------------------------------------------------
 {
-	std::vector<KNetworkInterface> Interfaces;
+	Interfaces Interfaces;
 
 #if DEKAF2_IS_UNIX
 
@@ -352,7 +356,11 @@ KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces()
 
 		auto family = it->ifa_addr->sa_family;
 
-		if (family == AF_INET || family == AF_INET6)
+		if (family == AF_INET || family == AF_INET6
+#if DEKAF2_HAS_IF_LINK_H
+		                                            || family == AF_PACKET
+#endif
+			)
 		{
 			KStringView sName(it->ifa_name);
 
@@ -392,11 +400,25 @@ KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces()
 						iface->m_Broadcast = KIPAddress4(*(struct sockaddr_in*)(it->ifa_dstaddr));
 					}
 				}
-				else
+				else if (family == AF_INET6)
 				{
 					net = KIPNetwork6(KIPAddress6(*(struct sockaddr_in6*)(it->ifa_addr)),
 					                  KIPAddress6(*(struct sockaddr_in6*)(it->ifa_netmask)));
 				}
+#if DEKAF2_HAS_IF_LINK_H
+				else if (family == AF_PACKET)
+				{
+					if (it->ifa_data != nullptr)
+					{
+						auto* stats = (struct rtnl_link_stats*)(it->ifa_data);
+
+						iface->m_LinkStats.m_iTXPackets = stats->tx_packets;
+						iface->m_LinkStats.m_iRXPackets = stats->rx_packets;
+						iface->m_LinkStats.m_iTXBytes   = stats->tx_bytes;
+						iface->m_LinkStats.m_iRXBytes   = stats->rx_bytes;
+					}
+				}
+#endif
 			}
 
 			iface->m_Networks.push_back(std::move(net));
@@ -409,7 +431,7 @@ KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces()
 	}
 
 	// Free memory
-	freeifaddrs(ifaces);
+	::freeifaddrs(ifaces);
 
 #elif DEKAF2_IS_WINDOWS
 

@@ -58,6 +58,11 @@ TEST_CASE("KNetworkInterface")
 			{
 				kDebug(0, "  inet{}: {}", n.Is4() ? 4 : 6, n);
 			}
+#if !DEKAF2_IS_MACOS
+			kDebug(0, "  rx packets: {}, tx packets: {}, rx bytes: {}, tx bytes: {}",
+				   i.GetLinkStats().m_iRXPackets, i.GetLinkStats().m_iTXPackets,
+				   i.GetLinkStats().m_iRXBytes  , i.GetLinkStats().m_iTXBytes   );
+#endif
 #endif
 		}
 

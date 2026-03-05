@@ -201,6 +201,7 @@ private:
 DEKAF2_COMPARISON_OPERATORS_WITH_ATTR(constexpr, KMACAddress)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// available information about a network interface
 class DEKAF2_PUBLIC KNetworkInterface
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -219,6 +220,15 @@ public:
 	// template instantiation
 	using Interfaces = std::vector<KNetworkInterface>;
 #endif
+
+	/// link stats for an interface
+	struct LinkStats
+	{
+		std::size_t   m_iTXPackets { 0 }; ///< sent packets
+		std::size_t   m_iRXPackets { 0 }; ///< received packets
+		std::size_t   m_iTXBytes   { 0 }; ///< sent bytes
+		std::size_t   m_iRXBytes   { 0 }; ///< received bytes
+	};
 
 	/// network interface flags
 	enum IFFlags
@@ -277,6 +287,10 @@ public:
 	DEKAF2_NODISCARD
 	IFFlags            GetFlags    () const noexcept { return m_Flags;     }
 
+	/// get the link stats for the interface (empty on MacOS)
+	DEKAF2_NODISCARD
+	const LinkStats&   GetLinkStats() const noexcept { return m_LinkStats; }
+
 	/// get the interface flags converted into a string
 	DEKAF2_NODISCARD
 	KString            PrintFlags  () const
@@ -312,6 +326,7 @@ private:
 	KIPAddress    m_Broadcast;
 	Networks      m_Networks;
 	IFFlags       m_Flags           { IFFlags::None };
+	LinkStats     m_LinkStats;
 
 }; // KNetworkInterface
 

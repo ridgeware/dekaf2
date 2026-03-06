@@ -13,19 +13,19 @@ TEST_CASE("KNetworkInterface")
 		auto Interfaces = kGetNetworkInterfaces();
 		bool bHadLoopback = false;
 
-		for (auto& i : Interfaces)
+		for (auto& iface : Interfaces)
 		{
-			if (i.HasFlags(KNetworkInterface::Loopback))
+			if (iface.HasFlags(KNetworkInterface::Loopback))
 			{
 				bHadLoopback = true;
 				bool bHadv4Loopback = false;
 				bool bHadv6Loopback = false;
 
 				// there should not be a MAC address on the loopback interface
-				CHECK ( i.GetMAC().IsValid() == false );
-				CHECK ( i.HasFlags(KNetworkInterface::Up | KNetworkInterface::Running | KNetworkInterface::Loopback) );
+				CHECK ( iface.GetMAC().IsValid() == false );
+				CHECK ( iface.HasFlags(KNetworkInterface::Up | KNetworkInterface::Running | KNetworkInterface::Loopback) );
 
-				for (const auto& net : i.GetNetworks())
+				for (const auto& net : iface.GetNetworks())
 				{
 					if (net.Is4())
 					{
@@ -43,29 +43,60 @@ TEST_CASE("KNetworkInterface")
 				CHECK ( bHadv6Loopback );
 			}
 #if 0
-			kDebug(0, "{}: {}", i.GetName(), i.PrintFlags());
-			if (i.GetMAC().IsValid())
+			kDebug(0, "{}: {}", iface.GetName(), iface.PrintFlags());
+			if (iface.GetMAC().IsValid())
 			{
-				kDebug(0, "  MAC: {}", i.GetMAC().ToHex());
+				kDebug(0, "  MAC: {}", iface.GetMAC().ToHex());
 			}
 
-			if (i.GetBroadcast().IsValid())
+			if (iface.GetBroadcast().IsValid())
 			{
-				kDebug(0, "  Broadcast: {}", i.GetBroadcast());
+				kDebug(0, "  Broadcast: {}", iface.GetBroadcast());
 			}
 
-			for (auto& n : i.GetNetworks())
+			for (auto& n : iface.GetNetworks())
 			{
 				kDebug(0, "  inet{}: {}", n.Is4() ? 4 : 6, n);
 			}
 #if !DEKAF2_IS_MACOS
 			kDebug(0, "  rx packets: {}, tx packets: {}, rx bytes: {}, tx bytes: {}",
-				   i.GetLinkStats().m_iRXPackets, i.GetLinkStats().m_iTXPackets,
-				   i.GetLinkStats().m_iRXBytes  , i.GetLinkStats().m_iTXBytes   );
+				   iface.GetLinkStats().m_iRXPackets, iface.GetLinkStats().m_iTXPackets,
+				   iface.GetLinkStats().m_iRXBytes  , iface.GetLinkStats().m_iTXBytes   );
 #endif
 #endif
 		}
 
 		CHECK ( bHadLoopback );
+	}
+
+	SECTION("KNetworkInterface")
+	{
+#if !DEKAF2_IS_MACOS
+		KNetworkInterface iface("eth0");
+#else
+		KNetworkInterface iface("en0");
+#endif
+#if 0
+		kDebug(0, "{}: {}", iface.GetName(), iface.PrintFlags());
+		if (iface.GetMAC().IsValid())
+		{
+			kDebug(0, "  MAC: {}", iface.GetMAC().ToHex());
+		}
+
+		if (iface.GetBroadcast().IsValid())
+		{
+			kDebug(0, "  Broadcast: {}", iface.GetBroadcast());
+		}
+
+		for (auto& n : iface.GetNetworks())
+		{
+			kDebug(0, "  inet{}: {}", n.Is4() ? 4 : 6, n);
+		}
+#if !DEKAF2_IS_MACOS
+		kDebug(0, "  rx packets: {}, tx packets: {}, rx bytes: {}, tx bytes: {}",
+			   iface.GetLinkStats().m_iRXPackets, iface.GetLinkStats().m_iTXPackets,
+			   iface.GetLinkStats().m_iRXBytes  , iface.GetLinkStats().m_iTXBytes   );
+#endif
+#endif
 	}
 }

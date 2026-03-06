@@ -59,7 +59,6 @@
 		#include <net/if_dl.h>     // KNetworkInterface
 	#else
 		// Unix
-		#include <sys/sysinfo.h> // for sysinfo()
 		#if DEKAF2_HAS_INCLUDE(<linux/if_link.h>)
 			#define DEKAF2_HAS_IF_LINK_H 1
 			#include <linux/if_link.h> // for rtnl_link_stats
@@ -311,8 +310,142 @@ KString KNetworkInterface::PrintFlags  (IFFlags Flags) noexcept
 
 } // KNetworkInterface::PrintFlags
 
+#if DEKAF2_IS_UNIX
 //-----------------------------------------------------------------------------
-KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces()
+bool KNetworkInterface::AppendInterfaceData(const ifaddrs& iface, int sock) noexcept
+//-----------------------------------------------------------------------------
+{
+	KStringView sName(iface.ifa_name);
+
+	if (m_sName.empty())
+	{
+		m_sName = sName;
+		m_MAC   = KMACAddress(m_sName, KMACAddress::FromInterface, sock);
+		m_Flags = CalcFlags(iface.ifa_flags);
+	}
+	else if (m_sName != sName)
+	{
+		// names don't match ..
+		return false;
+	}
+
+	auto family = iface.ifa_addr->sa_family;
+
+	if (family != AF_INET && family != AF_INET6
+#if DEKAF2_HAS_IF_LINK_H
+												&& family != AF_PACKET
+#endif
+		)
+	{
+		// wrong address family
+		return false;
+	}
+
+	KIPNetwork net;
+
+	if (iface.ifa_addr && iface.ifa_netmask)
+	{
+		if (family == AF_INET)
+		{
+			net = KIPNetwork4(KIPAddress4(*(struct sockaddr_in*)(iface.ifa_addr)),
+							  KIPAddress4(*(struct sockaddr_in*)(iface.ifa_netmask)));
+
+			if (iface.ifa_dstaddr && HasFlags(Broadcast))
+			{
+				m_Broadcast = KIPAddress4(*(struct sockaddr_in*)(iface.ifa_dstaddr));
+			}
+		}
+		else if (family == AF_INET6)
+		{
+			net = KIPNetwork6(KIPAddress6(*(struct sockaddr_in6*)(iface.ifa_addr)),
+							  KIPAddress6(*(struct sockaddr_in6*)(iface.ifa_netmask)));
+		}
+#if DEKAF2_HAS_IF_LINK_H
+		else if (family == AF_PACKET)
+		{
+			if (iface.ifa_data != nullptr)
+			{
+				auto* stats = (struct rtnl_link_stats*)(iface.ifa_data);
+
+				m_LinkStats.m_iTXPackets = stats->tx_packets;
+				m_LinkStats.m_iRXPackets = stats->rx_packets;
+				m_LinkStats.m_iTXBytes   = stats->tx_bytes;
+				m_LinkStats.m_iRXBytes   = stats->rx_bytes;
+			}
+		}
+#endif
+	}
+
+	if (net.IsValid())
+	{
+		m_Networks.push_back(std::move(net));
+	}
+
+	return true;
+
+} // KNetworkInterface::AppendInterfaceData
+
+#endif // DEKAF2_IS_UNIX
+
+//-----------------------------------------------------------------------------
+KNetworkInterface::KNetworkInterface(KStringViewZ sInterface)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_UNIX
+
+	struct ifaddrs* ifaces = nullptr;
+
+	// retrieve the current interfaces - returns 0 on success
+	if (::getifaddrs(&ifaces) < 0)
+	{
+		kDebug (1, strerror(errno));
+		return;
+	}
+
+#if DEKAF2_IS_MACOS
+
+	int sock = -1;
+
+#else
+
+	int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+
+	if (sock < 0)
+	{
+		kDebug(1, strerror(errno));
+		return;
+	}
+
+#endif
+
+	for (auto it = ifaces; it != nullptr; it = it->ifa_next)
+	{
+		KStringView sName(it->ifa_name);
+
+		if (sInterface == sName)
+		{
+			AppendInterfaceData(*it, sock);
+		}
+	}
+
+	if (sock >= 0)
+	{
+		::close(sock);
+	}
+
+	// Free memory
+	::freeifaddrs(ifaces);
+
+#elif DEKAF2_IS_WINDOWS
+
+	// TODO
+
+#endif
+
+} // KNetworkInterface::KNetworkInterface
+
+//-----------------------------------------------------------------------------
+KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces(KStringView sStartsWith)
 //-----------------------------------------------------------------------------
 {
 	Interfaces Interfaces;
@@ -354,74 +487,44 @@ KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces()
 			continue;
 		}
 
-		auto family = it->ifa_addr->sa_family;
+		KStringView sName(it->ifa_name);
 
-		if (family == AF_INET || family == AF_INET6
-#if DEKAF2_HAS_IF_LINK_H
-		                                            || family == AF_PACKET
-#endif
-			)
+		if (!sName.starts_with(sStartsWith))
 		{
-			KStringView sName(it->ifa_name);
+			// wrong start of interface name
+			continue;
+		}
 
-			// on MacOS the interface address list is grouped by name, therefore
-			// let's first check if the last iface iterator points already to the
-			// right entry
-			if (iface == Interfaces.end() || iface->GetName() != sName)
+		// on MacOS the interface address list is grouped by name, therefore
+		// let's first check if the last iface iterator points already to the
+		// right entry
+		if (iface == Interfaces.end() || iface->GetName() != sName)
+		{
+			// no, search through the whole vector - this is probably Linux, or the next interface
+			iface = std::find_if(Interfaces.begin(), Interfaces.end(), [sName](const KNetworkInterface& ifa)
 			{
-				// no, search through the whole vector - this is probably Linux, or the next interface
-				iface = std::find_if(Interfaces.begin(), Interfaces.end(), [sName](const KNetworkInterface& ifa)
-				{
-					return ifa.GetName() == sName;
-				});
-			}
+				return ifa.GetName() == sName;
+			});
+		}
 
-			if (iface == Interfaces.end())
+		if (iface == Interfaces.end())
+		{
+			KNetworkInterface ni;
+
+			if (ni.AppendInterfaceData(*it, sock))
 			{
-				KNetworkInterface ni;
-				ni.m_sName = sName;
-				ni.m_MAC   = KMACAddress(ni.m_sName, KMACAddress::FromInterface, sock);
-				ni.m_Flags = CalcFlags(it->ifa_flags);
 				Interfaces.push_back(ni);
 				iface = Interfaces.begin() + (Interfaces.size() - 1);
 			}
-
-			KIPNetwork net;
-
-			if (it->ifa_addr && it->ifa_netmask)
+			else
 			{
-				if (family == AF_INET)
-				{
-					net = KIPNetwork4(KIPAddress4(*(struct sockaddr_in*)(it->ifa_addr)),
-					                  KIPAddress4(*(struct sockaddr_in*)(it->ifa_netmask)));
-
-					if (it->ifa_dstaddr && iface->HasFlags(Broadcast))
-					{
-						iface->m_Broadcast = KIPAddress4(*(struct sockaddr_in*)(it->ifa_dstaddr));
-					}
-				}
-				else if (family == AF_INET6)
-				{
-					net = KIPNetwork6(KIPAddress6(*(struct sockaddr_in6*)(it->ifa_addr)),
-					                  KIPAddress6(*(struct sockaddr_in6*)(it->ifa_netmask)));
-				}
-#if DEKAF2_HAS_IF_LINK_H
-				else if (family == AF_PACKET)
-				{
-					if (it->ifa_data != nullptr)
-					{
-						auto* stats = (struct rtnl_link_stats*)(it->ifa_data);
-
-						iface->m_LinkStats.m_iTXPackets = stats->tx_packets;
-						iface->m_LinkStats.m_iRXPackets = stats->rx_packets;
-						iface->m_LinkStats.m_iTXBytes   = stats->tx_bytes;
-						iface->m_LinkStats.m_iRXBytes   = stats->rx_bytes;
-					}
-				}
-#endif
+				// skip this data block
+				continue;
 			}
-
-			iface->m_Networks.push_back(std::move(net));
+		}
+		else
+		{
+			iface->AppendInterfaceData(*it, sock);
 		}
 	}
 

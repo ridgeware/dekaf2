@@ -59,6 +59,10 @@
 	#include <vector>
 #endif
 
+#if DEKAF2_IS_UNIX
+struct ifaddrs;
+#endif
+
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -259,6 +263,10 @@ public:
 
 	KNetworkInterface() = default;
 
+	/// construct for existing interface
+	/// @param sInterface a interface name in the list of operating system network interfaces
+	KNetworkInterface(KStringViewZ sInterface);
+
 	/// construct from full set of elements
 	KNetworkInterface(KString sName, IFFlags Flags, KMACAddress MAC, Networks networks)
 	: m_sName    (std::move(sName))
@@ -306,8 +314,9 @@ public:
 	}
 
 	/// static method: return a vector of all network interfaces of the sytem
+	/// @param sStartsWith start of interface name(s) to be looked up, defaults to empty string == all interfaces
 	DEKAF2_NODISCARD
-	static Interfaces  GetAllInterfaces();
+	static Interfaces  GetAllInterfaces(KStringView sStartsWith = {});
 
 	/// helper method: convert operation specific numeric flags into the class enum values
 	DEKAF2_NODISCARD
@@ -321,6 +330,11 @@ public:
 private:
 //------
 
+#if DEKAF2_IS_UNIX
+	/// append more data from an ifaddrs struct
+	bool AppendInterfaceData(const ifaddrs& iface, int sock) noexcept;
+#endif
+
 	KString       m_sName;
 	KMACAddress   m_MAC;
 	KIPAddress    m_Broadcast;
@@ -333,10 +347,11 @@ private:
 DEKAF2_ENUM_IS_FLAG(KNetworkInterface::IFFlags)
 
 /// return a vector of all network interfaces of the sytem
+/// @param sStartsWith start of interface name(s) to be looked up, defaults to empty string == all interfaces
 DEKAF2_NODISCARD DEKAF2_PUBLIC inline
-KNetworkInterface::Interfaces kGetNetworkInterfaces()
+KNetworkInterface::Interfaces kGetNetworkInterfaces(KStringView sStartsWith = {})
 {
-	return KNetworkInterface::GetAllInterfaces();
+	return KNetworkInterface::GetAllInterfaces(sStartsWith);
 }
 
 DEKAF2_NAMESPACE_END

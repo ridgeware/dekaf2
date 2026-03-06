@@ -48,6 +48,7 @@
 #include "kbase64.h"
 #include "ktime.h"
 #include "kstringutils.h"
+#include "kassociative.h"
 #if !DEKAF2_HTTP_HEADER_VIEW_PIPELINE
 	#include <boost/foreach.hpp>
 #endif

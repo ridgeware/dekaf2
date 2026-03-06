@@ -183,7 +183,7 @@ KString KUUID::ToString() const
 	KString sUUID;
 	sUUID.reserve(36);
 
-	auto* p = m_UUID.begin();
+	auto* p = &m_UUID[0];
 
 	auto Put = [&sUUID, &p](uint16_t iCount)
 	{

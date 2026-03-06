@@ -41,10 +41,12 @@
 */
 
 #include "knetworkinterface.h"
+#include "kcompatibility.h"
 #include "klog.h"
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <ws2tcpip.h>
+	#include <io.h>
 #else
 	#include <unistd.h>        // for sysconf()
 	#include <arpa/inet.h>
@@ -157,7 +159,11 @@ KMACAddress::MAC KMACAddress::ReadFromInterface(KStringViewZ sInterfaceName, int
 
 	if (bClose)
 	{
+#if DEKAF2_IS_WINDOWS
+		_close(sock);
+#else
 		::close(sock);
+#endif
 	}
 
 	if (bClear)

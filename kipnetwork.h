@@ -142,6 +142,7 @@ private:
 } // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// One IPv4 network description, that is one IPv4 address and its net prefix
 class DEKAF2_PUBLIC KIPNetwork4 : public detail::KIPNetworkBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -188,9 +189,11 @@ public:
 	          explicit KIPNetwork4(KStringView sNetwork, bool bAcceptSingleHost = false);
 
 	/// returns the IPv4 address of the network as used in construction
+	DEKAF2_NODISCARD
 	constexpr KIPAddress4 Address() const noexcept { return m_IP; }
 
 	/// get network as string
+	DEKAF2_NODISCARD
 	KString ToString () const noexcept;
 
 	explicit operator KString() const noexcept
@@ -198,52 +201,77 @@ public:
 		return ToString();
 	}
 
+	/// is address unspecified?
+	DEKAF2_NODISCARD
+	constexpr bool IsUnspecified() const noexcept
+	{
+		return Address().IsUnspecified();
+	}
+
+	/// is address valid?
+	DEKAF2_NODISCARD
+	constexpr bool IsValid() const noexcept
+	{
+		return Address().IsValid();
+	}
+
 	/// return netmask
+	DEKAF2_NODISCARD
 	constexpr KIPAddress4 Netmask() const noexcept
 	{
 		return KIPAddress4(PrefixLength() == 0 ? 0 : 0xffffffff << (32 - PrefixLength()) );
 	}
 
 	/// return address of the network
+	DEKAF2_NODISCARD
 	constexpr KIPAddress4 Network() const noexcept
 	{
 		return KIPAddress4(m_IP.ToUInt() & Netmask().ToUInt());
 	}
 
 	/// return broadcast address for the network
+	DEKAF2_NODISCARD
 	constexpr KIPAddress4 Broadcast() const noexcept
 	{
 		return KIPAddress4(Network().ToUInt() | (Netmask().ToUInt() ^ 0xFFFFFFFF));
 	}
 
 	/// return host range
+	DEKAF2_NODISCARD
 	std::pair<KIPAddress4, KIPAddress4> Hosts() const noexcept;
 
 	/// returns true if this network contains the given IPv4 address
+	DEKAF2_NODISCARD
 	bool Contains(const KIPAddress4& IP) const noexcept;
 
 	/// returns true if this network contains the given IPv6 address (for mapped v6 addresses..)
+	DEKAF2_NODISCARD
 	bool Contains(const KIPAddress6& IP) const noexcept;
 
 	/// returns true if this network contains the given IPv4 or IPv6 address (for mapped v6 addresses..)
+	DEKAF2_NODISCARD
 	bool Contains(const KIPAddress& IP) const noexcept;
 
 	/// return network without any host bits set
+	DEKAF2_NODISCARD
 	constexpr KIPNetwork4 Canonical() const noexcept
 	{
 		return KIPNetwork4(Network(), PrefixLength());
 	}
 
 	/// is this indeed a host address and not a network?
+	DEKAF2_NODISCARD
 	constexpr bool IsHost() const noexcept
 	{
 		return PrefixLength() == 32;
 	}
 
 	/// is network a subnet of another network?
+	DEKAF2_NODISCARD
 	bool IsSubnetOf(const KIPNetwork4& other) const;
 
 	/// is network a subnet of another network?
+	DEKAF2_NODISCARD
 	bool IsSubnetOf(const KIPNetwork6& other) const;
 
 	DEKAF2_NODISCARD
@@ -271,6 +299,7 @@ private:
 }; // KIPNetwork4
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// One IPv6 network description, that is one IPv6 address and its net prefix
 class DEKAF2_PUBLIC KIPNetwork6 : public detail::KIPNetworkBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -320,9 +349,25 @@ public:
 	          explicit KIPNetwork6(const KIPNetwork4& Net4) noexcept;
 
 	/// returns the IPv6 address of the network as used in construction
+	DEKAF2_NODISCARD
 	constexpr KIPAddress6 Address() const noexcept { return m_IP; }
 
+	/// is address unspecified?
+	DEKAF2_NODISCARD
+	constexpr bool IsUnspecified() const noexcept
+	{
+		return Address().IsUnspecified();
+	}
+
+	/// is address valid?
+	DEKAF2_NODISCARD
+	constexpr bool IsValid() const noexcept
+	{
+		return Address().IsValid();
+	}
+
 	/// get network as string
+	DEKAF2_NODISCARD
 	KString ToString () const noexcept;
 
 	explicit operator KString() const noexcept
@@ -331,39 +376,49 @@ public:
 	}
 
 	/// return netmask
+	DEKAF2_NODISCARD
 	KIPAddress6 Netmask() const noexcept;
 
 	/// return address of the network
+	DEKAF2_NODISCARD
 	KIPAddress6 Network() const noexcept;
 
 	/// return host range
+	DEKAF2_NODISCARD
 	std::pair<KIPAddress6, KIPAddress6> Hosts() const noexcept;
 
 	/// returns true if this network contains the given IPv4 address
+	DEKAF2_NODISCARD
 	bool Contains(const KIPAddress4& IP) const noexcept;
 
 	/// returns true if this network contains the given IPv6 address
+	DEKAF2_NODISCARD
 	bool Contains(const KIPAddress6& IP) const noexcept;
 
 	/// returns true if this network contains the given IPv4 or IPv6 address
+	DEKAF2_NODISCARD
 	bool Contains(const KIPAddress& IP) const noexcept;
 
 	/// return network without any host bits set
+	DEKAF2_NODISCARD
 	KIPNetwork6 Canonical() const noexcept
 	{
 		return KIPNetwork6(Network(), PrefixLength());
 	}
 
 	/// is this indeed a host address and not a network?
+	DEKAF2_NODISCARD
 	constexpr bool IsHost() const noexcept
 	{
 		return PrefixLength() == 128;
 	}
 
 	/// is network a subnet of another network?
+	DEKAF2_NODISCARD
 	bool IsSubnetOf(const KIPNetwork4& other) const;
 
 	/// is network a subnet of another network?
+	DEKAF2_NODISCARD
 	bool IsSubnetOf(const KIPNetwork6& other) const;
 
 	DEKAF2_NODISCARD
@@ -391,6 +446,7 @@ private:
 }; // KIPNetwork6
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// One IP network description, that is one IP address and its net prefix, either IPv4 or IPv6
 class DEKAF2_PUBLIC KIPNetwork
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -442,10 +498,26 @@ public:
 	}
 
 	/// returns the KIPNetwork4 as const ref, may be empty, test with Is4() before for validity
+	DEKAF2_NODISCARD
 	constexpr const KIPNetwork4& get4() const noexcept { return m_Net4; }
 
 	/// returns the KIPNetwork6 as const ref, may be empty, test with Is6() before for validity
+	DEKAF2_NODISCARD
 	constexpr const KIPNetwork6& get6() const noexcept { return m_Net6; }
+
+	/// is address unspecified?
+	DEKAF2_NODISCARD
+	constexpr bool IsUnspecified() const noexcept
+	{
+		return Is4() ? m_Net4.IsUnspecified() : Is6() ? m_Net6.IsUnspecified() : false;
+	}
+
+	/// is address valid?
+	DEKAF2_NODISCARD
+	constexpr bool IsValid() const noexcept
+	{
+		return Is4() ? m_Net4.IsValid() : Is6() ? m_Net6.IsValid() : false;
+	}
 
 	/// get address as string
 	DEKAF2_NODISCARD
@@ -457,18 +529,23 @@ public:
 	}
 
 	/// returns true if this network contains the given address
+	DEKAF2_NODISCARD
 	bool Contains(const KIPAddress4& IP) const noexcept;
 
 	/// returns true if this network contains the given address
+	DEKAF2_NODISCARD
 	bool Contains(const KIPAddress6& IP) const noexcept;
 
 	/// returns true if this network contains the given address
+	DEKAF2_NODISCARD
 	bool Contains(const KIPAddress& IP) const noexcept;
 
 	/// is this indeed a host address and not a network?
+	DEKAF2_NODISCARD
 	constexpr bool IsHost() const noexcept;
 
 	/// is network a subnet of another network?
+	DEKAF2_NODISCARD
 	bool IsSubnetOf(const KIPNetwork& other) const;
 
 	DEKAF2_NODISCARD

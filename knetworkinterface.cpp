@@ -568,6 +568,7 @@ KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces(KStringView sS
 			if (ni.AppendInterfaceData(*it, sock))
 			{
 				Interfaces.push_back(ni);
+				iface = Interfaces.begin() + (Interfaces.size() - 1);
 			}
 			else
 			{

@@ -50,7 +50,6 @@
 #else
 	#include <unistd.h>        // for sysconf()
 	#include <arpa/inet.h>
-	#include <sys/ioctl.h>     // for ioctl()
 	#include <net/if.h>        // KNetworkInterface
 	#include <netinet/in.h>    // KNetworkInterface
 	#include <sys/socket.h>    // KNetworkInterface
@@ -61,9 +60,16 @@
 		#include <net/if_dl.h>     // KNetworkInterface
 	#else
 		// Unix
-		#if DEKAF2_HAS_INCLUDE(<linux/if_link.h>)
+		#include <sys/ioctl.h>     // for ioctl()
+		#if DEKAF2_HAS_INCLUDE(<linux/if_link.h>) || \
+			(DEKAF2_GCC_VERSION_MAJOR > 5 && DEKAF2_GCC_VERSION_MINOR < 8)
 			#define DEKAF2_HAS_IF_LINK_H 1
 			#include <linux/if_link.h> // for rtnl_link_stats
+		#endif
+		#if DEKAF2_HAS_INCLUDE(<linux/wireless.h>) || \
+			(DEKAF2_GCC_VERSION_MAJOR > 5 && DEKAF2_GCC_VERSION_MINOR < 8)
+			#define DEKAF2_HAS_LINUX_WIRELESS 1
+			#include <linux/wireless.h> // for Linux WE ioctls
 		#endif
 	#endif
 #endif
@@ -191,6 +197,47 @@ KString KMACAddress::ToHex(char chSeparator) const
 	}
 
 } // KMACAddress::Hex
+
+//-----------------------------------------------------------------------------
+void KNetworkInterface::CheckWLANStatus(int sock) noexcept
+//-----------------------------------------------------------------------------
+{
+
+#if DEKAF2_HAS_LINUX_WIRELESS
+
+	m_sWirelessProtocol.clear();
+	m_sSSID.clear();
+
+	struct iwreq wrq;
+	char essid[IW_ESSID_MAX_SIZE + 1] = {0};
+	::memset(&wrq, 0, sizeof(struct iwreq));
+	strncpy(wrq.ifr_name, m_sName.c_str(), IFNAMSIZ);
+
+	if (::ioctl(sock, SIOCGIWNAME, &wrq) < 0)
+	{
+		// this is most probably simply no wireless interface, which would trigger ENOTTY
+		if (errno != ENOTTY && errno != EOPNOTSUPP)
+		{
+			kDebug(0,"errno {}: {}", errno, strerror(errno));
+		}
+		return;
+	}
+
+	m_sWirelessProtocol = wrq.u.name;
+
+	wrq.u.data.pointer = essid;
+	if (ioctl(sock, SIOCGIWESSID, &wrq) < 0)
+	{
+		kDebug(1, strerror(errno));
+		return;
+	}
+
+	m_sSSID = (char *)wrq.u.essid.pointer;
+//	kDebug(0, "{}: wireless protocol: {}, SSID: {}", m_sName, m_sWirelessProtocol, m_sSSID);
+
+#endif
+
+} // KNetworkInterface::CheckWLANStatus
 
 //-----------------------------------------------------------------------------
 KNetworkInterface::IFFlags KNetworkInterface::CalcFlags(uint32_t iFlags) noexcept
@@ -328,6 +375,7 @@ bool KNetworkInterface::AppendInterfaceData(const ifaddrs& iface, int sock) noex
 		m_sName = sName;
 		m_MAC   = KMACAddress(m_sName, KMACAddress::FromInterface, sock);
 		m_Flags = CalcFlags(iface.ifa_flags);
+		CheckWLANStatus(sock);
 	}
 	else if (m_sName != sName)
 	{
@@ -520,7 +568,6 @@ KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces(KStringView sS
 			if (ni.AppendInterfaceData(*it, sock))
 			{
 				Interfaces.push_back(ni);
-				iface = Interfaces.begin() + (Interfaces.size() - 1);
 			}
 			else
 			{

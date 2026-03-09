@@ -313,6 +313,27 @@ public:
 		return (m_Flags & flags) == flags;
 	}
 
+	/// returns true if this is a wireless interface
+	DEKAF2_NODISCARD
+	bool               IsWLAN      () const noexcept
+	{
+		return !m_sWirelessProtocol.empty();
+	}
+
+	/// returns wireless protocoll if this is a wireless interface, typically starts with "IEEE 802.11"
+	DEKAF2_NODISCARD
+	const KString&     GetWirelessProtocol() const noexcept
+	{
+		return m_sWirelessProtocol;
+	}
+
+	/// returns (connected) SSID if this is a wireless interface
+	DEKAF2_NODISCARD
+	const KString&     GetSSID     () const noexcept
+	{
+		return m_sSSID;
+	}
+
 	/// static method: return a vector of all network interfaces of the sytem
 	/// @param sStartsWith start of interface name(s) to be looked up, defaults to empty string == all interfaces
 	DEKAF2_NODISCARD
@@ -334,8 +355,12 @@ private:
 	/// append more data from an ifaddrs struct
 	bool AppendInterfaceData(const ifaddrs& iface, int sock) noexcept;
 #endif
+	/// add WLAN information, if any
+	void CheckWLANStatus(int sock) noexcept;
 
 	KString       m_sName;
+	KString       m_sWirelessProtocol;
+	KString       m_sSSID;
 	KMACAddress   m_MAC;
 	KIPAddress    m_Broadcast;
 	Networks      m_Networks;

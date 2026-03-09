@@ -1756,8 +1756,8 @@ if (IS_LINUX)
 endif()
 
 if (IS_MACOS)
-	# we need the core foundation framework for the locale retrieval on MacOS..
-	set (CORE_FOUNDATION "-framework Foundation")
+	# we need the core foundation framework for the locale retrieval on MacOS
+	set (MACOS_FRAMEWORKS "-framework Foundation")
 endif()
 
 if (IS_WINDOWS)
@@ -1819,7 +1819,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${COMPRESSORS}
 		${LIBZIP_LIBRARIES}
 		${RT}
-		${CORE_FOUNDATION}
+		${MACOS_FRAMEWORKS}
 		${DEBUG_HELP}
 		re2
 		${UAP-CPP_LIBRARIES}

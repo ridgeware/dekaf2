@@ -44,9 +44,15 @@ TEST_CASE("KNetworkInterface")
 			}
 #if 0
 			kDebug(0, "{}: {}", iface.GetName(), iface.PrintFlags());
+
 			if (iface.GetMAC().IsValid())
 			{
 				kDebug(0, "  MAC: {}", iface.GetMAC().ToHex());
+			}
+
+			if (iface.IsWLAN())
+			{
+				kDebug(0, "  {}: {}", iface.GetWirelessProtocol(), iface.GetSSID());
 			}
 
 			if (iface.GetBroadcast().IsValid())
@@ -78,9 +84,15 @@ TEST_CASE("KNetworkInterface")
 #endif
 #if 0
 		kDebug(0, "{}: {}", iface.GetName(), iface.PrintFlags());
+
 		if (iface.GetMAC().IsValid())
 		{
 			kDebug(0, "  MAC: {}", iface.GetMAC().ToHex());
+		}
+
+		if (iface.IsWLAN())
+		{
+			kDebug(0, "  {}: {}", iface.GetWirelessProtocol(), iface.GetSSID());
 		}
 
 		if (iface.GetBroadcast().IsValid())

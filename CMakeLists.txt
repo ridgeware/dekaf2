@@ -760,14 +760,6 @@ else ()
 
 endif (DOXYGEN_FOUND)
 
-# =============================== libuuid =======================================
-
-find_package(UUID QUIET)
-
-if (UUID_FOUND)
-	set(DEKAF2_HAS_LIBUUID OK)
-endif()
-
 # ====================== show list of found/notfound libs =======================
 
 function(RightPadString output str padchar length)
@@ -823,7 +815,6 @@ LibState("${DEKAF2_HAS_LIBZIP}"    "ZIP      :" "${LIBZIP_VERSION}"   "${LIBZIP_
 LibState("${DEKAF2_HAS_LIBLZMA}"   "LZMA     :" "${LIBLZMA_VERSION}"  "${LIBLZMA_LIBRARIES}" )
 LibState("${DEKAF2_HAS_LIBZSTD}"   "ZSTD     :" "${ZSTD_VERSION}"     "${ZSTD_LIBRARIES}"    )
 LibState("${DEKAF2_HAS_LIBYAML}"   "YAML     :" "${YAML_CPP_VERSION}" "${YAML_CPP_LIBRARIES}")
-LibState("${UUID_FOUND}"           "UUID     :" "${UUID_VERSION}"     "${UUID_LIBRARIES}"    )
 LibState("${DEKAF2_HAS_MYSQL}"     "MYSQL    :" "${MYSQL_VERSION}"    "${MYSQL_LIBRARIES}"   )
 LibState("${DEKAF2_HAS_SQLITE3}"   "SQLITE   :" "${SQLITE3_VERSION}"  "${SQLITE3_LIBRARIES}" )
 LibState("${DEKAF2_HAS_LIBBROTLI}" "BROTLI   :" "${BROTLI_VERSION}"   "${BROTLI_LIBRARIES}"  )
@@ -1823,7 +1814,6 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 		$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGHTTP2_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGHTTP3_INCLUDE_DIRS}>
-		$<BUILD_INTERFACE:${UUID_INCLUDE_DIRS}>
 )
 
 set(DEKAF2_LINK_LIBRARIES
@@ -1851,7 +1841,6 @@ set(DEKAF2_LINK_LIBRARIES
 		${JEMalloc_LIBRARIES}
 		${NGHTTP2_LIBRARIES}
 		${NGHTTP3_LIBRARIES}
-		${UUID_LIBRARIES}
 )
 
 set(DEKAF2_COMPILE_DEFINITIONS

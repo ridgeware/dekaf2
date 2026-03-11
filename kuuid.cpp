@@ -40,11 +40,6 @@
 
 #include "kuuid.h"
 #include "kmessagedigest.h"
-
-#if DEKAF2_HAS_LIBUUID
-	#include <uuid/uuid.h>
-#endif
-
 #include "kstringutils.h"
 #include "khex.h"
 #include "krandom.h"
@@ -54,45 +49,55 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-KUUID::KUUID(Version version) noexcept
+KUUID::UUID KUUID::Build(Version version) noexcept
 //-----------------------------------------------------------------------------
 {
+	//  0                       1
+	//  0 1 2 3  4 5  6 7  8 9  0 1 2 3 4 5
+	// a1ae410d-9bc7-478a-b2fa-1266927a1dd7
+
+	UUID uuid;
+
 	switch (version)
 	{
 		default:
 		case KUUID::Version::Null:
-			clear();
-			break;
+			uuid.fill(0);
+			return uuid;
 
-#if DEKAF2_HAS_LIBUUID
 		case KUUID::Version::MACTime:
-			::uuid_generate_time(m_UUID.data());
+			SetTimeToNow(uuid, true, false);
+			kGetRandom(uuid.data() + 8, 2);
+			SetMAC(uuid, false);
 			break;
-#endif
 
 		case KUUID::Version::Random:
-			kGetRandom(m_UUID.data(), m_UUID.size());
-			// set version to 4
-			m_UUID[6] &= 0x0f;
-			m_UUID[6] |= Version::Random << 4;
-			// set MSB of clk_seq_hi_res to %10
-			m_UUID[8] &= 0x3f;
-			m_UUID[8] |= 0x80;
+			kGetRandom(uuid.data(), uuid.size());
+			break;
+
+		case KUUID::Version::MACTimeSort:
+			SetTimeToNow(uuid, true, true);
+			kGetRandom(uuid.data() + 8, 2);
+			SetMAC(uuid, false);
 			break;
 
 		case KUUID::Version::TimeRandom:
-			kGetRandom(m_UUID.data() + 6, m_UUID.size() - 6);
-			SetTime(m_UUID);
-			// set version to 7
-			m_UUID[6] &= 0x0f;
-			m_UUID[6] |= Version::TimeRandom << 4;
-			// set MSB of clk_seq_hi_res to %10
-			m_UUID[8] &= 0x3f;
-			m_UUID[8] |= 0x80;
+			kGetRandom(uuid.data() + 8, uuid.size() - 8);
+			SetTimeToNow(uuid, false, true);
 			break;
 	}
 
-} // ctor
+	// set version
+	uuid[6] &= 0x0f;
+	uuid[6] |= version << 4;
+
+	// set MSB of clk_seq_hi_res to %10
+	uuid[8] &= 0x3f;
+	uuid[8] |= 0x80;
+
+	return uuid;
+
+} // Build
 
 //-----------------------------------------------------------------------------
 KUUID::KUUID(const KUUID& Namespace, KStringView sName, bool bForceLegacyMD5)
@@ -139,7 +144,7 @@ KUUID::UUID KUUID::FromStringStrict(KStringView sUUID) noexcept
 	    sUUID[18]    != '-' ||
 	    sUUID[23]    != '-')
 	{
-		uuid = Empty;
+		uuid.fill(0);
 	}
 	else
 	{
@@ -168,7 +173,7 @@ KUUID::UUID KUUID::FromStringStrict(KStringView sUUID) noexcept
 				}
 			}
 
-			uuid = Empty;
+			uuid.fill(0);
 			break;
 		}
 	}
@@ -178,7 +183,7 @@ KUUID::UUID KUUID::FromStringStrict(KStringView sUUID) noexcept
 } // FromStringStrict
 
 //-----------------------------------------------------------------------------
-KString KUUID::ToString() const
+KString KUUID::ToString(char chSeparator) const
 //-----------------------------------------------------------------------------
 {
 	KString sUUID;
@@ -186,11 +191,11 @@ KString KUUID::ToString() const
 
 	auto* p = &m_UUID[0];
 
-	auto Put = [&sUUID, &p](uint16_t iCount)
+	auto Put = [&sUUID, &p, chSeparator](uint16_t iCount)
 	{
-		if (!sUUID.empty())
+		if (chSeparator && !sUUID.empty())
 		{
-			sUUID += '-';
+			sUUID += chSeparator;
 		}
 
 		while (iCount--)
@@ -214,28 +219,28 @@ uint16_t KUUID::GetVariant() const noexcept
 //-----------------------------------------------------------------------------
 {
 	auto b = m_UUID[8];
-	if ((b & 0x80) == 0) return 0; // MSB 1 bit of b8 used
-	if ((b & 0x40) == 0) return 1; // MSB 2 bit of b8 used
-	if ((b & 0x20) == 0) return 2; // MSB 3 bit of b8 used
-	return 3;                      // MSB 3 bit of b8 used
+	if ((b & 0x80) == 0) return 0; // MSB 1 bit  of b8 used
+	if ((b & 0x40) == 0) return 1; // MSB 2 bits of b8 used
+	if ((b & 0x20) == 0) return 2; // MSB 3 bits of b8 used
+	return 3;                      // MSB 3 bits of b8 used
 }
 
 //-----------------------------------------------------------------------------
-KStringView KUUID::GetMAC() const noexcept
+KMACAddress KUUID::GetMAC() const noexcept
 //-----------------------------------------------------------------------------
 {
-	KStringView sMAC;
+	KMACAddress::MAC Mac;
 
 	switch (GetVersion())
 	{
 		case Version::MACTime:
 		case Version::MACTimeDCE:
 		case Version::MACTimeSort:
-			sMAC = KStringView(reinterpret_cast<const char*>(m_UUID.data()) + 10, 6);
+			std::copy(m_UUID.begin() + 10, m_UUID.end(), Mac.begin());
 			break;
 	}
 
-	return sMAC;
+	return Mac;
 
 } // GetMAC
 
@@ -243,37 +248,27 @@ KStringView KUUID::GetMAC() const noexcept
 KUnixTime KUUID::GetTime() const noexcept
 //-----------------------------------------------------------------------------
 {
-	KUnixTime tTime;
-
 	switch (GetVersion())
 	{
 		case Version::MACTimeSort:
+			return DecodeTime(m_UUID, true, true);
+
 		case Version::TimeRandom:
-		{
-			chrono::milliseconds msecs { 0 };
-			for (uint16_t i = 0; i < 6; ++i)
-			{
-				msecs *= 256;
-				msecs += chrono::milliseconds(m_UUID[i]);
-			}
-			tTime = KUnixTime(msecs);
-			break;
-		}
+			return DecodeTime(m_UUID, false, true);
+
+		case Version::MACTime:
+			return DecodeTime(m_UUID, true, false);
 	}
 
-	return tTime;
+	return {};
 
 } // GetTime
 
 //-----------------------------------------------------------------------------
-void KUUID::SetTime(UUID& uuid)
+KUnixTime KUUID::GetMonotonicCurrentTime() noexcept
 //-----------------------------------------------------------------------------
 {
-	// insert the current time in milliseconds into the first 6 bytes of the uuid,
 	// make sure we have monotonic increasing time stamps
-	// to allow for more than 1000 UUIDs per second we use the LSB 4 bit of uuid[6]
-	// and the MSB 6 bit of uuid[7] for the full microsecond resolution, and hence
-	// 1 million UUIDs per second
 	// see https://datatracker.ietf.org/doc/html/rfc9562.html#name-monotonicity-and-counters
 
 	static std::mutex TMutex;
@@ -296,24 +291,159 @@ void KUUID::SetTime(UUID& uuid)
 		}
 	}
 
-	uint64_t iTicks = usecs.count() / 1000;
+	return KUnixTime(usecs);
 
-	for (int16_t i = 5; i >= 0; --i)
+} // GetMonotonicCurrentTime
+
+//-----------------------------------------------------------------------------
+KUnixTime KUUID::DecodeTime(const UUID& uuid, bool bGregorian, bool bBigEndian) noexcept
+//-----------------------------------------------------------------------------
+{
+	uint64_t t60 { 0 };
+
+	if (bBigEndian)
 	{
-		uuid[i] = iTicks & 0xff;
-		iTicks /= 256;
+		t60 += (static_cast<uint64_t>(uuid[0]) << 40) +
+		       (static_cast<uint64_t>(uuid[1]) << 32) +
+		       (static_cast<uint64_t>(uuid[2]) << 24) +
+		       (static_cast<uint64_t>(uuid[3]) << 16) +
+		       (static_cast<uint64_t>(uuid[4]) <<  8) +
+		       (static_cast<uint64_t>(uuid[5]) <<  0);
+
+		if (!bGregorian)
+		{
+			// For the unix time format in uuid v7 only 48 bits are standardized.
+			// While most implementations (including ours) add more we do not
+			// know if and how many, so we stick with milliseconds resolution
+			return KUnixTime(chrono::milliseconds(t60));
+		}
+
+		// gregorian also implies 60 bits, not only 48
+		t60 <<= 12;
+
+		t60 += ((static_cast<uint64_t>(uuid[6]) & 0x0f) << 8) +
+		        (static_cast<uint64_t>(uuid[7]) << 0);
+	}
+	else
+	{
+		kAssert(bGregorian == true, "no support for low endian unix time format");
+
+		t60 += (static_cast<uint64_t>(uuid[0]) << 24) +
+		       (static_cast<uint64_t>(uuid[1]) << 16) +
+		       (static_cast<uint64_t>(uuid[2]) <<  8) +
+		       (static_cast<uint64_t>(uuid[3]) <<  0) +
+		       (static_cast<uint64_t>(uuid[4]) << 40) +
+		       (static_cast<uint64_t>(uuid[5]) << 32) +
+		      ((static_cast<uint64_t>(uuid[6]) & 0x0f) << 56) +
+		       (static_cast<uint64_t>(uuid[7]) << 48);
 	}
 
-	uint16_t iExt = usecs.count() % 1000;
+	if (bGregorian)
+	{
+		// subtract the offset between 15-Oct-1582 and 1-Jan-70
+		t60 -= 0x01b21dd213814000;
+	}
 
-	uuid[6]  = (iExt >> 6);
-	uuid[7] &= 0x03;
-	uuid[7] |= (iExt << 2) & 0xfc;
+	return KUnixTime(chrono::microseconds(t60 / 10)
+#if DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+	               + chrono::nanoseconds((t60 % 10) * 100)
+#endif
+	);
 
-} // SetTime
+} // DecodeTime
+
+//-----------------------------------------------------------------------------
+void KUUID::EncodeTime(UUID& uuid, KUnixTime tTime, bool bGregorian, bool bBigEndian) noexcept
+//-----------------------------------------------------------------------------
+{
+	chrono::nanoseconds nsecs = chrono::duration_cast<chrono::nanoseconds>(tTime.time_since_epoch());
+
+	// convert to 100s of nanoseconds
+	uint64_t nano100 = nsecs.count() / 100;
+
+	if (bGregorian)
+	{
+		// add the offset between 15-Oct-1582 and 1-Jan-70
+		nano100 += 0x01b21dd213814000;
+	}
+
+	if (bBigEndian)
+	{
+		uuid[0] = static_cast<unsigned char>(nano100 >> 52);
+		uuid[1] = static_cast<unsigned char>(nano100 >> 44);
+		uuid[2] = static_cast<unsigned char>(nano100 >> 36);
+		uuid[3] = static_cast<unsigned char>(nano100 >> 28);
+		uuid[4] = static_cast<unsigned char>(nano100 >> 20);
+		uuid[5] = static_cast<unsigned char>(nano100 >> 12);
+		uuid[6] = static_cast<unsigned char>(nano100 >>  8);
+		uuid[7] = static_cast<unsigned char>(nano100 >>  0);
+	}
+	else
+	{
+		uuid[0] = static_cast<unsigned char>(nano100 >> 24);
+		uuid[1] = static_cast<unsigned char>(nano100 >> 16);
+		uuid[2] = static_cast<unsigned char>(nano100 >>  8);
+		uuid[3] = static_cast<unsigned char>(nano100 >>  0);
+		uuid[4] = static_cast<unsigned char>(nano100 >> 40);
+		uuid[5] = static_cast<unsigned char>(nano100 >> 32);
+		uuid[6] = static_cast<unsigned char>(nano100 >> 56);
+		uuid[7] = static_cast<unsigned char>(nano100 >> 48);
+	}
+
+} // EncodeTime
+
+//-----------------------------------------------------------------------------
+void KUUID::EncodeMAC(UUID& uuid, const KMACAddress& Mac)
+//-----------------------------------------------------------------------------
+{
+	std::copy(Mac.ToBytes().begin(), Mac.ToBytes().end(), uuid.begin() + 10);
+
+} // EncodeMAC
+
+//-----------------------------------------------------------------------------
+const KMACAddress& KUUID::GetInterfaceMAC(bool bRandom) noexcept
+//-----------------------------------------------------------------------------
+{
+	static KMACAddress s_Mac = [bRandom]() -> KMACAddress
+	{
+		if (!bRandom)
+		{
+			auto Interfaces = kGetNetworkInterfaces();
+			const KMACAddress* Local { nullptr };
+
+			for (const auto& Interface : Interfaces)
+			{
+				if (Interface.GetMAC().IsValid())
+				{
+					if (Interface.GetMAC().IsGlobal())
+					{
+						return Interface.GetMAC();
+					}
+
+					if (!Local)
+					{
+						Local = &Interface.GetMAC();
+					}
+				}
+			}
+
+			if (Local)
+			{
+				return *Local;
+			}
+		}
+
+		// https://www.rfc-editor.org/rfc/rfc9562#section-6.10
+		// requires the multicast bit being set for random MAC addresses
+		return KMACAddress::Random(true);
+
+	}();
+
+	return s_Mac;
+
+} // GetInterfaceMAC
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-constexpr KUUID::UUID KUUID::Empty;
 constexpr KUUID::UUID KUUID::ns::DNS;
 constexpr KUUID::UUID KUUID::ns::URL;
 constexpr KUUID::UUID KUUID::ns::OID;

@@ -48,13 +48,14 @@
 #include "kstring.h"
 #include "ktime.h"
 #include "khex.h"
+#include "knetworkinterface.h"
 #include <array>
 #include <ostream>
 
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Creating, parsing, and analyzing UUIDs
+/// Creating, parsing, and analyzing UUIDs like a1ae410d-9bc7-478a-b2fa-1266927a1dd7
 class DEKAF2_PUBLIC KUUID
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -63,38 +64,38 @@ class DEKAF2_PUBLIC KUUID
 public:
 //------
 
+	/// the UUID version, from 1 to 7 - see https://datatracker.ietf.org/doc/html/rfc9562.html for details
 	enum Version : uint8_t
 	{
 		Null        = 0, ///< the empty UUID
-		MACTime     = 1, ///< creation only supported on Linux, prefer TimeRandom (7)
+		MACTime     = 1, ///< MAC and time based UUID, prefer TimeRandom (7) instead if you want a time based UUID
 		MACTimeDCE  = 2, ///< legacy, creation not supported
-		NamedMD5    = 3, ///< legacy for namespaced use of name based UUIDs
+		NamedMD5    = 3, ///< legacy for namespaced use of name based UUIDs, prefer NamedSHA1 (5) if you want a name based UUID
 		Random      = 4, ///< prefer for general use of random UUIDs, has most randomness (122 bits)
 		NamedSHA1   = 5, ///< prefer for namespaced use of name based UUIDs
-		MACTimeSort = 6, ///< creation not supported, prefer TimeRandom (7)
+		MACTimeSort = 6, ///< DB index friendly version of MACTime, prefer TimeRandom (7) though
 		TimeRandom  = 7, ///< prefer for indexed (DB) use of random UUIDs with timestamp
-		Custom      = 8  ///< creation not supported, custom algorithm
+		Custom      = 8  ///< creation not supported, for custom algorithm
 	};
 
 	using UUID = std::array<unsigned char, 16>;
 
-	static
-	constexpr   UUID Empty { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
 	/// creates a UUID of the chosen version
 	/// @param version the chosen version.
-	/// Random (4), and TimeRandom (7) are guaranteed to be supported by this constructor,
-	/// MACTime (1) is only supported on Unix.
+	/// MACTime (1), Random (4), MACTimeSort (6), and TimeRandom (7) are guaranteed to be supported by this constructor.
 	/// Check with HasVersion() if the implementation has the version requested, and check the
 	/// other constructors for named versions.
-	explicit    KUUID(Version version = Version::Random) noexcept;
+	explicit    KUUID(Version version = Version::Random) noexcept
+	            : m_UUID(Build(version))
+	            {}
 
 	/// constexpr construct a UUID from existing storage, implicitly
 	constexpr   KUUID(UUID uuid) noexcept
 	            : m_UUID(std::move(uuid))
 	            {}
 
-	/// create a named UUID (version 5, NamedSHA1 or version 3, NamedMD5) from a namespace UUID and a name
+	/// Create a named UUID (version 5, NamedSHA1 or version 3, NamedMD5) from a namespace UUID and a name.
+	/// Check for predefined namespaces DNS, URL, OID, X500 in namespace KUUID::ns
 	/// @param Namespace a UUID for all names in this namespace
 	/// @param sName a name as the base of _this_ UUID
 	/// @param bForceLegacyMD5 if true will use MD5 digest instead of the default SHA1 digest - defaults to false
@@ -119,7 +120,8 @@ public:
 	}
 
 	/// convert the UUID value to a string representation
-	KString     ToString   () const;
+	/// @param chSeparator the separator char between the UUID fields, \0 == no separator, defaults to '-'
+	KString     ToString   (char chSeparator = '-') const;
 
 	/// convert the UUID value to a string representation
 	KString     Serialize  () const              { return ToString();     }
@@ -137,7 +139,7 @@ public:
 	uint16_t    GetVariant () const noexcept;
 
 	/// returns the MAC address (if the UUID includes the MAC address) as raw bytes
-	KStringView GetMAC     () const noexcept;
+	KMACAddress GetMAC     () const noexcept;
 
 	/// returns the unix time (if the UUID includes the creation time)
 	KUnixTime   GetTime    () const noexcept;
@@ -146,12 +148,12 @@ public:
 	DEKAF2_CONSTEXPR_20
 	bool        empty      () const noexcept
 	{
-		return m_UUID == Empty;
+		return m_UUID == Nil().m_UUID;
 	}
 
 	/// clear the UUID (set to empty value)
 	DEKAF2_CONSTEXPR_20
-	void        clear      ()       noexcept     { m_UUID = Empty;       }
+	void        clear      ()       noexcept     { *this = Nil();        }
 
 	/// return the UUID in network byte order
 	constexpr
@@ -171,8 +173,7 @@ public:
 
 	/// create a UUID of selected version, defaults to Random
 	/// @param version the chosen version.
-	/// Random (4), and TimeRandom (7) are guaranteed to be supported by this method,
-	/// MACTime (1) is only supported on Unix.
+	/// MACTime (1), Random (4), MACTimeSort (6), and TimeRandom (7) are guaranteed to be supported by this method.
 	/// Check with HasVersion() if the implementation has the version requested, and check the
 	/// other creation method for named versions.
 	static
@@ -181,7 +182,8 @@ public:
 		return KUUID(version);
 	}
 
-	/// create a named UUID (version 5, NamedSHA1 or version 3, NamedMD5) from a namespace UUID and a name
+	/// Create a named UUID (version 5, NamedSHA1 or version 3, NamedMD5) from a namespace UUID and a name.
+	/// Check for predefined namespaces DNS, URL, OID, X500 in namespace KUUID::ns
 	/// @param Namespace a UUID for all names in this namespace
 	/// @param sName a name as the base of _this_ UUID
 	/// @param bForceLegacyMD5 if true will use MD5 digest instead of the default SHA1 digest - defaults to false
@@ -205,12 +207,11 @@ public:
 		switch (iVersion)
 		{
 			case KUUID::Version::Null:
-#if DEKAF2_HAS_LIBUUID
 			case KUUID::Version::MACTime:
-#endif
 			case KUUID::Version::NamedMD5:
 			case KUUID::Version::Random:
 			case KUUID::Version::NamedSHA1:
+			case KUUID::Version::MACTimeSort:
 			case KUUID::Version::TimeRandom:
 				return true;
 
@@ -221,6 +222,16 @@ public:
 		return false;
 
 	} // HasVersion
+
+	static constexpr KUUID Nil() noexcept
+	{
+		return UUID { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	}
+
+	static constexpr KUUID Max() noexcept
+	{
+		return UUID { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 };
+	}
 
 	/// the prefefined name spaces from RFC4122
 	struct ns
@@ -239,10 +250,11 @@ public:
 private:
 //------
 
+	static UUID Build(Version version) noexcept;
+
 	static UUID FromStringStrict(KStringView sUUID) noexcept;
 
-	static constexpr
-	UUID FromString(KStringView sUUID, bool bStrict) noexcept
+	static constexpr UUID FromString(KStringView sUUID, bool bStrict) noexcept
 	{
 		if (bStrict)
 		{
@@ -252,8 +264,34 @@ private:
 		return kBytesFromHex<UUID>(sUUID, "-");
 	}
 
-	static
-	void SetTime(UUID& uuid);
+	/// set the current time into the given uuid as 100s of nanoseconds, either since the unix epoch or 15-Oct-1582,
+	/// and either as low or big endian, and make sure the time is unique and monoton
+	static inline void SetTimeToNow(UUID& uuid, bool bGregorian, bool bBigEndian) noexcept
+	{
+		EncodeTime(uuid, GetMonotonicCurrentTime(), bGregorian, bBigEndian);
+	}
+
+	/// get the time from the UUID, either since the unix epoch or 15-Oct-1582, and either as low or big endian
+	static KUnixTime DecodeTime(const UUID& uuid, bool bGregorian, bool bBigEndian) noexcept;
+
+	/// encode the given timepoint as 100s of nanoseconds, either since the unix epoch or 15-Oct-1582,
+	/// and either as low or big endian
+	static void EncodeTime(UUID& uuid, KUnixTime tTime, bool bGregorian, bool bBigEndian) noexcept;
+
+	/// set the node ID, either from an interface or purely random
+	static inline void SetMAC(UUID& uuid, bool bRandom)
+	{
+		EncodeMAC(uuid, GetInterfaceMAC(bRandom));
+	}
+
+	/// set the node ID, either from an interface or purely random
+	static void EncodeMAC(UUID& uuid, const KMACAddress& Mac);
+
+	/// get a MAC address either from a real interface, or randomly generated
+	static const KMACAddress& GetInterfaceMAC(bool bRandom) noexcept;
+
+	/// get the current timestamp, unique and monotone
+	static KUnixTime GetMonotonicCurrentTime() noexcept;
 
 	UUID m_UUID;
 

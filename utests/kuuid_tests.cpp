@@ -67,11 +67,11 @@ TEST_CASE("KUUID")
 			CHECK ( uuid == KStringView("a8f6ae40-d8a7-58f0-be05-a22f94eca9ec") );
 		}
 
-		uuid = "017f22e2-79be-7bfd-84a1-8287eba94deb";
+		uuid = "017f22e2-79b0-7cc3-98c4-dc0c0c07398f";
 		CHECK ( uuid.GetVersion() == KUUID::Version::TimeRandom );
 		auto tTime = uuid.GetTime();
 		CHECK ( tTime.to_string() == "2022-02-22 19:22:22" );
-		CHECK ( tTime.subseconds().milliseconds().count() == 14 );
+		CHECK ( tTime.subseconds().milliseconds().count() == 0 );
 
 		uuid = KUUID(KUUID::Version::TimeRandom);
 		auto uuid2 = KUUID(KUUID::Version::TimeRandom);
@@ -82,19 +82,32 @@ TEST_CASE("KUUID")
 		CHECK ( uuid != uuid2 );
 
 #if DEKAF2_HAS_CPP_20
-		constexpr auto uuid1 = KUUID("017f22e2-79be-11ea-b2f3-1db91a60758f");
+		constexpr auto uuid1 = KUUID("e22e1622-5c14-11ea-b2f3-1db91a60758f");
 		static_assert(uuid1.GetVersion() == KUUID::Version::MACTime, "wrong version");
 #else
-		auto uuid1 = KUUID("017f22e2-79be-11ea-b2f3-1db91a60758f");
+		auto uuid1 = KUUID("e22e1622-5c14-11ea-b2f3-1db91a60758f");
 #endif
 		CHECK ( uuid1.GetVersion() == KUUID::Version::MACTime );
-#if 0
 		tTime = uuid1.GetTime();
-		CHECK ( tTime.to_string() == "2022-02-22 19:22:22" );
-		CHECK ( tTime.subseconds().milliseconds().count() == 14 );
-#endif
-		auto sMAC = uuid1.GetMAC();
-		CHECK ( KEnc::Hex(sMAC) == "1db91a60758f" );
+		CHECK ( tTime.to_string() == "2020-03-01 23:32:15" );
+		CHECK ( tTime.subseconds().microseconds().count() == 199389 );
+		auto MAC = uuid1.GetMAC();
+		CHECK ( MAC.ToHex('.') == "1d.b9.1a.60.75.8f" );
+		CHECK ( MAC.ToHex('\0') == "1db91a60758f" );
+
+		uuid = KUUID("3960c5d8-60f8-11ea-bc55-0242ac130003");
+		CHECK ( uuid.GetVersion() == KUUID::Version::MACTime );
+		CHECK ( uuid.GetTime().to_string() == "2020-03-08 04:49:41" );
+
+		uuid = KUUID("1ea60f83-960c-65d8-bc55-15b913560758");
+		CHECK ( uuid.ToString('.') == "1ea60f83.960c.65d8.bc55.15b913560758" );
+		CHECK ( uuid.ToString('\0') == "1ea60f83960c65d8bc5515b913560758" );
+		CHECK ( uuid.GetVersion() == KUUID::Version::MACTimeSort );
+		tTime = uuid.GetTime();
+		CHECK ( tTime.to_string() == "2020-03-08 04:49:41" );
+		CHECK ( tTime.subseconds().milliseconds().count() == 902 );
+		MAC = uuid.GetMAC();
+		CHECK ( MAC.ToHex() == "15:b9:13:56:07:58" );
 
 		uuid = KUUID::Create(KUUID::Null);
 		CHECK ( uuid.empty() == true );

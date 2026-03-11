@@ -102,7 +102,7 @@ public:
 	            KUUID(const KUUID& Namespace, KStringView sName, bool bForceLegacyMD5 = false);
 
 	/// read a UUID string representation and decode it to set this UUID value
-	DEKAF2_CONSTEXPR_20
+	constexpr
 	explicit    KUUID(KStringView sUUID, bool bStrict = false)
 	            : m_UUID(FromString(sUUID, bStrict))
 	            {}
@@ -112,7 +112,7 @@ public:
 	            KUUID& operator=(const KUUID&) = default;
 	            KUUID& operator=(KUUID&&)      = default;
 
-	DEKAF2_CONSTEXPR_20
+	constexpr
 	KUUID& operator=(KStringView sUUID) noexcept
 	{
 		m_UUID = FromString(sUUID, false);
@@ -145,30 +145,31 @@ public:
 	KUnixTime   GetTime    () const noexcept;
 
 	/// check if the UUID is empty
-	DEKAF2_CONSTEXPR_20
+	constexpr
 	bool        empty      () const noexcept
 	{
-		return m_UUID == Nil().m_UUID;
+		return IsEqual(m_UUID, Nil().m_UUID);
 	}
 
 	/// clear the UUID (set to empty value)
-	DEKAF2_CONSTEXPR_20
+	constexpr
 	void        clear      ()       noexcept     { *this = Nil();        }
 
 	/// return the UUID in network byte order
 	constexpr
 	const UUID& GetUUID    () const noexcept     { return m_UUID;        }
 
-	DEKAF2_CONSTEXPR_20 friend
+	constexpr friend
 	bool operator==(const KUUID& a, const KUUID& b) noexcept
 	{
-		return a.GetUUID() == b.GetUUID();
+		return IsEqual(a.GetUUID(), b.GetUUID());
 	}
 
-	DEKAF2_CONSTEXPR_20 friend
+	constexpr friend
 	bool operator< (const KUUID& a, const KUUID& b) noexcept
 	{
-		return a.GetUUID() <  b.GetUUID();
+		auto i = Compare(a.GetUUID(), b.GetUUID());
+		return i < 0;
 	}
 
 	/// create a UUID of selected version, defaults to Random
@@ -194,7 +195,7 @@ public:
 	}
 
 	/// parse a UUID from a string representation
-	static DEKAF2_CONSTEXPR_20
+	static constexpr
 	KUUID Parse (KStringView sUUID) noexcept
 	{
 		return KUUID(sUUID);
@@ -250,6 +251,24 @@ public:
 private:
 //------
 
+	static constexpr bool IsEqual(const UUID& a, const UUID& b) noexcept
+	{
+		return a[ 0] == b[ 0] && a[ 1] == b[ 1] && a[ 2] == b[ 2] && a[ 3] == b[ 3] &&
+		       a[ 4] == b[ 4] && a[ 5] == b[ 5] && a[ 6] == b[ 6] && a[ 7] == b[ 7] &&
+		       a[ 8] == b[ 8] && a[ 9] == b[ 9] && a[10] == b[10] && a[11] == b[11] &&
+		       a[12] == b[12] && a[13] == b[13] && a[14] == b[14] && a[15] == b[15];
+	}
+
+	static constexpr int16_t Compare(const UUID& a, const UUID& b) noexcept
+	{
+		for (uint16_t i = 0; i < 16; ++i)
+		{
+			if (a[i] < b[i]) return -1;
+			if (a[i] > b[i]) return  1;
+		}
+		return 0;
+	}
+
 	static UUID Build(Version version) noexcept;
 
 	static UUID FromStringStrict(KStringView sUUID) noexcept;
@@ -297,7 +316,7 @@ private:
 
 }; // KUUID
 
-DEKAF2_COMPARISON_OPERATORS(KUUID)
+DEKAF2_COMPARISON_OPERATORS_WITH_ATTR(constexpr, KUUID)
 
 inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, const KUUID& UUID)
 {

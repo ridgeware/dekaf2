@@ -748,7 +748,7 @@ namespace std
 	template<>
 	struct hash<DEKAF2_PREFIX KHTMLObject>
 	{
-		DEKAF2_CONSTEXPR_20
+		DEKAF2_FULL_CONSTEXPR_20
 		std::size_t operator()(const DEKAF2_PREFIX KHTMLObject& o) const noexcept
 		{
 			return o.Type();

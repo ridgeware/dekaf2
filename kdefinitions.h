@@ -255,6 +255,10 @@
 	#define DEKAF2_HAS_CPP_20 1
 #endif
 
+#if (__cplusplus >= 202002L)
+	#define DEKAF2_HAS_FULL_CPP_20 1
+#endif
+
 #if (__cplusplus > 202002L)
 	#define DEKAF2_HAS_CPP_23 1
 #endif
@@ -287,6 +291,12 @@
 	#define DEKAF2_CONSTEXPR_20 constexpr
 #else
 	#define DEKAF2_CONSTEXPR_20 inline
+#endif
+
+#ifdef DEKAF2_HAS_FULL_CPP_20
+	#define DEKAF2_FULL_CONSTEXPR_20 constexpr
+#else
+	#define DEKAF2_FULL_CONSTEXPR_20 inline
 #endif
 
 #ifdef DEKAF2_HAS_CONSTEXPR_STD_STRING

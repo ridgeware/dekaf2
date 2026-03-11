@@ -127,6 +127,11 @@ struct has_subscript_operator<T, Index, std::void_t<
 	decltype(std::declval<T>()[std::declval<Index>()])
 >> : std::true_type { };
 
+#if DEKAF2_GCC_VERSION_MAJOR == 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
+#endif
+
 #define DEKAF2_HAS_MEMBER_FUNCTION(function, has_name)                           \
 	template <typename T>                                                        \
 	class has_name                                                               \
@@ -148,6 +153,10 @@ DEKAF2_HAS_MEMBER_FUNCTION(size,      has_size     );
 DEKAF2_HAS_MEMBER_FUNCTION(capacity,  has_capacity );
 DEKAF2_HAS_MEMBER_FUNCTION(Parse,     has_Parse    );
 DEKAF2_HAS_MEMBER_FUNCTION(Serialize, has_Serialize);
+
+#if DEKAF2_GCC_VERSION_MAJOR == 8
+#pragma GCC diagnostic pop
+#endif
 
 template <typename>
 struct is_chrono_duration : std::false_type {};

@@ -112,7 +112,7 @@ template
 DEKAF2_NODISCARD DEKAF2_PUBLIC constexpr
 Bytes kBytesFromHex(KStringView sInput, KStringView sSeparators = ":-.|") noexcept
 {
-#if DEKAF2_HAS_CPP_20
+#if DEKAF2_HAS_FULL_CPP_20
 	Bytes bytes;
 #else
 	Bytes bytes { 0 };

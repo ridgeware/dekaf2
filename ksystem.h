@@ -49,6 +49,7 @@
 #include "kstringview.h"
 #include "kduration.h"
 #include "kipaddress.h"        // remove when deleting deprecated kIsValidIPv4/kIsValidIPv6
+#include "krandom.h"           // remove when all users have added krandom.h
 #include "bits/kstringviewz.h"
 #include <locale>
 #ifndef DEKAF2_IS_WINDOWS
@@ -172,22 +173,6 @@ int kSystem (KStringView sCommand);
 /// Sleep for the given KDuration
 DEKAF2_PUBLIC
 void kSleep(KDuration duration);
-
-/// Returns 32 bit unsigned random number
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-uint32_t kRandom();
-
-/// Returns 32 bit unsigned random number in range [iMin - iMax].
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-uint32_t kRandom(uint32_t iMin, uint32_t iMax);
-
-/// Returns cryptographically secure random bytes
-DEKAF2_PUBLIC
-bool kGetRandom(void* buf, std::size_t iCount);
-
-/// Returns cryptographically secure random bytes
-DEKAF2_PUBLIC
-KString kGetRandom(std::size_t iCount);
 
 /// Returns the page size used on this CPU/MMU
 DEKAF2_NODISCARD DEKAF2_PUBLIC

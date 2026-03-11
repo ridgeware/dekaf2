@@ -6,7 +6,7 @@
 #include <dekaf2/kctype.h>
 #include <dekaf2/kprops.h>
 #include <dekaf2/kstack.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/krandom.h>
 #include <vector>
 #include <list>
 #include <iostream>

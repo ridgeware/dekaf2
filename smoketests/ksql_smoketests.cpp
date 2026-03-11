@@ -42,7 +42,7 @@
 
 #include "catch.hpp"
 #include <dekaf2/ksql.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/krandom.h>
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/kstringutils.h>
 #include <dekaf2/kduration.h>

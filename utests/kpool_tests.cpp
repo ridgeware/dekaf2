@@ -3,7 +3,7 @@
 #include <dekaf2/kpool.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kthreads.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/krandom.h>
 
 using namespace dekaf2;
 

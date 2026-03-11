@@ -49,6 +49,7 @@
 #include "ksystem.h"
 #include "kchildprocess.h"
 #include "kctype.h"
+#include "krandom.h"
 
 #include <cstdlib>
 #include <cwctype>
@@ -59,11 +60,6 @@
 #include <locale>
 #ifdef DEKAF2_IS_OSX
 	#include <CoreFoundation/CoreFoundation.h> // for locale retrieval
-	#include <sys/random.h>
-	#define DEKAF2_HAS_ARC4RANDOM 1
-#elif DEKAF2_IS_LINUX
-	#include <sys/random.h>
-	#define DEKAF2_HAS_ARC4RANDOM 1
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -112,7 +108,7 @@ Dekaf::Dekaf()
 	std::ios::sync_with_stdio(false);
 
 	SetUnicodeLocale();
-	SetRandomSeed();
+	detail::kSetRandomSeed();
 
 	local_split_in_path_and_name(kGetOwnPathname(), m_sProgPath, m_sProgName);
 
@@ -253,95 +249,6 @@ bool Dekaf::SetUnicodeLocale(KStringViewZ sName)
 
 	return false;
 }
-
-//---------------------------------------------------------------------------
-void Dekaf::SetRandomSeed()
-//---------------------------------------------------------------------------
-{
-	std::random_device RandDevice;
-
-	m_Random.unique()->seed(RandDevice());
-
-	srand(RandDevice());
-#ifndef DEKAF2_IS_WINDOWS
-	srand48(RandDevice());
-	#ifdef DEKAF2_IS_OSX
-	srandomdev();
-	#else
-	srandom(RandDevice());
-	#endif
-#endif
-}
-
-//-----------------------------------------------------------------------------
-uint32_t Dekaf::GetRandomValue()
-//-----------------------------------------------------------------------------
-{
-#if DEKAF2_HAS_ARC4RANDOM
-	return arc4random();
-#else
-	return m_Random.unique().get()();
-#endif
-
-} // GetRandomValue
-
-//-----------------------------------------------------------------------------
-uint32_t Dekaf::GetRandomValue(uint32_t iMin, uint32_t iMax)
-//-----------------------------------------------------------------------------
-{
-#if DEKAF2_HAS_ARC4RANDOM
-	auto iRange = iMax - iMin;
-	return arc4random_uniform(iRange) + iMin;
-#else
-	std::uniform_int_distribution<uint32_t> uniform_dist(iMin, iMax);
-	return uniform_dist(m_Random.unique().get());
-#endif
-
-} // GetRandomValue
-
-//---------------------------------------------------------------------------
-bool Dekaf::GetRandomBytes(void* buf, std::size_t iCount)
-//---------------------------------------------------------------------------
-{
-	if (!buf)
-	{
-		kDebug(1, "buffer is invalid");
-		return false;
-	}
-
-#if DEKAF2_HAS_ARC4RANDOM
-
-	arc4random_buf(buf, iCount);
-
-#else
-
-	auto* it = static_cast<uint8_t*>(buf);
-	auto* ie = it + iCount;
-
-	while (ie - it >= 4)
-	{
-		uint32_t r = GetRandomValue();
-		*it++ = r & 0xff;
-		*it++ = (r >>= 8) & 0xff;
-		*it++ = (r >>= 8) & 0xff;
-		*it++ = (r >>= 8) & 0xff;
-	}
-
-	if (ie - it > 0)
-	{
-		uint32_t r = GetRandomValue();
-		while (ie - it > 0)
-		{
-			*it++ = r & 0xff;
-			r >>= 8;
-		}
-	}
-
-#endif
-
-	return true;
-
-} // GetRandomBytes
 
 //---------------------------------------------------------------------------
 KStringView Dekaf::GetVersionInformation()

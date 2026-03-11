@@ -42,6 +42,7 @@
 
 #include "knetworkinterface.h"
 #include "kcompatibility.h"
+#include "krandom.h"
 #include "klog.h"
 
 #ifdef DEKAF2_IS_WINDOWS

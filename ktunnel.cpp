@@ -88,6 +88,7 @@
 #include "kbuffer.h"
 #include "kscopeguard.h"
 #include "kencode.h"
+#include "krandom.h"
 
 DEKAF2_NAMESPACE_BEGIN
 

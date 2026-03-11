@@ -45,6 +45,7 @@
 #include "kmessagedigest.h"
 #include "kstring.h"
 #include "ksystem.h"
+#include "krandom.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -101,7 +102,7 @@ const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPReq
 		 opaque="5ccc069c403ebaf9f0171e9517f40e41"
 	 */
 
-	uint32_t iCNonce    = kRandom();
+	uint32_t iCNonce    = kRandom32();
 	KString sCNonce     = KString::to_hexstring(iCNonce, true, false);
 	KString sNonceCount = KString::to_hexstring(++iNonceCount);
 	sNonceCount.PadLeft(8, '0');

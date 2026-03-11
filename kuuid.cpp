@@ -47,7 +47,8 @@
 
 #include "kstringutils.h"
 #include "khex.h"
-#include "ksystem.h"
+#include "krandom.h"
+#include "knetworkinterface.h"
 #include <mutex>
 
 DEKAF2_NAMESPACE_BEGIN

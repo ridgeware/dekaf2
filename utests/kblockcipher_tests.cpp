@@ -1,6 +1,6 @@
 #include "catch.hpp"
 #include <dekaf2/kaes.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/krandom.h>
 #include <vector>
 
 #if DEKAF2_HAS_AES

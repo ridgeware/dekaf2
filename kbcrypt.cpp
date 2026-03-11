@@ -44,7 +44,7 @@
 #include "kduration.h"
 #include "kreader.h"
 #include "klog.h"
-#include "ksystem.h"
+#include "krandom.h"
 
 extern "C" {
 extern char *crypt_rn(const char *key, const char *setting,

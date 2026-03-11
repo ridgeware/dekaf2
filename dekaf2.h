@@ -56,7 +56,6 @@
 #include <atomic>
 #include <vector>
 #include <thread>
-#include <random>
 
 /// @namespace dekaf2 The basic dekaf2 library namespace. All functions,
 /// variables and classes are prefixed with this namespace.
@@ -112,27 +111,6 @@ public:
 	/// of the system with the primary goal to end up with a locale setting that allows for Unicode aware
 	/// std::iswupper() etc calls. This method is called with an empty argument by the constructor of the class.
 	bool SetUnicodeLocale(KStringViewZ name = KStringViewZ{});
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	/// Set random seeds of various random number generators.
-	/// If available uses a hardware random device for the seeds.
-	void SetRandomSeed();
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	// get a 32 bit random value
-	uint32_t GetRandomValue();
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	/// Get a random value in range [iMin - iMax].
-	uint32_t GetRandomValue(uint32_t iMin, uint32_t iMax);
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
-	/// Returns cryptographically secure random bytes
-	bool GetRandomBytes(void* buf, std::size_t iCount);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -294,7 +272,6 @@ private:
 #else
 	std::atomic<KUnixTime> m_iCurrentTime;
 #endif
-	KThreadSafe<std::mt19937> m_Random;
 	bool m_bInConstruction { true };
 	static std::atomic<bool> s_bStarted;
 	static std::atomic<bool> s_bShutdown;

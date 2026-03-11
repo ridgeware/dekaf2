@@ -41,7 +41,7 @@
 
 #include "kwebsocket.h"
 #include "kexception.h"
-#include "ksystem.h"
+#include "krandom.h"
 #include "kencode.h"
 #include "kmessagedigest.h"
 #include "kcrashexit.h"
@@ -512,7 +512,7 @@ void KWebSocket::Frame::Mask()
 //-----------------------------------------------------------------------------
 {
 	SetHasMask();
-	SetMaskingKey(kRandom());
+	SetMaskingKey(kRandom32());
 	XOR(m_sPayload);
 
 } // Mask

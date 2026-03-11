@@ -1074,6 +1074,28 @@ if (DEKAF2_HAS_MYSQL)
 	endif()
 endif()
 
+# test for arc4random, which appeared only 2022 in glibc
+try_compile(DEKAF2_HAS_ARC4RANDOM
+			"${DEKAF2_GENERATED_FILES_DIR}"
+			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/arc4random_test.cpp")
+
+if(DEKAF2_HAS_ARC4RANDOM)
+	message(STATUS "we have arc4random")
+else()
+	message(STATUS "we do not have arc4random")
+endif()
+
+# test for getrandom, which is glibc specific
+try_compile(DEKAF2_HAS_GETRANDOM
+			"${DEKAF2_GENERATED_FILES_DIR}"
+			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/getrandom_test.cpp")
+
+if(DEKAF2_HAS_GETRANDOM)
+	message(STATUS "we have getrandom")
+else()
+	message(STATUS "we do not have getrandom")
+endif()
+
 # =============================== GENERATED FILES =================================
 
 if (DEKAF2_WITH_USER_AGENT_PARSER)
@@ -1284,6 +1306,7 @@ set(PUBLIC_HEADERS
 	kprops.h
 	kquicstream.h
 	kquotedprintable.h
+	krandom.h
 	kread.h
 	kreader.h
 	kreference_proxy.h
@@ -1562,6 +1585,7 @@ set (SOURCES
 	kprops.cpp
 	kquicstream.cpp
 	kquotedprintable.cpp
+	krandom.cpp
 	kread.cpp
 	kreader.cpp
 	kregex.cpp

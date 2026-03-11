@@ -43,6 +43,7 @@
 #ifndef DEKAF2_IS_WINDOWS
 #include "kfilesystem.h"
 #include "ksystem.h"
+#include "krandom.h"
 #include "klog.h"
 #include "kcrashexit.h"
 #include "kcompatibility.h"

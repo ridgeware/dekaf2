@@ -76,16 +76,21 @@ public:
 //------
 
 	/// parsing mode from string MAC address representation
-	enum Mode { Relaxed, Strict, FromInterface };
+	enum Mode
+	{
+		Relaxed,      ///< permit single colons separating the hex string every two nibbles, or none
+		Strict,       ///< require single colons separating the hex string every two nibbles
+		FromInterface ///< string is an interface name, read MAC from its configuration
+	};
 
 	using MAC = std::array<uint8_t, 6>;
 
-	                   KMACAddress() = default;
+	                     KMACAddress() = default;
 
 	/// constexpr construct from bytes in network order
-	         constexpr KMACAddress(MAC mac) noexcept
-	                   : m_MAC(mac)
-	                   {}
+	         constexpr   KMACAddress(MAC mac) noexcept
+	                     : m_MAC(mac)
+	                     {}
 
 	/// constexpr construct from string representation
 	/// @param sMac the string representation
@@ -93,27 +98,23 @@ public:
 	/// or Strict, which only accepts the colon separated format like "01:02:03:04:05:06",
 	/// or FromInterface, which reads the address of the given named interface
 	/// -  defaults to Relaxed
-	explicit constexpr KMACAddress(KStringView sMac, Mode mode = Mode::Relaxed) noexcept
-	                   : m_MAC(FromString(sMac, mode))
-	                   {}
+	explicit constexpr   KMACAddress(KStringView sMac, Mode mode = Mode::Relaxed) noexcept
+	                     : m_MAC(FromString(sMac, mode))
+	                     {}
 
 	/// construct from interface with given name
 	/// @param sInterface the name of the interface to be read
 	/// @param mode set to Mode::FromInterface - otherwise the interface name will be interpreted as input string
 	/// @param sock if set to a positive value will be used as socket handle for interface queries, else an internal
 	/// socket will be opened - defaults to -1
-	                   KMACAddress(KStringViewZ sInterface, Mode mode, int sock = -1) noexcept
-	                   : m_MAC(mode == Mode::FromInterface ? ReadFromInterface(sInterface, sock)
-	                                                       : FromString(sInterface, mode))
-	                   {}
-
-	/// return the bytes in network order
-	DEKAF2_NODISCARD
-	constexpr const MAC& ToBytes() const      { return m_MAC; }
+	                     KMACAddress(KStringViewZ sInterface, Mode mode, int sock = -1) noexcept
+	                     : m_MAC(mode == Mode::FromInterface ? ReadFromInterface(sInterface, sock)
+	                                                         : FromString(sInterface, mode))
+	                     {}
 
 	/// return as a 64 bit integer in host order
 	DEKAF2_NODISCARD
-	constexpr uint64_t ToUInt() const
+	constexpr uint64_t   ToUInt     () const noexcept
 	{
 		return (static_cast<uint64_t>(m_MAC[0]) << 40)
 		     | (static_cast<uint64_t>(m_MAC[1]) << 32)
@@ -123,27 +124,37 @@ public:
 		     |  static_cast<uint64_t>(m_MAC[5]);
 	}
 
-	/// returns true if this is a MAC address with local scope, returns true for globally unique address.
+	/// return the bytes in network order
 	DEKAF2_NODISCARD
-	constexpr bool IsLocal() const noexcept { return (m_MAC[0] & 2) != 0; }
+	constexpr const MAC& ToBytes    () const noexcept { return m_MAC;               }
+
+	/// returns true if this is a MAC address with local scope, returns false for globally unique address.
+	DEKAF2_NODISCARD
+	constexpr bool       IsLocal    () const noexcept { return (m_MAC[0] & 2) != 0; }
+
+	/// returns true if this is a globally unique MAC address, returns false for local scope address.
+	DEKAF2_NODISCARD
+	constexpr bool       IsGlobal   () const noexcept { return !IsLocal();          }
 
 	/// returns true if this is a multicast address, false for individual address
 	DEKAF2_NODISCARD
-	constexpr bool IsMulticast() const noexcept { return (m_MAC[0] & 1) != 0; }
+	constexpr bool       IsMulticast() const noexcept { return (m_MAC[0] & 1) != 0; }
 
 	/// returns true if this address is valid (not empty)
 	DEKAF2_NODISCARD
-	constexpr bool IsValid() const noexcept { return !IsEqual(m_MAC, Null()); }
+	constexpr bool       IsValid    () const noexcept { return !operator==(*this, Null()); }
 
 	/// returns a string representation of the MAC address
 	/// @param chSeparator the character to be used as separator between byte pairs, defaults to ':'. A \0 inserts no separator at all.
 	DEKAF2_NODISCARD
-	KString ToHex(char chSeparator = ':') const;
+	KString              ToHex      (char chSeparator = ':') const;
 
 	DEKAF2_NODISCARD
 	friend constexpr bool operator==(const KMACAddress& a1, const KMACAddress& a2) noexcept
 	{
-		return IsEqual(a1.m_MAC, a2.m_MAC);
+		return a1.m_MAC[0] == a2.m_MAC[0] && a1.m_MAC[1] == a2.m_MAC[1] &&
+		       a1.m_MAC[2] == a2.m_MAC[2] && a1.m_MAC[3] == a2.m_MAC[3] &&
+		       a1.m_MAC[4] == a2.m_MAC[4] && a1.m_MAC[5] == a2.m_MAC[5];
 	}
 
 	DEKAF2_NODISCARD
@@ -152,33 +163,20 @@ public:
 		return a1.ToUInt() < a2.ToUInt();
 	}
 
-	DEKAF2_NODISCARD
-	friend constexpr bool operator==(const MAC& m1, const MAC& m2) noexcept
-	{
-		return IsEqual(m1, m2);
-	}
-
-	DEKAF2_NODISCARD
-	friend constexpr bool operator!=(const MAC& m1, const MAC& m2) noexcept
-	{
-		return !IsEqual(m1, m2);
-	}
-
 	/// the empty MAC address
-	static constexpr MAC Null() noexcept
+	DEKAF2_NODISCARD
+	static constexpr KMACAddress Null() noexcept
 	{
 		return MAC { 0, 0, 0, 0, 0, 0 };
 	}
 
+	/// returns a random MAC address with local scope set
+	DEKAF2_NODISCARD
+	static KMACAddress Random(bool bSetMultiCast = false) noexcept;
+
 //------
 private:
 //------
-
-	static constexpr bool IsEqual(const MAC& m1, const MAC& m2) noexcept
-	{
-		return m1[0] == m2[0] && m1[1] == m2[1] && m1[2] == m2[2] &&
-		       m1[3] == m2[3] && m1[4] == m2[4] && m1[5] == m2[5];
-	}
 
 	static MAC ReadFromInterface(KStringViewZ sInterface, int sock = -1) noexcept;
 
@@ -198,7 +196,7 @@ private:
 		}
 	}
 
-	MAC m_MAC { Null() };
+	MAC m_MAC { Null().ToBytes() };
 
 }; // KMACAddress
 
@@ -258,7 +256,7 @@ public:
 		Dynamic      = 1 << 17, ///< The addresses are lost when the interface goes down
 		LowerUp      = 1 << 18, ///< Driver signals L1 up
 		Dormant      = 1 << 19, ///< Driver signals dormant
-		Echo         = 1 << 10, ///< Echo sent packets
+		Echo         = 1 << 20, ///< Echo sent packets
 	};
 
 	KNetworkInterface() = default;

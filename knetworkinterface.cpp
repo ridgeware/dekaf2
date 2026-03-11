@@ -136,7 +136,7 @@ KMACAddress::MAC KMACAddress::ReadFromInterface(KStringViewZ sInterfaceName, int
 
 		struct ifreq ifr;
 
-		strcpy(ifr.ifr_name, sInterfaceName.c_str());
+		strcpy_n(ifr.ifr_name, sInterfaceName.c_str(), IFNAMSIZ);
 
 		if (::ioctl(sock, SIOCGIFFLAGS, &ifr) < 0)
 		{
@@ -200,6 +200,30 @@ KString KMACAddress::ToHex(char chSeparator) const
 } // KMACAddress::Hex
 
 //-----------------------------------------------------------------------------
+KMACAddress KMACAddress::Random(bool bSetMultiCast) noexcept
+//-----------------------------------------------------------------------------
+{
+	MAC m;
+	kGetRandom(m.data(), m.size());
+
+	if (bSetMultiCast)
+	{
+		m[0] |= 0x01;
+	}
+	else
+	{
+		// remove the multicast bit
+		m[0] &= 0xfe;
+	}
+
+	// set the local bit
+	m[0] |= 0x02;
+
+	return m;
+
+} // KMACAddress::Random
+
+//-----------------------------------------------------------------------------
 void KNetworkInterface::CheckWLANStatus(int sock) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -212,7 +236,7 @@ void KNetworkInterface::CheckWLANStatus(int sock) noexcept
 	struct iwreq wrq;
 	char essid[IW_ESSID_MAX_SIZE + 1] = {0};
 	::memset(&wrq, 0, sizeof(struct iwreq));
-	strncpy(wrq.ifr_name, m_sName.c_str(), IFNAMSIZ);
+	strcpy_n(wrq.ifr_name, m_sName.c_str(), IFNAMSIZ);
 
 	if (::ioctl(sock, SIOCGIWNAME, &wrq) < 0)
 	{

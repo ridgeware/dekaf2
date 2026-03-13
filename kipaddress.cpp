@@ -993,4 +993,8 @@ bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker)
 
 } // kIsPrivateIP
 
+#if DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KIPAddress6::BytesT KIPAddress6::Empty;
+#endif
+
 DEKAF2_NAMESPACE_END

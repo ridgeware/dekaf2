@@ -600,14 +600,7 @@ public:
 	DEKAF2_NODISCARD
 	constexpr bool      IsUnspecified() const noexcept
 	{
-		return ((m_IP[ 0] == 0) && (m_IP[ 1] == 0)
-		     && (m_IP[ 2] == 0) && (m_IP[ 3] == 0)
-		     && (m_IP[ 4] == 0) && (m_IP[ 5] == 0)
-		     && (m_IP[ 6] == 0) && (m_IP[ 7] == 0)
-		     && (m_IP[ 8] == 0) && (m_IP[ 9] == 0)
-		     && (m_IP[10] == 0) && (m_IP[11] == 0)
-		     && (m_IP[12] == 0) && (m_IP[13] == 0)
-		     && (m_IP[14] == 0) && (m_IP[15] == 0));
+		return IsEqual(m_IP, Empty);
 	}
 
 	/// is address unspecifed?
@@ -779,7 +772,7 @@ private:
 			                IPv4.m_IP[0], IPv4.m_IP[1], IPv4.m_IP[2], IPv4.m_IP[3] };
 		}
 
-		return BytesT { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+		return Empty;
 	}
 
 	constexpr const value_type* GetConstValuePtr4() const noexcept
@@ -787,7 +780,7 @@ private:
 		return &m_IP[12];
 	}
 
-	BytesT m_IP    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	BytesT m_IP    { Empty };
 	ScopeT m_Scope { 0 };
 
 }; // KIPAddress6

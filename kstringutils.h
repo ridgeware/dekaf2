@@ -919,6 +919,11 @@ DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsBinary(KStringView sBuffer);
 //-----------------------------------------------------------------------------
 
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wbool-compare"
+#endif
+
 //-----------------------------------------------------------------------------
 /// Convert value into string and insert selectable separator every n digits, with requested precision
 /// @param i the arithmetic value to format
@@ -1114,6 +1119,10 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 	return sResult;
 
 } // kFormNumber
+
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic pop
+#endif
 
 //-----------------------------------------------------------------------------
 /// Convert value into string and insert separator every n digits

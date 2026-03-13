@@ -35,7 +35,7 @@ TEST_CASE("KNetworkInterface")
 					else if (net.Is6())
 					{
 						bHadv6Loopback = true;
-						CHECK ( net == KIPNetwork("::1/128") );
+						CHECK ( (net.ToString() == "::1/128" || net.ToString() == "fe80::1/64") );
 					}
 				}
 

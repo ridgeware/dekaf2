@@ -506,6 +506,16 @@ bool KIPNetwork6::Contains(const KIPAddress& IP) const noexcept
 } // KIPNetwork4::Contains
 
 //-----------------------------------------------------------------------------
+KIPNetwork4 KIPNetwork::ToNetwork4() const noexcept
+//-----------------------------------------------------------------------------
+{
+	auto& b = m_Net6.Address().ToBytes();
+	KIPError ec;
+	return KIPNetwork4(KIPAddress4(KIPAddress4::BytesT{b[12], b[13], b[14], b[15]}), PrefixLength(), ec);
+
+} // KIPNetwork::ToNetwork4
+
+//-----------------------------------------------------------------------------
 KIPNetwork KIPNetwork::FromString(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -528,7 +538,7 @@ KIPNetwork KIPNetwork::FromString(KStringView sNetwork, bool bAcceptSingleHost, 
 		return KIPNetwork(std::move(n6));
 	}
 
-	return KIPNetwork6{};
+	return KIPNetwork(KIPNetwork6{});
 
 } // KIPNetwork::FromString
 
@@ -547,7 +557,7 @@ KIPNetwork KIPNetwork::FromString(KStringView sNetwork, bool bAcceptSingleHost)
 KString KIPNetwork::ToString() const noexcept
 //-----------------------------------------------------------------------------
 {
-	if (Is4()) return m_Net4.ToString();
+	if (Is4()) return ToNetwork4().ToString();
 	if (Is6()) return m_Net6.ToString();
 	return {};
 
@@ -557,7 +567,7 @@ KString KIPNetwork::ToString() const noexcept
 bool KIPNetwork::Contains(const KIPAddress4& IP) const noexcept
 //-----------------------------------------------------------------------------
 {
-	if (Is4()) return m_Net4.Contains(IP);
+	if (Is4()) return ToNetwork4().Contains(IP);
 	if (Is6()) return m_Net6.Contains(IP);
 	return false;
 
@@ -567,7 +577,7 @@ bool KIPNetwork::Contains(const KIPAddress4& IP) const noexcept
 bool KIPNetwork::Contains(const KIPAddress6& IP) const noexcept
 //-----------------------------------------------------------------------------
 {
-	if (Is4()) return m_Net4.Contains(IP);
+	if (Is4()) return ToNetwork4().Contains(IP);
 	if (Is6()) return m_Net6.Contains(IP);
 	return false;
 
@@ -577,21 +587,11 @@ bool KIPNetwork::Contains(const KIPAddress6& IP) const noexcept
 bool KIPNetwork::Contains(const KIPAddress& IP) const noexcept
 //-----------------------------------------------------------------------------
 {
-	if (Is4()) return m_Net4.Contains(IP);
+	if (Is4()) return ToNetwork4().Contains(IP);
 	if (Is6()) return m_Net6.Contains(IP);
 	return false;
 
 } // KIPNetwork::Contains
-
-//-----------------------------------------------------------------------------
-constexpr bool KIPNetwork::IsHost() const noexcept
-//-----------------------------------------------------------------------------
-{
-	if (Is4()) return m_Net4.IsHost();
-	if (Is6()) return m_Net6.IsHost();
-	return false;
-
-} // KIPNetwork::IsHost
 
 //-----------------------------------------------------------------------------
 bool KIPNetwork::IsSubnetOf(const KIPNetwork& other) const
@@ -599,13 +599,13 @@ bool KIPNetwork::IsSubnetOf(const KIPNetwork& other) const
 {
 	if (other.Is4())
 	{
-		if (Is4()) return get4().IsSubnetOf(other.get4());
-		if (Is6()) return get6().IsSubnetOf(other.get4());
+		if (Is4()) return ToNetwork4().IsSubnetOf(other.ToNetwork4());
+		if (Is6()) return m_Net6.IsSubnetOf(other.ToNetwork4());
 	}
 	else if (other.Is6())
 	{
-		if (Is4()) return get4().IsSubnetOf(other.get6());
-		if (Is6()) return get6().IsSubnetOf(other.get6());
+		if (Is4()) return ToNetwork4().IsSubnetOf(other.m_Net6);
+		if (Is6()) return m_Net6.IsSubnetOf(other.m_Net6);
 	}
 	return false;
 

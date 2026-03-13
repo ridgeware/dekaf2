@@ -481,7 +481,7 @@ TEST_CASE("KIPNetwork")
 		KIPNetwork6 ip6;
 		CHECK ( sizeof(ip6) == 24 );
 		KIPNetwork  ip;
-		CHECK ( sizeof(ip)  == 32 );
+		CHECK ( sizeof(ip)  == 24 );
 		CHECK ( alignof(KIPNetwork4) == 1 );
 		CHECK ( alignof(KIPNetwork6) == 4 );
 		CHECK ( alignof(KIPNetwork ) == 4 );

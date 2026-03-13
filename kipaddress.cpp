@@ -228,13 +228,13 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 
 	constexpr uint8_t iInvalid { 255 };
 
-	uint16_t iWord               { 0 };
-	uint8_t  iNibbleCount        { 0 };
-	uint8_t  iIndex              { 0 };
-	uint8_t  iEnd                { static_cast<uint8_t>(sAddress.size()) };
-	uint8_t  iBlock              { 0 };
-	uint8_t  iDoubleColonBlock   { iInvalid };
-	uint8_t  iLastColons         { 0 };
+	uint_fast16_t iWord               { 0 };
+	uint_fast8_t  iNibbleCount        { 0 };
+	uint_fast8_t  iIndex              { 0 };
+	uint_fast8_t  iEnd                { static_cast<uint_fast8_t>(sAddress.size()) };
+	uint_fast8_t  iBlock              { 0 };
+	uint_fast8_t  iDoubleColonBlock   { iInvalid };
+	uint_fast8_t  iLastColons         { 0 };
 
 	for (;;)
 	{

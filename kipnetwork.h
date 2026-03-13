@@ -101,7 +101,7 @@ protected:
 	                   : m_iPrefixLength(std::min(iPrefixLength, iPrefixMax))
 	                   { if (iPrefixLength > iPrefixMax) throw KIPError("prefix too large"); }
 
-	void               SetPrefixLength         (uint8_t iPrefixLength) { m_iPrefixLength = iPrefixLength; }
+	constexpr void     SetPrefixLength         (uint8_t iPrefixLength) { m_iPrefixLength = iPrefixLength; }
 	static KStringView AddressStringFromString (KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept;
 	static uint8_t     PrefixLengthFromString  (KStringView sNetwork, uint8_t iMaxPrefixLength, bool bAcceptSingleHost, KIPError& ec) noexcept;
 
@@ -123,19 +123,17 @@ private:
 
 	uint8_t m_iPrefixLength { 0 };
 
-	enum NetworkType : uint8_t { Invalid, IPv4, IPv6 };
-
 	constexpr void SetIPv4(bool bYesNo) noexcept
 	{
-		m_Type = bYesNo ? IPv4 : IPv6;
+		m_bIsIPv4 = bYesNo;
 	}
 
-	constexpr NetworkType GetNetworkType() const noexcept
+	constexpr bool IsIPv4() const noexcept
 	{
-		return m_Type;
+		return m_bIsIPv4;
 	}
 
-	NetworkType m_Type { Invalid };
+	bool m_bIsIPv4 { false };
 
 }; // KNetworkBase
 
@@ -190,7 +188,7 @@ public:
 
 	/// returns the IPv4 address of the network as used in construction
 	DEKAF2_NODISCARD
-	constexpr KIPAddress4 Address() const noexcept { return m_IP; }
+	constexpr const KIPAddress4& Address() const noexcept { return m_IP; }
 
 	/// get network as string
 	DEKAF2_NODISCARD
@@ -350,7 +348,7 @@ public:
 
 	/// returns the IPv6 address of the network as used in construction
 	DEKAF2_NODISCARD
-	constexpr KIPAddress6 Address() const noexcept { return m_IP; }
+	constexpr const KIPAddress6& Address() const noexcept { return m_IP; }
 
 	/// is address unspecified?
 	DEKAF2_NODISCARD
@@ -459,13 +457,13 @@ public:
 	constexpr          KIPNetwork() noexcept = default;
 
 	/// construct from KIPNetwork4, does not throw
-	constexpr          KIPNetwork(KIPNetwork4 IP) noexcept
-	                   : m_Net4(std::move(IP))
+	constexpr          KIPNetwork(KIPNetwork4 Net4) noexcept
+	                   : m_Net6(KIPAddress6(Net4.Address()), Net4.PrefixLength())
 	                   { SetIPv4(true); }
 
 	/// construct from KIPNetwork6, does not throw
-	constexpr          KIPNetwork(KIPNetwork6 IP) noexcept
-	                   : m_Net6(std::move(IP))
+	constexpr          KIPNetwork(KIPNetwork6 Net6) noexcept
+	                   : m_Net6(std::move(Net6))
 	                   { SetIPv4(false); }
 
 	/// construct from address and prefix length in string notation, not throwing but returning possible error in ec
@@ -483,40 +481,39 @@ public:
 	                   : KIPNetwork(FromString(sNetwork, bAcceptSingleHost))
 	                   {}
 
-	/// is network an IPv4 network?.
+	/// returns the prefix length of the network
+	DEKAF2_NODISCARD
+	constexpr uint8_t PrefixLength() const noexcept
+	{
+		return m_Net6.PrefixLength();
+	}
+
+	/// is network an IPv4 network?
 	DEKAF2_NODISCARD
 	constexpr bool Is4() const noexcept
 	{
-		return GetType() == detail::KIPNetworkBase::NetworkType::IPv4;
+		return m_Net6.IsIPv4();
 	}
 
-	/// is network an IPv6 network?.
+	/// is network an IPv6 network?
 	DEKAF2_NODISCARD
 	constexpr bool Is6() const noexcept
 	{
-		return GetType() == detail::KIPNetworkBase::NetworkType::IPv6;
+		return !m_Net6.IsIPv4();
 	}
-
-	/// returns the KIPNetwork4 as const ref, may be empty, test with Is4() before for validity
-	DEKAF2_NODISCARD
-	constexpr const KIPNetwork4& get4() const noexcept { return m_Net4; }
-
-	/// returns the KIPNetwork6 as const ref, may be empty, test with Is6() before for validity
-	DEKAF2_NODISCARD
-	constexpr const KIPNetwork6& get6() const noexcept { return m_Net6; }
 
 	/// is address unspecified?
 	DEKAF2_NODISCARD
 	constexpr bool IsUnspecified() const noexcept
 	{
-		return Is4() ? m_Net4.IsUnspecified() : Is6() ? m_Net6.IsUnspecified() : false;
+		return m_Net6.IsUnspecified();
 	}
 
 	/// is address valid?
 	DEKAF2_NODISCARD
 	constexpr bool IsValid() const noexcept
 	{
-		return Is4() ? m_Net4.IsValid() : Is6() ? m_Net6.IsValid() : false;
+		return m_Net6.IsValid();
 	}
 
 	/// get address as string
@@ -542,7 +539,10 @@ public:
 
 	/// is this indeed a host address and not a network?
 	DEKAF2_NODISCARD
-	constexpr bool IsHost() const noexcept;
+	constexpr bool IsHost() const noexcept
+	{
+		return Is4() ? PrefixLength() == 32 : PrefixLength() == 128;
+	}
 
 	/// is network a subnet of another network?
 	DEKAF2_NODISCARD
@@ -552,10 +552,9 @@ public:
 	friend constexpr bool operator==(const KIPNetwork& n1,
 									 const KIPNetwork& n2) noexcept
 	{
-		if (n1.GetType() != n2.GetType()) return false;
-		if (n1.Is4()) return n1.m_Net4 == n2.m_Net4;
-		if (n1.Is6()) return n1.m_Net4 == n2.m_Net4;
-		return true;
+		return n1.Is4() == n2.Is4()
+			&& n1.PrefixLength() == n2.PrefixLength()
+			&& n1.m_Net6.Address() == n2.m_Net6.Address();
 	}
 
 	DEKAF2_NODISCARD
@@ -569,17 +568,13 @@ public:
 private:
 //----------
 
-	constexpr void SetIPv4(bool bYesNo) { m_Net4.SetIPv4(bYesNo); }
+	constexpr void SetIPv4(bool bYesNo) { m_Net6.SetIPv4(bYesNo); }
 
-	constexpr detail::KIPNetworkBase::NetworkType GetType() const noexcept
-	{
-		return m_Net4.GetNetworkType();
-	}
+	KIPNetwork4 ToNetwork4() const noexcept;
 
 	static KIPNetwork FromString(KStringView sNetwork, bool bAcceptSingleHost, KIPError& ec) noexcept;
 	static KIPNetwork FromString(KStringView sNetwork, bool bAcceptSingleHost);
 
-	KIPNetwork4 m_Net4;
 	KIPNetwork6 m_Net6;
 
 }; // KIPNetwork

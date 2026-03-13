@@ -43,10 +43,12 @@
 #include "knetworkinterface.h"
 #include "kcompatibility.h"
 #include "krandom.h"
+#include "kutf.h"
 #include "klog.h"
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <ws2tcpip.h>
+	#include <iphlpapi.h>
 	#include <io.h>
 #else
 	#include <unistd.h>        // for sysconf()
@@ -77,13 +79,139 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+#ifdef DEKAF2_IS_WINDOWS
+
+namespace {
+
+//-----------------------------------------------------------------------------
+KString ToUTF8(const wchar_t* wstr)
+//-----------------------------------------------------------------------------
+{
+	if (!wstr || !wstr[0]) return {};
+	return kutf::Convert<KString>(wstr);
+}
+
+//-----------------------------------------------------------------------------
+bool MatchAdapterName(const IP_ADAPTER_ADDRESSES& adapter, KStringViewZ sName)
+//-----------------------------------------------------------------------------
+{
+	if (sName == adapter.AdapterName) return true;
+
+	if (adapter.FriendlyName)
+	{
+		return sName == ToUTF8(adapter.FriendlyName);
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+KNetworkInterface::IFFlags CalcWindowsFlags(const IP_ADAPTER_ADDRESSES& adapter)
+//-----------------------------------------------------------------------------
+{
+	auto Flags = KNetworkInterface::IFFlags::None;
+
+	if (adapter.OperStatus == IfOperStatusUp)
+	{
+		Flags |= KNetworkInterface::IFFlags::Up;
+		Flags |= KNetworkInterface::IFFlags::Running;
+	}
+
+	if (adapter.IfType == IF_TYPE_SOFTWARE_LOOPBACK)
+	{
+		Flags |= KNetworkInterface::IFFlags::Loopback;
+	}
+
+	if (adapter.IfType == IF_TYPE_PPP || adapter.IfType == IF_TYPE_TUNNEL)
+	{
+		Flags |= KNetworkInterface::IFFlags::PointToPoint;
+	}
+
+	if (!(adapter.Flags & IP_ADAPTER_NO_MULTICAST))
+	{
+		Flags |= KNetworkInterface::IFFlags::MultiCast;
+	}
+
+	if (adapter.IfType == IF_TYPE_ETHERNET_CSMACD || adapter.IfType == IF_TYPE_IEEE80211)
+	{
+		Flags |= KNetworkInterface::IFFlags::Broadcast;
+	}
+
+	return Flags;
+}
+
+//-----------------------------------------------------------------------------
+KString GetAdapterAddressesBuffer()
+//-----------------------------------------------------------------------------
+{
+	KString buf;
+	ULONG   bufLen = 15000;
+	ULONG   ret;
+
+	do
+	{
+		buf.resize(bufLen, '\0');
+		ret = ::GetAdaptersAddresses(AF_UNSPEC,
+			GAA_FLAG_INCLUDE_PREFIX,
+			nullptr,
+			reinterpret_cast<PIP_ADAPTER_ADDRESSES>(buf.data()),
+			&bufLen);
+	}
+	while (ret == ERROR_BUFFER_OVERFLOW);
+
+	if (ret != ERROR_SUCCESS)
+	{
+		kDebug(1, "GetAdaptersAddresses failed with error {}", ret);
+		buf.clear();
+	}
+
+	return buf;
+}
+
+//-----------------------------------------------------------------------------
+void AppendAdapterNetworks(const IP_ADAPTER_ADDRESSES& adapter,
+                           std::vector<KIPNetwork>& Networks)
+//-----------------------------------------------------------------------------
+{
+	for (auto* ua = adapter.FirstUnicastAddress; ua != nullptr; ua = ua->Next)
+	{
+		auto* sa = ua->Address.lpSockaddr;
+
+		KIPNetwork net;
+
+		if (sa->sa_family == AF_INET)
+		{
+			auto* sin = reinterpret_cast<const sockaddr_in*>(sa);
+			net = KIPNetwork4(KIPAddress4(*sin),
+			                  static_cast<uint8_t>(ua->OnLinkPrefixLength));
+		}
+		else if (sa->sa_family == AF_INET6)
+		{
+			auto* sin6 = reinterpret_cast<const sockaddr_in6*>(sa);
+			net = KIPNetwork6(KIPAddress6(*sin6),
+			                  static_cast<uint8_t>(ua->OnLinkPrefixLength));
+		}
+
+		if (net.IsValid())
+		{
+			Networks.push_back(std::move(net));
+		}
+	}
+}
+
+} // anonymous namespace
+
+#endif // DEKAF2_IS_WINDOWS
+
 //-----------------------------------------------------------------------------
 KMACAddress::MAC KMACAddress::ReadFromInterface(KStringViewZ sInterfaceName, int sock) noexcept
 //-----------------------------------------------------------------------------
 {
 	MAC  mac;
 	bool bClear { true  };
+#if DEKAF2_IS_UNIX && !DEKAF2_IS_MACOS
 	bool bClose { false };
+#endif
 
 	for (;;)
 	{
@@ -156,22 +284,40 @@ KMACAddress::MAC KMACAddress::ReadFromInterface(KStringViewZ sInterfaceName, int
 
 #elif DEKAF2_IS_WINDOWS
 
-		// TODO
-		break;
+		{
+			auto buf = GetAdapterAddressesBuffer();
+
+			if (buf.empty()) break;
+
+			bool bFound = false;
+
+			for (auto* adapter = reinterpret_cast<const IP_ADAPTER_ADDRESSES*>(buf.data());
+			     adapter != nullptr; adapter = adapter->Next)
+			{
+				if (MatchAdapterName(*adapter, sInterfaceName) && adapter->PhysicalAddressLength >= 6)
+				{
+					mac = MAC { adapter->PhysicalAddress[0], adapter->PhysicalAddress[1],
+					            adapter->PhysicalAddress[2], adapter->PhysicalAddress[3],
+					            adapter->PhysicalAddress[4], adapter->PhysicalAddress[5] };
+					bFound = true;
+					break;
+				}
+			}
+			// jump out of the outer loop if not found, to skip bClear being set to false
+			if (!bFound) break;
+		}
 
 #endif
 		bClear = false;
 		break;
 	}
 
+#if DEKAF2_IS_UNIX && !DEKAF2_IS_MACOS
 	if (bClose)
 	{
-#if DEKAF2_IS_WINDOWS
-		_close(sock);
-#else
 		::close(sock);
-#endif
 	}
+#endif
 
 	if (bClear)
 	{
@@ -517,7 +663,38 @@ KNetworkInterface::KNetworkInterface(KStringViewZ sInterface)
 
 #elif DEKAF2_IS_WINDOWS
 
-	// TODO
+	auto buf = GetAdapterAddressesBuffer();
+
+	if (buf.empty()) return;
+
+	for (auto* adapter = reinterpret_cast<const IP_ADAPTER_ADDRESSES*>(buf.data());
+	     adapter != nullptr; adapter = adapter->Next)
+	{
+		if (!MatchAdapterName(*adapter, sInterface)) continue;
+
+		m_sName = adapter->FriendlyName
+		        ? ToUTF8(adapter->FriendlyName)
+		        : KString(adapter->AdapterName);
+
+		if (adapter->PhysicalAddressLength >= 6)
+		{
+			m_MAC = KMACAddress(KMACAddress::MAC {
+				adapter->PhysicalAddress[0], adapter->PhysicalAddress[1],
+				adapter->PhysicalAddress[2], adapter->PhysicalAddress[3],
+				adapter->PhysicalAddress[4], adapter->PhysicalAddress[5]
+			});
+		}
+
+		m_Flags = CalcWindowsFlags(*adapter);
+
+		if (adapter->IfType == IF_TYPE_IEEE80211)
+		{
+			m_sWirelessProtocol = "IEEE 802.11";
+		}
+
+		AppendAdapterNetworks(*adapter, m_Networks);
+		break;
+	}
 
 #endif
 
@@ -617,7 +794,50 @@ KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces(KStringView sS
 
 #elif DEKAF2_IS_WINDOWS
 
-	// TODO
+	auto buf = GetAdapterAddressesBuffer();
+
+	if (buf.empty()) return Interfaces;
+
+	for (auto* adapter = reinterpret_cast<const IP_ADAPTER_ADDRESSES*>(buf.data());
+	     adapter != nullptr; adapter = adapter->Next)
+	{
+		if (adapter->OperStatus != IfOperStatusUp)
+		{
+			continue;
+		}
+
+		KString sName = adapter->FriendlyName
+		              ? ToUTF8(adapter->FriendlyName)
+		              : KString(adapter->AdapterName);
+
+		if (!sName.starts_with(sStartsWith))
+		{
+			continue;
+		}
+
+		KNetworkInterface ni;
+		ni.m_sName = std::move(sName);
+
+		if (adapter->PhysicalAddressLength >= 6)
+		{
+			ni.m_MAC = KMACAddress(KMACAddress::MAC {
+				adapter->PhysicalAddress[0], adapter->PhysicalAddress[1],
+				adapter->PhysicalAddress[2], adapter->PhysicalAddress[3],
+				adapter->PhysicalAddress[4], adapter->PhysicalAddress[5]
+			});
+		}
+
+		ni.m_Flags = CalcWindowsFlags(*adapter);
+
+		if (adapter->IfType == IF_TYPE_IEEE80211)
+		{
+			ni.m_sWirelessProtocol = "IEEE 802.11";
+		}
+
+		AppendAdapterNetworks(*adapter, ni.m_Networks);
+
+		Interfaces.push_back(std::move(ni));
+	}
 
 #endif
 

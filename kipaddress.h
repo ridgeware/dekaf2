@@ -63,8 +63,11 @@
 #include <array>
 
 #if DEKAF2_HAS_INCLUDE(<netinet/in.h>)
-	#define DEKAF2_IPADDRESS_HAS_NETINET_IN_H 1
+	#define DEKAF2_IPADDRESS_HAS_SOCKADDR 1
 	#include <netinet/in.h>
+#elif DEKAF2_IS_WINDOWS
+	#define DEKAF2_IPADDRESS_HAS_SOCKADDR 1
+	#include <ws2tcpip.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -152,7 +155,7 @@ public:
 	                   : m_IP(BytesT{ b1, b2, b3, b4 })
 	                   {}
 
-#if DEKAF2_IPADDRESS_HAS_NETINET_IN_H
+#if DEKAF2_IPADDRESS_HAS_SOCKADDR
 	/// construct from in_addr - bytes in network byte order
 	constexpr          KIPAddress4(const in_addr& in4)
 	                   : m_IP { static_cast<uint8_t>(in4.s_addr), static_cast<uint8_t>(in4.s_addr >> 8),
@@ -498,7 +501,7 @@ public:
 	                   , m_Scope(Scope)
 	                   {}
 
-#if DEKAF2_IPADDRESS_HAS_NETINET_IN_H
+#if DEKAF2_IPADDRESS_HAS_SOCKADDR
 	/// construct from in6_addr - bytes in network byte order
 	constexpr          KIPAddress6(const in6_addr& in6, ScopeT Scope = 0)
 	                   : m_IP(BytesT{ in6.s6_addr[ 0], in6.s6_addr[ 1], in6.s6_addr[ 2], in6.s6_addr[ 3],

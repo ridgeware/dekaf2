@@ -1776,8 +1776,9 @@ if (IS_MACOS)
 endif()
 
 if (IS_WINDOWS)
-	# we need the dbghelp library for the data segment detection on Windows..
-	set (DEBUG_HELP "dbghelp")
+	# we need the dbghelp library for the data segment detection on Windows,
+	# and ihlpapi for network interface code
+	set (WINDOWS_LIBRARIES "dbghelp" "iphlpapi")
 endif()
 
 set(DEKAF2_SOURCE_FILES
@@ -1833,7 +1834,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${LIBZIP_LIBRARIES}
 		${RT}
 		${MACOS_FRAMEWORKS}
-		${DEBUG_HELP}
+		${WINDOWS_LIBRARIES}
 		re2
 		${UAP-CPP_LIBRARIES}
 		${YAML_CPP_LIBRARIES}

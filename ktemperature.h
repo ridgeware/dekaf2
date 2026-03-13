@@ -79,7 +79,7 @@ public:
 	constexpr double   Double           () const { return get();                 }
 	/// get the temperature representation rounded to an int
 	DEKAF2_CONSTEXPR_23
-	          int      Int              () const { return std::lround(Double()); }
+	          int      Int              () const { return static_cast<int>(std::lround(Double())); }
 	/// get the temperature representation as a double
 	constexpr explicit operator double  () const { return Double();              }
 	/// get the temperature representation rounded to an int

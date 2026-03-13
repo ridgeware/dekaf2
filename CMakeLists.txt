@@ -1793,7 +1793,6 @@ if (DEKAF2_INSTALL_INCLUDE)
 		$<INSTALL_INTERFACE:${dekaf2_lib_dest}/include>
 		${Boost_INCLUDE_DIR}
 		${OPENSSL_INCLUDE_DIR}
-		$<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>
 	)
 endif()
 
@@ -1865,6 +1864,8 @@ endif()
 add_library                (dekaf2-objects OBJECT ${DEKAF2_SOURCE_FILES})
 # for the internal build, include the headers without SYSTEM property so that we get all warnings
 target_include_directories (dekaf2-objects ${DEKAF2_INCLUDE_DIRECTORIES})
+# add dekaf2's own headers as non-SYSTEM includes so that Xcode tracks their dependencies
+target_include_directories (dekaf2-objects PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 target_link_libraries      (dekaf2-objects ${DEKAF2_LINK_LIBRARIES})
 target_compile_definitions (dekaf2-objects ${DEKAF2_COMPILE_DEFINITIONS})
 if (DEKAF2_HAS_USER_AGENT_PARSER)
@@ -1883,6 +1884,7 @@ if (DEKAF2_BUILD_SHARED_DEKAF2)
 	set_target_properties      (dekaf2-objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
 	add_library                (dekaf2-shared  SHARED $<TARGET_OBJECTS:dekaf2-objects> $<TARGET_OBJECTS:bcrypt-objects> ${DEKAF2_DUMMYFILE})
 	target_include_directories (dekaf2-shared  ${DEKAF2_INCLUDE_DIRECTORIES})
+	target_include_directories (dekaf2-shared  PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 	target_link_libraries      (dekaf2-shared  ${DEKAF2_LINK_LIBRARIES})
 	target_compile_definitions (dekaf2-shared  ${DEKAF2_COMPILE_DEFINITIONS})
 	set_target_properties      (dekaf2-shared  PROPERTIES C_VISIBILITY_PRESET   hidden)
@@ -1894,6 +1896,7 @@ endif()
 if (DEKAF2_BUILD_STATIC_DEKAF2)
 	add_library                (dekaf2 STATIC $<TARGET_OBJECTS:dekaf2-objects> $<TARGET_OBJECTS:bcrypt-objects> ${DEKAF2_DUMMYFILE})
 	target_include_directories (dekaf2 ${DEKAF2_INCLUDE_DIRECTORIES})
+	target_include_directories (dekaf2 PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 	target_link_libraries      (dekaf2 ${DEKAF2_LINK_LIBRARIES})
 	target_compile_definitions (dekaf2 ${DEKAF2_COMPILE_DEFINITIONS})
 endif()

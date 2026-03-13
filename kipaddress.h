@@ -519,21 +519,14 @@ public:
 	                   : m_IP(FromIPv4(IPv4))
 	                   {}
 
-	/// construct from IPv6 address in string notation, not throwing but returning possible error in ec
-	                   KIPAddress6(KStringView sAddress, ScopeT Scope, KIPError& ec) noexcept
-	                   : m_IP(FromString(sAddress, ec))
-	                   , m_Scope(Scope)
-	                   {}
-
-	/// construct from IPv6 address in string notation, will throw on error
-	          explicit KIPAddress6(KStringView sAddress, ScopeT Scope = 0)
-	                   : m_IP(FromString(sAddress))
-	                   , m_Scope(Scope)
-	                   {}
-
-	/// construct from IPv6 address in string notation, not throwing but returning possible error in ec
+	/// construct from IPv6 address in string notation, parsing scope ID from %zone suffix per RFC 9844, not throwing but returning possible error in ec
 	                   KIPAddress6(KStringView sAddress, KIPError& ec) noexcept
-	                   : KIPAddress6(sAddress, 0, ec)
+	                   : KIPAddress6(FromString(sAddress, ec))
+	                   {}
+
+	/// construct from IPv6 address in string notation, parsing scope ID from %zone suffix per RFC 9844, will throw on error
+	          explicit KIPAddress6(KStringView sAddress)
+	                   : KIPAddress6(FromString(sAddress))
 	                   {}
 
 	/// get address as string
@@ -736,6 +729,8 @@ public:
 private:
 //----------
 
+	static constexpr BytesT Empty { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
 	static constexpr bool   IsV4Mapped (const BytesT& a) noexcept
 	{
 		return ((a[0]  == 0)    && (a[1]  == 0) && (a[2]  == 0)    && (a[3]  == 0) &&
@@ -761,8 +756,20 @@ private:
 		return 0;
 	}
 
-	static BytesT FromString(KStringView sAddress, KIPError& ec) noexcept;
-	static BytesT FromString(KStringView sAddress);
+	/// result of parsing an IPv6 address string with scope
+	struct Parsed6
+	{
+		BytesT   IP;
+		ScopeT   Scope { 0 };
+	};
+
+	static Parsed6 FromString(KStringView sAddress, KIPError& ec) noexcept;
+	static Parsed6 FromString(KStringView sAddress);
+
+	constexpr      KIPAddress6(const Parsed6& parsed) noexcept
+	               : m_IP(parsed.IP), m_Scope(parsed.Scope) {}
+
+	static ScopeT ResolveScope(KStringView sZone) noexcept;
 
 	static constexpr BytesT FromIPv4(const KIPAddress4& IPv4) noexcept
 	{

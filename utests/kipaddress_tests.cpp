@@ -708,6 +708,89 @@ TEST_CASE("KIPAddress")
 		}
 	}
 
+	SECTION("KIPAddress6 Scope from string (RFC 9844)")
+	{
+		SECTION("numeric scope IDs")
+		{
+			KIPError ec;
+			KIPAddress6 a1("fe80::1%1", ec);
+			CHECK ( ec.value() == 0 );
+			CHECK ( a1.ToString() == "fe80::1%1" );
+			CHECK ( a1.Scope() == 1 );
+
+			KIPAddress6 a2("fe80::1%42", ec);
+			CHECK ( ec.value() == 0 );
+			CHECK ( a2.ToString() == "fe80::1%42" );
+			CHECK ( a2.Scope() == 42 );
+
+			KIPAddress6 a3("::1%0", ec);
+			CHECK ( ec.value() == 0 );
+			CHECK ( a3.ToString() == "::1" );
+			CHECK ( a3.Scope() == 0 );
+		}
+
+		SECTION("no scope")
+		{
+			KIPError ec;
+			KIPAddress6 a1("fe80::1", ec);
+			CHECK ( ec.value() == 0 );
+			CHECK ( a1.Scope() == 0 );
+		}
+
+		SECTION("empty zone after %")
+		{
+			KIPError ec;
+			KIPAddress6 a1("fe80::1%", ec);
+			CHECK ( ec.value() == 0 );
+			CHECK ( a1.ToString() == "fe80::1" );
+			CHECK ( a1.Scope() == 0 );
+		}
+
+		SECTION("scope with brackets")
+		{
+			KIPError ec;
+			KIPAddress6 a1("[fe80::1%5]", ec);
+			CHECK ( ec.value() == 0 );
+			CHECK ( a1.ToString() == "fe80::1%5" );
+			CHECK ( a1.Scope() == 5 );
+		}
+
+		SECTION("unknown interface name")
+		{
+			KIPError ec;
+			KIPAddress6 a1("fe80::1%nonexistent_iface_xyz", ec);
+			CHECK ( ec.value() == 0 );
+			CHECK ( a1.ToString() == "fe80::1" );
+			CHECK ( a1.Scope() == 0 );
+		}
+
+		SECTION("throwing constructors")
+		{
+			KIPAddress6 a1("fe80::1%7");
+			CHECK ( a1.ToString() == "fe80::1%7" );
+			CHECK ( a1.Scope() == 7 );
+
+			KIPAddress6 a2("fe80::1");
+			CHECK ( a2.Scope() == 0 );
+		}
+
+		SECTION("scope in link-local addresses")
+		{
+			KIPError ec;
+			KIPAddress6 a1("fe80::abcd:1234%3", ec);
+			CHECK ( ec.value() == 0 );
+			CHECK ( a1.IsLinkLocal() == true );
+			CHECK ( a1.Scope() == 3 );
+
+			KIPAddress6 a2("fe80::abcd:1234%3", ec);
+			KIPAddress6 a3("fe80::abcd:1234%4", ec);
+			CHECK ( a2 != a3 );
+
+			KIPAddress6 a4("fe80::abcd:1234%3", ec);
+			CHECK ( a2 == a4 );
+		}
+	}
+
 #if DEKAF2_HAS_CPP_20
 	SECTION("KIPAddress IsCGNAT")
 	{

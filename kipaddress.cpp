@@ -41,8 +41,18 @@
 */
 
 #include "kipaddress.h"
+#include "kcompatibility.h"
 #include "kctype.h"
 #include "kstringutils.h"
+
+#ifdef DEKAF2_IS_WINDOWS
+	#include <iphlpapi.h>
+	#ifndef IF_NAMESIZE
+		#define IF_NAMESIZE 40
+	#endif
+#else
+	#include <net/if.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -195,35 +205,68 @@ KIPAddress4 KIPAddress4::Next() const noexcept
 } // KIPAddress4::Inc
 
 //-----------------------------------------------------------------------------
-KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) noexcept
+/// resolve a zone string to a numeric scope ID
+KIPAddress6::ScopeT KIPAddress6::ResolveScope(KStringView sZone) noexcept
 //-----------------------------------------------------------------------------
 {
+	if (sZone.empty())
+	{
+		return 0;
+	}
+
+	// try numeric scope ID first
+	if (KASCII::kIsDigit(sZone.front()))
+	{
+		KIPAddress6::ScopeT iScope { 0 };
+
+		for (auto ch : sZone)
+		{
+			if (!KASCII::kIsDigit(ch)) return 0;
+			iScope = iScope * 10 + (ch - '0');
+		}
+
+		return iScope;
+	}
+
+	// resolve interface name to index
+	// if_nametoindex needs a null-terminated string - sZone is a view into a
+	// potentially larger string, so copy it
+	std::array<char, IF_NAMESIZE + 1> buf;
+	strcpy_n(buf.data(), sZone.data(), buf.size());
+
+	return static_cast<KIPAddress6::ScopeT>(::if_nametoindex(buf.data()));
+
+} // ResolveScope
+
+//-----------------------------------------------------------------------------
+KIPAddress6::Parsed6 KIPAddress6::FromString(KStringView sAddress, KIPError& ec) noexcept
+//-----------------------------------------------------------------------------
+{
+	Parsed6 parsed;
+
 #define DEKAF2_DEBUG_KIPADDRESS 0
 #if DEKAF2_DEBUG_KIPADDRESS
 	// to debug, set IP to pattern - should have no effect:
-	BytesT IP { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x12 };
-#else
-	BytesT IP;
+	parsed.IP = BytesT { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x12 };
 #endif
-
-	constexpr BytesT Empty { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	if (sAddress.remove_prefix('[') && !sAddress.remove_suffix(']'))
 	{
 		ec = KIPError("KIPAddress6: unpaired []");
-		return Empty;
+		parsed.IP = Empty;
+		return parsed;
 	}
 
-	// the shortest possible IPv6 address is ::0 etc,
-	// the max (without network) is 45 with IPv4 mapping
-	// (0000:0000:0000:0000:0000:ffff:123.111.100.143)
-	if (sAddress.size() > 45 || sAddress.size() < 3)
+	// the shortest possible IPv6 address is :: (2 chars),
+	// the max with scope suffix is well below 255 bytes
+	if (sAddress.size() > 255 || sAddress.size() < 2)
 	{
 		if (sAddress != "::")
 		{
 			ec = KIPError("KIPAddress6: invalid size");
 		}
-		return Empty;
+		parsed.IP = Empty;
+		return parsed;
 	}
 
 	constexpr uint8_t iInvalid { 255 };
@@ -245,7 +288,8 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 			if (++iLastColons > 2)
 			{
 				ec = KIPError("KIPAddress6: more than two consecutive colons");
-				return Empty;
+				parsed.IP = Empty;
+				return parsed;
 			}
 
 			if (iNibbleCount > 0)
@@ -253,11 +297,12 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 				if (iBlock > 7)
 				{
 					ec = KIPError("KIPAddress6: invalid block count");
-					return Empty;
+					parsed.IP = Empty;
+					return parsed;
 				}
 				// we have a value to store
-				IP[iBlock * 2    ] = static_cast<uint8_t>(iWord >> 8);
-				IP[iBlock * 2 + 1] = static_cast<uint8_t>(iWord);
+				parsed.IP[iBlock * 2    ] = static_cast<uint8_t>(iWord >> 8);
+				parsed.IP[iBlock * 2 + 1] = static_cast<uint8_t>(iWord);
 				++iBlock;
 				iWord = 0;
 				iNibbleCount = 0;
@@ -270,7 +315,8 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 					// only one substitution by :: is permitted
 					// a :: counts at least for one block
 					ec = KIPError("KIPAddress6: more than one ::");
-					return Empty;
+					parsed.IP = Empty;
+					return parsed;
 				}
 				// mark the block at which the double colon emerged
 				iDoubleColonBlock = iBlock;
@@ -285,7 +331,8 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 				(iDoubleColonBlock == iInvalid && iBlock != 6))
 			{
 				ec = KIPError("KIPAddress6: invalid mapped IPv4");
-				return Empty;
+				parsed.IP = Empty;
+				return parsed;
 			}
 
 			auto iStartv4 = iIndex;
@@ -301,18 +348,26 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 			if (ec)
 			{
 				ec = KIPError("KIPAddress6: invalid mapped IPv4");
-				return Empty;
+				parsed.IP = Empty;
+				return parsed;
 			}
 
-			IP[iBlock * 2    ] = IPv4.m_IP[0];
-			IP[iBlock * 2 + 1] = IPv4.m_IP[1];
+			parsed.IP[iBlock * 2    ] = IPv4.m_IP[0];
+			parsed.IP[iBlock * 2 + 1] = IPv4.m_IP[1];
 			++iBlock;
-			IP[iBlock * 2    ] = IPv4.m_IP[2];
-			IP[iBlock * 2 + 1] = IPv4.m_IP[3];
+			parsed.IP[iBlock * 2    ] = IPv4.m_IP[2];
+			parsed.IP[iBlock * 2 + 1] = IPv4.m_IP[3];
 			++iBlock;
 
 			// the whole string was sent to KIPAddressv4
 			iNibbleCount = 0;
+			break;
+		}
+		else if (ch == '%')
+		{
+			// scope suffix per RFC 9844 - stop parsing the address here
+			// and resolve the interface name
+			parsed.Scope = ResolveScope(sAddress.ToView(++iIndex));
 			break;
 		}
 		else
@@ -320,12 +375,14 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 			if (iBlock == 0 && iNibbleCount == 0 && iLastColons == 1)
 			{
 				ec = KIPError("KIPAddress6: leading :");
-				return Empty;
+				parsed.IP = Empty;
+				return parsed;
 			}
 			else if (iBlock > 7)
 			{
 				ec = KIPError("KIPAddress6: invalid block count");
-				return Empty;
+				parsed.IP = Empty;
+				return parsed;
 			}
 
 			auto iNibble = kFromHexChar(ch);
@@ -333,7 +390,8 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 			if (iNibble > 15 || ++iNibbleCount > 4)
 			{
 				ec = KIPError("KIPAddress6: invalid hex");
-				return Empty;
+				parsed.IP = Empty;
+				return parsed;
 			}
 
 			iWord <<= 4;
@@ -352,11 +410,12 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 		if (iBlock > 7)
 		{
 			ec = KIPError("KIPAddress6: invalid block count");
-			return Empty;
+			parsed.IP = Empty;
+			return parsed;
 		}
 		// fill last word
-		IP[iBlock * 2    ] = static_cast<uint8_t>(iWord >> 8);
-		IP[iBlock * 2 + 1] = static_cast<uint8_t>(iWord);
+		parsed.IP[iBlock * 2    ] = static_cast<uint8_t>(iWord >> 8);
+		parsed.IP[iBlock * 2 + 1] = static_cast<uint8_t>(iWord);
 		++iBlock;
 	}
 
@@ -366,7 +425,8 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 		||  iLastColons == 1)
 	{
 		ec = KIPError("KIPAddress6: invalid block count");
-		return Empty;
+		parsed.IP = Empty;
+		return parsed;
 	}
 
 	if (iDoubleColonBlock != iInvalid)
@@ -377,30 +437,30 @@ KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress, KIPError& ec) 
 
 		for (uint8_t i = 7; i >= iMin; --i)
 		{
-			IP[i * 2]     = IP[(i - iGap) * 2];
-			IP[i * 2 + 1] = IP[(i - iGap) * 2 + 1];
+			parsed.IP[i * 2]     = parsed.IP[(i - iGap) * 2];
+			parsed.IP[i * 2 + 1] = parsed.IP[(i - iGap) * 2 + 1];
 		}
 
 		// and zeroize all gaps that were not yet touched
 		for (auto i = iDoubleColonBlock; i < iMin; ++i)
 		{
-			IP[i * 2]     = 0;
-			IP[i * 2 + 1] = 0;
+			parsed.IP[i * 2]     = 0;
+			parsed.IP[i * 2 + 1] = 0;
 		}
 	}
 
-	return IP;
+	return parsed;
 
 } // KIPAddress6::FromString
 
 //-----------------------------------------------------------------------------
-KIPAddress6::BytesT KIPAddress6::FromString(KStringView sAddress)
+KIPAddress6::Parsed6 KIPAddress6::FromString(KStringView sAddress)
 //-----------------------------------------------------------------------------
 {
 	KIPError ec;
-	auto Bytes = FromString(sAddress, ec);
+	auto parsed = FromString(sAddress, ec);
 	if (ec) throw ec;
-	return Bytes;
+	return parsed;
 
 } // KIPAddress6::FromString
 
@@ -516,6 +576,12 @@ KString KIPAddress6::ToString (bool bWithBraces, bool bUnabridged) const noexcep
 				}
 			}
 		}
+	}
+
+	if (m_Scope)
+	{
+		sIP += '%';
+		sIP += kIntToString(m_Scope);
 	}
 
 	if (bWithBraces)

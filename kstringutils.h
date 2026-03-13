@@ -1449,12 +1449,12 @@ First kFirstFalse(Functor func, const First& first, More&&...more)
 
 //-----------------------------------------------------------------------------
 template<class String = KString>
-DEKAF2_NODISCARD DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false, bool bIsNeg = false)
 //-----------------------------------------------------------------------------
 {
-	static constexpr KStringView s_sLookupLower { "0123456789abcdefghijklmnopqrstuvwxyz" };
-	static constexpr KStringView s_sLookupUpper { "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" };
+	constexpr KStringView s_sLookupLower { "0123456789abcdefghijklmnopqrstuvwxyz" };
+	constexpr KStringView s_sLookupUpper { "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" };
 
 	String sResult;
 
@@ -1488,7 +1488,7 @@ String kUnsignedToString(uint64_t i, uint16_t iBase = 10, bool bZeroPad = false,
 
 //-----------------------------------------------------------------------------
 template<class String = KString>
-DEKAF2_NODISCARD DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 String kSignedToString(int64_t i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false)
 //-----------------------------------------------------------------------------
 {
@@ -1509,7 +1509,7 @@ String kSignedToString(int64_t i, uint16_t iBase = 10, bool bZeroPad = false, bo
 //-----------------------------------------------------------------------------
 template<typename T, class String = KString,
          typename std::enable_if<std::is_unsigned<T>::value && std::is_arithmetic<T>::value, int>::type = 0>
-DEKAF2_NODISCARD DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 String kIntToString(T i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false)
 //-----------------------------------------------------------------------------
 {
@@ -1519,7 +1519,7 @@ String kIntToString(T i, uint16_t iBase = 10, bool bZeroPad = false, bool bUpper
 //-----------------------------------------------------------------------------
 template<typename T, class String = KString,
          typename std::enable_if<std::is_signed<T>::value && std::is_arithmetic<T>::value, int>::type = 0>
-DEKAF2_NODISCARD DEKAF2_PUBLIC
+DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 String kIntToString(T i, uint16_t iBase = 10, bool bZeroPad = false, bool bUppercase = false)
 //-----------------------------------------------------------------------------
 {

@@ -394,88 +394,77 @@ KStringView KString::ToView(size_type pos, size_type n) const
 KString& KString::PadLeft(size_t iWidth, value_type chPad) &
 //----------------------------------------------------------------------
 {
-	kPadLeft(m_rep, iWidth, chPad);
-	return *this;
+	return kPadLeft(*this, iWidth, chPad);
 }
 
 //----------------------------------------------------------------------
 KString& KString::PadRight(size_t iWidth, value_type chPad) &
 //----------------------------------------------------------------------
 {
-	kPadRight(m_rep, iWidth, chPad);
-	return *this;
+	return kPadRight(*this, iWidth, chPad);
 }
 
 //----------------------------------------------------------------------
 KString& KString::TrimLeft() &
 //----------------------------------------------------------------------
 {
-	kTrimLeft(*this);
-	return *this;
+	return kTrimLeft(*this);
 }
 
 //----------------------------------------------------------------------
 KString& KString::TrimLeft(value_type chTrim) &
 //----------------------------------------------------------------------
 {
-	kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
-	return *this;
+	return kTrimLeft(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 }
 
 //----------------------------------------------------------------------
 KString& KString::TrimLeft(const KFindSetOfChars& TrimSet) &
 //----------------------------------------------------------------------
 {
-	kTrimLeft(*this, TrimSet);
-	return *this;
+	return kTrimLeft(*this, TrimSet);
 }
 
 //----------------------------------------------------------------------
 KString& KString::TrimRight() &
 //----------------------------------------------------------------------
 {
-	kTrimRight(*this);
-	return *this;
+	return kTrimRight(*this);
 }
 
 //----------------------------------------------------------------------
 KString& KString::TrimRight(value_type chTrim) &
 //----------------------------------------------------------------------
 {
-	kTrimRight(*this, [chTrim](value_type ch){ return ch == chTrim; } );
-	return *this;
+	return kTrimRight(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 }
 
 //----------------------------------------------------------------------
 KString& KString::TrimRight(const KFindSetOfChars& TrimSet) &
 //----------------------------------------------------------------------
 {
-	kTrimRight(*this, TrimSet);
-	return *this;
+	return kTrimRight(*this, TrimSet);
 }
 
 //----------------------------------------------------------------------
 KString& KString::Trim() &
 //----------------------------------------------------------------------
 {
-	kTrim(*this);
-	return *this;
+	return kTrim(*this);
 }
 
 //----------------------------------------------------------------------
 KString& KString::Trim(value_type chTrim) &
 //----------------------------------------------------------------------
 {
-	kTrim(*this, [chTrim](value_type ch){ return ch == chTrim; } );
-	return *this;
+	return kTrim(*this, [chTrim](value_type ch){ return ch == chTrim; } );
 }
 
 //----------------------------------------------------------------------
 KString& KString::Trim(const KFindSetOfChars& TrimSet) &
 //----------------------------------------------------------------------
 {
-	kTrim(*this, TrimSet);
-	return *this;
+	return kTrim(*this, TrimSet);
 }
 
 //----------------------------------------------------------------------
@@ -483,15 +472,13 @@ KString& KString::Collapse() &
 //----------------------------------------------------------------------
 {
 	return kCollapse(*this);
-	return *this;
 }
 
 //----------------------------------------------------------------------
 KString& KString::Collapse(KStringView svCollapse, value_type chTo) &
 //----------------------------------------------------------------------
 {
-	kCollapse(*this, svCollapse, chTo);
-	return *this;
+	return kCollapse(*this, svCollapse, chTo);
 }
 
 //----------------------------------------------------------------------
@@ -499,15 +486,13 @@ KString& KString::CollapseAndTrim() &
 //----------------------------------------------------------------------
 {
 	return kCollapseAndTrim(*this);
-	return *this;
 }
 
 //----------------------------------------------------------------------
 KString& KString::CollapseAndTrim(KStringView svCollapse, value_type chTo) &
 //----------------------------------------------------------------------
 {
-	kCollapseAndTrim(*this, svCollapse, chTo);
-	return *this;
+	return kCollapseAndTrim(*this, svCollapse, chTo);
 }
 
 //----------------------------------------------------------------------

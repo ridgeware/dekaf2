@@ -45,6 +45,7 @@
 /// keep track of running threads
 
 #include "kthreadsafe.h"
+#include "klog.h"
 #include <thread>
 #include <utility>
 #include <functional>
@@ -65,6 +66,8 @@ private:
 //----------
 
 	using Storage = std::unordered_map<std::thread::id, std::thread>;
+
+	static constexpr std::size_t s_iDecayThreshold { 16 };
 
 	KThreadSafe<Storage> m_Threads;
 	KThreadSafe<std::vector<std::thread>> m_Decay;
@@ -116,8 +119,11 @@ public:
 	std::thread::id Create(Function&& f, Args&&... args)
 	//-----------------------------------------------------------------------------
 	{
-		// do the housekeeping
-		DecayInt();
+		// do the housekeeping only when enough threads have accumulated
+		if (m_Decay.shared()->size() >= s_iDecayThreshold)
+		{
+			DecayInt();
+		}
 
 		// we use the detour with std::bind because otherwise (apple) clang errs
 		// on some lambda parameters when forwarding f and args
@@ -132,7 +138,14 @@ public:
 		return AddLocked(Threads, std::thread([this, Func=std::move(Callable)]()
 		{
 			// call the callable
-			Func();
+			DEKAF2_TRY
+			{
+				Func();
+			}
+			DEKAF2_CATCH (const std::exception& ex)
+			{
+				kException(ex);
+			}
 
 			// and remove this thread from the map
 			RemoveInt(std::this_thread::get_id(), false);

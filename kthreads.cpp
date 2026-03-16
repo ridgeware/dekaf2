@@ -126,14 +126,18 @@ bool KThreads::RemoveInt(std::thread::id ThreadID, bool bWarnIfFailed)
 void KThreads::DecayInt()
 //-----------------------------------------------------------------------------
 {
-	auto Threads = m_Decay.unique();
+	std::vector<std::thread> Local;
 
-	std::size_t iSize = Threads->size();
+	{
+		auto Threads = m_Decay.unique();
+		std::swap(Local, *Threads);
+	}
+
 #ifdef DEKAF2_WITH_KLOG
-	auto iCount = iSize;
+	auto iCount = Local.size();
 #endif
 
-	for (auto& Thread : *Threads)
+	for (auto& Thread : Local)
 	{
 		if (Thread.joinable())
 		{
@@ -146,9 +150,8 @@ void KThreads::DecayInt()
 #endif
 	}
 
-	if (iSize)
+	if (!Local.empty())
 	{
-		Threads->clear();
 		kDebug(1, "all decaying threads finished");
 	}
 

@@ -317,7 +317,7 @@ void KHTTPRouter::ErrorHandler(const std::exception& ex)
 	}
 
 	// close the html body
-	sContent += R"(</h2></body></html>\r\n)";
+	sContent += "</h2></body></html>\r\n";
 
 	// compute and set the Content-Length header:
 	Response.Headers.Set(KHTTPHeader::CONTENT_LENGTH, KString::to_string(sContent.length()));

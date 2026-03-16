@@ -177,7 +177,7 @@ public:
 		DEKAF2_NODISCARD constexpr
 		bool Has(OPT opt) const        { return (m_Options & opt) != 0; }
 
-		constexpr
+		DEKAF2_CONSTEXPR_14
 		void Set(OPT opt)              { m_Options |= opt;              }
 
 		constexpr

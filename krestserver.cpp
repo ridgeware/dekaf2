@@ -664,7 +664,7 @@ bool KRESTServer::Execute()
 				{
 					if (m_iRequestHeaderLength > 0)
 					{
-						kDebug(2, "connection closed during request, reveived {} bytes of header", m_iRequestHeaderLength);
+						kDebug(2, "connection closed during request, received {} bytes of header", m_iRequestHeaderLength);
 					}
 					// close silently
 					kDebug (3, "read timeout in keepalive round {}", m_iRound + 1);
@@ -1139,7 +1139,7 @@ void KRESTServer::Output()
 	bool bOutputContent = !m_sRawOutput.empty() ||
 	                       m_Stream             ||
 	                      !m_sMessage.empty()   ||
-	                      !json.tx.is_null()    ||
+	                      !json.tx.empty()      ||
 	                      !xml.tx.empty()       ||
 	                      (m_JsonLogger && !m_JsonLogger->empty() && !m_Options.KLogHeader.empty());
 
@@ -1191,7 +1191,7 @@ void KRESTServer::Output()
 				// the content:
 				if (!m_sMessage.empty())
 				{
-					if (!json.tx.is_null() || Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::JSON)
+					if (!json.tx.empty() || Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::JSON)
 					{
 						json.tx["message"] = std::move(m_sMessage);
 					}
@@ -1210,7 +1210,7 @@ void KRESTServer::Output()
 					}
 				}
 
-				if (!json.tx.is_null())
+				if (!json.tx.empty())
 				{
 					kDebug (2, "serializing JSON response");
 					sContent = json.tx.dump(m_iJSONPrint, '\t');
@@ -1323,13 +1323,13 @@ void KRESTServer::Output()
 			{
 				if (!m_sMessage.empty())
 				{
-					if (!json.tx.is_null() || Route->Parser == KRESTRoute::JSON)
+					if (!json.tx.empty() || Route->Parser == KRESTRoute::JSON)
 					{
 						json.tx["message"] = std::move(m_sMessage);
 					}
 				}
 
-				if (!json.tx.is_null())
+				if (!json.tx.empty())
 				{
 					tjson["body"] = std::move(json.tx);
 				}

@@ -45,10 +45,11 @@
 #include <cstdlib>
 
 #if DEKAF2_HAS_GETRANDOM
+	#include <limits>
 	#include <sys/random.h>
 #endif
 
-#if !DEKAF2_HAS_ARC4RANDOM
+#if !DEKAF2_HAS_ARC4RANDOM && !DEKAF2_HAS_GETRANDOM
 	#include "kthreadsafe.h"
 #endif
 
@@ -56,7 +57,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
-#if !DEKAF2_HAS_ARC4RANDOM
+#if !DEKAF2_HAS_ARC4RANDOM && !DEKAF2_HAS_GETRANDOM
 KThreadSafe<std::mt19937> g_Dekaf2Random;
 #endif
 
@@ -66,7 +67,7 @@ void kSetRandomSeed()
 {
 	std::random_device RandDevice;
 
-#if !DEKAF2_HAS_ARC4RANDOM
+#if !DEKAF2_HAS_ARC4RANDOM && !DEKAF2_HAS_GETRANDOM
 	g_Dekaf2Random.unique()->seed(RandDevice());
 #endif
 
@@ -122,11 +123,18 @@ uint32_t kRandom(uint32_t iMin, uint32_t iMax)
 //-----------------------------------------------------------------------------
 {
 #if DEKAF2_HAS_ARC4RANDOM
-	auto iRange = iMax - iMin;
-	return arc4random_uniform(iRange) + iMin;
+	return arc4random_uniform(iMax - iMin) + iMin;
 #else
+	struct RandomGenerator
+	{
+		using result_type = uint32_t;
+		result_type operator()() const noexcept { return kRandom32(); }
+		static constexpr result_type min() noexcept { return std::numeric_limits<result_type>::min(); }
+		static constexpr result_type max() noexcept { return std::numeric_limits<result_type>::max(); }
+	};
+	RandomGenerator rg;
 	std::uniform_int_distribution<uint32_t> uniform_dist(iMin, iMax);
-	return uniform_dist(detail::g_Dekaf2Random.unique().get());
+	return uniform_dist(rg);
 #endif
 
 } // kRandom

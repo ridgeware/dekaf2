@@ -35,7 +35,18 @@ TEST_CASE("KNetworkInterface")
 					else if (net.Is6())
 					{
 						bHadv6Loopback = true;
-						CHECK ( (net.ToString() == "::1/128" || net.ToString() == "fe80::1/64") );
+						auto sNet = net.ToString();
+						auto iScope = sNet.find('%');
+						if (iScope != npos)
+						{
+							auto iPrefix = sNet.find('/');
+							if (iPrefix != npos)
+							{
+								sNet.erase(iScope, iPrefix-iScope);
+							}
+						}
+						INFO ( sNet );
+						CHECK ( (sNet == "::1/128" || sNet == "fe80::1/64") );
 					}
 				}
 

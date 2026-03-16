@@ -454,6 +454,45 @@ bool kStdOutIsTerminal();
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KDuration kGetUptime();
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// holds the system load averages for the 1, 5, and 15 minute intervals
+class DEKAF2_PUBLIC KLoadAverage
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// returns the 1 minute load average, or -1.0 if unavailable
+	DEKAF2_NODISCARD
+	double Get1Min () const noexcept { return m_LoadAvg[0]; }
+	/// returns the 5 minute load average, or -1.0 if unavailable
+	DEKAF2_NODISCARD
+	double Get5Min () const noexcept { return m_LoadAvg[1]; }
+	/// returns the 15 minute load average, or -1.0 if unavailable
+	DEKAF2_NODISCARD
+	double Get15Min() const noexcept { return m_LoadAvg[2]; }
+	/// returns true if the load averages were successfully retrieved
+	DEKAF2_NODISCARD
+	bool   IsValid () const noexcept { return m_LoadAvg[0] >= 0.0; }
+
+	/// queries the operating system for the current load averages
+	DEKAF2_NODISCARD
+	static KLoadAverage Create();
+
+//------
+private:
+//------
+
+	std::array<double, 3> m_LoadAvg {{ -1.0, -1.0, -1.0 }};
+
+}; // KLoadAverage
+
+/// returns the system load averages for the 1, 5, and 15 minute intervals
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KLoadAverage kGetLoadAverage();
+
 /// DEPRECATED: use kIsIPv4Address() instead -
 /// checks if an IP address is a IPv4 address like '1.2.3.4'
 /// @param sAddress the string to test

@@ -2127,5 +2127,33 @@ KDuration kGetUptime()
 
 } // kGetUptime
 
+//-----------------------------------------------------------------------------
+KLoadAverage KLoadAverage::Create()
+//-----------------------------------------------------------------------------
+{
+	KLoadAverage la;
+
+#if DEKAF2_IS_UNIX
+
+	if (::getloadavg(la.m_LoadAvg.data(), 3) < 0)
+	{
+		kDebug(1, ::strerror(errno));
+		la.m_LoadAvg.fill(-1.0);
+	}
+
+#endif
+
+	return la;
+
+} // KLoadAverage::Create
+
+//-----------------------------------------------------------------------------
+KLoadAverage kGetLoadAverage()
+//-----------------------------------------------------------------------------
+{
+	return KLoadAverage::Create();
+
+} // kGetLoadAverage
+
 
 DEKAF2_NAMESPACE_END

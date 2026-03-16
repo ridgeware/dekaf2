@@ -72,6 +72,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+class KIPAddress;
+class KIPAddress6;
+
 /// checks if an IP address is a IPv6 address like '[a0:ef::c425:12]'
 /// @param sAddress the string to test
 /// @param bNeedsBraces if true, address has to be in square braces [ ], if false they must not be present
@@ -84,6 +87,14 @@ bool kIsIPv6Address(KStringView sAddress, bool bNeedsBraces);
 /// @return true if sAddress holds an IPv4 numerical address
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsIPv4Address(KStringView sAddress);
+
+/// Return true if the IP address is a private address, both IPv4 and IPv6
+/// @param IP the IP address
+/// @param bExcludeDocker if set to true, addresses of the 172.x.x.x range
+/// are not treated as private IPs, as these are often the result of docker TCP proxying
+/// @return true if IP is a private IP
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool kIsPrivateIP(const KIPAddress& IP, bool bExcludeDocker = true);
 
 /// Return true if the string represents a private IP address, both IPv4 and IPv6
 /// @param sIP the IP address
@@ -98,9 +109,6 @@ class KIPError : public KError
 {
 	using KError::KError;
 };
-
-class KIPAddress;
-class KIPAddress6;
 
 namespace detail {
 
@@ -826,13 +834,13 @@ public:
 	// construct from IPv4 address, does not throw
 	constexpr          KIPAddress(KIPAddress4 IPAddress4) noexcept
 	                   : m_IP(IPAddress4)
-	                   , m_Type(IPv4)
+	                   , m_bIsIPv6(false)
 	                   {}
 
 	// construct from IPv6 address, does not throw
 	constexpr          KIPAddress(KIPAddress6 IPAddress6) noexcept
 	                   : m_IP(std::move(IPAddress6))
-	                   , m_Type(IPv6)
+	                   , m_bIsIPv6(true)
 	                   {}
 
 	// construct from IPv4 or IPv6 string representation, not throwing but returning possible error in ec
@@ -849,23 +857,22 @@ public:
 	DEKAF2_NODISCARD
 	constexpr bool Is4() const noexcept
 	{
-		return m_Type == AddressType::IPv4;
+		return m_bIsIPv6 == false;
 	}
 
 	/// is address an IPv6 address?.
 	DEKAF2_NODISCARD
 	constexpr bool Is6() const noexcept
 	{
-		return m_Type == AddressType::IPv6;
+		return !Is4();
 	}
 
 	/// get address as string
 	DEKAF2_NODISCARD
 	KString ToString(bool bWithBraces = false, bool bUnabridged = false) const noexcept
 	{
-		if (Is4()) return KIPAddress4::ToString(GetConstValuePtr4());
-		if (Is6()) return m_IP.ToString(bWithBraces, bUnabridged);
-		return {};
+		return Is4() ? KIPAddress4::ToString(GetConstValuePtr4())
+		             : m_IP.ToString(bWithBraces, bUnabridged);
 	}
 
 	explicit operator KString() const noexcept
@@ -883,45 +890,37 @@ public:
 	DEKAF2_NODISCARD
 	constexpr KIPAddress4 To4() const noexcept
 	{
-		switch (m_Type)
+		if (Is4())
 		{
-			case AddressType::Invalid:
-				return {};
-			case AddressType::IPv4:
-			{
-				auto* IP = GetConstValuePtr4();
-				return KIPAddress4::Bytes4 { IP[0], IP[1], IP[2], IP[3] };
-			}
-			case AddressType::IPv6:
-				return KIPAddress4(m_IP);
+			auto* IP = GetConstValuePtr4();
+			return KIPAddress4::Bytes4 { IP[0], IP[1], IP[2], IP[3] };
 		}
-		return {};
+		else
+		{
+			return KIPAddress4(m_IP);
+		}
 	}
 
 	/// get address as KIPAddress6 if necessary converted from IPv4 as well, else as unspecified address
 	DEKAF2_NODISCARD
 	constexpr KIPAddress6 To6() const noexcept
 	{
-		switch (m_Type)
+		if (Is4())
 		{
-			case AddressType::Invalid:
-				return {};
-			case AddressType::IPv4:
-			{
-				auto* IP = GetConstValuePtr4();
-				return KIPAddress6(KIPAddress4::Bytes4 { IP[0], IP[1], IP[2], IP[3] });
-			}
-			case AddressType::IPv6:
-				return m_IP;
+			auto* IP = GetConstValuePtr4();
+			return KIPAddress6(KIPAddress4::Bytes4 { IP[0], IP[1], IP[2], IP[3] });
 		}
-		return {};
+		else
+		{
+			return m_IP;
+		}
 	}
 
 	/// clear to empty/unspecified address
 	constexpr void clear() noexcept
 	{
 		m_IP.clear();
-		m_Type = AddressType::Invalid;
+		m_bIsIPv6 = false;
 	}
 
 	/// decrement this address by one
@@ -944,8 +943,8 @@ public:
 	DEKAF2_NODISCARD
 	constexpr bool IsConvertibleTo4() const noexcept
 	{
-		if (!Is6()) return true;
-		return m_IP.IsV4Mapped();
+		return Is4() ? true
+		             : m_IP.IsV4Mapped();
 	}
 
 	/// always returns true
@@ -960,7 +959,7 @@ public:
 	constexpr bool IsLoopback() const noexcept
 	{
 		return Is4() ? KIPAddress4::IsLoopback(GetConstValuePtr4())
-		             : Is6() ? m_IP.IsLoopback() : false;
+		             : m_IP.IsLoopback();
 	}
 
 	/// is address unspecifed?
@@ -968,7 +967,7 @@ public:
 	constexpr bool IsUnspecified() const noexcept
 	{
 		return Is4() ? KIPAddress4::IsUnspecified(GetConstValuePtr4())
-		             : Is6() ? m_IP.IsUnspecified() : true;
+		             : m_IP.IsUnspecified();
 	}
 
 	/// is address valid?
@@ -983,7 +982,7 @@ public:
 	constexpr bool IsMulticast() const noexcept
 	{
 		return Is4() ? KIPAddress4::IsMulticast(GetConstValuePtr4())
-		             : Is6() ? m_IP.IsMulticast() : false;
+		             : m_IP.IsMulticast();
 	}
 
 	/// is address a link-local address?
@@ -991,7 +990,7 @@ public:
 	constexpr bool IsLinkLocal() const noexcept
 	{
 		return Is4() ? KIPAddress4::IsLinkLocal(GetConstValuePtr4())
-		             : Is6() ? m_IP.IsLinkLocal() : false;
+		             : m_IP.IsLinkLocal();
 	}
 
 	/// is address a multicast address?
@@ -999,7 +998,7 @@ public:
 	constexpr bool IsPrivate() const noexcept
 	{
 		return Is4() ? KIPAddress4::IsPrivate(GetConstValuePtr4())
-		             : Is6() ? m_IP.IsPrivate() : false;
+		             : m_IP.IsPrivate();
 	}
 
 	/// is address a CGNAT address?
@@ -1013,7 +1012,7 @@ public:
 	friend constexpr bool operator==(const KIPAddress& a1,
 	                                 const KIPAddress& a2) noexcept
 	{
-		if (a1.m_Type != a2.m_Type) return false;
+		if (a1.m_bIsIPv6 != a2.m_bIsIPv6) return false;
 		if (a1.Is4()) return KIPAddress4::IsEqual(a1.GetConstValuePtr4(), a2.GetConstValuePtr4());
 		if (a1.Is6()) return a1.m_IP == a2.m_IP;
 		return true;
@@ -1023,11 +1022,9 @@ public:
 	friend constexpr bool operator<(const KIPAddress& a1,
 	                                const KIPAddress& a2) noexcept
 	{
-		if (a1.m_Type < a2.m_Type) return true;
-		if (a1.m_Type > a2.m_Type) return false;
-		if (a1.Is4()) return KIPAddress4::IsLess(a1.GetConstValuePtr4(), a2.GetConstValuePtr4());
-		if (a1.Is6()) return a1.m_IP < a2.m_IP;
-		return false;
+		if (a1.m_bIsIPv6 != a2.m_bIsIPv6) return a1.m_bIsIPv6 < a2.m_bIsIPv6;
+		return (a1.Is4()) ? KIPAddress4::IsLess(a1.GetConstValuePtr4(), a2.GetConstValuePtr4())
+		                  : a1.m_IP < a2.m_IP;
 	}
 
 //----------
@@ -1050,8 +1047,7 @@ private:
 	}
 
 	KIPAddress6 m_IP;
-
-	enum AddressType : uint8_t { Invalid, IPv4, IPv6 } m_Type { Invalid };
+	bool        m_bIsIPv6 { false };
 
 }; // KIPAddress
 

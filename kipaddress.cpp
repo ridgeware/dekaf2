@@ -854,6 +854,11 @@ bool kIsIPv6Address(KStringView sAddress, bool bNeedsBraces)
 			iNibbleCount = 0;
 			break;
 		}
+		else if (ch == '%')
+		{
+			// the scope, skip it
+			break;
+		}
 		else
 		{
 			if (iBlock > 7)
@@ -939,57 +944,43 @@ bool kIsIPv4Address(KStringView sAddress)
 } // kIsIPv4Address
 
 //-----------------------------------------------------------------------------
-bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker)
+bool kIsPrivateIP(const KIPAddress& addr, bool bExcludeDocker)
 //-----------------------------------------------------------------------------
 {
-	bool bIsV6 = false;
-
-	if (kIsIPv6Address(sIP, sIP.front() == '['))
+	if (addr.IsLoopback ()) return true;
+	if (addr.IsLinkLocal()) return true;
+	if (addr.IsPrivate  ())
 	{
-		if (sIP.front() == '[')
+		if (bExcludeDocker && addr.Is4())
 		{
-			sIP.remove_suffix(1);
-			sIP.remove_prefix(1);
-		}
+			auto ip4 = addr.To4();
+			// docker normally sits at 172.*.*.* with its internal network
+			// and translates external IP addresses into just that one
+			auto& Bytes = ip4.ToBytes();
 
-		if (sIP.starts_with("::ffff:") && sIP.rfind(':') == 6)
-		{
-			// ::ffff:192.168.1.1
-			sIP.remove_prefix(7);
-		}
-		else
-		{
-			bIsV6 = true;
-		}
-	}
-
-	if (bIsV6)
-	{
-		if (sIP == "::1") return true;
-		if (sIP.starts_with("fd")) return true;
-		if (sIP.starts_with("fe80::")) return true;
-	}
-	else
-	{
-		if (kIsIPv4Address(sIP))
-		{
-			if (sIP.starts_with("127.")) return true;
-			if (sIP.starts_with("192.168.")) return true;
-			if (sIP.starts_with("172."))
+			if (Bytes[0] == 172 && Bytes[1] >= 16 && Bytes[1] <= 31)
 			{
-				// docker normally sits at 172.*.*.* with its internal network
-				// and translates external IP addresses into just that one
-				if (bExcludeDocker) return false;
-				sIP.remove_prefix(4);
-				sIP.remove_suffix(sIP.size() - sIP.find('.'));
-				auto iIP = sIP.UInt16();
-				return (iIP >= 16 && iIP <= 31);
+				return false;
 			}
-			if (sIP.starts_with("10.")) return true;
 		}
+
+		return true;
 	}
 
 	return false;
+
+} // kIsPrivateIP
+
+//-----------------------------------------------------------------------------
+bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker)
+//-----------------------------------------------------------------------------
+{
+	KIPError ec;
+	KIPAddress addr(sIP, ec);
+
+	if (ec) return false;
+
+	return kIsPrivateIP(addr, bExcludeDocker);
 
 } // kIsPrivateIP
 

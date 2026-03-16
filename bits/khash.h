@@ -93,6 +93,12 @@ Hash hash(const char data, Hash hash) noexcept
 }
 
 static constexpr
+Hash hash(const unsigned char data, Hash hash) noexcept
+{
+	return (hash ^ data) * Prime;
+}
+
+static constexpr
 Hash casehash(const char data, Hash hash) noexcept
 {
 	return (hash ^ static_cast<unsigned char>(KASCII::kToLower(data))) * Prime;
@@ -107,6 +113,17 @@ Hash hash(const char* data, std::size_t size, Hash hash) noexcept
 		// and because we want to keep data compatibility we continue
 		// to do so
 		hash ^= static_cast<unsigned char>(*data++);
+		hash *= Prime;
+	}
+	return hash;
+}
+
+static DEKAF2_CONSTEXPR_14
+Hash hash(const unsigned char* data, std::size_t size, Hash hash) noexcept
+{
+	while (size-- > 0)
+	{
+		hash ^= *data++;
 		hash *= Prime;
 	}
 	return hash;
@@ -247,6 +264,17 @@ typename hash::fnv1a<iSize>::Hash kHash(const char* data, std::size_t size,
 }
 
 //---------------------------------------------------------------------------
+// constexpr specialisation for unsigned char
+template<int iSize = hash::size>
+DEKAF2_CONSTEXPR_14
+typename hash::fnv1a<iSize>::Hash kHash(const unsigned char* data, std::size_t size,
+										typename hash::fnv1a<iSize>::Hash hash = hash::fnv1a<iSize>::Basis) noexcept
+//---------------------------------------------------------------------------
+{
+	return size != 0 ? hash::fnv1a<iSize>::hash(data, size, hash) : 0;
+}
+
+//---------------------------------------------------------------------------
 /// hash function for zero terminated strings
 template<int iSize = hash::size>
 constexpr
@@ -265,6 +293,16 @@ typename hash::fnv1a<iSize>::Hash kHash(const char* data) noexcept
 template<int iSize = hash::size>
 constexpr
 typename hash::fnv1a<iSize>::Hash kHash(char data, std::size_t hash = hash::fnv1a<iSize>::Basis) noexcept
+//---------------------------------------------------------------------------
+{
+	return hash::fnv1a<iSize>::hash(data, hash);
+}
+
+//---------------------------------------------------------------------------
+/// hash function for one unsigned char, feed back hash value for consecutive calls
+template<int iSize = hash::size>
+constexpr
+typename hash::fnv1a<iSize>::Hash kHash(unsigned char data, std::size_t hash = hash::fnv1a<iSize>::Basis) noexcept
 //---------------------------------------------------------------------------
 {
 	return hash::fnv1a<iSize>::hash(data, hash);

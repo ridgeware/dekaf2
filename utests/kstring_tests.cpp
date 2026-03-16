@@ -64,6 +64,11 @@ TEST_CASE("KString") {
 		CHECK ( s.substr(1, 10) == "2345678901" );
 		// test the rvalue version!
 		CHECK ( KString("1234567890123456789012345678901234567890").substr(1, 10) == "2345678901" );
+		// regression: rvalue substr must truncate correctly when n < remaining size
+		CHECK ( KString("hello world").substr(5, 3) == " wo" );
+		CHECK ( KString("hello world").substr(0, 5) == "hello" );
+		CHECK ( KString("hello world").substr(6)    == "world" );
+		CHECK ( KString("abcdef").substr(2, 2)      == "cd" );
 	}
 
 /*

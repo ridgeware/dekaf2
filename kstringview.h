@@ -804,7 +804,8 @@ public:
 			return false;
 		}
 
-		assign(data(), (other.data() - data()) + other.size());
+		auto new_end = std::max(data() + size(), other.data() + other.size());
+		assign(data(), static_cast<size_type>(new_end - data()));
 
 		return true;
 	}

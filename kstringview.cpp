@@ -73,9 +73,8 @@ std::size_t kFind(const KStringView haystack,
 		return 0;
 	}
 
-	if (DEKAF2_UNLIKELY(haystack.empty()))
+	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
 	{
-		// glibc memmem fails if haystack is null
 		return npos;
 	}
 

@@ -301,8 +301,6 @@ public:
 	DEKAF2_CONSTEXPR_STRING
 	self& assign(const T& sv);
 	DEKAF2_CONSTEXPR_STRING
-	self& assign(const KString&& str)                         { m_rep.assign(std::move(str.m_rep)); return *this; }
-	DEKAF2_CONSTEXPR_STRING
 	self& assign(size_type n, value_type ch)                  { m_rep.assign(n, ch);                return *this; }
 	template<class _InputIterator>
 	DEKAF2_CONSTEXPR_STRING

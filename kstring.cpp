@@ -145,7 +145,7 @@ KString KString::substr(size_type pos, size_type n/*=npos*/) &&
 	{
 		erase(0, pos);
 
-		if (n < size() - pos)
+		if (n < size())
 		{
 			resize(n);
 		}

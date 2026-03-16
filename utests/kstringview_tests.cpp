@@ -1688,6 +1688,29 @@ TEST_CASE("KStringView") {
 		s2.remove_suffix(10);
 		CHECK ( s2.Merge(s1)           );
 		CHECK ( s2 == sv               );
+		// regression: merge where other is a subset of this
+		s1 = sv;
+		s2 = sv;
+		s2.remove_prefix(5);
+		s2.remove_suffix(5);
+		CHECK ( s1.Merge(s2)           );
+		CHECK ( s1 == sv               );
+		// regression: merge where this is a subset of other
+		s1 = sv;
+		s1.remove_prefix(5);
+		s1.remove_suffix(5);
+		s2 = sv;
+		CHECK ( s1.Merge(s2)           );
+		CHECK ( s1 == sv               );
+	}
+
+	SECTION("find with out-of-bounds pos")
+	{
+		// regression: kFind with pos past end must not underflow
+		KStringView sv { "hello world" };
+		CHECK ( sv.find(KStringView("world"), 100) == KStringView::npos );
+		CHECK ( sv.find(KStringView("hello"), sv.size()) == KStringView::npos );
+		CHECK ( sv.find(KStringView("hello"), sv.size() + 1) == KStringView::npos );
 	}
 
 	SECTION("HasUTF8")

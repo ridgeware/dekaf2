@@ -916,6 +916,20 @@ public:
 		}
 	}
 
+	/// get address in network byte order as 16 bytes (IPv6 representation)
+	DEKAF2_NODISCARD
+	constexpr const detail::IP::Bytes6& ToBytes6() const noexcept
+	{
+		return m_IP.ToBytes();
+	}
+
+	/// get address in network byte order as 4 bytes (IPv4 representation, valid only if Is4())
+	DEKAF2_NODISCARD
+	const detail::IP::Bytes4& ToBytes4() const noexcept
+	{
+		return *reinterpret_cast<const detail::IP::Bytes4*>(m_IP.ToBytes().data() + 12);
+	}
+
 	/// clear to empty/unspecified address
 	constexpr void clear() noexcept
 	{
@@ -1117,9 +1131,10 @@ namespace std
 template<>
 struct hash<DEKAF2_PREFIX KIPAddress4>
 {
+	DEKAF2_CONSTEXPR_14
 	std::size_t operator()(const DEKAF2_PREFIX KIPAddress4& IP) const noexcept
 	{
-		auto Bytes = IP.ToBytes();
+		auto& Bytes = IP.ToBytes();
 		return DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size());
 	}
 };
@@ -1127,9 +1142,10 @@ struct hash<DEKAF2_PREFIX KIPAddress4>
 template<>
 struct hash<DEKAF2_PREFIX KIPAddress6>
 {
+	DEKAF2_CONSTEXPR_14
 	std::size_t operator()(const DEKAF2_PREFIX KIPAddress6& IP) const noexcept
 	{
-		auto Bytes = IP.ToBytes();
+		auto& Bytes = IP.ToBytes();
 		return DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size());
 	}
 };
@@ -1137,10 +1153,10 @@ struct hash<DEKAF2_PREFIX KIPAddress6>
 template<>
 struct hash<DEKAF2_PREFIX KIPAddress>
 {
+	DEKAF2_CONSTEXPR_14
 	std::size_t operator()(const DEKAF2_PREFIX KIPAddress& IP) const noexcept
 	{
-		auto IP6 = IP.To6();
-		auto Bytes = IP6.ToBytes();
+		auto& Bytes = IP.ToBytes6();
 		return DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size());
 	}
 };

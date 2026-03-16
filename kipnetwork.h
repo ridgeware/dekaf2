@@ -502,6 +502,20 @@ public:
 		return !m_Net6.IsIPv4();
 	}
 
+	/// get address in network byte order as 16 bytes (IPv6 representation)
+	DEKAF2_NODISCARD
+	constexpr const detail::IP::Bytes6& ToBytes6() const noexcept
+	{
+		return m_Net6.Address().ToBytes();
+	}
+
+	/// get address in network byte order as 4 bytes (IPv4 representation, valid only if Is4())
+	DEKAF2_NODISCARD
+	const detail::IP::Bytes4& ToBytes4() const noexcept
+	{
+		return *reinterpret_cast<const detail::IP::Bytes4*>(m_Net6.Address().ToBytes().data() + 12);
+	}
+
 	/// is address unspecified?
 	DEKAF2_NODISCARD
 	constexpr bool IsUnspecified() const noexcept
@@ -640,6 +654,37 @@ struct formatter<DEKAF2_PREFIX KIPNetwork> : formatter<string_view>
 namespace std
 {
 
-	// TODO add hash functions
+template<>
+struct hash<DEKAF2_PREFIX KIPNetwork4>
+{
+	DEKAF2_CONSTEXPR_14
+	std::size_t operator()(const DEKAF2_PREFIX KIPNetwork4& Net) const noexcept
+	{
+		auto& Bytes = Net.Address().ToBytes();
+		return DEKAF2_PREFIX kHash(Net.PrefixLength(), DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size()));
+	}
+};
+
+template<>
+struct hash<DEKAF2_PREFIX KIPNetwork6>
+{
+	DEKAF2_CONSTEXPR_14
+	std::size_t operator()(const DEKAF2_PREFIX KIPNetwork6& Net) const noexcept
+	{
+		auto& Bytes = Net.Address().ToBytes();
+		return DEKAF2_PREFIX kHash(Net.PrefixLength(), DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size()));
+	}
+};
+
+template<>
+struct hash<DEKAF2_PREFIX KIPNetwork>
+{
+	DEKAF2_CONSTEXPR_14
+	std::size_t operator()(const DEKAF2_PREFIX KIPNetwork& Net) const noexcept
+	{
+		auto& Bytes = Net.ToBytes6();
+		return DEKAF2_PREFIX kHash(Net.PrefixLength(), DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size()));
+	}
+};
 
 } // end of namespace std

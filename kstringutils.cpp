@@ -465,7 +465,7 @@ bool kStrIn (KStringView sNeedle, const char* Haystack[])
 {
 	for (std::size_t ii=0; Haystack[ii] && *(Haystack[ii]); ++ii)
 	{
-		if (!strncmp(sNeedle.data(), Haystack[ii], sNeedle.size()))
+		if (sNeedle.size() == std::strlen(Haystack[ii]) && !std::memcmp(sNeedle.data(), Haystack[ii], sNeedle.size()))
 		{
 			return (true);
 		}
@@ -1016,7 +1016,7 @@ KString kFormScaledUnsignedNumber (
 	                  double(iOrigBytes) / iDivideBy,
 	                  iPrecision);
 
-	if (iPrecision)
+	if (iPrecision && bDeleteZeroDecimals)
 	{
 		while (sNumber.remove_suffix('0')) {};
 		sNumber.remove_suffix('.');

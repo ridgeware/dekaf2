@@ -950,7 +950,7 @@ TEST_CASE("KStringUtils") {
 			{   "1.7M",    1678987 },
 			{  "10.1K",      10123 },
 			{ "123.5M",  123453462 },
-			{     "12",         12 }
+			{   "12.0",         12 }
 		};
 
 		std::vector<std::pair<KStringView, uint64_t>> svector3 {
@@ -1025,6 +1025,46 @@ TEST_CASE("KStringUtils") {
 			s = kFormScaledNumber(p.second, 0, "", false, 1000, 5);
 			CHECK ( s == p.first );
 		}
+	}
+
+	SECTION("kFormScaledNumber bDeleteZeroDecimals")
+	{
+		// regression: bDeleteZeroDecimals must be respected
+		KString s;
+		// bDeleteZeroDecimals = false (default) — trailing zeros preserved
+		s = kFormScaledNumber(uint64_t(12), 1);
+		CHECK ( s == "12.0" );
+		s = kFormScaledNumber(uint64_t(1000), 2);
+		CHECK ( s == "1.00K" );
+		// bDeleteZeroDecimals = true — trailing zeros stripped
+		s = kFormScaledNumber(uint64_t(12), 1, KStringView{}, true);
+		CHECK ( s == "12" );
+		s = kFormScaledNumber(uint64_t(1000), 2, KStringView{}, true);
+		CHECK ( s == "1K" );
+		s = kFormScaledNumber(uint64_t(1500), 2, KStringView{}, true);
+		CHECK ( s == "1.5K" );
+		// kFormBytes defaults to bDeleteZeroDecimals = true
+		s = kFormBytes(std::size_t(12));
+		CHECK ( s == "12B" );
+		s = kFormBytes(std::size_t(1024));
+		CHECK ( s == "1K" );
+	}
+
+	SECTION("kFormNumber rounding carry")
+	{
+		// regression: rounding carry propagation must work correctly
+		// with signed loop variable (was unsigned >= 0 always-true)
+		KString s;
+		s = kFormNumber(9.99, ',', 3, 1, true);
+		CHECK ( s == "10.0" );
+		s = kFormNumber(99.99, ',', 3, 1, true);
+		CHECK ( s == "100.0" );
+		s = kFormNumber(999.9999, ',', 3, 0, true);
+		CHECK ( s == "1,000" );
+		s = kFormNumber(-9.99, ',', 3, 1, true);
+		CHECK ( s == "-10.0" );
+		s = kFormNumber(-999.9999, ',', 3, 0, true);
+		CHECK ( s == "-1,000" );
 	}
 
 	SECTION("kToInt")
@@ -1210,6 +1250,11 @@ TEST_CASE("KStringUtils") {
 		CHECK ( kStrIn (sNeedle, sHaystack2) == true  );
 		CHECK ( kStrIn ("needles", sHaystack1) == false );
 		CHECK ( kStrIn ("needles", sHaystack2) == false );
+		// regression: must be exact match, not prefix match
+		CHECK ( kStrIn ("need", sHaystack1) == false );
+		CHECK ( kStrIn ("need", sHaystack2) == false );
+		CHECK ( kStrIn ("needl", sHaystack1) == false );
+		CHECK ( kStrIn ("fin", sHaystack1) == false );
 	}
 
 	SECTION("kStrIn 3")

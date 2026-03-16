@@ -899,13 +899,13 @@ std::size_t kReplaceVariables (String& sString, StringView sOpen, StringView sCl
 			else
 			{
 				// nothing to replace, readjust start position
-				iStart += (iEnd + sClose.size());
+				iStart = iPos + iOpen + iEnd + sClose.size();
 			}
 		}
 		else
 		{
 			// no value found, prepare next loop
-			iStart += iOpen;
+			iStart = iPos + iOpen;
 		}
 	}
 
@@ -1017,7 +1017,7 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 
 				if (bRoundToNearest)
 				{
-					for (auto iCurPos = iCutAt - 1; iCurPos >= 0;)
+					for (auto iCurPos = static_cast<typename String::difference_type>(iCutAt - 1); iCurPos >= 0;)
 					{
 						if (sResult[iCurPos] < '9')
 						{
@@ -1045,7 +1045,7 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 								break;
 							}
 
-							if (--iCurPos == iDecSepPos)
+							if (--iCurPos == static_cast<typename String::difference_type>(iDecSepPos))
 							{
 								--iCurPos;
 							}
@@ -2216,7 +2216,9 @@ typename std::enable_if<std::is_trivially_copyable<T>::value, T>::type
 kFromStringView(KStringView sData)
 {
 	kAssert(sData.size() == sizeof(T), "sizeof(T) is not equal the string size");
-	return T(*reinterpret_cast<T*>(const_cast<char*>(sData.data())));
+	T result;
+	std::memcpy(&result, sData.data(), sizeof(T));
+	return result;
 }
 
 /// deserialize any trivially copyable type from a KStringView
@@ -2226,7 +2228,7 @@ typename std::enable_if<std::is_trivially_copyable<T>::value, T&>::type
 kFromStringView(T& Trivial, KStringView sData)
 {
 	kAssert(sData.size() == sizeof(T), "sizeof(T) is not equal the string size");
-	Trivial = (*reinterpret_cast<T*>(const_cast<char*>(sData.data())));
+	std::memcpy(&Trivial, sData.data(), sizeof(T));
 	return Trivial;
 }
 

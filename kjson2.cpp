@@ -115,7 +115,7 @@ bool ToInteger(const KJSON2::StringT& sInteger, uint64_t& Unsigned) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (sInteger.empty()) return false;
-	KJSON2::string_t::pointer pos;
+	char* pos;
 	Unsigned = std::strtoull(sInteger.c_str(), &pos, 10);
 	// we DO want to return ULLONG_MAX in case of an overflow - hence we return true on errno == ERANGE
 	return (errno == ERANGE) || static_cast<KJSON2::StringT::size_type>(pos - sInteger.c_str()) == sInteger.size();
@@ -126,7 +126,7 @@ bool ToInteger(const KJSON2::StringT& sInteger, int64_t& Signed) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (sInteger.empty()) return false;
-	KJSON2::string_t::pointer pos;
+	char* pos;
 	Signed = std::strtoll(sInteger.c_str(), &pos, 10);
 	// we DO want to return LLONG_MAX/LLONG_MIN in case of an overflow - hence we return true on errno == ERANGE
 	return (errno == ERANGE) || static_cast<KJSON2::StringT::size_type>(pos - sInteger.c_str()) == sInteger.size();
@@ -137,7 +137,7 @@ bool ToDouble(const KJSON2::StringT& sFloat, double& Double) noexcept
 //-----------------------------------------------------------------------------
 {
 	if (sFloat.empty()) return false;
-	KJSON2::string_t::pointer pos;
+	char* pos;
 	Double = std::strtod(sFloat.c_str(), &pos);
 	// we DO want to return HUGE_VAL in case of an overflow - hence we return true on errno == ERANGE
 	return (errno == ERANGE) || static_cast<KJSON2::StringT::size_type>(pos - sFloat.c_str()) == sFloat.size();
@@ -637,7 +637,7 @@ KJSON2::reference KJSON2::Append (KJSON2 other)
 			if (is_object() && other.is_object())
 			{
 				// merge both objects
-				push_back(other);
+				base::update(other.ToBase());
 				return *this;
 			}
 

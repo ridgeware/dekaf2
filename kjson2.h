@@ -866,14 +866,7 @@ public:
 	void push_back(KJSON2 json)                     { Append(std::move(json)); }
 
 	/// Merge one key-value pair with existing object. If current content is not an object, it will be converted to an array and the key-value pair be added as a new object to it.
-	// needs this SFINAE when compiled with old KJSON as default, to resolve ambiguity with object_t
-	template<typename T,
-		typename std::enable_if<
-			std::is_constructible<object_t, T>::value &&
-			!std::is_same<base, typename std::decay<T>::type>::value
-		, int>::type = 0
-	>
-	void push_back(const T& value)                  { try { base::push_back(value); } catch (const exception& e) { Append(value); } }
+	void push_back(typename base::object_t::value_type value) { try { base::push_back(std::move(value)); } catch (const exception& e) { Append(std::move(value)); } }
 
 	/// Merge initializer list with existing object if size == 2 and begin() is string, otherwise add a new object. May fail, but will not throw.
 	void push_back(const initializer_list_t value)  { try { base::push_back(value); } catch (const exception& e) {
@@ -887,14 +880,7 @@ public:
 
 	/// Merge one key-value pair with existing object. If current content is not an object, it will be converted to
 	/// an array and the key-value pair be added as a new object to it.
-	// needs this SFINAE when compiled with old KJSON as default, to resolve ambiguity with object_t
-	template<typename T,
-		typename std::enable_if<
-			std::is_constructible<object_t, T>::value &&
-			!std::is_same<base, typename std::decay<T>::type>::value
-		, int>::type = 0
-	>
-	reference operator+=(const T& value)           { push_back(value); return *this; }
+	reference operator+=(typename base::object_t::value_type value) { push_back(std::move(value)); return *this; }
 
 	/// Merge initializer list with existing object if size == 2 and begin() is string, otherwise try to construct a
 	/// new object, convert current content to array, and add the new object to it.

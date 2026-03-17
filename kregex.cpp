@@ -62,12 +62,16 @@ struct Loader
 using cache_t = KSharedCache<KString, re2::RE2, Loader>;
 using regex_t = cache_t::value_type;
 
+//-----------------------------------------------------------------------------
+inline cache_t& getInstance()
+//-----------------------------------------------------------------------------
+{
+	static cache_t s_Cache;
+	return s_Cache;
+}
+
 } // end of namespace kregex
 } // end of namespace detail
-
-namespace {
-detail::kregex::cache_t s_Cache;
-}
 
 //-----------------------------------------------------------------------------
 inline const detail::kregex::regex_t& rget(const KUniqueVoidPtr& p)
@@ -136,7 +140,7 @@ const std::string& KRegex::ErrorArg() const
 /// converting constructor, takes string literals and strings
 KRegex::KRegex(KStringView expression)
 //-----------------------------------------------------------------------------
-: m_Regex(new detail::kregex::regex_t(s_Cache.Get(expression)), kRegexDeleter)
+: m_Regex(new detail::kregex::regex_t(detail::kregex::getInstance().Get(expression)), kRegexDeleter)
 , m_bIsEmpty(expression.empty())
 {
 	if (!Good())
@@ -391,28 +395,28 @@ KString kWildCard2Regex(KStringView sInput)
 void KRegex::SetMaxCacheSize(size_t iCacheSize)
 //-----------------------------------------------------------------------------
 {
-	s_Cache.SetMaxSize(iCacheSize);
+	detail::kregex::getInstance().SetMaxSize(iCacheSize);
 }
 
 //-----------------------------------------------------------------------------
 void KRegex::ClearCache()
 //-----------------------------------------------------------------------------
 {
-	s_Cache.clear();
+	detail::kregex::getInstance().clear();
 }
 
 //-----------------------------------------------------------------------------
 size_t KRegex::GetMaxCacheSize()
 //-----------------------------------------------------------------------------
 {
-	return s_Cache.GetMaxSize();
+	return detail::kregex::getInstance().GetMaxSize();
 }
 
 //-----------------------------------------------------------------------------
 size_t KRegex::GetCacheSize()
 //-----------------------------------------------------------------------------
 {
-	return s_Cache.size();
+	return detail::kregex::getInstance().size();
 }
 
 static_assert(std::is_nothrow_move_constructible<KRegex>::value,

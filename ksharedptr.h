@@ -151,9 +151,10 @@ public:
 	void reset(Y* ptr)
 	//-----------------------------------------------------------------------------
 	{
+		auto NewControl = new ControlImpl<Y, DefaultDeleter<Y>>(ptr, DefaultDeleter<Y>());
 		dec();
 		m_ptr = ptr;
-		m_Control = new ControlImpl<Y, DefaultDeleter<Y>>(ptr, DefaultDeleter<Y>());
+		m_Control = NewControl;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -161,10 +162,13 @@ public:
 	self_type& operator=(const self_type& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
-		dec();
-		m_ptr = other.m_ptr;
-		m_Control = other.m_Control;
-		inc();
+		if (m_Control != other.m_Control)
+		{
+			dec();
+			m_ptr = other.m_ptr;
+			m_Control = other.m_Control;
+			inc();
+		}
 		return *this;
 	}
 
@@ -173,11 +177,14 @@ public:
 	self_type& operator=(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
-		dec();
-		m_ptr = other.m_ptr;
-		m_Control = other.m_Control;
-		other.m_ptr = nullptr;
-		other.m_Control = nullptr;
+		if (m_Control != other.m_Control)
+		{
+			dec();
+			m_ptr = other.m_ptr;
+			m_Control = other.m_Control;
+			other.m_ptr = nullptr;
+			other.m_Control = nullptr;
+		}
 		return *this;
 	}
 
@@ -332,7 +339,7 @@ private:
 		//-----------------------------------------------------------------------------
 		/// return reference count for the multi threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == true, int>::type = 0>
-		size_t use_count() noexcept
+		size_t use_count() const noexcept
 		//-----------------------------------------------------------------------------
 		{
 			return m_iRefCount.load(bAcquireRelease ? std::memory_order_acquire : std::memory_order_relaxed);
@@ -341,7 +348,7 @@ private:
 		//-----------------------------------------------------------------------------
 		/// return reference count for the single threaded case
 		template<bool bMT = bMultiThreaded, typename std::enable_if<bMT == false, int>::type = 0>
-		size_t use_count() noexcept
+		size_t use_count() const noexcept
 		//-----------------------------------------------------------------------------
 		{
 			return m_iRefCount;

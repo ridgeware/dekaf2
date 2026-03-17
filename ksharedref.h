@@ -140,9 +140,12 @@ public:
 	self_type& operator=(const self_type& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
-		dec();
-		m_ref = other.m_ref;
-		inc();
+		if (m_ref != other.m_ref)
+		{
+			dec();
+			m_ref = other.m_ref;
+			inc();
+		}
 		return *this;
 	}
 
@@ -151,9 +154,12 @@ public:
 	self_type& operator=(self_type&& other) noexcept
 	//-----------------------------------------------------------------------------
 	{
-		dec();
-		m_ref = std::move(other.m_ref);
-		other.m_ref = nullptr;
+		if (m_ref != other.m_ref)
+		{
+			dec();
+			m_ref = other.m_ref;
+			other.m_ref = nullptr;
+		}
 		return *this;
 	}
 

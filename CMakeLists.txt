@@ -75,7 +75,7 @@ if (WIN32)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.0.104 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.1.0 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -235,8 +235,6 @@ if (IS_WINDOWS)
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
 	# we check for unix style local sockets on Windows 10 or later once we know the boost version
 	# disable wrapped json, it does not build properly on Windows
-	set (DEKAF2_WRAPPED_KJSON OFF)
-	message (STATUS "wrapped KJSON switched off on Windows")
 	if (DEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS)
 		set (DEKAF2_FORCE_STATIC_LIBS ON)
 	endif()

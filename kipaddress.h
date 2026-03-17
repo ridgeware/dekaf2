@@ -1048,7 +1048,7 @@ private:
 	static KIPAddress FromString(KStringView sAddress, KIPError& ec) noexcept;
 	static KIPAddress FromString(KStringView sAddress);
 
-	DEKAF2_FULL_CONSTEXPR_17
+	constexpr
 	const KIPAddress4::value_type* GetConstValuePtr4() const noexcept
 	{
 		return &m_IP.m_IP[12];
@@ -1135,7 +1135,7 @@ struct hash<DEKAF2_PREFIX KIPAddress4>
 	std::size_t operator()(const DEKAF2_PREFIX KIPAddress4& IP) const noexcept
 	{
 		auto& Bytes = IP.ToBytes();
-		return DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size());
+		return DEKAF2_PREFIX kHash(&Bytes[0], Bytes.size());
 	}
 };
 
@@ -1146,7 +1146,7 @@ struct hash<DEKAF2_PREFIX KIPAddress6>
 	std::size_t operator()(const DEKAF2_PREFIX KIPAddress6& IP) const noexcept
 	{
 		auto& Bytes = IP.ToBytes();
-		return DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size());
+		return DEKAF2_PREFIX kHash(&Bytes[0], Bytes.size());
 	}
 };
 
@@ -1157,7 +1157,7 @@ struct hash<DEKAF2_PREFIX KIPAddress>
 	std::size_t operator()(const DEKAF2_PREFIX KIPAddress& IP) const noexcept
 	{
 		auto& Bytes = IP.ToBytes6();
-		return DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size());
+		return DEKAF2_PREFIX kHash(&Bytes[0], Bytes.size());
 	}
 };
 

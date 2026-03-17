@@ -661,7 +661,7 @@ struct hash<DEKAF2_PREFIX KIPNetwork4>
 	std::size_t operator()(const DEKAF2_PREFIX KIPNetwork4& Net) const noexcept
 	{
 		auto& Bytes = Net.Address().ToBytes();
-		return DEKAF2_PREFIX kHash(Net.PrefixLength(), DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size()));
+		return DEKAF2_PREFIX kHash(Net.PrefixLength(), DEKAF2_PREFIX kHash(&Bytes[0], Bytes.size()));
 	}
 };
 
@@ -672,7 +672,7 @@ struct hash<DEKAF2_PREFIX KIPNetwork6>
 	std::size_t operator()(const DEKAF2_PREFIX KIPNetwork6& Net) const noexcept
 	{
 		auto& Bytes = Net.Address().ToBytes();
-		return DEKAF2_PREFIX kHash(Net.PrefixLength(), DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size()));
+		return DEKAF2_PREFIX kHash(Net.PrefixLength(), DEKAF2_PREFIX kHash(&Bytes[0], Bytes.size()));
 	}
 };
 
@@ -683,7 +683,7 @@ struct hash<DEKAF2_PREFIX KIPNetwork>
 	std::size_t operator()(const DEKAF2_PREFIX KIPNetwork& Net) const noexcept
 	{
 		auto& Bytes = Net.ToBytes6();
-		return DEKAF2_PREFIX kHash(Net.PrefixLength(), DEKAF2_PREFIX kHash(Bytes.data(), Bytes.size()));
+		return DEKAF2_PREFIX kHash(Net.PrefixLength(), DEKAF2_PREFIX kHash(&Bytes[0], Bytes.size()));
 	}
 };
 

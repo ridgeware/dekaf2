@@ -138,9 +138,11 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	void pause(bool bYesno)
+	void pause(std::mutex& mutex, bool bYesno)
 	//-----------------------------------------------------------------------------
 	{
+		std::unique_lock<std::mutex> lock(mutex);
+
 		m_bPaused = bYesno;
 	}
 
@@ -440,11 +442,14 @@ private:
 	std::atomic<std::size_t>     ma_n_idle                   { 0 };
 	std::atomic<std::size_t>     ma_iAlreadyStopped          { 0 };
 	std::atomic<std::size_t>     ma_iDetachedThreadsToFinish { 0 };
+	std::atomic<std::size_t>     ma_iShrinkCounter           { 0 };
 	std::atomic<bool>            ma_interrupt                { false };
 
 	mutable std::recursive_mutex m_resize_mutex;
 	mutable std::mutex           m_cond_mutex;
 	std::condition_variable      m_cond_var;
+	mutable std::mutex           m_detached_mutex;
+	std::condition_variable      m_detached_cv;
 	std::chrono::steady_clock::time_point
 	                             m_LastResize;
 	ShutdownCallback             m_shutdown_callback;

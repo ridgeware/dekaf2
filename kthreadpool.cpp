@@ -119,6 +119,15 @@ void KThreadPool::set_strategy(GrowthPolicy Growth, ShrinkPolicy Shrink)
 bool KThreadPool::resize(std::size_t nThreads, GrowthPolicy Growth, ShrinkPolicy Shrink)
 //-----------------------------------------------------------------------------
 {
+	// avoid race with push_packaged_task by acuiring (and releasing)
+	// m_cond_mutex (in n_queued()) before m_resize_mutex - as resize()
+	// is normally unused, and if used only called very rarely, we do
+	// not care for the cost of unconditionally locking m_cond_mutex here.
+	// Also, the absolute value of n_queued() is not really important in
+	// grow()/shrink(), as it is only used as a heuristic there, not as
+	// an exact value.
+	auto iQueued = n_queued();
+
 	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
 
 	m_Growth       = Growth;
@@ -132,11 +141,11 @@ bool KThreadPool::resize(std::size_t nThreads, GrowthPolicy Growth, ShrinkPolicy
 
 	if (oldNThreads < nThreads)
 	{
-		grow(n_queued());
+		grow(iQueued);
 	}
 	else if (oldNThreads > nThreads)
 	{
-		shrink(n_queued());
+		shrink(iQueued);
 	}
 
 	return true;
@@ -340,7 +349,7 @@ std::size_t KThreadPool::calc_shrink(std::size_t iHaveIdle) const
 void KThreadPool::pause(bool bYesNo)
 //-----------------------------------------------------------------------------
 {
-	m_queue.pause(bYesNo);
+	m_queue.pause(m_cond_mutex, bYesNo);
 
 	if (!bYesNo)
 	{
@@ -393,11 +402,10 @@ void KThreadPool::stop(bool bKill)
 		}
 	}
 
-	// check if previously removed threads are still running
-	while (ma_iDetachedThreadsToFinish > 0)
+	// wait for previously detached threads to finish
 	{
-		// yes, sleep a wink
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		std::unique_lock<std::mutex> detached_lock(m_detached_mutex);
+		m_detached_cv.wait(detached_lock, [this]() { return ma_iDetachedThreadsToFinish == 0; });
 	}
 
 	// and lock again to do the final resize
@@ -528,7 +536,7 @@ bool KThreadPool::run_thread(std::size_t i)
 
 	return false;
 
-} // setup_thread
+} // run_thread
 
 //-----------------------------------------------------------------------------
 void KThreadPool::push_packaged_task(std::packaged_task<void()> task)
@@ -543,13 +551,16 @@ void KThreadPool::push_packaged_task(std::packaged_task<void()> task)
 		ma_iMaxWaitingTasks = iWaiting - 1;
 	}
 
-	if (ma_n_idle == 0)
+	if (!ma_interrupt)
 	{
-		grow(iWaiting);
-	}
-	else if (iWaiting <= 1)
-	{
-		shrink(iWaiting);
+		if (ma_n_idle == 0)
+		{
+			grow(iWaiting);
+		}
+		else if (iWaiting <= 1 && ++ma_iShrinkCounter % 25 == 0)
+		{
+			shrink(iWaiting);
+		}
 	}
 
 	lock.unlock();
@@ -567,9 +578,11 @@ KThreadPool::Diagnostics KThreadPool::get_diagnostics(bool bWasIdle) const
 
 	Diag.iMaxThreadsEver  = ma_iMaxThreadsEver;
 	Diag.iMaxThreads      = ma_iMaxThreads;
-	Diag.iTotalThreads    = size() + ma_iDetachedThreadsToFinish - ma_iAlreadyStopped;
+	auto iTotal           = size() + ma_iDetachedThreadsToFinish;
+	auto iStopped         = ma_iAlreadyStopped.load();
+	Diag.iTotalThreads    = (iTotal > iStopped) ? iTotal - iStopped : 0;
 	Diag.iIdleThreads     = n_idle();
-	Diag.iUsedThreads     = Diag.iTotalThreads - Diag.iIdleThreads;
+	Diag.iUsedThreads     = (Diag.iTotalThreads > Diag.iIdleThreads) ? Diag.iTotalThreads - Diag.iIdleThreads : 0;
 	Diag.iTotalTasks      = ma_iTotalTasks;
 	Diag.iMaxWaitingTasks = ma_iMaxWaitingTasks;
 	Diag.iWaitingTasks    = n_queued();
@@ -598,7 +611,11 @@ void KThreadPool::notify_thread_shutdown(bool bWasIdle, eAbort abort)
 	if (abort == eAbort::Resize)
 	{
 		// decrease the count of detached threads to wait for in the join()
-		--ma_iDetachedThreadsToFinish;
+		{
+			std::lock_guard<std::mutex> lock(m_detached_mutex);
+			--ma_iDetachedThreadsToFinish;
+		}
+		m_detached_cv.notify_one();
 	}
 
 } // notify_thread_shutdown

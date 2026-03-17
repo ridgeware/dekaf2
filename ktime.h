@@ -1299,9 +1299,7 @@ template<typename DateTime,
 DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 KString FormTimestamp (const DateTime& time, KFormatString<const DateTime&> sFormat)
 {
-#ifndef NDEBUG
 	if (!detail::TimeIsValid(time)) return "";
-#endif
 	sFormat = GetDefaultFormatString<DateTime>(sFormat);
 	if (TimeFormatStringIsOK(sFormat.get())) return DEKAF2_PREFIX kFormat(sFormat, time);
 	return DEKAF2_PREFIX kFormat(KRuntimeFormat(BuildTimeFormatString(KStringView(sFormat.get().data(), sFormat.get().size()))), time);
@@ -1317,9 +1315,7 @@ template<typename DateTime,
 DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 KString FormTimestamp (const std::locale& locale, const DateTime& time, KFormatString<const DateTime&> sFormat)
 {
-#ifndef NDEBUG
 	if (!detail::TimeIsValid(time)) return "";
-#endif
 	sFormat = GetDefaultFormatString<DateTime>(sFormat);
 	if (TimeFormatStringIsOK(sFormat.get())) return DEKAF2_PREFIX kFormat(locale, sFormat, time);
 	return DEKAF2_PREFIX kFormat(locale, KRuntimeFormat(BuildTimeFormatString(KStringView(sFormat.get().data(), sFormat.get().size()))), time);
@@ -1336,9 +1332,7 @@ template<typename DateTime,
 DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 KString FormWebTimestamp (const DateTime& time, KStringView sTimezoneDesignator)
 {
-#ifndef NDEBUG
 	if (!detail::TimeIsValid(time)) return "";
-#endif
 	return DEKAF2_PREFIX kFormat("{:%a, %d %b %Y %H:%M:%S} {}", time, sTimezoneDesignator);
 }
 

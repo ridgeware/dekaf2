@@ -836,9 +836,15 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                typename U = detail::uncvref_t<CompatibleType>,
                detail::enable_if_t <
                    !detail::is_basic_json<U>::value && detail::is_compatible_type<basic_json_t, U>::value, int > = 0 >
-    basic_json(CompatibleType && val) noexcept(noexcept( // NOLINT(bugprone-forwarding-reference-overload,bugprone-exception-escape)
+    basic_json(CompatibleType && val) // NOLINT(bugprone-forwarding-reference-overload,bugprone-exception-escape)
+#ifndef _MSC_VER
+    // MSVC eagerly evaluates this noexcept spec during is_constructible checks,
+    // even when enable_if should exclude this constructor, causing hard errors
+    // when string_t is not std::string
+    noexcept(noexcept(
                 JSONSerializer<U>::to_json(std::declval<basic_json_t&>(),
                                            std::forward<CompatibleType>(val))))
+#endif
     {
         JSONSerializer<U>::to_json(*this, std::forward<CompatibleType>(val));
         set_parents();

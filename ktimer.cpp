@@ -86,7 +86,12 @@ void KTimer::CleanupChildAfterFork()
 {
 	m_bShutdown = true;
 	// clear the unique_ptr with the thread - the thread doesn't exist anymore,
-	// and there is no way to cleanly destroy it
+	// and there is no way to cleanly destroy it.
+	// Note: memset on unique_ptr is technically UB, but zeroing its internal
+	// pointer is equivalent to a null state, which prevents the destructor
+	// from trying to join or detach a dead thread after fork(). This is a
+	// deliberate post-fork cleanup hack - there is no conforming way to
+	// abandon a std::thread that no longer exists in the child process.
 	memset(reinterpret_cast<void*>(&m_TimingThread), 0, sizeof(m_TimingThread));
 
 } // CleanupChildAfterFork
@@ -333,7 +338,7 @@ void KTimer::Pause()
 		{
 			std::this_thread::sleep_for(m_MaxIdle / 4);
 		}
-		while (!m_bIsPaused);
+		while (!m_bIsPaused && !m_bShutdown);
 	}
 	else
 	{

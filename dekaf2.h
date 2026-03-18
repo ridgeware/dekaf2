@@ -84,7 +84,7 @@ public:
 	Dekaf(Dekaf&&) = delete;
 	Dekaf& operator=(const Dekaf&) = delete;
 	Dekaf& operator=(Dekaf&&) = delete;
-	~Dekaf() { s_bShutdown = true; }
+	~Dekaf() { s_bShutdown = true; ShutDown(); }
 
 	//---------------------------------------------------------------------------
 	/// Switch library to multi threaded mode.

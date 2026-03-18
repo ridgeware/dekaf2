@@ -366,10 +366,10 @@ private:
 	KDuration                          m_MaxIdle;
 	std::mutex                         m_ThreadCreationMutex;
 	std::unique_ptr<std::thread>       m_TimingThread;
-	bool                               m_bShutdown         { false };
-	bool                               m_bPause            { false };
-	bool                               m_bIsPaused         { false };
-	bool                               m_bAddedTimer       { false };
+	std::atomic<bool>                  m_bShutdown         { false };
+	std::atomic<bool>                  m_bPause            { false };
+	std::atomic<bool>                  m_bIsPaused         { false };
+	std::atomic<bool>                  m_bAddedTimer       { false };
 
 	KThreadSafe<std::unordered_map<ID_t, Timer>> m_Timers;
 

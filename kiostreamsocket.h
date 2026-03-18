@@ -140,6 +140,14 @@ public:
 		return Timeout(timeout);
 	}
 
+	/// Set TCP_NODELAY (disable Nagle's algorithm) on the underlying socket
+	/// @param bYesNo true to disable Nagle's algorithm
+	/// @returns false on failure
+	bool SetNoDelay(bool bYesNo)
+	{
+		return kSetTCPNoDelay(GetNativeSocket(), bYesNo);
+	}
+
 	/// Get the I/O timeout
 	KDuration GetTimeout() const { return m_Timeout; }
 

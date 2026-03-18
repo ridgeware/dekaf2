@@ -208,8 +208,6 @@ bool KIOStreamSocket::SetALPNRaw(KStringView sALPN)
 
 	return SetError(kFormat("failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sALPN), iResult));
 
-	return false;
-
 } // SetALPNRaw
 
 //-----------------------------------------------------------------------------

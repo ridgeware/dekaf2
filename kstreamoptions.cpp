@@ -374,6 +374,49 @@ bool kSetLingerTimeout(int socket, KDuration tLingerTimeout)
 
 } // kSetLingerTimeout
 
+//-----------------------------------------------------------------------------
+bool kGetTCPNoDelay(int socket)
+//-----------------------------------------------------------------------------
+{
+	int iInt { 0 };
+	::socklen_t iSize { sizeof(iInt) };
+
+#if DEKAF2_IS_WINDOWS
+	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<char*>(&iInt), &iSize) || !iSize)
+#else
+	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &iInt, &iSize) || !iSize)
+#endif
+	{
+		kDebug(1, "cannot get TCP_NODELAY from fd {}: {}", socket, strerror(errno));
+		return false;
+	}
+
+	return iInt != 0;
+
+} // kGetTCPNoDelay
+
+//-----------------------------------------------------------------------------
+bool kSetTCPNoDelay(int socket, bool bYesNo)
+//-----------------------------------------------------------------------------
+{
+	int iOnOff { bYesNo ? 1 : 0 };
+
+#if DEKAF2_IS_WINDOWS
+	if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&iOnOff), sizeof(iOnOff)))
+#else
+	if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &iOnOff, sizeof(iOnOff)))
+#endif
+	{
+		kDebug(1, "cannot set TCP_NODELAY to {} on fd {}: {}", iOnOff, socket, strerror(errno));
+		return false;
+	}
+
+	kDebug(3, "set TCP_NODELAY to {} on fd {}", iOnOff, socket);
+
+	return true;
+
+} // kSetTCPNoDelay
+
 #if DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 constexpr KDuration KStreamOptions::s_DefaultTimeout;
 constexpr KDuration KStreamOptions::s_DefaultKeepAliveInterval;

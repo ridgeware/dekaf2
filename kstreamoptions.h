@@ -263,4 +263,15 @@ KDuration kGetLingerTimeout(int socket);
 /// @returns false on failure
 bool kSetLingerTimeout(int socket, KDuration tLingerTimeout);
 
+/// get the TCP_NODELAY (disable Nagle's algorithm) state for this socket
+/// @param socket the socket to query
+/// @returns true if TCP_NODELAY is enabled
+bool kGetTCPNoDelay(int socket);
+
+/// set the TCP_NODELAY (disable Nagle's algorithm) state for this socket
+/// @param socket the socket to set
+/// @param bEnable true to disable Nagle's algorithm (enable TCP_NODELAY)
+/// @returns false on failure
+bool kSetTCPNoDelay(int socket, bool bEnable);
+
 DEKAF2_NAMESPACE_END

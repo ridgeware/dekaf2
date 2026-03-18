@@ -43,6 +43,7 @@
 #include "khmac.h"
 #include "kencode.h"
 #include "klog.h"
+#include <openssl/crypto.h>
 #include <array>
 
 #if OPENSSL_VERSION_NUMBER >= 0x030000000
@@ -110,13 +111,14 @@ KHMAC::KHMAC(enum Digest digest, KStringView sKey, KStringView sMessage)
 } // ctor
 
 //---------------------------------------------------------------------------
-KHMAC::KHMAC(KHMAC&& other)
+KHMAC::KHMAC(KHMAC&& other) noexcept
 //---------------------------------------------------------------------------
 : m_hmacctx(other.m_hmacctx)
 #if OPENSSL_VERSION_NUMBER >= 0x030000000L
 , m_hmac(other.m_hmac)
 #endif
 , m_sHMAC(std::move(other.m_sHMAC))
+, m_Digest(other.m_Digest)
 {
 	other.m_hmacctx = nullptr;
 #if OPENSSL_VERSION_NUMBER >= 0x030000000L
@@ -125,23 +127,47 @@ KHMAC::KHMAC(KHMAC&& other)
 } // move ctor
 
 //---------------------------------------------------------------------------
-void KHMAC::Release()
+KHMAC& KHMAC::operator=(KHMAC&& other) noexcept
+//---------------------------------------------------------------------------
+{
+	Release();
+	m_hmacctx = other.m_hmacctx;
+	other.m_hmacctx = nullptr;
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L
+	m_hmac = other.m_hmac;
+	other.m_hmac = nullptr;
+#endif
+	m_sHMAC   = std::move(other.m_sHMAC);
+	m_Digest  = other.m_Digest;
+	return *this;
+
+} // move assignment
+
+//---------------------------------------------------------------------------
+void KHMAC::Release() noexcept
 //---------------------------------------------------------------------------
 {
 	if (m_hmacctx)
 	{
 #if OPENSSL_VERSION_NUMBER < 0x010100000L
 		::HMAC_CTX_cleanup(m_hmacctx);
-		delete hmacctx;
+		delete m_hmacctx;
 #elif OPENSSL_VERSION_NUMBER < 0x030000000L
 		::HMAC_CTX_free(m_hmacctx);
 #else
 		::EVP_MAC_CTX_free(m_hmacctx);
-		::EVP_MAC_free(m_hmac);
-		m_hmac = nullptr;
 #endif
 		m_hmacctx = nullptr;
 	}
+
+#if OPENSSL_VERSION_NUMBER >= 0x030000000L
+	if (m_hmac)
+	{
+		::EVP_MAC_free(m_hmac);
+		m_hmac = nullptr;
+	}
+#endif
+
 	m_sHMAC.clear();
 
 } // Release
@@ -228,13 +254,10 @@ const KString& KHMAC::Digest() const
 		}
 		else
 		{
-			m_sHMAC.reserve(iDigestLen);
-
-			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit)
-			{
-				m_sHMAC += Buffer[iDigit];
-			}
+			m_sHMAC.append(reinterpret_cast<const char*>(Buffer.data()), iDigestLen);
 		}
+
+		OPENSSL_cleanse(Buffer.data(), Buffer.size());
 	}
 
 	return m_sHMAC;

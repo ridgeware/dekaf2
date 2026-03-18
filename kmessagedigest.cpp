@@ -44,6 +44,8 @@
 #include "kencode.h"
 #include "klog.h"
 #include <openssl/evp.h>
+#include <openssl/crypto.h>
+#include <array>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -125,8 +127,10 @@ void KMessageDigestBase::clear()
 KMessageDigestBase::KMessageDigestBase(KMessageDigestBase&& other) noexcept
 //---------------------------------------------------------------------------
 : evpctx(other.evpctx)
+, Updater(other.Updater)
 {
-	other.evpctx = nullptr;
+	other.evpctx  = nullptr;
+	other.Updater = nullptr;
 
 } // move ctor
 
@@ -135,11 +139,13 @@ KMessageDigestBase& KMessageDigestBase::operator=(KMessageDigestBase&& other) no
 //---------------------------------------------------------------------------
 {
 	Release();
-	evpctx = other.evpctx;
-	other.evpctx = nullptr;
+	evpctx  = other.evpctx;
+	Updater = other.Updater;
+	other.evpctx  = nullptr;
+	other.Updater = nullptr;
 	return *this;
 
-} // move ctor
+} // move assignment
 
 //---------------------------------------------------------------------------
 bool KMessageDigestBase::Update(const void* pAddress, std::size_t iSize)
@@ -232,13 +238,10 @@ const KString& KMessageDigest::Digest() const
 		}
 		else
 		{
-			m_sDigest.reserve(iDigestLen);
-			
-			for (unsigned int iDigit = 0; iDigit < iDigestLen; ++iDigit)
-			{
-				m_sDigest += Buffer[iDigit];
-			}
+			m_sDigest.append(reinterpret_cast<const char*>(Buffer.data()), iDigestLen);
 		}
+
+		OPENSSL_cleanse(Buffer.data(), Buffer.size());
 	}
 
 	return m_sDigest;

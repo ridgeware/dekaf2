@@ -43,6 +43,7 @@
 #include "kdigest.h"
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include <openssl/crypto.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -118,5 +119,34 @@ KString KDigest::GetOpenSSLError(KStringView sMessage)
 	return sError;
 
 } // GetOpenSSLError
+
+//---------------------------------------------------------------------------
+bool KDigest::ConstantTimeCompare(KStringView a, KStringView b)
+//---------------------------------------------------------------------------
+{
+	if (a.size() != b.size())
+	{
+		return false;
+	}
+
+	if (a.empty())
+	{
+		return true;
+	}
+
+#if OPENSSL_VERSION_NUMBER >= 0x010000000L
+	return CRYPTO_memcmp(a.data(), b.data(), a.size()) == 0;
+#else
+	volatile unsigned char result = 0;
+
+	for (std::size_t i = 0; i < a.size(); ++i)
+	{
+		result |= static_cast<unsigned char>(a[i]) ^ static_cast<unsigned char>(b[i]);
+	}
+
+	return result == 0;
+#endif
+
+} // ConstantTimeCompare
 
 DEKAF2_NAMESPACE_END

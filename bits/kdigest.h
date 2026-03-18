@@ -94,6 +94,9 @@ public:
 	/// returns an error message for the last OpenSSL error
 	static KString GetOpenSSLError(KStringView sMessage = KStringView{});
 
+	/// constant-time comparison of two strings (to prevent timing attacks on digest/HMAC verification)
+	static bool ConstantTimeCompare(KStringView a, KStringView b);
+
 }; // KDigest
 
 DEKAF2_NAMESPACE_END

@@ -176,7 +176,7 @@ public:
 	/// clears the digest and prepares for new computation
 	void clear();
 
-	friend bool operator==(const KMessageDigest& left, const KMessageDigest& right) { return left.Updater == right.Updater && left.Digest() == right.Digest(); }
+	friend bool operator==(const KMessageDigest& left, const KMessageDigest& right) { return left.Updater == right.Updater && ConstantTimeCompare(left.Digest(), right.Digest()); }
 	friend bool operator!=(const KMessageDigest& left, const KMessageDigest& right) { return !operator==(left, right); }
 
 //------
@@ -208,7 +208,7 @@ public:
 
 }; // KMD5
 
-inline bool operator==(const KMD5& left, const KMD5& right) { return left.Digest() == right.Digest(); }
+inline bool operator==(const KMD5& left, const KMD5& right) { return KDigest::ConstantTimeCompare(left.Digest(), right.Digest()); }
 inline bool operator!=(const KMD5& left, const KMD5& right) { return !operator==(left, right);        }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -232,7 +232,7 @@ public:
 
 }; // KSHA1
 
-inline bool operator==(const KSHA1& left, const KSHA1& right) { return left.Digest() == right.Digest(); }
+inline bool operator==(const KSHA1& left, const KSHA1& right) { return KDigest::ConstantTimeCompare(left.Digest(), right.Digest()); }
 inline bool operator!=(const KSHA1& left, const KSHA1& right) { return !operator==(left, right);        }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -256,7 +256,7 @@ public:
 
 }; // KSHA224
 
-inline bool operator==(const KSHA224& left, const KSHA224& right) { return left.Digest() == right.Digest(); }
+inline bool operator==(const KSHA224& left, const KSHA224& right) { return KDigest::ConstantTimeCompare(left.Digest(), right.Digest()); }
 inline bool operator!=(const KSHA224& left, const KSHA224& right) { return !operator==(left, right);        }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -280,7 +280,7 @@ public:
 
 }; // KSHA256
 
-inline bool operator==(const KSHA256& left, const KSHA256& right) { return left.Digest() == right.Digest(); }
+inline bool operator==(const KSHA256& left, const KSHA256& right) { return KDigest::ConstantTimeCompare(left.Digest(), right.Digest()); }
 inline bool operator!=(const KSHA256& left, const KSHA256& right) { return !operator==(left, right);        }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -304,7 +304,7 @@ public:
 
 }; // KSHA384
 
-inline bool operator==(const KSHA384& left, const KSHA384& right) { return left.Digest() == right.Digest(); }
+inline bool operator==(const KSHA384& left, const KSHA384& right) { return KDigest::ConstantTimeCompare(left.Digest(), right.Digest()); }
 inline bool operator!=(const KSHA384& left, const KSHA384& right) { return !operator==(left, right);        }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -328,7 +328,7 @@ public:
 
 }; // KSHA512
 
-inline bool operator==(const KSHA512& left, const KSHA512& right) { return left.Digest() == right.Digest(); }
+inline bool operator==(const KSHA512& left, const KSHA512& right) { return KDigest::ConstantTimeCompare(left.Digest(), right.Digest()); }
 inline bool operator!=(const KSHA512& left, const KSHA512& right) { return !operator==(left, right);        }
 
 #if DEKAF2_HAS_BLAKE2
@@ -354,7 +354,7 @@ public:
 
 }; // KBLAKE2S
 
-inline bool operator==(const KBLAKE2S& left, const KBLAKE2S& right) { return left.Digest() == right.Digest(); }
+inline bool operator==(const KBLAKE2S& left, const KBLAKE2S& right) { return KDigest::ConstantTimeCompare(left.Digest(), right.Digest()); }
 inline bool operator!=(const KBLAKE2S& left, const KBLAKE2S& right) { return !operator==(left, right);        }
 
 using KHASH256 = KBLAKE2S;
@@ -380,7 +380,7 @@ public:
 
 }; // KBLAKE2B
 
-inline bool operator==(const KBLAKE2B& left, const KBLAKE2B& right) { return left.Digest() == right.Digest(); }
+inline bool operator==(const KBLAKE2B& left, const KBLAKE2B& right) { return KDigest::ConstantTimeCompare(left.Digest(), right.Digest()); }
 inline bool operator!=(const KBLAKE2B& left, const KBLAKE2B& right) { return !operator==(left, right);        }
 
 using KHASH512 = KBLAKE2B;

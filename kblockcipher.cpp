@@ -71,7 +71,7 @@ KBlockCipher::KBlockCipher(
 //---------------------------------------------------------------------------
 : m_Direction(direction)
 , m_Algorithm(algorithm)
-, m_Mode(mode)
+, m_Mode(algorithm == ChaCha20_Poly1305 ? GCM : mode)
 , m_bInlineIV(bInlineIV)
 , m_bInlineTag(bInlineTag)
 {
@@ -457,21 +457,38 @@ KStringView KBlockCipher::ToString(Bits bits)
 
 #if	DEKAF2_HAS_HKDF
 //---------------------------------------------------------------------------
-KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword, KStringView sSalt)
+KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword, KStringView sSalt, KStringView sInfo)
 //---------------------------------------------------------------------------
 {
 #if OPENSSL_VERSION_NUMBER >= 0x030000000L
 
 	::EVP_KDF* kdf = ::EVP_KDF_fetch(nullptr, "HKDF", nullptr);
+
+	if (!kdf)
+	{
+		kWarning(GetOpenSSLError("cannot fetch HKDF algorithm"));
+		return KString{};
+	}
+
 	::EVP_KDF_CTX* kctx = ::EVP_KDF_CTX_new(kdf);
 	::EVP_KDF_free(kdf);
 
-	::OSSL_PARAM params[5], *p = params;
+	if (!kctx)
+	{
+		kWarning(GetOpenSSLError("cannot create HKDF context"));
+		return KString{};
+	}
+
+	::OSSL_PARAM params[6], *p = params;
 	*p++ = ::OSSL_PARAM_construct_utf8_string (OSSL_KDF_PARAM_DIGEST, const_cast<char*>(SN_sha256), 0);
 	*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY   , const_cast<char*>(sPassword.data()), sPassword.size());
 	if (!sSalt.empty())
 	{
 		*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT, const_cast<char*>(sSalt.data()), sSalt.size());
+	}
+	if (!sInfo.empty())
+	{
+		*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO, const_cast<char*>(sInfo.data()), sInfo.size());
 	}
 	*p   = ::OSSL_PARAM_construct_end();
 
@@ -498,6 +515,7 @@ KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sP
 		::EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()) <= 0  ||
 		::EVP_PKEY_CTX_set1_hkdf_key(pctx, reinterpret_cast<unsigned char*>(const_cast<char*>(sPassword.data())), static_cast<int>(sPassword.size())) <= 0 ||
 		(!sSalt.empty() && ::EVP_PKEY_CTX_set1_hkdf_salt(pctx, reinterpret_cast<unsigned char*>(const_cast<char*>(sSalt.data())), static_cast<int>(sSalt.size())) <= 0)  ||
+		(!sInfo.empty() && ::EVP_PKEY_CTX_add1_hkdf_info(pctx, reinterpret_cast<unsigned char*>(const_cast<char*>(sInfo.data())), static_cast<int>(sInfo.size())) <= 0)  ||
 		::EVP_PKEY_derive(pctx, reinterpret_cast<unsigned char*>(&sKey[0]), &iOutlen) <= 0)
 	{
 		sKey.clear();
@@ -520,7 +538,7 @@ KString KBlockCipher::CreateKeyFromPasswordPKCS5
  KStringView sPassword,
  KStringView sSalt,
  Digest      digest,
- uint16_t    iIterations
+ uint32_t    iIterations
 )
 //---------------------------------------------------------------------------
 {
@@ -787,6 +805,7 @@ void KBlockCipher::PrepareNextRound()
 	m_bInitCompleted = false;
 	m_bTagIsSet = false;
 	m_bIVIsSet = false;
+	m_bCCMDataAdded = false;
 
 } // PrepareNextRound
 
@@ -1014,7 +1033,7 @@ bool KBlockCipher::AddString(KStringView sInput)
 				auto iCopy = std::min(std::size_t(m_iGetTagLength), sInput.size());
 				m_sTag.append(sInput.substr(0, iCopy));
 				sInput.remove_prefix(iCopy);
-				m_iGetTagLength -= iCopy;
+				m_iGetTagLength -= static_cast<uint16_t>(iCopy);
 
 				// return right here if we need more input
 				if (m_iGetTagLength > 0) return true;
@@ -1032,7 +1051,7 @@ bool KBlockCipher::AddString(KStringView sInput)
 				auto iCopy = std::min(std::size_t(m_iGetIVLength), sInput.size());
 				m_sIV.append(sInput.substr(0, iCopy));
 				sInput.remove_prefix(iCopy);
-				m_iGetIVLength -= iCopy;
+				m_iGetIVLength -= static_cast<uint16_t>(iCopy);
 
 				// return right here if we need more input
 				if (m_iGetIVLength > 0) return true;
@@ -1045,45 +1064,64 @@ bool KBlockCipher::AddString(KStringView sInput)
 
 	if (sInput.empty()) return true;
 
-	// finally go on with encrypting or decrypting the ciphertext
-	auto iOrigSize = m_OutString->size();
-	// check if we have to provide more output to accomodate a block size of > 1 - a block
-	// size of 1 means that there is no buffering
-	auto iLocalBlockSize = (GetBlockSize() <= 1) ? 0 : GetBlockSize();
-	m_OutString->resize(iOrigSize + sInput.size() + iLocalBlockSize);
-	// we need operator[] to keep this compatible to C++11 / GCC6
-	auto pOut = reinterpret_cast<unsigned char*>(&m_OutString->operator[](0) + iOrigSize);
-	int iOutLen;
-
 	if (GetMode() == Mode::CCM)
 	{
-		// tell the total input size for CCM - we can only call AddString once..
+		if (m_bCCMDataAdded)
+		{
+			return SetError("CCM mode does not support multiple Add() calls - pass all data in one call");
+		}
+		m_bCCMDataAdded = true;
+	}
+
+	// EVP_CipherUpdate takes int for input length - chunk large inputs to avoid overflow
+	static constexpr int iMaxChunk = INT_MAX / 2;
+
+	while (!sInput.empty())
+	{
+		auto iChunkSize = std::min(sInput.size(), static_cast<std::size_t>(iMaxChunk));
+		auto sChunk     = sInput.substr(0, iChunkSize);
+		sInput.remove_prefix(iChunkSize);
+
+		// finally go on with encrypting or decrypting the ciphertext
+		auto iOrigSize = m_OutString->size();
+		// check if we have to provide more output to accomodate a block size of > 1 - a block
+		// size of 1 means that there is no buffering
+		auto iLocalBlockSize = (GetBlockSize() <= 1) ? 0 : GetBlockSize();
+		m_OutString->resize(iOrigSize + sChunk.size() + iLocalBlockSize);
+		// we need operator[] to keep this compatible to C++11 / GCC6
+		auto pOut = reinterpret_cast<unsigned char*>(&m_OutString->operator[](0) + iOrigSize);
+		int iOutLen;
+
+		if (GetMode() == Mode::CCM)
+		{
+			// tell the total input size for CCM - we can only call AddString once
+			if (!::EVP_CipherUpdate(
+				m_evpctx,
+				nullptr,
+				&iOutLen,
+				nullptr,
+				static_cast<int>(sChunk.size()))
+			)
+			{
+				return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
+			}
+		}
+
 		if (!::EVP_CipherUpdate(
 			m_evpctx,
-			nullptr,
+			pOut,
 			&iOutLen,
-			nullptr,
-			static_cast<int>(sInput.size()))
+			reinterpret_cast<const unsigned char*>(sChunk.data()),
+			static_cast<int>(sChunk.size()))
 		)
 		{
 			return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
 		}
+
+		kAssert(m_OutString->size() - iOrigSize >= static_cast<std::size_t>(iOutLen), "iLocalBlockSize too small");
+
+		if (iLocalBlockSize) m_OutString->resize(iOrigSize + iOutLen);
 	}
-
-	if (!::EVP_CipherUpdate(
-		m_evpctx,
-		pOut,
-		&iOutLen,
-		reinterpret_cast<const unsigned char*>(sInput.data()),
-		static_cast<int>(sInput.size()))
-	)
-	{
-		return SetError(GetOpenSSLError(kFormat("{} failed", m_Direction ? "encryption" : "decryption")));
-	}
-
-	kAssert(m_OutString->size() - iOrigSize >= static_cast<uint16_t>(iOutLen), "iLocalBlockSize too small");
-
-	if (iLocalBlockSize) m_OutString->resize(iOrigSize + iOutLen);
 
 	return true;
 
@@ -1164,7 +1202,7 @@ bool KBlockCipher::FinalizeString()
 	// clear the outstring on any error return
 	// we use a named lambda because we want compatibility with C++11, which needs
 	// a type for KScopeGuard..
-	auto namedLambdaGuard  = [this]() noexcept { m_OutString->clear(); };
+	auto namedLambdaGuard  = [this]() noexcept { m_OutString->resize(m_iStartOfString); };
 	// construct the scope guard with a type
 	auto guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 

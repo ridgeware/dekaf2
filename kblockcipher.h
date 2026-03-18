@@ -278,15 +278,23 @@ public:
 
 	/// static: generate a key of iKeyLen bytes size derived from sPassword and sSalt, using an sha256 hmac
 	/// (HKDF, see RFC 5869) - when called with OpenSSL < v1.1.0 this function delegates to
-	/// CreateKeyFromPasswordPKCS5() as the HKDF algorithm is not available before v1.1.0
+	/// CreateKeyFromPasswordPKCS5() as the HKDF algorithm is not available before v1.1.0.
+	/// Note: HKDF is not a password-based KDF - it does not perform key stretching. If the input
+	/// keying material has low entropy (e.g. a user-chosen password), prefer CreateKeyFromPasswordPKCS5()
+	/// with a high iteration count, or use a dedicated password KDF like scrypt or Argon2.
+	/// @param iKeyLen the desired key length in bytes
+	/// @param sPassword the password or input keying material
+	/// @param sSalt optional salt value for key derivation
+	/// @param sInfo optional context/application specific information for key separation (RFC 5869 recommends this, only used with HKDF)
 	static KString CreateKeyFromPassword(
 		uint16_t    iKeyLen,
 		KStringView sPassword,
-		KStringView sSalt       = ""
+		KStringView sSalt       = "",
+		KStringView sInfo       = ""
 	)
 	{
 #if	DEKAF2_HAS_HKDF
-		return CreateKeyFromPasswordHKDF(iKeyLen, sPassword, sSalt);
+		return CreateKeyFromPasswordHKDF(iKeyLen, sPassword, sSalt, sInfo);
 #else
 		return CreateKeyFromPasswordPKCS5(iKeyLen, sPassword, sSalt);
 #endif
@@ -295,22 +303,32 @@ public:
 #if	DEKAF2_HAS_HKDF
 	/// static: generate a key of iKeyLen bytes size derived from sPassword and sSalt, using an sha256 hmac
 	/// (HKDF, see RFC 5869) - the HKDF algorithm is not available before OpenSSL v1.1.0
+	/// @param iKeyLen the desired key length in bytes
+	/// @param sPassword the password or input keying material
+	/// @param sSalt optional salt value for key derivation
+	/// @param sInfo optional context/application specific information for key separation (RFC 5869 recommends this)
 	static KString CreateKeyFromPasswordHKDF(
 		uint16_t    iKeyLen,
 		KStringView sPassword,
-		KStringView sSalt       = ""
+		KStringView sSalt       = "",
+		KStringView sInfo       = ""
 	);
 #endif
 
 	/// static: generate a key of iKeyLen bytes size derived from sPassword and sSalt, using algorithm digest
 	/// with iIterations rounds (PKCS5_PBKDF2_HMAC, see RFC 2898) - better use the HKDF version, or
 	/// CreateKeyFromPassword(), which either picks HKDF if available, or PKCS5 if not
+	/// @param iKeyLen the desired key length in bytes
+	/// @param sPassword the password to derive the key from
+	/// @param sSalt optional salt value for key derivation
+	/// @param digest the hash algorithm to use, defaults to SHA256
+	/// @param iIterations the number of PBKDF2 iterations - higher is slower but more secure (OWASP recommends >= 600000 for SHA256)
 	static KString CreateKeyFromPasswordPKCS5(
 		uint16_t    iKeyLen,
 		KStringView sPassword,
 		KStringView sSalt       = "",
 		Digest      digest      = SHA256,
-		uint16_t    iIterations = 1024
+		uint32_t    iIterations = 600000
 	);
 
 	/// return the algorithm as a string
@@ -364,6 +382,7 @@ private:
 	bool                 m_bInitCompleted  { false };
 	bool                 m_bTagIsSet       { false };
 	bool                 m_bIVIsSet        { false };
+	bool                 m_bCCMDataAdded   { false };
 
 }; // KBlockCipher
 

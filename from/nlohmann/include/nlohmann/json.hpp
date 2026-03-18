@@ -835,12 +835,19 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     template < typename CompatibleType,
                typename U = detail::uncvref_t<CompatibleType>,
                detail::enable_if_t <
-                   !detail::is_basic_json<U>::value && detail::is_compatible_type<basic_json_t, U>::value, int > = 0 >
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 7
+                   // GCC < 7 triggers infinite template recursion when evaluating
+                   // is_compatible_type during overload resolution. Use a simpler
+                   // check; incompatible types will cause a hard error in the body.
+                   !detail::is_basic_json<U>::value
+#else
+                   !detail::is_basic_json<U>::value && detail::is_compatible_type<basic_json_t, U>::value
+#endif
+                   , int > = 0 >
     basic_json(CompatibleType && val) // NOLINT(bugprone-forwarding-reference-overload,bugprone-exception-escape)
-#ifndef _MSC_VER
-    // MSVC eagerly evaluates this noexcept spec during is_constructible checks,
-    // even when enable_if should exclude this constructor, causing hard errors
-    // when string_t is not std::string
+#if !defined(_MSC_VER) && !(defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 7)
+    // MSVC and GCC < 7 eagerly evaluate this noexcept spec during
+    // is_constructible checks, causing hard errors or infinite recursion
     noexcept(noexcept(
                 JSONSerializer<U>::to_json(std::declval<basic_json_t&>(),
                                            std::forward<CompatibleType>(val))))

@@ -496,10 +496,12 @@ bool KTLSContext::SetAllowHTTP2(bool bAlsoAllowHTTP1)
 	// allow ALPN negotiation for HTTP/2 if this is a client
 	if (GetRole() == boost::asio::ssl::stream_base::client)
 	{
-		auto sProto = bAlsoAllowHTTP1 ? "\x02h2\0x08http/1.1" : "\x02h2";
-		auto iResult = ::SSL_CTX_set_alpn_protos(m_Context.native_handle(),
+		static const char sH2[]   = "\x02h2";
+		static const char sH2H1[] = "\x02h2\x08http/1.1";
+		auto  sProto  = bAlsoAllowHTTP1 ? sH2H1 : sH2;
+		auto  iResult = ::SSL_CTX_set_alpn_protos(m_Context.native_handle(),
 		                                         reinterpret_cast<const unsigned char*>(sProto),
-		                                         static_cast<unsigned int>(strlen(sProto)));
+		                                         static_cast<unsigned int>(bAlsoAllowHTTP1 ? sizeof(sH2H1) - 1 : sizeof(sH2) - 1));
 		if (iResult == 0)
 		{
 			return true;

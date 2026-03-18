@@ -128,7 +128,6 @@ struct KAsioStream
 				{
 					kDebug(2, "error shutting down socket: {}", ec.message());
 				}
-				return false;
 			}
 
 			Traits::SocketClose(Socket, ec);
@@ -229,9 +228,9 @@ struct KAsioStream
 			while (ec == boost::asio::error::would_block);
 		}
 
-		catch (const boost::system::error_code& local_ec)
+		catch (const boost::system::system_error& e)
 		{
-			kDebug(1, "Stream error: {}", local_ec.message());
+			kDebug(1, "Stream error: {}", e.code().message());
 		}
 
 		ClearTimer();

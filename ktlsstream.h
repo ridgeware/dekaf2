@@ -61,7 +61,7 @@ struct KAsioTLSTraits
 	static bool SocketIsOpen(StreamType& Socket)
 		{ return Socket.next_layer().is_open(); }
 	static void SocketShutdown(StreamType& Socket, boost::system::error_code& ec)
-		{ Socket.next_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec); }
+		{ Socket.shutdown(ec); Socket.next_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec); }
 	static void SocketClose(StreamType& Socket, boost::system::error_code& ec)
 		{ Socket.next_layer().close(ec); }
 	static void SocketPeek(StreamType& Socket, boost::system::error_code& ec)
@@ -155,6 +155,11 @@ public:
 	/// set options like certificate verification, manual TLS handshake, HTTP2 request, and the timeout
 	KTLSStream(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
+
+	KTLSStream(const KTLSStream&) = delete;
+	KTLSStream& operator=(const KTLSStream&) = delete;
+	KTLSStream(KTLSStream&&) = delete;
+	KTLSStream& operator=(KTLSStream&&) = delete;
 
 	//-----------------------------------------------------------------------------
 	/// Set the endpoint address when in server mode

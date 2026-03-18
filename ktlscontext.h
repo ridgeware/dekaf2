@@ -105,7 +105,7 @@ public:
 	/// Set the ALPN data. This API expects a vector of KStringViews and transforms it into the internal
 	/// ALPN format.
 	/// This method is mutually exclusive with SetAllowHTTP2()
-	bool SetALPN(const std::vector<KStringView> ALPNs)
+	bool SetALPN(const std::vector<KStringView>& ALPNs)
 	//-----------------------------------------------------------------------------
 	{
 		return SetALPNRaw(KStreamOptions::CreateALPNString(ALPNs));

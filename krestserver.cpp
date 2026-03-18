@@ -1065,7 +1065,7 @@ void KRESTServer::WriteHeaders()
 	}
 	else
 	{
-		Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive || m_bSwitchToWebSocket ? "keep-alive" : "close");
+		Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive ? "keep-alive" : "close");
 	}
 
 	{

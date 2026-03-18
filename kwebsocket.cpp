@@ -105,7 +105,7 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 	{
 		// if we have an encoder we first read the whole payload to decode it
 		// and later split it in preamble and data, if needed
-		if (!m_bHaveEncoder && (m_Opcode & (FrameType::Text | FrameType::Binary)))
+		if (!m_bHaveEncoder && (m_Opcode == FrameType::Text || m_Opcode == FrameType::Binary))
 		{
 			auto iPreambleSize = GetPreambleSize();
 
@@ -184,10 +184,6 @@ bool KWebSocket::FrameHeader::Decode(uint8_t byte)
 			}
 			break;
 
-			m_iPayloadLen <<= 8;
-			m_iPayloadLen  &= byte;
-			break;
-
 		case 4: // the third   length byte
 		case 5: // the fourth  length byte
 		case 6: // the fifth   length byte
@@ -252,7 +248,6 @@ bool KWebSocket::FrameHeader::Read(KInStream& Stream)
 			return true;
 		}
 	}
-	return false;
 
 } // Read
 
@@ -327,7 +322,7 @@ KString KWebSocket::FrameHeader::Serialize() const
 
 	// if we have an encoder the complete content is now sitting in the
 	// payload buffer even if there was/is a preamble
-	if (!m_bHaveEncoder && (m_Opcode & (FrameType::Text | FrameType::Binary)))
+	if (!m_bHaveEncoder && (m_Opcode == FrameType::Text || m_Opcode == FrameType::Binary))
 	{
 		iTotalPayloadLen += GetPreambleSize();
 	}
@@ -549,7 +544,7 @@ bool KWebSocket::Frame::DecodeAndSplitPreamble(KStringView sBuffer)
 		return false;
 	}
 
-	if (Type() & (FrameType::Text | FrameType::Binary))
+	if (Type() == FrameType::Text || Type() == FrameType::Binary)
 	{
 		// get the preamble if existing
 		auto iPreambleSize = GetPreambleSize();
@@ -660,7 +655,7 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMaskTx, KInStream& Pa
 	bool bIsLast   = { false };
 	bool bIsFirst  = {  true };
 
-	for (;bIsLast;)
+	for (;!bIsLast;)
 	{
 		auto iFragment = std::min(len, KDefaultCopyBufSize);
 		auto iRead = Payload.Read(m_sPayload, iFragment);
@@ -694,7 +689,10 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 	for(;;)
 	{
 		// read the header
-		FrameHeader::Read(InStream);
+		if (!FrameHeader::Read(InStream))
+		{
+			return false;
+		}
 
 		if (!GetHaveEncoder())
 		{
@@ -800,8 +798,6 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 		sBuffer.clear();
 	}
 
-	return false;
-
 } // Read
 
 //-----------------------------------------------------------------------------
@@ -809,13 +805,7 @@ bool KWebSocket::FrameHeader::GetEncodeFrame() const
 //-----------------------------------------------------------------------------
 {
 	// returns true if we have an active encoder and the frame type is NOT Close
-	// (but we encode it positively to skip bad opcodes)
-	return GetHaveEncoder() &&
-		(Type() & ( FrameType::Text         |
-		            FrameType::Binary       |
-				    FrameType::Continuation |
-				    FrameType::Ping         |
-				    FrameType::Pong ));
+	return GetHaveEncoder() && Type() != FrameType::Close;
 
 } // EncodeFrame
 
@@ -863,7 +853,7 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMask)
 
 	if (!FrameHeader::Write(OutStream)) return false;
 
-	if (!GetHaveEncoder() && (Type() & (FrameType::Text | FrameType::Binary)))
+	if (!GetHaveEncoder() && (Type() == FrameType::Text || Type() == FrameType::Binary))
 	{
 		auto iPreambleSize = GetPreambleSize();
 
@@ -1112,8 +1102,11 @@ KWebSocket::KWebSocket(KWebSocket&& other)
 , m_ReadTimeout  (other.m_ReadTimeout )
 , m_WriteTimeout (other.m_WriteTimeout)
 , m_PingInterval (other.m_PingInterval)
+, m_TimerID      (other.m_TimerID     )
 , m_bMaskTx      (other.m_bMaskTx     )
 {
+	other.m_TimerID      = KTimer::InvalidID;
+	other.m_PingInterval = KDuration::zero();
 } // move ctor
 
 //-----------------------------------------------------------------------------

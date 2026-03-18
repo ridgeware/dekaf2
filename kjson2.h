@@ -42,8 +42,8 @@
 
 #pragma once
 
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 7
-	// need at least gcc 7 to compile
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 6
+	// need at least gcc 6 to compile
 	#undef DEKAF2_KJSON2_IS_DISABLED
 	#define DEKAF2_KJSON2_IS_DISABLED 1
 #endif
@@ -463,6 +463,7 @@ public:
 		using pointer      = parent::pointer;
 		// import ctors
 		using iteratorbase::iteratorbase;
+		iterator() = default;
 		// converting ctor
 		iterator(iteratorbase it) : iteratorbase(it) {}
 		// overwrite operator to wrap reference type
@@ -490,6 +491,7 @@ public:
 		using pointer         = const_pointer;
 		// import ctors
 		using iteratorbase::iteratorbase;
+		const_iterator() = default;
 		// converting ctor
 		const_iterator(iteratorbase it) : iteratorbase(it) {}
 		// overwrite operator to wrap reference type
@@ -683,7 +685,9 @@ public:
 	// wherever needed)
 
 	DEKAF2_NODISCARD_PEDANTIC
+#if !defined(__GNUC__) || defined(__clang__) || __GNUC__ >= 7
 	constexpr
+#endif
 	const base&    ToBase     () const noexcept { return *this; }
 	DEKAF2_NODISCARD_PEDANTIC
 	base&          ToBase     ()       noexcept { return *this; }
@@ -766,7 +770,9 @@ public:
 		, int >::type = 0>
 	operator        ValueType  () const noexcept { return Float(); }
 
+#if !defined(__GNUC__) || defined(__clang__) || __GNUC__ >= 7
 	constexpr
+#endif
 	operator        value_t    () const noexcept { return type();   }
 	operator        json_ref   ()       noexcept { return ToBase(); } // embedded in initializer lists..
 

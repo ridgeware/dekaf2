@@ -416,6 +416,18 @@ bool operator!=(const KCOL& left, const KCOL& right)
 
 using KCOLS = KProps <KString, KCOL, /*order-matters=*/true, /*unique-keys*/true>;
 
+namespace detail {
+
+template<typename T,
+	bool Excluded = std::is_same<KJSON, typename std::decay<T>::type>::value
+	            || std::is_same<LJSON, typename std::decay<T>::type>::value>
+struct is_krow_string_arg : std::false_type {};
+
+template<typename T>
+struct is_krow_string_arg<T, false> : std::is_constructible<KStringView, T> {};
+
+} // end of namespace detail
+
 //-----------------------------------------------------------------------------
 /// KSQL's row type
 class DEKAF2_PUBLIC KROW : public KCOLS, public detail::KCommonSQLBase
@@ -438,7 +450,7 @@ public:
 
 	KROW () = default;
 
-	template<typename T, typename std::enable_if<std::is_constructible<KStringView, T>::value && !std::is_same<KJSON, typename std::decay<T>::type>::value, int>::type = 0>
+	template<typename T, typename std::enable_if<detail::is_krow_string_arg<T>::value, int>::type = 0>
 	KROW (T sTablename)
 	    : m_sTablename(std::move(sTablename))
 	{

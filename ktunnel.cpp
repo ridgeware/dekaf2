@@ -521,7 +521,7 @@ void KTunnel::Connection::PumpFromTunnel()
 			{
 				// and wait for new data coming in
 				KStopTime Stop;
-				m_FreshData.wait(Lock, [this]{ return !m_MessageQueue.empty(); });
+				m_FreshData.wait(Lock, [this]{ return !m_MessageQueue.empty() || m_bQuit.load(std::memory_order_relaxed); });
 				kDebug(3, "[{}]: {}: waited for new data, took {}", GetID(), m_DirectStream->GetEndPointAddress(), Stop.elapsed());
 			}
 		}
@@ -612,6 +612,7 @@ std::shared_ptr<KTunnel::Connection> KTunnel::Connections::Create(std::size_t iI
 		if (iIterations == Message::MaxChannel())
 		{
 			kDebug(1, "cannot generate a new ID value");
+			return {};
 		}
 
 		++iIterations;
@@ -639,6 +640,7 @@ std::shared_ptr<KTunnel::Connection> KTunnel::Connections::Create(std::size_t iI
 		{
 			if (bFindFreeID)
 			{
+				iID = 0;
 				continue;
 			}
 
@@ -759,7 +761,10 @@ KTunnel::~KTunnel()
 		Dekaf::getInstance().GetTimer().Cancel(m_TimerID);
 	}
 
-	m_Timer.join();
+	if (m_Timer.joinable())
+	{
+		m_Timer.join();
+	}
 
 } // KTunnel::~KTunnel
 
@@ -1196,9 +1201,9 @@ bool KTunnel::Login(KStringView sUser, KStringView sSecret)
 	Message Response;
 	ReadMessage(Response);
 
-	if (Response.GetType() != Message::Helo && Response.GetChannel() != 0)
+	if (Response.GetType() != Message::Helo || Response.GetChannel() != 0)
 	{
-		kDebug(1, "no HELO response at login");
+		kDebug(1, "no HELO response or channel != 0 at login");
 		return false;
 	}
 
@@ -1273,6 +1278,17 @@ void KTunnel::Run()
 	}
 
 	SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
+
+	// disable Nagle's algorithm on the tunnel stream to avoid
+	// stalling the last TLS record of large transmissions
+	{
+		auto Tunnel = m_Tunnel.shared();
+
+		if (Tunnel->Stream)
+		{
+			Tunnel->Stream->SetNoDelay(true);
+		}
+	}
 
 	m_Timer = std::thread(&KTunnel::TimerLoop, this);
 

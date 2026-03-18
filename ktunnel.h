@@ -53,6 +53,7 @@
 #include <thread>
 #include <memory>
 #include <mutex>
+#include <atomic>
 #include <condition_variable>
 #include <queue>
 
@@ -246,8 +247,8 @@ public:
 		std::condition_variable              m_ResumeTunnel;
 		std::size_t                          m_iID          { 0 };
 		bool                                 m_bRXPaused    { false };
-		bool                                 m_bPaused      { false };
-		bool                                 m_bQuit        { false };
+		std::atomic<bool>                    m_bPaused      { false };
+		std::atomic<bool>                    m_bQuit        { false };
 
 	}; // Connection
 
@@ -368,7 +369,7 @@ private:
 	std::thread            m_Timer;
 	bool                   m_bWaitForLogin { false };
 	bool                   m_bMaskTx       { false };
-	bool                   m_bQuit         { false };
+	std::atomic<bool>      m_bQuit         { false };
 
 }; // KTunnel
 

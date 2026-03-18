@@ -350,8 +350,13 @@ Session::Session(KTLSStream& TLSStream, bool bIsClient)
 //-----------------------------------------------------------------------------
 : m_TLSStream(TLSStream)
 {
-	nghttp2_session_callbacks* callbacks;
-	nghttp2_session_callbacks_new                             (&callbacks);
+	nghttp2_session_callbacks* callbacks { nullptr };
+
+	if (nghttp2_session_callbacks_new(&callbacks) != 0)
+	{
+		SetError("nghttp2 callback allocation failed");
+		return;
+	}
 #if DEKAF2_OLD_NGHTTP2_VERSION
 	nghttp2_session_callbacks_set_send_callback               (callbacks, OnSendCallback         );
 	nghttp2_session_callbacks_set_recv_callback               (callbacks, OnReceiveCallback      );
@@ -365,8 +370,24 @@ Session::Session(KTLSStream& TLSStream, bool bIsClient)
 	nghttp2_session_callbacks_set_on_stream_close_callback    (callbacks, OnStreamCloseCallback  );
 	nghttp2_session_callbacks_set_on_header_callback          (callbacks, reinterpret_cast<nghttp2_on_header_callback>       (OnHeaderCallback      ));
 	nghttp2_session_callbacks_set_on_begin_headers_callback   (callbacks, reinterpret_cast<nghttp2_on_begin_headers_callback>(OnBeginHeadersCallback));
-	nghttp2_session_client_new                                (&m_Session, callbacks, this       );
-	nghttp2_session_callbacks_del                             (callbacks);
+	int rv;
+
+	if (bIsClient)
+	{
+		rv = nghttp2_session_client_new(&m_Session, callbacks, this);
+	}
+	else
+	{
+		rv = nghttp2_session_server_new(&m_Session, callbacks, this);
+	}
+
+	nghttp2_session_callbacks_del(callbacks);
+
+	if (rv != 0)
+	{
+		SetError(kFormat("nghttp2 session creation failed: {}", nghttp2_strerror(rv)));
+		return;
+	}
 
 	if (bIsClient)
 	{
@@ -400,8 +421,6 @@ KStringView Session::TranslateError(int iError)
 		default:                                  return "unknown";
 	}
 
-	return "";
-
 } // TranslateError
 
 //-----------------------------------------------------------------------------
@@ -427,8 +446,6 @@ KStringView Session::TranslateFrameType(uint8_t FrameType)
 #endif
 		default:                      return "Unknown";
 	}
-
-	return "";
 
 } // TranslateFrameType
 
@@ -493,6 +510,18 @@ nghttp2_ssize Session::OnReceive (KBuffer data, int flags)
 //-----------------------------------------------------------------------------
 {
 	auto iRead = m_TLSStream.direct_read_some(data.CharData(), data.capacity());
+
+	if (iRead < 0)
+	{
+		SetError("TLS read error");
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	}
+
+	if (iRead == 0)
+	{
+		return NGHTTP2_ERR_WOULDBLOCK;
+	}
+
 	data.resize(iRead);
 	kDebug(4, "direct TLS read: {}", iRead);
 	return iRead;
@@ -548,7 +577,7 @@ int Session::OnSendData (void* frame, const uint8_t* framehd, size_t length, KDa
 	{
 		kDebug(4, "[stream {}] send padding of size {}", Frame->hd.stream_id, Frame->data.padlen - 1);
 
-		std::array<char, 100> zeroes;
+		std::array<char, 100> zeroes{};
 		std::size_t iPad = Frame->data.padlen - 1;
 
 		for (;iPad > 0;)
@@ -615,7 +644,14 @@ int Session::OnFrameRecv (const void* frame)
 {
 	auto Frame = static_cast<const nghttp2_frame*>(frame);
 
-	kDebug(4, "[stream {}] frame type: {}, category {}", Frame->hd.stream_id, TranslateFrameType(Frame->hd.type), Frame->headers.cat);
+	if (Frame->hd.type == NGHTTP2_HEADERS)
+	{
+		kDebug(4, "[stream {}] frame type: Headers, category {}", Frame->hd.stream_id, Frame->headers.cat);
+	}
+	else
+	{
+		kDebug(4, "[stream {}] frame type: {}", Frame->hd.stream_id, TranslateFrameType(Frame->hd.type));
+	}
 
 	if (Frame->hd.type == NGHTTP2_HEADERS && Frame->headers.cat == NGHTTP2_HCAT_RESPONSE)
 	{
@@ -939,8 +975,6 @@ bool Session::Run()
 		}
 	}
 
-	return true;
-
 } // Run
 
 //-----------------------------------------------------------------------------
@@ -1008,14 +1042,8 @@ bool SingleStreamSession::ReadResponseHeaders(Stream::ID StreamID)
 			return SetError(kFormat("TLS header read returned {}", iRead));
 		}
 
-		if (iRead > 0)
-		{
-			Received(TLSBuffer.data(), iRead);
-		}
-
+		Received(TLSBuffer.data(), iRead);
 	}
-
-	return Stream->IsHeadersComplete();
 
 } // ReadResponseHeaders
 
@@ -1071,14 +1099,11 @@ std::streamsize SingleStreamSession::ReadData(Stream::ID StreamID, void* data, s
 
 		if (iReadTLS <= 0)
 		{
-			return SetError(kFormat("TLS data read returned {}", iReadTLS));
-			break;
+			SetError(kFormat("TLS data read returned {}", iReadTLS));
+			return -1;
 		}
 
-		if (iReadTLS > 0)
-		{
-			Received(TLSBuffer.data(), iReadTLS);
-		}
+		Received(TLSBuffer.data(), iReadTLS);
 	}
 
 	if (len != static_cast<std::size_t>(iRead))

@@ -331,7 +331,7 @@ protected:
 
 	nghttp3_conn* GetNGHTTP3_Session  ()                 { return m_Session;            }
 	Session&      GetSession          ()                 { return *this;                }
-	KQuicStream&  GetKQuicStream      ()                 { return m_KQuickStream;       }
+	KQuicStream&  GetKQuicStream      ()                 { return m_KQuicStream;        }
 	::SSL*        GetQuicConnection   ()                 { return m_SSL;                }
 	::BIO*        GetBio              ()                 { return ::SSL_get_wbio(GetQuicConnection()); }
 	KDuration     GetTimeout          ()                 { return GetKQuicStream().GetTimeout(); }
@@ -362,7 +362,7 @@ private:
 	nghttp3_ssize OnDataSourceRead    (Stream::ID StreamID, KStringView& sBuffer, std::size_t iMaxBuffers, uint32_t* iPFlags);
 	int           OnAckedStreamData   (Stream::ID StreamID, std::size_t iTotalReceived);
 
-	KQuicStream&  m_KQuickStream;
+	KQuicStream&  m_KQuicStream;
 	::SSL*        m_SSL               { nullptr };
 	nghttp3_conn* m_Session           { nullptr };
 	std::size_t   m_consumed_app_data { 0 };
@@ -494,12 +494,6 @@ public:
 	/// need to call this method when you use the SubmitRequest() method without DataConsumer objects. Only one
 	/// single stream can be handled in this mode.
 	std::streamsize ReadData (Stream::ID StreamID, void* data, std::size_t len);
-
-//----------
-protected:
-//----------
-
-	bool    ReadResponseHeaders (Stream::ID StreamID);
 
 }; // SingleStreamSession
 

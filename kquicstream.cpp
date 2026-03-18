@@ -195,17 +195,17 @@ bool KQuicStream::SetRequestHTTP3()
 std::streamsize KQuicStream::direct_read_some(void* sBuffer, std::streamsize iCount)
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iRead { 0 };
+	std::size_t iRead { 0 };
 
 	if (IsReadReady())
 	{
-		if (!::SSL_read_ex(GetNativeTLSHandle(), sBuffer, iCount, reinterpret_cast<size_t*>(&iRead)))
+		if (!::SSL_read_ex(GetNativeTLSHandle(), sBuffer, iCount, &iRead))
 		{
 			SetSSLError();
 		}
 	}
 
-	return iRead;
+	return static_cast<std::streamsize>(iRead);
 
 } // direct_read_some
 
@@ -247,12 +247,15 @@ std::streamsize KQuicStream::QuicStreamWriter(const void* sBuffer, std::streamsi
 		{
 			std::size_t iWrotePart{0};
 
-			if (Quic.IsWriteReady())
+			if (!Quic.IsWriteReady())
 			{
-				if (!::SSL_write_ex(Quic.GetNativeTLSHandle(), static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote, &iWrotePart))
-				{
-					Quic.SetSSLError();
-				}
+				break;
+			}
+
+			if (!::SSL_write_ex(Quic.GetNativeTLSHandle(), static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote, &iWrotePart))
+			{
+				Quic.SetSSLError();
+				break;
 			}
 
 			iWrote += iWrotePart;
@@ -326,10 +329,10 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 	m_bNeedHandshake = true;
 
-	if (m_NativeSocket >= 0)
+	if (m_NativeSocket != native_socket_type(-1))
 	{
 		::BIO_closesocket(m_NativeSocket);
-		m_NativeSocket = -1;
+		m_NativeSocket = native_socket_type(-1);
 	}
 
 	auto& sHostname = Endpoint.Domain.get();
@@ -449,12 +452,11 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 		/*
 		 * Associate the newly created BIO with the underlying socket. By
-		 * passing BIO_CLOSE here the socket will be automatically closed when
-		 * the BIO is freed. Alternatively you can use BIO_NOCLOSE, in which
-		 * case you must close the socket explicitly when it is no longer
-		 * needed.
+		 * passing BIO_NOCLOSE the socket will not be closed when the BIO is
+		 * freed - we manage the socket lifetime ourselves to avoid double-close
+		 * issues on reconnect.
 		 */
-		::BIO_set_fd(bio, m_NativeSocket, BIO_CLOSE);
+		::BIO_set_fd(bio, m_NativeSocket, BIO_NOCLOSE);
 
 		// and tell OpenSSL to use this BIO - it takes ownership
 		::SSL_set_bio(GetNativeTLSHandle(), bio, bio);
@@ -512,6 +514,25 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 } // connect
 
+//-----------------------------------------------------------------------------
+bool KQuicStream::Disconnect()
+//-----------------------------------------------------------------------------
+{
+	if (m_SSL)
+	{
+		::SSL_shutdown(GetNativeTLSHandle());
+		m_SSL.reset();
+	}
+
+	if (m_NativeSocket != native_socket_type(-1))
+	{
+		::BIO_closesocket(m_NativeSocket);
+		m_NativeSocket = native_socket_type(-1);
+	}
+
+	return true;
+
+} // Disconnect
 
 //-----------------------------------------------------------------------------
 std::unique_ptr<KQuicStream> CreateKQuicServer(KTLSContext& Context, KDuration Timeout)

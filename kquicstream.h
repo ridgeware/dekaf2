@@ -110,6 +110,11 @@ public:
 	KQuicStream(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
 
+	KQuicStream(const KQuicStream&) = delete;
+	KQuicStream& operator=(const KQuicStream&) = delete;
+	KQuicStream(KQuicStream&&) = delete;
+	KQuicStream& operator=(KQuicStream&&) = delete;
+
 	//-----------------------------------------------------------------------------
 	/// Connects a given server as a client.
 	/// @param Endpoint
@@ -122,17 +127,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Disconnect the stream
-	virtual bool Disconnect() override final
-	//-----------------------------------------------------------------------------
-	{
-		return false; // TODO
-	}
+	virtual bool Disconnect() override final;
 
 	//-----------------------------------------------------------------------------
 	virtual bool is_open() const override final
 	//-----------------------------------------------------------------------------
 	{
-		return m_NativeSocket >= 0;
+		return m_NativeSocket != native_socket_type(-1);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -140,7 +141,12 @@ public:
 	virtual bool IsDisconnected() override final
 	//-----------------------------------------------------------------------------
 	{
-		return false; // TODO m_Stream.IsDisconnected();
+		if (!is_open())
+		{
+			return true;
+		}
+
+		return m_SSL && (::SSL_get_shutdown(GetNativeTLSHandle()) & SSL_RECEIVED_SHUTDOWN);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -229,10 +235,6 @@ private:
 
 }; // KQuicStream
 
-
-/// Quic stream based on std::iostream and asio::ssl
-//using KQuicStream = KReaderWriter<KQuicStream>;
-using KQuicStream = KQuicStream;
 
 // there is nothing special with a quic client
 using KQuicClient = KQuicStream;

@@ -690,7 +690,7 @@ retry:
 //-----------------------------------------------------------------------------
 Session::Session(KQuicStream& QuicConnection, bool bIsClient)
 //-----------------------------------------------------------------------------
-: m_KQuickStream(QuicConnection)
+: m_KQuicStream(QuicConnection)
 , m_SSL(QuicConnection.GetNativeTLSHandle())
 {
 	/*
@@ -766,7 +766,7 @@ Session::Session(KQuicStream& QuicConnection, bool bIsClient)
 
 	if (ec < 0)
 	{
-		SetError(kFormat("cannot create nghttp3 connection: {}", ::nghttp3_strerror(ec), ec));
+		SetError(kFormat("cannot create nghttp3 connection: {}", ::nghttp3_strerror(ec)), ec);
 		return;
 	}
 
@@ -882,7 +882,7 @@ bool Session::HandleEvents(bool bWithResponses)
 
 			if (!Stream->SendToQuic(vecs.data(), ec, fin))
 			{
-				return SetError("send to quick failed");
+				return SetError("send to quic failed");
 			}
 		}
 
@@ -895,7 +895,7 @@ bool Session::HandleEvents(bool bWithResponses)
 			{
 				if (Stream.second->ReceiveFromQuic(/*bOnce*/false) < 0)
 				{
-					return SetError("receive from quick failed");
+					return SetError("receive from quic failed");
 				}
 			}
 		}
@@ -961,7 +961,7 @@ bool Session::IsReadReady(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	// use SSL_Poll first, it does not (yet) have a timeout though
-	auto iSSLPoll = SSL_Poll(POLLIN, GetQuicConnection());
+	auto iSSLPoll = SSL_Poll(SSL_POLL_EVENT_R, GetQuicConnection());
 
 	if (iSSLPoll > 0)
 	{
@@ -1105,7 +1105,7 @@ bool Session::AddStream(Stream::ID StreamID, std::unique_ptr<Stream> Stream)
 {
 	if (!m_Streams.emplace(StreamID, std::move(Stream)).second)
 	{
-		return SetError("cannot add stream {} to session", StreamID);
+		return SetError(kFormat("cannot add stream {} to session", StreamID));
 	}
 
 	return true;
@@ -1502,7 +1502,8 @@ int Session::OnDeferredConsume(Stream::ID StreamID, std::size_t iConsumed)
 //-----------------------------------------------------------------------------
 {
 	kDebug(4, "[stream {}] deferred consume: {} bytes", StreamID, iConsumed);
-	// TODO check if this should rather be -=
+	// += is correct: deferred consume reports bytes the app consumed from
+	// a previously deferred read, to be acknowledged in the next receive cycle
 	AddConsumedAppData(iConsumed);
 
 	return 0;

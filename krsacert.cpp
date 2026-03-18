@@ -55,6 +55,9 @@
 #include <openssl/err.h>
 #include <openssl/bio.h>
 #include <openssl/x509.h>
+#include <openssl/bn.h>
+#include <openssl/rand.h>
+#include <array>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -64,9 +67,19 @@ namespace {
 KUnixTime from_ASN1_time(const ASN1_TIME* asn1_time)
 //---------------------------------------------------------------------------
 {
-	if (!asn1_time || !asn1_time->data || asn1_time->length < 13) return {};
+	if (!asn1_time) return {};
 
-	KStringView sTime(reinterpret_cast<const char*>(asn1_time->data), asn1_time->length);
+#if OPENSSL_VERSION_NUMBER >= 0x010100000
+	auto asn1_data   = ::ASN1_STRING_get0_data(asn1_time);
+	auto asn1_length = ::ASN1_STRING_length(asn1_time);
+#else
+	auto asn1_data   = asn1_time->data;
+	auto asn1_length = asn1_time->length;
+#endif
+
+	if (!asn1_data || asn1_length < 13) return {};
+
+	KStringView sTime(reinterpret_cast<const char*>(asn1_data), asn1_length);
 
 	KStringView sFormat = "YYYYMMDDhhmmss";
 
@@ -128,8 +141,12 @@ KRSACert::KRSACert(KRSACert&& other) noexcept
 KRSACert& KRSACert::operator=(KRSACert&& other) noexcept
 //---------------------------------------------------------------------------
 {
-	m_X509Cert = other.m_X509Cert;
-	other.m_X509Cert = nullptr;
+	if (this != &other)
+	{
+		clear();
+		m_X509Cert       = other.m_X509Cert;
+		other.m_X509Cert = nullptr;
+	}
 	return *this;
 }
 
@@ -173,10 +190,22 @@ bool KRSACert::Create
 		return SetError(KDigest::GetOpenSSLError("cannot create X509 struct"));
 	}
 
-	// set serial number
-	if (!::ASN1_INTEGER_set(X509_get_serialNumber(m_X509Cert), 1))
+	// set serial number to a random value
 	{
-		return SetError(KDigest::GetOpenSSLError("error setting serial"));
+		std::array<unsigned char, 16> serial_bytes;
+		if (::RAND_bytes(serial_bytes.data(), static_cast<int>(serial_bytes.size())) != 1)
+		{
+			return SetError(KDigest::GetOpenSSLError("cannot generate random serial"));
+		}
+		// ensure the serial is positive (clear high bit per RFC 5280)
+		serial_bytes[0] &= 0x7F;
+
+		KUniquePtr<BIGNUM, ::BN_free> bn(::BN_bin2bn(serial_bytes.data(), static_cast<int>(serial_bytes.size()), nullptr));
+
+		if (!bn || !::BN_to_ASN1_INTEGER(bn.get(), X509_get_serialNumber(m_X509Cert)))
+		{
+			return SetError(KDigest::GetOpenSSLError("cannot set random serial"));
+		}
 	}
 
 	if (ValidFrom.time_since_epoch().count() == 0)
@@ -196,10 +225,20 @@ bool KRSACert::Create
 		}
 	}
 
-	// validity ends at timepoint
-	if (!::X509_gmtime_adj(X509_getm_notAfter(m_X509Cert), ValidFor.seconds().count()))
+	// validity ends at ValidFrom + ValidFor
 	{
-		return SetError(KDigest::GetOpenSSLError(kFormat("error setting validity to {}", ValidFor)));
+		long iNotAfterAdj = ValidFor.seconds().count();
+
+		if (ValidFrom.time_since_epoch().count() != 0)
+		{
+			// add the ValidFrom offset so notAfter = ValidFrom + ValidFor
+			iNotAfterAdj += (ValidFrom - KUnixTime::now()).seconds().count();
+		}
+
+		if (!::X509_gmtime_adj(X509_getm_notAfter(m_X509Cert), iNotAfterAdj))
+		{
+			return SetError(KDigest::GetOpenSSLError(kFormat("error setting validity to {}", ValidFor)));
+		}
 	}
 
 	// public key for cert
@@ -235,7 +274,7 @@ bool KRSACert::Create
 #if OPENSSL_VERSION_NUMBER >= 0x010101000
 		EVP_sha3_256()
 #else
-		EVP_sha1()
+		EVP_sha256()
 #endif
 	))
 	{
@@ -595,7 +634,7 @@ KString KRSACert::CheckOrCreateKeyAndCert
 
 		if (Key.HasError())
 		{
-			SetError(Key.GetLastError());
+			return SetError(Key.GetLastError());
 		}
 
 		KRSACert Cert;

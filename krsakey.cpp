@@ -66,16 +66,24 @@ DEKAF2_NAMESPACE_BEGIN
 KRSAKey::KRSAKey(KRSAKey&& other) noexcept
 //---------------------------------------------------------------------------
 : m_EVPPKey(other.m_EVPPKey)
+, m_bIsPrivateKey(other.m_bIsPrivateKey)
 {
-	other.m_EVPPKey = nullptr;
+	other.m_EVPPKey       = nullptr;
+	other.m_bIsPrivateKey = false;
 }
 
 //---------------------------------------------------------------------------
 KRSAKey& KRSAKey::operator=(KRSAKey&& other) noexcept
 //---------------------------------------------------------------------------
 {
-	m_EVPPKey = other.m_EVPPKey;
-	other.m_EVPPKey = nullptr;
+	if (this != &other)
+	{
+		clear();
+		m_EVPPKey             = other.m_EVPPKey;
+		m_bIsPrivateKey       = other.m_bIsPrivateKey;
+		other.m_EVPPKey       = nullptr;
+		other.m_bIsPrivateKey = false;
+	}
 	return *this;
 }
 
@@ -187,10 +195,18 @@ bool KRSAKey::Create(const Parameters& parms)
 		KUniquePtr<BIGNUM, ::BN_free> bnQI (Base64ToBignum (parms.qi));
 
 		if (::OSSL_PARAM_BLD_push_BN(params_build.get(), "n", bnN.get()) != 1 ||
-			::OSSL_PARAM_BLD_push_BN(params_build.get(), "e", bnE.get()) != 1 ||
-			::OSSL_PARAM_BLD_push_BN(params_build.get(), "d", bnD.get()) != 1)
+			::OSSL_PARAM_BLD_push_BN(params_build.get(), "e", bnE.get()) != 1)
 		{
 			return SetError(KDigest::GetOpenSSLError("cannot build key"));
+		}
+
+		if (bnD)
+		{
+			if (::OSSL_PARAM_BLD_push_BN(params_build.get(), "d", bnD.get()) != 1)
+			{
+				return SetError(KDigest::GetOpenSSLError("cannot build key"));
+			}
+			m_bIsPrivateKey = true;
 		}
 
 		if (bnP && bnQ)
@@ -221,11 +237,11 @@ bool KRSAKey::Create(const Parameters& parms)
 	}
 
 	// Create RSA key from params
-	auto ctx = ::EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr);
+	KUniquePtr<EVP_PKEY_CTX, ::EVP_PKEY_CTX_free> ctx(::EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr));
 
 	if (!ctx
-		|| ::EVP_PKEY_fromdata_init(ctx) != 1
-		|| ::EVP_PKEY_fromdata(ctx, &m_EVPPKey, EVP_PKEY_KEYPAIR, params.get()) != 1)
+		|| ::EVP_PKEY_fromdata_init(ctx.get()) != 1
+		|| ::EVP_PKEY_fromdata(ctx.get(), &m_EVPPKey, m_bIsPrivateKey ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY, params.get()) != 1)
 	{
 		return SetError(KDigest::GetOpenSSLError("cannot build key"));
 	}
@@ -285,7 +301,7 @@ bool KRSAKey::Create(const Parameters& parms)
 		return SetError(KDigest::GetOpenSSLError("cannot build key"));
 	}
 
-	EVP_PKEY_assign(m_EVPPKey, EVP_PKEY_RSA, rsa.get());
+	EVP_PKEY_assign(m_EVPPKey, EVP_PKEY_RSA, rsa.release());
 
 #endif
 
@@ -309,7 +325,7 @@ bool KRSAKey::Create(KStringView sPEMKey, KStringViewZ sPassword)
 		{
 			auto iPosBegin = sPEMKey.rfind("---BEGIN ", iPosPriv);
 
-			if (iPosBegin != KStringView::npos && iPosPriv - iPosBegin < 10)
+			if (iPosBegin != KStringView::npos && iPosPriv - iPosBegin < 25)
 			{
 				bIsPrivateKey = true;
 			}
@@ -388,7 +404,7 @@ KString KRSAKey::GetPEM(bool bPrivateKey, KStringView sPassword)
 			}
 		}
 
-		ec = ::PEM_write_bio_PrivateKey(key_bio.get(), GetEVPPKey(), nullptr, keystr, keylen, nullptr, nullptr);
+		ec = ::PEM_write_bio_PrivateKey(key_bio.get(), GetEVPPKey(), keystr ? EVP_aes_256_cbc() : nullptr, keystr, keylen, nullptr, nullptr);
 	}
 	else
 	{

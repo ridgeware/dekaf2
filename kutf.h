@@ -170,9 +170,6 @@
  /// to the begin of the following codepoint. If at call it == ie -> undefined behavior
  codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 
- /// Return next codepoint from repeatedly calling a ReadFunc that returns single chars
- codepoint_t CodepointFromUTF8Reader(ReadFunc Read, int eof=-1)
-
  --- move iterator
 
  /// if not at the start of a UTF8/16/32 sequence then advance the input iterator until the end of the current UTF sequence
@@ -936,7 +933,7 @@ codepoint_t CodepointFromUTF8(Iterator& it, Iterator ie)
 		else if ((ch & 0x0f0) == 0x0e0)
 		{
 			codepoint_t codepoint    = (ch & 0x0f) << 12;
-			bool bCheckForSurrogates = ch == 0xbd;
+			bool bCheckForSurrogates = ch == 0xed;
 
 			if (it == ie) break;
 			auto ch1 = CodepointCast(*it); ++it;
@@ -2004,8 +2001,6 @@ bool ForEach(Iterator it, Iterator ie, Functor func)
 		return true;
 #endif
 	}
-
-	return false;
 }
 
 //-----------------------------------------------------------------------------

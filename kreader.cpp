@@ -117,7 +117,15 @@ bool kAppendAllUnseekable(std::istream& Stream, KStringRef& sContent, std::size_
 	DEKAF2_TRY_EXCEPTION
 	for (;;)
 	{
-		auto iRead = streambuf->sgetn(buf.data(), std::min(iLimit, buf.size()));
+		auto iRemaining = (sContent.size() < iMaxRead) ? (iMaxRead - sContent.size()) : std::size_t(0);
+		auto iChunk     = std::min(iRemaining, buf.size());
+
+		if (iChunk == 0)
+		{
+			return true;
+		}
+
+		auto iRead = streambuf->sgetn(buf.data(), iChunk);
 
 		if (DEKAF2_LIKELY(iRead > 0))
 		{
@@ -138,7 +146,7 @@ bool kAppendAllUnseekable(std::istream& Stream, KStringRef& sContent, std::size_
 			}
 		}
 
-		if (DEKAF2_UNLIKELY(iRead < static_cast<std::streamsize>(buf.size())))
+		if (DEKAF2_UNLIKELY(iRead < static_cast<std::streamsize>(iChunk)))
 		{
 			// either eof or other error
 			break;
@@ -402,6 +410,13 @@ bool myLocalGetline(std::istream&       Stream,
 		Stream.setstate(std::ios::failbit);
 
 		return false;
+	}
+
+	// add a safety limit to prevent unbounded memory growth when no explicit limit was set
+	if (iMaxRead == npos)
+	{
+		static const auto iMemLimit = std::min(std::size_t(1024*1024*1024), kGetPhysicalMemory() / 4);
+		iMaxRead = iMemLimit;
 	}
 
 	for (;;)
@@ -745,8 +760,9 @@ KInStream::KInStream(self_type&& other)
 {
 	this->m_InStream = other.m_InStream;
 	this->m_Config   = other.m_Config;
-	other.m_InStream = nullptr;
-	other.m_Config   = nullptr;
+	// leave the moved-from object in a valid state to prevent null dereference
+	other.m_InStream = &kGetNullIStream();
+	other.m_Config   = Config::Create(KStringView{}, KStringView{}, '\n', true);
 }
 
 //-----------------------------------------------------------------------------
@@ -756,8 +772,9 @@ KInStream& KInStream::operator=(KInStream&& other)
 	Config::Delete(this->m_Config);
 	this->m_InStream = other.m_InStream;
 	this->m_Config   = other.m_Config;
-	other.m_InStream = nullptr;
-	other.m_Config   = nullptr;
+	// leave the moved-from object in a valid state to prevent null dereference
+	other.m_InStream = &kGetNullIStream();
+	other.m_Config   = Config::Create(KStringView{}, KStringView{}, '\n', true);
 	return *this;
 }
 

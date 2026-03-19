@@ -42,6 +42,7 @@
 #include "kread.h"
 #include "klog.h"
 #include "kcompatibility.h"
+#include <limits>
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <io.h>
@@ -139,31 +140,66 @@ std::size_t kRead(FILE* fp, void* sBuffer, std::size_t iCount)
 		return 0;
 	}
 
-	std::size_t iRead;
-
-	do
-	{
-		iRead = std::fread(sBuffer, 1, iCount, fp);
-	}
-	while (iRead == 0 && errno == EINTR);
-
 	// we use these readers and writers in pipes and shells
 	// which may die and generate a SIGCHLD, which interrupts
 	// file reads and writes..
 	// see https://stackoverflow.com/a/53245808 for a discussion of
 	// possible behavior
 
-	if (iRead == 0)
+	auto chBuffer = static_cast<char*>(sBuffer);
+
+	std::size_t iWant  { iCount };
+	std::size_t iTotal { 0 };
+
+	for (;;)
 	{
-		kDebug(1, "cannot read from file: {}", strerror(errno));
-	}
-	else if (iRead < iCount)
-	{
-		// do some logging
-		kDebug(1, "could only read {} bytes instead of {} from file: {}", iRead, iCount, strerror(errno));
+		auto iRead = std::fread(chBuffer, 1, iWant, fp);
+
+		if (DEKAF2_LIKELY(iRead > 0))
+		{
+			iTotal += iRead;
+
+			if (DEKAF2_LIKELY(iTotal >= iCount))
+			{
+				// we read the requested amount, this is the normal exit
+				break;
+			}
+
+			chBuffer += iRead;
+			iWant    -= iRead;
+		}
+
+		if (DEKAF2_UNLIKELY(iRead < iWant))
+		{
+			if (std::feof(fp))
+			{
+				// EOF, we read less than requested, but that is OK as we
+				// reached the end of file
+				break;
+			}
+
+			if (std::ferror(fp))
+			{
+				// repeat if we got interrupted
+				if (errno == EINTR)
+				{
+					std::clearerr(fp);
+					continue;
+				}
+
+				// else we got another error
+				kDebug(1, "cannot read from file: {}", strerror(errno));
+				// invalidate return, we did not fullfill our contract
+				iTotal = 0;
+				break;
+			}
+
+			// unexpected short read without feof/ferror - avoid infinite loop
+			break;
+		}
 	}
 
-	return iRead;
+	return iTotal;
 
 } // kRead
 
@@ -229,8 +265,15 @@ std::size_t kRead(std::istream& Stream, char& ch)
 //-----------------------------------------------------------------------------
 {
 	auto iCh = kRead(Stream);
+
+	if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+	{
+		ch = 0;
+		return 0;
+	}
+
 	ch = std::istream::traits_type::to_char_type(iCh);
-	return (std::ostream::traits_type::eq_int_type(iCh, std::ostream::traits_type::eof())) ? 0 : 1;
+	return 1;
 
 } // kRead
 
@@ -298,7 +341,7 @@ ssize_t kGetSize(std::istream& Stream, bool bFromStart)
 
 		if (endPos != curPos)
 		{
-			streambuf->pubseekoff(curPos, std::ios_base::beg, std::ios_base::in);
+			streambuf->pubseekpos(curPos, std::ios_base::in);
 		}
 
 		if (bFromStart)
@@ -337,7 +380,13 @@ bool kSetReadPosition(std::istream& Stream, std::size_t iPos)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(iPos, std::ios_base::beg, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+
+	if (iPos > static_cast<std::size_t>(std::numeric_limits<std::streambuf::off_type>::max()))
+	{
+		return false;
+	}
+
+	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(static_cast<std::streambuf::off_type>(iPos), std::ios_base::beg, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
 	DEKAF2_LOG_EXCEPTION
 
 	return false;
@@ -361,7 +410,13 @@ bool kForward(std::istream& Stream, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(iCount, std::ios_base::cur, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
+
+	if (iCount > static_cast<std::size_t>(std::numeric_limits<std::streambuf::off_type>::max()))
+	{
+		return false;
+	}
+
+	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(static_cast<std::streambuf::off_type>(iCount), std::ios_base::cur, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
 	DEKAF2_LOG_EXCEPTION
 
 	return false;
@@ -373,7 +428,13 @@ bool kRewind(std::istream& Stream, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY_EXCEPTION
-	auto iOffset = static_cast<std::streambuf::off_type>(iCount) * -1;
+
+	if (iCount > static_cast<std::size_t>(std::numeric_limits<std::streambuf::off_type>::max()))
+	{
+		return false;
+	}
+
+	auto iOffset = -static_cast<std::streambuf::off_type>(iCount);
 	return Stream.rdbuf() && Stream.rdbuf()->pubseekoff(iOffset, std::ios_base::cur, std::ios_base::in) != std::streambuf::pos_type(std::streambuf::off_type(-1));
 	DEKAF2_LOG_EXCEPTION
 

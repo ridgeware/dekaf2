@@ -336,44 +336,12 @@ KStringView Dekaf::GetVersion()
 }
 
 //---------------------------------------------------------------------------
-KUnixTime Dekaf::GetCurrentTime() const
-//---------------------------------------------------------------------------
-{
-#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10) || \
-	(DEKAF2_IS_CLANG && DEKAF2_CLANG_VERSION_MAJOR < 9)
-	// GCC 8/9 does not accept an atomic timepoint
-	return KUnixTime::now();
-#else
-	if (DEKAF2_UNLIKELY(!m_Timer))
-	{
-		return KUnixTime::now();
-	}
-	else
-	{
-		return m_iCurrentTime;
-	}
-#endif
-}
-
-//---------------------------------------------------------------------------
 void Dekaf::StartDefaultTimer()
 //---------------------------------------------------------------------------
 {
 	if (!m_Timer)
 	{
-		// make sure we have an initial value set for
-		// the time keepers
-		m_iCurrentTime = KUnixTime::now();
-
-		// create a KTimer
 		m_Timer = std::make_unique<KTimer>();
-
-		// and start the timer that updates the time keepers
-		m_OneSecTimerID = m_Timer->CallEvery(std::chrono::seconds(1), [this](KUnixTime tp)
-		{
-			this->OneSecTimer(tp);
-		}
-		, false);
 	}
 }
 
@@ -398,33 +366,6 @@ KTimer& Dekaf::GetTimer()
 	return *m_Timer;
 }
 
-//---------------------------------------------------------------------------
-void Dekaf::OneSecTimer(KUnixTime tp)
-//---------------------------------------------------------------------------
-{
-	m_iCurrentTime = tp;
-
-	if (m_OneSecTimerMutex.try_lock())
-	{
-		for (const auto& it : m_OneSecTimers)
-		{
-			it();
-		}
-
-		m_OneSecTimerMutex.unlock();
-	}
-}
-
-//---------------------------------------------------------------------------
-bool Dekaf::AddToOneSecTimer(OneSecCallback CB)
-//---------------------------------------------------------------------------
-{
-	std::lock_guard<std::mutex> Lock(m_OneSecTimerMutex);
-
-	m_OneSecTimers.push_back(CB);
-
-	return true;
-}
 
 //---------------------------------------------------------------------------
 void Dekaf::Daemonize()
@@ -507,7 +448,6 @@ pid_t Dekaf::Fork()
 		m_Timer->CleanupChildAfterFork();
 		// remove remaining memory for a child KTimer class
 		m_Timer.reset();
-		m_OneSecTimers.clear();
 		// now start a pristine KTimer in the child
 		StartDefaultTimer();
 	}

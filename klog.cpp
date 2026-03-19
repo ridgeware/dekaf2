@@ -165,10 +165,11 @@ KLog::KLog()
 
 	CheckDebugFlag();
 
-	Dekaf::getInstance().AddToOneSecTimer([this]()
+	Dekaf::getInstance().GetTimer().CallEvery(chrono::seconds(5), [this](KUnixTime)
 	{
 		this->CheckDebugFlag();
-	});
+
+	}, false);
 
 } // ctor
 

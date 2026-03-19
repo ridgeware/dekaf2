@@ -54,8 +54,6 @@
 #include "ksignals.h"
 #include "ksystem.h"
 #include <atomic>
-#include <vector>
-#include <thread>
 
 /// @namespace dekaf2 The basic dekaf2 library namespace. All functions,
 /// variables and classes are prefixed with this namespace.
@@ -138,19 +136,28 @@ public:
 	}
 
 	//---------------------------------------------------------------------------
+	/// DEPRECATED
 	/// Get current time without constantly querying the OS
-	KUnixTime GetCurrentTime() const;
+	/// This is no more necessary with moden OSs all using vDSO access and the hardware timer, no kernel switch.
+	/// New code should use KUnixTime::now() directly
+	static KUnixTime GetCurrentTime()
 	//---------------------------------------------------------------------------
+	{
+		return KUnixTime::now();
+	}
 
 #if DEKAF2_IS_WINDOWS && !defined(GetCurrentTime)
 	// Windows has a #define GetCurrentTime() GetTickCount() in WinBase.h ..
-	inline
+	inline static
 	KUnixTime GetTickCount() const { return (GetCurrentTime()); }
 #endif
 
 	//---------------------------------------------------------------------------
+	/// DEPRECATED
 	/// Get current time without constantly querying the OS
-	KUnixTime GetCurrentTimepoint() const
+	/// see above, no more needed.
+	/// New code should use KUnixTime::now() directly
+	static KUnixTime GetCurrentTimepoint()
 	//---------------------------------------------------------------------------
 	{
 		return GetCurrentTime();
@@ -170,13 +177,6 @@ public:
 	/// Returns Dekaf's main timing object so you can add more callbacks
 	/// without having to maintain another timer object
 	KTimer& GetTimer();
-	//---------------------------------------------------------------------------
-
-	using OneSecCallback = std::function<void(void)>;
-	//---------------------------------------------------------------------------
-	/// Add a (fast executing) callback to the general timing loop of
-	/// Dekaf. Cannot be removed later.
-	bool AddToOneSecTimer(OneSecCallback CB);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -246,11 +246,6 @@ private:
 	Dekaf();
 
 	//---------------------------------------------------------------------------
-	/// The core timer for dekaf, called every second
-	void OneSecTimer(KUnixTime tp);
-	//---------------------------------------------------------------------------
-
-	//---------------------------------------------------------------------------
 	void StartDefaultTimer();
 	//---------------------------------------------------------------------------
 
@@ -263,15 +258,6 @@ private:
 	KStringViewZ m_sProgName;
 	std::unique_ptr<KSignals> m_Signals;
 	std::unique_ptr<KTimer> m_Timer;
-	KTimer::ID_t m_OneSecTimerID;
-	std::mutex m_OneSecTimerMutex;
-	std::vector<OneSecCallback> m_OneSecTimers;
-#if (DEKAF2_IS_GCC && DEKAF2_GCC_VERSION_MAJOR < 10) || \
-	(DEKAF2_IS_CLANG && DEKAF2_CLANG_VERSION_MAJOR < 9)
-	KUnixTime m_iCurrentTime;
-#else
-	std::atomic<KUnixTime> m_iCurrentTime;
-#endif
 	bool m_bInConstruction { true };
 	static std::atomic<bool> s_bStarted;
 	static std::atomic<bool> s_bShutdown;

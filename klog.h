@@ -491,10 +491,9 @@ public:
 #endif
 
 	//---------------------------------------------------------------------------
-	/// Registered with Dekaf::AddToOneSecTimer() at construction, gets
-	/// called every second and reconfigures debug level, output, and format
-	/// if changed
-	void CheckDebugFlag (bool bForce=false)
+	/// Registered with Dekaf2's KTimer at construction, gets called every
+	/// five seconds and reconfigures debug level, output, and format if changed
+	void CheckDebugFlag (bool bForce = false)
 	//---------------------------------------------------------------------------
 #ifdef DEKAF2_WITH_KLOG
 	;

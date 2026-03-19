@@ -49,8 +49,8 @@
 #include "ksystem.h"
 #include "kctype.h"
 #include "kinshell.h"
-#include "kfilesystem.h"
 #include "kinstringstream.h"
+#include "kstringutils.h"
 #include "kuuid.h"
 #include <utility>
 
@@ -58,7 +58,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 #ifndef DEKAF2_IS_WINDOWS
 KThreadSafe<KUnorderedMap<KString, KString>> KMIME::s_ExtMap;
-bool KMIME::s_bHasExtensions { false };
+std::atomic<bool> KMIME::s_bHasExtensions { false };
 #endif
 
 //-----------------------------------------------------------------------------
@@ -241,7 +241,7 @@ bool KMIME::ByInspection(KStringViewZ sFilename, KStringView Default)
 #ifndef DEKAF2_IS_WINDOWS
 	if (kNonEmptyFileExists(sFilename))
 	{
-		KInShell Shell(kFormat("file --mime-type '{}'", sFilename));
+		KInShell Shell(kFormat("file --mime-type \"{}\"", kEscapeForQuotedCommands(sFilename)));
 
 		if (Shell.is_open())
 		{
@@ -315,8 +315,6 @@ bool KMIME::IsCompressible()
 		default:
 			return true;
 	}
-
-	return true;
 
 } // IsCompressible
 
@@ -900,6 +898,7 @@ KMIMEReceiveMultiPartFormData::File::File(KStringView sFilename, KMIME Mime)
 	KStringView sOrigFilename = kBasename(sFilename);
 
 	m_sFilename = kMakeSafeFilename(sOrigFilename);
+	m_Mime      = std::move(Mime);
 
 	if (m_sFilename != sOrigFilename)
 	{
@@ -1080,7 +1079,7 @@ bool KMIMEReceiveMultiPartFormData::ReadFromStream(KInStream& InStream)
 
 			if (!OutFile.is_open())
 			{
-				return SetError(kFormat("cannot open file: ", sOutFile));
+				return SetError(kFormat("cannot open file: {}", sOutFile));
 			}
 
 			std::size_t iPos { 0 };

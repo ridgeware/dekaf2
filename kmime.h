@@ -50,6 +50,7 @@
 #ifndef DEKAF2_IS_WINDOWS
 	#include "kthreadsafe.h"
 	#include "kassociative.h"
+	#include <atomic>
 #endif
 
 #ifndef DEKAF2_HAS_CPP_17
@@ -299,7 +300,7 @@ private:
 
 #ifndef DEKAF2_IS_WINDOWS
 	static KThreadSafe<KUnorderedMap<KString, KString>> s_ExtMap;
-	static bool s_bHasExtensions;
+	static std::atomic<bool> s_bHasExtensions;
 #endif
 
 	KString m_mime { NONE };
@@ -325,7 +326,8 @@ public:
 	// template instantiation
 	using Storage = std::vector<KMIMEPart>;
 #endif
-	using iterator = Storage::iterator;
+	using iterator       = Storage::iterator;
+	using const_iterator = Storage::const_iterator;
 
 	KMIMEPart(KMIME MIME = KMIME::NONE);
 	KMIMEPart(KString sMessage, KMIME MIME);
@@ -360,7 +362,7 @@ public:
 	KString Serialize(bool bForHTTP = false, const KReplacer& Replacer = KReplacer{}, uint16_t recursion = 0) const;
 
 	/// is this part empty?
-	bool empty() const { return m_Parts.empty(); }
+	bool empty() const { return m_Parts.empty() && m_Data.empty(); }
 	/// how many (multi) parts does this struct contain
 	DEKAF2_NODISCARD
 	Storage::size_type size() const { return m_Parts.size(); }
@@ -370,6 +372,12 @@ public:
 	/// return iterator to the end of the struct of parts
 	DEKAF2_NODISCARD
 	iterator end() { return m_Parts.end(); }
+	/// return const iterator to the begin of the struct of parts
+	DEKAF2_NODISCARD
+	const_iterator begin() const { return m_Parts.begin(); }
+	/// return const iterator to the end of the struct of parts
+	DEKAF2_NODISCARD
+	const_iterator end() const { return m_Parts.end(); }
 	DEKAF2_NODISCARD
 	KMIMEPart& operator[](size_t pos) { return m_Parts[pos]; }
 	DEKAF2_NODISCARD

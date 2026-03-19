@@ -43,6 +43,7 @@
 #include "kdefinitions.h"
 #include "ktime.h"
 #include "bits/kfilesystem.h"
+#include "dekaf2.h"
 #include "kcompatibility.h"
 #include "kfilesystem.h"
 #include "ksystem.h"

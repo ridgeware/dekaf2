@@ -46,6 +46,7 @@
 #include "krestserver.h"
 #include "kencode.h"
 #include "ktime.h"
+#include "ksystem.h"
 
 DEKAF2_NAMESPACE_BEGIN
 

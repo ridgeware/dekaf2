@@ -45,6 +45,7 @@
 #include "klambdastream.h"
 #include "kfilesystem.h"
 #include "kstringutils.h"
+#include "ksystem.h"
 #include "kscopeguard.h"
 #include <utility>
 

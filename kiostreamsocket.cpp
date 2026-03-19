@@ -173,32 +173,25 @@ int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAn
 		}
 	}
 
-	for (;;)
+	auto iResult = kPoll(GetNativeSocket(), what, Timeout);
+
+	if (iResult == 0)
 	{
-		auto iResult = kPoll(GetNativeSocket(), what, Timeout);
-
-		if (iResult == 0)
+		// timed out, no events
+		if (bTimeoutIsAnError)
 		{
-			// timed out, no events
-			if (bTimeoutIsAnError)
-			{
-				SetError(kFormat("connection with {} timed out after {}", GetEndPoint().empty() ? GetEndPointAddress() : GetEndPoint(), Timeout));
-			}
-			return 0;
+			SetError(kFormat("connection with {} timed out after {}", GetEndPoint().empty() ? GetEndPointAddress() : GetEndPoint(), Timeout));
 		}
-		else if (iResult < 0)
-		{
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			SetErrnoError("error during poll: ");
-			return 0;
-		}
-
-		// event(s) triggered
-		return iResult;
+		return 0;
 	}
+	else if (iResult < 0)
+	{
+		SetErrnoError("error during poll: ");
+		return 0;
+	}
+
+	// event(s) triggered
+	return iResult;
 
 } // CheckIfReady
 

@@ -39,10 +39,10 @@
 */
 
 #include "kpoll.h"
-
 #include "klog.h"
 #include "ksystem.h"
 #include "kcompatibility.h"
+#include "kduration.h"
 
 #if !DEKAF2_IS_WINDOWS
 	#include <sys/types.h>
@@ -109,14 +109,18 @@ int kPoll(int handle, int what, KDuration Timeout)
 	pollfd.events = what & (POLLPRI | POLLRDBAND | POLLRDNORM | POLLWRNORM);
 #endif
 
+	auto Remaining = Timeout;
+
 	for (;;)
 	{
 		pollfd.revents = 0;
 
+		auto Start = KSteadyTime::now();
+
 #if !DEKAF2_IS_WINDOWS
-		int iResult = ::poll(&pollfd, 1, static_cast<int>(Timeout.milliseconds().count()));
+		int iResult = ::poll(&pollfd, 1, static_cast<int>(Remaining.milliseconds().count()));
 #else
-		int iResult = WSAPoll(&pollfd, 1, static_cast<INT>(Timeout.milliseconds().count()));
+		int iResult = WSAPoll(&pollfd, 1, static_cast<INT>(Remaining.milliseconds().count()));
 #endif
 
 		if (iResult == 0)
@@ -130,18 +134,26 @@ int kPoll(int handle, int what, KDuration Timeout)
 		{
 			if (errno == EINTR)
 			{
-				// interrupt
+				// adjust remaining timeout after interrupt
+				auto Elapsed = KDuration(KSteadyTime::now() - Start);
+
+				if (Elapsed >= Remaining)
+				{
+					return 0;
+				}
+
+				Remaining -= Elapsed;
 				continue;
 			}
 
 			kDebug(3, GetPollError());
-			return 0;
+			return -errno;
 		}
 #else
 		if (iResult == SOCKET_ERROR)
 		{
 			kDebug(3, GetPollError());
-			return 0;
+			return -1;
 		}
 #endif
 		// data available
@@ -186,14 +198,22 @@ void KPoll::Start()
 void KPoll::Stop()
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+	std::unique_ptr<std::thread> Thread;
 
-	if (m_Thread)
 	{
-		kDebug(1, "stopping watcher");
-		m_bStop = true;
-		m_Thread->join();
-		m_Thread.reset();
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+
+		if (m_Thread)
+		{
+			kDebug(1, "stopping watcher");
+			m_bStop = true;
+			Thread = std::move(m_Thread);
+		}
+	}
+
+	if (Thread)
+	{
+		Thread->join();
 		kDebug(1, "watcher stopped");
 	}
 
@@ -213,11 +233,15 @@ void KPoll::Add(int fd, Parameters Parms)
 #ifdef DEKAF2_HAS_CPP_17
 	m_FileDescriptors.insert_or_assign(fd, std::move(Parms));
 #else
-	auto pair = m_FileDescriptors.insert({fd, Parms});
+	auto it = m_FileDescriptors.find(fd);
 
-	if (!pair.second)
+	if (it != m_FileDescriptors.end())
 	{
-		pair.first->second = std::move(Parms);
+		it->second = std::move(Parms);
+	}
+	else
+	{
+		m_FileDescriptors.emplace(fd, std::move(Parms));
 	}
 #endif
 
@@ -418,7 +442,7 @@ void KSocketWatch::Watch()
 		}
 
 #if DEKAF2_IS_WINDOWS
-		auto iEvents = ::WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), static_cast<ULONG>(m_Timeout.milliseconds().count()));
+		auto iEvents = ::WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), static_cast<INT>(m_Timeout.milliseconds().count()));
 #else
 		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), static_cast<int>(m_Timeout.milliseconds().count()));
 #endif

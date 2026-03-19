@@ -67,7 +67,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// @param fd a file descriptor
 /// @param what which events to look for
 /// @param Timeout timeout
-/// @return >0 the triggered events, 0 timeout, < 0 errno error number
+/// @return >0 the triggered events, 0 timeout, < 0 errno error number * -1
 int kPoll(int fd, int what, KDuration Timeout);
 //-----------------------------------------------------------------------------
 

@@ -141,6 +141,41 @@ TEST_CASE("KCType")
 			CHECK ( KASCII::kIsSpace(ch) == bIsSpace );
 		}
 	}
+
+	SECTION("ASCII consistency with libc")
+	{
+		for (int ch = 0; ch < 128; ++ch)
+		{
+			INFO ( "codepoint " << ch );
+			CHECK ( KASCII::kIsSpace (ch) == (std::isspace (ch) != 0) );
+			CHECK ( KASCII::kIsBlank (ch) == (std::isblank (ch) != 0) );
+			CHECK ( KASCII::kIsUpper (ch) == (std::isupper (ch) != 0) );
+			CHECK ( KASCII::kIsLower (ch) == (std::islower (ch) != 0) );
+			CHECK ( KASCII::kIsAlpha (ch) == (std::isalpha (ch) != 0) );
+			CHECK ( KASCII::kIsDigit (ch) == (std::isdigit (ch) != 0) );
+			CHECK ( KASCII::kIsXDigit(ch) == (std::isxdigit(ch) != 0) );
+			CHECK ( KASCII::kIsAlNum (ch) == (std::isalnum (ch) != 0) );
+			CHECK ( KASCII::kIsPunct (ch) == (std::ispunct (ch) != 0) );
+			CHECK ( KASCII::kToLower (static_cast<char>(ch)) == static_cast<char>(std::tolower(ch)) );
+			CHECK ( KASCII::kToUpper (static_cast<char>(ch)) == static_cast<char>(std::toupper(ch)) );
+
+			// KASCII treats BL (blank: HT 0x09) as printable and non-control,
+			// while libc considers HT non-printable and a control character.
+			// This is an intentional KASCII design choice, so only check
+			// kIsPrint and kIsCntrl for non-blank control characters.
+			if (!KASCII::kIsBlank(ch))
+			{
+				CHECK ( KASCII::kIsPrint(ch) == (std::isprint(ch) != 0) );
+				CHECK ( KASCII::kIsCntrl(ch) == (std::iscntrl(ch) != 0) );
+			}
+		}
+
+		// verify the known KASCII divergence for HT explicitly
+		CHECK ( KASCII::kIsPrint('\t') == true  );  // KASCII: blank is printable
+		CHECK ( (std::isprint('\t') != 0) == false );  // libc: HT is not printable
+		CHECK ( KASCII::kIsCntrl('\t') == false );  // KASCII: blank is not control
+		CHECK ( (std::iscntrl('\t') != 0) == true  );  // libc: HT is control
+	}
 }
 
 #endif // Windows

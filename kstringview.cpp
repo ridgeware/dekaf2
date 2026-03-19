@@ -69,8 +69,7 @@ std::size_t kFind(const KStringView haystack,
 
 	if (DEKAF2_UNLIKELY(!iNeedleSize))
 	{
-		// the empty string is always existing at the start of haystack
-		return 0;
+		return (pos <= haystack.size()) ? pos : npos;
 	}
 
 	if (DEKAF2_UNLIKELY(pos >= haystack.size()))
@@ -123,7 +122,7 @@ std::size_t kRFind(const KStringView haystack,
 
 	if (DEKAF2_UNLIKELY(!iNeedleSize))
 	{
-		return haystack.size();
+		return std::min(pos, haystack.size());
 	}
 
 	const auto iHaystackSize = haystack.size();

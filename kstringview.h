@@ -137,7 +137,7 @@ public:
 	using reference              = rep_type::reference;
 	using const_reference        = reference;
 	using pointer                = value_type*;
-	using const_pointer          = const pointer;
+	using const_pointer          = const value_type*;
 	using traits_type            = rep_type::traits_type;
 
 	static constexpr size_type npos = size_type(-1);

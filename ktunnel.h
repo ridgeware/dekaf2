@@ -349,15 +349,11 @@ private:
 	/// danger!
 	KIOStreamSocket* GetStream() { return m_Tunnel.shared()->Stream.get(); }
 
-	void TimerLoop       ();
-
 	struct TunnelEnv
 	{
 		std::unique_ptr<KIOStreamSocket> Stream;
 		std::unique_ptr<KBlockCipher>    Encryptor;
 		std::unique_ptr<KBlockCipher>    Decryptor;
-		KStopTime                        LastTx;
-		KSteadyTime                      SendIdleNotBefore;
 	};
 
 	Config                 m_Config;
@@ -366,10 +362,8 @@ private:
 	KThreads               m_Threads;
 	KDuration              m_RTT;
 	KTimer::ID_t           m_TimerID       { KTimer::InvalidID };
-	std::thread            m_Timer;
 	bool                   m_bWaitForLogin { false };
 	bool                   m_bMaskTx       { false };
-	std::atomic<bool>      m_bQuit         { false };
 
 }; // KTunnel
 

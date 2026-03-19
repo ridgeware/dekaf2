@@ -730,7 +730,14 @@ KTunnel::KTunnel
 		throw KError("Stream is nullptr in KTunnel::KTunnel()");
 	}
 
-	m_Tunnel.unique()->Stream = std::move(Stream);
+	{
+		auto Tunnel = m_Tunnel.unique();
+		Tunnel->Stream = std::move(Stream);
+
+		// disable Nagle's algorithm on the tunnel stream to avoid
+		// delaying the last TLS record of large transmissions
+		Tunnel->Stream->SetNoDelay(true);
+	}
 
 	auto bIsClient = !sUser.empty() || !sSecret.empty();
 
@@ -754,16 +761,9 @@ KTunnel::KTunnel
 KTunnel::~KTunnel()
 //-----------------------------------------------------------------------------
 {
-	m_bQuit = true;
-
 	if (m_TimerID != KTimer::InvalidID)
 	{
 		Dekaf::getInstance().GetTimer().Cancel(m_TimerID);
-	}
-
-	if (m_Timer.joinable())
-	{
-		m_Timer.join();
 	}
 
 } // KTunnel::~KTunnel
@@ -928,21 +928,9 @@ void KTunnel::WriteMessage(Message&& message)
 			if (Tunnel->Stream->IsWriteReady(KDuration()))
 			{
 				kDebug(3, message.Debug());
-				auto mtype = message.GetType();
 				KStopTime Stop;
 				message.Write(*Tunnel->Stream, m_bMaskTx, Tunnel->Encryptor.get());
 				kDebug(3, "took {}", Stop.elapsed());
-
-				if (mtype == Message::Data)
-				{
-					Tunnel->LastTx.clear();
-					Tunnel->SendIdleNotBefore = KStopTime::now() + chrono::milliseconds(500);
-				}
-				else if (mtype == Message::Idle)
-				{
-					Tunnel->SendIdleNotBefore = KStopTime::now() + chrono::milliseconds(500);
-				}
-
 				break;
 			}
 		}
@@ -951,43 +939,6 @@ void KTunnel::WriteMessage(Message&& message)
 	}
 
 } // KTunnel::WriteMessage
-
-//-----------------------------------------------------------------------------
-void KTunnel::TimerLoop()
-//-----------------------------------------------------------------------------
-{
-	for (;!m_bQuit;)
-	{
-		kSleep(chrono::milliseconds(250));
-
-		bool bSendIdle = false;
-
-		{
-			auto Tunnel = m_Tunnel.unique();
-
-			if (Tunnel->Stream)
-			{
-				auto now = KStopTime::now();
-
-				auto LastTx = now - Tunnel->LastTx.getStart();
-
-				if (LastTx >= chrono::milliseconds(500) && LastTx <= chrono::milliseconds(1600))
-				{
-					if (Tunnel->SendIdleNotBefore <= now)
-					{
-						bSendIdle = true;
-					}
-				}
-			}
-		}
-
-		if (bSendIdle)
-		{
-			WriteMessage(Message(Message::Idle, 0));
-		}
-	}
-
-} // KTunnel::TimerLoop
 
 //-----------------------------------------------------------------------------
 void KTunnel::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
@@ -1278,19 +1229,6 @@ void KTunnel::Run()
 	}
 
 	SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
-
-	// disable Nagle's algorithm on the tunnel stream to avoid
-	// stalling the last TLS record of large transmissions
-	{
-		auto Tunnel = m_Tunnel.shared();
-
-		if (Tunnel->Stream)
-		{
-			Tunnel->Stream->SetNoDelay(true);
-		}
-	}
-
-	m_Timer = std::thread(&KTunnel::TimerLoop, this);
 
 	for (;HaveTunnel();)
 	{

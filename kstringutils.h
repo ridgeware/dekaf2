@@ -307,7 +307,7 @@ StringView kMid(const String& sInput, std::size_t iStart)
 //-----------------------------------------------------------------------------
 {
 	if (iStart > sInput.size()) iStart = sInput.size();
-	return StringView(&sInput[iStart], sInput.size() - iStart);
+	return StringView(sInput.data() + iStart, sInput.size() - iStart);
 }
 
 //-----------------------------------------------------------------------------
@@ -319,7 +319,7 @@ StringView kMid(const String& sInput, std::size_t iStart, std::size_t iCount)
 {
 	if (iStart > sInput.size()) iStart = sInput.size();
 	if (iCount > sInput.size() - iStart) iCount = sInput.size() - iStart;
-	return StringView(&sInput[iStart], iCount);
+	return StringView(sInput.data() + iStart, iCount);
 }
 
 //-----------------------------------------------------------------------------
@@ -494,6 +494,7 @@ inline bool kStrIn (KStringView sNeedle, const char* sHaystack, char iDelim = ',
 }
 
 //----------------------------------------------------------------------
+/// @note An empty string element or a nullptr in Haystack[] acts as a sentinel and terminates the search
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kStrIn (KStringView sNeedle, const char* Haystack[]);
 //----------------------------------------------------------------------
@@ -1541,7 +1542,7 @@ void kFromString(bool& Value, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_KSTRING_IS_STD_STRING
-	return 	kToInt<int>(sValue) != 0 || kIn(sValue, "true,True,TRUE,on,On,ON,yes,Yes,YES");
+	Value = kToInt<int>(sValue) != 0 || kStrIn(sValue, "true,True,TRUE,on,On,ON,yes,Yes,YES");
 #else
 	Value = sValue.Bool();
 #endif
@@ -2187,8 +2188,8 @@ DEKAF2_PUBLIC
 typename std::enable_if<detail::has_capacity<T>::value == true, void>::type
 kSafeZeroize(T& Container)
 {
-	auto iCap = Container.size();
-	Container.assign(iCap, typename T::value_type());
+	auto iSize = Container.size();
+	Container.assign(iSize, typename T::value_type());
 }
 
 /// safely zeroize a container type - content is overwritten by default constructed elements

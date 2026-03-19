@@ -2117,4 +2117,510 @@ TEST_CASE("KStringUtils") {
 		kFromStringView(Stop3, s1);
 		CHECK ( Stop3.getStart() == Stop1.getStart() );
 	}
+
+	SECTION("kReplace char char")
+	{
+		KString s = "hello world";
+		auto n = kReplace(s, 'l', 'r');
+		CHECK ( s == "herro worrd" );
+		CHECK ( n == 3 );
+
+		s = "hello world";
+		n = kReplace(s, 'l', 'r', 0, false);
+		CHECK ( s == "herlo world" );
+		CHECK ( n == 1 );
+
+		s = "hello world";
+		n = kReplace(s, 'x', 'y');
+		CHECK ( s == "hello world" );
+		CHECK ( n == 0 );
+
+		s = "";
+		n = kReplace(s, 'a', 'b');
+		CHECK ( s == "" );
+		CHECK ( n == 0 );
+
+		s = "aaa";
+		n = kReplace(s, 'a', 'b');
+		CHECK ( s == "bbb" );
+		CHECK ( n == 3 );
+	}
+
+	SECTION("kToUpper and kToLower")
+	{
+		CHECK ( kToUpper("hello") == "HELLO" );
+		CHECK ( kToUpper("Hello World") == "HELLO WORLD" );
+		CHECK ( kToUpper("") == "" );
+		CHECK ( kToUpper("123") == "123" );
+
+		CHECK ( kToLower("HELLO") == "hello" );
+		CHECK ( kToLower("Hello World") == "hello world" );
+		CHECK ( kToLower("") == "" );
+		CHECK ( kToLower("123") == "123" );
+	}
+
+	SECTION("kToUpperASCII and kToLowerASCII")
+	{
+		CHECK ( kToUpperASCII("hello") == "HELLO" );
+		CHECK ( kToUpperASCII("Hello World") == "HELLO WORLD" );
+		CHECK ( kToUpperASCII("") == "" );
+		CHECK ( kToUpperASCII("123abc") == "123ABC" );
+
+		CHECK ( kToLowerASCII("HELLO") == "hello" );
+		CHECK ( kToLowerASCII("Hello World") == "hello world" );
+		CHECK ( kToLowerASCII("") == "" );
+		CHECK ( kToLowerASCII("123ABC") == "123abc" );
+	}
+
+	SECTION("kMakeUpper and kMakeLower")
+	{
+		KString s = "Hello World";
+		kMakeUpper(s);
+		CHECK ( s == "HELLO WORLD" );
+
+		s = "Hello World";
+		kMakeLower(s);
+		CHECK ( s == "hello world" );
+
+		s = "";
+		kMakeUpper(s);
+		CHECK ( s == "" );
+
+		s = "";
+		kMakeLower(s);
+		CHECK ( s == "" );
+	}
+
+	SECTION("kLeft")
+	{
+		KString s = "Hello World";
+		CHECK ( kLeft(s, 5)  == "Hello" );
+		CHECK ( kLeft(s, 0)  == "" );
+		CHECK ( kLeft(s, 11) == "Hello World" );
+		CHECK ( kLeft(s, 20) == "Hello World" );
+
+		KString empty;
+		CHECK ( kLeft(empty, 5) == "" );
+	}
+
+	SECTION("kMakeLeft")
+	{
+		KString s = "Hello World";
+		kMakeLeft(s, 5);
+		CHECK ( s == "Hello" );
+
+		s = "Hello World";
+		kMakeLeft(s, 0);
+		CHECK ( s == "" );
+
+		s = "Hello World";
+		kMakeLeft(s, 20);
+		CHECK ( s == "Hello World" );
+	}
+
+	SECTION("kMid")
+	{
+		KString s = "Hello World";
+		CHECK ( kMid(s, 6)    == "World" );
+		CHECK ( kMid(s, 0)    == "Hello World" );
+		CHECK ( kMid(s, 11)   == "" );
+		CHECK ( kMid(s, 20)   == "" );
+		CHECK ( kMid(s, 6, 3) == "Wor" );
+		CHECK ( kMid(s, 6, 0) == "" );
+		CHECK ( kMid(s, 6, 100) == "World" );
+		CHECK ( kMid(s, 0, 5) == "Hello" );
+	}
+
+	SECTION("kMakeMid")
+	{
+		KString s = "Hello World";
+		kMakeMid(s, 6);
+		CHECK ( s == "World" );
+
+		s = "Hello World";
+		kMakeMid(s, 6, 3);
+		CHECK ( s == "Wor" );
+
+		s = "Hello World";
+		kMakeMid(s, 0);
+		CHECK ( s == "Hello World" );
+
+		s = "Hello World";
+		kMakeMid(s, 20);
+		CHECK ( s == "" );
+	}
+
+	SECTION("kRight")
+	{
+		KString s = "Hello World";
+		CHECK ( kRight(s, 5)  == "World" );
+		CHECK ( kRight(s, 0)  == "" );
+		CHECK ( kRight(s, 11) == "Hello World" );
+		CHECK ( kRight(s, 20) == "Hello World" );
+
+		KString empty;
+		CHECK ( kRight(empty, 5) == "" );
+	}
+
+	SECTION("kMakeRight")
+	{
+		KString s = "Hello World";
+		kMakeRight(s, 5);
+		CHECK ( s == "World" );
+
+		s = "Hello World";
+		kMakeRight(s, 0);
+		CHECK ( s == "" );
+
+		s = "Hello World";
+		kMakeRight(s, 20);
+		CHECK ( s == "Hello World" );
+	}
+
+	SECTION("kLeftUTF")
+	{
+		KString s = "Héllo Wörld";
+		CHECK ( kLeftUTF(s, 5)  == "Héllo" );
+		CHECK ( kLeftUTF(s, 0)  == "" );
+		CHECK ( kLeftUTF(s, 100) == s );
+
+		KString utf8 = "œꜿęϧ";
+		CHECK ( kLeftUTF(utf8, 2) == "œꜿ" );
+	}
+
+	SECTION("kMakeLeftUTF")
+	{
+		KString s = "Héllo Wörld";
+		kMakeLeftUTF(s, 5);
+		CHECK ( s == "Héllo" );
+
+		s = "œꜿęϧ";
+		kMakeLeftUTF(s, 2);
+		CHECK ( s == "œꜿ" );
+	}
+
+	SECTION("kMidUTF")
+	{
+		KString s = "Héllo Wörld";
+		CHECK ( kMidUTF(s, 6)    == "Wörld" );
+		CHECK ( kMidUTF(s, 6, 3) == "Wör" );
+		CHECK ( kMidUTF(s, 0)    == s );
+	}
+
+	SECTION("kMakeMidUTF")
+	{
+		KString s = "Héllo Wörld";
+		kMakeMidUTF(s, 6, 3);
+		CHECK ( s == "Wör" );
+	}
+
+	SECTION("kRightUTF")
+	{
+		KString s = "Héllo Wörld";
+		CHECK ( kRightUTF(s, 5) == "Wörld" );
+		CHECK ( kRightUTF(s, 0) == "" );
+		CHECK ( kRightUTF(s, 100) == s );
+	}
+
+	SECTION("kMakeRightUTF")
+	{
+		KString s = "Héllo Wörld";
+		kMakeRightUTF(s, 5);
+		CHECK ( s == "Wörld" );
+	}
+
+	SECTION("kAtUTF")
+	{
+		KString s = "Héllo";
+		CHECK ( static_cast<uint32_t>(kAtUTF(s, 0).value()) == static_cast<uint32_t>('H') );
+		CHECK ( static_cast<uint32_t>(kAtUTF(s, 1).value()) == static_cast<uint32_t>(0xE9) ); // é
+		CHECK ( static_cast<uint32_t>(kAtUTF(s, 2).value()) == static_cast<uint32_t>('l') );
+	}
+
+	SECTION("kHasUTF8")
+	{
+		CHECK ( kHasUTF8(KString("hello")) == false );
+		CHECK ( kHasUTF8(KString("héllo")) == true );
+		CHECK ( kHasUTF8(KString(""))      == false );
+		CHECK ( kHasUTF8(KString("œꜿę"))   == true );
+	}
+
+	SECTION("kSizeUTF")
+	{
+		CHECK ( kSizeUTF(KString("hello")) == 5 );
+		CHECK ( kSizeUTF(KString("héllo")) == 5 );
+		CHECK ( kSizeUTF(KString(""))      == 0 );
+		CHECK ( kSizeUTF(KString("œꜿę"))   == 3 );
+	}
+
+	SECTION("kPadLeft")
+	{
+		KString s = "42";
+		kPadLeft(s, 5, '0');
+		CHECK ( s == "00042" );
+
+		s = "hello";
+		kPadLeft(s, 5, '0');
+		CHECK ( s == "hello" );
+
+		s = "hello";
+		kPadLeft(s, 3, '0');
+		CHECK ( s == "hello" );
+
+		s = "";
+		kPadLeft(s, 3, 'x');
+		CHECK ( s == "xxx" );
+
+		s = "ab";
+		kPadLeft(s, 5);
+		CHECK ( s == "   ab" );
+	}
+
+	SECTION("kPadRight")
+	{
+		KString s = "42";
+		kPadRight(s, 5, '0');
+		CHECK ( s == "42000" );
+
+		s = "hello";
+		kPadRight(s, 5, '0');
+		CHECK ( s == "hello" );
+
+		s = "hello";
+		kPadRight(s, 3, '0');
+		CHECK ( s == "hello" );
+
+		s = "";
+		kPadRight(s, 3, 'x');
+		CHECK ( s == "xxx" );
+
+		s = "ab";
+		kPadRight(s, 5);
+		CHECK ( s == "ab   " );
+	}
+
+	SECTION("kTrim with custom set")
+	{
+		KString s = "---hello---";
+		kTrim(s, KFindSetOfChars("-"));
+		CHECK ( s == "hello" );
+
+		s = "xxhelloxx";
+		kTrim(s, KFindSetOfChars("x"));
+		CHECK ( s == "hello" );
+
+		s = "hello";
+		kTrim(s, KFindSetOfChars("x"));
+		CHECK ( s == "hello" );
+
+		s = "xxx";
+		kTrim(s, KFindSetOfChars("x"));
+		CHECK ( s == "" );
+	}
+
+	SECTION("kTrim with comparator")
+	{
+		KString s = "123hello456";
+		kTrim(s, [](char ch){ return KASCII::kIsDigit(ch); });
+		CHECK ( s == "hello" );
+	}
+
+	SECTION("kReplaceVariables")
+	{
+		KString s = "Hello ${NAME}, welcome to ${PLACE}!";
+		std::map<KStringView, KStringView> vars = {
+			{ "NAME", "World" },
+			{ "PLACE", "Earth" }
+		};
+		auto n = kReplaceVariables(s, KStringView("${"), KStringView("}"), false, vars);
+		CHECK ( s == "Hello World, welcome to Earth!" );
+		CHECK ( n == 2 );
+
+		s = "No variables here";
+		n = kReplaceVariables(s, KStringView("${"), KStringView("}"), false, vars);
+		CHECK ( s == "No variables here" );
+		CHECK ( n == 0 );
+
+		s = "${UNKNOWN}";
+		n = kReplaceVariables(s, KStringView("${"), KStringView("}"), false, vars);
+		CHECK ( s == "${UNKNOWN}" );
+		CHECK ( n == 0 );
+
+		s = "${NAME}${NAME}";
+		n = kReplaceVariables(s, KStringView("${"), KStringView("}"), false, vars);
+		CHECK ( s == "WorldWorld" );
+		CHECK ( n == 2 );
+
+		s = "test";
+		n = kReplaceVariables(s, KStringView(""), KStringView("}"), false, vars);
+		CHECK ( n == 0 );
+	}
+
+	SECTION("kIsBinary")
+	{
+		CHECK ( kIsBinary("hello world") == false );
+		CHECK ( kIsBinary("") == false );
+		CHECK ( kIsBinary(KStringView("\x80\x81\x82", 3)) == true );
+		CHECK ( kIsBinary("héllo") == false );
+	}
+
+	SECTION("kFormString")
+	{
+		CHECK ( kFormString("1234567890") == "1,234,567,890" );
+		CHECK ( kFormString("123")        == "123" );
+		CHECK ( kFormString("12")         == "12" );
+		CHECK ( kFormString("1234")       == "1,234" );
+		CHECK ( kFormString("")           == "" );
+		CHECK ( kFormString("1234567890", '-', 4) == "12-3456-7890" );
+	}
+
+	SECTION("kIsURL")
+	{
+		CHECK ( kIsURL("https://example.com") == true );
+		CHECK ( kIsURL("http://example.com/path?q=1") == true );
+		CHECK ( kIsURL("not a url") == false );
+		CHECK ( kIsURL("") == false );
+	}
+
+	SECTION("kFromBase36")
+	{
+		CHECK ( kFromBase36('0') == 0 );
+		CHECK ( kFromBase36('9') == 9 );
+		CHECK ( kFromBase36('a') == 10 );
+		CHECK ( kFromBase36('A') == 10 );
+		CHECK ( kFromBase36('z') == 35 );
+		CHECK ( kFromBase36('Z') == 35 );
+		CHECK ( kFromBase36(' ') == 0xFF );
+		CHECK ( kFromBase36('!') == 0xFF );
+	}
+
+	SECTION("kFromHexChar")
+	{
+		CHECK ( kFromHexChar('0') == 0 );
+		CHECK ( kFromHexChar('9') == 9 );
+		CHECK ( kFromHexChar('a') == 10 );
+		CHECK ( kFromHexChar('A') == 10 );
+		CHECK ( kFromHexChar('f') == 15 );
+		CHECK ( kFromHexChar('F') == 15 );
+		CHECK ( kFromHexChar('g') == 16 );
+		CHECK ( kFromHexChar('x') > 15 );
+	}
+
+	SECTION("kFirstNonZero")
+	{
+		CHECK ( kFirstNonZero(0, 0, 42, 7) == 42 );
+		CHECK ( kFirstNonZero(0, 0, 0)     == 0 );
+		CHECK ( kFirstNonZero(1, 2, 3)     == 1 );
+		CHECK ( kFirstNonZero(0, 5)        == 5 );
+		CHECK ( kFirstNonZero(7)           == 7 );
+	}
+
+	SECTION("kUnsignedToString")
+	{
+		CHECK ( kUnsignedToString(0)        == "0" );
+		CHECK ( kUnsignedToString(123)      == "123" );
+		CHECK ( kUnsignedToString(255, 16)  == "ff" );
+		CHECK ( kUnsignedToString(255, 16, false, true) == "FF" );
+		CHECK ( kUnsignedToString(15, 16, true) == "0f" );
+		CHECK ( kUnsignedToString(7, 2)     == "111" );
+	}
+
+	SECTION("kSignedToString")
+	{
+		CHECK ( kSignedToString(0)    == "0" );
+		CHECK ( kSignedToString(123)  == "123" );
+		CHECK ( kSignedToString(-123) == "-123" );
+		CHECK ( kSignedToString(-1, 16) == "-1" );
+	}
+
+	SECTION("kIntToString")
+	{
+		CHECK ( kIntToString(42u)  == "42" );
+		CHECK ( kIntToString(-42)  == "-42" );
+		CHECK ( kIntToString(255u, 16) == "ff" );
+		CHECK ( kIntToString(255u, 16, false, true) == "FF" );
+	}
+
+	SECTION("kEscapeChars")
+	{
+		CHECK ( kEscapeChars("hello", "'\"", '\\') == "hello" );
+		CHECK ( kEscapeChars("he'lo", "'\"", '\\') == "he\\'lo" );
+		CHECK ( kEscapeChars("he\"lo", "'\"", '\\') == "he\\\"lo" );
+		CHECK ( kEscapeChars("", "'\"", '\\') == "" );
+		CHECK ( kEscapeChars("abc", "b", '\0') == "abbc" );
+	}
+
+	SECTION("kEscapeForCommands")
+	{
+		CHECK ( kEscapeForCommands("hello") == "hello" );
+		CHECK ( kEscapeForCommands("it's") == "it\\'s" );
+		CHECK ( kEscapeForCommands("say \"hi\"") == "say \\\"hi\\\"" );
+	}
+
+	SECTION("kEscapeForLogging")
+	{
+		CHECK ( kEscapeForLogging("hello") == "hello" );
+		CHECK ( kEscapeForLogging("hello\nworld") == "hello\\nworld" );
+		CHECK ( kEscapeForLogging("tab\there") == "tab\\there" );
+		CHECK ( kEscapeForLogging("cr\rhere") == "cr\\rhere" );
+		CHECK ( kEscapeForLogging("quote\"here") == "quote\\\"here" );
+		CHECK ( kEscapeForLogging("back\\slash") == "back\\\\slash" );
+		CHECK ( kEscapeForLogging("") == "" );
+	}
+
+	SECTION("kResizeUninitialized")
+	{
+		KString s = "hello";
+		kResizeUninitialized(s, 10);
+		CHECK ( s.size() == 10 );
+
+		kResizeUninitialized(s, 3);
+		CHECK ( s.size() == 3 );
+
+		std::string ss = "hello";
+		kResizeUninitialized(ss, 10);
+		CHECK ( ss.size() == 10 );
+
+		kResizeUninitialized(ss, 0);
+		CHECK ( ss.size() == 0 );
+	}
+
+	SECTION("kCurlyToStraight")
+	{
+		CHECK ( kCurlyToStraight("hello") == "hello" );
+		CHECK ( kCurlyToStraight("") == "" );
+		// left single quote U+2018 -> '
+		CHECK ( kCurlyToStraight("\xe2\x80\x98test\xe2\x80\x99") == "'test'" );
+		// left double quote U+201C -> "
+		CHECK ( kCurlyToStraight("\xe2\x80\x9ctest\xe2\x80\x9d") == "\"test\"" );
+		// tilde U+223C -> ~
+		CHECK ( kCurlyToStraight("\xe2\x88\xbc") == "~" );
+		// non-breaking space U+00A0 -> space
+		CHECK ( kCurlyToStraight("\xc2\xa0") == " " );
+		// hyphen U+2010 -> -
+		CHECK ( kCurlyToStraight("\xe2\x80\x90") == "-" );
+	}
+
+	SECTION("kWriteUTF8BOM stringview")
+	{
+		auto bom = kWriteUTF8BOM();
+		CHECK ( bom.size() == 3 );
+		CHECK ( static_cast<uint8_t>(bom[0]) == 0xef );
+		CHECK ( static_cast<uint8_t>(bom[1]) == 0xbb );
+		CHECK ( static_cast<uint8_t>(bom[2]) == 0xbf );
+	}
+
+	SECTION("kSafeZeroize string")
+	{
+		KString str { "sensitive data here" };
+		auto iSize = str.size();
+		kSafeZeroize(str);
+		CHECK ( str.size() == iSize );
+		bool allZero = true;
+		for (auto ch : str)
+		{
+			if (ch != '\0') allZero = false;
+		}
+		CHECK ( allZero );
+	}
 }

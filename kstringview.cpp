@@ -661,8 +661,15 @@ bool KStringView::ClipAt(const KStringView sClipAt)
 bool KStringView::ClipAtReverse(const KStringView sClipAtReverse)
 //----------------------------------------------------------------------
 {
-	erase(0, find(sClipAtReverse));
-	return true;
+	size_type pos = find(sClipAtReverse);
+
+	if (pos != npos)
+	{
+		erase(0, pos);
+		return true;
+	}
+
+	return false;
 
 } // ClipAtReverse
 

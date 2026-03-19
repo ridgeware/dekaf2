@@ -513,8 +513,15 @@ bool KString::ClipAt(KStringView sClipAt)
 bool KString::ClipAtReverse(KStringView sClipAtReverse)
 //----------------------------------------------------------------------
 {
-	erase(0, find(sClipAtReverse));
-	return true;
+	size_type pos = find(sClipAtReverse);
+
+	if (pos != npos)
+	{
+		erase(0, pos);
+		return true;
+	}
+
+	return false;
 
 } // ClipAtReverse
 

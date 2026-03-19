@@ -18,7 +18,7 @@ include(CMakeFindDependencyMacro)
 find_dependency(Threads)
 find_dependency(OpenSSL)
 set(Boost_NO_WARN_NEW_VERSIONS ON)
-find_dependency(Boost)
+find_dependency(Boost COMPONENTS iostreams serialization)
 if (@DEKAF2_HAS_LIBYAML@) # DEKAF2_HAS_LIBYAML
 	find_dependency(yaml-cpp)
 endif()

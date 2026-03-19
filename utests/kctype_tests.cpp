@@ -98,7 +98,7 @@ TEST_CASE("KCType")
 		}
 		for (char ch = -0x7f; ch < 0x7f; ++ch)
 		{
-			bool bIsSpace = (ch >= 0x09 && ch <= 0x0e) || ch == 0x20;
+			bool bIsSpace = (ch >= 0x09 && ch <= 0x0d) || ch == 0x20;
 			CHECK ( KASCII::kIsSpace(ch) == bIsSpace );
 		}
 	}
@@ -137,7 +137,7 @@ TEST_CASE("KCType")
 		}
 		for (unsigned char ch = 0; ch < 0xff; ++ch)
 		{
-			bool bIsSpace = (ch >= 0x09 && ch <= 0x0e) || ch == 0x20;
+			bool bIsSpace = (ch >= 0x09 && ch <= 0x0d) || ch == 0x20;
 			CHECK ( KASCII::kIsSpace(ch) == bIsSpace );
 		}
 	}

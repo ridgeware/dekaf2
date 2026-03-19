@@ -292,7 +292,7 @@ private:
 	static constexpr std::array<CTYPE, MAX_ASCII + 1> ASCIITable
 	{{
 	 // 0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7 0x8 0x9 0xA 0xB 0xC 0xD 0xE 0xF
-		CC, CC, CC, CC, CC, CC, CC, CC, CC, BL, SP, SP, SP, SP, SP, CC, // 0x00
+		CC, CC, CC, CC, CC, CC, CC, CC, CC, BL, SP, SP, SP, SP, CC, CC, // 0x00
 		CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, CC, // 0x10
 		BL, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, PP, // 0x20
 		NX, NX, NX, NX, NX, NX, NX, NX, NX, NX, PP, PP, PP, PP, PP, PP, // 0x30

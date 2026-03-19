@@ -2550,11 +2550,25 @@ TEST_CASE("KStringUtils") {
 		CHECK ( kEscapeChars("abc", "b", '\0') == "abbc" );
 	}
 
+	SECTION("kEscapeForQuotedCommands")
+	{
+		CHECK ( kEscapeForQuotedCommands("hello") == "hello" );
+		CHECK ( kEscapeForQuotedCommands("it's") == "it's" );
+		CHECK ( kEscapeForQuotedCommands("say \"hi\"") == "say \\\"hi\\\"" );
+		CHECK ( kEscapeForQuotedCommands("$(rm -rf /)") == "\\$(rm -rf /)" );
+		CHECK ( kEscapeForQuotedCommands("back\\slash") == "back\\\\slash" );
+		CHECK ( kEscapeForQuotedCommands("`uname`") == "\\`uname\\`" );
+	}
+
 	SECTION("kEscapeForCommands")
 	{
 		CHECK ( kEscapeForCommands("hello") == "hello" );
 		CHECK ( kEscapeForCommands("it's") == "it\\'s" );
-		CHECK ( kEscapeForCommands("say \"hi\"") == "say \\\"hi\\\"" );
+		CHECK ( kEscapeForCommands("say \"hi\"") == "say\\ \\\"hi\\\"" );
+		CHECK ( kEscapeForCommands("$(rm -rf /)") == "\\$\\(rm\\ -rf\\ /\\)" );
+		CHECK ( kEscapeForCommands("a|b&c;d") == "a\\|b\\&c\\;d" );
+		CHECK ( kEscapeForCommands("file*.txt") == "file\\*.txt" );
+		CHECK ( kEscapeForCommands("a b\tc") == "a\\ b\\\tc" );
 	}
 
 	SECTION("kEscapeForLogging")

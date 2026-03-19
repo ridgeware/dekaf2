@@ -1652,14 +1652,27 @@ KString kEscapeChars(KStringView sInput, KStringView sCharsToEscape, KString::va
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-/// Escape problematic characters for command input in sInput, return escaped string
+/// Escape characters that are special inside double-quoted shell strings.
+/// Use this when the escaped string will be wrapped in double quotes.
+/// @param sInput the input string
+/// @returns the escaped string
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+inline KString kEscapeForQuotedCommands(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	return kEscapeChars(sInput, "\"\\`$\0", '\\');
+}
+
+//-----------------------------------------------------------------------------
+/// Escape all POSIX shell metacharacters. This is the general form that works
+/// in any shell context (quoted or unquoted).
 /// @param sInput the input string
 /// @returns the escaped string
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline KString kEscapeForCommands(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
-	return kEscapeChars(sInput, "'\"\\`\0", '\\');
+	return kEscapeChars(sInput, "\"'\\`$|&;()<>*?[]{}~#! \t\n\0", '\\');
 }
 
 //-----------------------------------------------------------------------------

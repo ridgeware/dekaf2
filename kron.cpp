@@ -46,7 +46,6 @@
 #include "ktime.h"
 #include "kinshell.h"
 #include "klog.h"
-#include "dekaf2.h"
 #include "kexception.h"
 #include "bits/kron_utils.h"
 #include "croncpp.h"
@@ -256,7 +255,7 @@ KUnixTime Kron::Job::Next(KUnixTime tAfter) const
 
 	if (tAfter == KUnixTime(0))
 	{
-		tAfter = Dekaf::getInstance().GetCurrentTime();
+		tAfter = KUnixTime::now();
 	}
 
 	KUnixTime tNext = KUnixTime::from_time_t(KCronParser::cron_next(*cxget(m_ParsedCron), tAfter.to_time_t()));
@@ -296,7 +295,7 @@ bool Kron::Job::Start()
 	}
 
 	kDebug(1, "now starting job '{}'", Name());
-	auto tNow = Dekaf::getInstance().GetCurrentTime();
+	auto tNow = KUnixTime::now();
 
 	m_Control.tLastStarted = tNow;
 	++m_Control.iStartCount;
@@ -359,7 +358,7 @@ int Kron::Job::Wait(int msecs)
 	m_Control.ProcessID    = -1;
 	m_Control.sLastOutput  = std::move(sOutput);
 	m_Control.iLastStatus  = iResult;
-	m_Control.tLastStopped = Dekaf::getInstance().GetCurrentTime();
+	m_Control.tLastStopped = KUnixTime::now();
 
 	kDebug(1, "job '{}' finished with status {}, took {}",
 		   Name(), iResult, kTranslateDuration(lastDuration));
@@ -543,7 +542,7 @@ std::size_t Kron::Scheduler::AddJobsFromCrontab(KStringView sCrontab, bool bHasS
 bool Kron::LocalScheduler::AddJob(const std::shared_ptr<Job>& job)
 //-----------------------------------------------------------------------------
 {
-	const auto tNow     = Dekaf::getInstance().GetCurrentTime();
+	const auto tNow     = KUnixTime::now();
 	const auto tNext    = job->Next(tNow);
 	const auto JobID    = job->JobID();
 	const auto& JobName = job->Name();
@@ -711,7 +710,7 @@ std::size_t Kron::StartNewJobs()
 {
 	std::size_t iStarted { 0 };
 
-	auto tNow = Dekaf::getInstance().GetCurrentTime();
+	auto tNow = KUnixTime::now();
 
 	for (;m_bStop == false;)
 	{

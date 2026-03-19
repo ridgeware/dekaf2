@@ -40,8 +40,8 @@
 //
 */
 
-#include <algorithm>
-#include "dekaf2.h"
+#include "kdefinitions.h"
+#include "ktime.h"
 #include "bits/kfilesystem.h"
 #include "kcompatibility.h"
 #include "kfilesystem.h"
@@ -57,6 +57,7 @@
 #include "kutf.h"
 #include "keraseremove.h"
 #include "kuuid.h"
+#include <algorithm>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -1655,7 +1656,7 @@ KFileStat& KFileStat::SetDefaults()
 
 	if (ModificationTime() == KUnixTime(0))
 	{
-		tNow = Dekaf::getInstance().GetCurrentTime();
+		tNow = KUnixTime::now();
 		SetModificationTime(tNow);
 	}
 	else

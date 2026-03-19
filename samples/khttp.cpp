@@ -45,6 +45,7 @@
 #include <dekaf2/krestroute.h>
 #include <dekaf2/khttperror.h>
 #include <dekaf2/kassociative.h>
+#include <dekaf2/dekaf2.h> // KInit()
 
 using namespace dekaf2;
 

@@ -47,7 +47,7 @@
 #include "kurl.h"
 #include "kmime.h"
 #include "kerror.h"
-#include "dekaf2.h"
+#include "ktime.h"
 
 /// @file kmail.h
 /// Adds the KMail class to represent an email to be sent
@@ -224,7 +224,7 @@ private:
 	KString m_Subject;
 
 	std::shared_ptr<KReplacer> m_Replacer;
-	KUnixTime m_Time { Dekaf::getInstance().GetCurrentTime() };
+	KUnixTime m_Time { KUnixTime::now() };
 	mutable KMIMEMultiPart m_Parts;
 	mutable size_t m_iBody { 0 };
 

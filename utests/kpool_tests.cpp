@@ -4,6 +4,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kthreads.h>
 #include <dekaf2/krandom.h>
+#include <dekaf2/ksystem.h>
 
 using namespace dekaf2;
 

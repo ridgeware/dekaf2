@@ -1,7 +1,7 @@
 #include "catch.hpp"
 #include <dekaf2/kron.h>
 #include <dekaf2/ktime.h>
-#include <dekaf2/dekaf2.h>
+#include <dekaf2/ksystem.h>
 #include <dekaf2/kreader.h>
 #include <dekaf2/kfilesystem.h>
 #if DEKAF2_HAS_INCLUDE(<dekaf2/bits/kron_utils.h>)
@@ -490,7 +490,7 @@ TEST_CASE("KRON")
 	SECTION("KRON 1")
 	{
 		Kron Cron(true, std::chrono::milliseconds(10));
-		KUnixTime tNow = Dekaf::getInstance().GetCurrentTime();
+		KUnixTime tNow = KUnixTime::now();
 		KString sFilename = kFormat("{}{}test.txt", TempDir.Name(), kDirSep);
 		Cron.Scheduler().AddJob(Kron::Job::Create("JobName", tNow-chrono::seconds(1), kFormat("echo hello world > {}", sFilename)));
 		KString sContent;

@@ -413,7 +413,7 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, KDuration tClockLee
 		}
 	}
 
-	auto now = Dekaf::getInstance().GetCurrentTime();
+	auto now = KUnixTime::now();
 
 	auto tNBF = KUnixTime::from_time_t(kjson::GetInt(Payload, "nbf"));
 

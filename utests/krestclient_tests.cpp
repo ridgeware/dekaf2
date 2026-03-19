@@ -3,6 +3,7 @@
 #include <dekaf2/krestclient.h>
 #include <dekaf2/krest.h>
 #include <dekaf2/kmessagedigest.h>
+#include <dekaf2/ksystem.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 

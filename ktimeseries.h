@@ -42,7 +42,7 @@
 #pragma once
 
 #include "kdefinitions.h"
-#include "dekaf2.h"
+#include "ktime.h"
 #include <chrono>
 #include <map>
 #include <vector>
@@ -634,13 +634,13 @@ public:
 	static Timepoint GetCurrentTime()
 	//-------------------------------------------------------------------------
 	{
-		if (Duration(1) >= std::chrono::seconds(1))
+		if (Duration(1) >= chrono::seconds(1))
 		{
-			return std::chrono::time_point_cast<Duration>(Dekaf::getInstance().GetCurrentTimepoint());
+			return chrono::time_point_cast<Duration>(KUnixTime::now());
 		}
 		else
 		{
-			return std::chrono::time_point_cast<Duration>(Clock::now());
+			return chrono::time_point_cast<Duration>(Clock::now());
 		}
 	}
 

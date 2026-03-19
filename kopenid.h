@@ -47,7 +47,7 @@
 #include "kjson.h"
 #include "krsakey.h"
 #include "ktimer.h"
-#include "dekaf2.h"
+#include "ktime.h"
 #include "kerror.h"
 #include <unordered_map>
 #include <vector>
@@ -129,7 +129,7 @@ public:
 
 	const KeysAndIssuer& Get() const { return *m_CurrentKeys->load(std::memory_order_relaxed); }
 
-	void Refresh(KUnixTime Now = Dekaf::getInstance().GetCurrentTimepoint());
+	void Refresh(KUnixTime Now = KUnixTime::now());
 
 //----------
 private:

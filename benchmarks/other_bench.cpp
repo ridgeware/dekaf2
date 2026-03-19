@@ -456,12 +456,12 @@ void dtime()
 	}
 
 	{
-		dekaf2::KProf prof("Dekaf().GetCurrentTime()");
+		dekaf2::KProf prof("KUnixTime::now()");
 		prof.SetMultiplier(1024*1024);
 
 		for (size_t count = 0; count < 1024*1024; ++count)
 		{
-			auto a = Dekaf::getInstance().GetCurrentTime();
+			auto a = KUnixTime::now();
 			dekaf2::KProf::Force(&a);
 		}
 	}

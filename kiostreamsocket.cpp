@@ -135,6 +135,40 @@ int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAn
 					kDebug(3, "have SSL bytes: {}", iReady);
 					return POLLIN;
 				}
+
+				// SSL_pending() only reports already-decrypted application data.
+				// SSL's internal read BIO may contain complete TLS records that
+				// were read from the socket during a previous SSL_read() but have
+				// not been decrypted yet. In that state SSL_pending() returns 0
+				// and kPoll() also returns 0 (the socket buffer is empty), causing
+				// a deadlock. Check for any buffered record data before falling
+				// through to kPoll().
+				//
+				// In OpenSSL's BIO pair architecture, data can be buffered at
+				// two levels below SSL_pending():
+				// 1. The SSL record layer's internal read buffer (rbuf) - detected
+				//    by SSL_has_pending() (OpenSSL >= 1.1.0)
+				// 2. The BIO pair buffer (int_bio, accessed via SSL_get_rbio()) -
+				//    data written by boost::asio from socket reads but not yet
+				//    consumed by the record layer. Detected by BIO_ctrl_pending().
+				// Both checks are needed because ssl3_read_n may not drain the
+				// entire BIO into rbuf if rbuf already holds data from a previous
+				// read-ahead.
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+				if (::SSL_has_pending(SSL) || (::SSL_get_rbio(SSL) && ::BIO_ctrl_pending(::SSL_get_rbio(SSL)) > 0))
+				{
+					kDebug(3, "have unprocessed SSL record or BIO data");
+					return POLLIN;
+				}
+#else
+				auto rbio = ::SSL_get_rbio(SSL);
+
+				if (rbio && ::BIO_ctrl_pending(rbio) > 0)
+				{
+					kDebug(3, "have unprocessed SSL BIO data");
+					return POLLIN;
+				}
+#endif
 			}
 		}
 	}

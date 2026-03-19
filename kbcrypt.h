@@ -54,7 +54,8 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// safe password hashing, allowing dynamic workload computation to adapt to used hardware
+/// safe password hashing, allowing dynamic workload computation to adapt to used hardware.
+/// @note bcrypt truncates passwords at 72 bytes - longer passwords are silently ignored beyond that limit
 class DEKAF2_PUBLIC KBCrypt : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -82,13 +83,13 @@ public:
 	KBCrypt (uint16_t iWorkload, bool bAdjustIfOutOfBounds = true) { SetWorkload(iWorkload, bAdjustIfOutOfBounds); }
 
 	/// generate a bcrypt password hash to e.g. store into a database
-	/// @param sPassword the password to be hashed
+	/// @param sPassword the password to be hashed (only the first 72 bytes are used)
 	/// @return the bcrypt password hash, including salt and algorithm flag
 	DEKAF2_NODISCARD
 	KString  GenerateHash     (KStringViewZ sPassword);
 
 	/// verify a password against a known bcrypt password hash
-	/// @param sPassword the password to be verified
+	/// @param sPassword the password to be verified (only the first 72 bytes are used)
 	/// @param sHash the known bcrypt password hash
 	/// @return true if password matches hash, false otherwise
 	DEKAF2_NODISCARD

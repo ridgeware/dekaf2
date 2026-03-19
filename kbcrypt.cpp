@@ -45,6 +45,7 @@
 #include "kreader.h"
 #include "klog.h"
 #include "krandom.h"
+#include "kstringutils.h"
 
 extern "C" {
 extern char *crypt_rn(const char *key, const char *setting,
@@ -68,13 +69,22 @@ bool KBCrypt::GenerateSalt(Token& Salt)
 		return SetError(kFormat("cannot get randomness for salt generation, got {} instead of {} bytes", sInput.size(), iRandomBytes));
 	}
 
-	return crypt_gensalt_rn
+	auto bResult = crypt_gensalt_rn
 	(
-		"$2a$",
+		"$2b$",
 		m_iWorkload,
 		sInput.data(), static_cast<int>(sInput.size()),
 		Salt  .data(), static_cast<int>(Salt  .size())
-	);
+	) != nullptr;
+
+	kSafeZeroize(sInput);
+
+	if (!bResult)
+	{
+		return SetError("cannot generate salt");
+	}
+
+	return true;
 
 } // GenerateSalt
 
@@ -82,7 +92,12 @@ bool KBCrypt::GenerateSalt(Token& Salt)
 bool KBCrypt::HashPassword(KStringViewZ sPassword, const char* sSalt, Token& Hash)
 //-----------------------------------------------------------------------------
 {
-	return crypt_rn(sPassword.c_str(), sSalt, Hash.data(), iBCryptHashSize) != nullptr;
+	if (crypt_rn(sPassword.c_str(), sSalt, Hash.data(), iBCryptHashSize) == nullptr)
+	{
+		return SetError("cannot hash password");
+	}
+
+	return true;
 
 } // HashPassword
 
@@ -92,12 +107,11 @@ bool KBCrypt::SafeCompare(KStringView s1, const Token& s2)
 //-----------------------------------------------------------------------------
 {
 	auto is2len = strnlen(s2.data(), s2.size());
+	auto iLen   = std::min(s1.size(), is2len);
 
-	if (s1.size() != is2len) return false;
+	int iResult = static_cast<int>(s1.size() ^ is2len);
 
-	int iResult = 0;
-
-	for (uint16_t iCount = 0; iCount < is2len; ++iCount)
+	for (std::size_t iCount = 0; iCount < iLen; ++iCount)
 	{
 		iResult |= (static_cast<unsigned char>(s1[iCount]) ^ static_cast<unsigned char>(s2[iCount]));
 	}
@@ -115,11 +129,19 @@ bool KBCrypt::CheckPassword(KStringViewZ sPassword, KStringViewZ sHash)
 		return SetError(kFormat("hash size {} >= iBCryptHashSize {}",  sHash.size(), iBCryptHashSize));
 	}
 
-	std::array<char, iBCryptHashSize> CheckHash;
+	Token CheckHash;
 
-	if (!HashPassword(sPassword, sHash.data(), CheckHash)) return false;
+	if (!HashPassword(sPassword, sHash.data(), CheckHash))
+	{
+		kSafeZeroize(CheckHash);
+		return false;
+	}
 
-	return SafeCompare(sHash, CheckHash);
+	auto bResult = SafeCompare(sHash, CheckHash);
+
+	kSafeZeroize(CheckHash);
+
+	return bResult;
 
 } // CheckPassword
 
@@ -138,21 +160,27 @@ KString KBCrypt::GenerateHash(KStringViewZ sPassword)
 
 	if (!GenerateSalt(Salt))
 	{
-		SetError("cannot generate salt");
+		kSafeZeroize(Salt);
 		return {};
 	}
 
 	Token Hash;
 
-	if (!HashPassword(sPassword, Salt.data(), Hash) != 0)
+	if (!HashPassword(sPassword, Salt.data(), Hash))
 	{
-		SetError("cannot generate hash");
+		kSafeZeroize(Salt);
+		kSafeZeroize(Hash);
 		return {};
 	}
 
 	kDebug(2, "password hash generation took {}", Timer.elapsed());
 
-	return KString { Hash.data() };
+	KString sResult { Hash.data() };
+
+	kSafeZeroize(Salt);
+	kSafeZeroize(Hash);
+
+	return sResult;
 
 } // GenerateHash
 
@@ -225,7 +253,7 @@ void KBCrypt::ComputeWorkload(KDuration Duration, bool bComputeAtNextUse)
 
 	uint16_t i;
 
-	for (i = 4; i < 31; ++i)
+	for (i = 4; i <= 31; ++i)
 	{
 		m_iWorkload = i;
 
@@ -235,6 +263,9 @@ void KBCrypt::ComputeWorkload(KDuration Duration, bool bComputeAtNextUse)
 		GenerateSalt(Salt);
 		Token Hash;
 		HashPassword("any password would do", Salt.data(), Hash);
+
+		kSafeZeroize(Salt);
+		kSafeZeroize(Hash);
 
 		if (Timer.elapsed() > Duration)
 		{

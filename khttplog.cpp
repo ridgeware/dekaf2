@@ -47,6 +47,7 @@
 #include "kencode.h"
 #include "ktime.h"
 #include "ksystem.h"
+#include "kread.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -913,5 +914,93 @@ KHTTPLogParser::Data KHTTPLogParser::Next(KUnixTime EndDate)
 	}
 
 } // Next
+
+//-----------------------------------------------------------------------------
+bool KHTTPLogParser::Rewind()
+//-----------------------------------------------------------------------------
+{
+	if (!is_open())
+	{
+		return false;
+	}
+
+	return m_LogStream->Rewind();
+
+} // Rewind
+
+//-----------------------------------------------------------------------------
+KUnixTime KHTTPLogParser::OldestDate()
+//-----------------------------------------------------------------------------
+{
+	if (!is_open())
+	{
+		return {};
+	}
+
+	// save current state
+	auto savedStartDate = m_StartDate;
+	auto savedPos       = kGetReadPosition(m_LogStream->istream());
+
+	// rewind and read the first valid entry
+	m_LogStream->Rewind();
+	m_StartDate = KUnixTime::min();
+
+	auto log = Next();
+
+	// restore state
+	m_StartDate = savedStartDate;
+	kSetReadPosition(m_LogStream->istream(), savedPos);
+
+	if (log.IsValid())
+	{
+		return log.Timestamp;
+	}
+
+	return {};
+
+} // OldestDate
+
+//-----------------------------------------------------------------------------
+KUnixTime KHTTPLogParser::NewestDate()
+//-----------------------------------------------------------------------------
+{
+	if (!is_open())
+	{
+		return {};
+	}
+
+	// save current state
+	auto savedStartDate = m_StartDate;
+	auto savedPos       = kGetReadPosition(m_LogStream->istream());
+
+	m_StartDate = KUnixTime::min();
+
+	// try to find the last valid entry by seeking backward from the end
+	// try up to 10 lines from the end to handle trailing empty lines or invalid entries
+	for (std::size_t iLine = 0; iLine < 10; ++iLine)
+	{
+		if (!kGoToLine(m_LogStream->istream(), iLine, true))
+		{
+			break;
+		}
+
+		auto log = Data(m_LogStream->ReadLine());
+
+		if (log.IsValid())
+		{
+			// restore state
+			m_StartDate = savedStartDate;
+			kSetReadPosition(m_LogStream->istream(), savedPos);
+			return log.Timestamp;
+		}
+	}
+
+	// restore state
+	m_StartDate = savedStartDate;
+	kSetReadPosition(m_LogStream->istream(), savedPos);
+
+	return {};
+
+} // NewestDate
 
 DEKAF2_NAMESPACE_END

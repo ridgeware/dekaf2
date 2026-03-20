@@ -239,6 +239,16 @@ public:
 	/// @return the Data record for one log entry
 	Data Next(KUnixTime EndDate = KUnixTime::max());
 
+	/// Rewinds log file reader to the beginning
+	/// @returns true if success, false otherwise, e.g. if no log file is open
+	bool Rewind();
+
+	/// @returns timestamp of oldest log entry
+	KUnixTime OldestDate();
+
+	/// @returns timestamp of newest log entry
+	KUnixTime NewestDate();
+
 //------
 private:
 //------

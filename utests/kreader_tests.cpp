@@ -603,4 +603,221 @@ TEST_CASE("KReader") {
 		CHECK ( File.Rewind()              == true );
 		CHECK ( File.GetReadPosition()     == 0    );
 	}
+
+	SECTION("kGoToLine forward")
+	{
+		// 5 lines: "aaa\nbbb\nccc\nddd\neee"
+		// line starts at byte: 0, 4, 8, 12, 16
+		KString sPath = kFormat("{}{}gotoline-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, "aaa\nbbb\nccc\nddd\neee");
+		KInFile File(sPath);
+
+		KString sLine;
+
+		CHECK ( kGoToLine(File, 0) == true  );
+		CHECK ( kGetReadPosition(File) == 0 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "aaa" );
+
+		CHECK ( kGoToLine(File, 1) == true  );
+		CHECK ( kGetReadPosition(File) == 4 );
+		File.ReadLine(sLine);
+		CHECK ( sLine == "bbb" );
+
+		CHECK ( kGoToLine(File, 2) == true  );
+		CHECK ( kGetReadPosition(File) == 8 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "ccc" );
+
+		CHECK ( kGoToLine(File, 3) == true  );
+		CHECK ( kGetReadPosition(File) == 12 );
+		File.ReadLine(sLine);
+		CHECK ( sLine == "ddd" );
+
+		CHECK ( kGoToLine(File, 4) == true  );
+		CHECK ( kGetReadPosition(File) == 16 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "eee" );
+
+		CHECK ( kGoToLine(File, 5) == false );
+	}
+
+	SECTION("kGoToLine backward")
+	{
+		KString sPath = kFormat("{}{}gotoline-back-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, "aaa\nbbb\nccc\nddd\neee");
+		KInFile File(sPath);
+
+		KString sLine;
+
+		// line 0 from end = last line ("eee") at pos 16
+		CHECK ( kGoToLine(File, 0, true) == true  );
+		CHECK ( kGetReadPosition(File) == 16 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "eee" );
+
+		// line 1 from end = "ddd" at pos 12
+		CHECK ( kGoToLine(File, 1, true) == true  );
+		CHECK ( kGetReadPosition(File) == 12 );
+		File.ReadLine(sLine);
+		CHECK ( sLine == "ddd" );
+
+		// line 2 from end = "ccc" at pos 8
+		CHECK ( kGoToLine(File, 2, true) == true  );
+		CHECK ( kGetReadPosition(File) == 8 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "ccc" );
+
+		// line 3 from end = "bbb" at pos 4
+		CHECK ( kGoToLine(File, 3, true) == true  );
+		CHECK ( kGetReadPosition(File) == 4 );
+		File.ReadLine(sLine);
+		CHECK ( sLine == "bbb" );
+
+		// line 4 from end = "aaa" at pos 0
+		CHECK ( kGoToLine(File, 4, true) == true  );
+		CHECK ( kGetReadPosition(File) == 0 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "aaa" );
+
+		// line 5 from end = out of range
+		CHECK ( kGoToLine(File, 5, true) == false );
+	}
+
+	SECTION("kMoveToLine forward")
+	{
+		KString sPath = kFormat("{}{}movetoline-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, "aaa\nbbb\nccc\nddd\neee");
+		KInFile File(sPath);
+
+		KString sLine;
+
+		// move 0 lines = stay at current position
+		CHECK ( kMoveToLine(File, 0) == true );
+		CHECK ( kGetReadPosition(File) == 0 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "aaa" );
+
+		// move forward 2 lines from start
+		kRewind(File);
+		CHECK ( kMoveToLine(File, 2) == true );
+		CHECK ( kGetReadPosition(File) == 8 );
+		File.ReadLine(sLine);
+		CHECK ( sLine == "ccc" );
+
+		// move forward 1 more line (ReadLine consumed up to pos 12)
+		CHECK ( kMoveToLine(File, 1) == true );
+		CHECK ( kGetReadPosition(File) == 16 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "eee" );
+
+		// try to move forward from last line - should fail
+		CHECK ( kGoToLine(File, 4) == true );
+		CHECK ( kMoveToLine(File, 2) == false );
+	}
+
+	SECTION("kMoveToLine backward")
+	{
+		KString sPath = kFormat("{}{}movetoline-back-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, "aaa\nbbb\nccc\nddd\neee");
+		KInFile File(sPath);
+
+		KString sLine;
+
+		// seek to end, then backward 0 = seek to end (special case)
+		kForward(File);
+		CHECK ( kMoveToLine(File, 0, true) == true );
+		CHECK ( kGetReadPosition(File) == 19 );
+
+		// seek to end, then backward 1 = start of last line
+		kForward(File);
+		CHECK ( kMoveToLine(File, 1, true) == true );
+		CHECK ( kGetReadPosition(File) == 16 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "eee" );
+
+		// seek to end, then backward 3
+		kForward(File);
+		CHECK ( kMoveToLine(File, 3, true) == true );
+		CHECK ( kGetReadPosition(File) == 8 );
+		File.ReadLine(sLine);
+		CHECK ( sLine == "ccc" );
+
+		// from beginning, backward should fail
+		kRewind(File);
+		CHECK ( kMoveToLine(File, 1, true) == false );
+	}
+
+	SECTION("kGoToLine with trailing newline")
+	{
+		// file ends with newline: "aaa\nbbb\nccc\n"
+		// lines: "aaa", "bbb", "ccc", and arguably an empty trailing line
+		KString sPath = kFormat("{}{}gotoline-trailing-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, "aaa\nbbb\nccc\n");
+		KInFile File(sPath);
+
+		KString sLine;
+
+		CHECK ( kGoToLine(File, 0) == true );
+		CHECK ( kGetReadPosition(File) == 0 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "aaa" );
+
+		CHECK ( kGoToLine(File, 2) == true );
+		CHECK ( kGetReadPosition(File) == 8 );
+		File.ReadLine(sLine);
+		CHECK ( sLine == "ccc" );
+
+		CHECK ( kGoToLine(File, 3) == true );
+		CHECK ( kGetReadPosition(File) == 12 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "" );
+
+		// from end, line 0 = empty trailing content at pos 12
+		CHECK ( kGoToLine(File, 0, true) == true );
+		CHECK ( kGetReadPosition(File) == 12 );
+		File.ReadLine(sLine);
+		CHECK ( sLine == "" );
+
+		// from end, line 1 = "ccc" at pos 8
+		CHECK ( kGoToLine(File, 1, true) == true );
+		CHECK ( kGetReadPosition(File) == 8 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "ccc" );
+	}
+
+	SECTION("kGoToLine single line")
+	{
+		KString sPath = kFormat("{}{}gotoline-single-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, "hello");
+		KInFile File(sPath);
+
+		KString sLine;
+
+		CHECK ( kGoToLine(File, 0) == true );
+		CHECK ( kGetReadPosition(File) == 0 );
+		kReadLine(File, sLine);
+		CHECK ( sLine == "hello" );
+
+		CHECK ( kGoToLine(File, 1) == false );
+
+		CHECK ( kGoToLine(File, 0, true) == true );
+		CHECK ( kGetReadPosition(File) == 0 );
+		File.ReadLine(sLine);
+		CHECK ( sLine == "hello" );
+
+		CHECK ( kGoToLine(File, 1, true) == false );
+	}
+
+	SECTION("kGoToLine empty file")
+	{
+		KString sPath = kFormat("{}{}gotoline-empty-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, "");
+		KInFile File(sPath);
+
+		CHECK ( kGoToLine(File, 0) == true );
+		CHECK ( kGetReadPosition(File) == 0 );
+
+		CHECK ( kGoToLine(File, 1) == false );
+	}
 }

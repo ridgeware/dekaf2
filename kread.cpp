@@ -442,4 +442,168 @@ bool kRewind(std::istream& Stream, std::size_t iCount)
 
 } // kRewind
 
+//-----------------------------------------------------------------------------
+bool kMoveToLine(std::istream& Stream, std::size_t iLine, bool bBackward, char eol)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY_EXCEPTION
+
+	auto streambuf = Stream.rdbuf();
+
+	if (DEKAF2_UNLIKELY(!streambuf))
+	{
+		return false;
+	}
+
+	if (!bBackward)
+	{
+		// forward: skip iLine line breaks from current position
+		for (std::size_t iCount = 0; iCount < iLine; )
+		{
+			auto iCh = streambuf->sbumpc();
+
+			if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+			{
+				Stream.setstate(std::ios::eofbit);
+				return false;
+			}
+
+			if (std::istream::traits_type::to_char_type(iCh) == eol)
+			{
+				++iCount;
+			}
+		}
+
+		Stream.clear();
+		return true;
+	}
+	else
+	{
+		// backward: move back from current position counting line breaks
+		// we need to move back one extra position first, because the current
+		// position might be right after a line break
+
+		auto curPos = streambuf->pubseekoff(0, std::ios_base::cur, std::ios_base::in);
+
+		if (curPos == std::streambuf::pos_type(std::streambuf::off_type(-1)))
+		{
+			return false;
+		}
+
+		if (iLine == 0)
+		{
+			// special case: seek to end
+			return streambuf->pubseekoff(0, std::ios_base::end, std::ios_base::in)
+				!= std::streambuf::pos_type(std::streambuf::off_type(-1));
+		}
+
+		auto iPos = static_cast<std::size_t>(curPos);
+
+		if (iPos == 0)
+		{
+			// already at beginning, cannot go backward
+			return false;
+		}
+
+		// move backward one char at a time, counting line breaks
+		std::size_t iCount = 0;
+
+		while (iPos > 0)
+		{
+			--iPos;
+
+			if (streambuf->pubseekpos(static_cast<std::streambuf::pos_type>(iPos), std::ios_base::in)
+				== std::streambuf::pos_type(std::streambuf::off_type(-1)))
+			{
+				return false;
+			}
+
+			auto iCh = streambuf->sgetc();
+
+			if (std::istream::traits_type::eq_int_type(iCh, std::istream::traits_type::eof()))
+			{
+				return false;
+			}
+
+			if (std::istream::traits_type::to_char_type(iCh) == eol)
+			{
+				++iCount;
+
+				if (iCount >= iLine)
+				{
+					// position after the line break we just found
+					streambuf->sbumpc();
+					Stream.clear();
+					return true;
+				}
+			}
+		}
+
+		// reached beginning of file before finding enough line breaks -
+		// if we found iLine-1 breaks, the first line is the target
+		if (iCount + 1 >= iLine)
+		{
+			// we are at position 0, which is the start of the first line
+			Stream.clear();
+			return true;
+		}
+
+		// not enough lines - restore original position
+		streambuf->pubseekpos(static_cast<std::streambuf::pos_type>(curPos), std::ios_base::in);
+		return false;
+	}
+
+	DEKAF2_LOG_EXCEPTION
+
+	return false;
+
+} // kMoveToLine
+
+//-----------------------------------------------------------------------------
+bool kGoToLine(std::istream& Stream, std::size_t iLine, bool bFromEnd, char eol)
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY_EXCEPTION
+
+	auto streambuf = Stream.rdbuf();
+
+	if (DEKAF2_UNLIKELY(!streambuf))
+	{
+		return false;
+	}
+
+	if (!bFromEnd)
+	{
+		// seek to beginning, then skip iLine line breaks
+		if (streambuf->pubseekpos(0, std::ios_base::in)
+			== std::streambuf::pos_type(std::streambuf::off_type(-1)))
+		{
+			return false;
+		}
+
+		Stream.clear();
+
+		return kMoveToLine(Stream, iLine, false, eol);
+	}
+	else
+	{
+		// seek to end, then move backward iLine+1 line breaks
+		// (iLine 0 = last line, so we need to find 1 line break going backward)
+		if (streambuf->pubseekoff(0, std::ios_base::end, std::ios_base::in)
+			== std::streambuf::pos_type(std::streambuf::off_type(-1)))
+		{
+			return false;
+		}
+
+		Stream.clear();
+
+		return kMoveToLine(Stream, iLine + 1, true, eol);
+	}
+
+	DEKAF2_LOG_EXCEPTION
+
+	return false;
+
+} // kGoToLine
+
 DEKAF2_NAMESPACE_END

@@ -104,4 +104,22 @@ bool kRewind(std::istream& Stream) { return kSetReadPosition(Stream, 0); }
 DEKAF2_PUBLIC
 bool kRewind(std::istream& Stream, std::size_t iCount);
 
+/// Reposition the device of a std::istream to a specific line number, relative to the current line
+/// @param Stream the input stream to reposition
+/// @param iLine the 0 - based line number to seek to - if bBackward is true, 0 seeks to the empty line at the end
+/// @param bBackward if true, line number counts from current line backwards. Defaults to false.
+/// @param eol the line break character, defaults to \n
+/// @returns true if repositioned to requested line, false on failure
+DEKAF2_PUBLIC
+bool kMoveToLine(std::istream& Stream, std::size_t iLine, bool bBackward = false, char eol = '\n');
+
+/// Reposition the device of a std::istream to a specific line number, counting from the begin or end of the file
+/// @param Stream the input stream to reposition
+/// @param iLine the 0 - based line number to seek to
+/// @param bFromEnd if true, line number counts from end of file backwards, so line 0 is the last line. Defaults to false.
+/// @param eol the line break character, defaults to \n
+/// @returns true if repositioned to requested line, false on failure
+DEKAF2_PUBLIC
+bool kGoToLine(std::istream& Stream, std::size_t iLine, bool bFromEnd = false, char eol = '\n');
+
 DEKAF2_NAMESPACE_END

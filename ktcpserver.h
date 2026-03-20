@@ -85,11 +85,9 @@
 #include <mutex>
 #include <condition_variable>
 
-#if (BOOST_VERSION < 107000) || !defined(DEKAF2_IS_MACOS)
-	#define DEKAF2_TCPSERVER_CONNECT_TO_STOP
-#endif
-
 DEKAF2_NAMESPACE_BEGIN
+
+class KTLSContext;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A TCP server implementation supporting TLS.
@@ -372,15 +370,6 @@ protected:
 private:
 //-------
 
-	enum ServerType
-	{
-		TCPv4 = 1 << 0,
-		TCPv6 = 1 << 1,
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-		Unix  = 1 << 2
-#endif
-	};
-
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
 	bool CreateSelfSignedCertAndKey();
@@ -388,13 +377,28 @@ private:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	bool TCPServer(bool ipv6);
+	bool SetupTLSContext();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	DEKAF2_PRIVATE
+	bool SetupTCPAcceptors();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	DEKAF2_PRIVATE
+	void StartTCPAccept(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor);
 	//-----------------------------------------------------------------------------
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	bool UnixServer();
+	bool SetupUnixAcceptor();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	DEKAF2_PRIVATE
+	void StartUnixAccept();
 	//-----------------------------------------------------------------------------
 #endif
 
@@ -403,21 +407,20 @@ private:
 	void RunSession(std::unique_ptr<KIOStreamSocket>& stream);
 	//-----------------------------------------------------------------------------
 
-#ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	bool StopServerThread(ServerType SType);
+	bool RunServer();
 	//-----------------------------------------------------------------------------
-#endif
 
 	boost::asio::io_service                   m_asio;
-	std::vector<std::unique_ptr<std::thread>> m_Servers;
+	std::unique_ptr<std::thread>              m_IOThread;
 	std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>>
 	                                          m_TCPAcceptors;
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	std::shared_ptr<boost::asio::local::stream_protocol::acceptor>
 		                                      m_UnixAcceptor;
 #endif
+	std::unique_ptr<KTLSContext>              m_TLSContext;
 	std::mutex                                m_StartupMutex;
 	std::condition_variable                   m_StartedUp;
 
@@ -437,10 +440,8 @@ private:
 	KDuration         m_Timeout               { KStreamOptions::GetDefaultTimeout() };
 	KHTTPVersion      m_HTTPVersion           { KHTTPVersion::none };
 	std::atomic<bool> m_bQuit                 { false };
-	bool              m_bBlock                {  true };
 	bool              m_bStartIPv4            {  true };
 	bool              m_bStartIPv6            {  true };
-	bool              m_bHaveSeparatev4Thread { false };
 	bool              m_bIsTLS                { false };
 	bool              m_bStoreNewCerts        {  true };
 

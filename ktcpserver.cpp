@@ -74,6 +74,7 @@
 #endif
 
 #include "ktcpserver.h"
+#include "ktlscontext.h"
 #include "ktlsstream.h"
 #include "ktcpstream.h"
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
@@ -89,16 +90,6 @@ DEKAF2_NAMESPACE_BEGIN
 
 using boost::asio::ip::tcp;
 using endpoint_type = boost::asio::ip::tcp::acceptor::endpoint_type;
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-struct AtomicStarted
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	AtomicStarted(std::atomic<int>& iStarted) : m_iStarted(iStarted) { ++m_iStarted; }
-	~AtomicStarted() { --m_iStarted; }
-	std::atomic<int>& m_iStarted;
-
-}; // AtomicStarted
 
 //-----------------------------------------------------------------------------
 /// Converts an endpoint type into a human readable string. Could be used for
@@ -335,195 +326,258 @@ bool KTCPServer::CreateSelfSignedCertAndKey()
 } // CreateSelfSignedCertAndKey
 
 //-----------------------------------------------------------------------------
-bool KTCPServer::TCPServer(bool ipv6)
+bool KTCPServer::SetupTLSContext()
 //-----------------------------------------------------------------------------
 {
-	DEKAF2_TRY {
-
-	boost::asio::ip::v6_only v6_only(false);
-
-	kDebug(2, "opening {} listener on port {}, asking for {}", IsTLS() ? "TLS" : "TCP", m_iPort, (ipv6) ? "dual stack" : "IPv4 only");
-
-	tcp::endpoint local_endpoint((ipv6) ? tcp::v6() : tcp::v4(), m_iPort);
-	auto acceptor = std::make_shared<tcp::acceptor>(m_asio, local_endpoint, true); // true means reuse_addr
-	m_TCPAcceptors.push_back(acceptor);
-
-	if (ipv6)
+	if (!IsTLS())
 	{
-		// check if we listen on both v4 and v6, or only on v6
-		acceptor->get_option(v6_only);
-		// if acceptor is not open this computer does not support v6
-		// (although, the acceptor's constructor would have thrown above already),
-		// if v6_only then this computer does not use a dual stack
-		if (!acceptor->is_open() || v6_only)
+		return true;
+	}
+
+	if (m_sCert.empty())
+	{
+		if (!CreateSelfSignedCertAndKey())
 		{
-			// test for v6_only flag, although it should be redundant
+			return false; // already logged
+		}
+	}
+
+	m_TLSContext = std::make_unique<KTLSContext>(true);
+
+	if (!m_TLSContext->SetTLSCertificates(m_sCert, m_sKey, m_sPassword))
+	{
+		return SetError(m_TLSContext->CopyLastError()); // already logged
+	}
+
+	if (!m_TLSContext->SetDHPrimes(m_sDHPrimes))
+	{
+		return SetError(m_TLSContext->CopyLastError()); // already logged
+	}
+
+	if (!m_TLSContext->SetAllowedCipherSuites(m_sAllowedCipherSuites))
+	{
+		return SetError(m_TLSContext->CopyLastError()); // already logged
+	}
+
+	if (m_HTTPVersion & KHTTPVersion::http2)
+	{
+		m_TLSContext->SetAllowHTTP2(m_HTTPVersion & KHTTPVersion::http11);
+	}
+
+	return true;
+
+} // SetupTLSContext
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::SetupTCPAcceptors()
+//-----------------------------------------------------------------------------
+{
+	bool bTryIPv6 = m_bStartIPv6;
+	bool bNeedIPv4 = m_bStartIPv4;
+
+	if (bTryIPv6)
+	{
+		DEKAF2_TRY
+		{
+			kDebug(2, "opening {} listener on port {}, asking for dual stack", IsTLS() ? "TLS" : "TCP", m_iPort);
+
+			tcp::endpoint local_endpoint(tcp::v6(), m_iPort);
+			auto acceptor = std::make_shared<tcp::acceptor>(m_asio, local_endpoint, true); // true means reuse_addr
+
+			boost::asio::ip::v6_only v6_only(false);
+			acceptor->get_option(v6_only);
+
 			if (v6_only)
 			{
 				kDebug(2, "listener opened for IPv6 only, dual stack not supported");
 			}
-
-			if (m_bStartIPv4)
+			else
 			{
-				// check if we can stay in this thread (because the v6 acceptor
-				// is not working, and blocking construction is requested)
-				if (!acceptor->is_open() && m_bBlock)
-				{
-					TCPServer(false);
-				}
-				else
-				{
-					// else open v4 explicitly in another thread
-					m_Servers.push_back(std::make_unique<std::thread>(&KTCPServer::TCPServer, this, false));
-					m_bHaveSeparatev4Thread = true;
-				}
+				// dual stack covers IPv4 as well
+				bNeedIPv4 = false;
+			}
+
+			m_TCPAcceptors.push_back(std::move(acceptor));
+		}
+		DEKAF2_CATCH(const std::exception& e)
+		{
+			KStringViewZ sError = e.what();
+
+			// unfortunately we have to investigate the error text from
+			// asio to find out about the reason for the throw
+			if (sError.starts_with("open: ") && m_bStartIPv4)
+			{
+				// apparently we tried to open an ipv6 acceptor on a ipv4 only stack, just ignore
+				// the error and try to start a pure ipv4 acceptor
+				// (the full error string may look like: 'open: Address family not supported by protocol')
+				kDebug(1, sError);
+				kDebug(1, "it looks as if IPv6 is not supported");
+			}
+			else
+			{
+				return SetError(kFormat("exception: {}", sError));
 			}
 		}
 	}
 
-	m_StartedUp.notify_all();
-
-	// this is redundant, the acceptor's constructor would always throw if
-	// it could not open
-	if (!acceptor->is_open())
+	if (bNeedIPv4)
 	{
-		return SetError(kFormat("IPv{} listener for port {} could not open",
-		                        (ipv6) ? '6' : '4',
-		                        m_iPort));
+		kDebug(2, "opening {} listener on port {}, asking for IPv4 only", IsTLS() ? "TLS" : "TCP", m_iPort);
+
+		tcp::endpoint local_endpoint(tcp::v4(), m_iPort);
+		auto acceptor = std::make_shared<tcp::acceptor>(m_asio, local_endpoint, true); // true means reuse_addr
+		m_TCPAcceptors.push_back(std::move(acceptor));
 	}
 
-	AtomicStarted Started(m_iStarted);
+	if (m_TCPAcceptors.empty())
+	{
+		return SetError(kFormat("could not open any listener for port {}", m_iPort));
+	}
 
-	std::unique_ptr<KTLSContext> TLSContext;
+	// post an async_accept for each acceptor
+	for (auto& acceptor : m_TCPAcceptors)
+	{
+		StartTCPAccept(acceptor);
+	}
 
+	return true;
+
+} // SetupTCPAcceptors
+
+//-----------------------------------------------------------------------------
+void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
+//-----------------------------------------------------------------------------
+{
 	if (IsTLS())
 	{
-		// the TLS version of the server
+		auto tlsstream = CreateKTLSServer(*m_TLSContext, m_Timeout);
+		auto& socket   = tlsstream->GetTCPSocket();
+		auto* pStream  = tlsstream.release();
 
-		if (m_sCert.empty())
+		acceptor->async_accept(socket,
+			[this, acceptor, pStream](boost::system::error_code ec)
 		{
-			if (!CreateSelfSignedCertAndKey())
+			std::unique_ptr<KIOStreamSocket> stream(pStream);
+
+			if (IsShuttingDown())
 			{
-				return false; // already logged
+				return;
 			}
-		}
 
-		TLSContext = std::make_unique<KTLSContext>(true);
-
-		if (!TLSContext->SetTLSCertificates(m_sCert, m_sKey, m_sPassword))
-		{
-			return SetError(TLSContext->CopyLastError()); // already logged
-		}
-
-		if (!TLSContext->SetDHPrimes(m_sDHPrimes))
-		{
-			return SetError(TLSContext->CopyLastError()); // already logged
-		}
-
-		if (!TLSContext->SetAllowedCipherSuites(m_sAllowedCipherSuites))
-		{
-			return SetError(TLSContext->CopyLastError()); // already logged
-		}
-
-		if (m_HTTPVersion & KHTTPVersion::http2)
-		{
-			TLSContext->SetAllowHTTP2(m_HTTPVersion & KHTTPVersion::http11);
-		}
-	}
-
-	for (;;)
-	{
-		endpoint_type remote_endpoint;
-		boost::system::error_code ec;
-		std::unique_ptr<KIOStreamSocket> stream;
-
-		if (IsTLS())
-		{
-			auto tlsstream = CreateKTLSServer(*TLSContext.get(), m_Timeout);
-
-			acceptor->accept(tlsstream->GetTCPSocket(), remote_endpoint, ec);
-
-			stream = std::move(tlsstream);
-		}
-		else
-		{
-			auto tcpstream = CreateKTCPStream(m_Timeout);
-
-			acceptor->accept(tcpstream->GetTCPSocket(), remote_endpoint, ec);
-
-			stream = std::move(tcpstream);
-		}
-
-		if (IsShuttingDown())
-		{
-			return true;
-		}
-
-		if (ec)
-		{
-			if (ec.value() == boost::asio::error::interrupted || ec.value() == boost::asio::error::try_again)
+			if (ec)
 			{
-				kDebug(3, "ignored error: {}", ec.message());
-				continue;
+				if (ec == boost::asio::error::operation_aborted)
+				{
+					return;
+				}
+				kDebug(1, "accept error: {}", ec.message());
 			}
-			return SetError(kFormat("accept error: {}", ec.message()));
-		}
+			else
+			{
+				// get the remote endpoint from the accepted socket
+				DEKAF2_TRY
+				{
+					boost::system::error_code ecp;
+					auto ep = static_cast<KTLSStream*>(stream.get())->GetTCPSocket().remote_endpoint(ecp);
 
-		kDebug(2, "accepting {} connection from {}", IsTLS() ? "TLS" : "TCP", to_string(remote_endpoint));
-
-		stream->SetConnectedEndPointAddress(to_string(remote_endpoint));
+					if (!ecp)
+					{
+						KString sEndpoint = to_string(ep);
+						kDebug(2, "accepting {} connection from {}", "TLS", sEndpoint);
+						stream->SetConnectedEndPointAddress(sEndpoint);
+					}
+				}
+				DEKAF2_CATCH(...) {}
 
 #if !DEKAF2_HAS_CPP_14 || defined(DEKAF2_IS_MSC)
-		// unfortunately C++11 does not know how to move a variable into a lambda scope
-		auto* Stream = stream.release();
-		m_ThreadPool.push([ this, Stream, remote_endpoint ]() mutable
-		{
-			std::unique_ptr<KIOStreamSocket> moved_stream { Stream };
-			RunSession(moved_stream);
-		});
+				// unfortunately C++11 does not know how to move a variable into a lambda scope
+				auto* Stream = stream.release();
+				m_ThreadPool.push([ this, Stream ]() mutable
+				{
+					std::unique_ptr<KIOStreamSocket> moved_stream { Stream };
+					RunSession(moved_stream);
+				});
 #else
-		m_ThreadPool.push([ this, moved_stream = std::move(stream), remote_endpoint ]() mutable
-		{
-			RunSession(moved_stream);
-		});
+				m_ThreadPool.push([ this, moved_stream = std::move(stream) ]() mutable
+				{
+					RunSession(moved_stream);
+				});
 #endif
+			}
 
-	} // for (;;)
-
+			// chain the next accept
+			StartTCPAccept(acceptor);
+		});
 	}
-	DEKAF2_CATCH(const std::exception& e)
+	else
 	{
-		KStringViewZ sError = e.what();
-		// unfortunately we have to investigate the error text from
-		// asio to find out about the reason for the throw
-		if (sError.starts_with("open: ") && ipv6 == true && m_TCPAcceptors.empty() && m_bStartIPv4)
+		auto tcpstream = CreateKTCPStream(m_Timeout);
+		auto& socket   = tcpstream->GetTCPSocket();
+		auto* pStream  = tcpstream.release();
+
+		acceptor->async_accept(socket,
+			[this, acceptor, pStream](boost::system::error_code ec)
 		{
-			// apparently we tried to open an ipv6 acceptor on a ipv4 only stack, just ignore
-			// the error and try to start a pure ipv4 acceptor
-			// (the full error string may look like: 'open: Address family not supported by protocol')
-			kDebug(1, sError);
-			kDebug(1, "it looks as if IPv6 is not supported");
-			return TCPServer(false);
-		}
-		else
-		{
-			SetError(kFormat("exception: {}", sError));
-		}
+			std::unique_ptr<KIOStreamSocket> stream(pStream);
+
+			if (IsShuttingDown())
+			{
+				return;
+			}
+
+			if (ec)
+			{
+				if (ec == boost::asio::error::operation_aborted)
+				{
+					return;
+				}
+				kDebug(1, "accept error: {}", ec.message());
+			}
+			else
+			{
+				// get the remote endpoint from the accepted socket
+				DEKAF2_TRY
+				{
+					boost::system::error_code ecp;
+					auto ep = static_cast<KTCPStream*>(stream.get())->GetTCPSocket().remote_endpoint(ecp);
+
+					if (!ecp)
+					{
+						KString sEndpoint = to_string(ep);
+						kDebug(2, "accepting {} connection from {}", "TCP", sEndpoint);
+						stream->SetConnectedEndPointAddress(sEndpoint);
+					}
+				}
+				DEKAF2_CATCH(...) {}
+
+#if !DEKAF2_HAS_CPP_14 || defined(DEKAF2_IS_MSC)
+				// unfortunately C++11 does not know how to move a variable into a lambda scope
+				auto* Stream = stream.release();
+				m_ThreadPool.push([ this, Stream ]() mutable
+				{
+					std::unique_ptr<KIOStreamSocket> moved_stream { Stream };
+					RunSession(moved_stream);
+				});
+#else
+				m_ThreadPool.push([ this, moved_stream = std::move(stream) ]() mutable
+				{
+					RunSession(moved_stream);
+				});
+#endif
+			}
+
+			// chain the next accept
+			StartTCPAccept(acceptor);
+		});
 	}
 
-	kDebug(2, "server is closing");
-
-	return false;
-
-} // TCPServer
+} // StartTCPAccept
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 //-----------------------------------------------------------------------------
-bool KTCPServer::UnixServer()
+bool KTCPServer::SetupUnixAcceptor()
 //-----------------------------------------------------------------------------
 {
-	DEKAF2_TRY {
-
 	kDebug(2, "opening listener on unix socket at {}", m_sSocketFile);
 
 	// remove an existing socket
@@ -538,46 +592,50 @@ bool KTCPServer::UnixServer()
 	}
 
 	boost::asio::local::stream_protocol::endpoint local_endpoint(m_sSocketFile.c_str());
-	auto acceptor = std::make_shared<boost::asio::local::stream_protocol::acceptor>(m_asio, local_endpoint, true); // true == reuse addr
-	m_UnixAcceptor = acceptor;
+	m_UnixAcceptor = std::make_shared<boost::asio::local::stream_protocol::acceptor>(m_asio, local_endpoint, true); // true == reuse addr
 
 	// make socket read/writeable for world
 	kChangeMode(m_sSocketFile, 0777);
 
-	m_StartedUp.notify_all();
-
-	// this is redundant, the acceptor's constructor would always throw if
-	// it could not open
-	if (!acceptor->is_open())
+	if (!m_UnixAcceptor->is_open())
 	{
-		SetError(kFormat("listener for socket file {} could not open", m_sSocketFile));
+		return SetError(kFormat("listener for socket file {} could not open", m_sSocketFile));
 	}
-	else
+
+	StartUnixAccept();
+
+	return true;
+
+} // SetupUnixAcceptor
+
+//-----------------------------------------------------------------------------
+void KTCPServer::StartUnixAccept()
+//-----------------------------------------------------------------------------
+{
+	auto unixstream = CreateKUnixStream(m_Timeout);
+	auto& socket    = unixstream->GetUnixSocket();
+	auto* pStream   = unixstream.release();
+
+	m_UnixAcceptor->async_accept(socket,
+		[this, pStream](boost::system::error_code ec)
 	{
-		AtomicStarted Started(m_iStarted);
+		std::unique_ptr<KUnixStream> unixstream(pStream);
 
-		for (;;)
+		if (IsShuttingDown())
 		{
-			auto unixstream = CreateKUnixStream(m_Timeout);
+			return;
+		}
 
-			boost::system::error_code ec;
-			acceptor->accept(unixstream->GetUnixSocket(), ec);
-
-			if (IsShuttingDown())
+		if (ec)
+		{
+			if (ec == boost::asio::error::operation_aborted)
 			{
-				return true;
+				return;
 			}
-
-			if (ec)
-			{
-				if (ec.value() == boost::asio::error::interrupted || ec.value() == boost::asio::error::try_again)
-				{
-					kDebug(3, "ignored error: {}", ec.message());
-					continue;
-				}
-				return SetError(kFormat("accept error: {}", ec.message()));
-			}
-
+			kDebug(1, "accept error: {}", ec.message());
+		}
+		else
+		{
 			kDebug(2, "accepting connection from local unix socket");
 
 			unixstream->SetConnectedEndPointAddress(m_sSocketFile);
@@ -601,21 +659,11 @@ bool KTCPServer::UnixServer()
 #endif
 		}
 
-		// remove the socket
-		kRemoveSocket(m_sSocketFile);
-	}
+		// chain the next accept
+		StartUnixAccept();
+	});
 
-	} 
-	DEKAF2_CATCH(const std::exception& e)
-	{
-		SetError(kFormat("exception: {}", e.what()));
-	}
-
-	kDebug(2, "server is closing");
-
-	return false;
-
-} // UnixServer
+} // StartUnixAccept
 #endif
 
 //-----------------------------------------------------------------------------
@@ -642,7 +690,20 @@ bool KTCPServer::LoadTLSCertificates(KStringViewZ sCert, KStringViewZ sKey, KStr
 	m_sPassword = sPassword;
 	m_sCert.clear();
 	m_sKey.clear();
-	return kReadAll(sCert, m_sCert) && (sKey.empty() || kReadAll(sKey, m_sKey));
+
+	if (!kReadAll(sCert, m_sCert))
+	{
+		return false;
+	}
+
+	if (!sKey.empty() && !kReadAll(sKey, m_sKey))
+	{
+		// clear cert on partial failure to avoid inconsistent state
+		m_sCert.clear();
+		return false;
+	}
+
+	return true;
 
 } // LoadTLSCertificates
 
@@ -695,14 +756,74 @@ int KTCPServer::GetResult()
 }
 
 //-----------------------------------------------------------------------------
+bool KTCPServer::RunServer()
+//-----------------------------------------------------------------------------
+{
+	DEKAF2_TRY
+	{
+		// set up TLS context if needed (shared by all acceptors)
+		if (!SetupTLSContext())
+		{
+			return false;
+		}
+
+		// set up acceptors and post async_accept handlers
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		if (!m_sSocketFile.empty())
+		{
+			if (!SetupUnixAcceptor())
+			{
+				return false;
+			}
+		}
+		else
+#endif
+		{
+			if (!SetupTCPAcceptors())
+			{
+				return false;
+			}
+		}
+
+		// mark as started before notifying waiters
+		++m_iStarted;
+		m_StartedUp.notify_all();
+
+		kDebug(2, "server is running");
+
+		// run the io_context - this blocks until stop() is called
+		// or all async operations complete
+		m_asio.run();
+
+		kDebug(2, "server is closing");
+
+		--m_iStarted;
+	}
+	DEKAF2_CATCH(const std::exception& e)
+	{
+		SetError(kFormat("exception: {}", e.what()));
+		return false;
+	}
+
+	return true;
+
+} // RunServer
+
+//-----------------------------------------------------------------------------
 bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 //-----------------------------------------------------------------------------
 {
 	kDebug(2, "starting server");
 
 	m_Timeout = Timeout;
-	m_bBlock  = bBlock;
 	m_bQuit   = false;
+
+	// reset the io_context for potential restart after a previous Stop()
+#if DEKAF2_CLASSIC_ASIO
+	m_asio.reset();
+#else
+	m_asio.restart();
+#endif
 
 	std::promise<int> promise;
 	m_ResultAsFuture = promise.get_future();
@@ -713,120 +834,32 @@ bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 		return SetError(kFormat("Server is already running on port {}", m_iPort));
 	}
 
-	if (m_bBlock)
+	if (bBlock)
 	{
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-		if (!m_sSocketFile.empty())
-		{
-			UnixServer();
-		}
-		else
-#endif
-		{
-			TCPServer(m_bStartIPv6);
-		}
+		RunServer();
 		promise.set_value(0);
 		kDebug(2, "stopped blocking server");
 		return true;
 	}
 	else
 	{
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-		if (!m_sSocketFile.empty())
+		m_IOThread = std::make_unique<std::thread>([this](std::promise<int>&& promise)
 		{
-			m_Servers.push_back(std::make_unique<std::thread>([this](std::promise<int>&& promise)
-			{
-				promise.set_value_at_thread_exit(0);
-				UnixServer();
+			promise.set_value_at_thread_exit(0);
+			RunServer();
 
-			},(std::move(promise))));
-		}
-		else
-#endif
-		{
-			m_Servers.push_back(std::make_unique<std::thread>([this](std::promise<int>&& promise)
-			{
-				promise.set_value_at_thread_exit(0);
-				TCPServer(m_bStartIPv6);
-
-			},(std::move(promise))));
-		}
+		},(std::move(promise)));
 
 		// give the thread time to start up before we return in non-blocking code
 		std::unique_lock<std::mutex> Lock(m_StartupMutex);
-		m_StartedUp.wait_for(Lock, std::chrono::milliseconds(1000));
+		m_StartedUp.wait_for(Lock, chrono::milliseconds(1000));
 
 		return IsRunning();
 	}
 
 } // Start
 
-#ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
-
 //-----------------------------------------------------------------------------
-bool KTCPServer::StopServerThread(ServerType SType)
-//-----------------------------------------------------------------------------
-{
-	boost::asio::ip::address localhost;
-
-	// now connect to localhost on the listen port
-	switch (SType)
-	{
-		case TCPv6:
-#ifdef DEKAF2_CLASSIC_ASIO
-			localhost.from_string("::1");
-#else
-			localhost = boost::asio::ip::make_address("::1");
-#endif
-			break;
-
-		case TCPv4:
-#ifdef DEKAF2_CLASSIC_ASIO
-			localhost.from_string("127.0.0.1");
-#else
-			localhost = boost::asio::ip::make_address("127.0.0.1");
-#endif
-			break;
-
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-
-		case Unix:
-			// connect to socket file
-			boost::system::error_code ec;
-			boost::asio::local::stream_protocol::socket s(m_asio);
-			s.connect(boost::asio::local::stream_protocol::endpoint(m_sSocketFile.c_str()), ec);
-			// wait a little to avoid acceptor exception
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			return true;
-
-#endif
-
-	}
-
-	boost::system::error_code ec;
-	tcp::endpoint remote_endpoint(localhost, m_iPort);
-	boost::asio::ip::tcp::socket socket(m_asio);
-	socket.connect(remote_endpoint, ec);
-
-	if (ec)
-	{
-		kDebug(2, "cannot connect to {}:{}: {}", remote_endpoint.address().to_string(), remote_endpoint.port(), ec.message());
-		return false;
-	}
-
-	// wait a little to avoid acceptor exception
-	std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	return true;
-
-} // StopServerThread
-
-#endif
-
-//-----------------------------------------------------------------------------
-// The process to stop a running server is a bit convoluted. Because the acceptor
-// can not be interrupted, we simply fire up a client thread per server to trigger
-// the acceptor, and directly afterwards the server thread checks m_bQuit and
-// finishes
 bool KTCPServer::Stop()
 //-----------------------------------------------------------------------------
 {
@@ -841,6 +874,8 @@ bool KTCPServer::Stop()
 
 	m_bQuit = true;
 
+	// cancel and close all TCP acceptors - pending async_accept handlers
+	// will be called with operation_aborted
 	for (auto& Acceptor : m_TCPAcceptors)
 	{
 		if (Acceptor && Acceptor->is_open())
@@ -862,34 +897,6 @@ bool KTCPServer::Stop()
 	}
 	m_TCPAcceptors.clear();
 
-#ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
-
-	kSleep(chrono::milliseconds(10));
-
-	// give it another shot for older systems
-	if (m_bStartIPv6)
-	{
-		bool bStopped = StopServerThread(TCPv6);
-		// it may happen (e.g. in a container without IPv6 support)
-		// that we open a dual stack listener, but in fact it only
-		// listens on an IPv4 interface. In that case, StopServerThread(TCPv6)
-		// would return with false, because it could not connect to the
-		// v6 interface. We then _have_ to connect to the v4 interface
-		// to shut down the listener.
-		if (m_bHaveSeparatev4Thread || !bStopped)
-		{
-			StopServerThread(TCPv4);
-		}
-	}
-	else if (m_bStartIPv4)
-	{
-		StopServerThread(TCPv4);
-	}
-
-#endif
-
-	m_bHaveSeparatev4Thread	= false;
-
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
 	if (m_UnixAcceptor && m_UnixAcceptor->is_open())
@@ -899,7 +906,7 @@ bool KTCPServer::Stop()
 		m_UnixAcceptor->cancel(ec);
 		if (ec)
 		{
-			SetError(kFormat("error closing listener: {}", ec.message()));
+			SetError(kFormat("error cancelling listener: {}", ec.message()));
 		}
 		kDebug(2, "closing unix listener");
 		m_UnixAcceptor->close(ec);
@@ -907,24 +914,29 @@ bool KTCPServer::Stop()
 		{
 			SetError(kFormat("error closing listener: {}", ec.message()));
 		}
-
-#ifdef DEKAF2_TCPSERVER_CONNECT_TO_STOP
-
-		// give it another shot for older systems
-		StopServerThread(Unix);
-
-#endif
-
 	}
 	m_UnixAcceptor.reset();
 
+	// remove the unix socket file
+	if (!m_sSocketFile.empty())
+	{
+		kRemoveSocket(m_sSocketFile);
+	}
+
 #endif
 
-	for (auto& Server : m_Servers)
+	// stop the io_context - causes run() to return
+	m_asio.stop();
+
+	// join the IO thread
+	if (m_IOThread && m_IOThread->joinable())
 	{
-		Server->join();
+		m_IOThread->join();
 	}
-	m_Servers.clear();
+	m_IOThread.reset();
+
+	// release the TLS context
+	m_TLSContext.reset();
 
 	kDebug(2, "listeners closed");
 
@@ -949,7 +961,7 @@ bool KTCPServer::RegisterShutdownWithSignals(const std::vector<int>& Signals)
 		// register with iSignal
 		SignalHandlers->SetSignalHandler(iSignal, [&](int signal)
 		{
-			kDebug(1, "received {}, shutting down", kTranslateSignal(signal))
+			kDebug(1, "received {}, shutting down", kTranslateSignal(signal));
 
 			auto SignalHandlers = Dekaf::getInstance().Signals();
 

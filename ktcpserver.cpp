@@ -925,10 +925,8 @@ bool KTCPServer::Stop()
 
 #endif
 
-	// stop the io_context - causes run() to return
-	m_asio.stop();
-
-	// join the IO thread
+	// join the IO thread - run() will return naturally once all
+	// cancelled async_accept handlers have completed without chaining
 	if (m_IOThread && m_IOThread->joinable())
 	{
 		m_IOThread->join();

@@ -761,12 +761,6 @@ bool KTCPServer::RunServer()
 {
 	DEKAF2_TRY
 	{
-		// set up TLS context if needed (shared by all acceptors)
-		if (!SetupTLSContext())
-		{
-			return false;
-		}
-
 		// set up acceptors and post async_accept handlers
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		if (!m_sSocketFile.empty())
@@ -834,6 +828,14 @@ bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 		return SetError(kFormat("Server is already running on port {}", m_iPort));
 	}
 
+	// set up TLS context before creating the IO thread - this includes
+	// potentially slow RSA key generation for ephemeral certificates
+	if (!SetupTLSContext())
+	{
+		promise.set_value(1);
+		return false;
+	}
+
 	if (bBlock)
 	{
 		RunServer();
@@ -863,16 +865,32 @@ bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 bool KTCPServer::Stop()
 //-----------------------------------------------------------------------------
 {
-	if (!IsRunning() || IsShuttingDown())
+	// always set quit flag first, even before checking IsRunning() -
+	// the IO thread may be in the setup phase before ++m_iStarted
+	bool bWasShuttingDown = m_bQuit.exchange(true);
+
+	if (bWasShuttingDown)
 	{
+		// another thread is already running Stop()
+		return true;
+	}
+
+	if (!IsRunning())
+	{
+		// server not yet running (or already stopped) - but the IO thread
+		// may exist and be in the setup phase, so we must still join it
+		if (m_IOThread && m_IOThread->joinable())
+		{
+			m_IOThread->join();
+		}
+		m_IOThread.reset();
+		m_bQuit = false;
 		return true;
 	}
 
 	KLog::getInstance().SyncLevel();
 
 	kDebug(2, "closing listeners");
-
-	m_bQuit = true;
 
 	// cancel and close all TCP acceptors - pending async_accept handlers
 	// will be called with operation_aborted

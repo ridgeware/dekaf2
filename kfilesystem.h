@@ -1279,8 +1279,12 @@ private:
 
 			sFileName = kGenerateTempPath(m_sExtension, m_iMaxPathLen);
 #if defined(__cpp_lib_ios_noreplace)
-			// create file in exclusive mode to exclude races
-			m_File.open(sFileName, std::ios_base::noreplace);
+			// Create file in exclusive mode to exclude races. We must include trunc
+			// because FileStream types like KFile (std::fstream) add std::ios_base::in
+			// to the mode flags, and in|out without trunc maps to C mode "r+" which
+			// requires the file to already exist — noreplace alone would silently fail.
+			// With trunc, in|out|trunc|noreplace maps to "w+x" (exclusive create, r/w).
+			m_File.open(sFileName, std::ios_base::trunc | std::ios_base::noreplace);
 #else
 			// create file and truncate it, to defer content poisoning
 			m_File.open(sFileName.c_str(), std::ios_base::trunc);

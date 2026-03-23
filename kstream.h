@@ -260,7 +260,13 @@ public:
 	/// (like std::ios_base::app, ate, trunc, noreplace)
 	KFile(KStringViewZ sFilename, std::ios_base::openmode mode = std::ios_base::in)
 	//-----------------------------------------------------------------------------
+#if defined(__cpp_lib_ios_noreplace)
+	: base_type(kToFilesystemPath(sFilename), (mode & std::ios_base::noreplace)
+		? (mode | std::ios_base::out | std::ios_base::binary)
+		: (mode | std::ios_base::in | std::ios_base::out | std::ios_base::binary))
+#else
 	: base_type(kToFilesystemPath(sFilename), mode | std::ios_base::in | std::ios_base::out | std::ios_base::binary)
+#endif
 	{
 	}
 
@@ -287,7 +293,20 @@ public:
 	void open(KStringViewZ sFilename, std::ios_base::openmode mode = std::ios_base::in)
 	//-----------------------------------------------------------------------------
 	{
-		base_type::open(kToFilesystemPath(sFilename), mode | std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+#if defined(__cpp_lib_ios_noreplace)
+		if (mode & std::ios_base::noreplace)
+		{
+			// noreplace (exclusive create) only has valid mode table entries with out,
+			// not with in — out|noreplace maps to "wx". Adding in would produce
+			// in|out|noreplace which has no valid mapping. So when noreplace is
+			// requested, skip the in flag to ensure exclusive file creation succeeds.
+			base_type::open(kToFilesystemPath(sFilename), mode | std::ios_base::out | std::ios_base::binary);
+		}
+		else
+#endif
+		{
+			base_type::open(kToFilesystemPath(sFilename), mode | std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+		}
 	}
 
 };

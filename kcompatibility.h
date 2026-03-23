@@ -107,7 +107,7 @@ namespace std
 // matching types into the std:: namespace
 #ifdef DEKAF2_HAS_CPP_14
 	// C++17 has both already
-	#ifndef DEKAF2_HAS_CPP_17
+	#ifndef __cpp_lib_shared_mutex
 		// for C++14 that's easy - just alias a shared_timed_mutex - it's a superset
 		using shared_mutex = shared_timed_mutex;
 	#endif
@@ -147,21 +147,35 @@ using decay_t = typename decay<T>::type;
 } // end of namespace std
 #endif
 
-#ifndef DEKAF2_HAS_CPP_17
+#ifndef __cpp_lib_void_t
 namespace std
 {
 
 template <typename...>
 using void_t = void;
 
+} // end of namespace std
+#endif
+
+#ifndef __cpp_lib_bool_constant
+namespace std
+{
+
+template<bool T>
+using bool_constant = integral_constant<bool, T>;
+
+} // end of namespace std
+#endif
+
+#ifndef __cpp_lib_logical_traits
+namespace std
+{
+
 template<class...> struct conjunction : true_type { };
 template<class T1> struct conjunction<T1> : T1 { };
 template<class T1, class... Tn>
 struct conjunction<T1, Tn...>
 : conditional<bool(T1::value), conjunction<Tn...>, T1>::type {};
-
-template<bool T>
-using bool_constant = integral_constant<bool, T>;
 
 template<class T>
 struct negation : bool_constant<!bool(T::value)> { };

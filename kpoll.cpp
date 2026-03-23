@@ -230,7 +230,7 @@ void KPoll::Add(int fd, Parameters Parms)
 	Parms.iEvents &= (POLLPRI | POLLRDBAND | POLLRDNORM | POLLWRNORM);
 #endif
 
-#ifdef DEKAF2_HAS_CPP_17
+#ifdef __cpp_lib_map_try_emplace
 	m_FileDescriptors.insert_or_assign(fd, std::move(Parms));
 #else
 	auto it = m_FileDescriptors.find(fd);

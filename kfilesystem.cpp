@@ -1323,7 +1323,7 @@ KFileType KFileTypeFromStdFilesystem(fs::file_type ftype)
 {
 	switch (ftype)
 	{
-#ifdef DEKAF2_HAS_CPP_17
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
 		case fs::file_type::block:
 			return KFileType::BLOCK;
 #endif

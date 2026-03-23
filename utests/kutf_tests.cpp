@@ -4,7 +4,7 @@
 #include <dekaf2/kcesu8.h>
 #include <dekaf2/kstring.h>
 #include <vector>
-#ifdef DEKAF2_HAS_CPP_17
+#ifdef DEKAF2_HAS_STD_STRING_VIEW
 	#include <string_view>
 	using namespace std::string_literals;
 #endif

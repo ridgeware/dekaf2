@@ -53,7 +53,7 @@
 	#include <atomic>
 #endif
 
-#ifndef DEKAF2_HAS_CPP_17
+#ifndef __cpp_lib_incomplete_container_elements
 	#include <boost/container/vector.hpp>
 #else
 	#include <vector>
@@ -318,7 +318,7 @@ class DEKAF2_PUBLIC KMIMEPart
 public:
 //----------
 
-#ifndef DEKAF2_HAS_CPP_17
+#ifndef __cpp_lib_incomplete_container_elements
 	// boost::container allows use of incomplete types
 	using Storage = boost::container::vector<KMIMEPart>;
 #else

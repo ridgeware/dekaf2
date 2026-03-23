@@ -53,7 +53,7 @@
 #include "khex.h"
 #include <array>
 
-#ifndef DEKAF2_HAS_CPP_17
+#ifndef __cpp_lib_incomplete_container_elements
 	#include <boost/container/vector.hpp>
 #else
 	#include <vector>
@@ -214,7 +214,7 @@ public:
 
 	using Networks   = std::vector<KIPNetwork>;
 
-#ifndef DEKAF2_HAS_CPP_17
+#ifndef __cpp_lib_incomplete_container_elements
 	// boost::container allows use of incomplete types
 	using Interfaces = boost::container::vector<KNetworkInterface>;
 #else

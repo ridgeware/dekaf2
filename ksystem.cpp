@@ -1580,7 +1580,7 @@ KString kWhich(KStringView sCommand)
 	// validate that sCommand only contains safe characters
 	for (auto ch : sCommand)
 	{
-		if (!kIsAlNum(ch) && ch != '-' && ch != '_' && ch != '.')
+		if (!KASCII::kIsAlNum(ch) && ch != '-' && ch != '_' && ch != '.')
 		{
 			kDebug(2, "invalid character '{}' in command name '{}'", ch, sCommand);
 			return {};

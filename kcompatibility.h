@@ -169,7 +169,7 @@ struct negation : bool_constant<!bool(T::value)> { };
 } // end of namespace std
 #endif
 
-#ifndef DEKAF2_HAS_CPP_23
+#ifndef __cpp_lib_to_underlying
 namespace std 
 {
 	template<class Enum, typename enable_if<is_enum<Enum>::value, int>::type = 0>

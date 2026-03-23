@@ -1278,7 +1278,7 @@ private:
 			KString sFileName;
 
 			sFileName = kGenerateTempPath(m_sExtension, m_iMaxPathLen);
-#if DEKAF2_HAS_CPP_23
+#if defined(__cpp_lib_ios_noreplace)
 			// create file in exclusive mode to exclude races
 			m_File.open(sFileName, std::ios_base::noreplace);
 #else

@@ -258,8 +258,8 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 
 			case Format::Condensed:
 			case Format::Spaced:
-				sOut  = "0";
-				sOut += IntervalToString(Interval, false);;
+				sOut  = '0';
+				sOut += IntervalToString(Interval, false);
 				return sOut;
 
 			case Format::Smart:

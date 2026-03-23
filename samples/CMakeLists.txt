@@ -10,7 +10,11 @@ cmake_policy(SET CMP0048 NEW)
 # declare the project
 project(samples VERSION 1.0.0 DESCRIPTION "dekaf2 usage samples")
 
-set(CMAKE_CXX_STANDARD 20)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
+	set(CMAKE_CXX_STANDARD 23)
+else()
+	set(CMAKE_CXX_STANDARD 20)
+endif()
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ==================================== BUILD TYPE ==================================

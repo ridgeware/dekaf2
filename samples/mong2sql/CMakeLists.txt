@@ -12,7 +12,11 @@ project(mong2sql
     DESCRIPTION "Convert MongoDB collections to MySQL tables"
 )
 
-set(CMAKE_CXX_STANDARD 20)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
+	set(CMAKE_CXX_STANDARD 23)
+else()
+	set(CMAKE_CXX_STANDARD 20)
+endif()
 
 find_package(PkgConfig QUIET)
 

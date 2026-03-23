@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.13...3.31)
 
 project(dekaf2-smoketests)
 
-set(CMAKE_CXX_STANDARD 20)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
+	set(CMAKE_CXX_STANDARD 23)
+else()
+	set(CMAKE_CXX_STANDARD 20)
+endif()
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # older cmake versions do not support the test for IS_TOP_LEVEL

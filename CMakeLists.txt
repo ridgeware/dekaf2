@@ -75,7 +75,7 @@ if (WIN32)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.1.1 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.1.2 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -124,13 +124,18 @@ OPTION(DEKAF2_WITH_USER_AGENT_PARSER "build with user agent parser" ON)
 
 # =================================== C++ STANDARD =================================
 
-set(DEKAF2_CXX_STANDARD 20)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
+	set(DEKAF2_CXX_STANDARD 23)
+else()
+	# cmake < 3.20 does not know about C++23
+	set(DEKAF2_CXX_STANDARD 20)
+endif()
 
 set(CMAKE_CXX_STANDARD ${DEKAF2_CXX_STANDARD})
 #set(CMAKE_CXX_CLANG_TIDY clang-tidy -checks=-*,readability-*)
 
-# we do not force C++20 if not available, cmake will pick the highest available
-# dekaf2 supports 14/17/20, and also 11 for mostly all code, but uses smarter options
+# we do not force C++23 if not available, cmake will pick the highest available
+# dekaf2 supports 14/17/20/23, and also 11 for mostly all code, but uses smarter options
 # with newer C++ standards
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

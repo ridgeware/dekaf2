@@ -401,7 +401,7 @@ public:
 	bool operator==(const self_type& other) const
 	//-----------------------------------------------------------------------------
 	{
-		return m_String->begin() == other.m_String->begin() && m_next == other.m_next;
+		return m_String == other.m_String && m_next == other.m_next;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -416,7 +416,7 @@ public:
 	self_type& operator+=(std::size_t iIncrement)
 	//-----------------------------------------------------------------------------
 	{
-		if (iIncrement > 0)
+		if (KUTF_LIKELY(m_next != UTFString::npos && iIncrement > 0))
 		{
 			auto it = m_String->begin() + m_next;
 			kutf::Increment(it, m_String->end(), iIncrement - 1);
@@ -429,7 +429,7 @@ public:
 	self_type& operator-=(std::size_t iDecrement)
 	//-----------------------------------------------------------------------------
 	{
-		if (iDecrement > 0)
+		if (KUTF_LIKELY(m_next != UTFString::npos && iDecrement > 0))
 		{
 			auto it = m_String->begin() + m_next;
 			kutf::Decrement(m_String->begin(), it, iDecrement);
@@ -489,6 +489,176 @@ protected:
 	value_type m_OrigValue { 0 };
 
 };
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A non-modifying forward-only iterator over a UTF-8 string, templated on the
+/// underlying string iterator type for efficient reuse across string classes.
+/// Compared to ConstIterator, this drops the m_begin member (only needed for
+/// backward iteration) and only supports forward traversal.
+template<typename Iterator>
+class ConstForwardIterator
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//-------
+public:
+//-------
+
+	using iterator_category = std::forward_iterator_tag;
+	using value_type = codepoint_t;
+	using const_reference = const value_type&;
+	using const_pointer = const value_type*;
+	using difference_type = std::ptrdiff_t;
+	using self_type = ConstForwardIterator;
+
+	//-----------------------------------------------------------------------------
+	/// default ctor, creates an end-state iterator
+	ConstForwardIterator() = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// ctor from an iterator pair
+	ConstForwardIterator(Iterator it, Iterator ie)
+	//-----------------------------------------------------------------------------
+	: m_next(it)
+	, m_end(ie)
+	{
+		Advance();
+	}
+
+	//-----------------------------------------------------------------------------
+	/// prefix increment
+	self_type& operator++()
+	//-----------------------------------------------------------------------------
+	{
+		Advance();
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// postfix increment
+	const self_type operator++(int)
+	//-----------------------------------------------------------------------------
+	{
+		const self_type i = *this;
+		Advance();
+		return i;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns the current codepoint value
+	DEKAF2_NODISCARD
+	const_reference operator*() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_Value;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// returns pointer to the current codepoint value
+	DEKAF2_NODISCARD
+	const_pointer operator->() const
+	//-----------------------------------------------------------------------------
+	{
+		return &m_Value;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// equality operator
+	DEKAF2_NODISCARD
+	bool operator==(const self_type& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return m_next == other.m_next && m_Value == other.m_Value;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// inequality operator
+	DEKAF2_NODISCARD
+	bool operator!=(const self_type& other) const
+	//-----------------------------------------------------------------------------
+	{
+		return !operator==(other);
+	}
+
+//-------
+private:
+//-------
+
+	//-----------------------------------------------------------------------------
+	void Advance()
+	//-----------------------------------------------------------------------------
+	{
+		m_Value = m_next != m_end ? CodepointFromUTF8(m_next, m_end) : INVALID_CODEPOINT;
+	}
+
+	Iterator   m_next  {};
+	Iterator   m_end   {};
+	value_type m_Value { INVALID_CODEPOINT };
+
+}; // ConstForwardIterator
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A range wrapper for forward-only codepoint iteration over a UTF string.
+/// Enables range-based for loops: for (auto cp : kutf::CodepointRange(str))
+template<typename Iterator>
+class CodepointRange
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//-------
+public:
+//-------
+
+	using iterator = ConstForwardIterator<Iterator>;
+
+	//-----------------------------------------------------------------------------
+	/// ctor from an iterator pair
+	CodepointRange(Iterator it, Iterator ie)
+	//-----------------------------------------------------------------------------
+	: m_begin(it)
+	, m_end(ie)
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	/// ctor from a string-like object with begin()/end()
+	template<typename UTFString,
+	         typename std::enable_if<!std::is_same<typename std::decay<UTFString>::type, CodepointRange>::value, int>::type = 0>
+	CodepointRange(const UTFString& str)
+	//-----------------------------------------------------------------------------
+	: m_begin(str.begin())
+	, m_end(str.end())
+	{
+	}
+
+	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
+	iterator begin() const { return { m_begin, m_end }; }
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	DEKAF2_NODISCARD
+	iterator end()   const { return { m_end,   m_end }; }
+	//-----------------------------------------------------------------------------
+
+//-------
+private:
+//-------
+
+	Iterator m_begin;
+	Iterator m_end;
+
+}; // CodepointRange
+
+// deduction guide for C++17 and later
+#if DEKAF2_HAS_CPP_17
+template<typename Iterator>
+CodepointRange(Iterator, Iterator) -> CodepointRange<Iterator>;
+
+template<typename UTFString>
+CodepointRange(const UTFString&) -> CodepointRange<typename UTFString::const_iterator>;
+#endif
 
 } // namespace KUTF_NAMESPACE
 

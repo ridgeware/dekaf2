@@ -49,6 +49,7 @@
 #include "bits/khash.h"
 #include "ktemplate.h"
 #include "kutf.h"
+#include "kutf_iterator.h"
 #include "kbit.h"
 #include <fmt/format.h>
 #include <cinttypes>
@@ -1016,6 +1017,16 @@ public:
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	size_type SizeUTF8() const;
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns a range for forward iteration over Unicode codepoints (UTF8 decoding)
+	DEKAF2_NODISCARD
+	kutf::CodepointRange<const_iterator> Codepoints() const
+	//-----------------------------------------------------------------------------
+	{
+		return { cbegin(), cend() };
+	}
 
 	//-----------------------------------------------------------------------------
 	// nonstandard

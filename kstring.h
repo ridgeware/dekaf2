@@ -65,6 +65,7 @@ class KString;
 class KStringView;
 class KStringViewZ;
 class KFindSetOfChars;
+namespace kutf { template<typename Iterator> class CodepointRange; }
 
 #if defined(DEKAF2_IS_APPLE_CLANG) && DEKAF2_CLANG_VERSION < 120000
 /// a string type used for string& pars in parameter lists (output string parameters)
@@ -778,6 +779,10 @@ public:
 	/// returns the count of unicode codepoints (or, UTF8 sequences)
 	DEKAF2_NODISCARD
 	size_type SizeUTF8() const;
+
+	/// returns a range for forward iteration over Unicode codepoints (UTF8 decoding)
+	DEKAF2_NODISCARD
+	kutf::CodepointRange<const_iterator> Codepoints() const;
 
 	/// pads string at the left up to iWidth size with chPad
 	self& PadLeft(size_t iWidth, value_type chPad = ' ') &;
@@ -2167,6 +2172,13 @@ inline KString::size_type KString::SizeUTF8() const
 //-----------------------------------------------------------------------------
 {
 	return ToView().SizeUTF8();
+}
+
+//-----------------------------------------------------------------------------
+inline kutf::CodepointRange<KString::const_iterator> KString::Codepoints() const
+//-----------------------------------------------------------------------------
+{
+	return { cbegin(), cend() };
 }
 
 //-----------------------------------------------------------------------------

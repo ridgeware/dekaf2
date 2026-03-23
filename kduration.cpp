@@ -312,7 +312,7 @@ KString KDuration::ToString(Format Format, BaseInterval Interval, uint8_t iPreci
 
 	if (bIsNegative)
 	{
-		sOut = "-";
+		sOut = '-';
 	}
 
 	switch (Format)

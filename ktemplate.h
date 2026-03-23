@@ -232,7 +232,7 @@ struct is_wide_string_view
   : std::integral_constant<
       bool,
       false
-#ifdef DEKAF2_HAS_FULL_CPP_17
+#ifdef __cpp_lib_string_view
    || std::is_same<std::wstring_view,      typename std::decay<T>::type>::value
 #endif
 > {};

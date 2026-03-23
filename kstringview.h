@@ -98,7 +98,7 @@
 
 // older gcc versions have the cpp17 flag, but their libstdc++ does not
 // support the constexpr reverse iterators
-#if defined(DEKAF2_HAS_FULL_CPP_17)
+#if defined(__cpp_lib_string_view)
 	#define DEKAF2_CONSTEXPR_REVERSE_ITERATORS constexpr
 #else
 	#define DEKAF2_CONSTEXPR_REVERSE_ITERATORS

@@ -464,7 +464,7 @@ DEKAF2_NAMESPACE_END
 
 	private:
 
-#if !DEKAF2_HAS_FULL_CPP_17 && !DEKAF2_IS_CLANG
+#if !defined(__cpp_lib_constexpr_char_traits) && !DEKAF2_IS_CLANG
 	#if DEKAF2_HAS_CPP_14
 		static constexpr DEKAF2_ALWAYS_INLINE
 		size_type local_constexpr_strlen(const CharT* s) noexcept
@@ -490,7 +490,7 @@ DEKAF2_NAMESPACE_END
 		static constexpr DEKAF2_ALWAYS_INLINE
 		size_type constexpr_strlen(const CharT* s) noexcept
 		{
-#if DEKAF2_HAS_FULL_CPP_17
+#if defined(__cpp_lib_constexpr_char_traits)
 			return s ? traits_type::length(s) : 0;
 #else
 	#if DEKAF2_IS_CLANG

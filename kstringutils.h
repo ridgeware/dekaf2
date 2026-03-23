@@ -1857,7 +1857,7 @@ String& kLimitSizeInPlace(String& sLimitMe,
 	{
 		auto size = detail::CalcSizeLimit(sLimitMe, iMaxSize, sEllipsis);
 
-#if defined(DEKAF2_HAS_FULL_CPP_17)
+#if defined(__cpp_lib_string_view)
 		sLimitMe.replace(size.first, size.second, sEllipsis);
 #else
 		sLimitMe.replace(size.first, size.second, sEllipsis.data(), sEllipsis.size());
@@ -1923,7 +1923,7 @@ String& kLimitSizeUTF8InPlace(String& sLimitMe,
 	{
 		auto size = detail::CalcSizeLimitUTF8(sLimitMe, iMaxSize, sEllipsis);
 
-#if defined(DEKAF2_HAS_FULL_CPP_17)
+#if defined(__cpp_lib_string_view)
 		sLimitMe.replace(size.first, size.second, sEllipsis);
 #else
 		sLimitMe.replace(size.first, size.second, sEllipsis.data(), sEllipsis.size());

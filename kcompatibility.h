@@ -184,7 +184,7 @@ namespace std
 // It does not matter if they had been declared by other code already. The compiler
 // simply picks the first one that matches.
 // Old gcc versions < 7 do not have std::apply even in C++17 mode
-#if !defined(DEKAF2_HAS_FULL_CPP_17)
+#ifndef __cpp_lib_apply
 namespace std
 {
 	#ifdef DEKAF2_HAS_CPP_14

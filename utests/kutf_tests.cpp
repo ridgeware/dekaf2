@@ -351,7 +351,7 @@ TEST_CASE("UTF") {
 		CHECK ( it == ie );
 	}
 
-#ifdef DEKAF2_HAS_FULL_CPP_17
+#ifdef __cpp_lib_string_view
 	SECTION("Increment wstring")
 	{
 		std::wstring_view sInput = L"testäöü test日本語abc中文Русскийɠ𐑅 ..";
@@ -424,7 +424,7 @@ TEST_CASE("UTF") {
 		CHECK ( it == ibegin );
 	}
 
-#ifdef DEKAF2_HAS_FULL_CPP_17
+#ifdef __cpp_lib_string_view
 	SECTION("Decrement wstring")
 	{
 		std::wstring_view sInput = L"testäöü test日本語abc中文Русскийɠ𐑅 ..";
@@ -477,7 +477,7 @@ TEST_CASE("UTF") {
 	}
 #endif
 
-#ifdef DEKAF2_HAS_FULL_CPP_17
+#ifdef __cpp_lib_string_view
 	SECTION("Convert")
 	{
 		std::wstring   sWstring    = L"testäöü test日本語abc中文Русскийɠ𐑅 ..";
@@ -1013,7 +1013,7 @@ TEST_CASE("UTF") {
 			auto s32 = kutf::Convert<std::u32string>(s8);
 			CHECK ( s32.size() == 3 );
 		}
-#ifdef DEKAF2_HAS_FULL_CPP_17
+#ifdef __cpp_lib_string_view
 		// wchar_t* -> return type
 		{
 			auto s8 = kutf::Convert<std::string>(L"Aé日");

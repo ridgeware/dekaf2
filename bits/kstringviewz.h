@@ -56,7 +56,7 @@ class KStringViewZ;
 inline namespace literals {
 
 	/// provide a string literal for KStringViewZ
-	constexpr DEKAF2_PREFIX KStringViewZ operator"" _ksz(const char *data, std::size_t size);
+	constexpr DEKAF2_PREFIX KStringViewZ operator""_ksz(const char *data, std::size_t size);
 
 } // namespace literals
 
@@ -107,7 +107,7 @@ private:
 	{}
 
 	// make the literal operator a friend, so that it can access the private constructor
-	friend constexpr KStringViewZ literals::operator "" _ksz (const char *data, std::size_t size);
+	friend constexpr KStringViewZ literals::operator""_ksz (const char *data, std::size_t size);
 
 //----------
 public:
@@ -465,7 +465,7 @@ using KStringViewZPair = std::pair<KStringViewZ, KStringViewZ>;
 inline namespace literals {
 
 	/// provide a string literal for KStringViewZ
-	constexpr DEKAF2_PREFIX KStringViewZ operator"" _ksz(const char *data, std::size_t size)
+	constexpr DEKAF2_PREFIX KStringViewZ operator""_ksz(const char *data, std::size_t size)
 	{
 		// we can access a private constructor of KStringViewZ because we are a friend..
 		return { data, size };

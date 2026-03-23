@@ -313,12 +313,12 @@ constexpr bool operator!=(const T1& left, const T2& right)
 	return !(left == right);
 }
 
-constexpr KCelsius    operator "" _C(long double value)        { return KCelsius    { static_cast<KCelsius   ::value_type>(value) }; }
-constexpr KFahrenheit operator "" _F(long double value)        { return KFahrenheit { static_cast<KFahrenheit::value_type>(value) }; }
-constexpr KKelvin     operator "" _K(long double value)        { return KKelvin     { static_cast<KKelvin    ::value_type>(value) }; }
-constexpr KCelsius    operator "" _C(unsigned long long value) { return KCelsius    { static_cast<KCelsius   ::value_type>(value) }; }
-constexpr KFahrenheit operator "" _F(unsigned long long value) { return KFahrenheit { static_cast<KFahrenheit::value_type>(value) }; }
-constexpr KKelvin     operator "" _K(unsigned long long value) { return KKelvin     { static_cast<KKelvin    ::value_type>(value) }; }
+constexpr KCelsius    operator""_C(long double value)        { return KCelsius    { static_cast<KCelsius   ::value_type>(value) }; }
+constexpr KFahrenheit operator""_F(long double value)        { return KFahrenheit { static_cast<KFahrenheit::value_type>(value) }; }
+constexpr KKelvin     operator""_K(long double value)        { return KKelvin     { static_cast<KKelvin    ::value_type>(value) }; }
+constexpr KCelsius    operator""_C(unsigned long long value) { return KCelsius    { static_cast<KCelsius   ::value_type>(value) }; }
+constexpr KFahrenheit operator""_F(unsigned long long value) { return KFahrenheit { static_cast<KFahrenheit::value_type>(value) }; }
+constexpr KKelvin     operator""_K(unsigned long long value) { return KKelvin     { static_cast<KKelvin    ::value_type>(value) }; }
 
 template<typename T1,
          typename std::enable_if<std::is_base_of<detail::KTemperature, T1>::value, int>::type = 0>

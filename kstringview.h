@@ -1894,7 +1894,7 @@ bool KStringView::contains(value_type ch) const noexcept
 inline namespace literals {
 
 	/// provide a string literal for KStringView
-	constexpr DEKAF2_PREFIX KStringView operator"" _ksv(const char *data, std::size_t size)
+	constexpr DEKAF2_PREFIX KStringView operator""_ksv(const char *data, std::size_t size)
 	{
 		return {data, size};
 	}

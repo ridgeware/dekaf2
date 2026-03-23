@@ -217,7 +217,7 @@ inline namespace literals {
 //---------------------------------------------------------------------------
 /// literal type for constexpr hash computations, e.g. for switch statements
 constexpr
-DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Hash operator"" _hash(const char* data, std::size_t size) noexcept
+DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Hash operator""_hash(const char* data, std::size_t size) noexcept
 //---------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_14
@@ -230,7 +230,7 @@ DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Hash operator"" _hash(const
 //---------------------------------------------------------------------------
 /// literal type for lowercase constexpr hash computations, e.g. for switch statements
 constexpr
-DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Hash operator"" _casehash(const char* data, std::size_t size) noexcept
+DEKAF2_PREFIX hash::fnv1a<DEKAF2_PREFIX hash::size>::Hash operator""_casehash(const char* data, std::size_t size) noexcept
 //---------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_CPP_14

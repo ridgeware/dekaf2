@@ -2257,7 +2257,7 @@ inline KString operator+(KString&& left, KString::value_type right)
 inline namespace literals {
 
 	/// provide a string literal for KString
-	inline DEKAF2_PREFIX KString operator"" _ks(const char *data, std::size_t size)
+	inline DEKAF2_PREFIX KString operator""_ks(const char *data, std::size_t size)
 	{
 		return {data, size};
 	}

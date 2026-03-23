@@ -96,6 +96,7 @@ set (USOURCES
 	kparallel_tests.cpp
 	kpersist_tests.cpp
 	kpipe_tests.cpp
+	kpty_tests.cpp
 	kpool_tests.cpp
 	kprops_tests.cpp
 	kquotedprintable_tests.cpp

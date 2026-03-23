@@ -1154,6 +1154,7 @@ set (BITS_HEADERS
 	bits/kasiostream.h
 	bits/kbaseshell.h
 	bits/kbasepipe.h
+	bits/kbasepty.h
 	bits/kdigest.h
 	bits/kfilesystem.h
 	bits/kfindsetofchars.h
@@ -1294,6 +1295,7 @@ set(PUBLIC_HEADERS
 	kparallel.h
 	kpersist.h
 	kpipe.h
+	kpty.h
 	kpool.h
 	kpoll.h
 	kprof.h
@@ -1482,6 +1484,7 @@ set (PRECOMPILED_HEADERS
 set (SOURCES
 	# KEEP ALPHABETIZED
 	bits/kbasepipe.cpp
+	bits/kbasepty.cpp
 	bits/kbaseshell.cpp
 	bits/kdigest.cpp
 	bits/kfindsetofchars.cpp
@@ -1574,6 +1577,7 @@ set (SOURCES
 	koutstringstream.cpp
 	kparallel.cpp
 	kpipe.cpp
+	kpty.cpp
 	kpoll.cpp
 	kprof.cpp
 	kprops.cpp

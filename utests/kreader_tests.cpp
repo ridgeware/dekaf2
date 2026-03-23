@@ -820,4 +820,69 @@ TEST_CASE("KReader") {
 
 		CHECK ( kGoToLine(File, 1) == false );
 	}
+
+	SECTION("KInStream::Read with count")
+	{
+		// exercises the resize_and_overwrite path in KInStream::Read
+		KString sPath = kFormat("{}{}read-count-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, "abcdefghijklmnopqrstuvwxyz");
+		KInFile File(sPath);
+
+		KString sBuffer;
+		auto iRead = File.Read(sBuffer, 10);
+		CHECK ( iRead == 10 );
+		CHECK ( sBuffer.size() == 10 );
+		CHECK ( sBuffer == "abcdefghij" );
+
+		// append more
+		iRead = File.Read(sBuffer, 5);
+		CHECK ( iRead == 5 );
+		CHECK ( sBuffer.size() == 15 );
+		CHECK ( sBuffer == "abcdefghijklmno" );
+
+		// read beyond remaining content
+		iRead = File.Read(sBuffer, 100);
+		CHECK ( iRead == 11 );
+		CHECK ( sBuffer.size() == 26 );
+		CHECK ( sBuffer == "abcdefghijklmnopqrstuvwxyz" );
+	}
+
+	SECTION("KInStream::Read large")
+	{
+		// exercises resize_and_overwrite with a buffer beyond SSO
+		KString sPath = kFormat("{}{}read-large-tests", TempDir.Name(), kDirSep);
+		KString sExpected;
+		for (int i = 0; i < 100; ++i)
+		{
+			sExpected += "0123456789";
+		}
+		kWriteFile(sPath, sExpected);
+		KInFile File(sPath);
+
+		KString sBuffer;
+		auto iRead = File.Read(sBuffer, 1000);
+		CHECK ( iRead == 1000 );
+		CHECK ( sBuffer == sExpected );
+	}
+
+	SECTION("kReadAll from file")
+	{
+		// exercises the resize_and_overwrite path in kAppendAll
+		KString sPath = kFormat("{}{}readall-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, "the quick brown fox");
+
+		KString sContent = kReadAll(sPath);
+		CHECK ( sContent == "the quick brown fox" );
+	}
+
+	SECTION("kAppendAll preserves existing content")
+	{
+		KString sPath = kFormat("{}{}appendall-tests", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, " jumps over the lazy dog");
+
+		KString sContent = "the quick brown fox";
+		KInFile File(sPath);
+		kAppendAll(File.istream(), sContent, true);
+		CHECK ( sContent == "the quick brown fox jumps over the lazy dog" );
+	}
 }

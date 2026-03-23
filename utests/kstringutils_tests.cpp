@@ -2584,19 +2584,77 @@ TEST_CASE("KStringUtils") {
 
 	SECTION("kResizeUninitialized")
 	{
+		// -- KString overload --
+
+		// grow: size changes, existing content preserved
 		KString s = "hello";
 		kResizeUninitialized(s, 10);
 		CHECK ( s.size() == 10 );
+		CHECK ( s.substr(0, 5) == "hello" );
 
+		// shrink: size changes, remaining content preserved
 		kResizeUninitialized(s, 3);
 		CHECK ( s.size() == 3 );
+		CHECK ( s == "hel" );
 
+		// same size: no-op
+		kResizeUninitialized(s, 3);
+		CHECK ( s.size() == 3 );
+		CHECK ( s == "hel" );
+
+		// from empty
+		KString sEmpty;
+		kResizeUninitialized(sEmpty, 100);
+		CHECK ( sEmpty.size() == 100 );
+
+		// to empty
+		kResizeUninitialized(sEmpty, 0);
+		CHECK ( sEmpty.size() == 0 );
+		CHECK ( sEmpty.empty() );
+
+		// large resize (well beyond SSO threshold of 23)
+		KString sLarge = "prefix";
+		kResizeUninitialized(sLarge, 1024);
+		CHECK ( sLarge.size() == 1024 );
+		CHECK ( sLarge.substr(0, 6) == "prefix" );
+
+		// -- std::string overload --
+
+		// grow: size changes, existing content preserved
 		std::string ss = "hello";
 		kResizeUninitialized(ss, 10);
 		CHECK ( ss.size() == 10 );
+		CHECK ( ss.substr(0, 5) == "hello" );
 
+		// shrink
+		kResizeUninitialized(ss, 2);
+		CHECK ( ss.size() == 2 );
+		CHECK ( ss == "he" );
+
+		// to empty
 		kResizeUninitialized(ss, 0);
 		CHECK ( ss.size() == 0 );
+
+		// from empty
+		kResizeUninitialized(ss, 50);
+		CHECK ( ss.size() == 50 );
+
+		// large resize (beyond SSO)
+		std::string ssLarge = "prefix";
+		kResizeUninitialized(ssLarge, 1024);
+		CHECK ( ssLarge.size() == 1024 );
+		CHECK ( ssLarge.substr(0, 6) == "prefix" );
+
+		// -- KString::resize_uninitialized member --
+
+		KString sMember = "world";
+		sMember.resize_uninitialized(20);
+		CHECK ( sMember.size() == 20 );
+		CHECK ( sMember.substr(0, 5) == "world" );
+
+		sMember.resize_uninitialized(2);
+		CHECK ( sMember.size() == 2 );
+		CHECK ( sMember == "wo" );
 	}
 
 	SECTION("kCurlyToStraight")

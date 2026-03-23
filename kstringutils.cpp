@@ -720,7 +720,7 @@ void kEscapeForLogging(KStringRef& sLog, KStringView sInput)
 void kResizeUninitialized(KString& sStr, KString::size_type iNewSize)
 //-----------------------------------------------------------------------------
 {
-#if defined(__cpp_lib_string_resize_and_overwrite_NOTYET)
+#if defined(__cpp_lib_string_resize_and_overwrite)
 	// with C++23 we will get the equivalence of what we used to do with FBString:
 	// resizing the string buffer uninitialized, with a handler to set its content
 	// (which we won't do)
@@ -777,7 +777,7 @@ void kResizeUninitialized(KString& sStr, KString::size_type iNewSize)
 void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize)
 //-----------------------------------------------------------------------------
 {
-#ifdef __cpp_lib_string_resize_and_overwrite_NOTYET
+#ifdef __cpp_lib_string_resize_and_overwrite
 	sStr.resize_and_overwrite(iNewSize, [](std::string::pointer buf, std::string::size_type buf_size) noexcept { return buf_size; });
 #else
 	// fallback to an initialized resize

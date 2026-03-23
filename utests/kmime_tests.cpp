@@ -2,6 +2,7 @@
 
 #include <dekaf2/kmime.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/ksystem.h>
 #include <dekaf2/koutstringstream.h>
 #include <dekaf2/kjson.h>
 #include <dekaf2/kuuid.h>
@@ -71,42 +72,49 @@ TEST_CASE("KMIME")
 #ifndef DEKAF2_IS_WINDOWS
 	SECTION("by inspection")
 	{
-		KMIME a;
-
-		KTempFile<KOutFile> TempFile("zzz");
-
-		TempFile->Write(R"({"name":"test","short_name":"short_test"})");
-		TempFile.Close();
-
-		CHECK( a.ByExtension( "aa.zzz") == false );
-		CHECK( a == KMIME::NONE );
-
-		CHECK( a.ByInspection(TempFile.Name()) );
-
-		// for older OS/file utility versions json will not be detected,
-		// but fail to text/plain
-
-		if (a == KMIME::JSON)
+		if (kWhich("file").empty())
 		{
-			CHECK( a == KMIME::JSON );
-
-			CHECK( a.ByExtension( "aa.zzz") );
-			CHECK( a == KMIME::JSON );
-
-			KTempFile<std::ofstream> TempFile2("zzz");
-			KStringView sOut(R"(<html><head></head><body><p>test</p></body></html>)");
-			TempFile2->write(sOut.data(), sOut.size());
-			TempFile2.Close();
-
-			CHECK( a.ByInspection(TempFile2.Name()) );
-			CHECK( a == "text/html" );
-
-			CHECK( a.ByExtension( "aa.zzz") );
-			CHECK( a == KMIME::JSON );
+			WARN("'file' command not found, skipping ByInspection tests");
 		}
 		else
 		{
-			CHECK( a == KMIME::TEXT_PLAIN );
+			KMIME a;
+
+			KTempFile<KOutFile> TempFile("zzz");
+
+			TempFile->Write(R"({"name":"test","short_name":"short_test"})");
+			TempFile.Close();
+
+			CHECK( a.ByExtension( "aa.zzz") == false );
+			CHECK( a == KMIME::NONE );
+
+			CHECK( a.ByInspection(TempFile.Name()) );
+
+			// for older OS/file utility versions json will not be detected,
+			// but fail to text/plain
+
+			if (a == KMIME::JSON)
+			{
+				CHECK( a == KMIME::JSON );
+
+				CHECK( a.ByExtension( "aa.zzz") );
+				CHECK( a == KMIME::JSON );
+
+				KTempFile<std::ofstream> TempFile2("zzz");
+				KStringView sOut(R"(<html><head></head><body><p>test</p></body></html>)");
+				TempFile2->write(sOut.data(), sOut.size());
+				TempFile2.Close();
+
+				CHECK( a.ByInspection(TempFile2.Name()) );
+				CHECK( a == "text/html" );
+
+				CHECK( a.ByExtension( "aa.zzz") );
+				CHECK( a == KMIME::JSON );
+			}
+			else
+			{
+				CHECK( a == KMIME::TEXT_PLAIN );
+			}
 		}
 	}
 #endif

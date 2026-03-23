@@ -312,4 +312,36 @@ TEST_CASE("KSystem")
 	{
 		CHECK ( kGetUptime().seconds().count() > 5 );
 	}
+
+	SECTION("kWhich")
+	{
+		// should find common executables
+		auto sLS = kWhich("ls");
+		CHECK ( sLS.empty() == false );
+		CHECK ( sLS.front() == '/' );
+
+		auto sSH = kWhich("sh");
+		CHECK ( sSH.empty() == false );
+		CHECK ( sSH.front() == '/' );
+
+		// should return empty for nonexistent commands
+		CHECK ( kWhich("thiscommanddoesnotexist99") == "" );
+
+		// should return empty for empty input
+		CHECK ( kWhich("") == "" );
+
+		// should reject commands with invalid characters
+		CHECK ( kWhich("ls -la")       == "" );
+		CHECK ( kWhich("$(whoami)")    == "" );
+		CHECK ( kWhich("file;rm")      == "" );
+		CHECK ( kWhich("cat /etc/pwd") == "" );
+
+		// should accept commands with hyphens, underscores, dots
+		// (these may or may not be found, but should not be rejected by validation)
+		auto sResult = kWhich("apt-get");
+		// just verify it doesn't crash - result depends on platform
+
+		sResult = kWhich("python3.11");
+		// just verify it doesn't crash - result depends on platform
+	}
 }

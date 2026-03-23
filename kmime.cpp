@@ -48,7 +48,7 @@
 #include "kfrozen.h"
 #include "ksystem.h"
 #include "kctype.h"
-#include "kinshell.h"
+#include "kinpipe.h"
 #include "kinstringstream.h"
 #include "kstringutils.h"
 #include "kuuid.h"
@@ -239,13 +239,23 @@ bool KMIME::ByInspection(KStringViewZ sFilename, KStringView Default)
 //-----------------------------------------------------------------------------
 {
 #ifndef DEKAF2_IS_WINDOWS
+	// check once if the 'file' command is available
+	static KString s_sFileCommand = kWhich("file");
+
+	if (s_sFileCommand.empty())
+	{
+		kDebug(1, "the 'file' command is not installed - MIME detection by content inspection is not available");
+		m_mime = Default;
+		return false;
+	}
+
 	if (kNonEmptyFileExists(sFilename))
 	{
-		KInShell Shell(kFormat("file --mime-type \"{}\"", kEscapeForQuotedCommands(sFilename)));
+		KInPipe Pipe(kFormat("{} --mime-type {}", s_sFileCommand, sFilename));
 
-		if (Shell.is_open())
+		if (Pipe.is_open())
 		{
-			auto sMime = Shell.ReadLine();
+			auto sMime = Pipe.ReadLine();
 			auto iClip = sMime.rfind(": ");
 
 			if (iClip != KString::npos)

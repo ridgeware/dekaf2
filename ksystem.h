@@ -493,6 +493,13 @@ private:
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KLoadAverage kGetLoadAverage();
 
+/// Searches for an executable in the system's PATH, similar to the Unix 'which' command.
+/// All directories in the PATH environment variable are searched.
+/// @param sCommand the command name or path to search for
+/// @return the full path to the executable if found, or an empty string if not found
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kWhich (KStringView sCommand);
+
 /// DEPRECATED: use kIsIPv4Address() instead -
 /// checks if an IP address is a IPv4 address like '1.2.3.4'
 /// @param sAddress the string to test

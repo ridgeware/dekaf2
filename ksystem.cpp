@@ -49,6 +49,7 @@
 #include "kinshell.h"
 #include "kutf.h"             // for Windows API conversions
 #include "kexception.h"
+#include "kctype.h"
 #include <thread>
 #include <cstdlib>
 #include <ctime>
@@ -1566,6 +1567,99 @@ KTTYSize kGetTerminalSize(int fd, uint16_t iDefaultColumns, uint16_t iDefaultLin
 	return TTY;
 
 } // kGetTerminalSize
+
+//-----------------------------------------------------------------------------
+KString kWhich(KStringView sCommand)
+//-----------------------------------------------------------------------------
+{
+	if (sCommand.empty())
+	{
+		return {};
+	}
+
+	// validate that sCommand only contains safe characters
+	for (auto ch : sCommand)
+	{
+		if (!kIsAlNum(ch) && ch != '-' && ch != '_' && ch != '.')
+		{
+			kDebug(2, "invalid character '{}' in command name '{}'", ch, sCommand);
+			return {};
+		}
+	}
+
+#ifdef DEKAF2_IS_WINDOWS
+	static constexpr KStringViewZ sPathExtDefault = ".com;.exe;.bat;.cmd";
+#endif
+
+	auto fIsExecutable = [](KStringViewZ sPath) -> bool
+	{
+#ifdef DEKAF2_IS_WINDOWS
+		return kFileExists(sPath);
+#else
+		return ::access(sPath.c_str(), X_OK) == 0;
+#endif
+	};
+
+	auto sPathEnv = kGetEnv("PATH");
+
+	if (sPathEnv.empty())
+	{
+		return {};
+	}
+
+#ifdef DEKAF2_IS_WINDOWS
+	static constexpr KStringView sPathSeparator = ";";
+#else
+	static constexpr KStringView sPathSeparator = ":";
+#endif
+
+	KString sFullPath;
+#ifdef DEKAF2_IS_WINDOWS
+	KString sExtPath;
+#endif
+
+	// iterate through all directories in PATH
+	for (auto sDir : KStringView(sPathEnv).Split(sPathSeparator))
+	{
+		if (sDir.empty())
+		{
+			continue;
+		}
+
+		sFullPath = sDir;
+
+		if (sFullPath.back() != kDirSep)
+		{
+			sFullPath += kDirSep;
+		}
+
+		sFullPath += sCommand;
+
+		if (fIsExecutable(sFullPath))
+		{
+			return sFullPath;
+		}
+
+#ifdef DEKAF2_IS_WINDOWS
+		// on Windows, try appending PATHEXT extensions
+		auto sPathExt = kGetEnv("PATHEXT", sPathExtDefault);
+
+		for (auto sExtPart : KStringView(sPathExt).Split(sPathSeparator))
+		{
+			sExtPath  = sFullPath;
+			sExtPath += sExtPart;
+
+			if (fIsExecutable(sExtPath))
+			{
+				return sExtPath;
+			}
+		}
+#endif
+	}
+
+	return {};
+
+} // kWhich
 
 DEKAF2_NAMESPACE_END
 

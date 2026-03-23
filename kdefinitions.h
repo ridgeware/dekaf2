@@ -384,7 +384,7 @@
 	#define DEKAF2_GSL_POINTER(x)
 #endif
 
-#if DEKAF2_HAS_CPP_20
+#if defined(__cpp_lib_is_constant_evaluated)
 	#define DEKAF2_IS_CONSTANT_EVALUATED() std::is_constant_evaluated()
 #elif defined __GNUC__ // valid for both GCC and CLANG
 //	#if __has_builtin(__builtin_is_constant_evaluated)

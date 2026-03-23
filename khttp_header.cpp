@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#define DEKAF2_HTTP_HEADER_VIEW_PIPELINE (DEKAF2_HAS_CPP_20 && __cpp_lib_ranges >= 202110L)
+#define DEKAF2_HTTP_HEADER_VIEW_PIPELINE (__cpp_lib_ranges >= 202110L)
 
 #include "khttp_header.h"
 #include "khttperror.h"

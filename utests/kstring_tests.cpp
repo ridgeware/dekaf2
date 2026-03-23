@@ -2377,4 +2377,104 @@ TEST_CASE("KString") {
 		}
 	}
 
+#ifdef DEKAF2_HAS_CONSTEXPR_STD_STRING
+
+	SECTION("constexpr KString")
+	{
+		// 1. consteval: build a string at compile time and return a computed value
+		//    The KString itself is transient (freed at compile time), only the
+		//    scalar result survives into the binary.
+
+		// compute greeting length at compile time
+		constexpr auto iGreetingLen = []() consteval -> size_t
+		{
+			KString s = "Hello, ";
+			s += "World";
+			s += "!";
+			return s.size();
+		}();
+
+		static_assert(iGreetingLen == 13);
+		CHECK ( iGreetingLen == 13 );
+
+		// 2. consteval: palindrome check - string iteration and indexing at compile time
+		constexpr auto bIsPalindrome = [](const char* input) consteval -> bool
+		{
+			KString s(input);
+			size_t len = s.size();
+			for (size_t i = 0; i < len / 2; ++i)
+			{
+				if (s[i] != s[len - 1 - i]) return false;
+			}
+			return true;
+		};
+
+		static_assert(bIsPalindrome("racecar"));
+		static_assert(bIsPalindrome("abba"));
+		static_assert(!bIsPalindrome("hello"));
+
+		// 3. consteval: count CSV fields - compile-time parsing
+		constexpr auto iCountFields = [](const char* csv) consteval -> size_t
+		{
+			KString s(csv);
+			size_t count = 1;
+			for (auto ch : s) { if (ch == ',') ++count; }
+			return count;
+		};
+
+		static_assert(iCountFields("name,age,email") == 3);
+		static_assert(iCountFields("single") == 1);
+
+		// 4. consteval: HTTPS prefix check (char-by-char, as substr returns
+		//    a KString which may not be constexpr-comparable with a string literal)
+		constexpr auto bHasHTTPS = [](const char* url) consteval -> bool
+		{
+			KString s(url);
+			KStringView prefix = "https://";
+			if (s.size() < prefix.size()) return false;
+			for (size_t i = 0; i < prefix.size(); ++i)
+			{
+				if (s[i] != prefix[i]) return false;
+			}
+			return true;
+		};
+
+		static_assert(bHasHTTPS("https://example.com"));
+		static_assert(!bHasHTTPS("http://example.com"));
+
+		// 5. consteval: parse dimension from "WIDTHxHEIGHT" spec
+		constexpr auto iParseWidth = [](const char* spec) consteval -> size_t
+		{
+			KString s(spec);
+			size_t result = 0;
+			for (size_t i = 0; i < s.size(); ++i)
+			{
+				if (s[i] == 'x') return result;
+				result = result * 10 + (s[i] - '0');
+			}
+			return result;
+		};
+
+		static_assert(iParseWidth("640x480") == 640);
+		static_assert(iParseWidth("1920x1080") == 1920);
+
+		// 6. consteval: build a string, transform it, extract result
+		constexpr auto iUpperCount = [](const char* input) consteval -> size_t
+		{
+			KString s(input);
+			size_t count = 0;
+			for (auto ch : s)
+			{
+				if (ch >= 'A' && ch <= 'Z') ++count;
+			}
+			return count;
+		};
+
+		static_assert(iUpperCount("Hello World") == 2);
+		static_assert(iUpperCount("abc") == 0);
+		static_assert(iUpperCount("ABC") == 3);
+	}
+
+#endif // DEKAF2_HAS_CONSTEXPR_STD_STRING
+
 }

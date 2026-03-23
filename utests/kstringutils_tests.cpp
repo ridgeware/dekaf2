@@ -2657,6 +2657,15 @@ TEST_CASE("KStringUtils") {
 		CHECK ( sMember == "wo" );
 	}
 
+	SECTION("constexpr kToInt")
+	{
+		// compile-time integer parsing via KStringView (constexpr since C++14)
+		static_assert(kToInt<int>(KStringView("42")) == 42);
+		static_assert(kToInt<int>(KStringView("-17")) == -17);
+		static_assert(kToInt<int>(KStringView("FF"), 16) == 255);
+		static_assert(kToInt<unsigned>(KStringView("101"), 2) == 5);
+	}
+
 	SECTION("kCurlyToStraight")
 	{
 		CHECK ( kCurlyToStraight("hello") == "hello" );

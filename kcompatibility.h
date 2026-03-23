@@ -183,7 +183,9 @@ struct negation : bool_constant<!bool(T::value)> { };
 } // end of namespace std
 #endif
 
-#ifndef __cpp_lib_to_underlying
+#ifdef __cpp_lib_to_underlying
+	#include <utility>
+#else
 namespace std 
 {
 	template<class Enum, typename enable_if<is_enum<Enum>::value, int>::type = 0>
@@ -198,7 +200,9 @@ namespace std
 // It does not matter if they had been declared by other code already. The compiler
 // simply picks the first one that matches.
 // Old gcc versions < 7 do not have std::apply even in C++17 mode
-#ifndef __cpp_lib_apply
+#ifdef __cpp_lib_apply
+	#include <tuple>
+#else
 namespace std
 {
 	#ifdef DEKAF2_HAS_CPP_14

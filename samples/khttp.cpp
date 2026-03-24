@@ -44,7 +44,7 @@
 #include <dekaf2/krest.h>
 #include <dekaf2/krestroute.h>
 #include <dekaf2/khttperror.h>
-#include <dekaf2/kassociative.h>
+#include <dekaf2/kwebserverpermissions.h>
 #include <dekaf2/dekaf2.h> // KInit()
 
 using namespace dekaf2;
@@ -58,76 +58,6 @@ class KHTTP : public KErrorBase
 //----------
 public:
 //----------
-
-	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	struct UserParms
-	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	{
-		KString sPass;
-		KString sPath;
-		bool    bReadOnly { false };
-	};
-
-	using UserConf = KUnorderedMultiMap<KString, UserParms>;
-
-	//-----------------------------------------------------------------------------
-	void SetupUser(UserConf& Conf, KStringView sUserParms)
-	//-----------------------------------------------------------------------------
-	{
-		if (!sUserParms.empty())
-		{
-			// check if we get a pair from here
-			auto Parts = sUserParms.Split(":");
-
-			if (Parts.size() == 2)
-			{
-				Conf.emplace(Parts[0], UserParms{ Parts[1], "/", false });
-			}
-			else if (Parts.size() == 3)
-			{
-				Conf.emplace(Parts[0], UserParms{ Parts[1], Parts[2], false });
-			}
-			else if (Parts.size() == 4)
-			{
-				if (!Parts[3].In("ro,rw")) SetError("invalid format for user parameters: requires user:pass:/path:ro|rw");
-				Conf.emplace(Parts[0], UserParms{ Parts[1], Parts[2], Parts[3] == "ro" });
-			}
-			else
-			{
-				SetError("need username:password[:/path]");
-			}
-		}
-	}
-
-	//-----------------------------------------------------------------------------
-	UserConf SetupUsers(KStringViewZ sUserParms, KStringViewZ sUsersFile)
-	//-----------------------------------------------------------------------------
-	{
-		UserConf Conf;
-
-		SetupUser(Conf, sUserParms);
-
-		if (!sUsersFile.empty())
-		{
-			KInFile InFile(sUsersFile);
-			if (!InFile.is_open()) SetError(kFormat("unknown file: {}", sUsersFile));
-
-			for (auto& sLine : InFile)
-			{
-				sLine.Trim();
-
-				if (!sLine.empty() && !sLine.starts_with('#'))
-				{
-					SetupUser(Conf, sLine);
-				}
-			}
-
-			if (Conf.empty()) SetError("no user and pass definitions found");
-		}
-
-		return Conf;
-
-	} // SetupUsers
 
 	//-----------------------------------------------------------------------------
 	int Main(int argc, char** argv)
@@ -149,8 +79,9 @@ public:
 		KStringViewZ sWWWDir          = Options("www <directory>       : base directory for HTTP server (served content)");
 		bool bCreateAdHocIndex        = Options("autoindex             : create an automatic index.html for directories if index.html is not found, default false", false);
 		bool bAllowUpload             = Options("upload                : allow upload into directory, default false", false);
-		KStringViewZ sUserParms       = Options("user <user:password[[:/path]:ro|rw]> : set username and password for web access, default is open access", "");
-		KStringViewZ sUsersFile       = Options("users <pathname>      : set pathname for file with list of lines of user:pass:/path:ro|rw", "");
+		KStringViewZ sDefaultPerms    = Options("permissions <flags>   : default permissions (read|write|erase|browse|autoindex|all|none), default 'read|browse'", "");
+		KStringViewZ sUserParms       = Options("user <user:pass:/path:flags> : set user with permissions per path (flags: read|write|erase|browse|autoindex|all|none)", "");
+		KStringViewZ sUsersFile       = Options("users <pathname>      : set pathname for file with list of lines of user:pass:/path:flags", "");
 		KStringViewZ sRoute           = Options("route </path>         : route to serve from, defaults to \"/*\"", "/*");
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 		Settings.iPort                = Options("http <port>           : port number to bind to", 0);
@@ -203,47 +134,54 @@ public:
 		// and its name is x-microseconds
 		Settings.TimerHeader = "x-microseconds";
 
-		// set up basic authentication
-		const auto UserParms = SetupUsers(sUserParms, sUsersFile);
+		// set up permissions
+		KWebServerPermissions Permissions;
 
-		if (!UserParms.empty())
+		// set default permissions from CLI flags
+		if (sDefaultPerms)
 		{
-			Settings.PreRouteCallback = [&UserParms](KRESTServer& HTTP)
-			{
-				auto Basic  = HTTP.Request.GetBasicAuthParms();
-				auto up     = UserParms.equal_range(Basic.sUsername);
-				bool bWrite = HTTP.Request.Method != KHTTPMethod::GET     &&
-				              HTTP.Request.Method != KHTTPMethod::OPTIONS &&
-				              HTTP.Request.Method != KHTTPMethod::HEAD;
+			Permissions.SetDefaultPermissions(KWebServerPermissions::ParsePermissions(sDefaultPerms));
+		}
+		else
+		{
+			// derive defaults from legacy flags
+			KWebServerPermissions::Perms iPerms = KWebServerPermissions::Read | KWebServerPermissions::Browse;
 
-				for (auto it = up.first; it != up.second; ++it)
+			if (bCreateAdHocIndex) iPerms |= KWebServerPermissions::Autoindex;
+			if (bAllowUpload)      iPerms |= KWebServerPermissions::Write | KWebServerPermissions::Erase;
+
+			Permissions.SetDefaultPermissions(iPerms);
+		}
+
+		// add users from CLI or file
+		if (sUserParms) Permissions.AddUser(sUserParms);
+		if (sUsersFile)
+		{
+			if (!Permissions.LoadUsers(sUsersFile)) SetError(kFormat("cannot load users file: {}", sUsersFile));
+		}
+
+		// set up basic authentication if users are configured
+		if (Permissions.HasUsers())
+		{
+			Settings.PreRouteCallback = [&Permissions](KRESTServer& HTTP)
+			{
+				auto Basic = HTTP.Request.GetBasicAuthParms();
+
+				if (!Permissions.Authenticate(Basic.sUsername, Basic.sPassword))
 				{
-					if (it->second.sPass == Basic.sPassword)
-					{
-						// password is correct
-						if (HTTP.Request.Resource.Path.get().starts_with(it->second.sPath))
-						{
-							// this path is matched
-							if (!bWrite || it->second.bReadOnly == false)
-							{
-								// rw/ro mode matches - return without throwing (= success)
-								HTTP.SetAuthenticatedUser(Basic.sUsername);
-								return;
-							}
-						}
-					}
+					HTTP.Response.Headers.Set(KHTTPHeader::WWW_AUTHENTICATE, "Basic realm=\"KHTTP\"");
+					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authorized" };
 				}
 
-				// no matching user config found - request authentication
-				HTTP.Response.Headers.Set(KHTTPHeader::WWW_AUTHENTICATE, "Basic realm=\"KHTTP\"");
-				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authorized" };
+				HTTP.SetAuthenticatedUser(Basic.sUsername);
 			};
 		}
 		else
 		{
 			if (!bQuiet)
 			{
-				kPrintLine(">> configured with open {} access", bAllowUpload ? "read/write" : "read");
+				kPrintLine(">> configured with open access, permissions: {}",
+				           KWebServerPermissions::SerializePermissions(Permissions.GetDefaultPermissions()));
 				kPrintLine(">> use -user or -users options to restrict access");
 			}
 		}
@@ -253,8 +191,8 @@ public:
 		if (sWWWDir)
 		{
 			if (!kDirExists(sWWWDir)) SetError(kFormat("www directory does not exist: {}", sWWWDir));
-			// add a web server for static files
-			Routes.AddWebServer(sWWWDir, sRoute, bCreateAdHocIndex, bAllowUpload);
+			// add a web server for static files with permission control
+			Routes.AddWebServer(sWWWDir, sRoute, std::move(Permissions));
 			if (!bQuiet) kPrintLine(":: serving files from: {}", sWWWDir);
 		}
 

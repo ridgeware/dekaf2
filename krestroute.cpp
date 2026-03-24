@@ -347,52 +347,26 @@ KRESTRoutes::RouteBuilder KRESTRoutes::AddRoute(KString sRoute)
 } // AddRoute
 
 //-----------------------------------------------------------------------------
-void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute, KJSON jConfig)
+void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute, KWebServerPermissions Permissions, KJSON jConfig)
 //-----------------------------------------------------------------------------
 {
+	m_WebServerPermissions = std::move(Permissions);
+
+	if (!jConfig.contains("parser"))
+	{
+		jConfig["parser"] = "NOREAD";
+	}
+
+	// mark the config so the WebServer callback knows to use permissions
+	jConfig["use_permissions"] = true;
+
 	kDebug(2, "route : {}\nwww   : {}\nconfig: {}", sRoute, sWWWDir, jConfig.dump());
 
-	if (kjson::GetBool(jConfig, "upload"))
-	{
-		m_Routes.push_back(KRESTRoute("GET"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
-		m_Routes.push_back(KRESTRoute("POST"   , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
-		m_Routes.push_back(KRESTRoute("PUT"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
-		m_Routes.push_back(KRESTRoute("DELETE" , false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(jConfig)));
-	}
-	else
-	{
-		m_Routes.push_back(KRESTRoute("GET"    , false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(jConfig)));
-	}
-
-} // AddWebServer
-
-//-----------------------------------------------------------------------------
-void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute, bool bWithAdHocIndex, bool bAllowUpload, KStringView sStyles, KStringView sIndexfile)
-//-----------------------------------------------------------------------------
-{
-	KJSON jConfig {{ "parser", "NOREAD" }};
-
-	if (bWithAdHocIndex)
-	{
-		jConfig.push_back({"autoindex", true});
-	}
-
-	if (bAllowUpload)
-	{
-		jConfig.push_back({"upload", true});
-	}
-
-	if (!sStyles.empty())
-	{
-		jConfig.push_back({"styles", sStyles});
-	}
-
-	if (!sIndexfile.empty())
-	{
-		jConfig.push_back({"indexfile", sIndexfile});
-	}
-
-	AddWebServer(std::move(sWWWDir), std::move(sRoute), std::move(jConfig));
+	// always register all methods - the permission check happens at request time
+	m_Routes.push_back(KRESTRoute("GET"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
+	m_Routes.push_back(KRESTRoute("POST"   , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
+	m_Routes.push_back(KRESTRoute("PUT"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
+	m_Routes.push_back(KRESTRoute("DELETE" , false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(jConfig)));
 
 } // AddWebServer
 
@@ -544,11 +518,41 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	kDebug(2, "config: {}", HTTP.Route->Config.dump());
-	// we have to use the KJSONv1 style here to support older systems
-	// (but that bears no performance penalty)
-	auto  bWithAutoIndex = kjson::GetBool     (HTTP.Route->Config, "autoindex");
+
+	bool bWithAutoIndex;
+	bool bWithUpload;
+
+	if (kjson::GetBool(HTTP.Route->Config, "use_permissions"))
+	{
+		// resolve permissions for the authenticated user and the request path
+		const auto& sPath = HTTP.Request.Resource.Path.get();
+		const auto& sUser = HTTP.GetAuthenticatedUser();
+
+		if (!m_WebServerPermissions.IsAllowed(sUser, HTTP.RequestPath.Method, sPath))
+		{
+			if (m_WebServerPermissions.HasUsers() && sUser.empty())
+			{
+				throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authorized" };
+			}
+			throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, kFormat("method {} not permitted for path: {}", HTTP.RequestPath.Method, sPath) };
+		}
+
+		auto iPerms  = m_WebServerPermissions.Resolve(sUser, sPath);
+		bWithAutoIndex = (iPerms & KWebServerPermissions::Autoindex) != 0;
+		bWithUpload    = (iPerms & KWebServerPermissions::Write)     != 0;
+
+		kDebug(2, "permissions for user '{}' on '{}': {}", sUser, sPath, KWebServerPermissions::SerializePermissions(iPerms));
+	}
+	else
+	{
+		// legacy mode: use the old boolean config flags
+		// we have to use the KJSONv1 style here to support older systems
+		// (but that bears no performance penalty)
+		bWithAutoIndex = kjson::GetBool(HTTP.Route->Config, "autoindex");
+		bWithUpload    = kjson::GetBool(HTTP.Route->Config, "upload"   );
+	}
+
 	kDebug(2, "auto index: {}", bWithAutoIndex);
-	auto  bWithUpload    = kjson::GetBool     (HTTP.Route->Config, "upload"   );
 	kDebug(2, "upload: {}", bWithUpload);
 
 	KWebServer WebServer(HTTP.GetTempDirReference(), HTTP.Route->Config);

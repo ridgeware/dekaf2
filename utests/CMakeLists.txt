@@ -148,6 +148,7 @@ set (USOURCES
 	kversion_tests.cpp
 	kwebclient_tests.cpp
 	kwebobjects_tests.cpp
+	kwebserverpermissions_tests.cpp
 	kwebsocket_tests.cpp
 	kwords_tests.cpp
 	kwriter_tests.cpp

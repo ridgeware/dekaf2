@@ -96,14 +96,14 @@ bool KBaseShell::IntOpen (KString sCommand, bool bWrite,
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 #if defined(DEKAF2_IS_UNIX) && !defined(DEKAF2_IS_OSX)
 	// for a strange reason Apple has the CLOSE_ON_EXEC flag for fopen(), but not for popen()..
-	m_pipe = popen(sCommand.c_str(), bWrite ? "we" : "re");
+	m_pipe = ::popen(sCommand.c_str(), bWrite ? "we" : "re");
 #else
-	m_pipe = popen(sCommand.c_str(), bWrite ? "w" : "r");
+	m_pipe = ::popen(sCommand.c_str(), bWrite ? "w" : "r");
 #endif
 
 	if (!m_pipe)
 	{
-		kDebug (0, "popen() failed: {} - error: {}", sCommand, strerror(errno));
+		kDebug (0, "popen() failed: {} - error: {}", sCommand, ::strerror(errno));
 		m_iExitCode = errno;
 		return false;
 	}
@@ -113,18 +113,18 @@ bool KBaseShell::IntOpen (KString sCommand, bool bWrite,
 } // IntOpen
 
 //-----------------------------------------------------------------------------
-int KBaseShell::Close(int milliseconds /* unused */)
+int KBaseShell::Close(KDuration Timeout /* unused */)
 //-----------------------------------------------------------------------------
 {
 	if (m_pipe)
 	{
 		// the return value is the exit status of the command as returned by wait4
-		int iStatus = pclose(m_pipe);
+		int iStatus = ::pclose(m_pipe);
 
 		if (iStatus == -1)
 		{
 			m_iExitCode = errno;
-			kDebug(1, "cannot close pipe: {}", strerror(errno));
+			kDebug(1, "cannot close pipe: {}", ::strerror(errno));
 		}
 		else if (WIFEXITED(iStatus))
 		{

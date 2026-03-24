@@ -119,10 +119,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Closes a pipe
-	/// @param iWaitMilliseconds waits for amount of milliseconds, then kills child process. Default is -1,
-	/// which will wait until child terminates.
+	/// @param Timeout waits for the given duration, then kills child process.
+	/// Default is KDuration::max(), which will wait until child terminates.
 	/// @return the exit code received from the child
-	int Close(int iWaitMilliseconds = -1);
+	int Close(KDuration Timeout = KDuration::max());
 	//-----------------------------------------------------------------------------
 
 }; // class KInPipe

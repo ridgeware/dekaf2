@@ -45,14 +45,11 @@
 
 #include "../ksplit.h"
 #include "../ksystem.h"
-#include "../ksignals.h"
 #include "../kchildprocess.h"
 #include "../klog.h"
 #include "../kstring.h"
 #include "../kformat.h"
-#include "../kcompatibility.h"
 #include <csignal>
-#include <thread>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -82,18 +79,18 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const
 
 	if (m_Mode & PipeRead)
 	{
-		if (pipe(m_readPdes) < 0)
+		if (::pipe(m_readPdes) < 0)
 		{
-			kWarning("cannot open input pipe '{}': {}", sCommand, strerror(errno));
+			kWarning("cannot open input pipe '{}': {}", sCommand, ::strerror(errno));
 			return false;
 		}
 	}
 
 	if (m_Mode & PipeWrite)
 	{
-		if (pipe(m_writePdes) < 0)
+		if (::pipe(m_writePdes) < 0)
 		{
-			kWarning("cannot open output pipe '{}': {}", sCommand, strerror(errno));
+			kWarning("cannot open output pipe '{}': {}", sCommand, ::strerror(errno));
 			return false;
 		}
 	}
@@ -123,11 +120,11 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const
 	argV.push_back(nullptr);
 
 	// create a child
-	switch (m_pid = fork())
+	switch (m_pid = ::fork())
 	{
 		case -1: /* error */
 		{
-			kWarning("cannot fork '{}': {}", sCommand, strerror(errno));
+			kWarning("cannot fork '{}': {}", sCommand, ::strerror(errno));
 
 			// could not create the child
 			if (m_Mode & PipeRead)
@@ -151,15 +148,15 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const
 			detail::kCloseOwnFilesForExec(false, m_readPdes, 4);
 
 			// enable SIGPIPE!
-			signal(SIGPIPE, SIG_DFL);
+			::signal(SIGPIPE, SIG_DFL);
 
 			if (m_Mode & PipeWrite)
 			{
 				// Bind to Child's stdin
 				CloseAndResetFileDescriptor(m_writePdes[1]);
-				if (m_writePdes[0] != fileno(stdin))
+				if (m_writePdes[0] != ::fileno(stdin))
 				{
-					::dup2(m_writePdes[0], fileno(stdin));
+					::dup2(m_writePdes[0], ::fileno(stdin));
 					CloseAndResetFileDescriptor(m_writePdes[0]);
 				}
 			}
@@ -168,9 +165,9 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const
 			{
 				// Bind Child's stdout
 				CloseAndResetFileDescriptor(m_readPdes[0]);
-				if (m_readPdes[1] != fileno(stdout))
+				if (m_readPdes[1] != ::fileno(stdout))
 				{
-					::dup2(m_readPdes[1], fileno(stdout));
+					::dup2(m_readPdes[1], ::fileno(stdout));
 					CloseAndResetFileDescriptor(m_readPdes[1]);
 				}
 			}
@@ -182,9 +179,9 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const
 			kSetEnv(Environment);
 
 			// execute the command
-			execvp(argV[0], const_cast<char* const*>(argV.data()));
+			::execvp(argV[0], const_cast<char* const*>(argV.data()));
 
-			_exit(DEKAF2_POPEN_COMMAND_NOT_FOUND);
+			::_exit(DEKAF2_POPEN_COMMAND_NOT_FOUND);
 		}
 
 	}
@@ -208,7 +205,7 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const
 } // Open
 
 //-----------------------------------------------------------------------------
-int KBasePipe::Close(int iWaitMilliseconds)
+int KBasePipe::Close(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	if (m_pid > 0)
@@ -226,26 +223,7 @@ int KBasePipe::Close(int iWaitMilliseconds)
 		}
 
 		// child has been cut off from parent, let it terminate
-		if (iWaitMilliseconds < 0)
-		{
-			// wait until child terminates
-			wait(false);
-		}
-		else
-		{
-			// wait for given timeout, then kill child
-			Wait(iWaitMilliseconds);
-
-			// did the child terminate properly?
-			if (IsRunning())
-			{
-				// no
-				kill(m_pid, SIGKILL);
-				m_iExitCode = -1;
-			}
-		}
-
-		m_pid = 0;
+		WaitOrKill(Timeout);
 	}
 
 	return m_iExitCode;
@@ -253,102 +231,7 @@ int KBasePipe::Close(int iWaitMilliseconds)
 } // Close
 
 //-----------------------------------------------------------------------------
-void KBasePipe::wait(bool bNoHang)
-//-----------------------------------------------------------------------------
-{
-	if (m_pid > 0)
-	{
-		int iStatus { 0 };
-
-		pid_t iPid;
-
-		do
-		{
-			iPid = waitpid(m_pid, &iStatus, bNoHang ? WNOHANG : 0);
-		}
-		while (iPid == -1 && errno == EINTR);
-
-		if (iPid == -1)
-		{
-			m_iExitCode = -1;
-			kDebug(1, "cannot close pipe: {}", strerror(errno));
-			m_pid = 0;
-		}
-		else if (iPid == m_pid)
-		{
-			if (WIFEXITED(iStatus))
-			{
-				m_iExitCode = WEXITSTATUS(iStatus);
-				kDebug(2, "exited with return value {}", m_iExitCode);
-			}
-			else if (WIFSIGNALED(iStatus))
-			{
-				m_iExitCode = -1;
-				int iSignal = WTERMSIG(iStatus);
-				if (iSignal)
-				{
-					kDebug(1, "aborted by signal {}", kTranslateSignal(iSignal));
-				}
-			}
-			else
-			{
-				m_iExitCode = -1;
-				kDebug(1, "exited with invalid status {}", iStatus);
-			}
-
-			m_pid = 0;
-		}
-		// if iPid == 0 the process is still running
-	}
-
-} // wait
-
-//-----------------------------------------------------------------------------
-bool KBasePipe::IsRunning()
-//-----------------------------------------------------------------------------
-{
-	if (m_pid <= 0)
-	{
-		return false;
-	}
-
-	wait(true);
-
-	return (m_pid > 0);
-
-} // IsRunning
-
-//-----------------------------------------------------------------------------
-bool KBasePipe::Wait(int msecs)
-//-----------------------------------------------------------------------------
-{
-	if (m_pid <= 0)
-	{
-		return true;
-	}
-
-	std::chrono::steady_clock::time_point tStart = std::chrono::steady_clock::now();
-
-	std::chrono::milliseconds timeout(msecs);
-
-	while (IsRunning())
-	{
-		std::chrono::steady_clock::time_point tNow = std::chrono::steady_clock::now();
-
-		if (tNow - tStart > timeout)
-		{
-			return false;
-		}
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	}
-
-	return true;
-
-} // Wait
-
-//-----------------------------------------------------------------------------
-bool KBasePipe::Kill(int msecs)
+bool KBasePipe::Kill(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	if (m_pid <= 0)
@@ -357,29 +240,14 @@ bool KBasePipe::Kill(int msecs)
 	}
 
 	// send a SIGINT
-	kill(m_pid, SIGINT);
+	::kill(m_pid, SIGINT);
 
 	// call Close() which will send a SIGKILL after waiting
-	Close(msecs);
+	Close(Timeout);
 
 	return true;
 
 } // Kill
-
-//-----------------------------------------------------------------------------
-void KBasePipe::CloseAndResetFileDescriptor(int& iFileDescriptor)
-//-----------------------------------------------------------------------------
-{
-	if (iFileDescriptor >= 0)
-	{
-		if (::close(iFileDescriptor))
-		{
-			kDebug(2, "error closing file descriptor {}: {}", iFileDescriptor, strerror(errno));
-		}
-		iFileDescriptor = -1;
-	}
-
-} // CloseAndResetFileDescriptor
 
 DEKAF2_NAMESPACE_END
 

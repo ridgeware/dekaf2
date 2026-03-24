@@ -26,7 +26,7 @@ TEST_CASE("KInPipe")
 		pipe.SetReaderTrim("");
 
 		CHECK(pipe.Open(kFormat("/bin/sh -c \"echo 'some random datum' > {}/kinpipetest.file\"", TempDir.Name())));
-		pipe.Wait(1000);
+		pipe.Wait(chrono::seconds(1));
 		CHECK_FALSE(pipe.IsRunning());
 		CHECK(0 == pipe.Close());
 		CHECK(pipe.Open(kFormat("ls -al {}/kinpipetest.file | grep kinpipetest | wc -l", TempDir.Name()), "/bin/sh"));

@@ -75,7 +75,7 @@ if (WIN32)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.1.2 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.1.3 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1154,7 +1154,7 @@ set (BITS_HEADERS
 	bits/kasiostream.h
 	bits/kbaseshell.h
 	bits/kbasepipe.h
-	bits/kbasepty.h
+	bits/kbaseprocess.h
 	bits/kdigest.h
 	bits/kfilesystem.h
 	bits/kfindsetofchars.h
@@ -1484,7 +1484,7 @@ set (PRECOMPILED_HEADERS
 set (SOURCES
 	# KEEP ALPHABETIZED
 	bits/kbasepipe.cpp
-	bits/kbasepty.cpp
+	bits/kbaseprocess.cpp
 	bits/kbaseshell.cpp
 	bits/kdigest.cpp
 	bits/kfindsetofchars.cpp

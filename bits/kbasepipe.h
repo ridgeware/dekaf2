@@ -41,19 +41,15 @@
 
 #pragma once
 
-// Dekaf Includes
-#include "../kcompatibility.h"
+#include "kbaseprocess.h"
 #include "../kstring.h"
 
 #ifdef DEKAF2_HAS_PIPES
 
-// Generic Includes
-#include <sys/wait.h>
-
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KBasePipe
+class DEKAF2_PUBLIC KBasePipe : public KBaseProcess
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -69,18 +65,7 @@ public:
 	};
 
 	//-----------------------------------------------------------------------------
-	/// Checks if child on other side of pipe is still running
-	bool IsRunning();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Waits up to the number of given milliseconds for the child to terminate
-	/// Will return early if child terminates
-	bool Wait(int msecs);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Get error code, 0 indicates no errors
+	/// Get error code, 0 indicates no errors (alias for GetExitCode)
 	int GetErrno()
 	//-----------------------------------------------------------------------------
 	{
@@ -88,16 +73,8 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Get process ID of the running process, > 0 if running, else not running
-	pid_t GetProcessID()
-	//-----------------------------------------------------------------------------
-	{
-		return m_pid;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Terminate the running process. Initially with signal SIGINT, after msecs waiting time with SIGKILL
-	bool Kill(int msecs);
+	/// Terminate the running process. Initially with signal SIGINT, after Timeout with SIGKILL
+	bool Kill(KDuration Timeout);
 	//-----------------------------------------------------------------------------
 
 //--------
@@ -105,16 +82,10 @@ protected:
 //--------
 
 	OpenMode m_Mode        { OpenMode::None };
-	pid_t    m_pid         { 0 };
-	int      m_iExitCode   { 0 };
 
 	// we use this nested arrangement to ensure we have all descriptors in one single array
 	int      m_readPdes[4] { -1, -1, -1, -1 };
 	int*     m_writePdes   { &m_readPdes[2] };
-
-	//-----------------------------------------------------------------------------
-	void wait(bool bNoHang = true);
-	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	bool Open(KString sCommand, KStringViewZ sShell, OpenMode Mode,
@@ -122,11 +93,7 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	int Close(int iWaitMilliseconds = -1);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	static void CloseAndResetFileDescriptor(int& iFileDescriptor);
+	int Close(KDuration Timeout = KDuration::max());
 	//-----------------------------------------------------------------------------
 
 }; // KBasePipe

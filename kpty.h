@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2026, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -45,10 +45,11 @@
 /// Open an interactive Unix shell via a pseudo-terminal (PTY), with optional
 /// credential-based login and configurable read timeout
 
-#include "bits/kbasepty.h"
+#include "bits/kbaseprocess.h"
 
 #ifdef DEKAF2_HAS_PIPES
 
+#include "kstring.h"
 #include "kduration.h"
 #include "kfdstream.h"
 #include "kstreambuf.h"
@@ -179,7 +180,7 @@ protected:
 //----------
 
 	int       m_iMasterFD { -1 };
-	KDuration m_Timeout   { std::chrono::seconds(30) };
+	KDuration m_Timeout   { chrono::seconds(30) };
 
 	detail::KPTYReaderContext m_ReaderContext { &m_iMasterFD, &m_Timeout };
 
@@ -199,13 +200,19 @@ using KPTYStream = KReaderWriter<KPTYIOStream>;
 /// Open an interactive Unix shell via a pseudo-terminal (PTY).
 /// Supports credential-based login and configurable read timeout.
 /// Inherits std::iostream (via KPTYStream) for stream-based I/O.
-class DEKAF2_PUBLIC KPTY : public KBasePTY, public KPTYStream
+class DEKAF2_PUBLIC KPTY : public KBaseProcess, public KPTYStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
 //------
 public:
 //------
+
+	enum LoginMode
+	{
+		NoLogin,       ///< spawn a shell without login
+		Login          ///< spawn login, expects credentials via stream
+	};
 
 	//-----------------------------------------------------------------------------
 	/// Default Constructor
@@ -221,7 +228,7 @@ public:
 	/// @param Environment additional environment variables for the child
 	KPTY(LoginMode Mode,
 		 KStringView sShell = {},
-		 KDuration Timeout = std::chrono::seconds(30),
+		 KDuration Timeout = chrono::seconds(30),
 		 const std::vector<std::pair<KString, KString>>& Environment = {})
 	//-----------------------------------------------------------------------------
 	{
@@ -245,17 +252,35 @@ public:
 	/// @return true on success
 	bool Open(LoginMode Mode = NoLogin,
 			  KStringView sShell = {},
-			  KDuration Timeout = std::chrono::seconds(30),
+			  KDuration Timeout = chrono::seconds(30),
 			  const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Closes the PTY and waits for the child process to terminate.
-	/// @param iWaitMilliseconds waits for amount of milliseconds, then kills child
-	///        process. Default is -1, which will wait until child terminates.
+	/// @param Timeout waits for the given duration, then kills child process.
+	///        Default is KDuration::max(), which will wait until child terminates.
 	/// @return the exit code received from the child
-	int Close(int iWaitMilliseconds = -1);
+	int Close(KDuration Timeout = KDuration::max());
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Terminate the running process. Initially with signal SIGINT, after Timeout
+	/// with SIGKILL
+	bool Kill(KDuration Timeout);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set the PTY window size. Sends SIGWINCH to the child process.
+	bool SetWindowSize(uint16_t iRows, uint16_t iCols);
+	//-----------------------------------------------------------------------------
+
+//--------
+protected:
+//--------
+
+	int     m_iMasterFD  { -1 };
+	KString m_sSecondaryName;
 
 }; // class KPTY
 

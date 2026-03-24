@@ -44,6 +44,7 @@
 /// basic shell I/O class
 
 #include "../kdefinitions.h"
+#include "../kduration.h"
 #include "../kstring.h"
 #include <cstdio>
 
@@ -77,7 +78,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Closes pipe saving exit code. The wait timeout is not used
-	int Close(int iWaitMilliseconds = -1);
+	int Close(KDuration Timeout = KDuration::max());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

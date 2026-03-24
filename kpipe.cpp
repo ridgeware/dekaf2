@@ -63,13 +63,13 @@ bool KPipe::Open(KString sCommand, KStringViewZ sShell,
 } // Open
 
 //-----------------------------------------------------------------------------
-int KPipe::Close(int iWaitMilliseconds)
+int KPipe::Close(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	// invalidate Stream - we close it in KBasePipe::Close
 	KFDStream::Cancel();
 
-	return KBasePipe::Close(iWaitMilliseconds);
+	return KBasePipe::Close(Timeout);
 
 } // Close
 

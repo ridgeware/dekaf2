@@ -149,8 +149,8 @@ public:
 		/// runs the Job
 		virtual bool operator()() { return Start(); }
 
-		/// Waits up to the number of given milliseconds for the Job to terminate, returns status code
-		virtual int Wait(int msecs);
+		/// Waits up to Timeout for the Job to terminate, returns status code
+		virtual int Wait(KDuration Timeout);
 
 		/// print a json description of the job
 		/// @param iMaxResultSize the output of the executed command will be cut off after this count

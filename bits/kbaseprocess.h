@@ -41,11 +41,11 @@
 
 #pragma once
 
-/// @file kbasepty.h
-/// base class for pseudo-terminal (PTY) I/O
+/// @file kbaseprocess.h
+/// common base class for child process management (shared by KBasePipe and KPTY)
 
 #include "../kcompatibility.h"
-#include "../kstring.h"
+#include "../kduration.h"
 
 #ifdef DEKAF2_HAS_PIPES
 
@@ -54,7 +54,9 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KBasePTY
+/// Common base class for child process management. Provides process lifecycle
+/// methods (wait, kill, status) shared by KBasePipe and KPTY.
+class DEKAF2_PUBLIC KBaseProcess
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -62,25 +64,19 @@ class DEKAF2_PUBLIC KBasePTY
 public:
 //------
 
-	enum LoginMode
-	{
-		NoLogin,       ///< spawn a shell without login
-		Login          ///< spawn login, expects credentials via stream
-	};
-
 	//-----------------------------------------------------------------------------
-	/// Checks if child on other side of PTY is still running
+	/// Checks if child process is still running
 	bool IsRunning();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Waits up to the number of given milliseconds for the child to terminate.
+	/// Waits up to Timeout for the child to terminate.
 	/// Will return early if child terminates
-	bool Wait(int msecs);
+	bool Wait(KDuration Timeout);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Get error code, 0 indicates no errors
+	/// Get exit code, 0 indicates no errors
 	int GetExitCode()
 	//-----------------------------------------------------------------------------
 	{
@@ -95,53 +91,29 @@ public:
 		return m_pid;
 	}
 
-	//-----------------------------------------------------------------------------
-	/// Terminate the running process. Initially with signal SIGINT, after msecs
-	/// waiting time with SIGKILL
-	bool Kill(int msecs);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Set the PTY window size. Sends SIGWINCH to the child process.
-	bool SetWindowSize(uint16_t iRows, uint16_t iCols);
-	//-----------------------------------------------------------------------------
-
 //--------
 protected:
 //--------
 
-	int     m_iMasterFD  { -1 };
-	pid_t   m_pid        {  0 };
-	int     m_iExitCode  {  0 };
-	KString m_sSlaveName;
+	pid_t m_pid       { 0 };
+	int   m_iExitCode { 0 };
 
 	//-----------------------------------------------------------------------------
 	void wait(bool bNoHang = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Open a PTY and fork a child process.
-	/// @param sShell shell path (or login command for Login mode). If empty, uses
-	///        $SHELL or /bin/sh for NoLogin, /usr/bin/login for Login.
-	/// @param Mode NoLogin or Login
-	/// @param Environment additional environment variables for the child
-	bool Open(KStringView sShell, LoginMode Mode,
-			  const std::vector<std::pair<KString, KString>>& Environment);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Close the PTY and wait for the child to terminate.
-	/// @param iWaitMilliseconds waits for amount of milliseconds, then kills child
-	///        process. Default is -1, which will wait until child terminates.
-	/// @return the exit code received from the child
-	int Close(int iWaitMilliseconds = -1);
+	/// Wait for the child to terminate, or kill it after timeout.
+	/// Called by derived Close() implementations after their FD cleanup.
+	/// @param Timeout KDuration::max() = wait forever, else wait then SIGKILL
+	void WaitOrKill(KDuration Timeout = KDuration::max());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	static void CloseAndResetFileDescriptor(int& iFileDescriptor);
 	//-----------------------------------------------------------------------------
 
-}; // KBasePTY
+}; // KBaseProcess
 
 DEKAF2_NAMESPACE_END
 

@@ -333,7 +333,7 @@ bool Kron::Job::IsWaiting()
 } // IsWaiting
 
 //-----------------------------------------------------------------------------
-int Kron::Job::Wait(int msecs)
+int Kron::Job::Wait(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
 	std::unique_lock<std::shared_mutex> Lock(m_ExecMutex);
@@ -350,7 +350,7 @@ int Kron::Job::Wait(int msecs)
 	m_Shell->ReadRemaining(sOutput);
 
 	// close the shell and report the return value to the caller
-	int iResult = m_Shell->Close(msecs);
+	int iResult = m_Shell->Close(Timeout);
 
 #ifdef DEKAF2_WITH_KLOG
 	auto lastDuration      = m_Control.ExecutionTime.Stop();
@@ -751,7 +751,7 @@ std::size_t Kron::FinishWaitingJobs()
 		if ((*job)->IsWaiting())
 		{
 			// read result
-			(*job)->Wait(100);
+			(*job)->Wait(chrono::milliseconds(100));
 
 			m_Scheduler->JobFinished(*job);
 

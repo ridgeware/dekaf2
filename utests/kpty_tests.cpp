@@ -15,7 +15,7 @@ TEST_CASE("KPTY")
 		KPTY pty;
 		CHECK_FALSE(pty.IsRunning());
 
-		CHECK(pty.Open(KBasePTY::NoLogin, "/bin/sh", std::chrono::seconds(5)));
+		CHECK(pty.Open(KPTY::NoLogin, "/bin/sh", chrono::seconds(5)));
 		CHECK(pty.IsRunning());
 		CHECK(pty.is_open());
 
@@ -45,23 +45,23 @@ TEST_CASE("KPTY")
 		// send exit
 		pty << "exit\n" << std::flush;
 
-		auto iExit = pty.Close(5000);
+		auto iExit = pty.Close(chrono::seconds(5));
 		CHECK_FALSE(pty.IsRunning());
 		CHECK(iExit == 0);
 	}
 
 	SECTION("NoLogin shell - default shell")
 	{
-		KPTY pty(KBasePTY::NoLogin);
+		KPTY pty(KPTY::NoLogin);
 		CHECK(pty.IsRunning());
 		CHECK(pty.is_open());
 
 		pty << "exit\n" << std::flush;
 
 		// give the shell time to process exit
-		pty.Wait(2000);
+		pty.Wait(chrono::seconds(2));
 
-		auto iExit = pty.Close(5000);
+		auto iExit = pty.Close(chrono::seconds(5));
 		CHECK_FALSE(pty.IsRunning());
 		// exit code may be non-zero if default shell rc files fail in a raw PTY
 		CHECK(iExit >= 0);
@@ -69,21 +69,21 @@ TEST_CASE("KPTY")
 
 	SECTION("SetWindowSize")
 	{
-		KPTY pty(KBasePTY::NoLogin, "/bin/sh", std::chrono::seconds(5));
+		KPTY pty(KPTY::NoLogin, "/bin/sh", chrono::seconds(5));
 		CHECK(pty.IsRunning());
 
 		CHECK(pty.SetWindowSize(40, 120));
 
 		pty << "exit\n" << std::flush;
-		pty.Close(5000);
+		pty.Close(chrono::seconds(5));
 	}
 
 	SECTION("Kill running process")
 	{
-		KPTY pty(KBasePTY::NoLogin, "/bin/sh", std::chrono::seconds(5));
+		KPTY pty(KPTY::NoLogin, "/bin/sh", chrono::seconds(5));
 		CHECK(pty.IsRunning());
 
-		CHECK(pty.Kill(2000));
+		CHECK(pty.Kill(chrono::seconds(2)));
 		CHECK_FALSE(pty.IsRunning());
 	}
 
@@ -91,7 +91,7 @@ TEST_CASE("KPTY")
 	{
 		KPTY pty;
 		// very short timeout
-		CHECK(pty.Open(KBasePTY::NoLogin, "/bin/sh", std::chrono::milliseconds(100)));
+		CHECK(pty.Open(KPTY::NoLogin, "/bin/sh", chrono::milliseconds(100)));
 		CHECK(pty.IsRunning());
 
 		// consume any initial prompt output
@@ -105,7 +105,7 @@ TEST_CASE("KPTY")
 		CHECK_FALSE(pty.ReadLine(sLine));
 
 		pty << "exit\n" << std::flush;
-		pty.Close(5000);
+		pty.Close(chrono::seconds(5));
 	}
 
 }

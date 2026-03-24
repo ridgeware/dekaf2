@@ -25,7 +25,7 @@ TEST_CASE("KTCPServer")
 		kill(kGetPid(), SIGTERM);
 	});
 
-	CHECK( server.Start(1, true) == true );
+	CHECK( server.Start(chrono::seconds(5), true) == true );
 
 	t1.join();
 }

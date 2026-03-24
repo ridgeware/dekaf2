@@ -76,10 +76,14 @@ TEST_CASE("KUUID")
 		uuid = KUUID(KUUID::Version::TimeRandom);
 		auto uuid2 = KUUID(KUUID::Version::TimeRandom);
 		CHECK ( uuid.GetVersion() == KUUID::Version::TimeRandom );
+		CHECK ( uuid.GetVariant() == 1 );
 		tTime = uuid.GetTime();
 		auto tNow = KUnixTime::now();
-		CHECK ( (tNow - tTime) < chrono::seconds(2) );
+		auto tDiff = tNow - tTime;
+		CHECK ( tDiff >= chrono::seconds(0) );
+		CHECK ( tDiff <  chrono::seconds(2) );
 		CHECK ( uuid != uuid2 );
+		CHECK ( uuid.ToString().MatchRegex("[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}") );
 
 #if DEKAF2_HAS_CPP_20
 		constexpr auto uuid1 = KUUID("e22e1622-5c14-11ea-b2f3-1db91a60758f");
@@ -145,6 +149,47 @@ TEST_CASE("KUUID")
 
 		KUUID abc("6ba7b810-9dad-11d1-80b4-00c04fd430c8");
 		CHECK ( abc == KUUID::ns::DNS );
+	}
+
+	SECTION("RFC 9562 Appendix A test vectors")
+	{
+		// A.1 UUIDv1
+		auto uuid = KUUID("c232ab00-9414-11ec-b3c8-9f6bdeced846");
+		CHECK ( uuid.GetVersion() == KUUID::MACTime );
+		CHECK ( uuid.GetVariant() == 1 );
+		auto tTime = uuid.GetTime();
+		CHECK ( tTime.to_string() == "2022-02-22 19:22:22" );
+		auto MAC = uuid.GetMAC();
+		CHECK ( MAC.ToHex('\0') == "9f6bdeced846" );
+
+		// A.2 UUIDv3 (DNS + "www.example.com")
+		uuid = KUUID::Create(KUUID::ns::DNS, "www.example.com", true);
+		CHECK ( uuid == KStringView("5df41881-3aed-3515-88a7-2f4a814cf09e") );
+		CHECK ( uuid.GetVersion() == KUUID::NamedMD5 );
+		CHECK ( uuid.GetVariant() == 1 );
+
+		// A.4 UUIDv5 (DNS + "www.example.com")
+		uuid = KUUID::Create(KUUID::ns::DNS, "www.example.com");
+		CHECK ( uuid == KStringView("2ed6657d-e927-568b-95e1-2665a8aea6a2") );
+		CHECK ( uuid.GetVersion() == KUUID::NamedSHA1 );
+		CHECK ( uuid.GetVariant() == 1 );
+
+		// A.5 UUIDv6
+		uuid = KUUID("1ec9414c-232a-6b00-b3c8-9f6bdeced846");
+		CHECK ( uuid.GetVersion() == KUUID::MACTimeSort );
+		CHECK ( uuid.GetVariant() == 1 );
+		tTime = uuid.GetTime();
+		CHECK ( tTime.to_string() == "2022-02-22 19:22:22" );
+		MAC = uuid.GetMAC();
+		CHECK ( MAC.ToHex('\0') == "9f6bdeced846" );
+
+		// A.6 UUIDv7
+		uuid = KUUID("017f22e2-79b0-7cc3-98c4-dc0c0c07398f");
+		CHECK ( uuid.GetVersion() == KUUID::TimeRandom );
+		CHECK ( uuid.GetVariant() == 1 );
+		tTime = uuid.GetTime();
+		CHECK ( tTime.to_string() == "2022-02-22 19:22:22" );
+		CHECK ( tTime.subseconds().milliseconds().count() == 0 );
 	}
 
 	SECTION("formatting (fmt)")

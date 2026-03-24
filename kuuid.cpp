@@ -229,7 +229,7 @@ uint16_t KUUID::GetVariant() const noexcept
 KMACAddress KUUID::GetMAC() const noexcept
 //-----------------------------------------------------------------------------
 {
-	KMACAddress::MAC Mac;
+	KMACAddress::MAC Mac {};
 
 	switch (GetVersion())
 	{
@@ -285,7 +285,7 @@ KUnixTime KUUID::GetMonotonicCurrentTime() noexcept
 		{
 			usecs = ++tLast;
 		}
-		else if (usecs > tLast)
+		else
 		{
 			tLast = usecs;
 		}
@@ -313,8 +313,9 @@ KUnixTime KUUID::DecodeTime(const UUID& uuid, bool bGregorian, bool bBigEndian) 
 		if (!bGregorian)
 		{
 			// For the unix time format in uuid v7 only 48 bits are standardized.
-			// While most implementations (including ours) add more we do not
-			// know if and how many, so we stick with milliseconds resolution
+			// While our implementation adds sub-millisecond precision in rand_a
+			// (RFC 9562 Section 6.2 Method 3), we do not know if external UUIDs
+			// do the same, so we stick with milliseconds resolution on decode.
 			return KUnixTime(chrono::milliseconds(t60));
 		}
 
@@ -356,19 +357,38 @@ KUnixTime KUUID::DecodeTime(const UUID& uuid, bool bGregorian, bool bBigEndian) 
 void KUUID::EncodeTime(UUID& uuid, KUnixTime tTime, bool bGregorian, bool bBigEndian) noexcept
 //-----------------------------------------------------------------------------
 {
+	if (!bGregorian)
+	{
+		// UUIDv7: 48-bit Unix timestamp in milliseconds, big-endian (RFC 9562 Section 5.7)
+		// plus 12-bit sub-millisecond fraction in rand_a (RFC 9562 Section 6.2 Method 3)
+		auto duration = tTime.time_since_epoch();
+		auto millis   = chrono::duration_cast<chrono::milliseconds>(duration);
+		uint64_t ms   = millis.count();
+		// sub-millisecond remainder in microseconds (0-999), scaled to 12 bits (0-4091)
+		auto sub_ms_us  = chrono::duration_cast<chrono::microseconds>(duration - millis).count();
+		uint16_t frac12 = static_cast<uint16_t>((sub_ms_us << 12) / 1000);
+		uuid[0] = static_cast<unsigned char>(ms >> 40);
+		uuid[1] = static_cast<unsigned char>(ms >> 32);
+		uuid[2] = static_cast<unsigned char>(ms >> 24);
+		uuid[3] = static_cast<unsigned char>(ms >> 16);
+		uuid[4] = static_cast<unsigned char>(ms >>  8);
+		uuid[5] = static_cast<unsigned char>(ms >>  0);
+		uuid[6] = static_cast<unsigned char>(frac12 >> 8); // top 4 bits (version replaces high nibble)
+		uuid[7] = static_cast<unsigned char>(frac12 >> 0);
+		return;
+	}
+
 	chrono::nanoseconds nsecs = chrono::duration_cast<chrono::nanoseconds>(tTime.time_since_epoch());
 
 	// convert to 100s of nanoseconds
 	uint64_t nano100 = nsecs.count() / 100;
 
-	if (bGregorian)
-	{
-		// add the offset between 15-Oct-1582 and 1-Jan-70
-		nano100 += 0x01b21dd213814000;
-	}
+	// add the offset between 15-Oct-1582 and 1-Jan-70
+	nano100 += 0x01b21dd213814000;
 
 	if (bBigEndian)
 	{
+		// UUIDv6: 60-bit Gregorian timestamp, big-endian (RFC 9562 Section 5.6)
 		uuid[0] = static_cast<unsigned char>(nano100 >> 52);
 		uuid[1] = static_cast<unsigned char>(nano100 >> 44);
 		uuid[2] = static_cast<unsigned char>(nano100 >> 36);
@@ -380,6 +400,7 @@ void KUUID::EncodeTime(UUID& uuid, KUnixTime tTime, bool bGregorian, bool bBigEn
 	}
 	else
 	{
+		// UUIDv1: 60-bit Gregorian timestamp, mixed-endian (RFC 9562 Section 5.1)
 		uuid[0] = static_cast<unsigned char>(nano100 >> 24);
 		uuid[1] = static_cast<unsigned char>(nano100 >> 16);
 		uuid[2] = static_cast<unsigned char>(nano100 >>  8);

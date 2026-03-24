@@ -358,7 +358,7 @@ namespace std {
 
 template<> struct hash<DEKAF2_PREFIX KUUID>
 {
-	std::size_t operator()(DEKAF2_PREFIX KUUID& uuid) const noexcept
+	std::size_t operator()(const DEKAF2_PREFIX KUUID& uuid) const noexcept
 	{
 		return DEKAF2_PREFIX kHash(uuid.GetUUID().data(), uuid.GetUUID().size());
 	}

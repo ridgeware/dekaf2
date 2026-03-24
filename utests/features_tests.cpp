@@ -18,15 +18,10 @@ struct FeatureReport
 	FeatureReport()
 	{
 		// core language features
-#ifdef __cpp_aggregate_nsdmi
-		sDefined += kFormat("  __cpp_aggregate_nsdmi = {}\n", __cpp_aggregate_nsdmi);
+#ifdef __cpp_constexpr
+		sDefined += kFormat("  __cpp_constexpr = {}\n", __cpp_constexpr);
 #else
-		sUndefined += "  __cpp_aggregate_nsdmi\n";
-#endif
-#ifdef __cpp_aggregate_paren_init
-		sDefined += kFormat("  __cpp_aggregate_paren_init = {}\n", __cpp_aggregate_paren_init);
-#else
-		sUndefined += "  __cpp_aggregate_paren_init\n";
+		sUndefined += "  __cpp_constexpr\n";
 #endif
 #ifdef __cpp_char8_t
 		sDefined += kFormat("  __cpp_char8_t = {}\n", __cpp_char8_t);
@@ -38,20 +33,10 @@ struct FeatureReport
 #else
 		sUndefined += "  __cpp_concepts\n";
 #endif
-#ifdef __cpp_consteval
-		sDefined += kFormat("  __cpp_consteval = {}\n", __cpp_consteval);
+#ifdef __cpp_inheriting_constructors
+		sDefined += kFormat("  __cpp_inheriting_constructors = {}\n", __cpp_inheriting_constructors);
 #else
-		sUndefined += "  __cpp_consteval\n";
-#endif
-#ifdef __cpp_constexpr
-		sDefined += kFormat("  __cpp_constexpr = {}\n", __cpp_constexpr);
-#else
-		sUndefined += "  __cpp_constexpr\n";
-#endif
-#ifdef __cpp_constinit
-		sDefined += kFormat("  __cpp_constinit = {}\n", __cpp_constinit);
-#else
-		sUndefined += "  __cpp_constinit\n";
+		sUndefined += "  __cpp_inheriting_constructors\n";
 #endif
 #ifdef __cpp_deduction_guides
 		sDefined += kFormat("  __cpp_deduction_guides = {}\n", __cpp_deduction_guides);
@@ -73,31 +58,6 @@ struct FeatureReport
 #else
 		sUndefined += "  __cpp_impl_three_way_comparison\n";
 #endif
-#ifdef __cpp_inline_variables
-		sDefined += kFormat("  __cpp_inline_variables = {}\n", __cpp_inline_variables);
-#else
-		sUndefined += "  __cpp_inline_variables\n";
-#endif
-#ifdef __cpp_namespace_attributes
-		sDefined += kFormat("  __cpp_namespace_attributes = {}\n", __cpp_namespace_attributes);
-#else
-		sUndefined += "  __cpp_namespace_attributes\n";
-#endif
-#ifdef __cpp_nontype_template_args
-		sDefined += kFormat("  __cpp_nontype_template_args = {}\n", __cpp_nontype_template_args);
-#else
-		sUndefined += "  __cpp_nontype_template_args\n";
-#endif
-#ifdef __cpp_return_type_deduction
-		sDefined += kFormat("  __cpp_return_type_deduction = {}\n", __cpp_return_type_deduction);
-#else
-		sUndefined += "  __cpp_return_type_deduction\n";
-#endif
-#ifdef __cpp_structured_bindings
-		sDefined += kFormat("  __cpp_structured_bindings = {}\n", __cpp_structured_bindings);
-#else
-		sUndefined += "  __cpp_structured_bindings\n";
-#endif
 #ifdef __cpp_unicode_characters
 		sDefined += kFormat("  __cpp_unicode_characters = {}\n", __cpp_unicode_characters);
 #else
@@ -110,10 +70,10 @@ struct FeatureReport
 #else
 		sUndefined += "  __cpp_lib_apply\n";
 #endif
-#ifdef __cpp_lib_atomic_ref
-		sDefined += kFormat("  __cpp_lib_atomic_ref = {}\n", __cpp_lib_atomic_ref);
+#ifdef __cpp_lib_optional
+		sDefined += kFormat("  __cpp_lib_optional = {}\n", __cpp_lib_optional);
 #else
-		sUndefined += "  __cpp_lib_atomic_ref\n";
+		sUndefined += "  __cpp_lib_optional\n";
 #endif
 #ifdef __cpp_lib_bit_cast
 		sDefined += kFormat("  __cpp_lib_bit_cast = {}\n", __cpp_lib_bit_cast);
@@ -129,11 +89,6 @@ struct FeatureReport
 		sDefined += kFormat("  __cpp_lib_bool_constant = {}\n", __cpp_lib_bool_constant);
 #else
 		sUndefined += "  __cpp_lib_bool_constant\n";
-#endif
-#ifdef __cpp_lib_byte
-		sDefined += kFormat("  __cpp_lib_byte = {}\n", __cpp_lib_byte);
-#else
-		sUndefined += "  __cpp_lib_byte\n";
 #endif
 #ifdef __cpp_lib_byteswap
 		sDefined += kFormat("  __cpp_lib_byteswap = {}\n", __cpp_lib_byteswap);
@@ -155,11 +110,6 @@ struct FeatureReport
 #else
 		sUndefined += "  __cpp_lib_constexpr_char_traits\n";
 #endif
-#ifdef __cpp_lib_filesystem
-		sDefined += kFormat("  __cpp_lib_filesystem = {}\n", __cpp_lib_filesystem);
-#else
-		sUndefined += "  __cpp_lib_filesystem\n";
-#endif
 #ifdef __cpp_lib_format
 		sDefined += kFormat("  __cpp_lib_format = {}\n", __cpp_lib_format);
 #else
@@ -174,11 +124,6 @@ struct FeatureReport
 		sDefined += kFormat("  __cpp_lib_int_pow2 = {}\n", __cpp_lib_int_pow2);
 #else
 		sUndefined += "  __cpp_lib_int_pow2\n";
-#endif
-#ifdef __cpp_lib_integer_sequence
-		sDefined += kFormat("  __cpp_lib_integer_sequence = {}\n", __cpp_lib_integer_sequence);
-#else
-		sUndefined += "  __cpp_lib_integer_sequence\n";
 #endif
 #ifdef __cpp_lib_ios_noreplace
 		sDefined += kFormat("  __cpp_lib_ios_noreplace = {}\n", __cpp_lib_ios_noreplace);
@@ -205,11 +150,6 @@ struct FeatureReport
 #else
 		sUndefined += "  __cpp_lib_map_try_emplace\n";
 #endif
-#ifdef __cpp_lib_optional
-		sDefined += kFormat("  __cpp_lib_optional = {}\n", __cpp_lib_optional);
-#else
-		sUndefined += "  __cpp_lib_optional\n";
-#endif
 #ifdef __cpp_lib_ranges
 		sDefined += kFormat("  __cpp_lib_ranges = {}\n", __cpp_lib_ranges);
 #else
@@ -225,11 +165,6 @@ struct FeatureReport
 #else
 		sUndefined += "  __cpp_lib_source_location\n";
 #endif
-#ifdef __cpp_lib_span
-		sDefined += kFormat("  __cpp_lib_span = {}\n", __cpp_lib_span);
-#else
-		sUndefined += "  __cpp_lib_span\n";
-#endif
 #ifdef __cpp_lib_string_resize_and_overwrite
 		sDefined += kFormat("  __cpp_lib_string_resize_and_overwrite = {}\n", __cpp_lib_string_resize_and_overwrite);
 #else
@@ -240,11 +175,6 @@ struct FeatureReport
 #else
 		sUndefined += "  __cpp_lib_string_view\n";
 #endif
-#ifdef __cpp_lib_text_encoding
-		sDefined += kFormat("  __cpp_lib_text_encoding = {}\n", __cpp_lib_text_encoding);
-#else
-		sUndefined += "  __cpp_lib_text_encoding\n";
-#endif
 #ifdef __cpp_lib_three_way_comparison
 		sDefined += kFormat("  __cpp_lib_three_way_comparison = {}\n", __cpp_lib_three_way_comparison);
 #else
@@ -254,11 +184,6 @@ struct FeatureReport
 		sDefined += kFormat("  __cpp_lib_to_underlying = {}\n", __cpp_lib_to_underlying);
 #else
 		sUndefined += "  __cpp_lib_to_underlying\n";
-#endif
-#ifdef __cpp_lib_variant
-		sDefined += kFormat("  __cpp_lib_variant = {}\n", __cpp_lib_variant);
-#else
-		sUndefined += "  __cpp_lib_variant\n";
 #endif
 #ifdef __cpp_lib_void_t
 		sDefined += kFormat("  __cpp_lib_void_t = {}\n", __cpp_lib_void_t);
@@ -272,6 +197,57 @@ struct FeatureReport
 
 TEST_CASE("Features")
 {
+	SECTION("C++ standard")
+	{
+		std::cout << "\n== C++ standard ==\n\n";
+		std::cout << "  __cplusplus = " << __cplusplus << "\n";
+		std::cout << "  DEKAF2_HAS_CPP_11 = "
+#ifdef DEKAF2_HAS_CPP_11
+		          << DEKAF2_HAS_CPP_11
+#else
+		          << "undefined"
+#endif
+		          << "\n";
+		std::cout << "  DEKAF2_HAS_CPP_14 = "
+#ifdef DEKAF2_HAS_CPP_14
+		          << DEKAF2_HAS_CPP_14
+#else
+		          << "undefined"
+#endif
+		          << "\n";
+		std::cout << "  DEKAF2_HAS_CPP_17 = "
+#ifdef DEKAF2_HAS_CPP_17
+		          << DEKAF2_HAS_CPP_17
+#else
+		          << "undefined"
+#endif
+		          << "\n";
+		std::cout << "  DEKAF2_HAS_CPP_20 = "
+#ifdef DEKAF2_HAS_CPP_20
+		          << DEKAF2_HAS_CPP_20
+#else
+		          << "undefined"
+#endif
+		          << "\n";
+		std::cout << "  DEKAF2_HAS_CPP_23 = "
+#ifdef DEKAF2_HAS_CPP_23
+		          << DEKAF2_HAS_CPP_23
+#else
+		          << "undefined"
+#endif
+		          << "\n";
+		std::cout << "  DEKAF2_HAS_CPP_26 = "
+#ifdef DEKAF2_HAS_CPP_26
+		          << DEKAF2_HAS_CPP_26
+#else
+		          << "undefined"
+#endif
+		          << "\n";
+		std::cout << std::endl;
+
+		CHECK ( true );
+	}
+
 	SECTION("feature test macros")
 	{
 		FeatureReport report;

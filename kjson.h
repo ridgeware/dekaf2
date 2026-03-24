@@ -91,7 +91,7 @@
 // disable _json literals in global namespace
 #define JSON_USE_GLOBAL_UDLS 0
 
-#ifdef DEKAF2_HAS_INCOMPLETE_CPP_17
+#if __cplusplus > 201402L && !defined(__cpp_lib_optional)
 	// this is needed for some gcc 6.x versions which do
 	// have a __cplusplus > 201402L but do not support
 	// all C++17 features, e.g. no <optional> and inline

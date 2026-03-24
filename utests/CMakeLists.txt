@@ -55,7 +55,6 @@ set (USOURCES
 	kduration_tests.cpp
 	kencode_tests.cpp
 	keraseremove_tests.cpp
-	features_tests.cpp
 	kfilesystem_tests.cpp
 	kfindsetofchars_tests.cpp
 	kformat_tests.cpp
@@ -154,6 +153,7 @@ set (USOURCES
 	kwriter_tests.cpp
 	kxml_tests.cpp
 	kzip_tests.cpp
+	features_tests.cpp
 	simd_tests.cpp
 	string_balance_tests.cpp
 )

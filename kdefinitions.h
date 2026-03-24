@@ -239,12 +239,8 @@
 	#define DEKAF2_HAS_CPP_17 1
 #endif
 
-#if defined(DEKAF2_HAS_CPP_17)
-	#if (__cplusplus < 201703L)
-		#define DEKAF2_HAS_INCOMPLETE_CPP_17 1
-	#else
-		#define DEKAF2_HAS_FULL_CPP_17 1
-	#endif
+#if defined(DEKAF2_HAS_CPP_17) && (__cplusplus >= 201703L)
+	#define DEKAF2_HAS_FULL_CPP_17 1
 #endif
 
 // this test is a bit bogus (by just testing if the cpp date
@@ -253,10 +249,6 @@
 // compilers would not know it (but support C++20)
 #if (__cplusplus > 201703L)
 	#define DEKAF2_HAS_CPP_20 1
-#endif
-
-#if (__cplusplus >= 202002L)
-	#define DEKAF2_HAS_FULL_CPP_20 1
 #endif
 
 #if (__cplusplus > 202002L)

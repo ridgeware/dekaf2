@@ -471,7 +471,7 @@ public:
 
 	enum class TagType { None, Open, Close, Standalone };
 
-#if (DEKAF2_HAS_INCOMPLETE_CPP_17) || defined(DEKAF2_IS_MSC)
+#if !defined(__cpp_inheriting_constructors) || __cpp_inheriting_constructors < 201511L || defined(DEKAF2_IS_MSC)
 	// older GCCs need a default constructor here as they do not honor the using directive below
 	KHTMLTag() = default;
 #endif

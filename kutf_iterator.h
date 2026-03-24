@@ -652,7 +652,7 @@ private:
 }; // CodepointRange
 
 // deduction guide for C++17 and later
-#if DEKAF2_HAS_CPP_17
+#if defined(__cpp_deduction_guides)
 template<typename Iterator>
 CodepointRange(Iterator, Iterator) -> CodepointRange<Iterator>;
 

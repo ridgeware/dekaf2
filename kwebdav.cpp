@@ -48,6 +48,7 @@
 #include "klog.h"
 #include "kformat.h"
 #include "kurl.h"
+#include "kuuid.h"
 #include <array>
 #include <vector>
 
@@ -66,14 +67,32 @@ constexpr KStringViewZ getcontentlength = "getcontentlength";
 constexpr KStringViewZ getcontenttype   = "getcontenttype";
 constexpr KStringViewZ getetag          = "getetag";
 
-// XML element local names (for parsing PROPFIND request body)
+// XML element local names (for parsing request bodies)
 constexpr KStringViewZ propfind         = "propfind";
 constexpr KStringViewZ allprop          = "allprop";
 constexpr KStringViewZ propname         = "propname";
 constexpr KStringViewZ prop             = "prop";
+constexpr KStringViewZ propertyupdate   = "propertyupdate";
+constexpr KStringViewZ set              = "set";
+constexpr KStringViewZ remove           = "remove";
+constexpr KStringViewZ lockinfo         = "lockinfo";
+constexpr KStringViewZ owner            = "owner";
+constexpr KStringViewZ href             = "href";
 
 // Depth header values
 constexpr KStringViewZ infinity         = "infinity";
+
+// Lock defaults (opaquelocktoken is the URI scheme from RFC 4918 §6.4)
+constexpr KStringViewZ opaquelocktoken  = "opaquelocktoken";
+constexpr KStringViewZ second_600       = "Second-600";
+
+// Options response values
+constexpr KStringViewZ compliance       = "1, 2";
+constexpr KStringViewZ allowed_methods  = "OPTIONS,GET,HEAD,PUT,POST,DELETE,PROPFIND,PROPPATCH,MKCOL,COPY,MOVE,LOCK,UNLOCK";
+
+// Header names not in KHTTPHeader
+constexpr KStringViewZ lock_token       = "lock-token";
+constexpr KStringViewZ timeout          = "timeout";
 
 // namespace declaration
 constexpr KStringViewZ xmlns_D          = "xmlns:D";
@@ -81,7 +100,9 @@ constexpr KStringViewZ ns_DAV           = "DAV:";
 
 // status line strings
 constexpr KStringViewZ status_200       = "HTTP/1.1 200 OK";
+constexpr KStringViewZ status_403       = "HTTP/1.1 403 Forbidden";
 constexpr KStringViewZ status_404       = "HTTP/1.1 404 Not Found";
+constexpr KStringViewZ status_409       = "HTTP/1.1 409 Conflict";
 
 // D:-prefixed XML element names (for response output)
 namespace D {
@@ -99,6 +120,17 @@ constexpr KStringViewZ creationdate     = "D:creationdate";
 constexpr KStringViewZ getcontentlength = "D:getcontentlength";
 constexpr KStringViewZ getcontenttype   = "D:getcontenttype";
 constexpr KStringViewZ getetag          = "D:getetag";
+constexpr KStringViewZ lockdiscovery    = "D:lockdiscovery";
+constexpr KStringViewZ activelock       = "D:activelock";
+constexpr KStringViewZ locktype         = "D:locktype";
+constexpr KStringViewZ write            = "D:write";
+constexpr KStringViewZ lockscope        = "D:lockscope";
+constexpr KStringViewZ exclusive        = "D:exclusive";
+constexpr KStringViewZ depth            = "D:depth";
+constexpr KStringViewZ owner            = "D:owner";
+constexpr KStringViewZ timeout          = "D:timeout";
+constexpr KStringViewZ locktoken        = "D:locktoken";
+constexpr KStringViewZ lockroot         = "D:lockroot";
 } // D
 
 } // dav
@@ -515,6 +547,120 @@ void KWebDAV::Propfind(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView
 } // Propfind
 
 //-----------------------------------------------------------------------------
+void KWebDAV::Proppatch(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute)
+//-----------------------------------------------------------------------------
+{
+	auto sFilePath = ResolveFilesystemPath(sDocumentRoot, sRequestPath, sRoute);
+
+	KFileStat Stat(sFilePath);
+
+	if (!Stat.IsFile() && !Stat.IsDirectory())
+	{
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("not found: {}", sRequestPath) };
+	}
+
+	auto sBody = HTTP.Read();
+
+	if (sBody.empty())
+	{
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "PROPPATCH request body is empty" };
+	}
+
+	KXML ReqXML(sBody);
+
+	if (!ReqXML)
+	{
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "failed to parse PROPPATCH request body" };
+	}
+
+	// collect operations: pair of (property local name, status line)
+	std::vector<std::pair<KString, KStringViewZ>> Results;
+
+	// find the propertyupdate element
+	for (const auto& Node : ReqXML)
+	{
+		if (StripNamespacePrefix(Node.GetName()) != dav::propertyupdate)
+		{
+			continue;
+		}
+
+		for (const auto& Action : Node)
+		{
+			auto sActionName = StripNamespacePrefix(Action.GetName());
+			bool bIsSet      = (sActionName == dav::set);
+			bool bIsRemove   = (sActionName == dav::remove);
+
+			if (!bIsSet && !bIsRemove)
+			{
+				continue;
+			}
+
+			for (const auto& PropNode : Action)
+			{
+				if (StripNamespacePrefix(PropNode.GetName()) != dav::prop)
+				{
+					continue;
+				}
+
+				for (const auto& Property : PropNode)
+				{
+					auto sLocalName = StripNamespacePrefix(Property.GetName());
+
+					if (bIsSet && sLocalName == dav::getlastmodified)
+					{
+						// actually set the file modification time
+						auto tTime = kParseHTTPTimestamp(Property.GetValue());
+
+						if (tTime.ok() && kSetLastMod(sFilePath, tTime))
+						{
+							Results.emplace_back(sLocalName, dav::status_200);
+						}
+						else
+						{
+							Results.emplace_back(sLocalName, dav::status_409);
+						}
+					}
+					else if (sLocalName == dav::resourcetype
+					      || sLocalName == dav::getcontentlength
+					      || sLocalName == dav::getetag)
+					{
+						// these are read-only live properties
+						Results.emplace_back(sLocalName, dav::status_403);
+					}
+					else
+					{
+						// for all other properties (dead properties, creationdate, displayname, etc.)
+						// accept the operation but don't persist (no dead property store yet)
+						Results.emplace_back(sLocalName, dav::status_200);
+					}
+				}
+			}
+		}
+	}
+
+	// build the 207 Multi-Status response
+	HTTP.xml.tx.AddXMLDeclaration();
+
+	auto Root = KXMLNode(HTTP.xml.tx).AddNode(dav::D::multistatus);
+	Root.AddAttribute(dav::xmlns_D, dav::ns_DAV);
+
+	auto Response = Root.AddNode(dav::D::response);
+	Response.AddNode(dav::D::href).SetValue(sRequestPath);
+
+	// group results by status
+	for (const auto& Result : Results)
+	{
+		auto Propstat = Response.AddNode(dav::D::propstat);
+		auto Prop     = Propstat.AddNode(dav::D::prop);
+		Prop.AddNode(kFormat("D:{}", Result.first));
+		Propstat.AddNode(dav::D::status).SetValue(Result.second);
+	}
+
+	HTTP.SetStatus(KHTTPError::H2xx_MULTISTATUS);
+
+} // Proppatch
+
+//-----------------------------------------------------------------------------
 void KWebDAV::Mkcol(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute)
 //-----------------------------------------------------------------------------
 {
@@ -645,11 +791,131 @@ void KWebDAV::Delete(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView s
 void KWebDAV::Options(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
-	HTTP.Response.Headers.Set(KHTTPHeader::DAV, "1");
-	HTTP.Response.Headers.Set(KHTTPHeader::ALLOW, "OPTIONS,GET,HEAD,PUT,POST,DELETE,PROPFIND,MKCOL,COPY,MOVE");
+	HTTP.Response.Headers.Set(KHTTPHeader::DAV, dav::compliance);
+	HTTP.Response.Headers.Set(KHTTPHeader::ALLOW, dav::allowed_methods);
 	HTTP.SetStatus(200);
 
 } // Options
+
+//-----------------------------------------------------------------------------
+void KWebDAV::Lock(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute)
+//-----------------------------------------------------------------------------
+{
+	auto sFilePath = ResolveFilesystemPath(sDocumentRoot, sRequestPath, sRoute);
+
+	// verify the resource or its parent exists
+	KFileStat Stat(sFilePath);
+
+	if (!Stat.IsFile() && !Stat.IsDirectory())
+	{
+		// lock-null resource: check that the parent directory exists
+		KString sParent = kDirname(sFilePath);
+
+		if (!kDirExists(sParent))
+		{
+			throw KHTTPError { KHTTPError::H4xx_CONFLICT, kFormat("parent collection does not exist for: {}", sRequestPath) };
+		}
+
+		// create an empty file as a lock-null resource placeholder
+		if (!kWriteFile(sFilePath, ""))
+		{
+			throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("cannot create lock-null resource: {}", sRequestPath) };
+		}
+	}
+
+	// parse the lock request body (we accept it but don't deeply validate)
+	KString sOwnerHref;
+	auto sBody = HTTP.Read();
+
+	if (!sBody.empty())
+	{
+		KXML ReqXML(sBody);
+
+		if (ReqXML)
+		{
+			// try to extract the owner href
+			for (const auto& Node : ReqXML)
+			{
+				if (StripNamespacePrefix(Node.GetName()) == dav::lockinfo)
+				{
+					for (const auto& Child : Node)
+					{
+						if (StripNamespacePrefix(Child.GetName()) == dav::owner)
+						{
+							for (const auto& OwnerChild : Child)
+							{
+								if (StripNamespacePrefix(OwnerChild.GetName()) == dav::href)
+								{
+									sOwnerHref = OwnerChild.GetValue();
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// generate a unique lock token
+	KString sLockToken = kFormat("{}:{}", dav::opaquelocktoken, KUUID().ToString());
+
+	// parse the Timeout header (default: 600 seconds)
+	const auto& sTimeout = HTTP.Request.Headers.Get(dav::timeout);
+	KString sTimeoutValue = sTimeout.empty() ? KString(dav::second_600) : KString(sTimeout);
+
+	// build the lock discovery response
+	HTTP.xml.tx.AddXMLDeclaration();
+
+	auto Root = KXMLNode(HTTP.xml.tx).AddNode(dav::D::prop);
+	Root.AddAttribute(dav::xmlns_D, dav::ns_DAV);
+
+	auto LockDiscovery = Root.AddNode(dav::D::lockdiscovery);
+	auto ActiveLock    = LockDiscovery.AddNode(dav::D::activelock);
+
+	auto LockType = ActiveLock.AddNode(dav::D::locktype);
+	LockType.AddNode(dav::D::write);
+
+	auto LockScope = ActiveLock.AddNode(dav::D::lockscope);
+	LockScope.AddNode(dav::D::exclusive);
+
+	ActiveLock.AddNode(dav::D::depth).SetValue(dav::infinity);
+
+	if (!sOwnerHref.empty())
+	{
+		auto Owner = ActiveLock.AddNode(dav::D::owner);
+		Owner.AddNode(dav::D::href).SetValue(sOwnerHref);
+	}
+
+	ActiveLock.AddNode(dav::D::timeout).SetValue(sTimeoutValue);
+
+	auto LockTokenNode = ActiveLock.AddNode(dav::D::locktoken);
+	LockTokenNode.AddNode(dav::D::href).SetValue(sLockToken);
+
+	auto LockRoot = ActiveLock.AddNode(dav::D::lockroot);
+	LockRoot.AddNode(dav::D::href).SetValue(sRequestPath);
+
+	// set the Lock-Token response header
+	HTTP.Response.Headers.Set(dav::lock_token, kFormat("<{}>", sLockToken));
+
+	HTTP.SetStatus(200);
+
+} // Lock
+
+//-----------------------------------------------------------------------------
+void KWebDAV::Unlock(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	// we accept any lock token and return success
+	const auto& sLockToken = HTTP.Request.Headers.Get(dav::lock_token);
+
+	if (sLockToken.empty())
+	{
+		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing Lock-Token header" };
+	}
+
+	HTTP.SetStatus(204);
+
+} // Unlock
 
 //-----------------------------------------------------------------------------
 void KWebDAV::Serve(KRESTServer& HTTP,
@@ -660,10 +926,17 @@ void KWebDAV::Serve(KRESTServer& HTTP,
                     KStringView  sUser)
 //-----------------------------------------------------------------------------
 {
+	// advertise DAV Class 2 compliance on all WebDAV responses
+	HTTP.Response.Headers.Set(KHTTPHeader::DAV, dav::compliance);
+
 	switch (HTTP.RequestPath.Method)
 	{
 		case KHTTPMethod::PROPFIND:
 			Propfind(HTTP, sDocumentRoot, sRequestPath, sRoute);
+			break;
+
+		case KHTTPMethod::PROPPATCH:
+			Proppatch(HTTP, sDocumentRoot, sRequestPath, sRoute);
 			break;
 
 		case KHTTPMethod::MKCOL:
@@ -684,6 +957,14 @@ void KWebDAV::Serve(KRESTServer& HTTP,
 
 		case KHTTPMethod::OPTIONS:
 			Options(HTTP);
+			break;
+
+		case KHTTPMethod::LOCK:
+			Lock(HTTP, sDocumentRoot, sRequestPath, sRoute);
+			break;
+
+		case KHTTPMethod::UNLOCK:
+			Unlock(HTTP);
 			break;
 
 		default:

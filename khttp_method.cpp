@@ -83,6 +83,10 @@ KHTTPMethod::Method KHTTPMethod::Parse(KStringView sMethod)
             method = PROPFIND;
             break;
 
+        case "PROPPATCH"_hash:
+            method = PROPPATCH;
+            break;
+
         case "MKCOL"_hash:
             method = MKCOL;
             break;
@@ -93,6 +97,14 @@ KHTTPMethod::Method KHTTPMethod::Parse(KStringView sMethod)
 
         case "MOVE"_hash:
             method = MOVE;
+            break;
+
+        case "LOCK"_hash:
+            method = LOCK;
+            break;
+
+        case "UNLOCK"_hash:
+            method = UNLOCK;
             break;
 
         default:
@@ -132,12 +144,18 @@ KStringViewZ KHTTPMethod::Serialize() const
             return "TRACE";
         case PROPFIND:
             return "PROPFIND";
+        case PROPPATCH:
+            return "PROPPATCH";
         case MKCOL:
             return "MKCOL";
         case COPY:
             return "COPY";
         case MOVE:
             return "MOVE";
+        case LOCK:
+            return "LOCK";
+        case UNLOCK:
+            return "UNLOCK";
     }
     
     // gcc is stupid..

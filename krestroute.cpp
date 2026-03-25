@@ -396,11 +396,14 @@ void KRESTRoutes::WebDAVHandler(KRESTServer& HTTP)
 	switch (HTTP.RequestPath.Method)
 	{
 		case KHTTPMethod::PROPFIND:
+		case KHTTPMethod::PROPPATCH:
 		case KHTTPMethod::MKCOL:
 		case KHTTPMethod::COPY:
 		case KHTTPMethod::MOVE:
 		case KHTTPMethod::DELETE:
 		case KHTTPMethod::OPTIONS:
+		case KHTTPMethod::LOCK:
+		case KHTTPMethod::UNLOCK:
 		{
 			// resolve permissions
 			KStringView sUser;

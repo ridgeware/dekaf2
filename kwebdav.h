@@ -98,11 +98,14 @@ private:
 //------
 
 	static void Propfind  (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
+	static void Proppatch (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
 	static void Mkcol     (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
 	static void CopyOrMove(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute,
 	                       const KWebServerPermissions& Permissions, KStringView sUser, bool bIsMove);
 	static void Delete    (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
 	static void Options   (KRESTServer& HTTP);
+	static void Lock      (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
+	static void Unlock    (KRESTServer& HTTP);
 
 }; // KWebDAV
 

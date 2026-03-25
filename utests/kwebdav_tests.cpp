@@ -47,7 +47,7 @@ TEST_CASE("KWebDAV")
 		// path traversal should throw
 		CHECK_THROWS_AS (
 			KWebDAV::ResolveFilesystemPath("/var/www", "/../etc/passwd", ""),
-			KHTTPError
+			const KHTTPError&
 		);
 	}
 

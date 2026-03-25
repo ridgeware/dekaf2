@@ -877,7 +877,7 @@ void KHTML::Object(KHTMLObject& Object)
 					else
 					{
 #if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
-						SetIssue(kFormat("invalid html - start and end tag differ: <{}{} -> </{}{}", m_Hierarchy.back()->GetName(), '>', Tag.Name, '>'));
+						SetIssue(kFormat("invalid html - start and end tag differ: <{}{} -> </{}{}", m_Hierarchy.back()->GetName(), '>', Tag.GetName(), '>'));
 #else
 						SetIssue(kFormat("invalid html - start and end tag differ: <{}> -> </{}>", m_Hierarchy.back()->GetName(), Tag.GetName()));
 #endif

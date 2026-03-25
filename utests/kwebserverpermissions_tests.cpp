@@ -13,12 +13,11 @@ TEST_CASE("KWebServerPermissions")
 		CHECK(KWebServerPermissions::ParsePermissions("write") == KWebServerPermissions::Write);
 		CHECK(KWebServerPermissions::ParsePermissions("erase") == KWebServerPermissions::Erase);
 		CHECK(KWebServerPermissions::ParsePermissions("delete") == KWebServerPermissions::Erase);
-		CHECK(KWebServerPermissions::ParsePermissions("autoindex") == KWebServerPermissions::Autoindex);
 		CHECK(KWebServerPermissions::ParsePermissions("browse") == KWebServerPermissions::Browse);
 		CHECK(KWebServerPermissions::ParsePermissions("all")   == KWebServerPermissions::All);
 
 		CHECK(KWebServerPermissions::ParsePermissions("read|write") == (KWebServerPermissions::Read | KWebServerPermissions::Write));
-		CHECK(KWebServerPermissions::ParsePermissions("read|browse|autoindex") == (KWebServerPermissions::Read | KWebServerPermissions::Browse | KWebServerPermissions::Autoindex));
+		CHECK(KWebServerPermissions::ParsePermissions("read|browse") == (KWebServerPermissions::Read | KWebServerPermissions::Browse));
 		CHECK(KWebServerPermissions::ParsePermissions("READ|WRITE") == (KWebServerPermissions::Read | KWebServerPermissions::Write));
 		CHECK(KWebServerPermissions::ParsePermissions(" read | write ") == (KWebServerPermissions::Read | KWebServerPermissions::Write));
 	}
@@ -168,16 +167,16 @@ TEST_CASE("KWebServerPermissions")
 	SECTION("JSONConfig")
 	{
 		KJSON jConfig = {
-			{ "permissions", "read|browse|autoindex" },
+			{ "permissions", "read|browse" },
 			{ "directories", {
-				{ "/uploads", "read|write|browse|erase|autoindex" },
+				{ "/uploads", "read|write|browse|erase" },
 				{ "/private", "none" }
 			}}
 		};
 
 		KWebServerPermissions Perms(jConfig);
 
-		CHECK(Perms.GetDefaultPermissions() == (KWebServerPermissions::Read | KWebServerPermissions::Browse | KWebServerPermissions::Autoindex));
+		CHECK(Perms.GetDefaultPermissions() == (KWebServerPermissions::Read | KWebServerPermissions::Browse));
 		CHECK(Perms.IsAllowed("", KHTTPMethod::GET,    "/index.html")        == true);
 		CHECK(Perms.IsAllowed("", KHTTPMethod::PUT,    "/uploads/file.txt")  == true);
 		CHECK(Perms.IsAllowed("", KHTTPMethod::DELETE, "/uploads/file.txt")  == true);

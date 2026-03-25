@@ -1365,6 +1365,7 @@ set(PUBLIC_HEADERS
 	kvariant.h
 	kversion.h
 	kwebclient.h
+	kwebdav.h
 	kwebobjects.h
 	kwebserver.h
 	kwebserverpermissions.h
@@ -1632,6 +1633,7 @@ set (SOURCES
 	kuuid.cpp
 	kversion.cpp
 	kwebclient.cpp
+	kwebdav.cpp
 	kwebobjects.cpp
 	kwebserver.cpp
 	kwebserverpermissions.cpp

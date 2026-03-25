@@ -110,7 +110,10 @@ public:
 		COOKIE,
 		CROSS_ORIGIN_EMBEDDER_POLICY,
 		CROSS_ORIGIN_OPENER_POLICY,
+		DAV,
 		DATE,
+		DEPTH,
+		DESTINATION,
 		ETAG,
 		EXPECT,
 		EXPIRES,
@@ -129,6 +132,7 @@ public:
 		LOCATION,
 		MAX_FORWARDS,
 		ORIGIN,
+		OVERWRITE,
 		P3P,
 		PRAGMA,
 		PROXY_AUTHENTICATE,
@@ -318,8 +322,14 @@ public:
 				return "cross-origin-embedder-policy";
 			case CROSS_ORIGIN_OPENER_POLICY:
 				return "cross-origin-opener-policy";
+			case DAV:
+				return "dav";
 			case DATE:
 				return "date";
+			case DEPTH:
+				return "depth";
+			case DESTINATION:
+				return "destination";
 			case ETAG:
 				return "etag";
 			case EXPECT:
@@ -356,6 +366,8 @@ public:
 				return "max-forwards";
 			case ORIGIN:
 				return "origin";
+			case OVERWRITE:
+				return "overwrite";
 			case P3P:
 				return "p3p";
 			case PRAGMA:
@@ -584,8 +596,14 @@ public:
 				return CROSS_ORIGIN_EMBEDDER_POLICY;
 			case "Cross-Origin-Opener-Policy"_casehash:
 				return CROSS_ORIGIN_OPENER_POLICY;
+			case "DAV"_casehash:
+				return DAV;
 			case "Date"_casehash:
 				return DATE;
+			case "Depth"_casehash:
+				return DEPTH;
+			case "Destination"_casehash:
+				return DESTINATION;
 			case "ETag"_casehash:
 				return ETAG;
 			case "Expect"_casehash:
@@ -622,6 +640,8 @@ public:
 				return MAX_FORWARDS;
 			case "Origin"_casehash:
 				return ORIGIN;
+			case "Overwrite"_casehash:
+				return OVERWRITE;
 			case "P3P"_casehash:
 				return P3P;
 			case "Pragma"_casehash:

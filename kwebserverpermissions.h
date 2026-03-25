@@ -74,9 +74,8 @@ public:
 		Read      = 1 << 0,  // GET, HEAD
 		Write     = 1 << 1,  // PUT, POST (file upload)
 		Erase     = 1 << 2,  // DELETE
-		Autoindex = 1 << 3,  // generate directory index when no index.html exists
-		Browse    = 1 << 4,  // allow directory access (list contents)
-		All       = Read | Write | Erase | Autoindex | Browse,
+		Browse    = 1 << 3,  // allow directory access and auto-generate index listings
+		All       = Read | Write | Erase | Browse,
 	};
 
 	/// default constructor - default permission is READ | BROWSE
@@ -113,9 +112,9 @@ public:
 
 	/// load user entries from a file, one entry per line.
 	/// empty lines and lines starting with # are skipped.
-	/// @param sFilePath path to the users file
+	/// @param sPathname pathname of the users file
 	/// @return true if the file was loaded successfully
-	bool LoadUsers(KStringViewZ sFilePath);
+	bool LoadUsers(KStringViewZ sPathname);
 
 	/// returns true if any users are configured (meaning authentication is required)
 	DEKAF2_NODISCARD

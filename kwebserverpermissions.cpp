@@ -73,10 +73,6 @@ KWebServerPermissions::Perms KWebServerPermissions::ParsePermissions(KStringView
 				iPerms |= Erase;
 				break;
 
-			case "autoindex"_hash:
-				iPerms |= Autoindex;
-				break;
-
 			case "browse"_hash:
 				iPerms |= Browse;
 				break;
@@ -114,11 +110,10 @@ KString KWebServerPermissions::SerializePermissions(Perms iPerms)
 		sResult += sFlag;
 	};
 
-	if (iPerms & Read)      Append("read");
-	if (iPerms & Write)     Append("write");
-	if (iPerms & Erase)     Append("erase");
-	if (iPerms & Autoindex) Append("autoindex");
-	if (iPerms & Browse)    Append("browse");
+	if (iPerms & Read)   Append("read");
+	if (iPerms & Write)  Append("write");
+	if (iPerms & Erase)  Append("erase");
+	if (iPerms & Browse) Append("browse");
 
 	return sResult;
 
@@ -133,15 +128,21 @@ KWebServerPermissions::Perms KWebServerPermissions::MethodToPermission(KHTTPMeth
 		case KHTTPMethod::GET:
 		case KHTTPMethod::HEAD:
 		case KHTTPMethod::OPTIONS:
+		case KHTTPMethod::PROPFIND:
 			return Read;
 
 		case KHTTPMethod::PUT:
 		case KHTTPMethod::POST:
 		case KHTTPMethod::PATCH:
+		case KHTTPMethod::MKCOL:
+		case KHTTPMethod::COPY:
 			return Write;
 
 		case KHTTPMethod::DELETE:
 			return Erase;
+
+		case KHTTPMethod::MOVE:
+			return Write | Erase;
 
 		default:
 			return None;
@@ -258,14 +259,14 @@ bool KWebServerPermissions::AddUser(KStringView sUserEntry)
 } // AddUser
 
 //-----------------------------------------------------------------------------
-bool KWebServerPermissions::LoadUsers(KStringViewZ sFilePath)
+bool KWebServerPermissions::LoadUsers(KStringViewZ sPathname)
 //-----------------------------------------------------------------------------
 {
-	KInFile InFile(sFilePath);
+	KInFile InFile(sPathname);
 
 	if (!InFile.is_open())
 	{
-		kDebug(1, "cannot open users file: {}", sFilePath);
+		kDebug(1, "cannot open users file: {}", sPathname);
 		return false;
 	}
 

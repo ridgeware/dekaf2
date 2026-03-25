@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2026, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -39,118 +39,70 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "khttp_method.h"
+#pragma once
+
+/// @file kwebdav.h
+/// WebDAV Class 1 implementation for file-based network storage
+
+#include "kdefinitions.h"
+#include "kstring.h"
+#include "kstringview.h"
+#include "kfilesystem.h"
+#include "ktime.h"
+#include "krestserver.h"
+#include "kwebserverpermissions.h"
 
 DEKAF2_NAMESPACE_BEGIN
 
-//-----------------------------------------------------------------------------
-KHTTPMethod::Method KHTTPMethod::Parse(KStringView sMethod)
-//-----------------------------------------------------------------------------
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// WebDAV Class 1 implementation for file-based network storage.
+/// Handles PROPFIND, MKCOL, COPY, MOVE, and OPTIONS methods.
+/// Standard HTTP methods (GET, PUT, DELETE, HEAD) are delegated to KWebServer.
+class DEKAF2_PUBLIC KWebDAV
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-    Method method;
-    
-    switch (sMethod.Hash())
-    {
-        case "GET"_hash:
-            method = GET;
-            break;
-        case "HEAD"_hash:
-            method = HEAD;
-            break;
-        case "POST"_hash:
-            method = POST;
-            break;
-        case "PUT"_hash:
-            method = PUT;
-            break;
-        case "DELETE"_hash:
-            method = DELETE;
-            break;
-        case "OPTIONS"_hash:
-            method = OPTIONS;
-            break;
-        case "PATCH"_hash:
-            method = PATCH;
-            break;
-        case "CONNECT"_hash:
-            method = CONNECT;
-            break;
-        case "TRACE"_hash:
-            method = TRACE;
-            break;
 
-        case "PROPFIND"_hash:
-            method = PROPFIND;
-            break;
+//------
+public:
+//------
 
-        case "MKCOL"_hash:
-            method = MKCOL;
-            break;
+	/// Serve a WebDAV-specific request (PROPFIND, MKCOL, COPY, MOVE, OPTIONS).
+	/// Throws KHTTPError on failure.
+	/// @param HTTP the REST server instance
+	/// @param sDocumentRoot the filesystem root path
+	/// @param sRequestPath the matched request path
+	/// @param sRoute the route prefix to strip from request path
+	/// @param Permissions the permission set for access control
+	/// @param sUser the authenticated user name (may be empty)
+	static void Serve(KRESTServer& HTTP,
+	                  KStringView  sDocumentRoot,
+	                  KStringView  sRequestPath,
+	                  KStringView  sRoute,
+	                  const KWebServerPermissions& Permissions,
+	                  KStringView  sUser);
 
-        case "COPY"_hash:
-            method = COPY;
-            break;
+	/// generate an ETag string from file stat info
+	DEKAF2_NODISCARD
+	static KString GenerateETag(const KFileStat& Stat);
 
-        case "MOVE"_hash:
-            method = MOVE;
-            break;
+	/// resolve a request path to a filesystem path, validates path safety
+	/// @param sDocumentRoot the filesystem root path
+	/// @param sRequestPath the matched request path
+	/// @param sRoute the route prefix to strip
+	/// @returns the resolved filesystem path
+	DEKAF2_NODISCARD
+	static KString ResolveFilesystemPath(KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
 
-        default:
-            method = INVALID;
-            break;
-    }
-    
-    return method;
-    
-} // Method
+//------
+private:
+//------
 
-//-----------------------------------------------------------------------------
-KStringViewZ KHTTPMethod::Serialize() const
-//-----------------------------------------------------------------------------
-{
-    switch (m_method)
-    {
-        case INVALID:
-            return "";
-        case GET:
-            return "GET";
-        case HEAD:
-            return "HEAD";
-        case POST:
-            return "POST";
-        case PUT:
-            return "PUT";
-        case DELETE:
-            return "DELETE";
-        case OPTIONS:
-            return "OPTIONS";
-        case PATCH:
-            return "PATCH";
-        case CONNECT:
-            return "CONNECT";
-        case TRACE:
-            return "TRACE";
-        case PROPFIND:
-            return "PROPFIND";
-        case MKCOL:
-            return "MKCOL";
-        case COPY:
-            return "COPY";
-        case MOVE:
-            return "MOVE";
-    }
-    
-    // gcc is stupid..
-    return "";
-    
-} // Serialize
+	static void Propfind  (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
+	static void Mkcol     (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
+	static void CopyOrMove(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute,
+	                        const KWebServerPermissions& Permissions, KStringView sUser, bool bIsMove);
+	static void Options   (KRESTServer& HTTP);
 
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-constexpr KStringViewZ KHTTPMethod::REQUEST_METHODS;
-#endif
+}; // KWebDAV
 
-static_assert(std::is_nothrow_move_constructible<KHTTPMethod>::value,
-			  "KHTTPMethod is intended to be nothrow move constructible, but is not!");
-	
 DEKAF2_NAMESPACE_END
-

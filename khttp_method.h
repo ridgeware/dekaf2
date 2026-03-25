@@ -74,6 +74,10 @@ public:
         PATCH,
         CONNECT,
         TRACE,
+        PROPFIND,
+        MKCOL,
+        COPY,
+        MOVE,
         INVALID
    };
 
@@ -120,6 +124,15 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns true for WebDAV extension methods (PROPFIND, MKCOL, COPY, MOVE)
+	bool IsWebDAV() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_method == PROPFIND || m_method == MKCOL
+		    || m_method == COPY     || m_method == MOVE;
+	}
+
+	//-----------------------------------------------------------------------------
 	operator Method() const { return m_method; }
 	//-----------------------------------------------------------------------------
 
@@ -127,7 +140,7 @@ public:
     static Method Parse(KStringView sMethod);
     //-----------------------------------------------------------------------------
 
-	static constexpr KStringViewZ REQUEST_METHODS = "GET,HEAD,POST,PUT,DELETE,OPTIONS,PATCH,CONNECT,TRACE";
+	static constexpr KStringViewZ REQUEST_METHODS = "GET,HEAD,POST,PUT,DELETE,OPTIONS,PATCH,CONNECT,TRACE,PROPFIND,MKCOL,COPY,MOVE";
 
 //------
 private:

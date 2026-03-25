@@ -490,6 +490,16 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Add a WebDAV Class 1 server for file-based network storage (like a network drive).
+	/// Supports PROPFIND, MKCOL, COPY, MOVE, OPTIONS plus standard GET, PUT, DELETE, HEAD.
+	/// @param sWWWDir the base directory of the WebDAV server
+	/// @param sRoute a REST route, wildcards allowed: /my/path/*/img/* , minimum ("/*") - no default
+	/// @param Permissions the permissions configuration for directory and user access control
+	/// @param jConfig json configuration for styles, indexfile etc. (autoindex/upload are derived from permissions)
+	void AddWebDAV(KString sWWWDir, KString sRoute, KWebServerPermissions Permissions, KJSON jConfig = {});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Add a request route rewrite rule
 	/// @param _Rewrite the rewrite rule to add
 	void AddRewrite(KHTTPRewrite _Rewrite);
@@ -648,6 +658,11 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Default webserver implementation for static pages, can be used as callback parameter for routes
 	void WebServer(KRESTServer& HTTP);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// WebDAV handler - delegates WebDAV methods to KWebDAV, standard HTTP methods to WebServer
+	void WebDAVHandler(KRESTServer& HTTP);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

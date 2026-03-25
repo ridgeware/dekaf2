@@ -43,6 +43,7 @@
 #include "krestserver.h"
 #include "khttperror.h"
 #include "kwebserver.h"
+#include "kwebdav.h"
 #include "kjson.h"
 #include "ktime.h"
 #include "kduration.h"
@@ -168,8 +169,8 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompar
 {
 	if ((!bCompareMethods || bIsWebSocket == Option.Has(Options::WEBSOCKET)) &&
 		(!bCompareMethods 
-		 || Method.empty()
 		 || Method == Path.Method
+		 || (Method.empty() && !Path.Method.IsWebDAV())
 		 || (Path.Method == KHTTPMethod::HEAD && Method == KHTTPMethod::GET)) &&
 		(bCheckWebservers || sDocumentRoot.empty()))
 	{
@@ -362,13 +363,80 @@ void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute, KWebServerPermis
 
 	kDebug(2, "route : {}\nwww   : {}\nconfig: {}", sRoute, sWWWDir, jConfig.dump());
 
-	// always register all methods - the permission check happens at request time
-	m_Routes.push_back(KRESTRoute("GET"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
-	m_Routes.push_back(KRESTRoute("POST"   , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
-	m_Routes.push_back(KRESTRoute("PUT"    , false, sRoute           , sWWWDir           , *this, &KRESTRoutes::WebServer, jConfig));
-	m_Routes.push_back(KRESTRoute("DELETE" , false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(jConfig)));
+	// register a single catch-all route (empty method matches any) - the permission check happens at request time
+	m_Routes.push_back(KRESTRoute(KHTTPMethod{KHTTPMethod::INVALID}, false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(jConfig)));
 
 } // AddWebServer
+
+//-----------------------------------------------------------------------------
+void KRESTRoutes::AddWebDAV(KString sWWWDir, KString sRoute, KWebServerPermissions Permissions, KJSON jConfig)
+//-----------------------------------------------------------------------------
+{
+	m_WebServerPermissions = std::move(Permissions);
+
+	if (!jConfig.contains("parser"))
+	{
+		jConfig["parser"] = "NOREAD";
+	}
+
+	// mark the config so the WebServer callback knows to use permissions
+	jConfig["use_permissions"] = true;
+
+	kDebug(2, "WebDAV route : {}\nwww          : {}\nconfig       : {}", sRoute, sWWWDir, jConfig.dump());
+
+	// register a single catch-all route (empty method matches any) - the permission check happens at request time
+	m_Routes.push_back(KRESTRoute(KHTTPMethod{KHTTPMethod::INVALID}, false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebDAVHandler, std::move(jConfig)));
+
+} // AddWebDAV
+
+//-----------------------------------------------------------------------------
+void KRESTRoutes::WebDAVHandler(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	switch (HTTP.RequestPath.Method)
+	{
+		case KHTTPMethod::PROPFIND:
+		case KHTTPMethod::MKCOL:
+		case KHTTPMethod::COPY:
+		case KHTTPMethod::MOVE:
+		case KHTTPMethod::OPTIONS:
+		{
+			// resolve permissions
+			KStringView sUser;
+
+			if (kjson::GetBool(HTTP.Route->Config, "use_permissions"))
+			{
+				const auto& sPath = HTTP.Request.Resource.Path.get();
+				const auto& sAuth = HTTP.GetAuthenticatedUser();
+
+				if (!m_WebServerPermissions.IsAllowed(sAuth, HTTP.RequestPath.Method, sPath))
+				{
+					if (m_WebServerPermissions.HasUsers() && sAuth.empty())
+					{
+						throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authorized" };
+					}
+					throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, kFormat("method {} not permitted for path: {}", HTTP.RequestPath.Method, sPath) };
+				}
+
+				sUser = sAuth;
+			}
+
+			KWebDAV::Serve(HTTP,
+			               HTTP.Route->sDocumentRoot,
+			               HTTP.RequestPath.sRoute,
+			               HTTP.Route->sRoute,
+			               m_WebServerPermissions,
+			               sUser);
+			break;
+		}
+
+		default:
+			// delegate standard HTTP methods to the regular WebServer handler
+			WebServer(HTTP);
+			break;
+	}
+
+} // WebDAVHandler
 
 //-----------------------------------------------------------------------------
 void KRESTRoutes::AddRewrite(KHTTPRewrite _Rewrite)
@@ -517,6 +585,22 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Par
 void KRESTRoutes::WebServer(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
+	// reject methods that are not supported by the web server early,
+	// before any permission checks or file system access
+	switch (HTTP.RequestPath.Method)
+	{
+		case KHTTPMethod::GET:
+		case KHTTPMethod::HEAD:
+		case KHTTPMethod::POST:
+		case KHTTPMethod::PUT:
+		case KHTTPMethod::DELETE:
+		case KHTTPMethod::OPTIONS:
+			break;
+
+		default:
+			throw KHTTPError { KHTTPError::H4xx_BADMETHOD, kFormat("method {} not supported", HTTP.RequestPath.Method.Serialize()) };
+	}
+
 	kDebug(2, "config: {}", HTTP.Route->Config.dump());
 
 	bool bWithAutoIndex;
@@ -538,8 +622,8 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 		}
 
 		auto iPerms  = m_WebServerPermissions.Resolve(sUser, sPath);
-		bWithAutoIndex = (iPerms & KWebServerPermissions::Autoindex) != 0;
-		bWithUpload    = (iPerms & KWebServerPermissions::Write)     != 0;
+		bWithAutoIndex = (iPerms & KWebServerPermissions::Browse) != 0;
+		bWithUpload    = (iPerms & KWebServerPermissions::Write)  != 0;
 
 		kDebug(2, "permissions for user '{}' on '{}': {}", sUser, sPath, KWebServerPermissions::SerializePermissions(iPerms));
 	}

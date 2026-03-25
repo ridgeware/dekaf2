@@ -77,10 +77,10 @@ public:
 
 		// define cli options and read them into the REST server options
 		KStringViewZ sWWWDir          = Options("www <directory>       : base directory for HTTP server (served content)");
-		bool bCreateAdHocIndex        = Options("autoindex             : create an automatic index.html for directories if index.html is not found, default false", false);
+		bool bCreateAdHocIndex        = Options("autoindex             : enable directory browsing and auto-generated index listings, default false", false);
 		bool bAllowUpload             = Options("upload                : allow upload into directory, default false", false);
-		KStringViewZ sDefaultPerms    = Options("permissions <flags>   : default permissions (read|write|erase|browse|autoindex|all|none), default 'read|browse'", "");
-		KStringViewZ sUserParms       = Options("user <user:pass:/path:flags> : set user with permissions per path (flags: read|write|erase|browse|autoindex|all|none)", "");
+		KStringViewZ sDefaultPerms    = Options("permissions <flags>   : default permissions (read|write|erase|browse|all|none), default 'read|browse'", "");
+		KStringViewZ sUserParms       = Options("user <user:pass:/path:flags> : set user with permissions per path (flags: read|write|erase|browse|all|none)", "");
 		KStringViewZ sUsersFile       = Options("users <pathname>      : set pathname for file with list of lines of user:pass:/path:flags", "");
 		KStringViewZ sRoute           = Options("route </path>         : route to serve from, defaults to \"/*\"", "/*");
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
@@ -144,10 +144,10 @@ public:
 		}
 		else
 		{
-			// derive defaults from legacy flags
-			KWebServerPermissions::Perms iPerms = KWebServerPermissions::Read | KWebServerPermissions::Browse;
+			// derive defaults from convenience flags
+			KWebServerPermissions::Perms iPerms = KWebServerPermissions::Read;
 
-			if (bCreateAdHocIndex) iPerms |= KWebServerPermissions::Autoindex;
+			if (bCreateAdHocIndex) iPerms |= KWebServerPermissions::Browse;
 			if (bAllowUpload)      iPerms |= KWebServerPermissions::Write | KWebServerPermissions::Erase;
 
 			Permissions.SetDefaultPermissions(iPerms);

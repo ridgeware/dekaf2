@@ -79,6 +79,7 @@ public:
 		KStringViewZ sWWWDir          = Options("www <directory>       : base directory for HTTP server (served content)");
 		bool bCreateAdHocIndex        = Options("autoindex             : enable directory browsing and auto-generated index listings, default false", false);
 		bool bAllowUpload             = Options("upload                : allow upload into directory, default false", false);
+		bool bWebDAV                  = Options("webdav                : enable WebDAV Class 1 support (PROPFIND, MKCOL, COPY, MOVE)", false);
 		KStringViewZ sDefaultPerms    = Options("permissions <flags>   : default permissions (read|write|erase|browse|all|none), default 'read|browse'", "");
 		KStringViewZ sUserParms       = Options("user <user:pass:/path:flags> : set user with permissions per path (flags: read|write|erase|browse|all|none)", "");
 		KStringViewZ sUsersFile       = Options("users <pathname>      : set pathname for file with list of lines of user:pass:/path:flags", "");
@@ -191,9 +192,17 @@ public:
 		if (sWWWDir)
 		{
 			if (!kDirExists(sWWWDir)) SetError(kFormat("www directory does not exist: {}", sWWWDir));
-			// add a web server for static files with permission control
-			Routes.AddWebServer(sWWWDir, sRoute, std::move(Permissions));
-			if (!bQuiet) kPrintLine(":: serving files from: {}", sWWWDir);
+
+			if (bWebDAV)
+			{
+				Routes.AddWebDAV(sWWWDir, sRoute, std::move(Permissions));
+				if (!bQuiet) kPrintLine(":: serving WebDAV from: {}", sWWWDir);
+			}
+			else
+			{
+				Routes.AddWebServer(sWWWDir, sRoute, std::move(Permissions));
+				if (!bQuiet) kPrintLine(":: serving files from: {}", sWWWDir);
+			}
 		}
 
 		if (!sServer.empty())

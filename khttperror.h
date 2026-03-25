@@ -72,6 +72,7 @@ public:
 		H2xx_ACCEPTED           = 202,
 		H2xx_NO_CONTENT         = 204,
 		H2xx_PARTIAL_CONTENT    = 206,
+		H2xx_MULTISTATUS        = 207,
 		H2xx_UPDATED            = 290,
 		H2xx_DELETED            = 291,
 		H2xx_ALREADY            = 292,

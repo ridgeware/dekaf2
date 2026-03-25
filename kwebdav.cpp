@@ -166,7 +166,9 @@ void AddPropertyValue(KXMLNode& Prop, KStringView sLocalName, const KFileStat& S
 	}
 	else if (sLocalName == dav::displayname)
 	{
-		auto sName = kBasename(sHref);
+		KStringView sTrimmed = sHref;
+		sTrimmed.remove_suffix('/');
+		auto sName = kBasename(sTrimmed);
 		if (sName.empty()) sName = "/";
 		Prop.AddNode(dav::D::displayname).SetValue(sName);
 	}
@@ -206,6 +208,12 @@ PropfindRequest ParsePropfindBody(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	PropfindRequest Request;
+
+	if (!HTTP.Request.HasContent(true))
+	{
+		// no body means allprop (RFC 4918 Section 9.1)
+		return Request;
+	}
 
 	auto sBody = HTTP.Read();
 
@@ -502,7 +510,7 @@ void KWebDAV::Propfind(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView
 		}
 	}
 
-	HTTP.SetStatus(207);
+	HTTP.SetStatus(KHTTPError::H2xx_MULTISTATUS);
 
 } // Propfind
 
@@ -603,6 +611,37 @@ void KWebDAV::CopyOrMove(KRESTServer& HTTP,
 } // CopyOrMove
 
 //-----------------------------------------------------------------------------
+void KWebDAV::Delete(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute)
+//-----------------------------------------------------------------------------
+{
+	auto sFilePath = ResolveFilesystemPath(sDocumentRoot, sRequestPath, sRoute);
+
+	KFileStat Stat(sFilePath);
+
+	if (Stat.IsFile())
+	{
+		if (!kRemoveFile(sFilePath))
+		{
+			throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("cannot delete file: {}", sRequestPath) };
+		}
+	}
+	else if (Stat.IsDirectory())
+	{
+		if (!kRemoveDir(sFilePath))
+		{
+			throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("cannot delete collection: {}", sRequestPath) };
+		}
+	}
+	else
+	{
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("not found: {}", sRequestPath) };
+	}
+
+	HTTP.SetStatus(204);
+
+} // Delete
+
+//-----------------------------------------------------------------------------
 void KWebDAV::Options(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
@@ -637,6 +676,10 @@ void KWebDAV::Serve(KRESTServer& HTTP,
 
 		case KHTTPMethod::MOVE:
 			CopyOrMove(HTTP, sDocumentRoot, sRequestPath, sRoute, Permissions, sUser, true);
+			break;
+
+		case KHTTPMethod::DELETE:
+			Delete(HTTP, sDocumentRoot, sRequestPath, sRoute);
 			break;
 
 		case KHTTPMethod::OPTIONS:

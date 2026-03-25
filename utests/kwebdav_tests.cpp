@@ -13,7 +13,7 @@ TEST_CASE("KWebDAV")
 	SECTION("GenerateETag")
 	{
 		// create a temp file and stat it
-		KTempFile TempFile(".txt");
+		KTempFile<> TempFile(".txt");
 		*TempFile << "hello world";
 		TempFile.Close();
 

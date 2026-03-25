@@ -170,7 +170,7 @@ bool KRESTRoute::Matches(const KRESTPath& Path, Parameters* Params, bool bCompar
 	if ((!bCompareMethods || bIsWebSocket == Option.Has(Options::WEBSOCKET)) &&
 		(!bCompareMethods 
 		 || Method == Path.Method
-		 || (Method.empty() && !Path.Method.IsWebDAV())
+		 || (Method.empty() && (!Path.Method.IsWebDAV() || Option.Has(Options::WEBDAV)))
 		 || (Path.Method == KHTTPMethod::HEAD && Method == KHTTPMethod::GET)) &&
 		(bCheckWebservers || sDocumentRoot.empty()))
 	{
@@ -385,7 +385,7 @@ void KRESTRoutes::AddWebDAV(KString sWWWDir, KString sRoute, KWebServerPermissio
 	kDebug(2, "WebDAV route : {}\nwww          : {}\nconfig       : {}", sRoute, sWWWDir, jConfig.dump());
 
 	// register a single catch-all route (empty method matches any) - the permission check happens at request time
-	m_Routes.push_back(KRESTRoute(KHTTPMethod{KHTTPMethod::INVALID}, false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebDAVHandler, std::move(jConfig)));
+	m_Routes.push_back(KRESTRoute(KHTTPMethod{KHTTPMethod::INVALID}, KRESTRoute::Options{KRESTRoute::Options::WEBDAV}, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebDAVHandler, std::move(jConfig)));
 
 } // AddWebDAV
 
@@ -399,6 +399,7 @@ void KRESTRoutes::WebDAVHandler(KRESTServer& HTTP)
 		case KHTTPMethod::MKCOL:
 		case KHTTPMethod::COPY:
 		case KHTTPMethod::MOVE:
+		case KHTTPMethod::DELETE:
 		case KHTTPMethod::OPTIONS:
 		{
 			// resolve permissions

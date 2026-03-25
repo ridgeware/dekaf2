@@ -338,7 +338,7 @@ public:
 	void assign(const value_type* start, const value_type* end)
 	//-----------------------------------------------------------------------------
 	{
-		assign(start, static_cast<size_type>(end - start));
+		assign(start, (end >= start) ? static_cast<size_type>(end - start) : 0);
 	}
 
 	//-----------------------------------------------------------------------------

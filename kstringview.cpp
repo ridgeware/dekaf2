@@ -356,6 +356,12 @@ bool kContainsWord(const KStringView sInput, const KStringView sPattern) noexcep
 KStringView::size_type KStringView::copy(value_type* dest, size_type count, size_type pos) const
 //-----------------------------------------------------------------------------
 {
+	if (DEKAF2_UNLIKELY(!dest))
+	{
+		kDebug(1, "attempt to copy into a null destination");
+		return 0;
+	}
+
 	if (DEKAF2_UNLIKELY(pos > size()))
 	{
 		kDebug(3, "attempt to copy from past the end of string view of size {}: pos {}",

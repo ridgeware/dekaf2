@@ -56,7 +56,7 @@ constexpr KString::value_type KString::s_0ch;
 
 #endif
 
-KString::value_type KString::s_0ch_v { '\0' };
+thread_local KString::value_type KString::s_0ch_v { '\0' };
 
 //------------------------------------------------------------------------------
 void KString::log_exception(const std::exception& e, const char* sWhere)

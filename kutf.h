@@ -419,8 +419,8 @@ struct SurrogatePair
 	constexpr
 	SurrogatePair(codepoint_t codepoint)
 	//-----------------------------------------------------------------------------
-	: high (SURROGATE_HIGH_START + ((codepoint -= NEEDS_SURROGATE_START) & 0x03ff))
-	, low  (SURROGATE_LOW_START  + ((codepoint >> 10) & 0x03ff))
+	: high (static_cast<utf16_t>(SURROGATE_HIGH_START + ((codepoint -= NEEDS_SURROGATE_START) & 0x03ff)))
+	, low  (static_cast<utf16_t>(SURROGATE_LOW_START  + ((codepoint >> 10) & 0x03ff)))
 	{
 	}
 
@@ -452,7 +452,7 @@ bool IsSingleByte(utf8_t ch)
 //-----------------------------------------------------------------------------
 /// Returns true if the given character is a UTF8 start byte (which starts a UTF8 sequence and is followed by one to three continuation bytes)
 inline constexpr
-bool IsStartByte(utf8_t ch)
+bool IsStartByte(codepoint_t ch)
 //-----------------------------------------------------------------------------
 {
 	return (ch & 0x0c0) == 0x0c0;
@@ -461,7 +461,7 @@ bool IsStartByte(utf8_t ch)
 //-----------------------------------------------------------------------------
 /// Returns true if the given character is a UTF8 continuation byte (which follow the start byte of a UTF8 sequence)
 inline constexpr
-bool IsContinuationByte(utf8_t ch)
+bool IsContinuationByte(codepoint_t ch)
 //-----------------------------------------------------------------------------
 {
 	return (ch & 0x0c0) == 0x080;
@@ -524,9 +524,9 @@ codepoint_t CodepointCast(Char ch)
 {
 	static_assert(std::is_integral<Char>::value, "can only cast integral types");
 
-	return (sizeof(Char) == 1) ? static_cast<utf8_t>(ch)
-		:  (sizeof(Char) == 2) ? static_cast<utf16_t>(ch)
-		:  static_cast<utf32_t>(ch);
+	return (sizeof(Char) == 1) ? static_cast<codepoint_t>(static_cast<utf8_t>(ch))
+		:  (sizeof(Char) == 2) ? static_cast<codepoint_t>(static_cast<utf16_t>(ch))
+		:  static_cast<codepoint_t>(ch);
 }
 
 //-----------------------------------------------------------------------------
@@ -1023,7 +1023,7 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 			{
 				SurrogatePair sp;
 
-				sp.low = ch;
+				sp.low = static_cast<utf16_t>(ch);
 
 				if (it == ie)
 				{
@@ -1032,7 +1032,7 @@ codepoint_t Codepoint(Iterator& it, Iterator ie)
 				}
 				else
 				{
-					sp.high = CodepointCast(*it);
+					sp.high = static_cast<utf16_t>(CodepointCast(*it));
 
 					if (!IsTrailSurrogate(sp.high))
 					{

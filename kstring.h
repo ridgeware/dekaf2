@@ -257,20 +257,20 @@ public:
 
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const_reference operator[](size_type pos)  const          { return at(pos);              }
-	DEKAF2_NODISCARD_PEDANTIC
-	inline reference operator[](size_type pos)                { return at(pos);              }
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
+	reference operator[](size_type pos)                       { return at(pos);              }
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const_reference         at(size_type pos)  const          { if DEKAF2_UNLIKELY(pos >= size()) {                 return s_0ch;   } return m_rep[pos];    }
-	DEKAF2_NODISCARD_PEDANTIC
-	inline reference        at(size_type pos)                 { if DEKAF2_UNLIKELY(pos >= size()) { s_0ch_v = '\0'; return s_0ch_v; } return m_rep[pos];    }
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
+	reference               at(size_type pos)                 { if DEKAF2_UNLIKELY(pos >= size()) { s_0ch_v = '\0'; return s_0ch_v; } return m_rep[pos];    }
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const_reference         back()             const          { if DEKAF2_UNLIKELY(empty())       {                 return s_0ch;   } return m_rep.back();  }
-	DEKAF2_NODISCARD_PEDANTIC
-	inline reference        back()                            { if DEKAF2_UNLIKELY(empty())       { s_0ch_v = '\0'; return s_0ch_v; } return m_rep.back();  }
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
+	reference               back()                            { if DEKAF2_UNLIKELY(empty())       { s_0ch_v = '\0'; return s_0ch_v; } return m_rep.back();  }
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const_reference         front()            const          { if DEKAF2_UNLIKELY(empty())       {                 return s_0ch;   } return m_rep.front(); }
-	DEKAF2_NODISCARD_PEDANTIC
-	inline reference        front()                           { if DEKAF2_UNLIKELY(empty())       { s_0ch_v = '\0'; return s_0ch_v; } return m_rep.front(); }
+	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
+	reference               front()                           { if DEKAF2_UNLIKELY(empty())       { s_0ch_v = '\0'; return s_0ch_v; } return m_rep.front(); }
 
 	DEKAF2_CONSTEXPR_STRING
 	self& append(const value_type* str)                       { m_rep.append(str ? str : "");       return *this; }

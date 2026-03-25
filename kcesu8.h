@@ -74,7 +74,7 @@ NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 		}
 		else
 		{
-			sp.low += CodepointCast(*it++);
+			sp.low += static_cast<utf16_t>(CodepointCast(*it++));
 			
 			if (KUTF_UNLIKELY(IsLeadSurrogate(sp.low)))
 			{
@@ -85,7 +85,7 @@ NarrowString UTF16BytesToUTF8(Iterator it, Iterator ie)
 					
 					if (KUTF_LIKELY(it != ie))
 					{
-						sp.high += CodepointCast(*it);
+						sp.high += static_cast<utf16_t>(CodepointCast(*it));
 						
 						if (IsTrailSurrogate(sp.high))
 						{

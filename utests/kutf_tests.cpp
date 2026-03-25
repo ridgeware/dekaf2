@@ -276,7 +276,7 @@ TEST_CASE("UTF") {
 			{
 				if (kutf::IsValid(ch))
 				{
-					sUTF16_in += ch;
+					sUTF16_in += static_cast<char16_t>(ch);
 				}
 				else
 				{

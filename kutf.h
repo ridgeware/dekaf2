@@ -629,7 +629,7 @@ void ToUTF(Char codepoint, Iterator it)
 	{
 		if (cp < 0x0080)
 		{
-			*it++ = cp;
+			*it++ = static_cast<output_value_type>(cp);
 		}
 		else if (cp < 0x0800)
 		{

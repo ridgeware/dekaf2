@@ -1199,6 +1199,41 @@ KUnixTime kGetLastMod(KStringViewZ sFilePath)
 } // kGetLastMod
 
 //-----------------------------------------------------------------------------
+bool kSetLastMod(KStringViewZ sFilePath, KUnixTime mtime)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_HAS_STD_FILESYSTEM
+	auto ftime = fs::file_time_type::clock::now()
+	           + (chrono::system_clock::time_point(mtime) - chrono::system_clock::now());
+	std::error_code ec;
+	fs::last_write_time(kToFilesystemPath(sFilePath), ftime, ec);
+
+	if (ec)
+	{
+		kDebug(2, "{}: {}", sFilePath, ec.message());
+		return false;
+	}
+
+	return true;
+#else
+	struct timespec times[2];
+	times[0].tv_sec  = 0;
+	times[0].tv_nsec = UTIME_OMIT; // keep access time unchanged
+	times[1].tv_sec  = mtime.to_time_t();
+	times[1].tv_nsec = 0;
+
+	if (::utimensat(AT_FDCWD, sFilePath.c_str(), times, 0) != 0)
+	{
+		kDebug(1, "cannot set modification time on '{}': {}", sFilePath, strerror(errno));
+		return false;
+	}
+
+	return true;
+#endif
+
+} // kSetLastMod
+
+//-----------------------------------------------------------------------------
 size_t kFileSize(KStringViewZ sFilePath)
 //-----------------------------------------------------------------------------
 {

@@ -375,6 +375,15 @@ KUnixTime kGetLastMod(KStringViewZ sFilePath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Set last modification time of a file. Does not create the file if it does not exist.
+/// @param sFilePath the input file path
+/// @param mtime the modification time to set
+/// @returns true if successful
+DEKAF2_PUBLIC
+bool kSetLastMod(KStringViewZ sFilePath, KUnixTime mtime);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Get size in bytes of a file, returns npos if file not found or is not a regular file
 /// @param sFilePath the input file path
 /// @returns the size of the file, or npos if the file does not exist or is not a regular file

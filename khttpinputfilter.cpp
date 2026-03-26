@@ -205,6 +205,21 @@ std::streamsize KInHTTPFilter::Count() const
 } // Count
 
 //-----------------------------------------------------------------------------
+bool KInHTTPFilter::IsInputConsumed() const
+//-----------------------------------------------------------------------------
+{
+	if (m_Filter && !m_Filter->empty())
+	{
+		auto chunker = m_Filter->component<KChunkedSource>(static_cast<int>(m_Filter->size()-1));
+		return chunker && chunker->IsFinished();
+	}
+
+	// filter was never created - input is consumed if no content was expected
+	return m_iContentSize <= 0 && !m_bChunked;
+
+} // IsInputConsumed
+
+//-----------------------------------------------------------------------------
 bool KInHTTPFilter::ResetCount()
 //-----------------------------------------------------------------------------
 {

@@ -158,6 +158,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// returns true if all expected input data has been consumed (or if there was none)
+	bool IsInputConsumed() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// reset count of read bytes - this is not reliable in-flight, as pipeline buffers may already have been filled.
 	/// It will though work reliably after close() ..
 	bool ResetCount();

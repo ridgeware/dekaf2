@@ -913,9 +913,19 @@ bool KRESTServer::Execute()
 					// and are well handled in the normal Output()
 					Response.SetStatus(ex.GetHTTPStatusCode(), ex.GetHTTPStatusString());
 				}
+				else if (ex.GetHTTPStatusCode() < 500 && Request.IsInputConsumed())
+				{
+					// 4xx errors with fully consumed request body are safe
+					// for keepalive - they are application level errors that
+					// do not corrupt the connection state (e.g. WebDAV 404
+					// for non-existing resources)
+					Response.SetStatus(ex.GetHTTPStatusCode(), ex.GetHTTPStatusString());
+					SetMessage(ex.what());
+				}
 				else
 				{
-					// everything else breaks the keepalive loop
+					// 5xx errors, or 4xx with unconsumed request body
+					// (e.g. rejected uploads) break the keepalive loop
 					throw;
 				}
 			}

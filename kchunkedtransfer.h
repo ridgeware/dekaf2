@@ -107,6 +107,11 @@ public:
 	void ResetCount() { m_iCount = 0; }
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// returns true if all expected input data has been consumed
+	bool IsFinished() const { return m_State == Finished || (m_State == IsNotChunked && m_iContentLen == 0); }
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------

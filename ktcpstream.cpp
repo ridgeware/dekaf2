@@ -116,6 +116,12 @@ std::streamsize KTCPStream::TCPStreamWriter(const void* sBuffer, std::streamsize
 	{
 		auto& IOStream = *static_cast<KTCPStream*>(stream_);
 
+		if (IOStream.m_Stream.ec.value() != 0 || !IOStream.m_Stream.Socket.is_open())
+		{
+			// stream is already in error state, do not retry
+			return 0;
+		}
+
 		for (;iWrote < iCount;)
 		{
 			std::size_t iWrotePart { 0 };

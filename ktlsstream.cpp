@@ -304,6 +304,12 @@ std::streamsize KTLSStream::TLSStreamWriter(const void* sBuffer, std::streamsize
 	{
 		auto& TLSStream = *static_cast<KTLSStream*>(stream_);
 
+		if (TLSStream.m_Stream.ec.value() != 0 || !TLSStream.m_Stream.Socket.lowest_layer().is_open())
+		{
+			// stream is already in error state, do not retry
+			return 0;
+		}
+
 		if (!TLSStream.m_Stream.bManualHandshake)
 		{
 			if (!TLSStream.Handshake())

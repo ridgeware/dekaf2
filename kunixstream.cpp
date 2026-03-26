@@ -119,6 +119,12 @@ std::streamsize KUnixStream::UnixStreamWriter(const void* sBuffer, std::streamsi
 	{
 		auto& IOStream = *static_cast<KUnixStream*>(stream_);
 
+		if (IOStream.m_Stream.ec.value() != 0 || !IOStream.m_Stream.Socket.is_open())
+		{
+			// stream is already in error state, do not retry
+			return 0;
+		}
+
 		for (;iWrote < iCount;)
 		{
 			std::size_t iWrotePart { 0 };

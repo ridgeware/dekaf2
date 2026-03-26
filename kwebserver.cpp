@@ -134,7 +134,7 @@ void KWebServer::Check
 
 			auto tIfModifiedSince   = kParseHTTPTimestamp(RequestHeaders.Headers.Get(KHTTPHeader::IF_MODIFIED_SINCE  ));
 			auto tIfUnmodifiedSince = kParseHTTPTimestamp(RequestHeaders.Headers.Get(KHTTPHeader::IF_UNMODIFIED_SINCE));
-			auto tLastModified      = this->GetFileStat().ModificationTime();
+			auto tLastModified      = chrono::floor<chrono::seconds>(this->GetFileStat().ModificationTime());
 
 			if (tIfModifiedSince.ok() && tLastModified <= tIfModifiedSince)
 			{

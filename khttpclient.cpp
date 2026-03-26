@@ -1193,11 +1193,23 @@ bool KHTTPClient::Parse()
 	    !StatusIsRedirect() &&
 	    Response.GetStatusCode() != KHTTPError::H1xx_SWITCHING_PROTOCOLS)
 	{
-		// we do not close the connection right here because inheriting
-		// classes may still want to read the response body, but we mark
-		// the failure and will not allow a reuse of the connection
-		m_bKeepAlive = false;
-		kDebug(2, "mark instance as failed");
+		if (Response.GetStatusCode() / 100 == 4)
+		{
+			// 4xx client errors are application-level errors that do not
+			// corrupt the connection state - honor the server's keepalive
+			// indication (the server only keeps alive when the request
+			// body was fully consumed - this is valid for all inspected
+			// major web servers)
+			m_bKeepAlive = Response.HasKeepAlive();
+		}
+		else
+		{
+			// we do not close the connection right here because inheriting
+			// classes may still want to read the response body, but we mark
+			// the failure and will not allow a reuse of the connection
+			m_bKeepAlive = false;
+			kDebug(2, "mark instance as failed");
+		}
 	}
 	else
 	{

@@ -59,8 +59,8 @@ if (WIN32 AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.15.0)
 	cmake_policy(SET CMP0091 NEW)
 endif()
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
-	# allow mixed case find_package names (Boost needs this with cmake 3.27)
-	cmake_policy(SET CMP0144 OLD)
+	# use case-preserved package root variable names (Boost_ROOT instead of BOOST_ROOT)
+	cmake_policy(SET CMP0144 NEW)
 endif()
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
 	# use boosts own BoostConfig.cmake
@@ -615,14 +615,18 @@ set(Boost_NO_BOOST_CMAKE ON)
 # most annoying warning ever - finally we can suppress it (cmake 3.20++)
 set(Boost_NO_WARN_NEW_VERSIONS ON)
 
-if (BOOST_ROOT)
-	message(STATUS "boost root externally set to: ${BOOST_ROOT}")
+if (Boost_ROOT)
+	message(STATUS "boost root externally set to: ${Boost_ROOT}")
+elseif (BOOST_ROOT)
+	# accept upper-case BOOST_ROOT from environment or command line
+	set(Boost_ROOT "${BOOST_ROOT}")
+	message(STATUS "boost root externally set to: ${Boost_ROOT}")
 elseif (EXISTS "/opt/boost")
 	# check if we installed a boost build in /opt/boost
-	set(BOOST_ROOT "/opt/boost")
+	set(Boost_ROOT "/opt/boost")
 	# force static boost, the source build does not give dynamic libs
 	set(Boost_USE_STATIC_LIBS ON)
-	message(STATUS "setting boost root to: ${BOOST_ROOT}")
+	message(STATUS "setting boost root to: ${Boost_ROOT}")
 endif ()
 
 # boost asio (header only) needs system and date_time
@@ -658,7 +662,7 @@ endif()
 
 if (NOT Boost_FOUND)
 	if (DEKAF2_NO_BUILDSETUP)
-		message(FATAL_ERROR "please set BOOST_ROOT to the root directory of your boost install")
+		message(FATAL_ERROR "please set Boost_ROOT to the root directory of your boost install")
 	else()
 		EXECUTE_PROCESS(
 			COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/boostinstall -ask

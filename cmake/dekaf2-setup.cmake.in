@@ -102,13 +102,15 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			# the boost cmake files
 			set(Boost_NO_BOOST_CMAKE 1)
 
-			if (NOT BOOST_ROOT)
-				# only set BOOST_ROOT if not already done by caller
-				if (IS_WINDOWS)
-					set(BOOST_ROOT "C:\\boost")
+			if (NOT Boost_ROOT)
+				if (BOOST_ROOT)
+					# accept upper-case BOOST_ROOT from caller
+					set(Boost_ROOT "${BOOST_ROOT}")
+				elseif (IS_WINDOWS)
+					set(Boost_ROOT "C:\\boost")
 				else()
 					# we prefer the boost lib that we installed ourselves in /opt/lib ..
-					set(BOOST_ROOT "/opt/boost")
+					set(Boost_ROOT "/opt/boost")
 				endif()
 			endif ()
 

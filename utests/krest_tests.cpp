@@ -190,11 +190,13 @@ TEST_CASE("KREST")
 		CHECK ( sAuth == "authenticated" );
 
 		sOut.clear();
-		CHECK ( REST.Simulate(Options, Routes, "/user/\"; DROP DATABASE CLIENTS/address", oss) == false );
+		CHECK ( REST.Simulate(Options, Routes, "/user/\"; DROP DATABASE CLIENTS/address", oss) == true );
+		CHECK ( sOut.contains("HTTP/1.1 400 BAD REQUEST") );
 
 		sOut.clear();
 		sCompare = "HTTP/1.1 400 BAD REQUEST\r\ncontent-type: application/json\r\ncontent-length: 37\r\nconnection: close\r\n\r\n{\n\t\"message\": \"missing parameters\"\n}\n";
-		CHECK ( REST.Simulate(Options, Routes, "/throw", oss) == false );
+		CHECK ( REST.Simulate(Options, Routes, "/throw", oss) == true );
+		CHECK ( sOut.contains("HTTP/1.1 400 BAD REQUEST") );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
 		CHECK ( bCalledHelp == true  );
@@ -422,7 +424,8 @@ TEST_CASE("KREST")
 		CHECK ( sOut == sWebContent );
 
 		sOut.clear();
-		CHECK ( REST.Simulate(Options, Routes, "/web/unknown.html", oss) == false );
+		CHECK ( REST.Simulate(Options, Routes, "/web/unknown.html", oss) == true );
+		CHECK ( sOut.contains("HTTP/1.1 404 NOT FOUND") );
 		auto iPos2 = sOut.find("\r\n\r\n");
 		CHECK ( iPos2 != npos );
 		if (iPos2 != npos)

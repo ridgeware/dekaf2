@@ -156,6 +156,7 @@ set (USOURCES
 	kxml_tests.cpp
 	kzip_tests.cpp
 	features_tests.cpp
+	network_tests.cpp
 	simd_tests.cpp
 	string_balance_tests.cpp
 )

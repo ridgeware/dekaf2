@@ -920,7 +920,20 @@ bool KRESTServer::Execute()
 					// do not corrupt the connection state (e.g. WebDAV 404
 					// for non-existing resources)
 					Response.SetStatus(ex.GetHTTPStatusCode(), ex.GetHTTPStatusString());
-					SetMessage(ex.what());
+
+					if (json.tx.empty() && Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::HTML_UTF8)
+					{
+						// for HTML routes, generate the same HTML error page
+						// that ErrorHandler would produce
+						SetRawOutput(kFormat("<html><head>HTTP Error {}</head><body><h2>{} {} </h2></body></html>\n",
+						                     ex.GetHTTPStatusCode(),
+						                     ex.GetHTTPStatusCode(),
+						                     ex.what()));
+					}
+					else
+					{
+						SetMessage(ex.what());
+					}
 				}
 				else
 				{
@@ -931,6 +944,15 @@ bool KRESTServer::Execute()
 			}
 
 			m_iRequestBodyLength = Request.Count();
+
+			// respect a handler-set connection: close - this is
+			// particularly important in streaming mode where
+			// WriteHeaders() was already called before the handler
+			// decided to close the connection
+			if (m_bKeepAlive && Response.Headers.Get(KHTTPHeader::CONNECTION) == "close")
+			{
+				m_bKeepAlive = false;
+			}
 
 			if (m_Timers)
 			{
@@ -1075,6 +1097,13 @@ void KRESTServer::WriteHeaders()
 	}
 	else
 	{
+		// respect a handler-set connection: close (e.g. to force
+		// disconnect after a 2xx response)
+		if (m_bKeepAlive && Response.Headers.Get(KHTTPHeader::CONNECTION) == "close")
+		{
+			m_bKeepAlive = false;
+		}
+
 		Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive ? "keep-alive" : "close");
 	}
 

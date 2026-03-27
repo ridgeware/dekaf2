@@ -1600,6 +1600,7 @@ set (SOURCES
 	krestroute.cpp
 	krestserver.cpp
 	kratelimiter.cpp
+	kconnectionlimiter.cpp
 	kron.cpp
 	krow.cpp
 	krsa.cpp

@@ -52,9 +52,33 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
+void KREST::Options::SetConnectionLimit(uint16_t iMaxConnectionsPerKey)
+//-----------------------------------------------------------------------------
+{
+	ConnectionLimiter = std::make_shared<KConnectionLimiter>(iMaxConnectionsPerKey);
+}
+
+//-----------------------------------------------------------------------------
 void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 //-----------------------------------------------------------------------------
 {
+	// per-IP connection limiting - acquire a slot before doing anything else.
+	// the RAII guard releases the slot when this function returns.
+	auto sRemoteIP = Stream->GetEndPointAddress().Serialize();
+
+	KConnectionLimiter::Guard ConnectionGuard;
+
+	if (m_Options.ConnectionLimiter)
+	{
+		ConnectionGuard = m_Options.ConnectionLimiter->Acquire(sRemoteIP);
+
+		if (!ConnectionGuard)
+		{
+			kDebug(1, "rejecting connection from {}: {}", sRemoteIP, m_Options.ConnectionLimiter->GetLastError());
+			return;
+		}
+	}
+
 	KRESTServer RESTServer(m_Routes, m_Options);
 
 	// keep a pointer of the stream socket for REST routes that may want to

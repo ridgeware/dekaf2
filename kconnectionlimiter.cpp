@@ -1,0 +1,164 @@
+/*
+//
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
+//
+// Copyright (c) 2026, Ridgeware, Inc.
+//
+// +-------------------------------------------------------------------------+
+// | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+// |/+---------------------------------------------------------------------+/|
+// |/|                                                                     |/|
+// |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+// |/|                                                                     |/|
+// |\|   OPEN SOURCE LICENSE                                               |\|
+// |/|                                                                     |/|
+// |\|   Permission is hereby granted, free of charge, to any person       |\|
+// |/|   obtaining a copy of this software and associated                  |/|
+// |\|   documentation files (the "Software"), to deal in the              |\|
+// |/|   Software without restriction, including without limitation        |/|
+// |\|   the rights to use, copy, modify, merge, publish,                  |\|
+// |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+// |\|   and to permit persons to whom the Software is furnished to        |\|
+// |/|   do so, subject to the following conditions:                       |/|
+// |\|                                                                     |\|
+// |/|   The above copyright notice and this permission notice shall       |/|
+// |\|   be included in all copies or substantial portions of the          |\|
+// |/|   Software.                                                         |/|
+// |\|                                                                     |\|
+// |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+// |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+// |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+// |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+// |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+// |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+// |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+// |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+// |/|                                                                     |/|
+// |/+---------------------------------------------------------------------+/|
+// |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+// +-------------------------------------------------------------------------+
+*/
+
+#include "kconnectionlimiter.h"
+#include "klog.h"
+#include "kformat.h"
+
+DEKAF2_NAMESPACE_BEGIN
+
+//-----------------------------------------------------------------------------
+KConnectionLimiter::KConnectionLimiter(uint16_t iMaxConnectionsPerKey)
+//-----------------------------------------------------------------------------
+: m_iMaxConnections(iMaxConnectionsPerKey)
+{
+	if (m_iMaxConnections > 0)
+	{
+		kDebug(2, "connection limiter enabled: max {} per key", m_iMaxConnections);
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KConnectionLimiter::Guard KConnectionLimiter::AcquireImpl(KStringView sKey)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto it = m_Connections.find(sKey);
+
+	if (it == m_Connections.end())
+	{
+		// new key: insert with count 1
+		m_Connections.emplace(KString(sKey), uint16_t(1));
+		return Guard(this, KString(sKey), true);
+	}
+
+	if (it->second >= m_iMaxConnections)
+	{
+		kDebug(1, "connection limit exceeded for {} ({}/{})", sKey, it->second, m_iMaxConnections);
+		SetError(kFormat("connection limit exceeded ({}/{})", it->second, m_iMaxConnections));
+		return Guard(nullptr, KString{}, false);
+	}
+
+	++(it->second);
+	return Guard(this, KString(sKey), true);
+
+} // AcquireImpl
+
+//-----------------------------------------------------------------------------
+void KConnectionLimiter::ReleaseImpl(const KString& sKey)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto it = m_Connections.find(sKey);
+
+	if (it == m_Connections.end())
+	{
+		kDebug(1, "connection limiter: release for unknown key {}", sKey);
+		return;
+	}
+
+	if (--(it->second) == 0)
+	{
+		m_Connections.erase(it);
+	}
+
+} // ReleaseImpl
+
+//-----------------------------------------------------------------------------
+void KConnectionLimiter::Guard::Release()
+//-----------------------------------------------------------------------------
+{
+	if (m_Limiter && m_bIsValid)
+	{
+		m_Limiter->ReleaseImpl(m_sKey);
+		m_Limiter  = nullptr;
+		m_bIsValid = false;
+	}
+
+} // Guard::Release
+
+//-----------------------------------------------------------------------------
+std::size_t KConnectionLimiter::GetKeyCount() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	return m_Connections.size();
+
+} // GetKeyCount
+
+//-----------------------------------------------------------------------------
+uint16_t KConnectionLimiter::GetConnectionCount(KStringView sKey) const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto it = m_Connections.find(sKey);
+
+	if (it != m_Connections.end())
+	{
+		return it->second;
+	}
+
+	return 0;
+
+} // GetConnectionCount
+
+//-----------------------------------------------------------------------------
+std::size_t KConnectionLimiter::GetTotalConnections() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	std::size_t iTotal = 0;
+
+	for (const auto& pair : m_Connections)
+	{
+		iTotal += pair.second;
+	}
+
+	return iTotal;
+
+} // GetTotalConnections
+
+DEKAF2_NAMESPACE_END

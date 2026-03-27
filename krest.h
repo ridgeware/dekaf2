@@ -45,6 +45,7 @@
 #include "ktcpserver.h"
 #include "kpoll.h"
 #include "kwebsocket.h"
+#include "kconnectionlimiter.h"
 #include "kerror.h"
 #include <csignal>
 
@@ -55,10 +56,11 @@ DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// HTTP REST service implementation. Provides a thread-per-connection server with configurable
-/// timeouts, keep-alive limits, and request body size limits.
-/// @note For production deployments exposed to untrusted networks, it is recommended to place
-/// a reverse proxy (e.g. caddy, nginx, HAProxy) in front of this server for additional connection
-/// management, rate limiting, and Slowloris/slow-read protection.
+/// timeouts, keep-alive limits, request body size limits, per-IP rate limiting (SetRateLimit),
+/// and per-IP concurrent connection limiting (SetConnectionLimit).
+/// @note For production deployments exposed to untrusted networks, consider placing
+/// a reverse proxy (e.g. caddy, nginx, HAProxy) in front of this server for additional
+/// Slowloris/slow-read protection (header read deadlines, minimum data rate enforcement).
 class DEKAF2_PUBLIC KREST : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -150,6 +152,16 @@ public:
 		std::function<void(std::size_t)> DisconnectCallback;
 		/// Parameters controling the simulation mode
 		SimulationParms Simulate;
+		/// Connection limiter shared across all connections. Set to a non-null shared_ptr
+		/// with a configured KConnectionLimiter to enable per-IP connection throttling.
+		/// When null (the default), connection limiting is completely disabled with zero overhead.
+		std::shared_ptr<KConnectionLimiter> ConnectionLimiter;
+		/// Enable per-IP concurrent connection limiting.
+		/// @param iMaxConnectionsPerKey maximum concurrent connections per client IP
+		/// @code
+		/// .SetConnectionLimit(10);  // max 10 concurrent connections per IP
+		/// @endcode
+		void SetConnectionLimit(uint16_t iMaxConnectionsPerKey);
 
 	}; // Options
 

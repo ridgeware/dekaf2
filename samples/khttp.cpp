@@ -41,6 +41,7 @@
 
 #include <dekaf2/koptions.h>
 #include <dekaf2/kerror.h>
+#include <dekaf2/kstringutils.h>
 #include <dekaf2/krest.h>
 #include <dekaf2/krestroute.h>
 #include <dekaf2/khttperror.h>
@@ -93,9 +94,10 @@ public:
 		Settings.iMaxConnections      = Options("n <max>               : max parallel connections (default 25)", 25);
 		Settings.iMaxKeepaliveRounds  = Options("keepalive <maxrounds> : max keepalive rounds (default 10, 0 == off)", 10);
 		Settings.iTimeout             = Options("timeout <seconds>     : server timeout (default 5)", 5);
-		double dRateLimit             = Options("ratelimit <req/s>     : per-IP request rate limit (default 0 == off)", 0.0);
+		double dRateLimit             = Options("ratelimit <req/s>     : per-IP request rate limit, e.g. 10 or 0.5 (default 0 == off)", 0.0);
 		uint16_t iRateBurst           = Options("rateburst <count>     : rate limit burst size (default 10)", 10);
 		uint16_t iConnLimit           = Options("connlimit <max>       : per-IP max concurrent connections (default 0 == off)", 0);
+		KStringViewZ sMaxBody         = Options("maxbody <size>        : max request body size, supports k/M/G suffixes (default 256M, 0 == unlimited)", "256M");
 		Settings.sCert                = Options("cert <file>           : TLS certificate filepath (.pem), defaults to self-signed ephemeral cert", "");
 		Settings.sKey                 = Options("key <file>            : TLS private key filepath (.pem), defaults to ephemeral key", "");
 		Settings.bStoreEphemeralCert  = Options("persist               : should a self-signed cert be persisted to disk and reused at next start?", false);
@@ -140,6 +142,8 @@ public:
 
 		if (dRateLimit > 0) Settings.SetRateLimit(dRateLimit, iRateBurst);
 		if (iConnLimit > 0) Settings.SetConnectionLimit(iConnLimit);
+
+		Settings.iMaxRequestBodySize = kFromBinarySize(sMaxBody);
 
 		// set up permissions
 		KWebServerPermissions Permissions;

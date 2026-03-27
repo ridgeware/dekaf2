@@ -132,6 +132,15 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Set maximum decompressed body size in bytes. 0 = unlimited (default).
+	/// Must be called before the first Read()/ReadLine()/FilteredStream() call.
+	void SetMaxBodySize(std::size_t iMaxBodySize)
+	//-----------------------------------------------------------------------------
+	{
+		m_iMaxBodySize = iMaxBodySize;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// result is only valid after first call to Read(), ReadLine() or Stream()
 	bool eof()
 	//-----------------------------------------------------------------------------
@@ -163,6 +172,16 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// returns true if the decompressed body size limit was exceeded during reading.
+	/// This flag is set by the input limiter filter even when the exception it throws
+	/// is swallowed by the std::istream layer.
+	bool IsBodySizeLimitExceeded() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bBodySizeLimitExceeded;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// reset count of read bytes - this is not reliable in-flight, as pipeline buffers may already have been filled.
 	/// It will though work reliably after close() ..
 	bool ResetCount();
@@ -185,10 +204,12 @@ private:
 	KInStream       m_FilteredInStream    { kGetNullInStream().istream() };
 	std::unique_ptr<boost::iostreams::filtering_istream>
 					m_Filter;
-	std::streamsize m_iContentSize        { -1        };
-	std::streamsize m_iCount              { 0         };
-	bool            m_bChunked            { false     };
-	bool            m_bAllowUncompression { true      };
+	std::streamsize m_iContentSize           { -1    };
+	std::streamsize m_iCount                 { 0     };
+	std::size_t     m_iMaxBodySize           { 0     };
+	bool            m_bChunked               { false };
+	bool            m_bAllowUncompression    { true  };
+	bool            m_bBodySizeLimitExceeded { false };
 
 }; // KInHTTPFilter
 

@@ -42,7 +42,7 @@
 #pragma once
 
 /// @file kwebdav.h
-/// WebDAV Class 1 implementation for file-based network storage
+/// WebDAV Class 2 implementation for file-based network storage
 
 #include "kdefinitions.h"
 #include "kstring.h"
@@ -55,9 +55,11 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// WebDAV Class 1 implementation for file-based network storage.
-/// Handles PROPFIND, MKCOL, COPY, MOVE, and OPTIONS methods.
-/// Standard HTTP methods (GET, PUT, DELETE, HEAD) are delegated to KWebServer.
+/// WebDAV Class 2 implementation for file-based network storage.
+/// Handles PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, DELETE, OPTIONS, LOCK, and UNLOCK methods.
+/// Standard HTTP methods (GET, HEAD, PUT, POST) are delegated to KWebServer.
+/// @note Symlinks inside the document root are followed by design. Ensure that the document
+/// root and its contents do not contain symlinks pointing outside the intended directory tree.
 class DEKAF2_PUBLIC KWebDAV
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -66,7 +68,7 @@ class DEKAF2_PUBLIC KWebDAV
 public:
 //------
 
-	/// Serve a WebDAV-specific request (PROPFIND, MKCOL, COPY, MOVE, OPTIONS).
+	/// Serve a WebDAV-specific request (PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, DELETE, OPTIONS, LOCK, UNLOCK).
 	/// Throws KHTTPError on failure.
 	/// @param HTTP the REST server instance
 	/// @param sDocumentRoot the filesystem root path

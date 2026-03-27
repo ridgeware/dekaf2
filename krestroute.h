@@ -319,6 +319,9 @@ public:
 	ParserType   Parser { JSON }; ///< the requested input parser, defaults to JSON
 	Options      Option;          ///< options used before calling the callback
 	KJSON        Config;          ///< any configuration to pass on to the callback
+	/// Maximum request body size in bytes for this route. -1 = use global default
+	/// from KRESTServer::Options::iMaxRequestBodySize. 0 = unlimited.
+	std::streamsize iMaxRequestBodySize { -1 };
 
 }; // KRESTRoute
 
@@ -491,8 +494,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Add a WebDAV Class 1 server for file-based network storage (like a network drive).
-	/// Supports PROPFIND, MKCOL, COPY, MOVE, OPTIONS plus standard GET, PUT, DELETE, HEAD.
+	/// Add a WebDAV Class 2 server for file-based network storage (like a network drive).
+	/// Supports PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, DELETE, OPTIONS, LOCK, UNLOCK plus standard GET, HEAD, PUT, POST.
 	/// @param sWWWDir the base directory of the WebDAV server
 	/// @param sRoute a REST route, wildcards allowed: /my/path/*/img/* , minimum ("/*") - no default
 	/// @param Permissions the permissions configuration for directory and user access control

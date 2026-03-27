@@ -196,6 +196,9 @@ public:
 		bool bMicrosecondTimerHeader { false };
 		/// Force pretty printing in release builds, too?
 		bool bPrettyPrint { false };
+		/// Maximum request body size in bytes (default 256 MB). Set to 0 for unlimited.
+		/// Can be overridden per route with KRESTRoute::iMaxRequestBodySize.
+		std::size_t iMaxRequestBodySize { 256 * 1024 * 1024 };
 
 	}; // Options
 

@@ -277,6 +277,7 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 
 	KString sLine;
 	KHeaderMap::iterator last = Headers.end();
+	std::size_t iHeaderCount { 0 };
 
 	while (Stream.ReadLine(sLine, MAX_LINELENGTH + 1))
 	{
@@ -325,11 +326,28 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 			continue;
 		}
 
+		if (++iHeaderCount > MAX_HEADERCOUNT)
+		{
+			return SetError(kFormat("too many HTTP headers: >{}", MAX_HEADERCOUNT));
+		}
+
 		// store
 		KStringView sKey(sLine.ToView(0, pos));
 		KStringView sValue(sLine.ToView(pos + 1, npos));
 		kTrimRight(sKey);
 		kTrim(sValue);
+
+		// reject duplicate Content-Length with different values (RFC 7230 §3.3.3)
+		if (KHTTPHeader::Parse(sKey) == KHTTPHeader::CONTENT_LENGTH)
+		{
+			const auto& sExisting = Headers.Get(KHTTPHeader::CONTENT_LENGTH);
+
+			if (!sExisting.empty() && sExisting != sValue)
+			{
+				return SetError(kFormat("duplicate Content-Length with conflicting values: {} vs {}", sExisting, sValue));
+			}
+		}
+
 		kDebug(2, "{}: {}", sKey, sValue);
 		last = Headers.Add(sKey, sValue);
 	}

@@ -60,6 +60,8 @@ DEKAF2_NAMESPACE_BEGIN
 /// request with Open(). If you want concurrent access from multiple threads on the same pool of files,
 /// then use one instance of KFileServer per thread.
 /// The main purpose of this implementation is to maximise security, and detect invalid requests.
+/// @note Symlinks inside the document root are followed by design. Ensure that the document
+/// root and its contents do not contain symlinks pointing outside the intended directory tree.
 class DEKAF2_PUBLIC KFileServer
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

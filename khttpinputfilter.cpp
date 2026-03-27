@@ -44,8 +44,59 @@
 #include "kstringstream.h"
 #include "kcountingstreambuf.h"
 #include "bits/kiostreams_filters.h"
+#include "khttperror.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// boost::iostreams multichar input filter that limits the number of bytes
+/// passing through. Designed to be pushed as the first filter in the chain,
+/// so it counts decompressed (post-decompression) bytes. Throws
+/// KHTTPError::H4xx_PAYLOAD_TOO_LARGE when the limit is exceeded.
+class KInputLimiter : public boost::iostreams::multichar_input_filter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+public:
+
+	KInputLimiter(std::size_t iMaxSize, bool* pExceeded = nullptr)
+	: m_iMaxSize(iMaxSize)
+	, m_pExceeded(pExceeded)
+	{}
+
+	template<typename Source>
+	std::streamsize read(Source& src, char* s, std::streamsize n)
+	{
+		if (m_iCount >= m_iMaxSize)
+		{
+			// set the flag before throwing - the throw may be swallowed
+			// by the std::istream layer (badbit set, exception lost),
+			// so the caller must also check IsBodySizeLimitExceeded()
+			if (m_pExceeded) *m_pExceeded = true;
+
+			throw KHTTPError { KHTTPError::H4xx_PAYLOAD_TOO_LARGE,
+				kFormat("decompressed request body exceeds size limit of {} bytes", m_iMaxSize) };
+		}
+
+		auto iRemaining = static_cast<std::streamsize>(m_iMaxSize - m_iCount);
+		auto iToRead    = std::min(n, iRemaining);
+		auto iRead      = boost::iostreams::read(src, s, iToRead);
+
+		if (iRead > 0)
+		{
+			m_iCount += static_cast<std::size_t>(iRead);
+		}
+
+		return iRead;
+	}
+
+private:
+
+	std::size_t m_iMaxSize;
+	std::size_t m_iCount { 0 };
+	bool*       m_pExceeded { nullptr };
+
+}; // KInputLimiter
 
 //-----------------------------------------------------------------------------
 bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode, KHTTPVersion HTTPVersion)
@@ -69,6 +120,23 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode, KHT
 	              ? false
 	              : headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING).ToLowerASCII() == "chunked";
 
+	// reject Content-Length + Transfer-Encoding conflict (RFC 7230 §3.3.3)
+	if (m_bChunked && m_iContentSize >= 0)
+	{
+		if (iStatusCode == 0)
+		{
+			// server side: reject the request to prevent request smuggling
+			kDebug(1, "rejecting request with both Content-Length and Transfer-Encoding headers");
+			return false;
+		}
+		else
+		{
+			// client side: Transfer-Encoding takes precedence, ignore Content-Length
+			kDebug(1, "ignoring Content-Length in response with Transfer-Encoding: chunked");
+			m_iContentSize = -1;
+		}
+	}
+
 	KHTTPCompression::Parse(headers);
 
 	return true;
@@ -83,6 +151,12 @@ bool KInHTTPFilter::SetupInputFilter()
 	// the user the chance to switch off compression AFTER reading
 	// the headers
 	m_Filter = std::make_unique<boost::iostreams::filtering_istream>();
+
+	if (m_iMaxBodySize > 0)
+	{
+		kDebug (3, "limiting decompressed input to {} bytes", m_iMaxBodySize);
+		m_Filter->push(KInputLimiter(m_iMaxBodySize, &m_bBodySizeLimitExceeded));
+	}
 
 	if (m_bAllowUncompression)
 	{

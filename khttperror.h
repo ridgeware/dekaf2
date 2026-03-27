@@ -93,6 +93,7 @@ public:
 		H4xx_CONFLICT           = 409,
 		H4xx_GONE               = 410,
 		H4xx_PRECONDITION_FAILED   = 412,
+		H4xx_PAYLOAD_TOO_LARGE     = 413,
 		H4xx_RANGE_NOT_SATISFIABLE = 416,
 
 		H5xx_ERROR              = 500,

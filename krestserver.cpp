@@ -494,6 +494,35 @@ void KRESTServer::Parse()
 {
 	kAppendCrashContext("content parsing", ": ");
 
+	// per-route override (-1 = use global), 0 = unlimited
+	std::size_t iMaxBodySize = (Route->iMaxRequestBodySize >= 0)
+		? static_cast<std::size_t>(Route->iMaxRequestBodySize)
+		: m_Options.iMaxRequestBodySize;
+
+	// enforce request body size limit (skip for NOREAD routes)
+	if (Route->Parser != KRESTRoute::NOREAD && iMaxBodySize > 0)
+	{
+		const auto& sCL = Request.Headers.Get(KHTTPHeader::CONTENT_LENGTH);
+
+		if (!sCL.empty())
+		{
+			auto iContentLength = sCL.UInt64();
+
+			if (iContentLength > iMaxBodySize)
+			{
+				throw KHTTPError { KHTTPError::H4xx_PAYLOAD_TOO_LARGE,
+					kFormat("request body too large: {} bytes, limit is {} bytes",
+							iContentLength, iMaxBodySize) };
+			}
+		}
+
+		// set the decompressed body size limit on the input filter -
+		// this catches decompression bombs and chunked transfers without
+		// Content-Length. Must be set before the first read, which
+		// triggers lazy creation of the filter chain.
+		Request.SetMaxBodySize(iMaxBodySize);
+	}
+
 	switch (Route->Parser)
 	{
 		case KRESTRoute::NOREAD:
@@ -592,6 +621,15 @@ void KRESTServer::Parse()
 		}
 		break;
 
+	}
+
+	// check if the decompressed body size limit was exceeded during reading -
+	// the exception thrown by KInputLimiter may have been swallowed by the
+	// std::istream layer (badbit set, exception lost), so we check the flag
+	if (Request.IsBodySizeLimitExceeded())
+	{
+		throw KHTTPError { KHTTPError::H4xx_PAYLOAD_TOO_LARGE,
+			kFormat("decompressed request body exceeds size limit of {} bytes", iMaxBodySize) };
 	}
 
 } // Parse

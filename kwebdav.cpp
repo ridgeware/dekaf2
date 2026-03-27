@@ -384,7 +384,10 @@ void AddPropfindEntry(KXMLNode& Multistatus, KStringView sHref, const KFileStat&
 } // AddPropfindEntry
 
 //-----------------------------------------------------------------------------
-/// parse the Depth header value, returns 0, 1, or a large value for infinity
+/// maximum depth for recursive PROPFIND to prevent DoS on large directory trees
+static constexpr uint32_t MAX_PROPFIND_DEPTH { 5 };
+
+/// parse the Depth header value, capped at MAX_PROPFIND_DEPTH
 uint32_t ParseDepth(const KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
@@ -392,15 +395,18 @@ uint32_t ParseDepth(const KRESTServer& HTTP)
 
 	if (sDepth.empty() || sDepth == dav::infinity)
 	{
-		return std::numeric_limits<uint32_t>::max();
+		return MAX_PROPFIND_DEPTH;
 	}
 
-	if (sDepth == "0") return 0;
-	if (sDepth == "1") return 1;
+	auto iDepth = sDepth.UInt32();
 
-	kDebug(1, "invalid Depth header value: {}", sDepth);
+	if (iDepth > MAX_PROPFIND_DEPTH)
+	{
+		kDebug(2, "Depth: {} requested, capping at {}", iDepth, MAX_PROPFIND_DEPTH);
+		return MAX_PROPFIND_DEPTH;
+	}
 
-	return 0;
+	return iDepth;
 
 } // ParseDepth
 

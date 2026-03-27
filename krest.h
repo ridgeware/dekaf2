@@ -54,6 +54,11 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// HTTP REST service implementation. Provides a thread-per-connection server with configurable
+/// timeouts, keep-alive limits, and request body size limits.
+/// @note For production deployments exposed to untrusted networks, it is recommended to place
+/// a reverse proxy (e.g. caddy, nginx, HAProxy) in front of this server for additional connection
+/// management, rate limiting, and Slowloris/slow-read protection.
 class DEKAF2_PUBLIC KREST : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

@@ -491,7 +491,16 @@ bool KInHTTPRequest::Parse()
 	}
 
 	// analyze the headers for the filter chain
-	return KInHTTPFilter::Parse(*this, 0, GetHTTPVersion());
+	if (!KInHTTPFilter::Parse(*this, 0, GetHTTPVersion()))
+	{
+		if (Error().empty())
+		{
+			return SetError("conflicting Content-Length and Transfer-Encoding headers");
+		}
+		return false;
+	}
+
+	return true;
 
 } // Parse
 

@@ -93,6 +93,13 @@ void KRESTServer::Options::AddTrustedProxies(KStringView sProxies)
 } // AddTrustedProxies
 
 //-----------------------------------------------------------------------------
+void KRESTServer::Options::SetRateLimit(double dRequestsPerSecond, uint16_t iBurstSize)
+//-----------------------------------------------------------------------------
+{
+	RateLimiter = std::make_shared<KRateLimiter>(dRequestsPerSecond, iBurstSize);
+}
+
+//-----------------------------------------------------------------------------
 KRESTServer::KRESTServer(const KRESTRoutes& Routes,
 						 const Options&     options)
 //-----------------------------------------------------------------------------
@@ -733,6 +740,13 @@ bool KRESTServer::Execute()
 			if (!m_Options.bServiceIsReady)
 			{
 				throw KHTTPError { KHTTPError::H5xx_UNAVAILABLE, "service unavailable" };
+			}
+
+			// per-IP rate limiting (no-op when RateLimiter is null or disabled)
+			if (m_Options.RateLimiter && !m_Options.RateLimiter->Check(GetRemoteIP()))
+			{
+				throw KHTTPError { KHTTPError::H4xx_TOOMANYREQUESTS,
+					m_Options.RateLimiter->GetLastError() };
 			}
 
 			Response.SetStatus(200, "OK");

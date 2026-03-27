@@ -1599,6 +1599,7 @@ set (SOURCES
 	krestclient.cpp
 	krestroute.cpp
 	krestserver.cpp
+	kratelimiter.cpp
 	kron.cpp
 	krow.cpp
 	krsa.cpp

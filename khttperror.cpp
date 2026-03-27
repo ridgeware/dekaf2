@@ -118,6 +118,7 @@ KStringView KHTTPError::GetStatusString(uint16_t iStatusCode)
 		case H4xx_PRECONDITION_FAILED:   return "PRECONDITION FAILED";
 		case H4xx_PAYLOAD_TOO_LARGE:     return "PAYLOAD TOO LARGE";
 		case H4xx_RANGE_NOT_SATISFIABLE: return "RANGE NOT SATISFIABLE";
+		case H4xx_TOOMANYREQUESTS:       return "TOO MANY REQUESTS";
 
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// HTTP 500s: server-side problems

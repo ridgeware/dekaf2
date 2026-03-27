@@ -107,6 +107,7 @@ set (USOURCES
 	krest_tests.cpp
 	krestclient_tests.cpp
 	krestserver_tests.cpp
+	kratelimiter_tests.cpp
 	kron_tests.cpp
 	krow_tests.cpp
 	krsa_tests.cpp

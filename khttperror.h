@@ -95,6 +95,7 @@ public:
 		H4xx_PRECONDITION_FAILED   = 412,
 		H4xx_PAYLOAD_TOO_LARGE     = 413,
 		H4xx_RANGE_NOT_SATISFIABLE = 416,
+		H4xx_TOOMANYREQUESTS       = 429,
 
 		H5xx_ERROR              = 500,
 		H5xx_NOTIMPL            = 501,

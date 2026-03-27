@@ -54,6 +54,7 @@
 #include "khttplog.h"
 #include "kwebsocket.h"
 #include "kipnetwork.h"
+#include "kratelimiter.h"
 #include <utility>
 #include <vector>
 #include <memory>
@@ -132,6 +133,14 @@ public:
 		/// .AddTrustedProxies("192.168.1.0/24,10.10.12.0,fc00:ad23:fe54::9921:0000/112");
 		/// @endcode
 		void AddTrustedProxies(KStringView sProxies);
+		/// Enable per-IP rate limiting with a token bucket algorithm.
+		/// @param dRequestsPerSecond maximum sustained request rate per client IP
+		/// @param iBurstSize maximum burst capacity (number of requests). Must be >= 1.
+		/// @code
+		/// .SetRateLimit(10.0, 20);  // 10 req/s sustained, burst of 20
+		/// .SetRateLimit(100.0);     // 100 req/s, default burst of 10
+		/// @endcode
+		void SetRateLimit(double dRequestsPerSecond, uint16_t iBurstSize = 10);
 		/// Configure the KHTTPLog object with its Open() method
 		KHTTPLog Logger;
 		/// Fixed route prefix
@@ -199,6 +208,10 @@ public:
 		/// Maximum request body size in bytes (default 256 MB). Set to 0 for unlimited.
 		/// Can be overridden per route with KRESTRoute::iMaxRequestBodySize.
 		std::size_t iMaxRequestBodySize { 256 * 1024 * 1024 };
+		/// Rate limiter shared across all connections. Set to a non-null shared_ptr
+		/// with a configured KRateLimiter to enable per-IP request throttling.
+		/// When null (the default), rate limiting is completely disabled with zero overhead.
+		std::shared_ptr<KRateLimiter> RateLimiter;
 
 	}; // Options
 

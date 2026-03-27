@@ -66,9 +66,7 @@ class DEKAF2_PUBLIC KWebServerPermissions
 public:
 //------
 
-	using Perms = uint16_t;
-
-	enum Permission : Perms
+	enum Permission
 	{
 		None      = 0,
 		Read      = 1 << 0,  // GET, HEAD
@@ -80,6 +78,10 @@ public:
 
 	/// default constructor - default permission is READ | BROWSE
 	KWebServerPermissions() = default;
+
+	/// construct with explicit default permissions
+	/// @param iDefaultPerms the permission flags to use as default
+	KWebServerPermissions(Permission iDefaultPerms) : m_DefaultPerms(iDefaultPerms) {}
 
 	/// construct from a JSON configuration object.
 	/// reads "permissions" (default permissions string) and "directories" (object with path:permissions pairs)
@@ -93,15 +95,15 @@ public:
 	/// add a single directory permission entry
 	/// @param sPath the directory path (prefix match)
 	/// @param iPerms the permission flags
-	void AddDirectoryPermission(KString sPath, Perms iPerms);
+	void AddDirectoryPermission(KString sPath, Permission iPerms);
 
 	/// set the default permissions that apply when no directory-specific entry matches
 	/// @param iPerms the permission flags
-	void SetDefaultPermissions(Perms iPerms) { m_DefaultPerms = iPerms; }
+	void SetDefaultPermissions(Permission iPerms) { m_DefaultPerms = iPerms; }
 
 	/// get the default permissions
 	DEKAF2_NODISCARD
-	Perms GetDefaultPermissions() const { return m_DefaultPerms; }
+	Permission GetDefaultPermissions() const { return m_DefaultPerms; }
 
 	/// add a user entry from a configuration string.
 	/// format: user:password:/path:permissions
@@ -134,7 +136,7 @@ public:
 	/// @param sPath the request path
 	/// @return the effective permission flags
 	DEKAF2_NODISCARD
-	Perms Resolve(KStringView sUsername, KStringView sPath) const;
+	Permission Resolve(KStringView sUsername, KStringView sPath) const;
 
 	/// check if a specific HTTP method is allowed for a user on a path
 	/// @param sUsername the authenticated username (empty if no auth)
@@ -148,25 +150,25 @@ public:
 	/// @param sPath the request path
 	/// @return the directory permission flags
 	DEKAF2_NODISCARD
-	Perms GetDirectoryPermissions(KStringView sPath) const;
+	Permission GetDirectoryPermissions(KStringView sPath) const;
 
 	/// convert an HTTP method to the required permission flag
 	/// @param Method the HTTP method
 	/// @return the required permission flag(s)
 	DEKAF2_NODISCARD
-	static Perms MethodToPermission(KHTTPMethod Method);
+	static Permission MethodToPermission(KHTTPMethod Method);
 
 	/// parse a permissions string like "read|write|browse" into flags
 	/// @param sPermissions the permissions string
 	/// @return the parsed permission flags
 	DEKAF2_NODISCARD
-	static Perms ParsePermissions(KStringView sPermissions);
+	static Permission ParsePermissions(KStringView sPermissions);
 
 	/// serialize permission flags to a human-readable string
 	/// @param iPerms the permission flags
 	/// @return a string like "read|write|browse"
 	DEKAF2_NODISCARD
-	static KString SerializePermissions(Perms iPerms);
+	static KString SerializePermissions(Permission iPerms);
 
 //------
 private:
@@ -176,21 +178,21 @@ private:
 	{
 		KString sPassword;
 		KString sPath;
-		Perms   iPerms { Read | Browse };
+		Permission iPerms { static_cast<Permission>(Read | Browse) };
 	};
 
 	struct DirEntry
 	{
-		KString sPath;
-		Perms   iPerms { Read | Browse };
+		KString    sPath;
+		Permission iPerms { static_cast<Permission>(Read | Browse) };
 	};
 
 	/// longest-prefix-match lookup in directory permissions
-	Perms LookupDirectory(KStringView sPath) const;
+	Permission LookupDirectory(KStringView sPath) const;
 
 	/// longest-prefix-match lookup in user permissions.
 	/// returns NONE if user not found or no path matches.
-	Perms LookupUser(KStringView sUsername, KStringView sPath) const;
+	Permission LookupUser(KStringView sUsername, KStringView sPath) const;
 
 	// sorted by path length descending (longest first) for prefix matching
 	std::vector<DirEntry> m_DirPerms;
@@ -198,8 +200,10 @@ private:
 	// user entries: key = username, one user can have multiple path entries
 	std::vector<std::pair<KString, UserEntry>> m_Users;
 
-	Perms m_DefaultPerms { Read | Browse };
+	Permission m_DefaultPerms { static_cast<Permission>(Read | Browse) };
 
 }; // KWebServerPermissions
+
+DEKAF2_ENUM_IS_FLAG(KWebServerPermissions::Permission)
 
 DEKAF2_NAMESPACE_END

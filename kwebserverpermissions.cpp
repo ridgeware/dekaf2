@@ -48,10 +48,10 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-KWebServerPermissions::Perms KWebServerPermissions::ParsePermissions(KStringView sPermissions)
+KWebServerPermissions::Permission KWebServerPermissions::ParsePermissions(KStringView sPermissions)
 //-----------------------------------------------------------------------------
 {
-	Perms iPerms = None;
+	Permission iPerms = None;
 
 	for (auto sPart : sPermissions.Split("|"))
 	{
@@ -96,7 +96,7 @@ KWebServerPermissions::Perms KWebServerPermissions::ParsePermissions(KStringView
 } // ParsePermissions
 
 //-----------------------------------------------------------------------------
-KString KWebServerPermissions::SerializePermissions(Perms iPerms)
+KString KWebServerPermissions::SerializePermissions(Permission iPerms)
 //-----------------------------------------------------------------------------
 {
 	if (iPerms == None) return "none";
@@ -120,7 +120,7 @@ KString KWebServerPermissions::SerializePermissions(Perms iPerms)
 } // SerializePermissions
 
 //-----------------------------------------------------------------------------
-KWebServerPermissions::Perms KWebServerPermissions::MethodToPermission(KHTTPMethod Method)
+KWebServerPermissions::Permission KWebServerPermissions::MethodToPermission(KHTTPMethod Method)
 //-----------------------------------------------------------------------------
 {
 	switch (Method)
@@ -188,7 +188,7 @@ void KWebServerPermissions::SetDirectoryPermissions(const KJSON& jConfig)
 } // SetDirectoryPermissions
 
 //-----------------------------------------------------------------------------
-void KWebServerPermissions::AddDirectoryPermission(KString sPath, Perms iPerms)
+void KWebServerPermissions::AddDirectoryPermission(KString sPath, Permission iPerms)
 //-----------------------------------------------------------------------------
 {
 	kDebug(2, "path '{}': {}", sPath, SerializePermissions(iPerms));
@@ -306,7 +306,7 @@ bool KWebServerPermissions::Authenticate(KStringView sUsername, KStringView sPas
 } // Authenticate
 
 //-----------------------------------------------------------------------------
-KWebServerPermissions::Perms KWebServerPermissions::LookupDirectory(KStringView sPath) const
+KWebServerPermissions::Permission KWebServerPermissions::LookupDirectory(KStringView sPath) const
 //-----------------------------------------------------------------------------
 {
 	// longest-prefix-match: m_DirPerms is sorted by path length descending
@@ -329,10 +329,10 @@ KWebServerPermissions::Perms KWebServerPermissions::LookupDirectory(KStringView 
 } // LookupDirectory
 
 //-----------------------------------------------------------------------------
-KWebServerPermissions::Perms KWebServerPermissions::LookupUser(KStringView sUsername, KStringView sPath) const
+KWebServerPermissions::Permission KWebServerPermissions::LookupUser(KStringView sUsername, KStringView sPath) const
 //-----------------------------------------------------------------------------
 {
-	Perms iBestPerms    = None;
+	Permission iBestPerms = None;
 	std::size_t iBestLen = 0;
 	bool  bFound        = false;
 
@@ -370,7 +370,7 @@ KWebServerPermissions::Perms KWebServerPermissions::LookupUser(KStringView sUser
 } // LookupUser
 
 //-----------------------------------------------------------------------------
-KWebServerPermissions::Perms KWebServerPermissions::GetDirectoryPermissions(KStringView sPath) const
+KWebServerPermissions::Permission KWebServerPermissions::GetDirectoryPermissions(KStringView sPath) const
 //-----------------------------------------------------------------------------
 {
 	return LookupDirectory(sPath);
@@ -378,10 +378,10 @@ KWebServerPermissions::Perms KWebServerPermissions::GetDirectoryPermissions(KStr
 } // GetDirectoryPermissions
 
 //-----------------------------------------------------------------------------
-KWebServerPermissions::Perms KWebServerPermissions::Resolve(KStringView sUsername, KStringView sPath) const
+KWebServerPermissions::Permission KWebServerPermissions::Resolve(KStringView sUsername, KStringView sPath) const
 //-----------------------------------------------------------------------------
 {
-	Perms iDirPerms = LookupDirectory(sPath);
+	Permission iDirPerms = LookupDirectory(sPath);
 
 	if (m_Users.empty())
 	{
@@ -395,7 +395,7 @@ KWebServerPermissions::Perms KWebServerPermissions::Resolve(KStringView sUsernam
 		return None;
 	}
 
-	Perms iUserPerms = LookupUser(sUsername, sPath);
+	Permission iUserPerms = LookupUser(sUsername, sPath);
 
 	// effective = intersection
 	return iDirPerms & iUserPerms;
@@ -406,8 +406,8 @@ KWebServerPermissions::Perms KWebServerPermissions::Resolve(KStringView sUsernam
 bool KWebServerPermissions::IsAllowed(KStringView sUsername, KHTTPMethod Method, KStringView sPath) const
 //-----------------------------------------------------------------------------
 {
-	Perms iRequired  = MethodToPermission(Method);
-	Perms iEffective = Resolve(sUsername, sPath);
+	Permission iRequired  = MethodToPermission(Method);
+	Permission iEffective = Resolve(sUsername, sPath);
 
 	return (iEffective & iRequired) == iRequired;
 

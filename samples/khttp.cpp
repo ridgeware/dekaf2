@@ -146,7 +146,7 @@ public:
 		else
 		{
 			// derive defaults from convenience flags
-			KWebServerPermissions::Perms iPerms = KWebServerPermissions::Read;
+			KWebServerPermissions::Permission iPerms = KWebServerPermissions::Read;
 
 			if (bCreateAdHocIndex) iPerms |= KWebServerPermissions::Browse;
 			if (bAllowUpload)      iPerms |= KWebServerPermissions::Write | KWebServerPermissions::Erase;

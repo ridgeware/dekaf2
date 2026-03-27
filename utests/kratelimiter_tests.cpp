@@ -93,7 +93,7 @@ TEST_CASE("KRateLimiter")
 		auto tNow = KSteadyTime::now();
 
 		CHECK_NOTHROW ( limiter.Check("10.0.0.1", tNow) );
-		CHECK_THROWS_AS ( limiter.Check("10.0.0.1", tNow), KException );
+		CHECK_THROWS_AS ( limiter.Check("10.0.0.1", tNow), const KException& );
 	}
 
 	SECTION("cleanup removes stale buckets")

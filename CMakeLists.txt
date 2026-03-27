@@ -1219,6 +1219,7 @@ set(PUBLIC_HEADERS
 	kchunkedtransfer.h
 	kcompatibility.h
 	kcompression.h
+	kconnectionlimiter.h
 	kcookie.h
 	kcountingstreambuf.h
 	kcrashexit.h
@@ -1307,6 +1308,7 @@ set(PUBLIC_HEADERS
 	kquicstream.h
 	kquotedprintable.h
 	krandom.h
+	kratelimiter.h
 	kread.h
 	kreader.h
 	kreference_proxy.h

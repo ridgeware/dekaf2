@@ -93,6 +93,9 @@ public:
 		Settings.iMaxConnections      = Options("n <max>               : max parallel connections (default 25)", 25);
 		Settings.iMaxKeepaliveRounds  = Options("keepalive <maxrounds> : max keepalive rounds (default 10, 0 == off)", 10);
 		Settings.iTimeout             = Options("timeout <seconds>     : server timeout (default 5)", 5);
+		double dRateLimit             = Options("ratelimit <req/s>     : per-IP request rate limit (default 0 == off)", 0.0);
+		uint16_t iRateBurst           = Options("rateburst <count>     : rate limit burst size (default 10)", 10);
+		uint16_t iConnLimit           = Options("connlimit <max>       : per-IP max concurrent connections (default 0 == off)", 0);
 		Settings.sCert                = Options("cert <file>           : TLS certificate filepath (.pem), defaults to self-signed ephemeral cert", "");
 		Settings.sKey                 = Options("key <file>            : TLS private key filepath (.pem), defaults to ephemeral key", "");
 		Settings.bStoreEphemeralCert  = Options("persist               : should a self-signed cert be persisted to disk and reused at next start?", false);
@@ -134,6 +137,9 @@ public:
 		Settings.bMicrosecondTimerHeader = true;
 		// and its name is x-microseconds
 		Settings.TimerHeader = "x-microseconds";
+
+		if (dRateLimit > 0) Settings.SetRateLimit(dRateLimit, iRateBurst);
+		if (iConnLimit > 0) Settings.SetConnectionLimit(iConnLimit);
 
 		// set up permissions
 		KWebServerPermissions Permissions;

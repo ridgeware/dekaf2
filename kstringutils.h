@@ -2142,6 +2142,17 @@ KString kFormBytes (
 	);
 }
 
+/// Parse a size string with optional binary suffix into a byte count.
+/// Supported suffixes (case insensitive): B, K, M, G, T, P, E.
+/// e.g. "256M" -> 268435456, "10k" -> 10240, "1G" -> 1073741824, "0" -> 0
+/// Plain numbers without suffix are returned as-is.
+/// @param sSize the size string to parse
+/// @param iDivisor the multiplier per magnitude, defaults to 1024
+/// @return size in bytes
+/// @throws KException on unknown suffix
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+uint64_t kFromBinarySize(KStringView sSize, uint16_t iDivisor = 1024);
+
 /// @param iNumber the number to transform
 /// @param iPrecision how many digits to retain after the decimal separator (1 by default)
 /// @param sSeparator the separator between the number and the unit, default none

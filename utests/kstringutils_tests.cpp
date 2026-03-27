@@ -2704,4 +2704,43 @@ TEST_CASE("KStringUtils") {
 		}
 		CHECK ( allZero );
 	}
+
+	SECTION("kFromBinarySize")
+	{
+		// empty
+		CHECK ( kFromBinarySize("")  == 0 );
+		// plain numbers
+		CHECK ( kFromBinarySize("0") == 0 );
+		CHECK ( kFromBinarySize("1") == 1 );
+		CHECK ( kFromBinarySize("65536") == 65536 );
+		// B suffix
+		CHECK ( kFromBinarySize("100B") == 100 );
+		CHECK ( kFromBinarySize("100b") == 100 );
+		// K suffix
+		CHECK ( kFromBinarySize("1K")  == 1024 );
+		CHECK ( kFromBinarySize("1k")  == 1024 );
+		CHECK ( kFromBinarySize("10K") == 10240 );
+		// M suffix
+		CHECK ( kFromBinarySize("1M")   == 1024ULL * 1024 );
+		CHECK ( kFromBinarySize("1m")   == 1024ULL * 1024 );
+		CHECK ( kFromBinarySize("256M") == 256ULL * 1024 * 1024 );
+		// G suffix
+		CHECK ( kFromBinarySize("1G")  == 1024ULL * 1024 * 1024 );
+		CHECK ( kFromBinarySize("1g")  == 1024ULL * 1024 * 1024 );
+		CHECK ( kFromBinarySize("2G")  == 2ULL * 1024 * 1024 * 1024 );
+		// T suffix
+		CHECK ( kFromBinarySize("1T")  == 1024ULL * 1024 * 1024 * 1024 );
+		CHECK ( kFromBinarySize("1t")  == 1024ULL * 1024 * 1024 * 1024 );
+		// P suffix
+		CHECK ( kFromBinarySize("1P")  == 1024ULL * 1024 * 1024 * 1024 * 1024 );
+		// E suffix
+		CHECK ( kFromBinarySize("1E")  == 1024ULL * 1024 * 1024 * 1024 * 1024 * 1024 );
+		// SI mode (divisor = 1000)
+		CHECK ( kFromBinarySize("1K", 1000) == 1000 );
+		CHECK ( kFromBinarySize("1M", 1000) == 1000000 );
+		CHECK ( kFromBinarySize("1G", 1000) == 1000000000 );
+		// unknown suffix throws
+		CHECK_THROWS_AS ( kFromBinarySize("10x"), const KException& );
+		CHECK_THROWS_AS ( kFromBinarySize("5Z"), const KException& );
+	}
 }

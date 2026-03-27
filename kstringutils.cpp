@@ -977,6 +977,50 @@ KStringView kWriteUTF8BOM()
 	return KStringView { "\xef\xbb\xbf" };
 }
 
+//-----------------------------------------------------------------------------
+uint64_t kFromBinarySize(KStringView sSize, uint16_t iDivisor)
+//-----------------------------------------------------------------------------
+{
+	if (sSize.empty())
+	{
+		return 0;
+	}
+
+	auto ch = sSize.back();
+
+	if (KASCII::kIsDigit(ch))
+	{
+		return kToInt<uint64_t>(sSize);
+	}
+
+	sSize.remove_suffix(1);
+
+	uint64_t iMultiplier;
+
+	switch (KASCII::kToUpper(ch))
+	{
+		case 'B': iMultiplier = 1;
+			break;
+		case 'K': iMultiplier = iDivisor;
+			break;
+		case 'M': iMultiplier = static_cast<uint64_t>(iDivisor) * iDivisor;
+			break;
+		case 'G': iMultiplier = static_cast<uint64_t>(iDivisor) * iDivisor * iDivisor;
+			break;
+		case 'T': iMultiplier = static_cast<uint64_t>(iDivisor) * iDivisor * iDivisor * iDivisor;
+			break;
+		case 'P': iMultiplier = static_cast<uint64_t>(iDivisor) * iDivisor * iDivisor * iDivisor * iDivisor;
+			break;
+		case 'E': iMultiplier = static_cast<uint64_t>(iDivisor) * iDivisor * iDivisor * iDivisor * iDivisor * iDivisor;
+			break;
+		default:
+			throw KException(kFormat("unknown size suffix '{}' - use B, K, M, G, T, P, or E", ch));
+	}
+
+	return kToInt<uint64_t>(sSize) * iMultiplier;
+
+} // kFromBinarySize
+
 namespace detail
 {
 

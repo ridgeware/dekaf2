@@ -643,7 +643,10 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// generate error output
 	/// @param ex the exception with the error status
-	void ErrorHandler(const std::exception& ex);
+	/// @param bKeepAlive if true, only prepares the error response and lets Output() handle
+	/// the actual output, preserving the keep-alive connection. If false (default), writes
+	/// the error response directly and closes the connection.
+	void ErrorHandler(const std::exception& ex, bool bKeepAlive = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

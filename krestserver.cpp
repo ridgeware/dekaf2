@@ -916,24 +916,9 @@ bool KRESTServer::Execute()
 				else if (ex.GetHTTPStatusCode() < 500 && Request.IsInputConsumed())
 				{
 					// 4xx errors with fully consumed request body are safe
-					// for keepalive - they are application level errors that
-					// do not corrupt the connection state (e.g. WebDAV 404
-					// for non-existing resources)
-					Response.SetStatus(ex.GetHTTPStatusCode(), ex.GetHTTPStatusString());
-
-					if (json.tx.empty() && Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::HTML_UTF8)
-					{
-						// for HTML routes, generate the same HTML error page
-						// that ErrorHandler would produce
-						SetRawOutput(kFormat("<html><head>HTTP Error {}</head><body><h2>{} {} </h2></body></html>\n",
-						                     ex.GetHTTPStatusCode(),
-						                     ex.GetHTTPStatusCode(),
-						                     ex.what()));
-					}
-					else
-					{
-						SetMessage(ex.what());
-					}
+					// for keepalive - clean up partially built handler output
+					// and prepare the error response, then let Output() send it
+					ErrorHandler(ex, true);
 				}
 				else
 				{
@@ -1197,14 +1182,6 @@ void KRESTServer::Output()
 	// only allow output compression if this is HTTP mode and if we allow compression and have content
 	ConfigureCompression(m_Options.Out == HTTP && m_Options.bAllowCompression && bOutputContent);
 
-    if (Request.Method == KHTTPMethod::HEAD)
-	{
-		// HEAD requests show all headers as if it were a GET request (therefore we configure
-		// compression above before switching the output off. There may even exist a
-		// Content-Length header, but the response body has to be empty!
-		bOutputContent = false;
-	}
-
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
 	switch (m_Options.Out)
@@ -1279,6 +1256,14 @@ void KRESTServer::Output()
 			}
 
 			WriteHeaders();
+
+			if (bOutputContent && Request.Method == KHTTPMethod::HEAD)
+			{
+				// HEAD requests show all headers as if it were a GET request (therefore we
+				// serialize above to compute Content-Length). But the response body has
+				// to be empty!
+				bOutputContent = false;
+			}
 
 			if (bOutputContent)
 			{
@@ -1489,7 +1474,7 @@ void KRESTServer::xml_t::clear()
 } // clear
 
 //-----------------------------------------------------------------------------
-void KRESTServer::ErrorHandler(const std::exception& ex)
+void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 //-----------------------------------------------------------------------------
 {
 	// avoid switching to the websocket protocol on a failed connection
@@ -1512,10 +1497,6 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 		Response.SetStatus(KHTTPError::H5xx_ERROR);
 	}
 
-	// we need to set the HTTP version here explicitly, as we could throw as early
-	// that no version is set - which will corrupt headers and body..
-	Response.SetHTTPVersion(KHTTPVersion::http11);
-
 	KString sError = ex.what();
 
 	if (sError.empty())
@@ -1530,28 +1511,87 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 		return;
 	}
 
+	// clean up partially built output from the route handler -
+	// we must not send incomplete data to the client
 	m_iContentLength = 0;
+	m_sMessage.clear();
+	m_sRawOutput.clear();
+	m_Stream.reset();
+	xml.tx.clear();
 
-	// do not compress/chunk error messages
-	ConfigureCompression(false);
-
-	KJSON EmptyJSON;
+	KJSON CleanJSON;
 
 	if (!m_Options.KLogHeader.empty())
 	{
-		// finally switch logging off if enabled
-		KLog::getInstance().LogThisThreadToKLog(-1);
-
 		// and check if there is a json klog output
 		auto it = json.tx.find("klog");
 		if (it != json.tx.end() && !it->empty())
 		{
 			// yes, save the klog
-			EmptyJSON["klog"] = std::move(*it);
+			CleanJSON["klog"] = std::move(*it);
 		}
 	}
 
-	json.tx = std::move(EmptyJSON);
+	json.tx = std::move(CleanJSON);
+
+	// build the error response
+	bool bIs3xx = Response.GetStatusCode() / 100 == 3;
+
+	if (bIs3xx)
+	{
+		Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
+	}
+	else if (json.tx.empty() &&
+			 Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::HTML_UTF8)
+	{
+		// write the error message as an HTML page if there is no
+		// JSON error output and the content type is HTML
+		// warning: when using clang's std::format, the below throws a format error when
+		// the {} and </h2> are directly adjacent (no space).
+		m_sRawOutput = kFormat("<html><head>HTTP Error {}</head><body><h2>{} {} </h2></body></html>\n",
+		                       Response.GetStatusCode(),
+		                       Response.GetStatusCode(),
+		                       sError);
+	}
+	else
+	{
+		// write the error message as a json struct - reset content-type
+		// to JSON in case the route handler had changed it (e.g. to XML)
+		Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::JSON);
+
+		if (sError.empty())
+		{
+			json.tx["message"] = Response.sStatusString;
+		}
+		else
+		{
+			json.tx["message"] = sError;
+		}
+	}
+
+	if (bKeepAlive)
+	{
+		// let Output() handle headers, compression, and content -
+		// the error response is now fully prepared in json.tx or
+		// m_sRawOutput and can be sent through the normal output path
+		return;
+	}
+
+	// --- non-keepalive: write directly and close ---
+
+	// we need to set the HTTP version here explicitly, as we could throw as early
+	// that no version is set - which will corrupt headers and body..
+	Response.SetHTTPVersion(KHTTPVersion::http11);
+
+	// do not compress/chunk error messages on connection close
+	ConfigureCompression(false);
+
+	if (!m_Options.KLogHeader.empty())
+	{
+		// switch off per-thread logging when closing the connection,
+		// for keepalive Output()/WriteHeaders() handles this
+		KLog::getInstance().LogThisThreadToKLog(-1);
+	}
 
 	switch (m_Options.Out)
 	{
@@ -1559,33 +1599,14 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 		{
 			KString sContent;
 
-			// do not create a response body for 3xx responses
-			if (Response.GetStatusCode() / 100 != 3)
+			if (!bIs3xx)
 			{
-				if (json.tx.empty() &&
-					Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::HTML_UTF8)
+				if (!m_sRawOutput.empty())
 				{
-					// write the error message as an HTML page if there is no
-					// JSON error output and the content type is HTML
-					// warning: when using clang's std::format, the below throws a format error when
-					// the {} and </h2> are directly adjacent (no space).
-					sContent = kFormat("<html><head>HTTP Error {}</head><body><h2>{} {} </h2></body></html>\n",
-					                   Response.GetStatusCode(),
-					                   Response.GetStatusCode(),
-					                   sError);
+					sContent = std::move(m_sRawOutput);
 				}
 				else
 				{
-					// write the error message as a json struct
-					if (sError.empty())
-					{
-						json.tx["message"] = Response.sStatusString;
-					}
-					else
-					{
-						json.tx["message"] = sError;
-					}
-
 					sContent = json.tx.dump(iJSONPretty, '\t');
 
 					// ensure that all JSON responses end in a newline:
@@ -1594,10 +1615,6 @@ void KRESTServer::ErrorHandler(const std::exception& ex)
 						sContent += '\n';
 					}
 				}
-			}
-			else
-			{
-				Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
 			}
 
 			m_iContentLength = sContent.size();

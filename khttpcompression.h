@@ -127,10 +127,12 @@ public:
 	static KStringViewZ GetImplementedCompressors() { return s_sSupportedCompressors; }
 	/// return best supported HTTP compression from a comma separated list of compressor names
 	/// @param sCompressors comma separated list of compressor names
-	static COMP         GetBestSupportedCompressor(KStringView sCompressors);
+	/// @param Excluded set of compressors to exclude from selection (default NONE = no exclusion)
+	static COMP         GetBestSupportedCompressor(KStringView sCompressors, COMP Excluded = NONE);
 	/// return best supported HTTP compression from KHTTPHeaders
 	/// @param Headers HTTP headers. ACCEPT-ENCODING header will be read for a comma separated list of compressor names
-	static COMP         GetBestSupportedCompressor(const KHTTPHeaders& Headers);
+	/// @param Excluded set of compressors to exclude from selection (default NONE = no exclusion)
+	static COMP         GetBestSupportedCompressor(const KHTTPHeaders& Headers, COMP Excluded = NONE);
 	/// return compression algorithm from name
 	static COMP         FromString(KStringView);
 	/// return compression name from algorithm

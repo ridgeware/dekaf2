@@ -108,7 +108,7 @@ void KHTTPCompression::Parse(const KHTTPHeaders& Headers)
 } // Parse
 
 //-----------------------------------------------------------------------------
-KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompressor(KStringView sCompressors)
+KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompressor(KStringView sCompressors, COMP Excluded)
 //-----------------------------------------------------------------------------
 {
 	COMP Compression = NONE;
@@ -124,7 +124,7 @@ KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompressor(KStringView 
 
 		auto NewComp = FromString(sCompressor);
 
-		if (NewComp < Compression && (NewComp & s_PermittedCompressors) == NewComp)
+		if (NewComp < Compression && (NewComp & s_PermittedCompressors) == NewComp && (NewComp & Excluded) == 0)
 		{
 			Compression = NewComp;
 		}
@@ -135,10 +135,10 @@ KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompressor(KStringView 
 } // GetBestSupportedCompressor
 
 //-----------------------------------------------------------------------------
-KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompressor(const KHTTPHeaders& Headers)
+KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompressor(const KHTTPHeaders& Headers, COMP Excluded)
 //-----------------------------------------------------------------------------
 {
-	return GetBestSupportedCompressor(Headers.Headers.Get(KHTTPHeader::ACCEPT_ENCODING));
+	return GetBestSupportedCompressor(Headers.Headers.Get(KHTTPHeader::ACCEPT_ENCODING), Excluded);
 
 } // GetBestSupportedCompressor
 

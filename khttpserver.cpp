@@ -343,6 +343,33 @@ void KHTTPServer::EnableCompressionIfPossible()
 		return;
 	}
 
+#ifdef DEKAF2_HAS_LIBZSTD
+	// Safari has a bug with zstd + chunked transfer encoding over TLS in HTTP/1.1
+	// (HTTP/2 and plain HTTP work fine). Detect Safari and exclude zstd, falling
+	// back to brotli or gzip. Remove this workaround when Apple fixes the bug.
+	if (sCompression == "zstd" && Request.GetHTTPVersion() < KHTTPVersion::http2)
+	{
+		auto sUserAgent = Request.Headers.Get(KHTTPHeader::USER_AGENT);
+
+		if (sUserAgent.contains("Safari/") && !sUserAgent.contains("Chrome/") && !sUserAgent.contains("Chromium/"))
+		{
+			auto Compression = KHTTPCompression::GetBestSupportedCompressor(
+				Request.Headers.Get(KHTTPHeader::ACCEPT_ENCODING),
+				KHTTPCompression::ZSTD
+			);
+
+			sCompression = KHTTPCompression::ToString(Compression);
+
+			if (sCompression.empty())
+			{
+				return;
+			}
+
+			kDebug(2, "Safari detected, excluding zstd, using {}", sCompression);
+		}
+	}
+#endif
+
 	Response.Headers.Set (KHTTPHeader::CONTENT_ENCODING, sCompression);
 
 	// for compression, we need to switch to chunked transfer, as we do not know

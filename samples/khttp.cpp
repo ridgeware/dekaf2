@@ -174,11 +174,11 @@ public:
 		// set up basic authentication if users are configured
 		if (Permissions.HasUsers())
 		{
-			Settings.PreRouteCallback = [&Permissions](KRESTServer& HTTP)
+			Settings.PreRouteCallback = [](KRESTServer& HTTP)
 			{
 				auto Basic = HTTP.Request.GetBasicAuthParms();
 
-				if (!Permissions.Authenticate(Basic.sUsername, Basic.sPassword))
+				if (!HTTP.GetRoutes().GetWebServerPermissions().Authenticate(Basic.sUsername, Basic.sPassword))
 				{
 					HTTP.Response.Headers.Set(KHTTPHeader::WWW_AUTHENTICATE, "Basic realm=\"KHTTP\"");
 					throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "not authorized" };

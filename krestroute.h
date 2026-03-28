@@ -670,6 +670,16 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Get the web server permissions configuration
+	/// @return const reference to the KWebServerPermissions object
+	DEKAF2_NODISCARD
+	const KWebServerPermissions& GetWebServerPermissions() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_WebServerPermissions;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Return detailed statistics on each route
 	/// @return a KJSON object with detailed usage and performance statistics on each route
 	DEKAF2_NODISCARD

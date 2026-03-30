@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_strings
+/// @{
+
 //-----------------------------------------------------------------------------
 /// Simplified version for single delimiter char.
 /// Splits string into token container using one delimiter. Container is a sequence, like a vector.
@@ -984,5 +987,8 @@ Container kSplitsArgs (KStringView svBuffer)
 	kSplitArgs(cContainer, svBuffer);
 	return cContainer;
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

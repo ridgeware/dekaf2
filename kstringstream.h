@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_streams
+/// @{
+
 namespace detail {
 
 //-----------------------------------------------------------------------------
@@ -158,5 +161,8 @@ protected:
 
 /// String stream that reads and writes copy-free from and into a KString
 using KStringStream    = KReaderWriter<KIOStringStream>;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

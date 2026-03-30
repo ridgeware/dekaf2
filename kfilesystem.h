@@ -64,6 +64,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup system_filesystem
+/// @{
+
 enum DefaultFileCeateFlags
 {
 	DEKAF2_MODE_CREATE_FILE       = 0666,
@@ -1311,5 +1314,8 @@ private:
 	bool       m_bDeleteOnDestruction;
 
 }; // KTempFile
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

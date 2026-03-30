@@ -58,6 +58,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_memory
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A shared pointer implementation that adapts per template instance for
 /// multi/single threading case. Uses perfect forwarding and variadic
@@ -485,5 +488,8 @@ protected:
 	dependant_type m_dep;
 
 }; // KDependant
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

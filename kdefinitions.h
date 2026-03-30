@@ -707,6 +707,9 @@ inline Type& operator Operator (Type& left, Type right) \
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_types
+/// @{
+
 #if (UINTPTR_MAX == 0xffff)
 	#define DEKAF2_IS_16_BITS 1
 	#define DEKAF2_BITS 16
@@ -731,5 +734,8 @@ DEKAF2_NAMESPACE_BEGIN
 
 	// npos is used in dekaf2 as error return for unsigned return types
 	static constexpr std::size_t npos = static_cast<std::size_t>(-1);
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

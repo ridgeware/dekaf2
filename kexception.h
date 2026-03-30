@@ -50,6 +50,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_errors
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Basic dekaf2 exception class inheriting from std::runtime_error, and adding
 /// a uint16_t error code. Can also be used for error returns.
@@ -110,5 +113,8 @@ protected:
 }; // KException
 
 using KError = KException;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

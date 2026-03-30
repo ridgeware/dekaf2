@@ -50,6 +50,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_sequential
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// class to manage line history in memory and on disk
 class KHistory
@@ -125,5 +128,8 @@ private:
 	bool     m_bHaveStash        { false };
 
 }; // KHistory
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

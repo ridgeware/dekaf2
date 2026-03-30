@@ -55,6 +55,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup threading_execution
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Runs a number of threads that call a given function. The number of threads
 /// is automatically set to the number of processor cores if no count is given.
@@ -346,5 +349,8 @@ void kParallelForEach(Container& c,
 	                 iMaxThreads,
 	                 std::forward<Progress>(p));
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

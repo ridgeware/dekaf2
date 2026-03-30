@@ -49,6 +49,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_memory
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// template to store Values that can always be dereferenced from the same address
 template <class Storage, bool bDeduplicate = true>
@@ -225,5 +228,8 @@ public:
 	}
 
 }; // KPersistStrings
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

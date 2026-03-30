@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file khtmlparser.h
 #include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
@@ -50,6 +52,9 @@
 #include <set>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup web_html
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Interface
@@ -770,5 +775,8 @@ DEKAF2_NAMESPACE_BEGIN
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
 #else
+
+/// @}
+
 DEKAF2_NAMESPACE_END
 #endif

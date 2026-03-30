@@ -42,11 +42,16 @@
 
 #pragma once
 
+
+/// @file kstreambuf.h
 #include "kdefinitions.h"
 #include <streambuf>
 #include <array>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup io_streams
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a streambuf that reads from /dev/null and writes to /dev/null (and is fast at it)
@@ -406,5 +411,8 @@ private:
 	static_assert(STREAMBUFSIZE - DIRECTWRITE >= DIRECTWRITE, "buffer size has to be at least twice as large as the direct write threshold");
 
 }; // KBufferedStreamBuf
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

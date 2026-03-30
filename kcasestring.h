@@ -41,12 +41,17 @@
 
 #pragma once
 
+
+/// @file kcasestring.h
 #include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringutils.h"
 #include "kcaseless.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup core_strings
+/// @{
 
 namespace detail {
 namespace casestring {
@@ -406,6 +411,9 @@ DEKAF2_NAMESPACE_BEGIN
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
 #else
+
+/// @}
+
 DEKAF2_NAMESPACE_END
 #endif
 

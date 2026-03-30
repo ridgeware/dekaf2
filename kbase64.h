@@ -42,11 +42,16 @@
 
 #pragma once
 
+
+/// @file kbase64.h
 #include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup crypto_encoding
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base64 with standard character set (not URL safe), padding appended, linebreaks
@@ -96,5 +101,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 }; // KBase64Url
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

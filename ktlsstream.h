@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_tls
+/// @{
+
 namespace detail {
 
 template<typename StreamType>
@@ -346,6 +349,9 @@ std::unique_ptr<KTLSClient> CreateKTLSClient();
 DEKAF2_PUBLIC
 std::unique_ptr<KTLSClient> CreateKTLSClient(const KTCPEndPoint& EndPoint, KStreamOptions Options);
 //-----------------------------------------------------------------------------
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

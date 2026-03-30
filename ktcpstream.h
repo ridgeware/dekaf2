@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_tcp
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream TCP implementation with timeout.
 class DEKAF2_PUBLIC KTCPStream : public KIOStreamSocket
@@ -204,5 +207,8 @@ std::unique_ptr<KTCPStream> CreateKTCPStream(KDuration Timeout = KStreamOptions:
 DEKAF2_PUBLIC
 std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, KStreamOptions Options);
 //-----------------------------------------------------------------------------
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

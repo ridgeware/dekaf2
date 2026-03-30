@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file kuseragent.h
 #include "kdefinitions.h"
 
 #if DEKAF2_HAS_USER_AGENT_PARSER
@@ -49,6 +51,9 @@
 #include "kstring.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup web_url
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// parse a http user agent header to obtain information like browser maker, version, OS, device category
@@ -221,6 +226,9 @@ private:
 }; // KHTTPUserAgent
 
 DEKAF2_ENUM_IS_FLAG(KHTTPUserAgent::Parsed)
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

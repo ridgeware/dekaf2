@@ -55,6 +55,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_associative
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KMRU base type for non-maps
 template <typename Element, typename Key = Element, bool IsMap = false>
@@ -336,6 +339,9 @@ public:
 	    : base_type(iMaxElements)
 	{}
 };
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

@@ -56,6 +56,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_server
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KInHTTPFilter : public KHTTPCompression
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -212,6 +215,9 @@ private:
 	bool            m_bBodySizeLimitExceeded { false };
 
 }; // KInHTTPFilter
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

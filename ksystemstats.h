@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup system_os
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KSystemStats
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -231,5 +234,8 @@ private:
 	void AddIntStatIfFileExists (KStringViewZ sStatName, KStringViewZ  sStatFilePath);
 
 }; // KSystemStats
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

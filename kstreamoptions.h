@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file kstreamoptions.h
 #include "kdefinitions.h"
 #include "kduration.h"
 #include "kstring.h"
@@ -49,6 +51,9 @@
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup io_streams
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// maintaining options for internet streams: TLS settings, ALPN settings, protocol settings, timeout
@@ -273,5 +278,8 @@ bool kGetTCPNoDelay(int socket);
 /// @param bEnable true to disable Nagle's algorithm (enable TCP_NODELAY)
 /// @returns false on failure
 bool kSetTCPNoDelay(int socket, bool bEnable);
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

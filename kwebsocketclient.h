@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_websocket
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// websocket client implementation that connects and upgrades to a http(s) or ws(s) server
 class DEKAF2_PUBLIC KWebSocketClient : protected KWebClient
@@ -172,5 +175,8 @@ protected:
 	KStringView m_sRXBuffer;
 
 }; // KWebSocketClient
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

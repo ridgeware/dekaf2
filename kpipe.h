@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file kpipe.h
 #include "bits/kbasepipe.h"
 
 #ifdef DEKAF2_HAS_PIPES
@@ -48,6 +50,9 @@
 #include "kfdstream.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup io_pipes
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Execute another process and attach pipes to its std::in and std::out
@@ -125,6 +130,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 }; // class KPipe
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

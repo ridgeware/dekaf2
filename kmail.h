@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_mail
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This class takes all information for an email message. It can then be used
 /// as an argument for the KSMTP class, or sent via the convenience Send()
@@ -229,5 +232,8 @@ private:
 	mutable size_t m_iBody { 0 };
 
 }; // KMail
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

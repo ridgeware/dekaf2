@@ -147,6 +147,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_cli
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Option parsing for commandline, ini files, and CGI environments
 class DEKAF2_PUBLIC KOptions
@@ -1023,6 +1026,9 @@ private:
 	mutable bool               m_bProcessAdHocForHelp    {   false };
 
 }; // KOptions
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_types
+/// @{
+
 class KDuration; // we need it for is_duration
 
 namespace detail
@@ -311,5 +314,8 @@ struct is_kstringviewz_assignable
 > {};
 
 } // of namespace detail
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

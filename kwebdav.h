@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup web_objects
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// WebDAV Class 2 implementation for file-based network storage.
 /// Handles PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, DELETE, OPTIONS, LOCK, and UNLOCK methods.
@@ -110,5 +113,8 @@ private:
 	static void Unlock    (KRESTServer& HTTP);
 
 }; // KWebDAV
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

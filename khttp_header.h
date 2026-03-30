@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file khttp_header.h
 #include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
@@ -64,6 +66,9 @@
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup http_protocol
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPHeader
@@ -1165,5 +1170,8 @@ private:
 	uint16_t           m_iTrustedProxyCount { 0 };
 
 }; // KHTTPTrustedRemoteEndpoint
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

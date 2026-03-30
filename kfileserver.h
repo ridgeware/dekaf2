@@ -55,6 +55,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup rest_serving
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Simple file server implementation. This class keeps state about ONE file at a time when starting a new
 /// request with Open(). If you want concurrent access from multiple threads on the same pool of files,
@@ -156,5 +159,8 @@ protected:
 	bool         m_bIsAdHocIndex { false };
 
 }; // KFileServer
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_readwrite
+/// @{
+
 /// Writes iCount chars from sBuffer into file descriptor, signal safe
 DEKAF2_PUBLIC
 std::size_t kWrite(int fd, const void* sBuffer, std::size_t iCount);
@@ -115,5 +118,8 @@ bool kFlush(FILE* fp);
 /// Flush buffered output to std::ostream
 DEKAF2_PUBLIC
 bool kFlush(std::ostream& Stream);
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

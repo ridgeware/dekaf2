@@ -128,6 +128,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup time_clock
+/// @{
+
 namespace chrono {
 
 #if !DEKAF2_HAS_TIMEZONES
@@ -1022,6 +1025,9 @@ std::ostream& operator<<(std::ostream& stream, KDateDiff datediff)
 	stream.write(s.data(), s.size());
 	return stream;
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

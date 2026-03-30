@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file kfdstream.h
 #include "kdefinitions.h"
 #include "kread.h"
 #include "kwrite.h"
@@ -53,6 +55,9 @@
 
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup io_streams
+/// @{
 
 namespace detail {
 
@@ -656,5 +661,8 @@ using KFPReader = KReader<KInputFPStream>;
 
 /// FOR PIPES AND SPECIAL DEVICES ONLY! File descriptor reader/writer based on KInOutFDStream
 using KFDStream = KReaderWriter<KInOutFDStream>;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

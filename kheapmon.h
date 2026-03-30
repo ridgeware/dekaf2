@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup system_os
+/// @{
+
 namespace Heap {
 
 /// returns true if the standard malloc implementation is used - which probably means that
@@ -104,5 +107,8 @@ bool    IsStarted();
 
 } // namespace Profiling
 } // namespace Heap
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

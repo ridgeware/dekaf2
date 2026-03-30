@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup data_template
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Replace variables (aka tokens) with values, with configurable token-prefix and token-suffix
 /// sequences like "{{" "}}"
@@ -195,6 +198,9 @@ public:
 	{}
 
 }; // KVariables
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

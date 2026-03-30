@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_streams
+/// @{
+
 namespace detail {
 
 //-----------------------------------------------------------------------------
@@ -281,5 +284,8 @@ using KInStringStream  = KReader<KIStringStream>;
 
 /// Seekable string stream that reads copy-free from a KStringView / KString
 using KSeekableInStringStream  = KReader<KSeekableIStringStream>;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

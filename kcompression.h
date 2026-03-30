@@ -71,6 +71,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_compression
+/// @{
+
 namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -363,5 +366,8 @@ using KUnZSTD   = detail::KOneUnComp<detail::KCompressionBase::ZSTD>;
 using KBrotli   = detail::KOneComp<detail::KCompressionBase::BROTLI>;
 using KUnBrotli = detail::KOneUnComp<detail::KCompressionBase::BROTLI>;
 #endif
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

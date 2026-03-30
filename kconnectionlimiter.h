@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup rest_limits
+/// @{
+
 class KConnectionLimiter;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -186,5 +189,8 @@ private:
 	uint16_t                       m_iMaxConnections { 0 };
 
 }; // KConnectionLimiter
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

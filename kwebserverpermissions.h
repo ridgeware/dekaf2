@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup rest_serving
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Permission flags for web server access control. Can be combined with bitwise OR.
 /// Directory permissions define the structural maximum for a path.
@@ -205,5 +208,8 @@ private:
 }; // KWebServerPermissions
 
 DEKAF2_ENUM_IS_FLAG(KWebServerPermissions::Permission)
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

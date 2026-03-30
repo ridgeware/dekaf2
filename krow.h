@@ -42,12 +42,17 @@
 
 #pragma once
 
+
+/// @file krow.h
 #include "kdefinitions.h"
 #include "ktemplate.h"
 #include "kprops.h"
 #include "kjson.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup data_sql
+/// @{
 
 class KROW;
 class KSQL;
@@ -763,6 +768,9 @@ inline void from_json(const LJSON& j, KROW& row)
 {
 	row.from_json(j);
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

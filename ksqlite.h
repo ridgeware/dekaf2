@@ -70,6 +70,9 @@ struct sqlite3_stmt;
 
 #ifdef DEKAF2
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup data_sql
+/// @{
 #endif
 
 namespace KSQLite {
@@ -581,5 +584,8 @@ private:
 } // end of namespace KSQLite
 
 #ifdef DEKAF2
+
+/// @}
+
 DEKAF2_NAMESPACE_END
 #endif

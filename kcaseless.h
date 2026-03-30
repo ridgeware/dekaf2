@@ -41,11 +41,16 @@
 
 #pragma once
 
+
+/// @file kcaseless.h
 #include "kdefinitions.h"
 #include "kstringview.h"
 #include "bits/khash.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup core_strings
+/// @{
 
 //-----------------------------------------------------------------------------
 /// compares case insensitive
@@ -182,5 +187,8 @@ std::size_t kCalcCaselessHashTrim(KStringView);
 DEKAF2_PUBLIC
 std::size_t kCalcCaselessHashTrim(KStringView, KStringView svTrim);
 //-----------------------------------------------------------------------------
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

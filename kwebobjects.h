@@ -38,6 +38,8 @@
 */
 #pragma once
 
+
+/// @file kwebobjects.h
 #include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
@@ -53,6 +55,9 @@
 #include <unordered_map>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup web_objects
+/// @{
 
 namespace html {
 
@@ -2909,5 +2914,8 @@ public:
 }; // Video
 
 } // end of namespace html
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

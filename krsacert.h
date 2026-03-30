@@ -55,6 +55,9 @@ struct x509_st;
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup crypto_rsa
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// RSA key class to create an x509 cert signed by a KRSAKey
 class DEKAF2_PUBLIC KRSACert : public KErrorBase
@@ -222,5 +225,8 @@ private:
 	x509_st* m_X509Cert { nullptr };
 
 }; // KRSACert
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

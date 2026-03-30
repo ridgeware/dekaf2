@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_tls
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Holds a configured tls context - will be used in the constructor of KTLSIOStream
 class DEKAF2_PUBLIC KTLSContext : public KErrorBase
@@ -174,6 +177,9 @@ private:
 	std::string m_sPassword;
 
 }; // KTLSContext
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

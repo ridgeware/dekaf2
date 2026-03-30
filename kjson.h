@@ -42,6 +42,8 @@
 
 #pragma once
 
+
+/// @file kjson.h
 #include "kconfiguration.h"
 #include "klog.h" // needed for JSON_THROW_USER
 
@@ -116,6 +118,9 @@
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup data_json
+/// @{
 
 // the native nlohmann::json type, using KString instead of std::string though
 using LJSON = nlohmann::basic_json<std::map, std::vector, DEKAF2_PREFIX KString>;
@@ -399,6 +404,9 @@ using kjson::GetObject;
 using kjson::Contains;
 using kjson::Increment;
 using kjson::Decrement;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

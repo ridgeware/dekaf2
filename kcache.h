@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_associative
+/// @{
+
 namespace detail {
 
 template<class Value>
@@ -411,6 +414,9 @@ private:
 	mutable std::shared_mutex m_Mutex;
 
 }; // KSharedCache
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

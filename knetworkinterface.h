@@ -65,6 +65,9 @@ struct ifaddrs;
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_address
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a MAC address container
 class DEKAF2_PUBLIC KMACAddress
@@ -376,5 +379,8 @@ KNetworkInterface::Interfaces kGetNetworkInterfaces(KStringView sStartsWith = {}
 {
 	return KNetworkInterface::GetAllInterfaces(sStartsWith);
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

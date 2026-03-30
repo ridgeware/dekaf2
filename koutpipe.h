@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file koutpipe.h
 #include "bits/kbasepipe.h"
 
 #ifdef DEKAF2_HAS_PIPES
@@ -48,6 +50,9 @@
 #include "kfdstream.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup io_pipes
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Execute another process and attach write pipe to its std::in
@@ -126,6 +131,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 }; // class KOutPipe
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

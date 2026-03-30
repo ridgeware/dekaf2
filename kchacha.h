@@ -42,11 +42,16 @@
 
 #pragma once
 
+
+/// @file kchacha.h
 #include "kblockcipher.h"
 
 #if DEKAF2_HAS_AES
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup crypto_cipher
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// ChaCha20_Poly1305 encryption/decryption
@@ -66,6 +71,9 @@ public:
 	}
 
 }; // KChaCha
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

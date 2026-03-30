@@ -29,6 +29,8 @@
 
 #pragma once
 
+
+/// @file kngram.h
 #include "kdefinitions.h"
 #include "kctype.h"
 #include "kutf.h"
@@ -39,6 +41,9 @@
 #include <algorithm>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup util_text
+/// @{
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template <uint16_t iNGLen = 3, bool bAddSpaces = true, bool bSortedNgrams = true>
@@ -375,5 +380,8 @@ private:
 	}
 
 }; // KNGrams
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

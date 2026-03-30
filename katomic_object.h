@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup threading_primitives
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// generic atomic wrapping for larger objects through an atomic pointer - access on the object is read only,
 /// and updates must happen less frequent than maximum lifetime of the unwrapped object
@@ -179,5 +182,8 @@ private:
 	KThreadSafe<ObjectStorage, std::mutex> m_Objects;
 
 }; // KAtomicObject
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

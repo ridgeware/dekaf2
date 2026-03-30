@@ -54,6 +54,9 @@ class error_code;
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_errors
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// dekaf2 error base class
 #if !DEKAF2_IS_MSC
@@ -127,5 +130,8 @@ private:
 	bool m_bThrow { false };
 
 }; // KErrorBase
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -114,6 +114,9 @@
 
 	#include <source_location>
 	DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup core_errors
+/// @{
 	using KSourceLocation = std::source_location;
 	DEKAF2_NAMESPACE_END
 
@@ -224,6 +227,9 @@
 		const uint32_t m_iLine     {  0 };
 
 	}; // KSourceLocation
+
+
+/// @}
 
 	DEKAF2_NAMESPACE_END
 

@@ -1,3 +1,0 @@
-# Ignore generated Doxygen
-Docs/html/*
-!Docs/html/doxy-boot.js

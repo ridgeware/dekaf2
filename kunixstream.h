@@ -57,6 +57,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_tcp
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream TCP implementation with timeout.
 class DEKAF2_PUBLIC KUnixStream : public KIOStreamSocket
@@ -198,6 +201,9 @@ std::unique_ptr<KUnixStream> CreateKUnixStream(KDuration Timeout = KStreamOption
 DEKAF2_PUBLIC
 std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup system_process
+/// @{
+
 // For unixes we will use KPipe (with internal fork and exec) instead of popen,
 // as this permits us to close all open file descriptors before executing the
 // new process. It is only for Windows that we will use popen (as fork and exec
@@ -101,6 +104,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 }; // END KOutShell
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

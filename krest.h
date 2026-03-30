@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup rest_framework
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// HTTP REST service implementation. Provides a thread-per-connection server with configurable
 /// timeouts, keep-alive limits, request body size limits, per-IP rate limiting (SetRateLimit),
@@ -245,6 +248,9 @@ private:
 	std::unique_ptr<KWebSocketServer> m_WebSocketServer;
 
 }; // KREST
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

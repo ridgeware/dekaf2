@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_misc
+/// @{
+
 class KKelvin;
 class KCelsius;
 class KFahrenheit;
@@ -328,6 +331,9 @@ DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, T1 Temperature)
 	stream.write(s.data(), s.size());
 	return stream;
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

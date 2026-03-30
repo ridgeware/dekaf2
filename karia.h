@@ -42,11 +42,16 @@
 
 #pragma once
 
+
+/// @file karia.h
 #include "kblockcipher.h"
 
 #if DEKAF2_HAS_AES
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup crypto_cipher
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// ARIA encryption/decryption
@@ -68,6 +73,9 @@ public:
 	}
 
 }; // KARIA
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

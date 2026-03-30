@@ -71,6 +71,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_associative
+/// @{
+
 //---------------------------------------------------------------------------
 // boost::multi_index versions of std::map/multimap/set/multiset
 //---------------------------------------------------------------------------
@@ -456,5 +459,8 @@ private:
 
 template<class Key, class Value, class Hash, class KeyEqual, class Allocator>
 const Value KUnorderedMultiMap<Key, Value, Hash, KeyEqual, Allocator>::s_Empty = Value();
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

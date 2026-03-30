@@ -346,6 +346,9 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 		#include "bits/simd/kutf.h"
 	#endif
 	DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup core_types
+/// @{
 #else
 	#include <cwctype>
 	#if KUTF_WITH_SIMDUTF
@@ -2223,5 +2226,8 @@ private:
 } // namespace KUTF_NAMESPACE
 
 #ifdef KUTF_DEKAF2
+
+/// @}
+
 DEKAF2_NAMESPACE_END
 #endif

@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_misc
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Helper class for version number parsing and comparison
 class DEKAF2_PUBLIC KVersion
@@ -160,5 +163,8 @@ extern DEKAF2_PUBLIC bool operator==(const KVersion& left, const KVersion& right
 extern DEKAF2_PUBLIC bool operator<(const KVersion& left, const KVersion& right);
 
 DEKAF2_COMPARISON_OPERATORS(KVersion)
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

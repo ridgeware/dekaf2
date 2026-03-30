@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file ksharedmemory.h
 #include "kcompatibility.h"
 #ifndef DEKAF2_IS_WINDOWS
 #include "kstringview.h"
@@ -53,6 +55,9 @@
 #include <sys/types.h>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup system_shared
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// IPC semaphore mutex, usable cross processes with std::unique_lock, std::lock_guard, KThreadSafe, etc..
@@ -359,6 +364,9 @@ private:
 	key_t m_iIPCKey;
 
 }; // KIPCMessages
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

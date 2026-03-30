@@ -167,6 +167,9 @@ typedef unsigned long* MYSQL_ROW_LENS; // this one is not a MYSQL type, but it i
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup data_sql
+/// @{
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Normalizing date/time columns into format like "20010723211321"...
 //
@@ -1791,5 +1794,8 @@ private:
 	bool     m_bVerbose { false };
 
 }; // DbSemaphore
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

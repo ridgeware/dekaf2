@@ -62,6 +62,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_associative
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// definition of the multi index storage type for non-sequential KProps types
 template <class Key, class Value, bool Sequential, bool Unique>
@@ -1060,5 +1063,8 @@ extern template class KProps<KString, KString, /*order-matters=*/false, /*unique
 extern template class KProps<KString, KString, /*order-matters=*/true,  /*unique-keys=*/true >;
 extern template class KProps<KString, KString, /*order-matters=*/false, /*unique-keys=*/false>;
 extern template class KProps<KString, KString, /*order-matters=*/true,  /*unique-keys=*/false>;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

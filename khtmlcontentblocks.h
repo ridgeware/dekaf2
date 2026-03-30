@@ -41,10 +41,15 @@
 
 #pragma once
 
+
+/// @file khtmlcontentblocks.h
 #include "kdefinitions.h"
 #include "khtmlparser.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup web_html
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTMLContentBlocks : public KHTMLParser
@@ -131,5 +136,8 @@ private:
 	BlockContent m_BlockContent;
 
 }; // KHTMLContentBlocks
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

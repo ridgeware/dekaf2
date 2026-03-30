@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_errors
+/// @{
+
 class KStringView;
 
 /// special "signal" numbers to be sent to kCrashExit() to indicate
@@ -137,5 +140,8 @@ void kAssert (bool bMustBeTrue, const char* sCrashMessage)
 	}
 #endif
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

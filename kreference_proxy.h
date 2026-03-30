@@ -49,6 +49,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_memory
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper class to wrap one object reference and access it through a proxy object
 template<class T>
@@ -168,5 +171,8 @@ private:
 	const T& m_proxied;
 
 }; // KConstReferenceProxy
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

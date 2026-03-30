@@ -68,6 +68,8 @@
 
 #pragma once
 
+
+/// @file kuntar.h
 #include "bits/ktarheader.h"
 
 #include "kstring.h"
@@ -82,6 +84,9 @@
 #include <memory>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup util_archive
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Tar unarchiver for uncompressed archives
@@ -521,5 +526,8 @@ public:
 
 }; // KUnTarZstd
 #endif
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

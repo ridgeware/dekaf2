@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_address
+/// @{
+
 namespace KResolve {
 
 #if (DEKAF2_CLASSIC_ASIO)
@@ -171,5 +174,8 @@ std::vector<KString> kReverseLookupToList (KStringView sIPAddr, std::size_t iMax
 /// Return the first host name that maps to the specified IP address
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kReverseLookup (KStringView sIPAddr);
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

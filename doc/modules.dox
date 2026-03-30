@@ -1,0 +1,317 @@
+/// @file
+/// @brief Doxygen module hierarchy for dekaf2 — mirrors the planned directory structure.
+
+// =============================================================================
+// Top-level modules
+// =============================================================================
+
+/// @defgroup core Core
+/// @brief Fundamental types, strings, formatting, error handling, and logging.
+
+/// @defgroup containers Containers
+/// @brief Associative, sequential, and memory management containers.
+
+/// @defgroup io I/O
+/// @brief Streams, readers/writers, compression, and pipes.
+
+/// @defgroup system System
+/// @brief OS interface, filesystem, process management, and shared memory.
+
+/// @defgroup net Network
+/// @brief Low-level networking: TCP, TLS, QUIC, Unix sockets, DNS.
+
+/// @defgroup http HTTP
+/// @brief HTTP protocol implementation, client, server, and WebSocket.
+
+/// @defgroup rest REST
+/// @brief REST framework, file serving, rate limiting.
+
+/// @defgroup web Web
+/// @brief URLs, HTML/XML parsing, MIME types, WebDAV.
+
+/// @defgroup crypto Crypto
+/// @brief Hashing, encryption, encoding, RSA, and authentication.
+
+/// @defgroup data Data
+/// @brief JSON, CSV, SQL, and template processing.
+
+/// @defgroup time Time
+/// @brief Date/time, duration, timers, profiling, and scheduling.
+
+/// @defgroup threading Threading
+/// @brief Thread safety primitives, thread pools, and concurrency patterns.
+
+/// @defgroup util Utilities
+/// @brief CLI, mail, archives, text processing, IDs, and misc tools.
+
+// =============================================================================
+// core/ submodules
+// =============================================================================
+
+/// @defgroup core_strings Strings
+/// @ingroup core
+/// @brief String classes, views, splitting, joining, searching, and regex.
+
+/// @defgroup core_types Types
+/// @ingroup core
+/// @brief Fundamental definitions, templates, variants, bit manipulation, character types, and Unicode.
+
+/// @defgroup core_errors Errors
+/// @ingroup core
+/// @brief Exception handling, error reporting, crash handling, and source location.
+
+/// @defgroup core_format Formatting
+/// @ingroup core
+/// @brief Text formatting, table formatting, and progress bars.
+
+/// @defgroup core_logging Logging
+/// @ingroup core
+/// @brief Application logging and log rotation.
+
+// =============================================================================
+// containers/ submodules
+// =============================================================================
+
+/// @defgroup containers_associative Associative Containers
+/// @ingroup containers
+/// @brief Key-value stores, property maps, caches, MRU lists, and locked maps.
+
+/// @defgroup containers_sequential Sequential Containers
+/// @ingroup containers
+/// @brief Stacks, buffers, and history containers.
+
+/// @defgroup containers_memory Memory Management
+/// @ingroup containers
+/// @brief Allocators, pools, shared pointers, and persistent storage.
+
+// =============================================================================
+// io/ submodules
+// =============================================================================
+
+/// @defgroup io_streams Streams
+/// @ingroup io
+/// @brief Stream classes, stream buffers, adaptors, and options.
+
+/// @defgroup io_readwrite Readers & Writers
+/// @ingroup io
+/// @brief High-level read/write interfaces and buffered reading.
+
+/// @defgroup io_compression Compression
+/// @ingroup io
+/// @brief Compression/decompression (zstd, brotli, gzip, lzma).
+
+/// @defgroup io_pipes Pipes
+/// @ingroup io
+/// @brief Pipe streams, data consumers, and data providers.
+
+// =============================================================================
+// system/ submodules
+// =============================================================================
+
+/// @defgroup system_os OS Interface
+/// @ingroup system
+/// @brief System information, signals, runtime stack, and heap monitoring.
+
+/// @defgroup system_filesystem Filesystem
+/// @ingroup system
+/// @brief File and directory operations.
+
+/// @defgroup system_process Process Management
+/// @ingroup system
+/// @brief Child processes, shell execution, and pseudo-terminals.
+
+/// @defgroup system_shared Shared Memory
+/// @ingroup system
+/// @brief Inter-process shared memory.
+
+// =============================================================================
+// net/ submodules
+// =============================================================================
+
+/// @defgroup net_address Addressing
+/// @ingroup net
+/// @brief IP addresses, networks, DNS resolution, and network interfaces.
+
+/// @defgroup net_tcp TCP & Unix Sockets
+/// @ingroup net
+/// @brief TCP streams, clients, servers, and Unix domain sockets.
+
+/// @defgroup net_tls TLS
+/// @ingroup net
+/// @brief TLS context, TLS streams, and socket I/O.
+
+/// @defgroup net_quic QUIC
+/// @ingroup net
+/// @brief QUIC stream support.
+
+/// @defgroup net_util Network Utilities
+/// @ingroup net
+/// @brief Polling, tunneling, and connection management.
+
+// =============================================================================
+// http/ submodules
+// =============================================================================
+
+/// @defgroup http_protocol HTTP Protocol
+/// @ingroup http
+/// @brief Headers, methods, versions, request/response, HTTP/2, HTTP/3, chunked transfer, compression.
+
+/// @defgroup http_client HTTP Client
+/// @ingroup http
+/// @brief HTTP and web client implementations.
+
+/// @defgroup http_server HTTP Server
+/// @ingroup http
+/// @brief HTTP server, routing, CGI, filters, logging, and error handling.
+
+/// @defgroup http_cookie Cookies
+/// @ingroup http
+/// @brief HTTP cookie handling.
+
+/// @defgroup http_websocket WebSocket
+/// @ingroup http
+/// @brief WebSocket protocol and client.
+
+// =============================================================================
+// rest/ submodules
+// =============================================================================
+
+/// @defgroup rest_framework REST Framework
+/// @ingroup rest
+/// @brief REST server, client, and routing.
+
+/// @defgroup rest_serving File Serving
+/// @ingroup rest
+/// @brief Static file server, web server, and permissions.
+
+/// @defgroup rest_limits Rate Limiting
+/// @ingroup rest
+/// @brief Rate and connection limiters.
+
+// =============================================================================
+// web/ submodules
+// =============================================================================
+
+/// @defgroup web_url URLs & MIME
+/// @ingroup web
+/// @brief URL parsing, encoding, MIME types, and user agent detection.
+
+/// @defgroup web_html HTML
+/// @ingroup web
+/// @brief HTML parsing, DOM, entities, and content blocks.
+
+/// @defgroup web_xml XML
+/// @ingroup web
+/// @brief XML parsing and serialization.
+
+/// @defgroup web_objects Web Objects
+/// @ingroup web
+/// @brief WebObjects and WebDAV.
+
+// =============================================================================
+// crypto/ submodules
+// =============================================================================
+
+/// @defgroup crypto_hash Hashing
+/// @ingroup crypto
+/// @brief Hash functions, HMAC, message digests, and CRC.
+
+/// @defgroup crypto_encoding Encoding
+/// @ingroup crypto
+/// @brief Base64, hex, URL encoding, and quoted-printable.
+
+/// @defgroup crypto_cipher Ciphers
+/// @ingroup crypto
+/// @brief Block ciphers: AES, Camellia, ChaCha20, ARIA.
+
+/// @defgroup crypto_rsa RSA
+/// @ingroup crypto
+/// @brief RSA encryption, certificates, keys, and signatures.
+
+/// @defgroup crypto_auth Authentication
+/// @ingroup crypto
+/// @brief BCrypt, OpenID, and AWS authentication.
+
+// =============================================================================
+// data/ submodules
+// =============================================================================
+
+/// @defgroup data_json JSON
+/// @ingroup data
+/// @brief JSON parsing and manipulation.
+
+/// @defgroup data_csv CSV
+/// @ingroup data
+/// @brief CSV reading and writing.
+
+/// @defgroup data_sql SQL
+/// @ingroup data
+/// @brief SQL database access, SQLite, and row handling.
+
+/// @defgroup data_template Templates
+/// @ingroup data
+/// @brief Text replacement, output templates, and snippets.
+
+// =============================================================================
+// time/ submodules
+// =============================================================================
+
+/// @defgroup time_clock Clock & Date
+/// @ingroup time
+/// @brief Date, time, and Julian date.
+
+/// @defgroup time_duration Duration & Timers
+/// @ingroup time
+/// @brief Duration, timers, and profiling.
+
+/// @defgroup time_series Time Series
+/// @ingroup time
+/// @brief Time series data structures.
+
+/// @defgroup time_scheduler Scheduler
+/// @ingroup time
+/// @brief Cron-like scheduling.
+
+// =============================================================================
+// threading/ submodules
+// =============================================================================
+
+/// @defgroup threading_primitives Primitives
+/// @ingroup threading
+/// @brief Thread-safe wrappers, atomic objects, and copyable adapters.
+
+/// @defgroup threading_execution Execution
+/// @ingroup threading
+/// @brief Thread management, thread pools, and parallel execution.
+
+/// @defgroup threading_patterns Patterns
+/// @ingroup threading
+/// @brief Publish/subscribe and observer patterns.
+
+// =============================================================================
+// util/ submodules
+// =============================================================================
+
+/// @defgroup util_cli CLI
+/// @ingroup util
+/// @brief Command-line option parsing and terminal formatting.
+
+/// @defgroup util_mail Mail
+/// @ingroup util
+/// @brief Email composition and SMTP.
+
+/// @defgroup util_archive Archives
+/// @ingroup util
+/// @brief Tar and zip archive handling.
+
+/// @defgroup util_text Text Processing
+/// @ingroup util
+/// @brief Diff, n-gram, and text analysis.
+
+/// @defgroup util_id Identifiers
+/// @ingroup util
+/// @brief UUID generation and random numbers.
+
+/// @defgroup util_misc Miscellaneous
+/// @ingroup util
+/// @brief Address handling, temperature conversion, and other utilities.

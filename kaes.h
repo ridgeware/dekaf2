@@ -42,11 +42,16 @@
 
 #pragma once
 
+
+/// @file kaes.h
 #include "kblockcipher.h"
 
 #if DEKAF2_HAS_AES
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup crypto_cipher
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Symmetrical AES encryption/decryption. See class KBlockCipher for full documentation
@@ -154,6 +159,9 @@ public:
 	}
 
 }; // KFromAES
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

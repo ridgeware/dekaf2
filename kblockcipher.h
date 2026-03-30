@@ -71,6 +71,9 @@ struct evp_cipher_ctx_st;
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup crypto_cipher
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Symmetrical block cipher encryption.
 ///
@@ -365,6 +368,9 @@ private:
 	bool                 m_bCCMDataAdded   { false };
 
 }; // KBlockCipher
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

@@ -72,6 +72,9 @@ struct nghttp3_vec;
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_protocol
+/// @{
+
 namespace khttp3
 {
 
@@ -498,6 +501,9 @@ public:
 }; // SingleStreamSession
 
 } // end of namespace khttp3
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

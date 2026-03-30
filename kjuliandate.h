@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup time_clock
+/// @{
+
 //=============================================================================
 // Julian date from https://stackoverflow.com/a/33964462/576911 (hinnant)
 
@@ -180,5 +183,8 @@ private:
 	constexpr void operator-=(chrono::years ) noexcept {}
 
 }; // KJulianDate
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

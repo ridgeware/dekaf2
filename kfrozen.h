@@ -42,6 +42,8 @@
 
 #pragma once
 
+
+/// @file kfrozen.h
 #include "kdefinitions.h"
 
 // frozen constexpr need at least C++14

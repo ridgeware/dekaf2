@@ -49,6 +49,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_streams
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper class to count the characters written through a streambuf
 class DEKAF2_PUBLIC KCountingOutputStreamBuf : public KOutStreamBufAdaptor
@@ -116,6 +119,9 @@ private:
 	std::streamsize m_iCount     { 0 };
 
 }; // KCountingInputStreamBuf
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

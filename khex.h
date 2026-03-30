@@ -50,6 +50,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup crypto_encoding
+/// @{
+
 /// Append a char in hexadecimal to sOut
 DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 void kHexAppend(KStringRef& sOut, char chIn)
@@ -203,5 +206,8 @@ Bytes kBytesFromHex(KStringView sInput, KStringView sSeparators = ":-.|") noexce
 	return bytes;
 
 } // kBytesFromHex
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

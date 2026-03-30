@@ -66,6 +66,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup rest_framework
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// HTTP REST server with JSON, XML, or plain input / output
 class DEKAF2_PUBLIC KRESTServer : public KHTTPServer
@@ -742,6 +745,9 @@ private:
 
 
 }; // KRESTServer
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

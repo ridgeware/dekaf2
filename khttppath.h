@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_server
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A HTTP path object, used as base class for all HTTP and REST path / route objects
 class DEKAF2_PUBLIC KHTTPPath
@@ -144,5 +147,8 @@ public:
 	KString sTo;
 
 }; // KHTTPRewrite
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

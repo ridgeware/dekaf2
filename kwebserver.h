@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup rest_serving
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Simple web (file) server implementation. This class keeps state about ONE file at a time when starting a new
 /// request with Serve(). If you want concurrent access from multiple threads on the same pool of files,
@@ -163,5 +166,8 @@ private:
 	bool       m_bIsValid   { false };
 
 }; // KWebServer
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

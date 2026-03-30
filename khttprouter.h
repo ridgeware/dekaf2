@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_server
+/// @{
+
 class KHTTPRouter;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -188,5 +191,8 @@ protected:
 
 }; // KHTTPRouter
 
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -107,6 +107,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_strings
+/// @{
+
 // forward declarations
 class KString;
 class KStringViewZ;
@@ -2164,6 +2167,9 @@ T KStringView::Split(Parms&&... parms) const
 	kSplit(Container, *this, std::forward<Parms>(parms)...);
 	return Container;
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

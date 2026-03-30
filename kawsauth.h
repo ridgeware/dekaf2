@@ -1,5 +1,7 @@
 #pragma once
 
+
+/// @file kawsauth.h
 #include "kdefinitions.h"
 #include "kstring.h"
 #include "kstringview.h"
@@ -9,6 +11,9 @@
 #include <map>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup crypto_auth
+/// @{
 
 namespace AWSAuth4 {
 
@@ -124,5 +129,8 @@ private:
 }; // SignedRequest
 
 }  // namespace AWSAuth4
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

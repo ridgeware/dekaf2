@@ -41,11 +41,16 @@
 
 #pragma once
 
+
+/// @file kmpsearch.h
 #include "kdefinitions.h"
 #include "kstringview.h"
 #include "kreader.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup core_strings
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KMPSearch
@@ -234,5 +239,8 @@ constexpr static auto bb { kfrozen::CreateKMPSearch<sv.size()>(sv) };
 */
 
 #endif // of DEKAF2_HAS_CPP_17
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

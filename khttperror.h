@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_server
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A HTTP error to throw or to return
 class DEKAF2_PUBLIC KHTTPError : public KError
@@ -166,5 +169,8 @@ protected:
 	KString m_sStatusString;
 
 }; // KHTTPError
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

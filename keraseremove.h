@@ -49,6 +49,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_types
+/// @{
+
 //-----------------------------------------------------------------------------
 /// removes all elements of container with a certain value
 /// @param value the value to remove
@@ -86,5 +89,8 @@ bool kEraseRemoveIf(Container& container, Predicate predicate)
 
 	return false;
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

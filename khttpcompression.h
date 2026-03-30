@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file khttpcompression.h
 #include "kdefinitions.h"
 #include "kstringview.h"
 #include "khttp_header.h"
@@ -48,6 +50,9 @@
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup io_compression
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPCompression
@@ -175,5 +180,8 @@ private:
 }; // KHTTPCompression
 
 DEKAF2_ENUM_IS_FLAG(KHTTPCompression::COMP)
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

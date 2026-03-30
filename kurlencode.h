@@ -57,6 +57,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup web_url
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the different URL components
 enum class URIPart : uint8_t
@@ -661,5 +664,8 @@ extern template class KURLEncoded<KProps<KString, KString, true, false>, '&', '=
 using URLEncodedUInt   = KURLEncoded<uint16_t>;
 using URLEncodedString = KURLEncoded<KString>;
 using URLEncodedQuery  = KURLEncoded<KProps<KString, KString, /*Sequential=*/true, /*Unique=*/false>, '&', '='>;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

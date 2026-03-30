@@ -56,6 +56,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup system_process
+/// @{
+
 namespace detail {
 
 //-----------------------------------------------------------------------------
@@ -157,6 +160,9 @@ protected:
 	bool    m_bIsDaemonized { false };
 
 }; // KChildProcess
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

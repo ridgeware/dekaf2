@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_format
+/// @{
+
 //-----------------------------------------------------------------------------
 /// a single thread implementation of a progress bar
 class DEKAF2_PUBLIC KBAR
@@ -138,5 +141,8 @@ private:
 	mutable std::mutex m_Mutex;
 
 };
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

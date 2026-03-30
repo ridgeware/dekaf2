@@ -50,6 +50,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup web_html
+/// @{
+
 class DEKAF2_PUBLIC KHTMLEntity
 {
 
@@ -87,5 +90,8 @@ public:
 	static KString DecodeOne(KStringView sIn);
 
 }; // KHTMLEntity
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

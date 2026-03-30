@@ -56,6 +56,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_server
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KOutHTTPFilter : public KHTTPCompression
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -180,6 +183,9 @@ private:
 	bool            m_bAllowCompression { true      };
 
 }; // KOutHTTPFilter
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

@@ -55,6 +55,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_client
+/// @{
+
 /// Simplified helper method that uses KWebClient to "wget" a file from a remote server
 /// to a local filesystem.  Eventually we will support all wget's cli options but currently
 /// the Options argument is ignored.
@@ -329,5 +332,8 @@ bool kHTTPHead(KURL URL, KHTTPStreamOptions Options = KHTTPStreamOptions{});
 DEKAF2_PUBLIC
 KString kHTTPPost(KURL URL, KStringView svPostData, const KMIME& Mime, KHTTPStreamOptions Options = KHTTPStreamOptions{});
 //-----------------------------------------------------------------------------
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

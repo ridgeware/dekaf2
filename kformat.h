@@ -74,6 +74,9 @@ struct DEKAF2_FORMAT_NAMESPACE::formatter<Enum> : formatter<typename std::underl
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_format
+/// @{
+
 #if DEKAF2_HAS_FORMAT_RUNTIME
 /// Create a runtime format string
 template<typename String>
@@ -471,5 +474,8 @@ DEKAF2_PUBLIC std::ostream& kPrintLine(const std::locale& locale, std::ostream& 
 	return kWriteLine(os, kFormat(locale, sFormat, std::forward<Args>(args)...));
 }
 #endif // of !DEKAF2_HAS_FORMAT_RUNTIME
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

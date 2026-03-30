@@ -79,6 +79,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_types
+/// @{
+
 #if defined(__BYTE_ORDER__)
 	// we can use the preprocessor defines, which is constant
 	#define DEKAF2_LE_BE_CONSTEXPR constexpr
@@ -746,5 +749,8 @@ kBitCast(const From& src) noexcept
     return dst;
 }
 #endif
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

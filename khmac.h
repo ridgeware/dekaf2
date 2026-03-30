@@ -61,6 +61,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup crypto_hash
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KHMAC gives the interface for all HMAC algorithms. The
 /// framework allows to calculate HMACs out of strings and streams.
@@ -299,5 +302,8 @@ using KHMAC256 = KHMAC_SHA256;
 using KHMAC512 = KHMAC_SHA512;
 
 #endif // of DEKAF2_HAS_BLAKE2
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -42,10 +42,15 @@
 
 #pragma once
 
+
+/// @file kquotedprintable.h
 #include "kstringview.h"
 #include "kstring.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup crypto_encoding
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KQuotedPrintable
@@ -71,6 +76,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 };
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

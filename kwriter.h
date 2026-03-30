@@ -57,6 +57,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_readwrite
+/// @{
+
 class KInStream; // fwd decl
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -599,5 +602,8 @@ extern DEKAF2_PUBLIC std::unique_ptr<KOutStream> kOpenOutStream(KStringViewZ sSc
 /// universal logger implemented with an output queue - make sure the Stream is valid until the program ends
 extern DEKAF2_PUBLIC void kLogger(KOutStream& Stream, KString sMessage, bool bFlush = true);
 //-----------------------------------------------------------------------------
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

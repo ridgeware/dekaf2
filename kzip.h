@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file kzip.h
 #include "kdefinitions.h"
 #include "kstring.h"
 #include "kerror.h"
@@ -53,6 +55,9 @@ struct zip;
 struct zip_stat;
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup util_archive
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Wrapper class around libzip to give easy access from C++ to the files in
@@ -418,5 +423,8 @@ private:
 	unique_zip_t m_ZipC;
 
 }; // KZip
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

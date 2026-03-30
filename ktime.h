@@ -67,6 +67,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup time_clock
+/// @{
+
 #if DEKAF2_HAS_TIMEZONES
 
 /// returns the timezone of the local timezone for this process, or nullptr on error
@@ -1863,5 +1866,8 @@ inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KUTCTime tim
 	stream.write(s.data(), s.size());
 	return stream;
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

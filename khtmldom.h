@@ -41,12 +41,17 @@
 
 #pragma once
 
+
+/// @file khtmldom.h
 #include "kdefinitions.h"
 #include "khtmlparser.h"
 #include "klog.h"
 #include "kerror.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup web_html
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Basic element of a HTML DOM structure
@@ -504,5 +509,8 @@ private:
 	uint8_t                    m_bPreformatted   { 0     };
 
 }; // KHTML
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

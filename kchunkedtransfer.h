@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_protocol
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KChunkedSource : public boost::iostreams::source
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -179,5 +182,8 @@ private:
 	bool m_bIsChunked;
 
 };
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

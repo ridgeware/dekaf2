@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file khttp_method.h
 #include "kstringview.h"
 #include "kformat.h"
 
@@ -53,6 +55,9 @@
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup http_protocol
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPMethod
@@ -154,6 +159,9 @@ private:
 	Method m_method { GET };
 
 }; // KHTTPMethod
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

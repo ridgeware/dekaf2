@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup crypto_rsa
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KRSASign gives the interface for all RSA signature algorithms. The
 /// framework allows to calculate signatures out of strings and streams.
@@ -89,5 +92,8 @@ public:
 	bool Verify(const KRSAKey& Key, KStringView sSignature) const;
 
 }; // KRSASign
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

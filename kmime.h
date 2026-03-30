@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file kmime.h
 #include "kstring.h"
 #include "kstringview.h"
 #include "kwriter.h"
@@ -60,6 +62,9 @@
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup web_url
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a MIME type
@@ -646,6 +651,9 @@ private:
 	std::vector<File> m_Files;
 
 }; // KReceiveFormData
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

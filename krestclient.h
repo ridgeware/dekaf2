@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup rest_framework
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// REST client implementation with string input/output
 class DEKAF2_PUBLIC KRestClient : protected KWebClient
@@ -304,5 +307,8 @@ protected:
 	ErrorCallback m_ErrorCallback;
 
 }; // KJsonRestClient
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -66,6 +66,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_logging
+/// @{
+
 #ifdef DEKAF2_WITH_KLOG
 class KLogWriter;
 class KLogSerializer;
@@ -753,6 +756,9 @@ inline void IntException_uNuSuAlNaMe (const std::exception& e, const char* sFunc
 }
 } // end of namespace detail
 #endif
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

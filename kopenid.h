@@ -42,6 +42,8 @@
 
 #pragma once
 
+
+/// @file kopenid.h
 #include "kstring.h"
 #include "kurl.h"
 #include "kjson.h"
@@ -54,6 +56,9 @@
 #include <atomic>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup crypto_auth
+/// @{
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// holds all keys from a validated OpenID provider
@@ -199,5 +204,8 @@ private:
 	bool            m_bSignatureIsValid { false };
 
 }; // KJWT
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_associative
+/// @{
+
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Provides an execution barrier that only lets one of multiple equal keys
@@ -257,5 +260,8 @@ public:
 	}
 
 }; // KShallowLockMap
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

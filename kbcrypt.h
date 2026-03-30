@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup crypto_auth
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// safe password hashing, allowing dynamic workload computation to adapt to used hardware.
 /// @note bcrypt truncates passwords at 72 bytes - longer passwords are silently ignored beyond that limit
@@ -137,5 +140,8 @@ private:
 	bool CheckPassword (KStringViewZ sPassword, KStringViewZ sHash);
 
 }; // KBCrypt
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

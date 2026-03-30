@@ -60,6 +60,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_strings
+/// @{
+
 // forward declarations
 class KString;
 class KStringView;
@@ -2375,6 +2378,9 @@ DEKAF2_NAMESPACE_BEGIN
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
 #else
+
+/// @}
+
 DEKAF2_NAMESPACE_END
 #endif
 

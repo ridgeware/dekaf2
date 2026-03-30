@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_memory
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// C++11 implementation of a scope guard - a RAII helper that executes arbitrary callables at end of scope.
 /// It is moveable, and has a release() member function.
@@ -179,5 +182,8 @@ private:
 	                        __VA_ARGS__)
 
 #define KAtScopeEnd(...) DEKAF2_AtScopeEnd_Outer(__COUNTER__, __VA_ARGS__)
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

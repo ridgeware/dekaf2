@@ -62,6 +62,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_util
+/// @{
+
 //-----------------------------------------------------------------------------
 /// poll one single fd
 /// @param fd a file descriptor
@@ -156,5 +159,8 @@ protected:
 	virtual void Watch() override final;
 
 }; // KSocketWatch
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

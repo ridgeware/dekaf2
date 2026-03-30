@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup threading_execution
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Base class for generated threads. Maintains a list of started threads
 /// (and hence keeps them alive) and ensures they have joined at destruction.
@@ -183,5 +186,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 }; // KThreads
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

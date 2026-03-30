@@ -54,6 +54,9 @@ struct evp_pkey_ctx_st;
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup crypto_rsa
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KRSAEncrypt : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -124,5 +127,8 @@ private:
 
 }; // KRSADecrypt
 
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

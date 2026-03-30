@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup crypto_hash
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KCRC32
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -134,5 +137,8 @@ protected:
 
 inline bool operator==(const KCRC32& left, const KCRC32& right) { return left.CRC() == right.CRC(); }
 inline bool operator!=(const KCRC32& left, const KCRC32& right) { return !operator==(left, right); }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

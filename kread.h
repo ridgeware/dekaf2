@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_readwrite
+/// @{
+
 /// Reads iCount chars from file descriptor into sBuffer, even on growing pipes or other unseekable inputs
 DEKAF2_PUBLIC
 std::size_t kRead(int fd, void* sBuffer, std::size_t iCount);
@@ -121,5 +124,8 @@ bool kMoveToLine(std::istream& Stream, std::size_t iLine, bool bBackward = false
 /// @returns true if repositioned to requested line, false on failure
 DEKAF2_PUBLIC
 bool kGoToLine(std::istream& Stream, std::size_t iLine, bool bFromEnd = false, char eol = '\n');
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

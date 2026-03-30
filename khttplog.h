@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file khttplog.h
 #include "kstring.h"
 #include "kstringview.h"
 #include "kreader.h"
@@ -52,6 +54,9 @@
 #include "khttp_version.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup http_server
+/// @{
 
 class KRESTServer;
 
@@ -258,5 +263,8 @@ private:
 	KUnixTime m_StartDate { KUnixTime::min() };
 
 }; // KHTTPLogParser
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

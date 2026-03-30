@@ -48,6 +48,9 @@
 
 #ifdef DEKAF2
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup core_types
+/// @{
 #endif
 
 namespace KUTF_NAMESPACE {
@@ -663,5 +666,8 @@ CodepointRange(const UTFString&) -> CodepointRange<typename UTFString::const_ite
 } // namespace KUTF_NAMESPACE
 
 #ifdef DEKAF2
+
+/// @}
+
 DEKAF2_NAMESPACE_END
 #endif

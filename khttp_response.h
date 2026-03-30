@@ -41,12 +41,17 @@
 
 #pragma once
 
+
+/// @file khttp_response.h
 #include "kstringview.h"
 #include "khttp_header.h"
 #include "khttpinputfilter.h"
 #include "khttpoutputfilter.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup http_protocol
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC KHTTPResponseHeaders : public KHTTPHeaders
@@ -287,5 +292,8 @@ protected:
 
 };
 
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

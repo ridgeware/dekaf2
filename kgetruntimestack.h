@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup system_os
+/// @{
+
 /// strips a fully qualified function name down to a minimum
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kNormalizeFunctionName(KStringView sFunctionName);
@@ -102,5 +105,8 @@ struct DEKAF2_PUBLIC KStackFrame
 /// in sSkipFiles
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles);
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

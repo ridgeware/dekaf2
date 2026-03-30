@@ -68,6 +68,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup system_os
+/// @{
+
 /// Get environment variable.
 /// @param szEnvVar the environment variable's name
 /// @param szDefault the default value to use if the environment variable is not found (default is the empty string)
@@ -519,5 +522,8 @@ bool kIsValidIPv6(KStringView sAddress)
 {
 	return kIsIPv6Address(sAddress, false);
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

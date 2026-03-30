@@ -59,6 +59,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup time_duration
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a duration type that constructs always initialized, converts properly from and to time_t,
 /// and offers quick accessors to various duration casts
@@ -635,6 +638,9 @@ private:
 	KStopTime m_Timer;
 
 }; // KStopDurations
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

@@ -61,6 +61,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_text
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Generate diffs in various formats from two input strings
 class DEKAF2_PUBLIC KDiff
@@ -261,5 +264,8 @@ DEKAF2_PUBLIC
 std::size_t KDiffToASCII2 (KStringRef& sOldText, KStringRef& sNewText,
                            KDiff::DiffMode Mode  = KDiff::DiffMode::Character,
                            KDiff::Sanitation San = KDiff::Sanitation::Semantic);
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

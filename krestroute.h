@@ -63,6 +63,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup rest_framework
+/// @{
+
 class KRESTServer;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -714,5 +717,8 @@ private:
 	KWebServerPermissions m_WebServerPermissions;
 
 }; // KRESTRoutes
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

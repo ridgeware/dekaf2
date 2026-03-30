@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file kxml.h
 #include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
@@ -50,6 +52,9 @@
 #include <iterator>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup web_xml
+/// @{
 
 class KXMLNode;
 
@@ -452,5 +457,8 @@ inline KXMLNode::KXMLNode(const KXML& DOM)
 : m_node { DOM.D.get() }
 {
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

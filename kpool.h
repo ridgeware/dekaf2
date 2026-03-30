@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_memory
+/// @{
+
 #ifdef DEKAF2_HAS_CPP_14
 // this code needs C++14, it uses (and needs) auto deduced return types
 
@@ -580,5 +583,8 @@ public:
 }; // KSharedPool
 
 #endif
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

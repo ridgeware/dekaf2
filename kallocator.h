@@ -50,6 +50,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_memory
+/// @{
+
 // This source is largely taken from https://howardhinnant.github.io/short_alloc.h
 // and has the following original license note
 
@@ -266,5 +269,8 @@ bool operator!=(const KStackAlloc<T, N, A1>& x, const KStackAlloc<U, M, A2>& y) 
 {
 	return !(x == y);
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

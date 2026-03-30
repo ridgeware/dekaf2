@@ -49,6 +49,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_streams
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The generalized bidirectional stream abstraction for dekaf2
 class DEKAF2_PUBLIC KStream : public KInStream, public KOutStream
@@ -310,6 +313,9 @@ public:
 	}
 
 };
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

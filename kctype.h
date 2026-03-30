@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_types
+/// @{
+
 namespace kutf {
 
 #ifdef __cpp_unicode_characters
@@ -1075,5 +1078,8 @@ inline CP kToUpper(CP ch)
 {
 	return KCodePoint(ch).ToUpper();
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -59,6 +59,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup crypto_hash
+/// @{
+
 namespace detail {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -393,6 +396,9 @@ using KHASH256 = KSHA256;
 using KHASH512 = KSHA512;
 
 #endif // of DEKAF2_HAS_BLAKE2
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

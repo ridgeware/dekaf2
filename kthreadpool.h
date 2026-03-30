@@ -70,6 +70,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup threading_execution
+/// @{
+
 namespace detail {
 namespace threadpool {
 
@@ -457,5 +460,8 @@ private:
 	ShrinkPolicy                 m_Shrink                    { ShrinkPolicy::ShrinkSome   };
 
 }; // KThreadPool
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

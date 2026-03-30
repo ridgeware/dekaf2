@@ -87,6 +87,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_tcp
+/// @{
+
 class KTLSContext;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -446,6 +449,9 @@ private:
 	bool              m_bStoreNewCerts        {  true };
 
 }; // KTCPServer
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

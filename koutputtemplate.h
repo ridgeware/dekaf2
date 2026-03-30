@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup data_template
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Replace variables with values
 class DEKAF2_PUBLIC KOutputTemplate
@@ -111,6 +114,9 @@ private:
 	KString m_sBuffer;
 
 }; // KOutputtemplate
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

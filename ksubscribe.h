@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup threading_patterns
+/// @{
+
 namespace detail
 {
 
@@ -557,6 +560,9 @@ protected:
 	std::unique_ptr<parent_type> m_Parent{nullptr};
 
 };
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

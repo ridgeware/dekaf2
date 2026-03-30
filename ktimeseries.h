@@ -53,6 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup time_series
+/// @{
+
 //-----------------------------------------------------------------------------
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -681,5 +684,8 @@ protected:
 
 template<typename Datum, typename Resolution>
 const typename KTimeSeries<Datum, Resolution>::Stored KTimeSeries<Datum, Resolution>::s_EmptyStored;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

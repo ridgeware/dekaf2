@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_streams
+/// @{
+
 namespace detail {
 
 //-----------------------------------------------------------------------------
@@ -150,5 +153,8 @@ protected:
 
 /// String stream that writes copy-free into a KString
 using KOutStringStream = KWriter<KOStringStream>;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

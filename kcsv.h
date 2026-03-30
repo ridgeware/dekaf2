@@ -58,6 +58,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup data_csv
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// read and write CSV files
 class DEKAF2_PUBLIC KCSV
@@ -493,5 +496,8 @@ protected:
 	KOutStream&                       m_Out;
 
 }; // KOutCSV
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

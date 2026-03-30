@@ -56,6 +56,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup web_url
+/// @{
+
 namespace url {
 
 /// @param sHostName hostname to be converted into the domain suffix
@@ -1574,6 +1577,9 @@ bool kNormalizeURL(KURL& URL)
 {
 	return kNormalizeURLPath(URL.Path);
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

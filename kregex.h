@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_strings
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KRegex constructs a (shared) regex object. Normally you do not use it
 /// directly, but rather use its static functions that construct regex
@@ -217,6 +220,9 @@ private:
 /// Converts a wildcard expression for file matching into a regular expression.
 /// * and ? are allowed expressions.
 KString kWildCard2Regex(KStringView sInput);
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

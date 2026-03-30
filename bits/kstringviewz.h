@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_strings
+/// @{
+
 class KStringViewZ;
 
 inline namespace literals {
@@ -512,6 +515,9 @@ DEKAF2_NAMESPACE_BEGIN
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
 #else
+
+/// @}
+
 DEKAF2_NAMESPACE_END
 #endif
 

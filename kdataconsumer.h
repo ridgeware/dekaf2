@@ -56,6 +56,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_pipes
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the interface of a data consumer class, taking incoming bytes
 class KDataConsumer : public KErrorBase
@@ -254,5 +257,8 @@ private:
 	std::function<std::size_t(const void*, std::size_t)> m_WriteCallback;
 
 }; // KCallbackConsumer
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file klogrotate.h
 #include "kstring.h"
 #include "kstringview.h"
 #include "kreader.h"
@@ -54,6 +56,9 @@
 #include <functional>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup core_logging
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A class to rotate and truncate growing files, notably logs, and possibly discard or mail previously rotated files.
@@ -144,5 +149,8 @@ private:
 	KShallowLockMap<KString> m_LockMap;
 
 }; // KLogRotate
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

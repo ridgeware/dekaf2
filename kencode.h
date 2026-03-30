@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_types
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Collection of string encoders
 class DEKAF2_PUBLIC KEncode
@@ -274,5 +277,8 @@ public:
 using KEnc = KEncode;
 // alias for the old class name
 using KDec = KDecode;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

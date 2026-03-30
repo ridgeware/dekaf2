@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_strings
+/// @{
+
 namespace detail {
 namespace splitting_parser {
 
@@ -327,5 +330,8 @@ using KSimpleHTMLSkeletonWords      = KWords<std::vector<std::pair<KString, KStr
 
 /// extracting words and their leading non-words (HTML code) in HTML code broken by anything non alphanumerical, normalizing (reducing spaces) the skeleton
 using KNormalizingHTMLSkeletonWords = KWords<std::vector<std::pair<KString, KString>>, detail::splitting_parser::NormalizingHTML>;
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

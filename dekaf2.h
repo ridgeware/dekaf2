@@ -60,6 +60,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_misc
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Basic initialization of the library.
 class DEKAF2_PUBLIC Dekaf
@@ -316,5 +319,8 @@ void kInit(KStringView sName = KStringView{},
            bool bEnableMultiThreading = false,
 		   bool bStartSignalHandlerThread = true);
 //---------------------------------------------------------------------------
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

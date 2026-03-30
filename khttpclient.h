@@ -79,6 +79,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_client
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// low level implementation of a HTTP client
 class DEKAF2_PUBLIC KHTTPClient : public KErrorBase
@@ -668,5 +671,8 @@ public:
 	KInHTTPResponse  Response;
 
 }; // KHTTPClient
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

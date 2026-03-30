@@ -56,6 +56,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_format
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// print a table from various types of data, into various output formats
 class DEKAF2_PUBLIC KFormTable
@@ -324,6 +327,9 @@ private:
 }; // KFormTable
 
 DEKAF2_ENUM_IS_FLAG(KFormTable::Alignment)
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

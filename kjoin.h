@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_strings
+/// @{
+
 //-----------------------------------------------------------------------------
 /// join for sequential containers, outputs to strings and streams
 template<typename Container, typename Result,
@@ -228,5 +231,8 @@ Result kJoined (
 	kJoin(result, ctContainer, svDelim, svPairDelim, bWriteLastDelimiter);
 	return result;
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

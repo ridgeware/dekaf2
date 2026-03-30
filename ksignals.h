@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup system_os
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Provides a threaded signal handler framework. Other threads will not receive signals.
 /// Permits to set callbacks for any signal that shall not be ignored. Can
@@ -204,6 +207,9 @@ KStringView kTranslateSignal (int iSignalNum, bool bConcise = true);
 DEKAF2_PUBLIC
 void kBlockAllSignals(bool bExceptSEGVandFPE = true);
 //-----------------------------------------------------------------------------
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

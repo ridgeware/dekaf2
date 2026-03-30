@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_sequential
+/// @{
+
 namespace detail {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -339,5 +342,8 @@ typename KBufferBase<B, T>::size_type KBufferBase<B, T>::push_back(KConstBuffer 
 {
 	return append(Buffer);
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup threading_primitives
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Template for generic threadsafe sharing for non-atomic types
 template<class T, class MutexType = std::shared_mutex>
@@ -207,5 +210,8 @@ private:
 	mutable MutexType m_Mutex;
 
 }; // KThreadSafe
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

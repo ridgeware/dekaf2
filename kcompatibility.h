@@ -55,6 +55,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_types
+/// @{
+
 /// suppress compiler warnings on seemingly unused variables
 template <typename... T> constexpr
 void kIgnoreUnused(const T&...) {}
@@ -88,6 +91,9 @@ int open(const char *path, int oflag);
 int open(const char *path, int oflag, int mode);
 int read(int fd, void *buf, size_t nbyte);
 #endif
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

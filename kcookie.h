@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file kcookie.h
 #include "kdefinitions.h"
 #include "kstringview.h"
 #include "kstring.h"
@@ -50,6 +52,9 @@
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup http_cookie
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a (HTTP) Cookie type
@@ -237,5 +242,8 @@ private:
 	Storage m_Cookies;
 
 }; // KCookies
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

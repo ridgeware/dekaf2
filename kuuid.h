@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_id
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Creating, parsing, and analyzing UUIDs like a1ae410d-9bc7-478a-b2fa-1266927a1dd7
 class DEKAF2_PUBLIC KUUID
@@ -324,6 +327,9 @@ inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, const KUUID&
 	stream.write(s.data(), s.size());
 	return stream;
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

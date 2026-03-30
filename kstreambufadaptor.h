@@ -56,6 +56,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_streams
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper class to watch or modify the characters written through a streambuf
 class DEKAF2_PUBLIC KOutStreamBufAdaptor : public std::streambuf
@@ -208,5 +211,8 @@ private:
 	char_type       m_chBuf;
 
 }; // KInStreamBufAdaptor
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

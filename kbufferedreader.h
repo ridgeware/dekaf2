@@ -58,6 +58,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_readwrite
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KBufferedReader speeds up read operations in small chunks noticeably on
 /// Windows and the Mac (up to 5 times as fast as std::istream).
@@ -314,5 +317,8 @@ private:
 	bool m_bOwnsFileDescriptor { false };
 
 }; // KBufferedFileReader
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

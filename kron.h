@@ -60,6 +60,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup time_scheduler
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Kron
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -320,5 +323,8 @@ protected:
 	std::atomic<bool>             m_bStop { false }; // syncronization with time keeper thread
 
 }; // Kron
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

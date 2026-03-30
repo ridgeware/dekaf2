@@ -61,6 +61,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_cli
+/// @{
+
 /// change terminal configuration on stdin - you do not need to use this when using KXTerm, all parms
 /// will be set automatically by the KXTerm constructor
 /// @param iInputDevice file descriptor for input device, normally STDIN_FILENO (0)
@@ -482,5 +485,8 @@ private:
 	bool     m_bWrap              { false };
 
 }; // KXTerm
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

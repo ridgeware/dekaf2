@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup crypto_hash
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Generates a FNV hash value, also over consecutive pieces of data
 class DEKAF2_PUBLIC KHash
@@ -275,5 +278,8 @@ protected:
 	bool m_bUpdated { false };
 
 }; // KCaseHash
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file khttp_request.h
 #include "khttp_method.h"
 #include "khttp_header.h"
 #include "khttpoutputfilter.h"
@@ -48,6 +50,9 @@
 #include "kstring.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup http_protocol
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Holds information about the original request line of an incoming request
@@ -332,5 +337,8 @@ protected:
 	}
 
 }; // KInHTTPRequest
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

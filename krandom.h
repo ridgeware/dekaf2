@@ -51,6 +51,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_id
+/// @{
+
 /// Returns 32 bit unsigned random number
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 uint32_t kRandom32();
@@ -83,5 +86,8 @@ namespace detail {
 DEKAF2_PUBLIC
 void kSetRandomSeed();
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

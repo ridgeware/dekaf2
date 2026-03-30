@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup rest_limits
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Token bucket rate limiter. Thread-safe. When rate is 0 (the default),
 /// the limiter is completely disabled and Check() is a no-op with zero cost.
@@ -131,5 +134,8 @@ private:
 	uint16_t    m_iBurstSize { 0 };  // max tokens (burst capacity)
 
 }; // KRateLimiter
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

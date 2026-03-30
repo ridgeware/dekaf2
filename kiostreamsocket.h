@@ -60,6 +60,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_tls
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// base class for the std::iostream based internet stream classes
 class DEKAF2_PUBLIC KIOStreamSocket : public KErrorBase, public KReaderWriter<std::iostream>
@@ -299,5 +302,8 @@ Create(const KURL& URL, bool bForceTLS = false, KStreamOptions Options = KStream
 }
 
 } // end of namespace KConnection
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

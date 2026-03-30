@@ -49,6 +49,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_streams
+/// @{
+
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::istream implementation
@@ -98,6 +101,9 @@ private:
 	//-----------------------------------------------------------------------------
 
 }; // KLambdaInStream
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

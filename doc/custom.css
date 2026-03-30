@@ -1,0 +1,157 @@
+/* dekaf2 custom Doxygen overrides — compact layout */
+
+html {
+    /* tighter spacing globally */
+    --spacing-small: 3px;
+    --spacing-medium: 6px;
+    --spacing-large: 10px;
+    --spacing-xlarge: 14px;
+
+    /* smaller border radii */
+    --border-radius-small: 3px;
+    --border-radius-medium: 5px;
+    --border-radius-large: 7px;
+
+    /* use more screen width */
+    --content-maxwidth: 1200px;
+
+    /* tighter table rows */
+    --table-line-height: 20px;
+}
+
+/* compact member lists — only override vertical padding, preserve left/right from theme */
+table.memberdecls td.memItemLeft,
+table.memberdecls td.memItemRight,
+table.memberdecls td.memTemplItemLeft,
+table.memberdecls td.memTemplItemRight {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    font-size: 0.92em;
+}
+
+/* CSS Grid for consistent column alignment with flexible widths:
+   left column auto-sizes to content but caps at 25%, right column takes the rest */
+table.memberdecls {
+    display: grid !important;
+    grid-template-columns: minmax(auto, 25%) 1fr;
+    width: 100%;
+}
+
+table.memberdecls > tbody {
+    display: contents;
+}
+
+table.memberdecls > tbody > tr {
+    display: contents;
+}
+
+/* heading, template params, separators span both columns */
+table.memberdecls td[colspan="2"] {
+    grid-column: 1 / -1;
+}
+
+/* left column wraps long return types */
+table.memberdecls td.memItemLeft,
+table.memberdecls td.memTemplItemLeft {
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+table.memberdecls td.memSeparator {
+    height: 1px;
+}
+
+/* compact enum value tables */
+table.fieldtable td,
+table.fieldtable th {
+    padding: 3px 8px;
+    font-size: 0.92em;
+}
+
+table.fieldtable td.fieldname {
+    padding: 3px 8px;
+}
+
+/* compact member documentation blocks — cppreference-like flat style */
+.memitem {
+    margin-bottom: 8px;
+    box-shadow: none;
+    border: none;
+    border-top: 1px solid var(--separator-color);
+    border-radius: 0;
+}
+
+.memdoc {
+    padding: 4px 10px;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+}
+
+.memproto {
+    padding: 4px 10px;
+    border: none;
+    box-shadow: none;
+    background: var(--code-background);
+    border-radius: var(--border-radius-small);
+}
+
+.memname {
+    font-size: 0.95em;
+}
+
+/* reduce the heavy "Detailed Description" separator */
+h2.groupheader {
+    border-bottom: 1px solid var(--separator-color);
+}
+
+/* flatten the member summary table — less visual noise */
+table.memberdecls {
+    border-spacing: 0 1px;
+}
+
+/* tighter section headers */
+h2.groupheader {
+    margin-top: 12px;
+    margin-bottom: 4px;
+    padding-top: 8px;
+}
+
+/* compact class/file description */
+div.textblock p {
+    margin: 4px 0;
+}
+
+/* compact parameter lists */
+dl.params dt,
+dl.retval dt,
+dl.exception dt {
+    margin-top: 2px;
+}
+
+dl.params dd,
+dl.retval dd,
+dl.exception dd {
+    margin-bottom: 2px;
+}
+
+/* tighter brief descriptions in member lists */
+.mdescRight {
+    padding: 2px 6px;
+    font-size: 0.92em;
+}
+
+.mdescLeft {
+    padding: 2px 6px;
+}
+
+/* compact code blocks */
+div.fragment, pre.fragment {
+    margin: 6px 0;
+    padding: 8px 10px;
+}
+
+/* tighter directory/file tree */
+tr.even, tr.odd {
+    line-height: 1.3;
+}

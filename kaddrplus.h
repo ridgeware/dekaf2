@@ -48,6 +48,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_misc
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Experimental type to use the upper bits of an address for other purposes.
 /// On a 64 bit system you should best not use more than 22 bits.. anyway, the
@@ -128,5 +131,8 @@ public:
 	}
 
 }; // KAddrPlus
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

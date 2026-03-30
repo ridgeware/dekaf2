@@ -66,6 +66,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_address
+/// @{
+
 class KIPNetwork;
 class KIPNetwork6;
 
@@ -613,6 +616,9 @@ inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KIPNetwork N
 	stream.write(s.data(), s.size());
 	return stream;
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

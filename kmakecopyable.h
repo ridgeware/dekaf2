@@ -41,7 +41,12 @@
 
 #pragma once
 
+
+/// @file kmakecopyable.h
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup containers_memory
+/// @{
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A class that makes a non-copy-constructible type copy-constructible by assigning
@@ -122,5 +127,8 @@ private:
 	NonCopyable m_Value;
 
 }; // KMakeCopyable
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

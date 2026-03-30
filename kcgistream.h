@@ -52,6 +52,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_server
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::istream CGI implementation
 class DEKAF2_PUBLIC KCGIInStream : public std::istream
@@ -207,6 +210,9 @@ private:
 	//-----------------------------------------------------------------------------
 
 }; // KCGIInStream
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

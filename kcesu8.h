@@ -47,6 +47,9 @@
 
 #if KUTF_DEKAF2
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup core_types
+/// @{
 #endif
 
 namespace KUTF_NAMESPACE {
@@ -167,5 +170,8 @@ ByteString UTF8ToUTF16Bytes(const NarrowString& sUTF8String)
 } // namespace KUTF_NAMESPACE
 
 #ifdef KUTF_DEKAF2
+
+/// @}
+
 DEKAF2_NAMESPACE_END
 #endif

@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file ktunnel.h
 #include "kiostreamsocket.h"
 #include "kassociative.h"
 #include "kblockcipher.h"
@@ -58,6 +60,9 @@
 #include <queue>
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup net_util
+/// @{
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Creates a fully transparent multiplexed tunnel for TCP stream connections between two instances of itself.
@@ -366,5 +371,8 @@ private:
 	bool                   m_bMaskTx       { false };
 
 }; // KTunnel
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

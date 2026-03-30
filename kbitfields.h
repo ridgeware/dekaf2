@@ -62,6 +62,9 @@
 #include "kcompatibility.h" // enable_if_t < C++14
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup core_types
+/// @{
 namespace detail {
 namespace bitfields {
 
@@ -240,6 +243,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 }; // KBitfields
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

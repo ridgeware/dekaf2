@@ -55,6 +55,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup util_mail
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// This class speaks the SMTP protocol with a mail relay. It takes a KMail class
 /// as the mail to be sent. Multiple mails can be sent consecutively in one
@@ -117,5 +120,8 @@ private:
 	KDuration m_Timeout { KStreamOptions::GetDefaultTimeout() };
 
 }; // KSMTP
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

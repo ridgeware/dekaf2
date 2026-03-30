@@ -1,12 +1,15 @@
 PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
 PROJECT_NUMBER         = @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
+PROJECT_BRIEF          = "Lighter, Faster, Smarter"
 STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_BINARY_DIR@
 # STRIP_FROM_INC_PATH    = @@
-INPUT                  = @PROJECT_SOURCE_DIR@
+INPUT                  = @PROJECT_SOURCE_DIR@ \
+                         @PROJECT_SOURCE_DIR@/doc/modules.dox
 FILE_PATTERNS          = *.h   \
                          *.hpp \
-                         *.cpp
+                         *.cpp \
+                         *.dox
 EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/benchmarks/*  \
                          @PROJECT_SOURCE_DIR@/cmake/*       \
                          @PROJECT_SOURCE_DIR@/compat/*      \
@@ -26,15 +29,16 @@ OUTPUT_LANGUAGE        = English
 BUILTIN_STL_SUPPORT    = YES
 BRIEF_MEMBER_DESC      = YES
 # repeat brief in detail section
-REPEAT_BRIEF           = YES
+REPEAT_BRIEF           = NO
 # create details if only brief?
-ALWAYS_DETAILED_SEC    = NO
+ALWAYS_DETAILED_SEC    = YES
 # show inherited members in child class?
 INLINE_INHERITED_MEMB  = YES
 # is multiline /// allowed for brief?
-MULTILINE_CPP_IS_BRIEF = NO
+MULTILINE_CPP_IS_BRIEF = YES
 JAVADOC_AUTOBRIEF      = YES
 OPTIMIZE_OUTPUT_FOR_C  = YES
+HIDE_SCOPE_NAMES       = YES
 EXTENSION_MAPPING      = h=C++
 INLINE_SIMPLE_STRUCTS  = YES
 NUM_PROC_THREADS       = 0
@@ -65,21 +69,40 @@ ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = YES
 PREDEFINED             = DEKAF2_GSL_OWNER()= DEKAF2_GSL_POINTER()= DEKAF2_PUBLIC= DEKAF2_PRIVATE= \
+ DEKAF2_NODISCARD= DEKAF2_FALLTHROUGH= \
  __clang__=10 __unix__=1 __cplusplus=202003L __cpp_lib_chrono=202003L \
+ OPENSSL_VERSION_NUMBER=0x030000000L \
  DEKAF=2 DEKAF_VERSION=2 DEKAF2_USE_BOOST_MULTI_INDEX= DEKAF2_USE_KPROPS_MULTI_INDEX= \
  DEKAF2_USE_KMRU_MULTI_INDEX= DEKAF2_USE_FBSTRING_AS_KSTRING= DEKAF2_USE_OPTIMIZED_STRING_FIND= \
- DEKAF2_HAS_MINIFOLLY= DEKAF2_HAS_MYSQL= DEKAF2_HAS_SQLITE3= DEKAF2_HAS_FREETDS= DEKAF2_HAS_CTLIB= \
+ DEKAF2_HAS_MINIFOLLY= DEKAF2_HAS_FROZEN= DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS= \
+ DEKAF2_HAS_MYSQL= DEKAF2_HAS_SQLITE3= DEKAF2_HAS_FREETDS= DEKAF2_HAS_CTLIB= \
  DEKAF2_HAS_LIBZIP= DEKAF2_HAS_LIBBROTLI= DEKAF2_HAS_LIBZSTD= DEKAF2_HAS_LIBLZMA= \
- DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD= DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS= \
- DEKAF2_WITH_KLOG= DEKAF2_KLOG_WITH_TCP= DEKAF2_HAS_UNIX_SOCKETS= DEKAF2_HAS_PIPES=
-# the below customization does not work anymore with doxygen 1.8.14
-# these locations point to the source, but doxygen takes care that they are copied into
-# the generated html/ directory (or included into the main html files)
-#HTML_HEADER            = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/example-site/header.html
-#HTML_FOOTER            = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/example-site/footer.html
-#HTML_EXTRA_STYLESHEET  = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/customdoxygen.css
-#HTML_EXTRA_FILES       = @PROJECT_SOURCE_DIR@/doc/doxygen-bootstrapped/doxy-boot.js
-# locations until here
+ DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD= \
+ DEKAF2_HAS_AES=1 DEKAF2_HAS_HKDF=1 DEKAF2_HAS_ARIA=1 DEKAF2_HAS_BLAKE2=1 \
+ DEKAF2_HAS_NGHTTP2=1 DEKAF2_HAS_NGHTTP3=1 DEKAF2_HAS_OPENSSL_QUIC=1 \
+ DEKAF2_HAS_SYSLOG= DEKAF2_HAS_USER_AGENT_PARSER=1 DEKAF2_HAS_INT128= \
+ DEKAF2_WITH_KLOG= DEKAF2_KLOG_WITH_TCP= DEKAF2_HAS_UNIX_SOCKETS= DEKAF2_HAS_PIPES= \
+ DEKAF2_HAS_CPP_14=1 DEKAF2_HAS_CPP_17=1 DEKAF2_HAS_CPP_20=1 \
+ DEKAF2_HAS_FULL_CPP_17=1 DEKAF2_HAS_FULL_CPP_20=1 DEKAF2_HAS_CONSTEXPR_IF=1 \
+ DEKAF2_HAS_STD_STRING_VIEW=1 DEKAF2_HAS_STD_FILESYSTEM=1 DEKAF2_HAS_STD_VARIANT=1 \
+ DEKAF2_HAS_CONCEPTS=1 DEKAF2_HAS_SPACESHIP_OPERATOR=1 \
+ DEKAF2_HAS_CHRONO_CALENDAR=1 DEKAF2_HAS_TIMEZONES=1 DEKAF2_HAS_CHRONO_ROUND=1 \
+ DEKAF2_HAS_NANOSECONDS_SYS_CLOCK=1 \
+ DEKAF2_HAS_STD_FORMAT=1 DEKAF2_HAS_FMT_FORMAT=1 DEKAF2_HAS_FORMAT_RUNTIME=1 \
+ DEKAF2_NAMESPACE_BEGIN="namespace dekaf2 {" DEKAF2_NAMESPACE_END="}"
+HTML_HEADER            = @PROJECT_SOURCE_DIR@/doc/header.html
+HTML_EXTRA_STYLESHEET  = @PROJECT_SOURCE_DIR@/doc/doxygen-awesome-css/doxygen-awesome.css \
+                         @PROJECT_SOURCE_DIR@/doc/doxygen-awesome-css/doxygen-awesome-sidebar-only.css \
+                         @PROJECT_SOURCE_DIR@/doc/doxygen-awesome-css/doxygen-awesome-sidebar-only-darkmode-toggle.css \
+                         @PROJECT_SOURCE_DIR@/doc/custom.css
+HTML_EXTRA_FILES       = @PROJECT_SOURCE_DIR@/doc/doxygen-awesome-css/doxygen-awesome-darkmode-toggle.js \
+                         @PROJECT_SOURCE_DIR@/doc/doxygen-awesome-css/doxygen-awesome-interactive-toc.js
+HTML_COLORSTYLE        = LIGHT
+HTML_COLORSTYLE_HUE    = 209
+HTML_COLORSTYLE_SAT    = 255
+HTML_COLORSTYLE_GAMMA  = 113
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
 GENERATE_HTML          = YES
 GENERATE_LATEX         = NO
 GENERATE_RTF           = NO

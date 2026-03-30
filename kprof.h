@@ -58,6 +58,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup time_duration
+/// @{
+
 namespace enabled {
 
 class KProf;
@@ -555,5 +558,8 @@ DEKAF2_PUBLIC inline void kProfFinalize()
 #endif
 
 #endif // DEKAF2_ENABLE_PROFILING == false
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

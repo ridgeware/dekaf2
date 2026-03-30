@@ -68,6 +68,9 @@ struct nghttp2_session;
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_protocol
+/// @{
+
 namespace khttp2
 {
 
@@ -334,6 +337,9 @@ protected:
 }; // SingleStreamSession
 
 } // end of namespace khttp2
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

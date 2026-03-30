@@ -41,11 +41,16 @@
 
 #pragma once
 
+
+/// @file khttp_version.h
 #include "kdefinitions.h"
 #include "kstringview.h"
 #include "kformat.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup http_protocol
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// which HTTP version is used/requested/permitted?
@@ -85,6 +90,9 @@ private:
 }; // KHTTPVersion
 
 DEKAF2_ENUM_IS_FLAG(KHTTPVersion::Version)
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

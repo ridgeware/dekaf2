@@ -54,6 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_pipes
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the interface of a data provider class
 class KDataProvider
@@ -186,5 +189,8 @@ private:
 	std::size_t   m_iMaxRead { npos };
 
 }; // KIStreamProvider
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

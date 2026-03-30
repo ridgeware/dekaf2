@@ -58,6 +58,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup system_process
+/// @{
+
 namespace detail {
 
 //-----------------------------------------------------------------------------
@@ -283,6 +286,9 @@ protected:
 	KString m_sSecondaryName;
 
 }; // class KPTY
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

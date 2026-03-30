@@ -115,6 +115,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_types
+/// @{
+
 #if (DEKAF2_HAS_BOOST_VARIANT == 1)
 	template<typename RETURNTYPE = void>
 	struct KVisitorBase : public var::static_visitor<RETURNTYPE> {};
@@ -156,5 +159,8 @@ DEKAF2_NAMESPACE_BEGIN
  */
 
 #endif
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

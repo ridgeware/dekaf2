@@ -59,6 +59,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup net_quic
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream QUIC implementation with timeout.
 class DEKAF2_PUBLIC KQuicStream : public KIOStreamSocket
@@ -253,6 +256,9 @@ std::unique_ptr<KQuicClient> CreateKQuicClient();
 DEKAF2_PUBLIC
 std::unique_ptr<KQuicClient> CreateKQuicClient(const KTCPEndPoint& EndPoint, KStreamOptions Options);
 //-----------------------------------------------------------------------------
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

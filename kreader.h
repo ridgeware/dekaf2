@@ -56,6 +56,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup io_readwrite
+/// @{
+
 /// Read a line of text until EOF or delimiter from a std::istream. Right trim values of sTrimRight.
 /// Reads directly in the underlying streambuf
 /// @param Stream the input stream
@@ -924,5 +927,8 @@ public:
 	}
 
 };
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -58,6 +58,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup time_duration
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// KTimer can be used to call functions both repeatedly after a fixed
 /// time interval or once after expiration of a time interval, or at
@@ -374,5 +377,8 @@ private:
 	KThreadSafe<std::unordered_map<ID_t, Timer>> m_Timers;
 
 }; // KTimer
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

@@ -60,6 +60,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup core_strings
+/// @{
+
 class KInStream;
 class KOutStream;
 
@@ -2257,5 +2260,8 @@ kFromStringView(T& Trivial, KStringView sData)
 	std::memcpy(&Trivial, sData.data(), sizeof(T));
 	return Trivial;
 }
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

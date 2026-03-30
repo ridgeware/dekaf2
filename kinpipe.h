@@ -41,6 +41,8 @@
 
 #pragma once
 
+
+/// @file kinpipe.h
 // Dekaf Includes
 #include "bits/kbasepipe.h"
 
@@ -49,6 +51,9 @@
 #include "kfdstream.h"
 
 DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup io_pipes
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Execute another process and attach read pipe to its std::out
@@ -126,6 +131,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 }; // class KInPipe
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 

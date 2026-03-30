@@ -42,6 +42,8 @@
 
 #pragma once
 
+
+/// @file kjson2.h
 #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 6
 	// need at least gcc 6 to compile
 	#undef DEKAF2_KJSON2_IS_DISABLED

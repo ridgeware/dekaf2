@@ -64,6 +64,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup http_websocket
+/// @{
+
 class DEKAF2_PUBLIC KWebSocketError : public KException
 {
 	using KException::KException;
@@ -447,5 +450,8 @@ private:
 	std::atomic<bool>             m_bStop    { false };
 
 }; // KWebSocketServer
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

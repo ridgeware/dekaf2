@@ -50,6 +50,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup containers_sequential
+/// @{
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A container with accessors from std::deque plus std::stack, and range protection
 template<class Value>
@@ -423,5 +426,8 @@ private:
 // defines the template's static const for c++ < 17
 template<typename Stack_Type>
 const Stack_Type KStack<Stack_Type>::s_cEmptyValue = Stack_Type{};
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END

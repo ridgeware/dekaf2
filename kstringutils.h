@@ -1257,7 +1257,7 @@ Integer kToInt(Iterator it, Iterator end, uint16_t iBase = 10) noexcept
 		// work on numbers expressed by ASCII alnum - accept negative values
 		// by a '-' prefix, or positive values by a '+' prefix or none
 
-		for (;it != end && KASCII::kIsSpace(*it); ++it) {}
+		for (; it != end && KASCII::kIsSpace(*it); ++it) {}
 
 		if (it != end)
 		{
@@ -1273,7 +1273,7 @@ Integer kToInt(Iterator it, Iterator end, uint16_t iBase = 10) noexcept
 					break;
 			}
 
-			for (;it != end;)
+			while (it != end)
 			{
 				auto ch = static_cast<char>(*it++);
 
@@ -1288,7 +1288,7 @@ Integer kToInt(Iterator it, Iterator end, uint16_t iBase = 10) noexcept
 					if (ch != 0 && !KASCII::kIsSpace(ch))
 					{
 						// this is a value overflow (the number was not encoded in this base)
-//						kDebug(2, "string value is at least of base {}, not of {}", iBase36 - 1, iBase);
+//						kDebug(2, "string value is at least of base {}, not of {}", iBase36 + 1, iBase);
 					}
 					break;
 				}
@@ -1308,7 +1308,7 @@ Integer kToInt(Iterator it, Iterator end, uint16_t iBase = 10) noexcept
 		// this is a pure binary encoding, do not trim anything, do not assume
 		// signed values from prefixes
 
-		for (;it != end;)
+		while (it != end)
 		{
 			iVal *= 256;
 			iVal += static_cast<unsigned char>(*it++);

@@ -162,6 +162,9 @@ void zstd_base::reset(bool compress, bool realloc)
 			);
 
 #ifdef DEKAF2_HAS_ZSTD_STREAM_2
+			// enable content checksum for better end-of-frame detection
+			ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_checksumFlag, 1);
+
 			if (bHasMultiThreading)
 			{
 				zstd_error::check BOOST_PREVENT_MACRO_SUBSTITUTION(
@@ -206,6 +209,9 @@ void zstd_base::do_init
 		);
 
 #ifdef DEKAF2_HAS_ZSTD_STREAM_2
+		// enable content checksum for better end-of-frame detection
+		ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_checksumFlag, 1);
+
 		if (bHasMultiThreading)
 		{
 			if (ZSTD_isError(ZSTD_CCtx_setParameter(static_cast<ZSTD_CStream *>(cstream_), ZSTD_c_nbWorkers, iMultiThreading_)))

@@ -52,9 +52,6 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup core_strings
-/// @{
-
 namespace detail {
 namespace splitting_parser {
 
@@ -163,6 +160,8 @@ private:
 
 } // of namespace detail
 
+/// @addtogroup core_strings
+/// @{
 
 //-----------------------------------------------------------------------------
 /// Version of kSplitWords that fills a container with KStringViewPairs, where

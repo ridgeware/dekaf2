@@ -60,9 +60,6 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup core_strings
-/// @{
-
 // forward declarations
 class KString;
 class KStringView;
@@ -72,10 +69,12 @@ namespace kutf { template<typename Iterator> class CodepointRange; }
 
 #if defined(DEKAF2_IS_APPLE_CLANG) && DEKAF2_CLANG_VERSION < 120000
 /// a string type used for string& pars in parameter lists (output string parameters)
+/// @ingroup core_strings
 using KStringRef = KString;
 #else
 /// a string type used for string& pars in parameter lists (output string parameters)
 /// - converts to and from KString without effort
+/// @ingroup core_strings
 using KStringRef = std::string;
 #endif
 
@@ -98,6 +97,7 @@ struct is_kstring_move_assignable
 /// that offers most string functions from languages like Python or Javascript,
 /// handles most error cases in a benign way and speeds up searching
 /// up to 50 times compared to std::string implementations
+/// @ingroup core_strings
 class DEKAF2_PUBLIC DEKAF2_GSL_OWNER(char) KString
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2378,8 +2378,6 @@ DEKAF2_NAMESPACE_BEGIN
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
 #else
-
-/// @}
 
 DEKAF2_NAMESPACE_END
 #endif

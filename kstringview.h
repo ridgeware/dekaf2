@@ -107,9 +107,6 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup core_strings
-/// @{
-
 // forward declarations
 class KString;
 class KStringViewZ;
@@ -120,6 +117,7 @@ class KFindSetOfChars;
 /// folly::StringPiece, or our own implementation. Handles most errors without
 /// throwing and speeds up searching up to 50 times compared to std::string_view
 /// implementations.
+/// @ingroup core_strings
 class DEKAF2_PUBLIC DEKAF2_GSL_POINTER(char) KStringView
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2168,8 +2166,6 @@ T KStringView::Split(Parms&&... parms) const
 	return Container;
 }
 
-
-/// @}
 
 DEKAF2_NAMESPACE_END
 

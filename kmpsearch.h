@@ -95,6 +95,8 @@ private:
 
 }; // KMPSearch
 
+/// @}
+
 #ifdef DEKAF2_HAS_CPP_17
 
 namespace kfrozen {
@@ -239,8 +241,5 @@ constexpr static auto bb { kfrozen::CreateKMPSearch<sv.size()>(sv) };
 */
 
 #endif // of DEKAF2_HAS_CPP_17
-
-
-/// @}
 
 DEKAF2_NAMESPACE_END

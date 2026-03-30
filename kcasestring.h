@@ -50,9 +50,6 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup core_strings
-/// @{
-
 namespace detail {
 namespace casestring {
 
@@ -129,6 +126,7 @@ std::size_t kCalcCaseHashTrim(KStringView sv)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A string view class that compares and hashes case insensitive and trimmed
+/// @ingroup core_strings
 template<typename Trimming = detail::casestring::NoTrim>
 class DEKAF2_PUBLIC KCaseStringViewBase : public KStringView
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -218,6 +216,7 @@ inline bool operator!=(const T& left, const KCaseStringViewBase<TrimmingRight> r
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A string class that compares and hashes case insensitive and trimmed
+/// @ingroup core_strings
 template<typename Trimming = detail::casestring::NoTrim>
 class DEKAF2_PUBLIC KCaseStringBase : public KString
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -316,9 +315,13 @@ extern template class KCaseStringBase<detail::casestring::NoTrim>;
 extern template class KCaseStringViewBase<detail::casestring::TrimWhiteSpaces>;
 extern template class KCaseStringBase<detail::casestring::TrimWhiteSpaces>;
 
+/// @ingroup core_strings
 using KCaseStringView     = KCaseStringViewBase<detail::casestring::NoTrim>;
+/// @ingroup core_strings
 using KCaseString         = KCaseStringBase<detail::casestring::NoTrim>;
+/// @ingroup core_strings
 using KCaseTrimStringView = KCaseStringViewBase<detail::casestring::TrimWhiteSpaces>;
+/// @ingroup core_strings
 using KCaseTrimString     = KCaseStringBase<detail::casestring::TrimWhiteSpaces>;
 
 DEKAF2_NAMESPACE_END
@@ -411,8 +414,6 @@ DEKAF2_NAMESPACE_BEGIN
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
 #else
-
-/// @}
 
 DEKAF2_NAMESPACE_END
 #endif

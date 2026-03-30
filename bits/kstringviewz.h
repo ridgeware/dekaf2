@@ -51,9 +51,6 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup core_strings
-/// @{
-
 class KStringViewZ;
 
 inline namespace literals {
@@ -66,6 +63,7 @@ inline namespace literals {
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A string_view type with a guaranteed trailing zero that can be used on
 /// any C API
+/// @ingroup core_strings
 class DEKAF2_PUBLIC DEKAF2_GSL_POINTER(char) KStringViewZ : private KStringView
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -515,8 +513,6 @@ DEKAF2_NAMESPACE_BEGIN
 #ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
 }
 #else
-
-/// @}
 
 DEKAF2_NAMESPACE_END
 #endif

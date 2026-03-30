@@ -84,6 +84,8 @@ KStringRef::size_type kReplace(KStringRef& string,
 							   bool bReplaceAll = true);
 //------------------------------------------------------------------------------
 
+/// @}
+
 namespace detail {
 
 void kMakeUpperASCII  (const char* it, const char* ie, char* out);
@@ -92,6 +94,9 @@ void kMakeUpperLocale (const char* it, const char* ie, char* out);
 void kMakeLowerLocale (const char* it, const char* ie, char* out);
 
 } // end of namespace detail
+
+/// @addtogroup core_strings
+/// @{
 
 //----------------------------------------------------------------------
 /// converts the string to uppercase assuming UTF encoding
@@ -1202,6 +1207,8 @@ bool kIsURL(KStringView str) noexcept;
 
 // exception free conversions
 
+/// @}
+
 namespace detail {
 
 static constexpr uint8_t LookupBase36[256]
@@ -1840,6 +1847,9 @@ DEKAF2_PUBLIC
 
 } // namespace detail
 
+/// @addtogroup core_strings
+/// @{
+
 //-----------------------------------------------------------------------------
 /// Limit the size of a string by removing data in the middle of it, and inserting an ellipsis. This function is
 /// not UTF8 aware and should only be used when the content of the string has only ASCII or one-byte
@@ -2019,6 +2029,8 @@ KOutStream& kWriteUTF8BOM(KOutStream& OutStream);
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KStringView kWriteUTF8BOM();
 
+/// @}
+
 namespace detail
 {
 
@@ -2038,6 +2050,9 @@ KString kFormScaledUnsignedNumber (
 );
 
 } // end of namespace detail
+
+/// @addtogroup core_strings
+/// @{
 
 /// @param iNumber the number to transform
 /// @param iPrecision how many digits to retain after the decimal separator (1 by default)

@@ -411,6 +411,8 @@ KStringViewPair kSplitToPair(
 	);
 //-----------------------------------------------------------------------------
 
+/// @}
+
 namespace detail {
 namespace container_adaptor {
 
@@ -582,6 +584,9 @@ private:
 
 } // end of namespace container_adaptor
 } // end of namespace detail
+
+/// @addtogroup core_strings
+/// @{
 
 //-----------------------------------------------------------------------------
 /// Splitting strings into a series of key value pairs (container is a map).

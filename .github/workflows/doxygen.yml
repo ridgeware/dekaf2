@@ -1,0 +1,51 @@
+name: Doxygen Documentation
+
+on:
+  workflow_dispatch:          # manual trigger via GitHub UI
+  push:
+    tags: ['v*']              # automatic on version tags like v2.1.0
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Doxygen and Graphviz
+        run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
+
+      - name: Configure with CMake (generates doxyfile from doxyfile.in)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build documentation
+        run: doxygen build/doxyfile
+        working-directory: build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

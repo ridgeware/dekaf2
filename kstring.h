@@ -43,10 +43,10 @@
 #pragma once
 
 /// @file kstring.h
-/// dekaf2's own string class - a wrapper around std::string or folly::fbstring
-/// that offers most string functions from languages like Python or Javascript,
-/// handles most error cases in a benign way and speeds up searching
-/// up to 50 times compared to std::string implementations
+/// dekaf2's own string class - a safer, faster, and more convenient wrapper
+/// around std::string that adds Python/JavaScript-style string operations,
+/// handles error cases gracefully instead of causing UB, and speeds up
+/// searching by up to 50x compared to typical std::string implementations
 
 #include "kcompatibility.h"
 #include "bits/kstring_view.h"
@@ -68,12 +68,17 @@ class KFindSetOfChars;
 namespace kutf { template<typename Iterator> class CodepointRange; }
 
 #if defined(DEKAF2_IS_APPLE_CLANG) && DEKAF2_CLANG_VERSION < 120000
-/// a string type used for string& pars in parameter lists (output string parameters)
+/// A reference-compatible string type for use as output parameters.
+/// On older Apple Clang (< 12) this is KString itself; on all other
+/// compilers it is std::string, which converts to/from KString transparently.
+/// Use `KStringRef&` in function signatures that write into a caller-provided string.
 /// @ingroup core_strings
 using KStringRef = KString;
 #else
-/// a string type used for string& pars in parameter lists (output string parameters)
-/// - converts to and from KString without effort
+/// A reference-compatible string type for use as output parameters.
+/// On older Apple Clang (< 12) this is KString itself; on all other
+/// compilers it is std::string, which converts to/from KString transparently.
+/// Use `KStringRef&` in function signatures that write into a caller-provided string.
 /// @ingroup core_strings
 using KStringRef = std::string;
 #endif
@@ -93,10 +98,42 @@ struct is_kstring_move_assignable
 } // end of namespace detail
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// dekaf2's own string class - a wrapper around std::string or folly::fbstring
-/// that offers most string functions from languages like Python or Javascript,
-/// handles most error cases in a benign way and speeds up searching
-/// up to 50 times compared to std::string implementations
+/// A safer and more convenient string class built on top of std::string.
+///
+/// KString wraps std::string and extends it with:
+///
+/// **Safety** - all element access (`operator[]`, `at()`, `front()`, `back()`)
+/// is bounds-checked and returns a NUL character instead of causing undefined
+/// behavior. `pop_back()` on an empty string is a no-op. Constructors accept
+/// `nullptr` without crashing. The iterator constructor of std::string is
+/// intentionally disabled (it silently causes buffer overflows on typos like
+/// `std::string("one", "two")`).
+///
+/// **Convenience** - adds Python/JavaScript-style operations:
+/// `Left()`, `Mid()`, `Right()`, `Split()`, `Join()`, `Trim()`,
+/// `Collapse()`, `Replace()`, `Contains()`, `starts_with()`, `ends_with()`,
+/// `ToUpper()`, `ToLower()`, `Bool()`, `Int64()`, `Format()`, and more.
+/// Full UTF-8 support through `LeftUTF8()`, `MidUTF8()`, `RightUTF8()`,
+/// `SizeUTF8()`, `AtUTF8()`, `Codepoints()` etc.
+///
+/// **Performance** - searching (`find()`, `rfind()`, `find_first_of()` etc.)
+/// uses optimized algorithms that are up to 50x faster than typical
+/// std::string implementations on glibc.
+///
+/// **Interoperability** - implicitly converts to/from `std::string`,
+/// `KStringView`, `KStringViewZ`, `std::string_view`, and `fmt::string_view`.
+/// Provides `std::hash`, `boost::hash`, and `fmt::formatter` specializations.
+///
+/// Usage:
+/// @code
+/// KString s = "Hello World";
+/// s.MakeUpper();                          // "HELLO WORLD"
+/// s.Replace("WORLD", "dekaf2");           // "HELLO dekaf2"
+/// auto words = s.Split(" ");              // per default into a <std::vector<KStringView>>
+/// bool has = s.contains("dekaf2");        // true
+/// int  n   = KString("42").Int32();       // 42
+/// auto fmt = KString().Format("{} {}", "Hello", 42); // "Hello 42"
+/// @endcode
 /// @ingroup core_strings
 class DEKAF2_PUBLIC DEKAF2_GSL_OWNER(char) KString
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -124,36 +161,48 @@ public:
 
 	static constexpr size_type npos = string_type::npos;
 
-	// standard constructors
+	/// @name Constructors
+	/// @{
+
+	/// default constructor - creates an empty string
 	KString ()                                                = default;
+	/// copy constructor
 	KString (const KString& str)                              = default;
+	/// move constructor
 	KString (KString&& str) noexcept                          = default;
 
-	// converting constructors
+	/// construct from a C string (nullptr-safe: treated as empty string)
 	DEKAF2_CONSTEXPR_STRING
 	KString (const value_type* s)                             : m_rep(s?s:"") {}
+	/// construct from a std::string
 	DEKAF2_CONSTEXPR_STRING
 	KString (const std::string& s)                            : m_rep(s.data(), s.size()) {}
+	/// move-construct from a std::string
 	DEKAF2_CONSTEXPR_STRING
 	KString (std::string&& s) noexcept                        : m_rep(std::move(s)) {}
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	DEKAF2_CONSTEXPR_STRING
 	KString (const DEKAF2_SV_NAMESPACE::string_view& s)       : m_rep(s.data(), s.size()) {}
 #endif
+	/// construct from a KStringView
 	DEKAF2_CONSTEXPR_STRING
 	KString (const KStringView& sv);
+	/// construct from a KStringViewZ
 	DEKAF2_CONSTEXPR_STRING
 	KString (const KStringViewZ& svz);
+	/// construct from any type implicitly convertible to KStringView (explicit)
 	template<typename T,
 	         typename std::enable_if<detail::is_kstringview_assignable<T>::value, int>::type = 0>
 	DEKAF2_CONSTEXPR_STRING
 	explicit KString (const T& sv);
 
-	// other constructors
+	/// construct a substring of another KString from pos for n chars (bounds-safe)
 	DEKAF2_CONSTEXPR_STRING
 	KString (const KString& str, size_type pos, size_type n = npos) : m_rep(str.m_rep, (pos > str.size()) ? str.size() : pos, n) {}
+	/// construct a string of n copies of character ch
 	DEKAF2_CONSTEXPR_STRING
 	KString (size_type n, value_type ch)                      : m_rep(n, ch) {}
+	/// construct from a C string with explicit length (nullptr-safe)
 	DEKAF2_CONSTEXPR_STRING
 	KString (const value_type* s, size_type n)                : m_rep(s ? s : "", s ? n : 0) {}
 
@@ -166,18 +215,27 @@ public:
 		static_assert(first == last, "the iterator constructor is not supported - please use the (const char*, std::size_t) constructor instead");
 	}
 
+	/// construct from an initializer list of characters
 	DEKAF2_CONSTEXPR_STRING
 	KString (std::initializer_list<value_type> il)            : m_rep(il) {}
+	/// construct a substring of a string-view-compatible type from pos for n chars
 	template<typename T,
 	         typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
 	DEKAF2_CONSTEXPR_STRING
 	KString (const T& sv, size_type pos, size_type n);
 
-	// assignment operators
+	/// @}
+
+	/// @name Assignment
+	/// @{
+
+	/// copy-and-swap assignment (handles both copy and move)
 	DEKAF2_CONSTEXPR_STRING
 	self& operator= (KString str) noexcept                    { swap(str); return *this;     }
+	/// assign a single character
 	DEKAF2_CONSTEXPR_STRING
 	self& operator= (value_type ch);
+	/// assign from a C string
 	DEKAF2_CONSTEXPR_STRING
 	self& operator= (const value_type *s);
 	template<typename T,
@@ -190,14 +248,27 @@ public:
 	self& operator= (const T& sv);
 	self& operator= (std::nullptr_t) = delete; // C++23..
 
+	/// @}
+
+	/// @name Append operators
+	/// @{
+
+	/// append a string-view-compatible type
 	template<typename T,
 			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
 	DEKAF2_CONSTEXPR_STRING
 	self& operator+= (const T& sv);
+	/// append a single character
 	DEKAF2_CONSTEXPR_STRING
 	self& operator+= (const value_type ch)                    { push_back(ch); return *this; }
+	/// append from an initializer list of characters
 	DEKAF2_CONSTEXPR_STRING
 	self& operator+= (std::initializer_list<value_type> il);
+
+	/// @}
+
+	/// @name Iterators
+	/// @{
 
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	iterator                begin()                  noexcept { return m_rep.begin();        }
@@ -224,14 +295,27 @@ public:
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const_reverse_iterator  crend()            const noexcept { return m_rep.crend();        }
 
+	/// @}
+
+	/// @name Data access
+	/// @{
+
+	/// returns a pointer to a null-terminated character array
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const value_type*       c_str()            const noexcept { return m_rep.c_str();        }
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const value_type*       data()             const noexcept { return m_rep.data();         }
 	// C++17 supports non-const data(), but gcc does not yet know it..
+	/// returns a mutable pointer to the underlying character data
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	value_type*             data()                   noexcept { return &m_rep[0];            }
 
+	/// @}
+
+	/// @name Size and capacity
+	/// @{
+
+	/// returns the number of characters (bytes, not codepoints - see SizeUTF8())
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	size_type               size()             const          { return m_rep.size();         }
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
@@ -252,33 +336,59 @@ public:
 	bool                    empty()            const          { return m_rep.empty();        }
 	DEKAF2_CONSTEXPR_STRING
 	void                    shrink_to_fit()                   { m_rep.shrink_to_fit();       }
+	/// resize the string to n characters without initializing new storage (performance optimization)
 	void                    resize_uninitialized(size_type n);
+	/// returns a hash value for the string content
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_STRING
 	std::size_t             Hash()             const;
+	/// returns a case-insensitive hash value for the string content
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_STRING
 	std::size_t             CaseHash()         const;
 
+	/// @}
+
+	/// @name Element access
+	/// All element access is bounds-checked: out-of-range access returns a NUL
+	/// character instead of causing undefined behavior.
+	/// @{
+
+	/// bounds-checked element access (returns NUL on out-of-range)
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const_reference operator[](size_type pos)  const          { return at(pos);              }
+	/// bounds-checked mutable element access (returns mutable NUL on out-of-range)
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	reference operator[](size_type pos)                       { return at(pos);              }
+	/// bounds-checked element access (returns NUL on out-of-range, unlike std::string which has UB)
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const_reference         at(size_type pos)  const          { if DEKAF2_UNLIKELY(pos >= size()) {                 return s_0ch;   } return m_rep[pos];    }
+	/// bounds-checked mutable element access (returns mutable NUL on out-of-range)
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	reference               at(size_type pos)                 { if DEKAF2_UNLIKELY(pos >= size()) { s_0ch_v = '\0'; return s_0ch_v; } return m_rep[pos];    }
+	/// returns the last character, or NUL if empty (bounds-safe)
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const_reference         back()             const          { if DEKAF2_UNLIKELY(empty())       {                 return s_0ch;   } return m_rep.back();  }
+	/// returns a mutable reference to the last character, or mutable NUL if empty (bounds-safe)
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	reference               back()                            { if DEKAF2_UNLIKELY(empty())       { s_0ch_v = '\0'; return s_0ch_v; } return m_rep.back();  }
+	/// returns the first character, or NUL if empty (bounds-safe)
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	const_reference         front()            const          { if DEKAF2_UNLIKELY(empty())       {                 return s_0ch;   } return m_rep.front(); }
+	/// returns a mutable reference to the first character, or mutable NUL if empty (bounds-safe)
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	reference               front()                           { if DEKAF2_UNLIKELY(empty())       { s_0ch_v = '\0'; return s_0ch_v; } return m_rep.front(); }
 
+	/// @}
+
+	/// @name Modifiers
+	/// @{
+
+	/// append a C string (nullptr-safe)
 	DEKAF2_CONSTEXPR_STRING
 	self& append(const value_type* str)                       { m_rep.append(str ? str : "");       return *this; }
+	/// append n characters from a C string (nullptr-safe)
 	DEKAF2_CONSTEXPR_STRING
 	self& append(const value_type* str, size_type n)          { m_rep.append(str ? str : "", n);    return *this; }
+	/// append n copies of character ch
 	DEKAF2_CONSTEXPR_STRING
 	self& append(size_type n, value_type ch)                  { m_rep.append(n, ch);                return *this; }
 	template<class _InputIterator>
@@ -295,8 +405,10 @@ public:
 	DEKAF2_CONSTEXPR_STRING
 	self& append(const T& sv, size_type pos, size_type n = npos);
 
+	/// append a single character
 	DEKAF2_CONSTEXPR_STRING
 	void  push_back(const value_type chPushBack)              { m_rep.push_back(chPushBack);                      }
+	/// remove the last character (no-op if empty, unlike std::string which has UB)
 	DEKAF2_CONSTEXPR_STRING
 	void  pop_back()                                          { if DEKAF2_LIKELY(!empty()) { m_rep.pop_back(); }  }
 
@@ -320,6 +432,10 @@ public:
 	DEKAF2_CONSTEXPR_STRING
 	self& assign(const T& sv, size_type pos, size_type n = npos);
 
+	/// @name Comparison
+	/// @{
+
+	/// three-way lexicographic comparison with a string-view-compatible type
 	template<typename T,
 			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
@@ -335,8 +451,16 @@ public:
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	int compare(size_type pos, size_type n1, const T& sv, size_type pos2, size_type n2 = npos) const;
 
+	/// copy up to n characters starting at pos into the buffer pointed to by s
 	DEKAF2_CONSTEXPR_STRING_TODO
 	size_type copy(value_type* s, size_type n, size_type pos = 0)                  const;
+
+	/// @}
+
+	/// @name Search
+	/// Uses optimized search algorithms (up to 50x faster than std::string on glibc), using SIMD where available.
+	/// All search methods return npos if not found.
+	/// @{
 
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	size_type find(value_type c, size_type pos = 0)                                const;
@@ -408,6 +532,12 @@ public:
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	size_type find_last_not_of(const T& sv, size_type pos = npos)                  const;
 
+	/// @}
+
+	/// @name Insert and erase
+	/// @{
+
+	/// insert n copies of character c before iterator position p
 	DEKAF2_CONSTEXPR_STRING
 	void  insert(iterator p, size_type n, value_type c)                                  { m_rep.insert(p, n, c);                                 }
 	DEKAF2_CONSTEXPR_STRING_TODO_MAKE_INLINE
@@ -436,6 +566,7 @@ public:
 	DEKAF2_CONSTEXPR_STRING
 	self& insert(size_type pos1, const T& sv, size_type pos2, size_type n = npos);
 
+	/// erase n characters starting at pos (graceful: clamps to valid range)
 	DEKAF2_CONSTEXPR_STRING_TODO_MAKE_INLINE
 	self& erase(size_type pos = 0, size_type n = npos);
 	// C++17 wants a const_iterator here, but the COW string implementation in libstdc++ does not have it
@@ -445,15 +576,21 @@ public:
 	DEKAF2_CONSTEXPR_STRING_TODO_MAKE_INLINE
 	iterator erase(iterator first, iterator last);
 
-	// borrowed from string_view
+	/// @}
+
+	/// @name Prefix and suffix removal
+	/// Borrowed from std::string_view for convenience on mutable strings.
+	/// @{
+
+	/// remove the last n characters (clamps to size if n > size())
 	void remove_suffix(size_type n);
-	// borrowed from string_view
+	/// remove the first n characters
 	void remove_prefix(size_type n);
-	// extension from string_view
+	/// remove a trailing substring if it matches; returns true if removed
 	bool remove_suffix(KStringView suffix);
-	// extension from string_view
+	/// remove a leading substring if it matches; returns true if removed
 	bool remove_prefix(KStringView prefix);
-	// extension from string_view
+	/// remove a leading character if it matches; returns true if removed
 	template<typename T, typename std::enable_if<std::is_same<T, std::remove_cv<value_type>::type>::value, int>::type = 0>
 	DEKAF2_CONSTEXPR_14
 	bool remove_prefix(T ch)
@@ -465,7 +602,7 @@ public:
 		}
 		return false;
 	}
-	// extension from string_view
+	/// remove a trailing character if it matches; returns true if removed
 	template<typename T, typename std::enable_if<std::is_same<T, std::remove_cv<value_type>::type>::value, int>::type = 0>
 	DEKAF2_CONSTEXPR_14
 	bool remove_suffix(T ch)
@@ -477,6 +614,11 @@ public:
 		}
 		return false;
 	}
+
+	/// @}
+
+	/// @name Replace
+	/// @{
 
 	self& replace(size_type pos, size_type n, KStringView sv);
 	self& replace(size_type pos1, size_type n1, KStringView sv, size_type pos2, size_type n2);
@@ -511,6 +653,11 @@ public:
 			 typename std::enable_if<detail::is_kstringview_assignable<T, true>::value, int>::type = 0>
 	self& replace(size_type pos1, size_type n1, T sv, size_type pos2, size_type n2);
 
+	/// @}
+
+	/// @name Substring
+	/// @{
+
 	/// substring starting at zero-based position "pos" for "n" chars.  if "n" is not specified return the rest of the string starting at "pos"
 	DEKAF2_NODISCARD
 	KString substr(size_type pos = 0, size_type n = npos) const &;
@@ -519,13 +666,20 @@ public:
 	DEKAF2_NODISCARD
 	KString substr(size_type pos = 0, size_type n = npos) &&;
 
+	/// swap contents with another KString
 	DEKAF2_CONSTEXPR_STRING
 	void swap(KString& other)     { using std::swap; swap(m_rep, other.m_rep); }
+	/// swap contents with a std::string
 	DEKAF2_CONSTEXPR_STRING
 	void swap(std::string& other) { using std::swap; swap(m_rep, other);       }
 
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_STRING
 	allocator_type get_allocator() const noexcept { return m_rep.get_allocator(); }
+
+	/// @}
+
+	/// @name Formatting
+	/// @{
 
 	/// print arguments with fmt::format
 	template<class... Args>
@@ -534,6 +688,11 @@ public:
 	/// print arguments with fmt::format
 	template<class... Args>
 	self&& Format(KFormatString<Args...> sFormat, Args&&... args) && { return std::move(Format(sFormat, std::forward<Args>(args)...)); }
+
+	/// @}
+
+	/// @name Regular expressions
+	/// @{
 
 	/// match with regular expression and return the overall match (group 0)
 	/// please note the following flags when added to the search regex:
@@ -566,6 +725,11 @@ public:
 	/// these flags can be combined like (?im) and have effect on the following string, they can be
 	/// unset with a prepended - , like (?-im)
 	size_type ReplaceRegex(const KStringView sRegEx, const KStringView sReplaceWith, bool bReplaceAll = true);
+
+	/// @}
+
+	/// @name High-level string operations
+	/// @{
 
 	/// replace part of the string with another string, modifies string and returns number of replacements made
 	size_type Replace(const KStringView sSearch, const KStringView sReplace, size_type pos = 0, bool bReplaceAll = true);
@@ -626,6 +790,11 @@ public:
 	/// does the string contain the ch? (Now deprecated, replace by contains())
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_STRING
 	bool Contains(value_type ch) const noexcept;
+
+	/// @name Case conversion
+	/// Three variants: UTF-8 aware (default), locale-based, and ASCII-only.
+	/// `Make*` modifies in place, `To*` returns a copy.
+	/// @{
 
 	/// changes the string to lowercase (UTF8)
 	self& MakeLower() &;
@@ -707,6 +876,13 @@ public:
 	DEKAF2_NODISCARD
 	self&& ToLowerASCII() && { return std::move(MakeLowerASCII()); }
 
+	/// @}
+
+	/// @name Substrings (byte-based)
+	/// Python-style Left/Mid/Right accessors. On lvalues they return
+	/// lightweight KStringView/KStringViewZ; on rvalues they truncate in place.
+	/// @{
+
 	/// returns leftmost iCount chars of string
 	DEKAF2_NODISCARD
 	KStringView Left(size_type iCount) const &;
@@ -738,6 +914,12 @@ public:
 	/// returns rightmost iCount chars of string
 	DEKAF2_NODISCARD
 	self&& Right(size_type iCount) &&;
+
+	/// @}
+
+	/// @name Substrings (UTF-8 codepoint-based)
+	/// Like Left/Mid/Right but counting Unicode codepoints instead of bytes.
+	/// @{
 
 	/// returns leftmost iCount codepoints of string
 	DEKAF2_NODISCARD
@@ -786,6 +968,11 @@ public:
 	/// returns a range for forward iteration over Unicode codepoints (UTF8 decoding)
 	DEKAF2_NODISCARD
 	kutf::CodepointRange<const_iterator> Codepoints() const;
+
+	/// @}
+
+	/// @name Padding, trimming, and collapsing
+	/// @{
 
 	/// pads string at the left up to iWidth size with chPad
 	self& PadLeft(size_t iWidth, value_type chPad = ' ') &;
@@ -854,6 +1041,11 @@ public:
 	/// Collapses consecutive chars in svCollapse to one instance of chTo and trims the same chars left and right
 	self&& CollapseAndTrim(KStringView svCollapse, value_type chTo) &&;
 
+	/// @}
+
+	/// @name Clipping and character removal
+	/// @{
+
 	/// Clip removing sClipAt and everything to its right if found; otherwise do not alter the string
 	bool ClipAt(KStringView sClipAt);
 
@@ -866,6 +1058,11 @@ public:
 
 	/// Deprecated alias for RemoveChars, please replace by RemoveChars()
 	size_type RemoveIllegalChars(KStringView sIllegalChars);
+
+	/// @}
+
+	/// @name Split and join
+	/// @{
 
 	/// Splits string into token container using delimiters, trim, and escape. Returned
 	/// Container is a sequence, like a vector, or an associative container like a map.
@@ -902,6 +1099,11 @@ public:
 	/// associative element
 	template<typename T, typename... Parms>
 	self&& Join(const T& Container, Parms&&... parms) && { return std::move(Join(Container, std::forward<Parms>(parms)...)); }
+
+	/// @}
+
+	/// @name Type conversions
+	/// @{
 
 	/// convert to std::string
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_STRING
@@ -964,7 +1166,11 @@ public:
 	DEKAF2_NODISCARD
 	bool In (KStringView sHaystack, value_type iDelim=',') const;
 
-	// conversions
+	/// @}
+
+	/// @name Numeric conversions
+	/// Parse the string content as a number. Returns 0 on failure (no exceptions).
+	/// @{
 
 	/// returns bool representation of the string:
 	/// "true" --> true
@@ -1045,13 +1251,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// convert integer into a hex string
+	/// convert an unsigned integer into a hex string (with optional zero-padding)
 	DEKAF2_NODISCARD
 	static KString to_hexstring(uint64_t i, bool bZeroPad = true, bool bUpperCase = true)
 	//-----------------------------------------------------------------------------
 	{
 		return unsigned_to_string(i, 16, bZeroPad, bUpperCase);
 	}
+
+	/// @}
 
 //----------
 protected:

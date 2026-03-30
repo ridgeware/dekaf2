@@ -90,6 +90,7 @@ PREDEFINED             = DEKAF2_GSL_OWNER()= DEKAF2_GSL_POINTER()= DEKAF2_PUBLIC
  DEKAF2_HAS_NANOSECONDS_SYS_CLOCK=1 \
  DEKAF2_HAS_STD_FORMAT=1 DEKAF2_HAS_FMT_FORMAT=1 DEKAF2_HAS_FORMAT_RUNTIME=1 \
  DEKAF2_NAMESPACE_BEGIN="namespace dekaf2 {" DEKAF2_NAMESPACE_END="}"
+LAYOUT_FILE            = @PROJECT_SOURCE_DIR@/doc/DoxygenLayout.xml
 HTML_HEADER            = @PROJECT_SOURCE_DIR@/doc/header.html
 HTML_EXTRA_STYLESHEET  = @PROJECT_SOURCE_DIR@/doc/doxygen-awesome-css/doxygen-awesome.css \
                          @PROJECT_SOURCE_DIR@/doc/doxygen-awesome-css/doxygen-awesome-sidebar-only.css \

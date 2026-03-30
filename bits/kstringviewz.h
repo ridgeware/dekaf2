@@ -42,7 +42,10 @@
 #pragma once
 
 /// @file kstringviewz.h
-/// string view implementation with a trailing zero
+/// A string view with a guaranteed trailing NUL character, safe to pass to
+/// any C API expecting a `const char*`. Inherits all read-only operations
+/// from KStringView but restricts construction to sources that guarantee
+/// NUL-termination (C strings, std::string, KString)
 
 #include "../kdefinitions.h"
 #include "../kstringview.h"
@@ -61,8 +64,38 @@ inline namespace literals {
 } // namespace literals
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A string_view type with a guaranteed trailing zero that can be used on
-/// any C API
+/// A read-only string view with a **guaranteed trailing NUL** character.
+///
+/// KStringViewZ privately inherits from KStringView and selectively exposes
+/// its API. The key invariant is that `data()[size()]` is always `'\0'`,
+/// so `c_str()` / `data()` can be passed directly to any C API.
+///
+/// **Construction restrictions** - only sources that guarantee NUL-termination
+/// are accepted: `const char*`, `std::string`, and `KString`. Construction
+/// from `KStringView` or `std::string_view` is explicitly **deleted** because
+/// they do not guarantee a trailing NUL.
+///
+/// **Inherited API** - all read-only operations from KStringView are available
+/// (search, comparison, element access, Split, Trim, numeric conversions etc.)
+/// with the same safety guarantees (bounds-checked, no UB).
+///
+/// **remove_suffix is not exposed** - removing characters from the end would
+/// break the NUL-termination invariant. `remove_prefix()` is safe and available.
+///
+/// **Substring results** - `Mid(pos)` and `Right(n)` return `KStringViewZ`
+/// (the trailing NUL is preserved), while `Mid(pos, n)` returns a plain
+/// `KStringView` because the NUL may not be at position `pos + n`.
+///
+/// Usage:
+/// @code
+/// KStringViewZ svz = "Hello World";    // OK: string literal is NUL-terminated
+/// printf("%s\n", svz.c_str());         // safe: trailing NUL guaranteed
+/// auto mid = svz.Mid(6);               // KStringViewZ "World"
+/// auto left = svz.Left(5);             // KStringView  "Hello"
+/// @endcode
+///
+/// @see KStringView for the base class without NUL guarantee.
+/// @see KString for the mutable string with the same extended API.
 /// @ingroup core_strings
 class DEKAF2_PUBLIC DEKAF2_GSL_POINTER(char) KStringViewZ : private KStringView
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -90,7 +123,13 @@ public:
 
 	using base_type::npos;
 
+	/// @name Constructors
+	/// Only NUL-terminated sources are accepted.
+	/// @{
+
+	/// copy constructor
 	DEKAF2_CONSTEXPR_14 KStringViewZ(const self_type&) noexcept = default;
+	/// copy assignment
 	DEKAF2_CONSTEXPR_14 KStringViewZ& operator=(const self_type&) noexcept = default;
 
 //----------
@@ -115,6 +154,7 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
+	/// default constructor - creates an empty NUL-terminated view
 	constexpr
 	KStringViewZ() noexcept
 	//-----------------------------------------------------------------------------
@@ -123,6 +163,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// construct from a C string (the most natural source - already NUL-terminated)
 	constexpr
 	KStringViewZ(const char* s) noexcept
 	//-----------------------------------------------------------------------------
@@ -130,6 +171,7 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
+	/// construct from a std::string (guaranteed NUL-terminated by the standard)
 	DEKAF2_CONSTEXPR_STRING
 	KStringViewZ(const std::string& str) noexcept
 	//-----------------------------------------------------------------------------
@@ -137,29 +179,35 @@ public:
 	{}
 
 	//-----------------------------------------------------------------------------
+	/// construction from std::string_view is deleted (no NUL guarantee)
 	KStringViewZ(const sv::string_view& str) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// construct from a KString (guaranteed NUL-terminated)
 	DEKAF2_CONSTEXPR_STRING
 	KStringViewZ(const KString& str) noexcept
 	//-----------------------------------------------------------------------------
 	: base_type { str }
 	{}
 
-	//-----------------------------------------------------------------------------
-	// no construction from KStringView, which has no trailing 0
-	// this overrides the otherwise implicit construction
-	// KStringView > (temp)KString > KStringViewZ
-	/// Construction of KStringViewZ from KStringView is not allowed
+	/// construction from KStringView is deleted (no NUL guarantee)
 	KStringViewZ(KStringView sv) = delete;
 	//-----------------------------------------------------------------------------
 
+	/// @}
+
+	/// @name Assignment
+	/// Only NUL-terminated sources are accepted.
+	/// @{
+
 	//-----------------------------------------------------------------------------
+	/// assignment from KStringView is deleted (no NUL guarantee)
 	self& operator=(KStringView other) = delete;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// assign from a C string
 	DEKAF2_CONSTEXPR_14
 	self& operator=(const char* other)
 	//-----------------------------------------------------------------------------
@@ -169,6 +217,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// assign from a KString
 	self& operator=(const KString& other)
 	//-----------------------------------------------------------------------------
 	{
@@ -177,6 +226,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// assign from a std::string
 	self& operator=(const std::string& other)
 	//-----------------------------------------------------------------------------
 	{
@@ -185,8 +235,15 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// assignment from std::string_view is deleted (no NUL guarantee)
 	self& operator=(sv::string_view other) = delete;
 	//-----------------------------------------------------------------------------
+
+	/// @}
+
+	/// @name Inherited API from KStringView
+	/// All read-only operations are inherited with the same strong safety guarantees as in KStringView.
+	/// @{
 
 	using base_type::begin;
 	using base_type::cbegin;
@@ -257,6 +314,13 @@ public:
 	using base_type::operator fmt::string_view;
 	using base_type::operator std::string;
 
+	/// @}
+
+	/// @name Substrings (byte-based)
+	/// Mid(pos) and Right(n) return KStringViewZ (NUL preserved).
+	/// Mid(pos, n) returns KStringView (NUL may not be at pos+n).
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns substring starting at iStart until end of string
@@ -288,6 +352,12 @@ public:
 		  ? *this
 		  : self_type(data() + size() - iCount, iCount);
 	}
+
+	/// @}
+
+	/// @name Substrings (UTF-8 codepoint-based)
+	/// Like Mid/Right but counting Unicode codepoints instead of bytes.
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -329,6 +399,13 @@ public:
 #endif
 	}
 
+	/// @}
+
+	/// @name Trimming and clipping
+	/// Only left-trimming and prefix-clip are available (suffix operations
+	/// would break the NUL-termination invariant).
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// removes white space from the left of the string
@@ -354,6 +431,11 @@ public:
 	bool ClipAtReverse(KStringView sClipAtReverse);
 	//-----------------------------------------------------------------------------
 
+	/// @}
+
+	/// @name Inherited numeric conversions, Split, In
+	/// @{
+
 	using base_type::Split;
 	using base_type::Bool;
 	using base_type::Int16;
@@ -370,6 +452,11 @@ public:
 	using base_type::Double;
 	using base_type::In;
 	using base_type::ToStdView;
+
+	/// @}
+
+	/// @name Sub-views and C string access
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	/// returns a sub-view of the current view from pos to end of view
@@ -409,8 +496,12 @@ public:
 		return data();
 	}
 
-	// not using base_type::substr;
-	// but we can implement two versions, one returning self_type, the other base_type
+	/// @}
+
+	/// @name Substring
+	/// substr(pos) returns KStringViewZ (NUL preserved).
+	/// substr(pos, count) returns KStringView (NUL may not be at pos+count).
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	/// returns a sub-view of the current view from pos of view with size n,
@@ -433,8 +524,11 @@ public:
 		  : self_type(data() + pos, size() - pos);
 	}
 
-	// not using base_type::erase;
-	// but we can implement a version that permits prefix erase
+	/// @}
+
+	/// @name Erase (nonstandard)
+	/// Only prefix erase is supported (suffix erase would break NUL invariant).
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: emulate erase if range is at begin, otherwise does
@@ -453,6 +547,8 @@ public:
 	/// nothing (but emits a warning to the debug log)
 	iterator erase(const_iterator first, const_iterator last);
 	//-----------------------------------------------------------------------------
+
+	/// @}
 
 	// not using base_type::remove_suffix;
 

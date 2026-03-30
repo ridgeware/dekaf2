@@ -17,6 +17,19 @@ html {
 
     /* tighter table rows */
     --table-line-height: 20px;
+
+    /* cppreference-like font sizes */
+    --page-font-size: 13px;
+    --navigation-font-size: 13px;
+    --toc-font-size: 12px;
+    --code-font-size: 13px;
+    --title-font-size: 18px;
+    --memtitle-font-size: 13px;
+}
+
+/* cppreference-like base font for all content */
+div.contents {
+    font-size: var(--page-font-size);
 }
 
 /* compact member lists — only override vertical padding, preserve left/right from theme */
@@ -26,7 +39,7 @@ table.memberdecls td.memTemplItemLeft,
 table.memberdecls td.memTemplItemRight {
     padding-top: 2px;
     padding-bottom: 2px;
-    font-size: 0.92em;
+    font-size: 12px;
 }
 
 /* CSS Grid for consistent column alignment with flexible widths:
@@ -65,7 +78,6 @@ table.memberdecls td.memSeparator {
 table.fieldtable td,
 table.fieldtable th {
     padding: 3px 8px;
-    font-size: 0.92em;
 }
 
 table.fieldtable td.fieldname {
@@ -94,10 +106,6 @@ table.fieldtable td.fieldname {
     box-shadow: none;
     background: var(--code-background);
     border-radius: var(--border-radius-small);
-}
-
-.memname {
-    font-size: 0.95em;
 }
 
 /* reduce the heavy "Detailed Description" separator */
@@ -138,17 +146,81 @@ dl.exception dd {
 /* tighter brief descriptions in member lists */
 .mdescRight {
     padding: 2px 6px;
-    font-size: 0.92em;
 }
 
 .mdescLeft {
     padding: 2px 6px;
 }
 
+/* hide 'More...' link — detailed description is already at the top */
+a[href="#details"] {
+    display: none;
+}
+
 /* compact code blocks */
 div.fragment, pre.fragment {
     margin: 6px 0;
     padding: 8px 10px;
+}
+
+/* @name group description boxes — balanced padding, visually distinct */
+td.ititle {
+    padding-top: 3px;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    margin-right: calc(-1 * var(--spacing-medium)) !important;
+    border: 0 !important;
+    border-radius: 4px !important;
+    background: rgba(172, 214, 254, 0.35) !important;
+    color: #3a6a9b;
+}
+
+div.groupText {
+    margin-top: 0;
+    margin-bottom: 0;
+    line-height: 1.4;
+}
+
+div.groupText p {
+    margin: 0;
+}
+
+/* group header titles — fix white box-shadow artifacts in dark mode */
+html.dark-mode div.groupHeader {
+    box-shadow: 13px 0 var(--page-background-color),
+               -13px 0 var(--page-background-color),
+                13px 1px rgba(25, 130, 210, 0.4),
+               -13px 1px rgba(25, 130, 210, 0.4);
+    color: var(--primary-color);
+}
+@media (prefers-color-scheme: dark) {
+    html:not(.light-mode) div.groupHeader {
+        box-shadow: 13px 0 var(--page-background-color),
+                   -13px 0 var(--page-background-color),
+                    13px 1px rgba(25, 130, 210, 0.4),
+                   -13px 1px rgba(25, 130, 210, 0.4);
+        color: var(--primary-color);
+    }
+}
+
+/* @name group description boxes — dark mode variant */
+/* toggle-activated dark mode */
+html.dark-mode td.ititle {
+    background: rgba(25, 130, 210, 0.25) !important;
+    color: var(--page-foreground-color) !important;
+}
+html.dark-mode div.groupText {
+    color: inherit !important;
+}
+/* system-level dark mode (no toggle override) */
+@media (prefers-color-scheme: dark) {
+    html:not(.light-mode) td.ititle {
+        background: rgba(25, 130, 210, 0.25) !important;
+        color: var(--page-foreground-color) !important;
+    }
+    html:not(.light-mode) div.groupText {
+        color: inherit !important;
+    }
 }
 
 /* tighter directory/file tree */

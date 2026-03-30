@@ -42,7 +42,10 @@
 #pragma once
 
 /// @file kstringview.h
-/// string view implementation
+/// dekaf2's own string view class - a safer, faster wrapper around
+/// std::string_view that adds Python/JavaScript-style read-only string
+/// operations, handles error cases gracefully instead of causing UB,
+/// and speeds up searching by up to 50x using SIMD where available
 
 #include "kdefinitions.h"
 #include "bits/kstring_view.h"
@@ -113,10 +116,47 @@ class KStringViewZ;
 class KFindSetOfChars;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// dekaf2's own string view class - a wrapper around std::string_view or
-/// folly::StringPiece, or our own implementation. Handles most errors without
-/// throwing and speeds up searching up to 50 times compared to std::string_view
-/// implementations.
+/// A safer and more convenient read-only string view built on top of std::string_view.
+///
+/// KStringView wraps std::string_view and extends it with:
+///
+/// **Safety** - all element access (`operator[]`, `at()`, `front()`, `back()`)
+/// is bounds-checked and returns a NUL character instead of causing undefined
+/// behavior. `remove_prefix()` / `remove_suffix()` clamp to size instead of UB.
+/// Constructors accept `nullptr` without crashing. The iterator constructor is
+/// intentionally disabled (it silently causes buffer overflows on typos like
+/// `std::string_view("one", "two")`).
+///
+/// **Convenience** - adds Python/JavaScript-style read-only operations:
+/// `Left()`, `Mid()`, `Right()`, `Split()`, `Trim()`, `contains()`,
+/// `starts_with()`, `ends_with()`, `ToUpper()`, `ToLower()`, `Bool()`,
+/// `Int64()`, and more. Full UTF-8 support through `LeftUTF8()`, `MidUTF8()`,
+/// `RightUTF8()`, `SizeUTF8()`, `AtUTF8()`, `Codepoints()` etc.
+///
+/// **Performance** - searching (`find()`, `rfind()`, `find_first_of()` etc.)
+/// uses optimized algorithms with SIMD where available, up to 50x faster
+/// than typical std::string_view implementations on glibc.
+///
+/// **Interoperability** - implicitly converts to/from `std::string`,
+/// `std::string_view`, `KStringViewZ`, `KString`, and `fmt::string_view`.
+/// Provides `std::hash`, `boost::hash`, and `fmt::formatter` specializations.
+///
+/// Usage:
+/// @code
+/// KStringView sv = "Hello World";
+/// auto left  = sv.Left(5);                 // "Hello"
+/// auto right = sv.Right(5);                // "World"
+/// bool has   = sv.contains("World");       // true
+/// auto words = sv.Split(" ");              // per default into a std::vector<KStringView>
+/// int  n     = KStringView("42").Int32();   // 42
+/// @endcode
+///
+/// @note KStringView is designed to be passed **by value** (16 bytes = 2 registers
+/// on System V ABI), not by const reference. This avoids aliasing issues and
+/// enables better compiler optimization.
+///
+/// @see KStringViewZ for a string view that guarantees a trailing NUL.
+/// @see KString for the mutable string class with the same extended API.
 /// @ingroup core_strings
 class DEKAF2_PUBLIC DEKAF2_GSL_POINTER(char) KStringView
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -144,17 +184,23 @@ public:
 
 	static constexpr size_type npos = size_type(-1);
 
+	/// @name Constructors
+	/// @{
+
 	//-----------------------------------------------------------------------------
+	/// default constructor - creates an empty view
 	constexpr
 	KStringView() = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// copy constructor
 	constexpr
 	KStringView(const self_type& other) noexcept = default;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// construct from a std::string
 	DEKAF2_CONSTEXPR_STRING
 	KStringView(const std::string& str) noexcept
 	//-----------------------------------------------------------------------------
@@ -163,6 +209,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// construct from a std::string_view
 	constexpr
 	KStringView(sv::string_view str) noexcept
 	//-----------------------------------------------------------------------------
@@ -171,6 +218,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// construct from a C string with explicit length (nullptr-safe)
 	constexpr
 	KStringView(const value_type* s, size_type count) noexcept
 	//-----------------------------------------------------------------------------
@@ -185,6 +233,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// construct from a C string (nullptr-safe: treated as empty view)
 	constexpr
 	KStringView(const value_type* s) noexcept
 	//-----------------------------------------------------------------------------
@@ -199,11 +248,13 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// construct from a KStringViewZ
 	constexpr
 	KStringView(const KStringViewZ& svz) noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// construct from a KString
 	DEKAF2_CONSTEXPR_STRING
 	KStringView(const KString& str) noexcept;
 	//-----------------------------------------------------------------------------
@@ -228,6 +279,11 @@ public:
 	{
 		static_assert(first == last, "the iterator constructor is not supported - please use the (const char*, std::size_t) constructor instead");
 	}
+
+	/// @}
+
+	/// @name Assignment
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_CONSTEXPR_14
@@ -271,6 +327,11 @@ public:
 		return *this;
 	}
 
+	/// @}
+
+	/// @name Type conversions
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	/// @return a std::string_view of this string view
 	DEKAF2_NODISCARD_PEDANTIC constexpr
@@ -297,12 +358,18 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// implicit conversion to fmt::string_view
 	DEKAF2_CONSTEXPR_14
 	operator fmt::string_view() const
 	//-----------------------------------------------------------------------------
 	{
 		return fmt::string_view(data(), size());
 	}
+
+	/// @}
+
+	/// @name Nonstandard modifiers
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -341,6 +408,11 @@ public:
 	{
 		assign(start, (end >= start) ? static_cast<size_type>(end - start) : 0);
 	}
+
+	/// @}
+
+	/// @name Size and capacity
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	/// maximum size for this string view implementation
@@ -387,6 +459,11 @@ public:
 		return !empty();
 	}
 
+	/// @}
+
+	/// @name Data access
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	/// returns pointer on begin of the string view
 	DEKAF2_NODISCARD_PEDANTIC constexpr
@@ -395,6 +472,11 @@ public:
 	{
 		return m_rep.data();
 	}
+
+	/// @}
+
+	/// @name Iterators
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	/// returns begin iterator
@@ -468,6 +550,12 @@ public:
 		return const_reverse_iterator(cbegin());
 	}
 
+	/// @}
+
+	/// @name Element access
+	/// Bounds-checked: returns a NUL character on out-of-range instead of UB.
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	/// returns reference to first character. NUL if string view is empty, never throws.
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
@@ -499,6 +587,11 @@ public:
 		}
 		return m_rep.back();
 	}
+
+	/// @}
+
+	/// @name Comparison
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	/// compares this string view with another
@@ -566,6 +659,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// bounds-checked subscript operator - returns NUL on range error, never throws
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
 	const value_type& operator[](size_t index) const
 	//-----------------------------------------------------------------------------
@@ -596,6 +690,11 @@ public:
 		return m_rep[index];
 	}
 
+	/// @}
+
+	/// @name Substring
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	/// returns sub string of this string view, checks range, never throws
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
@@ -617,6 +716,12 @@ public:
 	{
 		return substr(pos, count);
 	}
+
+	/// @}
+
+	/// @name Prefix and suffix removal
+	/// Bounds-checked: clamps to size() instead of UB.
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	/// shrinks the view by moving its start forward by n characters
@@ -716,6 +821,12 @@ public:
 		return false;
 	}
 
+	/// @}
+
+	/// @name View merging
+	/// Nonstandard: grow or merge adjacent/overlapping views.
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// append other view to this. Views must overlap or be adjacent, but other has to be to the right of this
@@ -812,6 +923,12 @@ public:
 		return true;
 	}
 
+	/// @}
+
+	/// @name Pattern matching
+	/// C++20/23 starts_with, ends_with, contains — available in all C++ modes.
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	// std::C++20
 	/// does the string start with sPattern?
@@ -900,6 +1017,13 @@ public:
 		return contains(ch);
 	}
 
+	/// @}
+
+	/// @name Case conversion
+	/// Returns a new KString — KStringView itself is immutable.
+	/// Three variants: UTF-8 aware (default), locale-based, and ASCII-only.
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// returns a copy of the string in uppercase (UTF8)
@@ -942,6 +1066,11 @@ public:
 	KString ToLowerASCII() const;
 	//-----------------------------------------------------------------------------
 
+	/// @}
+
+	/// @name Regular expressions
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// match with regular expression and return the overall match (group 0)
@@ -955,6 +1084,12 @@ public:
 	DEKAF2_NODISCARD
 	std::vector<KStringView> MatchRegexGroups(const KStringView sRegEx, size_type pos = 0) const;
 	//-----------------------------------------------------------------------------
+
+	/// @}
+
+	/// @name Substrings (byte-based)
+	/// Python-style Left/Mid/Right accessors returning lightweight KStringView.
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -976,6 +1111,12 @@ public:
 	DEKAF2_NODISCARD
 	KStringView Right(size_type iCount) const;
 	//-----------------------------------------------------------------------------
+
+	/// @}
+
+	/// @name Substrings (UTF-8 codepoint-based)
+	/// Like Left/Mid/Right but counting Unicode codepoints instead of bytes.
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -1028,6 +1169,12 @@ public:
 	{
 		return { cbegin(), cend() };
 	}
+
+	/// @}
+
+	/// @name Trimming and clipping
+	/// Trimming narrows the view by removing characters from the edges.
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -1086,6 +1233,9 @@ public:
 	self& Trim(const KFindSetOfChars& TrimSet);
 	//-----------------------------------------------------------------------------
 
+	/// @name Clipping
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	// nonstandard
 	/// Clip removing sClipAt and everything to its right if found; otherwise do not alter the string
@@ -1098,6 +1248,11 @@ public:
 	/// otherwise do not alter the string
 	bool ClipAtReverse(const KStringView sClipAtReverse);
 	//-----------------------------------------------------------------------------
+
+	/// @}
+
+	/// @name Split
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
@@ -1120,6 +1275,11 @@ public:
 	T Split(Parms&&... parms) const;
 	//-----------------------------------------------------------------------------
 
+	/// @}
+
+	/// @name Swap and hash
+	/// @{
+
 	//-----------------------------------------------------------------------------
 	/// swaps the contents with another string view
 	void swap(self_type& other)
@@ -1140,6 +1300,13 @@ public:
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	std::size_t CaseHash() const;
 	//-----------------------------------------------------------------------------
+
+	/// @}
+
+	/// @name Erase (nonstandard)
+	/// Emulates erase by narrowing the view. Only works if the erased range
+	/// touches the beginning or end of the view.
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: emulate erase if range is at begin or end
@@ -1165,6 +1332,13 @@ public:
 		erase(static_cast<size_type>(first - begin()), static_cast<size_type>(last - first));
 		return bToStart ? begin() : end();
 	}
+
+	/// @}
+
+	/// @name Search
+	/// Uses optimized search algorithms (up to 50x faster than std::string on glibc), using SIMD where available.
+	/// All search methods return npos if not found.
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	/// nonstandard: caseless ASCII search
@@ -1273,7 +1447,11 @@ public:
 	bool In (const KStringView sHaystack, value_type iDelim=',') const;
 	//-----------------------------------------------------------------------------
 
-	// conversions
+	/// @}
+
+	/// @name Numeric conversions
+	/// Parse the string content as a number. Returns 0 on failure (no exceptions).
+	/// @{
 
 	//-----------------------------------------------------------------------------
 	/// returns bool representation of the string:
@@ -1345,6 +1523,8 @@ public:
 	DEKAF2_NODISCARD
 	double Double() const noexcept;
 	//-----------------------------------------------------------------------------
+
+	/// @}
 
 	//-----------------------------------------------------------------------------
 	/// returns true if sOther is same

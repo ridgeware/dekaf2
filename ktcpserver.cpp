@@ -489,6 +489,8 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 				}
 				DEKAF2_CATCH(...) {}
 
+				stream->SetNoDelay(true);
+
 #if !DEKAF2_HAS_CPP_14 || defined(DEKAF2_IS_MSC)
 				// unfortunately C++11 does not know how to move a variable into a lambda scope
 				auto* Stream = stream.release();
@@ -549,6 +551,8 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 					}
 				}
 				DEKAF2_CATCH(...) {}
+
+				stream->SetNoDelay(true);
 
 #if !DEKAF2_HAS_CPP_14 || defined(DEKAF2_IS_MSC)
 				// unfortunately C++11 does not know how to move a variable into a lambda scope

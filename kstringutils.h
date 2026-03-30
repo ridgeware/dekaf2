@@ -941,6 +941,8 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 {
 	static_assert(std::is_arithmetic<Arithmetic>::value, "arithmetic type required");
 
+	static constexpr uint16_t noPrecision = uint16_t(-1);
+
 	String sResult;
 
 	DEKAF2_TRY
@@ -985,8 +987,15 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 		{
 			auto iCutAt = iDecSepPos + iPrecision + ((iPrecision > 0) ? 1 : 0);
 
-			// check for rounding
-			if (bRoundToNearest)
+			// check for rounding - we use a '4' heuristic to compensate for
+			// floating point representation artifacts: if the first truncated
+			// digit is '4', we look at subsequent digits to see if they push
+			// the value towards 5 (e.g. 0.44999.. might really be 0.45).
+			// This trades mathematical exactness for more intuitive results
+			// with typical float values.
+			auto bDoRound = bRoundToNearest;
+
+			if (bDoRound)
 			{
 				auto iPos = iDecSepPos + iPrecision + 1;
 
@@ -996,27 +1005,27 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 
 					if (ch >= '5')
 					{
-						// round..
+						// round up
 						break;
 					}
 					else if (ch == '4')
 					{
-						// check more digits
+						// ambiguous - check subsequent digits
 						if (++iPos == iResultSize)
 						{
-							bRoundToNearest = false;
+							bDoRound = false;
 							break;
 						}
 					}
 					else
 					{
-						// do not round..
-						bRoundToNearest = false;
+						// clearly below .5 - do not round
+						bDoRound = false;
 						break;
 					}
 				}
 
-				if (bRoundToNearest)
+				if (bDoRound)
 				{
 					for (auto iCurPos = static_cast<typename String::difference_type>(iCutAt - 1); iCurPos >= 0;)
 					{
@@ -1057,13 +1066,11 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 
 			sResult.erase(iCutAt);
 		}
-		else if (iPrecision != uint16_t(-1))
+		else if (iPrecision != noPrecision)
 		{
-			auto iCount = iPrecision;
-
-			while (iCount-- > iHave)
+			if (iPrecision > iHave)
 			{
-				sResult += '0';
+				sResult.append(iPrecision - iHave, '0');
 			}
 		}
 	}
@@ -1072,16 +1079,10 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 		// not a float/double
 		iDecSepPos = sResult.size();
 
-		if (iPrecision > 0 && iPrecision != uint16_t(-1))
+		if (iPrecision > 0 && iPrecision != noPrecision)
 		{
 			sResult += (chSeparator != '.') ? '.' : ',';
-
-			auto iCount = iPrecision;
-
-			while (iCount--)
-			{
-				sResult += '0';
-			}
+			sResult.append(iPrecision, '0');
 		}
 	}
 
@@ -1105,7 +1106,7 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 			++iDecSepPos;
 		}
 
-		if (iEvery < iPrecision && iPrecision != uint16_t(-1))
+		if (iEvery < iPrecision && iPrecision != noPrecision)
 		{
 			iPos = iDecSepPos + 1 + iEvery;
 

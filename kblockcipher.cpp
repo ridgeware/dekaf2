@@ -597,7 +597,7 @@ bool KBlockCipher::SetKey(KStringView sKey)
 bool KBlockCipher::SetPassword(KStringView sPassword, KStringView sSalt)
 //---------------------------------------------------------------------------
 {
-	return SetKey(CreateKeyFromPassword(GetNeededKeyLength(), sPassword, sSalt));
+	return SetKey(CreateKeyFromPasswordPKCS5(GetNeededKeyLength(), sPassword, sSalt));
 
 } // SetPassword
 

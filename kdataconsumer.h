@@ -61,7 +61,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the interface of a data consumer class, taking incoming bytes
-class KDataConsumer : public KErrorBase
+class DEKAF2_PUBLIC KDataConsumer : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -95,7 +95,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// data consumer class writing into a view (external buffer)
-class KViewConsumer : public KDataConsumer
+class DEKAF2_PUBLIC KViewConsumer : public KDataConsumer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -130,7 +130,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// data consumer class writing into a KString reference
-class KStringConsumer : public KDataConsumer
+class DEKAF2_PUBLIC KStringConsumer : public KDataConsumer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -165,7 +165,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// data consumer class writing into an internal buffer (a string)
-class KBufferedConsumer : public KStringConsumer
+class DEKAF2_PUBLIC KBufferedConsumer : public KStringConsumer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -196,7 +196,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// data consumer class writing into a std::ostream
-class KOStreamConsumer : public KDataConsumer
+class DEKAF2_PUBLIC KOStreamConsumer : public KDataConsumer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -229,7 +229,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// data consumer class writing through a generic callback
-class KCallbackConsumer : public KDataConsumer
+class DEKAF2_PUBLIC KCallbackConsumer : public KDataConsumer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

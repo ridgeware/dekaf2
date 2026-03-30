@@ -78,7 +78,7 @@ using nghttp2_ssize = ::ptrdiff_t;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A Stream describes one request/response stream in a HTTP/2 Session (of which HTTP/2 can have many)
-class Stream
+class DEKAF2_PUBLIC Stream
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -151,7 +151,7 @@ private:
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A Session describes one HTTP/2 session, which is the equivalent of one TCP connection.
 /// It can have many Streams.
-class Session : public KErrorBase
+class DEKAF2_PUBLIC Session : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -301,7 +301,7 @@ private:
 /// A special type of session in which only one single stream at any time is permitted (multiple streams
 /// can be generated consecutively). We use this type of session to adapt HTTP2 to dekaf2's std::iostream
 /// KHTTPClient.
-class SingleStreamSession : protected Session
+class DEKAF2_PUBLIC SingleStreamSession : protected Session
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

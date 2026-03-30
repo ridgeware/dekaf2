@@ -60,13 +60,13 @@ namespace Heap {
 
 /// returns true if the standard malloc implementation is used - which probably means that
 /// no extended heap profiling is available
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool IsStandardMalloc();
 /// return last error code - translate with strerror() .. (thread local implementation)
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 int LastError();
 /// print allocation stats, either as text or as JSON
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString GetStats(bool bAsJSON = false);
 
 namespace Profiling {
@@ -81,28 +81,32 @@ enum ReportFormat
 };
 
 /// check if monitoring can be switched on
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool    IsAvailable();
 /// start monitoring
+DEKAF2_PUBLIC
 bool    Start();
 /// stop monitoring
+DEKAF2_PUBLIC
 bool    Stop();
 /// dump profile result to file
 /// @param sDumpFile the  path name for the output file
 /// @param Format the output format, raw or one of the analyzed formats
 /// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
 /// @return true on success
+DEKAF2_PUBLIC
 bool    Dump(KStringViewZ sDumpFile, ReportFormat Format, KStringView sAdditionalOptions = KStringView{});
 /// dump profile result to string
 /// @param Format the output format, raw or one of the analyzed formats
 /// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
 /// @return a string with the dump output
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString Dump(ReportFormat Format, KStringView sAdditionalOptions = KStringView{});
 /// clear/reset collected data
+DEKAF2_PUBLIC
 bool    Reset();
 /// returns true if monitoring was started
-DEKAF2_NODISCARD
+DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool    IsStarted();
 
 } // namespace Profiling

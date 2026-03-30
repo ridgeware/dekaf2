@@ -82,14 +82,14 @@ using nghttp3_ssize = ::ptrdiff_t;
 
 //-----------------------------------------------------------------------------
 /// poll for SSL events, and return them if triggered - this function is currently non-blocking only, no timeouts
-uint64_t SSL_Poll(uint64_t what, ::SSL* ssl);
+DEKAF2_PUBLIC uint64_t SSL_Poll(uint64_t what, ::SSL* ssl);
 //-----------------------------------------------------------------------------
 
 class Session;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A Stream describes one request/response stream in a HTTP/3 Session (of which HTTP/3 can have many)
-class Stream : public KErrorBase
+class DEKAF2_PUBLIC Stream : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -272,7 +272,7 @@ inline Stream::WaitFor Stream::DelWaitFor(WaitFor what) { m_WaitFor &= ~what; re
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A Session describes one HTTP/3 session, which is the equivalent of one Quic connection.
 /// It can have many Streams.
-class Session : public KErrorBase
+class DEKAF2_PUBLIC Session : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -469,7 +469,7 @@ private:
 /// A special type of session in which only one single stream at any time is permitted (multiple streams
 /// can be generated consecutively). We use this type of session to adapt HTTP3 to dekaf2's std::iostream
 /// KHTTPClient.
-class SingleStreamSession : protected Session
+class DEKAF2_PUBLIC SingleStreamSession : protected Session
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

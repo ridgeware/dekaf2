@@ -73,7 +73,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// Normally, the side waiting for a tunnel connection should not set the credentials, and the other one
 /// seeking to establish the tunnel should set them.
 /// You find a sample implementation in samples/ktunnel.h / samples/ktunnel.cpp
-class KTunnel
+class DEKAF2_PUBLIC KTunnel
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -85,7 +85,7 @@ public:
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// Config setup for KTunnel
-	struct Config
+	struct DEKAF2_PUBLIC Config
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 		/// a list of accepted secrets (strings)
@@ -108,7 +108,7 @@ public:
 	/// the message protocol used on top of the websocket frame,
 	/// basically adding multiplex channels and (own) message types,
 	/// and encryption/decryption if configured
-	class Message : protected KWebSocket::Frame
+	class DEKAF2_PUBLIC Message : protected KWebSocket::Frame
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -201,7 +201,7 @@ public:
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// runs one single connection in the multiplexed tunnel - uses two threads to pump data in and out of
 	/// tunnel and outside connection
-	class Connection
+	class DEKAF2_PUBLIC Connection
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 
@@ -259,7 +259,7 @@ public:
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// holds all multiplexed connections through the tunnel, thread safe
-	class Connections
+	class DEKAF2_PUBLIC Connections
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 

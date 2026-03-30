@@ -59,7 +59,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// the interface of a data provider class
-class KDataProvider
+class DEKAF2_PUBLIC KDataProvider
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -95,7 +95,7 @@ public:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a data provider that reads from constant memory without own buffering (a view)
-class KViewProvider : public KDataProvider
+class DEKAF2_PUBLIC KViewProvider : public KDataProvider
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -139,7 +139,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a data provider that reads from buffered memory (a string)
-class KBufferedProvider : public KViewProvider
+class DEKAF2_PUBLIC KBufferedProvider : public KViewProvider
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -162,7 +162,7 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a data provider that reads from any std::istream
-class KIStreamProvider : public KDataProvider
+class DEKAF2_PUBLIC KIStreamProvider : public KDataProvider
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

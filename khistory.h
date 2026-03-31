@@ -62,6 +62,7 @@ class DEKAF2_PUBLIC KHistory
 	static constexpr uint32_t iDefaultHistory  = 0;
 	static constexpr uint32_t iMinHistory      = 100;
 	static constexpr uint32_t iDeleteForResize = iMinHistory / 10;
+	static constexpr int      iFileMode        = 0600;
 
 	static_assert(iMinHistory      >= 100       , "do not pick too low history sizes");
 
@@ -70,6 +71,11 @@ public:
 //-------
 
 	KHistory() = default;
+
+	KHistory(const KHistory&) = delete;
+	KHistory& operator=(const KHistory&) = delete;
+	KHistory(KHistory&&) = delete;
+	KHistory& operator=(KHistory&&) = delete;
 
 	using Storage = std::vector<KString>;
 

@@ -69,8 +69,14 @@ bool KHistory::LoadHistory(KString sPathname)
 	{
 		m_History.clear();
 
-		for (auto sHist : File)
+		for (const auto& sHist : File)
 		{
+			if (m_iMaxHistory > 0 && m_History.size() >= m_iMaxHistory)
+			{
+				// drop oldest entries to stay within size limit during load
+				m_History.erase(m_History.begin(), m_History.begin() + iDeleteForResize);
+			}
+
 			m_History.push_back(sHist);
 		}
 
@@ -85,23 +91,23 @@ bool KHistory::LoadHistory(KString sPathname)
 		return false;
 	}
 
-} // SetFile
+} // LoadHistory
 
 //-----------------------------------------------------------------------------
 void KHistory::SetSize(uint32_t iHistorySize, bool bToDisk, KString sPathname)
 //-----------------------------------------------------------------------------
 {
-	if (bToDisk)
-	{
-		LoadHistory(std::move(sPathname));
-	}
-
 	if (iHistorySize > 0 && iHistorySize < iMinHistory)
 	{
 		iHistorySize = iMinHistory;
 	}
 
 	m_iMaxHistory = iHistorySize;
+
+	if (bToDisk)
+	{
+		LoadHistory(std::move(sPathname));
+	}
 
 	CheckSize();
 
@@ -120,7 +126,7 @@ bool KHistory::Add(KStringView sLine)
 
 		if (!m_sHistoryfile.empty())
 		{
-			kAppendFile(m_sHistoryfile, sLine + '\n');
+			kAppendFile(m_sHistoryfile, sLine + '\n', iFileMode);
 		}
 
 		ResetIter();
@@ -258,10 +264,12 @@ void KHistory::CheckSize()
 
 				if (File.is_open())
 				{
-					for (auto sHist : m_History)
+					for (const auto& sHist : m_History)
 					{
 						File.WriteLine(sHist);
 					}
+
+					kChangeMode(m_sHistoryfile, iFileMode);
 				}
 				else
 				{

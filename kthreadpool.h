@@ -48,6 +48,17 @@
  *   - making sure detached threads (from resizes) are properly finished
  *     when stopping all threads
  *
+ *  October 2025, Joachim Schurig
+ *   - adding growth and shrink policy setup, to dynamically resize
+ *     the thread pool depending on usage
+ *   - adding iMaxThreadsEver to Diagnostics
+ *
+ *  March 2026, Joachim Schurig
+ *   - fixing potential deadlock when using resize()
+ *   - fixing inefficiency on shrink logic
+ *   - fixing possible underflow in diagnostics values
+ *   - fixing inefficient wait for detached threads to finish
+ *
  *********************************************************/
 
 

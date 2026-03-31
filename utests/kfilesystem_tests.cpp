@@ -2,11 +2,15 @@
 
 #include <dekaf2/kfilesystem.h>
 #include <dekaf2/ksystem.h>
-#include <vector>
-#include <fstream>
 #include <dekaf2/kreader.h>
 #include <dekaf2/kwriter.h>
 #include <dekaf2/kstream.h>
+#include <vector>
+#include <fstream>
+#include <thread>
+#include <atomic>
+#include <chrono>
+
 
 using namespace dekaf2;
 
@@ -771,5 +775,108 @@ TEST_CASE("KFilesystem")
 		CHECK ( File == nullptr );
 		Dir.Open(sDirectory);
 		CHECK ( Dir.size() == 6 );
+	}
+
+	SECTION("KFileLock on existing file")
+	{
+		KString sLockFile = TempDir.Name();
+		sLockFile += "/locktest.dat";
+		kWriteFile(sLockFile, "test");
+
+		KFileLock lock(sLockFile, KFileLock::Shared);
+		CHECK ( static_cast<bool>(lock) == true );
+	}
+
+	SECTION("KFileLock on non-existent file")
+	{
+		KString sLockFile = TempDir.Name();
+		sLockFile += "/locktest_nonexistent.dat";
+
+		KFileLock lock(sLockFile, KFileLock::Shared);
+		CHECK ( static_cast<bool>(lock) == false );
+	}
+
+	SECTION("KFileLock exclusive on existing file")
+	{
+		KString sLockFile = TempDir.Name();
+		sLockFile += "/locktest.dat";
+		kWriteFile(sLockFile, "test");
+
+		KFileLock lock(sLockFile, KFileLock::Exclusive);
+		CHECK ( static_cast<bool>(lock) == true );
+	}
+
+	SECTION("KFileLock multiple shared locks")
+	{
+		KString sLockFile = TempDir.Name();
+		sLockFile += "/locktest.dat";
+		kWriteFile(sLockFile, "test");
+
+		KFileLock lock1(sLockFile, KFileLock::Shared);
+		CHECK ( static_cast<bool>(lock1) == true );
+
+		KFileLock lock2(sLockFile, KFileLock::Shared);
+		CHECK ( static_cast<bool>(lock2) == true );
+	}
+
+	SECTION("KFileLock RAII release")
+	{
+		KString sLockFile = TempDir.Name();
+		sLockFile += "/locktest.dat";
+		kWriteFile(sLockFile, "test");
+
+		{
+			KFileLock lock1(sLockFile, KFileLock::Exclusive);
+			CHECK ( static_cast<bool>(lock1) == true );
+		}
+		// lock1 is released here
+
+		KFileLock lock2(sLockFile, KFileLock::Exclusive);
+		CHECK ( static_cast<bool>(lock2) == true );
+	}
+
+	SECTION("KFileLock exclusive blocks exclusive")
+	{
+		KString sLockFile = TempDir.Name();
+		sLockFile += "/locktest.dat";
+		kWriteFile(sLockFile, "test");
+
+		std::atomic<bool> bLockAcquired { false };
+		std::atomic<bool> bThreadStarted { false };
+
+		std::thread t;
+
+		{
+			// hold an exclusive lock in an inner scope
+			KFileLock lock(sLockFile, KFileLock::Exclusive);
+			CHECK ( static_cast<bool>(lock) == true );
+
+			// try to acquire exclusive lock in another thread
+			t = std::thread([&]()
+			{
+				bThreadStarted = true;
+
+				// this will block until the main thread releases the lock
+				KFileLock lock2(sLockFile, KFileLock::Exclusive);
+
+				bLockAcquired = true;
+			});
+
+			// give the thread time to start and attempt the lock
+			while (!bThreadStarted)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+			// the thread should be blocked, so bLockAcquired should still be false
+			CHECK ( bLockAcquired == false );
+		}
+		// lock released here - thread should unblock
+
+		t.join();
+
+		// after join, the thread must have acquired and released the lock
+		CHECK ( bLockAcquired == true );
 	}
 }

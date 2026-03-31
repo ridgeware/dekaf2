@@ -59,6 +59,13 @@
 #include "keraseremove.h"
 #include "kuuid.h"
 #include <algorithm>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <windows.h>
+#else
+	#include <sys/file.h>  // flock()
+	#include <fcntl.h>     // open()
+	#include <unistd.h>    // close()
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -91,6 +98,71 @@ bool kChangeMode(KStringViewZ sPath, int iMode)
 	return true;
 
 } // kChangeMode
+
+//-----------------------------------------------------------------------------
+KFileLock::KFileLock(KStringViewZ sPath, Mode mode)
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_WINDOWS
+	m_hFile = CreateFileA(
+		sPath.c_str(),
+		GENERIC_READ | (mode == Exclusive ? GENERIC_WRITE : 0),
+		FILE_SHARE_READ | FILE_SHARE_WRITE,
+		nullptr,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL,
+		nullptr
+	);
+
+	if (m_hFile != INVALID_HANDLE_VALUE)
+	{
+		OVERLAPPED ov{};
+		DWORD dwFlags = mode == Exclusive ? LOCKFILE_EXCLUSIVE_LOCK : 0;
+		LockFileEx(m_hFile, dwFlags, 0, MAXDWORD, MAXDWORD, &ov);
+	}
+#else
+	m_fd = ::open(sPath.c_str(), O_RDONLY);
+
+	if (m_fd >= 0)
+	{
+		::flock(m_fd, mode == Exclusive ? LOCK_EX : LOCK_SH);
+	}
+#endif
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KFileLock::~KFileLock()
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_WINDOWS
+	if (m_hFile != INVALID_HANDLE_VALUE)
+	{
+		OVERLAPPED ov{};
+		UnlockFileEx(m_hFile, 0, MAXDWORD, MAXDWORD, &ov);
+		CloseHandle(m_hFile);
+	}
+#else
+	if (m_fd >= 0)
+	{
+		::flock(m_fd, LOCK_UN);
+		::close(m_fd);
+	}
+#endif
+
+} // dtor
+
+//-----------------------------------------------------------------------------
+KFileLock::operator bool() const
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_WINDOWS
+	return m_hFile != INVALID_HANDLE_VALUE;
+#else
+	return m_fd >= 0;
+#endif
+
+} // operator bool
 
 //-----------------------------------------------------------------------------
 int kGetMode(KStringViewZ sPath)

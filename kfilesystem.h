@@ -604,6 +604,85 @@ KFileTypes operator|(KFileTypes first, const KFileTypes second)
 }
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// RAII advisory file lock for cross-platform file locking.
+///
+/// Uses `flock()` on POSIX and `LockFileEx()` on Windows to acquire an advisory lock
+/// on an existing file. The lock is released automatically when the object goes out of scope.
+///
+/// Two locking modes are supported:
+/// - **Shared**: Multiple readers can hold a shared lock simultaneously.
+///   Other shared locks are allowed, but an exclusive lock will block.
+/// - **Exclusive**: Only one process can hold an exclusive lock.
+///   All other lock attempts (shared or exclusive) will block.
+///
+/// @note Advisory locks are cooperative — they only work if all processes accessing
+/// the file use the same locking mechanism. They do not prevent direct I/O.
+///
+/// @note The file must exist before acquiring a lock. If the file cannot be opened,
+/// the lock silently fails (check with `operator bool()`).
+///
+/// ### Example
+/// @code
+/// {
+///     KFileLock lock("/tmp/myfile.dat", KFileLock::Exclusive);
+///     if (lock)
+///     {
+///         // safely rewrite file while holding exclusive lock
+///     }
+/// } // lock released here
+/// @endcode
+class DEKAF2_PUBLIC KFileLock
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// Lock mode for advisory file locking
+	enum Mode
+	{
+		Shared,    ///< shared (read) lock — multiple holders allowed
+		Exclusive  ///< exclusive (write) lock — single holder only
+	};
+
+	//-----------------------------------------------------------------------------
+	/// Acquire an advisory lock on the file at @p sPath.
+	/// Blocks until the lock is available. If the file does not exist or cannot
+	/// be opened, the lock is not acquired (check with `operator bool()`).
+	/// @param sPath path to the file to lock
+	/// @param mode  Shared for concurrent read access, Exclusive for sole write access
+	KFileLock(KStringViewZ sPath, Mode mode);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Release the lock and close the underlying file descriptor / handle.
+	~KFileLock();
+	//-----------------------------------------------------------------------------
+
+	KFileLock(const KFileLock&) = delete;
+	KFileLock& operator=(const KFileLock&) = delete;
+	KFileLock(KFileLock&&) = delete;
+	KFileLock& operator=(KFileLock&&) = delete;
+
+	//-----------------------------------------------------------------------------
+	/// Returns true if the lock was successfully acquired
+	explicit operator bool() const;
+	//-----------------------------------------------------------------------------
+
+//----------
+private:
+//----------
+
+#ifdef DEKAF2_IS_WINDOWS
+	void* m_hFile { reinterpret_cast<void*>(static_cast<intptr_t>(-1)) }; // INVALID_HANDLE_VALUE
+#else
+	int   m_fd    { -1 };
+#endif
+
+}; // KFileLock
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Retrieve information about a file that is typically found in the stat struct
 class DEKAF2_PUBLIC KFileStat : public KErrorBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

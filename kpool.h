@@ -51,6 +51,7 @@
 #include <memory>
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -62,7 +63,35 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Implements functions to create a new pool object, and to get notifications
-/// once an object is popped from the pool or pushed back into
+/// once an object is popped from the pool or pushed back into.
+///
+/// Override any or all of the virtual methods to customize pool behavior.
+/// This is particularly useful for objects that require non-trivial
+/// construction, like database connections:
+/// ```
+/// class KSQLControl : public KPoolControl<KSQL>
+/// {
+/// public:
+///     KSQLControl(KStringView sDBC) : m_sDBC(sDBC) {}
+///
+///     KSQL* Create() override
+///     {
+///         auto db = new KSQL(m_sDBC);
+///         return db;
+///     }
+///
+///     void Popped(KSQL* db, bool bIsNew) override
+///     {
+///         if (!bIsNew && !db->IsConnectionOpen())
+///         {
+///             db->OpenConnection();
+///         }
+///     }
+///
+/// private:
+///     KString m_sDBC;
+/// };
+/// ```
 template<class Value>
 class KPoolControl
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -136,13 +165,13 @@ struct KPoolMutex<true>
 
 /// To create multiples of microseconds, seconds, minutes, etc. declare your own duration type with an odd duration, like
 /// ```
-/// using FiveMinDuration = std::chrono::duration<long, std::ratio<5 * 60>>;
+/// using FiveMinDuration = chrono::duration<long, std::ratio<5 * 60>>;
 /// ```
 /// (basis of std::duration is one second)
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a real KTimeSeries
-template<uint16_t iIntervals = 0, typename Resolution = std::chrono::seconds>
+template<uint16_t iIntervals = 0, typename Resolution = chrono::seconds>
 class KPoolTimeSeries
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -169,7 +198,7 @@ private:
 
 	TimeSeries  m_Intervals        { iIntervals         };
 	Timepoint   m_LastAverage      { Resolution::zero() };
-	std::size_t m_iAbsoluteMaxSize;
+	std::size_t m_iAbsoluteMaxSize { 0 };
 
 }; // functional KPoolTimeSeries
 
@@ -200,7 +229,7 @@ public:
 }; // KPoolTimeSeries<0>
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<class Value, uint16_t iIntervals = 0, typename Resolution = std::chrono::seconds, bool bShared = false>
+template<class Value, uint16_t iIntervals = 0, typename Resolution = chrono::seconds, bool bShared = false>
 class KPoolBase : private KPoolMutex<bShared>, private KPoolTimeSeries<iIntervals, Resolution>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -240,8 +269,8 @@ public:
 
 	KPoolBase(const KPoolBase&) = delete;
 	KPoolBase& operator=(const KPoolBase&) = delete;
-	KPoolBase(KPoolBase&&) = default;
-	KPoolBase& operator=(KPoolBase&&) = default;
+	KPoolBase(KPoolBase&&) = delete;
+	KPoolBase& operator=(KPoolBase&&) = delete;
 
 	//-----------------------------------------------------------------------------
 	/// returns true if pool is currently empty
@@ -302,7 +331,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns Stats object
-	Stats GetStats()
+	Stats GetStats() const
 	//-----------------------------------------------------------------------------
 	{
 		typename base_type::MyLock Lock(base_type::m_Mutex);
@@ -383,9 +412,15 @@ public:
 					AdjustPoolSize();
 					return true;
 				}
+				else if (m_iPopped <= m_iMaxSize)
+				{
+					++m_iPopped; // reserve a creation slot
+					AdjustPoolSize();
+					return true;
+				}
 				else
 				{
-					return m_iPopped <= m_iMaxSize;
+					return false;
 				}
 			});
 		}
@@ -394,9 +429,15 @@ public:
 		{
 			value = m_Control.Create();
 			bNew  = true;
-			typename base_type::MyLock Lock(base_type::m_Mutex);
-			++m_iPopped;
-			AdjustPoolSize();
+
+			if (m_bDisabled)
+			{
+				// when pooling is disabled the predicate above is not
+				// reached, but deleter() always decrements m_iPopped,
+				// so we need to balance it here
+				typename base_type::MyLock Lock(base_type::m_Mutex);
+				++m_iPopped;
+			}
 		}
 
 		auto PoolDeleter = [this](Value* value) { this->deleter(value, true); };
@@ -522,7 +563,7 @@ private:
 	size_type m_iMaxSize { 0 };
 	size_type m_iPopped  { 0 };
 	KPoolControl<Value>& m_Control;
-	bool      m_bDisabled { false };
+	std::atomic<bool> m_bDisabled { false };
 
 }; // KPoolBase
 
@@ -534,12 +575,106 @@ KPoolControl<Value> KPoolBase<Value, iIntervals, Resolution, bShared>::s_Default
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Implements a generic pool of objects of type Value. A unique_ptr is returned
-/// to the user, easily convertible to a shared_ptr. Implement a class
-/// Control as child of KPoolControl, and override single or all methods from
-/// KPoolControl if you want to create complex objects or get notifications
-/// about object usage.
-template<class Value, uint16_t iIntervals = 0, typename Resolution = std::chrono::seconds>
+/// Generic object pool with RAII-based automatic return.
+///
+/// KPool manages reusable objects of type Value. Calling get() either pops an
+/// existing object from the pool or creates a new one. The returned smart
+/// pointer automatically returns the object to the pool when it goes out of
+/// scope — no explicit return call is needed. This makes the pool exception-safe
+/// and leak-proof by design.
+///
+/// @note For single-threaded or thread-local use. For shared multi-threaded
+/// access, use KSharedPool instead.
+///
+/// ## Basic Usage
+///
+/// ```
+/// KPool<MyObject> Pool;
+///
+/// {
+///     auto obj = Pool.get();  // creates or reuses an object
+///     obj->doWork();
+/// }   // object is automatically returned to the pool here
+///
+/// // the same object is reused on the next get():
+/// auto obj = Pool.get();
+/// ```
+///
+/// The returned smart pointer can be converted to a std::shared_ptr at any time:
+/// ```
+/// KPool<MyObject> Pool;
+///
+/// std::shared_ptr<MyObject> shared = Pool.get();
+/// auto shared2 = shared;  // multiple owners, last one returns to pool
+/// ```
+///
+/// ## Database Connection Pool
+///
+/// A typical use case is pooling expensive-to-create resources like database
+/// connections. Implement a KPoolControl to customize object creation and
+/// lifecycle hooks:
+/// ```
+/// class KSQLControl : public KPoolControl<KSQL>
+/// {
+/// public:
+///     KSQLControl(KStringView sDBC) : m_sDBC(sDBC) {}
+///
+///     KSQL* Create() override
+///     {
+///         return new KSQL(m_sDBC);
+///     }
+///
+///     void Popped(KSQL* db, bool bIsNew) override
+///     {
+///         if (!bIsNew && !db->IsConnectionOpen())
+///         {
+///             db->OpenConnection();
+///         }
+///     }
+///
+/// private:
+///     KString m_sDBC;
+/// };
+///
+/// KSQLControl Control("/path/to/dbc");
+/// KPool<KSQL>  DBPool(Control, 50);  // max 50 connections
+///
+/// void HandleRequest()
+/// {
+///     auto db = DBPool.get();    // reuse or open a connection
+///     db->ExecSQL("SELECT ..");
+/// }   // connection returns to pool automatically, even on exceptions
+/// ```
+///
+/// ## Dynamic Pool Sizing
+///
+/// When template parameter iIntervals > 0, the pool automatically adjusts its
+/// maximum size based on observed usage over a sliding time window.
+/// ```
+/// // pool with 5-minute observation intervals, 3 intervals history
+/// using FiveMin = chrono::duration<long, std::ratio<5 * 60>>;
+/// KPool<MyObject, 3, FiveMin> Pool(Control);
+/// ```
+/// The pool tracks per-interval usage statistics (min, mean, max) and shrinks
+/// or grows to match actual demand, up to the absolute maximum passed to the
+/// constructor.
+///
+/// ## Disabling Pooling
+///
+/// Pooling can be temporarily disabled for debugging or testing. While
+/// disabled, get() creates a fresh object every time and destruction deletes
+/// it immediately:
+/// ```
+/// Pool.disable(true);   // all pooled objects are released
+/// auto obj = Pool.get(); // creates a new object
+/// // obj is deleted on scope exit, not returned to pool
+/// Pool.disable(false);  // re-enable pooling
+/// ```
+///
+/// @tparam Value the object type to pool
+/// @tparam iIntervals number of time intervals for dynamic sizing (0 = fixed size)
+/// @tparam Resolution time resolution for dynamic sizing (default: seconds)
+template<class Value, uint16_t iIntervals = 0, typename Resolution = chrono::seconds>
 class KPool : public detail::KPoolBase<Value, iIntervals, Resolution, false>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -559,12 +694,32 @@ public:
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Implements a generic pool for shared access of objects of type Value.
-/// A unique_ptr is returned to the user, easily convertible to a shared_ptr.
-/// Implement a class Control as child of KPoolControl, and override single
-/// or all methods from KPoolControl if you want to create complex objects
-/// or get notifications about object usage.
-template<class Value, uint16_t iIntervals = 0, typename Resolution = std::chrono::seconds>
+/// Thread-safe variant of KPool for shared multi-threaded access.
+///
+/// KSharedPool uses a real mutex and condition variable to synchronize
+/// concurrent get() and return operations. When the pool is exhausted and
+/// the maximum object count has been reached, calling threads block until
+/// an object is returned by another thread.
+///
+/// All other features (RAII return, KPoolControl hooks, dynamic sizing,
+/// disable/enable) work identically to KPool.
+///
+/// ```
+/// KSQLControl       Control("/path/to/dbc");
+/// KSharedPool<KSQL> DBPool(Control, 20);  // max 20 connections
+///
+/// // safe to call from any thread:
+/// void HandleRequest()
+/// {
+///     auto db = DBPool.get();     // blocks if 20 connections in use
+///     db->ExecSQL("SELECT ..");
+/// }   // connection returns to pool, wakes a waiting thread
+/// ```
+///
+/// @tparam Value the object type to pool
+/// @tparam iIntervals number of time intervals for dynamic sizing (0 = fixed size)
+/// @tparam Resolution time resolution for dynamic sizing (default: seconds)
+template<class Value, uint16_t iIntervals = 0, typename Resolution = chrono::seconds>
 class KSharedPool : public detail::KPoolBase<Value, iIntervals, Resolution, true>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

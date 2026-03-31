@@ -155,6 +155,201 @@ TEST_CASE("KPool")
 		CHECK ( Pool.size() <= 20 );
 	}
 
+	SECTION("multiple active objects")
+	{
+		MyControl Control;
+		KPool<MyType> Pool(Control);
+
+		auto p1 = Pool.get();
+		auto p2 = Pool.get();
+		auto p3 = Pool.get();
+
+		CHECK ( Pool.size() == 3 );
+		CHECK ( Pool.used() == 3 );
+
+		p1->sString = "one";
+		p2->sString = "two";
+		p3->sString = "three";
+
+		p2.reset();
+
+		CHECK ( Pool.size() == 3 );
+		CHECK ( Pool.used() == 2 );
+
+		p1.reset();
+		p3.reset();
+
+		CHECK ( Pool.size() == 3 );
+		CHECK ( Pool.used() == 0 );
+	}
+
+	SECTION("GetStats")
+	{
+		MyControl Control;
+		KPool<MyType> Pool(Control, 50);
+
+		auto Stats = Pool.GetStats();
+
+		CHECK ( Stats.iUsed      == 0  );
+		CHECK ( Stats.iAvailable == 0  );
+		CHECK ( Stats.iMaxPool   == 50 );
+		CHECK ( Stats.iAbsoluteMax == 50 );
+
+		auto p1 = Pool.get();
+		auto p2 = Pool.get();
+
+		Stats = Pool.GetStats();
+
+		CHECK ( Stats.iUsed      == 2 );
+		CHECK ( Stats.iAvailable == 0 );
+
+		p1.reset();
+
+		Stats = Pool.GetStats();
+
+		CHECK ( Stats.iUsed      == 1 );
+		CHECK ( Stats.iAvailable == 1 );
+	}
+
+	SECTION("disable and enable")
+	{
+		MyControl Control;
+		KPool<MyType> Pool(Control);
+
+		{
+			auto p = Pool.get();
+			p->sString = "pooled";
+		}
+
+		CHECK ( Pool.size() == 1 );
+
+		// disable pooling - should clear the pool
+		bool bWasDisabled = Pool.disable(true);
+		CHECK ( bWasDisabled == false );
+
+		// pool should be empty now
+		CHECK ( Pool.empty() );
+
+		{
+			// objects should still be created, just not pooled
+			auto p = Pool.get();
+			p->sString = "not pooled";
+			CHECK ( Pool.used() == 1 );
+		}
+
+		// object should have been destroyed, not returned to pool
+		CHECK ( Pool.empty() );
+		CHECK ( Pool.used() == 0 );
+
+		// idempotent disable
+		bWasDisabled = Pool.disable(true);
+		CHECK ( bWasDisabled == true );
+
+		// re-enable pooling
+		bWasDisabled = Pool.disable(false);
+		CHECK ( bWasDisabled == true );
+
+		{
+			auto p = Pool.get();
+			p->sString = "pooled again";
+		}
+
+		// object should be back in the pool
+		CHECK ( Pool.empty() == false );
+		CHECK ( Pool.size()  == 1     );
+
+		{
+			auto p = Pool.get();
+			CHECK ( p->sString == "pooled again" );
+		}
+	}
+
+	SECTION("disable shared")
+	{
+		MyControl Control;
+		KSharedPool<MyType> Pool(Control);
+
+		{
+			auto p = Pool.get();
+			p->sString = "shared pooled";
+		}
+
+		CHECK ( Pool.size() == 1 );
+
+		Pool.disable(true);
+		CHECK ( Pool.empty() );
+
+		{
+			auto p = Pool.get();
+			CHECK ( Pool.used() == 1 );
+		}
+
+		CHECK ( Pool.empty() );
+		CHECK ( Pool.used() == 0 );
+
+		Pool.disable(false);
+
+		{
+			auto p = Pool.get();
+			p->sString = "re-enabled";
+		}
+
+		CHECK ( Pool.size() == 1 );
+	}
+
+	SECTION("put")
+	{
+		KPool<MyType> Pool;
+
+		auto value = new MyType();
+		value->sString = "externally created";
+
+		Pool.put(value);
+
+		CHECK ( Pool.empty() == false );
+
+		auto p = Pool.get();
+		CHECK ( p->sString == "externally created" );
+	}
+
+	SECTION("max_size contention")
+	{
+		MyControl Control;
+		KSharedPool<MyType> Pool(Control, 5);
+
+		std::atomic<std::size_t> iMaxConcurrent { 0 };
+		std::atomic<std::size_t> iCurrent { 0 };
+
+		KThreads Threads;
+
+		for (int iCount = 0; iCount < 10; ++iCount)
+		{
+			Threads.Add(std::thread([&Pool, &iMaxConcurrent, &iCurrent]()
+			{
+				for (int iLoop = 0; iLoop < 20; ++iLoop)
+				{
+					auto p = Pool.get();
+
+					auto iNow = ++iCurrent;
+					// track the maximum concurrent usage
+					auto iMax = iMaxConcurrent.load();
+					while (iNow > iMax && !iMaxConcurrent.compare_exchange_weak(iMax, iNow)) {}
+
+					kSleep(chrono::milliseconds(kRandom(1, 3)));
+
+					--iCurrent;
+				}
+			}));
+		}
+
+		Threads.Join();
+
+		CHECK ( Pool.used() == 0 );
+		// the pool limit is 5, but we allow <= so up to 6 concurrent
+		// objects may exist (m_iPopped <= m_iMaxSize allows one extra)
+		CHECK ( iMaxConcurrent.load() <= 6 );
+	}
+
 // gcc 6 has difficulties casting timepoints of different durations
 #if !DEKAF2_IS_GCC || DEKAF2_GCC_VERSION_MAJOR > 6
 

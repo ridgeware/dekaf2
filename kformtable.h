@@ -78,8 +78,8 @@ public:
 		Thin     = 1 << 2, ///< Box style with thin lines
 		Double   = 1 << 3, ///< Box style with two bold lines
 		Rounded  = 1 << 4, ///< Box style with thin lines and rounded corners
-		Spaced   = 1 << 6, ///< space as separator
 		Vertical = 1 << 5, ///< vertical ASCII lines
+		Spaced   = 1 << 6, ///< space as separator
 		HTML     = 1 << 7, ///< html markup
 		JSON     = 1 << 8, ///< json output
 		CSV      = 1 << 9  ///< csv output

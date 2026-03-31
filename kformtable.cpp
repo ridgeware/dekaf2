@@ -495,7 +495,7 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 
 			if (iSpan > 1)
 			{
-				Print(kFormat(" span={}", iSpan));
+				Print(kFormat(" colspan={}", iSpan));
 			}
 
 			// don't print align=left - we take it as the default
@@ -636,11 +636,12 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 				if (m_iColumn < ColCount())
 				{
 					auto& sName = m_ColDefs[m_iColumn].GetDispName();
-					iFill -= sName.SizeUTF8();
+					auto iNameWidth = sName.SizeUTF8();
+					iFill = (iNameWidth < iFill) ? iFill - iNameWidth : 0;
 					Print(sName);
 				}
 
-				while (iFill--)
+				for (size_type i = 0; i < iFill; ++i)
 				{
 					Print(' ');
 				}
@@ -720,8 +721,12 @@ void KFormTable::PrintRow(const KROW& Row)
 		for (auto& Col : Row)
 		{
 			bool bIsNum = (Col.second.GetFlags() & (KCOL::Flags::NUMERIC | KCOL::Flags::MONEY | KCOL::Flags::INT64NUMERIC)) != KCOL::Flags::NOFLAG;
+			auto iPrevColumn = m_iColumn;
 			PrintColumnInt(bIsNum, Col.first);
-			m_ColDefs[m_iColumn - 1].m_sColName = Col.first; // only if < maxcolumns
+			if (m_iColumn > iPrevColumn && m_iColumn <= ColCount())
+			{
+				m_ColDefs[m_iColumn - 1].m_sColName = Col.first;
+			}
 		}
 		
 		PrintNextRow();

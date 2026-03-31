@@ -6411,6 +6411,9 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 		bar.Start (iExpected);
 	}
 
+	// use a thread pool to limit concurrency of bulk insert threads (0 = number of CPU threads)
+	KThreadPool Pool(0, KThreadPool::PrestartSome, KThreadPool::ShrinkNever);
+
 	std::vector<KROW> BulkRows;
 	KROW row(sTablename);
 
@@ -6423,14 +6426,17 @@ bool KSQL::BulkCopy (KSQL& OtherDB, KStringView sTablename, const KSQLString& sW
 		BulkRows.push_back (row);
 		if (BulkRows.size() >= iFlushRows)
 		{
-			BulkCopyFlush (BulkRows);
+			BulkCopyFlush (BulkRows, Pool);
 		}
 	}
 
 	if (BulkRows.size())
 	{
-		BulkCopyFlush (BulkRows, /*bLast=*/true);
+		BulkCopyFlush (BulkRows, Pool);
 	}
+
+	// finish all pending insert tasks before reporting completion
+	Pool.stop(false);
 
 	KDuration tTook = KUnixTime::now() - tStarted;
 	if (bPBAR)
@@ -6467,19 +6473,11 @@ static void BulkCopyFlush_ (const KSQL& db, std::vector<KROW>/*copy*/ BulkRows)
 } // BulkCopyFlush_
 
 //-----------------------------------------------------------------------------
-void KSQL::BulkCopyFlush (std::vector<KROW>& BulkRows, bool bLast/*=true*/)
+void KSQL::BulkCopyFlush (std::vector<KROW>& BulkRows, KThreadPool& Pool)
 //-----------------------------------------------------------------------------
 {
-	// do bulk-insert on it's own thread so that we can move to the next bunch of rows:
-	std::thread SpawnMe (BulkCopyFlush_, *this, /*copy*/BulkRows);
-	if (bLast)
-	{
-		SpawnMe.join();
-	}
-	else
-	{
-		SpawnMe.detach();
-	}
+	// do bulk-insert on a pool thread so that we can move to the next bunch of rows:
+	Pool.push(BulkCopyFlush_, *this, std::move(BulkRows));
 
 	BulkRows.clear();
 

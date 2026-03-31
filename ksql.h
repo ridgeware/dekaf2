@@ -167,6 +167,8 @@ typedef unsigned long* MYSQL_ROW_LENS; // this one is not a MYSQL type, but it i
 
 DEKAF2_NAMESPACE_BEGIN
 
+class KThreadPool;
+
 /// @addtogroup data_sql
 /// @{
 
@@ -1164,7 +1166,7 @@ public:
 private:
 //----------
 
-	void BulkCopyFlush (std::vector<KROW>& BulkRows, bool bLast=true);
+	void BulkCopyFlush (std::vector<KROW>& BulkRows, KThreadPool& Pool);
 
 	void LogPerformance (KDuration iMilliseconds, bool bIsQuery);
 

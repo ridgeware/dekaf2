@@ -43,95 +43,7 @@
 #pragma once
 
 /// @file koptions.h
-/// KOption offers multiple approaches for option parsing, which have evolved over time. These approaches can be mixed.
-///
-/// In general, any input argument is either an option (if it starts with one or two dashes) or a command (if it does not
-/// start with dashes). Options and commands can have arguments, that is, arguments following an option until the next 
-/// argument that starts with dashes). How many of those arguments will be consumed by a single option or command is
-/// determined by the callback type and a possible min/max range declaration.
-///
-/// Additional constructor arguments define whether empty input arguments are an error by itself, and if an exception will
-/// be thrown in case of an error.
-///
-/// 1. The original approach requires the declaration of a callback function for each option or command, in which the
-/// arguments (if any) are evaluated and assigned, and possibly other code is executed.
-/// After all callbacks are setup the input arguments are parsed and the respective callbacks executed.
-/// Typical code for this approach looks like:
-/// @code
-/// // instantiate the KOptions object
-/// KOptions Options(false);
-///
-/// // add options with their callbacks
-/// Options.Option("f,filename <name>")
-///        .Help("the name for the file")
-///        .Callback([&](KStringViewZ sArg) { m_sFilename = sArg; });
-///
-/// Options.Option("m,max <count>")
-///        .Help("the maximum count of words")
-///        .Callback([&](KStringViewZ sArg) { m_iCount = sArg.UInt64(); });
-///
-/// // finally parse the arguments and call the callbacks
-/// int iResult = Options.Parse(argc, argv);
-/// if (iResult != 0) return iResult;
-/// @endcode
-///
-/// Three different callback signatures exist, for callbacks without arguments, for callbacks with one argument,
-/// or for callbacks with multiple arguments:
-/// @code
-/// Callback([](){});
-/// Callback([](KStringViewZ sArg){});
-/// Callback([](KOptions::ArgList& Args){});
-/// @endcode
-/// The callback with multiple arguments is called with args in a KStack object. After return, all popped 
-/// arguments will be counted as consumed, all remaining will either be parsed for being commands
-/// with a callback, or, if existing, an unknown command callback will be called with them. The latter is
-/// typically used for unspecified counts of input arguments like e.g. filenames.
-///
-/// A number of requirements can be set for the expected arguments, like signed/unsigned/string/filename etc.:
-/// @code
-/// Options.Option("timeout <sec>")
-///        .Help("timeout in seconds")
-///        .Type(KOptions::Unsigned)
-///        .Range(1, 60)
-///        .Callback([&](KStringViewZ sArg) { m_iTimeout = sArg.UInt64(); });
-/// @endcode
-///
-/// 2. Simplifications for the above syntax exist: The help text can be appended to the option names,
-/// and single variables can be set with the argument value, automatically converted into the variable type.
-/// @code
-/// Options.Option("f,filename <name> : the name for the file").Set(m_sFilename);
-/// @endcode
-///
-/// 3. A third approach to argument parsing is the so-called ad-hoc parsing. In this approach (which can also
-/// be mixed with the previous ones) the input arguments get parsed first, and then get requested by query
-/// functions. Using the call operator and some template magic let this approach look very natural:
-/// @code
-/// // instantiate the KOptions object and parse all input arguments
-/// KOptions Options(false, argc, argv);
-///
-/// // request options and values
-/// KString  sFilename = Options("f,filename <name>  : the name for the file");
-///
-/// // declare a default value of 1000 if the option is missing
-/// uint16_t iCount    = Options("m,max <count>      : the maximum count of words", 1000);
-///
-/// bool     bReverse  = Options("r,reverse          : count from end of file", false);
-///
-/// // you can also explicitly request a value type
-/// auto     iExpect   = Options("expected <average> : expected average", 1).Int16();
-///
-/// // get all remaining arguments (should be called last..)
-/// auto ArgVec        = Options.GetUnknownCommands();
-///
-/// // finally check if all arguments were evaluated
-/// if (Options.Check()) return false;
-/// @endcode
-/// All options without a default value are required options.
-///
-/// For all approaches, a help text will be auto generated and auto formatted, adapted to the output terminal size. 
-/// Missing arguments for options or commands will be annotated with the relevant part of the help.
-/// It is not necessary to use white space formatting as in the above examples - all white space will be normalized,
-/// above it was used to ease reading.
+/// provides KOptions, a versatile option parser for CLI, ini files, and CGI environments
 
 #include "kstringview.h"
 #include "kstring.h"
@@ -151,7 +63,213 @@ DEKAF2_NAMESPACE_BEGIN
 /// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Option parsing for commandline, ini files, and CGI environments
+/// Versatile option parser for command lines, ini files, and CGI query strings.
+///
+/// KOptions supports three parsing styles that can be freely combined:
+///
+/// ## 1. Callback Style
+///
+/// Register options and commands with chained property setters and callbacks,
+/// then call Parse() to execute them:
+///
+/// @code
+/// KOptions Options(true);
+/// Options.SetBriefDescription("process text files");
+///
+/// KString  sFilename;
+/// uint64_t iCount { 0 };
+///
+/// Options.Option("f,filename <name>")
+///     .Help("input file name")
+///     .Type(KOptions::File)
+///     .Callback([&](KStringViewZ sArg) { sFilename = sArg; });
+///
+/// Options.Option("m,max <count>")
+///     .Help("maximum word count")
+///     .Type(KOptions::Unsigned).Range(1, 100000)
+///     .Callback([&](KStringViewZ sArg) { iCount = sArg.UInt64(); });
+///
+/// // parse and execute callbacks
+/// if (Options.Parse(argc, argv) != 0) return 1;
+/// @endcode
+///
+/// Three callback signatures are supported:
+/// | Signature | Arguments consumed |
+/// |---|---|
+/// | `Callback([](){})` | none |
+/// | `Callback([](KStringViewZ sArg){})` | exactly one |
+/// | `Callback([](KOptions::ArgList& Args){})` | variable (pop as many as needed) |
+///
+/// With the multi-arg callback, all popped arguments count as consumed.
+/// Remaining arguments are either matched against declared commands or
+/// forwarded to an UnknownCommand() handler.
+///
+/// ## 2. Inline / Set Style
+///
+/// A compact shorthand that combines the option name, argument placeholder,
+/// help text, and target variable in a single expression:
+///
+/// @code
+/// KString sFilename;
+/// Options.Option("f,filename <name> : input file name").Set(sFilename);
+///
+/// // or bind a flag directly
+/// bool bVerbose = false;
+/// Options.Option("v,verbose : enable verbose output").Set(bVerbose, true);
+/// @endcode
+///
+/// The colon separates option names from help text. Set() automatically
+/// determines MinArgs/MaxArgs from the target type.
+///
+/// ## 3. Ad-hoc Style
+///
+/// Parse first, query later. The constructor parses all arguments up front,
+/// then the call operator (or Get()) retrieves them by name. This is ideal
+/// for simple tools where you just want typed values without writing callbacks:
+///
+/// @code
+/// KOptions Options(false, argc, argv);
+///
+/// KString  sFilename = Options("f,filename <name>  : input file name");
+/// uint16_t iCount    = Options("m,max <count>      : maximum word count", 1000);
+/// bool     bReverse  = Options("r,reverse          : count from end", false);
+///
+/// // collect remaining positional arguments
+/// auto vFiles = Options.GetUnknownCommands();
+///
+/// // verify everything was consumed
+/// if (!Options.Check()) return 1;
+/// @endcode
+///
+/// Options declared **without** a default value are **required** — Check()
+/// will report them as missing if they were not supplied on the command line.
+/// Options declared **with** a default value are optional.
+///
+/// ### Type Conversion
+///
+/// The call operator returns a Values proxy object that converts implicitly
+/// into the target type of the assignment. The conversion is driven by the
+/// C++ type on the left-hand side:
+///
+/// @code
+/// KString  s = Options("name <n> : a string");        // implicit -> KStringViewZ -> KString
+/// int32_t  i = Options("count <n> : a number", 0);    // implicit -> int32_t (signed)
+/// uint16_t u = Options("port <n> : a port", 8080);    // implicit -> uint16_t (unsigned)
+/// bool     b = Options("verbose : be verbose", false); // implicit -> bool (true if flag present)
+/// double   d = Options("ratio <r> : a ratio", 1.0);   // implicit -> double
+/// @endcode
+///
+/// When using `auto`, the implicit conversion cannot deduce the target type.
+/// Use an explicit accessor on the Values object instead:
+///
+/// @code
+/// auto sName  = Options("name <n> : a string").String();  // -> KStringViewZ
+/// auto iCount = Options("count <n> : a number", 0).Int32();
+/// auto iPort  = Options("port <n> : a port", 8080).UInt16();
+/// auto bFlag  = Options("verbose : be verbose", false).Bool();
+/// auto dRatio = Options("ratio <r> : a ratio", 1.0).Double();
+/// @endcode
+///
+/// Available explicit accessors on Values:
+/// | Accessor | Return type |
+/// |---|---|
+/// | String() | KStringViewZ |
+/// | c_str() | const char* |
+/// | Int16(), Int32(), Int64() | signed integers |
+/// | UInt16(), UInt32(), UInt64() | unsigned integers |
+/// | Float(), Double() | floating point |
+/// | Bool() | bool (true if option present, else default) |
+/// | Duration\<T\>() | chrono duration |
+/// | Vector() | std::vector\<KStringViewZ\> (all values) |
+/// | Exists() | bool (was the option found in the input?) |
+///
+/// ### String Lifetime
+///
+/// All KStringViewZ values returned by the Values proxy — whether from
+/// String(), Vector(), operator[], the callback's ArgList, or implicit
+/// conversion — point directly into the original argument strings (argv
+/// for CLI parsing, or into KOptions' internal persistent string storage
+/// for ini file / CGI / string-based parsing). Their lifetime extends
+/// until the process exits (for argv) or until the KOptions object is
+/// destroyed (for other input sources). There is no need to copy them
+/// into KString unless the value needs to be modified:
+///
+/// @code
+/// // zero-copy — sFile is valid for the lifetime of the process
+/// KStringViewZ sFile = Options("f,file <path> : input file");
+///
+/// // only copy when you need a mutable string
+/// KString sMutable = Options("o,output <path> : output file");
+/// sMutable += ".bak";
+/// @endcode
+///
+/// For multi-value options, Vector() returns all values, and operator[]
+/// provides indexed access:
+///
+/// @code
+/// auto vIncludes = Options("I,include <paths> : include paths",
+///                          std::vector<KStringViewZ>{}).Vector();
+/// @endcode
+///
+/// ## Argument Types and Validation
+///
+/// Each option can declare a type and an optional range:
+///
+/// @code
+/// Options.Option("port <n>")
+///     .Help("listen port")
+///     .Type(KOptions::Unsigned).Range(1, 65535)
+///     .Callback([&](KStringViewZ s) { iPort = s.UInt16(); });
+///
+/// Options.Option("config <path>")
+///     .Help("config file")
+///     .Type(KOptions::File)          // must exist
+///     .Required()
+///     .Callback([&](KStringViewZ s) { sConfig = s; });
+/// @endcode
+///
+/// Supported types: Integer, Unsigned, Float, Boolean, String (default),
+/// File, Directory, Path, Socket (Unix only), Email, URL.
+/// Range() checks numeric value bounds, or string length bounds for
+/// string-like types.
+///
+/// ## Commands
+///
+/// Commands are positional arguments that do not start with a dash:
+///
+/// @code
+/// Options.Command("start").Help("start the service")
+///     .Callback([&]() { StartService(); });
+///
+/// Options.Command("stop").Help("stop the service")
+///     .Callback([&]() { StopService(); });
+/// @endcode
+///
+/// ## Auto-generated Help
+///
+/// A formatted help text is automatically generated and printed when
+/// `-h` or `--help` is used. The output adapts to the terminal width.
+/// Options are grouped into sections (via Section()) and sorted by
+/// help rank. On missing or wrong parameters, the relevant option's
+/// help is included in the error message.
+///
+/// ## Input Sources
+///
+/// - **CLI:** Parse(argc, argv)
+/// - **String:** Parse(KString) — e.g. from a config value
+/// - **Stream / File:** Parse(KInStream&), ParseFile(sPath) — line-oriented, `#` comments
+/// - **CGI:** ParseCGI(sProgramName) — reads QUERY_STRING env var
+///
+/// ## Built-in Options
+///
+/// The following options are registered automatically and appear in the
+/// help under "further \<options\>:":
+///
+/// - `-h`, `--help` — print help and exit
+/// - `-d` .. `-dddd`, `-d0` — set debug level (if compiled with DEKAF2_WITH_KLOG)
+/// - `-ud` .. `-udddd`, `-ud0` — debug with microsecond timestamps
+/// - `-dgrep`, `-dgrepv` — filter debug output with a regex
+/// - `-config`, `-ini` — load options from a config file
 class DEKAF2_PUBLIC KOptions
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

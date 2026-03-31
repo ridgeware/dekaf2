@@ -56,6 +56,39 @@ KLogRotate::KLogRotate(bool bOwnTimer)
 {
 } // ctor
 
+//-----------------------------------------------------------------------------
+KLogRotate::~KLogRotate()
+//-----------------------------------------------------------------------------
+{
+	// cancel all registered timer callbacks before the timer (or this instance)
+	// is destroyed, to prevent use-after-free in timer callbacks
+	auto Timer = GetTimer();
+
+	auto WatchedFiles = m_WatchedFiles.unique();
+
+	for (auto& it : WatchedFiles.get())
+	{
+		Timer->Cancel(it.second.TimerID);
+	}
+
+	WatchedFiles->clear();
+
+} // dtor
+
+//-----------------------------------------------------------------------------
+KTimer* KLogRotate::GetTimer()
+//-----------------------------------------------------------------------------
+{
+	auto Timer = m_Timer.get();
+
+	if (!Timer)
+	{
+		Timer = &Dekaf::getInstance().GetTimer();
+	}
+
+	return Timer;
+
+} // GetTimer
 
 //-----------------------------------------------------------------------------
 bool KLogRotate::Add(const Config& conf)
@@ -67,21 +100,84 @@ bool KLogRotate::Add(const Config& conf)
 		return false;
 	}
 
-	auto Timer = m_Timer.get();
+	auto Timer = GetTimer();
 
-	if (!Timer)
-	{
-		Timer = &Dekaf::getInstance().GetTimer();
-	}
-
-	Timer->CallEvery(conf.CheckEvery, [this, conf](KUnixTime tNow)
+	auto TimerID = Timer->CallEvery(conf.CheckEvery, [this, conf](KUnixTime tNow)
 	{
 		Check(tNow, conf);
 	});
 
+	if (TimerID == KTimer::InvalidID)
+	{
+		return false;
+	}
+
+	{
+		auto WatchedFiles = m_WatchedFiles.unique();
+
+		// cancel any existing timer for this file
+		auto it = WatchedFiles->find(conf.sLogFilename);
+
+		if (it != WatchedFiles->end())
+		{
+			Timer->Cancel(it->second.TimerID);
+			it->second = { conf, TimerID };
+		}
+		else
+		{
+			WatchedFiles->emplace(conf.sLogFilename, WatchedFile{ conf, TimerID });
+		}
+	}
+
 	return true;
 
 } // Add
+
+//-----------------------------------------------------------------------------
+bool KLogRotate::Remove(KStringViewZ sLogFilename)
+//-----------------------------------------------------------------------------
+{
+	auto WatchedFiles = m_WatchedFiles.unique();
+
+	auto it = WatchedFiles->find(KString(sLogFilename));
+
+	if (it == WatchedFiles->end())
+	{
+		return false;
+	}
+
+	GetTimer()->Cancel(it->second.TimerID);
+	WatchedFiles->erase(it);
+
+	return true;
+
+} // Remove
+
+//-----------------------------------------------------------------------------
+bool KLogRotate::ForceRotate(KStringViewZ sLogFilename)
+//-----------------------------------------------------------------------------
+{
+	Config conf;
+
+	{
+		auto WatchedFiles = m_WatchedFiles.shared();
+
+		auto it = WatchedFiles->find(KString(sLogFilename));
+
+		if (it == WatchedFiles->end())
+		{
+			return false;
+		}
+
+		conf = it->second.conf;
+	}
+
+	// call Check outside the lock to avoid holding it during I/O
+	Check(kNow(), conf);
+
+	return true;
+
+} // ForceRotate
 
 //-----------------------------------------------------------------------------
 void KLogRotate::Check(KUnixTime tNow, const Config& conf)
@@ -284,6 +380,9 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 
 	if (conf.iKeepSize > 0 || conf.bCopyTrunc)
 	{
+		// take an exclusive lock to prevent concurrent writes during rotation
+		KFileLock Lock(conf.sLogFilename, KFileLock::Exclusive);
+
 		// keep the newest records in the old place, write the older ones into the temp location
 		KFile LogFile(conf.sLogFilename);
 		// do not trim!
@@ -322,19 +421,20 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 		// read the remaining content into a buffer
 		auto sBuffer = LogFile.ReadRemaining();
 
-		// truncate the file early
-		kResizeFile(conf.sLogFilename, sBuffer.size());
-
 		if (!LogFile.KOutStream::Rewind())
 		{
 			kDebug(1, "cannot seek to start: {}", conf.sLogFilename);
 			return {};
 		}
 
-		// now write the rest of the logfile to its own start
+		// write the kept portion first, then truncate - if we crash between
+		// write and truncate we have duplicate data (recoverable), not lost data
 		LogFile.Write(sBuffer);
 		// and close it
 		LogFile.close();
+
+		// now truncate the stale tail
+		kResizeFile(conf.sLogFilename, sBuffer.size());
 	}
 	else
 	{
@@ -410,8 +510,14 @@ uint16_t KLogRotate::GetRotationCount(KStringView sSuffixes)
 	{
 		while (KASCII::kIsDigit(sSuffixes.front()))
 		{
-			iCount *= 10;
-			iCount += sSuffixes.front() - '0';
+			auto iNew = static_cast<uint32_t>(iCount) * 10 + (sSuffixes.front() - '0');
+
+			if (iNew > std::numeric_limits<uint16_t>::max())
+			{
+				return std::numeric_limits<uint16_t>::max();
+			}
+
+			iCount = static_cast<uint16_t>(iNew);
 			sSuffixes.remove_prefix(1);
 		}
 		if (!(sSuffixes.empty() || sSuffixes.front() == '.'))

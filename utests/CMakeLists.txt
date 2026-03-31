@@ -83,6 +83,7 @@ set (USOURCES
 	kjuliandate_tests.cpp
 	klockmap_tests.cpp
 	klog_tests.cpp
+	klogrotate_tests.cpp
 	kmessagedigest_tests.cpp
 	kmime_tests.cpp
 	kmodifyingstreambuf_tests.cpp

@@ -841,7 +841,7 @@ void KOptions::SetDefaults(KStringView sCliDebugTo/*=KLog::STDOUT*/)
 	});
 
 #ifdef DEKAF2_WITH_KLOG
-	auto SetKLogDebugging = [](KStringView sArg, KStringView sDebugTo, bool bUSeconds)
+	static auto SetKLogDebugging = [](KStringView sArg, KStringView sDebugTo, bool bUSeconds)
 	{
 		int iLevel = (sArg == (bUSeconds ? "ud0" : "d0")) ? 0 : static_cast<int>(sArg.size()) - bUSeconds;
 		KLog::getInstance()
@@ -854,14 +854,14 @@ void KOptions::SetDefaults(KStringView sCliDebugTo/*=KLog::STDOUT*/)
 
 	Option("d0,d,dd,ddd,dddd")
 		.Help("increasing optional stdout debug levels", -1)
-	([this, sCliDebugTo, &SetKLogDebugging]()
+	([this, sCliDebugTo]()
 	{
 		SetKLogDebugging(GetCurrentArg(), sCliDebugTo, false);
 	});
 
 	Option("ud0,ud,udd,uddd,udddd")
 		.Help("increasing optional stdout debug levels, with microseconds timestamps", -1)
-	([this, sCliDebugTo, &SetKLogDebugging]()
+	([this, sCliDebugTo]()
 	 {
 		SetKLogDebugging(GetCurrentArg(), sCliDebugTo, true);
 	});
@@ -975,6 +975,7 @@ void KOptions::Help(KOutStream& out)
 		}
 		DEKAF2_CATCH (const NoError& error)
 		{
+			--m_iRecursedHelp;
 #ifdef DEKAF2_IS_MSC
 			const char* p = error.what();
 #endif
@@ -1269,11 +1270,11 @@ int KOptions::ParseCGI(KStringViewZ sProgramName, KOutStream& out)
 
 	for (const auto& it : Query.get())
 	{
-		QueryArgs.push_back(m_Strings.Persist(std::move(it.first)));
+		QueryArgs.push_back(m_Strings.Persist(it.first));
 
 		if (!it.second.empty())
 		{
-			QueryArgs.push_back(m_Strings.Persist(std::move(it.second)));
+			QueryArgs.push_back(m_Strings.Persist(it.second));
 		}
 	}
 
@@ -1870,6 +1871,7 @@ int KOptions::Execute(CLIParms Parms, KOutStream& out)
 #ifdef DEKAF2_IS_MSC
 		const char* p = error.what();
 #endif
+		return 0;
 	}
 
 	return 1;

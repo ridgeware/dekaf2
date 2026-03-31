@@ -854,7 +854,7 @@ private:
 		                 void           Create(int argc, char const* const* argv, PersistedStrings& Strings);
 
 		DEKAF2_NODISCARD size_t         size()  const { return m_ArgVec.size();  }
-		DEKAF2_NODISCARD size_t         empty() const { return m_ArgVec.empty(); }
+		DEKAF2_NODISCARD bool           empty() const { return m_ArgVec.empty(); }
 		DEKAF2_NODISCARD iterator       begin()       { return m_ArgVec.begin(); }
 		DEKAF2_NODISCARD iterator       end()         { return m_ArgVec.end();   }
 		DEKAF2_NODISCARD const_iterator begin() const { return m_ArgVec.begin(); }

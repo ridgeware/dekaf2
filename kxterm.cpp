@@ -44,6 +44,7 @@
 #include "kutf.h"
 #include "klog.h"
 #include "ksystem.h"
+#include "kscopeguard.h"
 #include "kcompatibility.h"
 #include <string>
 
@@ -168,14 +169,14 @@ KString KXTermCodes::Color(RGB fg_rgb, RGB bg_rgb)
 KString KXTermCodes::FGColor(RGB rgb)
 //-----------------------------------------------------------------------------
 {
-	return kFormat("\033[38;2{};{};{}m", rgb.Red, rgb.Green, rgb.Blue);
+	return kFormat("\033[38;2;{};{};{}m", rgb.Red, rgb.Green, rgb.Blue);
 }
 
 //-----------------------------------------------------------------------------
 KString KXTermCodes::BGColor(RGB rgb)
 //-----------------------------------------------------------------------------
 {
-	return kFormat("\033[48;2{};{};{}m", rgb.Red, rgb.Green, rgb.Blue);
+	return kFormat("\033[48;2;{};{};{}m", rgb.Red, rgb.Green, rgb.Blue);
 }
 
 //-----------------------------------------------------------------------------
@@ -244,13 +245,13 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 
 #else
 
-	m_Termios = new struct termios;
+	m_Termios = std::make_unique<termios>();
 
 	if (m_Termios)
 	{
 		bool bIsRealTerm = false;
 
-		auto iResult = ::tcgetattr(m_iInputDevice, m_Termios);
+		auto iResult = ::tcgetattr(m_iInputDevice, m_Termios.get());
 
 		if (!iResult)
 		{
@@ -287,15 +288,14 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 		else
 		{
 			// the termios struct is not valid
-			delete m_Termios;
-			m_Termios = nullptr;
+			m_Termios.reset();
 		}
 
 		if (!bIsRealTerm)
 		{
 			kDebug(1, "this is not a terminal: {}", strerror(errno));
 			// this is not a real terminal
-			m_iIsTerminal = 0;
+			m_eIsTerminal = TerminalState::No;
 		}
 	}
 
@@ -325,10 +325,7 @@ KXTerm::~KXTerm()
 
 	if (m_Termios)
 	{
-		::tcsetattr(m_iInputDevice, TCSANOW, m_Termios);
-
-		delete m_Termios;
-		m_Termios = nullptr;
+		::tcsetattr(m_iInputDevice, TCSANOW, m_Termios.get());
 	}
 
 #endif
@@ -485,6 +482,7 @@ bool KXTerm::SetWindowTitle(KStringView sWindowTitle)
 	if (sWindowTitle != m_sLastWindowTitle)
 	{
 		m_sLastWindowTitle = sWindowTitle;
+		if (DEKAF2_UNLIKELY(m_iChangedWindowTitle == std::numeric_limits<uint16_t>::max())) --m_iChangedWindowTitle;
 		++m_iChangedWindowTitle;
 		Command("\033[22t"); // push
 		Command("\033]0;");  // set
@@ -677,6 +675,7 @@ bool KXTerm::EditLine(
 	bool bCurLineHasEdits = true;
 	auto bCursorLimits = m_bCursorLimits;
 	m_bCursorLimits = false;
+	KAtScopeEnd( m_bCursorLimits = bCursorLimits );
 
 	kutf::ReadIterator it(&KXTerm::RawRead);
 	kutf::ReadIterator ie;
@@ -821,19 +820,31 @@ bool KXTerm::EditLine(
 
 			case Control('l'): // Clear
 				ClearScreen();
-				sUnicode.clear();
-				iPos = 0;
-				iLast = 0;
-				// need to write prompt if existing
+				Home();
+				if (!sPrompt.empty())
+				{
+					Command(sPromptFormatStart);
+					Write(sPrompt);
+					Command(sPromptFormatEnd);
+				}
+				Write(kutf::Convert<KString>(sUnicode.begin(), sUnicode.end()));
+				CurLeft(sUnicode.size() - iPos);
+				iLast = iPos;
 				continue;
 
-			case Control('t'): // transpose last two chars
-				if (iPos > 1)
+			case Control('t'): // transpose chars (readline semantics)
+				if (iPos == sUnicode.size() && iPos > 1)
 				{
-					auto c1 = sUnicode[iPos-1];
-					auto c2 = sUnicode[iPos-2];
-					sUnicode[iPos-1] = c2;
-					sUnicode[iPos-2] = c1;
+					// at end of line: swap last two chars
+					std::swap(sUnicode[iPos-2], sUnicode[iPos-1]);
+					bRefreshWholeLine = true;
+					break;
+				}
+				else if (iPos > 0 && iPos < sUnicode.size())
+				{
+					// in middle: swap char before cursor with char at cursor, advance
+					std::swap(sUnicode[iPos-1], sUnicode[iPos]);
+					++iPos;
 					bRefreshWholeLine = true;
 					break;
 				}
@@ -856,14 +867,17 @@ bool KXTerm::EditLine(
 				break;
 
 			case Control('w'): // clear word before cursor and move into clipboard
+			{
+				auto iOldPos = iPos;
 				while (iPos > 0 &&  kIsSpace(sUnicode[iPos - 1])) { --iPos; }
 				while (iPos > 0 && !kIsSpace(sUnicode[iPos - 1])) { --iPos; }
-				sClipboard = sUnicode.substr(iPos, npos);
-				sUnicode.erase(iPos, npos);
+				sClipboard = sUnicode.substr(iPos, iOldPos - iPos);
+				sUnicode.erase(iPos, iOldPos - iPos);
 				break;
+			}
 
 			case Control('v'): // paste clipboard (non-standard, ctrl-y pauses on mac)
-				sUnicode += sClipboard;
+				sUnicode.insert(iPos, sClipboard);
 				iPos += sClipboard.size();
 				break;
 
@@ -909,7 +923,7 @@ bool KXTerm::EditLine(
 				}
 				else
 				{
-					KString sSearch = kutf::Convert<KString>(sUnicode.begin(), sUnicode.begin() + iPos-1);
+					KString sSearch = kutf::Convert<KString>(sUnicode.begin(), sUnicode.begin() + iPos);
 					sUnicode = kutf::Convert<UCString>(m_History.Find(sSearch, true));
 					if (iPos > sUnicode.size())
 					{
@@ -1001,7 +1015,13 @@ void KXTerm::Write(KStringView sText)
 
 		if (iCount + m_iCursorColumn > Columns())
 		{
-			if (Wrap())
+			if (m_iCursorColumn >= Columns())
+			{
+				// cursor is already at or past the right edge
+				iCount = 0;
+				sText  = KStringView{};
+			}
+			else if (Wrap())
 			{
 				// not yet implemented
 			}
@@ -1119,18 +1139,18 @@ KString KXTerm::QueryTerminal(KStringView sRequest)
 	}
 
 	// check if we are inside a non-terminal
-	KStringViewZ sTerm = ::getenv("TERM");
+	KStringViewZ sTerm = kGetEnv("TERM");
 
 	if (sTerm.empty() || sTerm == "dumb")
 	{
 		kDebug(3, "env TERM is '{}' - detected as not a terminal", sTerm);
-		m_iIsTerminal = 0;
+		m_eIsTerminal = TerminalState::No;
 		return sResponse;
 	}
 
 	RawWrite(sRequest);
 
-	if (m_iIsTerminal == 2)
+	if (m_eIsTerminal == TerminalState::Unknown)
 	{
 		kDebug(3, "query '{}'", kEscapeForLogging(sRequest));
 		// we do not know yet if this is a real terminal, so switch blocking off
@@ -1154,18 +1174,18 @@ KString KXTerm::QueryTerminal(KStringView sRequest)
 		}
 	}
 
-	if (m_iIsTerminal == 2)
+	if (m_eIsTerminal == TerminalState::Unknown)
 	{
 		// first call - check if this is a real terminal
 		if (sResponse.empty())
 		{
 			kDebug(1, "no response - detected as not a terminal");
-			m_iIsTerminal = 0;
+			m_eIsTerminal = TerminalState::No;
 		}
 		else
 		{
 			kDebug(3, "response '{}' - detected as terminal", kEscapeForLogging(sResponse));
-			m_iIsTerminal = 1;
+			m_eIsTerminal = TerminalState::Yes;
 		}
 
 		// now switch blocking mode on

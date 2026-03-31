@@ -50,6 +50,7 @@
 #include "kstring.h"
 #include "khistory.h"
 #include "kerror.h"
+#include <memory>
 
 #ifndef DEKAF2_IS_WINDOWS
 	struct termios;
@@ -91,10 +92,10 @@ public:
 
 	/// show cursor
 	DEKAF2_NODISCARD
-	static constexpr KStringView CursorOn               () { return "\033?25h"; }
+	static constexpr KStringView CursorOn               () { return "\033[?25h"; }
 	/// hide cursor
 	DEKAF2_NODISCARD
-	static constexpr KStringView CursorOff              () { return "\033?25l"; }
+	static constexpr KStringView CursorOff              () { return "\033[?25l"; }
 	/// blink cursor
 	DEKAF2_NODISCARD
 	static constexpr KStringView CursorBlink            () { return "\033[2q";  }
@@ -260,6 +261,11 @@ public:
 	);
 	~KXTerm();
 
+	KXTerm(const KXTerm&) = delete;
+	KXTerm& operator=(const KXTerm&) = delete;
+	KXTerm(KXTerm&&) = delete;
+	KXTerm& operator=(KXTerm&&) = delete;
+
 	/// write text at cursor position
 	void Write      (KStringView sText);
 	/// write text at given position
@@ -308,7 +314,7 @@ public:
 
 	/// is this an ANSII terminal, or a dumb terminal without cursor control?
 	DEKAF2_NODISCARD
-	bool     IsTerminal        () const { return m_iIsTerminal;                            }
+	bool     IsTerminal        () const { return m_eIsTerminal == TerminalState::Yes;        }
 	/// returns true if the terminal device supports "true colors" / RGB colors (24 bits)
 	DEKAF2_NODISCARD
 	bool     HasRGBColors      () const { return m_bHasRGBColors;                          }
@@ -467,7 +473,7 @@ private:
 	uint16_t m_iColumns;
 
 #ifndef DEKAF2_IS_WINDOWS
-	termios* m_Termios            { nullptr };
+	std::unique_ptr<termios> m_Termios;
 #endif
 
 	uint16_t m_iCursorRow         { 0 };
@@ -478,7 +484,8 @@ private:
 
 	uint16_t m_iChangedWindowTitle{ 0 };
 
-	uint8_t  m_iIsTerminal        { 2 }; // 2 means: not yet tested
+	enum class TerminalState : uint8_t { No = 0, Yes = 1, Unknown = 2 };
+	TerminalState m_eIsTerminal   { TerminalState::Unknown };
 	bool     m_bBeep              { true  };
 	bool     m_bCursorLimits      { true  };
 	bool     m_bHasRGBColors      { false };

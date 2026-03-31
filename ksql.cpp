@@ -8217,6 +8217,9 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 		return SetError(kFormat("schema updater for table {} is locked.  gave up after {}", sSchemaVersionTable, WAIT_FOR_SECS));
 	}
 
+	// ensure the lock is released on all exit paths
+	KAtScopeEnd( ReleaseLock(sLock) );
+
 	// query rev again after acquiring the lock
 	iSigned    = (bForce) ? 0 : GetSchemaVersion (sSchemaVersionTable);
 	iSchemaRev = (iSigned < 0) ? 0 : static_cast<uint16_t>(iSigned);
@@ -8312,8 +8315,6 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 		}
 
 	} // if upgrade was needed
-
-	ReleaseLock (sLock);
 
 	kDebug (3, "schema should be all set at version {} now", iCurrentSchema);
 

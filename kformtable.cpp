@@ -462,6 +462,7 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 	}
 
 	// calculate the content
+	bool bWrap = (iAlign & Alignment::Wrap) == Alignment::Wrap;
 	// have to use the casting to suppress UBSAN warning
 	// remove the Alignment::Wrap bit
 	iAlign     = static_cast<Alignment>((static_cast<std::underlying_type<Alignment>::type>(iAlign)
@@ -474,10 +475,23 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 	{
 		if (iSize > iWidth)
 		{
-			// if bWrap ...
-			// cut to maximum length
-			sText     = sText.LeftUTF8(iWidth);
-			bOverflow = true;
+			if (bWrap && iSpan <= 1)
+			{
+				// store overflow for continuation line
+				if (m_WrapOverflow.size() <= m_iColumn)
+				{
+					m_WrapOverflow.resize(m_iColumn + 1);
+				}
+				auto sTruncated = sText.LeftUTF8(iWidth);
+				m_WrapOverflow[m_iColumn] = sText.substr(sTruncated.size());
+				sText = sTruncated;
+			}
+			else
+			{
+				// cut to maximum length
+				sText     = sText.LeftUTF8(iWidth);
+				bOverflow = true;
+			}
 		}
 		else if (iSize < iWidth)
 		{
@@ -726,7 +740,7 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 			break;
 	}
 
-	if (!m_iColumn && !m_bInTableHeader)
+	if (!m_iColumn && !m_bInTableHeader && !m_bInWrapContinuation)
 	{
 		++m_iPrintedRows;
 	}
@@ -977,6 +991,41 @@ void KFormTable::PrintNextRow()
 			case Style::CSV:
 				if (m_CSV) m_CSV->WriteEndOfRecord(*m_Out);
 				break;
+		}
+		// handle wrap continuation lines
+		if (!m_WrapOverflow.empty())
+		{
+			bool bHasOverflow = false;
+
+			for (const auto& s : m_WrapOverflow)
+			{
+				if (!s.empty()) { bHasOverflow = true; break; }
+			}
+
+			if (bHasOverflow)
+			{
+				bool bWasInContinuation = m_bInWrapContinuation;
+				m_bInWrapContinuation   = true;
+
+				std::vector<KString> overflow;
+				overflow.swap(m_WrapOverflow);
+
+				m_iColumn = 0;
+
+				for (size_type iCol = 0; iCol < ColCount(); ++iCol)
+				{
+					KStringView sOverflow = (iCol < overflow.size()) ? KStringView(overflow[iCol]) : KStringView{};
+					PrintColumnInt(false, sOverflow);
+				}
+
+				PrintNextRow(); // recursive - handles further overflow
+
+				m_bInWrapContinuation = bWasInContinuation;
+			}
+			else
+			{
+				m_WrapOverflow.clear();
+			}
 		}
 	}
 

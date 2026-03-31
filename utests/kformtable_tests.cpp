@@ -112,6 +112,41 @@ Col1           Col2             Col3           Col4  Co>
 		CHECK ( sOut == sExpected );
 	}
 
+	SECTION("Wrap")
+	{
+		static constexpr KStringView sExpected =
+R"(
++-------+-------+-------+
+| Col1  | Col2  | Col3  |
++-------+-------+-------+
+| Hello | short | ABCDE>|
+|  Worl |       |       |
+| d     |       |       |
+| abc   | def   | ghi   |
++-------+-------+-------+
+)";
+		KString sOut;
+		sOut += '\n';
+
+		KFormTable Table(sOut,
+		{
+			{ 5, KFormTable::Left | KFormTable::Wrap },
+			5,
+			5
+		});
+
+		Table.SetStyle(KFormTable::Style::ASCII);
+
+		Table.PrintRow( { "Col1", "Col2", "Col3" } );
+		Table.PrintSeparator();
+		Table.PrintRow( { "Hello World", "short", "ABCDEFG" } );
+		Table.PrintRow( { "abc", "def", "ghi" } );
+		Table.Close();
+
+		CHECK ( Table.GetPrintedRows() == 3 );
+		CHECK ( sOut == sExpected );
+	}
+
 	SECTION("Markdown")
 	{
 		static constexpr KStringView sExpected =

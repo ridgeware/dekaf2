@@ -140,7 +140,7 @@ public:
 		Left   = 1 << 1,  ///< left aligned
 		Center = 1 << 2,  ///< center aligned
 		Right  = 1 << 3,  ///< right aligned
-		Wrap   = 1 << 4   ///< wrap into next line if needed (not yet supported), else cut
+		Wrap   = 1 << 4   ///< wrap into next line(s) if content exceeds column width, instead of truncating
 	};
 
 	/// Characters used to draw box-style table borders. Used with SetBoxStyle() to
@@ -410,7 +410,10 @@ private:
 	bool      m_bGetExtents      { false };
 	bool      m_bHaveColHeaders  { false };
 	bool      m_bInTableHeader   { false };
+	bool      m_bInWrapContinuation { false };
 	bool      m_bColDefsUserSet  { false };
+
+	std::vector<KString> m_WrapOverflow;
 
 }; // KFormTable
 

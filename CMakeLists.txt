@@ -2009,6 +2009,15 @@ if (SQLITE3_FOUND)
 			target_precompile_headers(ksqlite REUSE_FROM dekaf2-objects)
 		endif()
 	endif() # DEKAF2_BUILD_STATIC_DEKAF2
+
+	# ksql2 uses KSQLite classes, link ksqlite into ksql2
+	if (DEKAF2_BUILD_SHARED_DEKAF2)
+		target_link_libraries(ksql2-shared PRIVATE ksqlite-shared)
+	endif()
+	if (DEKAF2_BUILD_STATIC_DEKAF2)
+		target_link_libraries(ksql2 PUBLIC ksqlite)
+	endif()
+
 endif() # SQLITE3_FOUND
 
 if (DEKAF2_INSTALL_BIN)

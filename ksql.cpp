@@ -181,6 +181,16 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+#ifdef DEKAF2_HAS_SQLITE3
+//-----------------------------------------------------------------------------
+struct KSQL::KSQLiteState
+//-----------------------------------------------------------------------------
+{
+	KSQLite::Database                    Database;
+	std::unique_ptr<KSQLite::Statement>  Statement;
+};
+#endif
+
 struct SQLTX
 {
 	KStringView sOriginal;
@@ -600,6 +610,10 @@ KSQL::KSQL (const KSQL& other)
 	}
 
 } // KSQL - copy constructor, but do not connect yet
+
+//-----------------------------------------------------------------------------
+KSQL::KSQL (KSQL&&) = default;
+//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 KSQL::~KSQL ()
@@ -1619,6 +1633,31 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout/*=30s*/, Transport Transp
 		break;
 	#endif
 
+	#ifdef DEKAF2_HAS_SQLITE3
+	// - - - - - - - - - - - - - - - - -
+	case API::SQLITE3:
+	// - - - - - - - - - - - - - - - - -
+	{
+		if (m_sDatabase.empty())
+		{
+			return SetError("SQLITE3: no database filename specified");
+		}
+
+		m_SQLite = std::make_unique<KSQLiteState>();
+
+		kDebug (3, "KSQLite::Database::Connect({})...", m_sDatabase);
+
+		if (!m_SQLite->Database.Connect(m_sDatabase, KSQLite::READWRITECREATE))
+		{
+			auto sError = kFormat("SQLITE3: {}", m_SQLite->Database.Error());
+			m_SQLite.reset();
+			return SetError(sError);
+		}
+
+		break;
+	}
+	#endif
+
 	// - - - - - - - - - - - - - - - - -
 	case API::INFORMIX:
 	default:
@@ -1723,6 +1762,18 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 		case API::CTLIB:
 		// - - - - - - - - - - - - - - - - -
 			ctlib_logout ();
+			break;
+		#endif
+
+		#ifdef DEKAF2_HAS_SQLITE3
+		// - - - - - - - - - - - - - - - - -
+		case API::SQLITE3:
+		// - - - - - - - - - - - - - - - - -
+			if (!bDestructor)
+			{
+				kDebug (3, "KSQLite close...");
+			}
+			m_SQLite.reset();
 			break;
 		#endif
 
@@ -2245,6 +2296,51 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 					sError = m_sCtLibLastError;
 				}
 				break;
+			#endif
+
+			#ifdef DEKAF2_HAS_SQLITE3
+			// - - - - - - - - - - - - - - - - -
+			case API::SQLITE3:
+			// - - - - - - - - - - - - - - - - -
+			{
+				if (!m_SQLite)
+				{
+					kDebug (1, "lost SQLite connection.  Reopening connection ...");
+
+					CloseConnection();
+					OpenConnection(m_ConnectionTimeout);
+
+					if (!m_SQLite)
+					{
+						kDebug (1, "failed.  aborting SQL:\n{}", kLimitSize(m_sLastSQL.str(), 4096));
+						break;
+					}
+				}
+
+				kDebug (3, "KSQLite::ExecuteVoid()...");
+
+				if (!m_SQLite->Database.ExecuteVoid(m_sLastSQL.str()))
+				{
+					sError    = kFormat("SQLITE3: {}", m_SQLite->Database.Error());
+					iErrorNum = m_SQLite->Database.IsError();
+					break;
+				}
+
+				m_iNumRowsAffected = m_SQLite->Database.AffectedRows();
+
+				if (QueryType != QueryType::Select)
+				{
+					m_iLastInsertID = m_SQLite->Database.LastInsertID();
+
+					if (m_iLastInsertID)
+					{
+						kDebug (GetDebugLevel(), "last insert ID = {}", m_iLastInsertID);
+					}
+				}
+
+				bOK = true;
+			}
+			break;
 			#endif
 
 			// - - - - - - - - - - - - - - - - -
@@ -3469,6 +3565,46 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 		break;
 	#endif
 
+	#ifdef DEKAF2_HAS_SQLITE3
+	// - - - - - - - - - - - - - - - - -
+	case API::SQLITE3:
+	// - - - - - - - - - - - - - - - - -
+	{
+		if (!m_SQLite)
+		{
+			return SetError("SQLITE3: no connection");
+		}
+
+		kDebug (3, "KSQLite::Prepare()...");
+
+		m_SQLite->Statement = std::make_unique<KSQLite::Statement>(m_SQLite->Database, m_sLastSQL.str());
+
+		if (!m_SQLite->Statement->GetRow().Statement())
+		{
+			auto sError = kFormat("SQLITE3: {}", m_SQLite->Database.Error());
+			m_SQLite->Statement.reset();
+			return SetError(sError);
+		}
+
+		auto Row = m_SQLite->Statement->GetRow();
+		m_iNumColumns = Row.size();
+
+		kDebug (3, "num columns: {}", m_iNumColumns);
+
+		m_dColInfo.clear();
+		m_dColInfo.reserve(m_iNumColumns);
+
+		for (KSQLite::Row::ColIndex ii = 1; ii <= static_cast<KSQLite::Row::ColIndex>(m_iNumColumns); ++ii)
+		{
+			KColInfo ColInfo;
+			ColInfo.sColName = Row.Col(ii).GetNameAs();
+			ColInfo.SetColumnType(DBT::SQLITE3, 0, 0);
+			m_dColInfo.push_back(std::move(ColInfo));
+		}
+	}
+	break;
+	#endif
+
 	// - - - - - - - - - - - - - - - - -
 	case API::DBLIB:
 	case API::INFORMIX:
@@ -3965,6 +4101,41 @@ bool KSQL::BufferResults ()
 		break;
 	#endif
 
+	#ifdef DEKAF2_HAS_SQLITE3
+	// - - - - - - - - - - - - - - - - -
+	case API::SQLITE3:
+	// - - - - - - - - - - - - - - - - -
+		if (m_SQLite && m_SQLite->Statement)
+		{
+			while (m_SQLite->Statement->NextRow())
+			{
+				++m_iNumRowsBuffered;
+
+				auto Row = m_SQLite->Statement->GetRow();
+
+				for (KROW::Index ii = 0; ii < m_iNumColumns; ++ii)
+				{
+					KString sColVal = Row.Col(static_cast<KSQLite::Row::ColIndex>(ii + 1)).String();
+
+					sColVal.Replace('\n', 2);
+
+					if (sColVal.size() > 50)
+					{
+						kDebug (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, sColVal.size());
+					}
+					else
+					{
+						kDebug (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, sColVal);
+					}
+
+					file.FormatLine ("{}|{}|{}", m_iNumRowsBuffered, ii+1, sColVal.size());
+					file.FormatLine ("{}\n", sColVal);
+				}
+			}
+		}
+		break;
+	#endif
+
 	// - - - - - - - - - - - - - - - - -
 	case API::CTLIB:
 	case API::DBLIB:
@@ -4140,6 +4311,29 @@ bool KSQL::NextRow ()
 			case API::CTLIB:
 				// - - - - - - - - - - - - - - - - -
 				return (ctlib_nextrow());
+#endif
+
+#ifdef DEKAF2_HAS_SQLITE3
+				// - - - - - - - - - - - - - - - - -
+			case API::SQLITE3:
+				// - - - - - - - - - - - - - - - - -
+				if (m_SQLite && m_SQLite->Statement)
+				{
+					kDebug (4, "KSQLite::Statement::NextRow()...");
+
+					if (m_SQLite->Statement->NextRow())
+					{
+						++m_iRowNum;
+						kDebug (4, "KSQLite gave us row {}", m_iRowNum);
+						return true;
+					}
+					else
+					{
+						kDebug (4, "{} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
+						return false;
+					}
+				}
+				return false;
 #endif
 
 				// - - - - - - - - - - - - - - - - -
@@ -4537,6 +4731,13 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 
 	m_dColInfo.clear();
 
+	#ifdef DEKAF2_HAS_SQLITE3
+	if (m_SQLite)
+	{
+		m_SQLite->Statement.reset();
+	}
+	#endif
+
 	#ifdef DEKAF2_HAS_ORACLE
 	if (m_dOCI6ConnectionDataArea)
 	{
@@ -4683,6 +4884,22 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 				sRtnValue = m_dColInfo[iOneBasedColNum-1].dszValue.get();
 				break;
 				#endif
+
+			#ifdef DEKAF2_HAS_SQLITE3
+			// - - - - - - - - - - - - - - - - -
+			case API::SQLITE3:
+			// - - - - - - - - - - - - - - - - -
+				if (m_SQLite && m_SQLite->Statement)
+				{
+					auto Row = m_SQLite->Statement->GetRow();
+					sRtnValue = Row.Col(static_cast<KSQLite::Row::ColIndex>(iOneBasedColNum)).String();
+				}
+				else
+				{
+					return ("ERR:SQLITE3=nullptr-KSQL::Get()");
+				}
+				break;
+			#endif
 
 			// - - - - - - - - - - - - - - - - -
 			case API::INFORMIX:
@@ -5263,6 +5480,14 @@ void KSQL::FormatConnectSummary () const
 			m_sConnectSummary += "]";
 			break;
 
+		case DBT::SQLITE3:
+			// - - - - - - - - - - - - - -
+			// /path/to/database.db [sqlite3]
+			// - - - - - - - - - - - - - -
+			m_sConnectSummary += m_sDatabase;
+			m_sConnectSummary += " [sqlite3]";
+			break;
+
 		default:
 			// - - - - - - - - - - - - - -
 			// fred@mydb:myhost [DBType]
@@ -5537,6 +5762,31 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 		return (ExecQuery ("select * from sysobjects where type = 'U' and name like '{}' order by name", sLike));
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::SQLITE3:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		if (fIncludeViews)
+		{
+			return (ExecQuery (
+				"select name, type\n"
+				"  from sqlite_master\n"
+				" where type in ('table','view')\n"
+				"   and name like '{}'\n"
+				" order by 1",
+					sLike));
+		}
+		else
+		{
+			return (ExecQuery (
+				"select name, type\n"
+				"  from sqlite_master\n"
+				" where type = 'table'\n"
+				"   and name like '{}'\n"
+				" order by 1",
+					sLike));
+		}
+		break;
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		return SetError(kFormat ("ListTables(): {} not supported yet.", TxDBType(m_iDBType)));
@@ -5641,6 +5891,16 @@ bool KSQL::DescribeTable (KStringView sTablename)
 			EndQuery ();
 			auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
 			return ExecQuery ("sp_help {}", sTablename);
+		}
+		break;
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::SQLITE3:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		{
+			EndQuery ();
+			auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
+			return ExecQuery ("pragma table_info({})", sTablename);
 		}
 		break;
 

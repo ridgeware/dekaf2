@@ -3,8 +3,12 @@
 cmake_policy(PUSH)
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
-	# allow mixed case find_package names (Boost needs this with cmake 3.27)
-	cmake_policy(SET CMP0144 OLD)
+	# use case-preserved package root variable names (Boost_ROOT instead of BOOST_ROOT)
+	cmake_policy(SET CMP0144 NEW)
+	# accept upper-case BOOST_ROOT from caller
+	if (NOT Boost_ROOT AND BOOST_ROOT)
+		set(Boost_ROOT "${BOOST_ROOT}")
+	endif()
 endif()
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)

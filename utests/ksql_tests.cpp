@@ -369,3 +369,418 @@ TEST_CASE("KSQL")
 		});
 	}
 }
+
+#ifdef DEKAF2_HAS_SQLITE3
+
+#include <dekaf2/kfilesystem.h>
+
+namespace {
+KTempDir g_KSQLSQLiteTempDir;
+}
+
+//-----------------------------------------------------------------------------
+TEST_CASE("KSQL-SQLite3")
+//-----------------------------------------------------------------------------
+{
+	auto sDBFile = kFormat("{}/ksql_sqlite_test.db", g_KSQLSQLiteTempDir.Name());
+
+	SECTION("OpenConnection")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		CHECK ( db.OpenConnection() );
+		CHECK ( db.IsConnectionOpen() );
+		CHECK ( db.ConnectSummary().Contains("sqlite3") );
+		db.CloseConnection();
+		CHECK ( !db.IsConnectionOpen() );
+	}
+
+	SECTION("OpenConnection failure")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		// no database name set
+		CHECK ( !db.OpenConnection() );
+		CHECK ( db.GetLastError().Contains("SQLITE3") );
+	}
+
+	SECTION("Create table and basic SQL")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		CHECK ( db.ExecSQL(
+			"create table if not exists TEST_KSQL (\n"
+			"    anum      integer       primary key,\n"
+			"    astring   varchar(100)  null,\n"
+			"    bigstring text          null\n"
+			")") );
+
+		CHECK ( db.ExecSQL("insert into TEST_KSQL (anum,astring,bigstring) values (1,'row-1','big-1')") );
+		CHECK ( db.GetNumRowsAffected() == 1 );
+
+		CHECK ( db.ExecSQL("insert into TEST_KSQL (anum,astring,bigstring) values (2,'row-2','big-2')") );
+		CHECK ( db.GetNumRowsAffected() == 1 );
+
+		CHECK ( db.ExecSQL("insert into TEST_KSQL (anum,astring,bigstring) values (3,'row-3','big-3')") );
+		CHECK ( db.GetNumRowsAffected() == 1 );
+
+		CHECK ( db.ExecSQL("update TEST_KSQL set astring='updated' where anum=2") );
+		CHECK ( db.GetNumRowsAffected() == 1 );
+
+		CHECK ( db.ExecSQL("delete from TEST_KSQL where anum=3") );
+		CHECK ( db.GetNumRowsAffected() == 1 );
+	}
+
+	SECTION("ExecQuery and NextRow and Get")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		db.SetFlags(KSQL::F_IgnoreSQLErrors);
+		db.ExecSQL("drop table if exists TEST_QUERY");
+		db.SetFlags(KSQL::F_None);
+
+		REQUIRE ( db.ExecSQL(
+			"create table TEST_QUERY (\n"
+			"    id        integer       primary key,\n"
+			"    name      varchar(100)  null,\n"
+			"    value     integer       null\n"
+			")") );
+
+		for (int i = 1; i <= 5; ++i)
+		{
+			REQUIRE ( db.ExecSQL("insert into TEST_QUERY (id,name,value) values ({},'name-{}',{})", i, i, i * 100) );
+		}
+
+		REQUIRE ( db.ExecQuery("select id, name, value from TEST_QUERY order by id") );
+
+		CHECK ( db.GetNumCols() == 3 );
+
+		int iRow = 0;
+		while (db.NextRow())
+		{
+			++iRow;
+			CHECK ( db.Get(1).Int32() == iRow );
+			CHECK ( db.Get(2) == kFormat("name-{}", iRow) );
+			CHECK ( db.Get(3).Int32() == iRow * 100 );
+		}
+		CHECK ( iRow == 5 );
+	}
+
+	SECTION("NextRow with KROW")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		REQUIRE ( db.ExecQuery("select id, name, value from TEST_QUERY order by id") );
+
+		KROW row;
+		int iRow = 0;
+		while (db.NextRow(row))
+		{
+			++iRow;
+			CHECK ( row["id"]    == KString::to_string(iRow) );
+			CHECK ( row["name"]  == kFormat("name-{}", iRow) );
+			CHECK ( row["value"] == KString::to_string(iRow * 100) );
+		}
+		CHECK ( iRow == 5 );
+	}
+
+	SECTION("Range-for loop")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		REQUIRE ( db.ExecQuery("select id, name, value from TEST_QUERY order by id") );
+
+		int iRow = 0;
+		for (auto& row : db)
+		{
+			++iRow;
+			CHECK ( row["id"]   == KString::to_string(iRow) );
+			CHECK ( row["name"] == kFormat("name-{}", iRow) );
+		}
+		CHECK ( iRow == 5 );
+	}
+
+	SECTION("SingleIntQuery")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		CHECK ( db.SingleIntQuery("select count(*) from TEST_QUERY") == 5 );
+		CHECK ( db.SingleIntQuery("select count(*) from TEST_QUERY where 1=0") == 0 );
+		CHECK ( db.SingleIntQuery("select value from TEST_QUERY where id=3") == 300 );
+
+		db.SetFlags(KSQL::F_IgnoreSQLErrors);
+		CHECK ( db.SingleIntQuery("select count(*) from NONEXISTENT_TABLE") == -1 );
+		db.SetFlags(KSQL::F_None);
+	}
+
+	SECTION("SingleStringQuery")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		CHECK ( db.SingleStringQuery("select name from TEST_QUERY where id=2") == "name-2" );
+	}
+
+	SECTION("GetLastInsertID")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		db.ExecSQL("drop table if exists TEST_AUTOINC");
+		REQUIRE ( db.ExecSQL(
+			"create table TEST_AUTOINC (\n"
+			"    id        integer       primary key autoincrement,\n"
+			"    name      varchar(100)  null\n"
+			")") );
+
+		CHECK ( db.ExecSQL("insert into TEST_AUTOINC (name) values ('first')") );
+		CHECK ( db.GetLastInsertID() == 1 );
+
+		CHECK ( db.ExecSQL("insert into TEST_AUTOINC (name) values ('second')") );
+		CHECK ( db.GetLastInsertID() == 2 );
+
+		CHECK ( db.ExecSQL("insert into TEST_AUTOINC (name) values ('third')") );
+		CHECK ( db.GetLastInsertID() == 3 );
+	}
+
+	SECTION("Column headers")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		REQUIRE ( db.ExecQuery("select id, name, value from TEST_QUERY order by id") );
+
+		KROW row;
+		REQUIRE ( db.NextRow(row) );
+		CHECK ( row.GetName(0) == "id" );
+		CHECK ( row.GetName(1) == "name" );
+		CHECK ( row.GetName(2) == "value" );
+	}
+
+	SECTION("Multiple queries in sequence")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		REQUIRE ( db.ExecQuery("select id from TEST_QUERY where id=1") );
+		REQUIRE ( db.NextRow() );
+		CHECK   ( db.Get(1).Int32() == 1 );
+
+		// start another query without finishing the first
+		REQUIRE ( db.ExecQuery("select id from TEST_QUERY where id=2") );
+		REQUIRE ( db.NextRow() );
+		CHECK   ( db.Get(1).Int32() == 2 );
+
+		// verify we can still do a SingleIntQuery after
+		CHECK ( db.SingleIntQuery("select count(*) from TEST_QUERY") == 5 );
+	}
+
+	SECTION("Error handling for bad SQL")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		db.SetFlags(KSQL::F_IgnoreSQLErrors);
+		CHECK ( !db.ExecSQL("insert into NONEXISTENT_TABLE values (1)") );
+		CHECK ( db.GetLastError().size() > 0 );
+
+		auto Guard = db.ScopedFlags(KSQL::F_IgnoreSelectKeyword);
+		CHECK ( !db.ExecQuery("select bogus from BOGUS_TABLE") );
+		CHECK ( db.GetLastError().size() > 0 );
+		db.SetFlags(KSQL::F_None);
+	}
+
+	SECTION("UTF-8 characters")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		db.ExecSQL("drop table if exists TEST_UTF8");
+		REQUIRE ( db.ExecSQL(
+			"create table TEST_UTF8 (\n"
+			"    id        integer       primary key,\n"
+			"    utext     text          null\n"
+			")") );
+
+		KStringView sAsian = "Chinese characters ñäöüß 一二三四五六七八九十";
+
+		REQUIRE ( db.ExecSQL("insert into TEST_UTF8 (id,utext) values (1,'{}')", sAsian) );
+
+		REQUIRE ( db.ExecQuery("select utext from TEST_UTF8 where id=1") );
+		REQUIRE ( db.NextRow() );
+		CHECK   ( db.Get(1) == sAsian );
+	}
+
+	SECTION("KROW Insert")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		db.ExecSQL("drop table if exists TEST_KROW");
+		REQUIRE ( db.ExecSQL(
+			"create table TEST_KROW (\n"
+			"    id        integer       primary key,\n"
+			"    name      varchar(100)  null\n"
+			")") );
+
+		KROW Row("TEST_KROW");
+		Row.AddCol("id",   UINT64_C(1), KCOL::PKEY);
+		Row.AddCol("name", "krow-insert-1");
+		CHECK ( db.Insert(Row) );
+
+		Row.AddCol("id",   UINT64_C(2), KCOL::PKEY);
+		Row.AddCol("name", "krow-insert-2");
+		CHECK ( db.Insert(Row) );
+
+		CHECK ( db.SingleIntQuery("select count(*) from TEST_KROW") == 2 );
+		CHECK ( db.SingleStringQuery("select name from TEST_KROW where id=1") == "krow-insert-1" );
+	}
+
+	SECTION("KROW Update")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		KROW Row("TEST_KROW");
+		Row.AddCol("id",   UINT64_C(1), KCOL::PKEY);
+		Row.AddCol("name", "krow-updated");
+		CHECK ( db.Update(Row) );
+
+		CHECK ( db.SingleStringQuery("select name from TEST_KROW where id=1") == "krow-updated" );
+	}
+
+	SECTION("KROW Delete")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		KROW Row("TEST_KROW");
+		Row.AddCol("id", UINT64_C(2), KCOL::PKEY);
+		CHECK ( db.Delete(Row) );
+
+		CHECK ( db.SingleIntQuery("select count(*) from TEST_KROW") == 1 );
+	}
+
+	SECTION("ListTables")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		REQUIRE ( db.ListTables() );
+
+		int iCount = 0;
+		while (db.NextRow())
+		{
+			++iCount;
+		}
+		CHECK ( iCount > 0 );
+	}
+
+	SECTION("DescribeTable")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		REQUIRE ( db.DescribeTable("TEST_QUERY") );
+
+		int iCount = 0;
+		while (db.NextRow())
+		{
+			++iCount;
+		}
+		CHECK ( iCount == 3 );
+	}
+
+	SECTION("Null query (no matching rows)")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		REQUIRE ( db.ExecQuery("select * from TEST_QUERY where id=99999") );
+		CHECK   ( !db.NextRow() );
+	}
+
+	SECTION("Stop query before fetching all rows")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		REQUIRE ( db.ExecQuery("select * from TEST_QUERY order by id") );
+		CHECK   ( db.NextRow() ); // fetch only first row
+		// now start a new query
+		CHECK   ( db.SingleIntQuery("select count(*) from TEST_QUERY") == 5 );
+	}
+
+	SECTION("Translations")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+
+		KSQLString sSQL("select {{NOW}}, {{DATETIME}}, {{MAXCHAR}}");
+		db.BuildTranslationList(db.m_TxList, KSQL::DBT::SQLITE3);
+		db.DoTranslations(sSQL);
+		CHECK ( sSQL == "select now(), timestamp, text" );
+	}
+
+	SECTION("Empty result set then reuse connection")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		REQUIRE ( db.ExecQuery("select * from TEST_QUERY where 1=0") );
+		CHECK   ( !db.NextRow() );
+
+		// reuse connection
+		CHECK ( db.SingleIntQuery("select count(*) from TEST_QUERY") == 5 );
+
+		REQUIRE ( db.ExecQuery("select id from TEST_QUERY order by id") );
+		REQUIRE ( db.NextRow() );
+		CHECK   ( db.Get(1).Int32() == 1 );
+	}
+}
+
+#endif

@@ -314,7 +314,7 @@ public:
 	/// copy constructor, only copies connection details from other instance, not internal state!
 	KSQL (const KSQL& other);
 	/// move constructor, moves all internal state
-	KSQL (KSQL&&) = default;
+	KSQL (KSQL&&);
 
 	~KSQL ();
 
@@ -1669,6 +1669,11 @@ private:
 	KString    m_sConnectOutput;
 
 	bool  CheckODBC (RETCODE iRetCode);
+#endif
+
+#ifdef DEKAF2_HAS_SQLITE3
+	struct KSQLiteState;
+	std::unique_ptr<KSQLiteState> m_SQLite;
 #endif
 
 	FILE*      m_bpBufferedResults { nullptr };

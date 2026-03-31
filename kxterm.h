@@ -42,7 +42,9 @@
 #pragma once
 
 /// @file kxterm.h
-/// xterm (ANSII) controls, and a screen manager as class object
+/// provides ANSI terminal control codes (KXTermCodes) and a stateful terminal manager (KXTerm)
+/// with cursor control, color management (named, 256, and RGB), line editing with emacs key bindings,
+/// and command history support. Does not depend on ncurses or termcap.
 
 #include "kdefinitions.h"
 #include "kcompatibility.h"
@@ -76,12 +78,20 @@ DEKAF2_NAMESPACE_BEGIN
 DEKAF2_PUBLIC
 extern void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWait100ms);
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A collection of ANSII codes to control terminals.
-/// We do not use ncurses or similar anymore because there is no terminal left in the real world that is not
-/// powered by XTerm, or even if, they speak ANSII, which was standardized in 1978.
-/// It should be mentioned that even Windows terminals, which notoriously did not support ANSII, switched
-/// to using it in 2016 with Windows 10.
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A collection of static ANSI escape sequences for terminal control.
+///
+/// Provides constexpr accessors for cursor visibility, screen clearing, character styling (bold, italic,
+/// underline, etc.), and color output in three tiers:
+/// - **Named colors** (8 standard + 8 bright, via ColorCode enum)
+/// - **256-color palette** (via FGColor256() / BGColor256())
+/// - **24-bit RGB** (via FGColor(RGB) / BGColor(RGB), requires terminal support)
+///
+/// All methods return ANSI escape strings that can be written directly to a terminal device.
+/// No terminal state is held — this struct is purely a code generator.
+///
+/// @note We do not use ncurses or termcap. There is no terminal left in the real world that does not
+/// speak ANSI, which was standardized in 1978 (ECMA-48). Even Windows terminals support ANSI since 2016.
 struct DEKAF2_PUBLIC KXTermCodes
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -172,11 +182,31 @@ public:
 	DEKAF2_NODISCARD
 	static constexpr KStringView NoStrikethrough        () { return "\033[29m"; }
 
-	enum ColorCode { Default = 9, Black = 0, Red = 1, Green = 2, Yellow = 3,
-	                 Blue = 4, Magenta = 5, Cyan = 6, White = 7,
-	                 BrightBlack = 10, BrightRed = 11, BrightGreen = 12,
-	                 BrightYellow = 13, BrightBlue = 14, BrightMagenta = 15,
-	                 BrightCyan = 16, BrightWhite = 17 };
+	/// Named terminal color codes for use with FGColor(), BGColor(), and Color().
+	/// Values 0..7 are the standard ANSI colors, 9 is the terminal default,
+	/// and 10..17 are the bright/bold variants (rendered with SGR bold prefix).
+	///
+	/// @note These color codes are supported by all terminal devices.
+	enum ColorCode
+	{
+		Black         =  0, ///< standard black
+		Red           =  1, ///< standard red
+		Green         =  2, ///< standard green
+		Yellow        =  3, ///< standard yellow
+		Blue          =  4, ///< standard blue
+		Magenta       =  5, ///< standard magenta
+		Cyan          =  6, ///< standard cyan
+		White         =  7, ///< standard white
+		Default       =  9, ///< terminal default color
+		BrightBlack   = 10, ///< bright black (dark gray)
+		BrightRed     = 11, ///< bright red
+		BrightGreen   = 12, ///< bright green
+		BrightYellow  = 13, ///< bright yellow
+		BrightBlue    = 14, ///< bright blue
+		BrightMagenta = 15, ///< bright magenta
+		BrightCyan    = 16, ///< bright cyan
+		BrightWhite   = 17  ///< bright white
+	};
 
 	/// set both named foreground and background color (supported by all terminal devices)
 	DEKAF2_NODISCARD
@@ -198,18 +228,28 @@ public:
 	DEKAF2_NODISCARD
 	static           KString     BGColor256 (uint8_t Color);
 
-	/// struct to take an RGB color value with 8 bit resolution each
+	/// A 24-bit RGB color value with 8-bit resolution per channel.
+	/// Used with FGColor(RGB), BGColor(RGB), and Color(RGB, RGB) to produce
+	/// ANSI true-color escape sequences (\033[38;2;R;G;Bm / \033[48;2;R;G;Bm).
+	/// @note Not all terminals support 24-bit color — check HasRGBColors() first.
 	struct RGB
 	{
-		/// construct from 3 discrete color values for red, green and blue
+		/// construct from 3 discrete color channel values
+		/// @param red   red channel intensity (0..255)
+		/// @param green green channel intensity (0..255)
+		/// @param blue  blue channel intensity (0..255)
 		RGB(uint8_t red, uint8_t green, uint8_t blue)
 		: Red(red), Green(green), Blue(blue) {}
-		/// construct from a hex string like "AAEE99" or "#AAEE99" in
-		/// upper or lower case
+		/// construct from a hex color string like "AABB00" or "#AABB00" (case insensitive).
+		/// If the string is malformed or too short, all channels are set to 0.
+		/// @param sColorValue a 6-character hex string, optionally prefixed with '#'
 		RGB(KStringView sColorValue);
 
+		/// red channel intensity (0..255)
 		uint8_t Red;
+		/// green channel intensity (0..255)
 		uint8_t Green;
+		/// blue channel intensity (0..255)
 		uint8_t Blue;
 	};
 
@@ -239,9 +279,37 @@ private:
 
 }; // KXTermCodes
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Talk with a terminal (emulator), with cursor control, colorisation, line editing with emacs commands,
-/// and history
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Stateful terminal manager for interactive command-line applications.
+///
+/// Wraps a pair of input/output file descriptors (typically stdin/stdout) and provides:
+/// - **Cursor control**: absolute positioning, relative movement, save/restore
+/// - **Screen management**: clear screen, clear line, clear regions
+/// - **Text styling**: bold, italic, underline, inverse, strikethrough, etc.
+/// - **Color output**: named colors, 256-color palette, 24-bit RGB
+/// - **Line editing**: emacs-style key bindings (Ctrl+A/E/K/U/W/T/V/L/R/X/D, arrow keys, Home/End, Delete)
+/// - **Command history**: in-memory and optional disk-persistent history with search (Tab / Ctrl+R)
+/// - **Window title**: push/pop stack for XTerm-compatible window titles
+///
+/// The constructor switches the terminal into raw character mode (no echo, no line buffering).
+/// The destructor restores the original terminal settings. The class is non-copyable and non-movable.
+///
+/// On construction, KXTerm auto-detects whether the attached device is a real terminal or a pipe/file
+/// by sending a cursor position query. Use IsTerminal() to check the result.
+///
+/// @note Errors are reported through the KErrorBase interface (SetError() / GetLastError()).
+///
+/// ### Example
+/// @code
+/// KXTerm term;
+/// term.SetHistory(500, true);
+/// KString sLine;
+/// while (term.EditLine(">> ", sLine))
+/// {
+///     // process sLine
+///     sLine.clear();
+/// }
+/// @endcode
 class KXTerm : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -253,12 +321,20 @@ public:
 	using ColorCode = KXTermCodes::ColorCode;
 	using RGB       = KXTermCodes::RGB;
 
+	/// Construct a terminal manager and switch the input device to raw mode.
+	/// If iRows or iColumns are 0, the terminal size is queried automatically via ioctl.
+	/// The original terminal settings are saved and will be restored by the destructor.
+	/// @param iInputDevice  file descriptor for terminal input (default: STDIN_FILENO)
+	/// @param iOutputDevice file descriptor for terminal output (default: STDOUT_FILENO)
+	/// @param iRows         number of rows, or 0 to auto-detect
+	/// @param iColumns      number of columns, or 0 to auto-detect
 	KXTerm(
 		int      iInputDevice  = STDIN_FILENO,
 		int      iOutputDevice = STDOUT_FILENO,
 		uint16_t iRows         = 0,
 		uint16_t iColumns      = 0
 	);
+	/// Restore original terminal settings and pop any pushed window titles.
 	~KXTerm();
 
 	KXTerm(const KXTerm&) = delete;
@@ -378,24 +454,28 @@ public:
 	/// move cursor to start of previous line
 	void CurToStartOfPrevLine  ();
 
-	void Bold                  () const { Command(KXTermCodes::Bold                   ()); }
-	void NoBold                () const { Command(KXTermCodes::NoBold                 ()); }
-	void Faint                 () const { Command(KXTermCodes::Faint                  ()); }
-	void NoFaint               () const { Command(KXTermCodes::NoFaint                ()); }
-	void Italic                () const { Command(KXTermCodes::Italic                 ()); }
-	void NoItalic              () const { Command(KXTermCodes::NoItalic               ()); }
-	void Underline             () const { Command(KXTermCodes::Underline              ()); }
-	void NoUnderline           () const { Command(KXTermCodes::NoUnderline            ()); }
-	void Blinking              () const { Command(KXTermCodes::Blinking               ()); }
-	void NoBlinking            () const { Command(KXTermCodes::NoBlinking             ()); }
-	void Inverse               () const { Command(KXTermCodes::Inverse                ()); }
-	void NoInverse             () const { Command(KXTermCodes::NoInverse              ()); }
-	void Hidden                () const { Command(KXTermCodes::Hidden                 ()); }
-	void NoHidden              () const { Command(KXTermCodes::NoHidden               ()); }
-	void Strikethrough         () const { Command(KXTermCodes::Strikethrough          ()); }
-	void NoStrikethrough       () const { Command(KXTermCodes::NoStrikethrough        ()); }
-	/// reset all character style modes (and colors)
-	void ResetCharModes        () const { Command(KXTermCodes::ResetCharModes         ()); }
+	/// @name Character style methods
+	/// Enable or disable SGR text attributes on the terminal output. Each method sends
+	/// the corresponding ANSI escape sequence immediately. Use ResetCharModes() to clear all.
+	/// @{
+	void Bold                  () const { Command(KXTermCodes::Bold                   ()); } ///< enable bold text
+	void NoBold                () const { Command(KXTermCodes::NoBold                 ()); } ///< disable bold text
+	void Faint                 () const { Command(KXTermCodes::Faint                  ()); } ///< enable faint/dim text
+	void NoFaint               () const { Command(KXTermCodes::NoFaint                ()); } ///< disable faint text (same code as NoBold)
+	void Italic                () const { Command(KXTermCodes::Italic                 ()); } ///< enable italic text
+	void NoItalic              () const { Command(KXTermCodes::NoItalic               ()); } ///< disable italic text
+	void Underline             () const { Command(KXTermCodes::Underline              ()); } ///< enable underlined text
+	void NoUnderline           () const { Command(KXTermCodes::NoUnderline            ()); } ///< disable underlined text
+	void Blinking              () const { Command(KXTermCodes::Blinking               ()); } ///< enable blinking text
+	void NoBlinking            () const { Command(KXTermCodes::NoBlinking             ()); } ///< disable blinking text
+	void Inverse               () const { Command(KXTermCodes::Inverse                ()); } ///< enable inverse/reverse video
+	void NoInverse             () const { Command(KXTermCodes::NoInverse              ()); } ///< disable inverse video
+	void Hidden                () const { Command(KXTermCodes::Hidden                 ()); } ///< enable hidden/invisible text
+	void NoHidden              () const { Command(KXTermCodes::NoHidden               ()); } ///< disable hidden text
+	void Strikethrough         () const { Command(KXTermCodes::Strikethrough          ()); } ///< enable strikethrough text
+	void NoStrikethrough       () const { Command(KXTermCodes::NoStrikethrough        ()); } ///< disable strikethrough text
+	void ResetCharModes        () const { Command(KXTermCodes::ResetCharModes         ()); } ///< reset all character style modes (and colors)
+	/// @}
 
 	/// set both named foreground and background color (supported by all terminal devices)
 	void Color      (ColorCode FGC, ColorCode BGC) const { Command(KXTermCodes::Color(FGC, BGC)); }
@@ -425,17 +505,33 @@ public:
 private:
 //-------
 
-	enum CGroup { Esc, Csi, Dcs, Osc, Pri };
+	/// ANSI escape sequence group prefixes used by Command(CGroup, ...)
+	enum CGroup
+	{
+		Esc, ///< ESC (\033) — simple escape
+		Csi, ///< CSI (\033[) — Control Sequence Introducer
+		Dcs, ///< DCS (\033P) — Device Control String
+		Osc, ///< OSC (\033]) — Operating System Command
+		Pri  ///< Private (\033[?) — private mode sequence
+	};
 
-	/// blocking read, returns single 8 bit chars
+	/// blocking read of a single raw byte from stdin
 	DEKAF2_NODISCARD
 	static int RawRead        ()                          { return getchar();                    }
+	/// write raw bytes to the output device, bypassing cursor tracking
 	void     RawWrite         (KStringView sRaw)  const;
+	/// write a single Unicode codepoint to the output device as UTF-8
 	void     WriteCodepoint   (KCodePoint chRaw);
+	/// send an ANSI escape sequence with a group prefix (e.g. CSI, OSC)
 	void     Command          (CGroup Group, KStringView sCommand) const;
+	/// send a pre-formatted escape sequence string directly
 	void     Command          (KStringView sCommand) const;
+	/// send a query to the terminal and read the response (used for cursor position and terminal detection)
+	/// @param sRequest the escape sequence to send (e.g. cursor position report)
+	/// @return the terminal's response string, or empty if no response (not a terminal)
 	DEKAF2_NODISCARD
 	KString  QueryTerminal    (KStringView sRequest);
+	/// internal cursor positioning with optional bounds checking
 	void     IntSetCursor     (uint16_t iRow, uint16_t iColumn, bool bCheck);
 
 	/// blocking read, returns unicode codepoints
@@ -445,51 +541,64 @@ private:
 	DEKAF2_NODISCARD
 	static KCodePoint ReadEscaped(kutf::ReadIterator& it, const kutf::ReadIterator& ie);
 
+	/// @name Cursor boundary checks
+	/// These methods clamp or limit movement distances to stay within the terminal dimensions
+	/// when CursorLimits() is enabled. They return the (possibly reduced) distance.
+	/// @{
 	DEKAF2_NODISCARD
-	uint16_t CheckColumn      (uint16_t iColumns) const;
+	uint16_t CheckColumn      (uint16_t iColumns) const; ///< clamp absolute column to terminal width
 	DEKAF2_NODISCARD
-	uint16_t CheckRow         (uint16_t iRows)    const;
+	uint16_t CheckRow         (uint16_t iRows)    const; ///< clamp absolute row to terminal height
 	DEKAF2_NODISCARD
-	uint16_t CheckColumnLeft  (uint16_t iColumns) const;
+	uint16_t CheckColumnLeft  (uint16_t iColumns) const; ///< limit leftward movement to current column
 	DEKAF2_NODISCARD
-	uint16_t CheckColumnRight (uint16_t iColumns) const;
+	uint16_t CheckColumnRight (uint16_t iColumns) const; ///< limit rightward movement to remaining columns
 	DEKAF2_NODISCARD
-	uint16_t CheckRowUp       (uint16_t iRows)    const;
+	uint16_t CheckRowUp       (uint16_t iRows)    const; ///< limit upward movement to current row
 	DEKAF2_NODISCARD
-	uint16_t CheckRowDown     (uint16_t iRows)    const;
+	uint16_t CheckRowDown     (uint16_t iRows)    const; ///< limit downward movement to remaining rows
+	/// @}
 
+	/// returns true if line wrapping is enabled (not yet implemented)
 	DEKAF2_NODISCARD
 	bool     Wrap             ()                  const { return m_bWrap;                        }
+	/// returns true if cursor movement is clamped to terminal dimensions
 	DEKAF2_NODISCARD
 	bool     CursorLimits     ()                  const { return m_bCursorLimits;                }
 
-	KHistory m_History;
-	KString  m_sLastWindowTitle   { "\004\001" }; // sequence that is probably unused..
+	KHistory m_History;                                   ///< command line history (in-memory, optionally on disk)
+	KString  m_sLastWindowTitle   { "\004\001" };         ///< last set window title (initialized to unlikely sentinel)
 
-	int      m_iInputDevice;
-	int      m_iOutputDevice;
+	int      m_iInputDevice;                              ///< file descriptor for terminal input
+	int      m_iOutputDevice;                             ///< file descriptor for terminal output
 
-	uint16_t m_iRows;
-	uint16_t m_iColumns;
+	uint16_t m_iRows;                                     ///< terminal height in rows
+	uint16_t m_iColumns;                                  ///< terminal width in columns
 
 #ifndef DEKAF2_IS_WINDOWS
-	std::unique_ptr<termios> m_Termios;
+	std::unique_ptr<termios> m_Termios;                   ///< saved original terminal settings, restored in destructor
 #endif
 
-	uint16_t m_iCursorRow         { 0 };
-	uint16_t m_iCursorColumn      { 0 };
+	uint16_t m_iCursorRow         { 0 };                  ///< tracked cursor row (0-based)
+	uint16_t m_iCursorColumn      { 0 };                  ///< tracked cursor column (0-based)
 
-	uint16_t m_iSavedCursorRow    { 0 };
-	uint16_t m_iSavedCursorColumn { 0 };
+	uint16_t m_iSavedCursorRow    { 0 };                  ///< saved cursor row for SaveCursor/RestoreCursor
+	uint16_t m_iSavedCursorColumn { 0 };                  ///< saved cursor column for SaveCursor/RestoreCursor
 
-	uint16_t m_iChangedWindowTitle{ 0 };
+	uint16_t m_iChangedWindowTitle{ 0 };                  ///< count of pushed window titles (for pop on restore)
 
-	enum class TerminalState : uint8_t { No = 0, Yes = 1, Unknown = 2 };
-	TerminalState m_eIsTerminal   { TerminalState::Unknown };
-	bool     m_bBeep              { true  };
-	bool     m_bCursorLimits      { true  };
-	bool     m_bHasRGBColors      { false };
-	bool     m_bWrap              { false };
+	/// Terminal detection state, determined on first QueryTerminal() call
+	enum class TerminalState : uint8_t
+	{
+		No      = 0, ///< device is not a terminal (pipe, file, or no response)
+		Yes     = 1, ///< device is a real terminal (responded to cursor query)
+		Unknown = 2  ///< not yet tested (initial state)
+	};
+	TerminalState m_eIsTerminal   { TerminalState::Unknown }; ///< current terminal detection state
+	bool     m_bBeep              { true  };              ///< beep on invalid input or edge (Ctrl+G)
+	bool     m_bCursorLimits      { true  };              ///< clamp cursor movement to terminal dimensions
+	bool     m_bHasRGBColors      { false };              ///< terminal supports 24-bit RGB colors
+	bool     m_bWrap              { false };              ///< line wrapping mode (not yet implemented)
 
 }; // KXTerm
 

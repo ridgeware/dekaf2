@@ -156,6 +156,7 @@ set (USOURCES
 	kwords_tests.cpp
 	kwriter_tests.cpp
 	kxml_tests.cpp
+	kxterm_tests.cpp
 	kzip_tests.cpp
 	features_tests.cpp
 	network_tests.cpp

@@ -751,7 +751,7 @@ public:
 	bool starts_with(KStringView sSubString) const noexcept;
 
 	// std::C++20
-	/// does the string start with sChar?
+	/// does the string start with ch?
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_STRING
 	bool starts_with(value_type	ch) const noexcept;
 
@@ -761,7 +761,7 @@ public:
 	bool ends_with(KStringView sSubString) const noexcept;
 
 	// std::C++20
-	/// does the string end with sChar?
+	/// does the string end with ch?
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_STRING
 	bool ends_with(value_type ch) const noexcept;
 

@@ -108,21 +108,18 @@ table.fieldtable td.fieldname {
     border-radius: var(--border-radius-small);
 }
 
-/* reduce the heavy "Detailed Description" separator */
+/* tighter section headers */
 h2.groupheader {
     border-bottom: 1px solid var(--separator-color);
+    font-size: 14px;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    padding-top: 8px;
 }
 
 /* flatten the member summary table — less visual noise */
 table.memberdecls {
     border-spacing: 0 1px;
-}
-
-/* tighter section headers */
-h2.groupheader {
-    margin-top: 12px;
-    margin-bottom: 4px;
-    padding-top: 8px;
 }
 
 /* compact class/file description */
@@ -181,7 +178,8 @@ div.groupText {
     line-height: 1.4;
 }
 
-div.groupText p {
+div.groupText p,
+td.ititle > p {
     margin: 0;
 }
 

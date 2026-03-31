@@ -29,7 +29,7 @@ OUTPUT_LANGUAGE        = English
 BUILTIN_STL_SUPPORT    = YES
 BRIEF_MEMBER_DESC      = YES
 # repeat brief in detail section
-REPEAT_BRIEF           = NO
+REPEAT_BRIEF           = YES
 # create details if only brief?
 ALWAYS_DETAILED_SEC    = YES
 # show inherited members in child class?

@@ -71,6 +71,7 @@
 #include "kformtable.h"
 #include "kencode.h"
 #include "kuuid.h"
+#include "kthreadpool.h"
 #include <cstdint>
 #include <utility>
 
@@ -212,19 +213,9 @@ constexpr SQLTX g_Translations[] = {
 static void*  kfree (void* dPointer, const char* sContext = nullptr )
 //-----------------------------------------------------------------------------
 {
-	typedef enum {fubar=1} EX;
-
 	if (dPointer)
 	{
-		DEKAF2_TRY {
-			free (dPointer);
-		}
-		DEKAF2_CATCH (EX) {
-			kWarning ("would have crashed on free() of 0x{} {}",
-				dPointer,
-				(sContext) ? " : "    : "",
-				(sContext) ? sContext : "");
-		}
+		free (dPointer);
 	}
 
 	return (nullptr);
@@ -455,15 +446,15 @@ KString KSQL::KSQLStatementStats::Print() const
 }
 
 //-----------------------------------------------------------------------------
-void KSQL::KSQLStatementStats::Increment(KStringView sLastSQL, QueryType QueryType)
+void KSQL::KSQLStatementStats::Increment(KStringView sLastSQL, QueryType iQueryType)
 //-----------------------------------------------------------------------------
 {
-	if (QueryType == QueryType::None)
+	if (iQueryType == QueryType::None)
 	{
-		QueryType = KSQL::GetQueryType(sLastSQL);
+		iQueryType = KSQL::GetQueryType(sLastSQL);
 	}
 
-	switch (QueryType)
+	switch (iQueryType)
 	{
 		case QueryType::Select:
 			++iSelect;
@@ -963,7 +954,7 @@ bool KSQL::SetDBPort (int iDBPortNum)
 //-----------------------------------------------------------------------------
 {
 	NOT_IF_ALREADY_OPEN ("SetDBPort");
-	m_iDBPortNum = static_cast<uint32_t>(iDBPortNum);
+	m_iDBPortNum = static_cast<uint16_t>(iDBPortNum);
 	InvalidateConnectSummary();
 	return (true);
 
@@ -5534,7 +5525,7 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 					"  from DBA_TABLES\n"
 					" where table_name like '{}'\n"
 					" order by 1", 
-						m_sUsername, sLike));
+						sLike));
 			}
 		}
 		break;
@@ -8113,6 +8104,8 @@ bool KSQL::IsLocked (KStringView sName)
 bool KSQL::GetPersistentLock (KStringView sName, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
+	// NOTE: sName is used as an SQL identifier (table name) without validation.
+	// Callers must ensure sName contains only safe characters [a-zA-Z0-9_].
 	auto sTablename = kFormat ("{}_LOCK", sName);
 
 	for (;;)
@@ -8883,8 +8876,6 @@ bool KSQL::KillQuery(ConnectionID iConnectionID)
 		return false;
 	}
 
-	return bRet;
-
 } // KillQuery
 
 //-----------------------------------------------------------------------------
@@ -9042,7 +9033,7 @@ bool KSQL::ShowCounts (KStringView sRegex/*=""*/)
 //-----------------------------------------------------------------------------
 {
 	std::vector<KString> Tables;
-	uint8_t iMax = 0;
+	uint16_t iMax = 0;
 
 	{
 		auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
@@ -10114,7 +10105,6 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 	Terminal.SetHistory(1000, true);
 
 	KInFile SQLFile;
-	KString sRemainderOfLine;
 	bool    bReturnAtClose { false };
 
 	if (!sSQLFile.empty())
@@ -10138,56 +10128,49 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 
 		KString sLine;
 
-		if (!sRemainderOfLine.empty())
+		if (SQLFile.is_open())
 		{
-			sLine = sRemainderOfLine;
-		}
-		else
-		{
-			if (SQLFile.is_open())
+			for (;;)
 			{
-				for (;;)
+				if (!kReadLine(SQLFile, sLine))
 				{
-					if (!kReadLine(SQLFile, sLine))
-					{
-						SQLFile.close();
+					SQLFile.close();
 
-						if (bReturnAtClose)
-						{
-							return true;
-						}
-
-						break;
-					}
-
-					KStringView sv(sLine);
-
-					sv.TrimLeft();
-
-					if (!sv.starts_with('#') && !sv.starts_with(';'))
-					{
-						break;
-					}
-				}
-			}
-			else
-			{
-				if (!Terminal.EditLine(sPrompt, sLine))
-				{
-					kWriteLine();
-
-					if (Terminal.HasError())
-					{
-						return SetError(Terminal.GetLastError());
-					}
-					else
+					if (bReturnAtClose)
 					{
 						return true;
 					}
+
+					break;
 				}
 
-				kWriteLine();
+				KStringView sv(sLine);
+
+				sv.TrimLeft();
+
+				if (!sv.starts_with('#') && !sv.starts_with(';'))
+				{
+					break;
+				}
 			}
+		}
+		else
+		{
+			if (!Terminal.EditLine(sPrompt, sLine))
+			{
+				kWriteLine();
+
+				if (Terminal.HasError())
+				{
+					return SetError(Terminal.GetLastError());
+				}
+				else
+				{
+					return true;
+				}
+			}
+
+			kWriteLine();
 		}
 
 		if (sSQL.empty() && sLine.In("ascii,vertical,json,csv,html,rounded,thin,bold,double,spaced"))

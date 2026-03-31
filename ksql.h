@@ -1154,7 +1154,7 @@ public:
 	private:
 	//----------
 
-		void      Increment(KStringView sLastSQL, QueryType QueryType);
+		void      Increment(KStringView sLastSQL, QueryType iQueryType);
 
 	}; // SQLStmtStats
 
@@ -1267,7 +1267,7 @@ private:
 
 		KThreadSafe<TimedConnectionsMap>                   m_Connections;
 		KThreadSafe<KMap<uint64_t, std::unique_ptr<KSQL>>> m_DBs;
-		bool                                               m_bQuit;
+		std::atomic<bool>                                  m_bQuit;
 		// lazy initialized worker, to not create a thread in the static
 		// initialization phase before any signal masks are set
 		std::unique_ptr<std::thread>                       m_Watcher;

@@ -60,7 +60,49 @@ DEKAF2_NAMESPACE_BEGIN
 /// @{
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// print a table from various types of data, into various output formats
+/// Formats and prints tabular data into various output styles.
+///
+/// KFormTable takes data from different sources (strings, numbers, JSON, KROW) and
+/// renders it as a formatted table into a stream, string, or JSON object. Supported
+/// output styles include ASCII box drawing, Unicode box styles (bold, thin, double,
+/// rounded), space-separated, vertical key-value pairs, HTML, JSON, CSV, and Markdown.
+///
+/// Column definitions can be set explicitly via the constructor or AddColDef(), or they
+/// are created automatically from the data. For styles that require fixed column widths
+/// (box styles, Spaced, Markdown), a two-pass approach with DryMode() can be used to
+/// first measure and then print.
+///
+/// @par Basic usage with explicit columns:
+/// @code
+/// KString sOut;
+/// KFormTable Table(sOut, { 10, { 10, KFormTable::Center }, { 5, KFormTable::Right } });
+/// Table.SetStyle(KFormTable::Style::ASCII);
+/// Table.PrintRow({ "Name", "City", "Age" });
+/// Table.PrintSeparator();
+/// Table.PrintRow({ "Alice", "Berlin", "30" });
+/// Table.PrintRow({ "Bob", "Munich", "25" });
+/// Table.Close();
+/// @endcode
+///
+/// @par Two-pass usage with DryMode (auto-sized columns):
+/// @code
+/// KString sOut;
+/// KFormTable Table(sOut);
+/// Table.DryMode(true);
+/// for (auto& row : data) Table.PrintRow(row);  // measure
+/// Table.DryMode(false);
+/// for (auto& row : data) Table.PrintRow(row);  // print
+/// Table.Close();
+/// @endcode
+///
+/// @par JSON input:
+/// @code
+/// KString sOut;
+/// KFormTable Table(sOut);
+/// Table.SetStyle(KFormTable::Style::Markdown);
+/// Table.PrintJSON(jsonArray);  // auto-detects columns from keys
+/// Table.Close();
+/// @endcode
 class DEKAF2_PUBLIC KFormTable
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -71,59 +113,82 @@ public:
 
 	using size_type = KString::size_type;
 
+	/// Output style for the table. The box styles (ASCII through Rounded) draw bordered
+	/// tables with different Unicode or ASCII line characters. The other styles produce
+	/// structured output for different use cases.
 	enum Style
 	{
-		ASCII    = 1 << 0, ///< Box style with ASCII lines (+-----+-----+) (default)
-		Bold     = 1 << 1, ///< Box style with bold lines
-		Thin     = 1 << 2, ///< Box style with thin lines
-		Double   = 1 << 3, ///< Box style with two bold lines
-		Rounded  = 1 << 4, ///< Box style with thin lines and rounded corners
-		Vertical = 1 << 5, ///< vertical ASCII lines
-		Spaced   = 1 << 6, ///< space as separator
-		HTML     = 1 << 7, ///< html markup
-		JSON     = 1 << 8, ///< json output
-		CSV      = 1 << 9, ///< csv output
-		Markdown = 1 << 10 ///< markdown output
+		ASCII    = 1 << 0,  ///< ASCII box drawing with +, -, | characters (default)
+		Bold     = 1 << 1,  ///< Unicode box drawing with bold/heavy lines (┃━┏┓)
+		Thin     = 1 << 2,  ///< Unicode box drawing with thin/light lines (│─┌┐)
+		Double   = 1 << 3,  ///< Unicode box drawing with double lines (║═╔╗)
+		Rounded  = 1 << 4,  ///< Unicode box drawing with thin lines and rounded corners (╭╮╰╯)
+		Vertical = 1 << 5,  ///< key : value format, one column per line, rows separated by blank lines
+		Spaced   = 1 << 6,  ///< columns separated by spaces, no borders
+		HTML     = 1 << 7,  ///< HTML @<table@> markup with @<tr@>, @<td@>, @<th@> elements
+		JSON     = 1 << 8,  ///< JSON array output (array of arrays or array of objects)
+		CSV      = 1 << 9,  ///< RFC 4180 CSV output with proper quoting
+		Markdown = 1 << 10  ///< Markdown table with | separators and alignment markers in header separator
 	};
 
+	/// Column alignment. Can be combined with Wrap using bitwise OR. Auto is the default
+	/// and selects left alignment for strings and right alignment for numbers.
 	enum Alignment
 	{
-		None   = 0,
-		Auto   = 1 << 0, ///< left aligned for strings, right aligned for numbers
-		Left   = 1 << 1, ///< left aligned
-		Center = 1 << 2, ///< center aligned
-		Right  = 1 << 3, ///< right aligned
-		Wrap   = 1 << 4  ///< wrap into next line if needed (not yet supported), else cut
+		None   = 0,       ///< no explicit alignment set (treated as Auto)
+		Auto   = 1 << 0,  ///< left aligned for strings, right aligned for numbers
+		Left   = 1 << 1,  ///< left aligned
+		Center = 1 << 2,  ///< center aligned
+		Right  = 1 << 3,  ///< right aligned
+		Wrap   = 1 << 4   ///< wrap into next line if needed (not yet supported), else cut
 	};
 
+	/// Characters used to draw box-style table borders. Used with SetBoxStyle() to
+	/// define custom box drawing characters for the ASCII style.
+	///
+	/// The nine corner/junction characters define the frame:
+	/// @code
+	/// TopLeft──────TopMiddle──────TopRight
+	///    │            │              │
+	/// MiddleLeft──MiddleMiddle──MiddleRight
+	///    │            │              │
+	/// BottomLeft──BottomMiddle──BottomRight
+	/// @endcode
 	struct BoxChars
 	{
-		KCodePoint TopLeft;
-		KCodePoint TopMiddle;
-		KCodePoint TopRight;
-		KCodePoint MiddleLeft;
-		KCodePoint MiddleMiddle;
-		KCodePoint MiddleRight;
-		KCodePoint BottomLeft;
-		KCodePoint BottomMiddle;
-		KCodePoint BottomRight;
-		KCodePoint Horizontal;
-		KCodePoint Vertical;
+		KCodePoint TopLeft;       ///< top-left corner (e.g. '+' or '┌')
+		KCodePoint TopMiddle;     ///< top junction between columns (e.g. '+' or '┬')
+		KCodePoint TopRight;      ///< top-right corner (e.g. '+' or '┐')
+		KCodePoint MiddleLeft;    ///< left junction at separator rows (e.g. '+' or '├')
+		KCodePoint MiddleMiddle;  ///< center junction at separator rows (e.g. '+' or '┼')
+		KCodePoint MiddleRight;   ///< right junction at separator rows (e.g. '+' or '┤')
+		KCodePoint BottomLeft;    ///< bottom-left corner (e.g. '+' or '└')
+		KCodePoint BottomMiddle;  ///< bottom junction between columns (e.g. '+' or '┴')
+		KCodePoint BottomRight;   ///< bottom-right corner (e.g. '+' or '┘')
+		KCodePoint Horizontal;    ///< horizontal line character (e.g. '-' or '─')
+		KCodePoint Vertical;      ///< vertical line character (e.g. '|' or '│')
 	};
 
+	/// Defines one column: its name, display name, width, and alignment.
+	/// Can be constructed implicitly from a single integer (width only), making
+	/// initializer lists like @code { 10, { 20, KFormTable::Right }, 5 } @endcode possible.
 	struct ColDef
 	{
 		ColDef() = default;
+		/// construct with width and optional alignment
 		ColDef(size_type iWidth, Alignment iAlign = Alignment::Auto) : m_iWidth(iWidth), m_iAlign(iAlign) {}
+		/// construct with column name, optional width, and optional alignment
 		ColDef(KString sColName, size_type iWidth = 0, Alignment iAlign = Alignment::Auto) : m_sColName(std::move(sColName)), m_iWidth(iWidth), m_iAlign(iAlign) {}
+		/// construct with column name, display name, optional width, and optional alignment
 		ColDef(KString sColName, KString sDispName, size_type iWidth = 0, Alignment iAlign = Alignment::Auto) : m_sColName(std::move(sColName)), m_sDispName(std::move(sDispName)), m_iWidth(iWidth), m_iAlign(iAlign) {}
 
+		/// returns the display name if set, otherwise the column name
 		const KString& GetDispName() const { return m_sDispName.empty() ? m_sColName : m_sDispName; }
 
-		KString   m_sColName;
-		KString   m_sDispName;
-		size_type m_iWidth { 0 };
-		Alignment m_iAlign { Alignment::Auto };
+		KString   m_sColName;          ///< internal column name (used as JSON key)
+		KString   m_sDispName;         ///< display name shown in headers (if empty, m_sColName is used)
+		size_type m_iWidth { 0 };      ///< column width in Unicode codepoints (0 = auto-sized)
+		Alignment m_iAlign { Alignment::Auto }; ///< column alignment
 	};
 
 	using ColDefs = std::vector<ColDef>;
@@ -138,8 +203,11 @@ public:
 	/// destructor, makes sure table is finalized properly
 	~KFormTable();
 
-	/// switch dry mode on to "write" rows or columns for the purpose of measuring their
-	/// max width - this will update the existing or yet unexisting column definitions
+	/// Switch dry mode on or off. In dry mode, PrintRow(), PrintColumn(), and PrintJSON()
+	/// measure text widths without producing output. This updates column definitions with
+	/// the maximum width seen for each column. Call DryMode(false) afterwards to switch to
+	/// actual output. WantDryMode() returns true if the current style benefits from a dry pass.
+	/// @param bYesNo true to enable measuring, false to enable output
 	void DryMode(bool bYesNo) { m_bGetExtents = bYesNo; }
 
 	/// returns the current output style
@@ -180,15 +248,20 @@ public:
 	/// set a new name for a column header, replacing sOldColName by sNewColName
 	void SetColNameAs(KStringView sOldColName, KStringView sNewColName);
 
+	/// Per-cell rendering options that can override the column defaults.
+	/// Allows setting a different alignment or spanning multiple columns for individual cells.
 	struct ColumnRenderer
 	{
 		ColumnRenderer () {};
+		/// construct with alignment override
 		ColumnRenderer (Alignment Align) : m_Align(Align) {}
+		/// construct with column span
 		ColumnRenderer (size_type iSpan) : m_iSpan(iSpan) {}
+		/// construct with alignment override and column span
 		ColumnRenderer (Alignment Align, size_type iSpan) : m_Align(Align), m_iSpan(iSpan) {}
 
-		Alignment m_Align { Alignment::None };
-		size_type m_iSpan { 0 };
+		Alignment m_Align { Alignment::None }; ///< alignment override (None = use column default)
+		size_type m_iSpan { 0 };               ///< number of columns to span (0 or 1 = no spanning)
 	};
 
 	/// print any type convertible into a string view as single column into the output stream
@@ -244,11 +317,23 @@ public:
 	/// print a KROW and terminate the current row
 	void PrintRow(const KROW& Row);
 
-	/// print a row from a json object or multiple rows from an array of objects or arrays - no mixed forms are allowed,
-	/// and a maximum of two dimensions
+	/// Print rows from a JSON value. Accepts:
+	/// - an array of arrays (each inner array is one row)
+	/// - an array of objects (keys become column headers, values become cells)
+	/// - a single object (printed as one row)
+	///
+	/// For object input, columns are created automatically from the keys encountered.
+	/// Column names can be renamed with SetColNameAs() before calling PrintJSON().
+	/// If no column definitions exist yet and the style benefits from it, a dry-mode
+	/// pass is performed automatically to measure column widths.
+	/// @param json the JSON data to print
+	/// @return true on success, false if the JSON structure is not supported
 	bool PrintJSON(const KJSON& json);
 
-	/// print a horizontal separator
+	/// Print a horizontal separator line between rows. For box styles this draws a
+	/// full-width line using the configured box characters. For Markdown this prints
+	/// the alignment-aware header separator (e.g. |:---:|---:|). For HTML, JSON, CSV,
+	/// and Vertical styles this is a no-op.
 	void PrintSeparator();
 
 	/// print a string OUTSIDE of all internal formatting logic - only use this for very special formattings, and keep in mind that
@@ -276,8 +361,10 @@ public:
 	DEKAF2_NODISCARD
 	bool WantDryMode() const;
 
-	/// return a style value for a string with a style name, like ASCII, thin, HTML ..
-	/// This is a static method and does not change the style of a KFormStyle instance
+	/// Convert a style name string into a Style enum value. Recognized names (case-insensitive):
+	/// "ascii", "query", "table", "bold", "thin", "double", "rounded", "spaced",
+	/// "vertical", "html", "json", "csv", "markdown", "md".
+	/// An optional leading '-' is stripped. Returns ASCII on unrecognized input.
 	DEKAF2_NODISCARD
 	static Style StringToStyle(KStringView sStyle);
 

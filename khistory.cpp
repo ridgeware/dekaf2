@@ -63,6 +63,9 @@ bool KHistory::LoadHistory(KString sPathname)
 
 	m_sHistoryfile = sPathname;
 
+	// take a shared lock so we do not read while another process rewrites
+	KFileLock Lock(sPathname, KFileLock::Shared);
+
 	KInFile File(sPathname);
 
 	if (File.is_open())
@@ -259,6 +262,9 @@ void KHistory::CheckSize()
 
 			if (!m_sHistoryfile.empty())
 			{
+				// take an exclusive lock to prevent reads/appends during rewrite
+				KFileLock Lock(m_sHistoryfile, KFileLock::Exclusive);
+
 				// flush shortened list to history file
 				KOutFile File(m_sHistoryfile, std::ios_base::trunc);
 

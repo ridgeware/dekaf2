@@ -112,6 +112,41 @@ Col1           Col2             Col3           Col4  Co>
 		CHECK ( sOut == sExpected );
 	}
 
+	SECTION("Markdown")
+	{
+		static constexpr KStringView sExpected =
+R"(
+| Col1       |    Col2    |         Col3         |  Col4 | Co>|
+|------------|:----------:|:--------------------:|------:|----|
+|     123.45 |    344     |          12          |     0 |    |
+)";
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		KFormTable Table(sOut,
+		{
+			10,
+			{ 10, KFormTable::Center },
+			{ 20, KFormTable::Center | KFormTable::Wrap },
+			{  5, KFormTable::Right  },
+			2
+		});
+
+		Table.SetStyle(KFormTable::Style::Markdown);
+		CHECK ( Table.ColCount() == 5 );
+
+		Table.PrintRow( { "Col1", "Col2", "Col3", "Col4", "Col5" } );
+		Table.PrintSeparator();
+		Table.PrintColumn(123.45);
+		Table.PrintColumn(344);
+		Table.PrintColumn(chrono::seconds(12));
+		Table.PrintColumn(false);
+		Table.Close();
+
+		CHECK ( Table.GetPrintedRows() == 2 );
+		CHECK ( sOut == sExpected );
+	}
+
 	SECTION("Block")
 	{
 		static constexpr KStringView sExpected =

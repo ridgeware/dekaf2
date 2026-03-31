@@ -192,6 +192,36 @@ void KFormTable::PrintSeparator()
 				Print('\n');
 				break;
 				
+			case Style::Markdown:
+			{
+				for (const auto& Col : m_ColDefs)
+				{
+					Print('|');
+
+					auto iEffAlign = static_cast<Alignment>(static_cast<std::underlying_type<Alignment>::type>(Col.m_iAlign)
+					              & ~static_cast<std::underlying_type<Alignment>::type>(Alignment::Wrap));
+
+					if (iEffAlign == Alignment::None || iEffAlign == Alignment::Auto)
+					{
+						iEffAlign = Alignment::Left;
+					}
+
+					bool bLeftColon  = (iEffAlign & Alignment::Center) == Alignment::Center;
+					bool bRightColon = (iEffAlign & Alignment::Center) == Alignment::Center
+					                || (iEffAlign & Alignment::Right)  == Alignment::Right;
+
+					size_type iTotal = Col.m_iWidth + 2;
+					size_type iDashes = iTotal - (bLeftColon ? 1 : 0) - (bRightColon ? 1 : 0);
+
+					if (bLeftColon)  Print(':');
+					for (size_type i = 0; i < iDashes; ++i) Print('-');
+					if (bRightColon) Print(':');
+				}
+
+				Print("|\n");
+			}
+			break;
+
 			case Style::HTML:
 			case Style::JSON:
 			case Style::CSV:
@@ -247,6 +277,7 @@ void KFormTable::PrintTop()
 			}
 			break;
 
+			case Style::Markdown:
 			case Style::Spaced:
 			case Style::JSON:
 			case Style::CSV:
@@ -322,6 +353,7 @@ void KFormTable::PrintBottom()
 				}
 				break;
 
+			case Style::Markdown:
 			case Style::Spaced:
 			case Style::CSV:
 			case Style::Vertical:
@@ -390,7 +422,7 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 
 	// only get column width and align information for Box, Spaced or HTML
 	// (it is important to keep iWidth at 0 if we do not want to trim the output)
-	if ((m_Style & (Box | Style::Spaced | Style::HTML)) != 0)
+	if ((m_Style & (Box | Style::Spaced | Style::HTML | Style::Markdown)) != 0)
 	{
 		// get the defaults for the current column format
 		if (m_iColumn < ColCount())
@@ -479,6 +511,14 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 			Print(' ');
 			break;
 
+		case Style::Markdown:
+			if (!m_iColumn)
+			{
+				Print('|');
+			}
+			Print(' ');
+			break;
+
 		case Style::Spaced:
 			if (m_iColumn)
 			{
@@ -553,6 +593,7 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 		case Style::Thin:
 		case Style::Double:
 		case Style::Rounded:
+		case Style::Markdown:
 		case Style::Spaced:
 		case Style::HTML:
 		{
@@ -663,6 +704,11 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 			Print(m_BoxChars.Vertical);
 			break;
 
+		case Style::Markdown:
+			Print(bOverflow ? '>' : ' ');
+			Print('|');
+			break;
+
 		case Style::Spaced:
 			Print(bOverflow ? '>' : ' ');
 			break;
@@ -733,7 +779,7 @@ void KFormTable::PrintRow(const KROW& Row)
 	}
 
 	// do not print non-header rows for length checking if it's not Box/Spaced/HTML layout
-	if (!m_bGetExtents || (m_Style & (Box | Style::Spaced | Style::HTML )) != 0)
+	if (!m_bGetExtents || (m_Style & (Box | Style::Spaced | Style::HTML | Style::Markdown)) != 0)
 	{
 		for (auto& Col : Row)
 		{
@@ -908,6 +954,7 @@ void KFormTable::PrintNextRow()
 			case Style::Thin:
 			case Style::Double:
 			case Style::Rounded:
+			case Style::Markdown:
 			case Style::Spaced:
 				Print('\n');
 				break;
@@ -1124,6 +1171,7 @@ void KFormTable::SetStyle(Style Style)
 			break;
 
 		case Style::HTML:
+		case Style::Markdown:
 		case Style::Spaced:
 		case Style::Vertical:
 			break;
@@ -1163,7 +1211,7 @@ void KFormTable::CheckHaveColHeaders()
 bool KFormTable::WantDryMode() const
 //-----------------------------------------------------------------------------
 {
-	return ((m_Style & (Box | Style::Spaced)) != 0) && m_ColDefs.empty();
+	return ((m_Style & (Box | Style::Spaced | Style::Markdown)) != 0) && m_ColDefs.empty();
 }
 
 //-----------------------------------------------------------------------------
@@ -1208,6 +1256,11 @@ KFormTable::Style KFormTable::StringToStyle(KStringView sStyle)
 		case "spaced"_casehash:
 			Style = Style::Spaced;
 			break;
+		case "markdown"_casehash:
+		case "md"_casehash:
+			Style = Style::Markdown;
+			break;
+
 		default:
 			kDebug(1, "invalid style: {}", sStyle);
 			break;

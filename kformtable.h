@@ -82,7 +82,8 @@ public:
 		Spaced   = 1 << 6, ///< space as separator
 		HTML     = 1 << 7, ///< html markup
 		JSON     = 1 << 8, ///< json output
-		CSV      = 1 << 9  ///< csv output
+		CSV      = 1 << 9, ///< csv output
+		Markdown = 1 << 10 ///< markdown output
 	};
 
 	enum Alignment

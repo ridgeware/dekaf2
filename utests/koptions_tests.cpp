@@ -906,8 +906,8 @@ TEST_CASE("KOptions control flow")
 
 		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
 
-		KStringView sDBC = Opt("dbc : dbc file name", "");
-		bool bQuiet      = Opt("q,quiet : quiet mode", false);
+		auto sDBC   = Opt("dbc : dbc file name", "");    (void)sDBC;
+		auto bQuiet = Opt("q,quiet : quiet mode", false); (void)bQuiet;
 
 		CHECK ( iRetval         == 0     );
 		CHECK ( Opt.Terminate() == true  );

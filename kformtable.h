@@ -368,6 +368,10 @@ public:
 	DEKAF2_NODISCARD
 	static Style StringToStyle(KStringView sStyle);
 
+	/// Returns a comma-separated list of supported output style names
+	DEKAF2_NODISCARD
+	static KStringViewZ GetSupportedStyles();
+
 
 //----------
 private:

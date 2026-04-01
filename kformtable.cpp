@@ -1319,4 +1319,12 @@ KFormTable::Style KFormTable::StringToStyle(KStringView sStyle)
 
 } // StringToStyle
 
+//-----------------------------------------------------------------------------
+KStringViewZ KFormTable::GetSupportedStyles()
+//-----------------------------------------------------------------------------
+{
+	return "ascii, bold, thin, double, rounded, spaced, vertical, json, csv, html, markdown";
+
+} // GetSupportedStyles
+
 DEKAF2_NAMESPACE_END

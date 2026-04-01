@@ -413,6 +413,7 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 		case DBT::POSTGRESQL:
 			switch (iNativeDataType)
 			{
+#ifdef DEKAF2_HAS_POSTGRESQL
 				// PostgreSQL OIDs for numeric types (from pg_type.h / catalog)
 				case 16:   // BOOLOID
 				case 20:   // INT8OID (bigint)
@@ -426,12 +427,12 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 
 				case 1700: // NUMERICOID (arbitrary precision)
 					iKSQLDataType = KCOL::NUMERIC;
-					if (iMaxDataLen < 0 || iMaxDataLen >= 19)
+					if (iMaxDataLen >= 19)
 					{
 						iKSQLDataType |= KCOL::INT64NUMERIC;
 					}
 					break;
-
+#endif
 				default:
 					iKSQLDataType = KCOL::NOFLAG;
 					break;

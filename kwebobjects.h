@@ -1676,6 +1676,7 @@ public:
 	using KWebObject::SetMin;
 	using KWebObject::SetMax;
 	using KWebObject::SetRange;
+	using KWebObject::SetStyle;
 
 	virtual KStringView TypeName() const override { return s_sObjectName;  }
 	virtual std::size_t WebObjectType() const override { return TYPE; }
@@ -1966,6 +1967,15 @@ public:
 	self&& SetAttribute(KStringView sName, KStringView sValue) &&
 	{
 		return std::move(SetAttribute(sName, sValue));
+	}
+	self& SetStyle(KStringView sStyle) &
+	{
+		m_Base.SetStyle(sStyle);
+		return This();
+	}
+	self&& SetStyle(KStringView sStyle) &&
+	{
+		return std::move(SetStyle(sStyle));
 	}
 
 	Input& GetBase()

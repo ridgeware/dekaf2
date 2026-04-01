@@ -20,7 +20,7 @@
 /// binaries that start in microseconds, consume minimal memory, and
 /// handle the kind of traffic that makes virtual machines weep.
 ///
-/// Built on modern C++ (17 / 20 / 23) and released under the **MIT license**,
+/// Built on modern C++ (14 / 17 / 20 / 23) and released under the **MIT license**,
 /// DEKAF2 provides batteries-included coverage across strings, SQL, HTTP,
 /// REST, crypto, JSON, threading, and much more — all designed with an
 /// almost irrational devotion to ease of use.
@@ -39,15 +39,18 @@
 ///
 /// @subsection hl_ksql KSQL — One Class, Every Database
 ///
-/// Connect to **MySQL, MariaDB, Oracle, SQLite, SQL Server (CTLIB / DBLIB),
-/// ODBC** — all through a single, unified API.  KSQL handles connection
+/// Connect to **MySQL, MariaDB, Oracle, SQLite, SQL Server (CTLIB / DBLIB)**
+/// — all through a single, unified API. KSQL handles connection
 /// pooling, automatic retries, query logging, and prepared statements.
+/// All query parameters are **automatically SQL-injection-safe** — the type
+/// system escapes string arguments at format time and rejects dynamic
+/// format strings at runtime. Iterate results with a simple range-for loop.
 /// You will not find a more robust yet easy-to-use SQL class anywhere.
 ///
 /// @subsection hl_rest Full-Stack HTTP — From Socket to REST
 ///
 /// A complete HTTP stack built from the ground up:
-/// - **HTTP/1.1, HTTP/2, and HTTP/3 (QUIC)** — client and server
+/// - **HTTP/1.1, HTTP/2, and HTTP/3 (QUIC)** for clients, HTTP/1.1 for server
 /// - **REST framework** with declarative routing, JSON / XML / plain-text I/O
 /// - **WebSocket** support (client and server)
 /// - **TLS** with automatic ephemeral certificates
@@ -122,11 +125,11 @@
 /// @code{.sh}
 /// git clone https://github.com/ridgeware/dekaf2.git
 /// cd dekaf2
-/// ./bootstrap
+/// ./bootstrap go
 /// @endcode
 ///
-/// DEKAF2 builds with **CMake** (≥ 3.13) and requires a C++17-capable
-/// compiler (GCC ≥ 7, Clang ≥ 5, MSVC ≥ 2017).
+/// DEKAF2 builds with **CMake** (≥ 3.13) and requires a C++14-capable
+/// compiler (GCC ≥ 6, Clang ≥ 5, MSVC ≥ 2017).
 ///
 /// @section taste A Taste of DEKAF2
 ///
@@ -134,7 +137,6 @@
 ///
 /// @code{.cpp}
 /// #include <dekaf2/krest.h>
-/// #include <dekaf2/krestroute.h>
 /// #include <dekaf2/dekaf2.h>
 ///
 /// using namespace dekaf2;
@@ -144,12 +146,11 @@
 ///     KInit(true);
 ///
 ///     KRESTRoutes Routes;
-///     Routes.AddRoute({ KHTTPMethod::GET, "/hello",
-///         [](KRESTServer& http)
+///     Routes.AddRoute("/hello")
+///         .Get([](KRESTServer& http)
 ///         {
 ///             http.json.tx["message"] = "Hello, World!";
-///         }
-///     });
+///         });
 ///
 ///     KREST::Options Settings;
 ///     Settings.Type = KREST::HTTP;
@@ -169,14 +170,10 @@
 /// using namespace dekaf2;
 ///
 /// KSQL db;
-/// db.SetDBType(KSQL::DBT::MYSQL);
-/// db.SetConnect("mydb", "server.local", "user", "pass");
+/// db.SetConnect(KSQL::DBT::MYSQL, "user", "pass", "mydb", "server.local");
+/// db.ExecQuery("SELECT name, email FROM users WHERE active = {}", 1);
 ///
-/// KSQLString sSQL;
-/// sSQL.Format("SELECT name, email FROM users WHERE active = {}", 1);
-///
-/// KROW row;
-/// while (db.NextRow(row, sSQL))
+/// for (auto& row : db)
 /// {
 ///     kPrintLine("{}: {}", row["name"], row["email"]);
 /// }

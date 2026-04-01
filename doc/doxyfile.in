@@ -5,7 +5,8 @@ STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_BINARY_DIR@
 # STRIP_FROM_INC_PATH    = @@
 INPUT                  = @PROJECT_SOURCE_DIR@ \
-                         @PROJECT_SOURCE_DIR@/doc/modules.dox
+                         @PROJECT_SOURCE_DIR@/doc/modules.dox \
+                         @PROJECT_SOURCE_DIR@/doc/mainpage.dox
 FILE_PATTERNS          = *.h   \
                          *.hpp \
                          *.cpp \

@@ -1,0 +1,211 @@
+/// @mainpage DEKAF2 — Lighter, Faster, Smarter
+///
+/// @image html https://img.shields.io/badge/C%2B%2B-17%2F20%2F23-blue.svg
+/// @image html https://img.shields.io/badge/license-MIT-green.svg
+/// @image html https://img.shields.io/badge/version-2.1-orange.svg
+///
+/// @section intro What is DEKAF2?
+///
+/// **DEKAF2** is a compiled C++ rapid application development framework — a
+/// no-nonsense alternative to Java, .NET, and the ever-growing zoo of
+/// interpreted languages and pcode runtimes.
+///
+/// Where the rest of the world chants *"write once, run everywhere"* and
+/// silently finishes the sentence with *"…then debug everywhere,"* DEKAF2's
+/// mantra is simple:
+///
+/// > **Compile once.  Run everywhere.  Sleep at night.**
+///
+/// It compiles to native code on Linux, macOS, and Windows, producing
+/// binaries that start in microseconds, consume minimal memory, and
+/// handle the kind of traffic that makes virtual machines weep.
+///
+/// Built on modern C++ (17 / 20 / 23) and released under the **MIT license**,
+/// DEKAF2 provides batteries-included coverage across strings, SQL, HTTP,
+/// REST, crypto, JSON, threading, and much more — all designed with an
+/// almost irrational devotion to ease of use.
+///
+/// ---
+///
+/// @section highlights Highlights
+///
+/// @subsection hl_kstring KString — The String Class You Deserved All Along
+///
+/// A safer, faster, and more convenient wrapper around `std::string`.
+/// KString adds Python / JavaScript-style operations, handles error cases
+/// gracefully instead of causing undefined behavior, and speeds up searching
+/// by up to **50×** compared to typical `std::string` implementations.
+/// Split, join, trim, replace, regex — it's all there, one include away.
+///
+/// @subsection hl_ksql KSQL — One Class, Every Database
+///
+/// Connect to **MySQL, MariaDB, Oracle, SQLite, SQL Server (CTLIB / DBLIB),
+/// ODBC** — all through a single, unified API.  KSQL handles connection
+/// pooling, automatic retries, query logging, and prepared statements.
+/// You will not find a more robust yet easy-to-use SQL class anywhere.
+///
+/// @subsection hl_rest Full-Stack HTTP — From Socket to REST
+///
+/// A complete HTTP stack built from the ground up:
+/// - **HTTP/1.1, HTTP/2, and HTTP/3 (QUIC)** — client and server
+/// - **REST framework** with declarative routing, JSON / XML / plain-text I/O
+/// - **WebSocket** support (client and server)
+/// - **TLS** with automatic ephemeral certificates
+/// - Built-in **rate limiting**, connection limiting, and access logging
+///
+/// Spin up a production-ready REST server in a single source file.
+///
+/// @subsection hl_more And There's More…
+///
+/// | Area | What You Get |
+/// |------|-------------|
+/// | **Crypto** | AES, ChaCha20, Camellia, ARIA, RSA, bcrypt, HMAC, SHA-*, BLAKE2, OpenID, AWS Signature V4 |
+/// | **Compression** | zstd, Brotli, gzip / deflate, LZMA — as streaming filters |
+/// | **Data Formats** | JSON (with DOM and SAX), XML, CSV, HTML parsing and DOM |
+/// | **Threading** | Thread pools, parallel-for, pub/sub, atomic wrappers, lock-free maps |
+/// | **I/O** | Streaming architecture, pipes, shell execution, pseudo-terminals |
+/// | **System** | Filesystem, shared memory, signals, cron scheduling, heap monitoring |
+/// | **Networking** | TCP, TLS, QUIC, Unix sockets, DNS resolution, IP networks |
+/// | **Web** | URL parsing, MIME types, cookies, user-agent detection, WebDAV |
+/// | **CLI** | Expressive command-line option parsing with sub-commands |
+/// | **Mail** | SMTP email composition and delivery |
+/// | **Archives** | Tar and Zip read/write |
+/// | **Text** | Diff, n-gram analysis, Unicode (full tables), regex |
+/// | **Time** | Rich date/time, durations, profiling timers, time-series containers |
+///
+/// ---
+///
+/// @section origin Origin Story — "Bullet in the Head"
+///
+/// In **1995**, at Sun Microsystems in Milpitas, California, Java was unveiled
+/// with the breathless promise: *"Write once, run everywhere."*  Having seen
+/// that movie before, engineer **Joe Kuefler** quietly revised the tagline:
+/// *"Write once, debug everywhere."*
+///
+/// Joe attended the first **JavaOne** conference in 1996.  Attendees left with
+/// an earful of Java hype and one tangible souvenir: a black canvas laptop
+/// case.  Thirty years later, that laptop case still faithfully holds Joe's
+/// jumper cables.
+///
+/// In **1997**, Joe was CTO of **SoftLock**, an early digital-rights-management
+/// startup riding the first wave of electronic books.  Stephen King signed a
+/// deal to release the first exclusive eBook-only publication:
+/// *Riding the Bullet.*  The system Joe inherited was written entirely in
+/// Java.  Stress-tested and scaled up, it could handle exactly **five
+/// concurrent orders.**  When the book launched, over **100,000 orders**
+/// poured in.  The systems crumbled.  Joe renamed the book:
+/// ***"Bullet in the Head."***
+///
+/// Out of that wreckage, Joe stood up a small piece of compiled C++ he
+/// called **"Lite"** — built in a few hours to capture emails and names from
+/// the flood of would-be buyers.  Over the following weeks, he *trickled*
+/// those orders to the SoftLock backend at the pathetic rate it could handle.
+/// Every last order was eventually fulfilled.
+///
+/// After SoftLock failed as a company — not long after "Bullet in the Head" —
+/// Joe kept building.  He added SQL support and renamed the project **DEKAF**:
+/// *"Lighter, Faster, Smarter than Java."*
+///
+/// Several products were built on DEKAF, especially after it was released as
+/// open source on SourceForge.  In **2008**, Joe used it to build what became
+/// the **world's largest website translation solution**.
+///
+/// In **2016**, Joe met **Joachim Schurig** — a German living in France,
+/// working for an American company — who took on the monumental task of
+/// completely rewriting DEKAF for the modern C++ era.  The result is
+/// **DEKAF2**: the framework you see here today.
+///
+/// ---
+///
+/// @section quickstart Getting Started
+///
+/// @code{.sh}
+/// git clone https://github.com/ridgeware/dekaf2.git
+/// cd dekaf2
+/// ./bootstrap
+/// @endcode
+///
+/// DEKAF2 builds with **CMake** (≥ 3.13) and requires a C++17-capable
+/// compiler (GCC ≥ 7, Clang ≥ 5, MSVC ≥ 2017).
+///
+/// @section taste A Taste of DEKAF2
+///
+/// A minimal REST server:
+///
+/// @code{.cpp}
+/// #include <dekaf2/krest.h>
+/// #include <dekaf2/krestroute.h>
+/// #include <dekaf2/dekaf2.h>
+///
+/// using namespace dekaf2;
+///
+/// int main()
+/// {
+///     KInit(true);
+///
+///     KRESTRoutes Routes;
+///     Routes.AddRoute({ KHTTPMethod::GET, "/hello",
+///         [](KRESTServer& http)
+///         {
+///             http.json.tx["message"] = "Hello, World!";
+///         }
+///     });
+///
+///     KREST::Options Settings;
+///     Settings.Type = KREST::HTTP;
+///     Settings.iPort = 8080;
+///     Settings.bBlocking = true;
+///
+///     KREST Http;
+///     Http.Execute(Settings, Routes);
+/// }
+/// @endcode
+///
+/// Connect to any database:
+///
+/// @code{.cpp}
+/// #include <dekaf2/ksql.h>
+///
+/// using namespace dekaf2;
+///
+/// KSQL db;
+/// db.SetDBType(KSQL::DBT::MYSQL);
+/// db.SetConnect("mydb", "server.local", "user", "pass");
+///
+/// KSQLString sSQL;
+/// sSQL.Format("SELECT name, email FROM users WHERE active = {}", 1);
+///
+/// KROW row;
+/// while (db.NextRow(row, sSQL))
+/// {
+///     kPrintLine("{}: {}", row["name"], row["email"]);
+/// }
+/// @endcode
+///
+/// @section nav Browse the Documentation
+///
+/// Use the navigation tree on the left, or start with the
+/// <a href="modules.html"><b>Module Index</b></a> for a guided tour
+/// through the library organized by topic:
+///
+/// - @ref core "Core" — strings, formatting, logging, error handling
+/// - @ref data "Data" — JSON, CSV, SQL, templates
+/// - @ref http "HTTP" — protocol, client, server, WebSocket
+/// - @ref rest "REST" — framework, file serving, rate limiting
+/// - @ref crypto "Crypto" — hashing, ciphers, RSA, authentication
+/// - @ref net "Network" — TCP, TLS, QUIC, Unix sockets
+/// - @ref threading "Threading" — pools, parallel execution, pub/sub
+/// - @ref system "System" — filesystem, processes, signals
+///
+/// @section license License
+///
+/// DEKAF2 is © 2017–2026 Ridgeware, Inc. and released under the
+/// <a href="https://opensource.org/licenses/MIT"><b>MIT License</b></a>.
+///
+/// @section links Links
+///
+/// - <a href="https://github.com/ridgeware/dekaf2"><b>GitHub Repository</b></a>
+/// - <a href="modules.html"><b>Module Index</b></a>
+/// - <a href="annotated.html"><b>Class List</b></a>
+/// - <a href="files.html"><b>File List</b></a>
+///

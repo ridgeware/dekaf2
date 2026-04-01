@@ -728,7 +728,12 @@ public:
 	bool Terminate() const { return m_bStopAppAfterParsing || m_bProcessAdHocForHelp; }
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// helper to convert arguments into different data types
+	/// helper to convert arguments into different data types.
+	/// @warning This class holds a reference into internal storage. Do not
+	/// store Values objects across multiple Get() or operator() calls on the
+	/// same KOptions instance — a subsequent call may reallocate and invalidate
+	/// the reference. Always convert immediately to the target type, e.g.
+	/// @code KStringView s = Opt("name", ""); @endcode
 	class Values
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{

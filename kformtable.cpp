@@ -1277,9 +1277,9 @@ static constexpr KFormTable::StyleDef s_Styles[] =
 	{ "csv",      KFormTable::Style::CSV,      "comma-separated values",    false },
 	{ "html",     KFormTable::Style::HTML,     "HTML table",                false },
 	{ "markdown", KFormTable::Style::Markdown, "Markdown table",            false },
-	{ "query",    KFormTable::Style::ASCII,    {},                          true  },
-	{ "table",    KFormTable::Style::ASCII,    {},                          true  },
-	{ "md",       KFormTable::Style::Markdown, {},                          true  },
+	{ "query",    KFormTable::Style::ASCII,    "",                         true  },
+	{ "table",    KFormTable::Style::ASCII,    "",                         true  },
+	{ "md",       KFormTable::Style::Markdown, "",                         true  },
 };
 
 //-----------------------------------------------------------------------------

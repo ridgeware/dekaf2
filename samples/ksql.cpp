@@ -95,11 +95,6 @@ int KSql::Main(int argc, char** argv)
 
 	int iRetval = Options.Parse(argc, argv, KOut);
 
-	if (Options.Terminate() || iRetval)
-	{
-		return iRetval; // either error or completed
-	}
-
 	kDebug (1, "Options about to be defined");
 
 	KStringViewZ sDBC       = Options("dbc                 : dbc file name or hex-encoded blob",              "");
@@ -117,6 +112,11 @@ int KSql::Main(int argc, char** argv)
 	bool         bNoTLS     = Options("notls               : do not attempt to encrypt the database connection"           , false);
 	bool         bForceTLS  = Options("forcetls            : force encryption for the database connection, fail otherwise", false);
 	KStringViewZ sInfile    = Options("e,exec <file>       : execute the given SQL file"  ,          "");
+
+	if (Options.Terminate() || iRetval)
+	{
+		return iRetval; // either error or completed (help, diff, ..)
+	}
 
 	if (sInfile)
 	{

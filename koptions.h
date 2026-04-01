@@ -725,7 +725,7 @@ public:
 
 	/// Terminate app immediately? (check after parsing)
 	DEKAF2_NODISCARD
-	bool Terminate() const { return m_bStopAppAfterParsing; }
+	bool Terminate() const { return m_bStopAppAfterParsing || m_bProcessAdHocForHelp; }
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// helper to convert arguments into different data types

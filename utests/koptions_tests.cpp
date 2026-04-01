@@ -663,3 +663,439 @@ TEST_CASE("KOptions2")
 //		KOut.Write(sOut);
 	}
 }
+
+TEST_CASE("KOptions control flow")
+{
+	SECTION("Command with Stop - Terminate returns true")
+	{
+		bool bCommandRan { false };
+
+		const char* CLI[] {
+			"MyProgramName",
+			"deploy", "target1"
+		};
+
+		KOptions Opt(false);
+		Opt.Command("deploy <target>")
+			.Help("deploy to a target")
+			.MinArgs(1)
+			.MaxArgs(1)
+			.Stop()
+		([&](KOptions::ArgList& Args)
+		{
+			CHECK ( Args.pop() == "target1" );
+			bCommandRan = true;
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iRetval    == 0    );
+		CHECK ( Opt.Terminate()    );
+		CHECK ( bCommandRan        );
+	}
+
+	SECTION("Command with Stop - not matched - Terminate returns false")
+	{
+		bool bCommandRan { false };
+
+		const char* CLI[] {
+			"MyProgramName",
+			"-verbose"
+		};
+
+		KOptions Opt(false);
+		Opt.AllowAdHocArgs();
+		Opt.Command("deploy <target>")
+			.Help("deploy to a target")
+			.MinArgs(1)
+			.MaxArgs(1)
+			.Stop()
+		([&](KOptions::ArgList& Args)
+		{
+			bCommandRan = true;
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iRetval         == 0  );
+		CHECK ( Opt.Terminate() == false );
+		CHECK ( bCommandRan     == false );
+
+		bool bVerbose = Opt("verbose : be verbose", false);
+		CHECK ( bVerbose == true );
+	}
+
+	SECTION("Command with Final - immediate termination")
+	{
+		bool bFinalRan  { false };
+		bool bSecondRan { false };
+
+		const char* CLI[] {
+			"MyProgramName",
+			"quit"
+		};
+
+		KOptions Opt(false);
+		Opt.Command("quit")
+			.Help("quit the program")
+			.Final()
+		([&](KOptions::ArgList& Args)
+		{
+			bFinalRan = true;
+		});
+
+		Opt.Option("other")
+			.Help("other option")
+		([&]()
+		{
+			bSecondRan = true;
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iRetval         == 0    );
+		CHECK ( Opt.Terminate() == true );
+		CHECK ( bFinalRan       == true );
+		CHECK ( bSecondRan      == false );
+	}
+
+	SECTION("ad-hoc + help: Terminate returns true after ad-hoc registration")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-help"
+		};
+
+		KOptions Opt(false);
+		Opt.AllowAdHocArgs();
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+
+		// register ad-hoc options (with defaults, since -help was given)
+		KStringView sFile = Opt("f,file <filename> : a file to read", "");
+		bool        bVerbose = Opt("v,verbose : be verbose", false);
+
+		CHECK ( iRetval == 0 );
+		// Terminate must be true because deferred help is pending
+		CHECK ( Opt.Terminate() == true );
+		// values should be defaults
+		CHECK ( sFile.empty()       );
+		CHECK ( bVerbose == false   );
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+		// Check prints the deferred help
+		CHECK ( Opt.Check(oss)  == false );
+		CHECK ( sOut.find("-f,file <filename>") != npos );
+		CHECK ( sOut.find("a file to read")     != npos );
+		CHECK ( sOut.find("-v,verbose")         != npos );
+		CHECK ( sOut.find("be verbose")         != npos );
+	}
+
+	SECTION("ad-hoc without help: Terminate returns false")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-file", "test.txt",
+			"-verbose"
+		};
+
+		KOptions Opt(false);
+		Opt.AllowAdHocArgs();
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+
+		KStringView sFile = Opt("f,file <filename> : a file to read", "");
+		bool        bVerbose = Opt("v,verbose : be verbose", false);
+
+		CHECK ( iRetval == 0 );
+		CHECK ( Opt.Terminate() == false );
+		CHECK ( sFile    == "test.txt" );
+		CHECK ( bVerbose == true       );
+		CHECK ( Opt.Check() == true    );
+	}
+
+	SECTION("mixed Command+Stop with ad-hoc: command path")
+	{
+		bool bDiffRan { false };
+		KStringViewZ sDiffLeft;
+		KStringViewZ sDiffRight;
+
+		const char* CLI[] {
+			"MyProgramName",
+			"diff", "left.dbc", "right.dbc"
+		};
+
+		KOptions Opt(false);
+		Opt.AllowAdHocArgs();
+		Opt.Command("diff <dbc1> <dbc2>")
+			.Help("diff two databases")
+			.MinArgs(2)
+			.MaxArgs(2)
+			.Stop()
+		([&](KOptions::ArgList& Args)
+		{
+			sDiffLeft  = Args.pop();
+			sDiffRight = Args.pop();
+			bDiffRan = true;
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+
+		// register ad-hoc options (even though diff was matched)
+		KStringView sDBC = Opt("dbc : dbc file name", "");
+		bool bQuiet      = Opt("q,quiet : quiet mode", false);
+
+		CHECK ( iRetval         == 0         );
+		CHECK ( Opt.Terminate() == true      );
+		CHECK ( bDiffRan        == true      );
+		CHECK ( sDiffLeft       == "left.dbc"  );
+		CHECK ( sDiffRight      == "right.dbc" );
+		// ad-hoc options have defaults
+		CHECK ( sDBC.empty()              );
+		CHECK ( bQuiet          == false  );
+	}
+
+	SECTION("mixed Command+Stop with ad-hoc: non-command path")
+	{
+		bool bDiffRan { false };
+
+		const char* CLI[] {
+			"MyProgramName",
+			"-dbc", "mydb.dbc",
+			"-quiet"
+		};
+
+		KOptions Opt(false);
+		Opt.AllowAdHocArgs();
+		Opt.Command("diff <dbc1> <dbc2>")
+			.Help("diff two databases")
+			.MinArgs(2)
+			.MaxArgs(2)
+			.Stop()
+		([&](KOptions::ArgList& Args)
+		{
+			bDiffRan = true;
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+
+		KStringView sDBC = Opt("dbc : dbc file name", "");
+		bool bQuiet      = Opt("q,quiet : quiet mode", false);
+
+		CHECK ( iRetval         == 0          );
+		CHECK ( Opt.Terminate() == false      );
+		CHECK ( bDiffRan        == false      );
+		CHECK ( sDBC            == "mydb.dbc" );
+		CHECK ( bQuiet          == true       );
+		CHECK ( Opt.Check()     == true       );
+	}
+
+	SECTION("mixed Command+Stop with ad-hoc: help path")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-help"
+		};
+
+		KOptions Opt(false);
+		Opt.AllowAdHocArgs();
+		Opt.Command("diff <dbc1> <dbc2>")
+			.Help("diff two databases")
+			.MinArgs(2)
+			.MaxArgs(2)
+			.Stop()
+		([&](KOptions::ArgList& Args)
+		{
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+
+		KStringView sDBC = Opt("dbc : dbc file name", "");
+		bool bQuiet      = Opt("q,quiet : quiet mode", false);
+
+		CHECK ( iRetval         == 0     );
+		CHECK ( Opt.Terminate() == true  );
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+		CHECK ( Opt.Check(oss) == false );
+		// help output should contain both the command and the ad-hoc options
+		CHECK ( sOut.find("diff")           != npos );
+		CHECK ( sOut.find("-dbc")           != npos );
+		CHECK ( sOut.find("dbc file name")  != npos );
+		CHECK ( sOut.find("-q,quiet")       != npos );
+		CHECK ( sOut.find("quiet mode")     != npos );
+	}
+
+	SECTION("Command with missing required args")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"deploy"
+		};
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		KOptions Opt(false);
+		Opt.Command("deploy <target>")
+			.Help("deploy to a target")
+			.MinArgs(1)
+			.MaxArgs(1)
+			.Stop()
+		([&](KOptions::ArgList& Args)
+		{
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI, oss);
+		CHECK ( iRetval != 0 );
+	}
+
+	SECTION("required option not provided")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"-verbose"
+		};
+
+		KOptions Opt(false);
+		Opt.AllowAdHocArgs();
+		Opt.Option("output <file>")
+			.Help("output file")
+			.MinArgs(1)
+			.Required()
+		([&](KStringViewZ sFile)
+		{
+		});
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI, oss);
+		CHECK ( iRetval != 0 );
+	}
+
+	SECTION("empty args with EmptyParmsIsError=true")
+	{
+		const char* CLI[] {
+			"MyProgramName"
+		};
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		KOptions Opt(true);
+		Opt.Option("v,verbose")
+			.Help("be verbose")
+		([&]()
+		{
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI, oss);
+		// should trigger help output and return non-zero
+		CHECK ( iRetval != 0 );
+		// help output should contain the registered option
+		CHECK ( sOut.find("-v,verbose") != npos );
+	}
+
+	SECTION("empty args with EmptyParmsIsError=false")
+	{
+		const char* CLI[] {
+			"MyProgramName"
+		};
+
+		KOptions Opt(false);
+		Opt.Option("v,verbose")
+			.Help("be verbose")
+		([&]()
+		{
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iRetval         == 0     );
+		CHECK ( Opt.Terminate() == false );
+	}
+
+	SECTION("excess arguments are reported")
+	{
+		const char* CLI[] {
+			"MyProgramName",
+			"unexpected_arg"
+		};
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+
+		KOptions Opt(false);
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI, oss);
+		CHECK ( iRetval != 0 );
+		CHECK ( sOut.find("excess") != npos );
+	}
+
+	SECTION("multiple commands - only first matched")
+	{
+		bool bDeployRan { false };
+		bool bStatusRan { false };
+
+		const char* CLI[] {
+			"MyProgramName",
+			"status"
+		};
+
+		KOptions Opt(false);
+		Opt.Command("deploy <target>")
+			.Help("deploy to a target")
+			.MinArgs(1)
+			.Stop()
+		([&](KOptions::ArgList& Args)
+		{
+			bDeployRan = true;
+		});
+
+		Opt.Command("status")
+			.Help("show status")
+			.Stop()
+		([&](KOptions::ArgList& Args)
+		{
+			bStatusRan = true;
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iRetval         == 0     );
+		CHECK ( Opt.Terminate() == true  );
+		CHECK ( bDeployRan      == false );
+		CHECK ( bStatusRan      == true  );
+	}
+
+	SECTION("Command with Stop does not prevent subsequent options")
+	{
+		bool bCommandRan { false };
+		bool bOptionRan  { false };
+
+		const char* CLI[] {
+			"MyProgramName",
+			"-verbose",
+			"deploy", "target1"
+		};
+
+		KOptions Opt(false);
+		Opt.Option("verbose")
+			.Help("be verbose")
+		([&]()
+		{
+			bOptionRan = true;
+		});
+
+		Opt.Command("deploy <target>")
+			.Help("deploy to a target")
+			.MinArgs(1)
+			.MaxArgs(1)
+			.Stop()
+		([&](KOptions::ArgList& Args)
+		{
+			CHECK ( Args.pop() == "target1" );
+			bCommandRan = true;
+		});
+
+		int iRetval = Opt.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iRetval         == 0    );
+		CHECK ( Opt.Terminate() == true );
+		CHECK ( bOptionRan      == true );
+		CHECK ( bCommandRan     == true );
+	}
+}

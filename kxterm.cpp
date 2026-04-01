@@ -360,7 +360,7 @@ void KXTerm::QueryTermSize()
 bool KXTerm::GetCursor(uint16_t& iRow, uint16_t& iColumn)
 //-----------------------------------------------------------------------------
 {
-	if (!IsTerminal())
+	if (m_eIsTerminal == TerminalState::No)
 	{
 		return false;
 	}

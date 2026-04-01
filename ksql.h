@@ -1605,6 +1605,9 @@ private:
 #elif defined(DEKAF2_HAS_SQLITE3)
 	DBT        m_iDBType { DBT::SQLITE3 };
 	API        m_iAPISet { API::SQLITE3 };
+#elif defined(DEKAF2_HAS_POSTGRESQL)
+	DBT        m_iDBType { DBT::POSTGRESQL };
+	API        m_iAPISet { API::LIBPQ };
 #else
 	DBT        m_iDBType { DBT::NONE };
 	API        m_iAPISet { API::NONE };
@@ -1676,6 +1679,11 @@ private:
 #ifdef DEKAF2_HAS_SQLITE3
 	struct KSQLiteState;
 	std::unique_ptr<KSQLiteState> m_SQLite;
+#endif
+
+#ifdef DEKAF2_HAS_POSTGRESQL
+	struct KPostgreSQLState;
+	std::unique_ptr<KPostgreSQLState> m_PostgreSQL;
 #endif
 
 	FILE*      m_bpBufferedResults { nullptr };

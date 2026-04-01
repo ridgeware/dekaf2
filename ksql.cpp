@@ -100,6 +100,10 @@
   #include "ksqlite.h"
 #endif
 
+#ifdef DEKAF2_HAS_POSTGRESQL
+  #include <libpq-fe.h>
+#endif
+
 #ifdef DEKAF2_HAS_DBLIB
   #ifndef __STDC_VERSION__
 	// FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
@@ -191,6 +195,40 @@ struct KSQL::KSQLiteState
 };
 #endif
 
+#ifdef DEKAF2_HAS_POSTGRESQL
+//-----------------------------------------------------------------------------
+struct KSQL::KPostgreSQLState
+//-----------------------------------------------------------------------------
+{
+	~KPostgreSQLState()
+	{
+		ClearResult();
+
+		if (Connection)
+		{
+			PQfinish(Connection);
+			Connection = nullptr;
+		}
+	}
+
+	void ClearResult()
+	{
+		if (Result)
+		{
+			PQclear(Result);
+			Result = nullptr;
+		}
+		iCurrentRow = 0;
+		iNumRows    = 0;
+	}
+
+	PGconn*   Connection { nullptr };
+	PGresult* Result     { nullptr };
+	int       iCurrentRow { 0 };
+	int       iNumRows    { 0 };
+};
+#endif
+
 struct SQLTX
 {
 	KStringView sOriginal;
@@ -200,23 +238,24 @@ struct SQLTX
 	KStringView sOracle;
 	KStringView sSybase;
 	KStringView sInformix;
+	KStringView sPostgreSQL;
 };
 
 constexpr SQLTX g_Translations[] = {
-	// ---------------  ----------------  ----------------  ---------------  --------------   --------------  ----------------------------
-	// ORIGINAL         MYSQL             SQLite3           ORACLEpre8       ORACLE8.x...     SQLSERVER       INFORMIX
-	// ---------------  ----------------  ----------------  ---------------  --------------   --------------  ----------------------------
-	{ "+",              "+",/*CONCAT()*/  "+",              "||",            "||",            "+",            "||"                     },
-	{ "CAT",            "+",/*CONCAT()*/  "+",              "||",            "||",            "+",            "||"                     },
-	{ "DATETIME",       "timestamp",      "timestamp",      "date",          "date",          "datetime",     "?datetime-col?"         }, // column type
-	{ "NOW",            "now()",          "now()",          "sysdate",       "sysdate",       "getdate()",    "current year to second" }, // function
+	// ---------------  ----------------  ----------------  ---------------  --------------   --------------  ----------------------------  ----------------------------
+	// ORIGINAL         MYSQL             SQLite3           ORACLEpre8       ORACLE8.x...     SQLSERVER       INFORMIX                     POSTGRESQL
+	// ---------------  ----------------  ----------------  ---------------  --------------   --------------  ----------------------------  ----------------------------
+	{ "+",              "+",/*CONCAT()*/  "+",              "||",            "||",            "+",            "||",                        "||"                         },
+	{ "CAT",            "+",/*CONCAT()*/  "+",              "||",            "||",            "+",            "||",                        "||"                         },
+	{ "DATETIME",       "timestamp",      "timestamp",      "date",          "date",          "datetime",     "?datetime-col?",            "timestamp"                  }, // column type
+	{ "NOW",            "now()",          "now()",          "sysdate",       "sysdate",       "getdate()",    "current year to second",    "now()"                      }, // function
 // DO NOT USE UTC! INSTEAD USE NOW. UTC IS AN ABERRATION. NOW _IS_ UTC, but is displayed in your time zone
-	{ "UTC",            "utc_timestamp()","datetime('now')","sysdate",       "sysdate",       "getutcdate()", "current year to second" }, // function (oracle and informix are not correct right now)
-	{ "MAXCHAR",        "text",           "text",           "varchar(2000)", "varchar(4000)", "text",         "char(2000)"             },
-	{ "CHAR2000",       "text",           "text",           "varchar(2000)", "varchar(2000)", "text",         "char(2000)"             },
-	{ "PCT",            "%",              "%",              "%",             "%",             "%",            "%"                      },
-	{ "AUTO_INCREMENT", "auto_increment", "",               "",              "",              "identity",     ""                       }
-	// ---------------  ----------------  ----------------  ---------------  --------------  ---------------  ----------------------------
+	{ "UTC",            "utc_timestamp()","datetime('now')","sysdate",       "sysdate",       "getutcdate()", "current year to second",    "now() at time zone 'utc'"   }, // function (oracle and informix are not correct right now)
+	{ "MAXCHAR",        "text",           "text",           "varchar(2000)", "varchar(4000)", "text",         "char(2000)",                "text"                       },
+	{ "CHAR2000",       "text",           "text",           "varchar(2000)", "varchar(2000)", "text",         "char(2000)",                "text"                       },
+	{ "PCT",            "%",              "%",              "%",             "%",             "%",            "%",                         "%"                          },
+	{ "AUTO_INCREMENT", "auto_increment", "",               "",              "",              "identity",     "",                          ""                           }
+	// ---------------  ----------------  ----------------  ---------------  --------------  ---------------  ----------------------------  ----------------------------
 };
 
 //-----------------------------------------------------------------------------
@@ -365,6 +404,34 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 					break;
 
 #endif
+				default:
+					iKSQLDataType = KCOL::NOFLAG;
+					break;
+			}
+			break;
+
+		case DBT::POSTGRESQL:
+			switch (iNativeDataType)
+			{
+				// PostgreSQL OIDs for numeric types (from pg_type.h / catalog)
+				case 16:   // BOOLOID
+				case 20:   // INT8OID (bigint)
+				case 21:   // INT2OID (smallint)
+				case 23:   // INT4OID (integer)
+				case 26:   // OIDOID
+				case 700:  // FLOAT4OID
+				case 701:  // FLOAT8OID
+					iKSQLDataType = KCOL::NUMERIC;
+					break;
+
+				case 1700: // NUMERICOID (arbitrary precision)
+					iKSQLDataType = KCOL::NUMERIC;
+					if (iMaxDataLen < 0 || iMaxDataLen >= 19)
+					{
+						iKSQLDataType |= KCOL::INT64NUMERIC;
+					}
+					break;
+
 				default:
 					iKSQLDataType = KCOL::NOFLAG;
 					break;
@@ -755,6 +822,11 @@ void KSQL::FreeAll (bool bDestructor/*=false*/)
 	}
 #endif
 
+#ifdef DEKAF2_HAS_POSTGRESQL
+	// m_PostgreSQL is a unique_ptr and cleaned up automatically via CloseConnection
+	m_PostgreSQL.reset();
+#endif
+
 #ifdef DEKAF2_HAS_ORACLE
 	if (m_dOCI6LoginDataArea)
 	{
@@ -898,6 +970,12 @@ bool KSQL::SetDBType (KStringView sDBType)
 	if (sDBType.starts_with("sqlite"))
 	{
 		return (SetDBType (DBT::SQLITE3));
+	}
+#endif
+#ifdef DEKAF2_HAS_POSTGRESQL
+	if (sDBType.starts_with("postgres"))
+	{
+		return (SetDBType (DBT::POSTGRESQL));
 	}
 #endif
 #if defined(DEKAF2_HAS_DBLIB) || defined(DEKAF2_HAS_CTLIB)
@@ -1658,6 +1736,64 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout/*=30s*/, Transport Transp
 	}
 	#endif
 
+	#ifdef DEKAF2_HAS_POSTGRESQL
+	// - - - - - - - - - - - - - - - - -
+	case API::LIBPQ:
+	// - - - - - - - - - - - - - - - - -
+	{
+		m_PostgreSQL = std::make_unique<KPostgreSQLState>();
+
+		KString sConnInfo;
+
+		if (!m_sHostname.empty())
+		{
+			sConnInfo += kFormat("host='{}' ", m_sHostname);
+		}
+		if (m_iDBPortNum)
+		{
+			sConnInfo += kFormat("port='{}' ", m_iDBPortNum);
+		}
+		if (!m_sDatabase.empty())
+		{
+			sConnInfo += kFormat("dbname='{}' ", m_sDatabase);
+		}
+		if (!m_sUsername.empty())
+		{
+			sConnInfo += kFormat("user='{}' ", m_sUsername);
+		}
+		if (!m_sPassword.empty())
+		{
+			sConnInfo += kFormat("password='{}' ", m_sPassword);
+		}
+
+		auto iTimeoutSecs = chrono::duration_cast<chrono::seconds>(ConnectionTimeout).count();
+
+		if (iTimeoutSecs > 0)
+		{
+			sConnInfo += kFormat("connect_timeout='{}' ", iTimeoutSecs);
+		}
+
+		kDebug (3, "PQconnectdb({})...", sConnInfo);
+
+		m_PostgreSQL->Connection = PQconnectdb(sConnInfo.c_str());
+
+		if (PQstatus(m_PostgreSQL->Connection) != CONNECTION_OK)
+		{
+			auto sError = kFormat("POSTGRESQL: {}", PQerrorMessage(m_PostgreSQL->Connection));
+			m_PostgreSQL.reset();
+			return SetError(sError);
+		}
+
+		// set client encoding to UTF-8
+		if (PQsetClientEncoding(m_PostgreSQL->Connection, "UTF8") != 0)
+		{
+			kDebug (2, "POSTGRESQL: could not set client encoding to UTF8");
+		}
+
+		break;
+	}
+	#endif
+
 	// - - - - - - - - - - - - - - - - -
 	case API::INFORMIX:
 	default:
@@ -1774,6 +1910,18 @@ void KSQL::CloseConnection (bool bDestructor/*=false*/)
 				kDebug (3, "KSQLite close...");
 			}
 			m_SQLite.reset();
+			break;
+		#endif
+
+		#ifdef DEKAF2_HAS_POSTGRESQL
+		// - - - - - - - - - - - - - - - - -
+		case API::LIBPQ:
+		// - - - - - - - - - - - - - - - - -
+			if (!bDestructor)
+			{
+				kDebug (3, "PQfinish()...");
+			}
+			m_PostgreSQL.reset();
 			break;
 		#endif
 
@@ -2335,6 +2483,63 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 					if (m_iLastInsertID)
 					{
 						kDebug (GetDebugLevel(), "last insert ID = {}", m_iLastInsertID);
+					}
+				}
+
+				bOK = true;
+			}
+			break;
+			#endif
+
+			#ifdef DEKAF2_HAS_POSTGRESQL
+			// - - - - - - - - - - - - - - - - -
+			case API::LIBPQ:
+			// - - - - - - - - - - - - - - - - -
+			{
+				if (!m_PostgreSQL || !m_PostgreSQL->Connection)
+				{
+					kDebug (1, "lost PostgreSQL connection.  Reopening connection ...");
+
+					CloseConnection();
+					OpenConnection(m_ConnectionTimeout);
+
+					if (!m_PostgreSQL || !m_PostgreSQL->Connection)
+					{
+						kDebug (1, "failed.  aborting SQL:\n{}", kLimitSize(m_sLastSQL.str(), 4096));
+						break;
+					}
+				}
+
+				kDebug (3, "PQexec()...");
+
+				m_PostgreSQL->ClearResult();
+				m_PostgreSQL->Result = PQexec(m_PostgreSQL->Connection, m_sLastSQL.data());
+
+				auto iStatus = PQresultStatus(m_PostgreSQL->Result);
+
+				if (iStatus != PGRES_COMMAND_OK && iStatus != PGRES_TUPLES_OK)
+				{
+					sError    = kFormat("POSTGRESQL: {}", PQerrorMessage(m_PostgreSQL->Connection));
+					iErrorNum = static_cast<uint32_t>(iStatus);
+					m_PostgreSQL->ClearResult();
+					break;
+				}
+
+				if (iStatus == PGRES_COMMAND_OK)
+				{
+					// non-SELECT: get affected rows
+					auto* sTuples = PQcmdTuples(m_PostgreSQL->Result);
+					m_iNumRowsAffected = (sTuples && *sTuples) ? std::strtoull(sTuples, nullptr, 10) : 0;
+
+					// check for RETURNING clause (gives last insert ID)
+					if (PQntuples(m_PostgreSQL->Result) > 0 && PQnfields(m_PostgreSQL->Result) > 0)
+					{
+						auto* sVal = PQgetvalue(m_PostgreSQL->Result, 0, 0);
+						if (sVal && *sVal)
+						{
+							m_iLastInsertID = std::strtoull(sVal, nullptr, 10);
+							kDebug (GetDebugLevel(), "last insert ID = {}", m_iLastInsertID);
+						}
 					}
 				}
 
@@ -3605,6 +3810,51 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 	break;
 	#endif
 
+	#ifdef DEKAF2_HAS_POSTGRESQL
+	// - - - - - - - - - - - - - - - - -
+	case API::LIBPQ:
+	// - - - - - - - - - - - - - - - - -
+	{
+		if (!m_PostgreSQL || !m_PostgreSQL->Connection)
+		{
+			return SetError("POSTGRESQL: no connection");
+		}
+
+		kDebug (3, "PQexec() for SELECT...");
+
+		m_PostgreSQL->ClearResult();
+		m_PostgreSQL->Result = PQexec(m_PostgreSQL->Connection, m_sLastSQL.data());
+
+		auto iStatus = PQresultStatus(m_PostgreSQL->Result);
+
+		if (iStatus != PGRES_TUPLES_OK)
+		{
+			auto sError = kFormat("POSTGRESQL: {}", PQerrorMessage(m_PostgreSQL->Connection));
+			m_PostgreSQL->ClearResult();
+			return SetError(sError);
+		}
+
+		m_PostgreSQL->iNumRows    = PQntuples(m_PostgreSQL->Result);
+		m_PostgreSQL->iCurrentRow = 0;
+		m_iNumColumns = static_cast<KROW::Index>(PQnfields(m_PostgreSQL->Result));
+
+		kDebug (3, "num columns: {}, num rows: {}", m_iNumColumns, m_PostgreSQL->iNumRows);
+
+		m_dColInfo.clear();
+		m_dColInfo.reserve(m_iNumColumns);
+
+		for (KROW::Index ii = 0; ii < m_iNumColumns; ++ii)
+		{
+			KColInfo ColInfo;
+			ColInfo.sColName = PQfname(m_PostgreSQL->Result, static_cast<int>(ii));
+			ColInfo.SetColumnType(DBT::POSTGRESQL, static_cast<int>(PQftype(m_PostgreSQL->Result, static_cast<int>(ii))), 
+			                      static_cast<KCOL::Len>(PQfsize(m_PostgreSQL->Result, static_cast<int>(ii))));
+			m_dColInfo.push_back(std::move(ColInfo));
+		}
+	}
+	break;
+	#endif
+
 	// - - - - - - - - - - - - - - - - -
 	case API::DBLIB:
 	case API::INFORMIX:
@@ -4136,6 +4386,44 @@ bool KSQL::BufferResults ()
 		break;
 	#endif
 
+	#ifdef DEKAF2_HAS_POSTGRESQL
+	// - - - - - - - - - - - - - - - - -
+	case API::LIBPQ:
+	// - - - - - - - - - - - - - - - - -
+		if (m_PostgreSQL && m_PostgreSQL->Result)
+		{
+			for (int iRow = 0; iRow < m_PostgreSQL->iNumRows; ++iRow)
+			{
+				++m_iNumRowsBuffered;
+
+				for (KROW::Index ii = 0; ii < m_iNumColumns; ++ii)
+				{
+					KString sColVal;
+
+					if (!PQgetisnull(m_PostgreSQL->Result, iRow, static_cast<int>(ii)))
+					{
+						sColVal = PQgetvalue(m_PostgreSQL->Result, iRow, static_cast<int>(ii));
+					}
+
+					sColVal.Replace('\n', 2);
+
+					if (sColVal.size() > 50)
+					{
+						kDebug (3, "  buffered: row[{}]col[{}]: strlen()={}", m_iNumRowsBuffered, ii+1, sColVal.size());
+					}
+					else
+					{
+						kDebug (3, "  buffered: row[{}]col[{}]: '{}'", m_iNumRowsBuffered, ii+1, sColVal);
+					}
+
+					file.FormatLine ("{}|{}|{}", m_iNumRowsBuffered, ii+1, sColVal.size());
+					file.FormatLine ("{}\n", sColVal);
+				}
+			}
+		}
+		break;
+	#endif
+
 	// - - - - - - - - - - - - - - - - -
 	case API::CTLIB:
 	case API::DBLIB:
@@ -4325,6 +4613,30 @@ bool KSQL::NextRow ()
 					{
 						++m_iRowNum;
 						kDebug (4, "KSQLite gave us row {}", m_iRowNum);
+						return true;
+					}
+					else
+					{
+						kDebug (4, "{} row{} fetched (end was hit)", m_iRowNum, (m_iRowNum==1) ? " was" : "s were");
+						return false;
+					}
+				}
+				return false;
+#endif
+
+#ifdef DEKAF2_HAS_POSTGRESQL
+				// - - - - - - - - - - - - - - - - -
+			case API::LIBPQ:
+				// - - - - - - - - - - - - - - - - -
+				if (m_PostgreSQL && m_PostgreSQL->Result)
+				{
+					kDebug (4, "PQgetvalue() row {}...", m_PostgreSQL->iCurrentRow);
+
+					if (m_PostgreSQL->iCurrentRow < m_PostgreSQL->iNumRows)
+					{
+						++m_PostgreSQL->iCurrentRow;
+						++m_iRowNum;
+						kDebug (4, "PostgreSQL gave us row {}", m_iRowNum);
 						return true;
 					}
 					else
@@ -4738,6 +5050,13 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 	}
 	#endif
 
+	#ifdef DEKAF2_HAS_POSTGRESQL
+	if (m_PostgreSQL)
+	{
+		m_PostgreSQL->ClearResult();
+	}
+	#endif
+
 	#ifdef DEKAF2_HAS_ORACLE
 	if (m_dOCI6ConnectionDataArea)
 	{
@@ -4897,6 +5216,32 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 				else
 				{
 					return ("ERR:SQLITE3=nullptr-KSQL::Get()");
+				}
+				break;
+			#endif
+
+			#ifdef DEKAF2_HAS_POSTGRESQL
+			// - - - - - - - - - - - - - - - - -
+			case API::LIBPQ:
+			// - - - - - - - - - - - - - - - - -
+				if (m_PostgreSQL && m_PostgreSQL->Result)
+				{
+					int iRow = m_PostgreSQL->iCurrentRow - 1; // iCurrentRow was already incremented by NextRow
+					int iCol = static_cast<int>(iOneBasedColNum - 1);
+
+					if (PQgetisnull(m_PostgreSQL->Result, iRow, iCol))
+					{
+						sRtnValue = KStringView{};
+					}
+					else
+					{
+						sRtnValue = KStringView(PQgetvalue(m_PostgreSQL->Result, iRow, iCol),
+						                        static_cast<KStringView::size_type>(PQgetlength(m_PostgreSQL->Result, iRow, iCol)));
+					}
+				}
+				else
+				{
+					return ("ERR:POSTGRESQL=nullptr-KSQL::Get()");
 				}
 				break;
 			#endif
@@ -5196,6 +5541,8 @@ bool KSQL::SetAPISet (API iAPISet)
 
 		case DBT::INFORMIX:             m_iAPISet = API::INFORMIX;    break;
 
+		case DBT::POSTGRESQL:           m_iAPISet = API::LIBPQ;       break;
+
 		default:
 			return SetError(kFormat ("SetAPISet(): unsupported database type ({})", TxDBType(m_iDBType)));
 	}
@@ -5311,6 +5658,10 @@ void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 				pList.Add (sName, g_Translation.sInformix);
 				break;
 
+			case DBT::POSTGRESQL:
+				pList.Add (sName, g_Translation.sPostgreSQL);
+				break;
+
 			case DBT::NONE:
 				break;
 		}
@@ -5392,6 +5743,10 @@ KSQL::DBT KSQL::TxDBType (KStringView sDBType)
 		case "informix"_casehash:
 			DBType = DBT::INFORMIX;
 			break;
+		case "postgresql"_casehash:
+		case "postgres"_casehash:
+			DBType = DBT::POSTGRESQL;
+			break;
 		default:
 			DBType = DBT::NONE;
 			break;
@@ -5418,6 +5773,7 @@ KStringView KSQL::TxDBType (DBT iDBType)
 		case DBT::SQLSERVER15:  return ("SQLServer15");
 		case DBT::SYBASE:       return ("Sybase");
 		case DBT::INFORMIX:     return ("Informix");
+		case DBT::POSTGRESQL:   return ("PostgreSQL");
 		default:                return ("MysteryType");
 	}
 
@@ -5436,6 +5792,7 @@ KStringView KSQL::TxAPISet (API iAPISet)
 		case API::OCI8:         return ("oci8");
 		case API::DBLIB:        return ("dblib");
 		case API::CTLIB:        return ("ctlib");
+		case API::LIBPQ:        return ("libpq");
 		case API::INFORMIX:     return ("ifx");
 		default:                return ("MysteryAPIs");
 	}
@@ -5453,6 +5810,9 @@ KString KSQL::GetSupportedDBTypes ()
 #endif
 #ifdef DEKAF2_HAS_SQLITE3
 	sTypes += "sqlite3, ";
+#endif
+#ifdef DEKAF2_HAS_POSTGRESQL
+	sTypes += "postgresql, ";
 #endif
 #ifdef DEKAF2_HAS_ORACLE
 	sTypes += "oracle, oracle6, oracle7, oracle8, ";
@@ -5817,6 +6177,32 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::POSTGRESQL:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		if (fIncludeViews)
+		{
+			return (ExecQuery (
+				"select table_name, table_type\n"
+				"  from information_schema.tables\n"
+				" where table_schema = 'public'\n"
+				"   and table_name like '{}'\n"
+				" order by 1",
+					sLike));
+		}
+		else
+		{
+			return (ExecQuery (
+				"select table_name, table_type\n"
+				"  from information_schema.tables\n"
+				" where table_schema = 'public'\n"
+				"   and table_type = 'BASE TABLE'\n"
+				"   and table_name like '{}'\n"
+				" order by 1",
+					sLike));
+		}
+		break;
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		return SetError(kFormat ("ListTables(): {} not supported yet.", TxDBType(m_iDBType)));
@@ -5935,6 +6321,17 @@ bool KSQL::DescribeTable (KStringView sTablename)
 		break;
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::POSTGRESQL:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		return (ExecQuery (
+			"select column_name, data_type, is_nullable, character_maximum_length, column_default, ''\n"
+			"  from information_schema.columns\n"
+			" where table_schema = 'public'\n"
+			"   and table_name = '{}'\n"
+			" order by ordinal_position",
+				sTablename));
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		return SetError(kFormat ("DescribeTable(): {} not supported yet.", TxDBType(m_iDBType)));
@@ -5973,6 +6370,30 @@ KJSON KSQL::FindColumn (KStringView sColLike, KStringView sSchemaName/*current d
 			" order by table_schema, table_name desc, column_name, column_type",
 				sColLike,
 				sTableSchema,
+				sTablenameLike))
+		{
+			return list; // empty
+		}
+		break;
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::POSTGRESQL:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		if (!ExecQuery (
+			"select table_schema\n"
+			"     , table_name\n"
+			"     , column_name\n"
+			"     , data_type as column_type\n"
+			"     , '' as column_key\n"
+			"     , '' as column_comment\n"
+			"     , is_nullable\n"
+			"     , column_default\n"
+			"  from information_schema.columns\n"
+			" where upper(column_name) like upper('{}')\n"
+			"   and table_schema = 'public'\n"
+			"   and table_name like '{}'\n"
+			" order by table_schema, table_name desc, column_name, data_type",
+				sColLike,
 				sTablenameLike))
 		{
 			return list; // empty
@@ -7737,6 +8158,10 @@ bool KSQL::BeginTransaction (KStringView sOptions/*=""*/)
 			if (!sOptions.empty()) kDebug(2, "options are not supported for SQLServer: {}", sOptions);
 			return ExecSQL ("begin transaction");
 
+		case DBT::POSTGRESQL:
+		case DBT::SQLITE3:
+			return sOptions.empty() ? ExecSQL("begin") : ExecSQL("begin {}", sOptions);
+
 		default:
 			kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
 			return false;
@@ -7770,6 +8195,15 @@ bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 			return bOK;
 		}
 
+		case DBT::POSTGRESQL:
+		case DBT::SQLITE3:
+		{
+			auto iSave = GetNumRowsAffected();
+			bool bOK = sOptions.empty() ? ExecSQL("commit") : ExecSQL("commit {}", sOptions);
+			m_iNumRowsAffected = GetNumRowsAffected() + iSave;
+			return bOK;
+		}
+
 		default:
 			kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));
 			return false;
@@ -7792,6 +8226,10 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 		case DBT::SQLSERVER15:
 			if (!sOptions.empty()) kDebug(2, "options are not supported for SQLServer: {}", sOptions);
 			return ExecSQL ("rollback");
+
+		case DBT::POSTGRESQL:
+		case DBT::SQLITE3:
+			return sOptions.empty() ? ExecSQL("rollback") : ExecSQL("rollback {}", sOptions);
 
 		default:
 			kDebug(2, "DB Type not supported: {}", TxDBType(GetDBType()));

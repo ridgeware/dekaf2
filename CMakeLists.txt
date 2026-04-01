@@ -75,7 +75,7 @@ if (WIN32)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.1.6 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.1.7 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -339,6 +339,29 @@ if (DEKAF2_LINK_TIME_OPTIMIZATION AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
 	message(STATUS "requesting link time optimization")
 endif()
 
+# on macOS, add Homebrew prefixes for keg-only packages to CMAKE_PREFIX_PATH
+# so that find_package() can locate them without manual -D flags
+if (APPLE)
+	execute_process(
+		COMMAND brew --prefix
+		OUTPUT_VARIABLE HOMEBREW_PREFIX
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+		ERROR_QUIET
+		RESULT_VARIABLE HOMEBREW_RESULT
+	)
+	if (HOMEBREW_RESULT EQUAL 0 AND EXISTS "${HOMEBREW_PREFIX}")
+		# list of keg-only formulae that dekaf2 may need
+		set(DEKAF2_HOMEBREW_KEG_PACKAGES libpq)
+		foreach(pkg ${DEKAF2_HOMEBREW_KEG_PACKAGES})
+			set(_pkg_prefix "${HOMEBREW_PREFIX}/opt/${pkg}")
+			if (EXISTS "${_pkg_prefix}")
+				list(APPEND CMAKE_PREFIX_PATH "${_pkg_prefix}")
+			endif()
+		endforeach()
+		unset(_pkg_prefix)
+	endif()
+endif()
+
 # ================================ CMAKE INTERNALS =================================
 
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
@@ -564,6 +587,18 @@ endif()
 find_package(SQLite3 QUIET)
 if(SQLITE3_FOUND)
 	set(DEKAF2_HAS_SQLITE3 1)
+endif()
+
+# ================================ POSTGRESQL =================================
+
+if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_POSTGRESQL)
+	find_package(PostgreSQL QUIET)
+	if(PostgreSQL_FOUND)
+		set(DEKAF2_HAS_POSTGRESQL "${PostgreSQL_VERSION_STRING}")
+		if(DEKAF2_HAS_POSTGRESQL STREQUAL "")
+			set(DEKAF2_HAS_POSTGRESQL 1)
+		endif()
+	endif()
 endif()
 
 # ================================ CURSES ====================================
@@ -810,29 +845,30 @@ endfunction()
 
 message(STATUS "")
 message(STATUS "required libraries:")
-LibState("${Threads_FOUND}"        "Threads  :" ""                    "${Threads_LIBRARIES}" )
-LibState("${ZLIB_FOUND}"           "ZLIB     :" "${ZLIB_VERSION}"     "${ZLIB_LIBRARIES}"    )
-LibState("${BZip2_FOUND}"          "BZip2    :" "${BZIP2_VERSION}"    "${BZIP2_LIBRARIES}"   )
-LibState("${OPENSSL_FOUND}"        "OpenSSL  :" "${OPENSSL_VERSION}"  "${OPENSSL_LIBRARIES}" )
-LibState("${Boost_FOUND}"          "Boost    :" "${Boost_VERSION}"    "${Boost_LIBRARIES}"   )
+LibState("${Threads_FOUND}"         "Threads  :" ""                    "${Threads_LIBRARIES}" )
+LibState("${ZLIB_FOUND}"            "ZLIB     :" "${ZLIB_VERSION}"     "${ZLIB_LIBRARIES}"    )
+LibState("${BZip2_FOUND}"           "BZip2    :" "${BZIP2_VERSION}"    "${BZIP2_LIBRARIES}"   )
+LibState("${OPENSSL_FOUND}"         "OpenSSL  :" "${OPENSSL_VERSION}"  "${OPENSSL_LIBRARIES}" )
+LibState("${Boost_FOUND}"           "Boost    :" "${Boost_VERSION}"    "${Boost_LIBRARIES}"   )
 message(STATUS "")
 
 message(STATUS "optional libraries:")
-LibState("${DEKAF2_HAS_LIBZIP}"    "ZIP      :" "${LIBZIP_VERSION}"   "${LIBZIP_LIBRARIES}"  )
-LibState("${DEKAF2_HAS_LIBLZMA}"   "LZMA     :" "${LIBLZMA_VERSION}"  "${LIBLZMA_LIBRARIES}" )
-LibState("${DEKAF2_HAS_LIBZSTD}"   "ZSTD     :" "${ZSTD_VERSION}"     "${ZSTD_LIBRARIES}"    )
-LibState("${DEKAF2_HAS_LIBYAML}"   "YAML     :" "${YAML_CPP_VERSION}" "${YAML_CPP_LIBRARIES}")
-LibState("${DEKAF2_HAS_MYSQL}"     "MYSQL    :" "${MYSQL_VERSION}"    "${MYSQL_LIBRARIES}"   )
-LibState("${DEKAF2_HAS_SQLITE3}"   "SQLITE   :" "${SQLITE3_VERSION}"  "${SQLITE3_LIBRARIES}" )
-LibState("${DEKAF2_HAS_LIBBROTLI}" "BROTLI   :" "${BROTLI_VERSION}"   "${BROTLI_LIBRARIES}"  )
-LibState("${DEKAF2_HAS_NGHTTP2}"   "NGHTTP2  :" "${NGHTTP2_VERSION}"  "${NGHTTP2_LIBRARIES}" )
-LibState("${DEKAF2_HAS_NGHTTP3}"   "NGHTTP3  :" "${NGHTTP3_VERSION}"  "${NGHTTP3_LIBRARIES}" )
-LibState("${DEKAF2_HAS_FREETDS}"   "FreeTDS  :" "${FREETDS_VERSION}"  "${FREETDS_LIBRARIES}" )
-LibState("${DEKAF2_HAS_JEMALLOC}"  "JEMALLOC :" "${JEMALLOC_VERSION}" "${JEMalloc_LIBRARIES}")
-LibState("${DOXYGEN_FOUND}"        "Doxygen  :" "${DOXYGEN_VERSION}"  "${DOXYGEN_EXECUTABLE}")
-LibState("${DEKAF2_HAS_NCURSES}"   "NCurses  :" "${CURSES_VERSION}"   "${CURSES_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_LIBZIP}"     "ZIP      :" "${LIBZIP_VERSION}"   "${LIBZIP_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_LIBLZMA}"    "LZMA     :" "${LIBLZMA_VERSION}"  "${LIBLZMA_LIBRARIES}" )
+LibState("${DEKAF2_HAS_LIBZSTD}"    "ZSTD     :" "${ZSTD_VERSION}"     "${ZSTD_LIBRARIES}"    )
+LibState("${DEKAF2_HAS_LIBYAML}"    "YAML     :" "${YAML_CPP_VERSION}" "${YAML_CPP_LIBRARIES}")
+LibState("${DEKAF2_HAS_MYSQL}"      "MYSQL    :" "${MYSQL_VERSION}"    "${MYSQL_LIBRARIES}"   )
+LibState("${DEKAF2_HAS_SQLITE3}"    "SQLITE   :" "${SQLITE3_VERSION}"  "${SQLITE3_LIBRARIES}" )
+LibState("${DEKAF2_HAS_POSTGRESQL}" "POSTGRES :" "${PostgreSQL_VERSION_STRING}" "${PostgreSQL_LIBRARY}")
+LibState("${DEKAF2_HAS_LIBBROTLI}"  "BROTLI   :" "${BROTLI_VERSION}"   "${BROTLI_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_NGHTTP2}"    "NGHTTP2  :" "${NGHTTP2_VERSION}"  "${NGHTTP2_LIBRARIES}" )
+LibState("${DEKAF2_HAS_NGHTTP3}"    "NGHTTP3  :" "${NGHTTP3_VERSION}"  "${NGHTTP3_LIBRARIES}" )
+LibState("${DEKAF2_HAS_FREETDS}"    "FreeTDS  :" "${FREETDS_VERSION}"  "${FREETDS_LIBRARIES}" )
+LibState("${DEKAF2_HAS_JEMALLOC}"   "JEMALLOC :" "${JEMALLOC_VERSION}" "${JEMalloc_LIBRARIES}")
+LibState("${DOXYGEN_FOUND}"         "Doxygen  :" "${DOXYGEN_VERSION}"  "${DOXYGEN_EXECUTABLE}")
+LibState("${DEKAF2_HAS_NCURSES}"    "NCurses  :" "${CURSES_VERSION}"   "${CURSES_LIBRARIES}"  )
 if (APPLE)
-	LibState("${libproc_FOUND}"        "LibProc  :" "${libproc_VERSION}"  "${libproc_LIBRARIES}" )
+	LibState("${libproc_FOUND}"     "LibProc  :" "${libproc_VERSION}"  "${libproc_LIBRARIES}" )
 endif()
 message(STATUS "")
 
@@ -1932,6 +1968,17 @@ set(KSQL2_LINK_LIBRARIES
 		${MYSQL_LIBRARIES}
 		${FREETDS_LIBRARIES}
 )
+
+if (DEKAF2_HAS_POSTGRESQL)
+	set(KSQL2_INCLUDE_DIRECTORIES
+		${KSQL2_INCLUDE_DIRECTORIES}
+		$<BUILD_INTERFACE:${PostgreSQL_INCLUDE_DIR}>
+	)
+	set(KSQL2_LINK_LIBRARIES
+		${KSQL2_LINK_LIBRARIES}
+		${PostgreSQL_LIBRARY}
+	)
+endif()
 
 if (unofficial-libmariadb_FOUND)
 	set(KSQL2_LINK_LIBRARIES

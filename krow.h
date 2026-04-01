@@ -254,7 +254,8 @@ public:
 		SQLSERVER15 = 315, // SQLServer with UTF-8 storage in (var)char, from v15 onwards (2019)
 		SYBASE      = 400,
 		INFORMIX    = 500,
-		SQLITE3     = 600  // assume we're connecting to SQLite3
+		SQLITE3     = 600, // assume we're connecting to SQLite3
+		POSTGRESQL  = 700  // assume we're connecting to PostgreSQL
 	};
 
 	enum class API
@@ -268,6 +269,7 @@ public:
 		SQLITE3  = 30000, // connect to SQLite3 using their custom APIs
 		DBLIB    = 40000, // connect to SQLServer or Sybase using DBLIB
 		CTLIB    = 50000, // connect to SQLServer or Sybase using CTLIB
+		LIBPQ    = 70000, // connect to PostgreSQL using libpq
 		INFORMIX = 80000, // connect to Informix using their API
 		ODBC     = 90000  // connect to something using ODBC APIs
 	};

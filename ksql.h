@@ -790,6 +790,8 @@ public:
 	static KStringView TxDBType (DBT iDBType);
 	/// returns iAPISet as string @param iAPISet an APISet
 	static KStringView TxAPISet (API iAPISet);
+	/// returns a comma-separated list of database type names supported by this build
+	static KString GetSupportedDBTypes ();
 
 	// canned queries:
 	bool   ListTables (KStringView sLike = "%", bool fIncludeViews = false, bool fRestrictToMine = true);

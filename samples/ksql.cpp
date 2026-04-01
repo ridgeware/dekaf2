@@ -97,21 +97,21 @@ int KSql::Main(int argc, char** argv)
 
 	kDebug (1, "Options about to be defined");
 
-	KStringViewZ sDBC       = Options("dbc                 : dbc file name or hex-encoded blob",              "");
-	KString      sDBType    = Options("dbtype <type>       : db type: mysql, sqlserver, sqlserver15, sybase", "");
-	KStringViewZ sUser      = Options("u,-user <name>      : username"                    ,          "");
-	KStringViewZ sPassword  = Options("p,-pass <pass>      : password"                    ,          "");
-	KStringViewZ sDatabase  = Options("db,-database <name> : database to use"             ,          "");
-	KStringViewZ sHostname  = Options("host <url>          : database server hostname"    , "localhost");
-	uint16_t     iDBPort    = Options("port <number>       : database server port number" ,           0);
-	bool         bQuiet     = Options("q,-quiet            : only show db output"         ,       false);
-	KStringViewZ sFormat    = Options("f,-format <format>  : output format - ascii, bold, thin, double, rounded, spaced, vertical, json, csv, html, default ascii", "ascii");
-	bool         bVersion   = Options("v,-version          : show version information"    ,       false);
-	KDuration    Timeout    = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5"       ,    5));
-	bool         bNoComp    = Options("nocomp              : do not attempt to compress the database connection"          , false);
-	bool         bNoTLS     = Options("notls               : do not attempt to encrypt the database connection"           , false);
-	bool         bForceTLS  = Options("forcetls            : force encryption for the database connection, fail otherwise", false);
-	KStringViewZ sInfile    = Options("e,exec <file>       : execute the given SQL file"  ,          "");
+	KStringViewZ sDBC       = Options("dbc                   : dbc file name or hex-encoded blob",     "");
+	KString      sDBType    = Options(kFormat("dbtype <type> : db type: {}", KSQL::GetSupportedDBTypes()), "");
+	KStringViewZ sUser      = Options("u,-user <name>        : username"                    ,          "");
+	KStringViewZ sPassword  = Options("p,-pass <pass>        : password"                    ,          "");
+	KStringViewZ sDatabase  = Options("db,-database <name>   : database to use"             ,          "");
+	KStringViewZ sHostname  = Options("host <url>            : database server hostname"    , "localhost");
+	uint16_t     iDBPort    = Options("port <number>         : database server port number" ,           0);
+	bool         bQuiet     = Options("q,-quiet              : only show db output"         ,       false);
+	KStringViewZ sFormat    = Options("f,-format <format>    : output format - ascii, bold, thin, double, rounded, spaced, vertical, json, csv, html, default ascii", "ascii");
+	bool         bVersion   = Options("v,-version            : show version information"    ,       false);
+	KDuration    Timeout    = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5"         ,    5));
+	bool         bNoComp    = Options("nocomp                : do not attempt to compress the database connection"          , false);
+	bool         bNoTLS     = Options("notls                 : do not attempt to encrypt the database connection"           , false);
+	bool         bForceTLS  = Options("forcetls              : force encryption for the database connection, fail otherwise", false);
+	KStringViewZ sInfile    = Options("e,exec <file>         : execute the given SQL file"  ,          "");
 
 	if (Options.Terminate() || iRetval)
 	{

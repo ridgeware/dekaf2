@@ -5443,6 +5443,36 @@ KStringView KSQL::TxAPISet (API iAPISet)
 } // TxAPISet
 
 //-----------------------------------------------------------------------------
+KString KSQL::GetSupportedDBTypes ()
+//-----------------------------------------------------------------------------
+{
+	KString sTypes;
+
+#ifdef DEKAF2_HAS_MYSQL
+	sTypes += "mysql, ";
+#endif
+#ifdef DEKAF2_HAS_SQLITE3
+	sTypes += "sqlite3, ";
+#endif
+#ifdef DEKAF2_HAS_ORACLE
+	sTypes += "oracle, oracle6, oracle7, oracle8, ";
+#endif
+#if defined(DEKAF2_HAS_DBLIB) || defined(DEKAF2_HAS_CTLIB)
+	sTypes += "sqlserver, sqlserver15, sybase, ";
+#endif
+
+	sTypes.TrimRight(", ");
+
+	if (sTypes.empty())
+	{
+		sTypes = "none";
+	}
+
+	return sTypes;
+
+} // GetSupportedDBTypes
+
+//-----------------------------------------------------------------------------
 uint64_t KSQL::GetHash () const
 //-----------------------------------------------------------------------------
 {

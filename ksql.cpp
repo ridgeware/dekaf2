@@ -10462,7 +10462,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 			kWriteLine();
 		}
 
-		if (sSQL.empty() && sLine.In("ascii,vertical,json,csv,html,rounded,thin,bold,double,spaced"))
+		if (sSQL.empty() && KFormTable::IsKnownStyle(sLine))
 		{
 			Format = CreateOutputFormat(sLine);
 
@@ -10509,23 +10509,24 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 		else if (sSQL.empty() && sLine == "help")
 		{
 			kWriteLine ();
-			kWriteLine (":: enter SQL command, query or one of these formats for query output:");
-			kWriteLine ("::    ascii    : ascii table form (normal output)");
-			kWriteLine ("::    bold     : bold table form");
-			kWriteLine ("::    thin     : thin table form");
-			kWriteLine ("::    double   : double line table form");
-			kWriteLine ("::    rounded  : rounded corner table form");
-			kWriteLine ("::    spaced   : table with space as separators");
-			kWriteLine ("::    vertical : for very wide tables, one column at a time");
-			kWriteLine ("::    json     : JSON array");
-			kWriteLine ("::    csv      : comma-separated-value output");
-			kWriteLine ("::    html     : HTML table output");
-			kWriteLine ("::    clear    : clear screen");
-			kWriteLine ("::    quiet    : toggle quiet mode");
-			kWriteLine ("::    quit     : end the interpreter");
-			kWriteLine ("::    system   : execute a shell command");
-			kWriteLine ("::    source   : read a file and execute SQL commands");
-			kWriteLine ("::    klog <n> : set klog level 0..4");
+			kPrintLine (":: enter SQL command, query or any of the following control commands:");
+			kWriteLine ("::   clear          : clear screen");
+			kWriteLine ("::   quiet          : toggle quiet mode");
+			kWriteLine ("::   quit           : end the interpreter");
+			kWriteLine ("::   system <cmd>   : execute a shell command");
+			kWriteLine ("::   source <file>  : read and execute SQL commands");
+			kWriteLine ("::   klog <n>       : set klog level 0..4");
+			kWriteLine ("::");
+			kWriteLine (":: for formatting:");
+
+			for (const auto& Style : KFormTable::GetStyles())
+			{
+				if (!Style.bIsAlias)
+				{
+					kPrintLine("::   {:<14} : {}", Style.sName, Style.sDescription);
+				}
+			}
+
 			kWriteLine ();
 		}
 		else if (!sLine.empty())

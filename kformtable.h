@@ -372,6 +372,40 @@ public:
 	DEKAF2_NODISCARD
 	static KStringViewZ GetSupportedStyles();
 
+	/// Returns true if the given string is a recognized style name
+	DEKAF2_NODISCARD
+	static bool IsKnownStyle(KStringView sStyle);
+
+	/// Describes one supported style name, its enum value, a short description, and whether it is an alias
+	struct StyleDef
+	{
+		KStringViewZ  sName;
+		Style         eStyle;
+		KStringViewZ  sDescription;
+		bool          bIsAlias;
+	};
+
+	/// Returns a pointer pair (begin/end) over all known style definitions (including aliases)
+	class StyleDefs
+	{
+		friend class KFormTable;
+
+	public:
+
+		const StyleDef* begin() const { return m_begin; }
+		const StyleDef* end()   const { return m_end;   }
+
+	private:
+
+		StyleDefs(const StyleDef* begin, const StyleDef* end) : m_begin(begin), m_end(end) {}
+		const StyleDef* m_begin;
+		const StyleDef* m_end;
+
+	}; // StyleDefs
+
+	/// Returns an iterable range over all known style definitions
+	DEKAF2_NODISCARD
+	static StyleDefs GetStyles();
 
 //----------
 private:

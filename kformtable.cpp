@@ -1263,59 +1263,44 @@ bool KFormTable::WantDryMode() const
 	return ((m_Style & (Box | Style::Spaced | Style::Markdown)) != 0) && m_ColDefs.empty();
 }
 
+// single source of truth for all style name mappings
+static constexpr KFormTable::StyleDef s_Styles[] =
+{
+	{ "ascii",    KFormTable::Style::ASCII,    "ASCII box drawing",         false },
+	{ "bold",     KFormTable::Style::Bold,     "bold Unicode box drawing",  false },
+	{ "thin",     KFormTable::Style::Thin,     "thin Unicode box drawing",  false },
+	{ "double",   KFormTable::Style::Double,   "double Unicode box drawing",false },
+	{ "rounded",  KFormTable::Style::Rounded,  "rounded corner box drawing",false },
+	{ "spaced",   KFormTable::Style::Spaced,   "space-separated columns",   false },
+	{ "vertical", KFormTable::Style::Vertical, "key : value, one column per line", false },
+	{ "json",     KFormTable::Style::JSON,     "JSON array",                false },
+	{ "csv",      KFormTable::Style::CSV,      "comma-separated values",    false },
+	{ "html",     KFormTable::Style::HTML,     "HTML table",                false },
+	{ "markdown", KFormTable::Style::Markdown, "Markdown table",            false },
+	{ "query",    KFormTable::Style::ASCII,    {},                          true  },
+	{ "table",    KFormTable::Style::ASCII,    {},                          true  },
+	{ "md",       KFormTable::Style::Markdown, {},                          true  },
+};
+
 //-----------------------------------------------------------------------------
 KFormTable::Style KFormTable::StringToStyle(KStringView sStyle)
 //-----------------------------------------------------------------------------
 {
-	Style Style = Style::ASCII;
-
 	sStyle.remove_prefix('-');
 
-	switch (sStyle.CaseHash())
-	{
-		case "ascii"_casehash:
-		case "query"_casehash:
-		case "table"_casehash:
-			Style = Style::ASCII;
-			break;
-		case "vertical"_casehash:
-			Style = Style::Vertical;
-			break;
-		case "json"_casehash:
-			Style = Style::JSON;
-			break;
-		case "csv"_casehash:
-			Style = Style::CSV;
-			break;
-		case "html"_casehash:
-			Style = Style::HTML;
-			break;
-		case "bold"_casehash:
-			Style = Style::Bold;
-			break;
-		case "rounded"_casehash:
-			Style = Style::Rounded;
-			break;
-		case "thin"_casehash:
-			Style = Style::Thin;
-			break;
-		case "double"_casehash:
-			Style = Style::Double;
-			break;
-		case "spaced"_casehash:
-			Style = Style::Spaced;
-			break;
-		case "markdown"_casehash:
-		case "md"_casehash:
-			Style = Style::Markdown;
-			break;
+	auto iHash = sStyle.CaseHash();
 
-		default:
-			kDebug(1, "invalid style: {}", sStyle);
-			break;
+	for (const auto& Entry : s_Styles)
+	{
+		if (iHash == KStringView(Entry.sName).CaseHash())
+		{
+			return Entry.eStyle;
+		}
 	}
 
-	return Style;
+	kDebug(1, "invalid style: {}", sStyle);
+
+	return Style::ASCII;
 
 } // StringToStyle
 
@@ -1323,8 +1308,52 @@ KFormTable::Style KFormTable::StringToStyle(KStringView sStyle)
 KStringViewZ KFormTable::GetSupportedStyles()
 //-----------------------------------------------------------------------------
 {
-	return "ascii, bold, thin, double, rounded, spaced, vertical, json, csv, html, markdown";
+	static KString sStyles = []()
+	{
+		KString s;
+
+		for (const auto& Entry : s_Styles)
+		{
+			if (!Entry.bIsAlias)
+			{
+				if (!s.empty()) { s += ", "; }
+				s += Entry.sName;
+			}
+		}
+
+		return s;
+	}();
+
+	return sStyles;
 
 } // GetSupportedStyles
+
+//-----------------------------------------------------------------------------
+bool KFormTable::IsKnownStyle(KStringView sStyle)
+//-----------------------------------------------------------------------------
+{
+	sStyle.remove_prefix('-');
+
+	auto iHash = sStyle.CaseHash();
+
+	for (const auto& Entry : s_Styles)
+	{
+		if (iHash == KStringView(Entry.sName).CaseHash())
+		{
+			return true;
+		}
+	}
+
+	return false;
+
+} // IsKnownStyle
+
+//-----------------------------------------------------------------------------
+KFormTable::StyleDefs KFormTable::GetStyles()
+//-----------------------------------------------------------------------------
+{
+	return { std::begin(s_Styles), std::end(s_Styles) };
+
+} // GetStyles
 
 DEKAF2_NAMESPACE_END

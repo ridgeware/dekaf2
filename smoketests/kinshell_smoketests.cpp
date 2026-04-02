@@ -21,7 +21,7 @@ TEST_CASE("KInShell")
 	SECTION("KPipeReader Curl Test")
 	{
 		KInShell pipe;
-		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
+		KString sCurlCMD = "kurl -i www.google.com 2> /dev/null";
 		CHECK(pipe.Open(sCurlCMD));
 
 		KString sCurrentLine;
@@ -39,7 +39,7 @@ TEST_CASE("KInShell")
 	SECTION("KInShell Curl Iterator Test")
 	{
 		KInShell   pipe;
-		KString sCurlCMD = "curl -i www.google.com 2> /dev/null";
+		KString sCurlCMD = "kurl -i www.google.com 2> /dev/null";
 		CHECK(pipe.Open(sCurlCMD));
 
 		KString sCurrentLine;

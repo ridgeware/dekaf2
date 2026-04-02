@@ -446,7 +446,7 @@
 	#endif
 	#include <features.h>
 	#ifndef __USE_GNU
-		#define DEKAF2_HAS_MUSL
+		#define DEKAF2_HAS_MUSL 1
 	#endif
 	#ifdef DEKAF2_GNU_SOURCE
 		#undef _GNU_SOURCE

@@ -2123,13 +2123,27 @@ endif()
 
 # ============================ UNIT AND SMOKE TESTS ==================================
 
+enable_testing()
+
 if (IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/utests")
 	message(STATUS "adding unit tests")
 	add_subdirectory(utests)
+	add_test(NAME dekaf2-unit-tests COMMAND dekaf2-utests)
+	set_tests_properties(dekaf2-unit-tests PROPERTIES LABELS "unit")
 endif()
 if (IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/smoketests")
 	message(STATUS "adding smoke tests")
 	add_subdirectory(smoketests)
+	add_test(NAME smoketest-mysql
+		COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/smoketest" --build-dir "${CMAKE_BINARY_DIR}" mysql)
+	set_tests_properties(smoketest-mysql PROPERTIES
+		LABELS "smoketest;mysql"
+		TIMEOUT 120)
+	add_test(NAME smoketest-postgresql
+		COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/smoketest" --build-dir "${CMAKE_BINARY_DIR}" postgresql)
+	set_tests_properties(smoketest-postgresql PROPERTIES
+		LABELS "smoketest;postgresql"
+		TIMEOUT 120)
 endif()
 if (IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks")
 	message(STATUS "adding benchmark tests")

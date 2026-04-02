@@ -303,3 +303,36 @@ GetOS ()
 #	Info "${BINDIR} ${ARCH} on ${DISTRIB} using ${INSTALLER} as install tool"
 
 } # GetOS
+
+setx=FindBuildDir
+#==============================
+FindBuildDir ()
+#==============================
+{
+	# FindBuildDir <srcdir> <project> <buildtype>
+	# sets global BUILD_DIR to the first matching build directory
+	# searches: ../build-<project>-Desktop-<buildtype>, <srcdir>/build/<buildtype>,
+	#           <srcdir>/cmake-build-<buildtype>, <srcdir>/build
+
+	local srcdir="${1:?FindBuildDir: srcdir required}"
+	local project="${2:?FindBuildDir: project name required}"
+	local buildtype="${3:-Debug}"
+
+	local parentdir
+	parentdir=$(cd "${srcdir}/.." && pwd)
+	local buildtype_lower=$(echo "${buildtype}" | tr '[:upper:]' '[:lower:]')
+
+	for candidate in \
+		"${parentdir}/build-${project}-Desktop-${buildtype}" \
+		"${srcdir}/build/${buildtype}" \
+		"${srcdir}/cmake-build-${buildtype_lower}" \
+		"${srcdir}/build"; do
+		if [[ -d "${candidate}" ]]; then
+			BUILD_DIR="${candidate}"
+			return 0
+		fi
+	done
+
+	return 1
+
+} # FindBuildDir

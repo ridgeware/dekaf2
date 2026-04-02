@@ -1,0 +1,437 @@
+#! /bin/bash
+
+#%
+#% smoketest - run dekaf2 KSQL smoke tests against containerized databases
+#%
+#% usage: smoketest [options] <mysql|postgresql|all>
+#%
+#% options:
+#%   -x                :: script debugging (must come first)
+#%   -v                :: verbose output
+#%   --debug           :: use Debug build directory (default)
+#%   --release         :: use Release build directory
+#%   --relwithdebinfo  :: use RelWithDebInfo build directory
+#%   --build-dir <dir> :: explicit path to the dekaf2 build directory
+#%   --cleanup         :: only stop and remove DB containers, then exit
+#%   --keep            :: keep DB containers running after tests
+#%   -h|--help         :: show this help
+#%
+#% targets:
+#%   mysql             :: run smoke tests against MySQL/MariaDB
+#%   postgresql        :: run smoke tests against PostgreSQL
+#%   all               :: run smoke tests against all supported databases
+#%
+#% The script will:
+#%   1. auto-detect docker or podman
+#%   2. start the requested database container(s)
+#%   3. wait until the database is ready to accept connections
+#%   4. create a DBC file using createdbc
+#%   5. run dekaf2-smoketests with that DBC file
+#%   6. stop and remove the container (unless --keep)
+#%
+#% environment:
+#%   CONTAINER_ENGINE  :: force docker or podman (default: auto-detect)
+#%   CREATEDBC         :: path to createdbc binary (default: auto-detect)
+#%   SMOKETESTS        :: path to dekaf2-smoketests binary (default: auto-detect)
+#%
+
+# exit on error in pipes
+set -o pipefail
+
+# Produce an execution trace if requested
+if [[ $# -gt 0 ]] && [[ "$1" = '-x' ]]; then
+	set -x
+	shift
+fi
+
+ME=$(basename "$0")
+ME_FULLPATH=$(cd "$(dirname "$0")" && pwd)/${ME}
+MYDIR=$(cd "$(dirname "$0")" && pwd)
+SRCDIR=$(cd "$MYDIR/.." && pwd)
+
+# source common functions (Info, Error, Die, Warn, SetupColors, ..)
+source "${MYDIR}/scriptlib" || { echo ">> ${ME}: cannot source scriptlib" >&2; exit 1; }
+SetupColors
+
+VERBOSE=0
+KEEP_CONTAINERS=0
+CLEANUP_ONLY=0
+DO_MYSQL=0
+DO_POSTGRESQL=0
+BUILD_DIR=""
+BUILD_TYPE="Debug"
+
+# container names
+MYSQL_CONTAINER="dekaf2-smoketest-mysql"
+POSTGRESQL_CONTAINER="dekaf2-smoketest-postgres"
+
+# database credentials for smoke tests
+DB_USER="dekaf2"
+DB_PASS="dekaf2test"
+DB_NAME="dekaf2test"
+
+# container image versions
+MYSQL_IMAGE="mariadb:latest"
+POSTGRESQL_IMAGE="postgres:latest"
+
+# ports (use non-standard ports to avoid conflicts with local installations)
+MYSQL_PORT=23306
+POSTGRESQL_PORT=25432
+
+#----------------------------------------------------------------------
+Verbose ()
+#----------------------------------------------------------------------
+{
+	[[ ${VERBOSE} -eq 1 ]] && Info "${*}"
+}
+
+#----------------------------------------------------------------------
+DetectContainerEngine ()
+#----------------------------------------------------------------------
+{
+	if [[ -n "${CONTAINER_ENGINE}" ]]; then
+		command -v "${CONTAINER_ENGINE}" &>/dev/null || Die "CONTAINER_ENGINE=${CONTAINER_ENGINE} not found"
+		return
+	fi
+
+	if command -v podman &>/dev/null; then
+		CONTAINER_ENGINE="podman"
+	elif command -v docker &>/dev/null; then
+		CONTAINER_ENGINE="docker"
+	else
+		Die "neither podman nor docker found in PATH"
+	fi
+
+	Verbose "using container engine: ${CONTAINER_ENGINE}"
+}
+
+#----------------------------------------------------------------------
+ResolveBuildDir ()
+#----------------------------------------------------------------------
+{
+	if [[ -n "${BUILD_DIR}" ]]; then
+		[[ -d "${BUILD_DIR}" ]] || Die "build directory not found: ${BUILD_DIR}"
+		return
+	fi
+
+	FindBuildDir "${SRCDIR}" "dekaf2" "${BUILD_TYPE}" \
+		|| Die "cannot find build directory for ${BUILD_TYPE} - use --build-dir <dir> or --release/--debug"
+
+	Info "using build directory: ${BUILD_DIR}"
+}
+
+#----------------------------------------------------------------------
+FindBinaries ()
+#----------------------------------------------------------------------
+{
+	if [[ -z "${CREATEDBC}" ]]; then
+		for candidate in \
+			"${BUILD_DIR}/createdbc" \
+			"${BUILD_DIR}/bin/createdbc" \
+			"/usr/local/bin/createdbc"; do
+			if [[ -x "${candidate}" ]]; then
+				CREATEDBC="${candidate}"
+				break
+			fi
+		done
+	fi
+	[[ -n "${CREATEDBC}" ]] || Die "createdbc not found - build dekaf2 first or set CREATEDBC"
+	Verbose "using createdbc: ${CREATEDBC}"
+
+	if [[ -z "${SMOKETESTS}" ]]; then
+		for candidate in \
+			"${BUILD_DIR}/smoketests/dekaf2-smoketests" \
+			"${BUILD_DIR}/bin/dekaf2-smoketests"; do
+			if [[ -x "${candidate}" ]]; then
+				SMOKETESTS="${candidate}"
+				break
+			fi
+		done
+	fi
+	[[ -n "${SMOKETESTS}" ]] || Die "dekaf2-smoketests not found - build dekaf2 first or set SMOKETESTS"
+	Verbose "using smoketests: ${SMOKETESTS}"
+}
+
+#----------------------------------------------------------------------
+ContainerIsRunning ()
+#----------------------------------------------------------------------
+{
+	local name="$1"
+	${CONTAINER_ENGINE} inspect --format '{{.State.Running}}' "${name}" 2>/dev/null | grep -q "true"
+}
+
+#----------------------------------------------------------------------
+ContainerExists ()
+#----------------------------------------------------------------------
+{
+	${CONTAINER_ENGINE} inspect "${1}" &>/dev/null
+}
+
+#----------------------------------------------------------------------
+StopContainer ()
+#----------------------------------------------------------------------
+{
+	local name="$1"
+	if ContainerExists "${name}"; then
+		Info "stopping container ${name} ..."
+		${CONTAINER_ENGINE} stop "${name}" &>/dev/null
+		${CONTAINER_ENGINE} rm   "${name}" &>/dev/null
+	fi
+}
+
+#----------------------------------------------------------------------
+WaitForMySQL ()
+#----------------------------------------------------------------------
+{
+	local maxwait=60
+	local elapsed=0
+
+	Info "waiting for MySQL to be ready (max ${maxwait}s) ..."
+
+	while [[ ${elapsed} -lt ${maxwait} ]]; do
+		if ${CONTAINER_ENGINE} exec "${MYSQL_CONTAINER}" \
+			mariadb -u"${DB_USER}" -p"${DB_PASS}" -e "SELECT 1" &>/dev/null; then
+			Info "MySQL is ready (${elapsed}s)"
+			return 0
+		fi
+		sleep 2
+		elapsed=$((elapsed + 2))
+	done
+
+	Error "MySQL did not become ready within ${maxwait}s"
+	return 1
+}
+
+#----------------------------------------------------------------------
+WaitForPostgreSQL ()
+#----------------------------------------------------------------------
+{
+	local maxwait=60
+	local elapsed=0
+
+	Info "waiting for PostgreSQL to be ready (max ${maxwait}s) ..."
+
+	while [[ ${elapsed} -lt ${maxwait} ]]; do
+		if ${CONTAINER_ENGINE} exec "${POSTGRESQL_CONTAINER}" \
+			pg_isready -U "${DB_USER}" -d "${DB_NAME}" &>/dev/null; then
+			Info "PostgreSQL is ready (${elapsed}s)"
+			return 0
+		fi
+		sleep 2
+		elapsed=$((elapsed + 2))
+	done
+
+	Error "PostgreSQL did not become ready within ${maxwait}s"
+	return 1
+}
+
+#----------------------------------------------------------------------
+StartMySQL ()
+#----------------------------------------------------------------------
+{
+	if ContainerIsRunning "${MYSQL_CONTAINER}"; then
+		Info "MySQL container already running"
+		return 0
+	fi
+
+	StopContainer "${MYSQL_CONTAINER}"
+
+	Info "starting MySQL container (${MYSQL_IMAGE}) ..."
+	${CONTAINER_ENGINE} run -d \
+		--name "${MYSQL_CONTAINER}" \
+		-p "${MYSQL_PORT}:3306" \
+		-e "MARIADB_USER=${DB_USER}" \
+		-e "MARIADB_PASSWORD=${DB_PASS}" \
+		-e "MARIADB_DATABASE=${DB_NAME}" \
+		-e "MARIADB_ROOT_PASSWORD=${DB_PASS}" \
+		"${MYSQL_IMAGE}" \
+		|| Die "failed to start MySQL container"
+
+	WaitForMySQL || return 1
+}
+
+#----------------------------------------------------------------------
+StartPostgreSQL ()
+#----------------------------------------------------------------------
+{
+	if ContainerIsRunning "${POSTGRESQL_CONTAINER}"; then
+		Info "PostgreSQL container already running"
+		return 0
+	fi
+
+	StopContainer "${POSTGRESQL_CONTAINER}"
+
+	Info "starting PostgreSQL container (${POSTGRESQL_IMAGE}) ..."
+	${CONTAINER_ENGINE} run -d \
+		--name "${POSTGRESQL_CONTAINER}" \
+		-p "${POSTGRESQL_PORT}:5432" \
+		-e "POSTGRES_USER=${DB_USER}" \
+		-e "POSTGRES_PASSWORD=${DB_PASS}" \
+		-e "POSTGRES_DB=${DB_NAME}" \
+		"${POSTGRESQL_IMAGE}" \
+		|| Die "failed to start PostgreSQL container"
+
+	WaitForPostgreSQL || return 1
+}
+
+#----------------------------------------------------------------------
+RunSmokeTest ()
+#----------------------------------------------------------------------
+{
+	local dbtype="$1"
+	local dbcfile="$2"
+
+	Info "running smoke tests against ${dbtype} ..."
+	${SMOKETESTS} "KSQL" -dbc "${dbcfile}"
+	local rc=$?
+
+	if [[ ${rc} -eq 0 ]]; then
+		Info "${dbtype} smoke tests: PASSED"
+	else
+		Error "${dbtype} smoke tests: FAILED (exit code ${rc})"
+	fi
+
+	return ${rc}
+}
+
+#----------------------------------------------------------------------
+RunMySQL ()
+#----------------------------------------------------------------------
+{
+	local dbcdir="${BUILD_DIR}/generated"
+	local dbcfile="${dbcdir}/smoketest-mysql.dbc"
+
+	mkdir -p "${dbcdir}"
+
+	StartMySQL || return 1
+
+	Info "creating MySQL DBC file ..."
+	${CREATEDBC} "${dbcfile}" mysql "${DB_USER}" "${DB_PASS}" "${DB_NAME}" "127.0.0.1" "${MYSQL_PORT}" \
+		|| Die "failed to create MySQL DBC file"
+
+	RunSmokeTest "MySQL" "${dbcfile}"
+	return $?
+}
+
+#----------------------------------------------------------------------
+RunPostgreSQL ()
+#----------------------------------------------------------------------
+{
+	local dbcdir="${BUILD_DIR}/generated"
+	local dbcfile="${dbcdir}/smoketest-postgresql.dbc"
+
+	mkdir -p "${dbcdir}"
+
+	StartPostgreSQL || return 1
+
+	Info "creating PostgreSQL DBC file ..."
+	${CREATEDBC} "${dbcfile}" postgresql "${DB_USER}" "${DB_PASS}" "${DB_NAME}" "127.0.0.1" "${POSTGRESQL_PORT}" \
+		|| Die "failed to create PostgreSQL DBC file"
+
+	RunSmokeTest "PostgreSQL" "${dbcfile}"
+	return $?
+}
+
+#----------------------------------------------------------------------
+Cleanup ()
+#----------------------------------------------------------------------
+{
+	if [[ ${KEEP_CONTAINERS} -eq 0 ]]; then
+		StopContainer "${MYSQL_CONTAINER}"
+		StopContainer "${POSTGRESQL_CONTAINER}"
+	else
+		Info "keeping containers running (use --cleanup to stop them later)"
+	fi
+}
+
+#----------------------------------------------------------------------
+# MAIN
+#----------------------------------------------------------------------
+
+# parse arguments
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		-v)
+			VERBOSE=1
+			;;
+		--debug)
+			BUILD_TYPE="Debug"
+			;;
+		--release)
+			BUILD_TYPE="Release"
+			;;
+		--relwithdebinfo)
+			BUILD_TYPE="RelWithDebInfo"
+			;;
+		--build-dir)
+			shift
+			BUILD_DIR="${1:?--build-dir requires an argument}"
+			;;
+		--cleanup)
+			CLEANUP_ONLY=1
+			;;
+		--keep)
+			KEEP_CONTAINERS=1
+			;;
+		mysql)
+			DO_MYSQL=1
+			;;
+		postgresql|postgres)
+			DO_POSTGRESQL=1
+			;;
+		all)
+			DO_MYSQL=1
+			DO_POSTGRESQL=1
+			;;
+		-h|--help|-?)
+			awk '/^#%/ {print substr($0,3)}' "${ME_FULLPATH}"
+			exit 0
+			;;
+		*)
+			Error "unknown option: $1"
+			Synopsis
+			;;
+	esac
+	shift
+done
+
+DetectContainerEngine
+
+# --cleanup mode: just stop containers and exit
+if [[ ${CLEANUP_ONLY} -eq 1 ]]; then
+	StopContainer "${MYSQL_CONTAINER}"
+	StopContainer "${POSTGRESQL_CONTAINER}"
+	Info "cleanup done"
+	exit 0
+fi
+
+# require at least one database selection
+if [[ ${DO_MYSQL} -eq 0 ]] && [[ ${DO_POSTGRESQL} -eq 0 ]]; then
+	awk '/^#%/ {print substr($0,3)}' "${ME_FULLPATH}"
+	exit 0
+fi
+
+ResolveBuildDir
+FindBinaries
+
+FAIL=0
+
+# run selected smoke tests
+if [[ ${DO_MYSQL} -eq 1 ]]; then
+	RunMySQL || FAIL=1
+fi
+
+if [[ ${DO_POSTGRESQL} -eq 1 ]]; then
+	RunPostgreSQL || FAIL=1
+fi
+
+# cleanup
+Cleanup
+
+if [[ ${FAIL} -eq 0 ]]; then
+	Info "all smoke tests PASSED"
+else
+	Error "some smoke tests FAILED"
+fi
+
+exit ${FAIL}

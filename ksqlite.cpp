@@ -240,57 +240,109 @@ Statement Database::Prepare(StringView sQuery)
 }
 
 //--------------------------------------------------------------------------------
-bool Database::ExecuteVoid(StringViewZ sQuery)
+bool Database::ExecuteVoid(StringView sQuery)
 //--------------------------------------------------------------------------------
 {
-	auto ec = sqlite3_exec(*Connector(), sQuery.c_str(), nullptr, nullptr, nullptr);
-	if (!Success(ec))
+	sqlite3_stmt* pStmt  = nullptr;
+	const char*   pTail  = sQuery.data();
+	const char*   pEnd   = pTail + sQuery.size();
+
+	// sqlite3_prepare_v2 parses the first statement and advances pTail past it,
+	// so the loop handles multi-statement SQL without manual ';' splitting
+	while (pTail < pEnd)
 	{
+		auto ec = sqlite3_prepare_v2(*Connector(), pTail, static_cast<int>(pEnd - pTail), &pStmt, &pTail);
+
+		if (!Success(ec))
+		{
 #ifdef DEKAF2
-		kDebug(1, "error: {}", sqlite3_errstr(ec));
-		kDebug(1, sQuery);
-		return false;
+			kDebug(1, "error: {}", sqlite3_errstr(ec));
+			kDebug(1, sQuery);
 #endif
+			return false;
+		}
+
+		if (!pStmt)
+		{
+			// null when input contained only whitespace or comments
+			break;
+		}
+
+		ec = sqlite3_step(pStmt);
+		sqlite3_finalize(pStmt);
+
+		if (ec != SQLITE_DONE && ec != SQLITE_ROW)
+		{
+#ifdef DEKAF2
+			kDebug(1, "error: {}", sqlite3_errstr(ec));
+			kDebug(1, sQuery);
+#endif
+			return false;
+		}
 	}
+
 	return true;
 
-} // Execute
+} // ExecuteVoid
 
 //--------------------------------------------------------------------------------
-int ResultCallback(void* pContainer, int iCols, char** sColums, char** sColNames)
+Database::result_type Database::Execute(StringView sQuery)
 //--------------------------------------------------------------------------------
 {
-	if (pContainer)
+	result_type   ResultSet;
+	sqlite3_stmt* pStmt = nullptr;
+	const char*   pTail = sQuery.data();
+	const char*   pEnd  = pTail + sQuery.size();
+
+	// sqlite3_prepare_v2 parses the first statement and advances pTail past it,
+	// so the loop handles multi-statement SQL without manual ';' splitting
+	while (pTail < pEnd)
 	{
-		auto& Container(*static_cast<Database::result_type*>(pContainer));
-		Database::result_type_row Row;
-		for (int iCount = 0; iCount < iCols; ++iCount)
+		auto ec = sqlite3_prepare_v2(*Connector(), pTail, static_cast<int>(pEnd - pTail), &pStmt, &pTail);
+
+		if (!Success(ec))
 		{
-			Row.insert({sColNames[iCount], sColums[iCount]});
-		}
-		Container.push_back(std::move(Row));
-		return 0;
-	}
-	else
-	{
-		return 1; // abort
-	}
-
-} // ResultCallback
-
-//--------------------------------------------------------------------------------
-Database::result_type Database::Execute(StringViewZ sQuery)
-//--------------------------------------------------------------------------------
-{
-	result_type ResultSet;
-	auto ec = sqlite3_exec(*Connector(), sQuery.c_str(), ResultCallback, &ResultSet, nullptr);
-	if (!Success(ec))
-	{
 #ifdef DEKAF2
-		kDebug(1, "error: {}", sqlite3_errstr(ec));
-		kDebug(1, sQuery);
+			kDebug(1, "error: {}", sqlite3_errstr(ec));
+			kDebug(1, sQuery);
 #endif
+			break;
+		}
+
+		if (!pStmt)
+		{
+			// null when input contained only whitespace or comments
+			break;
+		}
+
+		auto iCols = sqlite3_column_count(pStmt);
+
+		while ((ec = sqlite3_step(pStmt)) == SQLITE_ROW)
+		{
+			result_type_row Row;
+
+			for (int ii = 0; ii < iCols; ++ii)
+			{
+				auto pName = sqlite3_column_name(pStmt, ii);
+				auto pText = reinterpret_cast<const char*>(sqlite3_column_text(pStmt, ii));
+				Row.insert({ pName ? pName : "", pText ? pText : "" });
+			}
+
+			ResultSet.push_back(std::move(Row));
+		}
+
+		sqlite3_finalize(pStmt);
+
+		if (ec != SQLITE_DONE)
+		{
+#ifdef DEKAF2
+			kDebug(1, "error: {}", sqlite3_errstr(ec));
+			kDebug(1, sQuery);
+#endif
+			break;
+		}
 	}
+
 	return ResultSet;
 
 } // Execute

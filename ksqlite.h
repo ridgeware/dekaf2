@@ -247,10 +247,10 @@ public:
 	bool Connect(StringViewZ sFilename, Mode iMode = Mode::READONLY, std::chrono::milliseconds BusyTimeout = std::chrono::seconds(10));
 	/// Create a prepared statement
 	Statement Prepare(StringView sQuery);
-	/// Execute an ad-hoc query, returns success
-	bool ExecuteVoid(StringViewZ sQuery);
-	/// Execute an ad-hoc query, return all result rows
-	result_type Execute(StringViewZ sQuery);
+	/// Execute an ad-hoc query, returns success. Binary-safe (uses sqlite3_prepare_v2 with explicit length).
+	bool ExecuteVoid(StringView sQuery);
+	/// Execute an ad-hoc query, return all result rows. Binary-safe (uses sqlite3_prepare_v2 with explicit length).
+	result_type Execute(StringView sQuery);
 	/// Returns count of rows affected by last query
 	size_type AffectedRows() { return Connector()->AffectedRows(); }
 	/// Returns row ID of last inserted row or 0

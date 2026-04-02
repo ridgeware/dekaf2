@@ -97,6 +97,87 @@ TEST_CASE("KSQLite")
 			CHECK ( Row.Col(10).Int32() == 0 );
 		}
 	}
+
+	SECTION("Multi-statement ExecuteVoid")
+	{
+		auto sFilename = kFormat("{}/sqlite_multi_exec.db", TempDir.Name());
+		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+
+		// multiple statements in a single call
+		bool bOK = db.ExecuteVoid(
+			"CREATE TABLE multi1 (id INTEGER PRIMARY KEY, val TEXT);"
+			"INSERT INTO multi1 (id, val) VALUES (1, 'one');"
+			"INSERT INTO multi1 (id, val) VALUES (2, 'two');"
+			"INSERT INTO multi1 (id, val) VALUES (3, 'three');"
+		);
+		CHECK ( bOK );
+
+		auto Result = db.Execute("SELECT val FROM multi1 ORDER BY id");
+		REQUIRE ( Result.size() == 3 );
+		CHECK ( Result[0]["val"] == "one"   );
+		CHECK ( Result[1]["val"] == "two"   );
+		CHECK ( Result[2]["val"] == "three" );
+	}
+
+	SECTION("Multi-statement Execute")
+	{
+		auto sFilename = kFormat("{}/sqlite_multi_query.db", TempDir.Name());
+		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+
+		db.ExecuteVoid("CREATE TABLE mq (id INTEGER PRIMARY KEY, val TEXT);"
+		               "INSERT INTO mq VALUES (1, 'a');"
+		               "INSERT INTO mq VALUES (2, 'b');");
+
+		// multiple SELECTs in one Execute call - results from all statements are collected
+		auto Result = db.Execute("SELECT val FROM mq WHERE id=1; SELECT val FROM mq WHERE id=2");
+		REQUIRE ( Result.size() == 2 );
+		CHECK ( Result[0]["val"] == "a" );
+		CHECK ( Result[1]["val"] == "b" );
+	}
+
+	SECTION("Binary-safe Bind roundtrip with NUL bytes")
+	{
+		auto sFilename = kFormat("{}/sqlite_binary.db", TempDir.Name());
+		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+
+		db.ExecuteVoid("CREATE TABLE bintest (id INTEGER PRIMARY KEY, data BLOB)");
+
+		KStringView sWithNul("hello\0world", 11);
+		CHECK ( sWithNul.size() == 11 );
+
+		auto Insert = db.Prepare("INSERT INTO bintest (id, data) VALUES (1, ?1)");
+		CHECK ( Insert.Bind(1, static_cast<void*>(const_cast<char*>(sWithNul.data())), sWithNul.size(), true) );
+		CHECK ( Insert.Execute() );
+
+		auto Select = db.Prepare("SELECT data FROM bintest WHERE id=1");
+		CHECK ( Select.NextRow() );
+		auto Row = Select.GetRow();
+		auto col = Row.Col(1);
+		CHECK ( col.size() == 11 );
+		CHECK ( KStringView(col.String().data(), col.size()) == sWithNul );
+	}
+
+	SECTION("Ad-hoc Execute reads back BLOB with NUL bytes")
+	{
+		auto sFilename = kFormat("{}/sqlite_nul_adhoc.db", TempDir.Name());
+		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+
+		db.ExecuteVoid("CREATE TABLE nultest (id INTEGER PRIMARY KEY, data BLOB)");
+
+		// insert BLOB with NUL byte via Bind (the only correct way)
+		KStringView sWithNul("before\0after", 12);
+		auto Insert = db.Prepare("INSERT INTO nultest (id, data) VALUES (1, ?1)");
+		CHECK ( Insert.Bind(1, static_cast<void*>(const_cast<char*>(sWithNul.data())), sWithNul.size(), true) );
+		CHECK ( Insert.Execute() );
+
+		// verify ad-hoc Execute can read it back (uses sqlite3_column_text internally)
+		auto Result = db.Execute("SELECT data FROM nultest WHERE id=1");
+		REQUIRE ( Result.size() == 1 );
+		// ad-hoc Execute returns strings via sqlite3_column_text which truncates at NUL,
+		// so the value will be "before" - this is a known limitation of the ad-hoc API.
+		// For binary data, use Prepare + Bind + Column.
+		CHECK ( Result[0]["data"] == "before" );
+	}
 }
 
 #endif

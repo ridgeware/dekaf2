@@ -536,23 +536,21 @@ KString::size_type KString::RemoveChars(KStringView sChars)
 //----------------------------------------------------------------------
 {
 	auto iOrigLen = size();
-	auto pos      = iOrigLen;
-
-	for (;;)
-	{
-		pos = find_last_of(sChars, pos);
-
-		if (DEKAF2_UNLIKELY(pos >= size()))
-		{
-			break;
-		}
-
-		m_rep.erase(pos, 1);
-	}
-
+	m_rep.erase(std::remove_if(m_rep.begin(), m_rep.end(), [&sChars](value_type ch) { return sChars.find(ch) != npos; }), m_rep.end());
 	return iOrigLen - size();
 
 } // RemoveChars
+
+//----------------------------------------------------------------------
+KString::size_type KString::RemoveChars(value_type chChar)
+//----------------------------------------------------------------------
+{
+	auto iOrigLen = size();
+	m_rep.erase(std::remove(m_rep.begin(), m_rep.end(), chChar), m_rep.end());
+	return iOrigLen - size();
+
+} // RemoveChars
+
 #if DEKAF2_IS_GCC
 #pragma GCC diagnostic pop
 #endif

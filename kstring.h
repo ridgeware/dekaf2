@@ -1056,6 +1056,9 @@ public:
 	/// Remove any occurence of the characters in sChars, returns count of removed chars
 	size_type RemoveChars(KStringView sChars);
 
+	/// Remove any occurence of chChar, returns count of removed chars
+	size_type RemoveChars(value_type chChar);
+
 	/// Deprecated alias for RemoveChars, please replace by RemoveChars()
 	size_type RemoveIllegalChars(KStringView sIllegalChars);
 

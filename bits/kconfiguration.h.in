@@ -100,6 +100,7 @@
 #cmakedefine DEKAF2_MYSQL_HAS_TLS 1
 #cmakedefine DEKAF2_MYSQL_HAS_ZSTD 1
 #cmakedefine DEKAF2_HAS_SQLITE3 1
+#cmakedefine DEKAF2_HAS_POSTGRESQL 1
 #cmakedefine DEKAF2_HAS_FREETDS 1
 #cmakedefine DEKAF2_HAS_CTLIB 1
 #cmakedefine DEKAF2_HAS_LIBZIP 1

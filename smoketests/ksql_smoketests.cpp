@@ -286,6 +286,12 @@ TEST_CASE("KSQL")
 			FAIL (db.GetLastError());  // <-- all other tests will be useless so ABORT
 		}
 
+		if (db.GetDBType() == KSQL::DBT::POSTGRESQL)
+		{
+			// suppress NOTICE messages in test output (e.g. "table does not exist, skipping")
+			db.ExecSQL("SET client_min_messages TO warning");
+		}
+
 		// test timeouts with default values
 		if (false) {
 			KStopTime Timer;
@@ -332,6 +338,7 @@ TEST_CASE("KSQL")
 			{
 				case KSQL::DBT::MYSQL:
 				case KSQL::DBT::SQLITE3:
+				case KSQL::DBT::POSTGRESQL:
 					sExpected = "insert into FRED values ('this is {{not}} a valid {{token}}', now())";
 					break;
 
@@ -444,9 +451,10 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "AUTO INCREMENT");
 
-		if ((db.GetDBType() == KSQL::DBT::MYSQL)     ||
-			(db.GetDBType() == KSQL::DBT::SQLSERVER) ||
-			(db.GetDBType() == KSQL::DBT::SQLSERVER15))
+		if ((db.GetDBType() == KSQL::DBT::MYSQL)       ||
+			(db.GetDBType() == KSQL::DBT::SQLSERVER)   ||
+			(db.GetDBType() == KSQL::DBT::SQLSERVER15) ||
+			(db.GetDBType() == KSQL::DBT::POSTGRESQL))
 		{
 
 			if (!db.ExecSQL (
@@ -482,9 +490,10 @@ TEST_CASE("KSQL")
 		{
 			kDebug (1, "round {}", ii);
 
-			bool bHasAutoIncrement = ((db.GetDBType() == KSQL::DBT::MYSQL)     ||
-									  (db.GetDBType() == KSQL::DBT::SQLSERVER) ||
-									  (db.GetDBType() == KSQL::DBT::SQLSERVER15));
+			bool bHasAutoIncrement = ((db.GetDBType() == KSQL::DBT::MYSQL)       ||
+									  (db.GetDBType() == KSQL::DBT::SQLSERVER)   ||
+									  (db.GetDBType() == KSQL::DBT::SQLSERVER15) ||
+									  (db.GetDBType() == KSQL::DBT::POSTGRESQL));
 			bool bIsFirstRow       = (ii==1);
 
 			if (!bHasAutoIncrement || bIsFirstRow)
@@ -524,11 +533,20 @@ TEST_CASE("KSQL")
 				kDebugLog (1, "last insert id");
 
 				auto iID = db.GetLastInsertID();
-				if (iID != PRESEED+ii)
+				if (db.GetDBType() != KSQL::DBT::POSTGRESQL)
 				{
-					kWarning ("should have gotten auto_increment value of {}, but got: {}", PRESEED+ii, iID);
+					// PostgreSQL identity sequences are independent of explicit inserts,
+					// so the sequence value does not track PRESEED+ii like MySQL auto_increment
+					if (iID != PRESEED+ii)
+					{
+						kWarning ("should have gotten auto_increment value of {}, but got: {}", PRESEED+ii, iID);
+					}
+					CHECK (iID == PRESEED+ii);
 				}
-				CHECK (iID == PRESEED+ii);
+				else
+				{
+					CHECK (iID > 0);
+				}
 			}
 		} // for
 
@@ -550,7 +568,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "query results (should be 1 row)");
 
-		db.ExecQuery ("select * from TEST_KSQL where anum={}", PRESEED+5);
+		db.ExecQuery ("select * from TEST_KSQL where astring='row-5'");
 		auto iCount = DumpRows (db);
 		if (iCount != 1)
 		{
@@ -701,8 +719,9 @@ TEST_CASE("KSQL")
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		kDebugLog (1, "sql batch file");
 
-		KString sTmp1; sTmp1.Format ("testksql{}a.sql", getpid());
-		KString sTmp2; sTmp2.Format ("testksql{}b.sql", getpid());
+		KTempDir TempDir;
+		KString sTmp1; sTmp1.Format ("{}/a.sql", TempDir.Name());
+		KString sTmp2; sTmp2.Format ("{}/b.sql", TempDir.Name());
 
 		KString sContents2 = HereDoc(R"(
 		    |insert into TEST_KSQL (anum) values (30);
@@ -746,8 +765,6 @@ TEST_CASE("KSQL")
 			FAIL_CHECK (db.GetLastError());
 		}
 
-		kRemoveFile (sTmp1);
-		kRemoveFile (sTmp2);
 
 		kDebugLog (1, "embedded query in sql file");
 
@@ -784,7 +801,7 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "support for alternate SQL batch delimeters");
 
-		KString sTmp;  sTmp.Format ("testksql{}c.sql", getpid());
+		KString sTmp;  sTmp.Format ("{}/c.sql", TempDir.Name());
 
 		KOutFile fp (sTmp);
 		fp.Write (HereDoc(R"(
@@ -807,6 +824,27 @@ TEST_CASE("KSQL")
 				|
 				|delimiter !!
 				|IF OBJECT_ID('FRED', 'U') IS NOT NULL DROP TABLE FRED!!
+				|create table FRED (a char(10) not null)!!
+				|insert into FRED values ('!!')!!
+				|insert into FRED values ('!!')!!!!!!!!
+				|insert into FRED values ('!!')!! !! !!	!!
+			)"));
+		}
+		else if (db.GetDBType() == KSQL::DBT::POSTGRESQL)
+		{
+			fp.Write (HereDoc(R"(
+				|drop table if exists FRED;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				|create table FRED (a char(10) not null);	;	;	;	;;;	; ;
+				|insert into FRED values (';'); ; ;;; ;	;	;
+				|insert into FRED values (';');
+				|
+				|delimiter @@@
+				|insert into FRED values ('@@@')@@@
+				|insert into FRED values ('@@@')            @@@
+				|
+				|ANALYZE FRED@@@
+				|delimiter !!
+				|drop table if exists FRED!!
 				|create table FRED (a char(10) not null)!!
 				|insert into FRED values ('!!')!!
 				|insert into FRED values ('!!')!!!!!!!!
@@ -842,8 +880,6 @@ TEST_CASE("KSQL")
 			FAIL_CHECK (db.GetLastError());
 		}
 
-		kRemoveFile (sTmp);
-
 		KROW Row ("TEST_KSQL");
 		Row.AddCol ("anum",      UINT64_C(102),            KCOL::PKEY);
 		Row.AddCol ("astring",   "krow insert");
@@ -859,7 +895,9 @@ TEST_CASE("KSQL")
 
 		std::vector<KROW> Rows;
 
-		if (!db.ExecSQL("create table if not exists TEST2_KSQL like TEST_KSQL"))
+		if (!db.ExecSQL(db.GetDBType() == KSQL::DBT::POSTGRESQL
+			? "create table if not exists TEST2_KSQL (like TEST_KSQL)"
+			: "create table if not exists TEST2_KSQL like TEST_KSQL"))
 		{
 			FAIL_CHECK (db.GetLastError());
 		}
@@ -945,8 +983,16 @@ TEST_CASE("KSQL")
 			if (row["anum"] == "101")
 			{
 				KString sString = row["astring"];
-				// check that row 101 has a 0 byte
-				CHECK ( sString == sZero );
+				if (db.GetDBType() == KSQL::DBT::POSTGRESQL)
+				{
+					// PostgreSQL text cannot store null bytes, EscapeChars strips them
+					CHECK ( sString == "krow insert 101" );
+				}
+				else
+				{
+					// check that row 101 has a 0 byte
+					CHECK ( sString == sZero );
+				}
 			}
 			else if (row["anum"] == "102")
 			{
@@ -1316,7 +1362,16 @@ TEST_CASE("KSQL")
 			{
 				DbSemaphore Semaphore(db, "TestLock", false);
 				CHECK ( Semaphore.IsCreated() );
-				CHECK ( db.IsLocked("TestLock") == false );
+				if (db.GetDBType() == KSQL::DBT::MYSQL)
+				{
+					// MySQL has separate session locks (GET_LOCK) vs persistent locks (table)
+					CHECK ( db.IsLocked("TestLock") == false );
+				}
+				else
+				{
+					// non-MySQL: IsLocked() == IsPersistentlyLocked() (both table-based)
+					CHECK ( db.IsLocked("TestLock") == true );
+				}
 				CHECK ( db.IsPersistentlyLocked("TestLock") == true );
 				CHECK ( Semaphore.Create() );
 				CHECK ( Semaphore.Clear() );
@@ -1333,6 +1388,9 @@ TEST_CASE("KSQL")
 			CHECK ( db.IsPersistentlyLocked("TestLock") == false );
 		}
 
+		// schema diff tests use MySQL-specific DDL (inline keys, ENGINE=) and metadata
+		if (db.GetDBType() == KSQL::DBT::MYSQL)
+		{
 		db.ExecSQL("drop table if exists TESTSCHEMA_KSQL");
 		db.ExecSQL("drop table if exists TESTSCHEMA1_KSQL");
 		db.ExecSQL("drop table if exists TESTSCHEMA2_KSQL");
@@ -1438,7 +1496,10 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 		db.ExecSQL("drop table if exists TESTSCHEMA2_KSQL");
 		db.ExecSQL("drop table if exists TESTSCHEMA22_KSQL");
 
+		} // MySQL-only schema diff tests
+
 		// test timeouts
+		if (db.GetDBType() != KSQL::DBT::POSTGRESQL) // PostgreSQL pg_sleep() does not return a result row
 		{
 			KStopTime Timer;
 			db.SetQueryTimeout(std::chrono::milliseconds(100), KSQL::QueryType::Select);
@@ -1458,8 +1519,7 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 			if (!db.ExecSQL (
 							 "create table TEST_SQL (\n"
 							 "    anum      int           not null,\n"
-							 "    astring   char(10)      not null primary key,\n"
-							 "    key idx01 (anum) \n"
+							 "    astring   char(10)      not null primary key\n"
 							 ")"))
 			{
 				INFO (db.GetLastSQL());
@@ -1468,8 +1528,8 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 
 			db.BeginTransaction();
 
-			db.ExecSQL("insert into TEST_SQL set anum=1,astring='s1'");
-			db.ExecSQL("insert into TEST_SQL set anum=2,astring='s2'");
+			db.ExecSQL("insert into TEST_SQL (anum,astring) values (1,'s1')");
+			db.ExecSQL("insert into TEST_SQL (anum,astring) values (2,'s2')");
 
 			db.CommitTransaction();
 
@@ -1479,8 +1539,8 @@ TESTSCHEMA2_KSQL <-- table is only in right schema
 
 			db.BeginTransaction();
 
-			db.ExecSQL("insert into TEST_SQL set anum=3,astring='s3'");
-			db.ExecSQL("insert into TEST_SQL set anum=4,astring='s4'");
+			db.ExecSQL("insert into TEST_SQL (anum,astring) values (3,'s3')");
+			db.ExecSQL("insert into TEST_SQL (anum,astring) values (4,'s4')");
 
 			db.RollbackTransaction();
 

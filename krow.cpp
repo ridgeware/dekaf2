@@ -271,6 +271,8 @@ KStringView KROW::EscapedCharacters (DBT iDBType)
 		case DBT::SQLSERVER:
 		case DBT::SQLSERVER15:
 		case DBT::SYBASE:
+		case DBT::POSTGRESQL:
+		case DBT::SQLITE3:
 			return ESCAPE_MSSQL;
 		case DBT::MYSQL:
 		default:
@@ -289,6 +291,15 @@ KSQLString KROW::EscapeChars (KStringView sCol, DBT iDBType)
 		case DBT::SQLSERVER15:
 		case DBT::SYBASE:
 			return EscapeChars (sCol, ESCAPE_MSSQL);
+		case DBT::SQLITE3:
+			return EscapeChars (sCol, ESCAPE_MSSQL);
+		case DBT::POSTGRESQL:
+		{
+			// PQexec uses null-terminated C strings, and PostgreSQL text cannot store null bytes
+			auto sResult = EscapeChars (sCol, ESCAPE_MSSQL);
+			sResult.ref().RemoveChars('\0');
+			return sResult;
+		}
 		case DBT::MYSQL:
 		default:
 			return EscapeChars (sCol, ESCAPE_MYSQL, '\\');
@@ -363,6 +374,15 @@ KSQLString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 		case DBT::SQLSERVER15:
 		case DBT::SYBASE:
 			return EscapeChars (Col, ESCAPE_MSSQL);
+		case DBT::SQLITE3:
+			return EscapeChars (Col, ESCAPE_MSSQL);
+		case DBT::POSTGRESQL:
+		{
+			// PQexec uses null-terminated C strings, and PostgreSQL text cannot store null bytes
+			auto sResult = EscapeChars (Col, ESCAPE_MSSQL);
+			sResult.ref().RemoveChars('\0');
+			return sResult;
+		}
 		default:
 			return EscapeChars (Col, ESCAPE_MYSQL, '\\');
 	}
@@ -537,7 +557,18 @@ KSQLString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool b
 		return sSQL;
 	}
 
-	sSQL.ref() += kFormat("insert{} into {} (", bIgnore ? " ignore" : "", GetTablename());
+	if (bIgnore && iDBType == DBT::SQLITE3)
+	{
+		sSQL.ref() += kFormat("insert or ignore into {} (", GetTablename());
+	}
+	else if (bIgnore && iDBType != DBT::POSTGRESQL)
+	{
+		sSQL.ref() += kFormat("insert ignore into {} (", GetTablename());
+	}
+	else
+	{
+		sSQL.ref() += kFormat("insert into {} (", GetTablename());
+	}
 
 	kDebug (3, GetTablename());
 

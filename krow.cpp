@@ -290,16 +290,17 @@ KSQLString KROW::EscapeChars (KStringView sCol, DBT iDBType)
 		case DBT::SQLSERVER:
 		case DBT::SQLSERVER15:
 		case DBT::SYBASE:
-			return EscapeChars (sCol, ESCAPE_MSSQL);
-		case DBT::SQLITE3:
-			return EscapeChars (sCol, ESCAPE_MSSQL);
 		case DBT::POSTGRESQL:
 		{
-			// PQexec uses null-terminated C strings, and PostgreSQL text cannot store null bytes
+			// these DBs cannot handle NUL in string literals:
+			// - CTLIB: server parser treats NUL as end-of-string, ct_bind uses CS_FMT_NULLTERM
+			// - LIBPQ: PQexec uses null-terminated C strings, PostgreSQL text rejects NUL
 			auto sResult = EscapeChars (sCol, ESCAPE_MSSQL);
 			sResult.ref().RemoveChars('\0');
 			return sResult;
 		}
+		case DBT::SQLITE3:
+			return EscapeChars (sCol, ESCAPE_MSSQL);
 		case DBT::MYSQL:
 		default:
 			return EscapeChars (sCol, ESCAPE_MYSQL, '\\');
@@ -373,16 +374,17 @@ KSQLString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 		case DBT::SQLSERVER:
 		case DBT::SQLSERVER15:
 		case DBT::SYBASE:
-			return EscapeChars (Col, ESCAPE_MSSQL);
-		case DBT::SQLITE3:
-			return EscapeChars (Col, ESCAPE_MSSQL);
 		case DBT::POSTGRESQL:
 		{
-			// PQexec uses null-terminated C strings, and PostgreSQL text cannot store null bytes
+			// these DBs cannot handle NUL in string literals:
+			// - CTLIB: server parser treats NUL as end-of-string, ct_bind uses CS_FMT_NULLTERM
+			// - LIBPQ: PQexec uses null-terminated C strings, PostgreSQL text rejects NUL
 			auto sResult = EscapeChars (Col, ESCAPE_MSSQL);
 			sResult.ref().RemoveChars('\0');
 			return sResult;
 		}
+		case DBT::SQLITE3:
+			return EscapeChars (Col, ESCAPE_MSSQL);
 		default:
 			return EscapeChars (Col, ESCAPE_MYSQL, '\\');
 	}

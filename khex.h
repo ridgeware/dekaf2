@@ -64,6 +64,19 @@ void kHexAppend(KStringRef& sOut, char chIn)
 
 } // KEnc::HexAppend
 
+/// Append a string in hexadecimal to sOut
+DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
+void kHexAppend(KStringRef& sOut, KStringView sIn)
+{
+	sOut.reserve(sIn.size() * 2);
+
+	for (auto ch : sIn)
+	{
+		kHexAppend(sOut, ch);
+	}
+
+} // kHexAppend
+
 /// Convert an input string to hexadecimal
 DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_STRING
 KString kHex(KStringView sIn)

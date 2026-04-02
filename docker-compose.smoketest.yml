@@ -1,0 +1,62 @@
+# docker-compose.smoketest.yml
+#
+# Run dekaf2 unit tests and DB-backed KSQL smoke tests.
+#
+# Prerequisites:
+#   Build the dekaf2 base image first:
+#     docker build --target build-stage -t dekaf2:build .
+#
+# Usage:
+#   docker compose -f docker-compose.smoketest.yml up --build --abort-on-container-exit
+#
+# Cleanup:
+#   docker compose -f docker-compose.smoketest.yml down -v
+
+services:
+  mysql:
+    image: mariadb:latest
+    environment:
+      MARIADB_USER: dekaf2
+      MARIADB_PASSWORD: dekaf2test
+      MARIADB_DATABASE: dekaf2test
+      MARIADB_ROOT_PASSWORD: dekaf2test
+    healthcheck:
+      test: ["CMD", "mariadb", "-udekaf2", "-pdekaf2test", "-e", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  postgresql:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: dekaf2
+      POSTGRES_PASSWORD: dekaf2test
+      POSTGRES_DB: dekaf2test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dekaf2 -d dekaf2test"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  testrunner:
+    build:
+      context: .
+      dockerfile: dekaf2-suite.dockerfile
+      args:
+        from: dekaf2:build
+    depends_on:
+      mysql:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      POSTGRESQL_HOST: postgresql
+      POSTGRESQL_PORT: "5432"
+      DB_USER: dekaf2
+      DB_PASS: dekaf2test
+      DB_NAME: dekaf2test
+    command: ["/home/dekaf2/scripts/run-smoketests.sh"]

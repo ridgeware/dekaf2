@@ -50,6 +50,7 @@
 #include "kprops.h"
 #include "kcrashexit.h"
 #include "kformat.h"
+#include "khttp_method.h"
 #include "khttp_version.h"
 #include "kmime.h"
 #include "kerror.h"
@@ -998,7 +999,7 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	bool HasContent(bool bForRequest) const;
+	bool HasContent(KHTTPMethod Method) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

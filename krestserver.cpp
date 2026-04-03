@@ -897,7 +897,7 @@ bool KRESTServer::Execute()
 			{
 			}
 */
-			if (Request.HasContent(Request.Method == KHTTPMethod::GET))
+			if (Request.HasContent(Request.Method))
 			{
 				Parse();
 			}

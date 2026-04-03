@@ -399,7 +399,7 @@ std::streamsize KHTTPHeaders::ContentLength() const
 } // ContentLength
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeaders::HasContent(bool bForRequest) const
+bool KHTTPHeaders::HasContent(KHTTPMethod Method) const
 //-----------------------------------------------------------------------------
 {
 	auto iSize = ContentLength();
@@ -411,25 +411,20 @@ bool KHTTPHeaders::HasContent(bool bForRequest) const
 			return true;
 		}
 
-		if (bForRequest)
+		// HTTP/1.0 without Content-Length: allow body-until-EOF for methods
+		// that may carry a body (needed for file-based test input
+		// that omits Content-Length)
+		if (GetHTTPVersion() == KHTTPVersion::http10)
 		{
-			// a request cannot be terminated by a connection close
-			return false;
+			return Method != KHTTPMethod::GET
+			    && Method != KHTTPMethod::HEAD
+			    && Method != KHTTPMethod::OPTIONS
+			    && Method != KHTTPMethod::TRACE
+			    && Method != KHTTPMethod::CONNECT;
 		}
 
-		auto sValue = Headers.Get(KHTTPHeader::CONNECTION).ToLowerASCII();
-
-		auto Values = sValue.Split();
-
-		if (DEKAF2_LIKELY(GetHTTPVersion() != KHTTPVersion::http10))
-		{
-			return kStrIn("close", Values);
-		}
-		else
-		{
-			// "close" is the default with HTTP/1.0!
-			return !kStrIn("keep-alive", Values);
-		}
+		// HTTP/1.1+: no Content-Length and no chunked means no body
+		return false;
 	}
 	else
 	{

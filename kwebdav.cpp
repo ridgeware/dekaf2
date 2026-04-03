@@ -241,7 +241,7 @@ PropfindRequest ParsePropfindBody(KRESTServer& HTTP)
 {
 	PropfindRequest Request;
 
-	if (!HTTP.Request.HasContent(true))
+	if (!HTTP.Request.HasContent(HTTP.Request.Method))
 	{
 		// no body means allprop (RFC 4918 Section 9.1)
 		return Request;

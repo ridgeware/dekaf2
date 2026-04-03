@@ -43,6 +43,8 @@
 #include "krow.h"
 #include "klog.h"
 #include "kcsv.h"
+#include "khex.h"
+#include "kbase64.h"
 #include "ksystem.h"
 #include "kexception.h"
 
@@ -213,6 +215,7 @@ KString KCOL::FlagsToString (Flags iFlags)
 		if (iFlags & JSON)            {  sPretty += "[JSON]";            }
 		if (iFlags & INT64NUMERIC)    {  sPretty += "[INT64NUMERIC]";    }
 		if (iFlags & INCREMENT)       {  sPretty += "[INCREMENT]";       }
+		if (iFlags & BINARY)          {  sPretty += "[BINARY]";          }
 	}
 
 	return (sPretty);
@@ -392,6 +395,50 @@ KSQLString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
+KSQLString KROW::BinaryToSQL (KStringView sData, DBT iDBType)
+//-----------------------------------------------------------------------------
+{
+	KSQLString sResult;
+	auto& sOut = sResult.ref();
+
+	// hex-encode directly into the result string to avoid intermediate allocations
+	auto iHexLen = sData.size() * 2;
+
+	switch (iDBType)
+	{
+		case DBT::SQLSERVER:
+		case DBT::SQLSERVER15:
+		case DBT::SYBASE:
+			// MSSQL/Sybase: 0xabcdef
+			sOut.reserve(2 + iHexLen);
+			sOut  = "0x";
+			kHexAppend(sOut, sData);
+			break;
+
+		case DBT::POSTGRESQL:
+			// PostgreSQL: decode('abcdef','hex')
+			sOut.reserve(8 + iHexLen + 7);
+			sOut  = "decode('";
+			kHexAppend(sOut, sData);
+			sOut += "','hex')";
+			break;
+
+		case DBT::MYSQL:
+		case DBT::SQLITE3:
+		default:
+			// MySQL/SQLite: X'abcdef'
+			sOut.reserve(2 + iHexLen + 1);
+			sOut  = "X'";
+			kHexAppend(sOut, sData);
+			sOut += '\'';
+			break;
+	}
+
+	return sResult;
+
+} // BinaryToSQL
+
+//-----------------------------------------------------------------------------
 std::size_t KROW::CreateColumns(KStringView sColumns)
 //-----------------------------------------------------------------------------
 {
@@ -510,6 +557,10 @@ void KROW::PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const
 		{
 			// Note: this is the default handling for NIL values: to place them in SQL as SQL null
 			sSQL.ref() += kFormat ("{}\n\tnull", (bComma) ? "," : "");
+		}
+		else if (it.second.HasFlag (KCOL::BINARY))
+		{
+			sSQL.ref() += kFormat ("{}\n\t{}", (bComma) ? "," : "", BinaryToSQL(it.second.sValue, iDBType));
 		}
 		else if (bHack || it.second.HasFlag (KCOL::NUMERIC | KCOL::MONEY | KCOL::BOOLEAN | KCOL::EXPRESSION))
 		{
@@ -726,7 +777,11 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 					sSQL.ref() += kFormat ("{}+", it.first);
 				}
 
-				if (it.second.HasFlag (KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
+				if (it.second.HasFlag (KCOL::BINARY))
+				{
+					sSQL.ref() += kFormat ("{}\n", BinaryToSQL(it.second.sValue, iDBType));
+				}
+				else if (it.second.HasFlag (KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 				{
 					sSQL.ref() += kFormat ("{}\n", EscapeChars (it, iDBType));
 				}
@@ -769,7 +824,11 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 		
 		sSQL.ref() += kFormat("{}{}=", sPrefix, it.first);
 
-		if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
+		if (it.second.HasFlag(KCOL::BINARY))
+		{
+			sSQL.ref() += kFormat("{}\n", BinaryToSQL(it.second.sValue, iDBType));
+		}
+		else if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
 			sSQL.ref() += kFormat("{}\n", EscapeChars (it, iDBType));
 		}
@@ -849,7 +908,11 @@ KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 		{
 			KStringView sPrefix = !iKeys++ ? " where " : "   and ";
 
-			if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
+			if (it.second.HasFlag(KCOL::BINARY))
+			{
+				sSQL.ref() += kFormat("{}{}={}\n", sPrefix, it.first, BinaryToSQL(it.second.sValue, iDBType));
+			}
+			else if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 			{
 				sSQL.ref() += kFormat("{}{}={}\n", sPrefix, it.first, EscapeChars (it, iDBType));
 			}
@@ -916,6 +979,10 @@ KSQLString KROW::FormDelete (DBT iDBType) const
 		{
 			sSQL.ref() += kFormat(" {} {} is null\n",(!kk) ? "where" : "  and", it.first);
 		}
+		else if (it.second.HasFlag(KCOL::BINARY))
+		{
+			sSQL.ref() += kFormat(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, BinaryToSQL(it.second.sValue, iDBType));
+		}
 		else if (it.second.HasFlag(KCOL::NUMERIC | KCOL::MONEY | KCOL::EXPRESSION | KCOL::BOOLEAN))
 		{
 			sSQL.ref() += kFormat(" {} {}={}\n",     (!kk) ? "where" : "  and", it.first, EscapeChars (it, iDBType));
@@ -954,7 +1021,9 @@ bool KROW::AddCol (KStringView sColName, const LJSON& Value, KCOL::Flags Flags, 
 {
 	kDebug (4, "...");
 
-	// make sure all type flags are removed
+	// preserve the BINARY flag if set by the caller
+	bool bBinary = (Flags & KCOL::BINARY) != 0;
+	// make sure all other type flags are removed
 	Flags &= KCOL::MODE_FLAGS;
 
 	switch (Value.type())
@@ -963,8 +1032,19 @@ bool KROW::AddCol (KStringView sColName, const LJSON& Value, KCOL::Flags Flags, 
 		case LJSON::value_t::array:
 			return AddCol(sColName, Value.dump(-1), Flags | KCOL::JSON, iMaxLen);
 
-		case LJSON::value_t::string:
 		case LJSON::value_t::binary:
+		{
+			// nlohmann binary_t is std::vector<uint8_t>, convert to KString
+			auto& bin = Value.get_binary();
+			return AddCol(sColName, KString(reinterpret_cast<const char*>(bin.data()), bin.size()), Flags | KCOL::BINARY, iMaxLen);
+		}
+
+		case LJSON::value_t::string:
+			if (bBinary)
+			{
+				// caller indicated this is a base64-encoded binary value
+				return AddCol(sColName, KBase64::Decode(Value.get<KJSON::string_t>()), Flags | KCOL::BINARY, iMaxLen);
+			}
 			return AddCol(sColName, Value.get<KJSON::string_t>(), Flags | KCOL::NOFLAG, iMaxLen);
 
 		case LJSON::value_t::number_integer:
@@ -1086,6 +1166,12 @@ LJSON KROW::to_json (CONVERSION Flags/*=CONVERSION::NO_CONVERSION*/) const
 			json[sKey] = KJSON();
 		}
 #endif
+		else if (col.second.HasFlag(KCOL::BINARY))
+		{
+			// binary data cannot be represented in JSON text directly,
+			// encode as base64 string
+			json[sKey] = KBase64::Encode(col.second.sValue, false);
+		}
 		else if (col.second.HasFlag(KCOL::JSON))
 		{
 			// this is a json serialization

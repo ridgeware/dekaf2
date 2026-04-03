@@ -311,8 +311,35 @@ public:
 		INT64NUMERIC     = 1 << 8,   ///< a NUMERIC, but would overflow in JSON - NUMERIC is also always set when this flag is true
 		INCREMENT        = 1 << 9,   ///< during UPDATES the value in the existing row should be INCREMENTED by the value passed in
 		NULL_IS_NOT_NIL  = 1 << 10,  ///< ???
+		BINARY           = 1 << 11,  ///< value contains raw binary data (e.g. for varbinary/blob columns).
+		                             ///< @par SQL generation (FormInsert, FormUpdate, FormSelect, FormDelete)
+		                             ///< The raw bytes are hex-encoded into a DB-specific literal:
+		                             ///< - MySQL / SQLite: @c X'ffd8ffe0...'
+		                             ///< - MSSQL / Sybase: @c 0xffd8ffe0...
+		                             ///< - PostgreSQL:     @c decode('ffd8ffe0...','hex')
+		                             ///< @par JSON serialization (to_json / AddCol(LJSON))
+		                             ///< to_json() encodes BINARY columns as base64 strings (no line breaks).
+		                             ///< When reading back via AddCol(LJSON) with the BINARY flag, a JSON string
+		                             ///< is base64-decoded to recover the original bytes. A nlohmann binary_t
+		                             ///< value is converted directly (no base64 involved).
+		                             ///< @par Roundtrip example
+		                             ///< @code
+		                             ///< // store raw bytes
+		                             ///< KROW row("images");
+		                             ///< row.AddCol("img", jpegData, KCOL::BINARY);
+		                             ///<
+		                             ///< // KROW -> JSON (base64-encoded string)
+		                             ///< auto json = row.to_json();
+		                             ///<
+		                             ///< // JSON -> KROW (base64-decoded back to raw bytes)
+		                             ///< KROW row2("images");
+		                             ///< row2.AddCol("img", json["img"], KCOL::BINARY);
+		                             ///<
+		                             ///< // KROW -> SQL (hex-encoded literal)
+		                             ///< db.ExecSQL(row2.FormInsert(db.GetDBType()));
+		                             ///< @endcode
 
-		TYPE_FLAGS       = NUMERIC | BOOLEAN | JSON | INT64NUMERIC,
+		TYPE_FLAGS       = NUMERIC | BOOLEAN | JSON | INT64NUMERIC | BINARY,
 		MODE_FLAGS       = PKEY | NONCOLUMN | EXPRESSION | INSERTONLY | NULL_IS_NOT_NIL | INCREMENT
 	};
 
@@ -686,9 +713,18 @@ public:
 	DEKAF2_NODISCARD
 	static KSQLString EscapeChars (const KROW::value_type& Col, DBT iDBType);
 
+	/// Convert raw binary data to a DB-specific hex literal (e.g. X'ab' for MySQL/SQLite, 0xab for MSSQL)
+	DEKAF2_NODISCARD
+	static KSQLString BinaryToSQL (KStringView sData, DBT iDBType);
+
 	void LogRowLayout(int iLogLevel = 3) const;
 
-	/// Return row as a KJSON object
+	/// Return row as a KJSON object.
+	/// Columns are serialized according to their type flags: NUMERIC as integers or
+	/// doubles, BOOLEAN as bool, JSON as parsed objects, and BINARY as base64-encoded
+	/// strings (without line breaks). Plain string columns are checked for valid UTF-8,
+	/// falling back to Latin-1 reinterpretation if needed.
+	/// @see KCOL::BINARY for the full binary data roundtrip (KROW -> JSON -> KROW -> SQL)
 	DEKAF2_NODISCARD
 	LJSON to_json (CONVERSION Flags = CONVERSION::NO_CONVERSION) const;
 

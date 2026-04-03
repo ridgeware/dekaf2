@@ -1,6 +1,7 @@
 #include "catch.hpp"
 #include <dekaf2/krow.h>
 #include <dekaf2/kfilesystem.h>
+#include <dekaf2/kbase64.h>
 
 using namespace dekaf2;
 
@@ -163,5 +164,211 @@ TEST_CASE("KROW")
 		row2.Load(sFilename);
 
 		CHECK ( row == row2 );
+	}
+
+	SECTION("BINARY BinaryToSQL")
+	{
+		using DBT = KROW::DBT;
+
+		// test data with NUL byte, single quote, and high bytes (simulates binary content)
+		KString sBin("\xff\xd8\x00\x27\xab"_ksv);
+
+		{
+			auto sSQL = KROW::BinaryToSQL(sBin, DBT::MYSQL);
+			CHECK ( sSQL == "X'ffd80027ab'" );
+		}
+		{
+			auto sSQL = KROW::BinaryToSQL(sBin, DBT::SQLITE3);
+			CHECK ( sSQL == "X'ffd80027ab'" );
+		}
+		{
+			auto sSQL = KROW::BinaryToSQL(sBin, DBT::SQLSERVER);
+			CHECK ( sSQL == "0xffd80027ab" );
+		}
+		{
+			auto sSQL = KROW::BinaryToSQL(sBin, DBT::SQLSERVER15);
+			CHECK ( sSQL == "0xffd80027ab" );
+		}
+		{
+			auto sSQL = KROW::BinaryToSQL(sBin, DBT::SYBASE);
+			CHECK ( sSQL == "0xffd80027ab" );
+		}
+		{
+			auto sSQL = KROW::BinaryToSQL(sBin, DBT::POSTGRESQL);
+			CHECK ( sSQL == "decode('ffd80027ab','hex')" );
+		}
+		{
+			// empty binary
+			auto sSQL = KROW::BinaryToSQL("", DBT::MYSQL);
+			CHECK ( sSQL == "X''" );
+		}
+	}
+
+	SECTION("BINARY FormInsert")
+	{
+		using DBT = KROW::DBT;
+
+		KString sBin("\xff\xd8\x00\x27"_ksv);
+
+		{
+			KROW row("mytable");
+			row.AddCol("id", 1);
+			row.AddCol("img", sBin, KCOL::BINARY);
+
+			auto sSQL = row.FormInsert(DBT::MYSQL);
+			CHECK ( sSQL.str().contains("X'ffd80027'") );
+			CHECK ( !sSQL.str().contains("'X'") ); // no extra quoting
+
+			sSQL = row.FormInsert(DBT::SQLSERVER);
+			CHECK ( sSQL.str().contains("0xffd80027") );
+
+			sSQL = row.FormInsert(DBT::POSTGRESQL);
+			CHECK ( sSQL.str().contains("decode('ffd80027','hex')") );
+		}
+	}
+
+	SECTION("BINARY FormUpdate")
+	{
+		using DBT = KROW::DBT;
+
+		KString sBin("\xff\xd8"_ksv);
+
+		KROW row("mytable");
+		row.AddCol("id", 1, KCOL::PKEY);
+		row.AddCol("img", sBin, KCOL::BINARY);
+
+		auto sSQL = row.FormUpdate(DBT::MYSQL);
+		CHECK ( sSQL.str().contains("X'ffd8'") );
+		CHECK ( sSQL.str().contains("update mytable") );
+
+		sSQL = row.FormUpdate(DBT::SQLSERVER);
+		CHECK ( sSQL.str().contains("0xffd8") );
+
+		sSQL = row.FormUpdate(DBT::POSTGRESQL);
+		CHECK ( sSQL.str().contains("decode('ffd8','hex')") );
+	}
+
+	SECTION("BINARY FormUpdate with BINARY PKEY")
+	{
+		using DBT = KROW::DBT;
+
+		KString sBinKey("\x01\x02"_ksv);
+
+		KROW row("mytable");
+		row.AddCol("hash", sBinKey, KCOL::Flags(KCOL::PKEY | KCOL::BINARY));
+		row.AddCol("name", "test");
+
+		auto sSQL = row.FormUpdate(DBT::MYSQL);
+		CHECK ( sSQL.str().contains("X'0102'") );
+		CHECK ( sSQL.str().contains("where") );
+	}
+
+	SECTION("BINARY FormSelect")
+	{
+		using DBT = KROW::DBT;
+
+		KString sBinKey("\xab\xcd"_ksv);
+
+		KROW row("mytable");
+		row.AddCol("hash", sBinKey, KCOL::Flags(KCOL::PKEY | KCOL::BINARY));
+		row.AddCol("name", "");
+
+		auto sSQL = row.FormSelect(DBT::MYSQL);
+		CHECK ( sSQL.str().contains("X'abcd'") );
+		CHECK ( sSQL.str().contains("where") );
+
+		sSQL = row.FormSelect(DBT::POSTGRESQL);
+		CHECK ( sSQL.str().contains("decode('abcd','hex')") );
+	}
+
+	SECTION("BINARY FormDelete")
+	{
+		using DBT = KROW::DBT;
+
+		KString sBinKey("\xab\xcd"_ksv);
+
+		KROW row("mytable");
+		row.AddCol("hash", sBinKey, KCOL::Flags(KCOL::PKEY | KCOL::BINARY));
+
+		auto sSQL = row.FormDelete(DBT::MYSQL);
+		CHECK ( sSQL.str().contains("X'abcd'") );
+		CHECK ( sSQL.str().contains("delete from mytable") );
+	}
+
+	SECTION("BINARY to_json base64")
+	{
+		KString sBin("\xff\xd8\x00\x27\xab"_ksv);
+
+		KROW row("mytable");
+		row.AddCol("id", 1);
+		row.AddCol("img", sBin, KCOL::BINARY);
+
+		auto json = row.to_json();
+
+		// verify it's a base64-encoded string
+		CHECK ( json["img"].is_string() );
+		auto sBase64 = json["img"].get<std::string>();
+		CHECK ( sBase64 == KBase64::Encode(sBin, false) );
+
+		// verify roundtrip: decode base64 back to original bytes
+		CHECK ( KBase64::Decode(sBase64) == sBin );
+	}
+
+	SECTION("BINARY AddCol(LJSON) with BINARY flag - base64 decode")
+	{
+		KString sBin("\xff\xd8\x00\x27\xab"_ksv);
+		KString sBase64 = KBase64::Encode(sBin, false);
+
+		LJSON json;
+		json["img"] = sBase64;
+
+		KROW row("mytable");
+		row.AddCol("img", json["img"], KCOL::BINARY);
+
+		CHECK ( row["img"] == sBin );
+		CHECK ( static_cast<const KCOLS&>(row)["img"].HasFlag(KCOL::BINARY) );
+	}
+
+	SECTION("BINARY full roundtrip: KROW -> JSON -> KROW -> SQL")
+	{
+		using DBT = KROW::DBT;
+
+		// original binary data with NUL, single quote, and high bytes
+		KString sBin("\xff\xd8\x00\x27\x01\xab"_ksv);
+
+		// step 1: KROW with binary column
+		KROW row1("images");
+		row1.AddCol("id", 42);
+		row1.AddCol("img", sBin, KCOL::BINARY);
+
+		// step 2: KROW -> JSON
+		auto json = row1.to_json();
+		CHECK ( json["img"].is_string() );
+
+		// step 3: JSON -> KROW (with BINARY flag to trigger base64-decode)
+		KROW row2("images");
+		row2.AddCol("id", json["id"]);
+		row2.AddCol("img", json["img"], KCOL::BINARY);
+
+		// verify raw bytes are restored
+		CHECK ( row2["img"] == sBin );
+		CHECK ( static_cast<const KCOLS&>(row2)["img"].HasFlag(KCOL::BINARY) );
+
+		// step 4: KROW -> SQL
+		auto sMySQL = row2.FormInsert(DBT::MYSQL);
+		CHECK ( sMySQL.str().contains("X'ffd80027") );
+
+		auto sMSSQL = row2.FormInsert(DBT::SQLSERVER);
+		CHECK ( sMSSQL.str().contains("0xffd80027") );
+
+		auto sPG = row2.FormInsert(DBT::POSTGRESQL);
+		CHECK ( sPG.str().contains("decode('ffd80027") );
+	}
+
+	SECTION("BINARY FlagsToString")
+	{
+		CHECK ( KCOL::FlagsToString(KCOL::BINARY).contains("BINARY") );
+		CHECK ( KCOL::FlagsToString(KCOL::Flags(KCOL::PKEY | KCOL::BINARY)).contains("PKEY") );
+		CHECK ( KCOL::FlagsToString(KCOL::Flags(KCOL::PKEY | KCOL::BINARY)).contains("BINARY") );
 	}
 }

@@ -64,7 +64,19 @@ struct KAsioTLSTraits
 	static bool SocketIsOpen(StreamType& Socket)
 		{ return Socket.next_layer().is_open(); }
 	static void SocketShutdown(StreamType& Socket, boost::system::error_code& ec)
-		{ Socket.shutdown(ec); Socket.next_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec); }
+	{
+		// set non-blocking to prevent SSL shutdown from blocking indefinitely
+		// in poll() if the peer doesn't respond to close_notify - the close_notify
+		// is still sent, but we do not wait for the peer's response.
+		// This fix is only needed for TLS: plain TCP/Unix socket shutdown() just
+		// sends FIN and returns immediately, while SSL shutdown() performs a
+		// bidirectional handshake that calls poll(-1) to wait for the peer's
+		// close_notify response, which can block forever.
+		Socket.next_layer().non_blocking(true, ec);
+		ec.clear();
+		Socket.shutdown(ec);
+		Socket.next_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+	}
 	static void SocketClose(StreamType& Socket, boost::system::error_code& ec)
 		{ Socket.next_layer().close(ec); }
 	static void SocketPeek(StreamType& Socket, boost::system::error_code& ec)

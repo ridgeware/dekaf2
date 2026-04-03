@@ -248,7 +248,7 @@ constexpr SQLTX g_Translations[] = {
 	{ "+",              "+",/*CONCAT()*/  "+",              "||",            "||",            "+",            "||",                        "||"                         },
 	{ "CAT",            "+",/*CONCAT()*/  "+",              "||",            "||",            "+",            "||",                        "||"                         },
 	{ "DATETIME",       "timestamp",      "timestamp",      "date",          "date",          "datetime",     "?datetime-col?",            "timestamp"                  }, // column type
-	{ "NOW",            "now()",          "now()",          "sysdate",       "sysdate",       "getdate()",    "current year to second",    "now()"                      }, // function
+	{ "NOW",            "now()",      "CURRENT_TIMESTAMP","sysdate",       "sysdate",       "getdate()",    "current year to second",    "now()"                      }, // function
 // DO NOT USE UTC! INSTEAD USE NOW. UTC IS AN ABERRATION. NOW _IS_ UTC, but is displayed in your time zone
 	{ "UTC",            "utc_timestamp()","datetime('now')","sysdate",       "sysdate",       "getutcdate()", "current year to second",    "now() at time zone 'utc'"   }, // function (oracle and informix are not correct right now)
 	{ "MAXCHAR",        "text",           "text",           "varchar(2000)", "varchar(4000)", "text",         "char(2000)",                "text"                       },

@@ -761,7 +761,7 @@ TEST_CASE("KSQL-SQLite3")
 		KSQLString sSQL("select {{NOW}}, {{DATETIME}}, {{MAXCHAR}}");
 		db.BuildTranslationList(db.m_TxList, KSQL::DBT::SQLITE3);
 		db.DoTranslations(sSQL);
-		CHECK ( sSQL == "select now(), timestamp, text" );
+		CHECK ( sSQL == "select CURRENT_TIMESTAMP, timestamp, text" );
 	}
 
 	SECTION("Empty result set then reuse connection")

@@ -39,4 +39,8 @@ set (USOURCES
 )
 
 add_executable(dekaf2-smoketests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
-target_link_libraries(dekaf2-smoketests PRIVATE ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}ksql2${DEKAF2_LINK_SHARED})
+if (DEKAF2_HAS_SQLITE3)
+	target_link_libraries(dekaf2-smoketests PRIVATE ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}ksqlite${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}ksql2${DEKAF2_LINK_SHARED})
+else()
+	target_link_libraries(dekaf2-smoketests PRIVATE ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}ksql2${DEKAF2_LINK_SHARED})
+endif()

@@ -455,6 +455,84 @@ TEST_CASE("KUnTar")
 		}
 	}
 
+	SECTION("uncompressed, skip without read (seek path)")
+	{
+		// exercises Skip() via Forward() seek on seekable file stream
+		KUnTar untar(sBaseDir + "test1.tar");
+
+		CHECK ( untar.Next() );
+		CHECK ( untar.Filename() == "myfolder/" );
+		CHECK ( untar.Type() == tar::Directory );
+
+		// skip file1 without reading
+		CHECK ( untar.Next() );
+		CHECK ( untar.Filename() == "myfolder/file1.txt" );
+		CHECK ( untar.Filesize() == 30 );
+		CHECK ( untar.Type() == tar::File );
+
+		// skip file2 without reading
+		CHECK ( untar.Next() );
+		CHECK ( untar.Filename() == "myfolder/file2.txt" );
+		CHECK ( untar.Filesize() == 46 );
+		CHECK ( untar.Type() == tar::File );
+
+		// now read file3 to verify stream position is correct after seeks
+		CHECK ( untar.Next() );
+		CHECK ( untar.Filename() == "myfolder/filé3.txt" );
+		CHECK ( untar.Filesize() == 54 );
+		CHECK ( untar.Type() == tar::File );
+		KString sContent;
+		CHECK ( untar.Read(sContent) );
+		CHECK ( sContent == "this is yet another line 1\nthis is yet another line 2\n" );
+
+		// skip symlink and hardlink, verify clean end of archive
+		CHECK ( untar.Next() );
+		CHECK ( untar.Type() == tar::Symlink );
+		CHECK ( untar.Next() );
+		CHECK ( untar.Type() == tar::File );
+		CHECK ( untar.Next() == false );
+		CHECK ( untar.Error() == "" );
+	}
+
+	SECTION("compressed, skip without read (read-fallback path)")
+	{
+		// exercises Skip() via read loop on non-seekable compressed stream
+		KUnTarBZip2 untar(sBaseDir + "test3.tar.bz2");
+
+		CHECK ( untar.Next() );
+		CHECK ( untar.Filename() == "myfolder/" );
+		CHECK ( untar.Type() == tar::Directory );
+
+		// skip file1 without reading
+		CHECK ( untar.Next() );
+		CHECK ( untar.Filename() == "myfolder/file1.txt" );
+		CHECK ( untar.Filesize() == 30 );
+		CHECK ( untar.Type() == tar::File );
+
+		// skip file2 without reading
+		CHECK ( untar.Next() );
+		CHECK ( untar.Filename() == "myfolder/file2.txt" );
+		CHECK ( untar.Filesize() == 46 );
+		CHECK ( untar.Type() == tar::File );
+
+		// now read file3 to verify stream position is correct after read-based skips
+		CHECK ( untar.Next() );
+		CHECK ( untar.Filename() == "myfolder/filé3.txt" );
+		CHECK ( untar.Filesize() == 54 );
+		CHECK ( untar.Type() == tar::File );
+		KString sContent;
+		CHECK ( untar.Read(sContent) );
+		CHECK ( sContent == "this is yet another line 1\nthis is yet another line 2\n" );
+
+		// skip symlink and hardlink, verify clean end of archive
+		CHECK ( untar.Next() );
+		CHECK ( untar.Type() == tar::Symlink );
+		CHECK ( untar.Next() );
+		CHECK ( untar.Type() == tar::File );
+		CHECK ( untar.Next() == false );
+		CHECK ( untar.Error() == "" );
+	}
+
 	SECTION("bzip2 compressed, extract all files")
 	{
 		KTempDir TempDir;

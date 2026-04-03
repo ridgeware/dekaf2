@@ -572,6 +572,18 @@ bool KUnTar::Skip(size_t iSize)
 		return true;
 	}
 
+	// try a seek first (succeeds on uncompressed file streams, O(1))
+	if (m_bCanSeek)
+	{
+		if (m_Stream.Forward(iSize))
+		{
+			return true;
+		}
+		// stream is not seekable (not a file), don't try again
+		m_bCanSeek = false;
+	}
+
+	// fall back to reading through the data (for non-seekable streams)
 	std::array<char, KDefaultCopyBufSize> sBuffer;
 	size_t iRead = 0;
 

@@ -407,6 +407,7 @@ private:
 	bool                     m_bSkipAppleResourceForks;
 	std::size_t              m_iMaxBufferSize { 1024 * 1024 * 1024 }; // 1 GB default
 	mutable bool             m_bIsConsumed { true };
+	bool                     m_bCanSeek { true };
 
 }; // KUnTar
 

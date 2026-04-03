@@ -46,7 +46,7 @@
 #include "ktemplate.h"
 #include "kstringview.h"
 #include "kstring.h"
-#include "kformat.h"
+#include "bits/kformat.h"
 #include <type_traits>
 
 /// @file kjoin.h
@@ -118,7 +118,7 @@ void kJoin (Result& Out,
 
 		for (;;)
 		{
-			Out += kFormat("{}", *it);
+			Out += kformat_detail::FormatElement(*it);
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{
@@ -196,9 +196,9 @@ void kJoin (Result& Out,
 
 		for (;;)
 		{
-			Out += kFormat("{}", it->first);
+			Out += kformat_detail::FormatElement(it->first);
 			Out += svPairDelim;
-			Out += kFormat("{}", it->second);
+			Out += kformat_detail::FormatElement(it->second);
 
 			if (DEKAF2_UNLIKELY(++it == ie))
 			{

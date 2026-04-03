@@ -98,4 +98,30 @@ DEKAF2_NAMESPACE_BEGIN
 template<typename... Args>
 using KFormatString = DEKAF2_FORMAT_NAMESPACE::format_string<Args...>;
 
+class KString;
+
+namespace kformat_detail {
+
+#if !DEKAF2_FORMAT_INLINE || !DEKAF2_HAS_FORMAT_RUNTIME
+// non-locale Format overload - the locale variant is declared in kformat.h
+// the implementation is in kformat.cpp
+DEKAF2_NODISCARD DEKAF2_PUBLIC KString Format(DEKAF2_FORMAT_NAMESPACE::string_view svFormat, const DEKAF2_FORMAT_NAMESPACE::format_args& args) noexcept;
+#endif
+
+/// format dispatcher for a single element - used by kjoin.h to avoid
+/// a circular include with kformat.h. Encapsulates the DEKAF2_FORMAT_INLINE
+/// decision so that callers do not need to know about it.
+template<typename Arg>
+DEKAF2_NODISCARD
+std::string FormatElement(const Arg& arg) noexcept
+{
+#if DEKAF2_FORMAT_INLINE
+	return DEKAF2_FORMAT_NAMESPACE::format("{}", arg);
+#else
+	return Format("{}", DEKAF2_FORMAT_NAMESPACE::make_format_args(arg));
+#endif
+}
+
+} // end of namespace kformat_detail
+
 DEKAF2_NAMESPACE_END

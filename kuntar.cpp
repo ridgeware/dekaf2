@@ -131,25 +131,18 @@ KUnTar::iterator& KUnTar::iterator::operator++() noexcept
 void KUnTar::Decoded::Reset()
 //-----------------------------------------------------------------------------
 {
-	if (!m_bKeepMembersOnce)
-	{
-		m_sFilename.clear();
-		m_sLinkname.clear();
-		m_sUser.clear();
-		m_sGroup.clear();
-		m_iMode             = 0;
-		m_iUserId           = 0;
-		m_iGroupId          = 0;
-		m_iFilesize         = 0;
-		m_tModificationTime = KUnixTime(0);
-		m_bIsEnd            = false;
-		m_bIsUstar          = false;
-		m_EntryType         = tar::Unknown;
-	}
-	else
-	{
-		m_bKeepMembersOnce = false;
-	}
+	m_sFilename.clear();
+	m_sLinkname.clear();
+	m_sUser.clear();
+	m_sGroup.clear();
+	m_iMode             = 0;
+	m_iUserId           = 0;
+	m_iGroupId          = 0;
+	m_iFilesize         = 0;
+	m_tModificationTime = KUnixTime(0);
+	m_bIsEnd            = false;
+	m_bIsUstar          = false;
+	m_EntryType         = tar::Unknown;
 
 } // Reset
 
@@ -157,7 +150,6 @@ void KUnTar::Decoded::Reset()
 void KUnTar::Decoded::clear()
 //-----------------------------------------------------------------------------
 {
-	m_bKeepMembersOnce = false;
 	Reset();
 
 } // clear
@@ -332,18 +324,6 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& Tar)
 		// treat contiguous file as normal
 		case '7':
             // normal file
-            if (m_EntryType == tar::Longname1)
-			{
-                // this is a subsequent read on GNU tar long names
-                // the current block contains only the filename and the next block contains metadata
-                // set the filename from the current header
-                m_sFilename.assign(Tar.header.file_name,
-								  ::strnlen(Tar.header.file_name, tar::HeaderLen));
-                // the next header contains the metadata, so replace the header before reading the metadata
-                m_EntryType        = tar::Longname2;
-                m_bKeepMembersOnce = true;
-                return true;
-            }
             m_EntryType         = tar::File;
 			m_iFilesize         = FromNumbers(Tar.header.file_bytes, 12);
 			m_tModificationTime = KUnixTime(std::time_t(FromNumbers(Tar.header.modification_time , 12)));
@@ -353,14 +333,14 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& Tar)
             // link
             m_EntryType = tar::Hardlink;
             m_sLinkname.assign(Tar.header.extension.ustar.linked_file_name,
-							  ::strnlen(Tar.header.file_name, 100));
+							  ::strnlen(Tar.header.extension.ustar.linked_file_name, 100));
             break;
 
         case '2':
             // symlink
             m_EntryType = tar::Symlink;
             m_sLinkname.assign(Tar.header.extension.ustar.linked_file_name,
-							  ::strnlen(Tar.header.file_name, 100));
+							  ::strnlen(Tar.header.extension.ustar.linked_file_name, 100));
             break;
 
         case '5':
@@ -375,14 +355,40 @@ bool KUnTar::Decoded::Decode(const tar::TarHeader& Tar)
             m_EntryType = tar::Fifo;
             break;
 
+        case 'x':
+        case 'g':
+            // pax extended headers (POSIX.1-2001): 'x' is a per-file header,
+            // 'g' is a global header. They carry extended attributes (long
+            // filenames, high-precision timestamps, etc.) as key=value pairs
+            // in their data section. Modern tar implementations (macOS bsdtar,
+            // GNU tar with --format=posix) write these by default. We parse
+            // the filesize so Next() can skip the attribute data, then read
+            // the actual entry from the following header.
+            m_EntryType = tar::Unknown;
+            m_iFilesize = FromNumbers(Tar.header.file_bytes, 12);
+            break;
+
+        case 'K':
+            // GNU long link name - data section contains the full link target,
+            // handled transparently in Next()
+            m_EntryType = tar::Longname2;
+            m_iFilesize = FromNumbers(Tar.header.file_bytes, 12);
+            break;
+
         case 'L':
-            // GNU long filename
-            m_EntryType        = tar::Longname1;
-            m_bKeepMembersOnce = true;
-            return true;
+            // GNU long filename - data section contains the full path,
+            // handled transparently in Next()
+            m_EntryType = tar::Longname1;
+            m_iFilesize = FromNumbers(Tar.header.file_bytes, 12);
+            break;
 
         default:
+            // unknown or vendor-specific type (e.g. '3'/'4' for device
+            // nodes, 'A'-'Z' for vendor extensions) - always parse the
+            // filesize so Next() can skip any associated data section.
+            // Without this, the data would be misread as the next header.
             m_EntryType = tar::Unknown;
+            m_iFilesize = FromNumbers(Tar.header.file_bytes, 12);
             break;
     }
 
@@ -468,7 +474,10 @@ bool KUnTar::Next()
 	// delete a previous error
 	ClearError();
 
-    do
+	KString sLongFilename;
+	KString sLongLinkname;
+
+	for (;;)
 	{
 		if (!m_bIsConsumed && (Filesize() > 0))
 		{
@@ -482,7 +491,7 @@ bool KUnTar::Next()
 
 		if (!Read(&TarHeader, tar::HeaderLen))
 		{
-			return SetError("cannot not read tar header");
+			return SetError("cannot read tar header");
 		}
 
 		if (!m_Header.Decode(TarHeader))
@@ -491,24 +500,68 @@ bool KUnTar::Next()
 			return SetError("invalid tar header (bad checksum)");
 		}
 
-        // this is the only valid exit condition from reading a tar archive - end header reached
-        if (m_Header.IsEnd())
+		// this is the only valid exit condition from reading a tar archive - end header reached
+		if (m_Header.IsEnd())
 		{
 			// no error!
 			return false;
 		}
 
-        if (Filesize() > 0)
+		if (Filesize() > 0)
 		{
 			m_bIsConsumed = false;
-        }
+		}
 
-    } while ((Type() & m_AcceptedTypes) == 0
-			 || (m_bSkipAppleResourceForks && kBasename(Filename()).starts_with("._")));
+		// handle GNU long name/link entries transparently -
+		// read their data and apply to the next actual entry
+		if (Type() == tar::Longname1)
+		{
+			if (!ReadLongName(sLongFilename))
+			{
+				return false;
+			}
+			continue;
+		}
 
-    return true;
+		if (Type() == tar::Longname2)
+		{
+			if (!ReadLongName(sLongLinkname))
+			{
+				return false;
+			}
+			continue;
+		}
 
-} // Entry
+		// apply stored long names from previous GNU 'L'/'K' entries
+		if (!sLongFilename.empty())
+		{
+			m_Header.m_sFilename = std::move(sLongFilename);
+			sLongFilename.clear();
+		}
+
+		if (!sLongLinkname.empty())
+		{
+			m_Header.m_sLinkname = std::move(sLongLinkname);
+			sLongLinkname.clear();
+		}
+
+		// check if this entry type is accepted
+		if ((Type() & m_AcceptedTypes) == 0)
+		{
+			continue;
+		}
+
+		if (m_bSkipAppleResourceForks && kBasename(Filename()).starts_with("._"))
+		{
+			continue;
+		}
+
+		break;
+	}
+
+	return true;
+
+} // Next
 
 //-----------------------------------------------------------------------------
 bool KUnTar::Skip(size_t iSize)
@@ -539,7 +592,7 @@ bool KUnTar::Skip(size_t iSize)
 	}
 	else
 	{
-		return SetError("cannot not skip file");
+		return SetError("cannot skip file");
 	}
 
 } // Skip
@@ -551,6 +604,44 @@ bool KUnTar::SkipCurrentFile()
 	return Skip(Filesize() + CalcPadding());
 
 } // SkipCurrentFile
+
+//-----------------------------------------------------------------------------
+bool KUnTar::ReadLongName(KString& sName)
+//-----------------------------------------------------------------------------
+{
+	sName.clear();
+
+	if (Filesize() > 0)
+	{
+		if (Filesize() > 65536)
+		{
+			return SetError(kFormat("GNU long name exceeds maximum length of 65536 bytes: {}", Filesize()));
+		}
+
+		kResizeUninitialized(sName, Filesize());
+
+		if (!Read(&sName[0], Filesize()))
+		{
+			return false;
+		}
+
+		if (!ReadPadding())
+		{
+			return false;
+		}
+
+		m_bIsConsumed = true;
+
+		// strip trailing null bytes
+		while (!sName.empty() && sName.back() == '\0')
+		{
+			sName.pop_back();
+		}
+	}
+
+	return true;
+
+} // ReadLongName
 
 //-----------------------------------------------------------------------------
 bool KUnTar::Read(KOutStream& OutStream)
@@ -588,7 +679,12 @@ bool KUnTar::Read(KStringRef& sBuffer)
 		return SetError("cannot read - current tar entry is not a file");
 	}
 
-	
+	if (Filesize() > m_iMaxBufferSize)
+	{
+		return SetError(kFormat("file size {} exceeds maximum buffer size of {} - use streaming Read(KOutStream&) for large files",
+			Filesize(), m_iMaxBufferSize));
+	}
+
 	// resize the buffer to be able to read the file size
 	kResizeUninitialized(sBuffer, Filesize());
 
@@ -613,7 +709,7 @@ bool KUnTar::Read(KStringRef& sBuffer)
 bool KUnTar::ReadFile(KStringViewZ sFilename)
 //-----------------------------------------------------------------------------
 {
-	KOutFile File(sFilename, std::ios_base::out & std::ios_base::trunc);
+	KOutFile File(sFilename, std::ios_base::out | std::ios_base::trunc);
 
 	if (!File.is_open())
 	{

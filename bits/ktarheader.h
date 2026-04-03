@@ -84,8 +84,8 @@ enum EntryType
 	Hardlink  =   4,
 	Symlink   =   8,
 	Fifo      =  16,
-	Longname1 =  32,
-	Longname2 =  64,
+	Longname1 =  32, // GNU long filename ('L') - handled internally by Next()
+	Longname2 =  64, // GNU long link name ('K') - handled internally by Next()
 	All       = 127
 };
 

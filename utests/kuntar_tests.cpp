@@ -37,7 +37,10 @@ TEST_CASE("KUnTar")
 		}
 		CHECK ( kFileExists(sTarDir + "file1.txt") );
 		{
-			KInShell Shell(kFormat("cd {} && tar -c -f test1.tar myfolder", sBaseDir));
+			// COPYFILE_DISABLE=1 prevents macOS tar (bsdtar) from including
+			// AppleDouble resource fork files (._*) for extended attributes
+			// like com.apple.provenance. Harmless on Linux (GNU tar ignores it).
+			KInShell Shell(kFormat("cd {} && COPYFILE_DISABLE=1 tar -c -f test1.tar myfolder", sBaseDir));
 		}
 		{
 			KOutFile File(sTarDir + "file2.txt");
@@ -46,7 +49,7 @@ TEST_CASE("KUnTar")
 		}
 		CHECK ( kFileExists(sTarDir + "file2.txt") );
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f test1.tar myfolder/file2.txt", sBaseDir));
+			KInShell Shell(kFormat("cd {} && COPYFILE_DISABLE=1 tar -r -f test1.tar myfolder/file2.txt", sBaseDir));
 		}
 		{
 			KOutFile File(sTarDir + "filé3.txt");
@@ -61,13 +64,13 @@ TEST_CASE("KUnTar")
 			kSetCWD(sBaseDir);
 		}
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f test1.tar myfolder/filé3.txt", sBaseDir));
+			KInShell Shell(kFormat("cd {} && COPYFILE_DISABLE=1 tar -r -f test1.tar myfolder/filé3.txt", sBaseDir));
 		}
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f test1.tar myfolder/symlink.txt", sBaseDir));
+			KInShell Shell(kFormat("cd {} && COPYFILE_DISABLE=1 tar -r -f test1.tar myfolder/symlink.txt", sBaseDir));
 		}
 		{
-			KInShell Shell(kFormat("cd {} && tar -r -f test1.tar myfolder/hardlink.txt", sBaseDir));
+			KInShell Shell(kFormat("cd {} && COPYFILE_DISABLE=1 tar -r -f test1.tar myfolder/hardlink.txt", sBaseDir));
 		}
 		{
 			KInShell Shell(kFormat("cd {} && cp test1.tar test2.tar && cp test1.tar test3.tar", sBaseDir));

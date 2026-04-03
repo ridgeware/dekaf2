@@ -154,6 +154,10 @@ public:
 		   int AcceptedTypes = tar::All,
 		   bool bSkipAppleResourceForks = false);
 
+	/// Set the maximum file size that can be read into memory via Read(KStringRef&).
+	/// Default is 1 GB. For larger files, use the streaming Read(KOutStream&).
+	void SetMaxBufferSize(uint64_t iMaxSize) { m_iMaxBufferSize = iMaxSize; }
+
 	/// reads all files and directories in an archive
 	/// @param sTargetDirectory directory into which the archive will be expanded.
 	/// If it does not exist it will be created.
@@ -352,6 +356,8 @@ private:
 	DEKAF2_PRIVATE
 	bool    SkipCurrentFile();
 	DEKAF2_PRIVATE
+	bool    ReadLongName(KString& sName);
+	DEKAF2_PRIVATE
 	bool    Read(void* buf, size_t len);
 	DEKAF2_PRIVATE
 	KString CreateTargetDirectory(KStringViewZ sBaseDir, KStringViewZ sEntry, bool bWithSubdirectories);
@@ -391,7 +397,6 @@ private:
 
 		bool      m_bIsEnd            { false };
 		bool      m_bIsUstar          { false };
-		bool      m_bKeepMembersOnce  { false };
 
 	}; // Decoded
 
@@ -400,6 +405,7 @@ private:
 	KInStream&               m_Stream;
 	int                      m_AcceptedTypes;
 	bool                     m_bSkipAppleResourceForks;
+	std::size_t              m_iMaxBufferSize { 1024 * 1024 * 1024 }; // 1 GB default
 	mutable bool             m_bIsConsumed { true };
 
 }; // KUnTar

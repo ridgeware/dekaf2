@@ -729,6 +729,17 @@ TEST_CASE("KSQL-SQLite3")
 		CHECK ( iCount == 3 );
 	}
 
+	SECTION("IsPersistentlyLocked (SQLite3)")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		// no lock table exists, so this must return false
+		CHECK ( db.IsPersistentlyLocked("NONEXISTENT") == false );
+	}
+
 	SECTION("Null query (no matching rows)")
 	{
 		KSQL db;

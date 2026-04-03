@@ -8964,6 +8964,16 @@ bool KSQL::IsPersistentlyLocked (KStringView sName)
 			"   and table_name = lower('{}')", sTablename) > 0;
 	}
 
+	if (m_iDBType == DBT::SQLITE3)
+	{
+		// pragma table_info() succeeds even for non-existent tables (returns empty result set),
+		// so DescribeTable() would always return true. Query sqlite_master instead.
+		return SingleIntQuery (
+			"select count(*) from sqlite_master"
+			" where type = 'table'"
+			"   and name = '{}'", sTablename) > 0;
+	}
+
 	return DescribeTable (sTablename);
 
 } // IsPersistentlyLocked

@@ -38,6 +38,9 @@
 # exit on error in pipes
 set -o pipefail
 
+# make sure containers are cleaned up on any exit (error, Die, signal, ..)
+trap 'Cleanup' EXIT
+
 # Produce an execution trace if requested
 if [[ $# -gt 0 ]] && [[ "$1" = '-x' ]]; then
 	set -x
@@ -336,11 +339,40 @@ RunPostgreSQL ()
 Cleanup ()
 #----------------------------------------------------------------------
 {
+	if [[ -z "${CONTAINER_ENGINE}" ]]; then
+		return
+	fi
+
 	if [[ ${KEEP_CONTAINERS} -eq 0 ]]; then
 		StopContainer "${MYSQL_CONTAINER}"
 		StopContainer "${POSTGRESQL_CONTAINER}"
 	else
 		Info "keeping containers running (use --cleanup to stop them later)"
+	fi
+}
+
+#----------------------------------------------------------------------
+CheckBuildSupport ()
+#----------------------------------------------------------------------
+{
+	local config="${BUILD_DIR}/generated/kconfiguration.h"
+
+	if [[ ! -f "${config}" ]]; then
+		Die "generated kconfiguration.h not found at ${config} - build dekaf2 first"
+	fi
+
+	if [[ ${DO_MYSQL} -eq 1 ]]; then
+		if ! grep -q '^#define DEKAF2_HAS_MYSQL' "${config}"; then
+			Die "dekaf2 was not built with MySQL support - install MySQL/MariaDB client libraries and rebuild"
+		fi
+		Verbose "dekaf2 has MySQL support"
+	fi
+
+	if [[ ${DO_POSTGRESQL} -eq 1 ]]; then
+		if ! grep -q '^#define DEKAF2_HAS_POSTGRESQL' "${config}"; then
+			Die "dekaf2 was not built with PostgreSQL support - install PostgreSQL client libraries and rebuild"
+		fi
+		Verbose "dekaf2 has PostgreSQL support"
 	fi
 }
 
@@ -413,6 +445,7 @@ fi
 
 ResolveBuildDir
 FindBinaries
+CheckBuildSupport
 
 FAIL=0
 
@@ -424,9 +457,6 @@ fi
 if [[ ${DO_POSTGRESQL} -eq 1 ]]; then
 	RunPostgreSQL || FAIL=1
 fi
-
-# cleanup
-Cleanup
 
 if [[ ${FAIL} -eq 0 ]]; then
 	Info "all smoke tests PASSED"

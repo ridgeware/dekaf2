@@ -58,6 +58,16 @@ class KMakeCopyable
 {
 
 //----------
+private:
+//----------
+
+	// detect whether T has operator->() — true for smart pointers (unique_ptr, shared_ptr, ...)
+	template<typename T, typename = void>
+	struct has_arrow_op : std::false_type {};
+	template<typename T>
+	struct has_arrow_op<T, std::void_t<decltype(std::declval<T&>().operator->())>> : std::true_type {};
+
+//----------
 public:
 //----------
 
@@ -108,17 +118,50 @@ public:
 	/// implicitly get the value type
 	operator       NonCopyable&()         { return get(); }
 
-	/// get pointer on object
-	NonCopyable* operator->()             { return &get(); }
+	/// get pointer on object, or delegate to wrapped type's operator-> if it is a smart pointer
+	template<typename T = NonCopyable,
+		typename std::enable_if<!has_arrow_op<T>::value, int>::type = 0>
+	T* operator->()             { return &m_Value; }
 
-	/// get reference on object
-	NonCopyable& operator*()              { return get();  }
+	/// get const pointer on object, or delegate to wrapped type's operator-> if it is a smart pointer
+	template<typename T = NonCopyable,
+		typename std::enable_if<!has_arrow_op<T>::value, int>::type = 0>
+	const T* operator->() const { return &m_Value; }
 
-	/// get const pointer on object
-	const NonCopyable* operator->() const { return &get(); }
+	/// for smart pointer types: delegate operator-> through to the pointed-to type
+	template<typename T = NonCopyable,
+		typename std::enable_if<has_arrow_op<T>::value, int>::type = 0>
+	auto operator->()       -> decltype(std::declval<T&>().operator->())       { return m_Value.operator->(); }
 
-	/// get const reference on object
-	const NonCopyable& operator*() const  { return get();  }
+	/// for smart pointer types: delegate operator-> through to the pointed-to type (const)
+	template<typename T = NonCopyable,
+		typename std::enable_if<has_arrow_op<T>::value, int>::type = 0>
+	auto operator->() const -> decltype(std::declval<const T&>().operator->()) { return m_Value.operator->(); }
+
+	/// get reference on object, or delegate to wrapped type's operator* if it is a smart pointer
+	template<typename T = NonCopyable,
+		typename std::enable_if<!has_arrow_op<T>::value, int>::type = 0>
+	T& operator*()             { return m_Value; }
+
+	/// get const reference on object, or delegate to wrapped type's operator* if it is a smart pointer
+	template<typename T = NonCopyable,
+		typename std::enable_if<!has_arrow_op<T>::value, int>::type = 0>
+	const T& operator*() const { return m_Value; }
+
+	/// for smart pointer types: delegate operator* through to the pointed-to type
+	template<typename T = NonCopyable,
+		typename std::enable_if<has_arrow_op<T>::value, int>::type = 0>
+	auto operator*()       -> decltype(*std::declval<T&>())       { return *m_Value; }
+
+	/// for smart pointer types: delegate operator* through to the pointed-to type (const)
+	template<typename T = NonCopyable,
+		typename std::enable_if<has_arrow_op<T>::value, int>::type = 0>
+	auto operator*() const -> decltype(*std::declval<const T&>()) { return *m_Value; }
+
+	/// convert to bool if the wrapped type supports it (e.g. unique_ptr, shared_ptr)
+	template<typename T = NonCopyable,
+		typename std::enable_if<std::is_constructible<bool, const T&>::value, int>::type = 0>
+	explicit operator bool() const { return static_cast<bool>(m_Value); }
 
 //----------
 private:

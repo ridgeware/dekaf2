@@ -9011,7 +9011,25 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 		return true; // all set
 	}
 
-	auto sLock = kFormat ("{}_{}", sSchemaVersionTable, GetDBName()).ToUpper();
+	// For SQLite3, GetDBName() is a file path (e.g. "/tmp/myapp.db") which may contain
+	// characters invalid for SQL identifiers. Extract basename without extension and
+	// sanitize to [A-Za-z0-9_] only.
+	auto sDBIdent = KString(GetDBName());
+
+	if (m_iDBType == DBT::SQLITE3)
+	{
+		sDBIdent = kRemoveExtension(kBasename(sDBIdent));
+
+		for (auto& ch : sDBIdent)
+		{
+			if (!KASCII::kIsAlNum(ch) && ch != '_')
+			{
+				ch = '_';
+			}
+		}
+	}
+
+	auto sLock = kFormat ("{}_{}", sSchemaVersionTable, sDBIdent).ToUpper();
 	if (!GetLock (sLock, WAIT_FOR_SECS))
 	{
 		kWarning(kFormat("Could not acquire schema update lock within {}. Another process may be updating the schema. Abort.", WAIT_FOR_SECS)); // note that format appends a 's' to the chrono::seconds type

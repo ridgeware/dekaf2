@@ -499,14 +499,14 @@ bool KThreadPool::run_thread(std::size_t i)
 
 			m_cond_var.wait(lock, [this, &_f, &bMoreTasks, &abort]()
 			{
-				if (abort != eAbort::None || ma_interrupt)
+				if (abort != eAbort::None)
 				{
 					return true;
 				}
 
 				bMoreTasks = m_queue.pop(_f);
 
-				return bMoreTasks;
+				return bMoreTasks || ma_interrupt;
 			});
 
 			--ma_n_idle;

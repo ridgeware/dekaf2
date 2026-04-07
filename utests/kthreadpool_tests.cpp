@@ -125,4 +125,37 @@ TEST_CASE("KThreadPool")
 
 		CHECK ( iCounter == 1001 );
 	}
+
+	SECTION("stop(false) drains queue completely")
+	{
+		// regression test: push followed by immediate stop(false) must not lose tasks
+		for (int iteration = 0; iteration < 50; ++iteration)
+		{
+			std::atomic<int> iCounter { 0 };
+
+			KThreadPool Pool(4, KThreadPool::PrestartSome, KThreadPool::ShrinkNever);
+
+			// push a single task and immediately stop
+			Pool.push([&iCounter]() { ++iCounter; });
+			Pool.stop(false);
+
+			CHECK ( iCounter == 1 );
+		}
+	}
+
+	SECTION("stop(false) drains multiple tasks")
+	{
+		std::atomic<int> iCounter { 0 };
+
+		KThreadPool Pool(4, KThreadPool::PrestartSome, KThreadPool::ShrinkNever);
+
+		for (int i = 0; i < 100; ++i)
+		{
+			Pool.push([&iCounter]() { ++iCounter; });
+		}
+
+		Pool.stop(false);
+
+		CHECK ( iCounter == 100 );
+	}
 }

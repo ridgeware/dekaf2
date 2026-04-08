@@ -168,6 +168,11 @@ public:
 	void finalize();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// set a FILE* for additional JSON output (nullptr to disable)
+	static void setJSONOutput(FILE* fp) { s_json_fp = fp; }
+	//-----------------------------------------------------------------------------
+
 //----------
 private:
 //----------
@@ -222,6 +227,10 @@ private:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	void printJSON();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	uint32_t level_up()
 	//-----------------------------------------------------------------------------
 	{
@@ -251,6 +260,7 @@ private:
 	static KSharedProfiler*      s_parent;
 	static std::mutex            s_constructor_mutex;
 	static std::atomic<uint32_t> s_order;
+	static FILE*                 s_json_fp;
 
 	clock_t::time_point          m_start;             // used for percentage calculations
 	clock_t::time_point          m_sleeps_since;
@@ -451,6 +461,12 @@ public:
 	{
 	}
 
+	//-----------------------------------------------------------------------------
+	static void setJSONOutput(FILE*)
+	//-----------------------------------------------------------------------------
+	{
+	}
+
 }; // KSharedProfiler
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -540,6 +556,10 @@ DEKAF2_PUBLIC inline void kProfFinalize()
 {
 	g_Prof.finalize();
 }
+DEKAF2_PUBLIC inline void kProfSetJSON(FILE* fp)
+{
+	enabled::KSharedProfiler::setJSONOutput(fp);
+}
 #endif // DEKAF2_DISABLE_AUTOMATIC_PROFILER
 
 #else // DEKAF2_ENABLE_PROFILING
@@ -554,6 +574,8 @@ DEKAF2_PUBLIC inline void kProfSleep()
 DEKAF2_PUBLIC inline void kProfWake()
 {}
 DEKAF2_PUBLIC inline void kProfFinalize()
+{}
+DEKAF2_PUBLIC inline void kProfSetJSON(FILE*)
 {}
 #endif
 

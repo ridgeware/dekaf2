@@ -49,6 +49,7 @@
 #include <algorithm>
 #include <set>
 #include <cstring>
+#include <ctime>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -58,6 +59,7 @@ std::size_t           KSharedProfiler::s_refcount{0};
 KSharedProfiler*      KSharedProfiler::s_parent{nullptr};
 std::mutex            KSharedProfiler::s_constructor_mutex;
 std::atomic<uint32_t> KSharedProfiler::s_order{0};
+FILE*                 KSharedProfiler::s_json_fp{nullptr};
 const char*           g_empty_label{"(unnamed)"};
 
 //-----------------------------------------------------------------------------
@@ -97,6 +99,11 @@ void KSharedProfiler::finalize()
 		else
 		{
 			print();
+
+			if (s_json_fp)
+			{
+				printJSON();
+			}
 		}
 	}
 }
@@ -202,6 +209,115 @@ void KSharedProfiler::print()
 	kWrite (stdout, "\n");
 
 } // print
+
+//-----------------------------------------------------------------------------
+void KSharedProfiler::printJSON()
+//-----------------------------------------------------------------------------
+{
+	FILE* fp = s_json_fp;
+
+	if (!fp)
+	{
+		return;
+	}
+
+	// get current timestamp
+	auto tNow   = std::chrono::system_clock::now();
+	auto time_t = std::chrono::system_clock::to_time_t(tNow);
+	char sTimestamp[64];
+	std::strftime(sTimestamp, sizeof(sTimestamp), "%Y-%m-%dT%H:%M:%S", std::localtime(&time_t));
+
+	// sort result map into an ordered set (same as print())
+	using set_value_t = map_t::value_type;
+
+	struct compare_set
+	{
+		bool operator()(const set_value_t& a, const set_value_t& b) const
+		{
+			return a.second.order < b.second.order;
+		}
+	};
+
+	using set_t = std::multiset<set_value_t, compare_set>;
+
+	set_t set;
+
+	for (const auto& it : m_map)
+	{
+		set.insert(it);
+	}
+
+	std::fprintf(fp, "{\n");
+	std::fprintf(fp, "  \"timestamp\": \"%s\",\n", sTimestamp);
+	std::fprintf(fp, "  \"results\": [\n");
+
+	bool bFirst = true;
+
+	for (const auto& it : set)
+	{
+		if (!bFirst)
+		{
+			std::fprintf(fp, ",\n");
+		}
+
+		bFirst = false;
+
+		bool        bIsGroup = (it.first[0] == '-');
+		const char* sLabel   = bIsGroup ? &it.first[1] : it.first;
+
+		double nPercent = (m_profiled_runtime.count())
+			? (it.second.duration.count() * 100.0) / (m_profiled_runtime.count() * 1.0)
+			: 0.0;
+
+		auto iUsecs = std::chrono::duration_cast<std::chrono::microseconds>(it.second.duration).count();
+
+		std::fprintf(fp, "    {\n");
+		std::fprintf(fp, "      \"label\": \"");
+
+		// write escaped label
+		for (const char* p = sLabel; *p; ++p)
+		{
+			switch (*p)
+			{
+				case '"':  std::fprintf(fp, "\\\""); break;
+				case '\\': std::fprintf(fp, "\\\\"); break;
+				case '\n': std::fprintf(fp, "\\n");   break;
+				case '\t': std::fprintf(fp, "\\t");   break;
+				default:   std::fputc(*p, fp);         break;
+			}
+		}
+
+		std::fprintf(fp, "\",\n");
+		std::fprintf(fp, "      \"level\": %u,\n",    it.second.level);
+		std::fprintf(fp, "      \"is_group\": %s,\n", bIsGroup ? "true" : "false");
+		std::fprintf(fp, "      \"duration_usec\": %" PRId64 ",\n", static_cast<int64_t>(iUsecs));
+		std::fprintf(fp, "      \"percent\": %.2f",   nPercent);
+
+		if (!bIsGroup && it.second.count)
+		{
+			auto iNsecPerCall = static_cast<int64_t>(
+				std::chrono::duration_cast<std::chrono::nanoseconds>(it.second.duration).count()
+			) / static_cast<int64_t>(it.second.count);
+
+			std::fprintf(fp, ",\n      \"count\": %" PRIu64, static_cast<uint64_t>(it.second.count));
+			std::fprintf(fp, ",\n      \"nsec_per_call\": %" PRId64, iNsecPerCall);
+		}
+
+		std::fprintf(fp, "\n    }");
+	}
+
+	std::fprintf(fp, "\n  ],\n");
+
+	auto iAccUsec  = std::chrono::duration_cast<std::chrono::microseconds>(m_profiled_runtime).count();
+	auto iWallUsec = std::chrono::duration_cast<std::chrono::microseconds>(clock_t::now() - m_start).count();
+
+	std::fprintf(fp, "  \"accumulated_runtime_usec\": %" PRId64 ",\n", static_cast<int64_t>(iAccUsec));
+	std::fprintf(fp, "  \"wall_clock_usec\": %" PRId64 "\n",         static_cast<int64_t>(iWallUsec));
+	std::fprintf(fp, "}\n");
+
+	std::fflush(fp);
+
+} // printJSON
 
 //-----------------------------------------------------------------------------
 KSharedProfiler::map_t::iterator KSharedProfiler::find(const char* label, uint32_t level)

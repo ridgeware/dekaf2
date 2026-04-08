@@ -1,0 +1,23 @@
+{
+	"_comment": "Expected nsec/call ranges. Benchmarks must always be run on Release builds! ~3x margin for hardware variation.",
+
+	"slow path (5 cols)"             : { "min_nsec":    50, "max_nsec":    900 },
+	"fast path + hash (5 cols)"      : { "min_nsec":    10, "max_nsec":    150 },
+	"fast path no hash (5 cols)"     : { "min_nsec":     8, "max_nsec":    120 },
+	"hash only (5 cols)"             : { "min_nsec":     1, "max_nsec":     20 },
+
+	"slow path (10 cols)"            : { "min_nsec":   100, "max_nsec":   2000 },
+	"fast path + hash (10 cols)"     : { "min_nsec":    20, "max_nsec":    400 },
+	"fast path no hash (10 cols)"    : { "min_nsec":    20, "max_nsec":    350 },
+	"hash only (10 cols)"            : { "min_nsec":     2, "max_nsec":     35 },
+
+	"slow path (20 cols)"            : { "min_nsec":   250, "max_nsec":   4000 },
+	"fast path + hash (20 cols)"     : { "min_nsec":    50, "max_nsec":    750 },
+	"fast path no hash (20 cols)"    : { "min_nsec":    40, "max_nsec":    700 },
+	"hash only (20 cols)"            : { "min_nsec":     4, "max_nsec":     70 },
+
+	"slow path (50 cols)"            : { "min_nsec":   700, "max_nsec":  10000 },
+	"fast path + hash (50 cols)"     : { "min_nsec":   120, "max_nsec":   1900 },
+	"fast path no hash (50 cols)"    : { "min_nsec":   100, "max_nsec":   1700 },
+	"hash only (50 cols)"            : { "min_nsec":    12, "max_nsec":    200 }
+}

@@ -1065,7 +1065,7 @@ DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline CP kToLower(CP ch)
 //-----------------------------------------------------------------------------
 {
-	return KCodePoint(ch).ToLower();
+	return static_cast<CP>(KCodePoint(ch).ToLower());
 }
 
 //-----------------------------------------------------------------------------
@@ -1076,7 +1076,7 @@ DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline CP kToUpper(CP ch)
 //-----------------------------------------------------------------------------
 {
-	return KCodePoint(ch).ToUpper();
+	return static_cast<CP>(KCodePoint(ch).ToUpper());
 }
 
 

@@ -1011,6 +1011,106 @@ TEST_CASE("KSQL")
 
 		CHECK ( iRows == 3 );
 
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		// KROW reuse optimization (NextRow fast path)
+		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+		kDebugLog (1, "KROW reuse optimization with SetReuseRows(true)");
+
+		CHECK ( db.GetReuseRows() == true );
+
+		if (db.ExecQuery ("select anum, astring from TEST_KSQL order by anum asc"))
+		{
+			KROW ReuseRow;
+			uint16_t iReuseRows { 0 };
+
+			while (db.NextRow(ReuseRow))
+			{
+				++iReuseRows;
+				CHECK ( ReuseRow.size() == 2 );
+				CHECK ( ReuseRow.Exists("anum") );
+				CHECK ( ReuseRow.Exists("astring") );
+
+				if (iReuseRows == 1)
+				{
+					CHECK ( ReuseRow["anum"] == "100" );
+				}
+				else if (iReuseRows == 3)
+				{
+					CHECK ( ReuseRow["anum"] == "102" );
+				}
+			}
+
+			CHECK ( iReuseRows == 3 );
+		}
+		else
+		{
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		kDebugLog (1, "KROW reuse optimization with SetReuseRows(false)");
+
+		db.SetReuseRows(false);
+
+		if (db.ExecQuery ("select anum, astring from TEST_KSQL order by anum asc"))
+		{
+			KROW ReuseRow;
+			uint16_t iReuseRows { 0 };
+
+			while (db.NextRow(ReuseRow))
+			{
+				++iReuseRows;
+				CHECK ( ReuseRow.size() == 2 );
+
+				if (iReuseRows == 1)
+				{
+					CHECK ( ReuseRow["anum"] == "100" );
+				}
+			}
+
+			CHECK ( iReuseRows == 3 );
+		}
+		else
+		{
+			FAIL_CHECK (db.GetLastError());
+		}
+
+		db.SetReuseRows(true);
+
+		kDebugLog (1, "KROW reuse optimization mutation detection");
+
+		if (db.ExecQuery ("select anum, astring from TEST_KSQL order by anum asc"))
+		{
+			KROW ReuseRow;
+			uint16_t iReuseRows { 0 };
+
+			while (db.NextRow(ReuseRow))
+			{
+				++iReuseRows;
+
+				if (iReuseRows == 1)
+				{
+					CHECK ( ReuseRow.size() == 2 );
+					CHECK ( ReuseRow["anum"] == "100" );
+					// mutate the KROW: add an extra column
+					ReuseRow.AddCol("extra", "mutation");
+					CHECK ( ReuseRow.size() == 3 );
+				}
+				else
+				{
+					// after mutation, NextRow should detect the size mismatch
+					// and fall back to the slow path, giving us 2 columns again
+					CHECK ( ReuseRow.size() == 2 );
+					CHECK ( !ReuseRow.Exists("extra") );
+				}
+			}
+
+			CHECK ( iReuseRows == 3 );
+		}
+		else
+		{
+			FAIL_CHECK (db.GetLastError());
+		}
+
 		kDebugLog (1, "KROW update");
 
 		Row.AddCol ("astring", "krow update");

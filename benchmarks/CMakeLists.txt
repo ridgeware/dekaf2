@@ -59,6 +59,7 @@ set (SOURCES
 	kfindsetofchars_bench.cpp
 	kprops_bench.cpp
 	kreader_bench.cpp
+	krow_bench.cpp
 	kstring_bench.cpp
 	kstringview_bench.cpp
 	kutf_bench.cpp

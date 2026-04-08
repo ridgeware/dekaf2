@@ -4795,28 +4795,77 @@ bool KSQL::NextRow ()
 } // KSQL::NextRow
 
 //-----------------------------------------------------------------------------
+/// compute a cheap fingerprint over the KROW column layout (name lengths + flags).
+/// this is not a cryptographic hash — it only needs to detect accidental user
+/// mutations (AddCol, Remove, Rename, flag changes) between NextRow() calls.
+static std::size_t ComputeRowLayoutHash(const KROW& Row)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iHash = Row.size();
+
+	for (KROW::Index ii = 0; ii < Row.size(); ++ii)
+	{
+		const auto& elem = Row.at(ii);
+		const auto& sName = elem.first;
+		iHash += sName.size();
+		if (DEKAF2_LIKELY(!sName.empty()))
+		{
+			iHash += static_cast<unsigned char>(sName.front()) << 8;
+			iHash += static_cast<unsigned char>(sName.back());
+		}
+		iHash ^= static_cast<std::size_t>(elem.second.GetFlags()) << (ii & 15);
+	}
+
+	return iHash;
+
+} // ComputeRowLayoutHash
+
+//-----------------------------------------------------------------------------
 bool KSQL::NextRow (KROW& Row, bool fTrimRight)
 //-----------------------------------------------------------------------------
 {
 	bool bGotOne = NextRow();
 
-	Row.clear();
-
-	if (bGotOne)
+	if (bGotOne
+		&& m_bReuseRows
+		&& Row.size() == GetNumCols()
+		&& GetNumCols() > 0
+		&& ComputeRowLayoutHash(Row) == m_iRowLayoutHash)
 	{
-		kDebug (4, "  data: got row {}, now loading property sheet with {} column values...", m_iRowNum, GetNumCols());
+		// fast path: KROW structure unchanged, just update values in place
+		kDebug (4, "  data: got row {}, reusing KROW with {} column values...", m_iRowNum, GetNumCols());
+
+		for (KROW::Index ii = 0; ii < GetNumCols(); ++ii)
+		{
+			Row.at(ii).second.sValue = Get(ii + 1, fTrimRight);
+		}
 	}
 	else
 	{
-		kDebug (4, "  data: no more rows.");
-	}
+		// slow path: rebuild KROW from scratch
+		Row.clear();
 
-	// load up a property sheet so we can lookup values by column name:
-	// (we can do this even if we didn't get a row back)
-	for (KROW::Index ii=1; ii <= GetNumCols(); ++ii)
-	{
-		const KColInfo& pInfo = GetColProps (ii);
-		Row.AddCol (pInfo.sColName, (bGotOne ? Get (ii, fTrimRight) : ""), pInfo.iKSQLDataType, pInfo.iMaxDataLen);
+		if (bGotOne)
+		{
+			kDebug (4, "  data: got row {}, now loading property sheet with {} column values...", m_iRowNum, GetNumCols());
+		}
+		else
+		{
+			kDebug (4, "  data: no more rows.");
+		}
+
+		// load up a property sheet so we can lookup values by column name:
+		// (we can do this even if we didn't get a row back)
+		for (KROW::Index ii=1; ii <= GetNumCols(); ++ii)
+		{
+			const KColInfo& pInfo = GetColProps (ii);
+			Row.AddCol (pInfo.sColName, (bGotOne ? Get (ii, fTrimRight) : ""), pInfo.iKSQLDataType, pInfo.iMaxDataLen);
+		}
+
+		if (bGotOne && m_bReuseRows)
+		{
+			m_iRowLayoutHash = ComputeRowLayoutHash(Row);
+		}
 	}
 
 	return (bGotOne);
@@ -5097,6 +5146,7 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 
 	m_iRowNum           = 0;
 	m_iNumRowsBuffered  = 0;
+	m_iRowLayoutHash    = 0;
 #ifdef DEKAF2_HAS_ORACLE
 	m_iOCI8FirstRowStat = 0;
 #endif
@@ -9014,7 +9064,7 @@ bool KSQL::EnsureSchema (KStringView sSchemaVersionTable,
 	// For SQLite3, GetDBName() is a file path (e.g. "/tmp/myapp.db") which may contain
 	// characters invalid for SQL identifiers. Extract basename without extension and
 	// sanitize to [A-Za-z0-9_] only.
-	auto sDBIdent = KString(GetDBName());
+	KString sDBIdent = GetDBName();
 
 	if (m_iDBType == DBT::SQLITE3)
 	{

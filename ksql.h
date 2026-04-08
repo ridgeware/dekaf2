@@ -782,6 +782,14 @@ public:
 	/// set temp directory
 	void        SetTempDir (KString sTempDir) { m_sTempDir = std::move(sTempDir); }
 
+	/// enable or disable the KROW reuse optimization in NextRow(KROW&).
+	/// when enabled (the default), KROW structures are reused between rows
+	/// to avoid repeated heap allocations. A layout hash detects any
+	/// user mutations and falls back to the safe rebuild path.
+	void        SetReuseRows (bool bYesNo) { m_bReuseRows = bYesNo; }
+	/// returns true if the KROW reuse optimization is enabled
+	bool        GetReuseRows () const      { return m_bReuseRows;  }
+
 	void        BuildTranslationList (TXList& pList, DBT iDBType = DBT::NONE);
 	void        DoTranslations (KSQLString& sSQL);
 	/// returns string as iDBType @param KStringView dbtype string
@@ -1703,6 +1711,8 @@ private:
 	char**     m_dBufferedColArray { nullptr };
 	KString    m_sErrorPrefix;
 	bool       m_bDisableRetries { false };
+	bool       m_bReuseRows { true };
+	std::size_t m_iRowLayoutHash { 0 };
 	bool       m_bEnableQueryTimeout { false };
 	static std::atomic<std::chrono::milliseconds> s_QueryTimeout;
 	static std::atomic<QueryType> s_QueryTypeForTimeout;

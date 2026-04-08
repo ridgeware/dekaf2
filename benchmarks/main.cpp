@@ -16,6 +16,7 @@ extern void kxml_bench();
 extern void khtmlparser_bench();
 extern void kutf8_bench();
 extern void kfindsetofchars_bench();
+extern void krow_bench();
 
 using namespace dekaf2;
 
@@ -24,7 +25,7 @@ int main()
 	KLog::getInstance().SetName("bench");
 	Dekaf::getInstance().SetMultiThreading();
 	Dekaf::getInstance().SetUnicodeLocale();
-
+/*
 	kxml_bench();
 	khtmlparser_bench();
 	kbitfields_bench();
@@ -39,6 +40,8 @@ int main()
 	kcasestring_bench();
  	other_bench();
 	kutf8_bench();
+*/
+	krow_bench();
 
 	kProfFinalize();
 

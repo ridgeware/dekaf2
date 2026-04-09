@@ -5,6 +5,8 @@ Dockerfile
 .dockerignore
 benchmarks/
 build/
+smoketests/
+utests/
 compat/
 debug/
 doc/

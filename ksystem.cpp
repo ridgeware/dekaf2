@@ -1294,6 +1294,36 @@ const KString& kGetOwnPathname()
 } // kGetOwnPathname
 
 //-----------------------------------------------------------------------------
+bool kIsInsideContainer()
+//-----------------------------------------------------------------------------
+{
+	static bool bResult = []() -> bool
+	{
+#ifdef DEKAF2_IS_UNIX
+		// check for Docker marker file
+		if (kFileExists("/.dockerenv")) return true;
+		// check for Podman marker file
+		if (kFileExists("/run/.containerenv")) return true;
+		// check for container env var (set by podman, systemd-nspawn, lxc)
+		if (!kGetEnv("container").empty()) return true;
+		// check PID 1 cgroup for container runtime markers (cgroup v1)
+		KString sCGroup;
+		if (kReadFile("/proc/1/cgroup", sCGroup, false))
+		{
+			for (auto sMarker : { "/docker/", "/lxc/", "/kubepods/", "/containerd/" })
+			{
+				if (sCGroup.contains(sMarker)) return true;
+			}
+		}
+#endif
+		return false;
+	}();
+
+	return bResult;
+
+} // kIsInsideContainer
+
+//-----------------------------------------------------------------------------
 const KString& kGetConfigPath(bool bCreateDirectory)
 //-----------------------------------------------------------------------------
 {
@@ -1302,9 +1332,9 @@ const KString& kGetConfigPath(bool bCreateDirectory)
 		auto sHome = kGetHome();
 
 #if DEKAF2_IS_UNIX
-		if (sHome.empty() || sHome == "/")
+		if (kIsInsideContainer() || sHome.empty() || sHome == "/")
 		{
-			kDebug(2, "assuming container environment, as ${{HOME}} is '{}'", sHome);
+			kDebug(2, "container environment detected (HOME is '{}'), using /home/{}", sHome, kBasename(kGetOwnPathname()));
 			// set the path to /home/{{program name }}
 			return kFormat("{}home{}{}", kDirSep, kDirSep, kBasename(kGetOwnPathname()));
 		}

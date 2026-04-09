@@ -115,6 +115,13 @@ inline KString kcwd () { return kGetCWD(); }
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kGetHome();
 
+/// Check if the current process is running inside a container (Docker, Podman, LXC, Kubernetes, systemd-nspawn).
+/// The result is computed once and cached. Uses multiple detection methods: marker files (/.dockerenv,
+/// /run/.containerenv), the 'container' environment variable, and /proc/1/cgroup runtime markers.
+/// @returns true if running inside a container, false otherwise
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool kIsInsideContainer();
+
 /// Return the system's tmp directory
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kGetTemp();

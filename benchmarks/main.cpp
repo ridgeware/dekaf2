@@ -43,6 +43,14 @@ extern void khtmlparser_bench();
 extern void kutf8_bench();
 extern void kfindsetofchars_bench();
 extern void krow_bench();
+extern void kurl_bench();
+extern void ksplit_bench();
+extern void khtmlentity_bench();
+extern void kbase64_bench();
+extern void kurlencode_bench();
+extern void kreplace_bench();
+extern void khash_bench();
+extern void ktime_bench();
 
 using namespace dekaf2;
 
@@ -103,6 +111,14 @@ int main(int argc, char* argv[])
  	other_bench();
 	kutf8_bench();
 	krow_bench();
+	kurl_bench();
+	ksplit_bench();
+	khtmlentity_bench();
+	kbase64_bench();
+	kurlencode_bench();
+	kreplace_bench();
+	khash_bench();
+	ktime_bench();
 
 	kProfFinalize();
 

@@ -52,18 +52,26 @@ endif()
 
 # keep alphabetic sort order
 set (SOURCES
-	kxml_bench.cpp
-	khtml_bench.cpp
+	kbase64_bench.cpp
 	kbitfields_bench.cpp
 	kcasestring_bench.cpp
 	kfindsetofchars_bench.cpp
+	khash_bench.cpp
+	khtml_bench.cpp
+	khtmlentity_bench.cpp
 	kprops_bench.cpp
 	kreader_bench.cpp
+	kreplace_bench.cpp
 	krow_bench.cpp
+	ksplit_bench.cpp
 	kstring_bench.cpp
 	kstringview_bench.cpp
+	ktime_bench.cpp
+	kurl_bench.cpp
+	kurlencode_bench.cpp
 	kutf_bench.cpp
 	kwriter_bench.cpp
+	kxml_bench.cpp
 	main.cpp
 	other_bench.cpp
 	shared_ptr_bench.cpp

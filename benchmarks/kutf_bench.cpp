@@ -130,8 +130,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_SIMDUTF
 	{
 		dekaf2::KProf prof("simdutf count long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto iCount = simdutf::count_utf8(sData.data(), sData.size());
@@ -140,8 +140,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("simdutf count short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto iCount = simdutf::count_utf8(sDataShort.data(), sDataShort.size());
@@ -150,8 +150,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("simdutf count shortened");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sData);
 			auto iCount = simdutf::count_utf8(sData.data(), sDataShort.size());
@@ -161,8 +161,8 @@ void kutf8_bench()
 #endif
 	{
 		dekaf2::KProf prof("CountUTF long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto iCount = kutf::Count(sData.begin(), sData.end());
@@ -171,8 +171,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("CountUTF short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto iCount = kutf::Count(sDataShort.begin(), sDataShort.end());
@@ -182,8 +182,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("CountUTFMax long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto iCount = kutf::Count(sData, sData.size());
@@ -192,8 +192,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("CountUTFMax short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto iCount = kutf::Count(sDataShort, sDataShort.size());
@@ -203,8 +203,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_UTF8CPP
 	{
 		dekaf2::KProf prof("UTF8CPP Count long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto iCount = utf8::distance(sData.begin(), sData.end());
@@ -213,8 +213,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("UTF8CPP Count short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto iCount = utf8::distance(sDataShort.begin(), sDataShort.end());
@@ -225,8 +225,8 @@ void kutf8_bench()
 #ifdef HAVE_TEXTUTILS
 	{
 		dekaf2::KProf prof("CountUTF8ToUTF32 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto iCount = utf_conv::UTF8ToUTF32(sData.data(), static_cast<unsigned int>(sData.size()), NULL, NULL, 0, NULL, 0);
@@ -235,8 +235,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("CountUTF8ToUTF32 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto iCount = utf_conv::UTF8ToUTF32(sDataShort.data(), static_cast<unsigned int>(sDataShort.size()), NULL, NULL, 0, NULL, 0);
@@ -247,8 +247,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_SIMDUTF
 	{
 		dekaf2::KProf prof("SIMDUTF8to32 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto size = simdutf::utf32_length_from_utf8(sData.data(), sData.size());
@@ -260,8 +260,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("SIMDUTF8to32 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto expected_utf32words = simdutf::utf32_length_from_utf8(sDataShort.data(), sDataShort.size());
@@ -274,8 +274,8 @@ void kutf8_bench()
 #endif
 	{
 		dekaf2::KProf prof("ConvertUTF 8 to 32 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto sOut = kutf::Convert<std::basic_string<char32_t>>(sData);
@@ -284,8 +284,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("ConvertUTF 8 to 32 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto sOut = kutf::Convert<std::basic_string<char32_t>>(sDataShort);
@@ -295,8 +295,8 @@ void kutf8_bench()
 #ifdef HAVE_TEXTUTILS
 	{
 		dekaf2::KProf prof("UTF8ToUTF32 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto sOut = utf_conv::UTF8ToUTF32(sData.str());
@@ -305,8 +305,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("UTF8ToUTF32 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto sWide = utf_conv::UTF8ToUTF32(sDataShort.str());
@@ -317,8 +317,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_UTF8CPP
 	{
 		dekaf2::KProf prof("UTF8CPP conv 8 to 32 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto sOut = utf8::utf8to32(sData.str());
@@ -327,8 +327,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("UTF8CPP conv 8 to 32 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto sOut = utf8::utf8to32(sDataShort.str());
@@ -339,8 +339,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_ICONV
 	{
 		dekaf2::KProf prof("iconv8to32 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			std::u32string sOut;
@@ -351,8 +351,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("iconv8to32 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			std::u32string sOut;
@@ -366,8 +366,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_SIMDUTF
 	{
 		dekaf2::KProf prof("SIMDUTF32to8 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sWide);
 			auto size = simdutf::utf8_length_from_utf32(sWide.data(), sWide.size());
@@ -379,8 +379,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("SIMDUTF32to8 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sWideShort);
 			auto size = simdutf::utf8_length_from_utf32(sWideShort.data(), sWideShort.size());
@@ -393,8 +393,8 @@ void kutf8_bench()
 #endif
 	{
 		dekaf2::KProf prof("ConvertUTF 32 to 8 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sWide);
 			auto sOut = kutf::Convert<std::string>(sWide);
@@ -403,8 +403,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("ConvertUTF 32 to 8 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sWideShort);
 			auto sOut = kutf::Convert<std::string>(sWideShort);
@@ -414,8 +414,8 @@ void kutf8_bench()
 #ifdef HAVE_TEXTUTILS
 	{
 		dekaf2::KProf prof("UTF32ToUTF8 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sWide);
 			auto sOut = utf_conv::UTF32ToUTF8(sWide32);
@@ -424,8 +424,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("UTF32ToUTF8 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sWideShort);
 			auto sOut = utf_conv::UTF32ToUTF8(sWideShort32);
@@ -436,8 +436,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_UTF8CPP
 	{
 		dekaf2::KProf prof("UTF8CPP conv 32 to 8 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sWide);
 			auto sOut = utf8::utf32to8(sWide);
@@ -446,8 +446,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("UTF8CPP conv 32 to 8 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sWideShort);
 			auto sOut = utf8::utf32to8(sWideShort);
@@ -458,8 +458,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_ICONV
 	{
 		dekaf2::KProf prof("iconv32to8 long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sWide);
 			KString sOut;
@@ -470,8 +470,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("iconv32to8 short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sWideShort);
 			KString sOut;
@@ -484,8 +484,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("ValidASCII long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sASCII);
 			auto yes = kutf::ValidASCII(sASCII);
@@ -495,8 +495,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("InvalidASCII long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sASCII);
 			auto it = kutf::InvalidASCII(sASCII);
@@ -506,8 +506,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("No ValidASCII long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto yes = kutf::ValidASCII(sData);
@@ -517,8 +517,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("No InvalidASCII long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto it = kutf::InvalidASCII(sData);
@@ -529,8 +529,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_SIMDUTF
 	{
 		dekaf2::KProf prof("SIMD ValidUTF long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto yes = simdutf::validate_utf8(sData.data(), sData.size());
@@ -540,8 +540,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("SIMD ValidUTF short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto yes = simdutf::validate_utf8(sDataShort.data(), sDataShort.size());
@@ -551,8 +551,8 @@ void kutf8_bench()
 #endif
 	{
 		dekaf2::KProf prof("ValidUTF long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto yes = kutf::Valid(sData);
@@ -561,8 +561,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("ValidUTF short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto yes = kutf::Valid(sDataShort);
@@ -572,8 +572,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_UTF8CPP
 	{
 		dekaf2::KProf prof("UTF8CPP Valid long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto iCount = utf8::is_valid(sData.str());
@@ -582,8 +582,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("UTF8CPP Valid short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto iCount = utf8::is_valid(sDataShort.str());
@@ -593,8 +593,8 @@ void kutf8_bench()
 #endif
 	{
 		dekaf2::KProf prof("InvalidUTF long");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto yes = kutf::Invalid(sData);
@@ -603,8 +603,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("InvalidUTF short");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto yes = kutf::Invalid(sDataShort);
@@ -613,8 +613,8 @@ void kutf8_bench()
 	}
 	{
 		dekaf2::KProf prof("LeftUTF short (30)");
-		prof.SetMultiplier(1000);
-		for (int ct = 0; ct < 1000; ++ct)
+		prof.SetMultiplier(100);
+		for (int ct = 0; ct < 100; ++ct)
 		{
 			KProf::Force(&sData);
 			auto it = kutf::Left(sData.begin(), sData.end(), 30);
@@ -624,8 +624,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("LeftUTF long (2048)");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto it = kutf::Left(sData.begin(), sData.end(), 2048);
@@ -635,8 +635,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("LeftUTF large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto it = kutf::Left(sData.begin(), sData.end(), sData.size());
@@ -646,8 +646,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("RightUTF large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto it = kutf::Right(sData.begin(), sData.end(), sData.size());
@@ -657,8 +657,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("LeftUTF copy long (2048)");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			KString sString = kutf::Left(sData, 2048);
@@ -669,8 +669,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("Left string copy long (3048)");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			KString sString = sData.Left(3048);
@@ -681,8 +681,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("RightUTF copy long (2048)");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			KString sString = kutf::Right(sData, 2048);
@@ -693,8 +693,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("Right string copy long (2048)");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			KString sString = sData.Right(3048);
@@ -705,8 +705,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("NextCodepoint (1000)");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto it = sData.begin();
@@ -722,8 +722,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("NextCodepoint (2 mio)");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto it = sData.begin();
@@ -739,8 +739,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("NextCodepoint (2 mio ASCII)");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sASCII);
 			auto it = sASCII.begin();
@@ -757,8 +757,8 @@ void kutf8_bench()
 #ifdef DEKAF2_HAS_SIMDUTF
 	{
 		dekaf2::KProf prof("ToUpperUTF SIMD short (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto size = simdutf::utf16_length_from_utf8(sDataShort.data(), sDataShort.size());
@@ -777,8 +777,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("ToUpperUTF SIMD large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto size = simdutf::utf16_length_from_utf8(sData.data(), sData.size());
@@ -797,8 +797,8 @@ void kutf8_bench()
 #endif
 	{
 		dekaf2::KProf prof("ToUpperUTF short (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			KString sUTF;
@@ -809,8 +809,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("ToUpperUTF large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			KString sUTF;
@@ -821,8 +821,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::ToUpper short (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto sUTF = sDataShort.ToUpper();
@@ -832,8 +832,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::ToUpper large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto sUTF = sData.ToUpper();
@@ -843,8 +843,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("kutf::ToUpper UTF32 large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sWide);
 			std::u32string sTarget;
@@ -855,8 +855,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("std::towupper UTF32 large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sWide);
 			std::u32string sTarget;
@@ -868,8 +868,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("std::towupper UTF8 large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			std::string sUpperUTF8;
@@ -888,8 +888,8 @@ void kutf8_bench()
 #ifdef HAVE_TEXTUTILS
 	{
 		dekaf2::KProf prof("textutils toupper UTF32 large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sWide32);
 			UString32 sTarget = sWide32;
@@ -900,8 +900,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("textutils toupper UTF8 large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			std::string sUpperUTF8 = sData;
@@ -915,8 +915,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::MakeUpper short (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto sUTF = sDataShort;
@@ -927,8 +927,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::MakeUpper large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto sUTF = sData;
@@ -939,8 +939,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::ToUpperASCII (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto sUTF = sDataShort.ToUpperASCII();
@@ -950,8 +950,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::ToUpperASCII large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto sUTF = sData.ToUpperASCII();
@@ -961,8 +961,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::MakeUpperASCII short (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto sUTF = sDataShort;
@@ -973,8 +973,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::MakeUpperASCII large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto sUTF = sData;
@@ -985,8 +985,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::ToUpperLocale (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto sUTF = sDataShort.ToUpperLocale();
@@ -996,8 +996,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::ToUpperLocale large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto sUTF = sData.ToUpperLocale();
@@ -1007,8 +1007,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::MakeUpperLocale short (50)");
-		prof.SetMultiplier(40000);
-		for (int ct = 0; ct < 40000; ++ct)
+		prof.SetMultiplier(4000);
+		for (int ct = 0; ct < 4000; ++ct)
 		{
 			KProf::Force(&sDataShort);
 			auto sUTF = sDataShort;
@@ -1019,8 +1019,8 @@ void kutf8_bench()
 
 	{
 		dekaf2::KProf prof("KString::MakeUpperLocale large");
-		prof.SetMultiplier(100);
-		for (int ct = 0; ct < 100; ++ct)
+		prof.SetMultiplier(10);
+		for (int ct = 0; ct < 10; ++ct)
 		{
 			KProf::Force(&sData);
 			auto sUTF = sData;

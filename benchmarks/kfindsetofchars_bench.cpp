@@ -20,8 +20,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_of (20)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_in(sv) < 10) KProf::Force();
@@ -32,8 +32,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_of (200)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_in(sv) < 100) KProf::Force();
@@ -44,8 +44,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_of (5000)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_in(sv) < 100) KProf::Force();
@@ -56,8 +56,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_of (5M)");
-		prof.SetMultiplier(1000);
-		for (int ct = 0; ct < 1000; ++ct)
+		prof.SetMultiplier(200);
+		for (int ct = 0; ct < 200; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_in(sv) < 100) KProf::Force();
@@ -71,8 +71,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_of >16 (20)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_in(sv) < 10) KProf::Force();
@@ -83,8 +83,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_of >16 (200)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_in(sv) < 100) KProf::Force();
@@ -95,8 +95,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_of >16 (5000)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_in(sv) < 100) KProf::Force();
@@ -107,8 +107,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_of >16 (5M)");
-		prof.SetMultiplier(1000);
-		for (int ct = 0; ct < 1000; ++ct)
+		prof.SetMultiplier(200);
+		for (int ct = 0; ct < 200; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_in(sv) < 100) KProf::Force();
@@ -122,8 +122,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_not_of (20)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_not_in(sv) < 10) KProf::Force();
@@ -134,8 +134,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_not_of (200)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_not_in(sv) < 10) KProf::Force();
@@ -146,8 +146,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_not_of (5000)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_not_in(sv) < 10) KProf::Force();
@@ -158,8 +158,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_not_of (5M)");
-		prof.SetMultiplier(1000);
-		for (int ct = 0; ct < 1000; ++ct)
+		prof.SetMultiplier(200);
+		for (int ct = 0; ct < 200; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_not_in(sv) < 100) KProf::Force();
@@ -172,8 +172,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_not_of >16 (20)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_not_in(sv) < 10) KProf::Force();
@@ -184,8 +184,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_not_of >16 (200)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_not_in(sv) < 10) KProf::Force();
@@ -196,8 +196,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_not_of >16 (5000)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_not_in(sv) < 10) KProf::Force();
@@ -208,8 +208,8 @@ void kfindsetofchars()
 		s.append("abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_first_not_of >16 (5M)");
-		prof.SetMultiplier(1000);
-		for (int ct = 0; ct < 1000; ++ct)
+		prof.SetMultiplier(200);
+		for (int ct = 0; ct < 200; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_first_not_in(sv) < 10) KProf::Force();
@@ -222,8 +222,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_of (20)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_in(sv) > 100) KProf::Force();
@@ -234,8 +234,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_of (200)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_in(sv) > 100) KProf::Force();
@@ -246,8 +246,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_of (5000)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_in(sv) > 100) KProf::Force();
@@ -261,8 +261,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_of >16 (20)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_in(sv) > 100) KProf::Force();
@@ -273,8 +273,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_of >16 (200)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_in(sv) > 100) KProf::Force();
@@ -285,8 +285,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_of >16 (5000)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_in(sv) > 100) KProf::Force();
@@ -297,8 +297,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_not_of (20)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_in(sv) > 100) KProf::Force();
@@ -312,8 +312,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_not_of (200)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_not_in(sv) > 100) KProf::Force();
@@ -324,8 +324,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_not_of (5000)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_not_in(sv) > 100) KProf::Force();
@@ -339,8 +339,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_not_of >16 (20)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_not_in(sv) > 100) KProf::Force();
@@ -351,8 +351,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_not_of >16 (200)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_not_in(sv) > 100) KProf::Force();
@@ -363,8 +363,8 @@ void kfindsetofchars()
 		s.insert(0, "abcdefg");
 		dekaf2::KStringView sv(s);
 		dekaf2::KProf prof("soc find_last_not_of >16 (5000)");
-		prof.SetMultiplier(1000000);
-		for (int ct = 0; ct < 1000000; ++ct)
+		prof.SetMultiplier(200000);
+		for (int ct = 0; ct < 200000; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_not_in(sv) > 100) KProf::Force();

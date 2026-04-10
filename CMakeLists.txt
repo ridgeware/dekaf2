@@ -213,6 +213,13 @@ endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 	set (IS_MACOS ON)
+	# suppress ranlib "has no symbols" warning for object files that compile to empty
+	# ARCHIVE_FINISH handles the build step, the wrapper script handles install
+	set(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols <TARGET>")
+	set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols <TARGET>")
+	file(WRITE "${CMAKE_BINARY_DIR}/ranlib_wrapper.sh" "#!/bin/sh\nexec /usr/bin/ranlib -no_warning_for_no_symbols \"$@\"\n")
+	file(CHMOD "${CMAKE_BINARY_DIR}/ranlib_wrapper.sh" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+	set(CMAKE_RANLIB "${CMAKE_BINARY_DIR}/ranlib_wrapper.sh")
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	set (IS_WINDOWS ON)
 	# get the Windows major version

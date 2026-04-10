@@ -50,7 +50,7 @@
 #include <dekaf2/kdefinitions.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kutf.h>
-#include "khash.h"
+#include <dekaf2/crypto/hash/bits/khash.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

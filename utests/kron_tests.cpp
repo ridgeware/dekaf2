@@ -4,8 +4,8 @@
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kreader.h>
 #include <dekaf2/kfilesystem.h>
-#if DEKAF2_HAS_INCLUDE(<dekaf2/bits/kron_utils.h>)
-#include <dekaf2/bits/kron_utils.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/time/scheduler/bits/kron_utils.h>)
+#include <dekaf2/time/scheduler/bits/kron_utils.h>
 #include <dekaf2/libs/croncpp/include/croncpp.h>
 
 using namespace dekaf2;

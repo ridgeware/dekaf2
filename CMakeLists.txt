@@ -1462,7 +1462,7 @@ set(HEADERS
 )
 
 if (DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)
-	list(APPEND HEADERS bits/from_boost/iostreams/lzma.hpp)
+	list(APPEND HEADERS source/io/compression/bits/from_boost/iostreams/lzma.hpp)
 endif()
 
 list(SORT HEADERS)

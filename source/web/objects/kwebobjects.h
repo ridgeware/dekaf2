@@ -40,15 +40,15 @@
 
 
 /// @file kwebobjects.h
-#include "kdefinitions.h"
-#include "kstring.h"
-#include "kstringview.h"
-#include "kmime.h"
-#include "khtmldom.h"
-#include "kduration.h"
-#include "kurl.h"
-#include "ksystem.h"
-#include "kstringutils.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kmime.h>
+#include <dekaf2/khtmldom.h>
+#include <dekaf2/kduration.h>
+#include <dekaf2/kurl.h>
+#include <dekaf2/ksystem.h>
+#include <dekaf2/kstringutils.h>
 #include <vector>
 #include <limits>
 #include <chrono>

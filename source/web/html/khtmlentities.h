@@ -40,9 +40,9 @@
 
 #pragma once
 
-#include "kdefinitions.h"
-#include "kstring.h"
-#include "kstringview.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
 #include <ostream>
 
 /// @file khtmlentities.h

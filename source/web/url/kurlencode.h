@@ -45,14 +45,14 @@
 /// @file kurlencode.h
 /// percent-encoding methods
 
-#include "kstringview.h"
-#include "kstring.h"
-#include "kprops.h"
-#include "ktemplate.h"
-#include "kwriter.h"
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kprops.h>
+#include <dekaf2/ktemplate.h>
+#include <dekaf2/kwriter.h>
 #include <cinttypes>
-#include "kctype.h"
-#include "kipaddress.h"
+#include <dekaf2/kctype.h>
+#include <dekaf2/kipaddress.h>
 
 
 DEKAF2_NAMESPACE_BEGIN

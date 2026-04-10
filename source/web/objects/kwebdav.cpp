@@ -40,15 +40,15 @@
 */
 
 #include "kwebdav.h"
-#include "krestserver.h"
-#include "kwebserverpermissions.h"
-#include "khttperror.h"
-#include "kxml.h"
-#include "kmime.h"
-#include "klog.h"
-#include "kformat.h"
-#include "kurl.h"
-#include "kuuid.h"
+#include <dekaf2/krestserver.h>
+#include <dekaf2/kwebserverpermissions.h>
+#include <dekaf2/khttperror.h>
+#include <dekaf2/kxml.h>
+#include <dekaf2/kmime.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/kformat.h>
+#include <dekaf2/kurl.h>
+#include <dekaf2/kuuid.h>
 #include <array>
 #include <vector>
 

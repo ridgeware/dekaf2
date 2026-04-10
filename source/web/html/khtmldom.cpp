@@ -40,11 +40,11 @@
  */
 
 #include "khtmldom.h"
-#include "kctype.h"
-#include "klog.h"
-#include "koutstringstream.h"
+#include <dekaf2/kctype.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/koutstringstream.h>
 #include "khtmlentities.h"
-#include "kexception.h"
+#include <dekaf2/kexception.h>
 
 // set to 1 for debug output
 #define DEKAF2_HTMLDOM_DEBUG 0

@@ -38,8 +38,8 @@
 */
 
 #include "kwebobjects.h"
-#include "kmime.h"
-#include "khtmlentities.h"
+#include <dekaf2/kmime.h>
+#include <dekaf2/khtmlentities.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

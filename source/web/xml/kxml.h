@@ -43,12 +43,12 @@
 
 
 /// @file kxml.h
-#include "kdefinitions.h"
-#include "kstringview.h"
-#include "kstring.h"
-#include "kreader.h"
-#include "kwriter.h"
-#include "bits/kunique_deleter.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kreader.h>
+#include <dekaf2/kwriter.h>
+#include <dekaf2/bits/kunique_deleter.h>
 #include <iterator>
 
 DEKAF2_NAMESPACE_BEGIN

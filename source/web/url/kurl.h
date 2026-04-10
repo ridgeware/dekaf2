@@ -46,12 +46,12 @@
 /// URL and URL component handling
 
 #include "kurlencode.h"
-#include "kstringview.h"
-#include "kstring.h"
-#include "kprops.h"
-#include "kstream.h"
-#include "kformat.h"
-#include "ktemplate.h"
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kprops.h>
+#include <dekaf2/kstream.h>
+#include <dekaf2/kformat.h>
+#include <dekaf2/ktemplate.h>
 #include <cinttypes>
 
 DEKAF2_NAMESPACE_BEGIN

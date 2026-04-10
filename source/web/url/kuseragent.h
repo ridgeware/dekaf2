@@ -43,12 +43,12 @@
 
 
 /// @file kuseragent.h
-#include "kdefinitions.h"
+#include <dekaf2/kdefinitions.h>
 
 #if DEKAF2_HAS_USER_AGENT_PARSER
 
-#include "kstringview.h"
-#include "kstring.h"
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kstring.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

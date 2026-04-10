@@ -1,6 +1,5 @@
 /*
-//
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
 //
@@ -37,106 +36,158 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
 */
 
-#include "kurlencode.h"
-#include "kstringutils.h"
-#include "kctype.h"
+// This file implements all of khtmlentities.h that does not need the large
+// named entity list. The other functions are implemented in khtmlentities5.cpp.
+
+#include "khtmlentities.h"
+#include <dekaf2/kutf.h>
+#include <dekaf2/kstringutils.h>
+#include <dekaf2/kctype.h>
+#include <dekaf2/kwrite.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace detail {
-
-/*
-	Schema         = 0,
-	User           = 1,
-	Password       = 2,
-	Domain         = 3,
-	Port           = 4,
-	Path           = 5,
-	Query          = 6,
-	Fragment       = 7
-*/
-
-KUrlEncodingTables KUrlEncodingTables::MyInstance {};
-
-const char* KUrlEncodingTables::s_sExcludes[] =
-{
-//  "",      // used by Schema .. Port                https://tools.ietf.org/html/rfc3986#section-3
-    ":;,=/", // used by Path (actually there is more) https://tools.ietf.org/html/rfc3986#section-3.3
-    "/?"     // used by Query and Fragment            https://tools.ietf.org/html/rfc3986#section-3.4
-};
-
-bool* KUrlEncodingTables::EncodingTable[TABLECOUNT];
-bool KUrlEncodingTables::Tables[INT_TABLECOUNT][256];
-
 //-----------------------------------------------------------------------------
-KUrlEncodingTables::KUrlEncodingTables() noexcept
+void KHTMLEntity::ToHex(uint32_t ch, KStringRef& sOut)
 //-----------------------------------------------------------------------------
 {
-	// set up the encoding tables
-	for (auto table = 0; table < INT_TABLECOUNT; ++table)
-	{
-		std::memset(&Tables[table], false, 256);
-
-		constexpr KStringView UnreservedValues("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-											   "abcdefghijklmnopqrstuvwxyz"
-											   "0123456789"
-											   "-_.~");
-
-		for (auto value : UnreservedValues)
-		{
-			Tables[table][static_cast<unsigned char>(value)] = true;
-		}
-	}
-
-	for (auto table = 1; table < INT_TABLECOUNT; ++table)
-	{
-		auto p = s_sExcludes[table-1];
-		while (auto ch = *p++)
-		{
-			Tables[table][static_cast<unsigned char>(ch)] = true;
-		}
-	}
-
-	// now set up the pointers into these tables, as some are shared..
-	for (auto table = static_cast<int>(URIPart::Protocol); table < static_cast<int>(URIPart::Path); ++table)
-	{
-		EncodingTable[table] = Tables[0];
-	}
-
-	EncodingTable[static_cast<int>(URIPart::Path)]     = Tables[1];
-	EncodingTable[static_cast<int>(URIPart::Query)]    = Tables[2];
-	EncodingTable[static_cast<int>(URIPart::Fragment)] = Tables[2];
+	sOut += "&#x";
+	sOut += kUnsignedToString<KStringRef>(ch, 16, true, false);
+	sOut += ';';
 }
 
-} // end of namespace detail
-
-namespace detail {
-
 //-----------------------------------------------------------------------------
-int kx2c (int c1, int c2)
+void KHTMLEntity::ToMandatoryEntity(uint32_t ch, KStringRef& sOut)
 //-----------------------------------------------------------------------------
 {
-	int iValue = kFromHexChar(c1) << 4;
-	iValue    += kFromHexChar(c2);
+	switch (ch)
+	{
+		case '"':
+			sOut += "&quot;";
+			return;
+		case '&':
+			sOut += "&amp;";
+			return;
+		case '\'':
+			sOut += "&apos;";
+			return;
+		case '<':
+			sOut += "&lt;";
+			return;
+		case '>':
+			sOut += "&gt;";
+			return;
+		default:
+			kutf::ToUTF(ch, sOut);
+			return;
+	}
 
-	return iValue;
+} // kMandatoryEntity
 
-} // kx2c
+//-----------------------------------------------------------------------------
+void KHTMLEntity::AppendMandatory(KStringRef& sAppendTo, KStringView sIn)
+//-----------------------------------------------------------------------------
+{
+	sAppendTo.reserve(sAppendTo.size() + (sIn.size() * 5 / 4));
 
-} // detail until here
+	for (auto ch : sIn)
+	{
+		switch (ch)
+		{
+			case '"':
+				sAppendTo += "&quot;";
+				break;
+			case '&':
+				sAppendTo += "&amp;";
+				break;
+			case '\'':
+				sAppendTo += "&apos;";
+				break;
+			case '<':
+				sAppendTo += "&lt;";
+				break;
+			case '>':
+				sAppendTo += "&gt;";
+				break;
+			default:
+				sAppendTo += ch;
+				break;
+		}
+	}
 
-#ifndef DEKAF2_IS_MSC
-template void kUrlDecode(KStringRef& sDecode, bool pPlusAsSpace = false);
-template void kUrlDecode(const KStringView& sSource, KStringRef& sTarget, bool bPlusAsSpace = false);
-template KString kUrlDecode(const KStringView& sSource, bool bPlusAsSpace = false);
-template void kUrlEncode (const KStringView& sSource, KStringRef& sTarget, const bool excludeTable[256], bool bSpaceAsPlus = false);
+} // AppendMandatory
 
-template class KURLEncoded<uint16_t>;
-template class KURLEncoded<KString>;
-template class KURLEncoded<KProps<KString, KString>, '&', '='>;
-#endif // of DEKAF2_IS_MSC
+//-----------------------------------------------------------------------------
+void KHTMLEntity::EncodeMandatory(std::ostream& Out, KStringView sIn)
+//-----------------------------------------------------------------------------
+{
+	for (auto ch : sIn)
+	{
+		switch (ch)
+		{
+			case '"':
+				kWrite(Out, "&quot;");
+				break;
+			case '&':
+				kWrite(Out, "&amp;");
+				break;
+			case '\'':
+				kWrite(Out, "&apos;");
+				break;
+			case '<':
+				kWrite(Out, "&lt;");
+				break;
+			case '>':
+				kWrite(Out, "&gt;");
+				break;
+			default:
+				kWrite(Out, ch);
+				break;
+		}
+	}
+
+} // EncodeMandatory
+
+//-----------------------------------------------------------------------------
+KString KHTMLEntity::EncodeMandatory(KStringView sIn)
+//-----------------------------------------------------------------------------
+{
+	KString sOut;
+	AppendMandatory(sOut, sIn);
+	return sOut;
+
+} // EncodeMandatory
+
+//-----------------------------------------------------------------------------
+KString KHTMLEntity::Encode(KStringView sIn)
+//-----------------------------------------------------------------------------
+{
+	KString sRet;
+
+	kutf::ForEach(sIn, [&sRet](uint32_t ch)
+	{
+		auto Property = KCodePoint(ch).GetProperty();
+
+		if (Property.IsAlNum() || Property.IsSpace())
+		{
+			kutf::ToUTF(ch, sRet);
+		}
+		else if (Property.IsPunct())
+		{
+			ToMandatoryEntity(ch, sRet);
+		}
+		else
+		{
+			ToHex(ch, sRet);
+		}
+
+		return true;
+	});
+
+	return sRet;
+
+} // kHTMLEntityEncode
 
 DEKAF2_NAMESPACE_END

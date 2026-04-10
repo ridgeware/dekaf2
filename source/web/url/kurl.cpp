@@ -40,12 +40,12 @@
 //
 */
 
-#include "kstringview.h"
-#include "kstring.h"
-#include "kstringutils.h"
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringutils.h>
 #include "kurl.h"
-#include "kstack.h"
-#include "kipaddress.h"
+#include <dekaf2/kstack.h>
+#include <dekaf2/kipaddress.h>
 #include <vector>
 
 

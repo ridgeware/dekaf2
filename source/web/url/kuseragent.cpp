@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
- // Copyright (c) 2018, Ridgeware, Inc.
+ // Copyright (c) 2025, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -39,203 +39,181 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khtmlcontentblocks.h"
-#include "kctype.h"
+#include "kuseragent.h"
+
+#if DEKAF2_HAS_USER_AGENT_PARSER
+
+#include <dekaf2/kformat.h>
+#include <dekaf2/kfilesystem.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/UaParser.h>
+#include <mutex>
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+std::unique_ptr<::uap_cpp::UserAgentParser> g_UserAgentParser;
+
 //-----------------------------------------------------------------------------
-void KHTMLContentBlocks::BlockContent::FlushText()
+bool InitUserAgentParser(const KString& sRegexFile = kReadLink(kFormat("/usr/local/{}/uap-core/regexes.yaml", DEKAF2_SHARED_DIRECTORY), true))
 //-----------------------------------------------------------------------------
 {
-	if (!m_sContent.empty())
+	static std::once_flag s_once;
+
+	std::call_once(s_once, [&sRegexFile]
 	{
-		m_Content.push_back(std::make_unique<KHTMLText>(m_sContent, !m_bHadTextContent));
-		m_sContent.clear();
-	}
-}
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::BlockContent::Text(char ch)
-//-----------------------------------------------------------------------------
-{
-	if (!KASCII::kIsSpace(ch))
-	{
-		m_bHadTextContent = true;
-	}
-	m_sContent += ch;
-}
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::BlockContent::InlineTag(const KHTMLTag& Tag)
-//-----------------------------------------------------------------------------
-{
-	FlushText();
-	m_Content.push_back(std::make_unique<KHTMLTag>(Tag));
-}
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::BlockContent::clear()
-//-----------------------------------------------------------------------------
-{
-	m_Content.clear();
-	m_sContent.clear();
-	m_bHadTextContent = false;
-}
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::BlockContent::Serialize(KStringRef& sOut) const
-//-----------------------------------------------------------------------------
-{
-	for (const auto& it : m_Content)
-	{
-		it->Serialize(sOut);
-	}
-}
-
-//-----------------------------------------------------------------------------
-KString KHTMLContentBlocks::BlockContent::Serialize() const
-//-----------------------------------------------------------------------------
-{
-	KString sOut;
-	Serialize(sOut);
-	return sOut;
-}
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::ContentBlock(BlockContent& Block)
-//-----------------------------------------------------------------------------
-{
-	// base version does nothing
-
-} // ContentBlock
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Skeleton(char ch)
-//-----------------------------------------------------------------------------
-{
-	// base version does nothing
-
-} // Skeleton
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Skeleton(KStringView sSkeleton)
-//-----------------------------------------------------------------------------
-{
-	// base version outputs to Skeleton(char)
-	for (auto ch : sSkeleton)
-	{
-		Skeleton(ch);
-	}
-
-} // Skeleton
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Skeleton(const KHTMLObject& Object)
-//-----------------------------------------------------------------------------
-{
-	KString sOutput;
-	Object.Serialize(sOutput);
-	Skeleton(sOutput);
-
-} // Skeleton
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::FlushContentBlock()
-//-----------------------------------------------------------------------------
-{
-	m_BlockContent.Completed();
-
-	if (!m_BlockContent.empty())
-	{
-		if (m_BlockContent.HadTextContent())
+		try
 		{
-			ContentBlock(m_BlockContent);
+			kDebug (3, "initializing from {}", sRegexFile);
+			g_UserAgentParser = std::make_unique<::uap_cpp::UserAgentParser>(sRegexFile.str());
 		}
-		else
+		catch (const std::exception& ex)
 		{
-			KString sSerialized;
-			m_BlockContent.Serialize(sSerialized);
-			Skeleton(sSerialized);
+			kDebug(1, ex.what());
 		}
+	});
 
-		m_BlockContent.clear();
-	}
+	return bool(g_UserAgentParser);
 
-} // FlushContentBlock
+} // InitUserAgentParser
 
 //-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Object(KHTMLObject& Object)
+KHTTPUserAgent::Device MakeDevice(::uap_cpp::Device device)
 //-----------------------------------------------------------------------------
 {
-	switch (Object.Type())
+	return KHTTPUserAgent::Device(KHTTPUserAgent::Generic(std::move(device.family)),
+				  std::move(device.model),
+				  std::move(device.brand));
+}
+
+//-----------------------------------------------------------------------------
+KHTTPUserAgent::Agent MakeAgent(::uap_cpp::Agent agent)
+//-----------------------------------------------------------------------------
+{
+	return KHTTPUserAgent::Agent(KHTTPUserAgent::Generic(std::move(agent.family)),
+				 std::move(agent.major),
+				 std::move(agent.minor),
+				 std::move(agent.patch));
+}
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+KString KHTTPUserAgent::Agent::GetVersion() const
+//-----------------------------------------------------------------------------
+{
+	return kFormat("{}.{}.{}",
+				   sMajor.empty() ? "0" : sMajor,
+				   sMinor.empty() ? "0" : sMinor,
+				   sPatch.empty() ? "0" : sPatch
+				);
+}
+
+//-----------------------------------------------------------------------------
+KString KHTTPUserAgent::Agent::GetString() const
+//-----------------------------------------------------------------------------
+{
+	return kFormat("{} {}", sFamily, GetVersion());
+}
+
+//-----------------------------------------------------------------------------
+KString KHTTPUserAgent::GetString ()
+//-----------------------------------------------------------------------------
+{
+	return kFormat("{}/{}", GetBrowser().GetString(), GetOS().GetString());
+}
+
+//-----------------------------------------------------------------------------
+const KHTTPUserAgent::Device& KHTTPUserAgent::GetDevice ()
+//-----------------------------------------------------------------------------
+{
+	if ((m_Parsed & Parsed::Device) != Parsed::Device)
 	{
-		case KHTMLTag::TYPE:
+		m_Parsed |= Parsed::Device;
+
+		if (InitUserAgentParser())
 		{
-			auto& Tag = reinterpret_cast<KHTMLTag&>(Object);
-
-			if (!Tag.IsInline())
-			{
-				FlushContentBlock();
-				// and push the tag into the skeleton
-				Skeleton(Object);
-			}
-			else
-			{
-				// push the inline tag into the content block
-				m_BlockContent.InlineTag(Tag);
-			}
-			break;
+			m_Device = MakeDevice(g_UserAgentParser->parse_device(m_sUserAgent.str()));
 		}
-
-		case KHTMLComment::TYPE:
-			// the effect of this check is that we throw away comments inside of
-			// content blocks with real content
-			if (!m_BlockContent.HadTextContent())
-			{
-				FlushContentBlock();
-				Skeleton(Object);
-			}
-			break;
-
-		default:
-			FlushContentBlock();
-			Skeleton(Object);
-			break;
 	}
 
-} // Object
+	return m_Device;
+
+} // GetDevice
 
 //-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Finished()
-//-----------------------------------------------------------------------------
-{
-	FlushContentBlock();
-
-} // Finished
-
-//-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Content(char ch)
+const KHTTPUserAgent::Agent& KHTTPUserAgent::GetOS ()
 //-----------------------------------------------------------------------------
 {
-	m_BlockContent.Text(ch);
+	if ((m_Parsed & Parsed::OS) != Parsed::OS)
+	{
+		m_Parsed |= Parsed::OS;
 
-} // Content
+		if (InitUserAgentParser())
+		{
+			m_OS = MakeAgent(g_UserAgentParser->parse_os(m_sUserAgent.str()));
+		}
+	}
+
+	return m_OS;
+
+} // GetOS
 
 //-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Script(char ch)
+const KHTTPUserAgent::Agent& KHTTPUserAgent::GetBrowser ()
 //-----------------------------------------------------------------------------
 {
-	m_BlockContent.NoText(ch);
+	if ((m_Parsed & Parsed::Browser) != Parsed::Browser)
+	{
+		m_Parsed |= Parsed::Browser;
 
-} // Script
+		if (InitUserAgentParser())
+		{
+			m_Browser = MakeAgent(g_UserAgentParser->parse_browser(m_sUserAgent.str()));
+		}
+	}
+
+	return m_Browser;
+
+} // GetBrowser
 
 //-----------------------------------------------------------------------------
-void KHTMLContentBlocks::Invalid(char ch)
+KHTTPUserAgent::DeviceType KHTTPUserAgent::GetDeviceType ()
 //-----------------------------------------------------------------------------
 {
-	Skeleton(ch);
+	switch (::uap_cpp::UserAgentParser::device_type(m_sUserAgent.str()))
+	{
+		case ::uap_cpp::DeviceType::kMobile:
+			return DeviceType::Mobile;
 
-} // Invalid
+		case ::uap_cpp::DeviceType::kTablet:
+			return DeviceType::Tablet;
+
+		case ::uap_cpp::DeviceType::kDesktop:
+			return DeviceType::Desktop;
+
+		case ::uap_cpp::DeviceType::kUnknown:
+			return DeviceType::Unknown;
+	}
+	// gcc ..
+	return DeviceType::Unknown;
+}
+
+//-----------------------------------------------------------------------------
+bool KHTTPUserAgent::LoadRegexes(const KString& sRegexPathName)
+//-----------------------------------------------------------------------------
+{
+	if (g_UserAgentParser)
+	{
+		kDebug(1, "user agent parser already initialized, cannot load file: {}", sRegexPathName);
+		return false;
+	}
+
+	return InitUserAgentParser(sRegexPathName);
+
+} // SetRegexPathname
 
 DEKAF2_NAMESPACE_END
+
+#endif

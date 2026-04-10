@@ -43,15 +43,15 @@
 
 
 /// @file kmime.h
-#include "kstring.h"
-#include "kstringview.h"
-#include "kwriter.h"
-#include "kreader.h"
-#include "kreplacer.h"
-#include "kerror.h"
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kwriter.h>
+#include <dekaf2/kreader.h>
+#include <dekaf2/kreplacer.h>
+#include <dekaf2/kerror.h>
 #ifndef DEKAF2_IS_WINDOWS
-	#include "kthreadsafe.h"
-	#include "kassociative.h"
+	#include <dekaf2/kthreadsafe.h>
+	#include <dekaf2/kassociative.h>
 	#include <atomic>
 #endif
 

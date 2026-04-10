@@ -40,18 +40,18 @@
 */
 
 #include "kmime.h"
-#include "khttp_header.h"
-#include "kbase64.h"
-#include "kquotedprintable.h"
-#include "kfilesystem.h"
-#include "klog.h"
-#include "kfrozen.h"
-#include "ksystem.h"
-#include "kctype.h"
-#include "kinpipe.h"
-#include "kinstringstream.h"
-#include "kstringutils.h"
-#include "kuuid.h"
+#include <dekaf2/khttp_header.h>
+#include <dekaf2/kbase64.h>
+#include <dekaf2/kquotedprintable.h>
+#include <dekaf2/kfilesystem.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/kfrozen.h>
+#include <dekaf2/ksystem.h>
+#include <dekaf2/kctype.h>
+#include <dekaf2/kinpipe.h>
+#include <dekaf2/kinstringstream.h>
+#include <dekaf2/kstringutils.h>
+#include <dekaf2/kuuid.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN

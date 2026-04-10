@@ -1310,10 +1310,10 @@ set(PUBLIC_HEADERS
 	source/http/protocol/khttp2.h
 	source/http/protocol/khttp3.h
 	khmac.h
-	khtmlcontentblocks.h
-	khtmldom.h
-	khtmlentities.h
-	khtmlparser.h
+	source/web/html/khtmlcontentblocks.h
+	source/web/html/khtmldom.h
+	source/web/html/khtmlentities.h
+	source/web/html/khtmlparser.h
 	source/http/client/khttpclient.h
 	source/http/protocol/khttpcompression.h
 	source/http/server/khttperror.h
@@ -1345,7 +1345,7 @@ set(PUBLIC_HEADERS
 	kmail.h
 	kmakecopyable.h
 	kmessagedigest.h
-	kmime.h
+	source/web/url/kmime.h
 	source/io/streams/kmodifyingstreambuf.h
 	source/core/strings/kmpsearch.h
 	source/containers/associative/kmru.h
@@ -1422,17 +1422,17 @@ set(PUBLIC_HEADERS
 	source/net/util/ktunnel.h
 	source/net/tcp/kunixstream.h
 	kuntar.h
-	kurl.h
-	kurlencode.h
-	kuseragent.h
+	source/web/url/kurl.h
+	source/web/url/kurlencode.h
+	source/web/url/kuseragent.h
 	source/core/types/kutf.h
 	source/core/types/kutf_iterator.h
 	kuuid.h
 	source/core/types/kvariant.h
 	source/core/types/kversion.h
 	source/http/client/kwebclient.h
-	kwebdav.h
-	kwebobjects.h
+	source/web/objects/kwebdav.h
+	source/web/objects/kwebobjects.h
 	source/rest/serving/kwebserver.h
 	source/rest/serving/kwebserverpermissions.h
 	source/http/websocket/kwebsocket.h
@@ -1440,7 +1440,7 @@ set(PUBLIC_HEADERS
 	source/core/strings/kwords.h
 	source/io/readwrite/kwrite.h
 	source/io/readwrite/kwriter.h
-	kxml.h
+	source/web/xml/kxml.h
 	kxterm.h
 )
 
@@ -1601,10 +1601,10 @@ set (SOURCES
 	source/http/protocol/khttp2.cpp
 	source/http/protocol/khttp3.cpp
 	khmac.cpp
-	khtmlcontentblocks.cpp
-	khtmldom.cpp
-	khtmlentities.cpp
-	khtmlparser.cpp
+	source/web/html/khtmlcontentblocks.cpp
+	source/web/html/khtmldom.cpp
+	source/web/html/khtmlentities.cpp
+	source/web/html/khtmlparser.cpp
 	source/http/client/khttpclient.cpp
 	source/http/protocol/khttpcompression.cpp
 	source/http/server/khttperror.cpp
@@ -1633,7 +1633,7 @@ set (SOURCES
 	source/core/logging/klogrotate.cpp
 	kmail.cpp
 	kmessagedigest.cpp
-	kmime.cpp
+	source/web/url/kmime.cpp
 	source/io/streams/kmodifyingstreambuf.cpp
 	source/core/strings/kmpsearch.cpp
 	source/net/address/knetworkinterface.cpp
@@ -1695,14 +1695,14 @@ set (SOURCES
 	source/net/util/ktunnel.cpp
 	source/net/tcp/kunixstream.cpp
 	kuntar.cpp
-	kurl.cpp
-	kurlencode.cpp
-	kuseragent.cpp
+	source/web/url/kurl.cpp
+	source/web/url/kurlencode.cpp
+	source/web/url/kuseragent.cpp
 	kuuid.cpp
 	source/core/types/kversion.cpp
 	source/http/client/kwebclient.cpp
-	kwebdav.cpp
-	kwebobjects.cpp
+	source/web/objects/kwebdav.cpp
+	source/web/objects/kwebobjects.cpp
 	source/rest/serving/kwebserver.cpp
 	source/rest/serving/kwebserverpermissions.cpp
 	source/http/websocket/kwebsocket.cpp
@@ -1710,7 +1710,7 @@ set (SOURCES
 	source/core/strings/kwords.cpp
 	source/io/readwrite/kwrite.cpp
 	source/io/readwrite/kwriter.cpp
-	kxml.cpp
+	source/web/xml/kxml.cpp
 	kxterm.cpp
 )
 

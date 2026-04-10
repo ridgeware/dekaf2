@@ -3,3 +3,4 @@ CMakeLists.txt.user
 *~
 *.dbc
 build/*
+.windsurf/

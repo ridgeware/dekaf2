@@ -1254,27 +1254,26 @@ set(PUBLIC_HEADERS
 	source/core/init/dekaf2.h
 	dekaf2all.h
 	kaddrplus.h
-	kaes.h
-	source/containers/memory/kallocator.h
+	source/crypto/cipher/kaes.h
 	karia.h
 	source/containers/associative/kassociative.h
 	katomic_object.h
-	kawsauth.h
+	source/crypto/auth/kawsauth.h
 	source/core/format/kbar.h
-	kbase64.h
-	kbcrypt.h
+	source/crypto/encoding/kbase64.h
+	source/crypto/auth/kbcrypt.h
 	source/core/types/kbit.h
 	source/core/types/kbitfields.h
-	kblockcipher.h
+	source/crypto/cipher/kblockcipher.h
 	source/containers/sequential/kbuffer.h
 	source/io/readwrite/kbufferedreader.h
 	source/containers/associative/kcache.h
-	kcamellia.h
+	source/crypto/cipher/kcamellia.h
 	source/core/strings/kcaseless.h
 	source/core/strings/kcasestring.h
 	source/core/strings/kcesu8.h
 	source/http/server/kcgistream.h
-	kchacha.h
+	source/crypto/cipher/kchacha.h
 	source/system/process/kchildprocess.h
 	source/http/protocol/kchunkedtransfer.h
 	source/core/types/kcompatibility.h
@@ -1283,7 +1282,7 @@ set(PUBLIC_HEADERS
 	source/http/cookie/kcookie.h
 	source/io/streams/kcountingstreambuf.h
 	source/core/errors/kcrashexit.h
-	kcrc.h
+	source/crypto/hash/kcrc.h
 	kcsv.h
 	source/core/types/kctype.h
 	source/io/pipes/kdataprovider.h
@@ -1292,7 +1291,7 @@ set(PUBLIC_HEADERS
 	source/core/types/kdefinitions.h
 	kdiff.h
 	kduration.h
-	kencode.h
+	source/crypto/encoding/kencode.h
 	source/core/types/keraseremove.h
 	source/core/errors/kerror.h
 	source/core/errors/kexception.h
@@ -1303,13 +1302,13 @@ set(PUBLIC_HEADERS
 	source/core/format/kformtable.h
 	source/core/types/kfrozen.h
 	source/system/os/kgetruntimestack.h
-	khash.h
+	source/crypto/hash/khash.h
 	source/system/os/kheapmon.h
-	khex.h
+	source/crypto/encoding/khex.h
 	source/containers/sequential/khistory.h
 	source/http/protocol/khttp2.h
 	source/http/protocol/khttp3.h
-	khmac.h
+	source/crypto/hash/khmac.h
 	source/web/html/khtmlcontentblocks.h
 	source/web/html/khtmldom.h
 	source/web/html/khtmlentities.h
@@ -1344,7 +1343,7 @@ set(PUBLIC_HEADERS
 	source/core/logging/klogrotate.h
 	kmail.h
 	kmakecopyable.h
-	kmessagedigest.h
+	source/crypto/hash/kmessagedigest.h
 	source/web/url/kmime.h
 	source/io/streams/kmodifyingstreambuf.h
 	source/core/strings/kmpsearch.h
@@ -1352,7 +1351,7 @@ set(PUBLIC_HEADERS
 	source/net/address/knetworkinterface.h
 	kngram.h
 	koptions.h
-	kopenid.h
+	source/crypto/auth/kopenid.h
 	source/io/pipes/koutpipe.h
 	koutputtemplate.h
 	source/system/process/koutshell.h
@@ -1366,7 +1365,7 @@ set(PUBLIC_HEADERS
 	kprof.h
 	source/containers/associative/kprops.h
 	source/net/quic/kquicstream.h
-	kquotedprintable.h
+	source/crypto/encoding/kquotedprintable.h
 	krandom.h
 	source/rest/limits/kratelimiter.h
 	source/io/readwrite/kread.h
@@ -1381,10 +1380,10 @@ set(PUBLIC_HEADERS
 	source/rest/framework/krestserver.h
 	kron.h
 	krow.h
-	krsa.h
-	krsacert.h
-	krsakey.h
-	krsasign.h
+	source/crypto/rsa/krsa.h
+	source/crypto/rsa/krsacert.h
+	source/crypto/rsa/krsakey.h
+	source/crypto/rsa/krsasign.h
 	source/core/types/kscopeguard.h
 	source/system/shared/ksharedmemory.h
 	source/containers/memory/ksharedref.h
@@ -1563,11 +1562,11 @@ set (SOURCES
 	bits/simd/kfindfirstof.cpp
 	bits/simd/kutf.cpp
 	source/core/init/dekaf2.cpp
-	kawsauth.cpp
+	source/crypto/auth/kawsauth.cpp
 	source/core/format/kbar.cpp
-	kbase64.cpp
-	kbcrypt.cpp
-	kblockcipher.cpp
+	source/crypto/encoding/kbase64.cpp
+	source/crypto/auth/kbcrypt.cpp
+	source/crypto/cipher/kblockcipher.cpp
 	source/io/readwrite/kbufferedreader.cpp
 	source/core/strings/kcaseless.cpp
 	source/core/strings/kcasestring.cpp
@@ -1579,7 +1578,7 @@ set (SOURCES
 	source/http/cookie/kcookie.cpp
 	source/io/streams/kcountingstreambuf.cpp
 	source/core/errors/kcrashexit.cpp
-	kcrc.cpp
+	source/crypto/hash/kcrc.cpp
 	kcsv.cpp
 	source/core/types/kctype.cpp
 	source/io/pipes/kdataprovider.cpp
@@ -1594,13 +1593,13 @@ set (SOURCES
 	source/core/format/kformat.cpp
 	source/core/format/kformtable.cpp
 	source/system/os/kgetruntimestack.cpp
-	khash.cpp
+	source/crypto/hash/khash.cpp
 	source/system/os/kheapmon.cpp
-	khex.cpp
+	source/crypto/encoding/khex.cpp
 	source/containers/sequential/khistory.cpp
 	source/http/protocol/khttp2.cpp
 	source/http/protocol/khttp3.cpp
-	khmac.cpp
+	source/crypto/hash/khmac.cpp
 	source/web/html/khtmlcontentblocks.cpp
 	source/web/html/khtmldom.cpp
 	source/web/html/khtmlentities.cpp
@@ -1632,12 +1631,12 @@ set (SOURCES
 	source/core/logging/klog.cpp
 	source/core/logging/klogrotate.cpp
 	kmail.cpp
-	kmessagedigest.cpp
+	source/crypto/hash/kmessagedigest.cpp
 	source/web/url/kmime.cpp
 	source/io/streams/kmodifyingstreambuf.cpp
 	source/core/strings/kmpsearch.cpp
 	source/net/address/knetworkinterface.cpp
-	kopenid.cpp
+	source/crypto/auth/kopenid.cpp
 	koptions.cpp
 	source/io/pipes/koutpipe.cpp
 	koutputtemplate.cpp
@@ -1650,7 +1649,7 @@ set (SOURCES
 	kprof.cpp
 	source/containers/associative/kprops.cpp
 	source/net/quic/kquicstream.cpp
-	kquotedprintable.cpp
+	source/crypto/encoding/kquotedprintable.cpp
 	krandom.cpp
 	source/io/readwrite/kread.cpp
 	source/io/readwrite/kreader.cpp
@@ -1665,10 +1664,10 @@ set (SOURCES
 	source/rest/limits/kconnectionlimiter.cpp
 	kron.cpp
 	krow.cpp
-	krsa.cpp
-	krsacert.cpp
-	krsakey.cpp
-	krsasign.cpp
+	source/crypto/rsa/krsa.cpp
+	source/crypto/rsa/krsacert.cpp
+	source/crypto/rsa/krsakey.cpp
+	source/crypto/rsa/krsasign.cpp
 	source/system/shared/ksharedmemory.cpp
 	source/system/os/ksignals.cpp
 	ksmtp.cpp

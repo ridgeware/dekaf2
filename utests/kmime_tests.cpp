@@ -1,11 +1,11 @@
 #include "catch.hpp"
 
-#include <dekaf2/kmime.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/koutstringstream.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kuuid.h>
+#include <dekaf2/web/url/kmime.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/io/streams/koutstringstream.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/util/id/kuuid.h>
 #include <vector>
 
 using namespace dekaf2;

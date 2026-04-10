@@ -45,10 +45,10 @@
 /// @file kcache.h
 /// a generic cache with LRU removal
 
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/ksharedref.h>
-#include "kmru.h"
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/containers/memory/ksharedref.h>
+#include <dekaf2/containers/associative/kmru.h>
 
 
 DEKAF2_NAMESPACE_BEGIN

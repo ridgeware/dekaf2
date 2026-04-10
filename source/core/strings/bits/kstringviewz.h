@@ -47,9 +47,9 @@
 /// from KStringView but restricts construction to sources that guarantee
 /// NUL-termination (C strings, std::string, KString)
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kutf.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/types/kutf.h>
 #include <dekaf2/crypto/hash/bits/khash.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -613,7 +613,7 @@ DEKAF2_NAMESPACE_BEGIN
 DEKAF2_NAMESPACE_END
 #endif
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE
 {

@@ -1,11 +1,11 @@
 
 #include <stdio.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kfdstream.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kprof.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/io/streams/kfdstream.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/time/duration/kprof.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <fstream>
 #include <fcntl.h>
 #ifdef DEKAF2_IS_WINDOWS

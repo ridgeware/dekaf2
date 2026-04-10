@@ -46,12 +46,12 @@
 /// with cursor control, color management (named, 256, and RGB), line editing with emacs key bindings,
 /// and command history support. Does not depend on ncurses or termcap.
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/khistory.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/containers/sequential/khistory.h>
+#include <dekaf2/core/errors/kerror.h>
 #include <memory>
 
 #ifndef DEKAF2_IS_WINDOWS

@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/keraseremove.h>
-#include <dekaf2/kjoin.h>
-#include <dekaf2/kstack.h>
+#include <dekaf2/core/types/keraseremove.h>
+#include <dekaf2/core/strings/kjoin.h>
+#include <dekaf2/containers/sequential/kstack.h>
 #include <vector>
 #include <list>
 #include <deque>

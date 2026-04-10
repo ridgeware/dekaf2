@@ -1,12 +1,12 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/kstack.h>
-#include <dekaf2/krandom.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/containers/sequential/kstack.h>
+#include <dekaf2/util/id/krandom.h>
 #include <vector>
 #include <list>
 #include <iostream>

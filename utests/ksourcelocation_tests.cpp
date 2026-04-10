@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/ksourcelocation.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/errors/ksourcelocation.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/format/kformat.h>
 
 using namespace dekaf2;
 

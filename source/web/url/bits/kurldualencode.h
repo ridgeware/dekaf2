@@ -47,13 +47,13 @@
 /// in one storage place. Rather a design study, not for general usage.
 
 
-#include <dekaf2/kurlencode.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/ktemplate.h>
-#include <dekaf2/kwriter.h>
+#include <dekaf2/web/url/kurlencode.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/core/types/ktemplate.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 #include <cinttypes>
 
 

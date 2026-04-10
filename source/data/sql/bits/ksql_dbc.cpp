@@ -41,7 +41,7 @@
 */
 
 #include "ksql_dbc.h"
-#include <dekaf2/krandom.h>
+#include <dekaf2/util/id/krandom.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

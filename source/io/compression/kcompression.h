@@ -45,10 +45,10 @@
 /// @file kcompression.h
 /// Compression framework
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kinstringstream.h>
-#include <dekaf2/koutstringstream.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/io/streams/kinstringstream.h>
+#include <dekaf2/io/streams/koutstringstream.h>
 
 #if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && DEKAF2_IS_GCC
 #pragma GCC diagnostic push

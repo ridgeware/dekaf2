@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/kreplacer.h>
+#include <dekaf2/data/template/kreplacer.h>
 #include <vector>
-#include <dekaf2/kprops.h>
+#include <dekaf2/containers/associative/kprops.h>
 
 using namespace dekaf2;
 

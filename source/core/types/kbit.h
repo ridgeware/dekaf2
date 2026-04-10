@@ -50,8 +50,8 @@
 /// @file kbit.h
 /// generalized implementation of the C++20/23 bit functions
 
-#include "kdefinitions.h"
-#include <dekaf2/kcrashexit.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/errors/kcrashexit.h>
 #include <type_traits>
 #include <limits>
 #include <cstring> // memcpy

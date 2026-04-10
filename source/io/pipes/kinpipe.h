@@ -48,7 +48,7 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include <dekaf2/kfdstream.h>
+#include <dekaf2/io/streams/kfdstream.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -40,11 +40,11 @@
 //
 */
 
-#include "knetworkinterface.h"
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/krandom.h>
-#include <dekaf2/kutf.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/net/address/knetworkinterface.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/logging/klog.h>
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <ws2tcpip.h>

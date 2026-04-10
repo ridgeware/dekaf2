@@ -45,11 +45,11 @@
 /// @file ksystem.h
 /// general system utilities for dekaf2
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kipaddress.h>        // remove when deleting deprecated kIsValidIPv4/kIsValidIPv6
-#include <dekaf2/krandom.h>           // remove when all users have added krandom.h
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/net/address/kipaddress.h>        // remove when deleting deprecated kIsValidIPv4/kIsValidIPv6
+#include <dekaf2/util/id/krandom.h>           // remove when all users have added krandom.h
 #include <dekaf2/core/strings/bits/kstringviewz.h>
 #include <locale>
 #ifndef DEKAF2_IS_WINDOWS

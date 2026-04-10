@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include <dekaf2/kpersist.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/containers/memory/kpersist.h>
+#include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;
 

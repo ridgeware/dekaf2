@@ -1,10 +1,10 @@
 #include "catch.hpp"
-#include <dekaf2/kwebdav.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/khttp_method.h>
-#include <dekaf2/kwebserverpermissions.h>
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/web/objects/kwebdav.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/rest/serving/kwebserverpermissions.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;
 

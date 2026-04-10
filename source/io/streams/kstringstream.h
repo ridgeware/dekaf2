@@ -44,12 +44,12 @@
 /// @file kstringstream.h
 /// provides a stream around a KString
 
-#include <dekaf2/kdefinitions.h>
-#include "kstreambuf.h"
-#include <dekaf2/kstring.h>
-#include "koutstringstream.h"
-#include "kinstringstream.h"
-#include "kstream.h"
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/io/streams/kstreambuf.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/streams/koutstringstream.h>
+#include <dekaf2/io/streams/kinstringstream.h>
+#include <dekaf2/io/streams/kstream.h>
 #include <iostream>
 
 DEKAF2_NAMESPACE_BEGIN

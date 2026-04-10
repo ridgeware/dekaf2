@@ -44,9 +44,9 @@
 /// provides basic string formatter functionality
 
 #include <dekaf2/core/format/bits/kformat.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kwrite.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/readwrite/kwrite.h>
 #include <ostream>
 #include <locale>
 #include <cstdio>

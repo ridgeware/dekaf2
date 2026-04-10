@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstack.h>
+#include <dekaf2/containers/sequential/kstack.h>
 
 #include <iostream>
 

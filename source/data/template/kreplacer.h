@@ -43,10 +43,10 @@
 /// @file kreplacer.h
 /// adds a class that replaces variables in a string
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/krow.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/data/sql/krow.h>
 #include <map>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -40,13 +40,13 @@
 //
 */
 
-#include "krow.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kcsv.h>
-#include <dekaf2/khex.h>
-#include <dekaf2/kbase64.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kexception.h>
+#include <dekaf2/data/sql/krow.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/data/csv/kcsv.h>
+#include <dekaf2/crypto/encoding/khex.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/errors/kexception.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

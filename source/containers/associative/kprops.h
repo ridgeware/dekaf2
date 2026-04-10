@@ -53,12 +53,12 @@
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
 #include <algorithm>
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include <dekaf2/containers/associative/bits/kmutable_pair.h>
-#include <dekaf2/ksplit.h>
-#include <dekaf2/kjoin.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kstream.h>
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/core/strings/kjoin.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/io/streams/kstream.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

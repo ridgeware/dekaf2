@@ -39,13 +39,13 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "khttpclient.h"
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kbase64.h>
-#include <dekaf2/kmessagedigest.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/krandom.h>
+#include <dekaf2/http/client/khttpclient.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/crypto/hash/kmessagedigest.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/util/id/krandom.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

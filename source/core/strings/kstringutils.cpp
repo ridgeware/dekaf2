@@ -39,14 +39,14 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kstringview.h"   // keep kstringview.h on top of kstringutils.h
-#include "kstringutils.h"  // or gcc < 10 produces circular references!
-#include <dekaf2/khex.h>
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kurl.h>)
-	#include <dekaf2/kurl.h>
+#include <dekaf2/core/strings/kstringview.h>   // keep kstringview.h on top of kstringutils.h
+#include <dekaf2/core/strings/kstringutils.h>  // or gcc < 10 produces circular references!
+#include <dekaf2/crypto/encoding/khex.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/web/url/kurl.h>)
+	#include <dekaf2/web/url/kurl.h>
 #endif
 #if DEKAF2_HAS_INCLUDE("kregex.h")
-	#include "kregex.h"
+	#include <dekaf2/core/strings/kregex.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -619,7 +619,7 @@ bool kIsEmail(KStringView str) noexcept
 bool kIsURL(KStringView str) noexcept
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kurl.h>)
+#if DEKAF2_HAS_INCLUDE(<dekaf2/web/url/kurl.h>)
 	return KURL(str).IsURL();
 #else
 	return false;

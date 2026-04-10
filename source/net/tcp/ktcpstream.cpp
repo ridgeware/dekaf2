@@ -40,10 +40,10 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "ktcpstream.h"
-#include <dekaf2/kresolve.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kurl.h>
+#include <dekaf2/net/tcp/ktcpstream.h>
+#include <dekaf2/net/address/kresolve.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/web/url/kurl.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

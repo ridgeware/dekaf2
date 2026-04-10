@@ -1,9 +1,9 @@
 #include "catch.hpp"
-#include <dekaf2/koptions.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kcgistream.h>
-#include <dekaf2/kstringstream.h>
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/http/server/kcgistream.h>
+#include <dekaf2/io/streams/kstringstream.h>
 
 
 using namespace dekaf2;

@@ -41,19 +41,19 @@
 
 #pragma once
 
-#include <dekaf2/ktunnel.h>
-#include <dekaf2/koptions.h>
-#include <dekaf2/kerror.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/krsakey.h>
-#include <dekaf2/krsacert.h>
-#include <dekaf2/krest.h>
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kwebobjects.h>
-#include <dekaf2/kwebsocket.h>
-#include <dekaf2/kwebsocketclient.h>
-#include <dekaf2/kencode.h>
+#include <dekaf2/net/util/ktunnel.h>
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/crypto/rsa/krsacert.h>
+#include <dekaf2/rest/framework/krest.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/web/objects/kwebobjects.h>
+#include <dekaf2/http/websocket/kwebsocket.h>
+#include <dekaf2/http/websocket/kwebsocketclient.h>
+#include <dekaf2/crypto/encoding/kencode.h>
 #include <thread>
 #include <memory>
 

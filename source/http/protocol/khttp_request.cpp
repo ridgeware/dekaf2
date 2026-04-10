@@ -39,12 +39,12 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khttp_request.h"
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
+#include <dekaf2/http/protocol/khttp_request.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
 #include "kconfiguration.h"
-#include <dekaf2/kipaddress.h>
-#include <dekaf2/kipnetwork.h>
+#include <dekaf2/net/address/kipaddress.h>
+#include <dekaf2/net/address/kipnetwork.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

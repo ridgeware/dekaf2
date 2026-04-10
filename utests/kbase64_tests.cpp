@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/kbase64.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
 #include <vector>
 
 using namespace dekaf2;

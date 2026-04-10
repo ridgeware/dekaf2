@@ -44,11 +44,11 @@
 /// @file kreader.h
 /// holds the basic reader abstraction
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 #include <dekaf2/system/filesystem/bits/kfilesystem.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kstring.h>
-#include "kread.h"
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/readwrite/kread.h>
 #include <istream>
 #include <fstream>
 

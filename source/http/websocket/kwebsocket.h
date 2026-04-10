@@ -44,18 +44,18 @@
 /// @file kwebsocket.h
 /// HTTP web socket code
 
-#include <dekaf2/kiostreamsocket.h>
-#include <dekaf2/kexception.h>
-#include <dekaf2/khttp_request.h>
-#include <dekaf2/khttp_response.h>
-#include <dekaf2/kassociative.h>
-#include <dekaf2/kthreadsafe.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/ktimer.h>
+#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/http/protocol/khttp_request.h>
+#include <dekaf2/http/protocol/khttp_response.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/time/duration/ktimer.h>
 #include <vector>
 #include <atomic>
 #include <thread>

@@ -38,11 +38,11 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kformtable.h"
-#include <dekaf2/kcsv.h>
-#include <dekaf2/kcrashexit.h>
-#include <dekaf2/khtmlentities.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/core/format/kformtable.h>
+#include <dekaf2/data/csv/kcsv.h>
+#include <dekaf2/core/errors/kcrashexit.h>
+#include <dekaf2/web/html/khtmlentities.h>
+#include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

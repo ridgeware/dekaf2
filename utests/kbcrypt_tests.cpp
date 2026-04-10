@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include <dekaf2/kbcrypt.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/crypto/auth/kbcrypt.h>
+#include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;
 

@@ -44,8 +44,8 @@
 /// @file kbaseprocess.h
 /// common base class for child process management (shared by KBasePipe and KPTY)
 
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/kduration.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/time/duration/kduration.h>
 
 #ifdef DEKAF2_HAS_PIPES
 

@@ -44,9 +44,9 @@
 /// @file ksetofchars.h
 /// string operations for a set of chars
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kbit.h>
-#include <dekaf2/kstringview.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/types/kbit.h>
+#include <dekaf2/core/strings/kstringview.h>
 #include <cinttypes>
 
 #if !DEKAF2_FIND_FIRST_OF_USE_SIMD

@@ -40,11 +40,11 @@
 //
 */
 
-#include "kwords.h"
-#include <dekaf2/kutf.h>
-#include <dekaf2/khtmlentities.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/strings/kwords.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/web/html/khtmlentities.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/core/types/kcompatibility.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <iostream>
 
 using namespace dekaf2;

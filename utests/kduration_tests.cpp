@@ -1,10 +1,10 @@
 
 #include "catch.hpp"
-#include <dekaf2/kduration.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/dekaf2.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/init/dekaf2.h>
 
 using namespace dekaf2;
 

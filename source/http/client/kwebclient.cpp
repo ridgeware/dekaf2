@@ -39,10 +39,10 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kwebclient.h"
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kstringutils.h>
+#include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/strings/kstringutils.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

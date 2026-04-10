@@ -39,12 +39,12 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kwriter.h"
-#include "kreader.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kthreadpool.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/kstreambuf.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/threading/execution/kthreadpool.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/io/streams/kstreambuf.h>
 #include <iostream>
 #include <fstream>
 

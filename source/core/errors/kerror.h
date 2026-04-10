@@ -43,8 +43,8 @@
 /// @file kerror.h
 /// provides dekaf2 error base class
 
-#include "kexception.h"
-#include "ksourcelocation.h"
+#include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/core/errors/ksourcelocation.h>
 
 namespace boost { namespace system {
 

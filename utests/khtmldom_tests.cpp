@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/khtmldom.h>
-#include <dekaf2/kstringstream.h>
-#include <dekaf2/kwriter.h>
+#include <dekaf2/web/html/khtmldom.h>
+#include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 #include <vector>
 
 using namespace dekaf2;

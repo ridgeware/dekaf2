@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstreambuf.h>
-#include <dekaf2/kcountingstreambuf.h>
+#include <dekaf2/io/streams/kstreambuf.h>
+#include <dekaf2/io/streams/kcountingstreambuf.h>
 
 using namespace dekaf2;
 

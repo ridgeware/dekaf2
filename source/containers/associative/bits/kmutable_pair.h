@@ -45,7 +45,7 @@
 /// @file kmutable_pair.h
 /// provides a helper for boost multi_index
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -46,7 +46,7 @@
 /// test for include file locations for std::filesystem, and include if
 /// available
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 
 // Starting 09/2024 we do not use std::filesystem anymore except when
 // not on POSIX systems. Reason is its limited functionality (no user

@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/khtmlentities.h>
+#include <dekaf2/web/html/khtmlentities.h>
 
 using namespace dekaf2;
 

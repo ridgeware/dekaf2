@@ -39,16 +39,16 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "ktime.h"
-#include <dekaf2/kduration.h>
-#include <dekaf2/kstringutils.h>
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kfrozen.h>)
-	#include <dekaf2/kfrozen.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/types/kfrozen.h>)
+	#include <dekaf2/core/types/kfrozen.h>
 #endif
-#include <dekaf2/kutf.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/logging/klog.h>
 #if DEKAF2_HAS_TIMEZONES
-	#include <dekaf2/kthreadsafe.h>
+	#include <dekaf2/threading/primitives/kthreadsafe.h>
 	#if !DEKAF2_STD_CHRONO_HAS_TIMEZONE
 		#include <date/tz.h>
 	#endif

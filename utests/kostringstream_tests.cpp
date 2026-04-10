@@ -2,7 +2,7 @@
 
 #include <dekaf2/kostringstream.h>
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 using namespace dekaf2;
 

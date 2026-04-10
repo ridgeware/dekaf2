@@ -45,13 +45,13 @@
 /// @file klog.h
 /// Logging framework
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstringview.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
 
 #ifdef DEKAF2_WITH_KLOG
-	#include <dekaf2/kstring.h>
-	#include <dekaf2/kformat.h>
-	#include <dekaf2/ktime.h>
+	#include <dekaf2/core/strings/kstring.h>
+	#include <dekaf2/core/format/kformat.h>
+	#include <dekaf2/time/clock/ktime.h>
 	#include <memory>
 	#include <exception>
 	#include <mutex>

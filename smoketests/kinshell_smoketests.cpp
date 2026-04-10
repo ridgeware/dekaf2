@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kinshell.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/system/process/kinshell.h>
+#include <dekaf2/core/strings/kstring.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 

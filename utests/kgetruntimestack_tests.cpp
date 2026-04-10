@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include <dekaf2/kgetruntimestack.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/system/os/kgetruntimestack.h>
+#include <dekaf2/core/strings/kstring.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 

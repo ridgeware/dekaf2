@@ -48,10 +48,10 @@
 /// handles error cases gracefully instead of causing UB, and speeds up
 /// searching by up to 50x compared to typical std::string implementations
 
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include <dekaf2/core/strings/bits/kstring_view.h>
-#include <dekaf2/ktemplate.h>
-#include <dekaf2/kctype.h>
+#include <dekaf2/core/types/ktemplate.h>
+#include <dekaf2/core/types/kctype.h>
 #include <dekaf2/core/format/bits/kformat.h>
 #include <string>
 #include <istream>
@@ -1300,11 +1300,11 @@ DEKAF2_NAMESPACE_END
 // KStringView and / or KStringViewZ being complete as well, or use functions
 // from ksplit.h, kjoin.h, or kstringutils.h
 
-#include "kstringview.h"
+#include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/bits/kstringviewz.h>
-#include "ksplit.h"
-#include "kjoin.h"
-#include "kstringutils.h"
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/core/strings/kjoin.h>
+#include <dekaf2/core/strings/kstringutils.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -2492,7 +2492,7 @@ inline namespace literals {
 
 DEKAF2_NAMESPACE_END
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

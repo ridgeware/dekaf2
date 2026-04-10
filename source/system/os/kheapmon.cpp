@@ -38,18 +38,18 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kheapmon.h"
+#include <dekaf2/system/os/kheapmon.h>
 #include "kconfiguration.h"
 
 // on macos, jemalloc uses the prefix je_ in the symbols, but not in the headers..
 // so we disable diagnostics there for now
 #if defined(DEKAF2_HAS_JEMALLOC) && !defined(DEKAF2_IS_MACOS)
 
-#include <dekaf2/klog.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kreader.h>
-#include "ksystem.h"
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include <jemalloc/jemalloc.h>
 
 DEKAF2_NAMESPACE_BEGIN

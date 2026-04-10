@@ -44,12 +44,12 @@
 /// @file kratelimiter.h
 /// Token bucket rate limiter for request throttling
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kerror.h>
-#include <dekaf2/kassociative.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/containers/associative/kassociative.h>
 #include <mutex>
 
 DEKAF2_NAMESPACE_BEGIN

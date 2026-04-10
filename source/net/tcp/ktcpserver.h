@@ -72,13 +72,13 @@
 /// TCP server implementation with TLS
 
 #include <dekaf2/net/tcp/bits/kasio.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kthreadpool.h>
-#include <dekaf2/khttp_version.h>
-#include <dekaf2/kstreamoptions.h>
-#include <dekaf2/kiostreamsocket.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/threading/execution/kthreadpool.h>
+#include <dekaf2/http/protocol/khttp_version.h>
+#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/core/errors/kerror.h>
 #include <cinttypes>
 #include <thread>
 #include <future>

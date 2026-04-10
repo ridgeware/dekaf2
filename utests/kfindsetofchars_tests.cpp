@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstringview.h>
+#include <dekaf2/core/strings/kstringview.h>
 
 using namespace dekaf2;
 

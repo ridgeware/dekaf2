@@ -1,12 +1,12 @@
 #include "catch.hpp"
 
-#include <dekaf2/khttpclient.h>
-#include <dekaf2/ktcpserver.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/koutstringstream.h>
+#include <dekaf2/http/client/khttpclient.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/io/streams/koutstringstream.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 

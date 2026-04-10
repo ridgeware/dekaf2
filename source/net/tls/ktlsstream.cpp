@@ -39,9 +39,9 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "ktlsstream.h"
-#include <dekaf2/kresolve.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/net/tls/ktlsstream.h>
+#include <dekaf2/net/address/kresolve.h>
+#include <dekaf2/core/logging/klog.h>
 #include <openssl/opensslv.h>
 
 DEKAF2_NAMESPACE_BEGIN

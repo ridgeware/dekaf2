@@ -46,7 +46,7 @@
 /// @file kcompatibility.h
 /// compatibility layer to provide same interfaces for C++11 to 17
 
-#include "kdefinitions.h"
+#include <dekaf2/core/types/kdefinitions.h>
 #include <type_traits>
 
 #if !DEKAF2_IS_WINDOWS

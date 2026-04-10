@@ -41,8 +41,8 @@
 */
 
 #include "kconfiguration.h"
-#include "kbase64.h"
-#include <dekaf2/klog.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/core/logging/klog.h>
 
 #if !DEKAF2_WITH_SIMDUTF
 	#include <boost/archive/iterators/base64_from_binary.hpp>
@@ -51,7 +51,7 @@
 	#include <boost/archive/iterators/transform_width.hpp>
 	#include <boost/archive/iterators/remove_whitespace.hpp>
 #else
-	#include <dekaf2/from/simdutf/simdutf.h>
+	#include "../../../from/simdutf/simdutf.h"
 #endif
 
 DEKAF2_NAMESPACE_BEGIN

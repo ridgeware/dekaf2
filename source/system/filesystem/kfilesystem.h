@@ -45,13 +45,13 @@
 /// @file kfilesystem.h
 /// standalone functions and classes around files and the file system
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/core/errors/kerror.h>
 #include <cinttypes>
 #include <vector>
 

@@ -55,9 +55,9 @@
  *********************************************************/
 
 
-#include "kthreadpool.h"
+#include <dekaf2/threading/execution/kthreadpool.h>
 #include <dekaf2/core/types/bits/kmake_unique.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -1,9 +1,9 @@
 #include "catch.hpp"
 
-#include <dekaf2/kregex.h>
-#include <dekaf2/kparallel.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/strings/kregex.h>
+#include <dekaf2/threading/execution/kparallel.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <vector>
 #include <atomic>
 

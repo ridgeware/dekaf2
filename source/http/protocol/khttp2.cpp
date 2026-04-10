@@ -40,12 +40,12 @@
  //
  */
 
-#include "khttp2.h"
+#include <dekaf2/http/protocol/khttp2.h>
 
 #if DEKAF2_HAS_NGHTTP2
 
-#include <dekaf2/kformat.h>
-#include <dekaf2/kwrite.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/io/readwrite/kwrite.h>
 
 #define NGHTTP2_NO_SSIZE_T 1
 #include <nghttp2/nghttp2.h>

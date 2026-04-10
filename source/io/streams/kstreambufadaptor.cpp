@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kstreambufadaptor.h"
+#include <dekaf2/io/streams/kstreambufadaptor.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

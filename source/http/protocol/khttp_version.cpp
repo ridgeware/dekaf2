@@ -39,8 +39,8 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "khttp_version.h"
-#include <dekaf2/klog.h>
+#include <dekaf2/http/protocol/khttp_version.h>
+#include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

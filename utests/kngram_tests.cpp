@@ -1,6 +1,6 @@
 
 #include "catch.hpp"
-#include <dekaf2/kngram.h>
+#include <dekaf2/util/text/kngram.h>
 
 using namespace dekaf2;
 

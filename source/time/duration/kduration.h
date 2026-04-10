@@ -42,9 +42,9 @@
 
 #pragma once
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kdate.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/time/clock/kdate.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <vector>
 #include <type_traits>
 #include <ctime>      // struct timespec, time_t
@@ -644,11 +644,11 @@ private:
 
 DEKAF2_NAMESPACE_END
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
 
 // kFormat formatters
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE
 {
@@ -665,4 +665,4 @@ struct formatter<DEKAF2_PREFIX KDuration> : formatter<string_view>
 
 } // end of DEKAF2_FORMAT_NAMESPACE
 
-#endif // of has #include <dekaf2/kformat.h>
+#endif // of has #include <dekaf2/core/format/kformat.h>

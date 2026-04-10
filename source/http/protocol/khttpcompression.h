@@ -43,10 +43,10 @@
 
 
 /// @file khttpcompression.h
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstringview.h>
-#include "khttp_header.h"
-#include <dekaf2/katomic_object.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/threading/primitives/katomic_object.h>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -1,13 +1,13 @@
 
 #include "__LowerProjectName__.h"
 #include "db.h"
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kexception.h>
-#include <dekaf2/kopenid.h>
-#include <dekaf2/kjson.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/crypto/auth/kopenid.h>
+#include <dekaf2/data/json/kjson.h>
 
 constexpr
 KRESTRoutes::MemberFunctionTable<__ProjectName__> __ProjectName__Routes[]

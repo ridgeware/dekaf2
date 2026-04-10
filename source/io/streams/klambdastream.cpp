@@ -40,11 +40,11 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "klambdastream.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/khttp_header.h>
-#include <dekaf2/kurlencode.h>
+#include <dekaf2/io/streams/klambdastream.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/web/url/kurlencode.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

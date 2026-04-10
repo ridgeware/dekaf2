@@ -43,7 +43,7 @@
 /// @file kutf_iterator.h
 /// provides iterator types for utf8/utf16/utf32 strings
 
-#include "kutf.h"
+#include <dekaf2/core/types/kutf.h>
 #include <iterator>
 
 #ifdef DEKAF2

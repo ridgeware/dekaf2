@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/khttpcompression.h>
+#include <dekaf2/http/protocol/khttpcompression.h>
 
 using namespace dekaf2;
 

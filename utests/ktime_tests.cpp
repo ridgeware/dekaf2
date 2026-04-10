@@ -1,11 +1,11 @@
 #include "catch.hpp"
 
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kscopeguard.h>
-#include <dekaf2/kstringutils.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/types/kscopeguard.h>
+#include <dekaf2/core/strings/kstringutils.h>
 #include <array>
 
 #ifdef DEKAF2_IS_MACOS

@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/kallocator.h>
+#include <dekaf2/containers/memory/kallocator.h>
 #include <vector>
 #include <list>
 #include <unordered_set>

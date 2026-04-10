@@ -39,7 +39,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khttpcompression.h"
+#include <dekaf2/http/protocol/khttpcompression.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -39,13 +39,13 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kmail.h"
-#include "ksmtp.h"
-#include <dekaf2/khttp_header.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kstringutils.h>
+#include <dekaf2/util/mail/kmail.h>
+#include <dekaf2/util/mail/ksmtp.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/strings/kstringutils.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

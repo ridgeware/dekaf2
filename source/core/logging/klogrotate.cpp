@@ -39,13 +39,13 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "klogrotate.h"
-#include "klog.h"
-#include <dekaf2/kctype.h>
-#include <dekaf2/kcompression.h>
-#include <dekaf2/kregex.h>
-#include <dekaf2/kinshell.h>
-#include <dekaf2/dekaf2.h>
+#include <dekaf2/core/logging/klogrotate.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/io/compression/kcompression.h>
+#include <dekaf2/core/strings/kregex.h>
+#include <dekaf2/system/process/kinshell.h>
+#include <dekaf2/core/init/dekaf2.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

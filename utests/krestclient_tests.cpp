@@ -1,9 +1,9 @@
 #include "catch.hpp"
 
-#include <dekaf2/krestclient.h>
-#include <dekaf2/krest.h>
-#include <dekaf2/kmessagedigest.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/rest/framework/krestclient.h>
+#include <dekaf2/rest/framework/krest.h>
+#include <dekaf2/crypto/hash/kmessagedigest.h>
+#include <dekaf2/system/os/ksystem.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 

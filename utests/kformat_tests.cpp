@@ -1,12 +1,12 @@
 #include "catch.hpp"
-#include <dekaf2/kformat.h>
-#include <dekaf2/khttp_method.h>
-#include <dekaf2/khttp_header.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/kcasestring.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/core/strings/kcasestring.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/types/kcompatibility.h>
 
 using namespace dekaf2;
 

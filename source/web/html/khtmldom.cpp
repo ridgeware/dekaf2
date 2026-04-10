@@ -39,12 +39,12 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khtmldom.h"
-#include <dekaf2/kctype.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/koutstringstream.h>
-#include "khtmlentities.h"
-#include <dekaf2/kexception.h>
+#include <dekaf2/web/html/khtmldom.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/io/streams/koutstringstream.h>
+#include <dekaf2/web/html/khtmlentities.h>
+#include <dekaf2/core/errors/kexception.h>
 
 // set to 1 for debug output
 #define DEKAF2_HTMLDOM_DEBUG 0

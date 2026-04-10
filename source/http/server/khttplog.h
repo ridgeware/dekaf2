@@ -43,15 +43,15 @@
 
 
 /// @file khttplog.h
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/khttp_method.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/khttp_version.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/http/protocol/khttp_version.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

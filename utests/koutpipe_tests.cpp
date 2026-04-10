@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include <dekaf2/koutpipe.h>
-#include <dekaf2/kinpipe.h>
+#include <dekaf2/io/pipes/koutpipe.h>
+#include <dekaf2/io/pipes/kinpipe.h>
 
 #ifdef DEKAF2_HAS_PIPES
 

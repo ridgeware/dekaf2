@@ -40,7 +40,7 @@
 //
 */
 
-#include "krandom.h"
+#include <dekaf2/util/id/krandom.h>
 #include <random>
 #include <cstdlib>
 
@@ -50,7 +50,7 @@
 #endif
 
 #if !DEKAF2_HAS_ARC4RANDOM && !DEKAF2_HAS_GETRANDOM
-	#include <dekaf2/kthreadsafe.h>
+	#include <dekaf2/threading/primitives/kthreadsafe.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN

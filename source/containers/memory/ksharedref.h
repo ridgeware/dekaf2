@@ -52,7 +52,7 @@
 /// Also provides a template to generate a
 /// class of any type that will hold a reference to the shared pointer.
 
-#include <dekaf2/kdefinitions.h> // for DEKAF2_NAMESPACE
+#include <dekaf2/core/types/kdefinitions.h> // for DEKAF2_NAMESPACE
 #include <atomic>
 #include <type_traits>
 

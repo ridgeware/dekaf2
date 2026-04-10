@@ -45,8 +45,8 @@
 /// @file khash.h
 /// provides a Fowler-Noll-Vo hash
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kctype.h> // for ASCII lowercase conversion
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/types/kctype.h> // for ASCII lowercase conversion
 #include <cinttypes>
 #include <climits>
 

@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/kjuliandate.h>
+#include <dekaf2/time/clock/kjuliandate.h>
 
 using namespace dekaf2;
 

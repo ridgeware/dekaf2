@@ -43,10 +43,10 @@
 
 
 /// @file khtmldom.h
-#include <dekaf2/kdefinitions.h>
-#include "khtmlparser.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/web/html/khtmlparser.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/errors/kerror.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

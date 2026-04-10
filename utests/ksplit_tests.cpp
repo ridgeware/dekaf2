@@ -1,9 +1,9 @@
 #include <vector>
 #include "catch.hpp"
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/ksplit.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/kassociative.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/containers/associative/kassociative.h>
 #include <map>
 #include <set>
 #include <list>

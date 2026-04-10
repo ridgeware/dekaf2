@@ -39,24 +39,24 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "krestserver.h"
-#include "krestroute.h"
-#include <dekaf2/khttperror.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kopenid.h>
-#include <dekaf2/kstringstream.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kfrozen.h>
-#include <dekaf2/kregex.h>
-#include <dekaf2/kwebclient.h>
-#include <dekaf2/kcrashexit.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kcountingstreambuf.h>
-#include <dekaf2/krow.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kwebsocket.h>
-#include <dekaf2/kscopeguard.h>
+#include <dekaf2/rest/framework/krestserver.h>
+#include <dekaf2/rest/framework/krestroute.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/crypto/auth/kopenid.h>
+#include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/types/kfrozen.h>
+#include <dekaf2/core/strings/kregex.h>
+#include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/core/errors/kcrashexit.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/io/streams/kcountingstreambuf.h>
+#include <dekaf2/data/sql/krow.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/http/websocket/kwebsocket.h>
+#include <dekaf2/core/types/kscopeguard.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN

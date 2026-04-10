@@ -49,10 +49,10 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kfdstream.h>
-#include <dekaf2/kstreambuf.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/io/streams/kfdstream.h>
+#include <dekaf2/io/streams/kstreambuf.h>
 #include <streambuf>
 #include <iostream>
 

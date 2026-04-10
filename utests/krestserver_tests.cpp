@@ -1,12 +1,12 @@
 #include "catch.hpp"
 
-#include <dekaf2/krestserver.h>
-#include <dekaf2/ktcpserver.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/krest.h>
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kcompression.h>
+#include <dekaf2/rest/framework/krestserver.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/rest/framework/krest.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/io/compression/kcompression.h>
 
 using namespace dekaf2;
 

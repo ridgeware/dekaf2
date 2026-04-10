@@ -39,15 +39,15 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kreader.h"
-#include "kread.h"
-#include "kwriter.h" // we need KOutStream
-#include <dekaf2/klog.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kstreambuf.h>
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/io/readwrite/kread.h>
+#include <dekaf2/io/readwrite/kwriter.h> // we need KOutStream
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/io/streams/kstreambuf.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include <iostream>
 #include <fcntl.h>
 

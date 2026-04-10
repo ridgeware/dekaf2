@@ -1,9 +1,9 @@
 #include "catch.hpp"
-#include <dekaf2/kwebsocket.h>
-#include <dekaf2/kstringstream.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/khttp_request.h>
-#include <dekaf2/khttp_response.h>
+#include <dekaf2/http/websocket/kwebsocket.h>
+#include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/http/protocol/khttp_request.h>
+#include <dekaf2/http/protocol/khttp_response.h>
 
 using namespace dekaf2;
 

@@ -1,7 +1,7 @@
 #include "catch.hpp"
-#include <dekaf2/kawsauth.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kencode.h>
+#include <dekaf2/crypto/auth/kawsauth.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/crypto/encoding/kencode.h>
 
 
 using namespace dekaf2;

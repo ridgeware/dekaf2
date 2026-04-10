@@ -41,14 +41,14 @@
 
 #define DEKAF2_HTTP_HEADER_VIEW_PIPELINE (__cpp_lib_ranges >= 202110L)
 
-#include "khttp_header.h"
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kbase64.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kassociative.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/containers/associative/kassociative.h>
 #if !DEKAF2_HTTP_HEADER_VIEW_PIPELINE
 	#include <boost/foreach.hpp>
 #endif

@@ -43,10 +43,10 @@
 
 
 /// @file kcasestring.h
-#include <dekaf2/kdefinitions.h>
-#include "kstring.h"
-#include "kstringutils.h"
-#include "kcaseless.h"
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/strings/kcaseless.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -434,9 +434,9 @@ inline std::size_t DEKAF2_PREFIX KCaseStringBase<Trimming>::Hash() const
 	return std::hash<DEKAF2_PREFIX KCaseStringBase<Trimming>>()(*this);
 }
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE
 {
@@ -463,4 +463,4 @@ struct formatter<DEKAF2_PREFIX KCaseStringBase<Trimming>> : formatter<string_vie
 
 } // end of DEKAF2_FORMAT_NAMESPACE
 
-#endif // of #if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#endif // of #if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)

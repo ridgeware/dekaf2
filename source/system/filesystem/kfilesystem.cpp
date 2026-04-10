@@ -40,24 +40,24 @@
 //
 */
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/ktime.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/system/filesystem/bits/kfilesystem.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kcompatibility.h>
-#include "kfilesystem.h"
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kregex.h>
-#include <dekaf2/kinshell.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kutf.h>
-#include <dekaf2/keraseremove.h>
-#include <dekaf2/kuuid.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/strings/kregex.h>
+#include <dekaf2/system/process/kinshell.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/types/keraseremove.h>
+#include <dekaf2/util/id/kuuid.h>
 #include <algorithm>
 #ifdef DEKAF2_IS_WINDOWS
 	#include <windows.h>

@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kresolve.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/net/address/kresolve.h>
+#include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;
 

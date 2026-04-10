@@ -1,9 +1,9 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstream.h>
-#include <dekaf2/kfdstream.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kfilesystem.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/io/streams/kfdstream.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>

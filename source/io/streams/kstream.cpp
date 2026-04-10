@@ -41,8 +41,8 @@
 */
 
 #include <iostream>
-#include "kstream.h"
-#include "kstreambuf.h"
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/io/streams/kstreambuf.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

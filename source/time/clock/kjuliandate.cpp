@@ -40,7 +40,7 @@
 //
 */
 
-#include "kjuliandate.h"
+#include <dekaf2/time/clock/kjuliandate.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

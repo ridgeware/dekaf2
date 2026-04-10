@@ -41,21 +41,21 @@
 
 #pragma once
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/koptions.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/khttp_method.h>
-#include <dekaf2/kmime.h>
-#include <dekaf2/kassociative.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kthreadsafe.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kbar.h>
-#include <dekaf2/kcookie.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/web/url/kmime.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/format/kbar.h>
+#include <dekaf2/http/cookie/kcookie.h>
 
 using namespace DEKAF2_NAMESPACE_NAME;
 

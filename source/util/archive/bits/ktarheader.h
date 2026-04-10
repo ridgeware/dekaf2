@@ -68,7 +68,7 @@
 
 #pragma once
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 #include <cinttypes>
 #include <cstring>
 

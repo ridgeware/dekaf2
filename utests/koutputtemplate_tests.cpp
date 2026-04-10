@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/koutputtemplate.h>
+#include <dekaf2/data/template/koutputtemplate.h>
 #include <vector>
 
 using namespace dekaf2;

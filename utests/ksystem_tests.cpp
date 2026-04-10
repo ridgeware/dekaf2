@@ -1,9 +1,9 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/logging/klog.h>
 #include <fcntl.h> // for open()
 #ifdef DEKAF2_IS_WINDOWS
 	#include <io.h>

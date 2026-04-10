@@ -1,9 +1,9 @@
 #include "catch.hpp"
 
-#include <dekaf2/kparallel.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kbar.h>
+#include <dekaf2/threading/execution/kparallel.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/format/kbar.h>
 
 using namespace dekaf2;
 

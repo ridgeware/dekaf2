@@ -42,7 +42,7 @@
 #pragma once
 
 #include "kbaseprocess.h"
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/strings/kstring.h>
 
 #ifdef DEKAF2_HAS_PIPES
 

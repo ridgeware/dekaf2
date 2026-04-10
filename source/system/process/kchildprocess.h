@@ -46,13 +46,13 @@
 /// class and utilities to daemonize a process and to start and control child
 /// processes
 
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/types/kcompatibility.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 
-#include <dekaf2/kduration.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/errors/kerror.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

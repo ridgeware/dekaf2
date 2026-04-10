@@ -43,12 +43,12 @@
 
 
 /// @file khtmlparser.h
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kbufferedreader.h>
-#include <dekaf2/khash.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/io/readwrite/kbufferedreader.h>
+#include <dekaf2/crypto/hash/khash.h>
 #include <set>
 
 DEKAF2_NAMESPACE_BEGIN

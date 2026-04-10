@@ -45,7 +45,7 @@
 /// @file keraseremove.h
 /// template implementation of the erase-remove idiom
 
-#include "kdefinitions.h"
+#include <dekaf2/core/types/kdefinitions.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

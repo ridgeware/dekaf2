@@ -39,15 +39,15 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "khttplog.h"
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/krestserver.h>
-#include <dekaf2/kencode.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kread.h>
+#include <dekaf2/http/server/khttplog.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/rest/framework/krestserver.h>
+#include <dekaf2/crypto/encoding/kencode.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/io/readwrite/kread.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -41,12 +41,12 @@
 
 #pragma once
 
-#include "krestserver.h"
-#include <dekaf2/ktcpserver.h>
-#include <dekaf2/kpoll.h>
-#include <dekaf2/kwebsocket.h>
-#include <dekaf2/kconnectionlimiter.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/rest/framework/krestserver.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/net/util/kpoll.h>
+#include <dekaf2/http/websocket/kwebsocket.h>
+#include <dekaf2/rest/limits/kconnectionlimiter.h>
+#include <dekaf2/core/errors/kerror.h>
 #include <csignal>
 
 /// @file krest.h

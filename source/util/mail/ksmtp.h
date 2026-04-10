@@ -41,14 +41,14 @@
 
 #pragma once
 
-#include "kmail.h"
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/kiostreamsocket.h>
-#include <dekaf2/kassociative.h>
-#include <dekaf2/kstreamoptions.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/util/mail/kmail.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/core/errors/kerror.h>
 
 /// @file ksmtp.h
 /// Adds the KSMTP class which sends a KMail via SMTP to an MTA

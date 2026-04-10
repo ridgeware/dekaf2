@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include <dekaf2/kjson.h>
-#include <dekaf2/krow.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/data/sql/krow.h>
 #include <vector>
 
 #ifndef DEKAF2_IS_WINDOWS

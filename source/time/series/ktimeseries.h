@@ -41,8 +41,8 @@
 
 #pragma once
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/ktime.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/time/clock/ktime.h>
 #include <chrono>
 #include <map>
 #include <vector>

@@ -45,9 +45,9 @@
 /// provides an implementation of the TLS context object
 
 #include <dekaf2/net/tcp/bits/kasio.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstreamoptions.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/core/errors/kerror.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

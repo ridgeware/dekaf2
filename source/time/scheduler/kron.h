@@ -45,14 +45,14 @@
 
 #pragma once
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kthreadpool.h>
-#include <dekaf2/kthreadsafe.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kassociative.h>
-#include <dekaf2/kinshell.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/threading/execution/kthreadpool.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/system/process/kinshell.h>
 #include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <mutex>
 #include <map>

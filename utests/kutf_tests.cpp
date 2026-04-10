@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/kutf.h>
-#include <dekaf2/kcesu8.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kcesu8.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <vector>
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	#include <string_view>

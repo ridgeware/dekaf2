@@ -44,13 +44,13 @@
 /// @file kstringutils.h
 /// standalone string utility functions
 
-#include <dekaf2/kdefinitions.h>
-#include "kstring.h"
-#include "kstringview.h"
-#include <dekaf2/kctype.h>
-#include <dekaf2/kutf.h>
-#include <dekaf2/ktemplate.h>
-#include <dekaf2/kcrashexit.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/types/ktemplate.h>
+#include <dekaf2/core/errors/kcrashexit.h>
 #include <cinttypes>
 #include <algorithm>
 #include <cstring>

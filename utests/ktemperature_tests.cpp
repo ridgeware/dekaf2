@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/ktemperature.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringstream.h>
+#include <dekaf2/util/misc/ktemperature.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/streams/kstringstream.h>
 #include <vector>
 
 using namespace dekaf2;

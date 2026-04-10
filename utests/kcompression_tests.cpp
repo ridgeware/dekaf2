@@ -1,11 +1,11 @@
 #include "catch.hpp"
 
-#include <dekaf2/kcompression.h>
+#include <dekaf2/io/compression/kcompression.h>
 
 #include <iostream>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
-#include <dekaf2/kstringstream.h>
+#include <dekaf2/io/streams/kstringstream.h>
 
 using namespace dekaf2;
 

@@ -46,8 +46,8 @@
 /// generic atomic wrapping for larger objects through an atomic pointer - access on the object is read only,
 /// and updates must happen less frequent than maximum lifetime of the unwrapped object
 
-#include <dekaf2/kdefinitions.h>
-#include "kthreadsafe.h"
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <memory>
 #include <mutex>
 #include <atomic>

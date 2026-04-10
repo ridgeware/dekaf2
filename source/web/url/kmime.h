@@ -43,15 +43,15 @@
 
 
 /// @file kmime.h
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kreplacer.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/data/template/kreplacer.h>
+#include <dekaf2/core/errors/kerror.h>
 #ifndef DEKAF2_IS_WINDOWS
-	#include <dekaf2/kthreadsafe.h>
-	#include <dekaf2/kassociative.h>
+	#include <dekaf2/threading/primitives/kthreadsafe.h>
+	#include <dekaf2/containers/associative/kassociative.h>
 	#include <atomic>
 #endif
 

@@ -1,9 +1,9 @@
-#include "kawsauth.h"
-#include <dekaf2/khmac.h>
-#include <dekaf2/kmessagedigest.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kurlencode.h>
-#include <dekaf2/khttp_header.h>
+#include <dekaf2/crypto/auth/kawsauth.h>
+#include <dekaf2/crypto/hash/khmac.h>
+#include <dekaf2/crypto/hash/kmessagedigest.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/web/url/kurlencode.h>
+#include <dekaf2/http/protocol/khttp_header.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

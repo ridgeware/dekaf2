@@ -41,11 +41,11 @@
 // This file implements all of khtmlentities.h that does not need the large
 // named entity list. The other functions are implemented in khtmlentities5.cpp.
 
-#include "khtmlentities.h"
-#include <dekaf2/kutf.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kwrite.h>
+#include <dekaf2/web/html/khtmlentities.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/io/readwrite/kwrite.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

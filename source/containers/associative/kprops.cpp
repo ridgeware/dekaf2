@@ -40,8 +40,8 @@
 //
 */
 
-#include "kprops.h"
-#include <dekaf2/kstring.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/core/strings/kstring.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

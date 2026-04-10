@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/knetworkinterface.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/net/address/knetworkinterface.h>
+#include <dekaf2/core/logging/klog.h>
 
 using namespace dekaf2;
 

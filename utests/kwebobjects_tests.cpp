@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/kwebobjects.h>
+#include <dekaf2/web/objects/kwebobjects.h>
 
 using namespace dekaf2;
 

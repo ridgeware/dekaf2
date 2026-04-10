@@ -44,8 +44,8 @@
 /// @file klockmap.h
 /// a hashed map of any key to lock any mutex, using templates
 
-#include "kassociative.h"
-#include <dekaf2/kthreadsafe.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <memory>
 #include <mutex>
 

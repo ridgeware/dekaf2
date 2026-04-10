@@ -46,7 +46,7 @@
 /// test for include file locations for std::string_view, and include if
 /// available
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 #include <cassert>
 #include <cstring>
 #include <string>    // for std::char_traits<>

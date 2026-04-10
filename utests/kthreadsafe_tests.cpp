@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kthreadsafe.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <map>
 #include <array>
 

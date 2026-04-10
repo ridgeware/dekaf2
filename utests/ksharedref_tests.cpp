@@ -1,9 +1,9 @@
 #include "catch.hpp"
 
 #include <cstring>
-#include <dekaf2/ksharedref.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kparallel.h>
+#include <dekaf2/containers/memory/ksharedref.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/threading/execution/kparallel.h>
 
 using namespace dekaf2;
 

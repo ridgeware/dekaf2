@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kcountingstreambuf.h"
+#include <dekaf2/io/streams/kcountingstreambuf.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

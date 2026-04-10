@@ -39,8 +39,8 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kstreamoptions.h"
-#include <dekaf2/klog.h>
+#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/core/logging/klog.h>
 
 #if !DEKAF2_IS_WINDOWS
 	#include <sys/socket.h>

@@ -40,11 +40,11 @@
 //
 */
 
-#include "kbufferedreader.h"
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/io/readwrite/kbufferedreader.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include <algorithm>
 
 #ifdef DEKAF2_IS_WINDOWS

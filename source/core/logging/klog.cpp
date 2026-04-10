@@ -40,7 +40,7 @@
 //
 */
 
-#include "klog.h"
+#include <dekaf2/core/logging/klog.h>
 
 //===========================================================================
 #ifdef DEKAF2_WITH_KLOG
@@ -48,13 +48,13 @@
 
 #include <dekaf2/core/logging/bits/klogwriter.h>
 #include <dekaf2/core/logging/bits/klogserializer.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kgetruntimestack.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kcgistream.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/os/kgetruntimestack.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/http/server/kcgistream.h>
 #include <mutex>
 #include <iostream>
 
@@ -63,7 +63,7 @@
 #endif
 
 #ifdef DEKAF2_KLOG_WITH_TCP
-	#include <dekaf2/kurl.h>
+	#include <dekaf2/web/url/kurl.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN

@@ -40,11 +40,11 @@
  //
  */
 
-#include "kopenid.h"
-#include <dekaf2/krestclient.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kbase64.h>
-#include <dekaf2/krsasign.h>
+#include <dekaf2/crypto/auth/kopenid.h>
+#include <dekaf2/rest/framework/krestclient.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/crypto/rsa/krsasign.h>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN

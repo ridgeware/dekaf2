@@ -39,14 +39,14 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include <dekaf2/kcompatibility.h>
-#include "krest.h"
-#include <dekaf2/kcgistream.h>
-#include <dekaf2/klambdastream.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kscopeguard.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/rest/framework/krest.h>
+#include <dekaf2/http/server/kcgistream.h>
+#include <dekaf2/io/streams/klambdastream.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/types/kscopeguard.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN

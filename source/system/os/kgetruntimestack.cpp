@@ -40,14 +40,14 @@
 //
 */
 
-#include "kgetruntimestack.h"
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstack.h>
-#include <dekaf2/ksplit.h>
-#include <dekaf2/kinshell.h>
-#include "ksystem.h"
-#include <dekaf2/kformat.h>
+#include <dekaf2/system/os/kgetruntimestack.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/containers/sequential/kstack.h>
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/system/process/kinshell.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/format/kformat.h>
 
 #include <vector>
 

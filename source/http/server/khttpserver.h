@@ -41,13 +41,13 @@
 
 #pragma once
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/khttp_response.h>
-#include <dekaf2/khttp_request.h>
-#include <dekaf2/khttp_method.h>
-#include <dekaf2/kmime.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/http/protocol/khttp_response.h>
+#include <dekaf2/http/protocol/khttp_request.h>
+#include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/web/url/kmime.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/core/errors/kerror.h>
 
 /// @file khttpserver.h
 /// HTTP server implementation

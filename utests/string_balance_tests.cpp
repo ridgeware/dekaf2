@@ -1,9 +1,9 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kmime.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/web/url/kmime.h>
 #include <string>
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 #include <string_view>

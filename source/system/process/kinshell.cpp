@@ -40,8 +40,8 @@
 //
 */
 
-#include "kinshell.h"
-#include <dekaf2/klog.h>
+#include <dekaf2/system/process/kinshell.h>
+#include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

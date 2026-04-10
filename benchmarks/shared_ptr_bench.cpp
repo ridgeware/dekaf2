@@ -5,9 +5,9 @@
 #include <cinttypes>
 #include <atomic>
 #include <thread>
-#include <dekaf2/kprof.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ksharedref.h>
+#include <dekaf2/time/duration/kprof.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/containers/memory/ksharedref.h>
 
 using dekaf2::KString;
 using dekaf2::KStringView;

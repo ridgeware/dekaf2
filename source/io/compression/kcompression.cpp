@@ -40,11 +40,11 @@
  //
  */
 
-#include "kcompression.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kfilesystem.h>
+#include <dekaf2/io/compression/kcompression.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 #ifdef DEKAF2_HAS_LIBZSTD
-#include <dekaf2/ksystem.h> // for kGetCPUCount()
+#include <dekaf2/system/os/ksystem.h> // for kGetCPUCount()
 #endif
 #include <dekaf2/io/compression/bits/kiostreams_filters.h>
 

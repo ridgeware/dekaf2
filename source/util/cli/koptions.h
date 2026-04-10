@@ -45,14 +45,14 @@
 /// @file koptions.h
 /// provides KOptions, a versatile option parser for CLI, ini files, and CGI environments
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kstack.h>
-#include <dekaf2/kexception.h>
-#include <dekaf2/kassociative.h>
-#include <dekaf2/kpersist.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/containers/sequential/kstack.h>
+#include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/containers/memory/kpersist.h>
 #include <functional>
 #include <vector>
 #include <array>

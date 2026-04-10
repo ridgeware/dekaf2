@@ -39,9 +39,9 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "ktlscontext.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kfrozen.h>
+#include <dekaf2/net/tls/ktlscontext.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/types/kfrozen.h>
 #include <openssl/opensslv.h>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -55,14 +55,14 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "khttp3.h"
+#include <dekaf2/http/protocol/khttp3.h>
 
 #if DEKAF2_HAS_NGHTTP3 && DEKAF2_HAS_OPENSSL_QUIC
 
-#include <dekaf2/kformat.h>
-#include <dekaf2/kread.h>
-#include <dekaf2/kwrite.h>
-#include <dekaf2/kpoll.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/io/readwrite/kread.h>
+#include <dekaf2/io/readwrite/kwrite.h>
+#include <dekaf2/net/util/kpoll.h>
 #include <nghttp3/nghttp3.h>
 
 DEKAF2_NAMESPACE_BEGIN

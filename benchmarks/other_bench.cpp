@@ -6,12 +6,12 @@
 #include <cinttypes>
 #include <atomic>
 #include <thread>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kprof.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/dekaf2.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/time/duration/kprof.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/init/dekaf2.h>
 
 using namespace dekaf2;
 

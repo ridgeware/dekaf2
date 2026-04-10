@@ -45,21 +45,21 @@
 /// @file khttp2.h
 /// wraps nghttp2 primitives in C++
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 
 #if DEKAF2_HAS_NGHTTP2
 
-#include <dekaf2/kurl.h>
-#include "khttp_method.h"
-#include "khttp_header.h"
-#include "khttp_response.h"
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ktlsstream.h>
-#include <dekaf2/kerror.h>
-#include <dekaf2/kbuffer.h>
-#include <dekaf2/kdataprovider.h>
-#include <dekaf2/kdataconsumer.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/http/protocol/khttp_response.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/net/tls/ktlsstream.h>
+#include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/containers/sequential/kbuffer.h>
+#include <dekaf2/io/pipes/kdataprovider.h>
+#include <dekaf2/io/pipes/kdataconsumer.h>
 #include <cstdint>
 #include <unordered_map>
 

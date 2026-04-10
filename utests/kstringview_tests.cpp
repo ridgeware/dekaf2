@@ -1,11 +1,11 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/khex.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/crypto/encoding/khex.h>
 #include <vector>
 #include <list>
 

@@ -1,9 +1,9 @@
 #include "catch.hpp"
-#include <dekaf2/kpty.h>
+#include <dekaf2/system/process/kpty.h>
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;
 

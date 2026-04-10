@@ -40,12 +40,12 @@
  //
  */
 
-#include "ksqlite.h"
+#include <dekaf2/data/sql/ksqlite.h>
 #include <fstream>
 #include <sqlite3.h>
 
 #ifdef DEKAF2
-#include <dekaf2/klog.h>
+#include <dekaf2/core/logging/klog.h>
 DEKAF2_NAMESPACE_BEGIN
 #endif
 

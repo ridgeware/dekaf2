@@ -39,9 +39,9 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kconnectionlimiter.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kformat.h>
+#include <dekaf2/rest/limits/kconnectionlimiter.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/format/kformat.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -40,9 +40,9 @@
 //
 */
 
-#include "kregex.h"
-#include <dekaf2/kcache.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/core/strings/kregex.h>
+#include <dekaf2/containers/associative/kcache.h>
+#include <dekaf2/core/logging/klog.h>
 #include <re2/re2.h>
 
 DEKAF2_NAMESPACE_BEGIN

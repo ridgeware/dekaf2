@@ -1,9 +1,9 @@
 
-#include <dekaf2/kbitfields.h>
-#include <dekaf2/kprof.h>
+#include <dekaf2/core/types/kbitfields.h>
+#include <dekaf2/time/duration/kprof.h>
 #include <iostream>
 
-//#include <dekaf2/kaddrplus.h>
+//#include <dekaf2/util/misc/kaddrplus.h>
 
 #ifdef DEKAF2_IS_GCC
 

@@ -45,7 +45,7 @@
 /// @file ksignals.h
 /// Provides a threaded signal handler framework. Other threads will not receive signals.
 
-#include <dekaf2/kthreadsafe.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <map>
 #include <array>
 #include <csignal>

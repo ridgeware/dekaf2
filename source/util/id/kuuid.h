@@ -43,12 +43,12 @@
 /// @file kuuid.h
 /// provides support for UUIDs
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/khex.h>
-#include <dekaf2/knetworkinterface.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/crypto/encoding/khex.h>
+#include <dekaf2/net/address/knetworkinterface.h>
 #include <array>
 #include <ostream>
 
@@ -333,11 +333,11 @@ inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, const KUUID&
 
 DEKAF2_NAMESPACE_END
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
 
 // kFormat formatters
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE
 {
@@ -354,7 +354,7 @@ struct formatter<DEKAF2_PREFIX KUUID> : formatter<string_view>
 
 } // end of DEKAF2_FORMAT_NAMESPACE
 
-#endif // of has #include <dekaf2/kformat.h>
+#endif // of has #include <dekaf2/core/format/kformat.h>
 
 #if DEKAF2_HAS_INCLUDE(<dekaf2/crypto/hash/bits/khash.h>)
 

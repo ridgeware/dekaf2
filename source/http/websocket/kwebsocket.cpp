@@ -39,15 +39,15 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kwebsocket.h"
-#include <dekaf2/kexception.h>
-#include <dekaf2/krandom.h>
-#include <dekaf2/kencode.h>
-#include <dekaf2/kmessagedigest.h>
-#include <dekaf2/kcrashexit.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/khttperror.h>
-#include <dekaf2/dekaf2.h>
+#include <dekaf2/http/websocket/kwebsocket.h>
+#include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/encoding/kencode.h>
+#include <dekaf2/crypto/hash/kmessagedigest.h>
+#include <dekaf2/core/errors/kcrashexit.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/core/init/dekaf2.h>
 
 DEKAF2_NAMESPACE_BEGIN
 namespace {

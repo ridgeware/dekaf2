@@ -43,15 +43,15 @@
 /// @file kformtable.h
 /// print a table from various types of data, into various output formats
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/koutstringstream.h>
-#include <dekaf2/kassociative.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kcsv.h>
-#include <dekaf2/krow.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/io/streams/koutstringstream.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/data/csv/kcsv.h>
+#include <dekaf2/data/sql/krow.h>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -5,12 +5,12 @@
 #include <set>
 #include <cinttypes>
 
-#include <dekaf2/kprof.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kutf.h>
+#include <dekaf2/time/duration/kprof.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/core/types/kutf.h>
 
 #ifdef DEKAF2_HAS_ICONV
 #include <iconv.h>

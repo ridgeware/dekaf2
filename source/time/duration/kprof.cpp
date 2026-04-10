@@ -40,12 +40,12 @@
 //
 */
 
-#include "kprof.h"
+#include <dekaf2/time/duration/kprof.h>
 
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstringutils.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstringutils.h>
 #include <algorithm>
 #include <set>
 #include <cstring>

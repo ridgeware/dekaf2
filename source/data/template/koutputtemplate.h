@@ -43,11 +43,11 @@
 /// @file koutputtemplate.h
 /// adds a class that outputs and replaces text sections
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstream.h>
-#include "kreplacer.h"
-#include <dekaf2/klog.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/data/template/kreplacer.h>
+#include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

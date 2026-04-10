@@ -1,11 +1,11 @@
 
 #include <cinttypes>
-#include <dekaf2/kprof.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/khash.h>
-#include <dekaf2/kcrc.h>
-#include <dekaf2/kmessagedigest.h>
+#include <dekaf2/time/duration/kprof.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/crypto/hash/khash.h>
+#include <dekaf2/crypto/hash/kcrc.h>
+#include <dekaf2/crypto/hash/kmessagedigest.h>
 
 using namespace dekaf2;
 

@@ -1,9 +1,9 @@
 #include "catch.hpp"
 
-#include <dekaf2/krsacert.h>
-#include <dekaf2/krsakey.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kduration.h>
+#include <dekaf2/crypto/rsa/krsacert.h>
+#include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kduration.h>
 
 using namespace dekaf2;
 

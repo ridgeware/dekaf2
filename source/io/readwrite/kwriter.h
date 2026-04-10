@@ -44,11 +44,11 @@
 /// @file kwriter.h
 /// holds the basic writer abstraction
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 #include <dekaf2/system/filesystem/bits/kfilesystem.h>
-#include "kwrite.h"
-#include <dekaf2/kstring.h>
-#include <dekaf2/kformat.h>
+#include <dekaf2/io/readwrite/kwrite.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/format/kformat.h>
 #include <cinttypes>
 #include <ostream>
 #include <fstream>

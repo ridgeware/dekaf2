@@ -40,17 +40,17 @@
 //
 */
 
-#include "kchildprocess.h"
+#include <dekaf2/system/process/kchildprocess.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/ksplit.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/ksignals.h>
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include <thread>
 #include <sys/wait.h>
 #include <sys/stat.h>

@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
 #include <cstring>
-#include <dekaf2/kbit.h>
+#include <dekaf2/core/types/kbit.h>
 
 using namespace dekaf2;
 

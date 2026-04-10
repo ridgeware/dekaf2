@@ -41,10 +41,10 @@
 */
 
 #include "catch.hpp"
-#include <dekaf2/ksql.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kparallel.h>
+#include <dekaf2/data/sql/ksql.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/threading/execution/kparallel.h>
 
 using namespace dekaf2;
 
@@ -372,7 +372,7 @@ TEST_CASE("KSQL")
 
 #ifdef DEKAF2_HAS_SQLITE3
 
-#include <dekaf2/kfilesystem.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 
 namespace {
 KTempDir g_KSQLSQLiteTempDir;

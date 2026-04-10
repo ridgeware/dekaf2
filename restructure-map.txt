@@ -309,3 +309,31 @@ kuuid.h -> util/id/kuuid.h
 kaddrplus.h -> util/misc/kaddrplus.h
 karia.h -> util/misc/karia.h
 ktemperature.h -> util/misc/ktemperature.h
+
+# === bits/ -> category-specific bits/ ===
+bits/kasio.h -> net/tcp/bits/kasio.h
+bits/kasiostream.h -> net/tcp/bits/kasiostream.h
+bits/kbasepipe.h -> system/process/bits/kbasepipe.h
+bits/kbaseprocess.h -> system/process/bits/kbaseprocess.h
+bits/kbaseshell.h -> system/process/bits/kbaseshell.h
+bits/kbrotli.h -> io/compression/bits/kbrotli.h
+bits/kdigest.h -> crypto/hash/bits/kdigest.h
+bits/kfilesystem.h -> system/filesystem/bits/kfilesystem.h
+bits/kfindsetofchars.h -> core/strings/bits/kfindsetofchars.h
+bits/kformat.h -> core/format/bits/kformat.h
+bits/khash.h -> crypto/hash/bits/khash.h
+bits/kiostreams_filters.h -> io/compression/bits/kiostreams_filters.h
+bits/klogwriter.h -> core/logging/bits/klogwriter.h
+bits/klogserializer.h -> core/logging/bits/klogserializer.h
+bits/kmake_unique.h -> core/types/bits/kmake_unique.h
+bits/kmutable_pair.h -> containers/associative/bits/kmutable_pair.h
+bits/kron_utils.h -> time/scheduler/bits/kron_utils.h
+bits/ksql_dbc.h -> data/sql/bits/ksql_dbc.h
+bits/kstring_view.h -> core/strings/bits/kstring_view.h
+bits/kstringviewz.h -> core/strings/bits/kstringviewz.h
+bits/ktarheader.h -> util/archive/bits/ktarheader.h
+bits/kunique_deleter.h -> core/types/bits/kunique_deleter.h
+bits/kurldualencode.h -> web/url/bits/kurldualencode.h
+bits/kzstd.h -> io/compression/bits/kzstd.h
+bits/simd/kfindfirstof.h -> core/strings/bits/simd/kfindfirstof.h
+bits/simd/kutf.h -> core/types/bits/simd/kutf.h

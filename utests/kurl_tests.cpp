@@ -1,10 +1,10 @@
 #include <map>
 #include <tuple>
 
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kctype.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/types/kctype.h>
 #include "catch.hpp"
-#include <dekaf2/kurl.h>
+#include <dekaf2/web/url/kurl.h>
 
 using namespace dekaf2;
 

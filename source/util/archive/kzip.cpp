@@ -39,12 +39,12 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kzip.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kerror.h>
-#include <dekaf2/koutstringstream.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kscopeguard.h>
+#include <dekaf2/util/archive/kzip.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/io/streams/koutstringstream.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/types/kscopeguard.h>
 #include <zip.h>
 
 DEKAF2_NAMESPACE_BEGIN

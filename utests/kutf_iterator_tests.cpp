@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kutf_iterator.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/types/kutf_iterator.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <vector>
 
 using namespace dekaf2;

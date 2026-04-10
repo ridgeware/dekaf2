@@ -1,10 +1,10 @@
 #include "catch.hpp"
 
-#include <dekaf2/klogrotate.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/logging/klogrotate.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;
 

@@ -40,16 +40,16 @@
 //
 */
 
-#include "kduration.h"
-#include <dekaf2/klog.h>
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kctype.h>)
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/logging/klog.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/types/kctype.h>)
 	#define DEKAF2_KDURATION_HAS_KCTYPE 1
-	#include <dekaf2/kctype.h>
+	#include <dekaf2/core/types/kctype.h>
 #else
 	#include <ctype.h>
 #endif
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
-	#include <dekaf2/kformat.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
+	#include <dekaf2/core/format/kformat.h>
 #else
 	#include <cstdio> // for snprintf
 	#include <array>

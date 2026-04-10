@@ -42,11 +42,11 @@
 #pragma once
 
 #include <vector>
-#include "khttpserver.h"
-#include "khttppath.h"
-#include <dekaf2/khttp_method.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
+#include <dekaf2/http/server/khttpserver.h>
+#include <dekaf2/http/server/khttppath.h>
+#include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
 
 /// @file khttprouter.h
 /// HTTP server router layer implementation - associating callbacks

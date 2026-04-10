@@ -44,7 +44,7 @@
 /// @file kpersist.h
 /// persist temporary values
 
-#include <dekaf2/ksystem.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <forward_list>
 
 DEKAF2_NAMESPACE_BEGIN

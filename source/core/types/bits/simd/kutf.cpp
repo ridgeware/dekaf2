@@ -38,7 +38,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kutf.h"
+#include <dekaf2/core/types/kutf.h>
 
 #if DEKAF2_WITH_SIMDUTF
 
@@ -53,8 +53,8 @@
 #pragma clang diagnostic ignored "-Wextra-semi"
 #endif
 
-#include "../../from/simdutf/simdutf.h"
-#include "../../from/simdutf/simdutf.cpp"
+#include "../../../../../from/simdutf/simdutf.h"
+#include "../../../../../from/simdutf/simdutf.cpp"
 
 #if DEKAF2_IS_CLANG
 #pragma clang diagnostic pop

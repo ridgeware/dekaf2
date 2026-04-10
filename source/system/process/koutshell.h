@@ -46,10 +46,10 @@
 
 
 #include <dekaf2/system/process/bits/kbaseshell.h>
-#include <dekaf2/kfdstream.h>
+#include <dekaf2/io/streams/kfdstream.h>
 
 #ifdef DEKAF2_IS_UNIX
-	#include <dekaf2/koutpipe.h>
+	#include <dekaf2/io/pipes/koutpipe.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN

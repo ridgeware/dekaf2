@@ -44,11 +44,11 @@
 /// @file kwebsocketclient.h
 /// websocket client implementation
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kwebclient.h>
-#include <dekaf2/khttperror.h>
-#include "kwebsocket.h"
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/http/websocket/kwebsocket.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

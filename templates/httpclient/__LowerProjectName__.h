@@ -3,13 +3,13 @@
 
 #pragma once
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/koptions.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/khttp_method.h>
-#include <dekaf2/kassociative.h>
-#include <dekaf2/kmime.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/web/url/kmime.h>
 
 using namespace dekaf2;
 

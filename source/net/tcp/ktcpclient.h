@@ -44,7 +44,7 @@
 /// @file ktcpclient.h
 /// provides a typedef for KTCPClient
 
-#include "ktcpstream.h"
+#include <dekaf2/net/tcp/ktcpstream.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

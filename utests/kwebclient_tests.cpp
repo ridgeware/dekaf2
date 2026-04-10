@@ -1,10 +1,10 @@
 #include "catch.hpp"
 
-#include <dekaf2/kwebclient.h>
-#include <dekaf2/ktcpserver.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/krest.h>
+#include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/rest/framework/krest.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 

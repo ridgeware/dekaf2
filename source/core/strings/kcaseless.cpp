@@ -39,8 +39,8 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kcaseless.h"
-#include "kstringutils.h"
+#include <dekaf2/core/strings/kcaseless.h>
+#include <dekaf2/core/strings/kstringutils.h>
 #include <cctype>
 #include <algorithm>
 #include <array>

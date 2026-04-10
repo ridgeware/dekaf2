@@ -43,9 +43,9 @@
 
 #ifndef DEKAF2_IS_UNIX
 
-#include <dekaf2/klog.h>
-#include <dekaf2/ksignals.h>
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include <errno.h>
 
 #ifndef DEKAF2_IS_WINDOWS

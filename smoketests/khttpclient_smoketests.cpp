@@ -1,9 +1,9 @@
 #include "catch.hpp"
 
-#include <dekaf2/kwebclient.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kiostreamsocket.h>
+#include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/net/tls/kiostreamsocket.h>
 #include <iostream>
 
 using namespace dekaf2;

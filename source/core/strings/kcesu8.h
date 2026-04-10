@@ -43,7 +43,7 @@
 /// @file kutfcesu.h
 /// helpers to repair badly converted UTF8
 
-#include <dekaf2/kutf.h>
+#include <dekaf2/core/types/kutf.h>
 
 #if KUTF_DEKAF2
 DEKAF2_NAMESPACE_BEGIN

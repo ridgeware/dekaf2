@@ -40,15 +40,15 @@
  //
  */
 
-#include "kaes.h"
+#include <dekaf2/crypto/cipher/kaes.h>
 
 #if DEKAF2_HAS_AES
 
-#include <dekaf2/kencode.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kwrite.h>  // for kGetWritePosition()
-#include <dekaf2/kscopeguard.h>
-#include <dekaf2/kcrashexit.h>
+#include <dekaf2/crypto/encoding/kencode.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/io/readwrite/kwrite.h>  // for kGetWritePosition()
+#include <dekaf2/core/types/kscopeguard.h>
+#include <dekaf2/core/errors/kcrashexit.h>
 
 #include <openssl/evp.h>
 #include <openssl/kdf.h>

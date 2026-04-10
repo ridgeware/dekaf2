@@ -45,8 +45,8 @@
 /// @file kbuffer.h
 /// const and mutable buffers for conversion between C and C++ APIs
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstringview.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
 #include <cstdint>
 
 DEKAF2_NAMESPACE_BEGIN

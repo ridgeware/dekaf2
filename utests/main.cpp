@@ -1,10 +1,10 @@
 
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kwriter.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 
 #include <string>
 #include <iostream>

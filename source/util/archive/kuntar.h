@@ -72,12 +72,12 @@
 /// @file kuntar.h
 #include <dekaf2/util/archive/bits/ktarheader.h>
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kcompression.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/compression/kcompression.h>
+#include <dekaf2/core/errors/kerror.h>
 
 #include <cinttypes>
 #include <vector>

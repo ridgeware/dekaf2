@@ -39,10 +39,10 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kwebsocketclient.h"
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kstringutils.h>
-#include "kwebsocket.h"
+#include <dekaf2/http/websocket/kwebsocketclient.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/http/websocket/kwebsocket.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

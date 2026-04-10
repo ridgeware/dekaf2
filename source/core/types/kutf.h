@@ -286,6 +286,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <string>
 #include <type_traits>
 #include <iterator>
 #include <functional>
@@ -341,7 +342,7 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 
 #if KUTF_DEKAF2
 	#undef KUTF_NAMESPACE // we need the namespace being the default
-	#include "kctype.h"
+	#include <dekaf2/core/types/kctype.h>
 	#if KUTF_WITH_SIMDUTF
 		#include <dekaf2/core/types/bits/simd/kutf.h>
 	#endif

@@ -43,11 +43,11 @@
 
 
 /// @file kstreamoptions.h
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/ktime.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/time/clock/ktime.h>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN

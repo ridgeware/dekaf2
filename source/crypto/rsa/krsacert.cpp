@@ -40,13 +40,13 @@
  //
  */
 
-#include "krsacert.h"
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kformat.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kscopeguard.h>
+#include <dekaf2/crypto/rsa/krsacert.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h> // for Digest::GetOpenSSLError()
 #include <openssl/evp.h>

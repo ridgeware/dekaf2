@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cstring>
-#include <dekaf2/kprof.h>
-#include <dekaf2/kcasestring.h>
+#include <dekaf2/time/duration/kprof.h>
+#include <dekaf2/core/strings/kcasestring.h>
 
 using namespace dekaf2;
 

@@ -43,9 +43,9 @@
 #pragma once
 
 #include <vector>
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/ktemplate.h>
-#include "kstringview.h"
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/types/ktemplate.h>
+#include <dekaf2/core/strings/kstringview.h>
 
 /// @file ksplit.h
 /// Highly configurable tokenizer templates

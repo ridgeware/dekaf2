@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kdiff.h>
-#include <dekaf2/kencode.h>
+#include <dekaf2/util/text/kdiff.h>
+#include <dekaf2/crypto/encoding/kencode.h>
 
 using namespace dekaf2;
 

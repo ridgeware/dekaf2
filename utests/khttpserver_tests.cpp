@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/khttpserver.h>
-#include <dekaf2/ktcpserver.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/http/server/khttpserver.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;
 

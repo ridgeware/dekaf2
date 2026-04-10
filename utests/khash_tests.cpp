@@ -1,8 +1,8 @@
 #include "catch.hpp"
-#include <dekaf2/khash.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kcaseless.h>
-#include <dekaf2/kcasestring.h>
+#include <dekaf2/crypto/hash/khash.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kcaseless.h>
+#include <dekaf2/core/strings/kcasestring.h>
 
 
 

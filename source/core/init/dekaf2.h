@@ -45,14 +45,14 @@
 /// @file dekaf2.h
 /// basic initialization of the library
 
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include "kconfiguration.h"
-#include <dekaf2/kthreadsafe.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/ktimer.h>
-#include <dekaf2/ksignals.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/ktimer.h>
+#include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <atomic>
 
 /// @namespace dekaf2 The basic dekaf2 library namespace. All functions,

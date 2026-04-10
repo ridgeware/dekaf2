@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <dekaf2/kformtable.h>
+#include <dekaf2/core/format/kformtable.h>
 
 using namespace dekaf2;
 

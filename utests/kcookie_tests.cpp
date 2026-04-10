@@ -1,7 +1,7 @@
 #include "catch.hpp"
-#include <dekaf2/kcookie.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstringstream.h>
+#include <dekaf2/http/cookie/kcookie.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/streams/kstringstream.h>
 
 
 using namespace dekaf2;

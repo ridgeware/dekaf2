@@ -40,13 +40,13 @@
 //
 */
 
-#include "kjson2.h"
+#include <dekaf2/data/json/kjson2.h>
 
 #if !DEKAF2_KJSON2_IS_DISABLED
 
 #ifdef DEKAF2
-	#include <dekaf2/klog.h>
-	#include <dekaf2/kstringutils.h>
+	#include <dekaf2/core/logging/klog.h>
+	#include <dekaf2/core/strings/kstringutils.h>
 #else
 	#include <cctype>
 #endif

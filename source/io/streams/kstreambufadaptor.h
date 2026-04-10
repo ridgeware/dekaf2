@@ -44,12 +44,12 @@
 /// @file kstreambufadaptor.h
 /// a streambuf baseclass that can be customized to watch or modify a streambuf it is attached to
 
-#include <dekaf2/kdefinitions.h>
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kwriter.h>)
-	#include <dekaf2/kwriter.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/io/readwrite/kwriter.h>)
+	#include <dekaf2/io/readwrite/kwriter.h>
 #endif
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kreader.h>)
-	#include <dekaf2/kreader.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/io/readwrite/kreader.h>)
+	#include <dekaf2/io/readwrite/kreader.h>
 #endif
 #include <ostream>
 #include <istream>

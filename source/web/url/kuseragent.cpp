@@ -39,13 +39,13 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kuseragent.h"
+#include <dekaf2/web/url/kuseragent.h>
 
 #if DEKAF2_HAS_USER_AGENT_PARSER
 
-#include <dekaf2/kformat.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/logging/klog.h>
 #include "UaParser.h"
 #include <mutex>
 

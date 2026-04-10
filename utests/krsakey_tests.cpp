@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/krsakey.h>
-#include <dekaf2/kjson.h>
+#include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/data/json/kjson.h>
 
 using namespace dekaf2;
 

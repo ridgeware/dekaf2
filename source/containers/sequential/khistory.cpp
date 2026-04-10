@@ -39,11 +39,11 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khistory.h"
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/containers/sequential/khistory.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/system/os/ksystem.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

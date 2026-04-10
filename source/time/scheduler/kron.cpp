@@ -40,16 +40,16 @@
 //
 */
 
-#include "kron.h"
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kinshell.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kexception.h>
+#include <dekaf2/time/scheduler/kron.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/system/process/kinshell.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/time/scheduler/bits/kron_utils.h>
 #include "croncpp.h"
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/types/kcompatibility.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

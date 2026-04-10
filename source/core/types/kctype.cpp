@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kctype.h"
+#include <dekaf2/core/types/kctype.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -49,7 +49,7 @@ DEKAF2_NAMESPACE_BEGIN
 // The tab character also needs the Category SeparatorSpace, otherwise
 // IsBlank() is incorrect
 
-#include <dekaf2/unicodetables.cpp>
+#include "unicodetables.cpp"
 
 // const std::array<int32_t , MAX_CASEFOLDS + 1> CaseFolds;
 // const std::array<Property, MAX_TABLE     + 1> CodePoints;

@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/kratelimiter.h>
-#include <dekaf2/kexception.h>
-#include <dekaf2/kduration.h>
+#include <dekaf2/rest/limits/kratelimiter.h>
+#include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/time/duration/kduration.h>
 
 using namespace dekaf2;
 

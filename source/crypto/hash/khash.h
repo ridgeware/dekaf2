@@ -42,10 +42,10 @@
 
 #pragma once
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 #include <dekaf2/crypto/hash/bits/khash.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kreader.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/readwrite/kreader.h>
 
 /// @file khash.h
 /// FNV hash class

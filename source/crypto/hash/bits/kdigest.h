@@ -45,8 +45,8 @@
 /// @file kdigest.h
 /// (cryptographic) message digest algorithms
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstringview.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
 #include <openssl/opensslv.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x010100000L

@@ -40,7 +40,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kmpsearch.h"
+#include <dekaf2/core/strings/kmpsearch.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

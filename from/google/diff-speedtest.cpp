@@ -1,10 +1,10 @@
 
-#include <dekaf2/koptions.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kdiff.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kfilesystem.h>
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/util/text/kdiff.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 
 using namespace DEKAF2_NAMESPACE_NAME;
 

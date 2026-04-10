@@ -40,15 +40,15 @@
 //
 */
 
-#include "kjson.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/krow.h>
-#include <dekaf2/kutf.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kreader.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/data/sql/krow.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/io/readwrite/kreader.h>
 #ifndef DEKAF2_WRAPPED_KJSON
-	#include <dekaf2/kscopeguard.h>
+	#include <dekaf2/core/types/kscopeguard.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN

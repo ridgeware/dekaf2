@@ -40,18 +40,18 @@
 //
 */
 
-#include "ksystemstats.h"
-#include <dekaf2/kstack.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kinshell.h>
-#include <dekaf2/kregex.h>
-#include <dekaf2/kurlencode.h>
-#include <dekaf2/kwebclient.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ktime.h>
-#include "ksystem.h"
+#include <dekaf2/system/os/ksystemstats.h>
+#include <dekaf2/containers/sequential/kstack.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/system/process/kinshell.h>
+#include <dekaf2/core/strings/kregex.h>
+#include <dekaf2/web/url/kurlencode.h>
+#include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/system/os/ksystem.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

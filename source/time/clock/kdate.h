@@ -46,12 +46,12 @@
 /// make sure we have calendar and timezone extensions for std::chrono
 /// and provides the KDate class to calculate with dates
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 #if DEKAF2_HAS_INCLUDE(<kconfiguration.h>)
 	#include <kconfiguration.h>
 #endif
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
 #include <chrono>
 #include <locale>
 #include <ostream>
@@ -881,11 +881,11 @@ KDate& KDate::to_previous(chrono::weekday wd, uint16_t times)
 
 DEKAF2_NAMESPACE_END
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
 
 // kFormat formatters
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE {
 
@@ -960,7 +960,7 @@ template<> struct formatter<DEKAF2_PREFIX KDateDiff> : formatter<string_view>
 
 } // end of DEKAF2_FORMAT_NAMESPACE
 
-#endif // has #include <dekaf2/kformat.h>
+#endif // has #include <dekaf2/core/format/kformat.h>
 
 #if DEKAF2_HAS_INCLUDE(<dekaf2/crypto/hash/bits/khash.h>)
 

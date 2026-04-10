@@ -40,16 +40,16 @@
 //
 */
 
-#include "dekaf2.h"
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include "kconfiguration.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kcrashexit.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kchildprocess.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/krandom.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/errors/kcrashexit.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/process/kchildprocess.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/util/id/krandom.h>
 
 #include <cstdlib>
 #include <cwctype>

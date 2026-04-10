@@ -40,7 +40,7 @@
 //
 */
 
-#include "kpipe.h"
+#include <dekaf2/io/pipes/kpipe.h>
 
 #ifdef DEKAF2_HAS_PIPES
 

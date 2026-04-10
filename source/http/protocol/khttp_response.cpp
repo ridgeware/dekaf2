@@ -39,8 +39,8 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khttp_response.h"
-#include <dekaf2/khttperror.h>
+#include <dekaf2/http/protocol/khttp_response.h>
+#include <dekaf2/http/server/khttperror.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

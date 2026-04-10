@@ -42,9 +42,9 @@
 
 #pragma once
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kthreadsafe.h>
-#include <dekaf2/ktime.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/time/clock/ktime.h>
 #include <chrono>
 #include <memory>
 #include <thread>

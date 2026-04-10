@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include <dekaf2/kcsv.h>
-#include <dekaf2/kstack.h>
+#include <dekaf2/data/csv/kcsv.h>
+#include <dekaf2/containers/sequential/kstack.h>
 #include <vector>
 
 using namespace dekaf2;

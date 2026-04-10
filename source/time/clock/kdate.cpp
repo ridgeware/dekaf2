@@ -39,8 +39,8 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kdate.h"
-#include <dekaf2/kformat.h>
+#include <dekaf2/time/clock/kdate.h>
+#include <dekaf2/core/format/kformat.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

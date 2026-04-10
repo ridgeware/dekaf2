@@ -45,21 +45,21 @@
 /// @file ksql.h
 /// dekaf2's main SQL abstraction KSQL
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include "krow.h"
-#include <dekaf2/kjson.h>
-#include <dekaf2/kcache.h>
-#include <dekaf2/kexception.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kthreadsafe.h>
-#include <dekaf2/kreference_proxy.h>
-#include <dekaf2/kassociative.h>
-#include <dekaf2/kscopeguard.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/ktemplate.h>
-#include <dekaf2/kformtable.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/data/sql/krow.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/containers/associative/kcache.h>
+#include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/core/types/kreference_proxy.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/core/types/kscopeguard.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/types/ktemplate.h>
+#include <dekaf2/core/format/kformtable.h>
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>

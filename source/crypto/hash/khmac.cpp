@@ -40,9 +40,9 @@
  //
  */
 
-#include "khmac.h"
-#include <dekaf2/kencode.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/crypto/hash/khmac.h>
+#include <dekaf2/crypto/encoding/kencode.h>
+#include <dekaf2/core/logging/klog.h>
 #include <openssl/crypto.h>
 #include <array>
 

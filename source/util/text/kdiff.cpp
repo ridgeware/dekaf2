@@ -40,12 +40,12 @@
 //
 */
 
-#include "kdiff.h"
+#include <dekaf2/util/text/kdiff.h>
 #include "diff_match_patch.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kutf.h>
-#include <dekaf2/kstringutils.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kstringutils.h>
 #include <string>
 #include <type_traits>
 

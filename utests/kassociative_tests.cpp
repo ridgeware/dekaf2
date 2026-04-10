@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kassociative.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <vector>
 
 using namespace dekaf2;

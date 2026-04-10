@@ -40,16 +40,16 @@
  //
  */
 
-#include "koptions.h"
-#include <dekaf2/kstream.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/ksplit.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kcgistream.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/koutstringstream.h>
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/http/server/kcgistream.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/io/streams/koutstringstream.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN

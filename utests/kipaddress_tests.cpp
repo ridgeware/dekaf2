@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <dekaf2/kipaddress.h>
+#include <dekaf2/net/address/kipaddress.h>
 #include <vector>
 
 

@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include <dekaf2/core/strings/bits/simd/kfindfirstof.h>
-#include <dekaf2/kexception.h>
+#include <dekaf2/core/errors/kexception.h>
 
 #if !defined(DEKAF2_IS_WINDOWS) && defined(DEKAF2_FIND_FIRST_OF_USE_SIMD)
 

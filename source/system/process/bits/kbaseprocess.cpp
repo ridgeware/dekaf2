@@ -43,8 +43,8 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include <dekaf2/ksignals.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/core/logging/klog.h>
 #include <csignal>
 #include <thread>
 #include <unistd.h>

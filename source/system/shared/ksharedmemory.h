@@ -43,14 +43,14 @@
 
 
 /// @file ksharedmemory.h
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #ifndef DEKAF2_IS_WINDOWS
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kthreadsafe.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/errors/kerror.h>
 #include <fcntl.h>
 #include <sys/types.h>
 

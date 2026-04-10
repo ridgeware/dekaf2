@@ -38,10 +38,10 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kformat.h"
-#include <dekaf2/kwrite.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/io/readwrite/kwrite.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/logging/klog.h>
 
 #ifndef DEKAF2_HAS_STD_FORMAT
 #endif

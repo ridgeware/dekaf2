@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "koutpipe.h"
+#include <dekaf2/io/pipes/koutpipe.h>
 
 #ifdef DEKAF2_HAS_PIPES
 

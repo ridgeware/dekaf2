@@ -39,11 +39,11 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "khttprouter.h"
-#include "khttperror.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kwebserver.h>
-#include <dekaf2/ktime.h>
+#include <dekaf2/http/server/khttprouter.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/rest/serving/kwebserver.h>
+#include <dekaf2/time/clock/ktime.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN

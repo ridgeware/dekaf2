@@ -1,17 +1,17 @@
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/koptions.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kregex.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kregex.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/core/format/kformat.h>
 
 using namespace dekaf2;
 

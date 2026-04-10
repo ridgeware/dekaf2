@@ -40,7 +40,7 @@
  //
  */
 
-#include "khash.h"
+#include <dekaf2/crypto/hash/khash.h>
 #include <array>
 
 DEKAF2_NAMESPACE_BEGIN

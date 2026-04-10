@@ -48,13 +48,13 @@
 
 #if DEKAF2_HAS_OPENSSL_QUIC
 
-#include <dekaf2/ktlscontext.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstreambuf.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/kstreamoptions.h>
+#include <dekaf2/net/tls/ktlscontext.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/streams/kstreambuf.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/io/streams/kstreamoptions.h>
 #include <dekaf2/core/types/bits/kunique_deleter.h>
-#include <dekaf2/kiostreamsocket.h>
+#include <dekaf2/net/tls/kiostreamsocket.h>
 #include <openssl/ssl.h>
 
 DEKAF2_NAMESPACE_BEGIN

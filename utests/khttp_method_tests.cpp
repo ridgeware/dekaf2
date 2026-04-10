@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <dekaf2/khttp_method.h>
+#include <dekaf2/http/protocol/khttp_method.h>
 
 using namespace dekaf2;
 

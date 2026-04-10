@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/kdate.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kformat.h>
+#include <dekaf2/time/clock/kdate.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/core/format/kformat.h>
 #include <iostream>
 
 using namespace dekaf2;

@@ -40,8 +40,8 @@
  //
  */
 
-#include "kdataconsumer.h"
-#include <dekaf2/kwrite.h>
+#include <dekaf2/io/pipes/kdataconsumer.h>
+#include <dekaf2/io/readwrite/kwrite.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -64,10 +64,10 @@
 #if !DEKAF2_KJSON2_IS_DISABLED
 
 #ifdef DEKAF2
-	#include <dekaf2/kdefinitions.h>
-	#include <dekaf2/kstringview.h>
-	#include <dekaf2/kstring.h>
-	#include "kjson.h"
+	#include <dekaf2/core/types/kdefinitions.h>
+	#include <dekaf2/core/strings/kstringview.h>
+	#include <dekaf2/core/strings/kstring.h>
+	#include <dekaf2/data/json/kjson.h>
 #else
 	#include <string_view>
 	#include <string>
@@ -1879,9 +1879,9 @@ struct hash<dekaf2::KJSON2>
 
 } // end of namespace std
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE {
 
@@ -1897,7 +1897,7 @@ struct formatter<dekaf2::KJSON2> : formatter<string_view>
 
 } // end of DEKAF2_FORMAT_NAMESPACE
 
-#endif // of #if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#endif // of #if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
 
 #undef DEKAF2_FORCE_CHAR_PTR
 

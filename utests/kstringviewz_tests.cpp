@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kprops.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/containers/associative/kprops.h>
 #include <vector>
 #include <list>
 #include <iostream>

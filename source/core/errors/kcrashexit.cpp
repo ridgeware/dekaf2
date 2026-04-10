@@ -40,13 +40,13 @@
 //
 */
 
-#include "kcrashexit.h"
-#include <dekaf2/kstringview.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kgetruntimestack.h>
-#include <dekaf2/ksignals.h>
+#include <dekaf2/core/errors/kcrashexit.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/kgetruntimestack.h>
+#include <dekaf2/system/os/ksignals.h>
 #ifndef DEKAF2_WITH_KLOG
-#include <dekaf2/kwriter.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 #endif
 #include <mutex>
 

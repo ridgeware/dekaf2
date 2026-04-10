@@ -65,8 +65,8 @@
 #include <array>
 #include <cstddef>
 #include "kfindfirstof.h"
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/kbit.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/types/kbit.h>
 
 DEKAF2_NAMESPACE_BEGIN
 namespace detail {
@@ -126,7 +126,7 @@ DEKAF2_NAMESPACE_END
 	// this _would_ work, but it is 3 to 8 times slower
 	// than the table lookup approach - cmpestri/cmpestrm
 	// are hard to replace in neon
-	#include "../../from/sse2neon/sse2neon.h"
+	#include "../../../../../from/sse2neon/sse2neon.h"
 #else
 	#if defined(__SSE4_2__) || defined DEKAF2_IS_MSC
 		#include <emmintrin.h>

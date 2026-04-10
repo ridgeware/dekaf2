@@ -41,13 +41,13 @@
 
 #pragma once
 
-#include <dekaf2/kassociative.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/kmime.h>
-#include <dekaf2/kerror.h>
-#include <dekaf2/ktime.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/web/url/kmime.h>
+#include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/time/clock/ktime.h>
 
 /// @file kmail.h
 /// Adds the KMail class to represent an email to be sent

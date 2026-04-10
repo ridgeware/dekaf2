@@ -41,14 +41,14 @@
 
 #include "mong2sql.h"
 
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/koptions.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/khash.h>
-#include <dekaf2/kbar.h>
-#include <dekaf2/kparallel.h>
-#include <dekaf2/kregex.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/crypto/hash/khash.h>
+#include <dekaf2/core/format/kbar.h>
+#include <dekaf2/threading/execution/kparallel.h>
+#include <dekaf2/core/strings/kregex.h>
 #include <random>
 #include <thread>
 #include <chrono>

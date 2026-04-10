@@ -64,7 +64,7 @@
 
 #pragma once
 
-#include <dekaf2/kdefinitions.h> // for DEKAF2_NAMESPACE, DEKAF2_NODISCARD and DEKAF2_PUBLIC
+#include <dekaf2/core/types/kdefinitions.h> // for DEKAF2_NAMESPACE, DEKAF2_NODISCARD and DEKAF2_PUBLIC
 #include <functional>
 #include <thread>
 #include <atomic>

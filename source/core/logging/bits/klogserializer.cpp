@@ -44,12 +44,12 @@
 
 #ifdef DEKAF2_WITH_KLOG
 
-#include <dekaf2/ksystem.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kgetruntimestack.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kformat.h>
-#include <dekaf2/ktime.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/system/os/kgetruntimestack.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/time/clock/ktime.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

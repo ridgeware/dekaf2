@@ -1,8 +1,8 @@
-#include <dekaf2/kprof.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/krow.h>
-#include <dekaf2/kformat.h>
-#include <dekaf2/kpersist.h>
+#include <dekaf2/time/duration/kprof.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/data/sql/krow.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/containers/memory/kpersist.h>
 #include <vector>
 
 using namespace dekaf2;

@@ -40,12 +40,12 @@
  //
  */
 
-#include "kbcrypt.h"
-#include <dekaf2/kduration.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/krandom.h>
-#include <dekaf2/kstringutils.h>
+#include <dekaf2/crypto/auth/kbcrypt.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/core/strings/kstringutils.h>
 
 extern "C" {
 extern char *crypt_rn(const char *key, const char *setting,

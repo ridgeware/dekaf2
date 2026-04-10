@@ -45,11 +45,11 @@
 /// provides an implementation of std::iostreams supporting TLS
 
 #include <dekaf2/net/tcp/bits/kasiostream.h>
-#include "kiostreamsocket.h"
-#include "ktlscontext.h"
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstreambuf.h>
-#include <dekaf2/kurl.h>
+#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/tls/ktlscontext.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/streams/kstreambuf.h>
+#include <dekaf2/web/url/kurl.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -41,13 +41,13 @@
 
 #pragma once
 
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kexception.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/ksql.h>
-#include <dekaf2/kbar.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/data/sql/ksql.h>
+#include <dekaf2/core/format/kbar.h>
 
 #include <mongocxx/client.hpp>
 #include <mongocxx/uri.hpp>

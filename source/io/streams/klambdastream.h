@@ -44,8 +44,8 @@
 /// @file klambdastream.h
 /// provides an implementation of std::istreams for lambda interface inside a web server
 
-#include <dekaf2/kstring.h>
-#include "kstreambuf.h"
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/streams/kstreambuf.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

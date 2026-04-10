@@ -44,10 +44,10 @@
 /// @file kparallel.h
 /// collection of classes and functions for parallelization support
 
-#include "kthreads.h"
-#include <dekaf2/kthreadsafe.h>
-#include <dekaf2/ktemplate.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/threading/execution/kthreads.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/core/types/ktemplate.h>
+#include <dekaf2/core/logging/klog.h>
 #include <algorithm>
 #include <thread>
 #include <utility>

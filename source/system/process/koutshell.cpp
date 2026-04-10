@@ -40,8 +40,8 @@
 //
 */
 
-#include "koutshell.h"
-#include <dekaf2/klog.h>
+#include <dekaf2/system/process/koutshell.h>
+#include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

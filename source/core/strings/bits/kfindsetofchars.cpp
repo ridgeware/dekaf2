@@ -40,7 +40,7 @@
 //
 */
 
-#include <dekaf2/kstringview.h>
+#include <dekaf2/core/strings/kstringview.h>
 #include "kfindsetofchars.h"
 #if DEKAF2_FIND_FIRST_OF_USE_SIMD
 #include "simd/kfindfirstof.h"

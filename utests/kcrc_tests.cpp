@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/kcrc.h>
+#include <dekaf2/crypto/hash/kcrc.h>
 #include <vector>
 
 using namespace dekaf2;

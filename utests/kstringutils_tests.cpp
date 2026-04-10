@@ -1,11 +1,11 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kstack.h>
-#include <dekaf2/kinstringstream.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kduration.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/containers/sequential/kstack.h>
+#include <dekaf2/io/streams/kinstringstream.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/time/duration/kduration.h>
 #include <vector>
 #include <set>
 #include <list>

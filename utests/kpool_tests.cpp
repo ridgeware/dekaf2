@@ -1,10 +1,10 @@
 #include "catch.hpp"
 
-#include <dekaf2/kpool.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kthreads.h>
-#include <dekaf2/krandom.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/containers/memory/kpool.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/threading/execution/kthreads.h>
+#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/system/os/ksystem.h>
 
 using namespace dekaf2;
 

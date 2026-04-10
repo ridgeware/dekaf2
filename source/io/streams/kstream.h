@@ -44,8 +44,8 @@
 /// @file kstream.h
 /// bidirectional streams
 
-#include <dekaf2/kreader.h>
-#include <dekaf2/kwriter.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

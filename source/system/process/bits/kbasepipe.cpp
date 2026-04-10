@@ -43,12 +43,12 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include <dekaf2/ksplit.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kchildprocess.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/process/kchildprocess.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/format/kformat.h>
 #include <csignal>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -39,13 +39,13 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <dekaf2/kwrite.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kutf.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kscopeguard.h>
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/io/readwrite/kwrite.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/types/kscopeguard.h>
+#include <dekaf2/core/types/kcompatibility.h>
 #include <string>
 
 #ifndef DEKAF2_IS_WINDOWS
@@ -54,7 +54,7 @@
 	#include <windows.h>
 #endif
 
-#include "kxterm.h" // keep this at the end of includes, it removes a freak RGB definition in windows headers
+#include <dekaf2/util/cli/kxterm.h> // keep this at the end of includes, it removes a freak RGB definition in windows headers
 
 DEKAF2_NAMESPACE_BEGIN
 

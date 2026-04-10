@@ -39,10 +39,10 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kthreads.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/koutstringstream.h>
-#include <dekaf2/kformat.h>
+#include <dekaf2/threading/execution/kthreads.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/io/streams/koutstringstream.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE {
 

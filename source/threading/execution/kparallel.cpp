@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kparallel.h"
+#include <dekaf2/threading/execution/kparallel.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

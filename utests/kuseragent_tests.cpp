@@ -4,8 +4,8 @@
 // therefore we do not run it per default
 #if 0
 
-#include <dekaf2/kuseragent.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/web/url/kuseragent.h>
+#include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;
 

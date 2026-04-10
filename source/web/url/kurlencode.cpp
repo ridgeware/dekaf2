@@ -40,9 +40,9 @@
 //
 */
 
-#include "kurlencode.h"
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kctype.h>
+#include <dekaf2/web/url/kurlencode.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/types/kctype.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

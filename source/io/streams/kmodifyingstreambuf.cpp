@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kmodifyingstreambuf.h"
+#include <dekaf2/io/streams/kmodifyingstreambuf.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

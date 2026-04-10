@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kcasestring.h"
+#include <dekaf2/core/strings/kcasestring.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

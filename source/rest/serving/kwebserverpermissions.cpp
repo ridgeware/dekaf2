@@ -39,10 +39,10 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kwebserverpermissions.h"
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/rest/serving/kwebserverpermissions.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/core/logging/klog.h>
 #include <algorithm>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -44,7 +44,7 @@
 
 
 /// @file kstreambuf.h
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 #include <streambuf>
 #include <array>
 

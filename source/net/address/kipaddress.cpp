@@ -40,10 +40,10 @@
 //
 */
 
-#include "kipaddress.h"
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kstringutils.h>
+#include <dekaf2/net/address/kipaddress.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/core/strings/kstringutils.h>
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <iphlpapi.h>

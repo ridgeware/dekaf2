@@ -43,9 +43,9 @@
 
 
 /// @file kmpsearch.h
-#include <dekaf2/kdefinitions.h>
-#include "kstringview.h"
-#include <dekaf2/kreader.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/readwrite/kreader.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -45,11 +45,11 @@
 /// @file khmac.h
 /// HMAC message digests
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h>
 
 #if OPENSSL_VERSION_NUMBER < 0x030000000L

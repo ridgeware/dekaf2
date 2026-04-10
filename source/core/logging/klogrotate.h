@@ -43,15 +43,15 @@
 
 
 /// @file klogrotate.h
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/ktimer.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/klockmap.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/time/duration/ktimer.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/containers/associative/klockmap.h>
 #include <thread>
 #include <functional>
 #include <unordered_map>

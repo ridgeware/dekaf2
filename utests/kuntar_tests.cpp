@@ -1,10 +1,10 @@
 #include "catch.hpp"
 
-#include <dekaf2/kuntar.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kinshell.h>
+#include <dekaf2/util/archive/kuntar.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/process/kinshell.h>
 #include <vector>
 
 #ifndef DEKAF2_IS_WINDOWS

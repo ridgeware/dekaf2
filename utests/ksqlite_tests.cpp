@@ -1,11 +1,11 @@
 #include "catch.hpp"
 
-#include <dekaf2/kcompatibility.h>
+#include <dekaf2/core/types/kcompatibility.h>
 
 #ifdef DEKAF2_HAS_SQLITE3
 
-#include <dekaf2/ksqlite.h>
-#include <dekaf2/kfilesystem.h>
+#include <dekaf2/data/sql/ksqlite.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 #include <vector>
 
 using namespace dekaf2;

@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kthreadpool.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/threading/execution/kthreadpool.h>
+#include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;
 

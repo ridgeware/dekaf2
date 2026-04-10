@@ -44,13 +44,13 @@
 
 
 /// @file kopenid.h
-#include <dekaf2/kstring.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/krsakey.h>
-#include <dekaf2/ktimer.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/time/duration/ktimer.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/core/errors/kerror.h>
 #include <unordered_map>
 #include <vector>
 #include <atomic>

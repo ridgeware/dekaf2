@@ -1,10 +1,10 @@
 #include "catch.hpp"
 
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kstream.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/io/streams/kstream.h>
 #include <vector>
 #include <fstream>
 #include <thread>

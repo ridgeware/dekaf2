@@ -40,7 +40,7 @@
  //
  */
 
-#include "kcrc.h"
+#include <dekaf2/crypto/hash/kcrc.h>
 #include <array>
 
 DEKAF2_NAMESPACE_BEGIN

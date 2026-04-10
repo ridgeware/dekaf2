@@ -39,13 +39,13 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khtmlparser.h"
-#include "khtmlentities.h"
-#include <dekaf2/kstringstream.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kfrozen.h>
-#include <dekaf2/kctype.h>
+#include <dekaf2/web/html/khtmlparser.h>
+#include <dekaf2/web/html/khtmlentities.h>
+#include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/types/kfrozen.h>
+#include <dekaf2/core/types/kctype.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

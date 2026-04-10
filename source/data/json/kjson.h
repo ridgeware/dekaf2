@@ -45,7 +45,7 @@
 
 /// @file kjson.h
 #include "kconfiguration.h"
-#include <dekaf2/klog.h> // needed for JSON_THROW_USER
+#include <dekaf2/core/logging/klog.h> // needed for JSON_THROW_USER
 
 #ifndef DEKAF2_WRAPPED_KJSON
 	// When we define DEKAF2_WRAPPED_KJSON we effectively switch off stack trace
@@ -73,7 +73,7 @@
 	#define JSON_HAS_THREE_WAY_COMPARISON 0
 #endif
 
-#include <dekaf2/kcrashexit.h>
+#include <dekaf2/core/errors/kcrashexit.h>
 
 #define JSON_ASSERT(bMustBeTrue) { DEKAF2_PREFIX kAssert(bMustBeTrue, "crash in KJSON"); }
 
@@ -106,9 +106,9 @@
 
 #include <nlohmann/json.hpp>
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kreader.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/readwrite/kreader.h>
 
 #if DEKAF2_IS_WINDOWS
 	// macros are evil
@@ -411,7 +411,7 @@ using kjson::Decrement;
 DEKAF2_NAMESPACE_END
 
 #include <fmt/format.h>
-#include "kjson2.h"
+#include <dekaf2/data/json/kjson2.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE {
 

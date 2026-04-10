@@ -40,9 +40,9 @@
  //
  */
 
-#include "kdataprovider.h"
-#include <dekaf2/kread.h>
-#include <dekaf2/kwrite.h>
+#include <dekaf2/io/pipes/kdataprovider.h>
+#include <dekaf2/io/readwrite/kread.h>
+#include <dekaf2/io/readwrite/kwrite.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

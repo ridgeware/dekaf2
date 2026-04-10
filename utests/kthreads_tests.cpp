@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/kthreads.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/threading/execution/kthreads.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/os/ksystem.h>
 
 using namespace dekaf2;
 

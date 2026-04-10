@@ -39,22 +39,22 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kurl.h"
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kexception.h>
-#include <dekaf2/ksplit.h>
-#include <dekaf2/kwebclient.h>
-#include <dekaf2/kxml.h>
-#include <dekaf2/kencode.h>
-#include <dekaf2/kawsauth.h>
-#include <dekaf2/kparallel.h>
-#include <dekaf2/kmodifyingstreambuf.h>
-#include <dekaf2/kresolve.h>
-#include <dekaf2/kfilesystem.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/crypto/encoding/kencode.h>
+#include <dekaf2/crypto/auth/kawsauth.h>
+#include <dekaf2/threading/execution/kparallel.h>
+#include <dekaf2/io/streams/kmodifyingstreambuf.h>
+#include <dekaf2/net/address/kresolve.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 
 using namespace DEKAF2_NAMESPACE_NAME;
 

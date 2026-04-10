@@ -45,9 +45,9 @@
 
 #pragma once
 
-#include "kdefinitions.h"
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN

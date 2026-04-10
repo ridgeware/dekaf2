@@ -39,9 +39,9 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kwebserver.h"
-#include <dekaf2/khttperror.h>
-#include <dekaf2/ktime.h>
+#include <dekaf2/rest/serving/kwebserver.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/time/clock/ktime.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

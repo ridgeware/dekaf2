@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kwords.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/strings/kwords.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <vector>
 
 using namespace dekaf2;

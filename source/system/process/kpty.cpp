@@ -40,13 +40,13 @@
 //
 */
 
-#include "kpty.h"
+#include <dekaf2/system/process/kpty.h>
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include <dekaf2/ksystem.h>
-#include "kchildprocess.h"
-#include <dekaf2/klog.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/process/kchildprocess.h>
+#include <dekaf2/core/logging/klog.h>
 #include <csignal>
 #include <cstdlib>
 #include <fcntl.h>

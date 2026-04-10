@@ -2,7 +2,7 @@
 
 #include <cctype>
 #include <cwctype>
-#include <dekaf2/kctype.h>
+#include <dekaf2/core/types/kctype.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 

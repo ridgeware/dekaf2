@@ -44,10 +44,10 @@
 /// @file kasiostream.h
 /// provides asio stream abstraction with deadline timer
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/logging/klog.h>
 #include "kasio.h"
 
 DEKAF2_NAMESPACE_BEGIN

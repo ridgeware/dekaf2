@@ -80,11 +80,11 @@
 //  code, particularly because this is a pure C++11 implementation for untar.
 //  So please do not blame those for any errors this code may cause or have.
 
-#include "kuntar.h"
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/util/archive/kuntar.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/errors/kerror.h>
 
 #include <cstring>
 #include <array>

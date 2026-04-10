@@ -40,7 +40,7 @@
  //
  */
 
-#include "krsa.h"
+#include <dekaf2/crypto/rsa/krsa.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h>
 
 #include <openssl/evp.h>

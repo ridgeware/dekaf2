@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include <dekaf2/klockmap.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/containers/associative/klockmap.h>
+#include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;
 

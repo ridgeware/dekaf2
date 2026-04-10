@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/kquotedprintable.h>
+#include <dekaf2/crypto/encoding/kquotedprintable.h>
 #include <vector>
 
 using namespace dekaf2;

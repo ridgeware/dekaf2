@@ -44,10 +44,10 @@
 
 
 /// @file krow.h
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/ktemplate.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/kjson.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/types/ktemplate.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/data/json/kjson.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -812,9 +812,9 @@ inline void from_json(const LJSON& j, KROW& row)
 
 DEKAF2_NAMESPACE_END
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE
 {
@@ -841,7 +841,7 @@ struct formatter<DEKAF2_PREFIX KSQLString> : formatter<string_view>
 
 } // end of DEKAF2_FORMAT_NAMESPACE
 
-#endif // of DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#endif // of DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
 
 namespace std
 {

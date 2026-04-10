@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/krsa.h>
-#include <dekaf2/kencode.h>
+#include <dekaf2/crypto/rsa/krsa.h>
+#include <dekaf2/crypto/encoding/kencode.h>
 
 using namespace dekaf2;
 

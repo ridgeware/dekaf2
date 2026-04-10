@@ -44,11 +44,11 @@
 // for chunked transfer and compression
 #include <boost/iostreams/filtering_stream.hpp>
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/khttp_header.h>
-#include <dekaf2/kinstringstream.h>
-#include <dekaf2/khttpcompression.h>
-#include <dekaf2/khttp_version.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/io/streams/kinstringstream.h>
+#include <dekaf2/http/protocol/khttpcompression.h>
+#include <dekaf2/http/protocol/khttp_version.h>
 
 /// @file khttpinputfilter.h
 /// HTTP streaming input filter implementation

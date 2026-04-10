@@ -45,8 +45,8 @@
 /// @file ktemperature.h
 /// constexpr temperature unit conversions and comparisons
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
 #include <cmath>
 #include <type_traits>
 #include <ostream>
@@ -337,11 +337,11 @@ DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, T1 Temperature)
 
 DEKAF2_NAMESPACE_END
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
 
 // kFormat formatters
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE
 {
@@ -378,4 +378,4 @@ struct formatter<DEKAF2_PREFIX KFahrenheit> : formatter<string_view>
 
 } // end of DEKAF2_FORMAT_NAMESPACE
 
-#endif // of has #include <dekaf2/kformat.h>
+#endif // of has #include <dekaf2/core/format/kformat.h>

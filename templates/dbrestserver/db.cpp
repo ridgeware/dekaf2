@@ -2,8 +2,8 @@
 #include "db.h"
 #include "build_config.h"
 #include "__LowerProjectName__.h"
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kpool.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/containers/memory/kpool.h>
 #include <mutex>
 
 //-----------------------------------------------------------------------------

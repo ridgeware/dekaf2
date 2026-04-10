@@ -45,17 +45,17 @@
 /// @file klogserializer.h
 /// Data serializers for the logging framework
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 
 #ifdef DEKAF2_WITH_KLOG
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kduration.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/time/duration/kduration.h>
 #include <memory>
 
 #ifdef DEKAF2_KLOG_WITH_TCP
-	#include <dekaf2/kjson.h>
+	#include <dekaf2/data/json/kjson.h>
 #endif
 
 #ifndef DEKAF2_IS_WINDOWS

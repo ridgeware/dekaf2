@@ -39,8 +39,8 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khtmlcontentblocks.h"
-#include <dekaf2/kctype.h>
+#include <dekaf2/web/html/khtmlcontentblocks.h>
+#include <dekaf2/core/types/kctype.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

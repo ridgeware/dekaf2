@@ -4,7 +4,7 @@
 #include <map>
 #include <set>
 #include <cinttypes>
-#include <dekaf2/kprof.h>
+#include <dekaf2/time/duration/kprof.h>
 
 static const char* str0 = "";
 static const char* str15 = "123456789012345";

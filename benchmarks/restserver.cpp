@@ -1,7 +1,7 @@
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/krest.h>
-#include <dekaf2/koptions.h>
-#include <dekaf2/ktcpserver.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/rest/framework/krest.h>
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
 
 using namespace dekaf2;
 

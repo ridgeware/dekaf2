@@ -1,10 +1,10 @@
 #include "catch.hpp"
 
-#include <dekaf2/kprops.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/kinstringstream.h>
-#include <dekaf2/kfilesystem.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/io/streams/kinstringstream.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 #include <unordered_map>
 #include <map>
 using namespace dekaf2;

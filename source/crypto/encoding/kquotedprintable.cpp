@@ -40,9 +40,9 @@
 //
 */
 
-#include "kquotedprintable.h"
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/crypto/encoding/kquotedprintable.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/logging/klog.h>
 #include <cctype>
 
 DEKAF2_NAMESPACE_BEGIN

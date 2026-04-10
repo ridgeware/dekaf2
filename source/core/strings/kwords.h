@@ -43,9 +43,9 @@
 
 #pragma once
 
-#include <dekaf2/kdefinitions.h>
-#include "kstringview.h"
-#include "kstring.h"
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
 
 /// @file kwords.h
 /// Split marked up input buffer into words + skeleton.

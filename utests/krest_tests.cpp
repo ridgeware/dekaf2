@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/krest.h>
-#include <dekaf2/khttperror.h>
-#include <dekaf2/krestclient.h>
+#include <dekaf2/rest/framework/krest.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/rest/framework/krestclient.h>
 
 using namespace dekaf2;
 

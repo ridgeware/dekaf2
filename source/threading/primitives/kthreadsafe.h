@@ -45,8 +45,8 @@
 /// @file kthreadsafe.h
 /// generic threadsafe sharing for non-atomic types
 
-#include <dekaf2/kcompatibility.h>
-#include <dekaf2/kreference_proxy.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/types/kreference_proxy.h>
 #include <mutex>
 
 DEKAF2_NAMESPACE_BEGIN

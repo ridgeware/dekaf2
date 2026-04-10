@@ -45,9 +45,9 @@
 /// @file krsakey.h
 /// RSA key conversions
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kjson.h>
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/core/errors/kerror.h>
 
 struct evp_pkey_st;
 

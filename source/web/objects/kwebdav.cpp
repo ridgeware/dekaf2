@@ -39,16 +39,16 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kwebdav.h"
-#include <dekaf2/krestserver.h>
-#include <dekaf2/kwebserverpermissions.h>
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kxml.h>
-#include <dekaf2/kmime.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kformat.h>
-#include <dekaf2/kurl.h>
-#include <dekaf2/kuuid.h>
+#include <dekaf2/web/objects/kwebdav.h>
+#include <dekaf2/rest/framework/krestserver.h>
+#include <dekaf2/rest/serving/kwebserverpermissions.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/web/url/kmime.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/util/id/kuuid.h>
 #include <array>
 #include <vector>
 

@@ -41,11 +41,11 @@
 */
 
 #include "catch.hpp"
-#include <dekaf2/ksql.h>
-#include <dekaf2/krandom.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kduration.h>
+#include <dekaf2/data/sql/ksql.h>
+#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/time/duration/kduration.h>
 
 using namespace dekaf2;
 

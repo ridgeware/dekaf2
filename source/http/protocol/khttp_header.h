@@ -43,19 +43,19 @@
 
 
 /// @file khttp_header.h
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kcaseless.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/kcrashexit.h>
-#include <dekaf2/kformat.h>
-#include "khttp_method.h"
-#include "khttp_version.h"
-#include <dekaf2/kmime.h>
-#include <dekaf2/kerror.h>
-#include <dekaf2/kipnetwork.h>
-#include <dekaf2/kurl.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kcaseless.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/core/errors/kcrashexit.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/http/protocol/khttp_version.h>
+#include <dekaf2/web/url/kmime.h>
+#include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/net/address/kipnetwork.h>
+#include <dekaf2/web/url/kurl.h>
 #include <memory>
 
 #if (!defined(DEKAF2_IS_GCC) || DEKAF2_GCC_VERSION >= 90000) \

@@ -43,14 +43,14 @@
 /// @file kencode.h
 /// provides support for various encoding schemes
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include "khex.h"
-#include "kbase64.h"
-#include <dekaf2/kurlencode.h>
-#include <dekaf2/khtmlentities.h>
-#include "kquotedprintable.h"
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/crypto/encoding/khex.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/web/url/kurlencode.h>
+#include <dekaf2/web/html/khtmlentities.h>
+#include <dekaf2/crypto/encoding/kquotedprintable.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

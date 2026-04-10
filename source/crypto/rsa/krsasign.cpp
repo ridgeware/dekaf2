@@ -42,8 +42,8 @@
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
-#include "krsasign.h"
-#include <dekaf2/klog.h>
+#include <dekaf2/crypto/rsa/krsasign.h>
+#include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

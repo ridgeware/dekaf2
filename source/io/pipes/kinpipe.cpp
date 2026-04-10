@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kinpipe.h"
+#include <dekaf2/io/pipes/kinpipe.h>
 
 #ifdef DEKAF2_HAS_PIPES
 

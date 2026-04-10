@@ -40,7 +40,7 @@
 //
 */
 
-#include "ksplit.h"
+#include <dekaf2/core/strings/ksplit.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

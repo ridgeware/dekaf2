@@ -39,11 +39,11 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kfileserver.h"
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kwebobjects.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/rest/serving/kfileserver.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/web/objects/kwebobjects.h>
+#include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

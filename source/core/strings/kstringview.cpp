@@ -40,14 +40,14 @@
 //
 */
 
-#include "kstringview.h"
-#include "kstringutils.h"
-#include "kregex.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/dekaf2.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/strings/kregex.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/strings/bits/simd/kfindfirstof.h>
-#include <dekaf2/kctype.h>
-#include "kcaseless.h"
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/core/strings/kcaseless.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

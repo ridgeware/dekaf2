@@ -44,7 +44,7 @@
 
 
 /// @file kcamellia.h
-#include "kblockcipher.h"
+#include <dekaf2/crypto/cipher/kblockcipher.h>
 
 #if DEKAF2_HAS_AES
 

@@ -45,10 +45,10 @@
 /// provides an input stream that reads from KStringViews
 
 #include <istream>
-#include <dekaf2/kcompatibility.h>
-#include "kstreambuf.h"
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kreader.h>
+#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/io/streams/kstreambuf.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/readwrite/kreader.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

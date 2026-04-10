@@ -45,11 +45,11 @@
 /// @file krsasign.h
 /// RSA signatures
 
-#include <dekaf2/kstream.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include "krsakey.h"
-#include <dekaf2/kmessagedigest.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/crypto/hash/kmessagedigest.h>
 
 
 DEKAF2_NAMESPACE_BEGIN

@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kcaseless.h>
-#include <dekaf2/kprops.h>
+#include <dekaf2/core/strings/kcaseless.h>
+#include <dekaf2/containers/associative/kprops.h>
 #include <vector>
 
 using namespace dekaf2;

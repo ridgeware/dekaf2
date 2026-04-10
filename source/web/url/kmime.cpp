@@ -39,19 +39,19 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kmime.h"
-#include <dekaf2/khttp_header.h>
-#include <dekaf2/kbase64.h>
-#include <dekaf2/kquotedprintable.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kfrozen.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kctype.h>
-#include <dekaf2/kinpipe.h>
-#include <dekaf2/kinstringstream.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kuuid.h>
+#include <dekaf2/web/url/kmime.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/crypto/encoding/kquotedprintable.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/types/kfrozen.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/types/kctype.h>
+#include <dekaf2/io/pipes/kinpipe.h>
+#include <dekaf2/io/streams/kinstringstream.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/util/id/kuuid.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN

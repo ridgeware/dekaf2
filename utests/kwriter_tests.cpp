@@ -1,12 +1,12 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstream.h>
-#include <dekaf2/ktcpclient.h>
-#include <dekaf2/kunixstream.h>
-#include <dekaf2/ktlsstream.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ktcpserver.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/net/tcp/ktcpclient.h>
+#include <dekaf2/net/tcp/kunixstream.h>
+#include <dekaf2/net/tls/ktlsstream.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/system/os/ksystem.h>
 
 
 using namespace dekaf2;

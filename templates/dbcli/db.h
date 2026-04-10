@@ -1,11 +1,11 @@
 
 #pragma once
 
-#include <dekaf2/ksql.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kpool.h>
+#include <dekaf2/data/sql/ksql.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/containers/memory/kpool.h>
 #include <memory>
 
 using namespace dekaf2;

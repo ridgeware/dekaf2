@@ -885,7 +885,7 @@ if (NOT EXISTS "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
 	# create a symlink to simulate the <dekaf2/> path for includes at library build time
 	# (we add DEKAF2_GENERATED_FILES_DIR to the include locations below)
 	execute_process(
-		COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}" "${DEKAF2_GENERATED_FILES_DIR}/dekaf2"
+		COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/source" "${DEKAF2_GENERATED_FILES_DIR}/dekaf2"
 		RESULT_VARIABLE EXEC_RESULT
 	)
 	if (NOT EXEC_RESULT EQUAL 0 OR NOT EXISTS "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
@@ -897,25 +897,7 @@ if (NOT EXISTS "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
 	endif()
 endif ()
 
-# create a second symlink for the new hierarchical include structure under source/
-# this allows #include <dekaf2/core/strings/kstring.h> to resolve to source/core/strings/kstring.h
-# during the build phase (before install). After the migration is complete, the generated/dekaf2
-# symlink above will be retargeted to source/ and this one removed.
-set(DEKAF2_STRUCTURED_DIR "${CMAKE_CURRENT_BINARY_DIR}/structured")
-file(MAKE_DIRECTORY "${DEKAF2_STRUCTURED_DIR}")
-if (NOT EXISTS "${DEKAF2_STRUCTURED_DIR}/dekaf2")
-	execute_process(
-		COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/source" "${DEKAF2_STRUCTURED_DIR}/dekaf2"
-		RESULT_VARIABLE EXEC_RESULT
-	)
-	if (NOT EXEC_RESULT EQUAL 0 OR NOT EXISTS "${DEKAF2_STRUCTURED_DIR}/dekaf2")
-		if (IS_WINDOWS)
-			message(FATAL_ERROR "cannot create build time include dir symbolic link ${DEKAF2_STRUCTURED_DIR}/dekaf2 - see here how to fix it: https://stackoverflow.com/a/76292992")
-		else()
-			message(FATAL_ERROR "cannot create build time include dir symbolic link ${DEKAF2_STRUCTURED_DIR}/dekaf2")
-		endif()
-	endif()
-endif ()
+# the structured/ symlink is no longer needed - generated/dekaf2 now points to source/
 
 # test warning flags
 include(CheckCXXCompilerFlag)
@@ -1468,82 +1450,7 @@ endif()
 list(SORT HEADERS)
 
 set (PRECOMPILED_HEADERS
-
-	# std headers
-	<unordered_map>
-	<unordered_set>
-	<map>
-	<memory>
-	<mutex>
-	<set>
-	<type_traits>
-	<string>
-	<string_view>
-	<fstream>
-	<iostream>
-	<ostream>
-	<istream>
-	<vector>
-	<array>
-	<algorithm>
-	<functional>
-	<thread>
-	<utility>
-	<chrono>
-
-	# our own headers
-	[["kconfiguration.h"]]
-	source/core/strings/bits/kstring_view.h
-	source/crypto/hash/bits/khash.h
-	source/containers/associative/bits/kmutable_pair.h
-	source/core/types/bits/kunique_deleter.h
-	dekaf2.h
-	kassociative.h
-	kcompatibility.h
-	kctype.h
-	kdate.h
-	kdefinitions.h
-	kduration.h
-	kfilesystem.h
-	kformat.h
-	khex.h
-	khtmlentities.h
-	kjoin.h
-	kjson.h
-	kjson2.h
-	klog.h
-	koutstringstream.h
-	kprops.h
-	kread.h
-	kreader.h
-	kreference_proxy.h
-	krow.h
-	ksplit.h
-	kstack.h
-	kstream.h
-	kstreambuf.h
-	kstring.h
-	kstringstream.h
-	kstringutils.h
-	kstringview.h
-	ksystem.h
-	ktemplate.h
-	ktime.h
-	kurl.h
-	kurlencode.h
-	kutf.h
-	kwrite.h
-	kwriter.h
-
-	# 3rd party libs
-	<nlohmann/json.hpp>
-	<fmt/format.h>
-	<boost/multi_index_container.hpp>
-	<boost/multi_index/hashed_index.hpp>
-	<boost/multi_index/ordered_index.hpp>
-	<boost/multi_index/identity.hpp>
-	<boost/multi_index/member.hpp>
-	<boost/multi_index/sequenced_index.hpp>
+	# TODO: revisit which headers to include here after restructuring
 )
 
 # =============================== SOURCE FILES ====================================
@@ -1735,10 +1642,10 @@ list(SORT SOURCES)
 
 if (NOT CMAKE_COMPILER_IS_GNUCC OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 10.0)
 	# keep this one at the top (it takes the most time to compile)
-	list(INSERT SOURCES 0 khtmlentities4.cpp)
+	list(INSERT SOURCES 0 source/web/html/khtmlentities4.cpp)
 else()
 	# move it to the end, as it needs a lot of RAM with older gccs
-	list(APPEND SOURCES khtmlentities4.cpp)
+	list(APPEND SOURCES source/web/html/khtmlentities4.cpp)
 endif()
 
 # these are for (k)bcrypt
@@ -1944,7 +1851,7 @@ add_library                (dekaf2-objects OBJECT ${DEKAF2_SOURCE_FILES})
 # for the internal build, include the headers without SYSTEM property so that we get all warnings
 target_include_directories (dekaf2-objects ${DEKAF2_INCLUDE_DIRECTORIES})
 # add dekaf2's own headers as non-SYSTEM includes so that Xcode tracks their dependencies
-target_include_directories (dekaf2-objects PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}> $<BUILD_INTERFACE:${DEKAF2_STRUCTURED_DIR}>)
+target_include_directories (dekaf2-objects PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 target_link_libraries      (dekaf2-objects ${DEKAF2_LINK_LIBRARIES})
 target_compile_definitions (dekaf2-objects ${DEKAF2_COMPILE_DEFINITIONS})
 if (DEKAF2_HAS_USER_AGENT_PARSER)
@@ -1963,7 +1870,7 @@ if (DEKAF2_BUILD_SHARED_DEKAF2)
 	set_target_properties      (dekaf2-objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
 	add_library                (dekaf2-shared  SHARED $<TARGET_OBJECTS:dekaf2-objects> $<TARGET_OBJECTS:bcrypt-objects> ${DEKAF2_DUMMYFILE})
 	target_include_directories (dekaf2-shared  ${DEKAF2_INCLUDE_DIRECTORIES})
-	target_include_directories (dekaf2-shared  PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}> $<BUILD_INTERFACE:${DEKAF2_STRUCTURED_DIR}>)
+	target_include_directories (dekaf2-shared  PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 	target_link_libraries      (dekaf2-shared  ${DEKAF2_LINK_LIBRARIES})
 	target_compile_definitions (dekaf2-shared  ${DEKAF2_COMPILE_DEFINITIONS})
 	set_target_properties      (dekaf2-shared  PROPERTIES C_VISIBILITY_PRESET   hidden)
@@ -1975,7 +1882,7 @@ endif()
 if (DEKAF2_BUILD_STATIC_DEKAF2)
 	add_library                (dekaf2 STATIC $<TARGET_OBJECTS:dekaf2-objects> $<TARGET_OBJECTS:bcrypt-objects> ${DEKAF2_DUMMYFILE})
 	target_include_directories (dekaf2 ${DEKAF2_INCLUDE_DIRECTORIES})
-	target_include_directories (dekaf2 PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}> $<BUILD_INTERFACE:${DEKAF2_STRUCTURED_DIR}>)
+	target_include_directories (dekaf2 PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
 	target_link_libraries      (dekaf2 ${DEKAF2_LINK_LIBRARIES})
 	target_compile_definitions (dekaf2 ${DEKAF2_COMPILE_DEFINITIONS})
 endif()
@@ -2019,9 +1926,9 @@ add_library                   (ksql2-objects OBJECT source/data/sql/ksql.cpp sou
 target_include_directories    (ksql2-objects PUBLIC ${KSQL2_INCLUDE_DIRECTORIES})
 target_link_libraries         (ksql2-objects ${KSQL2_LINK_LIBRARIES} dekaf2)
 target_compile_definitions    (ksql2-objects ${KSQL2_COMPILE_DEFINITIONS})
-if (DEKAF2_USE_PRECOMPILED_HEADERS)
-	target_precompile_headers (ksql2-objects REUSE_FROM dekaf2-objects)
-endif()
+#if (DEKAF2_USE_PRECOMPILED_HEADERS)
+#	target_precompile_headers (ksql2-objects REUSE_FROM dekaf2-objects)
+#endif()
 
 if (DEKAF2_BUILD_SHARED_DEKAF2)
 	set_target_properties      (ksql2-objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -2059,9 +1966,9 @@ if (SQLITE3_FOUND)
 		set_target_properties      (ksqlite-shared PROPERTIES OUTPUT_NAME "ksqlite")
 		set_target_properties      (ksqlite-shared PROPERTIES SOVERSION ${PROJECT_VERSION_MAJOR} VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
 
-		if (DEKAF2_USE_PRECOMPILED_HEADERS)
-			target_precompile_headers(ksqlite-shared REUSE_FROM dekaf2-objects)
-		endif()
+		#if (DEKAF2_USE_PRECOMPILED_HEADERS)
+		#	target_precompile_headers(ksqlite-shared REUSE_FROM dekaf2-objects)
+		#endif()
 	endif() # DEKAF2_BUILD_SHARED_DEKAF2
 
 	if (DEKAF2_BUILD_STATIC_DEKAF2)
@@ -2075,9 +1982,9 @@ if (SQLITE3_FOUND)
 		# DEKAF2_LIBRARY_BUILD is needed for dynamic libs
 		target_compile_definitions(ksqlite PRIVATE DEKAF2_LIBRARY_BUILD)
 
-		if (DEKAF2_USE_PRECOMPILED_HEADERS)
-			target_precompile_headers(ksqlite REUSE_FROM dekaf2-objects)
-		endif()
+		#if (DEKAF2_USE_PRECOMPILED_HEADERS)
+		#	target_precompile_headers(ksqlite REUSE_FROM dekaf2-objects)
+		#endif()
 	endif() # DEKAF2_BUILD_STATIC_DEKAF2
 
 	# ksql2 uses KSQLite classes, link ksqlite into ksql2
@@ -2092,19 +1999,19 @@ endif() # SQLITE3_FOUND
 
 if (DEKAF2_INSTALL_BIN)
 
-	add_executable(klog klog_main.cpp)
+	add_executable(klog tools/klog_main.cpp)
 	target_link_libraries(klog dekaf2${DEKAF2_LINK_SHARED})
 
-	add_executable(createdbc createdbc.cpp)
+	add_executable(createdbc tools/createdbc.cpp)
 	target_link_libraries(createdbc ksql2${DEKAF2_LINK_SHARED} dekaf2${DEKAF2_LINK_SHARED})
 
 	if (DEKAF2_HAS_NCURSES)
-		add_executable(unixmenu unixmenu.cpp)
+		add_executable(unixmenu tools/unixmenu.cpp)
 		target_include_directories(unixmenu PUBLIC CURSES_INCLUDE_DIRS)
 		target_link_libraries(unixmenu dekaf2${DEKAF2_LINK_SHARED} ncurses)
 	endif()
 
-	add_executable(dekaf2project dekaf2project.cpp)
+	add_executable(dekaf2project tools/dekaf2project.cpp)
 	target_link_libraries(dekaf2project dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(kurl samples/kurl.cpp samples/kurl.h)
@@ -2131,10 +2038,10 @@ if (DEKAF2_INSTALL_BIN)
 	add_executable(statinfo samples/statinfo.cpp)
 	target_link_libraries(statinfo dekaf2${DEKAF2_LINK_SHARED})
 
-	add_executable(getentities EXCLUDE_FROM_ALL getentities.cpp)
+	add_executable(getentities EXCLUDE_FROM_ALL source/web/html/getentities.cpp)
 	target_link_libraries(getentities dekaf2${DEKAF2_LINK_SHARED})
 
-	add_executable(genunicodetables EXCLUDE_FROM_ALL genunicodetables.cpp)
+	add_executable(genunicodetables EXCLUDE_FROM_ALL source/core/types/genunicodetables.cpp)
 	target_link_libraries(genunicodetables dekaf2${DEKAF2_LINK_SHARED})
 
 	add_executable(diff-speedtest EXCLUDE_FROM_ALL from/google/diff-speedtest.cpp)

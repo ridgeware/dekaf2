@@ -1,10 +1,10 @@
 #include "catch.hpp"
 
-#include <dekaf2/kinpipe.h>
+#include <dekaf2/io/pipes/kinpipe.h>
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include <dekaf2/kstring.h>
+#include <dekaf2/core/strings/kstring.h>
 
 #include <iostream>
 #include <ostream>

@@ -40,16 +40,16 @@
  */
 
 #include "kgrep.h"
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstream.h>
-#include <dekaf2/kexception.h>
-#include <dekaf2/kregex.h>
-#include <dekaf2/kformat.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kparallel.h>
-#include <dekaf2/kxterm.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/streams/kstream.h>
+#include <dekaf2/core/errors/kexception.h>
+#include <dekaf2/core/strings/kregex.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/threading/execution/kparallel.h>
+#include <dekaf2/util/cli/kxterm.h>
 
 using namespace dekaf2;
 

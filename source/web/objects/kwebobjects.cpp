@@ -37,9 +37,9 @@
 //
 */
 
-#include "kwebobjects.h"
-#include <dekaf2/kmime.h>
-#include <dekaf2/khtmlentities.h>
+#include <dekaf2/web/objects/kwebobjects.h>
+#include <dekaf2/web/url/kmime.h>
+#include <dekaf2/web/html/khtmlentities.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

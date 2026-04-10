@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/kvariant.h>
+#include <dekaf2/core/types/kvariant.h>
 
 using namespace dekaf2;
 

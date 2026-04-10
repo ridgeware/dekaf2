@@ -39,12 +39,12 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "ksmtp.h"
-#include <dekaf2/ksplit.h>
-#include <dekaf2/kbase64.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/kquotedprintable.h>
-#include <dekaf2/ktime.h>
+#include <dekaf2/util/mail/ksmtp.h>
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/crypto/encoding/kquotedprintable.h>
+#include <dekaf2/time/clock/ktime.h>
 
 
 DEKAF2_NAMESPACE_BEGIN

@@ -1,9 +1,9 @@
 #include "catch.hpp"
-#include <dekaf2/kuuid.h>
+#include <dekaf2/util/id/kuuid.h>
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstringstream.h>
-#include <dekaf2/kencode.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/crypto/encoding/kencode.h>
 
 using namespace dekaf2;
 

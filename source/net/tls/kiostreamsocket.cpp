@@ -40,13 +40,13 @@
  */
 
 
-#include "kiostreamsocket.h"
-#include <dekaf2/kurlencode.h>
-#include <dekaf2/kunixstream.h>
-#include <dekaf2/ktcpstream.h>
-#include "ktlsstream.h"
-#include <dekaf2/kquicstream.h>
-#include <dekaf2/kpoll.h>
+#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/web/url/kurlencode.h>
+#include <dekaf2/net/tcp/kunixstream.h>
+#include <dekaf2/net/tcp/ktcpstream.h>
+#include <dekaf2/net/tls/ktlsstream.h>
+#include <dekaf2/net/quic/kquicstream.h>
+#include <dekaf2/net/util/kpoll.h>
 #include <openssl/ssl.h>
 
 DEKAF2_NAMESPACE_BEGIN

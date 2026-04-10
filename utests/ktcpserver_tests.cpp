@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/ktcpserver.h>
-#include <dekaf2/ksystem.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <thread>
 
 using namespace dekaf2;

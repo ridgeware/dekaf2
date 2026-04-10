@@ -40,12 +40,12 @@
 //
 */
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
-#include "kurl.h"
-#include <dekaf2/kstack.h>
-#include <dekaf2/kipaddress.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/containers/sequential/kstack.h>
+#include <dekaf2/net/address/kipaddress.h>
 #include <vector>
 
 

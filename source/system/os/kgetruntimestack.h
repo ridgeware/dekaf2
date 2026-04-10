@@ -45,10 +45,10 @@
 /// @file kgetruntimestack.h
 /// provides a stack tracer
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kjson.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/data/json/kjson.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

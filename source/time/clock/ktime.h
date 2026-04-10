@@ -44,14 +44,14 @@
 /// @file ktime.h
 /// cross platform date and time utilities
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/ktemplate.h>
-#include "kdate.h"
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/core/types/ktemplate.h>
+#include <dekaf2/time/clock/kdate.h>
 #if DEKAF2_HAS_TIMEZONES
-	#include <dekaf2/kthreadsafe.h>
+	#include <dekaf2/threading/primitives/kthreadsafe.h>
 #endif
 #include <cinttypes>
 #include <ctime>      // struct timespec, time_t
@@ -1554,11 +1554,11 @@ inline                     KString kTranslateDuration   (const KDuration& Durati
 
 DEKAF2_NAMESPACE_END
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/kformat.h>)
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/format/kformat.h>)
 
 // kFormat formatters
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE
 {
@@ -1718,7 +1718,7 @@ template<> struct formatter<DEKAF2_PREFIX detail::KParsedWebTimestamp> : formatt
 
 } // end of DEKAF2_FORMAT_NAMESPACE
 
-#endif // of has #include <dekaf2/kformat.h>
+#endif // of has #include <dekaf2/core/format/kformat.h>
 
 #if DEKAF2_HAS_INCLUDE(<dekaf2/crypto/hash/bits/khash.h>)
 

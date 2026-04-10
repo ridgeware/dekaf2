@@ -44,14 +44,14 @@
 /// @file kwebclient.h
 /// HTTP client implementation - high level
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kmime.h>
-#include <dekaf2/kurl.h>
-#include "khttpclient.h"
-#include <dekaf2/kjson.h>
-#include <dekaf2/kcookie.h>
-#include <dekaf2/kduration.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/web/url/kmime.h>
+#include <dekaf2/web/url/kurl.h>
+#include <dekaf2/http/client/khttpclient.h>
+#include <dekaf2/data/json/kjson.h>
+#include <dekaf2/http/cookie/kcookie.h>
+#include <dekaf2/time/duration/kduration.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

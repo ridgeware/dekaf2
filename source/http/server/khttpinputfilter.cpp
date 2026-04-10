@@ -39,12 +39,12 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "khttpinputfilter.h"
-#include <dekaf2/kchunkedtransfer.h>
-#include <dekaf2/kstringstream.h>
-#include <dekaf2/kcountingstreambuf.h>
+#include <dekaf2/http/server/khttpinputfilter.h>
+#include <dekaf2/http/protocol/kchunkedtransfer.h>
+#include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/io/streams/kcountingstreambuf.h>
 #include <dekaf2/io/compression/bits/kiostreams_filters.h>
-#include "khttperror.h"
+#include <dekaf2/http/server/khttperror.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

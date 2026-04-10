@@ -40,12 +40,12 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kunixstream.h"
+#include <dekaf2/net/tcp/kunixstream.h>
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
-#include <dekaf2/klog.h>
-#include <dekaf2/kurl.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/web/url/kurl.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

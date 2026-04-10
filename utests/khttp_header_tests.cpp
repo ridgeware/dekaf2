@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include <dekaf2/khttp_header.h>
-#include <dekaf2/khttpclient.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/http/client/khttpclient.h>
 #include <vector>
 
 using namespace dekaf2;

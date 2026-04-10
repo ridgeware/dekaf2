@@ -43,11 +43,11 @@
 
 
 /// @file khttp_request.h
-#include "khttp_method.h"
-#include "khttp_header.h"
-#include <dekaf2/khttpoutputfilter.h>
-#include <dekaf2/khttpinputfilter.h>
-#include <dekaf2/kstring.h>
+#include <dekaf2/http/protocol/khttp_method.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/http/server/khttpoutputfilter.h>
+#include <dekaf2/http/server/khttpinputfilter.h>
+#include <dekaf2/core/strings/kstring.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

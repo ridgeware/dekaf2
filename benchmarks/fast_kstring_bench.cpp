@@ -4,10 +4,10 @@
 #include <map>
 #include <set>
 #include <cinttypes>
-#include <dekaf2/kprof.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/klog.h>
-#include <dekaf2/dekaf2.h>
+#include <dekaf2/time/duration/kprof.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/init/dekaf2.h>
 
 using namespace dekaf2;
 

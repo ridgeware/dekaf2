@@ -1,7 +1,7 @@
 #include "catch.hpp"
-#include <dekaf2/krow.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kbase64.h>
+#include <dekaf2/data/sql/krow.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
 
 using namespace dekaf2;
 

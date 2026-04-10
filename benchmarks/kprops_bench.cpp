@@ -6,12 +6,12 @@
 #include <set>
 #include <unordered_set>
 #include <cinttypes>
-#include <dekaf2/kprof.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/kurlencode.h>
-#include <dekaf2/kassociative.h>
+#include <dekaf2/time/duration/kprof.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/web/url/kurlencode.h>
+#include <dekaf2/containers/associative/kassociative.h>
 
 using namespace std;
 using namespace dekaf2;

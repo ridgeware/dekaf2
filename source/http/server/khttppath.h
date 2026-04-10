@@ -42,11 +42,11 @@
 #pragma once
 
 #include <vector>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/kthreadsafe.h>
-#include <dekaf2/kregex.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/core/strings/kregex.h>
 
 /// @file khttppath.h
 /// Primitives for HTTP routing

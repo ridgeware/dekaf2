@@ -43,10 +43,10 @@
 
 
 /// @file khttp_response.h
-#include <dekaf2/kstringview.h>
-#include "khttp_header.h"
-#include <dekaf2/khttpinputfilter.h>
-#include <dekaf2/khttpoutputfilter.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/http/server/khttpinputfilter.h>
+#include <dekaf2/http/server/khttpoutputfilter.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

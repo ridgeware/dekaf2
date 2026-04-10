@@ -53,7 +53,7 @@
 /// with format strings like "{}>" or "{}<" - this is a really serious bug and we
 /// try to work around it
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 
 #undef DEKAF2_HAS_STD_FORMAT
 #undef DEKAF2_FORMAT_NAMESPACE

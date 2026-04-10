@@ -44,10 +44,10 @@
 /// @file koutstringstream.h
 /// provides an output stream that writes into a KString
 
-#include <dekaf2/kdefinitions.h>
-#include "kstreambuf.h"
-#include <dekaf2/kstring.h>
-#include <dekaf2/kwriter.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/io/streams/kstreambuf.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 #include <ostream>
 
 DEKAF2_NAMESPACE_BEGIN

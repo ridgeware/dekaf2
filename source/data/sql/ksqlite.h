@@ -50,8 +50,8 @@
 #include <chrono>
 
 #ifdef DEKAF2
-	#include <dekaf2/kstring.h>
-	#include <dekaf2/kstringview.h>
+	#include <dekaf2/core/strings/kstring.h>
+	#include <dekaf2/core/strings/kstringview.h>
 #else
 	#include <string>
 	#if __cplusplus > 201402L

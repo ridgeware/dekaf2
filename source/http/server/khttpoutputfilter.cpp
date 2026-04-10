@@ -41,10 +41,10 @@
 
 #include <dekaf2/io/compression/bits/kiostreams_filters.h>
 
-#include "khttpoutputfilter.h"
-#include <dekaf2/kchunkedtransfer.h>
-#include <dekaf2/kstringstream.h>
-#include <dekaf2/kmime.h>
+#include <dekaf2/http/server/khttpoutputfilter.h>
+#include <dekaf2/http/protocol/kchunkedtransfer.h>
+#include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/web/url/kmime.h>
 
 
 DEKAF2_NAMESPACE_BEGIN

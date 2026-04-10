@@ -40,11 +40,11 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kcgistream.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/khttp_header.h>
-#include <dekaf2/kctype.h>
+#include <dekaf2/http/server/kcgistream.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/core/types/kctype.h>
 #include <array>
 
 DEKAF2_NAMESPACE_BEGIN

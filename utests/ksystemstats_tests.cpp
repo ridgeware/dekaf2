@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstring.h>
-#include <dekaf2/ksystemstats.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/os/ksystemstats.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 

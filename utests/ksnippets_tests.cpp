@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <dekaf2/ksnippets.h>
+#include <dekaf2/data/template/ksnippets.h>
 #include <vector>
 
 using namespace dekaf2;

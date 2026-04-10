@@ -73,18 +73,18 @@
 #include <boost/exception/diagnostic_information.hpp>
 #endif
 
-#include "ktcpserver.h"
-#include <dekaf2/ktlscontext.h>
-#include <dekaf2/ktlsstream.h>
-#include "ktcpstream.h"
+#include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/net/tls/ktlscontext.h>
+#include <dekaf2/net/tls/ktlsstream.h>
+#include <dekaf2/net/tcp/ktcpstream.h>
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
-#include "kunixstream.h"
+#include <dekaf2/net/tcp/kunixstream.h>
 #endif
-#include <dekaf2/klog.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/ksignals.h>
-#include <dekaf2/krsacert.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/crypto/rsa/krsacert.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

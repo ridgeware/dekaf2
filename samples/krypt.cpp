@@ -39,13 +39,13 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <dekaf2/koptions.h>
-#include <dekaf2/kerror.h>
-#include <dekaf2/kblockcipher.h>
-#include <dekaf2/kencode.h>
-#include <dekaf2/kcompression.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/dekaf2.h>
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/crypto/cipher/kblockcipher.h>
+#include <dekaf2/crypto/encoding/kencode.h>
+#include <dekaf2/io/compression/kcompression.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/init/dekaf2.h>
 
 using namespace dekaf2;
 

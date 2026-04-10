@@ -43,10 +43,10 @@
 /// @file kbar.h
 /// provides ascii-style progress bar
 
-#include <dekaf2/kdefinitions.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kwriter.h>
+#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 #include <mutex>
 
 DEKAF2_NAMESPACE_BEGIN

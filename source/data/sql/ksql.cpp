@@ -47,31 +47,31 @@
 // #define DEKAF2_HAS_ODBC    <-- conditionally defined by makefile
 // #define DEKAF2_HAS_SQLITE3 <-- conditionally defined by makefile
 
-#include "ksql.h"   // <-- public header (should have no dependent headers other than DEKAF header)
+#include <dekaf2/data/sql/ksql.h>   // <-- public header (should have no dependent headers other than DEKAF header)
 #include <dekaf2/data/sql/bits/ksql_dbc.h>
-#include <dekaf2/dekaf2.h>
-#include <dekaf2/kcrashexit.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kregex.h>
-#include <dekaf2/kstack.h>
-#include <dekaf2/ksplit.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/kwebclient.h>
-#include <dekaf2/khash.h>
-#include <dekaf2/kbar.h>
-#include <dekaf2/kscopeguard.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/kduration.h>
-#include <dekaf2/khex.h>
-#include <dekaf2/kcsv.h>
-#include <dekaf2/kfrozen.h>
-#include <dekaf2/kxterm.h>
-#include <dekaf2/koutshell.h>
-#include <dekaf2/kformtable.h>
-#include <dekaf2/kencode.h>
-#include <dekaf2/kuuid.h>
-#include <dekaf2/kthreadpool.h>
+#include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/errors/kcrashexit.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/core/strings/kregex.h>
+#include <dekaf2/containers/sequential/kstack.h>
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/crypto/hash/khash.h>
+#include <dekaf2/core/format/kbar.h>
+#include <dekaf2/core/types/kscopeguard.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/crypto/encoding/khex.h>
+#include <dekaf2/data/csv/kcsv.h>
+#include <dekaf2/core/types/kfrozen.h>
+#include <dekaf2/util/cli/kxterm.h>
+#include <dekaf2/system/process/koutshell.h>
+#include <dekaf2/core/format/kformtable.h>
+#include <dekaf2/crypto/encoding/kencode.h>
+#include <dekaf2/util/id/kuuid.h>
+#include <dekaf2/threading/execution/kthreadpool.h>
 #include <cstdint>
 #include <utility>
 
@@ -97,7 +97,7 @@
 #endif
 
 #ifdef DEKAF2_HAS_SQLITE3
-  #include "ksqlite.h"
+  #include <dekaf2/data/sql/ksqlite.h>
 #endif
 
 #ifdef DEKAF2_HAS_POSTGRESQL

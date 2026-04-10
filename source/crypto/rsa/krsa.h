@@ -45,10 +45,10 @@
 /// @file krsa.h
 /// RSA encryption/decryption
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kstring.h>
-#include "krsakey.h"
-#include <dekaf2/kerror.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/core/errors/kerror.h>
 
 struct evp_pkey_ctx_st;
 

@@ -1,12 +1,12 @@
 #include "catch.hpp"
-#include <dekaf2/kron.h>
-#include <dekaf2/ktime.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kfilesystem.h>
+#include <dekaf2/time/scheduler/kron.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 #if DEKAF2_HAS_INCLUDE(<dekaf2/time/scheduler/bits/kron_utils.h>)
 #include <dekaf2/time/scheduler/bits/kron_utils.h>
-#include <dekaf2/libs/croncpp/include/croncpp.h>
+#include "../libs/croncpp/include/croncpp.h"
 
 using namespace dekaf2;
 

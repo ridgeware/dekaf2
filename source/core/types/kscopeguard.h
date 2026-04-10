@@ -48,7 +48,7 @@
 /// @file kscopeguard.h
 /// Ad-hoc definition of RAII exit actions
 
-#include "kdefinitions.h"
+#include <dekaf2/core/types/kdefinitions.h>
 #include <functional>
 #include <utility>
 

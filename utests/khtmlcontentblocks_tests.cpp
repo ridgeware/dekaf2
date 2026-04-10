@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/khtmlcontentblocks.h>
-#include <dekaf2/kstringstream.h>
+#include <dekaf2/web/html/khtmlcontentblocks.h>
+#include <dekaf2/io/streams/kstringstream.h>
 #include <vector>
 
 using namespace dekaf2;

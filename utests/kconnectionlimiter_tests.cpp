@@ -1,7 +1,7 @@
 #include "catch.hpp"
 
-#include <dekaf2/kconnectionlimiter.h>
-#include <dekaf2/kexception.h>
+#include <dekaf2/rest/limits/kconnectionlimiter.h>
+#include <dekaf2/core/errors/kexception.h>
 
 using namespace dekaf2;
 

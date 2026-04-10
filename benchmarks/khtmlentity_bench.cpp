@@ -1,9 +1,9 @@
 
 #include <cinttypes>
-#include <dekaf2/kprof.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/kstringview.h>
-#include <dekaf2/khtmlentities.h>
+#include <dekaf2/time/duration/kprof.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/web/html/khtmlentities.h>
 
 using namespace dekaf2;
 

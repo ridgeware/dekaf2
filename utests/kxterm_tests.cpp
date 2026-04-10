@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <dekaf2/kxterm.h>
+#include <dekaf2/util/cli/kxterm.h>
 
 using namespace dekaf2;
 

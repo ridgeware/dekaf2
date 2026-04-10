@@ -1,15 +1,15 @@
 #include "catch.hpp"
 
-#include <dekaf2/dekaf2.h>
+#include <dekaf2/core/init/dekaf2.h>
 #ifdef DEKAF2_HAS_LIBZIP
 
-#include <dekaf2/kzip.h>
-#include <dekaf2/kfilesystem.h>
-#include <dekaf2/ksystem.h>
-#include <dekaf2/kwriter.h>
-#include <dekaf2/kreader.h>
-#include <dekaf2/kinshell.h>
-#include <dekaf2/klog.h>
+#include <dekaf2/util/archive/kzip.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/system/process/kinshell.h>
+#include <dekaf2/core/logging/klog.h>
 
 using namespace dekaf2;
 

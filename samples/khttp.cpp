@@ -39,14 +39,14 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <dekaf2/koptions.h>
-#include <dekaf2/kerror.h>
-#include <dekaf2/kstringutils.h>
-#include <dekaf2/krest.h>
-#include <dekaf2/krestroute.h>
-#include <dekaf2/khttperror.h>
-#include <dekaf2/kwebserverpermissions.h>
-#include <dekaf2/dekaf2.h> // KInit()
+#include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/rest/framework/krest.h>
+#include <dekaf2/rest/framework/krestroute.h>
+#include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/rest/serving/kwebserverpermissions.h>
+#include <dekaf2/core/init/dekaf2.h> // KInit()
 
 using namespace dekaf2;
 

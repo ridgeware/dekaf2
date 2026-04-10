@@ -39,11 +39,11 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kxml.h"
-#include <dekaf2/klog.h>
-#include <dekaf2/kexception.h>
-#include <dekaf2/libs/rapidxml-1.13/rapidxml.hpp>
-#include <dekaf2/libs/rapidxml-1.13/rapidxml_print.hpp>
+#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/errors/kexception.h>
+#include "../../libs/rapidxml-1.13/rapidxml.hpp"
+#include "../../libs/rapidxml-1.13/rapidxml_print.hpp"
 
 DEKAF2_NAMESPACE_BEGIN
 

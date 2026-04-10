@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
 #include <cstring>
-#include <dekaf2/kbitfields.h>
-#include <dekaf2/kaddrplus.h>
+#include <dekaf2/core/types/kbitfields.h>
+#include <dekaf2/util/misc/kaddrplus.h>
 
 using namespace dekaf2;
 

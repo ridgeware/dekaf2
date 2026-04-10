@@ -1,8 +1,8 @@
 #include "catch.hpp"
-#include <dekaf2/kjoin.h>
-#include <dekaf2/kprops.h>
-#include <dekaf2/kstring.h>
-#include <dekaf2/koutstringstream.h>
+#include <dekaf2/core/strings/kjoin.h>
+#include <dekaf2/containers/associative/kprops.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/io/streams/koutstringstream.h>
 #include <vector>
 #include <map>
 #include <set>

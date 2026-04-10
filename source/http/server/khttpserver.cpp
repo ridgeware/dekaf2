@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "khttpserver.h"
+#include <dekaf2/http/server/khttpserver.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN

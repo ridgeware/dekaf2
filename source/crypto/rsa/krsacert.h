@@ -45,11 +45,11 @@
 /// @file krsacert.h
 /// create an x509 cert with KRSAKey
 
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kerror.h>
-#include "krsakey.h"
-#include <dekaf2/ktime.h>
-#include <dekaf2/kduration.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/time/clock/ktime.h>
+#include <dekaf2/time/duration/kduration.h>
 
 struct x509_st;
 

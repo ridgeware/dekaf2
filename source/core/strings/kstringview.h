@@ -47,13 +47,13 @@
 /// operations, handles error cases gracefully instead of causing UB,
 /// and speeds up searching by up to 50x using SIMD where available
 
-#include <dekaf2/kdefinitions.h>
+#include <dekaf2/core/types/kdefinitions.h>
 #include <dekaf2/core/strings/bits/kstring_view.h>
 #include <dekaf2/crypto/hash/bits/khash.h>
-#include <dekaf2/ktemplate.h>
-#include <dekaf2/kutf.h>
-#include <dekaf2/kutf_iterator.h>
-#include <dekaf2/kbit.h>
+#include <dekaf2/core/types/ktemplate.h>
+#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/types/kutf_iterator.h>
+#include <dekaf2/core/types/kbit.h>
 #include <fmt/format.h>
 #include <cinttypes>
 #include <functional>
@@ -2158,9 +2158,9 @@ DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC std::size_t DEKAF2_PREFIX KStringView::CaseHas
 }
 
 #include <dekaf2/core/strings/bits/kstringviewz.h>
-#include "ksplit.h"
-#include "kstring.h"
-#include "kstringutils.h"
+#include <dekaf2/core/strings/ksplit.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringutils.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -2349,7 +2349,7 @@ T KStringView::Split(Parms&&... parms) const
 
 DEKAF2_NAMESPACE_END
 
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/format/kformat.h>
 
 namespace DEKAF2_FORMAT_NAMESPACE {
 

@@ -40,8 +40,8 @@
 //
 */
 
-#include "kcsv.h"
-#include <dekaf2/kstringutils.h>
+#include <dekaf2/data/csv/kcsv.h>
+#include <dekaf2/core/strings/kstringutils.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

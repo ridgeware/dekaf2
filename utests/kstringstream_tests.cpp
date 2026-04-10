@@ -1,8 +1,8 @@
 #include "catch.hpp"
 
-#include <dekaf2/kstringstream.h>
-#include <dekaf2/kinstringstream.h>
-#include <dekaf2/koutstringstream.h>
+#include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/io/streams/kinstringstream.h>
+#include <dekaf2/io/streams/koutstringstream.h>
 #include <vector>
 
 using namespace dekaf2;

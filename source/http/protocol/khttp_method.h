@@ -43,8 +43,8 @@
 
 
 /// @file khttp_method.h
-#include <dekaf2/kstringview.h>
-#include <dekaf2/kformat.h>
+#include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/format/kformat.h>
 
 #ifdef DEKAF2_IS_WINDOWS
 	// Windows has a DELETE macro in winnt.h which interferes with

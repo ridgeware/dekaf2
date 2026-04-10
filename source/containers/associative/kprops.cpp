@@ -41,7 +41,7 @@
 */
 
 #include "kprops.h"
-#include "kstring.h"
+#include <dekaf2/kstring.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

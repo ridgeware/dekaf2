@@ -54,7 +54,7 @@
 /// any given point in time across threads, and therefore a call to use_count() is
 /// declared as "approximate" by the standard.
 
-#include "kdefinitions.h" // for DEKAF2_NAMESPACE
+#include <dekaf2/kdefinitions.h> // for DEKAF2_NAMESPACE
 #include <atomic>
 
 DEKAF2_NAMESPACE_BEGIN

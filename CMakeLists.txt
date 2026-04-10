@@ -1255,9 +1255,9 @@ set(PUBLIC_HEADERS
 	dekaf2all.h
 	kaddrplus.h
 	kaes.h
-	kallocator.h
+	source/containers/memory/kallocator.h
 	karia.h
-	kassociative.h
+	source/containers/associative/kassociative.h
 	katomic_object.h
 	kawsauth.h
 	source/core/format/kbar.h
@@ -1266,9 +1266,9 @@ set(PUBLIC_HEADERS
 	source/core/types/kbit.h
 	source/core/types/kbitfields.h
 	kblockcipher.h
-	kbuffer.h
+	source/containers/sequential/kbuffer.h
 	kbufferedreader.h
-	kcache.h
+	source/containers/associative/kcache.h
 	kcamellia.h
 	source/core/strings/kcaseless.h
 	source/core/strings/kcasestring.h
@@ -1306,7 +1306,7 @@ set(PUBLIC_HEADERS
 	khash.h
 	kheapmon.h
 	khex.h
-	khistory.h
+	source/containers/sequential/khistory.h
 	khttp2.h
 	khttp3.h
 	khmac.h
@@ -1339,7 +1339,7 @@ set(PUBLIC_HEADERS
 	kjson2.h
 	kjuliandate.h
 	klambdastream.h
-	klockmap.h
+	source/containers/associative/klockmap.h
 	source/core/logging/klog.h
 	source/core/logging/klogrotate.h
 	kmail.h
@@ -1348,7 +1348,7 @@ set(PUBLIC_HEADERS
 	kmime.h
 	kmodifyingstreambuf.h
 	source/core/strings/kmpsearch.h
-	kmru.h
+	source/containers/associative/kmru.h
 	knetworkinterface.h
 	kngram.h
 	koptions.h
@@ -1358,13 +1358,13 @@ set(PUBLIC_HEADERS
 	koutshell.h
 	koutstringstream.h
 	kparallel.h
-	kpersist.h
+	source/containers/memory/kpersist.h
 	kpipe.h
 	kpty.h
-	kpool.h
+	source/containers/memory/kpool.h
 	kpoll.h
 	kprof.h
-	kprops.h
+	source/containers/associative/kprops.h
 	kquicstream.h
 	kquotedprintable.h
 	krandom.h
@@ -1387,14 +1387,14 @@ set(PUBLIC_HEADERS
 	krsasign.h
 	source/core/types/kscopeguard.h
 	ksharedmemory.h
-	ksharedref.h
-	ksharedptr.h
+	source/containers/memory/ksharedref.h
+	source/containers/memory/ksharedptr.h
 	ksignals.h
 	ksmtp.h
 	ksnippets.h
 	source/core/errors/ksourcelocation.h
 	source/core/strings/ksplit.h
-	kstack.h
+	source/containers/sequential/kstack.h
 	kstream.h
 	kstreambuf.h
 	kstreambufadaptor.h
@@ -1597,7 +1597,7 @@ set (SOURCES
 	khash.cpp
 	kheapmon.cpp
 	khex.cpp
-	khistory.cpp
+	source/containers/sequential/khistory.cpp
 	khttp2.cpp
 	khttp3.cpp
 	khmac.cpp
@@ -1648,7 +1648,7 @@ set (SOURCES
 	kpty.cpp
 	kpoll.cpp
 	kprof.cpp
-	kprops.cpp
+	source/containers/associative/kprops.cpp
 	kquicstream.cpp
 	kquotedprintable.cpp
 	krandom.cpp

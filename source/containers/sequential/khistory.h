@@ -44,9 +44,9 @@
 /// @file khistory.h
 /// history management
 
-#include "kdefinitions.h"
-#include "kstringview.h"
-#include "kstring.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kstring.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

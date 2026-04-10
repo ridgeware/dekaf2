@@ -46,7 +46,7 @@
 /// and range protection
 
 #include <deque>
-#include "klog.h"
+#include <dekaf2/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

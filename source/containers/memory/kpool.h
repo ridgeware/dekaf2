@@ -45,9 +45,9 @@
 /// @file kpool.h
 /// generic pools to reuse expensive to construct objects
 
-#include "kdefinitions.h"
-#include "klog.h"
-#include "ktimeseries.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/ktimeseries.h>
 #include <memory>
 #include <mutex>
 #include <condition_variable>

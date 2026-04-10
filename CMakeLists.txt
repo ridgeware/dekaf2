@@ -75,7 +75,7 @@ if (WIN32)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.1.9 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.1.10 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1234,7 +1234,6 @@ endif()
 set(PUBLIC_HEADERS
 	# KEEP ALPHABETIZED
 	source/core/init/dekaf2.h
-	compat/flat/dekaf2all.h
 	source/util/misc/kaddrplus.h
 	source/crypto/cipher/kaes.h
 	source/util/misc/karia.h
@@ -1773,6 +1772,10 @@ set(DEKAF2_SOURCE_FILES
 	${SOURCES}
 )
 
+# create hierarchical source groups for IDEs (Xcode, Visual Studio, etc.)
+# this places .h and .cpp files in the same tree node matching the directory structure
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${DEKAF2_SOURCE_FILES})
+
 if (DEKAF2_INSTALL_INCLUDE)
 	set (DEKAF2_PUBLIC_INCLUDE_DIRECTORIES
 		$<INSTALL_INTERFACE:${dekaf2_include_dest}>
@@ -1922,7 +1925,9 @@ set(KSQL2_COMPILE_DEFINITIONS
 		DEKAF2_LIBRARY_BUILD
 )
 
-add_library                   (ksql2-objects OBJECT source/data/sql/ksql.cpp source/data/sql/ksql.h source/data/sql/bits/ksql_dbc.cpp source/data/sql/bits/ksql_dbc.h)
+set(KSQL2_SOURCE_FILES source/data/sql/ksql.cpp source/data/sql/ksql.h source/data/sql/bits/ksql_dbc.cpp source/data/sql/bits/ksql_dbc.h)
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${KSQL2_SOURCE_FILES})
+add_library                   (ksql2-objects OBJECT ${KSQL2_SOURCE_FILES})
 target_include_directories    (ksql2-objects PUBLIC ${KSQL2_INCLUDE_DIRECTORIES})
 target_link_libraries         (ksql2-objects ${KSQL2_LINK_LIBRARIES} dekaf2)
 target_compile_definitions    (ksql2-objects ${KSQL2_COMPILE_DEFINITIONS})

@@ -1251,7 +1251,7 @@ endif()
 
 set(PUBLIC_HEADERS
 	# KEEP ALPHABETIZED
-	dekaf2.h
+	source/core/init/dekaf2.h
 	dekaf2all.h
 	kaddrplus.h
 	kaes.h
@@ -1260,48 +1260,48 @@ set(PUBLIC_HEADERS
 	kassociative.h
 	katomic_object.h
 	kawsauth.h
-	kbar.h
+	source/core/format/kbar.h
 	kbase64.h
 	kbcrypt.h
-	kbit.h
-	kbitfields.h
+	source/core/types/kbit.h
+	source/core/types/kbitfields.h
 	kblockcipher.h
 	kbuffer.h
 	kbufferedreader.h
 	kcache.h
 	kcamellia.h
-	kcaseless.h
-	kcasestring.h
-	kcesu8.h
+	source/core/strings/kcaseless.h
+	source/core/strings/kcasestring.h
+	source/core/strings/kcesu8.h
 	kcgistream.h
 	kchacha.h
 	kchildprocess.h
 	kchunkedtransfer.h
-	kcompatibility.h
+	source/core/types/kcompatibility.h
 	kcompression.h
 	kconnectionlimiter.h
 	kcookie.h
 	kcountingstreambuf.h
-	kcrashexit.h
+	source/core/errors/kcrashexit.h
 	kcrc.h
 	kcsv.h
-	kctype.h
+	source/core/types/kctype.h
 	kdataprovider.h
 	kdataconsumer.h
 	kdate.h
-	kdefinitions.h
+	source/core/types/kdefinitions.h
 	kdiff.h
 	kduration.h
 	kencode.h
-	keraseremove.h
-	kerror.h
-	kexception.h
+	source/core/types/keraseremove.h
+	source/core/errors/kerror.h
+	source/core/errors/kexception.h
 	kfdstream.h
 	kfileserver.h
 	kfilesystem.h
-	kformat.h
-	kformtable.h
-	kfrozen.h
+	source/core/format/kformat.h
+	source/core/format/kformtable.h
+	source/core/types/kfrozen.h
 	kgetruntimestack.h
 	khash.h
 	kheapmon.h
@@ -1334,20 +1334,20 @@ set(PUBLIC_HEADERS
 	kiostreamsocket.h
 	kipaddress.h
 	kipnetwork.h
-	kjoin.h
+	source/core/strings/kjoin.h
 	kjson.h
 	kjson2.h
 	kjuliandate.h
 	klambdastream.h
 	klockmap.h
-	klog.h
-	klogrotate.h
+	source/core/logging/klog.h
+	source/core/logging/klogrotate.h
 	kmail.h
 	kmakecopyable.h
 	kmessagedigest.h
 	kmime.h
 	kmodifyingstreambuf.h
-	kmpsearch.h
+	source/core/strings/kmpsearch.h
 	kmru.h
 	knetworkinterface.h
 	kngram.h
@@ -1371,8 +1371,8 @@ set(PUBLIC_HEADERS
 	kratelimiter.h
 	kread.h
 	kreader.h
-	kreference_proxy.h
-	kregex.h
+	source/core/types/kreference_proxy.h
+	source/core/strings/kregex.h
 	kreplacer.h
 	kresolve.h
 	krest.h
@@ -1385,24 +1385,24 @@ set(PUBLIC_HEADERS
 	krsacert.h
 	krsakey.h
 	krsasign.h
-	kscopeguard.h
+	source/core/types/kscopeguard.h
 	ksharedmemory.h
 	ksharedref.h
 	ksharedptr.h
 	ksignals.h
 	ksmtp.h
 	ksnippets.h
-	ksourcelocation.h
-	ksplit.h
+	source/core/errors/ksourcelocation.h
+	source/core/strings/ksplit.h
 	kstack.h
 	kstream.h
 	kstreambuf.h
 	kstreambufadaptor.h
 	kstreamoptions.h
-	kstring.h
+	source/core/strings/kstring.h
 	kstringstream.h
-	kstringutils.h
-	kstringview.h
+	source/core/strings/kstringutils.h
+	source/core/strings/kstringview.h
 	ksubscribe.h
 	ksystem.h
 	ksystemstats.h
@@ -1410,7 +1410,7 @@ set(PUBLIC_HEADERS
 	ktcpserver.h
 	ktcpstream.h
 	ktemperature.h
-	ktemplate.h
+	source/core/types/ktemplate.h
 	kthreadpool.h
 	kthreads.h
 	kthreadsafe.h
@@ -1425,11 +1425,11 @@ set(PUBLIC_HEADERS
 	kurl.h
 	kurlencode.h
 	kuseragent.h
-	kutf.h
-	kutf_iterator.h
+	source/core/types/kutf.h
+	source/core/types/kutf_iterator.h
 	kuuid.h
-	kvariant.h
-	kversion.h
+	source/core/types/kvariant.h
+	source/core/types/kversion.h
 	kwebclient.h
 	kwebdav.h
 	kwebobjects.h
@@ -1437,7 +1437,7 @@ set(PUBLIC_HEADERS
 	kwebserverpermissions.h
 	kwebsocket.h
 	kwebsocketclient.h
-	kwords.h
+	source/core/strings/kwords.h
 	kwrite.h
 	kwriter.h
 	kxml.h
@@ -1562,37 +1562,37 @@ set (SOURCES
 	bits/kstringviewz.cpp
 	bits/simd/kfindfirstof.cpp
 	bits/simd/kutf.cpp
-	dekaf2.cpp
+	source/core/init/dekaf2.cpp
 	kawsauth.cpp
-	kbar.cpp
+	source/core/format/kbar.cpp
 	kbase64.cpp
 	kbcrypt.cpp
 	kblockcipher.cpp
 	kbufferedreader.cpp
-	kcaseless.cpp
-	kcasestring.cpp
+	source/core/strings/kcaseless.cpp
+	source/core/strings/kcasestring.cpp
 	kcgistream.cpp
 	kchildprocess.cpp
 	kchunkedtransfer.cpp
-	kcompatibility.cpp
+	source/core/types/kcompatibility.cpp
 	kcompression.cpp
 	kcookie.cpp
 	kcountingstreambuf.cpp
-	kcrashexit.cpp
+	source/core/errors/kcrashexit.cpp
 	kcrc.cpp
 	kcsv.cpp
-	kctype.cpp
+	source/core/types/kctype.cpp
 	kdataprovider.cpp
 	kdataconsumer.cpp
 	kdate.cpp
 	kdiff.cpp
 	kduration.cpp
-	kerror.cpp
+	source/core/errors/kerror.cpp
 	kfdstream.cpp
 	kfileserver.cpp
 	kfilesystem.cpp
-	kformat.cpp
-	kformtable.cpp
+	source/core/format/kformat.cpp
+	source/core/format/kformtable.cpp
 	kgetruntimestack.cpp
 	khash.cpp
 	kheapmon.cpp
@@ -1629,13 +1629,13 @@ set (SOURCES
 	kjson2.cpp
 	kjuliandate.cpp
 	klambdastream.cpp
-	klog.cpp
-	klogrotate.cpp
+	source/core/logging/klog.cpp
+	source/core/logging/klogrotate.cpp
 	kmail.cpp
 	kmessagedigest.cpp
 	kmime.cpp
 	kmodifyingstreambuf.cpp
-	kmpsearch.cpp
+	source/core/strings/kmpsearch.cpp
 	knetworkinterface.cpp
 	kopenid.cpp
 	koptions.cpp
@@ -1654,7 +1654,7 @@ set (SOURCES
 	krandom.cpp
 	kread.cpp
 	kreader.cpp
-	kregex.cpp
+	source/core/strings/kregex.cpp
 	kreplacer.cpp
 	kresolve.cpp
 	krest.cpp
@@ -1673,15 +1673,15 @@ set (SOURCES
 	ksignals.cpp
 	ksmtp.cpp
 	ksnippets.cpp
-	ksplit.cpp
+	source/core/strings/ksplit.cpp
 	kstream.cpp
 	kstreambuf.cpp
 	kstreambufadaptor.cpp
 	kstreamoptions.cpp
-	kstring.cpp
+	source/core/strings/kstring.cpp
 	kstringstream.cpp
-	kstringutils.cpp
-	kstringview.cpp
+	source/core/strings/kstringutils.cpp
+	source/core/strings/kstringview.cpp
 	ksystem.cpp
 	ksystemstats.cpp
 	ktcpserver.cpp
@@ -1699,7 +1699,7 @@ set (SOURCES
 	kurlencode.cpp
 	kuseragent.cpp
 	kuuid.cpp
-	kversion.cpp
+	source/core/types/kversion.cpp
 	kwebclient.cpp
 	kwebdav.cpp
 	kwebobjects.cpp
@@ -1707,7 +1707,7 @@ set (SOURCES
 	kwebserverpermissions.cpp
 	kwebsocket.cpp
 	kwebsocketclient.cpp
-	kwords.cpp
+	source/core/strings/kwords.cpp
 	kwrite.cpp
 	kwriter.cpp
 	kxml.cpp

@@ -68,6 +68,10 @@
 /// @ingroup core
 /// @brief Application logging and log rotation.
 
+/// @defgroup core_init Initialization
+/// @ingroup core
+/// @brief Library initialization, daemon/fork support, and startup configuration.
+
 // =============================================================================
 // containers/ submodules
 // =============================================================================

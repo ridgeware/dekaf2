@@ -1,0 +1,311 @@
+# dekaf2 restructure mapping: old_name -> new_path
+# format: <header> -> <category/subcategory/header>
+# this file drives stub generation and the migration script
+#
+# ROOT
+# dekaf2all.h  (stays in root, no stub needed)
+# dekaf2project.cpp (stays in root, no stub needed)
+dekaf2.h -> core/init/dekaf2.h
+
+# === core/types/ ===
+kbit.h -> core/types/kbit.h
+kbitfields.h -> core/types/kbitfields.h
+kcompatibility.h -> core/types/kcompatibility.h
+kctype.h -> core/types/kctype.h
+kdefinitions.h -> core/types/kdefinitions.h
+kencode.h -> core/types/kencode.h
+keraseremove.h -> core/types/keraseremove.h
+kfrozen.h -> core/types/kfrozen.h
+kreference_proxy.h -> core/types/kreference_proxy.h
+kscopeguard.h -> core/types/kscopeguard.h
+ktemplate.h -> core/types/ktemplate.h
+kvariant.h -> core/types/kvariant.h
+kversion.h -> core/types/kversion.h
+kutf.h -> core/types/kutf.h
+kutf_iterator.h -> core/types/kutf_iterator.h
+
+# === core/strings/ ===
+kcaseless.h -> core/strings/kcaseless.h
+kcasestring.h -> core/strings/kcasestring.h
+kcesu8.h -> core/strings/kcesu8.h
+kjoin.h -> core/strings/kjoin.h
+kmpsearch.h -> core/strings/kmpsearch.h
+kregex.h -> core/strings/kregex.h
+ksplit.h -> core/strings/ksplit.h
+kstring.h -> core/strings/kstring.h
+kstringutils.h -> core/strings/kstringutils.h
+kstringview.h -> core/strings/kstringview.h
+kwords.h -> core/strings/kwords.h
+
+# === core/errors/ ===
+kcrashexit.h -> core/errors/kcrashexit.h
+kerror.h -> core/errors/kerror.h
+kexception.h -> core/errors/kexception.h
+ksourcelocation.h -> core/errors/ksourcelocation.h
+
+# === core/format/ ===
+kbar.h -> core/format/kbar.h
+kformat.h -> core/format/kformat.h
+kformtable.h -> core/format/kformtable.h
+
+# === core/logging/ ===
+klog.h -> core/logging/klog.h
+klogrotate.h -> core/logging/klogrotate.h
+
+# === containers/associative/ ===
+kassociative.h -> containers/associative/kassociative.h
+kcache.h -> containers/associative/kcache.h
+klockmap.h -> containers/associative/klockmap.h
+kmru.h -> containers/associative/kmru.h
+kprops.h -> containers/associative/kprops.h
+
+# === containers/sequential/ ===
+kbuffer.h -> containers/sequential/kbuffer.h
+khistory.h -> containers/sequential/khistory.h
+kstack.h -> containers/sequential/kstack.h
+
+# === containers/memory/ ===
+kallocator.h -> containers/memory/kallocator.h
+kpersist.h -> containers/memory/kpersist.h
+kpool.h -> containers/memory/kpool.h
+ksharedptr.h -> containers/memory/ksharedptr.h
+ksharedref.h -> containers/memory/ksharedref.h
+
+# === io/streams/ ===
+kcountingstreambuf.h -> io/streams/kcountingstreambuf.h
+kfdstream.h -> io/streams/kfdstream.h
+kinstringstream.h -> io/streams/kinstringstream.h
+klambdastream.h -> io/streams/klambdastream.h
+kmodifyingstreambuf.h -> io/streams/kmodifyingstreambuf.h
+koutstringstream.h -> io/streams/koutstringstream.h
+kstream.h -> io/streams/kstream.h
+kstreambuf.h -> io/streams/kstreambuf.h
+kstreambufadaptor.h -> io/streams/kstreambufadaptor.h
+kstreamoptions.h -> io/streams/kstreamoptions.h
+kstringstream.h -> io/streams/kstringstream.h
+
+# === io/readwrite/ ===
+kbufferedreader.h -> io/readwrite/kbufferedreader.h
+kread.h -> io/readwrite/kread.h
+kreader.h -> io/readwrite/kreader.h
+kwrite.h -> io/readwrite/kwrite.h
+kwriter.h -> io/readwrite/kwriter.h
+
+# === io/compression/ ===
+kcompression.h -> io/compression/kcompression.h
+
+# === io/pipes/ ===
+kdataconsumer.h -> io/pipes/kdataconsumer.h
+kdataprovider.h -> io/pipes/kdataprovider.h
+kinpipe.h -> io/pipes/kinpipe.h
+koutpipe.h -> io/pipes/koutpipe.h
+kpipe.h -> io/pipes/kpipe.h
+
+# === system/os/ ===
+kgetruntimestack.h -> system/os/kgetruntimestack.h
+kheapmon.h -> system/os/kheapmon.h
+ksignals.h -> system/os/ksignals.h
+ksystem.h -> system/os/ksystem.h
+ksystemstats.h -> system/os/ksystemstats.h
+
+# === system/filesystem/ ===
+kfilesystem.h -> system/filesystem/kfilesystem.h
+
+# === system/process/ ===
+kchildprocess.h -> system/process/kchildprocess.h
+kinshell.h -> system/process/kinshell.h
+koutshell.h -> system/process/koutshell.h
+kpty.h -> system/process/kpty.h
+
+# === system/shared/ ===
+ksharedmemory.h -> system/shared/ksharedmemory.h
+
+# === net/address/ ===
+kipaddress.h -> net/address/kipaddress.h
+kipnetwork.h -> net/address/kipnetwork.h
+knetworkinterface.h -> net/address/knetworkinterface.h
+kresolve.h -> net/address/kresolve.h
+
+# === net/tcp/ ===
+ktcpclient.h -> net/tcp/ktcpclient.h
+ktcpserver.h -> net/tcp/ktcpserver.h
+ktcpstream.h -> net/tcp/ktcpstream.h
+kunixstream.h -> net/tcp/kunixstream.h
+
+# === net/tls/ ===
+kiostreamsocket.h -> net/tls/kiostreamsocket.h
+ktlscontext.h -> net/tls/ktlscontext.h
+ktlsstream.h -> net/tls/ktlsstream.h
+
+# === net/quic/ ===
+kquicstream.h -> net/quic/kquicstream.h
+
+# === net/util/ ===
+kpoll.h -> net/util/kpoll.h
+ktunnel.h -> net/util/ktunnel.h
+
+# === http/protocol/ ===
+kchunkedtransfer.h -> http/protocol/kchunkedtransfer.h
+khttp2.h -> http/protocol/khttp2.h
+khttp3.h -> http/protocol/khttp3.h
+khttp_header.h -> http/protocol/khttp_header.h
+khttp_method.h -> http/protocol/khttp_method.h
+khttp_request.h -> http/protocol/khttp_request.h
+khttp_response.h -> http/protocol/khttp_response.h
+khttp_version.h -> http/protocol/khttp_version.h
+khttpcompression.h -> http/protocol/khttpcompression.h
+
+# === http/client/ ===
+khttpclient.h -> http/client/khttpclient.h
+kwebclient.h -> http/client/kwebclient.h
+
+# === http/server/ ===
+kcgistream.h -> http/server/kcgistream.h
+khttperror.h -> http/server/khttperror.h
+khttpinputfilter.h -> http/server/khttpinputfilter.h
+khttplog.h -> http/server/khttplog.h
+khttpoutputfilter.h -> http/server/khttpoutputfilter.h
+khttppath.h -> http/server/khttppath.h
+khttprouter.h -> http/server/khttprouter.h
+khttpserver.h -> http/server/khttpserver.h
+
+# === http/cookie/ ===
+kcookie.h -> http/cookie/kcookie.h
+
+# === http/websocket/ ===
+kwebsocket.h -> http/websocket/kwebsocket.h
+kwebsocketclient.h -> http/websocket/kwebsocketclient.h
+
+# === rest/framework/ ===
+krest.h -> rest/framework/krest.h
+krestclient.h -> rest/framework/krestclient.h
+krestroute.h -> rest/framework/krestroute.h
+krestserver.h -> rest/framework/krestserver.h
+
+# === rest/serving/ ===
+kfileserver.h -> rest/serving/kfileserver.h
+kwebserver.h -> rest/serving/kwebserver.h
+kwebserverpermissions.h -> rest/serving/kwebserverpermissions.h
+
+# === rest/limits/ ===
+kconnectionlimiter.h -> rest/limits/kconnectionlimiter.h
+kratelimiter.h -> rest/limits/kratelimiter.h
+
+# === web/url/ ===
+kmime.h -> web/url/kmime.h
+kurl.h -> web/url/kurl.h
+kurlencode.h -> web/url/kurlencode.h
+kuseragent.h -> web/url/kuseragent.h
+
+# === web/html/ ===
+khtmlcontentblocks.h -> web/html/khtmlcontentblocks.h
+khtmldom.h -> web/html/khtmldom.h
+khtmlentities.h -> web/html/khtmlentities.h
+khtmlparser.h -> web/html/khtmlparser.h
+
+# === web/xml/ ===
+kxml.h -> web/xml/kxml.h
+
+# === web/objects/ ===
+kwebdav.h -> web/objects/kwebdav.h
+kwebobjects.h -> web/objects/kwebobjects.h
+
+# === crypto/hash/ ===
+kcrc.h -> crypto/hash/kcrc.h
+khash.h -> crypto/hash/khash.h
+khmac.h -> crypto/hash/khmac.h
+kmessagedigest.h -> crypto/hash/kmessagedigest.h
+
+# === crypto/encoding/ ===
+kbase64.h -> crypto/encoding/kbase64.h
+kencode.h -> crypto/encoding/kencode.h
+khex.h -> crypto/encoding/khex.h
+kquotedprintable.h -> crypto/encoding/kquotedprintable.h
+
+# === crypto/cipher/ ===
+kaes.h -> crypto/cipher/kaes.h
+kblockcipher.h -> crypto/cipher/kblockcipher.h
+kcamellia.h -> crypto/cipher/kcamellia.h
+kchacha.h -> crypto/cipher/kchacha.h
+
+# === crypto/rsa/ ===
+krsa.h -> crypto/rsa/krsa.h
+krsacert.h -> crypto/rsa/krsacert.h
+krsakey.h -> crypto/rsa/krsakey.h
+krsasign.h -> crypto/rsa/krsasign.h
+
+# === crypto/auth/ ===
+kawsauth.h -> crypto/auth/kawsauth.h
+kbcrypt.h -> crypto/auth/kbcrypt.h
+kopenid.h -> crypto/auth/kopenid.h
+
+# === data/json/ ===
+kjson.h -> data/json/kjson.h
+kjson2.h -> data/json/kjson2.h
+
+# === data/csv/ ===
+kcsv.h -> data/csv/kcsv.h
+
+# === data/sql/ ===
+krow.h -> data/sql/krow.h
+ksql.h -> data/sql/ksql.h
+ksqlite.h -> data/sql/ksqlite.h
+
+# === data/template/ ===
+koutputtemplate.h -> data/template/koutputtemplate.h
+kreplacer.h -> data/template/kreplacer.h
+ksnippets.h -> data/template/ksnippets.h
+
+# === time/clock/ ===
+kdate.h -> time/clock/kdate.h
+kjuliandate.h -> time/clock/kjuliandate.h
+ktime.h -> time/clock/ktime.h
+
+# === time/duration/ ===
+kduration.h -> time/duration/kduration.h
+kprof.h -> time/duration/kprof.h
+ktimer.h -> time/duration/ktimer.h
+
+# === time/series/ ===
+ktimeseries.h -> time/series/ktimeseries.h
+
+# === time/scheduler/ ===
+kron.h -> time/scheduler/kron.h
+
+# === threading/primitives/ ===
+katomic_object.h -> threading/primitives/katomic_object.h
+kmakecopyable.h -> threading/primitives/kmakecopyable.h
+kthreadsafe.h -> threading/primitives/kthreadsafe.h
+
+# === threading/execution/ ===
+kparallel.h -> threading/execution/kparallel.h
+kthreadpool.h -> threading/execution/kthreadpool.h
+kthreads.h -> threading/execution/kthreads.h
+
+# === threading/patterns/ ===
+ksubscribe.h -> threading/patterns/ksubscribe.h
+
+# === util/cli/ ===
+koptions.h -> util/cli/koptions.h
+kxterm.h -> util/cli/kxterm.h
+
+# === util/mail/ ===
+kmail.h -> util/mail/kmail.h
+ksmtp.h -> util/mail/ksmtp.h
+
+# === util/archive/ ===
+kuntar.h -> util/archive/kuntar.h
+kzip.h -> util/archive/kzip.h
+
+# === util/text/ ===
+kdiff.h -> util/text/kdiff.h
+kngram.h -> util/text/kngram.h
+
+# === util/id/ ===
+krandom.h -> util/id/krandom.h
+kuuid.h -> util/id/kuuid.h
+
+# === util/misc/ ===
+kaddrplus.h -> util/misc/kaddrplus.h
+karia.h -> util/misc/karia.h
+ktemperature.h -> util/misc/ktemperature.h

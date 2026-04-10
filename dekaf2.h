@@ -60,7 +60,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup util_misc
+/// @addtogroup core_init
 /// @{
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

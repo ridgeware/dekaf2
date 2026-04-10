@@ -47,7 +47,7 @@
 #include <dekaf2/kinshell.h>
 #include <dekaf2/klog.h>
 #include <dekaf2/kexception.h>
-#include <dekaf2/bits/kron_utils.h>
+#include <dekaf2/time/scheduler/bits/kron_utils.h>
 #include "croncpp.h"
 #include <dekaf2/kcompatibility.h>
 

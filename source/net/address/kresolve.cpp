@@ -42,7 +42,7 @@
 
 #include "kresolve.h"
 #include "kipaddress.h"
-#include <dekaf2/bits/kasio.h>
+#include <dekaf2/net/tcp/bits/kasio.h>
 #include <dekaf2/kiostreamsocket.h>
 #include <dekaf2/klog.h>
 #include <unordered_map>

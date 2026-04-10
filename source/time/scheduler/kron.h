@@ -53,7 +53,7 @@
 #include <dekaf2/kjson.h>
 #include <dekaf2/kassociative.h>
 #include <dekaf2/kinshell.h>
-#include <dekaf2/bits/kunique_deleter.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <mutex>
 #include <map>
 #include <vector>

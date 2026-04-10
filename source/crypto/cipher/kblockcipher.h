@@ -49,7 +49,7 @@
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kerror.h>
-#include <dekaf2/bits/kdigest.h>
+#include <dekaf2/crypto/hash/bits/kdigest.h>
 
 // PKCS5_PBKDF2_HMAC was introduced with OpenSSL v1.0.2, HKDF with v1.1.0
 // - as we need either of those for key derivation we support OpenSSL only from v1.0.2 forward

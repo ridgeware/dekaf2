@@ -46,8 +46,8 @@
 #ifdef DEKAF2_WITH_KLOG
 //===========================================================================
 
-#include <dekaf2/bits/klogwriter.h>
-#include <dekaf2/bits/klogserializer.h>
+#include <dekaf2/core/logging/bits/klogwriter.h>
+#include <dekaf2/core/logging/bits/klogserializer.h>
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kgetruntimestack.h>

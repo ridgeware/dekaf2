@@ -53,7 +53,7 @@
 #include <dekaf2/kstreambuf.h>
 #include <dekaf2/kurl.h>
 #include <dekaf2/kstreamoptions.h>
-#include <dekaf2/bits/kunique_deleter.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/kiostreamsocket.h>
 #include <openssl/ssl.h>
 

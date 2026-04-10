@@ -1214,39 +1214,39 @@ set(CMAKE_REQUIRED_QUIET TRUE)
 
 set (BITS_HEADERS
 	# KEEP ALPHABETIZED
-	bits/kasio.h
-	bits/kasiostream.h
-	bits/kbaseshell.h
-	bits/kbasepipe.h
-	bits/kbaseprocess.h
-	bits/kdigest.h
-	bits/kfilesystem.h
-	bits/kfindsetofchars.h
-	bits/kformat.h
-	bits/khash.h
-	bits/kiostreams_filters.h
-	bits/klogwriter.h
-	bits/klogserializer.h
-	bits/kmake_unique.h
-	bits/kmutable_pair.h
-	bits/kstring_view.h
-	bits/kstringviewz.h
-	bits/ktarheader.h
-	bits/kunique_deleter.h
-	bits/kurldualencode.h
+	source/net/tcp/bits/kasio.h
+	source/net/tcp/bits/kasiostream.h
+	source/system/process/bits/kbaseshell.h
+	source/system/process/bits/kbasepipe.h
+	source/system/process/bits/kbaseprocess.h
+	source/crypto/hash/bits/kdigest.h
+	source/system/filesystem/bits/kfilesystem.h
+	source/core/strings/bits/kfindsetofchars.h
+	source/core/format/bits/kformat.h
+	source/crypto/hash/bits/khash.h
+	source/io/compression/bits/kiostreams_filters.h
+	source/core/logging/bits/klogwriter.h
+	source/core/logging/bits/klogserializer.h
+	source/core/types/bits/kmake_unique.h
+	source/containers/associative/bits/kmutable_pair.h
+	source/core/strings/bits/kstring_view.h
+	source/core/strings/bits/kstringviewz.h
+	source/util/archive/bits/ktarheader.h
+	source/core/types/bits/kunique_deleter.h
+	source/web/url/bits/kurldualencode.h
 )
 
 set(BITS_SIMD_HEADERS
-	bits/simd/kfindfirstof.h
-	bits/simd/kutf.h
+	source/core/strings/bits/simd/kfindfirstof.h
+	source/core/types/bits/simd/kutf.h
 )
 
 if (DEKAF2_HAS_LIBBROTLI)
-	list(APPEND BITS_HEADERS bits/kbrotli.h)
+	list(APPEND BITS_HEADERS source/io/compression/bits/kbrotli.h)
 endif()
 
 if (DEKAF2_HAS_LIBZSTD)
-	list(APPEND BITS_HEADERS bits/kzstd.h)
+	list(APPEND BITS_HEADERS source/io/compression/bits/kzstd.h)
 endif()
 
 set(PUBLIC_HEADERS
@@ -1450,7 +1450,7 @@ if (DEKAF2_HAS_LIBZIP)
 endif()
 
 set(PRIVATE_HEADERS
-	bits/kron_utils.h
+	source/time/scheduler/bits/kron_utils.h
 )
 
 set(HEADERS
@@ -1493,10 +1493,10 @@ set (PRECOMPILED_HEADERS
 
 	# our own headers
 	[["kconfiguration.h"]]
-	bits/kstring_view.h
-	bits/khash.h
-	bits/kmutable_pair.h
-	bits/kunique_deleter.h
+	source/core/strings/bits/kstring_view.h
+	source/crypto/hash/bits/khash.h
+	source/containers/associative/bits/kmutable_pair.h
+	source/core/types/bits/kunique_deleter.h
 	dekaf2.h
 	kassociative.h
 	kcompatibility.h
@@ -1550,17 +1550,17 @@ set (PRECOMPILED_HEADERS
 
 set (SOURCES
 	# KEEP ALPHABETIZED
-	bits/kbasepipe.cpp
-	bits/kbaseprocess.cpp
-	bits/kbaseshell.cpp
-	bits/kdigest.cpp
-	bits/kfindsetofchars.cpp
-	bits/klogwriter.cpp
-	bits/klogserializer.cpp
-	bits/kstring_view.cpp
-	bits/kstringviewz.cpp
-	bits/simd/kfindfirstof.cpp
-	bits/simd/kutf.cpp
+	source/system/process/bits/kbasepipe.cpp
+	source/system/process/bits/kbaseprocess.cpp
+	source/system/process/bits/kbaseshell.cpp
+	source/crypto/hash/bits/kdigest.cpp
+	source/core/strings/bits/kfindsetofchars.cpp
+	source/core/logging/bits/klogwriter.cpp
+	source/core/logging/bits/klogserializer.cpp
+	source/core/strings/bits/kstring_view.cpp
+	source/core/strings/bits/kstringviewz.cpp
+	source/core/strings/bits/simd/kfindfirstof.cpp
+	source/core/types/bits/simd/kutf.cpp
 	source/core/init/dekaf2.cpp
 	source/crypto/auth/kawsauth.cpp
 	source/core/format/kbar.cpp
@@ -1720,15 +1720,15 @@ if (DEKAF2_HAS_LIBZIP)
 endif()
 
 if (DEKAF2_HAS_INCOMPLETE_BOOST_IOSTREAMS_LZMA_BUILD)
-	list(APPEND SOURCES bits/from_boost/iostreams/lzma.cpp)
+	list(APPEND SOURCES source/io/compression/bits/from_boost/iostreams/lzma.cpp)
 endif()
 
 if (DEKAF2_HAS_LIBBROTLI)
-	list(APPEND SOURCES bits/kbrotli.cpp)
+	list(APPEND SOURCES source/io/compression/bits/kbrotli.cpp)
 endif()
 
 if (DEKAF2_HAS_LIBZSTD)
-	list(APPEND SOURCES bits/kzstd.cpp)
+	list(APPEND SOURCES source/io/compression/bits/kzstd.cpp)
 endif()
 
 list(SORT SOURCES)
@@ -2015,7 +2015,7 @@ set(KSQL2_COMPILE_DEFINITIONS
 		DEKAF2_LIBRARY_BUILD
 )
 
-add_library                   (ksql2-objects OBJECT source/data/sql/ksql.cpp source/data/sql/ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
+add_library                   (ksql2-objects OBJECT source/data/sql/ksql.cpp source/data/sql/ksql.h source/data/sql/bits/ksql_dbc.cpp source/data/sql/bits/ksql_dbc.h)
 target_include_directories    (ksql2-objects PUBLIC ${KSQL2_INCLUDE_DIRECTORIES})
 target_link_libraries         (ksql2-objects ${KSQL2_LINK_LIBRARIES} dekaf2)
 target_compile_definitions    (ksql2-objects ${KSQL2_COMPILE_DEFINITIONS})
@@ -2357,7 +2357,7 @@ if (DEKAF2_INSTALL_INCLUDE)
 	install(FILES source/data/sql/ksql.h               DESTINATION ${dekaf2_include_dest}/dekaf2)
 	install(FILES ${BITS_HEADERS}      DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 	install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
-	install(FILES bits/ksql_dbc.h      DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
+	install(FILES source/data/sql/bits/ksql_dbc.h      DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 	if (SQLITE3_FOUND)
 		install(FILES source/data/sql/ksqlite.h        DESTINATION ${dekaf2_include_dest}/dekaf2)
 	endif()

@@ -51,7 +51,7 @@
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
 #include <iterator>
-#include <dekaf2/bits/kmutable_pair.h>
+#include <dekaf2/containers/associative/bits/kmutable_pair.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -71,7 +71,7 @@
 /// @file ktcpserver.h
 /// TCP server implementation with TLS
 
-#include <dekaf2/bits/kasio.h>
+#include <dekaf2/net/tcp/bits/kasio.h>
 #include <dekaf2/kstream.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kthreadpool.h>

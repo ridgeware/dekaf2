@@ -47,8 +47,8 @@
 #include <dekaf2/klog.h>
 #include <dekaf2/ksystem.h>
 #include <dekaf2/kscopeguard.h>
-#include <dekaf2/bits/kunique_deleter.h>
-#include <dekaf2/bits/kdigest.h> // for Digest::GetOpenSSLError()
+#include <dekaf2/core/types/bits/kunique_deleter.h>
+#include <dekaf2/crypto/hash/bits/kdigest.h> // for Digest::GetOpenSSLError()
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>

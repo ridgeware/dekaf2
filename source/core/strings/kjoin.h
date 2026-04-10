@@ -46,7 +46,7 @@
 #include <dekaf2/ktemplate.h>
 #include "kstringview.h"
 #include "kstring.h"
-#include <dekaf2/bits/kformat.h>
+#include <dekaf2/core/format/bits/kformat.h>
 #include <type_traits>
 
 /// @file kjoin.h

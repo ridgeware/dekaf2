@@ -46,7 +46,7 @@
 
 #include <dekaf2/kdefinitions.h>
 #include <dekaf2/kiostreamsocket.h>
-#include <dekaf2/bits/kasiostream.h>
+#include <dekaf2/net/tcp/bits/kasiostream.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstreambuf.h>
 #include <dekaf2/kurl.h>

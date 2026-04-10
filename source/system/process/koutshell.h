@@ -45,7 +45,7 @@
 /// provides writing pipe access to a shell instance.
 
 
-#include <dekaf2/bits/kbaseshell.h>
+#include <dekaf2/system/process/bits/kbaseshell.h>
 #include <dekaf2/kfdstream.h>
 
 #ifdef DEKAF2_IS_UNIX

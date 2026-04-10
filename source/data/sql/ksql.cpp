@@ -48,7 +48,7 @@
 // #define DEKAF2_HAS_SQLITE3 <-- conditionally defined by makefile
 
 #include "ksql.h"   // <-- public header (should have no dependent headers other than DEKAF header)
-#include <dekaf2/bits/ksql_dbc.h>
+#include <dekaf2/data/sql/bits/ksql_dbc.h>
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/kcrashexit.h>
 #include <dekaf2/ksystem.h>

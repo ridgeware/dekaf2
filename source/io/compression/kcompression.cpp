@@ -46,7 +46,7 @@
 #ifdef DEKAF2_HAS_LIBZSTD
 #include <dekaf2/ksystem.h> // for kGetCPUCount()
 #endif
-#include <dekaf2/bits/kiostreams_filters.h>
+#include <dekaf2/io/compression/bits/kiostreams_filters.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -48,7 +48,7 @@
 #include <dekaf2/kstring.h>
 #include <dekaf2/kreader.h>
 #include <dekaf2/kwriter.h>
-#include <dekaf2/bits/kunique_deleter.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <iterator>
 
 DEKAF2_NAMESPACE_BEGIN

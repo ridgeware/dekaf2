@@ -44,7 +44,7 @@
 /// @file ktlsstream.h
 /// provides an implementation of std::iostreams supporting TLS
 
-#include <dekaf2/bits/kasiostream.h>
+#include <dekaf2/net/tcp/bits/kasiostream.h>
 #include "kiostreamsocket.h"
 #include "ktlscontext.h"
 #include <dekaf2/kstring.h>

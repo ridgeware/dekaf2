@@ -134,8 +134,8 @@ namespace std
 // simply picks the first one that matches.
 #ifndef DEKAF2_HAS_CPP_14
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/bits/kmake_unique.h>)
-	#include <dekaf2/bits/kmake_unique.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/types/bits/kmake_unique.h>)
+	#include <dekaf2/core/types/bits/kmake_unique.h>
 #endif
 
 namespace std

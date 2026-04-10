@@ -43,7 +43,7 @@
 #pragma once
 
 #include <dekaf2/kdefinitions.h>
-#include <dekaf2/bits/khash.h>
+#include <dekaf2/crypto/hash/bits/khash.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kreader.h>
 

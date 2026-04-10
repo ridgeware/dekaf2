@@ -48,7 +48,7 @@
 #include <vector>
 #include "kstring.h"
 #include "kstringview.h"
-#include <dekaf2/bits/kunique_deleter.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

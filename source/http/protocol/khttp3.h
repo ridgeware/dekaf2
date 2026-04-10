@@ -60,7 +60,7 @@
 #include <dekaf2/kerror.h>
 #include <dekaf2/kdataprovider.h>
 #include <dekaf2/kdataconsumer.h>
-#include <dekaf2/bits/kunique_deleter.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <cstdint>
 #include <unordered_map>
 #include <iostream>

@@ -54,7 +54,7 @@
 #include <boost/multi_index/random_access_index.hpp>
 #include <algorithm>
 #include <dekaf2/kcompatibility.h>
-#include <dekaf2/bits/kmutable_pair.h>
+#include <dekaf2/containers/associative/bits/kmutable_pair.h>
 #include <dekaf2/ksplit.h>
 #include <dekaf2/kjoin.h>
 #include <dekaf2/klog.h>

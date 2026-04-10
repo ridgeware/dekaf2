@@ -962,9 +962,9 @@ template<> struct formatter<DEKAF2_PREFIX KDateDiff> : formatter<string_view>
 
 #endif // has #include <dekaf2/kformat.h>
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/bits/khash.h>)
+#if DEKAF2_HAS_INCLUDE(<dekaf2/crypto/hash/bits/khash.h>)
 
-#include <dekaf2/bits/khash.h>
+#include <dekaf2/crypto/hash/bits/khash.h>
 
 namespace std {
 
@@ -1031,4 +1031,4 @@ std::ostream& operator<<(std::ostream& stream, KDateDiff datediff)
 
 DEKAF2_NAMESPACE_END
 
-#endif // of has #include <dekaf2/bits/khash.h>
+#endif // of has #include <dekaf2/crypto/hash/bits/khash.h>

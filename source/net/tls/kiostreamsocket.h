@@ -49,7 +49,7 @@
 #include <dekaf2/kstreamoptions.h>
 #include <dekaf2/kurl.h>
 #include <dekaf2/kerror.h>
-#include <dekaf2/bits/kasio.h>
+#include <dekaf2/net/tcp/bits/kasio.h>
 #include <iostream>
 
 #if DEKAF2_IS_WINDOWS

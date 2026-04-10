@@ -50,7 +50,7 @@
 #include <dekaf2/kdefinitions.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kstringview.h>
-#include <dekaf2/bits/kunique_deleter.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <list>
 
 #define DEKAF2_KDIFF_USE_WSTRING

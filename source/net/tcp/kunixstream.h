@@ -49,7 +49,7 @@
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
 #include <dekaf2/kiostreamsocket.h>
-#include <dekaf2/bits/kasiostream.h>
+#include <dekaf2/net/tcp/bits/kasiostream.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstreambuf.h>
 #include <dekaf2/kurl.h>

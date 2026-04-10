@@ -39,7 +39,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <dekaf2/bits/kiostreams_filters.h>
+#include <dekaf2/io/compression/bits/kiostreams_filters.h>
 
 #include "khttpoutputfilter.h"
 #include <dekaf2/kchunkedtransfer.h>

@@ -43,7 +43,7 @@
 #include <dekaf2/kchunkedtransfer.h>
 #include <dekaf2/kstringstream.h>
 #include <dekaf2/kcountingstreambuf.h>
-#include <dekaf2/bits/kiostreams_filters.h>
+#include <dekaf2/io/compression/bits/kiostreams_filters.h>
 #include "khttperror.h"
 
 DEKAF2_NAMESPACE_BEGIN

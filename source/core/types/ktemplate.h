@@ -45,8 +45,8 @@
 /// helper templates for template meta programming
 
 #include "kcompatibility.h"
-#if DEKAF2_HAS_INCLUDE(<dekaf2/bits/kstring_view.h>)
-	#include <dekaf2/bits/kstring_view.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/strings/bits/kstring_view.h>)
+	#include <dekaf2/core/strings/bits/kstring_view.h>
 #endif
 #include <functional>
 #include <cwctype>

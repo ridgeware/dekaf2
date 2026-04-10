@@ -49,10 +49,10 @@
 /// searching by up to 50x compared to typical std::string implementations
 
 #include <dekaf2/kcompatibility.h>
-#include <dekaf2/bits/kstring_view.h>
+#include <dekaf2/core/strings/bits/kstring_view.h>
 #include <dekaf2/ktemplate.h>
 #include <dekaf2/kctype.h>
-#include <dekaf2/bits/kformat.h>
+#include <dekaf2/core/format/bits/kformat.h>
 #include <string>
 #include <istream>
 #include <ostream>
@@ -1301,7 +1301,7 @@ DEKAF2_NAMESPACE_END
 // from ksplit.h, kjoin.h, or kstringutils.h
 
 #include "kstringview.h"
-#include <dekaf2/bits/kstringviewz.h>
+#include <dekaf2/core/strings/bits/kstringviewz.h>
 #include "ksplit.h"
 #include "kjoin.h"
 #include "kstringutils.h"
@@ -2518,7 +2518,7 @@ KString& KString::Format(KFormatString<Args...> sFormat, Args&&... args) &
 
 DEKAF2_NAMESPACE_END
 
-#include <dekaf2/bits/khash.h>
+#include <dekaf2/crypto/hash/bits/khash.h>
 
 namespace std
 {

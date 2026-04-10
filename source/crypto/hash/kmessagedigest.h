@@ -49,7 +49,7 @@
 #include <dekaf2/kstream.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstring.h>
-#include <dekaf2/bits/kdigest.h>
+#include <dekaf2/crypto/hash/bits/kdigest.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x010100000L
 	struct evp_md_ctx_st;

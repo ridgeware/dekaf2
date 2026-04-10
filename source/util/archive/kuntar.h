@@ -70,7 +70,7 @@
 
 
 /// @file kuntar.h
-#include <dekaf2/bits/ktarheader.h>
+#include <dekaf2/util/archive/bits/ktarheader.h>
 
 #include <dekaf2/kstring.h>
 #include <dekaf2/kreader.h>

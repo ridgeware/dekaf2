@@ -49,7 +49,7 @@
 
 #include <utility>
 #include <memory>
-#include <dekaf2/bits/kmake_unique.h>
+#include <dekaf2/core/types/bits/kmake_unique.h>
 #include <dekaf2/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN

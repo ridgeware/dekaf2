@@ -42,7 +42,7 @@
 
 #include <dekaf2/kdefinitions.h>
 #include <dekaf2/ktime.h>
-#include <dekaf2/bits/kfilesystem.h>
+#include <dekaf2/system/filesystem/bits/kfilesystem.h>
 #include <dekaf2/dekaf2.h>
 #include <dekaf2/kcompatibility.h>
 #include "kfilesystem.h"

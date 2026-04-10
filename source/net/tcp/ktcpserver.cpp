@@ -67,7 +67,7 @@
 */
 
 #include <thread>
-#include <dekaf2/bits/kasio.h>
+#include <dekaf2/net/tcp/bits/kasio.h>
 #include <boost/system/system_error.hpp>
 #ifndef DEKAF2_IS_MSC
 #include <boost/exception/diagnostic_information.hpp>

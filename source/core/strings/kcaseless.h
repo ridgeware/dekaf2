@@ -45,7 +45,7 @@
 /// @file kcaseless.h
 #include <dekaf2/kdefinitions.h>
 #include "kstringview.h"
-#include <dekaf2/bits/khash.h>
+#include <dekaf2/crypto/hash/bits/khash.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

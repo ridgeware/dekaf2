@@ -43,7 +43,7 @@
 /// @file kformat.h
 /// provides basic string formatter functionality
 
-#include <dekaf2/bits/kformat.h>
+#include <dekaf2/core/format/bits/kformat.h>
 #include <dekaf2/kstringview.h>
 #include <dekaf2/kstring.h>
 #include <dekaf2/kwrite.h>

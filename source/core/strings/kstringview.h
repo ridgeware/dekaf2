@@ -48,8 +48,8 @@
 /// and speeds up searching by up to 50x using SIMD where available
 
 #include <dekaf2/kdefinitions.h>
-#include <dekaf2/bits/kstring_view.h>
-#include <dekaf2/bits/khash.h>
+#include <dekaf2/core/strings/bits/kstring_view.h>
+#include <dekaf2/crypto/hash/bits/khash.h>
 #include <dekaf2/ktemplate.h>
 #include <dekaf2/kutf.h>
 #include <dekaf2/kutf_iterator.h>
@@ -1799,7 +1799,7 @@ std::size_t kRFindNot(
 
 DEKAF2_NAMESPACE_END
 
-#include <dekaf2/bits/kfindsetofchars.h>
+#include <dekaf2/core/strings/bits/kfindsetofchars.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -2157,7 +2157,7 @@ DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC std::size_t DEKAF2_PREFIX KStringView::CaseHas
 	return DEKAF2_PREFIX kCaseHash(data(), size());
 }
 
-#include <dekaf2/bits/kstringviewz.h>
+#include <dekaf2/core/strings/bits/kstringviewz.h>
 #include "ksplit.h"
 #include "kstring.h"
 #include "kstringutils.h"

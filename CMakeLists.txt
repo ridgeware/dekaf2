@@ -1267,7 +1267,7 @@ set(PUBLIC_HEADERS
 	source/core/types/kbitfields.h
 	kblockcipher.h
 	source/containers/sequential/kbuffer.h
-	kbufferedreader.h
+	source/io/readwrite/kbufferedreader.h
 	source/containers/associative/kcache.h
 	kcamellia.h
 	source/core/strings/kcaseless.h
@@ -1278,16 +1278,16 @@ set(PUBLIC_HEADERS
 	kchildprocess.h
 	kchunkedtransfer.h
 	source/core/types/kcompatibility.h
-	kcompression.h
+	source/io/compression/kcompression.h
 	kconnectionlimiter.h
 	kcookie.h
-	kcountingstreambuf.h
+	source/io/streams/kcountingstreambuf.h
 	source/core/errors/kcrashexit.h
 	kcrc.h
 	kcsv.h
 	source/core/types/kctype.h
-	kdataprovider.h
-	kdataconsumer.h
+	source/io/pipes/kdataprovider.h
+	source/io/pipes/kdataconsumer.h
 	kdate.h
 	source/core/types/kdefinitions.h
 	kdiff.h
@@ -1296,7 +1296,7 @@ set(PUBLIC_HEADERS
 	source/core/types/keraseremove.h
 	source/core/errors/kerror.h
 	source/core/errors/kexception.h
-	kfdstream.h
+	source/io/streams/kfdstream.h
 	kfileserver.h
 	kfilesystem.h
 	source/core/format/kformat.h
@@ -1328,9 +1328,9 @@ set(PUBLIC_HEADERS
 	khttp_request.h
 	khttp_response.h
 	khttp_version.h
-	kinpipe.h
+	source/io/pipes/kinpipe.h
 	kinshell.h
-	kinstringstream.h
+	source/io/streams/kinstringstream.h
 	kiostreamsocket.h
 	kipaddress.h
 	kipnetwork.h
@@ -1338,7 +1338,7 @@ set(PUBLIC_HEADERS
 	kjson.h
 	kjson2.h
 	kjuliandate.h
-	klambdastream.h
+	source/io/streams/klambdastream.h
 	source/containers/associative/klockmap.h
 	source/core/logging/klog.h
 	source/core/logging/klogrotate.h
@@ -1346,20 +1346,20 @@ set(PUBLIC_HEADERS
 	kmakecopyable.h
 	kmessagedigest.h
 	kmime.h
-	kmodifyingstreambuf.h
+	source/io/streams/kmodifyingstreambuf.h
 	source/core/strings/kmpsearch.h
 	source/containers/associative/kmru.h
 	knetworkinterface.h
 	kngram.h
 	koptions.h
 	kopenid.h
-	koutpipe.h
+	source/io/pipes/koutpipe.h
 	koutputtemplate.h
 	koutshell.h
-	koutstringstream.h
+	source/io/streams/koutstringstream.h
 	kparallel.h
 	source/containers/memory/kpersist.h
-	kpipe.h
+	source/io/pipes/kpipe.h
 	kpty.h
 	source/containers/memory/kpool.h
 	kpoll.h
@@ -1369,8 +1369,8 @@ set(PUBLIC_HEADERS
 	kquotedprintable.h
 	krandom.h
 	kratelimiter.h
-	kread.h
-	kreader.h
+	source/io/readwrite/kread.h
+	source/io/readwrite/kreader.h
 	source/core/types/kreference_proxy.h
 	source/core/strings/kregex.h
 	kreplacer.h
@@ -1395,12 +1395,12 @@ set(PUBLIC_HEADERS
 	source/core/errors/ksourcelocation.h
 	source/core/strings/ksplit.h
 	source/containers/sequential/kstack.h
-	kstream.h
-	kstreambuf.h
-	kstreambufadaptor.h
-	kstreamoptions.h
+	source/io/streams/kstream.h
+	source/io/streams/kstreambuf.h
+	source/io/streams/kstreambufadaptor.h
+	source/io/streams/kstreamoptions.h
 	source/core/strings/kstring.h
-	kstringstream.h
+	source/io/streams/kstringstream.h
 	source/core/strings/kstringutils.h
 	source/core/strings/kstringview.h
 	ksubscribe.h
@@ -1438,8 +1438,8 @@ set(PUBLIC_HEADERS
 	kwebsocket.h
 	kwebsocketclient.h
 	source/core/strings/kwords.h
-	kwrite.h
-	kwriter.h
+	source/io/readwrite/kwrite.h
+	source/io/readwrite/kwriter.h
 	kxml.h
 	kxterm.h
 )
@@ -1568,27 +1568,27 @@ set (SOURCES
 	kbase64.cpp
 	kbcrypt.cpp
 	kblockcipher.cpp
-	kbufferedreader.cpp
+	source/io/readwrite/kbufferedreader.cpp
 	source/core/strings/kcaseless.cpp
 	source/core/strings/kcasestring.cpp
 	kcgistream.cpp
 	kchildprocess.cpp
 	kchunkedtransfer.cpp
 	source/core/types/kcompatibility.cpp
-	kcompression.cpp
+	source/io/compression/kcompression.cpp
 	kcookie.cpp
-	kcountingstreambuf.cpp
+	source/io/streams/kcountingstreambuf.cpp
 	source/core/errors/kcrashexit.cpp
 	kcrc.cpp
 	kcsv.cpp
 	source/core/types/kctype.cpp
-	kdataprovider.cpp
-	kdataconsumer.cpp
+	source/io/pipes/kdataprovider.cpp
+	source/io/pipes/kdataconsumer.cpp
 	kdate.cpp
 	kdiff.cpp
 	kduration.cpp
 	source/core/errors/kerror.cpp
-	kfdstream.cpp
+	source/io/streams/kfdstream.cpp
 	kfileserver.cpp
 	kfilesystem.cpp
 	source/core/format/kformat.cpp
@@ -1619,32 +1619,32 @@ set (SOURCES
 	khttp_request.cpp
 	khttp_response.cpp
 	khttp_version.cpp
-	kinpipe.cpp
+	source/io/pipes/kinpipe.cpp
 	kinshell.cpp
-	kinstringstream.cpp
+	source/io/streams/kinstringstream.cpp
 	kiostreamsocket.cpp
 	kipaddress.cpp
 	kipnetwork.cpp
 	kjson.cpp
 	kjson2.cpp
 	kjuliandate.cpp
-	klambdastream.cpp
+	source/io/streams/klambdastream.cpp
 	source/core/logging/klog.cpp
 	source/core/logging/klogrotate.cpp
 	kmail.cpp
 	kmessagedigest.cpp
 	kmime.cpp
-	kmodifyingstreambuf.cpp
+	source/io/streams/kmodifyingstreambuf.cpp
 	source/core/strings/kmpsearch.cpp
 	knetworkinterface.cpp
 	kopenid.cpp
 	koptions.cpp
-	koutpipe.cpp
+	source/io/pipes/koutpipe.cpp
 	koutputtemplate.cpp
 	koutshell.cpp
-	koutstringstream.cpp
+	source/io/streams/koutstringstream.cpp
 	kparallel.cpp
-	kpipe.cpp
+	source/io/pipes/kpipe.cpp
 	kpty.cpp
 	kpoll.cpp
 	kprof.cpp
@@ -1652,8 +1652,8 @@ set (SOURCES
 	kquicstream.cpp
 	kquotedprintable.cpp
 	krandom.cpp
-	kread.cpp
-	kreader.cpp
+	source/io/readwrite/kread.cpp
+	source/io/readwrite/kreader.cpp
 	source/core/strings/kregex.cpp
 	kreplacer.cpp
 	kresolve.cpp
@@ -1674,12 +1674,12 @@ set (SOURCES
 	ksmtp.cpp
 	ksnippets.cpp
 	source/core/strings/ksplit.cpp
-	kstream.cpp
-	kstreambuf.cpp
-	kstreambufadaptor.cpp
-	kstreamoptions.cpp
+	source/io/streams/kstream.cpp
+	source/io/streams/kstreambuf.cpp
+	source/io/streams/kstreambufadaptor.cpp
+	source/io/streams/kstreamoptions.cpp
 	source/core/strings/kstring.cpp
-	kstringstream.cpp
+	source/io/streams/kstringstream.cpp
 	source/core/strings/kstringutils.cpp
 	source/core/strings/kstringview.cpp
 	ksystem.cpp
@@ -1708,8 +1708,8 @@ set (SOURCES
 	kwebsocket.cpp
 	kwebsocketclient.cpp
 	source/core/strings/kwords.cpp
-	kwrite.cpp
-	kwriter.cpp
+	source/io/readwrite/kwrite.cpp
+	source/io/readwrite/kwriter.cpp
 	kxml.cpp
 	kxterm.cpp
 )

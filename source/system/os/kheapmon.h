@@ -1,8 +1,7 @@
 /*
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
-//
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2022, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -37,74 +36,81 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
 */
 
 #pragma once
 
-/// @file kgetruntimestack.h
-/// provides a stack tracer
+/// @file kheapmon.h
+/// monitoring and profiling memory usage
+/// To enable heap profiling you must start the final executable with the environment set to
+/// MALLOC_CONF="prof:true,prof_active:false,prof_prefix:jeprof.out"
+/// To start profiling, you then call Heap::Profiling::Start() and can then
+/// get a report with Heap::Profiling::Dump()
 
-#include "kdefinitions.h"
-#include "kstring.h"
-#include "kstringview.h"
-#include "kjson.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstringview.h>
+#include <cstddef>
 
 DEKAF2_NAMESPACE_BEGIN
 
 /// @addtogroup system_os
 /// @{
 
-/// strips a fully qualified function name down to a minimum
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kNormalizeFunctionName(KStringView sFunctionName);
+namespace Heap {
 
-/// get a full runtime stack trace (uses gdb if possible). The output
-/// of this function is as detailed as possible, and intended for crash
-/// situations.
+/// returns true if the standard malloc implementation is used - which probably means that
+/// no extended heap profiling is available
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kGetRuntimeStack (int iSkipStackLines = 0);
+bool IsStandardMalloc();
+/// return last error code - translate with strerror() .. (thread local implementation)
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+int LastError();
+/// print allocation stats, either as text or as JSON
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString GetStats(bool bAsJSON = false);
 
-/// kGetRuntimeStack() as a JSON array.
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KJSON kGetRuntimeStackJSON (int iSkipStackLines = 0);
+namespace Profiling {
 
-/// get a stack trace (uses gdb if possible). The output of this one is
-/// shorter than the one of kGetRuntimeStack, and intended for logging
-/// purposes during the runtime of the application.
-/// @param iSkipStackLines Number of top stack lines to drop. Defaults to 0.
-/// @param bNormalize If true, remove parameters from function calls
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kGetBacktrace (int iSkipStackLines = 0, bool bNormalize = true);
-
-/// resolve an address to the symbol and line number it represents
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kGetAddress2Line(const void* pAddress);
-/// resolve addresses in hexadecimal string ("0x1234 0x3456")
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kGetAddress2Line(KStringView sAddresses);
-
-/// Struct to keep all details about one stack frame
-struct DEKAF2_PUBLIC KStackFrame
+/// output format for profile dumps
+enum ReportFormat
 {
-	KStackFrame() = default;
-	KStackFrame(KStringView sTraceline);
-	KStackFrame(KString _sFunction, KString _sFile, KString _sLineNumber);
+	RAW,  ///< the raw profile dump for further processing
+	TEXT, ///< analysed dump in text format
+	SVG,  ///< analysed dump in vector graphics, good for display in a web browser
+	PDF   ///< analysed dump in PDF format
+};
 
-	DEKAF2_NODISCARD
-	KString Serialize(bool bNormalize = true) const;
-	operator KString() const { return Serialize(); }
-
-	KString sFunction;
-	KString sFile;
-	KString sLineNumber;
-
-}; // KStackFrame
-
-/// get function name, filename and line number of the first stackframe that is not listed
-/// in sSkipFiles
+/// check if monitoring can be switched on
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles);
+bool    IsAvailable();
+/// start monitoring
+DEKAF2_PUBLIC
+bool    Start();
+/// stop monitoring
+DEKAF2_PUBLIC
+bool    Stop();
+/// dump profile result to file
+/// @param sDumpFile the  path name for the output file
+/// @param Format the output format, raw or one of the analyzed formats
+/// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
+/// @return true on success
+DEKAF2_PUBLIC
+bool    Dump(KStringViewZ sDumpFile, ReportFormat Format, KStringView sAdditionalOptions = KStringView{});
+/// dump profile result to string
+/// @param Format the output format, raw or one of the analyzed formats
+/// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
+/// @return a string with the dump output
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString Dump(ReportFormat Format, KStringView sAdditionalOptions = KStringView{});
+/// clear/reset collected data
+DEKAF2_PUBLIC
+bool    Reset();
+/// returns true if monitoring was started
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool    IsStarted();
+
+} // namespace Profiling
+} // namespace Heap
 
 
 /// @}

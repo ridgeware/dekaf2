@@ -41,12 +41,12 @@
 
 #include "ksharedmemory.h"
 #ifndef DEKAF2_IS_WINDOWS
-#include "kfilesystem.h"
-#include "ksystem.h"
-#include "krandom.h"
-#include "klog.h"
-#include "kcrashexit.h"
-#include "kcompatibility.h"
+#include <dekaf2/kfilesystem.h>
+#include <dekaf2/ksystem.h>
+#include <dekaf2/krandom.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/kcrashexit.h>
+#include <dekaf2/kcompatibility.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/ipc.h>

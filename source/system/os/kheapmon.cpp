@@ -45,11 +45,11 @@
 // so we disable diagnostics there for now
 #if defined(DEKAF2_HAS_JEMALLOC) && !defined(DEKAF2_IS_MACOS)
 
-#include "klog.h"
-#include "kfilesystem.h"
-#include "kreader.h"
+#include <dekaf2/klog.h>
+#include <dekaf2/kfilesystem.h>
+#include <dekaf2/kreader.h>
 #include "ksystem.h"
-#include "kcompatibility.h"
+#include <dekaf2/kcompatibility.h>
 #include <jemalloc/jemalloc.h>
 
 DEKAF2_NAMESPACE_BEGIN

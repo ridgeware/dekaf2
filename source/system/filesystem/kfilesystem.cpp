@@ -40,24 +40,24 @@
 //
 */
 
-#include "kdefinitions.h"
-#include "ktime.h"
-#include "bits/kfilesystem.h"
-#include "dekaf2.h"
-#include "kcompatibility.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/ktime.h>
+#include <dekaf2/bits/kfilesystem.h>
+#include <dekaf2/dekaf2.h>
+#include <dekaf2/kcompatibility.h>
 #include "kfilesystem.h"
-#include "ksystem.h"
-#include "kstringutils.h"
-#include "kstringview.h"
-#include "kstring.h"
-#include "klog.h"
-#include "kregex.h"
-#include "kinshell.h"
-#include "kwriter.h"
-#include "kctype.h"
-#include "kutf.h"
-#include "keraseremove.h"
-#include "kuuid.h"
+#include <dekaf2/ksystem.h>
+#include <dekaf2/kstringutils.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/kregex.h>
+#include <dekaf2/kinshell.h>
+#include <dekaf2/kwriter.h>
+#include <dekaf2/kctype.h>
+#include <dekaf2/kutf.h>
+#include <dekaf2/keraseremove.h>
+#include <dekaf2/kuuid.h>
 #include <algorithm>
 #ifdef DEKAF2_IS_WINDOWS
 	#include <windows.h>

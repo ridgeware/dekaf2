@@ -41,13 +41,13 @@
 */
 
 #include "kgetruntimestack.h"
-#include "kcompatibility.h"
-#include "kstring.h"
-#include "kstack.h"
-#include "ksplit.h"
-#include "kinshell.h"
+#include <dekaf2/kcompatibility.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstack.h>
+#include <dekaf2/ksplit.h>
+#include <dekaf2/kinshell.h>
 #include "ksystem.h"
-#include "kformat.h"
+#include <dekaf2/kformat.h>
 
 #include <vector>
 

@@ -41,15 +41,15 @@
 */
 
 #include "ksystem.h"
-#include "kcompatibility.h"
-#include "bits/kfilesystem.h"
-#include "kfilesystem.h"
-#include "klog.h"
-#include "dekaf2.h"
-#include "kinshell.h"
-#include "kutf.h"             // for Windows API conversions
-#include "kexception.h"
-#include "kctype.h"
+#include <dekaf2/kcompatibility.h>
+#include <dekaf2/bits/kfilesystem.h>
+#include <dekaf2/kfilesystem.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/dekaf2.h>
+#include <dekaf2/kinshell.h>
+#include <dekaf2/kutf.h>             // for Windows API conversions
+#include <dekaf2/kexception.h>
+#include <dekaf2/kctype.h>
 #include <thread>
 #include <cstdlib>
 #include <ctime>

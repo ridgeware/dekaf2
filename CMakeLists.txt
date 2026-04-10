@@ -1275,7 +1275,7 @@ set(PUBLIC_HEADERS
 	source/core/strings/kcesu8.h
 	kcgistream.h
 	kchacha.h
-	kchildprocess.h
+	source/system/process/kchildprocess.h
 	kchunkedtransfer.h
 	source/core/types/kcompatibility.h
 	source/io/compression/kcompression.h
@@ -1298,13 +1298,13 @@ set(PUBLIC_HEADERS
 	source/core/errors/kexception.h
 	source/io/streams/kfdstream.h
 	kfileserver.h
-	kfilesystem.h
+	source/system/filesystem/kfilesystem.h
 	source/core/format/kformat.h
 	source/core/format/kformtable.h
 	source/core/types/kfrozen.h
-	kgetruntimestack.h
+	source/system/os/kgetruntimestack.h
 	khash.h
-	kheapmon.h
+	source/system/os/kheapmon.h
 	khex.h
 	source/containers/sequential/khistory.h
 	khttp2.h
@@ -1329,7 +1329,7 @@ set(PUBLIC_HEADERS
 	khttp_response.h
 	khttp_version.h
 	source/io/pipes/kinpipe.h
-	kinshell.h
+	source/system/process/kinshell.h
 	source/io/streams/kinstringstream.h
 	kiostreamsocket.h
 	kipaddress.h
@@ -1355,12 +1355,12 @@ set(PUBLIC_HEADERS
 	kopenid.h
 	source/io/pipes/koutpipe.h
 	koutputtemplate.h
-	koutshell.h
+	source/system/process/koutshell.h
 	source/io/streams/koutstringstream.h
 	kparallel.h
 	source/containers/memory/kpersist.h
 	source/io/pipes/kpipe.h
-	kpty.h
+	source/system/process/kpty.h
 	source/containers/memory/kpool.h
 	kpoll.h
 	kprof.h
@@ -1386,10 +1386,10 @@ set(PUBLIC_HEADERS
 	krsakey.h
 	krsasign.h
 	source/core/types/kscopeguard.h
-	ksharedmemory.h
+	source/system/shared/ksharedmemory.h
 	source/containers/memory/ksharedref.h
 	source/containers/memory/ksharedptr.h
-	ksignals.h
+	source/system/os/ksignals.h
 	ksmtp.h
 	ksnippets.h
 	source/core/errors/ksourcelocation.h
@@ -1404,8 +1404,8 @@ set(PUBLIC_HEADERS
 	source/core/strings/kstringutils.h
 	source/core/strings/kstringview.h
 	ksubscribe.h
-	ksystem.h
-	ksystemstats.h
+	source/system/os/ksystem.h
+	source/system/os/ksystemstats.h
 	ktcpclient.h
 	ktcpserver.h
 	ktcpstream.h
@@ -1572,7 +1572,7 @@ set (SOURCES
 	source/core/strings/kcaseless.cpp
 	source/core/strings/kcasestring.cpp
 	kcgistream.cpp
-	kchildprocess.cpp
+	source/system/process/kchildprocess.cpp
 	kchunkedtransfer.cpp
 	source/core/types/kcompatibility.cpp
 	source/io/compression/kcompression.cpp
@@ -1590,12 +1590,12 @@ set (SOURCES
 	source/core/errors/kerror.cpp
 	source/io/streams/kfdstream.cpp
 	kfileserver.cpp
-	kfilesystem.cpp
+	source/system/filesystem/kfilesystem.cpp
 	source/core/format/kformat.cpp
 	source/core/format/kformtable.cpp
-	kgetruntimestack.cpp
+	source/system/os/kgetruntimestack.cpp
 	khash.cpp
-	kheapmon.cpp
+	source/system/os/kheapmon.cpp
 	khex.cpp
 	source/containers/sequential/khistory.cpp
 	khttp2.cpp
@@ -1620,7 +1620,7 @@ set (SOURCES
 	khttp_response.cpp
 	khttp_version.cpp
 	source/io/pipes/kinpipe.cpp
-	kinshell.cpp
+	source/system/process/kinshell.cpp
 	source/io/streams/kinstringstream.cpp
 	kiostreamsocket.cpp
 	kipaddress.cpp
@@ -1641,11 +1641,11 @@ set (SOURCES
 	koptions.cpp
 	source/io/pipes/koutpipe.cpp
 	koutputtemplate.cpp
-	koutshell.cpp
+	source/system/process/koutshell.cpp
 	source/io/streams/koutstringstream.cpp
 	kparallel.cpp
 	source/io/pipes/kpipe.cpp
-	kpty.cpp
+	source/system/process/kpty.cpp
 	kpoll.cpp
 	kprof.cpp
 	source/containers/associative/kprops.cpp
@@ -1669,8 +1669,8 @@ set (SOURCES
 	krsacert.cpp
 	krsakey.cpp
 	krsasign.cpp
-	ksharedmemory.cpp
-	ksignals.cpp
+	source/system/shared/ksharedmemory.cpp
+	source/system/os/ksignals.cpp
 	ksmtp.cpp
 	ksnippets.cpp
 	source/core/strings/ksplit.cpp
@@ -1682,8 +1682,8 @@ set (SOURCES
 	source/io/streams/kstringstream.cpp
 	source/core/strings/kstringutils.cpp
 	source/core/strings/kstringview.cpp
-	ksystem.cpp
-	ksystemstats.cpp
+	source/system/os/ksystem.cpp
+	source/system/os/ksystemstats.cpp
 	ktcpserver.cpp
 	ktcpstream.cpp
 	kthreadpool.cpp

@@ -44,9 +44,9 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include "ksystem.h"
+#include <dekaf2/ksystem.h>
 #include "kchildprocess.h"
-#include "klog.h"
+#include <dekaf2/klog.h>
 #include <csignal>
 #include <cstdlib>
 #include <fcntl.h>

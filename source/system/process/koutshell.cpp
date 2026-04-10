@@ -41,7 +41,7 @@
 */
 
 #include "koutshell.h"
-#include "klog.h"
+#include <dekaf2/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -1,6 +1,6 @@
 /*
 //
-// DEKAF(tm): Lighter, Faster, Smarter (tm)
+// DEKAF(tm): Lighter, Faster, Smarter(tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
 //
@@ -37,73 +37,74 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
+//
 */
 
 #pragma once
 
-/// @file kinshell.h
-/// provides reading pipe access to a shell instance.
+/// @file kgetruntimestack.h
+/// provides a stack tracer
 
-//#include <dekaf2/bits/kbaseshell.h>
-#include "bits/kbaseshell.h"
-#include "kfdstream.h"
-
-#ifdef DEKAF2_IS_UNIX
-	#include "kinpipe.h"
-#endif
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kjson.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup system_process
+/// @addtogroup system_os
 /// @{
 
-// For unixes we will use KPipe (with internal fork and exec) instead of popen,
-// as this permits us to close all open file descriptors before executing the
-// new process. It is only for Windows that we will use popen (as fork and exec
-// are not supported).
+/// strips a fully qualified function name down to a minimum
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kNormalizeFunctionName(KStringView sFunctionName);
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Read on a shell instance
-#ifdef DEKAF2_IS_UNIX
-class DEKAF2_PUBLIC KInShell : public KInPipe
-#else
-class DEKAF2_PUBLIC KInShell : public KBaseShell, public KFPReader
-#endif
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// get a full runtime stack trace (uses gdb if possible). The output
+/// of this function is as detailed as possible, and intended for crash
+/// situations.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kGetRuntimeStack (int iSkipStackLines = 0);
+
+/// kGetRuntimeStack() as a JSON array.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KJSON kGetRuntimeStackJSON (int iSkipStackLines = 0);
+
+/// get a stack trace (uses gdb if possible). The output of this one is
+/// shorter than the one of kGetRuntimeStack, and intended for logging
+/// purposes during the runtime of the application.
+/// @param iSkipStackLines Number of top stack lines to drop. Defaults to 0.
+/// @param bNormalize If true, remove parameters from function calls
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kGetBacktrace (int iSkipStackLines = 0, bool bNormalize = true);
+
+/// resolve an address to the symbol and line number it represents
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kGetAddress2Line(const void* pAddress);
+/// resolve addresses in hexadecimal string ("0x1234 0x3456")
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kGetAddress2Line(KStringView sAddresses);
+
+/// Struct to keep all details about one stack frame
+struct DEKAF2_PUBLIC KStackFrame
 {
+	KStackFrame() = default;
+	KStackFrame(KStringView sTraceline);
+	KStackFrame(KString _sFunction, KString _sFile, KString _sLineNumber);
 
-//------
-public:
-//------
+	DEKAF2_NODISCARD
+	KString Serialize(bool bNormalize = true) const;
+	operator KString() const { return Serialize(); }
 
-	//-----------------------------------------------------------------------------
-	/// Default KInShell Constructor
-	KInShell() = default;
-	//-----------------------------------------------------------------------------
+	KString sFunction;
+	KString sFile;
+	KString sLineNumber;
 
-	//-----------------------------------------------------------------------------
-	/// Constructor which takes and executes command immediately
-	/// @param sCommand the command to execute
-	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
-	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
-	KInShell(KString sCommand, KStringViewZ sShell = "/bin/sh",
-			 const std::vector<std::pair<KString, KString>>& Environment = {})
-	//-----------------------------------------------------------------------------
-	{
-		Open(std::move(sCommand), sShell, Environment);
-	}
+}; // KStackFrame
 
-	//-----------------------------------------------------------------------------
-	/// Executes given command via a shell pipe from which output can be read
-	/// @param sCommand the command to execute
-	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
-	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
-	/// @return true on success
-	bool Open(KString sCommand, KStringViewZ sShell = "/bin/sh",
-			  const std::vector<std::pair<KString, KString>>& Environment = {});
-	//-----------------------------------------------------------------------------
-
-}; // END KInShell
+/// get function name, filename and line number of the first stackframe that is not listed
+/// in sSkipFiles
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles);
 
 
 /// @}

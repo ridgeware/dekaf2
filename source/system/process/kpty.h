@@ -45,14 +45,14 @@
 /// Open an interactive Unix shell via a pseudo-terminal (PTY), with optional
 /// credential-based login and configurable read timeout
 
-#include "bits/kbaseprocess.h"
+#include <dekaf2/bits/kbaseprocess.h>
 
 #ifdef DEKAF2_HAS_PIPES
 
-#include "kstring.h"
-#include "kduration.h"
-#include "kfdstream.h"
-#include "kstreambuf.h"
+#include <dekaf2/kstring.h>
+#include <dekaf2/kduration.h>
+#include <dekaf2/kfdstream.h>
+#include <dekaf2/kstreambuf.h>
 #include <streambuf>
 #include <iostream>
 

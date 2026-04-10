@@ -1,7 +1,8 @@
 /*
+//
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2022, Ridgeware, Inc.
+// Copyright (c) 2017, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -40,77 +41,69 @@
 
 #pragma once
 
-/// @file kheapmon.h
-/// monitoring and profiling memory usage
-/// To enable heap profiling you must start the final executable with the environment set to
-/// MALLOC_CONF="prof:true,prof_active:false,prof_prefix:jeprof.out"
-/// To start profiling, you then call Heap::Profiling::Start() and can then
-/// get a report with Heap::Profiling::Dump()
+/// @file kinshell.h
+/// provides reading pipe access to a shell instance.
 
-#include "kdefinitions.h"
-#include "kstringview.h"
-#include <cstddef>
+//#include <dekaf2/bits/kbaseshell.h>
+#include <dekaf2/bits/kbaseshell.h>
+#include <dekaf2/kfdstream.h>
+
+#ifdef DEKAF2_IS_UNIX
+	#include <dekaf2/kinpipe.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup system_os
+/// @addtogroup system_process
 /// @{
 
-namespace Heap {
+// For unixes we will use KPipe (with internal fork and exec) instead of popen,
+// as this permits us to close all open file descriptors before executing the
+// new process. It is only for Windows that we will use popen (as fork and exec
+// are not supported).
 
-/// returns true if the standard malloc implementation is used - which probably means that
-/// no extended heap profiling is available
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool IsStandardMalloc();
-/// return last error code - translate with strerror() .. (thread local implementation)
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-int LastError();
-/// print allocation stats, either as text or as JSON
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString GetStats(bool bAsJSON = false);
-
-namespace Profiling {
-
-/// output format for profile dumps
-enum ReportFormat
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Read on a shell instance
+#ifdef DEKAF2_IS_UNIX
+class DEKAF2_PUBLIC KInShell : public KInPipe
+#else
+class DEKAF2_PUBLIC KInShell : public KBaseShell, public KFPReader
+#endif
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	RAW,  ///< the raw profile dump for further processing
-	TEXT, ///< analysed dump in text format
-	SVG,  ///< analysed dump in vector graphics, good for display in a web browser
-	PDF   ///< analysed dump in PDF format
-};
 
-/// check if monitoring can be switched on
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool    IsAvailable();
-/// start monitoring
-DEKAF2_PUBLIC
-bool    Start();
-/// stop monitoring
-DEKAF2_PUBLIC
-bool    Stop();
-/// dump profile result to file
-/// @param sDumpFile the  path name for the output file
-/// @param Format the output format, raw or one of the analyzed formats
-/// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
-/// @return true on success
-DEKAF2_PUBLIC
-bool    Dump(KStringViewZ sDumpFile, ReportFormat Format, KStringView sAdditionalOptions = KStringView{});
-/// dump profile result to string
-/// @param Format the output format, raw or one of the analyzed formats
-/// @param sAdditionalOptions further analysis options to pass on to the profiler, like --alloc_space, default none
-/// @return a string with the dump output
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString Dump(ReportFormat Format, KStringView sAdditionalOptions = KStringView{});
-/// clear/reset collected data
-DEKAF2_PUBLIC
-bool    Reset();
-/// returns true if monitoring was started
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-bool    IsStarted();
+//------
+public:
+//------
 
-} // namespace Profiling
-} // namespace Heap
+	//-----------------------------------------------------------------------------
+	/// Default KInShell Constructor
+	KInShell() = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Constructor which takes and executes command immediately
+	/// @param sCommand the command to execute
+	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	KInShell(KString sCommand, KStringViewZ sShell = "/bin/sh",
+			 const std::vector<std::pair<KString, KString>>& Environment = {})
+	//-----------------------------------------------------------------------------
+	{
+		Open(std::move(sCommand), sShell, Environment);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Executes given command via a shell pipe from which output can be read
+	/// @param sCommand the command to execute
+	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	/// @return true on success
+	bool Open(KString sCommand, KStringViewZ sShell = "/bin/sh",
+			  const std::vector<std::pair<KString, KString>>& Environment = {});
+	//-----------------------------------------------------------------------------
+
+}; // END KInShell
 
 
 /// @}

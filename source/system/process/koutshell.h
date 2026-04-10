@@ -1,6 +1,6 @@
 /*
 //
-// DEKAF(tm): Lighter, Faster, Smarter(tm)
+// DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
 // Copyright (c) 2017, Ridgeware, Inc.
 //
@@ -37,48 +37,76 @@
 // |/+---------------------------------------------------------------------+/|
 // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
 // +-------------------------------------------------------------------------+
-//
 */
 
-#include "kinshell.h"
-#include "klog.h"
+#pragma once
+
+/// @file koutshell.h
+/// provides writing pipe access to a shell instance.
+
+
+#include <dekaf2/bits/kbaseshell.h>
+#include <dekaf2/kfdstream.h>
+
+#ifdef DEKAF2_IS_UNIX
+	#include <dekaf2/koutpipe.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
+/// @addtogroup system_process
+/// @{
+
+// For unixes we will use KPipe (with internal fork and exec) instead of popen,
+// as this permits us to close all open file descriptors before executing the
+// new process. It is only for Windows that we will use popen (as fork and exec
+// are not supported).
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Write to a shell instance
 #ifdef DEKAF2_IS_UNIX
-
-//-----------------------------------------------------------------------------
-bool KInShell::Open(KString sCommand, KStringViewZ sShell,
-					const std::vector<std::pair<KString, KString>>& Environment)
-//-----------------------------------------------------------------------------
-{
-	return KInPipe::Open(std::move(sCommand), sShell, Environment);
-
-} // Open
-
+class DEKAF2_PUBLIC KOutShell : public KOutPipe
 #else
-
-//-----------------------------------------------------------------------------
-bool KInShell::Open(KString sCommand, KStringViewZ sShell,
-					const std::vector<std::pair<KString, KString>>& Environment)
-//-----------------------------------------------------------------------------
-{
-	if (!sShell.empty() && sShell != "/bin/sh")
-	{
-		kDebug(1, "shell '{}' will be ignored and '/bin/sh' be used", sShell);
-	}
-
-	if (!IntOpen(std::move(sCommand), false))
-	{
-		return false;
-	}
-	
-	KFPReader::open(m_pipe);
-	
-	return KFPReader::good();
-
-} // Open
-
+class DEKAF2_PUBLIC KOutShell : public KBaseShell, public KFPWriter
 #endif
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	//-----------------------------------------------------------------------------
+	/// Default KOutShell Constructor
+	KOutShell() = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Constructor which takes and executes command immediately
+	/// @param sCommand the command to execute
+	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	KOutShell(KString sCommand, KStringViewZ sShell = "/bin/sh",
+			  const std::vector<std::pair<KString, KString>>& Environment = {})
+	//-----------------------------------------------------------------------------
+	{
+		Open(std::move(sCommand), sShell, Environment);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Executes given command via a shell pipe which input can be written to
+	/// @param sCommand the command to execute
+	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	/// @return true on success
+	bool Open(KString sCommand, KStringViewZ sShell = "/bin/sh",
+			  const std::vector<std::pair<KString, KString>>& Environment = {});
+	//-----------------------------------------------------------------------------
+
+}; // END KOutShell
+
+
+/// @}
 
 DEKAF2_NAMESPACE_END
+

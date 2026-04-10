@@ -41,12 +41,12 @@
 
 #include "krestroute.h"
 #include "krestserver.h"
-#include "khttperror.h"
-#include "kwebserver.h"
-#include "kwebdav.h"
-#include "kjson.h"
-#include "ktime.h"
-#include "kduration.h"
+#include <dekaf2/khttperror.h>
+#include <dekaf2/kwebserver.h>
+#include <dekaf2/kwebdav.h>
+#include <dekaf2/kjson.h>
+#include <dekaf2/ktime.h>
+#include <dekaf2/kduration.h>
 
 #ifdef DEKAF2_IS_WINDOWS
 // Windows has a DELETE macro in winnt.h which interferes with

@@ -40,10 +40,10 @@
 */
 
 #include "kfileserver.h"
-#include "kfilesystem.h"
-#include "khttperror.h"
-#include "kwebobjects.h"
-#include "klog.h"
+#include <dekaf2/kfilesystem.h>
+#include <dekaf2/khttperror.h>
+#include <dekaf2/kwebobjects.h>
+#include <dekaf2/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

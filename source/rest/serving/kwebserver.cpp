@@ -40,8 +40,8 @@
 */
 
 #include "kwebserver.h"
-#include "khttperror.h"
-#include "ktime.h"
+#include <dekaf2/khttperror.h>
+#include <dekaf2/ktime.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

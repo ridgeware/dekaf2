@@ -42,11 +42,11 @@
 #pragma once
 
 #include "kfileserver.h"
-#include "khttp_method.h"
-#include "khttp_header.h"
-#include "kstring.h"
-#include "kstringview.h"
-#include "kurl.h"
+#include <dekaf2/khttp_method.h>
+#include <dekaf2/khttp_header.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kurl.h>
 #include <functional>
 
 /// @file kwebserver.h

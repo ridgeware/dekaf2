@@ -40,9 +40,9 @@
 */
 
 #include "kwebserverpermissions.h"
-#include "kstringutils.h"
-#include "kreader.h"
-#include "klog.h"
+#include <dekaf2/kstringutils.h>
+#include <dekaf2/kreader.h>
+#include <dekaf2/klog.h>
 #include <algorithm>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -44,11 +44,11 @@
 /// @file krestclient.h
 /// REST client implementations for strings and JSON
 
-#include "kstring.h"
-#include "kstringview.h"
-#include "kwebclient.h"
-#include "kjson.h"
-#include "khttperror.h"
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kwebclient.h>
+#include <dekaf2/kjson.h>
+#include <dekaf2/khttperror.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

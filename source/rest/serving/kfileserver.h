@@ -41,13 +41,13 @@
 
 #pragma once
 
-#include "kdefinitions.h"
-#include "kstring.h"
-#include "kstringview.h"
-#include "kreader.h"
-#include "kwriter.h"
-#include "kmime.h"
-#include "kfilesystem.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kreader.h>
+#include <dekaf2/kwriter.h>
+#include <dekaf2/kmime.h>
+#include <dekaf2/kfilesystem.h>
 #include <memory>
 
 /// @file kfileserver.h

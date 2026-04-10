@@ -41,13 +41,13 @@
 
 #pragma once
 
-#include "khttppath.h"
-#include "khttp_method.h"
-#include "kstring.h"
-#include "kstringview.h"
-#include "kurl.h"
-#include "kjson.h"
-#include "kwebserverpermissions.h"
+#include <dekaf2/khttppath.h>
+#include <dekaf2/khttp_method.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kurl.h>
+#include <dekaf2/kjson.h>
+#include <dekaf2/kwebserverpermissions.h>
 #include <vector>
 #include <memory>
 

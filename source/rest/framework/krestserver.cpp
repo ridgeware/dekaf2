@@ -41,22 +41,22 @@
 
 #include "krestserver.h"
 #include "krestroute.h"
-#include "khttperror.h"
-#include "dekaf2.h"
-#include "kfilesystem.h"
-#include "kopenid.h"
-#include "kstringstream.h"
-#include "kstringutils.h"
-#include "kfrozen.h"
-#include "kregex.h"
-#include "kwebclient.h"
-#include "kcrashexit.h"
-#include "kwriter.h"
-#include "kcountingstreambuf.h"
-#include "krow.h"
-#include "ktime.h"
-#include "kwebsocket.h"
-#include "kscopeguard.h"
+#include <dekaf2/khttperror.h>
+#include <dekaf2/dekaf2.h>
+#include <dekaf2/kfilesystem.h>
+#include <dekaf2/kopenid.h>
+#include <dekaf2/kstringstream.h>
+#include <dekaf2/kstringutils.h>
+#include <dekaf2/kfrozen.h>
+#include <dekaf2/kregex.h>
+#include <dekaf2/kwebclient.h>
+#include <dekaf2/kcrashexit.h>
+#include <dekaf2/kwriter.h>
+#include <dekaf2/kcountingstreambuf.h>
+#include <dekaf2/krow.h>
+#include <dekaf2/ktime.h>
+#include <dekaf2/kwebsocket.h>
+#include <dekaf2/kscopeguard.h>
 #include <utility>
 
 DEKAF2_NAMESPACE_BEGIN

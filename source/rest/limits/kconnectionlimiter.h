@@ -44,11 +44,11 @@
 /// @file kconnectionlimiter.h
 /// Per-key concurrent connection limiter with RAII guard
 
-#include "kdefinitions.h"
-#include "kstring.h"
-#include "kstringview.h"
-#include "kerror.h"
-#include "kassociative.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kerror.h>
+#include <dekaf2/kassociative.h>
 #include <mutex>
 
 DEKAF2_NAMESPACE_BEGIN

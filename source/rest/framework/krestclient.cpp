@@ -40,9 +40,9 @@
  */
 
 #include "krestclient.h"
-#include "khttperror.h"
-#include "kjson.h"
-#include "kstringutils.h"
+#include <dekaf2/khttperror.h>
+#include <dekaf2/kjson.h>
+#include <dekaf2/kstringutils.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

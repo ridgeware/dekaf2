@@ -42,11 +42,11 @@
 #pragma once
 
 #include "krestserver.h"
-#include "ktcpserver.h"
-#include "kpoll.h"
-#include "kwebsocket.h"
-#include "kconnectionlimiter.h"
-#include "kerror.h"
+#include <dekaf2/ktcpserver.h>
+#include <dekaf2/kpoll.h>
+#include <dekaf2/kwebsocket.h>
+#include <dekaf2/kconnectionlimiter.h>
+#include <dekaf2/kerror.h>
 #include <csignal>
 
 /// @file krest.h

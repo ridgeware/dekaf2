@@ -1279,7 +1279,7 @@ set(PUBLIC_HEADERS
 	source/http/protocol/kchunkedtransfer.h
 	source/core/types/kcompatibility.h
 	source/io/compression/kcompression.h
-	kconnectionlimiter.h
+	source/rest/limits/kconnectionlimiter.h
 	source/http/cookie/kcookie.h
 	source/io/streams/kcountingstreambuf.h
 	source/core/errors/kcrashexit.h
@@ -1297,7 +1297,7 @@ set(PUBLIC_HEADERS
 	source/core/errors/kerror.h
 	source/core/errors/kexception.h
 	source/io/streams/kfdstream.h
-	kfileserver.h
+	source/rest/serving/kfileserver.h
 	source/system/filesystem/kfilesystem.h
 	source/core/format/kformat.h
 	source/core/format/kformtable.h
@@ -1368,17 +1368,17 @@ set(PUBLIC_HEADERS
 	source/net/quic/kquicstream.h
 	kquotedprintable.h
 	krandom.h
-	kratelimiter.h
+	source/rest/limits/kratelimiter.h
 	source/io/readwrite/kread.h
 	source/io/readwrite/kreader.h
 	source/core/types/kreference_proxy.h
 	source/core/strings/kregex.h
 	kreplacer.h
 	source/net/address/kresolve.h
-	krest.h
-	krestclient.h
-	krestroute.h
-	krestserver.h
+	source/rest/framework/krest.h
+	source/rest/framework/krestclient.h
+	source/rest/framework/krestroute.h
+	source/rest/framework/krestserver.h
 	kron.h
 	krow.h
 	krsa.h
@@ -1433,8 +1433,8 @@ set(PUBLIC_HEADERS
 	source/http/client/kwebclient.h
 	kwebdav.h
 	kwebobjects.h
-	kwebserver.h
-	kwebserverpermissions.h
+	source/rest/serving/kwebserver.h
+	source/rest/serving/kwebserverpermissions.h
 	source/http/websocket/kwebsocket.h
 	source/http/websocket/kwebsocketclient.h
 	source/core/strings/kwords.h
@@ -1589,7 +1589,7 @@ set (SOURCES
 	kduration.cpp
 	source/core/errors/kerror.cpp
 	source/io/streams/kfdstream.cpp
-	kfileserver.cpp
+	source/rest/serving/kfileserver.cpp
 	source/system/filesystem/kfilesystem.cpp
 	source/core/format/kformat.cpp
 	source/core/format/kformtable.cpp
@@ -1657,12 +1657,12 @@ set (SOURCES
 	source/core/strings/kregex.cpp
 	kreplacer.cpp
 	source/net/address/kresolve.cpp
-	krest.cpp
-	krestclient.cpp
-	krestroute.cpp
-	krestserver.cpp
-	kratelimiter.cpp
-	kconnectionlimiter.cpp
+	source/rest/framework/krest.cpp
+	source/rest/framework/krestclient.cpp
+	source/rest/framework/krestroute.cpp
+	source/rest/framework/krestserver.cpp
+	source/rest/limits/kratelimiter.cpp
+	source/rest/limits/kconnectionlimiter.cpp
 	kron.cpp
 	krow.cpp
 	krsa.cpp
@@ -1703,8 +1703,8 @@ set (SOURCES
 	source/http/client/kwebclient.cpp
 	kwebdav.cpp
 	kwebobjects.cpp
-	kwebserver.cpp
-	kwebserverpermissions.cpp
+	source/rest/serving/kwebserver.cpp
+	source/rest/serving/kwebserverpermissions.cpp
 	source/http/websocket/kwebsocket.cpp
 	source/http/websocket/kwebsocketclient.cpp
 	source/core/strings/kwords.cpp

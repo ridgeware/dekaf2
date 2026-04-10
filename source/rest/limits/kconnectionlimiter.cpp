@@ -39,130 +39,126 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kratelimiter.h"
-#include "klog.h"
-#include "kformat.h"
+#include "kconnectionlimiter.h"
+#include <dekaf2/klog.h>
+#include <dekaf2/kformat.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
-static constexpr KDuration s_CleanupInterval = chrono::seconds(60);
-static constexpr KDuration s_StaleTimeout    = chrono::seconds(60);
-
 //-----------------------------------------------------------------------------
-KRateLimiter::KRateLimiter(double dRequestsPerSecond, uint16_t iBurstSize)
+KConnectionLimiter::KConnectionLimiter(uint16_t iMaxConnectionsPerKey)
 //-----------------------------------------------------------------------------
-: m_tLastCleanup(KSteadyTime::now())
-, m_dRate(dRequestsPerSecond)
-, m_iBurstSize(iBurstSize)
+: m_iMaxConnections(iMaxConnectionsPerKey)
 {
-	if (m_dRate > 0 && m_iBurstSize < 1)
+	if (m_iMaxConnections > 0)
 	{
-		m_iBurstSize = 1;
-	}
-
-	if (m_dRate > 0)
-	{
-		kDebug(2, "rate limiter enabled: {:.1f} req/s, burst {}", m_dRate, m_iBurstSize);
+		kDebug(2, "connection limiter enabled: max {} per key", m_iMaxConnections);
 	}
 
 } // ctor
 
 //-----------------------------------------------------------------------------
-bool KRateLimiter::CheckImpl(KStringView sKey, KSteadyTime tNow)
+KConnectionLimiter::Guard KConnectionLimiter::AcquireImpl(KStringView sKey)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	CleanupIfNeeded(tNow);
+	auto it = m_Connections.find(sKey);
 
-	auto it = m_Buckets.find(sKey);
-
-	if (it == m_Buckets.end())
+	if (it == m_Connections.end())
 	{
-		// new client: start with full burst minus one (this request)
-		it = m_Buckets.emplace(KString(sKey), Bucket { static_cast<double>(m_iBurstSize) - 1.0, tNow }).first;
-		return true;
+		// new key: insert with count 1
+		m_Connections.emplace(KString(sKey), uint16_t(1));
+		return Guard(this, KString(sKey), true);
 	}
 
-	auto& bucket = it->second;
-
-	// refill tokens based on elapsed time
-	auto tElapsed = tNow - bucket.tLastRefill;
-	double dElapsedSeconds = chrono::duration_cast<chrono::microseconds>(tElapsed).count() / 1000000.0;
-
-	if (dElapsedSeconds > 0)
+	if (it->second >= m_iMaxConnections)
 	{
-		bucket.dTokens = std::min(static_cast<double>(m_iBurstSize),
-		                          bucket.dTokens + dElapsedSeconds * m_dRate);
-		bucket.tLastRefill = tNow;
+		kDebug(1, "connection limit exceeded for {} ({}/{})", sKey, it->second, m_iMaxConnections);
+		SetError(kFormat("connection limit exceeded ({}/{})", it->second, m_iMaxConnections));
+		return Guard(nullptr, KString{}, false);
 	}
 
-	// try to consume one token
-	if (bucket.dTokens >= 1.0)
-	{
-		bucket.dTokens -= 1.0;
-		return true;
-	}
+	++(it->second);
+	return Guard(this, KString(sKey), true);
 
-	// rate limit exceeded
-	kDebug(1, "rate limit exceeded for {}", sKey);
-
-	return SetError(kFormat("rate limit exceeded ({:.0f} req/s)", m_dRate));
-
-} // CheckImpl
+} // AcquireImpl
 
 //-----------------------------------------------------------------------------
-std::size_t KRateLimiter::GetBucketCount() const
+void KConnectionLimiter::ReleaseImpl(const KString& sKey)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
-	return m_Buckets.size();
 
-} // GetBucketCount
+	auto it = m_Connections.find(sKey);
 
-//-----------------------------------------------------------------------------
-void KRateLimiter::Cleanup(KSteadyTime tNow)
-//-----------------------------------------------------------------------------
-{
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-	CleanupIfNeeded(tNow);
-
-} // Cleanup
-
-//-----------------------------------------------------------------------------
-void KRateLimiter::CleanupIfNeeded(KSteadyTime tNow)
-//-----------------------------------------------------------------------------
-{
-	// caller must hold m_Mutex
-
-	if (tNow - m_tLastCleanup < s_CleanupInterval)
+	if (it == m_Connections.end())
 	{
+		kDebug(1, "connection limiter: release for unknown key {}", sKey);
 		return;
 	}
 
-	m_tLastCleanup = tNow;
-
-	auto iSizeBefore = m_Buckets.size();
-
-	for (auto it = m_Buckets.begin(); it != m_Buckets.end(); )
+	if (--(it->second) == 0)
 	{
-		if (tNow - it->second.tLastRefill > s_StaleTimeout)
-		{
-			it = m_Buckets.erase(it);
-		}
-		else
-		{
-			++it;
-		}
+		m_Connections.erase(it);
 	}
 
-	auto iRemoved = iSizeBefore - m_Buckets.size();
+} // ReleaseImpl
 
-	if (iRemoved > 0)
+//-----------------------------------------------------------------------------
+void KConnectionLimiter::Guard::Release()
+//-----------------------------------------------------------------------------
+{
+	if (m_Limiter && m_bIsValid)
 	{
-		kDebug(3, "cleaned up {} stale rate limit buckets, {} remaining", iRemoved, m_Buckets.size());
+		m_Limiter->ReleaseImpl(m_sKey);
+		m_Limiter  = nullptr;
+		m_bIsValid = false;
 	}
 
-} // CleanupIfNeeded
+} // Guard::Release
+
+//-----------------------------------------------------------------------------
+std::size_t KConnectionLimiter::GetKeyCount() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	return m_Connections.size();
+
+} // GetKeyCount
+
+//-----------------------------------------------------------------------------
+uint16_t KConnectionLimiter::GetConnectionCount(KStringView sKey) const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto it = m_Connections.find(sKey);
+
+	if (it != m_Connections.end())
+	{
+		return it->second;
+	}
+
+	return 0;
+
+} // GetConnectionCount
+
+//-----------------------------------------------------------------------------
+std::size_t KConnectionLimiter::GetTotalConnections() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	std::size_t iTotal = 0;
+
+	for (const auto& pair : m_Connections)
+	{
+		iTotal += pair.second;
+	}
+
+	return iTotal;
+
+} // GetTotalConnections
 
 DEKAF2_NAMESPACE_END

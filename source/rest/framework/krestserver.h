@@ -41,20 +41,20 @@
 
 #pragma once
 
-#include "khttpserver.h"
+#include <dekaf2/khttpserver.h>
 #include "krestroute.h"
-#include "kstring.h"
-#include "kstringview.h"
-#include "kjson.h"
-#include "kxml.h"
-#include "kduration.h"
-#include "kopenid.h"
-#include "kfilesystem.h"
-#include "kpoll.h"
-#include "khttplog.h"
-#include "kwebsocket.h"
-#include "kipnetwork.h"
-#include "kratelimiter.h"
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kjson.h>
+#include <dekaf2/kxml.h>
+#include <dekaf2/kduration.h>
+#include <dekaf2/kopenid.h>
+#include <dekaf2/kfilesystem.h>
+#include <dekaf2/kpoll.h>
+#include <dekaf2/khttplog.h>
+#include <dekaf2/kwebsocket.h>
+#include <dekaf2/kipnetwork.h>
+#include <dekaf2/kratelimiter.h>
 #include <utility>
 #include <vector>
 #include <memory>

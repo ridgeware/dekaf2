@@ -44,11 +44,11 @@
 /// @file kwebserverpermissions.h
 /// per-directory and per-user permission control for web/file servers
 
-#include "kdefinitions.h"
-#include "kstring.h"
-#include "kstringview.h"
-#include "khttp_method.h"
-#include "kjson.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/khttp_method.h>
+#include <dekaf2/kjson.h>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN

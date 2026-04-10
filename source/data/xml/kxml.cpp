@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/data/xml/kxml.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/errors/kexception.h>
 #include "../../libs/rapidxml-1.13/rapidxml.hpp"

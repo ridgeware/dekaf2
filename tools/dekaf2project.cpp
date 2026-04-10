@@ -52,7 +52,7 @@
 #include <dekaf2/data/template/kreplacer.h>
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/system/os/ksystem.h>
-#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/data/xml/kxml.h>
 
 using namespace DEKAF2_NAMESPACE_NAME;
 

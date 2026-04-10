@@ -203,8 +203,8 @@ khtmldom.h -> web/html/khtmldom.h
 khtmlentities.h -> web/html/khtmlentities.h
 khtmlparser.h -> web/html/khtmlparser.h
 
-# === web/xml/ ===
-kxml.h -> web/xml/kxml.h
+# === data/xml/ ===
+kxml.h -> data/xml/kxml.h
 
 # === web/objects/ ===
 kwebdav.h -> web/objects/kwebdav.h

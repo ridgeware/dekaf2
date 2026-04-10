@@ -27,13 +27,13 @@
 /// @brief REST framework, file serving, rate limiting.
 
 /// @defgroup web Web
-/// @brief URLs, HTML/XML parsing, MIME types, WebDAV.
+/// @brief URLs, HTML parsing, MIME types, WebDAV.
 
 /// @defgroup crypto Crypto
 /// @brief Hashing, encryption, encoding, RSA, and authentication.
 
 /// @defgroup data Data
-/// @brief JSON, CSV, SQL, and template processing.
+/// @brief JSON, XML, CSV, SQL, and template processing.
 
 /// @defgroup time Time
 /// @brief Date/time, duration, timers, profiling, and scheduling.
@@ -204,10 +204,6 @@
 /// @ingroup web
 /// @brief HTML parsing, DOM, entities, and content blocks.
 
-/// @defgroup web_xml XML
-/// @ingroup web
-/// @brief XML parsing and serialization.
-
 /// @defgroup web_objects Web Objects
 /// @ingroup web
 /// @brief WebObjects and WebDAV.
@@ -251,6 +247,10 @@
 /// @defgroup data_sql SQL
 /// @ingroup data
 /// @brief SQL database access, SQLite, and row handling.
+
+/// @defgroup data_xml XML
+/// @ingroup data
+/// @brief XML parsing and serialization.
 
 /// @defgroup data_template Templates
 /// @ingroup data

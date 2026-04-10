@@ -39,7 +39,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <dekaf2/data/sql/ksql.h>
+#include "ksql.h"
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/io/streams/kstream.h>
 #include <dekaf2/core/errors/kexception.h>

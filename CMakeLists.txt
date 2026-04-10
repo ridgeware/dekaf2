@@ -1421,7 +1421,7 @@ set(PUBLIC_HEADERS
 	source/core/strings/kwords.h
 	source/io/readwrite/kwrite.h
 	source/io/readwrite/kwriter.h
-	source/web/xml/kxml.h
+	source/data/xml/kxml.h
 	source/util/cli/kxterm.h
 )
 
@@ -1616,7 +1616,7 @@ set (SOURCES
 	source/core/strings/kwords.cpp
 	source/io/readwrite/kwrite.cpp
 	source/io/readwrite/kwriter.cpp
-	source/web/xml/kxml.cpp
+	source/data/xml/kxml.cpp
 	source/util/cli/kxterm.cpp
 )
 
@@ -2183,22 +2183,12 @@ endif() # DEKAF2_INSTALL_LIB
 
 if (DEKAF2_INSTALL_INCLUDE)
 
-	if (NOT SQLITE3_FOUND)
-		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksqlite.h)")
-	endif()
-
-	if (NOT DEKAF2_HAS_LIBZIP)
-		# make sure to remove a kzip.h header if this build did not find libzip
-		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kzip.h)")
-	endif()
+	# remove all previously installed dekaf2 headers to avoid stale files
+	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2)")
 
 	if(DEKAF2_USE_SYSTEM_FMTLIB)
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt)")
 	endif()
-
-	# remove old headers, until end-2025:
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kutf8.h)")
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kutf8iterator.h)")
 
 endif() # DEKAF2_INSTALL_INCLUDE
 
@@ -2260,13 +2250,12 @@ endif() # DEKAF2_INSTALL_BIN
 
 if (DEKAF2_INSTALL_INCLUDE)
 
-	install(FILES ${PUBLIC_HEADERS}    DESTINATION ${dekaf2_include_dest}/dekaf2)
-	install(FILES source/data/sql/ksql.h               DESTINATION ${dekaf2_include_dest}/dekaf2)
-	install(FILES ${BITS_HEADERS}      DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
-	install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
-	install(FILES source/data/sql/bits/ksql_dbc.h      DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
-	if (SQLITE3_FOUND)
-		install(FILES source/data/sql/ksqlite.h        DESTINATION ${dekaf2_include_dest}/dekaf2)
+	# install hierarchical headers (preserves source/ directory structure under dekaf2/)
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/source/" DESTINATION "${dekaf2_include_dest}/dekaf2" FILES_MATCHING PATTERN "*.h")
+
+	# install flat backward-compatible header stubs
+	if (DEKAF2_INSTALL_FLAT_HEADERS)
+		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/compat/flat/" DESTINATION "${dekaf2_include_dest}/dekaf2" FILES_MATCHING PATTERN "*.h")
 	endif()
 
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/"  DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")

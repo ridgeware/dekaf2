@@ -43,7 +43,7 @@
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/rest/serving/kwebserverpermissions.h>
 #include <dekaf2/http/server/khttperror.h>
-#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/data/xml/kxml.h>
 #include <dekaf2/web/url/kmime.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/format/kformat.h>

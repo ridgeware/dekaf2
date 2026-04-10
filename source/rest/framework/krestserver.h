@@ -46,7 +46,7 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/data/json/kjson.h>
-#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/data/xml/kxml.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/crypto/auth/kopenid.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>

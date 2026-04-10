@@ -70,7 +70,7 @@
 //
 // The tunnel connection can transport up to 16 million tunneled streams.
 
-#include <dekaf2/net/util/ktunnel.h>
+#include "ktunnel.h"
 #include <dekaf2/core/init/dekaf2.h> // KInit()
 #include <dekaf2/core/types/kscopeguard.h>
 

@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/data/xml/kxml.h>
 #include <vector>
 
 using namespace dekaf2;

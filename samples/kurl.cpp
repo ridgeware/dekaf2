@@ -39,7 +39,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <dekaf2/web/url/kurl.h>
+#include "kurl.h"
 #include <dekaf2/core/types/kdefinitions.h>
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/strings/kstring.h>
@@ -48,7 +48,7 @@
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/core/strings/ksplit.h>
 #include <dekaf2/http/client/kwebclient.h>
-#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/data/xml/kxml.h>
 #include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/crypto/auth/kawsauth.h>
 #include <dekaf2/threading/execution/kparallel.h>

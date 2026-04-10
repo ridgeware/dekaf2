@@ -32,8 +32,13 @@ for root, dirs, files in os.walk(target_dir):
                 'DEKAF2_HAS_INCLUDE(<dekaf2/' + old + '>)',
                 'DEKAF2_HAS_INCLUDE(<dekaf2/' + new + '>)'
             )
-            # also fix quoted flat includes like #include "kstring.h"
-            # but only for top-level headers (no / in old path)
+            # also fix quoted includes to angle bracket includes:
+            # #include "dekaf2/kstring.h" or #include "dekaf2/bits/kunique_deleter.h"
+            new_content = new_content.replace(
+                '#include "dekaf2/' + old + '"',
+                '#include <dekaf2/' + new + '>'
+            )
+            # #include "kstring.h" (only for top-level headers without /)
             if '/' not in old:
                 new_content = new_content.replace(
                     '#include "' + old + '"',

@@ -1162,7 +1162,7 @@ if (DEKAF2_WITH_USER_AGENT_PARSER)
 endif()
 
 # create the configuration header file
-configure_file("bits/kconfiguration.h.in" "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
+configure_file("cmake/kconfiguration.h.in" "${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h" @ONLY)
 
 # create the cmake config file for find_package()
 configure_file("cmake/${PROJECT_NAME}-config.cmake.in" "${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config.cmake" @ONLY)

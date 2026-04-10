@@ -2,7 +2,7 @@
 //
 // DEKAF(tm): Lighter, Faster, Smarter (tm)
 //
-// Copyright (c) 2017, Ridgeware, Inc.
+// Copyright (c) 2024, Ridgeware, Inc.
 //
 // +-------------------------------------------------------------------------+
 // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,83 +41,30 @@
 
 #pragma once
 
-/// @file ktlsstream.h
-/// provides an implementation of std::iostreams supporting TLS
+/// @file kquicstream.h
+/// provides an implementation of std::iostreams supporting QUIC
 
-#include "bits/kasiostream.h"
-#include "kiostreamsocket.h"
-#include "ktlscontext.h"
-#include "kstring.h"
-#include "kstreambuf.h"
-#include "kurl.h"
+#include "kconfiguration.h"
+
+#if DEKAF2_HAS_OPENSSL_QUIC
+
+#include <dekaf2/ktlscontext.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstreambuf.h>
+#include <dekaf2/kurl.h>
+#include <dekaf2/kstreamoptions.h>
+#include <dekaf2/bits/kunique_deleter.h>
+#include <dekaf2/kiostreamsocket.h>
+#include <openssl/ssl.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup net_tls
+/// @addtogroup net_quic
 /// @{
 
-namespace detail {
-
-template<typename StreamType>
-struct KAsioTLSTraits
-{
-	static bool SocketIsOpen(StreamType& Socket)
-		{ return Socket.next_layer().is_open(); }
-	static void SocketShutdown(StreamType& Socket, boost::system::error_code& ec)
-	{
-		// set non-blocking to prevent SSL shutdown from blocking indefinitely
-		// in poll() if the peer doesn't respond to close_notify - the close_notify
-		// is still sent, but we do not wait for the peer's response.
-		// This fix is only needed for TLS: plain TCP/Unix socket shutdown() just
-		// sends FIN and returns immediately, while SSL shutdown() performs a
-		// bidirectional handshake that calls poll(-1) to wait for the peer's
-		// close_notify response, which can block forever.
-		Socket.next_layer().non_blocking(true, ec);
-		ec.clear();
-		Socket.shutdown(ec);
-		Socket.next_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
-	}
-	static void SocketClose(StreamType& Socket, boost::system::error_code& ec)
-		{ Socket.next_layer().close(ec); }
-	static void SocketPeek(StreamType& Socket, boost::system::error_code& ec)
-		{ uint16_t buffer; Socket.next_layer().receive(boost::asio::buffer(&buffer, 1), Socket.next_layer().message_peek, ec); }
-};
-
-} // end of namespace detail
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<typename StreamType>
-struct KAsioTLSStream : public KAsioStream<StreamType, detail::KAsioTLSTraits<StreamType>>
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	//-----------------------------------------------------------------------------
-	KAsioTLSStream(KTLSContext& Context, KDuration Timeout, bool _bManualHandshake = false)
-	//-----------------------------------------------------------------------------
-	: KAsioStream<StreamType, detail::KAsioTLSTraits<StreamType>>
-	                   { Context, Timeout  }
-	, TLSContext       { Context           }
-	, bManualHandshake { _bManualHandshake }
-	{
-	} // ctor
-
-	//-----------------------------------------------------------------------------
-	/// Gets the KTLSContext used in construction
-	const KTLSContext& GetContext() const
-	//-----------------------------------------------------------------------------
-	{
-		return TLSContext;
-	}
-
-	KTLSContext& TLSContext;
-	bool         bNeedHandshake   { true  };
-	bool         bManualHandshake { false };
-
-}; // KAsioTLSStream
-
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// std::iostream TLS implementation with timeout.
-class DEKAF2_PUBLIC KTLSStream : public KIOStreamSocket
+/// std::iostream QUIC implementation with timeout.
+class DEKAF2_PUBLIC KQuicStream : public KIOStreamSocket
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = KIOStreamSocket;
@@ -126,16 +73,11 @@ class DEKAF2_PUBLIC KTLSStream : public KIOStreamSocket
 public:
 //----------
 
-	using asio_stream_type = boost::asio::ssl::stream<boost::asio::ip::tcp::socket>;
-#if (DEKAF2_CLASSIC_ASIO)
-	using asio_socket_type = boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<boost::asio::ip::tcp>>;
-#else
-	using asio_socket_type = boost::asio::basic_socket<boost::asio::ip::tcp>;
-#endif
-
 	//-----------------------------------------------------------------------------
 	/// Constructs an unconnected client stream
-	KTLSStream();
+	/// @param iSecondsTimeout
+	/// Timeout for any I/O. Defaults to 15 seconds.
+	KQuicStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -145,7 +87,7 @@ public:
 	/// will also be defined with the KTLSContext.
 	/// @param iSecondsTimeout
 	/// Timeout for any I/O. Defaults to 15 seconds.
-	KTLSStream(KTLSContext& Context, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+	KQuicStream(KTLSContext& Context, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -158,28 +100,23 @@ public:
 	/// a variety of inputs, like strings or KURL
 	/// @param Options
 	/// set options like certificate verification, manual TLS handshake, HTTP2 request, and the timeout
-	KTLSStream(KTLSContext& Context, const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
+	KQuicStream(KTLSContext& Context, const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Constructs a connected client stream
+	/// Constructs a connected client stream, using the default client context
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
 	/// @param Options
 	/// set options like certificate verification, manual TLS handshake, HTTP2 request, and the timeout
-	KTLSStream(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
+	KQuicStream(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
 
-	KTLSStream(const KTLSStream&) = delete;
-	KTLSStream& operator=(const KTLSStream&) = delete;
-	KTLSStream(KTLSStream&&) = delete;
-	KTLSStream& operator=(KTLSStream&&) = delete;
-
-	//-----------------------------------------------------------------------------
-	/// Set the endpoint address when in server mode
-	virtual void SetConnectedEndPointAddress(const KTCPEndPoint& Endpoint) override final;
-	//-----------------------------------------------------------------------------
+	KQuicStream(const KQuicStream&) = delete;
+	KQuicStream& operator=(const KQuicStream&) = delete;
+	KQuicStream(KQuicStream&&) = delete;
+	KQuicStream& operator=(KQuicStream&&) = delete;
 
 	//-----------------------------------------------------------------------------
 	/// Connects a given server as a client.
@@ -193,17 +130,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Disconnect the stream
-	virtual bool Disconnect() override final
-	//-----------------------------------------------------------------------------
-	{
-		return m_Stream.Disconnect();
-	}
+	virtual bool Disconnect() override final;
 
 	//-----------------------------------------------------------------------------
 	virtual bool is_open() const override final
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.Socket.next_layer().is_open();
+		return m_NativeSocket != native_socket_type(-1);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -211,7 +144,12 @@ public:
 	virtual bool IsDisconnected() override final
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.IsDisconnected();
+		if (!is_open())
+		{
+			return true;
+		}
+
+		return m_SSL && (::SSL_get_shutdown(GetNativeTLSHandle()) & SSL_RECEIVED_SHUTDOWN);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -221,43 +159,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Switch to manual handshake, only possible before any data has been read or
-	/// written
-	virtual bool SetManualTLSHandshake(bool bYesno = true) override final;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Allow to switch to HTTP2
-	/// @param bAlsoAllowHTTP1 if set to false, only HTTP/2 connections are permitted. Else a fallback on
-	/// HTTP/1.1 is permitted. Default is true.
-	/// @returns true if protocol request is permitted
-	bool SetRequestHTTP2(bool bAlsoAllowHTTP1 = true);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Gets the ASIO socket of the stream, e.g. to move it to another place ..
-	asio_stream_type& GetAsioSocket()
-	//-----------------------------------------------------------------------------
-	{
-		return m_Stream.Socket;
-	}
-
-	//-----------------------------------------------------------------------------
-	/// Gets the underlying TCP socket of the stream
-	/// @return
-	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
-	asio_socket_type& GetTCPSocket()
-	//-----------------------------------------------------------------------------
-	{
-		return GetAsioSocket().lowest_layer();
-	}
-
-	//-----------------------------------------------------------------------------
 	/// Gets the underlying OS level native socket of the stream
 	virtual native_socket_type GetNativeSocket() override final
 	//-----------------------------------------------------------------------------
 	{
-		return GetTCPSocket().native_handle();
+		return m_NativeSocket;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -265,7 +171,7 @@ public:
 	virtual native_tls_handle_type GetNativeTLSHandle() override final
 	//-----------------------------------------------------------------------------
 	{
-		return GetAsioSocket().native_handle();
+		return m_SSL.get();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -273,7 +179,7 @@ public:
 	const KTLSContext& GetContext() const
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.GetContext();
+		return m_TLSContext;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -281,13 +187,8 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// is this a stream with TLS?
-	virtual bool IsTLS() const override final { return true; }
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// Get a reference to self
-	KTLSStream& GetKTLSStream()
+	KQuicStream& GetKQuicStream()
 	//-----------------------------------------------------------------------------
 	{
 		return *this;
@@ -297,37 +198,29 @@ public:
 	virtual bool Good() const override final
 	//-----------------------------------------------------------------------------
 	{
-		return m_Stream.ec.value() == 0;
+		return !HasError();
 	}
 
 	//-----------------------------------------------------------------------------
-	/// If a HTTP/2 handshake failed in a specific way it may be due to an OpenSSL communication problem.
-	/// In that case, it is advised to retry the connection with HTTP/1.1
-	bool ShouldRetryWithHTTP1() const
+	/// request to switch to HTTP3
+	/// @returns true if protocol request is permitted
+	bool SetRequestHTTP3();
 	//-----------------------------------------------------------------------------
-	{
-		return m_bRetryWithHTTP1;
-	}
 
 //----------
 private:
 //----------
 
 	//-----------------------------------------------------------------------------
-	/// Set I/O timeout.
-	virtual bool Timeout(KDuration Timeout) override final;
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
 	DEKAF2_PRIVATE
-	static std::streamsize TLSStreamReader(void* sBuffer, std::streamsize iCount, void* stream);
+	static std::streamsize QuicStreamReader(void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf writer
 	DEKAF2_PRIVATE
-	static std::streamsize TLSStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
+	static std::streamsize QuicStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -335,31 +228,33 @@ private:
 	bool Handshake();
 	//-----------------------------------------------------------------------------
 
-	KAsioTLSStream<asio_stream_type> m_Stream;
-	KBufferedStreamBuf m_TLSStreamBuf { &TLSStreamReader, &TLSStreamWriter, this, this };
-	KStreamOptions m_StreamOptions;
-	bool m_bRetryWithHTTP1 { false };
+	KTLSContext&           m_TLSContext;
+	KUniquePtr<::SSL, ::SSL_free>
+	                       m_SSL;
+	native_socket_type     m_NativeSocket   { native_socket_type(-1) };
+	bool                   m_bNeedHandshake { true };
 
-}; // KTLSStream
+	KBufferedStreamBuf     m_QuicStreamBuf { &QuicStreamReader, &QuicStreamWriter, this, this };
+
+}; // KQuicStream
 
 
-// there is nothing special with a tcp ssl client
-using KTLSClient = KTLSStream;
-
-//-----------------------------------------------------------------------------
-DEKAF2_PUBLIC
-std::unique_ptr<KTLSStream> CreateKTLSServer(KTLSContext& Context,
-											 KDuration Timeout = KStreamOptions::GetDefaultTimeout());
-//-----------------------------------------------------------------------------
+// there is nothing special with a quic client
+using KQuicClient = KQuicStream;
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KTLSClient> CreateKTLSClient();
+std::unique_ptr<KQuicStream> CreateKQuicServer(KTLSContext& Context, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KTLSClient> CreateKTLSClient(const KTCPEndPoint& EndPoint, KStreamOptions Options);
+std::unique_ptr<KQuicClient> CreateKQuicClient();
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
+std::unique_ptr<KQuicClient> CreateKQuicClient(const KTCPEndPoint& EndPoint, KStreamOptions Options);
 //-----------------------------------------------------------------------------
 
 
@@ -367,4 +262,4 @@ std::unique_ptr<KTLSClient> CreateKTLSClient(const KTCPEndPoint& EndPoint, KStre
 
 DEKAF2_NAMESPACE_END
 
-
+#endif // of DEKAF2_HAS_OPENSSL_QUIC

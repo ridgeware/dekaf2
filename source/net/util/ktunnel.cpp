@@ -82,13 +82,13 @@
 // The tunnel connection can transport up to 16 million tunneled streams.
 
 #include "ktunnel.h"
-#include "kerror.h"
-#include "ktcpstream.h"
-#include "dekaf2.h"
-#include "kbuffer.h"
-#include "kscopeguard.h"
-#include "kencode.h"
-#include "krandom.h"
+#include <dekaf2/kerror.h>
+#include <dekaf2/ktcpstream.h>
+#include <dekaf2/dekaf2.h>
+#include <dekaf2/kbuffer.h>
+#include <dekaf2/kscopeguard.h>
+#include <dekaf2/kencode.h>
+#include <dekaf2/krandom.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

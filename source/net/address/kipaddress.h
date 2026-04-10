@@ -55,11 +55,11 @@
 /// @file kipaddress.h
 /// ip address checks and classes to store IPv4 and IPv6 addresses
 
-#include "kdefinitions.h"
-#include "kstringview.h"
-#include "kformat.h"
-#include "khash.h"
-#include "kexception.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kformat.h>
+#include <dekaf2/khash.h>
+#include <dekaf2/kexception.h>
 #include <array>
 
 #if DEKAF2_HAS_INCLUDE(<netinet/in.h>)

@@ -56,12 +56,12 @@
 /// @file kipnetwork.h
 /// classes to store and check IPv4 and IPv6 networks
 
-#include "kdefinitions.h"
+#include <dekaf2/kdefinitions.h>
 #include "kipaddress.h"
-#include "kstringview.h"
-#include "kformat.h"
-#include "khash.h"
-#include "kexception.h"
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kformat.h>
+#include <dekaf2/khash.h>
+#include <dekaf2/kexception.h>
 #include <array>
 
 DEKAF2_NAMESPACE_BEGIN

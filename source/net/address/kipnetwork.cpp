@@ -41,8 +41,8 @@
 */
 
 #include "kipnetwork.h"
-#include "kstringutils.h"
-#include "kctype.h"
+#include <dekaf2/kstringutils.h>
+#include <dekaf2/kctype.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

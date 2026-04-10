@@ -40,8 +40,8 @@
 */
 
 #include "ktlscontext.h"
-#include "klog.h"
-#include "kfrozen.h"
+#include <dekaf2/klog.h>
+#include <dekaf2/kfrozen.h>
 #include <openssl/opensslv.h>
 
 DEKAF2_NAMESPACE_BEGIN

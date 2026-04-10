@@ -67,24 +67,24 @@
 */
 
 #include <thread>
-#include "bits/kasio.h"
+#include <dekaf2/bits/kasio.h>
 #include <boost/system/system_error.hpp>
 #ifndef DEKAF2_IS_MSC
 #include <boost/exception/diagnostic_information.hpp>
 #endif
 
 #include "ktcpserver.h"
-#include "ktlscontext.h"
-#include "ktlsstream.h"
+#include <dekaf2/ktlscontext.h>
+#include <dekaf2/ktlsstream.h>
 #include "ktcpstream.h"
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 #include "kunixstream.h"
 #endif
-#include "klog.h"
-#include "kfilesystem.h"
-#include "dekaf2.h"
-#include "ksignals.h"
-#include "krsacert.h"
+#include <dekaf2/klog.h>
+#include <dekaf2/kfilesystem.h>
+#include <dekaf2/dekaf2.h>
+#include <dekaf2/ksignals.h>
+#include <dekaf2/krsacert.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

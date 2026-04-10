@@ -45,12 +45,12 @@
 /// @file knetworkinterface.h
 /// gathering information about system network interfaces
 
-#include "kdefinitions.h"
-#include "kstring.h"
-#include "kstringview.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
 #include "kipaddress.h"
 #include "kipnetwork.h"
-#include "khex.h"
+#include <dekaf2/khex.h>
 #include <array>
 
 #ifndef __cpp_lib_incomplete_container_elements

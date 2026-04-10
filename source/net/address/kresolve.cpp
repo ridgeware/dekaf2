@@ -42,9 +42,9 @@
 
 #include "kresolve.h"
 #include "kipaddress.h"
-#include "bits/kasio.h"
-#include "kiostreamsocket.h"
-#include "klog.h"
+#include <dekaf2/bits/kasio.h>
+#include <dekaf2/kiostreamsocket.h>
+#include <dekaf2/klog.h>
 #include <unordered_map>
 
 DEKAF2_NAMESPACE_BEGIN

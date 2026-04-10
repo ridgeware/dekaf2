@@ -44,8 +44,8 @@
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
-#include "klog.h"
-#include "kurl.h"
+#include <dekaf2/klog.h>
+#include <dekaf2/kurl.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

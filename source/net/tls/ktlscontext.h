@@ -44,10 +44,10 @@
 /// @file ktlscontext.h
 /// provides an implementation of the TLS context object
 
-#include "bits/kasio.h"
-#include "kstring.h"
-#include "kstreamoptions.h"
-#include "kerror.h"
+#include <dekaf2/bits/kasio.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstreamoptions.h>
+#include <dekaf2/kerror.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

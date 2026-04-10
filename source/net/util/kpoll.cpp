@@ -39,10 +39,10 @@
 */
 
 #include "kpoll.h"
-#include "klog.h"
-#include "ksystem.h"
-#include "kcompatibility.h"
-#include "kduration.h"
+#include <dekaf2/klog.h>
+#include <dekaf2/ksystem.h>
+#include <dekaf2/kcompatibility.h>
+#include <dekaf2/kduration.h>
 
 #if !DEKAF2_IS_WINDOWS
 	#include <sys/types.h>

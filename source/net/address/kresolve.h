@@ -45,11 +45,11 @@
 /// @file kresolve.h
 /// host name resolution and reverse lookup
 
-#include "kstring.h"
-#include "kstringview.h"
-#include "bits/kstringviewz.h"
-#include "bits/kasio.h"
-#include "kstreamoptions.h"
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/bits/kstringviewz.h>
+#include <dekaf2/bits/kasio.h>
+#include <dekaf2/kstreamoptions.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

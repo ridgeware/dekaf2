@@ -44,12 +44,12 @@
 /// @file kiostreamsocket.h
 /// provides common stream methods for all internet streams
 
-#include "kdefinitions.h"
-#include "kstringview.h"
-#include "kstreamoptions.h"
-#include "kurl.h"
-#include "kerror.h"
-#include "bits/kasio.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kstreamoptions.h>
+#include <dekaf2/kurl.h>
+#include <dekaf2/kerror.h>
+#include <dekaf2/bits/kasio.h>
 #include <iostream>
 
 #if DEKAF2_IS_WINDOWS

@@ -43,9 +43,9 @@
 
 #if DEKAF2_HAS_OPENSSL_QUIC
 
-#include "kresolve.h"
-#include "klog.h"
-#include "kscopeguard.h"
+#include <dekaf2/kresolve.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/kscopeguard.h>
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
 

@@ -1331,9 +1331,9 @@ set(PUBLIC_HEADERS
 	source/io/pipes/kinpipe.h
 	source/system/process/kinshell.h
 	source/io/streams/kinstringstream.h
-	kiostreamsocket.h
-	kipaddress.h
-	kipnetwork.h
+	source/net/tls/kiostreamsocket.h
+	source/net/address/kipaddress.h
+	source/net/address/kipnetwork.h
 	source/core/strings/kjoin.h
 	kjson.h
 	kjson2.h
@@ -1349,7 +1349,7 @@ set(PUBLIC_HEADERS
 	source/io/streams/kmodifyingstreambuf.h
 	source/core/strings/kmpsearch.h
 	source/containers/associative/kmru.h
-	knetworkinterface.h
+	source/net/address/knetworkinterface.h
 	kngram.h
 	koptions.h
 	kopenid.h
@@ -1362,10 +1362,10 @@ set(PUBLIC_HEADERS
 	source/io/pipes/kpipe.h
 	source/system/process/kpty.h
 	source/containers/memory/kpool.h
-	kpoll.h
+	source/net/util/kpoll.h
 	kprof.h
 	source/containers/associative/kprops.h
-	kquicstream.h
+	source/net/quic/kquicstream.h
 	kquotedprintable.h
 	krandom.h
 	kratelimiter.h
@@ -1374,7 +1374,7 @@ set(PUBLIC_HEADERS
 	source/core/types/kreference_proxy.h
 	source/core/strings/kregex.h
 	kreplacer.h
-	kresolve.h
+	source/net/address/kresolve.h
 	krest.h
 	krestclient.h
 	krestroute.h
@@ -1406,9 +1406,9 @@ set(PUBLIC_HEADERS
 	ksubscribe.h
 	source/system/os/ksystem.h
 	source/system/os/ksystemstats.h
-	ktcpclient.h
-	ktcpserver.h
-	ktcpstream.h
+	source/net/tcp/ktcpclient.h
+	source/net/tcp/ktcpserver.h
+	source/net/tcp/ktcpstream.h
 	ktemperature.h
 	source/core/types/ktemplate.h
 	kthreadpool.h
@@ -1416,11 +1416,11 @@ set(PUBLIC_HEADERS
 	kthreadsafe.h
 	ktime.h
 	ktimer.h
-	ktlscontext.h
-	ktlsstream.h
+	source/net/tls/ktlscontext.h
+	source/net/tls/ktlsstream.h
 	ktimeseries.h
-	ktunnel.h
-	kunixstream.h
+	source/net/util/ktunnel.h
+	source/net/tcp/kunixstream.h
 	kuntar.h
 	kurl.h
 	kurlencode.h
@@ -1622,9 +1622,9 @@ set (SOURCES
 	source/io/pipes/kinpipe.cpp
 	source/system/process/kinshell.cpp
 	source/io/streams/kinstringstream.cpp
-	kiostreamsocket.cpp
-	kipaddress.cpp
-	kipnetwork.cpp
+	source/net/tls/kiostreamsocket.cpp
+	source/net/address/kipaddress.cpp
+	source/net/address/kipnetwork.cpp
 	kjson.cpp
 	kjson2.cpp
 	kjuliandate.cpp
@@ -1636,7 +1636,7 @@ set (SOURCES
 	kmime.cpp
 	source/io/streams/kmodifyingstreambuf.cpp
 	source/core/strings/kmpsearch.cpp
-	knetworkinterface.cpp
+	source/net/address/knetworkinterface.cpp
 	kopenid.cpp
 	koptions.cpp
 	source/io/pipes/koutpipe.cpp
@@ -1646,17 +1646,17 @@ set (SOURCES
 	kparallel.cpp
 	source/io/pipes/kpipe.cpp
 	source/system/process/kpty.cpp
-	kpoll.cpp
+	source/net/util/kpoll.cpp
 	kprof.cpp
 	source/containers/associative/kprops.cpp
-	kquicstream.cpp
+	source/net/quic/kquicstream.cpp
 	kquotedprintable.cpp
 	krandom.cpp
 	source/io/readwrite/kread.cpp
 	source/io/readwrite/kreader.cpp
 	source/core/strings/kregex.cpp
 	kreplacer.cpp
-	kresolve.cpp
+	source/net/address/kresolve.cpp
 	krest.cpp
 	krestclient.cpp
 	krestroute.cpp
@@ -1684,16 +1684,16 @@ set (SOURCES
 	source/core/strings/kstringview.cpp
 	source/system/os/ksystem.cpp
 	source/system/os/ksystemstats.cpp
-	ktcpserver.cpp
-	ktcpstream.cpp
+	source/net/tcp/ktcpserver.cpp
+	source/net/tcp/ktcpstream.cpp
 	kthreadpool.cpp
 	kthreads.cpp
 	ktime.cpp
 	ktimer.cpp
-	ktlscontext.cpp
-	ktlsstream.cpp
-	ktunnel.cpp
-	kunixstream.cpp
+	source/net/tls/ktlscontext.cpp
+	source/net/tls/ktlsstream.cpp
+	source/net/util/ktunnel.cpp
+	source/net/tcp/kunixstream.cpp
 	kuntar.cpp
 	kurl.cpp
 	kurlencode.cpp

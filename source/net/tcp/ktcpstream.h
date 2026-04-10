@@ -2,7 +2,7 @@
  //
  // DEKAF(tm): Lighter, Faster, Smarter (tm)
  //
- // Copyright (c) 2018, Ridgeware, Inc.
+ // Copyright (c) 2017, Ridgeware, Inc.
  //
  // +-------------------------------------------------------------------------+
  // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
@@ -41,19 +41,16 @@
 
 #pragma once
 
-/// @file kunixstream.h
-/// provides an implementation of std::iostreams for Unix stream sockets
+/// @file ktcpstream.h
+/// provides an implementation of std::iostreams for TCP
 
-#include "kdefinitions.h"
-
-#ifdef DEKAF2_HAS_UNIX_SOCKETS
-
-#include "kiostreamsocket.h"
-#include "bits/kasiostream.h"
-#include "kstringview.h"
-#include "kstreambuf.h"
-#include "kurl.h"
-#include "kstreamoptions.h"
+#include <dekaf2/kdefinitions.h>
+#include <dekaf2/kiostreamsocket.h>
+#include <dekaf2/bits/kasiostream.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstreambuf.h>
+#include <dekaf2/kurl.h>
+#include <dekaf2/kstreamoptions.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -62,7 +59,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// std::iostream TCP implementation with timeout.
-class DEKAF2_PUBLIC KUnixStream : public KIOStreamSocket
+class DEKAF2_PUBLIC KTCPStream : public KIOStreamSocket
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	using base_type = KIOStreamSocket;
@@ -71,33 +68,47 @@ class DEKAF2_PUBLIC KUnixStream : public KIOStreamSocket
 public:
 //----------
 
-	using asio_stream_type = boost::asio::local::stream_protocol::socket;
+	using asio_stream_type   = boost::asio::basic_stream_socket<boost::asio::ip::tcp>;
 #if (DEKAF2_CLASSIC_ASIO)
-	using asio_socket_type = boost::asio::basic_socket<boost::asio::local::stream_protocol, boost::asio::stream_socket_service<boost::asio::local::stream_protocol>>;
+	using asio_socket_type  = boost::asio::basic_socket<boost::asio::ip::tcp, boost::asio::stream_socket_service<boost::asio::ip::tcp>>;
 #else
-	using asio_socket_type = boost::asio::basic_socket<boost::asio::local::stream_protocol>;
+	using asio_socket_type  = boost::asio::basic_socket<boost::asio::ip::tcp>;
 #endif
 
 	//-----------------------------------------------------------------------------
 	/// Construcs an unconnected stream
-	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 15.
-	KUnixStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+	/// @param Timeout
+	/// Timeout for any I/O. Defaults to 15 seconds.
+	KTCPStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Constructs a connected stream as a client.
-	/// @param sSocketFile
-	/// a unix socket endpoint file
-	/// @param iSecondsTimeout
-	/// Timeout in seconds for any I/O. Defaults to 15.
-	KUnixStream(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
+	/// Constructs a connected client stream
+	/// @param Endpoint
+	/// KTCPEndPoint as the server to connect to - can be constructed from
+	/// a variety of inputs, like strings or KURL
+	/// @param Options 
+	/// set options like IPv4 or IPv6, and the timeout
+	KTCPStream(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Destructs and closes a stream
+	~KTCPStream() = default;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set the endpoint address when in server mode
+	virtual void SetConnectedEndPointAddress(const KTCPEndPoint& Endpoint) override final;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Connects a given server as a client.
-	/// @param sSocketFile
-	/// a unix socket endpoint file
+	/// @param Endpoint
+	/// KTCPEndPoint as the server to connect to - can be constructed from
+	/// a variety of inputs, like strings or KURL
+	/// @param Options
+	/// set options like IPv4 or IPv6, and the timeout
 	virtual bool Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{}) override final;
 	//-----------------------------------------------------------------------------
 
@@ -110,7 +121,6 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_NODISCARD
 	virtual bool is_open() const override final
 	//-----------------------------------------------------------------------------
 	{
@@ -119,7 +129,6 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// tests for a closed connection of the remote side by trying to peek one byte
-	DEKAF2_NODISCARD
 	virtual bool IsDisconnected() override final
 	//-----------------------------------------------------------------------------
 	{
@@ -127,8 +136,7 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Gets the ASIO socket of the stream, e.g. to move it to another place ..
-	DEKAF2_NODISCARD
+	/// Gets the ASIO stream socket of the stream, e.g. to move it to another place ..
 	asio_stream_type& GetAsioSocket()
 	//-----------------------------------------------------------------------------
 	{
@@ -136,10 +144,10 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Gets the underlying socket of the stream
+	/// Gets the underlying TCP socket of the stream
 	/// @return
-	/// The socket of the stream (wrapped into ASIO's basic_socket<> template)
-	asio_socket_type& GetUnixSocket()
+	/// The TCP socket of the stream (wrapped into ASIO's basic_socket<> template)
+	asio_socket_type& GetTCPSocket()
 	//-----------------------------------------------------------------------------
 	{
 		return GetAsioSocket().lowest_layer();
@@ -150,11 +158,10 @@ public:
 	virtual native_socket_type GetNativeSocket() override final
 	//-----------------------------------------------------------------------------
 	{
-		return GetUnixSocket().native_handle();
+		return GetTCPSocket().native_handle();
 	}
 
 	//-----------------------------------------------------------------------------
-	DEKAF2_NODISCARD
 	virtual bool Good() const override final
 	//-----------------------------------------------------------------------------
 	{
@@ -169,42 +176,39 @@ public:
 private:
 //----------
 
-	//-----------------------------------------------------------------------------
 	/// Set I/O timeout
 	virtual bool Timeout(KDuration Timeout) override final;
-	//-----------------------------------------------------------------------------
 
 	KAsioStream<asio_stream_type> m_Stream;
 
-	KStreamBuf m_TCPStreamBuf { &UnixStreamReader, &UnixStreamWriter, this, this };
+	KBufferedStreamBuf m_TCPStreamBuf { &TCPStreamReader, &TCPStreamWriter, this, this };
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
 	DEKAF2_PRIVATE
-	static std::streamsize UnixStreamReader(void* sBuffer, std::streamsize iCount, void* stream);
+	static std::streamsize TCPStreamReader(void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf writer
 	DEKAF2_PRIVATE
-	static std::streamsize UnixStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
+	static std::streamsize TCPStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
 };
 
+
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KUnixStream> CreateKUnixStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+std::unique_ptr<KTCPStream> CreateKTCPStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KUnixStream> CreateKUnixStream(KStringViewZ sSocketFile, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
+std::unique_ptr<KTCPStream> CreateKTCPStream(const KTCPEndPoint& EndPoint, KStreamOptions Options);
 //-----------------------------------------------------------------------------
 
 
 /// @}
 
 DEKAF2_NAMESPACE_END
-
-#endif // DEKAF2_HAS_UNIX_SOCKETS

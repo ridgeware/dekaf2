@@ -43,15 +43,15 @@
 
 
 /// @file ktunnel.h
-#include "kiostreamsocket.h"
-#include "kassociative.h"
-#include "kblockcipher.h"
-#include "kurl.h"
-#include "kthreadsafe.h"
-#include "kthreads.h"
-#include "ktimer.h"
-#include "ksourcelocation.h"
-#include "kwebsocket.h"
+#include <dekaf2/kiostreamsocket.h>
+#include <dekaf2/kassociative.h>
+#include <dekaf2/kblockcipher.h>
+#include <dekaf2/kurl.h>
+#include <dekaf2/kthreadsafe.h>
+#include <dekaf2/kthreads.h>
+#include <dekaf2/ktimer.h>
+#include <dekaf2/ksourcelocation.h>
+#include <dekaf2/kwebsocket.h>
 #include <thread>
 #include <memory>
 #include <mutex>

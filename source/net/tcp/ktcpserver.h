@@ -71,14 +71,14 @@
 /// @file ktcpserver.h
 /// TCP server implementation with TLS
 
-#include "bits/kasio.h"
-#include "kstream.h"
-#include "kstring.h"
-#include "kthreadpool.h"
-#include "khttp_version.h"
-#include "kstreamoptions.h"
-#include "kiostreamsocket.h"
-#include "kerror.h"
+#include <dekaf2/bits/kasio.h>
+#include <dekaf2/kstream.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kthreadpool.h>
+#include <dekaf2/khttp_version.h>
+#include <dekaf2/kstreamoptions.h>
+#include <dekaf2/kiostreamsocket.h>
+#include <dekaf2/kerror.h>
 #include <cinttypes>
 #include <thread>
 #include <future>

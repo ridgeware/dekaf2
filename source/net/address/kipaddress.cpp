@@ -41,9 +41,9 @@
 */
 
 #include "kipaddress.h"
-#include "kcompatibility.h"
-#include "kctype.h"
-#include "kstringutils.h"
+#include <dekaf2/kcompatibility.h>
+#include <dekaf2/kctype.h>
+#include <dekaf2/kstringutils.h>
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <iphlpapi.h>

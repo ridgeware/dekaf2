@@ -41,12 +41,12 @@
 
 
 #include "kiostreamsocket.h"
-#include "kurlencode.h"
-#include "kunixstream.h"
-#include "ktcpstream.h"
+#include <dekaf2/kurlencode.h>
+#include <dekaf2/kunixstream.h>
+#include <dekaf2/ktcpstream.h>
 #include "ktlsstream.h"
-#include "kquicstream.h"
-#include "kpoll.h"
+#include <dekaf2/kquicstream.h>
+#include <dekaf2/kpoll.h>
 #include <openssl/ssl.h>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -41,9 +41,9 @@
  */
 
 #include "ktcpstream.h"
-#include "kresolve.h"
-#include "klog.h"
-#include "kurl.h"
+#include <dekaf2/kresolve.h>
+#include <dekaf2/klog.h>
+#include <dekaf2/kurl.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

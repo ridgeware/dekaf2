@@ -41,10 +41,10 @@
 */
 
 #include "knetworkinterface.h"
-#include "kcompatibility.h"
-#include "krandom.h"
-#include "kutf.h"
-#include "klog.h"
+#include <dekaf2/kcompatibility.h>
+#include <dekaf2/krandom.h>
+#include <dekaf2/kutf.h>
+#include <dekaf2/klog.h>
 
 #ifdef DEKAF2_IS_WINDOWS
 	#include <ws2tcpip.h>

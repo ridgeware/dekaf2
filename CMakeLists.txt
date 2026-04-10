@@ -1234,7 +1234,7 @@ endif()
 set(PUBLIC_HEADERS
 	# KEEP ALPHABETIZED
 	source/core/init/dekaf2.h
-	dekaf2all.h
+	compat/flat/dekaf2all.h
 	source/util/misc/kaddrplus.h
 	source/crypto/cipher/kaes.h
 	source/util/misc/karia.h

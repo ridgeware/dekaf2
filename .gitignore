@@ -4,3 +4,4 @@ CMakeLists.txt.user
 *.dbc
 build/*
 .windsurf/
+.idea/

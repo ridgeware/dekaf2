@@ -1273,14 +1273,14 @@ set(PUBLIC_HEADERS
 	source/core/strings/kcaseless.h
 	source/core/strings/kcasestring.h
 	source/core/strings/kcesu8.h
-	kcgistream.h
+	source/http/server/kcgistream.h
 	kchacha.h
 	source/system/process/kchildprocess.h
-	kchunkedtransfer.h
+	source/http/protocol/kchunkedtransfer.h
 	source/core/types/kcompatibility.h
 	source/io/compression/kcompression.h
 	kconnectionlimiter.h
-	kcookie.h
+	source/http/cookie/kcookie.h
 	source/io/streams/kcountingstreambuf.h
 	source/core/errors/kcrashexit.h
 	kcrc.h
@@ -1307,27 +1307,27 @@ set(PUBLIC_HEADERS
 	source/system/os/kheapmon.h
 	khex.h
 	source/containers/sequential/khistory.h
-	khttp2.h
-	khttp3.h
+	source/http/protocol/khttp2.h
+	source/http/protocol/khttp3.h
 	khmac.h
 	khtmlcontentblocks.h
 	khtmldom.h
 	khtmlentities.h
 	khtmlparser.h
-	khttpclient.h
-	khttpcompression.h
-	khttperror.h
-	khttpinputfilter.h
-	khttplog.h
-	khttpoutputfilter.h
-	khttppath.h
-	khttprouter.h
-	khttpserver.h
-	khttp_header.h
-	khttp_method.h
-	khttp_request.h
-	khttp_response.h
-	khttp_version.h
+	source/http/client/khttpclient.h
+	source/http/protocol/khttpcompression.h
+	source/http/server/khttperror.h
+	source/http/server/khttpinputfilter.h
+	source/http/server/khttplog.h
+	source/http/server/khttpoutputfilter.h
+	source/http/server/khttppath.h
+	source/http/server/khttprouter.h
+	source/http/server/khttpserver.h
+	source/http/protocol/khttp_header.h
+	source/http/protocol/khttp_method.h
+	source/http/protocol/khttp_request.h
+	source/http/protocol/khttp_response.h
+	source/http/protocol/khttp_version.h
 	source/io/pipes/kinpipe.h
 	source/system/process/kinshell.h
 	source/io/streams/kinstringstream.h
@@ -1430,13 +1430,13 @@ set(PUBLIC_HEADERS
 	kuuid.h
 	source/core/types/kvariant.h
 	source/core/types/kversion.h
-	kwebclient.h
+	source/http/client/kwebclient.h
 	kwebdav.h
 	kwebobjects.h
 	kwebserver.h
 	kwebserverpermissions.h
-	kwebsocket.h
-	kwebsocketclient.h
+	source/http/websocket/kwebsocket.h
+	source/http/websocket/kwebsocketclient.h
 	source/core/strings/kwords.h
 	source/io/readwrite/kwrite.h
 	source/io/readwrite/kwriter.h
@@ -1571,12 +1571,12 @@ set (SOURCES
 	source/io/readwrite/kbufferedreader.cpp
 	source/core/strings/kcaseless.cpp
 	source/core/strings/kcasestring.cpp
-	kcgistream.cpp
+	source/http/server/kcgistream.cpp
 	source/system/process/kchildprocess.cpp
-	kchunkedtransfer.cpp
+	source/http/protocol/kchunkedtransfer.cpp
 	source/core/types/kcompatibility.cpp
 	source/io/compression/kcompression.cpp
-	kcookie.cpp
+	source/http/cookie/kcookie.cpp
 	source/io/streams/kcountingstreambuf.cpp
 	source/core/errors/kcrashexit.cpp
 	kcrc.cpp
@@ -1598,27 +1598,27 @@ set (SOURCES
 	source/system/os/kheapmon.cpp
 	khex.cpp
 	source/containers/sequential/khistory.cpp
-	khttp2.cpp
-	khttp3.cpp
+	source/http/protocol/khttp2.cpp
+	source/http/protocol/khttp3.cpp
 	khmac.cpp
 	khtmlcontentblocks.cpp
 	khtmldom.cpp
 	khtmlentities.cpp
 	khtmlparser.cpp
-	khttpclient.cpp
-	khttpcompression.cpp
-	khttperror.cpp
-	khttpinputfilter.cpp
-	khttplog.cpp
-	khttpoutputfilter.cpp
-	khttppath.cpp
-	khttprouter.cpp
-	khttpserver.cpp
-	khttp_header.cpp
-	khttp_method.cpp
-	khttp_request.cpp
-	khttp_response.cpp
-	khttp_version.cpp
+	source/http/client/khttpclient.cpp
+	source/http/protocol/khttpcompression.cpp
+	source/http/server/khttperror.cpp
+	source/http/server/khttpinputfilter.cpp
+	source/http/server/khttplog.cpp
+	source/http/server/khttpoutputfilter.cpp
+	source/http/server/khttppath.cpp
+	source/http/server/khttprouter.cpp
+	source/http/server/khttpserver.cpp
+	source/http/protocol/khttp_header.cpp
+	source/http/protocol/khttp_method.cpp
+	source/http/protocol/khttp_request.cpp
+	source/http/protocol/khttp_response.cpp
+	source/http/protocol/khttp_version.cpp
 	source/io/pipes/kinpipe.cpp
 	source/system/process/kinshell.cpp
 	source/io/streams/kinstringstream.cpp
@@ -1700,13 +1700,13 @@ set (SOURCES
 	kuseragent.cpp
 	kuuid.cpp
 	source/core/types/kversion.cpp
-	kwebclient.cpp
+	source/http/client/kwebclient.cpp
 	kwebdav.cpp
 	kwebobjects.cpp
 	kwebserver.cpp
 	kwebserverpermissions.cpp
-	kwebsocket.cpp
-	kwebsocketclient.cpp
+	source/http/websocket/kwebsocket.cpp
+	source/http/websocket/kwebsocketclient.cpp
 	source/core/strings/kwords.cpp
 	source/io/readwrite/kwrite.cpp
 	source/io/readwrite/kwriter.cpp

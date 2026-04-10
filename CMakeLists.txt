@@ -1195,26 +1195,26 @@ set(CMAKE_REQUIRED_QUIET TRUE)
 # =============================== HEADER FILES ====================================
 
 set (BITS_HEADERS
-	# KEEP ALPHABETIZED
-	source/net/tcp/bits/kasio.h
-	source/net/tcp/bits/kasiostream.h
-	source/system/process/bits/kbaseshell.h
-	source/system/process/bits/kbasepipe.h
-	source/system/process/bits/kbaseprocess.h
-	source/crypto/hash/bits/kdigest.h
-	source/system/filesystem/bits/kfilesystem.h
-	source/core/strings/bits/kfindsetofchars.h
-	source/core/format/bits/kformat.h
-	source/crypto/hash/bits/khash.h
-	source/io/compression/bits/kiostreams_filters.h
-	source/core/logging/bits/klogwriter.h
-	source/core/logging/bits/klogserializer.h
-	source/core/types/bits/kmake_unique.h
+	# KEEP ALPHABETIZED BY FULL PATH
 	source/containers/associative/bits/kmutable_pair.h
+	source/core/format/bits/kformat.h
+	source/core/logging/bits/klogserializer.h
+	source/core/logging/bits/klogwriter.h
+	source/core/strings/bits/kfindsetofchars.h
 	source/core/strings/bits/kstring_view.h
 	source/core/strings/bits/kstringviewz.h
-	source/util/archive/bits/ktarheader.h
+	source/core/types/bits/kmake_unique.h
 	source/core/types/bits/kunique_deleter.h
+	source/crypto/hash/bits/kdigest.h
+	source/crypto/hash/bits/khash.h
+	source/io/compression/bits/kiostreams_filters.h
+	source/net/tcp/bits/kasio.h
+	source/net/tcp/bits/kasiostream.h
+	source/system/filesystem/bits/kfilesystem.h
+	source/system/process/bits/kbasepipe.h
+	source/system/process/bits/kbaseprocess.h
+	source/system/process/bits/kbaseshell.h
+	source/util/archive/bits/ktarheader.h
 	source/web/url/bits/kurldualencode.h
 )
 
@@ -1232,70 +1232,94 @@ if (DEKAF2_HAS_LIBZSTD)
 endif()
 
 set(PUBLIC_HEADERS
-	# KEEP ALPHABETIZED
-	source/core/init/dekaf2.h
-	source/util/misc/kaddrplus.h
-	source/crypto/cipher/kaes.h
-	source/util/misc/karia.h
+	# KEEP ALPHABETIZED BY FULL PATH
 	source/containers/associative/kassociative.h
-	source/threading/primitives/katomic_object.h
-	source/crypto/auth/kawsauth.h
-	source/core/format/kbar.h
-	source/crypto/encoding/kbase64.h
-	source/crypto/auth/kbcrypt.h
-	source/core/types/kbit.h
-	source/core/types/kbitfields.h
-	source/crypto/cipher/kblockcipher.h
-	source/containers/sequential/kbuffer.h
-	source/io/readwrite/kbufferedreader.h
 	source/containers/associative/kcache.h
-	source/crypto/cipher/kcamellia.h
+	source/containers/associative/klockmap.h
+	source/containers/associative/kmru.h
+	source/containers/associative/kprops.h
+	source/containers/memory/kpersist.h
+	source/containers/memory/kpool.h
+	source/containers/memory/ksharedptr.h
+	source/containers/memory/ksharedref.h
+	source/containers/sequential/kbuffer.h
+	source/containers/sequential/khistory.h
+	source/containers/sequential/kstack.h
+	source/core/errors/kcrashexit.h
+	source/core/errors/kerror.h
+	source/core/errors/kexception.h
+	source/core/errors/ksourcelocation.h
+	source/core/format/kbar.h
+	source/core/format/kformat.h
+	source/core/format/kformtable.h
+	source/core/init/dekaf2.h
+	source/core/logging/klog.h
+	source/core/logging/klogrotate.h
 	source/core/strings/kcaseless.h
 	source/core/strings/kcasestring.h
 	source/core/strings/kcesu8.h
-	source/http/server/kcgistream.h
-	source/crypto/cipher/kchacha.h
-	source/system/process/kchildprocess.h
-	source/http/protocol/kchunkedtransfer.h
+	source/core/strings/kjoin.h
+	source/core/strings/kmpsearch.h
+	source/core/strings/kregex.h
+	source/core/strings/ksplit.h
+	source/core/strings/kstring.h
+	source/core/strings/kstringutils.h
+	source/core/strings/kstringview.h
+	source/core/strings/kwords.h
+	source/core/types/kbit.h
+	source/core/types/kbitfields.h
 	source/core/types/kcompatibility.h
-	source/io/compression/kcompression.h
-	source/rest/limits/kconnectionlimiter.h
-	source/http/cookie/kcookie.h
-	source/io/streams/kcountingstreambuf.h
-	source/core/errors/kcrashexit.h
-	source/crypto/hash/kcrc.h
-	source/data/csv/kcsv.h
 	source/core/types/kctype.h
-	source/io/pipes/kdataprovider.h
-	source/io/pipes/kdataconsumer.h
-	source/time/clock/kdate.h
 	source/core/types/kdefinitions.h
-	source/util/text/kdiff.h
-	source/time/duration/kduration.h
-	source/crypto/encoding/kencode.h
 	source/core/types/keraseremove.h
-	source/core/errors/kerror.h
-	source/core/errors/kexception.h
-	source/io/streams/kfdstream.h
-	source/rest/serving/kfileserver.h
-	source/system/filesystem/kfilesystem.h
-	source/core/format/kformat.h
-	source/core/format/kformtable.h
 	source/core/types/kfrozen.h
-	source/system/os/kgetruntimestack.h
-	source/crypto/hash/khash.h
-	source/system/os/kheapmon.h
+	source/core/types/kreference_proxy.h
+	source/core/types/kscopeguard.h
+	source/core/types/ktemplate.h
+	source/core/types/kutf.h
+	source/core/types/kutf_iterator.h
+	source/core/types/kvariant.h
+	source/core/types/kversion.h
+	source/crypto/auth/kawsauth.h
+	source/crypto/auth/kbcrypt.h
+	source/crypto/auth/kopenid.h
+	source/crypto/cipher/kaes.h
+	source/crypto/cipher/kblockcipher.h
+	source/crypto/cipher/kcamellia.h
+	source/crypto/cipher/kchacha.h
+	source/crypto/encoding/kbase64.h
+	source/crypto/encoding/kencode.h
 	source/crypto/encoding/khex.h
-	source/containers/sequential/khistory.h
+	source/crypto/encoding/kquotedprintable.h
+	source/crypto/hash/kcrc.h
+	source/crypto/hash/khash.h
+	source/crypto/hash/khmac.h
+	source/crypto/hash/kmessagedigest.h
+	source/crypto/rsa/krsa.h
+	source/crypto/rsa/krsacert.h
+	source/crypto/rsa/krsakey.h
+	source/crypto/rsa/krsasign.h
+	source/data/csv/kcsv.h
+	source/data/json/kjson.h
+	source/data/json/kjson2.h
+	source/data/sql/krow.h
+	source/data/template/koutputtemplate.h
+	source/data/template/kreplacer.h
+	source/data/template/ksnippets.h
+	source/data/xml/kxml.h
+	source/http/client/khttpclient.h
+	source/http/client/kwebclient.h
+	source/http/cookie/kcookie.h
+	source/http/protocol/kchunkedtransfer.h
 	source/http/protocol/khttp2.h
 	source/http/protocol/khttp3.h
-	source/crypto/hash/khmac.h
-	source/web/html/khtmlcontentblocks.h
-	source/web/html/khtmldom.h
-	source/web/html/khtmlentities.h
-	source/web/html/khtmlparser.h
-	source/http/client/khttpclient.h
+	source/http/protocol/khttp_header.h
+	source/http/protocol/khttp_method.h
+	source/http/protocol/khttp_request.h
+	source/http/protocol/khttp_response.h
+	source/http/protocol/khttp_version.h
 	source/http/protocol/khttpcompression.h
+	source/http/server/kcgistream.h
 	source/http/server/khttperror.h
 	source/http/server/khttpinputfilter.h
 	source/http/server/khttplog.h
@@ -1303,125 +1327,101 @@ set(PUBLIC_HEADERS
 	source/http/server/khttppath.h
 	source/http/server/khttprouter.h
 	source/http/server/khttpserver.h
-	source/http/protocol/khttp_header.h
-	source/http/protocol/khttp_method.h
-	source/http/protocol/khttp_request.h
-	source/http/protocol/khttp_response.h
-	source/http/protocol/khttp_version.h
+	source/http/websocket/kwebsocket.h
+	source/http/websocket/kwebsocketclient.h
+	source/io/compression/kcompression.h
+	source/io/pipes/kdataconsumer.h
+	source/io/pipes/kdataprovider.h
 	source/io/pipes/kinpipe.h
-	source/system/process/kinshell.h
-	source/io/streams/kinstringstream.h
-	source/net/tls/kiostreamsocket.h
-	source/net/address/kipaddress.h
-	source/net/address/kipnetwork.h
-	source/core/strings/kjoin.h
-	source/data/json/kjson.h
-	source/data/json/kjson2.h
-	source/time/clock/kjuliandate.h
-	source/io/streams/klambdastream.h
-	source/containers/associative/klockmap.h
-	source/core/logging/klog.h
-	source/core/logging/klogrotate.h
-	source/util/mail/kmail.h
-	source/threading/primitives/kmakecopyable.h
-	source/crypto/hash/kmessagedigest.h
-	source/web/url/kmime.h
-	source/io/streams/kmodifyingstreambuf.h
-	source/core/strings/kmpsearch.h
-	source/containers/associative/kmru.h
-	source/net/address/knetworkinterface.h
-	source/util/text/kngram.h
-	source/util/cli/koptions.h
-	source/crypto/auth/kopenid.h
 	source/io/pipes/koutpipe.h
-	source/data/template/koutputtemplate.h
-	source/system/process/koutshell.h
-	source/io/streams/koutstringstream.h
-	source/threading/execution/kparallel.h
-	source/containers/memory/kpersist.h
 	source/io/pipes/kpipe.h
-	source/system/process/kpty.h
-	source/containers/memory/kpool.h
-	source/net/util/kpoll.h
-	source/time/duration/kprof.h
-	source/containers/associative/kprops.h
-	source/net/quic/kquicstream.h
-	source/crypto/encoding/kquotedprintable.h
-	source/util/id/krandom.h
-	source/rest/limits/kratelimiter.h
+	source/io/readwrite/kbufferedreader.h
 	source/io/readwrite/kread.h
 	source/io/readwrite/kreader.h
-	source/core/types/kreference_proxy.h
-	source/core/strings/kregex.h
-	source/data/template/kreplacer.h
-	source/net/address/kresolve.h
-	source/rest/framework/krest.h
-	source/rest/framework/krestclient.h
-	source/rest/framework/krestroute.h
-	source/rest/framework/krestserver.h
-	source/time/scheduler/kron.h
-	source/data/sql/krow.h
-	source/crypto/rsa/krsa.h
-	source/crypto/rsa/krsacert.h
-	source/crypto/rsa/krsakey.h
-	source/crypto/rsa/krsasign.h
-	source/core/types/kscopeguard.h
-	source/system/shared/ksharedmemory.h
-	source/containers/memory/ksharedref.h
-	source/containers/memory/ksharedptr.h
-	source/system/os/ksignals.h
-	source/util/mail/ksmtp.h
-	source/data/template/ksnippets.h
-	source/core/errors/ksourcelocation.h
-	source/core/strings/ksplit.h
-	source/containers/sequential/kstack.h
+	source/io/readwrite/kwrite.h
+	source/io/readwrite/kwriter.h
+	source/io/streams/kcountingstreambuf.h
+	source/io/streams/kfdstream.h
+	source/io/streams/kinstringstream.h
+	source/io/streams/klambdastream.h
+	source/io/streams/kmodifyingstreambuf.h
+	source/io/streams/koutstringstream.h
 	source/io/streams/kstream.h
 	source/io/streams/kstreambuf.h
 	source/io/streams/kstreambufadaptor.h
 	source/io/streams/kstreamoptions.h
-	source/core/strings/kstring.h
 	source/io/streams/kstringstream.h
-	source/core/strings/kstringutils.h
-	source/core/strings/kstringview.h
-	source/threading/patterns/ksubscribe.h
-	source/system/os/ksystem.h
-	source/system/os/ksystemstats.h
+	source/net/address/kipaddress.h
+	source/net/address/kipnetwork.h
+	source/net/address/knetworkinterface.h
+	source/net/address/kresolve.h
+	source/net/quic/kquicstream.h
 	source/net/tcp/ktcpclient.h
 	source/net/tcp/ktcpserver.h
 	source/net/tcp/ktcpstream.h
-	source/util/misc/ktemperature.h
-	source/core/types/ktemplate.h
-	source/threading/execution/kthreadpool.h
-	source/threading/execution/kthreads.h
-	source/threading/primitives/kthreadsafe.h
-	source/time/clock/ktime.h
-	source/time/duration/ktimer.h
+	source/net/tcp/kunixstream.h
+	source/net/tls/kiostreamsocket.h
 	source/net/tls/ktlscontext.h
 	source/net/tls/ktlsstream.h
-	source/time/series/ktimeseries.h
+	source/net/util/kpoll.h
 	source/net/util/ktunnel.h
-	source/net/tcp/kunixstream.h
+	source/rest/framework/krest.h
+	source/rest/framework/krestclient.h
+	source/rest/framework/krestroute.h
+	source/rest/framework/krestserver.h
+	source/rest/limits/kconnectionlimiter.h
+	source/rest/limits/kratelimiter.h
+	source/rest/serving/kfileserver.h
+	source/rest/serving/kwebserver.h
+	source/rest/serving/kwebserverpermissions.h
+	source/system/filesystem/kfilesystem.h
+	source/system/os/kgetruntimestack.h
+	source/system/os/kheapmon.h
+	source/system/os/ksignals.h
+	source/system/os/ksystem.h
+	source/system/os/ksystemstats.h
+	source/system/process/kchildprocess.h
+	source/system/process/kinshell.h
+	source/system/process/koutshell.h
+	source/system/process/kpty.h
+	source/system/shared/ksharedmemory.h
+	source/threading/execution/kparallel.h
+	source/threading/execution/kthreadpool.h
+	source/threading/execution/kthreads.h
+	source/threading/patterns/ksubscribe.h
+	source/threading/primitives/katomic_object.h
+	source/threading/primitives/kmakecopyable.h
+	source/threading/primitives/kthreadsafe.h
+	source/time/clock/kdate.h
+	source/time/clock/kjuliandate.h
+	source/time/clock/ktime.h
+	source/time/duration/kduration.h
+	source/time/duration/kprof.h
+	source/time/duration/ktimer.h
+	source/time/scheduler/kron.h
+	source/time/series/ktimeseries.h
 	source/util/archive/kuntar.h
+	source/util/cli/koptions.h
+	source/util/cli/kxterm.h
+	source/util/id/krandom.h
+	source/util/id/kuuid.h
+	source/util/mail/kmail.h
+	source/util/mail/ksmtp.h
+	source/util/misc/kaddrplus.h
+	source/util/misc/karia.h
+	source/util/misc/ktemperature.h
+	source/util/text/kdiff.h
+	source/util/text/kngram.h
+	source/web/html/khtmlcontentblocks.h
+	source/web/html/khtmldom.h
+	source/web/html/khtmlentities.h
+	source/web/html/khtmlparser.h
+	source/web/objects/kwebdav.h
+	source/web/objects/kwebobjects.h
+	source/web/url/kmime.h
 	source/web/url/kurl.h
 	source/web/url/kurlencode.h
 	source/web/url/kuseragent.h
-	source/core/types/kutf.h
-	source/core/types/kutf_iterator.h
-	source/util/id/kuuid.h
-	source/core/types/kvariant.h
-	source/core/types/kversion.h
-	source/http/client/kwebclient.h
-	source/web/objects/kwebdav.h
-	source/web/objects/kwebobjects.h
-	source/rest/serving/kwebserver.h
-	source/rest/serving/kwebserverpermissions.h
-	source/http/websocket/kwebsocket.h
-	source/http/websocket/kwebsocketclient.h
-	source/core/strings/kwords.h
-	source/io/readwrite/kwrite.h
-	source/io/readwrite/kwriter.h
-	source/data/xml/kxml.h
-	source/util/cli/kxterm.h
 )
 
 if (DEKAF2_HAS_LIBZIP)
@@ -1449,69 +1449,111 @@ endif()
 list(SORT HEADERS)
 
 set (PRECOMPILED_HEADERS
-	# TODO: revisit which headers to include here after restructuring
+	# Standard Library (frequent and/or expensive to parse)
+	<algorithm>
+	<array>
+	<atomic>
+	<chrono>
+	<cstdint>
+	<functional>
+	<iostream>
+	<map>
+	<memory>
+	<mutex>
+	<string>
+	<string_view>
+	<type_traits>
+	<unordered_map>
+	<vector>
+	# Boost (very expensive to parse)
+	<boost/multi_index_container.hpp>
+	<boost/multi_index/hashed_index.hpp>
+	<boost/multi_index/member.hpp>
+	<boost/multi_index/ordered_index.hpp>
+	<boost/multi_index/sequenced_index.hpp>
+	<boost/iostreams/filter/gzip.hpp>
+	# dekaf2 core headers (frequently included, relatively stable)
+	"${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h"
+	<dekaf2/core/types/kdefinitions.h>
+	<dekaf2/core/types/kcompatibility.h>
+	<dekaf2/core/strings/kstring.h>
+	<dekaf2/core/strings/kstringview.h>
+	<dekaf2/core/strings/kstringutils.h>
+	<dekaf2/core/format/kformat.h>
+	<dekaf2/core/logging/klog.h>
+	<dekaf2/data/json/kjson.h>
 )
 
 # =============================== SOURCE FILES ====================================
 
 set (SOURCES
-	# KEEP ALPHABETIZED
-	source/system/process/bits/kbasepipe.cpp
-	source/system/process/bits/kbaseprocess.cpp
-	source/system/process/bits/kbaseshell.cpp
-	source/crypto/hash/bits/kdigest.cpp
-	source/core/strings/bits/kfindsetofchars.cpp
-	source/core/logging/bits/klogwriter.cpp
+	# KEEP ALPHABETIZED BY FULL PATH
+	source/containers/associative/kprops.cpp
+	source/containers/sequential/khistory.cpp
+	source/core/errors/kcrashexit.cpp
+	source/core/errors/kerror.cpp
+	source/core/format/kbar.cpp
+	source/core/format/kformat.cpp
+	source/core/format/kformtable.cpp
+	source/core/init/dekaf2.cpp
 	source/core/logging/bits/klogserializer.cpp
+	source/core/logging/bits/klogwriter.cpp
+	source/core/logging/klog.cpp
+	source/core/logging/klogrotate.cpp
+	source/core/strings/bits/kfindsetofchars.cpp
 	source/core/strings/bits/kstring_view.cpp
 	source/core/strings/bits/kstringviewz.cpp
 	source/core/strings/bits/simd/kfindfirstof.cpp
-	source/core/types/bits/simd/kutf.cpp
-	source/core/init/dekaf2.cpp
-	source/crypto/auth/kawsauth.cpp
-	source/core/format/kbar.cpp
-	source/crypto/encoding/kbase64.cpp
-	source/crypto/auth/kbcrypt.cpp
-	source/crypto/cipher/kblockcipher.cpp
-	source/io/readwrite/kbufferedreader.cpp
 	source/core/strings/kcaseless.cpp
 	source/core/strings/kcasestring.cpp
-	source/http/server/kcgistream.cpp
-	source/system/process/kchildprocess.cpp
-	source/http/protocol/kchunkedtransfer.cpp
+	source/core/strings/kmpsearch.cpp
+	source/core/strings/kregex.cpp
+	source/core/strings/ksplit.cpp
+	source/core/strings/kstring.cpp
+	source/core/strings/kstringutils.cpp
+	source/core/strings/kstringview.cpp
+	source/core/strings/kwords.cpp
+	source/core/types/bits/simd/kutf.cpp
 	source/core/types/kcompatibility.cpp
-	source/io/compression/kcompression.cpp
-	source/http/cookie/kcookie.cpp
-	source/io/streams/kcountingstreambuf.cpp
-	source/core/errors/kcrashexit.cpp
-	source/crypto/hash/kcrc.cpp
-	source/data/csv/kcsv.cpp
 	source/core/types/kctype.cpp
-	source/io/pipes/kdataprovider.cpp
-	source/io/pipes/kdataconsumer.cpp
-	source/time/clock/kdate.cpp
-	source/util/text/kdiff.cpp
-	source/time/duration/kduration.cpp
-	source/core/errors/kerror.cpp
-	source/io/streams/kfdstream.cpp
-	source/rest/serving/kfileserver.cpp
-	source/system/filesystem/kfilesystem.cpp
-	source/core/format/kformat.cpp
-	source/core/format/kformtable.cpp
-	source/system/os/kgetruntimestack.cpp
-	source/crypto/hash/khash.cpp
-	source/system/os/kheapmon.cpp
+	source/core/types/kversion.cpp
+	source/crypto/auth/kawsauth.cpp
+	source/crypto/auth/kbcrypt.cpp
+	source/crypto/auth/kopenid.cpp
+	source/crypto/cipher/kblockcipher.cpp
+	source/crypto/encoding/kbase64.cpp
 	source/crypto/encoding/khex.cpp
-	source/containers/sequential/khistory.cpp
+	source/crypto/encoding/kquotedprintable.cpp
+	source/crypto/hash/bits/kdigest.cpp
+	source/crypto/hash/kcrc.cpp
+	source/crypto/hash/khash.cpp
+	source/crypto/hash/khmac.cpp
+	source/crypto/hash/kmessagedigest.cpp
+	source/crypto/rsa/krsa.cpp
+	source/crypto/rsa/krsacert.cpp
+	source/crypto/rsa/krsakey.cpp
+	source/crypto/rsa/krsasign.cpp
+	source/data/csv/kcsv.cpp
+	source/data/json/kjson.cpp
+	source/data/json/kjson2.cpp
+	source/data/sql/krow.cpp
+	source/data/template/koutputtemplate.cpp
+	source/data/template/kreplacer.cpp
+	source/data/template/ksnippets.cpp
+	source/data/xml/kxml.cpp
+	source/http/client/khttpclient.cpp
+	source/http/client/kwebclient.cpp
+	source/http/cookie/kcookie.cpp
+	source/http/protocol/kchunkedtransfer.cpp
 	source/http/protocol/khttp2.cpp
 	source/http/protocol/khttp3.cpp
-	source/crypto/hash/khmac.cpp
-	source/web/html/khtmlcontentblocks.cpp
-	source/web/html/khtmldom.cpp
-	source/web/html/khtmlentities.cpp
-	source/web/html/khtmlparser.cpp
-	source/http/client/khttpclient.cpp
+	source/http/protocol/khttp_header.cpp
+	source/http/protocol/khttp_method.cpp
+	source/http/protocol/khttp_request.cpp
+	source/http/protocol/khttp_response.cpp
+	source/http/protocol/khttp_version.cpp
 	source/http/protocol/khttpcompression.cpp
+	source/http/server/kcgistream.cpp
 	source/http/server/khttperror.cpp
 	source/http/server/khttpinputfilter.cpp
 	source/http/server/khttplog.cpp
@@ -1519,104 +1561,94 @@ set (SOURCES
 	source/http/server/khttppath.cpp
 	source/http/server/khttprouter.cpp
 	source/http/server/khttpserver.cpp
-	source/http/protocol/khttp_header.cpp
-	source/http/protocol/khttp_method.cpp
-	source/http/protocol/khttp_request.cpp
-	source/http/protocol/khttp_response.cpp
-	source/http/protocol/khttp_version.cpp
+	source/http/websocket/kwebsocket.cpp
+	source/http/websocket/kwebsocketclient.cpp
+	source/io/compression/kcompression.cpp
+	source/io/pipes/kdataconsumer.cpp
+	source/io/pipes/kdataprovider.cpp
 	source/io/pipes/kinpipe.cpp
-	source/system/process/kinshell.cpp
-	source/io/streams/kinstringstream.cpp
-	source/net/tls/kiostreamsocket.cpp
-	source/net/address/kipaddress.cpp
-	source/net/address/kipnetwork.cpp
-	source/data/json/kjson.cpp
-	source/data/json/kjson2.cpp
-	source/time/clock/kjuliandate.cpp
-	source/io/streams/klambdastream.cpp
-	source/core/logging/klog.cpp
-	source/core/logging/klogrotate.cpp
-	source/util/mail/kmail.cpp
-	source/crypto/hash/kmessagedigest.cpp
-	source/web/url/kmime.cpp
-	source/io/streams/kmodifyingstreambuf.cpp
-	source/core/strings/kmpsearch.cpp
-	source/net/address/knetworkinterface.cpp
-	source/crypto/auth/kopenid.cpp
-	source/util/cli/koptions.cpp
 	source/io/pipes/koutpipe.cpp
-	source/data/template/koutputtemplate.cpp
-	source/system/process/koutshell.cpp
-	source/io/streams/koutstringstream.cpp
-	source/threading/execution/kparallel.cpp
 	source/io/pipes/kpipe.cpp
-	source/system/process/kpty.cpp
-	source/net/util/kpoll.cpp
-	source/time/duration/kprof.cpp
-	source/containers/associative/kprops.cpp
-	source/net/quic/kquicstream.cpp
-	source/crypto/encoding/kquotedprintable.cpp
-	source/util/id/krandom.cpp
+	source/io/readwrite/kbufferedreader.cpp
 	source/io/readwrite/kread.cpp
 	source/io/readwrite/kreader.cpp
-	source/core/strings/kregex.cpp
-	source/data/template/kreplacer.cpp
-	source/net/address/kresolve.cpp
-	source/rest/framework/krest.cpp
-	source/rest/framework/krestclient.cpp
-	source/rest/framework/krestroute.cpp
-	source/rest/framework/krestserver.cpp
-	source/rest/limits/kratelimiter.cpp
-	source/rest/limits/kconnectionlimiter.cpp
-	source/time/scheduler/kron.cpp
-	source/data/sql/krow.cpp
-	source/crypto/rsa/krsa.cpp
-	source/crypto/rsa/krsacert.cpp
-	source/crypto/rsa/krsakey.cpp
-	source/crypto/rsa/krsasign.cpp
-	source/system/shared/ksharedmemory.cpp
-	source/system/os/ksignals.cpp
-	source/util/mail/ksmtp.cpp
-	source/data/template/ksnippets.cpp
-	source/core/strings/ksplit.cpp
+	source/io/readwrite/kwrite.cpp
+	source/io/readwrite/kwriter.cpp
+	source/io/streams/kcountingstreambuf.cpp
+	source/io/streams/kfdstream.cpp
+	source/io/streams/kinstringstream.cpp
+	source/io/streams/klambdastream.cpp
+	source/io/streams/kmodifyingstreambuf.cpp
+	source/io/streams/koutstringstream.cpp
 	source/io/streams/kstream.cpp
 	source/io/streams/kstreambuf.cpp
 	source/io/streams/kstreambufadaptor.cpp
 	source/io/streams/kstreamoptions.cpp
-	source/core/strings/kstring.cpp
 	source/io/streams/kstringstream.cpp
-	source/core/strings/kstringutils.cpp
-	source/core/strings/kstringview.cpp
-	source/system/os/ksystem.cpp
-	source/system/os/ksystemstats.cpp
+	source/net/address/kipaddress.cpp
+	source/net/address/kipnetwork.cpp
+	source/net/address/knetworkinterface.cpp
+	source/net/address/kresolve.cpp
+	source/net/quic/kquicstream.cpp
 	source/net/tcp/ktcpserver.cpp
 	source/net/tcp/ktcpstream.cpp
-	source/threading/execution/kthreadpool.cpp
-	source/threading/execution/kthreads.cpp
-	source/time/clock/ktime.cpp
-	source/time/duration/ktimer.cpp
+	source/net/tcp/kunixstream.cpp
+	source/net/tls/kiostreamsocket.cpp
 	source/net/tls/ktlscontext.cpp
 	source/net/tls/ktlsstream.cpp
+	source/net/util/kpoll.cpp
 	source/net/util/ktunnel.cpp
-	source/net/tcp/kunixstream.cpp
+	source/rest/framework/krest.cpp
+	source/rest/framework/krestclient.cpp
+	source/rest/framework/krestroute.cpp
+	source/rest/framework/krestserver.cpp
+	source/rest/limits/kconnectionlimiter.cpp
+	source/rest/limits/kratelimiter.cpp
+	source/rest/serving/kfileserver.cpp
+	source/rest/serving/kwebserver.cpp
+	source/rest/serving/kwebserverpermissions.cpp
+	source/system/filesystem/kfilesystem.cpp
+	source/system/os/kgetruntimestack.cpp
+	source/system/os/kheapmon.cpp
+	source/system/os/ksignals.cpp
+	source/system/os/ksystem.cpp
+	source/system/os/ksystemstats.cpp
+	source/system/process/bits/kbasepipe.cpp
+	source/system/process/bits/kbaseprocess.cpp
+	source/system/process/bits/kbaseshell.cpp
+	source/system/process/kchildprocess.cpp
+	source/system/process/kinshell.cpp
+	source/system/process/koutshell.cpp
+	source/system/process/kpty.cpp
+	source/system/shared/ksharedmemory.cpp
+	source/threading/execution/kparallel.cpp
+	source/threading/execution/kthreadpool.cpp
+	source/threading/execution/kthreads.cpp
+	source/time/clock/kdate.cpp
+	source/time/clock/kjuliandate.cpp
+	source/time/clock/ktime.cpp
+	source/time/duration/kduration.cpp
+	source/time/duration/kprof.cpp
+	source/time/duration/ktimer.cpp
+	source/time/scheduler/kron.cpp
 	source/util/archive/kuntar.cpp
+	source/util/cli/koptions.cpp
+	source/util/cli/kxterm.cpp
+	source/util/id/krandom.cpp
+	source/util/id/kuuid.cpp
+	source/util/mail/kmail.cpp
+	source/util/mail/ksmtp.cpp
+	source/util/text/kdiff.cpp
+	source/web/html/khtmlcontentblocks.cpp
+	source/web/html/khtmldom.cpp
+	source/web/html/khtmlentities.cpp
+	source/web/html/khtmlparser.cpp
+	source/web/objects/kwebdav.cpp
+	source/web/objects/kwebobjects.cpp
+	source/web/url/kmime.cpp
 	source/web/url/kurl.cpp
 	source/web/url/kurlencode.cpp
 	source/web/url/kuseragent.cpp
-	source/util/id/kuuid.cpp
-	source/core/types/kversion.cpp
-	source/http/client/kwebclient.cpp
-	source/web/objects/kwebdav.cpp
-	source/web/objects/kwebobjects.cpp
-	source/rest/serving/kwebserver.cpp
-	source/rest/serving/kwebserverpermissions.cpp
-	source/http/websocket/kwebsocket.cpp
-	source/http/websocket/kwebsocketclient.cpp
-	source/core/strings/kwords.cpp
-	source/io/readwrite/kwrite.cpp
-	source/io/readwrite/kwriter.cpp
-	source/data/xml/kxml.cpp
-	source/util/cli/kxterm.cpp
 )
 
 if (DEKAF2_HAS_LIBZIP)

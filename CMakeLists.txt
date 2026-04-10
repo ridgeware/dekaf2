@@ -1253,11 +1253,11 @@ set(PUBLIC_HEADERS
 	# KEEP ALPHABETIZED
 	source/core/init/dekaf2.h
 	dekaf2all.h
-	kaddrplus.h
+	source/util/misc/kaddrplus.h
 	source/crypto/cipher/kaes.h
-	karia.h
+	source/util/misc/karia.h
 	source/containers/associative/kassociative.h
-	katomic_object.h
+	source/threading/primitives/katomic_object.h
 	source/crypto/auth/kawsauth.h
 	source/core/format/kbar.h
 	source/crypto/encoding/kbase64.h
@@ -1283,14 +1283,14 @@ set(PUBLIC_HEADERS
 	source/io/streams/kcountingstreambuf.h
 	source/core/errors/kcrashexit.h
 	source/crypto/hash/kcrc.h
-	kcsv.h
+	source/data/csv/kcsv.h
 	source/core/types/kctype.h
 	source/io/pipes/kdataprovider.h
 	source/io/pipes/kdataconsumer.h
-	kdate.h
+	source/time/clock/kdate.h
 	source/core/types/kdefinitions.h
-	kdiff.h
-	kduration.h
+	source/util/text/kdiff.h
+	source/time/duration/kduration.h
 	source/crypto/encoding/kencode.h
 	source/core/types/keraseremove.h
 	source/core/errors/kerror.h
@@ -1334,52 +1334,52 @@ set(PUBLIC_HEADERS
 	source/net/address/kipaddress.h
 	source/net/address/kipnetwork.h
 	source/core/strings/kjoin.h
-	kjson.h
-	kjson2.h
-	kjuliandate.h
+	source/data/json/kjson.h
+	source/data/json/kjson2.h
+	source/time/clock/kjuliandate.h
 	source/io/streams/klambdastream.h
 	source/containers/associative/klockmap.h
 	source/core/logging/klog.h
 	source/core/logging/klogrotate.h
-	kmail.h
-	kmakecopyable.h
+	source/util/mail/kmail.h
+	source/threading/primitives/kmakecopyable.h
 	source/crypto/hash/kmessagedigest.h
 	source/web/url/kmime.h
 	source/io/streams/kmodifyingstreambuf.h
 	source/core/strings/kmpsearch.h
 	source/containers/associative/kmru.h
 	source/net/address/knetworkinterface.h
-	kngram.h
-	koptions.h
+	source/util/text/kngram.h
+	source/util/cli/koptions.h
 	source/crypto/auth/kopenid.h
 	source/io/pipes/koutpipe.h
-	koutputtemplate.h
+	source/data/template/koutputtemplate.h
 	source/system/process/koutshell.h
 	source/io/streams/koutstringstream.h
-	kparallel.h
+	source/threading/execution/kparallel.h
 	source/containers/memory/kpersist.h
 	source/io/pipes/kpipe.h
 	source/system/process/kpty.h
 	source/containers/memory/kpool.h
 	source/net/util/kpoll.h
-	kprof.h
+	source/time/duration/kprof.h
 	source/containers/associative/kprops.h
 	source/net/quic/kquicstream.h
 	source/crypto/encoding/kquotedprintable.h
-	krandom.h
+	source/util/id/krandom.h
 	source/rest/limits/kratelimiter.h
 	source/io/readwrite/kread.h
 	source/io/readwrite/kreader.h
 	source/core/types/kreference_proxy.h
 	source/core/strings/kregex.h
-	kreplacer.h
+	source/data/template/kreplacer.h
 	source/net/address/kresolve.h
 	source/rest/framework/krest.h
 	source/rest/framework/krestclient.h
 	source/rest/framework/krestroute.h
 	source/rest/framework/krestserver.h
-	kron.h
-	krow.h
+	source/time/scheduler/kron.h
+	source/data/sql/krow.h
 	source/crypto/rsa/krsa.h
 	source/crypto/rsa/krsacert.h
 	source/crypto/rsa/krsakey.h
@@ -1389,8 +1389,8 @@ set(PUBLIC_HEADERS
 	source/containers/memory/ksharedref.h
 	source/containers/memory/ksharedptr.h
 	source/system/os/ksignals.h
-	ksmtp.h
-	ksnippets.h
+	source/util/mail/ksmtp.h
+	source/data/template/ksnippets.h
 	source/core/errors/ksourcelocation.h
 	source/core/strings/ksplit.h
 	source/containers/sequential/kstack.h
@@ -1402,31 +1402,31 @@ set(PUBLIC_HEADERS
 	source/io/streams/kstringstream.h
 	source/core/strings/kstringutils.h
 	source/core/strings/kstringview.h
-	ksubscribe.h
+	source/threading/patterns/ksubscribe.h
 	source/system/os/ksystem.h
 	source/system/os/ksystemstats.h
 	source/net/tcp/ktcpclient.h
 	source/net/tcp/ktcpserver.h
 	source/net/tcp/ktcpstream.h
-	ktemperature.h
+	source/util/misc/ktemperature.h
 	source/core/types/ktemplate.h
-	kthreadpool.h
-	kthreads.h
-	kthreadsafe.h
-	ktime.h
-	ktimer.h
+	source/threading/execution/kthreadpool.h
+	source/threading/execution/kthreads.h
+	source/threading/primitives/kthreadsafe.h
+	source/time/clock/ktime.h
+	source/time/duration/ktimer.h
 	source/net/tls/ktlscontext.h
 	source/net/tls/ktlsstream.h
-	ktimeseries.h
+	source/time/series/ktimeseries.h
 	source/net/util/ktunnel.h
 	source/net/tcp/kunixstream.h
-	kuntar.h
+	source/util/archive/kuntar.h
 	source/web/url/kurl.h
 	source/web/url/kurlencode.h
 	source/web/url/kuseragent.h
 	source/core/types/kutf.h
 	source/core/types/kutf_iterator.h
-	kuuid.h
+	source/util/id/kuuid.h
 	source/core/types/kvariant.h
 	source/core/types/kversion.h
 	source/http/client/kwebclient.h
@@ -1440,12 +1440,12 @@ set(PUBLIC_HEADERS
 	source/io/readwrite/kwrite.h
 	source/io/readwrite/kwriter.h
 	source/web/xml/kxml.h
-	kxterm.h
+	source/util/cli/kxterm.h
 )
 
 if (DEKAF2_HAS_LIBZIP)
 	list(APPEND PUBLIC_HEADERS
-		kzip.h
+		source/util/archive/kzip.h
 	)
 endif()
 
@@ -1579,13 +1579,13 @@ set (SOURCES
 	source/io/streams/kcountingstreambuf.cpp
 	source/core/errors/kcrashexit.cpp
 	source/crypto/hash/kcrc.cpp
-	kcsv.cpp
+	source/data/csv/kcsv.cpp
 	source/core/types/kctype.cpp
 	source/io/pipes/kdataprovider.cpp
 	source/io/pipes/kdataconsumer.cpp
-	kdate.cpp
-	kdiff.cpp
-	kduration.cpp
+	source/time/clock/kdate.cpp
+	source/util/text/kdiff.cpp
+	source/time/duration/kduration.cpp
 	source/core/errors/kerror.cpp
 	source/io/streams/kfdstream.cpp
 	source/rest/serving/kfileserver.cpp
@@ -1624,37 +1624,37 @@ set (SOURCES
 	source/net/tls/kiostreamsocket.cpp
 	source/net/address/kipaddress.cpp
 	source/net/address/kipnetwork.cpp
-	kjson.cpp
-	kjson2.cpp
-	kjuliandate.cpp
+	source/data/json/kjson.cpp
+	source/data/json/kjson2.cpp
+	source/time/clock/kjuliandate.cpp
 	source/io/streams/klambdastream.cpp
 	source/core/logging/klog.cpp
 	source/core/logging/klogrotate.cpp
-	kmail.cpp
+	source/util/mail/kmail.cpp
 	source/crypto/hash/kmessagedigest.cpp
 	source/web/url/kmime.cpp
 	source/io/streams/kmodifyingstreambuf.cpp
 	source/core/strings/kmpsearch.cpp
 	source/net/address/knetworkinterface.cpp
 	source/crypto/auth/kopenid.cpp
-	koptions.cpp
+	source/util/cli/koptions.cpp
 	source/io/pipes/koutpipe.cpp
-	koutputtemplate.cpp
+	source/data/template/koutputtemplate.cpp
 	source/system/process/koutshell.cpp
 	source/io/streams/koutstringstream.cpp
-	kparallel.cpp
+	source/threading/execution/kparallel.cpp
 	source/io/pipes/kpipe.cpp
 	source/system/process/kpty.cpp
 	source/net/util/kpoll.cpp
-	kprof.cpp
+	source/time/duration/kprof.cpp
 	source/containers/associative/kprops.cpp
 	source/net/quic/kquicstream.cpp
 	source/crypto/encoding/kquotedprintable.cpp
-	krandom.cpp
+	source/util/id/krandom.cpp
 	source/io/readwrite/kread.cpp
 	source/io/readwrite/kreader.cpp
 	source/core/strings/kregex.cpp
-	kreplacer.cpp
+	source/data/template/kreplacer.cpp
 	source/net/address/kresolve.cpp
 	source/rest/framework/krest.cpp
 	source/rest/framework/krestclient.cpp
@@ -1662,16 +1662,16 @@ set (SOURCES
 	source/rest/framework/krestserver.cpp
 	source/rest/limits/kratelimiter.cpp
 	source/rest/limits/kconnectionlimiter.cpp
-	kron.cpp
-	krow.cpp
+	source/time/scheduler/kron.cpp
+	source/data/sql/krow.cpp
 	source/crypto/rsa/krsa.cpp
 	source/crypto/rsa/krsacert.cpp
 	source/crypto/rsa/krsakey.cpp
 	source/crypto/rsa/krsasign.cpp
 	source/system/shared/ksharedmemory.cpp
 	source/system/os/ksignals.cpp
-	ksmtp.cpp
-	ksnippets.cpp
+	source/util/mail/ksmtp.cpp
+	source/data/template/ksnippets.cpp
 	source/core/strings/ksplit.cpp
 	source/io/streams/kstream.cpp
 	source/io/streams/kstreambuf.cpp
@@ -1685,19 +1685,19 @@ set (SOURCES
 	source/system/os/ksystemstats.cpp
 	source/net/tcp/ktcpserver.cpp
 	source/net/tcp/ktcpstream.cpp
-	kthreadpool.cpp
-	kthreads.cpp
-	ktime.cpp
-	ktimer.cpp
+	source/threading/execution/kthreadpool.cpp
+	source/threading/execution/kthreads.cpp
+	source/time/clock/ktime.cpp
+	source/time/duration/ktimer.cpp
 	source/net/tls/ktlscontext.cpp
 	source/net/tls/ktlsstream.cpp
 	source/net/util/ktunnel.cpp
 	source/net/tcp/kunixstream.cpp
-	kuntar.cpp
+	source/util/archive/kuntar.cpp
 	source/web/url/kurl.cpp
 	source/web/url/kurlencode.cpp
 	source/web/url/kuseragent.cpp
-	kuuid.cpp
+	source/util/id/kuuid.cpp
 	source/core/types/kversion.cpp
 	source/http/client/kwebclient.cpp
 	source/web/objects/kwebdav.cpp
@@ -1710,12 +1710,12 @@ set (SOURCES
 	source/io/readwrite/kwrite.cpp
 	source/io/readwrite/kwriter.cpp
 	source/web/xml/kxml.cpp
-	kxterm.cpp
+	source/util/cli/kxterm.cpp
 )
 
 if (DEKAF2_HAS_LIBZIP)
 	list(APPEND SOURCES
-		kzip.cpp
+		source/util/archive/kzip.cpp
 	)
 endif()
 
@@ -2015,7 +2015,7 @@ set(KSQL2_COMPILE_DEFINITIONS
 		DEKAF2_LIBRARY_BUILD
 )
 
-add_library                   (ksql2-objects OBJECT ksql.cpp ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
+add_library                   (ksql2-objects OBJECT source/data/sql/ksql.cpp source/data/sql/ksql.h bits/ksql_dbc.cpp bits/ksql_dbc.h)
 target_include_directories    (ksql2-objects PUBLIC ${KSQL2_INCLUDE_DIRECTORIES})
 target_link_libraries         (ksql2-objects ${KSQL2_LINK_LIBRARIES} dekaf2)
 target_compile_definitions    (ksql2-objects ${KSQL2_COMPILE_DEFINITIONS})
@@ -2044,7 +2044,7 @@ endif()
 
 if (SQLITE3_FOUND)
 	if (DEKAF2_BUILD_SHARED_DEKAF2)
-		add_library(ksqlite-shared SHARED ksqlite.cpp ksqlite.h)
+		add_library(ksqlite-shared SHARED source/data/sql/ksqlite.cpp source/data/sql/ksqlite.h)
 		set_target_properties      (ksqlite-shared PROPERTIES POSITION_INDEPENDENT_CODE ON)
 		target_include_directories (ksqlite-shared PRIVATE $<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>)
 		target_link_libraries      (ksqlite-shared
@@ -2065,7 +2065,7 @@ if (SQLITE3_FOUND)
 	endif() # DEKAF2_BUILD_SHARED_DEKAF2
 
 	if (DEKAF2_BUILD_STATIC_DEKAF2)
-		add_library(ksqlite STATIC ksqlite.cpp ksqlite.h)
+		add_library(ksqlite STATIC source/data/sql/ksqlite.cpp source/data/sql/ksqlite.h)
 		target_include_directories (ksqlite PRIVATE $<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>)
 		target_link_libraries(ksqlite
 			PRIVATE
@@ -2354,12 +2354,12 @@ endif() # DEKAF2_INSTALL_BIN
 if (DEKAF2_INSTALL_INCLUDE)
 
 	install(FILES ${PUBLIC_HEADERS}    DESTINATION ${dekaf2_include_dest}/dekaf2)
-	install(FILES ksql.h               DESTINATION ${dekaf2_include_dest}/dekaf2)
+	install(FILES source/data/sql/ksql.h               DESTINATION ${dekaf2_include_dest}/dekaf2)
 	install(FILES ${BITS_HEADERS}      DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 	install(FILES ${BITS_SIMD_HEADERS} DESTINATION ${dekaf2_include_dest}/dekaf2/bits/simd)
 	install(FILES bits/ksql_dbc.h      DESTINATION ${dekaf2_include_dest}/dekaf2/bits)
 	if (SQLITE3_FOUND)
-		install(FILES ksqlite.h        DESTINATION ${dekaf2_include_dest}/dekaf2)
+		install(FILES source/data/sql/ksqlite.h        DESTINATION ${dekaf2_include_dest}/dekaf2)
 	endif()
 
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/"  DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")

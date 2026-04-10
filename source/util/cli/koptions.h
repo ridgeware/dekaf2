@@ -1,0 +1,1157 @@
+/*
+ //
+ // DEKAF(tm): Lighter, Faster, Smarter(tm)
+ //
+ // Copyright (c) 2018, Ridgeware, Inc.
+ //
+ // +-------------------------------------------------------------------------+
+ // | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+ // |/+---------------------------------------------------------------------+/|
+ // |/|                                                                     |/|
+ // |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+ // |/|                                                                     |/|
+ // |\|   OPEN SOURCE LICENSE                                               |\|
+ // |/|                                                                     |/|
+ // |\|   Permission is hereby granted, free of charge, to any person       |\|
+ // |/|   obtaining a copy of this software and associated                  |/|
+ // |\|   documentation files (the "Software"), to deal in the              |\|
+ // |/|   Software without restriction, including without limitation        |/|
+ // |\|   the rights to use, copy, modify, merge, publish,                  |\|
+ // |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+ // |\|   and to permit persons to whom the Software is furnished to        |\|
+ // |/|   do so, subject to the following conditions:                       |/|
+ // |\|                                                                     |\|
+ // |/|   The above copyright notice and this permission notice shall       |/|
+ // |\|   be included in all copies or substantial portions of the          |\|
+ // |/|   Software.                                                         |/|
+ // |\|                                                                     |\|
+ // |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+ // |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+ // |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+ // |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+ // |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+ // |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+ // |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+ // |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+ // |/|                                                                     |/|
+ // |/+---------------------------------------------------------------------+/|
+ // |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+ // +-------------------------------------------------------------------------+
+ //
+ */
+
+#pragma once
+
+/// @file koptions.h
+/// provides KOptions, a versatile option parser for CLI, ini files, and CGI environments
+
+#include <dekaf2/kstringview.h>
+#include <dekaf2/kstring.h>
+#include <dekaf2/kstringutils.h>
+#include <dekaf2/kwriter.h>
+#include <dekaf2/kstack.h>
+#include <dekaf2/kexception.h>
+#include <dekaf2/kassociative.h>
+#include <dekaf2/kpersist.h>
+#include <functional>
+#include <vector>
+#include <array>
+
+DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup util_cli
+/// @{
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Versatile option parser for command lines, ini files, and CGI query strings.
+///
+/// KOptions supports three parsing styles that can be freely combined:
+///
+/// ## 1. Callback Style
+///
+/// Register options and commands with chained property setters and callbacks,
+/// then call Parse() to execute them:
+///
+/// @code
+/// KOptions Options(true);
+/// Options.SetBriefDescription("process text files");
+///
+/// KString  sFilename;
+/// uint64_t iCount { 0 };
+///
+/// Options.Option("f,filename <name>")
+///     .Help("input file name")
+///     .Type(KOptions::File)
+///     .Callback([&](KStringViewZ sArg) { sFilename = sArg; });
+///
+/// Options.Option("m,max <count>")
+///     .Help("maximum word count")
+///     .Type(KOptions::Unsigned).Range(1, 100000)
+///     .Callback([&](KStringViewZ sArg) { iCount = sArg.UInt64(); });
+///
+/// // parse and execute callbacks
+/// if (Options.Parse(argc, argv) != 0) return 1;
+/// @endcode
+///
+/// Three callback signatures are supported:
+/// | Signature | Arguments consumed |
+/// |---|---|
+/// | `Callback([](){})` | none |
+/// | `Callback([](KStringViewZ sArg){})` | exactly one |
+/// | `Callback([](KOptions::ArgList& Args){})` | variable (pop as many as needed) |
+///
+/// With the multi-arg callback, all popped arguments count as consumed.
+/// Remaining arguments are either matched against declared commands or
+/// forwarded to an UnknownCommand() handler.
+///
+/// ## 2. Inline / Set Style
+///
+/// A compact shorthand that combines the option name, argument placeholder,
+/// help text, and target variable in a single expression:
+///
+/// @code
+/// KString sFilename;
+/// Options.Option("f,filename <name> : input file name").Set(sFilename);
+///
+/// // or bind a flag directly
+/// bool bVerbose = false;
+/// Options.Option("v,verbose : enable verbose output").Set(bVerbose, true);
+/// @endcode
+///
+/// The colon separates option names from help text. Set() automatically
+/// determines MinArgs/MaxArgs from the target type.
+///
+/// ## 3. Ad-hoc Style
+///
+/// Parse first, query later. The constructor parses all arguments up front,
+/// then the call operator (or Get()) retrieves them by name. This is ideal
+/// for simple tools where you just want typed values without writing callbacks:
+///
+/// @code
+/// KOptions Options(false, argc, argv);
+///
+/// KString  sFilename = Options("f,filename <name>  : input file name");
+/// uint16_t iCount    = Options("m,max <count>      : maximum word count", 1000);
+/// bool     bReverse  = Options("r,reverse          : count from end", false);
+///
+/// // collect remaining positional arguments
+/// auto vFiles = Options.GetUnknownCommands();
+///
+/// // verify everything was consumed
+/// if (!Options.Check()) return 1;
+/// @endcode
+///
+/// Options declared **without** a default value are **required** — Check()
+/// will report them as missing if they were not supplied on the command line.
+/// Options declared **with** a default value are optional.
+///
+/// ### Type Conversion
+///
+/// The call operator returns a Values proxy object that converts implicitly
+/// into the target type of the assignment. The conversion is driven by the
+/// C++ type on the left-hand side:
+///
+/// @code
+/// KString  s = Options("name <n> : a string");        // implicit -> KStringViewZ -> KString
+/// int32_t  i = Options("count <n> : a number", 0);    // implicit -> int32_t (signed)
+/// uint16_t u = Options("port <n> : a port", 8080);    // implicit -> uint16_t (unsigned)
+/// bool     b = Options("verbose : be verbose", false); // implicit -> bool (true if flag present)
+/// double   d = Options("ratio <r> : a ratio", 1.0);   // implicit -> double
+/// @endcode
+///
+/// When using `auto`, the implicit conversion cannot deduce the target type.
+/// Use an explicit accessor on the Values object instead:
+///
+/// @code
+/// auto sName  = Options("name <n> : a string").String();  // -> KStringViewZ
+/// auto iCount = Options("count <n> : a number", 0).Int32();
+/// auto iPort  = Options("port <n> : a port", 8080).UInt16();
+/// auto bFlag  = Options("verbose : be verbose", false).Bool();
+/// auto dRatio = Options("ratio <r> : a ratio", 1.0).Double();
+/// @endcode
+///
+/// Available explicit accessors on Values:
+/// | Accessor | Return type |
+/// |---|---|
+/// | String() | KStringViewZ |
+/// | c_str() | const char* |
+/// | Int16(), Int32(), Int64() | signed integers |
+/// | UInt16(), UInt32(), UInt64() | unsigned integers |
+/// | Float(), Double() | floating point |
+/// | Bool() | bool (true if option present, else default) |
+/// | Duration\<T\>() | chrono duration |
+/// | Vector() | std::vector\<KStringViewZ\> (all values) |
+/// | Exists() | bool (was the option found in the input?) |
+///
+/// ### String Lifetime
+///
+/// All KStringViewZ values returned by the Values proxy — whether from
+/// String(), Vector(), operator[], the callback's ArgList, or implicit
+/// conversion — point directly into the original argument strings (argv
+/// for CLI parsing, or into KOptions' internal persistent string storage
+/// for ini file / CGI / string-based parsing). Their lifetime extends
+/// until the process exits (for argv) or until the KOptions object is
+/// destroyed (for other input sources). There is no need to copy them
+/// into KString unless the value needs to be modified:
+///
+/// @code
+/// // zero-copy — sFile is valid for the lifetime of the process
+/// KStringViewZ sFile = Options("f,file <path> : input file");
+///
+/// // only copy when you need a mutable string
+/// KString sMutable = Options("o,output <path> : output file");
+/// sMutable += ".bak";
+/// @endcode
+///
+/// For multi-value options, Vector() returns all values, and operator[]
+/// provides indexed access:
+///
+/// @code
+/// auto vIncludes = Options("I,include <paths> : include paths",
+///                          std::vector<KStringViewZ>{}).Vector();
+/// @endcode
+///
+/// ## Argument Types and Validation
+///
+/// Each option can declare a type and an optional range:
+///
+/// @code
+/// Options.Option("port <n>")
+///     .Help("listen port")
+///     .Type(KOptions::Unsigned).Range(1, 65535)
+///     .Callback([&](KStringViewZ s) { iPort = s.UInt16(); });
+///
+/// Options.Option("config <path>")
+///     .Help("config file")
+///     .Type(KOptions::File)          // must exist
+///     .Required()
+///     .Callback([&](KStringViewZ s) { sConfig = s; });
+/// @endcode
+///
+/// Supported types: Integer, Unsigned, Float, Boolean, String (default),
+/// File, Directory, Path, Socket (Unix only), Email, URL.
+/// Range() checks numeric value bounds, or string length bounds for
+/// string-like types.
+///
+/// ## Commands
+///
+/// Commands are positional arguments that do not start with a dash:
+///
+/// @code
+/// Options.Command("start").Help("start the service")
+///     .Callback([&]() { StartService(); });
+///
+/// Options.Command("stop").Help("stop the service")
+///     .Callback([&]() { StopService(); });
+/// @endcode
+///
+/// ## Auto-generated Help
+///
+/// A formatted help text is automatically generated and printed when
+/// `-h` or `--help` is used. The output adapts to the terminal width.
+/// Options are grouped into sections (via Section()) and sorted by
+/// help rank. On missing or wrong parameters, the relevant option's
+/// help is included in the error message.
+///
+/// ## Input Sources
+///
+/// - **CLI:** Parse(argc, argv)
+/// - **String:** Parse(KString) — e.g. from a config value
+/// - **Stream / File:** Parse(KInStream&), ParseFile(sPath) — line-oriented, `#` comments
+/// - **CGI:** ParseCGI(sProgramName) — reads QUERY_STRING env var
+///
+/// ## Built-in Options
+///
+/// The following options are registered automatically and appear in the
+/// help under "further \<options\>:":
+///
+/// - `-h`, `--help` — print help and exit
+/// - `-d` .. `-dddd`, `-d0` — set debug level (if compiled with DEKAF2_WITH_KLOG)
+/// - `-ud` .. `-udddd`, `-ud0` — debug with microsecond timestamps
+/// - `-dgrep`, `-dgrepv` — filter debug output with a regex
+/// - `-config`, `-ini` — load options from a config file
+class DEKAF2_PUBLIC KOptions
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// throw in case of a missing parameter - it will report the param it got called with
+	class MissingParameterError : public KException
+	{
+		using KException::KException;
+	};
+
+	/// throw in case of a wrong parameter - it will report the param it got called with
+	class WrongParameterError : public KException
+	{
+		using KException::KException;
+	};
+
+	/// throw in case of a bad option that is not allowed in a context - it will report the param it got called with
+	class BadOptionError : public KException
+	{
+		using KException::KException;
+	};
+
+	/// throw in case of a general error - it will not report a specific param it got called with
+	class Error : public KException
+	{
+		using KException::KException;
+	};
+
+	/// throw in case of no error, to simply terminate the option parsing
+	class NoError : public KException
+	{
+		using KException::KException;
+	};
+
+	KOptions() = delete;
+	KOptions(const KOptions&) = delete;
+	KOptions(KOptions&&) = default;
+	KOptions& operator=(const KOptions&) = delete;
+	KOptions& operator=(KOptions&&) = default;
+
+	/// ctor, requiring basic initialization
+	explicit KOptions (bool bEmptyParmsIsError, KStringView sCliDebugTo = KLog::STDOUT, bool bThrow = false);
+
+	/// ctor that immediately parses from the cli (creating ad hoc options)
+	KOptions (bool bEmptyParmsIsError, int argc, char const* const* argv, KStringView sCliDebugTo = KLog::STDOUT, bool bThrow = false);
+
+	/// dtor, may call Check(), but will not throw
+	~KOptions();
+
+	/// set a brief description of the program, will appear in first line of generated help
+	KOptions& SetBriefDescription(KString sBrief)                     { m_HelpParams.sBriefDescription       = std::move(sBrief);             return *this; }
+
+	/// set an additional description at the end of the automatic "usage:" string
+	KOptions& SetAdditionalArgDescription(KString sAdditionalArgDesc) { m_HelpParams.sAdditionalArgDesc      = std::move(sAdditionalArgDesc); return *this; }
+
+	/// set an additional help text at the end of the generated help
+	KOptions& SetAdditionalHelp(KString sAdditionalHelp)              { m_HelpParams.sAdditionalHelp         = std::move(sAdditionalHelp);    return *this; }
+
+	/// set the separator style for the generated help - default is ::
+	KOptions& SetHelpSeparator(KString sSeparator)                    { m_HelpParams.sSeparator              = std::move(sSeparator);         return *this; }
+
+	/// set max generated help width in characters if terminal size is unknown, default = 100
+	KOptions& SetMaxHelpWidth(uint16_t iMaxWidth)                     { m_HelpParams.iMaxHelpRowWidth        = iMaxWidth;                     return *this; }
+
+	/// set indent for wrapped help lines, default 1
+	KOptions& SetWrappedHelpIndent(uint16_t iIndent)                  { m_HelpParams.iWrappedHelpIndent      = iIndent;                       return *this; }
+
+	/// calculate column width for names per section, or same for all (default = false)
+	KOptions& SetSpacingPerSection(bool bSpacingPerSection)           { m_HelpParams.bSpacingPerSection      = bSpacingPerSection;            return *this; }
+
+	/// write an empty line between all options? (default = false)
+	KOptions& SetLinefeedBetweenOptions(bool bLinefeedBetweenOptions) { m_HelpParams.bLinefeedBetweenOptions = bLinefeedBetweenOptions;       return *this; }
+
+	/// throw on errors or not?
+	KOptions& Throw(bool bYesNo = true)                               { m_bThrow = bYesNo;                                                    return *this; }
+
+	/// allow unknown options to be parsed like regular options? (default at construction = false). If no regular options
+	/// had been defined at time of parsing, ad-hoc args are automatically enabled. Such args then need to be fetched
+	/// with Get() or the call operator()
+	KOptions& AllowAdHocArgs(bool bYesNo = true)                      { m_bAllowAdHocArgs = bYesNo;                                           return *this; }
+
+	/// Parse arguments and call the registered callback functions. Returns 0
+	/// if valid, -1 if -help was called, and > 0 for error
+	int Parse(int argc, char const* const* argv, KOutStream& out = KOut);
+
+	/// Parse arguments globbed together in a single string as if it was a command line
+	int Parse(KString sCLI, KOutStream& out = KOut);
+
+	/// Parse arguments line by line from a stream, multiple arguments allowed per line (like a full CLI)
+	int Parse(KInStream& In, KOutStream& out = KOut);
+
+	/// Parse arguments line by line from a file, multiple arguments allowed per line (like a full CLI)
+	int ParseFile(KStringViewZ sFileName, KOutStream& out = KOut);
+
+	/// Parse arguments from CGI QUERY_PARMS
+	int ParseCGI(KStringViewZ sProgramName, KOutStream& out = KOut);
+
+	/// Verify that all given parms have been consumed, and that all required parms were present.
+	/// This method is called automatically after parsing when no ad-hoc parms were generated,
+	/// but if there are ad-hoc parms it has to be called after all .Get() calls to request those. It will
+	/// also be called automatically at destruction of KOptions, but that may be a bit late..
+	/// May throw if KOptions may throw.
+	/// @returns true if all parms have been consumed.
+	bool Check(KOutStream& out = KOut);
+
+	using ArgList   = KStack<KStringViewZ>;
+	using Callback0 = std::function<void()>;
+	using Callback1 = std::function<void(KStringViewZ)>;
+	using CallbackN = std::function<void(ArgList&)>;
+
+	/// Selects the type of an argument, used in value checking
+	enum ArgTypes
+	{
+		Integer,   ///< signed integer
+		Unsigned,  ///< unsigned integer
+		Float,     ///< float
+		Boolean,   ///< boolean
+		String,    ///< string (the default)
+		File,      ///< file must exist
+		Directory, ///< directory must exist, with or without trailing slash
+		Path,      ///< path component of pathname must exist
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+		Socket,    ///< socket pathname, must exist (and be a socket)
+#endif
+		Email,     ///< email address
+		URL,       ///< URL
+	};
+
+//----------
+private:
+//----------
+
+	static constexpr KStringView UNKNOWN_ARG { "!" };
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class DEKAF2_PUBLIC CallbackParam
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	public:
+
+		enum Flag
+		{
+			fNone        = 0,
+			fIsRequired  = 1 <<  0,
+			fIsCommand   = 1 <<  1,
+			fCheckBounds = 1 <<  2,
+			fToLower     = 1 <<  3,
+			fToUpper     = 1 <<  4,
+			fIsHidden    = 1 <<  5,
+			fIsSection   = 1 <<  6,
+			fIsUnknown   = 1 <<  7,
+			fIsFinal     = 1 <<  8,
+			fIsStop      = 1 <<  9,
+			fIsAdHoc     = 1 << 10,
+			fGetAllArgs  = 1 << 11
+	};
+
+		CallbackParam() = default;
+		CallbackParam(KStringView sNames, KStringView sMissingArgs, uint16_t fFlags, uint16_t iMinArgs, uint16_t iMaxArgs, CallbackN Func);
+		CallbackParam(KStringView sNames, KStringView sMissingArgs, uint16_t fFlags, uint16_t iMinArgs = 0, CallbackN Func = CallbackN{})
+		: CallbackParam(sNames, sMissingArgs, fFlags, iMinArgs, 65535, std::move(Func)) {}
+
+		CallbackN    m_Callback;
+		KStringView  m_sNames;
+		KStringView  m_sMissingArgs;
+		KStringView  m_sHelp;
+		mutable std::vector<KStringViewZ> m_Args;
+		int64_t      m_iLowerBound      {      0 };
+		int64_t      m_iUpperBound      {      0 };
+		uint16_t     m_iMinArgs         {      0 };
+		uint16_t     m_iMaxArgs         {  65535 };
+		uint16_t     m_iFlags           {  fNone };
+		uint16_t     m_iHelpRank        {      0 };
+		ArgTypes     m_ArgType          { String };
+		mutable bool m_bUsed            {  false };
+		mutable bool m_bArgsAreDefaults {  false };
+
+		/// returns true if this parameter is required
+		DEKAF2_NODISCARD
+		bool         IsRequired()  const { return m_iFlags & fIsRequired;   }
+		/// returns true if this parameter is an option, not a command
+		DEKAF2_NODISCARD
+		bool         IsOption()    const { return IsCommand() == false;     }
+		/// returns true if this parameter is a command, not an option
+		DEKAF2_NODISCARD
+		bool         IsCommand()   const { return m_iFlags & fIsCommand;    }
+		/// returns true if this parameter shall be hidden from auto-documentation
+		DEKAF2_NODISCARD
+		bool         IsHidden()    const { return m_iFlags & fIsHidden;     }
+		/// returns true if this parameter is a section break for the auto-documentation
+		DEKAF2_NODISCARD
+		bool         IsSection()   const { return m_iFlags & fIsSection;    }
+		/// returns true if this parameter is an "unknown" catchall, either for options or commands
+		DEKAF2_NODISCARD
+		bool         IsUnknown()   const { return m_iFlags & fIsUnknown;    }
+		/// returns true if this parameter ends the execution of a program immediately
+		DEKAF2_NODISCARD
+		bool         IsFinal()     const { return m_iFlags & fIsFinal;      }
+		/// returns true if this parameter ends the execution of a program after all args are parsed
+		DEKAF2_NODISCARD
+		bool         IsStop()      const { return m_iFlags & fIsStop;       }
+		/// returns true if this parameter was added ad hoc during cli parsing
+		DEKAF2_NODISCARD
+		bool         IsAdHoc()     const { return m_iFlags & fIsAdHoc;      }
+		/// returns true if the boundaries of this parameter shall be checked
+		DEKAF2_NODISCARD
+		bool         CheckBounds() const { return m_iFlags & fCheckBounds;  }
+		/// returns true if the string shall be converted to lowercase
+		DEKAF2_NODISCARD
+		bool         ToLower()     const { return m_iFlags & fToLower;      }
+		/// returns true if the string shall be converted to uppercase
+		DEKAF2_NODISCARD
+		bool         ToUpper()     const { return m_iFlags & fToUpper;      }
+		/// returns true if there shall be made no difference between options and commands when
+		/// getting remaining args (in range of min/max args) - normally arg fetching is stopped with
+		/// the next dashed option
+		DEKAF2_NODISCARD
+		bool         GetAllArgs()  const { return m_iFlags & fGetAllArgs;   }
+
+	}; // CallbackParam
+
+	friend class OptionalParm;
+
+//----------
+public:
+//----------
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class DEKAF2_PUBLIC OptionalParm : private CallbackParam
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		friend class KOptions;
+
+	protected:
+
+		// we make the ctor protected to ensure that all passed strings are already persisted
+		OptionalParm(KOptions& base, KStringView sOption, KStringView sArgDescription, bool bIsCommand);
+
+	public:
+
+		~OptionalParm();
+
+		/// set the minimum count of expected arguments (default 0)
+		OptionalParm& MinArgs(uint16_t iMinArgs)  { m_iMinArgs = iMinArgs;  return *this; }
+		/// set the maximum count of expected arguments (default 65535)
+		OptionalParm& MaxArgs(uint16_t iMaxArgs)  { m_iMaxArgs = iMaxArgs;  return *this; }
+		/// set the type of the expected argument: Integer,Unsigned,Float,Boolean,String,File,Path,Directory,Email,URL
+		OptionalParm& Type(ArgTypes Type)         { m_ArgType  = Type;      return *this; }
+		/// set the range for integer and float arguments, or the size for string arguments
+		OptionalParm& Range(int64_t iLowerBound, int64_t iUpperBound);
+		/// make argument required to be used
+		OptionalParm& Required()                  { m_iFlags |= fIsRequired;return *this; }
+		/// convert argument to lower case
+		OptionalParm& ToLower()                   { m_iFlags |= fToLower;   return *this; }
+		/// convert argument to upper case
+		OptionalParm& ToUpper()                   { m_iFlags |= fToUpper;   return *this; }
+		/// hide this parameter from automatic help text generation
+		OptionalParm& Hidden()                    { m_iFlags |= fIsHidden;  return *this; }
+		/// when at least one parsed argument has Stop() set, after parsing the args the program is terminated (with success)
+		OptionalParm& Stop()                      { m_iFlags |= fIsStop;    return *this; }
+		/// after parsing _this_ arg the program is terminated (with success if this _is_ the final arg)
+		OptionalParm& Final()                     { m_iFlags |= fIsFinal;   return *this; }
+		/// mark this arg as an ad hoc arg (never do this manually, the parser does it internally)
+		OptionalParm& AdHoc()                     { m_iFlags |= fIsAdHoc;   return *this; }
+		/// get all following args (until MaxArgs count), even if they start with a dash (which normally ends variable args and
+		/// starts a new option)
+		OptionalParm& AllArgs()                   { m_iFlags |= fGetAllArgs;return *this; }
+		/// adds given flag(s)
+		OptionalParm& AddFlag(Flag flag)          { m_iFlags |= flag;       return *this; }
+		/// set the callback for the parameter as a function void(KOptions::ArgList&)
+		OptionalParm& Callback(CallbackN Func);
+		/// set the callback for the parameter as a function void(KStringViewZ)
+		OptionalParm& Callback(Callback1 Func);
+		/// set the callback for the parameter as a function void()
+		OptionalParm& Callback(Callback0 Func);
+		OptionalParm& operator()(CallbackN Func)  { return Callback(std::move(Func)); }
+		OptionalParm& operator()(Callback1 Func)  { return Callback(std::move(Func)); }
+		OptionalParm& operator()(Callback0 Func)  { return Callback(std::move(Func)); }
+
+		/// set any value that can be converted from the input parameter string
+		template<typename T>
+		OptionalParm& Set(T& Value)
+		{
+			return Callback([&Value](KStringViewZ sValue)
+			{
+				kFromString(Value, sValue);
+			});
+		}
+
+		/// set any value that can be converted from the provided parameter
+		template<typename T>
+		OptionalParm& Set(T& Value, T SetValue)
+		{
+			return Callback([&Value, SetValue]()
+			{
+				Value = std::move(SetValue);
+			});
+		}
+
+		/// set any value that can be converted from the provided parameter string
+		template<typename T>
+		OptionalParm& Set(T& Value, KStringView sValue)
+		{
+			return Callback([&Value, sValue]()
+			{
+				kFromString(Value, sValue);
+			});
+		}
+
+		/// set the text shown in the help for this parameter, iHelpRank controls the order of help output shown, 0 = highest
+		template<class String>
+		OptionalParm& Help(String&& sHelp, uint16_t iHelpRank = 0)
+		{
+			return IntHelp(m_base->m_Strings.Persist(std::forward<String>(sHelp)), iHelpRank);
+		}
+		/// insert a section break in front of this parameter, with sSection as the section break title
+		template<class String>
+		OptionalParm& Section(String&& sSection)
+		{
+			return IntSection(m_base->m_Strings.Persist(std::forward<String>(sSection)));
+		}
+
+	private:
+
+		OptionalParm& IntHelp(KStringView sHelp, uint16_t iHelpRank);
+		OptionalParm& IntSection(KStringView sSection);
+
+		KOptions*    m_base;
+
+	}; // OptionalParm
+
+	/// Start definition of a new option. Have it follow by any chained count of methods of OptionalParms, like Option("clear").Help("clear all data").Callback([&](){ RunClear() });
+	template<class String1>
+	DEKAF2_NODISCARD
+	OptionalParm Option(String1&& sOption)
+	{
+		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sOption)), "", false);
+	}
+	/// Start definition of a new command. Have it follow by any chained count of methods of OptionalParms, like Command("clear").Help("clear all data").Callback([&](){ RunClear() });
+	template<class String1>
+	DEKAF2_NODISCARD
+	OptionalParm Command(String1&& sCommand)
+	{
+		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sCommand)), "", true);
+	}
+
+	/// Start definition of a new option. Have it follow by any chained count of methods of OptionalParms, like Option("clear").Help("clear all data").Callback([&](){ RunClear() });
+	template<class String1, class String2>
+	DEKAF2_NODISCARD
+	OptionalParm Option(String1&& sOption, String2&& sArgDescription)
+	{
+		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sOption)), m_Strings.Persist(std::forward<String2>(sArgDescription)), false);
+	}
+	/// Start definition of a new command. Have it follow by any chained count of methods of OptionalParms, like Command("clear").Help("clear all data").Callback([&](){ RunClear() });
+	template<class String1, class String2>
+	DEKAF2_NODISCARD
+	OptionalParm Command(String1&& sCommand, String2&& sArgDescription)
+	{
+		return IntOptionOrCommand(m_Strings.Persist(std::forward<String1>(sCommand)), m_Strings.Persist(std::forward<String2>(sArgDescription)), true);
+	}
+
+	/// Register a callback function for unhandled options
+	void UnknownOption(CallbackN Function);
+
+	/// Register a callback function for unhandled commands
+	void UnknownCommand(CallbackN Function);
+
+	// ========================== deprecated/legacy interface ============================
+
+	/// Deprecated, use the Option() method -
+	/// Register a callback function for occurences of "-sOption" with no additional args
+	void RegisterOption(KStringView sOption, Callback0 Function);
+
+	/// Deprecated, use the Command() method -
+	/// Register a callback function for occurences of "sCommand" with no additional args
+	void RegisterCommand(KStringView sCommand, Callback0 Function);
+
+	/// Deprecated, use the Option() method -
+	/// Register a callback function for occurences of "-sOption" with exactly one additional arg.
+	/// The sMissingParm string is output if there is no additional arg.
+	void RegisterOption(KStringView sOption, KStringViewZ sMissingParm, Callback1 Function);
+
+	/// Deprecated, use the Command() method -
+	/// Register a callback function for occurences of "sCommand" with exactly one additional arg.
+	/// The sMissingParm string is output if there is no additional arg.
+	void RegisterCommand(KStringView sCommand, KStringViewZ sMissingParm, Callback1 Function);
+
+	/// Deprecated, use the Option() method -
+	/// Register a callback function for occurences of "-sOption" with an arbitrary, but defined minimal amount of additional args
+	/// The sMissingParms string is output if there are less than iMinArgs args.
+	void RegisterOption(KStringView sOption, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function);
+
+	/// Deprecated, use the Command() method -
+	/// Register a callback function for occurences of "sCommand" with an arbitrary, but defined minimal amount of additional args
+	/// The sMissingParms string is output if there are less than iMinArgs args.
+	void RegisterCommand(KStringView sCommand, uint16_t iMinArgs, KStringViewZ sMissingParms, CallbackN Function);
+
+	/// Deprecated, use the UnknownOption() method -
+	/// Register a callback function for unhandled options
+	void RegisterUnknownOption(CallbackN Function) { UnknownOption(std::move(Function)); }
+
+	/// Deprecated, use the UnknownCommand() method -
+	/// Register a callback function for unhandled commands
+	void RegisterUnknownCommand(CallbackN Function) { UnknownCommand(std::move(Function)); }
+
+	// ===================== deprecated/legacy interface until here =======================
+
+	/// Register an array of KStringViews as help output, if you do not want to use the automatically generated help
+	template<std::size_t COUNT>
+	void RegisterHelp(const KStringView (&sHelp)[COUNT])
+	{
+		m_sHelp = sHelp;
+		m_iHelpSize = COUNT;
+	}
+
+	/// Output the registered help message, or automatically generate a help message
+	void Help(KOutStream& out);
+
+	/// Get the string representation of the current Argument
+	DEKAF2_NODISCARD
+	KStringViewZ GetCurrentArg() const
+	{
+		return m_sCurrentArg;
+	}
+
+	/// Get the current output stream while parsing commands/args
+	DEKAF2_NODISCARD
+	KOutStream& GetCurrentOutputStream() const;
+
+	/// Get the current output stream width while parsing commands/args
+	DEKAF2_NODISCARD
+	uint16_t GetCurrentOutputStreamWidth() const;
+
+	/// Returns true if we are executed inside a CGI server
+	DEKAF2_NODISCARD
+	static bool IsCGIEnvironment();
+
+	/// Returns arg[0] / the path and name of the called executable
+	DEKAF2_NODISCARD
+	const KString& GetProgramPath() const { return m_HelpParams.GetProgramPath(); }
+
+	/// Returns basename of arg[0] / the name of the called executable
+	DEKAF2_NODISCARD
+	KStringView GetProgramName() const { return m_HelpParams.GetProgramName(); }
+
+	/// Returns brief description of the called executable
+	DEKAF2_NODISCARD
+	const KString& GetBriefDescription() const { return m_HelpParams.GetBriefDescription(); }
+
+	/// Terminate app immediately? (check after parsing)
+	DEKAF2_NODISCARD
+	bool Terminate() const { return m_bStopAppAfterParsing || m_bProcessAdHocForHelp; }
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// helper to convert arguments into different data types.
+	/// @warning This class holds a reference into internal storage. Do not
+	/// store Values objects across multiple Get() or operator() calls on the
+	/// same KOptions instance — a subsequent call may reallocate and invalidate
+	/// the reference. Always convert immediately to the target type, e.g.
+	/// @code KStringView s = Opt("name", ""); @endcode
+	class Values
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	public:
+		/// construct Values with data from parameter parsing
+		Values(KOptions& base, const std::vector<KStringViewZ>& Params, bool bFound) noexcept
+		: m_base(base), m_Params(Params), m_bFound(bFound) {}
+		/// dtor to push unused parameters into the unknown commands list
+		~Values();
+		/// Get the values associated to an option name as a vector<KStringViewZ>
+		DEKAF2_NODISCARD
+		std::vector<KStringViewZ> Vector() const noexcept;
+		/// Get the value associated to an option name as string
+		DEKAF2_NODISCARD
+		KStringViewZ String() const noexcept;
+		/// Get the value associated to an option name as C string
+		DEKAF2_NODISCARD
+		const char* c_str()   const noexcept { return String().c_str();  }
+		/// Get the value associated to an option name as signed integer
+		DEKAF2_NODISCARD
+		int64_t Int64()       const noexcept { return String().Int64();  }
+		/// Get the value associated to an option name as unsigned integer
+		DEKAF2_NODISCARD
+		uint64_t UInt64()     const noexcept { return String().UInt64(); }
+		/// Get the value associated to an option name as signed integer
+		DEKAF2_NODISCARD
+		int32_t Int32()       const noexcept { return String().Int32();  }
+		/// Get the value associated to an option name as unsigned integer
+		DEKAF2_NODISCARD
+		uint32_t UInt32()     const noexcept { return String().UInt32(); }
+		/// Get the value associated to an option name as signed integer
+		DEKAF2_NODISCARD
+		int16_t Int16()       const noexcept { return String().Int16();  }
+		/// Get the value associated to an option name as unsigned integer
+		DEKAF2_NODISCARD
+		uint16_t UInt16()     const noexcept { return String().UInt16(); }
+		/// Get the value associated to an option name as floating point value
+		DEKAF2_NODISCARD
+		float Float()         const noexcept { return String().Float();  }
+		/// Get the value associated to an option name as floating point value
+		DEKAF2_NODISCARD
+		double Double()       const noexcept { return String().Double(); }
+		/// Get a boolean - the option name does not have/needs a value
+		/// - if the option is present the value is true, else false
+		DEKAF2_NODISCARD
+		bool Bool()           const noexcept;
+		/// Get the value associated to an option name as a duration
+		template < typename DurationType = KDuration >
+		DEKAF2_NODISCARD
+		DurationType Duration() const noexcept { DurationType Value; kFromString(Value, String()); return Value; }
+		/// Get the count of arguments for this option
+		std::size_t size()    const noexcept { return m_Params.size();   }
+		/// Is the argument container empty?
+		bool empty()          const noexcept { return m_Params.empty();  }
+		/// Was this option used in the cli params?
+		bool Exists()         const noexcept { return m_bFound;          }
+
+		// all C++ string(view) types
+		template < typename ValueType,
+			typename std::enable_if <std::is_assignable<ValueType, KStringViewZ>::value, int >::type = 0 >
+		operator    ValueType () const noexcept { return String(); }
+
+		// all duration types
+		template < typename ValueType,
+			typename std::enable_if <detail::is_duration<ValueType>::value, int >::type = 0 >
+		operator    ValueType () const noexcept { return Duration<ValueType>(); }
+
+		// all unsigned integers
+		template < typename ValueType,
+			typename std::enable_if <
+				std::conjunction < std::is_integral<ValueType>,
+								   std::is_unsigned<ValueType>,
+					std::negation< std::is_same    <ValueType, std::remove_cv<bool>::type>    >,
+					std::negation< std::is_same    <ValueType, char>                          >,
+					std::negation< std::is_pointer <ValueType>                                >,
+					std::negation< std::is_same    <ValueType, std::nullptr_t>                >
+				>::value
+			, int >::type = 0>
+		operator    ValueType () const noexcept { return static_cast<ValueType>(UInt64()); }
+
+		// all signed integers
+		template < typename ValueType,
+			typename std::enable_if <
+				std::conjunction < std::is_integral<ValueType>,
+					std::negation< std::is_unsigned<ValueType>                                >,
+					std::negation< std::is_same    <ValueType, std::remove_cv<bool>::type>    >,
+					std::negation< std::is_same    <ValueType, char>                          >,
+					std::negation< std::is_pointer <ValueType>                                >,
+					std::negation< std::is_same    <ValueType, std::nullptr_t>                >
+				>::value
+			, int >::type = 0>
+		operator    ValueType () const noexcept { return static_cast<ValueType>(Int64()); }
+
+		// bool
+		template < typename ValueType,
+			typename std::enable_if <
+				std::is_same   <ValueType, std::remove_cv<bool>::type>::value
+			, int >::type = 0>
+		operator    ValueType () const noexcept { return Bool(); }
+
+		// floating point types
+		template < typename ValueType,
+			typename std::enable_if <
+				std::is_floating_point<ValueType>::value
+			, int >::type = 0>
+		operator    ValueType () const noexcept { return Double(); }
+
+		// the vector type
+		operator std::vector<KStringViewZ> () const noexcept { return Vector(); }
+
+		/// index access throws if out of range
+		KStringViewZ operator [] (std::size_t index) const;
+
+		/// get a begin( ) iterator on the list of parameters
+		std::vector<KStringViewZ>::const_iterator begin() const noexcept { return m_Params.begin(); }
+		/// get an end( ) iterator on the list of parameters
+		std::vector<KStringViewZ>::const_iterator end()   const noexcept { return m_Params.end();   }
+
+	private:
+		KOptions&                        m_base;
+		const std::vector<KStringViewZ>& m_Params;
+		mutable std::size_t              m_iConsumed        { 0 };
+		bool                             m_bFound       { false };
+
+	}; // Values
+
+	/// returns parameters belonging to sOptionName (after parsing the arguments). Throws if option is not found.
+	DEKAF2_NODISCARD
+	Values Get(KStringView sOptionName);
+
+	/// call operator returns associated parameters. Throws if option is not found.
+	DEKAF2_NODISCARD
+	Values operator()(KStringView sOptionName) { return Get(sOptionName); }
+
+	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
+	DEKAF2_NODISCARD
+	Values Get(KStringView sOptionName, const KStringViewZ& sDefaultValue) noexcept;
+
+	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
+	template<typename T,
+	         typename std::enable_if<detail::is_kstringviewz_assignable<const T&>::value, int>::type = 0>
+	DEKAF2_NODISCARD
+	Values Get(KStringView sOptionName, const T& sDefaultValue) noexcept
+	{ return Get(sOptionName, KStringViewZ(sDefaultValue)); }
+
+	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
+	template<typename T,
+	         typename std::enable_if<!detail::is_kstringviewz_assignable<const T&>::value, int>::type = 0>
+	DEKAF2_NODISCARD
+	Values Get(KStringView sOptionName, const T& DefaultValue) noexcept
+	{ return Get(sOptionName, KString::to_string(DefaultValue)); }
+
+	/// returns parameters belonging to sOptionName (after parsing the arguments). Returns default value if not found.
+	DEKAF2_NODISCARD
+	Values Get(KStringView sOptionName, const std::vector<KStringViewZ>& DefaultValues) noexcept;
+
+	/// call operator returns associated parameters. Returns default value if not found.
+	DEKAF2_NODISCARD
+	Values operator()(KStringView sOptionName, const KStringViewZ& sDefaultValue) noexcept
+	{ return Get(sOptionName, sDefaultValue); }
+
+	/// call operator returns associated parameters. Returns default value if not found.
+	template<typename T>
+	DEKAF2_NODISCARD
+	Values operator()(KStringView sOptionName, const T& DefaultValue) noexcept 
+	{ return Get(sOptionName, DefaultValue); }
+
+	/// call operator returns associated parameters. Returns default value if not found.
+	DEKAF2_NODISCARD
+	Values operator()(KStringView sOptionName, const std::vector<KStringViewZ>& DefaultValues) noexcept 
+	{ return Get(sOptionName, DefaultValues); }
+
+	/// returns all commands that were not covered by any declared command in current parsing. For ad-hoc parsing
+	/// call after all other options were checked. Can only be called once.
+	std::vector<KStringViewZ> GetUnknownCommands() { return std::move(m_UnknownCommands); }
+
+//----------
+protected:
+//----------
+
+	/// Set error string and throw or return with error int
+	int SetError(KStringViewZ sError, KOutStream& out = KOut);
+
+	bool m_bThrow { false };
+
+//----------
+private:
+//----------
+
+	using PersistedStrings = KPersistStrings<KString, false>;
+
+	static constexpr KStringView::size_type iMaxAdHocOptionLength { 200 };
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class DEKAF2_PRIVATE CLIParms
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		struct DEKAF2_PRIVATE Arg_t
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		{
+			Arg_t() = default;
+			Arg_t(KStringViewZ sArg_);
+			Arg_t(KStringViewZ sArg_, uint8_t iDashes_)
+			: sArg(sArg_)
+			, iDashes(iDashes_)
+			{}
+
+			DEKAF2_NODISCARD uint8_t      DashCount() const { return iDashes; }
+			DEKAF2_NODISCARD bool         IsOption () const { return DashCount() > 0; }
+			DEKAF2_NODISCARD KStringViewZ Dashes   () const;
+
+			KStringViewZ sArg;
+			bool         bConsumed { false };
+
+		//----------
+		private:
+		//----------
+
+			static constexpr KStringViewZ s_sDoubleDash = "--";
+
+			uint8_t      iDashes { 0 };
+
+		}; // Arg_t
+
+		using ArgVec         = std::vector<Arg_t>;
+		using iterator       = ArgVec::iterator;
+		using const_iterator = ArgVec::const_iterator;
+
+		CLIParms() = default;
+		CLIParms(int argc, char const* const* argv, PersistedStrings& Strings) { Create(argc, argv, Strings); }
+		CLIParms(const std::vector<KStringViewZ>& parms, PersistedStrings& Strings) { Create(parms, Strings); }
+
+		                 void           Create(KStringViewZ sArg, PersistedStrings& Strings);
+		                 void           Create(const std::vector<KStringViewZ>& parms, PersistedStrings& Strings);
+		                 void           Create(int argc, char const* const* argv, PersistedStrings& Strings);
+
+		DEKAF2_NODISCARD size_t         size()  const { return m_ArgVec.size();  }
+		DEKAF2_NODISCARD bool           empty() const { return m_ArgVec.empty(); }
+		DEKAF2_NODISCARD iterator       begin()       { return m_ArgVec.begin(); }
+		DEKAF2_NODISCARD iterator       end()         { return m_ArgVec.end();   }
+		DEKAF2_NODISCARD const_iterator begin() const { return m_ArgVec.begin(); }
+		DEKAF2_NODISCARD const_iterator end()   const { return m_ArgVec.end();   }
+		                 void           clear()       { m_ArgVec.clear();        }
+
+		DEKAF2_NODISCARD KStringViewZ   GetProgramPath() const;
+		DEKAF2_NODISCARD KStringView    GetProgramName() const;
+
+		                 iterator       ExpandToSingleCharArgs(iterator it, const std::vector<KStringViewZ>& SplittedArgs);
+
+		ArgVec         m_ArgVec;
+		KStringViewZ   m_sProgramPathName;
+
+	}; // CLIParms
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	class DEKAF2_PRIVATE HelpFormatter
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+
+	//----------
+	public:
+	//----------
+
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		struct DEKAF2_PRIVATE HelpParams
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		{
+			DEKAF2_NODISCARD DEKAF2_PUBLIC KStringView    GetProgramName()      const;
+			DEKAF2_NODISCARD const KString& GetProgramPath()      const { return sProgramPathName;  }
+			DEKAF2_NODISCARD const KString& GetBriefDescription() const { return sBriefDescription; }
+			DEKAF2_NODISCARD const KString& GetAdditionalHelp()   const { return sAdditionalHelp;   }
+
+			KString        sProgramPathName;
+			KString        sBriefDescription;
+			KString        sAdditionalArgDesc;
+			KString        sAdditionalHelp;
+			KString        sSeparator              {    "::" };
+			uint16_t       iWrappedHelpIndent      {       1 };
+			uint16_t       iMaxHelpRowWidth        {     100 };
+			bool           bSpacingPerSection      {   false };
+			bool           bLinefeedBetweenOptions {   false };
+		};
+
+		HelpFormatter(KOutStream&                       out,
+					  const std::vector<CallbackParam>& Callbacks,
+					  const HelpParams&                 HelpParams,
+					  uint16_t                          iTerminalWidth);
+
+		HelpFormatter(KOutStream&          out,
+					  const CallbackParam& Callback,
+					  const HelpParams&    HelpParams,
+					  uint16_t             iTerminalWidth);
+
+	//----------
+	private:
+	//----------
+
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		struct DEKAF2_PRIVATE Mask
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		{
+			Mask(const HelpFormatter& Formatter, bool bForCommands, bool bIsRequired);
+
+			KString        sFormat;
+			KString        sOverflow;
+			uint16_t       iMaxHelp     {    80 };
+			bool           bOverlapping { false };
+
+		}; // Mask
+
+		DEKAF2_NODISCARD
+		static KStringView SplitAtLinefeed(KStringView& sInput);
+		DEKAF2_NODISCARD
+		static KStringView WrapOutput(KStringView& sInput, std::size_t iMaxSize, bool bKeepLineFeeds);
+		DEKAF2_NODISCARD
+		static KStringView::size_type AdjustPos(KStringView::size_type iPos, int iAdjust);
+
+		void           GetEnvironment();
+		void           CalcExtends(const std::vector<CallbackParam>& Callbacks);
+		void           CalcExtends(const CallbackParam& Callback);
+		void           FormatOne(KOutStream& out, const CallbackParam& Callback, const Mask& mask);
+
+		const HelpParams&
+		               m_Params;
+
+		std::array<std::size_t, 2>
+		               m_MaxLens                 { 0, 0                             };
+		KStringView    m_sSeparator              { m_Params.sSeparator              };
+		uint16_t       m_iColumns                { m_Params.iMaxHelpRowWidth        };
+		uint16_t       m_iWrappedHelpIndent      { m_Params.iWrappedHelpIndent      };
+		bool           m_bLinefeedBetweenOptions { m_Params.bLinefeedBetweenOptions };
+		bool           m_bSpacingPerSection      { m_Params.bSpacingPerSection      };
+		bool           m_bHaveOptions            { false                            };
+		bool           m_bHaveCommands           { false                            };
+
+	}; // HelpFormatter
+
+	DEKAF2_PRIVATE
+	void Register(CallbackParam OptionOrCommand);
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	OptionalParm IntOptionOrCommand(KStringView sOption, KStringView sArgDescription, bool bIsCommand)
+	{
+		return OptionalParm(*this, sOption, sArgDescription, bIsCommand);
+	}
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	KStringViewZ ModifyArgument(KStringViewZ sArg, const CallbackParam* Callback);
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	KString BadBoundsReason(ArgTypes Type, KStringView sParm, int64_t iMinBound, int64_t iMaxBound) const;
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	bool ValidBounds(ArgTypes Type, KStringView sParm, int64_t iMinBound, int64_t iMaxBound) const;
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	KString BadArgReason(ArgTypes Type, KStringView sParm) const;
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	bool ValidArgType(ArgTypes Type, KStringViewZ sParm) const;
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	const CallbackParam* FindParam(KStringView sName, bool bIsOption) const;
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	const CallbackParam* FindParam(KStringView sName, bool bIsOption, bool bMarkAsUsed) const;
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	const CallbackParam* FindParamForGet(KStringView sOptionName) const;
+	DEKAF2_PRIVATE
+	void ResetBeforeParsing();
+	DEKAF2_PRIVATE
+	int Execute(CLIParms Parms, KOutStream& out);
+	DEKAF2_PRIVATE
+	bool Evaluate(const CLIParms& Parms, KOutStream& out);
+	DEKAF2_PRIVATE
+	void SetDefaults(KStringView sCliDebugTo);
+	DEKAF2_PRIVATE
+	void AutomaticHelp() const;
+	DEKAF2_PRIVATE
+	bool AdHocOptionSanityCheck(KStringView sOption);
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	KString BuildParameterError(const CallbackParam& Callback, KString sMessage) const;
+	/// Is this arg maybe a combination of single char args?
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	std::vector<KStringViewZ> CheckForCombinedArg(const CLIParms::Arg_t& arg);
+	/// returns the list of isolated option names in the first, and help text in the second string view
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	static std::pair<KStringView, KStringView> IsolateOptionNamesFromHelp(KStringView sOptionNamesAndHelp);
+	DEKAF2_NODISCARD DEKAF2_PRIVATE
+	static KStringView IsolateOptionNamesFromSuffix(KStringView sOptionName);
+
+
+	using CommandLookup = KUnorderedMap<KStringView, std::size_t>;
+
+	HelpFormatter::HelpParams  m_HelpParams;
+	std::vector<CallbackParam> m_Callbacks;
+	KPersistStrings<KString, false>
+	                           m_Strings;
+	CommandLookup              m_Commands;
+	CommandLookup              m_Options;
+	KStringViewZ               m_sCurrentArg;
+	KOutStream*                m_CurrentOutputStream     { nullptr };
+	std::vector<KStringViewZ>  m_UnknownCommands;
+	const KStringView*         m_sHelp                   { nullptr };
+	std::size_t                m_iHelpSize               {       0 };
+	std::size_t                m_iAutomaticOptionCount   {       0 };
+	uint16_t                   m_iRecursedHelp           {       0 };
+	uint16_t                   m_iExecutions             {       0 };
+	bool                       m_bEmptyParmsIsError      {    true };
+	bool                       m_bStopAppAfterParsing    {   false };
+	bool                       m_bAllowAdHocArgs         {   false };
+	bool                       m_bHaveAdHocArgs          {   false };
+	bool                       m_bCheckWasCalled         {   false };
+	bool                       m_bHaveErrors             {   false };
+	mutable bool               m_bProcessAdHocForHelp    {   false };
+
+}; // KOptions
+
+
+/// @}
+
+DEKAF2_NAMESPACE_END
+

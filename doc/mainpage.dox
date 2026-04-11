@@ -39,9 +39,9 @@
 ///
 /// @subsection hl_ksql KSQL — One Class, Every Database
 ///
-/// Connect to **MySQL, MariaDB, Oracle, SQLite, SQL Server (CTLIB / DBLIB)**
+/// Connect to **MySQL, MariaDB, PostgreSQL, SQLite, SQL Server (CTLIB / DBLIB)**
 /// — all through a single, unified API. KSQL handles connection
-/// pooling, automatic retries, query logging, and prepared statements.
+/// pooling, automatic retries, and query logging.
 /// All query parameters are **automatically SQL-injection-safe** — the type
 /// system escapes string arguments at format time and rejects dynamic
 /// format strings at runtime. Iterate results with a simple range-for loop.
@@ -65,7 +65,7 @@
 /// | **Crypto** | AES, ChaCha20, Camellia, ARIA, RSA, bcrypt, HMAC, SHA-*, BLAKE2, OpenID, AWS Signature V4 |
 /// | **Compression** | zstd, Brotli, gzip / deflate, LZMA — as streaming filters |
 /// | **Data Formats** | JSON (with DOM and SAX), XML, CSV, HTML parsing and DOM |
-/// | **Threading** | Thread pools, parallel-for, pub/sub, atomic wrappers, lock-free maps |
+/// | **Threading** | Thread pools, parallel-for, pub/sub, atomic wrappers |
 /// | **I/O** | Streaming architecture, pipes, shell execution, pseudo-terminals |
 /// | **System** | Filesystem, shared memory, signals, cron scheduling, heap monitoring |
 /// | **Networking** | TCP, TLS, QUIC, Unix sockets, DNS resolution, IP networks |
@@ -186,7 +186,7 @@
 /// through the library organized by topic:
 ///
 /// - @ref core "Core" — strings, formatting, logging, error handling
-/// - @ref data "Data" — JSON, CSV, SQL, templates
+/// - @ref data "Data" — JSON, XML, CSV, SQL, templates
 /// - @ref http "HTTP" — protocol, client, server, WebSocket
 /// - @ref rest "REST" — framework, file serving, rate limiting
 /// - @ref crypto "Crypto" — hashing, ciphers, RSA, authentication

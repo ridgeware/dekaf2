@@ -1251,6 +1251,7 @@ set(PUBLIC_HEADERS
 	source/containers/memory/ksharedref.h
 	source/containers/sequential/kbuffer.h
 	source/containers/sequential/khistory.h
+	source/containers/sequential/kspan.h
 	source/containers/sequential/kstack.h
 	source/core/errors/kcrashexit.h
 	source/core/errors/kerror.h

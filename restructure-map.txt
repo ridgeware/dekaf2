@@ -62,6 +62,7 @@ kprops.h -> containers/associative/kprops.h
 # === containers/sequential/ ===
 kbuffer.h -> containers/sequential/kbuffer.h
 khistory.h -> containers/sequential/khistory.h
+kspan.h -> containers/sequential/kspan.h
 kstack.h -> containers/sequential/kstack.h
 
 # === containers/memory/ ===

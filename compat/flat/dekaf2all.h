@@ -239,6 +239,6 @@
 #include <dekaf2/core/strings/kwords.h>
 #include <dekaf2/io/readwrite/kwrite.h>
 #include <dekaf2/io/readwrite/kwriter.h>
-#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/data/xml/kxml.h>
 #include <dekaf2/util/cli/kxterm.h>
 #include <dekaf2/util/archive/kzip.h>

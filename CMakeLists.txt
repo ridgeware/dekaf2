@@ -2286,10 +2286,11 @@ if (DEKAF2_INSTALL_BIN)
 		install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
 	endif()
 
-	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mysql-newuser" DESTINATION ${dekaf2_bin_dest})
-	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/findcol"       DESTINATION ${dekaf2_bin_dest})
-	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/kport"         DESTINATION ${dekaf2_bin_dest})
-	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/my-ip-addr"    DESTINATION ${dekaf2_bin_dest})
+	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mysql-newuser"   DESTINATION ${dekaf2_bin_dest})
+	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/findcol"         DESTINATION ${dekaf2_bin_dest})
+	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/kport"           DESTINATION ${dekaf2_bin_dest})
+	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/my-ip-addr"      DESTINATION ${dekaf2_bin_dest})
+	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/dekaf2unflat.py" DESTINATION ${dekaf2_bin_dest})
 
 endif() # DEKAF2_INSTALL_BIN
 

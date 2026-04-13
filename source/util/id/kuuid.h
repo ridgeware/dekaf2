@@ -43,7 +43,7 @@
 /// @file kuuid.h
 /// provides support for UUIDs
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/time/clock/ktime.h>

@@ -41,7 +41,7 @@
 //
 */
 
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 
 #if DEKAF2_IS_WINDOWS
 	#include <array>

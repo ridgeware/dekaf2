@@ -63,8 +63,8 @@
 	#endif
 #endif
 
-#if DEKAF2_HAS_INCLUDE(<dekaf2/core/types/kdefinitions.h>)
-	#include <dekaf2/core/types/kdefinitions.h>
+#if DEKAF2_HAS_INCLUDE(<dekaf2/core/init/kdefinitions.h>)
+	#include <dekaf2/core/init/kdefinitions.h>
 #endif
 
 #ifndef DEKAF2_NAMESPACE_BEGIN

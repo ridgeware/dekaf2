@@ -43,7 +43,7 @@
 
 
 /// @file khtmldom.h
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/web/html/khtmlparser.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/errors/kerror.h>

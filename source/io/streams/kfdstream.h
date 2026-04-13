@@ -43,7 +43,7 @@
 
 
 /// @file kfdstream.h
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/io/readwrite/kread.h>
 #include <dekaf2/io/readwrite/kwrite.h>
 #include <dekaf2/io/streams/kstream.h>

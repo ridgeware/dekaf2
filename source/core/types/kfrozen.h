@@ -44,7 +44,7 @@
 
 
 /// @file kfrozen.h
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 
 // frozen constexpr need at least C++14
 #ifndef DEKAF2_HAS_CPP_14
@@ -68,7 +68,7 @@
 #include <frozen/set.h>
 #include <frozen/unordered_map.h>
 #include <frozen/unordered_set.h>
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/crypto/hash/bits/khash.h>
 

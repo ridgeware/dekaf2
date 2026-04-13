@@ -46,7 +46,7 @@
 /// test for include file locations for std::variant, and include if
 /// available, otherwise provide an alternative boost implementation
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 
 // clang has multiple issues with variants:
 //

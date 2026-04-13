@@ -46,7 +46,7 @@
 /// @file kcompatibility.h
 /// compatibility layer to provide same interfaces for C++11 to 17
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <type_traits>
 
 #if !DEKAF2_IS_WINDOWS
@@ -55,7 +55,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup core_types
+/// @addtogroup core_init
 /// @{
 
 /// suppress compiler warnings on seemingly unused variables

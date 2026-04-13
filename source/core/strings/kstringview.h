@@ -47,7 +47,7 @@
 /// operations, handles error cases gracefully instead of causing UB,
 /// and speeds up searching by up to 50x using SIMD where available
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/bits/kstring_view.h>
 #include <dekaf2/crypto/hash/bits/khash.h>
 #include <dekaf2/core/types/ktemplate.h>

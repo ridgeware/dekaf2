@@ -43,7 +43,7 @@
 /// @file kpoll.h
 /// Maintaining a list of file descriptors and associated actions to call when the file descriptor creates an event
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <functional>

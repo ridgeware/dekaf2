@@ -43,7 +43,7 @@
 /// @file kexception.h
 /// provides basic dekaf2 exception class
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <exception>
 #include <stdexcept>

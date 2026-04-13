@@ -45,7 +45,7 @@
 /// @file kbuffer.h
 /// const and mutable buffers for conversion between C and C++ APIs
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <cstdint>
 

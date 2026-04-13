@@ -43,7 +43,7 @@
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/rest/serving/kwebserver.h>
-#include <dekaf2/web/objects/kwebdav.h>
+#include <dekaf2/rest/serving/kwebdav.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/time/duration/kduration.h>

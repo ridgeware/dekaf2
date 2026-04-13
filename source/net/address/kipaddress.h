@@ -55,7 +55,7 @@
 /// @file kipaddress.h
 /// ip address checks and classes to store IPv4 and IPv6 addresses
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/crypto/hash/khash.h>

@@ -41,7 +41,7 @@
 */
 
 #include <dekaf2/system/os/kgetruntimestack.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/containers/sequential/kstack.h>
 #include <dekaf2/core/strings/ksplit.h>

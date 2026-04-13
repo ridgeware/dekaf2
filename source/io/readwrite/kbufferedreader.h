@@ -49,7 +49,7 @@
 /// is however as fast as is this implementation, so if not needed for
 /// cross-platform performance this implementation is unneeded.
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>

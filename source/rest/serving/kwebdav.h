@@ -44,7 +44,7 @@
 /// @file kwebdav.h
 /// WebDAV Class 2 implementation for file-based network storage
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
@@ -54,7 +54,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup web_objects
+/// @addtogroup rest_serving
 /// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

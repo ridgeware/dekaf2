@@ -44,7 +44,7 @@
 /// @file ksetofchars.h
 /// string operations for a set of chars
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/types/kbit.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <cinttypes>

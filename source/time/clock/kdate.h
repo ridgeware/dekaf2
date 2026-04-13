@@ -46,7 +46,7 @@
 /// make sure we have calendar and timezone extensions for std::chrono
 /// and provides the KDate class to calculate with dates
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #if DEKAF2_HAS_INCLUDE(<kconfiguration.h>)
 	#include <kconfiguration.h>
 #endif

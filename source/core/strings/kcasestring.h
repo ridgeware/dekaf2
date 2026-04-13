@@ -43,7 +43,7 @@
 
 
 /// @file kcasestring.h
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/core/strings/kcaseless.h>

@@ -44,7 +44,7 @@
 /// @file kstringstream.h
 /// provides a stream around a KString
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/io/streams/kstreambuf.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/io/streams/koutstringstream.h>

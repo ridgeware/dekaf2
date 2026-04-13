@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <dekaf2/core/types/kversion.h>
+#include <dekaf2/util/misc/kversion.h>
 #include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;

@@ -44,7 +44,7 @@
 /// @file kreference_proxy.h
 /// wrap object reference and access it through a proxy object
 
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/types/ktemplate.h>
 
 DEKAF2_NAMESPACE_BEGIN

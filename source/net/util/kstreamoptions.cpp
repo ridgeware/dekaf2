@@ -39,7 +39,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/core/logging/klog.h>
 
 #if !DEKAF2_IS_WINDOWS

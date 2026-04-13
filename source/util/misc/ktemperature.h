@@ -45,7 +45,7 @@
 /// @file ktemperature.h
 /// constexpr temperature unit conversions and comparisons
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <cmath>
 #include <type_traits>

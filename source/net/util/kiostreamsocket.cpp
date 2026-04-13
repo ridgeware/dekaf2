@@ -40,7 +40,7 @@
  */
 
 
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <dekaf2/web/url/kurlencode.h>
 #include <dekaf2/net/tcp/kunixstream.h>
 #include <dekaf2/net/tcp/ktcpstream.h>

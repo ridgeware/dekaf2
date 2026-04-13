@@ -47,7 +47,7 @@
 /// To start profiling, you then call Heap::Profiling::Start() and can then
 /// get a report with Heap::Profiling::Dump()
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <cstddef>
 

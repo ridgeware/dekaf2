@@ -45,7 +45,7 @@
 /// @file kdataprovider.h
 /// class hierarchy of providers of data input
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/containers/sequential/kbuffer.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>

@@ -44,7 +44,7 @@
 /// @file kwriter.h
 /// holds the basic writer abstraction
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/system/filesystem/bits/kfilesystem.h>
 #include <dekaf2/io/readwrite/kwrite.h>
 #include <dekaf2/core/strings/kstring.h>

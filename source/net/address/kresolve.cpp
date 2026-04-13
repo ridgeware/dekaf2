@@ -43,7 +43,7 @@
 #include <dekaf2/net/address/kresolve.h>
 #include <dekaf2/net/address/kipaddress.h>
 #include <dekaf2/net/tcp/bits/kasio.h>
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <dekaf2/core/logging/klog.h>
 #include <unordered_map>
 

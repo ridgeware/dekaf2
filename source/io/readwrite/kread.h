@@ -44,8 +44,8 @@
 /// @file kread.h
 /// read signal safe from a file or device
 
-#include <dekaf2/core/types/kdefinitions.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kdefinitions.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <cstdio>
 #include <cstdint>
 #include <istream>

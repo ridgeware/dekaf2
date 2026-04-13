@@ -31,7 +31,7 @@
 
 
 /// @file kngram.h
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/types/kctype.h>
 #include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/strings/kstringview.h>

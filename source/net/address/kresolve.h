@@ -49,7 +49,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/bits/kstringviewz.h>
 #include <dekaf2/net/tcp/bits/kasio.h>
-#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/net/util/kstreamoptions.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -61,7 +61,7 @@
 #ifdef DEKAF2_KLOG_WITH_TCP
 	#include <dekaf2/web/url/kurl.h>
 	#include <dekaf2/http/client/kwebclient.h>
-	#include <dekaf2/net/tls/kiostreamsocket.h>
+	#include <dekaf2/net/util/kiostreamsocket.h>
 	#include <dekaf2/web/url/kmime.h>
 	#include <dekaf2/http/protocol/khttp_header.h> // for LogToRESTResponse()
 #endif

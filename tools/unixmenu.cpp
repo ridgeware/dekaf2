@@ -40,7 +40,7 @@
 //
 */
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
@@ -49,7 +49,7 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 
 #include <stdio.h>
 #include <curses.h>

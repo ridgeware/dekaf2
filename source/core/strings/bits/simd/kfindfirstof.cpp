@@ -65,7 +65,7 @@
 #include <array>
 #include <cstddef>
 #include "kfindfirstof.h"
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/types/kbit.h>
 
 DEKAF2_NAMESPACE_BEGIN

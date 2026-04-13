@@ -45,9 +45,9 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/io/streams/kstream.h>
 #include <dekaf2/web/url/kurl.h>
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <dekaf2/containers/associative/kassociative.h>
-#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/core/errors/kerror.h>
 
 /// @file ksmtp.h

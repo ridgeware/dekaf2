@@ -45,7 +45,7 @@
 /// @file khttp3.h
 /// wraps nghttp3 and openssl C primitives in C++
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 
 #if DEKAF2_HAS_NGHTTP3 && DEKAF2_HAS_OPENSSL_QUIC
 

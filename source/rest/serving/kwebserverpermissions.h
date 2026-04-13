@@ -44,7 +44,7 @@
 /// @file kwebserverpermissions.h
 /// per-directory and per-user permission control for web/file servers
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/http/protocol/khttp_method.h>

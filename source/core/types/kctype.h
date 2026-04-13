@@ -44,7 +44,7 @@
 /// @file kctype.h
 /// fast unicode character type detection and conversion
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <type_traits>
 #include <cstdint>
 #include <cwctype>

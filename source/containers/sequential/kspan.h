@@ -48,7 +48,7 @@
 /// When compiled with C++20 or later and std::span is present, KSpan
 /// is a thin alias for std::span — zero overhead, full interoperability.
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <cstdint>
 #include <cstddef>
 #include <type_traits>

@@ -40,7 +40,7 @@
 //
 */
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstring.h>

@@ -41,7 +41,7 @@
 */
 
 #include <dekaf2/net/address/knetworkinterface.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/util/id/krandom.h>
 #include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/logging/klog.h>

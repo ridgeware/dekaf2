@@ -40,7 +40,7 @@
 //
 */
 
-#include <dekaf2/core/types/kversion.h>
+#include <dekaf2/util/misc/kversion.h>
 #include <algorithm>
 
 DEKAF2_NAMESPACE_BEGIN

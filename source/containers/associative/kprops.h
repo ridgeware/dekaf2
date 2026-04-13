@@ -53,7 +53,7 @@
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
 #include <algorithm>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/containers/associative/bits/kmutable_pair.h>
 #include <dekaf2/core/strings/ksplit.h>
 #include <dekaf2/core/strings/kjoin.h>

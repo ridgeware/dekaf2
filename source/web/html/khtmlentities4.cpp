@@ -42,7 +42,7 @@
 // named entity list. The other functions are implemented in khtmlentities.cpp.
 
 
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/web/html/khtmlentities.h>
 #include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/strings/kstringutils.h>

@@ -48,7 +48,7 @@
 /// handles error cases gracefully instead of causing UB, and speeds up
 /// searching by up to 50x compared to typical std::string implementations
 
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/strings/bits/kstring_view.h>
 #include <dekaf2/core/types/ktemplate.h>
 #include <dekaf2/core/types/kctype.h>

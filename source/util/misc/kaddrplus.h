@@ -43,7 +43,7 @@
 /// @file kaddrplus.h
 /// using the MSB of a pointer for other purposes
 
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/types/kbitfields.h>
 
 DEKAF2_NAMESPACE_BEGIN

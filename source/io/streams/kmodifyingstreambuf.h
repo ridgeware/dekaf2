@@ -44,7 +44,7 @@
 /// @file kmodifyingstreambuf.h
 /// a streambuf that modifies the bytes flowing through it
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/io/streams/kstreambufadaptor.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>

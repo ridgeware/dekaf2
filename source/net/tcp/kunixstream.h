@@ -44,16 +44,16 @@
 /// @file kunixstream.h
 /// provides an implementation of std::iostreams for Unix stream sockets
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <dekaf2/net/tcp/bits/kasiostream.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/io/streams/kstreambuf.h>
 #include <dekaf2/web/url/kurl.h>
-#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/net/util/kstreamoptions.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

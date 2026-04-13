@@ -1,3 +1,3 @@
 // kiostreamsocket.h — backward compatibility stub
 #pragma once
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kiostreamsocket.h>

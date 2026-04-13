@@ -43,7 +43,7 @@
 
 
 /// @file kuseragent.h
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 
 #if DEKAF2_HAS_USER_AGENT_PARSER
 

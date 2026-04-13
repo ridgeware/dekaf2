@@ -10,9 +10,9 @@ dekaf2.h -> core/init/dekaf2.h
 # === core/types/ ===
 kbit.h -> core/types/kbit.h
 kbitfields.h -> core/types/kbitfields.h
-kcompatibility.h -> core/types/kcompatibility.h
+kcompatibility.h -> core/init/kcompatibility.h
 kctype.h -> core/types/kctype.h
-kdefinitions.h -> core/types/kdefinitions.h
+kdefinitions.h -> core/init/kdefinitions.h
 kencode.h -> core/types/kencode.h
 keraseremove.h -> core/types/keraseremove.h
 kfrozen.h -> core/types/kfrozen.h
@@ -20,7 +20,7 @@ kreference_proxy.h -> core/types/kreference_proxy.h
 kscopeguard.h -> core/types/kscopeguard.h
 ktemplate.h -> core/types/ktemplate.h
 kvariant.h -> core/types/kvariant.h
-kversion.h -> core/types/kversion.h
+kversion.h -> util/misc/kversion.h
 kutf.h -> core/strings/kutf.h
 kutf_iterator.h -> core/strings/kutf_iterator.h
 
@@ -82,7 +82,7 @@ koutstringstream.h -> io/streams/koutstringstream.h
 kstream.h -> io/streams/kstream.h
 kstreambuf.h -> io/streams/kstreambuf.h
 kstreambufadaptor.h -> io/streams/kstreambufadaptor.h
-kstreamoptions.h -> io/streams/kstreamoptions.h
+kstreamoptions.h -> net/util/kstreamoptions.h
 kstringstream.h -> io/streams/kstringstream.h
 
 # === io/readwrite/ ===
@@ -134,7 +134,7 @@ ktcpstream.h -> net/tcp/ktcpstream.h
 kunixstream.h -> net/tcp/kunixstream.h
 
 # === net/tls/ ===
-kiostreamsocket.h -> net/tls/kiostreamsocket.h
+kiostreamsocket.h -> net/util/kiostreamsocket.h
 ktlscontext.h -> net/tls/ktlscontext.h
 ktlsstream.h -> net/tls/ktlsstream.h
 
@@ -208,7 +208,7 @@ khtmlparser.h -> web/html/khtmlparser.h
 kxml.h -> data/xml/kxml.h
 
 # === web/objects/ ===
-kwebdav.h -> web/objects/kwebdav.h
+kwebdav.h -> rest/serving/kwebdav.h
 kwebobjects.h -> web/objects/kwebobjects.h
 
 # === crypto/hash/ ===
@@ -308,7 +308,7 @@ kuuid.h -> util/id/kuuid.h
 
 # === util/misc/ ===
 kaddrplus.h -> util/misc/kaddrplus.h
-karia.h -> util/misc/karia.h
+karia.h -> crypto/cipher/karia.h
 ktemperature.h -> util/misc/ktemperature.h
 
 # === bits/ -> category-specific bits/ ===

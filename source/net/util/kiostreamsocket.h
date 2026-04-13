@@ -44,9 +44,9 @@
 /// @file kiostreamsocket.h
 /// provides common stream methods for all internet streams
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
-#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/net/tcp/bits/kasio.h>
@@ -60,7 +60,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup net_tls
+/// @addtogroup net_util
 /// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -41,7 +41,7 @@
 #include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/system/os/ksystem.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/time/duration/kduration.h>
 
 #if !DEKAF2_IS_WINDOWS

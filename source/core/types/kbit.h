@@ -50,7 +50,7 @@
 /// @file kbit.h
 /// generalized implementation of the C++20/23 bit functions
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/errors/kcrashexit.h>
 #include <type_traits>
 #include <limits>

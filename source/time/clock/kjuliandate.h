@@ -45,7 +45,7 @@
 /// @file kjuliandate.h
 /// julian date clock
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/time/clock/kdate.h>
 

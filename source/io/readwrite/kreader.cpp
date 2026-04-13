@@ -47,7 +47,7 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/io/streams/kstreambuf.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <iostream>
 #include <fcntl.h>
 

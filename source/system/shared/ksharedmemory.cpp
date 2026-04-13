@@ -46,7 +46,7 @@
 #include <dekaf2/util/id/krandom.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/errors/kcrashexit.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/ipc.h>

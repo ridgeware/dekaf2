@@ -47,7 +47,7 @@
 
 #if defined(DEKAF2_ENABLE_PROFILING) || defined(DEKAF2_LIBRARY_BUILD)
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/format/kformat.h>
 #include <map>
 #include <cinttypes>

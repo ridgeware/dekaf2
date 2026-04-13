@@ -43,7 +43,7 @@
 /// @file kutf.h
 /// contains a wrapper around simdutf to avoid namespace clashing with externally installed library
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 
 #if DEKAF2_WITH_SIMDUTF
 

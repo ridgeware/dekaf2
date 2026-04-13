@@ -43,7 +43,7 @@
 
 
 /// @file khttpcompression.h
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/http/protocol/khttp_header.h>
 #include <dekaf2/threading/primitives/katomic_object.h>

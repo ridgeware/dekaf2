@@ -707,7 +707,7 @@ inline Type& operator Operator (Type& left, Type right) \
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup core_types
+/// @addtogroup core_init
 /// @{
 
 #if (UINTPTR_MAX == 0xffff)

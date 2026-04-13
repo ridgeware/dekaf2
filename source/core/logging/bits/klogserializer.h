@@ -45,7 +45,7 @@
 /// @file klogserializer.h
 /// Data serializers for the logging framework
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 
 #ifdef DEKAF2_WITH_KLOG
 

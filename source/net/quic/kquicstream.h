@@ -52,9 +52,9 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/io/streams/kstreambuf.h>
 #include <dekaf2/web/url/kurl.h>
-#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/core/types/bits/kunique_deleter.h>
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <openssl/ssl.h>
 
 DEKAF2_NAMESPACE_BEGIN

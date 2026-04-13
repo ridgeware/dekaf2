@@ -43,7 +43,7 @@
 
 
 /// @file ktunnel.h
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <dekaf2/containers/associative/kassociative.h>
 #include <dekaf2/crypto/cipher/kblockcipher.h>
 #include <dekaf2/web/url/kurl.h>

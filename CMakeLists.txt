@@ -1261,6 +1261,8 @@ set(PUBLIC_HEADERS
 	source/core/format/kformat.h
 	source/core/format/kformtable.h
 	source/core/init/dekaf2.h
+	source/core/init/kcompatibility.h
+	source/core/init/kdefinitions.h
 	source/core/logging/klog.h
 	source/core/logging/klogrotate.h
 	source/core/strings/kcaseless.h
@@ -1276,9 +1278,7 @@ set(PUBLIC_HEADERS
 	source/core/strings/kwords.h
 	source/core/types/kbit.h
 	source/core/types/kbitfields.h
-	source/core/types/kcompatibility.h
 	source/core/types/kctype.h
-	source/core/types/kdefinitions.h
 	source/core/types/keraseremove.h
 	source/core/types/kfrozen.h
 	source/core/types/kreference_proxy.h
@@ -1287,11 +1287,11 @@ set(PUBLIC_HEADERS
 	source/core/strings/kutf.h
 	source/core/strings/kutf_iterator.h
 	source/core/types/kvariant.h
-	source/core/types/kversion.h
 	source/crypto/auth/kawsauth.h
 	source/crypto/auth/kbcrypt.h
 	source/crypto/auth/kopenid.h
 	source/crypto/cipher/kaes.h
+	source/crypto/cipher/karia.h
 	source/crypto/cipher/kblockcipher.h
 	source/crypto/cipher/kcamellia.h
 	source/crypto/cipher/kchacha.h
@@ -1357,7 +1357,6 @@ set(PUBLIC_HEADERS
 	source/io/streams/kstream.h
 	source/io/streams/kstreambuf.h
 	source/io/streams/kstreambufadaptor.h
-	source/io/streams/kstreamoptions.h
 	source/io/streams/kstringstream.h
 	source/net/address/kipaddress.h
 	source/net/address/kipnetwork.h
@@ -1368,10 +1367,11 @@ set(PUBLIC_HEADERS
 	source/net/tcp/ktcpserver.h
 	source/net/tcp/ktcpstream.h
 	source/net/tcp/kunixstream.h
-	source/net/tls/kiostreamsocket.h
 	source/net/tls/ktlscontext.h
 	source/net/tls/ktlsstream.h
+	source/net/util/kiostreamsocket.h
 	source/net/util/kpoll.h
+	source/net/util/kstreamoptions.h
 	source/net/util/ktunnel.h
 	source/rest/framework/krest.h
 	source/rest/framework/krestclient.h
@@ -1380,6 +1380,7 @@ set(PUBLIC_HEADERS
 	source/rest/limits/kconnectionlimiter.h
 	source/rest/limits/kratelimiter.h
 	source/rest/serving/kfileserver.h
+	source/rest/serving/kwebdav.h
 	source/rest/serving/kwebserver.h
 	source/rest/serving/kwebserverpermissions.h
 	source/system/filesystem/kfilesystem.h
@@ -1416,15 +1417,14 @@ set(PUBLIC_HEADERS
 	source/util/mail/kmail.h
 	source/util/mail/ksmtp.h
 	source/util/misc/kaddrplus.h
-	source/util/misc/karia.h
 	source/util/misc/ktemperature.h
+	source/util/misc/kversion.h
 	source/util/text/kdiff.h
 	source/util/text/kngram.h
 	source/web/html/khtmlcontentblocks.h
 	source/web/html/khtmldom.h
 	source/web/html/khtmlentities.h
 	source/web/html/khtmlparser.h
-	source/web/objects/kwebdav.h
 	source/web/objects/kwebobjects.h
 	source/web/url/kmime.h
 	source/web/url/kurl.h
@@ -1482,8 +1482,8 @@ set (PRECOMPILED_HEADERS
 	<boost/iostreams/filter/gzip.hpp>
 	# dekaf2 core headers (frequently included, relatively stable)
 	"${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h"
-	<dekaf2/core/types/kdefinitions.h>
-	<dekaf2/core/types/kcompatibility.h>
+	<dekaf2/core/init/kdefinitions.h>
+	<dekaf2/core/init/kcompatibility.h>
 	<dekaf2/core/strings/kstring.h>
 	<dekaf2/core/strings/kstringview.h>
 	<dekaf2/core/strings/kstringutils.h>
@@ -1504,6 +1504,7 @@ set (SOURCES
 	source/core/format/kformat.cpp
 	source/core/format/kformtable.cpp
 	source/core/init/dekaf2.cpp
+	source/core/init/kcompatibility.cpp
 	source/core/logging/bits/klogserializer.cpp
 	source/core/logging/bits/klogwriter.cpp
 	source/core/logging/klog.cpp
@@ -1522,9 +1523,7 @@ set (SOURCES
 	source/core/strings/kstringview.cpp
 	source/core/strings/kwords.cpp
 	source/core/strings/bits/simd/kutf.cpp
-	source/core/types/kcompatibility.cpp
 	source/core/types/kctype.cpp
-	source/core/types/kversion.cpp
 	source/crypto/auth/kawsauth.cpp
 	source/crypto/auth/kbcrypt.cpp
 	source/crypto/auth/kopenid.cpp
@@ -1591,7 +1590,6 @@ set (SOURCES
 	source/io/streams/kstream.cpp
 	source/io/streams/kstreambuf.cpp
 	source/io/streams/kstreambufadaptor.cpp
-	source/io/streams/kstreamoptions.cpp
 	source/io/streams/kstringstream.cpp
 	source/net/address/kipaddress.cpp
 	source/net/address/kipnetwork.cpp
@@ -1601,10 +1599,11 @@ set (SOURCES
 	source/net/tcp/ktcpserver.cpp
 	source/net/tcp/ktcpstream.cpp
 	source/net/tcp/kunixstream.cpp
-	source/net/tls/kiostreamsocket.cpp
 	source/net/tls/ktlscontext.cpp
 	source/net/tls/ktlsstream.cpp
+	source/net/util/kiostreamsocket.cpp
 	source/net/util/kpoll.cpp
+	source/net/util/kstreamoptions.cpp
 	source/net/util/ktunnel.cpp
 	source/rest/framework/krest.cpp
 	source/rest/framework/krestclient.cpp
@@ -1613,6 +1612,7 @@ set (SOURCES
 	source/rest/limits/kconnectionlimiter.cpp
 	source/rest/limits/kratelimiter.cpp
 	source/rest/serving/kfileserver.cpp
+	source/rest/serving/kwebdav.cpp
 	source/rest/serving/kwebserver.cpp
 	source/rest/serving/kwebserverpermissions.cpp
 	source/system/filesystem/kfilesystem.cpp
@@ -1646,12 +1646,12 @@ set (SOURCES
 	source/util/id/kuuid.cpp
 	source/util/mail/kmail.cpp
 	source/util/mail/ksmtp.cpp
+	source/util/misc/kversion.cpp
 	source/util/text/kdiff.cpp
 	source/web/html/khtmlcontentblocks.cpp
 	source/web/html/khtmldom.cpp
 	source/web/html/khtmlentities.cpp
 	source/web/html/khtmlparser.cpp
-	source/web/objects/kwebdav.cpp
 	source/web/objects/kwebobjects.cpp
 	source/web/url/kmime.cpp
 	source/web/url/kurl.cpp

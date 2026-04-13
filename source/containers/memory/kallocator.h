@@ -44,7 +44,7 @@
 /// provides std::allocator that reserves a certain size on the stack, and
 /// only if more storage is needed switches to dynamic allocation
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <cstddef>
 #include <cassert>
 

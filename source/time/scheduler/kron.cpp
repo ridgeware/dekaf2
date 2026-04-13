@@ -49,7 +49,7 @@
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/time/scheduler/bits/kron_utils.h>
 #include "croncpp.h"
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

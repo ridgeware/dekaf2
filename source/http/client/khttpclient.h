@@ -46,7 +46,7 @@
 
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <dekaf2/http/protocol/khttp_response.h>
 #include <dekaf2/http/protocol/khttp_request.h>
 #include <dekaf2/http/protocol/khttp_method.h>

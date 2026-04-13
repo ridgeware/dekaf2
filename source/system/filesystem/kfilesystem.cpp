@@ -40,11 +40,11 @@
 //
 */
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/system/filesystem/bits/kfilesystem.h>
 #include <dekaf2/core/init/dekaf2.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/core/strings/kstringutils.h>

@@ -41,7 +41,7 @@
 */
 
 #include <dekaf2/net/address/kipaddress.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/types/kctype.h>
 #include <dekaf2/core/strings/kstringutils.h>
 

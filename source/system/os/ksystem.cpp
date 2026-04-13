@@ -41,7 +41,7 @@
 */
 
 #include <dekaf2/system/os/ksystem.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/system/filesystem/bits/kfilesystem.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/core/logging/klog.h>

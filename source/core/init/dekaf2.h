@@ -45,7 +45,7 @@
 /// @file dekaf2.h
 /// basic initialization of the library
 
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include "kconfiguration.h"
 #include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <dekaf2/core/strings/kstring.h>

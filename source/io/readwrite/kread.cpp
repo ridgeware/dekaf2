@@ -41,7 +41,7 @@
 
 #include <dekaf2/io/readwrite/kread.h>
 #include <dekaf2/core/logging/klog.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <limits>
 
 #ifdef DEKAF2_IS_WINDOWS

@@ -59,7 +59,7 @@
 
 #include <cinttypes>
 #include <type_traits> // std::enable_if
-#include <dekaf2/core/types/kcompatibility.h> // enable_if_t < C++14
+#include <dekaf2/core/init/kcompatibility.h> // enable_if_t < C++14
 
 DEKAF2_NAMESPACE_BEGIN
 

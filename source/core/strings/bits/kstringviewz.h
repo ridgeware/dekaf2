@@ -47,7 +47,7 @@
 /// from KStringView but restricts construction to sources that guarantee
 /// NUL-termination (C strings, std::string, KString)
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/crypto/hash/bits/khash.h>

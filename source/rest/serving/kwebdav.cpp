@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include <dekaf2/web/objects/kwebdav.h>
+#include <dekaf2/rest/serving/kwebdav.h>
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/rest/serving/kwebserverpermissions.h>
 #include <dekaf2/http/server/khttperror.h>

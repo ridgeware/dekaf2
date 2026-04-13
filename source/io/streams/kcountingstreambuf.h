@@ -44,7 +44,7 @@
 /// @file kcountingstreambuf.h
 /// a streambuf that counts the bytes flowing through it
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/io/streams/kstreambufadaptor.h>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include <dekaf2/web/objects/kwebdav.h>
+#include <dekaf2/rest/serving/kwebdav.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/http/protocol/khttp_method.h>
 #include <dekaf2/rest/serving/kwebserverpermissions.h>

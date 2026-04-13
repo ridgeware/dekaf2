@@ -46,7 +46,7 @@
 /// class and utilities to daemonize a process and to start and control child
 /// processes
 
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 

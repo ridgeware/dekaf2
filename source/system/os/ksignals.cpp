@@ -41,7 +41,7 @@
 */
 
 #include <dekaf2/system/os/ksignals.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/errors/kcrashexit.h>
 #include <dekaf2/threading/execution/kparallel.h>
 #include <dekaf2/core/logging/klog.h>

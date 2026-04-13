@@ -41,7 +41,7 @@
 */
 
 #include <dekaf2/io/streams/kstreambuf.h>
-#include <dekaf2/core/types/kcompatibility.h> // for std::make_unique in C++11
+#include <dekaf2/core/init/kcompatibility.h> // for std::make_unique in C++11
 #include <cstring>          // memcpy()..
 #include <algorithm>
 #include <memory>           // std::unique_ptr

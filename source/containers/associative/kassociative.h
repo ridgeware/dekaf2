@@ -62,7 +62,7 @@
 #ifndef BOOST_NO_CXX98_FUNCTION_BASE
 	#define BOOST_NO_CXX98_FUNCTION_BASE
 #endif
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/containers/associative/bits/kmutable_pair.h>
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>

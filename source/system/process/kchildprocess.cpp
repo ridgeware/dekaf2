@@ -50,7 +50,7 @@
 #include <dekaf2/core/strings/ksplit.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/system/os/ksignals.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <thread>
 #include <sys/wait.h>
 #include <sys/stat.h>

@@ -3,7 +3,7 @@
 #include <dekaf2/http/client/kwebclient.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/data/json/kjson.h>
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <iostream>
 
 using namespace dekaf2;

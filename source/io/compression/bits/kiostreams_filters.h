@@ -41,7 +41,7 @@
 
 #pragma once
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 
 #if defined(DEKAF2_USE_PRECOMPILED_HEADERS) && DEKAF2_IS_GCC
 #pragma GCC diagnostic push

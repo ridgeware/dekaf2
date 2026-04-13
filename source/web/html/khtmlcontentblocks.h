@@ -43,7 +43,7 @@
 
 
 /// @file khtmlcontentblocks.h
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/web/html/khtmlparser.h>
 
 DEKAF2_NAMESPACE_BEGIN

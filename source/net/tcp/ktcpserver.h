@@ -76,8 +76,8 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/threading/execution/kthreadpool.h>
 #include <dekaf2/http/protocol/khttp_version.h>
-#include <dekaf2/io/streams/kstreamoptions.h>
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kstreamoptions.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <dekaf2/core/errors/kerror.h>
 #include <cinttypes>
 #include <thread>

@@ -44,7 +44,7 @@
 #include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/web/html/khtmlentities.h>
 #include <dekaf2/core/types/kctype.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

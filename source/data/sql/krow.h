@@ -44,7 +44,7 @@
 
 
 /// @file krow.h
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/types/ktemplate.h>
 #include <dekaf2/containers/associative/kprops.h>
 #include <dekaf2/data/json/kjson.h>

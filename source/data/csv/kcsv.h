@@ -45,7 +45,7 @@
 /// @file kcsv.h
 /// CSV reader/writer
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/core/strings/kstring.h>

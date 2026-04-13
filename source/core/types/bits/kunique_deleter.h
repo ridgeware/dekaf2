@@ -46,7 +46,7 @@
 /// provides a deleter template to enable Empty Base Optimization for
 /// non-default deleters of std::unique_ptr
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <memory>
 
 DEKAF2_NAMESPACE_BEGIN

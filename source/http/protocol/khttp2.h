@@ -45,7 +45,7 @@
 /// @file khttp2.h
 /// wraps nghttp2 primitives in C++
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 
 #if DEKAF2_HAS_NGHTTP2
 

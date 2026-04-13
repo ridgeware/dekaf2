@@ -46,7 +46,7 @@
 
 #include <dekaf2/net/tcp/bits/kasio.h>
 #include <dekaf2/core/strings/kstring.h>
-#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/core/errors/kerror.h>
 
 DEKAF2_NAMESPACE_BEGIN

@@ -53,7 +53,7 @@
 #include <dekaf2/util/misc/kaddrplus.h>
 #include <dekaf2/crypto/cipher/kaes.h>
 #include <dekaf2/containers/memory/kallocator.h>
-#include <dekaf2/util/misc/karia.h>
+#include <dekaf2/crypto/cipher/karia.h>
 #include <dekaf2/containers/associative/kassociative.h>
 #include <dekaf2/threading/primitives/katomic_object.h>
 #include <dekaf2/crypto/auth/kawsauth.h>
@@ -74,7 +74,7 @@
 #include <dekaf2/crypto/cipher/kchacha.h>
 #include <dekaf2/system/process/kchildprocess.h>
 #include <dekaf2/http/protocol/kchunkedtransfer.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/io/compression/kcompression.h>
 #include <dekaf2/rest/limits/kconnectionlimiter.h>
 #include <dekaf2/http/cookie/kcookie.h>
@@ -86,7 +86,7 @@
 #include <dekaf2/io/pipes/kdataconsumer.h>
 #include <dekaf2/io/pipes/kdataprovider.h>
 #include <dekaf2/time/clock/kdate.h>
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/util/text/kdiff.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/crypto/encoding/kencode.h>
@@ -128,7 +128,7 @@
 #include <dekaf2/io/pipes/kinpipe.h>
 #include <dekaf2/system/process/kinshell.h>
 #include <dekaf2/io/streams/kinstringstream.h>
-#include <dekaf2/net/tls/kiostreamsocket.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <dekaf2/net/address/kipaddress.h>
 #include <dekaf2/net/address/kipnetwork.h>
 #include <dekaf2/core/strings/kjoin.h>
@@ -197,7 +197,7 @@
 #include <dekaf2/io/streams/kstream.h>
 #include <dekaf2/io/streams/kstreambuf.h>
 #include <dekaf2/io/streams/kstreambufadaptor.h>
-#include <dekaf2/io/streams/kstreamoptions.h>
+#include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/core/strings/kstringutils.h>
@@ -224,13 +224,13 @@
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/web/url/kurlencode.h>
 #include <dekaf2/web/url/kuseragent.h>
-#include <dekaf2/core/types/kutf.h>
-#include <dekaf2/core/types/kutf_iterator.h>
+#include <dekaf2/core/strings/kutf.h>
+#include <dekaf2/core/strings/kutf_iterator.h>
 #include <dekaf2/util/id/kuuid.h>
 #include <dekaf2/core/types/kvariant.h>
-#include <dekaf2/core/types/kversion.h>
+#include <dekaf2/util/misc/kversion.h>
 #include <dekaf2/http/client/kwebclient.h>
-#include <dekaf2/web/objects/kwebdav.h>
+#include <dekaf2/rest/serving/kwebdav.h>
 #include <dekaf2/web/objects/kwebobjects.h>
 #include <dekaf2/rest/serving/kwebserver.h>
 #include <dekaf2/rest/serving/kwebserverpermissions.h>

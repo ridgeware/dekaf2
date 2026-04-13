@@ -45,7 +45,7 @@
 /// @file kchunkedtransfer.h
 /// Implements chunked reader and writer as boost iostreams source and sink
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/io/streams/kstream.h>
 #include <boost/iostreams/concepts.hpp>    // source
 

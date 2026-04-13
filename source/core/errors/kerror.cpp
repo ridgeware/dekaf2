@@ -40,7 +40,7 @@
 
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/core/logging/klog.h>
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <boost/system/error_code.hpp>
 #include <errno.h>
 

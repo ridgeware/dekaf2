@@ -44,7 +44,7 @@
 /// @file ktime.h
 /// cross platform date and time utilities
 
-#include <dekaf2/core/types/kdefinitions.h>
+#include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/time/duration/kduration.h>

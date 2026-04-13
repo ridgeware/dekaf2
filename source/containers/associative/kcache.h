@@ -45,7 +45,7 @@
 /// @file kcache.h
 /// a generic cache with LRU removal
 
-#include <dekaf2/core/types/kcompatibility.h>
+#include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/containers/memory/ksharedref.h>
 #include <dekaf2/containers/associative/kmru.h>

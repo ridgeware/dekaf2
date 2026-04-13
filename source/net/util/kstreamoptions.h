@@ -41,8 +41,8 @@
 
 #pragma once
 
-
 /// @file kstreamoptions.h
+
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/core/strings/kstring.h>

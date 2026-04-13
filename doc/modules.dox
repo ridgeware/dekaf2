@@ -148,6 +148,10 @@
 /// @ingroup net
 /// @brief QUIC stream support.
 
+/// @defgroup net_udp UDP & DTLS
+/// @ingroup net
+/// @brief UDP sockets, servers, DTLS encryption, and iostream stream adapter.
+
 /// @defgroup net_util Network Utilities
 /// @ingroup net
 /// @brief Polling, tunneling, and connection management.

@@ -141,6 +141,13 @@ ktlsstream.h -> net/tls/ktlsstream.h
 # === net/quic/ ===
 kquicstream.h -> net/quic/kquicstream.h
 
+# === net/udp/ ===
+kdtlsserver.h -> net/udp/kdtlsserver.h
+kdtlssocket.h -> net/udp/kdtlssocket.h
+kudpserver.h -> net/udp/kudpserver.h
+kudpsocket.h -> net/udp/kudpsocket.h
+kudpstream.h -> net/udp/kudpstream.h
+
 # === net/util/ ===
 kpoll.h -> net/util/kpoll.h
 ktunnel.h -> net/util/ktunnel.h

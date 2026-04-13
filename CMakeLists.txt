@@ -1363,6 +1363,11 @@ set(PUBLIC_HEADERS
 	source/net/address/knetworkinterface.h
 	source/net/address/kresolve.h
 	source/net/quic/kquicstream.h
+	source/net/udp/kdtlsserver.h
+	source/net/udp/kdtlssocket.h
+	source/net/udp/kudpserver.h
+	source/net/udp/kudpsocket.h
+	source/net/udp/kudpstream.h
 	source/net/tcp/ktcpclient.h
 	source/net/tcp/ktcpserver.h
 	source/net/tcp/ktcpstream.h
@@ -1596,6 +1601,11 @@ set (SOURCES
 	source/net/address/knetworkinterface.cpp
 	source/net/address/kresolve.cpp
 	source/net/quic/kquicstream.cpp
+	source/net/udp/kdtlsserver.cpp
+	source/net/udp/kdtlssocket.cpp
+	source/net/udp/kudpserver.cpp
+	source/net/udp/kudpsocket.cpp
+	source/net/udp/kudpstream.cpp
 	source/net/tcp/ktcpserver.cpp
 	source/net/tcp/ktcpstream.cpp
 	source/net/tcp/kunixstream.cpp

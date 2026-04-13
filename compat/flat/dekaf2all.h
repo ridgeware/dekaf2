@@ -87,6 +87,8 @@
 #include <dekaf2/io/pipes/kdataprovider.h>
 #include <dekaf2/time/clock/kdate.h>
 #include <dekaf2/core/init/kdefinitions.h>
+#include <dekaf2/net/udp/kdtlsserver.h>
+#include <dekaf2/net/udp/kdtlssocket.h>
 #include <dekaf2/util/text/kdiff.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/crypto/encoding/kencode.h>
@@ -219,6 +221,9 @@
 #include <dekaf2/net/tls/ktlscontext.h>
 #include <dekaf2/net/tls/ktlsstream.h>
 #include <dekaf2/net/util/ktunnel.h>
+#include <dekaf2/net/udp/kudpserver.h>
+#include <dekaf2/net/udp/kudpsocket.h>
+#include <dekaf2/net/udp/kudpstream.h>
 #include <dekaf2/net/tcp/kunixstream.h>
 #include <dekaf2/util/archive/kuntar.h>
 #include <dekaf2/web/url/kurl.h>

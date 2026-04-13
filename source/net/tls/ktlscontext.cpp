@@ -93,6 +93,17 @@ std::string KTLSContext::PasswordCallback(std::size_t max_length,
 			kDebug(1, "QUIC protocol not supported by this build");
 #endif // of DEKAF2_HAS_OPENSSL_QUIC
 			break;
+
+		case Transport::DTls:
+			if (bIsServer)
+			{
+				return ::SSL_CTX_new(::DTLS_server_method());
+			}
+			else
+			{
+				return ::SSL_CTX_new(::DTLS_client_method());
+			}
+			break;
 	}
 #endif // of DEKAF2_HAS_ASIO_CONTEXT_FROM_OPENSSL_CONTEXT
 	return nullptr;

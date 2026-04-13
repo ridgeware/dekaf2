@@ -175,6 +175,7 @@ public:
 	bool GatherMiscInfo ();
 	bool GatherVmStatInfo ();
 	bool GatherDiskStats();
+	bool GatherDiskUsage();
 	bool GatherCpuInfo();
 	bool GatherMemInfo ();
 	bool GatherNetstat ();

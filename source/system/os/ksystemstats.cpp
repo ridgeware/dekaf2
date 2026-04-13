@@ -52,6 +52,9 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/system/os/ksystem.h>
+#ifndef DEKAF2_IS_WINDOWS
+#include <sys/statvfs.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -94,6 +97,7 @@ bool KSystemStats::GatherAll ()
 	if (!GatherMiscInfo())          bOK = false;
 	if (!GatherVmStatInfo())        bOK = false;
 	if (!GatherDiskStats())         bOK = false;
+	if (!GatherDiskUsage())         bOK = false;
 	if (!GatherCpuInfo())           bOK = false;
 	if (!GatherMemInfo())           bOK = false;
 	if (!GatherNetstat())           bOK = false;
@@ -598,6 +602,71 @@ bool KSystemStats::GatherDiskStats ()
 	return (true);
 
 } // GatherDiskStats
+
+//-----------------------------------------------------------------------------
+bool KSystemStats::GatherDiskUsage ()
+//-----------------------------------------------------------------------------
+{
+	kDebug (4, "...");
+
+#ifdef DEKAF2_IS_WINDOWS
+	return true;
+#else
+	struct statvfs vfs {};
+
+	if (0 != statvfs("/", &vfs))
+	{
+		kDebug(2, "statvfs('/') failed");
+		return false;
+	}
+
+	const uint64_t iBlockSize   = static_cast<uint64_t>(vfs.f_frsize ? vfs.f_frsize : vfs.f_bsize);
+	const uint64_t iTotalBlocks = static_cast<uint64_t>(vfs.f_blocks);
+	const uint64_t iFreeBlocks  = static_cast<uint64_t>(vfs.f_bavail);
+	const uint64_t iUsedBlocks  = (iTotalBlocks >= iFreeBlocks) ? (iTotalBlocks - iFreeBlocks) : 0;
+
+	const uint64_t iTotalKB     = (iTotalBlocks * iBlockSize) / 1024;
+	const uint64_t iFreeKB      = (iFreeBlocks  * iBlockSize) / 1024;
+	const uint64_t iUsedKB      = (iUsedBlocks  * iBlockSize) / 1024;
+
+	double nUsedPct = 0.0;
+	double nFreePct = 0.0;
+
+	if (iTotalBlocks > 0)
+	{
+		nUsedPct = (static_cast<double>(iUsedBlocks) * 100.0) / static_cast<double>(iTotalBlocks);
+		nFreePct = (static_cast<double>(iFreeBlocks) * 100.0) / static_cast<double>(iTotalBlocks);
+	}
+
+	Add("disk_root_total_kb",      static_cast<int64_t>(iTotalKB), StatType::INTEGER);
+	Add("disk_root_used_kb",       static_cast<int64_t>(iUsedKB),  StatType::INTEGER);
+	Add("disk_root_free_kb",       static_cast<int64_t>(iFreeKB),  StatType::INTEGER);
+	Add("disk_root_used_percent",  nUsedPct,                       StatType::FLOAT);
+	Add("disk_root_free_percent",  nFreePct,                       StatType::FLOAT);
+
+	const uint64_t iTotalInodes = static_cast<uint64_t>(vfs.f_files);
+	const uint64_t iFreeInodes  = static_cast<uint64_t>(vfs.f_favail);
+	const uint64_t iUsedInodes  = (iTotalInodes >= iFreeInodes) ? (iTotalInodes - iFreeInodes) : 0;
+
+	double nUsedInodePct = 0.0;
+	double nFreeInodePct = 0.0;
+
+	if (iTotalInodes > 0)
+	{
+		nUsedInodePct = (static_cast<double>(iUsedInodes) * 100.0) / static_cast<double>(iTotalInodes);
+		nFreeInodePct = (static_cast<double>(iFreeInodes) * 100.0) / static_cast<double>(iTotalInodes);
+	}
+
+	Add("inode_root_total",        static_cast<int64_t>(iTotalInodes), StatType::INTEGER);
+	Add("inode_root_used",         static_cast<int64_t>(iUsedInodes),  StatType::INTEGER);
+	Add("inode_root_free",         static_cast<int64_t>(iFreeInodes),  StatType::INTEGER);
+	Add("inode_root_used_percent", nUsedInodePct,                       StatType::FLOAT);
+	Add("inode_root_free_percent", nFreeInodePct,                       StatType::FLOAT);
+
+	return true;
+#endif
+
+} // GatherDiskUsage
 
 //-----------------------------------------------------------------------------
 bool KSystemStats::GatherCpuInfo ()

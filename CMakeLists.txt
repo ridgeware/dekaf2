@@ -2228,8 +2228,16 @@ endif() # DEKAF2_INSTALL_LIB
 
 if (DEKAF2_INSTALL_INCLUDE)
 
-	# remove all previously installed dekaf2 headers to avoid stale files
-	install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2)")
+	if (NOT SQLITE3_FOUND)
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/ksqlite.h)")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/data/sql/ksqlite.h)")
+	endif()
+
+	if (NOT DEKAF2_HAS_LIBZIP)
+		# make sure to remove a kzip.h header if this build did not find libzip
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/kzip.h)")
+		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/dekaf2/util/archive/kzip.h)")
+	endif()
 
 	if(DEKAF2_USE_SYSTEM_FMTLIB)
 		install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_INSTALL_PREFIX}/${dekaf2_include_dest}/fmt)")

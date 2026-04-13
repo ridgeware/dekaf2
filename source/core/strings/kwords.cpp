@@ -41,7 +41,7 @@
 */
 
 #include <dekaf2/core/strings/kwords.h>
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/web/html/khtmlentities.h>
 #include <dekaf2/core/types/kctype.h>
 #include <dekaf2/core/types/kcompatibility.h>

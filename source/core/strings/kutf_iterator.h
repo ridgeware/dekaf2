@@ -43,13 +43,13 @@
 /// @file kutf_iterator.h
 /// provides iterator types for utf8/utf16/utf32 strings
 
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <iterator>
 
 #ifdef DEKAF2
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup core_types
+/// @addtogroup core_strings
 /// @{
 #endif
 

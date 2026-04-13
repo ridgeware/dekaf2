@@ -44,7 +44,7 @@
 
 #include <dekaf2/core/types/kcompatibility.h>
 #include <dekaf2/web/html/khtmlentities.h>
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/core/types/kctype.h>
 #if !defined(DEKAF2_IS_MSC) && (defined(DEKAF2_USE_FROZEN_HASH_FOR_LARGE_MAPS) || defined(DEKAF2_X86))

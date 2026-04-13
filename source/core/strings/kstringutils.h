@@ -48,7 +48,7 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/types/kctype.h>
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/types/ktemplate.h>
 #include <dekaf2/core/errors/kcrashexit.h>
 #include <cinttypes>

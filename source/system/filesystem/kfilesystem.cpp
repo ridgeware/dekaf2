@@ -55,7 +55,7 @@
 #include <dekaf2/system/process/kinshell.h>
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/core/types/kctype.h>
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/types/keraseremove.h>
 #include <dekaf2/util/id/kuuid.h>
 #include <algorithm>

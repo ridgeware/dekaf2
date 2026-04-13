@@ -43,7 +43,7 @@
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/data/sql/krow.h>
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/types/kctype.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/io/readwrite/kreader.h>

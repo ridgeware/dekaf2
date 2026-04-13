@@ -51,8 +51,8 @@
 #include <dekaf2/core/strings/bits/kstring_view.h>
 #include <dekaf2/crypto/hash/bits/khash.h>
 #include <dekaf2/core/types/ktemplate.h>
-#include <dekaf2/core/types/kutf.h>
-#include <dekaf2/core/types/kutf_iterator.h>
+#include <dekaf2/core/strings/kutf.h>
+#include <dekaf2/core/strings/kutf_iterator.h>
 #include <dekaf2/core/types/kbit.h>
 #include <fmt/format.h>
 #include <cinttypes>

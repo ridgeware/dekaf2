@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/core/types/kutf_iterator.h>
+#include <dekaf2/core/strings/kutf_iterator.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <vector>
 

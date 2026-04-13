@@ -41,7 +41,7 @@
 
 #include <dekaf2/io/readwrite/kwrite.h>
 #include <dekaf2/core/types/kctype.h>
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/core/types/kscopeguard.h>

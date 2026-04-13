@@ -1227,7 +1227,7 @@ set (BITS_HEADERS
 
 set(BITS_SIMD_HEADERS
 	source/core/strings/bits/simd/kfindfirstof.h
-	source/core/types/bits/simd/kutf.h
+	source/core/strings/bits/simd/kutf.h
 )
 
 if (DEKAF2_HAS_LIBBROTLI)
@@ -1284,8 +1284,8 @@ set(PUBLIC_HEADERS
 	source/core/types/kreference_proxy.h
 	source/core/types/kscopeguard.h
 	source/core/types/ktemplate.h
-	source/core/types/kutf.h
-	source/core/types/kutf_iterator.h
+	source/core/strings/kutf.h
+	source/core/strings/kutf_iterator.h
 	source/core/types/kvariant.h
 	source/core/types/kversion.h
 	source/crypto/auth/kawsauth.h
@@ -1521,7 +1521,7 @@ set (SOURCES
 	source/core/strings/kstringutils.cpp
 	source/core/strings/kstringview.cpp
 	source/core/strings/kwords.cpp
-	source/core/types/bits/simd/kutf.cpp
+	source/core/strings/bits/simd/kutf.cpp
 	source/core/types/kcompatibility.cpp
 	source/core/types/kctype.cpp
 	source/core/types/kversion.cpp

@@ -21,8 +21,8 @@ kscopeguard.h -> core/types/kscopeguard.h
 ktemplate.h -> core/types/ktemplate.h
 kvariant.h -> core/types/kvariant.h
 kversion.h -> core/types/kversion.h
-kutf.h -> core/types/kutf.h
-kutf_iterator.h -> core/types/kutf_iterator.h
+kutf.h -> core/strings/kutf.h
+kutf_iterator.h -> core/strings/kutf_iterator.h
 
 # === core/strings/ ===
 kcaseless.h -> core/strings/kcaseless.h
@@ -337,4 +337,4 @@ bits/kunique_deleter.h -> core/types/bits/kunique_deleter.h
 bits/kurldualencode.h -> web/url/bits/kurldualencode.h
 bits/kzstd.h -> io/compression/bits/kzstd.h
 bits/simd/kfindfirstof.h -> core/strings/bits/simd/kfindfirstof.h
-bits/simd/kutf.h -> core/types/bits/simd/kutf.h
+bits/simd/kutf.h -> core/strings/bits/simd/kutf.h

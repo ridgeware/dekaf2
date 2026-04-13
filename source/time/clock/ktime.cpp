@@ -45,7 +45,7 @@
 #if DEKAF2_HAS_INCLUDE(<dekaf2/core/types/kfrozen.h>)
 	#include <dekaf2/core/types/kfrozen.h>
 #endif
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/logging/klog.h>
 #if DEKAF2_HAS_TIMEZONES
 	#include <dekaf2/threading/primitives/kthreadsafe.h>

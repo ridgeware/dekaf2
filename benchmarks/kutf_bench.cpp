@@ -10,7 +10,7 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/io/readwrite/kwriter.h>
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 
 #ifdef DEKAF2_HAS_ICONV
 #include <iconv.h>

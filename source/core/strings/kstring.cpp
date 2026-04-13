@@ -44,7 +44,7 @@
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kregex.h>
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/types/kctype.h>
 
 DEKAF2_NAMESPACE_BEGIN

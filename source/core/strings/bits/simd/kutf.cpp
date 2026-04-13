@@ -38,7 +38,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 
 #if DEKAF2_WITH_SIMDUTF
 

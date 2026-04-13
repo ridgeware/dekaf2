@@ -47,7 +47,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/system/process/kinshell.h>
-#include <dekaf2/core/types/kutf.h>             // for Windows API conversions
+#include <dekaf2/core/strings/kutf.h>             // for Windows API conversions
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/core/types/kctype.h>
 #include <thread>

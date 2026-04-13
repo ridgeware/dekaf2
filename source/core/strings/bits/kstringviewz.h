@@ -49,7 +49,7 @@
 
 #include <dekaf2/core/types/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/crypto/hash/bits/khash.h>
 
 DEKAF2_NAMESPACE_BEGIN

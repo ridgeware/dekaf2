@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/core/types/kutf.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/strings/kcesu8.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <vector>

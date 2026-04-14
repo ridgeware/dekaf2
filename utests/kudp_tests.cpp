@@ -4,6 +4,7 @@
 #include <dekaf2/net/udp/kudpserver.h>
 #include <dekaf2/net/udp/kudpstream.h>
 #include <dekaf2/net/udp/kdtlssocket.h>
+#include <dekaf2/net/udp/kdtlsstream.h>
 #include <dekaf2/net/udp/kdtlsserver.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/format/kformat.h>
@@ -483,6 +484,168 @@ TEST_CASE("KDTLSSocket")
 		CHECK ( iCallbackCount >= 1 );
 		CHECK ( sReceivedData  == sMessage );
 		CHECK ( sReply         == sMessage );
+	}
+}
+
+
+// ============================================================================
+// KDTLSStream tests (auto-fragmentation over DTLS)
+// ============================================================================
+
+TEST_CASE("KDTLSStream")
+{
+	SECTION("construct default")
+	{
+		KDTLSStream Stream;
+		CHECK ( Stream.is_open() == false );
+	}
+
+	SECTION("DTLS stream echo via server")
+	{
+		// start a DTLS server that echoes back via SendTo
+		KDTLSServer Server(44340);
+		Server.SetTLSCertificates(sTestCert, sTestKey);
+
+		std::atomic<int> iCallbackCount { 0 };
+		KString sReceivedData;
+
+		bool bStarted = Server.Start(
+			[&](KStringView sData, KStringView sPeerAddress)
+			{
+				sReceivedData.assign(sData.data(), sData.size());
+				++iCallbackCount;
+				Server.SendTo(sPeerAddress, sData);
+			},
+			false  // non-blocking
+		);
+
+		if (!bStarted)
+		{
+			WARN("DTLS server could not start: " << Server.Error());
+			return;
+		}
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+		// connect a DTLS stream
+		KDTLSStream Stream(KTCPEndPoint("localhost:44340"),
+		                   KStreamOptions(KStreamOptions::None, chrono::seconds(5)));
+
+		if (!Stream.is_open())
+		{
+			WARN("DTLS stream could not connect: " << Stream.Error());
+			Server.Stop();
+			return;
+		}
+
+		CHECK ( Stream.is_open() == true );
+
+		// write via iostream and flush
+		Stream << "Hello DTLS Stream!";
+		Stream.flush();
+
+		// read the echo — use the underlying socket to receive the datagram
+		auto sReply = Stream.GetSocket().Receive(256);
+
+		Stream.Disconnect();
+		Server.Stop();
+
+		CHECK ( iCallbackCount >= 1 );
+		CHECK ( sReceivedData  == "Hello DTLS Stream!" );
+		CHECK ( sReply         == "Hello DTLS Stream!" );
+	}
+
+	SECTION("DTLS stream write and read")
+	{
+		// start a DTLS server that echoes back
+		KDTLSServer Server(44341);
+		Server.SetTLSCertificates(sTestCert, sTestKey);
+
+		bool bStarted = Server.Start(
+			[&](KStringView sData, KStringView sPeerAddress)
+			{
+				Server.SendTo(sPeerAddress, sData);
+			},
+			false
+		);
+
+		if (!bStarted)
+		{
+			WARN("DTLS server could not start: " << Server.Error());
+			return;
+		}
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+		KDTLSStream Stream(KTCPEndPoint("localhost:44341"),
+		                   KStreamOptions(KStreamOptions::None, chrono::seconds(5)),
+		                   100);
+
+		if (!Stream.is_open())
+		{
+			WARN("DTLS stream could not connect: " << Stream.Error());
+			Server.Stop();
+			return;
+		}
+
+		CHECK ( Stream.GetMaxDatagramSize() == 100 );
+
+		// write via KOutStream::Write
+		Stream.Write("DTLS Write test");
+		Stream.Flush();
+
+		// read echo via underlying socket
+		auto sReply = Stream.GetSocket().Receive(256);
+
+		Stream.Disconnect();
+		Server.Stop();
+
+		CHECK ( sReply == "DTLS Write test" );
+	}
+
+	SECTION("DTLS stream with explicit context")
+	{
+		KDTLSServer Server(44342);
+		Server.SetTLSCertificates(sTestCert, sTestKey);
+
+		bool bStarted = Server.Start(
+			[&](KStringView sData, KStringView sPeerAddress)
+			{
+				Server.SendTo(sPeerAddress, sData);
+			},
+			false
+		);
+
+		if (!bStarted)
+		{
+			WARN("DTLS server could not start: " << Server.Error());
+			return;
+		}
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+		// create with explicit context
+		KTLSContext Context(false, KTLSContext::Transport::DTls);
+		KDTLSStream Stream(Context,
+		                   KTCPEndPoint("localhost:44342"),
+		                   KStreamOptions(KStreamOptions::None, chrono::seconds(5)));
+
+		if (!Stream.is_open())
+		{
+			WARN("DTLS stream could not connect: " << Stream.Error());
+			Server.Stop();
+			return;
+		}
+
+		Stream << "context test";
+		Stream.flush();
+
+		auto sReply = Stream.GetSocket().Receive(256);
+
+		Stream.Disconnect();
+		Server.Stop();
+
+		CHECK ( sReply == "context test" );
 	}
 }
 

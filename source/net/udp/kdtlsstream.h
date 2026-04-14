@@ -41,11 +41,11 @@
 
 #pragma once
 
-/// @file kudpstream.h
-/// provides a std::iostream adapter for UDP with automatic datagram fragmentation
+/// @file kdtlsstream.h
+/// provides a std::iostream adapter for DTLS with automatic datagram fragmentation
 
 #include <dekaf2/core/init/kdefinitions.h>
-#include <dekaf2/net/udp/kudpsocket.h>
+#include <dekaf2/net/udp/kdtlssocket.h>
 #include <dekaf2/net/udp/bits/kdatagramstreambuf.h>
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/io/streams/kstream.h>
@@ -55,16 +55,16 @@ DEKAF2_NAMESPACE_BEGIN
 /// @addtogroup net_udp
 /// @{
 
-/// A streambuf for UDP sockets with automatic datagram fragmentation.
-using KUDPStreamBuf = KDatagramStreamBuf<KUDPSocket>;
+/// A streambuf for DTLS sockets with automatic datagram fragmentation.
+using KDTLSStreamBuf = KDatagramStreamBuf<KDTLSSocket>;
 
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A std::iostream that wraps a connected KUDPSocket, providing stream-based
-/// I/O with automatic datagram fragmentation. Writes are automatically split
-/// into datagrams of at most MaxDatagramSize bytes. Each read underflow
-/// receives one datagram.
-class DEKAF2_PUBLIC KUDPStream : public KReaderWriter<std::iostream>, public KErrorBase
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// A std::iostream that wraps a connected KDTLSSocket, providing stream-based
+/// I/O with automatic datagram fragmentation and DTLS encryption. Writes are
+/// automatically split into datagrams of at most MaxDatagramSize bytes. Each
+/// read underflow receives one datagram.
+class DEKAF2_PUBLIC KDTLSStream : public KReaderWriter<std::iostream>, public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -73,32 +73,54 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	/// Construct an unconnected UDP stream.
+	/// Construct an unconnected DTLS stream with a default client context.
 	/// @param Timeout I/O timeout
 	/// @param iMaxDatagramSize the maximum payload size per datagram
-	KUDPStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout(),
-	           std::size_t iMaxDatagramSize = KUDPSocket::s_iDefaultMaxDatagramSize);
+	KDTLSStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout(),
+	            std::size_t iMaxDatagramSize = KDTLSSocket::s_iDefaultMaxDatagramSize);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Construct a connected UDP stream.
+	/// Construct an unconnected DTLS stream with an explicit context.
+	/// @param Context a KTLSContext created with Transport::DTls
+	/// @param Timeout I/O timeout
+	/// @param iMaxDatagramSize the maximum payload size per datagram
+	KDTLSStream(KTLSContext& Context,
+	            KDuration Timeout = KStreamOptions::GetDefaultTimeout(),
+	            std::size_t iMaxDatagramSize = KDTLSSocket::s_iDefaultMaxDatagramSize);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Construct a connected DTLS stream with a default client context.
 	/// @param Endpoint the remote endpoint to connect to
 	/// @param Options stream options (timeout, address family, ..)
 	/// @param iMaxDatagramSize the maximum payload size per datagram
-	KUDPStream(const KTCPEndPoint& Endpoint,
-	           KStreamOptions Options = KStreamOptions{},
-	           std::size_t iMaxDatagramSize = KUDPSocket::s_iDefaultMaxDatagramSize);
+	KDTLSStream(const KTCPEndPoint& Endpoint,
+	            KStreamOptions Options = KStreamOptions{},
+	            std::size_t iMaxDatagramSize = KDTLSSocket::s_iDefaultMaxDatagramSize);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	~KUDPStream();
+	/// Construct a connected DTLS stream with an explicit context.
+	/// @param Context a KTLSContext created with Transport::DTls
+	/// @param Endpoint the remote endpoint to connect to
+	/// @param Options stream options (timeout, address family, ..)
+	/// @param iMaxDatagramSize the maximum payload size per datagram
+	KDTLSStream(KTLSContext& Context,
+	            const KTCPEndPoint& Endpoint,
+	            KStreamOptions Options = KStreamOptions{},
+	            std::size_t iMaxDatagramSize = KDTLSSocket::s_iDefaultMaxDatagramSize);
 	//-----------------------------------------------------------------------------
 
-	KUDPStream(const KUDPStream&) = delete;
-	KUDPStream& operator=(const KUDPStream&) = delete;
+	//-----------------------------------------------------------------------------
+	~KDTLSStream();
+	//-----------------------------------------------------------------------------
+
+	KDTLSStream(const KDTLSStream&) = delete;
+	KDTLSStream& operator=(const KDTLSStream&) = delete;
 
 	//-----------------------------------------------------------------------------
-	/// Connect to a remote endpoint.
+	/// Connect to a remote endpoint and perform the DTLS handshake.
 	/// @param Endpoint the remote endpoint
 	/// @param Options stream options
 	/// @return true on success
@@ -121,13 +143,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Get the underlying KUDPSocket.
-	KUDPSocket& GetSocket() { return m_Socket; }
+	/// Get the underlying KDTLSSocket.
+	KDTLSSocket& GetSocket() { return m_Socket; }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Get the underlying KUDPSocket (const).
-	const KUDPSocket& GetSocket() const { return m_Socket; }
+	/// Get the underlying KDTLSSocket (const).
+	const KDTLSSocket& GetSocket() const { return m_Socket; }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -155,23 +177,23 @@ public:
 private:
 //----------
 
-	KUDPSocket                       m_Socket;
-	KDatagramStreamBuf<KUDPSocket>   m_StreamBuf;
+	KDTLSSocket                       m_Socket;
+	KDatagramStreamBuf<KDTLSSocket>   m_StreamBuf;
 
-}; // KUDPStream
+}; // KDTLSStream
 
-
-//-----------------------------------------------------------------------------
-DEKAF2_PUBLIC
-std::unique_ptr<KUDPStream> CreateKUDPStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout(),
-                                             std::size_t iMaxDatagramSize = KUDPSocket::s_iDefaultMaxDatagramSize);
-//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 DEKAF2_PUBLIC
-std::unique_ptr<KUDPStream> CreateKUDPStream(const KTCPEndPoint& EndPoint,
-                                             KStreamOptions Options = KStreamOptions{},
-                                             std::size_t iMaxDatagramSize = KUDPSocket::s_iDefaultMaxDatagramSize);
+std::unique_ptr<KDTLSStream> CreateKDTLSStream(KDuration Timeout = KStreamOptions::GetDefaultTimeout(),
+                                                std::size_t iMaxDatagramSize = KDTLSSocket::s_iDefaultMaxDatagramSize);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+DEKAF2_PUBLIC
+std::unique_ptr<KDTLSStream> CreateKDTLSStream(const KTCPEndPoint& EndPoint,
+                                                KStreamOptions Options = KStreamOptions{},
+                                                std::size_t iMaxDatagramSize = KDTLSSocket::s_iDefaultMaxDatagramSize);
 //-----------------------------------------------------------------------------
 
 

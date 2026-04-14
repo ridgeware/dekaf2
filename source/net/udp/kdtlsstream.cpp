@@ -39,12 +39,12 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <dekaf2/net/udp/kudpstream.h>
+#include <dekaf2/net/udp/kdtlsstream.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-KUDPStream::KUDPStream(KDuration Timeout, std::size_t iMaxDatagramSize)
+KDTLSStream::KDTLSStream(KDuration Timeout, std::size_t iMaxDatagramSize)
 //-----------------------------------------------------------------------------
 : KReaderWriter<std::iostream>(&m_StreamBuf)
 , m_Socket(Timeout)
@@ -53,7 +53,16 @@ KUDPStream::KUDPStream(KDuration Timeout, std::size_t iMaxDatagramSize)
 }
 
 //-----------------------------------------------------------------------------
-KUDPStream::KUDPStream(const KTCPEndPoint& Endpoint, KStreamOptions Options, std::size_t iMaxDatagramSize)
+KDTLSStream::KDTLSStream(KTLSContext& Context, KDuration Timeout, std::size_t iMaxDatagramSize)
+//-----------------------------------------------------------------------------
+: KReaderWriter<std::iostream>(&m_StreamBuf)
+, m_Socket(Context, Timeout)
+, m_StreamBuf(m_Socket, iMaxDatagramSize)
+{
+}
+
+//-----------------------------------------------------------------------------
+KDTLSStream::KDTLSStream(const KTCPEndPoint& Endpoint, KStreamOptions Options, std::size_t iMaxDatagramSize)
 //-----------------------------------------------------------------------------
 : KReaderWriter<std::iostream>(&m_StreamBuf)
 , m_Socket(Endpoint, Options)
@@ -66,7 +75,20 @@ KUDPStream::KUDPStream(const KTCPEndPoint& Endpoint, KStreamOptions Options, std
 }
 
 //-----------------------------------------------------------------------------
-KUDPStream::~KUDPStream()
+KDTLSStream::KDTLSStream(KTLSContext& Context, const KTCPEndPoint& Endpoint, KStreamOptions Options, std::size_t iMaxDatagramSize)
+//-----------------------------------------------------------------------------
+: KReaderWriter<std::iostream>(&m_StreamBuf)
+, m_Socket(Context, Endpoint, Options)
+, m_StreamBuf(m_Socket, iMaxDatagramSize)
+{
+	if (!m_Socket.Good())
+	{
+		SetError(m_Socket.Error());
+	}
+}
+
+//-----------------------------------------------------------------------------
+KDTLSStream::~KDTLSStream()
 //-----------------------------------------------------------------------------
 {
 	// flush remaining data
@@ -74,7 +96,7 @@ KUDPStream::~KUDPStream()
 }
 
 //-----------------------------------------------------------------------------
-bool KUDPStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
+bool KDTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
 	if (!m_Socket.Connect(Endpoint, Options))
@@ -87,7 +109,7 @@ bool KUDPStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 } // Connect
 
 //-----------------------------------------------------------------------------
-bool KUDPStream::Disconnect()
+bool KDTLSStream::Disconnect()
 //-----------------------------------------------------------------------------
 {
 	flush();
@@ -96,7 +118,7 @@ bool KUDPStream::Disconnect()
 } // Disconnect
 
 //-----------------------------------------------------------------------------
-void KUDPStream::SetMaxDatagramSize(std::size_t iMaxDatagramSize)
+void KDTLSStream::SetMaxDatagramSize(std::size_t iMaxDatagramSize)
 //-----------------------------------------------------------------------------
 {
 	m_StreamBuf.SetMaxDatagramSize(iMaxDatagramSize);
@@ -104,17 +126,17 @@ void KUDPStream::SetMaxDatagramSize(std::size_t iMaxDatagramSize)
 } // SetMaxDatagramSize
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUDPStream> CreateKUDPStream(KDuration Timeout, std::size_t iMaxDatagramSize)
+std::unique_ptr<KDTLSStream> CreateKDTLSStream(KDuration Timeout, std::size_t iMaxDatagramSize)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KUDPStream>(Timeout, iMaxDatagramSize);
+	return std::make_unique<KDTLSStream>(Timeout, iMaxDatagramSize);
 }
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KUDPStream> CreateKUDPStream(const KTCPEndPoint& EndPoint, KStreamOptions Options, std::size_t iMaxDatagramSize)
+std::unique_ptr<KDTLSStream> CreateKDTLSStream(const KTCPEndPoint& EndPoint, KStreamOptions Options, std::size_t iMaxDatagramSize)
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KUDPStream>(EndPoint, Options, iMaxDatagramSize);
+	return std::make_unique<KDTLSStream>(EndPoint, Options, iMaxDatagramSize);
 }
 
 DEKAF2_NAMESPACE_END

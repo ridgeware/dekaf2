@@ -1217,6 +1217,7 @@ set (BITS_HEADERS
 	source/io/compression/bits/kiostreams_filters.h
 	source/net/tcp/bits/kasio.h
 	source/net/tcp/bits/kasiostream.h
+	source/net/udp/bits/kdatagramstreambuf.h
 	source/system/filesystem/bits/kfilesystem.h
 	source/system/process/bits/kbasepipe.h
 	source/system/process/bits/kbaseprocess.h
@@ -1365,6 +1366,7 @@ set(PUBLIC_HEADERS
 	source/net/quic/kquicstream.h
 	source/net/udp/kdtlsserver.h
 	source/net/udp/kdtlssocket.h
+	source/net/udp/kdtlsstream.h
 	source/net/udp/kudpserver.h
 	source/net/udp/kudpsocket.h
 	source/net/udp/kudpstream.h
@@ -1603,6 +1605,7 @@ set (SOURCES
 	source/net/quic/kquicstream.cpp
 	source/net/udp/kdtlsserver.cpp
 	source/net/udp/kdtlssocket.cpp
+	source/net/udp/kdtlsstream.cpp
 	source/net/udp/kudpserver.cpp
 	source/net/udp/kudpsocket.cpp
 	source/net/udp/kudpstream.cpp

@@ -47,8 +47,8 @@
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/net/udp/kudpsocket.h>
 #include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/io/streams/kstream.h>
 #include <streambuf>
-#include <iostream>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -139,7 +139,7 @@ private:
 /// I/O with automatic datagram fragmentation. Writes are automatically split
 /// into datagrams of at most MaxDatagramSize bytes. Each read underflow
 /// receives one datagram.
-class DEKAF2_PUBLIC KUDPStream : public std::iostream, public KErrorBase
+class DEKAF2_PUBLIC KUDPStream : public KReaderWriter<std::iostream>, public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 

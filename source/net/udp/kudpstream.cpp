@@ -237,7 +237,7 @@ KUDPStreamBuf::int_type KUDPStreamBuf::underflow()
 //-----------------------------------------------------------------------------
 KUDPStream::KUDPStream(KDuration Timeout, std::size_t iMaxDatagramSize)
 //-----------------------------------------------------------------------------
-: std::iostream(&m_StreamBuf)
+: KReaderWriter<std::iostream>(&m_StreamBuf)
 , m_Socket(Timeout)
 , m_StreamBuf(m_Socket, iMaxDatagramSize)
 {
@@ -246,7 +246,7 @@ KUDPStream::KUDPStream(KDuration Timeout, std::size_t iMaxDatagramSize)
 //-----------------------------------------------------------------------------
 KUDPStream::KUDPStream(const KTCPEndPoint& Endpoint, KStreamOptions Options, std::size_t iMaxDatagramSize)
 //-----------------------------------------------------------------------------
-: std::iostream(&m_StreamBuf)
+: KReaderWriter<std::iostream>(&m_StreamBuf)
 , m_Socket(Endpoint, Options)
 , m_StreamBuf(m_Socket, iMaxDatagramSize)
 {

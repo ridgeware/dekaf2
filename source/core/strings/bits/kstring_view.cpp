@@ -40,8 +40,8 @@
 //
 */
 
-#include "kstring_view.h"
-#include "simd/kfindfirstof.h"
+#include <dekaf2/core/strings/bits/kstring_view.h>
+#include <dekaf2/core/strings/bits/simd/kfindfirstof.h>
 #ifdef DEKAF2_X86_64
 #endif
 

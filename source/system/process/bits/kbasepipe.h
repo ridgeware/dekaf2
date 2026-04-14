@@ -41,7 +41,7 @@
 
 #pragma once
 
-#include "kbaseprocess.h"
+#include <dekaf2/system/process/bits/kbaseprocess.h>
 #include <dekaf2/core/strings/kstring.h>
 
 #ifdef DEKAF2_HAS_PIPES

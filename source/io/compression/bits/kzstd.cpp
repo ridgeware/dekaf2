@@ -13,7 +13,7 @@
 // than using it (possibly importing code).
 #define BOOST_IOSTREAMS_SOURCE
 
-#include "kzstd.h"
+#include <dekaf2/io/compression/bits/kzstd.h>
 
 #include <zstd.h>
 

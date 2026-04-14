@@ -41,9 +41,9 @@
 */
 
 #include <dekaf2/core/strings/kstringview.h>
-#include "kfindsetofchars.h"
+#include <dekaf2/core/strings/bits/kfindsetofchars.h>
 #if DEKAF2_FIND_FIRST_OF_USE_SIMD
-#include "simd/kfindfirstof.h"
+#include <dekaf2/core/strings/bits/simd/kfindfirstof.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN

@@ -40,7 +40,7 @@
 //
 */
 
-#include "klogwriter.h"
+#include <dekaf2/core/logging/bits/klogwriter.h>
 
 #ifdef DEKAF2_WITH_KLOG
 

@@ -40,7 +40,7 @@
  //
  */
 
-#include "kdigest.h"
+#include <dekaf2/crypto/hash/bits/kdigest.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>

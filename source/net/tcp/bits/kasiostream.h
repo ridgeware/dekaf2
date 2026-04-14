@@ -48,7 +48,7 @@
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/logging/klog.h>
-#include "kasio.h"
+#include <dekaf2/net/tcp/bits/kasio.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

@@ -39,7 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
-#include "kbaseshell.h"
+#include <dekaf2/system/process/bits/kbaseshell.h>
 
 #ifndef DEKAF2_IS_UNIX
 

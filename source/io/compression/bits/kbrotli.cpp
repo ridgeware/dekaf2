@@ -13,7 +13,7 @@
 // than using it (possibly importing code).
 #define BOOST_IOSTREAMS_SOURCE
 
-#include "kbrotli.h"
+#include <dekaf2/io/compression/bits/kbrotli.h>
 
 #include <brotli/types.h>
 #include <brotli/decode.h>

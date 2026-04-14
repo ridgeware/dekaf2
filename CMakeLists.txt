@@ -888,23 +888,55 @@ message(STATUS "")
 # create the build directory for generated files
 set(DEKAF2_GENERATED_FILES_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${DEKAF2_GENERATED_FILES_DIR}")
-if (NOT EXISTS "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
+
+set(DEKAF2_INCLUDE_LINK "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
+set(DEKAF2_INCLUDE_LINK_TARGET "${CMAKE_CURRENT_SOURCE_DIR}/source")
+set(DEKAF2_NEED_LINK ON)
+
+if (EXISTS "${DEKAF2_INCLUDE_LINK}")
+	if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.14)
+		# check if existing link points to the correct target - it may be stale
+		# after source tree restructuring (e.g. "Rebuild All" in VS does not
+		# delete the build directory, so old links survive)
+		file(READ_SYMLINK "${DEKAF2_INCLUDE_LINK}" DEKAF2_EXISTING_LINK_TARGET)
+		if ("${DEKAF2_EXISTING_LINK_TARGET}" STREQUAL "${DEKAF2_INCLUDE_LINK_TARGET}")
+			set(DEKAF2_NEED_LINK OFF)
+		else()
+			message(STATUS "removing stale include link ${DEKAF2_INCLUDE_LINK} -> ${DEKAF2_EXISTING_LINK_TARGET}")
+			file(REMOVE "${DEKAF2_INCLUDE_LINK}")
+		endif()
+	else()
+		# cmake < 3.14 has no READ_SYMLINK, assume the link is correct
+		set(DEKAF2_NEED_LINK OFF)
+	endif()
+endif()
+
+if (DEKAF2_NEED_LINK)
 	# create a symlink to simulate the <dekaf2/> path for includes at library build time
 	# (we add DEKAF2_GENERATED_FILES_DIR to the include locations below)
 	execute_process(
-		COMMAND ${CMAKE_COMMAND} -E create_symlink "${CMAKE_CURRENT_SOURCE_DIR}/source" "${DEKAF2_GENERATED_FILES_DIR}/dekaf2"
+		COMMAND ${CMAKE_COMMAND} -E create_symlink "${DEKAF2_INCLUDE_LINK_TARGET}" "${DEKAF2_INCLUDE_LINK}"
 		RESULT_VARIABLE EXEC_RESULT
 	)
-	if (NOT EXEC_RESULT EQUAL 0 OR NOT EXISTS "${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
+	if (NOT EXEC_RESULT EQUAL 0 OR NOT EXISTS "${DEKAF2_INCLUDE_LINK}")
 		if (IS_WINDOWS)
-			message(FATAL_ERROR "cannot create build time include dir symbolic link ${DEKAF2_GENERATED_FILES_DIR}/dekaf2 - see here how to fix it: https://stackoverflow.com/a/76292992")
-		else()
-			message(FATAL_ERROR "cannot create build time include dir symbolic link ${DEKAF2_GENERATED_FILES_DIR}/dekaf2")
+			# symlinks may fail on Windows even with Developer Mode enabled -
+			# fall back to a directory junction which needs no special privileges
+			message(STATUS "symlink failed, trying directory junction instead")
+			execute_process(
+				COMMAND cmd /c mklink /J "${DEKAF2_INCLUDE_LINK}" "${DEKAF2_INCLUDE_LINK_TARGET}"
+				RESULT_VARIABLE EXEC_RESULT
+			)
+		endif()
+		if (NOT EXEC_RESULT EQUAL 0 OR NOT EXISTS "${DEKAF2_INCLUDE_LINK}")
+			if (IS_WINDOWS)
+				message(FATAL_ERROR "cannot create build time include dir link ${DEKAF2_INCLUDE_LINK} - enable Developer Mode in Windows Settings > System > For developers")
+			else()
+				message(FATAL_ERROR "cannot create build time include dir symbolic link ${DEKAF2_INCLUDE_LINK}")
+			endif()
 		endif()
 	endif()
-endif ()
-
-# the structured/ symlink is no longer needed - generated/dekaf2 now points to source/
+endif()
 
 # test warning flags
 include(CheckCXXCompilerFlag)

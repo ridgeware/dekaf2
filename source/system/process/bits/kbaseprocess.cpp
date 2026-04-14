@@ -39,7 +39,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include "kbaseprocess.h"
+#include <dekaf2/system/process/bits/kbaseprocess.h>
 
 #ifdef DEKAF2_HAS_PIPES
 

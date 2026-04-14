@@ -40,7 +40,7 @@
 //
 */
 
-#include "klogserializer.h"
+#include <dekaf2/core/logging/bits/klogserializer.h>
 
 #ifdef DEKAF2_WITH_KLOG
 

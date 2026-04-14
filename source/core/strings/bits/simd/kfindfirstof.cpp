@@ -64,7 +64,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
-#include "kfindfirstof.h"
+#include <dekaf2/core/strings/bits/simd/kfindfirstof.h>
 #include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/types/kbit.h>
 

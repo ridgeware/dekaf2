@@ -56,6 +56,7 @@
 #include <dekaf2/crypto/encoding/kencode.h>
 #include <thread>
 #include <memory>
+#include <mutex>
 
 using namespace dekaf2;
 
@@ -123,7 +124,8 @@ protected:
 private:
 //----------
 
-	std::unique_ptr<KTunnel>          m_Tunnel;
+	std::shared_ptr<KTunnel>          m_Tunnel;
+	std::mutex                        m_TunnelMutex;
 	std::unique_ptr<ExposedRawServer> m_ExposedRawServer;
 	const Config&                     m_Config;
 

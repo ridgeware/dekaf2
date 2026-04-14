@@ -95,24 +95,36 @@ void ExtendedConfig::PrintMessage(KStringView sMessage) const
 void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 //-----------------------------------------------------------------------------
 {
-	m_Tunnel = std::make_unique<KTunnel>(m_Config, std::move(Stream));
+	auto Tunnel = std::make_shared<KTunnel>(m_Config, std::move(Stream));
 
-	auto EndpointAddress = m_Tunnel->GetEndPointAddress();
+	auto EndpointAddress = Tunnel->GetEndPointAddress();
+
+	{
+		std::lock_guard<std::mutex> Lock(m_TunnelMutex);
+		m_Tunnel = Tunnel;
+	}
 
 	m_Config.Message("[{}]: opened control stream from {}", 0, EndpointAddress);
 
 	// we use a named lambda because we want compatibility with C++11, which needs
 	// a type for KScopeGuard..
-	auto namedLambdaGuard = [this, &EndpointAddress]() noexcept
+	auto namedLambdaGuard = [this, &Tunnel, &EndpointAddress]() noexcept
 	{
-		// make sure the control stream is safely removed
-		m_Tunnel.reset();
+		// only reset the shared tunnel if we are still the active one
+		{
+			std::lock_guard<std::mutex> Lock(m_TunnelMutex);
+
+			if (m_Tunnel == Tunnel)
+			{
+				m_Tunnel.reset();
+			}
+		}
 		m_Config.Message("[{}]: closed control stream from {}", 0, EndpointAddress);
 	};
 
 	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
 
-	m_Tunnel->Run();
+	Tunnel->Run();
 
 } // ControlStream
 
@@ -130,7 +142,15 @@ void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 		throw KError("missing target endpoint definition with domain:port");
 	}
 
-	if (!m_Tunnel)
+	// take a local copy of the shared tunnel pointer under the lock
+	std::shared_ptr<KTunnel> Tunnel;
+
+	{
+		std::lock_guard<std::mutex> Lock(m_TunnelMutex);
+		Tunnel = m_Tunnel;
+	}
+
+	if (!Tunnel)
 	{
 		throw KError("no tunnel established");
 	}
@@ -140,7 +160,7 @@ void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 
 	// connect through the tunnel
 	// will throw or return after connection is closed
-	m_Tunnel->Connect(&Downstream, Endpoint);
+	Tunnel->Connect(&Downstream, Endpoint);
 
 } // ForwardStream
 

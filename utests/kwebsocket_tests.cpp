@@ -513,3 +513,132 @@ TEST_CASE("KWebSocket")
 		CHECK ( RxFrame.GetPayload() == "pong-response" );
 	}
 }
+
+// A Frame subclass with a 4-byte preamble, like KTunnel::Message
+class PreambleFrame : public KWebSocket::Frame
+{
+public:
+	PreambleFrame() = default;
+	PreambleFrame(uint8_t type, uint32_t channel, KString sPayload)
+	: Frame(FrameType::Binary, std::move(sPayload), true)
+	{
+		m_Preamble[0] = static_cast<char>(type);
+		m_Preamble[1] = static_cast<char>((channel >> 16) & 0xff);
+		m_Preamble[2] = static_cast<char>((channel >>  8) & 0xff);
+		m_Preamble[3] = static_cast<char>( channel        & 0xff);
+	}
+
+	std::size_t GetPreambleSize() const override { return m_Preamble.size(); }
+	char*       GetPreambleBuf()  const override { return m_Preamble.data(); }
+
+	uint8_t  GetType()    const { return static_cast<uint8_t>(m_Preamble[0]); }
+	uint32_t GetChannel() const
+	{
+		return (static_cast<uint32_t>(static_cast<uint8_t>(m_Preamble[1])) << 16) |
+		       (static_cast<uint32_t>(static_cast<uint8_t>(m_Preamble[2])) <<  8) |
+		        static_cast<uint32_t>(static_cast<uint8_t>(m_Preamble[3]));
+	}
+
+private:
+	mutable std::array<char, 4> m_Preamble{};
+};
+
+TEST_CASE("KWebSocket Preamble")
+{
+	SECTION("Preamble round-trip without masking")
+	{
+		KString sPayload = "Basic dXNlcjpzZWNyZXQxMjM=";
+		CHECK ( sPayload.size() == 26 );
+
+		PreambleFrame TxFrame(1, 0, sPayload);
+		CHECK ( TxFrame.GetType()    == 1 );
+		CHECK ( TxFrame.GetChannel() == 0 );
+		CHECK ( TxFrame.size()       == 26 );
+
+		KString sWire;
+		KOutStringStream oss(sWire);
+		CHECK ( TxFrame.Write(oss, false) );
+		// 2 (header) + 4 (preamble) + 26 (payload) = 32
+		CHECK ( sWire.size() == 32 );
+
+		KInStringStream iss(sWire);
+		KString sOutBuf;
+		KOutStringStream oss2(sOutBuf);
+		PreambleFrame RxFrame;
+		CHECK ( RxFrame.Read(iss, oss2, false) );
+
+		CHECK ( RxFrame.GetType()    == 1 );
+		CHECK ( RxFrame.GetChannel() == 0 );
+		INFO  ( "payload size: " << RxFrame.size() << " expected: 26" );
+		CHECK ( RxFrame.size()       == 26 );
+		CHECK ( RxFrame.GetPayload() == sPayload );
+	}
+
+	SECTION("Preamble round-trip with masking (client to server)")
+	{
+		KString sPayload = "Basic dXNlcjpzZWNyZXQxMjM=";
+		CHECK ( sPayload.size() == 26 );
+
+		PreambleFrame TxFrame(1, 0, sPayload);
+
+		KString sWire;
+		KOutStringStream oss(sWire);
+		CHECK ( TxFrame.Write(oss, true) );
+		// 2 (header) + 4 (mask key) + 4 (preamble) + 26 (payload) = 36
+		CHECK ( sWire.size() == 36 );
+
+		KInStringStream iss(sWire);
+		KString sOutBuf;
+		KOutStringStream oss2(sOutBuf);
+		PreambleFrame RxFrame;
+		CHECK ( RxFrame.Read(iss, oss2, false) );
+
+		CHECK ( RxFrame.GetType()    == 1 );
+		CHECK ( RxFrame.GetChannel() == 0 );
+		INFO  ( "payload size: " << RxFrame.size() << " expected: 26" );
+		CHECK ( RxFrame.size()       == 26 );
+		CHECK ( RxFrame.GetPayload() == sPayload );
+	}
+
+	SECTION("Preamble round-trip with non-zero channel and masking")
+	{
+		PreambleFrame TxFrame(7, 42, "hello tunnel");
+
+		KString sWire;
+		KOutStringStream oss(sWire);
+		CHECK ( TxFrame.Write(oss, true) );
+
+		KInStringStream iss(sWire);
+		KString sOutBuf;
+		KOutStringStream oss2(sOutBuf);
+		PreambleFrame RxFrame;
+		CHECK ( RxFrame.Read(iss, oss2, false) );
+
+		CHECK ( RxFrame.GetType()    == 7 );
+		CHECK ( RxFrame.GetChannel() == 42 );
+		CHECK ( RxFrame.GetPayload() == "hello tunnel" );
+	}
+
+	SECTION("Preamble round-trip with medium payload and masking")
+	{
+		KString sPayload(200, 'X');
+		PreambleFrame TxFrame(2, 1000, sPayload);
+
+		KString sWire;
+		KOutStringStream oss(sWire);
+		CHECK ( TxFrame.Write(oss, true) );
+		// 2 + 2 (16-bit ext) + 4 (mask) + 4 (preamble) + 200 (payload) = 212
+		CHECK ( sWire.size() == 212 );
+
+		KInStringStream iss(sWire);
+		KString sOutBuf;
+		KOutStringStream oss2(sOutBuf);
+		PreambleFrame RxFrame;
+		CHECK ( RxFrame.Read(iss, oss2, false) );
+
+		CHECK ( RxFrame.GetType()    == 2 );
+		CHECK ( RxFrame.GetChannel() == 1000 );
+		CHECK ( RxFrame.size()       == 200 );
+		CHECK ( RxFrame.GetPayload() == sPayload );
+	}
+}

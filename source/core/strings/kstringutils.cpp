@@ -724,7 +724,9 @@ void kResizeUninitialized(KString& sStr, KString::size_type iNewSize)
 	// with C++23 we will get the equivalence of what we used to do with FBString:
 	// resizing the string buffer uninitialized, with a handler to set its content
 	// (which we won't do)
-	sStr.str().resize_and_overwrite(iNewSize, [](std::string::pointer buf, std::string::size_type buf_size) noexcept { return buf_size; });
+	// do not use buf_size for the return value - see resize_and_overwrite comment
+	// in KInStream::Read() for affected GCC versions and links
+	sStr.str().resize_and_overwrite(iNewSize, [iNewSize](std::string::pointer, std::string::size_type) noexcept { return iNewSize; });
 #else
 	#ifdef DEKAF2_KSTRING_HAS_ACQUIRE_MALLOCATED
 	static constexpr KString::size_type LARGEST_SSO = 23;
@@ -778,7 +780,9 @@ void kResizeUninitialized(std::string& sStr, std::string::size_type iNewSize)
 //-----------------------------------------------------------------------------
 {
 #ifdef __cpp_lib_string_resize_and_overwrite
-	sStr.resize_and_overwrite(iNewSize, [](std::string::pointer buf, std::string::size_type buf_size) noexcept { return buf_size; });
+	// do not use buf_size for the return value - see resize_and_overwrite comment
+	// in KInStream::Read() for affected GCC versions and links
+	sStr.resize_and_overwrite(iNewSize, [iNewSize](std::string::pointer, std::string::size_type) noexcept { return iNewSize; });
 #else
 	// fallback to an initialized resize
 	sStr.resize(iNewSize);

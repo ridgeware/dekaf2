@@ -212,7 +212,10 @@ bool kAppendAll(std::istream& Stream, KStringRef& sContent, bool bFromStart, std
 
 	// This saves one run of unnecessary construction.
 #ifdef __cpp_lib_string_resize_and_overwrite
-	sContent.resize_and_overwrite(uiContentSize + uiSize, [](KStringRef::pointer buf, KStringRef::size_type buf_size) noexcept { return buf_size; });
+	// do not use buf_size for the return value - see resize_and_overwrite comment
+	// in KInStream::Read() for affected GCC versions and links
+	auto iNewSize = uiContentSize + uiSize;
+	sContent.resize_and_overwrite(iNewSize, [iNewSize](KStringRef::pointer, KStringRef::size_type) noexcept { return iNewSize; });
 #else
 	sContent.resize(uiContentSize + uiSize);
 #endif
@@ -800,7 +803,18 @@ std::size_t KInStream::Read(KStringRef& sBuffer, std::size_t iCount)
 	}
 
 #ifdef __cpp_lib_string_resize_and_overwrite
-	sBuffer.resize_and_overwrite(iOldLen + iCount, [](KStringRef::pointer buf, KStringRef::size_type buf_size) noexcept { return buf_size; });
+	// do not use buf_size for the return value! GCC's libstdc++ _M_create()
+	// modifies the count parameter (passed by reference) to apply a growth
+	// factor, and then passes the modified value to the lambda instead of
+	// the original count - which would set the string to the allocated
+	// capacity instead of the requested size.
+	// Affected: GCC 12.x (all), 13.1, 13.2. Fixed in 13.3 / 14.1.
+	// Trunk fix:     https://gcc.gnu.org/g:4a2b262597e4a6bc5732d4564673c1e19381dcfa
+	// 13.x backport: https://gcc.gnu.org/g:f749564ca5e3d16ee16bf490e329f00041563c2d
+	// Mailing list:  https://gcc.gnu.org/pipermail/libstdc++/2024-January/058044.html
+	// clang/libc++ is not affected.
+	auto iNewSize = iOldLen + iCount;
+	sBuffer.resize_and_overwrite(iNewSize, [iNewSize](KStringRef::pointer, KStringRef::size_type) noexcept { return iNewSize; });
 #else
 	sBuffer.resize(iOldLen + iCount);
 #endif

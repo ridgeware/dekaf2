@@ -847,6 +847,24 @@ TEST_CASE("KReader") {
 		CHECK ( sBuffer == "abcdefghijklmnopqrstuvwxyz" );
 	}
 
+	SECTION("KInStream::Read SSO transition")
+	{
+		// regression test: reading 16-29 bytes from a fresh (SSO) buffer
+		// triggers the libstdc++ resize_and_overwrite growth factor bug
+		// where _M_create() modifies the count parameter by reference,
+		// causing size() to return the allocated capacity (30) instead
+		// of the requested size (20)
+		KString sPath = kFormat("{}{}read-sso-transition", TempDir.Name(), kDirSep);
+		kWriteFile(sPath, "abcdefghijklmnopqrstuvwxyz0123");
+		KInFile File(sPath);
+
+		KString sBuffer;
+		auto iRead = File.Read(sBuffer, 20);
+		CHECK ( iRead == 20 );
+		CHECK ( sBuffer.size() == 20 );
+		CHECK ( sBuffer == "abcdefghijklmnopqrst" );
+	}
+
 	SECTION("KInStream::Read large")
 	{
 		// exercises resize_and_overwrite with a buffer beyond SSO

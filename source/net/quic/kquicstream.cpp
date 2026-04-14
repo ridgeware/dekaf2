@@ -54,6 +54,19 @@ DEKAF2_NAMESPACE_BEGIN
 static KTLSContext s_KQuicClientContext { false, KTLSContext::Transport::Quic };
 
 //-----------------------------------------------------------------------------
+bool KQuicStream::IsDisconnected()
+//-----------------------------------------------------------------------------
+{
+	if (!is_open())
+	{
+		return true;
+	}
+
+	return m_SSL && (::SSL_get_shutdown(GetNativeTLSHandle()) & SSL_RECEIVED_SHUTDOWN);
+
+} // IsDisconnected
+
+//-----------------------------------------------------------------------------
 bool KQuicStream::StartManualTLSHandshake()
 //-----------------------------------------------------------------------------
 {

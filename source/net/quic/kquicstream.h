@@ -55,7 +55,6 @@
 #include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/net/util/kiostreamsocket.h>
-#include <openssl/ssl.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -141,16 +140,8 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// tests for a closed connection of the remote side by trying to peek one byte
-	virtual bool IsDisconnected() override final
+	virtual bool IsDisconnected() override final;
 	//-----------------------------------------------------------------------------
-	{
-		if (!is_open())
-		{
-			return true;
-		}
-
-		return m_SSL && (::SSL_get_shutdown(GetNativeTLSHandle()) & SSL_RECEIVED_SHUTDOWN);
-	}
 
 	//-----------------------------------------------------------------------------
 	/// Upgrade connection from TCP to TCP over TLS. Returns true on success. Can also

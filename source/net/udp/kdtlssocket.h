@@ -210,14 +210,14 @@ private:
 	bool DoHandshake();
 	void Cleanup();
 
-	KTLSContext*                m_pContext { nullptr };
+	KTLSContext*                m_pContext         { nullptr };
 	KUniquePtr<SSL, ::SSL_free> m_SSL;
-	BIO*                        m_BIO      { nullptr };
-	int           m_Socket     { -1      };
-	KTLSContext   m_OwnContext { false, KTLSContext::Transport::DTls };
-	KTCPEndPoint  m_Endpoint;
-	KDuration     m_Timeout;
-	std::size_t   m_iMaxDatagramSize { s_iDefaultMaxDatagramSize };
+	BIO*                        m_BIO              { nullptr };
+	int                         m_Socket           { -1      };
+	KTLSContext                 m_OwnContext       { false, KTLSContext::Transport::DTls };
+	KTCPEndPoint                m_Endpoint;
+	KDuration                   m_Timeout;
+	std::size_t                 m_iMaxDatagramSize { s_iDefaultMaxDatagramSize };
 
 }; // KDTLSSocket
 

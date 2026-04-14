@@ -48,16 +48,18 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
+#include <dekaf2/containers/associative/kassociative.h>
 #include <dekaf2/net/tls/ktlscontext.h>
 #include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <functional>
 #include <thread>
 #include <atomic>
-#include <map>
 #include <mutex>
 
 typedef struct ssl_st SSL;
+typedef struct bio_st BIO;
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -79,8 +81,7 @@ public:
 	/// Callback for received decrypted datagrams.
 	/// @param sData the decrypted datagram content
 	/// @param sPeerAddress the peer's address as "ip:port"
-	/// @param SSL the peer's SSL handle (for sending responses via SSL_write)
-	using DatagramCallback = std::function<void(KStringView sData, KStringView sPeerAddress, SSL* SSL)>;
+	using DatagramCallback = std::function<void(KStringView sData, KStringView sPeerAddress)>;
 
 	//-----------------------------------------------------------------------------
 	/// Construct a DTLS server.
@@ -132,6 +133,14 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Send a datagram to a connected peer.
+	/// @param sPeerAddress the peer's address as "ip:port" (as received in the callback)
+	/// @param sData the data to send
+	/// @return true on success
+	bool SendTo(KStringView sPeerAddress, KStringView sData);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Get the TLS context (e.g. for additional configuration).
 	KTLSContext& GetTLSContext() { return m_TLSContext; }
 	//-----------------------------------------------------------------------------
@@ -140,15 +149,28 @@ public:
 private:
 //----------
 
+	struct PeerSession
+	{
+		KUniquePtr<SSL, ::SSL_free> ssl;
+		BIO*                        rbio { nullptr };
+		BIO*                        wbio { nullptr };
+		struct sockaddr_storage     addr {};
+		socklen_t                   addr_len { 0 };
+	};
+
 	DEKAF2_PRIVATE
 	void RunLoop(DatagramCallback Callback);
+	DEKAF2_PRIVATE
+	bool FlushBIO(PeerSession& Session);
 
-	KTLSContext                   m_TLSContext { true, KTLSContext::Transport::DTls };
-	std::unique_ptr<std::thread>  m_Thread;
-	int                           m_Socket      { -1    };
-	uint16_t                      m_iPort       { 0     };
-	std::atomic<bool>             m_bRunning    { false };
-	std::atomic<bool>             m_bQuit       { false };
+	KTLSContext                          m_TLSContext { true, KTLSContext::Transport::DTls };
+	KUnorderedMap<KString, PeerSession>  m_Sessions;
+	std::recursive_mutex                 m_SessionsMutex;
+	std::unique_ptr<std::thread>         m_Thread;
+	int                                  m_Socket      { -1    };
+	uint16_t                             m_iPort       { 0     };
+	std::atomic<bool>                    m_bRunning    { false };
+	std::atomic<bool>                    m_bQuit       { false };
 
 }; // KDTLSServer
 

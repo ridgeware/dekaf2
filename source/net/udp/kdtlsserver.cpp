@@ -202,6 +202,11 @@ bool KDTLSServer::Stop()
 		m_Thread.reset();
 	}
 
+	{
+		std::lock_guard<std::recursive_mutex> Lock(m_SessionsMutex);
+		m_Sessions.clear();
+	}
+
 	m_bRunning = false;
 
 	kDebug(1, "DTLS server stopped on port {}", m_iPort);
@@ -209,6 +214,56 @@ bool KDTLSServer::Stop()
 	return true;
 
 } // Stop
+
+//-----------------------------------------------------------------------------
+bool KDTLSServer::FlushBIO(PeerSession& Session)
+//-----------------------------------------------------------------------------
+{
+	std::array<char, s_iMaxBufferSize> outbuf;
+	int iPending = ::BIO_read(Session.wbio, outbuf.data(), outbuf.size());
+
+	if (iPending > 0 && m_Socket >= 0)
+	{
+		auto iSent = ::sendto(m_Socket, outbuf.data(), iPending, 0,
+		                      reinterpret_cast<struct sockaddr*>(&Session.addr), Session.addr_len);
+		return iSent == iPending;
+	}
+
+	return iPending <= 0; // no pending data is not an error
+
+} // FlushBIO
+
+//-----------------------------------------------------------------------------
+bool KDTLSServer::SendTo(KStringView sPeerAddress, KStringView sData)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::recursive_mutex> Lock(m_SessionsMutex);
+
+	auto it = m_Sessions.find(sPeerAddress);
+
+	if (it == m_Sessions.end())
+	{
+		return SetError(kFormat("no DTLS session for peer {}", sPeerAddress));
+	}
+
+	auto& session = it->second;
+
+	auto iWritten = ::SSL_write(session.ssl.get(), sData.data(), static_cast<int>(sData.size()));
+
+	if (iWritten <= 0)
+	{
+		auto iError = ::SSL_get_error(session.ssl.get(), iWritten);
+		return SetError(kFormat("DTLS send to {} failed: SSL error {}", sPeerAddress, iError));
+	}
+
+	if (!FlushBIO(session))
+	{
+		return SetError(kFormat("DTLS send to {} failed: cannot flush BIO", sPeerAddress));
+	}
+
+	return true;
+
+} // SendTo
 
 //-----------------------------------------------------------------------------
 void KDTLSServer::RunLoop(DatagramCallback Callback)
@@ -220,14 +275,6 @@ void KDTLSServer::RunLoop(DatagramCallback Callback)
 	// For each incoming datagram, we check if we already have a DTLS session for the peer.
 	// If not, we create one and do the handshake. Then we decrypt and dispatch.
 
-	struct PeerSession
-	{
-		SSL*   ssl    { nullptr };
-		BIO*   rbio   { nullptr };
-		BIO*   wbio   { nullptr };
-	};
-
-	std::map<KString, PeerSession> Sessions;
 	std::array<char, s_iMaxBufferSize> buf;
 
 	while (!m_bQuit)
@@ -262,12 +309,14 @@ void KDTLSServer::RunLoop(DatagramCallback Callback)
 
 		KString sPeerKey = kFormat("{}:{}", addrstr.data(), port);
 
-		auto it = Sessions.find(sPeerKey);
+		std::lock_guard<std::recursive_mutex> Lock(m_SessionsMutex);
 
-		if (it == Sessions.end())
+		auto it = m_Sessions.find(sPeerKey);
+
+		if (it == m_Sessions.end())
 		{
 			// new peer — create a DTLS session
-			auto* ssl = ::SSL_new(m_TLSContext.GetContext().native_handle());
+			KUniquePtr<SSL, ::SSL_free> ssl(::SSL_new(m_TLSContext.GetContext().native_handle()));
 
 			if (!ssl)
 			{
@@ -280,19 +329,20 @@ void KDTLSServer::RunLoop(DatagramCallback Callback)
 			auto* wbio = ::BIO_new(::BIO_s_mem());
 			::BIO_set_mem_eof_return(rbio, -1);
 			::BIO_set_mem_eof_return(wbio, -1);
-			::SSL_set_bio(ssl, rbio, wbio);
-			::SSL_set_accept_state(ssl);
+			::SSL_set_bio(ssl.get(), rbio, wbio);
+			::SSL_set_accept_state(ssl.get());
 
 			// enable DTLS cookie exchange
-			::SSL_set_options(ssl, SSL_OP_COOKIE_EXCHANGE);
+			::SSL_set_options(ssl.get(), SSL_OP_COOKIE_EXCHANGE);
 
 			PeerSession session;
-			session.ssl  = ssl;
-			session.rbio = rbio;
-			session.wbio = wbio;
+			session.ssl      = std::move(ssl);
+			session.rbio     = rbio;
+			session.wbio     = wbio;
+			session.addr     = peer_addr;
+			session.addr_len = peer_addr_len;
 
-			auto [ins, ok] = Sessions.emplace(sPeerKey, session);
-			it = ins;
+			it = m_Sessions.emplace(sPeerKey, std::move(session)).first;
 		}
 
 		auto& session = it->second;
@@ -302,13 +352,13 @@ void KDTLSServer::RunLoop(DatagramCallback Callback)
 
 		// try to read decrypted data
 		std::array<char, s_iMaxBufferSize> plaintext;
-		auto iDecrypted = ::SSL_read(session.ssl, plaintext.data(), plaintext.size());
+		auto iDecrypted = ::SSL_read(session.ssl.get(), plaintext.data(), plaintext.size());
 
 		if (iDecrypted > 0)
 		{
 			try
 			{
-				Callback(KStringView(plaintext.data(), static_cast<std::size_t>(iDecrypted)), sPeerKey, session.ssl);
+				Callback(KStringView(plaintext.data(), static_cast<std::size_t>(iDecrypted)), sPeerKey);
 			}
 			catch (const std::exception& e)
 			{
@@ -317,35 +367,20 @@ void KDTLSServer::RunLoop(DatagramCallback Callback)
 		}
 		else
 		{
-			auto iError = ::SSL_get_error(session.ssl, iDecrypted);
+			auto iError = ::SSL_get_error(session.ssl.get(), iDecrypted);
 
 			if (iError == SSL_ERROR_SSL || iError == SSL_ERROR_SYSCALL)
 			{
 				kDebug(2, "DTLS session error for {}: SSL error {}", sPeerKey, iError);
-				::SSL_free(session.ssl);
-				Sessions.erase(it);
+				m_Sessions.erase(it);
 				continue;
 			}
 			// SSL_ERROR_WANT_READ is normal during handshake
 		}
 
-		// check if SSL wants to write (handshake messages, alerts)
-		std::array<char, s_iMaxBufferSize> outbuf;
-		int iPending = ::BIO_read(session.wbio, outbuf.data(), outbuf.size());
-
-		if (iPending > 0)
-		{
-			::sendto(m_Socket, outbuf.data(), iPending, 0,
-			         reinterpret_cast<struct sockaddr*>(&peer_addr), peer_addr_len);
-		}
+		// flush any pending outgoing data (handshake messages, alerts)
+		FlushBIO(session);
 	}
-
-	// cleanup all sessions
-	for (auto& [key, session] : Sessions)
-	{
-		::SSL_free(session.ssl);
-	}
-	Sessions.clear();
 
 	m_bRunning = false;
 

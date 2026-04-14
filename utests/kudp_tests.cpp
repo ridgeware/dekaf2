@@ -436,12 +436,12 @@ TEST_CASE("KDTLSSocket")
 		KString sReceivedData;
 
 		bool bStarted = Server.Start(
-			[&](KStringView sData, KStringView sPeerAddress, SSL* ssl)
+			[&](KStringView sData, KStringView sPeerAddress)
 			{
 				sReceivedData.assign(sData.data(), sData.size());
 				++iCallbackCount;
-				// echo back via SSL_write
-				::SSL_write(ssl, sData.data(), static_cast<int>(sData.size()));
+				// echo back via Server.SendTo
+				Server.SendTo(sPeerAddress, sData);
 			},
 			false  // non-blocking
 		);

@@ -1486,7 +1486,10 @@ set (PRECOMPILED_HEADERS
 	<boost/multi_index/member.hpp>
 	<boost/multi_index/ordered_index.hpp>
 	<boost/multi_index/sequenced_index.hpp>
-	<boost/iostreams/filter/gzip.hpp>
+	# NOTE: do NOT add <boost/iostreams/filter/gzip.hpp> here - it triggers
+	# false positive -Warray-bounds/-Wstringop-overflow warnings with GCC 12.
+	# It is included through kiostreams_filters.h which has the proper
+	# #pragma GCC diagnostic suppression.
 	# dekaf2 core headers (frequently included, relatively stable)
 	"${DEKAF2_GENERATED_FILES_DIR}/kconfiguration.h"
 	<dekaf2/core/init/kdefinitions.h>

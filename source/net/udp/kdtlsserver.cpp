@@ -40,8 +40,12 @@
  */
 
 #include <dekaf2/net/udp/kdtlsserver.h>
+#include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/format/kformat.h>
+#include <openssl/ssl.h>
+#include <openssl/bio.h>
+#include <openssl/rand.h>
 #include <array>
 
 #if !DEKAF2_IS_WINDOWS
@@ -49,7 +53,6 @@
 	#include <netinet/in.h>
 	#include <arpa/inet.h>
 	#include <unistd.h>
-	#include <poll.h>
 #else
 	#include <winsock2.h>
 	#include <ws2tcpip.h>
@@ -279,6 +282,22 @@ void KDTLSServer::RunLoop(DatagramCallback Callback)
 
 	while (!m_bQuit)
 	{
+		// use kPoll() so we can check m_bQuit periodically instead of
+		// blocking indefinitely in recvfrom() — close() on the fd from
+		// another thread is not reliably portable (UB on Linux)
+		int iPollResult = kPoll(m_Socket, POLLIN, chrono::milliseconds(500));
+
+		if (m_bQuit)
+		{
+			break;
+		}
+
+		if (iPollResult <= 0)
+		{
+			// timeout or error — just retry
+			continue;
+		}
+
 		struct sockaddr_storage peer_addr{};
 		socklen_t peer_addr_len = sizeof(peer_addr);
 

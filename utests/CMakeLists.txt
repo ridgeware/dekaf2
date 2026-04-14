@@ -70,6 +70,8 @@ set (USOURCES
 	khttp_method_tests.cpp
 	khttp_request_tests.cpp
 	khttpclient_tests.cpp
+	khttp2_tests.cpp
+	khttp3_tests.cpp
 	khttpcompression_tests.cpp
 	khttplog_tests.cpp
 	khttpserver_tests.cpp

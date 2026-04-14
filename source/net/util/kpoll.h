@@ -44,6 +44,7 @@
 /// Maintaining a list of file descriptors and associated actions to call when the file descriptor creates an event
 
 #include <dekaf2/core/init/kdefinitions.h>
+#include <dekaf2/containers/sequential/kspan.h>
 #include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <functional>
@@ -64,6 +65,14 @@ DEKAF2_NAMESPACE_BEGIN
 
 /// @addtogroup net_util
 /// @{
+
+//-----------------------------------------------------------------------------
+/// poll multiple fds — sanitizes event masks on Windows
+/// @param fds pollfd structs (events set by caller, revents cleared before poll)
+/// @param Timeout timeout
+/// @return >0 number of fds with events, 0 timeout, < 0 errno error number * -1
+int kPoll(KSpan<pollfd> fds, KDuration Timeout);
+//-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 /// poll one single fd
@@ -119,7 +128,9 @@ protected:
 
 	void BuildPollVec(std::vector<pollfd>& fds);
 	void Triggered(int fd, uint16_t events);
-	virtual void Watch();
+	void Watch();
+	/// called after BuildPollVec() to let subclasses adjust event masks
+	virtual void AdjustPollVec(std::vector<pollfd>& fds);
 
 	KDuration         m_Timeout    { chrono::milliseconds(100) };
 	std::atomic<bool> m_bModified  { false };
@@ -156,7 +167,7 @@ public:
 protected:
 //----------
 
-	virtual void Watch() override final;
+	virtual void AdjustPollVec(std::vector<pollfd>& fds) override final;
 
 }; // KSocketWatch
 

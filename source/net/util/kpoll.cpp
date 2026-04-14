@@ -96,31 +96,27 @@ KStringView GetPollError()
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
-int kPoll(int handle, int what, KDuration Timeout)
+int kPoll(KSpan<pollfd> fds, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	struct pollfd pollfd;
-	pollfd.fd      = handle;
-#if !DEKAF2_IS_WINDOWS
-	pollfd.events  = what;
-#else
-	// don't set any output flags on windows, WSAPoll will then fail instead
-	// of ignoring them like on MacOS or Linux
-	pollfd.events = what & (POLLPRI | POLLRDBAND | POLLRDNORM | POLLWRNORM);
+#if DEKAF2_IS_WINDOWS
+	// WSAPoll rejects output-only flags in events — strip them once
+	for (auto& pfd : fds)
+	{
+		pfd.events &= (POLLPRI | POLLRDBAND | POLLRDNORM | POLLWRNORM);
+	}
 #endif
 
 	auto Remaining = Timeout;
 
 	for (;;)
 	{
-		pollfd.revents = 0;
-
 		auto Start = KSteadyTime::now();
 
 #if !DEKAF2_IS_WINDOWS
-		int iResult = ::poll(&pollfd, 1, static_cast<int>(Remaining.milliseconds().count()));
+		int iResult = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), static_cast<int>(Remaining.milliseconds().count()));
 #else
-		int iResult = WSAPoll(&pollfd, 1, static_cast<INT>(Remaining.milliseconds().count()));
+		int iResult = WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), static_cast<INT>(Remaining.milliseconds().count()));
 #endif
 
 		if (iResult == 0)
@@ -156,9 +152,23 @@ int kPoll(int handle, int what, KDuration Timeout)
 			return -1;
 		}
 #endif
-		// data available
-		return pollfd.revents;
+		return iResult;
 	}
+
+} // kPoll
+
+//-----------------------------------------------------------------------------
+int kPoll(int handle, int what, KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	struct pollfd pfd{};
+	pfd.fd     = handle;
+	pfd.events = what;
+
+	// Windows event mask sanitization happens inside kPoll(KSpan<pollfd>, ..)
+	int iResult = kPoll(KSpan<pollfd>(&pfd, 1), Timeout);
+
+	return iResult > 0 ? pfd.revents : iResult;
 
 } // kPoll
 
@@ -224,11 +234,6 @@ void KPoll::Add(int fd, Parameters Parms)
 //-----------------------------------------------------------------------------
 {
 	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
-
-#if DEKAF2_IS_WINDOWS
-	// see kPoll
-	Parms.iEvents &= (POLLPRI | POLLRDBAND | POLLRDNORM | POLLWRNORM);
-#endif
 
 #ifdef __cpp_lib_map_try_emplace
 	m_FileDescriptors.insert_or_assign(fd, std::move(Parms));
@@ -351,7 +356,7 @@ void KPoll::Triggered(int fd, uint16_t events)
 void KPoll::Watch()
 //-----------------------------------------------------------------------------
 {
-	std::vector<pollfd>  fds;
+	std::vector<pollfd> fds;
 
 	while (!m_bStop)
 	{
@@ -367,30 +372,19 @@ void KPoll::Watch()
 				}
 				continue;
 			}
-		}
-#if !DEKAF2_IS_WINDOWS
-		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), static_cast<int>(m_Timeout.milliseconds().count()));
-#else
-		auto iEvents = ::WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), static_cast<INT>(m_Timeout.milliseconds().count()));
-#endif
 
-#if !DEKAF2_IS_WINDOWS
-		if (iEvents < 0)
-		{
-			if (errno != EINTR)
-			{
-				kDebug(1, "stopping watcher: poll returned with error: {}", GetPollError());
-				return;
-			}
+			AdjustPollVec(fds);
 		}
-#else
-		if (iEvents == SOCKET_ERROR)
+
+		auto iEvents = kPoll(fds, m_Timeout);
+
+		if (iEvents < 0)
 		{
 			kDebug(1, "stopping watcher: poll returned with error: {}", GetPollError());
 			return;
 		}
-#endif
-		else if (iEvents > 0)
+
+		if (iEvents > 0)
 		{
 			// find the file descriptors that have events:
 			for (const auto& pfd : fds)
@@ -411,76 +405,24 @@ void KPoll::Watch()
 } // Watch
 
 //-----------------------------------------------------------------------------
-void KSocketWatch::Watch()
+void KPoll::AdjustPollVec(std::vector<pollfd>& fds)
 //-----------------------------------------------------------------------------
 {
-	std::vector<pollfd> fds;
+} // AdjustPollVec
 
-	while (!m_bStop)
-	{
-		if (m_bModified)
-		{
-			BuildPollVec(fds);
-
-			if (fds.empty())
-			{
-				while (!m_bModified && !m_bStop)
-				{
-					kSleep(m_Timeout ? m_Timeout : chrono::milliseconds(100));
-				}
-				continue;
-			}
-
+//-----------------------------------------------------------------------------
+void KSocketWatch::AdjustPollVec(std::vector<pollfd>& fds)
+//-----------------------------------------------------------------------------
+{
 #if DEKAF2_IS_MACOS
-			for (auto& pfd : fds)
-			{
-				// let MacOS detect disconnects
-				// (this looks silly, but test it - it is needed!)
-				pfd.events |= POLLHUP;
-			}
-#endif
-		}
-
-#if DEKAF2_IS_WINDOWS
-		auto iEvents = ::WSAPoll(fds.data(), static_cast<ULONG>(fds.size()), static_cast<INT>(m_Timeout.milliseconds().count()));
-#else
-		auto iEvents = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), static_cast<int>(m_Timeout.milliseconds().count()));
-#endif
-
-#if !DEKAF2_IS_WINDOWS
-		if (iEvents < 0)
-		{
-			if (errno != EINTR)
-			{
-				kDebug(1, "stopping watcher: poll returned with error: {}", GetPollError());
-				return;
-			}
-		}
-#else
-		if (iEvents == SOCKET_ERROR)
-		{
-			kDebug(1, "stopping watcher: poll returned with error: {}", GetPollError());
-			return;
-		}
-#endif
-		else if (iEvents > 0)
-		{
-			// find the file descriptors that have events:
-			for (auto& pfd : fds)
-			{
-				if (pfd.revents)
-				{
-					Triggered(pfd.fd, pfd.revents);
-
-					if (--iEvents == 0)
-					{
-						break;
-					}
-				}
-			}
-		}
+	for (auto& pfd : fds)
+	{
+		// needed on macOS to detect disconnects
+		// (this looks silly, but test it - it is needed - it is a known BSD quirk)
+		pfd.events |= POLLHUP;
 	}
+#endif
 
-} // Watch
+} // AdjustPollVec
 
 DEKAF2_NAMESPACE_END

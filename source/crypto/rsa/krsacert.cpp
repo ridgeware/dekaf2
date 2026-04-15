@@ -49,12 +49,14 @@
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h> // for Digest::GetOpenSSLError()
+#include <dekaf2/net/address/kipaddress.h>   // for kIsIPv4Address(), kIsIPv6Address()
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/err.h>
 #include <openssl/bio.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #include <openssl/bn.h>
 #include <openssl/rand.h>
 #include <array>
@@ -171,6 +173,7 @@ bool KRSACert::Create
 	KStringView    sDomain,
 	KStringView    sCountryCode,
 	KStringView    sOrganization,
+	KStringView    sSANs,
 	KDuration      ValidFor,
 	KUnixTime      ValidFrom
 )
@@ -267,6 +270,47 @@ bool KRSACert::Create
 	if (!::X509_set_issuer_name(m_X509Cert, name))
 	{
 		return SetError(KDigest::GetOpenSSLError("error setting name"));
+	}
+
+	// add Subject Alternative Name (SAN) - required by macOS since Catalina (10.15)
+	// and by Chrome since version 58 for TLS trust overrides to work
+	{
+		X509V3_CTX ctx;
+		X509V3_set_ctx_nodb(&ctx);
+		X509V3_set_ctx(&ctx, m_X509Cert, m_X509Cert, nullptr, nullptr, 0);
+
+		// if sSANs is provided, use it directly (pre-formatted X509v3 SAN string
+		// like "DNS:localhost,IP:192.168.1.1,IP:10.0.0.1")
+		// otherwise derive from sDomain using IP: for IP addresses, DNS: for hostnames
+		KString sSAN;
+
+		if (!sSANs.empty())
+		{
+			sSAN = sSANs;
+		}
+		else if (kIsIPv4Address(sDomain) || kIsIPv6Address(sDomain, false))
+		{
+			sSAN = kFormat("IP:{}", sDomain);
+		}
+		else
+		{
+			sSAN = kFormat("DNS:{}", sDomain);
+		}
+
+		auto* ext = ::X509V3_EXT_nconf_nid(nullptr, &ctx, NID_subject_alt_name, sSAN.c_str());
+
+		if (!ext)
+		{
+			return SetError(KDigest::GetOpenSSLError("error creating SAN extension"));
+		}
+
+		if (!::X509_add_ext(m_X509Cert, ext, -1))
+		{
+			::X509_EXTENSION_free(ext);
+			return SetError(KDigest::GetOpenSSLError("error adding SAN extension"));
+		}
+
+		::X509_EXTENSION_free(ext);
 	}
 
 	// sign the certificate with the private key
@@ -528,6 +572,7 @@ KString KRSACert::CheckOrCreateKeyAndCert
 	KStringView sDomain,
 	KStringView sCountryCode,
 	KStringView sOrganization,
+	KStringView sSANs,
 	KDuration   ValidFor,
 	KUnixTime   ValidFrom,
 	uint16_t    iKeyLength
@@ -642,7 +687,7 @@ KString KRSACert::CheckOrCreateKeyAndCert
 		Cert.SetThrowOnError(bThrowOnError);
 
 		// create a self signed cert
-		if (!Cert.Create(Key, sDomain, sCountryCode, sOrganization, ValidFor, ValidFrom))
+		if (!Cert.Create(Key, sDomain, sCountryCode, sOrganization, sSANs, ValidFor, ValidFrom))
 		{
 			return SetError(Cert.GetLastError());
 		}
@@ -671,6 +716,7 @@ KString KRSACert::CheckOrCreateKeyAndCertFile
 	KStringView sDomain,
 	KStringView sCountryCode,
 	KStringView sOrganization,
+	KStringView sSANs,
 	KDuration   ValidFor,
 	KUnixTime   ValidFrom,
 	uint16_t    iKeyLength
@@ -782,6 +828,7 @@ KString KRSACert::CheckOrCreateKeyAndCertFile
 		sDomain,
 		sCountryCode,
 		sOrganization,
+		sSANs,
 		ValidFor,
 		ValidFrom,
 		iKeyLength

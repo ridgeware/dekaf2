@@ -72,17 +72,25 @@ public:
 	KRSACert() = default;
 
 	/// construct with a new cert
+	/// @param Key a KRSAKey used for signing
+	/// @param sDomain the domain validated by the cert
+	/// @param sCountryCode a 2-letter country code
+	/// @param sOrganization an organization name, company name, default empty
+	/// @param sSANs a pre-formatted X509v3 Subject Alternative Name string (e.g. "DNS:localhost,IP:127.0.0.1"), default empty (derived from sDomain)
+	/// @param ValidFor a duration for the cert's validity, default 1 year
+	/// @param ValidFrom the start time for the cert's validity, default now
 	KRSACert
 	(
 		const KRSAKey& Key,
 		KStringView    sDomain,
 		KStringView    sCountryCode,
 		KStringView    sOrganization = "",
+		KStringView    sSANs         = "",
 		KDuration      ValidFor      = chrono::years(1),
 		KUnixTime      ValidFrom     = KUnixTime()
 	)
 	{
-		Create(Key, sDomain, sCountryCode, sOrganization, ValidFor, ValidFrom);
+		Create(Key, sDomain, sCountryCode, sOrganization, sSANs, ValidFor, ValidFrom);
 	}
 
 	/// construct the cert from a PEM string
@@ -115,6 +123,7 @@ public:
 	/// @param sDomain the domain validated by the cert
 	/// @param sCountryCode a 2-letter country code
 	/// @param sOrganization an organization name, company name, default empty
+	/// @param sSANs a pre-formatted X509v3 Subject Alternative Name string (e.g. "DNS:localhost,IP:127.0.0.1"), default empty (derived from sDomain)
 	/// @param ValidFor a duration for the cert's validity, default 1 year
 	/// @param ValidFrom the start time for the cert's validity, default now
 	/// @returns false on error, true otherwise
@@ -124,6 +133,7 @@ public:
 		KStringView    sDomain,
 		KStringView    sCountryCode,
 		KStringView    sOrganization = "",
+		KStringView    sSANs         = "",
 		KDuration      ValidFor      = chrono::years(1),
 		KUnixTime      ValidFrom     = KUnixTime()
 	);
@@ -162,6 +172,7 @@ public:
 	/// @param sDomain the domain name for the certificate, defaults to "localhost"
 	/// @param sCountryCode a 2-letter country code, defaults to "US"
 	/// @param sOrganization an organization name, company name, default empty
+	/// @param sSANs a pre-formatted X509v3 Subject Alternative Name string (e.g. "DNS:localhost,IP:127.0.0.1"), default empty (derived from sDomain)
 	/// @param ValidFor a duration for the cert's validity, default 1 year
 	/// @param ValidFrom the start time for the cert's validity, default now
 	/// @param iKeyLength the key length, defaults to 4096
@@ -176,6 +187,7 @@ public:
 		KStringView sDomain           = "localhost",
 		KStringView sCountryCode      = "US",
 		KStringView sOrganization     = "",
+		KStringView sSANs             = "",
 		KDuration   ValidFor          = chrono::years(1),
 		KUnixTime   ValidFrom         = KUnixTime(),
 		uint16_t    iKeyLength        = 4096
@@ -190,6 +202,7 @@ public:
 	/// @param sDomain the domain name for the certificate, defaults to "localhost"
 	/// @param sCountryCode a 2-letter country code, defaults to "US"
 	/// @param sOrganization an organization name, company name, default empty
+	/// @param sSANs a pre-formatted X509v3 Subject Alternative Name string (e.g. "DNS:localhost,IP:127.0.0.1"), default empty (derived from sDomain)
 	/// @param ValidFor a duration for the cert's validity, default 1 year
 	/// @param ValidFrom the start time for the cert's validity, default now
 	/// @param iKeyLength the key length, defaults to 4096
@@ -204,6 +217,7 @@ public:
 		KStringView sDomain           = "localhost",
 		KStringView sCountryCode      = "US",
 		KStringView sOrganization     = "",
+		KStringView sSANs             = "",
 		KDuration   ValidFor          = chrono::years(1),
 		KUnixTime   ValidFrom         = KUnixTime(),
 		uint16_t    iKeyLength        = 4096

@@ -193,9 +193,9 @@ public:
 	DEKAF2_NODISCARD
 	constexpr const KIPAddress4& Address() const noexcept { return m_IP; }
 
-	/// get network as string
+	/// get network as string, with or without CIDR /prefix
 	DEKAF2_NODISCARD
-	KString ToString () const noexcept;
+	KString ToString (bool bWithPrefix = true) const noexcept;
 
 	explicit operator KString() const noexcept
 	{
@@ -367,9 +367,9 @@ public:
 		return Address().IsValid();
 	}
 
-	/// get network as string
+	/// get network as string, with or without CIDR /prefix
 	DEKAF2_NODISCARD
-	KString ToString () const noexcept;
+	KString ToString (bool bWithPrefix = true) const noexcept;
 
 	explicit operator KString() const noexcept
 	{
@@ -533,9 +533,32 @@ public:
 		return m_Net6.IsValid();
 	}
 
-	/// get address as string
+	/// is address a loopback address?
 	DEKAF2_NODISCARD
-	KString ToString() const noexcept;
+	constexpr bool IsLoopback() const noexcept
+	{
+		return m_Net6.Address().IsLoopback();
+	}
+
+	/// is address link local?
+	DEKAF2_NODISCARD
+	constexpr bool IsLinkLocal() const noexcept
+	{
+		return m_Net6.Address().IsLinkLocal();
+	}
+
+	/// is address a multicast address?
+	DEKAF2_NODISCARD
+	constexpr bool IsMulticast() const noexcept
+	{
+		return m_Net6.Address().IsMulticast();
+	}
+
+	/// get network as string, with or without CIDR /prefix
+	/// @param bWithPrefix if true (default), returns CIDR notation like "192.168.1.0/24",
+	/// if false returns only the address like "192.168.1.0"
+	DEKAF2_NODISCARD
+	KString ToString(bool bWithPrefix = true) const noexcept;
 
 	explicit operator KString() const noexcept
 	{

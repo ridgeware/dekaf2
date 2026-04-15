@@ -473,6 +473,75 @@ TEST_CASE("KIPNetwork")
 		}
 	}
 
+	SECTION("KIPNetwork4 ToString without prefix")
+	{
+		KIPNetwork4 Net("192.168.52.12/24");
+		CHECK ( Net.ToString()      == "192.168.52.12/24" );
+		CHECK ( Net.ToString(true)  == "192.168.52.12/24" );
+		CHECK ( Net.ToString(false) == "192.168.52.12"    );
+
+		KIPNetwork4 Net2("10.0.0.1/8");
+		CHECK ( Net2.ToString(false) == "10.0.0.1" );
+	}
+
+	SECTION("KIPNetwork6 ToString without prefix")
+	{
+		KIPNetwork6 Net("1234:5678:90ab:cdef:1234:5678:90ab:cdef/64");
+		CHECK ( Net.ToString()      == "1234:5678:90ab:cdef:1234:5678:90ab:cdef/64" );
+		CHECK ( Net.ToString(true)  == "1234:5678:90ab:cdef:1234:5678:90ab:cdef/64" );
+		CHECK ( Net.ToString(false) == "1234:5678:90ab:cdef:1234:5678:90ab:cdef"    );
+
+		KIPNetwork6 Net2("::1/128");
+		CHECK ( Net2.ToString(false) == "::1" );
+	}
+
+	SECTION("KIPNetwork ToString without prefix")
+	{
+		KIPNetwork Net4("192.168.1.5/24");
+		CHECK ( Net4.ToString()      == "192.168.1.5/24" );
+		CHECK ( Net4.ToString(false) == "192.168.1.5"    );
+
+		KIPNetwork Net6("fe80::1/64");
+		CHECK ( Net6.ToString()      == "fe80::1/64" );
+		CHECK ( Net6.ToString(false) == "fe80::1"    );
+
+		KIPNetwork NetEmpty;
+		CHECK ( NetEmpty.ToString()      == "::/0" );
+		CHECK ( NetEmpty.ToString(false) == "::"   );
+	}
+
+	SECTION("KIPNetwork IsLoopback")
+	{
+		CHECK ( KIPNetwork("127.0.0.1/8",         true).IsLoopback() == true  );
+		CHECK ( KIPNetwork("127.0.0.5/8",         true).IsLoopback() == true  );
+		CHECK ( KIPNetwork("::1/128",             true).IsLoopback() == true  );
+		CHECK ( KIPNetwork("192.168.1.1/24",      true).IsLoopback() == false );
+		CHECK ( KIPNetwork("::ffff:127.0.0.1/96", true).IsLoopback() == true  );
+		CHECK ( KIPNetwork("10.0.0.1/8",          true).IsLoopback() == false );
+	}
+
+	SECTION("KIPNetwork IsLinkLocal")
+	{
+		CHECK ( KIPNetwork("169.254.1.1/16",   true).IsLinkLocal() == true  );
+		CHECK ( KIPNetwork("169.254.0.0/16",   true).IsLinkLocal() == true  );
+		CHECK ( KIPNetwork("fe80::1/64",       true).IsLinkLocal() == true  );
+		CHECK ( KIPNetwork("fe80::abcd/10",    true).IsLinkLocal() == true  );
+		CHECK ( KIPNetwork("192.168.1.1/24",   true).IsLinkLocal() == false );
+		CHECK ( KIPNetwork("2001:db8::1/32",   true).IsLinkLocal() == false );
+		CHECK ( KIPNetwork("10.0.0.1/8",       true).IsLinkLocal() == false );
+	}
+
+	SECTION("KIPNetwork IsMulticast")
+	{
+		CHECK ( KIPNetwork("224.0.0.1/4",    true).IsMulticast() == true  );
+		CHECK ( KIPNetwork("239.255.0.1/32", true).IsMulticast() == true  );
+		CHECK ( KIPNetwork("ff02::1/128",    true).IsMulticast() == true  );
+		CHECK ( KIPNetwork("ff0e::1/128",    true).IsMulticast() == true  );
+		CHECK ( KIPNetwork("192.168.1.1/24", true).IsMulticast() == false );
+		CHECK ( KIPNetwork("10.0.0.1/8",     true).IsMulticast() == false );
+		CHECK ( KIPNetwork("2001:db8::1/32", true).IsMulticast() == false );
+	}
+
 #if DEKAF2_IS_64_BITS
 	SECTION("sizes")
 	{

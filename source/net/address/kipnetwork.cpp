@@ -239,10 +239,10 @@ KIPAddress4 KIPNetwork4::AddressFromString(KStringView sNetwork, bool bAcceptSin
 } // KIPNetwork4::AddressFromString
 
 //-----------------------------------------------------------------------------
-KString KIPNetwork4::ToString () const noexcept
+KString KIPNetwork4::ToString (bool bWithPrefix) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kFormat("{}/{}", m_IP, PrefixLength());
+	return bWithPrefix ? kFormat("{}/{}", m_IP, PrefixLength()) : m_IP.ToString();
 
 } // KIPNetwork4::ToString
 
@@ -386,10 +386,10 @@ KIPAddress6 KIPNetwork6::AddressFromString(KStringView sNetwork, bool bAcceptSin
 } // KIPNetwork6::AddressFromString
 
 //-----------------------------------------------------------------------------
-KString KIPNetwork6::ToString () const noexcept
+KString KIPNetwork6::ToString (bool bWithPrefix) const noexcept
 //-----------------------------------------------------------------------------
 {
-	return kFormat("{}/{}", m_IP, PrefixLength());
+	return bWithPrefix ? kFormat("{}/{}", m_IP, PrefixLength()) : m_IP.ToString();
 
 } // KIPNetwork6::ToString
 
@@ -554,11 +554,11 @@ KIPNetwork KIPNetwork::FromString(KStringView sNetwork, bool bAcceptSingleHost)
 } // KIPNetwork::FromString
 
 //-----------------------------------------------------------------------------
-KString KIPNetwork::ToString() const noexcept
+KString KIPNetwork::ToString(bool bWithPrefix) const noexcept
 //-----------------------------------------------------------------------------
 {
-	if (Is4()) return ToNetwork4().ToString();
-	if (Is6()) return m_Net6.ToString();
+	if (Is4()) return ToNetwork4().ToString(bWithPrefix);
+	if (Is6()) return m_Net6.ToString(bWithPrefix);
 	return {};
 
 } // KIPNetwork::ToString

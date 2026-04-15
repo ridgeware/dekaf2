@@ -48,6 +48,8 @@
 #include <dekaf2/rest/serving/kwebserverpermissions.h>
 #include <dekaf2/core/init/dekaf2.h> // KInit()
 #include <dekaf2/net/address/knetworkinterface.h>
+#include <dekaf2/crypto/rsa/krsacert.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 
 using namespace dekaf2;
 
@@ -214,6 +216,33 @@ public:
 		}
 
 		KRESTRoutes Routes;
+
+		// add a route to download the TLS certificate for easy import into OS trust stores
+		if (Settings.bCreateEphemeralCert || !Settings.sCert.empty())
+		{
+			auto sCertFile = Settings.sCert.empty()
+			               ? KRSACert::GetDefaultCertFilename()
+			               : KString(Settings.sCert);
+
+			Routes.AddRoute(KRESTRoute(KHTTPMethod::GET, "/.well-known/cert.pem",
+				[sCertFile = std::move(sCertFile)](KRESTServer& HTTP)
+				{
+					KString sCert;
+
+					if (!kReadTextFile(sCertFile, sCert) || sCert.empty())
+					{
+						throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "certificate not available - start server with -persist" };
+					}
+
+					HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, "application/x-pem-file");
+					HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_DISPOSITION, "attachment; filename=\"khttp-cert.pem\"");
+					HTTP.SetRawOutput(std::move(sCert));
+				},
+				KRESTRoute::PLAIN
+			));
+
+			if (!bQuiet) kPrintLine(":: certificate download at /.well-known/cert.pem");
+		}
 
 		if (sWWWDir)
 		{

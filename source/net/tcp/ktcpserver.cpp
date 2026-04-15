@@ -323,6 +323,8 @@ bool KTCPServer::CreateSelfSignedCertAndKey()
 		// build the SAN string based on configured policy and domains
 		auto sSANs = BuildSANString(m_SANPolicy, m_SANDomains);
 
+		kDebug(1, "self-signed cert SANs: {}", sSANs);
+
 		if (!m_bStoreNewCerts)
 		{
 			// create truly ephemeral certs

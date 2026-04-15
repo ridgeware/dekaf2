@@ -518,14 +518,38 @@ void KWebDAV::Propfind(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView
 	{
 		KDirectory Dir(sFilePath, KFileTypes::ALL, iDepth > 1);
 
+		kDebug(2, "PROPFIND depth {} on '{}' (docroot '{}'), found {} entries",
+		       iDepth, sFilePath, sDocumentRoot, Dir.size());
+
+		// On Windows, KDirectory entry paths use native backslashes but
+		// sDocumentRoot may use forward slashes - normalize for matching.
+		// Do NOT replace backslashes on Unix where \\ is a valid filename char.
+#if DEKAF2_IS_WINDOWS
+		KString sDocRootNormalized(sDocumentRoot);
+		sDocRootNormalized.Replace('\\', '/');
+#endif
+
 		for (const auto& Entry : Dir)
 		{
-			const auto& sChildPath = Entry.Path();
-			// make the child path relative to document root
-			KStringView sRelChild = sChildPath;
+#if DEKAF2_IS_WINDOWS
+			KString sChildNormalized = Entry.Path();
+			sChildNormalized.Replace('\\', '/');
+			KStringView sRelChild = sChildNormalized;
+#else
+			KStringView sRelChild = Entry.Path();
+#endif
 
-			if (!sRelChild.remove_prefix(sDocumentRoot))
+			// make the child path relative to document root
+			if (!sRelChild.remove_prefix(
+#if DEKAF2_IS_WINDOWS
+				sDocRootNormalized
+#else
+				sDocumentRoot
+#endif
+			))
 			{
+				kDebug(2, "PROPFIND: child path '{}' does not start with docroot '{}', skipping",
+				       Entry.Path(), sDocumentRoot);
 				continue;
 			}
 
@@ -541,7 +565,7 @@ void KWebDAV::Propfind(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView
 			}
 
 			auto sChildContentType = Entry.Type() == KFileType::FILE
-			                       ? KMIME::CreateByExtension(sChildPath).Serialize()
+			                       ? KMIME::CreateByExtension(Entry.Path()).Serialize()
 			                       : KString{};
 
 			AddPropfindEntry(Root, sHref, Entry.FileStat(), sChildContentType, PFReq);

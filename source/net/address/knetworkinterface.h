@@ -340,6 +340,11 @@ public:
 	DEKAF2_NODISCARD
 	static Interfaces  GetAllInterfaces(KStringView sStartsWith = {});
 
+	/// static method: return a vector of all routable (non-loopback, non-link-local, non-multicast)
+	/// networks from active network interfaces
+	DEKAF2_NODISCARD
+	static Networks    GetRoutableNetworks();
+
 	/// helper method: convert operation specific numeric flags into the class enum values
 	DEKAF2_NODISCARD
 	static IFFlags     CalcFlags   (uint32_t iFlags) noexcept;

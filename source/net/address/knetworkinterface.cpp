@@ -845,4 +845,37 @@ KNetworkInterface::Interfaces KNetworkInterface::GetAllInterfaces(KStringView sS
 
 } // KNetworkInterface::GetAllInterfaces
 
+//-----------------------------------------------------------------------------
+KNetworkInterface::Networks KNetworkInterface::GetRoutableNetworks()
+//-----------------------------------------------------------------------------
+{
+	Networks Addresses;
+
+	for (auto& iface : GetAllInterfaces())
+	{
+		if (!iface.HasFlags(Up | Running))
+		{
+			continue;
+		}
+
+		if (iface.HasFlags(Loopback))
+		{
+			continue;
+		}
+
+		for (auto& net : iface.GetNetworks())
+		{
+			if (net.IsUnspecified() || net.IsLoopback() || net.IsLinkLocal() || net.IsMulticast())
+			{
+				continue;
+			}
+
+			Addresses.push_back(net);
+		}
+	}
+
+	return Addresses;
+
+} // KNetworkInterface::GetRoutableNetworks
+
 DEKAF2_NAMESPACE_END

@@ -341,6 +341,13 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					m_Server->SetAllowedCipherSuites(Options.sAllowedCipherSuites);
 				}
 
+				m_Server->SetSelfSignedCertSANPolicy(Options.SANPolicy);
+
+				for (auto& sDomain : Options.SANDomains)
+				{
+					m_Server->AddSelfSignedCertDomain(sDomain);
+				}
+
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 

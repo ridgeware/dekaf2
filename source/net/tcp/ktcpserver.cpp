@@ -85,6 +85,8 @@
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/system/os/ksignals.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
+#include <dekaf2/net/address/knetworkinterface.h>
+#include <dekaf2/net/address/kipaddress.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -106,6 +108,42 @@ static KString to_string(const endpoint_type& endpoint)
 		return kFormat("{}:{}", endpoint.address().to_string(), endpoint.port());
 	}
 }
+
+//-----------------------------------------------------------------------------
+/// Builds the X509v3 SAN string for a self-signed certificate based on the
+/// given policy and optional explicit domain list.
+/// @param Policy controls which local addresses are included
+/// @param SANDomains explicitly provided domain names / IP addresses
+/// @returns a formatted SAN string like "DNS:localhost,IP:127.0.0.1,IP:::1,IP:192.168.1.5"
+static KString BuildSANString(SelfSignedCertSANPolicy Policy, const std::vector<KString>& SANDomains)
+//-----------------------------------------------------------------------------
+{
+	KString sSANs = "DNS:localhost,IP:127.0.0.1,IP:::1";
+
+	// add explicitly provided domains/IPs
+	for (auto& sDomain : SANDomains)
+	{
+		if (kIsIPv4Address(sDomain) || kIsIPv6Address(sDomain, false))
+		{
+			sSANs += kFormat(",IP:{}", sDomain);
+		}
+		else
+		{
+			sSANs += kFormat(",DNS:{}", sDomain);
+		}
+	}
+
+	if (Policy == SelfSignedCertSANPolicy::AllLocalNets)
+	{
+		for (auto& net : KNetworkInterface::GetRoutableNetworks())
+		{
+			sSANs += kFormat(",IP:{}", net.ToString(false));
+		}
+	}
+
+	return sSANs;
+
+} // BuildSANString
 
 //-----------------------------------------------------------------------------
 // deprecated signature
@@ -282,6 +320,9 @@ bool KTCPServer::CreateSelfSignedCertAndKey()
 {
 	if (m_sCert.empty())
 	{
+		// build the SAN string based on configured policy and domains
+		auto sSANs = BuildSANString(m_SANPolicy, m_SANDomains);
+
 		if (!m_bStoreNewCerts)
 		{
 			// create truly ephemeral certs
@@ -290,7 +331,14 @@ bool KTCPServer::CreateSelfSignedCertAndKey()
 				WouldThrowOnError(),
 				m_sKey,
 				m_sCert,
-				m_sPassword
+				m_sPassword,
+				"localhost",
+				"US",
+				"",
+				sSANs,
+				chrono::years(1),
+				KUnixTime(),
+				4096
 			);
 
 			if (!sError.empty())
@@ -309,7 +357,14 @@ bool KTCPServer::CreateSelfSignedCertAndKey()
 				WouldThrowOnError(),
 				sKeyFilename,
 				sCertFilename,
-				m_sPassword
+				m_sPassword,
+				"localhost",
+				"US",
+				"",
+				sSANs,
+				chrono::years(1),
+				KUnixTime(),
+				4096
 			);
 
 			if (!sError.empty())

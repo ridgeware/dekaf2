@@ -149,6 +149,13 @@ public:
 		/// suites, they will be applied as matching (refer to the OpenSSL documentation).
 		/// defaults to "PFS", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305
 		KString sAllowedCipherSuites { "PFS" };
+		/// Policy for Subject Alternative Names in self-signed certificates.
+		/// AllLocalNets includes all local non-loopback IPs (default), LocalhostOnly only
+		/// includes localhost, Manual only uses explicitly added domains.
+		SelfSignedCertSANPolicy SANPolicy { SelfSignedCertSANPolicy::AllLocalNets };
+		/// Additional domain names or IP addresses to include in the self-signed
+		/// certificate's SAN extension (e.g. "myserver.example.com" or "203.0.113.42")
+		std::vector<KString> SANDomains;
 		/// do we want to poll connections for disconnects?
 		bool bPollForDisconnect { false };
 		/// additional callback function to call in case of disconnect, argument is the thread ID

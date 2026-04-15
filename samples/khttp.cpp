@@ -47,6 +47,7 @@
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/rest/serving/kwebserverpermissions.h>
 #include <dekaf2/core/init/dekaf2.h> // KInit()
+#include <dekaf2/net/address/knetworkinterface.h>
 
 using namespace dekaf2;
 
@@ -104,6 +105,8 @@ public:
 		Settings.bCreateEphemeralCert =!Options("notls                 : do NOT switch to TLS mode if cert and key were not provided", false);
 		Settings.sTLSPassword         = Options("tlspass <pass>        : TLS certificate password, if any", "");
 		Settings.sAllowedCipherSuites = Options("ciphers <suites>      : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
+		std::vector<KStringViewZ> Domains = Options("domain <name>     : additional domain or IP for the TLS certificate (repeatable)", std::vector<KStringViewZ>{});
+		bool bNoLocalNets             = Options("nolocalnets           : do not include local network addresses in the self-signed TLS certificate", false);
 		Settings.sBaseRoute           = Options("baseroute </path>     : route prefix, e.g. '/khttp', default none", "");
 		KStringViewZ sRestLog         = Options("restlog <file>        : write rest server log to <file> - default off", "");
 		Settings.KLogHeader           = Options("headerlog <x-klog>    : set header name to request and return trace logs, default off", "");
@@ -112,6 +115,19 @@ public:
 
 		// do a final check if all required options were set
 		if (!Options.Check()) return 1;
+
+		// configure SAN policy for self-signed certs
+		for (auto& sDomain : Domains)
+		{
+			Settings.SANDomains.push_back(sDomain);
+		}
+
+		if (bNoLocalNets)
+		{
+			Settings.SANPolicy = Settings.SANDomains.empty()
+			                   ? SelfSignedCertSANPolicy::LocalhostOnly
+			                   : SelfSignedCertSANPolicy::Manual;
+		}
 
 		if (!bQuiet) kPrintLine(":: KHTTP/1.0");
 
@@ -225,8 +241,30 @@ public:
 		// create the REST server instance
 		KREST Http;
 
+		// print startup info and local addresses
+		if (!bQuiet)
+		{
+			kPrintLine(":: starting as '{}' on port {}", sServer, Settings.iPort);
+
+			for (auto& sDomain : Settings.SANDomains)
+			{
+				kPrintLine(":: domain: {}", sDomain);
+			}
+
+			for (auto& net : KNetworkInterface::GetRoutableNetworks())
+			{
+				if (net.Is6())
+				{
+					kPrintLine(":: reachable at [{}]:{}", net.ToString(false), Settings.iPort);
+				}
+				else
+				{
+					kPrintLine(":: reachable at {}:{}", net.ToString(false), Settings.iPort);
+				}
+			}
+		}
+
 		// and run it
-		if (!bQuiet) kPrintLine(":: starting as '{}' on port {}", sServer, Settings.iPort);
 		if (!Http.Execute(Settings, Routes)) SetError(Http.CopyLastError());
 
 		return 0;

@@ -92,6 +92,14 @@ DEKAF2_NAMESPACE_BEGIN
 
 class KTLSContext;
 
+/// Policy for Subject Alternative Names in self-signed certificates
+enum class SelfSignedCertSANPolicy
+{
+	AllLocalNets,  ///< include all local non-loopback IPs (default when no domains given)
+	LocalhostOnly, ///< only localhost/127.0.0.1/::1
+	Manual         ///< only explicitly provided domains/IPs
+};
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A TCP server implementation supporting TLS.
 class DEKAF2_PUBLIC KTCPServer : public KErrorBase
@@ -214,6 +222,23 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		m_sAllowedCipherSuites = std::move(sAllowedCipherSuites);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Set the SAN policy for self-signed certificates
+	void SetSelfSignedCertSANPolicy(SelfSignedCertSANPolicy Policy)
+	//-----------------------------------------------------------------------------
+	{
+		m_SANPolicy = Policy;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Add a domain name or IP address to be included in the self-signed
+	/// certificate's Subject Alternative Name (SAN) extension
+	void AddSelfSignedCertDomain(KString sDomain)
+	//-----------------------------------------------------------------------------
+	{
+		m_SANDomains.push_back(std::move(sDomain));
 	}
 
 	//-----------------------------------------------------------------------------
@@ -447,6 +472,8 @@ private:
 	bool              m_bStartIPv6            {  true };
 	bool              m_bIsTLS                { false };
 	bool              m_bStoreNewCerts        {  true };
+	SelfSignedCertSANPolicy    m_SANPolicy     { SelfSignedCertSANPolicy::AllLocalNets };
+	std::vector<KString>       m_SANDomains;
 
 }; // KTCPServer
 

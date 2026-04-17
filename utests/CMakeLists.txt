@@ -155,6 +155,8 @@ set (USOURCES
 	kwebclient_tests.cpp
 	kwebobjects_tests.cpp
 	keckey_tests.cpp
+	kx25519_tests.cpp
+	ked25519sign_tests.cpp
 	khkdf_tests.cpp
 	kwebdav_tests.cpp
 	kwebpush_tests.cpp

@@ -1340,6 +1340,8 @@ set(PUBLIC_HEADERS
 	source/crypto/rsa/krsacert.h
 	source/crypto/ec/keckey.h
 	source/crypto/ec/kecsign.h
+	source/crypto/ec/kx25519.h
+	source/crypto/ec/ked25519sign.h
 	source/crypto/kdf/khkdf.h
 	source/crypto/rsa/krsakey.h
 	source/crypto/random/krandom.h
@@ -1588,6 +1590,8 @@ set (SOURCES
 	source/crypto/rsa/krsacert.cpp
 	source/crypto/ec/keckey.cpp
 	source/crypto/ec/kecsign.cpp
+	source/crypto/ec/kx25519.cpp
+	source/crypto/ec/ked25519sign.cpp
 	source/crypto/kdf/khkdf.cpp
 	source/crypto/rsa/krsakey.cpp
 	source/crypto/random/krandom.cpp

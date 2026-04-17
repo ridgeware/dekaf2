@@ -48,6 +48,8 @@
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/crypto/ec/keckey.h>
+#include <dekaf2/crypto/ec/ked25519sign.h>
 #include <dekaf2/time/duration/ktimer.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/core/errors/kerror.h>
@@ -73,9 +75,23 @@ public:
 	KOpenIDKeys () = default;
 	/// query all known information about an OpenID provider
 	KOpenIDKeys (const KURL& URL);
+	/// load keys from a JWK Set JSON object (e.g. for testing or local key sources)
+	KOpenIDKeys (const KJSON& jwks);
 
 	/// return a reference to the RSA key that matches the given parameters
 	const KRSAKey& GetRSAKey(KStringView sKeyID, KStringView sAlgorithm, KStringView sKeyDigest, KStringView sUseType = "sig") const;
+
+	/// verify a JWT signature using the key identified by sKeyID/sAlgorithm.
+	/// Supports RS256/RS384/RS512 (RSA), ES256 (ECDSA P-256), and EdDSA (Ed25519).
+	/// @param sKeyID     the "kid" from the JWT header
+	/// @param sAlgorithm the "alg" from the JWT header
+	/// @param sKeyDigest the "x5t" from the JWT header (may be empty)
+	/// @param sData      the signed data (header.payload, base64url-encoded)
+	/// @param sSignature the raw decoded signature bytes
+	/// @param sUseType   the expected key use (default "sig")
+	/// @return true if the signature is valid
+	bool VerifySignature(KStringView sKeyID, KStringView sAlgorithm, KStringView sKeyDigest,
+	                     KStringView sData,  KStringView sSignature, KStringView sUseType = "sig") const;
 
 	/// are all info valid?
 	bool IsValid() const { return !HasError(); }
@@ -93,10 +109,14 @@ private:
 	{
 		WebKey(const KJSON& parms);
 
-		KRSAKey RSAKey;
-		KString Algorithm;
-		KString Digest;
-		KString UseType;
+		KRSAKey     RSAKey;
+		KECKey      ECKey;
+#if DEKAF2_HAS_ED25519
+		KEd25519Key Ed25519Key;
+#endif
+		KString     Algorithm;
+		KString     Digest;
+		KString     UseType;
 	};
 
 	std::unordered_map<KString, WebKey> WebKeys;

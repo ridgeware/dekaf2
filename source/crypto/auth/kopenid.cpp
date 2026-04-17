@@ -45,6 +45,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/crypto/rsa/krsasign.h>
+#include <dekaf2/crypto/ec/kecsign.h>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -57,12 +58,51 @@ const KRSAKey KOpenIDKeys::s_EmptyKey;
 //-----------------------------------------------------------------------------
 KOpenIDKeys::WebKey::WebKey(const KJSON& parms)
 //-----------------------------------------------------------------------------
-: RSAKey    ( parms                             )
-, Algorithm ( kjson::GetStringRef(parms, "alg") )
+: Algorithm ( kjson::GetStringRef(parms, "alg") )
 , Digest    ( kjson::GetStringRef(parms, "x5t") )
 , UseType   ( kjson::GetStringRef(parms, "use") )
 {
-}
+	auto& sKeyType = kjson::GetStringRef(parms, "kty");
+
+	if (sKeyType == "RSA")
+	{
+		RSAKey.Create(parms);
+	}
+	else if (sKeyType == "EC")
+	{
+		if (kjson::GetStringRef(parms, "crv") == "P-256")
+		{
+			auto sX = KBase64Url::Decode(kjson::GetStringRef(parms, "x"));
+			auto sY = KBase64Url::Decode(kjson::GetStringRef(parms, "y"));
+
+			if (sX.size() == 32 && sY.size() == 32)
+			{
+				// build 65-byte uncompressed point: 0x04 || x || y
+				KString sRaw;
+				sRaw.reserve(65);
+				sRaw += '\x04';
+				sRaw += sX;
+				sRaw += sY;
+				ECKey.CreateFromRaw(sRaw, false);
+			}
+		}
+	}
+#if DEKAF2_HAS_ED25519
+	else if (sKeyType == "OKP")
+	{
+		if (kjson::GetStringRef(parms, "crv") == "Ed25519")
+		{
+			auto sX = KBase64Url::Decode(kjson::GetStringRef(parms, "x"));
+
+			if (sX.size() == 32)
+			{
+				Ed25519Key.CreateFromRaw(sX, false);
+			}
+		}
+	}
+#endif
+
+} // ctor
 
 //-----------------------------------------------------------------------------
 bool KOpenIDKeys::Validate(const KJSON& Keys) const
@@ -96,10 +136,11 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 			{
 				for (auto& it : Keys["keys"])
 				{
-					// only add RSA keys to our Key store
-					if (it["kty"] == "RSA")
+					auto& sKeyType = kjson::GetStringRef(it, "kty");
+
+					// accept RSA, EC (P-256), and OKP (Ed25519) keys
+					if (sKeyType == "RSA" || sKeyType == "EC" || sKeyType == "OKP")
 					{
-						// construct RSA key and store it by its key ID
 #ifdef DEKAF2_WRAPPED_KJSON
 						auto p = WebKeys.emplace(std::move(it["kid"].String()), WebKey(it));
 #else
@@ -107,7 +148,8 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 #endif
 						if (p.second)
 						{
-							kDebug(2, "inserted {} {} key with ID {}",
+							kDebug(2, "inserted {} {} {} key with ID {}",
+								   sKeyType,
 								   p.first->second.Algorithm,
 								   p.first->second.UseType,
 								   p.first->first);
@@ -134,6 +176,41 @@ KOpenIDKeys::KOpenIDKeys (const KURL& URL)
 } // ctor
 
 //-----------------------------------------------------------------------------
+KOpenIDKeys::KOpenIDKeys (const KJSON& jwks)
+//-----------------------------------------------------------------------------
+{
+	if (!Validate(jwks))
+	{
+		return;
+	}
+
+	for (auto& it : jwks["keys"])
+	{
+		auto& sKeyType = kjson::GetStringRef(it, "kty");
+
+		if (sKeyType == "RSA" || sKeyType == "EC" || sKeyType == "OKP")
+		{
+#ifdef DEKAF2_WRAPPED_KJSON
+			auto sKid = it["kid"].String();
+#else
+			auto sKid = it["kid"].get<KString>();
+#endif
+			auto p = WebKeys.emplace(std::move(sKid), WebKey(it));
+
+			if (p.second)
+			{
+				kDebug(2, "inserted {} {} {} key with ID {}",
+					   sKeyType,
+					   p.first->second.Algorithm,
+					   p.first->second.UseType,
+					   p.first->first);
+			}
+		}
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
 const KRSAKey& KOpenIDKeys::GetRSAKey(KStringView sKeyID, KStringView sAlgorithm, KStringView sKeyDigest, KStringView sUseType) const
 //-----------------------------------------------------------------------------
 {
@@ -151,6 +228,58 @@ const KRSAKey& KOpenIDKeys::GetRSAKey(KStringView sKeyID, KStringView sAlgorithm
 	return s_EmptyKey;
 
 } // GetPublicKey
+
+//-----------------------------------------------------------------------------
+bool KOpenIDKeys::VerifySignature(KStringView sKeyID, KStringView sAlgorithm, KStringView sKeyDigest,
+                                  KStringView sData,  KStringView sSignature, KStringView sUseType) const
+//-----------------------------------------------------------------------------
+{
+	auto it = WebKeys.find(sKeyID);
+
+	if (it == WebKeys.end()                 ||
+		it->second.Algorithm != sAlgorithm  ||
+		it->second.Digest    != sKeyDigest  ||
+		it->second.UseType   != sUseType)
+	{
+		return SetError("no matching key");
+	}
+
+	const auto& wk = it->second;
+
+	// RSA algorithms
+	if (sAlgorithm == "RS256")
+	{
+		KRSAVerify V(KRSAVerify::SHA256, sData);
+		return V.Verify(wk.RSAKey, sSignature);
+	}
+	else if (sAlgorithm == "RS384")
+	{
+		KRSAVerify V(KRSAVerify::SHA384, sData);
+		return V.Verify(wk.RSAKey, sSignature);
+	}
+	else if (sAlgorithm == "RS512")
+	{
+		KRSAVerify V(KRSAVerify::SHA512, sData);
+		return V.Verify(wk.RSAKey, sSignature);
+	}
+	// ECDSA P-256
+	else if (sAlgorithm == "ES256")
+	{
+		KECVerify V;
+		return V.Verify(wk.ECKey, sData, sSignature);
+	}
+#if DEKAF2_HAS_ED25519
+	// Ed25519
+	else if (sAlgorithm == "EdDSA")
+	{
+		KEd25519Verify V;
+		return V.Verify(wk.Ed25519Key, sData, sSignature);
+	}
+#endif
+
+	return SetError(kFormat("signature algorithm not supported: {}", sAlgorithm));
+
+} // VerifySignature
 
 //-----------------------------------------------------------------------------
 bool KOpenIDProvider::Validate(const KJSON& Configuration, const KURL& URL, KStringView sScope) const
@@ -238,7 +367,7 @@ void KOpenIDProvider::Refresh(KUnixTime Now)
 			if (Validate(Configuration, m_URL, m_sScope))
 			{
 				// only query keys if valid data
-				auto Keys = KOpenIDKeys(kjson::GetStringRef(Configuration, "jwks_uri"));
+				auto Keys = KOpenIDKeys(KURL(kjson::GetStringRef(Configuration, "jwks_uri")));
 
 				if (!Keys.empty())
 				{
@@ -485,46 +614,19 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			// get access on the atomic storage
 			auto& KeysAndIssuer = Provider.Get();
 
-			// find the key
-			const auto& Key = KeysAndIssuer.Keys.GetRSAKey(sKeyID, sAlgorithm, sKeyDigest, "sig");
+			// Per JWS (RFC 7515) the signature covers the base64url-encoded
+			// header and payload joined by '.'.  Part[0] and Part[1] are
+			// contiguous views into the original token, so we can span
+			// from the start of Part[0] to the end of Part[1] to get
+			// "base64url(header).base64url(payload)" without copying.
+			KStringView sSignedData(Part[0].data(), static_cast<std::size_t>(Part[1].data() + Part[1].size() - Part[0].data()));
 
-			if (Key.empty())
+			if (!KeysAndIssuer.Keys.VerifySignature(sKeyID, sAlgorithm, sKeyDigest,
+			                                        sSignedData, KBase64Url::Decode(Part[2])))
 			{
-				SetError("no matching key");
+				SetError(KeysAndIssuer.Keys.Error());
 				// try the next provider ..
 				break;
-			}
-
-			KRSAVerify::Digest Algorithm;
-
-			if (sAlgorithm == "RS256")
-			{
-				Algorithm = KRSAVerify::SHA256;
-			}
-			else if (sAlgorithm == "RS384")
-			{
-				Algorithm = KRSAVerify::SHA384;
-			}
-			else if (sAlgorithm == "RS512")
-			{
-				Algorithm = KRSAVerify::SHA512;
-			}
-			else
-			{
-				// exit here if we do not support the key's algorithm
-				return SetError(kFormat("signature algorithm not supported: {}", sAlgorithm));
-			}
-
-			KRSAVerify Verifier(Algorithm);
-
-			Verifier.Update(Part[0]);
-			Verifier.Update(".");
-			Verifier.Update(Part[1]);
-
-			if (!Verifier.Verify(Key, KBase64Url::Decode(Part[2])))
-			{
-				// exit here if the key is not matching the signature
-				return SetError("bad signature");
 			}
 
 			// mark that the token itself is from the right issuer (so that we could

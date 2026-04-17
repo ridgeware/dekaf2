@@ -236,6 +236,10 @@
 /// @ingroup crypto
 /// @brief BCrypt, OpenID, and AWS authentication.
 
+/// @defgroup crypto_random Random
+/// @ingroup crypto
+/// @brief Cryptographically secure random number generation.
+
 // =============================================================================
 // data/ submodules
 // =============================================================================
@@ -292,9 +296,6 @@
 /// @ingroup threading
 /// @brief Thread management, thread pools, and parallel execution.
 
-/// @defgroup threading_patterns Patterns
-/// @ingroup threading
-/// @brief Publish/subscribe and observer patterns.
 
 // =============================================================================
 // util/ submodules
@@ -318,7 +319,7 @@
 
 /// @defgroup util_id Identifiers
 /// @ingroup util
-/// @brief UUID generation and random numbers.
+/// @brief UUID generation.
 
 /// @defgroup util_misc Miscellaneous
 /// @ingroup util

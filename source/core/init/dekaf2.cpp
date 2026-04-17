@@ -49,7 +49,7 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/system/process/kchildprocess.h>
 #include <dekaf2/core/types/kctype.h>
-#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/random/krandom.h>
 
 #include <cstdlib>
 #include <cwctype>

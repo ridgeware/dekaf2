@@ -45,7 +45,7 @@
 /// @file kmakecopyable.h
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup containers_memory
+/// @addtogroup core_types
 /// @{
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

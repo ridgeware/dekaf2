@@ -53,7 +53,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup web_xml
+/// @addtogroup data_xml
 /// @{
 
 class KXMLNode;

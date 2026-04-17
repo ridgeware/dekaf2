@@ -1,3 +1,3 @@
 // ksubscribe.h — backward compatibility stub
 #pragma once
-#include <dekaf2/threading/patterns/ksubscribe.h>
+#include <dekaf2/core/types/ksubscribe.h>

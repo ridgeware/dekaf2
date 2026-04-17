@@ -1,6 +1,6 @@
 #include "catch.hpp"
 
-#include <dekaf2/threading/patterns/ksubscribe.h>
+#include <dekaf2/core/types/ksubscribe.h>
 #include <dekaf2/core/strings/kstring.h>
 
 using namespace dekaf2;

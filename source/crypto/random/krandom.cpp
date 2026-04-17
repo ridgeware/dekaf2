@@ -40,7 +40,7 @@
 //
 */
 
-#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/random/krandom.h>
 #include <random>
 #include <cstdlib>
 

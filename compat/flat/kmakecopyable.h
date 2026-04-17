@@ -1,3 +1,3 @@
 // kmakecopyable.h — backward compatibility stub
 #pragma once
-#include <dekaf2/threading/primitives/kmakecopyable.h>
+#include <dekaf2/core/types/kmakecopyable.h>

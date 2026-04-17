@@ -42,7 +42,7 @@
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/crypto/encoding/khex.h>
-#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/net/address/knetworkinterface.h>
 #include <mutex>
 

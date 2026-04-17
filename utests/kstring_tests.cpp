@@ -6,7 +6,7 @@
 #include <dekaf2/core/types/kctype.h>
 #include <dekaf2/containers/associative/kprops.h>
 #include <dekaf2/containers/sequential/kstack.h>
-#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/random/krandom.h>
 #include <vector>
 #include <list>
 #include <iostream>

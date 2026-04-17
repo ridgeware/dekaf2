@@ -51,7 +51,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup util_id
+/// @addtogroup crypto_random
 /// @{
 
 /// Returns 32 bit unsigned random number

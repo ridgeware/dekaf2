@@ -3,7 +3,7 @@
 #include <dekaf2/time/duration/kprof.h>
 #include <iostream>
 
-//#include <dekaf2/util/misc/kaddrplus.h>
+//#include <dekaf2/core/types/kaddrplus.h>
 
 #ifdef DEKAF2_IS_GCC
 

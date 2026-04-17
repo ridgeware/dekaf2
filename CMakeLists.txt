@@ -1339,6 +1339,7 @@ set(PUBLIC_HEADERS
 	source/crypto/rsa/krsa.h
 	source/crypto/rsa/krsacert.h
 	source/crypto/rsa/krsakey.h
+	source/crypto/random/krandom.h
 	source/crypto/rsa/krsasign.h
 	source/data/csv/kcsv.h
 	source/data/json/kjson.h
@@ -1436,9 +1437,10 @@ set(PUBLIC_HEADERS
 	source/threading/execution/kparallel.h
 	source/threading/execution/kthreadpool.h
 	source/threading/execution/kthreads.h
-	source/threading/patterns/ksubscribe.h
 	source/threading/primitives/katomic_object.h
-	source/threading/primitives/kmakecopyable.h
+	source/core/types/kaddrplus.h
+	source/core/types/kmakecopyable.h
+	source/core/types/ksubscribe.h
 	source/threading/primitives/kthreadsafe.h
 	source/time/clock/kdate.h
 	source/time/clock/kjuliandate.h
@@ -1451,11 +1453,9 @@ set(PUBLIC_HEADERS
 	source/util/archive/kuntar.h
 	source/util/cli/koptions.h
 	source/util/cli/kxterm.h
-	source/util/id/krandom.h
 	source/util/id/kuuid.h
 	source/util/mail/kmail.h
 	source/util/mail/ksmtp.h
-	source/util/misc/kaddrplus.h
 	source/util/misc/ktemperature.h
 	source/util/misc/kversion.h
 	source/util/text/kdiff.h
@@ -1581,6 +1581,7 @@ set (SOURCES
 	source/crypto/rsa/krsa.cpp
 	source/crypto/rsa/krsacert.cpp
 	source/crypto/rsa/krsakey.cpp
+	source/crypto/random/krandom.cpp
 	source/crypto/rsa/krsasign.cpp
 	source/data/csv/kcsv.cpp
 	source/data/json/kjson.cpp
@@ -1690,7 +1691,6 @@ set (SOURCES
 	source/util/archive/kuntar.cpp
 	source/util/cli/koptions.cpp
 	source/util/cli/kxterm.cpp
-	source/util/id/krandom.cpp
 	source/util/id/kuuid.cpp
 	source/util/mail/kmail.cpp
 	source/util/mail/ksmtp.cpp

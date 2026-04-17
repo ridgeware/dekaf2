@@ -50,7 +50,7 @@
 //   ls -1 *.h | awk 'BEGIN {print "#include \"dekaf2.h\""} ($0 !~ /^dekaf2/) {printf ("#include \"%s\"\n", $0)}'
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #include <dekaf2/core/init/dekaf2.h>
-#include <dekaf2/util/misc/kaddrplus.h>
+#include <dekaf2/core/types/kaddrplus.h>
 #include <dekaf2/crypto/cipher/kaes.h>
 #include <dekaf2/containers/memory/kallocator.h>
 #include <dekaf2/crypto/cipher/karia.h>
@@ -142,7 +142,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/logging/klogrotate.h>
 #include <dekaf2/util/mail/kmail.h>
-#include <dekaf2/threading/primitives/kmakecopyable.h>
+#include <dekaf2/core/types/kmakecopyable.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/web/url/kmime.h>
 #include <dekaf2/io/streams/kmodifyingstreambuf.h>
@@ -166,7 +166,7 @@
 #include <dekaf2/system/process/kpty.h>
 #include <dekaf2/net/quic/kquicstream.h>
 #include <dekaf2/crypto/encoding/kquotedprintable.h>
-#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/rest/limits/kratelimiter.h>
 #include <dekaf2/io/readwrite/kread.h>
 #include <dekaf2/io/readwrite/kreader.h>
@@ -204,7 +204,7 @@
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/core/strings/kstringview.h>
-#include <dekaf2/threading/patterns/ksubscribe.h>
+#include <dekaf2/core/types/ksubscribe.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/system/os/ksystemstats.h>
 #include <dekaf2/net/tcp/ktcpclient.h>

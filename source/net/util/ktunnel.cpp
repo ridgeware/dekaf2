@@ -88,7 +88,7 @@
 #include <dekaf2/containers/sequential/kbuffer.h>
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/crypto/encoding/kencode.h>
-#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/random/krandom.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

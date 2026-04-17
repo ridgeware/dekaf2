@@ -44,7 +44,7 @@
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/core/logging/klog.h>
-#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/core/strings/kstringutils.h>
 
 extern "C" {

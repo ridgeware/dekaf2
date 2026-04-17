@@ -41,7 +41,7 @@
 
 #include <dekaf2/http/websocket/kwebsocket.h>
 #include <dekaf2/core/errors/kexception.h>
-#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/core/errors/kcrashexit.h>

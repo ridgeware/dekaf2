@@ -49,7 +49,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/net/address/kipaddress.h>        // remove when deleting deprecated kIsValidIPv4/kIsValidIPv6
-#include <dekaf2/util/id/krandom.h>           // remove when all users have added krandom.h
+#include <dekaf2/crypto/random/krandom.h>           // remove when all users have added krandom.h
 #include <dekaf2/core/strings/bits/kstringviewz.h>
 #include <locale>
 #ifndef DEKAF2_IS_WINDOWS

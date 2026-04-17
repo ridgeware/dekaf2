@@ -43,7 +43,7 @@
 #ifndef DEKAF2_IS_WINDOWS
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/system/os/ksystem.h>
-#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/errors/kcrashexit.h>
 #include <dekaf2/core/init/kcompatibility.h>

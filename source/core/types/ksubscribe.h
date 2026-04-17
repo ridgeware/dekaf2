@@ -54,7 +54,7 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-/// @addtogroup threading_patterns
+/// @addtogroup core_types
 /// @{
 
 namespace detail

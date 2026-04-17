@@ -45,7 +45,7 @@
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/system/os/ksystem.h>
-#include <dekaf2/util/id/krandom.h>
+#include <dekaf2/crypto/random/krandom.h>
 
 DEKAF2_NAMESPACE_BEGIN
 

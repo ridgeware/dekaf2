@@ -154,7 +154,10 @@ set (USOURCES
 	kversion_tests.cpp
 	kwebclient_tests.cpp
 	kwebobjects_tests.cpp
+	keckey_tests.cpp
+	khkdf_tests.cpp
 	kwebdav_tests.cpp
+	kwebpush_tests.cpp
 	kwebserverpermissions_tests.cpp
 	kwebsocket_tests.cpp
 	kwords_tests.cpp

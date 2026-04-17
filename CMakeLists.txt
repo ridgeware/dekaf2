@@ -1338,6 +1338,9 @@ set(PUBLIC_HEADERS
 	source/crypto/hash/kmessagedigest.h
 	source/crypto/rsa/krsa.h
 	source/crypto/rsa/krsacert.h
+	source/crypto/ec/keckey.h
+	source/crypto/ec/kecsign.h
+	source/crypto/kdf/khkdf.h
 	source/crypto/rsa/krsakey.h
 	source/crypto/random/krandom.h
 	source/crypto/rsa/krsasign.h
@@ -1466,6 +1469,9 @@ set(PUBLIC_HEADERS
 	source/web/html/khtmlparser.h
 	source/web/objects/kwebobjects.h
 	source/web/url/kmime.h
+	source/web/push/kwebpush.h
+	source/web/push/bits/kwebpushsqlitedb.h
+	source/web/push/bits/kwebpushksqldb.h
 	source/web/url/kurl.h
 	source/web/url/kurlencode.h
 	source/web/url/kuseragent.h
@@ -1580,6 +1586,9 @@ set (SOURCES
 	source/crypto/hash/kmessagedigest.cpp
 	source/crypto/rsa/krsa.cpp
 	source/crypto/rsa/krsacert.cpp
+	source/crypto/ec/keckey.cpp
+	source/crypto/ec/kecsign.cpp
+	source/crypto/kdf/khkdf.cpp
 	source/crypto/rsa/krsakey.cpp
 	source/crypto/random/krandom.cpp
 	source/crypto/rsa/krsasign.cpp
@@ -1702,6 +1711,9 @@ set (SOURCES
 	source/web/html/khtmlparser.cpp
 	source/web/objects/kwebobjects.cpp
 	source/web/url/kmime.cpp
+	source/web/push/kwebpush.cpp
+	source/web/push/bits/kwebpushsqlitedb.cpp
+	source/web/push/bits/kwebpushksqldb.cpp
 	source/web/url/kurl.cpp
 	source/web/url/kurlencode.cpp
 	source/web/url/kuseragent.cpp

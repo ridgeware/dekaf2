@@ -82,6 +82,8 @@
 #include <dekaf2/core/errors/kcrashexit.h>
 #include <dekaf2/crypto/hash/kcrc.h>
 #include <dekaf2/data/csv/kcsv.h>
+#include <dekaf2/crypto/ec/keckey.h>
+#include <dekaf2/crypto/ec/kecsign.h>
 #include <dekaf2/core/types/kctype.h>
 #include <dekaf2/io/pipes/kdataconsumer.h>
 #include <dekaf2/io/pipes/kdataprovider.h>
@@ -105,6 +107,7 @@
 #include <dekaf2/crypto/hash/khash.h>
 #include <dekaf2/system/os/kheapmon.h>
 #include <dekaf2/crypto/encoding/khex.h>
+#include <dekaf2/crypto/kdf/khkdf.h>
 #include <dekaf2/containers/sequential/khistory.h>
 #include <dekaf2/crypto/hash/khmac.h>
 #include <dekaf2/web/html/khtmlcontentblocks.h>
@@ -237,6 +240,7 @@
 #include <dekaf2/http/client/kwebclient.h>
 #include <dekaf2/rest/serving/kwebdav.h>
 #include <dekaf2/web/objects/kwebobjects.h>
+#include <dekaf2/web/push/kwebpush.h>
 #include <dekaf2/rest/serving/kwebserver.h>
 #include <dekaf2/rest/serving/kwebserverpermissions.h>
 #include <dekaf2/http/websocket/kwebsocket.h>

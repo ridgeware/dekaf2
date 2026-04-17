@@ -51,16 +51,12 @@
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h>
 
-// PKCS5_PBKDF2_HMAC was introduced with OpenSSL v1.0.2, HKDF with v1.1.0
-// - as we need either of those for key derivation we support OpenSSL only from v1.0.2 forward
+// PKCS5_PBKDF2_HMAC was introduced with OpenSSL v1.0.2
+// - as we need it for key derivation we support OpenSSL only from v1.0.2 forward
 #if OPENSSL_VERSION_NUMBER >= 0x010002000L
 
 #define DEKAF2_HAS_AES 1
 
-// HKDF was introduced with OpenSSL v1.1.0
-#if OPENSSL_VERSION_NUMBER >= 0x010100000L
-	#define DEKAF2_HAS_HKDF 1
-#endif
 
 #if OPENSSL_VERSION_NUMBER >= 0x010101000L
 	#define DEKAF2_HAS_ARIA 1
@@ -279,12 +275,10 @@ public:
 	/// static: return cipher for algorithm, mode and bits
 	static const evp_cipher_st* GetCipher(Algorithm algorithm, Mode mode, Bits bits);
 
-#if	DEKAF2_HAS_HKDF
 	/// static: derive a key of iKeyLen bytes from high-entropy input keying material using HKDF
 	/// (HMAC-based Extract-and-Expand KDF, see RFC 5869) with SHA-256.
 	/// WARNING: HKDF does NOT perform key stretching - do NOT use with user-chosen passwords!
 	/// For passwords, use CreateKeyFromPasswordPKCS5() instead.
-	/// Only available with OpenSSL >= 1.1.0.
 	/// @param iKeyLen the desired key length in bytes
 	/// @param sKeyMaterial the input keying material (must have high entropy, e.g. a DH shared secret)
 	/// @param sSalt optional salt value for key derivation
@@ -295,7 +289,6 @@ public:
 		KStringView sSalt       = "",
 		KStringView sInfo       = ""
 	);
-#endif
 
 	/// static: derive a key of iKeyLen bytes from a user-chosen password using PBKDF2
 	/// (PKCS5_PBKDF2_HMAC, see RFC 2898). This is the correct KDF for low-entropy input like

@@ -50,11 +50,8 @@
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/core/errors/kcrashexit.h>
 
+#include <dekaf2/crypto/kdf/khkdf.h>
 #include <openssl/evp.h>
-#include <openssl/kdf.h>
-#if OPENSSL_VERSION_NUMBER >= 0x030000000L
-#include <openssl/core_names.h>
-#endif
 #include <openssl/rand.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -455,81 +452,13 @@ KStringView KBlockCipher::ToString(Bits bits)
 	return "";
 }
 
-#if	DEKAF2_HAS_HKDF
 //---------------------------------------------------------------------------
 KString KBlockCipher::CreateKeyFromPasswordHKDF(uint16_t iKeyLen, KStringView sPassword, KStringView sSalt, KStringView sInfo)
 //---------------------------------------------------------------------------
 {
-#if OPENSSL_VERSION_NUMBER >= 0x030000000L
-
-	::EVP_KDF* kdf = ::EVP_KDF_fetch(nullptr, "HKDF", nullptr);
-
-	if (!kdf)
-	{
-		kWarning(GetOpenSSLError("cannot fetch HKDF algorithm"));
-		return KString{};
-	}
-
-	::EVP_KDF_CTX* kctx = ::EVP_KDF_CTX_new(kdf);
-	::EVP_KDF_free(kdf);
-
-	if (!kctx)
-	{
-		kWarning(GetOpenSSLError("cannot create HKDF context"));
-		return KString{};
-	}
-
-	::OSSL_PARAM params[6], *p = params;
-	*p++ = ::OSSL_PARAM_construct_utf8_string (OSSL_KDF_PARAM_DIGEST, const_cast<char*>(SN_sha256), 0);
-	*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY   , const_cast<char*>(sPassword.data()), sPassword.size());
-	if (!sSalt.empty())
-	{
-		*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT, const_cast<char*>(sSalt.data()), sSalt.size());
-	}
-	if (!sInfo.empty())
-	{
-		*p++ = ::OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO, const_cast<char*>(sInfo.data()), sInfo.size());
-	}
-	*p   = ::OSSL_PARAM_construct_end();
-
-	KString sKey(iKeyLen, '\0');
-
-	if (::EVP_KDF_derive(kctx, reinterpret_cast<unsigned char*>(&sKey[0]), sKey.size(), params) <= 0)
-	{
-		sKey.clear();
-		kWarning(GetOpenSSLError("cannot generate key"));
-	}
-
-	::EVP_KDF_CTX_free(kctx);
-
-	return sKey;
-
-#else
-
-	KString sKey(iKeyLen, '\0');
-	std::size_t iOutlen = sKey.size();
-
-	EVP_PKEY_CTX* pctx = ::EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
-
-	if (::EVP_PKEY_derive_init(pctx) <= 0                    ||
-		::EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()) <= 0  ||
-		::EVP_PKEY_CTX_set1_hkdf_key(pctx, reinterpret_cast<unsigned char*>(const_cast<char*>(sPassword.data())), static_cast<int>(sPassword.size())) <= 0 ||
-		(!sSalt.empty() && ::EVP_PKEY_CTX_set1_hkdf_salt(pctx, reinterpret_cast<unsigned char*>(const_cast<char*>(sSalt.data())), static_cast<int>(sSalt.size())) <= 0)  ||
-		(!sInfo.empty() && ::EVP_PKEY_CTX_add1_hkdf_info(pctx, reinterpret_cast<unsigned char*>(const_cast<char*>(sInfo.data())), static_cast<int>(sInfo.size())) <= 0)  ||
-		::EVP_PKEY_derive(pctx, reinterpret_cast<unsigned char*>(&sKey[0]), &iOutlen) <= 0)
-	{
-		sKey.clear();
-		kWarning(GetOpenSSLError("cannot generate key"));
-	}
-
-	::EVP_PKEY_CTX_free(pctx);
-
-	return sKey;
-
-#endif
+	return KHKDF::DeriveKey(sSalt, sPassword, sInfo, iKeyLen);
 
 } // CreateKeyFromPasswordHKDF
-#endif
 
 //---------------------------------------------------------------------------
 KString KBlockCipher::CreateKeyFromPasswordPKCS5

@@ -1,5 +1,7 @@
 #include "catch.hpp"
 #include <dekaf2/crypto/cipher/kaes.h>
+#include <dekaf2/crypto/kdf/khkdf.h>
+#include <dekaf2/crypto/encoding/khex.h>
 #include <dekaf2/crypto/random/krandom.h>
 #include <vector>
 
@@ -465,6 +467,36 @@ TEST_CASE("KAES")
 		CHECK ( Dec.Finalize()      );
 
 		CHECK ( sOrig == sDecrypted );
+	}
+
+	SECTION("CreateKeyFromPasswordHKDF matches KHKDF::DeriveKey")
+	{
+		auto sViaBlockCipher = KBlockCipher::CreateKeyFromPasswordHKDF(32, "my secret ikm", "my salt", "my info");
+		CHECK ( sViaBlockCipher.size() == 32 );
+
+		// must produce the same result as KHKDF::DeriveKey with the same args
+		auto sViaKHKDF = KHKDF::DeriveKey("my salt", "my secret ikm", "my info", 32);
+		CHECK ( sViaBlockCipher == sViaKHKDF );
+	}
+
+	SECTION("CreateKeyFromPasswordHKDF known-answer (RFC 5869 TC1)")
+	{
+		// RFC 5869 Test Case 1 IKM (22 bytes of 0x0b)
+		KString sIKM(22, '\x0b');
+		KString sSalt = kUnHex("000102030405060708090a0b0c");
+		KString sInfo = kUnHex("f0f1f2f3f4f5f6f7f8f9");
+
+		auto sKey = KBlockCipher::CreateKeyFromPasswordHKDF(42, sIKM, sSalt, sInfo);
+		CHECK ( kHex(sKey) == "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865" );
+	}
+
+	SECTION("CreateKeyFromPasswordHKDF known-answer (RFC 5869 TC3, empty salt)")
+	{
+		// RFC 5869 Test Case 3: empty salt, empty info
+		KString sIKM(22, '\x0b');
+
+		auto sKey = KBlockCipher::CreateKeyFromPasswordHKDF(42, sIKM, "", "");
+		CHECK ( kHex(sKey) == "8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8" );
 	}
 }
 

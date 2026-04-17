@@ -212,6 +212,10 @@
 /// @ingroup web
 /// @brief WebObjects and WebDAV.
 
+/// @defgroup web_push Push Notifications
+/// @ingroup web
+/// @brief Web Push (RFC 8291) with VAPID authentication.
+
 // =============================================================================
 // crypto/ submodules
 // =============================================================================
@@ -235,6 +239,14 @@
 /// @defgroup crypto_auth Authentication
 /// @ingroup crypto
 /// @brief BCrypt, OpenID, and AWS authentication.
+
+/// @defgroup crypto_ec Elliptic Curve
+/// @ingroup crypto
+/// @brief EC P-256 key management, ECDSA signatures, and ECDH key exchange.
+
+/// @defgroup crypto_kdf Key Derivation
+/// @ingroup crypto
+/// @brief HKDF and other key derivation functions.
 
 /// @defgroup crypto_random Random
 /// @ingroup crypto

@@ -321,6 +321,9 @@ private:
 	DEKAF2_NODISCARD
 	KString EncryptPayload(KStringView sPayload, KStringView sP256dhB64, KStringView sAuthB64) const;
 
+	/// normalize the VAPID contact email
+	static KString NormalizeContact(KString sContact);
+
 	std::unique_ptr<DB> m_DB;
 	KString m_sContact;         ///< VAPID contact URL/email
 	KString m_sPublicKeyB64;    ///< VAPID public key (base64url, 65 bytes uncompressed)

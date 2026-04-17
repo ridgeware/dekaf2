@@ -44,7 +44,6 @@
 #if DEKAF2_HAS_SQLITE3
 #include <dekaf2/web/push/bits/kwebpushsqlitedb.h>
 #endif
-#include <dekaf2/web/push/bits/kwebpushksqldb.h>
 #include <dekaf2/crypto/ec/kecsign.h>
 #include <dekaf2/crypto/kdf/khkdf.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
@@ -80,7 +79,7 @@ static KString GetOrigin(KStringView sURL)
 } // GetOrigin
 
 //-----------------------------------------------------------------------------
-static KString NormalizeContact(KString sContact)
+KString KWebPush::NormalizeContact(KString sContact)
 //-----------------------------------------------------------------------------
 {
 	sContact.remove_prefix("mailto:");
@@ -117,15 +116,10 @@ KWebPush::KWebPush(KStringViewZ sDatabase, KString sContact)
 } // ctor (SQLite convenience)
 #endif
 
-//-----------------------------------------------------------------------------
-KWebPush::KWebPush(KSQL& db, KString sContact)
-//-----------------------------------------------------------------------------
-: m_DB(std::make_unique<KWebPushKSQLDB>(db))
-, m_sContact(NormalizeContact(std::move(sContact)))
-{
-	Init();
-
-} // ctor (KSQL convenience)
+// NOTE: KWebPush::KWebPush(KSQL&, KString) is implemented in
+// kwebpushksqldb.cpp so that kwebpush.o does not pull in KSQL symbols.
+// Consumers that do not link ksql2 can still use the SQLite or
+// custom-DB backends without encountering unresolved KSQL references.
 
 //-----------------------------------------------------------------------------
 bool KWebPush::Init()

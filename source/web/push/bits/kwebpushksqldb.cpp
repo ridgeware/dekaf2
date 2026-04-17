@@ -47,6 +47,23 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+// ---- KWebPush KSQL convenience constructor --------------------------------
+// This constructor lives here (not in kwebpush.cpp) so that kwebpush.o
+// has no references to KSQL symbols.  Consumers that do not link ksql2
+// can use the SQLite or custom-DB backends without link errors.
+
+//-----------------------------------------------------------------------------
+KWebPush::KWebPush(KSQL& db, KString sContact)
+//-----------------------------------------------------------------------------
+: m_DB(std::make_unique<KWebPushKSQLDB>(db))
+, m_sContact(NormalizeContact(std::move(sContact)))
+{
+	Init();
+
+} // ctor (KSQL convenience)
+
+// ---- KWebPushKSQLDB -------------------------------------------------------
+
 //-----------------------------------------------------------------------------
 KWebPushKSQLDB::KWebPushKSQLDB(KSQL& db)
 //-----------------------------------------------------------------------------

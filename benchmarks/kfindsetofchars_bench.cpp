@@ -254,6 +254,19 @@ void kfindsetofchars()
 		}
 	}
 
+	{
+		dekaf2::KString s(5000000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KStringView sv(s);
+		dekaf2::KProf prof("soc find_last_of (5M)");
+		prof.SetMultiplier(200);
+		for (int ct = 0; ct < 200; ++ct)
+		{
+			KProf::Force(&sv);
+			if (SoC.find_last_in(sv) > 100) KProf::Force();
+		}
+	}
+
 	SoC = KFindSetOfChars("abcdefghijklmnopqrstuvwxyz");
 
 	{
@@ -287,6 +300,18 @@ void kfindsetofchars()
 		dekaf2::KProf prof("soc find_last_of >16 (5000)");
 		prof.SetMultiplier(200000);
 		for (int ct = 0; ct < 200000; ++ct)
+		{
+			KProf::Force(&sv);
+			if (SoC.find_last_in(sv) > 100) KProf::Force();
+		}
+	}
+	{
+		dekaf2::KString s(5000000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KStringView sv(s);
+		dekaf2::KProf prof("soc find_last_of >16 (5M)");
+		prof.SetMultiplier(200);
+		for (int ct = 0; ct < 200; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_in(sv) > 100) KProf::Force();
@@ -331,6 +356,18 @@ void kfindsetofchars()
 			if (SoC.find_last_not_in(sv) > 100) KProf::Force();
 		}
 	}
+	{
+		dekaf2::KString s(5000000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KStringView sv(s);
+		dekaf2::KProf prof("soc find_last_not_of (5M)");
+		prof.SetMultiplier(200);
+		for (int ct = 0; ct < 200; ++ct)
+		{
+			KProf::Force(&sv);
+			if (SoC.find_last_not_in(sv) > 100) KProf::Force();
+		}
+	}
 
 	SoC = KFindSetOfChars("&%-!§&/()=?*#1234567890üöä");
 
@@ -365,6 +402,18 @@ void kfindsetofchars()
 		dekaf2::KProf prof("soc find_last_not_of >16 (5000)");
 		prof.SetMultiplier(200000);
 		for (int ct = 0; ct < 200000; ++ct)
+		{
+			KProf::Force(&sv);
+			if (SoC.find_last_not_in(sv) > 100) KProf::Force();
+		}
+	}
+	{
+		dekaf2::KString s(5000000, '-');
+		s.insert(0, "abcdefg");
+		dekaf2::KStringView sv(s);
+		dekaf2::KProf prof("soc find_last_not_of >16 (5M)");
+		prof.SetMultiplier(200);
+		for (int ct = 0; ct < 200; ++ct)
 		{
 			KProf::Force(&sv);
 			if (SoC.find_last_not_in(sv) > 100) KProf::Force();

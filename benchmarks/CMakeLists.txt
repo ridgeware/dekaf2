@@ -59,6 +59,7 @@ set (SOURCES
 	khash_bench.cpp
 	khtml_bench.cpp
 	khtmlentity_bench.cpp
+	kmemsearch_bench.cpp
 	kprops_bench.cpp
 	kreader_bench.cpp
 	kreplace_bench.cpp

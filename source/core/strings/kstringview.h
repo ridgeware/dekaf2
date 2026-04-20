@@ -49,6 +49,8 @@
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/bits/kstring_view.h>
+#include <dekaf2/core/strings/bits/simd/kmemsearch_neon.h>
+#include <dekaf2/core/strings/bits/simd/kmemsearch_sse2.h>
 #include <dekaf2/crypto/hash/bits/khash.h>
 #include <dekaf2/core/types/ktemplate.h>
 #include <dekaf2/core/strings/kutf.h>
@@ -1719,7 +1721,11 @@ std::size_t kFind(
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_14
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+#if !DEKAF2_HAS_NEON && !DEKAF2_HAS_SSE2_MEMSEARCH
+DEKAF2_CONSTEXPR_14
+#endif
+inline
 std::size_t kFindNot(
 		const KStringView haystack,
 		const char needle,
@@ -1730,6 +1736,25 @@ std::size_t kFindNot(
 
 	if (DEKAF2_LIKELY(pos < iHaystackSize))
 	{
+#if DEKAF2_HAS_NEON
+		// ARM64 NEON path: forward 16-byte scan with first-not-match
+		// reduction via nibble mask. Also active on ARM64 glibc, since
+		// there is no "memnotchr" in libc.
+		const std::size_t iOffset =
+		    detail::neon::kFindNotChar(haystack.data() + pos,
+		                               iHaystackSize - pos,
+		                               needle);
+
+		return (iOffset == KStringView::npos) ? KStringView::npos : iOffset + pos;
+#elif DEKAF2_HAS_SSE2_MEMSEARCH
+		// x86 SSE2 path: 16-byte pcmpeqb + pmovmskb, same idea as above.
+		const std::size_t iOffset =
+		    detail::sse2::kFindNotChar(haystack.data() + pos,
+		                               iHaystackSize - pos,
+		                               needle);
+
+		return (iOffset == KStringView::npos) ? KStringView::npos : iOffset + pos;
+#else
 		for (auto it = haystack.begin() + pos, ie = haystack.end(); it != ie;)
 		{
 			if (*it++ != needle)
@@ -1737,6 +1762,7 @@ std::size_t kFindNot(
 				return it - haystack.begin() - 1;
 			}
 		}
+#endif
 	}
 
 	return KStringView::npos;
@@ -1775,7 +1801,11 @@ std::size_t kRFind(
 }
 
 //-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC DEKAF2_CONSTEXPR_14
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+#if !DEKAF2_HAS_NEON && !DEKAF2_HAS_SSE2_MEMSEARCH
+DEKAF2_CONSTEXPR_14
+#endif
+inline
 std::size_t kRFindNot(
 		const KStringView haystack,
 		const char needle,
@@ -1786,6 +1816,14 @@ std::size_t kRFindNot(
 
 	pos = (pos >= iHaystackSize) ? iHaystackSize : pos + 1;
 
+#if DEKAF2_HAS_NEON
+	// ARM64 NEON path: 16-byte reverse scan with first-not-match reduction
+	// via nibble mask. Also active on ARM64 glibc.
+	return detail::neon::kRFindNotChar(haystack.data(), pos, needle);
+#elif DEKAF2_HAS_SSE2_MEMSEARCH
+	// x86 SSE2 path: 16-byte reverse pcmpeqb + pmovmskb.
+	return detail::sse2::kRFindNotChar(haystack.data(), pos, needle);
+#else
 	for (auto it = haystack.begin() + pos, ie = haystack.begin(); it != ie;)
 	{
 		if (*--it != needle)
@@ -1795,6 +1833,7 @@ std::size_t kRFindNot(
 	}
 
 	return KStringView::npos;
+#endif
 }
 
 DEKAF2_NAMESPACE_END

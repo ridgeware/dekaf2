@@ -47,6 +47,7 @@
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/types/kbit.h>
 #include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/bits/simd/kmemsearch_neon.h>
 #include <cinttypes>
 
 #if !DEKAF2_FIND_FIRST_OF_USE_SIMD
@@ -77,11 +78,41 @@ class DEKAF2_PUBLIC KFindSetOfChars
 
 #if !DEKAF2_FIND_FIRST_OF_USE_SIMD && !DEKAF2_USE_COMPRESSED_SEARCH_TABLES
 
-	enum State : uint8_t { Multi = 0 << 6, Single = 1 << 6, Empty = 2 << 6 };
-	static constexpr uint8_t Mask = 3 << 6;
+	// State is encoded in the top 2 bits of m_table[0]. The lower 6 bits of
+	// m_table[0] are free for per-state metadata:
+	//
+	//   Multi     (00......): flat 256-byte membership table. Bit 0 of each
+	//                         m_table[ch] indicates whether ch is in the set.
+	//                         Because the entire table defaults to all zeros,
+	//                         Multi MUST be encoded as the value 0.
+	//   Single    (01......): m_table[1] holds the single needle char.
+	//   Empty     (10......): no needles at all.
+	//   MultiSimd (11NNNNNN): 2..16 needle chars stored contiguously in
+	//                         m_table[1..N]. The low 6 bits of m_table[0]
+	//                         carry the needle count N. Used on platforms
+	//                         with a fast NEON dispatch (see find_first_in).
+	enum State : uint8_t {
+		Multi     = 0 << 6,
+		Single    = 1 << 6,
+		Empty     = 2 << 6,
+		MultiSimd = 3 << 6,
+	};
+	static constexpr uint8_t Mask      = 3 << 6;
+	static constexpr uint8_t CountMask = static_cast<uint8_t>(~Mask);
 	static_assert(Multi == 0, "Multi enum must be zero to match the algorithm");
 
-	#define DEKAF2_FINDSETOFCHARS_CONSTEXPR DEKAF2_CONSTEXPR_14
+	// MultiSimd is the NEON fast-path that stores raw needle bytes inline
+	// and dispatches through detail::neon::kFindFirstOf / kFindLastOf at
+	// runtime. Those helpers are not constexpr, so in NEON builds we cannot
+	// keep find_first_in / find_last_in constexpr either. We still need
+	// `inline` on the header-defined bodies to avoid ODR / duplicate-symbol
+	// errors, since `constexpr` is implicitly inline but our empty expansion
+	// is not.
+	#if DEKAF2_HAS_NEON
+		#define DEKAF2_FINDSETOFCHARS_CONSTEXPR inline
+	#else
+		#define DEKAF2_FINDSETOFCHARS_CONSTEXPR DEKAF2_CONSTEXPR_14
+	#endif
 
 #else
 
@@ -169,10 +200,35 @@ private:
 	DEKAF2_CONSTEXPR_14
 	void SetSingleChar(value_type ch) { m_table[1] = ch; }
 
+	// ---- MultiSimd accessors (only used on NEON builds) ----
+
+	// Store up to 16 needle chars at m_table[1..N] and the count N in the
+	// low 6 bits of m_table[0] (state occupies the top 2 bits).
 	DEKAF2_CONSTEXPR_14
-	size_type find_first_in(KStringView sHaystack, size_type pos, bool bNot) const;
+	void SetSimdNeedles(KStringView sNeedles)
+	{
+		const size_type iCount = sNeedles.size();
+		m_table[0] = static_cast<uint8_t>(State::MultiSimd | static_cast<uint8_t>(iCount));
+		for (size_type i = 0; i < iCount; ++i)
+		{
+			m_table[1 + i] = sNeedles[i];
+		}
+	}
 
 	DEKAF2_CONSTEXPR_14
+	uint8_t GetSimdCount() const { return static_cast<uint8_t>(m_table[0]) & CountMask; }
+
+	DEKAF2_CONSTEXPR_14
+	const value_type* GetSimdNeedles() const { return m_table + 1; }
+
+	// largest needle set we inline in MultiSimd mode (NEON broadcast stays
+	// faster than table-lookup up to this size)
+	static constexpr size_type kSimdMaxNeedles = 16;
+
+	DEKAF2_FINDSETOFCHARS_CONSTEXPR
+	size_type find_first_in(KStringView sHaystack, size_type pos, bool bNot) const;
+
+	DEKAF2_FINDSETOFCHARS_CONSTEXPR
 	size_type find_last_in (KStringView sHaystack, size_type pos, bool bNot) const;
 
 	// Note: we use a char array instead of a std::array<char> because the
@@ -311,6 +367,16 @@ KFindSetOfChars::KFindSetOfChars(KStringView sNeedles)
 			break;
 
 		default:
+#if DEKAF2_HAS_NEON
+			// 2..16 needles: inline them for the NEON broadcast-and-compare
+			// fast path. Larger sets fall through to the flat membership
+			// table below because broadcast cost scales linearly with N.
+			if (sNeedles.size() <= kSimdMaxNeedles)
+			{
+				SetSimdNeedles(sNeedles);
+				break;
+			}
+#endif
 			// assign the needles to the table
 			for (auto c : sNeedles)
 			{
@@ -339,6 +405,20 @@ KFindSetOfChars::KFindSetOfChars(const value_type* sNeedles)
 		}
 		else
 		{
+#if DEKAF2_HAS_NEON
+			// count chars first - if it's <= kSimdMaxNeedles, take the
+			// NEON MultiSimd fast path
+			size_type iLen = 0;
+			while (sNeedles[iLen] && iLen <= kSimdMaxNeedles)
+			{
+				++iLen;
+			}
+			if (iLen <= kSimdMaxNeedles)
+			{
+				SetSimdNeedles(KStringView(sNeedles, iLen));
+				return;
+			}
+#endif
 			// assign the needles to the table
 			for(;;)
 			{
@@ -361,37 +441,60 @@ bool KFindSetOfChars::is_single_char() const { return GetState() == State::Singl
 DEKAF2_CONSTEXPR_14
 bool KFindSetOfChars::contains(const value_type ch) const
 {
-	return (empty()) ? false 
-	                 : (is_single_char())
-	                     ? ch == GetSingleChar()
-	                     : m_table[static_cast<unsigned char>(ch)] & 0x01;
+	switch (GetState())
+	{
+		case State::Empty:
+			return false;
+
+		case State::Single:
+			return ch == GetSingleChar();
+
+		case State::MultiSimd:
+		{
+			const uint8_t       iCount   = GetSimdCount();
+			const value_type* const pNeedles = GetSimdNeedles();
+			for (uint8_t i = 0; i < iCount; ++i)
+			{
+				if (pNeedles[i] == ch)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		case State::Multi:
+			return (m_table[static_cast<unsigned char>(ch)] & 0x01) != 0;
+	}
+
+	return false; // unreachable, silences compiler warning
 }
 
-DEKAF2_CONSTEXPR_14
+DEKAF2_FINDSETOFCHARS_CONSTEXPR
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos) const
 {
 	return find_first_in(sHaystack, pos, false);
 }
 
-DEKAF2_CONSTEXPR_14
+DEKAF2_FINDSETOFCHARS_CONSTEXPR
 KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(KStringView sHaystack, const size_type pos) const
 {
 	return find_first_in(sHaystack, pos, true);
 }
 
-DEKAF2_CONSTEXPR_14
+DEKAF2_FINDSETOFCHARS_CONSTEXPR
 KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, size_type pos) const
 {
 	return find_last_in(sHaystack, pos, false);
 }
 
-DEKAF2_CONSTEXPR_14
+DEKAF2_FINDSETOFCHARS_CONSTEXPR
 KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaystack, size_type pos) const
 {
 	return find_last_in(sHaystack, pos, true);
 }
 
-DEKAF2_CONSTEXPR_14
+DEKAF2_FINDSETOFCHARS_CONSTEXPR
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos, bool bNot) const
 {
 	switch (GetState())
@@ -401,6 +504,17 @@ KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack,
 
 		case State::Single:
 			return bNot ? kFindNot(sHaystack, GetSingleChar(), pos) : kFind(sHaystack, GetSingleChar(), pos);
+
+#if DEKAF2_HAS_NEON
+		case State::MultiSimd:
+			return detail::neon::kFindFirstOf(
+				sHaystack.data(),
+				sHaystack.size(),
+				pos,
+				GetSimdNeedles(),
+				GetSimdCount(),
+				bNot);
+#endif
 
 		case State::Multi:
 			if (pos < sHaystack.size())
@@ -414,13 +528,21 @@ KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack,
 				}
 			}
 			break;
+
+#if !DEKAF2_HAS_NEON
+		// MultiSimd is not reachable on non-NEON builds (constructors never
+		// select it), but the switch still needs to be exhaustive to silence
+		// -Wswitch.
+		case State::MultiSimd:
+			break;
+#endif
 	}
 
 	return KStringView::npos;
 
 } // find_first_in
 
-DEKAF2_CONSTEXPR_14
+DEKAF2_FINDSETOFCHARS_CONSTEXPR
 KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, size_type pos, bool bNot) const
 {
 	switch (GetState())
@@ -430,6 +552,17 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, 
 
 		case State::Single:
 			return bNot ? kRFindNot(sHaystack, GetSingleChar(), pos) : kRFind(sHaystack, GetSingleChar(), pos);
+
+#if DEKAF2_HAS_NEON
+		case State::MultiSimd:
+			return detail::neon::kFindLastOf(
+				sHaystack.data(),
+				sHaystack.size(),
+				pos,
+				GetSimdNeedles(),
+				GetSimdCount(),
+				bNot);
+#endif
 
 		case State::Multi:
 			pos = (pos >= sHaystack.size()) ? sHaystack.size() : pos + 1;
@@ -442,6 +575,11 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, 
 				}
 			}
 			break;
+
+#if !DEKAF2_HAS_NEON
+		case State::MultiSimd:
+			break;
+#endif
 	}
 
 	return KStringView::npos;

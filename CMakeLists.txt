@@ -1260,6 +1260,8 @@ set (BITS_HEADERS
 
 set(BITS_SIMD_HEADERS
 	source/core/strings/bits/simd/kfindfirstof.h
+	source/core/strings/bits/simd/kmemsearch_neon.h
+	source/core/strings/bits/simd/kmemsearch_sse2.h
 	source/core/strings/bits/simd/kutf.h
 )
 
@@ -1563,6 +1565,8 @@ set (SOURCES
 	source/core/strings/bits/kstring_view.cpp
 	source/core/strings/bits/kstringviewz.cpp
 	source/core/strings/bits/simd/kfindfirstof.cpp
+	source/core/strings/bits/simd/kmemsearch_neon.cpp
+	source/core/strings/bits/simd/kmemsearch_sse2.cpp
 	source/core/strings/kcaseless.cpp
 	source/core/strings/kcasestring.cpp
 	source/core/strings/kmpsearch.cpp

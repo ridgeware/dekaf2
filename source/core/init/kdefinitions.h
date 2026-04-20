@@ -494,6 +494,11 @@
 			#define __arm__
 		#endif
 	#endif
+	#ifdef _M_ARM64
+		#ifndef __aarch64__
+			#define __aarch64__
+		#endif
+	#endif
 
 	#define DEKAF2_POPEN_COMMAND_NOT_FOUND 1
 	#define DEKAF2_CLOSE_ON_EXEC_FLAG 0

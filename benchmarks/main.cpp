@@ -51,6 +51,7 @@ extern void kurlencode_bench();
 extern void kreplace_bench();
 extern void khash_bench();
 extern void ktime_bench();
+extern void kmemsearch_bench();
 
 using namespace dekaf2;
 
@@ -119,6 +120,7 @@ int main(int argc, char* argv[])
 	kreplace_bench();
 	khash_bench();
 	ktime_bench();
+	kmemsearch_bench();
 
 	kProfFinalize();
 

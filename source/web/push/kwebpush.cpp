@@ -44,6 +44,7 @@
 #if DEKAF2_HAS_SQLITE3
 #include <dekaf2/web/push/bits/kwebpushsqlitedb.h>
 #endif
+#include <dekaf2/crypto/cipher/kaes.h>
 #include <dekaf2/crypto/ec/kecsign.h>
 #include <dekaf2/crypto/kdf/khkdf.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
@@ -89,6 +90,8 @@ KString KWebPush::NormalizeContact(KString sContact)
 	{
 		sContact = "admin@example.org";
 	}
+
+	sContact.insert(0, "mailto:");
 
 	return sContact;
 
@@ -206,12 +209,12 @@ bool KWebPush::LoadVAPIDKeys()
 bool KWebPush::Subscribe(Subscription sub)
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-
 	if (!m_bReady)
 	{
 		return SetError("initialization failed");
 	}
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 
 	if (!m_DB->StoreSubscription(sub))
 	{
@@ -229,12 +232,12 @@ bool KWebPush::Subscribe(Subscription sub)
 bool KWebPush::Unsubscribe(KStringView sEndpoint)
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-
 	if (!m_bReady)
 	{
 		return SetError("initialization failed");
 	}
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 
 	if (!m_DB->RemoveSubscription(sEndpoint))
 	{
@@ -251,12 +254,12 @@ bool KWebPush::Unsubscribe(KStringView sEndpoint)
 bool KWebPush::UnsubscribeUser(KStringView sUser)
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-
 	if (!m_bReady)
 	{
 		return SetError("initialization failed");
 	}
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 
 	if (!m_DB->RemoveUserSubscriptions(sUser))
 	{
@@ -273,12 +276,12 @@ bool KWebPush::UnsubscribeUser(KStringView sUser)
 bool KWebPush::HasSubscriptions() const
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-
 	if (!m_bReady)
 	{
-		return false;
+		return SetError("initialization failed");
 	}
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 
 	return m_DB->HasSubscriptions();
 
@@ -292,6 +295,7 @@ std::vector<KWebPush::Subscription> KWebPush::ListSubscriptions(KStringView sUse
 
 	if (!m_bReady)
 	{
+		SetError("initialization failed");
 		return {};
 	}
 
@@ -300,15 +304,14 @@ std::vector<KWebPush::Subscription> KWebPush::ListSubscriptions(KStringView sUse
 } // ListSubscriptions
 
 //-----------------------------------------------------------------------------
-std::size_t KWebPush::SendToUser(KStringView sUser, const KJSON& jPayload)
+std::size_t KWebPush::Send(const KJSON& jPayload, KStringView sUser)
 //-----------------------------------------------------------------------------
 {
 	if (!m_bReady)
 	{
+		SetError("initialization failed");
 		return 0;
 	}
-
-	KString sPayload = jPayload.dump();
 
 	std::vector<Subscription> Subs;
 	{
@@ -316,53 +319,27 @@ std::size_t KWebPush::SendToUser(KStringView sUser, const KJSON& jPayload)
 		Subs = m_DB->GetSubscriptions(sUser);
 	}
 
-	std::size_t iSuccess = 0;
-
-	for (const auto& sub : Subs)
-	{
-		if (SendPush(sub, sPayload))
-		{
-			++iSuccess;
-		}
-	}
-
-	kDebug(2, "sent push to {}/{} subscriptions for user '{}'",
-	       iSuccess, Subs.size(), sUser);
-
-	return iSuccess;
-
-} // SendToUser
-
-//-----------------------------------------------------------------------------
-std::size_t KWebPush::SendToAll(const KJSON& jPayload)
-//-----------------------------------------------------------------------------
-{
-	if (!m_bReady)
-	{
-		return 0;
-	}
-
-	KString sPayload = jPayload.dump();
-
-	std::vector<Subscription> Subs;
-	{
-		std::lock_guard<std::mutex> Lock(m_Mutex);
-		Subs = m_DB->GetSubscriptions();
-	}
-
-	kDebug(2, "SendToAll: {} subscription(s)", Subs.size());
+	kDebug(2, "{} subscription(s) for user {}", Subs.size(), sUser.empty() ? "(all)" : sUser);
 
 	std::size_t iSuccess = 0;
 
-	for (const auto& sub : Subs)
+	if (!Subs.empty())
 	{
-		if (SendPush(sub, sPayload))
+		// reuse the KWebClient object across subscriptions
+		KWebClient Client;
+		// dump the messaage payload
+		KString sPayload = jPayload.dump();
+
+		for (const auto& sub : Subs)
 		{
-			++iSuccess;
+			if (SendPush(Client, sub, sPayload))
+			{
+				++iSuccess;
+			}
 		}
 	}
 
-	kDebug(2, "SendToAll: sent {}/{} successfully", iSuccess, Subs.size());
+	kDebug(2, "sent {}/{} messages successfully", iSuccess, Subs.size());
 
 	return iSuccess;
 
@@ -372,16 +349,18 @@ std::size_t KWebPush::SendToAll(const KJSON& jPayload)
 KString KWebPush::BuildVAPIDToken(KStringView sAudience) const
 //-----------------------------------------------------------------------------
 {
-	KJSON jHeader;
-	jHeader["typ"] = "JWT";
-	jHeader["alg"] = "ES256";
+	KJSON jHeader {
+		{ "typ", "JWT"   },
+		{ "alg", "ES256" }
+	};
 
 	auto iExp = static_cast<uint64_t>(KUnixTime::now().to_time_t()) + 12 * 3600;
 
-	KJSON jPayload;
-	jPayload["aud"] = sAudience;
-	jPayload["exp"] = iExp;
-	jPayload["sub"] = kFormat("mailto:{}", m_sContact);
+	KJSON jPayload {
+		{ "aud", sAudience  },
+		{ "exp", iExp       },
+		{ "sub", m_sContact }
+	};
 
 	auto sHeaderB64  = KBase64Url::Encode(jHeader.dump());
 	auto sPayloadB64 = KBase64Url::Encode(jPayload.dump());
@@ -475,51 +454,28 @@ KString KWebPush::EncryptPayload(KStringView sPayload, KStringView sP256dhB64, K
 	sPlaintext += sPayload;
 	sPlaintext += '\x02';
 
-	// AES-128-GCM encrypt
-	KUniquePtr<EVP_CIPHER_CTX, ::EVP_CIPHER_CTX_free> cipherCtx(::EVP_CIPHER_CTX_new());
+	KBlockCipher Encryptor(
+		KBlockCipher::Direction::Encrypt,
+		KBlockCipher::Algorithm::AES,
+		KBlockCipher::Mode::GCM,
+		KBlockCipher::Bits::B128,
+		false,
+		false
+	);
 
-	if (!cipherCtx)
+	KString sCiphertext;
+
+	if (!Encryptor.SetKey(sCEK)                    ||
+	    !Encryptor.SetInitializationVector(sNonce) ||
+	    !Encryptor.SetOutput(sCiphertext)          ||
+	    !Encryptor.Add(sPlaintext)                 ||
+	    !Encryptor.Finalize())
 	{
-		kDebug(1, "cannot create cipher context");
 		return {};
 	}
 
-	if (::EVP_EncryptInit_ex(cipherCtx.get(), ::EVP_aes_128_gcm(), nullptr,
-	                         reinterpret_cast<const unsigned char*>(sCEK.data()),
-	                         reinterpret_cast<const unsigned char*>(sNonce.data())) != 1)
-	{
-		kDebug(1, "EVP_EncryptInit_ex failed: {}", KDigest::GetOpenSSLError());
-		return {};
-	}
-
-	std::vector<unsigned char> aCiphertext(sPlaintext.size() + 16);
-	int iOutLen = 0;
-
-	if (::EVP_EncryptUpdate(cipherCtx.get(), aCiphertext.data(), &iOutLen,
-	                        reinterpret_cast<const unsigned char*>(sPlaintext.data()),
-	                        static_cast<int>(sPlaintext.size())) != 1)
-	{
-		kDebug(1, "EVP_EncryptUpdate failed: {}", KDigest::GetOpenSSLError());
-		return {};
-	}
-
-	int iFinalLen = 0;
-
-	if (::EVP_EncryptFinal_ex(cipherCtx.get(), aCiphertext.data() + iOutLen, &iFinalLen) != 1)
-	{
-		kDebug(1, "EVP_EncryptFinal_ex failed: {}", KDigest::GetOpenSSLError());
-		return {};
-	}
-
-	int iCipherLen = iOutLen + iFinalLen;
-
-	unsigned char aTag[16];
-
-	if (::EVP_CIPHER_CTX_ctrl(cipherCtx.get(), EVP_CTRL_GCM_GET_TAG, 16, aTag) != 1)
-	{
-		kDebug(1, "GCM GET_TAG failed: {}", KDigest::GetOpenSSLError());
-		return {};
-	}
+	// take care to keep Encryptor alive until sTag is used, else don't take it by reference
+	auto& sTag = Encryptor.GetAuthenticationTag();
 
 	// build aes128gcm content-coding:
 	// salt(16) || rs(4) || idlen(1) || keyid(65) || ciphertext || tag(16)
@@ -536,15 +492,15 @@ KString KWebPush::EncryptPayload(KStringView sPayload, KStringView sP256dhB64, K
 	sBody.append(reinterpret_cast<const char*>(aRS), 4);
 	sBody += static_cast<char>(65);
 	sBody.append(sASPublic);
-	sBody.append(reinterpret_cast<const char*>(aCiphertext.data()), static_cast<std::size_t>(iCipherLen));
-	sBody.append(reinterpret_cast<const char*>(aTag), 16);
+	sBody.append(sCiphertext);
+	sBody.append(sTag);
 
 	return sBody;
 
 } // EncryptPayload
 
 //-----------------------------------------------------------------------------
-bool KWebPush::SendPush(const Subscription& sub, KStringView sPayload)
+bool KWebPush::SendPush(KWebClient& Client, const Subscription& sub, KStringView sPayload)
 //-----------------------------------------------------------------------------
 {
 	KString sAudience = GetOrigin(sub.sEndpoint);
@@ -573,7 +529,6 @@ bool KWebPush::SendPush(const Subscription& sub, KStringView sPayload)
 
 	KString sAuthHeader = kFormat("vapid t={}, k={}", sJWT, m_sPublicKeyB64);
 
-	KWebClient Client;
 	Client.SetTimeout(10);
 	Client.AddHeader(KHTTPHeader::AUTHORIZATION, sAuthHeader);
 	Client.AddHeader(KHTTPHeader::CONTENT_ENCODING, "aes128gcm");

@@ -246,7 +246,7 @@ TEST_CASE("KWebPush")
 		CHECK_FALSE ( Push.UnsubscribeUser("x") );
 		CHECK_FALSE ( Push.HasSubscriptions() );
 		CHECK       ( Push.ListSubscriptions().empty() );
-		CHECK       ( Push.SendToUser("x", KJSON{}) == 0 );
-		CHECK       ( Push.SendToAll(KJSON{}) == 0 );
+		CHECK       ( Push.Send(KJSON{}, "x") == 0 );
+		CHECK       ( Push.Send(KJSON{}) == 0 );
 	}
 }

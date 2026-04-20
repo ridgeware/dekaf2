@@ -149,6 +149,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 class KSQL;
+class KWebClient;
 
 /// @addtogroup web_push
 /// @{
@@ -271,20 +272,13 @@ public:
 	/// @returns true on success
 	bool UnsubscribeUser(KStringView sUser);
 
-	/// Send a push notification to every subscription of a given user.
-	/// Subscriptions that the push service reports as expired (HTTP 404
-	/// or 410) are automatically removed from the database.
-	/// @param sUser     the username
-	/// @param jPayload  JSON payload (will be stringified).  Typical
-	///                  fields: "title", "body", "url", "icon".
-	/// @returns number of successfully delivered notifications
-	std::size_t SendToUser(KStringView sUser, const KJSON& jPayload);
-
-	/// Send a push notification to ALL subscribers.
+	/// Send a push notification.
 	/// Expired subscriptions are automatically cleaned up.
 	/// @param jPayload  JSON payload
+	/// @param sUser if non-empty, only send to subscriptions of this user;
+	///              if empty (default), send to all subscriptions.
 	/// @returns number of successfully delivered notifications
-	std::size_t SendToAll(const KJSON& jPayload);
+	std::size_t Send(const KJSON& jPayload, KStringView sUser = {});
 
 	/// @returns true if at least one active subscription exists in the database
 	DEKAF2_NODISCARD
@@ -310,7 +304,7 @@ private:
 
 	/// send a single push message to one subscription
 	/// @returns true on success (HTTP 201)
-	bool SendPush(const Subscription& sub, KStringView sPayload);
+	bool SendPush(KWebClient& Client, const Subscription& sub, KStringView sPayload);
 
 	/// build a VAPID JWT token for the given audience (origin of the push endpoint)
 	DEKAF2_NODISCARD

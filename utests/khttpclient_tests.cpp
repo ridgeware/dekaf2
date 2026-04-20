@@ -7,6 +7,7 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/io/streams/koutstringstream.h>
+#include <dekaf2/crypto/hash/kmessagedigest.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 
@@ -279,6 +280,88 @@ TEST_CASE("KHTTPClient") {
 		CHECK ( InFilter.Fail() == false );
 		InFilter.FilteredStream();
 		CHECK ( InFilter.Count() == 0 );
+	}
+
+	SECTION("DigestAuthenticator RFC 2617 HA1 formula")
+	{
+		// Verify that HA1 is computed as MD5(username:realm:password) per RFC 2617 §3.2.2.2.
+		// The regression this guards against: an earlier version of dekaf2 computed
+		// HA1 = MD5(username:password) (missing the realm), which causes every standards-
+		// compliant Digest server (Apache, nginx, FritzBox, curl, ...) to reject us with 401.
+		//
+		// GetAuthHeader() picks a random cnonce, so we can't string-compare the whole header.
+		// Instead we parse the emitted response= field and recompute the expected value from
+		// the cnonce/nc the implementation reported, using the RFC-correct HA1.
+
+		KHTTPClient::DigestAuthenticator auth(
+			"Mufasa",                // username
+			"Circle Of Life",        // password
+			"testrealm@host.com",    // realm
+			"dcd98b7102dd2f0e8b11d0f600bfb0c093", // nonce
+			"5ccc069c403ebaf9f0171e9517f40e41",   // opaque
+			"auth"                   // qop
+		);
+
+		KOutHTTPRequest Request;
+		Request.Method            = KHTTPMethod::GET;
+		Request.Resource          = KURL("http://example.com/dir/index.html");
+
+		KString sHeader = auth.GetAuthHeader(Request, "");
+
+		// must be a well-formed Digest header
+		CHECK ( sHeader.starts_with("Digest ") );
+		CHECK ( sHeader.contains("username=\"Mufasa\"") );
+		CHECK ( sHeader.contains("realm=\"testrealm@host.com\"") );
+		CHECK ( sHeader.contains("nonce=\"dcd98b7102dd2f0e8b11d0f600bfb0c093\"") );
+		CHECK ( sHeader.contains("uri=\"/dir/index.html\"") );
+		CHECK ( sHeader.contains("qop=auth") );
+
+		auto ExtractField = [&](KStringView sKey) -> KString
+		{
+			auto iPos = sHeader.find(sKey);
+			if (iPos == KString::npos) return {};
+			iPos += sKey.size();
+			// skip '=' and optional quote
+			if (iPos < sHeader.size() && sHeader[iPos] == '=') ++iPos;
+			bool bQuoted = (iPos < sHeader.size() && sHeader[iPos] == '"');
+			if (bQuoted) ++iPos;
+			auto iEnd = iPos;
+			while (iEnd < sHeader.size())
+			{
+				char c = sHeader[iEnd];
+				if (bQuoted && c == '"') break;
+				if (!bQuoted && (c == ',' || c == ' ')) break;
+				++iEnd;
+			}
+			return KString(KStringView(sHeader).substr(iPos, iEnd - iPos));
+		};
+
+		KString sCNonce   = ExtractField("cnonce");
+		KString sNC       = ExtractField("nc");
+		KString sResponse = ExtractField("response");
+
+		CHECK ( !sCNonce.empty() );
+		CHECK ( sNC == "00000001" );
+		CHECK ( sResponse.size() == 32 );
+
+		// RFC-2617-correct recomputation
+		KString sHA1_input = "Mufasa:testrealm@host.com:Circle Of Life";
+		KString sHA2_input = "GET:/dir/index.html";
+		KString sHA1 = KMD5(sHA1_input).HexDigest();
+		KString sHA2 = KMD5(sHA2_input).HexDigest();
+		KString sExpectedInput = sHA1 + ":dcd98b7102dd2f0e8b11d0f600bfb0c093:"
+		                       + sNC + ":" + sCNonce + ":auth:" + sHA2;
+		KString sExpected = KMD5(sExpectedInput).HexDigest();
+
+		INFO("Digest header: " << sHeader);
+		CHECK ( sResponse == sExpected );
+
+		// Also check the buggy formula (MD5(user:password) without realm) does NOT match —
+		// that's what the old dekaf2 emitted and every RFC-compliant server rejected.
+		KString sBuggyHA1 = KMD5(KString("Mufasa:Circle Of Life")).HexDigest();
+		KString sBuggyExpected = KMD5(sBuggyHA1 + ":dcd98b7102dd2f0e8b11d0f600bfb0c093:"
+		                              + sNC + ":" + sCNonce + ":auth:" + sHA2).HexDigest();
+		CHECK ( sResponse != sBuggyExpected );
 	}
 
 }

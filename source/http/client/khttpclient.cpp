@@ -111,7 +111,10 @@ const KString& KHTTPClient::DigestAuthenticator::GetAuthHeader(const KOutHTTPReq
 	KMD5 HA2;
 	KMD5 Response;
 
+	// RFC 2617: HA1 = MD5(username:realm:password)
 	HA1 = sUsername;
+	HA1 += ":";
+	HA1 += sRealm;
 	HA1 += ":";
 	HA1 += sPassword;
 

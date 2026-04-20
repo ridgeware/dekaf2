@@ -1017,8 +1017,6 @@ bool KMIMEReceiveMultiPartFormData::ReadFromStream(KInStream& InStream)
 		return SetError(kFormat("copy buffer size of {} too small for boundary of size {}", KDefaultCopyBufSize, m_sFormBoundary.size()));
 	}
 
-	static const KFindSetOfChars SplitAtSemicolon(";");
-
 	KString sBuffer;
 
 	for (; !sBuffer.empty() || InStream.Good();)
@@ -1058,7 +1056,7 @@ bool KMIMEReceiveMultiPartFormData::ReadFromStream(KInStream& InStream)
 
 			bool bHaveName { false };
 
-			for (auto& sPart : MultiPartHeaders.Headers.Get(KHTTPHeader::CONTENT_DISPOSITION).Split(SplitAtSemicolon))
+			for (auto& sPart : MultiPartHeaders.Headers.Get(KHTTPHeader::CONTENT_DISPOSITION).Split(";"))
 			{
 				if (sPart.remove_prefix("filename="))
 				{

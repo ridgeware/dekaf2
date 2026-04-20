@@ -55,6 +55,120 @@ DEKAF2_NAMESPACE_BEGIN
 /// @addtogroup core_strings
 /// @{
 
+namespace detail {
+
+//-----------------------------------------------------------------------------
+/// Shared implementation of the enhanced single-char fast path: 1-char
+/// delimiter, no escape / no quote / no combine-delimiters. Trim is applied
+/// when the set is non-empty.
+/// Called by the SFINAE kSplit overloads below so the compiler sees the
+/// delimiter char as a local variable propagated from a literal, and the
+/// trim set as either a static constexpr object (default whitespace) or a
+/// small, locally-constructed KFindSetOfChars from a literal. Both allow
+/// aggressive inlining and constant propagation.
+template<typename Container>
+DEKAF2_ALWAYS_INLINE
+std::size_t kSplitSingleCharImpl(
+        Container&  cContainer,
+        KStringView svBuffer,
+        const char  chDelim,
+        const KFindSetOfChars& Trim)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iStartSize = cContainer.size();
+	bool bAddLastEmptyElement { false };
+	const bool bHasTrim = !Trim.empty();
+
+	// when space is the delimiter, leading spaces collapse (Python split() /
+	// Go strings.Fields / shell word-splitting semantics)
+	if (DEKAF2_UNLIKELY(chDelim == ' '))
+	{
+		auto iFound = svBuffer.find_first_not_of(' ');
+		if (iFound == KStringView::npos)
+		{
+			return 0;
+		}
+		if (iFound > 0)
+		{
+			svBuffer.remove_prefix(iFound);
+		}
+	}
+
+	while (DEKAF2_LIKELY(!svBuffer.empty()))
+	{
+		if (DEKAF2_LIKELY(bHasTrim))
+		{
+			auto iFound = Trim.find_first_not_in(svBuffer);
+			if (DEKAF2_UNLIKELY(iFound == KStringView::npos))
+			{
+				cContainer.push_back(KStringView{});
+				break;
+			}
+			if (iFound > 0)
+			{
+				svBuffer.remove_prefix(iFound);
+			}
+		}
+
+		KStringView sElement;
+		auto iNext = svBuffer.find(chDelim);
+
+		if (DEKAF2_LIKELY(iNext != KStringView::npos))
+		{
+			sElement = svBuffer.substr(0, iNext);
+
+			auto iAdvance = iNext + 1;
+
+			if (DEKAF2_UNLIKELY(chDelim == ' '))
+			{
+				auto iAfter = svBuffer.find_first_not_of(' ', iAdvance);
+				iAdvance = (iAfter > svBuffer.size()) ? svBuffer.size() : iAfter;
+			}
+
+			svBuffer.remove_prefix(iAdvance);
+
+			if (DEKAF2_UNLIKELY(svBuffer.empty()))
+			{
+				// trailing delimiter: add an empty last element unless the
+				// delimiter is a space (collapsed) or part of Trim (would be
+				// stripped anyway)
+				bAddLastEmptyElement =
+				    chDelim != ' ' && !Trim.contains(chDelim);
+			}
+		}
+		else
+		{
+			sElement = svBuffer;
+			svBuffer = KStringView{};
+		}
+
+		if (DEKAF2_LIKELY(bHasTrim))
+		{
+			auto iFound = Trim.find_last_not_in(sElement);
+			if (iFound != KStringView::npos)
+			{
+				sElement.remove_suffix(sElement.size() - 1 - iFound);
+			}
+			else
+			{
+				sElement.clear();
+			}
+		}
+
+		cContainer.push_back(sElement);
+	}
+
+	if (DEKAF2_UNLIKELY(bAddLastEmptyElement))
+	{
+		cContainer.push_back(KStringView{});
+	}
+
+	return cContainer.size() - iStartSize;
+
+} // kSplitSingleCharImpl
+
+} // namespace detail
+
 //-----------------------------------------------------------------------------
 /// Simplified version for single delimiter char.
 /// Splits string into token container using one delimiter. Container is a sequence, like a vector.
@@ -88,6 +202,18 @@ std::size_t kSplit (
 
 	if (Delim == ' ')
 	{
+		// when space is the delimiter, consecutive spaces collapse to a single
+		// separator - apply this also to leading spaces (Python split() / Go
+		// strings.Fields / shell word-splitting semantics): "  foo bar  "
+		// yields ["foo", "bar"], not ["", "foo", "bar"].
+		auto iSkip = kFindNot(svBuffer, ' ', 0);
+		if (iSkip == KStringView::npos)
+		{
+			// input is all spaces - no tokens to emit
+			return cContainer.size() - iStartSize;
+		}
+		svBuffer.remove_prefix(iSkip);
+
 		for(;;)
 		{
 			// Look for delimiter character, respect escapes
@@ -144,6 +270,186 @@ std::size_t kSplit (
 } // kSplit with single split char and no trimming/escaping
 
 //-----------------------------------------------------------------------------
+/// Compile-time fast path: catches kSplit(Container, sv, "x") with a 1-char
+/// string literal and no other args - the most common invocation pattern via
+/// KStringView::Split("x") / KString::Split("x"). The SFINAE overload is
+/// preferred over the general-path overload because direct array reference
+/// binding beats the user-defined conversion to KFindSetOfChars.
+/// The default whitespace trim is applied to match the semantics of calling
+/// the general overload with all defaults.
+/// @param cContainer needs to have a push_back() that can construct an element
+/// from a KStringView.
+/// @param svBuffer the source char sequence.
+/// @param Delim a 1-char string literal ("," / "/" / ":" / " " etc).
+/// @return count of added tokens.
+template<typename Container,
+	typename std::enable_if<
+		detail::has_key_type<Container>::value == false &&
+		std::is_constructible<typename Container::value_type, KStringViewPair>::value == false
+	, int>::type = 0
+>
+DEKAF2_PUBLIC
+std::size_t kSplit (
+        Container&  cContainer,
+        KStringView svBuffer,
+        const char (&Delim)[2]         // 1 char + null terminator
+)
+//-----------------------------------------------------------------------------
+{
+	// The hot-path: body is inlined here (not delegated to the helper) so the
+	// compiler can aggressively constant-propagate chDelim (from Delim[0]) and
+	// the Trim set (detail::kASCIISpacesSet as a local reference). Measured to
+	// be ~5% faster than going through the helper for this overload.
+	std::size_t iStartSize = cContainer.size();
+	bool bAddLastEmptyElement { false };
+	const char chDelim = Delim[0];
+	const auto& Trim   = detail::kASCIISpacesSet;
+
+	if (DEKAF2_UNLIKELY(chDelim == ' '))
+	{
+		auto iFound = svBuffer.find_first_not_of(' ');
+		if (iFound == KStringView::npos)
+		{
+			return 0;
+		}
+		if (iFound > 0)
+		{
+			svBuffer.remove_prefix(iFound);
+		}
+	}
+
+	while (DEKAF2_LIKELY(!svBuffer.empty()))
+	{
+		{
+			auto iFound = Trim.find_first_not_in(svBuffer);
+			if (DEKAF2_UNLIKELY(iFound == KStringView::npos))
+			{
+				cContainer.push_back(KStringView{});
+				break;
+			}
+			if (iFound > 0)
+			{
+				svBuffer.remove_prefix(iFound);
+			}
+		}
+
+		KStringView sElement;
+		auto iNext = svBuffer.find(chDelim);
+
+		if (DEKAF2_LIKELY(iNext != KStringView::npos))
+		{
+			sElement = svBuffer.substr(0, iNext);
+
+			auto iAdvance = iNext + 1;
+
+			if (DEKAF2_UNLIKELY(chDelim == ' '))
+			{
+				auto iAfter = svBuffer.find_first_not_of(' ', iAdvance);
+				iAdvance = (iAfter > svBuffer.size()) ? svBuffer.size() : iAfter;
+			}
+
+			svBuffer.remove_prefix(iAdvance);
+
+			if (DEKAF2_UNLIKELY(svBuffer.empty()))
+			{
+				bAddLastEmptyElement =
+				    chDelim != ' ' && !Trim.contains(chDelim);
+			}
+		}
+		else
+		{
+			sElement = svBuffer;
+			svBuffer = KStringView{};
+		}
+
+		{
+			auto iFound = Trim.find_last_not_in(sElement);
+			if (iFound != KStringView::npos)
+			{
+				sElement.remove_suffix(sElement.size() - 1 - iFound);
+			}
+			else
+			{
+				sElement.clear();
+			}
+		}
+
+		cContainer.push_back(sElement);
+	}
+
+	if (DEKAF2_UNLIKELY(bAddLastEmptyElement))
+	{
+		cContainer.push_back(KStringView{});
+	}
+
+	return cContainer.size() - iStartSize;
+
+} // kSplit SFINAE overload for 1-char string literal delimiter, default trim
+
+//-----------------------------------------------------------------------------
+/// Compile-time fast path: catches kSplit(Container, sv, "x", "") with a 1-char
+/// string literal delimiter and an empty literal trim - delegates to the no-trim
+/// char fast path.
+/// @param cContainer needs to have a push_back() that can construct an element
+/// from a KStringView.
+/// @param svBuffer the source char sequence.
+/// @param Delim a 1-char string literal.
+/// @return count of added tokens.
+template<typename Container,
+	typename std::enable_if<
+		detail::has_key_type<Container>::value == false &&
+		std::is_constructible<typename Container::value_type, KStringViewPair>::value == false
+	, int>::type = 0
+>
+DEKAF2_PUBLIC
+std::size_t kSplit (
+        Container&  cContainer,
+        KStringView svBuffer,
+        const char (&Delim)[2],        // 1 char + null terminator
+        const char (&/*Trim*/)[1]      // "" (only the null terminator)
+)
+//-----------------------------------------------------------------------------
+{
+	// empty trim: delegate to the char-delim fast path (no trim at all)
+	return kSplit(cContainer, svBuffer, Delim[0]);
+
+} // kSplit SFINAE overload for 1-char string literal delimiter, empty literal trim
+
+//-----------------------------------------------------------------------------
+/// Compile-time fast path: catches kSplit(Container, sv, "x", "yz...") with a
+/// 1-char string literal delimiter and any non-empty literal trim string.
+/// Builds a KFindSetOfChars from the trim literal and runs the enhanced fast
+/// path body.
+/// @param cContainer needs to have a push_back() that can construct an element
+/// from a KStringView.
+/// @param svBuffer the source char sequence.
+/// @param Delim a 1-char string literal.
+/// @param Trim a string literal with characters to remove from both token ends.
+/// @return count of added tokens.
+template<typename Container, std::size_t NTrim,
+	typename std::enable_if<
+		(NTrim >= 2) &&
+		detail::has_key_type<Container>::value == false &&
+		std::is_constructible<typename Container::value_type, KStringViewPair>::value == false
+	, int>::type = 0
+>
+DEKAF2_PUBLIC
+std::size_t kSplit (
+        Container&  cContainer,
+        KStringView svBuffer,
+        const char (&Delim)[2],        // 1 char + null terminator
+        const char (&Trim)[NTrim]      // literal trim string (>= 1 char + null terminator)
+)
+//-----------------------------------------------------------------------------
+{
+	// build KFindSetOfChars from the literal trim string (cheap - the size is
+	// known at compile time so construction is fully inlinable)
+	const KFindSetOfChars TrimSet { KStringView(Trim, NTrim - 1) };
+	return detail::kSplitSingleCharImpl(cContainer, svBuffer, Delim[0], TrimSet);
+
+} // kSplit SFINAE overload for 1-char string literal delimiter, literal trim
+
+//-----------------------------------------------------------------------------
 /// Splits string into token container using delimiters, trim, and escape. Container is
 /// a sequence, like a vector.
 /// @param cContainer needs to have a push_back() that can construct an element from
@@ -154,7 +460,7 @@ std::size_t kSplit (
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
-/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// @param bRespectQuotes if true, escape characters and delimiters inside
 /// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
@@ -179,12 +485,36 @@ std::size_t kSplit (
 		const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
 		const char chEscape            = '\0',                    // default: no escape character
 		bool  bCombineDelimiters       = false,                   // default: create empty elements for adjacent delimiters
-        bool  bQuotesAreEscapes        = false                    // default: treat double quotes like any other char
+        bool  bRespectQuotes           = false                    // default: treat double quotes like any other char
 )
 //-----------------------------------------------------------------------------
 {
 	std::size_t iStartSize = cContainer.size();
 	bool bAddLastEmptyElement { false };
+
+	// when space is a delimiter, consecutive spaces collapse into a single
+	// separator - apply this also to leading spaces (Python split() / Go
+	// strings.Fields / shell word-splitting semantics). The per-iteration
+	// collapse below handles internal and trailing spaces, so this only needs
+	// to run once before the loop.
+	if (DEKAF2_UNLIKELY(Delim.contains(' ')))
+	{
+		auto iFound = svBuffer.find_first_not_of(' ');
+		if (iFound == KStringView::npos)
+		{
+			// input is all spaces - no tokens to emit (unless input had other
+			// trimmable content that Trim would have handled; we only skip
+			// leading spaces here, so an all-space input correctly yields 0)
+			if (!svBuffer.empty())
+			{
+				svBuffer = KStringView{};
+			}
+		}
+		else if (iFound > 0)
+		{
+			svBuffer.remove_prefix(iFound);
+		}
+	}
 
 	while (DEKAF2_LIKELY(!svBuffer.empty()))
 	{
@@ -211,7 +541,7 @@ std::size_t kSplit (
 		KStringView sElement;
 		bool bHaveQuotes { false };
 
-		for (;DEKAF2_UNLIKELY(bQuotesAreEscapes);)
+		for (;DEKAF2_UNLIKELY(bRespectQuotes);)
 		{
 			char chQuote;
 			if (svBuffer.front() == '"') chQuote = '"';
@@ -321,7 +651,7 @@ std::size_t kSplit(
         const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
         const char  chEscape           = '\0',                 // default: ignore escapes
         bool        bCombineDelimiters = false,                // default: create an element for each delimiter char found
-        bool        bQuotesAreEscapes  = false                 // default: treat double quotes like any other char
+        bool        bRespectQuotes  = false                 // default: treat double quotes like any other char
 );
 #endif // of DEKAF2_IS_MSC
 
@@ -360,7 +690,7 @@ Container kSplits(
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
-/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// @param bRespectQuotes if true, escape characters and delimiters inside
 /// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
@@ -381,12 +711,12 @@ Container kSplits(
 			  const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
 			  const char  chEscape           = '\0',                    // default: ignore escapes
 			  bool        bCombineDelimiters = false,                   // default: create an element for each delimiter char found
-			  bool        bQuotesAreEscapes  = false                    // default: treat double quotes like any other char
+			  bool        bRespectQuotes     = false                    // default: treat double quotes like any other char
 )
 //-----------------------------------------------------------------------------
 {
 	Container ctContainer;
-	kSplit(ctContainer, svBuffer, Delim, Trim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
+	kSplit(ctContainer, svBuffer, Delim, Trim, chEscape, bCombineDelimiters, bRespectQuotes);
 	return ctContainer;
 }
 
@@ -396,6 +726,8 @@ Container kSplits(
 /// @param svPairDelim a string view that separates key from value. Defaults to "=".
 /// @param svTrim a string containing chars to remove from both token ends. Defaults to " \f\n\r\t\v\b".
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
+/// @param bRespectQuotes if true, after trimming both key and value will have
+/// surrounding matched double or single quotes removed. Defaults to false.
 /// @return the split key/value pair (KStringViewPair)
 ///
 /// @code
@@ -407,7 +739,8 @@ KStringViewPair kSplitToPair(
         KStringView svBuffer,
         KStringView svPairDelim     = "=",                     // default: equal delimiter
 		const KFindSetOfChars& Trim = detail::kASCIISpacesSet, // default: trim all whitespace
-        const char  chEscape        = '\0'                     // default: ignore escapes
+        const char  chEscape        = '\0',                    // default: ignore escapes
+        bool        bRespectQuotes  = false                    // default: treat quotes like any other char
 	);
 //-----------------------------------------------------------------------------
 
@@ -484,13 +817,15 @@ public:
 	        Container& cContainer,
 	        const KFindSetOfChars& Trim,
 	        const KStringView svPairDelim,
-	        const char chEscape
+	        const char chEscape,
+	        bool bRespectQuotes = false
 	        )
 	//-----------------------------------------------------------------------------
 	    : m_Container(cContainer)
 	    , m_Trim(Trim)
 	    , m_svPairDelim(svPairDelim)
 	    , m_chEscape(chEscape)
+	    , m_bRespectQuotes(bRespectQuotes)
 	{
 	}
 
@@ -498,7 +833,7 @@ public:
 	void push_back(KStringView sv)
 	//-----------------------------------------------------------------------------
 	{
-		KStringViewPair svPair = kSplitToPair(sv, m_svPairDelim, m_Trim, m_chEscape);
+		KStringViewPair svPair = kSplitToPair(sv, m_svPairDelim, m_Trim, m_chEscape, m_bRespectQuotes);
 		auto pair = m_Container.insert({svPair.first, svPair.second});
         
         if (pair.second == false)
@@ -522,6 +857,7 @@ private:
 	const KFindSetOfChars& m_Trim;
 	const KStringView m_svPairDelim;
 	const char m_chEscape;
+	const bool m_bRespectQuotes;
 
 }; // InsertPair
 
@@ -546,13 +882,15 @@ public:
 			Container& cContainer,
 			const KFindSetOfChars& Trim,
 			const KStringView svPairDelim,
-			const char chEscape
+			const char chEscape,
+			bool bRespectQuotes = false
 			)
 	//-----------------------------------------------------------------------------
 		: m_Container(cContainer)
 		, m_Trim(Trim)
 		, m_svPairDelim(svPairDelim)
 		, m_chEscape(chEscape)
+		, m_bRespectQuotes(bRespectQuotes)
 	{
 	}
 
@@ -560,7 +898,7 @@ public:
 	void push_back(KStringView sv)
 	//-----------------------------------------------------------------------------
 	{
-		KStringViewPair svPair = kSplitToPair(sv, m_svPairDelim, m_Trim, m_chEscape);
+		KStringViewPair svPair = kSplitToPair(sv, m_svPairDelim, m_Trim, m_chEscape, m_bRespectQuotes);
 		m_Container.push_back({svPair.first, svPair.second});
 	}
 
@@ -579,6 +917,7 @@ private:
 	const KFindSetOfChars& m_Trim;
 	const KStringView m_svPairDelim;
 	const char m_chEscape;
+	const bool m_bRespectQuotes;
 
 }; // PushBackPair
 
@@ -599,7 +938,7 @@ private:
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
-/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// @param bRespectQuotes if true, escape characters and delimiters inside
 /// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
@@ -623,15 +962,15 @@ std::size_t kSplit(
         const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
         const char  chEscape           = '\0',                 // default: ignore escapes
         bool        bCombineDelimiters = false,                // default: create an element for each delimiter char found
-        bool        bQuotesAreEscapes  = false                 // default: treat double quotes like any other char
+        bool        bRespectQuotes  = false                 // default: treat double quotes like any other char
         )
 //-----------------------------------------------------------------------------
 {
 	detail::container_adaptor::InsertPair<Container>
-	        cAdaptor(cContainer, Trim, svPairDelim, chEscape);
+	        cAdaptor(cContainer, Trim, svPairDelim, chEscape, bRespectQuotes);
 
 	return kSplit(cAdaptor, svBuffer, Delim, Trim, chEscape,
-	              bCombineDelimiters, bQuotesAreEscapes);
+	              bCombineDelimiters, bRespectQuotes);
 }
 
 //-----------------------------------------------------------------------------
@@ -644,7 +983,7 @@ std::size_t kSplit(
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
-/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// @param bRespectQuotes if true, escape characters and delimiters inside
 /// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
@@ -667,7 +1006,7 @@ std::size_t kSplit(
 		const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
 		const char  chEscape = '\0',                           // default: ignore escapes
 		bool        bCombineDelimiters = false,                // default: create an element for each delimiter char found
-		bool        bQuotesAreEscapes  = false                 // default: treat double quotes like any other char
+		bool        bRespectQuotes  = false                 // default: treat double quotes like any other char
 		)
 //-----------------------------------------------------------------------------
 {
@@ -675,7 +1014,7 @@ std::size_t kSplit(
 			cAdaptor(cContainer);
 
 	return kSplit(cAdaptor, svBuffer, Delim, Trim, chEscape,
-				  bCombineDelimiters, bQuotesAreEscapes);
+				  bCombineDelimiters, bRespectQuotes);
 }
 
 //-----------------------------------------------------------------------------
@@ -686,7 +1025,7 @@ std::size_t kSplit(
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
-/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// @param bRespectQuotes if true, escape characters and delimiters inside
 /// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
@@ -708,12 +1047,12 @@ Container kSplits(
 			  const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
 			  const char  chEscape = '\0',                           // default: ignore escapes
 			  bool        bCombineDelimiters = false,                // default: create an element for each delimiter char found
-			  bool        bQuotesAreEscapes  = false                 // default: treat double quotes like any other char
+			  bool        bRespectQuotes  = false                 // default: treat double quotes like any other char
 )
 //-----------------------------------------------------------------------------
 {
 	Container cContainer;
-	kSplit(cContainer, svBuffer, Delim, Trim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
+	kSplit(cContainer, svBuffer, Delim, Trim, chEscape, bCombineDelimiters, bRespectQuotes);
 	return cContainer;
 }
 
@@ -726,7 +1065,7 @@ Container kSplits(
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
-/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// @param bRespectQuotes if true, escape characters and delimiters inside
 /// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
@@ -749,12 +1088,12 @@ Container kSplits(
 			  const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
 			  const char  chEscape           = '\0',                 // default: ignore escapes
 			  bool        bCombineDelimiters = false,                // default: create an element for each delimiter char found
-			  bool        bQuotesAreEscapes  = false                 // default: treat double quotes like any other char
+			  bool        bRespectQuotes  = false                 // default: treat double quotes like any other char
 		)
 //-----------------------------------------------------------------------------
 {
 	Container cContainer;
-	kSplit(cContainer, svBuffer, svPairDelim, Delim, Trim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
+	kSplit(cContainer, svBuffer, Delim, svPairDelim, Trim, chEscape, bCombineDelimiters, bRespectQuotes);
 	return cContainer;
 }
 
@@ -770,7 +1109,7 @@ Container kSplits(
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
-/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// @param bRespectQuotes if true, escape characters and delimiters inside
 /// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
@@ -795,15 +1134,15 @@ std::size_t kSplit(
         const KFindSetOfChars Trim     = detail::kASCIISpacesSet, // default: trim all whitespace
         const char  chEscape           = '\0',                 // default: ignore escapes
         bool        bCombineDelimiters = false,                // default: create an element for each delimiter char found
-        bool        bQuotesAreEscapes  = false                 // default: treat double quotes like any other char
+        bool        bRespectQuotes  = false                 // default: treat double quotes like any other char
         )
 //-----------------------------------------------------------------------------
 {
 	detail::container_adaptor::PushBackPair<Container>
-	        cAdaptor(cContainer, Trim, svPairDelim, chEscape);
+	        cAdaptor(cContainer, Trim, svPairDelim, chEscape, bRespectQuotes);
 
 	return kSplit(cAdaptor, svBuffer, Delim, Trim, chEscape,
-	              bCombineDelimiters, bQuotesAreEscapes);
+	              bCombineDelimiters, bRespectQuotes);
 }
 
 //-----------------------------------------------------------------------------
@@ -816,7 +1155,7 @@ std::size_t kSplit(
 /// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 /// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 /// taken for found spaces if defined as delimiter). Defaults to false.
-/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+/// @param bRespectQuotes if true, escape characters and delimiters inside
 /// double quotes are treated as literal chars, and quotes themselves are removed.
 /// No trimming is applied inside the quotes (but outside). The quote has to be the
 /// first character after applied trimming, and trailing content after the closing quote
@@ -840,12 +1179,12 @@ Container kSplits(
 			  const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
 			  const char  chEscape           = '\0',                 // default: ignore escapes
 			  bool        bCombineDelimiters = false,                // default: create an element for each delimiter char found
-			  bool        bQuotesAreEscapes  = false                 // default: treat double quotes like any other char
+			  bool        bRespectQuotes  = false                 // default: treat double quotes like any other char
 	)
 //-----------------------------------------------------------------------------
 {
 	Container cContainer;
-	kSplit(cContainer, svBuffer, svPairDelim, Delim, Trim, chEscape, bCombineDelimiters, bQuotesAreEscapes);
+	kSplit(cContainer, svBuffer, Delim, svPairDelim, Trim, chEscape, bCombineDelimiters, bRespectQuotes);
 	return cContainer;
 }
 

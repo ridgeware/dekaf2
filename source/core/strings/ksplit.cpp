@@ -89,6 +89,24 @@ void StripSuffix(KStringView& svElement, const KFindSetOfChars& Trim)
 } // StripSuffix
 
 //-----------------------------------------------------------------------------
+DEKAF2_ALWAYS_INLINE
+void StripMatchingQuotes(KStringView& sv)
+//-----------------------------------------------------------------------------
+{
+	// strip matching surrounding single or double quotes
+	if (sv.size() >= 2)
+	{
+		auto chFirst = sv.front();
+		if ((chFirst == '"' || chFirst == '\'') && sv.back() == chFirst)
+		{
+			sv.remove_prefix(1);
+			sv.remove_suffix(1);
+		}
+	}
+
+} // StripMatchingQuotes
+
+//-----------------------------------------------------------------------------
 KStringViewPair kSplitToPairInt(
 							 KStringView svBuffer,
 							 KStringView svPairDelim
@@ -129,11 +147,12 @@ KStringViewPair kSplitToPair(
         KStringView svBuffer,
         KStringView svPairDelim,
 		const KFindSetOfChars& Trim,
-        const char  chEscape
+        const char  chEscape,
+        bool        bRespectQuotes
 	)
 //-----------------------------------------------------------------------------
 {
-	if (Trim.empty() && !chEscape)
+	if (Trim.empty() && !chEscape && !bRespectQuotes)
 	{
 		return kSplitToPairInt(svBuffer, svPairDelim);
 	}
@@ -153,6 +172,11 @@ KStringViewPair kSplitToPair(
 
 			StripSuffix(svPair.first, Trim);
 
+			if (bRespectQuotes)
+			{
+				StripMatchingQuotes(svPair.first);
+			}
+
 			if (DEKAF2_LIKELY(!svBuffer.empty()))
 			{
 				if (!StripPrefix(svBuffer, Trim))
@@ -164,6 +188,11 @@ KStringViewPair kSplitToPair(
 				svPair.second = svBuffer;
 
 				StripSuffix(svPair.second, Trim);
+
+				if (bRespectQuotes)
+				{
+					StripMatchingQuotes(svPair.second);
+				}
 			}
 		}
 		else
@@ -171,6 +200,11 @@ KStringViewPair kSplitToPair(
 			svPair.first = svBuffer;
 
 			StripSuffix(svPair.first, Trim);
+
+			if (bRespectQuotes)
+			{
+				StripMatchingQuotes(svPair.first);
+			}
 
 			// there is no second element
 		}
@@ -190,7 +224,7 @@ std::size_t kSplit(
         const KFindSetOfChars& Trim    = detail::kASCIISpacesSet, // default: trim all whitespace
         const char  chEscape = '\0',                 // default: ignore escapes
         bool        bCombineDelimiters = false,      // default: create an element for each delimiter char found
-        bool        bQuotesAreEscapes  = false       // default: treat double quotes like any other char
+        bool        bRespectQuotes     = false       // default: treat double quotes like any other char
 );
 #endif // of DEKAF2_IS_MSC
 

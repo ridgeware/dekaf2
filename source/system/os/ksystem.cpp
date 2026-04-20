@@ -1638,9 +1638,9 @@ KString kWhich(KStringView sCommand)
 	}
 
 #ifdef DEKAF2_IS_WINDOWS
-	static constexpr KStringView sPathSeparator = ";";
+	static constexpr char sPathSeparator = ';';
 #else
-	static constexpr KStringView sPathSeparator = ":";
+	static constexpr char sPathSeparator = ':';
 #endif
 
 	KString sFullPath;

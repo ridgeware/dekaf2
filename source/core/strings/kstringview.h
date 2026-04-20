@@ -1265,7 +1265,7 @@ public:
 	/// @param chEscape Escape character for delimiters. Defaults to '\0' (disabled).
 	/// @param bCombineDelimiters if true skips consecutive delimiters (an action always
 	/// taken for found spaces if defined as delimiter). Defaults to false.
-	/// @param bQuotesAreEscapes if true, escape characters and delimiters inside
+	/// @param bRespectQuotes if true, escape characters and delimiters inside
 	/// double quotes are treated as literal chars, and quotes themselves are removed.
 	/// No trimming is applied inside the quotes (but outside). The quote has to be the
 	/// first character after applied trimming, and trailing content after the closing quote

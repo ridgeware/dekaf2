@@ -5,7 +5,7 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstringutils.h>
-#include <dekaf2/web/xml/kxml.h>
+#include <dekaf2/data/xml/kxml.h>
 
 
 using namespace dekaf2;

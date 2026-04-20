@@ -89,6 +89,118 @@ void ksplit_bench()
 		}
 	}
 
+	// -----------------------------------------------------------------
+	// Fast-Path vs General-Path direct comparison on identical input.
+	// Fast-Path  = kSplit(container, sv, char)         -> ksplit.h ~L71
+	// General-Path = kSplit(container, sv, KFindSetOfChars, ...) -> ksplit.h ~L174
+	// The difference is ONLY the delimiter literal quote type (' vs ").
+	// -----------------------------------------------------------------
+
+	{
+		dekaf2::KProf prof("FP vs GP:  5 tokens, char ','");
+		prof.SetMultiplier(50000);
+		for (int ct = 0; ct < 50000; ++ct)
+		{
+			std::vector<KStringView> v;
+			kSplit(v, svFewTokens, ',');
+			KProf::Force(&v);
+		}
+	}
+	{
+		dekaf2::KProf prof("FP vs GP:  5 tokens, string \",\"");
+		prof.SetMultiplier(50000);
+		for (int ct = 0; ct < 50000; ++ct)
+		{
+			std::vector<KStringView> v;
+			kSplit(v, svFewTokens, ",");
+			KProf::Force(&v);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("FP vs GP: 26 tokens, char ','");
+		prof.SetMultiplier(50000);
+		for (int ct = 0; ct < 50000; ++ct)
+		{
+			std::vector<KStringView> v;
+			kSplit(v, svManyTokens, ',');
+			KProf::Force(&v);
+		}
+	}
+	{
+		dekaf2::KProf prof("FP vs GP: 26 tokens, string \",\"");
+		prof.SetMultiplier(50000);
+		for (int ct = 0; ct < 50000; ++ct)
+		{
+			std::vector<KStringView> v;
+			kSplit(v, svManyTokens, ",");
+			KProf::Force(&v);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("FP vs GP: 200 tokens, char ','");
+		prof.SetMultiplier(5000);
+		for (int ct = 0; ct < 5000; ++ct)
+		{
+			std::vector<KStringView> v;
+			kSplit(v, sLongCSV, ',');
+			KProf::Force(&v);
+		}
+	}
+	{
+		dekaf2::KProf prof("FP vs GP: 200 tokens, string \",\"");
+		prof.SetMultiplier(5000);
+		for (int ct = 0; ct < 5000; ++ct)
+		{
+			std::vector<KStringView> v;
+			kSplit(v, sLongCSV, ",");
+			KProf::Force(&v);
+		}
+	}
+
+	{
+		dekaf2::KProf prof("FP vs GP: space delim, char ' '");
+		prof.SetMultiplier(50000);
+		for (int ct = 0; ct < 50000; ++ct)
+		{
+			std::vector<KStringView> v;
+			kSplit(v, svSpaces, ' ');
+			KProf::Force(&v);
+		}
+	}
+	{
+		dekaf2::KProf prof("FP vs GP: space delim, string \" \"");
+		prof.SetMultiplier(50000);
+		for (int ct = 0; ct < 50000; ++ct)
+		{
+			std::vector<KStringView> v;
+			kSplit(v, svSpaces, " ");
+			KProf::Force(&v);
+		}
+	}
+
+	// Member Split<>() form - the most common way consumers invoke split.
+	// .Split('x') triggers fast path; .Split("x") goes through general path.
+	{
+		dekaf2::KProf prof("FP vs GP: .Split<vector>(',') member");
+		prof.SetMultiplier(50000);
+		for (int ct = 0; ct < 50000; ++ct)
+		{
+			auto v = svManyTokens.Split(',');
+			KProf::Force(&v);
+		}
+	}
+	{
+		dekaf2::KProf prof("FP vs GP: .Split<vector>(\",\") member");
+		prof.SetMultiplier(50000);
+		for (int ct = 0; ct < 50000; ++ct)
+		{
+			auto v = svManyTokens.Split(",");
+			KProf::Force(&v);
+		}
+	}
+
 	// kJoin benchmarks
 	std::vector<KStringView> vFew  = { "one", "two", "three", "four", "five" };
 	std::vector<KStringView> vMany;

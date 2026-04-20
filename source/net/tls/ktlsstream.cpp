@@ -42,6 +42,7 @@
 #include <dekaf2/net/tls/ktlsstream.h>
 #include <dekaf2/net/address/kresolve.h>
 #include <dekaf2/core/logging/klog.h>
+#include <boost/asio/ssl/error.hpp>
 #include <openssl/opensslv.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -221,6 +222,19 @@ std::streamsize KTLSStream::direct_read_some(void* sBuffer, std::streamsize iCou
 		{
 			return -1;
 		}
+	}
+
+	// If a previous read already reported EOF or an un-clean TLS shutdown
+	// (stream_truncated — the peer closed the TCP connection without sending
+	// a TLS close_notify alert; common with embedded HTTP servers like many
+	// IoT devices, and some older Apache/nginx setups), don't start another
+	// async_read_some: it would just block until the per-op  timeout fires
+	// (up to 15s default), delaying every request that ends on a Connection:
+	// close response.  Return 0 to signal EOF to the streambuf.
+	if (m_Stream.ec == boost::asio::error::eof
+	 || m_Stream.ec == boost::asio::ssl::error::stream_truncated)
+	{
+		return 0;
 	}
 
 	std::streamsize iRead { 0 };

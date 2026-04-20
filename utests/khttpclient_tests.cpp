@@ -3,6 +3,9 @@
 #include <dekaf2/http/client/khttpclient.h>
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/bits/kfindsetofchars.h>
+#include <dekaf2/core/format/kformat.h>
+#include <dekaf2/containers/associative/kassociative.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/system/os/ksystem.h>
@@ -316,52 +319,82 @@ TEST_CASE("KHTTPClient") {
 		CHECK ( sHeader.contains("uri=\"/dir/index.html\"") );
 		CHECK ( sHeader.contains("qop=auth") );
 
-		auto ExtractField = [&](KStringView sKey) -> KString
-		{
-			auto iPos = sHeader.find(sKey);
-			if (iPos == KString::npos) return {};
-			iPos += sKey.size();
-			// skip '=' and optional quote
-			if (iPos < sHeader.size() && sHeader[iPos] == '=') ++iPos;
-			bool bQuoted = (iPos < sHeader.size() && sHeader[iPos] == '"');
-			if (bQuoted) ++iPos;
-			auto iEnd = iPos;
-			while (iEnd < sHeader.size())
-			{
-				char c = sHeader[iEnd];
-				if (bQuoted && c == '"') break;
-				if (!bQuoted && (c == ',' || c == ' ')) break;
-				++iEnd;
-			}
-			return KString(KStringView(sHeader).substr(iPos, iEnd - iPos));
-		};
+		// strip the "Digest " scheme prefix, then split the comma-separated
+		// parameter list into a key/value map. bRespectQuotes=true removes
+		// the surrounding quotes from quoted values.
+		KStringView sParams(sHeader);
+		sParams.remove_prefix("Digest ");
 
-		KString sCNonce   = ExtractField("cnonce");
-		KString sNC       = ExtractField("nc");
-		KString sResponse = ExtractField("response");
+		constexpr KFindSetOfChars ByComma(",");
+		auto Parts = sParams.Split<KMap<KStringView, KStringView>>(
+		                 ByComma,                     // outer delimiter
+		                 "=",                         // pair delimiter
+		                 detail::kASCIISpacesSet,     // trim whitespace around tokens
+		                 '\0',                        // no escape char
+		                 false,                       // don't combine delimiters
+		                 true                         // strip surrounding quotes
+		             );
 
+		auto sCNonce   = Parts["cnonce"];
+		auto sNC       = Parts["nc"];
+		auto sResponse = Parts["response"];
+
+		INFO("Digest header: " << sHeader);
 		CHECK ( !sCNonce.empty() );
 		CHECK ( sNC == "00000001" );
 		CHECK ( sResponse.size() == 32 );
 
-		// RFC-2617-correct recomputation
-		KString sHA1_input = "Mufasa:testrealm@host.com:Circle Of Life";
-		KString sHA2_input = "GET:/dir/index.html";
-		KString sHA1 = KMD5(sHA1_input).HexDigest();
-		KString sHA2 = KMD5(sHA2_input).HexDigest();
-		KString sExpectedInput = sHA1 + ":dcd98b7102dd2f0e8b11d0f600bfb0c093:"
-		                       + sNC + ":" + sCNonce + ":auth:" + sHA2;
-		KString sExpected = KMD5(sExpectedInput).HexDigest();
+		// RFC-2617-correct recomputation, mirroring the step-by-step KMD5 pattern
+		// the implementation uses (to avoid any subtle difference from one-shot
+		// KMD5 construction).
+		KMD5 HA1;
+		HA1  = KStringView("Mufasa");
+		HA1 += ":";
+		HA1 += "testrealm@host.com";
+		HA1 += ":";
+		HA1 += "Circle Of Life";
 
-		INFO("Digest header: " << sHeader);
+		KMD5 HA2;
+		HA2  = KStringView("GET");
+		HA2 += ":";
+		HA2 += "/dir/index.html";
+
+		KMD5 Expected;
+		Expected  = HA1.HexDigest();
+		Expected += ":";
+		Expected += "dcd98b7102dd2f0e8b11d0f600bfb0c093";
+		Expected += ":";
+		Expected += sNC;
+		Expected += ":";
+		Expected += sCNonce;
+		Expected += ":";
+		Expected += "auth";
+		Expected += ":";
+		Expected += HA2.HexDigest();
+		KString sExpected = Expected.HexDigest();
+
+		INFO("HA1 = " << HA1.HexDigest());
+		INFO("HA2 = " << HA2.HexDigest());
 		CHECK ( sResponse == sExpected );
 
-		// Also check the buggy formula (MD5(user:password) without realm) does NOT match —
-		// that's what the old dekaf2 emitted and every RFC-compliant server rejected.
-		KString sBuggyHA1 = KMD5(KString("Mufasa:Circle Of Life")).HexDigest();
-		KString sBuggyExpected = KMD5(sBuggyHA1 + ":dcd98b7102dd2f0e8b11d0f600bfb0c093:"
-		                              + sNC + ":" + sCNonce + ":auth:" + sHA2).HexDigest();
-		CHECK ( sResponse != sBuggyExpected );
+		// Also check the buggy formula (MD5(user:password) without realm) does NOT match
+		KMD5 BuggyHA1;
+		BuggyHA1  = KStringView("Mufasa");
+		BuggyHA1 += ":";
+		BuggyHA1 += "Circle Of Life";
+		KMD5 Buggy;
+		Buggy  = BuggyHA1.HexDigest();
+		Buggy += ":";
+		Buggy += "dcd98b7102dd2f0e8b11d0f600bfb0c093";
+		Buggy += ":";
+		Buggy += sNC;
+		Buggy += ":";
+		Buggy += sCNonce;
+		Buggy += ":";
+		Buggy += "auth";
+		Buggy += ":";
+		Buggy += HA2.HexDigest();
+		CHECK ( sResponse != Buggy.HexDigest() );
 	}
 
 }

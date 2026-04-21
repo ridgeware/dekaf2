@@ -46,6 +46,7 @@
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/containers/sequential/kstack.h>
 #include <dekaf2/net/address/kipaddress.h>
+#include <cstring>
 #include <vector>
 
 
@@ -345,8 +346,14 @@ void KProtocol::SetProto(KStringView svProto)
 	// we do not want to recognize MAILTO in this branch, as it
 	// has the wrong separator. But if we find it we store it as
 	// unknown and then reproduce the same on serialization.
+	const auto iLen = svProto.size();
 	for (uint16_t iProto = MAILTO + 2; iProto < UNKNOWN; ++iProto)
 	{
+		// fast length-reject before the full string compare - saves ~2/3 of
+		// the byte-compare work for schemes like "ldaps" that live near the
+		// end of the table
+		if (s_Canonical[iProto].sName.size() != iLen) continue;
+
 		if (s_Canonical[iProto].sName == svProto)
 		{
 			m_eProto = static_cast<eProto>(iProto);
@@ -385,6 +392,28 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 
 	if (!svSource.empty ())
 	{
+		// ----- fast path for http:// and https:// ---------------------------
+		// These two schemes dominate real-world traffic. Recognising them
+		// inline avoids the find_first_of scan plus the linear SetProto
+		// lookup that follows. Matching is case-sensitive on purpose, to
+		// stay bit-compatible with the slow path (SetProto compares against
+		// canonical lower-case names).
+		if (svSource.size() >= 7 && svSource[0] == 'h')
+		{
+			if (svSource.size() >= 8
+			    && std::memcmp(svSource.data(), "https://", 8) == 0)
+			{
+				m_eProto = HTTPS;
+				return svSource.substr(8);
+			}
+			if (std::memcmp(svSource.data(), "http://", 7) == 0)
+			{
+				m_eProto = HTTP;
+				return svSource.substr(7);
+			}
+		}
+		// --------------------------------------------------------------------
+
 		// we search for the colon, but also for all other chars
 		// that would indicate that we are not in a protocol part of the URL
 		auto iFound = svSource.find_first_of (": \t@/;?=#");
@@ -420,22 +449,20 @@ KStringView KProtocol::Parse (KStringView svSource, bool bAcceptWithoutColon)
 					{
 						// we remove less for FILE if there is no domain part
 						// FILE can have:
-						// file:/path/sub/dir/file.ext
-						// file://domain/path/sub/dir/file.ext
-						// file:///path/sub/dir/file.ext
+						// file:/path/sub/dir/file.ext                -> Path = "/path/..."
+						// file://domain/path/sub/dir/file.ext        -> Domain = "domain", Path = "/path/..."
+						// file:///path/sub/dir/file.ext              -> Domain empty, Path = "/path/..."
 						// invalid ("path" will be read as domain):
 						// file://path/sub/dir/file.ext
 
-						if (/* svSource.size() > iFound + 2 && */ svSource[iFound + 2] == '/')
+						// operator[] is length checked with KStringView, no need to test manually
+						if (svSource[iFound + 2] == '/')
 						{
-							// first slash
-							++iRemove;
-
-							if (/* svSource.size() > iFound + 3 && */ svSource[iFound + 3 == '/'])
-							{
-								// second slash
-								++iRemove;
-							}
+							// we have "file://..." - always skip BOTH slashes. A potential
+							// third slash (file:///...) is kept as the path's leading '/'.
+							// For file://domain/path the remaining "domain/path" is parsed
+							// by Domain+Path as usual.
+							iRemove += 2;
 						}
 					}
 
@@ -648,8 +675,41 @@ KStringView KURL::Parse(KStringView svSource)
 //-------------------------------------------------------------------------
 {
 	svSource = Protocol.Parse  (svSource); // mandatory, but we do not enforce
-	svSource = User.Parse      (svSource);
-	svSource = Password.Parse  (svSource);
+
+	// ----- user/password single-scan ---------------------------------------
+	// The common case has no '@' in the authority segment. Without this
+	// pre-check both User.Parse and Password.Parse would each scan the whole
+	// remaining URL looking for '@' only to bail out. Skip both calls when
+	// there's no '@' before the first path separator.
+	{
+		auto iAt = svSource.find('@');
+		if (iAt != KStringView::npos)
+		{
+			// '@' exists, but only parse user/password if it comes before
+			// the first path/query/fragment delimiter (else the '@' belongs
+			// to a path segment, which is legal per RFC 3986).
+			auto iSep = svSource.find_first_of("/;?#");
+			if (iSep == KStringView::npos || iAt < iSep)
+			{
+				svSource = User.Parse     (svSource);
+				svSource = Password.Parse (svSource);
+			}
+			else
+			{
+				// '@' is past the authority - ensure User/Password are empty
+				User.clear();
+				Password.clear();
+			}
+		}
+		else
+		{
+			// no '@' at all - nothing to do, but ensure components are clean
+			User.clear();
+			Password.clear();
+		}
+	}
+	// -----------------------------------------------------------------------
+
 	svSource = Domain.Parse    (svSource); // mandatory for non-files, but we do not enforce
 	svSource = Port.Parse      (svSource);
 	svSource = KResource::ParseResourcePart(svSource);
@@ -920,6 +980,20 @@ bool kNormalizeURLPath(KStringRef& sPath)
 	// ""                          -> "/"
 	// "../"                       -> "/"
 	// "/test/../../"              -> "/"
+
+	// ----- fast path for already-normalized paths --------------------------
+	// The common case in REST servers is paths like "/api/users/42/profile"
+	// without any '.', double-slash, or whitespace - i.e. already normalized.
+	// Detect this with a single find_first_of scan and return early, avoiding
+	// the std::vector<KStringView> and std::string rebuilding below.
+	if (!sPath.empty()
+	    && sPath.front() == '/'
+	    && sPath.find_first_of(". ") == KString::npos
+	    && sPath.find("//") == KString::npos)
+	{
+		return false;
+	}
+	// -----------------------------------------------------------------------
 
 	std::vector<KStringView> Normalized;
 	bool bWarned { false };

@@ -180,32 +180,57 @@ DEKAF2_PUBLIC
 void kUrlDecode (const StringView& sSource, String& sTarget, bool bPlusAsSpace = false)
 //-----------------------------------------------------------------------------
 {
-	if (!sSource.empty())
-	{
-		sTarget.reserve (sTarget.size() + sSource.size());
-		auto current = sSource.begin();
-		auto end     = sSource.end();
+	if (sSource.empty()) return;
 
-		while (current < end)
+	// ----- fast path --------------------------------------------------------
+	// The common case in URL parsing (Domain, Path, Fragment) has no escapes
+	// at all, so we can skip the byte-by-byte copy loop and do a single
+	// bulk append. We only enable this fast path when `bPlusAsSpace` is
+	// false: for the Query component `+` is legitimate encoded data in
+	// typically short values where a SIMD-size `find_first_of("%+")` costs
+	// more than the byte-by-byte loop itself.
+	typename StringView::size_type iSpecial = 0;
+	if (!bPlusAsSpace)
+	{
+		iSpecial = sSource.find(typename StringView::value_type('%'));
+		if (iSpecial == StringView::npos)
 		{
-			if (*current == '+')
-			{
-				sTarget    += bPlusAsSpace ? ' ' : *current;
-				++current;
-			}
-			else if (*current == '%'
-				&& end - current > 2
-				&& KASCII::kIsXDigit(*(current + 1))
-				&& KASCII::kIsXDigit(*(current + 2)))
-			{
-				auto iValue = detail::kx2c(*(current + 1), *(current + 2));
-				sTarget    += static_cast<typename String::value_type>(iValue);
-				current    += 3;
-			}
-			else
-			{
-				sTarget    += *current++;
-			}
+			// nothing to decode - one append, done
+			sTarget.append(sSource.data(), sSource.size());
+			return;
+		}
+	}
+	// ------------------------------------------------------------------------
+
+	sTarget.reserve (sTarget.size() + sSource.size());
+	// copy the clean prefix (if any) in one shot, then fall through to the
+	// character-by-character loop for the remaining bytes
+	if (iSpecial > 0)
+	{
+		sTarget.append(sSource.data(), iSpecial);
+	}
+	auto current = sSource.begin() + iSpecial;
+	auto end     = sSource.end();
+
+	while (current < end)
+	{
+		if (*current == '+')
+		{
+			sTarget    += bPlusAsSpace ? ' ' : *current;
+			++current;
+		}
+		else if (*current == '%'
+			&& end - current > 2
+			&& KASCII::kIsXDigit(*(current + 1))
+			&& KASCII::kIsXDigit(*(current + 2)))
+		{
+			auto iValue = detail::kx2c(*(current + 1), *(current + 2));
+			sTarget    += static_cast<typename String::value_type>(iValue);
+			current    += 3;
+		}
+		else
+		{
+			sTarget    += *current++;
 		}
 	}
 

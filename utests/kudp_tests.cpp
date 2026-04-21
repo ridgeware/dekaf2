@@ -432,6 +432,12 @@ TEST_CASE("KDTLSSocket")
 		CHECK ( !Socket.HasError()        );
 	}
 
+#if DEKAF2_HAS_RELIABLE_DTLS
+	// the DTLS server pattern (memory-BIO pair with SSL_OP_COOKIE_EXCHANGE)
+	// only works reliably with OpenSSL >= 1.1.1; on older releases (notably
+	// Debian Stretch's 1.1.0) handshakes intermittently time out. See
+	// CMakeLists.txt for the capability flag that gates this.
+
 	SECTION("DTLS echo via server and client")
 	{
 		// start a DTLS server
@@ -490,6 +496,7 @@ TEST_CASE("KDTLSSocket")
 		CHECK ( sReceivedData  == sMessage );
 		CHECK ( sReply         == sMessage );
 	}
+#endif // DEKAF2_HAS_RELIABLE_DTLS
 }
 
 
@@ -504,6 +511,10 @@ TEST_CASE("KDTLSStream")
 		KDTLSStream Stream;
 		CHECK ( Stream.is_open() == false );
 	}
+
+#if DEKAF2_HAS_RELIABLE_DTLS
+	// see the note on the KDTLSSocket test case above - DTLS handshakes are
+	// not reliable on OpenSSL < 1.1.1, so these sections are skipped there.
 
 	SECTION("DTLS stream echo via server")
 	{
@@ -652,6 +663,7 @@ TEST_CASE("KDTLSStream")
 
 		CHECK ( sReply == "context test" );
 	}
+#endif // DEKAF2_HAS_RELIABLE_DTLS
 }
 
 #endif // DEKAF2_IS_WINDOWS

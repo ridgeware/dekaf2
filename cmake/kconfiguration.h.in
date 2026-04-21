@@ -70,6 +70,10 @@
 #cmakedefine DEKAF2_USE_EXCEPTIONS 1
 #cmakedefine DEKAF2_USE_DEKAF2_STRINGVIEW_AS_KSTRINGVIEW 1
 #cmakedefine DEKAF2_USE_OPTIMIZED_STRING_FIND 1
+
+// needle-length cutoff for dekaf2::memmem() to switch from NEON to libc;
+// see CMakeLists.txt for tuning notes
+#define DEKAF2_MEMMEM_NEON_CUTOFF @DEKAF2_MEMMEM_NEON_CUTOFF@
 #cmakedefine DEKAF2_HAS_STD_FORMAT 1
 #cmakedefine DEKAF2_FORCE_FMTLIB_OVER_STD_FORMAT 1
 #cmakedefine DEKAF2_USE_SYSTEM_FMTLIB 1

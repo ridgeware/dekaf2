@@ -32,6 +32,35 @@ void SetEvery(std::string& sStr, char ch, std::string::size_type iEvery)
 	}
 }
 
+// Call the memrchr/memmem implementation that dekaf2 actually uses on this
+// platform, so we benchmark exactly the code path that runs in production.
+//
+// memmem: dekaf2::memmem is the single entry point on every platform; it
+// internally routes short needles to dekaf2's NEON SIMD (wins over glibc's
+// Two-Way algorithm) and large needles to ::memmem on glibc.
+//
+// memrchr: dekaf2::memrchr only exists on non-glibc platforms (glibc's
+// memrchr is faster than our NEON loop, so we stay out of the way there).
+//
+// NB: the haystack parameter is intentionally non-const. glibc provides
+// `extern "C++"` overloads of memrchr that preserve const-ness and return
+// `const void*` for a `const void*` input, which is not convertible back
+// to `void*` here. Taking `void*` matches the non-const overload.
+inline void* bench_memrchr(void* s, int c, std::size_t n) noexcept
+{
+#if DEKAF2_IS_MACOS
+	return dekaf2::memrchr(s, c, n);
+#else
+	return ::memrchr(s, c, n);
+#endif
+}
+
+inline void* bench_memmem(void* haystack, std::size_t iHaystackSize,
+                          const void* needle, std::size_t iNeedleSize) noexcept
+{
+	return dekaf2::memmem(haystack, iHaystackSize, needle, iNeedleSize);
+}
+
 } // anon
 
 void kmemsearch_bench()
@@ -56,7 +85,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memrchr(s.data(), 'd', s.size());
+				auto* p = bench_memrchr(s.data(), 'd', s.size());
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -68,7 +97,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memrchr(s.data(), 'd', s.size());
+				auto* p = bench_memrchr(s.data(), 'd', s.size());
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -80,7 +109,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memrchr(s.data(), 'd', s.size());
+				auto* p = bench_memrchr(s.data(), 'd', s.size());
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -96,7 +125,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memrchr(s.data(), 'd', s.size());
+				auto* p = bench_memrchr(s.data(), 'd', s.size());
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -108,7 +137,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memrchr(s.data(), 'd', s.size());
+				auto* p = bench_memrchr(s.data(), 'd', s.size());
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -120,7 +149,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memrchr(s.data(), 'd', s.size());
+				auto* p = bench_memrchr(s.data(), 'd', s.size());
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -135,7 +164,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memrchr(s.data(), 'Z', s.size());
+				auto* p = bench_memrchr(s.data(), 'Z', s.size());
 				if (p != nullptr) KProf::Force();
 			}
 		}
@@ -146,7 +175,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memrchr(s.data(), 'Z', s.size());
+				auto* p = bench_memrchr(s.data(), 'Z', s.size());
 				if (p != nullptr) KProf::Force();
 			}
 		}
@@ -157,7 +186,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memrchr(s.data(), 'Z', s.size());
+				auto* p = bench_memrchr(s.data(), 'Z', s.size());
 				if (p != nullptr) KProf::Force();
 			}
 		}
@@ -189,7 +218,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n8, 8);
+				auto* p = bench_memmem(s.data(), s.size(), n8, 8);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -201,7 +230,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n8, 8);
+				auto* p = bench_memmem(s.data(), s.size(), n8, 8);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -213,7 +242,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n8, 8);
+				auto* p = bench_memmem(s.data(), s.size(), n8, 8);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -229,7 +258,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n2, 2);
+				auto* p = bench_memmem(s.data(), s.size(), n2, 2);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -241,7 +270,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n2, 2);
+				auto* p = bench_memmem(s.data(), s.size(), n2, 2);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -257,7 +286,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n16, 16);
+				auto* p = bench_memmem(s.data(), s.size(), n16, 16);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -269,7 +298,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n16, 16);
+				auto* p = bench_memmem(s.data(), s.size(), n16, 16);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -285,7 +314,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n64, 64);
+				auto* p = bench_memmem(s.data(), s.size(), n64, 64);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -297,7 +326,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n64, 64);
+				auto* p = bench_memmem(s.data(), s.size(), n64, 64);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -312,7 +341,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n8, 8);
+				auto* p = bench_memmem(s.data(), s.size(), n8, 8);
 				if (p != nullptr) KProf::Force();
 			}
 		}
@@ -323,7 +352,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n8, 8);
+				auto* p = bench_memmem(s.data(), s.size(), n8, 8);
 				if (p != nullptr) KProf::Force();
 			}
 		}
@@ -339,7 +368,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n8, 8);
+				auto* p = bench_memmem(s.data(), s.size(), n8, 8);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -351,7 +380,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n8, 8);
+				auto* p = bench_memmem(s.data(), s.size(), n8, 8);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -368,7 +397,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200000; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n8, 8);
+				auto* p = bench_memmem(s.data(), s.size(), n8, 8);
 				if (p == nullptr) KProf::Force();
 			}
 		}
@@ -381,7 +410,7 @@ void kmemsearch_bench()
 			for (int ct = 0; ct < 200; ++ct)
 			{
 				KProf::Force(s.data());
-				auto* p = DEKAF2_PREFIX memmem(s.data(), s.size(), n8, 8);
+				auto* p = bench_memmem(s.data(), s.size(), n8, 8);
 				if (p == nullptr) KProf::Force();
 			}
 		}

@@ -74,17 +74,26 @@ DEKAF2_NAMESPACE_BEGIN
 
 #ifndef __GLIBC__
 //-----------------------------------------------------------------------------
-/// add a memrchr() to the dekaf2 namespace if not provided - will use SSE4 if available
+/// add a memrchr() to the dekaf2 namespace if not provided - will use SSE4 if available.
+/// glibc ships a hand-optimized ARM64/x86 memrchr that outperforms our NEON
+/// loop, so we leave memrchr to libc there.
 extern DEKAF2_PUBLIC void* memrchr(const void* s, int c, size_t n);
 //-----------------------------------------------------------------------------
+#endif
 
-/// libc has a very slow memmem implementation (about 100 times slower than glibc),
-/// so we write our own, which is only about 2 times slower, by overloading the
-/// function signature in the dekaf2 namespace
+/// Platform-adaptive memmem. Always provided in the dekaf2 namespace so that
+/// callers can route through one uniform entry point:
+///   - glibc on ARM64: dekaf2's NEON first-and-last-byte filter for needles
+///     up to 16 bytes (benchmarks on M1 Pro: 2B -> 25x, 8B -> 4x, 16B -> 2x
+///     faster than glibc's Two-Way algorithm). Forwards to ::memmem for
+///     larger needles where glibc's tuned implementation wins.
+///   - Apple libc / musl / BSD on ARM64: dekaf2's NEON kMemMem for every
+///     size - Apple libc's own memmem is ~100x slower than glibc's.
+///   - non-ARM64 targets: scalar memchr + memcmp fallback (only needed on
+///     non-glibc where ::memmem is unavailable or slow).
 //-----------------------------------------------------------------------------
 extern DEKAF2_PUBLIC void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize);
 //-----------------------------------------------------------------------------
-#endif
 
 DEKAF2_NAMESPACE_END
 

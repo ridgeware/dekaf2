@@ -54,7 +54,7 @@ DEKAF2_NAMESPACE_BEGIN
 void* memrchr(const void* s, int c, size_t n)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_NEON_MEMSEARCH
+#if DEKAF2_HAS_NEON_MEMRCHR
 	// ARM64 NEON path (Apple Silicon, FreeBSD/OpenBSD ARM64, ...)
 	return DEKAF2_PREFIX detail::neon::kMemRChr(s, c, n);
 #else
@@ -82,19 +82,50 @@ void* memrchr(const void* s, int c, size_t n)
 	}
 	return nullptr;
 
-#endif // DEKAF2_HAS_NEON_MEMSEARCH
+#endif // DEKAF2_HAS_NEON_MEMRCHR
 
 } // memrchr
+
+#endif // of __GLIBC__ (memrchr)
 
 //-----------------------------------------------------------------------------
 void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, size_t iNeedleSize)
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_HAS_NEON_MEMSEARCH
-	// ARM64 NEON path: first+last byte filter, ~2x typical / ~30x worst case
-	return DEKAF2_PREFIX detail::neon::kMemMem(haystack, iHaystackSize, needle, iNeedleSize);
-#else
+#if DEKAF2_HAS_NEON
+	// ARM64 NEON first-and-last-byte filter. Benchmarks on M1 Pro show
+	// this wins big over glibc 2.34's Two-Way algorithm for short needles
+	// (2B -> ~25x, 8B -> ~4x, 16B -> ~2x faster) and loses to glibc for
+	// longer needles (64B -> ~2x slower). We therefore use the NEON path
+	// up to the configured cutoff and hand larger needles off to libc's
+	// tuned memmem when we are on glibc; on non-glibc targets our NEON
+	// path is still the best available option for every size (Apple
+	// libc's memmem in particular is ~100x slower than glibc's).
+	//
+	// The cutoff is configurable via the DEKAF2_MEMMEM_NEON_CUTOFF CMake
+	// option because future glibc versions may shift the crossover
+	// point; see CMakeLists.txt for details.
+#ifndef DEKAF2_MEMMEM_NEON_CUTOFF
+	#define DEKAF2_MEMMEM_NEON_CUTOFF 16
+#endif
+	constexpr std::size_t iNeonCutoff = DEKAF2_MEMMEM_NEON_CUTOFF;
 
+	if (iNeedleSize <= iNeonCutoff)
+	{
+		return DEKAF2_PREFIX detail::neon::kMemMem(haystack, iHaystackSize, needle, iNeedleSize);
+	}
+  #ifdef __GLIBC__
+	return ::memmem(haystack, iHaystackSize, needle, iNeedleSize);
+  #else
+	return DEKAF2_PREFIX detail::neon::kMemMem(haystack, iHaystackSize, needle, iNeedleSize);
+  #endif
+#else
+  #ifdef __GLIBC__
+	// no NEON, but glibc has an excellent SIMD memmem on every architecture
+	return ::memmem(haystack, iHaystackSize, needle, iNeedleSize);
+  #else
+	// no NEON, no glibc: scalar memchr + memcmp loop. Still faster than
+	// Apple's two-way implementation.
 	if (!iNeedleSize || !needle || !haystack)
 	{
 		// an empty needle matches the start of any haystack
@@ -125,13 +156,10 @@ void* memmem(const void* haystack, size_t iHaystackSize, const void *needle, siz
 		iHaystackSize -= iAdvance;
 	}
 
-	// no match
 	return nullptr;
-
-#endif // DEKAF2_HAS_NEON_MEMSEARCH
+  #endif
+#endif
 
 } // memmem
-
-#endif // of __GLIBC__
 
 DEKAF2_NAMESPACE_END

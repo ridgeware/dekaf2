@@ -68,14 +68,15 @@
 	#define DEKAF2_HAS_NEON 0
 #endif
 
-// Subset gate: only when we actually need to override libc's memrchr and
-// memmem. glibc ships tuned NEON versions of both, so we leave those alone
-// and only route kMemRChr/kMemMem into dekaf2's private memrchr/memmem in
-// kstring_view.cpp on the non-glibc platforms (Apple libc, musl, ...).
+// Subset gate for the NEON memrchr override. glibc ships a hand-optimized
+// memrchr that outperforms our NEON loop, so we route kMemRChr into dekaf2's
+// private memrchr only on non-glibc platforms (Apple libc, musl, ...).
+// kMemMem in contrast is always used (for needles <= 16 bytes) because it
+// beats glibc's Two-Way algorithm too - see kstring_view.cpp.
 #if DEKAF2_HAS_NEON && !defined(__GLIBC__)
-	#define DEKAF2_HAS_NEON_MEMSEARCH 1
+	#define DEKAF2_HAS_NEON_MEMRCHR 1
 #else
-	#define DEKAF2_HAS_NEON_MEMSEARCH 0
+	#define DEKAF2_HAS_NEON_MEMRCHR 0
 #endif
 
 #if DEKAF2_HAS_NEON

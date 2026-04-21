@@ -77,15 +77,18 @@ std::size_t kFind(const KStringView haystack,
 		return npos;
 	}
 
-	// glibc has an excellent memmem implementation, so we use it if available.
-	// libc has a very slow memmem implementation (about 100 times slower than glibc),
-	// so we use our own, which is only about 2 times slower, by overloading the
-	// function signature in the dekaf2 namespace
-
-	auto found = static_cast<const char*>(memmem(haystack.data() + pos,
-												 haystack.size() - pos,
-												 needle.data(),
-												 iNeedleSize));
+	// dekaf2::memmem picks the best available implementation per platform:
+	// dekaf2's NEON first-and-last-byte filter for short needles (up to
+	// 16 bytes) where it beats glibc's Two-Way algorithm, and forwards to
+	// glibc's tuned ::memmem for larger needles. On non-glibc targets it
+	// always uses the NEON path (Apple libc's memmem is ~100x slower).
+	// Qualified call: on glibc both ::memmem and dekaf2::memmem are visible
+	// through the enclosing dekaf2 namespace, so unqualified lookup would
+	// be ambiguous there.
+	auto found = static_cast<const char*>(DEKAF2_PREFIX memmem(haystack.data() + pos,
+	                                                           haystack.size() - pos,
+	                                                           needle.data(),
+	                                                           iNeedleSize));
 
 	if (DEKAF2_UNLIKELY(!found))
 	{

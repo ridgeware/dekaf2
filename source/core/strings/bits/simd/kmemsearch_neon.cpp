@@ -257,7 +257,9 @@ void* kMemMem(const void* haystack,
 	//          being restarted very often, which kills throughput. In that
 	//          case we switch to the NEON first-and-last-byte filter, which
 	//          processes 16 candidate positions per iteration regardless of
-	//          match density.
+	//          match density - except on GCC + glibc, where we instead hand
+	//          off to libc's Two-Way memmem (see the switch below for the
+	//          rationale).
 	//
 	// This keeps the normal-case performance equivalent to Apple's memchr
 	// while still delivering >100x speedups in the pathological case where
@@ -298,14 +300,33 @@ void* kMemMem(const void* haystack,
 
 		if (DEKAF2_UNLIKELY(++iMisses >= kSwitchThreshold))
 		{
-			// first byte is dense -> switch to NEON two-byte filter for the
-			// rest of the haystack. We resume at pFound, including it, so no
-			// candidate position is lost.
+			// First byte is dense in the haystack. We resume at pFound,
+			// including it, so no candidate position is lost.
 			const std::size_t iOffset = static_cast<std::size_t>(pFound - pHaystack);
+
+#if defined(__GLIBC__) && defined(__GNUC__) && !defined(__clang__)
+			// GCC + glibc: glibc's Two-Way memmem is significantly faster
+			// here than our NEON first-and-last-byte filter, because GCC's
+			// codegen for the filter's vshrn/NibbleMask pattern is ~2.6x
+			// slower than Clang's (measured on Fedora 43, gcc 15.2.1, M1
+			// Pro: worst-case 683k ns with NEON filter vs 446k ns with
+			// glibc's Two-Way; Clang 21 on the same machine gets 265k ns).
+			// Hand off to libc's tuned Two-Way for the rest of the scan.
+			//
+			// Clang builds and non-glibc targets (Apple libc, musl, BSD)
+			// keep the NEON filter because:
+			//   - Clang compiles it to ~265k ns, beating glibc's Two-Way
+			//   - Apple libc / musl memmem are much slower than glibc's
+			return ::memmem(pFound,
+			                iHaystackSize - iOffset,
+			                pNeedle,
+			                iNeedleSize);
+#else
 			return kMemMemNeonFilter(pFound,
 			                         iHaystackSize - iOffset,
 			                         pNeedle,
 			                         iNeedleSize);
+#endif
 		}
 
 		const std::size_t iAdvance = static_cast<std::size_t>(pFound - pCur) + 1;

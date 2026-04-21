@@ -123,6 +123,23 @@ OPTION(DEKAF2_ALL_LIBS "bind to all found libs (switch off and select single lib
 OPTION(DEKAF2_WITH_SIMDUTF "build with simd utf implementations" ON)
 OPTION(DEKAF2_WITH_USER_AGENT_PARSER "build with user agent parser" ON)
 
+# ARM only:
+# Needle-length cutoff for dekaf2::memmem(): needles of this length or shorter
+# are routed through dekaf2's NEON first-and-last-byte filter; longer needles
+# go to libc's memmem() on glibc (where glibc's Two-Way implementation wins).
+# The default 16 was measured against glibc 2.34 on Amazon Linux 2023 (ARM64,
+# M1 Pro) as well as glibc 2.42 on Fedora 43. Future glibc versions may have a
+# different crossover point; re-run benchmarks/benchmarks with different
+# cutoffs to pick the best value for a given distro.
+#   0          -> never use the NEON path (always forward to libc / fallback)
+#   16         -> default, tuned for glibc 2.34 - 2.42 on ARM64
+#   SIZE_MAX   -> always use the NEON path regardless of needle length
+# On non-glibc targets (Apple libc, musl, BSD) this setting is ignored and
+# the NEON path is used for every size, because those libc implementations
+# are slower than dekaf2's NEON path across the board.
+set(DEKAF2_MEMMEM_NEON_CUTOFF "16" CACHE STRING
+    "needle size cutoff (in bytes) below which dekaf2::memmem uses the NEON SIMD path instead of libc's memmem")
+
 # =================================== C++ STANDARD =================================
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
@@ -460,6 +477,18 @@ if (OPENSSL_VERSION VERSION_GREATER_EQUAL "3.3")
 	# because SSL_poll() was implemented only then
 	message(STATUS "OpenSSL ${OPENSSL_VERSION} has QUIC")
 	set(DEKAF2_HAS_OPENSSL_QUIC 1)
+endif()
+
+if (OPENSSL_VERSION VERSION_GREATER_EQUAL "1.1.1")
+	# DTLS server flow (memory-BIO pair with SSL_OP_COOKIE_EXCHANGE) works
+	# reliably only on OpenSSL >= 1.1.1. On 1.1.0 and older
+	# handshakes intermittently time out because of bugs in the internal
+	# HelloVerifyRequest generation and a very restricted default DTLS
+	# cipher set. The DTLS classes still compile and link on older OpenSSL,
+	# but consumers should key off this flag when deciding whether to use
+	# them; the dekaf2 DTLS test suite is skipped unless this flag is set.
+	message(STATUS "OpenSSL ${OPENSSL_VERSION} has reliable DTLS")
+	set(DEKAF2_HAS_RELIABLE_DTLS 1)
 endif()
 
 # ================================== LZMA ====================================

@@ -42,6 +42,7 @@
 #include <dekaf2/net/udp/kdtlssocket.h>
 #include <dekaf2/net/address/kresolve.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/time/duration/kduration.h>
 
 #if !DEKAF2_IS_WINDOWS
 	#include <sys/socket.h>
@@ -142,18 +143,25 @@ bool KDTLSSocket::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		return SetError(kFormat("cannot resolve {}: {}", Endpoint, ec.message()));
 	}
 
+#if (DEKAF2_CLASSIC_ASIO)
+	// Boost < 1.66: resolve() returns a forward iterator directly; the range
+	// is terminated by a default-constructed iterator.
+	auto it = hosts;
+	decltype(it) ie;
+#else
 	auto it = hosts.begin();
+	auto ie = hosts.end();
+#endif
 
-	if (it == hosts.end())
+	if (it == ie)
 	{
 		return SetError(kFormat("no addresses found for {}", Endpoint));
 	}
 
-#if (DEKAF2_CLASSIC_ASIO)
-	auto resolved_endpoint = *it;
-#else
+	// basic_resolver_entry::endpoint() exists in both classic (Boost < 1.66)
+	// and modern asio; dereferencing the iterator directly yields the entry,
+	// not the endpoint.
 	auto resolved_endpoint = it->endpoint();
-#endif
 
 	// create the native socket
 	int family = (resolved_endpoint.protocol() == boost::asio::ip::udp::v4()) ? AF_INET : AF_INET6;
@@ -214,17 +222,57 @@ bool KDTLSSocket::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 bool KDTLSSocket::DoHandshake()
 //-----------------------------------------------------------------------------
 {
-	auto iResult = ::SSL_connect(m_SSL.get());
+	// Retry SSL_connect until it completes, fails with a real error, or the
+	// overall connect timeout elapses. The datagram BIO has its own per-read
+	// timeout equal to m_Timeout, but a single flight lost in the DTLS
+	// handshake can cause BIO_read to return -1 with SSL_ERROR_WANT_READ;
+	// in that case we must call DTLSv1_handle_timeout() so OpenSSL can
+	// retransmit the previous flight, then call SSL_connect() again.
+	// This matches the OpenSSL-documented DTLS client handshake pattern and
+	// is required on some older OpenSSL versions (e.g. 1.1.0) where the
+	// single-shot variant returned early.
+	const auto tDeadline = KSteadyTime::now() + m_Timeout;
 
-	if (iResult != 1)
+	for (;;)
 	{
+		auto iResult = ::SSL_connect(m_SSL.get());
+
+		if (iResult == 1)
+		{
+			kDebug(2, "DTLS handshake completed with {}", m_Endpoint);
+			return true;
+		}
+
 		auto iError = ::SSL_get_error(m_SSL.get(), iResult);
-		return SetError(kFormat("DTLS handshake failed with {}: SSL error {}", m_Endpoint, iError));
+
+		if (iError == SSL_ERROR_WANT_READ || iError == SSL_ERROR_WANT_WRITE)
+		{
+			if (KSteadyTime::now() >= tDeadline)
+			{
+				return SetError(kFormat("DTLS handshake timed out with {} after {}", m_Endpoint, m_Timeout));
+			}
+
+			// Poke the DTLS retransmit timer. Safe to call unconditionally —
+			// it is a no-op when no retransmit is pending.
+			::DTLSv1_handle_timeout(m_SSL.get());
+			continue;
+		}
+
+		// Real error — extract OpenSSL's error string so the caller gets
+		// something actionable instead of a bare "SSL error N".
+		char sOpenSSL[256] = {};
+		auto ulErr = ::ERR_peek_last_error();
+
+		if (ulErr)
+		{
+			::ERR_error_string_n(ulErr, sOpenSSL, sizeof(sOpenSSL));
+		}
+
+		return SetError(kFormat("DTLS handshake failed with {}: SSL error {}{}{}",
+		                        m_Endpoint, iError,
+		                        ulErr ? " - " : "",
+		                        ulErr ? sOpenSSL : ""));
 	}
-
-	kDebug(2, "DTLS handshake completed with {}", m_Endpoint);
-
-	return true;
 
 } // DoHandshake
 

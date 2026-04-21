@@ -4,7 +4,10 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
-#if DEKAF2_HAS_INCLUDE(<dekaf2/time/scheduler/bits/kron_utils.h>)
+
+#if DEKAF2_HAS_INCLUDE(<dekaf2/time/scheduler/bits/kron_utils.h>) \
+ && DEKAF2_HAS_INCLUDE("../libs/croncpp/include/croncpp.h")
+
 #include <dekaf2/time/scheduler/bits/kron_utils.h>
 #include "../libs/croncpp/include/croncpp.h"
 

@@ -116,9 +116,14 @@ bool KWebPushSQLiteDB::StoreVAPIDKey(KStringView sKey, KStringView sValue)
 
 	auto iNow = KUnixTime::now().to_time_t();
 
+	// Use INSERT OR REPLACE + COALESCE instead of "ON CONFLICT DO UPDATE"
+	// (UPSERT), which was only added in SQLite 3.24.0 (2018-06). Debian
+	// stretch ships SQLite 3.16.2. The scalar subquery preserves the
+	// original created_utc on an existing row; for a new row it evaluates
+	// to NULL and COALESCE falls back to the current timestamp.
 	auto stmt = db.Prepare(
-		"insert into VAPID_KEYS (key, value, created_utc, lastmod_utc) values (?1, ?2, ?3, ?3) "
-		"on conflict(key) do update set value=?2, lastmod_utc=?3");
+		"insert or replace into VAPID_KEYS (key, value, created_utc, lastmod_utc) "
+		"values (?1, ?2, coalesce((select created_utc from VAPID_KEYS where key=?1), ?3), ?3)");
 	stmt.Bind(1, sKey,   false);
 	stmt.Bind(2, sValue, false);
 	stmt.Bind(3, iNow);
@@ -170,10 +175,13 @@ bool KWebPushSQLiteDB::StoreSubscription(const KWebPush::Subscription& sub)
 
 	auto iNow = KUnixTime::now().to_time_t();
 
+	// INSERT OR REPLACE + COALESCE — see portability comment in StoreVAPIDKey().
+	// The scalar subquery preserves the original created_utc for an existing
+	// subscription (keyed by endpoint), and defaults to the current time on
+	// first insert.
 	auto stmt = db.Prepare(
-		"insert into PUSH_SUBSCRIPTIONS (user_id, endpoint, p256dh, auth, useragent, created_utc, lastmod_utc) "
-		"values (?1, ?2, ?3, ?4, ?5, ?6, ?6) "
-		"on conflict(endpoint) do update set user_id=?1, p256dh=?3, auth=?4, useragent=?5, lastmod_utc=?6");
+		"insert or replace into PUSH_SUBSCRIPTIONS (user_id, endpoint, p256dh, auth, useragent, created_utc, lastmod_utc) "
+		"values (?1, ?2, ?3, ?4, ?5, coalesce((select created_utc from PUSH_SUBSCRIPTIONS where endpoint=?2), ?6), ?6)");
 
 	stmt.Bind(1, sub.sUser,      false);
 	stmt.Bind(2, sub.sEndpoint,  false);

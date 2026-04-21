@@ -107,8 +107,15 @@
 
 #include <openssl/opensslv.h>
 
-// X25519 was introduced in OpenSSL 1.1.0
-#if OPENSSL_VERSION_NUMBER >= 0x010100000L
+// The X25519 NID exists since OpenSSL 1.1.0, but our implementation relies on
+// EVP_PKEY_new_raw_private_key / EVP_PKEY_new_raw_public_key /
+// EVP_PKEY_get_raw_private_key / EVP_PKEY_get_raw_public_key, which were
+// introduced in OpenSSL 1.1.1. LibreSSL exposes OPENSSL_VERSION_NUMBER in the
+// same encoding but only gained X25519 support via EVP (including the raw-key
+// API above) in LibreSSL 3.7.0 (Dec 2022, see the 3.7.0 release notes);
+// earlier LibreSSL releases lack these accessors and must be excluded.
+#if OPENSSL_VERSION_NUMBER >= 0x010101000L \
+ && (!defined(LIBRESSL_VERSION_NUMBER) || LIBRESSL_VERSION_NUMBER >= 0x3070000fL)
 #define DEKAF2_HAS_X25519 1
 #endif
 

@@ -94,7 +94,12 @@ using KSpan = std::span<T, Extent>;
 
 /// Sentinel value indicating a span whose size is determined at run time.
 /// Equivalent to std::dynamic_extent (the largest representable std::size_t).
-inline constexpr std::size_t dynamic_extent = static_cast<std::size_t>(-1);
+/// 'static constexpr' (internal linkage) is used instead of 'inline constexpr'
+/// because inline variables require C++17, while this fallback path is
+/// compiled on C++14 as well. The constant is only ever used as a template
+/// argument value, so internal linkage causes no ODR or address-identity
+/// issues across translation units.
+static constexpr std::size_t dynamic_extent = static_cast<std::size_t>(-1);
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// @brief Non-owning view over a contiguous sequence of elements.

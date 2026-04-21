@@ -54,7 +54,12 @@ KString KHKDF::Extract(KStringView sSalt, KStringView sIKM, enum Digest digest)
 	// RFC 5869 Section 2.2: if salt is not provided, use a string of HashLen zeros
 	if (sSalt.empty())
 	{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 		auto iHashLen = static_cast<std::size_t>(::EVP_MD_get_size(GetMessageDigest(digest)));
+#else
+		// EVP_MD_get_size was introduced in OpenSSL 3.0; the 1.1.x name is EVP_MD_size.
+		auto iHashLen = static_cast<std::size_t>(::EVP_MD_size(GetMessageDigest(digest)));
+#endif
 		KString sZeroSalt(iHashLen, '\0');
 		KHMAC hmac(digest, sZeroSalt, sIKM);
 		return hmac.Digest();

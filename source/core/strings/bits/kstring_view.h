@@ -597,7 +597,7 @@ DEKAF2_NAMESPACE_END
 	} // end of namespace detail
 	DEKAF2_NAMESPACE_END
 
-#if DEKAF2_HAS_INCLUDE("khash.h")
+#if DEKAF2_HAS_INCLUDE(<dekaf2/crypto/hash/bits/khash.h>)
 	#include <dekaf2/crypto/hash/bits/khash.h>
 	namespace std
 	{
@@ -614,7 +614,7 @@ DEKAF2_NAMESPACE_END
 		};
 
 	} // namespace std
-#endif // has include khash.h
+#endif // has include <dekaf2/crypto/hash/bits/khash.h>
 
 #endif
 

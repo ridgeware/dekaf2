@@ -137,18 +137,25 @@ bool KUDPSocket::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	}
 
 	// get the first resolved endpoint to determine the protocol
+#if (DEKAF2_CLASSIC_ASIO)
+	// Boost < 1.66: resolve() returns a forward iterator directly; the range
+	// is terminated by a default-constructed iterator.
+	auto it = hosts;
+	decltype(it) ie;
+#else
 	auto it = hosts.begin();
+	auto ie = hosts.end();
+#endif
 
-	if (it == hosts.end())
+	if (it == ie)
 	{
 		return SetError(kFormat("no addresses found for {}", Endpoint));
 	}
 
-#if (DEKAF2_CLASSIC_ASIO)
-	auto resolved_endpoint = *it;
-#else
+	// basic_resolver_entry::endpoint() exists in both classic (Boost < 1.66)
+	// and modern asio; dereferencing the iterator directly yields the entry,
+	// not the endpoint.
 	auto resolved_endpoint = it->endpoint();
-#endif
 
 	// open socket with matching protocol
 	if (resolved_endpoint.protocol() == boost::asio::ip::udp::v4())
@@ -434,7 +441,13 @@ bool KUDPSocket::JoinMulticastGroup(KStringView sMulticastAddress)
 {
 	boost::system::error_code ec;
 
+#if (DEKAF2_CLASSIC_ASIO)
+	// Boost < 1.66 does not have boost::asio::ip::make_address; the legacy
+	// name is boost::asio::ip::address::from_string.
+	auto address = boost::asio::ip::address::from_string(KString(sMulticastAddress).c_str(), ec);
+#else
 	auto address = boost::asio::ip::make_address(KString(sMulticastAddress).c_str(), ec);
+#endif
 
 	if (ec)
 	{
@@ -460,7 +473,11 @@ bool KUDPSocket::LeaveMulticastGroup(KStringView sMulticastAddress)
 {
 	boost::system::error_code ec;
 
+#if (DEKAF2_CLASSIC_ASIO)
+	auto address = boost::asio::ip::address::from_string(KString(sMulticastAddress).c_str(), ec);
+#else
 	auto address = boost::asio::ip::make_address(KString(sMulticastAddress).c_str(), ec);
+#endif
 
 	if (ec)
 	{

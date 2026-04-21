@@ -105,8 +105,14 @@
 
 #include <openssl/opensslv.h>
 
-// Ed25519 was introduced in OpenSSL 1.1.1
-#if OPENSSL_VERSION_NUMBER >= 0x010101000L
+// Ed25519 was introduced in OpenSSL 1.1.1. Our implementation also relies on
+// EVP_PKEY_new_raw_private_key / EVP_PKEY_new_raw_public_key /
+// EVP_PKEY_get_raw_private_key / EVP_PKEY_get_raw_public_key, which LibreSSL
+// only gained (for EVP_PKEY_ED25519) in LibreSSL 3.7.0 (Dec 2022, see the
+// 3.7.0 release notes). Earlier LibreSSL releases advertise a compatible
+// OPENSSL_VERSION_NUMBER but lack these accessors and must be excluded.
+#if OPENSSL_VERSION_NUMBER >= 0x010101000L \
+ && (!defined(LIBRESSL_VERSION_NUMBER) || LIBRESSL_VERSION_NUMBER >= 0x3070000fL)
 #define DEKAF2_HAS_ED25519 1
 #endif
 

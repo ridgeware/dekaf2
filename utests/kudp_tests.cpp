@@ -158,7 +158,12 @@ TEST_CASE("KUDPSocket")
 
 		// resolve endpoint for SendTo
 		KUDPSocket::endpoint_type target(
+#if (DEKAF2_CLASSIC_ASIO)
+			// Boost < 1.66 does not have boost::asio::ip::make_address
+			boost::asio::ip::address::from_string("127.0.0.1"), 44302
+#else
 			boost::asio::ip::make_address("127.0.0.1"), 44302
+#endif
 		);
 
 		KStringView sMessage = "Hello unconnected!";

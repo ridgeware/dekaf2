@@ -1424,7 +1424,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+#if !DEKAF2_HAS_NEON && !DEKAF2_HAS_SSE2_MEMSEARCH
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
+#else
+	DEKAF2_NODISCARD_PEDANTIC
+#endif
 	size_type find_first_not_of(value_type ch, size_type pos = 0) const noexcept;
 	//-----------------------------------------------------------------------------
 
@@ -1439,7 +1443,11 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+#if !DEKAF2_HAS_NEON && !DEKAF2_HAS_SSE2_MEMSEARCH
 	DEKAF2_NODISCARD_PEDANTIC DEKAF2_CONSTEXPR_14
+#else
+	DEKAF2_NODISCARD_PEDANTIC
+#endif
 	size_type find_last_not_of(value_type ch, size_type pos = npos) const noexcept;
 	//-----------------------------------------------------------------------------
 
@@ -2010,7 +2018,11 @@ KStringView::size_type KStringView::rfind(const self_type sv, size_type pos) con
 }
 
 //-----------------------------------------------------------------------------
+#if !DEKAF2_HAS_NEON && !DEKAF2_HAS_SSE2_MEMSEARCH
 DEKAF2_CONSTEXPR_14
+#else
+inline
+#endif
 KStringView::size_type KStringView::find_last_not_of(value_type ch, size_type pos) const noexcept
 //-----------------------------------------------------------------------------
 {
@@ -2018,7 +2030,11 @@ KStringView::size_type KStringView::find_last_not_of(value_type ch, size_type po
 }
 
 //-----------------------------------------------------------------------------
+#if !DEKAF2_HAS_NEON && !DEKAF2_HAS_SSE2_MEMSEARCH
 DEKAF2_CONSTEXPR_14
+#else
+inline
+#endif
 KStringView::size_type KStringView::find_first_not_of(value_type ch, size_type pos) const noexcept
 //-----------------------------------------------------------------------------
 {

@@ -219,16 +219,25 @@
 #endif
 
 #ifndef FMT_CONSTEVAL
+// consteval is broken in:
+//   - MSVC before VS2022
+//   - Apple Clang before 14
+//   - Apple Clang >= 21      (fix 2026-03-25)
+//   - regular Clang >= 21    (fix 2026-04-21, same bug as Apple Clang 21,
+//                             triggered on Fedora 43 with upstream Clang 21)
 #  if ((FMT_GCC_VERSION >= 1000 || FMT_CLANG_VERSION >= 1101) && \
        (!defined(__apple_build_version__) ||                     \
         (__apple_build_version__ >= 14000029L &&                 \
          __apple_build_version__ <  21000000L)) &&               \
+       (defined(__apple_build_version__) ||                      \
+        FMT_CLANG_VERSION < 2100) &&                             \
        FMT_CPLUSPLUS >= 202002L) ||                              \
       (defined(__cpp_consteval) &&                               \
        (!FMT_MSC_VERSION || _MSC_FULL_VER >= 193030704) &&      \
        (!defined(__apple_build_version__) ||                     \
-        __apple_build_version__ < 21000000L))
-// consteval is broken in MSVC before VS2022 and Apple clang before 14.
+        __apple_build_version__ < 21000000L) &&                  \
+       (defined(__apple_build_version__) ||                      \
+        FMT_CLANG_VERSION < 2100))
 #    define FMT_CONSTEVAL consteval
 #    define FMT_HAS_CONSTEVAL
 #  else

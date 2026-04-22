@@ -73,6 +73,12 @@
 	#include <unistd.h>
 	#include <cerrno>
 	#include <cstring>
+#elif defined(DEKAF2_IS_MACOS)
+	#include <dekaf2/core/strings/kstringutils.h>
+	#include <dekaf2/data/xml/kxml.h>
+	#include <dekaf2/system/filesystem/kfilesystem.h>
+	#include <unistd.h>
+	#include <sys/types.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -80,38 +86,54 @@ DEKAF2_NAMESPACE_BEGIN
 namespace {
 
 #ifdef DEKAF2_IS_WINDOWS
-
 /// Argument injected into the registered service's command line. KService::Run
 /// uses it as a fast, unambiguous indicator that the binary should engage the
 /// SCM dispatcher. It is filtered from argv before the user's main runs.
 constexpr KStringView s_sServiceFlag = "--service";
+#endif
 
 //-----------------------------------------------------------------------------
-/// Shared state referenced by the Win32 SCM C-style callbacks. There can only
-/// ever be one active service per process, so static storage is appropriate.
-struct ServiceContext
+/// Process-wide state for the service integration, shared across all
+/// platforms. Only one active service per process is supported, so static
+/// storage is appropriate. Platform-specific fields are gated by #ifdef so
+/// the struct stays small on platforms that do not need them.
+struct Context
 //-----------------------------------------------------------------------------
 {
+	// ---- common fields, used on every platform --------------------------
+	std::atomic<bool>             bIsService { false };  ///< running under a service manager
+	std::function<void()>         fnShutdown;            ///< optional shutdown hook
+
+#ifdef DEKAF2_IS_WINDOWS
+	// ---- Windows SCM state ---------------------------------------------
 	std::wstring                  wsServiceName;
 	SERVICE_STATUS_HANDLE         StatusHandle = nullptr;
 	SERVICE_STATUS                Status       = {};
 	KService::MainFunc            fnMain;
-	std::function<void()>         fnShutdown;
-	std::vector<char*>            FilteredArgv;      // trailing nullptr for argv parity
+	std::vector<char*>            FilteredArgv;          // trailing nullptr for argv parity
 	int                           iExitCode    = 0;
-	std::atomic<bool>             bIsService { false };
 	DWORD                         dwCheckPoint = 0;
+#endif
 
-}; // ServiceContext
+#ifdef DEKAF2_IS_LINUX
+	// ---- systemd state --------------------------------------------------
+	KString                       sNotifySocket;         ///< cached $NOTIFY_SOCKET
+#endif
+
+	// macOS launchd has no additional state beyond the common fields.
+
+}; // Context
 
 //-----------------------------------------------------------------------------
-ServiceContext& ctx()
+Context& ctx()
 //-----------------------------------------------------------------------------
 {
-	static ServiceContext s_ctx;
+	static Context s_ctx;
 	return s_ctx;
 
 } // ctx
+
+#ifdef DEKAF2_IS_WINDOWS
 
 //-----------------------------------------------------------------------------
 DWORD ToWinState(KService::State state)
@@ -372,28 +394,50 @@ bool OpenServiceByName(KStringView sServiceName, DWORD dwAccess,
 
 #endif // DEKAF2_IS_WINDOWS
 
+#if defined(DEKAF2_IS_LINUX) || defined(DEKAF2_IS_MACOS)
+
+//-----------------------------------------------------------------------------
+/// Trampoline for std::signal; forwards SIGTERM (or SIGINT) into the user's
+/// shutdown handler stored in ctx(). Must be async-signal-safe, so we do
+/// nothing more than invoking the std::function if one is registered.
+///
+/// systemd sends SIGTERM on `systemctl stop`; launchd sends SIGTERM on
+/// `launchctl unload` / `launchctl stop`. The trampoline is identical for
+/// both platforms, hence shared.
+void PosixSignalTrampoline(int /*iSignal*/)
+//-----------------------------------------------------------------------------
+{
+	auto& h = ctx().fnShutdown;
+
+	if (h)
+	{
+		try
+		{
+			h();
+		}
+		catch (...)
+		{
+			// cannot let exceptions escape a signal handler
+		}
+	}
+
+} // PosixSignalTrampoline
+
+//-----------------------------------------------------------------------------
+/// Double-quote a value so it is safe to pass through /bin/sh. Uses dekaf2's
+/// kEscapeForQuotedCommands() to backslash-escape shell metacharacters that
+/// survive inside double quotes (", \, `, $, NUL). Used for both
+/// systemctl (Linux) and launchctl (macOS) invocations.
+KString QuoteForShell(KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	return kFormat("\"{}\"", kEscapeForQuotedCommands(sValue));
+
+} // QuoteForShell
+
+#endif // DEKAF2_IS_LINUX || DEKAF2_IS_MACOS
+
 #ifdef DEKAF2_IS_LINUX
-
-//-----------------------------------------------------------------------------
-/// Process-wide state for the systemd integration. Populated by Run() and
-/// referenced by ReportState() / SetShutdownHandler() / IsRunningAsService().
-struct LinuxState
-//-----------------------------------------------------------------------------
-{
-	std::atomic<bool>     bIsService { false };  ///< running under systemd
-	std::function<void()> fnShutdown;            ///< optional shutdown hook
-	KString               sNotifySocket;         ///< cached $NOTIFY_SOCKET
-
-}; // LinuxState
-
-//-----------------------------------------------------------------------------
-LinuxState& lx()
-//-----------------------------------------------------------------------------
-{
-	static LinuxState s;
-	return s;
-
-} // lx
 
 //-----------------------------------------------------------------------------
 /// Send a single notification message to systemd via the NOTIFY_SOCKET, using
@@ -403,7 +447,7 @@ LinuxState& lx()
 bool SdNotify(KStringView sMessage)
 //-----------------------------------------------------------------------------
 {
-	const auto& sSocket = lx().sNotifySocket;
+	const auto& sSocket = ctx().sNotifySocket;
 
 	if (sSocket.empty() || sMessage.empty())
 	{
@@ -465,29 +509,6 @@ bool SdNotify(KStringView sMessage)
 } // SdNotify
 
 //-----------------------------------------------------------------------------
-/// Trampoline for std::signal; forwards SIGTERM (or SIGINT) into the user's
-/// shutdown handler. Must be async-signal-safe, so we only invoke handlers
-/// the user registered through SetShutdownHandler().
-void LinuxSignalTrampoline(int /*iSignal*/)
-//-----------------------------------------------------------------------------
-{
-	auto& h = lx().fnShutdown;
-
-	if (h)
-	{
-		try
-		{
-			h();
-		}
-		catch (...)
-		{
-			// nothing we can do from a signal handler
-		}
-	}
-
-} // LinuxSignalTrampoline
-
-//-----------------------------------------------------------------------------
 /// Filesystem path of the systemd unit file for sServiceName under the
 /// requested scope. Returns an empty string for user scope when $HOME cannot
 /// be resolved.
@@ -540,17 +561,6 @@ bool DetectInstalledScope(KStringView sServiceName, bool* pUserScope)
 	return false;
 
 } // DetectInstalledScope
-
-//-----------------------------------------------------------------------------
-/// Double-quote a value so it is safe to pass through /bin/sh. Uses dekaf2's
-/// kEscapeForQuotedCommands() to backslash-escape shell metacharacters that
-/// survive inside double quotes (", \, `, $, NUL).
-KString QuoteName(KStringView sValue)
-//-----------------------------------------------------------------------------
-{
-	return kFormat("\"{}\"", kEscapeForQuotedCommands(sValue));
-
-} // QuoteName
 
 //-----------------------------------------------------------------------------
 /// Run `systemctl [--user] <args>` synchronously, return its exit code.
@@ -671,6 +681,221 @@ KString BuildUnitFile(KStringView sServiceName, const KService::InstallOptions& 
 
 #endif // DEKAF2_IS_LINUX
 
+#ifdef DEKAF2_IS_MACOS
+
+//-----------------------------------------------------------------------------
+/// Apply Apple's reverse-DNS label convention. If sServiceName already
+/// contains a dot it is assumed to be a fully-qualified label and is passed
+/// through unchanged; otherwise it is prefixed with "org.dekaf2." so it is
+/// globally unique without the caller needing to care.
+KString MakeLabel(KStringView sServiceName)
+//-----------------------------------------------------------------------------
+{
+	if (sServiceName.find('.') != KStringView::npos)
+	{
+		return KString(sServiceName);
+	}
+	return kFormat("org.dekaf2.{}", sServiceName);
+
+} // MakeLabel
+
+//-----------------------------------------------------------------------------
+/// Filesystem path of the launchd plist for sLabel under the requested scope.
+/// Returns an empty string for user scope when $HOME cannot be resolved.
+KString PlistPath(KStringView sLabel, bool bUserScope)
+//-----------------------------------------------------------------------------
+{
+	if (bUserScope)
+	{
+		KString sHome = kGetHome();
+
+		if (sHome.empty())
+		{
+			return {};
+		}
+		return kFormat("{}/Library/LaunchAgents/{}.plist", sHome, sLabel);
+	}
+
+	return kFormat("/Library/LaunchDaemons/{}.plist", sLabel);
+
+} // PlistPath
+
+//-----------------------------------------------------------------------------
+/// Stdout / stderr log paths used in the plist. First = stdout, second = stderr.
+/// Empty pair if user-scope but $HOME cannot be resolved.
+std::pair<KString, KString> LogPaths(KStringView sLabel, bool bUserScope)
+//-----------------------------------------------------------------------------
+{
+	if (bUserScope)
+	{
+		KString sHome = kGetHome();
+
+		if (sHome.empty())
+		{
+			return {};
+		}
+		return { kFormat("{}/Library/Logs/{}.out", sHome, sLabel),
+		         kFormat("{}/Library/Logs/{}.err", sHome, sLabel) };
+	}
+
+	return { kFormat("/var/log/{}.out", sLabel),
+	         kFormat("/var/log/{}.err", sLabel) };
+
+} // LogPaths
+
+//-----------------------------------------------------------------------------
+/// Determine which scope holds the installed plist for sLabel by probing both
+/// well-known locations. *pUserScope is set to the detected scope (unchanged
+/// if nothing was found).
+bool DetectInstalledScope(KStringView sLabel, bool* pUserScope)
+//-----------------------------------------------------------------------------
+{
+	if (kFileExists(PlistPath(sLabel, false)))
+	{
+		if (pUserScope) *pUserScope = false;
+		return true;
+	}
+
+	KString sUserPath = PlistPath(sLabel, true);
+
+	if (!sUserPath.empty() && kFileExists(sUserPath))
+	{
+		if (pUserScope) *pUserScope = true;
+		return true;
+	}
+
+	return false;
+
+} // DetectInstalledScope
+
+//-----------------------------------------------------------------------------
+/// Run `launchctl <args>` synchronously, return its exit code.
+int Launchctl(KStringView sArgs)
+//-----------------------------------------------------------------------------
+{
+	return kSystem(kFormat("launchctl {}", sArgs));
+
+} // Launchctl
+
+//-----------------------------------------------------------------------------
+/// Run `launchctl <args>` synchronously, capture its stdout. Trailing
+/// whitespace is stripped.
+int LaunchctlCapture(KStringView sArgs, KString& sOutputOut)
+//-----------------------------------------------------------------------------
+{
+	sOutputOut.clear();
+	int iExit = kSystem(kFormat("launchctl {}", sArgs), sOutputOut);
+	sOutputOut.TrimRight();
+	return iExit;
+
+} // LaunchctlCapture
+
+//-----------------------------------------------------------------------------
+/// Append one `<key>K</key><string>V</string>` pair to a plist dict node.
+/// KXML takes care of XML escaping for both the key and the value.
+void AddStringPair(KXMLNode& Dict, KStringView sKey, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	Dict.AddNode("key").SetValue(sKey);
+	Dict.AddNode("string").SetValue(sValue);
+
+} // AddStringPair
+
+//-----------------------------------------------------------------------------
+/// Render the contents of the launchd plist for the given install parameters.
+/// The body is built via KXML (escaping + serialisation handled by the DOM);
+/// the fixed XML declaration, DOCTYPE and header comment are prepended
+/// manually because KXML does not model DOCTYPEs.
+KString BuildPlist(KStringView sLabel, const KService::InstallOptions& Opts, bool bUserScope)
+//-----------------------------------------------------------------------------
+{
+	KString sBinary = Opts.sBinaryPath.empty() ? kGetOwnPathname() : Opts.sBinaryPath;
+
+	KXML Xml;
+
+	auto Plist = KXMLNode(Xml).AddNode("plist");
+	Plist.AddAttribute("version", "1.0");
+
+	auto Dict = Plist.AddNode("dict");
+
+	AddStringPair(Dict, "Label", sLabel);
+
+	// ProgramArguments = argv[0..n]. We split Opts.sArguments naively on
+	// whitespace. Users who need complex quoting should build the string
+	// themselves with shell-style escaping (launchd treats each array entry
+	// as one argv element, so no shell re-parsing happens).
+	Dict.AddNode("key").SetValue("ProgramArguments");
+	auto Args = Dict.AddNode("array");
+	Args.AddNode("string").SetValue(sBinary);
+
+	for (auto sArg : KStringView(Opts.sArguments).Split())
+	{
+		if (!sArg.empty())
+		{
+			Args.AddNode("string").SetValue(sArg);
+		}
+	}
+
+	// Automatic / Manual / Disabled map to RunAtLoad + KeepAlive combinations.
+	// "true" and "false" are empty elements in plist; KXML serialises empty
+	// nodes as self-closing tags automatically.
+	if (Opts.Mode == KService::StartMode::Automatic)
+	{
+		Dict.AddNode("key").SetValue("RunAtLoad");
+		Dict.AddNode("true");
+		// restart on crash (non-zero exit) but not on clean exit
+		Dict.AddNode("key").SetValue("KeepAlive");
+		auto KeepAlive = Dict.AddNode("dict");
+		KeepAlive.AddNode("key").SetValue("SuccessfulExit");
+		KeepAlive.AddNode("false");
+	}
+	else
+	{
+		// Manual or Disabled => do not launch at load, user invokes explicitly
+		Dict.AddNode("key").SetValue("RunAtLoad");
+		Dict.AddNode("false");
+	}
+
+	// User / group override (system scope only — user agents already run
+	// as the logged-in user)
+	if (!bUserScope && !Opts.sRunAsUser.empty())
+	{
+		auto iColon = Opts.sRunAsUser.find(':');
+
+		if (iColon == KString::npos)
+		{
+			AddStringPair(Dict, "UserName", Opts.sRunAsUser);
+		}
+		else
+		{
+			AddStringPair(Dict, "UserName",  Opts.sRunAsUser.substr(0, iColon));
+			AddStringPair(Dict, "GroupName", Opts.sRunAsUser.substr(iColon + 1));
+		}
+	}
+
+	// Log paths — always set so debugging does not require plist surgery
+	auto logs = LogPaths(sLabel, bUserScope);
+
+	if (!logs.first.empty())
+	{
+		AddStringPair(Dict, "StandardOutPath",   logs.first);
+		AddStringPair(Dict, "StandardErrorPath", logs.second);
+	}
+
+	// KXML does not emit an XML declaration or DOCTYPE; prepend the fixed
+	// plist boilerplate manually.
+	KString sOut;
+	sOut += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+	sOut += "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
+	        "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n";
+	sOut += "<!-- generated by dekaf2 KService — do not edit by hand -->\n";
+	sOut += Xml.Serialize();
+	return sOut;
+
+} // BuildPlist
+
+#endif // DEKAF2_IS_MACOS
+
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -745,7 +970,7 @@ int KService::Run(KStringView sServiceName, int argc, char** argv, MainFunc fnMa
 		return fnMain(argc, argv);
 	}
 
-	auto& s = lx();
+	auto& s = ctx();
 	s.bIsService.store(true, std::memory_order_release);
 	s.sNotifySocket = kGetEnv("NOTIFY_SOCKET");
 
@@ -782,8 +1007,29 @@ int KService::Run(KStringView sServiceName, int argc, char** argv, MainFunc fnMa
 
 	return iExit;
 
+#elif defined(DEKAF2_IS_MACOS)
+
+	(void)sServiceName;
+
+	// launchd is pid 1 on macOS and spawns managed services as direct
+	// children, so getppid() == 1 is the canonical signal that we are
+	// running as a launch daemon / agent. Scripts, ssh sessions, and
+	// terminal launches never see this parent.
+	const bool bIsService = (::getppid() == 1);
+
+	if (!bIsService)
+	{
+		return fnMain(argc, argv);
+	}
+
+	ctx().bIsService.store(true, std::memory_order_release);
+
+	// launchd has no ready-notification protocol — as soon as the process
+	// is alive it is considered started. Just call the user's main.
+	return fnMain(argc, argv);
+
 #else
-	// macOS / other: transparent passthrough
+	// other POSIX: transparent passthrough
 	(void)sServiceName;
 	return fnMain(argc, argv);
 #endif
@@ -953,7 +1199,7 @@ bool KService::Install(KStringView sServiceName, const InstallOptions& Opts)
 		return false;
 	}
 
-	KString sQuotedName = QuoteName(sServiceName);
+	KString sQuotedName = QuoteForShell(sServiceName);
 
 	// re-read unit files so daemon-reload is visible to subsequent calls
 	if (Systemctl(bUserScope, "daemon-reload") != 0)
@@ -975,6 +1221,87 @@ bool KService::Install(KStringView sServiceName, const InstallOptions& Opts)
 	else if (EffectiveOpts.Mode == StartMode::Disabled)
 	{
 		Systemctl(bUserScope, kFormat("disable {}", sQuotedName));
+	}
+
+	return true;
+
+#elif defined(DEKAF2_IS_MACOS)
+
+	bool bUserScope = Opts.bUserScope;
+
+	// Same policy as Linux: if caller didn't request user-scope but we are
+	// not root, fall back to a LaunchAgent install. Direct stderr notice so
+	// it's visible even with KLog silenced.
+	if (!bUserScope && ::getuid() != 0)
+	{
+		kPrintLine(stderr,
+		           ":: not running as root — installing '{}' as LaunchAgent "
+		           "under ~/Library/LaunchAgents\n"
+		           ":: run with sudo for a system-wide LaunchDaemon install",
+		           sServiceName);
+		bUserScope = true;
+	}
+
+	KString sLabel    = MakeLabel(sServiceName);
+	KString sPlistPath = PlistPath(sLabel, bUserScope);
+
+	if (sPlistPath.empty())
+	{
+		kWarning("cannot determine plist path — $HOME not set");
+		return false;
+	}
+
+	// make sure the plist directory exists (fresh macOS accounts don't
+	// ship with a ~/Library/LaunchAgents)
+	auto iSlash = sPlistPath.rfind('/');
+
+	if (iSlash != KString::npos)
+	{
+		KString sDir = sPlistPath.substr(0, iSlash);
+
+		if (!sDir.empty() && !kCreateDir(sDir))
+		{
+			kWarning("cannot create directory '{}'", sDir);
+			return false;
+		}
+	}
+
+	// ensure the log directory exists too; /var/log and ~/Library/Logs
+	// usually exist already but a `kCreateDir` is a no-op in that case
+	auto logs = LogPaths(sLabel, bUserScope);
+
+	if (!logs.first.empty())
+	{
+		auto iLogSlash = logs.first.rfind('/');
+
+		if (iLogSlash != KString::npos)
+		{
+			KString sLogDir = logs.first.substr(0, iLogSlash);
+
+			if (!sLogDir.empty())
+			{
+				// best-effort; failure here is not fatal (launchd will just
+				// log that it cannot open the file)
+				kCreateDir(sLogDir);
+			}
+		}
+	}
+
+	KString sPlist = BuildPlist(sLabel, Opts, bUserScope);
+
+	if (!kWriteFile(sPlistPath, sPlist))
+	{
+		kWarning("cannot write plist file '{}'", sPlistPath);
+		return false;
+	}
+
+	// load + enable the job — -w persists the "enabled" state across reboots
+	if (Launchctl(kFormat("load -w {}", QuoteForShell(sPlistPath))) != 0)
+	{
+		kWarning("launchctl load '{}' failed — plist remains in place; "
+		         "retry manually with: launchctl load -w {}",
+		         sLabel, sPlistPath);
+		// do not unwind the plist write: the caller may want to inspect it
 	}
 
 	return true;
@@ -1029,7 +1356,7 @@ bool KService::Uninstall(KStringView sServiceName)
 		return false;
 	}
 
-	KString sQuotedName = QuoteName(sServiceName);
+	KString sQuotedName = QuoteForShell(sServiceName);
 
 	// best-effort stop + disable (ignore failures so we can still remove
 	// the unit file if the service was already inactive or disabled)
@@ -1048,6 +1375,34 @@ bool KService::Uninstall(KStringView sServiceName)
 	}
 
 	Systemctl(bUserScope, "daemon-reload");
+	return true;
+
+#elif defined(DEKAF2_IS_MACOS)
+
+	KString sLabel     = MakeLabel(sServiceName);
+	bool    bUserScope = false;
+
+	if (!DetectInstalledScope(sLabel, &bUserScope))
+	{
+		kWarning("service '{}' (label '{}') is not installed", sServiceName, sLabel);
+		return false;
+	}
+
+	KString sPlistPath = PlistPath(sLabel, bUserScope);
+
+	// unload first — this also stops the job. Best-effort: if unload fails
+	// (e.g. job was not loaded) we still proceed to remove the plist file.
+	Launchctl(kFormat("unload -w {}", QuoteForShell(sPlistPath)));
+
+	if (!sPlistPath.empty() && kFileExists(sPlistPath))
+	{
+		if (!kRemoveFile(sPlistPath))
+		{
+			kWarning("cannot remove plist file '{}'", sPlistPath);
+			return false;
+		}
+	}
+
 	return true;
 
 #else
@@ -1095,7 +1450,19 @@ bool KService::Start(KStringView sServiceName)
 		return false;
 	}
 
-	return Systemctl(bUserScope, kFormat("start {}", QuoteName(sServiceName))) == 0;
+	return Systemctl(bUserScope, kFormat("start {}", QuoteForShell(sServiceName))) == 0;
+
+#elif defined(DEKAF2_IS_MACOS)
+
+	KString sLabel = MakeLabel(sServiceName);
+
+	if (!DetectInstalledScope(sLabel, nullptr))
+	{
+		kWarning("service '{}' (label '{}') is not installed", sServiceName, sLabel);
+		return false;
+	}
+
+	return Launchctl(kFormat("start {}", QuoteForShell(sLabel))) == 0;
 
 #else
 	(void)sServiceName;
@@ -1148,7 +1515,19 @@ bool KService::Stop(KStringView sServiceName)
 		return false;
 	}
 
-	return Systemctl(bUserScope, kFormat("stop {}", QuoteName(sServiceName))) == 0;
+	return Systemctl(bUserScope, kFormat("stop {}", QuoteForShell(sServiceName))) == 0;
+
+#elif defined(DEKAF2_IS_MACOS)
+
+	KString sLabel = MakeLabel(sServiceName);
+
+	if (!DetectInstalledScope(sLabel, nullptr))
+	{
+		kWarning("service '{}' (label '{}') is not installed", sServiceName, sLabel);
+		return false;
+	}
+
+	return Launchctl(kFormat("stop {}", QuoteForShell(sLabel))) == 0;
 
 #else
 	(void)sServiceName;
@@ -1197,7 +1576,7 @@ KService::State KService::Status(KStringView sServiceName)
 	}
 
 	KString sOutput;
-	SystemctlCapture(bUserScope, kFormat("is-active {}", QuoteName(sServiceName)), sOutput);
+	SystemctlCapture(bUserScope, kFormat("is-active {}", QuoteForShell(sServiceName)), sOutput);
 
 	// `systemctl is-active` maps cleanly to our State enum; unknown values
 	// (e.g. "failed") fall through to Stopped
@@ -1205,6 +1584,34 @@ KService::State KService::Status(KStringView sServiceName)
 	if (sOutput == "activating")   return State::StartPending;
 	if (sOutput == "deactivating") return State::StopPending;
 	if (sOutput == "reloading")    return State::StartPending;
+
+	return State::Stopped;
+
+#elif defined(DEKAF2_IS_MACOS)
+
+	KString sLabel = MakeLabel(sServiceName);
+
+	if (!DetectInstalledScope(sLabel, nullptr))
+	{
+		return State::Stopped;
+	}
+
+	KString sOutput;
+	int iExit = LaunchctlCapture(kFormat("list {}", QuoteForShell(sLabel)), sOutput);
+
+	if (iExit != 0)
+	{
+		// launchctl list returns 113 (ESRCH) when the label is not loaded
+		return State::Stopped;
+	}
+
+	// `launchctl list <label>` prints a plist dict. A running job contains
+	// a line like:  "PID" = 1234;
+	// No PID line means the job is loaded but not currently executing.
+	if (sOutput.find("\"PID\"") != KString::npos)
+	{
+		return State::Running;
+	}
 
 	return State::Stopped;
 
@@ -1238,6 +1645,10 @@ bool KService::IsInstalled(KStringView sServiceName)
 
 	return DetectInstalledScope(sServiceName, nullptr);
 
+#elif defined(DEKAF2_IS_MACOS)
+
+	return DetectInstalledScope(MakeLabel(sServiceName), nullptr);
+
 #else
 	(void)sServiceName;
 	return false;
@@ -1252,7 +1663,9 @@ bool KService::IsRunningAsService()
 #ifdef DEKAF2_IS_WINDOWS
 	return ctx().bIsService.load(std::memory_order_acquire);
 #elif defined(DEKAF2_IS_LINUX)
-	return lx().bIsService.load(std::memory_order_acquire);
+	return ctx().bIsService.load(std::memory_order_acquire);
+#elif defined(DEKAF2_IS_MACOS)
+	return ctx().bIsService.load(std::memory_order_acquire);
 #else
 	return false;
 #endif
@@ -1271,12 +1684,24 @@ void KService::SetShutdownHandler(std::function<void()> fnShutdown)
 	// block these signals on the main thread, so our trampoline will not fire
 	// in that setup. Such applications should route their KSignals handler
 	// into their own shutdown logic directly rather than rely on this method.
-	lx().fnShutdown = std::move(fnShutdown);
+	ctx().fnShutdown = std::move(fnShutdown);
 
-	if (lx().fnShutdown)
+	if (ctx().fnShutdown)
 	{
-		std::signal(SIGTERM, &LinuxSignalTrampoline);
-		std::signal(SIGINT,  &LinuxSignalTrampoline);
+		std::signal(SIGTERM, &PosixSignalTrampoline);
+		std::signal(SIGINT,  &PosixSignalTrampoline);
+	}
+#elif defined(DEKAF2_IS_MACOS)
+	// launchd sends SIGTERM when a service is unloaded / stopped. Same
+	// KSignals caveat as on Linux: if the application uses KInit(true) and
+	// has KSignals block SIGTERM on all threads, our trampoline will not
+	// fire — route shutdown through KSignals in that case.
+	ctx().fnShutdown = std::move(fnShutdown);
+
+	if (ctx().fnShutdown)
+	{
+		std::signal(SIGTERM, &PosixSignalTrampoline);
+		std::signal(SIGINT,  &PosixSignalTrampoline);
 	}
 #else
 	(void)fnShutdown;
@@ -1293,7 +1718,7 @@ void KService::ReportState(State state, uint32_t iWaitHintMs)
 #elif defined(DEKAF2_IS_LINUX)
 	(void)iWaitHintMs;
 
-	if (!lx().bIsService.load(std::memory_order_acquire))
+	if (!ctx().bIsService.load(std::memory_order_acquire))
 	{
 		return;
 	}
@@ -1317,6 +1742,11 @@ void KService::ReportState(State state, uint32_t iWaitHintMs)
 			// no first-class equivalent in systemd
 			break;
 	}
+#elif defined(DEKAF2_IS_MACOS)
+	// launchd has no state-reporting protocol — the process is simply
+	// considered running as long as it is alive. Nothing to do here.
+	(void)state;
+	(void)iWaitHintMs;
 #else
 	(void)state;
 	(void)iWaitHintMs;

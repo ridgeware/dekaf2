@@ -64,6 +64,15 @@
 	#endif
 	#include <windows.h>
 	#include <winsvc.h>
+#elif defined(DEKAF2_IS_LINUX)
+	#include <dekaf2/core/strings/kstringutils.h>
+	#include <dekaf2/system/filesystem/kfilesystem.h>
+	#include <sys/socket.h>
+	#include <sys/un.h>
+	#include <sys/types.h>
+	#include <unistd.h>
+	#include <cerrno>
+	#include <cstring>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -363,6 +372,305 @@ bool OpenServiceByName(KStringView sServiceName, DWORD dwAccess,
 
 #endif // DEKAF2_IS_WINDOWS
 
+#ifdef DEKAF2_IS_LINUX
+
+//-----------------------------------------------------------------------------
+/// Process-wide state for the systemd integration. Populated by Run() and
+/// referenced by ReportState() / SetShutdownHandler() / IsRunningAsService().
+struct LinuxState
+//-----------------------------------------------------------------------------
+{
+	std::atomic<bool>     bIsService { false };  ///< running under systemd
+	std::function<void()> fnShutdown;            ///< optional shutdown hook
+	KString               sNotifySocket;         ///< cached $NOTIFY_SOCKET
+
+}; // LinuxState
+
+//-----------------------------------------------------------------------------
+LinuxState& lx()
+//-----------------------------------------------------------------------------
+{
+	static LinuxState s;
+	return s;
+
+} // lx
+
+//-----------------------------------------------------------------------------
+/// Send a single notification message to systemd via the NOTIFY_SOCKET, using
+/// the sd_notify wire format (key=value lines, NUL-free payload). Silently
+/// succeeds as a no-op if NOTIFY_SOCKET was not set. Implemented inline to
+/// avoid a dependency on libsystemd.
+bool SdNotify(KStringView sMessage)
+//-----------------------------------------------------------------------------
+{
+	const auto& sSocket = lx().sNotifySocket;
+
+	if (sSocket.empty() || sMessage.empty())
+	{
+		return false;
+	}
+
+	int fd = ::socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+
+	if (fd < 0)
+	{
+		kDebug(1, "sd_notify: socket() failed: {}", std::strerror(errno));
+		return false;
+	}
+
+	sockaddr_un addr = {};
+	addr.sun_family  = AF_UNIX;
+
+	// NOTIFY_SOCKET begins with either '/' (filesystem path) or '@' (abstract
+	// Linux socket namespace). For the abstract form, the first byte of
+	// sun_path must be a NUL byte followed by the rest of the name.
+	const std::size_t iMaxPath = sizeof(addr.sun_path);
+	std::size_t       iLen     = sSocket.size();
+
+	if (iLen >= iMaxPath)
+	{
+		iLen = iMaxPath - 1;
+	}
+
+	std::memcpy(addr.sun_path, sSocket.data(), iLen);
+	socklen_t iAddrLen = static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + iLen);
+
+	if (addr.sun_path[0] == '@')
+	{
+		addr.sun_path[0] = '\0';  // switch to abstract namespace
+	}
+	else
+	{
+		// for the filesystem variant, sun_path must be NUL-terminated and
+		// iAddrLen must include that terminator
+		if (iLen < iMaxPath)
+		{
+			addr.sun_path[iLen] = '\0';
+			iAddrLen            = static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + iLen + 1);
+		}
+	}
+
+	ssize_t n = ::sendto(fd, sMessage.data(), sMessage.size(), MSG_NOSIGNAL,
+	                     reinterpret_cast<sockaddr*>(&addr), iAddrLen);
+	::close(fd);
+
+	if (n < 0)
+	{
+		kDebug(1, "sd_notify: sendto() failed: {}", std::strerror(errno));
+		return false;
+	}
+
+	return true;
+
+} // SdNotify
+
+//-----------------------------------------------------------------------------
+/// Trampoline for std::signal; forwards SIGTERM (or SIGINT) into the user's
+/// shutdown handler. Must be async-signal-safe, so we only invoke handlers
+/// the user registered through SetShutdownHandler().
+void LinuxSignalTrampoline(int /*iSignal*/)
+//-----------------------------------------------------------------------------
+{
+	auto& h = lx().fnShutdown;
+
+	if (h)
+	{
+		try
+		{
+			h();
+		}
+		catch (...)
+		{
+			// nothing we can do from a signal handler
+		}
+	}
+
+} // LinuxSignalTrampoline
+
+//-----------------------------------------------------------------------------
+/// Filesystem path of the systemd unit file for sServiceName under the
+/// requested scope. Returns an empty string for user scope when $HOME cannot
+/// be resolved.
+KString UnitFilePath(KStringView sServiceName, bool bUserScope)
+//-----------------------------------------------------------------------------
+{
+	if (bUserScope)
+	{
+		KString sBase = kGetEnv("XDG_CONFIG_HOME");
+
+		if (sBase.empty())
+		{
+			sBase = kGetHome();
+
+			if (sBase.empty())
+			{
+				return {};
+			}
+			sBase += "/.config";
+		}
+
+		return kFormat("{}/systemd/user/{}.service", sBase, sServiceName);
+	}
+
+	return kFormat("/etc/systemd/system/{}.service", sServiceName);
+
+} // UnitFilePath
+
+//-----------------------------------------------------------------------------
+/// Returns the scope of a previously-installed service by probing both the
+/// system and the user unit-file locations. *pUserScope is set to the
+/// detected scope (unchanged if nothing was found).
+bool DetectInstalledScope(KStringView sServiceName, bool* pUserScope)
+//-----------------------------------------------------------------------------
+{
+	if (kFileExists(UnitFilePath(sServiceName, false)))
+	{
+		if (pUserScope) *pUserScope = false;
+		return true;
+	}
+
+	KString sUserPath = UnitFilePath(sServiceName, true);
+
+	if (!sUserPath.empty() && kFileExists(sUserPath))
+	{
+		if (pUserScope) *pUserScope = true;
+		return true;
+	}
+
+	return false;
+
+} // DetectInstalledScope
+
+//-----------------------------------------------------------------------------
+/// Double-quote a value so it is safe to pass through /bin/sh. Uses dekaf2's
+/// kEscapeForQuotedCommands() to backslash-escape shell metacharacters that
+/// survive inside double quotes (", \, `, $, NUL).
+KString QuoteName(KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	return kFormat("\"{}\"", kEscapeForQuotedCommands(sValue));
+
+} // QuoteName
+
+//-----------------------------------------------------------------------------
+/// Run `systemctl [--user] <args>` synchronously, return its exit code.
+int Systemctl(bool bUserScope, KStringView sArgs)
+//-----------------------------------------------------------------------------
+{
+	KString sCmd = "systemctl";
+
+	if (bUserScope)
+	{
+		sCmd += " --user";
+	}
+
+	sCmd += ' ';
+	sCmd += sArgs;
+
+	return kSystem(sCmd);
+
+} // Systemctl
+
+//-----------------------------------------------------------------------------
+/// Run `systemctl [--user] <args>` synchronously, capture its stdout into
+/// sOutputOut. Trailing whitespace is stripped so callers can compare against
+/// "active", "inactive", etc.
+int SystemctlCapture(bool bUserScope, KStringView sArgs, KString& sOutputOut)
+//-----------------------------------------------------------------------------
+{
+	KString sCmd = "systemctl";
+
+	if (bUserScope)
+	{
+		sCmd += " --user";
+	}
+
+	sCmd += ' ';
+	sCmd += sArgs;
+
+	sOutputOut.clear();
+	int iExit = kSystem(sCmd, sOutputOut);
+	sOutputOut.TrimRight();
+	return iExit;
+
+} // SystemctlCapture
+
+//-----------------------------------------------------------------------------
+/// Render the contents of the systemd unit file for the given install
+/// parameters.
+KString BuildUnitFile(KStringView sServiceName, const KService::InstallOptions& Opts)
+//-----------------------------------------------------------------------------
+{
+	KStringView sDescription = !Opts.sDescription.empty() ? KStringView(Opts.sDescription)
+	                         : !Opts.sDisplayName.empty() ? KStringView(Opts.sDisplayName)
+	                         :                              sServiceName;
+
+	KString sBinary = Opts.sBinaryPath.empty() ? kGetOwnPathname() : Opts.sBinaryPath;
+
+	KString sExecStart;
+
+	if (sBinary.find(' ') != KString::npos)
+	{
+		sExecStart = kFormat("\"{}\"", sBinary);
+	}
+	else
+	{
+		sExecStart = sBinary;
+	}
+
+	if (!Opts.sArguments.empty())
+	{
+		sExecStart += ' ';
+		sExecStart += Opts.sArguments;
+	}
+
+	KString s;
+	s += "# generated by dekaf2 KService — do not edit by hand\n";
+	s += "[Unit]\n";
+	s += kFormat("Description={}\n", sDescription);
+	s += "After=network.target\n";
+	s += "\n";
+
+	s += "[Service]\n";
+	// Type=notify so systemd waits for the READY=1 notification that
+	// KService::Run() sends once fnMain is entered. NotifyAccess=main is the
+	// default but set it explicitly for clarity.
+	s += "Type=notify\n";
+	s += "NotifyAccess=main\n";
+	s += kFormat("ExecStart={}\n", sExecStart);
+
+	if (!Opts.sRunAsUser.empty())
+	{
+		// accept either "user" or "user:group"
+		auto iColon = Opts.sRunAsUser.find(':');
+
+		if (iColon == KString::npos)
+		{
+			s += kFormat("User={}\n", Opts.sRunAsUser);
+		}
+		else
+		{
+			s += kFormat("User={}\n",  Opts.sRunAsUser.substr(0, iColon));
+			s += kFormat("Group={}\n", Opts.sRunAsUser.substr(iColon + 1));
+		}
+	}
+
+	s += "Restart=on-failure\n";
+	s += "RestartSec=5\n";
+	s += "\n";
+
+	s += "[Install]\n";
+	// user-scope units default to default.target; system units to
+	// multi-user.target (non-graphical boot), which is what servers want
+	s += Opts.bUserScope ? "WantedBy=default.target\n"
+	                     : "WantedBy=multi-user.target\n";
+
+	return s;
+
+} // BuildUnitFile
+
+#endif // DEKAF2_IS_LINUX
+
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -420,9 +728,62 @@ int KService::Run(KStringView sServiceName, int argc, char** argv, MainFunc fnMa
 	const int iFilteredArgc = static_cast<int>(c.FilteredArgv.size()) - 1;
 	return c.fnMain(iFilteredArgc, c.FilteredArgv.data());
 
+#elif defined(DEKAF2_IS_LINUX)
+
+	(void)sServiceName;
+
+	// systemd sets INVOCATION_ID for every unit it launches; its presence is
+	// the canonical signal that we are running as a service. We deliberately
+	// do NOT trigger the notify path merely because NOTIFY_SOCKET is set
+	// (that would also fire under non-systemd supervisors that we do not
+	// want to bind to).
+	const bool bIsService = !kGetEnv("INVOCATION_ID").empty();
+
+	if (!bIsService)
+	{
+		// interactive launch → transparent passthrough
+		return fnMain(argc, argv);
+	}
+
+	auto& s = lx();
+	s.bIsService.store(true, std::memory_order_release);
+	s.sNotifySocket = kGetEnv("NOTIFY_SOCKET");
+
+	// Tell systemd we are up and running so Type=notify units progress to
+	// the active state. Include MAINPID for robustness — systemd already
+	// knows our pid but being explicit avoids races with forked children.
+	if (!s.sNotifySocket.empty())
+	{
+		SdNotify(kFormat("READY=1\nMAINPID={}\n", static_cast<long>(::getpid())));
+	}
+
+	int iExit = 0;
+
+	try
+	{
+		iExit = fnMain(argc, argv);
+	}
+	catch (const std::exception& ex)
+	{
+		kException(ex);
+		iExit = 1;
+	}
+	catch (...)
+	{
+		iExit = 1;
+	}
+
+	// inform systemd that we are on our way out so it does not flag our
+	// exit as unexpected
+	if (!s.sNotifySocket.empty())
+	{
+		SdNotify("STOPPING=1\n");
+	}
+
+	return iExit;
+
 #else
-	// non-Windows: transparent passthrough, no flag filtering needed since we
-	// never inject --service into these platforms
+	// macOS / other: transparent passthrough
 	(void)sServiceName;
 	return fnMain(argc, argv);
 #endif
@@ -536,10 +897,92 @@ bool KService::Install(KStringView sServiceName, const InstallOptions& Opts)
 
 	return true;
 
+#elif defined(DEKAF2_IS_LINUX)
+
+	// If the caller did not explicitly request user scope but we are not
+	// running as root, silently fall back to a user-scope install rather
+	// than fail on the write to /etc/systemd/system. We only warn once so
+	// interactive sessions get a clear hint about what happened.
+	bool bUserScope = Opts.bUserScope;
+
+	if (!bUserScope && ::getuid() != 0)
+	{
+		// write directly to stderr so the hint is visible even when KLog
+		// warnings are disabled — this is a CLI-facing notice, not a bug
+		kPrintLine(stderr,
+		           ":: not running as root — installing '{}' as user-scope service "
+		           "under ~/.config/systemd/user\n"
+		           ":: run with sudo for a system-wide install",
+		           sServiceName);
+		bUserScope = true;
+	}
+
+	KString sUnitPath = UnitFilePath(sServiceName, bUserScope);
+
+	if (sUnitPath.empty())
+	{
+		kWarning("cannot determine unit-file path for user scope — $HOME not set");
+		return false;
+	}
+
+	// make sure the parent directory exists (user scope usually does not
+	// ship with a pre-existing ~/.config/systemd/user)
+	auto iSlash = sUnitPath.rfind('/');
+
+	if (iSlash != KString::npos)
+	{
+		KString sDir = sUnitPath.substr(0, iSlash);
+
+		if (!sDir.empty() && !kCreateDir(sDir))
+		{
+			kWarning("cannot create directory '{}'", sDir);
+			return false;
+		}
+	}
+
+	// take a mutable copy of the options so BuildUnitFile() sees the effective
+	// scope in case we auto-switched above (affects WantedBy=)
+	InstallOptions EffectiveOpts = Opts;
+	EffectiveOpts.bUserScope     = bUserScope;
+
+	KString sUnit = BuildUnitFile(sServiceName, EffectiveOpts);
+
+	if (!kWriteFile(sUnitPath, sUnit))
+	{
+		kWarning("cannot write unit file '{}'", sUnitPath);
+		return false;
+	}
+
+	KString sQuotedName = QuoteName(sServiceName);
+
+	// re-read unit files so daemon-reload is visible to subsequent calls
+	if (Systemctl(bUserScope, "daemon-reload") != 0)
+	{
+		kWarning("systemctl daemon-reload failed");
+		// continue anyway — the unit file was written
+	}
+
+	// Automatic => enable at boot; Manual => registered but not enabled;
+	// Disabled => explicitly disabled
+	if (EffectiveOpts.Mode == StartMode::Automatic)
+	{
+		if (Systemctl(bUserScope, kFormat("enable {}", sQuotedName)) != 0)
+		{
+			kWarning("systemctl enable '{}' failed", sServiceName);
+			// unit file is still in place — caller can retry manually
+		}
+	}
+	else if (EffectiveOpts.Mode == StartMode::Disabled)
+	{
+		Systemctl(bUserScope, kFormat("disable {}", sQuotedName));
+	}
+
+	return true;
+
 #else
 	(void)sServiceName;
 	(void)Opts;
-	kWarning("Windows Services are not available on this platform");
+	kWarning("service management is not implemented on this platform");
 	return false;
 #endif
 
@@ -576,9 +1019,40 @@ bool KService::Uninstall(KStringView sServiceName)
 
 	return bOk != 0;
 
+#elif defined(DEKAF2_IS_LINUX)
+
+	bool bUserScope = false;
+
+	if (!DetectInstalledScope(sServiceName, &bUserScope))
+	{
+		kWarning("service '{}' is not installed", sServiceName);
+		return false;
+	}
+
+	KString sQuotedName = QuoteName(sServiceName);
+
+	// best-effort stop + disable (ignore failures so we can still remove
+	// the unit file if the service was already inactive or disabled)
+	Systemctl(bUserScope, kFormat("stop {}",    sQuotedName));
+	Systemctl(bUserScope, kFormat("disable {}", sQuotedName));
+
+	KString sUnitPath = UnitFilePath(sServiceName, bUserScope);
+
+	if (!sUnitPath.empty() && kFileExists(sUnitPath))
+	{
+		if (!kRemoveFile(sUnitPath))
+		{
+			kWarning("cannot remove unit file '{}'", sUnitPath);
+			return false;
+		}
+	}
+
+	Systemctl(bUserScope, "daemon-reload");
+	return true;
+
 #else
 	(void)sServiceName;
-	kWarning("Windows Services are not available on this platform");
+	kWarning("service management is not implemented on this platform");
 	return false;
 #endif
 
@@ -611,9 +1085,21 @@ bool KService::Start(KStringView sServiceName)
 
 	return bOk != 0;
 
+#elif defined(DEKAF2_IS_LINUX)
+
+	bool bUserScope = false;
+
+	if (!DetectInstalledScope(sServiceName, &bUserScope))
+	{
+		kWarning("service '{}' is not installed", sServiceName);
+		return false;
+	}
+
+	return Systemctl(bUserScope, kFormat("start {}", QuoteName(sServiceName))) == 0;
+
 #else
 	(void)sServiceName;
-	kWarning("Windows Services are not available on this platform");
+	kWarning("service management is not implemented on this platform");
 	return false;
 #endif
 
@@ -652,9 +1138,21 @@ bool KService::Stop(KStringView sServiceName)
 
 	return bOk != 0;
 
+#elif defined(DEKAF2_IS_LINUX)
+
+	bool bUserScope = false;
+
+	if (!DetectInstalledScope(sServiceName, &bUserScope))
+	{
+		kWarning("service '{}' is not installed", sServiceName);
+		return false;
+	}
+
+	return Systemctl(bUserScope, kFormat("stop {}", QuoteName(sServiceName))) == 0;
+
 #else
 	(void)sServiceName;
-	kWarning("Windows Services are not available on this platform");
+	kWarning("service management is not implemented on this platform");
 	return false;
 #endif
 
@@ -689,6 +1187,27 @@ KService::State KService::Status(KStringView sServiceName)
 
 	return FromWinState(ssp.dwCurrentState);
 
+#elif defined(DEKAF2_IS_LINUX)
+
+	bool bUserScope = false;
+
+	if (!DetectInstalledScope(sServiceName, &bUserScope))
+	{
+		return State::Stopped;
+	}
+
+	KString sOutput;
+	SystemctlCapture(bUserScope, kFormat("is-active {}", QuoteName(sServiceName)), sOutput);
+
+	// `systemctl is-active` maps cleanly to our State enum; unknown values
+	// (e.g. "failed") fall through to Stopped
+	if (sOutput == "active")       return State::Running;
+	if (sOutput == "activating")   return State::StartPending;
+	if (sOutput == "deactivating") return State::StopPending;
+	if (sOutput == "reloading")    return State::StartPending;
+
+	return State::Stopped;
+
 #else
 	(void)sServiceName;
 	return State::Stopped;
@@ -715,6 +1234,10 @@ bool KService::IsInstalled(KStringView sServiceName)
 
 	return true;
 
+#elif defined(DEKAF2_IS_LINUX)
+
+	return DetectInstalledScope(sServiceName, nullptr);
+
 #else
 	(void)sServiceName;
 	return false;
@@ -728,6 +1251,8 @@ bool KService::IsRunningAsService()
 {
 #ifdef DEKAF2_IS_WINDOWS
 	return ctx().bIsService.load(std::memory_order_acquire);
+#elif defined(DEKAF2_IS_LINUX)
+	return lx().bIsService.load(std::memory_order_acquire);
 #else
 	return false;
 #endif
@@ -740,6 +1265,19 @@ void KService::SetShutdownHandler(std::function<void()> fnShutdown)
 {
 #ifdef DEKAF2_IS_WINDOWS
 	ctx().fnShutdown = std::move(fnShutdown);
+#elif defined(DEKAF2_IS_LINUX)
+	// Store the handler and install a SIGTERM / SIGINT trampoline. Note:
+	// std::signal is coarse — applications that use KSignals (via KInit(true))
+	// block these signals on the main thread, so our trampoline will not fire
+	// in that setup. Such applications should route their KSignals handler
+	// into their own shutdown logic directly rather than rely on this method.
+	lx().fnShutdown = std::move(fnShutdown);
+
+	if (lx().fnShutdown)
+	{
+		std::signal(SIGTERM, &LinuxSignalTrampoline);
+		std::signal(SIGINT,  &LinuxSignalTrampoline);
+	}
 #else
 	(void)fnShutdown;
 #endif
@@ -752,6 +1290,33 @@ void KService::ReportState(State state, uint32_t iWaitHintMs)
 {
 #ifdef DEKAF2_IS_WINDOWS
 	ReportStateImpl(state, iWaitHintMs);
+#elif defined(DEKAF2_IS_LINUX)
+	(void)iWaitHintMs;
+
+	if (!lx().bIsService.load(std::memory_order_acquire))
+	{
+		return;
+	}
+
+	// map our abstract state enum to systemd's notify protocol
+	switch (state)
+	{
+		case State::Running:
+			SdNotify(kFormat("READY=1\nMAINPID={}\n", static_cast<long>(::getpid())));
+			break;
+		case State::StopPending:
+		case State::Stopped:
+			SdNotify("STOPPING=1\n");
+			break;
+		case State::StartPending:
+			SdNotify("STATUS=starting\n");
+			break;
+		case State::ContinuePending:
+		case State::PausePending:
+		case State::Paused:
+			// no first-class equivalent in systemd
+			break;
+	}
 #else
 	(void)state;
 	(void)iWaitHintMs;
@@ -774,7 +1339,7 @@ void KService::AddOptions(KOptions&   Options,
 
 	Options
 	    .Option("install")
-	    .Help("install as Windows service (requires administrator)")
+	    .Help("install as system service (Windows SCM / systemd; needs admin/root)")
 	    .Final()
 	    ([sName, sDisplayCopy, sDescrCopy]()
 	    {
@@ -795,7 +1360,7 @@ void KService::AddOptions(KOptions&   Options,
 
 	Options
 	    .Option("uninstall")
-	    .Help("uninstall Windows service (requires administrator)")
+	    .Help("uninstall system service (needs admin/root)")
 	    .Final()
 	    ([sName]()
 	    {
@@ -812,7 +1377,7 @@ void KService::AddOptions(KOptions&   Options,
 
 	Options
 	    .Option("start")
-	    .Help("start Windows service")
+	    .Help("start the installed service")
 	    .Final()
 	    ([sName]()
 	    {
@@ -826,7 +1391,7 @@ void KService::AddOptions(KOptions&   Options,
 
 	Options
 	    .Option("stop")
-	    .Help("stop Windows service")
+	    .Help("stop the running service")
 	    .Final()
 	    ([sName]()
 	    {
@@ -840,7 +1405,7 @@ void KService::AddOptions(KOptions&   Options,
 
 	Options
 	    .Option("status")
-	    .Help("query Windows service status")
+	    .Help("query the current service status")
 	    .Final()
 	    ([sName]()
 	    {

@@ -44,9 +44,17 @@
 
 /// @file kservice.h
 /// Cross-platform wrapper that allows any long-running CLI (servers, pollers,
-/// background workers) to be registered and run as a Windows Service. On
-/// non-Windows platforms the wrapper is a transparent passthrough so the same
-/// source builds and runs identically on Linux, macOS and Windows.
+/// background workers) to be registered and run as a Windows Service or as a
+/// systemd unit on Linux.
+///
+/// The same executable continues to run as a regular interactive program when
+/// launched from a shell; the SCM / systemd integration machinery activates
+/// only when the process was launched by the platform's service manager.
+///
+/// Service manager detection:
+///   - Windows : launched by SCM (no console window, or --service flag present)
+///   - Linux   : INVOCATION_ID environment variable set by systemd
+///   - macOS   : no service-manager integration (transparent passthrough)
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>
@@ -64,9 +72,8 @@ class KOptions;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Adapter that registers an existing CLI main() with the Windows Service
-/// Control Manager (SCM). The same executable continues to run as a regular
-/// console program when launched interactively; the SCM machinery is only
-/// activated when the process was launched by SCM itself.
+/// Control Manager (SCM) or with systemd on Linux. The same executable
+/// continues to run as a regular console program when launched interactively.
 ///
 /// Usage pattern:
 ///
@@ -80,12 +87,21 @@ class KOptions;
 ///     }
 /// @endcode
 ///
-/// Optionally, add uniform install / uninstall / start / stop options to the
-/// program's KOptions parser via KService::AddOptions().
+/// Optionally, handle the install / uninstall / start / stop management flags
+/// with either HandleCLI() (framework-free) or AddOptions() (KOptions-based).
 ///
-/// On Linux and macOS all methods are no-ops; Run() simply invokes the
-/// supplied MainFunc. The API is kept identical across platforms so calling
-/// code does not need any conditional compilation.
+/// Platform behaviour:
+///   - Windows: uses SCM; install writes to the service registry; state is
+///     reported via SetServiceStatus. An internal --service flag is injected
+///     into the registered binPath and filtered back out of argv.
+///   - Linux:   uses systemd; install writes a .service unit under
+///     /etc/systemd/system (or ~/.config/systemd/user for user-scope),
+///     calls `systemctl daemon-reload` + `systemctl enable`. Run() sends
+///     `sd_notify` READY=1 / STOPPING=1 when launched by systemd (detected
+///     via the INVOCATION_ID environment variable). Interactive launches
+///     are transparent passthroughs — no notify, no signal changes.
+///   - macOS:   service-manager integration is a no-op; Run() simply calls
+///     the user's main and all management methods return false.
 class DEKAF2_PUBLIC KService
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -121,28 +137,47 @@ public:
 	/// readable without a dozen positional arguments.
 	struct InstallOptions
 	{
-		/// display name shown in services.msc (falls back to service name)
+		/// display name shown in services.msc / systemd Description= (falls
+		/// back to sServiceName if empty)
 		KString   sDisplayName;
-		/// free-form description shown in services.msc
+		/// free-form description. On Windows appears in services.msc. On
+		/// Linux preferred over sDisplayName for the systemd Description=
+		/// field; falls back to sDisplayName / sServiceName.
 		KString   sDescription;
 		/// full binary path. If empty, Install() uses the current executable.
 		KString   sBinaryPath;
 		/// extra arguments appended to the binary path when registered.
-		/// KService::Run() will automatically recognise the "--service" flag
-		/// that is injected into this argument string.
+		/// Windows: KService::Run() automatically recognises the "--service"
+		/// flag that is injected into this argument string.
+		/// Linux: written verbatim into ExecStart= of the systemd unit file.
 		KString   sArguments;
-		/// account to run the service under, e.g. "NT AUTHORITY\\NetworkService".
-		/// Empty => LocalSystem.
+		/// Windows: account to run the service under, e.g.
+		/// "NT AUTHORITY\\NetworkService". Empty => LocalSystem.
+		/// Linux: user name (and optional "user:group") for the systemd
+		/// User= / Group= fields. Empty => run as root (system-scope) or the
+		/// invoking user (user-scope).
 		KString   sRunAsUser;
-		/// password for sRunAsUser. Ignored for built-in accounts.
+		/// Windows: password for sRunAsUser. Ignored for built-in accounts.
+		/// Linux: not used (no equivalent).
 		KString   sRunAsPassword;
-		/// service startup mode
+		/// service startup mode. On Linux: Automatic => `systemctl enable`,
+		/// Manual / Disabled => no enable (service can still be started
+		/// manually via `systemctl start`).
 		StartMode Mode;
+		/// Linux only: if true, install as a user-scoped systemd unit under
+		/// `~/.config/systemd/user/<name>.service` and use `systemctl --user`.
+		/// If false (default) and the process runs as root, install
+		/// system-wide under `/etc/systemd/system/<name>.service`. If false
+		/// but the process is non-root, Install() automatically falls back
+		/// to user scope with a warning (so `./mysvc -install` without sudo
+		/// produces a functional user-level install). Ignored on Windows
+		/// and macOS.
+		bool      bUserScope;
 
 		// user-declared default constructor so this struct can be used as a
 		// default-argument value without triggering Clang's lazy-parsing issue
 		// with in-class member initialisers
-		InstallOptions() : Mode(StartMode::Automatic) {}
+		InstallOptions() : Mode(StartMode::Automatic), bUserScope(false) {}
 	};
 
 	//-----------------------------------------------------------------------------

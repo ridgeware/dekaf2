@@ -176,7 +176,11 @@
 	#define DEKAF2_IS_MACOS 1
 #endif
 
-#if !defined(DEKAF2_IS_UNIX) && (defined(unix) || defined(__unix__) || defined(DEKAF2_IS_MACOS))
+#if !defined(DEKAF2_IS_LINUX) && defined(__linux__)
+	#define DEKAF2_IS_LINUX 1
+#endif
+
+#if !defined(DEKAF2_IS_UNIX) && (defined(unix) || defined(__unix__) || defined(DEKAF2_IS_MACOS) || defined(DEKAF2_IS_LINUX))
 	#define DEKAF2_IS_UNIX 1
 #endif
 

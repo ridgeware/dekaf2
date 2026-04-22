@@ -73,6 +73,7 @@
 #include "ktunnel.h"
 #include <dekaf2/core/init/dekaf2.h> // KInit()
 #include <dekaf2/core/types/kscopeguard.h>
+#include <dekaf2/system/os/kservice.h>
 
 using namespace dekaf2;
 
@@ -450,13 +451,29 @@ int Tunnel::Main(int argc, char** argv)
 int main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	try
+	// Handle Windows service management flags before anything else. On
+	// non-Windows platforms this just prints a clear diagnostic and exits.
+	int iSvcExit = 0;
+	if (KService::HandleCLI(argc, argv, "ktunnel", iSvcExit,
+	                        "KTunnel",
+	                        "Secure reverse tunnel for exposing protected services through a public host"))
 	{
-		return Tunnel().Main (argc, argv);
+		return iSvcExit;
 	}
-	catch (const std::exception& ex)
+
+	// On Windows, KService::Run() engages the SCM dispatcher when we were
+	// launched by services.msc / sc.exe; otherwise it is a transparent
+	// passthrough. On Linux / macOS it is always a passthrough.
+	return KService::Run("ktunnel", argc, argv, [](int ac, char** av)
 	{
-		KErr.FormatLine(">> {}: {}", "ktunnel", ex.what());
-	}
-	return 1;
+		try
+		{
+			return Tunnel().Main(ac, av);
+		}
+		catch (const std::exception& ex)
+		{
+			KErr.FormatLine(">> {}: {}", "ktunnel", ex.what());
+		}
+		return 1;
+	});
 }

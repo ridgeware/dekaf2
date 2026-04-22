@@ -1462,6 +1462,7 @@ set(PUBLIC_HEADERS
 	source/system/filesystem/kfilesystem.h
 	source/system/os/kgetruntimestack.h
 	source/system/os/kheapmon.h
+	source/system/os/kservice.h
 	source/system/os/ksignals.h
 	source/system/os/ksystem.h
 	source/system/os/ksystemstats.h
@@ -1713,6 +1714,7 @@ set (SOURCES
 	source/system/filesystem/kfilesystem.cpp
 	source/system/os/kgetruntimestack.cpp
 	source/system/os/kheapmon.cpp
+	source/system/os/kservice.cpp
 	source/system/os/ksignals.cpp
 	source/system/os/ksystem.cpp
 	source/system/os/ksystemstats.cpp
@@ -1898,8 +1900,9 @@ endif()
 
 if (IS_WINDOWS)
 	# we need the dbghelp library for the data segment detection on Windows,
-	# and ihlpapi for network interface code
-	set (WINDOWS_LIBRARIES "dbghelp" "iphlpapi")
+	# iphlpapi for network interface code, and advapi32 for the Service
+	# Control Manager APIs used by KService
+	set (WINDOWS_LIBRARIES "dbghelp" "iphlpapi" "advapi32")
 endif()
 
 set(DEKAF2_SOURCE_FILES

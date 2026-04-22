@@ -54,7 +54,7 @@
 /// Service manager detection:
 ///   - Windows : launched by SCM (no console window, or --service flag present)
 ///   - Linux   : INVOCATION_ID environment variable set by systemd
-///   - macOS   : no service-manager integration (transparent passthrough)
+///   - macOS   : parent pid == 1 (launchd is pid 1 and spawns services directly)
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>
@@ -72,8 +72,9 @@ class KOptions;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Adapter that registers an existing CLI main() with the Windows Service
-/// Control Manager (SCM) or with systemd on Linux. The same executable
-/// continues to run as a regular console program when launched interactively.
+/// Control Manager (SCM), with systemd on Linux, or with launchd on macOS.
+/// The same executable continues to run as a regular console program when
+/// launched interactively.
 ///
 /// Usage pattern:
 ///
@@ -100,8 +101,12 @@ class KOptions;
 ///     `sd_notify` READY=1 / STOPPING=1 when launched by systemd (detected
 ///     via the INVOCATION_ID environment variable). Interactive launches
 ///     are transparent passthroughs — no notify, no signal changes.
-///   - macOS:   service-manager integration is a no-op; Run() simply calls
-///     the user's main and all management methods return false.
+///   - macOS:   uses launchd; install writes a .plist under
+///     /Library/LaunchDaemons (or ~/Library/LaunchAgents for user-scope),
+///     calls `launchctl load -w`. Service names without a dot are
+///     auto-prefixed to `org.dekaf2.<name>` to follow Apple's reverse-DNS
+///     label convention. launchd has no ready-notification protocol, so
+///     Run() only marks the process as in-service and calls fnMain.
 class DEKAF2_PUBLIC KService
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -164,14 +169,15 @@ public:
 		/// Manual / Disabled => no enable (service can still be started
 		/// manually via `systemctl start`).
 		StartMode Mode;
-		/// Linux only: if true, install as a user-scoped systemd unit under
-		/// `~/.config/systemd/user/<name>.service` and use `systemctl --user`.
+		/// Linux / macOS: if true, install as a user-scoped unit.
+		/// Linux  paths: `~/.config/systemd/user/<name>.service`
+		/// macOS  paths: `~/Library/LaunchAgents/<label>.plist`
 		/// If false (default) and the process runs as root, install
-		/// system-wide under `/etc/systemd/system/<name>.service`. If false
-		/// but the process is non-root, Install() automatically falls back
-		/// to user scope with a warning (so `./mysvc -install` without sudo
-		/// produces a functional user-level install). Ignored on Windows
-		/// and macOS.
+		/// system-wide (Linux: `/etc/systemd/system/`, macOS:
+		/// `/Library/LaunchDaemons/`). If false but the process is non-root,
+		/// Install() automatically falls back to user scope with a stderr
+		/// hint — so `./mysvc -install` without sudo always produces a
+		/// functional user-level install. Ignored on Windows.
 		bool      bUserScope;
 
 		// user-declared default constructor so this struct can be used as a

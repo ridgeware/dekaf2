@@ -74,6 +74,7 @@
 #include <dekaf2/core/init/dekaf2.h> // KInit()
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/system/os/kservice.h>
+#include <csignal> // SIGINT, SIGTERM
 
 using namespace dekaf2;
 
@@ -282,6 +283,13 @@ ExposedServer::ExposedServer (const Config& config)
 	);
 
 	m_Config.Message("listening on port {} for forward data connections", m_Config.iRawPort);
+
+	// register shutdown signals for the raw server as well - otherwise only
+	// the KREST server would be stopped on SIGINT/SIGTERM and the blocking
+	// Start() below would hang until a second signal is received. Because
+	// KTCPServer::RegisterShutdownWithSignals now chains previously installed
+	// user handlers, a single signal stops both servers cleanly.
+	m_ExposedRawServer->RegisterShutdownWithSignals({ SIGINT, SIGTERM });
 
 	// listen on TCP
 	m_ExposedRawServer->Start(m_Config.Timeout, /* bBlock= */ true);

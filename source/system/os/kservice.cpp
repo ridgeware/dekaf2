@@ -246,6 +246,37 @@ DWORD WINAPI ControlHandler(DWORD dwControl, DWORD /*dwEventType*/, LPVOID /*lpE
 } // ControlHandler
 
 //-----------------------------------------------------------------------------
+/// Console control handler that keeps a Windows service alive across
+/// user-session events. Services compiled as console-subsystem binaries
+/// otherwise receive CTRL_LOGOFF_EVENT on every interactive / RDP logoff,
+/// and the default action for that event is ExitProcess() — causing SCM
+/// to record WIN32_EXIT_CODE=1067 (ERROR_PROCESS_ABORTED) and the
+/// service to die even though it runs as LocalSystem in session 0.
+///
+/// We swallow CTRL_LOGOFF_EVENT and CTRL_SHUTDOWN_EVENT here. System
+/// shutdown is instead handled through SCM's own SERVICE_CONTROL_SHUTDOWN
+/// path in ControlHandler(), which is the canonical way to shut down a
+/// service cleanly (with a grace period and status reporting).
+///
+/// CTRL_C / CTRL_BREAK / CTRL_CLOSE are passed through (return FALSE) so
+/// that any handler installed downstream — e.g. by the CRT backing
+/// signal(SIGINT,...) or KSignals — still sees them.
+BOOL WINAPI ServiceConsoleCtrlHandler(DWORD dwCtrlType)
+//-----------------------------------------------------------------------------
+{
+	switch (dwCtrlType)
+	{
+		case CTRL_LOGOFF_EVENT:
+		case CTRL_SHUTDOWN_EVENT:
+			return TRUE;  // handled — do not terminate
+
+		default:
+			return FALSE; // let other handlers see it
+	}
+
+} // ServiceConsoleCtrlHandler
+
+//-----------------------------------------------------------------------------
 void WINAPI ServiceMainW(DWORD /*dwArgc*/, LPWSTR* /*lpszArgv*/)
 //-----------------------------------------------------------------------------
 {
@@ -952,6 +983,17 @@ int KService::Run(KStringView sServiceName,
 	if (bLikelyService)
 	{
 		c.bIsService.store(true, std::memory_order_release);
+
+		// Protect the service from being killed on user / RDP logoff.
+		// Without this handler, Windows would deliver CTRL_LOGOFF_EVENT to
+		// our console-subsystem binary and the default handler would call
+		// ExitProcess() — leaving SCM to record WIN32_EXIT_CODE=1067.
+		// SetConsoleCtrlHandler installs handlers in LIFO order, so
+		// registering ours here (before the CRT/KSignals/user main see
+		// any control events) makes it the LAST one called, which in turn
+		// means nothing else gets to react to LOGOFF/SHUTDOWN before us
+		// unless explicitly chained.
+		::SetConsoleCtrlHandler(&ServiceConsoleCtrlHandler, TRUE);
 
 		// SCM keeps a pointer to this array until StartServiceCtrlDispatcher
 		// returns, so it must outlive the call.

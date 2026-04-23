@@ -45,7 +45,6 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
-#include <dekaf2/util/cli/koptions.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <atomic>
 #include <csignal>
@@ -820,15 +819,21 @@ KString BuildPlist(KStringView sLabel, const KService::InstallOptions& Opts, boo
 
 	AddStringPair(Dict, "Label", sLabel);
 
-	// ProgramArguments = argv[0..n]. We split Opts.sArguments naively on
-	// whitespace. Users who need complex quoting should build the string
-	// themselves with shell-style escaping (launchd treats each array entry
-	// as one argv element, so no shell re-parsing happens).
+	// ProgramArguments = argv[0..n]. We split Opts.sArguments on runs of
+	// whitespace (bCombineDelimiters=true) because launchd treats each
+	// array entry as one argv element — no shell re-parsing happens, so we
+	// must produce the final argv layout ourselves. Users who need spaces
+	// inside a single argument must quote them (bRespectQuotes=true).
 	Dict.AddNode("key").SetValue("ProgramArguments");
 	auto Args = Dict.AddNode("array");
 	Args.AddNode("string").SetValue(sBinary);
 
-	for (auto sArg : KStringView(Opts.sArguments).Split())
+	for (auto sArg : KStringView(Opts.sArguments).Split(
+	                     " \t",                   // delimiters: spaces + tabs
+	                     " \t",                   // trim same set
+	                     '\0',                    // no escape char
+	                     /*bCombineDelimiters=*/true,
+	                     /*bRespectQuotes=*/true))
 	{
 		if (!sArg.empty())
 		{
@@ -899,9 +904,28 @@ KString BuildPlist(KStringView sLabel, const KService::InstallOptions& Opts, boo
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
-int KService::Run(KStringView sServiceName, int argc, char** argv, MainFunc fnMain)
+int KService::Run(KStringView sServiceName,
+                  int         argc,
+                  char**      argv,
+                  MainFunc    fnMain,
+                  KStringView sDisplayName,
+                  KStringView sDescription)
 //-----------------------------------------------------------------------------
 {
+	// Step 1: dispatch any service-management flags before touching the
+	// service runtime. HandleCLI() prints the stacked help block on
+	// -h / -help / --help / -? and returns false (so we continue); on
+	// -install / -uninstall / -start / -stop / -status it performs the
+	// action and returns true — meaning fnMain must not be called.
+	{
+		int iCliExit = 0;
+
+		if (HandleCLI(argc, argv, sServiceName, iCliExit, sDisplayName, sDescription))
+		{
+			return iCliExit;
+		}
+	}
+
 #ifdef DEKAF2_IS_WINDOWS
 
 	auto& c = ctx();
@@ -1754,109 +1778,28 @@ void KService::ReportState(State state, uint32_t iWaitHintMs)
 
 } // ReportState
 
-//-----------------------------------------------------------------------------
-void KService::AddOptions(KOptions&   Options,
-                          KStringView sServiceName,
-                          KStringView sDisplayName,
-                          KStringView sDescription)
-//-----------------------------------------------------------------------------
-{
-	// KOptions persists the strings we hand it, so keeping value copies here is
-	// fine even though the lambdas capture by value below.
-	KString sName        = sServiceName;
-	KString sDisplayCopy = sDisplayName.empty() ? sServiceName : sDisplayName;
-	KString sDescrCopy   = sDescription;
+namespace {
 
-	Options
-	    .Option("install")
-	    .Help("install as system service (Windows SCM / systemd; needs admin/root)")
-	    .Final()
-	    ([sName, sDisplayCopy, sDescrCopy]()
-	    {
-	        InstallOptions Opts;
-	        Opts.sDisplayName = sDisplayCopy;
-	        Opts.sDescription = sDescrCopy;
+// Service-management help block emitted by HandleCLI() when it sees
+// -h / -help / --help / -?. Kept at file scope so it is compiled into
+// .rodata rather than rebuilt on every call.
+constexpr const char* s_pszCLIHelp =
+    "Service management (dekaf2 KService):\n"
+    "  -install     install the running binary as a system service\n"
+    "               (Windows SCM / systemd / launchd). Any further\n"
+    "               arguments on the same command line are baked into\n"
+    "               the generated unit / plist and replayed on every\n"
+    "               service start, e.g.:\n"
+    "                 mysvc -install -p 1234 -t localhost:4949\n"
+    "  -uninstall   remove a previously installed service\n"
+    "  -start       ask the service manager to start the service\n"
+    "  -stop        ask the service manager to stop the service\n"
+    "  -status      print the current service state\n"
+    "\n"
+    "On Linux / macOS, -install falls back to a user-scoped unit if\n"
+    "the process is not running as root (systemd --user / LaunchAgent).\n";
 
-	        if (Install(sName, Opts))
-	        {
-	            kPrintLine(":: service '{}' installed", sName);
-	        }
-	        else
-	        {
-	            kPrintLine(":: service '{}' install failed", sName);
-	            std::exit(1);
-	        }
-	    });
-
-	Options
-	    .Option("uninstall")
-	    .Help("uninstall system service (needs admin/root)")
-	    .Final()
-	    ([sName]()
-	    {
-	        if (Uninstall(sName))
-	        {
-	            kPrintLine(":: service '{}' uninstalled", sName);
-	        }
-	        else
-	        {
-	            kPrintLine(":: service '{}' uninstall failed", sName);
-	            std::exit(1);
-	        }
-	    });
-
-	Options
-	    .Option("start")
-	    .Help("start the installed service")
-	    .Final()
-	    ([sName]()
-	    {
-	        if (!Start(sName))
-	        {
-	            kPrintLine(":: service '{}' start failed", sName);
-	            std::exit(1);
-	        }
-	        kPrintLine(":: service '{}' started", sName);
-	    });
-
-	Options
-	    .Option("stop")
-	    .Help("stop the running service")
-	    .Final()
-	    ([sName]()
-	    {
-	        if (!Stop(sName))
-	        {
-	            kPrintLine(":: service '{}' stop failed", sName);
-	            std::exit(1);
-	        }
-	        kPrintLine(":: service '{}' stopped", sName);
-	    });
-
-	Options
-	    .Option("status")
-	    .Help("query the current service status")
-	    .Final()
-	    ([sName]()
-	    {
-	        KStringView sLabel;
-	        switch (Status(sName))
-	        {
-	            case State::Stopped:         sLabel = "stopped";          break;
-	            case State::StartPending:    sLabel = "start pending";    break;
-	            case State::StopPending:     sLabel = "stop pending";     break;
-	            case State::Running:         sLabel = "running";          break;
-	            case State::ContinuePending: sLabel = "continue pending"; break;
-	            case State::PausePending:    sLabel = "pause pending";    break;
-	            case State::Paused:          sLabel = "paused";           break;
-	        }
-	        kPrintLine(":: service '{}' status: {}", sName, sLabel);
-	    });
-
-	// Note: the internal --service flag is NOT registered with KOptions — it is
-	// filtered out of argv by KService::Run() before the user's main runs.
-
-} // AddOptions
+} // anonymous namespace
 
 //-----------------------------------------------------------------------------
 bool KService::HandleCLI(int           argc,
@@ -1882,6 +1825,99 @@ bool KService::HandleCLI(int           argc,
 		return {};
 	};
 
+	// Names of the service-control commands we recognise. Any argv element
+	// that is NOT one of these (and comes after the binary name) is treated
+	// as a runtime argument for the service itself and persisted into the
+	// generated unit / plist on `install`.
+	auto IsServiceCommand = [](KStringView sStripped) -> bool
+	{
+		return sStripped == "install"
+		    || sStripped == "uninstall"
+		    || sStripped == "start"
+		    || sStripped == "stop"
+		    || sStripped == "status";
+	};
+
+	// Help flags (single-dash and double-dash accepted; "?" is the
+	// traditional one-char help glyph on Windows and Catch).
+	auto IsHelpFlag = [](KStringView sStripped) -> bool
+	{
+		return sStripped == "h"
+		    || sStripped == "help"
+		    || sStripped == "?";
+	};
+
+	// First pass: spot help flags. If any is present AND no service-control
+	// flag is present, emit the KService help block and fall through
+	// (return false) so the caller's own help handler still runs. This
+	// produces "stacked help" where KService options appear alongside the
+	// application's own synopsis.
+	bool bHasHelp           = false;
+	bool bHasServiceCommand = false;
+
+	for (int i = 1; i < argc; ++i)
+	{
+		if (!argv[i])
+		{
+			continue;
+		}
+
+		KStringView sStripped = stripDashes(KStringView(argv[i]));
+
+		if (sStripped.empty())
+		{
+			continue;
+		}
+
+		if (IsServiceCommand(sStripped))
+		{
+			bHasServiceCommand = true;
+		}
+		else if (IsHelpFlag(sStripped))
+		{
+			bHasHelp = true;
+		}
+	}
+
+	if (bHasHelp && !bHasServiceCommand)
+	{
+		kPrint("{}", s_pszCLIHelp);
+		return false;
+	}
+
+	// Collect all non-service-command argv elements as a space-separated
+	// string so Install() can embed them in the unit / plist. The strings
+	// are taken verbatim (dashes included) so they reproduce the original
+	// interactive command line.
+	auto CollectProgramArguments = [&]() -> KString
+	{
+		KString sArgs;
+
+		for (int j = 1; j < argc; ++j)
+		{
+			if (!argv[j])
+			{
+				continue;
+			}
+
+			KStringView sRaw      = KStringView(argv[j]);
+			KStringView sStripped = stripDashes(sRaw);
+
+			if (!sStripped.empty() && IsServiceCommand(sStripped))
+			{
+				continue;
+			}
+
+			if (!sArgs.empty())
+			{
+				sArgs += ' ';
+			}
+			sArgs += sRaw;
+		}
+
+		return sArgs;
+	};
+
 	for (int i = 1; i < argc; ++i)
 	{
 		if (!argv[i])
@@ -1901,14 +1937,23 @@ bool KService::HandleCLI(int           argc,
 			InstallOptions Opts;
 			Opts.sDisplayName = sDisplayName.empty() ? KString(sServiceName) : KString(sDisplayName);
 			Opts.sDescription = KString(sDescription);
+			Opts.sArguments   = CollectProgramArguments();
 
 			if (Install(sServiceName, Opts))
 			{
+				// confirmations on stdout so success output can be captured
+				// or piped; the user-scope fallback warning (emitted from
+				// Install() itself) already goes to stderr.
 				kPrintLine(":: service '{}' installed", sServiceName);
+				if (!Opts.sArguments.empty())
+				{
+					kPrintLine(":: runtime arguments: {}", Opts.sArguments);
+				}
 			}
 			else
 			{
-				kPrintLine(":: service '{}' install failed", sServiceName);
+				// failures on stderr so they surface in quiet pipelines
+				kPrintLine(stderr, ":: service '{}' install failed", sServiceName);
 				iExitCodeOut = 1;
 			}
 			return true;
@@ -1922,7 +1967,7 @@ bool KService::HandleCLI(int           argc,
 			}
 			else
 			{
-				kPrintLine(":: service '{}' uninstall failed", sServiceName);
+				kPrintLine(stderr, ":: service '{}' uninstall failed", sServiceName);
 				iExitCodeOut = 1;
 			}
 			return true;
@@ -1936,7 +1981,7 @@ bool KService::HandleCLI(int           argc,
 			}
 			else
 			{
-				kPrintLine(":: service '{}' start failed", sServiceName);
+				kPrintLine(stderr, ":: service '{}' start failed", sServiceName);
 				iExitCodeOut = 1;
 			}
 			return true;
@@ -1950,7 +1995,7 @@ bool KService::HandleCLI(int           argc,
 			}
 			else
 			{
-				kPrintLine(":: service '{}' stop failed", sServiceName);
+				kPrintLine(stderr, ":: service '{}' stop failed", sServiceName);
 				iExitCodeOut = 1;
 			}
 			return true;

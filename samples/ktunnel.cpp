@@ -451,29 +451,23 @@ int Tunnel::Main(int argc, char** argv)
 int main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	// Handle Windows service management flags before anything else. On
-	// non-Windows platforms this just prints a clear diagnostic and exits.
-	int iSvcExit = 0;
-	if (KService::HandleCLI(argc, argv, "ktunnel", iSvcExit,
-	                        "KTunnel",
-	                        "Secure reverse tunnel for exposing protected services through a public host"))
-	{
-		return iSvcExit;
-	}
-
-	// On Windows, KService::Run() engages the SCM dispatcher when we were
-	// launched by services.msc / sc.exe; otherwise it is a transparent
-	// passthrough. On Linux / macOS it is always a passthrough.
-	return KService::Run("ktunnel", argc, argv, [](int ac, char** av)
-	{
-		try
+	// KService::Run() handles service-management flags (-install / -uninstall /
+	// -start / -stop / -status / --help) before fnMain runs, and engages the
+	// SCM / systemd / launchd integration when the process was launched by a
+	// service manager. Interactive launches fall through to the lambda.
+	return KService::Run("ktunnel", argc, argv,
+		[](int ac, char** av)
 		{
-			return Tunnel().Main(ac, av);
-		}
-		catch (const std::exception& ex)
-		{
-			KErr.FormatLine(">> {}: {}", "ktunnel", ex.what());
-		}
-		return 1;
-	});
+			try
+			{
+				return Tunnel().Main(ac, av);
+			}
+			catch (const std::exception& ex)
+			{
+				KErr.FormatLine(">> {}: {}", "ktunnel", ex.what());
+			}
+			return 1;
+		},
+		"KTunnel",
+		"Secure reverse tunnel");
 }

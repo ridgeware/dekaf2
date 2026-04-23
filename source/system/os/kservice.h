@@ -65,8 +65,6 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-class KOptions;
-
 /// @addtogroup system_os
 /// @{
 
@@ -76,20 +74,24 @@ class KOptions;
 /// The same executable continues to run as a regular console program when
 /// launched interactively.
 ///
-/// Usage pattern:
-///
+/// Usage pattern — a single call, any platform, any launch mode:
 /// @code
 ///     int main(int argc, char** argv)
 ///     {
-///         return KService::Run("mysvc", argc, argv, [](int ac, char** av)
-///         {
-///             return MyApp().Main(ac, av);
-///         });
+///         return KService::Run("mysvc", argc, argv,
+///             [](int ac, char** av)
+///             {
+///                 return MyApp().Main(ac, av);
+///             },
+///             "My Service",
+///             "Does stuff. Optional description.");
 ///     }
 /// @endcode
 ///
-/// Optionally, handle the install / uninstall / start / stop management flags
-/// with either HandleCLI() (framework-free) or AddOptions() (KOptions-based).
+/// Run() internally calls HandleCLI(), so -install / -uninstall / -start /
+/// -stop / -status / --help are automatically recognised and dispatched
+/// before fnMain runs. Applications that need finer control over that
+/// handshake may call HandleCLI() themselves instead (both public).
 ///
 /// Platform behaviour:
 ///   - Windows: uses SCM; install writes to the service registry; state is
@@ -118,7 +120,82 @@ public:
 	/// Signature of the user's real main function.
 	using MainFunc = std::function<int(int argc, char** argv)>;
 
+	// ========================================================================
+	//   PRIMARY ENTRY POINT — use this from main() as the all-in-one method
+	// ========================================================================
+
+	//-----------------------------------------------------------------------------
+	/// One-stop entry point for services. Call this from your main() instead
+	/// of calling the application logic directly. Run() performs, in order:
+	///
+	///   1. A call to HandleCLI() on the current argv. If any of
+	///      -install / -uninstall / -start / -stop / -status is present,
+	///      the operation is executed and Run() returns its exit code
+	///      immediately — fnMain is NOT invoked. If -h / -help / --help
+	///      is present, Run() prints the service-management help block
+	///      and then continues normally (so fnMain's own help handler
+	///      runs afterwards; "stacked help").
+	///   2. Platform-specific service-runtime setup:
+	///        - Windows: engages the SCM service dispatcher when the
+	///          process was launched by the Service Control Manager,
+	///          reports RUNNING once fnMain starts, and routes
+	///          SERVICE_CONTROL_STOP / SHUTDOWN into the registered
+	///          shutdown handler (or raises SIGTERM via KSignals if no
+	///          handler was set).
+	///        - Linux:  sends sd_notify READY=1 / STOPPING=1 around
+	///          fnMain when INVOCATION_ID is set by systemd.
+	///        - macOS:  marks the process as a launchd service when
+	///          getppid() == 1, then calls fnMain transparently.
+	///   3. Invokes fnMain with the argv the user saw (on Windows, the
+	///      internal --service flag is filtered out before the call).
+	///
+	/// Interactive launches on any platform simply fall through to fnMain.
+	///
+	/// @param sServiceName the internal service name (no spaces).
+	/// @param argc argc as received by main().
+	/// @param argv argv as received by main().
+	/// @param fnMain the user's real main function. Must return 0 on success.
+	/// @param sDisplayName optional display name used in help / install
+	/// (Windows services.msc Display Name, systemd Description= fallback,
+	/// launchd Label suffix). Defaults to sServiceName.
+	/// @param sDescription optional free-form description used in help /
+	/// install (Windows services.msc description, systemd Description=).
+	/// @return fnMain's exit code, or HandleCLI's exit code if a
+	/// management flag was handled.
+	static int Run(KStringView sServiceName,
+	               int         argc,
+	               char**      argv,
+	               MainFunc    fnMain,
+	               KStringView sDisplayName = KStringView{},
+	               KStringView sDescription = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	// ========================================================================
+	//   RUNTIME HELPERS — callable from inside fnMain (or anywhere the
+	//   process may be running as a service). They complement Run().
+	// ========================================================================
+
+	//-----------------------------------------------------------------------------
+	/// True if the current process was launched by the Service Control
+	/// Manager (i.e. fnMain is running inside the service dispatcher thread).
+	/// Always false on non-Windows.
+	static bool IsRunningAsService();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Register a handler to be invoked when SCM requests a stop / shutdown.
+	/// If no handler is registered, KService raises SIGTERM through KSignals
+	/// so applications that already hook signal shutdown keep working
+	/// unchanged.
+	/// The handler runs in the SCM control-thread context (not the main
+	/// thread). It should return quickly; perform the actual shutdown work
+	/// asynchronously (e.g. by setting an atomic stop flag or calling a
+	/// server's Stop() method).
+	static void SetShutdownHandler(std::function<void()> fnShutdown);
+	//-----------------------------------------------------------------------------
+
 	/// Service state reported to the Service Control Manager.
+	/// Used by ReportState() and returned by Status().
 	enum class State
 	{
 		Stopped,
@@ -130,7 +207,95 @@ public:
 		Paused
 	};
 
-	/// How the service is started by Windows after reboot.
+	//-----------------------------------------------------------------------------
+	/// Manually report a state transition to SCM, e.g. during a long startup
+	/// sequence. Not needed in the common case: KService automatically reports
+	/// StartPending before calling fnMain, Running once fnMain is entered, and
+	/// Stopped after fnMain returns.
+	/// @param state the new state.
+	/// @param iWaitHintMs SCM progress hint in milliseconds. Only meaningful
+	/// for StartPending / StopPending / ContinuePending / PausePending.
+	static void ReportState(State state, uint32_t iWaitHintMs = 0);
+	//-----------------------------------------------------------------------------
+
+	// ========================================================================
+	//   LOW-LEVEL BUILDING BLOCKS — alternative to Run(). Use these only if
+	//   you need finer control than Run() provides (e.g. dispatch -install
+	//   yourself, embed the CLI handler inside a larger custom parser, or
+	//   manage another process's service from the outside). Typical code
+	//   does NOT need to touch anything below this line.
+	// ========================================================================
+
+	//-----------------------------------------------------------------------------
+	/// Inspect argv directly for -install / -uninstall / -start / -stop /
+	/// -status flags. If any is found, perform the requested operation and
+	/// return true. The caller is expected to exit immediately when true is
+	/// returned; the process exit code is set via the returned reference.
+	///
+	/// Does not depend on any CLI parser and is therefore compatible with
+	/// applications that rely on KOptions' ad-hoc help-collection pattern.
+	///
+	/// Run() calls this internally as its first step; applications that use
+	/// Run() never need to call HandleCLI() explicitly.
+	///
+	/// HELP HANDLING: if -h / -help / --help / -? is present on the command
+	/// line (and no service-control flag is), HandleCLI() prints the
+	/// service-management help block on stdout and returns false — so that
+	/// the caller's own CLI parser (KOptions or otherwise) can still print
+	/// its own help text and decide when to exit. This is the standard
+	/// "stacked help" pattern used by dekaf2-utests and Catch.
+	///
+	/// RUNTIME ARGUMENTS: on -install, every argv element that is not the
+	/// service control flag itself is captured and persisted into the
+	/// generated unit / plist. Example:
+	///   mysvc -install -p 1234 -f 2345 -s secret -t localhost:4949
+	/// produces a service that, on every launch, is started with exactly
+	/// those arguments by the platform service manager:
+	///   - Windows: appended to the SCM binPath (before the internal
+	///     --service flag)
+	///   - Linux:   written verbatim into ExecStart= of the systemd unit
+	///   - macOS:   each argv element becomes one entry in the launchd
+	///     ProgramArguments array (space-split on install; use "quoted"
+	///     values if an argument needs to contain a literal space)
+	///
+	/// OUTPUT CONVENTIONS (identical on all three platforms):
+	///   - success confirmations go to stdout ("service 'x' installed" etc.)
+	///   - failures go to stderr so `2>/dev/null` keeps a successful run
+	///     completely silent but still surfaces errors
+	///   - the non-root user-scope fallback notice (Linux / macOS) goes to
+	///     stderr as it is a warning, not an error
+	///
+	/// Typical usage at the very top of main() when NOT using Run():
+	/// @code
+	///     int iExit = 0;
+	///     if (KService::HandleCLI(argc, argv, "mysvc", iExit)) return iExit;
+	/// @endcode
+	///
+	/// Recognised flags (case-sensitive, single- or double-dash accepted):
+	///   -install     : install the running binary as a service
+	///   -uninstall   : uninstall the service
+	///   -start       : start the service
+	///   -stop        : stop the service
+	///   -status      : print the current service state
+	///
+	/// @param argc argc as received by main().
+	/// @param argv argv as received by main().
+	/// @param sServiceName internal service name (no spaces).
+	/// @param iExitCodeOut set to 0 on success, non-zero on failure. Only
+	/// meaningful when the function returns true.
+	/// @param sDisplayName optional display name (defaults to sServiceName).
+	/// @param sDescription optional free-form description.
+	/// @return true if a service management flag was recognised and handled.
+	static bool HandleCLI(int           argc,
+	                      char**        argv,
+	                      KStringView   sServiceName,
+	                      int&          iExitCodeOut,
+	                      KStringView   sDisplayName = KStringView{},
+	                      KStringView   sDescription = KStringView{});
+	//-----------------------------------------------------------------------------
+
+	/// How the service is started by the platform service manager after
+	/// reboot. Used in InstallOptions::Mode.
 	enum class StartMode
 	{
 		Automatic,  ///< started at boot
@@ -187,24 +352,9 @@ public:
 	};
 
 	//-----------------------------------------------------------------------------
-	/// Entry point wrapper. Call this from your main() instead of calling the
-	/// application logic directly. If the process was launched by SCM, Run()
-	/// engages the service dispatcher, reports RUNNING once fnMain starts, and
-	/// routes SERVICE_CONTROL_STOP / SHUTDOWN into the registered shutdown
-	/// handler (or SIGTERM via KSignals if no handler was set).
-	/// If the process was launched interactively, fnMain is called directly
-	/// with the full argv (stdin / stdout available as normal).
-	/// @param sServiceName the internal service name used by SCM (no spaces).
-	/// @param argc argc as received by main().
-	/// @param argv argv as received by main().
-	/// @param fnMain the user's real main function. Must return 0 on success.
-	/// @return fnMain's exit code.
-	static int Run(KStringView sServiceName, int argc, char** argv, MainFunc fnMain);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Register the current (or a given) executable as a Windows Service.
-	/// Requires administrator privileges. No-op on non-Windows (returns false).
+	/// Register the current (or a given) executable as a system service.
+	/// Requires administrator / root privileges for a system-wide install;
+	/// falls back to a user-scoped unit on Linux / macOS otherwise.
 	/// @param sServiceName the internal service name (no spaces).
 	/// @param Opts install parameters.
 	/// @return true on success.
@@ -212,126 +362,34 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Unregister a previously installed service. Requires administrator
-	/// privileges. No-op on non-Windows (returns false).
+	/// Unregister a previously installed service. Requires administrator /
+	/// root privileges for a system-wide install. Falls back to user scope
+	/// on Linux / macOS when not privileged.
 	/// @param sServiceName the internal service name (no spaces).
 	static bool Uninstall(KStringView sServiceName);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Ask SCM to start an installed service. No-op on non-Windows.
+	/// Ask the platform service manager to start an installed service.
 	static bool Start(KStringView sServiceName);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Ask SCM to stop a running service. No-op on non-Windows.
+	/// Ask the platform service manager to stop a running service.
 	static bool Stop(KStringView sServiceName);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Query current service state from SCM. Returns State::Stopped on
-	/// non-Windows or when the service is not installed / not reachable.
+	/// Query current service state from the platform service manager.
+	/// Returns State::Stopped when the service is not installed / not
+	/// reachable.
 	static State Status(KStringView sServiceName);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// True if a service with this name is registered with SCM.
-	/// Always false on non-Windows.
+	/// True if a service with this name is registered with the platform
+	/// service manager.
 	static bool IsInstalled(KStringView sServiceName);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// True if the current process was launched by the Service Control
-	/// Manager (i.e. fnMain is running inside the service dispatcher thread).
-	/// Always false on non-Windows.
-	static bool IsRunningAsService();
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Register a handler to be invoked when SCM requests a stop / shutdown.
-	/// If no handler is registered, KService raises SIGTERM through KSignals
-	/// so applications that already hook signal shutdown keep working
-	/// unchanged.
-	/// The handler runs in the SCM control-thread context (not the main
-	/// thread). It should return quickly; perform the actual shutdown work
-	/// asynchronously (e.g. by setting an atomic stop flag or calling a
-	/// server's Stop() method).
-	static void SetShutdownHandler(std::function<void()> fnShutdown);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Manually report a state transition to SCM, e.g. during a long startup
-	/// sequence. Not needed in the common case: KService automatically reports
-	/// StartPending before calling fnMain, Running once fnMain is entered, and
-	/// Stopped after fnMain returns.
-	/// @param state the new state.
-	/// @param iWaitHintMs SCM progress hint in milliseconds. Only meaningful
-	/// for StartPending / StopPending / ContinuePending / PausePending.
-	static void ReportState(State state, uint32_t iWaitHintMs = 0);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Inject uniform service-management options into an existing KOptions
-	/// parser. Adds -install, -uninstall, -start, -stop, -status. Handlers
-	/// call Install() / Uninstall() / Start() / Stop() / Status() and
-	/// terminate the CLI with a success exit code after the operation
-	/// completes.
-	///
-	/// NOTE: KOptions' automatic help generation is only able to discover
-	/// ad-hoc options if NO pre-registered options exist at parse time.
-	/// Applications that rely on the ad-hoc help-collection pattern (passing
-	/// option help through the call operator like Opt("name: help text", ""))
-	/// should prefer HandleCLI() below, which does not touch KOptions.
-	///
-	/// Safe to call on all platforms; on non-Windows the handlers emit a
-	/// diagnostic that service management is a Windows-only feature.
-	/// @param Options the KOptions instance of the CLI.
-	/// @param sServiceName internal service name (no spaces).
-	/// @param sDisplayName optional display name (defaults to sServiceName).
-	/// @param sDescription optional free-form description.
-	static void AddOptions(KOptions&    Options,
-	                       KStringView  sServiceName,
-	                       KStringView  sDisplayName = KStringView{},
-	                       KStringView  sDescription = KStringView{});
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Inspect argv directly for -install / -uninstall / -start / -stop /
-	/// -status flags. If any is found, perform the requested operation and
-	/// return true. The caller is expected to exit immediately when true is
-	/// returned; the process exit code is set via the returned reference.
-	///
-	/// Unlike AddOptions() this does not depend on any CLI parser and is
-	/// therefore compatible with applications that rely on KOptions' ad-hoc
-	/// help-collection pattern.
-	///
-	/// Typical usage at the very top of main():
-	/// @code
-	///     int iExit = 0;
-	///     if (KService::HandleCLI(argc, argv, "mysvc", iExit)) return iExit;
-	/// @endcode
-	///
-	/// Recognised flags (case-sensitive, single- or double-dash accepted):
-	///   -install     : install the running binary as a service
-	///   -uninstall   : uninstall the service
-	///   -start       : start the service
-	///   -stop        : stop the service
-	///   -status      : print the current service state
-	///
-	/// @param argc argc as received by main().
-	/// @param argv argv as received by main().
-	/// @param sServiceName internal service name (no spaces).
-	/// @param iExitCodeOut set to 0 on success, non-zero on failure. Only
-	/// meaningful when the function returns true.
-	/// @param sDisplayName optional display name (defaults to sServiceName).
-	/// @param sDescription optional free-form description.
-	/// @return true if a service management flag was recognised and handled.
-	static bool HandleCLI(int           argc,
-	                      char**        argv,
-	                      KStringView   sServiceName,
-	                      int&          iExitCodeOut,
-	                      KStringView   sDisplayName = KStringView{},
-	                      KStringView   sDescription = KStringView{});
 	//-----------------------------------------------------------------------------
 
 }; // KService

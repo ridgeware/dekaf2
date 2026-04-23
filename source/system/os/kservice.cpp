@@ -984,15 +984,30 @@ int KService::Run(KStringView sServiceName,
 	{
 		c.bIsService.store(true, std::memory_order_release);
 
-		// Protect the service from being killed on user / RDP logoff.
-		// Without this handler, Windows would deliver CTRL_LOGOFF_EVENT to
-		// our console-subsystem binary and the default handler would call
-		// ExitProcess() — leaving SCM to record WIN32_EXIT_CODE=1067.
-		// SetConsoleCtrlHandler installs handlers in LIFO order, so
-		// registering ours here (before the CRT/KSignals/user main see
-		// any control events) makes it the LAST one called, which in turn
-		// means nothing else gets to react to LOGOFF/SHUTDOWN before us
-		// unless explicitly chained.
+		// Primary defense against RDP / user-session logoff killing the
+		// service: detach from any inherited console. A process with no
+		// attached console receives NO CTRL_* events at all — neither
+		// CTRL_LOGOFF_EVENT nor CTRL_SHUTDOWN_EVENT — regardless of what
+		// handlers anyone installed. This dodges the messy interaction
+		// between our SetConsoleCtrlHandler, the CRT's own handler (set
+		// up by signal()), and the system-default handler which in
+		// practice can trigger ExitProcess() followed by FAST_FAIL(7)
+		// during global destructor teardown (WIN32_EXIT_CODE=1067 seen
+		// by SCM, Windows Error Reporting logs BEX64 with exception
+		// code 0xc0000409).
+		//
+		// FreeConsole() on a process that has no console is a no-op and
+		// returns FALSE with GetLastError()==ERROR_INVALID_PARAMETER,
+		// which we do not treat as an error — SCM typically starts
+		// services without a console anyway.
+		::FreeConsole();
+
+		// Backup: if something later in the process re-attaches a
+		// console (AllocConsole / AttachConsole via some library), we
+		// still want LOGOFF/SHUTDOWN swallowed. Handlers are called
+		// LIFO — ours is registered before the CRT gets a chance, so
+		// any later-registered handler will see the event first; if it
+		// returns FALSE, we get a chance to return TRUE.
 		::SetConsoleCtrlHandler(&ServiceConsoleCtrlHandler, TRUE);
 
 		// SCM keeps a pointer to this array until StartServiceCtrlDispatcher

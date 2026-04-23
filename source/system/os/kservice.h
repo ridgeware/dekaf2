@@ -97,6 +97,16 @@ DEKAF2_NAMESPACE_BEGIN
 ///   - Windows: uses SCM; install writes to the service registry; state is
 ///     reported via SetServiceStatus. An internal --service flag is injected
 ///     into the registered binPath and filtered back out of argv.
+///     IMPORTANT — do NOT install the binary from a user-profile path
+///     (e.g. `C:\Users\<name>\...`). The SCM stores the absolute binPath
+///     and launches the service under LocalSystem (or the configured
+///     account), independent of any interactive session. When an RDP /
+///     console user logs off, Windows unloads that user's profile; if the
+///     service image or any file it has open lives under the profile, the
+///     unload can tear the process down with exit code 1067
+///     (ERROR_PROCESS_ABORTED) or fast-fail 0xc0000409. Install from a
+///     machine-wide location such as `C:\Program Files\<app>\` and keep
+///     runtime state under `C:\ProgramData\<app>\` or the Event Log.
 ///   - Linux:   uses systemd; install writes a .service unit under
 ///     /etc/systemd/system (or ~/.config/systemd/user for user-scope),
 ///     calls `systemctl daemon-reload` + `systemctl enable`. Run() sends
@@ -323,6 +333,15 @@ public:
 		/// field; falls back to sDisplayName / sServiceName.
 		KString   sDescription;
 		/// full binary path. If empty, Install() uses the current executable.
+		/// Windows: avoid user-profile paths (`C:\Users\...`). The SCM
+		/// records this path verbatim and launches the service under
+		/// LocalSystem regardless of who is logged on; when the interactive
+		/// user logs off (including RDP disconnect), Windows unloads their
+		/// profile and can terminate the running service image with exit
+		/// code 1067 (ERROR_PROCESS_ABORTED) or fast-fail 0xc0000409.
+		/// Install the binary from a machine-wide location such as
+		/// `C:\Program Files\<app>\` instead. Linux / macOS: any path
+		/// readable by the target account is fine.
 		KString   sBinaryPath;
 		/// extra arguments appended to the binary path when registered.
 		/// Windows: KService::Run() automatically recognises the "--service"

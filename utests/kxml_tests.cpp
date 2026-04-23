@@ -143,4 +143,72 @@ R"(<myroot attr1="&amp;value1">Text directly in root
 		Element = Element.Next();
 		CHECK ( Element.GetValue() == "\n Text after children\n" );
 	}
+
+	SECTION("DOCTYPE minimal")
+	{
+		KXML DOM;
+		DOM.AddXMLDeclaration("1.0", "UTF-8", "");
+		DOM.AddDocumentType("html");
+		KXMLNode(DOM).AddNode("html").AddNode("body", "hello");
+
+		auto sOut = DOM.Serialize(KXML::Terse);
+		CHECK ( sOut == R"(<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html><html><body>hello</body></html>)" );
+	}
+
+	SECTION("DOCTYPE SYSTEM")
+	{
+		KXML DOM;
+		DOM.AddXMLDeclaration("1.0", "UTF-8", "");
+		DOM.AddDocumentType("plist", "", "plist.dtd");
+		KXMLNode(DOM).AddNode("plist");
+
+		auto sOut = DOM.Serialize(KXML::Terse);
+		CHECK ( sOut == R"(<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist SYSTEM "plist.dtd"><plist/>)" );
+	}
+
+	SECTION("DOCTYPE PUBLIC (plist roundtrip)")
+	{
+		static constexpr KStringView sPublicID = "-//Apple//DTD PLIST 1.0//EN";
+		static constexpr KStringView sSystemID = "http://www.apple.com/DTDs/PropertyList-1.0.dtd";
+
+		KXML DOM;
+		DOM.AddXMLDeclaration("1.0", "UTF-8", "");
+		DOM.AddDocumentType("plist", sPublicID, sSystemID);
+		KXMLNode(DOM).AddNode("plist").AddAttribute("version", "1.0");
+
+		auto sOut = DOM.Serialize(KXML::Terse);
+		CHECK ( sOut == R"(<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"/>)" );
+
+		// roundtrip: parse the serialized output and check the DOCTYPE is retained
+		KXML DOM2(sOut);
+		CHECK ( DOM2.HadXMLDeclaration() == true  );
+		CHECK ( DOM2.HadDocumentType()   == true  );
+
+		auto DocType = DOM2.GetDocumentType();
+		CHECK ( DocType.empty() == false );
+		CHECK ( DocType.GetValue() ==
+		        R"(plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd")" );
+
+		// Note: rapidxml does not attach the parsed XML declaration as a child
+		// node (only the m_xml_declaration pointer is populated). So a full
+		// roundtrip requires re-issuing AddXMLDeclaration(), analogous to the
+		// pattern used in the "Basic construction" section above.
+		DOM2.AddXMLDeclaration("1.0", "UTF-8", "");
+		CHECK ( DOM2.Serialize(KXML::Terse) == sOut );
+	}
+
+	SECTION("DOCTYPE absent")
+	{
+		KXML DOM(R"(<?xml version="1.0"?><root/>)");
+		CHECK ( DOM.HadDocumentType() == false );
+		CHECK ( DOM.GetDocumentType().empty() );
+	}
+
+	SECTION("DOCTYPE PUBLIC without SYSTEM is rejected")
+	{
+		KXML DOM;
+		DOM.AddDocumentType("html", "-//W3C//DTD HTML 4.01//EN"); // no SYSTEM id
+		// PUBLIC id is dropped, falls back to plain "<!DOCTYPE html>"
+		CHECK ( DOM.Serialize(KXML::Terse) == R"(<!DOCTYPE html>)" );
+	}
 }

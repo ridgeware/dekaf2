@@ -417,6 +417,40 @@ public:
 	/// respective attribute.
 	void AddXMLDeclaration(KStringView sVersion, KStringView sEncoding, KStringView sStandalone);
 
+	/// Returns true if the last parsed document contained a DOCTYPE declaration.
+	/// The DOCTYPE, if any, is also stripped from the regular DOM iteration, but
+	/// you can retrieve it with GetDocumentType() or add one with AddDocumentType().
+	DEKAF2_NODISCARD
+	bool HadDocumentType() const;
+
+	/// Returns the parsed DOCTYPE node (may be empty). The node's value contains
+	/// the full DOCTYPE content, i.e. everything between "<!DOCTYPE " and ">".
+	DEKAF2_NODISCARD
+	const KXMLNode GetDocumentType() const;
+
+	/// Add a DOCTYPE declaration to the start of the DOM (after any XML
+	/// declaration). Examples:
+	/// @code
+	///   AddDocumentType("html");
+	///     // -> <!DOCTYPE html>
+	///
+	///   AddDocumentType("plist", "", "plist.dtd");
+	///     // -> <!DOCTYPE plist SYSTEM "plist.dtd">
+	///
+	///   AddDocumentType("plist",
+	///                   "-//Apple//DTD PLIST 1.0//EN",
+	///                   "http://www.apple.com/DTDs/PropertyList-1.0.dtd");
+	///     // -> <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://...">
+	/// @endcode
+	/// @param sRootName root element name (e.g. "html", "plist")
+	/// @param sPublicID optional PUBLIC identifier; if non-empty, sSystemID must
+	///                  also be non-empty (per W3C; a PUBLIC entry without a
+	///                  SYSTEM identifier is not valid XML and will be rejected).
+	/// @param sSystemID optional SYSTEM identifier (URI/path to the external DTD)
+	void AddDocumentType(KStringView sRootName,
+	                     KStringView sPublicID = KStringView{},
+	                     KStringView sSystemID = KStringView{});
+
 	/// Return first child node with sName
 	DEKAF2_NODISCARD
 	KXMLNode Child(KStringView sName) const

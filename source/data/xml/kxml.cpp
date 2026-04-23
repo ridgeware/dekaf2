@@ -335,11 +335,13 @@ bool KXML::Parse(bool bPreserveWhiteSpace)
 		if (bPreserveWhiteSpace)
 		{
 			pDocument(D.get())->parse<rapidxml::parse_no_string_terminators
-			                        | rapidxml::parse_preserve_whitespace>(&XMLData.front());
+			                        | rapidxml::parse_preserve_whitespace
+			                        | rapidxml::parse_doctype_node>(&XMLData.front());
 		}
 		else
 		{
-			pDocument(D.get())->parse<rapidxml::parse_no_string_terminators>(&XMLData.front());
+			pDocument(D.get())->parse<rapidxml::parse_no_string_terminators
+			                        | rapidxml::parse_doctype_node>(&XMLData.front());
 		}
 
 		return true;
@@ -415,6 +417,111 @@ void KXML::AddXMLDeclaration(KStringView sVersion, KStringView sEncoding, KStrin
 		DocType->append_attribute(CreateAttribute(doc, "standalone", sStandalone));
 	}
 	doc->prepend_node(DocType);
+}
+
+//-----------------------------------------------------------------------------
+bool KXML::HadDocumentType() const
+//-----------------------------------------------------------------------------
+{
+	auto* doc = pDocument(D.get());
+	for (auto* n = doc->first_node(); n != nullptr; n = n->next_sibling())
+	{
+		if (n->type() == rapidxml::node_doctype)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+const KXMLNode KXML::GetDocumentType() const
+//-----------------------------------------------------------------------------
+{
+	KXMLNode DocType;
+	auto* doc = pDocument(D.get());
+	for (auto* n = doc->first_node(); n != nullptr; n = n->next_sibling())
+	{
+		if (n->type() == rapidxml::node_doctype)
+		{
+			DocType.m_node = n;
+			break;
+		}
+	}
+	return DocType;
+}
+
+//-----------------------------------------------------------------------------
+void KXML::AddDocumentType(KStringView sRootName, KStringView sPublicID, KStringView sSystemID)
+//-----------------------------------------------------------------------------
+{
+	if (sRootName.empty())
+	{
+		kDebug(1, "root name must not be empty");
+		return;
+	}
+
+	// the rapidxml serializer for node_doctype emits the node's value verbatim
+	// between "<!DOCTYPE " and ">", so we build the full ExternalID part here
+	KString sContent;
+	sContent.reserve(sRootName.size() + sPublicID.size() + sSystemID.size() + 20);
+	sContent += sRootName;
+
+	if (!sPublicID.empty())
+	{
+		if (sSystemID.empty())
+		{
+			kDebug(1, "a PUBLIC identifier requires a SYSTEM identifier; dropping PUBLIC id");
+		}
+		else
+		{
+			sContent += " PUBLIC \"";
+			sContent += sPublicID;
+			sContent += "\" \"";
+			sContent += sSystemID;
+			sContent += '"';
+		}
+	}
+	else if (!sSystemID.empty())
+	{
+		sContent += " SYSTEM \"";
+		sContent += sSystemID;
+		sContent += '"';
+	}
+
+	rapidXMLDoc*  doc     = pDocument(D.get());
+	rapidXMLNode* DocType = CreateNode(doc, "", sContent, rapidxml::node_doctype);
+
+	// place the DOCTYPE right after the XML declaration (if any), else at the top.
+	// We scan the children directly because doc->get_xml_declaration() only
+	// returns the declaration pointer set by the parser, not one that was
+	// added via AddXMLDeclaration() as a child node.
+	rapidXMLNode* pXMLDeclChild = nullptr;
+	for (auto* n = doc->first_node(); n != nullptr; n = n->next_sibling())
+	{
+		if (n->type() == rapidxml::node_declaration)
+		{
+			pXMLDeclChild = n;
+			break;
+		}
+	}
+
+	if (pXMLDeclChild)
+	{
+		auto* pAfter = pXMLDeclChild->next_sibling();
+		if (pAfter)
+		{
+			doc->insert_node(pAfter, DocType);
+		}
+		else
+		{
+			doc->append_node(DocType);
+		}
+	}
+	else
+	{
+		doc->prepend_node(DocType);
+	}
 }
 
 // =============================== KXMLNode ===================================

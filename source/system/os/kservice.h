@@ -155,6 +155,9 @@ public:
 	/// @param argc argc as received by main().
 	/// @param argv argv as received by main().
 	/// @param fnMain the user's real main function. Must return 0 on success.
+	/// @param bSuppressHelp if true, no help text will be output even when
+	/// the -help option was seen - useful to delegate help output to an overall
+	/// help function. Defaults to false : help will be output for SCM specific options.
 	/// @param sDisplayName optional display name used in help / install
 	/// (Windows services.msc Display Name, systemd Description= fallback,
 	/// launchd Label suffix). Defaults to sServiceName.
@@ -166,8 +169,9 @@ public:
 	               int         argc,
 	               char**      argv,
 	               MainFunc    fnMain,
-	               KStringView sDisplayName = KStringView{},
-	               KStringView sDescription = KStringView{});
+	               bool        bSuppressHelp = false,
+	               KStringView sDisplayName  = KStringView{},
+	               KStringView sDescription  = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	// ========================================================================
@@ -283,6 +287,9 @@ public:
 	/// @param sServiceName internal service name (no spaces).
 	/// @param iExitCodeOut set to 0 on success, non-zero on failure. Only
 	/// meaningful when the function returns true.
+	/// @param bSuppressHelp if true, no help text will be output even when
+	/// the -help option was seen - useful to delegate help output to an overall
+	/// help function. Defaults to false : help will be output for SCM specific options.
 	/// @param sDisplayName optional display name (defaults to sServiceName).
 	/// @param sDescription optional free-form description.
 	/// @return true if a service management flag was recognised and handled.
@@ -290,8 +297,9 @@ public:
 	                      char**        argv,
 	                      KStringView   sServiceName,
 	                      int&          iExitCodeOut,
-	                      KStringView   sDisplayName = KStringView{},
-	                      KStringView   sDescription = KStringView{});
+	                      bool          bSuppressHelp = false,
+	                      KStringView   sDisplayName  = KStringView{},
+	                      KStringView   sDescription  = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	/// How the service is started by the platform service manager after
@@ -390,6 +398,12 @@ public:
 	/// True if a service with this name is registered with the platform
 	/// service manager.
 	static bool IsInstalled(KStringView sServiceName);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Returns a help section explaining the service options, normally output by Run()/HandleCLI()
+	/// automatically when a help option was detected
+	static KStringViewZ GetHelp();
 	//-----------------------------------------------------------------------------
 
 }; // KService

@@ -378,6 +378,8 @@ int Tunnel::Main(int argc, char** argv)
 
 	// setup CLI option parsing
 	KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
+	// add help for service options
+	Options.SetAdditionalHelp(KService::GetHelp());
 
 	// define cli options
 	m_Config.ExposedHost   = Options("e,exposed    : exposed host - the host to keep an ongoing control connection to. Expects domain name or IP address. If not defined, then this is the exposed host itself.", "");
@@ -468,6 +470,7 @@ int main(int argc, char** argv)
 			}
 			return 1;
 		},
+		true,
 		"KTunnel",
 		"Secure reverse tunnel");
 }

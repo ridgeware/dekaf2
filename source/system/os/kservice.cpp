@@ -908,6 +908,7 @@ int KService::Run(KStringView sServiceName,
                   int         argc,
                   char**      argv,
                   MainFunc    fnMain,
+                  bool        bSuppressHelp,
                   KStringView sDisplayName,
                   KStringView sDescription)
 //-----------------------------------------------------------------------------
@@ -920,7 +921,8 @@ int KService::Run(KStringView sServiceName,
 	{
 		int iCliExit = 0;
 
-		if (HandleCLI(argc, argv, sServiceName, iCliExit, sDisplayName, sDescription))
+		if (HandleCLI(argc, argv, sServiceName, iCliExit, bSuppressHelp,
+		              sDisplayName, sDescription))
 		{
 			return iCliExit;
 		}
@@ -1064,6 +1066,28 @@ int KService::Run(KStringView sServiceName,
 bool KService::Install(KStringView sServiceName, const InstallOptions& Opts)
 //-----------------------------------------------------------------------------
 {
+	// If a service with this name is already registered, remove it first so
+	// that the new arguments / paths / options take effect. Without this:
+	//   - macOS:  `launchctl load -w` is a no-op for an already-loaded
+	//             label, so launchd keeps the original ProgramArguments
+	//             array even after the plist on disk was overwritten.
+	//   - Linux:  `kWriteFile` + `daemon-reload` picks up the new
+	//             ExecStart=, but a currently-running instance keeps the
+	//             old arguments until the unit is restarted.
+	//   - Windows: CreateServiceW returns ERROR_SERVICE_EXISTS — a second
+	//             install of the same name would otherwise fail outright.
+	// Uninstall() on a non-existent service prints a warning, so we
+	// gate the call on IsInstalled() to keep output clean for the
+	// common first-install case.
+	if (IsInstalled(sServiceName))
+	{
+		if (!Uninstall(sServiceName))
+		{
+			kWarning("cannot replace existing installation of service '{}'", sServiceName);
+			return false;
+		}
+	}
+
 #ifdef DEKAF2_IS_WINDOWS
 
 	SC_HANDLE scm = ::OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE);
@@ -1345,6 +1369,29 @@ bool KService::Uninstall(KStringView sServiceName)
 {
 #ifdef DEKAF2_IS_WINDOWS
 
+	// Uninstall on Windows is a three-step dance because SCM's stop / delete
+	// semantics are both asynchronous and interlocked:
+	//
+	//   1. ControlService(STOP) kicks the service out of SERVICE_RUNNING
+	//      but returns as soon as the service reports SERVICE_STOP_PENDING;
+	//      the actual process exit may take seconds.
+	//   2. DeleteService only MARKS the service for deletion; the record is
+	//      kept alive until every open handle — including the service
+	//      process's own SERVICE_STATUS_HANDLE — is closed.
+	//   3. A subsequent CreateServiceW() with the same name therefore fails
+	//      with ERROR_SERVICE_MARKED_FOR_DELETE if either the running
+	//      process has not exited yet, or if SCM is still cleaning up the
+	//      deleted record.
+	//
+	// We therefore (a) wait for the service to reach SERVICE_STOPPED before
+	// calling DeleteService, and (b) poll OpenServiceW() until it returns
+	// ERROR_SERVICE_DOES_NOT_EXIST, guaranteeing that an immediate Install()
+	// with the same name can succeed. Both waits cap at 30 s and degrade
+	// gracefully if exceeded.
+
+	constexpr DWORD iWaitStepMs   = 250;
+	constexpr DWORD iWaitTotalMs  = 30000;
+
 	SC_HANDLE scm = nullptr;
 	SC_HANDLE svc = nullptr;
 
@@ -1354,21 +1401,110 @@ bool KService::Uninstall(KStringView sServiceName)
 		return false;
 	}
 
-	// best effort: stop it first (ignore failure)
-	SERVICE_STATUS st = {};
-	::ControlService(svc, SERVICE_CONTROL_STOP, &st);
-
-	const BOOL bOk = ::DeleteService(svc);
-
-	if (!bOk)
+	// Step 1: if the service is running, request a stop and wait for it
+	// to actually terminate. A service that is already stopped or in
+	// SERVICE_STOP_PENDING is still waited for.
 	{
-		kWarning("DeleteService '{}' failed: {}", sServiceName, WinErrorText(::GetLastError()));
+		SERVICE_STATUS_PROCESS ssp   = {};
+		DWORD                  dwLen = 0;
+
+		if (::QueryServiceStatusEx(svc, SC_STATUS_PROCESS_INFO,
+		                           reinterpret_cast<LPBYTE>(&ssp), sizeof(ssp), &dwLen))
+		{
+			if (ssp.dwCurrentState != SERVICE_STOPPED
+			 && ssp.dwCurrentState != SERVICE_STOP_PENDING)
+			{
+				SERVICE_STATUS st = {};
+				::ControlService(svc, SERVICE_CONTROL_STOP, &st);
+			}
+
+			DWORD iWaited = 0;
+
+			while (ssp.dwCurrentState != SERVICE_STOPPED && iWaited < iWaitTotalMs)
+			{
+				::Sleep(iWaitStepMs);
+				iWaited += iWaitStepMs;
+
+				if (!::QueryServiceStatusEx(svc, SC_STATUS_PROCESS_INFO,
+				                            reinterpret_cast<LPBYTE>(&ssp), sizeof(ssp), &dwLen))
+				{
+					break;
+				}
+			}
+
+			if (ssp.dwCurrentState != SERVICE_STOPPED)
+			{
+				kWarning("service '{}' did not reach SERVICE_STOPPED within {} s — "
+				         "continuing with DeleteService anyway",
+				         sServiceName, iWaitTotalMs / 1000);
+			}
+		}
 	}
+
+	// Step 2: mark the service record for deletion. ERROR_SERVICE_MARKED_FOR_DELETE
+	// means a previous uninstall attempt is still in flight — we treat that as
+	// success and just let the poll loop below wait for it to finish.
+	const BOOL  bDeleted = ::DeleteService(svc);
+	const DWORD iDelErr  = bDeleted ? 0 : ::GetLastError();
 
 	::CloseServiceHandle(svc);
 	::CloseServiceHandle(scm);
 
-	return bOk != 0;
+	if (!bDeleted && iDelErr != ERROR_SERVICE_MARKED_FOR_DELETE)
+	{
+		kWarning("DeleteService '{}' failed: {}", sServiceName, WinErrorText(iDelErr));
+		return false;
+	}
+
+	// Step 3: block until the record is actually gone. Each iteration opens
+	// a fresh SCM / service handle so we are not pinning the record open
+	// ourselves.
+	{
+		std::wstring wsName  = kutf::Convert<std::wstring>(sServiceName);
+		DWORD        iWaited = 0;
+
+		while (iWaited < iWaitTotalMs)
+		{
+			SC_HANDLE scmProbe = ::OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
+
+			if (!scmProbe)
+			{
+				// SCM not reachable — nothing useful we can do; assume gone.
+				break;
+			}
+
+			SC_HANDLE svcProbe = ::OpenServiceW(scmProbe, wsName.c_str(), SERVICE_QUERY_STATUS);
+
+			if (!svcProbe)
+			{
+				const DWORD err = ::GetLastError();
+				::CloseServiceHandle(scmProbe);
+
+				if (err == ERROR_SERVICE_DOES_NOT_EXIST)
+				{
+					return true;  // fully gone
+				}
+				// any other error → give up the wait; the delete succeeded
+				// from our side so caller can proceed.
+				break;
+			}
+
+			::CloseServiceHandle(svcProbe);
+			::CloseServiceHandle(scmProbe);
+
+			::Sleep(iWaitStepMs);
+			iWaited += iWaitStepMs;
+		}
+
+		if (iWaited >= iWaitTotalMs)
+		{
+			kWarning("service '{}' is still marked-for-delete after {} s — "
+			         "subsequent reinstall may fail",
+			         sServiceName, iWaitTotalMs / 1000);
+		}
+	}
+
+	return true;
 
 #elif defined(DEKAF2_IS_LINUX)
 
@@ -1784,28 +1920,39 @@ namespace {
 // -h / -help / --help / -?. Kept at file scope so it is compiled into
 // .rodata rather than rebuilt on every call.
 constexpr const char* s_pszCLIHelp =
-    "Service management (dekaf2 KService):\n"
-    "  -install     install the running binary as a system service\n"
-    "               (Windows SCM / systemd / launchd). Any further\n"
-    "               arguments on the same command line are baked into\n"
-    "               the generated unit / plist and replayed on every\n"
-    "               service start, e.g.:\n"
-    "                 mysvc -install -p 1234 -t localhost:4949\n"
-    "  -uninstall   remove a previously installed service\n"
-    "  -start       ask the service manager to start the service\n"
-    "  -stop        ask the service manager to stop the service\n"
-    "  -status      print the current service state\n"
+    "Service management:\n"
     "\n"
-    "On Linux / macOS, -install falls back to a user-scoped unit if\n"
-    "the process is not running as root (systemd --user / LaunchAgent).\n";
+    "   -install   : install the running binary as a system service\n"
+    "                Any further arguments on the same command line are\n"
+    "                baked into the generated unit / plist and replayed\n"
+    "                on every service start, e.g.:\n"
+    "                   mysvc -install -p 1234 -t localhost:4949\n"
+    "   -uninstall : remove a previously installed service\n"
+    "   -start     : ask the service manager to start the service\n"
+    "   -stop      : ask the service manager to stop the service\n"
+    "   -status    : print the current service state\n"
+#if defined(DEKAF2_IS_LINUX) || defined(DEKAF2_IS_MACOS)
+    "\n"
+    "   -install falls back to a user-scoped unit if the process is not\n"
+    "    running as root\n"
+#endif
+    ;
 
 } // anonymous namespace
+
+//-----------------------------------------------------------------------------
+KStringViewZ KService::GetHelp()
+//-----------------------------------------------------------------------------
+{
+	return s_pszCLIHelp;
+}
 
 //-----------------------------------------------------------------------------
 bool KService::HandleCLI(int           argc,
                          char**        argv,
                          KStringView   sServiceName,
                          int&          iExitCodeOut,
+                         bool          bSuppressHelp,
                          KStringView   sDisplayName,
                          KStringView   sDescription)
 //-----------------------------------------------------------------------------
@@ -1879,9 +2026,13 @@ bool KService::HandleCLI(int           argc,
 		}
 	}
 
-	if (bHasHelp && !bHasServiceCommand)
+	// we treat no arguments (argc == 1) as if --help was passed)
+	if (argc == 1 || (bHasHelp && !bHasServiceCommand))
 	{
-		kPrint("{}", s_pszCLIHelp);
+		if (!bSuppressHelp)
+		{
+			kPrint("\n{}", s_pszCLIHelp);
+		}
 		return false;
 	}
 

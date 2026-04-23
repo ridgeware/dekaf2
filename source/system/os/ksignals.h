@@ -135,6 +135,18 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Returns the currently registered user signal handler for one specific
+	/// signal, or an empty std::function if none is registered, or if the
+	/// currently registered handler is only the internal default handler.
+	/// This can be used to chain handlers: capture the previous handler before
+	/// calling SetSignalHandler, then invoke it from within the new handler.
+	/// @param iSignal
+	/// The signal whose handler shall be retrieved
+	DEKAF2_NODISCARD
+	std_func_t GetSignalHandler(int iSignal) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Sets one specific signal to be ignored from now on.
 	/// @param iSignal
 	/// The signal that shall be ignored
@@ -175,6 +187,11 @@ private:
 	{
 		std_func_t func;
 		bool bAsThread;
+		/// true if this was installed by SetSignalHandler / SetCSignalHandler
+		/// (a user handler), false if installed by SetDefaultHandler (internal
+		/// fallback). GetSignalHandler only returns user handlers so that
+		/// chained handlers do not accidentally pull exit(0) before shutdown.
+		bool bIsUserHandler = true;
 	};
 
 #ifdef DEKAF2_IS_WINDOWS

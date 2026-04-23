@@ -206,9 +206,23 @@ void KSignals::SetSignalHandler(int iSignal, std_func_t func, bool bAsThread)
 {
 	kDebug(2, "registering handler for {}", kTranslateSignal(iSignal));
 
-	s_SigFuncs.unique().get()[iSignal] = { std::move(func), bAsThread };
+	s_SigFuncs.unique().get()[iSignal] = { std::move(func), bAsThread, /*bIsUserHandler*/ true };
 
 } // SetSignalHandler
+
+//-----------------------------------------------------------------------------
+KSignals::std_func_t KSignals::GetSignalHandler(int iSignal) const
+//-----------------------------------------------------------------------------
+{
+	auto SigFuncs = s_SigFuncs.shared();
+	auto it = SigFuncs->find(iSignal);
+	if (it == SigFuncs->end() || !it->second.bIsUserHandler)
+	{
+		return std_func_t{};
+	}
+	return it->second.func;
+
+} // GetSignalHandler
 
 //-----------------------------------------------------------------------------
 void KSignals::SetCSignalHandler(int iSignal, signal_func_t func, bool bAsThread)
@@ -222,7 +236,7 @@ void KSignals::SetCSignalHandler(int iSignal, signal_func_t func, bool bAsThread
 	}
 	else
 	{
-		s_SigFuncs.unique().get()[iSignal] = { func, bAsThread };
+		s_SigFuncs.unique().get()[iSignal] = { func, bAsThread, /*bIsUserHandler*/ true };
 	}
 
 } // SetCSignalHandler
@@ -253,7 +267,10 @@ void KSignals::SetDefaultHandler(int iSignal)
 		case SIGINT:
 		case SIGTERM:
 			kDebug(2, "setting {} default handler for {}", "dekaf2", kTranslateSignal(iSignal));
-			SetSignalHandler(iSignal, DefaultHandler);
+			// install directly as non-user handler so that GetSignalHandler does
+			// not return it to chained shutdown handlers (which would otherwise
+			// trigger exit(0) before the actual shutdown code runs)
+			s_SigFuncs.unique().get()[iSignal] = { std::move(DefaultHandler), false, /*bIsUserHandler*/ false };
 			break;
 
 		default:

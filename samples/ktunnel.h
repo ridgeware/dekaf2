@@ -57,6 +57,8 @@
 #include <thread>
 #include <memory>
 #include <mutex>
+#include <atomic>
+#include <condition_variable>
 
 using namespace dekaf2;
 
@@ -175,11 +177,25 @@ public:
 
 	ProtectedHost (const ExtendedConfig& Config);
 
+	/// Run the reconnect loop (blocking). Returns cleanly when Shutdown() is
+	/// called from a signal handler or service-control handler.
+	void Run      ();
+
+	/// Request a graceful shutdown of the reconnect loop. Thread-safe and
+	/// safe to call from a signal / service-control handler: sets the quit
+	/// flag, tears down the currently active KTunnel if any (so its
+	/// blocking Run() returns), and wakes the inter-retry sleep.
+	void Shutdown ();
+
 //----------
 private:
 //----------
 
-	const ExtendedConfig&  m_Config;
+	const ExtendedConfig&           m_Config;
+	std::atomic<bool>               m_bQuit            { false };
+	std::mutex                      m_Mutex;
+	std::condition_variable         m_CV;
+	KTunnel*                        m_pCurrentTunnel   { nullptr };
 
 }; // ProtectedHost
 

@@ -318,6 +318,12 @@ public:
 	/// run the event handler for this tunnel - may throw or return on error, otherwise blocking the current thread
 	void         Run                ();
 
+	/// Stop a running Run(). Thread-safe: closes the underlying tunnel stream
+	/// so a blocked ReadMessage()/WriteMessage() returns promptly and the
+	/// for(;HaveTunnel();) loop in Run() exits. Safe to call multiple times
+	/// and safe to call from a signal / service-control handler.
+	void         Stop               ();
+
 	/// returns the ip address of the opposite tunnel endpoint
 	KTCPEndPoint GetEndPointAddress () const;
 

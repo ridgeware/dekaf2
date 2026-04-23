@@ -1004,6 +1004,16 @@ bool KTCPServer::Stop()
 
 #endif
 
+	// Belt-and-suspenders: explicitly stop the io_context. Cancelling
+	// the acceptor(s) above normally drains run() by itself (the chained
+	// async_accept handlers short-circuit via IsShuttingDown()), but on
+	// Windows/IOCP we have observed cases where a pending accept is not
+	// woken quickly enough when the service is asked to stop — the
+	// process then sits in SERVICE_STOP_PENDING for the full SCM grace
+	// period. stop() unblocks run() immediately on every backend and is
+	// safe even if run() has already drained naturally.
+	m_asio.stop();
+
 	// join the IO thread - run() will return naturally once all
 	// cancelled async_accept handlers have completed without chaining
 	if (m_IOThread && m_IOThread->joinable())

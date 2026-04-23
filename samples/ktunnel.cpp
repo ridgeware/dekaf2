@@ -311,6 +311,36 @@ ProtectedHost::ProtectedHost(const ExtendedConfig& Config)
 //-----------------------------------------------------------------------------
 : m_Config(Config)
 {
+} // ProtectedHost::ctor
+
+//-----------------------------------------------------------------------------
+void ProtectedHost::Shutdown()
+//-----------------------------------------------------------------------------
+{
+	// latch the quit flag first so a concurrent Run() that has just finished
+	// Tunnel.Run() and is about to re-check the flag will see it
+	m_bQuit.store(true, std::memory_order_release);
+
+	// tear down any currently active tunnel so its blocking Run() returns
+	// promptly; also wake up the inter-retry sleep (the wait_for below
+	// keys off m_bQuit via the predicate)
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		if (m_pCurrentTunnel)
+		{
+			m_pCurrentTunnel->Stop();
+		}
+	}
+
+	m_CV.notify_all();
+
+} // ProtectedHost::Shutdown
+
+//-----------------------------------------------------------------------------
+void ProtectedHost::Run()
+//-----------------------------------------------------------------------------
+{
 	KHTTPStreamOptions StreamOptions;
 	// connect timeout to exposed host, also wait timeout between two tries
 	StreamOptions.SetTimeout(m_Config.ConnectTimeout);
@@ -318,7 +348,7 @@ ProtectedHost::ProtectedHost(const ExtendedConfig& Config)
 	// (but as we are not a browser that doesn't mean any disadvantage)
 	StreamOptions.Unset(KStreamOptions::RequestHTTP2);
 
-	for (;;)
+	while (!m_bQuit.load(std::memory_order_acquire))
 	{
 		try
 		{
@@ -356,23 +386,66 @@ ProtectedHost::ProtectedHost(const ExtendedConfig& Config)
 			// we are the "client" side of the tunnel and have to login with user/pass
 			KTunnel Tunnel(m_Config, std::move(WebSocket.GetStream()), sUsername, sSecret);
 
+			// publish the tunnel pointer so Shutdown() can stop it while
+			// Run() is blocked in Tunnel.Run(). If Shutdown() was called
+			// in the tiny window between the quit-check above and here,
+			// honor it immediately.
+			{
+				std::lock_guard<std::mutex> Lock(m_Mutex);
+
+				if (m_bQuit.load(std::memory_order_acquire))
+				{
+					break;
+				}
+
+				m_pCurrentTunnel = &Tunnel;
+			}
+
+			// ensure the tunnel pointer is cleared no matter how Run()
+			// returns (normal, exception, or Shutdown-induced disconnect)
+			auto ClearTunnel = [this]() noexcept
+			{
+				std::lock_guard<std::mutex> Lock(m_Mutex);
+				m_pCurrentTunnel = nullptr;
+			};
+			auto Guard = KScopeGuard<decltype(ClearTunnel)>(ClearTunnel);
+
 			m_Config.Message("control stream opened - now waiting for data streams");
 
 			Tunnel.Run();
+
+			if (m_bQuit.load(std::memory_order_acquire))
+			{
+				break;
+			}
 
 			m_Config.Message("lost connection - now sleeping for {} and retrying", m_Config.ConnectTimeout);
 		}
 		catch(const std::exception& ex)
 		{
+			if (m_bQuit.load(std::memory_order_acquire))
+			{
+				break;
+			}
+
 			m_Config.Message("{}", ex.what());
 			m_Config.Message("could not connect - now sleeping for {} and retrying", m_Config.ConnectTimeout);
 		}
 
-		// sleep until next connect try
-		kSleep(m_Config.ConnectTimeout);
+		// interruptible sleep until the next connect try — wait_for returns
+		// early when Shutdown() sets m_bQuit and notifies the CV
+		{
+			std::unique_lock<std::mutex> Lock(m_Mutex);
+			m_CV.wait_for(Lock, m_Config.ConnectTimeout.duration(), [this]()
+			{
+				return m_bQuit.load(std::memory_order_acquire);
+			});
+		}
 	}
 
-} // ProtectedHost::ctor
+	m_Config.Message("protected host shut down");
+
+} // ProtectedHost::Run
 
 //-----------------------------------------------------------------------------
 int Tunnel::Main(int argc, char** argv)
@@ -451,6 +524,45 @@ int Tunnel::Main(int argc, char** argv)
 		                 m_Config.ExposedHost);
 
 		ProtectedHost Protected(m_Config);
+
+		// Wire up graceful shutdown for all three termination paths:
+		//   - POSIX SIGINT / SIGTERM (interactive Ctrl+C, systemctl stop,
+		//     launchctl kill -TERM, and the fallback raise(SIGTERM) that
+		//     KService::ControlHandler emits when no fnShutdown is set)
+		//   - Windows SCM SERVICE_CONTROL_STOP / SHUTDOWN (via fnShutdown,
+		//     which KService::ControlHandler prefers over raise(SIGTERM))
+		// All three converge on ProtectedHost::Shutdown(), which closes
+		// the active tunnel stream and wakes the inter-retry sleep.
+		auto Signals = Dekaf::getInstance().Signals();
+
+		if (Signals)
+		{
+			auto ShutdownSignalHandler = [&Protected](int /*signal*/)
+			{
+				Protected.Shutdown();
+			};
+			Signals->SetSignalHandler(SIGINT,  ShutdownSignalHandler);
+			Signals->SetSignalHandler(SIGTERM, ShutdownSignalHandler);
+		}
+
+		KService::SetShutdownHandler([&Protected]()
+		{
+			Protected.Shutdown();
+		});
+
+		Protected.Run();
+
+		// Detach every handler that captures Protected by reference before
+		// Protected itself goes out of scope, otherwise a signal / SCM
+		// stop event arriving in this short window would dereference a
+		// dangling reference.
+		KService::SetShutdownHandler({});
+
+		if (Signals)
+		{
+			Signals->SetDefaultHandler(SIGINT);
+			Signals->SetDefaultHandler(SIGTERM);
+		}
 	}
 
 	return 0;

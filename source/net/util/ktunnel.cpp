@@ -769,6 +769,23 @@ KTunnel::~KTunnel()
 } // KTunnel::~KTunnel
 
 //-----------------------------------------------------------------------------
+void KTunnel::Stop()
+//-----------------------------------------------------------------------------
+{
+	// Thread-safe stop: disconnecting the underlying stream causes the
+	// blocked Read/Write inside Run() to fail and HaveTunnel() to return
+	// false on the next loop iteration, so Run() returns promptly.
+	auto Tunnel = m_Tunnel.unique();
+
+	if (Tunnel->Stream)
+	{
+		kDebug(2, "stopping tunnel");
+		Tunnel->Stream->Disconnect();
+	}
+
+} // KTunnel::Stop
+
+//-----------------------------------------------------------------------------
 void KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& ConnectToEndpoint)
 //-----------------------------------------------------------------------------
 {

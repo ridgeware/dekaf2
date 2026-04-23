@@ -1352,14 +1352,19 @@ bool KService::Install(KStringView sServiceName, const InstallOptions& Opts)
 		return false;
 	}
 
-	// load + enable the job — -w persists the "enabled" state across reboots
-	if (Launchctl(kFormat("load -w {}", QuoteForShell(sPlistPath))) != 0)
-	{
-		kWarning("launchctl load '{}' failed — plist remains in place; "
-		         "retry manually with: launchctl load -w {}",
-		         sLabel, sPlistPath);
-		// do not unwind the plist write: the caller may want to inspect it
-	}
+	// Cross-OS uniformity: Install() only registers the service; it never
+	// loads or starts it.
+	//   - Windows: CreateServiceW registers in SCM, no start
+	//   - Linux:   kWriteFile + `systemctl enable`, no start
+	//   - macOS:   plist lives under ~/Library/LaunchAgents (or
+	//              /Library/LaunchDaemons); launchd auto-discovers plists
+	//              there on the next login / boot and starts them if
+	//              RunAtLoad=true. No `launchctl load` here because that
+	//              would fork the binary immediately.
+	// KService::Start() is responsible for loading + starting the job into
+	// the current session (via `launchctl load -w`) when the user invokes
+	// it explicitly.
+	(void)sLabel;
 
 	return true;
 
@@ -1623,15 +1628,39 @@ bool KService::Start(KStringView sServiceName)
 
 #elif defined(DEKAF2_IS_MACOS)
 
-	KString sLabel = MakeLabel(sServiceName);
+	KString sLabel     = MakeLabel(sServiceName);
+	bool    bUserScope = false;
 
-	if (!DetectInstalledScope(sLabel, nullptr))
+	if (!DetectInstalledScope(sLabel, &bUserScope))
 	{
 		kWarning("service '{}' (label '{}') is not installed", sServiceName, sLabel);
 		return false;
 	}
 
-	return Launchctl(kFormat("start {}", QuoteForShell(sLabel))) == 0;
+	// KService::Install() deliberately does not run `launchctl load` (see
+	// Install() for rationale). So on the first Start() after Install(), the
+	// job is usually not yet loaded in the current session — `launchctl
+	// start` would fail with "Could not find specified service". We therefore
+	// probe first and fall back to `load -w` which registers the job AND
+	// starts it (RunAtLoad=true in the generated plist). If the job is
+	// already loaded (previous Start()/Stop() cycle), we use plain `start`.
+	KString sProbe;
+
+	if (LaunchctlCapture(kFormat("list {}", QuoteForShell(sLabel)), sProbe) == 0)
+	{
+		// already loaded — just kick off a run
+		return Launchctl(kFormat("start {}", QuoteForShell(sLabel))) == 0;
+	}
+
+	KString sPlistPath = PlistPath(sLabel, bUserScope);
+
+	if (sPlistPath.empty())
+	{
+		kWarning("cannot determine plist path for service '{}'", sServiceName);
+		return false;
+	}
+
+	return Launchctl(kFormat("load -w {}", QuoteForShell(sPlistPath))) == 0;
 
 #else
 	(void)sServiceName;

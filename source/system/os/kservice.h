@@ -363,6 +363,16 @@ public:
 	/// Register the current (or a given) executable as a system service.
 	/// Requires administrator / root privileges for a system-wide install;
 	/// falls back to a user-scoped unit on Linux / macOS otherwise.
+	///
+	/// START BEHAVIOUR (identical on all three platforms):
+	/// Install() only *registers* the service; it never leaves it running.
+	/// With Mode=Automatic the service is marked for auto-start at next
+	/// reboot / login, but must be started for the current session via an
+	/// explicit Start() call (or `-start` on the CLI). This keeps
+	/// Windows / Linux / macOS behaviour uniform — historically macOS
+	/// started the job implicitly via `launchctl load -w`, which we now
+	/// suppress.
+	///
 	/// @param sServiceName the internal service name (no spaces).
 	/// @param Opts install parameters.
 	/// @return true on success.

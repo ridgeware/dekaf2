@@ -50,6 +50,7 @@
 #include <dekaf2/net/address/knetworkinterface.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/system/os/kservice.h>
 
 using namespace dekaf2;
 
@@ -75,6 +76,9 @@ public:
 
 		// setup CLI option parsing
 		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
+
+		// add help for service options
+		Options.SetAdditionalHelp(KService::GetHelp());
 
 		// create an instance of the REST server options
 		KREST::Options Settings;
@@ -306,13 +310,20 @@ public:
 int main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	try
-	{
-		return KHTTP().Main (argc, argv);
-	}
-	catch (const std::exception& ex)
-	{
-		kPrintLine(">> {}: {}", "khttp", ex.what());
-	}
-	return 1;
+	return KService::Run("ktunnel", argc, argv,
+		[](int ac, char** av)
+		{
+			try
+			{
+				return KHTTP().Main (ac, av);
+			}
+			catch (const std::exception& ex)
+			{
+				kPrintLine(">> {}: {}", "khttp", ex.what());
+			}
+			return 1;
+		},
+		true,
+		"KHTTP",
+		"quick HTTP and WebDAV server");
 }

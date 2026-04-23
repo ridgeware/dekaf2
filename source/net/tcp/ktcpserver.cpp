@@ -505,16 +505,40 @@ bool KTCPServer::SetupTCPAcceptors()
 void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 //-----------------------------------------------------------------------------
 {
+	// Ownership model for the pre-allocated stream:
+	//
+	// C++14+ : the stream is init-captured into the async_accept handler
+	//          as a std::unique_ptr. The handler closure itself owns the
+	//          stream, so it is destroyed whether or not the handler body
+	//          runs (e.g. when io_context::stop() discards pending handlers
+	//          during shutdown) — no leak.
+	//
+	// C++11  : init-capture does not exist, so we smuggle ownership through
+	//          a raw pointer and reclaim it into a std::unique_ptr at the
+	//          top of the handler body. If io_context::stop() discards a
+	//          pending handler, that raw pointer leaks — but stop() only
+	//          happens at shutdown which is followed by exit, so the OS
+	//          reclaims the memory.
 	if (IsTLS())
 	{
 		auto tlsstream = CreateKTLSServer(*m_TLSContext, m_Timeout);
 		auto& socket   = tlsstream->GetTCPSocket();
-		auto* pStream  = tlsstream.release();
+		std::unique_ptr<KIOStreamSocket> stream_base = std::move(tlsstream);
+
+#if !DEKAF2_HAS_CPP_14
+		auto* pStream  = stream_base.release();
+#endif
 
 		acceptor->async_accept(socket,
+#if !DEKAF2_HAS_CPP_14
 			[this, acceptor, pStream](boost::system::error_code ec)
+#else
+			[this, acceptor, stream = std::move(stream_base)](boost::system::error_code ec) mutable
+#endif
 		{
+#if !DEKAF2_HAS_CPP_14
 			std::unique_ptr<KIOStreamSocket> stream(pStream);
+#endif
 
 			if (IsShuttingDown())
 			{
@@ -548,8 +572,7 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 
 				stream->SetNoDelay(true);
 
-#if !DEKAF2_HAS_CPP_14 || defined(DEKAF2_IS_MSC)
-				// unfortunately C++11 does not know how to move a variable into a lambda scope
+#if !DEKAF2_HAS_CPP_14
 				auto* Stream = stream.release();
 				m_ThreadPool.push([ this, Stream ]() mutable
 				{
@@ -572,12 +595,22 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 	{
 		auto tcpstream = CreateKTCPStream(m_Timeout);
 		auto& socket   = tcpstream->GetTCPSocket();
-		auto* pStream  = tcpstream.release();
+		std::unique_ptr<KIOStreamSocket> stream_base = std::move(tcpstream);
+
+#if !DEKAF2_HAS_CPP_14
+		auto* pStream  = stream_base.release();
+#endif
 
 		acceptor->async_accept(socket,
+#if !DEKAF2_HAS_CPP_14
 			[this, acceptor, pStream](boost::system::error_code ec)
+#else
+			[this, acceptor, stream = std::move(stream_base)](boost::system::error_code ec) mutable
+#endif
 		{
+#if !DEKAF2_HAS_CPP_14
 			std::unique_ptr<KIOStreamSocket> stream(pStream);
+#endif
 
 			if (IsShuttingDown())
 			{
@@ -611,8 +644,7 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 
 				stream->SetNoDelay(true);
 
-#if !DEKAF2_HAS_CPP_14 || defined(DEKAF2_IS_MSC)
-				// unfortunately C++11 does not know how to move a variable into a lambda scope
+#if !DEKAF2_HAS_CPP_14
 				auto* Stream = stream.release();
 				m_ThreadPool.push([ this, Stream ]() mutable
 				{
@@ -673,14 +705,24 @@ bool KTCPServer::SetupUnixAcceptor()
 void KTCPServer::StartUnixAccept()
 //-----------------------------------------------------------------------------
 {
+	// Ownership model: see StartTCPAccept.
 	auto unixstream = CreateKUnixStream(m_Timeout);
 	auto& socket    = unixstream->GetUnixSocket();
+
+#if !DEKAF2_HAS_CPP_14
 	auto* pStream   = unixstream.release();
+#endif
 
 	m_UnixAcceptor->async_accept(socket,
+#if !DEKAF2_HAS_CPP_14
 		[this, pStream](boost::system::error_code ec)
+#else
+		[this, unixstream = std::move(unixstream)](boost::system::error_code ec) mutable
+#endif
 	{
+#if !DEKAF2_HAS_CPP_14
 		std::unique_ptr<KUnixStream> unixstream(pStream);
+#endif
 
 		if (IsShuttingDown())
 		{
@@ -705,7 +747,6 @@ void KTCPServer::StartUnixAccept()
 			std::unique_ptr<KIOStreamSocket> stream = std::move(unixstream);
 
 #if !DEKAF2_HAS_CPP_14
-			// unfortunately C++11 does not know how to move a variable into a lambda scope
 			auto* Stream = stream.release();
 			m_ThreadPool.push([ this, Stream ]() mutable
 			{
@@ -1004,14 +1045,21 @@ bool KTCPServer::Stop()
 
 #endif
 
-	// Belt-and-suspenders: explicitly stop the io_context. Cancelling
-	// the acceptor(s) above normally drains run() by itself (the chained
+	// Belt-and-suspenders: explicitly stop the io_context. Cancelling the
+	// acceptor(s) above normally drains run() by itself (the chained
 	// async_accept handlers short-circuit via IsShuttingDown()), but on
-	// Windows/IOCP we have observed cases where a pending accept is not
-	// woken quickly enough when the service is asked to stop — the
-	// process then sits in SERVICE_STOP_PENDING for the full SCM grace
-	// period. stop() unblocks run() immediately on every backend and is
-	// safe even if run() has already drained naturally.
+	// Windows/IOCP a pending accept may not be woken quickly enough when
+	// the service is asked to stop — the process can then sit in
+	// SERVICE_STOP_PENDING for the full SCM grace period. stop() unblocks
+	// run() immediately on every backend.
+	//
+	// On C++14+ builds this is leak-safe: the async_accept handlers own
+	// their pre-allocated stream via init-capture, so the stream is freed
+	// when the handler closure is destroyed regardless of whether it runs.
+	// On the C++11 fallback path the handler captures a raw pointer and
+	// would leak one pre-allocated stream per stopped acceptor — but since
+	// stop() is only called at shutdown and the process exits right after,
+	// the OS reclaims that memory anyway.
 	m_asio.stop();
 
 	// join the IO thread - run() will return naturally once all

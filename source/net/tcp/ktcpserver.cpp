@@ -1035,8 +1035,14 @@ bool KTCPServer::RegisterShutdownWithSignals(const std::vector<int>& Signals)
 
 	for (auto iSignal : Signals)
 	{
+		// capture any previously registered user handler so we can chain it.
+		// This is important when multiple KTCPServer instances run in the same
+		// process: each one registers a handler, and without chaining only the
+		// last registered server would be stopped by a single SIGINT/SIGTERM.
+		auto PreviousHandler = SignalHandlers->GetSignalHandler(iSignal);
+
 		// register with iSignal
-		SignalHandlers->SetSignalHandler(iSignal, [&](int signal)
+		SignalHandlers->SetSignalHandler(iSignal, [this, PreviousHandler](int signal)
 		{
 			kDebug(1, "received {}, shutting down", kTranslateSignal(signal));
 
@@ -1044,12 +1050,20 @@ bool KTCPServer::RegisterShutdownWithSignals(const std::vector<int>& Signals)
 
 			if (SignalHandlers)
 			{
-				// reset signal handler
+				// reset signal handler so that a subsequent signal really
+				// terminates the process via the dekaf2 default handler
 				SignalHandlers->SetDefaultHandler(signal);
 			}
 
 			// stop the tcp server
 			this->Stop();
+
+			// chain: call the previously installed user handler so that all
+			// registered servers get stopped by a single signal
+			if (PreviousHandler)
+			{
+				PreviousHandler(signal);
+			}
 
 		});
 

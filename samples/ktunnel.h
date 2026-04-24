@@ -399,6 +399,13 @@ public:
 private:
 //----------
 
+	/// REPL handler wired into KTunnel::Config::OpenReplCallback when
+	/// this peer connects to the exposed host. Runs on a tunnel worker
+	/// thread; the handed-in Connection is this peer's side of a
+	/// duplex text channel. Returns (and the tunnel closes the channel)
+	/// when the remote end disconnects or the user types 'exit'.
+	void RunRepl (std::shared_ptr<KTunnel::Connection> Connection);
+
 	const ExtendedConfig&           m_Config;
 	std::atomic<bool>               m_bQuit            { false };
 	std::mutex                      m_Mutex;

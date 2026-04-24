@@ -331,14 +331,14 @@ bool KTunnelStore::DeleteUser (KStringView sUsername)
 } // DeleteUser
 
 //-----------------------------------------------------------------------------
-std::optional<KTunnelStore::User>
+std::unique_ptr<KTunnelStore::User>
 KTunnelStore::GetUser (KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
 	auto db = OpenRO();
-	if (db.IsError()) return std::nullopt;
+	if (db.IsError()) return nullptr;
 
 	auto stmt = db.Prepare(
 		"select id, username, pw_hash, is_admin, created_utc, last_login_utc "
@@ -347,17 +347,17 @@ KTunnelStore::GetUser (KStringView sUsername)
 
 	if (!stmt.NextRow())
 	{
-		return std::nullopt;
+		return nullptr;
 	}
 
 	auto Row = stmt.GetRow();
-	User u;
-	u.iID           = Row.Col(1).Int64();
-	u.sUsername     = Row.Col(2).String();
-	u.sPasswordHash = Row.Col(3).String();
-	u.bIsAdmin      = Row.Col(4).Int64() != 0;
-	u.tCreated      = KUnixTime::from_time_t(Row.Col(5).Int64());
-	u.tLastLogin    = KUnixTime::from_time_t(Row.Col(6).Int64());
+	auto u = std::make_unique<User>();
+	u->iID           = Row.Col(1).Int64();
+	u->sUsername     = Row.Col(2).String();
+	u->sPasswordHash = Row.Col(3).String();
+	u->bIsAdmin      = Row.Col(4).Int64() != 0;
+	u->tCreated      = KUnixTime::from_time_t(Row.Col(5).Int64());
+	u->tLastLogin    = KUnixTime::from_time_t(Row.Col(6).Int64());
 	return u;
 
 } // GetUser
@@ -563,24 +563,24 @@ bool KTunnelStore::SetTunnelEnabled (KStringView sName, bool bEnabled)
 } // SetTunnelEnabled
 
 //-----------------------------------------------------------------------------
-std::optional<KTunnelStore::Tunnel>
+std::unique_ptr<KTunnelStore::Tunnel>
 KTunnelStore::GetTunnel (KStringView sName)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
 	auto db = OpenRO();
-	if (db.IsError()) return std::nullopt;
+	if (db.IsError()) return nullptr;
 
 	auto stmt = db.Prepare(kFormat("select {} from tunnels where name=?1", s_sTunnelCols));
 	stmt.Bind(1, sName, false);
 
 	if (!stmt.NextRow())
 	{
-		return std::nullopt;
+		return nullptr;
 	}
 
-	return TunnelFromRow(stmt.GetRow());
+	return std::make_unique<Tunnel>(TunnelFromRow(stmt.GetRow()));
 
 } // GetTunnel
 

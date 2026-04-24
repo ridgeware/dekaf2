@@ -172,6 +172,21 @@ private:
 	/// used to preselect the corresponding dropdown entries on render.
 	void ShowEvents           (KRESTServer& HTTP);
 
+	/// GET /Configure/peers — list currently connected tunnel peers
+	/// (from ExposedServer::SnapshotActiveTunnels) with an "Open REPL"
+	/// button per row. Admin-only.
+	void ShowPeers            (KRESTServer& HTTP);
+
+	/// GET /Configure/peers/repl?peer=<user> — minimal HTML+JS page
+	/// that opens a WebSocket to /Configure/peers/repl/ws and renders
+	/// the duplex text stream in a <pre>. Admin-only.
+	void ShowPeerRepl         (KRESTServer& HTTP);
+
+	/// GET /Configure/peers/repl/ws?peer=<user> — WebSocket endpoint
+	/// that proxies frames between the browser and a freshly opened
+	/// REPL channel on the named peer's active KTunnel. Admin-only.
+	void HandlePeerReplWs     (KRESTServer& HTTP);
+
 	/// Render the common top-bar (brand + nav) into the body of @p Page
 	/// and mark the nav entry identified by @p sActive as the active one
 	/// so it gets a highlighted pill. Admin-only nav entries (Users,

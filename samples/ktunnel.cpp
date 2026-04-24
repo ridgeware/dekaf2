@@ -837,6 +837,101 @@ void ProtectedHost::Shutdown()
 } // ProtectedHost::Shutdown
 
 //-----------------------------------------------------------------------------
+void ProtectedHost::RunRepl(std::shared_ptr<KTunnel::Connection> Connection)
+//-----------------------------------------------------------------------------
+{
+	if (!Connection) return;
+
+	// Banner — identical newline convention as the rest of the handler
+	// so the Browser-side REPL view can just append to a <pre>.
+	Connection->WriteData("ktunnel peer REPL\ntype 'help' for commands\n\n> ");
+
+	for (;;)
+	{
+		KString sLineBuf;
+		if (!Connection->ReadData(sLineBuf)) break;   // channel closed by remote or tunnel teardown
+
+		// Frames may arrive in chunks or with or without trailing
+		// newlines (depending on how the initiator batches). Split on
+		// newlines and process each non-empty line individually.
+		KStringView sFrame = sLineBuf;
+		while (!sFrame.empty())
+		{
+			auto iNL = sFrame.find('\n');
+			KStringView sLine = (iNL == KStringView::npos) ? sFrame : sFrame.substr(0, iNL);
+			sFrame = (iNL == KStringView::npos) ? KStringView{} : sFrame.substr(iNL + 1);
+
+			KString sCmd(sLine);
+			sCmd.TrimLeft(" \t\r");
+			sCmd.TrimRight(" \t\r");
+
+			if (sCmd.empty())
+			{
+				Connection->WriteData("> ");
+				continue;
+			}
+
+			KString sReply;
+			bool    bBye = false;
+
+			if (sCmd == "help" || sCmd == "?")
+			{
+				sReply =
+					"Commands:\n"
+					"  help     - this help\n"
+					"  status   - tunnel status and traffic counters\n"
+					"  version  - build version\n"
+					"  exit     - close this REPL session\n";
+			}
+			else if (sCmd == "status")
+			{
+				std::lock_guard<std::mutex> Lock(m_Mutex);
+				if (!m_pCurrentTunnel)
+				{
+					sReply = "no active tunnel\n";
+				}
+				else
+				{
+					sReply = kFormat(
+						"connected to : {}\n"
+						"peer user    : {}\n"
+						"streams      : {}\n"
+						"bytes rx     : {}\n"
+						"bytes tx     : {}\n",
+						m_pCurrentTunnel->GetEndPointAddress(),
+						m_Config.sPeerUser,
+						m_pCurrentTunnel->GetConnectionCount(),
+						m_pCurrentTunnel->GetBytesRx(),
+						m_pCurrentTunnel->GetBytesTx());
+				}
+			}
+			else if (sCmd == "version")
+			{
+				sReply = "ktunnel peer (dekaf2)\n";
+			}
+			else if (sCmd == "exit" || sCmd == "quit")
+			{
+				Connection->WriteData("bye\n");
+				bBye = true;
+			}
+			else
+			{
+				sReply = kFormat("unknown command: '{}' (try 'help')\n", sCmd);
+			}
+
+			if (bBye)
+			{
+				return;
+			}
+
+			Connection->WriteData(std::move(sReply));
+			Connection->WriteData("> ");
+		}
+	}
+
+} // ProtectedHost::RunRepl
+
+//-----------------------------------------------------------------------------
 void ProtectedHost::Run()
 //-----------------------------------------------------------------------------
 {
@@ -882,8 +977,18 @@ void ProtectedHost::Run()
 				throw KError("cannot establish tunnel connection");
 			}
 
+			// Per-connection KTunnel::Config copy (sliced from
+			// ExtendedConfig) so we can inject the REPL callback
+			// without mutating the shared m_Config.
+			KTunnel::Config TunnelCfg = m_Config;
+			TunnelCfg.OpenReplCallback =
+				[this](std::shared_ptr<KTunnel::Connection> conn)
+				{
+					RunRepl(std::move(conn));
+				};
+
 			// we are the "client" side of the tunnel and have to login with user/pass
-			KTunnel Tunnel(m_Config, std::move(WebSocket.GetStream()), sUsername, sSecret);
+			KTunnel Tunnel(TunnelCfg, std::move(WebSocket.GetStream()), sUsername, sSecret);
 
 			// publish the tunnel pointer so Shutdown() can stop it while
 			// Run() is blocked in Tunnel.Run(). If Shutdown() was called

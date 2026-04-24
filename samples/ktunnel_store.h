@@ -46,8 +46,8 @@
 #include <dekaf2/data/sql/ksqlite.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <cstdint>
+#include <memory>
 #include <mutex>
-#include <optional>
 #include <vector>
 
 namespace dekaf2 {}
@@ -116,8 +116,8 @@ public:
 	/// Remove a user row.
 	bool              DeleteUser             (KStringView sUsername);
 
-	/// Fetch one user, or nullopt if not found.
-	std::optional<User> GetUser              (KStringView sUsername);
+	/// Fetch one user. Returns a null unique_ptr if the user does not exist.
+	std::unique_ptr<User> GetUser            (KStringView sUsername);
 
 	/// Return all users sorted by username ascending.
 	std::vector<User> GetAllUsers            ();
@@ -146,7 +146,8 @@ public:
 	bool              DeleteTunnel           (KStringView sName);
 	bool              SetTunnelEnabled       (KStringView sName, bool bEnabled);
 
-	std::optional<Tunnel> GetTunnel          (KStringView sName);
+	/// Fetch one tunnel. Returns a null unique_ptr if the tunnel does not exist.
+	std::unique_ptr<Tunnel> GetTunnel        (KStringView sName);
 	std::vector<Tunnel> GetAllTunnels        ();
 	std::vector<Tunnel> GetEnabledTunnels    ();
 

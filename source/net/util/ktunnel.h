@@ -83,6 +83,9 @@ public:
 
 	//------------------------- subclasses of KTunnel -------------------------
 
+	// forward declaration so Config can refer to Connection below
+	class Connection;
+
 	/// Authentication callback invoked on the server side of the tunnel
 	/// after the login message has been received (and, in AES mode,
 	/// successfully decrypted using one of the configured Secrets). The
@@ -124,6 +127,14 @@ public:
 		/// encode payload with AES?
 		bool                   bAESPayload    { false };
 
+		/// Optional handler invoked on the peer side when the remote end
+		/// requests a REPL channel via an OpenRepl frame. The handler owns
+		/// the Connection and should use Connection::ReadData() /
+		/// Connection::WriteData() as a duplex text stream. Return to tear
+		/// the channel down. Runs on its own worker thread. If unset,
+		/// incoming OpenRepl frames are rejected with a Disconnect.
+		std::function<void(std::shared_ptr<Connection>)>  OpenReplCallback;
+
 	}; // Config
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -151,7 +162,16 @@ public:
 			Data,
 			Pause,
 			Resume,
-			Disconnect
+			Disconnect,
+			/// Open a REPL control channel on the peer. Payload is currently empty;
+			/// reserved for a future JSON option bag. After the frame is accepted
+			/// the channel becomes a duplex text stream (Data frames carry lines).
+			OpenRepl,
+			/// Reserved: open a PTY-shell channel on the peer. Payload will carry
+			/// a JSON options blob (command, environment, window size).
+			OpenShell,
+			/// Reserved: window-size change for a shell channel (WINCH).
+			ShellResize
 		};
 
 		/// default construct
@@ -247,6 +267,19 @@ public:
 		/// shuts this connection down
 		void        Disconnect            ();
 
+		/// Block until the next Data-frame payload arrives on this channel.
+		/// On success writes the payload into sOut and returns true. Returns
+		/// false when the channel is closed (Disconnect frame or tunnel
+		/// stop); sOut is left unchanged in that case. Intended for channel
+		/// types that do not have a DirectStream (OpenRepl / future
+		/// OpenShell), so PumpFromTunnel() is not running. Safe to call from
+		/// a single consumer thread.
+		bool                   ReadData   (KString& sOut);
+		/// Send a Data-frame payload back over this channel. Safe to call
+		/// concurrently with ReadData(). No-op if the channel is already
+		/// torn down.
+		void                   WriteData  (KString sPayload);
+
 		/// returns the unique ID (channel) for this connection
 		std::size_t GetID                 () const { return m_iID;      }
 
@@ -336,6 +369,14 @@ public:
 	/// connect an incoming direct stream with the tunnel and the endpoint at the other side of the tunnel - will throw
 	/// on error or return after connection is closed from the other end
 	void         Connect            (KIOStreamSocket* DirectStream, const KTCPEndPoint& ConnectToEndpoint);
+
+	/// Open a new REPL channel on the remote peer. Allocates a channel
+	/// ID, sends an OpenRepl frame, and returns the local Connection
+	/// proxy for duplex Connection::ReadData() / Connection::WriteData()
+	/// I/O. The remote peer dispatches this into its
+	/// Config::OpenReplCallback. Returns a null shared_ptr if no free
+	/// channel is available or the tunnel is not established.
+	std::shared_ptr<Connection> OpenRepl ();
 
 	/// run the event handler for this tunnel - may throw or return on error, otherwise blocking the current thread
 	void         Run                ();

@@ -254,6 +254,8 @@ constexpr KStringView s_sDashboardURL = "/Configure/";
 constexpr KStringView s_sUsersURL     = "/Configure/users";
 constexpr KStringView s_sTunnelsURL   = "/Configure/tunnels";
 constexpr KStringView s_sEventsURL    = "/Configure/events";
+constexpr KStringView s_sPeersURL     = "/Configure/peers";
+constexpr KStringView s_sPeerReplURL  = "/Configure/peers/repl";
 
 // The matching routes — no trailing slashes, because KRESTServer strips
 // them off the request path before looking up a route.
@@ -271,6 +273,9 @@ constexpr KStringView s_sTunnelsDeleteRoute = "/Configure/tunnels/delete";
 constexpr KStringView s_sTunnelsEditRoute   = "/Configure/tunnels/edit";
 constexpr KStringView s_sTunnelsUpdateRoute = "/Configure/tunnels/update";
 constexpr KStringView s_sEventsRoute        = "/Configure/events";
+constexpr KStringView s_sPeersRoute          = "/Configure/peers";
+constexpr KStringView s_sPeerReplRoute       = "/Configure/peers/repl";
+constexpr KStringView s_sPeerReplWsRoute     = "/Configure/peers/repl/ws";
 
 // Matching user-visible URLs used for form actions and redirects.
 constexpr KStringView s_sUsersAddURL        = "/Configure/users/add";
@@ -559,6 +564,7 @@ void AdminUI::RenderTopBar (html::Page& Page,
 		{ "dashboard", s_sDashboardURL, "Dashboard", "Dashboard" },
 		{ "users",     s_sUsersURL,     "Users",     "Profile"   },
 		{ "tunnels",   s_sTunnelsURL,   "Tunnels",   ""          },
+		{ "peers",     s_sPeersURL,     "Peers",     ""          },
 		{ "events",    s_sEventsURL,    "Events",    ""          },
 		{ "logout",    s_sLogoutURL,    "Logout",    "Logout"    },
 	};
@@ -806,7 +812,7 @@ bool AdminUI::IsAdmin (KRESTSession& Sess)
 //-----------------------------------------------------------------------------
 {
 	auto oMe = m_Server.GetStore().GetUser(Sess.GetUser());
-	return oMe.has_value() && oMe->bIsAdmin;
+	return oMe && oMe->bIsAdmin;
 
 } // IsAdmin
 
@@ -1895,6 +1901,316 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 } // ShowEvents
 
 //-----------------------------------------------------------------------------
+void AdminUI::ShowPeers (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
+
+	const KString sMe(Sess.GetUser());
+	auto Peers = m_Server.SnapshotActiveTunnels();
+
+	auto Page = MakePage("ktunnel — Peers");
+	RenderTopBar(Page, "peers", sMe, /*bIsAdmin=*/true);
+
+	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+
+	auto& sec = main.Add(html::Div("", html::Classes("section")));
+	sec.Add(html::Heading(2, kFormat("Connected peers ({})", Peers.size())));
+
+	if (Peers.empty())
+	{
+		auto& p = sec.Add(html::Paragraph());
+		p.SetAttribute("class", "muted");
+		p.AddText("No tunnel peers currently connected. Peers appear here once "
+		          "they complete the login handshake.");
+	}
+	else
+	{
+		KString sTable;
+		sTable += "<table class=\"grid\"><thead><tr>"
+		          "<th>Peer user</th><th>Remote</th><th>Connected since</th>"
+		          "<th>Streams</th><th>Rx bytes</th><th>Tx bytes</th>"
+		          "<th></th></tr></thead><tbody>";
+
+		for (const auto& p : Peers)
+		{
+			// live counters via the shared_ptr — safe: the snapshot
+			// returned copies of the shared_ptr, so the KTunnel cannot
+			// be destroyed underneath us during this single rendering.
+			std::size_t iStreams = 0;
+			uint64_t    iRx = 0, iTx = 0;
+			if (p.Tunnel)
+			{
+				iStreams = p.Tunnel->GetConnectionCount();
+				iRx      = p.Tunnel->GetBytesRx();
+				iTx      = p.Tunnel->GetBytesTx();
+			}
+
+			KString sReplURL = kFormat("{}?peer={}",
+				s_sPeerReplURL,
+				kUrlEncode(p.sUser, URIPart::Query));
+
+			sTable += kFormat(
+				"<tr>"
+				"<td>{}</td>"
+				"<td>{}</td>"
+				"<td>{} UTC</td>"
+				"<td>{}</td>"
+				"<td>{}</td>"
+				"<td>{}</td>"
+				"<td><a class=\"btn small\" href=\"{}\">Open REPL</a></td>"
+				"</tr>",
+				KHTMLEntity::EncodeMandatory(p.sUser),
+				KHTMLEntity::EncodeMandatory(p.EndpointAddr.Serialize()),
+				p.tConnected.to_string(),
+				iStreams,
+				iRx,
+				iTx,
+				KHTMLEntity::EncodeMandatory(sReplURL));
+		}
+
+		sTable += "</tbody></table>";
+		sec.Add(html::RawText(sTable));
+	}
+
+	RenderPage(HTTP, Page);
+
+} // ShowPeers
+
+//-----------------------------------------------------------------------------
+void AdminUI::ShowPeerRepl (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
+
+	const KString sMe(Sess.GetUser());
+	KString sPeer(HTTP.GetQueryParm("peer"));
+
+	if (sPeer.empty())
+	{
+		RedirectWithFlash(HTTP, s_sPeersURL, "", "Missing peer parameter.");
+		return;
+	}
+
+	// Verify the peer is currently online — otherwise no point
+	// rendering the REPL UI.
+	auto Tunnel = m_Server.GetTunnelForUser(sPeer);
+	if (!Tunnel)
+	{
+		RedirectWithFlash(HTTP, s_sPeersURL, "",
+		                  kFormat("Peer '{}' is not currently connected.", sPeer));
+		return;
+	}
+
+	auto Page = MakePage(kFormat("ktunnel — REPL · {}", sPeer));
+	RenderTopBar(Page, "peers", sMe, /*bIsAdmin=*/true);
+
+	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+	auto& sec  = main.Add(html::Div("", html::Classes("section")));
+
+	sec.Add(html::Heading(2, kFormat("REPL — {}", sPeer)));
+
+	// The WebSocket URL is relative so it inherits the same scheme +
+	// host + port as the page. The browser WebSocket API
+	// auto-translates http: to ws: and https: to wss:.
+	KString sWsPath = kFormat("{}?peer={}",
+		s_sPeerReplWsRoute,
+		kUrlEncode(sPeer, URIPart::Query));
+
+	// Inline HTML + JS. <pre> for output (monospace, preserves
+	// whitespace), <input> for input, enter to send. The client
+	// sends whole lines with a trailing '\n' so the peer-side line
+	// splitter in ProtectedHost::RunRepl() works.
+	KString sBody = kFormat(
+		"<style>"
+		".repl-out {{ background:#0f1419; color:#d6deeb; padding:0.75rem;"
+		"            border-radius:6px; min-height:22rem; max-height:55vh;"
+		"            overflow:auto; font-family:ui-monospace,Menlo,monospace;"
+		"            font-size:0.85rem; white-space:pre-wrap; word-break:break-all; }}"
+		".repl-in  {{ display:flex; gap:0.5rem; margin-top:0.5rem; }}"
+		".repl-in input {{ flex:1; font-family:ui-monospace,Menlo,monospace; }}"
+		".repl-status {{ margin-top:0.5rem; font-size:0.8rem; }}"
+		".repl-status.ok  {{ color:#8fd19e; }}"
+		".repl-status.err {{ color:#f5a3a3; }}"
+		"</style>"
+		"<pre id=\"out\" class=\"repl-out\"></pre>"
+		"<div class=\"repl-in\">"
+		"  <input id=\"in\" type=\"text\" autocomplete=\"off\" autofocus "
+		"         placeholder=\"type a command and press Enter\">"
+		"  <button id=\"send\" class=\"btn small\" type=\"button\">Send</button>"
+		"  <button id=\"close\" class=\"btn small danger\" type=\"button\">Close</button>"
+		"</div>"
+		"<div id=\"status\" class=\"repl-status\">connecting&hellip;</div>"
+		"<script>"
+		"(function() {{"
+		"  var wsProto  = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';"
+		"  var wsUrl    = wsProto + '//' + window.location.host + '{}';"
+		"  var out      = document.getElementById('out');"
+		"  var inp      = document.getElementById('in');"
+		"  var sendBtn  = document.getElementById('send');"
+		"  var closeBtn = document.getElementById('close');"
+		"  var status   = document.getElementById('status');"
+		"  function setStatus(text, cls) {{"
+		"    status.textContent = text;"
+		"    status.className = 'repl-status ' + (cls || '');"
+		"  }}"
+		"  function append(text) {{"
+		"    out.textContent += text;"
+		"    out.scrollTop = out.scrollHeight;"
+		"  }}"
+		"  var ws = new WebSocket(wsUrl);"
+		"  ws.onopen    = function() {{ setStatus('connected', 'ok');  inp.focus(); }};"
+		"  ws.onmessage = function(ev) {{ append(ev.data); }};"
+		"  ws.onerror   = function()  {{ setStatus('connection error', 'err'); }};"
+		"  ws.onclose   = function()  {{ setStatus('disconnected', 'err'); inp.disabled = true; }};"
+		"  function send() {{"
+		"    if (ws.readyState !== WebSocket.OPEN) return;"
+		"    var line = inp.value;"
+		"    inp.value = '';"
+		"    append(line + '\\n');"
+		"    ws.send(line + '\\n');"
+		"  }}"
+		"  inp.addEventListener('keydown', function(ev) {{"
+		"    if (ev.key === 'Enter') {{ ev.preventDefault(); send(); }}"
+		"  }});"
+		"  sendBtn.addEventListener('click', send);"
+		"  closeBtn.addEventListener('click', function() {{"
+		"    try {{ ws.close(); }} catch (e) {{}}"
+		"    window.location.href = '{}';"
+		"  }});"
+		"}})();"
+		"</script>",
+		KHTMLEntity::EncodeMandatory(sWsPath),
+		KHTMLEntity::EncodeMandatory(s_sPeersURL));
+
+	sec.Add(html::RawText(sBody));
+
+	RenderPage(HTTP, Page);
+
+} // ShowPeerRepl
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
+
+	const KString sMe(Sess.GetUser());
+	KString sPeer(HTTP.GetQueryParm("peer"));
+
+	auto LogReject = [&](KStringView sReason)
+	{
+		KTunnelStore::Event ev;
+		ev.sKind       = "repl_reject";
+		ev.sUsername   = sMe;
+		ev.sTunnelName = sPeer;
+		ev.sRemoteIP   = KString(HTTP.GetRemoteIP());
+		ev.sDetail     = KString(sReason);
+		m_Server.GetStore().LogEvent(ev);
+	};
+
+	if (sPeer.empty())
+	{
+		LogReject("missing peer parameter");
+		HTTP.Response.SetStatus(KHTTPError::H4xx_BADREQUEST);
+		return;
+	}
+
+	auto Tunnel = m_Server.GetTunnelForUser(sPeer);
+	if (!Tunnel)
+	{
+		LogReject("peer not connected");
+		HTTP.Response.SetStatus(KHTTPError::H5xx_UNAVAILABLE);
+		return;
+	}
+
+	auto Connection = Tunnel->OpenRepl();
+	if (!Connection)
+	{
+		LogReject("peer has no free channel");
+		HTTP.Response.SetStatus(KHTTPError::H5xx_UNAVAILABLE);
+		return;
+	}
+
+	// Success audit. The matching repl_close event is logged at the
+	// end of the websocket handler below.
+	{
+		KTunnelStore::Event ev;
+		ev.sKind       = "repl_open";
+		ev.sUsername   = sMe;
+		ev.sTunnelName = sPeer;
+		ev.sRemoteIP   = KString(HTTP.GetRemoteIP());
+		ev.sDetail     = kFormat("channel {}", Connection->GetID());
+		m_Server.GetStore().LogEvent(ev);
+	}
+
+	HTTP.SetWebSocketHandler(
+	[this, sPeer, sMe, sRemote = KString(HTTP.GetRemoteIP()), Connection]
+	(KWebSocket& WebSocket)
+	{
+		// Dedicated pump thread: peer channel → browser WebSocket.
+		// The main handler thread runs the reverse direction. Either
+		// direction seeing EOF tears the other down so we get a clean
+		// join() at the end.
+		std::atomic<bool> bQuit { false };
+
+		std::thread PeerToBrowser([&bQuit, &WebSocket, Connection]()
+		{
+			for (;!bQuit.load(std::memory_order_acquire);)
+			{
+				KString sData;
+				if (!Connection->ReadData(sData)) break;
+				if (!WebSocket.Write(std::move(sData), /*bIsBinary=*/false)) break;
+			}
+			bQuit.store(true, std::memory_order_release);
+			// Best-effort: tell the browser we're done. The matching
+			// close from the browser will then wake up its WS.Read().
+			WebSocket.Close(KWebSocket::Frame::NormalClosure);
+		});
+
+		// Browser → peer channel. WebSocket::Read has a default read
+		// timeout (60 minutes); set something shorter so we notice
+		// bQuit flips from the other thread without waiting forever.
+		WebSocket.SetReadTimeout(chrono::seconds(5));
+
+		KString sFrame;
+		while (!bQuit.load(std::memory_order_acquire))
+		{
+			if (!WebSocket.Read(sFrame))
+			{
+				// timeout: re-check bQuit and keep waiting unless
+				// close/error happened (Read() returns false in both
+				// cases — use the atomic as the tie-breaker)
+				if (bQuit.load(std::memory_order_acquire)) break;
+				continue;
+			}
+			Connection->WriteData(std::move(sFrame));
+		}
+		bQuit.store(true, std::memory_order_release);
+		// Wake up PeerToBrowser if it is still blocked in ReadData
+		Connection->Disconnect();
+		PeerToBrowser.join();
+
+		KTunnelStore::Event ev;
+		ev.sKind       = "repl_close";
+		ev.sUsername   = sMe;
+		ev.sTunnelName = sPeer;
+		ev.sRemoteIP   = sRemote;
+		ev.sDetail     = kFormat("channel {}", Connection->GetID());
+		m_Server.GetStore().LogEvent(ev);
+	});
+
+	HTTP.SetKeepWebSocketInRunningThread();
+
+} // HandlePeerReplWs
+
+//-----------------------------------------------------------------------------
 void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
@@ -1966,5 +2282,23 @@ void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 	Routes.AddRoute(KString(s_sEventsRoute))
 	      .Get ([this](KRESTServer& HTTP) { ShowEvents(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	// --- Peers (live tunnel peers + REPL bridge, admin-only) ---------
+	Routes.AddRoute(KString(s_sPeersRoute))
+	      .Get ([this](KRESTServer& HTTP) { ShowPeers(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	Routes.AddRoute(KString(s_sPeerReplRoute))
+	      .Get ([this](KRESTServer& HTTP) { ShowPeerRepl(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	// WebSocket endpoint for the browser REPL proxy. Same route shape
+	// as /Tunnel in ExposedServer::Run(): NOREAD + WEBSOCKET option,
+	// and the handler installs SetWebSocketHandler + the in-thread
+	// flag before returning.
+	Routes.AddRoute(KString(s_sPeerReplWsRoute))
+	      .Get ([this](KRESTServer& HTTP) { HandlePeerReplWs(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD)
+	      .Options(KRESTRoute::Options::WEBSOCKET);
 
 } // RegisterRoutes

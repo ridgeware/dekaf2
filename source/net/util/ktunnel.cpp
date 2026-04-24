@@ -107,18 +107,21 @@ KStringView KTunnel::Message::PrintType() const
 {
 	switch (GetType())
 	{
-		case Login:      return "Login";
-		case Helo:       return "Helo";
-		case Ping:       return "Ping";
-		case Pong:       return "Pong";
-		case Idle:       return "Idle";
-		case Control:    return "Control";
-		case Connect:    return "Connect";
-		case Data:       return "Data";
-		case Pause:      return "Pause";
-		case Resume:     return "Resume";
-		case Disconnect: return "Disconnect";
-		case None:       return "None";
+		case Login:       return "Login";
+		case Helo:        return "Helo";
+		case Ping:        return "Ping";
+		case Pong:        return "Pong";
+		case Idle:        return "Idle";
+		case Control:     return "Control";
+		case Connect:     return "Connect";
+		case Data:        return "Data";
+		case Pause:       return "Pause";
+		case Resume:      return "Resume";
+		case Disconnect:  return "Disconnect";
+		case OpenRepl:    return "OpenRepl";
+		case OpenShell:   return "OpenShell";
+		case ShellResize: return "ShellResize";
+		case None:        return "None";
 	}
 
 	return "Invalid";
@@ -141,6 +144,9 @@ KStringView KTunnel::Message::PrintData() const
 		case Pause:
 		case Resume:
 		case Disconnect:
+		case OpenRepl:
+		case OpenShell:
+		case ShellResize:
 			if (!kIsBinary(GetMessage()))
 			{
 				return GetMessage();
@@ -298,7 +304,9 @@ void KTunnel::Message::Read(KIOStreamSocket& Stream, KBlockCipher* Decryptor)
 void KTunnel::Message::Write(KIOStreamSocket& Stream, bool bMask, KBlockCipher* Encryptor)
 //-----------------------------------------------------------------------------
 {
-	if (GetType() > Disconnect)
+	// Valid range: None (0) .. highest defined type. When adding new
+	// Message::Type values, bump the upper bound accordingly.
+	if (GetType() > ShellResize)
 	{
 		Throw("invalid type");
 	}
@@ -575,6 +583,80 @@ void KTunnel::Connection::Disconnect()
 }
 
 //-----------------------------------------------------------------------------
+bool KTunnel::Connection::ReadData(KString& sOut)
+//-----------------------------------------------------------------------------
+{
+	// Consumer-side of the message queue for channels that do NOT have
+	// a DirectStream (OpenRepl / future OpenShell). Mirrors the relevant
+	// parts of PumpFromTunnel(): drain one frame, handle Disconnect as
+	// "stream closed", and mirror the Resume-on-drain handshake so TX
+	// pause is lifted once the queue drops below half-full.
+	for (;;)
+	{
+		std::unique_lock<std::mutex> Lock(m_QueueMutex);
+
+		// wait for data or shutdown
+		m_FreshData.wait(Lock, [this]
+		{
+			return !m_MessageQueue.empty() || m_bQuit.load(std::memory_order_relaxed);
+		});
+
+		if (m_MessageQueue.empty())
+		{
+			// m_bQuit triggered the wakeup
+			return false;
+		}
+
+		auto msg = std::move(m_MessageQueue.front());
+		m_MessageQueue.pop();
+
+		// symmetric with PumpFromTunnel: if we had previously asked the
+		// other side to pause and we now have room again, resume it
+		if (m_bRXPaused && m_MessageQueue.size() < MaxMessageQueueSize() / 2)
+		{
+			m_Tunnel(Message(Message::Resume, GetID()));
+			m_bRXPaused = false;
+		}
+
+		// release the queue lock before returning / sending Disconnect
+		Lock.unlock();
+
+		if (msg.GetType() == Message::Data)
+		{
+			// GetMessage returns const& to the payload; msg is a local
+			// that's about to go out of scope, so a copy into sOut is
+			// acceptable.
+			sOut = msg.GetMessage();
+			return true;
+		}
+
+		if (msg.GetType() == Message::Disconnect)
+		{
+			m_bQuit = true;
+			return false;
+		}
+
+		// any other type (shouldn't normally land here because the
+		// tunnel read loop only forwards Data/Disconnect into the
+		// connection queue, but be defensive): skip and keep reading
+	}
+
+} // Connection::ReadData
+
+//-----------------------------------------------------------------------------
+void KTunnel::Connection::WriteData(KString sPayload)
+//-----------------------------------------------------------------------------
+{
+	if (m_bQuit.load(std::memory_order_relaxed) || !m_Tunnel)
+	{
+		return;
+	}
+
+	m_Tunnel(Message(Message::Data, m_iID, std::move(sPayload)));
+
+} // Connection::WriteData
+
+//-----------------------------------------------------------------------------
 KTunnel::Connection::Connection (std::size_t iID, std::function<void(Message&&)> TunnelSend, KIOStreamSocket* DirectStream)
 //-----------------------------------------------------------------------------
 : m_Tunnel(std::move(TunnelSend))
@@ -825,6 +907,36 @@ void KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& Connect
 	pump.join();
 
 } // Connect
+
+//-----------------------------------------------------------------------------
+std::shared_ptr<KTunnel::Connection> KTunnel::OpenRepl()
+//-----------------------------------------------------------------------------
+{
+	if (!HaveTunnel())
+	{
+		kDebug(1, "cannot open REPL channel: no tunnel");
+		return {};
+	}
+
+	// Allocate a new channel with no DirectStream — data flows over the
+	// duplex Connection::ReadData() / WriteData() API. The initiator
+	// side sends the OpenRepl frame; on the peer side the Run() switch
+	// dispatches it into the configured OpenReplCallback.
+	auto Connection = m_Connections.Create(0, [this](Message&& msg){ WriteMessage(std::move(msg)); }, nullptr);
+
+	if (!Connection)
+	{
+		kDebug(1, "cannot open REPL channel: out of channels");
+		return {};
+	}
+
+	WriteMessage(Message(Message::OpenRepl, Connection->GetID()));
+
+	kDebug(1, "[{}]: requested REPL channel", Connection->GetID());
+
+	return Connection;
+
+} // OpenRepl
 
 //-----------------------------------------------------------------------------
 bool KTunnel::HaveTunnel() const
@@ -1443,6 +1555,56 @@ void KTunnel::Run()
 					// put the disconnect into the queue
 					Connection->SendData(std::move(FromTunnel));
 				}
+				break;
+			}
+
+			case Message::OpenRepl:
+			{
+				// the peer requests a REPL channel on our side — only
+				// accept if an OpenReplCallback is configured
+				if (!m_Config.OpenReplCallback)
+				{
+					kDebug(1, "[{}]: OpenRepl requested but no OpenReplCallback configured", chan);
+					WriteMessage(Message(Message::Disconnect, chan));
+					break;
+				}
+
+				auto Connection = m_Connections.Create(chan, [this](Message&& msg){ WriteMessage(std::move(msg)); }, nullptr);
+
+				if (Connection)
+				{
+					// Hand the Connection to the REPL callback on its
+					// own worker thread. When the callback returns the
+					// connection is disconnected and removed from the
+					// registry, mirroring ConnectToTarget()'s lifecycle.
+					m_Threads.Create([this, cb=m_Config.OpenReplCallback, Connection]()
+					{
+						try
+						{
+							cb(Connection);
+						}
+						catch (const std::exception& ex)
+						{
+							kDebug(1, "[{}]: REPL handler threw: {}", Connection->GetID(), ex.what());
+						}
+						Connection->Disconnect();
+						m_Connections.Remove(Connection->GetID());
+					});
+				}
+				else
+				{
+					WriteMessage(Message(Message::Disconnect, chan));
+				}
+
+				break;
+			}
+
+			case Message::OpenShell:
+			case Message::ShellResize:
+			{
+				// reserved for a future PTY-shell channel — reject for now
+				kDebug(1, "[{}]: {} not implemented yet", chan, FromTunnel.PrintType());
+				WriteMessage(Message(Message::Disconnect, chan));
 				break;
 			}
 

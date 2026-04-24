@@ -7470,11 +7470,47 @@ bool KSQL::ctlib_login ()
 		return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
 	}
 
+	auto sHost = GetDBHost();
+
+#ifdef CS_SERVERADDR
+	// If the caller provided an explicit port, use FreeTDS's CS_SERVERADDR
+	// extension ("hostname port", space-separated) to bypass the freetds.conf
+	// server-name lookup and connect directly to host:port. Without this, the
+	// string passed to ct_connect() is interpreted as a service name in
+	// freetds.conf; if no matching entry exists, FreeTDS falls back to DNS
+	// resolution of the name with port defaulting to the TDSPORT env var or
+	// 1433, and m_iDBPortNum would be silently ignored.
+	KString sServerAddr;
+	if (m_iDBPortNum)
+	{
+		sServerAddr = kFormat("{} {}", sHost, m_iDBPortNum);
+		kDebug (KSQL2_CTDEBUG, "ct_con_props() set serveraddr to '{}'", sServerAddr);
+		if (ct_con_props (m_pCtConnection, CS_SET, CS_SERVERADDR, sServerAddr.data(), static_cast<CS_INT>(sServerAddr.size()), nullptr) != CS_SUCCEED)
+		{
+			ctlib_api_error ("ctlib_login>set serveraddr");
+			return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
+		}
+	}
+#else
+	// This ctlib build lacks the CS_SERVERADDR FreeTDS extension (typically a
+	// native Sybase OpenClient), so there is no API-level way to pass an
+	// explicit host:port pair to the driver - ct_connect() treats the server
+	// name as an interfaces-file lookup. Warn the caller if they asked for
+	// anything other than the localhost:1433 default, since the host and/or
+	// port setting will not be honored at the driver level.
+	if (!m_sHostname.empty() && m_iDBPortNum != 0
+	    && !(m_sHostname == "localhost" && m_iDBPortNum == 1433))
+	{
+		kWarning("ctlib: this build has no CS_SERVERADDR support; host='{}' port={} "
+		         "cannot be passed to the driver and will be resolved via the "
+		         "interfaces/freetds.conf file instead", m_sHostname, m_iDBPortNum);
+	}
+#endif
+
 	int iTryConnect = 0;
 	while(true)
 	{
-		kDebug (KSQL2_CTDEBUG, "connecting as {} to {}:{}", GetDBUser(), GetDBHost(), GetDBName());
-		auto sHost = GetDBHost();
+		kDebug (KSQL2_CTDEBUG, "connecting as {} to {}:{} (port {})", GetDBUser(), GetDBHost(), GetDBName(), m_iDBPortNum);
 		auto iRetcode = ct_connect (m_pCtConnection, sHost.data(), static_cast<CS_INT>(sHost.size()));
 		if (iRetcode == CS_SUCCEED)
 		{
@@ -7487,7 +7523,7 @@ bool KSQL::ctlib_login ()
 			ctlib_api_error ("ctlib_login>ct_connect");
 			kDebug(KSQL2_CTDEBUG, m_sCtLibLastError);
 			if (!m_sCtLibLastError.empty()) return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
-			else return SetError(kFormat("cannot connect as {} to {}:{}", GetDBUser(), GetDBHost(), GetDBName()));
+			else return SetError(kFormat("cannot connect as {} to {}:{} (port {})", GetDBUser(), GetDBHost(), GetDBName(), m_iDBPortNum));
 		}
 	}
 

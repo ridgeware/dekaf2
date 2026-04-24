@@ -310,7 +310,7 @@ public:
 int main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	return KService::Run("ktunnel", argc, argv,
+	return KService::Run("khttp", argc, argv,
 		[](int ac, char** av)
 		{
 			try

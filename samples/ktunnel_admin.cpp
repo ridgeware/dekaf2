@@ -2059,65 +2059,93 @@ void AdminUI::ShowPeerRepl (KRESTServer& HTTP)
 	// whitespace), <input> for input, enter to send. The client
 	// sends whole lines with a trailing '\n' so the peer-side line
 	// splitter in ProtectedHost::RunRepl() works.
+	// NOTE: the inline script below must NOT contain // line comments,
+	// because the HTML is emitted on a single line (no newlines between
+	// the concatenated C++ string literals). A '//' comment would then
+	// swallow the remainder of the file up to </script> and produce an
+	// "Unexpected end of script" parse error in the browser. Use C++
+	// comments here instead; every JS line ends with a '\n' so that
+	// browser devtools can report useful line numbers.
 	KString sBody = kFormat(
-		"<style>"
-		".repl-out {{ background:#0f1419; color:#d6deeb; padding:0.75rem;"
-		"            border-radius:6px; min-height:22rem; max-height:55vh;"
-		"            overflow:auto; font-family:ui-monospace,Menlo,monospace;"
-		"            font-size:0.85rem; white-space:pre-wrap; word-break:break-all; }}"
-		".repl-in  {{ display:flex; gap:0.5rem; margin-top:0.5rem; }}"
-		".repl-in input {{ flex:1; font-family:ui-monospace,Menlo,monospace; }}"
-		".repl-status {{ margin-top:0.5rem; font-size:0.8rem; }}"
-		".repl-status.ok  {{ color:#8fd19e; }}"
-		".repl-status.err {{ color:#f5a3a3; }}"
-		"</style>"
-		"<pre id=\"out\" class=\"repl-out\"></pre>"
-		"<div class=\"repl-in\">"
-		"  <input id=\"in\" type=\"text\" autocomplete=\"off\" autofocus "
-		"         placeholder=\"type a command and press Enter\">"
-		"  <button id=\"send\" class=\"btn small\" type=\"button\">Send</button>"
-		"  <button id=\"close\" class=\"btn small danger\" type=\"button\">Close</button>"
-		"</div>"
-		"<div id=\"status\" class=\"repl-status\">connecting&hellip;</div>"
-		"<script>"
-		"(function() {{"
-		"  var wsProto  = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';"
-		"  var wsUrl    = wsProto + '//' + window.location.host + '{}';"
-		"  var out      = document.getElementById('out');"
-		"  var inp      = document.getElementById('in');"
-		"  var sendBtn  = document.getElementById('send');"
-		"  var closeBtn = document.getElementById('close');"
-		"  var status   = document.getElementById('status');"
-		"  function setStatus(text, cls) {{"
-		"    status.textContent = text;"
-		"    status.className = 'repl-status ' + (cls || '');"
-		"  }}"
-		"  function append(text) {{"
-		"    out.textContent += text;"
-		"    out.scrollTop = out.scrollHeight;"
-		"  }}"
-		"  var ws = new WebSocket(wsUrl);"
-		"  ws.onopen    = function() {{ setStatus('connected', 'ok');  inp.focus(); }};"
-		"  ws.onmessage = function(ev) {{ append(ev.data); }};"
-		"  ws.onerror   = function()  {{ setStatus('connection error', 'err'); }};"
-		"  ws.onclose   = function()  {{ setStatus('disconnected', 'err'); inp.disabled = true; }};"
-		"  function send() {{"
-		"    if (ws.readyState !== WebSocket.OPEN) return;"
-		"    var line = inp.value;"
-		"    inp.value = '';"
-		"    append(line + '\\n');"
-		"    ws.send(line + '\\n');"
-		"  }}"
-		"  inp.addEventListener('keydown', function(ev) {{"
-		"    if (ev.key === 'Enter') {{ ev.preventDefault(); send(); }}"
-		"  }});"
-		"  sendBtn.addEventListener('click', send);"
-		"  closeBtn.addEventListener('click', function() {{"
-		"    try {{ ws.close(); }} catch (e) {{}}"
-		"    window.location.href = '{}';"
-		"  }});"
-		"}})();"
-		"</script>",
+		"<style>\n"
+		".repl-out {{ background:#0f1419; color:#d6deeb; padding:0.75rem;\n"
+		"            border-radius:6px; min-height:22rem; max-height:55vh;\n"
+		"            overflow:auto; font-family:ui-monospace,Menlo,monospace;\n"
+		"            font-size:0.85rem; white-space:pre-wrap; word-break:break-all; }}\n"
+		".repl-in  {{ display:flex; gap:0.5rem; margin-top:0.5rem; }}\n"
+		".repl-in input {{ flex:1; font-family:ui-monospace,Menlo,monospace; }}\n"
+		".repl-status {{ margin-top:0.5rem; font-size:0.8rem; }}\n"
+		".repl-status.ok  {{ color:#8fd19e; }}\n"
+		".repl-status.err {{ color:#f5a3a3; }}\n"
+		"</style>\n"
+		"<pre id=\"out\" class=\"repl-out\"></pre>\n"
+		"<div class=\"repl-in\">\n"
+		"  <input id=\"in\" type=\"text\" autocomplete=\"off\" autofocus\n"
+		"         placeholder=\"type a command and press Enter\">\n"
+		"  <button id=\"send\" class=\"btn small\" type=\"button\">Send</button>\n"
+		"  <button id=\"close\" class=\"btn small danger\" type=\"button\">Close</button>\n"
+		"</div>\n"
+		"<div id=\"status\" class=\"repl-status\">connecting&hellip;</div>\n"
+		"<div id=\"hint\" class=\"repl-status\" style=\"display:none;\"></div>\n"
+		"<script>\n"
+		"(function() {{\n"
+		"  var wsProto  = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';\n"
+		"  var wsPath   = '{}';\n"
+		"  var wsUrl    = wsProto + '//' + window.location.host + wsPath;\n"
+		"  var out      = document.getElementById('out');\n"
+		"  var inp      = document.getElementById('in');\n"
+		"  var sendBtn  = document.getElementById('send');\n"
+		"  var closeBtn = document.getElementById('close');\n"
+		"  var status   = document.getElementById('status');\n"
+		"  var hint     = document.getElementById('hint');\n"
+		"  function setStatus(text, cls) {{\n"
+		"    status.textContent = text;\n"
+		"    status.className = 'repl-status ' + (cls || '');\n"
+		"  }}\n"
+		"  function append(text) {{\n"
+		"    out.textContent += text;\n"
+		"    out.scrollTop = out.scrollHeight;\n"
+		"  }}\n"
+		"  var ws = new WebSocket(wsUrl);\n"
+		// Safari silently drops WSS handshakes when the page's self-signed
+		// cert has not been separately trusted for wss://. onerror/onclose
+		// never fire, so we fall back to a 3s timeout: if we are still in
+		// CONNECTING, show a hint that links to the https:// variant of the
+		// same path so the user can accept the cert in a fresh tab and
+		// reload the REPL page.
+		"  var hintTimer = setTimeout(function() {{\n"
+		"    if (ws.readyState !== WebSocket.CONNECTING) return;\n"
+		"    if (window.location.protocol !== 'https:') return;\n"
+		"    var httpsUrl = 'https://' + window.location.host + wsPath;\n"
+		"    hint.style.display = 'block';\n"
+		"    hint.className = 'repl-status err';\n"
+		"    hint.innerHTML =\n"
+		"      'WebSocket still connecting after 3s. If you are using Safari '\n"
+		"      + 'with a self-signed certificate, open '\n"
+		"      + '<a href=\"' + httpsUrl + '\" target=\"_blank\" rel=\"noopener\">this URL</a> '\n"
+		"      + 'in a new tab, accept the certificate, then reload this page.';\n"
+		"  }}, 3000);\n"
+		"  ws.onopen    = function() {{ clearTimeout(hintTimer); hint.style.display='none'; setStatus('connected', 'ok'); inp.focus(); }};\n"
+		"  ws.onmessage = function(ev) {{ append(ev.data); }};\n"
+		"  ws.onerror   = function()  {{ clearTimeout(hintTimer); setStatus('connection error', 'err'); }};\n"
+		"  ws.onclose   = function()  {{ clearTimeout(hintTimer); setStatus('disconnected', 'err'); inp.disabled = true; }};\n"
+		"  function send() {{\n"
+		"    if (ws.readyState !== WebSocket.OPEN) return;\n"
+		"    var line = inp.value;\n"
+		"    inp.value = '';\n"
+		"    append(line + '\\n');\n"
+		"    ws.send(line + '\\n');\n"
+		"  }}\n"
+		"  inp.addEventListener('keydown', function(ev) {{\n"
+		"    if (ev.key === 'Enter') {{ ev.preventDefault(); send(); }}\n"
+		"  }});\n"
+		"  sendBtn.addEventListener('click', send);\n"
+		"  closeBtn.addEventListener('click', function() {{\n"
+		"    try {{ ws.close(); }} catch (e) {{}}\n"
+		"    window.location.href = '{}';\n"
+		"  }});\n"
+		"}})();\n"
+		"</script>\n",
 		KHTMLEntity::EncodeMandatory(sWsPath),
 		KHTMLEntity::EncodeMandatory(s_sPeersURL));
 
@@ -2245,6 +2273,49 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 } // HandlePeerReplWs
 
 //-----------------------------------------------------------------------------
+void AdminUI::HandlePeerReplCert (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	// This handler is matched for plain (non-upgrade) HTTPS navigations
+	// to the same URL as HandlePeerReplWs. The sole purpose is to answer
+	// 200 OK (instead of falling through to the default 302 redirect, which
+	// Safari would follow without ever presenting the TLS warning) so the
+	// user can accept the self-signed certificate for this exact URL. Once
+	// accepted, WebKit also trusts the corresponding wss:// URL on reload.
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
+
+	const KString sPeer(HTTP.GetQueryParm("peer"));
+	const KString sPeersURL(s_sPeersURL);
+
+	auto Page = MakePage("ktunnel — Certificate accepted");
+	RenderTopBar(Page, "peers", Sess.GetUser(), /*bIsAdmin=*/true);
+
+	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+	auto& sec  = main.Add(html::Div("", html::Classes("section")));
+
+	sec.Add(html::Heading(2, "Certificate accepted"));
+
+	KString sBody = kFormat(
+		"<p>The self-signed TLS certificate for this host is now trusted "
+		"for WebSocket connections as well.</p>\n"
+		"<p>Close this tab and reload the REPL page for peer "
+		"<strong>{}</strong>.</p>\n"
+		"<p><a href=\"{}?peer={}\" class=\"btn\">Back to REPL</a> "
+		"<a href=\"{}\" class=\"btn small\">Peers list</a></p>\n",
+		KHTMLEntity::EncodeMandatory(sPeer),
+		s_sPeerReplURL,
+		kUrlEncode(sPeer, URIPart::Query),
+		sPeersURL);
+
+	sec.Add(html::RawText(sBody));
+
+	RenderPage(HTTP, Page);
+
+} // HandlePeerReplCert
+
+//-----------------------------------------------------------------------------
 void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 {
@@ -2334,5 +2405,16 @@ void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 	      .Get ([this](KRESTServer& HTTP) { HandlePeerReplWs(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD)
 	      .Options(KRESTRoute::Options::WEBSOCKET);
+
+	// Same URL without the WEBSOCKET option: matched for plain HTTPS
+	// navigations (no Upgrade header). Used by the Safari fallback hint
+	// link so that the browser sees a 200-OK TLS response on the exact
+	// WSS URL and can cache the self-signed cert exception for it.
+	// Without this route the request falls through to the default 302
+	// redirect on /Configure/, which Safari follows without ever
+	// presenting the TLS warning.
+	Routes.AddRoute(KString(s_sPeerReplWsRoute))
+	      .Get ([this](KRESTServer& HTTP) { HandlePeerReplCert(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD);
 
 } // RegisterRoutes

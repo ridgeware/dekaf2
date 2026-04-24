@@ -188,6 +188,14 @@ private:
 	/// REPL channel on the named peer's active KTunnel. Admin-only.
 	void HandlePeerReplWs     (KRESTServer& HTTP);
 
+	/// GET /Configure/peers/repl/ws?peer=<user> — same URL but matched
+	/// for plain (non-upgrade) HTTPS navigations. Renders a tiny 200-OK
+	/// landing page so Safari can cache a self-signed certificate
+	/// exception for this exact URL (WebKit tracks cert exceptions
+	/// per URL for WSS, independently of the HTTPS page that loaded
+	/// the REPL). Admin-only.
+	void HandlePeerReplCert   (KRESTServer& HTTP);
+
 	/// Render the common top-bar (brand + nav) into the body of @p Page
 	/// and mark the nav entry identified by @p sActive as the active one
 	/// so it gets a highlighted pill. Admin-only nav entries (Users,

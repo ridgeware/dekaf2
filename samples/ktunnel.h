@@ -255,7 +255,6 @@ private:
 	/// ReconcileListeners.
 	struct ListenerKey
 	{
-		KString  sListenHost;
 		uint16_t iListenPort  { 0 };
 		KString  sTargetHost;
 		uint16_t iTargetPort  { 0 };
@@ -264,7 +263,6 @@ private:
 		{
 			return iListenPort == o.iListenPort
 			    && iTargetPort == o.iTargetPort
-			    && sListenHost == o.sListenHost
 			    && sTargetHost == o.sTargetHost
 			    && sOwnerUser  == o.sOwnerUser;
 		}

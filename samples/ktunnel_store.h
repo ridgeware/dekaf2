@@ -132,7 +132,9 @@ public:
 		int64_t   iID          { 0 };
 		KString   sName;                 ///< logical name, unique
 		KString   sOwnerUser;            ///< the ktunnel login user that owns this listener
-		KString   sListenHost  { "0.0.0.0" };
+		/// Port the exposed host binds to for forwarded downstream
+		/// connections. Bind address is always the wildcard (0.0.0.0
+		/// + [::] dual-stack): KTCPServer has no per-interface option.
 		uint16_t  iListenPort  { 0 };
 		KString   sTargetHost;           ///< default target, used if client does not pass one
 		uint16_t  iTargetPort  { 0 };

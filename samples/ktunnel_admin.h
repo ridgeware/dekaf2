@@ -143,9 +143,10 @@ private:
 	void ShowTunnels          (KRESTServer& HTTP);
 
 	/// POST /Configure/tunnels/add — create a tunnel listener row.
-	/// Form body: `name`, `owner`, `listen_host` (optional, defaults to
-	/// 0.0.0.0), `listen_port`, `target_host`, `target_port`, and the
-	/// optional `enabled` checkbox (defaults to true).
+	/// Form body: `name`, `owner`, `listen_port` (the forward port the
+	/// exposed host binds to, wildcard bind on all interfaces),
+	/// `target_host`, `target_port`, and the optional `enabled` checkbox
+	/// (defaults to true).
 	void HandleTunnelsAdd     (KRESTServer& HTTP);
 
 	/// POST /Configure/tunnels/toggle — flip the enabled bit of a tunnel.

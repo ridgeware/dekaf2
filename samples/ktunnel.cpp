@@ -491,7 +491,6 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 	for (const auto& t : Desired)
 	{
 		ListenerKey k;
-		k.sListenHost = t.sListenHost;
 		k.iListenPort = t.iListenPort;
 		k.sTargetHost = t.sTargetHost;
 		k.iTargetPort = t.iTargetPort;
@@ -539,7 +538,6 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 		if (Listeners->count(t.sName)) continue;   // already up (unchanged)
 
 		ListenerEntry entry;
-		entry.Key.sListenHost = t.sListenHost;
 		entry.Key.iListenPort = t.iListenPort;
 		entry.Key.sTargetHost = t.sTargetHost;
 		entry.Key.iTargetPort = t.iTargetPort;
@@ -578,8 +576,8 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 		ev.sUsername   = KString(sActor);
 		ev.sTunnelName = t.sName;
 		ev.sDetail     = entry.sError.empty()
-			? kFormat("listening on {}:{} -> {}:{} (owner {})",
-			          t.sListenHost, t.iListenPort,
+			? kFormat("listening on [::]:{} -> {}:{} (owner {})",
+			          t.iListenPort,
 			          t.sTargetHost, t.iTargetPort, t.sOwnerUser)
 			: kFormat("port {} bind failed: {}", t.iListenPort, entry.sError);
 		m_Store->LogEvent(ev);
@@ -764,24 +762,33 @@ ExposedServer::ExposedServer (const Config& config)
 
 	if (!Http.Execute(Settings, Routes)) throw KError(Http.Error());
 
-	// start the server to forward raw data
-	m_ExposedRawServer = std::make_unique<ExposedRawServer>
-	(
-		this,
-		m_Config.DefaultTarget,
-		m_Config.iRawPort,
-		false,
-		m_Config.iMaxTunneledConnections
-	);
+	// Legacy raw-forward server — only when the operator explicitly
+	// asked for it via -f/-t. It binds a single port and pipes every
+	// incoming connection to m_Config.DefaultTarget through the active
+	// peer tunnel. Per-row listeners from the tunnels-table (see
+	// ReconcileListeners below) run alongside it but must not collide
+	// on ports.
+	if (m_Config.iRawPort)
+	{
+		m_ExposedRawServer = std::make_unique<ExposedRawServer>
+		(
+			this,
+			m_Config.DefaultTarget,
+			m_Config.iRawPort,
+			false,
+			m_Config.iMaxTunneledConnections
+		);
 
-	m_Config.Message("listening on port {} for forward data connections", m_Config.iRawPort);
+		m_Config.Message("listening on port {} for forward data connections (builtin, target {})",
+		                 m_Config.iRawPort, m_Config.DefaultTarget);
 
-	// register shutdown signals for the raw server as well - otherwise only
-	// the KREST server would be stopped on SIGINT/SIGTERM and the blocking
-	// Start() below would hang until a second signal is received. Because
-	// KTCPServer::RegisterShutdownWithSignals now chains previously installed
-	// user handlers, a single signal stops both servers cleanly.
-	m_ExposedRawServer->RegisterShutdownWithSignals({ SIGINT, SIGTERM });
+		// register shutdown signals for the raw server as well - otherwise only
+		// the KREST server would be stopped on SIGINT/SIGTERM and the blocking
+		// Start() below would hang until a second signal is received. Because
+		// KTCPServer::RegisterShutdownWithSignals now chains previously installed
+		// user handlers, a single signal stops both servers cleanly.
+		m_ExposedRawServer->RegisterShutdownWithSignals({ SIGINT, SIGTERM });
+	}
 
 	// Start per-tunnel listeners configured in the store. Each enabled
 	// tunnels-row becomes its own non-blocking KTCPServer. Binding
@@ -790,8 +797,22 @@ ExposedServer::ExposedServer (const Config& config)
 	// prevent the process from coming up.
 	ReconcileListeners("bootstrap");
 
-	// listen on TCP (blocking: returns on shutdown)
-	m_ExposedRawServer->Start(m_Config.Timeout, /* bBlock= */ true);
+	// Block the main thread until shutdown. Two cases:
+	//   - legacy raw-forward is up -> block on its Start(bBlock=true);
+	//     SIGINT/SIGTERM tears it down and we fall through. The KREST
+	//     server shuts down on its own via its signal handler, too.
+	//   - no raw-forward -> wait on the KREST server instead (it owns
+	//     the signal handler for SIGINT/SIGTERM via bBlocking=false +
+	//     RegisterSignalsForShutdown default, and Wait() returns once
+	//     that handler fires).
+	if (m_ExposedRawServer)
+	{
+		m_ExposedRawServer->Start(m_Config.Timeout, /* bBlock= */ true);
+	}
+	else
+	{
+		Http.Wait();
+	}
 
 } // ExposedServer::ExposedServer
 
@@ -1070,7 +1091,7 @@ int Tunnel::Main(int argc, char** argv)
 	m_Config.ExposedHost   = Options("e,exposed    : exposed host - the host to keep an ongoing control connection to. Expects domain name or IP address. If not defined, then this is the exposed host itself.", "");
 	m_Config.iPort         = Options("p,port       : port number to listen at for TLS connections (if exposed host), or connect to (if protected host) - defaults to 443.", 443);
 	m_Config.iRawPort      = Options("f,forward    : port number to listen at for raw TCP connections that will be forwarded (if exposed host)", 0);
-	KStringView sSecrets   = Options("s,secret     : if exposed host, takes comma separated list of secrets for login by protected hosts, or one single secret if this is the protected host.").String();
+	KStringView sSecrets   = Options("s,secret     : if exposed host, takes comma separated list of secrets for login by protected hosts, or one single secret if this is the protected host. Optional on the exposed host (then only users from the admin UI can authenticate peers); required on the protected host.", "").String();
 	m_Config.DefaultTarget = Options("t,target     : if exposed host, takes the domain:port of a default target, if no other target had been specified in the incoming data connect", "");
 	m_Config.iMaxTunneledConnections
 	                       = Options("m,maxtunnels : if exposed host, maximum number of tunnels to open, defaults to 10 - if protected host, the setting has no effect.", 10);
@@ -1110,19 +1131,37 @@ int Tunnel::Main(int argc, char** argv)
 		m_Config.Secrets.insert(sSecret);
 	}
 
-	if (m_Config.Secrets.empty()) SetError("need at least one (shared) secret");
 	if (!m_Config.iMaxTunneledConnections) SetError("maxtunnels should be at least 1");
+
+	// On the protected host a secret is required to authenticate against
+	// the exposed peer. On the exposed host it is optional: without -s,
+	// the bootstrap admin user is not seeded and peer logins must be
+	// authenticated entirely against the users table in the store.
+	if (!IsExposed() && m_Config.Secrets.empty())
+	{
+		SetError("protected host needs a (shared) secret");
+	}
 
 	if (IsExposed())
 	{
-		if (m_Config.DefaultTarget.empty()) SetError("exposed host needs a default target");
-		if (m_Config.DefaultTarget.Port.get() == 0) SetError("endpoind needs an explicit port number");
-		if (!m_Config.iRawPort) SetError("exposed host needs a forward port being configured");
+		// -t / -f / -s are no longer required: a fresh install can be
+		// configured entirely through the admin UI, and an installation
+		// that wants to skip the UI entirely can omit all three and
+		// drive tunnels through the tunnels-table only. We still
+		// validate consistency where we do see CLI values.
+		if (!m_Config.DefaultTarget.empty()
+		    && m_Config.DefaultTarget.Port.get() == 0)
+		{
+			SetError("-t / -target needs an explicit port number");
+		}
 
 		// seed the admin-UI password from the first -secret value — this
 		// bootstraps the admin password on the first launch, as described
 		// in the setup docs. bcrypt is slow by design so we do this once
-		// at startup instead of on every login attempt.
+		// at startup instead of on every login attempt. Without any
+		// -secret the store stays unseeded and the admin UI is
+		// effectively unusable (no login) until a user is added out of
+		// band; that is the intended "headless" mode.
 		if (!m_Config.Secrets.empty())
 		{
 			KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);

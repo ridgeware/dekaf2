@@ -151,11 +151,16 @@ bool KTunnelStore::InitializeSchema ()
 		// Tunnels: one row per listener the admin configured. A tunnel
 		// is keyed by name (human-readable); the owning user decides
 		// whose ktunnel login is accepted for this listener.
+		//
+		// Note: historically there was a listen_host column here, but
+		// KTCPServer always binds to the wildcard address (0.0.0.0 +
+		// [::] dual-stack), so the value was silently ignored. The
+		// column was dropped from the schema; existing DBs keep it at
+		// its default '0.0.0.0' but the app never reads it again.
 		"create table if not exists tunnels ("
 		"  id           integer primary key autoincrement,"
 		"  name         text    not null unique,"
 		"  owner_user   text    not null default '',"
-		"  listen_host  text    not null default '0.0.0.0',"
 		"  listen_port  integer not null,"
 		"  target_host  text    not null default '',"
 		"  target_port  integer not null default 0,"
@@ -195,6 +200,16 @@ bool KTunnelStore::InitializeSchema ()
 	{
 		if (!db.ExecuteVoid(sSQL))
 		{
+			// Migration-style statements (ALTER TABLE ...) are best-effort:
+			// they fail on older SQLite versions without DROP COLUMN support,
+			// on a second run when the column is already gone, and on fresh
+			// DBs where the legacy column was never created. None of these
+			// are fatal — the app treats the column as non-existent anyway.
+			if (sSQL.starts_with("alter table"))
+			{
+				kDebug(2, "ignoring expected DDL error on '{}': {}", sSQL, db.Error());
+				continue;
+			}
 			SetError(kFormat("schema init failed: {}: {}", sSQL, db.Error()));
 			return false;
 		}
@@ -420,18 +435,17 @@ KTunnelStore::Tunnel TunnelFromRow (KSQLite::Row Row)
 	t.iID          = Row.Col(1).Int64();
 	t.sName        = Row.Col(2).String();
 	t.sOwnerUser   = Row.Col(3).String();
-	t.sListenHost  = Row.Col(4).String();
-	t.iListenPort  = static_cast<uint16_t>(Row.Col(5).Int64());
-	t.sTargetHost  = Row.Col(6).String();
-	t.iTargetPort  = static_cast<uint16_t>(Row.Col(7).Int64());
-	t.bEnabled     = Row.Col(8).Int64() != 0;
-	t.tCreated     = KUnixTime::from_time_t(Row.Col(9).Int64());
-	t.tModified    = KUnixTime::from_time_t(Row.Col(10).Int64());
+	t.iListenPort  = static_cast<uint16_t>(Row.Col(4).Int64());
+	t.sTargetHost  = Row.Col(5).String();
+	t.iTargetPort  = static_cast<uint16_t>(Row.Col(6).Int64());
+	t.bEnabled     = Row.Col(7).Int64() != 0;
+	t.tCreated     = KUnixTime::from_time_t(Row.Col(8).Int64());
+	t.tModified    = KUnixTime::from_time_t(Row.Col(9).Int64());
 	return t;
 }
 
 constexpr KStringView s_sTunnelCols =
-	"id, name, owner_user, listen_host, listen_port, "
+	"id, name, owner_user, listen_port, "
 	"target_host, target_port, enabled, created_utc, modified_utc";
 
 } // anonymous
@@ -454,20 +468,19 @@ bool KTunnelStore::AddTunnel (const Tunnel& t)
 	const auto tNow = KUnixTime::now().to_time_t();
 
 	auto stmt = db.Prepare(
-		"insert into tunnels (name, owner_user, listen_host, listen_port, "
+		"insert into tunnels (name, owner_user, listen_port, "
 		"                     target_host, target_port, enabled, "
 		"                     created_utc, modified_utc) "
-		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)");
+		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)");
 
 	stmt.Bind(1, t.sName,        false);
 	stmt.Bind(2, t.sOwnerUser,   false);
-	stmt.Bind(3, t.sListenHost.empty() ? KStringView("0.0.0.0") : KStringView(t.sListenHost), false);
-	stmt.Bind(4, static_cast<int64_t>(t.iListenPort));
-	stmt.Bind(5, t.sTargetHost,  false);
-	stmt.Bind(6, static_cast<int64_t>(t.iTargetPort));
-	stmt.Bind(7, static_cast<int64_t>(t.bEnabled ? 1 : 0));
+	stmt.Bind(3, static_cast<int64_t>(t.iListenPort));
+	stmt.Bind(4, t.sTargetHost,  false);
+	stmt.Bind(5, static_cast<int64_t>(t.iTargetPort));
+	stmt.Bind(6, static_cast<int64_t>(t.bEnabled ? 1 : 0));
+	stmt.Bind(7, static_cast<int64_t>(tNow));
 	stmt.Bind(8, static_cast<int64_t>(tNow));
-	stmt.Bind(9, static_cast<int64_t>(tNow));
 
 	if (!stmt.Execute())
 	{
@@ -495,18 +508,17 @@ bool KTunnelStore::UpdateTunnel (const Tunnel& t)
 
 	auto stmt = db.Prepare(
 		"update tunnels set "
-		"  owner_user=?2, listen_host=?3, listen_port=?4, "
-		"  target_host=?5, target_port=?6, enabled=?7, modified_utc=?8 "
+		"  owner_user=?2, listen_port=?3, "
+		"  target_host=?4, target_port=?5, enabled=?6, modified_utc=?7 "
 		"where name=?1");
 
 	stmt.Bind(1, t.sName,        false);
 	stmt.Bind(2, t.sOwnerUser,   false);
-	stmt.Bind(3, t.sListenHost,  false);
-	stmt.Bind(4, static_cast<int64_t>(t.iListenPort));
-	stmt.Bind(5, t.sTargetHost,  false);
-	stmt.Bind(6, static_cast<int64_t>(t.iTargetPort));
-	stmt.Bind(7, static_cast<int64_t>(t.bEnabled ? 1 : 0));
-	stmt.Bind(8, static_cast<int64_t>(KUnixTime::now().to_time_t()));
+	stmt.Bind(3, static_cast<int64_t>(t.iListenPort));
+	stmt.Bind(4, t.sTargetHost,  false);
+	stmt.Bind(5, static_cast<int64_t>(t.iTargetPort));
+	stmt.Bind(6, static_cast<int64_t>(t.bEnabled ? 1 : 0));
+	stmt.Bind(7, static_cast<int64_t>(KUnixTime::now().to_time_t()));
 
 	if (!stmt.Execute())
 	{

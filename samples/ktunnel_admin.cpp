@@ -1231,6 +1231,42 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 		f.AddText(sError);
 	}
 
+	// --- Section 0: built-in forwarder from CLI -----------------------
+	// Only shown when the process was launched with -f/-t. This row is
+	// not backed by the tunnels table and therefore has no Edit / Toggle
+	// / Delete actions — restart ktunnel with different flags to change
+	// it. We still surface it here so the admin can see at a glance that
+	// there is an additional raw listener hogging a port.
+	if (m_Config.iRawPort)
+	{
+		auto& sec = main.Add(html::Div("", html::Classes("section")));
+		sec.Add(html::Heading(2, "Built-in forwarder (from CLI)"));
+
+		auto& p = sec.Add(html::Paragraph());
+		p.SetAttribute("class", "muted");
+		p.AddText("Configured via -f / -t at process start. "
+		          "Not stored in the database; restart ktunnel with "
+		          "different flags to change it.");
+
+		KString sTarget = m_Config.DefaultTarget.empty()
+			? KString("<em class=\"muted\">(no default target)</em>")
+			: kFormat("{}:{}",
+			          KHTMLEntity::EncodeMandatory(m_Config.DefaultTarget.Domain.get()),
+			          m_Config.DefaultTarget.Port.get());
+
+		KString sTable;
+		sTable += "<table class=\"grid\"><thead><tr>"
+		          "<th>Name</th><th>Forward port</th><th>Target</th><th>Runtime</th>"
+		          "</tr></thead><tbody>";
+		sTable += kFormat("<tr><td><em>(builtin)</em></td>"
+		                  "<td>{}</td><td>{}</td>"
+		                  "<td><span class=\"pill ok\">listening</span></td></tr>",
+		                  m_Config.iRawPort,
+		                  sTarget);
+		sTable += "</tbody></table>";
+		sec.Add(html::RawText(sTable));
+	}
+
 	// --- Section 1: tunnel list ---------------------------------------
 	{
 		auto& sec = main.Add(html::Div("", html::Classes("section")));
@@ -1246,7 +1282,7 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 		{
 			KString sTable;
 			sTable += "<table class=\"grid\"><thead><tr>"
-			          "<th>Name</th><th>Owner</th><th>Listen</th>"
+			          "<th>Name</th><th>Owner</th><th>Forward port</th>"
 			          "<th>Target</th><th>Config</th><th>Runtime</th>"
 			          "<th></th></tr></thead><tbody>";
 
@@ -1296,13 +1332,12 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 
 				sTable += kFormat(
 					"<tr><td>{}</td><td>{}</td>"
-					"<td>{}:{}</td><td>{}:{}</td>"
+					"<td>{}</td><td>{}:{}</td>"
 					"<td><span class=\"pill {}\">{}</span></td>"
 					"<td>{}</td>"
 					"<td>{}</td></tr>",
 					KHTMLEntity::EncodeMandatory(t.sName),
 					KHTMLEntity::EncodeMandatory(t.sOwnerUser),
-					KHTMLEntity::EncodeMandatory(t.sListenHost),
 					t.iListenPort,
 					KHTMLEntity::EncodeMandatory(t.sTargetHost),
 					t.iTargetPort,
@@ -1345,15 +1380,17 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 			"<select name=\"owner\" required>{}</select></div>"
 			"</div>"
 			"<div class=\"row\">"
-			"<div class=\"field\"><label>Listen host</label>"
-			"<input type=\"text\" name=\"listen_host\" value=\"0.0.0.0\"></div>"
-			"<div class=\"field\"><label>Listen port</label>"
+			"<div class=\"field\"><label>Forward port</label>"
 			"<input type=\"number\" name=\"listen_port\" min=\"1\" max=\"65535\" required></div>"
 			"<div class=\"field\"><label>Target host</label>"
 			"<input type=\"text\" name=\"target_host\" required></div>"
 			"<div class=\"field\"><label>Target port</label>"
 			"<input type=\"number\" name=\"target_port\" min=\"1\" max=\"65535\" required></div>"
 			"</div>"
+			"<p class=\"muted\" style=\"margin-top:0.25rem;font-size:0.75rem\">"
+			"Forward port binds on all interfaces (0.0.0.0 + [::]). Keep it "
+			"distinct from the admin/control port (-p on the CLI)."
+			"</p>"
 			"<div class=\"row\">"
 			"<div class=\"field\"><label class=\"checkbox\">"
 			"<input type=\"checkbox\" name=\"enabled\" value=\"1\" checked>"
@@ -1382,7 +1419,6 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 
 	const auto& sName       = HTTP.GetQueryParm("name");
 	const auto& sOwner      = HTTP.GetQueryParm("owner");
-	const auto& sListenHost = HTTP.GetQueryParm("listen_host");
 	const auto& sListenPort = HTTP.GetQueryParm("listen_port");
 	const auto& sTargetHost = HTTP.GetQueryParm("target_host");
 	const auto& sTargetPort = HTTP.GetQueryParm("target_port");
@@ -1419,7 +1455,6 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 	KTunnelStore::Tunnel t;
 	t.sName       = sName;
 	t.sOwnerUser  = sOwner;
-	t.sListenHost = sListenHost.empty() ? KString("0.0.0.0") : KString(sListenHost);
 	t.iListenPort = iListenPort;
 	t.sTargetHost = sTargetHost;
 	t.iTargetPort = iTargetPort;
@@ -1435,8 +1470,8 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 	ev.sKind       = "config_change";
 	ev.sUsername   = sMe;
 	ev.sTunnelName = t.sName;
-	ev.sDetail     = kFormat("added tunnel {}:{} -> {}:{} (owner {}){}",
-	                         t.sListenHost, t.iListenPort,
+	ev.sDetail     = kFormat("added tunnel [::]:{} -> {}:{} (owner {}){}",
+	                         t.iListenPort,
 	                         t.sTargetHost, t.iTargetPort,
 	                         t.sOwnerUser,
 	                         t.bEnabled ? "" : " [disabled]");
@@ -1617,15 +1652,17 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 		"<select name=\"owner\" required>{}</select></div>"
 		"</div>"
 		"<div class=\"row\">"
-		"<div class=\"field\"><label>Listen host</label>"
-		"<input type=\"text\" name=\"listen_host\" value=\"{}\"></div>"
-		"<div class=\"field\"><label>Listen port</label>"
+		"<div class=\"field\"><label>Forward port</label>"
 		"<input type=\"number\" name=\"listen_port\" value=\"{}\" min=\"1\" max=\"65535\" required></div>"
 		"<div class=\"field\"><label>Target host</label>"
 		"<input type=\"text\" name=\"target_host\" value=\"{}\" required></div>"
 		"<div class=\"field\"><label>Target port</label>"
 		"<input type=\"number\" name=\"target_port\" value=\"{}\" min=\"1\" max=\"65535\" required></div>"
 		"</div>"
+		"<p class=\"muted\" style=\"margin-top:0.25rem;font-size:0.75rem\">"
+		"Forward port binds on all interfaces (0.0.0.0 + [::]). Keep it "
+		"distinct from the admin/control port (-p on the CLI)."
+		"</p>"
 		"<div class=\"row\">"
 		"<div class=\"field\"><label class=\"checkbox\">"
 		"<input type=\"checkbox\" name=\"enabled\" value=\"1\"{}>"
@@ -1638,7 +1675,6 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 		KHTMLEntity::EncodeMandatory(oT->sName),
 		KHTMLEntity::EncodeMandatory(oT->sName),
 		sOwnerOptions,
-		KHTMLEntity::EncodeMandatory(oT->sListenHost),
 		oT->iListenPort,
 		KHTMLEntity::EncodeMandatory(oT->sTargetHost),
 		oT->iTargetPort,
@@ -1663,7 +1699,6 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 
 	const auto& sName       = HTTP.GetQueryParm("name");
 	const auto& sOwner      = HTTP.GetQueryParm("owner");
-	const auto& sListenHost = HTTP.GetQueryParm("listen_host");
 	const auto& sListenPort = HTTP.GetQueryParm("listen_port");
 	const auto& sTargetHost = HTTP.GetQueryParm("target_host");
 	const auto& sTargetPort = HTTP.GetQueryParm("target_port");
@@ -1720,7 +1755,6 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 	// so we only need to fill the editable fields + the name key.
 	KTunnelStore::Tunnel t = *oExisting;
 	t.sOwnerUser  = sOwner;
-	t.sListenHost = sListenHost.empty() ? KString("0.0.0.0") : KString(sListenHost);
 	t.iListenPort = iListenPort;
 	t.sTargetHost = sTargetHost;
 	t.iTargetPort = iTargetPort;
@@ -1743,8 +1777,8 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 	};
 
 	addDiff("owner",   oExisting->sOwnerUser,  t.sOwnerUser);
-	addDiff("listen",  kFormat("{}:{}", oExisting->sListenHost, oExisting->iListenPort),
-	                   kFormat("{}:{}", t.sListenHost,          t.iListenPort));
+	addDiff("forward_port", kFormat("{}", oExisting->iListenPort),
+	                        kFormat("{}", t.iListenPort));
 	addDiff("target",  kFormat("{}:{}", oExisting->sTargetHost, oExisting->iTargetPort),
 	                   kFormat("{}:{}", t.sTargetHost,          t.iTargetPort));
 	addDiff("enabled", oExisting->bEnabled ? KStringView("yes") : KStringView("no"),

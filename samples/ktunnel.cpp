@@ -1187,44 +1187,34 @@ int Tunnel::Main(int argc, char** argv)
 
 		ProtectedHost Protected(m_Config);
 
-		// Wire up graceful shutdown for all three termination paths:
-		//   - POSIX SIGINT / SIGTERM (interactive Ctrl+C, systemctl stop,
-		//     launchctl kill -TERM, and the fallback raise(SIGTERM) that
-		//     KService::ControlHandler emits when no fnShutdown is set)
-		//   - Windows SCM SERVICE_CONTROL_STOP / SHUTDOWN (via fnShutdown,
-		//     which KService::ControlHandler prefers over raise(SIGTERM))
-		// All three converge on ProtectedHost::Shutdown(), which closes
-		// the active tunnel stream and wakes the inter-retry sleep.
-		auto Signals = Dekaf::getInstance().Signals();
-
-		if (Signals)
-		{
-			auto ShutdownSignalHandler = [&Protected](int /*signal*/)
-			{
-				Protected.Shutdown();
-			};
-			Signals->SetSignalHandler(SIGINT,  ShutdownSignalHandler);
-			Signals->SetSignalHandler(SIGTERM, ShutdownSignalHandler);
-		}
-
+		// On POSIX we deliberately do NOT install SIGINT / SIGTERM handlers
+		// here: the dekaf2 KSignals default handler (installed by
+		// KInit(true)) is std::exit(EXIT_SUCCESS), which terminates the
+		// process immediately — exactly what an interactive Ctrl+C is
+		// expected to do, and significantly faster than routing through
+		// ProtectedHost::Shutdown() + KTunnel::Stop(), because closing the
+		// tunnel socket from another thread does not reliably unblock the
+		// poll() inside KTunnel::ReadMessage() (observed both on Linux and
+		// macOS), so the read-loop would otherwise sit out its full
+		// ControlPing + ConnectTimeout before noticing the shutdown.
+		//
+		// On Windows the Service Control Manager does not deliver SIGINT /
+		// SIGTERM; it invokes the handler registered via
+		// KService::SetShutdownHandler. There we DO need the graceful path.
+#ifdef DEKAF2_IS_WINDOWS
 		KService::SetShutdownHandler([&Protected]()
 		{
 			Protected.Shutdown();
 		});
+#endif
 
 		Protected.Run();
 
-		// Detach every handler that captures Protected by reference before
-		// Protected itself goes out of scope, otherwise a signal / SCM
-		// stop event arriving in this short window would dereference a
-		// dangling reference.
+#ifdef DEKAF2_IS_WINDOWS
+		// Detach the handler before Protected goes out of scope so a late
+		// SCM stop event cannot dereference a dangling reference.
 		KService::SetShutdownHandler({});
-
-		if (Signals)
-		{
-			Signals->SetDefaultHandler(SIGINT);
-			Signals->SetDefaultHandler(SIGTERM);
-		}
+#endif
 	}
 
 	return 0;

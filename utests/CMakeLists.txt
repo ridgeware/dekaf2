@@ -118,6 +118,7 @@ set (USOURCES
 	krsakey_tests.cpp
 	krsasign_tests.cpp
 	ksharedmemory_tests.cpp
+	ksession_tests.cpp
 	ksharedptr_tests.cpp
 	ksharedref_tests.cpp
 	ksnippets_tests.cpp

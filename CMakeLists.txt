@@ -1354,6 +1354,10 @@ set(PUBLIC_HEADERS
 	source/crypto/auth/kawsauth.h
 	source/crypto/auth/kbcrypt.h
 	source/crypto/auth/kopenid.h
+	source/crypto/auth/ksession.h
+	source/crypto/auth/bits/ksessionmemorystore.h
+	source/crypto/auth/bits/ksessionsqlitestore.h
+	source/crypto/auth/bits/ksessionksqlstore.h
 	source/crypto/cipher/kaes.h
 	source/crypto/cipher/karia.h
 	source/crypto/cipher/kblockcipher.h
@@ -1453,6 +1457,7 @@ set(PUBLIC_HEADERS
 	source/rest/framework/krestclient.h
 	source/rest/framework/krestroute.h
 	source/rest/framework/krestserver.h
+	source/rest/framework/krestsession.h
 	source/rest/limits/kconnectionlimiter.h
 	source/rest/limits/kratelimiter.h
 	source/rest/serving/kfileserver.h
@@ -1611,6 +1616,8 @@ set (SOURCES
 	source/crypto/auth/kawsauth.cpp
 	source/crypto/auth/kbcrypt.cpp
 	source/crypto/auth/kopenid.cpp
+	source/crypto/auth/ksession.cpp
+	source/crypto/auth/bits/ksessionmemorystore.cpp
 	source/crypto/cipher/kblockcipher.cpp
 	source/crypto/encoding/kbase64.cpp
 	source/crypto/encoding/khex.cpp
@@ -1705,6 +1712,7 @@ set (SOURCES
 	source/rest/framework/krestclient.cpp
 	source/rest/framework/krestroute.cpp
 	source/rest/framework/krestserver.cpp
+	source/rest/framework/krestsession.cpp
 	source/rest/limits/kconnectionlimiter.cpp
 	source/rest/limits/kratelimiter.cpp
 	source/rest/serving/kfileserver.cpp
@@ -2065,7 +2073,14 @@ set(KSQL2_COMPILE_DEFINITIONS
 		DEKAF2_LIBRARY_BUILD
 )
 
-set(KSQL2_SOURCE_FILES source/data/sql/ksql.cpp source/data/sql/ksql.h source/data/sql/bits/ksql_dbc.cpp source/data/sql/bits/ksql_dbc.h)
+set(KSQL2_SOURCE_FILES
+	source/data/sql/ksql.cpp
+	source/data/sql/ksql.h
+	source/data/sql/bits/ksql_dbc.cpp
+	source/data/sql/bits/ksql_dbc.h
+	source/crypto/auth/bits/ksessionksqlstore.cpp
+	source/crypto/auth/bits/ksessionksqlstore.h
+)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${KSQL2_SOURCE_FILES})
 add_library                   (ksql2-objects OBJECT ${KSQL2_SOURCE_FILES})
 target_include_directories    (ksql2-objects PUBLIC ${KSQL2_INCLUDE_DIRECTORIES})
@@ -2095,8 +2110,15 @@ if (DEKAF2_BUILD_STATIC_DEKAF2)
 endif()
 
 if (SQLITE3_FOUND)
+	set(KSQLITE_SOURCE_FILES
+		source/data/sql/ksqlite.cpp
+		source/data/sql/ksqlite.h
+		source/crypto/auth/bits/ksessionsqlitestore.cpp
+		source/crypto/auth/bits/ksessionsqlitestore.h
+	)
+
 	if (DEKAF2_BUILD_SHARED_DEKAF2)
-		add_library(ksqlite-shared SHARED source/data/sql/ksqlite.cpp source/data/sql/ksqlite.h)
+		add_library(ksqlite-shared SHARED ${KSQLITE_SOURCE_FILES})
 		set_target_properties      (ksqlite-shared PROPERTIES POSITION_INDEPENDENT_CODE ON)
 		target_include_directories (ksqlite-shared PRIVATE $<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>)
 		target_link_libraries      (ksqlite-shared
@@ -2117,7 +2139,7 @@ if (SQLITE3_FOUND)
 	endif() # DEKAF2_BUILD_SHARED_DEKAF2
 
 	if (DEKAF2_BUILD_STATIC_DEKAF2)
-		add_library(ksqlite STATIC source/data/sql/ksqlite.cpp source/data/sql/ksqlite.h)
+		add_library(ksqlite STATIC ${KSQLITE_SOURCE_FILES})
 		target_include_directories (ksqlite PRIVATE $<BUILD_INTERFACE:${SQLITE3_INCLUDE_DIRS}>)
 		target_link_libraries(ksqlite
 			PRIVATE

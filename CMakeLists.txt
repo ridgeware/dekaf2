@@ -2199,8 +2199,23 @@ if (DEKAF2_INSTALL_BIN)
 	add_executable(krypt samples/krypt.cpp)
 	target_link_libraries(krypt dekaf2${DEKAF2_LINK_SHARED})
 
-	add_executable(ktunnel samples/ktunnel.cpp samples/ktunnel.h)
-	target_link_libraries(ktunnel dekaf2${DEKAF2_LINK_SHARED})
+	add_executable(ktunnel
+		samples/ktunnel.cpp
+		samples/ktunnel.h
+		samples/ktunnel_admin.cpp
+		samples/ktunnel_admin.h
+		samples/ktunnel_store.cpp
+		samples/ktunnel_store.h
+	)
+	# ktunnel's admin-UI persists its users / tunnel configuration / audit
+	# events in a SQLite file, so we need to link ksqlite too. SQLite is
+	# detected optionally by the top-level CMakeLists.txt — guard against
+	# a missing SQLite install so a plain "-notls" tunnel can still build.
+	if (SQLITE3_FOUND)
+		target_link_libraries(ktunnel ksqlite${DEKAF2_LINK_SHARED} dekaf2${DEKAF2_LINK_SHARED})
+	else()
+		message(FATAL_ERROR "ktunnel requires SQLite3 — install it or disable the admin UI build")
+	endif()
 
 	add_executable(statinfo samples/statinfo.cpp)
 	target_link_libraries(statinfo dekaf2${DEKAF2_LINK_SHARED})

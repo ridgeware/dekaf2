@@ -63,6 +63,14 @@ target_link_libraries(kgrep dekaf2)
 add_executable(statinfo statinfo.cpp)
 target_link_libraries(statinfo dekaf2)
 
+add_executable(ktunnel
+	ktunnel.h
+	ktunnel.cpp
+	ktunnel_admin.h
+	ktunnel_admin.cpp
+)
+target_link_libraries(ktunnel dekaf2)
+
 # ================================= INSTALLATION =====================================
 
 set(bin_dest "bin")

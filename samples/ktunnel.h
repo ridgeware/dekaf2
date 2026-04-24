@@ -48,17 +48,23 @@
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
+#include <dekaf2/crypto/auth/kbcrypt.h>
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/web/objects/kwebobjects.h>
 #include <dekaf2/http/websocket/kwebsocket.h>
 #include <dekaf2/http/websocket/kwebsocketclient.h>
 #include <dekaf2/crypto/encoding/kencode.h>
+#include <dekaf2/containers/associative/kassociative.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <thread>
 #include <memory>
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
+#include <vector>
+
+class KTunnelStore; // defined in ktunnel_store.h
 
 using namespace dekaf2;
 
@@ -79,6 +85,25 @@ public:
 
 	KTCPEndPoint           DefaultTarget;
 	KTCPEndPoint           ExposedHost;
+	/// Username under which the bootstrap admin account is created in the
+	/// store the very first time ktunnel is started (no users rows yet).
+	/// After that, the store is authoritative — changing this on the CLI
+	/// no longer has any effect.
+	KString                sAdminUser     { "admin" };
+	/// bcrypt hash derived at process startup from the first -secret on the
+	/// CLI. Used *only* for the initial bootstrap: inserted into the users
+	/// table if it is empty. Not consulted afterwards.
+	KString                sAdminPassHash;
+	/// Absolute path to the SQLite configuration database. Empty means
+	/// "use KTunnelStore::DefaultDatabasePath()" (i.e. $HOME/.config/ktunnel/
+	/// ktunnel.db). Overridden by the -db CLI flag.
+	KString                sDatabasePath;
+	/// Username sent by the *protected* host when logging in to the
+	/// exposed host. Must match a row in the exposed host's `users`
+	/// table (its password is the first `-secret`). Ignored on the
+	/// exposed host. Set via `-u <user>` on the CLI; defaults to
+	/// sAdminUser so a fresh bootstrap just works out of the box.
+	KString                sPeerUser      { "admin" };
 	bool                   bNoTLS         { false };
 	bool                   bQuiet         { false };
 
@@ -91,6 +116,8 @@ private:
 }; // ExtendedConfig
 
 class ExposedRawServer;
+class TunnelListener;
+class AdminUI;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class ExposedServer
@@ -113,8 +140,77 @@ public:
 	};
 
 	ExposedServer (const Config& config);
+	~ExposedServer ();
 
 	void ForwardStream (KIOStreamSocket& Downstream, const KTCPEndPoint& Endpoint);
+
+	/// Forward a raw downstream TCP connection through the tunnel
+	/// belonging to @p sOwner. Closes the stream and logs an event
+	/// if the owner is not currently connected. Used by per-tunnel
+	/// TunnelListener instances that are managed by ReconcileListeners.
+	void ForwardStreamForOwner (KIOStreamSocket& Downstream,
+	                            const KTCPEndPoint& Endpoint,
+	                            KStringView sOwner);
+
+	/// Per-listener runtime state reported to the admin UI.
+	/// @li `Stopped` — configured as disabled, or not in the registry
+	/// @li `Listening` — registry entry is up and the TCP acceptor runs
+	/// @li `PortError` — tried to bind but the OS refused (port in use)
+	/// @li `OwnerOffline` — listener is up but the owner user has no
+	///     active tunnel; new connections get rejected at accept time
+	enum class ListenerState : std::uint8_t { Stopped, Listening, PortError, OwnerOffline };
+
+	/// Snapshot of one entry in the listener registry; used by the admin UI.
+	struct ListenerInfo
+	{
+		KString       sName;         ///< tunnels.name
+		ListenerState eState { ListenerState::Stopped };
+		KString       sError;        ///< populated for PortError
+	};
+
+	/// Thread-safe map from tunnel name → current listener state. Names
+	/// without an entry are reported as `Stopped`.
+	KUnorderedMap<KString, ListenerInfo> SnapshotListenerStates () const;
+
+	/// Reconcile the per-tunnel listener registry with the persistent
+	/// store. Starts/stops/restarts KTCPServer instances as needed.
+	/// Called at startup and after every successful admin-UI mutation
+	/// of the tunnels table (Add/Toggle/Delete). Thread-safe.
+	/// @p sActor is used as the `events.username` field when logging
+	/// lifecycle events ("tunnel_start", "tunnel_stop", "config_change").
+	void ReconcileListeners (KStringView sActor = {});
+
+	/// Snapshot of a single currently-connected tunnel, used by the admin
+	/// UI dashboard. The shared_ptr keeps the tunnel alive for the
+	/// snapshot's lifetime even if the peer disconnects in between.
+	struct ActiveTunnel
+	{
+		KString                  sUser;        ///< login user on the tunnel
+		KTCPEndPoint             EndpointAddr; ///< remote address of the peer
+		KUnixTime                tConnected;   ///< wall-clock time of login
+		std::shared_ptr<KTunnel> Tunnel;       ///< non-null
+	};
+
+	/// Thread-safe snapshot of all tunnels currently logged in at this
+	/// server. Returns an empty vector if nobody is connected.
+	std::vector<ActiveTunnel> SnapshotActiveTunnels () const;
+
+	/// Returns the (one) currently-active tunnel for a given user, or a
+	/// null shared_ptr if that user is not connected.
+	std::shared_ptr<KTunnel>  GetTunnelForUser       (KStringView sUser) const;
+
+	/// Access to the persistent configuration / audit store backing the
+	/// admin UI. Never null after successful construction.
+	KTunnelStore&             GetStore               ()       { return *m_Store; }
+	const KTunnelStore&       GetStore               () const { return *m_Store; }
+
+	/// Access to the shared bcrypt verifier. Never null after
+	/// successful construction.
+	KBCrypt&                  GetBCrypt              ()       { return *m_BCrypt; }
+
+	/// Access to the ExposedServer configuration — the admin UI reads
+	/// things like bNoTLS to decide on cookie flags.
+	const Config&             GetConfig              () const { return m_Config; }
 
 //----------
 protected:
@@ -126,10 +222,74 @@ protected:
 private:
 //----------
 
-	std::shared_ptr<KTunnel>          m_Tunnel;
-	std::mutex                        m_TunnelMutex;
+	/// Verify a tunnel-login (user, secret) pair against the persistent
+	/// store. Called from the KTunnel::Config::AuthCallback installed
+	/// per ControlStream(). Logs a login_ok / login_fail event as a
+	/// side effect.
+	bool                      VerifyTunnelLogin      (KStringView sUser, KStringView sSecret,
+	                                                  const KTCPEndPoint& RemoteAddr);
+
+	void                      RegisterActiveTunnel   (KStringView sUser,
+	                                                  const KTCPEndPoint& RemoteAddr,
+	                                                  std::shared_ptr<KTunnel> Tunnel);
+	void                      UnregisterActiveTunnel (KStringView sUser,
+	                                                  const std::shared_ptr<KTunnel>& Tunnel);
+
+	/// Legacy "first-come-first-served" pick used by the raw port
+	/// forwarder (`-f <port>`) when there is no per-port listener yet.
+	/// Returns null if no tunnel is currently connected.
+	std::shared_ptr<KTunnel>  PickDefaultTunnel      () const;
+
+	/// user-name -> active tunnel. We accept only one tunnel per user for
+	/// now; a second login from the same user replaces the first (and the
+	/// previous tunnel is Stop()ed so it drops its resources).
+	/// KThreadSafe couples the map with a shared_mutex: readers
+	/// (SnapshotActiveTunnels, GetTunnelForUser, PickDefaultTunnel,
+	/// SnapshotListenerStates) take a shared lock and can run in
+	/// parallel; Register/Unregister take a unique lock.
+	KThreadSafe<KUnorderedMap<KString, ActiveTunnel>> m_ActiveTunnels;
+
+	/// Snapshot key for the listener registry: the per-row fields that
+	/// influence socket ownership. Two rows with identical keys share
+	/// the same running KTCPServer; a change triggers a restart in
+	/// ReconcileListeners.
+	struct ListenerKey
+	{
+		KString  sListenHost;
+		uint16_t iListenPort  { 0 };
+		KString  sTargetHost;
+		uint16_t iTargetPort  { 0 };
+		KString  sOwnerUser;
+		bool operator== (const ListenerKey& o) const noexcept
+		{
+			return iListenPort == o.iListenPort
+			    && iTargetPort == o.iTargetPort
+			    && sListenHost == o.sListenHost
+			    && sTargetHost == o.sTargetHost
+			    && sOwnerUser  == o.sOwnerUser;
+		}
+	};
+
+	/// One registry entry: the listener itself + its identifying key +
+	/// any bind error observed at start time.
+	struct ListenerEntry
+	{
+		std::unique_ptr<TunnelListener> Listener;
+		ListenerKey Key;
+		KString     sError;
+	};
+
+	std::unique_ptr<KTunnelStore>     m_Store;
+	std::unique_ptr<KBCrypt>          m_BCrypt;
 	std::unique_ptr<ExposedRawServer> m_ExposedRawServer;
+	std::unique_ptr<AdminUI>          m_AdminUI;
 	const Config&                     m_Config;
+
+	/// Per-tunnel listeners keyed by tunnel name. KThreadSafe couples
+	/// the map with a shared_mutex: SnapshotListenerStates takes a
+	/// shared lock (admin-UI dashboard, parallel-read friendly),
+	/// ReconcileListeners and the destructor take a unique lock.
+	KThreadSafe<KUnorderedMap<KString, ListenerEntry>> m_Listeners;
 
 }; // ExposedServer
 
@@ -165,6 +325,54 @@ private:
 	KTCPEndPoint   m_Target;
 
 }; // ExposedRawServer
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Per-tunnel raw-TCP listener managed by ExposedServer::ReconcileListeners.
+/// One instance is spawned for each enabled `tunnels` row in the store.
+/// Incoming connections are pushed through the control tunnel that belongs
+/// to the configured @p sOwner; if that owner is not currently logged in,
+/// the connection is closed and an "auth_reject" event is logged.
+class TunnelListener : public KTCPServer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	template<typename... Args>
+	TunnelListener (ExposedServer*      Exposed,
+	                KString             sName,
+	                KString             sOwner,
+	                const KTCPEndPoint& Target,
+	                Args&&...           args)
+	: KTCPServer (std::forward<Args>(args)...)
+	, m_ExposedServer (*Exposed)
+	, m_sName         (std::move(sName))
+	, m_sOwner        (std::move(sOwner))
+	, m_Target        (Target)
+	{
+	}
+
+	KStringView    GetName   () const { return m_sName; }
+	KStringView    GetOwner  () const { return m_sOwner; }
+
+//----------
+protected:
+//----------
+
+	void Session (std::unique_ptr<KIOStreamSocket>& Stream) override final;
+
+//----------
+private:
+//----------
+
+	ExposedServer& m_ExposedServer;
+	KString        m_sName;
+	KString        m_sOwner;
+	KTCPEndPoint   m_Target;
+
+}; // TunnelListener
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class ProtectedHost

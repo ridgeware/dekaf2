@@ -83,13 +83,35 @@ public:
 
 	//------------------------- subclasses of KTunnel -------------------------
 
+	/// Authentication callback invoked on the server side of the tunnel
+	/// after the login message has been received (and, in AES mode,
+	/// successfully decrypted using one of the configured Secrets). The
+	/// callback gets the user name and password as they were presented
+	/// by the remote client and must return true to accept the login,
+	/// false to reject it.
+	///
+	/// If the callback is not set (the default), the tunnel falls back to
+	/// the legacy behaviour of only verifying that the presented password
+	/// is contained in Config::Secrets. If the callback IS set, it takes
+	/// precedence — Config::Secrets is then only used as the set of AES
+	/// pre-shared keys (PSK) that can decrypt the login frame, and the
+	/// callback is the final authority on who is allowed in.
+	using Authenticator = std::function<bool(KStringView sUser, KStringView sSecret)>;
+
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// Config setup for KTunnel
 	struct DEKAF2_PUBLIC Config
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
-		/// a list of accepted secrets (strings)
+		/// a list of accepted secrets (strings); in AES mode these also serve
+		/// as the set of pre-shared keys that can decrypt the Login frame
 		KUnorderedSet<KString> Secrets;
+		/// optional authentication callback — if set, the tunnel calls this
+		/// on the server side after the login message has been parsed
+		/// (and, in AES mode, decrypted) to decide if the presented
+		/// (user, secret) pair is allowed. If unset, Secrets.contains(secret)
+		/// is used as the sole criterion (legacy behaviour).
+		Authenticator          AuthCallback;
 		/// timeout for incoming and outgoing connections (not for the tunnel itself)
 		KDuration              Timeout        { chrono::seconds(15)        };
 		/// interval to query tunnel health - should be low enough to avoid firewall and proxy timeouts,
@@ -327,6 +349,26 @@ public:
 	/// returns the ip address of the opposite tunnel endpoint
 	KTCPEndPoint GetEndPointAddress () const;
 
+	/// Returns the user name that was presented at login by the remote side.
+	/// Empty on the client side of the tunnel (that is, on the side that
+	/// called Login() itself) and on a server-side tunnel before the
+	/// login frame has been processed. Thread-safe.
+	KString      GetLoginUser       () const;
+
+	/// Cumulative count of payload bytes received through the tunnel
+	/// (Data-frame payloads only — no protocol/framing overhead, no
+	/// Login/Helo/Ping/Pong/Control bytes). Thread-safe.
+	uint64_t     GetBytesRx         () const noexcept { return m_iBytesRx.load(std::memory_order_relaxed); }
+
+	/// Cumulative count of payload bytes sent through the tunnel
+	/// (Data-frame payloads only — no protocol/framing overhead, no
+	/// Login/Helo/Ping/Pong/Control bytes). Thread-safe.
+	uint64_t     GetBytesTx         () const noexcept { return m_iBytesTx.load(std::memory_order_relaxed); }
+
+	/// Current count of multiplexed connections carried over this tunnel.
+	/// Thread-safe.
+	std::size_t  GetConnectionCount () const { return m_Connections.size(); }
+
 //----------
 protected:
 //----------
@@ -349,8 +391,13 @@ protected:
 	void ConnectToTarget (std::size_t iID, KTCPEndPoint Target);
 	/// setup payload AES encryption with sSecret
 	void SetupEncryption (KStringView sUser, KStringView sSecret);
-	/// setup payload AES encryption by trying to decode a message with a list of secrets
-	bool SetupEncryption (Message& message, const KUnorderedSet<KString>& Secrets);
+	/// setup payload AES encryption by trying to decode a message with a list of secrets.
+	/// On success the user name extracted from the login JSON is stored in sOutUser
+	/// (so the caller can remember who logged in, or pass it to an Authenticator
+	/// callback). sOutPass receives the plain-text password from the login JSON,
+	/// so callers can apply a secondary Authenticator check against it.
+	bool SetupEncryption (Message& message, const KUnorderedSet<KString>& Secrets,
+	                      KString& sOutUser, KString& sOutPass);
 
 //----------
 private:
@@ -373,6 +420,15 @@ private:
 	KThreads               m_Threads;
 	KDuration              m_RTT;
 	KTimer::ID_t           m_TimerID       { KTimer::InvalidID };
+	/// name of the user as verified at login — only populated on the
+	/// server side (the side that called WaitForLogin()). Protected by
+	/// m_LoginUserMutex because it is written from the tunnel's Run()
+	/// thread but may be read from admin / monitoring threads.
+	KString                m_sLoginUser;
+	mutable std::mutex     m_LoginUserMutex;
+	/// cumulative Data-frame payload byte counters for this tunnel
+	std::atomic<uint64_t>  m_iBytesRx      { 0 };
+	std::atomic<uint64_t>  m_iBytesTx      { 0 };
 	bool                   m_bWaitForLogin { false };
 	bool                   m_bMaskTx       { false };
 

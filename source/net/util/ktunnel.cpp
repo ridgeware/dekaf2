@@ -869,6 +869,15 @@ KTCPEndPoint KTunnel::GetEndPointAddress() const
 }
 
 //-----------------------------------------------------------------------------
+KString KTunnel::GetLoginUser() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_LoginUserMutex);
+	return m_sLoginUser;
+
+} // KTunnel::GetLoginUser
+
+//-----------------------------------------------------------------------------
 void KTunnel::ReadMessage(Message& message)
 //-----------------------------------------------------------------------------
 {
@@ -902,6 +911,15 @@ void KTunnel::ReadMessage(Message& message)
 			{
 				message.Read(*Tunnel->Stream, Tunnel->Decryptor.get());
 				kDebug(3, message.Debug());
+
+				// count only payload-carrying Data frames, not protocol
+				// frames (Login/Helo/Ping/Pong/Control/Connect/...). This
+				// gives the admin UI a metric that directly reflects how
+				// much tunneled application traffic went through.
+				if (message.GetType() == Message::Data)
+				{
+					m_iBytesRx.fetch_add(message.size(), std::memory_order_relaxed);
+				}
 
 				break;
 			}
@@ -945,9 +963,17 @@ void KTunnel::WriteMessage(Message&& message)
 			if (Tunnel->Stream->IsWriteReady(KDuration()))
 			{
 				kDebug(3, message.Debug());
+				// snapshot type+size BEFORE Write() — Write may move/consume
+				// the payload buffer depending on Frame internals
+				const auto   msgType = message.GetType();
+				const auto   msgSize = message.size();
 				KStopTime Stop;
 				message.Write(*Tunnel->Stream, m_bMaskTx, Tunnel->Encryptor.get());
 				kDebug(3, "took {}", Stop.elapsed());
+				if (msgType == Message::Data)
+				{
+					m_iBytesTx.fetch_add(msgSize, std::memory_order_relaxed);
+				}
 				break;
 			}
 		}
@@ -1075,7 +1101,8 @@ void KTunnel::SetupEncryption (KStringView sUser, KStringView sSecret)
 } // SetupEncryption
 
 //-----------------------------------------------------------------------------
-bool KTunnel::SetupEncryption (Message& message, const KUnorderedSet<KString>& Secrets)
+bool KTunnel::SetupEncryption (Message& message, const KUnorderedSet<KString>& Secrets,
+                               KString& sOutUser, KString& sOutPass)
 //-----------------------------------------------------------------------------
 {
 	// try all secrets to find the right one
@@ -1114,7 +1141,13 @@ bool KTunnel::SetupEncryption (Message& message, const KUnorderedSet<KString>& S
 				return false;
 			}
 
-			kDebug(1, "successful login of {}", kjson::GetStringRef(oLogin, "user"));
+			// hand the (user, pass) pair back to the caller so it can
+			// either remember it for GetLoginUser() or run it through
+			// a user-supplied Authenticator callback
+			sOutUser = kjson::GetStringRef(oLogin, "user");
+			sOutPass = kjson::GetStringRef(oLogin, "pass");
+
+			kDebug(1, "successful PSK-decrypt of login frame for {}", sOutUser);
 
 			auto Tunnel = m_Tunnel.unique();
 
@@ -1186,9 +1219,16 @@ void KTunnel::WaitForLogin()
 	Message Login;
 	ReadMessage(Login);
 
+	KString sLoginUser;
+	KString sLoginPass;
+
 	if (m_Config.bAESPayload)
 	{
-		if (!SetupEncryption(Login, m_Config.Secrets))
+		// AES flow: decrypt the Login frame with one of the configured PSKs
+		// and recover (user, pass) from its JSON body. The PSK was already
+		// matched against Secrets by SetupEncryption(), so the presence of
+		// a working PSK is equivalent to the legacy "pass in Secrets" check.
+		if (!SetupEncryption(Login, m_Config.Secrets, sLoginUser, sLoginPass))
 		{
 			throw KError(kFormat("invalid encryption from {}", GetEndPointAddress()));
 		}
@@ -1201,15 +1241,45 @@ void KTunnel::WaitForLogin()
 
 	if (!m_Config.bAESPayload)
 	{
+		// Basic flow: extract user/pass from an "Basic <base64>" string
 		auto Creds = KHTTPHeaders::DecodeBasicAuthFromString(Login.GetMessage());
-
-		if (m_Config.Secrets.empty() || !m_Config.Secrets.contains(Creds.sPassword))
-		{
-			throw KError(kFormat("invalid secret from {}: {}", GetEndPointAddress(), Creds.sPassword));
-		}
-
-		kDebug(1, "successful login from {} ({}) with valid secret", GetEndPointAddress(), Creds.sUsername);
+		sLoginUser = Creds.sUsername;
+		sLoginPass = Creds.sPassword;
 	}
+
+	// If the embedder supplied an Authenticator callback, let it have the
+	// final say. Otherwise fall back to the historic behaviour of requiring
+	// that the presented password appears in Config::Secrets. (In AES mode
+	// the PSK-decryption already implied that, but we keep the check here
+	// for the non-AES path and for symmetry.)
+	bool bAccepted = false;
+
+	if (m_Config.AuthCallback)
+	{
+		bAccepted = m_Config.AuthCallback(sLoginUser, sLoginPass);
+	}
+	else if (m_Config.bAESPayload)
+	{
+		// AES PSK already matched one of the Secrets entries
+		bAccepted = true;
+	}
+	else
+	{
+		bAccepted = !m_Config.Secrets.empty() && m_Config.Secrets.contains(sLoginPass);
+	}
+
+	if (!bAccepted)
+	{
+		throw KError(kFormat("login rejected from {} (user '{}')",
+		                     GetEndPointAddress(), sLoginUser));
+	}
+
+	{
+		std::lock_guard<std::mutex> Lock(m_LoginUserMutex);
+		m_sLoginUser = std::move(sLoginUser);
+	}
+
+	kDebug(1, "successful login from {} (user '{}')", GetEndPointAddress(), m_sLoginUser);
 
 	// finally say hi
 	WriteMessage(Message(Message::Helo, 0));

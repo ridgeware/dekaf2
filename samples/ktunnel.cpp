@@ -71,10 +71,16 @@
 // The tunnel connection can transport up to 16 million tunneled streams.
 
 #include "ktunnel.h"
+#include "ktunnel_admin.h"
+#include "ktunnel_store.h"
 #include <dekaf2/core/init/dekaf2.h> // KInit()
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/system/os/kservice.h>
+#include <dekaf2/crypto/auth/kbcrypt.h>
 #include <csignal> // SIGINT, SIGTERM
+#include <future>
+#include <chrono>
+#include <unordered_set>
 
 using namespace dekaf2;
 
@@ -94,39 +100,253 @@ void ExtendedConfig::PrintMessage(KStringView sMessage) const
 } // ExtendedConfig::PrintMessage
 
 //-----------------------------------------------------------------------------
+bool ExposedServer::VerifyTunnelLogin (KStringView sUser, KStringView sSecret,
+                                       const KTCPEndPoint& RemoteAddr)
+//-----------------------------------------------------------------------------
+{
+	// Rejection-path events are logged even for unknown users, so that an
+	// operator looking at the events table can spot brute-force attempts.
+	auto LogFail = [&](KStringView sDetail)
+	{
+		KTunnelStore::Event ev;
+		ev.sKind     = "login_fail";
+		ev.sUsername = KString(sUser);
+		ev.sRemoteIP = RemoteAddr.Serialize();
+		ev.sDetail   = KString(sDetail);
+		m_Store->LogEvent(ev);
+	};
+
+	if (sUser.empty())
+	{
+		LogFail("empty user");
+		return false;
+	}
+
+	auto oUser = m_Store->GetUser(sUser);
+
+	// Do a constant-time dummy compare against a fixed, well-formed bcrypt
+	// hash so a missing row cannot be distinguished from a wrong password
+	// by response time. The hash below is bcrypt("<never-used>", cost 4).
+	static constexpr KStringViewZ s_sDummyHash =
+		"$2a$04$abcdefghijklmnopqrstuuSQgFuZgk5ErgR6KPK8e6QlYxwZpzIbG";
+
+	KString sPassword(sSecret);
+
+	if (!oUser)
+	{
+		(void) m_BCrypt->ValidatePassword(sPassword, s_sDummyHash);
+		LogFail("unknown user");
+		return false;
+	}
+
+	if (!m_BCrypt->ValidatePassword(sPassword, oUser->sPasswordHash))
+	{
+		LogFail("bad password");
+		return false;
+	}
+
+	m_Store->SetLastLogin(sUser, KUnixTime::now());
+
+	KTunnelStore::Event ev;
+	ev.sKind     = "login_ok";
+	ev.sUsername = KString(sUser);
+	ev.sRemoteIP = RemoteAddr.Serialize();
+	ev.sDetail   = "tunnel";
+	m_Store->LogEvent(ev);
+
+	return true;
+
+} // VerifyTunnelLogin
+
+//-----------------------------------------------------------------------------
+void ExposedServer::RegisterActiveTunnel (KStringView sUser,
+                                          const KTCPEndPoint& RemoteAddr,
+                                          std::shared_ptr<KTunnel> Tunnel)
+//-----------------------------------------------------------------------------
+{
+	std::shared_ptr<KTunnel> Prev; // destroy outside the lock
+
+	{
+		auto Tunnels = m_ActiveTunnels.unique();
+
+		auto it = Tunnels->find(KString(sUser));
+		if (it != Tunnels->end())
+		{
+			// Same user logged in twice: evict the old tunnel. Dropping
+			// it outside the lock keeps us from holding the mutex while
+			// the previous Run()-thread tears things down.
+			Prev = std::move(it->second.Tunnel);
+			it->second.Tunnel       = std::move(Tunnel);
+			it->second.EndpointAddr = RemoteAddr;
+			it->second.tConnected   = KUnixTime::now();
+		}
+		else
+		{
+			ActiveTunnel at;
+			at.sUser        = KString(sUser);
+			at.EndpointAddr = RemoteAddr;
+			at.tConnected   = KUnixTime::now();
+			at.Tunnel       = std::move(Tunnel);
+			Tunnels->emplace(at.sUser, std::move(at));
+		}
+	}
+
+	if (Prev)
+	{
+		kDebug(1, "evicting previous tunnel for user '{}'", sUser);
+		Prev->Stop();
+	}
+
+} // RegisterActiveTunnel
+
+//-----------------------------------------------------------------------------
+void ExposedServer::UnregisterActiveTunnel (KStringView sUser,
+                                            const std::shared_ptr<KTunnel>& Tunnel)
+//-----------------------------------------------------------------------------
+{
+	auto Tunnels = m_ActiveTunnels.unique();
+
+	auto it = Tunnels->find(KString(sUser));
+	if (it != Tunnels->end() && it->second.Tunnel == Tunnel)
+	{
+		Tunnels->erase(it);
+	}
+
+} // UnregisterActiveTunnel
+
+//-----------------------------------------------------------------------------
+std::shared_ptr<KTunnel> ExposedServer::PickDefaultTunnel () const
+//-----------------------------------------------------------------------------
+{
+	auto Tunnels = m_ActiveTunnels.shared();
+	if (Tunnels->empty())
+	{
+		return {};
+	}
+	// Stable "first by user-name" — good enough for the legacy raw-port
+	// forwarder. A per-listener owner is wired in by step 5.
+	return Tunnels->begin()->second.Tunnel;
+
+} // PickDefaultTunnel
+
+//-----------------------------------------------------------------------------
+std::vector<ExposedServer::ActiveTunnel> ExposedServer::SnapshotActiveTunnels () const
+//-----------------------------------------------------------------------------
+{
+	std::vector<ActiveTunnel> out;
+
+	auto Tunnels = m_ActiveTunnels.shared();
+	out.reserve(Tunnels->size());
+	for (const auto& kv : *Tunnels)
+	{
+		out.push_back(kv.second);
+	}
+	return out;
+
+} // SnapshotActiveTunnels
+
+//-----------------------------------------------------------------------------
+std::shared_ptr<KTunnel> ExposedServer::GetTunnelForUser (KStringView sUser) const
+//-----------------------------------------------------------------------------
+{
+	auto Tunnels = m_ActiveTunnels.shared();
+	auto it = Tunnels->find(KString(sUser));
+	return (it == Tunnels->end()) ? std::shared_ptr<KTunnel>{} : it->second.Tunnel;
+
+} // GetTunnelForUser
+
+//-----------------------------------------------------------------------------
 void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 //-----------------------------------------------------------------------------
 {
-	auto Tunnel = std::make_shared<KTunnel>(m_Config, std::move(Stream));
+	// Capture the peer address before we hand the stream to KTunnel (the
+	// ctor moves the unique_ptr in, so we cannot read GetEndPointAddress()
+	// off it afterwards without going through the tunnel).
+	const auto EndpointAddress = Stream->GetEndPointAddress();
 
-	auto EndpointAddress = Tunnel->GetEndPointAddress();
+	// We copy the server-wide KTunnel::Config (slicing ExtendedConfig down
+	// to its KTunnel::Config base) so that per-connection AuthCallback
+	// captures do not race across parallel clients.
+	KTunnel::Config TunnelCfg = m_Config;
 
+	// The auth callback runs inside KTunnel::WaitForLogin on the tunnel's
+	// Run() thread. To get the verified user name back onto this
+	// (ControlStream) thread so we can register the tunnel in the
+	// per-user map, we hand the outcome through a shared promise. An
+	// atomic guard keeps set_value() from being called twice if the
+	// tunnel ever retries the auth step.
+	auto LoginPromise = std::make_shared<std::promise<KString>>();
+	auto LoginFuture  = LoginPromise->get_future();
+	auto LoginFired   = std::make_shared<std::atomic<bool>>(false);
+
+	TunnelCfg.AuthCallback = [this, LoginPromise, LoginFired, EndpointAddress]
+	                         (KStringView sUser, KStringView sSecret) -> bool
 	{
-		std::lock_guard<std::mutex> Lock(m_TunnelMutex);
-		m_Tunnel = Tunnel;
-	}
+		const bool bOK = VerifyTunnelLogin(sUser, sSecret, EndpointAddress);
 
-	m_Config.Message("[{}]: opened control stream from {}", 0, EndpointAddress);
-
-	// we use a named lambda because we want compatibility with C++11, which needs
-	// a type for KScopeGuard..
-	auto namedLambdaGuard = [this, &Tunnel, &EndpointAddress]() noexcept
-	{
-		// only reset the shared tunnel if we are still the active one
+		if (!LoginFired->exchange(true))
 		{
-			std::lock_guard<std::mutex> Lock(m_TunnelMutex);
-
-			if (m_Tunnel == Tunnel)
-			{
-				m_Tunnel.reset();
-			}
+			LoginPromise->set_value(bOK ? KString(sUser) : KString{});
 		}
-		m_Config.Message("[{}]: closed control stream from {}", 0, EndpointAddress);
+
+		return bOK;
 	};
 
-	auto Guard = KScopeGuard<decltype(namedLambdaGuard)>(namedLambdaGuard);
+	auto Tunnel = std::make_shared<KTunnel>(TunnelCfg, std::move(Stream));
 
-	Tunnel->Run();
+	m_Config.Message("[control]: opened control stream from {}", EndpointAddress);
+
+	// Run the tunnel on a dedicated thread so this method can observe the
+	// login outcome and keep the per-user registry in sync.
+	std::thread TunnelThread([Tunnel]()
+	{
+		try
+		{
+			Tunnel->Run();
+		}
+		catch (const std::exception& ex)
+		{
+			kDebug(1, "tunnel run: {}", ex.what());
+		}
+	});
+
+	// Wait up to ConnectTimeout for the auth callback to fire. If the
+	// login never arrives (peer gone, bad frame, etc.) the tunnel's
+	// Run() will have thrown by then and we fall through to join().
+	KString sUser;
+	auto tWait = std::chrono::milliseconds(m_Config.ConnectTimeout.milliseconds().count());
+	if (LoginFuture.wait_for(tWait) == std::future_status::ready)
+	{
+		sUser = LoginFuture.get();
+	}
+
+	bool bRegistered = false;
+	if (!sUser.empty())
+	{
+		RegisterActiveTunnel(sUser, EndpointAddress, Tunnel);
+		bRegistered = true;
+		m_Config.Message("[control]: tunnel '{}' active from {}", sUser, EndpointAddress);
+	}
+	else
+	{
+		m_Config.Message("[control]: login failed or timed out from {}", EndpointAddress);
+	}
+
+	TunnelThread.join();
+
+	if (bRegistered)
+	{
+		UnregisterActiveTunnel(sUser, Tunnel);
+
+		KTunnelStore::Event ev;
+		ev.sKind     = "tunnel_disconnect";
+		ev.sUsername = sUser;
+		ev.sRemoteIP = EndpointAddress.Serialize();
+		ev.sDetail   = kFormat("rx={} tx={}", Tunnel->GetBytesRx(), Tunnel->GetBytesTx());
+		m_Store->LogEvent(ev);
+	}
+
+	m_Config.Message("[control]: closed control stream from {}", EndpointAddress);
 
 } // ControlStream
 
@@ -144,13 +364,10 @@ void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 		throw KError("missing target endpoint definition with domain:port");
 	}
 
-	// take a local copy of the shared tunnel pointer under the lock
-	std::shared_ptr<KTunnel> Tunnel;
-
-	{
-		std::lock_guard<std::mutex> Lock(m_TunnelMutex);
-		Tunnel = m_Tunnel;
-	}
+	// Legacy raw-port forwarder: there is currently one listener for the
+	// whole server (`-f <port>`), so we pick whichever tunnel happens to
+	// be connected. Step 5 adds per-listener owner routing.
+	auto Tunnel = PickDefaultTunnel();
 
 	if (!Tunnel)
 	{
@@ -167,10 +384,284 @@ void ExposedServer::ForwardStream(KIOStreamSocket& Downstream, const KTCPEndPoin
 } // ForwardStream
 
 //-----------------------------------------------------------------------------
+void ExposedServer::ForwardStreamForOwner (KIOStreamSocket&    Downstream,
+                                           const KTCPEndPoint& Endpoint,
+                                           KStringView         sOwner)
+//-----------------------------------------------------------------------------
+{
+	kDebug(1, "per-owner forward: from={} owner={} target={}",
+	       Downstream.GetEndPointAddress(), sOwner, Endpoint);
+
+	if (Endpoint.empty())
+	{
+		throw KError("missing target endpoint definition with domain:port");
+	}
+
+	auto Tunnel = GetTunnelForUser(sOwner);
+	if (!Tunnel)
+	{
+		// The peer for this owner is not connected right now. Log it
+		// once per rejected connection and close cleanly — we prefer
+		// that over letting the caller's TCP half-open the socket.
+		if (m_Store)
+		{
+			KTunnelStore::Event ev;
+			ev.sKind     = "auth_reject";
+			ev.sUsername = KString(sOwner);
+			ev.sRemoteIP = Downstream.GetEndPointAddress().Serialize();
+			ev.sDetail   = kFormat("owner '{}' not currently connected — "
+			                       "dropped raw conn from {}",
+			                       sOwner, Downstream.GetEndPointAddress());
+			m_Store->LogEvent(ev);
+		}
+		throw KError(kFormat("no active tunnel for owner '{}'", sOwner));
+	}
+
+	Downstream.SetTimeout(m_Config.Timeout);
+	Tunnel->Connect(&Downstream, Endpoint);
+
+} // ForwardStreamForOwner
+
+//-----------------------------------------------------------------------------
+void TunnelListener::Session (std::unique_ptr<KIOStreamSocket>& Stream)
+//-----------------------------------------------------------------------------
+{
+	// KTCPServer calls this on its accept thread for every connection —
+	// delegate to the ExposedServer so the tunnel lookup happens under
+	// the right mutex. Exceptions bubble back into KTCPServer where they
+	// close the stream and log a warning.
+	m_ExposedServer.ForwardStreamForOwner(*Stream, m_Target, m_sOwner);
+
+} // TunnelListener::Session
+
+//-----------------------------------------------------------------------------
+KUnorderedMap<KString, ExposedServer::ListenerInfo>
+ExposedServer::SnapshotListenerStates () const
+//-----------------------------------------------------------------------------
+{
+	KUnorderedMap<KString, ListenerInfo> out;
+
+	// One snapshot for the listener registry, one for the active
+	// tunnels — taken separately to keep the critical sections short.
+	std::unordered_set<KString> LiveOwners;
+	{
+		auto Tunnels = m_ActiveTunnels.shared();
+		LiveOwners.reserve(Tunnels->size());
+		for (const auto& kv : *Tunnels) LiveOwners.insert(kv.first);
+	}
+
+	auto Listeners = m_Listeners.shared();
+	out.reserve(Listeners->size());
+	for (const auto& kv : *Listeners)
+	{
+		ListenerInfo info;
+		info.sName  = kv.first;
+		info.sError = kv.second.sError;
+
+		if      (!kv.second.sError.empty())          info.eState = ListenerState::PortError;
+		else if (!kv.second.Listener)                info.eState = ListenerState::Stopped;
+		else if (!kv.second.Listener->IsRunning())   info.eState = ListenerState::Stopped;
+		else if (!LiveOwners.count(kv.second.Key.sOwnerUser))
+		                                             info.eState = ListenerState::OwnerOffline;
+		else                                         info.eState = ListenerState::Listening;
+
+		out.emplace(kv.first, std::move(info));
+	}
+	return out;
+
+} // SnapshotListenerStates
+
+//-----------------------------------------------------------------------------
+void ExposedServer::ReconcileListeners (KStringView sActor)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Store) return;
+
+	// Pull the *desired* state from the store under its own lock,
+	// then apply the diff under the listener-map's unique lock so
+	// the registry stays consistent across concurrent admin-UI
+	// requests.
+	auto Desired = m_Store->GetEnabledTunnels();
+
+	auto Listeners = m_Listeners.unique();
+
+	// Build a quick lookup of what we want after reconciling.
+	std::unordered_map<KString, ListenerKey> DesiredByName;
+	DesiredByName.reserve(Desired.size());
+	for (const auto& t : Desired)
+	{
+		ListenerKey k;
+		k.sListenHost = t.sListenHost;
+		k.iListenPort = t.iListenPort;
+		k.sTargetHost = t.sTargetHost;
+		k.iTargetPort = t.iTargetPort;
+		k.sOwnerUser  = t.sOwnerUser;
+		DesiredByName.emplace(t.sName, std::move(k));
+	}
+
+	// 1. Stop + drop registry entries that are no longer desired or
+	//    whose key changed. Key-change restarts so the new target /
+	//    owner / port takes effect immediately.
+	for (auto it = Listeners->begin(); it != Listeners->end(); )
+	{
+		auto di = DesiredByName.find(it->first);
+		const bool bGone    = (di == DesiredByName.end());
+		const bool bChanged = !bGone && !(di->second == it->second.Key);
+
+		if (bGone || bChanged)
+		{
+			if (it->second.Listener && it->second.Listener->IsRunning())
+			{
+				it->second.Listener->Stop();
+			}
+
+			KTunnelStore::Event ev;
+			ev.sKind       = "tunnel_stop";
+			ev.sUsername   = KString(sActor);
+			ev.sTunnelName = it->first;
+			ev.sDetail     = bGone ? "removed from registry"
+			                       : "restarting due to config change";
+			m_Store->LogEvent(ev);
+
+			it = Listeners->erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+
+	// 2. Start listeners for all desired rows that are not yet in the
+	//    registry. Bind failures are captured as sError but do NOT
+	//    throw so a single bad row can't take the admin UI down.
+	for (const auto& t : Desired)
+	{
+		if (Listeners->count(t.sName)) continue;   // already up (unchanged)
+
+		ListenerEntry entry;
+		entry.Key.sListenHost = t.sListenHost;
+		entry.Key.iListenPort = t.iListenPort;
+		entry.Key.sTargetHost = t.sTargetHost;
+		entry.Key.iTargetPort = t.iTargetPort;
+		entry.Key.sOwnerUser  = t.sOwnerUser;
+
+		KTCPEndPoint Target(t.sTargetHost, t.iTargetPort);
+
+		try
+		{
+			entry.Listener = std::make_unique<TunnelListener>
+			(
+				this,
+				t.sName,
+				t.sOwnerUser,
+				Target,
+				t.iListenPort,            // KTCPServer ctor: port
+				/* bSSL        = */ false,
+				/* iMaxConns   = */ m_Config.iMaxTunneledConnections
+			);
+
+			// Non-blocking: Start() returns after the accept thread is
+			// up and running.
+			if (!entry.Listener->Start(m_Config.Timeout, /*bBlock=*/false))
+			{
+				entry.sError = kFormat("Start() failed on port {}", t.iListenPort);
+			}
+		}
+		catch (const std::exception& ex)
+		{
+			entry.sError   = ex.what();
+			entry.Listener.reset();
+		}
+
+		KTunnelStore::Event ev;
+		ev.sKind       = entry.sError.empty() ? "tunnel_start" : "tunnel_error";
+		ev.sUsername   = KString(sActor);
+		ev.sTunnelName = t.sName;
+		ev.sDetail     = entry.sError.empty()
+			? kFormat("listening on {}:{} -> {}:{} (owner {})",
+			          t.sListenHost, t.iListenPort,
+			          t.sTargetHost, t.iTargetPort, t.sOwnerUser)
+			: kFormat("port {} bind failed: {}", t.iListenPort, entry.sError);
+		m_Store->LogEvent(ev);
+
+		Listeners->emplace(t.sName, std::move(entry));
+	}
+
+} // ReconcileListeners
+
+//-----------------------------------------------------------------------------
+ExposedServer::~ExposedServer()
+//-----------------------------------------------------------------------------
+{
+	// Stop per-tunnel listeners up front — their accept threads hold
+	// references to *this via TunnelListener::m_ExposedServer, so they
+	// must die before the ExposedServer members are torn down.
+	auto Listeners = m_Listeners.unique();
+
+	for (auto& kv : *Listeners)
+	{
+		if (kv.second.Listener && kv.second.Listener->IsRunning())
+		{
+			kv.second.Listener->Stop();
+		}
+	}
+	Listeners->clear();
+}
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 ExposedServer::ExposedServer (const Config& config)
 //-----------------------------------------------------------------------------
 : m_Config(config)
 {
+	// Persistent store: sqlite file under the config dir (or wherever -db
+	// put it). The ctor creates the parent directory (mode 0700) and runs
+	// the schema migration. HasError() surfaces migration issues.
+	m_Store = std::make_unique<KTunnelStore>(m_Config.sDatabasePath);
+
+	if (m_Store->HasError())
+	{
+		throw KError(kFormat("cannot open store '{}': {}",
+		                     m_Store->GetDatabasePath(),
+		                     m_Store->GetLastError()));
+	}
+
+	m_Config.Message("admin store: {}", m_Store->GetDatabasePath());
+
+	// Shared bcrypt verifier used for both tunnel-login (VerifyTunnelLogin)
+	// and the admin UI login. We prefer one common instance so the
+	// asynchronously-computed workload is calibrated once per process.
+	m_BCrypt = std::make_unique<KBCrypt>(std::chrono::milliseconds(100), true);
+
+	// Bootstrap-admin seeding: if the users table is empty, insert a row
+	// with the hash derived from the first -secret on the CLI. After
+	// that, the store is authoritative — changing -secret does *not*
+	// update the admin password (the user has to do that through the
+	// admin UI or by editing the DB directly).
+	if (m_Store->CountUsers() == 0 && !m_Config.sAdminPassHash.empty())
+	{
+		KTunnelStore::User u;
+		u.sUsername     = m_Config.sAdminUser;
+		u.sPasswordHash = m_Config.sAdminPassHash;
+		u.bIsAdmin      = true;
+
+		if (m_Store->AddUser(u))
+		{
+			m_Config.Message("seeded bootstrap admin user '{}' from first -secret", u.sUsername);
+
+			KTunnelStore::Event ev;
+			ev.sKind     = "bootstrap";
+			ev.sUsername = u.sUsername;
+			ev.sDetail   = "admin user seeded from first -secret";
+			m_Store->LogEvent(ev);
+		}
+		else
+		{
+			m_Config.Message("cannot seed admin user '{}': {}",
+			                 u.sUsername, m_Store->GetLastError());
+		}
+	}
+
 	KREST::Options Settings;
 
 	Settings.Type                     = KREST::HTTP;
@@ -210,11 +701,12 @@ ExposedServer::ExposedServer (const Config& config)
 
 	}).Parse(KRESTRoute::ParserType::NOREAD);
 
-	Routes.AddRoute("/Configure").Get([](KRESTServer& HTTP)
-	{
-		/// TODO
-
-	}).Parse(KRESTRoute::ParserType::NOREAD);
+	// instantiate the admin UI (cookie-session auth, HTML via KWebObjects)
+	// and register its routes under /Configure/.. — see ktunnel_admin.cpp.
+	// We pass a pointer to this ExposedServer so the UI can look up live
+	// tunnels, persisted users/config, and share the bcrypt verifier.
+	m_AdminUI = std::make_unique<AdminUI>(*this);
+	m_AdminUI->RegisterRoutes(Routes);
 
 	Routes.AddRoute("/Tunnel").Get([this](KRESTServer& HTTP)
 	{
@@ -291,7 +783,14 @@ ExposedServer::ExposedServer (const Config& config)
 	// user handlers, a single signal stops both servers cleanly.
 	m_ExposedRawServer->RegisterShutdownWithSignals({ SIGINT, SIGTERM });
 
-	// listen on TCP
+	// Start per-tunnel listeners configured in the store. Each enabled
+	// tunnels-row becomes its own non-blocking KTCPServer. Binding
+	// failures (e.g. port in use) are captured as per-row errors in the
+	// registry and surfaced on the Tunnels admin page — they do not
+	// prevent the process from coming up.
+	ReconcileListeners("bootstrap");
+
+	// listen on TCP (blocking: returns on shutdown)
 	m_ExposedRawServer->Start(m_Config.Timeout, /* bBlock= */ true);
 
 } // ExposedServer::ExposedServer
@@ -352,7 +851,11 @@ void ProtectedHost::Run()
 	{
 		try
 		{
-			KString sUsername = "";
+			// Peer login identity: the `-u <user>` CLI flag. Defaults to
+			// "admin" so a fresh install works without extra setup — the
+			// admin user is seeded from the first `-secret` during the
+			// exposed host's bootstrap.
+			KString sUsername = m_Config.sPeerUser;
 			KString sSecret   = *m_Config.Secrets.begin();
 
 			if (sSecret.empty())
@@ -371,10 +874,6 @@ void ProtectedHost::Run()
 
 			WebSocket.SetTimeout(m_Config.ConnectTimeout);
 			WebSocket.SetBinary();
-#if 0
-			// we do not use basic auth anymore
-			WebSocket.BasicAuthentication(sUsername, sSecret);
-#endif
 
 			m_Config.Message("connecting {}..", ExposedHost);
 
@@ -479,6 +978,8 @@ int Tunnel::Main(int argc, char** argv)
 	m_Config.bPersistCert  = Options("persist      : should a self-signed cert be persisted to disk and reused at next start?", false);
 	m_Config.sCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
 	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);
+	m_Config.sDatabasePath = Options("db <path>    : if exposed host, path to the SQLite admin/config DB - defaults to $HOME/.config/ktunnel/ktunnel.db", "");
+	m_Config.sPeerUser     = Options("u,user <name> : if protected host, username to log in with (must exist in exposed host's users table) - defaults to 'admin'", "admin");
 
 	// do a final check if all required options were set
 	if (!Options.Check()) return 1;
@@ -513,7 +1014,24 @@ int Tunnel::Main(int argc, char** argv)
 		if (m_Config.DefaultTarget.Port.get() == 0) SetError("endpoind needs an explicit port number");
 		if (!m_Config.iRawPort) SetError("exposed host needs a forward port being configured");
 
+		// seed the admin-UI password from the first -secret value — this
+		// bootstraps the admin password on the first launch, as described
+		// in the setup docs. bcrypt is slow by design so we do this once
+		// at startup instead of on every login attempt.
+		if (!m_Config.Secrets.empty())
+		{
+			KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);
+			m_Config.sAdminPassHash = BCrypt.GenerateHash(KStringViewZ(*m_Config.Secrets.begin()));
+
+			if (m_Config.sAdminPassHash.empty())
+			{
+				SetError("failed to hash admin password");
+			}
+		}
+
 		m_Config.Message("starting as exposed host with{} TLS", m_Config.bNoTLS ? "out" : "");
+		m_Config.Message("admin UI available at {}://<host>:{}/Configure/",
+		                 m_Config.bNoTLS ? "http" : "https", m_Config.iPort);
 
 		ExposedServer Exposed(m_Config);
 	}

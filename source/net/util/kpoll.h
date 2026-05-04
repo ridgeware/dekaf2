@@ -59,6 +59,12 @@
 	#include <winsock2.h>
 #else
 	#include <poll.h>
+	#include <fcntl.h>
+	#include <unistd.h>
+#endif
+
+#if DEKAF2_IS_LINUX
+	#include <sys/eventfd.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -82,6 +88,57 @@ int kPoll(KSpan<pollfd> fds, KDuration Timeout);
 /// @return >0 the triggered events, 0 timeout, < 0 errno error number * -1
 int kPoll(int fd, int what, KDuration Timeout);
 //-----------------------------------------------------------------------------
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Helper class to interrupt poll() from another thread.
+/// Uses eventfd on Linux (efficient) and pipe on other POSIX systems.
+/// On Windows this is a no-op because WSAPoll correctly unblocks on socket close.
+class DEKAF2_PUBLIC KPollInterruptor
+{
+public:
+#if !DEKAF2_IS_WINDOWS
+	/// Create the interruptor (eventfd on Linux, pipe on other POSIX)
+	KPollInterruptor();
+
+	/// Close the interruptor file descriptors
+	~KPollInterruptor();
+
+	// Non-copyable, non-movable
+	KPollInterruptor(const KPollInterruptor&) = delete;
+	KPollInterruptor& operator=(const KPollInterruptor&) = delete;
+	KPollInterruptor(KPollInterruptor&&) = delete;
+	KPollInterruptor& operator=(KPollInterruptor&&) = delete;
+
+	/// Get the file descriptor to poll on (read end for pipe, eventfd for Linux)
+	int GetFD() const { return m_fd; }
+
+	/// Wake up any poll() call waiting on this interruptor
+	void Wake();
+
+	/// Clear the interruptor state (drain any pending wake events)
+	void Clear();
+
+	/// Close the file descriptors
+	void Close();
+
+	/// Check if the interruptor is valid
+	bool IsValid() const { return m_fd >= 0; }
+
+private:
+	int m_fd { -1 };
+#if !DEKAF2_IS_LINUX
+	int m_write_fd { -1 };  // only needed for pipe
+#endif
+#else  // DEKAF2_IS_WINDOWS
+	// Windows: no-op implementation
+	KPollInterruptor() = default;
+	int GetFD() const { return -1; }
+	void Wake() {}
+	void Clear() {}
+	void Close() {}
+	bool IsValid() const { return false; }
+#endif  // DEKAF2_IS_WINDOWS
+}; // KPollInterruptor
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Maintaining a list of file descriptors and associated actions to call when the file descriptor creates an event

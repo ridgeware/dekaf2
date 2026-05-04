@@ -331,6 +331,9 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		return SetError("no OpenSSL object");
 	}
 
+	// allow re-use of a previously disconnected stream
+	ResetDisconnectingState();
+
 	SetTimeout(Options.GetTimeout());
 
 	SetUnresolvedEndPoint(Endpoint);
@@ -531,6 +534,12 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 bool KQuicStream::Disconnect()
 //-----------------------------------------------------------------------------
 {
+	// Signal disconnecting first - this sets an atomic flag AND wakes any
+	// pending poll() calls in other threads. The flag prevents those
+	// threads from re-entering poll() between Wake() and the actual
+	// socket close below.
+	SignalDisconnecting();
+
 	if (m_SSL)
 	{
 		::SSL_shutdown(GetNativeTLSHandle());

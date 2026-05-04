@@ -109,6 +109,15 @@ bool KIOStreamSocket::SetSSLError()
 int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAnError)
 //-----------------------------------------------------------------------------
 {
+	// Check BEFORE poll() - another thread may have called SignalDisconnecting()
+	// already (e.g. during shutdown). Do not enter poll() in that case - the
+	// socket may be closed underneath us at any moment.
+	if (IsDisconnecting())
+	{
+		SetError(kFormat("connection with {} is being disconnected", GetEndPoint().empty() ? GetEndPointAddress() : GetEndPoint()));
+		return 0;
+	}
+
 	if (what & POLLIN)
 	{
 		if (rdbuf())
@@ -173,7 +182,43 @@ int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAn
 		}
 	}
 
-	auto iResult = kPoll(GetNativeSocket(), what, Timeout);
+	// Poll on both the socket and the interruptor FD (for waking from another thread)
+	int iResult;
+#if !DEKAF2_IS_WINDOWS
+	int iInterruptorFD = m_Interruptor.GetFD();
+	if (iInterruptorFD >= 0)
+	{
+		struct pollfd fds[2];
+		fds[0].fd = GetNativeSocket();
+		fds[0].events = what;
+		fds[0].revents = 0;
+		fds[1].fd = iInterruptorFD;
+		fds[1].events = POLLIN;
+		fds[1].revents = 0;
+
+		iResult = kPoll(KSpan<pollfd>(fds, 2), Timeout);
+
+		if (iResult > 0 && fds[1].revents)
+		{
+			// Interruptor was triggered from another thread - this means the
+			// stream is being disconnected. Clear the interruptor, set an
+			// error and return 0 so callers do NOT retry into poll().
+			m_Interruptor.Clear();
+			SetError(kFormat("connection with {} is being disconnected", GetEndPoint().empty() ? GetEndPointAddress() : GetEndPoint()));
+			return 0;
+		}
+		// Return the revents from the socket FD
+		if (iResult > 0)
+		{
+			return fds[0].revents;
+		}
+		// fall through to the shared timeout/error handling below
+	}
+	else
+#endif
+	{
+		iResult = kPoll(GetNativeSocket(), what, Timeout);
+	}
 
 	if (iResult == 0)
 	{

@@ -189,6 +189,9 @@ bool KTCPStream::Timeout(KDuration Timeout)
 bool KTCPStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
+	// allow re-use of a previously disconnected stream
+	ResetDisconnectingState();
+
 	SetTimeout(Options.GetTimeout());
 
 	SetUnresolvedEndPoint(Endpoint);

@@ -192,6 +192,9 @@ bool KUnixStream::Timeout(KDuration Timeout)
 bool KUnixStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
+	// allow re-use of a previously disconnected stream
+	ResetDisconnectingState();
+
 	SetTimeout(Options.GetTimeout());
 
 	SetUnresolvedEndPoint(Endpoint);

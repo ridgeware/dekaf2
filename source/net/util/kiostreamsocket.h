@@ -47,9 +47,11 @@
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/net/util/kstreamoptions.h>
+#include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/net/tcp/bits/kasio.h>
+#include <atomic>
 #include <iostream>
 
 #if DEKAF2_IS_WINDOWS
@@ -256,13 +258,47 @@ protected:
 		m_EndpointAddress = std::move(Endpoint);
 	}
 
+	/// Get the poll interruptor to wake up blocking poll() calls
+	/// Used by derived classes to interrupt poll when disconnecting
+	KPollInterruptor& GetPollInterruptor() { return m_Interruptor; }
+
+	/// Signal that the stream is being disconnected and wake any blocked
+	/// poll() calls. This is the entry point derived classes must call at
+	/// the beginning of their Disconnect() implementation. It sets an
+	/// atomic flag that is checked by CheckIfReady() to prevent callers
+	/// from re-entering poll() between Wake() and the actual socket close.
+	/// Idempotent - safe to call multiple times.
+	void SignalDisconnecting()
+	{
+		m_bDisconnecting.store(true, std::memory_order_release);
+		m_Interruptor.Wake();
+	}
+
+	/// Check if this stream is currently in the process of being
+	/// disconnected (from any thread). Returns true after SignalDisconnecting()
+	/// was called and before the optional state reset (on a reconnect).
+	bool IsDisconnecting() const
+	{
+		return m_bDisconnecting.load(std::memory_order_acquire);
+	}
+
+	/// Reset the disconnecting state. Derived classes should call this
+	/// at the beginning of a successful Connect() on a previously used
+	/// stream to allow polling again on the reconnected socket.
+	void ResetDisconnectingState()
+	{
+		m_bDisconnecting.store(false, std::memory_order_release);
+	}
+
 //----------
 private:
 //----------
 
-	KDuration    m_Timeout;
-	KTCPEndPoint m_UnresolvedEndpoint;
-	KTCPEndPoint m_EndpointAddress;
+	KDuration             m_Timeout;
+	KTCPEndPoint          m_UnresolvedEndpoint;
+	KTCPEndPoint          m_EndpointAddress;
+	KPollInterruptor      m_Interruptor;     ///< Used to wake poll() from another thread
+	std::atomic<bool>     m_bDisconnecting { false }; ///< Set by SignalDisconnecting() to abort in-flight and future poll()s
 
 }; // KIOStreamSocket
 

@@ -117,6 +117,11 @@ public:
 	virtual bool Disconnect() override final
 	//-----------------------------------------------------------------------------
 	{
+		// Signal disconnecting first - this sets an atomic flag AND wakes any
+		// pending poll() calls in other threads. The flag prevents those
+		// threads from re-entering poll() between Wake() and the actual
+		// socket close below.
+		SignalDisconnecting();
 		return m_Stream.Disconnect();
 	}
 

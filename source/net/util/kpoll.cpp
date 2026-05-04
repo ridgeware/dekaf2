@@ -425,4 +425,108 @@ void KSocketWatch::AdjustPollVec(std::vector<pollfd>& fds)
 
 } // AdjustPollVec
 
+#if !DEKAF2_IS_WINDOWS
+
+//-----------------------------------------------------------------------------
+KPollInterruptor::KPollInterruptor()
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_LINUX
+	m_fd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+	if (m_fd < 0)
+	{
+		kDebug(2, "failed to create eventfd: {}", strerror(errno));
+		m_fd = -1;
+	}
+#else
+	int fds[2];
+	if (::pipe(fds) == 0)
+	{
+		// Set both ends non-blocking and close-on-exec
+		for (int fd : fds)
+		{
+			int flags = ::fcntl(fd, F_GETFL, 0);
+			if (flags >= 0)
+			{
+				::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+			}
+			flags = ::fcntl(fd, F_GETFD, 0);
+			if (flags >= 0)
+			{
+				::fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+			}
+		}
+		m_fd = fds[0];  // read end
+		m_write_fd = fds[1];  // write end
+	}
+	else
+	{
+		kDebug(2, "failed to create pipe: {}", strerror(errno));
+		m_fd = -1;
+		m_write_fd = -1;
+	}
+#endif
+} // ctor
+
+//-----------------------------------------------------------------------------
+KPollInterruptor::~KPollInterruptor()
+//-----------------------------------------------------------------------------
+{
+	Close();
+} // dtor
+
+//-----------------------------------------------------------------------------
+void KPollInterruptor::Wake()
+//-----------------------------------------------------------------------------
+{
+	if (m_fd < 0) return;
+#if DEKAF2_IS_LINUX
+	eventfd_t value = 1;
+	::eventfd_write(m_fd, value);
+#else
+	char byte = 1;
+	::write(m_write_fd, &byte, 1);
+#endif
+} // Wake
+
+//-----------------------------------------------------------------------------
+void KPollInterruptor::Clear()
+//-----------------------------------------------------------------------------
+{
+	if (m_fd < 0) return;
+#if DEKAF2_IS_LINUX
+	eventfd_t value;
+	::eventfd_read(m_fd, &value);
+#else
+	char buf[16];
+	while (::read(m_fd, buf, sizeof(buf)) > 0) {}
+#endif
+} // Clear
+
+//-----------------------------------------------------------------------------
+void KPollInterruptor::Close()
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_LINUX
+	if (m_fd >= 0)
+	{
+		::close(m_fd);
+		m_fd = -1;
+	}
+#else
+	if (m_fd >= 0)
+	{
+		::close(m_fd);
+		m_fd = -1;
+	}
+	if (m_write_fd >= 0)
+	{
+		::close(m_write_fd);
+		m_write_fd = -1;
+	}
+#endif
+} // Close
+
+#endif // !DEKAF2_IS_WINDOWS
+
 DEKAF2_NAMESPACE_END

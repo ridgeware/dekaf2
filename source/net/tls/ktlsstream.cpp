@@ -429,6 +429,9 @@ bool KTLSStream::Timeout(KDuration Timeout)
 bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
+	// allow re-use of a previously disconnected stream
+	ResetDisconnectingState();
+
 	m_StreamOptions = Options;
 	m_Stream.bNeedHandshake = true;
 	m_bRetryWithHTTP1 = false;

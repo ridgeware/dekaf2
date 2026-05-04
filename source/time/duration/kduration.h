@@ -394,8 +394,14 @@ public:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// implementation of a stop watch (which is a timer that can be stopped
-/// and restarted, and only counts the time while it was not stopped)
+/// Implementation of a stop watch (which is a timer that can be stopped
+/// and restarted, and only counts the time while it was not stopped).
+/// Total measurable duration is one bit less than KDuration would count,
+/// so, with a typical 64 bit duration value in nanoseconds the min/max
+/// durations are ~292 years.
+// implementation detail: to save a bool and thus 8
+// bytes of aligned storage KStopWatch codes the
+// running/halted flag in the MSB of the count duration
 class DEKAF2_PUBLIC KStopWatch : private KStopTime
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -413,24 +419,100 @@ public:
 	/// constructs and starts counting
 	KStopWatch() = default;
 	/// constructs without starting
-	explicit KStopWatch(ConstructHalted) : base(base::Halted), m_bIsHalted(true) {}
+	explicit KStopWatch(ConstructHalted)
+	: base(base::Halted)
+	{
+		SetHalted();
+	}
 
 	/// returns elapsed (active) time
 	DEKAF2_NODISCARD
-	Duration elapsed() const { if (!m_bIsHalted) { return base::elapsed() + m_iDurationSoFar; } else { return m_iDurationSoFar; } }
+	Duration elapsed() const
+	{
+		if (IsHalted())
+		{
+			return GetDuration();
+		}
+		else
+		{
+			return base::elapsed() + GetDurationNotHalted();
+		}
+	}
 	/// halts elapsed time counting
-	void     halt()          { m_iDurationSoFar += base::elapsed(); m_bIsHalted = true;    }
+	void halt()
+	{
+		if (!IsHalted())
+		{
+			AddDurationWhileNotHaltedAndHalt(base::elapsed());
+		}
+	}
 	/// resumes elapsed time counting
-	void     resume()        { if (m_bIsHalted) { m_bIsHalted = false; base::clear(); }    }
+	void resume()
+	{
+		if (IsHalted())
+		{
+			SetNotHalted();
+			base::clear();
+		}
+	}
 	/// resets elapsed time, stops counter - call resume() to continue
-	void     clear()         { m_iDurationSoFar = Duration::zero(); m_bIsHalted = true;    }
+	void clear()
+	{
+		ClearDurationAndHalt(Duration::zero());
+	}
 
 //----------
 private:
 //----------
 
+	static constexpr Duration::rep iIsHalted = Duration::rep(1) << (sizeof(rep) * 8 - 1);
+
+	Duration::rep AsNanoTicks() const { return m_iDurationSoFar.nanoseconds().count(); }
+	static Duration FromNanoTicks(Duration::rep ticks) { return chrono::nanoseconds(ticks); }
+
+	void SetHalted()
+	{
+		m_iDurationSoFar = FromNanoTicks(AsNanoTicks() | iIsHalted);
+	}
+
+	void SetNotHalted()
+	{
+		m_iDurationSoFar = FromNanoTicks(AsNanoTicks() & ~iIsHalted);
+	}
+
+	bool GetHalted() const
+	{
+		return (AsNanoTicks() & iIsHalted);
+	}
+
+	bool IsHalted() const
+	{
+		return GetHalted() == true;
+	}
+
+	void ClearDurationAndHalt (Duration d)
+	{
+		m_iDurationSoFar = Duration::zero();
+		SetHalted();
+	}
+
+	Duration GetDuration() const
+	{
+		return FromNanoTicks(AsNanoTicks() & ~iIsHalted);
+	}
+
+	Duration GetDurationNotHalted() const
+	{
+		return m_iDurationSoFar;
+	}
+
+	void AddDurationWhileNotHaltedAndHalt (Duration d)
+	{
+		m_iDurationSoFar += d;
+		SetHalted();
+	}
+
 	Duration m_iDurationSoFar { Duration::zero() };
-	bool m_bIsHalted { false };
 
 }; // KStopWatch
 

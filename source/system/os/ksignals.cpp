@@ -73,11 +73,14 @@ std::atomic<bool> s_bCrashHandlersInstalled { false };
 #ifndef DEKAF2_IS_WINDOWS
 
 // alternate signal stack for crash handlers (one per thread).
-// MINSIGSTKSZ is sufficient for our crash handler (32k on macOS, ~2k on Linux).
+// On glibc >= 2.34 MINSIGSTKSZ is a runtime sysconf() call, not a constexpr,
+// so we cannot use it as a std::array template parameter. We allocate a
+// runtime-sized char[] buffer instead.
 // Allocated lazily when kSetupThreadSignalHandling() is called on a thread,
 // but only if crash handlers are already installed - otherwise SA_ONSTACK is
 // not in effect and the alt stack would never be used.
-thread_local std::unique_ptr<std::array<char, MINSIGSTKSZ>> s_AltStack;
+thread_local std::unique_ptr<char[]> s_AltStack;
+thread_local std::size_t s_iAltStackSize { 0 };
 
 #endif
 
@@ -149,8 +152,11 @@ void kSetupThreadSignalHandling(bool bExceptSEGVandFPE)
 		// pthread_create(), so each thread sets up its own.
 		if (!s_AltStack)
 		{
-			s_AltStack = std::make_unique<std::array<char, MINSIGSTKSZ>>();
-			stack_t ss = { s_AltStack->data(), 0, static_cast<int>(s_AltStack->size()) };
+			// MINSIGSTKSZ is sufficient for our crash handler (32k on macOS,
+			// ~2k on older Linux, may be a runtime value on glibc 2.34+).
+			s_iAltStackSize = static_cast<std::size_t>(MINSIGSTKSZ);
+			s_AltStack = std::unique_ptr<char[]>(new char[s_iAltStackSize]);
+			stack_t ss = { s_AltStack.get(), 0, static_cast<int>(s_iAltStackSize) };
 			sigaltstack(&ss, nullptr);
 		}
 	}

@@ -2743,4 +2743,211 @@ TEST_CASE("KStringUtils") {
 		CHECK_THROWS_AS ( kFromBinarySize("10x"), const KException& );
 		CHECK_THROWS_AS ( kFromBinarySize("5Z"), const KException& );
 	}
+
+	SECTION("kStripComments - Cpp")
+	{
+		// basic line comment
+		CHECK ( kStripComments("a // comment\nb") == "a \nb" );
+
+		// line comment at start of line — entire line removed
+		CHECK ( kStripComments("a\n// comment\nb") == "a\nb" );
+
+		// line comment with leading whitespace — entire line removed
+		CHECK ( kStripComments("a\n   // comment\nb") == "a\nb" );
+
+		// line comment as only content (no trailing newline)
+		CHECK ( kStripComments("// comment") == "" );
+
+		// line comment as only content on first line
+		CHECK ( kStripComments("// comment\nnext") == "next" );
+
+		// block comment on single line
+		CHECK ( kStripComments("a /* block */ b") == "a  b" );
+
+		// block comment as only content — entire line removed
+		CHECK ( kStripComments("/* only block */\nb") == "b" );
+
+		// block comment with leading whitespace — entire line removed
+		CHECK ( kStripComments("   /* only block */\nb") == "b" );
+
+		// block comment spanning multiple lines — all spanned lines removed
+		CHECK ( kStripComments("a\n/* multi\nline\n*/\nb") == "a\nb" );
+
+		// block comment spanning multiple lines with content before on first line
+		CHECK ( kStripComments("a /* multi\nline */ b\nc") == "a \n b\nc" );
+
+		// comment inside a double-quoted string — preserved verbatim
+		CHECK ( kStripComments("\"// not a comment\"") == "\"// not a comment\"" );
+
+		// comment inside single-quoted string — preserved verbatim
+		CHECK ( kStripComments("'/* not a comment */'") == "'/* not a comment */'" );
+
+		// comment inside backtick string — preserved verbatim
+		CHECK ( kStripComments("`// not a comment`") == "`// not a comment`" );
+
+		// escaped quote inside string does not end it prematurely
+		CHECK ( kStripComments("\"a\\\"// still in string\"") == "\"a\\\"// still in string\"" );
+
+		// unterminated block comment — consumed until end, no output
+		CHECK ( kStripComments("x\n/* unterminated") == "x" );
+
+		// slash alone (not a comment) — passed through
+		CHECK ( kStripComments("a/b") == "a/b" );
+
+		// empty input
+		CHECK ( kStripComments("") == "" );
+
+		// no comments at all
+		CHECK ( kStripComments("hello\nworld") == "hello\nworld" );
+
+		// multiple consecutive comment-only lines
+		CHECK ( kStripComments("a\n// c1\n// c2\nb") == "a\nb" );
+
+		// trailing content after comment removal — no trailing newline added
+		CHECK ( kStripComments("a\n// comment") == "a" );
+
+		// whitespace-only lines are reduced to a blank line (whitespace stripped, line kept)
+		CHECK ( kStripComments("a\n   \nb") == "a\n\nb" );
+
+		// empty lines (just \n) are kept as blank lines
+		CHECK ( kStripComments("a\n\nb") == "a\n\nb" );
+
+		// multiple whitespace-only lines each become one blank line
+		CHECK ( kStripComments("a\n   \n\t\nb") == "a\n\n\nb" );
+	}
+
+	SECTION("kStripComments - Cpp bReduceWhitespace")
+	{
+		// leading whitespace removed
+		CHECK ( kStripComments("   a", CommentStyle::Cpp, true) == "a" );
+
+		// comment-only line with leading ws — removed
+		CHECK ( kStripComments("a\n   // comment\nb", CommentStyle::Cpp, true) == "a\nb" );
+
+		// whitespace-only line — removed when bReduceWhitespace
+		CHECK ( kStripComments("a\n   \nb", CommentStyle::Cpp, true) == "a\nb" );
+
+		// empty line — also removed when bReduceWhitespace
+		CHECK ( kStripComments("a\n\nb", CommentStyle::Cpp, true) == "a\nb" );
+
+		// inline trailing whitespace after comment removal preserved
+		// (only leading ws is stripped in bReduceWhitespace mode)
+		CHECK ( kStripComments("  a  // comment\n  b  ", CommentStyle::Cpp, true) == "a  \nb  " );
+	}
+
+	SECTION("kStripComments - HTML")
+	{
+		// basic HTML comment — single line
+		CHECK ( kStripComments("a <!-- comment --> b", CommentStyle::HTML) == "a  b" );
+
+		// HTML comment as only content — entire line removed
+		CHECK ( kStripComments("<!-- comment -->\nb", CommentStyle::HTML) == "b" );
+
+		// HTML comment with leading whitespace — entire line removed
+		CHECK ( kStripComments("  <!-- comment -->\nb", CommentStyle::HTML) == "b" );
+
+		// multi-line HTML comment — all spanned lines removed
+		CHECK ( kStripComments("a\n<!-- multi\nline -->\nb", CommentStyle::HTML) == "a\nb" );
+
+		// DOCTYPE and similar <!X constructs — NOT treated as comments (only <!-- is)
+		CHECK ( kStripComments("<!DOCTYPE html>\nb", CommentStyle::HTML) == "<!DOCTYPE html>\nb" );
+
+		// <! without -- — not a comment
+		CHECK ( kStripComments("<!\nb", CommentStyle::HTML) == "<!\nb" );
+
+		// <!-- without closing --> — consumed to end
+		CHECK ( kStripComments("a\n<!-- unterminated", CommentStyle::HTML) == "a" );
+
+		// C++ comments not stripped when only HTML requested
+		CHECK ( kStripComments("a // not stripped\nb", CommentStyle::HTML) == "a // not stripped\nb" );
+	}
+
+	SECTION("kStripComments - quotes cross-contamination")
+	{
+		// single quote inside double-quoted string — does not open a new string
+		CHECK ( kStripComments("\"it's fine\" // comment") == "\"it's fine\" " );
+
+		// double quote inside single-quoted string — does not open a new string
+		// input:  'say "hello"' // comment
+		// output: 'say "hello"'<space>
+		CHECK ( kStripComments(R"('say "hello"' // comment)") == R"('say "hello"' )" );
+
+		// comment sequence inside double-quoted string — not stripped
+		CHECK ( kStripComments("\"a // b\" c") == "\"a // b\" c" );
+
+		// comment sequence inside single-quoted string — not stripped
+		CHECK ( kStripComments("'a // b' c") == "'a // b' c" );
+
+		// block comment sequence inside double-quoted string — not stripped
+		CHECK ( kStripComments("\"a /* b */ c\"") == "\"a /* b */ c\"" );
+
+		// double quote after real comment — ignored (comment already consumes it)
+		CHECK ( kStripComments("code // \"not a string\"") == "code " );
+
+		// two adjacent strings — both preserved
+		CHECK ( kStripComments("\"ab\"'cd'") == "\"ab\"'cd'" );
+
+		// backtick string containing single and double quotes — preserved
+		CHECK ( kStripComments("`it's a \"test\"` // comment") == "`it's a \"test\"` " );
+	}
+
+	SECTION("kStripComments - Shell")
+	{
+		// basic shell comment
+		CHECK ( kStripComments("a # comment\nb", CommentStyle::Shell) == "a \nb" );
+
+		// shell comment as only content — entire line removed
+		CHECK ( kStripComments("# comment\nb", CommentStyle::Shell) == "b" );
+
+		// shell comment with leading whitespace — entire line removed
+		CHECK ( kStripComments("  # comment\nb", CommentStyle::Shell) == "b" );
+
+		// # inside double-quoted string — preserved
+		CHECK ( kStripComments("\"# not a comment\"", CommentStyle::Shell) == "\"# not a comment\"" );
+
+		// # inside single-quoted string — preserved
+		CHECK ( kStripComments("'# not a comment'", CommentStyle::Shell) == "'# not a comment'" );
+
+		// C++ comments not stripped when only Shell requested
+		CHECK ( kStripComments("a // not stripped\nb", CommentStyle::Shell) == "a // not stripped\nb" );
+	}
+
+	SECTION("kStripComments - SQL")
+	{
+		// basic SQL line comment
+		CHECK ( kStripComments("SELECT 1 -- comment\nFROM t", CommentStyle::SQL) == "SELECT 1 \nFROM t" );
+
+		// SQL comment as only content — entire line removed
+		CHECK ( kStripComments("-- comment\nSELECT 1", CommentStyle::SQL) == "SELECT 1" );
+
+		// SQL comment with leading whitespace — entire line removed
+		CHECK ( kStripComments("  -- comment\nSELECT 1", CommentStyle::SQL) == "SELECT 1" );
+
+		// single dash — NOT a comment
+		CHECK ( kStripComments("a-b", CommentStyle::SQL) == "a-b" );
+
+		// C++ comments not stripped when only SQL requested
+		CHECK ( kStripComments("a // not stripped", CommentStyle::SQL) == "a // not stripped" );
+	}
+
+	SECTION("kStripComments - combined styles")
+	{
+		auto const style = CommentStyle::Cpp | CommentStyle::HTML;
+
+		// C++ comment stripped
+		CHECK ( kStripComments("a // cpp\nb", style) == "a \nb" );
+
+		// HTML comment stripped
+		CHECK ( kStripComments("a <!-- html --> b", style) == "a  b" );
+
+		// both on different lines
+		CHECK ( kStripComments("// cpp\n<!-- html -->\ncode", style) == "code" );
+
+		// CommentStyle::All strips everything
+		CHECK ( kStripComments("a // cpp\nb # shell\nc -- sql\nd <!-- html --> e",
+		                       CommentStyle::All) == "a \nb \nc \nd  e" );
+
+		// CommentStyle::None strips nothing
+		CHECK ( kStripComments("a // cpp\nb # shell", CommentStyle::None) == "a // cpp\nb # shell" );
+	}
 }

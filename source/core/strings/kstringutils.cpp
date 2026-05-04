@@ -1088,4 +1088,294 @@ KString kFormScaledUnsignedNumber (
 
 } // end of detail namespace
 
+//-----------------------------------------------------------------------------
+KString kStripComments(KStringView sInput, CommentStyle iCommentStyle, bool bReduceWhitespace)
+//-----------------------------------------------------------------------------
+{
+	// The output strategy is "lazy newline": we never write \n immediately.
+	// Instead we track the line state and only prepend \n when content is seen.
+	//
+	// LineState transitions:
+	//   Empty      — no chars on this line yet (or after a newline was consumed)
+	//   Whitespace — only spaces/tabs seen so far on this line, no real content
+	//   Content    — at least one non-whitespace non-comment char has been emitted
+	//
+	// On newline:
+	//   Content    → next content line will prepend \n (lazy)
+	//   Whitespace → emit blank line (no indent) unless bReduceWhitespace
+	//   Empty      → emit blank line unless bReduceWhitespace
+	// Comment-only line: whitespace + comment → discarded entirely (no \n)
+
+	const bool bCpp   = (iCommentStyle & CommentStyle::Cpp)   != CommentStyle::None;
+	const bool bHTML  = (iCommentStyle & CommentStyle::HTML)  != CommentStyle::None;
+	const bool bShell = (iCommentStyle & CommentStyle::Shell) != CommentStyle::None;
+	const bool bSQL   = (iCommentStyle & CommentStyle::SQL)   != CommentStyle::None;
+
+	KString sOut;
+	sOut.reserve(sInput.size());
+
+	// buffered leading whitespace for the current line (only used when !bReduceWhitespace)
+	KString sLinePrefix;
+
+	enum class LineState : uint8_t
+	{
+		Empty,      ///< no characters seen on this line yet
+		Whitespace, ///< only leading whitespace seen, no real content
+		Comment,    ///< only comment(s) seen after optional whitespace — line will be discarded
+		Content,    ///< real content has been emitted for this line
+	};
+
+	LineState iState     = LineState::Empty;
+	// true until the very first content or blank line has been emitted
+	bool      bFirstLine = true;
+
+	auto it = sInput.begin();
+	auto ie = sInput.end();
+
+	// Peek at the next char without consuming it (-1 if at end)
+	auto Peek = [&]() -> int
+	{
+		if (it == ie) return -1;
+		return static_cast<unsigned char>(*it);
+	};
+
+	// Write a real content character: flush pending state, then append ch
+	auto EmitContent = [&](char ch)
+	{
+		if (iState != LineState::Content)
+		{
+			if (!bFirstLine) sOut += '\n';
+			bFirstLine = false;
+			if (!bReduceWhitespace) sOut += sLinePrefix;
+			sLinePrefix.clear();
+		}
+		iState = LineState::Content;
+		sOut += ch;
+	};
+
+	// Called when a newline is consumed.
+	auto FinishLine = [&]()
+	{
+		if (iState == LineState::Comment)
+		{
+			// comment-only line: discard entirely
+		}
+		else if (iState == LineState::Content)
+		{
+			// normal content line: the lazy \n will be prepended before next content
+		}
+		else
+		{
+			// Empty or Whitespace-only line: emit a blank line (\n)
+			// unless bReduceWhitespace or we haven't seen any output yet
+			if (!bReduceWhitespace && !bFirstLine)
+			{
+				sOut += '\n';
+			}
+		}
+		sLinePrefix.clear();
+		iState = LineState::Empty;
+	};
+
+	// Called when a comment consumed the rest of the line (the \n has already been consumed).
+	// If real content was emitted on this line, reset to Empty so the lazy \n fires for
+	// the next content line. If no real content was on this line (Empty or Whitespace),
+	// set Comment so that FinishLine() — if called — suppresses the blank line.
+	// (For line comments DeleteLineComment() never calls FinishLine; for block comments
+	// spanning a \n the \n is consumed inside DeleteCBlockComment/DeleteHTMLComment which
+	// call DiscardLine() directly, so FinishLine() is also not called for those \n chars.)
+	auto DiscardLine = [&]()
+	{
+		if (iState == LineState::Content)
+		{
+			iState = LineState::Empty;
+		}
+		else
+		{
+			iState = LineState::Comment;
+		}
+		sLinePrefix.clear();
+	};
+
+	// Preserve a quoted string verbatim (opening quote already in ch)
+	auto SkipQuoted = [&](char chQuote)
+	{
+		EmitContent(chQuote);
+		for (;;)
+		{
+			if (it == ie) break;
+			char c = *it++;
+			if (c == '\\')
+			{
+				sOut += c;
+				if (it == ie) break;
+				sOut += *it++;
+				continue;
+			}
+			sOut += c;
+			if (c == chQuote) break;
+		}
+	};
+
+	// Skip until end-of-line (consume the \n too), then discard line state
+	auto DeleteLineComment = [&]()
+	{
+		while (it != ie && *it != '\n') ++it;
+		if (it != ie) ++it; // consume \n
+		DiscardLine();
+	};
+
+	// Skip a C-style block comment delimited by */ — opening /* already consumed
+	auto DeleteCBlockComment = [&]()
+	{
+		for (;;)
+		{
+			if (it == ie) break;
+			char c = *it++;
+			if (c == '\n')
+			{
+				// a block comment spanning multiple lines: each consumed line is discarded
+				DiscardLine();
+			}
+			else if (c == '*' && it != ie && *it == '/')
+			{
+				++it; // consume /
+				break;
+			}
+		}
+	};
+
+	// Skip an HTML comment — opening <!-- already consumed, end marker is -->
+	auto DeleteHTMLComment = [&]()
+	{
+		for (;;)
+		{
+			if (it == ie) break;
+			char c = *it++;
+			if (c == '\n')
+			{
+				DiscardLine();
+			}
+			else if (c == '-' && it != ie && *it == '-')
+			{
+				++it; // consume second -
+				// skip any whitespace between -- and > (some old HTML allows this,
+				// but spec says --> is the exact terminator; keep strict)
+				if (it != ie && *it == '>') { ++it; break; }
+			}
+		}
+	};
+
+	for (; it != ie;)
+	{
+		char ch = *it++;
+
+		switch (ch)
+		{
+			case '\n':
+				FinishLine();
+				break;
+
+			case ' ':
+			case '\t':
+				if (iState != LineState::Content)
+				{
+					// buffer leading whitespace — discard if line turns out to be comment-only
+					if (!bReduceWhitespace) sLinePrefix += ch;
+					if (iState == LineState::Empty) iState = LineState::Whitespace;
+					break;
+				}
+				sOut += ch;
+				break;
+
+			case '\'':
+			case '"' :
+			case '`' :
+				SkipQuoted(ch);
+				break;
+
+			case '/':
+				if (bCpp)
+				{
+					int next = Peek();
+					if (next == '/')
+					{
+						++it; // consume second /
+						DeleteLineComment();
+						break;
+					}
+					else if (next == '*')
+					{
+						++it; // consume *
+						DeleteCBlockComment();
+						break;
+					}
+				}
+				EmitContent(ch);
+				break;
+
+			case '<':
+				if (bHTML && Peek() == '!')
+				{
+					// look ahead for <!--
+					auto saved = it;
+					++it; // consume !
+					if (it != ie && *it == '-')
+					{
+						++it; // consume first -
+						if (it != ie && *it == '-')
+						{
+							++it; // consume second -
+							DeleteHTMLComment();
+							break;
+						}
+					}
+					// not <!-- : restore and emit
+					it = saved;
+					EmitContent(ch);
+				}
+				else
+				{
+					EmitContent(ch);
+				}
+				break;
+
+			case '-':
+				if (bSQL && Peek() == '-')
+				{
+					++it; // consume second -
+					DeleteLineComment();
+					break;
+				}
+				EmitContent(ch);
+				break;
+
+			case '#':
+				if (bShell)
+				{
+					DeleteLineComment();
+					break;
+				}
+				EmitContent(ch);
+				break;
+
+			case '\\':
+				// escape: always pass through both chars verbatim
+				EmitContent(ch);
+				if (it != ie)
+				{
+					sOut += *it++;
+				}
+				break;
+
+			default:
+				EmitContent(ch);
+				break;
+		}
+	}
+
+	return sOut;
+
+} // kStripComments
+
 DEKAF2_NAMESPACE_END

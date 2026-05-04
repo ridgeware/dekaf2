@@ -2276,6 +2276,29 @@ kFromStringView(T& Trivial, KStringView sData)
 	return Trivial;
 }
 
+/// comment style selector for kStripComments() — combinable as flags
+enum class CommentStyle : uint8_t
+{
+	None   = 0,       ///< strip no comments (no-op)
+	Cpp    = 1 << 0,  ///< strip C/C++/JavaScript style comments: // line and /* block */
+	HTML   = 1 << 1,  ///< strip HTML comments: <!-- ... -->
+	Shell  = 1 << 2,  ///< strip shell/Python style comments: # line
+	SQL    = 1 << 3,  ///< strip SQL style comments: -- line
+	All    = 0xff,    ///< strip all known comment styles
+};
+
+DEKAF2_ENUM_IS_FLAG(CommentStyle)
+
+/// strip comments from sInput, respecting quotes and backticks
+/// Lines that contained only a comment (plus optional whitespace) are removed entirely.
+/// @param iCommentStyle selects which comment styles to strip, defaults to CommentStyle::Cpp
+/// @param bReduceWhitespace if true, spaces/tabs and otherwise empty lines are removed as well,
+/// defaults to false
+/// @returns the stripped string
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kStripComments(KStringView sInput,
+                       CommentStyle iCommentStyle    = CommentStyle::Cpp,
+                       bool         bReduceWhitespace = false);
 
 /// @}
 

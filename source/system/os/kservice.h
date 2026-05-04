@@ -197,14 +197,32 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Register a handler to be invoked when SCM requests a stop / shutdown.
-	/// If no handler is registered, KService raises SIGTERM through KSignals
-	/// so applications that already hook signal shutdown keep working
-	/// unchanged.
-	/// The handler runs in the SCM control-thread context (not the main
-	/// thread). It should return quickly; perform the actual shutdown work
+	/// Register a handler to be invoked when the service manager requests
+	/// a stop / shutdown.
+	///
+	/// Platform behaviour:
+	///   - Windows: invoked from the SCM control-thread on
+	///     SERVICE_CONTROL_STOP / SERVICE_CONTROL_SHUTDOWN. If no handler
+	///     is registered, KService raises SIGTERM so applications that
+	///     hook signals through KSignals keep working unchanged.
+	///   - POSIX (Linux / macOS): invoked from the central dekaf2
+	///     signal-handler thread when SIGTERM is received. systemd sends
+	///     SIGTERM on `systemctl stop`, launchd on `launchctl stop` /
+	///     `launchctl unload`. SIGINT (interactive Ctrl+C) is deliberately
+	///     NOT routed here — it falls through to the KSignals default
+	///     handler (std::exit(EXIT_SUCCESS)) for an immediate exit.
+	///
+	/// The handler should return quickly; perform the actual shutdown work
 	/// asynchronously (e.g. by setting an atomic stop flag or calling a
 	/// server's Stop() method).
+	///
+	/// Pass an empty std::function to remove a previously-installed handler;
+	/// on POSIX this restores the KSignals default handler for SIGTERM.
+	///
+	/// Precondition (POSIX): the central signal-handler thread must be
+	/// running, i.e. the application must have been initialised via
+	/// KInit(true) (the default). Without it, the call is a no-op and a
+	/// warning is logged.
 	static void SetShutdownHandler(std::function<void()> fnShutdown);
 	//-----------------------------------------------------------------------------
 

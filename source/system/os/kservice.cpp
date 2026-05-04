@@ -46,6 +46,8 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/core/init/dekaf2.h>
 #include <atomic>
 #include <csignal>
 #include <cstdlib>
@@ -425,33 +427,6 @@ bool OpenServiceByName(KStringView sServiceName, DWORD dwAccess,
 #endif // DEKAF2_IS_WINDOWS
 
 #if defined(DEKAF2_IS_LINUX) || defined(DEKAF2_IS_MACOS)
-
-//-----------------------------------------------------------------------------
-/// Trampoline for std::signal; forwards SIGTERM (or SIGINT) into the user's
-/// shutdown handler stored in ctx(). Must be async-signal-safe, so we do
-/// nothing more than invoking the std::function if one is registered.
-///
-/// systemd sends SIGTERM on `systemctl stop`; launchd sends SIGTERM on
-/// `launchctl unload` / `launchctl stop`. The trampoline is identical for
-/// both platforms, hence shared.
-void PosixSignalTrampoline(int /*iSignal*/)
-//-----------------------------------------------------------------------------
-{
-	auto& h = ctx().fnShutdown;
-
-	if (h)
-	{
-		try
-		{
-			h();
-		}
-		catch (...)
-		{
-			// cannot let exceptions escape a signal handler
-		}
-	}
-
-} // PosixSignalTrampoline
 
 //-----------------------------------------------------------------------------
 /// Double-quote a value so it is safe to pass through /bin/sh. Uses dekaf2's
@@ -1933,30 +1908,65 @@ void KService::SetShutdownHandler(std::function<void()> fnShutdown)
 {
 #ifdef DEKAF2_IS_WINDOWS
 	ctx().fnShutdown = std::move(fnShutdown);
-#elif defined(DEKAF2_IS_LINUX)
-	// Store the handler and install a SIGTERM / SIGINT trampoline. Note:
-	// std::signal is coarse — applications that use KSignals (via KInit(true))
-	// block these signals on the main thread, so our trampoline will not fire
-	// in that setup. Such applications should route their KSignals handler
-	// into their own shutdown logic directly rather than rely on this method.
-	ctx().fnShutdown = std::move(fnShutdown);
+#elif defined(DEKAF2_IS_LINUX) || defined(DEKAF2_IS_MACOS)
+	// systemd sends SIGTERM on `systemctl stop`; launchd sends SIGTERM on
+	// `launchctl unload` / `launchctl stop`. We hook ONLY SIGTERM here and
+	// route it through KSignals (the central dekaf2 signal-handler thread
+	// installed by KInit(true)). Using KSignals avoids the well-known
+	// pitfalls of std::signal:
+	//   - the handler runs in the dedicated signal-handler thread, not in
+	//     async-signal context, so the user's std::function may safely
+	//     allocate, lock, log, etc.
+	//   - it does not race with KSignals' sigwait loop (which any dekaf2
+	//     application using KInit(true) already runs).
+	//
+	// We deliberately do NOT hook SIGINT: an interactive Ctrl+C means
+	// "user wants out NOW", so it should fall through to the KSignals
+	// default handler (std::exit(EXIT_SUCCESS)) for an immediate exit
+	// rather than running an arbitrary user shutdown chain that might
+	// take a while or even hang.
+	//
+	// Precondition: KInit(true) (the default) must have been called so
+	// that Dekaf::getInstance().Signals() is available. Without it, the
+	// installation is a no-op and a warning is logged.
+	auto Signals = Dekaf::getInstance().Signals();
 
-	if (ctx().fnShutdown)
+	if (!Signals)
 	{
-		std::signal(SIGTERM, &PosixSignalTrampoline);
-		std::signal(SIGINT,  &PosixSignalTrampoline);
+		kWarning("KService::SetShutdownHandler requires the central signal-handler thread "
+		         "(KInit(true)); shutdown handler will not be invoked");
+		ctx().fnShutdown = std::move(fnShutdown);
+		return;
 	}
-#elif defined(DEKAF2_IS_MACOS)
-	// launchd sends SIGTERM when a service is unloaded / stopped. Same
-	// KSignals caveat as on Linux: if the application uses KInit(true) and
-	// has KSignals block SIGTERM on all threads, our trampoline will not
-	// fire — route shutdown through KSignals in that case.
+
 	ctx().fnShutdown = std::move(fnShutdown);
 
 	if (ctx().fnShutdown)
 	{
-		std::signal(SIGTERM, &PosixSignalTrampoline);
-		std::signal(SIGINT,  &PosixSignalTrampoline);
+		Signals->SetSignalHandler(SIGTERM, [](int /*iSignal*/)
+		{
+			auto& h = ctx().fnShutdown;
+			if (h)
+			{
+				DEKAF2_TRY
+				{
+					h();
+				}
+				DEKAF2_CATCH(const std::exception& ex)
+				{
+					kException(ex);
+				}
+				DEKAF2_CATCH(...)
+				{
+					kUnknownException();
+				}
+			}
+		});
+	}
+	else
+	{
+		// reset to dekaf2 default (std::exit(EXIT_SUCCESS))
+		Signals->SetDefaultHandler(SIGTERM);
 	}
 #else
 	(void)fnShutdown;

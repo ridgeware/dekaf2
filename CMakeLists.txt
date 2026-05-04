@@ -1409,6 +1409,7 @@ set(PUBLIC_HEADERS
 	source/crypto/random/krandom.h
 	source/crypto/rsa/krsasign.h
 	source/data/csv/kcsv.h
+	source/data/json/kconfig.h
 	source/data/json/kjson.h
 	source/data/json/kjson2.h
 	source/data/sql/krow.h
@@ -1665,6 +1666,7 @@ set (SOURCES
 	source/crypto/random/krandom.cpp
 	source/crypto/rsa/krsasign.cpp
 	source/data/csv/kcsv.cpp
+	source/data/json/kconfig.cpp
 	source/data/json/kjson.cpp
 	source/data/json/kjson2.cpp
 	source/data/sql/krow.cpp

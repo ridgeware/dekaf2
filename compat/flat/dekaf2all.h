@@ -137,6 +137,7 @@
 #include <dekaf2/net/address/kipaddress.h>
 #include <dekaf2/net/address/kipnetwork.h>
 #include <dekaf2/core/strings/kjoin.h>
+#include <dekaf2/data/json/kconfig.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/data/json/kjson2.h>
 #include <dekaf2/time/clock/kjuliandate.h>

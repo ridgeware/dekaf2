@@ -60,9 +60,9 @@
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/time/duration/ktimer.h>
+#include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -329,8 +329,7 @@ private:
 
 	Config                      m_Config;
 	std::unique_ptr<Store>      m_Store;
-	mutable std::mutex          m_AuthMutex;  // protects m_Authenticator
-	Authenticator               m_Authenticator;
+	KThreadSafe<Authenticator>  m_Authenticator;
 	KTimer::ID_t                m_PurgeTimerID { KTimer::InvalidID };
 
 }; // KSession

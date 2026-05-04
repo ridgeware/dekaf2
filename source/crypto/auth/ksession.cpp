@@ -97,8 +97,7 @@ KSession::~KSession()
 void KSession::SetAuthenticator(Authenticator Auth)
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_AuthMutex);
-	m_Authenticator = std::move(Auth);
+	m_Authenticator.unique().get() = std::move(Auth);
 
 } // SetAuthenticator
 
@@ -129,8 +128,7 @@ KString KSession::Login(KStringView sUsername,
 	// snapshot the authenticator so we do not hold the lock across the call
 	Authenticator Auth;
 	{
-		std::lock_guard<std::mutex> Lock(m_AuthMutex);
-		Auth = m_Authenticator;
+		Auth = m_Authenticator.shared().get();
 	}
 
 	if (!Auth)

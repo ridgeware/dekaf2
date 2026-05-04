@@ -58,6 +58,10 @@
 	#include <cxxabi.h>            // for demangling
 	#include <unistd.h>
 #endif
+#if DEKAF2_HAS_LIBUNWIND
+	#define UNW_LOCAL_ONLY
+	#include <libunwind.h>
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,45 +91,50 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 
 #ifdef DEKAF2_IS_OSX
 
-			KString sCmdLine = DEKAF2_PREFIX kFormat("atos -p {}", getpid());
+			auto sExecutable = kWhich("atos");
 
-			for (const auto& it : vsAddress)
+			if (!sExecutable.empty())
 			{
-				sCmdLine += ' ';
-				sCmdLine += it;
-			}
+				KString sCmdLine = DEKAF2_PREFIX kFormat("{} -p {}", sExecutable, getpid());
 
-			KInShell Shell;
-
-			if (Shell.Open (sCmdLine))
-			{
-				KString sLineBuf;
-
-				while (Shell.ReadLine (sLineBuf))
+				for (const auto& it : vsAddress)
 				{
-					// remove part of string "(in PROGRAM)"
-					auto pos = sLineBuf.find(" (in ");
-					if (pos != KString::npos)
-					{
-						auto iend = sLineBuf.find(')', pos + 4);
-						if (iend != KString::npos)
-						{
-							sLineBuf.erase(pos, (iend - pos) + 1);
-						}
-					}
-					// and report
-					vsResult.push_back(sLineBuf);
+					sCmdLine += ' ';
+					sCmdLine += it;
 				}
 
+				KInShell Shell;
+
+				if (Shell.Open (sCmdLine))
+				{
+					KString sLineBuf;
+
+					while (Shell.ReadLine (sLineBuf))
+					{
+						// remove part of string "(in PROGRAM)"
+						auto pos = sLineBuf.find(" (in ");
+						if (pos != KString::npos)
+						{
+							auto iend = sLineBuf.find(')', pos + 4);
+							if (iend != KString::npos)
+							{
+								sLineBuf.erase(pos, (iend - pos) + 1);
+							}
+						}
+						// and report
+						vsResult.push_back(sLineBuf);
+					}
+				}
 			}
 
 #elif DEKAF2_IS_UNIX
 
-			KString sMyExeName = kGetOwnPathname();
+			auto    sExecutable = kWhich("addr2line");
+			KString sMyExeName  = kGetOwnPathname();
 
-			if (!sMyExeName.empty())
+			if (!sMyExeName.empty() && !sExecutable.empty())
 			{
-				KString sCmdLine = kFormat("addr2line -f -C -e \"{}\"", sMyExeName);
+				KString sCmdLine = kFormat("{} -f -C -e \"{}\"", sExecutable, sMyExeName);
 
 				for (const auto& it : vsAddress)
 				{
@@ -155,20 +164,21 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 				}
 			}
 #endif
-			if (vsResult.empty())
-			{
-				// addr2line unsuccessful, simply copy addresses back
-				for (const auto& it : vsAddress)
-				{
-					vsResult.push_back(it);
-				}
-			}
 		}
 	}
 
 	DEKAF2_CATCH (...)
 	{
-		// ignore - just do default - returning empty string
+		// ignore - just do default
+	}
+
+	if (vsResult.empty())
+	{
+		// addr2line unsuccessful, simply copy addresses back
+		for (const auto& it : vsAddress)
+		{
+			vsResult.push_back(it);
+		}
 	}
 
 	return vsResult;
@@ -261,6 +271,7 @@ KStringView GetStackAddress (KStringView sBacktraceLine)
 
 #ifdef WIN32
 	#define SUPPORT_GDBATTACH_PRINTCALLSTACK 0
+	#define SUPPORT_LIBUNWIND_PRINTCALLSTACK 0
 	#define SUPPORT_BACKTRACE_PRINTCALLSTACK 0
 #else
 	#ifndef DEKAF2_IS_OSX
@@ -268,11 +279,18 @@ KStringView GetStackAddress (KStringView sBacktraceLine)
 			#define SUPPORT_GDBATTACH_PRINTCALLSTACK 1
 		#endif
 	#endif
+	#if DEKAF2_HAS_LIBUNWIND
+		#define SUPPORT_LIBUNWIND_PRINTCALLSTACK 1
+	#endif
 	#ifndef SUPPORT_BACKTRACE_PRINTCALLSTACK
 		#ifndef DEKAF2_HAS_MUSL
 			#define SUPPORT_BACKTRACE_PRINTCALLSTACK 1
 		#endif
 	#endif
+#endif
+
+#ifndef SUPPORT_LIBUNWIND_PRINTCALLSTACK
+	#define SUPPORT_LIBUNWIND_PRINTCALLSTACK 0
 #endif
 
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
@@ -285,14 +303,15 @@ StringVec GetGDBCallstack (int iSkipStackLines)
 
 	DEKAF2_TRY
 	{
-		KString sMyExeName = kGetOwnPathname();
+		KString sMyExeName  = kGetOwnPathname();
+		auto    sExecutable = kWhich("gdb");
 
-		if (sMyExeName.empty())
+		if (sMyExeName.empty() || sExecutable.empty())
 		{
 			return Stack;
 		}
 
-		KString sCmdLine = kFormat("gdb --batch -n -ex thread -ex bt \"{}\" {} 2>&1", sMyExeName, getpid());
+		KString sCmdLine = kFormat("{} --batch -n -ex thread -ex bt \"{}\" {} 2>&1", sExecutable, sMyExeName, getpid());
 
 		KInShell Shell;
 		Shell.SetReaderRightTrim("\n\r\t ");
@@ -517,7 +536,61 @@ FrameVec GetBacktraceCallstack (int iSkipStackLines)
 
 } // GetBacktraceCallstack
 
-#endif
+#endif // SUPPORT_BACKTRACE_PRINTCALLSTACK
+
+#if SUPPORT_LIBUNWIND_PRINTCALLSTACK
+
+//-----------------------------------------------------------------------------
+FrameVec GetLibunwindCallstack (int iSkipStackLines)
+//-----------------------------------------------------------------------------
+{
+	FrameVec Frames;
+
+	unw_cursor_t  cursor;
+	unw_context_t ctx;
+
+	unw_getcontext(&ctx);
+	unw_init_local(&cursor, &ctx);
+
+	// +1 to skip this function itself
+	int iToSkip = iSkipStackLines + 1;
+
+	while (unw_step(&cursor) > 0)
+	{
+		if (iToSkip > 0)
+		{
+			--iToSkip;
+			continue;
+		}
+
+		char sRaw[512];
+		unw_word_t offset;
+
+		KStackFrame Frame;
+
+		if (unw_get_proc_name(&cursor, sRaw, sizeof(sRaw), &offset) == 0)
+		{
+			// Demangle C++ names
+			int iStatus;
+			char* sDemangle = abi::__cxa_demangle(sRaw, nullptr, nullptr, &iStatus);
+			Frame.sFunction = (iStatus == 0 && sDemangle) ? sDemangle : sRaw;
+			if (sDemangle) ::free(sDemangle);
+		}
+		else
+		{
+			unw_word_t ip;
+			unw_get_reg(&cursor, UNW_REG_IP, &ip);
+			Frame.sFunction = kFormat("{:#x}", static_cast<uintptr_t>(ip));
+		}
+
+		Frames.push_back(std::move(Frame));
+	}
+
+	return Frames;
+
+} // GetLibunwindCallstack
+
+#endif // SUPPORT_LIBUNWIND_PRINTCALLSTACK
 
 //-----------------------------------------------------------------------------
 KStringView RemoveFunctionParms(KStringView sFunction)
@@ -654,8 +727,16 @@ KString kGetRuntimeStack (int iSkipStackLines)
 	sStack = detail::bt::PrintStackVector(detail::bt::GetGDBCallstack(iSkipStackLines));
 #endif
 
+#if SUPPORT_LIBUNWIND_PRINTCALLSTACK
+	// libunwind fallback: works on musl/Alpine without GDB
+	if (sStack.empty())
+	{
+		sStack = detail::bt::PrintFrameVector(detail::bt::GetLibunwindCallstack(iSkipStackLines), false);
+	}
+#endif
+
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
-	// fall back to libc based backtrace if GDB is not available
+	// fall back to libc based backtrace if neither GDB nor libunwind is available
 	if (sStack.empty())
 	{
 		sStack = kGetBacktrace(iSkipStackLines, false);

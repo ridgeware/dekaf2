@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
   apk add libcrypto3 libssl3 zlib libbz2 mariadb-connector-c \
     libpq libzip xz-libs zstd-libs brotli-libs sqlite-libs jemalloc \
     musl-locales musl-locales-lang tzdata bash nghttp2-libs nghttp3 \
-    shadow yaml-cpp libuuid
+    shadow yaml-cpp libuuid libunwind
 # freetds
 
 FROM runenv AS buildenv
@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
   apk add boost-dev boost-static openssl-dev zlib-dev bzip2-dev \
 	mariadb-connector-c-dev postgresql-dev sqlite-dev libzip-dev xz-dev \
 	zstd-dev brotli-dev nghttp2-dev nghttp3-dev jemalloc-dev yaml-cpp-dev \
-	util-linux-dev
+	util-linux-dev libunwind-dev
   # util-linux-dev provides the headers for libuuid
 
 # build environment:

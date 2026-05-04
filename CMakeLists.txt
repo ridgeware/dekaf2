@@ -811,6 +811,32 @@ if (DEKAF2_USE_JEMALLOC)
 	endif()
 endif()
 
+# ================================= libunwind ====================================
+
+# Used as a GDB-independent stack-unwinding fallback on platforms that lack
+# glibc backtrace() (e.g. Alpine Linux / musl).  Detection is unconditional:
+# libunwind is a small, well-contained library and we always use it when found.
+
+find_path   (LIBUNWIND_INCLUDE_DIR libunwind.h)
+find_library(LIBUNWIND_LIBRARY     NAMES unwind)
+
+if (LIBUNWIND_INCLUDE_DIR AND LIBUNWIND_LIBRARY)
+	set(DEKAF2_HAS_LIBUNWIND 1)
+	set(LIBUNWIND_LIBRARIES ${LIBUNWIND_LIBRARY})
+	# On some systems a second per-arch library (e.g. libunwind-aarch64) is
+	# needed alongside the generic one.  Find and append it if present.
+	get_filename_component(_unwind_dir "${LIBUNWIND_LIBRARY}" DIRECTORY)
+	file(GLOB _unwind_arch "${_unwind_dir}/libunwind-*.so*"
+	                       "${_unwind_dir}/libunwind-*.a")
+	if (_unwind_arch)
+		list(GET _unwind_arch 0 _unwind_arch_lib)
+		list(APPEND LIBUNWIND_LIBRARIES ${_unwind_arch_lib})
+	endif()
+	unset(_unwind_dir)
+	unset(_unwind_arch)
+	unset(_unwind_arch_lib)
+endif()
+
 # =================================== Doxygen ====================================
 
 # add a target to generate API documentation with Doxygen
@@ -885,30 +911,31 @@ endfunction()
 
 message(STATUS "")
 message(STATUS "required libraries:")
-LibState("${Threads_FOUND}"         "Threads  :" ""                    "${Threads_LIBRARIES}" )
-LibState("${ZLIB_FOUND}"            "ZLIB     :" "${ZLIB_VERSION}"     "${ZLIB_LIBRARIES}"    )
-LibState("${BZip2_FOUND}"           "BZip2    :" "${BZIP2_VERSION}"    "${BZIP2_LIBRARIES}"   )
-LibState("${OPENSSL_FOUND}"         "OpenSSL  :" "${OPENSSL_VERSION}"  "${OPENSSL_LIBRARIES}" )
-LibState("${Boost_FOUND}"           "Boost    :" "${Boost_VERSION}"    "${Boost_LIBRARIES}"   )
+LibState("${Threads_FOUND}"         "Threads  :" ""                    "${Threads_LIBRARIES}"  )
+LibState("${ZLIB_FOUND}"            "ZLIB     :" "${ZLIB_VERSION}"     "${ZLIB_LIBRARIES}"     )
+LibState("${BZip2_FOUND}"           "BZip2    :" "${BZIP2_VERSION}"    "${BZIP2_LIBRARIES}"    )
+LibState("${OPENSSL_FOUND}"         "OpenSSL  :" "${OPENSSL_VERSION}"  "${OPENSSL_LIBRARIES}"  )
+LibState("${Boost_FOUND}"           "Boost    :" "${Boost_VERSION}"    "${Boost_LIBRARIES}"    )
 message(STATUS "")
 
 message(STATUS "optional libraries:")
-LibState("${DEKAF2_HAS_LIBZIP}"     "ZIP      :" "${LIBZIP_VERSION}"   "${LIBZIP_LIBRARIES}"  )
-LibState("${DEKAF2_HAS_LIBLZMA}"    "LZMA     :" "${LIBLZMA_VERSION}"  "${LIBLZMA_LIBRARIES}" )
-LibState("${DEKAF2_HAS_LIBZSTD}"    "ZSTD     :" "${ZSTD_VERSION}"     "${ZSTD_LIBRARIES}"    )
-LibState("${DEKAF2_HAS_LIBYAML}"    "YAML     :" "${YAML_CPP_VERSION}" "${YAML_CPP_LIBRARIES}")
-LibState("${DEKAF2_HAS_MYSQL}"      "MYSQL    :" "${MYSQL_VERSION}"    "${MYSQL_LIBRARIES}"   )
-LibState("${DEKAF2_HAS_SQLITE3}"    "SQLITE   :" "${SQLITE3_VERSION}"  "${SQLITE3_LIBRARIES}" )
+LibState("${DEKAF2_HAS_LIBZIP}"     "ZIP      :" "${LIBZIP_VERSION}"   "${LIBZIP_LIBRARIES}"   )
+LibState("${DEKAF2_HAS_LIBLZMA}"    "LZMA     :" "${LIBLZMA_VERSION}"  "${LIBLZMA_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_LIBZSTD}"    "ZSTD     :" "${ZSTD_VERSION}"     "${ZSTD_LIBRARIES}"     )
+LibState("${DEKAF2_HAS_LIBYAML}"    "YAML     :" "${YAML_CPP_VERSION}" "${YAML_CPP_LIBRARIES}" )
+LibState("${DEKAF2_HAS_MYSQL}"      "MYSQL    :" "${MYSQL_VERSION}"    "${MYSQL_LIBRARIES}"    )
+LibState("${DEKAF2_HAS_SQLITE3}"    "SQLITE   :" "${SQLITE3_VERSION}"  "${SQLITE3_LIBRARIES}"  )
 LibState("${DEKAF2_HAS_POSTGRESQL}" "POSTGRES :" "${PostgreSQL_VERSION_STRING}" "${PostgreSQL_LIBRARY}")
-LibState("${DEKAF2_HAS_LIBBROTLI}"  "BROTLI   :" "${BROTLI_VERSION}"   "${BROTLI_LIBRARIES}"  )
-LibState("${DEKAF2_HAS_NGHTTP2}"    "NGHTTP2  :" "${NGHTTP2_VERSION}"  "${NGHTTP2_LIBRARIES}" )
-LibState("${DEKAF2_HAS_NGHTTP3}"    "NGHTTP3  :" "${NGHTTP3_VERSION}"  "${NGHTTP3_LIBRARIES}" )
-LibState("${DEKAF2_HAS_FREETDS}"    "FreeTDS  :" "${FREETDS_VERSION}"  "${FREETDS_LIBRARIES}" )
-LibState("${DEKAF2_HAS_JEMALLOC}"   "JEMALLOC :" "${JEMALLOC_VERSION}" "${JEMalloc_LIBRARIES}")
-LibState("${DOXYGEN_FOUND}"         "Doxygen  :" "${DOXYGEN_VERSION}"  "${DOXYGEN_EXECUTABLE}")
-LibState("${DEKAF2_HAS_NCURSES}"    "NCurses  :" "${CURSES_VERSION}"   "${CURSES_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_LIBBROTLI}"  "BROTLI   :" "${BROTLI_VERSION}"   "${BROTLI_LIBRARIES}"   )
+LibState("${DEKAF2_HAS_NGHTTP2}"    "NGHTTP2  :" "${NGHTTP2_VERSION}"  "${NGHTTP2_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_NGHTTP3}"    "NGHTTP3  :" "${NGHTTP3_VERSION}"  "${NGHTTP3_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_FREETDS}"    "FreeTDS  :" "${FREETDS_VERSION}"  "${FREETDS_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_JEMALLOC}"   "JEMALLOC :" "${JEMALLOC_VERSION}" "${JEMalloc_LIBRARIES}" )
+LibState("${DEKAF2_HAS_LIBUNWIND}"  "libunwind:" ""                    "${LIBUNWIND_LIBRARIES}")
+LibState("${DOXYGEN_FOUND}"         "Doxygen  :" "${DOXYGEN_VERSION}"  "${DOXYGEN_EXECUTABLE}" )
+LibState("${DEKAF2_HAS_NCURSES}"    "NCurses  :" "${CURSES_VERSION}"   "${CURSES_LIBRARIES}"   )
 if (APPLE)
-	LibState("${libproc_FOUND}"     "LibProc  :" "${libproc_VERSION}"  "${libproc_LIBRARIES}" )
+	LibState("${libproc_FOUND}"     "LibProc  :" "${libproc_VERSION}"  "${libproc_LIBRARIES}"  )
 endif()
 message(STATUS "")
 
@@ -1977,6 +2004,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${JEMalloc_LIBRARIES}
 		${NGHTTP2_LIBRARIES}
 		${NGHTTP3_LIBRARIES}
+		${LIBUNWIND_LIBRARIES}
 )
 
 set(DEKAF2_COMPILE_DEFINITIONS

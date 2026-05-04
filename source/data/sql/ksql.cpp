@@ -69,6 +69,7 @@
 #include <dekaf2/util/cli/kxterm.h>
 #include <dekaf2/system/process/koutshell.h>
 #include <dekaf2/core/format/kformtable.h>
+#include <dekaf2/data/json/kconfig.h>
 #include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/util/id/kuuid.h>
 #include <dekaf2/threading/execution/kthreadpool.h>
@@ -11107,6 +11108,27 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 		kWriteLine(":: enter help for help, quit or exit to leave");
 	}
 
+	// Load persisted interpreter config (~/.config/{prog}/config.json).
+	// If a "format" entry is present and recognized, it overrides the caller-supplied Format.
+	// Subsequent format changes (bare style word or .format dot command) are persisted here.
+	KConfig Config;
+
+	if (Config("format").is_string())
+	{
+		auto sSavedStyle = Config("format").String();
+		
+		if (KFormTable::IsKnownStyle(sSavedStyle))
+		{
+			Format = CreateOutputFormat(sSavedStyle);
+		}
+	}
+
+	auto SaveFormat = [&Config](KStringView sStyle)
+	{
+		Config["format"] = KString(sStyle);
+		Config.Save();
+	};
+
 	KXTerm Terminal;
 	// write history into default location (~/.config/{PROGRAM_NAME}/terminal-history.txt)
 	Terminal.SetHistory(1000, true);
@@ -11183,6 +11205,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 		if (sSQL.empty() && KFormTable::IsKnownStyle(sLine))
 		{
 			Format = CreateOutputFormat(sLine);
+			SaveFormat(sLine);
 
 			if (!bQuiet)
 			{
@@ -11400,6 +11423,8 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 					if (KFormTable::IsKnownStyle(sStyle))
 					{
 						Format = CreateOutputFormat(sStyle);
+						SaveFormat(sStyle);
+						
 						if (!bQuiet)
 						{
 							kPrintLine(":: format changed to {}", sStyle);

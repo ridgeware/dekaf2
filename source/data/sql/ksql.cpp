@@ -10988,6 +10988,109 @@ void KSQL::PurgeTempTables ()
 } // PurgeTempTables
 
 //-----------------------------------------------------------------------------
+/// Build a SQL string that lists tables for the given DB type.
+/// Returns an empty KString if the DB type is not supported.
+static KString MakeListTablesSQL (KSQL::DBT iDBType, KStringView sLike)
+//-----------------------------------------------------------------------------
+{
+	KString sLikeEsc(sLike);
+	sLikeEsc.Replace(KStringView("'"), KStringView("''"));
+
+	switch (iDBType)
+	{
+		case KSQL::DBT::MYSQL:
+			return kFormat("show tables like '{}'", sLikeEsc);
+
+		case KSQL::DBT::POSTGRESQL:
+			return kFormat(
+				"select table_name, table_type\n"
+				"  from information_schema.tables\n"
+				" where table_schema = 'public'\n"
+				"   and table_name like '{}'\n"
+				" order by 1", sLikeEsc);
+
+		case KSQL::DBT::SQLITE3:
+			return kFormat(
+				"select name, type\n"
+				"  from sqlite_master\n"
+				" where type in ('table','view')\n"
+				"   and name like '{}'\n"
+				" order by 1", sLikeEsc);
+
+		case KSQL::DBT::SQLSERVER:
+		case KSQL::DBT::SQLSERVER15:
+			return kFormat("select name from sysobjects where type='U' and name like '{}' order by name", sLikeEsc);
+
+		default:
+			return KString();
+	}
+
+} // MakeListTablesSQL
+
+//-----------------------------------------------------------------------------
+/// Build a SQL string that lists databases for the given DB type.
+/// Returns an empty KString if the DB type is not supported.
+static KString MakeListDatabasesSQL (KSQL::DBT iDBType)
+//-----------------------------------------------------------------------------
+{
+	switch (iDBType)
+	{
+		case KSQL::DBT::MYSQL:
+			return KString("show databases");
+
+		case KSQL::DBT::POSTGRESQL:
+			return KString("select datname from pg_database where datistemplate = false order by datname");
+
+		case KSQL::DBT::SQLITE3:
+			return KString("pragma database_list");
+
+		case KSQL::DBT::SQLSERVER:
+		case KSQL::DBT::SQLSERVER15:
+			return KString("select name from sys.databases order by name");
+
+		default:
+			return KString();
+	}
+
+} // MakeListDatabasesSQL
+
+//-----------------------------------------------------------------------------
+/// Build a SQL string that describes a table for the given DB type.
+/// Returns an empty KString if the DB type is not supported.
+static KString MakeDescribeTableSQL (KSQL::DBT iDBType, KStringView sTable)
+//-----------------------------------------------------------------------------
+{
+	KString sTableEsc(sTable);
+	sTableEsc.Replace(KStringView("'"), KStringView("''"));
+	sTableEsc.Replace(KStringView("`"), KStringView("``"));
+
+	switch (iDBType)
+	{
+		case KSQL::DBT::MYSQL:
+			return kFormat("desc `{}`", sTableEsc);
+
+		case KSQL::DBT::POSTGRESQL:
+			return kFormat(
+				"select column_name, data_type, is_nullable, character_maximum_length, column_default\n"
+				"  from information_schema.columns\n"
+				" where table_schema = 'public'\n"
+				"   and table_name = '{}'\n"
+				" order by ordinal_position", sTableEsc);
+
+		case KSQL::DBT::SQLITE3:
+			return kFormat("pragma table_info('{}')", sTableEsc);
+
+		case KSQL::DBT::SQLSERVER:
+		case KSQL::DBT::SQLSERVER15:
+			return kFormat("sp_help '{}'", sTableEsc);
+
+		default:
+			return KString();
+	}
+
+} // MakeDescribeTableSQL
+
+//-----------------------------------------------------------------------------
 bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFile)
 //-----------------------------------------------------------------------------
 {
@@ -11132,6 +11235,8 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 			kWriteLine ("::   source <file>  : read and execute SQL commands");
 			kWriteLine ("::   klog <n>       : set klog level 0..4");
 			kWriteLine ("::");
+			kWriteLine (":: SQLite-style dot commands (work for all supported db types) - try .help");
+			kWriteLine ("::");
 			kWriteLine (":: for formatting:");
 
 			for (const auto& Style : KFormTable::GetStyles())
@@ -11143,6 +11248,178 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 			}
 
 			kWriteLine ();
+		}
+		else if (sSQL.empty() && sLine.starts_with('.'))
+		{
+			KString sCmdLine(sLine);
+			sCmdLine.Trim();
+			sCmdLine.remove_prefix(KStringView("."));
+			sCmdLine.remove_suffix(';');
+			sCmdLine.TrimRight();
+
+			KStringView sCmd(sCmdLine);
+			auto sWord = kGetWord(sCmd);
+			sCmd.TrimLeft();
+
+			switch (sWord.CaseHash())
+			{
+				case "quit"_casehash:
+				case "exit"_casehash:
+					if (!bQuiet)
+					{
+						kWriteLine(":: bye");
+					}
+					return true;
+
+				case "help"_casehash:
+					kWriteLine ();
+					kPrintLine (":: dot commands (SQLite-style, normalized for all supported db types):");
+					kWriteLine ("::   .help                : show this help");
+					kWriteLine ("::   .quit  / .exit       : end the interpreter");
+					kWriteLine ("::   .tables   [pattern]  : list tables (LIKE pattern, default %)");
+					kWriteLine ("::   .schema   [<table>]  : describe a table or list tables if no arg");
+					kWriteLine ("::   .databases           : list databases");
+					kWriteLine ("::   .clear               : clear screen");
+					kWriteLine ("::   .quiet               : toggle quiet mode");
+					kWriteLine ("::   .system   <cmd>      : execute a shell command");
+					kWriteLine ("::   .source   <file>     : read and execute SQL commands");
+					kWriteLine ("::   .klog     <n>        : set klog level 0..4");
+					kWriteLine ("::   .format   <style>    : change output format");
+					kWriteLine ();
+					break;
+
+				case "tables"_casehash:
+				{
+					KString sLike { sCmd };
+					if (sLike.empty())
+					{
+						sLike = "%";
+					}
+					else if (!sLike.contains('%') && !sLike.contains('_'))
+					{
+						sLike = kFormat("%{}%", sLike);
+					}
+
+					auto sQuery = MakeListTablesSQL(GetDBType(), sLike);
+					if (sQuery.empty())
+					{
+						kPrintLine(":: .tables: not supported for {}", TxDBType(GetDBType()));
+					}
+					else
+					{
+						KStopTime Timer;
+						auto iResults = OutputQuery(sQuery, Format);
+						Terminal.FGColor(KXTerm::ColorCode::Blue);
+						if (!bQuiet)
+						{
+							kPrintLine(":: {} {} in set ({})", iResults, (iResults == 1) ? "row" : "rows", Timer.elapsed());
+						}
+						Terminal.ResetCharModes();
+					}
+					break;
+				}
+
+				case "schema"_casehash:
+				{
+					KString sQuery;
+					if (sCmd.empty())
+					{
+						// no arg → list all tables
+						sQuery = MakeListTablesSQL(GetDBType(), "%");
+					}
+					else
+					{
+						sQuery = MakeDescribeTableSQL(GetDBType(), sCmd);
+					}
+
+					if (sQuery.empty())
+					{
+						kPrintLine(":: .schema: not supported for {}", TxDBType(GetDBType()));
+					}
+					else
+					{
+						OutputQuery(sQuery, Format);
+					}
+					break;
+				}
+
+				case "databases"_casehash:
+				{
+					auto sQuery = MakeListDatabasesSQL(GetDBType());
+					if (sQuery.empty())
+					{
+						kPrintLine(":: .databases: not supported for {}", TxDBType(GetDBType()));
+					}
+					else
+					{
+						OutputQuery(sQuery, Format);
+					}
+					break;
+				}
+
+				case "clear"_casehash:
+					Terminal.ClearScreen();
+					break;
+
+				case "quiet"_casehash:
+					bQuiet = !bQuiet;
+					sPrompt.clear();
+					break;
+
+				case "system"_casehash:
+				{
+					KOutShell Shell(sCmd);
+					break;
+				}
+
+				case "source"_casehash:
+					if (!SQLFile.is_open())
+					{
+						KString sFile { kGetWord(sCmd) };
+						SQLFile.open(sFile);
+						if (!SQLFile.is_open())
+						{
+							kPrintLine(":: cannot open file: {}", sFile);
+						}
+					}
+					break;
+
+				case "klog"_casehash:
+				{
+					auto iLevel = KLog::getInstance().SetLevel(kGetWord(sCmd).Int16()).GetLevel();
+					if (!bQuiet)
+					{
+						kPrintLine(":: klog level set to {}", iLevel);
+					}
+					break;
+				}
+
+				case "format"_casehash:
+				{
+					auto sStyle = kGetWord(sCmd);
+					if (KFormTable::IsKnownStyle(sStyle))
+					{
+						Format = CreateOutputFormat(sStyle);
+						if (!bQuiet)
+						{
+							kPrintLine(":: format changed to {}", sStyle);
+						}
+					}
+					else
+					{
+						Terminal.FGColor(KXTerm::ColorCode::BrightRed);
+						kPrintLine(">> unknown format: {}", sStyle);
+						Terminal.ResetCharModes();
+					}
+					break;
+				}
+
+				default:
+					Terminal.FGColor(KXTerm::ColorCode::BrightRed);
+					kPrintLine(">> unknown dot command: .{} (try .help)", sWord);
+					Terminal.ResetCharModes();
+					break;
+			}
 		}
 		else if (!sLine.empty())
 		{

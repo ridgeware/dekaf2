@@ -58,6 +58,7 @@
 #include <dekaf2/threading/execution/kthreadpool.h>
 #include <dekaf2/core/types/bits/kmake_unique.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksignals.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -440,6 +441,12 @@ bool KThreadPool::run_thread(std::size_t i)
 
 	auto f = [this, abort_ptr]()
 	{
+		// set up per-thread signal mask and alternate signal stack for crash
+		// handler (SIGSEGV/SIGFPE/SIGILL/SIGBUS). sigaltstack() is per-thread
+		// and not inherited across pthread_create(), so each worker sets it up
+		// on its own stack.
+		kSetupThreadSignalHandling();
+
 		std::atomic<eAbort>& abort = *abort_ptr;
 		std::packaged_task<void()> _f;
 		std::unique_lock<std::mutex> lock(m_cond_mutex);

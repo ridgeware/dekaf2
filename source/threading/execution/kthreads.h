@@ -46,6 +46,7 @@
 
 #include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksignals.h>
 #include <thread>
 #include <utility>
 #include <functional>
@@ -140,6 +141,10 @@ public:
 		// and store the thread in the map
 		return AddLocked(Threads, std::thread([this, Func=std::move(Callable)]()
 		{
+			// set up per-thread signal mask and alternate signal stack for
+			// the crash handler (sigaltstack is per-thread and not inherited)
+			kSetupThreadSignalHandling();
+
 			// call the callable
 			DEKAF2_TRY
 			{

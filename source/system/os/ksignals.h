@@ -216,8 +216,38 @@ KStringView kTranslateSignal (int iSignalNum, bool bConcise = true);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Install the process-global crash handlers for SIGSEGV, SIGFPE, SIGILL and
+/// SIGBUS. Idempotent - safe to call multiple times, only the first call
+/// registers the sigaction() handlers. SIGTRAP is deliberately not caught so
+/// that debuggers keep working with breakpoints.
+DEKAF2_PUBLIC
+void kInstallCrashHandlers();
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Set up signal handling on the calling thread: block the signal mask, and
+/// (if bExceptSEGVandFPE is true) install the process crash handlers and
+/// allocate an alternate signal stack for this thread. The alternate stack is
+/// required so the crash handler can run safely even on stack overflow.
+///
+/// Call this at the start of every thread that should have crash protection.
+/// dekaf2's KThreadPool and KThreads::Create() call this automatically.
+/// Raw std::thread or third-party threads need to call it manually.
+///
+/// sigaltstack() is per-thread and not inherited by child threads, so each
+/// thread must set up its own alt stack.
+///
+/// @param bExceptSEGVandFPE
+/// true (default) installs kCrashExit (backtrace) as handler functions for
+/// SIGSEGV, SIGFPE, SIGILL and SIGBUS, and allocates a per-thread alt stack.
+DEKAF2_PUBLIC
+void kSetupThreadSignalHandling(bool bExceptSEGVandFPE = true);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// Block all possible signals for this thread - this is a standalone function
-/// that can be applied to any running thread.
+/// that can be applied to any running thread. Backward-compatible alias for
+/// kSetupThreadSignalHandling().
 /// @param bExceptSEGVandFPE
 /// true (default) installs kCrashExit (backtrace) as handler functions for
 /// SIGSEGV and SIGFPE.

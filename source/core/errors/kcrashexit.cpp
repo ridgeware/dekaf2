@@ -49,10 +49,13 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #endif
 #include <mutex>
+#include <atomic>
+#include <cstdio>              // for ::fflush()
 
 #ifdef UNIX
  #include <sys/resource.h>      // to allow core dumps
  #include <csignal>
+ #include <unistd.h>            // for ::write()
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -60,6 +63,7 @@ DEKAF2_NAMESPACE_BEGIN
 static KCrashCallback       g_pCrashCallback{nullptr};
 thread_local static KString g_tl_sCrashContext;
 static std::mutex           g_CrashMutex;
+static std::atomic<bool>    g_bCrashing{false};
 
 //-----------------------------------------------------------------------------
 void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
@@ -196,18 +200,34 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	#endif
 
 	sWarning += kFormat ("exiting program.");
-	kWarning (sWarning);
 
-	// make sure all access on the global vars is protected from races
-	std::lock_guard<std::mutex> Lock(g_CrashMutex);
-
-	if (g_pCrashCallback)
+	// only one thread can crash properly - others exit immediately
+	if (g_bCrashing.exchange(true))
 	{
-		g_pCrashCallback (sWarning);
+		// second crash from another thread - minimal safe output, no allocations
+		const char sMsg[] = "\n[second crash in another thread - aborting immediately]\n";
+		::write(STDERR_FILENO, sMsg, sizeof(sMsg) - 1);
+		::_exit(1);
 	}
 
+	kWarning (sWarning);
+
+	// try to acquire lock, but don't deadlock if another thread crashed while holding it
+	if (g_CrashMutex.try_lock())
+	{
+		if (g_pCrashCallback)
+		{
+			g_pCrashCallback (sWarning);
+		}
+		g_CrashMutex.unlock();
+	}
+	// else: skip callback if mutex is already locked (potential deadlock)
+
+	// flush all stdio streams to ensure output is written before abort
+	::fflush(nullptr);
+
 	// generate a core dump if enabled by the system
-	abort ();
+	::abort ();
 
 } // kCrashExitExt
 

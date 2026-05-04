@@ -51,24 +51,84 @@
 	#include <pthread.h>
 #endif
 #include <cstdlib>
+#include <memory>
+#include <mutex>
+#include <atomic>
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+// process-wide flag to ensure crash handlers are installed only once.
+// (used on every platform - protects against duplicate installs from worker
+// threads, e.g. the KTimer thread re-installing process-global Windows
+// signal() handlers after KSignals already overrode them with LookupFunc.)
+std::once_flag s_CrashHandlersOnce;
+
+// process-wide signal that crash handlers have been installed; checked by
+// kSetupThreadSignalHandling() to decide whether the per-thread setup
+// (signal mask + alt stack) is useful at all.
+std::atomic<bool> s_bCrashHandlersInstalled { false };
+
+#ifndef DEKAF2_IS_WINDOWS
+
+// alternate signal stack for crash handlers (one per thread).
+// MINSIGSTKSZ is sufficient for our crash handler (32k on macOS, ~2k on Linux).
+// Allocated lazily when kSetupThreadSignalHandling() is called on a thread,
+// but only if crash handlers are already installed - otherwise SA_ONSTACK is
+// not in effect and the alt stack would never be used.
+thread_local std::unique_ptr<std::array<char, MINSIGSTKSZ>> s_AltStack;
+
+#endif
+
+} // anonymous namespace
+
 //-----------------------------------------------------------------------------
-void kBlockAllSignals(bool bExceptSEGVandFPE)
+void kInstallCrashHandlers()
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_IS_WINDOWS
-	signal(SIGINT,  SIG_IGN);
-	signal(SIGTERM, SIG_IGN);
-
-	if (bExceptSEGVandFPE)
+	std::call_once(s_CrashHandlersOnce, []()
 	{
+#ifdef DEKAF2_IS_WINDOWS
 		signal(SIGSEGV, kCrashExit);
 		signal(SIGFPE,  kCrashExit);
 		signal(SIGILL,  kCrashExit);
-	}
+		// SIGTRAP is explicitly left alone - debugger uses it for breakpoints
 #else
+		struct sigaction sa;
+		// SA_RESETHAND = one-shot (reset to default after first call)
+		// SA_ONSTACK   = use alternate stack (prevents stack overflow in handler)
+		sa.sa_flags = SA_SIGINFO | SA_RESETHAND | SA_ONSTACK;
+		sa.sa_sigaction = kCrashExitExt;
+		sigemptyset(&sa.sa_mask);
+
+		sigaction(SIGSEGV, &sa, nullptr);
+		sigaction(SIGFPE,  &sa, nullptr);
+		sigaction(SIGILL,  &sa, nullptr);
+		sigaction(SIGBUS,  &sa, nullptr);
+		// SIGTRAP is explicitly left alone - debugger uses it for breakpoints
+#endif
+
+		// publish state for kSetupThreadSignalHandling()
+		s_bCrashHandlersInstalled.store(true, std::memory_order_release);
+	});
+
+} // kInstallCrashHandlers
+
+//-----------------------------------------------------------------------------
+void kSetupThreadSignalHandling(bool bExceptSEGVandFPE)
+//-----------------------------------------------------------------------------
+{
+#ifndef DEKAF2_IS_WINDOWS
+	// If no crash handlers were installed for this process, do nothing here.
+	// Otherwise we would silently block all signals on this thread (which is
+	// surprising for users who don't use KInit but do use KThreads or
+	// KThreadPool, and would break their own signal handling).
+	if (!s_bCrashHandlersInstalled.load(std::memory_order_acquire))
+	{
+		return;
+	}
+
 	sigset_t signal_set;
 	sigfillset(&signal_set);
 
@@ -84,17 +144,42 @@ void kBlockAllSignals(bool bExceptSEGVandFPE)
 
 	if (bExceptSEGVandFPE)
 	{
-		struct sigaction sa;
-		sa.sa_flags = SA_SIGINFO;
-		sa.sa_sigaction = kCrashExitExt;
-		sigemptyset( &sa.sa_mask );
-
-		sigaction(SIGSEGV, &sa, nullptr);
-		sigaction(SIGFPE,  &sa, nullptr);
-		sigaction(SIGILL,  &sa, nullptr);
-		sigaction(SIGBUS,  &sa, nullptr);
+		// Allocate alt stack for this thread (stack overflow protection in
+		// the handler). sigaltstack() is per-thread and not inherited across
+		// pthread_create(), so each thread sets up its own.
+		if (!s_AltStack)
+		{
+			s_AltStack = std::make_unique<std::array<char, MINSIGSTKSZ>>();
+			stack_t ss = { s_AltStack->data(), 0, static_cast<int>(s_AltStack->size()) };
+			sigaltstack(&ss, nullptr);
+		}
 	}
 #endif
+
+} // kSetupThreadSignalHandling
+
+//-----------------------------------------------------------------------------
+void kBlockAllSignals(bool bExceptSEGVandFPE)
+//-----------------------------------------------------------------------------
+{
+	// Compatibility wrapper: existing callers expect that calling this on the
+	// main thread also installs crash handlers (this is what the old
+	// monolithic kBlockAllSignals() did, and what dekaf2 init relies on).
+	//
+	// Note: historically this function called signal(SIGINT, SIG_IGN) and
+	// signal(SIGTERM, SIG_IGN) on Windows. That was conceptually wrong: on
+	// Windows signal() is process-global (not per-thread), so any worker
+	// thread (e.g. the KTimer thread) calling kBlockAllSignals() would race
+	// with the KSignals ctor that installs the LookupFunc handler. If the
+	// worker thread won the race the user's CLI silently ignored Ctrl-C.
+	// We now leave SIGINT/SIGTERM alone here and let KSignals install the
+	// handlers exactly once, on the main thread.
+	if (bExceptSEGVandFPE)
+	{
+		kInstallCrashHandlers();
+	}
+
+	kSetupThreadSignalHandling(bExceptSEGVandFPE);
 
 } // kBlockAllSignals
 

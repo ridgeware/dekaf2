@@ -49,6 +49,7 @@
 #include <thread>
 #ifndef DEKAF2_IS_WINDOWS
 	#include <pthread.h>
+	#include <sys/mman.h>
 #endif
 #include <cstdlib>
 #include <memory>
@@ -73,14 +74,46 @@ std::atomic<bool> s_bCrashHandlersInstalled { false };
 #ifndef DEKAF2_IS_WINDOWS
 
 // alternate signal stack for crash handlers (one per thread).
+//
+// We allocate the alt stack via mmap() rather than the C++ heap, for two
+// reasons:
+//   1. POSIX recommends signal stacks be allocated with mmap(MAP_STACK) so
+//      that the kernel can track them as stacks (e.g. for guard pages).
+//   2. AddressSanitizer wraps operator new[]/delete[] and gets confused
+//      when a heap-allocated region was registered with sigaltstack(),
+//      manifesting as "Failed to munmap ... error code 22 (EINVAL)" on
+//      thread exit. mmap()/munmap() is not intercepted by ASAN's heap
+//      allocator and works reliably.
+//
 // On glibc >= 2.34 MINSIGSTKSZ is a runtime sysconf() call, not a constexpr,
-// so we cannot use it as a std::array template parameter. We allocate a
-// runtime-sized char[] buffer instead.
+// which is fine - we use it as the runtime mmap() size.
+//
 // Allocated lazily when kSetupThreadSignalHandling() is called on a thread,
 // but only if crash handlers are already installed - otherwise SA_ONSTACK is
 // not in effect and the alt stack would never be used.
-thread_local std::unique_ptr<char[]> s_AltStack;
-thread_local std::size_t s_iAltStackSize { 0 };
+//
+// At thread exit the destructor calls sigaltstack(SS_DISABLE) before the
+// region is unmapped, so the kernel no longer holds a reference to the
+// (about-to-be-unmapped) memory.
+struct AltStackHolder
+{
+	void*       pBuffer { nullptr };
+	std::size_t iSize { 0 };
+
+	~AltStackHolder()
+	{
+		if (pBuffer)
+		{
+			stack_t ss {};
+			ss.ss_flags = SS_DISABLE;
+			sigaltstack(&ss, nullptr);
+
+			::munmap(pBuffer, iSize);
+		}
+	}
+};
+
+thread_local AltStackHolder s_AltStack;
 
 #endif
 
@@ -150,16 +183,30 @@ void kSetupThreadSignalHandling(bool bExceptSEGVandFPE)
 		// Allocate alt stack for this thread (stack overflow protection in
 		// the handler). sigaltstack() is per-thread and not inherited across
 		// pthread_create(), so each thread sets up its own.
-		if (!s_AltStack)
+		if (!s_AltStack.pBuffer)
 		{
 			// MINSIGSTKSZ is sufficient for our crash handler (32k on macOS,
 			// ~2k on older Linux, may be a runtime value on glibc 2.34+).
-			s_iAltStackSize = static_cast<std::size_t>(MINSIGSTKSZ);
-			s_AltStack = std::unique_ptr<char[]>(new char[s_iAltStackSize]);
+			std::size_t iSize = static_cast<std::size_t>(MINSIGSTKSZ);
+
+			int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+		#ifdef MAP_STACK
+			flags |= MAP_STACK;
+		#endif
+			void* pBuffer = ::mmap(nullptr, iSize, PROT_READ | PROT_WRITE, flags, -1, 0);
+
+			if (pBuffer == MAP_FAILED)
+			{
+				return; // could not allocate alt stack - skip
+			}
+
+			s_AltStack.pBuffer = pBuffer;
+			s_AltStack.iSize   = iSize;
+
 			stack_t ss {};
-			ss.ss_sp    = s_AltStack.get();
+			ss.ss_sp    = pBuffer;
 			ss.ss_flags = 0;
-			ss.ss_size  = s_iAltStackSize;
+			ss.ss_size  = iSize;
 			sigaltstack(&ss, nullptr);
 		}
 	}

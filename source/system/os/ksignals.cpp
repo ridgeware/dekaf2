@@ -156,7 +156,10 @@ void kSetupThreadSignalHandling(bool bExceptSEGVandFPE)
 			// ~2k on older Linux, may be a runtime value on glibc 2.34+).
 			s_iAltStackSize = static_cast<std::size_t>(MINSIGSTKSZ);
 			s_AltStack = std::unique_ptr<char[]>(new char[s_iAltStackSize]);
-			stack_t ss = { s_AltStack.get(), 0, static_cast<int>(s_iAltStackSize) };
+			stack_t ss {};
+			ss.ss_sp    = s_AltStack.get();
+			ss.ss_flags = 0;
+			ss.ss_size  = s_iAltStackSize;
 			sigaltstack(&ss, nullptr);
 		}
 	}

@@ -77,6 +77,32 @@ class ExtendedConfig : public KTunnel::Config
 public:
 //----------
 
+	/// Operating mode of the exposed host. Selected by Tunnel::Main()
+	/// based on the CLI arguments and on whether the process was
+	/// launched by a service manager.
+	///
+	/// `Stateful`
+	///   DB-backed operation. Tunnels are read from the `tunnels`
+	///   table, the admin UI is registered at `/Configure/`, peer
+	///   authentication uses bcrypt against the `users` table. This
+	///   is the default for interactive launches without `-f`/`-t`
+	///   and for all service-manager launches (systemd, launchd,
+	///   SCM — see KService::IsRunningAsService()).
+	///
+	/// `AdHoc`
+	///   CLI-only operation. No SQLite file is opened, no admin UI is
+	///   registered, no `users` table. Exactly one forward tunnel is
+	///   configured via `-f <port> -t <target>` on the command line,
+	///   and peer authentication falls back to `-s <secret>` (the
+	///   legacy pre-shared-secret model). Intended for ad-hoc
+	///   recovery / bootstrap use over SSH, when the admin UI is
+	///   unreachable.
+	enum class Mode : std::uint8_t
+	{
+		Stateful,
+		AdHoc,
+	};
+
 	template<class... Args>
 	void Message (KFormatString<Args...> sFormat, Args&&... args) const
 	{
@@ -85,25 +111,24 @@ public:
 
 	KTCPEndPoint           DefaultTarget;
 	KTCPEndPoint           ExposedHost;
-	/// Username under which the bootstrap admin account is created in the
-	/// store the very first time ktunnel is started (no users rows yet).
-	/// After that, the store is authoritative — changing this on the CLI
-	/// no longer has any effect.
-	KString                sAdminUser     { "admin" };
-	/// bcrypt hash derived at process startup from the first -secret on the
-	/// CLI. Used *only* for the initial bootstrap: inserted into the users
-	/// table if it is empty. Not consulted afterwards.
-	KString                sAdminPassHash;
-	/// Absolute path to the SQLite configuration database. Empty means
-	/// "use KTunnelStore::DefaultDatabasePath()" (i.e. $HOME/.config/ktunnel/
-	/// ktunnel.db). Overridden by the -db CLI flag.
+	/// Absolute path to the SQLite configuration database. Resolved by
+	/// Tunnel::Main() to the appropriate default for the current mode
+	/// (system path for root-services, user path otherwise) unless the
+	/// operator supplied an explicit `-db <path>` override. Left empty
+	/// when running in AdHoc mode (no DB is opened at all).
 	KString                sDatabasePath;
 	/// Username sent by the *protected* host when logging in to the
 	/// exposed host. Must match a row in the exposed host's `users`
-	/// table (its password is the first `-secret`). Ignored on the
-	/// exposed host. Set via `-u <user>` on the CLI; defaults to
-	/// sAdminUser so a fresh bootstrap just works out of the box.
+	/// table (its password is the bcrypt-hashed value seeded by
+	/// `ktunnel -set-admin` or the admin UI). Ignored on the exposed
+	/// host. Set via `-u <user>` on the CLI; defaults to "admin",
+	/// which is the default username used by `-set-admin` and the
+	/// `-install` bootstrap.
 	KString                sPeerUser      { "admin" };
+	/// Operating mode of the exposed host (see Mode). Populated by
+	/// Tunnel::Main() before ExposedServer is constructed. On the
+	/// protected host side this field is unused.
+	Mode                   eMode          { Mode::Stateful };
 	bool                   bNoTLS         { false };
 	bool                   bQuiet         { false };
 
@@ -115,7 +140,6 @@ private:
 
 }; // ExtendedConfig
 
-class ExposedRawServer;
 class TunnelListener;
 class AdminUI;
 
@@ -142,12 +166,16 @@ public:
 	ExposedServer (const Config& config);
 	~ExposedServer ();
 
-	void ForwardStream (KIOStreamSocket& Downstream, const KTCPEndPoint& Endpoint);
-
 	/// Forward a raw downstream TCP connection through the tunnel
 	/// belonging to @p sOwner. Closes the stream and logs an event
 	/// if the owner is not currently connected. Used by per-tunnel
 	/// TunnelListener instances that are managed by ReconcileListeners.
+	///
+	/// A wildcard owner ("*" or empty string) means "any tunnel that
+	/// is currently connected" — the first-connected tunnel is used,
+	/// without owner verification. This is the route used by the
+	/// synthetic "cli" listener that represents the legacy
+	/// `-f <port> -t <target>` CLI configuration.
 	void ForwardStreamForOwner (KIOStreamSocket& Downstream,
 	                            const KTCPEndPoint& Endpoint,
 	                            KStringView sOwner);
@@ -235,9 +263,10 @@ private:
 	void                      UnregisterActiveTunnel (KStringView sUser,
 	                                                  const std::shared_ptr<KTunnel>& Tunnel);
 
-	/// Legacy "first-come-first-served" pick used by the raw port
-	/// forwarder (`-f <port>`) when there is no per-port listener yet.
-	/// Returns null if no tunnel is currently connected.
+	/// "First-come-first-served" pick used by ForwardStreamForOwner
+	/// when a wildcard owner is given (i.e. the CLI-synthesised "cli"
+	/// listener, which has no dedicated peer). Returns null if no
+	/// tunnel is currently connected.
 	std::shared_ptr<KTunnel>  PickDefaultTunnel      () const;
 
 	/// user-name -> active tunnel. We accept only one tunnel per user for
@@ -277,9 +306,24 @@ private:
 		KString     sError;
 	};
 
+	/// The "desired" state for one listener. Produced by
+	/// GatherDesiredTunnels() which unifies DB rows and (optionally)
+	/// a CLI-driven synthetic row into a single source of truth.
+	struct DesiredTunnel
+	{
+		KString     sName;   ///< unique tunnel name (e.g. "cli")
+		ListenerKey Key;     ///< listen port + target + owner
+	};
+
+	/// Build the list of tunnels that should currently be listening.
+	/// Combines enabled rows from the persistent store with a
+	/// synthetic "cli" entry when `-f <port>` and `-t <target>`
+	/// were given on the CLI. The CLI entry uses owner "*" to route
+	/// incoming connections via PickDefaultTunnel.
+	std::vector<DesiredTunnel> GatherDesiredTunnels () const;
+
 	std::unique_ptr<KTunnelStore>     m_Store;
 	std::unique_ptr<KBCrypt>          m_BCrypt;
-	std::unique_ptr<ExposedRawServer> m_ExposedRawServer;
 	std::unique_ptr<AdminUI>          m_AdminUI;
 	const Config&                     m_Config;
 
@@ -293,42 +337,15 @@ private:
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class ExposedRawServer : public KTCPServer
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//----------
-public:
-//----------
-
-	template<typename... Args>
-	ExposedRawServer (ExposedServer* Exposed, const KTCPEndPoint& Target, Args&&... args)
-	: KTCPServer (std::forward<Args>(args)...)
-	, m_ExposedServer(*Exposed)
-	, m_Target(Target)
-	{
-	}
-
-//----------
-protected:
-//----------
-
-	void Session (std::unique_ptr<KIOStreamSocket>& Stream) override final;
-
-//----------
-private:
-//----------
-
-	ExposedServer& m_ExposedServer;
-	KTCPEndPoint   m_Target;
-
-}; // ExposedRawServer
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Per-tunnel raw-TCP listener managed by ExposedServer::ReconcileListeners.
-/// One instance is spawned for each enabled `tunnels` row in the store.
+/// One instance is spawned for each enabled `tunnels` row in the store,
+/// plus (optionally) one synthetic row representing the legacy CLI
+/// configuration `-f <port> -t <target>`.
+///
 /// Incoming connections are pushed through the control tunnel that belongs
-/// to the configured @p sOwner; if that owner is not currently logged in,
+/// to the configured @p sOwner. If @p sOwner is the wildcard ("*" or
+/// empty), the first currently-connected tunnel is used (legacy CLI
+/// behaviour). Otherwise, if the owner is not currently logged in,
 /// the connection is closed and an "auth_reject" event is logged.
 class TunnelListener : public KTCPServer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

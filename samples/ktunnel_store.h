@@ -79,9 +79,20 @@ class KTunnelStore
 public:
 //----------
 
-	/// Default path: `$HOME/.config/ktunnel/ktunnel.db`. This is a helper
-	/// callers can use when they did not get a `-db` override.
-	static KString DefaultDatabasePath();
+	/// Default DB path. Default location (`bPreferSystemPath = false`):
+	/// `$HOME/.config/ktunnel/ktunnel.db` for interactive and
+	/// user-scope service launches.
+	///
+	/// When @p bPreferSystemPath is true the caller is asking for a
+	/// system-wide path (typically because the process was launched
+	/// as a root service by systemd / launchd / SCM):
+	///   - Linux / macOS: `/var/lib/ktunnel/ktunnel.db`
+	///   - Windows:       `%PROGRAMDATA%\ktunnel\ktunnel.db`
+	///
+	/// If the system path cannot be built (no PROGRAMDATA on Windows,
+	/// or any other unexpected failure) the function silently falls
+	/// back to the user path.
+	static KString DefaultDatabasePath(bool bPreferSystemPath = false);
 
 	/// Construct around a SQLite file path. The file and its parent
 	/// directory are created on demand (mode 0700 for the dir, per

@@ -47,12 +47,36 @@
 #include <dekaf2/system/os/ksystem.h>
 
 //-----------------------------------------------------------------------------
-KString KTunnelStore::DefaultDatabasePath()
+KString KTunnelStore::DefaultDatabasePath(bool bPreferSystemPath)
 //-----------------------------------------------------------------------------
 {
+	if (bPreferSystemPath)
+	{
+#if defined(DEKAF2_IS_WINDOWS)
+		// Windows services typically run as LocalSystem; %PROGRAMDATA%
+		// (C:\ProgramData) is the canonical machine-wide state location.
+		auto sProgData = kGetEnv("PROGRAMDATA");
+
+		if (!sProgData.empty())
+		{
+			return kFormat("{}{}ktunnel{}ktunnel.db",
+			               sProgData, kDirSep, kDirSep);
+		}
+#else
+		// FHS-conformant state directory on Linux and macOS. The
+		// systemd / launchd unit is expected to create it with
+		// appropriate ownership (root:root 0700 / _ktunnel:_ktunnel
+		// 0700); we do not chmod from inside the process because
+		// that would paper over operator-side misconfiguration.
+		return "/var/lib/ktunnel/ktunnel.db";
+#endif
+		// Fall through to the user path if the system path could
+		// not be built.
+	}
+
 	// kGetConfigPath() defaults to $HOME/.config/<progname> (ktunnel), creates
-	// it with mode 0700 on first use. We append a fixed filename so operators
-	// can switch the location via XDG_CONFIG_HOME or the -db flag instead of
+	// the directory on demand with mode 0700, and appends a path separator.
+	// That matches our "admin store" security expectation (user-private) without
 	// needing any extra configuration here.
 	return kFormat("{}{}ktunnel.db", kGetConfigPath(true), kDirSep);
 
@@ -457,6 +481,17 @@ bool KTunnelStore::AddTunnel (const Tunnel& t)
 	if (t.sName.empty() || t.iListenPort == 0)
 	{
 		SetError("AddTunnel: name and listen_port are required");
+		return false;
+	}
+
+	// "cli" is reserved for the synthetic listener produced by
+	// ExposedServer::GatherDesiredTunnels() when the legacy
+	// `-f <port> -t <target>` CLI arguments are present. A DB row with
+	// the same name would silently be displaced by that synthetic row
+	// in ReconcileListeners, so refuse it up front with a clear error.
+	if (t.sName == "cli")
+	{
+		SetError("AddTunnel: 'cli' is a reserved name for the CLI-driven tunnel");
 		return false;
 	}
 

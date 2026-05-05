@@ -89,6 +89,7 @@
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/crypto/random/krandom.h>
+#include <dekaf2/threading/execution/kthreads.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -900,7 +901,7 @@ void KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& Connect
 
 	kDebug(1, "[{}]: requested forward connection to {}", iID, ConnectToEndpoint);
 
-	auto pump = std::thread(&KTunnel::Connection::PumpFromTunnel, Connection.get());
+	auto pump = kMakeThread(&KTunnel::Connection::PumpFromTunnel, Connection.get());
 
 	Connection->PumpToTunnel();
 
@@ -1116,7 +1117,7 @@ void KTunnel::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 			{
 				Connection->SetDirectStream(TargetStream.get());
 
-				auto pump = std::thread(&Connection::PumpFromTunnel, Connection.get());
+				auto pump = kMakeThread(&Connection::PumpFromTunnel, Connection.get());
 
 				Connection->PumpToTunnel();
 

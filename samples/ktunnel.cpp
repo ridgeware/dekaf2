@@ -77,6 +77,7 @@
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/system/os/kservice.h>
 #include <dekaf2/crypto/auth/kbcrypt.h>
+#include <dekaf2/threading/execution/kthreads.h>
 #include <csignal> // SIGINT, SIGTERM
 #include <future>
 #include <chrono>
@@ -298,8 +299,12 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 
 	// Run the tunnel on a dedicated thread so this method can observe the
 	// login outcome and keep the per-user registry in sync.
-	std::thread TunnelThread([Tunnel]()
+	std::thread TunnelThread = kMakeThread([Tunnel]()
 	{
+		// tunnel disconnects are expected business-as-usual (peer gone,
+		// bad frame, etc.) and not exceptions - log at debug severity and
+		// let the thread exit normally. Anything that escapes this catch
+		// will still be caught by kMakeThread()'s outer handler.
 		try
 		{
 			Tunnel->Run();

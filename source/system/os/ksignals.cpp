@@ -178,31 +178,32 @@ void kSetupThreadSignalHandling(bool bExceptSEGVandFPE)
 
 	pthread_sigmask(SIG_BLOCK, &signal_set, nullptr); // sigprocmask would set it for all threads
 
+#if !defined(__SANITIZE_ADDRESS__) && !(defined(__has_feature) && __has_feature(address_sanitizer))
+	// Allocate alt stack for this thread so that the crash handler still has
+	// stack space when the regular stack overflows. sigaltstack() is per-thread
+	// and not inherited across pthread_create(), so each thread has to set up
+	// its own.
+	//
+	// NOTE: under AddressSanitizer (clang on macOS+arm64 in particular), rapid
+	// sigaltstack() / munmap() cycles on short-lived worker threads corrupt
+	// ASAN's per-thread bookkeeping (observed crashes inside
+	// __asan::AsanThread::stack_top(), __asan::AsanThreadContext::OnCreated()
+	// and __asan::SetCurrentThread()). For ASAN builds we therefore skip the
+	// alt stack registration - ASAN has its own crash reporter that is fine
+	// running on the regular thread stack.
 	if (bExceptSEGVandFPE)
 	{
-		// Allocate alt stack for this thread (stack overflow protection in
-		// the handler). sigaltstack() is per-thread and not inherited across
-		// pthread_create(), so each thread sets up its own.
 		if (!s_AltStack.pBuffer)
 		{
-			// MINSIGSTKSZ is sufficient for our crash handler (32k on macOS,
-			// ~2k on older Linux, may be a runtime value on glibc 2.34+).
 			std::size_t iSize = static_cast<std::size_t>(MINSIGSTKSZ);
-
 			int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 		#ifdef MAP_STACK
 			flags |= MAP_STACK;
 		#endif
 			void* pBuffer = ::mmap(nullptr, iSize, PROT_READ | PROT_WRITE, flags, -1, 0);
-
-			if (pBuffer == MAP_FAILED)
-			{
-				return; // could not allocate alt stack - skip
-			}
-
+			if (pBuffer == MAP_FAILED) return;
 			s_AltStack.pBuffer = pBuffer;
 			s_AltStack.iSize   = iSize;
-
 			stack_t ss {};
 			ss.ss_sp    = pBuffer;
 			ss.ss_flags = 0;
@@ -210,6 +211,9 @@ void kSetupThreadSignalHandling(bool bExceptSEGVandFPE)
 			sigaltstack(&ss, nullptr);
 		}
 	}
+#else
+	(void)bExceptSEGVandFPE;
+#endif
 #endif
 
 } // kSetupThreadSignalHandling
@@ -316,7 +320,12 @@ void KSignals::LookupFunc(int iSignal)
 
 	if (callable.bAsThread)
 	{
-		std::thread([&]()
+		// capture by value: LookupFunc may return before the detached thread
+		// starts running, at which point a reference-captured `callable` /
+		// `iSignal` would be dangling. Also route through kMakeThread() so
+		// the new thread gets the standard signal mask / alt stack / uncaught
+		// exception logging treatment.
+		kMakeThread([callable = std::move(callable), iSignal]()
 		{
 			kDebug(2, "calling handler for {} {} thread", kTranslateSignal(iSignal), "as separate");
 			callable.func(iSignal);

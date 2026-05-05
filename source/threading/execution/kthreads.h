@@ -50,6 +50,8 @@
 #include <thread>
 #include <utility>
 #include <functional>
+#include <future>
+#include <memory>
 #include <vector>
 #include <unordered_map>
 
@@ -192,6 +194,116 @@ public:
 
 }; // KThreads
 
+//-----------------------------------------------------------------------------
+/// Drop-in replacement for std::thread() that, before invoking the user
+/// callable, calls kSetupThreadSignalHandling() on the new thread. This
+/// installs the per-thread signal mask and the alternate signal stack used
+/// by the crash handler (SIGSEGV/SIGFPE/SIGILL/SIGBUS).
+///
+/// On platforms without a registered crash handler, kSetupThreadSignalHandling()
+/// is a no-op, so this helper is safe to use everywhere.
+///
+/// In addition, uncaught std::exceptions that escape the callable are caught
+/// and logged (same policy as KThreads::Create). std::thread() would otherwise
+/// call std::terminate() for them, which tears down the whole process -
+/// arguably a design wart in C++. The try/catch wrapper is zero-cost on
+/// modern ABIs unless an exception is actually thrown.
+///
+/// Use this instead of raw std::thread() when starting threads from within
+/// dekaf2 internals or from user code that wants the same crash protection
+/// as KThreadPool/KThreads workers without paying for the bookkeeping of
+/// KThreads.
+///
+/// Note: the signal handler thread itself MUST NOT use this (it has to keep
+/// signals deliverable to call sigwait()).
+template<class Function, class... Args>
+std::thread kMakeThread(Function&& f, Args&&... args)
+//-----------------------------------------------------------------------------
+{
+	// package up the callable + args via std::bind (C++11/14 compatible, and
+	// works around an apple-clang issue with perfect-forwarding parameter
+	// packs into a lambda - same workaround as in KThreads::Create above)
+	auto Callable = std::bind(std::forward<Function>(f), std::forward<Args>(args)...);
+
+	return std::thread([Func = std::move(Callable)]() mutable
+	{
+		// set up per-thread signal mask and alternate signal stack for the
+		// crash handler (sigaltstack is per-thread and not inherited)
+		kSetupThreadSignalHandling();
+
+		// never let an uncaught exception tear down the whole process -
+		// std::thread's default behavior (std::terminate) is hostile to
+		// long-running server processes.
+		DEKAF2_TRY
+		{
+			Func();
+		}
+		DEKAF2_CATCH (const std::exception& ex)
+		{
+			kException(ex);
+		}
+		DEKAF2_CATCH (...)
+		{
+			kUnknownException();
+		}
+
+	});
+
+} // kMakeThread
+
+//-----------------------------------------------------------------------------
+/// Fire-and-forget variant of kMakeThread() that returns a std::future<R>
+/// so that the parent thread can synchronize on task completion and pick up
+/// any exception the callable threw.
+///
+/// Internally combines std::packaged_task with kMakeThread (so the worker
+/// still gets the per-thread signal mask / alt stack setup). The started
+/// thread is detached; the future is the only handle kept by the caller.
+///
+/// Exception semantics: if the callable throws a std::exception (or any
+/// other exception type), std::packaged_task captures it into the future
+/// and future.get() rethrows it in the parent thread. The try/catch in
+/// kMakeThread does not trigger (packaged_task intercepts first) - which
+/// is exactly what we want: the caller, not kException(), decides how to
+/// handle the failure.
+///
+/// Usage:
+/// @code
+/// auto fut = kMakeAsync([]{ return compute(); });
+/// // ... do other work on the main thread ...
+/// auto result = fut.get();   // blocks until done; rethrows if worker threw
+/// @endcode
+///
+/// If the returned future is dropped on the floor without .get() / .wait(),
+/// the exception (if any) is silently swallowed. Callers that want logging
+/// in the fire-and-forget case should use kMakeThread() directly.
+template<class Function, class... Args>
+auto kMakeAsync(Function&& f, Args&&... args)
+//-----------------------------------------------------------------------------
+	-> std::future<decltype(std::bind(std::forward<Function>(f), std::forward<Args>(args)...)())>
+{
+	// bind callable + args into a nullary thunk (same bind workaround as
+	// kMakeThread for apple-clang perfect-forwarding quirks)
+	auto Bound = std::bind(std::forward<Function>(f), std::forward<Args>(args)...);
+
+	using Ret = decltype(Bound());
+
+	// packaged_task is move-only but std::bind (inside kMakeThread) requires
+	// a copyable callable. Wrap in shared_ptr so the capturing lambda stays
+	// copyable while we retain access to the task from the caller side.
+	auto Task = std::make_shared<std::packaged_task<Ret()>>(std::move(Bound));
+
+	auto Fut = Task->get_future();
+
+	kMakeThread([Task]()
+	{
+		(*Task)(); // captures exceptions into the future
+
+	}).detach();
+
+	return Fut;
+
+} // kMakeAsync
 
 /// @}
 

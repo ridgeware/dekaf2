@@ -305,7 +305,8 @@ public:
 	{
 		if (m_bOwnThread)
 		{
-			kMakeThread(m_CB, Tp).detach();
+			std::thread thread(m_CB, Tp);
+			thread.detach();
 		}
 		else
 		{

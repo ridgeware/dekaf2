@@ -48,6 +48,7 @@
 #include <dekaf2/http/protocol/khttp_header.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/web/html/khtmlentities.h>
 #include <dekaf2/web/url/kmime.h>
 #include <algorithm>
@@ -496,7 +497,7 @@ void AdminUI::HandleLogin (KRESTServer& HTTP)
 
 	if (sUser.empty() || sPass.empty())
 	{
-		ShowLogin(HTTP, "Please provide username and password.", sUser);
+		ShowLogin(HTTP, "Please provide username and password", sUser);
 		return;
 	}
 
@@ -505,7 +506,7 @@ void AdminUI::HandleLogin (KRESTServer& HTTP)
 	if (!Sess.Login(sUser, sPass))
 	{
 		kDebug(1, "admin login failed for user {} from {}", sUser, HTTP.GetRemoteIP());
-		ShowLogin(HTTP, "Invalid username or password.", sUser);
+		ShowLogin(HTTP, "Invalid username or password", sUser);
 		return;
 	}
 
@@ -2222,7 +2223,7 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 		// join() at the end.
 		std::atomic<bool> bQuit { false };
 
-		std::thread PeerToBrowser([&bQuit, &WebSocket, Connection]()
+		std::thread PeerToBrowser = kMakeThread([&bQuit, &WebSocket, Connection]()
 		{
 			for (;!bQuit.load(std::memory_order_acquire);)
 			{

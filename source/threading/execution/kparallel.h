@@ -112,8 +112,10 @@ public:
 	template<class Function, class... Args>
 	std::thread::id CreateOne(Function&& f, Args&&... args)
 	{
-		// create the thread and start it
-		return Store(std::thread(std::forward<Function>(f), std::forward<Args>(args)...));
+		// create the thread and start it - use kMakeThread() so that the new
+		// thread has the per-thread signal mask and crash-handler alt stack
+		// installed before the user callable runs
+		return Store(kMakeThread(std::forward<Function>(f), std::forward<Args>(args)...));
 	}
 	//-----------------------------------------------------------------------------
 

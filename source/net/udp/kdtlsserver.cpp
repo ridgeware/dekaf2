@@ -43,6 +43,7 @@
 #include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/format/kformat.h>
+#include <dekaf2/threading/execution/kthreads.h>
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/rand.h>
@@ -168,7 +169,11 @@ bool KDTLSServer::Start(DatagramCallback Callback, bool bBlock)
 	else
 	{
 		kDebug(1, "DTLS server starting on port {} (background)", m_iPort);
-		m_Thread = std::make_unique<std::thread>(&KDTLSServer::RunLoop, this, std::move(Callback));
+		m_Thread = std::make_unique<std::thread>(kMakeThread(
+			[this, Callback = std::move(Callback)]() mutable
+			{
+				RunLoop(std::move(Callback));
+			}));
 	}
 
 	return true;

@@ -72,4 +72,72 @@ TEST_CASE("KThreads")
 
 		Threads.Join();
 	}
+
+	SECTION("Stress: many short-lived threads via KThreads::Create")
+	{
+		// reproduce KParallel-style usage: spawn hardware_concurrency()
+		// threads via KThreads::Create, join them all, then do the same
+		// thing again. Helps figure out whether short-lived workers
+		// generally trip over kSetupThreadSignalHandling()/sigaltstack
+		// (independent of kMakeThread/KRunThreads).
+		KThreads Threads;
+
+		// match the KParallel test exactly: workers do absolutely nothing
+		// and exit immediately. Many parallel exits = many parallel
+		// sigaltstack(SS_DISABLE) + munmap calls, which is the suspect
+		// scenario.
+		KString sTest = "Hello";
+
+		const auto N = std::max(std::thread::hardware_concurrency(), 4u);
+
+		for (unsigned int i = 0; i < N; ++i)
+		{
+			Threads.Create(&ThreadedFunction, sTest);
+		}
+
+		Threads.Join();
+
+		CHECK ( Threads.empty() == true );
+
+		// second wave
+		for (unsigned int i = 0; i < N; ++i)
+		{
+			Threads.Create(&ThreadedFunction, sTest);
+		}
+
+		Threads.Join();
+
+		CHECK ( Threads.empty() == true );
+	}
+
+	SECTION("kMakeAsync: return value via future")
+	{
+		auto fut = kMakeAsync([](int a, int b){ return a + b; }, 2, 40);
+		CHECK ( fut.get() == 42 );
+	}
+
+	SECTION("kMakeAsync: exception propagation via future")
+	{
+		auto fut = kMakeAsync([]{ throw std::runtime_error("boom"); });
+
+		bool bCaught = false;
+		try
+		{
+			fut.get();
+		}
+		catch (const std::runtime_error& ex)
+		{
+			bCaught = true;
+			CHECK ( KString(ex.what()) == "boom" );
+		}
+		CHECK ( bCaught );
+	}
+
+	SECTION("kMakeAsync: void return type")
+	{
+		std::atomic<int> counter { 0 };
+		auto fut = kMakeAsync([&]{ counter.fetch_add(1, std::memory_order_relaxed); });
+		fut.get();
+		CHECK ( counter.load() == 1 );
+	}
 }

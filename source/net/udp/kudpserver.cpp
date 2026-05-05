@@ -41,6 +41,7 @@
 
 #include <dekaf2/net/udp/kudpserver.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/threading/execution/kthreads.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -86,7 +87,11 @@ bool KUDPServer::Start(DatagramCallback Callback, bool bBlock)
 	else
 	{
 		kDebug(1, "UDP server starting on port {} (background)", m_iPort);
-		m_Thread = std::make_unique<std::thread>(&KUDPServer::RunLoop, this, std::move(Callback));
+		m_Thread = std::make_unique<std::thread>(kMakeThread(
+			[this, Callback = std::move(Callback)]() mutable
+			{
+				RunLoop(std::move(Callback));
+			}));
 	}
 
 	return true;

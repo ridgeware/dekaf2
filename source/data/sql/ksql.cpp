@@ -72,6 +72,7 @@
 #include <dekaf2/data/json/kconfig.h>
 #include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/util/id/kuuid.h>
+#include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/threading/execution/kthreadpool.h>
 #include <cstdint>
 #include <utility>
@@ -9561,7 +9562,7 @@ void KSQL::TimedConnectionIDs::Add(ConnectionID iConnectionID, std::chrono::mill
 	std::call_once(m_Once, [this]
 	{
 		kDebug (2, "creating watcher thread");
-		m_Watcher = std::make_unique<std::thread>(&TimedConnectionIDs::Watcher, this);
+		m_Watcher = std::make_unique<std::thread>(kMakeThread(&TimedConnectionIDs::Watcher, this));
 	});
 
 	Clock::time_point Expires = Clock::now() + Timeout;

@@ -43,6 +43,7 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/threading/execution/kthreads.h>
 
 #if !DEKAF2_IS_WINDOWS
 	#include <sys/types.h>
@@ -190,7 +191,7 @@ void KPoll::StartLocked()
 	{
 		kDebug(1, "starting watcher");
 		m_bStop  = false;
-		m_Thread = std::make_unique<std::thread>(&KPoll::Watch, this);
+		m_Thread = std::make_unique<std::thread>(kMakeThread(&KPoll::Watch, this));
 	}
 
 } // Start

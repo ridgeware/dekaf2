@@ -50,6 +50,7 @@
 #include <dekaf2/time/scheduler/bits/kron_utils.h>
 #include "croncpp.h"
 #include <dekaf2/core/init/kcompatibility.h>
+#include <dekaf2/threading/execution/kthreads.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -681,7 +682,7 @@ Kron::Kron(bool bAllowLaunches, KDuration CheckEvery, SharedScheduler Scheduler)
 		kDebug(1, "starting");
 
 		// start the time keeper
-		m_Chronos = std::make_unique<std::thread>(&Kron::Launcher, this, CheckEvery);
+		m_Chronos = std::make_unique<std::thread>(kMakeThread(&Kron::Launcher, this, CheckEvery));
 	}
 
 } // ctor

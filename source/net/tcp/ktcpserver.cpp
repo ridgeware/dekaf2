@@ -84,6 +84,7 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
 #include <dekaf2/net/address/knetworkinterface.h>
 #include <dekaf2/net/address/kipaddress.h>
@@ -947,12 +948,13 @@ bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 	}
 	else
 	{
-		m_IOThread = std::make_unique<std::thread>([this](std::promise<int>&& promise)
-		{
-			promise.set_value_at_thread_exit(0);
-			RunServer();
+		m_IOThread = std::make_unique<std::thread>(kMakeThread(
+			[this, Promise = std::move(promise)]() mutable
+			{
+				Promise.set_value_at_thread_exit(0);
+				RunServer();
 
-		},(std::move(promise)));
+			}));
 
 		// give the thread time to start up before we return in non-blocking code
 		std::unique_lock<std::mutex> Lock(m_StartupMutex);

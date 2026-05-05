@@ -73,9 +73,10 @@
 #include "ktunnel.h"
 #include "ktunnel_admin.h"
 #include "ktunnel_store.h"
-#include <dekaf2/core/init/dekaf2.h> // KInit()
+#include <dekaf2/core/init/dekaf2.h> // KInit() + Dekaf::getInstance().Signals()
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/system/os/kservice.h>
+#include <dekaf2/system/os/ksignals.h> // SIGINT/SIGTERM chain in ExposedServer ctor
 #include <dekaf2/system/filesystem/kfilesystem.h> // kReadAll for -pass-file
 #include <dekaf2/crypto/auth/kbcrypt.h>
 #include <dekaf2/threading/execution/kthreads.h>
@@ -321,6 +322,33 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 	};
 
 	auto Tunnel = std::make_shared<KTunnel>(TunnelCfg, std::move(Stream));
+
+	// Register the tunnel in m_ControlTunnels *before* we spawn the Run()
+	// thread, so a SIGINT landing between std::make_shared and the spawn
+	// still reaches this peer via Shutdown(). Removal on the way out goes
+	// through a scope guard and also purges any stale expired weak_ptrs
+	// that accumulated since the last ControlStream finished — cheap
+	// opportunistic cleanup so the vector does not grow unbounded.
+	{
+		m_ControlTunnels.unique()->emplace_back(Tunnel);
+	}
+	KAtScopeEnd(
+		auto Tunnels = m_ControlTunnels.unique();
+
+		for (auto it = Tunnels->begin(); it != Tunnels->end(); )
+		{
+			auto Locked = it->lock();
+
+			if (!Locked || Locked == Tunnel)
+			{
+				it = Tunnels->erase(it);
+			}
+			else
+			{
+				++it;
+			}
+		}
+	);
 
 	m_Config.Message("[control]: opened control stream from {}", EndpointAddress);
 
@@ -709,6 +737,26 @@ ExposedServer::~ExposedServer()
 }
 
 //-----------------------------------------------------------------------------
+void ExposedServer::Shutdown()
+//-----------------------------------------------------------------------------
+{
+	// Shared lock is enough — we only read the vector and dereference
+	// weak_ptrs; the erase pass in ControlStream's scope guard will run
+	// once each session unwinds, which cannot happen before KTunnel::Stop()
+	// returns.
+	auto Tunnels = m_ControlTunnels.shared();
+
+	for (const auto& Weak : *Tunnels)
+	{
+		if (auto Live = Weak.lock())
+		{
+			Live->Stop();
+		}
+	}
+
+} // Shutdown
+
+//-----------------------------------------------------------------------------
 ExposedServer::ExposedServer (const Config& config)
 //-----------------------------------------------------------------------------
 : m_Config(config)
@@ -887,10 +935,69 @@ ExposedServer::ExposedServer (const Config& config)
 	// tunnel names instead of letting the OS return EADDRINUSE.
 	ReconcileListeners("bootstrap");
 
-	// Block the main thread until shutdown. KREST owns the signal
-	// handler for SIGINT/SIGTERM (via bBlocking=false +
+	// Chain our own SIGINT/SIGTERM handler *in front of* KREST's, so the
+	// first Ctrl+C (or `systemctl stop`) unblocks the live /Tunnel
+	// WebSocket threads before KREST tries to drain its worker pool. Without
+	// this chain Http.Wait() below hangs: KREST stops the acceptor, but its
+	// per-session thread is still join()ing a TunnelThread that is itself
+	// stuck in KTunnel::Run() → poll(). Our handler calls Shutdown() which
+	// fans out KTunnel::Stop() to every live control-stream tunnel; the
+	// captured previous handler (KREST's) then runs and tears down the
+	// REST acceptor. Result: Http.Wait() returns within milliseconds and
+	// main() unwinds cleanly on the first signal.
+	//
+	// We deliberately do NOT take the KService::SetShutdownHandler route
+	// that ProtectedHost uses: that one only hooks SIGTERM, but the user-
+	// visible bug is interactive Ctrl+C (SIGINT).
+	auto Signals = Dekaf::getInstance().Signals();
+
+	if (Signals)
+	{
+		auto PrevSIGINT  = Signals->GetSignalHandler(SIGINT);
+		auto PrevSIGTERM = Signals->GetSignalHandler(SIGTERM);
+
+		Signals->SetSignalHandler(SIGINT,  [this, PrevSIGINT ](int iSig)
+		{
+			Shutdown();
+			if (PrevSIGINT)
+			{
+				PrevSIGINT (iSig);
+			}
+		});
+
+		Signals->SetSignalHandler(SIGTERM, [this, PrevSIGTERM](int iSig)
+		{
+			Shutdown();
+			if (PrevSIGTERM)
+			{
+				PrevSIGTERM(iSig);
+			}
+		});
+	}
+	else
+	{
+		kWarning("ExposedServer: no central signal-handler thread (KInit(true) "
+		         "missing?) — /Tunnel sessions will not be stopped on signal, "
+		         "Ctrl+C may need to be pressed twice");
+	}
+
+	// Restore the default handler before this stack frame unwinds, so a
+	// late signal that arrives after Http.Wait() returns cannot dereference
+	// `this` through the chained lambda.
+	KAtScopeEnd(
+		if (auto S = Dekaf::getInstance().Signals())
+		{
+			S->SetDefaultHandler(SIGINT);
+			S->SetDefaultHandler(SIGTERM);
+		}
+	);
+
+	// Block the main thread until shutdown. KREST owns the downstream
+	// signal handler for SIGINT/SIGTERM (via bBlocking=false +
 	// RegisterSignalsForShutdown default), and Wait() returns once that
-	// handler fires. The TunnelListener instances are torn down by the
+	// handler fires. Our chained handler above runs first and stops every
+	// live control-stream tunnel, so Http.Wait() does not get stuck in a
+	// worker-pool drain. The TunnelListener instances are torn down by the
 	// ExposedServer destructor after Wait() returns.
 	Http.Wait();
 

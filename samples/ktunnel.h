@@ -166,6 +166,24 @@ public:
 	ExposedServer (const Config& config);
 	~ExposedServer ();
 
+	/// Request a graceful shutdown of every currently-open control
+	/// stream so their KTunnel::Run() unblocks promptly. Thread-safe
+	/// and safe to call from a signal-handler thread (KSignals): it
+	/// takes a shared lock on m_ControlTunnels, locks each weak_ptr,
+	/// and calls KTunnel::Stop() — which signals the underlying
+	/// stream and wakes the blocked poll() inside ReadMessage().
+	///
+	/// Without this hook, a SIGINT during an active /Tunnel session
+	/// causes Http.Wait() to hang: KREST's own signal handler tears
+	/// down the REST acceptor, but the per-session worker thread is
+	/// stuck joining a TunnelThread that will itself only return when
+	/// the tunnel's poll() times out (many seconds later). Shutdown()
+	/// short-circuits that chain so Http.Wait() returns within
+	/// milliseconds and main() can unwind cleanly on the first
+	/// Ctrl+C. Installed as a chained SIGINT/SIGTERM handler in the
+	/// ExposedServer constructor, just before Http.Wait().
+	void Shutdown ();
+
 	/// Forward a raw downstream TCP connection through the tunnel
 	/// belonging to @p sOwner. Closes the stream and logs an event
 	/// if the owner is not currently connected. Used by per-tunnel
@@ -277,6 +295,21 @@ private:
 	/// SnapshotListenerStates) take a shared lock and can run in
 	/// parallel; Register/Unregister take a unique lock.
 	KThreadSafe<KUnorderedMap<KString, ActiveTunnel>> m_ActiveTunnels;
+
+	/// Weak references to every KTunnel currently live inside
+	/// ControlStream(), regardless of authentication state. Populated
+	/// at the start of each ControlStream invocation and removed via a
+	/// scope guard at the end, so the shared_ptr lifetime stays owned
+	/// by ControlStream's stack frame. Shutdown() iterates this list
+	/// and calls KTunnel::Stop() on each live entry, which unblocks
+	/// the tunnel's poll() and lets the KREST worker thread drain.
+	///
+	/// Why not m_ActiveTunnels: that map only holds *authenticated*
+	/// peers keyed by username, so a peer stuck in the login exchange
+	/// would be invisible to it. Using a weak_ptr registry here covers
+	/// both the pre- and post-auth windows without changing the
+	/// semantics of the by-user lookup map.
+	KThreadSafe<std::vector<std::weak_ptr<KTunnel>>>  m_ControlTunnels;
 
 	/// Snapshot key for the listener registry: the per-row fields that
 	/// influence socket ownership. Two rows with identical keys share

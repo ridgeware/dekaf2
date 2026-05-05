@@ -178,7 +178,7 @@ void kSetupThreadSignalHandling(bool bExceptSEGVandFPE)
 
 	pthread_sigmask(SIG_BLOCK, &signal_set, nullptr); // sigprocmask would set it for all threads
 
-#if !defined(__SANITIZE_ADDRESS__) && !(defined(__has_feature) && __has_feature(address_sanitizer))
+#ifndef DEKAF2_HAS_ASAN
 	// Allocate alt stack for this thread so that the crash handler still has
 	// stack space when the regular stack overflows. sigaltstack() is per-thread
 	// and not inherited across pthread_create(), so each thread has to set up

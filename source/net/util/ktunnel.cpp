@@ -90,6 +90,11 @@
 #include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/threading/execution/kthreads.h>
+#if DEKAF2_HAS_ED25519 && DEKAF2_HAS_X25519
+	#include <dekaf2/crypto/ec/kx25519.h>           // ephemeral DH for v2 handshake
+	#include <dekaf2/crypto/kdf/khkdf.h>            // HKDF-SHA256 for session-key derivation
+	#include <dekaf2/crypto/hash/kmessagedigest.h>  // KSHA256 for FormatFingerprint
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -1144,22 +1149,194 @@ void KTunnel::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 
 } // KTunnel::ConnectToTarget
 
+#if DEKAF2_HAS_ED25519 && DEKAF2_HAS_X25519
+
+namespace {
+
 //-----------------------------------------------------------------------------
-void KTunnel::SetupEncryption (KStringView sUser, KStringView sSecret)
+/// Build the byte string that both sides sign / verify in the v2 handshake.
+/// Domain-separated by the ASCII tag "ktunnel-v2\0" so a forged signature
+/// could not migrate from a different protocol that ever uses the same
+/// underlying Ed25519 key. Order is fixed and binds every public input of
+/// the handshake into a single transcript: client-eph-pub, server-eph-pub,
+/// client-nonce, server-nonce, login-user.
+KString BuildHandshakeTranscript(KStringView sEpubClient,
+                                 KStringView sEpubServer,
+                                 KStringView sNonceClient,
+                                 KStringView sNonceServer,
+                                 KStringView sUser)
 //-----------------------------------------------------------------------------
 {
-	if (sUser.empty())
+	KString sTranscript;
+	sTranscript.reserve(11 + 32 + 32 + 16 + 16 + sUser.size());
+	sTranscript.append("ktunnel-v2");
+	sTranscript.push_back('\0');
+	sTranscript.append(sEpubClient);
+	sTranscript.append(sEpubServer);
+	sTranscript.append(sNonceClient);
+	sTranscript.append(sNonceServer);
+	sTranscript.append(sUser);
+	return sTranscript;
+}
+
+} // anonymous namespace
+
+//-----------------------------------------------------------------------------
+KString KTunnel::FormatFingerprint(KStringView sRawPublicKey)
+//-----------------------------------------------------------------------------
+{
+	// SSH-style: SHA-256 of the raw public-key bytes, rendered as
+	// lowercase hex with a colon between every byte. 32 hash bytes
+	// produce 64 hex chars + 31 colons = 95 chars.
+	auto sHex = KSHA256(sRawPublicKey).HexDigest();
+
+	KString sOut;
+	sOut.reserve(sHex.size() + sHex.size() / 2);
+
+	for (std::size_t i = 0; i < sHex.size(); i += 2)
 	{
-		sUser = "<none>";
+		if (i != 0) sOut.push_back(':');
+		sOut.append(sHex.substr(i, 2));
 	}
 
-	kDebug(2, "setting up payload encryption for user {} with session secret", sUser);
+	return sOut;
 
-	KString sSessionSecret;
+} // KTunnel::FormatFingerprint
 
+//-----------------------------------------------------------------------------
+void KTunnel::SetupEncryption (KStringView sUser)
+//-----------------------------------------------------------------------------
+{
+	// Client-side half of the v2 X25519 + Ed25519 + HKDF handshake.
+	// Both sides run on top of the already-open tunnel stream which is
+	// usually TLS-protected — but we deliberately do NOT trust TLS for
+	// peer authentication, because an enterprise TLS-interception
+	// middlebox can present a forged but technically valid chain. The
+	// Ed25519 server-identity signature pinned via known_servers /
+	// -trust-fingerprint is the actual MITM defence; the X25519 part
+	// gives forward secrecy against a later compromise of either the
+	// identity key or the TLS private key.
+
+	if (sUser.empty()) sUser = "<none>";
+
+	kDebug(2, "v2 handshake (client) for user {}", sUser);
+
+	// 1) Generate ephemeral X25519 + 16-byte client nonce.
+	KX25519 EphClient(true);
+	if (EphClient.empty())
 	{
-		// configure payload encryption if requested
+		throw KError("v2 handshake: cannot generate ephemeral X25519 key");
+	}
+	KString sEpubClient  = EphClient.GetPublicKeyRaw();
+	KString sNonceClient = kGetRandom(16);
+
+	// 2) Send hello frame (plaintext JSON, type Login for wire-compat).
+	KJSON oHello {
+		{ "ver",  2 },
+		{ "kind", "hello" },
+		{ "epub", KEncode::Base64(sEpubClient) },
+		{ "n_c",  KEncode::Base64(sNonceClient) },
+		{ "user", sUser }
+	};
+	WriteMessage(Message(Message::Login, 0, oHello.dump()));
+
+	// 3) Receive hello-ack (plaintext, server-signed).
+	Message Ack;
+	ReadMessage(Ack);
+
+	if (Ack.GetType() != Message::Login)
+	{
+		throw KError(kFormat("v2 handshake: expected hello-ack, got {}", Ack.PrintType()));
+	}
+
+	KJSON oAck = kjson::Parse(Ack.GetMessage());
+	if (!oAck.is_object() || kjson::GetUInt(oAck, "ver") != 2 ||
+	    kjson::GetStringRef(oAck, "kind") != "hello-ack")
+	{
+		throw KError("v2 handshake: malformed hello-ack (legacy peer or wire-protocol mismatch)");
+	}
+
+	KString sEpubServer  = KDecode::Base64(kjson::GetStringRef(oAck, "epub"));
+	KString sNonceServer = KDecode::Base64(kjson::GetStringRef(oAck, "n_s"));
+	KString sIpubServer  = KDecode::Base64(kjson::GetStringRef(oAck, "ipub"));
+	KString sSig         = KDecode::Base64(kjson::GetStringRef(oAck, "sig"));
+
+	if (sEpubServer.size() != 32 || sNonceServer.size() != 16 ||
+	    sIpubServer.size() != 32 || sSig.size() != 64)
+	{
+		throw KError("v2 handshake: malformed crypto fields in hello-ack");
+	}
+
+	// 4) Verify the Ed25519 signature over the transcript. This is
+	//    the only thing standing between us and an active TLS MITM, so
+	//    we verify *before* we touch the trust callback or derive any
+	//    keys. A forged signature here is a hard error.
+	KEd25519Key ServerIdentityPub;
+	if (!ServerIdentityPub.CreateFromRaw(sIpubServer, /*bIsPrivateKey=*/false))
+	{
+		throw KError("v2 handshake: malformed server identity public key");
+	}
+
+	auto sTranscript = BuildHandshakeTranscript(sEpubClient, sEpubServer,
+	                                            sNonceClient, sNonceServer, sUser);
+
+	KEd25519Verify Verifier;
+	if (!Verifier.Verify(ServerIdentityPub, sTranscript, sSig))
+	{
+		throw KError(kFormat("v2 handshake: server identity signature INVALID for {} "
+		                     "(possible MITM, refusing to send credentials)",
+		                     GetEndPointAddress()));
+	}
+
+	// 5) Trust check: ask the embedder if it knows / accepts this
+	//    server identity. The embedder runs known_servers lookup, may
+	//    consult -trust-fingerprint, may TOFU-prompt the operator.
+	if (!m_Config.TrustCallback)
+	{
+		throw KError("v2 handshake: bAESPayload set on the client side but "
+		             "no Config::TrustCallback installed — refusing to send credentials");
+	}
+
+	KString sFingerprint = FormatFingerprint(sIpubServer);
+	KString sHostPort    = GetEndPointAddress().Serialize();
+
+	if (!m_Config.TrustCallback(sHostPort, sIpubServer, sFingerprint))
+	{
+		throw KError(kFormat("v2 handshake: server identity for {} not trusted (fingerprint {})",
+		                     sHostPort, sFingerprint));
+	}
+
+	// 6) ECDH + HKDF-SHA256 → tx_key (c2s), rx_key (s2c).
+	KString sShared = EphClient.DeriveSharedSecret(sEpubServer);
+	if (sShared.size() != 32)
+	{
+		throw KError("v2 handshake: ECDH derive failed");
+	}
+
+	KString sSalt   = sNonceClient + sNonceServer;
+	KString sPRK    = KHKDF::Extract(sSalt, sShared);
+	KString sKeyC2S = KHKDF::Expand(sPRK, "ktunnel-v2 c2s", 32);
+	KString sKeyS2C = KHKDF::Expand(sPRK, "ktunnel-v2 s2c", 32);
+
+	if (sKeyC2S.size() != 32 || sKeyS2C.size() != 32)
+	{
+		throw KError("v2 handshake: HKDF expand produced unexpected key size");
+	}
+
+	// 7) Install AES-256-GCM ciphers. Client perspective: we encrypt
+	//    with key_c2s (towards the server), decrypt with key_s2c.
+	{
 		auto Tunnel = m_Tunnel.unique();
+
+		Tunnel->Encryptor = std::make_unique<KBlockCipher>
+		(
+			KBlockCipher::Encrypt,
+			KBlockCipher::AES,
+			KBlockCipher::GCM,
+			KBlockCipher::B256,
+			false, // do not inline the IV — auto-increment counter
+			true   // inline the verification tag
+		);
 
 		Tunnel->Decryptor = std::make_unique<KBlockCipher>
 		(
@@ -1167,136 +1344,153 @@ void KTunnel::SetupEncryption (KStringView sUser, KStringView sSecret)
 			KBlockCipher::AES,
 			KBlockCipher::GCM,
 			KBlockCipher::B256,
-			false, // do not inline the IV - we use a counter
-			true   // inline the verification tag
-		 );
+			false,
+			true
+		);
 
-		// get a session secret with the required size
-		sSessionSecret = kGetRandom(Tunnel->Decryptor->GetNeededKeyLength());
-
-		// create initial tx encryptor with IV and tag inline
-		Tunnel->Encryptor = std::make_unique<KBlockCipher>(KBlockCipher::Encrypt);
-		// set the shared secret
-		Tunnel->Encryptor->SetPassword(sSecret);
+		Tunnel->Encryptor->SetKey(sKeyC2S);
+		Tunnel->Decryptor->SetKey(sKeyS2C);
+		Tunnel->Encryptor->SetAutoIncrementNonceAsIV();
+		Tunnel->Decryptor->SetAutoIncrementNonceAsIV();
 	}
 
-	// now send one message with the shared secret, announcing the session secret
-	KJSON oLogin {
-		{ "user", sUser   },
-		{ "pass", sSecret },
-		{ "skey", KEncode::Base64(sSessionSecret) }
-	};
+	kDebug(1, "v2 handshake (client) ok for {}, server fingerprint {}",
+	       sHostPort, sFingerprint);
 
-	// write with the shared secret
-	WriteMessage(Message(Message::Login, 0, oLogin.dump()));
-
-	auto Tunnel = m_Tunnel.unique();
-
-	// replace the initial encryptor with the session encryptor, which
-	// will allow us to not exchange the IV, as now it can be a simple
-	// counter that will be kept synchronous on both sides
-	Tunnel->Encryptor = std::make_unique<KBlockCipher>
-	(
-		KBlockCipher::Encrypt,
-		KBlockCipher::AES,
-		KBlockCipher::GCM,
-		KBlockCipher::B256,
-		false, // do not inline the IV - we use a counter
-		true   // inline the verification tag
-	);
-
-	Tunnel->Encryptor->SetKey(sSessionSecret);
-	Tunnel->Decryptor->SetKey(sSessionSecret);
-
-	Tunnel->Encryptor->SetAutoIncrementNonceAsIV();
-	Tunnel->Decryptor->SetAutoIncrementNonceAsIV();
-
-} // SetupEncryption
+} // SetupEncryption (client)
 
 //-----------------------------------------------------------------------------
-bool KTunnel::SetupEncryption (Message& message, const KUnorderedSet<KString>& Secrets,
-                               KString& sOutUser, KString& sOutPass)
+bool KTunnel::SetupEncryption (Message& HelloFrame, KString& sOutUser)
 //-----------------------------------------------------------------------------
 {
-	// try all secrets to find the right one
-	for (auto& sSecret : Secrets)
+	// Server-side half of the v2 handshake. The hello frame has been
+	// read by WaitForLogin() and is passed in. We verify it parses,
+	// generate our own ephemeral key, sign the transcript with our
+	// long-term identity key, send hello-ack, derive session keys,
+	// install ciphers. After this returns, WaitForLogin() reads the
+	// next frame (the encrypted auth frame) and authenticates the user.
+
+	if (HelloFrame.GetType() != Message::Login)
 	{
-		KBlockCipher Cipher(KBlockCipher::Decrypt);
-		Cipher.SetPassword(sSecret);
-		Cipher.SetThrowOnError(false);
-
-		if (message.Decrypt(&Cipher))
-		{
-			// this was the right decryptor
-			// check the message type
-			if (message.GetType() != Message::Login)
-			{
-				kDebug(1, "wrong message type in login attempt: {}", message.PrintType());
-				return false;
-			}
-
-			// now check the JSON in the incoming message and setup the session key
-			KJSON oLogin = kjson::Parse(message.GetMessage());
-
-			if (!oLogin.is_object())
-			{
-				// this is not an object, therefore also not our protocol
-				kDebug(1, "invalid json type in login attempt");
-				return false;
-			}
-
-			// get the session secret
-			auto sSessionSecret = KDecode::Base64(kjson::GetStringRef(oLogin, "skey"));
-
-			if (sSessionSecret.empty())
-			{
-				kDebug(1, "no session secret in login attempt");
-				return false;
-			}
-
-			// hand the (user, pass) pair back to the caller so it can
-			// either remember it for GetLoginUser() or run it through
-			// a user-supplied Authenticator callback
-			sOutUser = kjson::GetStringRef(oLogin, "user");
-			sOutPass = kjson::GetStringRef(oLogin, "pass");
-
-			kDebug(1, "successful PSK-decrypt of login frame for {}", sOutUser);
-
-			auto Tunnel = m_Tunnel.unique();
-
-			Tunnel->Encryptor = std::make_unique<KBlockCipher>
-			(
-				KBlockCipher::Encrypt,
-				KBlockCipher::AES,
-				KBlockCipher::GCM,
-				KBlockCipher::B256,
-				false, // do not inline the IV - we use a counter
-				true   // inline the verification tag
-			);
-
-			Tunnel->Decryptor = std::make_unique<KBlockCipher>
-			(
-				KBlockCipher::Decrypt,
-				KBlockCipher::AES,
-				KBlockCipher::GCM,
-				KBlockCipher::B256,
-				false, // do not inline the IV - we use a counter
-				true   // inline the verification tag
-			);
-
-			Tunnel->Encryptor->SetKey(sSessionSecret);
-			Tunnel->Decryptor->SetKey(sSessionSecret);
-
-			Tunnel->Encryptor->SetAutoIncrementNonceAsIV();
-			Tunnel->Decryptor->SetAutoIncrementNonceAsIV();
-
-			return true;
-		}
+		throw KError(kFormat("v2 handshake: first frame must be Login, got {}",
+		                     HelloFrame.PrintType()));
 	}
 
-	return false;
+	KJSON oHello = kjson::Parse(HelloFrame.GetMessage());
+	if (!oHello.is_object() || kjson::GetUInt(oHello, "ver") != 2 ||
+	    kjson::GetStringRef(oHello, "kind") != "hello")
+	{
+		// Most likely a v1 (PSK) peer trying to open an AES tunnel against
+		// our v2-only server. We say so explicitly so the operator does
+		// not stare at a 15-second silent timeout.
+		throw KError(kFormat("v2 handshake: legacy or non-v2 hello from {} "
+		                     "(upgrade peer, or the peer's -aes flag is set without v2 support)",
+		                     GetEndPointAddress()));
+	}
 
-} // SetupEncryption
+	KString sEpubClient  = KDecode::Base64(kjson::GetStringRef(oHello, "epub"));
+	KString sNonceClient = KDecode::Base64(kjson::GetStringRef(oHello, "n_c"));
+	sOutUser             = kjson::GetStringRef(oHello, "user");
+
+	if (sEpubClient.size() != 32 || sNonceClient.size() != 16)
+	{
+		throw KError("v2 handshake: malformed hello (epub or n_c wrong size)");
+	}
+
+	if (!m_Config.ServerIdentity || m_Config.ServerIdentity->empty() ||
+	    !m_Config.ServerIdentity->IsPrivateKey())
+	{
+		throw KError("v2 handshake: bAESPayload set on the server side but "
+		             "Config::ServerIdentity holds no private Ed25519 key");
+	}
+
+	// Server-side ephemeral + nonce + signed transcript.
+	KX25519 EphServer(true);
+
+	if (EphServer.empty())
+	{
+		throw KError("v2 handshake: cannot generate ephemeral X25519 key");
+	}
+
+	KString sEpubServer  = EphServer.GetPublicKeyRaw();
+	KString sNonceServer = kGetRandom(16);
+	KString sIpubServer  = m_Config.ServerIdentity->GetPublicKeyRaw();
+
+	auto sTranscript = BuildHandshakeTranscript(sEpubClient, sEpubServer,
+	                                            sNonceClient, sNonceServer, sOutUser);
+
+	KEd25519Sign Signer;
+	KString sSig = Signer.Sign(*m_Config.ServerIdentity, sTranscript);
+	if (sSig.size() != 64)
+	{
+		throw KError("v2 handshake: Ed25519 sign failed");
+	}
+
+	KJSON oAck {
+		{ "ver",  2 },
+		{ "kind", "hello-ack" },
+		{ "epub", KEncode::Base64(sEpubServer)  },
+		{ "n_s",  KEncode::Base64(sNonceServer) },
+		{ "ipub", KEncode::Base64(sIpubServer)  },
+		{ "sig",  KEncode::Base64(sSig)         }
+	};
+	WriteMessage(Message(Message::Login, 0, oAck.dump()));
+
+	// ECDH + HKDF (mirror of the client side).
+	KString sShared = EphServer.DeriveSharedSecret(sEpubClient);
+	if (sShared.size() != 32)
+	{
+		throw KError("v2 handshake: ECDH derive failed");
+	}
+
+	KString sSalt   = sNonceClient + sNonceServer;
+	KString sPRK    = KHKDF::Extract(sSalt, sShared);
+	KString sKeyC2S = KHKDF::Expand(sPRK, "ktunnel-v2 c2s", 32);
+	KString sKeyS2C = KHKDF::Expand(sPRK, "ktunnel-v2 s2c", 32);
+
+	if (sKeyC2S.size() != 32 || sKeyS2C.size() != 32)
+	{
+		throw KError("v2 handshake: HKDF expand produced unexpected key size");
+	}
+
+	// Server perspective: encrypt with key_s2c (towards the client),
+	// decrypt with key_c2s (the client's outgoing direction).
+	{
+		auto Tunnel = m_Tunnel.unique();
+
+		Tunnel->Encryptor = std::make_unique<KBlockCipher>
+		(
+			KBlockCipher::Encrypt,
+			KBlockCipher::AES,
+			KBlockCipher::GCM,
+			KBlockCipher::B256,
+			false,
+			true
+		);
+		Tunnel->Decryptor = std::make_unique<KBlockCipher>
+		(
+			KBlockCipher::Decrypt,
+			KBlockCipher::AES,
+			KBlockCipher::GCM,
+			KBlockCipher::B256,
+			false,
+			true
+		);
+
+		Tunnel->Encryptor->SetKey(sKeyS2C);
+		Tunnel->Decryptor->SetKey(sKeyC2S);
+		Tunnel->Encryptor->SetAutoIncrementNonceAsIV();
+		Tunnel->Decryptor->SetAutoIncrementNonceAsIV();
+	}
+
+	kDebug(1, "v2 handshake (server) ok for user '{}' from {}",
+	       sOutUser, GetEndPointAddress());
+
+	return true;
+
+} // SetupEncryption (server)
+
+#endif // DEKAF2_HAS_ED25519 && DEKAF2_HAS_X25519
 
 //-----------------------------------------------------------------------------
 bool KTunnel::Login(KStringView sUser, KStringView sSecret)
@@ -1304,14 +1498,29 @@ bool KTunnel::Login(KStringView sUser, KStringView sSecret)
 {
 	if (m_Config.bAESPayload)
 	{
-		SetupEncryption(sUser, sSecret);
+#if DEKAF2_HAS_ED25519 && DEKAF2_HAS_X25519
+		// Run the v2 handshake (X25519 + Ed25519 + HKDF). After this
+		// returns the tunnel ciphers are active and every further frame
+		// is AES-256-GCM. We then send the auth frame in the clear-on-
+		// the-wire-but-encrypted-by-cipher path.
+		SetupEncryption(sUser);
+
+		KJSON oAuth {
+			{ "kind", "auth"   },
+			{ "pass", sSecret  }
+		};
+		WriteMessage(Message(Message::Login, 0, oAuth.dump()));
+#else
+		throw KError("v2 AES handshake unavailable: dekaf2 was built without "
+		             "X25519/Ed25519 support (OpenSSL >= 1.1.1 / LibreSSL >= 3.7.0 required)");
+#endif
 	}
 	else
 	{
 		WriteMessage(Message(Message::Login, 0, kFormat("Basic {}", KEncode::Base64(kFormat("{}:{}", sUser, sSecret)))));
 	}
 
-	// wait for the response
+	// wait for the response (Helo, encrypted iff bAESPayload)
 	Message Response;
 	ReadMessage(Response);
 
@@ -1337,44 +1546,57 @@ void KTunnel::WaitForLogin()
 
 	if (m_Config.bAESPayload)
 	{
-		// AES flow: decrypt the Login frame with one of the configured PSKs
-		// and recover (user, pass) from its JSON body. The PSK was already
-		// matched against Secrets by SetupEncryption(), so the presence of
-		// a working PSK is equivalent to the legacy "pass in Secrets" check.
-		if (!SetupEncryption(Login, m_Config.Secrets, sLoginUser, sLoginPass))
+#if DEKAF2_HAS_ED25519 && DEKAF2_HAS_X25519
+		// v2 flow: the just-read frame is the client's hello. Run the
+		// X25519+Ed25519 handshake which sends back a signed hello-ack
+		// and wires up the AES-GCM ciphers. Then read the encrypted auth
+		// frame to recover the password.
+		SetupEncryption(Login, sLoginUser);
+
+		Message Auth;
+		ReadMessage(Auth);
+
+		if (Auth.GetType() != Message::Login)
 		{
-			throw KError(kFormat("invalid encryption from {}", GetEndPointAddress()));
+			throw KError(kFormat("v2 handshake: expected auth frame, got {}", Auth.PrintType()));
 		}
-	}
 
-	if (Login.GetType() != Message::Login)
-	{
-		throw KError(kFormat("invalid message type {}", Login.PrintType()));
-	}
+		KJSON oAuth = kjson::Parse(Auth.GetMessage());
+		if (!oAuth.is_object() || kjson::GetStringRef(oAuth, "kind") != "auth")
+		{
+			throw KError("v2 handshake: malformed auth frame");
+		}
 
-	if (!m_Config.bAESPayload)
+		sLoginPass = kjson::GetStringRef(oAuth, "pass");
+#else
+		throw KError("v2 AES handshake unavailable: dekaf2 was built without "
+		             "X25519/Ed25519 support");
+#endif
+	}
+	else
 	{
+		if (Login.GetType() != Message::Login)
+		{
+			throw KError(kFormat("invalid message type {}", Login.PrintType()));
+		}
 		// Basic flow: extract user/pass from an "Basic <base64>" string
 		auto Creds = KHTTPHeaders::DecodeBasicAuthFromString(Login.GetMessage());
 		sLoginUser = Creds.sUsername;
 		sLoginPass = Creds.sPassword;
 	}
 
-	// If the embedder supplied an Authenticator callback, let it have the
-	// final say. Otherwise fall back to the historic behaviour of requiring
-	// that the presented password appears in Config::Secrets. (In AES mode
-	// the PSK-decryption already implied that, but we keep the check here
-	// for the non-AES path and for symmetry.)
+	// Authenticate. Embedder's AuthCallback wins if set (used by the
+	// stateful sample to bcrypt-verify against the users table).
+	// Otherwise fall back to Config::Secrets membership (the AdHoc
+	// pre-shared-secret model). This block is now identical in both
+	// transport modes — the v2 handshake established session secrecy,
+	// it does not authenticate the user; that's still the password's
+	// job, only over a now-confidential channel.
 	bool bAccepted = false;
 
 	if (m_Config.AuthCallback)
 	{
 		bAccepted = m_Config.AuthCallback(sLoginUser, sLoginPass);
-	}
-	else if (m_Config.bAESPayload)
-	{
-		// AES PSK already matched one of the Secrets entries
-		bAccepted = true;
 	}
 	else
 	{

@@ -125,6 +125,31 @@ public:
 	/// which is the default username used by `-set-admin` and the
 	/// `-install` bootstrap.
 	KString                sPeerUser      { "admin" };
+
+	/// Protected-side trust configuration for the v2 AES handshake.
+	/// All four are unused on the exposed side.
+	///
+	/// `sTrustFingerprint` (CLI: `-trust-fingerprint <hex>`):
+	///   one-shot trust override. If non-empty and matches the server's
+	///   presented fingerprint, the connection is accepted regardless of
+	///   any known_servers entry; on mismatch the connection is rejected
+	///   even if known_servers would have accepted it. Not persisted.
+	///
+	/// `bTrustOnFirstUse` (CLI: `-trust-on-first-use`):
+	///   if true, an unknown server (no known_servers entry, no
+	///   `sTrustFingerprint`) triggers an interactive yes/no prompt that
+	///   shows the fingerprint; on "yes" we record it in known_servers
+	///   and continue. Without this flag an unknown server is hard-
+	///   rejected so a non-interactive launch cannot silently accept a
+	///   forged identity.
+	///
+	/// `sKnownServersPath` (CLI: `-known-servers <path>`):
+	///   override for the per-user trust store. Defaults to
+	///   `$HOME/.config/ktunnel/known_servers` (resolved at runtime).
+	KString                sTrustFingerprint;
+	bool                   bTrustOnFirstUse { false };
+	KString                sKnownServersPath;
+
 	/// Operating mode of the exposed host (see Mode). Populated by
 	/// Tunnel::Main() before ExposedServer is constructed. On the
 	/// protected host side this field is unused.
@@ -158,6 +183,14 @@ public:
 		KString  sKeyFile;
 		KString  sTLSPassword;
 		KString  sCipherSuites;
+		/// Path to the long-term Ed25519 server-identity PEM file used
+		/// by the v2 AES handshake to sign hello-ack frames. Resolved by
+		/// Tunnel::Main() based on -persist (AdHoc) or the DB directory
+		/// (Stateful) unless the operator supplied an explicit
+		/// `-identity-key <path>` override. In AdHoc mode without
+		/// `-persist` this is left empty and an ephemeral key is
+		/// generated at start-up.
+		KString  sIdentityKeyPath;
 		uint16_t iPort    { 0 };
 		uint16_t iRawPort { 0 };
 		bool     bPersistCert { false };
@@ -359,6 +392,17 @@ private:
 	std::unique_ptr<KBCrypt>          m_BCrypt;
 	std::unique_ptr<AdminUI>          m_AdminUI;
 	const Config&                     m_Config;
+
+#if DEKAF2_HAS_ED25519
+	/// Long-term Ed25519 server identity used by the v2 AES handshake to
+	/// sign hello-ack frames. Loaded (or generated, in AdHoc with
+	/// -persist; ephemeral in AdHoc without) by the ExposedServer ctor
+	/// when m_Config.bAESPayload is set, otherwise null. Stored here
+	/// rather than on m_Config because m_Config is held by const-ref;
+	/// ControlStream() copies the pointer into the per-connection
+	/// KTunnel::Config so the tunnel's WaitForLogin can sign with it.
+	std::shared_ptr<KEd25519Key>      m_ServerIdentity;
+#endif
 
 	/// Per-tunnel listeners keyed by tunnel name. KThreadSafe couples
 	/// the map with a shared_mutex: SnapshotListenerStates takes a

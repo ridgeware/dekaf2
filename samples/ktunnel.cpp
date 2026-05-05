@@ -90,9 +90,327 @@
 
 #if !defined(DEKAF2_IS_WINDOWS)
 	#include <unistd.h>      // ::isatty check in CapturePassword
+	#include <sys/stat.h>    // ::chmod for the persisted identity-key file
 #endif
 
 using namespace dekaf2;
+
+// ==========================================================================
+// AES handshake helpers (Ed25519 server identity, X25519 ECDH, HKDF-SHA256)
+// ==========================================================================
+//
+// These live in an early anonymous namespace because both ExposedServer's
+// ctor (loading the server identity) and ProtectedHost::Run (installing the
+// trust callback) need them. The bootstrap helpers in the late anonymous
+// namespace at the bottom of this file (RunPrintFingerprint etc.) also use
+// them. C++ lookup permits the late helpers to call the early ones; not the
+// other way round.
+
+namespace {
+
+#if DEKAF2_HAS_ED25519
+
+//-----------------------------------------------------------------------------
+/// Resolve the default path for the Ed25519 server-identity PEM file.
+/// Empty result means "AdHoc without -persist — generate ephemerally and
+/// keep in memory only".
+///
+/// Otherwise the path lives next to the SQLite admin DB so a single backup
+/// of $HOME/.config/ktunnel/ (or /var/lib/ktunnel/) captures both. AdHoc
+/// installs with -persist that have no DB fall back to the user config dir,
+/// which is where the DB *would* be — keeps the layout symmetric.
+KString DefaultIdentityKeyPath(KStringView sDatabasePath, bool bAdHoc, bool bPersist)
+//-----------------------------------------------------------------------------
+{
+	if (bAdHoc && !bPersist)
+	{
+		return KString{};   // ephemeral identity
+	}
+
+	if (!sDatabasePath.empty())
+	{
+		KString sDir{kDirname(sDatabasePath)};
+		return kFormat("{}{}ktunnel_ed25519.pem", sDir, kDirSep);
+	}
+
+	return kFormat("{}{}ktunnel_ed25519.pem", kGetConfigPath(true), kDirSep);
+
+} // DefaultIdentityKeyPath
+
+//-----------------------------------------------------------------------------
+/// Load an Ed25519 private key from @p sPath, or generate a fresh one if
+/// the file does not exist and @p bGenerateIfMissing is true. When a key is
+/// freshly generated AND @p sPath is non-empty, write it back as PEM with
+/// mode 0600 so it survives across restarts. Empty @p sPath plus
+/// @p bGenerateIfMissing means "give me an ephemeral key".
+///
+/// Returns null on any failure (parse error, write error, generation error).
+std::shared_ptr<KEd25519Key> LoadOrGenerateIdentity(KStringViewZ sPath, bool bGenerateIfMissing)
+//-----------------------------------------------------------------------------
+{
+	auto Key = std::make_shared<KEd25519Key>();
+
+	if (!sPath.empty() && kFileExists(sPath))
+	{
+		KString sPEM;
+		if (!kReadAll(sPath, sPEM))
+		{
+			KErr.FormatLine(">> ktunnel: cannot read identity key '{}'", sPath);
+			return nullptr;
+		}
+		if (!Key->CreateFromPEM(sPEM))
+		{
+			KErr.FormatLine(">> ktunnel: cannot parse identity key '{}': {}",
+			                sPath, Key->Error());
+			return nullptr;
+		}
+		if (!Key->IsPrivateKey())
+		{
+			KErr.FormatLine(">> ktunnel: identity key at '{}' is a public key only "
+			                "(need a private key to sign handshake frames)", sPath);
+			return nullptr;
+		}
+		return Key;
+	}
+
+	if (!bGenerateIfMissing)
+	{
+		// Caller asked us to load only — missing file is not an error here,
+		// just signal it by returning null. The caller (e.g. -fingerprint)
+		// prints its own context-specific message.
+		return nullptr;
+	}
+
+	if (!Key->Generate())
+	{
+		KErr.FormatLine(">> ktunnel: cannot generate Ed25519 identity: {}", Key->Error());
+		return nullptr;
+	}
+
+	if (sPath.empty())
+	{
+		return Key;   // ephemeral, do not persist
+	}
+
+	KString sDir{kDirname(sPath)};
+	if (!sDir.empty() && !kDirExists(sDir))
+	{
+		kCreateDir(sDir, DEKAF2_MODE_CREATE_CONFIG_DIR, true);
+	}
+
+	auto sPEM = Key->GetPEM(true);
+	if (sPEM.empty() || !kWriteFile(sPath, sPEM))
+	{
+		KErr.FormatLine(">> ktunnel: cannot write identity key to '{}'", sPath);
+		return nullptr;
+	}
+
+#if !defined(DEKAF2_IS_WINDOWS)
+	// Lock down to user-only. kCreateDir already gave the parent dir 0700,
+	// but kWriteFile uses the umask for the file itself — force 0600 here
+	// so the private key cannot leak via a wide umask.
+	::chmod(sPath.c_str(), 0600);
+#endif
+
+	return Key;
+
+} // LoadOrGenerateIdentity
+
+//-----------------------------------------------------------------------------
+/// Trust-store backing the protected host's `-trust-on-first-use` flow.
+/// Tiny line-oriented file at $HOME/.config/ktunnel/known_servers, format
+///   `<host>:<port> ed25519 <base64-of-32-byte-pubkey>`
+/// per line. Comments (`#`) and blank lines are tolerated. Lookup keys are
+/// the host:port string of the exposed peer (matching
+/// KTCPEndPoint::Serialize() output).
+class KnownServers
+{
+public:
+
+	explicit KnownServers(KString sPath) : m_sPath(std::move(sPath))
+	{
+		Load();
+	}
+
+	/// Returns the raw 32-byte public key associated with sHostPort, or
+	/// an empty KString if no entry is known.
+	DEKAF2_NODISCARD
+	KString Lookup(KStringView sHostPort) const
+	{
+		auto it = m_Entries.find(KString(sHostPort));
+		return (it != m_Entries.end()) ? it->second : KString{};
+	}
+
+	/// Append (host, raw-pubkey) to the file. Creates the parent dir if
+	/// missing. Returns false on any IO error.
+	bool Add(KStringView sHostPort, KStringView sRawPubKey)
+	{
+		if (m_sPath.empty()) return false;
+
+		KString sDir{kDirname(m_sPath)};
+		if (!sDir.empty() && !kDirExists(sDir))
+		{
+			kCreateDir(sDir, DEKAF2_MODE_CREATE_CONFIG_DIR, true);
+		}
+
+		KString sContent;
+		kReadAll(m_sPath, sContent);   // ok if file is missing
+		if (!sContent.empty() && sContent.back() != '\n')
+		{
+			sContent.push_back('\n');
+		}
+		sContent += kFormat("{} ed25519 {}\n",
+		                    sHostPort, KEncode::Base64(sRawPubKey));
+
+		if (!kWriteFile(m_sPath, sContent)) return false;
+
+		m_Entries[KString(sHostPort)] = KString(sRawPubKey);
+		return true;
+	}
+
+private:
+
+	void Load()
+	{
+		if (m_sPath.empty() || !kFileExists(m_sPath)) return;
+
+		KString sContent;
+		if (!kReadAll(m_sPath, sContent)) return;
+
+		for (auto sLine : sContent.Split('\n'))
+		{
+			while (!sLine.empty() && (sLine.front() == ' ' || sLine.front() == '\t'))
+			{
+				sLine.remove_prefix(1);
+			}
+
+			if (sLine.empty() || sLine.front() == '#') continue;
+
+			auto vTokens = sLine.Split(' ');
+
+			if (vTokens.size() < 3) continue;
+			if (vTokens[1] != "ed25519") continue;
+
+			auto sRaw = KDecode::Base64(vTokens[2]);
+			if (sRaw.size() != 32) continue;
+
+			m_Entries[vTokens[0]] = std::move(sRaw);
+		}
+	}
+
+	KString                                m_sPath;
+	KUnorderedMap<KString, KString>        m_Entries;
+
+}; // KnownServers
+
+//-----------------------------------------------------------------------------
+/// Read a yes/no answer from stdin, with prompt. Defaults to false on any
+/// unparseable input. Refuses to prompt at all if stdin is not a TTY (so a
+/// systemd / launchd / cron context cannot silently accept a forged identity
+/// just because the operator forgot -trust-fingerprint).
+bool PromptYesNo(KStringView sPrompt)
+//-----------------------------------------------------------------------------
+{
+#if !defined(DEKAF2_IS_WINDOWS)
+	if (!::isatty(STDIN_FILENO)) return false;
+#endif
+	KOut.Write(sPrompt).Flush();
+	KString sLine;
+	kReadLine(KIn, sLine);
+	sLine.Trim();
+	sLine.MakeLower();
+	return (sLine == "y" || sLine == "yes");
+
+} // PromptYesNo
+
+//-----------------------------------------------------------------------------
+/// Build the client-side TrustCallback for KTunnel::Config. Captures the
+/// trust policy by value so it remains valid for the lifetime of every
+/// per-connection KTunnel::Config copy made in ProtectedHost::Run.
+///
+/// Trust decision precedence (matches the table in the design doc):
+///   1. Explicit -trust-fingerprint:  match → accept; mismatch → reject
+///   2. known_servers entry:          match → accept; mismatch → reject loudly
+///   3. -trust-on-first-use:          interactive prompt; on "yes" persist
+///   4. otherwise:                    reject with a Hilfe-text on stderr
+KTunnel::TrustChecker BuildClientTrustCallback(const ExtendedConfig& Config)
+//-----------------------------------------------------------------------------
+{
+	KString sExplicitFingerprint = Config.sTrustFingerprint;
+	bool    bTOFU                = Config.bTrustOnFirstUse;
+	KString sKnownServersPath    = Config.sKnownServersPath.empty()
+	                             ? kFormat("{}{}known_servers",
+	                                       kGetConfigPath(true), kDirSep)
+	                             : Config.sKnownServersPath;
+
+	return [sExplicitFingerprint, bTOFU, sKnownServersPath]
+	       (KStringView sHostPort,
+	        KStringView sRawPubKey,
+	        KStringView sFingerprint) -> bool
+	{
+		if (!sExplicitFingerprint.empty())
+		{
+			if (sExplicitFingerprint == sFingerprint) return true;
+			KErr.FormatLine(">> ktunnel: server fingerprint MISMATCH for {}", sHostPort);
+			KErr.FormatLine(">>   expected: {}", sExplicitFingerprint);
+			KErr.FormatLine(">>   received: {}", sFingerprint);
+			return false;
+		}
+
+		KnownServers Store(sKnownServersPath);
+		auto sStored = Store.Lookup(sHostPort);
+
+		if (!sStored.empty())
+		{
+			if (sStored == sRawPubKey) return true;
+
+			KErr.FormatLine(">> ktunnel: server identity for {} HAS CHANGED", sHostPort);
+			KErr.FormatLine(">>   stored fingerprint:   {}", KTunnel::FormatFingerprint(sStored));
+			KErr.FormatLine(">>   received fingerprint: {}", sFingerprint);
+			KErr.FormatLine(">>   refusing to connect — possible man-in-the-middle.");
+			KErr.FormatLine(">>   if the server identity was rotated intentionally,");
+			KErr.FormatLine(">>   edit '{}' to remove the", sKnownServersPath);
+			KErr.FormatLine(">>   stale line and reconnect with -trust-on-first-use.");
+			return false;
+		}
+
+		if (!bTOFU)
+		{
+			KErr.FormatLine(">> ktunnel: server {} is not in known_servers", sHostPort);
+			KErr.FormatLine(">>   fingerprint: {}", sFingerprint);
+			KErr.FormatLine(">>   to accept this server, run again with one of:");
+			KErr.FormatLine(">>     -trust-fingerprint '{}'", sFingerprint);
+			KErr.FormatLine(">>     -trust-on-first-use   (writes to {})", sKnownServersPath);
+			return false;
+		}
+
+		KOut.FormatLine("");
+		KOut.FormatLine("The authenticity of '{}' cannot be established.", sHostPort);
+		KOut.FormatLine("Ed25519 fingerprint is {}.", sFingerprint);
+
+		if (!PromptYesNo("Are you sure you want to continue connecting (yes/no)? "))
+		{
+			KErr.FormatLine(">> ktunnel: connection refused by user");
+			return false;
+		}
+
+		if (!Store.Add(sHostPort, sRawPubKey))
+		{
+			KErr.FormatLine(">> ktunnel: warning, could not write '{}' — will prompt again",
+			                sKnownServersPath);
+		}
+		else
+		{
+			KOut.FormatLine("Permanently added '{}' to {}", sHostPort, sKnownServersPath);
+		}
+		return true;
+	};
+
+} // BuildClientTrustCallback
+
+#endif // DEKAF2_HAS_ED25519
+
+} // anonymous namespace (v2 handshake helpers)
 
 //-----------------------------------------------------------------------------
 void ExtendedConfig::PrintMessage(KStringView sMessage) const
@@ -308,6 +626,14 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 	auto LoginFuture  = LoginPromise->get_future();
 	auto LoginFired   = std::make_shared<std::atomic<bool>>(false);
 
+#if DEKAF2_HAS_ED25519
+	// Hand the loaded server identity to KTunnel so its WaitForLogin
+	// can sign the v2 hello-ack with it. Null-pointer is fine when
+	// bAESPayload is false — the core code only dereferences it inside
+	// the v2 handshake path.
+	TunnelCfg.ServerIdentity = m_ServerIdentity;
+#endif
+
 	TunnelCfg.AuthCallback = [this, LoginPromise, LoginFired, EndpointAddress]
 	                         (KStringView sUser, KStringView sSecret) -> bool
 	{
@@ -354,7 +680,7 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 
 	// Run the tunnel on a dedicated thread so this method can observe the
 	// login outcome and keep the per-user registry in sync.
-	std::thread TunnelThread = kMakeThread([Tunnel]()
+	std::thread TunnelThread = kMakeThread([this, Tunnel, EndpointAddress]()
 	{
 		// tunnel disconnects are expected business-as-usual (peer gone,
 		// bad frame, etc.) and not exceptions - log at debug severity and
@@ -367,6 +693,28 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 		catch (const std::exception& ex)
 		{
 			kDebug(1, "tunnel run: {}", ex.what());
+
+			// In Stateful mode also persist a "handshake_fail" event for
+			// every v2-handshake exception, so the operator can see the
+			// actual reason on the admin UI / via direct DB inspection
+			// instead of having to crank up kDebug. We key off the
+			// "v2 handshake:" prefix that KTunnel::SetupEncryption
+			// consistently uses; "login rejected ..." is already logged
+			// from VerifyTunnelLogin as a "login_fail" event so it does
+			// NOT need a duplicate entry here.
+			if (m_Store)
+			{
+				KStringView sWhat = ex.what();
+				if (sWhat.starts_with("v2 handshake:"))
+				{
+					KTunnelStore::Event ev;
+					ev.sKind     = "handshake_fail";
+					ev.sUsername = Tunnel->GetLoginUser();   // empty if hello frame never parsed
+					ev.sRemoteIP = EndpointAddress.Serialize();
+					ev.sDetail   = KString(sWhat);
+					m_Store->LogEvent(ev);
+				}
+			}
 		}
 	});
 
@@ -809,6 +1157,49 @@ ExposedServer::ExposedServer (const Config& config)
 		                 "peer authentication via -s secret(s)");
 	}
 
+#if DEKAF2_HAS_ED25519
+	// Load (or generate, in AdHoc with -persist) the Ed25519 server
+	// identity used by the v2 AES handshake. We do this unconditionally
+	// so a Stateful service can be later switched to -aes by editing the
+	// unit file without having to first run `ktunnel -fingerprint` to
+	// bootstrap the key. The cost is one PEM read at start-up.
+	//
+	// AdHoc without -persist intentionally leaves sIdentityKeyPath
+	// empty: LoadOrGenerateIdentity() generates an ephemeral key in
+	// memory only and we print its fingerprint to stdout so the
+	// operator can hand it to the protected peer.
+	if (m_Config.bAESPayload)
+	{
+		m_ServerIdentity = LoadOrGenerateIdentity(m_Config.sIdentityKeyPath, /*bGenerateIfMissing=*/true);
+
+		if (!m_ServerIdentity)
+		{
+			throw KError(kFormat("cannot load or generate Ed25519 identity (path '{}')",
+			                     m_Config.sIdentityKeyPath));
+		}
+
+		auto sFingerprint = KTunnel::FormatFingerprint(m_ServerIdentity->GetPublicKeyRaw());
+
+		if (m_Config.sIdentityKeyPath.empty())
+		{
+			m_Config.Message("server identity: ephemeral, fingerprint {}", sFingerprint);
+		}
+		else
+		{
+			m_Config.Message("server identity: {}, fingerprint {}",
+			                 m_Config.sIdentityKeyPath, sFingerprint);
+		}
+
+		if (m_Config.bNoTLS)
+		{
+			m_Config.Message("warning: -aes -notls — the v2 handshake itself is "
+			                 "visible on the wire (DH-pubkeys, signature). The "
+			                 "AES-protected payload is still confidential, but "
+			                 "the operator should treat this as debug-only.");
+		}
+	}
+#endif
+
 	KREST::Options Settings;
 
 	Settings.Type                     = KREST::HTTP;
@@ -835,7 +1226,6 @@ ExposedServer::ExposedServer (const Config& config)
 	}
 
 	Settings.AddHeader(KHTTPHeader::SERVER, "ktunnel");
-	Settings.AddHeader("x-server", "ktunnel");
 
 	KRESTRoutes Routes;
 
@@ -1177,14 +1567,25 @@ void ProtectedHost::Run()
 			}
 
 			// Per-connection KTunnel::Config copy (sliced from
-			// ExtendedConfig) so we can inject the REPL callback
-			// without mutating the shared m_Config.
+			// ExtendedConfig) so we can inject the REPL callback and
+			// trust callback without mutating the shared m_Config.
 			KTunnel::Config TunnelCfg = m_Config;
+
 			TunnelCfg.OpenReplCallback =
 				[this](std::shared_ptr<KTunnel::Connection> conn)
 				{
 					RunRepl(std::move(conn));
 				};
+
+#if DEKAF2_HAS_ED25519
+			// In AES mode the v2 handshake fans the trust decision out
+			// to the embedder so it can consult known_servers, the
+			// -trust-fingerprint flag, or prompt interactively. We
+			// install the callback unconditionally — it is harmless
+			// when bAESPayload is false because the core code only
+			// invokes it during the v2 handshake.
+			TunnelCfg.TrustCallback = BuildClientTrustCallback(m_Config);
+#endif
 
 			// we are the "client" side of the tunnel and have to login with user/pass
 			KTunnel Tunnel(TunnelCfg, std::move(WebSocket.GetStream()), sUsername, sSecret);
@@ -1283,7 +1684,16 @@ int Tunnel::Main(int argc, char** argv)
 		"                                instead of prompting on the TTY. Used\n"
 		"                                for non-interactive provisioning. The\n"
 		"                                file is read once and not referenced\n"
-		"                                by the running service.\n",
+		"                                by the running service.\n"
+		"  -fingerprint                : print the SHA-256 fingerprint of the\n"
+		"                                exposed-host Ed25519 identity (the\n"
+		"                                public key the server signs the v2\n"
+		"                                AES handshake with). Use this to read\n"
+		"                                back what to put on the protected\n"
+		"                                side as -trust-fingerprint. Reads the\n"
+		"                                identity from -identity-key <path> or\n"
+		"                                from the default location next to the\n"
+		"                                admin DB. Then exits.\n",
 		KService::GetHelp()));
 
 	// define cli options
@@ -1298,13 +1708,21 @@ int Tunnel::Main(int argc, char** argv)
 	m_Config.sKeyFile      = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused a new key is created", "");
 	m_Config.sTLSPassword  = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
 	m_Config.bNoTLS        = Options("notls        : do not use TLS, but unencrypted HTTP", false);
-	m_Config.bAESPayload   = Options("aes          : encrypt payload with AES (additional to a TLS connection)", false);
+	m_Config.bAESPayload   = Options("aes          : encrypt payload with AES on top of the websocket. Engages the v2 X25519+Ed25519+HKDF handshake — the server signs every handshake with its long-term identity key, and the client checks the fingerprint against -trust-fingerprint or known_servers (or, with -trust-on-first-use, prompts interactively). Provides forward secrecy and protects against an active TLS-intercepting middlebox even if the corporate CA is in the local trust store.", false);
 	m_Config.Timeout       = chrono::seconds(Options("to,timeout <seconds> : data connection timeout in seconds (default 30)", 30));
-	m_Config.bPersistCert  = Options("persist      : should a self-signed cert be persisted to disk and reused at next start?", false);
+	m_Config.bPersistCert  = Options("persist      : should a self-signed cert (and, in ad-hoc mode, the Ed25519 server identity used for -aes) be persisted to disk and reused at next start? Without this flag the AdHoc identity is regenerated at every start, forcing protected-side peers to re-confirm the new fingerprint each time.", false);
 	m_Config.sCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
 	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);
 	m_Config.sDatabasePath = Options("db <path>    : if exposed host (stateful mode), path to the SQLite admin/config DB. Defaults to /var/lib/ktunnel/ktunnel.db when running as root (or as a system service), $HOME/.config/ktunnel/ktunnel.db otherwise. Not used in ad-hoc mode (with -f / -t).", "");
 	m_Config.sPeerUser     = Options("u,user <name> : if protected host, username to log in with (must exist in exposed host's users table) - defaults to 'admin'", "admin");
+	m_Config.sIdentityKeyPath
+	                       = Options("identity-key <path> : if exposed host with -aes, path to the Ed25519 server-identity PEM file. Defaults to ktunnel_ed25519.pem next to the admin DB (Stateful) or to $HOME/.config/ktunnel/ktunnel_ed25519.pem (AdHoc with -persist). In AdHoc mode without -persist this is ignored and an ephemeral key is generated at start-up. Auto-created by `-install`.", "");
+	m_Config.sTrustFingerprint
+	                       = Options("trust-fingerprint <hex> : if protected host with -aes, accept exactly this server fingerprint (lowercase hex with colons, as printed by `ktunnel -fingerprint`). One-shot, not persisted; takes precedence over known_servers.", "");
+	m_Config.bTrustOnFirstUse
+	                       = Options("trust-on-first-use : if protected host with -aes and the server's identity is not yet in known_servers, prompt the operator interactively (TTY required) to accept the presented fingerprint and persist it for next time. Without this flag an unknown server is rejected outright.", false);
+	m_Config.sKnownServersPath
+	                       = Options("known-servers <path> : if protected host with -aes, override the path to the trust store (default: $HOME/.config/ktunnel/known_servers).", "");
 
 	// do a final check if all required options were set
 	if (!Options.Check()) return 1;
@@ -1431,6 +1849,21 @@ int Tunnel::Main(int argc, char** argv)
 			const bool bSystemScope = (kGetUid() == 0);
 			m_Config.sDatabasePath = KTunnelStore::DefaultDatabasePath(bSystemScope);
 		}
+
+#if DEKAF2_HAS_ED25519
+		// Resolve the default identity-key path the same way (Stateful
+		// puts it next to the DB; AdHoc with -persist puts it in the
+		// user config dir; AdHoc without -persist leaves it empty so
+		// ExposedServer's ctor generates an ephemeral key in RAM).
+		// An explicit `-identity-key <path>` always wins.
+		if (m_Config.bAESPayload && m_Config.sIdentityKeyPath.empty())
+		{
+			m_Config.sIdentityKeyPath = DefaultIdentityKeyPath(
+				m_Config.sDatabasePath,
+				m_Config.eMode == ExtendedConfig::Mode::AdHoc,
+				m_Config.bPersistCert);
+		}
+#endif
 
 		// In interactive Stateful mode, -s no longer does anything (the
 		// `users` table is the only authority for admin / peer logins).
@@ -1810,9 +2243,85 @@ bool BootstrapAdminForInstall (int argc, char** argv)
 		return false;
 	}
 
-	return SeedAdminUser(sDBPath, sUser, sPassword);
+	if (!SeedAdminUser(sDBPath, sUser, sPassword))
+	{
+		return false;
+	}
+
+#if DEKAF2_HAS_ED25519
+	// Bootstrap the Ed25519 server identity at the same time so the operator
+	// has the fingerprint in hand (to paste into the protected hosts'
+	// `-trust-fingerprint`) before the service even starts. If an explicit
+	// `-identity-key <path>` was given on the command line, honor it;
+	// otherwise pair the identity with the admin DB by deriving the path
+	// from the DB path's directory.
+	KString sIdentityPath = GetBootstrapFlagValue(argc, argv, "identity-key");
+
+	if (sIdentityPath.empty())
+	{
+		sIdentityPath = DefaultIdentityKeyPath(sDBPath, /*bAdHoc=*/false, /*bPersist=*/true);
+	}
+
+	auto Identity = LoadOrGenerateIdentity(sIdentityPath, /*bGenerateIfMissing=*/true);
+
+	if (!Identity)
+	{
+		KErr.FormatLine(">> ktunnel: cannot prepare server identity — install aborted");
+		return false;
+	}
+
+	auto sFingerprint = KTunnel::FormatFingerprint(Identity->GetPublicKeyRaw());
+
+	KOut.FormatLine("");
+	KOut.FormatLine("server identity: {}", sIdentityPath);
+	KOut.FormatLine("fingerprint:     {}", sFingerprint);
+	KOut.FormatLine("");
+	KOut.FormatLine("On every protected host, run with one of:");
+	KOut.FormatLine("  ktunnel ... -aes -trust-fingerprint '{}'", sFingerprint);
+	KOut.FormatLine("  ktunnel ... -aes -trust-on-first-use");
+	KOut.FormatLine("");
+#endif
+
+	return true;
 
 } // BootstrapAdminForInstall
+
+#if DEKAF2_HAS_ED25519
+//-----------------------------------------------------------------------------
+/// Handle `-fingerprint`: read the Ed25519 server-identity PEM (resolved
+/// the same way as the admin DB — explicit `-identity-key`, else next to
+/// the resolved DB path), print its SHA-256 fingerprint to stdout, exit.
+/// Does NOT generate a fresh key when the file is missing — use `-install`
+/// for that. This keeps `-fingerprint` a side-effect-free read.
+int RunPrintFingerprint (int argc, char** argv)
+//-----------------------------------------------------------------------------
+{
+	KString sIdentityPath = GetBootstrapFlagValue(argc, argv, "identity-key");
+
+	if (sIdentityPath.empty())
+	{
+		const auto sDBPath = ResolveBootstrapDBPath(argc, argv, /*bForceSystem=*/false);
+		sIdentityPath = DefaultIdentityKeyPath(sDBPath, /*bAdHoc=*/false, /*bPersist=*/true);
+	}
+
+	auto Identity = LoadOrGenerateIdentity(sIdentityPath, /*bGenerateIfMissing=*/false);
+
+	if (!Identity)
+	{
+		KErr.FormatLine(">> ktunnel: no identity at '{}'", sIdentityPath);
+		KErr.FormatLine(">>   run `ktunnel -install` (or copy a PEM there) to create one");
+		return 1;
+	}
+
+	auto sFingerprint = KTunnel::FormatFingerprint(Identity->GetPublicKeyRaw());
+
+	KOut.FormatLine("{}", sFingerprint);
+	KErr.FormatLine("# server identity: {}", sIdentityPath);
+
+	return 0;
+
+} // RunPrintFingerprint
+#endif
 
 //-----------------------------------------------------------------------------
 /// Build a filtered copy of argv that omits the bootstrap-only flags.
@@ -1881,6 +2390,13 @@ int main(int argc, char** argv)
 	{
 		return RunSetAdmin(argc, argv);
 	}
+
+#if DEKAF2_HAS_ED25519
+	if (HasBootstrapFlag(argc, argv, "fingerprint"))
+	{
+		return RunPrintFingerprint(argc, argv);
+	}
+#endif
 
 	if (HasBootstrapFlag(argc, argv, "install"))
 	{

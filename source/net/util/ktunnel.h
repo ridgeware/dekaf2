@@ -46,6 +46,10 @@
 #include <dekaf2/net/util/kiostreamsocket.h>
 #include <dekaf2/containers/associative/kassociative.h>
 #include <dekaf2/crypto/cipher/kblockcipher.h>
+#include <dekaf2/crypto/ec/ked25519sign.h>  // KEd25519Key for ServerIdentity (DEKAF2_HAS_ED25519)
+#include <dekaf2/crypto/ec/kx25519.h>       // pulls DEKAF2_HAS_X25519 — the v2 AES handshake needs both,
+                                            // and including it here avoids a chicken-and-egg with the
+                                            // matching #if guards in ktunnel.cpp
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <dekaf2/threading/execution/kthreads.h>
@@ -88,18 +92,46 @@ public:
 
 	/// Authentication callback invoked on the server side of the tunnel
 	/// after the login message has been received (and, in AES mode,
-	/// successfully decrypted using one of the configured Secrets). The
-	/// callback gets the user name and password as they were presented
-	/// by the remote client and must return true to accept the login,
-	/// false to reject it.
+	/// after the v2 X25519+Ed25519 handshake has established the session
+	/// keys and the auth frame has been decrypted). The callback gets the
+	/// user name and password as they were presented by the remote client
+	/// and must return true to accept the login, false to reject it.
 	///
 	/// If the callback is not set (the default), the tunnel falls back to
-	/// the legacy behaviour of only verifying that the presented password
-	/// is contained in Config::Secrets. If the callback IS set, it takes
-	/// precedence — Config::Secrets is then only used as the set of AES
-	/// pre-shared keys (PSK) that can decrypt the login frame, and the
-	/// callback is the final authority on who is allowed in.
+	/// the simple behaviour of verifying that the presented password is
+	/// contained in Config::Secrets (the AdHoc pre-shared-secret model).
+	/// If the callback IS set, it takes precedence and is the only
+	/// authority on who is allowed in.
 	using Authenticator = std::function<bool(KStringView sUser, KStringView sSecret)>;
+
+#if DEKAF2_HAS_ED25519
+	/// Trust-checker callback invoked on the *client* side during the
+	/// v2 AES handshake, after the server's hello-ack has been received
+	/// and its Ed25519 signature over the handshake transcript has been
+	/// verified locally. The callback decides whether the presented
+	/// server identity should be trusted: typical implementations look
+	/// the fingerprint up in a known-hosts store, compare it against an
+	/// explicit -trust-fingerprint flag, or prompt the operator (TOFU).
+	/// Returning false aborts the handshake before any credentials are
+	/// transmitted.
+	///
+	/// Arguments:
+	///   * sHostPort       "host:port" of the exposed peer (for use as a
+	///                     known-hosts lookup key and for prompts).
+	///   * sRawPubKey      32 raw bytes of the server's Ed25519 public
+	///                     key (suitable for serialisation into a
+	///                     known-hosts file).
+	///   * sFingerprint    formatted SHA-256 fingerprint of sRawPubKey,
+	///                     ready to display to the operator (lowercase
+	///                     hex, byte-wise colon-separated; matches the
+	///                     OpenSSH host-key fingerprint style).
+	///
+	/// Required when bAESPayload is true on the client (initiating)
+	/// side; ignored on the server side.
+	using TrustChecker = std::function<bool(KStringView sHostPort,
+	                                        KStringView sRawPubKey,
+	                                        KStringView sFingerprint)>;
+#endif
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// Config setup for KTunnel
@@ -124,8 +156,27 @@ public:
 		KDuration              ConnectTimeout { chrono::seconds(15)        };
 		/// count of max multiplexed connections per tunnel - technical upper limit is 16 millions
 		std::size_t            iMaxTunneledConnections { 100 };
-		/// encode payload with AES?
+		/// encode payload with AES (and engage the v2 X25519+Ed25519 handshake)?
 		bool                   bAESPayload    { false };
+
+#if DEKAF2_HAS_ED25519
+		/// Server-side identity key (Ed25519). REQUIRED on the *exposed*
+		/// (waiting) side when bAESPayload is true: every v2 hello-ack
+		/// frame is signed with this key so the protected side can
+		/// authenticate the server against a known fingerprint and refuse
+		/// to talk to a TLS-intercepting middlebox that owns a forged
+		/// chain-of-trust certificate. Ignored on the protected (initiating)
+		/// side. Held by shared_ptr because Config is value-copied around
+		/// the tunnel and KEd25519Key is move-only.
+		std::shared_ptr<KEd25519Key>  ServerIdentity;
+
+		/// Client-side trust-checker callback. REQUIRED on the *protected*
+		/// (initiating) side when bAESPayload is true: invoked exactly once
+		/// per handshake to decide whether the presented server identity is
+		/// trusted. See TrustChecker for the contract. Ignored on the
+		/// exposed side.
+		TrustChecker                  TrustCallback;
+#endif
 
 		/// Optional handler invoked on the peer side when the remote end
 		/// requests a REPL channel via an OpenRepl frame. The handler owns
@@ -396,6 +447,18 @@ public:
 	/// login frame has been processed. Thread-safe.
 	KString      GetLoginUser       () const;
 
+#if DEKAF2_HAS_ED25519
+	/// Format an Ed25519 (or any 32-byte) raw public key as a colon-
+	/// separated lowercase-hex SHA-256 fingerprint (95 chars: 32 bytes
+	/// rendered as 64 hex chars + 31 separators). Matches the OpenSSH
+	/// `ssh-keygen -E sha256 -lf` fingerprint style modulo the leading
+	/// `SHA256:` prefix and base64 encoding (we use hex to keep visual
+	/// comparison easier across paste boundaries). Pure function, safe
+	/// to call without an instance.
+	DEKAF2_NODISCARD
+	static KString FormatFingerprint (KStringView sRawPublicKey);
+#endif
+
 	/// Cumulative count of payload bytes received through the tunnel
 	/// (Data-frame payloads only — no protocol/framing overhead, no
 	/// Login/Helo/Ping/Pong/Control bytes). Thread-safe.
@@ -430,15 +493,29 @@ protected:
 	void PingTest        (KUnixTime Time);
 	/// connects to an outside target from one tunnel end
 	void ConnectToTarget (std::size_t iID, KTCPEndPoint Target);
-	/// setup payload AES encryption with sSecret
-	void SetupEncryption (KStringView sUser, KStringView sSecret);
-	/// setup payload AES encryption by trying to decode a message with a list of secrets.
-	/// On success the user name extracted from the login JSON is stored in sOutUser
-	/// (so the caller can remember who logged in, or pass it to an Authenticator
-	/// callback). sOutPass receives the plain-text password from the login JSON,
-	/// so callers can apply a secondary Authenticator check against it.
-	bool SetupEncryption (Message& message, const KUnorderedSet<KString>& Secrets,
-	                      KString& sOutUser, KString& sOutPass);
+
+#if DEKAF2_HAS_ED25519
+	/// Run the client-side half of the v2 AES handshake on the already-
+	/// open tunnel stream. Sends the hello frame, receives the signed
+	/// hello-ack, verifies the server identity, runs the TrustCallback
+	/// (TOFU / known-hosts), derives session keys via X25519+HKDF-SHA256,
+	/// and configures the AES-256-GCM encryptor / decryptor on the
+	/// tunnel. Throws on any failure (no signature, malformed frame,
+	/// untrusted identity, etc.) so the operator sees a noisy error
+	/// instead of a 15-second silent timeout. Does NOT send the auth
+	/// frame — Login() does that with the now-active session keys.
+	void SetupEncryption (KStringView sUser);
+
+	/// Run the server-side half of the v2 AES handshake. The hello
+	/// frame has already been read by WaitForLogin() and is passed in
+	/// as @p HelloFrame; @p sOutUser receives the user name field from
+	/// that frame so the caller can later authenticate it. Sends the
+	/// signed hello-ack, derives session keys, configures the AES
+	/// ciphers. Throws on malformed input or missing ServerIdentity.
+	/// Returns true on success (kept as bool for symmetry with the
+	/// existing call site, even though the failure path always throws).
+	bool SetupEncryption (Message& HelloFrame, KString& sOutUser);
+#endif
 
 //----------
 private:

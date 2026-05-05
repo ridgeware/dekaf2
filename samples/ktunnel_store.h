@@ -170,7 +170,7 @@ public:
 	{
 		int64_t   iID         { 0 };
 		KUnixTime tTimestamp;
-		KString   sKind;         ///< "login_ok" | "login_fail" | "tunnel_start" | "tunnel_stop" | "config_change" | "auth_reject" | ...
+		KString   sKind;         ///< "login_ok" | "login_fail" | "handshake_fail" | "tunnel_start" | "tunnel_stop" | "tunnel_disconnect" | "tunnel_error" | "config_change" | "bootstrap" | ...
 		KString   sUsername;     ///< optional
 		KString   sTunnelName;   ///< optional
 		KString   sRemoteIP;     ///< optional

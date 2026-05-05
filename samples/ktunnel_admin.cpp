@@ -316,7 +316,9 @@ KString FormatDuration (KDuration dur)
 KStringView PillForEventKind (KStringView sKind)
 {
 	if (sKind == "login_ok")          return "ok";
-	if (sKind == "login_fail")        return "fail";
+	if (sKind == "login_fail"
+	 || sKind == "handshake_fail"
+	 || sKind == "tunnel_error")      return "fail";
 	if (sKind == "tunnel_connect"
 	 || sKind == "tunnel_start")      return "ok";
 	if (sKind == "tunnel_disconnect"

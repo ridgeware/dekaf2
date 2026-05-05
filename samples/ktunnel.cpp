@@ -1604,10 +1604,14 @@ bool TryReadPassFile (int argc, char** argv, KString& sPasswordOut)
 ///   1. explicit `-db <path>` always wins
 ///   2. otherwise: KTunnelStore::DefaultDatabasePath(bWantSystem)
 /// where `bWantSystem` follows the same rule as the runtime resolution
-/// in Tunnel::Main (UID 0 → system path, else user path). For -install
-/// we additionally pass `bForceSystem` so a non-root operator using
-/// `sudo ktunnel -install` ends up writing to /var/lib/... rather than
-/// /root/.config/...
+/// in Tunnel::Main (UID 0 → system path, else user path).
+///
+/// @p bForceSystem is an escape hatch for callers that know a priori
+/// the admin DB must live under the machine-wide path (e.g. a future
+/// OS-integration flow that runs under root after an explicit elevation
+/// step). No current caller sets it; both -set-admin and -install leave
+/// the UID-0 check do the work, which keeps non-root `ktunnel -install`
+/// working as a user-scope install (DB under $HOME/.config/ktunnel/).
 KString ResolveBootstrapDBPath (int argc, char** argv, bool bForceSystem)
 //-----------------------------------------------------------------------------
 {
@@ -1770,17 +1774,32 @@ int RunSetAdmin (int argc, char** argv)
 
 //-----------------------------------------------------------------------------
 /// Handle the bootstrap step that runs immediately before the actual
-/// service registration. Same rules as RunSetAdmin, except:
-///   - the system-wide DB path is preferred (sudo ktunnel -install)
-///   - on success we DO NOT exit; main() falls through to KService::Run
-///     which then writes the unit / plist / SCM record.
+/// service registration. Same rules as RunSetAdmin, except on success we
+/// DO NOT exit; main() falls through to KService::Run which then writes
+/// the unit / plist / SCM record.
+///
+/// Scope of the admin DB follows ResolveBootstrapDBPath's normal rule:
+///   * sudo ktunnel -install (UID 0) → /var/lib/ktunnel/ktunnel.db,
+///     paired with the system-level service that KService::Install
+///     registers under the same UID.
+///   * ktunnel -install as a normal user → $HOME/.config/ktunnel/ktunnel.db,
+///     paired with a user-scope service (macOS LaunchAgent under
+///     ~/Library/LaunchAgents, user-systemd unit, etc.) that
+///     KService::Install writes in the same scope.
+///   * explicit -db <path> always wins, regardless of UID.
+///
+/// We used to hard-force the system path here so that a sudo-install
+/// would not accidentally land the DB in /root/.config/, but that
+/// case is already covered by the UID-0 branch inside
+/// ResolveBootstrapDBPath and forcing system-scope broke the common
+/// non-root install path (EACCES on /var/lib/ktunnel/).
 bool BootstrapAdminForInstall (int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
 	auto sUser = GetBootstrapFlagValue(argc, argv, "admin-user");
 	if (sUser.empty()) sUser = "admin";
 
-	const auto sDBPath = ResolveBootstrapDBPath(argc, argv, /*bForceSystem=*/true);
+	const auto sDBPath = ResolveBootstrapDBPath(argc, argv, /*bForceSystem=*/false);
 
 	KOut.FormatLine("ktunnel: pre-install admin bootstrap → {}", sDBPath);
 

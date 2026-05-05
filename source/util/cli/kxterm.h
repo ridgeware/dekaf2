@@ -78,6 +78,37 @@ DEKAF2_NAMESPACE_BEGIN
 DEKAF2_PUBLIC
 extern void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWait100ms);
 
+/// Prompt on the controlling terminal for a single line of input with echo
+/// temporarily disabled — the classic "Password: " flow used by CLI tools
+/// (e.g. database login, service install, admin user bootstrap).
+///
+/// The original terminal settings are saved before echo is turned off and
+/// restored via a scope guard, so an exception or signal during the read
+/// cannot leave the terminal silent. A newline is emitted on stdout after
+/// the (hidden) input so follow-up output starts on a fresh line.
+///
+/// When the input device is not a TTY (e.g. stdin is a pipe or redirected
+/// file), echo cannot be toggled; the line is still read and returned
+/// verbatim. Callers that require no-echo guarantees should verify
+/// interactivity separately (e.g. via `::isatty()` on POSIX) before
+/// calling this function.
+///
+/// @param sPrompt string written to stdout before reading (e.g.
+///                "Password: "). No trailing space or newline is added —
+///                pass exactly what should appear on screen.
+/// @param iInputDevice file descriptor for the input device, normally
+///                     STDIN_FILENO (which dekaf2 remaps to
+///                     STD_INPUT_HANDLE on Windows via
+///                     `core/init/kcompatibility.h`, so the same
+///                     call-site source works on both platforms).
+/// @return the line that was read, without the trailing newline. An
+/// empty string is returned on EOF, read error, or when the user simply
+/// pressed Enter — these cases are not distinguishable via the return
+/// value; callers that need to tell them apart should check stream state
+/// on KIn directly.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+extern KString kPromptForPassword(KStringView sPrompt, int iInputDevice = STDIN_FILENO);
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A collection of static ANSI escape sequences for terminal control.
 ///

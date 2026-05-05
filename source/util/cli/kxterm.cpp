@@ -40,6 +40,7 @@
  */
 
 #include <dekaf2/io/readwrite/kwrite.h>
+#include <dekaf2/io/readwrite/kreader.h>   // KIn, kReadLine for kPromptForPassword
 #include <dekaf2/core/types/kctype.h>
 #include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/logging/klog.h>
@@ -50,6 +51,7 @@
 
 #ifndef DEKAF2_IS_WINDOWS
 	#include <termios.h>
+	#include <unistd.h>                     // ::isatty for kPromptForPassword
 #else
 	#include <windows.h>
 #endif
@@ -108,6 +110,61 @@ void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWa
 #endif
 
 } // SetTerm
+
+//-----------------------------------------------------------------------------
+KString kPromptForPassword(KStringView sPrompt, int iInputDevice)
+//-----------------------------------------------------------------------------
+{
+	KOut.Write(sPrompt).Flush();
+
+#if defined(DEKAF2_IS_WINDOWS)
+
+	// On Windows `iInputDevice` is expected to already be a STD_*_HANDLE
+	// token — the kcompatibility.h remap ensures STDIN_FILENO resolves
+	// to STD_INPUT_HANDLE at compile time, so the same call-site source
+	// works on both platforms. This matches how kSetTerminal() treats
+	// the parameter.
+	const HANDLE hStdin    = GetStdHandle(static_cast<DWORD>(iInputDevice));
+	DWORD        dwOldMode = 0;
+	const bool   bIsTty    = (hStdin != INVALID_HANDLE_VALUE)
+	                      && GetConsoleMode(hStdin, &dwOldMode);
+
+	if (bIsTty)
+	{
+		SetConsoleMode(hStdin, dwOldMode & ~ENABLE_ECHO_INPUT);
+	}
+
+	KAtScopeEnd( if (bIsTty) SetConsoleMode(hStdin, dwOldMode); );
+
+#else
+
+	const bool    bIsTty = ::isatty(iInputDevice);
+	struct termios OldTermios {};
+
+	if (bIsTty && ::tcgetattr(iInputDevice, &OldTermios) == 0)
+	{
+		struct termios NewTermios = OldTermios;
+		// Only the ECHO bit is cleared — we deliberately keep ICANON set
+		// so backspace / line editing on the user's side still work.
+		// ECHONL is a no-op unless ICANON is also on (kept implicitly).
+		NewTermios.c_lflag &= ~static_cast<tcflag_t>(ECHO);
+		::tcsetattr(iInputDevice, TCSANOW, &NewTermios);
+	}
+
+	KAtScopeEnd( if (bIsTty) ::tcsetattr(iInputDevice, TCSANOW, &OldTermios); );
+
+#endif
+
+	KString sLine;
+	kReadLine(KIn, sLine);
+
+	// User pressed Enter but the character was not echoed — emit our own
+	// newline so follow-up output does not stack onto the prompt line.
+	KOut.WriteLine().Flush();
+
+	return sLine;
+
+} // kPromptForPassword
 
 //-----------------------------------------------------------------------------
 KXTermCodes::RGB::RGB(KStringView sColorValue)

@@ -1336,6 +1336,7 @@ set(PUBLIC_HEADERS
 	source/containers/associative/klockmap.h
 	source/containers/associative/kmru.h
 	source/containers/associative/kprops.h
+	source/containers/memory/kallocator.h
 	source/containers/memory/kpersist.h
 	source/containers/memory/kpool.h
 	source/containers/memory/ksharedptr.h

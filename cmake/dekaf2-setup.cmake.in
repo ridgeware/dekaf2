@@ -62,6 +62,96 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		endif()
 
+		# ============================ THREAD STACK SIZE ===============================
+
+		# Pin the default thread stack size on every binary that opts into dekaf2's
+		# build flags. This removes the libc-asymmetry that otherwise turns perfectly
+		# fine code into a stack-overflow crash when the same binary is run against
+		# musl (128 KiB default) instead of glibc (8 MiB default), purely by libc
+		# choice and on the same hardware.
+		#
+		# Values:
+		#
+		#   64-bit: 8 MiB matches the de-facto C++ ecosystem assumption. The cost
+		#           is purely virtual address-space — demand paging populates real
+		#           RAM only for pages actually touched, so even thousands of
+		#           threads remain unproblematic.
+		#
+		#   32-bit: 1 MiB is a deliberate compromise — large enough for the typical
+		#           RAII-heavy dekaf2 codebase and recursive parsers with sane
+		#           depth limits, small enough that ~100 threads still leave the
+		#           bulk of the 3 GiB user address space available for heap and
+		#           mmap'd libraries (100 threads x 1 MiB = 100 MiB virtual).
+		#
+		# Per-platform coverage:
+		#
+		#   Linux (glibc, musl) and BSD: handled by this block via the GNU-ld /
+		#       lld / mold linker option `-z stack-size=N`. The flag changes the
+		#       value that pthread_create(..., nullptr, ...) hands out as the
+		#       default for new threads — and that is what std::thread uses
+		#       internally, so the fix is transparent: every thread spawned via
+		#       std::thread / kMakeThread / KThreads::Create / std::async picks
+		#       up the configured size automatically.
+		#
+		#   macOS: NOT covered by this block. Apple's ld does not accept
+		#       `-z stack-size`, and there is no equivalent global knob — the
+		#       512 KiB default for secondary threads is hard-wired in libpthread.
+		#       The only way to override it is to pass an explicit
+		#       pthread_attr_setstacksize() to each pthread_create() call. Since
+		#       std::thread on libc++ calls pthread_create with a nullptr attr,
+		#       overriding the default requires bypassing std::thread (a custom
+		#       wrapper around raw pthread_create with a std::thread-compatible
+		#       interface). dekaf2 currently does NOT do this.
+		#
+		#       In practice this is rarely a problem because macOS' 512 KiB is
+		#       already 4x larger than musl's default, and binaries that run
+		#       cleanly on Alpine will run cleanly on macOS too. If your code
+		#       does need a larger stack on macOS specifically, set it
+		#       per-thread via pthread_attr_setstacksize() at the call site.
+		#
+		#   Windows / MSVC: NOT covered by this block. The MSVC linker accepts
+		#       `/STACK:size` but its semantics differ (process-wide reserve,
+		#       not per-thread default), and the Windows secondary-thread
+		#       default of 1 MiB is already consistent with our 32-bit value
+		#       and reasonable for our typical workloads. If you do need a
+		#       larger stack on Windows, pass `dwStackSize` to CreateThread()
+		#       at the call site.
+		#
+		# Consumers that want a different value can override the cache variables
+		# below before include()-ing this file.
+		#
+		# Values are in MiB. GNU ld's `-z stack-size` does not accept unit
+		# suffixes, so we convert to bytes below before handing it to the
+		# linker.
+
+		set(DEKAF2_THREAD_STACK_SIZE_64BIT_MIB "8" CACHE STRING
+			"Default thread stack size on 64-bit Linux/BSD targets, in MiB")
+		set(DEKAF2_THREAD_STACK_SIZE_32BIT_MIB "1" CACHE STRING
+			"Default thread stack size on 32-bit Linux/BSD targets, in MiB")
+		mark_as_advanced(DEKAF2_THREAD_STACK_SIZE_64BIT_MIB DEKAF2_THREAD_STACK_SIZE_32BIT_MIB)
+
+		if (IS_LINUX AND NOT MSVC)
+			# Linker option recognized by GNU ld, gold, lld, mold. Sets the
+			# value pthread_create returns when called with a nullptr attr
+			# (which is what std::thread does internally), so this is
+			# effectively a process-wide thread default.
+			if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+				math(EXPR _DEKAF2_STACK_BYTES "${DEKAF2_THREAD_STACK_SIZE_64BIT_MIB} * 1024 * 1024")
+				message(STATUS "thread stack size: ${DEKAF2_THREAD_STACK_SIZE_64BIT_MIB} MiB (64-bit)")
+			else()
+				math(EXPR _DEKAF2_STACK_BYTES "${DEKAF2_THREAD_STACK_SIZE_32BIT_MIB} * 1024 * 1024")
+				message(STATUS "thread stack size: ${DEKAF2_THREAD_STACK_SIZE_32BIT_MIB} MiB (32-bit)")
+			endif()
+			add_link_options("-Wl,-z,stack-size=${_DEKAF2_STACK_BYTES}")
+			unset(_DEKAF2_STACK_BYTES)
+		elseif (IS_MACOS)
+			# See the comment above: macOS has no global knob. Our 512 KiB
+			# default is bigger than musl's so the asymmetry is not severe.
+			message(STATUS "thread stack size: 512 KiB (macOS pthread default — no global override available)")
+		elseif (MSVC)
+			message(STATUS "thread stack size: 1 MiB (Windows pthread default — no global override applied)")
+		endif()
+
 		# ================================ ASAN / UBSAN =================================
 
 		if (CMAKE_GENERATOR STREQUAL "Xcode")

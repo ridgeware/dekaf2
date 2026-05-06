@@ -147,8 +147,21 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Release every block back to the system. After clear(), the arena is
-	/// empty (BlockCount() == 0) and ready to receive new allocations.
+	/// empty (BlockCount() == 0 and FreeBlockCount() == 0) and ready to
+	/// receive new allocations.
 	void clear() noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Reset the arena for reuse without releasing memory: every block
+	/// currently in use is moved to an internal free list, the cursor and
+	/// usage counter are reset, and BlockCount() drops to 0. Subsequent
+	/// allocations recycle blocks from the free list (cheapest-fit walk in
+	/// GrowBy()) before falling back to std::malloc(). This is the
+	/// preferred reset for hot reparse paths (e.g. KHTML::PodResetTree())
+	/// where the same arena is reused many times for similarly-sized
+	/// inputs. To actually release the recycled memory call clear().
+	void reset() noexcept;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -176,6 +189,13 @@ public:
 	std::size_t TotalCapacity() const noexcept;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// @returns the number of blocks currently retained on the internal
+	///          free list (i.e. recycled by reset() and waiting to be
+	///          reused by a future Allocate() / GrowBy()).
+	std::size_t FreeBlockCount() const noexcept;
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
@@ -197,7 +217,8 @@ private:
 	void GrowBy(std::size_t iMinPayload);
 	//-----------------------------------------------------------------------------
 
-	Block*      m_pHead     { nullptr };  ///< most-recently-allocated block
+	Block*      m_pHead     { nullptr };  ///< most-recently-allocated block (active list)
+	Block*      m_pFreeList { nullptr };  ///< recycled blocks (head of LIFO free list)
 	char*       m_pCursor   { nullptr };  ///< next free byte in m_pHead
 	char*       m_pEnd      { nullptr };  ///< one-past-end of m_pHead's payload
 	std::size_t m_iBlockSize{ DefaultBlockSize };

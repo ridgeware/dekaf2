@@ -264,4 +264,82 @@ TEST_CASE("KArenaAllocator")
 		// overwritten or relocated
 		CHECK ( v == literal );
 	}
+
+	SECTION("reset retains blocks for reuse via the free list")
+	{
+		KArenaAllocator arena(256);
+
+		// allocate enough to force a second block
+		(void)arena.Allocate(200);
+		(void)arena.Allocate(200);
+
+		const std::size_t iActiveBefore = arena.BlockCount();
+		REQUIRE ( iActiveBefore >= 2 );
+		CHECK   ( arena.FreeBlockCount() == 0 );
+
+		arena.reset();
+
+		// after reset(): no active blocks, but every previously-active
+		// block lives on the free list and is ready to be recycled
+		CHECK ( arena.BlockCount()     == 0              );
+		CHECK ( arena.FreeBlockCount() == iActiveBefore  );
+		CHECK ( arena.UsedBytes()      == 0              );
+
+		// next Allocate() must recycle a free-list block (no malloc)
+		(void)arena.Allocate(100);
+		CHECK ( arena.BlockCount()     >= 1 );
+		CHECK ( arena.FreeBlockCount() == iActiveBefore - 1 );
+
+		// clear() releases everything — both active and free list
+		arena.clear();
+		CHECK ( arena.BlockCount()     == 0 );
+		CHECK ( arena.FreeBlockCount() == 0 );
+	}
+
+	SECTION("reset followed by oversized request still mallocs a fresh block")
+	{
+		KArenaAllocator arena(256);
+
+		// allocate two regular-sized blocks (each 256 bytes)
+		(void)arena.Allocate(200);
+		(void)arena.Allocate(200);
+		const std::size_t iActiveBefore = arena.BlockCount();
+		REQUIRE ( iActiveBefore >= 2 );
+
+		arena.reset();
+		REQUIRE ( arena.FreeBlockCount() == iActiveBefore );
+
+		// request more than any free-list block can satisfy: the
+		// allocator must malloc a fresh oversize block while leaving
+		// the free-list intact (no fitting block was found).
+		(void)arena.Allocate(4096);
+
+		CHECK ( arena.FreeBlockCount() == iActiveBefore );  // unchanged
+		CHECK ( arena.BlockCount()     == 1 );
+		CHECK ( arena.UsedBytes()      == 4096 );
+	}
+
+	SECTION("reparse loop after first round triggers no further mallocs")
+	{
+		KArenaAllocator arena(256);
+
+		// warm-up round: this allocates the initial blocks
+		for (int i = 0; i < 5; ++i) (void)arena.Allocate(200);
+		const std::size_t iBlocksAfterWarmup = arena.BlockCount();
+		REQUIRE ( iBlocksAfterWarmup >= 1 );
+
+		arena.reset();
+
+		// subsequent rounds must reuse the recycled blocks: BlockCount()
+		// climbs up to the warm-up high-water mark but never beyond.
+		for (int round = 0; round < 50; ++round)
+		{
+			for (int i = 0; i < 5; ++i) (void)arena.Allocate(200);
+			CHECK ( arena.BlockCount() <= iBlocksAfterWarmup );
+			arena.reset();
+		}
+
+		// every block we ever allocated is still resident on the free list
+		CHECK ( arena.FreeBlockCount() == iBlocksAfterWarmup );
+	}
 }

@@ -1153,7 +1153,10 @@ KHTML::~KHTML()
 void KHTML::PodResetTree()
 //-----------------------------------------------------------------------------
 {
-	m_Arena.clear();
+	// reset() recycles the previously-allocated blocks instead of freeing
+	// them, so a hot reparse loop pays at most one std::malloc() per
+	// growth (and zero on subsequent rounds of the same size).
+	m_Arena.reset();
 	m_pPodRoot = khtml::CreateNode(m_Arena, khtml::NodeKind::Element);
 	m_PodHierarchy.clear();
 	m_PodHierarchy.push_back(m_pPodRoot);

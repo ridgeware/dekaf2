@@ -44,12 +44,14 @@ KArenaAllocator::~KArenaAllocator()
 KArenaAllocator::KArenaAllocator(KArenaAllocator&& other) noexcept
 //-----------------------------------------------------------------------------
 : m_pHead     (other.m_pHead)
+, m_pFreeList (other.m_pFreeList)
 , m_pCursor   (other.m_pCursor)
 , m_pEnd      (other.m_pEnd)
 , m_iBlockSize(other.m_iBlockSize)
 , m_iUsedBytes(other.m_iUsedBytes)
 {
 	other.m_pHead      = nullptr;
+	other.m_pFreeList  = nullptr;
 	other.m_pCursor    = nullptr;
 	other.m_pEnd       = nullptr;
 	other.m_iUsedBytes = 0;
@@ -65,12 +67,14 @@ KArenaAllocator& KArenaAllocator::operator=(KArenaAllocator&& other) noexcept
 		clear();
 
 		m_pHead      = other.m_pHead;
+		m_pFreeList  = other.m_pFreeList;
 		m_pCursor    = other.m_pCursor;
 		m_pEnd       = other.m_pEnd;
 		m_iBlockSize = other.m_iBlockSize;
 		m_iUsedBytes = other.m_iUsedBytes;
 
 		other.m_pHead      = nullptr;
+		other.m_pFreeList  = nullptr;
 		other.m_pCursor    = nullptr;
 		other.m_pEnd       = nullptr;
 		other.m_iUsedBytes = 0;
@@ -133,13 +137,47 @@ KStringView KArenaAllocator::AllocateString(KStringView sSource)
 void KArenaAllocator::clear() noexcept
 //-----------------------------------------------------------------------------
 {
+	// release the active list. ::operator delete() (rather than std::free)
+	// so the bench-time global new/delete tracker accounts for arena memory
+	// too — see benchmarks/allocation_counter.cpp.
 	Block* pBlock = m_pHead;
-
 	while (pBlock != nullptr)
 	{
 		Block* pPrev = pBlock->m_pPrevious;
-		std::free(pBlock);
+		::operator delete(pBlock);
 		pBlock = pPrev;
+	}
+
+	// release the free list (recycled blocks from prior reset() calls)
+	pBlock = m_pFreeList;
+	while (pBlock != nullptr)
+	{
+		Block* pPrev = pBlock->m_pPrevious;
+		::operator delete(pBlock);
+		pBlock = pPrev;
+	}
+
+	m_pHead      = nullptr;
+	m_pFreeList  = nullptr;
+	m_pCursor    = nullptr;
+	m_pEnd       = nullptr;
+	m_iUsedBytes = 0;
+}
+
+//-----------------------------------------------------------------------------
+void KArenaAllocator::reset() noexcept
+//-----------------------------------------------------------------------------
+{
+	// move every active block to the head of the free list (LIFO). The
+	// blocks stay malloced and a future Allocate() / GrowBy() will
+	// recycle them before going to std::malloc().
+	Block* pBlock = m_pHead;
+	while (pBlock != nullptr)
+	{
+		Block* pPrev = pBlock->m_pPrevious;
+		pBlock->m_pPrevious = m_pFreeList;
+		m_pFreeList         = pBlock;
+		pBlock              = pPrev;
 	}
 
 	m_pHead      = nullptr;
@@ -177,6 +215,20 @@ std::size_t KArenaAllocator::TotalCapacity() const noexcept
 }
 
 //-----------------------------------------------------------------------------
+std::size_t KArenaAllocator::FreeBlockCount() const noexcept
+//-----------------------------------------------------------------------------
+{
+	std::size_t iCount = 0;
+
+	for (const Block* p = m_pFreeList; p != nullptr; p = p->m_pPrevious)
+	{
+		++iCount;
+	}
+
+	return iCount;
+}
+
+//-----------------------------------------------------------------------------
 void KArenaAllocator::GrowBy(std::size_t iMinPayload)
 //-----------------------------------------------------------------------------
 {
@@ -193,11 +245,35 @@ void KArenaAllocator::GrowBy(std::size_t iMinPayload)
 	constexpr std::size_t kHeaderAlign = alignof(std::max_align_t);
 	constexpr std::size_t kHeaderSize  = align_up(sizeof(Block), kHeaderAlign);
 
-	void* pRaw = std::malloc(kHeaderSize + iPayload);
-	if (pRaw == nullptr)
+	// before mallocing, try to recycle a block from the free list.
+	// First-fit walk: pick the first block that is large enough. Blocks
+	// in the free list keep their original m_iSize, so the search is
+	// O(N) in the free-list length (typically 1-2 entries in practice).
 	{
-		throw std::bad_alloc();
+		Block** ppPrev = &m_pFreeList;
+		for (Block* pCur = m_pFreeList; pCur != nullptr; pCur = pCur->m_pPrevious)
+		{
+			if (pCur->m_iSize >= iPayload)
+			{
+				// unlink from the free list
+				*ppPrev = pCur->m_pPrevious;
+
+				// link to the head of the active list
+				pCur->m_pPrevious = m_pHead;
+				m_pHead           = pCur;
+
+				m_pCursor = reinterpret_cast<char*>(pCur) + kHeaderSize;
+				m_pEnd    = m_pCursor + pCur->m_iSize;
+				return;
+			}
+			ppPrev = &pCur->m_pPrevious;
+		}
 	}
+
+	// ::operator new() so the bench-time global new/delete tracker can
+	// account for arena block allocations (see comments in clear()).
+	void* pRaw = ::operator new(kHeaderSize + iPayload);
+	// ::operator new() either returns a valid pointer or throws.
 
 	auto* pBlock = static_cast<Block*>(pRaw);
 	pBlock->m_pPrevious = m_pHead;

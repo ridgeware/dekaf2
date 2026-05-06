@@ -1311,6 +1311,7 @@ set (BITS_HEADERS
 	source/system/process/bits/kbaseprocess.h
 	source/system/process/bits/kbaseshell.h
 	source/util/archive/bits/ktarheader.h
+	source/web/html/bits/khtmldom_node.h
 	source/web/url/bits/kurldualencode.h
 )
 

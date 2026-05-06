@@ -49,6 +49,7 @@
 #include <dekaf2/io/streams/kstream.h>
 #include <dekaf2/io/readwrite/kbufferedreader.h>
 #include <dekaf2/crypto/hash/khash.h>
+#include <cstdint>
 #include <set>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -104,7 +105,7 @@ public:
 	// return a copy of yourself
 	virtual std::unique_ptr<KHTMLObject> Clone() const = 0;
 
-	enum TagProperty
+	enum TagProperty : std::uint8_t
 	{
 		None              = 0,
 		Inline            = 1 << 0,

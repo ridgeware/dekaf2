@@ -441,6 +441,92 @@ void html_parse_streaming()
 
 void html_parse_dom()
 {
+	// ------------------------------------------------------------------
+	// Allocation stair-step: isolate where the per-iteration allocs come
+	// from. Compare these snapshots to attribute each malloc/new to a
+	// concrete cause (default ctor, parse setup, parse payload, ...).
+	// ------------------------------------------------------------------
+	{
+		AllocationSnapshot a("KArenaAllocator default-ctor only x1000");
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KArenaAllocator arena;
+			KProf::Force(&arena);
+		}
+	}
+	{
+		AllocationSnapshot a("KArenaAllocator + Construct<NodePOD>() x1000");
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KArenaAllocator arena;
+			(void) arena.Construct<khtml::NodePOD>();
+			KProf::Force(&arena);
+		}
+	}
+	{
+		AllocationSnapshot a("std::vector<NodePOD*> + 1 push_back x1000");
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			std::vector<khtml::NodePOD*> v;
+			v.push_back(nullptr);
+			KProf::Force(&v);
+		}
+	}
+	{
+		AllocationSnapshot a("KHTMLElement default-ctor only x1000");
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KHTMLElement e;
+			KProf::Force(&e);
+		}
+	}
+	{
+		// Synthetic replay of what KHTML::KHTML() / PodResetTree() do
+		AllocationSnapshot a("synthetic: arena.Construct<NodePOD>()+vec.push_back x1000");
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KArenaAllocator               arena;
+			std::vector<khtml::NodePOD*>  v;
+			auto* p = arena.Construct<khtml::NodePOD>();
+			v.push_back(p);
+			KProf::Force(&v);
+		}
+	}
+	{
+		AllocationSnapshot a("KHTML default-ctor only x1000");
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KHTML doc;
+			KProf::Force(&doc);
+		}
+	}
+	{
+		AllocationSnapshot a("KHTML default-ctor + Parse(\"\") x1000");
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KHTML doc;
+			doc.Parse(KStringView{});
+			KProf::Force(&doc);
+		}
+	}
+	{
+		AllocationSnapshot a("KHTML default-ctor + Parse(\"<a/>\") x1000");
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KHTML doc;
+			doc.Parse(KStringView{"<a/>"});
+			KProf::Force(&doc);
+		}
+	}
+	{
+		AllocationSnapshot a("KHTML default-ctor + Parse(\"<html><body><p>x</p></body></html>\") x1000");
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KHTML doc;
+			doc.Parse(KStringView{"<html><body><p>x</p></body></html>"});
+			KProf::Force(&doc);
+		}
+	}
 	{
 		AllocationSnapshot a("KHTML parse-DOM/memory x1000");
 		dekaf2::KProf ps("HTMLParse DOM from memory");

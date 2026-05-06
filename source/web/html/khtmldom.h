@@ -46,6 +46,7 @@
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/web/html/khtmlparser.h>
 #include <dekaf2/web/html/bits/khtmldom_node.h>
+#include <dekaf2/web/html/khtmldom_cursor.h>
 #include <dekaf2/containers/memory/karenaallocator.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/errors/kerror.h>
@@ -476,6 +477,23 @@ public:
 	{
 		MaterializePodToHeap();
 		return m_Root;
+	}
+
+	/// Read-only cursor at the synthetic root of the parsed POD shadow
+	/// tree. The cursor itself wraps the root node (Kind() == Element,
+	/// Name() empty); iterate Children() to walk top-level nodes.
+	///
+	/// Returned cursors are stable for the lifetime of *this* until
+	/// clear() / Parse() / move. The POD tree is built directly by the
+	/// parser, so accessing it via Root() does NOT trigger heap-DOM
+	/// materialization (DOM() does).
+	///
+	/// For a freshly-constructed KHTML or one populated only via the
+	/// heap-DOM build path (KHTML::Add(), DOM().Add()), the cursor still
+	/// points at an empty synthetic root (Children() is empty).
+	khtml::NodeCursor Root() const noexcept
+	{
+		return khtml::NodeCursor(m_pPodRoot);
 	}
 
 	/// Proxy KHTMLElement's Add() to add an element to the list of children. Returns reference to child.

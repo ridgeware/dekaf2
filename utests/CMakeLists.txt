@@ -66,6 +66,7 @@ set (USOURCES
 	khmac_tests.cpp
 	khtmlparser_tests.cpp
 	khtmlcontentblocks_tests.cpp
+	khtmldom_cursor_tests.cpp
 	khtmldom_node_tests.cpp
 	khtmldom_tests.cpp
 	khtmlentities_tests.cpp

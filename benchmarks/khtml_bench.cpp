@@ -5,10 +5,14 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/web/html/khtmlparser.h>
+#include <dekaf2/web/html/khtmldom.h>
+#include "allocation_counter.h"
 
 
 using namespace dekaf2;
+using dekaf2bench::AllocationSnapshot;
 
 KStringViewZ sHTML = R"(
 <root>
@@ -396,10 +400,15 @@ This is an incredible, brand new system just for you. Shipping & Handling is $49
 </root>
 )";
 
-void html_parse()
+// ----------------------------------------------------------------------------
+// Streaming parser (KHTMLParser) — no DOM build
+// ----------------------------------------------------------------------------
+
+void html_parse_streaming()
 {
 	{
-		dekaf2::KProf ps("HTMLParse from memory");
+		AllocationSnapshot a("KHTMLParser stream/memory x1000");
+		dekaf2::KProf ps("HTMLParse stream from memory");
 		ps.SetMultiplier(1000);
 
 		for (size_t count = 0; count < 1000; ++ count)
@@ -410,7 +419,8 @@ void html_parse()
 		}
 	}
 	{
-		dekaf2::KProf ps("HTMLParse from file");
+		AllocationSnapshot a("KHTMLParser stream/file x100");
+		dekaf2::KProf ps("HTMLParse stream from file");
 		ps.SetMultiplier(100);
 
 		for (size_t count = 0; count < 100; ++ count)
@@ -423,9 +433,192 @@ void html_parse()
 	}
 }
 
+// ----------------------------------------------------------------------------
+// DOM parser (KHTML) — full tree construction, this is the path that allocates
+// the heaviest in the current implementation and that the arena migration
+// targets.
+// ----------------------------------------------------------------------------
+
+void html_parse_dom()
+{
+	{
+		AllocationSnapshot a("KHTML parse-DOM/memory x1000");
+		dekaf2::KProf ps("HTMLParse DOM from memory");
+		ps.SetMultiplier(1000);
+
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KHTML doc;
+			doc.Parse(sHTML);
+			KProf::Force(&doc);
+		}
+	}
+	{
+		AllocationSnapshot a("KHTML parse-DOM/file x100");
+		dekaf2::KProf ps("HTMLParse DOM from file");
+		ps.SetMultiplier(100);
+
+		for (size_t count = 0; count < 100; ++ count)
+		{
+			KInFile InFile("mondial-3.0.xml");
+			KHTML doc;
+			doc.Parse(InFile);
+			KProf::Force(&doc);
+		}
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Serialize: render parsed DOM back to a string (Print/Serialize path).
+// ----------------------------------------------------------------------------
+
+void html_serialize()
+{
+	KHTML doc;
+	doc.Parse(sHTML);
+
+	{
+		AllocationSnapshot a("KHTML serialize x1000");
+		dekaf2::KProf ps("HTML serialize");
+		ps.SetMultiplier(1000);
+
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KString sOut = doc.Serialize();
+			KProf::Force(&sOut);
+		}
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Traverse: walk the DOM, dispatch on Object.Type(), pull names/text/attrs.
+// Mirrors the access pattern of xapis/html.cpp::HTMLProcessor::TraverseHTML.
+// ----------------------------------------------------------------------------
+
+static std::size_t traverse_recursive(const KHTMLObject& Object, std::size_t& iElements, std::size_t& iTextRuns)
+{
+	switch (Object.Type())
+	{
+		case KHTMLElement::TYPE:
+		{
+			++iElements;
+			const auto& Element = static_cast<const KHTMLElement&>(Object);
+
+			for (const auto& Attr : Element.GetAttributes())
+			{
+				KProf::Force(const_cast<KHTMLAttribute*>(&Attr));
+			}
+
+			for (const auto& Child : Element.GetChildren())
+			{
+				traverse_recursive(*Child.get(), iElements, iTextRuns);
+			}
+		}
+		break;
+
+		case KHTMLText::TYPE:
+		{
+			++iTextRuns;
+			const auto& Text = static_cast<const KHTMLText&>(Object);
+			KProf::Force(const_cast<KHTMLText*>(&Text));
+		}
+		break;
+	}
+	return 1;
+}
+
+void html_traverse()
+{
+	KHTML doc;
+	doc.Parse(sHTML);
+
+	{
+		AllocationSnapshot a("KHTML traverse x10000");
+		dekaf2::KProf ps("HTML traverse");
+		ps.SetMultiplier(10000);
+
+		for (size_t count = 0; count < 10000; ++ count)
+		{
+			std::size_t iElements = 0;
+			std::size_t iTextRuns = 0;
+			traverse_recursive(doc.DOM(), iElements, iTextRuns);
+			KProf::Force(&iElements);
+			KProf::Force(&iTextRuns);
+		}
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Build: programmatically construct a sizeable DOM. This is the hot path of
+// HTML-generating code (KWebObjects, template renderers).
+// ----------------------------------------------------------------------------
+
+void html_build()
+{
+	{
+		AllocationSnapshot a("KHTML build 1000x5x3 x100");
+		dekaf2::KProf ps("HTML build 1000x5x3 table");
+		ps.SetMultiplier(100);
+
+		for (size_t count = 0; count < 100; ++ count)
+		{
+			KHTMLElement table("table");
+			table.SetAttribute("class", "data");
+			table.SetAttribute("id",    "tbl1");
+
+			for (std::size_t row = 0; row < 1000; ++row)
+			{
+				KHTMLElement tr("tr");
+				tr.SetAttribute("data-row", KString::to_string(row));
+
+				for (std::size_t col = 0; col < 5; ++col)
+				{
+					KHTMLElement td("td");
+					td.SetAttribute("class", "cell");
+					td.SetAttribute("data-col", KString::to_string(col));
+					td.SetAttribute("scope", "col");
+					td.AddText("cell content");
+					tr.Add(std::move(td));
+				}
+
+				table.Add(std::move(tr));
+			}
+
+			KProf::Force(&table);
+		}
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Reparse: parse, clear, parse — measures alloc churn from repeatedly
+// growing/shrinking the DOM in the same KHTML instance.
+// ----------------------------------------------------------------------------
+
+void html_reparse()
+{
+	{
+		AllocationSnapshot a("KHTML reparse x1000");
+		dekaf2::KProf ps("HTML reparse (parse-clear-parse)");
+		ps.SetMultiplier(1000);
+
+		KHTML doc;
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			doc.clear();
+			doc.Parse(sHTML);
+			KProf::Force(&doc);
+		}
+	}
+}
+
 void khtmlparser_bench()
 {
-	html_parse();
+	html_parse_streaming();
+	html_parse_dom();
+	html_serialize();
+	html_traverse();
+	html_build();
+	html_reparse();
 }
 
 

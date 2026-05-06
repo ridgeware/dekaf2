@@ -40,6 +40,7 @@ extern void kstringview_bench();
 extern void kcasestring_bench();
 extern void kxml_bench();
 extern void khtmlparser_bench();
+extern void kwebobjects_bench();
 extern void kutf8_bench();
 extern void kfindsetofchars_bench();
 extern void krow_bench();
@@ -55,6 +56,12 @@ extern void kmemsearch_bench();
 
 using namespace dekaf2;
 
+struct BenchEntry
+{
+	const char* name;
+	void (*fn)();
+};
+
 int main(int argc, char* argv[])
 {
 	KLog::getInstance().SetName("bench");
@@ -62,6 +69,7 @@ int main(int argc, char* argv[])
 	Dekaf::getInstance().SetUnicodeLocale();
 
 	FILE* fpJSON = nullptr;
+	KStringView sFilter;
 
 	for (int ii = 1; ii < argc; ++ii)
 	{
@@ -79,14 +87,24 @@ int main(int argc, char* argv[])
 
 			kProfSetJSON(fpJSON);
 		}
+		else if (sArg == "--filter" && ii + 1 < argc)
+		{
+			sFilter = argv[++ii];
+		}
+		else if (sArg == "--list")
+		{
+			// fall through: handled below after the table is in scope
+		}
 		else if (sArg == "--help" || sArg == "-h")
 		{
 			std::fprintf(stdout,
 				"usage: benchmarks [options]\n"
 				"\n"
 				"options:\n"
-				"  --json <file>  write results as JSON to <file>\n"
-				"  --help         show this help\n"
+				"  --json <file>     write results as JSON to <file>\n"
+				"  --filter <name>   run only benches whose name contains <name>\n"
+				"  --list            list all benchmark functions and exit\n"
+				"  --help            show this help\n"
 			);
 			return 0;
 		}
@@ -97,30 +115,54 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	kxml_bench();
-	khtmlparser_bench();
-	kbitfields_bench();
-	shared_ptr_bench();
-	kprops_bench();
-	kwriter_bench();
-	kreader_bench();
-	kfindsetofchars_bench();
-	std_string_bench();
-	kstring_bench();
-	kstringview_bench();
-	kcasestring_bench();
- 	other_bench();
-	kutf8_bench();
-	krow_bench();
-	kurl_bench();
-	ksplit_bench();
-	khtmlentity_bench();
-	kbase64_bench();
-	kurlencode_bench();
-	kreplace_bench();
-	khash_bench();
-	ktime_bench();
-	kmemsearch_bench();
+	const BenchEntry kBenches[] = {
+		{ "kxml",            &kxml_bench            },
+		{ "khtmlparser",     &khtmlparser_bench     },
+		{ "kwebobjects",     &kwebobjects_bench     },
+		{ "kbitfields",      &kbitfields_bench      },
+		{ "shared_ptr",      &shared_ptr_bench      },
+		{ "kprops",          &kprops_bench          },
+		{ "kwriter",         &kwriter_bench         },
+		{ "kreader",         &kreader_bench         },
+		{ "kfindsetofchars", &kfindsetofchars_bench },
+		{ "std_string",      &std_string_bench      },
+		{ "kstring",         &kstring_bench         },
+		{ "kstringview",     &kstringview_bench     },
+		{ "kcasestring",     &kcasestring_bench     },
+		{ "other",           &other_bench           },
+		{ "kutf8",           &kutf8_bench           },
+		{ "krow",            &krow_bench            },
+		{ "kurl",            &kurl_bench            },
+		{ "ksplit",          &ksplit_bench          },
+		{ "khtmlentity",     &khtmlentity_bench     },
+		{ "kbase64",         &kbase64_bench         },
+		{ "kurlencode",      &kurlencode_bench      },
+		{ "kreplace",        &kreplace_bench        },
+		{ "khash",           &khash_bench           },
+		{ "ktime",           &ktime_bench           },
+		{ "kmemsearch",      &kmemsearch_bench      },
+	};
+
+	for (int ii = 1; ii < argc; ++ii)
+	{
+		if (KStringView(argv[ii]) == "--list")
+		{
+			for (const auto& e : kBenches)
+			{
+				std::fprintf(stdout, "%s\n", e.name);
+			}
+			return 0;
+		}
+	}
+
+	for (const auto& e : kBenches)
+	{
+		if (sFilter.empty() || KStringView(e.name).Contains(sFilter))
+		{
+			std::fprintf(stderr, "=== %s ===\n", e.name);
+			e.fn();
+		}
+	}
 
 	kProfFinalize();
 

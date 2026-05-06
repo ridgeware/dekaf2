@@ -52,6 +52,7 @@ endif()
 
 # keep alphabetic sort order
 set (SOURCES
+	allocation_counter.cpp
 	kbase64_bench.cpp
 	kbitfields_bench.cpp
 	kcasestring_bench.cpp
@@ -71,6 +72,7 @@ set (SOURCES
 	kurl_bench.cpp
 	kurlencode_bench.cpp
 	kutf_bench.cpp
+	kwebobjects_bench.cpp
 	kwriter_bench.cpp
 	kxml_bench.cpp
 	main.cpp
@@ -80,7 +82,13 @@ set (SOURCES
 )
 
 set (HEADERS
+	allocation_counter.h
 )
+
+# Optional global new/delete tracker. Activates the AllocationSnapshot helper
+# in allocation_counter.h. Off by default — turn on for measurement runs:
+#   cmake -DDEKAF2_TRACK_ALLOCATIONS=ON ...
+option(DEKAF2_TRACK_ALLOCATIONS "track every malloc/free in the bench binary" OFF)
 
 add_executable(benchmarks EXCLUDE_FROM_ALL ${HEADERS} ${SOURCES})
 target_link_libraries(benchmarks ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_ICONV} ${DEKAF2_SIMDUTF} ${DEKAF2_UTF8CPP} Threads::Threads)
@@ -93,6 +101,9 @@ if (DEKAF2_HAS_ICONV)
 endif()
 if (DEKAF2_HAS_UTF8CPP)
 	target_compile_definitions(benchmarks PRIVATE DEKAF2_HAS_UTF8CPP)
+endif()
+if (DEKAF2_TRACK_ALLOCATIONS)
+	target_compile_definitions(benchmarks PRIVATE DEKAF2_TRACK_ALLOCATIONS=1)
 endif()
 
 add_executable(faststrings EXCLUDE_FROM_ALL fast_kstring_bench.cpp)

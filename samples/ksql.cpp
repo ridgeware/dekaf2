@@ -98,7 +98,7 @@ int KSql::Main(int argc, char** argv)
 	kDebug (1, "Options about to be defined");
 
 	KStringViewZ sDBC       = Options("dbc                   : dbc file name or hex-encoded blob",     "");
-	KString      sDBType    = Options(kFormat("dbtype <type> : db type: {}", KSQL::GetSupportedDBTypes()), "");
+	KString      sDBType    = Options(kFormat("t,dbtype <type> : db type: {}", KSQL::GetSupportedDBTypes()), "");
 	KStringViewZ sUser      = Options("u,-user <name>        : username"                    ,          "");
 	KStringViewZ sPassword  = Options("p,-pass <pass>        : password"                    ,          "");
 	KStringViewZ sDatabase  = Options("db,-database <name>   : database to use"             ,          "");
@@ -107,7 +107,7 @@ int KSql::Main(int argc, char** argv)
 	bool         bQuiet     = Options("q,-quiet              : only show db output"         ,       false);
 	KStringViewZ sFormat    = Options(kFormat("f,-format <format> : output format: {}, default ascii", KFormTable::GetSupportedStyles()), "ascii");
 	bool         bVersion   = Options("v,-version            : show version information"    ,       false);
-	KDuration    Timeout    = chrono::seconds(Options("t,timeout <seconds> : connect timeout in seconds, default 5"         ,    5));
+	KDuration    Timeout    = chrono::seconds(Options("to,timeout <seconds> : connect timeout in seconds, default 5"         ,    5));
 	bool         bNoComp    = Options("nocomp                : do not attempt to compress the database connection"          , false);
 	bool         bNoTLS     = Options("notls                 : do not attempt to encrypt the database connection"           , false);
 	bool         bForceTLS  = Options("forcetls              : force encryption for the database connection, fail otherwise", false);
@@ -128,6 +128,12 @@ int KSql::Main(int argc, char** argv)
 	{
 		DBType = KSQL::TxDBType (sDBType);
 	}
+#ifdef DEKAF2_HAS_SQLITE3
+	else if (kFileExists(sDatabase))
+	{
+		DBType = KSQL::DBT::SQLITE3;
+	}
+#endif
 
 	KSQL SQL;
 

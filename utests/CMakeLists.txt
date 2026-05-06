@@ -33,6 +33,7 @@ set (USOURCES
 	main.cpp
 	kctype_tests.cpp
 	kallocator_tests.cpp
+	karenaallocator_tests.cpp
 	kassociative_tests.cpp
 	kawsauth_tests.cpp
 	kbase64_tests.cpp

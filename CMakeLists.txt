@@ -1337,6 +1337,7 @@ set(PUBLIC_HEADERS
 	source/containers/associative/kmru.h
 	source/containers/associative/kprops.h
 	source/containers/memory/kallocator.h
+	source/containers/memory/karenaallocator.h
 	source/containers/memory/kpersist.h
 	source/containers/memory/kpool.h
 	source/containers/memory/ksharedptr.h
@@ -1613,6 +1614,7 @@ set (PRECOMPILED_HEADERS
 set (SOURCES
 	# KEEP ALPHABETIZED BY FULL PATH
 	source/containers/associative/kprops.cpp
+	source/containers/memory/karenaallocator.cpp
 	source/containers/sequential/khistory.cpp
 	source/core/errors/kcrashexit.cpp
 	source/core/errors/kerror.cpp

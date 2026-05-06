@@ -1222,6 +1222,86 @@ bool KHTML::PodHasContent() const
 	return m_pPodRoot != nullptr && m_pPodRoot->FirstChild != nullptr;
 }
 
+namespace {
+
+//-----------------------------------------------------------------------------
+// Build a heap-DOM subtree under 'parent' that mirrors the children of POD
+// node 'pPod'. Used by KHTML::MaterializePodToHeap() to reconstruct the
+// heap DOM lazily on first DOM() access. Walks pPod->FirstChild ... NextSibling
+// and dispatches by NodeKind, calling the same KHTMLElement::Add* methods
+// that the parser would have called in Object()/FlushText() before
+//-----------------------------------------------------------------------------
+void MaterializePodChildren(KHTMLElement& parent, const khtml::NodePOD* pPod)
+//-----------------------------------------------------------------------------
+{
+	if (pPod == nullptr) return;
+
+	for (const auto* c = pPod->FirstChild; c != nullptr; c = c->NextSibling)
+	{
+		switch (c->Kind)
+		{
+			case khtml::NodeKind::Element:
+			{
+				KHTMLAttributes Attributes;
+				for (const auto* pAttr = c->FirstAttr; pAttr != nullptr; pAttr = pAttr->Next)
+				{
+					Attributes.Set(KHTMLAttribute(KString(pAttr->Name),
+					                              KString(pAttr->Value),
+					                              pAttr->Quote ? pAttr->Quote : '"',
+					                              !pAttr->DoEscape));
+				}
+				auto& Child = parent.Add(KHTMLElement(KString(c->Name), std::move(Attributes)));
+				MaterializePodChildren(Child, c);
+				break;
+			}
+
+			case khtml::NodeKind::Text:
+			{
+				const bool bDoNotEscape =
+					(c->Flags & khtml::NodeFlag::TextDoNotEscape) != 0;
+				if (bDoNotEscape) parent.AddRawText(c->Name);
+				else              parent.AddText   (c->Name);
+				break;
+			}
+
+			case khtml::NodeKind::Comment:
+				parent.Add(KHTMLComment(KString(c->Name)));
+				break;
+
+			case khtml::NodeKind::CData:
+				parent.Add(KHTMLCData(KString(c->Name)));
+				break;
+
+			case khtml::NodeKind::ProcessingInstruction:
+				parent.Add(KHTMLProcessingInstruction(KString(c->Name)));
+				break;
+
+			case khtml::NodeKind::DocumentType:
+				parent.Add(KHTMLDocumentType(KString(c->Name)));
+				break;
+		}
+	}
+
+} // MaterializePodChildren
+
+} // anonymous namespace
+
+//-----------------------------------------------------------------------------
+// Build the heap DOM (m_Root) from the POD shadow tree on demand. Called
+// transparently by DOM() when a caller requests the heap DOM and m_Root is
+// still empty.
+//-----------------------------------------------------------------------------
+void KHTML::MaterializePodToHeap() const
+//-----------------------------------------------------------------------------
+{
+	if (m_pPodRoot == nullptr)               return;
+	if (m_pPodRoot->FirstChild == nullptr)   return;
+	if (!m_Root.GetChildren().empty())       return;
+
+	MaterializePodChildren(m_Root, m_pPodRoot);
+
+} // MaterializePodToHeap
+
 //-----------------------------------------------------------------------------
 void KHTML::Serialize(KOutStream& Stream, char chIndent) const
 //-----------------------------------------------------------------------------
@@ -1270,8 +1350,6 @@ void KHTML::clear()
 //-----------------------------------------------------------------------------
 {
 	m_Root.clear();
-	m_Hierarchy.clear();
-	m_Hierarchy.push_back(&m_Root);
 	PodResetTree();
 	m_sContent.clear();
 	ClearError();
@@ -1290,19 +1368,9 @@ void KHTML::FlushText()
 	{
 		const bool bDoNotEscape = m_bDoNotEscape;
 
-		if (bDoNotEscape)
-		{
-			m_Hierarchy.back()->AddRawText(m_sContent);
-		}
-		else
-		{
-			m_Hierarchy.back()->AddText(m_sContent);
-		}
-
-		// mirror text into the POD shadow tree; merging of adjacent text
-		// nodes that the heap path performs in AddText() / Insert() is
-		// intentionally not replicated — the shadow tree simply gets one
-		// text node per Flush
+		// phase 2c-i: write text only into the arena-backed POD shadow tree.
+		// the heap DOM is no longer populated during parse — it is materialized
+		// lazily on first DOM() access.
 		PodAddTextLeaf(m_sContent, bDoNotEscape);
 
 		m_sContent.clear();
@@ -1327,6 +1395,12 @@ void KHTML::SetIssue(KString sIssue)
 void KHTML::Object(KHTMLObject& Object)
 //-----------------------------------------------------------------------------
 {
+	// the parser writes only into the arena-backed POD shadow
+	// tree. m_Root / heap DOM stay empty during parse and are materialized
+	// lazily on first DOM() access. All hierarchy bookkeeping below operates
+	// on m_PodHierarchy; reads (Name, IsInline, etc.) come from the POD
+	// node's cached TagProps and Name fields.
+
 	FlushText();
 
 	switch (Object.Type())
@@ -1339,7 +1413,7 @@ void KHTML::Object(KHTMLObject& Object)
 			auto  bIsInline        = KHTMLObject::IsInline       (TagProps);
 			auto  bIsInlineBlock   = KHTMLObject::IsInlineBlock  (TagProps);
 			auto  bIsPreformatted  = KHTMLObject::IsPreformatted (TagProps);
-			auto  iHierarchyLevels = m_Hierarchy.size();
+			auto  iHierarchyLevels = m_PodHierarchy.size();
 
 			if (Tag.IsClosing())
 			{
@@ -1356,14 +1430,13 @@ void KHTML::Object(KHTMLObject& Object)
 					// the closer. If the tag was not opened before, we treat it as a new standalone
 					// (the author most probably had mistaken <tag/> with </tag>).
 
-					const auto& Children = m_Hierarchy.back()->GetChildren();
+					const auto* pLastChild = m_PodHierarchy.back()->LastChild;
 
-					if (   Children.empty()
-						|| Children.back()->Type() != KHTMLElement::TYPE
-						|| static_cast<KHTMLElement*>(Children.back().get())->GetName() != Tag.GetName())
+					if (   pLastChild == nullptr
+						|| pLastChild->Kind != khtml::NodeKind::Element
+						|| pLastChild->Name != Tag.GetName())
 					{
 						SetIssue(kFormat("invalid html - standalone tag closed without immediately opening it - treating it as a new standalone: {}", Tag.ToString()));
-						m_Hierarchy.back()->Add(KHTMLElement(Tag));
 						PodAddElement(Tag);  // standalone — no push into POD hierarchy
 
 						// is this content ("phrasing context")?
@@ -1384,12 +1457,11 @@ void KHTML::Object(KHTMLObject& Object)
 				}
 				else if (iHierarchyLevels > 1) // normal closing tag
 				{
-					if (m_Hierarchy.back()->GetName() == Tag.GetName())
+					if (m_PodHierarchy.back()->Name == Tag.GetName())
 					{
 						if (bIsInlineBlock)
 						{
 							// as in a block context, remove inner whitespaces
-							m_Hierarchy.back()->RemoveTrailingWhitespace();
 							khtml::PodRemoveTrailingWhitespace(m_PodHierarchy.back());
 							// otherwise behave like inline
 						}
@@ -1399,7 +1471,6 @@ void KHTML::Object(KHTMLObject& Object)
 						}
 						else
 						{
-							m_Hierarchy.back()->RemoveTrailingWhitespace();
 							khtml::PodRemoveTrailingWhitespace(m_PodHierarchy.back());
 							m_bLastWasSpace = true;
 
@@ -1409,15 +1480,14 @@ void KHTML::Object(KHTMLObject& Object)
 							}
 						}
 
-						m_Hierarchy.pop_back();
-						if (m_PodHierarchy.size() > 1) m_PodHierarchy.pop_back();
+						m_PodHierarchy.pop_back();
 					}
 					else
 					{
 #if	DEKAF2_FORMAT_HAS_BROKEN_FILL_DETECTION
-						SetIssue(kFormat("invalid html - start and end tag differ: <{}{} -> </{}{}", m_Hierarchy.back()->GetName(), '>', Tag.GetName(), '>'));
+						SetIssue(kFormat("invalid html - start and end tag differ: <{}{} -> </{}{}", m_PodHierarchy.back()->Name, '>', Tag.GetName(), '>'));
 #else
-						SetIssue(kFormat("invalid html - start and end tag differ: <{}> -> </{}>", m_Hierarchy.back()->GetName(), Tag.GetName()));
+						SetIssue(kFormat("invalid html - start and end tag differ: <{}> -> </{}>", m_PodHierarchy.back()->Name, Tag.GetName()));
 #endif
 
 						// now try to resync
@@ -1450,29 +1520,28 @@ void KHTML::Object(KHTMLObject& Object)
 								break;
 							}
 
-							if (m_Hierarchy[iCurrentLevel]->GetName() == Tag.GetName())
+							if (m_PodHierarchy[iCurrentLevel]->Name == Tag.GetName())
 							{
 #if DEKAF2_HTMLDOM_DEBUG
-								kDebug(2, "resync after {} descents", m_Hierarchy.size() - 1 - iCurrentLevel);
+								kDebug(2, "resync after {} descents", m_PodHierarchy.size() - 1 - iCurrentLevel);
 #endif
-								while (m_Hierarchy.size() > iCurrentLevel)
+								while (m_PodHierarchy.size() > iCurrentLevel)
 								{
+									auto* pBack = m_PodHierarchy.back();
 
-									if (!m_Hierarchy.back()->IsInline())
+									if (!KHTMLObject::IsInline(pBack->TagProps))
 									{
 										// this is a block element
-										m_Hierarchy.back()->RemoveTrailingWhitespace();
-										khtml::PodRemoveTrailingWhitespace(m_PodHierarchy.back());
+										khtml::PodRemoveTrailingWhitespace(pBack);
 										m_bLastWasSpace = true;
 
-										if (KHTMLObject::IsPreformattedTag(m_Hierarchy.back()->GetName()) && m_bPreformatted)
+										if (KHTMLObject::IsPreformattedTag(pBack->Name) && m_bPreformatted)
 										{
 											--m_bPreformatted;
 										}
 									}
 
-									m_Hierarchy.pop_back();
-									if (m_PodHierarchy.size() > 1) m_PodHierarchy.pop_back();
+									m_PodHierarchy.pop_back();
 								}
 
 								break;
@@ -1491,11 +1560,9 @@ void KHTML::Object(KHTMLObject& Object)
 			{
 				if (!bIsInline)
 				{
-					m_Hierarchy.back()->RemoveTrailingWhitespace();
 					khtml::PodRemoveTrailingWhitespace(m_PodHierarchy.back());
 				}
 
-				auto& Element = m_Hierarchy.back()->Add(KHTMLElement(Tag));
 				auto* pPod = PodAddElement(Tag);
 
 				// we check both the standalone flag from parsing, and the preset list
@@ -1504,14 +1571,13 @@ void KHTML::Object(KHTMLObject& Object)
 				if (!bIsStandalone && !Tag.IsStandalone())
 				{
 					// get one level deeper
-					m_Hierarchy.push_back(&Element);
 					m_PodHierarchy.push_back(pPod);
 
-					if (!Element.IsInline())
+					if (!KHTMLObject::IsInline(pPod->TagProps))
 					{
 						m_bLastWasSpace = true;
 
-						if (KHTMLObject::IsPreformattedTag(Element.GetName()))
+						if (KHTMLObject::IsPreformattedTag(pPod->Name))
 						{
 							++m_bPreformatted;
 						}
@@ -1537,7 +1603,6 @@ void KHTML::Object(KHTMLObject& Object)
 		case KHTMLComment::TYPE:
 		{
 			auto& Obj = static_cast<KHTMLComment&>(Object);
-			m_Hierarchy.back()->Add(Obj);
 			PodAddStringNode(khtml::NodeKind::Comment, Obj);
 		}
 		break;
@@ -1545,7 +1610,6 @@ void KHTML::Object(KHTMLObject& Object)
 		case KHTMLCData::TYPE:
 		{
 			auto& Obj = static_cast<KHTMLCData&>(Object);
-			m_Hierarchy.back()->Add(Obj);
 			PodAddStringNode(khtml::NodeKind::CData, Obj);
 		}
 		break;
@@ -1553,7 +1617,6 @@ void KHTML::Object(KHTMLObject& Object)
 		case KHTMLProcessingInstruction::TYPE:
 		{
 			auto& Obj = static_cast<KHTMLProcessingInstruction&>(Object);
-			m_Hierarchy.back()->Add(Obj);
 			PodAddStringNode(khtml::NodeKind::ProcessingInstruction, Obj);
 		}
 		break;
@@ -1561,7 +1624,6 @@ void KHTML::Object(KHTMLObject& Object)
 		case KHTMLDocumentType::TYPE:
 		{
 			auto& Obj = static_cast<KHTMLDocumentType&>(Object);
-			m_Hierarchy.back()->Add(Obj);
 			PodAddStringNode(khtml::NodeKind::DocumentType, Obj);
 		}
 		break;
@@ -1575,27 +1637,26 @@ void KHTML::Finished()
 {
 	FlushText();
 
-	if (m_Hierarchy.size() > 1)
+	if (m_PodHierarchy.size() > 1)
 	{
-		SetIssue(kFormat("unbalanced HTML - still {} nodes open at end", m_Hierarchy.size() - 1));
+		SetIssue(kFormat("unbalanced HTML - still {} nodes open at end", m_PodHierarchy.size() - 1));
 
 		// close all open nodes..
-		while (m_Hierarchy.size() > 1)
+		while (m_PodHierarchy.size() > 1)
 		{
-			if (!m_Hierarchy.back()->IsInline())
+			auto* pBack = m_PodHierarchy.back();
+
+			if (!KHTMLObject::IsInline(pBack->TagProps))
 			{
 				// this is a block element
-				m_Hierarchy.back()->RemoveTrailingWhitespace();
-				khtml::PodRemoveTrailingWhitespace(m_PodHierarchy.back());
+				khtml::PodRemoveTrailingWhitespace(pBack);
 			}
-			m_Hierarchy.erase(m_Hierarchy.end() - 1);
-			if (m_PodHierarchy.size() > 1) m_PodHierarchy.pop_back();
+			m_PodHierarchy.pop_back();
 		}
 	}
 
-	if (m_Hierarchy.size() == 1)
+	if (m_PodHierarchy.size() == 1)
 	{
-		m_Hierarchy.back()->RemoveTrailingWhitespace();
 		khtml::PodRemoveTrailingWhitespace(m_pPodRoot);
 	}
 

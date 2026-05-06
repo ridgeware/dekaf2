@@ -461,15 +461,20 @@ public:
 		return m_Issues;
 	}
 
-	/// Return reference on root element
+	/// Return reference on root element. If the heap DOM is empty but the
+	/// arena-backed POD shadow tree contains parsed content, the heap DOM
+	/// is lazily materialized from the POD tree on first access.
 	KHTMLElement& DOM()
 	{
+		MaterializePodToHeap();
 		return m_Root;
 	}
 
-	/// Return const reference on root element
+	/// Return const reference on root element. Same lazy-materialization
+	/// semantics as the non-const overload (m_Root is `mutable`).
 	const KHTMLElement& DOM() const
 	{
+		MaterializePodToHeap();
 		return m_Root;
 	}
 
@@ -534,13 +539,19 @@ private:
 	/// caller falls back to m_Root.Print().
 	bool PodHasContent() const;
 
-	// heap-backed DOM (current ground truth)
-	KHTMLElement                  m_Root;
-	std::vector<KHTMLElement*>    m_Hierarchy     { &m_Root };
+	/// Lazily materialize the heap DOM (m_Root) from the POD shadow
+	/// tree. No-op if the heap DOM is non-empty already (build path) or
+	/// the POD tree is empty (no parsing has happened yet).
+	void MaterializePodToHeap() const;
 
-	// arena-backed POD shadow tree (populated in parallel by Object()).
-	// This later becomes the ground truth and m_Root / m_Hierarchy
-	// turn into thin handles over m_pPodRoot.
+	// heap-backed DOM. The parser does NOT populate this
+	// tree any more — Object()/FlushText()/Finished() write only to the
+	// arena-backed POD shadow tree below. The heap DOM is materialized
+	// lazily on demand by DOM(). It is `mutable` so the const overload
+	// of DOM() can trigger materialization too.
+	mutable KHTMLElement          m_Root;
+
+	// arena-backed POD shadow tree (the ground truth)
 	KArenaAllocator               m_Arena;
 	khtml::NodePOD*               m_pPodRoot      { nullptr };
 	std::vector<khtml::NodePOD*>  m_PodHierarchy;

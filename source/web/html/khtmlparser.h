@@ -323,9 +323,13 @@ public:
 	bool empty() const;
 
 	/// @returns the attribute name
-	const KString& GetName()  const { return m_sName;  }
+	const KString& GetName () const { return m_sName;   }
 	/// @returns the attribute value
-	const KString& GetValue() const { return m_sValue; }
+	const KString& GetValue() const { return m_sValue;  }
+	/// @returns the original quote char as seen by the parser (' or "), 0 if none / unset
+	char           GetQuote() const { return m_chQuote; }
+	/// @returns true if the attribute value is already entity encoded
+	bool    IsEntityEncoded() const { return m_bIsEntityEncoded; }
 
 //------
 protected:

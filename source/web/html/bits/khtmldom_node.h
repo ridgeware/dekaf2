@@ -100,6 +100,7 @@ struct AttrPOD
 	KStringView Name;                ///< attribute name (arena-owned bytes)
 	KStringView Value;               ///< attribute value (arena-owned bytes)
 	AttrPOD*    Next     { nullptr };///< next attribute in the singly-linked attr list
+	char        Quote    { 0 };      ///< original quote char from parser (' or "), 0 = decide on serialize
 	bool        DoEscape { true    };///< if false, the value is already entity-encoded
 };
 
@@ -160,15 +161,18 @@ inline NodePOD* CreateNode(KArenaAllocator& arena, NodeKind kind)
 
 //-----------------------------------------------------------------------------
 /// Allocate a new AttrPOD with arena-copied name/value.
+/// @param chQuote original quote char from parser (' or "), 0 = let serializer decide
 inline AttrPOD* CreateAttr(KArenaAllocator& arena,
                            KStringView      sName,
                            KStringView      sValue,
+                           char             chQuote   = 0,
                            bool             bDoEscape = true)
 //-----------------------------------------------------------------------------
 {
 	auto* attr      = arena.Construct<AttrPOD>();
 	attr->Name      = arena.AllocateString(sName);
 	attr->Value     = arena.AllocateString(sValue);
+	attr->Quote     = chQuote;
 	attr->DoEscape  = bDoEscape;
 	return attr;
 }
@@ -340,6 +344,30 @@ inline const AttrPOD* FindAttr(const NodePOD* pNode, KStringView sName) noexcept
 
 	return nullptr;
 }
+
+//-----------------------------------------------------------------------------
+// Free functions defined in khtmldom.cpp — operate on POD-trees only.
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Serialize the POD-tree rooted at 'pNode' to 'OutStream'. Output is
+/// byte-equivalent to KHTMLElement::Print() for any tree built by KHTML's
+/// parser. 'pNode' may be the synthetic root (Element node with empty Name)
+/// or any element / leaf node.
+DEKAF2_PUBLIC
+void SerializeNode(KOutStream& OutStream, const NodePOD* pNode, char chIndent = '\t');
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Walk the POD-tree from the last child of 'pNode' backwards and remove
+/// trailing whitespace, mirroring KHTMLElement::RemoveTrailingWhitespace().
+/// Skips comment / pi / doctype nodes; trims trailing whitespace from text
+/// nodes; recurses into non-script inline children. Returns true if traversal
+/// stopped before the (reverse) end (non-whitespace text or block element
+/// encountered), false if the entire range was empty / removable.
+DEKAF2_PUBLIC
+bool PodRemoveTrailingWhitespace(NodePOD* pNode, bool bStopAtBlockElement = true);
+//-----------------------------------------------------------------------------
 
 } // namespace khtml
 

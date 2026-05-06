@@ -52,6 +52,435 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
+// File-private helpers used by khtml::SerializeNode().
+// These mirror the encoding/quoting logic that today lives in the anonymous
+// namespace of khtmlparser.cpp (EncodeMandatoryHTMLContent /
+// EncodeMandatoryAttributeValue) and the lazy-quoting logic in
+// KHTMLAttribute::Serialize. Replicated here on purpose to operate on POD
+// values (KStringView) without going through the KHTMLAttribute / KHTMLText
+// heap types — keeping the POD-serializer free of heap allocations.
+//-----------------------------------------------------------------------------
+
+namespace {
+
+// quote-required chars — verbatim copy of KHTMLAttribute::s_NeedsQuotes.
+constexpr KStringView s_PodNeedsQuoteChars { " \f\v\t\r\n\b\"'=<>`" };
+
+template <typename Output>
+void PodEncodeAttrValue(Output& Out, KStringView sValue, char chQuote)
+{
+	for (auto ch : sValue)
+	{
+		switch (ch)
+		{
+			case '"':  if (chQuote == '\'') Out += ch;  else Out += "&quot;"; break;
+			case '&':                                        Out += "&amp;";  break;
+			case '\'': if (chQuote == '"' ) Out += ch;  else Out += "&apos;"; break;
+			case '<':                                        Out += "&lt;";   break;
+			case '>':                                        Out += "&gt;";   break;
+			default:                                         Out += ch;       break;
+		}
+	}
+}
+
+template <typename Output>
+void PodEncodeHTMLContent(Output& Out, KStringView sContent)
+{
+	for (auto ch : sContent)
+	{
+		switch (ch)
+		{
+			case '&': Out += "&amp;"; break;
+			case '<': Out += "&lt;";  break;
+			case '>': Out += "&gt;";  break;
+			default:  Out += ch;      break;
+		}
+	}
+}
+
+inline char PodDecideQuote(const khtml::AttrPOD* a) noexcept
+{
+	if (a->Quote != 0)
+	{
+		return a->Quote;
+	}
+	if (a->Value.find_first_of(s_PodNeedsQuoteChars) != KStringView::npos)
+	{
+		return '"';
+	}
+	return 0;
+}
+
+inline void PodSerializeAttr(KOutStream& Out, const khtml::AttrPOD* a)
+{
+	if (a->Name.empty())
+	{
+		return;
+	}
+
+	Out.Write(a->Name);
+
+	if (!a->Value.empty())
+	{
+		Out.Write('=');
+
+		const char chQuote = PodDecideQuote(a);
+
+		if (chQuote)
+		{
+			Out.Write(chQuote);
+		}
+
+		if (!a->DoEscape)
+		{
+			Out.Write(a->Value);
+		}
+		else
+		{
+			PodEncodeAttrValue(Out, a->Value, chQuote);
+		}
+
+		if (chQuote)
+		{
+			Out.Write(chQuote);
+		}
+	}
+}
+
+inline void PodSerializeAttrs(KOutStream& Out, const khtml::NodePOD* pNode)
+{
+	for (const khtml::AttrPOD* a = pNode->FirstAttr; a != nullptr; a = a->Next)
+	{
+		Out.Write(' ');
+		PodSerializeAttr(Out, a);
+	}
+}
+
+// Recursive serializer; mirrors KHTMLElement::Print() one-to-one.
+// Returns the value of bIsFirstAfterLinefeed at the end of emission for the
+// outer recursion to chain properly.
+bool PodSerializeNodeImpl(KOutStream& Out,
+                          const khtml::NodePOD* pNode,
+                          char chIndent,
+                          uint16_t iIndent,
+                          bool bIsFirstAfterLinefeed,
+                          bool bIsInsideHead,
+                          uint16_t iIsPreformatted)
+{
+	using TP = KHTMLObject::TagProperty;
+
+	const bool bIsElement      = (pNode->Kind == khtml::NodeKind::Element);
+	const TP   Props           = pNode->TagProps;
+	const bool bIsStandalone   = bIsElement && KHTMLObject::IsStandalone   (Props);
+	const bool bIsInline       = bIsElement && KHTMLObject::IsInline       (Props);
+	const bool bIsInlineBlock  = bIsElement && KHTMLObject::IsInlineBlock  (Props);
+	const bool bIsRoot         = bIsElement && pNode->Name.empty();
+	const bool bHasOpening     = bIsElement && !pNode->Name.empty();
+	bool       bLastWasSpace   = bIsFirstAfterLinefeed;
+
+	auto PrintIndent = [&](uint16_t lvl)
+	{
+		if (!iIsPreformatted && bIsFirstAfterLinefeed)
+		{
+			if (chIndent)
+			{
+				for (; lvl-- > 0;)
+				{
+					Out.Write(chIndent);
+				}
+			}
+			bIsFirstAfterLinefeed = false;
+			bLastWasSpace         = KASCII::kIsSpace(chIndent);
+		}
+	};
+
+	auto WriteLinefeed = [&]()
+	{
+		static constexpr KStringView sLineFeed { "\r\n" };
+		Out.Write(sLineFeed);
+		bIsFirstAfterLinefeed = true;
+		bLastWasSpace         = true;
+	};
+
+	if (bHasOpening)
+	{
+		if (!bIsInline && !bIsFirstAfterLinefeed)
+		{
+			WriteLinefeed();
+		}
+
+		PrintIndent(iIndent);
+		Out.Write('<');
+		Out.Write(pNode->Name);
+		PodSerializeAttrs(Out, pNode);
+
+		if (bIsStandalone)
+		{
+			// pure HTML emits <tag> for standalone (not the XHTML <tag />)
+			Out.Write('>');
+
+			if (!bIsInline || pNode->Name == "br" || pNode->Name == "hr"
+				|| (bIsInsideHead && KHTMLObject::IsNotInlineInHead(Props)))
+			{
+				WriteLinefeed();
+				return true;
+			}
+			return false;
+		}
+
+		Out.Write('>');
+		bLastWasSpace = false;
+
+		if (!bIsInline || bIsInlineBlock)
+		{
+			if (pNode->Name == "head")
+			{
+				bIsInsideHead = true;
+			}
+
+			if (!iIsPreformatted && pNode->FirstChild != nullptr)
+			{
+				WriteLinefeed();
+			}
+		}
+
+		if (KHTMLObject::IsPreformatted(Props)
+			&& iIsPreformatted < std::numeric_limits<decltype(iIsPreformatted)>::max())
+		{
+			++iIsPreformatted;
+		}
+	}
+
+	for (const khtml::NodePOD* c = pNode->FirstChild; c != nullptr; c = c->NextSibling)
+	{
+		// Element children recurse and continue the for-loop directly
+		if (c->Kind == khtml::NodeKind::Element)
+		{
+			bIsFirstAfterLinefeed = PodSerializeNodeImpl(Out, c, chIndent,
+				iIndent + (bIsRoot ? 0 : 1), bIsFirstAfterLinefeed, bIsInsideHead, iIsPreformatted);
+			bLastWasSpace = bIsFirstAfterLinefeed;
+			continue;
+		}
+
+		// PrintIndent before non-Element-leaves (mirror of KHTMLElement::Print)
+		switch (c->Kind)
+		{
+			case khtml::NodeKind::Comment:
+			case khtml::NodeKind::ProcessingInstruction:
+			case khtml::NodeKind::DocumentType:
+			case khtml::NodeKind::Text:
+				PrintIndent(iIndent + (bIsRoot ? 0 : 1));
+				break;
+			case khtml::NodeKind::CData:
+			case khtml::NodeKind::Element:
+				// CData has no PrintIndent (in heap path: falls through 'default'
+				// branch of the switch in KHTMLElement::Print).
+				break;
+		}
+
+		// Emit the leaf body
+		switch (c->Kind)
+		{
+			case khtml::NodeKind::Text:
+			{
+				const bool bDoNotEscape = (c->Flags & khtml::NodeFlag::TextDoNotEscape) != 0;
+				const bool bSkipLoneSpace = !iIsPreformatted && bLastWasSpace && c->Name == " ";
+
+				if (!bSkipLoneSpace)
+				{
+					if (bDoNotEscape) Out.Write(c->Name);
+					else              PodEncodeHTMLContent(Out, c->Name);
+				}
+				break;
+			}
+
+			case khtml::NodeKind::Comment:
+				Out.Write(KHTMLComment::s_sLeadIn);
+				Out.Write(c->Name);
+				Out.Write(KHTMLComment::s_sLeadOut);
+				break;
+
+			case khtml::NodeKind::CData:
+				Out.Write(KHTMLCData::s_sLeadIn);
+				Out.Write(c->Name);
+				Out.Write(KHTMLCData::s_sLeadOut);
+				break;
+
+			case khtml::NodeKind::ProcessingInstruction:
+				Out.Write(KHTMLProcessingInstruction::s_sLeadIn);
+				Out.Write(c->Name);
+				Out.Write(KHTMLProcessingInstruction::s_sLeadOut);
+				break;
+
+			case khtml::NodeKind::DocumentType:
+				Out.Write(KHTMLDocumentType::s_sLeadIn);
+				Out.Write(c->Name);
+				Out.Write(KHTMLDocumentType::s_sLeadOut);
+				break;
+
+			case khtml::NodeKind::Element:
+				// already handled above
+				break;
+		}
+
+		// Post-emission housekeeping (linefeeds, last-char tracking)
+		switch (c->Kind)
+		{
+			case khtml::NodeKind::Comment:
+			case khtml::NodeKind::ProcessingInstruction:
+			case khtml::NodeKind::DocumentType:
+				WriteLinefeed();
+				break;
+
+			case khtml::NodeKind::Text:
+				if (!iIsPreformatted && !c->Name.empty() && c->Name.back() == '\n')
+				{
+					bIsFirstAfterLinefeed = true;
+				}
+				break;
+
+			case khtml::NodeKind::CData:
+			case khtml::NodeKind::Element:
+				break;
+		}
+	}
+
+	if (bHasOpening)
+	{
+		if (pNode->FirstChild != nullptr)
+		{
+			if ((!bIsInline || bIsInlineBlock) && !iIsPreformatted)
+			{
+				if (!bIsFirstAfterLinefeed)
+				{
+					WriteLinefeed();
+				}
+			}
+
+			if (bIsFirstAfterLinefeed)
+			{
+				PrintIndent(iIndent);
+				bIsFirstAfterLinefeed = false;
+			}
+		}
+
+		Out.Write(KStringView{"</"});
+		Out.Write(pNode->Name);
+		Out.Write('>');
+
+		if (!bIsInline)
+		{
+			WriteLinefeed();
+		}
+	}
+
+	return bIsFirstAfterLinefeed;
+}
+
+} // anonymous namespace
+
+namespace khtml {
+
+//-----------------------------------------------------------------------------
+void SerializeNode(KOutStream& OutStream, const NodePOD* pNode, char chIndent)
+//-----------------------------------------------------------------------------
+{
+	if (pNode == nullptr)
+	{
+		return;
+	}
+
+	PodSerializeNodeImpl(OutStream, pNode, chIndent,
+		/*iIndent=*/             0,
+		/*bIsFirstAfterLinefeed*/ true,
+		/*bIsInsideHead=*/       false,
+		/*iIsPreformatted=*/     0);
+
+} // SerializeNode
+
+//-----------------------------------------------------------------------------
+bool PodRemoveTrailingWhitespace(NodePOD* pNode, bool bStopAtBlockElement)
+//-----------------------------------------------------------------------------
+{
+	if (pNode == nullptr)
+	{
+		return false;
+	}
+
+	using TP = KHTMLObject::TagProperty;
+
+	for (NodePOD* c = pNode->LastChild; c != nullptr;)
+	{
+		switch (c->Kind)
+		{
+			case NodeKind::Text:
+			{
+				// trim trailing whitespace from this text leaf
+				KStringView text = c->Name;
+				std::size_t i    = text.size();
+
+				while (i > 0 && KASCII::kIsSpace(text[i - 1]))
+				{
+					--i;
+				}
+
+				if (i == 0)
+				{
+					// fully whitespace — drop the text node
+					NodePOD* prev = c->PrevSibling;
+					DetachChild(c);
+					c = prev;
+					continue;
+				}
+
+				c->Name = text.substr(0, i);
+				return true;
+			}
+
+			case NodeKind::Element:
+			{
+				const TP Props = c->TagProps;
+
+				if (bStopAtBlockElement && KHTMLObject::IsBlock(Props))
+				{
+					return true;
+				}
+
+				if (KHTMLObject::IsStandalone(Props) && c->Name != "br" && c->Name != "hr")
+				{
+					// hit non-whitespace embedded content (e.g. <img>)
+					return true;
+				}
+
+				if (!KHTMLObject::IsStandalone(Props) && c->Name != "script")
+				{
+					if (PodRemoveTrailingWhitespace(c, bStopAtBlockElement))
+					{
+						return true;
+					}
+				}
+
+				c = c->PrevSibling;
+				break;
+			}
+
+			case NodeKind::Comment:
+			case NodeKind::CData:
+			case NodeKind::ProcessingInstruction:
+			case NodeKind::DocumentType:
+				// skip non-text, non-element nodes
+				c = c->PrevSibling;
+				break;
+		}
+	}
+
+	return false;
+
+} // PodRemoveTrailingWhitespace
+
+} // namespace khtml
+
+//-----------------------------------------------------------------------------
 KHTMLElement::KHTMLElement(const KHTMLElement& other)
 //-----------------------------------------------------------------------------
 : KHTMLObject(other)
@@ -741,7 +1170,12 @@ khtml::NodePOD* KHTML::PodAddElement(const KHTMLTag& Tag)
 
 	for (const auto& Attr : Tag.GetAttributes())
 	{
-		khtml::AppendAttr(pNode, khtml::CreateAttr(m_Arena, Attr.GetName(), Attr.GetValue()));
+		khtml::AppendAttr(pNode,
+			khtml::CreateAttr(m_Arena,
+				Attr.GetName(),
+				Attr.GetValue(),
+				Attr.GetQuote(),
+				!Attr.IsEntityEncoded()));
 	}
 
 	khtml::AppendChild(m_PodHierarchy.back(), pNode);
@@ -776,23 +1210,58 @@ void KHTML::PodAddTextLeaf(KStringView sContent, bool bDoNotEscape)
 } // PodAddTextLeaf
 
 //-----------------------------------------------------------------------------
+// prefer the arena-backed POD shadow tree when it has been built
+// by the parser (parse-path). For DOM-build path (KHTML::Add(), DOM().Add()
+// etc.), the POD tree stays empty and we transparently fall back to the
+// heap DOM serializer. Equivalence of both paths for parser inputs is
+// guaranteed by the "KHTML POD-vs-heap serialization equivalence" test.
+//-----------------------------------------------------------------------------
+bool KHTML::PodHasContent() const
+//-----------------------------------------------------------------------------
+{
+	return m_pPodRoot != nullptr && m_pPodRoot->FirstChild != nullptr;
+}
+
+//-----------------------------------------------------------------------------
 void KHTML::Serialize(KOutStream& Stream, char chIndent) const
 //-----------------------------------------------------------------------------
 {
-	m_Root.Print(Stream, chIndent);
+	if (PodHasContent())
+	{
+		khtml::SerializeNode(Stream, m_pPodRoot, chIndent);
+	}
+	else
+	{
+		m_Root.Print(Stream, chIndent);
+	}
 }
 
 //-----------------------------------------------------------------------------
 void KHTML::Serialize(KStringRef& sOut, char chIndent) const
 //-----------------------------------------------------------------------------
 {
-	m_Root.Print(sOut, chIndent);
+	if (PodHasContent())
+	{
+		KOutStringStream oss(sOut);
+		khtml::SerializeNode(oss, m_pPodRoot, chIndent);
+	}
+	else
+	{
+		m_Root.Print(sOut, chIndent);
+	}
 }
 
 //-----------------------------------------------------------------------------
 KString KHTML::Serialize(char chIndent) const
 //-----------------------------------------------------------------------------
 {
+	if (PodHasContent())
+	{
+		KString sOut;
+		KOutStringStream oss(sOut);
+		khtml::SerializeNode(oss, m_pPodRoot, chIndent);
+		return sOut;
+	}
 	return m_Root.Print(chIndent);
 }
 
@@ -921,6 +1390,7 @@ void KHTML::Object(KHTMLObject& Object)
 						{
 							// as in a block context, remove inner whitespaces
 							m_Hierarchy.back()->RemoveTrailingWhitespace();
+							khtml::PodRemoveTrailingWhitespace(m_PodHierarchy.back());
 							// otherwise behave like inline
 						}
 						else if (bIsInline)
@@ -930,6 +1400,7 @@ void KHTML::Object(KHTMLObject& Object)
 						else
 						{
 							m_Hierarchy.back()->RemoveTrailingWhitespace();
+							khtml::PodRemoveTrailingWhitespace(m_PodHierarchy.back());
 							m_bLastWasSpace = true;
 
 							if (bIsPreformatted && m_bPreformatted)
@@ -991,6 +1462,7 @@ void KHTML::Object(KHTMLObject& Object)
 									{
 										// this is a block element
 										m_Hierarchy.back()->RemoveTrailingWhitespace();
+										khtml::PodRemoveTrailingWhitespace(m_PodHierarchy.back());
 										m_bLastWasSpace = true;
 
 										if (KHTMLObject::IsPreformattedTag(m_Hierarchy.back()->GetName()) && m_bPreformatted)
@@ -1020,6 +1492,7 @@ void KHTML::Object(KHTMLObject& Object)
 				if (!bIsInline)
 				{
 					m_Hierarchy.back()->RemoveTrailingWhitespace();
+					khtml::PodRemoveTrailingWhitespace(m_PodHierarchy.back());
 				}
 
 				auto& Element = m_Hierarchy.back()->Add(KHTMLElement(Tag));
@@ -1113,6 +1586,7 @@ void KHTML::Finished()
 			{
 				// this is a block element
 				m_Hierarchy.back()->RemoveTrailingWhitespace();
+				khtml::PodRemoveTrailingWhitespace(m_PodHierarchy.back());
 			}
 			m_Hierarchy.erase(m_Hierarchy.end() - 1);
 			if (m_PodHierarchy.size() > 1) m_PodHierarchy.pop_back();
@@ -1122,6 +1596,7 @@ void KHTML::Finished()
 	if (m_Hierarchy.size() == 1)
 	{
 		m_Hierarchy.back()->RemoveTrailingWhitespace();
+		khtml::PodRemoveTrailingWhitespace(m_pPodRoot);
 	}
 
 } // Finished

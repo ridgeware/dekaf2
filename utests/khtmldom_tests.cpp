@@ -526,3 +526,149 @@ R"(<html>
 		CHECK ( HTML.PodRoot()->FirstChild->Name == "a" );
 	}
 }
+
+// ----------------------------------------------------------------------------
+// Verifies that khtml::SerializeNode() applied
+// to the POD shadow tree produces a byte-identical output to KHTMLElement::
+// Print() applied to the heap DOM, for every input the parser is exercised
+// with elsewhere in this file. If this test stays green, KHTML::Serialize()
+// can be switched from the heap DOM to the POD tree without changing
+// observable behaviour.
+// ----------------------------------------------------------------------------
+TEST_CASE("KHTML POD-vs-heap serialization equivalence")
+{
+	auto check_equiv = [](KStringView sInput, const char* sLabel)
+	{
+		KHTML HTML;
+		HTML.Parse(sInput);
+
+		// heap-DOM serialize via KHTMLElement::Print()
+		const KString sHeap = HTML.Serialize();
+
+		// POD-tree serialize via khtml::SerializeNode()
+		KString sPod;
+		{
+			KOutStringStream oss(sPod);
+			khtml::SerializeNode(oss, HTML.PodRoot());
+		}
+
+		INFO( sLabel );
+		auto sDiff = print_diff(sPod, sHeap);
+		if (!sDiff.empty())
+		{
+			FAIL_CHECK( sLabel << ": " << sDiff );
+		}
+		CHECK ( sPod == sHeap );
+	};
+
+	SECTION("simple element with text and standalone")
+	{
+		check_equiv(KStringView{"<html><body><p>hi</p><img src=\"x.png\"/></body></html>"},
+		            "simple");
+	}
+
+	SECTION("only text")
+	{
+		check_equiv(KStringView{"This is free standing text"}, "only-text");
+	}
+
+	SECTION("text with inlines")
+	{
+		check_equiv(KStringView{"This is <b>free <i>standing</i></b> text"}, "inlines");
+	}
+
+	SECTION("preformatted text")
+	{
+		check_equiv(KStringView{"<pre>This is  \r\n  preformatted    text</pre>"},
+		            "pre");
+	}
+
+	SECTION("preformatted text in outer block")
+	{
+		check_equiv(KStringView{"<div><div><pre>This is  \r\n  preformatted    text</pre></div></div>"},
+		            "pre-in-block");
+	}
+
+	SECTION("preformatted text with inlines")
+	{
+		check_equiv(KStringView{"<pre>This is  \r\n  <b>preformatted</b>    text</pre>"},
+		            "pre-with-inlines");
+	}
+
+	SECTION("block framed")
+	{
+		check_equiv(KStringView{"<p>This is    <b>block <i>framed</i></b>    text</p>"},
+		            "block-framed");
+	}
+
+	SECTION("auto close 1-4")
+	{
+		check_equiv(KStringView{"<p>This is <b>unbalanced <i>framed</b> text</p>"},        "ac1");
+		check_equiv(KStringView{"<p>This is <b>unbalanced <i>framed text</p>"},            "ac2");
+		check_equiv(KStringView{"<p>This is <b>unbalanced <i>framed</u> text</p>"},        "ac3");
+		check_equiv(KStringView{"<p>This is <B>unbalanced <i>framed</b> text</B></p>"},    "ac4");
+	}
+
+	SECTION("entity-encoded content")
+	{
+		check_equiv(KStringView{"<p>This is <b>bl&ouml;ck <i>framed</i></b> text</p>"},
+		            "entity");
+	}
+
+	SECTION("comments, doctype, processing instruction, cdata")
+	{
+		check_equiv(KStringView{
+			"<?xml version=\"1.0\"?>"
+			"<!DOCTYPE html>"
+			"<root>"
+			"<!-- a comment -->"
+			"<![CDATA[some <stuff>]]>"
+			"</root>"
+		}, "comments-and-friends");
+	}
+
+	SECTION("ambiguous (mixed standalone+closing)")
+	{
+		static constexpr KStringView sSample {
+R"(
+<html>
+	<head/>
+	<body>
+		</p>
+		<div attr="that"/><div/>
+		<img attr="this"></img attr="those">
+		<p>
+			<img attr=1><img attr=2/>
+		</p>
+		<p> <b> Bold</b> <i>italic</i></p>
+		</img attr=3><img attr=4>
+)"
+		};
+		check_equiv(sSample, "ambiguous");
+	}
+
+	SECTION("the big sample (parsing and rebuilding)")
+	{
+		static constexpr KStringView sHTML = (R"(
+	<?xml-stylesheet type="text/xsl" href="style.xsl"?>
+	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+	<html>
+	<head><!-- with a comment here! >> -> until here --><!--- just one more --->
+	<title>A study of population dynamics</title>
+	</head>
+	<body>
+		<table>
+			 <tr><td align="center" nowrap>hi</td></tr>
+		</table>
+			 <!----- another comment here until here ---> <!--really?>-->
+		<p>
+			<script type="lang/nicely"> this is <a <new <a href="www.w3c.org">scripting</a> language> </script>
+			<img checked src="http://www.xyz.com/my/image.png" title=Ñicé /><br />
+		</p>
+		<p class='fancy' id=self style="curly">And <i class='shallow'>some</i> content</p>
+	</body>
+	</html>
+	)");
+		check_equiv(sHTML, "big-sample");
+	}
+}

@@ -527,6 +527,13 @@ public:
 private:
 //------
 
+	/// @returns true if the POD shadow tree contains parsed content and
+	/// should be used as the source of serialization. Returns false for a
+	/// freshly-constructed KHTML or one populated only via the heap-DOM
+	/// build path (KHTML::Add() / DOM().Add() etc.); in that case the
+	/// caller falls back to m_Root.Print().
+	bool PodHasContent() const;
+
 	// heap-backed DOM (current ground truth)
 	KHTMLElement                  m_Root;
 	std::vector<KHTMLElement*>    m_Hierarchy     { &m_Root };

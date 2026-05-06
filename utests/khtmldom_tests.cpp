@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/web/html/khtmldom.h>
+#include <dekaf2/web/html/bits/khtmldom_node.h>
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <vector>
@@ -397,5 +398,131 @@ R"(<html>
 				CHECK (Text->GetText() == "before1.text1.text2.after1.");
 			}
 		}
+	}
+
+	// ------------------------------------------------------------------
+	// KHTML mirrors every parsed node into an arena-backed POD
+	// shadow tree. The tree is read-only state until later changes switch
+	// the heap DOM to use it as ground truth.
+	// ------------------------------------------------------------------
+	SECTION("POD shadow tree mirrors a simple parse")
+	{
+		KHTML HTML;
+		HTML.Parse(KStringView{"<html><body><p>hi</p><img src=\"x.png\"/></body></html>"});
+
+		const auto* root = HTML.PodRoot();
+		REQUIRE ( root != nullptr );
+		CHECK ( root->Kind == khtml::NodeKind::Element );
+
+		// root has one direct child: <html>
+		REQUIRE ( root->FirstChild != nullptr );
+		const auto* html = root->FirstChild;
+		CHECK ( html->Name == "html" );
+		CHECK ( html->NextSibling == nullptr );
+
+		// <html> has one child: <body>
+		REQUIRE ( html->FirstChild != nullptr );
+		const auto* body = html->FirstChild;
+		CHECK ( body->Name == "body" );
+		CHECK ( body->Parent == html );
+
+		// <body> has two element children: <p> and <img/>
+		REQUIRE ( body->FirstChild != nullptr );
+		const auto* p = body->FirstChild;
+		CHECK ( p->Name == "p" );
+
+		REQUIRE ( p->NextSibling != nullptr );
+		const auto* img = p->NextSibling;
+		CHECK ( img->Name == "img" );
+		CHECK ( body->LastChild == img );
+
+		// <img src="x.png"/>: one attribute, value mirrored into arena
+		REQUIRE ( img->FirstAttr != nullptr );
+		CHECK ( img->FirstAttr->Name  == "src" );
+		CHECK ( img->FirstAttr->Value == "x.png" );
+		CHECK ( img->FirstAttr->Next  == nullptr );
+
+		// <p> contains a Text node "hi"
+		REQUIRE ( p->FirstChild != nullptr );
+		CHECK ( p->FirstChild->Kind == khtml::NodeKind::Text );
+		CHECK ( p->FirstChild->Name == "hi" );
+	}
+
+	SECTION("POD shadow tree caches TagProperty")
+	{
+		KHTML HTML;
+		HTML.Parse(KStringView{"<div><span>x</span></div>"});
+
+		const auto* root = HTML.PodRoot();
+		REQUIRE ( root != nullptr );
+
+		const auto* div = root->FirstChild;
+		REQUIRE ( div != nullptr );
+		CHECK ( div->Name == "div" );
+		CHECK ( (div->TagProps & KHTMLObject::TagProperty::Block) == KHTMLObject::TagProperty::Block );
+
+		const auto* span = div->FirstChild;
+		REQUIRE ( span != nullptr );
+		CHECK ( span->Name == "span" );
+		CHECK ( (span->TagProps & KHTMLObject::TagProperty::Inline) == KHTMLObject::TagProperty::Inline );
+	}
+
+	SECTION("POD shadow tree mirrors comments, doctype, PI and CDATA")
+	{
+		KHTML HTML;
+		HTML.Parse(KStringView{
+			"<?xml version=\"1.0\"?>"
+			"<!DOCTYPE html>"
+			"<root>"
+			"<!-- a comment -->"
+			"<![CDATA[some <stuff>]]>"
+			"</root>"
+		});
+
+		const auto* root = HTML.PodRoot();
+		REQUIRE ( root != nullptr );
+
+		// flatten the top-level chain so we can spot-check the kinds
+		const khtml::NodePOD* nodes[8] = { nullptr };
+		std::size_t i = 0;
+		for (auto* n = root->FirstChild; n != nullptr && i < 8; n = n->NextSibling, ++i)
+		{
+			nodes[i] = n;
+		}
+
+		REQUIRE ( i >= 3 );
+		CHECK ( nodes[0]->Kind == khtml::NodeKind::ProcessingInstruction );
+		CHECK ( nodes[1]->Kind == khtml::NodeKind::DocumentType );
+		CHECK ( nodes[2]->Kind == khtml::NodeKind::Element );
+		CHECK ( nodes[2]->Name == "root" );
+
+		const auto* comment = nodes[2]->FirstChild;
+		REQUIRE ( comment != nullptr );
+		CHECK ( comment->Kind == khtml::NodeKind::Comment );
+
+		REQUIRE ( comment->NextSibling != nullptr );
+		CHECK ( comment->NextSibling->Kind == khtml::NodeKind::CData );
+	}
+
+	SECTION("clear() resets POD tree and frees arena")
+	{
+		KHTML HTML;
+		HTML.Parse(KStringView{"<div><p>one</p><p>two</p></div>"});
+
+		REQUIRE ( HTML.PodRoot() != nullptr );
+		REQUIRE ( HTML.PodRoot()->FirstChild != nullptr );
+		CHECK ( HTML.Arena().UsedBytes() > 0 );
+
+		HTML.clear();
+
+		// after clear: a fresh empty root, arena reset
+		REQUIRE ( HTML.PodRoot() != nullptr );
+		CHECK ( HTML.PodRoot()->FirstChild == nullptr );
+		CHECK ( HTML.PodRoot()->LastChild  == nullptr );
+
+		// re-parse must work
+		HTML.Parse(KStringView{"<a/>"});
+		REQUIRE ( HTML.PodRoot()->FirstChild != nullptr );
+		CHECK ( HTML.PodRoot()->FirstChild->Name == "a" );
 	}
 }

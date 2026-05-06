@@ -45,6 +45,8 @@
 /// @file khtmldom.h
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/web/html/khtmlparser.h>
+#include <dekaf2/web/html/bits/khtmldom_node.h>
+#include <dekaf2/containers/memory/karenaallocator.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/errors/kerror.h>
 
@@ -392,9 +394,12 @@ public:
 //------
 
 	KHTML();
-	KHTML(const KHTML&) = default;
+	// non-copyable: KHTML owns a KArenaAllocator (which is non-copyable)
+	// and cloning a populated arena would be expensive and rarely useful.
+	// Move semantics are still available.
+	KHTML(const KHTML&) = delete;
 	KHTML(KHTML&&) = default;
-	KHTML& operator=(const KHTML&) = default;
+	KHTML& operator=(const KHTML&) = delete;
 	KHTML& operator=(KHTML&&) = default;
 	virtual ~KHTML();
 
@@ -495,18 +500,50 @@ protected:
 	void FlushText();
 	void SetIssue(KString sIssue);
 
+	// POD shadow-tree mirror helpers. Each helper allocates POD
+	// nodes from m_Arena and appends them under m_PodHierarchy.back().
+	// PodResetTree() is called from the ctor and clear() to (re-)initialise
+	// the tree. None of these helpers mutate the heap DOM.
+	void PodResetTree();
+	khtml::NodePOD* PodAddElement(const KHTMLTag& Tag);
+	void PodAddStringNode(khtml::NodeKind kind, const KHTMLStringObject& Object);
+	void PodAddTextLeaf(KStringView sContent, bool bDoNotEscape);
+
+//------
+public:
+//------
+
+	/// @returns the root of the arena-backed POD shadow tree, or nullptr if
+	/// no parsing has happened yet. The shadow tree is populated by Object()
+	/// in lock-step with the heap DOM and is owned entirely by m_Arena.
+	/// Phase 2c will replace the heap DOM with this tree; until then it is
+	/// read-only state used for tests and benchmarks.
+	const khtml::NodePOD* PodRoot() const { return m_pPodRoot; }
+
+	/// @returns the arena that backs the POD shadow tree.
+	const KArenaAllocator& Arena() const { return m_Arena; }
+
 //------
 private:
 //------
 
-	KHTMLElement               m_Root;
-	std::vector<KHTMLElement*> m_Hierarchy     { &m_Root };
-	KString                    m_sContent;
-	std::vector<KString>       m_Issues;
-	std::size_t                m_iMaxAutoCloseLevels { 2 };
-	bool                       m_bLastWasSpace   { true  };
-	bool                       m_bDoNotEscape    { false };
-	uint8_t                    m_bPreformatted   { 0     };
+	// heap-backed DOM (current ground truth)
+	KHTMLElement                  m_Root;
+	std::vector<KHTMLElement*>    m_Hierarchy     { &m_Root };
+
+	// arena-backed POD shadow tree (populated in parallel by Object()).
+	// This later becomes the ground truth and m_Root / m_Hierarchy
+	// turn into thin handles over m_pPodRoot.
+	KArenaAllocator               m_Arena;
+	khtml::NodePOD*               m_pPodRoot      { nullptr };
+	std::vector<khtml::NodePOD*>  m_PodHierarchy;
+
+	KString                       m_sContent;
+	std::vector<KString>          m_Issues;
+	std::size_t                   m_iMaxAutoCloseLevels { 2 };
+	bool                          m_bLastWasSpace { true  };
+	bool                          m_bDoNotEscape  { false };
+	uint8_t                       m_bPreformatted { 0     };
 
 }; // KHTML
 

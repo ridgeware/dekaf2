@@ -117,14 +117,14 @@ public:
 	/// operator supplied an explicit `-db <path>` override. Left empty
 	/// when running in AdHoc mode (no DB is opened at all).
 	KString                sDatabasePath;
-	/// Username sent by the *protected* host when logging in to the
-	/// exposed host. Must match a row in the exposed host's `users`
-	/// table (its password is the bcrypt-hashed value seeded by
-	/// `ktunnel -set-admin` or the admin UI). Ignored on the exposed
-	/// host. Set via `-u <user>` on the CLI; defaults to "admin",
-	/// which is the default username used by `-set-admin` and the
-	/// `-install` bootstrap.
-	KString                sPeerUser      { "admin" };
+	/// Node name sent by the *protected* host when logging in to the
+	/// exposed host. Must match a row in the exposed host's `nodes`
+	/// table (its password is the bcrypt-hashed value managed by an
+	/// admin via `ktunnel -add-node` or the admin UI). Ignored on the
+	/// exposed host. Set via `-n <name>` on the CLI; defaults to "node",
+	/// a placeholder that must usually be overridden — the bootstrap
+	/// flows seed admin accounts (`-set-admin`), not node accounts.
+	KString                sPeerNode      { "node" };
 
 	/// Protected-side trust configuration for the v2 AES handshake.
 	/// All four are unused on the exposed side.
@@ -235,7 +235,7 @@ public:
 	/// @li `Stopped` — configured as disabled, or not in the registry
 	/// @li `Listening` — registry entry is up and the TCP acceptor runs
 	/// @li `PortError` — tried to bind but the OS refused (port in use)
-	/// @li `OwnerOffline` — listener is up but the owner user has no
+	/// @li `OwnerOffline` — listener is up but the owner node has no
 	///     active tunnel; new connections get rejected at accept time
 	enum class ListenerState : std::uint8_t { Stopped, Listening, PortError, OwnerOffline };
 
@@ -264,7 +264,7 @@ public:
 	/// snapshot's lifetime even if the peer disconnects in between.
 	struct ActiveTunnel
 	{
-		KString                  sUser;        ///< login user on the tunnel
+		KString                  sNode;        ///< login node on the tunnel
 		KTCPEndPoint             EndpointAddr; ///< remote address of the peer
 		KUnixTime                tConnected;   ///< wall-clock time of login
 		std::shared_ptr<KTunnel> Tunnel;       ///< non-null
@@ -274,9 +274,9 @@ public:
 	/// server. Returns an empty vector if nobody is connected.
 	std::vector<ActiveTunnel> SnapshotActiveTunnels () const;
 
-	/// Returns the (one) currently-active tunnel for a given user, or a
-	/// null shared_ptr if that user is not connected.
-	std::shared_ptr<KTunnel>  GetTunnelForUser       (KStringView sUser) const;
+	/// Returns the (one) currently-active tunnel for a given node, or a
+	/// null shared_ptr if that node is not connected.
+	std::shared_ptr<KTunnel>  GetTunnelForNode       (KStringView sNode) const;
 
 	/// Access to the persistent configuration / audit store backing the
 	/// admin UI. Never null after successful construction.
@@ -301,17 +301,17 @@ protected:
 private:
 //----------
 
-	/// Verify a tunnel-login (user, secret) pair against the persistent
+	/// Verify a tunnel-login (node, secret) pair against the persistent
 	/// store. Called from the KTunnel::Config::AuthCallback installed
-	/// per ControlStream(). Logs a login_ok / login_fail event as a
-	/// side effect.
-	bool                      VerifyTunnelLogin      (KStringView sUser, KStringView sSecret,
+	/// per ControlStream(). Logs a node_login_ok / node_login_fail event
+	/// as a side effect.
+	bool                      VerifyNodeLogin        (KStringView sNode, KStringView sSecret,
 	                                                  const KTCPEndPoint& RemoteAddr);
 
-	void                      RegisterActiveTunnel   (KStringView sUser,
+	void                      RegisterActiveTunnel   (KStringView sNode,
 	                                                  const KTCPEndPoint& RemoteAddr,
 	                                                  std::shared_ptr<KTunnel> Tunnel);
-	void                      UnregisterActiveTunnel (KStringView sUser,
+	void                      UnregisterActiveTunnel (KStringView sNode,
 	                                                  const std::shared_ptr<KTunnel>& Tunnel);
 
 	/// "First-come-first-served" pick used by ForwardStreamForOwner
@@ -320,11 +320,11 @@ private:
 	/// tunnel is currently connected.
 	std::shared_ptr<KTunnel>  PickDefaultTunnel      () const;
 
-	/// user-name -> active tunnel. We accept only one tunnel per user for
-	/// now; a second login from the same user replaces the first (and the
+	/// node-name -> active tunnel. We accept only one tunnel per node for
+	/// now; a second login from the same node replaces the first (and the
 	/// previous tunnel is Stop()ed so it drops its resources).
 	/// KThreadSafe couples the map with a shared_mutex: readers
-	/// (SnapshotActiveTunnels, GetTunnelForUser, PickDefaultTunnel,
+	/// (SnapshotActiveTunnels, GetTunnelForNode, PickDefaultTunnel,
 	/// SnapshotListenerStates) take a shared lock and can run in
 	/// parallel; Register/Unregister take a unique lock.
 	KThreadSafe<KUnorderedMap<KString, ActiveTunnel>> m_ActiveTunnels;
@@ -338,10 +338,10 @@ private:
 	/// the tunnel's poll() and lets the KREST worker thread drain.
 	///
 	/// Why not m_ActiveTunnels: that map only holds *authenticated*
-	/// peers keyed by username, so a peer stuck in the login exchange
+	/// peers keyed by node-name, so a peer stuck in the login exchange
 	/// would be invisible to it. Using a weak_ptr registry here covers
 	/// both the pre- and post-auth windows without changing the
-	/// semantics of the by-user lookup map.
+	/// semantics of the by-node lookup map.
 	KThreadSafe<std::vector<std::weak_ptr<KTunnel>>>  m_ControlTunnels;
 
 	/// Snapshot key for the listener registry: the per-row fields that
@@ -353,13 +353,13 @@ private:
 		uint16_t iListenPort  { 0 };
 		KString  sTargetHost;
 		uint16_t iTargetPort  { 0 };
-		KString  sOwnerUser;
+		KString  sOwnerNode;
 		bool operator== (const ListenerKey& o) const noexcept
 		{
 			return iListenPort == o.iListenPort
 			    && iTargetPort == o.iTargetPort
 			    && sTargetHost == o.sTargetHost
-			    && sOwnerUser  == o.sOwnerUser;
+			    && sOwnerNode  == o.sOwnerNode;
 		}
 	};
 

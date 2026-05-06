@@ -162,18 +162,34 @@ bool KTunnelStore::InitializeSchema ()
 
 	static constexpr KStringView s_sDDL[] =
 	{
-		// Users: unique username, bcrypt hash, admin bit
-		"create table if not exists users ("
+		// Admins: unique username, bcrypt hash. Every row in this table
+		// is, by definition, allowed to sign in to the web UI. There is
+		// no separate is_admin flag — having a row IS the admin grant.
+		"create table if not exists admins ("
 		"  id             integer primary key autoincrement,"
 		"  username       text    not null unique,"
 		"  pw_hash        text    not null,"
-		"  is_admin       integer not null default 0,"
+		"  created_utc    integer not null default 0,"
+		"  last_login_utc integer not null default 0"
+		")",
+
+		// Nodes: tunnel-endpoint accounts. A node is the credential the
+		// remote ktunnel instance presents during the v2 handshake (or
+		// the legacy Basic-auth login frame). Nodes have NO web UI
+		// access; the UI is admin-only. The `enabled` bit lets an admin
+		// temporarily lock out a remote endpoint without losing its
+		// configuration or its tunnel ownership.
+		"create table if not exists nodes ("
+		"  id             integer primary key autoincrement,"
+		"  name           text    not null unique,"
+		"  pw_hash        text    not null,"
+		"  enabled        integer not null default 1,"
 		"  created_utc    integer not null default 0,"
 		"  last_login_utc integer not null default 0"
 		")",
 
 		// Tunnels: one row per listener the admin configured. A tunnel
-		// is keyed by name (human-readable); the owning user decides
+		// is keyed by name (human-readable); the owning node decides
 		// whose ktunnel login is accepted for this listener.
 		//
 		// Note: historically there was a listen_host column here, but
@@ -184,7 +200,7 @@ bool KTunnelStore::InitializeSchema ()
 		"create table if not exists tunnels ("
 		"  id           integer primary key autoincrement,"
 		"  name         text    not null unique,"
-		"  owner_user   text    not null default '',"
+		"  node         text    not null default '',"
 		"  listen_port  integer not null,"
 		"  target_host  text    not null default '',"
 		"  target_port  integer not null default 0,"
@@ -193,13 +209,23 @@ bool KTunnelStore::InitializeSchema ()
 		"  modified_utc integer not null default 0"
 		")",
 
-		// Events: append-only audit log. No foreign keys — a user can
-		// be deleted but we want to keep its historical log entries.
+		// Events: append-only audit log. No foreign keys — an admin or
+		// a node can be deleted but we want to keep its historical log
+		// entries. Two actor columns:
+		//   * `admin` for events caused by an admin via the web UI
+		//     (admin_add, node_disable, config_change, ...)
+		//   * `node`  for events caused by tunnel-endpoint activity
+		//     (node_login_ok, node_login_fail, handshake_fail,
+		//      tunnel_disconnect, ...)
+		// A given event row populates at most one of these; the dual
+		// columns make audit queries unambiguous instead of overloading
+		// a single "username" string.
 		"create table if not exists events ("
 		"  id          integer primary key autoincrement,"
 		"  ts_utc      integer not null,"
 		"  kind        text    not null,"
-		"  username    text    not null default '',"
+		"  admin       text    not null default '',"
+		"  node        text    not null default '',"
 		"  tunnel_name text    not null default '',"
 		"  remote_ip   text    not null default '',"
 		"  detail      text    not null default ''"
@@ -243,10 +269,14 @@ bool KTunnelStore::InitializeSchema ()
 
 } // InitializeSchema
 
-// ============================= Users ====================================
+// ============================= Admins ===================================
+//
+// UI identities. Every row here can sign into /Configure/. Admins are NOT
+// usable as tunnel-endpoint identities — those live in the `nodes` table
+// and authenticate the v2 handshake / Basic-auth login frame instead.
 
 //-----------------------------------------------------------------------------
-std::size_t KTunnelStore::CountUsers ()
+std::size_t KTunnelStore::CountAdmins ()
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -254,22 +284,22 @@ std::size_t KTunnelStore::CountUsers ()
 	auto db = OpenRO();
 	if (db.IsError()) return 0;
 
-	auto stmt = db.Prepare("select count(*) from users");
+	auto stmt = db.Prepare("select count(*) from admins");
 	if (stmt.NextRow())
 	{
 		return static_cast<std::size_t>(stmt.GetRow().Col(1).Int64());
 	}
 	return 0;
 
-} // CountUsers
+} // CountAdmins
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::AddUser (const User& user)
+bool KTunnelStore::AddAdmin (const Admin& admin)
 //-----------------------------------------------------------------------------
 {
-	if (user.sUsername.empty() || user.sPasswordHash.empty())
+	if (admin.sUsername.empty() || admin.sPasswordHash.empty())
 	{
-		SetError("AddUser: empty username or hash");
+		SetError("AddAdmin: empty username or hash");
 		return false;
 	}
 
@@ -279,32 +309,31 @@ bool KTunnelStore::AddUser (const User& user)
 	if (db.IsError()) return false;
 
 	auto stmt = db.Prepare(
-		"insert into users (username, pw_hash, is_admin, created_utc, last_login_utc) "
-		"values (?1, ?2, ?3, ?4, ?5)");
+		"insert into admins (username, pw_hash, created_utc, last_login_utc) "
+		"values (?1, ?2, ?3, ?4)");
 
-	stmt.Bind(1, user.sUsername,     false);
-	stmt.Bind(2, user.sPasswordHash, false);
-	stmt.Bind(3, static_cast<int64_t>(user.bIsAdmin ? 1 : 0));
-	stmt.Bind(4, static_cast<int64_t>((user.tCreated   == KUnixTime{}) ? KUnixTime::now().to_time_t()
-	                                                                   : user.tCreated.to_time_t()));
-	stmt.Bind(5, static_cast<int64_t>(user.tLastLogin.to_time_t()));
+	stmt.Bind(1, admin.sUsername,     false);
+	stmt.Bind(2, admin.sPasswordHash, false);
+	stmt.Bind(3, static_cast<int64_t>((admin.tCreated == KUnixTime{}) ? KUnixTime::now().to_time_t()
+	                                                                  : admin.tCreated.to_time_t()));
+	stmt.Bind(4, static_cast<int64_t>(admin.tLastLogin.to_time_t()));
 
 	if (!stmt.Execute())
 	{
-		SetError(kFormat("AddUser: insert failed: {}", db.Error()));
+		SetError(kFormat("AddAdmin: insert failed: {}", db.Error()));
 		return false;
 	}
 	return true;
 
-} // AddUser
+} // AddAdmin
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::UpdateUserPasswordHash (KStringView sUsername, KStringView sBcryptHash)
+bool KTunnelStore::UpdateAdminPasswordHash (KStringView sUsername, KStringView sBcryptHash)
 //-----------------------------------------------------------------------------
 {
 	if (sUsername.empty() || sBcryptHash.empty())
 	{
-		SetError("UpdateUserPasswordHash: empty args");
+		SetError("UpdateAdminPasswordHash: empty args");
 		return false;
 	}
 
@@ -313,21 +342,21 @@ bool KTunnelStore::UpdateUserPasswordHash (KStringView sUsername, KStringView sB
 	auto db = OpenRW();
 	if (db.IsError()) return false;
 
-	auto stmt = db.Prepare("update users set pw_hash=?1 where username=?2");
+	auto stmt = db.Prepare("update admins set pw_hash=?1 where username=?2");
 	stmt.Bind(1, sBcryptHash, false);
 	stmt.Bind(2, sUsername,   false);
 
 	if (!stmt.Execute())
 	{
-		SetError(kFormat("UpdateUserPasswordHash: {}", db.Error()));
+		SetError(kFormat("UpdateAdminPasswordHash: {}", db.Error()));
 		return false;
 	}
 	return true;
 
-} // UpdateUserPasswordHash
+} // UpdateAdminPasswordHash
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::UpdateUserAdminFlag (KStringView sUsername, bool bIsAdmin)
+bool KTunnelStore::DeleteAdmin (KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -335,43 +364,21 @@ bool KTunnelStore::UpdateUserAdminFlag (KStringView sUsername, bool bIsAdmin)
 	auto db = OpenRW();
 	if (db.IsError()) return false;
 
-	auto stmt = db.Prepare("update users set is_admin=?1 where username=?2");
-	stmt.Bind(1, static_cast<int64_t>(bIsAdmin ? 1 : 0));
-	stmt.Bind(2, sUsername, false);
-
-	if (!stmt.Execute())
-	{
-		SetError(kFormat("UpdateUserAdminFlag: {}", db.Error()));
-		return false;
-	}
-	return true;
-
-} // UpdateUserAdminFlag
-
-//-----------------------------------------------------------------------------
-bool KTunnelStore::DeleteUser (KStringView sUsername)
-//-----------------------------------------------------------------------------
-{
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-
-	auto db = OpenRW();
-	if (db.IsError()) return false;
-
-	auto stmt = db.Prepare("delete from users where username=?1");
+	auto stmt = db.Prepare("delete from admins where username=?1");
 	stmt.Bind(1, sUsername, false);
 
 	if (!stmt.Execute())
 	{
-		SetError(kFormat("DeleteUser: {}", db.Error()));
+		SetError(kFormat("DeleteAdmin: {}", db.Error()));
 		return false;
 	}
 	return true;
 
-} // DeleteUser
+} // DeleteAdmin
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTunnelStore::User>
-KTunnelStore::GetUser (KStringView sUsername)
+std::unique_ptr<KTunnelStore::Admin>
+KTunnelStore::GetAdmin (KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -380,8 +387,8 @@ KTunnelStore::GetUser (KStringView sUsername)
 	if (db.IsError()) return nullptr;
 
 	auto stmt = db.Prepare(
-		"select id, username, pw_hash, is_admin, created_utc, last_login_utc "
-		"from users where username=?1");
+		"select id, username, pw_hash, created_utc, last_login_utc "
+		"from admins where username=?1");
 	stmt.Bind(1, sUsername, false);
 
 	if (!stmt.NextRow())
@@ -390,22 +397,21 @@ KTunnelStore::GetUser (KStringView sUsername)
 	}
 
 	auto Row = stmt.GetRow();
-	auto u = std::make_unique<User>();
-	u->iID           = Row.Col(1).Int64();
-	u->sUsername     = Row.Col(2).String();
-	u->sPasswordHash = Row.Col(3).String();
-	u->bIsAdmin      = Row.Col(4).Int64() != 0;
-	u->tCreated      = KUnixTime::from_time_t(Row.Col(5).Int64());
-	u->tLastLogin    = KUnixTime::from_time_t(Row.Col(6).Int64());
-	return u;
+	auto a = std::make_unique<Admin>();
+	a->iID           = Row.Col(1).Int64();
+	a->sUsername     = Row.Col(2).String();
+	a->sPasswordHash = Row.Col(3).String();
+	a->tCreated      = KUnixTime::from_time_t(Row.Col(4).Int64());
+	a->tLastLogin    = KUnixTime::from_time_t(Row.Col(5).Int64());
+	return a;
 
-} // GetUser
+} // GetAdmin
 
 //-----------------------------------------------------------------------------
-std::vector<KTunnelStore::User> KTunnelStore::GetAllUsers ()
+std::vector<KTunnelStore::Admin> KTunnelStore::GetAllAdmins ()
 //-----------------------------------------------------------------------------
 {
-	std::vector<User> out;
+	std::vector<Admin> out;
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
@@ -413,28 +419,27 @@ std::vector<KTunnelStore::User> KTunnelStore::GetAllUsers ()
 	if (db.IsError()) return out;
 
 	auto stmt = db.Prepare(
-		"select id, username, pw_hash, is_admin, created_utc, last_login_utc "
-		"from users order by username asc");
+		"select id, username, pw_hash, created_utc, last_login_utc "
+		"from admins order by username asc");
 
 	while (stmt.NextRow())
 	{
 		auto Row = stmt.GetRow();
-		User u;
-		u.iID           = Row.Col(1).Int64();
-		u.sUsername     = Row.Col(2).String();
-		u.sPasswordHash = Row.Col(3).String();
-		u.bIsAdmin      = Row.Col(4).Int64() != 0;
-		u.tCreated      = KUnixTime::from_time_t(Row.Col(5).Int64());
-		u.tLastLogin    = KUnixTime::from_time_t(Row.Col(6).Int64());
-		out.push_back(std::move(u));
+		Admin a;
+		a.iID           = Row.Col(1).Int64();
+		a.sUsername     = Row.Col(2).String();
+		a.sPasswordHash = Row.Col(3).String();
+		a.tCreated      = KUnixTime::from_time_t(Row.Col(4).Int64());
+		a.tLastLogin    = KUnixTime::from_time_t(Row.Col(5).Int64());
+		out.push_back(std::move(a));
 	}
 
 	return out;
 
-} // GetAllUsers
+} // GetAllAdmins
 
 //-----------------------------------------------------------------------------
-void KTunnelStore::SetLastLogin (KStringView sUsername, KUnixTime tNow)
+void KTunnelStore::SetAdminLastLogin (KStringView sUsername, KUnixTime tNow)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -442,12 +447,245 @@ void KTunnelStore::SetLastLogin (KStringView sUsername, KUnixTime tNow)
 	auto db = OpenRW();
 	if (db.IsError()) return;
 
-	auto stmt = db.Prepare("update users set last_login_utc=?1 where username=?2");
+	auto stmt = db.Prepare("update admins set last_login_utc=?1 where username=?2");
 	stmt.Bind(1, static_cast<int64_t>(tNow.to_time_t()));
 	stmt.Bind(2, sUsername, false);
 	stmt.Execute();
 
-} // SetLastLogin
+} // SetAdminLastLogin
+
+// ============================= Nodes ====================================
+//
+// Tunnel-endpoint identities. A node authenticates the ktunnel control
+// stream and owns one or more listener configurations in `tunnels`. Nodes
+// have NO web UI access; toggling `enabled` lets an admin lock out an
+// endpoint without losing its config.
+
+namespace {
+
+KTunnelStore::Node NodeFromRow (KSQLite::Row Row)
+{
+	KTunnelStore::Node n;
+	n.iID           = Row.Col(1).Int64();
+	n.sName         = Row.Col(2).String();
+	n.sPasswordHash = Row.Col(3).String();
+	n.bEnabled      = Row.Col(4).Int64() != 0;
+	n.tCreated      = KUnixTime::from_time_t(Row.Col(5).Int64());
+	n.tLastLogin    = KUnixTime::from_time_t(Row.Col(6).Int64());
+	return n;
+}
+
+constexpr KStringView s_sNodeCols =
+	"id, name, pw_hash, enabled, created_utc, last_login_utc";
+
+} // anonymous
+
+//-----------------------------------------------------------------------------
+std::size_t KTunnelStore::CountNodes ()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRO();
+	if (db.IsError()) return 0;
+
+	auto stmt = db.Prepare("select count(*) from nodes");
+	if (stmt.NextRow())
+	{
+		return static_cast<std::size_t>(stmt.GetRow().Col(1).Int64());
+	}
+	return 0;
+
+} // CountNodes
+
+//-----------------------------------------------------------------------------
+bool KTunnelStore::AddNode (const Node& node)
+//-----------------------------------------------------------------------------
+{
+	if (node.sName.empty() || node.sPasswordHash.empty())
+	{
+		SetError("AddNode: empty name or hash");
+		return false;
+	}
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (db.IsError()) return false;
+
+	auto stmt = db.Prepare(
+		"insert into nodes (name, pw_hash, enabled, created_utc, last_login_utc) "
+		"values (?1, ?2, ?3, ?4, ?5)");
+
+	stmt.Bind(1, node.sName,         false);
+	stmt.Bind(2, node.sPasswordHash, false);
+	stmt.Bind(3, static_cast<int64_t>(node.bEnabled ? 1 : 0));
+	stmt.Bind(4, static_cast<int64_t>((node.tCreated == KUnixTime{}) ? KUnixTime::now().to_time_t()
+	                                                                 : node.tCreated.to_time_t()));
+	stmt.Bind(5, static_cast<int64_t>(node.tLastLogin.to_time_t()));
+
+	if (!stmt.Execute())
+	{
+		SetError(kFormat("AddNode: insert failed: {}", db.Error()));
+		return false;
+	}
+	return true;
+
+} // AddNode
+
+//-----------------------------------------------------------------------------
+bool KTunnelStore::UpdateNodePasswordHash (KStringView sName, KStringView sBcryptHash)
+//-----------------------------------------------------------------------------
+{
+	if (sName.empty() || sBcryptHash.empty())
+	{
+		SetError("UpdateNodePasswordHash: empty args");
+		return false;
+	}
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (db.IsError()) return false;
+
+	auto stmt = db.Prepare("update nodes set pw_hash=?1 where name=?2");
+	stmt.Bind(1, sBcryptHash, false);
+	stmt.Bind(2, sName,       false);
+
+	if (!stmt.Execute())
+	{
+		SetError(kFormat("UpdateNodePasswordHash: {}", db.Error()));
+		return false;
+	}
+	return true;
+
+} // UpdateNodePasswordHash
+
+//-----------------------------------------------------------------------------
+bool KTunnelStore::SetNodeEnabled (KStringView sName, bool bEnabled)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (db.IsError()) return false;
+
+	auto stmt = db.Prepare("update nodes set enabled=?1 where name=?2");
+	stmt.Bind(1, static_cast<int64_t>(bEnabled ? 1 : 0));
+	stmt.Bind(2, sName, false);
+
+	if (!stmt.Execute())
+	{
+		SetError(kFormat("SetNodeEnabled: {}", db.Error()));
+		return false;
+	}
+	return true;
+
+} // SetNodeEnabled
+
+//-----------------------------------------------------------------------------
+bool KTunnelStore::DeleteNode (KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (db.IsError()) return false;
+
+	auto stmt = db.Prepare("delete from nodes where name=?1");
+	stmt.Bind(1, sName, false);
+
+	if (!stmt.Execute())
+	{
+		SetError(kFormat("DeleteNode: {}", db.Error()));
+		return false;
+	}
+	return true;
+
+} // DeleteNode
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KTunnelStore::Node>
+KTunnelStore::GetNode (KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRO();
+	if (db.IsError()) return nullptr;
+
+	auto stmt = db.Prepare(kFormat("select {} from nodes where name=?1", s_sNodeCols));
+	stmt.Bind(1, sName, false);
+
+	if (!stmt.NextRow())
+	{
+		return nullptr;
+	}
+
+	return std::make_unique<Node>(NodeFromRow(stmt.GetRow()));
+
+} // GetNode
+
+//-----------------------------------------------------------------------------
+std::vector<KTunnelStore::Node> KTunnelStore::GetAllNodes ()
+//-----------------------------------------------------------------------------
+{
+	std::vector<Node> out;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRO();
+	if (db.IsError()) return out;
+
+	auto stmt = db.Prepare(kFormat("select {} from nodes order by name asc", s_sNodeCols));
+
+	while (stmt.NextRow())
+	{
+		out.push_back(NodeFromRow(stmt.GetRow()));
+	}
+
+	return out;
+
+} // GetAllNodes
+
+//-----------------------------------------------------------------------------
+std::vector<KTunnelStore::Node> KTunnelStore::GetEnabledNodes ()
+//-----------------------------------------------------------------------------
+{
+	std::vector<Node> out;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRO();
+	if (db.IsError()) return out;
+
+	auto stmt = db.Prepare(kFormat(
+		"select {} from nodes where enabled=1 order by name asc", s_sNodeCols));
+
+	while (stmt.NextRow())
+	{
+		out.push_back(NodeFromRow(stmt.GetRow()));
+	}
+
+	return out;
+
+} // GetEnabledNodes
+
+//-----------------------------------------------------------------------------
+void KTunnelStore::SetNodeLastLogin (KStringView sName, KUnixTime tNow)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (db.IsError()) return;
+
+	auto stmt = db.Prepare("update nodes set last_login_utc=?1 where name=?2");
+	stmt.Bind(1, static_cast<int64_t>(tNow.to_time_t()));
+	stmt.Bind(2, sName, false);
+	stmt.Execute();
+
+} // SetNodeLastLogin
 
 // ============================ Tunnels ===================================
 
@@ -458,7 +696,7 @@ KTunnelStore::Tunnel TunnelFromRow (KSQLite::Row Row)
 	KTunnelStore::Tunnel t;
 	t.iID          = Row.Col(1).Int64();
 	t.sName        = Row.Col(2).String();
-	t.sOwnerUser   = Row.Col(3).String();
+	t.sNode        = Row.Col(3).String();
 	t.iListenPort  = static_cast<uint16_t>(Row.Col(4).Int64());
 	t.sTargetHost  = Row.Col(5).String();
 	t.iTargetPort  = static_cast<uint16_t>(Row.Col(6).Int64());
@@ -469,7 +707,7 @@ KTunnelStore::Tunnel TunnelFromRow (KSQLite::Row Row)
 }
 
 constexpr KStringView s_sTunnelCols =
-	"id, name, owner_user, listen_port, "
+	"id, name, node, listen_port, "
 	"target_host, target_port, enabled, created_utc, modified_utc";
 
 } // anonymous
@@ -503,13 +741,13 @@ bool KTunnelStore::AddTunnel (const Tunnel& t)
 	const auto tNow = KUnixTime::now().to_time_t();
 
 	auto stmt = db.Prepare(
-		"insert into tunnels (name, owner_user, listen_port, "
+		"insert into tunnels (name, node, listen_port, "
 		"                     target_host, target_port, enabled, "
 		"                     created_utc, modified_utc) "
 		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)");
 
 	stmt.Bind(1, t.sName,        false);
-	stmt.Bind(2, t.sOwnerUser,   false);
+	stmt.Bind(2, t.sNode,        false);
 	stmt.Bind(3, static_cast<int64_t>(t.iListenPort));
 	stmt.Bind(4, t.sTargetHost,  false);
 	stmt.Bind(5, static_cast<int64_t>(t.iTargetPort));
@@ -543,12 +781,12 @@ bool KTunnelStore::UpdateTunnel (const Tunnel& t)
 
 	auto stmt = db.Prepare(
 		"update tunnels set "
-		"  owner_user=?2, listen_port=?3, "
+		"  node=?2, listen_port=?3, "
 		"  target_host=?4, target_port=?5, enabled=?6, modified_utc=?7 "
 		"where name=?1");
 
 	stmt.Bind(1, t.sName,        false);
-	stmt.Bind(2, t.sOwnerUser,   false);
+	stmt.Bind(2, t.sNode,        false);
 	stmt.Bind(3, static_cast<int64_t>(t.iListenPort));
 	stmt.Bind(4, t.sTargetHost,  false);
 	stmt.Bind(5, static_cast<int64_t>(t.iTargetPort));
@@ -677,6 +915,32 @@ std::vector<KTunnelStore::Tunnel> KTunnelStore::GetEnabledTunnels ()
 } // GetEnabledTunnels
 
 // ============================= Events ===================================
+//
+// Two-actor model: every event row carries at most one of (admin, node).
+// Admin actions (UI write paths) populate the admin column; tunnel
+// lifecycle / handshake events populate the node column. This keeps audit
+// queries unambiguous without overloading a single "who" string.
+
+namespace {
+
+constexpr KStringView s_sEventCols =
+	"id, ts_utc, kind, admin, node, tunnel_name, remote_ip, detail";
+
+KTunnelStore::Event EventFromRow (KSQLite::Row Row)
+{
+	KTunnelStore::Event e;
+	e.iID         = Row.Col(1).Int64();
+	e.tTimestamp  = KUnixTime::from_time_t(Row.Col(2).Int64());
+	e.sKind       = Row.Col(3).String();
+	e.sAdmin      = Row.Col(4).String();
+	e.sNode       = Row.Col(5).String();
+	e.sTunnelName = Row.Col(6).String();
+	e.sRemoteIP   = Row.Col(7).String();
+	e.sDetail     = Row.Col(8).String();
+	return e;
+}
+
+} // anonymous
 
 //-----------------------------------------------------------------------------
 void KTunnelStore::LogEvent (const Event& ev)
@@ -688,17 +952,18 @@ void KTunnelStore::LogEvent (const Event& ev)
 	if (db.IsError()) return;
 
 	auto stmt = db.Prepare(
-		"insert into events (ts_utc, kind, username, tunnel_name, remote_ip, detail) "
-		"values (?1, ?2, ?3, ?4, ?5, ?6)");
+		"insert into events (ts_utc, kind, admin, node, tunnel_name, remote_ip, detail) "
+		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7)");
 
 	const auto tTs = (ev.tTimestamp == KUnixTime{}) ? KUnixTime::now() : ev.tTimestamp;
 
 	stmt.Bind(1, static_cast<int64_t>(tTs.to_time_t()));
 	stmt.Bind(2, ev.sKind,       false);
-	stmt.Bind(3, ev.sUsername,   false);
-	stmt.Bind(4, ev.sTunnelName, false);
-	stmt.Bind(5, ev.sRemoteIP,   false);
-	stmt.Bind(6, ev.sDetail,     false);
+	stmt.Bind(3, ev.sAdmin,      false);
+	stmt.Bind(4, ev.sNode,       false);
+	stmt.Bind(5, ev.sTunnelName, false);
+	stmt.Bind(6, ev.sRemoteIP,   false);
+	stmt.Bind(7, ev.sDetail,     false);
 
 	if (!stmt.Execute())
 	{
@@ -719,23 +984,13 @@ KTunnelStore::GetRecentEvents (std::size_t iLimit)
 	auto db = OpenRO();
 	if (db.IsError()) return out;
 
-	auto stmt = db.Prepare(
-		"select id, ts_utc, kind, username, tunnel_name, remote_ip, detail "
-		"from events order by ts_utc desc, id desc limit ?1");
+	auto stmt = db.Prepare(kFormat(
+		"select {} from events order by ts_utc desc, id desc limit ?1", s_sEventCols));
 	stmt.Bind(1, static_cast<int64_t>(iLimit));
 
 	while (stmt.NextRow())
 	{
-		auto Row = stmt.GetRow();
-		Event e;
-		e.iID         = Row.Col(1).Int64();
-		e.tTimestamp  = KUnixTime::from_time_t(Row.Col(2).Int64());
-		e.sKind       = Row.Col(3).String();
-		e.sUsername   = Row.Col(4).String();
-		e.sTunnelName = Row.Col(5).String();
-		e.sRemoteIP   = Row.Col(6).String();
-		e.sDetail     = Row.Col(7).String();
-		out.push_back(std::move(e));
+		out.push_back(EventFromRow(stmt.GetRow()));
 	}
 
 	return out;
@@ -744,7 +999,7 @@ KTunnelStore::GetRecentEvents (std::size_t iLimit)
 
 //-----------------------------------------------------------------------------
 std::vector<KTunnelStore::Event>
-KTunnelStore::GetEvents (KStringView sKind, KStringView sUsername, std::size_t iLimit)
+KTunnelStore::GetEvents (KStringView sKind, std::size_t iLimit)
 //-----------------------------------------------------------------------------
 {
 	std::vector<Event> out;
@@ -754,87 +1009,26 @@ KTunnelStore::GetEvents (KStringView sKind, KStringView sUsername, std::size_t i
 	auto db = OpenRO();
 	if (db.IsError()) return out;
 
-	// Empty filter strings collapse to "no constraint" via the
-	// (?1 = '' OR ...) idiom. This keeps a single prepared statement
-	// serving all four (kind, user) combinations without string
+	// Empty filter string collapses to "no constraint" via the
+	// (?1 = '' OR ...) idiom. Keeps a single prepared statement
+	// serving both "all events" and "filter by kind" without string
 	// concatenation — and therefore without any SQL injection risk.
-	auto stmt = db.Prepare(
-		"select id, ts_utc, kind, username, tunnel_name, remote_ip, detail "
-		"from events "
+	auto stmt = db.Prepare(kFormat(
+		"select {} from events "
 		"where (?1 = '' or kind = ?1) "
-		"  and (?2 = '' or username = ?2) "
-		"order by ts_utc desc, id desc limit ?3");
+		"order by ts_utc desc, id desc limit ?2", s_sEventCols));
 
-	stmt.Bind(1, KString(sKind));
-	stmt.Bind(2, KString(sUsername));
-	stmt.Bind(3, static_cast<int64_t>(iLimit));
+	stmt.Bind(1, sKind, false);
+	stmt.Bind(2, static_cast<int64_t>(iLimit));
 
 	while (stmt.NextRow())
 	{
-		auto Row = stmt.GetRow();
-		Event e;
-		e.iID         = Row.Col(1).Int64();
-		e.tTimestamp  = KUnixTime::from_time_t(Row.Col(2).Int64());
-		e.sKind       = Row.Col(3).String();
-		e.sUsername   = Row.Col(4).String();
-		e.sTunnelName = Row.Col(5).String();
-		e.sRemoteIP   = Row.Col(6).String();
-		e.sDetail     = Row.Col(7).String();
-		out.push_back(std::move(e));
+		out.push_back(EventFromRow(stmt.GetRow()));
 	}
 
 	return out;
 
 } // GetEvents
-
-//-----------------------------------------------------------------------------
-std::vector<KTunnelStore::Event>
-KTunnelStore::GetRecentEventsForOwner (KStringView sUsername, std::size_t iLimit)
-//-----------------------------------------------------------------------------
-{
-	std::vector<Event> out;
-
-	// An empty username would match all events where username=''. We
-	// refuse that here — callers must supply a real identity. Dashboard
-	// code checks IsLoggedIn() before getting here.
-	if (sUsername.empty()) return out;
-
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-
-	auto db = OpenRO();
-	if (db.IsError()) return out;
-
-	// Two-prong match: the event was either caused by this user
-	// (events.username) or concerns one of its tunnels (tunnel owned
-	// by this user). The subquery is cheap because `tunnels.name` is
-	// the primary key and the row count is small.
-	auto stmt = db.Prepare(
-		"select id, ts_utc, kind, username, tunnel_name, remote_ip, detail "
-		"from events "
-		"where username = ?1 "
-		"   or tunnel_name in (select name from tunnels where owner_user = ?1) "
-		"order by ts_utc desc, id desc limit ?2");
-
-	stmt.Bind(1, KString(sUsername));
-	stmt.Bind(2, static_cast<int64_t>(iLimit));
-
-	while (stmt.NextRow())
-	{
-		auto Row = stmt.GetRow();
-		Event e;
-		e.iID         = Row.Col(1).Int64();
-		e.tTimestamp  = KUnixTime::from_time_t(Row.Col(2).Int64());
-		e.sKind       = Row.Col(3).String();
-		e.sUsername   = Row.Col(4).String();
-		e.sTunnelName = Row.Col(5).String();
-		e.sRemoteIP   = Row.Col(6).String();
-		e.sDetail     = Row.Col(7).String();
-		out.push_back(std::move(e));
-	}
-
-	return out;
-
-} // GetRecentEventsForOwner
 
 //-----------------------------------------------------------------------------
 std::vector<KString> KTunnelStore::GetDistinctEventKinds ()

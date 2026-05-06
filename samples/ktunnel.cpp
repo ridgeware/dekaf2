@@ -237,7 +237,7 @@ public:
 	DEKAF2_NODISCARD
 	KString Lookup(KStringView sHostPort) const
 	{
-		auto it = m_Entries.find(KString(sHostPort));
+		auto it = m_Entries.find(sHostPort);
 		return (it != m_Entries.end()) ? it->second : KString{};
 	}
 
@@ -264,7 +264,7 @@ public:
 
 		if (!kWriteFile(m_sPath, sContent)) return false;
 
-		m_Entries[KString(sHostPort)] = KString(sRawPubKey);
+		m_Entries[sHostPort] = sRawPubKey;
 		return true;
 	}
 
@@ -428,13 +428,13 @@ void ExtendedConfig::PrintMessage(KStringView sMessage) const
 } // ExtendedConfig::PrintMessage
 
 //-----------------------------------------------------------------------------
-bool ExposedServer::VerifyTunnelLogin (KStringView sUser, KStringView sSecret,
-                                       const KTCPEndPoint& RemoteAddr)
+bool ExposedServer::VerifyNodeLogin (KStringView sNode, KStringView sSecret,
+                                     const KTCPEndPoint& RemoteAddr)
 //-----------------------------------------------------------------------------
 {
-	// AdHoc mode has no persistent `users` table, no bcrypt. The
+	// AdHoc mode has no persistent `nodes` table, no bcrypt. The
 	// operator supplies one or more shared secrets on the CLI via
-	// `-s <comma-separated>`; any of them grants access. sUser is
+	// `-s <comma-separated>`; any of them grants access. sNode is
 	// accepted but not verified — it is only used for log lines.
 	if (!m_Store)
 	{
@@ -443,31 +443,31 @@ bool ExposedServer::VerifyTunnelLogin (KStringView sUser, KStringView sSecret,
 			kDebug(1, "ad-hoc: tunnel login from {} rejected: no secrets configured", RemoteAddr);
 			return false;
 		}
-		const bool bOk = m_Config.Secrets.contains(KString(sSecret));
-		kDebug(1, "ad-hoc: tunnel login from {} user '{}' {}",
-		       RemoteAddr, sUser, bOk ? "accepted" : "rejected");
+		const bool bOk = m_Config.Secrets.contains(sSecret);
+		kDebug(1, "ad-hoc: tunnel login from {} node '{}' {}",
+		       RemoteAddr, sNode, bOk ? "accepted" : "rejected");
 		return bOk;
 	}
 
-	// Rejection-path events are logged even for unknown users, so that an
+	// Rejection-path events are logged even for unknown nodes, so that an
 	// operator looking at the events table can spot brute-force attempts.
 	auto LogFail = [&](KStringView sDetail)
 	{
 		KTunnelStore::Event ev;
-		ev.sKind     = "login_fail";
-		ev.sUsername = KString(sUser);
+		ev.sKind     = "node_login_fail";
+		ev.sNode     = sNode;
 		ev.sRemoteIP = RemoteAddr.Serialize();
-		ev.sDetail   = KString(sDetail);
+		ev.sDetail   = sDetail;
 		m_Store->LogEvent(ev);
 	};
 
-	if (sUser.empty())
+	if (sNode.empty())
 	{
-		LogFail("empty user");
+		LogFail("empty node");
 		return false;
 	}
 
-	auto oUser = m_Store->GetUser(sUser);
+	auto oNode = m_Store->GetNode(sNode);
 
 	// Do a constant-time dummy compare against a fixed, well-formed bcrypt
 	// hash so a missing row cannot be distinguished from a wrong password
@@ -477,34 +477,41 @@ bool ExposedServer::VerifyTunnelLogin (KStringView sUser, KStringView sSecret,
 
 	KString sPassword(sSecret);
 
-	if (!oUser)
+	if (!oNode)
 	{
 		(void) m_BCrypt->ValidatePassword(sPassword, s_sDummyHash);
-		LogFail("unknown user");
+		LogFail("unknown node");
 		return false;
 	}
 
-	if (!m_BCrypt->ValidatePassword(sPassword, oUser->sPasswordHash))
+	if (!oNode->bEnabled)
+	{
+		(void) m_BCrypt->ValidatePassword(sPassword, s_sDummyHash);
+		LogFail("node disabled");
+		return false;
+	}
+
+	if (!m_BCrypt->ValidatePassword(sPassword, oNode->sPasswordHash))
 	{
 		LogFail("bad password");
 		return false;
 	}
 
-	m_Store->SetLastLogin(sUser, KUnixTime::now());
+	m_Store->SetNodeLastLogin(sNode, KUnixTime::now());
 
 	KTunnelStore::Event ev;
-	ev.sKind     = "login_ok";
-	ev.sUsername = KString(sUser);
+	ev.sKind     = "node_login_ok";
+	ev.sNode     = sNode;
 	ev.sRemoteIP = RemoteAddr.Serialize();
 	ev.sDetail   = "tunnel";
 	m_Store->LogEvent(ev);
 
 	return true;
 
-} // VerifyTunnelLogin
+} // VerifyNodeLogin
 
 //-----------------------------------------------------------------------------
-void ExposedServer::RegisterActiveTunnel (KStringView sUser,
+void ExposedServer::RegisterActiveTunnel (KStringView sNode,
                                           const KTCPEndPoint& RemoteAddr,
                                           std::shared_ptr<KTunnel> Tunnel)
 //-----------------------------------------------------------------------------
@@ -514,10 +521,10 @@ void ExposedServer::RegisterActiveTunnel (KStringView sUser,
 	{
 		auto Tunnels = m_ActiveTunnels.unique();
 
-		auto it = Tunnels->find(KString(sUser));
+		auto it = Tunnels->find(sNode);
 		if (it != Tunnels->end())
 		{
-			// Same user logged in twice: evict the old tunnel. Dropping
+			// Same node logged in twice: evict the old tunnel. Dropping
 			// it outside the lock keeps us from holding the mutex while
 			// the previous Run()-thread tears things down.
 			Prev = std::move(it->second.Tunnel);
@@ -528,30 +535,30 @@ void ExposedServer::RegisterActiveTunnel (KStringView sUser,
 		else
 		{
 			ActiveTunnel at;
-			at.sUser        = KString(sUser);
+			at.sNode        = sNode;
 			at.EndpointAddr = RemoteAddr;
 			at.tConnected   = KUnixTime::now();
 			at.Tunnel       = std::move(Tunnel);
-			Tunnels->emplace(at.sUser, std::move(at));
+			Tunnels->emplace(at.sNode, std::move(at));
 		}
 	}
 
 	if (Prev)
 	{
-		kDebug(1, "evicting previous tunnel for user '{}'", sUser);
+		kDebug(1, "evicting previous tunnel for node '{}'", sNode);
 		Prev->Stop();
 	}
 
 } // RegisterActiveTunnel
 
 //-----------------------------------------------------------------------------
-void ExposedServer::UnregisterActiveTunnel (KStringView sUser,
+void ExposedServer::UnregisterActiveTunnel (KStringView sNode,
                                             const std::shared_ptr<KTunnel>& Tunnel)
 //-----------------------------------------------------------------------------
 {
 	auto Tunnels = m_ActiveTunnels.unique();
 
-	auto it = Tunnels->find(KString(sUser));
+	auto it = Tunnels->find(sNode);
 	if (it != Tunnels->end() && it->second.Tunnel == Tunnel)
 	{
 		Tunnels->erase(it);
@@ -564,13 +571,14 @@ std::shared_ptr<KTunnel> ExposedServer::PickDefaultTunnel () const
 //-----------------------------------------------------------------------------
 {
 	auto Tunnels = m_ActiveTunnels.shared();
+
 	if (Tunnels->empty())
 	{
 		return {};
 	}
-	// Stable "first by user-name" — used for the wildcard-owner path
+	// Stable "first by node-name" — used for the wildcard-owner path
 	// (CLI-synthesised "cli" listener). DB-configured tunnels always
-	// supply a concrete owner and take the GetTunnelForUser() branch
+	// supply a concrete owner and take the GetTunnelForNode() branch
 	// in ForwardStreamForOwner instead.
 	return Tunnels->begin()->second.Tunnel;
 
@@ -593,14 +601,14 @@ std::vector<ExposedServer::ActiveTunnel> ExposedServer::SnapshotActiveTunnels ()
 } // SnapshotActiveTunnels
 
 //-----------------------------------------------------------------------------
-std::shared_ptr<KTunnel> ExposedServer::GetTunnelForUser (KStringView sUser) const
+std::shared_ptr<KTunnel> ExposedServer::GetTunnelForNode (KStringView sNode) const
 //-----------------------------------------------------------------------------
 {
 	auto Tunnels = m_ActiveTunnels.shared();
-	auto it = Tunnels->find(KString(sUser));
+	auto it = Tunnels->find(sNode);
 	return (it == Tunnels->end()) ? std::shared_ptr<KTunnel>{} : it->second.Tunnel;
 
-} // GetTunnelForUser
+} // GetTunnelForNode
 
 //-----------------------------------------------------------------------------
 void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
@@ -617,9 +625,9 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 	KTunnel::Config TunnelCfg = m_Config;
 
 	// The auth callback runs inside KTunnel::WaitForLogin on the tunnel's
-	// Run() thread. To get the verified user name back onto this
+	// Run() thread. To get the verified node name back onto this
 	// (ControlStream) thread so we can register the tunnel in the
-	// per-user map, we hand the outcome through a shared promise. An
+	// per-node map, we hand the outcome through a shared promise. An
 	// atomic guard keeps set_value() from being called twice if the
 	// tunnel ever retries the auth step.
 	auto LoginPromise = std::make_shared<std::promise<KString>>();
@@ -635,13 +643,14 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 #endif
 
 	TunnelCfg.AuthCallback = [this, LoginPromise, LoginFired, EndpointAddress]
-	                         (KStringView sUser, KStringView sSecret) -> bool
+	                         (KStringView sNode, KStringView sSecret) -> bool
 	{
-		const bool bOK = VerifyTunnelLogin(sUser, sSecret, EndpointAddress);
+		const bool bOK = VerifyNodeLogin(sNode, sSecret, EndpointAddress);
 
 		if (!LoginFired->exchange(true))
 		{
-			LoginPromise->set_value(bOK ? KString(sUser) : KString{});
+			if (bOK) LoginPromise->set_value(sNode);
+			else     LoginPromise->set_value({});
 		}
 
 		return bOK;
@@ -700,7 +709,7 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 			// instead of having to crank up kDebug. We key off the
 			// "v2 handshake:" prefix that KTunnel::SetupEncryption
 			// consistently uses; "login rejected ..." is already logged
-			// from VerifyTunnelLogin as a "login_fail" event so it does
+			// from VerifyNodeLogin as a "node_login_fail" event so it does
 			// NOT need a duplicate entry here.
 			if (m_Store)
 			{
@@ -709,9 +718,9 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 				{
 					KTunnelStore::Event ev;
 					ev.sKind     = "handshake_fail";
-					ev.sUsername = Tunnel->GetLoginUser();   // empty if hello frame never parsed
+					ev.sNode     = Tunnel->GetLoginNode();   // empty if hello frame never parsed
 					ev.sRemoteIP = EndpointAddress.Serialize();
-					ev.sDetail   = KString(sWhat);
+					ev.sDetail   = sWhat;
 					m_Store->LogEvent(ev);
 				}
 			}
@@ -721,19 +730,21 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 	// Wait up to ConnectTimeout for the auth callback to fire. If the
 	// login never arrives (peer gone, bad frame, etc.) the tunnel's
 	// Run() will have thrown by then and we fall through to join().
-	KString sUser;
+	KString sNode;
 	auto tWait = std::chrono::milliseconds(m_Config.ConnectTimeout.milliseconds().count());
+
 	if (LoginFuture.wait_for(tWait) == std::future_status::ready)
 	{
-		sUser = LoginFuture.get();
+		sNode = LoginFuture.get();
 	}
 
 	bool bRegistered = false;
-	if (!sUser.empty())
+
+	if (!sNode.empty())
 	{
-		RegisterActiveTunnel(sUser, EndpointAddress, Tunnel);
+		RegisterActiveTunnel(sNode, EndpointAddress, Tunnel);
 		bRegistered = true;
-		m_Config.Message("[control]: tunnel '{}' active from {}", sUser, EndpointAddress);
+		m_Config.Message("[control]: tunnel '{}' active from {}", sNode, EndpointAddress);
 	}
 	else
 	{
@@ -744,13 +755,13 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 
 	if (bRegistered)
 	{
-		UnregisterActiveTunnel(sUser, Tunnel);
+		UnregisterActiveTunnel(sNode, Tunnel);
 
 		if (m_Store)
 		{
 			KTunnelStore::Event ev;
 			ev.sKind     = "tunnel_disconnect";
-			ev.sUsername = sUser;
+			ev.sNode     = sNode;
 			ev.sRemoteIP = EndpointAddress.Serialize();
 			ev.sDetail   = kFormat("rx={} tx={}", Tunnel->GetBytesRx(), Tunnel->GetBytesTx());
 			m_Store->LogEvent(ev);
@@ -781,7 +792,7 @@ void ExposedServer::ForwardStreamForOwner (KIOStreamSocket&    Downstream,
 	// `-f <port> -t <target>` CLI configuration.
 	const bool bWildcard = sOwner.empty() || sOwner == "*";
 
-	auto Tunnel = bWildcard ? PickDefaultTunnel() : GetTunnelForUser(sOwner);
+	auto Tunnel = bWildcard ? PickDefaultTunnel() : GetTunnelForNode(sOwner);
 
 	if (!Tunnel)
 	{
@@ -793,19 +804,19 @@ void ExposedServer::ForwardStreamForOwner (KIOStreamSocket&    Downstream,
 		{
 			KTunnelStore::Event ev;
 			ev.sKind     = "auth_reject";
-			ev.sUsername = KString(sOwner);
+			ev.sNode     = sOwner;
 			ev.sRemoteIP = Downstream.GetEndPointAddress().Serialize();
 			ev.sDetail   = bWildcard
 				? kFormat("no tunnel currently connected — dropped raw conn from {}",
 				          Downstream.GetEndPointAddress())
-				: kFormat("owner '{}' not currently connected — "
+				: kFormat("owner node '{}' not currently connected — "
 				          "dropped raw conn from {}",
 				          sOwner, Downstream.GetEndPointAddress());
 			m_Store->LogEvent(ev);
 		}
 		throw KError(bWildcard
 			? KString("no tunnel established")
-			: kFormat("no active tunnel for owner '{}'", sOwner));
+			: kFormat("no active tunnel for owner node '{}'", sOwner));
 	}
 
 	Downstream.SetTimeout(m_Config.Timeout);
@@ -834,11 +845,11 @@ ExposedServer::SnapshotListenerStates () const
 
 	// One snapshot for the listener registry, one for the active
 	// tunnels — taken separately to keep the critical sections short.
-	KUnorderedSet<KString> LiveOwners;
+	KUnorderedSet<KString> LiveNodes;
 	{
 		auto Tunnels = m_ActiveTunnels.shared();
-		LiveOwners.reserve(Tunnels->size());
-		for (const auto& kv : *Tunnels) LiveOwners.insert(kv.first);
+		LiveNodes.reserve(Tunnels->size());
+		for (const auto& kv : *Tunnels) LiveNodes.insert(kv.first);
 	}
 
 	auto Listeners = m_Listeners.shared();
@@ -852,7 +863,7 @@ ExposedServer::SnapshotListenerStates () const
 		if      (!kv.second.sError.empty())          info.eState = ListenerState::PortError;
 		else if (!kv.second.Listener)                info.eState = ListenerState::Stopped;
 		else if (!kv.second.Listener->IsRunning())   info.eState = ListenerState::Stopped;
-		else if (!LiveOwners.count(kv.second.Key.sOwnerUser))
+		else if (!LiveNodes.count(kv.second.Key.sOwnerNode))
 		                                             info.eState = ListenerState::OwnerOffline;
 		else                                         info.eState = ListenerState::Listening;
 
@@ -880,7 +891,7 @@ std::vector<ExposedServer::DesiredTunnel> ExposedServer::GatherDesiredTunnels ()
 			d.Key.iListenPort = t.iListenPort;
 			d.Key.sTargetHost = t.sTargetHost;
 			d.Key.iTargetPort = t.iTargetPort;
-			d.Key.sOwnerUser  = t.sOwnerUser;
+			d.Key.sOwnerNode  = t.sNode;
 			out.push_back(std::move(d));
 		}
 	}
@@ -897,7 +908,7 @@ std::vector<ExposedServer::DesiredTunnel> ExposedServer::GatherDesiredTunnels ()
 		d.Key.iListenPort = m_Config.iRawPort;
 		d.Key.sTargetHost = m_Config.DefaultTarget.Domain.get();
 		d.Key.iTargetPort = m_Config.DefaultTarget.Port.get();
-		d.Key.sOwnerUser  = "*";
+		d.Key.sOwnerNode  = "*";
 		out.push_back(std::move(d));
 	}
 
@@ -975,7 +986,7 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 			{
 				KTunnelStore::Event ev;
 				ev.sKind       = "tunnel_stop";
-				ev.sUsername   = KString(sActor);
+				ev.sAdmin      = sActor;
 				ev.sTunnelName = it->first;
 				ev.sDetail     = bGone ? "removed from registry"
 				                       : "restarting due to config change";
@@ -1018,7 +1029,7 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 				(
 					this,
 					t.sName,
-					t.Key.sOwnerUser,
+					t.Key.sOwnerNode,
 					Target,
 					t.Key.iListenPort,        // KTCPServer ctor: port
 					/* bSSL        = */ false,
@@ -1044,12 +1055,12 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 		{
 			KTunnelStore::Event ev;
 			ev.sKind       = entry.sError.empty() ? "tunnel_start" : "tunnel_error";
-			ev.sUsername   = KString(sActor);
+			ev.sAdmin      = sActor;
 			ev.sTunnelName = t.sName;
 			ev.sDetail     = entry.sError.empty()
-				? kFormat("listening on [::]:{} -> {}:{} (owner {})",
+				? kFormat("listening on [::]:{} -> {}:{} (owner node {})",
 				          t.Key.iListenPort,
-				          t.Key.sTargetHost, t.Key.iTargetPort, t.Key.sOwnerUser)
+				          t.Key.sTargetHost, t.Key.iTargetPort, t.Key.sOwnerNode)
 				: kFormat("port {} bind failed: {}",
 				          t.Key.iListenPort, entry.sError);
 			m_Store->LogEvent(ev);
@@ -1129,7 +1140,7 @@ ExposedServer::ExposedServer (const Config& config)
 		m_Config.Message("admin store: {}", m_Store->GetDatabasePath());
 
 		// Shared bcrypt verifier used for both tunnel-login
-		// (VerifyTunnelLogin) and the admin UI login. We prefer one
+		// (VerifyNodeLogin) and the admin UI login. We prefer one
 		// common instance so the asynchronously-computed workload is
 		// calibrated once per process.
 		m_BCrypt = std::make_unique<KBCrypt>(std::chrono::milliseconds(100), true);
@@ -1139,9 +1150,9 @@ ExposedServer::ExposedServer (const Config& config)
 		// pass traffic, but the admin UI is unreachable until either
 		// `ktunnel -set-admin` is run or a row is inserted out-of-
 		// band.
-		if (m_Store->CountUsers() == 0)
+		if (m_Store->CountAdmins() == 0)
 		{
-			m_Config.Message("warning: no users in {} — run `ktunnel -set-admin` "
+			m_Config.Message("warning: no admins in {} — run `ktunnel -set-admin` "
 			                 "to create the admin login (admin UI is unreachable "
 			                 "until then)",
 			                 m_Store->GetDatabasePath());
@@ -1151,7 +1162,7 @@ ExposedServer::ExposedServer (const Config& config)
 	{
 		// AdHoc: no SQLite file, no bcrypt, no admin UI. Peer
 		// authentication falls back to `-s <secret>` in
-		// VerifyTunnelLogin. The synthetic "cli" tunnel produced by
+		// VerifyNodeLogin. The synthetic "cli" tunnel produced by
 		// GatherDesiredTunnels() is the only listener.
 		m_Config.Message("ad-hoc mode: no persistent store, no admin UI, "
 		                 "peer authentication via -s secret(s)");
@@ -1241,9 +1252,10 @@ ExposedServer::ExposedServer (const Config& config)
 	// Instantiate the admin UI (cookie-session auth, HTML via
 	// KWebObjects) and register its routes under /Configure/.. — see
 	// ktunnel_admin.cpp. We pass a pointer to this ExposedServer so
-	// the UI can look up live tunnels, persisted users/config, and
-	// share the bcrypt verifier. In AdHoc mode there is no persistent
-	// store to drive the UI off of, so we simply do not register it.
+	// the UI can look up live tunnels, persisted admins/nodes/tunnels,
+	// and share the bcrypt verifier. In AdHoc mode there is no
+	// persistent store to drive the UI off of, so we simply do not
+	// register it.
 	if (bStateful)
 	{
 		m_AdminUI = std::make_unique<AdminUI>(*this);
@@ -1483,12 +1495,12 @@ void ProtectedHost::RunRepl(std::shared_ptr<KTunnel::Connection> Connection)
 				{
 					sReply = kFormat(
 						"connected to : {}\n"
-						"peer user    : {}\n"
+						"peer node    : {}\n"
 						"streams      : {}\n"
 						"bytes rx     : {}\n"
 						"bytes tx     : {}\n",
 						m_pCurrentTunnel->GetEndPointAddress(),
-						m_Config.sPeerUser,
+						m_Config.sPeerNode,
 						m_pCurrentTunnel->GetConnectionCount(),
 						m_pCurrentTunnel->GetBytesRx(),
 						m_pCurrentTunnel->GetBytesTx());
@@ -1535,11 +1547,11 @@ void ProtectedHost::Run()
 	{
 		try
 		{
-			// Peer login identity: the `-u <user>` CLI flag. Defaults to
-			// "admin" so a fresh install works without extra setup — the
-			// admin user is seeded from the first `-secret` during the
-			// exposed host's bootstrap.
-			KString sUsername = m_Config.sPeerUser;
+			// Peer login identity: the `-n <name>` CLI flag. The default
+			// ("node") almost certainly needs to be overridden — the admin
+			// must have seeded a matching row in the exposed host's
+			// `nodes` table via `ktunnel -add-node` or the admin UI.
+			KString sNodeName = m_Config.sPeerNode;
 			KString sSecret   = *m_Config.Secrets.begin();
 
 			if (sSecret.empty())
@@ -1587,8 +1599,8 @@ void ProtectedHost::Run()
 			TunnelCfg.TrustCallback = BuildClientTrustCallback(m_Config);
 #endif
 
-			// we are the "client" side of the tunnel and have to login with user/pass
-			KTunnel Tunnel(TunnelCfg, std::move(WebSocket.GetStream()), sUsername, sSecret);
+			// we are the "client" side of the tunnel and have to login with node/secret
+			KTunnel Tunnel(TunnelCfg, std::move(WebSocket.GetStream()), sNodeName, sSecret);
 
 			// publish the tunnel pointer so Shutdown() can stop it while
 			// Run() is blocked in Tunnel.Run(). If Shutdown() was called
@@ -1672,19 +1684,32 @@ int Tunnel::Main(int argc, char** argv)
 	Options.SetAdditionalHelp(kFormat(
 		"{}\n"
 		"admin bootstrap (one-shot, evaluated before service registration):\n"
-		"  -set-admin                  : create or rotate the admin user in the\n"
+		"  -set-admin                  : create or rotate the admin login in the\n"
 		"                                config DB, then exit. Use this before\n"
 		"                                first interactive launch, or any time\n"
 		"                                you need to rotate the password.\n"
-		"  -admin-user <name>          : username for -set-admin / -install\n"
-		"                                (default: admin). Stored once into the\n"
-		"                                `users` table; not persisted into the\n"
-		"                                generated unit / plist / SCM record.\n"
-		"  -pass-file <path>           : read the admin password from <path>\n"
-		"                                instead of prompting on the TTY. Used\n"
-		"                                for non-interactive provisioning. The\n"
-		"                                file is read once and not referenced\n"
-		"                                by the running service.\n"
+		"  -admin-user <name>          : username for -set-admin (target row to\n"
+		"                                create / rotate; default: admin) and for\n"
+		"                                -install on a fresh DB (skips the\n"
+		"                                interactive name prompt). When -install\n"
+		"                                runs against a DB that already has an\n"
+		"                                admin row this flag is ignored — use\n"
+		"                                -set-admin to add or rotate admins.\n"
+		"                                Not persisted into the generated unit /\n"
+		"                                plist / SCM record.\n"
+		"  -add-node                   : create or rotate a tunnel-endpoint\n"
+		"                                (`nodes` table) login in the config DB,\n"
+		"                                then exit. Combine with -node-name\n"
+		"                                <name> and -pass-file <path> to seed a\n"
+		"                                node non-interactively.\n"
+		"  -node-name <name>           : node name for -add-node. Required when\n"
+		"                                -add-node is given. Not persisted into\n"
+		"                                the generated unit / plist / SCM record.\n"
+		"  -pass-file <path>           : read the admin (or node) password from\n"
+		"                                <path> instead of prompting on the TTY.\n"
+		"                                Used for non-interactive provisioning.\n"
+		"                                The file is read once and not\n"
+		"                                referenced by the running service.\n"
 		"  -fingerprint                : print the SHA-256 fingerprint of the\n"
 		"                                exposed-host Ed25519 identity (the\n"
 		"                                public key the server signs the v2\n"
@@ -1700,7 +1725,7 @@ int Tunnel::Main(int argc, char** argv)
 	m_Config.ExposedHost   = Options("e,exposed    : exposed host - the host to keep an ongoing control connection to. Expects domain name or IP address. If not defined, then this is the exposed host itself.", "");
 	m_Config.iPort         = Options("p,port       : port number to listen at for TLS connections (if exposed host), or connect to (if protected host) - defaults to 443.", 443);
 	m_Config.iRawPort      = Options("f,forward    : port number to listen at for raw TCP connections that will be forwarded (if exposed host)", 0);
-	KStringView sSecrets   = Options("s,secret     : on the protected host: REQUIRED, the password used to log in to the exposed host (must match a row in the exposed host's `users` table). On the exposed host: only used in ad-hoc mode (with -f / -t), where it is the comma-separated list of pre-shared secrets for peer authentication; in stateful mode it is ignored — manage the admin password via `ktunnel -set-admin` and peer users via the admin UI.", "").String();
+	KStringView sSecrets   = Options("s,secret     : on the protected host: REQUIRED, the password used to log in to the exposed host (must match the bcrypt-hashed password of the matching row in the exposed host's `nodes` table). On the exposed host: only used in ad-hoc mode (with -f / -t), where it is the comma-separated list of pre-shared secrets for peer authentication; in stateful mode it is ignored — manage the admin password via `ktunnel -set-admin` and node accounts via the admin UI.", "").String();
 	m_Config.DefaultTarget = Options("t,target     : if exposed host, takes the domain:port of a default target, if no other target had been specified in the incoming data connect", "");
 	m_Config.iMaxTunneledConnections
 	                       = Options("m,maxtunnels : if exposed host, maximum number of tunnels to open, defaults to 10 - if protected host, the setting has no effect.", 10);
@@ -1714,7 +1739,7 @@ int Tunnel::Main(int argc, char** argv)
 	m_Config.sCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
 	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);
 	m_Config.sDatabasePath = Options("db <path>    : if exposed host (stateful mode), path to the SQLite admin/config DB. Defaults to /var/lib/ktunnel/ktunnel.db when running as root (or as a system service), $HOME/.config/ktunnel/ktunnel.db otherwise. Not used in ad-hoc mode (with -f / -t).", "");
-	m_Config.sPeerUser     = Options("u,user <name> : if protected host, username to log in with (must exist in exposed host's users table) - defaults to 'admin'", "admin");
+	m_Config.sPeerNode     = Options("n,node <name> : if protected host, node name to log in with (must exist as an enabled row in the exposed host's `nodes` table) - defaults to 'node'", "node");
 	m_Config.sIdentityKeyPath
 	                       = Options("identity-key <path> : if exposed host with -aes, path to the Ed25519 server-identity PEM file. Defaults to ktunnel_ed25519.pem next to the admin DB (Stateful) or to $HOME/.config/ktunnel/ktunnel_ed25519.pem (AdHoc with -persist). In AdHoc mode without -persist this is ignored and an ephemeral key is generated at start-up. Auto-created by `-install`.", "");
 	m_Config.sTrustFingerprint
@@ -1806,7 +1831,7 @@ int Tunnel::Main(int argc, char** argv)
 			if (bHasCliSecret)
 			{
 				SetError("in service mode, -s is not allowed; "
-				         "the `users` table in the admin DB is "
+				         "the `nodes` table in the admin DB is "
 				         "authoritative for peer authentication");
 			}
 		}
@@ -1866,15 +1891,17 @@ int Tunnel::Main(int argc, char** argv)
 #endif
 
 		// In interactive Stateful mode, -s no longer does anything (the
-		// `users` table is the only authority for admin / peer logins).
-		// We accept it without error but log a warning so an operator
-		// who pasted the old CLI sees what changed and how to migrate.
+		// `nodes` table is the only authority for tunnel logins, the
+		// `admins` table for the UI). We accept it without error but log
+		// a warning so an operator who pasted the old CLI sees what
+		// changed and how to migrate.
 		if (m_Config.eMode == ExtendedConfig::Mode::Stateful
 		    && !m_Config.Secrets.empty())
 		{
 			m_Config.Message("note: -s is ignored in stateful mode; "
 			                 "use `ktunnel -set-admin` to set the admin "
-			                 "password and the admin UI for peer users");
+			                 "password and `ktunnel -add-node` (or the "
+			                 "admin UI) for tunnel-endpoint accounts");
 			m_Config.Secrets.clear();   // make sure no code path picks
 			                            // it up by accident
 		}
@@ -1939,14 +1966,14 @@ int Tunnel::Main(int argc, char** argv)
 } // Main
 
 // =============================================================================
-// helpers — admin-bootstrap subcommands (`-install`, `-set-admin`)
+// helpers — admin-bootstrap subcommands (`-install`, `-set-admin`, `-add-node`)
 // =============================================================================
 //
 // These run BEFORE KService::Run() in main(): they take a quick look at argv,
 // branch on whichever of our own subcommands is present, and either short-
-// circuit (`-set-admin`: do the DB upsert and exit) or do their pre-work and
-// then fall through to KService::Run (`-install`: prompt for password and
-// seed the DB before letting KService register the service unit).
+// circuit (`-set-admin` / `-add-node`: do the DB upsert and exit) or do their
+// pre-work and then fall through to KService::Run (`-install`: prompt for
+// password and seed the DB before letting KService register the service unit).
 //
 // We do NOT use KOptions for this preliminary parse: KOptions expects to
 // describe the *full* argument set and would reject the service-management
@@ -2085,52 +2112,154 @@ bool SeedAdminUser (KStringView  sPath,
 		return false;
 	}
 
-	auto oExisting = Store.GetUser(sUser);
-	
+	auto oExisting = Store.GetAdmin(sUser);
+
 	if (oExisting)
 	{
-		// Rotate the password and make sure the admin bit is set.
-		if (!Store.UpdateUserPasswordHash(sUser, sHash)
-		 || !Store.UpdateUserAdminFlag(sUser, true))
+		// Rotate the password.
+		if (!Store.UpdateAdminPasswordHash(sUser, sHash))
 		{
-			KErr.FormatLine(">> ktunnel: cannot update admin user '{}': {}",
+			KErr.FormatLine(">> ktunnel: cannot update admin '{}': {}",
 			                sUser, Store.GetLastError());
 			return false;
 		}
-		KOut.FormatLine("admin user '{}' updated in {}",
+		KOut.FormatLine("admin '{}' updated in {}",
 		                sUser, Store.GetDatabasePath());
 
 		KTunnelStore::Event ev;
-		ev.sKind     = "admin_password_change";
-		ev.sUsername = KString(sUser);
-		ev.sDetail   = "password rotated via -set-admin / -install";
+		ev.sKind   = "admin_password_change";
+		ev.sAdmin  = sUser;
+		ev.sDetail = "password rotated via -set-admin / -install";
 		Store.LogEvent(ev);
 	}
 	else
 	{
-		KTunnelStore::User u;
-		u.sUsername     = sUser;
-		u.sPasswordHash = sHash;
-		u.bIsAdmin      = true;
-		if (!Store.AddUser(u))
+		KTunnelStore::Admin a;
+		a.sUsername     = sUser;
+		a.sPasswordHash = sHash;
+		if (!Store.AddAdmin(a))
 		{
-			KErr.FormatLine(">> ktunnel: cannot create admin user '{}': {}",
+			KErr.FormatLine(">> ktunnel: cannot create admin '{}': {}",
 			                sUser, Store.GetLastError());
 			return false;
 		}
-		KOut.FormatLine("admin user '{}' created in {}",
+		KOut.FormatLine("admin '{}' created in {}",
 		                sUser, Store.GetDatabasePath());
 
 		KTunnelStore::Event ev;
-		ev.sKind     = "bootstrap";
-		ev.sUsername = u.sUsername;
-		ev.sDetail   = "admin user seeded via -set-admin / -install";
+		ev.sKind   = "bootstrap";
+		ev.sAdmin  = a.sUsername;
+		ev.sDetail = "admin seeded via -set-admin / -install";
 		Store.LogEvent(ev);
 	}
 
 	return true;
 
 } // SeedAdminUser
+
+//-----------------------------------------------------------------------------
+/// Open the store at @p sPath, hash @p sPassword, upsert (insert or update)
+/// the node row at @p sName. Returns true on success and emits success /
+/// failure messages to stdout / stderr. New nodes are created with the
+/// `enabled` flag set; existing rows keep their `enabled` state untouched.
+bool SeedNode (KStringView  sPath,
+               KStringView  sName,
+               KStringViewZ sPassword)
+//-----------------------------------------------------------------------------
+{
+	KTunnelStore Store(sPath);
+
+	if (Store.HasError())
+	{
+		KErr.FormatLine(">> ktunnel: cannot open store '{}': {}",
+		                Store.GetDatabasePath(),
+		                Store.GetLastError());
+		return false;
+	}
+
+	KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);
+
+	auto sHash = BCrypt.GenerateHash(sPassword);
+
+	if (sHash.empty())
+	{
+		KErr.FormatLine(">> ktunnel: failed to hash node password");
+		return false;
+	}
+
+	auto oExisting = Store.GetNode(sName);
+
+	if (oExisting)
+	{
+		if (!Store.UpdateNodePasswordHash(sName, sHash))
+		{
+			KErr.FormatLine(">> ktunnel: cannot update node '{}': {}",
+			                sName, Store.GetLastError());
+			return false;
+		}
+		KOut.FormatLine("node '{}' updated in {}",
+		                sName, Store.GetDatabasePath());
+
+		KTunnelStore::Event ev;
+		ev.sKind   = "node_password_change";
+		ev.sNode   = sName;
+		ev.sDetail = "password rotated via -add-node";
+		Store.LogEvent(ev);
+	}
+	else
+	{
+		KTunnelStore::Node n;
+		n.sName         = sName;
+		n.sPasswordHash = sHash;
+		n.bEnabled      = true;
+		if (!Store.AddNode(n))
+		{
+			KErr.FormatLine(">> ktunnel: cannot create node '{}': {}",
+			                sName, Store.GetLastError());
+			return false;
+		}
+		KOut.FormatLine("node '{}' created in {}",
+		                sName, Store.GetDatabasePath());
+
+		KTunnelStore::Event ev;
+		ev.sKind   = "node_add";
+		ev.sNode   = n.sName;
+		ev.sDetail = "node seeded via -add-node";
+		Store.LogEvent(ev);
+	}
+
+	return true;
+
+} // SeedNode
+
+//-----------------------------------------------------------------------------
+/// Interactive admin-name capture for first-install bootstrap. Echoes a
+/// `[default]` hint and accepts an empty Enter as "use the default". The
+/// returned name has been Trim()ed; an empty return means stdin is not a
+/// TTY (non-interactive callers must supply `-admin-user <name>` instead
+/// — `BootstrapAdminForInstall` checks for that flag first and only calls
+/// here when no flag was given).
+KString PromptForAdminName (KStringView sDefault = "admin")
+//-----------------------------------------------------------------------------
+{
+#if !defined(DEKAF2_IS_WINDOWS)
+	if (!::isatty(STDIN_FILENO))
+	{
+		KErr.FormatLine(">> ktunnel: stdin is not a TTY; supply -admin-user <name> "
+		                "for non-interactive installs");
+		return {};
+	}
+#endif
+
+	KOut.Write(kFormat("Admin user name [{}]: ", sDefault)).Flush();
+
+	KString sLine;
+	kReadLine(KIn, sLine);
+	sLine.Trim();
+
+	return sLine.empty() ? KString(sDefault) : sLine;
+
+} // PromptForAdminName
 
 //-----------------------------------------------------------------------------
 /// Interactive password capture: prompt twice (echo off), require both
@@ -2156,13 +2285,13 @@ bool CapturePassword (int argc, char** argv, KString& sPasswordOut,
 
 	for (std::size_t iAttempt = 0; iAttempt < iMaxAttempts; ++iAttempt)
 	{
-		auto sFirst  = kPromptForPassword("Set admin password:    ");
+		auto sFirst  = kPromptForPassword("Set password:    ");
 		if (sFirst.empty())
 		{
 			KErr.FormatLine(">> ktunnel: empty password not allowed");
 			continue;
 		}
-		auto sSecond = kPromptForPassword("Confirm admin password: ");
+		auto sSecond = kPromptForPassword("Confirm password: ");
 		if (sFirst == sSecond)
 		{
 			sPasswordOut = std::move(sFirst);
@@ -2185,8 +2314,8 @@ bool CapturePassword (int argc, char** argv, KString& sPasswordOut,
 int RunSetAdmin (int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	// We deliberately do NOT use `-u` here — that flag belongs to the
-	// runtime tunnel (`Tunnel::Main`: peer username on the protected
+	// We deliberately do NOT use `-n` here — that flag belongs to the
+	// runtime tunnel (`Tunnel::Main`: peer node name on the protected
 	// host) and re-using it would create a footgun where the same arg
 	// means different things in different contexts.
 	auto sUser = GetBootstrapFlagValue(argc, argv, "admin-user");
@@ -2204,6 +2333,35 @@ int RunSetAdmin (int argc, char** argv)
 	return SeedAdminUser(sDBPath, sUser, sPassword) ? 0 : 1;
 
 } // RunSetAdmin
+
+//-----------------------------------------------------------------------------
+/// Handle `-add-node`: standalone subcommand that creates or rotates a
+/// tunnel-endpoint (node) login in the configuration DB and exits. The
+/// node name is taken from `-node-name <name>` (required). Intended for
+/// non-interactive provisioning of new tunnel endpoints — the admin UI
+/// covers the interactive case.
+int RunAddNode (int argc, char** argv)
+//-----------------------------------------------------------------------------
+{
+	auto sName = GetBootstrapFlagValue(argc, argv, "node-name");
+	if (sName.empty())
+	{
+		KErr.FormatLine(">> ktunnel: -add-node requires -node-name <name>");
+		return 1;
+	}
+
+	const auto sDBPath = ResolveBootstrapDBPath(argc, argv, /*bForceSystem=*/false);
+
+	KString sPassword;
+
+	if (!CapturePassword(argc, argv, sPassword))
+	{
+		return 1;
+	}
+
+	return SeedNode(sDBPath, sName, sPassword) ? 0 : 1;
+
+} // RunAddNode
 
 //-----------------------------------------------------------------------------
 /// Handle the bootstrap step that runs immediately before the actual
@@ -2229,23 +2387,66 @@ int RunSetAdmin (int argc, char** argv)
 bool BootstrapAdminForInstall (int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	auto sUser = GetBootstrapFlagValue(argc, argv, "admin-user");
-	if (sUser.empty()) sUser = "admin";
-
 	const auto sDBPath = ResolveBootstrapDBPath(argc, argv, /*bForceSystem=*/false);
 
 	KOut.FormatLine("ktunnel: pre-install admin bootstrap → {}", sDBPath);
 
-	KString sPassword;
-	
-	if (!CapturePassword(argc, argv, sPassword))
+	// Idempotency: only seed the very first admin row. If the admins
+	// table is already populated, leave it alone — `-install` is a
+	// service-lifecycle command (write the unit, register with the
+	// service manager) and re-running it should not silently rotate
+	// the admin password. Rotation / additional admins go through the
+	// explicit `-set-admin` subcommand or the admin UI.
+	std::size_t iAdminCount = 0;
 	{
-		return false;
+		KTunnelStore Store(sDBPath);
+		if (Store.HasError())
+		{
+			KErr.FormatLine(">> ktunnel: cannot open store '{}': {}",
+			                Store.GetDatabasePath(), Store.GetLastError());
+			return false;
+		}
+		iAdminCount = Store.CountAdmins();
 	}
 
-	if (!SeedAdminUser(sDBPath, sUser, sPassword))
+	if (iAdminCount == 0)
 	{
-		return false;
+		// First install on this DB → prompt for the admin name and
+		// password, then seed the row. The CLI flag wins over the
+		// prompt so non-interactive provisioners (cloud-init, Ansible
+		// with `-pass-file`) can name the admin without a TTY.
+		KString sUser = GetBootstrapFlagValue(argc, argv, "admin-user");
+		if (sUser.empty())
+		{
+			sUser = PromptForAdminName(/*sDefault=*/"admin");
+			if (sUser.empty()) return false;   // not a TTY; PromptForAdminName already explained
+		}
+
+		KString sPassword;
+		if (!CapturePassword(argc, argv, sPassword))
+		{
+			return false;
+		}
+
+		if (!SeedAdminUser(sDBPath, sUser, sPassword))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		KOut.FormatLine("admins table already has {} entr{} — leaving it untouched.",
+		                iAdminCount, iAdminCount == 1 ? "y" : "ies");
+		KOut.FormatLine("(use `ktunnel -set-admin [-admin-user <name>]` to rotate or add an admin)");
+
+		// Surface a hint when the operator passed flags whose only
+		// purpose is admin seeding — without it, the silent skip would
+		// look like a bug ("I gave -pass-file and nothing happened").
+		if (   HasBootstrapFlag(argc, argv, "admin-user")
+		    || HasBootstrapFlag(argc, argv, "pass-file"))
+		{
+			KOut.FormatLine("note: -admin-user / -pass-file ignored on -install when the admins table is non-empty.");
+		}
 	}
 
 #if DEKAF2_HAS_ED25519
@@ -2344,6 +2545,7 @@ std::vector<char*> FilterBootstrapArgs (int& argc_inout, char** argv)
 {
 	static constexpr KStringView SkipFlags[] = {
 		KStringView("admin-user"),
+		KStringView("node-name"),
 		KStringView("pass-file"),
 	};
 
@@ -2389,6 +2591,11 @@ int main(int argc, char** argv)
 	if (HasBootstrapFlag(argc, argv, "set-admin"))
 	{
 		return RunSetAdmin(argc, argv);
+	}
+
+	if (HasBootstrapFlag(argc, argv, "add-node"))
+	{
+		return RunAddNode(argc, argv);
 	}
 
 #if DEKAF2_HAS_ED25519

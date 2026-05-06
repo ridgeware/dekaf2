@@ -58,8 +58,11 @@ using namespace dekaf2;
 /// Exposes HTML pages under the `/Configure/` path tree on the same
 /// REST server that also carries the `/Tunnel` websocket endpoint.
 /// Authentication is cookie-session based (see KSession) with a
-/// bcrypt-hashed admin password that is seeded from the first CLI
-/// `-secret` value at process startup.
+/// bcrypt-hashed admin password verified against the `admins` table.
+///
+/// Only rows in the `admins` table can sign into the UI; tunnel
+/// endpoints (rows in the `nodes` table) authenticate the wire
+/// protocol but have no UI access at all.
 class AdminUI
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -70,9 +73,10 @@ public:
 
 	/// Construct the AdminUI.
 	/// @param Server the owning ExposedServer. Must outlive this instance.
-	///               Used for access to the persistent store (users,
-	///               tunnels, events), the shared bcrypt verifier, and
-	///               the live active-tunnel map for dashboard stats.
+	///               Used for access to the persistent store (admins,
+	///               nodes, tunnels, events), the shared bcrypt
+	///               verifier, and the live active-tunnel map for
+	///               dashboard stats.
 	explicit AdminUI (ExposedServer& Server);
 
 	~AdminUI();
@@ -120,33 +124,55 @@ private:
 	                       KStringView sTitle,
 	                       KStringView sDescription);
 
-	/// GET /Configure/users — list users + Add/Change-password forms.
+	/// GET /Configure/admins — list admins + Add + Change-own-password.
 	/// An optional flash message (banner) can be passed through the
 	/// query string as `?notice=...` / `?error=...` and is surfaced at
 	/// the top of the page.
-	void ShowUsers        (KRESTServer& HTTP);
+	void ShowAdmins        (KRESTServer& HTTP);
 
-	/// POST /Configure/users/add — add a new user. Requires `username`,
-	/// `password` and optional `is_admin` in the form body.
-	void HandleUsersAdd   (KRESTServer& HTTP);
+	/// POST /Configure/admins/add — add a new admin. Requires `username`
+	/// and `password` in the form body.
+	void HandleAdminsAdd   (KRESTServer& HTTP);
 
-	/// POST /Configure/users/delete — delete a user by `username`.
-	/// Refuses to delete the currently-logged-in user (self-locking).
-	void HandleUsersDelete(KRESTServer& HTTP);
+	/// POST /Configure/admins/delete — delete an admin by `username`.
+	/// Refuses to delete the currently-logged-in admin (self-locking).
+	void HandleAdminsDelete(KRESTServer& HTTP);
 
-	/// POST /Configure/users/changepass — change the own password.
+	/// POST /Configure/admins/changepass — change the own password.
 	/// Form body: `current_password`, `new_password`, `confirm_password`.
-	void HandleUsersChangePass (KRESTServer& HTTP);
+	void HandleAdminsChangePass (KRESTServer& HTTP);
+
+	/// GET /Configure/nodes — list nodes + Add/Toggle/Reset-password.
+	void ShowNodes              (KRESTServer& HTTP);
+
+	/// POST /Configure/nodes/add — add a new node. Requires `name`,
+	/// `password` and optional `enabled` in the form body.
+	void HandleNodesAdd         (KRESTServer& HTTP);
+
+	/// POST /Configure/nodes/toggle — flip the `enabled` flag of a
+	/// node. Form body: `name`, `enable` ("1" enables, anything else
+	/// disables).
+	void HandleNodesToggle      (KRESTServer& HTTP);
+
+	/// POST /Configure/nodes/delete — delete a node by `name`. Tunnels
+	/// referencing it stay in the DB with a now-dangling owner reference;
+	/// ReconcileListeners surfaces them as `OwnerOffline`.
+	void HandleNodesDelete      (KRESTServer& HTTP);
+
+	/// POST /Configure/nodes/resetpass — set a new password for a node.
+	/// Form body: `name`, `new_password`, `confirm_password`.
+	void HandleNodesResetPass   (KRESTServer& HTTP);
 
 	/// GET /Configure/tunnels — list configured tunnels + Add form.
 	/// Supports `?notice=…` / `?error=…` flash banners.
 	void ShowTunnels          (KRESTServer& HTTP);
 
 	/// POST /Configure/tunnels/add — create a tunnel listener row.
-	/// Form body: `name`, `owner`, `listen_port` (the forward port the
-	/// exposed host binds to, wildcard bind on all interfaces),
-	/// `target_host`, `target_port`, and the optional `enabled` checkbox
-	/// (defaults to true).
+	/// Form body: `name`, `node` (owner-node name, must exist in the
+	/// `nodes` table), `listen_port` (the forward port the exposed host
+	/// binds to, wildcard bind on all interfaces), `target_host`,
+	/// `target_port`, and the optional `enabled` checkbox (defaults to
+	/// true).
 	void HandleTunnelsAdd     (KRESTServer& HTTP);
 
 	/// POST /Configure/tunnels/toggle — flip the enabled bit of a tunnel.
@@ -164,46 +190,45 @@ private:
 	/// POST /Configure/tunnels/update — apply edits from the form.
 	/// Form body mirrors HandleTunnelsAdd plus a required `name`
 	/// identifying the row. Changing the listener key (host/port/
-	/// target/owner) triggers a restart via ReconcileListeners.
+	/// target/node) triggers a restart via ReconcileListeners.
 	void HandleTunnelsUpdate  (KRESTServer& HTTP);
 
 	/// GET /Configure/events — full audit log with optional filters in
-	/// the URL query: `?kind=…`, `?user=…`, `?limit=100|500|1000`.
-	/// Unknown limit values fall back to 100. The filters are also
-	/// used to preselect the corresponding dropdown entries on render.
+	/// the URL query: `?kind=…`, `?limit=100|500|1000`.  Unknown limit
+	/// values fall back to 100. The filters are also used to preselect
+	/// the corresponding dropdown entries on render.
 	void ShowEvents           (KRESTServer& HTTP);
 
 	/// GET /Configure/peers — list currently connected tunnel peers
 	/// (from ExposedServer::SnapshotActiveTunnels) with an "Open REPL"
-	/// button per row. Admin-only.
+	/// button per row.
 	void ShowPeers            (KRESTServer& HTTP);
 
-	/// GET /Configure/peers/repl?peer=<user> — minimal HTML+JS page
+	/// GET /Configure/peers/repl?peer=<node> — minimal HTML+JS page
 	/// that opens a WebSocket to /Configure/peers/repl/ws and renders
-	/// the duplex text stream in a <pre>. Admin-only.
+	/// the duplex text stream in a <pre>.
 	void ShowPeerRepl         (KRESTServer& HTTP);
 
-	/// GET /Configure/peers/repl/ws?peer=<user> — WebSocket endpoint
+	/// GET /Configure/peers/repl/ws?peer=<node> — WebSocket endpoint
 	/// that proxies frames between the browser and a freshly opened
-	/// REPL channel on the named peer's active KTunnel. Admin-only.
+	/// REPL channel on the named peer's active KTunnel.
 	void HandlePeerReplWs     (KRESTServer& HTTP);
 
-	/// GET /Configure/peers/repl/ws?peer=<user> — same URL but matched
+	/// GET /Configure/peers/repl/ws?peer=<node> — same URL but matched
 	/// for plain (non-upgrade) HTTPS navigations. Renders a tiny 200-OK
 	/// landing page so Safari can cache a self-signed certificate
 	/// exception for this exact URL (WebKit tracks cert exceptions
 	/// per URL for WSS, independently of the HTTPS page that loaded
-	/// the REPL). Admin-only.
+	/// the REPL).
 	void HandlePeerReplCert   (KRESTServer& HTTP);
 
 	/// Render the common top-bar (brand + nav) into the body of @p Page
 	/// and mark the nav entry identified by @p sActive as the active one
-	/// so it gets a highlighted pill. Admin-only nav entries (Users,
-	/// Tunnels, Events) are hidden for non-admin users.
+	/// so it gets a highlighted pill. Every signed-in user is an admin,
+	/// so all nav entries are always shown.
 	void RenderTopBar     (html::Page& Page,
 	                       KStringView sActive,
-	                       KStringView sUser,
-	                       bool        bIsAdmin) const;
+	                       KStringView sAdmin) const;
 
 	/// Helper: redirect the browser back to @p sURL with a one-shot
 	/// flash notice appended as `?notice=...` or `?error=...`.
@@ -212,18 +237,6 @@ private:
 	                        KStringView sURL,
 	                        KStringView sNotice,
 	                        KStringView sError) const;
-
-	/// Helper: confirm the currently-logged-in user has the `is_admin`
-	/// flag set in the store. Non-admins are redirected to the dashboard
-	/// with an error flash. Returns true iff the caller is an admin.
-	/// The lookup happens on every call so flipping the bit in the DB
-	/// takes effect at the next request (no cached session state).
-	bool RequireAdminOrRedirect (KRESTServer& HTTP, KRESTSession& Sess);
-
-	/// Return the admin flag for the user behind @p Sess. Returns false
-	/// if the session references a user that no longer exists (stale
-	/// cookie after account deletion).
-	bool IsAdmin (KRESTSession& Sess);
 
 	ExposedServer&               m_Server;      ///< non-owning back-ref
 	const ExposedServer::Config& m_Config;      ///< == m_Server.config

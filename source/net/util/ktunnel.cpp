@@ -60,7 +60,7 @@
 //
 // Message types are:
 // - Login, Control, Connect, Data, Pause, Resume, Disconnect, Ping, Pong
-// - Login messages bear endpoint "user" name and its secret as "Basic name:secret",
+// - Login messages bear the endpoint node name and its secret as "Basic name:secret",
 //   where name:secret is encoded in base64, much like in basic auth. There
 //   may be other schemes by future implementations.
 // - Ping/Pong messages are used to keep the tunnel alive when there is no
@@ -805,7 +805,7 @@ KTunnel::KTunnel
 (
 	Config                           Config,
 	std::unique_ptr<KIOStreamSocket> Stream,
-	KStringView                      sUser,
+	KStringView                      sNode,
 	KStringView                      sSecret,
 	bool                             bNeverMask
 )
@@ -827,7 +827,7 @@ KTunnel::KTunnel
 		Tunnel->Stream->SetNoDelay(true);
 	}
 
-	auto bIsClient = !sUser.empty() || !sSecret.empty();
+	auto bIsClient = !sNode.empty() || !sSecret.empty();
 
 	if (!bIsClient)
 	{
@@ -840,7 +840,7 @@ KTunnel::KTunnel
 			m_bMaskTx = true;
 		}
 
-		Login(sUser, sSecret);
+		Login(sNode, sSecret);
 	}
 
 } // KTunnel::KTunnel
@@ -987,13 +987,13 @@ KTCPEndPoint KTunnel::GetEndPointAddress() const
 }
 
 //-----------------------------------------------------------------------------
-KString KTunnel::GetLoginUser() const
+KString KTunnel::GetLoginNode() const
 //-----------------------------------------------------------------------------
 {
-	std::lock_guard<std::mutex> Lock(m_LoginUserMutex);
-	return m_sLoginUser;
+	std::lock_guard<std::mutex> Lock(m_LoginNodeMutex);
+	return m_sLoginNode;
 
-} // KTunnel::GetLoginUser
+} // KTunnel::GetLoginNode
 
 //-----------------------------------------------------------------------------
 void KTunnel::ReadMessage(Message& message)
@@ -1159,23 +1159,23 @@ namespace {
 /// could not migrate from a different protocol that ever uses the same
 /// underlying Ed25519 key. Order is fixed and binds every public input of
 /// the handshake into a single transcript: client-eph-pub, server-eph-pub,
-/// client-nonce, server-nonce, login-user.
+/// client-nonce, server-nonce, login-node.
 KString BuildHandshakeTranscript(KStringView sEpubClient,
                                  KStringView sEpubServer,
                                  KStringView sNonceClient,
                                  KStringView sNonceServer,
-                                 KStringView sUser)
+                                 KStringView sNode)
 //-----------------------------------------------------------------------------
 {
 	KString sTranscript;
-	sTranscript.reserve(11 + 32 + 32 + 16 + 16 + sUser.size());
+	sTranscript.reserve(11 + 32 + 32 + 16 + 16 + sNode.size());
 	sTranscript.append("ktunnel-v2");
 	sTranscript.push_back('\0');
 	sTranscript.append(sEpubClient);
 	sTranscript.append(sEpubServer);
 	sTranscript.append(sNonceClient);
 	sTranscript.append(sNonceServer);
-	sTranscript.append(sUser);
+	sTranscript.append(sNode);
 	return sTranscript;
 }
 
@@ -1204,7 +1204,7 @@ KString KTunnel::FormatFingerprint(KStringView sRawPublicKey)
 } // KTunnel::FormatFingerprint
 
 //-----------------------------------------------------------------------------
-void KTunnel::SetupEncryption (KStringView sUser)
+void KTunnel::SetupEncryption (KStringView sNode)
 //-----------------------------------------------------------------------------
 {
 	// Client-side half of the v2 X25519 + Ed25519 + HKDF handshake.
@@ -1217,9 +1217,9 @@ void KTunnel::SetupEncryption (KStringView sUser)
 	// gives forward secrecy against a later compromise of either the
 	// identity key or the TLS private key.
 
-	if (sUser.empty()) sUser = "<none>";
+	if (sNode.empty()) sNode = "<none>";
 
-	kDebug(2, "v2 handshake (client) for user {}", sUser);
+	kDebug(2, "v2 handshake (client) for node {}", sNode);
 
 	// 1) Generate ephemeral X25519 + 16-byte client nonce.
 	KX25519 EphClient(true);
@@ -1236,7 +1236,7 @@ void KTunnel::SetupEncryption (KStringView sUser)
 		{ "kind", "hello" },
 		{ "epub", KEncode::Base64(sEpubClient) },
 		{ "n_c",  KEncode::Base64(sNonceClient) },
-		{ "user", sUser }
+		{ "node", sNode }
 	};
 	WriteMessage(Message(Message::Login, 0, oHello.dump()));
 
@@ -1278,7 +1278,7 @@ void KTunnel::SetupEncryption (KStringView sUser)
 	}
 
 	auto sTranscript = BuildHandshakeTranscript(sEpubClient, sEpubServer,
-	                                            sNonceClient, sNonceServer, sUser);
+	                                            sNonceClient, sNonceServer, sNode);
 
 	KEd25519Verify Verifier;
 	if (!Verifier.Verify(ServerIdentityPub, sTranscript, sSig))
@@ -1360,7 +1360,7 @@ void KTunnel::SetupEncryption (KStringView sUser)
 } // SetupEncryption (client)
 
 //-----------------------------------------------------------------------------
-bool KTunnel::SetupEncryption (Message& HelloFrame, KString& sOutUser)
+bool KTunnel::SetupEncryption (Message& HelloFrame, KString& sOutNode)
 //-----------------------------------------------------------------------------
 {
 	// Server-side half of the v2 handshake. The hello frame has been
@@ -1368,7 +1368,7 @@ bool KTunnel::SetupEncryption (Message& HelloFrame, KString& sOutUser)
 	// generate our own ephemeral key, sign the transcript with our
 	// long-term identity key, send hello-ack, derive session keys,
 	// install ciphers. After this returns, WaitForLogin() reads the
-	// next frame (the encrypted auth frame) and authenticates the user.
+	// next frame (the encrypted auth frame) and authenticates the node.
 
 	if (HelloFrame.GetType() != Message::Login)
 	{
@@ -1390,7 +1390,7 @@ bool KTunnel::SetupEncryption (Message& HelloFrame, KString& sOutUser)
 
 	KString sEpubClient  = KDecode::Base64(kjson::GetStringRef(oHello, "epub"));
 	KString sNonceClient = KDecode::Base64(kjson::GetStringRef(oHello, "n_c"));
-	sOutUser             = kjson::GetStringRef(oHello, "user");
+	sOutNode             = kjson::GetStringRef(oHello, "node");
 
 	if (sEpubClient.size() != 32 || sNonceClient.size() != 16)
 	{
@@ -1417,7 +1417,7 @@ bool KTunnel::SetupEncryption (Message& HelloFrame, KString& sOutUser)
 	KString sIpubServer  = m_Config.ServerIdentity->GetPublicKeyRaw();
 
 	auto sTranscript = BuildHandshakeTranscript(sEpubClient, sEpubServer,
-	                                            sNonceClient, sNonceServer, sOutUser);
+	                                            sNonceClient, sNonceServer, sOutNode);
 
 	KEd25519Sign Signer;
 	KString sSig = Signer.Sign(*m_Config.ServerIdentity, sTranscript);
@@ -1483,8 +1483,8 @@ bool KTunnel::SetupEncryption (Message& HelloFrame, KString& sOutUser)
 		Tunnel->Decryptor->SetAutoIncrementNonceAsIV();
 	}
 
-	kDebug(1, "v2 handshake (server) ok for user '{}' from {}",
-	       sOutUser, GetEndPointAddress());
+	kDebug(1, "v2 handshake (server) ok for node '{}' from {}",
+	       sOutNode, GetEndPointAddress());
 
 	return true;
 
@@ -1493,7 +1493,7 @@ bool KTunnel::SetupEncryption (Message& HelloFrame, KString& sOutUser)
 #endif // DEKAF2_HAS_ED25519 && DEKAF2_HAS_X25519
 
 //-----------------------------------------------------------------------------
-bool KTunnel::Login(KStringView sUser, KStringView sSecret)
+bool KTunnel::Login(KStringView sNode, KStringView sSecret)
 //-----------------------------------------------------------------------------
 {
 	if (m_Config.bAESPayload)
@@ -1503,7 +1503,7 @@ bool KTunnel::Login(KStringView sUser, KStringView sSecret)
 		// returns the tunnel ciphers are active and every further frame
 		// is AES-256-GCM. We then send the auth frame in the clear-on-
 		// the-wire-but-encrypted-by-cipher path.
-		SetupEncryption(sUser);
+		SetupEncryption(sNode);
 
 		KJSON oAuth {
 			{ "kind", "auth"   },
@@ -1517,7 +1517,7 @@ bool KTunnel::Login(KStringView sUser, KStringView sSecret)
 	}
 	else
 	{
-		WriteMessage(Message(Message::Login, 0, kFormat("Basic {}", KEncode::Base64(kFormat("{}:{}", sUser, sSecret)))));
+		WriteMessage(Message(Message::Login, 0, kFormat("Basic {}", KEncode::Base64(kFormat("{}:{}", sNode, sSecret)))));
 	}
 
 	// wait for the response (Helo, encrypted iff bAESPayload)
@@ -1541,7 +1541,7 @@ void KTunnel::WaitForLogin()
 	Message Login;
 	ReadMessage(Login);
 
-	KString sLoginUser;
+	KString sLoginNode;
 	KString sLoginPass;
 
 	if (m_Config.bAESPayload)
@@ -1551,7 +1551,7 @@ void KTunnel::WaitForLogin()
 		// X25519+Ed25519 handshake which sends back a signed hello-ack
 		// and wires up the AES-GCM ciphers. Then read the encrypted auth
 		// frame to recover the password.
-		SetupEncryption(Login, sLoginUser);
+		SetupEncryption(Login, sLoginNode);
 
 		Message Auth;
 		ReadMessage(Auth);
@@ -1579,24 +1579,27 @@ void KTunnel::WaitForLogin()
 		{
 			throw KError(kFormat("invalid message type {}", Login.PrintType()));
 		}
-		// Basic flow: extract user/pass from an "Basic <base64>" string
+		// Basic flow: extract node/pass from a "Basic <base64>" string.
+		// KHTTPHeaders calls the parsed login identifier `sUsername` for
+		// historical HTTP-Basic reasons; in our domain that string is
+		// always a node-endpoint name.
 		auto Creds = KHTTPHeaders::DecodeBasicAuthFromString(Login.GetMessage());
-		sLoginUser = Creds.sUsername;
+		sLoginNode = Creds.sUsername;
 		sLoginPass = Creds.sPassword;
 	}
 
 	// Authenticate. Embedder's AuthCallback wins if set (used by the
-	// stateful sample to bcrypt-verify against the users table).
+	// stateful sample to bcrypt-verify against the nodes table).
 	// Otherwise fall back to Config::Secrets membership (the AdHoc
 	// pre-shared-secret model). This block is now identical in both
 	// transport modes — the v2 handshake established session secrecy,
-	// it does not authenticate the user; that's still the password's
+	// it does not authenticate the node; that's still the password's
 	// job, only over a now-confidential channel.
 	bool bAccepted = false;
 
 	if (m_Config.AuthCallback)
 	{
-		bAccepted = m_Config.AuthCallback(sLoginUser, sLoginPass);
+		bAccepted = m_Config.AuthCallback(sLoginNode, sLoginPass);
 	}
 	else
 	{
@@ -1605,16 +1608,16 @@ void KTunnel::WaitForLogin()
 
 	if (!bAccepted)
 	{
-		throw KError(kFormat("login rejected from {} (user '{}')",
-		                     GetEndPointAddress(), sLoginUser));
+		throw KError(kFormat("login rejected from {} (node '{}')",
+		                     GetEndPointAddress(), sLoginNode));
 	}
 
 	{
-		std::lock_guard<std::mutex> Lock(m_LoginUserMutex);
-		m_sLoginUser = std::move(sLoginUser);
+		std::lock_guard<std::mutex> Lock(m_LoginNodeMutex);
+		m_sLoginNode = std::move(sLoginNode);
 	}
 
-	kDebug(1, "successful login from {} (user '{}')", GetEndPointAddress(), m_sLoginUser);
+	kDebug(1, "successful login from {} (node '{}')", GetEndPointAddress(), m_sLoginNode);
 
 	// finally say hi
 	WriteMessage(Message(Message::Helo, 0));

@@ -94,15 +94,16 @@ public:
 	/// after the login message has been received (and, in AES mode,
 	/// after the v2 X25519+Ed25519 handshake has established the session
 	/// keys and the auth frame has been decrypted). The callback gets the
-	/// user name and password as they were presented by the remote client
-	/// and must return true to accept the login, false to reject it.
+	/// node-endpoint name and password as they were presented by the
+	/// remote client and must return true to accept the login, false to
+	/// reject it.
 	///
 	/// If the callback is not set (the default), the tunnel falls back to
 	/// the simple behaviour of verifying that the presented password is
 	/// contained in Config::Secrets (the AdHoc pre-shared-secret model).
 	/// If the callback IS set, it takes precedence and is the only
 	/// authority on who is allowed in.
-	using Authenticator = std::function<bool(KStringView sUser, KStringView sSecret)>;
+	using Authenticator = std::function<bool(KStringView sNode, KStringView sSecret)>;
 
 #if DEKAF2_HAS_ED25519
 	/// Trust-checker callback invoked on the *client* side during the
@@ -409,7 +410,7 @@ public:
 	(
 		Config                           Config,
 		std::unique_ptr<KIOStreamSocket> Stream,
-		KStringView                      sUser      = KStringView{},
+		KStringView                      sNode      = KStringView{},
 		KStringView                      sSecret    = KStringView{},
 		bool                             bNeverMask = false
 	);
@@ -441,11 +442,11 @@ public:
 	/// returns the ip address of the opposite tunnel endpoint
 	KTCPEndPoint GetEndPointAddress () const;
 
-	/// Returns the user name that was presented at login by the remote side.
-	/// Empty on the client side of the tunnel (that is, on the side that
-	/// called Login() itself) and on a server-side tunnel before the
-	/// login frame has been processed. Thread-safe.
-	KString      GetLoginUser       () const;
+	/// Returns the node-endpoint name that was presented at login by the
+	/// remote side. Empty on the client side of the tunnel (that is, on
+	/// the side that called Login() itself) and on a server-side tunnel
+	/// before the login frame has been processed. Thread-safe.
+	KString      GetLoginNode       () const;
 
 #if DEKAF2_HAS_ED25519
 	/// Format an Ed25519 (or any 32-byte) raw public key as a colon-
@@ -483,8 +484,8 @@ protected:
 	void ReadMessage     (Message&  message);
 	/// write a message to the stream, blocks until timeout, then throws
 	void WriteMessage    (Message&& message);
-	/// if we are establishing the tunnel connection we have to login with user/secret
-	bool Login           (KStringView sUser, KStringView sSecret);
+	/// if we are establishing the tunnel connection we have to login with node/secret
+	bool Login           (KStringView sNode, KStringView sSecret);
 	/// waits for the other tunnel side to connect
 	void WaitForLogin    ();
 	/// set timeout for the tunnel connection
@@ -504,17 +505,17 @@ protected:
 	/// untrusted identity, etc.) so the operator sees a noisy error
 	/// instead of a 15-second silent timeout. Does NOT send the auth
 	/// frame — Login() does that with the now-active session keys.
-	void SetupEncryption (KStringView sUser);
+	void SetupEncryption (KStringView sNode);
 
 	/// Run the server-side half of the v2 AES handshake. The hello
 	/// frame has already been read by WaitForLogin() and is passed in
-	/// as @p HelloFrame; @p sOutUser receives the user name field from
-	/// that frame so the caller can later authenticate it. Sends the
-	/// signed hello-ack, derives session keys, configures the AES
-	/// ciphers. Throws on malformed input or missing ServerIdentity.
+	/// as @p HelloFrame; @p sOutNode receives the node-endpoint name
+	/// field from that frame so the caller can later authenticate it.
+	/// Sends the signed hello-ack, derives session keys, configures the
+	/// AES ciphers. Throws on malformed input or missing ServerIdentity.
 	/// Returns true on success (kept as bool for symmetry with the
 	/// existing call site, even though the failure path always throws).
-	bool SetupEncryption (Message& HelloFrame, KString& sOutUser);
+	bool SetupEncryption (Message& HelloFrame, KString& sOutNode);
 #endif
 
 //----------
@@ -538,12 +539,12 @@ private:
 	KThreads               m_Threads;
 	KDuration              m_RTT;
 	KTimer::ID_t           m_TimerID       { KTimer::InvalidID };
-	/// name of the user as verified at login — only populated on the
-	/// server side (the side that called WaitForLogin()). Protected by
-	/// m_LoginUserMutex because it is written from the tunnel's Run()
+	/// name of the node-endpoint as verified at login — only populated on
+	/// the server side (the side that called WaitForLogin()). Protected by
+	/// m_LoginNodeMutex because it is written from the tunnel's Run()
 	/// thread but may be read from admin / monitoring threads.
-	KString                m_sLoginUser;
-	mutable std::mutex     m_LoginUserMutex;
+	KString                m_sLoginNode;
+	mutable std::mutex     m_LoginNodeMutex;
 	/// cumulative Data-frame payload byte counters for this tunnel
 	std::atomic<uint64_t>  m_iBytesRx      { 0 };
 	std::atomic<uint64_t>  m_iBytesTx      { 0 };

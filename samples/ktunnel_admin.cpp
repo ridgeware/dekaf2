@@ -252,7 +252,8 @@ table.grid td.num { text-align: right; font-variant-numeric: tabular-nums; }
 constexpr KStringView s_sLoginURL     = "/Configure/login";
 constexpr KStringView s_sLogoutURL    = "/Configure/logout";
 constexpr KStringView s_sDashboardURL = "/Configure/";
-constexpr KStringView s_sUsersURL     = "/Configure/users";
+constexpr KStringView s_sAdminsURL    = "/Configure/admins";
+constexpr KStringView s_sNodesURL     = "/Configure/nodes";
 constexpr KStringView s_sTunnelsURL   = "/Configure/tunnels";
 constexpr KStringView s_sEventsURL    = "/Configure/events";
 constexpr KStringView s_sPeersURL     = "/Configure/peers";
@@ -260,33 +261,42 @@ constexpr KStringView s_sPeerReplURL  = "/Configure/peers/repl";
 
 // The matching routes — no trailing slashes, because KRESTServer strips
 // them off the request path before looking up a route.
-constexpr KStringView s_sLoginRoute         = "/Configure/login";
-constexpr KStringView s_sLogoutRoute        = "/Configure/logout";
-constexpr KStringView s_sDashboardRoute     = "/Configure";
-constexpr KStringView s_sUsersRoute         = "/Configure/users";
-constexpr KStringView s_sUsersAddRoute      = "/Configure/users/add";
-constexpr KStringView s_sUsersDeleteRoute   = "/Configure/users/delete";
-constexpr KStringView s_sUsersChangePwRoute = "/Configure/users/changepass";
-constexpr KStringView s_sTunnelsRoute       = "/Configure/tunnels";
-constexpr KStringView s_sTunnelsAddRoute    = "/Configure/tunnels/add";
-constexpr KStringView s_sTunnelsToggleRoute = "/Configure/tunnels/toggle";
-constexpr KStringView s_sTunnelsDeleteRoute = "/Configure/tunnels/delete";
-constexpr KStringView s_sTunnelsEditRoute   = "/Configure/tunnels/edit";
-constexpr KStringView s_sTunnelsUpdateRoute = "/Configure/tunnels/update";
-constexpr KStringView s_sEventsRoute        = "/Configure/events";
-constexpr KStringView s_sPeersRoute          = "/Configure/peers";
-constexpr KStringView s_sPeerReplRoute       = "/Configure/peers/repl";
-constexpr KStringView s_sPeerReplWsRoute     = "/Configure/peers/repl/ws";
+constexpr KStringView s_sLoginRoute            = "/Configure/login";
+constexpr KStringView s_sLogoutRoute           = "/Configure/logout";
+constexpr KStringView s_sDashboardRoute        = "/Configure";
+constexpr KStringView s_sAdminsRoute           = "/Configure/admins";
+constexpr KStringView s_sAdminsAddRoute        = "/Configure/admins/add";
+constexpr KStringView s_sAdminsDeleteRoute     = "/Configure/admins/delete";
+constexpr KStringView s_sAdminsChangePwRoute   = "/Configure/admins/changepass";
+constexpr KStringView s_sNodesRoute            = "/Configure/nodes";
+constexpr KStringView s_sNodesAddRoute         = "/Configure/nodes/add";
+constexpr KStringView s_sNodesToggleRoute      = "/Configure/nodes/toggle";
+constexpr KStringView s_sNodesDeleteRoute      = "/Configure/nodes/delete";
+constexpr KStringView s_sNodesResetPwRoute     = "/Configure/nodes/resetpass";
+constexpr KStringView s_sTunnelsRoute          = "/Configure/tunnels";
+constexpr KStringView s_sTunnelsAddRoute       = "/Configure/tunnels/add";
+constexpr KStringView s_sTunnelsToggleRoute    = "/Configure/tunnels/toggle";
+constexpr KStringView s_sTunnelsDeleteRoute    = "/Configure/tunnels/delete";
+constexpr KStringView s_sTunnelsEditRoute      = "/Configure/tunnels/edit";
+constexpr KStringView s_sTunnelsUpdateRoute    = "/Configure/tunnels/update";
+constexpr KStringView s_sEventsRoute           = "/Configure/events";
+constexpr KStringView s_sPeersRoute            = "/Configure/peers";
+constexpr KStringView s_sPeerReplRoute         = "/Configure/peers/repl";
+constexpr KStringView s_sPeerReplWsRoute       = "/Configure/peers/repl/ws";
 
 // Matching user-visible URLs used for form actions and redirects.
-constexpr KStringView s_sUsersAddURL        = "/Configure/users/add";
-constexpr KStringView s_sUsersDeleteURL     = "/Configure/users/delete";
-constexpr KStringView s_sUsersChangePwURL   = "/Configure/users/changepass";
-constexpr KStringView s_sTunnelsAddURL      = "/Configure/tunnels/add";
-constexpr KStringView s_sTunnelsToggleURL   = "/Configure/tunnels/toggle";
-constexpr KStringView s_sTunnelsDeleteURL   = "/Configure/tunnels/delete";
-constexpr KStringView s_sTunnelsEditURL     = "/Configure/tunnels/edit";
-constexpr KStringView s_sTunnelsUpdateURL   = "/Configure/tunnels/update";
+constexpr KStringView s_sAdminsAddURL          = "/Configure/admins/add";
+constexpr KStringView s_sAdminsDeleteURL       = "/Configure/admins/delete";
+constexpr KStringView s_sAdminsChangePwURL     = "/Configure/admins/changepass";
+constexpr KStringView s_sNodesAddURL           = "/Configure/nodes/add";
+constexpr KStringView s_sNodesToggleURL        = "/Configure/nodes/toggle";
+constexpr KStringView s_sNodesDeleteURL        = "/Configure/nodes/delete";
+constexpr KStringView s_sNodesResetPwURL       = "/Configure/nodes/resetpass";
+constexpr KStringView s_sTunnelsAddURL         = "/Configure/tunnels/add";
+constexpr KStringView s_sTunnelsToggleURL      = "/Configure/tunnels/toggle";
+constexpr KStringView s_sTunnelsDeleteURL      = "/Configure/tunnels/delete";
+constexpr KStringView s_sTunnelsEditURL        = "/Configure/tunnels/edit";
+constexpr KStringView s_sTunnelsUpdateURL      = "/Configure/tunnels/update";
 
 // --------------------------------------------------------------------------
 // Small pure-functional helpers used by the dashboard rendering.
@@ -315,16 +325,28 @@ KString FormatDuration (KDuration dur)
 /// Map an event kind to a pill-style CSS class for quick visual grep.
 KStringView PillForEventKind (KStringView sKind)
 {
-	if (sKind == "login_ok")          return "ok";
-	if (sKind == "login_fail"
-	 || sKind == "handshake_fail"
-	 || sKind == "tunnel_error")      return "fail";
-	if (sKind == "tunnel_connect"
+	if (sKind == "admin_login_ok"
+	 || sKind == "node_login_ok"
+	 || sKind == "tunnel_connect"
 	 || sKind == "tunnel_start")      return "ok";
+	if (sKind == "admin_login_fail"
+	 || sKind == "node_login_fail"
+	 || sKind == "handshake_fail"
+	 || sKind == "tunnel_error"
+	 || sKind == "auth_reject")       return "fail";
 	if (sKind == "tunnel_disconnect"
-	 || sKind == "tunnel_stop")       return "neutral";
+	 || sKind == "tunnel_stop"
+	 || sKind == "node_disable"
+	 || sKind == "admin_del"
+	 || sKind == "node_del")          return "neutral";
 	if (sKind == "bootstrap"
-	 || sKind == "config_change")     return "info";
+	 || sKind == "config_change"
+	 || sKind == "admin_add"
+	 || sKind == "admin_password_change"
+	 || sKind == "node_add"
+	 || sKind == "node_enable"
+	 || sKind == "node_password_change")
+	                                  return "info";
 	return "neutral";
 }
 
@@ -359,12 +381,12 @@ AdminUI::AdminUI (ExposedServer& Server)
 	m_Session = std::make_unique<KSession>(std::make_unique<KSessionMemoryStore>(),
 	                                       std::move(SessionCfg));
 
-	// Authenticator closure: validate (user, password) against the
-	// persistent store. Unknown users trigger a dummy bcrypt compare
-	// so that an attacker cannot time-oracle which usernames exist.
+	// Authenticator closure: validate (admin-username, password) against
+	// the `admins` table. Unknown logins trigger a dummy bcrypt compare
+	// so that an attacker cannot time-oracle which admin names exist.
 	m_Session->SetAuthenticator([this](KStringView sUser, KStringView sPass)
 	{
-		// bcrypt("<never-used>", cost 4) — matches VerifyTunnelLogin()
+		// bcrypt("<never-used>", cost 4) — matches VerifyNodeLogin()
 		static constexpr KStringViewZ s_sDummyHash =
 			"$2a$04$abcdefghijklmnopqrstuuSQgFuZgk5ErgR6KPK8e6QlYxwZpzIbG";
 
@@ -375,34 +397,34 @@ AdminUI::AdminUI (ExposedServer& Server)
 		auto& Store  = m_Server.GetStore();
 		auto& BCrypt = m_Server.GetBCrypt();
 
-		auto oUser = Store.GetUser(sUser);
+		auto oAdmin = Store.GetAdmin(sUser);
 
-		if (!oUser)
+		if (!oAdmin)
 		{
 			(void) BCrypt.ValidatePassword(sPassword, s_sDummyHash);
 			KTunnelStore::Event ev;
-			ev.sKind     = "login_fail";
-			ev.sUsername = KString(sUser);
-			ev.sDetail   = "admin UI: unknown user";
+			ev.sKind   = "admin_login_fail";
+			ev.sAdmin  = sUser;
+			ev.sDetail = "admin UI: unknown admin";
 			Store.LogEvent(ev);
 			return false;
 		}
 
-		if (!BCrypt.ValidatePassword(sPassword, oUser->sPasswordHash))
+		if (!BCrypt.ValidatePassword(sPassword, oAdmin->sPasswordHash))
 		{
 			KTunnelStore::Event ev;
-			ev.sKind     = "login_fail";
-			ev.sUsername = KString(sUser);
-			ev.sDetail   = "admin UI: bad password";
+			ev.sKind   = "admin_login_fail";
+			ev.sAdmin  = sUser;
+			ev.sDetail = "admin UI: bad password";
 			Store.LogEvent(ev);
 			return false;
 		}
 
-		Store.SetLastLogin(sUser, KUnixTime::now());
+		Store.SetAdminLastLogin(sUser, KUnixTime::now());
 		KTunnelStore::Event ev;
-		ev.sKind     = "login_ok";
-		ev.sUsername = KString(sUser);
-		ev.sDetail   = "admin UI";
+		ev.sKind   = "admin_login_ok";
+		ev.sAdmin  = sUser;
+		ev.sDetail = "admin UI";
 		Store.LogEvent(ev);
 
 		return true;
@@ -536,52 +558,43 @@ void AdminUI::HandleLogout (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 void AdminUI::RenderTopBar (html::Page& Page,
                             KStringView sActive,
-                            KStringView sUser,
-                            bool        bIsAdmin) const
+                            KStringView sAdmin) const
 //-----------------------------------------------------------------------------
 {
 	auto& top = Page.Body().Add(html::Div("", html::Classes("top")));
 
 	{
 		auto& brand = top.Add(html::Div("", html::Classes("brand")));
-		brand.AddText(kFormat("ktunnel admin · {}{}",
-		                      sUser,
-		                      bIsAdmin ? "" : " (read-only)"));
+		brand.AddText(kFormat("ktunnel admin · {}", sAdmin));
 	}
 
 	// We build the nav as a single RawText block so we can attach the
 	// "active" class to exactly one entry without juggling Classes()
-	// objects across conditions. Admin-only entries are filtered out
-	// for non-admin users so they can't even see the links.
-	// The `users` entry is always shown, but its label reads "Users"
-	// for admins (who see the full list + add form) and "Profile" for
-	// regular users (who only get the change-password form there).
+	// objects across conditions. The UI is admin-only — every signed-in
+	// user has full access — so all nav entries are always shown.
 	struct NavEntry
 	{
 		KStringView sKey;
 		KStringView sURL;
-		KStringView sAdminLabel;
-		KStringView sUserLabel;   ///< empty => admin-only, hide for non-admins
+		KStringView sLabel;
 	};
 	static constexpr NavEntry s_NavEntries[] = {
-		{ "dashboard", s_sDashboardURL, "Dashboard", "Dashboard" },
-		{ "users",     s_sUsersURL,     "Users",     "Profile"   },
-		{ "tunnels",   s_sTunnelsURL,   "Tunnels",   ""          },
-		{ "peers",     s_sPeersURL,     "Peers",     ""          },
-		{ "events",    s_sEventsURL,    "Events",    ""          },
-		{ "logout",    s_sLogoutURL,    "Logout",    "Logout"    },
+		{ "dashboard", s_sDashboardURL, "Dashboard" },
+		{ "admins",    s_sAdminsURL,    "Admins"    },
+		{ "nodes",     s_sNodesURL,     "Nodes"     },
+		{ "tunnels",   s_sTunnelsURL,   "Tunnels"   },
+		{ "peers",     s_sPeersURL,     "Peers"     },
+		{ "events",    s_sEventsURL,    "Events"    },
+		{ "logout",    s_sLogoutURL,    "Logout"    },
 	};
 
 	KString sNav = "<nav>";
 	for (const auto& e : s_NavEntries)
 	{
-		const KStringView sLabel = bIsAdmin ? e.sAdminLabel : e.sUserLabel;
-		if (sLabel.empty()) continue;   // admin-only entry for a non-admin
-
 		sNav += kFormat("<a href=\"{}\"{}>{}</a>",
 		                KHTMLEntity::EncodeMandatory(e.sURL),
 		                (e.sKey == sActive) ? " class=\"active\"" : "",
-		                KHTMLEntity::EncodeMandatory(sLabel));
+		                KHTMLEntity::EncodeMandatory(e.sLabel));
 	}
 	sNav += "</nav>";
 
@@ -596,19 +609,15 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
 
-	// Non-admin users are tunnel peers: they see only their own activity
-	// here. Admins see the full fleet. We resolve both once up front so
-	// the two sections below can branch consistently.
 	const KString sMe(Sess.GetUser());
-	const bool    bIsAdmin = IsAdmin(Sess);
 
 	// Read optional ?notice=… / ?error=… flash (e.g. from a successful
-	// password change by a non-admin that got redirected here).
+	// password change that got redirected here).
 	const auto& sNotice = HTTP.GetQueryParm("notice");
 	const auto& sError  = HTTP.GetQueryParm("error");
 
 	auto Page = MakePage("ktunnel — Dashboard");
-	RenderTopBar(Page, "dashboard", sMe, bIsAdmin);
+	RenderTopBar(Page, "dashboard", sMe);
 
 	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
 
@@ -627,28 +636,14 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 	{
 		auto Tunnels = m_Server.SnapshotActiveTunnels();
 
-		// Non-admins only ever see peer sessions whose login user
-		// matches their own identity (typically at most one row).
-		if (!bIsAdmin)
-		{
-			Tunnels.erase(
-				std::remove_if(Tunnels.begin(), Tunnels.end(),
-					[&sMe](const auto& at) { return at.sUser != sMe; }),
-				Tunnels.end());
-		}
-
 		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, bIsAdmin
-			? kFormat("Active tunnels ({})", Tunnels.size())
-			: KString("Your active session")));
+		sec.Add(html::Heading(2, kFormat("Active tunnels ({})", Tunnels.size())));
 
 		if (Tunnels.empty())
 		{
 			auto& p = sec.Add(html::Paragraph());
 			p.SetAttribute("class", "muted");
-			p.AddText(bIsAdmin
-				? "No tunnel peers are currently connected."
-				: "Your ktunnel peer is not currently connected.");
+			p.AddText("No tunnel peers are currently connected.");
 		}
 		else
 		{
@@ -656,7 +651,7 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 
 			KString sTable;
 			sTable += "<table class=\"grid\"><thead><tr>"
-			         "<th>User</th><th>Remote</th><th>Connected</th>"
+			         "<th>Node</th><th>Remote</th><th>Connected</th>"
 			         "<th class=\"num\">Conns</th>"
 			         "<th class=\"num\">RX</th>"
 			         "<th class=\"num\">TX</th>"
@@ -674,7 +669,7 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 					"<td class=\"num\">{}</td>"
 					"<td class=\"num\">{}</td>"
 					"<td class=\"num\">{}</td></tr>",
-					KHTMLEntity::EncodeMandatory(at.sUser),
+					KHTMLEntity::EncodeMandatory(at.sNode),
 					KHTMLEntity::EncodeMandatory(at.EndpointAddr.Serialize()),
 					KHTMLEntity::EncodeMandatory(sDur),
 					iConn,
@@ -691,30 +686,22 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 	{
 		static constexpr std::size_t kEventLimit = 10;
 
-		// Admins get the global feed; non-admins get only events
-		// concerning their own identity or the tunnels they own.
-		auto Events = bIsAdmin
-			? m_Server.GetStore().GetRecentEvents(kEventLimit)
-			: m_Server.GetStore().GetRecentEventsForOwner(sMe, kEventLimit);
+		auto Events = m_Server.GetStore().GetRecentEvents(kEventLimit);
 
 		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, bIsAdmin
-			? kFormat("Recent events (last {})", kEventLimit)
-			: KString("Your recent activity")));
+		sec.Add(html::Heading(2, kFormat("Recent events (last {})", kEventLimit)));
 
 		if (Events.empty())
 		{
 			auto& p = sec.Add(html::Paragraph());
 			p.SetAttribute("class", "muted");
-			p.AddText(bIsAdmin
-				? "No events logged yet."
-				: "No activity logged for your account yet.");
+			p.AddText("No events logged yet.");
 		}
 		else
 		{
 			KString sTable;
 			sTable += "<table class=\"grid\"><thead><tr>"
-			         "<th>Time</th><th>Kind</th><th>User</th>"
+			         "<th>Time</th><th>Kind</th><th>Admin</th><th>Node</th>"
 			         "<th>Tunnel</th><th>Remote</th><th>Detail</th>"
 			         "</tr></thead><tbody>";
 
@@ -723,11 +710,12 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 				sTable += kFormat(
 					"<tr><td>{} UTC</td>"
 					"<td><span class=\"pill {}\">{}</span></td>"
-					"<td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+					"<td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
 					e.tTimestamp.to_string(),
 					KHTMLEntity::EncodeMandatory(PillForEventKind(e.sKind)),
 					KHTMLEntity::EncodeMandatory(e.sKind),
-					KHTMLEntity::EncodeMandatory(e.sUsername),
+					KHTMLEntity::EncodeMandatory(e.sAdmin),
+					KHTMLEntity::EncodeMandatory(e.sNode),
 					KHTMLEntity::EncodeMandatory(e.sTunnelName),
 					KHTMLEntity::EncodeMandatory(e.sRemoteIP),
 					KHTMLEntity::EncodeMandatory(e.sDetail));
@@ -736,17 +724,11 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 			sTable += "</tbody></table>";
 			sec.Add(html::RawText(sTable));
 
-			// The full-history link below goes to the admin-only
-			// /Configure/events page — hide it from non-admins so we
-			// don't advertise a door that will just slam shut.
-			if (bIsAdmin)
-			{
-				auto& p = sec.Add(html::Paragraph());
-				p.SetAttribute("class", "muted");
-				p.AddText("Full history browsable under ");
-				p.Add(html::Link(s_sEventsURL, "Events"));
-				p.AddText(".");
-			}
+			auto& p = sec.Add(html::Paragraph());
+			p.SetAttribute("class", "muted");
+			p.AddText("Full history browsable under ");
+			p.Add(html::Link(s_sEventsURL, "Events"));
+			p.AddText(".");
 		}
 	}
 
@@ -765,7 +747,7 @@ void AdminUI::ShowStubPage (KRESTServer& HTTP,
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
 
 	auto Page = MakePage(kFormat("ktunnel — {}", sTitle));
-	RenderTopBar(Page, sSection, Sess.GetUser(), IsAdmin(Sess));
+	RenderTopBar(Page, sSection, Sess.GetUser());
 
 	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
 	auto& ph = main.Add(html::Div("", html::Classes("placeholder")));
@@ -811,61 +793,22 @@ void AdminUI::RedirectWithFlash (KRESTServer& HTTP,
 } // RedirectWithFlash
 
 //-----------------------------------------------------------------------------
-bool AdminUI::IsAdmin (KRESTSession& Sess)
-//-----------------------------------------------------------------------------
-{
-	auto oMe = m_Server.GetStore().GetUser(Sess.GetUser());
-	return oMe && oMe->bIsAdmin;
-
-} // IsAdmin
-
-//-----------------------------------------------------------------------------
-bool AdminUI::RequireAdminOrRedirect (KRESTServer& HTTP, KRESTSession& Sess)
-//-----------------------------------------------------------------------------
-{
-	if (IsAdmin(Sess)) return true;
-
-	// Audit the rejection so a failed privilege-escalation attempt is
-	// not invisible to the operator. Kept under a distinct kind so the
-	// Events page can filter on it.
-	KTunnelStore::Event ev;
-	ev.sKind     = "auth_reject";
-	ev.sUsername = KString(Sess.GetUser());
-	ev.sRemoteIP = HTTP.GetRemoteIP();
-	ev.sDetail   = kFormat("admin UI: non-admin accessed {}",
-	                       HTTP.Request.Resource.Path);
-	m_Server.GetStore().LogEvent(ev);
-
-	RedirectWithFlash(HTTP, s_sDashboardURL, "",
-	                  "Administrator privileges required for this page.");
-	return false;
-
-} // RequireAdminOrRedirect
-
-//-----------------------------------------------------------------------------
-void AdminUI::ShowUsers (KRESTServer& HTTP)
+void AdminUI::ShowAdmins (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
 
-	// NOTE: this page is NOT admin-gated at the route level. The
-	// change-password form at the bottom is a "profile" affordance
-	// that every authenticated user needs. The Users list + Add form
-	// at the top are, however, admin-only and get skipped for regular
-	// users further down.
 	const KString sMe(Sess.GetUser());
-	const bool    bIsAdmin = IsAdmin(Sess);
 
 	// Read optional ?notice=… / ?error=… flash from the query string.
 	const auto& sNotice = HTTP.GetQueryParm("notice");
 	const auto& sError  = HTTP.GetQueryParm("error");
 
-	auto Users = bIsAdmin ? m_Server.GetStore().GetAllUsers()
-	                      : std::vector<KTunnelStore::User>{};
+	auto Admins = m_Server.GetStore().GetAllAdmins();
 
-	auto Page = MakePage(bIsAdmin ? "ktunnel — Users" : "ktunnel — Profile");
-	RenderTopBar(Page, "users", sMe, bIsAdmin);
+	auto Page = MakePage("ktunnel — Admins");
+	RenderTopBar(Page, "admins", sMe);
 
 	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
 
@@ -881,22 +824,21 @@ void AdminUI::ShowUsers (KRESTServer& HTTP)
 		f.AddText(sError);
 	}
 
-	// --- Section 1: user list (admin-only) ----------------------------
-	if (bIsAdmin)
+	// --- Section 1: admin list ----------------------------------------
 	{
 		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, kFormat("Users ({})", Users.size())));
+		sec.Add(html::Heading(2, kFormat("Admins ({})", Admins.size())));
 
 		KString sTable;
 		sTable += "<table class=\"grid\"><thead><tr>"
-		          "<th>Username</th><th>Admin</th><th>Last login</th>"
+		          "<th>Username</th><th>Last login</th>"
 		          "<th>Created</th><th></th>"
 		          "</tr></thead><tbody>";
 
-		for (const auto& u : Users)
+		for (const auto& a : Admins)
 		{
 			KString sActions;
-			if (u.sUsername == sMe)
+			if (a.sUsername == sMe)
 			{
 				sActions = "<span class=\"pill neutral\">You</span>";
 			}
@@ -904,27 +846,24 @@ void AdminUI::ShowUsers (KRESTServer& HTTP)
 			{
 				sActions = kFormat(
 					"<form method=\"post\" action=\"{}\" class=\"inline-form\" "
-					"onsubmit=\"return confirm('Delete user {}?');\">"
+					"onsubmit=\"return confirm('Delete admin {}?');\">"
 					"<input type=\"hidden\" name=\"username\" value=\"{}\">"
 					"<button type=\"submit\" class=\"btn danger small\">Delete</button>"
 					"</form>",
-					KHTMLEntity::EncodeMandatory(s_sUsersDeleteURL),
-					KHTMLEntity::EncodeMandatory(u.sUsername),
-					KHTMLEntity::EncodeMandatory(u.sUsername));
+					KHTMLEntity::EncodeMandatory(s_sAdminsDeleteURL),
+					KHTMLEntity::EncodeMandatory(a.sUsername),
+					KHTMLEntity::EncodeMandatory(a.sUsername));
 			}
 
 			sTable += kFormat(
 				"<tr><td>{}</td>"
-				"<td><span class=\"pill {}\">{}</span></td>"
 				"<td>{}</td><td>{}</td><td>{}</td></tr>",
-				KHTMLEntity::EncodeMandatory(u.sUsername),
-				u.bIsAdmin ? "info" : "neutral",
-				u.bIsAdmin ? "admin" : "user",
-				u.tLastLogin.to_time_t() > 0
-					? kFormat("{} UTC", u.tLastLogin.to_string())
+				KHTMLEntity::EncodeMandatory(a.sUsername),
+				a.tLastLogin.to_time_t() > 0
+					? kFormat("{} UTC", a.tLastLogin.to_string())
 					: KString("—"),
-				u.tCreated.to_time_t() > 0
-					? kFormat("{} UTC", u.tCreated.to_string())
+				a.tCreated.to_time_t() > 0
+					? kFormat("{} UTC", a.tCreated.to_string())
 					: KString("—"),
 				sActions);
 		}
@@ -933,11 +872,10 @@ void AdminUI::ShowUsers (KRESTServer& HTTP)
 		sec.Add(html::RawText(sTable));
 	}
 
-	// --- Section 2: add user form (admin-only) ------------------------
-	if (bIsAdmin)
+	// --- Section 2: add admin form ------------------------------------
 	{
 		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, "Add user"));
+		sec.Add(html::Heading(2, "Add admin"));
 
 		KString sForm = kFormat(
 			"<form method=\"post\" action=\"{}\">"
@@ -946,12 +884,9 @@ void AdminUI::ShowUsers (KRESTServer& HTTP)
 			"<input type=\"text\" name=\"username\" required autocomplete=\"off\"></div>"
 			"<div class=\"field\"><label>Password</label>"
 			"<input type=\"password\" name=\"password\" required autocomplete=\"new-password\"></div>"
-			"<div class=\"field\"><label class=\"checkbox\">"
-			"<input type=\"checkbox\" name=\"is_admin\" value=\"1\">"
-			"<span>Admin</span></label></div>"
 			"<button type=\"submit\" class=\"btn\">Add</button>"
 			"</div></form>",
-			KHTMLEntity::EncodeMandatory(s_sUsersAddURL));
+			KHTMLEntity::EncodeMandatory(s_sAdminsAddURL));
 		sec.Add(html::RawText(sForm));
 	}
 
@@ -971,121 +906,116 @@ void AdminUI::ShowUsers (KRESTServer& HTTP)
 			"<input type=\"password\" name=\"confirm_password\" required autocomplete=\"new-password\"></div>"
 			"<button type=\"submit\" class=\"btn\">Change</button>"
 			"</div></form>",
-			KHTMLEntity::EncodeMandatory(s_sUsersChangePwURL));
+			KHTMLEntity::EncodeMandatory(s_sAdminsChangePwURL));
 		sec.Add(html::RawText(sForm));
 	}
 
 	RenderPage(HTTP, Page);
 
-} // ShowUsers
+} // ShowAdmins
 
 //-----------------------------------------------------------------------------
-void AdminUI::HandleUsersAdd (KRESTServer& HTTP)
+void AdminUI::HandleAdminsAdd (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString sMe(Sess.GetUser());
 
 	// Form body was parsed because the route is registered with WWWFORM.
-	// We use the same accessor style as the login handler.
 	const auto& sUsername = HTTP.GetQueryParm("username");
 	const auto& sPassword = HTTP.GetQueryParm("password");
-	const auto& sIsAdmin  = HTTP.GetQueryParm("is_admin");
 
 	if (sUsername.empty() || sPassword.empty())
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", "Username and password must not be empty.");
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", "Username and password must not be empty.");
 		return;
 	}
 
 	auto& Store  = m_Server.GetStore();
 	auto& BCrypt = m_Server.GetBCrypt();
 
-	if (Store.GetUser(sUsername))
+	if (Store.GetAdmin(sUsername))
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", kFormat("User '{}' already exists.", sUsername));
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", kFormat("Admin '{}' already exists.", sUsername));
 		return;
 	}
 
 	auto sHash = BCrypt.GenerateHash(KStringViewZ(sPassword));
 	if (sHash.empty())
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", "Failed to hash password.");
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", "Failed to hash password.");
 		return;
 	}
 
-	KTunnelStore::User u;
-	u.sUsername     = sUsername;
-	u.sPasswordHash = sHash;
-	u.bIsAdmin      = !sIsAdmin.empty();
+	KTunnelStore::Admin a;
+	a.sUsername     = sUsername;
+	a.sPasswordHash = sHash;
 
-	if (!Store.AddUser(u))
+	if (!Store.AddAdmin(a))
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "",  kFormat("Cannot add user: {}", Store.GetLastError()));
+		RedirectWithFlash(HTTP, s_sAdminsURL, "",  kFormat("Cannot add admin: {}", Store.GetLastError()));
 		return;
 	}
 
 	KTunnelStore::Event ev;
-	ev.sKind     = "user_add";
-	ev.sUsername = sMe;
-	ev.sDetail   = kFormat("added user '{}'{}", sUsername, u.bIsAdmin ? " (admin)" : "");
+	ev.sKind   = "admin_add";
+	ev.sAdmin  = sMe;
+	ev.sDetail = kFormat("added admin '{}'", sUsername);
 	Store.LogEvent(ev);
 
-	RedirectWithFlash(HTTP, s_sUsersURL, kFormat("User '{}' added.", sUsername), "");
+	RedirectWithFlash(HTTP, s_sAdminsURL, kFormat("Admin '{}' added.", sUsername), "");
 
-} // HandleUsersAdd
+} // HandleAdminsAdd
 
 //-----------------------------------------------------------------------------
-void AdminUI::HandleUsersDelete (KRESTServer& HTTP)
+void AdminUI::HandleAdminsDelete (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString sMe(Sess.GetUser());
 	const auto& sUsername = HTTP.GetQueryParm("username");
 
 	if (sUsername.empty())
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", "No username provided.");
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", "No username provided.");
 		return;
 	}
 	if (sUsername == sMe)
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", "You cannot delete the account you are logged in with.");
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", "You cannot delete the account you are logged in with.");
 		return;
 	}
 
 	auto& Store = m_Server.GetStore();
 
-	if (!Store.GetUser(sUsername))
+	if (!Store.GetAdmin(sUsername))
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", kFormat("User '{}' does not exist.", sUsername));
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", kFormat("Admin '{}' does not exist.", sUsername));
 		return;
 	}
 
-	if (!Store.DeleteUser(sUsername))
+	if (!Store.DeleteAdmin(sUsername))
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", kFormat("Cannot delete user: {}", Store.GetLastError()));
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", kFormat("Cannot delete admin: {}", Store.GetLastError()));
 		return;
 	}
 
 	KTunnelStore::Event ev;
-	ev.sKind     = "user_delete";
-	ev.sUsername = sMe;
-	ev.sDetail   = kFormat("deleted user '{}'", sUsername);
+	ev.sKind   = "admin_del";
+	ev.sAdmin  = sMe;
+	ev.sDetail = kFormat("deleted admin '{}'", sUsername);
 	Store.LogEvent(ev);
 
-	RedirectWithFlash(HTTP, s_sUsersURL, kFormat("User '{}' deleted.", sUsername), "");
+	RedirectWithFlash(HTTP, s_sAdminsURL, kFormat("Admin '{}' deleted.", sUsername), "");
 
-} // HandleUsersDelete
+} // HandleAdminsDelete
 
 //-----------------------------------------------------------------------------
-void AdminUI::HandleUsersChangePass (KRESTServer& HTTP)
+void AdminUI::HandleAdminsChangePass (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	KRESTSession Sess(*m_Session, HTTP);
@@ -1099,28 +1029,28 @@ void AdminUI::HandleUsersChangePass (KRESTServer& HTTP)
 
 	if (sCurrent.empty() || sNew.empty() || sConfirm.empty())
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", "All three password fields are required.");
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", "All three password fields are required.");
 		return;
 	}
 	if (sNew != sConfirm)
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", "New password and confirmation do not match.");
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", "New password and confirmation do not match.");
 		return;
 	}
 	if (sNew.size() < 6)
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", "New password must be at least 6 characters long.");
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", "New password must be at least 6 characters long.");
 		return;
 	}
 
 	auto& Store  = m_Server.GetStore();
 	auto& BCrypt = m_Server.GetBCrypt();
 
-	auto oMe = Store.GetUser(sMe);
+	auto oMe = Store.GetAdmin(sMe);
 	if (!oMe)
 	{
-		// The session references a user that no longer exists — force a
-		// fresh login so the user ends up in a consistent state.
+		// The session references an admin that no longer exists — force
+		// a fresh login so the operator ends up in a consistent state.
 		Sess.Logout();
 		RedirectWithFlash(HTTP, s_sLoginURL, "", "Your account was removed. Please log in again.");
 		return;
@@ -1129,40 +1059,394 @@ void AdminUI::HandleUsersChangePass (KRESTServer& HTTP)
 	if (!BCrypt.ValidatePassword(KStringViewZ(sCurrent), oMe->sPasswordHash))
 	{
 		KTunnelStore::Event ev;
-		ev.sKind     = "passwd_fail";
-		ev.sUsername = sMe;
-		ev.sDetail   = "current password did not verify";
+		ev.sKind   = "admin_password_fail";
+		ev.sAdmin  = sMe;
+		ev.sDetail = "current password did not verify";
 		Store.LogEvent(ev);
 
-		RedirectWithFlash(HTTP, s_sUsersURL, "", "Current password is incorrect.");
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", "Current password is incorrect.");
 		return;
 	}
 
 	auto sHash = BCrypt.GenerateHash(KStringViewZ(sNew));
 	if (sHash.empty())
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", "Failed to hash new password.");
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", "Failed to hash new password.");
 		return;
 	}
 
-	if (!Store.UpdateUserPasswordHash(sMe, sHash))
+	if (!Store.UpdateAdminPasswordHash(sMe, sHash))
 	{
-		RedirectWithFlash(HTTP, s_sUsersURL, "", kFormat("Cannot update password: {}", Store.GetLastError()));
+		RedirectWithFlash(HTTP, s_sAdminsURL, "", kFormat("Cannot update password: {}", Store.GetLastError()));
 		return;
 	}
 
 	KTunnelStore::Event ev;
-	ev.sKind     = "passwd_change";
-	ev.sUsername = sMe;
-	ev.sDetail   = "admin UI";
+	ev.sKind   = "admin_password_change";
+	ev.sAdmin  = sMe;
+	ev.sDetail = "admin UI";
 	Store.LogEvent(ev);
 
-	// Admins go back to the Users page (where they came from); regular
-	// users don't have access there, so we send them to the dashboard.
-	const KStringView sTarget = IsAdmin(Sess) ? s_sUsersURL : s_sDashboardURL;
-	RedirectWithFlash(HTTP, sTarget, "Password changed.", "");
+	RedirectWithFlash(HTTP, s_sAdminsURL, "Password changed.", "");
 
-} // HandleUsersChangePass
+} // HandleAdminsChangePass
+
+// =========================================================================
+// Nodes (tunnel-endpoint accounts)
+// =========================================================================
+
+//-----------------------------------------------------------------------------
+void AdminUI::ShowNodes (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+
+	const auto& sNotice = HTTP.GetQueryParm("notice");
+	const auto& sError  = HTTP.GetQueryParm("error");
+
+	auto Nodes = m_Server.GetStore().GetAllNodes();
+
+	auto Page = MakePage("ktunnel — Nodes");
+	RenderTopBar(Page, "nodes", sMe);
+
+	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+
+	if (!sNotice.empty())
+	{
+		auto& f = main.Add(html::Div("", html::Classes("flash ok")));
+		f.AddText(sNotice);
+	}
+	else if (!sError.empty())
+	{
+		auto& f = main.Add(html::Div("", html::Classes("flash err")));
+		f.AddText(sError);
+	}
+
+	// --- Section 1: node list -----------------------------------------
+	{
+		auto& sec = main.Add(html::Div("", html::Classes("section")));
+		sec.Add(html::Heading(2, kFormat("Nodes ({})", Nodes.size())));
+
+		if (Nodes.empty())
+		{
+			auto& p = sec.Add(html::Paragraph());
+			p.SetAttribute("class", "muted");
+			p.AddText("No tunnel-endpoint accounts configured yet. "
+			          "Use the form below to add one.");
+		}
+		else
+		{
+			KString sTable;
+			sTable += "<table class=\"grid\"><thead><tr>"
+			          "<th>Name</th><th>Enabled</th><th>Last login</th>"
+			          "<th>Created</th><th></th>"
+			          "</tr></thead><tbody>";
+
+			for (const auto& n : Nodes)
+			{
+				KString sActions = kFormat(
+					"<form method=\"post\" action=\"{}\" class=\"inline-form\">"
+					"<input type=\"hidden\" name=\"name\" value=\"{}\">"
+					"<input type=\"hidden\" name=\"enable\" value=\"{}\">"
+					"<button type=\"submit\" class=\"btn small\">{}</button>"
+					"</form> "
+					"<form method=\"post\" action=\"{}\" class=\"inline-form\" "
+					"onsubmit=\"return confirm('Delete node {}?');\">"
+					"<input type=\"hidden\" name=\"name\" value=\"{}\">"
+					"<button type=\"submit\" class=\"btn danger small\">Delete</button>"
+					"</form>",
+					KHTMLEntity::EncodeMandatory(s_sNodesToggleURL),
+					KHTMLEntity::EncodeMandatory(n.sName),
+					n.bEnabled ? "0" : "1",
+					n.bEnabled ? "Disable" : "Enable",
+					KHTMLEntity::EncodeMandatory(s_sNodesDeleteURL),
+					KHTMLEntity::EncodeMandatory(n.sName),
+					KHTMLEntity::EncodeMandatory(n.sName));
+
+				sTable += kFormat(
+					"<tr><td>{}</td>"
+					"<td><span class=\"pill {}\">{}</span></td>"
+					"<td>{}</td><td>{}</td><td>{}</td></tr>",
+					KHTMLEntity::EncodeMandatory(n.sName),
+					n.bEnabled ? "ok"      : "neutral",
+					n.bEnabled ? "enabled" : "disabled",
+					n.tLastLogin.to_time_t() > 0
+						? kFormat("{} UTC", n.tLastLogin.to_string())
+						: KString("—"),
+					n.tCreated.to_time_t() > 0
+						? kFormat("{} UTC", n.tCreated.to_string())
+						: KString("—"),
+					sActions);
+			}
+
+			sTable += "</tbody></table>";
+			sec.Add(html::RawText(sTable));
+		}
+	}
+
+	// --- Section 2: add node ------------------------------------------
+	{
+		auto& sec = main.Add(html::Div("", html::Classes("section")));
+		sec.Add(html::Heading(2, "Add node"));
+
+		KString sForm = kFormat(
+			"<form method=\"post\" action=\"{}\">"
+			"<div class=\"row\">"
+			"<div class=\"field\"><label>Name</label>"
+			"<input type=\"text\" name=\"name\" required autocomplete=\"off\"></div>"
+			"<div class=\"field\"><label>Password</label>"
+			"<input type=\"password\" name=\"password\" required autocomplete=\"new-password\"></div>"
+			"<div class=\"field\"><label class=\"checkbox\">"
+			"<input type=\"checkbox\" name=\"enabled\" value=\"1\" checked>"
+			"<span>Enabled</span></label></div>"
+			"<button type=\"submit\" class=\"btn\">Add</button>"
+			"</div></form>",
+			KHTMLEntity::EncodeMandatory(s_sNodesAddURL));
+		sec.Add(html::RawText(sForm));
+	}
+
+	// --- Section 3: reset node password -------------------------------
+	{
+		auto& sec = main.Add(html::Div("", html::Classes("section")));
+		sec.Add(html::Heading(2, "Reset node password"));
+
+		KString sNodeOptions;
+		for (const auto& n : Nodes)
+		{
+			sNodeOptions += kFormat(
+				"<option value=\"{}\">{}{}</option>",
+				KHTMLEntity::EncodeMandatory(n.sName),
+				KHTMLEntity::EncodeMandatory(n.sName),
+				n.bEnabled ? "" : " (disabled)");
+		}
+
+		KString sForm = kFormat(
+			"<form method=\"post\" action=\"{}\">"
+			"<div class=\"row\">"
+			"<div class=\"field\"><label>Node</label>"
+			"<select name=\"name\" required>{}</select></div>"
+			"<div class=\"field\"><label>New password</label>"
+			"<input type=\"password\" name=\"new_password\" required autocomplete=\"new-password\"></div>"
+			"<div class=\"field\"><label>Confirm new password</label>"
+			"<input type=\"password\" name=\"confirm_password\" required autocomplete=\"new-password\"></div>"
+			"<button type=\"submit\" class=\"btn\">Reset</button>"
+			"</div></form>",
+			KHTMLEntity::EncodeMandatory(s_sNodesResetPwURL),
+			sNodeOptions);
+		sec.Add(html::RawText(sForm));
+	}
+
+	RenderPage(HTTP, Page);
+
+} // ShowNodes
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleNodesAdd (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+
+	const auto& sName     = HTTP.GetQueryParm("name");
+	const auto& sPassword = HTTP.GetQueryParm("password");
+	const auto& sEnabled  = HTTP.GetQueryParm("enabled");
+
+	if (sName.empty() || sPassword.empty())
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", "Name and password must not be empty.");
+		return;
+	}
+
+	auto& Store  = m_Server.GetStore();
+	auto& BCrypt = m_Server.GetBCrypt();
+
+	if (Store.GetNode(sName))
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", kFormat("Node '{}' already exists.", sName));
+		return;
+	}
+
+	auto sHash = BCrypt.GenerateHash(KStringViewZ(sPassword));
+	if (sHash.empty())
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", "Failed to hash password.");
+		return;
+	}
+
+	KTunnelStore::Node n;
+	n.sName         = sName;
+	n.sPasswordHash = sHash;
+	n.bEnabled      = !sEnabled.empty();
+
+	if (!Store.AddNode(n))
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", kFormat("Cannot add node: {}", Store.GetLastError()));
+		return;
+	}
+
+	KTunnelStore::Event ev;
+	ev.sKind   = "node_add";
+	ev.sAdmin  = sMe;
+	ev.sNode   = n.sName;
+	ev.sDetail = kFormat("added node '{}'{}", n.sName, n.bEnabled ? "" : " (disabled)");
+	Store.LogEvent(ev);
+
+	RedirectWithFlash(HTTP, s_sNodesURL, kFormat("Node '{}' added.", n.sName), "");
+
+} // HandleNodesAdd
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleNodesToggle (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sName   = HTTP.GetQueryParm("name");
+	const auto&   sEnable = HTTP.GetQueryParm("enable");
+
+	if (sName.empty())
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", "No node name provided.");
+		return;
+	}
+
+	const bool bEnable = (sEnable == "1");
+
+	auto& Store = m_Server.GetStore();
+	if (!Store.GetNode(sName))
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", kFormat("Node '{}' does not exist.", sName));
+		return;
+	}
+
+	if (!Store.SetNodeEnabled(sName, bEnable))
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", kFormat("Cannot update node: {}", Store.GetLastError()));
+		return;
+	}
+
+	KTunnelStore::Event ev;
+	ev.sKind   = bEnable ? "node_enable" : "node_disable";
+	ev.sAdmin  = sMe;
+	ev.sNode   = sName;
+	ev.sDetail = bEnable ? "enabled" : "disabled";
+	Store.LogEvent(ev);
+
+	RedirectWithFlash(HTTP, s_sNodesURL,
+	                  kFormat("Node '{}' {}.", sName, bEnable ? "enabled" : "disabled"),
+	                  "");
+
+} // HandleNodesToggle
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleNodesDelete (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sName = HTTP.GetQueryParm("name");
+
+	if (sName.empty())
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", "No node name provided.");
+		return;
+	}
+
+	auto& Store = m_Server.GetStore();
+	if (!Store.GetNode(sName))
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", kFormat("Node '{}' does not exist.", sName));
+		return;
+	}
+
+	if (!Store.DeleteNode(sName))
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", kFormat("Cannot delete node: {}", Store.GetLastError()));
+		return;
+	}
+
+	KTunnelStore::Event ev;
+	ev.sKind   = "node_del";
+	ev.sAdmin  = sMe;
+	ev.sNode   = sName;
+	ev.sDetail = kFormat("deleted node '{}'", sName);
+	Store.LogEvent(ev);
+
+	RedirectWithFlash(HTTP, s_sNodesURL, kFormat("Node '{}' deleted.", sName), "");
+
+} // HandleNodesDelete
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleNodesResetPass (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+
+	const auto& sName    = HTTP.GetQueryParm("name");
+	const auto& sNew     = HTTP.GetQueryParm("new_password");
+	const auto& sConfirm = HTTP.GetQueryParm("confirm_password");
+
+	if (sName.empty() || sNew.empty() || sConfirm.empty())
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", "All fields are required.");
+		return;
+	}
+	if (sNew != sConfirm)
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", "New password and confirmation do not match.");
+		return;
+	}
+	if (sNew.size() < 6)
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", "New password must be at least 6 characters long.");
+		return;
+	}
+
+	auto& Store  = m_Server.GetStore();
+	auto& BCrypt = m_Server.GetBCrypt();
+
+	if (!Store.GetNode(sName))
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", kFormat("Node '{}' does not exist.", sName));
+		return;
+	}
+
+	auto sHash = BCrypt.GenerateHash(KStringViewZ(sNew));
+	if (sHash.empty())
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", "Failed to hash new password.");
+		return;
+	}
+
+	if (!Store.UpdateNodePasswordHash(sName, sHash))
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "", kFormat("Cannot update password: {}", Store.GetLastError()));
+		return;
+	}
+
+	KTunnelStore::Event ev;
+	ev.sKind   = "node_password_change";
+	ev.sAdmin  = sMe;
+	ev.sNode   = sName;
+	ev.sDetail = "admin UI";
+	Store.LogEvent(ev);
+
+	RedirectWithFlash(HTTP, s_sNodesURL,
+	                  kFormat("Password reset for node '{}'.", sName), "");
+
+} // HandleNodesResetPass
 
 namespace {
 
@@ -1185,7 +1469,6 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString sMe(Sess.GetUser());
 
@@ -1194,7 +1477,7 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 
 	auto& Store       = m_Server.GetStore();
 	auto Tunnels      = Store.GetAllTunnels();
-	auto Users        = Store.GetAllUsers();
+	auto Nodes        = Store.GetAllNodes();
 	auto ListenerMap  = m_Server.SnapshotListenerStates();
 
 	// Rendering helper for the listener-state pill.
@@ -1219,7 +1502,7 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 	};
 
 	auto Page = MakePage("ktunnel — Tunnels");
-	RenderTopBar(Page, "tunnels", sMe, /*bIsAdmin=*/true);
+	RenderTopBar(Page, "tunnels", sMe);
 
 	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
 
@@ -1285,7 +1568,7 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 		{
 			KString sTable;
 			sTable += "<table class=\"grid\"><thead><tr>"
-			          "<th>Name</th><th>Owner</th><th>Forward port</th>"
+			          "<th>Name</th><th>Node</th><th>Forward port</th>"
 			          "<th>Target</th><th>Config</th><th>Runtime</th>"
 			          "<th></th></tr></thead><tbody>";
 
@@ -1340,7 +1623,7 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 					"<td>{}</td>"
 					"<td>{}</td></tr>",
 					KHTMLEntity::EncodeMandatory(t.sName),
-					KHTMLEntity::EncodeMandatory(t.sOwnerUser),
+					KHTMLEntity::EncodeMandatory(t.sNode),
 					t.iListenPort,
 					KHTMLEntity::EncodeMandatory(t.sTargetHost),
 					t.iTargetPort,
@@ -1360,50 +1643,61 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 		auto& sec = main.Add(html::Div("", html::Classes("section")));
 		sec.Add(html::Heading(2, "Add tunnel"));
 
-		// Owner <select> lists all known users. The default option is
-		// the currently-logged-in admin so the form is usable without
-		// further edits on a fresh install.
-		KString sOwnerOptions;
-		for (const auto& u : Users)
+		if (Nodes.empty())
 		{
-			sOwnerOptions += kFormat(
-				"<option value=\"{}\"{}>{}{}</option>",
-				KHTMLEntity::EncodeMandatory(u.sUsername),
-				(u.sUsername == sMe) ? " selected" : "",
-				KHTMLEntity::EncodeMandatory(u.sUsername),
-				u.bIsAdmin ? " (admin)" : "");
+			auto& p = sec.Add(html::Paragraph());
+			p.SetAttribute("class", "muted");
+			p.AddText("No nodes are configured yet — a tunnel must point at "
+			          "an existing node. Add one under ");
+			p.Add(html::Link(s_sNodesURL, "Nodes"));
+			p.AddText(" first.");
 		}
+		else
+		{
+			// Node <select> lists all known nodes. Disabled nodes are
+			// included for convenience (an admin may want to pre-stage a
+			// tunnel for a node that is not yet enabled), with a hint label.
+			KString sNodeOptions;
+			for (const auto& n : Nodes)
+			{
+				sNodeOptions += kFormat(
+					"<option value=\"{}\">{}{}</option>",
+					KHTMLEntity::EncodeMandatory(n.sName),
+					KHTMLEntity::EncodeMandatory(n.sName),
+					n.bEnabled ? "" : " (disabled)");
+			}
 
-		KString sForm = kFormat(
-			"<form method=\"post\" action=\"{}\">"
-			"<div class=\"row\">"
-			"<div class=\"field\"><label>Name</label>"
-			"<input type=\"text\" name=\"name\" required autocomplete=\"off\"></div>"
-			"<div class=\"field\"><label>Owner</label>"
-			"<select name=\"owner\" required>{}</select></div>"
-			"</div>"
-			"<div class=\"row\">"
-			"<div class=\"field\"><label>Forward port</label>"
-			"<input type=\"number\" name=\"listen_port\" min=\"1\" max=\"65535\" required></div>"
-			"<div class=\"field\"><label>Target host</label>"
-			"<input type=\"text\" name=\"target_host\" required></div>"
-			"<div class=\"field\"><label>Target port</label>"
-			"<input type=\"number\" name=\"target_port\" min=\"1\" max=\"65535\" required></div>"
-			"</div>"
-			"<p class=\"muted\" style=\"margin-top:0.25rem;font-size:0.75rem\">"
-			"Forward port binds on all interfaces (0.0.0.0 + [::]). Keep it "
-			"distinct from the admin/control port (-p on the CLI)."
-			"</p>"
-			"<div class=\"row\">"
-			"<div class=\"field\"><label class=\"checkbox\">"
-			"<input type=\"checkbox\" name=\"enabled\" value=\"1\" checked>"
-			"<span>Enabled</span></label></div>"
-			"<button type=\"submit\" class=\"btn\">Add tunnel</button>"
-			"</div></form>",
-			KHTMLEntity::EncodeMandatory(s_sTunnelsAddURL),
-			sOwnerOptions);
+			KString sForm = kFormat(
+				"<form method=\"post\" action=\"{}\">"
+				"<div class=\"row\">"
+				"<div class=\"field\"><label>Name</label>"
+				"<input type=\"text\" name=\"name\" required autocomplete=\"off\"></div>"
+				"<div class=\"field\"><label>Node</label>"
+				"<select name=\"node\" required>{}</select></div>"
+				"</div>"
+				"<div class=\"row\">"
+				"<div class=\"field\"><label>Forward port</label>"
+				"<input type=\"number\" name=\"listen_port\" min=\"1\" max=\"65535\" required></div>"
+				"<div class=\"field\"><label>Target host</label>"
+				"<input type=\"text\" name=\"target_host\" required></div>"
+				"<div class=\"field\"><label>Target port</label>"
+				"<input type=\"number\" name=\"target_port\" min=\"1\" max=\"65535\" required></div>"
+				"</div>"
+				"<p class=\"muted\" style=\"margin-top:0.25rem;font-size:0.75rem\">"
+				"Forward port binds on all interfaces (0.0.0.0 + [::]). Keep it "
+				"distinct from the admin/control port (-p on the CLI)."
+				"</p>"
+				"<div class=\"row\">"
+				"<div class=\"field\"><label class=\"checkbox\">"
+				"<input type=\"checkbox\" name=\"enabled\" value=\"1\" checked>"
+				"<span>Enabled</span></label></div>"
+				"<button type=\"submit\" class=\"btn\">Add tunnel</button>"
+				"</div></form>",
+				KHTMLEntity::EncodeMandatory(s_sTunnelsAddURL),
+				sNodeOptions);
 
-		sec.Add(html::RawText(sForm));
+			sec.Add(html::RawText(sForm));
+		}
 	}
 
 	RenderPage(HTTP, Page);
@@ -1416,21 +1710,20 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString  sMe(Sess.GetUser());
 
 	const auto& sName       = HTTP.GetQueryParm("name");
-	const auto& sOwner      = HTTP.GetQueryParm("owner");
+	const auto& sNodeName   = HTTP.GetQueryParm("node");
 	const auto& sListenPort = HTTP.GetQueryParm("listen_port");
 	const auto& sTargetHost = HTTP.GetQueryParm("target_host");
 	const auto& sTargetPort = HTTP.GetQueryParm("target_port");
 	const auto& sEnabled    = HTTP.GetQueryParm("enabled");
 
-	if (sName.empty() || sOwner.empty() || sTargetHost.empty())
+	if (sName.empty() || sNodeName.empty() || sTargetHost.empty())
 	{
 		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
-		                  "Name, owner and target host are required.");
+		                  "Name, node and target host are required.");
 		return;
 	}
 
@@ -1444,9 +1737,9 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 
 	auto& Store = m_Server.GetStore();
 
-	if (!Store.GetUser(sOwner))
+	if (!Store.GetNode(sNodeName))
 	{
-		RedirectWithFlash(HTTP, s_sTunnelsURL, "", kFormat("Owner '{}' is not a known user.", sOwner));
+		RedirectWithFlash(HTTP, s_sTunnelsURL, "", kFormat("Node '{}' is not a known node.", sNodeName));
 		return;
 	}
 	if (Store.GetTunnel(sName))
@@ -1457,7 +1750,7 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 
 	KTunnelStore::Tunnel t;
 	t.sName       = sName;
-	t.sOwnerUser  = sOwner;
+	t.sNode       = sNodeName;
 	t.iListenPort = iListenPort;
 	t.sTargetHost = sTargetHost;
 	t.iTargetPort = iTargetPort;
@@ -1471,12 +1764,13 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 
 	KTunnelStore::Event ev;
 	ev.sKind       = "config_change";
-	ev.sUsername   = sMe;
+	ev.sAdmin      = sMe;
+	ev.sNode       = t.sNode;
 	ev.sTunnelName = t.sName;
-	ev.sDetail     = kFormat("added tunnel [::]:{} -> {}:{} (owner {}){}",
+	ev.sDetail     = kFormat("added tunnel [::]:{} -> {}:{} (node {}){}",
 	                         t.iListenPort,
 	                         t.sTargetHost, t.iTargetPort,
-	                         t.sOwnerUser,
+	                         t.sNode,
 	                         t.bEnabled ? "" : " [disabled]");
 	Store.LogEvent(ev);
 
@@ -1493,7 +1787,6 @@ void AdminUI::HandleTunnelsToggle (KRESTServer& HTTP)
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString  sMe(Sess.GetUser());
 	const auto&    sName   = HTTP.GetQueryParm("name");
@@ -1523,7 +1816,8 @@ void AdminUI::HandleTunnelsToggle (KRESTServer& HTTP)
 
 	KTunnelStore::Event ev;
 	ev.sKind       = "config_change";
-	ev.sUsername   = sMe;
+	ev.sAdmin      = sMe;
+	ev.sNode       = oT->sNode;
 	ev.sTunnelName = sName;
 	ev.sDetail     = bEnable ? "enabled" : "disabled";
 	Store.LogEvent(ev);
@@ -1543,7 +1837,6 @@ void AdminUI::HandleTunnelsDelete (KRESTServer& HTTP)
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString  sMe(Sess.GetUser());
 	const auto&    sName = HTTP.GetQueryParm("name");
@@ -1555,7 +1848,8 @@ void AdminUI::HandleTunnelsDelete (KRESTServer& HTTP)
 	}
 
 	auto& Store = m_Server.GetStore();
-	if (!Store.GetTunnel(sName))
+	auto oT = Store.GetTunnel(sName);
+	if (!oT)
 	{
 		RedirectWithFlash(HTTP, s_sTunnelsURL, "", kFormat("Tunnel '{}' does not exist.", sName));
 		return;
@@ -1569,7 +1863,8 @@ void AdminUI::HandleTunnelsDelete (KRESTServer& HTTP)
 
 	KTunnelStore::Event ev;
 	ev.sKind       = "config_change";
-	ev.sUsername   = sMe;
+	ev.sAdmin      = sMe;
+	ev.sNode       = oT->sNode;
 	ev.sTunnelName = sName;
 	ev.sDetail     = "deleted";
 	Store.LogEvent(ev);
@@ -1587,7 +1882,6 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString sMe(Sess.GetUser());
 	const auto&   sName = HTTP.GetQueryParm("name");
@@ -1609,10 +1903,10 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 	const auto& sNotice = HTTP.GetQueryParm("notice");
 	const auto& sError  = HTTP.GetQueryParm("error");
 
-	auto Users = Store.GetAllUsers();
+	auto Nodes = Store.GetAllNodes();
 
 	auto Page = MakePage(kFormat("ktunnel — Edit {}", sName));
-	RenderTopBar(Page, "tunnels", sMe, /*bIsAdmin=*/true);
+	RenderTopBar(Page, "tunnels", sMe);
 
 	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
 
@@ -1630,16 +1924,16 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 	auto& sec = main.Add(html::Div("", html::Classes("section")));
 	sec.Add(html::Heading(2, kFormat("Edit tunnel · {}", oT->sName)));
 
-	// Owner <select> with the current owner pre-selected.
-	KString sOwnerOptions;
-	for (const auto& u : Users)
+	// Node <select> with the current node pre-selected.
+	KString sNodeOptions;
+	for (const auto& n : Nodes)
 	{
-		sOwnerOptions += kFormat(
+		sNodeOptions += kFormat(
 			"<option value=\"{}\"{}>{}{}</option>",
-			KHTMLEntity::EncodeMandatory(u.sUsername),
-			(u.sUsername == oT->sOwnerUser) ? " selected" : "",
-			KHTMLEntity::EncodeMandatory(u.sUsername),
-			u.bIsAdmin ? " (admin)" : "");
+			KHTMLEntity::EncodeMandatory(n.sName),
+			(n.sName == oT->sNode) ? " selected" : "",
+			KHTMLEntity::EncodeMandatory(n.sName),
+			n.bEnabled ? "" : " (disabled)");
 	}
 
 	// The name stays read-only — it is the primary key that matches
@@ -1651,8 +1945,8 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 		"<div class=\"row\">"
 		"<div class=\"field\"><label>Name (read-only)</label>"
 		"<input type=\"text\" value=\"{}\" disabled></div>"
-		"<div class=\"field\"><label>Owner</label>"
-		"<select name=\"owner\" required>{}</select></div>"
+		"<div class=\"field\"><label>Node</label>"
+		"<select name=\"node\" required>{}</select></div>"
 		"</div>"
 		"<div class=\"row\">"
 		"<div class=\"field\"><label>Forward port</label>"
@@ -1677,7 +1971,7 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 		KHTMLEntity::EncodeMandatory(s_sTunnelsUpdateURL),
 		KHTMLEntity::EncodeMandatory(oT->sName),
 		KHTMLEntity::EncodeMandatory(oT->sName),
-		sOwnerOptions,
+		sNodeOptions,
 		oT->iListenPort,
 		KHTMLEntity::EncodeMandatory(oT->sTargetHost),
 		oT->iTargetPort,
@@ -1696,12 +1990,11 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString sMe(Sess.GetUser());
 
 	const auto& sName       = HTTP.GetQueryParm("name");
-	const auto& sOwner      = HTTP.GetQueryParm("owner");
+	const auto& sNodeName   = HTTP.GetQueryParm("node");
 	const auto& sListenPort = HTTP.GetQueryParm("listen_port");
 	const auto& sTargetHost = HTTP.GetQueryParm("target_host");
 	const auto& sTargetPort = HTTP.GetQueryParm("target_port");
@@ -1725,9 +2018,9 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 			"", sErr);
 	};
 
-	if (sOwner.empty() || sTargetHost.empty())
+	if (sNodeName.empty() || sTargetHost.empty())
 	{
-		BackToEdit("Owner and target host are required.");
+		BackToEdit("Node and target host are required.");
 		return;
 	}
 
@@ -1748,16 +2041,16 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 		return;
 	}
 
-	if (!Store.GetUser(sOwner))
+	if (!Store.GetNode(sNodeName))
 	{
-		BackToEdit(kFormat("Owner '{}' is not a known user.", sOwner));
+		BackToEdit(kFormat("Node '{}' is not a known node.", sNodeName));
 		return;
 	}
 
 	// Compose the new row. KTunnelStore::UpdateTunnel keeps id/created_utc,
 	// so we only need to fill the editable fields + the name key.
 	KTunnelStore::Tunnel t = *oExisting;
-	t.sOwnerUser  = sOwner;
+	t.sNode       = sNodeName;
 	t.iListenPort = iListenPort;
 	t.sTargetHost = sTargetHost;
 	t.iTargetPort = iTargetPort;
@@ -1779,7 +2072,7 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 		sDiff += kFormat("{}: {} -> {}", sField, sOld, sNew);
 	};
 
-	addDiff("owner",   oExisting->sOwnerUser,  t.sOwnerUser);
+	addDiff("node",    oExisting->sNode,       t.sNode);
 	addDiff("forward_port", kFormat("{}", oExisting->iListenPort),
 	                        kFormat("{}", t.iListenPort));
 	addDiff("target",  kFormat("{}:{}", oExisting->sTargetHost, oExisting->iTargetPort),
@@ -1791,7 +2084,8 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 
 	KTunnelStore::Event ev;
 	ev.sKind       = "config_change";
-	ev.sUsername   = sMe;
+	ev.sAdmin      = sMe;
+	ev.sNode       = t.sNode;
 	ev.sTunnelName = t.sName;
 	ev.sDetail     = kFormat("edited tunnel ({})", sDiff);
 	Store.LogEvent(ev);
@@ -1811,15 +2105,13 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString sMe(Sess.GetUser());
 
-	// Filter inputs from the URL query. All three are safe to echo back
+	// Filter inputs from the URL query. Both are safe to echo back
 	// unchanged into the form because they land inside attribute values
 	// that we put through KHTMLEntity::EncodeMandatory.
 	const auto& sKind  = HTTP.GetQueryParm("kind");
-	const auto& sUser  = HTTP.GetQueryParm("user");
 	const auto& sLimit = HTTP.GetQueryParm("limit");
 
 	// Whitelist the limit values — anything else collapses to 100. We
@@ -1831,10 +2123,10 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 
 	auto& Store  = m_Server.GetStore();
 	auto Kinds   = Store.GetDistinctEventKinds();
-	auto Events  = Store.GetEvents(sKind, sUser, iLimit);
+	auto Events  = Store.GetEvents(sKind, iLimit);
 
 	auto Page = MakePage("ktunnel — Events");
-	RenderTopBar(Page, "events", sMe, /*bIsAdmin=*/true);
+	RenderTopBar(Page, "events", sMe);
 
 	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
 
@@ -1876,8 +2168,6 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 			"<div class=\"row\">"
 			"<div class=\"field\"><label>Kind</label>"
 			"<select name=\"kind\">{}</select></div>"
-			"<div class=\"field\"><label>User</label>"
-			"<input type=\"text\" name=\"user\" value=\"{}\" autocomplete=\"off\"></div>"
 			"<div class=\"field\"><label>Limit</label>"
 			"<select name=\"limit\">{}</select></div>"
 			"<button type=\"submit\" class=\"btn\">Apply</button>"
@@ -1886,7 +2176,6 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 			"</div></form>",
 			KHTMLEntity::EncodeMandatory(s_sEventsURL),
 			sKindOptions,
-			KHTMLEntity::EncodeMandatory(sUser),
 			sLimitOptions,
 			KHTMLEntity::EncodeMandatory(s_sEventsURL));
 
@@ -1909,7 +2198,7 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 		{
 			KString sTable;
 			sTable += "<table class=\"grid\"><thead><tr>"
-			         "<th>Time</th><th>Kind</th><th>User</th>"
+			         "<th>Time</th><th>Kind</th><th>Admin</th><th>Node</th>"
 			         "<th>Tunnel</th><th>Remote</th><th>Detail</th>"
 			         "</tr></thead><tbody>";
 
@@ -1918,11 +2207,12 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 				sTable += kFormat(
 					"<tr><td>{} UTC</td>"
 					"<td><span class=\"pill {}\">{}</span></td>"
-					"<td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+					"<td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
 					e.tTimestamp.to_string(),
 					KHTMLEntity::EncodeMandatory(PillForEventKind(e.sKind)),
 					KHTMLEntity::EncodeMandatory(e.sKind),
-					KHTMLEntity::EncodeMandatory(e.sUsername),
+					KHTMLEntity::EncodeMandatory(e.sAdmin),
+					KHTMLEntity::EncodeMandatory(e.sNode),
 					KHTMLEntity::EncodeMandatory(e.sTunnelName),
 					KHTMLEntity::EncodeMandatory(e.sRemoteIP),
 					KHTMLEntity::EncodeMandatory(e.sDetail));
@@ -1943,13 +2233,12 @@ void AdminUI::ShowPeers (KRESTServer& HTTP)
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString sMe(Sess.GetUser());
 	auto Peers = m_Server.SnapshotActiveTunnels();
 
 	auto Page = MakePage("ktunnel — Peers");
-	RenderTopBar(Page, "peers", sMe, /*bIsAdmin=*/true);
+	RenderTopBar(Page, "peers", sMe);
 
 	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
 
@@ -1967,7 +2256,7 @@ void AdminUI::ShowPeers (KRESTServer& HTTP)
 	{
 		KString sTable;
 		sTable += "<table class=\"grid\"><thead><tr>"
-		          "<th>Peer user</th><th>Remote</th><th>Connected since</th>"
+		          "<th>Peer node</th><th>Remote</th><th>Connected since</th>"
 		          "<th>Streams</th><th>Rx bytes</th><th>Tx bytes</th>"
 		          "<th></th></tr></thead><tbody>";
 
@@ -1987,7 +2276,7 @@ void AdminUI::ShowPeers (KRESTServer& HTTP)
 
 			KString sReplURL = kFormat("{}?peer={}",
 				s_sPeerReplURL,
-				kUrlEncode(p.sUser, URIPart::Query));
+				kUrlEncode(p.sNode, URIPart::Query));
 
 			sTable += kFormat(
 				"<tr>"
@@ -1999,7 +2288,7 @@ void AdminUI::ShowPeers (KRESTServer& HTTP)
 				"<td>{}</td>"
 				"<td><a class=\"btn small\" href=\"{}\">Open REPL</a></td>"
 				"</tr>",
-				KHTMLEntity::EncodeMandatory(p.sUser),
+				KHTMLEntity::EncodeMandatory(p.sNode),
 				KHTMLEntity::EncodeMandatory(p.EndpointAddr.Serialize()),
 				p.tConnected.to_string(),
 				iStreams,
@@ -2022,7 +2311,6 @@ void AdminUI::ShowPeerRepl (KRESTServer& HTTP)
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString sMe(Sess.GetUser());
 	KString sPeer(HTTP.GetQueryParm("peer"));
@@ -2035,7 +2323,7 @@ void AdminUI::ShowPeerRepl (KRESTServer& HTTP)
 
 	// Verify the peer is currently online — otherwise no point
 	// rendering the REPL UI.
-	auto Tunnel = m_Server.GetTunnelForUser(sPeer);
+	auto Tunnel = m_Server.GetTunnelForNode(sPeer);
 	if (!Tunnel)
 	{
 		RedirectWithFlash(HTTP, s_sPeersURL, "",
@@ -2044,7 +2332,7 @@ void AdminUI::ShowPeerRepl (KRESTServer& HTTP)
 	}
 
 	auto Page = MakePage(kFormat("ktunnel — REPL · {}", sPeer));
-	RenderTopBar(Page, "peers", sMe, /*bIsAdmin=*/true);
+	RenderTopBar(Page, "peers", sMe);
 
 	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
 	auto& sec  = main.Add(html::Div("", html::Classes("section")));
@@ -2164,7 +2452,6 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString sMe(Sess.GetUser());
 	KString sPeer(HTTP.GetQueryParm("peer"));
@@ -2172,11 +2459,11 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 	auto LogReject = [&](KStringView sReason)
 	{
 		KTunnelStore::Event ev;
-		ev.sKind       = "repl_reject";
-		ev.sUsername   = sMe;
-		ev.sTunnelName = sPeer;
-		ev.sRemoteIP   = KString(HTTP.GetRemoteIP());
-		ev.sDetail     = KString(sReason);
+		ev.sKind     = "repl_reject";
+		ev.sAdmin    = sMe;
+		ev.sNode     = sPeer;
+		ev.sRemoteIP = HTTP.GetRemoteIP();
+		ev.sDetail   = sReason;
 		m_Server.GetStore().LogEvent(ev);
 	};
 
@@ -2187,7 +2474,7 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 		return;
 	}
 
-	auto Tunnel = m_Server.GetTunnelForUser(sPeer);
+	auto Tunnel = m_Server.GetTunnelForNode(sPeer);
 	if (!Tunnel)
 	{
 		LogReject("peer not connected");
@@ -2207,16 +2494,16 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 	// end of the websocket handler below.
 	{
 		KTunnelStore::Event ev;
-		ev.sKind       = "repl_open";
-		ev.sUsername   = sMe;
-		ev.sTunnelName = sPeer;
-		ev.sRemoteIP   = KString(HTTP.GetRemoteIP());
-		ev.sDetail     = kFormat("channel {}", Connection->GetID());
+		ev.sKind     = "repl_open";
+		ev.sAdmin    = sMe;
+		ev.sNode     = sPeer;
+		ev.sRemoteIP = HTTP.GetRemoteIP();
+		ev.sDetail   = kFormat("channel {}", Connection->GetID());
 		m_Server.GetStore().LogEvent(ev);
 	}
 
 	HTTP.SetWebSocketHandler(
-	[this, sPeer, sMe, sRemote = KString(HTTP.GetRemoteIP()), Connection]
+	[this, sPeer, sMe, sRemote = HTTP.GetRemoteIP(), Connection]
 	(KWebSocket& WebSocket)
 	{
 		// Dedicated pump thread: peer channel → browser WebSocket.
@@ -2263,11 +2550,11 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 		PeerToBrowser.join();
 
 		KTunnelStore::Event ev;
-		ev.sKind       = "repl_close";
-		ev.sUsername   = sMe;
-		ev.sTunnelName = sPeer;
-		ev.sRemoteIP   = sRemote;
-		ev.sDetail     = kFormat("channel {}", Connection->GetID());
+		ev.sKind     = "repl_close";
+		ev.sAdmin    = sMe;
+		ev.sNode     = sPeer;
+		ev.sRemoteIP = sRemote;
+		ev.sDetail   = kFormat("channel {}", Connection->GetID());
 		m_Server.GetStore().LogEvent(ev);
 	});
 
@@ -2287,13 +2574,12 @@ void AdminUI::HandlePeerReplCert (KRESTServer& HTTP)
 	// accepted, WebKit also trusts the corresponding wss:// URL on reload.
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-	if (!RequireAdminOrRedirect(HTTP, Sess))       return;
 
 	const KString sPeer(HTTP.GetQueryParm("peer"));
 	const KString sPeersURL(s_sPeersURL);
 
 	auto Page = MakePage("ktunnel — Certificate accepted");
-	RenderTopBar(Page, "peers", Sess.GetUser(), /*bIsAdmin=*/true);
+	RenderTopBar(Page, "peers", Sess.GetUser());
 
 	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
 	auto& sec  = main.Add(html::Div("", html::Classes("section")));
@@ -2344,21 +2630,42 @@ void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 	      .Get ([this](KRESTServer& HTTP) { ShowDashboard(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
 
-	// --- Users sub-tree (list + add + delete + change-own-password) ---
-	Routes.AddRoute(KString(s_sUsersRoute))
-	      .Get ([this](KRESTServer& HTTP) { ShowUsers(HTTP); })
+	// --- Admins sub-tree (list + add + delete + change-own-password) ---
+	Routes.AddRoute(KString(s_sAdminsRoute))
+	      .Get ([this](KRESTServer& HTTP) { ShowAdmins(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
 
-	Routes.AddRoute(KString(s_sUsersAddRoute))
-	      .Post([this](KRESTServer& HTTP) { HandleUsersAdd(HTTP); })
+	Routes.AddRoute(KString(s_sAdminsAddRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleAdminsAdd(HTTP); })
 	      .Parse(KRESTRoute::ParserType::WWWFORM);
 
-	Routes.AddRoute(KString(s_sUsersDeleteRoute))
-	      .Post([this](KRESTServer& HTTP) { HandleUsersDelete(HTTP); })
+	Routes.AddRoute(KString(s_sAdminsDeleteRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleAdminsDelete(HTTP); })
 	      .Parse(KRESTRoute::ParserType::WWWFORM);
 
-	Routes.AddRoute(KString(s_sUsersChangePwRoute))
-	      .Post([this](KRESTServer& HTTP) { HandleUsersChangePass(HTTP); })
+	Routes.AddRoute(KString(s_sAdminsChangePwRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleAdminsChangePass(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	// --- Nodes sub-tree (list + add + toggle + delete + reset-password)
+	Routes.AddRoute(KString(s_sNodesRoute))
+	      .Get ([this](KRESTServer& HTTP) { ShowNodes(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	Routes.AddRoute(KString(s_sNodesAddRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleNodesAdd(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	Routes.AddRoute(KString(s_sNodesToggleRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleNodesToggle(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	Routes.AddRoute(KString(s_sNodesDeleteRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleNodesDelete(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	Routes.AddRoute(KString(s_sNodesResetPwRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleNodesResetPass(HTTP); })
 	      .Parse(KRESTRoute::ParserType::WWWFORM);
 
 	// --- Tunnels sub-tree (list + add + enable/disable + delete) -----

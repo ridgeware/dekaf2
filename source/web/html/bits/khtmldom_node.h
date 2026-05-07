@@ -129,9 +129,9 @@ protected:
 //------
 
 	/// Returns root element of tree
-	NodePOD*    Root     () noexcept;
+	NodePOD* Root () noexcept;
 	/// Returns document root of tree if any, else nullptr
-	Document*   Document () noexcept;
+	class Document* Document () noexcept;
 
 	/// places a string in the arena of document and returns a view on it
 	static KStringView CreateString (class Document* document, KStringView sStr);

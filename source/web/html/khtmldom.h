@@ -493,7 +493,7 @@ public:
 	/// points at an empty synthetic root (Children() is empty).
 	khtml::NodeCursor Root() const noexcept
 	{
-		return khtml::NodeCursor(m_pPodRoot);
+		return khtml::NodeCursor(PodRoot());
 	}
 
 	/// Proxy KHTMLElement's Add() to add an element to the list of children. Returns reference to child.
@@ -539,12 +539,10 @@ public:
 	/// @returns the root of the arena-backed POD shadow tree, or nullptr if
 	/// no parsing has happened yet. The shadow tree is populated by Object()
 	/// in lock-step with the heap DOM and is owned entirely by m_Arena.
-	/// Phase 2c will replace the heap DOM with this tree; until then it is
-	/// read-only state used for tests and benchmarks.
-	const khtml::NodePOD* PodRoot() const { return m_pPodRoot; }
+	const khtml::NodePOD* PodRoot() const { return m_Document.FirstChild(); }
 
 	/// @returns the arena that backs the POD shadow tree.
-	const KArenaAllocator& Arena() const { return m_Arena; }
+	const KArenaAllocator& Arena() const { return m_Document; }
 
 //------
 private:
@@ -570,8 +568,7 @@ private:
 	mutable KHTMLElement          m_Root;
 
 	// arena-backed POD shadow tree (the ground truth)
-	KArenaAllocator               m_Arena;
-	khtml::NodePOD*               m_pPodRoot      { nullptr };
+	khtml::Document               m_Document;
 	std::vector<khtml::NodePOD*>  m_PodHierarchy;
 
 	KString                       m_sContent;

@@ -4,6 +4,40 @@
 // Copyright (c) 2026, Ridgeware, Inc.
 //
 // SPDX-License-Identifier: MIT
+//
+// +-------------------------------------------------------------------------+
+// | /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\|
+// |/+---------------------------------------------------------------------+/|
+// |/|                                                                     |/|
+// |\|  ** THIS NOTICE MUST NOT BE REMOVED FROM THE SOURCE CODE MODULE **  |\|
+// |/|                                                                     |/|
+// |\|   OPEN SOURCE LICENSE                                               |\|
+// |/|                                                                     |/|
+// |\|   Permission is hereby granted, free of charge, to any person       |\|
+// |/|   obtaining a copy of this software and associated                  |/|
+// |\|   documentation files (the "Software"), to deal in the              |\|
+// |/|   Software without restriction, including without limitation        |/|
+// |\|   the rights to use, copy, modify, merge, publish,                  |\|
+// |/|   distribute, sublicense, and/or sell copies of the Software,       |/|
+// |\|   and to permit persons to whom the Software is furnished to        |\|
+// |/|   do so, subject to the following conditions:                       |/|
+// |\|                                                                     |\|
+// |/|   The above copyright notice and this permission notice shall       |/|
+// |\|   be included in all copies or substantial portions of the          |\|
+// |/|   Software.                                                         |/|
+// |\|                                                                     |\|
+// |/|   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY         |/|
+// |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
+// |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
+// |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
+// |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
+// |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
+// |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
+// |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
+// |/|                                                                     |/|
+// |/+---------------------------------------------------------------------+/|
+// |\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/ |
+// +-------------------------------------------------------------------------+
 */
 
 #include "karenaallocator.h"
@@ -169,8 +203,8 @@ void KArenaAllocator::reset() noexcept
 //-----------------------------------------------------------------------------
 {
 	// move every active block to the head of the free list (LIFO). The
-	// blocks stay malloced and a future Allocate() / GrowBy() will
-	// recycle them before going to std::malloc().
+	// blocks stay allocated and a future Allocate() / GrowBy() will
+	// recycle them before going to ::operator new().
 	Block* pBlock = m_pHead;
 	while (pBlock != nullptr)
 	{
@@ -238,7 +272,7 @@ void KArenaAllocator::GrowBy(std::size_t iMinPayload)
 	std::size_t iPayload = std::max(m_iBlockSize, iMinPayload);
 
 	// we want every block to start at an alignment of alignof(std::max_align_t)
-	// for the payload. The Block header is followed by payload, and malloc()
+	// for the payload. The Block header is followed by payload, and ::operator new()
 	// returns max_align_t-aligned memory, so as long as sizeof(Block) is
 	// itself max_align_t-aligned, the payload start is aligned too. Round up
 	// the header size to be safe.

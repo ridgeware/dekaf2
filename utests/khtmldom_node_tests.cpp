@@ -16,7 +16,7 @@ TEST_CASE("khtml::NodePOD")
 		// assertion fires, the design doc in notes/khtmldom-arena-design.md
 		// must be updated alongside any layout change.
 		CHECK ( sizeof(NodePOD) <= 96 );
-		CHECK ( sizeof(AttrPOD) <= 48 );
+		CHECK ( sizeof(AttrPOD) <= 56 );
 
 		// triviality is also enforced via static_assert in the header,
 		// but doubling up here makes a clean test failure if someone
@@ -25,245 +25,230 @@ TEST_CASE("khtml::NodePOD")
 		CHECK ( std::is_trivially_destructible<AttrPOD>::value );
 	}
 
-	SECTION("CreateNode initializes a fresh element")
+	SECTION("AddNode initializes a fresh element")
 	{
-		KArenaAllocator arena;
+		Document doc;
 
-		NodePOD* n = CreateNode(arena, NodeKind::Element);
+		NodePOD* n = doc.AddNode(NodeKind::Element);
 
 		REQUIRE ( n != nullptr );
-		CHECK ( n->Kind     == NodeKind::Element );
-		CHECK ( n->Flags    == NodeFlag::None );
-		CHECK ( n->TagProps == KHTMLObject::TagProperty::None );
-		CHECK ( n->Name.empty() );
-		CHECK ( n->Value.empty() );
-		CHECK ( n->FirstAttr   == nullptr );
-		CHECK ( n->LastAttr    == nullptr );
-		CHECK ( n->FirstChild  == nullptr );
-		CHECK ( n->LastChild   == nullptr );
-		CHECK ( n->NextSibling == nullptr );
-		CHECK ( n->PrevSibling == nullptr );
-		CHECK ( n->Parent      == nullptr );
-		CHECK ( CountChildren(n) == 0 );
-		CHECK ( CountAttrs(n)    == 0 );
+		CHECK ( n->Kind()          == NodeKind::Element );
+		CHECK ( n->Flags()         == NodeFlag::None );
+		CHECK ( n->TagProps()      == KHTMLObject::TagProperty::None );
+		CHECK ( n->Name ().empty() );
+		CHECK ( n->Value().empty() );
+		CHECK ( n->FirstAttr()     == nullptr );
+		CHECK ( n->LastAttr()      == nullptr );
+		CHECK ( n->FirstChild()    == nullptr );
+		CHECK ( n->LastChild()     == nullptr );
+		CHECK ( n->NextSibling()   == nullptr );
+		CHECK ( n->PrevSibling()   == nullptr );
+		CHECK ( n->Parent()        != nullptr );
+		CHECK ( n->CountChildren() == 0 );
+		CHECK ( n->CountAttrs()    == 0 );
 	}
 
-	SECTION("CreateAttr copies name and value into arena")
+	SECTION("AddAttribute copies name and value into arena")
 	{
-		KArenaAllocator arena;
+		Document doc;
 
 		const char* sLiteralName  = "id";
 		const char* sLiteralValue = "main";
 
-		AttrPOD* a = CreateAttr(arena, sLiteralName, sLiteralValue);
+		auto* root = doc.AddNode(NodeKind::Element);
+		AttrPOD* a = root->AddAttribute(sLiteralName, sLiteralValue);
 
 		REQUIRE ( a != nullptr );
-		CHECK ( a->Name  == "id"   );
-		CHECK ( a->Value == "main" );
+		CHECK ( a->Name () == "id"   );
+		CHECK ( a->Value() == "main" );
 		// the bytes must be arena-owned, not the literal
-		CHECK ( a->Name.data()  != sLiteralName  );
-		CHECK ( a->Value.data() != sLiteralValue );
-		CHECK ( a->Next     == nullptr );
-		CHECK ( a->DoEscape == true    );
+		CHECK ( a->Name().data()  != sLiteralName  );
+		CHECK ( a->Value().data() != sLiteralValue );
+		CHECK ( a->Next()     == nullptr );
+		CHECK ( a->DoEscape() == true    );
 	}
 
-	SECTION("AppendChild builds a doubly-linked sibling chain")
+	SECTION("AddNode builds a doubly-linked sibling chain")
 	{
-		KArenaAllocator arena;
+		Document doc;
 
-		NodePOD* parent = CreateNode(arena, NodeKind::Element);
-		NodePOD* a      = CreateNode(arena, NodeKind::Element);
-		NodePOD* b      = CreateNode(arena, NodeKind::Element);
-		NodePOD* c      = CreateNode(arena, NodeKind::Element);
+		NodePOD* parent = doc.AddNode(NodeKind::Element);
+		NodePOD* a      = parent->AddNode(NodeKind::Element);
+		NodePOD* b      = parent->AddNode(NodeKind::Element);
+		NodePOD* c      = parent->AddNode(NodeKind::Element);
 
-		AppendChild(parent, a);
-		AppendChild(parent, b);
-		AppendChild(parent, c);
-
-		CHECK ( CountChildren(parent) == 3 );
-		CHECK ( parent->FirstChild == a );
-		CHECK ( parent->LastChild  == c );
+		CHECK ( parent->CountChildren() == 3 );
+		CHECK ( parent->FirstChild() == a );
+		CHECK ( parent->LastChild()  == c );
 
 		// forward chain
-		CHECK ( a->NextSibling == b );
-		CHECK ( b->NextSibling == c );
-		CHECK ( c->NextSibling == nullptr );
+		CHECK ( a->NextSibling() == b );
+		CHECK ( b->NextSibling() == c );
+		CHECK ( c->NextSibling() == nullptr );
 
 		// backward chain
-		CHECK ( c->PrevSibling == b );
-		CHECK ( b->PrevSibling == a );
-		CHECK ( a->PrevSibling == nullptr );
+		CHECK ( c->PrevSibling() == b );
+		CHECK ( b->PrevSibling() == a );
+		CHECK ( a->PrevSibling() == nullptr );
 
 		// parent pointers
-		CHECK ( a->Parent == parent );
-		CHECK ( b->Parent == parent );
-		CHECK ( c->Parent == parent );
+		CHECK ( a->Parent() == parent );
+		CHECK ( b->Parent() == parent );
+		CHECK ( c->Parent() == parent );
 	}
 
-	SECTION("AppendAttr builds a singly-linked attr chain")
+	SECTION("AddAttribute builds a singly-linked attr chain")
 	{
-		KArenaAllocator arena;
+		Document doc;
 
-		NodePOD* node = CreateNode(arena, NodeKind::Element);
+		NodePOD* node = doc.AddNode(NodeKind::Element);
 
-		AppendAttr(node, CreateAttr(arena, "id",    "main"));
-		AppendAttr(node, CreateAttr(arena, "class", "wide"));
-		AppendAttr(node, CreateAttr(arena, "data",  "x"));
+		node->AddAttribute("id", "main");
+		node->AddAttribute("class", "wide");
+		node->AddAttribute("data",  "x");
 
-		REQUIRE ( CountAttrs(node) == 3 );
+		REQUIRE ( node->CountAttrs() == 3 );
 
-		AttrPOD* a = node->FirstAttr;
+		AttrPOD* a = node->FirstAttr();
 		REQUIRE ( a != nullptr );
-		CHECK ( a->Name == "id" );
-		a = a->Next;
+		CHECK ( a->Name() == "id" );
+		a = a->Next();
 		REQUIRE ( a != nullptr );
-		CHECK ( a->Name == "class" );
-		a = a->Next;
+		CHECK ( a->Name() == "class" );
+		a = a->Next();
 		REQUIRE ( a != nullptr );
-		CHECK ( a->Name == "data" );
-		CHECK ( a->Next == nullptr );
-		CHECK ( node->LastAttr == a );
+		CHECK ( a->Name() == "data" );
+		CHECK ( a->Next() == nullptr );
+		CHECK ( node->LastAttr() == a );
 	}
 
 	SECTION("FindAttr by name")
 	{
-		KArenaAllocator arena;
+		Document doc;
 
-		NodePOD* node = CreateNode(arena, NodeKind::Element);
-		AppendAttr(node, CreateAttr(arena, "id",    "x"));
-		AppendAttr(node, CreateAttr(arena, "class", "y"));
+		NodePOD* node = doc.AddNode(NodeKind::Element);
+		node->AddAttribute("id",    "x");
+		node->AddAttribute("class", "y");
 
-		AttrPOD* a = FindAttr(node, "class");
+		AttrPOD* a = node->Attribute("class");
 		REQUIRE ( a != nullptr );
-		CHECK ( a->Value == "y" );
+		CHECK ( a->Value() == "y" );
 
-		CHECK ( FindAttr(node, "missing") == nullptr );
+		CHECK ( node->Attribute("missing") == nullptr );
 
 		// const overload
 		const NodePOD* cnode = node;
-		const AttrPOD* ca    = FindAttr(cnode, "id");
+		const AttrPOD* ca    = cnode->Attribute("id");
 		REQUIRE ( ca != nullptr );
-		CHECK ( ca->Value == "x" );
+		CHECK ( ca->Value() == "x" );
 	}
 
 	SECTION("InsertChildBefore at head, middle, and end")
 	{
-		KArenaAllocator arena;
+		Document doc;
 
-		NodePOD* parent = CreateNode(arena, NodeKind::Element);
-		NodePOD* a      = CreateNode(arena, NodeKind::Element);
-		NodePOD* b      = CreateNode(arena, NodeKind::Element);
-
-		AppendChild(parent, a);
-		AppendChild(parent, b);
+		NodePOD* parent = doc.AddNode(NodeKind::Element);
+		NodePOD* a      = parent->AddNode(NodeKind::Element);
+		NodePOD* b      = parent->AddNode(NodeKind::Element);
 
 		// insert at head: before 'a'
-		NodePOD* head = CreateNode(arena, NodeKind::Element);
-		InsertChildBefore(parent, a, head);
+		NodePOD* head = parent->AddNode(a, NodeKind::Element);
 
-		CHECK ( parent->FirstChild == head );
-		CHECK ( head->NextSibling  == a );
-		CHECK ( a->PrevSibling     == head );
-		CHECK ( head->PrevSibling  == nullptr );
+		CHECK ( parent->FirstChild() == head );
+		CHECK ( head->NextSibling()  == a );
+		CHECK ( a->PrevSibling()     == head );
+		CHECK ( head->PrevSibling()  == nullptr );
 
 		// insert in the middle: before 'b'
-		NodePOD* mid = CreateNode(arena, NodeKind::Element);
-		InsertChildBefore(parent, b, mid);
+		NodePOD* mid = parent->AddNode(b, NodeKind::Element);
 
-		CHECK ( a->NextSibling == mid );
-		CHECK ( mid->PrevSibling == a );
-		CHECK ( mid->NextSibling == b );
-		CHECK ( b->PrevSibling   == mid );
+		CHECK ( a->NextSibling()   == mid );
+		CHECK ( mid->PrevSibling() == a );
+		CHECK ( mid->NextSibling() == b );
+		CHECK ( b->PrevSibling()   == mid );
 
 		// insert at the end: before nullptr → behaves like AppendChild
-		NodePOD* tail = CreateNode(arena, NodeKind::Element);
-		InsertChildBefore(parent, nullptr, tail);
+		NodePOD* tail = parent->AddNode(nullptr, NodeKind::Element);
 
-		CHECK ( parent->LastChild  == tail );
-		CHECK ( b->NextSibling     == tail );
-		CHECK ( tail->PrevSibling  == b );
+		CHECK ( parent->LastChild()  == tail );
+		CHECK ( b->NextSibling()     == tail );
+		CHECK ( tail->PrevSibling()  == b );
 
-		CHECK ( CountChildren(parent) == 5 );
+		CHECK ( parent->CountChildren() == 5 );
 	}
 
-	SECTION("DetachChild from head, middle, and tail")
+	SECTION("Detach from head, middle, and tail")
 	{
-		KArenaAllocator arena;
+		Document doc;
 
-		NodePOD* parent = CreateNode(arena, NodeKind::Element);
-		NodePOD* a      = CreateNode(arena, NodeKind::Element);
-		NodePOD* b      = CreateNode(arena, NodeKind::Element);
-		NodePOD* c      = CreateNode(arena, NodeKind::Element);
-
-		AppendChild(parent, a);
-		AppendChild(parent, b);
-		AppendChild(parent, c);
+		NodePOD* parent = doc.AddNode(NodeKind::Element);
+		NodePOD* a      = parent->AddNode(NodeKind::Element);
+		NodePOD* b      = parent->AddNode(NodeKind::Element);
+		NodePOD* c      = parent->AddNode(NodeKind::Element);
 
 		// detach middle
-		DetachChild(b);
-		CHECK ( CountChildren(parent) == 2 );
-		CHECK ( a->NextSibling == c );
-		CHECK ( c->PrevSibling == a );
-		CHECK ( b->Parent      == nullptr );
-		CHECK ( b->NextSibling == nullptr );
-		CHECK ( b->PrevSibling == nullptr );
+		b->Detach();
+		CHECK ( parent->CountChildren() == 2 );
+		CHECK ( a->NextSibling() == c );
+		CHECK ( c->PrevSibling() == a );
+		CHECK ( b->Parent()      == nullptr );
+		CHECK ( b->NextSibling() == nullptr );
+		CHECK ( b->PrevSibling() == nullptr );
 
 		// detach head
-		DetachChild(a);
-		CHECK ( CountChildren(parent) == 1 );
-		CHECK ( parent->FirstChild == c );
-		CHECK ( c->PrevSibling     == nullptr );
+		a->Detach();
+		CHECK ( parent->CountChildren() == 1 );
+		CHECK ( parent->FirstChild() == c );
+		CHECK ( c->PrevSibling()     == nullptr );
 
 		// detach tail (now the only child)
-		DetachChild(c);
-		CHECK ( CountChildren(parent) == 0 );
-		CHECK ( parent->FirstChild == nullptr );
-		CHECK ( parent->LastChild  == nullptr );
+		c->Detach();
+		CHECK ( parent->CountChildren() == 0 );
+		CHECK ( parent->FirstChild() == nullptr );
+		CHECK ( parent->LastChild()  == nullptr );
 
 		// detaching an orphaned node is a no-op
-		DetachChild(b);
-		CHECK ( b->Parent == nullptr );
+		b->Detach();
+		CHECK ( b->Parent() == nullptr );
 	}
 
 	SECTION("text node uses Name as content payload")
 	{
-		KArenaAllocator arena;
+		Document doc;
 
-		NodePOD* t = CreateNode(arena, NodeKind::Text);
-		t->Name    = arena.AllocateString("hello world");
-		t->Flags  |= NodeFlag::TextDoNotEscape;
+		NodePOD* t = doc.AddNode(NodeKind::Text);
+		t->Name("hello world");
+		t->Flags(t->Flags() | NodeFlag::TextDoNotEscape);
 
-		CHECK ( t->Kind == NodeKind::Text );
-		CHECK ( t->Name == "hello world" );
-		CHECK ( (t->Flags & NodeFlag::TextDoNotEscape) == NodeFlag::TextDoNotEscape );
+		CHECK ( t->Kind() == NodeKind::Text );
+		CHECK ( t->Name() == "hello world" );
+		CHECK ( (t->Flags() & NodeFlag::TextDoNotEscape) == NodeFlag::TextDoNotEscape );
 	}
 
 	SECTION("repeated build-and-clear keeps allocator behaviour stable")
 	{
-		KArenaAllocator arena(2 * 1024);  // small block size to force growth
+		Document doc(2 * 1024);  // small block size to force growth
 
 		for (int round = 0; round < 50; ++round)
 		{
-			NodePOD* root = CreateNode(arena, NodeKind::Element);
-			root->Name = arena.AllocateString("html");
+			NodePOD* root = doc.AddNode(NodeKind::Element);
+			root->Name("html");
 
 			for (int i = 0; i < 20; ++i)
 			{
-				NodePOD* child = CreateNode(arena, NodeKind::Element);
-				child->Name    = arena.AllocateString("div");
-				AppendAttr(child, CreateAttr(arena, "id", "x"));
-				AppendChild(root, child);
+				NodePOD* child = root->AddNode(NodeKind::Element);
+				child->Name("div");
+				child->AddAttribute("id", "x");
 
-				NodePOD* text = CreateNode(arena, NodeKind::Text);
-				text->Name    = arena.AllocateString("some text content");
-				AppendChild(child, text);
+				NodePOD* text = child->AddNode(NodeKind::Text);
+				text->Name("some text content");
 			}
 
-			REQUIRE ( CountChildren(root) == 20 );
-			arena.clear();
+			REQUIRE ( root->CountChildren() == 20 );
+			doc.clear();
 		}
 
-		CHECK ( arena.BlockCount() == 0 );
-		CHECK ( arena.UsedBytes()  == 0 );
+		CHECK ( doc.BlockCount() == 0 );
+		CHECK ( doc.UsedBytes()  == 0 );
 	}
 }

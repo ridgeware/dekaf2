@@ -96,18 +96,18 @@ public:
 	///          and equivalence checks; prefer the named accessors.
 	const AttrPOD* Raw     () const noexcept { return m_p;           }
 
-	KStringView    Name    () const noexcept { return m_p->Name;     }
-	KStringView    Value   () const noexcept { return m_p->Value;    }
+	KStringView    Name    () const noexcept { return m_p->Name ();  }
+	KStringView    Value   () const noexcept { return m_p->Value();  }
 	/// @returns the original quote char as seen by the parser (' or "),
 	///          or 0 if the parser saw no quote (the serializer will then
 	///          pick a default).
-	char           Quote   () const noexcept { return m_p->Quote;    }
+	char           Quote   () const noexcept { return m_p->Quote();    }
 	/// @returns true if the value still needs HTML-escaping on serialize,
 	///          false if the value is already entity-encoded as-is.
-	bool           DoEscape() const noexcept { return m_p->DoEscape; }
+	bool           DoEscape() const noexcept { return m_p->DoEscape(); }
 
 	/// @returns the next attribute on the same node (or an empty cursor).
-	AttrCursor     Next    () const noexcept { return AttrCursor{ m_p->Next }; }
+	AttrCursor     Next    () const noexcept { return AttrCursor{ m_p->Next() }; }
 
 	bool operator==(const AttrCursor& other) const noexcept { return m_p == other.m_p; }
 	bool operator!=(const AttrCursor& other) const noexcept { return m_p != other.m_p; }
@@ -137,44 +137,44 @@ public:
 	///          and equivalence checks; prefer the named accessors.
 	const NodePOD* Raw() const noexcept { return m_p; }
 
-	NodeKind                 Kind    () const noexcept { return m_p->Kind;     }
-	NodeFlag                 Flags   () const noexcept { return m_p->Flags;    }
+	NodeKind                 Kind    () const noexcept { return m_p->Kind();     }
+	NodeFlag                 Flags   () const noexcept { return m_p->Flags();    }
 	/// Cached HTML tag-property bits. Only meaningful for Element nodes.
-	KHTMLObject::TagProperty TagProps() const noexcept { return m_p->TagProps; }
+	KHTMLObject::TagProperty TagProps() const noexcept { return m_p->TagProps(); }
 
 	/// Primary payload — interpretation depends on Kind:
 	///   Element                 : tag name
 	///   Text / Comment / CData  : text content
 	///   ProcessingInstruction   : target ("xml")
 	///   DocumentType            : doctype declaration
-	KStringView Name () const noexcept { return m_p->Name;  }
+	KStringView Name () const noexcept { return m_p->Name();  }
 	/// Secondary payload — currently only set for ProcessingInstruction
 	/// (instruction body); empty for every other Kind.
-	KStringView Value() const noexcept { return m_p->Value; }
+	KStringView Value() const noexcept { return m_p->Value(); }
 
-	bool IsElement()               const noexcept { return m_p->Kind == NodeKind::Element;               }
-	bool IsText()                  const noexcept { return m_p->Kind == NodeKind::Text;                  }
-	bool IsComment()               const noexcept { return m_p->Kind == NodeKind::Comment;               }
-	bool IsCData()                 const noexcept { return m_p->Kind == NodeKind::CData;                 }
-	bool IsProcessingInstruction() const noexcept { return m_p->Kind == NodeKind::ProcessingInstruction; }
-	bool IsDocumentType()          const noexcept { return m_p->Kind == NodeKind::DocumentType;          }
+	bool IsElement()               const noexcept { return m_p->Kind() == NodeKind::Element;               }
+	bool IsText()                  const noexcept { return m_p->Kind() == NodeKind::Text;                  }
+	bool IsComment()               const noexcept { return m_p->Kind() == NodeKind::Comment;               }
+	bool IsCData()                 const noexcept { return m_p->Kind() == NodeKind::CData;                 }
+	bool IsProcessingInstruction() const noexcept { return m_p->Kind() == NodeKind::ProcessingInstruction; }
+	bool IsDocumentType()          const noexcept { return m_p->Kind() == NodeKind::DocumentType;          }
 
 	/// True if this is a Text node whose payload must be emitted verbatim
 	/// (e.g. inside <script> / <style>). Equivalent to checking
 	/// `Flags() & NodeFlag::TextDoNotEscape`.
 	bool IsTextRaw() const noexcept
 	{
-		return (m_p->Flags & NodeFlag::TextDoNotEscape) != 0;
+		return (m_p->Flags() & NodeFlag::TextDoNotEscape) != 0;
 	}
 
-	NodeCursor Parent()      const noexcept { return NodeCursor{ m_p->Parent      }; }
-	NodeCursor FirstChild()  const noexcept { return NodeCursor{ m_p->FirstChild  }; }
-	NodeCursor LastChild()   const noexcept { return NodeCursor{ m_p->LastChild   }; }
-	NodeCursor NextSibling() const noexcept { return NodeCursor{ m_p->NextSibling }; }
-	NodeCursor PrevSibling() const noexcept { return NodeCursor{ m_p->PrevSibling }; }
+	NodeCursor Parent()      const noexcept { return NodeCursor{ m_p->Parent()      }; }
+	NodeCursor FirstChild()  const noexcept { return NodeCursor{ m_p->FirstChild()  }; }
+	NodeCursor LastChild()   const noexcept { return NodeCursor{ m_p->LastChild()   }; }
+	NodeCursor NextSibling() const noexcept { return NodeCursor{ m_p->NextSibling() }; }
+	NodeCursor PrevSibling() const noexcept { return NodeCursor{ m_p->PrevSibling() }; }
 
-	AttrCursor FirstAttr()   const noexcept { return AttrCursor{ m_p->FirstAttr   }; }
-	AttrCursor LastAttr()    const noexcept { return AttrCursor{ m_p->LastAttr    }; }
+	AttrCursor FirstAttr()   const noexcept { return AttrCursor{ m_p->FirstAttr()   }; }
+	AttrCursor LastAttr()    const noexcept { return AttrCursor{ m_p->LastAttr()    }; }
 
 	/// Find the first attribute whose Name() equals 'sName'. Linear search
 	/// over the attribute chain (O(n) in number of attrs). Returns an empty
@@ -188,8 +188,8 @@ public:
 		return AttrCursor{};
 	}
 
-	std::size_t CountChildren() const noexcept { return ::dekaf2::khtml::CountChildren(m_p); }
-	std::size_t CountAttrs()    const noexcept { return ::dekaf2::khtml::CountAttrs   (m_p); }
+	std::size_t CountChildren() const noexcept { return m_p->CountChildren(); }
+	std::size_t CountAttrs()    const noexcept { return m_p->CountAttrs   (); }
 
 	/// Range adapter for `for (auto child : node.Children())` iteration.
 	class ChildRange;

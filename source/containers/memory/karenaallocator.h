@@ -44,8 +44,7 @@
 /// Block-allocating arena (memory pool) for trivially-destructible objects.
 /// Pattern is the same as rapidxml's memory_pool: large blocks, no per-allocation
 /// free, all memory released only via clear() or destructor. Designed to back
-/// data structures with thousands of small POD nodes (like KHTML's DOM after
-/// the arena migration, see notes/khtmldom-arena-design.md).
+/// data structures with thousands of small POD nodes.
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
@@ -88,8 +87,8 @@ class DEKAF2_PUBLIC KArenaAllocator
 public:
 //------
 
-	/// Default block size. One full HTML page typically fits in
-	/// a single block.
+	/// Default block size - requested allocations larger than this size will get
+	/// their own memory blocks fitting the requested size
 	static constexpr std::size_t DefaultBlockSize = 8 * 1024;
 
 	/// Default alignment used by Allocate() when the caller does not specify
@@ -157,7 +156,7 @@ public:
 	/// currently in use is moved to an internal free list, the cursor and
 	/// usage counter are reset, and BlockCount() drops to 0. Subsequent
 	/// allocations recycle blocks from the free list (cheapest-fit walk in
-	/// GrowBy()) before falling back to std::malloc(). This is the
+	/// GrowBy()) before falling back to ::operator new(). This is the
 	/// preferred reset for hot reparse paths (e.g. KHTML::PodResetTree())
 	/// where the same arena is reused many times for similarly-sized
 	/// inputs. To actually release the recycled memory call clear().

@@ -66,11 +66,10 @@ DEKAF2_NAMESPACE_BEGIN
 
 namespace khtml {
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Discriminator for the kind of node stored in a NodePOD.
 enum class NodeKind : std::uint8_t
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+	Document,               ///< the document node - name and value are empty
 	Element,                ///< <name attr="val">...</name>
 	Text,                   ///< character data, escaped or raw (see NodeFlag::TextDoNotEscape)
 	Comment,                ///< <!-- ... -->
@@ -79,11 +78,9 @@ enum class NodeKind : std::uint8_t
 	DocumentType            ///< <!DOCTYPE ...>
 };
 
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Bit flags that decorate a NodePOD beyond its kind. Combined via the
 /// usual bitwise operators (provided by DEKAF2_ENUM_IS_FLAG below).
 enum NodeFlag : std::uint8_t
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	None            = 0,
 	/// Text node: bytes in NodePOD::Name are already entity-encoded (or must
@@ -91,18 +88,122 @@ enum NodeFlag : std::uint8_t
 	TextDoNotEscape = 1u << 0
 };
 
+DEKAF2_ENUM_IS_FLAG(NodeFlag)
+
+class NodePOD;
+class Document;
+
+namespace detail {
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class NodeBase
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	NodeBase() = default;
+	NodeBase(NodePOD*    Parent,
+	         KStringView sName  = KStringView{},
+	         KStringView sValue = KStringView{})
+	: m_Parent (Parent)
+	, m_sName  (CreateString(sName) )
+	, m_sValue (CreateString(sValue))
+	{
+	}
+
+	KStringView Name     () const { return m_sName;  }
+	KStringView Value    () const { return m_sValue; }
+
+	NodePOD*    Parent   () const { return m_Parent; };
+
+	/// Set new name - sName will be stored in the arena
+	void        Name     (KStringView sName ) { Name (Document(), sName ); }
+	/// Set new value - sValue will be stored in the arena
+	void        Value    (KStringView sValue) { Value(Document(), sValue); }
+
+//------
+protected:
+//------
+
+	/// Returns root element of tree
+	NodePOD*    Root     () noexcept;
+	/// Returns document root of tree if any, else nullptr
+	Document*   Document () noexcept;
+
+	/// places a string in the arena of document and returns a view on it
+	static KStringView CreateString (class Document* document, KStringView sStr);
+	/// places a string in the arena of this node's document and returns a view on it - you still have to put the view somewhere
+	KStringView CreateString (KStringView sStr);
+	/// places a name in the arena of document and sets it in this node
+	void Name (class Document* document, KStringView sName );
+	/// places a value in the arena of document and sets it in this node
+	void Value(class Document* document, KStringView sValue);
+
+	NodePOD*    m_Parent { nullptr };
+	KStringView m_sName;  ///< primary payload (see table above)
+	KStringView m_sValue; ///< secondary payload (see table above)
+
+}; // NodeBase
+
+} // end of namespace detail
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// One HTML attribute as stored in the arena. Linked into NodePOD via the
 /// AttrPOD::Next chain.
-struct AttrPOD
+class AttrPOD : public detail::NodeBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	KStringView Name;                ///< attribute name (arena-owned bytes)
-	KStringView Value;               ///< attribute value (arena-owned bytes)
-	AttrPOD*    Next     { nullptr };///< next attribute in the singly-linked attr list
-	char        Quote    { 0 };      ///< original quote char from parser (' or "), 0 = decide on serialize
-	bool        DoEscape { true    };///< if false, the value is already entity-encoded
-};
+
+//------
+public:
+//------
+
+	AttrPOD() = default;
+	AttrPOD(NodePOD*    Parent,
+	        KStringView sName,
+	        KStringView sValue = KStringView{},
+	        char        chQuote   = 0,
+	        bool        bDoEscape = true)
+	: NodeBase(Parent, sName, sValue)
+	, m_chQuote(chQuote)
+	, m_bDoEscape(bDoEscape)
+	{
+	}
+
+	std::size_t size() const
+	{
+		std::size_t iCount = 1;
+		AttrPOD* a = m_Next;
+		while (a)
+		{
+			++iCount;
+			a = a->m_Next;
+		}
+		return iCount;
+	}
+
+	bool empty() const { return false; }
+
+	char     Quote   () const { return m_chQuote;   }
+	bool     DoEscape() const { return m_bDoEscape; }
+
+	NodePOD* Parent  () const { return m_Parent;    }
+	AttrPOD* Next    () const { return m_Next;      }
+
+	void     AppendAttr(AttrPOD* attr) { attr->m_Next = m_Next; m_Next = attr; }
+
+//------
+private:
+//------
+
+	AttrPOD* m_Next      { nullptr }; ///< next attribute in the singly-linked attr list
+	char     m_chQuote   {       0 }; ///< original quote char from parser (' or "), 0 = decide on serialize
+	bool     m_bDoEscape {    true }; ///< if false, the value is already entity-encoded
+
+}; // AttrPOD
 
 static_assert(std::is_trivially_destructible<AttrPOD>::value,
 	"AttrPOD must be trivially destructible to live in KArenaAllocator");
@@ -121,28 +222,322 @@ static_assert(std::is_trivially_destructible<AttrPOD>::value,
 ///
 /// Parent / sibling / child pointers form a doubly-linked tree. first_attr
 /// and last_attr together give O(1) AppendAttr.
-struct NodePOD
+class NodePOD : public detail::NodeBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	NodeKind      Kind        { NodeKind::Element };
-	NodeFlag      Flags       { NodeFlag::None };                         ///< OR-combination of NodeFlag bits
-	KHTMLObject::TagProperty TagProps { KHTMLObject::TagProperty::None }; ///< cached HTML tag property bits
 
-	KStringView   Name;       ///< primary payload (see table above)
-	KStringView   Value;      ///< secondary payload (see table above)
+//------
+public:
+//------
 
-	AttrPOD*      FirstAttr   { nullptr };
-	AttrPOD*      LastAttr    { nullptr };
+	NodePOD() = default;
+	NodePOD(NodePOD* Parent, NodeKind kind)
+	: NodeBase(Parent)
+	, m_Kind(kind)
+	{
+	}
 
-	NodePOD*      FirstChild  { nullptr };
-	NodePOD*      LastChild   { nullptr };
-	NodePOD*      NextSibling { nullptr };
-	NodePOD*      PrevSibling { nullptr };
-	NodePOD*      Parent      { nullptr };
-};
+	NodeKind Kind () const { return m_Kind;  }
+	NodeFlag Flags() const { return m_Flags; }
+	KHTMLObject::TagProperty TagProps() const { return m_TagProps; }
+
+	AttrPOD* FirstAttr() const { return m_FirstAttr; };
+	AttrPOD* LastAttr () const { return m_LastAttr;  };
+
+	NodePOD* FirstChild () const { return m_FirstChild;  };
+	NodePOD* LastChild  () const { return m_LastChild;   };
+	NodePOD* NextSibling() const { return m_NextSibling; };
+	NodePOD* PrevSibling() const { return m_PrevSibling; };
+
+	NodePOD* Flags(NodeFlag flags) { m_Flags = flags; return this; }
+
+	NodePOD* AddNode(NodeKind Kind,
+	                 KStringView sName  = KStringView{},
+	                 KStringView sValue = KStringView{});
+
+	NodePOD* AddNode(NodePOD* Before,
+	                 NodeKind Kind,
+	                 KStringView sName  = KStringView{},
+	                 KStringView sValue = KStringView{});
+
+	NodePOD* AddText(KStringView sText, bool bDoNotEscape = false);
+
+	AttrPOD* AddAttribute(KStringView sName,
+	                      KStringView sValue,
+	                      char chQuote   = '\0',
+	                      bool bDoEscape = true);
+
+	/// Append 'pAttr' at the end of this node's attribute chain. O(1).
+	void AppendAttr(AttrPOD* pAttr) noexcept
+	{
+		if (this->m_LastAttr != nullptr)
+		{
+			this->m_LastAttr->AppendAttr(pAttr);
+		}
+		else
+		{
+			kAssert(pAttr->Next() == nullptr, "pAttr->Next() must be nullptr");
+			this->m_FirstAttr = pAttr;
+		}
+
+		this->m_LastAttr = pAttr;
+	}
+
+	/// Append 'pChild' as the last child of this node. O(1).
+	void AppendChild(NodePOD* pChild) noexcept
+	{
+		pChild->m_Parent      = this;
+		pChild->m_NextSibling = nullptr;
+		pChild->m_PrevSibling = this->m_LastChild;
+
+		if (this->m_LastChild != nullptr)
+		{
+			this->m_LastChild->m_NextSibling = pChild;
+		}
+		else
+		{
+			this->m_FirstChild = pChild;
+		}
+
+		this->m_LastChild = pChild;
+	}
+
+	/// Insert 'pNew' immediately before 'pBefore'. If 'pBefore'
+	/// is null, behaves like AppendChild. O(1).
+	void InsertChildBefore(NodePOD* pBefore, NodePOD* pNew) noexcept
+	{
+		if (pBefore == nullptr)
+		{
+			AppendChild(pNew);
+			return;
+		}
+
+		pNew->m_Parent      = this;
+		pNew->m_NextSibling = pBefore;
+		pNew->m_PrevSibling = pBefore->m_PrevSibling;
+
+		if (pBefore->m_PrevSibling != nullptr)
+		{
+			pBefore->m_PrevSibling->m_NextSibling = pNew;
+		}
+		else
+		{
+			this->m_FirstChild = pNew;
+		}
+
+		pBefore->m_PrevSibling = pNew;
+	}
+
+	/// Unlink from parent and siblings. The arena keeps owning the
+	/// memory — this node simply becomes unreachable from the tree. O(1).
+	void Detach() noexcept
+	{
+		NodePOD* pParent = this->m_Parent;
+
+		if (pParent == nullptr)
+		{
+			return;
+		}
+
+		if (this->m_PrevSibling != nullptr)
+		{
+			this->m_PrevSibling->m_NextSibling = this->m_NextSibling;
+		}
+		else
+		{
+			pParent->m_FirstChild = this->m_NextSibling;
+		}
+
+		if (this->m_NextSibling != nullptr)
+		{
+			this->m_NextSibling->m_PrevSibling = this->m_PrevSibling;
+		}
+		else
+		{
+			pParent->m_LastChild = this->m_PrevSibling;
+		}
+
+		this->m_Parent      = nullptr;
+		this->m_NextSibling = nullptr;
+		this->m_PrevSibling = nullptr;
+	}
+
+	/// @returns the number of children of this node. O(n).
+	std::size_t CountChildren() const noexcept
+	{
+		std::size_t i = 0;
+
+		for (const NodePOD* c = this->m_FirstChild; c != nullptr; c = c->m_NextSibling)
+		{
+			++i;
+		}
+
+		return i;
+	}
+
+	/// @returns the number of attributes on 'pNode'. O(n).
+	std::size_t CountAttrs() const noexcept
+	{
+		std::size_t i = 0;
+
+		for (const AttrPOD* a = this->m_FirstAttr; a != nullptr; a = a->Next())
+		{
+			++i;
+		}
+
+		return i;
+	}
+
+	/// Find an attribute on 'pNode' by name. Linear scan; HTML elements rarely
+	/// have more than a handful of attributes, so this is intentionally simple.
+	/// @returns the AttrPOD* if found, nullptr otherwise.
+	AttrPOD* Attribute(KStringView sName) noexcept
+	{
+		for (AttrPOD* a = this->m_FirstAttr; a != nullptr; a = a->Next())
+		{
+			if (a->Name() == sName)
+			{
+				return a;
+			}
+		}
+
+		return nullptr;
+	}
+
+	/// const overload of FindAttr().
+	const AttrPOD* Attribute(KStringView sName) const noexcept
+	{
+		for (const AttrPOD* a = this->m_FirstAttr; a != nullptr; a = a->Next())
+		{
+			if (a->Name() == sName)
+			{
+				return a;
+			}
+		}
+
+		return nullptr;
+	}
+
+	void clear(NodeKind kind = NodeKind::Element)
+	{
+		*this  = NodePOD();
+		m_Kind = kind;
+	}
+
+//------
+private:
+//------
+
+	NodeKind      m_Kind        { NodeKind::Element };
+	NodeFlag      m_Flags       { NodeFlag::None    };              ///< OR-combination of NodeFlag bits
+	KHTMLObject::TagProperty
+	              m_TagProps    { KHTMLObject::TagProperty::None }; ///< cached HTML tag property bits
+
+	AttrPOD*      m_FirstAttr   { nullptr };
+	AttrPOD*      m_LastAttr    { nullptr };
+
+	NodePOD*      m_FirstChild  { nullptr };
+	NodePOD*      m_LastChild   { nullptr };
+	NodePOD*      m_NextSibling { nullptr };
+	NodePOD*      m_PrevSibling { nullptr };
+
+}; // NodePOD
 
 static_assert(std::is_trivially_destructible<NodePOD>::value,
 	"NodePOD must be trivially destructible to live in KArenaAllocator");
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class Document : public NodePOD, public KArenaAllocator
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	Document(std::size_t iArenaSize = KArenaAllocator::DefaultBlockSize)
+	: NodePOD(nullptr, NodeKind::Document)
+	, KArenaAllocator(iArenaSize)
+	{
+	}
+
+	void reset()
+	{
+		NodePOD::clear(NodeKind::Document);
+		KArenaAllocator::reset();
+	}
+
+	void clear()
+	{
+		NodePOD::clear(NodeKind::Document);
+		KArenaAllocator::clear();
+	}
+
+}; // Document
+
+//-----------------------------------------------------------------------------
+	/// Returns root element of tree
+inline NodePOD* detail::NodeBase::Root() noexcept
+//-----------------------------------------------------------------------------
+{
+	if (!m_Parent)
+	{
+		return static_cast<class NodePOD*>(this);
+	}
+
+	auto* pNode = m_Parent;
+
+	if (pNode)
+	{
+		while (pNode->m_Parent)
+		{
+			pNode = pNode->m_Parent;
+		}
+	}
+
+	return pNode;
+}
+
+//-----------------------------------------------------------------------------
+/// Returns document root of tree if any, else nullptr
+inline class Document* detail::NodeBase::Document() noexcept
+//-----------------------------------------------------------------------------
+{
+	auto* pNode = Root();
+	if (!pNode || pNode->Kind() != NodeKind::Document) return nullptr;
+	return static_cast<class Document*>(pNode);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView detail::NodeBase::CreateString(class Document* document, KStringView sStr)
+//-----------------------------------------------------------------------------
+{
+	if (!document || sStr.empty()) return KStringView{};
+	return document->AllocateString(sStr);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView detail::NodeBase::CreateString(KStringView sStr)
+//-----------------------------------------------------------------------------
+{
+	return CreateString(Document(), sStr);
+}
+
+//-----------------------------------------------------------------------------
+inline void detail::NodeBase::Name (class Document* document, KStringView sName )
+//-----------------------------------------------------------------------------
+{
+	if (!document || sName.empty()) return;
+	m_sName = CreateString(document, sName);
+}
+
+//-----------------------------------------------------------------------------
+inline void detail::NodeBase::Value(class Document* document, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	if (!document || sValue.empty()) return;
+	m_sValue = CreateString(document, sValue);
+}
 
 //-----------------------------------------------------------------------------
 // Helpers — every helper below operates on arena-owned NodePOD/AttrPOD only
@@ -151,198 +546,143 @@ static_assert(std::is_trivially_destructible<NodePOD>::value,
 
 //-----------------------------------------------------------------------------
 /// Allocate a new NodePOD of the given kind in 'arena'.
-inline NodePOD* CreateNode(KArenaAllocator& arena, NodeKind kind)
+inline NodePOD* CreateNode(KArenaAllocator& arena, NodePOD* Parent, NodeKind kind)
 //-----------------------------------------------------------------------------
 {
-	auto* node = arena.Construct<NodePOD>();
-	node->Kind = kind;
-	return node;
+	return arena.Construct<NodePOD>(Parent, kind);
 }
 
 //-----------------------------------------------------------------------------
 /// Allocate a new AttrPOD with arena-copied name/value.
 /// @param chQuote original quote char from parser (' or "), 0 = let serializer decide
 inline AttrPOD* CreateAttr(KArenaAllocator& arena,
+                           NodePOD*         Parent,
                            KStringView      sName,
                            KStringView      sValue,
                            char             chQuote   = 0,
                            bool             bDoEscape = true)
 //-----------------------------------------------------------------------------
 {
-	auto* attr      = arena.Construct<AttrPOD>();
-	attr->Name      = arena.AllocateString(sName);
-	attr->Value     = arena.AllocateString(sValue);
-	attr->Quote     = chQuote;
-	attr->DoEscape  = bDoEscape;
+	return arena.Construct<AttrPOD>
+	(
+		Parent,
+		sName,
+		sValue,
+		chQuote,
+		bDoEscape
+	);
+}
+
+//-----------------------------------------------------------------------------
+inline NodePOD* NodePOD::AddNode(NodeKind kind, KStringView sName, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	auto* document = Document();
+
+	if (!document)
+	{
+		// TODO log
+		return nullptr;
+	}
+
+	auto* pNode = CreateNode(*document, this, kind);
+
+	if (!sName.empty())
+	{
+		pNode->Name(sName);
+
+		if (kind == NodeKind::Element)
+		{
+			// get the tag props right here
+			pNode->m_TagProps = KHTMLObject::GetTagProperty(sName);
+		}
+	}
+
+	if (!sValue.empty())
+	{
+		pNode->Value(sName);
+	}
+
+	AppendChild(pNode);
+
+	return pNode;
+}
+
+//-----------------------------------------------------------------------------
+inline NodePOD* NodePOD::AddNode(NodePOD* Before, NodeKind kind, KStringView sName, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	auto* document = Document();
+
+	if (!document)
+	{
+		// TODO log
+		return nullptr;
+	}
+
+	auto* pNode = CreateNode(*document, this, kind);
+
+	if (!sName.empty())
+	{
+		pNode->Name(sName);
+	}
+
+	if (!sValue.empty())
+	{
+		pNode->Value(sName);
+	}
+
+	InsertChildBefore(Before, pNode);
+
+	return pNode;
+}
+
+//-----------------------------------------------------------------------------
+inline NodePOD* NodePOD::AddText(KStringView sText, bool bDoNotEscape)
+//-----------------------------------------------------------------------------
+{
+	auto* document = Document();
+
+	if (!document)
+	{
+		// TODO log
+		return nullptr;
+	}
+
+	auto* pNode = CreateNode(*document, this, NodeKind::Text);
+
+	if (!sText.empty())
+	{
+		pNode->Name(sText);
+	}
+
+	if (bDoNotEscape)
+	{
+		pNode->m_Flags |= khtml::NodeFlag::TextDoNotEscape;
+	}
+
+	AppendChild(pNode);
+
+	return pNode;
+}
+
+//-----------------------------------------------------------------------------
+inline AttrPOD* NodePOD::AddAttribute(KStringView sName, KStringView sValue, char chQuote , bool bDoEscape)
+//-----------------------------------------------------------------------------
+{
+	auto* document = Document();
+
+	if (!document)
+	{
+		// TODO log
+		return nullptr;
+	}
+
+	auto* attr = CreateAttr(*document, this, sName, sValue, chQuote, bDoEscape);
+
+	AppendAttr(attr);
+
 	return attr;
-}
-
-//-----------------------------------------------------------------------------
-/// Append 'pAttr' at the end of 'pNode's attribute chain. O(1).
-inline void AppendAttr(NodePOD* pNode, AttrPOD* pAttr) noexcept
-//-----------------------------------------------------------------------------
-{
-	pAttr->Next = nullptr;
-
-	if (pNode->LastAttr != nullptr)
-	{
-		pNode->LastAttr->Next = pAttr;
-	}
-	else
-	{
-		pNode->FirstAttr = pAttr;
-	}
-
-	pNode->LastAttr = pAttr;
-}
-
-//-----------------------------------------------------------------------------
-/// Append 'pChild' as the last child of 'pParent'. O(1).
-inline void AppendChild(NodePOD* pParent, NodePOD* pChild) noexcept
-//-----------------------------------------------------------------------------
-{
-	pChild->Parent      = pParent;
-	pChild->NextSibling = nullptr;
-	pChild->PrevSibling = pParent->LastChild;
-
-	if (pParent->LastChild != nullptr)
-	{
-		pParent->LastChild->NextSibling = pChild;
-	}
-	else
-	{
-		pParent->FirstChild = pChild;
-	}
-
-	pParent->LastChild = pChild;
-}
-
-//-----------------------------------------------------------------------------
-/// Insert 'pNew' immediately before 'pBefore' inside 'pParent'. If 'pBefore'
-/// is null, behaves like AppendChild. O(1).
-inline void InsertChildBefore(NodePOD* pParent, NodePOD* pBefore, NodePOD* pNew) noexcept
-//-----------------------------------------------------------------------------
-{
-	if (pBefore == nullptr)
-	{
-		AppendChild(pParent, pNew);
-		return;
-	}
-
-	pNew->Parent      = pParent;
-	pNew->NextSibling = pBefore;
-	pNew->PrevSibling = pBefore->PrevSibling;
-
-	if (pBefore->PrevSibling != nullptr)
-	{
-		pBefore->PrevSibling->NextSibling = pNew;
-	}
-	else
-	{
-		pParent->FirstChild = pNew;
-	}
-
-	pBefore->PrevSibling = pNew;
-}
-
-//-----------------------------------------------------------------------------
-/// Unlink 'pNode' from its parent and siblings. The arena keeps owning the
-/// memory — the node simply becomes unreachable from the tree. O(1).
-inline void DetachChild(NodePOD* pNode) noexcept
-//-----------------------------------------------------------------------------
-{
-	NodePOD* pParent = pNode->Parent;
-
-	if (pParent == nullptr)
-	{
-		return;
-	}
-
-	if (pNode->PrevSibling != nullptr)
-	{
-		pNode->PrevSibling->NextSibling = pNode->NextSibling;
-	}
-	else
-	{
-		pParent->FirstChild = pNode->NextSibling;
-	}
-
-	if (pNode->NextSibling != nullptr)
-	{
-		pNode->NextSibling->PrevSibling = pNode->PrevSibling;
-	}
-	else
-	{
-		pParent->LastChild = pNode->PrevSibling;
-	}
-
-	pNode->Parent      = nullptr;
-	pNode->NextSibling = nullptr;
-	pNode->PrevSibling = nullptr;
-}
-
-//-----------------------------------------------------------------------------
-/// @returns the number of children of 'pNode'. O(n).
-inline std::size_t CountChildren(const NodePOD* pNode) noexcept
-//-----------------------------------------------------------------------------
-{
-	std::size_t i = 0;
-
-	for (const NodePOD* c = pNode->FirstChild; c != nullptr; c = c->NextSibling)
-	{
-		++i;
-	}
-
-	return i;
-}
-
-//-----------------------------------------------------------------------------
-/// @returns the number of attributes on 'pNode'. O(n).
-inline std::size_t CountAttrs(const NodePOD* pNode) noexcept
-//-----------------------------------------------------------------------------
-{
-	std::size_t i = 0;
-
-	for (const AttrPOD* a = pNode->FirstAttr; a != nullptr; a = a->Next)
-	{
-		++i;
-	}
-
-	return i;
-}
-
-//-----------------------------------------------------------------------------
-/// Find an attribute on 'pNode' by name. Linear scan; HTML elements rarely
-/// have more than a handful of attributes, so this is intentionally simple.
-/// @returns the AttrPOD* if found, nullptr otherwise.
-inline AttrPOD* FindAttr(NodePOD* pNode, KStringView sName) noexcept
-//-----------------------------------------------------------------------------
-{
-	for (AttrPOD* a = pNode->FirstAttr; a != nullptr; a = a->Next)
-	{
-		if (a->Name == sName)
-		{
-			return a;
-		}
-	}
-
-	return nullptr;
-}
-
-//-----------------------------------------------------------------------------
-/// const overload of FindAttr().
-inline const AttrPOD* FindAttr(const NodePOD* pNode, KStringView sName) noexcept
-//-----------------------------------------------------------------------------
-{
-	for (const AttrPOD* a = pNode->FirstAttr; a != nullptr; a = a->Next)
-	{
-		if (a->Name == sName)
-		{
-			return a;
-		}
-	}
-
-	return nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -370,7 +710,5 @@ bool PodRemoveTrailingWhitespace(NodePOD* pNode, bool bStopAtBlockElement = true
 //-----------------------------------------------------------------------------
 
 } // namespace khtml
-
-DEKAF2_ENUM_IS_FLAG(khtml::NodeFlag)
 
 DEKAF2_NAMESPACE_END

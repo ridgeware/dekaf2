@@ -48,7 +48,7 @@ TEST_CASE("khtml::NodePOD")
 		CHECK ( n->CountAttrs()    == 0 );
 	}
 
-	SECTION("AddAttribute copies name and value into arena")
+	SECTION("AddAttribute keeps name and value outside arena")
 	{
 		Document doc;
 
@@ -61,9 +61,29 @@ TEST_CASE("khtml::NodePOD")
 		REQUIRE ( a != nullptr );
 		CHECK ( a->Name () == "id"   );
 		CHECK ( a->Value() == "main" );
-		// the bytes must be arena-owned, not the literal
-		CHECK ( a->Name().data()  != sLiteralName  );
-		CHECK ( a->Value().data() != sLiteralValue );
+		// the bytes should still point to the literals, as they are const in the data segment
+		CHECK ( a->Name().data()  == sLiteralName  );
+		CHECK ( a->Value().data() == sLiteralValue );
+		CHECK ( a->Next()     == nullptr );
+		CHECK ( a->DoEscape() == true    );
+	}
+
+	SECTION("AddAttribute copies name and value into arena")
+	{
+		Document doc;
+
+		KString sLiteralName  = "id";
+		KString sLiteralValue = "main";
+
+		auto* root = doc.AddNode(NodeKind::Element);
+		AttrPOD* a = root->AddAttribute(sLiteralName, sLiteralValue);
+
+		REQUIRE ( a != nullptr );
+		CHECK ( a->Name () == "id"   );
+		CHECK ( a->Value() == "main" );
+		// the bytes must now be arena-owned
+		CHECK ( a->Name().data()  != sLiteralName.data()  );
+		CHECK ( a->Value().data() != sLiteralValue.data() );
 		CHECK ( a->Next()     == nullptr );
 		CHECK ( a->DoEscape() == true    );
 	}

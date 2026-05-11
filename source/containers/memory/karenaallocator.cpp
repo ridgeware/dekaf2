@@ -41,6 +41,7 @@
 */
 
 #include "karenaallocator.h"
+#include <dekaf2/system/os/ksystem.h>
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
@@ -156,9 +157,15 @@ void* KArenaAllocator::Allocate(std::size_t iSize, std::size_t iAlign)
 KStringView KArenaAllocator::AllocateString(KStringView sSource)
 //-----------------------------------------------------------------------------
 {
-	if (sSource.empty())
+	// The test for kIsInsideDataSegment() is very cheap on Linux (just two
+	// address compares). It is relatively complex though on MacOS, where a
+	// number of address ranges need to be checked. If in doubt if this
+	// destroys the performance gain of the arena allocator do your own
+	// benchmark.
+	if (sSource.empty() || kIsInsideDataSegment(sSource.data()))
 	{
-		return KStringView{};
+		// no allocation needed - this string is empty or a literal in the data segment
+		return sSource;
 	}
 
 	// strings have alignment 1 — no padding needed

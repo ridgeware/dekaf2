@@ -58,6 +58,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/containers/memory/karenaallocator.h>
 #include <dekaf2/web/html/khtmlparser.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -512,7 +513,7 @@ inline class Document* detail::NodeBase::Document() noexcept
 inline KStringView detail::NodeBase::CreateString(class Document* document, KStringView sStr)
 //-----------------------------------------------------------------------------
 {
-	if (!document || sStr.empty()) return KStringView{};
+	if (!document) return KStringView{};
 	return document->AllocateString(sStr);
 }
 
@@ -520,6 +521,7 @@ inline KStringView detail::NodeBase::CreateString(class Document* document, KStr
 inline KStringView detail::NodeBase::CreateString(KStringView sStr)
 //-----------------------------------------------------------------------------
 {
+	if (sStr.empty()) return sStr;
 	return CreateString(Document(), sStr);
 }
 
@@ -527,7 +529,6 @@ inline KStringView detail::NodeBase::CreateString(KStringView sStr)
 inline void detail::NodeBase::Name (class Document* document, KStringView sName )
 //-----------------------------------------------------------------------------
 {
-	if (!document || sName.empty()) return;
 	m_sName = CreateString(document, sName);
 }
 
@@ -535,7 +536,6 @@ inline void detail::NodeBase::Name (class Document* document, KStringView sName 
 inline void detail::NodeBase::Value(class Document* document, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
-	if (!document || sValue.empty()) return;
 	m_sValue = CreateString(document, sValue);
 }
 

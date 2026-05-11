@@ -2,6 +2,7 @@
 
 #include <dekaf2/containers/memory/karenaallocator.h>
 #include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <cstdint>
 #include <cstring>
 
@@ -121,6 +122,29 @@ TEST_CASE("KArenaAllocator")
 		CHECK ( arena.BlockCount() == 2 );
 	}
 
+	SECTION("AllocateString from data segment")
+	{
+		KArenaAllocator arena;
+
+		KStringView empty   = arena.AllocateString({});
+		CHECK ( empty.empty() );
+		CHECK ( arena.BlockCount() == 0 );
+
+		// the arena allocator doesn't allocate strings coming from the data segment
+		KStringView hello = arena.AllocateString("hello world");
+		CHECK ( arena.BlockCount() == 0 );
+		REQUIRE ( hello.size() == 11 );
+		CHECK ( hello == "hello world" );
+		// the view should point to the data segment
+		CHECK ( kIsInsideDataSegment(hello.data()) );
+		CHECK ( hello.data() == KStringView("hello world").data() );
+
+		KStringView other = arena.AllocateString(hello);
+		CHECK ( arena.BlockCount() == 0 );
+		CHECK ( other == "hello world" );
+		CHECK ( other.data() == hello.data() );
+	}
+
 	SECTION("AllocateString round-trip")
 	{
 		KArenaAllocator arena;
@@ -129,7 +153,10 @@ TEST_CASE("KArenaAllocator")
 		CHECK ( empty.empty() );
 		CHECK ( arena.BlockCount() == 0 );
 
-		KStringView hello = arena.AllocateString("hello world");
+		// create a dynamic string
+		KString sOrigin("hello world");
+		// NOW the allocation should happen inside the arena
+		KStringView hello = arena.AllocateString(sOrigin);
 		REQUIRE ( hello.size() == 11 );
 		CHECK ( hello == "hello world" );
 		// the view must point to arena-owned bytes, not the literal

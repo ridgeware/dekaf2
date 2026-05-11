@@ -42,26 +42,30 @@
 
 /// @file khtmldom_node.h
 /// Internal POD node and attribute types for the arena-based KHTMLDOM. Not
-/// part of the public API — only consumed by KHTML / KHTMLElement and the
+/// part of the public API — only consumed by KHTML / KHTMLNode and the
 /// associated unit tests.
 ///
 /// Design constraints:
 ///   * trivially-destructible PODs only — they live in an arena that never
 ///     calls destructors
-///   * small (currently 96 bytes) and tightly packed
+///   * small (NodePOD = 80 byte, AttrPOD = 48 byte) and tightly packed
 ///   * doubly-linked siblings for O(1) insert / erase at any position
 ///   * tail-pointer for first_child/last_child gives O(1) push_back
 ///
-/// Strings are stored as KStringView referencing arena-owned bytes.
+/// Strings are stored as KStringView referencing arena-owned bytes (or
+/// straight into the data segment when the literal is recognised as such by
+/// KArenaAllocator).
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/containers/memory/karenaallocator.h>
 #include <dekaf2/web/html/khtmlparser.h>
-#include <dekaf2/system/os/ksystem.h>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
+#include <unordered_map>
+#include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -70,13 +74,13 @@ namespace khtml {
 /// Discriminator for the kind of node stored in a NodePOD.
 enum class NodeKind : std::uint8_t
 {
-	Document,               ///< the document node - name and value are empty
-	Element,                ///< <name attr="val">...</name>
-	Text,                   ///< character data, escaped or raw (see NodeFlag::TextDoNotEscape)
-	Comment,                ///< <!-- ... -->
-	CData,                  ///< <![CDATA[ ... ]]>
-	ProcessingInstruction,  ///< <?xml ... ?>
-	DocumentType            ///< <!DOCTYPE ...>
+	Document,               ///< the document node - name is empty
+	Element,                ///< <name attr="val">...</name> — Name = tag name
+	Text,                   ///< character data, escaped or raw (see NodeFlag::TextDoNotEscape) — Name = content
+	Comment,                ///< <!-- ... --> — Name = comment body
+	CData,                  ///< <![CDATA[ ... ]]> — Name = cdata content
+	ProcessingInstruction,  ///< <?xml ... ?> — Name = entire PI body opaque (target + body)
+	DocumentType            ///< <!DOCTYPE ...> — Name = entire DOCTYPE body opaque
 };
 
 /// Bit flags that decorate a NodePOD beyond its kind. Combined via the
@@ -94,67 +98,12 @@ DEKAF2_ENUM_IS_FLAG(NodeFlag)
 class NodePOD;
 class Document;
 
-namespace detail {
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class NodeBase
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-//------
-public:
-//------
-
-	NodeBase() = default;
-	NodeBase(NodePOD*    Parent,
-	         KStringView sName  = KStringView{},
-	         KStringView sValue = KStringView{})
-	: m_Parent (Parent)
-	, m_sName  (CreateString(sName) )
-	, m_sValue (CreateString(sValue))
-	{
-	}
-
-	KStringView Name     () const { return m_sName;  }
-	KStringView Value    () const { return m_sValue; }
-
-	NodePOD*    Parent   () const { return m_Parent; };
-
-	/// Set new name - sName will be stored in the arena
-	void        Name     (KStringView sName ) { Name (Document(), sName ); }
-	/// Set new value - sValue will be stored in the arena
-	void        Value    (KStringView sValue) { Value(Document(), sValue); }
-
-//------
-protected:
-//------
-
-	/// Returns root element of tree
-	NodePOD* Root () noexcept;
-	/// Returns document root of tree if any, else nullptr
-	class Document* Document () noexcept;
-
-	/// places a string in the arena of document and returns a view on it
-	static KStringView CreateString (class Document* document, KStringView sStr);
-	/// places a string in the arena of this node's document and returns a view on it - you still have to put the view somewhere
-	KStringView CreateString (KStringView sStr);
-	/// places a name in the arena of document and sets it in this node
-	void Name (class Document* document, KStringView sName );
-	/// places a value in the arena of document and sets it in this node
-	void Value(class Document* document, KStringView sValue);
-
-	NodePOD*    m_Parent { nullptr };
-	KStringView m_sName;  ///< primary payload (see table above)
-	KStringView m_sValue; ///< secondary payload (see table above)
-
-}; // NodeBase
-
-} // end of namespace detail
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// One HTML attribute as stored in the arena. Linked into NodePOD via the
-/// AttrPOD::Next chain.
-class AttrPOD : public detail::NodeBase
+/// AttrPOD::Next chain. 48 byte, trivially destructible. The owning node is
+/// always known to the caller (you reach the attribute via the node), so
+/// AttrPOD intentionally carries no parent pointer.
+class AttrPOD
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -163,46 +112,45 @@ public:
 //------
 
 	AttrPOD() = default;
-	AttrPOD(NodePOD*    Parent,
-	        KStringView sName,
-	        KStringView sValue = KStringView{},
+	AttrPOD(KStringView sName,
+	        KStringView sValue    = KStringView{},
 	        char        chQuote   = 0,
 	        bool        bDoEscape = true)
-	: NodeBase(Parent, sName, sValue)
-	, m_chQuote(chQuote)
+	: m_sName    (sName)
+	, m_sValue   (sValue)
+	, m_chQuote  (chQuote)
 	, m_bDoEscape(bDoEscape)
 	{
 	}
 
-	std::size_t size() const
-	{
-		std::size_t iCount = 1;
-		AttrPOD* a = m_Next;
-		while (a)
-		{
-			++iCount;
-			a = a->m_Next;
-		}
-		return iCount;
-	}
+	KStringView Name    () const { return m_sName;     }
+	KStringView Value   () const { return m_sValue;    }
+	char        Quote   () const { return m_chQuote;   }
+	bool        DoEscape() const { return m_bDoEscape; }
 
-	bool empty() const { return false; }
+	AttrPOD*    Next    () const { return m_Next;      }
 
-	char     Quote   () const { return m_chQuote;   }
-	bool     DoEscape() const { return m_bDoEscape; }
+	/// Replace the name view; caller is responsible for ensuring the bytes
+	/// referenced live at least as long as this AttrPOD (use the arena).
+	void Name (KStringView sName ) { m_sName  = sName;  }
+	/// Replace the value view; caller-managed lifetime as above.
+	void Value(KStringView sValue) { m_sValue = sValue; }
 
-	NodePOD* Parent  () const { return m_Parent;    }
-	AttrPOD* Next    () const { return m_Next;      }
+	void AppendAttr(AttrPOD* attr) { attr->m_Next = m_Next; m_Next = attr; }
 
-	void     AppendAttr(AttrPOD* attr) { attr->m_Next = m_Next; m_Next = attr; }
+	/// Replace the singly-linked-list 'Next' pointer. Used by container-side
+	/// surgery in NodePOD (Remove etc.); not normally needed by user code.
+	void SetNext(AttrPOD* pNext) noexcept { m_Next = pNext; }
 
 //------
 private:
 //------
 
-	AttrPOD* m_Next      { nullptr }; ///< next attribute in the singly-linked attr list
-	char     m_chQuote   {       0 }; ///< original quote char from parser (' or "), 0 = decide on serialize
-	bool     m_bDoEscape {    true }; ///< if false, the value is already entity-encoded
+	KStringView m_sName;
+	KStringView m_sValue;
+	AttrPOD*    m_Next      { nullptr }; ///< next attribute in the singly-linked attr list
+	char        m_chQuote   {       0 }; ///< original quote char from parser (' or "), 0 = decide on serialize
+	bool        m_bDoEscape {    true }; ///< if false, the value is already entity-encoded
 
 }; // AttrPOD
 
@@ -210,20 +158,23 @@ static_assert(std::is_trivially_destructible<AttrPOD>::value,
 	"AttrPOD must be trivially destructible to live in KArenaAllocator");
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Generic DOM node. The exact interpretation of Name/Value depends on Kind:
+/// Generic DOM node. The only string payload is Name — its interpretation
+/// depends on Kind:
 ///
-///   Kind                    Name                    Value
-///   ----                    ----                    -----
-///   Element                 tag name                (unused)
-///   Text                    text content            (unused)
-///   Comment                 comment text            (unused)
-///   CData                   cdata content           (unused)
-///   ProcessingInstruction   target ("xml")          instruction body
-///   DocumentType            doctype declaration     (unused)
+///   Kind                    Name
+///   ----                    ----
+///   Document                (empty)
+///   Element                 tag name
+///   Text                    text content
+///   Comment                 comment body
+///   CData                   cdata content
+///   ProcessingInstruction   entire PI body opaque (target + body)
+///   DocumentType            entire DOCTYPE body opaque
 ///
 /// Parent / sibling / child pointers form a doubly-linked tree. first_attr
-/// and last_attr together give O(1) AppendAttr.
-class NodePOD : public detail::NodeBase
+/// and last_attr together give O(1) AppendAttr. 80 byte, trivially
+/// destructible.
+class NodePOD
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -233,40 +184,61 @@ public:
 
 	NodePOD() = default;
 	NodePOD(NodePOD* Parent, NodeKind kind)
-	: NodeBase(Parent)
-	, m_Kind(kind)
+	: m_Parent(Parent)
+	, m_Kind  (kind)
 	{
 	}
 
-	NodeKind Kind () const { return m_Kind;  }
-	NodeFlag Flags() const { return m_Flags; }
+	NodeKind                 Kind    () const { return m_Kind;     }
+	NodeFlag                 Flags   () const { return m_Flags;    }
 	KHTMLObject::TagProperty TagProps() const { return m_TagProps; }
 
-	AttrPOD* FirstAttr() const { return m_FirstAttr; };
-	AttrPOD* LastAttr () const { return m_LastAttr;  };
+	KStringView Name() const { return m_sName; }
 
-	NodePOD* FirstChild () const { return m_FirstChild;  };
-	NodePOD* LastChild  () const { return m_LastChild;   };
-	NodePOD* NextSibling() const { return m_NextSibling; };
-	NodePOD* PrevSibling() const { return m_PrevSibling; };
+	NodePOD* Parent     () const { return m_Parent;       }
+	AttrPOD* FirstAttr  () const { return m_FirstAttr;    }
+	AttrPOD* LastAttr   () const { return m_LastAttr;     }
+	NodePOD* FirstChild () const { return m_FirstChild;   }
+	NodePOD* LastChild  () const { return m_LastChild;    }
+	NodePOD* NextSibling() const { return m_NextSibling;  }
+	NodePOD* PrevSibling() const { return m_PrevSibling;  }
 
 	NodePOD* Flags(NodeFlag flags) { m_Flags = flags; return this; }
 
-	NodePOD* AddNode(NodeKind Kind,
-	                 KStringView sName  = KStringView{},
-	                 KStringView sValue = KStringView{});
+	/// Replace the name view; caller is responsible for ensuring the bytes
+	/// referenced live at least as long as this NodePOD (use the arena
+	/// reachable via Document()).
+	void Name(KStringView sName)
+	{
+		m_sName = sName;
 
-	NodePOD* AddNode(NodePOD* Before,
-	                 NodeKind Kind,
-	                 KStringView sName  = KStringView{},
-	                 KStringView sValue = KStringView{});
+		if (m_Kind == NodeKind::Element)
+		{
+			m_TagProps = KHTMLObject::GetTagProperty(sName);
+		}
+	}
 
+	/// Append a new child NodePOD allocated in the document's arena. The
+	/// child gets its name and kind set; its TagProps is precomputed for
+	/// Element kinds. Returns nullptr if no document is reachable from this
+	/// node (orphaned subtree).
+	NodePOD* AddNode(NodeKind kind, KStringView sName = KStringView{});
+
+	/// Insert a new child NodePOD immediately before pBefore. If pBefore is
+	/// null, equivalent to AddNode(kind, sName). Returns nullptr on
+	/// orphaned-subtree.
+	NodePOD* AddNode(NodePOD* pBefore, NodeKind kind, KStringView sName = KStringView{});
+
+	/// Append a text child. The text bytes are copied into the arena (or
+	/// reused in place if the bytes are inside the data segment — see
+	/// KArenaAllocator::AllocateString).
 	NodePOD* AddText(KStringView sText, bool bDoNotEscape = false);
 
+	/// Append a new AttrPOD allocated in the document's arena.
 	AttrPOD* AddAttribute(KStringView sName,
 	                      KStringView sValue,
-	                      char chQuote   = '\0',
-	                      bool bDoEscape = true);
+	                      char        chQuote   = '\0',
+	                      bool        bDoEscape = true);
 
 	/// Append 'pAttr' at the end of this node's attribute chain. O(1).
 	void AppendAttr(AttrPOD* pAttr) noexcept
@@ -405,7 +377,7 @@ public:
 		return nullptr;
 	}
 
-	/// const overload of FindAttr().
+	/// const overload of Attribute().
 	const AttrPOD* Attribute(KStringView sName) const noexcept
 	{
 		for (const AttrPOD* a = this->m_FirstAttr; a != nullptr; a = a->Next())
@@ -419,16 +391,66 @@ public:
 		return nullptr;
 	}
 
+	/// Remove the attribute with the given name from this node's chain. The
+	/// AttrPOD memory stays in the arena (no individual free); only the
+	/// linked-list pointers are updated. @returns true if an attribute was
+	/// removed, false if no match was found. O(n).
+	bool RemoveAttribute(KStringView sName) noexcept
+	{
+		AttrPOD* pPrev = nullptr;
+
+		for (AttrPOD* a = m_FirstAttr; a != nullptr; pPrev = a, a = a->Next())
+		{
+			if (a->Name() == sName)
+			{
+				AttrPOD* pNext = a->Next();
+
+				if (pPrev != nullptr)
+				{
+					pPrev->SetNext(pNext);
+				}
+				else
+				{
+					m_FirstAttr = pNext;
+				}
+
+				if (pNext == nullptr)
+				{
+					m_LastAttr = pPrev;
+				}
+
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	void clear(NodeKind kind = NodeKind::Element)
 	{
 		*this  = NodePOD();
 		m_Kind = kind;
 	}
 
+	/// Walk to the root of this tree (which may be the Document, or any
+	/// orphan subtree's top node).
+	NodePOD* Root() noexcept
+	{
+		NodePOD* p = this;
+		while (p->m_Parent) p = p->m_Parent;
+		return p;
+	}
+
+	/// Walk to the Document root of this tree (or nullptr if this subtree
+	/// is not anchored under a Document).
+	class Document* Document() noexcept;
+
 //------
 private:
 //------
 
+	NodePOD*      m_Parent      { nullptr };
+	KStringView   m_sName;                                          ///< see Kind/Name table above
 	NodeKind      m_Kind        { NodeKind::Element };
 	NodeFlag      m_Flags       { NodeFlag::None    };              ///< OR-combination of NodeFlag bits
 	KHTMLObject::TagProperty
@@ -448,6 +470,42 @@ static_assert(std::is_trivially_destructible<NodePOD>::value,
 	"NodePOD must be trivially destructible to live in KArenaAllocator");
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Side-map binding for interactive nodes (input, select, radio, checkbox).
+/// Lives in `Document::m_Bindings`, keyed by the NodePOD pointer of the
+/// input/select. The binding is the type-erased connection between an
+/// arena-allocated NodePOD and an App-Variable that the input synchronises
+/// with.
+///
+/// pfnSync is invoked by `Synchronize()` for each binding whose `name`
+/// attribute matches a query-parameter key. pfnReset is invoked before
+/// Sync to clear the App-Variable (so unchecked checkboxes / unselected
+/// radios get the right default).
+struct InteractiveBinding
+{
+	void* pResult            { nullptr };   ///< raw pointer to App-Variable
+	void (*pfnSync)  (void* pResult, NodePOD* pInput, KStringView sValue) { nullptr };
+	void (*pfnReset) (void* pResult, NodePOD* pInput)                     { nullptr };
+};
+static_assert(std::is_trivially_destructible<InteractiveBinding>::value,
+	"InteractiveBinding must be trivially destructible");
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The Document is the synthetic root of the POD tree AND the owner of the
+/// arena. Inheriting both ways keeps the tree self-contained: any NodePOD
+/// can walk up to its Document and call AllocateString() / Construct<T>()
+/// on it.
+///
+/// Each Document carries an inline 4-KiB buffer that the allocator uses as
+/// its first backing region. Small documents (admin pages, JSON-embedded
+/// snippets) fit entirely inside this buffer and pay **zero** heap
+/// allocations. Larger documents grow into heap blocks once the inline
+/// buffer is exhausted.
+///
+/// Note on move semantics: moving a populated Document is **UB**. The
+/// inline buffer lives at a stable per-object address, but pointers stored
+/// in arena-allocated nodes/attrs reference that address. NRVO typically
+/// elides the move for return-by-value, so the common case is safe. Do not
+/// `std::move(populated_doc)`. (This mirrors rapidxml's xml_document.)
 class Document : public NodePOD, public KArenaAllocator
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -456,151 +514,119 @@ class Document : public NodePOD, public KArenaAllocator
 public:
 //------
 
+	/// Size of the inline backing buffer carried inside every Document.
+	/// Sized to fit a typical admin-page / small-snippet HTML build in a
+	/// single allocator region (no heap call).
+	static constexpr std::size_t kInlineBufferSize = 4096;
+
 	Document(std::size_t iArenaSize = KArenaAllocator::DefaultBlockSize)
 	: NodePOD(nullptr, NodeKind::Document)
-	, KArenaAllocator(iArenaSize)
+	, KArenaAllocator(iArenaSize, m_InitialBuffer, kInlineBufferSize)
 	{
 	}
+
+	// Non-copyable (KArenaAllocator is non-copyable).
+	Document(const Document&)            = delete;
+	Document& operator=(const Document&) = delete;
+
+	// Movable, but with the UB caveat above.
+	Document(Document&& other) noexcept
+	: NodePOD         (std::move(other))
+	, KArenaAllocator (std::move(other))
+	, m_Bindings      (std::move(other.m_Bindings))
+	, m_Classes       (std::move(other.m_Classes))
+	{
+		// Copy the inline buffer bytes from other to us, then re-point
+		// the allocator's m_pInline to our own buffer (it still points
+		// at other's after the base-class move).
+		std::memcpy(m_InitialBuffer, other.m_InitialBuffer, kInlineBufferSize);
+		AdoptInlineBuffer(m_InitialBuffer, kInlineBufferSize);
+	}
+
+	Document& operator=(Document&&) = delete;
 
 	void reset()
 	{
 		NodePOD::clear(NodeKind::Document);
 		KArenaAllocator::reset();
+		m_Bindings.clear();
+		m_Classes.clear();
 	}
 
 	void clear()
 	{
 		NodePOD::clear(NodeKind::Document);
 		KArenaAllocator::clear();
+		m_Bindings.clear();
+		m_Classes.clear();
 	}
+
+	/// Register a binding for an interactive node. Overwrites any previous
+	/// binding for the same NodePOD.
+	void Bind(NodePOD* pInput, const InteractiveBinding& binding)
+	{
+		m_Bindings[pInput] = binding;
+	}
+
+	/// @returns the binding for `pInput`, or nullptr if no binding exists.
+	const InteractiveBinding* FindBinding(NodePOD* pInput) const
+	{
+		auto it = m_Bindings.find(pInput);
+		return (it == m_Bindings.end()) ? nullptr : &it->second;
+	}
+
+	using BindingMap = std::unordered_map<NodePOD*, InteractiveBinding>;
+	const BindingMap& Bindings() const { return m_Bindings; }
+	BindingMap&       Bindings()       { return m_Bindings; }
+
+	/// Aggregated CSS class definitions for emission into a `<style>` block.
+	/// Keys and values are arena-allocated views (interned via AllocateString).
+	using ClassMap = std::unordered_map<KStringView, KStringView>;
+	const ClassMap& Classes() const { return m_Classes; }
+	ClassMap&       Classes()       { return m_Classes; }
+
+//------
+private:
+//------
+
+	BindingMap m_Bindings;
+	ClassMap   m_Classes;
+
+	alignas(8) char m_InitialBuffer[kInlineBufferSize];   ///< inline arena backing
 
 }; // Document
 
 //-----------------------------------------------------------------------------
-	/// Returns root element of tree
-inline NodePOD* detail::NodeBase::Root() noexcept
+inline Document* NodePOD::Document() noexcept
 //-----------------------------------------------------------------------------
 {
-	if (!m_Parent)
+	auto* pRoot = Root();
+
+	if (pRoot == nullptr || pRoot->Kind() != NodeKind::Document)
 	{
-		return static_cast<class NodePOD*>(this);
-	}
-
-	auto* pNode = m_Parent;
-
-	if (pNode)
-	{
-		while (pNode->m_Parent)
-		{
-			pNode = pNode->m_Parent;
-		}
-	}
-
-	return pNode;
-}
-
-//-----------------------------------------------------------------------------
-/// Returns document root of tree if any, else nullptr
-inline class Document* detail::NodeBase::Document() noexcept
-//-----------------------------------------------------------------------------
-{
-	auto* pNode = Root();
-	if (!pNode || pNode->Kind() != NodeKind::Document) return nullptr;
-	return static_cast<class Document*>(pNode);
-}
-
-//-----------------------------------------------------------------------------
-inline KStringView detail::NodeBase::CreateString(class Document* document, KStringView sStr)
-//-----------------------------------------------------------------------------
-{
-	if (!document) return KStringView{};
-	return document->AllocateString(sStr);
-}
-
-//-----------------------------------------------------------------------------
-inline KStringView detail::NodeBase::CreateString(KStringView sStr)
-//-----------------------------------------------------------------------------
-{
-	if (sStr.empty()) return sStr;
-	return CreateString(Document(), sStr);
-}
-
-//-----------------------------------------------------------------------------
-inline void detail::NodeBase::Name (class Document* document, KStringView sName )
-//-----------------------------------------------------------------------------
-{
-	m_sName = CreateString(document, sName);
-}
-
-//-----------------------------------------------------------------------------
-inline void detail::NodeBase::Value(class Document* document, KStringView sValue)
-//-----------------------------------------------------------------------------
-{
-	m_sValue = CreateString(document, sValue);
-}
-
-//-----------------------------------------------------------------------------
-// Helpers — every helper below operates on arena-owned NodePOD/AttrPOD only
-// and never allocates outside of the arena.
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-/// Allocate a new NodePOD of the given kind in 'arena'.
-inline NodePOD* CreateNode(KArenaAllocator& arena, NodePOD* Parent, NodeKind kind)
-//-----------------------------------------------------------------------------
-{
-	return arena.Construct<NodePOD>(Parent, kind);
-}
-
-//-----------------------------------------------------------------------------
-/// Allocate a new AttrPOD with arena-copied name/value.
-/// @param chQuote original quote char from parser (' or "), 0 = let serializer decide
-inline AttrPOD* CreateAttr(KArenaAllocator& arena,
-                           NodePOD*         Parent,
-                           KStringView      sName,
-                           KStringView      sValue,
-                           char             chQuote   = 0,
-                           bool             bDoEscape = true)
-//-----------------------------------------------------------------------------
-{
-	return arena.Construct<AttrPOD>
-	(
-		Parent,
-		sName,
-		sValue,
-		chQuote,
-		bDoEscape
-	);
-}
-
-//-----------------------------------------------------------------------------
-inline NodePOD* NodePOD::AddNode(NodeKind kind, KStringView sName, KStringView sValue)
-//-----------------------------------------------------------------------------
-{
-	auto* document = Document();
-
-	if (!document)
-	{
-		// TODO log
 		return nullptr;
 	}
 
-	auto* pNode = CreateNode(*document, this, kind);
+	return static_cast<class Document*>(pRoot);
+}
+
+//-----------------------------------------------------------------------------
+inline NodePOD* NodePOD::AddNode(NodeKind kind, KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	auto* pDoc = Document();
+
+	if (pDoc == nullptr)
+	{
+		// orphaned subtree — cannot allocate
+		return nullptr;
+	}
+
+	auto* pNode = pDoc->Construct<NodePOD>(this, kind);
 
 	if (!sName.empty())
 	{
-		pNode->Name(sName);
-
-		if (kind == NodeKind::Element)
-		{
-			// get the tag props right here
-			pNode->m_TagProps = KHTMLObject::GetTagProperty(sName);
-		}
-	}
-
-	if (!sValue.empty())
-	{
-		pNode->Value(sName);
+		pNode->Name(pDoc->AllocateString(sName));
 	}
 
 	AppendChild(pNode);
@@ -609,30 +635,24 @@ inline NodePOD* NodePOD::AddNode(NodeKind kind, KStringView sName, KStringView s
 }
 
 //-----------------------------------------------------------------------------
-inline NodePOD* NodePOD::AddNode(NodePOD* Before, NodeKind kind, KStringView sName, KStringView sValue)
+inline NodePOD* NodePOD::AddNode(NodePOD* pBefore, NodeKind kind, KStringView sName)
 //-----------------------------------------------------------------------------
 {
-	auto* document = Document();
+	auto* pDoc = Document();
 
-	if (!document)
+	if (pDoc == nullptr)
 	{
-		// TODO log
 		return nullptr;
 	}
 
-	auto* pNode = CreateNode(*document, this, kind);
+	auto* pNode = pDoc->Construct<NodePOD>(this, kind);
 
 	if (!sName.empty())
 	{
-		pNode->Name(sName);
+		pNode->Name(pDoc->AllocateString(sName));
 	}
 
-	if (!sValue.empty())
-	{
-		pNode->Value(sName);
-	}
-
-	InsertChildBefore(Before, pNode);
+	InsertChildBefore(pBefore, pNode);
 
 	return pNode;
 }
@@ -641,24 +661,23 @@ inline NodePOD* NodePOD::AddNode(NodePOD* Before, NodeKind kind, KStringView sNa
 inline NodePOD* NodePOD::AddText(KStringView sText, bool bDoNotEscape)
 //-----------------------------------------------------------------------------
 {
-	auto* document = Document();
+	auto* pDoc = Document();
 
-	if (!document)
+	if (pDoc == nullptr)
 	{
-		// TODO log
 		return nullptr;
 	}
 
-	auto* pNode = CreateNode(*document, this, NodeKind::Text);
+	auto* pNode = pDoc->Construct<NodePOD>(this, NodeKind::Text);
 
 	if (!sText.empty())
 	{
-		pNode->Name(sText);
+		pNode->m_sName = pDoc->AllocateString(sText);
 	}
 
 	if (bDoNotEscape)
 	{
-		pNode->m_Flags |= khtml::NodeFlag::TextDoNotEscape;
+		pNode->m_Flags = pNode->m_Flags | NodeFlag::TextDoNotEscape;
 	}
 
 	AppendChild(pNode);
@@ -667,22 +686,27 @@ inline NodePOD* NodePOD::AddText(KStringView sText, bool bDoNotEscape)
 }
 
 //-----------------------------------------------------------------------------
-inline AttrPOD* NodePOD::AddAttribute(KStringView sName, KStringView sValue, char chQuote , bool bDoEscape)
+inline AttrPOD* NodePOD::AddAttribute(KStringView sName, KStringView sValue, char chQuote, bool bDoEscape)
 //-----------------------------------------------------------------------------
 {
-	auto* document = Document();
+	auto* pDoc = Document();
 
-	if (!document)
+	if (pDoc == nullptr)
 	{
-		// TODO log
 		return nullptr;
 	}
 
-	auto* attr = CreateAttr(*document, this, sName, sValue, chQuote, bDoEscape);
+	auto* pAttr = pDoc->Construct<AttrPOD>
+	(
+		pDoc->AllocateString(sName),
+		pDoc->AllocateString(sValue),
+		chQuote,
+		bDoEscape
+	);
 
-	AppendAttr(attr);
+	AppendAttr(pAttr);
 
-	return attr;
+	return pAttr;
 }
 
 //-----------------------------------------------------------------------------

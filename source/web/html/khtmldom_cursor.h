@@ -43,17 +43,24 @@
 #pragma once
 
 /// @file khtmldom_cursor.h
-/// Read-only cursor API over the arena-backed POD shadow tree of KHTML.
-/// Allows callers to walk the parsed HTML structure without ever touching
-/// the heap-DOM (KHTMLElement / KHTMLText / ...) and without allocating
-/// their own copies of names, values, or children.
+/// Lightweight handle (`khtml::NodeCursor` / `KHTMLNode`) over the
+/// arena-backed POD tree of `KHTML`. The handle is the size of a single
+/// pointer (8 byte) and trivially copyable; pass it by value.
 ///
-/// A cursor is the size of a single pointer and is cheap to copy. It stays
-/// valid as long as the underlying KHTML instance lives and is not
-/// clear()ed or reparsed. After clear() / Parse() / move, every previously
-/// obtained cursor must be considered invalidated.
+/// Both read and write access go through the same handle type. The mutator
+/// methods (SetAttribute, AddText, Delete, ...) allocate from the arena
+/// reachable via the node's parent chain — see `khtml::NodePOD::Document()`.
 ///
-/// Typical use (mirrors xapis/html.cpp::HTMLProcessor::TraverseHTML):
+/// A handle stays valid as long as the underlying KHTML instance lives and
+/// is not `clear()`ed, reparsed, or moved. After `clear()` / `Parse()` /
+/// move, every previously obtained handle must be considered invalidated.
+///
+/// `KHTMLNode` (in the public `dekaf2` namespace) is an alias for
+/// `khtml::NodeCursor` and is the preferred name in user code. The
+/// `khtml::NodeCursor` spelling stays as the implementation type and as the
+/// historical name; both refer to the same class.
+///
+/// Typical use (read):
 ///
 ///   KHTML doc;
 ///   doc.Parse(sInput);
@@ -63,9 +70,20 @@
 ///       if (child.IsElement() && child.Name() == "html") { ... }
 ///   }
 ///
-/// The API intentionally exposes only read access. Mutation of the parsed
-/// tree still goes through the heap-DOM via KHTML::DOM(), which lazily
-/// materializes the heap subtree on demand.
+/// Typical use (write):
+///
+///   KHTML doc;
+///   doc.Parse(sInput);
+///
+///   for (auto child : doc.Root().Children())
+///   {
+///       if (child.IsElement() && child.Name() == "img")
+///       {
+///           child.SetAttribute("loading", "lazy");
+///       }
+///   }
+///
+///   doc.Serialize(kOut);
 
 #include "bits/khtmldom_node.h"
 #include "khtmlparser.h"
@@ -78,79 +96,101 @@ DEKAF2_NAMESPACE_BEGIN
 namespace khtml {
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Read-only cursor over a single attribute in the POD shadow tree.
-/// Pointer-sized; copy is trivial. Dereferencing accessors (Name(), Value(),
-/// ...) on a default-constructed (= "end") cursor is undefined behaviour;
-/// always test the cursor with `if (c)` first.
+/// Pointer-sized handle over a single attribute of a `NodePOD`. Both
+/// read-access (Name, Value, ...) and write-access (SetValue, ...) go
+/// through this class.
+///
+/// Dereferencing accessors on a default-constructed (= "end") cursor is
+/// undefined behaviour; test the cursor with `if (c)` first.
 class DEKAF2_PUBLIC AttrCursor
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//------
 public:
+//------
 
 	AttrCursor() = default;
-	explicit AttrCursor(const AttrPOD* p) noexcept : m_p(p) {}
+	explicit AttrCursor(AttrPOD* p) noexcept : m_p(p) {}
 
 	explicit operator bool() const noexcept { return m_p != nullptr; }
 
 	/// @returns raw arena pointer (or nullptr). Mainly for diagnostics
 	///          and equivalence checks; prefer the named accessors.
-	const AttrPOD* Raw     () const noexcept { return m_p;           }
+	AttrPOD* Raw() const noexcept { return m_p; }
 
-	KStringView    Name    () const noexcept { return m_p->Name ();  }
-	KStringView    Value   () const noexcept { return m_p->Value();  }
+	KStringView Name    () const noexcept { return m_p->Name();     }
+	KStringView Value   () const noexcept { return m_p->Value();    }
 	/// @returns the original quote char as seen by the parser (' or "),
 	///          or 0 if the parser saw no quote (the serializer will then
 	///          pick a default).
-	char           Quote   () const noexcept { return m_p->Quote();    }
+	char        Quote   () const noexcept { return m_p->Quote();    }
 	/// @returns true if the value still needs HTML-escaping on serialize,
 	///          false if the value is already entity-encoded as-is.
-	bool           DoEscape() const noexcept { return m_p->DoEscape(); }
+	bool        DoEscape() const noexcept { return m_p->DoEscape(); }
 
 	/// @returns the next attribute on the same node (or an empty cursor).
-	AttrCursor     Next    () const noexcept { return AttrCursor{ m_p->Next() }; }
+	AttrCursor  Next    () const noexcept { return AttrCursor{ m_p->Next() }; }
+
+	/// Replace the attribute value. The new value is interned in the
+	/// document's arena (or kept as a view if the bytes live in the data
+	/// segment — see `KArenaAllocator::AllocateString`). The owning
+	/// `NodePOD` must be reachable from a `Document` (otherwise this is
+	/// a no-op).
+	AttrCursor& SetValue(KStringView sValue);
 
 	bool operator==(const AttrCursor& other) const noexcept { return m_p == other.m_p; }
 	bool operator!=(const AttrCursor& other) const noexcept { return m_p != other.m_p; }
 
+//------
 private:
+//------
 
-	const AttrPOD* m_p { nullptr };
+	AttrPOD* m_p { nullptr };
 
 }; // AttrCursor
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Read-only cursor over a single node in the POD shadow tree.
-/// Pointer-sized; copy is trivial. Dereferencing accessors (Kind(), Name(),
-/// FirstChild(), ...) on a default-constructed cursor is undefined
-/// behaviour; always test the cursor with `if (c)` first.
+/// Pointer-sized handle over a single node of a `NodePOD` tree. Both
+/// read-access (Kind, Name, FirstChild, ...) and write-access
+/// (SetAttribute, AddText, Delete, ...) go through this class.
+///
+/// Dereferencing accessors (Kind(), Name(), FirstChild(), ...) on a
+/// default-constructed cursor is undefined behaviour; test the cursor with
+/// `if (c)` first.
+///
+/// Iteration-invalidation rule: when iterating `Children()` and removing
+/// the current child, cache its `NextSibling()` *before* calling
+/// `Delete()`. This handle is intentionally not an STL iterator; mutation
+/// during traversal is the caller's responsibility.
 class DEKAF2_PUBLIC NodeCursor
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//------
 public:
+//------
 
 	NodeCursor() = default;
-	explicit NodeCursor(const NodePOD* p) noexcept : m_p(p) {}
+	explicit NodeCursor(NodePOD* p) noexcept : m_p(p) {}
 
 	explicit operator bool() const noexcept { return m_p != nullptr; }
 
 	/// @returns raw arena pointer (or nullptr). Mainly for diagnostics
 	///          and equivalence checks; prefer the named accessors.
-	const NodePOD* Raw() const noexcept { return m_p; }
+	NodePOD* Raw() const noexcept { return m_p; }
 
 	NodeKind                 Kind    () const noexcept { return m_p->Kind();     }
 	NodeFlag                 Flags   () const noexcept { return m_p->Flags();    }
 	/// Cached HTML tag-property bits. Only meaningful for Element nodes.
 	KHTMLObject::TagProperty TagProps() const noexcept { return m_p->TagProps(); }
 
-	/// Primary payload — interpretation depends on Kind:
+	/// Primary (and only) payload — interpretation depends on Kind:
 	///   Element                 : tag name
 	///   Text / Comment / CData  : text content
-	///   ProcessingInstruction   : target ("xml")
-	///   DocumentType            : doctype declaration
-	KStringView Name () const noexcept { return m_p->Name();  }
-	/// Secondary payload — currently only set for ProcessingInstruction
-	/// (instruction body); empty for every other Kind.
-	KStringView Value() const noexcept { return m_p->Value(); }
+	///   ProcessingInstruction   : entire PI body (target + body, opaque)
+	///   DocumentType            : entire DOCTYPE body (opaque)
+	KStringView Name() const noexcept { return m_p->Name(); }
 
 	bool IsElement()               const noexcept { return m_p->Kind() == NodeKind::Element;               }
 	bool IsText()                  const noexcept { return m_p->Kind() == NodeKind::Text;                  }
@@ -188,8 +228,93 @@ public:
 		return AttrCursor{};
 	}
 
+	/// Convenience: returns the value of the named attribute, or an empty
+	/// view if no such attribute exists. Equivalent to
+	/// `FindAttr(sName) ? FindAttr(sName).Value() : KStringView{}`.
+	KStringView GetAttribute(KStringView sName) const noexcept
+	{
+		auto a = FindAttr(sName);
+		return a ? a.Value() : KStringView{};
+	}
+
+	/// @returns true iff an attribute with the given name exists.
+	bool HasAttribute(KStringView sName) const noexcept
+	{
+		return FindAttr(sName) ? true : false;
+	}
+
 	std::size_t CountChildren() const noexcept { return m_p->CountChildren(); }
 	std::size_t CountAttrs()    const noexcept { return m_p->CountAttrs   (); }
+
+	// -- Mutators -----------------------------------------------------------
+
+	/// Replace the node name. For Element nodes this also recomputes the
+	/// cached `TagProps`. The new name is interned in the document's arena
+	/// (or kept as a view if the bytes live in the data segment).
+	NodeCursor& SetName(KStringView sName);
+
+	/// Set (or overwrite) an attribute on this element. Allocates the
+	/// AttrPOD in the document's arena on first call; subsequent calls for
+	/// the same name update the existing entry's value in place.
+	/// @param sName     attribute name
+	/// @param sValue    attribute value
+	/// @param chQuote   quote char to use on emit (' or "), 0 = decide on
+	///                  serialize. Builder default is `"` to match the
+	///                  pre-Phase-4 heap-DOM output.
+	/// @param bDoEscape false = sValue is already entity-encoded
+	NodeCursor& SetAttribute(KStringView sName,
+	                         KStringView sValue,
+	                         char        chQuote   = '"',
+	                         bool        bDoEscape = true);
+
+	/// Remove the attribute with the given name. No-op if none exists.
+	NodeCursor& RemoveAttribute(KStringView sName);
+
+	/// Append a Text child to this node. Returns a cursor to the new child.
+	/// @param sText       text content (copied into arena unless it is in
+	///                    the data segment)
+	/// @param bDoNotEscape if true, the content is already entity-encoded
+	///                    (or must remain unescaped — like inside script)
+	NodeCursor AddText(KStringView sText, bool bDoNotEscape = false);
+
+	/// Append a Text child whose content is already entity-encoded (or
+	/// must not be entity-encoded — like inside `<script>`/`<style>`).
+	NodeCursor AddRawText(KStringView sText)
+	{
+		return AddText(sText, /*bDoNotEscape=*/true);
+	}
+
+	/// Append a new Element child with the given tag name. Returns a
+	/// cursor to the new child.
+	NodeCursor AddElement(KStringView sTagName)
+	{
+		return NodeCursor{ m_p->AddNode(NodeKind::Element, sTagName) };
+	}
+
+	/// Unlink this node from its parent and siblings. The arena keeps
+	/// owning the memory — this node simply becomes unreachable from the
+	/// tree. O(1). After Delete(), this handle is "orphaned": further
+	/// mutator calls that need the arena are no-ops (Document() is no
+	/// longer reachable).
+	void Delete() noexcept { m_p->Detach(); }
+
+	/// Construct a new child of type T as child of this node. T's
+	/// constructor must take `KHTMLNode parent` as its first argument; the
+	/// remaining `args...` are forwarded.
+	///
+	///   auto div = body.Add<html::Div>("FormDiv");
+	///   form.Add<html::Input>(html::Input::TEXT, "user");
+	///
+	/// Returns the constructed `T` by value (T is a thin handle, usually
+	/// 8 byte).
+	template<class T, class... Args>
+	T Add(Args&&... args)
+	{
+		return T(*this, std::forward<Args>(args)...);
+	}
+
+	bool operator==(const NodeCursor& other) const noexcept { return m_p == other.m_p; }
+	bool operator!=(const NodeCursor& other) const noexcept { return m_p != other.m_p; }
 
 	/// Range adapter for `for (auto child : node.Children())` iteration.
 	class ChildRange;
@@ -199,12 +324,11 @@ public:
 	class AttrRange;
 	AttrRange  Attributes() const noexcept;
 
-	bool operator==(const NodeCursor& other) const noexcept { return m_p == other.m_p; }
-	bool operator!=(const NodeCursor& other) const noexcept { return m_p != other.m_p; }
-
+//------
 private:
+//------
 
-	const NodePOD* m_p { nullptr };
+	NodePOD* m_p { nullptr };
 
 }; // NodeCursor
 
@@ -310,6 +434,109 @@ inline NodeCursor::AttrRange NodeCursor::Attributes() const noexcept
 	return AttrRange{ FirstAttr() };
 }
 
+//-----------------------------------------------------------------------------
+// Mutator implementations — inline because they only do small POD
+// arithmetic plus delegate into NodePOD/AttrPOD/Document.
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+inline AttrCursor& AttrCursor::SetValue(KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	if (m_p != nullptr)
+	{
+		// AttrPOD itself has no parent pointer; arena allocation is the
+		// caller's job. We just install the view. Stable inputs (data
+		// segment literals, slices of an already-arena-owned string,
+		// or a value the caller is about to keep alive) work directly.
+		// For arena-managed copies prefer NodeCursor::SetAttribute(name,
+		// value) which knows the owning node and goes through the
+		// Document's AllocateString.
+		m_p->Value(sValue);
+	}
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+inline NodeCursor& NodeCursor::SetName(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	if (m_p == nullptr) return *this;
+
+	auto* pDoc = m_p->Document();
+
+	if (pDoc != nullptr)
+	{
+		m_p->Name(pDoc->AllocateString(sName));
+	}
+	else
+	{
+		// orphan subtree — caller-managed lifetime
+		m_p->Name(sName);
+	}
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+inline NodeCursor& NodeCursor::SetAttribute(KStringView sName,
+                                            KStringView sValue,
+                                            char        chQuote,
+                                            bool        bDoEscape)
+//-----------------------------------------------------------------------------
+{
+	if (m_p == nullptr) return *this;
+
+	auto* pExisting = m_p->Attribute(sName);
+
+	if (pExisting != nullptr)
+	{
+		auto* pDoc = m_p->Document();
+
+		if (pDoc != nullptr)
+		{
+			pExisting->Value(pDoc->AllocateString(sValue));
+		}
+		else
+		{
+			pExisting->Value(sValue);
+		}
+
+		// quote / escape only updated on create, not on update — caller
+		// generally expects in-place value mutation to keep formatting
+	}
+	else
+	{
+		m_p->AddAttribute(sName, sValue, chQuote, bDoEscape);
+	}
+
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+inline NodeCursor& NodeCursor::RemoveAttribute(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	if (m_p != nullptr) m_p->RemoveAttribute(sName);
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
+inline NodeCursor NodeCursor::AddText(KStringView sText, bool bDoNotEscape)
+//-----------------------------------------------------------------------------
+{
+	if (m_p == nullptr) return NodeCursor{};
+
+	return NodeCursor{ m_p->AddText(sText, bDoNotEscape) };
+}
+
 } // namespace khtml
+
+//-----------------------------------------------------------------------------
+/// Public alias for the schreibfähige Cursor-Klasse. Use `KHTMLNode` in
+/// new code; `khtml::NodeCursor` remains as the implementation name.
+using KHTMLNode = khtml::NodeCursor;
+//-----------------------------------------------------------------------------
 
 DEKAF2_NAMESPACE_END

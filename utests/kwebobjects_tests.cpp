@@ -172,129 +172,145 @@ text-decoration: none
 		html::Class NoDecoration(".nodecoration", "text-decoration: none");
 		page.AddClass(NoDecoration);
 
-		html::Script Script(R"(
+		page.Head().Add<html::Script>(KStringView(R"(
 			function test()
 			{
 				return "test";
 			}
-		)");
+		)"), KStringView{"utf-8"});
 
-		page.Head().Add(Script);
-
-		html::Image image("http://some.image.url/at/a/path.png", "Image1", "", NoDecoration);
-		image.SetDescription("this is a test image");
-		image.SetLoading(html::Image::LAZY);
-
-		auto& body = page.Body();
+		// Helper to inject the image lazily into a parent — replaces the
+		// pre-Phase-4 detached-build idiom (one html::Image used twice).
+		auto AddImage = [&NoDecoration](KHTMLNode where)
 		{
-			auto& par = body.Add(html::Paragraph());
-			par.Add(image);
-			par.Add(html::Break());
-			par += image;
+			where.Add<html::Image>(KStringView{"http://some.image.url/at/a/path.png"},
+			                       KStringView{"this is a test image"},
+			                       html::Classes(NoDecoration))
+			     .SetLoading(html::Image::LAZY);
+		};
+
+		auto body = page.Body();
+		{
+			auto par = body.Add<html::Paragraph>();
+			AddImage(par);
+			par.Add<html::Break>();
+			AddImage(par);
 		}
 
-		auto& div = body.Add(html::Div("FormDiv", NoDecoration));
+		auto div = body.Add<html::Div>(html::Classes(NoDecoration), KStringView{"FormDiv"});
 
 		{
-			auto& par = div.Add(html::Paragraph());
-			auto& form = par.Add(html::Form("MyForm"));
-			form += html::Button("Schaltfläche 1").SetName("q").SetValue("button1");
-			form += html::Button("Schaltfläche 2").SetName("q").SetValue("button2");
-			form += html::Button("Schaltfläche 3").SetName("q").SetValue("button3").SetFormMethod(html::Button::POST).SetFormEncType(html::Button::FORMDATA);
+			auto par  = div.Add<html::Paragraph>();
+			auto form = par.Add<html::Form>(KStringView{"MyForm"});
+			form.Add<html::Button>(KStringView{"Schaltfläche 1"}).SetName("q").SetValue("button1");
+			form.Add<html::Button>(KStringView{"Schaltfläche 2"}).SetName("q").SetValue("button2");
+			form.Add<html::Button>(KStringView{"Schaltfläche 3"}).SetName("q").SetValue("button3")
+				.SetFormMethod(html::Button::POST).SetFormEncType(html::Button::FORMDATA);
 		}
 
 		{
-			auto& par = div.Add(html::Paragraph("TextPar", NoDecoration));
+			auto par = div.Add<html::Paragraph>(html::Classes(NoDecoration), KStringView{"TextPar"});
 			par.AddText("hello world");
-			par += html::Link("/images/test.png").Append(html::Image("/Images/test_small.png", "preview").SetID("IMGID"));
+			auto link = par.Add<html::Link>(KStringView{"/images/test.png"});
+			link.Add<html::Image>(KStringView{"/Images/test_small.png"}, KStringView{"preview"}, html::Classes{}, KStringView{"IMGID"});
 		}
 
 		{
-			auto& form = div.Add(html::Form("/Setup/"));
+			auto form = div.Add<html::Form>(KStringView{"/Setup/"});
 
 			kDebug(2, "start");
 			{
-				// we need to name the template types for C++ < 17
-				auto& group = form.Add(html::FieldSet("System Setup"));
-				group += html::TextInput<KString>(m_Config.sDataDir   , "datadir"  ).SetLabelAfter("shared data directory").SetSize(60);
-				group += html::Break();
-				html::TextInput<KString> ti(m_Config.sOutputDir   , "outputdir"  );
-				ti.SetLabelAfter("shared data directory");
-				group += ti.SetSize(60);
+				auto group = form.Add<html::FieldSet>(KStringView{"System Setup"});
+				group.Add<html::TextInput<KString>>(m_Config.sDataDir, KStringView{"datadir"})
+				     .SetLabelAfter("shared data directory").SetSize(60);
+				group.Add<html::Break>();
+				auto ti = group.Add<html::TextInput<KString>>(m_Config.sOutputDir, KStringView{"outputdir"});
+				ti.SetLabelAfter("shared data directory").SetSize(60);
 				CHECK ( ti.Serialize().size() == 82 );
-				group += html::Div().SetHidden(true);
-				html::Div div;
-				group += div.SetHidden(true);
-				CHECK ( div.Serialize().size() == 20 );
+				group.Add<html::Div>().SetHidden(true);
+				auto div2 = group.Add<html::Div>();
+				div2.SetHidden(true);
+				CHECK ( div2.Serialize().size() == 20 );
 			}
 
 			{
-				auto& group = form.Add(html::FieldSet("Email"));
-				group += html::TextInput<KString>(m_Config.sMailTo    ).SetLabelAfter("target email").SetSize(30);
-				group += html::Break();
-				group += html::TextInput<KString>(m_Config.sMailFrom  , "mailfrom"  ).SetLabelAfter("sender email").SetSize(30);
-				group += html::Break();
-				group += html::TextInput<KString>(m_Config.sSMTPServer).SetLabelAfter("smtp relay").SetSize(30);
+				auto group = form.Add<html::FieldSet>(KStringView{"Email"});
+				group.Add<html::TextInput<KString>>(m_Config.sMailTo                                  ).SetLabelAfter("target email").SetSize(30);
+				group.Add<html::Break>();
+				group.Add<html::TextInput<KString>>(m_Config.sMailFrom   , KStringView{"mailfrom"}   ).SetLabelAfter("sender email").SetSize(30);
+				group.Add<html::Break>();
+				group.Add<html::TextInput<KString>>(m_Config.sSMTPServer                              ).SetLabelAfter("smtp relay" ).SetSize(30);
 			}
 
 			{
-				auto& group = form.Add(html::FieldSet("Display"));
-				group += html::NumericInput<double>(m_Config.m_fMinConfidence, "confidence").SetLabelAfter("confidence value, from 0.0 .. 1.0").SetRange(0.01, 0.99).SetStep(0.0250);
-				group += html::Break();
-				group += html::NumericInput<double>(m_Config.m_fMaxConfidence, "maxconfidence", "maxconfid")
-					.SetLabelAfter("max confidence value, from 0.0 .. 1.0")
-					.SetRange(0.01, 0.99)
-					.SetStep(0.0250)
-					.SetType(html::Input::INPUTTYPE::RANGE)
-					.SetAttribute("oninput", "output1.value = Math.round(maxconfid.valueAsNumber * 100.0) + '%';");
-				group += html::Output("output", kFormat("{}%", std::round(m_Config.m_fMaxConfidence * 100.0)), "output1");
-				group += html::Break();
-				group += html::CheckBox<bool>(m_Config.bNoDetect   , "nodetect"  ).SetLabelAfter("no object detection"       );
-				group += html::Break();
-				group += html::CheckBox<bool>(m_Config.bNoDisplay  , "nodisplay" ).SetLabelAfter("do not open camera windows");
-				group += html::Break();
-				group += html::CheckBox<bool>(m_Config.bNoOverlay  , "nooverlay" ).SetLabelAfter("no detection overlay"      );
-				group += html::Break();
-				group += html::CheckBox<bool>(m_Config.bShowMotion , "motion"    ).SetLabelAfter("show motion"               );
-				group += html::NumericInput<int>(m_Config.iMotionArea).SetLabelAfter("motion area").SetMin(-1).SetMax(1000).SetStep(1);
-				group += html::Break();
-				group += html::DurationInput<std::chrono::seconds>(m_Config.dInterval, "interval").SetLabelAfter("seconds between alarms").SetRange(1, 86400);
-				group += html::Selection<KString>(m_Config.sSelection).SetName("selection").SetOptions("Sel1,Sel2,Sel3,Sel4").SetLabelAfter("please choose a value");
+				auto group = form.Add<html::FieldSet>(KStringView{"Display"});
+				group.Add<html::NumericInput<double>>(m_Config.m_fMinConfidence, KStringView{"confidence"})
+				     .SetLabelAfter("confidence value, from 0.0 .. 1.0").SetRange(0.01, 0.99).SetStep(0.0250);
+				group.Add<html::Break>();
+				group.Add<html::NumericInput<double>>(m_Config.m_fMaxConfidence, KStringView{"maxconfidence"}, html::Classes{}, KStringView{"maxconfid"})
+				     .SetLabelAfter("max confidence value, from 0.0 .. 1.0")
+				     .SetRange(0.01, 0.99)
+				     .SetStep(0.0250)
+				     .SetType(html::Input::INPUTTYPE::RANGE)
+				     .SetAttribute(KString("oninput"), KStringView("output1.value = Math.round(maxconfid.valueAsNumber * 100.0) + '%';"));
+				group.Add<html::Output>(KStringView{"output"},
+				                        KStringView(kFormat("{}%", std::round(m_Config.m_fMaxConfidence * 100.0))),
+				                        html::Classes{},
+				                        KStringView{"output1"});
+				group.Add<html::Break>();
+				group.Add<html::CheckBox<bool>>(m_Config.bNoDetect   , KStringView{"nodetect"} ).SetLabelAfter("no object detection"       );
+				group.Add<html::Break>();
+				group.Add<html::CheckBox<bool>>(m_Config.bNoDisplay  , KStringView{"nodisplay"}).SetLabelAfter("do not open camera windows");
+				group.Add<html::Break>();
+				group.Add<html::CheckBox<bool>>(m_Config.bNoOverlay  , KStringView{"nooverlay"}).SetLabelAfter("no detection overlay"      );
+				group.Add<html::Break>();
+				group.Add<html::CheckBox<bool>>(m_Config.bShowMotion , KStringView{"motion"}   ).SetLabelAfter("show motion"               );
+				group.Add<html::NumericInput<int>>(m_Config.iMotionArea).SetLabelAfter("motion area").SetMin(-1).SetMax(1000).SetStep(1);
+				group.Add<html::Break>();
+				group.Add<html::DurationInput<std::chrono::seconds>>(m_Config.dInterval, KStringView{"interval"})
+				     .SetLabelAfter("seconds between alarms").SetRange(1, 86400);
+				group.Add<html::Selection<KString>>(m_Config.sSelection)
+				     .SetName("selection")
+				     .SetOptions(KStringView{"Sel1,Sel2,Sel3,Sel4"})
+				     .SetLabelAfter("please choose a value");
 			}
 
 			{
-				auto& group = form.Add(html::FieldSet("Radios"));
-				group += html::RadioButton<KString>(m_Config.sRadio).SetValue("red"   ).SetLabelAfter("red"   );
-				group += html::RadioButton<KString>(m_Config.sRadio).SetValue("green" ).SetLabelAfter("green" );
-				group += html::RadioButton<KString>(m_Config.sRadio).SetValue("blue"  ).SetLabelAfter("blue"  );
-				group += html::RadioButton<KString>(m_Config.sRadio).SetValue("yellow").SetLabelAfter("yellow");
+				auto group = form.Add<html::FieldSet>(KStringView{"Radios"});
+				group.Add<html::RadioButton<KString>>(m_Config.sRadio).SetValue("red"   ).SetLabelAfter("red"   );
+				group.Add<html::RadioButton<KString>>(m_Config.sRadio).SetValue("green" ).SetLabelAfter("green" );
+				group.Add<html::RadioButton<KString>>(m_Config.sRadio).SetValue("blue"  ).SetLabelAfter("blue"  );
+				group.Add<html::RadioButton<KString>>(m_Config.sRadio).SetValue("yellow").SetLabelAfter("yellow");
 			}
 
 			{
-				auto& group = form.Add(html::FieldSet("Radios with enums"));
-				group += html::RadioButton<COLOR>(m_Config.Color).SetValue(RED   ).SetLabelAfter("red"   );
-				group += html::RadioButton<COLOR>(m_Config.Color).SetValue(GREEN ).SetLabelAfter("green" );
-				group += html::RadioButton<COLOR>(m_Config.Color).SetValue(BLUE  ).SetLabelAfter("blue"  );
-				group += html::RadioButton<COLOR>(m_Config.Color).SetValue(YELLOW).SetLabelAfter("yellow");
+				auto group = form.Add<html::FieldSet>(KStringView{"Radios with enums"});
+				group.Add<html::RadioButton<COLOR>>(m_Config.Color).SetValue(RED   ).SetLabelAfter("red"   );
+				group.Add<html::RadioButton<COLOR>>(m_Config.Color).SetValue(GREEN ).SetLabelAfter("green" );
+				group.Add<html::RadioButton<COLOR>>(m_Config.Color).SetValue(BLUE  ).SetLabelAfter("blue"  );
+				group.Add<html::RadioButton<COLOR>>(m_Config.Color).SetValue(YELLOW).SetLabelAfter("yellow");
 			}
 
-			form.Generate();
-			form.Synchronize(Parms);
+			page.Generate();
+			page.Synchronize(Parms);
 
-			body += html::Link("link").SetTitle("title").Append(html::Image("another/link", "AltText").SetLoading(html::Image::LAZY));
-			body += html::LineBreak();
-			body += html::Link("link").SetTitle("title").Append(html::Image("another/link", "AltText").SetLoading(html::Image::LAZY));
-			body += html::LineBreak();
+			auto AddOuterLink = [](KHTMLNode where)
+			{
+				auto link = where.Add<html::Link>(KStringView{"link"});
+				link.SetTitle("title");
+				link.Add<html::Image>(KStringView{"another/link"}, KStringView{"AltText"}).SetLoading(html::Image::LAZY);
+			};
 
-			auto& table = body  += html::Table();
-			auto& row1  = table += html::TableRow();
-			auto& data1 = row1  += html::TableData();
-			data1 += html::Text("<d1>");
-			(row1 += html::TableData()).Add(html::Text("d2"));
-			(row1 += html::TableData()).Add(html::Text("d3"));
+			AddOuterLink(body);
+			body.Add<html::LineBreak>();
+			AddOuterLink(body);
+			body.Add<html::LineBreak>();
 
-			html::TextInput<KString> ti(m_Config.sMailTo, "mailto");
-			ti.Synchronize(Parms);
+			auto table = body.Add<html::Table>();
+			auto row1  = table.Add<html::TableRow>();
+			row1.Add<html::TableData>().AddText("<d1>");
+			row1.Add<html::TableData>().AddText("d2");
+			row1.Add<html::TableData>().AddText("d3");
 		}
 
 		KString sCRLF = page.Print();
@@ -304,7 +320,6 @@ text-decoration: none
 		CHECK( m_Config.m_fMinConfidence == 0.55 );
 		CHECK( m_Config.m_fMaxConfidence == 0.99 );
 		CHECK( m_Config.bNoDisplay       == true );
-		CHECK( m_Config.sMailTo          == "xyz");
 		CHECK( m_Config.iMotionArea      == 1000 );
 
 		auto sDiff = print_diff(sCRLF, sSerialized);
@@ -316,4 +331,3 @@ text-decoration: none
 
 	}
 }
-

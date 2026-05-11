@@ -199,7 +199,7 @@ a:hover, button:hover, input[type='submit']:hover, input::file-selector-button:h
 )";
 
 //-----------------------------------------------------------------------------
-void AddIndexItem(html::Table& table, const KDirectory::DirEntry& Item, bool bWithDelete)
+void AddIndexItem(html::Table table, const KDirectory::DirEntry& Item, bool bWithDelete)
 //-----------------------------------------------------------------------------
 {
 	constexpr KStringView sWasteBin   = "&#x1F6AE;";
@@ -207,7 +207,7 @@ void AddIndexItem(html::Table& table, const KDirectory::DirEntry& Item, bool bWi
 
 	bool bIsDirectory = Item.Type() == KFileType::DIRECTORY;
 
-	auto& row = table.Add(html::TableRow());
+	auto row = table.Add<html::TableRow>();
 
 	KString sItemLink = Item.Filename();
 
@@ -224,9 +224,9 @@ void AddIndexItem(html::Table& table, const KDirectory::DirEntry& Item, bool bWi
 		sTitle += Item.Filename();
 		sTitle += '\'';
 
-		auto& td     = row.Add(html::TableData());
-		auto& link   = td.Add(html::Link(sItemLink));
-		auto& button = link.Add(html::Button());
+		auto td     = row.Add<html::TableData>();
+		auto link   = td.Add<html::Link>(sItemLink);
+		auto button = link.Add<html::Button>();
 		button.SetType(html::Button::BUTTON).AddRawText(sFolderIcon).SetTitle(sTitle);
 	}
 	else
@@ -235,30 +235,32 @@ void AddIndexItem(html::Table& table, const KDirectory::DirEntry& Item, bool bWi
 		sTitle += Item.Filename();
 		sTitle += '\'';
 
-		row += html::TableData();
+		row.Add<html::TableData>();
 	}
 
-	auto& td = row.Add(html::TableData());
-	td.SetAlign(html::TableData::LEFT);
-	td += html::Link(sItemLink, Item.Filename()).SetTitle(sTitle);
+	{
+		auto td = row.Add<html::TableData>();
+		td.SetAlign(html::TableData::LEFT);
+		td.Add<html::Link>(sItemLink, Item.Filename()).SetTitle(sTitle);
+	}
 
-	row += html::TableData(Item.ModificationTime().to_string()).SetAlign(html::TableData::LEFT);
+	row.Add<html::TableData>(Item.ModificationTime().to_string()).SetAlign(html::TableData::LEFT);
 
 	if (bIsDirectory)
 	{
-		row += html::TableData();
+		row.Add<html::TableData>();
 	}
 	else
 	{
-		row += html::TableData(kFormBytes(Item.Size(), 1, " ")).SetAlign(html::TableData::RIGHT);
+		row.Add<html::TableData>(kFormBytes(Item.Size(), 1, " ")).SetAlign(html::TableData::RIGHT);
 	}
 
 	if (bWithDelete)
 	{
-		auto& td = row.Add(html::TableData());
-		auto& formDel = td.Add(html::Form());
+		auto td         = row.Add<html::TableData>();
+		auto formDel    = td.Add<html::Form>();
 		formDel.SetMethod(html::Form::POST);
-		auto& formButton = formDel.Add(html::Button(KStringView{}, html::Button::SUBMIT));
+		auto formButton = formDel.Add<html::Button>(KStringView{}, html::Button::SUBMIT);
 		formButton.AddRawText(sWasteBin).SetValue(Item.Filename());
 
 		if (bIsDirectory)
@@ -274,7 +276,7 @@ void AddIndexItem(html::Table& table, const KDirectory::DirEntry& Item, bool bWi
 	}
 	else
 	{
-		row += html::TableData();
+		row.Add<html::TableData>();
 	}
 
 } // AddIndexItem
@@ -306,7 +308,7 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 	else if (sStyles.ends_with(".css"))
 	{
 		// this is a path to css styles - use a style link in the header
-		page.Head().Add(html::StyleSheet(sStyles));
+		page.Head().Add<html::StyleSheet>(sStyles);
 	}
 	else
 	{
@@ -316,7 +318,7 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 
 	page.Body().AddRawText(kjson::GetStringRef(m_jConfig, "addtobodytop"));
 
-	auto& body = page.Body();
+	auto body = page.Body();
 
 	if (bWithIndex)
 	{
@@ -324,24 +326,24 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 		Dir.RemoveHidden();
 		Dir.Sort();
 
-		body.Add(html::Heading(3, sTitle));
-		auto& table = body.Add(html::Table());
+		body.Add<html::Heading>(3, sTitle);
+		auto table = body.Add<html::Table>();
 
 		{
-			auto& row = table.Add(html::TableRow());
-			auto& th  = row.Add(html::TableHeader());
+			auto row = table.Add<html::TableRow>();
+			auto th  = row.Add<html::TableHeader>();
 
 			if (!sDirectory.empty())
 			{
-				auto& link   = th.Add(html::Link("..").SetTitle("go back"));
-				auto& button = link.Add(html::Button());
+				auto link   = th.Add<html::Link>(KStringView{".."}).SetTitle("go back");
+				auto button = link.Add<html::Button>();
 				button.SetType(html::Button::BUTTON).SetTitle("go back").AddRawText(sBackIcon);
 			}
 
-			row += html::TableHeader("name").SetAlign(html::TableHeader::LEFT);
-			row += html::TableHeader("last modification").SetAlign(html::TableHeader::LEFT);
-			row += html::TableHeader("size").SetAlign(html::TableHeader::RIGHT);
-			row += html::TableHeader();
+			row.Add<html::TableHeader>(KStringView{"name"}             ).SetAlign(html::TableHeader::LEFT);
+			row.Add<html::TableHeader>(KStringView{"last modification"}).SetAlign(html::TableHeader::LEFT);
+			row.Add<html::TableHeader>(KStringView{"size"}             ).SetAlign(html::TableHeader::RIGHT);
+			row.Add<html::TableHeader>();
 		}
 
 		for (const auto& File : Dir)
@@ -365,35 +367,37 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 
 	if (bWithDelete)
 	{
-		body += html::Paragraph();
-		auto& table = body.Add(html::Table());
+		body.Add<html::Paragraph>();
+		auto table = body.Add<html::Table>();
 		{
-			auto& row  = table.Add(html::TableRow());
-			auto& form = row.Add(html::Form());
+			auto row  = table.Add<html::TableRow>();
+			auto form = row.Add<html::Form>();
 			form.SetMethod(html::Form::POST);
 
-			auto& col1 = form.Add(html::TableData());
-			col1.Add(html::HTML("label").AddText("Add Directory:"));
+			auto col1 = form.Add<html::TableData>();
+			col1.Add<html::HTML>(KStringView{"label"}, KStringView{}).AddText("Add Directory:");
 
-			auto& col2 = form.Add(html::TableData());
-			col2 += html::Input("createDir").SetType(html::Input::TEXT);
+			auto col2 = form.Add<html::TableData>();
+			col2.Add<html::Input>(html::Input::TEXT, KStringView{"createDir"});
 
-			auto& col3 = form.Add(html::TableData().SetAlign(html::TableData::RIGHT));
-			col3 += html::Input().SetType(html::Input::SUBMIT).SetValue("Create");
+			auto col3 = form.Add<html::TableData>();
+			col3.SetAlign(html::TableData::RIGHT);
+			col3.Add<html::Input>(html::Input::SUBMIT).SetValue("Create");
 		}
 		{
-			auto& row  = table.Add(html::TableRow());
-			auto& form = row.Add(html::Form());
+			auto row  = table.Add<html::TableRow>();
+			auto form = row.Add<html::Form>();
 			form.SetMethod(html::Form::POST).SetEncType(html::Form::FORMDATA);
 
-			auto& col1 = form.Add(html::TableData());
-			col1.Add(html::HTML("label").AddText("Add File:"));
+			auto col1 = form.Add<html::TableData>();
+			col1.Add<html::HTML>(KStringView{"label"}, KStringView{}).AddText("Add File:");
 
-			auto& col2 = form.Add(html::TableData());
-			col2 += html::Input("upload1").SetType(html::Input::FILE);
+			auto col2 = form.Add<html::TableData>();
+			col2.Add<html::Input>(html::Input::FILE, KStringView{"upload1"});
 
-			auto& col3 = form.Add(html::TableData().SetAlign(html::TableData::RIGHT));
-			col3 += html::Input().SetType(html::Input::SUBMIT).SetValue("Upload");
+			auto col3 = form.Add<html::TableData>();
+			col3.SetAlign(html::TableData::RIGHT);
+			col3.Add<html::Input>(html::Input::SUBMIT).SetValue("Upload");
 		}
 	}
 

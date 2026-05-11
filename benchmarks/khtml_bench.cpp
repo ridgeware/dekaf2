@@ -473,10 +473,10 @@ void html_parse_dom()
 		}
 	}
 	{
-		AllocationSnapshot a("KHTMLElement default-ctor only x1000");
+		AllocationSnapshot a("KHTMLNode default-ctor only x1000");
 		for (size_t count = 0; count < 1000; ++ count)
 		{
-			KHTMLElement e;
+			KHTMLNode e;
 			KProf::Force(&e);
 		}
 	}
@@ -581,36 +581,27 @@ void html_serialize()
 // Mirrors the access pattern of xapis/html.cpp::HTMLProcessor::TraverseHTML.
 // ----------------------------------------------------------------------------
 
-static std::size_t traverse_recursive(const KHTMLObject& Object, std::size_t& iElements, std::size_t& iTextRuns)
+static void traverse_recursive(KHTMLNode Node, std::size_t& iElements, std::size_t& iTextRuns)
 {
-	switch (Object.Type())
+	if (!Node) return;
+
+	if (Node.IsElement())
 	{
-		case KHTMLElement::TYPE:
+		++iElements;
+		for (auto attr : Node.Attributes())
 		{
-			++iElements;
-			const auto& Element = static_cast<const KHTMLElement&>(Object);
-
-			for (const auto& Attr : Element.GetAttributes())
-			{
-				KProf::Force(const_cast<KHTMLAttribute*>(&Attr));
-			}
-
-			for (const auto& Child : Element.GetChildren())
-			{
-				traverse_recursive(*Child.get(), iElements, iTextRuns);
-			}
+			KProf::Force(&attr);
 		}
-		break;
-
-		case KHTMLText::TYPE:
+		for (auto child : Node.Children())
 		{
-			++iTextRuns;
-			const auto& Text = static_cast<const KHTMLText&>(Object);
-			KProf::Force(const_cast<KHTMLText*>(&Text));
+			traverse_recursive(child, iElements, iTextRuns);
 		}
-		break;
 	}
-	return 1;
+	else if (Node.IsText())
+	{
+		++iTextRuns;
+		KProf::Force(&Node);
+	}
 }
 
 void html_traverse()
@@ -627,7 +618,7 @@ void html_traverse()
 		{
 			std::size_t iElements = 0;
 			std::size_t iTextRuns = 0;
-			traverse_recursive(doc.DOM(), iElements, iTextRuns);
+			traverse_recursive(doc.Root(), iElements, iTextRuns);
 			KProf::Force(&iElements);
 			KProf::Force(&iTextRuns);
 		}
@@ -648,29 +639,27 @@ void html_build()
 
 		for (size_t count = 0; count < 100; ++ count)
 		{
-			KHTMLElement table("table");
-			table.SetAttribute("class", "data");
-			table.SetAttribute("id",    "tbl1");
+			KHTML doc;
+			auto table = doc.Root().AddElement("table");
+			table.SetAttribute("class",    "data");
+			table.SetAttribute("id",       "tbl1");
 
 			for (std::size_t row = 0; row < 1000; ++row)
 			{
-				KHTMLElement tr("tr");
+				auto tr = table.AddElement("tr");
 				tr.SetAttribute("data-row", KString::to_string(row));
 
 				for (std::size_t col = 0; col < 5; ++col)
 				{
-					KHTMLElement td("td");
-					td.SetAttribute("class", "cell");
+					auto td = tr.AddElement("td");
+					td.SetAttribute("class",    "cell");
 					td.SetAttribute("data-col", KString::to_string(col));
-					td.SetAttribute("scope", "col");
+					td.SetAttribute("scope",    "col");
 					td.AddText("cell content");
-					tr.Add(std::move(td));
 				}
-
-				table.Add(std::move(tr));
 			}
 
-			KProf::Force(&table);
+			KProf::Force(&doc);
 		}
 	}
 }

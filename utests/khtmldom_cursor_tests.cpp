@@ -302,20 +302,17 @@ TEST_CASE("KHTML POD cursor")
 		CHECK   ( !root.LastChild()  );
 	}
 
-	SECTION("Root() on a heap-built KHTML still points at an empty POD root")
+	SECTION("Root() returns a writeable handle into the arena")
 	{
-		// build-path: KHTML::Add() goes only into the heap DOM (m_Root),
-		// NOT into the POD tree. Root() must reflect that the POD tree
-		// stays empty.
+		// Phase 4b: KHTML has only one tree (arena-backed POD).
+		// Root() yields a KHTMLNode that can both read and write that tree.
 		KHTML doc;
-		auto& html = doc.Add("html");
-		html.Add("body");
+		auto html = doc.Root().AddElement("html");
+		html.AddElement("body");
 
 		auto root = doc.Root();
 		REQUIRE ( root );
-		CHECK   ( root.CountChildren() == 0 );
-
-		// the heap DOM, however, is non-empty
-		CHECK ( !doc.DOM().GetChildren().empty() );
+		CHECK   ( root.CountChildren() == 1 );
+		CHECK   ( root.FirstChild().Name() == "html" );
 	}
 }

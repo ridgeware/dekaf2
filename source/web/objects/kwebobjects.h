@@ -40,19 +40,26 @@
 
 
 /// @file kwebobjects.h
+/// Phase 4 design: KWebObjects are non-virtual 8-byte handles (KHTMLNode)
+/// into a KHTML's arena-backed POD tree. Construction always goes through
+/// a parent KHTMLNode — there is no "detached" mode any more; the
+/// canonical idiom is `parent.Add<html::T>(args...)`. See
+/// `notes/kwebobjects-migration-guide.md` for the conversion patterns.
+
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
+#include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/web/url/kmime.h>
+#include <dekaf2/web/url/kurl.h>
 #include <dekaf2/web/html/khtmldom.h>
 #include <dekaf2/time/duration/kduration.h>
-#include <dekaf2/web/url/kurl.h>
 #include <dekaf2/system/os/ksystem.h>
-#include <dekaf2/core/strings/kstringutils.h>
 #include <vector>
 #include <limits>
 #include <chrono>
-#include <unordered_map>
+#include <type_traits>
+#include <utility>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -62,6 +69,9 @@ DEKAF2_NAMESPACE_BEGIN
 namespace html {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// CSS class definition (selector + body). Held by user code, not part of
+/// the DOM. Registered with a Page via `page.AddClass(c)` to emit into the
+/// page's `<style>` block.
 class DEKAF2_PUBLIC Class
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -88,7 +98,7 @@ protected:
 }; // Class
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A collection of class names to add to an element's class attribute
+/// A collection of class names to apply to an element's `class` attribute.
 class DEKAF2_PUBLIC Classes
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -121,12 +131,14 @@ public:
 
 	self& Add(const Classes& Classes)
 	{
-		return Add(m_sClassNames.ToView());
+		return Add(Classes.m_sClassNames.ToView());
 	}
 
 	self& Add(KStringView sClassName);
 
 	const KString& GetClasses() const { return m_sClassNames; }
+
+	bool empty() const { return m_sClassNames.empty(); }
 
 //----------
 protected:
@@ -134,21 +146,24 @@ protected:
 
 	KString m_sClassNames;
 
-}; // KHTMLClass
+}; // Classes
 
 } // end of namespace html
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC KWebObjectBase : public KHTMLElement
+/// Non-virtual base of all KWebObject builders. Inherits the 8-byte
+/// `KHTMLNode` handle and adds the universal enums + helpers + Generate /
+/// Synchronize entry points. All actual setters live in
+/// `KWebObject<Derived>` (CRTP mixin).
+class DEKAF2_PUBLIC KWebObjectBase : public KHTMLNode
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
-	static constexpr KStringView s_sObjectName = "KWebObjectBase";
 
 //----------
 public:
 //----------
 
+	static constexpr KStringView s_sObjectName = "KWebObjectBase";
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	enum ENCTYPE { URLENCODED, FORMDATA, PLAIN };
@@ -162,34 +177,37 @@ public:
 
 	using Pixels = uint32_t;
 
-	using KHTMLElement::KHTMLElement;
-
 	KWebObjectBase() = default;
-	KWebObjectBase(KString sElement, KStringView sID = KStringView{})
-	: KHTMLElement(std::move(sElement), sID, KStringView{})
-	{
-	}
-	KWebObjectBase(KString sElement, KStringView sID, const html::Classes& Classes)
-	: KHTMLElement(std::move(sElement), sID, Classes.GetClasses())
-	{
-	}
-	KWebObjectBase(KString sElement, KStringView sID, KStringView sClass) = delete;
+	/// Construct an arena-backed element as child of `parent`. Allocates
+	/// the NodePOD, appends to `parent`, and (if non-empty) applies the
+	/// initial `id` / `class` attributes.
+	KWebObjectBase(KHTMLNode parent,
+	               KStringView sTag,
+	               const html::Classes& cls = html::Classes{},
+	               KStringView sID = KStringView{});
 
-	/// Traverse all objects and call Sync(KStringView) with the query parm value if it has a "name" attribute that matches a query parm name
-	void Synchronize(const url::KQueryParms& QueryParms)
-	{
-		TraverseAndSync(this, nullptr, nullptr, QueryParms);
-	}
+	/// Construct from an existing KHTMLNode handle (no allocation). Used
+	/// by composites that need to point at an existing node.
+	explicit KWebObjectBase(KHTMLNode node) : KHTMLNode(node) {}
 
-	/// Generate missing names of input fields, group radio buttons automatically by variable reference
+	/// Serialize this element (and its subtree). Output matches the
+	/// document-level serialize for this subtree.
+	void    Serialize(KOutStream& OutStream, char chIndent = '\t') const;
+	void    Serialize(KStringRef& sOut, char chIndent = '\t') const;
+	KString Serialize(char chIndent = '\t') const;
+
+	/// Print(...) is an alias for Serialize(...), preserved for back-compat.
+	KString Print(char chIndent = '\t', uint16_t /*iIndent*/ = 0) const { return Serialize(chIndent); }
+
+	/// Walk the entire document this node belongs to and auto-assign
+	/// missing `name` / `value` attributes for inputs / options.
 	void Generate();
 
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const = 0;
+	/// Walk the document's bindings (sparse side-map keyed by NodePOD*)
+	/// and call each binding's pfnSync with the matching query-parm value.
+	void Synchronize(const url::KQueryParms& Parms);
 
-//----------
-protected:
-//----------
+	// -- static helpers (unchanged from pre-Phase-4) ---------------------------
 
 	static KStringView FromMethod  (METHOD  method  );
 	static KStringView FromTarget  (TARGET  target  );
@@ -200,31 +218,31 @@ protected:
 	static KStringView FromVAlign  (VALIGN  valign  );
 	static KStringView FromPreload (Preload preload );
 
-	virtual void Reset(KWebObjectBase* Element);
-	virtual void Sync(KWebObjectBase* Element, KStringView sValue);
-	virtual void* AddressOfInputStorage();
+//----------
+protected:
+//----------
 
-	void TraverseAndSync(KWebObjectBase* Element,
-						 KWebObjectBase* LastLabeledInput,
-						 KWebObjectBase* LastSelect,
-						 const url::KQueryParms& QueryParms);
+	/// Set a boolean HTML attribute. Boolean HTML attrs (disabled,
+	/// required, ...) get emitted bare (e.g. `<input disabled>`) when set,
+	/// and removed when unset. Non-boolean attrs get `"true"`/`"false"`.
+	void SetBoolAttribute(KStringView sName, bool bYesNo);
 
-	using namemap = std::unordered_map<void*, KStringView>;
-
-	void    Generate(KWebObjectBase* Element,
-					 KWebObjectBase* LastLabeledInput,
-					 std::size_t& iNameCounter,
-					 namemap& NameMap);
-	KString GenerateName(KStringView sPrefix, std::size_t iNameCounter);
-
-
+	/// Insert a text node before the first input child of this label. For
+	/// LabeledInput composites.
 	void SetTextBefore(KStringView sLabel);
-	void SetTextAfter(KStringView sLabel);
+	/// Append a text node after the last input child of this label.
+	void SetTextAfter (KStringView sLabel);
+
+	/// Helper for the bound-input templates to register a binding in the
+	/// document's side-map.
+	void RegisterBinding(KHTMLNode pInputNode, const khtml::InteractiveBinding& binding);
 
 }; // KWebObjectBase
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// CRTP web object
+/// CRTP setter mixin. Defines all universal HTML attribute setters once,
+/// each returning `Derived&` so call chains preserve the concrete type.
+/// No virtual functions — every dispatch is static.
 template<typename Derived>
 class KWebObject : public KWebObjectBase
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -234,773 +252,247 @@ class KWebObject : public KWebObjectBase
 public:
 //----------
 
-#ifdef DEKAF2_HAS_FULL_CPP_17
 	using KWebObjectBase::KWebObjectBase;
-#else
-	KWebObject<Derived>()
-	{
-	}
-	KWebObject<Derived>(KString sElement, KStringView sID = KStringView{})
-	: KWebObjectBase(std::move(sElement), sID)
-	{
-	}
-	KWebObject<Derived>(KString sElement, KStringView sID, const html::Classes& Classes)
-	: KWebObjectBase(std::move(sElement), sID, Classes)
-	{
-	}
-	KWebObject<Derived>(KString sElement, KStringView sID, KStringView sClass) = delete;
-#endif
-
 	using self = Derived;
 
-	/// Append an element to the list of children, return parent lvalue reference. Use Add() instead to return child reference
-	template<typename Element,
-	typename std::enable_if<std::is_base_of<KHTMLObject, Element>::value == true, int>::type = 0>
-	Derived& Append(Element Object) &
+	// -- universal attribute setters --
+
+	self& SetID(KStringView sID)
 	{
-		Add(std::move(Object));
+		if (!sID.empty()) KHTMLNode::SetAttribute("id", sID);
+		else              KHTMLNode::RemoveAttribute("id");
 		return This();
 	}
 
-	/// Append an element to the list of children, return parent rvalue reference. Use Add() instead to return child reference
-	template<typename Element,
-	typename std::enable_if<std::is_base_of<KHTMLObject, Element>::value == true, int>::type = 0>
-	Derived&& Append(Element Object) &&
+	self& SetClass(const html::Classes& cls)
 	{
-		return std::move(Append(std::move(Object)));
-	}
-
-	// **** overrides for similar methods in KHTMLElement ****
-	virtual std::unique_ptr<KHTMLObject> Clone() const override
-	{
-		return std::make_unique<Derived>(This());
-	}
-
-	self& AddText(KStringView sContent) &
-	{
-		KWebObjectBase::AddText(sContent);
+		if (!cls.empty()) KHTMLNode::SetAttribute("class", cls.GetClasses());
+		else              KHTMLNode::RemoveAttribute("class");
 		return This();
 	}
 
-	self&& AddText(KStringView sContent) &&
-	{
-		return std::move(AddText(sContent));
-	}
+	self& SetDir       (DIR    dir    ) { KHTMLNode::SetAttribute("dir",     FromDir    (dir    )); return This(); }
+	self& SetDraggable (bool   bYesNo ) { SetBoolAttribute       ("draggable",          bYesNo  ); return This(); }
+	self& SetHidden    (bool   bYesNo ) { SetBoolAttribute       ("hidden",             bYesNo  ); return This(); }
+	self& SetLanguage  (KStringView v ) { if (!v.empty()) KHTMLNode::SetAttribute("lang",  v);     return This(); }
+	self& SetStyle     (KStringView v ) { if (!v.empty()) KHTMLNode::SetAttribute("style", v);     return This(); }
+	self& SetTitle     (KStringView v ) { if (!v.empty()) KHTMLNode::SetAttribute("title", v);     return This(); }
 
-	self& AddRawText(KStringView sContent) &
+	self& SetLink      (KStringView sURL, bool bDoNotEscape = true) { if (!sURL.empty())  KHTMLNode::SetAttribute("href",   sURL, '"', /*esc*/!bDoNotEscape); return This(); }
+	self& SetSource    (KStringView sURL, bool bDoNotEscape = true) { if (!sURL.empty())  KHTMLNode::SetAttribute("src",    sURL, '"', /*esc*/!bDoNotEscape); return This(); }
+	self& SetPoster    (KStringView sURL, bool bDoNotEscape = true) { if (!sURL.empty())  KHTMLNode::SetAttribute("poster", sURL, '"', /*esc*/!bDoNotEscape); return This(); }
+	self& SetDescription(KStringView v)                             { if (!v.empty())    KHTMLNode::SetAttribute("alt",    v);                                  return This(); }
+
+	self& SetHeigth(Pixels p) { KHTMLNode::SetAttribute("heigth", kFormat("{}", p)); return This(); }
+	self& SetWidth (Pixels p) { KHTMLNode::SetAttribute("width",  kFormat("{}", p)); return This(); }
+	self& SetSize  (Pixels p) { KHTMLNode::SetAttribute("size",   kFormat("{}", p)); return This(); }
+
+	self& SetLoading (LOADING l) { KHTMLNode::SetAttribute("loading", FromLoading(l)); return This(); }
+	self& SetAlign   (ALIGN   a) { KHTMLNode::SetAttribute("align",   FromAlign  (a)); return This(); }
+	self& SetVAlign  (VALIGN  v) { KHTMLNode::SetAttribute("valign",  FromVAlign (v)); return This(); }
+
+	self& SetName  (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("name",  v); return This(); }
+	self& SetValue (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("value", v); return This(); }
+
+	self& SetTarget(TARGET  t) { KHTMLNode::SetAttribute("target", FromTarget (t)); return This(); }
+
+	self& SetRel(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("rel", v); return This(); }
+
+	self& SetDisabled        (bool b) { SetBoolAttribute("disabled",        b); return This(); }
+	self& SetAutofocus       (bool b) { SetBoolAttribute("autofocus",       b); return This(); }
+	self& SetMultiple        (bool b) { SetBoolAttribute("multiple",        b); return This(); }
+	self& SetDirectory       (bool b) { SetBoolAttribute("directory",       b);
+	                                    SetBoolAttribute("webkitdirectory", b); return This(); }
+	self& SetReadOnly        (bool b) { SetBoolAttribute("readonly",        b); return This(); }
+	self& SetRequired        (bool b) { SetBoolAttribute("required",        b); return This(); }
+	self& SetAsync           (bool b) { SetBoolAttribute("async",           b); return This(); }
+	self& SetDefer           (bool b) { SetBoolAttribute("defer",           b); return This(); }
+	self& SetLoop            (bool b) { SetBoolAttribute("loop",            b); return This(); }
+	self& SetPlaysInline     (bool b) { SetBoolAttribute("playsinline",     b); return This(); }
+	self& SetMuted           (bool b) { SetBoolAttribute("muted",           b); return This(); }
+	self& SetFormNoValidate  (bool b) { SetBoolAttribute("formnovalidate",  b); return This(); }
+
+	self& SetFormAction(KStringView v)  { if (!v.empty()) KHTMLNode::SetAttribute("formaction",  v);                       return This(); }
+	self& SetFormMethod (METHOD  m)     { KHTMLNode::SetAttribute("formmethod",  FromMethod (m));                          return This(); }
+	self& SetFormEncType(ENCTYPE e)     { KHTMLNode::SetAttribute("formenctype", FromEncType(e));                          return This(); }
+	self& SetFormTarget (TARGET  t)     { KHTMLNode::SetAttribute("formtarget",  FromTarget (t));                          return This(); }
+
+	self& SetAccept     (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("accept",      v); return This(); }
+	self& SetPlaceholder(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("placeholder", v); return This(); }
+	self& SetLabel      (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("label",       v); return This(); }
+	self& SetFor        (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("for",         v); return This(); }
+	self& SetForm       (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("form",        v); return This(); }
+	self& SetAllow      (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("allow",       v); return This(); }
+	self& SetScrolling  (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("scrolling",   v); return This(); }
+
+	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
+	self& SetMin(A v)        { KHTMLNode::SetAttribute("min", kFormat("{}", v)); return This(); }
+
+	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
+	self& SetMax(A v)        { KHTMLNode::SetAttribute("max", kFormat("{}", v)); return This(); }
+
+	template<typename A>
+	self& SetRange(A mn, A mx) { SetMin(mn); SetMax(mx); return This(); }
+
+	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
+	self& SetColSpan(A v)    { KHTMLNode::SetAttribute("colspan", kFormat("{}", v)); return This(); }
+
+	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
+	self& SetRowSpan(A v)    { KHTMLNode::SetAttribute("rowspan", kFormat("{}", v)); return This(); }
+
+	self& SetAutoplay()                                              { KHTMLNode::SetAttribute("autoplay", "", /*q*/0, /*esc*/false);        return This(); }
+	self& SetControls()                                              { KHTMLNode::SetAttribute("controls", "", /*q*/0, /*esc*/false);        return This(); }
+	self& SetAllowFullscreen()                                       { KHTMLNode::SetAttribute("allowfullscreen", "", /*q*/0, /*esc*/false); return This(); }
+	self& SetPreload(Preload p)                                      { KHTMLNode::SetAttribute("preload", FromPreload(p));                   return This(); }
+	self& SetType   (KStringView mime)                               { if (!mime.empty()) KHTMLNode::SetAttribute("type", mime);             return This(); }
+
+	// -- generic attribute access (KString name overload) --
+
+	self& SetAttribute(KString sName, KStringView sValue, bool bRemoveIfEmpty = false, bool bDoNotEscape = false)
 	{
-		KWebObjectBase::AddRawText(sContent);
+		if (bRemoveIfEmpty && sValue.empty()) { KHTMLNode::RemoveAttribute(sName); }
+		else                                  { KHTMLNode::SetAttribute(sName, sValue, '"', /*esc*/!bDoNotEscape); }
 		return This();
 	}
 
-	self&& AddRawText(KStringView sContent) &&
+	template<typename N, std::enable_if_t<std::is_arithmetic<N>::value && !std::is_same<N, bool>::value, int> = 0>
+	self& SetAttribute(KString sName, N value)
 	{
-		return std::move(AddRawText(sContent));
-	}
-
-	self& SetID(KString sValue) &
-	{
-		KHTMLElement::SetID(std::move(sValue));
+		KHTMLNode::SetAttribute(sName, kFormat("{}", value));
 		return This();
 	}
 
-	self&& SetID(KString sValue) &&
+	self& SetAttribute(KString sName, bool bYesNo)
 	{
-		return std::move(SetID(sValue));
-	}
-
-	self& SetClass(const html::Classes& Classes) &
-	{
-		KHTMLElement::SetClass(Classes.GetClasses());
+		SetBoolAttribute(sName, bYesNo);
 		return This();
 	}
 
-	self&& SetClass(const html::Classes& Classes) &&
-	{
-		return std::move(SetClass(Classes));
-	}
-	// ^^^^ KHTMLElement overrides until here ^^^^
+	// -- text children --
 
-	//  **** universal attributes ****
-	self& SetDir(DIR dir) &
-	{
-		SetAttribute("dir", FromDir(dir), false);
-		return This();
-	}
-
-	self&& SetDir(DIR dir) &&
-	{
-		return std::move(SetDir(dir));
-	}
-
-	self& SetDraggable(bool bYesNo) &
-	{
-		SetAttribute("draggable", bYesNo);
-		return This();
-	}
-
-	self&& SetDraggable(bool bYesNo) &&
-	{
-		return std::move(SetDraggable(bYesNo));
-	}
-
-	self& SetHidden(bool bYesNo) &
-	{
-		SetAttribute("hidden", bYesNo);
-		return This();
-	}
-
-	self&& SetHidden(bool bYesNo) &&
-	{
-		return std::move(SetHidden(bYesNo));
-	}
-
-	self& SetLanguage(KStringView sLanguage) &
-	{
-		SetAttribute("lang", sLanguage, true);
-		return This();
-	}
-
-	self&& SetLanguage(KStringView sLanguage) &&
-	{
-		return std::move(SetLanguage(sLanguage));
-	}
-
-	self& SetStyle(KStringView sStyle) &
-	{
-		SetAttribute("style", sStyle, true);
-		return This();
-	}
-
-	self&& SetStyle(KStringView sStyle) &&
-	{
-		return std::move(SetStyle(sStyle));
-	}
-
-	self& SetTitle(KStringView sTitle) &
-	{
-		SetAttribute("title", sTitle, true);
-		return This();
-	}
-
-	self&& SetTitle(KStringView sTitle) &&
-	{
-		return std::move(SetTitle(sTitle));
-	}
-	// ^^^^ universal attributes until here ^^^^
-
-//----------
-protected:
-//----------
-
-#ifdef DEKAF2_HAS_FULL_CPP_17
-	// do not allow an instance of this class without child
-	KWebObject() = default;
-	KWebObject(const KWebObject&) = default;
-	KWebObject(KWebObject&&) = default;
-#endif
-
-	self& SetLink(KStringView sURL, bool bDoNotEscape = true) &
-	{
-		SetAttribute("href", sURL, true, bDoNotEscape);
-		return This();
-	}
-
-	self&& SetLink(KStringView sURL, bool bDoNotEscape = true) &&
-	{
-		return std::move(SetLink(sURL, bDoNotEscape));
-	}
-
-	self& SetSource(KStringView sURL, bool bDoNotEscape = true) &
-	{
-		SetAttribute("src", sURL, true, bDoNotEscape);
-		return This();
-	}
-
-	self&& SetSource(KStringView sURL, bool bDoNotEscape = true) &&
-	{
-		return std::move(SetSource(sURL, bDoNotEscape));
-	}
-
-	self& SetPoster(KStringView sURL, bool bDoNotEscape = true) &
-	{
-		SetAttribute("poster", sURL, true, bDoNotEscape);
-		return This();
-	}
-
-	self&& SetPoster(KStringView sURL, bool bDoNotEscape = true) &&
-	{
-		return std::move(SetPoster(sURL, bDoNotEscape));
-	}
-
-	self& SetDescription(KStringView sDescription) &
-	{
-		SetAttribute("alt", sDescription, true);
-		return This();
-	}
-
-	self&& SetDescription(KStringView sDescription) &&
-	{
-		return std::move(SetDescription(sDescription));
-	}
-
-	self& SetHeigth(Pixels iHeigth) &
-	{
-		SetAttribute("heigth", iHeigth);
-		return This();
-	}
-
-	self&& SetHeigth(Pixels iHeigth) &&
-	{
-		return std::move(SetHeigth(iHeigth));
-	}
-
-	self& SetWidth(Pixels iWidth) &
-	{
-		SetAttribute("width", iWidth);
-		return This();
-	}
-
-	self&& SetWidth(Pixels iWidth) &&
-	{
-		return std::move(SetWidth(iWidth));
-	}
-
-	self& SetSize(Pixels iSize) &
-	{
-		SetAttribute("size", iSize);
-		return This();
-	}
-
-	self&& SetSize(Pixels iSize) &&
-	{
-		return std::move(SetSize(iSize));
-	}
-
-	self& SetLoading(LOADING loading) &
-	{
-		SetAttribute("loading", FromLoading(loading), false);
-		return This();
-	}
-
-	self&& SetLoading(LOADING loading) &&
-	{
-		return std::move(SetLoading(loading));
-	}
-
-	self& SetAlign(ALIGN align) &
-	{
-		SetAttribute("align", FromAlign(align), false);
-		return This();
-	}
-
-	self&& SetAlign(ALIGN align) &&
-	{
-		return std::move(SetAlign(align));
-	}
-
-	self& SetVAlign(VALIGN valign) &
-	{
-		SetAttribute("valign", FromVAlign(valign), false);
-		return This();
-	}
-
-	self&& SetVAlign(VALIGN valign) &&
-	{
-		return std::move(SetVAlign(valign));
-	}
-
-	self& SetName(KStringView sName) &
-	{
-		SetAttribute("name", sName, true);
-		return This();
-	}
-
-	self&& SetName(KStringView sName) &&
-	{
-		return std::move(SetName(sName));
-	}
-
-	self& SetValue(KStringView sValue) &
-	{
-		SetAttribute("value", sValue, true);
-		return This();
-	}
-
-	self&& SetValue(KStringView sValue) &&
-	{
-		return std::move(SetValue(sValue));
-	}
-
-	self& SetTarget(TARGET target) &
-	{
-		SetAttribute("target", FromTarget(target), false);
-		return This();
-	}
-
-	self&& SetTarget(TARGET target) &&
-	{
-		return std::move(SetTarget(target));
-	}
-
-	self& SetRel(KStringView sRel) &
-	{
-		SetAttribute("rel", sRel, true);
-		return This();
-	}
-
-	self&& SetRel(KStringView sRel) &&
-	{
-		return std::move(SetRel(sRel));
-	}
-
-	self& SetDisabled(bool bYesNo) &
-	{
-		SetAttribute("disabled", bYesNo);
-		return This();
-	}
-
-	self&& SetDisabled(bool bYesNo) &&
-	{
-		return std::move(SetDisabled(bYesNo));
-	}
-
-	self& SetFormAction(KStringView sURL) &
-	{
-		SetAttribute("formaction", sURL, true);
-		return This();
-	}
-
-	self&& SetFormAction(KStringView sURL) &&
-	{
-		return std::move(SetFormAction(sURL));
-	}
-
-	self& SetFormMethod(METHOD method) &
-	{
-		SetAttribute("formmethod", FromMethod(method), false);
-		return This();
-	}
-
-	self&& SetFormMethod(METHOD method) &&
-	{
-		return std::move(SetFormMethod(method));
-	}
-
-	self& SetFormEncType(ENCTYPE encoding) &
-	{
-		SetAttribute("formenctype", FromEncType(encoding), false);
-		return This();
-	}
-
-	self&& SetFormEncType(ENCTYPE encoding) &&
-	{
-		return std::move(SetFormEncType(encoding));
-	}
-
-	self& SetFormTarget(TARGET target) &
-	{
-		SetAttribute("formtarget", FromTarget(target), false);
-		return This();
-	}
-
-	self&& SetFormTarget(TARGET target) &&
-	{
-		return std::move(SetFormTarget(target));
-	}
-
-	self& SetFormNoValidate(bool bYesNo) &
-	{
-		SetAttribute("formnovalidate", bYesNo);
-		return This();
-	}
-
-	self&& SetFormNoValidate(bool bYesNo) &&
-	{
-		return std::move(SetFormNoValidate(bYesNo));
-	}
-
-	self& SetAutofocus(bool bYesNo) &
-	{
-		SetAttribute("autofocus", bYesNo);
-		return This();
-	}
-
-	self&& SetAutofocus(bool bYesNo) &&
-	{
-		return std::move(SetAutofocus(bYesNo));
-	}
-
-	self& SetMultiple(bool bYesNo) &
-	{
-		SetAttribute("multiple", bYesNo);
-		return This();
-	}
-
-	self&& SetMultiple(bool bYesNo) &&
-	{
-		return std::move(SetMultiple(bYesNo));
-	}
-
-	self& SetDirectory(bool bYesNo) &
-	{
-		SetAttribute("directory", bYesNo);
-		SetAttribute("webkitdirectory", bYesNo);
-		return This();
-	}
-
-	self&& SetDirectory(bool bYesNo) &&
-	{
-		return std::move(SetDirectory(bYesNo));
-	}
-
-	self& SetAccept(KStringView sAcceptWhat) &
-	{
-		SetAttribute("accept", sAcceptWhat);
-		return This();
-	}
-
-	self&& SetAccept(KStringView sAcceptWhat) &&
-	{
-		return std::move(SetAccept(sAcceptWhat));
-	}
-
-	self& SetPlaceholder(KStringView sPlaceholder) &
-	{
-		SetAttribute("placeholder", sPlaceholder, true);
-		return This();
-	}
-
-	self&& SetPlaceholder(KStringView sPlaceholder) &&
-	{
-		return std::move(SetPlaceholder(sPlaceholder));
-	}
-
-	self& SetReadOnly(bool bYesNo) &
-	{
-		SetAttribute("readonly", bYesNo);
-		return This();
-	}
-
-	self&& SetReadOnly(bool bYesNo) &&
-	{
-		return std::move(SetReadOnly(bYesNo));
-	}
-
-	self& SetRequired(bool bYesNo) &
-	{
-		SetAttribute("required", bYesNo);
-		return This();
-	}
-
-	self&& SetRequired(bool bYesNo) &&
-	{
-		return std::move(SetRequired(bYesNo));
-	}
-
-	self& SetLabel(KStringView sLabel) &
-	{
-		SetAttribute("label", sLabel, true);
-		return This();
-	}
-
-	self&& SetLabel(KStringView sLabel) &&
-	{
-		return std::move(SetLabel(sLabel));
-	}
-
-	template<typename Arithmetic>
-	self& SetMin(Arithmetic iMin) &
-	{
-		static_assert(std::is_arithmetic<Arithmetic>::value, "need arithmetic type");
-		SetAttribute("min", iMin);
-		return This();
-	}
-
-	template<typename Arithmetic>
-	self&& SetMin(Arithmetic iMin) &&
-	{
-		return std::move(SetMin(iMin));
-	}
-
-	template<typename Arithmetic>
-	self& SetMax(Arithmetic iMax) &
-	{
-		static_assert(std::is_arithmetic<Arithmetic>::value, "need arithmetic type");
-		SetAttribute("max", iMax);
-		return This();
-	}
-
-	template<typename Arithmetic>
-	self&& SetMax(Arithmetic iMax) &&
-	{
-		return std::move(SetMax(iMax));
-	}
-
-	template<typename Arithmetic>
-	self& SetRange(Arithmetic iMin, Arithmetic iMax) &
-	{
-		SetMin(iMin);
-		SetMax(iMax);
-		return This();
-	}
-
-	template<typename Arithmetic>
-	self&& SetRange(Arithmetic iMin, Arithmetic iMax) &&
-	{
-		return std::move(SetRange(iMin, iMax));
-	}
-
-	self& SetAsync(bool bYesNo) &
-	{
-		SetAttribute("async", bYesNo);
-		return This();
-	}
-
-	self&& SetAsync(bool bYesNo) &&
-	{
-		return SetAsync(bYesNo);
-	}
-
-	self& SetDefer(bool bYesNo) &
-	{
-		SetAttribute("defer", bYesNo);
-		return This();
-	}
-
-	self&& SetDefer(bool bYesNo) &&
-	{
-		return SetDefer(bYesNo);
-	}
-
-	template<typename Arithmetic>
-	self& SetColSpan(Arithmetic iSpan) &
-	{
-		static_assert(std::is_arithmetic<Arithmetic>::value, "need arithmetic type");
-		SetAttribute("colspan", iSpan);
-		return This();
-	}
-
-	template<typename Arithmetic>
-	self&& SetColSpan(Arithmetic iMax) &&
-	{
-		return std::move(SetColSpan(iMax));
-	}
-
-	template<typename Arithmetic>
-	self& SetRowSpan(Arithmetic iSpan) &
-	{
-		static_assert(std::is_arithmetic<Arithmetic>::value, "need arithmetic type");
-		SetAttribute("rowspan", iSpan);
-		return This();
-	}
-
-	template<typename Arithmetic>
-	self&& SetRowSpan(Arithmetic iMax) &&
-	{
-		return std::move(SetRowSpan(iMax));
-	}
-
-	self& SetFor(KStringView sIDs) &
-	{
-		SetAttribute("for", sIDs, true);
-		return This();
-	}
-
-	self&& SetFor(KStringView sIDs) &&
-	{
-		return std::move(SetFor(sIDs));
-	}
-
-	self& SetForm(KStringView sID) &
-	{
-		SetAttribute("form", sID, true);
-		return This();
-	}
-
-	self&& SetForm(KStringView sID) &&
-	{
-		return std::move(SetForm(sID));
-	}
-
-	self& SetAutoplay() &
-	{
-		SetAttribute("autoplay", "", false);
-		return This();
-	}
-
-	self&& SetAutoplay() &&
-	{
-		return std::move(SetAutoplay());
-	}
-
-	self& SetControls() &
-	{
-		SetAttribute("controls", "", false);
-		return This();
-	}
-
-	self&& SetControls() &&
-	{
-		return std::move(SetControls());
-	}
-
-	self& SetLoop(bool bYesNo) &
-	{
-		SetAttribute("loop", bYesNo);
-		return This();
-	}
-
-	self&& SetLoop(bool bYesNo) &&
-	{
-		return std::move(SetLoop(bYesNo));
-	}
-
-	self& SetPlaysInline(bool bYesNo) &
-	{
-		SetAttribute("playsinline", bYesNo);
-		return This();
-	}
-
-	self&& SetPlaysInline(bool bYesNo) &&
-	{
-		return std::move(SetPlaysInline(bYesNo));
-	}
-
-	self& SetMuted(bool bYesNo) &
-	{
-		SetAttribute("muted", bYesNo);
-		return This();
-	}
-
-	self&& SetMuted(bool bYesNo) &&
-	{
-		return std::move(SetMuted(bYesNo));
-	}
-
-	self& SetType(KStringView sMIME) &
-	{
-		SetAttribute("type", sMIME, true);
-		return This();
-	}
-
-	self&& SetType(KStringView sMIME) &&
-	{
-		return std::move(SetType(sMIME));
-	}
-
-	self& SetAllow(KStringView sWhat) &
-	{
-		SetAttribute("allow", sWhat);
-		return This();
-	}
-
-	self&& SetAllow(KStringView sWhat) &&
-	{
-		return std::move(SetAllow(sWhat));
-	}
-
-	self& SetAllowFullscreen(bool bYes) &
-	{
-		SetAttribute("allowfullscreen", bYes);
-		return This();
-	}
-
-	self&& SetAllowFullscreen(bool bYes) &&
-	{
-		return std::move(SetAllowFullscreen(bYes));
-	}
-
-	self& SetScrolling(bool bYes) &
-	{
-		SetAttribute("scrolling", bYes);
-		return This();
-	}
-
-	self&& SetScrolling(bool bYes) &&
-	{
-		return std::move(SetScrolling(bYes));
-	}
-
-	self& SetPreload(Preload preload) &
-	{
-		SetAttribute("preload", FromPreload(preload));
-		return This();
-	}
-
-	self&& SetPreload(Preload preload) &&
-	{
-		return std::move(SetPreload(preload));
-	}
+	self& AddText   (KStringView s) { KHTMLNode::AddText   (s);        return This(); }
+	self& AddRawText(KStringView s) { KHTMLNode::AddRawText(s);        return This(); }
 
 //----------
 private:
 //----------
 
+	Derived&       This()       { return static_cast<      Derived&>(*this); }
 	const Derived& This() const { return static_cast<const Derived&>(*this); }
-	      Derived& This()       { return static_cast<      Derived&>(*this); }
 
 }; // KWebObject
 
-
 namespace html {
+
+namespace detail {
+
+	template<class T, class = void>
+	struct is_str : std::false_type {};
+
+	template<class T>
+	struct is_str<T, std::void_t<decltype(KStringView(std::declval<T>()))>> : std::true_type {};
+
+} // namespace detail
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC HTML : public KWebObject<HTML>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "HTML";
-
 //----------
 public:
 //----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "html";
 
-	HTML(KString sElementName, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject(std::move(sElementName), sID, Classes)
+	HTML(KHTMLNode parent, KStringView sLanguage = KStringView{})
+	: KWebObject<HTML>(parent, TagName)
 	{
+		if (!sLanguage.empty()) KHTMLNode::SetAttribute("lang", sLanguage);
 	}
 
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
+	/// Free-name HTML element constructor for generic tags (mirrors the old
+	/// `html::HTML("label")` shortcut used by some consumers).
+	HTML(KHTMLNode parent, KStringView sTagName, KStringView sID)
+	: KWebObject<HTML>(parent, sTagName, sID)
+	{
+	}
 
 }; // HTML
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Page : public KWebObject<Page>
+/// A self-contained HTML document. Owns its own `KHTML` (which owns the
+/// arena and the POD tree). Provides convenience accessors for `<head>`
+/// and `<body>`, plus class-aggregation into a `<style>` block.
+class DEKAF2_PUBLIC Page
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	static constexpr KStringView s_sObjectName = "Page";
-
 //----------
 public:
 //----------
 
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-
 	Page(KStringView sTitle, KStringView sLanguage = KStringView{});
 
-	KHTMLElement& Head() { return *m_head; }
-	KHTMLElement& Body() { return *m_body; }
+	Page(const Page&)            = delete;
+	Page& operator=(const Page&) = delete;
+	Page(Page&&)                 = default;
+	// no move-assign: the embedded KHTML (and underlying khtml::Document)
+	// has none either, see khtml::Document's class-level UB caveat.
 
-	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<Page>(*this); }
+	/// Add an element as child of the body. Mirrors `body.Add<T>(...)`.
+	template<class T, class... Args>
+	T Add(Args&&... args) { return m_body.Add<T>(std::forward<Args>(args)...); }
 
+	/// Add a text child to the body.
+	Page& AddText   (KStringView s) { m_body.AddText   (s); return *this; }
+	Page& AddRawText(KStringView s) { m_body.AddRawText(s); return *this; }
+
+	/// Read/write handles into the page's internal KHTML.
+	KHTMLNode Head() { return m_head; }
+	KHTMLNode Body() { return m_body; }
+
+	/// Add a `<meta name=... content=...>` to the head.
 	void AddMeta(KStringView sName, KStringView sContent);
+	/// Append a CSS fragment to the page's (lazily-created) `<style>` block.
 	void AddStyle(KStringView sStyleDefinition);
-	void AddClass(const Class& _class);
+	/// Register a class definition; emitted into the page's style block.
+	void AddClass(const Class& cls);
 
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
+	/// Walk the entire document and auto-assign missing input/option names.
+	void Generate()
+	{
+		KWebObjectBase node{m_body};
+		node.Generate();
+	}
+
+	/// Synchronise input bindings from the supplied query parameters.
+	void Synchronize(const url::KQueryParms& parms)
+	{
+		KWebObjectBase node{m_body};
+		node.Synchronize(parms);
+	}
+
+	/// Serialize the entire page.
+	KString Print(char chIndent = '\t') const                          { return m_doc.Serialize(chIndent); }
+	void    Print(KStringRef& s, char chIndent = '\t') const           { m_doc.Serialize(s, chIndent); }
+	void    Serialize(KOutStream& os, char chIndent = '\t') const      { m_doc.Serialize(os, chIndent); }
+	KString Serialize(char chIndent = '\t') const                      { return m_doc.Serialize(chIndent); }
+
+	/// Direct access to the underlying KHTML — for advanced consumers
+	/// (binding registration, arena diagnostics, etc.).
+	KHTML&       Doc()       { return m_doc; }
+	const KHTML& Doc() const { return m_doc; }
 
 //----------
 private:
 //----------
 
-	KHTMLElement* m_head  { nullptr };
-	KHTMLElement* m_style { nullptr };
-	KHTMLElement* m_body  { nullptr };
+	void EnsureStyle();
+
+	KHTML     m_doc;
+	KHTMLNode m_head;
+	KHTMLNode m_body;
+	KHTMLNode m_style;   // optional <style> element, created lazily
 
 }; // Page
 
@@ -1008,357 +500,197 @@ private:
 class DEKAF2_PUBLIC Div : public KWebObject<Div>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Div";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "div";
 
-	Div(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("div", sID, Classes)
-	{
-	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	Div(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Div>(parent, TagName, cls, sID) {}
 }; // Div
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Script : public KWebObject<Script>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	static constexpr KStringView s_sObjectName = "Script";
-
-//----------
-public:
-//----------
-
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-
-	using self = Script;
-
-	Script(KString        sScript = KString{},
-		   KStringView    sID     = KStringView{},
-		   const Classes& Classes = html::Classes{})
-	: KWebObject("script", sID, Classes)
-	{
-		SetAttribute("charset", "utf-8", false);
-		AddRawText(std::move(sScript));
-	}
-
-	self& SetType(const KMIME& MIME) &
-	{
-		SetAttribute("type", MIME.Serialize());
-		return *this;
-	}
-
-	self&& SetType(const KMIME& MIME) &&
-	{
-		return std::move(SetType(MIME));
-	}
-
-	using KWebObject::SetAsync;
-	using KWebObject::SetDefer;
-	using KWebObject::SetSource;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
-}; // Script
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Span : public KWebObject<Span>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Span";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "span";
 
-	Span(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("span", sID, Classes)
-	{
-	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	Span(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Span>(parent, TagName, cls, sID) {}
 }; // Span
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Paragraph : public KWebObject<Paragraph>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Paragraph";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "p";
 
-	Paragraph(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("p", sID, Classes)
-	{
-	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	Paragraph(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Paragraph>(parent, TagName, cls, sID) {}
 }; // Paragraph
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Table : public KWebObject<Table>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Table";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "table";
 
-	Table(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("table", sID, Classes)
-	{
-	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	Table(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Table>(parent, TagName, cls, sID) {}
 }; // Table
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC TableRow : public KWebObject<TableRow>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "TableRow";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "tr";
 
-	TableRow(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("tr", sID, Classes)
-	{
-	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	TableRow(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<TableRow>(parent, TagName, cls, sID) {}
 }; // TableRow
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC TableData : public KWebObject<TableData>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "TableData";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "td";
 
-	TableData(KStringView sContent = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{});
-
-	using KWebObject::SetColSpan;
-	using KWebObject::SetRowSpan;
-	using KWebObject::SetAlign;
-	using KWebObject::SetVAlign;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	TableData(KHTMLNode parent,
+	          KStringView    sContent = KStringView{},
+	          const Classes& cls      = html::Classes{},
+	          KStringView    sID      = KStringView{})
+	: KWebObject<TableData>(parent, TagName, cls, sID)
+	{
+		if (!sContent.empty()) AddText(sContent);
+	}
 }; // TableData
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC TableHeader : public KWebObject<TableHeader>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "TableHeader";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "th";
 
-	TableHeader(KStringView sContent = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{});
-
-	using KWebObject::SetColSpan;
-	using KWebObject::SetRowSpan;
-	using KWebObject::SetAlign;
-	using KWebObject::SetVAlign;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	TableHeader(KHTMLNode parent,
+	            KStringView    sContent = KStringView{},
+	            const Classes& cls      = html::Classes{},
+	            KStringView    sID      = KStringView{})
+	: KWebObject<TableHeader>(parent, TagName, cls, sID)
+	{
+		if (!sContent.empty()) AddText(sContent);
+	}
 }; // TableHeader
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Link : public KWebObject<Link>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Link";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "a";
 
-	Link(KStringView sURL       = KStringView{},
-		 KStringView sContent   = KStringView{},
-		 KStringView sID        = KStringView{},
-		 const Classes& Classes = html::Classes{})
-	: KWebObject("a", sID, Classes)
+	Link(KHTMLNode parent,
+	     KStringView    sURL  = KStringView{},
+	     KStringView    sText = KStringView{},
+	     const Classes& cls   = html::Classes{},
+	     KStringView    sID   = KStringView{})
+	: KWebObject<Link>(parent, TagName, cls, sID)
 	{
-		SetLink(sURL);
-		AddText(sContent);
+		if (!sURL.empty())  SetLink(sURL);
+		if (!sText.empty()) AddText(sText);
 	}
-
-	using KWebObject::SetLink;
-	using KWebObject::SetTarget;
-	using KWebObject::SetRel;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 }; // Link
 
-// A is a pretty meaningless type name, but as most people know a link as <a href=..>
-// and because HTML also knows the link element (which we condense to StyleSheet and
-// FavIcon) we add the alias A
-using A = Link;
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Script : public KWebObject<Script>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Script";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "script";
+
+	Script(KHTMLNode parent, KStringView sCharset = "utf-8")
+	: KWebObject<Script>(parent, TagName)
+	{
+		if (!sCharset.empty()) KHTMLNode::SetAttribute("charset", sCharset);
+	}
+
+	/// Convenience: construct + add a raw-text body.
+	Script(KHTMLNode parent, KStringView sBody, KStringView sCharset)
+	: KWebObject<Script>(parent, TagName)
+	{
+		if (!sCharset.empty()) KHTMLNode::SetAttribute("charset", sCharset);
+		if (!sBody.empty())    AddRawText(sBody);
+	}
+}; // Script
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC StyleSheet : public KWebObject<StyleSheet>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "StyleSheet";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "style";
 
-	StyleSheet(KStringView sURL       = KStringView{},
-			   KStringView sContent   = KStringView{},
-			   KStringView sID        = KStringView{},
-			   const Classes& Classes = html::Classes{})
-	: KWebObject("link", sID, Classes)
+	StyleSheet(KHTMLNode parent)
+	: KWebObject<StyleSheet>(parent, TagName) {}
+
+	StyleSheet(KHTMLNode parent, KStringView sStyleContent)
+	: KWebObject<StyleSheet>(parent, TagName)
 	{
-		if (!sURL.empty())
-		{
-			SetLink(sURL);
-		}
-		SetRel("stylesheet");
+		if (!sStyleContent.empty()) AddRawText(sStyleContent);
 	}
-
-	using KWebObject::SetLink;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 }; // StyleSheet
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC FavIcon : public KWebObject<FavIcon>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "FavIcon";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "link";
 
-	FavIcon(KStringView sURL       = KStringView{},
-			KStringView sContent   = KStringView{},
-			KStringView sID        = KStringView{},
-			const Classes& Classes = html::Classes{})
-	: KWebObject("link", sID, Classes)
+	FavIcon(KHTMLNode parent, KStringView sURL, KStringView sMIME = KStringView{})
+	: KWebObject<FavIcon>(parent, TagName)
 	{
-		if (!sURL.empty())
-		{
-			SetLink(sURL);
-		}
 		SetRel("icon");
+		if (!sURL.empty())  SetLink(sURL);
+		if (!sMIME.empty()) SetType(sMIME);
 	}
-
-	self& SetType(const KMIME& MIME) &
-	{
-		SetAttribute("type", MIME.Serialize());
-		return *this;
-	}
-
-	self&& SetType(const KMIME& MIME) &&
-	{
-		return std::move(SetType(MIME));
-	}
-
-	self& SetSizes(KStringView sSizes) &
-	{
-		SetAttribute("sizes", sSizes);
-		return *this;
-	}
-
-	self&& SetSizes(KStringView sSizes) &&
-	{
-		return std::move(SetSizes(sSizes));
-	}
-
-	using KWebObject::SetLink;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 }; // FavIcon
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Break : public KWebObject<Break>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Break";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "br";
 
-	Break(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("br", sID, Classes)
-	{
-	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	Break(KHTMLNode parent) : KWebObject<Break>(parent, TagName) {}
 }; // Break
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1366,1196 +698,267 @@ class DEKAF2_PUBLIC HorizontalRuler : public KWebObject<HorizontalRuler>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "HorizontalRuler";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "hr";
 
-	HorizontalRuler(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("hr", sID, Classes)
-	{
-	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	HorizontalRuler(KHTMLNode parent) : KWebObject<HorizontalRuler>(parent, TagName) {}
 }; // HorizontalRuler
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// <header>
 class DEKAF2_PUBLIC Header : public KWebObject<Header>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
-	static constexpr KStringView s_sObjectName = "Heading";
-
-//----------
+	static constexpr KStringView s_sObjectName = "Header";
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "header";
 
-	Header(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("header", sID, Classes)
-	{
-	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	Header(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Header>(parent, TagName, cls, sID) {}
 }; // Header
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// <h1/h2/h3/h4/h5/h6>
 class DEKAF2_PUBLIC Heading : public KWebObject<Heading>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Heading";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
-	Heading(uint16_t iLevel, KStringView sContent = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{});
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	Heading(KHTMLNode parent, uint16_t iLevel, KStringView sContent = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{});
 }; // Heading
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Image : public KWebObject<Image>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Image";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "img";
 
-	Image(KStringView sURL, KStringView sDescription, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("img", sID, Classes)
+	Image(KHTMLNode parent,
+	      KStringView sURL,
+	      KStringView sDescription = KStringView{},
+	      const Classes& cls = html::Classes{},
+	      KStringView sID = KStringView{})
+	: KWebObject<Image>(parent, TagName, cls, sID)
 	{
-		SetSource(sURL);
-		SetDescription(sDescription);
+		if (!sURL.empty())         SetSource(sURL);
+		if (!sDescription.empty()) SetDescription(sDescription);
 	}
-
-	using KWebObject::SetSource;
-	using KWebObject::SetDescription;
-	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
-	using KWebObject::SetLoading;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 }; // Image
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Form : public KWebObject<Form>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Form";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "form";
 
 	using self = Form;
 
-	Form(KStringView sAction = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{});
+	Form(KHTMLNode parent,
+	     KStringView sAction = KStringView{},
+	     const Classes& cls = html::Classes{},
+	     KStringView sID = KStringView{});
 
-	self&  SetAction(KStringView sAction) &;
-	self&& SetAction(KStringView sAction) &&    { return std::move(SetAction(sAction));    }
-	self&  SetEncType(ENCTYPE enctype) &;
-	self&& SetEncType(ENCTYPE enctype) &&       { return std::move(SetEncType(enctype));   }
-	self&  SetMethod(METHOD method) &;
-	self&& SetMethod(METHOD method) &&          { return std::move(SetMethod(method));     }
-	self&  SetNoValidate(bool bYesNo = true) &;
-	self&& SetNoValidate(bool bYesNo = true) && { return std::move(SetNoValidate(bYesNo)); }
-
-	using KWebObject::SetName;
-	using KWebObject::SetTarget;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
-//----------
-protected:
-//----------
-
+	self& SetAction    (KStringView sAction);
+	self& SetEncType   (ENCTYPE enctype);
+	self& SetMethod    (METHOD  method);
+	self& SetNoValidate(bool    bYesNo = true);
 }; // Form
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Legend : public KWebObject<Legend>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Legend";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "legend";
 
-	Legend(KStringView sLegend, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("legend", sID, Classes)
+	Legend(KHTMLNode parent, KStringView sLegend, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Legend>(parent, TagName, cls, sID)
 	{
 		AddText(sLegend);
 	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 }; // Legend
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC FieldSet : public KWebObject<FieldSet>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "FieldSet";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "fieldset";
 
-	FieldSet(KStringView sLegend = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("fieldset", sID, Classes)
+	FieldSet(KHTMLNode parent, KStringView sLegend = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<FieldSet>(parent, TagName, cls, sID)
 	{
-		if (!sLegend.empty())
-		{
-			Add(Legend(sLegend));
-		}
+		if (!sLegend.empty()) this->template Add<Legend>(sLegend);
 	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 }; // FieldSet
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Button : public KWebObject<Button>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Button";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-
-	using self = Button;
+	static constexpr KStringView TagName = "button";
 
 	enum BUTTONTYPE { SUBMIT, RESET, BUTTON };
 
-	Button(KStringView sText = KStringView{},
-		   BUTTONTYPE  type  = SUBMIT,
-		   KStringView sID   = KStringView{},
-		   const Classes& Classes = html::Classes{})
-	: KWebObject("button", sID, Classes)
+	using self = Button;
+
+	Button(KHTMLNode parent, KStringView sLabel = KStringView{}, BUTTONTYPE type = SUBMIT,
+	       const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Button>(parent, TagName, cls, sID)
 	{
 		SetType(type);
-		AddText(sText);
+		if (!sLabel.empty()) AddText(sLabel);
 	}
 
-	self&  SetType(BUTTONTYPE type) &;
-	self&& SetType(BUTTONTYPE type) && { return std::move(SetType(type)); }
+	self& SetType(BUTTONTYPE type);
 
-	using KWebObject::SetDisabled;
-	using KWebObject::SetFormAction;
-	using KWebObject::SetFormMethod;
-	using KWebObject::SetFormEncType;
-	using KWebObject::SetFormTarget;
 	using KWebObject::SetName;
 	using KWebObject::SetValue;
-	using KWebObject::SetPlaceholder;
-	using KWebObject::SetReadOnly;
-	using KWebObject::SetRequired;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	using KWebObject::SetType;          // KString MIME version (used by buttons too)
 }; // Button
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Output : public KWebObject<Output>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Output";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "output";
 
-	using self = Output;
-
-	Output(KStringView sName  = KStringView{},
-		   KStringView sText  = KStringView{},
-		   KStringView sID    = KStringView{},
-		   const Classes& Classes = html::Classes{});
-
-	using KWebObject::SetFor;
-	using KWebObject::SetForm;
-	using KWebObject::SetName;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	Output(KHTMLNode parent,
+	       KStringView sName,
+	       KStringView sText  = KStringView{},
+	       const Classes& cls = html::Classes{},
+	       KStringView sID = KStringView{})
+	: KWebObject<Output>(parent, TagName, cls, sID)
+	{
+		if (!sName.empty()) SetName(sName);
+		if (!sText.empty()) AddText(sText);
+	}
 }; // Output
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Input : public KWebObject<Input>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Input";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "input";
+
+	enum INPUTTYPE {
+		CHECKBOX,
+		COLOR,
+		DATE,
+		DATETIME_LOCAL,
+		EMAIL,
+		FILE,
+		HIDDEN,
+		IMAGE,
+		MONTH,
+		NUMBER,
+		PASSWORD,
+		RADIO,
+		RANGE,
+		SEARCH,
+		SUBMIT,
+		TEL,
+		TEXT,
+		TIME,
+		URL,
+		WEEK
+	};
 
 	using self = Input;
 
-	enum INPUTTYPE { CHECKBOX, COLOR, DATE, DATETIME_LOCAL, EMAIL, FILE, HIDDEN,
-	                 IMAGE, MONTH, NUMBER, PASSWORD, RADIO, RANGE, SEARCH, SUBMIT,
-	                 TEL, TEXT, TIME, URL, WEEK };
+	Input(KHTMLNode parent,
+	      KStringView sName  = KStringView{},
+	      KStringView sValue = KStringView{},
+	      INPUTTYPE   type   = TEXT,
+	      const Classes& cls = html::Classes{},
+	      KStringView sID = KStringView{});
 
-	Input(KStringView sName  = KStringView{},
-		  KStringView sValue = KStringView{},
-		  INPUTTYPE   type   = TEXT,
-		  KStringView sID    = KStringView{},
-		  const Classes& Classes = html::Classes{});
+	/// Convenience overload — type-first.
+	Input(KHTMLNode parent,
+	      INPUTTYPE type,
+	      KStringView sName  = KStringView{},
+	      const Classes& cls = html::Classes{},
+	      KStringView sID = KStringView{})
+	: Input(parent, sName, KStringView{}, type, cls, sID)
+	{
+	}
 
-	self&  SetType(INPUTTYPE type) &;
-	self&& SetType(INPUTTYPE type) && { return std::move(SetType(type));      }
-	self&  SetChecked(bool bYesNo) &;
-	self&& SetChecked(bool bYesNo) && { return std::move(SetChecked(bYesNo)); }
-	self&  SetStep(float step) &;
-	self&& SetStep(float step) && { return std::move(SetStep(step)); }
+	self& SetType   (INPUTTYPE type);
+	self& SetChecked(bool      bYesNo);
+	self& SetStep   (float     step);
 
-	using KWebObject::SetAttribute;
-	using KWebObject::SetDescription;
-	using KWebObject::SetAutofocus;
-	using KWebObject::SetDisabled;
-	using KWebObject::SetFormAction;
-	using KWebObject::SetFormMethod;
-	using KWebObject::SetFormEncType;
-	using KWebObject::SetFormNoValidate;
-	using KWebObject::SetFormTarget;
-	using KWebObject::SetHeigth;
-	using KWebObject::SetWidth;
-	using KWebObject::SetMultiple;
-	using KWebObject::SetDirectory;
-	using KWebObject::SetAccept;
-	using KWebObject::SetName;
-	using KWebObject::SetValue;
-	using KWebObject::SetSize;
-	using KWebObject::SetSource;
-	using KWebObject::SetMin;
-	using KWebObject::SetMax;
-	using KWebObject::SetRange;
-	using KWebObject::SetStyle;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	using KWebObject::SetType;          // KString MIME version
 }; // Input
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<typename Derived, typename Base = Input>
-class LabeledInput : public KWebObject<LabeledInput<Derived>>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	static constexpr KStringView s_sObjectName = "LabeledInput";
-
-//----------
-public:
-//----------
-
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-
-	using self = Derived;
-	using wobj = KWebObjectBase;
-
-	template<typename... Args>
-	LabeledInput(Args&&... args)
-	: KWebObject<LabeledInput<Derived>>("label")
-	, m_Base(wobj::Add(Base(std::forward<Args>(args)...)))
-	{
-	}
-
-	/// Append an element to the list of children, return parent lvalue reference. Use Add() instead to return child reference
-	template<typename Element,
-	         typename std::enable_if<std::is_base_of<KHTMLObject, Element>::value == true, int>::type = 0>
-	Derived& Append(Element Object) &
-	{
-		m_Base.Append(std::move(Object));
-		return This();
-	}
-
-	/// Append an element to the list of children, return parent rvalue reference. Use Add() instead to return child reference
-	template<typename Element,
-	         typename std::enable_if<std::is_base_of<KHTMLObject, Element>::value == true, int>::type = 0>
-	Derived&& Append(Element Object) &&
-	{
-		return std::move(Append(std::move(Object)));
-	}
-
-	self& SetLabelBefore(KStringView sLabel) &
-	{
-		wobj::SetTextBefore(sLabel);
-		return This();
-	}
-	self&& SetLabelBefore(KStringView sLabel) &&
-	{
-		return std::move(SetLabelBefore(sLabel));
-	}
-	self& SetLabelAfter (KStringView sLabel) &
-	{
-		wobj::SetTextAfter(sLabel);
-		return This();
-	}
-	self&& SetLabelAfter (KStringView sLabel) &&
-	{
-		return std::move(SetLabelAfter(sLabel));
-	}
-	self& SetType(Input::INPUTTYPE type) &
-	{
-		m_Base.SetType(type);
-		return This();
-	}
-	self&& SetType(Input::INPUTTYPE type) &&
-	{
-		return std::move(SetType(type));
-	}
-	self& SetChecked(bool bYesNo) &
-	{
-		m_Base.SetChecked(bYesNo);
-		return This();
-	}
-	self&& SetChecked(bool bYesNo) &&
-	{
-		return std::move(SetChecked(bYesNo));
-	}
-	self& SetDescription(KStringView sStr) &
-	{
-		m_Base.SetDescription(sStr);
-		return This();
-	}
-	self&& SetDescription(KStringView sStr) &&
-	{
-		return std::move(SetDescription(sStr));
-	}
-	self& SetName(KStringView sStr) &
-	{
-		m_Base.SetName(sStr);
-		return This();
-	}
-	self&& SetName(KStringView sStr) &&
-	{
-		return std::move(SetName(sStr));
-	}
-	self& SetValue(KStringView sStr) &
-	{
-		m_Base.SetValue(sStr);
-		return This();
-	}
-	self&& SetValue(KStringView sStr) &&
-	{
-		return std::move(SetValue(sStr));
-	}
-	self& SetSource(KStringView sStr) &
-	{
-		m_Base.SetSource(sStr);
-		return This();
-	}
-	self&& SetSource(KStringView sStr) &&
-	{
-		return std::move(SetSource(sStr));
-	}
-	self& SetFormAction(KStringView sURL) &
-	{
-		m_Base.SetFormAction(sURL);
-		return This();
-	}
-	self&& SetFormAction(KStringView sURL) &&
-	{
-		return std::move(SetFormAction(sURL));
-	}
-	self& SetAutofocus(bool bYesNo) &
-	{
-		m_Base.SetAutofocus(bYesNo);
-		return This();
-	}
-	self&& SetAutofocus(bool bYesNo) &&
-	{
-		return std::move(SetAutofocus(bYesNo));
-	}
-	self& SetDisabled(bool bYesNo) &
-	{
-		m_Base.SetDisabled(bYesNo);
-		return This();
-	}
-	self&& SetDisabled(bool bYesNo) &&
-	{
-		return std::move(SetDisabled(bYesNo));
-	}
-	self& SetMultiple(bool bYesNo) &
-	{
-		m_Base.SetMultiple(bYesNo);
-		return This();
-	}
-	self&& SetMultiple(bool bYesNo) &&
-	{
-		return std::move(SetMultiple(bYesNo));
-	}
-	self& SetDirectory(bool bYesNo) &
-	{
-		m_Base.SetDirectory(bYesNo);
-		return This();
-	}
-	self&& SetDirectory(bool bYesNo) &&
-	{
-		return std::move(SetDirectory(bYesNo));
-	}
-	self& SetAccept(KStringView sAcceptWhat) &
-	{
-		m_Base.SetAccept(sAcceptWhat);
-		return This();
-	}
-	self&& SetAccept(KStringView sAcceptWhat) &&
-	{
-		return std::move(SetAccept(sAcceptWhat));
-	}
-	self& SetFormNoValidate(bool bYesNo) &
-	{
-		m_Base.SetFormNoValidate(bYesNo);
-		return This();
-	}
-	self&& SetFormNoValidate(bool bYesNo) &&
-	{
-		return std::move(SetFormNoValidate(bYesNo));
-	}
-	self& SetHeigth(wobj::Pixels iInt) &
-	{
-		m_Base.SetHeigth(iInt);
-		return This();
-	}
-	self&& SetHeigth(wobj::Pixels iInt) &&
-	{
-		return std::move(SetHeigth(iInt));
-	}
-	self& SetWidth(wobj::Pixels iInt) &
-	{
-		m_Base.SetWidth(iInt);
-		return This();
-	}
-	self&& SetWidth(wobj::Pixels iInt) &&
-	{
-		return std::move(SetWidth(iInt));
-	}
-	self& SetSize(wobj::Pixels iInt) &
-	{
-		m_Base.SetSize(iInt);
-		return This();
-	}
-	self&& SetSize(wobj::Pixels iInt) &&
-	{
-		return std::move(SetSize(iInt));
-	}
-	self& SetFormMethod(wobj::METHOD method) &
-	{
-		m_Base.SetFormMethod(method);
-		return This();
-	}
-	self&& SetFormMethod(wobj::METHOD method) &&
-	{
-		return std::move(SetFormMethod(method));
-	}
-	self& SetFormEncType(wobj::ENCTYPE encoding) &
-	{
-		m_Base.SetFormEncType(encoding);
-		return This();
-	}
-	self&& SetFormEncType(wobj::ENCTYPE encoding) &&
-	{
-		return std::move(SetFormEncType(encoding));
-	}
-	self& SetFormTarget(wobj::TARGET target) &
-	{
-		m_Base.SetFormTarget(target);
-		return This();
-	}
-	self&& SetFormTarget(wobj::TARGET target) &&
-	{
-		return std::move(SetFormTarget(target));
-	}
-	template<typename Arithmetic>
-	self& SetMin(Arithmetic iMin) &
-	{
-		m_Base.SetMin(iMin);
-		return This();
-	}
-	template<typename Arithmetic>
-	self&& SetMin(Arithmetic iMin) &&
-	{
-		return std::move(SetMin(iMin));
-	}
-	template<typename Arithmetic>
-	self& SetMax(Arithmetic iMax) &
-	{
-		m_Base.SetMax(iMax);
-		return This();
-	}
-	template<typename Arithmetic>
-	self&& SetMax(Arithmetic iMax) &&
-	{
-		return std::move(SetMax(iMax));
-	}
-	template<typename Arithmetic>
-	self& SetRange(Arithmetic iMin, Arithmetic iMax) &
-	{
-		SetMin(iMin);
-		SetMax(iMax);
-		return This();
-	}
-
-	template<typename Arithmetic>
-	self&& SetRange(Arithmetic iMin, Arithmetic iMax) &&
-	{
-		return std::move(SetRange(iMin, iMax));
-	}
-
-	self& SetStep(float step) &
-	{
-		m_Base.SetStep(step);
-		return This();
-	}
-	self&& SetStep(float step) &&
-	{
-		return std::move(SetStep(step));
-	}
-
-	self& SetAttribute(KStringView sName, KStringView sValue) &
-	{
-		m_Base.SetAttribute(sName, sValue);
-		return This();
-	}
-	self&& SetAttribute(KStringView sName, KStringView sValue) &&
-	{
-		return std::move(SetAttribute(sName, sValue));
-	}
-	self& SetStyle(KStringView sStyle) &
-	{
-		m_Base.SetStyle(sStyle);
-		return This();
-	}
-	self&& SetStyle(KStringView sStyle) &&
-	{
-		return std::move(SetStyle(sStyle));
-	}
-
-	Input& GetBase()
-	{
-		return m_Base;
-	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
-//----------
-private:
-//----------
-
-	Base& m_Base;
-
-	const Derived& This() const { return static_cast<const Derived&>(*this); }
-	      Derived& This()       { return static_cast<      Derived&>(*this); }
-
-}; // LabeledInput
-
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-template<typename Derived, typename Base>
-constexpr KStringView LabeledInput<Derived, Base>::s_sObjectName;
-#endif
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<typename String>
-class TextInput : public LabeledInput<TextInput<String>>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	static constexpr KStringView s_sObjectName = "TextInput";
-
-//----------
-public:
-//----------
-
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-
-	using self   = TextInput<String>;
-	using parent = LabeledInput<self>;
-
-	TextInput(String&    sValue,
-			  KStringView sName  = KStringView{},
-			  KStringView sID    = KStringView{},
-			  const Classes& Classes = html::Classes{})
-	: parent(sName, "", Input::TEXT, sID, Classes)
-	, m_sValue(sValue)
-	{
-		if (!m_sValue.empty())
-		{
-			parent::SetValue(m_sValue);
-		}
-	}
-
-	TextInput(const TextInput&) = default;
-	TextInput(TextInput&&) = default;
-
-	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<self>(*this); }
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
-//----------
-protected:
-//----------
-
-	virtual void Reset(KWebObjectBase* Element) override
-	{
-		// no need to do anything as Sync is always called for text inputs
-	}
-
-	virtual void Sync(KWebObjectBase* Element, KStringView sValue) override
-	{
-		m_sValue = sValue;
-		static_cast<Input*>(Element)->SetValue(sValue);
-	}
-
-	virtual void* AddressOfInputStorage() override
-	{
-		// only needed for radio buttons, but we implement it anyways
-		return &m_sValue;
-	}
-
-	String& m_sValue;
-
-}; // TextInput
-
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-template<typename String>
-constexpr KStringView TextInput<String>::s_sObjectName;
-#endif
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<typename Arithmetic>
-class NumericInput : public LabeledInput<NumericInput<Arithmetic>>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	static constexpr KStringView s_sObjectName = "NumericInput";
-
-//----------
-public:
-//----------
-
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-
-	using self   = NumericInput<Arithmetic>;
-	using parent = LabeledInput<self>;
-
-	static_assert(std::is_arithmetic<Arithmetic>::value, "NumericInput needs arithmetic template type");
-
-	NumericInput(Arithmetic& iValue,
-			  KStringView sName  = KStringView{},
-			  KStringView sID    = KStringView{},
-			  const Classes& Classes = html::Classes{})
-	: parent(sName, "", Input::NUMBER, sID, Classes)
-	, m_iValue(iValue)
-	{
-		SetMin(std::numeric_limits<Arithmetic>::min());
-		SetMax(std::numeric_limits<Arithmetic>::max());
-		DispValue();
-	}
-
-	self& SetMin(Arithmetic iMin) &
-	{
-		m_iMin = iMin;
-		parent::SetMin(iMin);
-		return *this;
-	}
-	self&& SetMin(Arithmetic iMin) &&
-	{
-		return std::move(SetMin(iMin));
-	}
-	self& SetMax(Arithmetic iMax) &
-	{
-		m_iMax = iMax;
-		parent::SetMax(iMax);
-		return *this;
-	}
-	self&& SetMax(Arithmetic iMax) &&
-	{
-		return std::move(SetMax(iMax));
-	}
-	self& SetRange(Arithmetic iMin, Arithmetic iMax) &
-	{
-		SetMin(iMin);
-		SetMax(iMax);
-		return *this;
-	}
-	self&& SetRange(Arithmetic iMin, Arithmetic iMax) &&
-	{
-		return std::move(SetRange(iMin, iMax));
-	}
-
-	using parent::SetStep;
-
-	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<self>(*this); }
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
-//----------
-protected:
-//----------
-
-	void DispValue()
-	{
-		parent::SetValue(kFormat("{}", m_iValue));
-	}
-
-	void SetNumericValue(Arithmetic iValue)
-	{
-		m_iValue = std::min(std::max(iValue, m_iMin), m_iMax);
-		DispValue();
-	}
-
-	void FromString(KStringView sValue)
-	{
-		m_iValue = std::min(std::max(kFromString<Arithmetic>(sValue), m_iMin), m_iMax);
-		DispValue();
-	}
-
-	virtual void Reset(KWebObjectBase* Element) override
-	{
-		// no need to do anything as Sync is always called for number inputs
-	}
-
-	virtual void Sync(KWebObjectBase* Element, KStringView sValue) override
-	{
-		if DEKAF2_CONSTEXPR_IF(std::is_floating_point<Arithmetic>::value)
-		{
-			// make sure we recognize a decimal point as well if the browser
-			// encodes it in a different user locale..
-			auto iPos = sValue.find_first_of(".,");
-
-			if (iPos != KStringView::npos)
-			{
-				auto dp = kGetDecimalPoint();
-
-				if (sValue[iPos] != dp)
-				{
-					KString sTmp(sValue);
-					sTmp[iPos] = dp;
-					FromString(sTmp);
-					return;
-				}
-			}
-		}
-		FromString(sValue);
-	}
-
-	virtual void* AddressOfInputStorage() override
-	{
-		// only needed for radio buttons, but we implement it anyways
-		return &m_iValue;
-	}
-
-	Arithmetic& m_iValue;
-	Arithmetic  m_iMin;
-	Arithmetic  m_iMax;
-
-}; // NumericInput
-
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-template<typename Arithmetic>
-constexpr KStringView NumericInput<Arithmetic>::s_sObjectName;
-#endif
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<typename Unit = std::chrono::seconds, typename Duration = std::chrono::steady_clock::duration>
-class DurationInput : public LabeledInput<DurationInput<Unit, Duration>>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	static constexpr KStringView s_sObjectName = "DurationInput";
-
-//----------
-public:
-//----------
-
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-
-	using self   = DurationInput<Unit, Duration>;
-	using parent = LabeledInput<self>;
-
-	static_assert(detail::is_duration<Duration>::value,
-				  "DurationInput needs std::chrono::duration Duration template type");
-	static_assert(detail::is_chrono_duration<Unit>::value,
-				  "DurationInput needs std::chrono::duration Unit template type");
-
-	DurationInput(Duration& iValue,
-				  KStringView sName  = KStringView{},
-				  KStringView sID    = KStringView{},
-				  const Classes& Classes = html::Classes{})
-	: parent(sName, "", Input::NUMBER, sID, Classes)
-	, m_iValue(iValue)
-	{
-		SetMin(Unit::min().count());
-		SetMax(Unit::max().count());
-		DispValue();
-	}
-
-	self& SetMin(typename Unit::rep iMin) &
-	{
-		m_iMin = iMin;
-		parent::SetMin(iMin);
-		return *this;
-	}
-	self&& SetMin(typename Unit::rep iMin) &&
-	{
-		return std::move(SetMin(iMin));
-	}
-	self& SetMax(typename Unit::rep iMax) &
-	{
-		m_iMax = iMax;
-		parent::SetMax(iMax);
-		return *this;
-	}
-	self&& SetMax(typename Unit::rep iMax) &&
-	{
-		return std::move(SetMax(iMax));
-	}
-	self& SetRange(typename Unit::rep iMin, typename Unit::rep iMax) &
-	{
-		SetMin(iMin);
-		SetMax(iMax);
-		return *this;
-	}
-	self&& SetRange(typename Unit::rep iMin, typename Unit::rep iMax) &&
-	{
-		return std::move(SetRange(iMin, iMax));
-	}
-
-	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<self>(*this); }
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
-//----------
-protected:
-//----------
-
-	template<typename D = Duration,
-	         typename std::enable_if<std::is_same<D, KDuration>::value, int>::type = 0>
-	void DispValue()
-	{
-		parent::SetValue(KString::to_string(m_iValue.template duration<Unit>().count()));
-	}
-
-	template<typename D = Duration,
-	         typename std::enable_if<!std::is_same<D, KDuration>::value, int>::type = 0>
-	void DispValue()
-	{
-		parent::SetValue(KString::to_string(std::chrono::duration_cast<Unit>(m_iValue).count()));
-	}
-
-	void SetDurationValue(typename Unit::rep iValue)
-	{
-		m_iValue = Unit(std::min(std::max(iValue, m_iMin), m_iMax));
-		DispValue();
-	}
-
-	virtual void Reset(KWebObjectBase* Element) override
-	{
-		// no need to do anything as Sync is always called for number inputs
-	}
-
-	virtual void Sync(KWebObjectBase* Element, KStringView sValue) override
-	{
-		SetDurationValue(sValue.Int64());
-	}
-
-	virtual void* AddressOfInputStorage() override
-	{
-		// only needed for radio buttons, but we implement it anyways
-		return &m_iValue;
-	}
-
-	Duration&          m_iValue;
-	typename Unit::rep m_iMin;
-	typename Unit::rep m_iMax;
-
-}; // DurationInput
-
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-template<typename Unit, typename Duration>
-constexpr KStringView DurationInput<Unit, Duration>::s_sObjectName;
-#endif
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<typename ValueType>
-class RadioButton : public LabeledInput<RadioButton<ValueType>>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	static constexpr KStringView s_sObjectName = "RadioButton";
-
-//----------
-public:
-//----------
-
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-
-	using self   = RadioButton<ValueType>;
-	using parent = LabeledInput<self>;
-
-	template<typename ValueT = ValueType, typename std::enable_if<!std::is_enum<ValueT>::value, int>::type = 0>
-	RadioButton(ValueType&  Result,
-				KStringView sName  = KStringView{},
-				ValueT      Value  = ValueType{},
-				KStringView sID    = KStringView{},
-				const Classes& Classes = html::Classes{})
-	: parent(sName, "", Input::RADIO, sID, Classes)
-	, m_Result(Result)
-	{
-		auto sValue = kFormat("{}", Value);
-
-		if (!sValue.empty())
-		{
-			parent::SetValue(sValue);
-
-			if (Value == Result)
-			{
-				parent::SetChecked(true);
-			}
-		}
-	}
-
-	template<typename ValueT = ValueType, typename std::enable_if<std::is_enum<ValueT>::value, int>::type = 0>
-	RadioButton(ValueType&  Result,
-				KStringView sName  = KStringView{},
-				ValueT      Value  = ValueType{},
-				KStringView sID    = KStringView{},
-				const Classes& Classes = html::Classes{})
-	: RadioButton(Result, sName, std::to_underlying(Value), sID, Classes)
-	{
-	}
-
-	template<typename ValueT = ValueType, typename std::enable_if<!std::is_enum<ValueT>::value, int>::type = 0>
-	self& SetValue(const ValueT& Value) &
-	{
-		parent::SetChecked(Value == m_Result);
-		parent::SetValue(kFormat("{}", Value));
-		return *this;
-	}
-
-	template<typename ValueT = ValueType, typename std::enable_if<std::is_enum<ValueT>::value, int>::type = 0>
-	self& SetValue(const ValueT& Value) &
-	{
-		return SetValue(std::to_underlying(Value));
-	}
-
-	self&& SetValue(const ValueType& Value) &&
-	{
-		return std::move(SetValue(Value));
-	}
-
-
-	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<self>(*this); }
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
-//----------
-protected:
-//----------
-
-	virtual void Reset(KWebObjectBase* Element) override
-	{
-		static_cast<Input*>(Element)->SetChecked(false);
-	}
-
-	virtual void Sync(KWebObjectBase* Element, KStringView sValue) override
-	{
-		if (sValue == Element->GetAttribute("value"))
-		{
-			kFromString(m_Result, sValue);
-			static_cast<Input*>(Element)->SetChecked(true);
-		}
-	}
-
-	virtual void* AddressOfInputStorage() override
-	{
-		return &m_Result;
-	}
-
-	ValueType& m_Result;
-
-}; // RadioButton
-
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-template<typename ValueType>
-constexpr KStringView RadioButton<ValueType>::s_sObjectName;
-#endif
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-template<typename Boolean>
-class CheckBox : public LabeledInput<CheckBox<Boolean>>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-
-	static constexpr KStringView s_sObjectName = "CheckBox";
-
-//----------
-public:
-//----------
-
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-
-	using self = CheckBox<Boolean>;
-	using parent = LabeledInput<self>;
-
-	CheckBox(Boolean&    bValue,
-			 KStringView sName  = KStringView{},
-			 KStringView sID    = KStringView{},
-			 const Classes& Classes = html::Classes{})
-	: parent(sName, "", Input::CHECKBOX, sID, Classes)
-	, m_bValue(bValue)
-	{
-		parent::SetChecked(m_bValue);
-	}
-
-	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<self>(*this); }
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
-//----------
-protected:
-//----------
-
-	virtual void Reset(KWebObjectBase* Element) override
-	{
-		m_bValue = false;
-		static_cast<Input*>(Element)->SetChecked(m_bValue);
-	}
-
-	virtual void Sync(KWebObjectBase* Element, KStringView sValue) override
-	{
-		m_bValue = sValue.Bool();
-		parent::SetChecked(m_bValue);
-	}
-
-	virtual void* AddressOfInputStorage() override
-	{
-		// only needed for radio buttons, but we implement it anyways
-		return &m_bValue;
-	}
-
-	Boolean& m_bValue;
-
-}; // CheckBox
-
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-template<typename Boolean>
-constexpr KStringView CheckBox<Boolean>::s_sObjectName;
-#endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Option : public KWebObject<Option>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Option";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "option";
 
 	using self = Option;
 
-	Option(KStringView sText      = KStringView{},
-		   KStringView sID        = KStringView{},
-		   const Classes& Classes = html::Classes{})
-	: KWebObject("option", sID, Classes)
+	Option(KHTMLNode parent,
+	       KStringView sLabel,
+	       KStringView sValue = KStringView{},
+	       const Classes& cls = html::Classes{},
+	       KStringView sID = KStringView{})
+	: KWebObject<Option>(parent, TagName, cls, sID)
 	{
-		AddText(sText);
+		if (!sValue.empty()) KHTMLNode::SetAttribute("value", sValue);
+		if (!sLabel.empty()) AddText(sLabel);
 	}
 
-	self& SetSelected(bool bYesNo) &
+	self& SetSelected(bool bYesNo)
 	{
-		SetAttribute("selected", bYesNo);
+		SetBoolAttribute("selected", bYesNo);
 		return *this;
 	}
-
-	self&& SetSelected(bool bYesNo) &&
-	{
-		return std::move(SetSelected(bYesNo));
-	}
-
-	using KWebObject::SetDisabled;
-	using KWebObject::SetLabel;
-	using KWebObject::SetValue;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 }; // Option
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Select : public KWebObject<Select>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Select";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "select";
 
 	using self = Select;
 
-	Select(KStringView sName = KStringView{},
-		   uint16_t    iSize = 1,
-		   KStringView sID   = KStringView{},
-		   const Classes& Classes = html::Classes{})
-	: KWebObject("select", sID, Classes)
+	Select(KHTMLNode parent,
+	       KStringView sName  = KStringView{},
+	       uint16_t    iSize  = 1,
+	       const Classes& cls = html::Classes{},
+	       KStringView sID = KStringView{})
+	: KWebObject<Select>(parent, TagName, cls, sID)
 	{
-		SetName(sName);
+		if (!sName.empty()) SetName(sName);
 		SetSize(iSize);
 	}
 
@@ -2565,367 +968,361 @@ public:
 	using KWebObject::SetName;
 	using KWebObject::SetRequired;
 	using KWebObject::SetSize;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 }; // Select
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// CRTP wrapper that wraps `Base` (default `Input`) inside a `<label>`.
+template<typename Derived, typename Base = Input>
+class LabeledInput : public KWebObject<LabeledInput<Derived, Base>>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "LabeledInput";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "label";
+
+	using self = Derived;
+	using wobj = KWebObjectBase;
+	using parent_kwobj = KWebObject<LabeledInput<Derived, Base>>;
+
+	template<typename... Args>
+	LabeledInput(KHTMLNode parent, Args&&... args)
+	: parent_kwobj(parent, TagName)
+	, m_Base(KHTMLNode(static_cast<const KHTMLNode&>(*this)), std::forward<Args>(args)...)
+	{
+	}
+
+	self& SetLabelBefore(KStringView sLabel) { wobj::SetTextBefore(sLabel); return This(); }
+	self& SetLabelAfter (KStringView sLabel) { wobj::SetTextAfter (sLabel); return This(); }
+
+	self& SetType        (Input::INPUTTYPE t) { m_Base.SetType        (t); return This(); }
+	self& SetChecked     (bool b)             { m_Base.SetChecked     (b); return This(); }
+	self& SetDescription (KStringView v)      { m_Base.SetDescription (v); return This(); }
+	self& SetName        (KStringView v)      { m_Base.SetName        (v); return This(); }
+	self& SetValue       (KStringView v)      { m_Base.SetValue       (v); return This(); }
+	self& SetSource      (KStringView v)      { m_Base.SetSource      (v); return This(); }
+	self& SetFormAction  (KStringView v)      { m_Base.SetFormAction  (v); return This(); }
+	self& SetAutofocus   (bool b)             { m_Base.SetAutofocus   (b); return This(); }
+	self& SetDisabled    (bool b)             { m_Base.SetDisabled    (b); return This(); }
+	self& SetMultiple    (bool b)             { m_Base.SetMultiple    (b); return This(); }
+	self& SetDirectory   (bool b)             { m_Base.SetDirectory   (b); return This(); }
+	self& SetAccept      (KStringView v)      { m_Base.SetAccept      (v); return This(); }
+	self& SetFormNoValidate(bool b)           { m_Base.SetFormNoValidate(b); return This(); }
+	self& SetHeigth      (typename wobj::Pixels p) { m_Base.SetHeigth (p); return This(); }
+	self& SetWidth       (typename wobj::Pixels p) { m_Base.SetWidth  (p); return This(); }
+	self& SetSize        (typename wobj::Pixels p) { m_Base.SetSize   (p); return This(); }
+	self& SetFormMethod  (typename wobj::METHOD  m){ m_Base.SetFormMethod (m); return This(); }
+	self& SetFormEncType (typename wobj::ENCTYPE e){ m_Base.SetFormEncType(e); return This(); }
+	self& SetFormTarget  (typename wobj::TARGET  t){ m_Base.SetFormTarget (t); return This(); }
+	self& SetStyle       (KStringView v)      { m_Base.SetStyle       (v); return This(); }
+	self& SetReadOnly    (bool b)             { m_Base.SetReadOnly    (b); return This(); }
+	self& SetRequired    (bool b)             { m_Base.SetRequired    (b); return This(); }
+
+	template<typename A> self& SetMin(A v)         { m_Base.SetMin(v); return This(); }
+	template<typename A> self& SetMax(A v)         { m_Base.SetMax(v); return This(); }
+	template<typename A> self& SetRange(A mn, A mx){ m_Base.SetRange(mn, mx); return This(); }
+
+	self& SetStep        (float step)         { m_Base.SetStep        (step); return This(); }
+
+	self& SetAttribute(KStringView sName, KStringView sValue)
+	{
+		m_Base.KHTMLNode::SetAttribute(sName, sValue);
+		return This();
+	}
+
+	Base&       GetBase()       { return m_Base; }
+	const Base& GetBase() const { return m_Base; }
+
+//----------
+protected:
+//----------
+
+	Base m_Base;   // 8-byte value handle to the child <input> / <select>
+
+	Derived&       This()       { return static_cast<      Derived&>(*this); }
+	const Derived& This() const { return static_cast<const Derived&>(*this); }
+
+}; // LabeledInput
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<typename String>
+class TextInput : public LabeledInput<TextInput<String>>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "TextInput";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	using self   = TextInput<String>;
+	using parent = LabeledInput<self>;
+
+	TextInput(KHTMLNode where,
+	          String&    rResult,
+	          KStringView sName  = KStringView{},
+	          const html::Classes& cls = html::Classes{},
+	          KStringView sID = KStringView{});
+}; // TextInput
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<typename Arithmetic>
+class NumericInput : public LabeledInput<NumericInput<Arithmetic>>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static_assert(std::is_arithmetic<Arithmetic>::value, "Arithmetic type required");
+	static constexpr KStringView s_sObjectName = "NumericInput";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	using self   = NumericInput<Arithmetic>;
+	using parent = LabeledInput<self>;
+
+	NumericInput(KHTMLNode where,
+	             Arithmetic& rResult,
+	             KStringView sName  = KStringView{},
+	             const html::Classes& cls = html::Classes{},
+	             KStringView sID = KStringView{});
+}; // NumericInput
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<typename Unit = std::chrono::seconds, typename Duration = std::chrono::high_resolution_clock::duration>
+class DurationInput : public LabeledInput<DurationInput<Unit, Duration>>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "DurationInput";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	using self   = DurationInput<Unit, Duration>;
+	using parent = LabeledInput<self>;
+
+	DurationInput(KHTMLNode where,
+	              Duration&  rResult,
+	              KStringView sName  = KStringView{},
+	              const html::Classes& cls = html::Classes{},
+	              KStringView sID = KStringView{});
+}; // DurationInput
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<typename ValueType>
+class RadioButton : public LabeledInput<RadioButton<ValueType>>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "RadioButton";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	using self   = RadioButton<ValueType>;
+	using parent = LabeledInput<self>;
+
+	RadioButton(KHTMLNode where,
+	            ValueType& rResult,
+	            KStringView sName  = KStringView{},
+	            const html::Classes& cls = html::Classes{},
+	            KStringView sID = KStringView{});
+
+	template<typename V>
+	self& SetValue(V v)
+	{
+		this->m_Base.KHTMLNode::SetAttribute("value", kFormat("{}", v));
+		return *this;
+	}
+
+	self& SetValue(KStringView v)
+	{
+		if (!v.empty()) this->m_Base.KHTMLNode::SetAttribute("value", v);
+		return *this;
+	}
+}; // RadioButton
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+template<typename Boolean>
+class CheckBox : public LabeledInput<CheckBox<Boolean>>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "CheckBox";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+
+	using self   = CheckBox<Boolean>;
+	using parent = LabeledInput<self>;
+
+	CheckBox(KHTMLNode where,
+	         Boolean&    rResult,
+	         KStringView sName  = KStringView{},
+	         const html::Classes& cls = html::Classes{},
+	         KStringView sID = KStringView{});
+}; // CheckBox
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename ValueType>
 class Selection : public LabeledInput<Selection<ValueType>, Select>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Selection";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = Selection<ValueType>;
 	using parent = LabeledInput<self, Select>;
 
-	Selection(ValueType&     Value,
-			  KStringView    sName   = KStringView{},
-			  uint16_t       iSize   = 1,
-			  KStringView    sID     = KStringView{},
-			  const Classes& Classes = html::Classes{})
-	: parent(sName, iSize, sID, Classes)
-	, m_Result(Value)
-	{
-	}
+	Selection(KHTMLNode where,
+	          ValueType&  rResult,
+	          KStringView sName  = KStringView{},
+	          uint16_t    iSize  = 1,
+	          const html::Classes& cls = html::Classes{},
+	          KStringView sID = KStringView{});
 
-	self& SetOptions(KStringView sOptions) &
-	{
-		for (const auto& sOption : sOptions.Split())
-		{
-			bool bIsSelected = (sOption == m_Result);
-			parent::Append(Option(sOption).SetSelected(bIsSelected));
-		}
-		return *this;
-	}
+	/// Add options as comma-separated string.
+	self& SetOptions(KStringView sOptions);
 
-	self&& SetOptions(KStringView sOptions) &&
-	{
-		return std::move(SetOptions(sOptions));
-	}
-
+	/// Add options from a container of stringable values.
 	template<typename Container,
-	         typename std::enable_if<detail::is_str<Container>::value == false, int>::type = 0>
-	self& SetOptions(const Container& list) &
+	         std::enable_if_t<!detail::is_str<Container>::value, int> = 0>
+	self& SetOptions(const Container& list)
 	{
 		for (const auto& sItem : list)
 		{
-			bool bIsSelected = (sItem == m_Result);
-			parent::Append(Option(sItem).SetSelected(bIsSelected));
+			AddOption(KStringView(sItem));
 		}
 		return *this;
 	}
 
-	template<typename Container,
-	         typename std::enable_if<detail::is_str<Container>::value == false, int>::type = 0>
-	self&& SetOptions(const Container& list) &&
-	{
-		return std::move(SetOptions(list));
-	}
-
-	using parent::SetLabelAfter;
-	using parent::SetLabelBefore;
-	using parent::SetAutofocus;
-	using parent::SetDisabled;
-	using parent::SetMultiple;
-	using parent::SetName;
-	using parent::SetRequired;
-	using parent::SetSize;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 //----------
-protected:
+private:
 //----------
 
-	virtual void Reset(KWebObjectBase* Element) override
-	{
-		static_cast<Option*>(Element)->SetSelected(false);
-	}
+	void AddOption(KStringView sLabel);
 
-	virtual void Sync(KWebObjectBase* Element, KStringView sValue) override
-	{
-		auto* option = static_cast<Option*>(Element);
-		// now get the first text node
-		KHTMLText* textelement { nullptr };
-		for (const auto& ele : option->GetChildren())
-		{
-			if (ele->Type() == KHTMLText::TYPE)
-			{
-				textelement = static_cast<KHTMLText*>(ele.get());
-				break;
-			}
-		}
-		if (textelement)
-		{
-			auto sValAttr = option->GetAttribute("value");
-			if ((!sValAttr.empty() && sValAttr == sValue) ||
-				(textelement->GetText() == sValue))
-			{
-				// we're selected
-				m_Result = textelement->GetText();
-				option->SetSelected(true);
-				return;
-			}
-		}
-		option->SetSelected(false);
-	}
-
-	virtual void* AddressOfInputStorage() override
-	{
-		// only needed for radio buttons, but we implement it anyways
-		return &m_Result;
-	}
-
-	ValueType& m_Result;
-
+	ValueType* m_pResult { nullptr };  // captured for SetOptions to know which is "selected"
 }; // Selection
 
-#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-template<typename ValueType>
-constexpr KStringView Selection<ValueType>::s_sObjectName;
-#endif
-
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Text : public KHTMLText
+/// Helper that emits a text child onto a parent (entity-encoded). Provided
+/// to allow `parent.Add<Text>(content)` for symmetry; equivalent to
+/// `parent.AddText(content)`.
+class DEKAF2_PUBLIC Text
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Text";
-
-//----------
 public:
-//----------
-
-	using self = Text;
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
-	Text() = default;
-	Text(KStringView sText);
-
-	self&  AddText(KStringView sContent) &;
-	self&& AddText(KStringView sContent) &&
+	Text(KHTMLNode parent, KStringView sText)
 	{
-		return std::move(AddText(sContent));
+		if (!sText.empty()) parent.AddText(sText);
 	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-
 }; // Text
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC RawText : public KHTMLText
+class DEKAF2_PUBLIC RawText
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "RawText";
-
-//----------
 public:
-//----------
-
-	using self = RawText;
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
-	RawText() = default;
-	RawText(KString sText);
-
-	self&  AddRawText(KStringView sContent) &;
-	self&& AddRawText(KStringView sContent) &&
+	RawText(KHTMLNode parent, KStringView sText)
 	{
-		return std::move(AddRawText(sContent));
+		if (!sText.empty()) parent.AddRawText(sText);
 	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-
 }; // RawText
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC LineBreak : public KHTMLText
+class DEKAF2_PUBLIC LineBreak
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "LineBreak";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
-	LineBreak();
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-
+	LineBreak(KHTMLNode parent)
+	{
+		parent.AddRawText("\r\n");
+	}
 }; // LineBreak
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Preformatted : public KWebObject<Preformatted>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
-	static constexpr KStringView s_sObjectName = "Pre";
-
-//----------
+	static constexpr KStringView s_sObjectName = "Preformatted";
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "pre";
 
-	Preformatted(KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("pre", sID, Classes)
-	{
-	}
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
+	Preformatted(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Preformatted>(parent, TagName, cls, sID) {}
 }; // Preformatted
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC IFrame : public KWebObject<IFrame>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "IFrame";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "iframe";
 
-	IFrame(KStringView sURL = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("iframe", sID, Classes)
+	IFrame(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<IFrame>(parent, TagName, cls, sID)
 	{
-		SetSource(sURL);
+		if (!sURL.empty()) SetSource(sURL);
 	}
-
-	using KWebObject::SetSource;
-	using KWebObject::SetLoading;
-	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
-	using KWebObject::SetAllow;
-	using KWebObject::SetAllowFullscreen;
-	using KWebObject::SetScrolling;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 }; // IFrame
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Video : public KWebObject<Video>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Video";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "video";
 
-	Video(KStringView sURL = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("video", sID, Classes)
+	Video(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Video>(parent, TagName, cls, sID)
 	{
-		SetSource(sURL);
+		if (!sURL.empty()) SetSource(sURL);
 	}
-
-	using KWebObject::SetSource;
-	using KWebObject::SetPoster;
-	using KWebObject::SetPreload;
-	using KWebObject::SetAutoplay;
-	using KWebObject::SetControls;
-	using KWebObject::SetLoop;
-	using KWebObject::SetPlaysInline;
-	using KWebObject::SetMuted;
-	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
 }; // Video
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Audio : public KWebObject<Audio>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Audio";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "audio";
 
-	Audio(KStringView sURL = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("audio", sID, Classes)
+	Audio(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Audio>(parent, TagName, cls, sID)
 	{
-		SetSource(sURL);
+		if (!sURL.empty()) SetSource(sURL);
 	}
-
-	using KWebObject::SetSource;
-	using KWebObject::SetAutoplay;
-	using KWebObject::SetPreload;
-	using KWebObject::SetControls;
-	using KWebObject::SetLoop;
-	using KWebObject::SetMuted;
-	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
-}; // Video
+}; // Audio
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Source : public KWebObject<Source>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-
 	static constexpr KStringView s_sObjectName = "Source";
-
-//----------
 public:
-//----------
-
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "source";
 
-	Source(KStringView sURL = KStringView{}, KStringView sID = KStringView{}, const Classes& Classes = html::Classes{})
-	: KWebObject("source", sID, Classes)
+	Source(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
+	: KWebObject<Source>(parent, TagName, cls, sID)
 	{
-		SetSource(sURL);
+		if (!sURL.empty()) SetSource(sURL);
 	}
-
-	using KWebObject::SetSource;
-	using KWebObject::SetType;
-	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
-
-	virtual KStringView TypeName() const override { return s_sObjectName;  }
-	virtual std::size_t WebObjectType() const override { return TYPE; }
-
-}; // Video
+}; // Source
 
 } // end of namespace html
-
 
 /// @}
 
 DEKAF2_NAMESPACE_END
+
+// Template implementations
+#include <dekaf2/web/objects/bits/kwebobjects_templates.h>

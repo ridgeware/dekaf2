@@ -69,6 +69,23 @@ KArenaAllocator::KArenaAllocator(std::size_t iBlockSize) noexcept
 }
 
 //-----------------------------------------------------------------------------
+KArenaAllocator::KArenaAllocator(std::size_t iBlockSize, void* pInlineBuf, std::size_t iInlineCap) noexcept
+//-----------------------------------------------------------------------------
+: m_iBlockSize(iBlockSize > 0 ? iBlockSize : DefaultBlockSize)
+, m_pInline(static_cast<char*>(pInlineBuf))
+, m_iInlineCap(iInlineCap)
+{
+	if (m_pInline != nullptr && m_iInlineCap > 0)
+	{
+		// arm the inline buffer as the active "block" — cursor / end now
+		// point into it; subsequent Allocate() calls bump the cursor here
+		// until exhausted, then fall through to GrowBy() (heap blocks).
+		m_pCursor = m_pInline;
+		m_pEnd    = m_pInline + m_iInlineCap;
+	}
+}
+
+//-----------------------------------------------------------------------------
 KArenaAllocator::~KArenaAllocator()
 //-----------------------------------------------------------------------------
 {
@@ -84,13 +101,22 @@ KArenaAllocator::KArenaAllocator(KArenaAllocator&& other) noexcept
 , m_pEnd      (other.m_pEnd)
 , m_iBlockSize(other.m_iBlockSize)
 , m_iUsedBytes(other.m_iUsedBytes)
+, m_pInline   (other.m_pInline)
+, m_iInlineCap(other.m_iInlineCap)
 {
 	other.m_pHead      = nullptr;
 	other.m_pFreeList  = nullptr;
 	other.m_pCursor    = nullptr;
 	other.m_pEnd       = nullptr;
 	other.m_iUsedBytes = 0;
-	// keep other.m_iBlockSize so the moved-from instance is still usable
+	other.m_pInline    = nullptr;
+	other.m_iInlineCap = 0;
+	// keep other.m_iBlockSize so the moved-from instance is still usable.
+	//
+	// IMPORTANT: m_pInline now points at the moved-from object's inline
+	// buffer (which is at a different address than ours). The owning
+	// container's move ctor must call AdoptInlineBuffer() to re-point us
+	// at its own buffer. See khtml::Document::Document(Document&&).
 }
 
 //-----------------------------------------------------------------------------
@@ -107,14 +133,43 @@ KArenaAllocator& KArenaAllocator::operator=(KArenaAllocator&& other) noexcept
 		m_pEnd       = other.m_pEnd;
 		m_iBlockSize = other.m_iBlockSize;
 		m_iUsedBytes = other.m_iUsedBytes;
+		m_pInline    = other.m_pInline;
+		m_iInlineCap = other.m_iInlineCap;
 
 		other.m_pHead      = nullptr;
 		other.m_pFreeList  = nullptr;
 		other.m_pCursor    = nullptr;
 		other.m_pEnd       = nullptr;
 		other.m_iUsedBytes = 0;
+		other.m_pInline    = nullptr;
+		other.m_iInlineCap = 0;
 	}
 	return *this;
+}
+
+//-----------------------------------------------------------------------------
+void KArenaAllocator::AdoptInlineBuffer(void* pInlineBuf, std::size_t iInlineCap) noexcept
+//-----------------------------------------------------------------------------
+{
+	char* pNewInline = static_cast<char*>(pInlineBuf);
+
+	// If the active cursor was inside the OLD inline buffer (which now
+	// belongs to the moved-from container), relocate the cursor to the
+	// equivalent offset inside the new buffer. The bytes in the new
+	// buffer are expected to have been memcpy'd from the old buffer by
+	// the owning container's move ctor — pointers stored in arena
+	// objects that reference the OLD address are NOT rewritten (UB).
+	if (m_pInline != nullptr
+		&& m_pCursor >= m_pInline
+		&& m_pCursor <= m_pInline + m_iInlineCap)
+	{
+		std::ptrdiff_t iOffset = m_pCursor - m_pInline;
+		m_pCursor = pNewInline + iOffset;
+		m_pEnd    = pNewInline + iInlineCap;
+	}
+
+	m_pInline    = pNewInline;
+	m_iInlineCap = iInlineCap;
 }
 
 //-----------------------------------------------------------------------------
@@ -200,9 +255,21 @@ void KArenaAllocator::clear() noexcept
 
 	m_pHead      = nullptr;
 	m_pFreeList  = nullptr;
-	m_pCursor    = nullptr;
-	m_pEnd       = nullptr;
 	m_iUsedBytes = 0;
+
+	// Re-arm the inline buffer (if any) so subsequent allocations land
+	// there before going to heap blocks again. The inline buffer is
+	// caller-owned and is NOT freed by us.
+	if (m_pInline != nullptr && m_iInlineCap > 0)
+	{
+		m_pCursor = m_pInline;
+		m_pEnd    = m_pInline + m_iInlineCap;
+	}
+	else
+	{
+		m_pCursor = nullptr;
+		m_pEnd    = nullptr;
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -222,9 +289,20 @@ void KArenaAllocator::reset() noexcept
 	}
 
 	m_pHead      = nullptr;
-	m_pCursor    = nullptr;
-	m_pEnd       = nullptr;
 	m_iUsedBytes = 0;
+
+	// Re-arm the inline buffer (if any) — same behaviour as clear()
+	// but the heap blocks stay around on the free list for reuse.
+	if (m_pInline != nullptr && m_iInlineCap > 0)
+	{
+		m_pCursor = m_pInline;
+		m_pEnd    = m_pInline + m_iInlineCap;
+	}
+	else
+	{
+		m_pCursor = nullptr;
+		m_pEnd    = nullptr;
+	}
 }
 
 //-----------------------------------------------------------------------------

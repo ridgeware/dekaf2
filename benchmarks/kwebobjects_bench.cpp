@@ -1,11 +1,8 @@
 
 /// @file kwebobjects_bench.cpp
-/// Allocation + throughput benchmarks for KWebObjects HTML builders. Provides
-/// the baseline numbers for the planned KHTMLDOM arena migration (see
-/// notes/khtmldom-arena-design.md). Two scenarios:
-///
-/// 1. Large data table (1000 rows x 5 cells x 3 attributes) — bulk-build path.
-/// 2. Form-heavy admin page — realistic UI shape with mixed element types.
+/// Allocation + throughput benchmarks for KWebObjects HTML builders. After
+/// Phase 4b every KWebObject is an 8-byte handle into a KHTML's arena, and
+/// the canonical construction idiom is `parent.Add<T>(args...)`.
 
 #include <iostream>
 #include <cinttypes>
@@ -32,18 +29,17 @@ void kwebobjects_big_table()
 
 		for (size_t count = 0; count < 100; ++count)
 		{
-			html::Table table;
-			table.SetID("tbl1");
-			table.SetClass(html::Class("data", ""));
+			KHTML doc;
+			auto table = doc.Root().Add<html::Table>(html::Classes("data"), KStringView{"tbl1"});
 
 			for (std::size_t row = 0; row < 1000; ++row)
 			{
-				auto& tr = table.Add(html::TableRow());
+				auto tr = table.Add<html::TableRow>();
 				tr.SetAttribute("data-row", KString::to_string(row));
 
 				for (std::size_t col = 0; col < 5; ++col)
 				{
-					auto& td = tr.Add(html::TableData());
+					auto td = tr.Add<html::TableData>();
 					td.SetAttribute("class",    "cell");
 					td.SetAttribute("data-col", KString::to_string(col));
 					td.SetAttribute("scope",    "col");
@@ -51,7 +47,7 @@ void kwebobjects_big_table()
 				}
 			}
 
-			KProf::Force(&table);
+			KProf::Force(&doc);
 		}
 	}
 
@@ -62,24 +58,24 @@ void kwebobjects_big_table()
 
 		for (size_t count = 0; count < 100; ++count)
 		{
-			html::Table table;
-			table.SetID("tbl1");
+			KHTML doc;
+			auto table = doc.Root().Add<html::Table>(html::Classes{}, KStringView{"tbl1"});
 
 			for (std::size_t row = 0; row < 1000; ++row)
 			{
-				auto& tr = table.Add(html::TableRow());
+				auto tr = table.Add<html::TableRow>();
 				tr.SetAttribute("data-row", KString::to_string(row));
 
 				for (std::size_t col = 0; col < 5; ++col)
 				{
-					auto& td = tr.Add(html::TableData());
+					auto td = tr.Add<html::TableData>();
 					td.SetAttribute("class",    "cell");
 					td.SetAttribute("data-col", KString::to_string(col));
 					td.AddText("cell content");
 				}
 			}
 
-			KString sOut = table.Print();
+			KString sOut = doc.Serialize();
 			KProf::Force(&sOut);
 		}
 	}
@@ -104,21 +100,21 @@ void kwebobjects_admin_page()
 			html::Class BodyClass("body", "font-family: sans-serif;");
 			page.AddClass(BodyClass);
 
-			auto& body = page.Body();
+			auto body = page.Body();
 
 			// header
 			{
-				auto& div = body.Add(html::Div("HeaderDiv"));
+				auto div = body.Add<html::Div>(html::Classes{}, KStringView{"HeaderDiv"});
 				div.AddText("Welcome to the admin page");
-				div.Add(html::LineBreak());
+				div.Add<html::LineBreak>();
 			}
 
 			// nav links
 			{
-				auto& div = body.Add(html::Div("NavDiv"));
+				auto div = body.Add<html::Div>(html::Classes{}, KStringView{"NavDiv"});
 				for (int i = 0; i < 8; ++i)
 				{
-					auto& link = div.Add(html::Link(KString::to_string(i)));
+					auto link = div.Add<html::Link>(KString::to_string(i));
 					link.SetTitle("nav");
 					link.AddText("link ");
 					link.AddText(KString::to_string(i));
@@ -127,14 +123,13 @@ void kwebobjects_admin_page()
 
 			// data table (10 rows)
 			{
-				auto& table = body.Add(html::Table());
-				table.SetID("data");
+				auto table = body.Add<html::Table>(html::Classes{}, KStringView{"data"});
 				for (int row = 0; row < 10; ++row)
 				{
-					auto& tr = table.Add(html::TableRow());
+					auto tr = table.Add<html::TableRow>();
 					for (int col = 0; col < 4; ++col)
 					{
-						auto& td = tr.Add(html::TableData());
+						auto td = tr.Add<html::TableData>();
 						td.SetAttribute("data-r", KString::to_string(row));
 						td.SetAttribute("data-c", KString::to_string(col));
 						td.AddText("v");
@@ -155,31 +150,31 @@ void kwebobjects_admin_page()
 		{
 			html::Page page("Admin Console", "en");
 
-			auto& body = page.Body();
+			auto body = page.Body();
 
 			{
-				auto& div = body.Add(html::Div("HeaderDiv"));
+				auto div = body.Add<html::Div>(html::Classes{}, KStringView{"HeaderDiv"});
 				div.AddText("Welcome");
 			}
 
 			{
-				auto& div = body.Add(html::Div("NavDiv"));
+				auto div = body.Add<html::Div>(html::Classes{}, KStringView{"NavDiv"});
 				for (int i = 0; i < 8; ++i)
 				{
-					auto& link = div.Add(html::Link(KString::to_string(i)));
+					auto link = div.Add<html::Link>(KString::to_string(i));
 					link.AddText("link ");
 					link.AddText(KString::to_string(i));
 				}
 			}
 
 			{
-				auto& table = body.Add(html::Table());
+				auto table = body.Add<html::Table>();
 				for (int row = 0; row < 10; ++row)
 				{
-					auto& tr = table.Add(html::TableRow());
+					auto tr = table.Add<html::TableRow>();
 					for (int col = 0; col < 4; ++col)
 					{
-						auto& td = tr.Add(html::TableData());
+						auto td = tr.Add<html::TableData>();
 						td.AddText("v");
 					}
 				}
@@ -193,23 +188,23 @@ void kwebobjects_admin_page()
 
 // ----------------------------------------------------------------------------
 // Scenario 3: tiny but frequent — many short-lived single-element constructions
-// (tests detached-element overhead, relevant for the lazy-mini-document idea
-// in the design doc).
+// after Phase 4b each construction creates a KHTML + a single NodePOD in its
+// arena (no per-node heap allocation).
 // ----------------------------------------------------------------------------
 
 void kwebobjects_short_lived()
 {
 	{
-		AllocationSnapshot a("KWebObjects detached small x100000");
+		AllocationSnapshot a("KWebObjects attached small x100000");
 		dekaf2::KProf ps("KWebObjects single-element churn");
 		ps.SetMultiplier(100000);
 
 		for (size_t count = 0; count < 100000; ++count)
 		{
-			html::Div div;
-			div.SetID("d1");
+			KHTML doc;
+			auto div = doc.Root().Add<html::Div>(html::Classes{}, KStringView{"d1"});
 			div.AddText("hello");
-			KProf::Force(&div);
+			KProf::Force(&doc);
 		}
 	}
 }

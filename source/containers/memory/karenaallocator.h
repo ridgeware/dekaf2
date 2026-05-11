@@ -104,6 +104,24 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Construct an arena that uses a caller-owned inline buffer as its
+	/// first backing region. Subsequent allocations beyond the inline
+	/// capacity fall through to heap-allocated blocks of size `iBlockSize`.
+	/// The inline buffer is NOT owned by the allocator — it is never
+	/// freed; its lifetime must outlive the allocator.
+	///
+	/// Typical use: an arena-owning container embeds a fixed-size char
+	/// array as a member and hands its pointer to the allocator at
+	/// construction time. Documents that fit in the inline buffer pay
+	/// zero heap allocations.
+	/// @param iBlockSize   payload bytes per heap block (used after the
+	///                     inline buffer is exhausted)
+	/// @param pInlineBuf   caller-owned buffer, must be 8-byte-aligned
+	/// @param iInlineCap   capacity of the inline buffer in bytes
+	KArenaAllocator(std::size_t iBlockSize, void* pInlineBuf, std::size_t iInlineCap) noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	~KArenaAllocator();
 	//-----------------------------------------------------------------------------
 
@@ -195,6 +213,23 @@ public:
 	std::size_t FreeBlockCount() const noexcept;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Re-point the inline backing buffer. Used by the owning container's
+	/// move constructor: after the base-class move has copied the
+	/// allocator state, the moved-to allocator's `m_pInline` still points
+	/// at the moved-from container's inline buffer (which is at a
+	/// different address). Call this with the new owner's inline buffer
+	/// to install it; the cursor is relocated by the same offset.
+	///
+	/// **Note**: this relocates the cursor only. Pointers stored in
+	/// arena-allocated objects that reference bytes inside the old inline
+	/// buffer are *not* rewritten. Moving a populated arena is therefore
+	/// undefined behaviour (mirrors rapidxml's xml_document constraint).
+	/// NRVO typically elides the move for return-by-value, which is the
+	/// safe common case.
+	void AdoptInlineBuffer(void* pInlineBuf, std::size_t iInlineCap) noexcept;
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
@@ -222,6 +257,8 @@ private:
 	char*       m_pEnd      { nullptr };  ///< one-past-end of m_pHead's payload
 	std::size_t m_iBlockSize{ DefaultBlockSize };
 	std::size_t m_iUsedBytes{ 0 };
+	char*       m_pInline    { nullptr }; ///< caller-owned inline backing buffer (not freed)
+	std::size_t m_iInlineCap { 0 };       ///< capacity of m_pInline in bytes
 
 }; // KArenaAllocator
 

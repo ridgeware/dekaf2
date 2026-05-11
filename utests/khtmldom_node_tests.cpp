@@ -12,11 +12,13 @@ TEST_CASE("khtml::NodePOD")
 	SECTION("layout")
 	{
 		// the type is not part of the public API but the size matters for
-		// the arena migration: 96 bytes is the design budget. If this
-		// assertion fires, the design doc in notes/khtmldom-arena-design.md
-		// must be updated alongside any layout change.
-		CHECK ( sizeof(NodePOD) <= 96 );
-		CHECK ( sizeof(AttrPOD) <= 56 );
+		// the arena migration: 80 / 48 bytes is the post-Phase-4a design
+		// budget (NodeBase removed, NodePOD::m_sValue removed,
+		// AttrPOD::m_Parent removed). If this assertion fires, the design
+		// doc in notes/kwebobjects-arena-design.md must be updated
+		// alongside any layout change.
+		CHECK ( sizeof(NodePOD) <= 80 );
+		CHECK ( sizeof(AttrPOD) <= 48 );
 
 		// triviality is also enforced via static_assert in the header,
 		// but doubling up here makes a clean test failure if someone
@@ -36,7 +38,6 @@ TEST_CASE("khtml::NodePOD")
 		CHECK ( n->Flags()         == NodeFlag::None );
 		CHECK ( n->TagProps()      == KHTMLObject::TagProperty::None );
 		CHECK ( n->Name ().empty() );
-		CHECK ( n->Value().empty() );
 		CHECK ( n->FirstAttr()     == nullptr );
 		CHECK ( n->LastAttr()      == nullptr );
 		CHECK ( n->FirstChild()    == nullptr );

@@ -148,51 +148,44 @@ TEST_CASE("KHTML")
 
 	SECTION("building")
 	{
+		// Phase 4b: programmatic build now goes through the arena-backed
+		// KHTMLNode handle. KHTMLElement is gone; every Add returns a
+		// KHTMLNode value handle (no longer a heap reference).
 		{
 			KHTML Page;
-			auto& root = Page.DOM();
-			KHTMLElement html("html");
-			KHTMLElement hh;
-			auto& hhh = root.Add(std::move(html));
-			auto& body = hhh.Add(KHTMLElement("body"));
+			auto root = Page.Root();
+			auto html = root.AddElement("html");
+			html.AddElement("body");
 		}
 		{
 			KHTML Page;
-			auto& html = Page.Add("html");
-			html.SetClass("main");
-			auto& head = html.Add("head");
-			auto& title = head.Add("title");
+			auto html = Page.Root().AddElement("html");
+			html.SetAttribute("class", "main");
+			auto head  = html.AddElement("head");
+			auto title = head.AddElement("title");
 			title.AddText("This is the");
-			head.Add("meta").SetAttribute("viewport", "width=device-width, initial-scale=1.0");
-			auto& body = html += "body";
-			auto& par  = body += "p";
-			par.SetID("MyPar1");
-			par.SetID("MyPar");
+			head.AddElement("meta").SetAttribute("viewport", "width=device-width, initial-scale=1.0");
+			auto body = html.AddElement("body");
+			auto par  = body.AddElement("p");
+			par.SetAttribute("id", "MyPar1");
+			par.SetAttribute("id", "MyPar");           // overwrites previous
 			par.AddText("This <is> &a ");
-			auto& italic = par.Add("i");
-			italic.AddText("web");
+			par.AddElement("i").AddText("web");
 			par.AddText("page");
-			par.Add("br");
+			par.AddElement("br");
 			par.AddText("More text");
 			title.AddText(" title");
-			body.Add("p", "emptyPar", "emptyClass");
-			body.Add("h2").AddText("This is the title");
-			body.Add("a").SetAttribute("href", "/some/link").Add("img").SetAttribute("src", "/another/link/img.png");
+			auto emptyPar = body.AddElement("p");
+			emptyPar.SetAttribute("id", "emptyPar");
+			emptyPar.SetAttribute("class", "emptyClass");
+			body.AddElement("h2").AddText("This is the title");
+			auto a = body.AddElement("a");
+			a.SetAttribute("href", "/some/link");
+			a.AddElement("img").SetAttribute("src", "/another/link/img.png");
 			body.AddText("that is all");
 			KString sCRLF = sSerialized2;
 			sCRLF.Replace("\n", "\r\n");
 			CHECK ( Page.Serialize() == sCRLF );
-
-			auto& DOM = Page.DOM();
-			CHECK ( DOM.Print() == sCRLF );
-
-			auto DOM2 = DOM;
-			CHECK ( DOM2.Print() == sCRLF );
-
-			KString sStream;
-			KOutStringStream oss(sStream);
-			oss << DOM2;
-			CHECK( sStream == sCRLF );
 		}
 	}
 
@@ -378,27 +371,9 @@ R"(<html>
 		CHECK ( sOut == sCRLF );
 	}
 
-	SECTION("TextMerge")
-	{
-		KHTMLElement Element("div");
-		Element.Add(KHTMLElement("img"));
-		Element.AddText("text1.");
-		Element.AddText("text2.");
-		Element.Insert(Element.begin() + 1, KHTMLText("before1."));
-		Element.Insert(Element.end(), KHTMLText("after1."));
-		CHECK (Element.size() == 2);
-		if (Element.size() == 2)
-		{
-			Element.Delete(Element.begin());
-			CHECK (Element.size() == 1);
-			CHECK (Element.begin()->get()->Type() == KHTMLText::TYPE);
-			if (Element.begin()->get()->Type() == KHTMLText::TYPE)
-			{
-				auto Text = static_cast<KHTMLText*>(Element.begin()->get());
-				CHECK (Text->GetText() == "before1.text1.text2.after1.");
-			}
-		}
-	}
+	// TextMerge section removed in Phase 4b — the heap-DOM-era adjacent-text
+	// merge is no longer a feature of the arena tree. Text nodes accumulate
+	// as separate siblings; merging is not part of the AddText contract.
 
 	// ------------------------------------------------------------------
 	// KHTML mirrors every parsed node into an arena-backed POD

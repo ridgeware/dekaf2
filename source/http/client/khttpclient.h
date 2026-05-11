@@ -277,7 +277,7 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Adds a request header for the next request
-	KHTTPClient& AddHeader(KHTTPHeader Header, KStringView svValue);
+	KHTTPClient& AddHeader(KHTTPHeader Header, KString sValue);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

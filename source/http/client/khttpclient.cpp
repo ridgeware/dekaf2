@@ -812,7 +812,7 @@ bool KHTTPClient::SetHostHeader(const KURL& url, bool bForcePort)
 
 //-----------------------------------------------------------------------------
 /// Adds a request header for the next request
-KHTTPClient& KHTTPClient::AddHeader(KHTTPHeader Header, KStringView svValue)
+KHTTPClient& KHTTPClient::AddHeader(KHTTPHeader Header, KString sValue)
 //-----------------------------------------------------------------------------
 {
 	if (DEKAF2_UNLIKELY(Header == KHTTPHeader::HOST))
@@ -820,7 +820,7 @@ KHTTPClient& KHTTPClient::AddHeader(KHTTPHeader Header, KStringView svValue)
 		m_bHaveHostSet = true;
 	}
 
-	Request.Headers.Set(std::move(Header), svValue);
+	Request.Headers.Set(std::move(Header), std::move(sValue));
 	return *this;
 
 } // AddHeader

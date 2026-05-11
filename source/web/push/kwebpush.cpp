@@ -80,6 +80,22 @@ static KString GetOrigin(KStringView sURL)
 } // GetOrigin
 
 //-----------------------------------------------------------------------------
+KStringViewZ KWebPush::ToString(eUrgency Urgency)
+//-----------------------------------------------------------------------------
+{
+	switch (Urgency)
+	{
+		case VeryLow: return "very-low";
+		case Low:     return "low";
+		case Normal:  return "normal";
+		case High:    return "high";
+	}
+
+	return "normal";
+
+} // ToString
+
+//-----------------------------------------------------------------------------
 KString KWebPush::NormalizeContact(KString sContact)
 //-----------------------------------------------------------------------------
 {
@@ -304,7 +320,7 @@ std::vector<KWebPush::Subscription> KWebPush::ListSubscriptions(KStringView sUse
 } // ListSubscriptions
 
 //-----------------------------------------------------------------------------
-std::size_t KWebPush::Send(const KJSON& jPayload, KStringView sUser)
+std::size_t KWebPush::Send(const KJSON& jPayload, KStringView sUser, SendOptions Options)
 //-----------------------------------------------------------------------------
 {
 	if (!m_bReady)
@@ -332,7 +348,7 @@ std::size_t KWebPush::Send(const KJSON& jPayload, KStringView sUser)
 
 		for (const auto& sub : Subs)
 		{
-			if (SendPush(Client, sub, sPayload))
+			if (SendPush(Client, sub, sPayload, Options))
 			{
 				++iSuccess;
 			}
@@ -343,7 +359,7 @@ std::size_t KWebPush::Send(const KJSON& jPayload, KStringView sUser)
 
 	return iSuccess;
 
-} // SendToAll
+} // Send
 
 //-----------------------------------------------------------------------------
 KString KWebPush::BuildVAPIDToken(KStringView sAudience) const
@@ -500,7 +516,7 @@ KString KWebPush::EncryptPayload(KStringView sPayload, KStringView sP256dhB64, K
 } // EncryptPayload
 
 //-----------------------------------------------------------------------------
-bool KWebPush::SendPush(KWebClient& Client, const Subscription& sub, KStringView sPayload)
+bool KWebPush::SendPush(KWebClient& Client, const Subscription& sub, KStringView sPayload, SendOptions Options)
 //-----------------------------------------------------------------------------
 {
 	KString sAudience = GetOrigin(sub.sEndpoint);
@@ -532,7 +548,8 @@ bool KWebPush::SendPush(KWebClient& Client, const Subscription& sub, KStringView
 	Client.SetTimeout(10);
 	Client.AddHeader(KHTTPHeader::AUTHORIZATION, sAuthHeader);
 	Client.AddHeader(KHTTPHeader::CONTENT_ENCODING, "aes128gcm");
-	Client.AddHeader("TTL", "86400");
+	Client.AddHeader("ttl", KString::to_string(Options.TTL.seconds().count()));
+	Client.AddHeader("urgency", ToString(Options.Urgency));
 
 	auto sResponse = Client.Post(sub.sEndpoint, sEncryptedBody, KMIME::BINARY);
 	auto iStatus   = Client.GetStatusCode();

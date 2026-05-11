@@ -174,6 +174,27 @@ class DEKAF2_PUBLIC KWebPush : public KErrorBase
 public:
 //------
 
+	/// the urgency level for a sent message
+	enum eUrgency
+	{
+		VeryLow,
+		Low,
+		Normal,
+		High
+	};
+
+	static KStringViewZ DEKAF2_PUBLIC ToString(eUrgency);
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	struct DEKAF2_PUBLIC SendOptions
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		SendOptions(eUrgency urgency = eUrgency::Normal, KDuration ttl = chrono::hours(24))
+		: Urgency(urgency), TTL(ttl) {}
+		eUrgency  Urgency;
+		KDuration TTL;
+	};
+
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// A single push subscription as returned by the browser's
 	/// PushManager.subscribe() call.  The sEndpoint, sP256dh and sAuth
@@ -278,7 +299,7 @@ public:
 	/// @param sUser if non-empty, only send to subscriptions of this user;
 	///              if empty (default), send to all subscriptions.
 	/// @returns number of successfully delivered notifications
-	std::size_t Send(const KJSON& jPayload, KStringView sUser = {});
+	std::size_t Send(const KJSON& jPayload, KStringView sUser = {}, SendOptions Options = SendOptions{});
 
 	/// @returns true if at least one active subscription exists in the database
 	DEKAF2_NODISCARD
@@ -304,7 +325,7 @@ private:
 
 	/// send a single push message to one subscription
 	/// @returns true on success (HTTP 201)
-	bool SendPush(KWebClient& Client, const Subscription& sub, KStringView sPayload);
+	bool SendPush(KWebClient& Client, const Subscription& sub, KStringView sPayload, SendOptions Options);
 
 	/// build a VAPID JWT token for the given audience (origin of the push endpoint)
 	DEKAF2_NODISCARD

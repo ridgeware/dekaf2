@@ -469,39 +469,38 @@ void AdminUI::ShowLogin (KRESTServer& HTTP,
 {
 	auto Page = MakePage("ktunnel — Login");
 
-	auto& wrap = Page.Body().Add(html::Div("", html::Classes("login-wrap")));
-	auto& card = wrap.Add(html::Div("", html::Classes("card")));
+	auto wrap = Page.Body().Add<html::Div>(html::Classes("login-wrap"));
+	auto card = wrap.Add<html::Div>(html::Classes("card"));
 
-	card.Add(html::Heading(1, "ktunnel admin"));
+	card.Add<html::Heading>(1, "ktunnel admin");
 
 	if (!sError.empty())
 	{
-		auto& err = card.Add(html::Div("", html::Classes("error")));
+		auto err = card.Add<html::Div>(html::Classes("error"));
 		err.AddText(sError);
 	}
 
-	auto& form = card.Add(html::Form(s_sLoginURL));
+	auto form = card.Add<html::Form>(s_sLoginURL);
 	form.SetMethod(html::Form::POST);
 
 	{
-		auto& field = form.Add(html::Div("", html::Classes("field")));
-		auto& label = field.Add("label");
+		auto field = form.Add<html::Div>(html::Classes("field"));
+		auto label = field.AddElement("label");
 		label.SetAttribute("for", "user");
 		label.AddText("Username");
-		html::Input userInput("username", sUsername, html::Input::TEXT, "user");
-		userInput.SetAutofocus(true);
-		field.Add(std::move(userInput));
+		field.Add<html::Input>("username", sUsername, html::Input::TEXT, html::Classes{}, "user")
+		     .SetAutofocus(true);
 	}
 
 	{
-		auto& field = form.Add(html::Div("", html::Classes("field")));
-		auto& label = field.Add("label");
+		auto field = form.Add<html::Div>(html::Classes("field"));
+		auto label = field.AddElement("label");
 		label.SetAttribute("for", "pass");
 		label.AddText("Password");
-		field.Add(html::Input("password", "", html::Input::PASSWORD, "pass"));
+		field.Add<html::Input>("password", "", html::Input::PASSWORD, html::Classes{}, "pass");
 	}
 
-	form.Add(html::Button("Sign in", html::Button::SUBMIT, "", html::Classes("btn")));
+	form.Add<html::Button>("Sign in", html::Button::SUBMIT, html::Classes("btn"));
 
 	RenderPage(HTTP, Page);
 
@@ -561,10 +560,10 @@ void AdminUI::RenderTopBar (html::Page& Page,
                             KStringView sAdmin) const
 //-----------------------------------------------------------------------------
 {
-	auto& top = Page.Body().Add(html::Div("", html::Classes("top")));
+	auto top = Page.Body().Add<html::Div>(html::Classes("top"));
 
 	{
-		auto& brand = top.Add(html::Div("", html::Classes("brand")));
+		auto brand = top.Add<html::Div>(html::Classes("brand"));
 		brand.AddText(kFormat("ktunnel admin · {}", sAdmin));
 	}
 
@@ -598,7 +597,7 @@ void AdminUI::RenderTopBar (html::Page& Page,
 	}
 	sNav += "</nav>";
 
-	top.Add(html::RawText(sNav));
+	top.AddRawText(sNav);
 
 } // RenderTopBar
 
@@ -619,16 +618,16 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 	auto Page = MakePage("ktunnel — Dashboard");
 	RenderTopBar(Page, "dashboard", sMe);
 
-	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
 	if (!sNotice.empty())
 	{
-		auto& f = main.Add(html::Div("", html::Classes("flash ok")));
+		auto f = main.Add<html::Div>(html::Classes("flash ok"));
 		f.AddText(sNotice);
 	}
 	else if (!sError.empty())
 	{
-		auto& f = main.Add(html::Div("", html::Classes("flash err")));
+		auto f = main.Add<html::Div>(html::Classes("flash err"));
 		f.AddText(sError);
 	}
 
@@ -636,12 +635,12 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 	{
 		auto Tunnels = m_Server.SnapshotActiveTunnels();
 
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, kFormat("Active tunnels ({})", Tunnels.size())));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Active tunnels ({})", Tunnels.size()));
 
 		if (Tunnels.empty())
 		{
-			auto& p = sec.Add(html::Paragraph());
+			auto p = sec.Add<html::Paragraph>();
 			p.SetAttribute("class", "muted");
 			p.AddText("No tunnel peers are currently connected.");
 		}
@@ -678,7 +677,7 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 			}
 
 			sTable += "</tbody></table>";
-			sec.Add(html::RawText(sTable));
+			sec.AddRawText(sTable);
 		}
 	}
 
@@ -688,12 +687,12 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 
 		auto Events = m_Server.GetStore().GetRecentEvents(kEventLimit);
 
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, kFormat("Recent events (last {})", kEventLimit)));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Recent events (last {})", kEventLimit));
 
 		if (Events.empty())
 		{
-			auto& p = sec.Add(html::Paragraph());
+			auto p = sec.Add<html::Paragraph>();
 			p.SetAttribute("class", "muted");
 			p.AddText("No events logged yet.");
 		}
@@ -722,12 +721,12 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 			}
 
 			sTable += "</tbody></table>";
-			sec.Add(html::RawText(sTable));
+			sec.AddRawText(sTable);
 
-			auto& p = sec.Add(html::Paragraph());
+			auto p = sec.Add<html::Paragraph>();
 			p.SetAttribute("class", "muted");
 			p.AddText("Full history browsable under ");
-			p.Add(html::Link(s_sEventsURL, "Events"));
+			p.Add<html::Link>(s_sEventsURL, "Events");
 			p.AddText(".");
 		}
 	}
@@ -749,11 +748,11 @@ void AdminUI::ShowStubPage (KRESTServer& HTTP,
 	auto Page = MakePage(kFormat("ktunnel — {}", sTitle));
 	RenderTopBar(Page, sSection, Sess.GetUser());
 
-	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
-	auto& ph = main.Add(html::Div("", html::Classes("placeholder")));
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
+	auto ph = main.Add<html::Div>(html::Classes("placeholder"));
 
-	ph.Add(html::Heading(2, kFormat("{} — coming soon", sTitle)));
-	auto& p = ph.Add(html::Paragraph());
+	ph.Add<html::Heading>(2, kFormat("{} — coming soon", sTitle));
+	auto p = ph.Add<html::Paragraph>();
 	p.AddText(sDescription);
 
 	RenderPage(HTTP, Page);
@@ -810,24 +809,24 @@ void AdminUI::ShowAdmins (KRESTServer& HTTP)
 	auto Page = MakePage("ktunnel — Admins");
 	RenderTopBar(Page, "admins", sMe);
 
-	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
 	// --- flash banner (if any) ----------------------------------------
 	if (!sNotice.empty())
 	{
-		auto& f = main.Add(html::Div("", html::Classes("flash ok")));
+		auto f = main.Add<html::Div>(html::Classes("flash ok"));
 		f.AddText(sNotice);
 	}
 	else if (!sError.empty())
 	{
-		auto& f = main.Add(html::Div("", html::Classes("flash err")));
+		auto f = main.Add<html::Div>(html::Classes("flash err"));
 		f.AddText(sError);
 	}
 
 	// --- Section 1: admin list ----------------------------------------
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, kFormat("Admins ({})", Admins.size())));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Admins ({})", Admins.size()));
 
 		KString sTable;
 		sTable += "<table class=\"grid\"><thead><tr>"
@@ -869,13 +868,13 @@ void AdminUI::ShowAdmins (KRESTServer& HTTP)
 		}
 
 		sTable += "</tbody></table>";
-		sec.Add(html::RawText(sTable));
+		sec.AddRawText(sTable);
 	}
 
 	// --- Section 2: add admin form ------------------------------------
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, "Add admin"));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Add admin");
 
 		KString sForm = kFormat(
 			"<form method=\"post\" action=\"{}\">"
@@ -887,13 +886,13 @@ void AdminUI::ShowAdmins (KRESTServer& HTTP)
 			"<button type=\"submit\" class=\"btn\">Add</button>"
 			"</div></form>",
 			KHTMLEntity::EncodeMandatory(s_sAdminsAddURL));
-		sec.Add(html::RawText(sForm));
+		sec.AddRawText(sForm);
 	}
 
 	// --- Section 3: change own password -------------------------------
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, kFormat("Change password · {}", sMe)));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Change password · {}", sMe));
 
 		KString sForm = kFormat(
 			"<form method=\"post\" action=\"{}\">"
@@ -907,7 +906,7 @@ void AdminUI::ShowAdmins (KRESTServer& HTTP)
 			"<button type=\"submit\" class=\"btn\">Change</button>"
 			"</div></form>",
 			KHTMLEntity::EncodeMandatory(s_sAdminsChangePwURL));
-		sec.Add(html::RawText(sForm));
+		sec.AddRawText(sForm);
 	}
 
 	RenderPage(HTTP, Page);
@@ -1112,27 +1111,27 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 	auto Page = MakePage("ktunnel — Nodes");
 	RenderTopBar(Page, "nodes", sMe);
 
-	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
 	if (!sNotice.empty())
 	{
-		auto& f = main.Add(html::Div("", html::Classes("flash ok")));
+		auto f = main.Add<html::Div>(html::Classes("flash ok"));
 		f.AddText(sNotice);
 	}
 	else if (!sError.empty())
 	{
-		auto& f = main.Add(html::Div("", html::Classes("flash err")));
+		auto f = main.Add<html::Div>(html::Classes("flash err"));
 		f.AddText(sError);
 	}
 
 	// --- Section 1: node list -----------------------------------------
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, kFormat("Nodes ({})", Nodes.size())));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Nodes ({})", Nodes.size()));
 
 		if (Nodes.empty())
 		{
-			auto& p = sec.Add(html::Paragraph());
+			auto p = sec.Add<html::Paragraph>();
 			p.SetAttribute("class", "muted");
 			p.AddText("No tunnel-endpoint accounts configured yet. "
 			          "Use the form below to add one.");
@@ -1183,14 +1182,14 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 			}
 
 			sTable += "</tbody></table>";
-			sec.Add(html::RawText(sTable));
+			sec.AddRawText(sTable);
 		}
 	}
 
 	// --- Section 2: add node ------------------------------------------
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, "Add node"));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Add node");
 
 		KString sForm = kFormat(
 			"<form method=\"post\" action=\"{}\">"
@@ -1205,13 +1204,13 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 			"<button type=\"submit\" class=\"btn\">Add</button>"
 			"</div></form>",
 			KHTMLEntity::EncodeMandatory(s_sNodesAddURL));
-		sec.Add(html::RawText(sForm));
+		sec.AddRawText(sForm);
 	}
 
 	// --- Section 3: reset node password -------------------------------
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, "Reset node password"));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Reset node password");
 
 		KString sNodeOptions;
 		for (const auto& n : Nodes)
@@ -1236,7 +1235,7 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 			"</div></form>",
 			KHTMLEntity::EncodeMandatory(s_sNodesResetPwURL),
 			sNodeOptions);
-		sec.Add(html::RawText(sForm));
+		sec.AddRawText(sForm);
 	}
 
 	RenderPage(HTTP, Page);
@@ -1504,16 +1503,16 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 	auto Page = MakePage("ktunnel — Tunnels");
 	RenderTopBar(Page, "tunnels", sMe);
 
-	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
 	if (!sNotice.empty())
 	{
-		auto& f = main.Add(html::Div("", html::Classes("flash ok")));
+		auto f = main.Add<html::Div>(html::Classes("flash ok"));
 		f.AddText(sNotice);
 	}
 	else if (!sError.empty())
 	{
-		auto& f = main.Add(html::Div("", html::Classes("flash err")));
+		auto f = main.Add<html::Div>(html::Classes("flash err"));
 		f.AddText(sError);
 	}
 
@@ -1525,10 +1524,10 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 	// there is an additional raw listener hogging a port.
 	if (m_Config.iRawPort)
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, "Built-in forwarder (from CLI)"));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Built-in forwarder (from CLI)");
 
-		auto& p = sec.Add(html::Paragraph());
+		auto p = sec.Add<html::Paragraph>();
 		p.SetAttribute("class", "muted");
 		p.AddText("Configured via -f / -t at process start. "
 		          "Not stored in the database; restart ktunnel with "
@@ -1550,17 +1549,17 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 		                  m_Config.iRawPort,
 		                  sTarget);
 		sTable += "</tbody></table>";
-		sec.Add(html::RawText(sTable));
+		sec.AddRawText(sTable);
 	}
 
 	// --- Section 1: tunnel list ---------------------------------------
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, kFormat("Tunnels ({})", Tunnels.size())));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Tunnels ({})", Tunnels.size()));
 
 		if (Tunnels.empty())
 		{
-			auto& p = sec.Add(html::Paragraph());
+			auto p = sec.Add<html::Paragraph>();
 			p.SetAttribute("class", "muted");
 			p.AddText("No tunnel listeners configured yet. Use the form below to add one.");
 		}
@@ -1634,22 +1633,22 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 			}
 
 			sTable += "</tbody></table>";
-			sec.Add(html::RawText(sTable));
+			sec.AddRawText(sTable);
 		}
 	}
 
 	// --- Section 2: add tunnel form -----------------------------------
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, "Add tunnel"));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Add tunnel");
 
 		if (Nodes.empty())
 		{
-			auto& p = sec.Add(html::Paragraph());
+			auto p = sec.Add<html::Paragraph>();
 			p.SetAttribute("class", "muted");
 			p.AddText("No nodes are configured yet — a tunnel must point at "
 			          "an existing node. Add one under ");
-			p.Add(html::Link(s_sNodesURL, "Nodes"));
+			p.Add<html::Link>(s_sNodesURL, "Nodes");
 			p.AddText(" first.");
 		}
 		else
@@ -1696,7 +1695,7 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 				KHTMLEntity::EncodeMandatory(s_sTunnelsAddURL),
 				sNodeOptions);
 
-			sec.Add(html::RawText(sForm));
+			sec.AddRawText(sForm);
 		}
 	}
 
@@ -1908,21 +1907,21 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 	auto Page = MakePage(kFormat("ktunnel — Edit {}", sName));
 	RenderTopBar(Page, "tunnels", sMe);
 
-	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
 	if (!sNotice.empty())
 	{
-		auto& f = main.Add(html::Div("", html::Classes("flash ok")));
+		auto f = main.Add<html::Div>(html::Classes("flash ok"));
 		f.AddText(sNotice);
 	}
 	else if (!sError.empty())
 	{
-		auto& f = main.Add(html::Div("", html::Classes("flash err")));
+		auto f = main.Add<html::Div>(html::Classes("flash err"));
 		f.AddText(sError);
 	}
 
-	auto& sec = main.Add(html::Div("", html::Classes("section")));
-	sec.Add(html::Heading(2, kFormat("Edit tunnel · {}", oT->sName)));
+	auto sec = main.Add<html::Div>(html::Classes("section"));
+	sec.Add<html::Heading>(2, kFormat("Edit tunnel · {}", oT->sName));
 
 	// Node <select> with the current node pre-selected.
 	KString sNodeOptions;
@@ -1978,7 +1977,7 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 		oT->bEnabled ? " checked" : "",
 		KHTMLEntity::EncodeMandatory(s_sTunnelsURL));
 
-	sec.Add(html::RawText(sForm));
+	sec.AddRawText(sForm);
 
 	RenderPage(HTTP, Page);
 
@@ -2128,12 +2127,12 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 	auto Page = MakePage("ktunnel — Events");
 	RenderTopBar(Page, "events", sMe);
 
-	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
 	// --- filter form --------------------------------------------------
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, "Filter"));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Filter");
 
 		// Build the kind <select>: a blank first option means "no
 		// constraint" and matches the (?1 = '') branch in GetEvents.
@@ -2179,18 +2178,18 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 			sLimitOptions,
 			KHTMLEntity::EncodeMandatory(s_sEventsURL));
 
-		sec.Add(html::RawText(sForm));
+		sec.AddRawText(sForm);
 	}
 
 	// --- events table -------------------------------------------------
 	{
-		auto& sec = main.Add(html::Div("", html::Classes("section")));
-		sec.Add(html::Heading(2, kFormat("Events ({} shown, capped at {})",
-		                                 Events.size(), iLimit)));
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Events ({} shown, capped at {})",
+		                                 Events.size(), iLimit));
 
 		if (Events.empty())
 		{
-			auto& p = sec.Add(html::Paragraph());
+			auto p = sec.Add<html::Paragraph>();
 			p.SetAttribute("class", "muted");
 			p.AddText("No events match the current filters.");
 		}
@@ -2219,7 +2218,7 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 			}
 
 			sTable += "</tbody></table>";
-			sec.Add(html::RawText(sTable));
+			sec.AddRawText(sTable);
 		}
 	}
 
@@ -2240,14 +2239,14 @@ void AdminUI::ShowPeers (KRESTServer& HTTP)
 	auto Page = MakePage("ktunnel — Peers");
 	RenderTopBar(Page, "peers", sMe);
 
-	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
-	auto& sec = main.Add(html::Div("", html::Classes("section")));
-	sec.Add(html::Heading(2, kFormat("Connected peers ({})", Peers.size())));
+	auto sec = main.Add<html::Div>(html::Classes("section"));
+	sec.Add<html::Heading>(2, kFormat("Connected peers ({})", Peers.size()));
 
 	if (Peers.empty())
 	{
-		auto& p = sec.Add(html::Paragraph());
+		auto p = sec.Add<html::Paragraph>();
 		p.SetAttribute("class", "muted");
 		p.AddText("No tunnel peers currently connected. Peers appear here once "
 		          "they complete the login handshake.");
@@ -2298,7 +2297,7 @@ void AdminUI::ShowPeers (KRESTServer& HTTP)
 		}
 
 		sTable += "</tbody></table>";
-		sec.Add(html::RawText(sTable));
+		sec.AddRawText(sTable);
 	}
 
 	RenderPage(HTTP, Page);
@@ -2334,10 +2333,10 @@ void AdminUI::ShowPeerRepl (KRESTServer& HTTP)
 	auto Page = MakePage(kFormat("ktunnel — REPL · {}", sPeer));
 	RenderTopBar(Page, "peers", sMe);
 
-	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
-	auto& sec  = main.Add(html::Div("", html::Classes("section")));
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
+	auto sec  = main.Add<html::Div>(html::Classes("section"));
 
-	sec.Add(html::Heading(2, kFormat("REPL — {}", sPeer)));
+	sec.Add<html::Heading>(2, kFormat("REPL — {}", sPeer));
 
 	// The WebSocket URL is relative so it inherits the same scheme +
 	// host + port as the page. The browser WebSocket API
@@ -2440,7 +2439,7 @@ void AdminUI::ShowPeerRepl (KRESTServer& HTTP)
 		KHTMLEntity::EncodeMandatory(sWsPath),
 		KHTMLEntity::EncodeMandatory(s_sPeersURL));
 
-	sec.Add(html::RawText(sBody));
+	sec.AddRawText(sBody);
 
 	RenderPage(HTTP, Page);
 
@@ -2581,10 +2580,10 @@ void AdminUI::HandlePeerReplCert (KRESTServer& HTTP)
 	auto Page = MakePage("ktunnel — Certificate accepted");
 	RenderTopBar(Page, "peers", Sess.GetUser());
 
-	auto& main = Page.Body().Add(html::Div("", html::Classes("main")));
-	auto& sec  = main.Add(html::Div("", html::Classes("section")));
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
+	auto sec  = main.Add<html::Div>(html::Classes("section"));
 
-	sec.Add(html::Heading(2, "Certificate accepted"));
+	sec.Add<html::Heading>(2, "Certificate accepted");
 
 	KString sBody = kFormat(
 		"<p>The self-signed TLS certificate for this host is now trusted "
@@ -2598,7 +2597,7 @@ void AdminUI::HandlePeerReplCert (KRESTServer& HTTP)
 		kUrlEncode(sPeer, URIPart::Query),
 		sPeersURL);
 
-	sec.Add(html::RawText(sBody));
+	sec.AddRawText(sBody);
 
 	RenderPage(HTTP, Page);
 

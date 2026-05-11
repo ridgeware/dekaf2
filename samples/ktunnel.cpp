@@ -1243,7 +1243,7 @@ ExposedServer::ExposedServer (const Config& config)
 	Routes.AddRoute("/Version").Get([](KRESTServer& HTTP)
 	{
 		html::Page Page("Version", "en_US");
-		Page.Body() += html::Text("ktunnel v1.0");
+		Page.Body().AddText("ktunnel v1.0");
 		HTTP.SetRawOutput(Page.Serialize());
 		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE , KMIME::HTML_UTF8);
 

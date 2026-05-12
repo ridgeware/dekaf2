@@ -711,16 +711,52 @@ TEST_CASE("KHTML source-buffer ownership")
 		CHECK   ( root.Name() == "b" );
 	}
 
-	SECTION("Parse(KStringView) goes through the copy path and still registers")
+	SECTION("Parse(KStringView) runs the non-owning streaming path")
 	{
 		KHTML doc;
 		KStringView sInput = "<x/>";
 
+		// View-input intentionally runs through the inherited
+		// `KHTMLParser::Parse` template — no `m_SourceBuffer` copy,
+		// no stable-region registration. Callers who want ownership
+		// write `doc.Parse(KString{sInput})` explicitly.
 		doc.Parse(sInput);
+
+		CHECK ( doc.Arena().StableRegionCount() == 0 );
+		auto root = doc.Root().FirstChild();
+		REQUIRE ( root );
+		CHECK   ( root.Name() == "x" );
+	}
+
+	SECTION("explicit `Parse(KString{view})` opts into the owning path")
+	{
+		KHTML doc;
+		KStringView sInput = "<y/>";
+
+		doc.Parse(KString{sInput});
 
 		CHECK ( doc.Arena().StableRegionCount() == 1 );
 		auto root = doc.Root().FirstChild();
 		REQUIRE ( root );
-		CHECK   ( root.Name() == "x" );
+		CHECK   ( root.Name() == "y" );
+	}
+
+	SECTION("ParseStable(view) registers the caller-supplied bytes without copying")
+	{
+		// caller owns the source string and promises its lifetime
+		// extends beyond the KHTML document
+		KString sSource = "<z attr='val'><inner/></z>";
+
+		KHTML doc;
+		doc.ParseStable(sSource);
+
+		// view is registered as stable region — future in-situ
+		// parsing would slice views out of it for free.
+		CHECK ( doc.Arena().StableRegionCount() == 1 );
+
+		// the parsed tree is built normally
+		auto root = doc.Root().FirstChild();
+		REQUIRE ( root );
+		CHECK   ( root.Name() == "z" );
 	}
 }

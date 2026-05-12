@@ -105,21 +105,26 @@ public:
 	// parsing is in base class
 
 	//-----------------------------------------------------------------------------
-	/// Parse a source string with ownership semantics matching the
-	/// `KHTML(KString)` constructor: takes the source by value, so
-	/// `Parse(std::move(buf))` moves the buffer into the document (zero
-	/// copies); `Parse(buf)` copies. The buffer is held as
-	/// `m_SourceBuffer` and registered as a stable arena region so that
-	/// in-situ-parsed views can point into it.
+	/// Parse a source string with **buffer ownership**: takes the source
+	/// by value, so `Parse(std::move(buf))` moves the buffer into the
+	/// document (zero copies). The buffer is held as `m_SourceBuffer`
+	/// and registered as a stable arena region so future in-situ
+	/// parsing can point views into it for free.
 	///
-	/// `KHTMLParser::Parse` is exposed via the using-declaration below
-	/// — its memory-parse template is SFINAE-constrained on
-	/// `is_constructible<KStringView, T>` and *loses* to this concrete
-	/// `Parse(KString)` overload under overload resolution. Therefore
-	/// any string-y argument (`const char*`, `KStringView`,
-	/// `KStringViewZ`, `KString`, ...) routes through this owning path,
-	/// while non-string types (e.g. `KInStream&`) continue to find the
-	/// stream overloads.
+	/// Use this overload when:
+	///  - you have a `KString` you can move,
+	///  - or you don't want to manage the source-buffer lifetime
+	///    (we copy it in for you).
+	///
+	/// For `KStringView` / `const char*` callers, the SFINAE template
+	/// from `KHTMLParser` (brought in via the using-declaration below)
+	/// runs the streaming path **without** copying into `m_SourceBuffer`.
+	/// That's the cheap path while in-situ parsing isn't active — the
+	/// parser writes accumulator output into the arena via
+	/// `KArenaStringBuilder`, never into the source. Once the in-situ
+	/// rewrite mode lands, callers wanting view-into-source semantics
+	/// will explicitly register their stable region (see
+	/// `khtml::Document::RegisterStableRegion`).
 	///
 	/// Clears any previous parse result first. Returns true on success.
 	bool Parse(KString sSource);
@@ -128,24 +133,29 @@ public:
 	// unchanged.
 	bool Parse(KInStream& InStream) override;
 
-	// Bring in the base template + stream overloads. Thanks to the
-	// SFINAE-on-template trick described above, this no longer creates
-	// a const-char* ambiguity with our concrete `Parse(KString)`.
+	// Bring in the base template + stream overloads. The SFINAE template
+	// in the base class loses to our concrete `Parse(KString)` only when
+	// the argument is convertible to KString *and* the template is no
+	// better-fit. For `KStringView` / `const char*` args the template
+	// wins (exact reference binding vs. user-defined conversion), so
+	// they run the non-owning streaming path. Caller chooses ownership
+	// by writing `doc.Parse(KString{...})` explicitly.
 	using KHTMLParser::Parse;
 
-protected:
-	// Override the base virtual memory-parse hook so that any string
-	// argument arriving via the inherited template — `doc.Parse(view)`,
-	// `doc.Parse("...")` — funnels into our owning `Parse(KString)`
-	// path. `Parse(KString)` itself calls `KHTMLParser::ParseImpl`
-	// explicitly (qualified) to bypass virtual dispatch, breaking the
-	// loop that would otherwise form here.
-	bool ParseImpl(KStringView sInput) override
-	{
-		return Parse(KString(sInput));
-	}
-
-public:
+	//-----------------------------------------------------------------------------
+	/// Parse a non-owning view that the caller **guarantees** stays alive
+	/// at least as long as this `KHTML` document — typically a view into
+	/// a `KString` the caller already holds. The range is registered
+	/// with the arena as a stable region, so future in-situ parsing
+	/// (when the rewrite mode lands) can hand out views into it
+	/// without copying. No `m_SourceBuffer` copy — that's the whole
+	/// point of the opt-in.
+	///
+	/// Misuse warning: if the underlying bytes go away or move before
+	/// this document is dropped, any views into them dangle. If you
+	/// don't already own a long-lived buffer, use `Parse(KString{view})`
+	/// instead — it copies but is safe.
+	bool ParseStable(KStringView sView);
 	//-----------------------------------------------------------------------------
 
 	void    Serialize(KOutStream& Stream, char chIndent = '\t') const;

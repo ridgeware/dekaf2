@@ -573,6 +573,22 @@ KHTML::~KHTML()
 } // dtor
 
 //-----------------------------------------------------------------------------
+bool KHTML::ParseStable(KStringView sView)
+//-----------------------------------------------------------------------------
+{
+	// Caller promises that sView outlives this document. We register
+	// the bytes as an arena stable region (no copy) and run the
+	// streaming parse path. No `m_SourceBuffer` is touched.
+	clear();
+	if (!sView.empty())
+	{
+		m_Document.RegisterStableRegion(sView.data(), sView.size());
+	}
+	return KHTMLParser::ParseImpl(sView);
+
+} // ParseStable
+
+//-----------------------------------------------------------------------------
 bool KHTML::Parse(KString sSource)
 // (no `override` — see khtmlparser.h: the base has only a constrained
 // template `Parse(T&&)` for memory input, not a concrete `Parse(KString)`.)

@@ -291,7 +291,7 @@ bool KArenaAllocator::IsOwnedByThisArena(KStringView sSource) const noexcept
 	const char* pSrc    = sSource.data();
 	const char* pSrcEnd = pSrc + sSource.size();
 
-	// adopted inline buffer first — cheaper than walking the block list
+	// adopted inline buffer first — cheaper than the block check
 	if (m_pInline != nullptr
 	    && pSrc >= m_pInline
 	    && pSrcEnd <= m_pInline + m_iInlineCap)
@@ -299,11 +299,24 @@ bool KArenaAllocator::IsOwnedByThisArena(KStringView sSource) const noexcept
 		return true;
 	}
 
-	// walk the heap-block chain
-	for (const Block* p = m_pHead; p != nullptr; p = p->m_pPrevious)
+	// Only the *current* head block: O(1), the practically relevant case.
+	//
+	// Self-views into our memory only come from `KArenaStringBuilder::Finalize()`
+	// and direct `AllocateString` returns — both hand back views in the
+	// currently-active block, so by the time the caller passes such a
+	// view back to `AllocateString` it is either still in `m_pHead` or
+	// the caller is doing something exotic. Walking the entire block
+	// chain on every call dominates costs on large arenas (parse +
+	// build benches grow to ~150 blocks) without measurably catching
+	// more views.
+	//
+	// A view that was self-allocated but has fallen out of `m_pHead`
+	// (because the cursor relocated since) will simply trigger one
+	// extra copy — functionally correct, never a memory leak.
+	if (m_pHead != nullptr)
 	{
-		const char* pBlockStart = reinterpret_cast<const char*>(p + 1);
-		const char* pBlockEnd   = pBlockStart + p->m_iSize;
+		const char* pBlockStart = reinterpret_cast<const char*>(m_pHead + 1);
+		const char* pBlockEnd   = pBlockStart + m_pHead->m_iSize;
 		if (pSrc >= pBlockStart && pSrcEnd <= pBlockEnd)
 		{
 			return true;

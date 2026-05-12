@@ -41,6 +41,8 @@
 
 #include <dekaf2/web/html/khtmlparser.h>
 #include <dekaf2/web/html/khtmlentities.h>
+#include <dekaf2/web/html/bits/khtmldom_node.h>  // for khtml::Document (KArenaAllocator)
+#include <dekaf2/containers/memory/karenaallocator.h>
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/core/logging/klog.h>
@@ -500,14 +502,32 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening, b
 	// <!DOCTYPE opens a DTD until >
 	// <? opens a processing instruction until ?>
 
-	auto iStart = sOpening.size();
+	auto iStart  = sOpening.size();
 	auto iLeadIn = m_sLeadIn.size();
+
+	// Arm an arena-backed accumulator if our arena is set. The pointer
+	// is published to the protected `m_pValueBuilder` slot so the
+	// virtual `SearchForLeadOut()` overrides in our subclasses can
+	// route into it via `AppendValueChar()`.
+	KArenaStringBuilder ValueBuilder;
+	const bool bUseArena = (m_pArena != nullptr);
+	if (bUseArena)
+	{
+		m_pValueBuilder = &ValueBuilder;
+	}
 
 	if (iStart >= iLeadIn)
 	{
 		sOpening.remove_prefix(iLeadIn);
-		sValueOwned = sOpening;
-		sValue      = sValueOwned.ToView();
+		if (bUseArena && !sOpening.empty())
+		{
+			ValueBuilder.Start(*m_pArena);
+			ValueBuilder.Append(sOpening);
+		}
+		else
+		{
+			sValueOwned = sOpening;
+		}
 	}
 	else
 	{
@@ -526,6 +546,7 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening, b
 				}
 				else
 				{
+					m_pValueBuilder = nullptr;
 					return false;
 				}
 			}
@@ -542,10 +563,39 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening, b
 	// class to implement the corresponding algorithm there.
 
 	bool bOk = SearchForLeadOut(InStream);
-	sValue = sValueOwned.ToView();
+
+	// Finalize / re-point the view.
+	if (bUseArena && ValueBuilder.IsActive())
+	{
+		sValue = ValueBuilder.Finalize();
+	}
+	else
+	{
+		sValue = sValueOwned.ToView();
+	}
+	m_pValueBuilder = nullptr;
 	return bOk;
 
 } // Parse
+
+//-----------------------------------------------------------------------------
+void KHTMLStringObject::AppendValueChar(char ch)
+//-----------------------------------------------------------------------------
+{
+	if (m_pValueBuilder != nullptr)
+	{
+		if (!m_pValueBuilder->IsActive())
+		{
+			m_pValueBuilder->Start(*m_pArena);
+		}
+		m_pValueBuilder->Append(ch);
+	}
+	else
+	{
+		sValueOwned.push_back(ch);
+	}
+
+} // AppendValueChar
 
 //-----------------------------------------------------------------------------
 void KHTMLStringObject::Serialize(KOutStream& OutStream) const
@@ -587,10 +637,61 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 	enum class State { Start, Key, BeforeEqual, AfterEqual, Value };
 	State state { State::Start };
 
+	// Two sequential arena builders. Name accumulates first, gets
+	// finalized at the Key→BeforeEqual/AfterEqual transition; Value
+	// accumulates after that. The exclusive arena lease is held by at
+	// most one of them at a time.
+	KArenaStringBuilder NameBuilder;
+	KArenaStringBuilder ValueBuilder;
+	const bool bUseArena = (m_pArena != nullptr);
+
+	auto AppendName = [&](char ch) {
+		if (bUseArena) {
+			if (!NameBuilder.IsActive()) NameBuilder.Start(*m_pArena);
+			NameBuilder.Append(ch);
+		} else {
+			m_sNameOwned.push_back(ch);
+		}
+	};
+	auto FinalizeName = [&]() {
+		if (bUseArena && NameBuilder.IsActive()) {
+			m_sName = NameBuilder.Finalize();
+		} else {
+			m_sName = m_sNameOwned.ToView();
+		}
+	};
+	auto AppendValueChar = [&](char ch) {
+		if (bUseArena) {
+			if (!ValueBuilder.IsActive()) ValueBuilder.Start(*m_pArena);
+			ValueBuilder.Append(ch);
+		} else {
+			m_sValueOwned.push_back(ch);
+		}
+	};
+	auto AppendValueView = [&](KStringView s) {
+		if (bUseArena) {
+			if (!ValueBuilder.IsActive()) ValueBuilder.Start(*m_pArena);
+			ValueBuilder.Append(s);
+		} else {
+			m_sValueOwned.append(s);
+		}
+	};
+	auto FinalizeValue = [&]() {
+		if (bUseArena && ValueBuilder.IsActive()) {
+			m_sValue = ValueBuilder.Finalize();
+		} else {
+			m_sValue = m_sValueOwned.ToView();
+		}
+	};
+
 	if (!sOpening.empty())
 	{
-		m_sNameOwned = sOpening;
-		m_sName      = m_sNameOwned.ToView();
+		if (bUseArena) {
+			NameBuilder.Start(*m_pArena);
+			NameBuilder.Append(sOpening);
+		} else {
+			m_sNameOwned = sOpening;
+		}
 		state = State::Key;
 	}
 
@@ -603,14 +704,13 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 			case State::Start:
 				if (ch == '>')
 				{
-					// normal exit (no attribute)
 					InStream.UnRead();
+					FinalizeName(); FinalizeValue();
 					return true;
 				}
 				else if (!KASCII::kIsSpace(ch))
 				{
-					m_sNameOwned.assign(1, KASCII::kToLower(ch));
-					m_sName = m_sNameOwned.ToView();
+					AppendName(KASCII::kToLower(ch));
 					state = State::Key;
 				}
 				break;
@@ -618,22 +718,23 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 			case State::Key:
 				if (KASCII::kIsSpace(ch))
 				{
+					FinalizeName();
 					state = State::BeforeEqual;
 				}
 				else if (ch == '=')
 				{
+					FinalizeName();
 					state = State::AfterEqual;
 				}
 				else if (ch == '>')
 				{
-					// an attribute without value
 					InStream.UnRead();
+					FinalizeName(); FinalizeValue();
 					return true;
 				}
 				else
 				{
-					m_sNameOwned += KASCII::kToLower(ch);
-					m_sName = m_sNameOwned.ToView();
+					AppendName(KASCII::kToLower(ch));
 				}
 				break;
 
@@ -646,6 +747,7 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 				{
 					// probably the next attribute - this one had no value
 					InStream.UnRead();
+					FinalizeValue();
 					return true;
 				}
 				break;
@@ -659,16 +761,14 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 					}
 					else
 					{
-						// no quotes around attribute
 						if (DEKAF2_UNLIKELY(bDecodeEntities && ch == '&'))
 						{
-							m_sValueOwned = KHTMLObject::DecodeEntity(InStream);
+							AppendValueView(KHTMLObject::DecodeEntity(InStream));
 						}
 						else
 						{
-							m_sValueOwned.assign(1, ch);
-						}
-						m_sValue = m_sValueOwned.ToView();
+							AppendValueChar(ch);
+				}
 					}
 					state = State::Value;
 				}
@@ -677,45 +777,44 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 			case State::Value:
 				if (DEKAF2_UNLIKELY(bDecodeEntities && ch == '&'))
 				{
-					m_sValueOwned += KHTMLObject::DecodeEntity(InStream);
-					m_sValue = m_sValueOwned.ToView();
+					AppendValueView(KHTMLObject::DecodeEntity(InStream));
 				}
 				else if (m_chQuote)
 				{
 					if (ch != m_chQuote)
 					{
-						m_sValueOwned += ch;
-						m_sValue = m_sValueOwned.ToView();
-					}
+						AppendValueChar(ch);
+				}
 					else
 					{
-						// normal exit
+						FinalizeValue();
 						return true;
 					}
 				}
 				else
 				{
-					// the no - quotes case
 					if (KASCII::kIsSpace(ch))
 					{
-						// normal exit
+						FinalizeValue();
 						return true;
 					}
 
 					if (ch == '>' || ch == '/')
 					{
-						// normal exit
 						InStream.UnRead();
+						FinalizeValue();
 						return true;
 					}
 
-					m_sValueOwned += ch;
-					m_sValue = m_sValueOwned.ToView();
+					AppendValueChar(ch);
 				}
 				break;
 		}
 	}
 
+	// EOF before close — finalise to release leases cleanly
+	FinalizeName();
+	FinalizeValue();
 	return false;
 
 } // Parse
@@ -894,6 +993,7 @@ bool KHTMLAttributes::Parse(KBufferedReader& InStream, KStringView sOpening, boo
 				InStream.UnRead();
 				// parse a new attribute
 				KHTMLAttribute attribute;
+				attribute.SetArena(m_pArena);
 				attribute.Parse(InStream, KStringView{}, bDecodeEntities);
 				if (!attribute.empty())
 				{
@@ -958,14 +1058,41 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 	std::iostream::int_type ch;
 	std::size_t iCloseCount { 0 }; // helper to unread in case of invalid html
 
+	// Arena-backed accumulator for the tag name. Finalized at the
+	// Name→Attributes / Name→Close / Name→done transition, releasing
+	// the lease before any nested KHTMLAttribute::Parse opens its
+	// own builder.
+	KArenaStringBuilder NameBuilder;
+	const bool bUseArena = (m_pArena != nullptr);
+
+	auto AppendName = [&](char ch) {
+		if (bUseArena) {
+			if (!NameBuilder.IsActive()) NameBuilder.Start(*m_pArena);
+			NameBuilder.Append(ch);
+		} else {
+			m_sNameOwned.push_back(ch);
+		}
+	};
+	auto FinalizeName = [&]() {
+		if (bUseArena && NameBuilder.IsActive()) {
+			m_sName = NameBuilder.Finalize();
+		} else {
+			m_sName = m_sNameOwned.ToView();
+		}
+	};
+
 	auto iOSize = sOpening.size();
 
 	if (iOSize)
 	{
 		if (iOSize > 1)
 		{
-			m_sNameOwned = sOpening.substr(1, KStringView::npos);
-			m_sName      = m_sNameOwned.ToView();
+			if (bUseArena) {
+				NameBuilder.Start(*m_pArena);
+				NameBuilder.Append(sOpening.substr(1, KStringView::npos));
+			} else {
+				m_sNameOwned = sOpening.substr(1, KStringView::npos);
+			}
 		}
 		state = State::Open;
 	}
@@ -986,6 +1113,7 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 					}
 					// this is no tag
 					InStream.UnRead();
+					FinalizeName();
 					return false;
 				}
 				break;
@@ -997,6 +1125,7 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 					// error (no tag, probably a comment)
 					// make sure the INVALID destination will find this closing bracket
 					InStream.UnRead();
+					FinalizeName();
 					return false;
 				}
 				else if (ch == '/' && !IsClosing())
@@ -1005,8 +1134,7 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				}
 				else if (KASCII::kIsAlNum(ch))
 				{
-					m_sNameOwned.assign(1, KASCII::kToLower(ch));
-					m_sName = m_sNameOwned.ToView();
+					AppendName(KASCII::kToLower(ch));
 					state = State::Name;
 				}
 				else
@@ -1014,6 +1142,7 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 					// no spaces are allowed in front of tag names,
 					// and only ASCII alnums are permitted
 					InStream.UnRead();
+					FinalizeName();
 					return false;
 				}
 				break;
@@ -1021,24 +1150,26 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 			case State::Name:
 				if (KASCII::kIsSpace(ch))
 				{
+					// finalize before nested attribute parsing reclaims the lease
+					FinalizeName();
 					m_Attributes.Parse(InStream, KStringView{}, bDecodeEntities);
 					state = State::Close;
 				}
 				else if (ch == '>')
 				{
-					// we're done
+					FinalizeName();
 					return true;
 				}
 				else if (ch == '/')
 				{
 					// we should now not have attributes following!
 					m_TagType = TagType::Standalone;
+					FinalizeName();
 					state = State::Close;
 				}
 				else
 				{
-					m_sNameOwned += KASCII::kToLower(ch);
-					m_sName = m_sNameOwned.ToView();
+					AppendName(KASCII::kToLower(ch));
 				}
 				break;
 
@@ -1077,8 +1208,10 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 		}
 	}
 
+	// EOF before close — finalise to release the lease cleanly
+	FinalizeName();
 	return false;
-	
+
 } // Parse
 
 //-----------------------------------------------------------------------------
@@ -1139,18 +1272,18 @@ bool KHTMLComment::SearchForLeadOut(KBufferedReader& InStream)
 				{
 					return true;
 				}
-				sValueOwned += '-';
-			}
-			sValueOwned += '-';
-		}
+				AppendValueChar('-');
+				}
+			AppendValueChar('-');
+				}
 
 		if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
 		{
 			return false;
 		}
 
-		sValueOwned += ch;
-	}
+		AppendValueChar(ch);
+				}
 
 } // SearchForLeadOut
 
@@ -1172,8 +1305,8 @@ bool KHTMLDocumentType::SearchForLeadOut(KBufferedReader& InStream)
 			return false;
 		}
 
-		sValueOwned += ch;
-	}
+		AppendValueChar(ch);
+				}
 
 } // SearchForLeadOut
 
@@ -1192,16 +1325,16 @@ bool KHTMLProcessingInstruction::SearchForLeadOut(KBufferedReader& InStream)
 			{
 				return true;
 			}
-			sValueOwned += '?';
-		}
+			AppendValueChar('?');
+				}
 
 		if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
 		{
 			return false;
 		}
 
-		sValueOwned += ch;
-	}
+		AppendValueChar(ch);
+				}
 
 } // SearchForLeadOut
 
@@ -1224,18 +1357,18 @@ bool KHTMLCData::SearchForLeadOut(KBufferedReader& InStream)
 				{
 					return true;
 				}
-				sValueOwned += ']';
-			}
-			sValueOwned += ']';
-		}
+				AppendValueChar(']');
+				}
+			AppendValueChar(']');
+				}
 
 		if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
 		{
 			return false;
 		}
 
-		sValueOwned += ch;
-	}
+		AppendValueChar(ch);
+				}
 
 } // SearchForLeadOut
 
@@ -1338,6 +1471,7 @@ void KHTMLParser::SkipScript(KBufferedReader& InStream)
 					{
 						// create a </script> object
 						KHTMLTag ScriptTag;
+						ScriptTag.SetArena(m_pArena);
 						ScriptTag.Parse(ScriptEndTag);
 						// and emit it
 						Object(ScriptTag);
@@ -1392,6 +1526,7 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 				if (ch == '-')
 				{
 					KHTMLComment Comment;
+					Comment.SetArena(m_pArena);
 					if (Comment.Parse(InStream, "<!-"))
 					{
 						Object(Comment);
@@ -1407,6 +1542,7 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 				else if (ch == '[')
 				{
 					KHTMLCData CData;
+					CData.SetArena(m_pArena);
 					if (CData.Parse(InStream, "<!["))
 					{
 						Object(CData);
@@ -1423,6 +1559,7 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 				{
 					InStream.UnRead();
 					KHTMLDocumentType DTD;
+					DTD.SetArena(m_pArena);
 					if (DTD.Parse(InStream, "<!"))
 					{
 						Object(DTD);
@@ -1440,6 +1577,7 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 			else if (DEKAF2_UNLIKELY(ch == '?'))
 			{
 				KHTMLProcessingInstruction PI;
+				PI.SetArena(m_pArena);
 				if (PI.Parse(InStream, "<?"))
 				{
 					Object(PI);
@@ -1458,6 +1596,7 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 
 			// no, this is most probably a tag
 			KHTMLTag tag;
+			tag.SetArena(m_pArena);
 			if (DEKAF2_LIKELY(tag.Parse(InStream, "<", m_bEmitEntitiesAsUTF8)))
 			{
 				if (!tag.empty())

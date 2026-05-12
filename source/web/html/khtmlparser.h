@@ -55,6 +55,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 namespace khtml { class Document; } // fwd decl for arena injection
+class KArenaStringBuilder;          // fwd decl — Parse() uses one transiently
 
 /// @addtogroup web_html
 /// @{
@@ -392,8 +393,19 @@ protected:
 
 	virtual bool SearchForLeadOut(KBufferedReader& InStream) = 0;
 
-	KStringView m_sLeadIn {};
-	KStringView m_sLeadOut {};
+	/// Append one byte to the current value-accumulator. Routes through
+	/// the arena builder when `Parse()` has armed one (m_pValueBuilder
+	/// non-null), otherwise grows `sValueOwned` on the heap. Used by
+	/// subclass `SearchForLeadOut()` implementations.
+	void AppendValueChar(char ch);
+
+	KStringView          m_sLeadIn  {};
+	KStringView          m_sLeadOut {};
+	// Transient builder pointer, set only while Parse() is running.
+	// Non-null = arena-backed accumulation; nullptr = heap fallback
+	// into `sValueOwned`. (Forward-declared above to avoid pulling
+	// the arena header into this public surface.)
+	KArenaStringBuilder* m_pValueBuilder { nullptr };
 
 }; // KHTMLStringObject
 

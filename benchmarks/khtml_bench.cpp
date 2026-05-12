@@ -665,6 +665,67 @@ void html_build()
 }
 
 // ----------------------------------------------------------------------------
+// Realistic build: 200x8 grid of cards. Each cell carries 7 attributes
+// including a longer inline style + a longer body text (≈ 120 bytes of
+// sentence-shaped content). Mirrors a real-world admin/listing page
+// rather than the 1000x5x3 micro-bench above. Entity content is left
+// out for now — the parse path still copies entities through KString,
+// so it would not show the Phase-5 win until in-situ entity decoding
+// lands. The hook is here so we can flip it on later.
+// ----------------------------------------------------------------------------
+
+void html_build_realistic()
+{
+	{
+		AllocationSnapshot a("KHTML build realistic 200x8 (long content, many attrs) x100");
+		dekaf2::KProf ps("HTML build realistic 200x8");
+		ps.SetMultiplier(100);
+
+		static constexpr KStringView sBodyText =
+			"Lorem ipsum dolor sit amet consectetur adipiscing elit "
+			"sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+		static constexpr KStringView sCellStyle =
+			"padding: 8px 12px; border: 1px solid #d0d0d0; "
+			"background-color: #fafafa; font-family: 'Helvetica Neue', sans-serif;";
+
+		for (size_t count = 0; count < 100; ++ count)
+		{
+			KHTML doc;
+			auto table = doc.Root().AddElement("table");
+			table.SetAttribute("class",      "data-grid striped hover");
+			table.SetAttribute("id",         "main-grid");
+			table.SetAttribute("role",       "table");
+			table.SetAttribute("aria-label", "Quarterly performance metrics for all regions");
+
+			for (std::size_t row = 0; row < 200; ++row)
+			{
+				const auto sRowKey = KString::to_string(row);
+				auto tr = table.AddElement("tr");
+				tr.SetAttribute("class",    "row");
+				tr.SetAttribute("data-row", sRowKey);
+				tr.SetAttribute("data-key", "row-" + sRowKey);
+
+				for (std::size_t col = 0; col < 8; ++col)
+				{
+					const auto sColKey = KString::to_string(col);
+					auto td = tr.AddElement("td");
+					td.SetAttribute("class",      "cell sortable selectable");
+					td.SetAttribute("style",      sCellStyle);
+					td.SetAttribute("data-col",   sColKey);
+					td.SetAttribute("data-row",   sRowKey);
+					td.SetAttribute("data-id",    "cell-" + sRowKey + "-" + sColKey);
+					td.SetAttribute("role",       "gridcell");
+					td.SetAttribute("aria-label", "Cell row " + sRowKey + " col " + sColKey);
+					td.AddText(sBodyText);
+				}
+			}
+
+			KProf::Force(&doc);
+		}
+	}
+}
+
+// ----------------------------------------------------------------------------
 // Reparse: parse, clear, parse — measures alloc churn from repeatedly
 // growing/shrinking the DOM in the same KHTML instance.
 // ----------------------------------------------------------------------------
@@ -693,6 +754,7 @@ void khtmlparser_bench()
 	html_serialize();
 	html_traverse();
 	html_build();
+	html_build_realistic();
 	html_reparse();
 }
 

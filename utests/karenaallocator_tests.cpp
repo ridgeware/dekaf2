@@ -370,3 +370,402 @@ TEST_CASE("KArenaAllocator")
 		CHECK ( arena.FreeBlockCount() == iBlocksAfterWarmup );
 	}
 }
+
+// =============================================================================
+// Adopt(view) — semantic no-op marker
+// =============================================================================
+
+TEST_CASE("KArenaAllocator::Adopt")
+{
+	SECTION("returns the view unchanged with the same data pointer")
+	{
+		constexpr KStringView sLiteral { "the quick brown fox" };
+
+		auto adopted = KArenaAllocator::Adopt(sLiteral);
+
+		CHECK ( adopted        == sLiteral        );
+		CHECK ( adopted.data() == sLiteral.data() );
+		CHECK ( adopted.size() == sLiteral.size() );
+	}
+
+	SECTION("empty view passes through")
+	{
+		KStringView sEmpty;
+
+		auto adopted = KArenaAllocator::Adopt(sEmpty);
+
+		CHECK ( adopted.empty()                   );
+		CHECK ( adopted.data() == sEmpty.data()   );
+	}
+
+	SECTION("view into arena-owned bytes round-trips identically")
+	{
+		KArenaAllocator arena;
+		auto sStored = arena.AllocateString(KStringView{ "stored in arena" });
+
+		auto adopted = KArenaAllocator::Adopt(sStored);
+
+		CHECK ( adopted.data() == sStored.data() );
+		CHECK ( adopted.size() == sStored.size() );
+	}
+}
+
+// =============================================================================
+// Cursor API + KArenaStringBuilder
+// =============================================================================
+
+TEST_CASE("KArenaStringBuilder")
+{
+	SECTION("Cursor() on a fresh arena is nullptr")
+	{
+		KArenaAllocator arena;
+		CHECK ( arena.Cursor()    == nullptr );
+		CHECK ( arena.CursorEnd() == nullptr );
+	}
+
+	SECTION("appends produce a stable view in the arena")
+	{
+		KArenaAllocator arena;
+		KArenaStringBuilder sb(arena);
+
+		for (auto ch : KStringView{ "hello" })
+		{
+			sb.Append(ch);
+		}
+
+		auto sView = sb.Finalize();
+
+		CHECK ( sView      == "hello" );
+		CHECK ( sView.size() == 5     );
+		// the view must be readable through its own data pointer
+		CHECK ( KStringView(sView.data(), sView.size()) == "hello" );
+	}
+
+	SECTION("first Append on an empty arena lazily allocates the first block")
+	{
+		KArenaAllocator arena;
+
+		CHECK ( arena.BlockCount() == 0 );
+
+		KArenaStringBuilder sb(arena);
+		sb.Append('x');
+
+		CHECK ( arena.BlockCount()    >= 1 );
+		CHECK ( sb.Finalize().size()  == 1 );
+	}
+
+	SECTION("appending more bytes than fit in one block triggers in-place growth")
+	{
+		// small block so we provoke a mid-string boundary crossing
+		KArenaAllocator arena(64);
+
+		KArenaStringBuilder sb(arena);
+		// 500 bytes — needs 7-8 boundary crossings at 64 bytes/block
+		KString sExpected;
+		for (std::size_t ii = 0; ii < 500; ++ii)
+		{
+			char ch = static_cast<char>('a' + (ii % 26));
+			sb.Append(ch);
+			sExpected += ch;
+		}
+
+		auto sView = sb.Finalize();
+
+		CHECK ( sView.size() == 500 );
+		CHECK ( sView == sExpected.ToView() );
+		// the view's data pointer must be valid memory; round-trip via
+		// std::string to detect any corruption
+		CHECK ( KString(sView).size() == 500 );
+	}
+
+	SECTION("bulk Append(view) takes the fast in-block path when possible")
+	{
+		KArenaAllocator arena(8192);
+		KArenaStringBuilder sb(arena);
+
+		sb.Append(KStringView{ "the " });
+		sb.Append(KStringView{ "quick brown fox " });
+		sb.Append(KStringView{ "jumps over the lazy dog" });
+
+		auto sView = sb.Finalize();
+
+		CHECK ( sView == "the quick brown fox jumps over the lazy dog" );
+	}
+
+	SECTION("bulk Append(view) handles bytes spanning a block boundary")
+	{
+		KArenaAllocator arena(16);     // tiny block
+		KArenaStringBuilder sb(arena);
+
+		sb.Append(KStringView{ "one-two-three-four-five-six-seven" });
+		// 32 bytes across multiple 16-byte blocks
+
+		auto sView = sb.Finalize();
+
+		CHECK ( sView == "one-two-three-four-five-six-seven" );
+	}
+
+	SECTION("two builders in sequence both produce stable, distinct views")
+	{
+		KArenaAllocator arena;
+
+		KStringView sFirst;
+		{
+			KArenaStringBuilder sb(arena);
+			sb.Append(KStringView{ "first" });
+			sFirst = sb.Finalize();
+		}
+
+		KStringView sSecond;
+		{
+			KArenaStringBuilder sb(arena);
+			sb.Append(KStringView{ "second" });
+			sSecond = sb.Finalize();
+		}
+
+		CHECK ( sFirst  == "first"  );
+		CHECK ( sSecond == "second" );
+		// both views must be valid simultaneously
+		CHECK ( sFirst.data() != sSecond.data() );
+	}
+
+	SECTION("Finalize then Allocate places the next allocation after the string")
+	{
+		KArenaAllocator arena(8192);
+
+		KArenaStringBuilder sb(arena);
+		sb.Append(KStringView{ "header" });
+		auto sView = sb.Finalize();
+
+		void* p = arena.Allocate(8);
+
+		// p must lie at or after sView's end (no overlap)
+		const auto* pStringEnd = sView.data() + sView.size();
+		CHECK ( static_cast<const char*>(p) >= pStringEnd );
+		// and the view itself remains intact
+		CHECK ( sView == "header" );
+	}
+
+	SECTION("empty Finalize returns an empty view")
+	{
+		KArenaAllocator arena;
+		KArenaStringBuilder sb(arena);
+
+		auto sView = sb.Finalize();
+
+		CHECK ( sView.empty() );
+		CHECK ( sb.Size() == 0 );
+	}
+
+	SECTION("interleaving builders with regular Allocate is supported at boundaries")
+	{
+		KArenaAllocator arena(8192);
+
+		void* pHead = arena.Allocate(16);
+		CHECK ( pHead != nullptr );
+
+		KArenaStringBuilder sb(arena);
+		sb.Append(KStringView{ "between-allocs" });
+		auto sMiddle = sb.Finalize();
+
+		void* pTail = arena.Allocate(16);
+
+		// all three regions must be non-overlapping
+		const auto* pHeadEnd = static_cast<const char*>(pHead) + 16;
+		const auto* pMidEnd  = sMiddle.data() + sMiddle.size();
+		CHECK ( sMiddle.data()                >= pHeadEnd );
+		CHECK ( static_cast<const char*>(pTail) >= pMidEnd );
+		CHECK ( sMiddle == "between-allocs" );
+	}
+
+	SECTION("relocation across a block boundary keeps the view contents intact")
+	{
+		// Force a boundary crossing by sizing the block so that the
+		// partial string fills it exactly, then add one more byte.
+		KArenaAllocator arena(8);
+
+		KArenaStringBuilder sb(arena);
+		sb.Append(KStringView{ "ABCDEFGH" });   // exactly 8 bytes — fills the block
+		// At this point the cursor is at CursorEnd(); the next append
+		// must trigger RelocateOpenString.
+		sb.Append('!');
+
+		auto sView = sb.Finalize();
+
+		CHECK ( sView.size() == 9 );
+		CHECK ( sView == "ABCDEFGH!" );
+	}
+
+	SECTION("open builder rejects concurrent Allocate() with kWarning + nullptr")
+	{
+		KArenaAllocator arena;
+
+		KArenaStringBuilder sb(arena);
+		sb.Append('a');
+
+		CHECK ( arena.HasOpenBuilder() );
+
+		// Allocate while builder is open: must refuse to avoid corrupting
+		// the open string. Returns nullptr, emits a kWarning (suppressed
+		// from test output by the kDebug muting).
+		void* p = arena.Allocate(16);
+		CHECK ( p == nullptr );
+
+		// Same for AllocateString — passes through Allocate, returns empty
+		KString sTempForcePushToHeap(64, 'x');           // non-data-segment
+		auto sCopy = arena.AllocateString(sTempForcePushToHeap.ToView());
+		CHECK ( sCopy.empty() );
+
+		// Same for Construct<T>
+		struct POD { int i; int j; };
+		POD* pPod = arena.Construct<POD>();
+		CHECK ( pPod == nullptr );
+
+		// After Finalize the lease is released and Allocate succeeds again.
+		auto sView = sb.Finalize();
+		CHECK ( !arena.HasOpenBuilder() );
+		CHECK ( sView == "a" );
+
+		void* p2 = arena.Allocate(16);
+		CHECK ( p2 != nullptr );
+	}
+
+	SECTION("builder destructor releases the lease even without Finalize")
+	{
+		KArenaAllocator arena;
+		{
+			KArenaStringBuilder sb(arena);
+			sb.Append('z');
+			CHECK ( arena.HasOpenBuilder() );
+			// sb goes out of scope without Finalize — dtor must clear the lease
+		}
+		CHECK ( !arena.HasOpenBuilder() );
+
+		// Allocate succeeds after the builder is destroyed
+		void* p = arena.Allocate(8);
+		CHECK ( p != nullptr );
+	}
+}
+
+// =============================================================================
+// RegisterStableRegion — AllocateString skips copying for in-range views
+// =============================================================================
+
+TEST_CASE("KArenaAllocator stable regions")
+{
+	SECTION("empty arena starts with zero regions")
+	{
+		KArenaAllocator arena;
+		CHECK ( arena.StableRegionCount() == 0 );
+	}
+
+	SECTION("AllocateString of a view inside a registered region is a no-op")
+	{
+		// caller-owned buffer outside the arena
+		KString sCallerBuf(256, '\0');
+		for (std::size_t i = 0; i < sCallerBuf.size(); ++i)
+		{
+			sCallerBuf[i] = static_cast<char>('a' + (i % 26));
+		}
+
+		KArenaAllocator arena;
+		arena.RegisterStableRegion(sCallerBuf.data(), sCallerBuf.size());
+		CHECK ( arena.StableRegionCount() == 1 );
+
+		// take a slice of the caller's buffer — view points into it
+		KStringView sSliceInBuf(sCallerBuf.data() + 10, 16);
+
+		auto sAfter = arena.AllocateString(sSliceInBuf);
+
+		// AllocateString must return the original pointer — no copy
+		CHECK ( sAfter.data() == sSliceInBuf.data() );
+		CHECK ( sAfter.size() == sSliceInBuf.size() );
+		CHECK ( sAfter        == sSliceInBuf        );
+		// arena should still have no allocations
+		CHECK ( arena.BlockCount() == 0 );
+		CHECK ( arena.UsedBytes()  == 0 );
+	}
+
+	SECTION("AllocateString of an out-of-region view falls back to copy")
+	{
+		KString sRegisteredBuf(64, 'x');
+		KString sUnrelatedBuf(64, 'y');
+
+		KArenaAllocator arena;
+		arena.RegisterStableRegion(sRegisteredBuf.data(), sRegisteredBuf.size());
+
+		KStringView sOutsideView(sUnrelatedBuf.data(), 16);
+
+		auto sAfter = arena.AllocateString(sOutsideView);
+
+		// must have been copied
+		CHECK ( sAfter.data() != sOutsideView.data() );
+		CHECK ( sAfter        == sOutsideView        );
+		// at least one allocation happened in the arena
+		CHECK ( arena.UsedBytes() >= 16 );
+	}
+
+	SECTION("clear() forgets registered regions")
+	{
+		KString sBuf(128, 'z');
+
+		KArenaAllocator arena;
+		arena.RegisterStableRegion(sBuf.data(), sBuf.size());
+		CHECK ( arena.StableRegionCount() == 1 );
+
+		arena.clear();
+		CHECK ( arena.StableRegionCount() == 0 );
+
+		// after clear, the same view is now out-of-region — gets copied
+		KStringView sSlice(sBuf.data() + 4, 8);
+		auto sAfter = arena.AllocateString(sSlice);
+		CHECK ( sAfter.data() != sSlice.data() );
+		CHECK ( sAfter        == sSlice        );
+	}
+
+	SECTION("multiple regions are all checked")
+	{
+		KString sBufA(64, 'A');
+		KString sBufB(64, 'B');
+		KString sBufC(64, 'C');
+
+		KArenaAllocator arena;
+		arena.RegisterStableRegion(sBufA.data(), sBufA.size());
+		arena.RegisterStableRegion(sBufB.data(), sBufB.size());
+		arena.RegisterStableRegion(sBufC.data(), sBufC.size());
+		CHECK ( arena.StableRegionCount() == 3 );
+
+		// views into each registered buffer should pass through unchanged
+		for (const auto& sBuf : { std::ref(sBufA), std::ref(sBufB), std::ref(sBufC) })
+		{
+			KStringView sSlice(sBuf.get().data() + 8, 16);
+			auto sAfter = arena.AllocateString(sSlice);
+			CHECK ( sAfter.data() == sSlice.data() );
+		}
+		CHECK ( arena.BlockCount() == 0 );
+	}
+
+	SECTION("exceeding the slot capacity warns and silently ignores")
+	{
+		KString sBuf(64, 'x');
+
+		KArenaAllocator arena;
+		for (std::size_t i = 0; i < KArenaAllocator::kMaxStableRegions; ++i)
+		{
+			arena.RegisterStableRegion(sBuf.data(), 8);
+		}
+		CHECK ( arena.StableRegionCount() == KArenaAllocator::kMaxStableRegions );
+
+		// one too many — emits kWarning, count unchanged
+		arena.RegisterStableRegion(sBuf.data(), 8);
+		CHECK ( arena.StableRegionCount() == KArenaAllocator::kMaxStableRegions );
+	}
+
+	SECTION("nullptr and zero-size registration are silently ignored")
+	{
+		KArenaAllocator arena;
+		arena.RegisterStableRegion(nullptr,  64);
+		arena.RegisterStableRegion("",        0);
+		CHECK ( arena.StableRegionCount() == 0 );
+	}
+}

@@ -54,6 +54,8 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace khtml { class Document; } // fwd decl for arena injection
+
 /// @addtogroup web_html
 /// @{
 
@@ -204,9 +206,52 @@ public:
 
 	KHTMLText() = default;
 	KHTMLText(KString sText, bool bIsEntityEncoded = false)
-	: m_sText(std::move(sText))
+	: m_sTextOwned(std::move(sText))
+	, m_sText(m_sTextOwned.ToView())
 	, m_bIsEntityEncoded(bIsEntityEncoded)
 	{
+	}
+
+	KHTMLText(const KHTMLText& other)
+	: m_sTextOwned(other.m_sText)            // deep-copy view bytes into owned
+	, m_sText(m_sTextOwned.ToView())
+	, m_bIsEntityEncoded(other.m_bIsEntityEncoded)
+	{
+	}
+
+	KHTMLText(KHTMLText&& other) noexcept
+	{
+		bool bWasOwned = (other.m_sText.data() == other.m_sTextOwned.data())
+		                  && !other.m_sTextOwned.empty();
+		if (other.m_sText.empty()) { bWasOwned = true; }
+		m_sTextOwned       = std::move(other.m_sTextOwned);
+		m_bIsEntityEncoded = other.m_bIsEntityEncoded;
+		m_sText = bWasOwned ? m_sTextOwned.ToView() : other.m_sText;
+	}
+
+	KHTMLText& operator=(const KHTMLText& other)
+	{
+		if (this != &other)
+		{
+			m_sTextOwned       = KString(other.m_sText);
+			m_sText            = m_sTextOwned.ToView();
+			m_bIsEntityEncoded = other.m_bIsEntityEncoded;
+		}
+		return *this;
+	}
+
+	KHTMLText& operator=(KHTMLText&& other) noexcept
+	{
+		if (this != &other)
+		{
+			bool bWasOwned = (other.m_sText.data() == other.m_sTextOwned.data())
+			                  && !other.m_sTextOwned.empty();
+			if (other.m_sText.empty()) { bWasOwned = true; }
+			m_sTextOwned       = std::move(other.m_sTextOwned);
+			m_bIsEntityEncoded = other.m_bIsEntityEncoded;
+			m_sText = bWasOwned ? m_sTextOwned.ToView() : other.m_sText;
+		}
+		return *this;
 	}
 
 	virtual bool Parse(KStringView sInput, bool bDecodeEntities = false) override;
@@ -220,22 +265,19 @@ public:
 	virtual std::unique_ptr<KHTMLObject> Clone() const override { return std::make_unique<KHTMLText>(*this); }
 
 	/// @returns the text of this text element
-	const KString& GetText        () const { return m_sText;            }
+	KStringView    Text        () const { return m_sText;            }
 	/// @returns true if the text of this text element is already entity encoded
 	bool           IsEntityEncoded() const { return m_bIsEntityEncoded; }
-
-	KHTMLText& AddLeft (const KHTMLText& other);
-	KHTMLText& AddRight(const KHTMLText& other);
-
-	KHTMLText& TrimLeft()  { m_sText.TrimLeft();  return *this; }
-	KHTMLText& TrimRight() { m_sText.TrimRight(); return *this; }
 
 //------
 protected:
 //------
 
-	KString m_sText;
-	bool    m_bIsEntityEncoded { false };
+	// owning fallback storage; non-empty when self-owning
+	KString     m_sTextOwned;
+	// current text - points either into m_sTextOwned or into an external arena
+	KStringView m_sText;
+	bool        m_bIsEntityEncoded { false };
 
 }; // KHTMLText
 
@@ -249,11 +291,57 @@ class DEKAF2_PUBLIC KHTMLStringObject : public KHTMLObject
 public:
 //------
 
-	KHTMLStringObject(KStringView sLeadIn, KStringView sLeadOut, KString sValue)
-	: sValue(std::move(sValue))
+	KHTMLStringObject(KStringView sLeadIn, KStringView sLeadOut, KString sIn)
+	: sValueOwned(std::move(sIn))
+	, sValue(sValueOwned.ToView())
 	, m_sLeadIn(sLeadIn)
 	, m_sLeadOut(sLeadOut)
 	{}
+
+	KHTMLStringObject(const KHTMLStringObject& other)
+	: sValueOwned(other.sValue)                  // deep-copy view bytes into owned
+	, sValue(sValueOwned.ToView())
+	, m_sLeadIn(other.m_sLeadIn)
+	, m_sLeadOut(other.m_sLeadOut)
+	{}
+
+	KHTMLStringObject(KHTMLStringObject&& other) noexcept
+	: m_sLeadIn(other.m_sLeadIn)
+	, m_sLeadOut(other.m_sLeadOut)
+	{
+		bool bWasOwned = (other.sValue.data() == other.sValueOwned.data())
+		                  && !other.sValueOwned.empty();
+		if (other.sValue.empty()) { bWasOwned = true; }
+		sValueOwned = std::move(other.sValueOwned);
+		sValue      = bWasOwned ? sValueOwned.ToView() : other.sValue;
+	}
+
+	KHTMLStringObject& operator=(const KHTMLStringObject& other)
+	{
+		if (this != &other)
+		{
+			sValueOwned = KString(other.sValue);
+			sValue      = sValueOwned.ToView();
+			m_sLeadIn   = other.m_sLeadIn;
+			m_sLeadOut  = other.m_sLeadOut;
+		}
+		return *this;
+	}
+
+	KHTMLStringObject& operator=(KHTMLStringObject&& other) noexcept
+	{
+		if (this != &other)
+		{
+			bool bWasOwned = (other.sValue.data() == other.sValueOwned.data())
+			                  && !other.sValueOwned.empty();
+			if (other.sValue.empty()) { bWasOwned = true; }
+			sValueOwned = std::move(other.sValueOwned);
+			sValue      = bWasOwned ? sValueOwned.ToView() : other.sValue;
+			m_sLeadIn   = other.m_sLeadIn;
+			m_sLeadOut  = other.m_sLeadOut;
+		}
+		return *this;
+	}
 
 	// forward all base class constructors
 	using KHTMLObject::KHTMLObject;
@@ -264,7 +352,10 @@ public:
 	virtual void clear() override;
 	virtual bool empty() const override;
 
-	KString sValue {}; // {} = make sure sValue is initialized, we may not have a constructor here!
+	// owning fallback storage; non-empty when self-owning
+	KString     sValueOwned {};
+	// current value - points either into sValueOwned or into an external arena
+	KStringView sValue      {};
 
 	KStringView LeadIn() const
 	{
@@ -303,11 +394,78 @@ public:
 	KHTMLAttribute() = default;
 
 	KHTMLAttribute(KString sName, KString sValue, char chQuote='"', bool bIsEntityEncoded = false)
-	: m_sName(std::move(sName))
-	, m_sValue(std::move(sValue))
+	: m_sNameOwned(std::move(sName))
+	, m_sValueOwned(std::move(sValue))
+	, m_sName(m_sNameOwned.ToView())
+	, m_sValue(m_sValueOwned.ToView())
 	, m_chQuote(chQuote)
 	, m_bIsEntityEncoded(bIsEntityEncoded)
 	{
+	}
+
+	KHTMLAttribute(const KHTMLAttribute& other)
+	: m_sNameOwned(other.m_sName)         // deep-copy view bytes into owned
+	, m_sValueOwned(other.m_sValue)
+	, m_sName(m_sNameOwned.ToView())
+	, m_sValue(m_sValueOwned.ToView())
+	, m_chQuote(other.m_chQuote)
+	, m_bIsEntityEncoded(other.m_bIsEntityEncoded)
+	{
+	}
+
+	KHTMLAttribute(KHTMLAttribute&& other) noexcept
+	{
+		// determine "was-owned" status BEFORE moving (SSO may keep data pointer
+		// stable, so the post-move comparison is unreliable)
+		bool bNameWasOwned  = (other.m_sName.data()  == other.m_sNameOwned.data())
+		                       && !other.m_sNameOwned.empty();
+		bool bValueWasOwned = (other.m_sValue.data() == other.m_sValueOwned.data())
+		                       && !other.m_sValueOwned.empty();
+		// if the attribute was default-constructed (both empty) treat as owned
+		// (so we keep views matched to our - empty - owned storage)
+		if (other.m_sName.empty())  { bNameWasOwned  = true; }
+		if (other.m_sValue.empty()) { bValueWasOwned = true; }
+
+		m_sNameOwned       = std::move(other.m_sNameOwned);
+		m_sValueOwned      = std::move(other.m_sValueOwned);
+		m_chQuote          = other.m_chQuote;
+		m_bIsEntityEncoded = other.m_bIsEntityEncoded;
+		m_sName  = bNameWasOwned  ? m_sNameOwned.ToView()  : other.m_sName;
+		m_sValue = bValueWasOwned ? m_sValueOwned.ToView() : other.m_sValue;
+	}
+
+	KHTMLAttribute& operator=(const KHTMLAttribute& other)
+	{
+		if (this != &other)
+		{
+			m_sNameOwned       = KString(other.m_sName);
+			m_sValueOwned      = KString(other.m_sValue);
+			m_sName            = m_sNameOwned.ToView();
+			m_sValue           = m_sValueOwned.ToView();
+			m_chQuote          = other.m_chQuote;
+			m_bIsEntityEncoded = other.m_bIsEntityEncoded;
+		}
+		return *this;
+	}
+
+	KHTMLAttribute& operator=(KHTMLAttribute&& other) noexcept
+	{
+		if (this != &other)
+		{
+			bool bNameWasOwned  = (other.m_sName.data()  == other.m_sNameOwned.data())
+			                       && !other.m_sNameOwned.empty();
+			bool bValueWasOwned = (other.m_sValue.data() == other.m_sValueOwned.data())
+			                       && !other.m_sValueOwned.empty();
+			if (other.m_sName.empty())  { bNameWasOwned  = true; }
+			if (other.m_sValue.empty()) { bValueWasOwned = true; }
+			m_sNameOwned        = std::move(other.m_sNameOwned);
+			m_sValueOwned       = std::move(other.m_sValueOwned);
+			m_chQuote           = other.m_chQuote;
+			m_bIsEntityEncoded  = other.m_bIsEntityEncoded;
+			m_sName  = bNameWasOwned  ? m_sNameOwned.ToView()  : other.m_sName;
+			m_sValue = bValueWasOwned ? m_sValueOwned.ToView() : other.m_sValue;
+		}
+		return *this;
 	}
 
 	/// parses attribute from an input stream
@@ -323,11 +481,11 @@ public:
 	bool empty() const;
 
 	/// @returns the attribute name
-	const KString& GetName () const { return m_sName;   }
+	KStringView    Name () const { return m_sName;   }
 	/// @returns the attribute value
-	const KString& GetValue() const { return m_sValue;  }
+	KStringView    Value() const { return m_sValue;  }
 	/// @returns the original quote char as seen by the parser (' or "), 0 if none / unset
-	char           GetQuote() const { return m_chQuote; }
+	char           Quote() const { return m_chQuote; }
 	/// @returns true if the attribute value is already entity encoded
 	bool    IsEntityEncoded() const { return m_bIsEntityEncoded; }
 
@@ -337,10 +495,14 @@ protected:
 
 	static KFindSetOfChars s_NeedsQuotes;
 
-	KString         m_sName;
-	mutable KString m_sValue;
-	mutable char    m_chQuote          { 0     };
-	bool            m_bIsEntityEncoded { false };
+	// owning fallback storage; non-empty when self-owning, empty when views point into an external arena/source
+	mutable KString     m_sNameOwned;
+	mutable KString     m_sValueOwned;
+	// current name/value - always points either into m_sNameOwned / m_sValueOwned, or into an external arena
+	mutable KStringView m_sName;
+	mutable KStringView m_sValue;
+	mutable char        m_chQuote          { 0     };
+	bool                m_bIsEntityEncoded { false };
 
 }; // KHTMLAttribute
 
@@ -489,6 +651,52 @@ public:
 	using KHTMLObject::KHTMLObject;
 	using KHTMLObject::Parse;
 
+	KHTMLTag(const KHTMLTag& other)
+	: m_sNameOwned(other.m_sName)              // deep-copy view bytes into owned
+	, m_sName(m_sNameOwned.ToView())
+	, m_Attributes(other.m_Attributes)
+	, m_TagType(other.m_TagType)
+	{
+	}
+
+	KHTMLTag(KHTMLTag&& other) noexcept
+	: m_Attributes(std::move(other.m_Attributes))
+	, m_TagType(other.m_TagType)
+	{
+		bool bWasOwned = (other.m_sName.data() == other.m_sNameOwned.data())
+		                  && !other.m_sNameOwned.empty();
+		if (other.m_sName.empty()) { bWasOwned = true; }
+		m_sNameOwned = std::move(other.m_sNameOwned);
+		m_sName      = bWasOwned ? m_sNameOwned.ToView() : other.m_sName;
+	}
+
+	KHTMLTag& operator=(const KHTMLTag& other)
+	{
+		if (this != &other)
+		{
+			m_sNameOwned = KString(other.m_sName);
+			m_sName      = m_sNameOwned.ToView();
+			m_Attributes = other.m_Attributes;
+			m_TagType    = other.m_TagType;
+		}
+		return *this;
+	}
+
+	KHTMLTag& operator=(KHTMLTag&& other) noexcept
+	{
+		if (this != &other)
+		{
+			bool bWasOwned = (other.m_sName.data() == other.m_sNameOwned.data())
+			                  && !other.m_sNameOwned.empty();
+			if (other.m_sName.empty()) { bWasOwned = true; }
+			m_sNameOwned = std::move(other.m_sNameOwned);
+			m_sName      = bWasOwned ? m_sNameOwned.ToView() : other.m_sName;
+			m_Attributes = std::move(other.m_Attributes);
+			m_TagType    = other.m_TagType;
+		}
+		return *this;
+	}
+
 	/// parse this tag from a stream
 	virtual bool Parse(KBufferedReader& InStream, KStringView sOpening = KStringView{}, bool bDecodeEntities = false) override;
 	/// serialize this tag to a stream
@@ -515,27 +723,25 @@ public:
 	bool IsStandalone() const { return m_TagType == TagType::Standalone;  }
 
 	/// @returns the tag name
-	const KString&         GetName      () const { return m_sName;        }
+	KStringView            Name      () const { return m_sName;        }
 	/// @returns the tag attributes
-	const KHTMLAttributes& GetAttributes() const { return m_Attributes;   }
+	const KHTMLAttributes& Attributes() const { return m_Attributes;   }
 	/// @returns the tag type (Open/Close/Standalone)
 	TagType                GetTagType   () const { return m_TagType;      }
 
 	/// @returns true if this tag has an attribute with the given name
-	bool        HasAttribute (KStringView sAttributeName) const { return GetAttributes().Has(sAttributeName); }
+	bool        HasAttribute (KStringView sAttributeName) const { return Attributes().Has(sAttributeName); }
 	/// @returns the value of an attribute with the given name (or the empty string if not found)
-	KStringView GetAttribute (KStringView sAttributeName) const { return GetAttributes().Get(sAttributeName); }
-
-	/// @returns the tag name as an rvalue reference
-	KString&&         MoveName      () { return std::move(m_sName);       }
-	/// @returns the attributes as an rvalue reference
-	KHTMLAttributes&& MoveAttributes() { return std::move(m_Attributes);  }
+	KStringView Attribute (KStringView sAttributeName) const { return Attributes().Get(sAttributeName); }
 
 //------
 protected:
 //------
 
-	KString         m_sName;
+	// owning fallback storage; non-empty when self-owning
+	KString         m_sNameOwned;
+	// current name - points either into m_sNameOwned or into an external arena
+	KStringView     m_sName;
 	KHTMLAttributes m_Attributes;
 	enum TagType    m_TagType { TagType::None };
 
@@ -720,6 +926,15 @@ protected:
 	virtual void Invalid(char ch);
 	virtual void Finished();
 
+	/// Inject an arena into the parser. When non-null, parsed object strings
+	/// (tag names, attribute names/values, text content) will be promoted into
+	/// the arena so that the views in KHTMLObject derivatives remain valid
+	/// for the arena's lifetime. When null, parsed object strings remain in
+	/// their owning KString fallback (the default).
+	void SetArena(khtml::Document* pArena) noexcept { m_pArena = pArena; }
+	/// @returns the currently injected arena, or nullptr if none.
+	khtml::Document* GetArena() const noexcept { return m_pArena; }
+
 //------
 private:
 //------
@@ -731,7 +946,8 @@ private:
 	DEKAF2_PRIVATE void SkipScript(KBufferedReader& InStream);
 	DEKAF2_PRIVATE void SkipInvalid(KBufferedReader& InStream);
 
-	bool m_bEmitEntitiesAsUTF8 { false };
+	khtml::Document* m_pArena { nullptr };
+	bool             m_bEmitEntitiesAsUTF8 { false };
 
 }; // KHTMLParser
 

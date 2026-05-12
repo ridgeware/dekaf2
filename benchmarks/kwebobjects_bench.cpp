@@ -30,7 +30,7 @@ void kwebobjects_big_table()
 		for (size_t count = 0; count < 100; ++count)
 		{
 			KHTML doc;
-			auto table = doc.Root().Add<html::Table>(html::Classes("data"), KStringView{"tbl1"});
+			auto table = doc.Root().Add<html::Table>("data", "tbl1");
 
 			for (std::size_t row = 0; row < 1000; ++row)
 			{
@@ -59,7 +59,7 @@ void kwebobjects_big_table()
 		for (size_t count = 0; count < 100; ++count)
 		{
 			KHTML doc;
-			auto table = doc.Root().Add<html::Table>(html::Classes{}, KStringView{"tbl1"});
+			auto table = doc.Root().Add<html::Table>("", "tbl1");
 
 			for (std::size_t row = 0; row < 1000; ++row)
 			{
@@ -104,14 +104,14 @@ void kwebobjects_admin_page()
 
 			// header
 			{
-				auto div = body.Add<html::Div>(html::Classes{}, KStringView{"HeaderDiv"});
+				auto div = body.Add<html::Div>("", "HeaderDiv");
 				div.AddText("Welcome to the admin page");
 				div.Add<html::LineBreak>();
 			}
 
 			// nav links
 			{
-				auto div = body.Add<html::Div>(html::Classes{}, KStringView{"NavDiv"});
+				auto div = body.Add<html::Div>("", "NavDiv");
 				for (int i = 0; i < 8; ++i)
 				{
 					auto link = div.Add<html::Link>(KString::to_string(i));
@@ -123,7 +123,7 @@ void kwebobjects_admin_page()
 
 			// data table (10 rows)
 			{
-				auto table = body.Add<html::Table>(html::Classes{}, KStringView{"data"});
+				auto table = body.Add<html::Table>("", "data");
 				for (int row = 0; row < 10; ++row)
 				{
 					auto tr = table.Add<html::TableRow>();
@@ -153,12 +153,12 @@ void kwebobjects_admin_page()
 			auto body = page.Body();
 
 			{
-				auto div = body.Add<html::Div>(html::Classes{}, KStringView{"HeaderDiv"});
+				auto div = body.Add<html::Div>("", "HeaderDiv");
 				div.AddText("Welcome");
 			}
 
 			{
-				auto div = body.Add<html::Div>(html::Classes{}, KStringView{"NavDiv"});
+				auto div = body.Add<html::Div>("", "NavDiv");
 				for (int i = 0; i < 8; ++i)
 				{
 					auto link = div.Add<html::Link>(KString::to_string(i));
@@ -202,7 +202,7 @@ void kwebobjects_short_lived()
 		for (size_t count = 0; count < 100000; ++count)
 		{
 			KHTML doc;
-			auto div = doc.Root().Add<html::Div>(html::Classes{}, KStringView{"d1"});
+			auto div = doc.Root().Add<html::Div>("", "d1");
 			div.AddText("hello");
 			KProf::Force(&doc);
 		}

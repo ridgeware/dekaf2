@@ -157,7 +157,7 @@ TEST_CASE("KHTMLParser")
 				if (Object.Type() == KHTMLTag::TYPE)
 				{
 					KHTMLTag& tag = static_cast<KHTMLTag&>(Object);
-					if (tag.GetName() == "body" && tag.IsOpening())
+					if (tag.Name() == "body" && tag.IsOpening())
 					{
 						m_bFound = true;
 					}
@@ -210,7 +210,7 @@ TEST_CASE("KHTMLParser")
 				if (Object.Type() == KHTMLTag::TYPE)
 				{
 					KHTMLTag& tag = static_cast<KHTMLTag&>(Object);
-					if (tag.GetAttribute("class") == "shallow&amp;close")
+					if (tag.Attribute("class") == "shallow&amp;close")
 					{
 						m_bFound = true;
 					}
@@ -243,7 +243,7 @@ TEST_CASE("KHTMLParser")
 				if (Object.Type() == KHTMLTag::TYPE)
 				{
 					KHTMLTag& tag = static_cast<KHTMLTag&>(Object);
-					if (tag.GetAttribute("class") == "shallow&close")
+					if (tag.Attribute("class") == "shallow&close")
 					{
 						m_bFound = true;
 					}

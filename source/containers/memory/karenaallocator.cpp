@@ -95,22 +95,32 @@ KArenaAllocator::~KArenaAllocator()
 //-----------------------------------------------------------------------------
 KArenaAllocator::KArenaAllocator(KArenaAllocator&& other) noexcept
 //-----------------------------------------------------------------------------
-: m_pHead     (other.m_pHead)
-, m_pFreeList (other.m_pFreeList)
-, m_pCursor   (other.m_pCursor)
-, m_pEnd      (other.m_pEnd)
-, m_iBlockSize(other.m_iBlockSize)
-, m_iUsedBytes(other.m_iUsedBytes)
-, m_pInline   (other.m_pInline)
-, m_iInlineCap(other.m_iInlineCap)
+: m_pHead       (other.m_pHead)
+, m_pFreeList   (other.m_pFreeList)
+, m_pCursor     (other.m_pCursor)
+, m_pEnd        (other.m_pEnd)
+, m_iBlockSize  (other.m_iBlockSize)
+, m_iUsedBytes  (other.m_iUsedBytes)
+, m_pInline     (other.m_pInline)
+, m_iInlineCap  (other.m_iInlineCap)
+, m_bOpenBuilder(other.m_bOpenBuilder)
 {
-	other.m_pHead      = nullptr;
-	other.m_pFreeList  = nullptr;
-	other.m_pCursor    = nullptr;
-	other.m_pEnd       = nullptr;
-	other.m_iUsedBytes = 0;
-	other.m_pInline    = nullptr;
-	other.m_iInlineCap = 0;
+	other.m_pHead        = nullptr;
+	other.m_pFreeList    = nullptr;
+	other.m_pCursor      = nullptr;
+	other.m_pEnd         = nullptr;
+	other.m_iUsedBytes   = 0;
+	other.m_pInline      = nullptr;
+	other.m_iInlineCap   = 0;
+	other.m_bOpenBuilder = false;
+
+	// Transfer stable-region table. The whole std::array copies in one
+	// shot (fixed size, ~64 bytes); clearing other's table likewise.
+	m_StableRegions            = other.m_StableRegions;
+	m_iStableRegionCount       = other.m_iStableRegionCount;
+	other.m_StableRegions.fill(StableRegion{});
+	other.m_iStableRegionCount = 0;
+
 	// keep other.m_iBlockSize so the moved-from instance is still usable.
 	//
 	// IMPORTANT: m_pInline now points at the moved-from object's inline
@@ -127,24 +137,61 @@ KArenaAllocator& KArenaAllocator::operator=(KArenaAllocator&& other) noexcept
 	{
 		clear();
 
-		m_pHead      = other.m_pHead;
-		m_pFreeList  = other.m_pFreeList;
-		m_pCursor    = other.m_pCursor;
-		m_pEnd       = other.m_pEnd;
-		m_iBlockSize = other.m_iBlockSize;
-		m_iUsedBytes = other.m_iUsedBytes;
-		m_pInline    = other.m_pInline;
-		m_iInlineCap = other.m_iInlineCap;
+		m_pHead        = other.m_pHead;
+		m_pFreeList    = other.m_pFreeList;
+		m_pCursor      = other.m_pCursor;
+		m_pEnd         = other.m_pEnd;
+		m_iBlockSize   = other.m_iBlockSize;
+		m_iUsedBytes   = other.m_iUsedBytes;
+		m_pInline      = other.m_pInline;
+		m_iInlineCap   = other.m_iInlineCap;
+		m_bOpenBuilder = other.m_bOpenBuilder;
 
-		other.m_pHead      = nullptr;
-		other.m_pFreeList  = nullptr;
-		other.m_pCursor    = nullptr;
-		other.m_pEnd       = nullptr;
-		other.m_iUsedBytes = 0;
-		other.m_pInline    = nullptr;
-		other.m_iInlineCap = 0;
+		other.m_pHead        = nullptr;
+		other.m_pFreeList    = nullptr;
+		other.m_pCursor      = nullptr;
+		other.m_pEnd         = nullptr;
+		other.m_iUsedBytes   = 0;
+		other.m_pInline      = nullptr;
+		other.m_iInlineCap   = 0;
+		other.m_bOpenBuilder = false;
+
+		m_StableRegions            = other.m_StableRegions;
+		m_iStableRegionCount       = other.m_iStableRegionCount;
+		other.m_StableRegions.fill(StableRegion{});
+		other.m_iStableRegionCount = 0;
 	}
 	return *this;
+}
+
+//-----------------------------------------------------------------------------
+char* KArenaAllocator::RelocateOpenString(const char* pPartialStart,
+                                          std::size_t iPartialLen,
+                                          std::size_t iMoreNeeded)
+//-----------------------------------------------------------------------------
+{
+	// Allocate a fresh block large enough for the partial bytes plus a
+	// small headroom (at least 1 to make immediate progress; the caller's
+	// `iMoreNeeded` hint, when non-zero, lets us avoid a second relocation
+	// on the very next byte).
+	const std::size_t iMinPayload = iPartialLen
+	                              + (iMoreNeeded > 0 ? iMoreNeeded : std::size_t{1});
+
+	GrowBy(iMinPayload);
+
+	char* pNewStart = m_pCursor;
+
+	if (iPartialLen > 0)
+	{
+		// memcpy is UB for nullptr source even with zero length on some
+		// stricter checkers; guard.
+		std::memcpy(pNewStart, pPartialStart, iPartialLen);
+	}
+
+	m_pCursor    += iPartialLen;
+	m_iUsedBytes += iPartialLen;
+
+	return pNewStart;
 }
 
 //-----------------------------------------------------------------------------
@@ -181,6 +228,15 @@ void* KArenaAllocator::Allocate(std::size_t iSize, std::size_t iAlign)
 		return nullptr;
 	}
 
+	// A KArenaStringBuilder is holding an open lease on the cursor.
+	// Servicing this Allocate() would advance the cursor underneath the
+	// open string and corrupt it — refuse and warn.
+	if (m_bOpenBuilder)
+	{
+		kWarning("Allocate({}, {}) called while a KArenaStringBuilder is open — refusing to corrupt the open string", iSize, iAlign);
+		return nullptr;
+	}
+
 	// caller is responsible for passing a power-of-two alignment;
 	// fall back to the default if zero or odd is given
 	if (iAlign == 0 || (iAlign & (iAlign - 1)) != 0)
@@ -209,6 +265,49 @@ void* KArenaAllocator::Allocate(std::size_t iSize, std::size_t iAlign)
 }
 
 //-----------------------------------------------------------------------------
+bool KArenaAllocator::IsInStableRegion(KStringView sSource) const noexcept
+//-----------------------------------------------------------------------------
+{
+	const char* pStart = sSource.data();
+	const char* pEnd   = pStart + sSource.size();
+
+	const auto itEnd = m_StableRegions.begin() + m_iStableRegionCount;
+	return std::any_of(m_StableRegions.begin(), itEnd,
+		[pStart, pEnd](const StableRegion& r)
+		{
+			return pStart >= r.pStart && pEnd <= r.pStart + r.iSize;
+		});
+}
+
+//-----------------------------------------------------------------------------
+void KArenaAllocator::RegisterStableRegion(const void* pStart, std::size_t iSize) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (pStart == nullptr || iSize == 0)
+	{
+		return;
+	}
+
+	if (m_iStableRegionCount >= kMaxStableRegions)
+	{
+		kWarning("stable-region capacity exceeded ({} slots) — registration ignored", kMaxStableRegions);
+		return;
+	}
+
+	m_StableRegions[m_iStableRegionCount].pStart = static_cast<const char*>(pStart);
+	m_StableRegions[m_iStableRegionCount].iSize  = iSize;
+	++m_iStableRegionCount;
+}
+
+//-----------------------------------------------------------------------------
+void KArenaAllocator::ClearStableRegions() noexcept
+//-----------------------------------------------------------------------------
+{
+	m_StableRegions.fill(StableRegion{});
+	m_iStableRegionCount = 0;
+}
+
+//-----------------------------------------------------------------------------
 KStringView KArenaAllocator::AllocateString(KStringView sSource)
 //-----------------------------------------------------------------------------
 {
@@ -223,8 +322,24 @@ KStringView KArenaAllocator::AllocateString(KStringView sSource)
 		return sSource;
 	}
 
+	// Caller-registered stable regions (typically the document's owned
+	// source buffer for in-situ parsing). Views into those are stable
+	// for the arena's lifetime and don't need copying.
+	if (m_iStableRegionCount > 0 && IsInStableRegion(sSource))
+	{
+		return sSource;
+	}
+
 	// strings have alignment 1 — no padding needed
 	void* pDest = Allocate(sSource.size(), 1);
+	if (pDest == nullptr)
+	{
+		// Allocate() already warned (open-builder lease, or actual OOM
+		// via thrown bad_alloc — but bad_alloc would not reach here).
+		// Pass through as empty so the caller is not handed a copy with
+		// dangling bytes.
+		return KStringView{};
+	}
 	std::memcpy(pDest, sSource.data(), sSource.size());
 	return KStringView(static_cast<const char*>(pDest), sSource.size());
 }
@@ -256,6 +371,10 @@ void KArenaAllocator::clear() noexcept
 	m_pHead      = nullptr;
 	m_pFreeList  = nullptr;
 	m_iUsedBytes = 0;
+
+	// Caller-registered stable regions are owned by the caller; we just
+	// forget them. The caller can re-register on the next parse.
+	ClearStableRegions();
 
 	// Re-arm the inline buffer (if any) so subsequent allocations land
 	// there before going to heap blocks again. The inline buffer is

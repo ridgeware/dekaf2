@@ -335,14 +335,14 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 
 			if (!sDirectory.empty())
 			{
-				auto link   = th.Add<html::Link>(KStringView{".."}).SetTitle("go back");
+				auto link   = th.Add<html::Link>("..").SetTitle("go back");
 				auto button = link.Add<html::Button>();
 				button.SetType(html::Button::BUTTON).SetTitle("go back").AddRawText(sBackIcon);
 			}
 
-			row.Add<html::TableHeader>(KStringView{"name"}             ).SetAlign(html::TableHeader::LEFT);
-			row.Add<html::TableHeader>(KStringView{"last modification"}).SetAlign(html::TableHeader::LEFT);
-			row.Add<html::TableHeader>(KStringView{"size"}             ).SetAlign(html::TableHeader::RIGHT);
+			row.Add<html::TableHeader>("name"             ).SetAlign(html::TableHeader::LEFT);
+			row.Add<html::TableHeader>("last modification").SetAlign(html::TableHeader::LEFT);
+			row.Add<html::TableHeader>("size"             ).SetAlign(html::TableHeader::RIGHT);
 			row.Add<html::TableHeader>();
 		}
 
@@ -375,10 +375,10 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 			form.SetMethod(html::Form::POST);
 
 			auto col1 = form.Add<html::TableData>();
-			col1.Add<html::HTML>(KStringView{"label"}, KStringView{}).AddText("Add Directory:");
+			col1.Add<html::HTML>("label", KStringView{}).AddText("Add Directory:");
 
 			auto col2 = form.Add<html::TableData>();
-			col2.Add<html::Input>(html::Input::TEXT, KStringView{"createDir"});
+			col2.Add<html::Input>(html::Input::TEXT, "createDir");
 
 			auto col3 = form.Add<html::TableData>();
 			col3.SetAlign(html::TableData::RIGHT);
@@ -390,10 +390,10 @@ void KFileServer::GenerateAdHocIndexFile(KStringView sDirectory, bool bWithIndex
 			form.SetMethod(html::Form::POST).SetEncType(html::Form::FORMDATA);
 
 			auto col1 = form.Add<html::TableData>();
-			col1.Add<html::HTML>(KStringView{"label"}, KStringView{}).AddText("Add File:");
+			col1.Add<html::HTML>("label", KStringView{}).AddText("Add File:");
 
 			auto col2 = form.Add<html::TableData>();
-			col2.Add<html::Input>(html::Input::FILE, KStringView{"upload1"});
+			col2.Add<html::Input>(html::Input::FILE, "upload1");
 
 			auto col3 = form.Add<html::TableData>();
 			col3.SetAlign(html::TableData::RIGHT);

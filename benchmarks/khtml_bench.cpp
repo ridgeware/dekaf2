@@ -514,7 +514,7 @@ void html_parse_dom()
 		for (size_t count = 0; count < 1000; ++ count)
 		{
 			KHTML doc;
-			doc.Parse(KStringView{"<a/>"});
+			doc.Parse("<a/>");
 			KProf::Force(&doc);
 		}
 	}
@@ -523,7 +523,7 @@ void html_parse_dom()
 		for (size_t count = 0; count < 1000; ++ count)
 		{
 			KHTML doc;
-			doc.Parse(KStringView{"<html><body><p>x</p></body></html>"});
+			doc.Parse("<html><body><p>x</p></body></html>");
 			KProf::Force(&doc);
 		}
 	}

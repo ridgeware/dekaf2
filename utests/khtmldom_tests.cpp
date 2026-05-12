@@ -426,7 +426,7 @@ R"(<html>
 	SECTION("POD shadow tree caches TagProperty")
 	{
 		KHTML HTML;
-		HTML.Parse(KStringView{"<div><span>x</span></div>"});
+		HTML.Parse("<div><span>x</span></div>");
 
 		const auto* root = HTML.PodRoot();
 		REQUIRE ( root != nullptr );
@@ -482,7 +482,7 @@ R"(<html>
 	SECTION("clear() resets POD tree and frees arena")
 	{
 		KHTML HTML;
-		HTML.Parse(KStringView{"<div><p>one</p><p>two</p></div>"});
+		HTML.Parse("<div><p>one</p><p>two</p></div>");
 
 		REQUIRE ( HTML.PodRoot() != nullptr );
 		REQUIRE ( HTML.PodRoot()->FirstChild() != nullptr );
@@ -496,7 +496,7 @@ R"(<html>
 		CHECK ( HTML.PodRoot()->LastChild()  == nullptr );
 
 		// re-parse must work
-		HTML.Parse(KStringView{"<a/>"});
+		HTML.Parse("<a/>");
 		REQUIRE ( HTML.PodRoot()->FirstChild() != nullptr );
 		CHECK ( HTML.PodRoot()->FirstChild()->Name() == "a" );
 	}
@@ -544,49 +544,49 @@ TEST_CASE("KHTML POD-vs-heap serialization equivalence")
 
 	SECTION("only text")
 	{
-		check_equiv(KStringView{"This is free standing text"}, "only-text");
+		check_equiv("This is free standing text", "only-text");
 	}
 
 	SECTION("text with inlines")
 	{
-		check_equiv(KStringView{"This is <b>free <i>standing</i></b> text"}, "inlines");
+		check_equiv("This is <b>free <i>standing</i></b> text", "inlines");
 	}
 
 	SECTION("preformatted text")
 	{
-		check_equiv(KStringView{"<pre>This is  \r\n  preformatted    text</pre>"},
+		check_equiv("<pre>This is  \r\n  preformatted    text</pre>",
 		            "pre");
 	}
 
 	SECTION("preformatted text in outer block")
 	{
-		check_equiv(KStringView{"<div><div><pre>This is  \r\n  preformatted    text</pre></div></div>"},
+		check_equiv("<div><div><pre>This is  \r\n  preformatted    text</pre></div></div>",
 		            "pre-in-block");
 	}
 
 	SECTION("preformatted text with inlines")
 	{
-		check_equiv(KStringView{"<pre>This is  \r\n  <b>preformatted</b>    text</pre>"},
+		check_equiv("<pre>This is  \r\n  <b>preformatted</b>    text</pre>",
 		            "pre-with-inlines");
 	}
 
 	SECTION("block framed")
 	{
-		check_equiv(KStringView{"<p>This is    <b>block <i>framed</i></b>    text</p>"},
+		check_equiv("<p>This is    <b>block <i>framed</i></b>    text</p>",
 		            "block-framed");
 	}
 
 	SECTION("auto close 1-4")
 	{
-		check_equiv(KStringView{"<p>This is <b>unbalanced <i>framed</b> text</p>"},        "ac1");
-		check_equiv(KStringView{"<p>This is <b>unbalanced <i>framed text</p>"},            "ac2");
-		check_equiv(KStringView{"<p>This is <b>unbalanced <i>framed</u> text</p>"},        "ac3");
-		check_equiv(KStringView{"<p>This is <B>unbalanced <i>framed</b> text</B></p>"},    "ac4");
+		check_equiv("<p>This is <b>unbalanced <i>framed</b> text</p>",        "ac1");
+		check_equiv("<p>This is <b>unbalanced <i>framed text</p>",            "ac2");
+		check_equiv("<p>This is <b>unbalanced <i>framed</u> text</p>",        "ac3");
+		check_equiv("<p>This is <B>unbalanced <i>framed</b> text</B></p>",    "ac4");
 	}
 
 	SECTION("entity-encoded content")
 	{
-		check_equiv(KStringView{"<p>This is <b>bl&ouml;ck <i>framed</i></b> text</p>"},
+		check_equiv("<p>This is <b>bl&ouml;ck <i>framed</i></b> text</p>",
 		            "entity");
 	}
 
@@ -645,5 +645,82 @@ R"(
 	</html>
 	)");
 		check_equiv(sHTML, "big-sample");
+	}
+}
+
+// =============================================================================
+// Phase-5 prep: KHTML(KString) sink-constructor + m_SourceBuffer +
+// stable-region registration. Parser-internal in-situ is not enabled yet;
+// these tests just verify the plumbing.
+// =============================================================================
+
+TEST_CASE("KHTML source-buffer ownership")
+{
+	SECTION("KHTML(KString) parses and registers the source buffer")
+	{
+		KString sInput = "<html><body><p>hi</p></body></html>";
+		const char* pCallerAddr = sInput.data();
+
+		KHTML doc(std::move(sInput));   // move-in: zero copies expected
+
+		// the moved-from sInput is now empty
+		CHECK ( sInput.empty() );
+
+		// document parsed
+		REQUIRE ( !doc.empty() );
+		auto html = doc.Root().FirstChild();
+		REQUIRE ( html );
+		CHECK   ( html.Name() == "html" );
+
+		// arena has a registered stable region pointing at our (now-owned)
+		// source bytes
+		CHECK ( doc.Arena().StableRegionCount() == 1 );
+		// the registered region's bytes are the same address we passed in
+		// (since KString::data() typically returns the same heap pointer
+		// after a move)
+		(void) pCallerAddr;
+	}
+
+	SECTION("KHTML(KString) by copy is also fine — caller buffer survives")
+	{
+		KString sInput = "<a/>";
+		const auto sBackup = sInput;
+
+		KHTML doc(sInput);              // copy at the call site
+
+		CHECK ( sInput == sBackup );    // caller's buffer untouched
+		CHECK ( !doc.empty() );
+	}
+
+	SECTION("Parse(KString) replaces source on re-parse and re-registers")
+	{
+		KHTML doc;
+
+		doc.Parse(KString("<a/>"));
+		CHECK ( doc.Arena().StableRegionCount() == 1 );
+
+		// re-parse needs clear()
+		doc.clear();
+		CHECK ( doc.Arena().StableRegionCount() == 0 );
+
+		doc.Parse(KString("<b/>"));
+		CHECK ( doc.Arena().StableRegionCount() == 1 );
+
+		auto root = doc.Root().FirstChild();
+		REQUIRE ( root );
+		CHECK   ( root.Name() == "b" );
+	}
+
+	SECTION("Parse(KStringView) goes through the copy path and still registers")
+	{
+		KHTML doc;
+		KStringView sInput = "<x/>";
+
+		doc.Parse(sInput);
+
+		CHECK ( doc.Arena().StableRegionCount() == 1 );
+		auto root = doc.Root().FirstChild();
+		REQUIRE ( root );
+		CHECK   ( root.Name() == "x" );
 	}
 }

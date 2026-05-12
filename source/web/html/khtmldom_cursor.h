@@ -313,6 +313,28 @@ public:
 		return T(*this, std::forward<Args>(args)...);
 	}
 
+	/// Overload for *class templates* — the template's type parameters
+	/// are deduced from `args...` via class-template-argument-deduction
+	/// (C++17 CTAD). This lets callers omit the explicit specialisation
+	/// when one of the arguments already pins it down:
+	///
+	///   // before: explicit specialisation required
+	///   group.Add<html::RadioButton<KString>>(m_Config.sRadio);
+	///   // after: ValueType deduced from m_Config.sRadio
+	///   group.Add<html::RadioButton>(m_Config.sRadio);
+	///
+	/// Resolution: when `T` is given as a class template (e.g. the bare
+	/// `html::RadioButton`), this overload matches; the first overload
+	/// (above) requires a complete class type and is rejected. When `T`
+	/// is a complete class (`html::Div`, `html::RadioButton<KString>`),
+	/// this overload is rejected and the first overload matches. No
+	/// ambiguity.
+	template<template<typename...> class T, class... Args>
+	auto Add(Args&&... args)
+	{
+		return T(*this, std::forward<Args>(args)...);
+	}
+
 	bool operator==(const NodeCursor& other) const noexcept { return m_p == other.m_p; }
 	bool operator!=(const NodeCursor& other) const noexcept { return m_p != other.m_p; }
 

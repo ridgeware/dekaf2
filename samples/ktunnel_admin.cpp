@@ -488,7 +488,7 @@ void AdminUI::ShowLogin (KRESTServer& HTTP,
 		auto label = field.AddElement("label");
 		label.SetAttribute("for", "user");
 		label.AddText("Username");
-		field.Add<html::Input>("username", sUsername, html::Input::TEXT, html::Classes{}, "user")
+		field.Add<html::Input>("username", sUsername, html::Input::TEXT, "", "user")
 		     .SetAutofocus(true);
 	}
 
@@ -497,7 +497,7 @@ void AdminUI::ShowLogin (KRESTServer& HTTP,
 		auto label = field.AddElement("label");
 		label.SetAttribute("for", "pass");
 		label.AddText("Password");
-		field.Add<html::Input>("password", "", html::Input::PASSWORD, html::Classes{}, "pass");
+		field.Add<html::Input>("password", "", html::Input::PASSWORD, "", "pass");
 	}
 
 	form.Add<html::Button>("Sign in", html::Button::SUBMIT, html::Classes("btn"));

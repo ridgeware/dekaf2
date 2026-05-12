@@ -166,13 +166,13 @@ inline void PodSerializeAttrs(KOutStream& Out, const khtml::NodePOD* pNode)
 //-----------------------------------------------------------------------------
 {
 	static constexpr std::size_t s_iMaxAttrs = 32;
-	const khtml::AttrPOD* buf[s_iMaxAttrs];
-	std::size_t n = 0;
+	std::array<const khtml::AttrPOD*, s_iMaxAttrs> buf {};
+	std::size_t n         = 0;
 	bool        bOverflow = false;
 
 	for (const khtml::AttrPOD* a = pNode->FirstAttr(); a != nullptr; a = a->Next())
 	{
-		if (n < s_iMaxAttrs)
+		if (n < buf.size())
 		{
 			buf[n++] = a;
 		}
@@ -185,16 +185,18 @@ inline void PodSerializeAttrs(KOutStream& Out, const khtml::NodePOD* pNode)
 
 	if (!bOverflow)
 	{
-		std::sort(buf, buf + n,
+		const auto itEnd = buf.begin() + n;
+		std::sort(buf.begin(), itEnd,
 			[](const khtml::AttrPOD* x, const khtml::AttrPOD* y)
 			{
 				return x->Name() < y->Name();
 			});
-		for (std::size_t i = 0; i < n; ++i)
-		{
-			Out.Write(' ');
-			PodSerializeAttr(Out, buf[i]);
-		}
+		std::for_each(buf.begin(), itEnd,
+			[&Out](const khtml::AttrPOD* a)
+			{
+				Out.Write(' ');
+				PodSerializeAttr(Out, a);
+			});
 	}
 	else
 	{
@@ -542,15 +544,72 @@ KHTML::KHTML()
 //-----------------------------------------------------------------------------
 {
 	EmitEntitiesAsUTF8();
+	// inject our arena so the parser can (in a future step) write tag names,
+	// attribute names/values, and text content directly into arena memory
+	// rather than through per-tag KString allocations. The storage layout
+	// is now view-first (m_sName/m_sValue/...) so subsequent steps can flip
+	// individual parse paths over to KArenaAllocator::AllocateString() or a
+	// streaming KArenaStringBuilder without further changes to the parser
+	// callbacks.
+	SetArena(&m_Document);
 	PodResetTree();
 
 } // ctor
+
+//-----------------------------------------------------------------------------
+KHTML::KHTML(KString sSource)
+//-----------------------------------------------------------------------------
+{
+	EmitEntitiesAsUTF8();
+	PodResetTree();
+	Parse(std::move(sSource));
+
+} // ctor (KString)
 
 //-----------------------------------------------------------------------------
 KHTML::~KHTML()
 //-----------------------------------------------------------------------------
 {
 } // dtor
+
+//-----------------------------------------------------------------------------
+bool KHTML::Parse(KString sSource)
+//-----------------------------------------------------------------------------
+{
+	// Take ownership of the source. If the caller passed by move
+	// (KHTML(std::move(buf)) or Parse(std::move(buf))), this is zero
+	// copies. If by value, one copy was made at the call site.
+	m_SourceBuffer = std::move(sSource);
+
+	// Register the source range with the arena so arena-string-allocations
+	// of views pointing into it pass through as-is (no copy). Phase-5
+	// in-situ parsing will rely on this; today's parser still produces
+	// fresh KString accumulators internally so the registration is a
+	// no-op except for any future views the caller hands in.
+	if (!m_SourceBuffer.empty())
+	{
+		m_Document.RegisterStableRegion(m_SourceBuffer.data(), m_SourceBuffer.size());
+	}
+
+	// Hand the parser a view into our owned buffer. The base class
+	// virtual will dispatch back into our Object()/Content()/etc.
+	// callbacks as usual.
+	return KHTMLParser::Parse(KStringView(m_SourceBuffer));
+
+} // Parse(KString)
+
+//-----------------------------------------------------------------------------
+bool KHTML::Parse(KInStream& InStream)
+//-----------------------------------------------------------------------------
+{
+	// Stream input: we can't point views at a contiguous source range,
+	// so we don't even try. Drop any previously-registered stable region
+	// from a memory parse and dispatch straight to the streaming path.
+	m_SourceBuffer.clear();
+	m_Document.ClearStableRegions();
+	return KHTMLParser::Parse(InStream);
+
+} // Parse(KInStream&)
 
 //-----------------------------------------------------------------------------
 void KHTML::PodResetTree()
@@ -560,6 +619,11 @@ void KHTML::PodResetTree()
 	// them, so a hot reparse loop pays at most one std::malloc() per
 	// growth (and zero on subsequent rounds of the same size).
 	m_Document.reset();
+	// reset() preserves stable regions (they're caller-managed metadata,
+	// not arena content). For us they always point at the source buffer
+	// of the *previous* parse — drop them so a stale-pointer scenario
+	// can't arise when m_SourceBuffer is replaced or cleared.
+	m_Document.ClearStableRegions();
 	m_Document.AddNode(khtml::NodeKind::Element);
 	m_PodHierarchy.clear();
 	m_PodHierarchy.push_back(m_Document.FirstChild());
@@ -570,16 +634,16 @@ void KHTML::PodResetTree()
 khtml::NodePOD* KHTML::PodAddElement(const KHTMLTag& Tag)
 //-----------------------------------------------------------------------------
 {
-	auto* pNode = m_PodHierarchy.back()->AddNode(khtml::NodeKind::Element, Tag.GetName());
+	auto* pNode = m_PodHierarchy.back()->AddNode(khtml::NodeKind::Element, Tag.Name());
 
 	if (pNode)
 	{
-		for (const auto& Attr : Tag.GetAttributes())
+		for (const auto& Attr : Tag.Attributes())
 		{
 			pNode->AddAttribute(
-					Attr.GetName(),
-					Attr.GetValue(),
-					Attr.GetQuote(),
+					Attr.Name(),
+					Attr.Value(),
+					Attr.Quote(),
 					Attr.IsEntityEncoded() == false
 			);
 		}
@@ -634,8 +698,15 @@ KString KHTML::Serialize(char chIndent) const
 void KHTML::clear()
 //-----------------------------------------------------------------------------
 {
+	// Discard any open builder BEFORE we reset the tree (the builder
+	// holds a lease on m_Document).
+	if (m_ContentBuilder.IsActive())
+	{
+		(void) m_ContentBuilder.Finalize();
+	}
+
 	PodResetTree();
-	m_sContent.clear();
+	m_SourceBuffer.clear();          // also unregisters via Document::clear path
 	ClearError();
 	m_Issues.clear();
 	m_bLastWasSpace = true;
@@ -648,14 +719,17 @@ void KHTML::clear()
 void KHTML::FlushText()
 //-----------------------------------------------------------------------------
 {
-	if (!m_sContent.empty())
+	if (!m_ContentBuilder.IsActive()) return;
+
+	// Finalize the open builder. Its view is stable inside the arena —
+	// use the adopt path so we do not waste an AllocateString copy.
+	auto sView = m_ContentBuilder.Finalize();
+	const bool bDoNotEscape = m_bDoNotEscape;
+	m_bDoNotEscape = false;
+
+	if (!sView.empty())
 	{
-		const bool bDoNotEscape = m_bDoNotEscape;
-
-		PodAddTextLeaf(m_sContent, bDoNotEscape);
-
-		m_sContent.clear();
-		m_bDoNotEscape = false;
+		m_PodHierarchy.back()->AddTextAdopt(sView, bDoNotEscape);
 	}
 
 } // FlushText
@@ -682,7 +756,7 @@ void KHTML::Object(KHTMLObject& Object)
 		case KHTMLTag::TYPE:
 		{
 			auto& Tag              = static_cast<KHTMLTag&>(Object);
-			auto  TagProps         = KHTMLObject::GetTagProperty (Tag.GetName());
+			auto  TagProps         = KHTMLObject::GetTagProperty (Tag.Name());
 			auto  bIsStandalone    = KHTMLObject::IsStandalone   (TagProps);
 			auto  bIsInline        = KHTMLObject::IsInline       (TagProps);
 			auto  bIsInlineBlock   = KHTMLObject::IsInlineBlock  (TagProps);
@@ -691,7 +765,7 @@ void KHTML::Object(KHTMLObject& Object)
 
 			if (Tag.IsClosing())
 			{
-				if (!Tag.GetAttributes().empty())
+				if (!Tag.Attributes().empty())
 				{
 					SetIssue(kFormat("invalid html - closing tag has attributes: {}", Tag.ToString()));
 				}
@@ -702,12 +776,12 @@ void KHTML::Object(KHTMLObject& Object)
 
 					if (   pLastChild == nullptr
 						|| pLastChild->Kind() != khtml::NodeKind::Element
-						|| pLastChild->Name() != Tag.GetName())
+						|| pLastChild->Name() != Tag.Name())
 					{
 						SetIssue(kFormat("invalid html - standalone tag closed without immediately opening it - treating it as a new standalone: {}", Tag.ToString()));
 						PodAddElement(Tag);
 
-						if (bIsInline && Tag.GetName() != "br")
+						if (bIsInline && Tag.Name() != "br")
 						{
 							m_bLastWasSpace = false;
 						}
@@ -719,7 +793,7 @@ void KHTML::Object(KHTMLObject& Object)
 				}
 				else if (iHierarchyLevels > 1)
 				{
-					if (m_PodHierarchy.back()->Name() == Tag.GetName())
+					if (m_PodHierarchy.back()->Name() == Tag.Name())
 					{
 						if (bIsInlineBlock)
 						{
@@ -744,7 +818,7 @@ void KHTML::Object(KHTMLObject& Object)
 					}
 					else
 					{
-						SetIssue(kFormat("invalid html - start and end tag differ: <{}> -> </{}>", m_PodHierarchy.back()->Name(), Tag.GetName()));
+						SetIssue(kFormat("invalid html - start and end tag differ: <{}> -> </{}>", m_PodHierarchy.back()->Name(), Tag.Name()));
 
 						auto iMaxAutoClose = m_iMaxAutoCloseLevels;
 						auto iCurrentLevel = iHierarchyLevels - 1;
@@ -754,7 +828,7 @@ void KHTML::Object(KHTMLObject& Object)
 							if (!iMaxAutoClose--) break;
 							if (iCurrentLevel-- < 2) break;
 
-							if (m_PodHierarchy[iCurrentLevel]->Name() == Tag.GetName())
+							if (m_PodHierarchy[iCurrentLevel]->Name() == Tag.Name())
 							{
 								while (m_PodHierarchy.size() > iCurrentLevel)
 								{
@@ -810,7 +884,7 @@ void KHTML::Object(KHTMLObject& Object)
 				}
 				else
 				{
-					if (Tag.GetName() == "br")
+					if (Tag.Name() == "br")
 					{
 						m_bLastWasSpace = true;
 					}
@@ -904,7 +978,12 @@ void KHTML::Content(char ch)
 		}
 	}
 
-	m_sContent += ch;
+	if (!m_ContentBuilder.IsActive())
+	{
+		// Lazy-arm: takes the arena lease, blocked until FlushText().
+		m_ContentBuilder.Start(m_Document);
+	}
+	m_ContentBuilder.Append(ch);
 
 } // Content
 
@@ -918,7 +997,12 @@ void KHTML::Script(char ch)
 	}
 
 	m_bDoNotEscape = true;
-	m_sContent += ch;
+
+	if (!m_ContentBuilder.IsActive())
+	{
+		m_ContentBuilder.Start(m_Document);
+	}
+	m_ContentBuilder.Append(ch);
 
 } // Script
 
@@ -932,7 +1016,12 @@ void KHTML::Invalid(char ch)
 	}
 
 	m_bDoNotEscape = true;
-	m_sContent += ch;
+
+	if (!m_ContentBuilder.IsActive())
+	{
+		m_ContentBuilder.Start(m_Document);
+	}
+	m_ContentBuilder.Append(ch);
 
 } // Invalid
 

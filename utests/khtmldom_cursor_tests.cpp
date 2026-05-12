@@ -16,7 +16,7 @@ TEST_CASE("KHTML POD cursor")
 	SECTION("Root() returns a synthetic root with the parsed children")
 	{
 		KHTML doc;
-		doc.Parse(KStringView{"<html><body><p>hi</p></body></html>"});
+		doc.Parse("<html><body><p>hi</p></body></html>");
 
 		auto root = doc.Root();
 		REQUIRE ( root );
@@ -127,7 +127,7 @@ TEST_CASE("KHTML POD cursor")
 	SECTION("NextSibling / PrevSibling")
 	{
 		KHTML doc;
-		doc.Parse(KStringView{"<root><a/><b/><c/></root>"});
+		doc.Parse("<root><a/><b/><c/></root>");
 
 		auto root = doc.Root().FirstChild();
 		auto a = root.FirstChild();

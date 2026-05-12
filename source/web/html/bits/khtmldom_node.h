@@ -60,6 +60,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/containers/memory/karenaallocator.h>
 #include <dekaf2/web/html/khtmlparser.h>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -233,6 +234,14 @@ public:
 	/// reused in place if the bytes are inside the data segment — see
 	/// KArenaAllocator::AllocateString).
 	NodePOD* AddText(KStringView sText, bool bDoNotEscape = false);
+
+	/// Append a text child WITHOUT copying the bytes. The caller asserts
+	/// that `sText` is already in stable storage (typically the
+	/// document's own arena, e.g. via `KArenaStringBuilder`). Use this
+	/// when the bytes were just freshly written into the arena and there
+	/// is no need to go through `AllocateString`'s data-segment /
+	/// stable-region check.
+	NodePOD* AddTextAdopt(KStringView sText, bool bDoNotEscape = false);
 
 	/// Append a new AttrPOD allocated in the document's arena.
 	AttrPOD* AddAttribute(KStringView sName,
@@ -521,8 +530,12 @@ public:
 
 	Document(std::size_t iArenaSize = KArenaAllocator::DefaultBlockSize)
 	: NodePOD(nullptr, NodeKind::Document)
-	, KArenaAllocator(iArenaSize, m_InitialBuffer, kInlineBufferSize)
+	, KArenaAllocator(iArenaSize)
 	{
+		// Adopt our inline buffer post-base-init — at the init-list
+		// point, the base class would access the still-uninitialised
+		// std::array member (technically UB; the compiler warns).
+		AdoptInlineBuffer(m_InitialBuffer.data(), m_InitialBuffer.size());
 	}
 
 	// Non-copyable (KArenaAllocator is non-copyable).
@@ -539,8 +552,8 @@ public:
 		// Copy the inline buffer bytes from other to us, then re-point
 		// the allocator's m_pInline to our own buffer (it still points
 		// at other's after the base-class move).
-		std::memcpy(m_InitialBuffer, other.m_InitialBuffer, kInlineBufferSize);
-		AdoptInlineBuffer(m_InitialBuffer, kInlineBufferSize);
+		m_InitialBuffer = other.m_InitialBuffer;
+		AdoptInlineBuffer(m_InitialBuffer.data(), m_InitialBuffer.size());
 	}
 
 	Document& operator=(Document&&) = delete;
@@ -592,7 +605,7 @@ private:
 	BindingMap m_Bindings;
 	ClassMap   m_Classes;
 
-	alignas(8) char m_InitialBuffer[kInlineBufferSize];   ///< inline arena backing
+	alignas(8) std::array<char, kInlineBufferSize> m_InitialBuffer {}; ///< inline arena backing
 
 }; // Document
 
@@ -674,6 +687,32 @@ inline NodePOD* NodePOD::AddText(KStringView sText, bool bDoNotEscape)
 	{
 		pNode->m_sName = pDoc->AllocateString(sText);
 	}
+
+	if (bDoNotEscape)
+	{
+		pNode->m_Flags = pNode->m_Flags | NodeFlag::TextDoNotEscape;
+	}
+
+	AppendChild(pNode);
+
+	return pNode;
+}
+
+//-----------------------------------------------------------------------------
+inline NodePOD* NodePOD::AddTextAdopt(KStringView sText, bool bDoNotEscape)
+//-----------------------------------------------------------------------------
+{
+	auto* pDoc = Document();
+
+	if (pDoc == nullptr)
+	{
+		return nullptr;
+	}
+
+	auto* pNode = pDoc->Construct<NodePOD>(this, NodeKind::Text);
+
+	// adopt the view as-is — caller asserts it points into stable storage
+	pNode->m_sName = sText;
 
 	if (bDoNotEscape)
 	{

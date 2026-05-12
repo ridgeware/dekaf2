@@ -419,14 +419,15 @@ bool KHTMLText::Parse(KStringView sInput, bool bDecodeEntities)
 {
 	if (bDecodeEntities)
 	{
-		m_sText = KHTMLEntity::Decode(sInput);
+		m_sTextOwned = KHTMLEntity::Decode(sInput);
 		m_bIsEntityEncoded = false;
 	}
 	else
 	{
-		m_sText = sInput;
+		m_sTextOwned = sInput;
 		m_bIsEntityEncoded = true;
 	}
+	m_sText = m_sTextOwned.ToView();
 	return true;
 }
 
@@ -436,11 +437,11 @@ void KHTMLText::Serialize(KOutStream& OutStream) const
 {
 	if (IsEntityEncoded())
 	{
-		OutStream.Write(GetText());
+		OutStream.Write(Text());
 	}
 	else
 	{
-		EncodeMandatoryHTMLContent(OutStream, GetText());
+		EncodeMandatoryHTMLContent(OutStream, Text());
 	}
 }
 
@@ -450,11 +451,11 @@ void KHTMLText::Serialize(KStringRef& sOut) const
 {
 	if (IsEntityEncoded())
 	{
-		sOut += GetText();
+		sOut += Text();
 	}
 	else
 	{
-		EncodeMandatoryHTMLContent(sOut, GetText());
+		EncodeMandatoryHTMLContent(sOut, Text());
 	}
 }
 
@@ -462,7 +463,8 @@ void KHTMLText::Serialize(KStringRef& sOut) const
 void KHTMLText::clear()
 //-----------------------------------------------------------------------------
 {
-	m_sText.clear();
+	m_sTextOwned.clear();
+	m_sText = KStringView{};
 	m_bIsEntityEncoded = false;
 }
 
@@ -474,52 +476,11 @@ bool KHTMLText::empty() const
 }
 
 //-----------------------------------------------------------------------------
-KHTMLText& KHTMLText::AddLeft(const KHTMLText& other)
-//-----------------------------------------------------------------------------
-{
-	// adapt entity encoding
-	if (IsEntityEncoded() == other.IsEntityEncoded())
-	{
-		m_sText.insert(0, other.m_sText);
-	}
-	else if (IsEntityEncoded())
-	{
-		m_sText.insert(0, KHTMLEntity::EncodeMandatory(other.m_sText));
-	}
-	else
-	{
-		m_sText.insert(0, KHTMLEntity::Decode(other.m_sText));
-	}
-
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
-KHTMLText& KHTMLText::AddRight(const KHTMLText& other)
-//-----------------------------------------------------------------------------
-{
-	// adapt entity encoding
-	if (IsEntityEncoded() == other.IsEntityEncoded())
-	{
-		m_sText += other.m_sText;
-	}
-	else if (IsEntityEncoded())
-	{
-		m_sText += KHTMLEntity::EncodeMandatory(other.m_sText);
-	}
-	else
-	{
-		m_sText += KHTMLEntity::Decode(other.m_sText);
-	}
-
-	return *this;
-}
-
-//-----------------------------------------------------------------------------
 void KHTMLStringObject::clear()
 //-----------------------------------------------------------------------------
 {
-	sValue.clear();
+	sValueOwned.clear();
+	sValue = KStringView{};
 }
 
 //-----------------------------------------------------------------------------
@@ -545,7 +506,8 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening, b
 	if (iStart >= iLeadIn)
 	{
 		sOpening.remove_prefix(iLeadIn);
-		sValue = sOpening;
+		sValueOwned = sOpening;
+		sValue      = sValueOwned.ToView();
 	}
 	else
 	{
@@ -579,7 +541,9 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening, b
 	// In fact, we delegate the search for the lead-out to the child
 	// class to implement the corresponding algorithm there.
 
-	return SearchForLeadOut(InStream);
+	bool bOk = SearchForLeadOut(InStream);
+	sValue = sValueOwned.ToView();
+	return bOk;
 
 } // Parse
 
@@ -597,8 +561,10 @@ void KHTMLStringObject::Serialize(KOutStream& OutStream) const
 void KHTMLAttribute::clear()
 //-----------------------------------------------------------------------------
 {
-	m_sName.clear();
-	m_sValue.clear();
+	m_sNameOwned.clear();
+	m_sValueOwned.clear();
+	m_sName  = KStringView{};
+	m_sValue = KStringView{};
 	m_chQuote = 0;
 	m_bIsEntityEncoded = false;
 }
@@ -623,7 +589,8 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 
 	if (!sOpening.empty())
 	{
-		m_sName = sOpening;
+		m_sNameOwned = sOpening;
+		m_sName      = m_sNameOwned.ToView();
 		state = State::Key;
 	}
 
@@ -642,7 +609,8 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 				}
 				else if (!KASCII::kIsSpace(ch))
 				{
-					m_sName.assign(1, KASCII::kToLower(ch));
+					m_sNameOwned.assign(1, KASCII::kToLower(ch));
+					m_sName = m_sNameOwned.ToView();
 					state = State::Key;
 				}
 				break;
@@ -664,7 +632,8 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 				}
 				else
 				{
-					m_sName += KASCII::kToLower(ch);
+					m_sNameOwned += KASCII::kToLower(ch);
+					m_sName = m_sNameOwned.ToView();
 				}
 				break;
 
@@ -693,12 +662,13 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 						// no quotes around attribute
 						if (DEKAF2_UNLIKELY(bDecodeEntities && ch == '&'))
 						{
-							m_sValue = KHTMLObject::DecodeEntity(InStream);
+							m_sValueOwned = KHTMLObject::DecodeEntity(InStream);
 						}
 						else
 						{
-							m_sValue.assign(1, ch);
+							m_sValueOwned.assign(1, ch);
 						}
+						m_sValue = m_sValueOwned.ToView();
 					}
 					state = State::Value;
 				}
@@ -707,13 +677,15 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 			case State::Value:
 				if (DEKAF2_UNLIKELY(bDecodeEntities && ch == '&'))
 				{
-					m_sValue += KHTMLObject::DecodeEntity(InStream);
+					m_sValueOwned += KHTMLObject::DecodeEntity(InStream);
+					m_sValue = m_sValueOwned.ToView();
 				}
 				else if (m_chQuote)
 				{
 					if (ch != m_chQuote)
 					{
-						m_sValue += ch;
+						m_sValueOwned += ch;
+						m_sValue = m_sValueOwned.ToView();
 					}
 					else
 					{
@@ -737,7 +709,8 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 						return true;
 					}
 
-					m_sValue += ch;
+					m_sValueOwned += ch;
+					m_sValue = m_sValueOwned.ToView();
 				}
 				break;
 		}
@@ -824,7 +797,7 @@ KStringView KHTMLAttributes::Get(KStringView sAttributeName) const
 	auto it = m_Attributes.find(sAttributeName);
 	if (it != m_Attributes.end())
 	{
-		return it->GetValue();
+		return it->Value();
 	}
 	else
 	{
@@ -845,17 +818,17 @@ bool KHTMLAttributes::Has(KStringView sAttributeName) const
 KHTMLAttributes& KHTMLAttributes::Set(KHTMLAttribute Attribute)
 //-----------------------------------------------------------------------------
 {
-	if (Attribute.GetName().empty())
+	if (Attribute.Name().empty())
 	{
 		kDebug(1, "cannot add an attribute with an empty name");
 		return *this;
 	}
 
-	if (Attribute.GetValue().empty())
+	if (Attribute.Value().empty())
 	{
-		if (!KHTMLObject::IsBooleanAttribute(Attribute.GetName()))
+		if (!KHTMLObject::IsBooleanAttribute(Attribute.Name()))
 		{
-			kDebug(2, "cannot add an attribute '{}' with an empty value that is not a predefined boolean attribute", Attribute.GetName());
+			kDebug(2, "cannot add an attribute '{}' with an empty value that is not a predefined boolean attribute", Attribute.Name());
 			return *this;
 		}
 	}
@@ -866,7 +839,8 @@ KHTMLAttributes& KHTMLAttributes::Set(KHTMLAttribute Attribute)
 	{
 		// when the insert failed the attribute value was not moved,
 		// we still have access to it
-		pair.first->m_sValue = std::move(Attribute.m_sValue);
+		pair.first->m_sValueOwned = std::move(Attribute.m_sValueOwned);
+		pair.first->m_sValue      = pair.first->m_sValueOwned.ToView();
 	}
 
 	return *this;
@@ -958,7 +932,8 @@ void KHTMLAttributes::Serialize(KOutStream& OutStream) const
 void KHTMLTag::clear()
 //-----------------------------------------------------------------------------
 {
-	m_sName.clear();
+	m_sNameOwned.clear();
+	m_sName = KStringView{};
 	m_Attributes.clear();
 	m_TagType = TagType::None;
 
@@ -989,7 +964,8 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 	{
 		if (iOSize > 1)
 		{
-			m_sName = sOpening.substr(1, KStringView::npos);
+			m_sNameOwned = sOpening.substr(1, KStringView::npos);
+			m_sName      = m_sNameOwned.ToView();
 		}
 		state = State::Open;
 	}
@@ -1029,7 +1005,8 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				}
 				else if (KASCII::kIsAlNum(ch))
 				{
-					m_sName.assign(1, KASCII::kToLower(ch));
+					m_sNameOwned.assign(1, KASCII::kToLower(ch));
+					m_sName = m_sNameOwned.ToView();
 					state = State::Name;
 				}
 				else
@@ -1060,7 +1037,8 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				}
 				else
 				{
-					m_sName += KASCII::kToLower(ch);
+					m_sNameOwned += KASCII::kToLower(ch);
+					m_sName = m_sNameOwned.ToView();
 				}
 				break;
 
@@ -1125,13 +1103,13 @@ void KHTMLTag::Serialize(KOutStream& OutStream) const
 			OutStream.Write('/');
 		}
 
-		OutStream.Write(GetName());
+		OutStream.Write(Name());
 
-		GetAttributes().Serialize(OutStream);
+		Attributes().Serialize(OutStream);
 
 		if (DEKAF2_UNLIKELY(IsStandalone()))
 		{
-			if (!GetAttributes().empty())
+			if (!Attributes().empty())
 			{
 				OutStream.Write(' ');
 			}
@@ -1161,9 +1139,9 @@ bool KHTMLComment::SearchForLeadOut(KBufferedReader& InStream)
 				{
 					return true;
 				}
-				sValue += '-';
+				sValueOwned += '-';
 			}
-			sValue += '-';
+			sValueOwned += '-';
 		}
 
 		if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
@@ -1171,7 +1149,7 @@ bool KHTMLComment::SearchForLeadOut(KBufferedReader& InStream)
 			return false;
 		}
 
-		sValue += ch;
+		sValueOwned += ch;
 	}
 
 } // SearchForLeadOut
@@ -1194,7 +1172,7 @@ bool KHTMLDocumentType::SearchForLeadOut(KBufferedReader& InStream)
 			return false;
 		}
 
-		sValue += ch;
+		sValueOwned += ch;
 	}
 
 } // SearchForLeadOut
@@ -1214,7 +1192,7 @@ bool KHTMLProcessingInstruction::SearchForLeadOut(KBufferedReader& InStream)
 			{
 				return true;
 			}
-			sValue += '?';
+			sValueOwned += '?';
 		}
 
 		if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
@@ -1222,7 +1200,7 @@ bool KHTMLProcessingInstruction::SearchForLeadOut(KBufferedReader& InStream)
 			return false;
 		}
 
-		sValue += ch;
+		sValueOwned += ch;
 	}
 
 } // SearchForLeadOut
@@ -1246,9 +1224,9 @@ bool KHTMLCData::SearchForLeadOut(KBufferedReader& InStream)
 				{
 					return true;
 				}
-				sValue += ']';
+				sValueOwned += ']';
 			}
-			sValue += ']';
+			sValueOwned += ']';
 		}
 
 		if (DEKAF2_UNLIKELY(ch == std::iostream::traits_type::eof()))
@@ -1256,7 +1234,7 @@ bool KHTMLCData::SearchForLeadOut(KBufferedReader& InStream)
 			return false;
 		}
 
-		sValue += ch;
+		sValueOwned += ch;
 	}
 
 } // SearchForLeadOut
@@ -1485,7 +1463,7 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 				if (!tag.empty())
 				{
 					Object(tag);
-					if (DEKAF2_UNLIKELY(tag.GetName() == "script" && !tag.IsClosing()))
+					if (DEKAF2_UNLIKELY(tag.Name() == "script" && !tag.IsClosing()))
 					{
 						SkipScript(InStream);
 					}

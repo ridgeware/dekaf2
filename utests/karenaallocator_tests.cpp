@@ -162,9 +162,12 @@ TEST_CASE("KArenaAllocator")
 		// the view must point to arena-owned bytes, not the literal
 		CHECK ( hello.data() != KStringView("hello world").data() );
 
+		// Re-allocating a view that already lives in this arena's blocks
+		// is a no-op (self-view recognition skips the redundant copy —
+		// see KArenaAllocator::IsOwnedByThisArena).
 		KStringView other = arena.AllocateString(hello);
 		CHECK ( other == "hello world" );
-		CHECK ( other.data() != hello.data() );
+		CHECK ( other.data() == hello.data() );
 	}
 
 	SECTION("Construct<T> places PODs in arena")

@@ -280,6 +280,39 @@ bool KArenaAllocator::IsInStableRegion(KStringView sSource) const noexcept
 }
 
 //-----------------------------------------------------------------------------
+bool KArenaAllocator::IsOwnedByThisArena(KStringView sSource) const noexcept
+//-----------------------------------------------------------------------------
+{
+	if (sSource.empty())
+	{
+		return false;
+	}
+
+	const char* pSrc    = sSource.data();
+	const char* pSrcEnd = pSrc + sSource.size();
+
+	// adopted inline buffer first — cheaper than walking the block list
+	if (m_pInline != nullptr
+	    && pSrc >= m_pInline
+	    && pSrcEnd <= m_pInline + m_iInlineCap)
+	{
+		return true;
+	}
+
+	// walk the heap-block chain
+	for (const Block* p = m_pHead; p != nullptr; p = p->m_pPrevious)
+	{
+		const char* pBlockStart = reinterpret_cast<const char*>(p + 1);
+		const char* pBlockEnd   = pBlockStart + p->m_iSize;
+		if (pSrc >= pBlockStart && pSrcEnd <= pBlockEnd)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------
 void KArenaAllocator::RegisterStableRegion(const void* pStart, std::size_t iSize) noexcept
 //-----------------------------------------------------------------------------
 {
@@ -326,6 +359,14 @@ KStringView KArenaAllocator::AllocateString(KStringView sSource)
 	// source buffer for in-situ parsing). Views into those are stable
 	// for the arena's lifetime and don't need copying.
 	if (m_iStableRegionCount > 0 && IsInStableRegion(sSource))
+	{
+		return sSource;
+	}
+
+	// Self-views: bytes that already live in one of our own blocks
+	// (e.g. produced by an arena-backed parser accumulator). These are
+	// trivially stable for our lifetime; copying would double-allocate.
+	if (IsOwnedByThisArena(sSource))
 	{
 		return sSource;
 	}

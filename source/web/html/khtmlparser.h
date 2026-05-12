@@ -94,6 +94,15 @@ public:
 		return *this;
 	}
 
+	/// Inject an arena pointer. When non-null, derived `Parse()` methods
+	/// route their char-by-char accumulators through `KArenaStringBuilder`
+	/// so the resulting `m_s*` views point directly into arena memory —
+	/// no follow-up copy needed in the DOM (`AllocateString`
+	/// recognises arena-self views and short-circuits). Default nullptr
+	/// keeps the heap-KString fallback, used by the streaming SAX path.
+	virtual void SetArena(khtml::Document* pArena) noexcept { m_pArena = pArena; }
+	khtml::Document* GetArena() const noexcept { return m_pArena; }
+
 	virtual void clear();
 	// make this base an ABC
 	virtual bool empty() const = 0;
@@ -149,6 +158,16 @@ public:
 	static bool IsBooleanAttribute (KStringView sAttributeName);
 	/// returns a decoded entity read from InStream, which must point to the character after '&'
 	static KString DecodeEntity    (KBufferedReader& InStream);
+
+//------
+protected:
+//------
+
+	/// Optional arena. When non-null, derived Parse() methods route
+	/// char-by-char accumulators through `KArenaStringBuilder` so the
+	/// resulting `m_s*` views point straight into arena memory. nullptr
+	/// = heap-KString fallback (the SAX default).
+	khtml::Document* m_pArena { nullptr };
 
 }; // KHTMLObject
 
@@ -489,6 +508,10 @@ public:
 	/// @returns true if the attribute value is already entity encoded
 	bool    IsEntityEncoded() const { return m_bIsEntityEncoded; }
 
+	/// Inject arena for in-situ Parse. nullptr = heap-KString fallback.
+	void SetArena(khtml::Document* pArena) noexcept { m_pArena = pArena; }
+	khtml::Document* GetArena() const noexcept { return m_pArena; }
+
 //------
 protected:
 //------
@@ -501,6 +524,7 @@ protected:
 	// current name/value - always points either into m_sNameOwned / m_sValueOwned, or into an external arena
 	mutable KStringView m_sName;
 	mutable KStringView m_sValue;
+	khtml::Document*    m_pArena           { nullptr };
 	mutable char        m_chQuote          { 0     };
 	bool                m_bIsEntityEncoded { false };
 
@@ -620,11 +644,17 @@ public:
 	/// @returns true if the attribute list is empty
 	bool empty() const;
 
+	/// Inject arena for in-situ Parse. Propagated to each parsed
+	/// `KHTMLAttribute` during `Parse()`.
+	void SetArena(khtml::Document* pArena) noexcept { m_pArena = pArena; }
+	khtml::Document* GetArena() const noexcept { return m_pArena; }
+
 //------
 protected:
 //------
 
-	AttributeList m_Attributes;
+	AttributeList    m_Attributes;
+	khtml::Document* m_pArena { nullptr };
 
 }; // KHTMLAttributes
 
@@ -703,6 +733,13 @@ public:
 	virtual void Serialize(KOutStream& OutStream) const override;
 	/// serialize this tag to a string
 	virtual void Serialize(KStringRef& sOut) const override;
+
+	/// override to also propagate the arena into the contained attribute set
+	void SetArena(khtml::Document* pArena) noexcept override
+	{
+		KHTMLObject::m_pArena = pArena;
+		m_Attributes.SetArena(pArena);
+	}
 
 	/// clears the tag
 	virtual void clear() override;
@@ -912,13 +949,39 @@ public:
 
 	virtual bool Parse(KInStream& InStream);
 	virtual bool Parse(KBufferedReader& InStream);
-	virtual bool Parse(KStringView sInput);
+
+	// Memory-parse entry as a constrained template. SFINAE on
+	// `is_constructible<KStringView, T>` accepts everything string-y
+	// (`KString`, `KStringView`, `KStringViewZ`, `const char*`, ...).
+	// Being a template, this entry *loses* to any concrete `Parse(KString)`
+	// overload in a derived class (notably `KHTML`) under overload
+	// resolution — non-template beats template at equal match quality.
+	// That cleanly resolves the `const char*` ambiguity that would
+	// otherwise force a `-Woverloaded-virtual` workaround.
+	//
+	// The actual virtual hook is `ParseImpl(KStringView)` below.
+	template<typename T,
+	         typename std::enable_if<
+	             std::is_constructible<KStringView, T&&>::value
+	             && !std::is_base_of<KInStream, typename std::decay<T>::type>::value
+	             && !std::is_base_of<KBufferedReader, typename std::decay<T>::type>::value,
+	         int>::type = 0>
+	bool Parse(T&& sInput)
+	{
+		return ParseImpl(KStringView(std::forward<T>(sInput)));
+	}
 
 	KHTMLParser& EmitEntitiesAsUTF8() { m_bEmitEntitiesAsUTF8 = true; return *this; }
 
 //------
 protected:
 //------
+
+	/// Memory-parse virtual entry. Derived classes (notably `KHTML`)
+	/// override this to route through their owning buffer before the
+	/// streaming pass runs. Default impl: wrap the view in a buffered
+	/// string reader and delegate to `Parse(KBufferedReader&)`.
+	virtual bool ParseImpl(KStringView sInput);
 
 	virtual void Object(KHTMLObject& Object);
 	virtual void Content(char ch);

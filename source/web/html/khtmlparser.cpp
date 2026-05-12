@@ -1508,13 +1508,13 @@ bool KHTMLParser::Parse(KInStream& InStream)
 } // Parse
 
 //-----------------------------------------------------------------------------
-bool KHTMLParser::Parse(KStringView sInput)
+bool KHTMLParser::ParseImpl(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
 	KBufferedStringReader kbr(sInput);
 	return Parse(kbr);
 
-} // Parse
+} // ParseImpl
 
 //-----------------------------------------------------------------------------
 void KHTMLParser::Content(char ch)

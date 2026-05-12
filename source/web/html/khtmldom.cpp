@@ -574,6 +574,8 @@ KHTML::~KHTML()
 
 //-----------------------------------------------------------------------------
 bool KHTML::Parse(KString sSource)
+// (no `override` — see khtmlparser.h: the base has only a constrained
+// template `Parse(T&&)` for memory input, not a concrete `Parse(KString)`.)
 //-----------------------------------------------------------------------------
 {
 	// Take ownership of the source. If the caller passed by move
@@ -591,10 +593,10 @@ bool KHTML::Parse(KString sSource)
 		m_Document.RegisterStableRegion(m_SourceBuffer.data(), m_SourceBuffer.size());
 	}
 
-	// Hand the parser a view into our owned buffer. The base class
-	// virtual will dispatch back into our Object()/Content()/etc.
-	// callbacks as usual.
-	return KHTMLParser::Parse(KStringView(m_SourceBuffer));
+	// Hand the parser a view into our owned buffer. Call ParseImpl
+	// QUALIFIED (no virtual dispatch) so we don't re-enter our own
+	// `KHTML::ParseImpl` override — that would loop back into us.
+	return KHTMLParser::ParseImpl(KStringView(m_SourceBuffer));
 
 } // Parse(KString)
 

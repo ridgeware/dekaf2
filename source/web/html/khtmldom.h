@@ -105,34 +105,47 @@ public:
 	// parsing is in base class
 
 	//-----------------------------------------------------------------------------
-	/// Parse a source string with the same ownership semantics as the
+	/// Parse a source string with ownership semantics matching the
 	/// `KHTML(KString)` constructor: takes the source by value, so
 	/// `Parse(std::move(buf))` moves the buffer into the document (zero
 	/// copies); `Parse(buf)` copies. The buffer is held as
-	/// `m_SourceBuffer` and registered as a stable arena region.
+	/// `m_SourceBuffer` and registered as a stable arena region so that
+	/// in-situ-parsed views can point into it.
 	///
-	/// Anything implicitly convertible to `KString` (`KStringView`,
-	/// `KStringViewZ`, `const char*`, ...) reaches this overload — there
-	/// is no separate `Parse(KStringView)` entry. We intentionally do
-	/// not pull in `KHTMLParser::Parse` via a using-declaration, since
-	/// that would re-expose the base's `Parse(KStringView)` as an exact
-	/// match and bypass `m_SourceBuffer` ownership. The diagnostic
-	/// guard below silences `-Woverloaded-virtual`, which fires on the
-	/// intentional hiding.
+	/// `KHTMLParser::Parse` is exposed via the using-declaration below
+	/// — its memory-parse template is SFINAE-constrained on
+	/// `is_constructible<KStringView, T>` and *loses* to this concrete
+	/// `Parse(KString)` overload under overload resolution. Therefore
+	/// any string-y argument (`const char*`, `KStringView`,
+	/// `KStringViewZ`, `KString`, ...) routes through this owning path,
+	/// while non-string types (e.g. `KInStream&`) continue to find the
+	/// stream overloads.
 	///
 	/// Clears any previous parse result first. Returns true on success.
-#if defined(__GNUC__) || defined(__clang__)
-	#pragma GCC diagnostic push
-	#pragma GCC diagnostic ignored "-Woverloaded-virtual"
-#endif
 	bool Parse(KString sSource);
 
 	// Stream input clears m_SourceBuffer and runs the streaming path
 	// unchanged.
 	bool Parse(KInStream& InStream) override;
-#if defined(__GNUC__) || defined(__clang__)
-	#pragma GCC diagnostic pop
-#endif
+
+	// Bring in the base template + stream overloads. Thanks to the
+	// SFINAE-on-template trick described above, this no longer creates
+	// a const-char* ambiguity with our concrete `Parse(KString)`.
+	using KHTMLParser::Parse;
+
+protected:
+	// Override the base virtual memory-parse hook so that any string
+	// argument arriving via the inherited template — `doc.Parse(view)`,
+	// `doc.Parse("...")` — funnels into our owning `Parse(KString)`
+	// path. `Parse(KString)` itself calls `KHTMLParser::ParseImpl`
+	// explicitly (qualified) to bypass virtual dispatch, breaking the
+	// loop that would otherwise form here.
+	bool ParseImpl(KStringView sInput) override
+	{
+		return Parse(KString(sInput));
+	}
+
+public:
 	//-----------------------------------------------------------------------------
 
 	void    Serialize(KOutStream& Stream, char chIndent = '\t') const;

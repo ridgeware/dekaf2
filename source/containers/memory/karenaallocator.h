@@ -288,6 +288,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// @returns true if `sSource` points entirely into one of this arena's
+	/// own blocks (or the adopted inline buffer). Used by `AllocateString`
+	/// to recognise self-views (e.g. produced by an arena-backed parser
+	/// accumulator) and skip the redundant copy. Linear in the number of
+	/// blocks but typically O(1–3) in practice.
+	bool IsOwnedByThisArena(KStringView sSource) const noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	// Open-ended cursor API
 	//
 	// Allows a caller (typically `KArenaStringBuilder`) to extend a string

@@ -538,14 +538,19 @@ void KArenaAllocator::GrowBy(std::size_t iMinPayload)
 	constexpr std::size_t kHeaderSize  = align_up(sizeof(Block), kHeaderAlign);
 
 	// before mallocing, try to recycle a block from the free list.
-	// First-fit walk: pick the first block that is large enough. Blocks
-	// in the free list keep their original m_iSize, so the search is
-	// O(N) in the free-list length (typically 1-2 entries in practice).
+	// First-fit walk: pick the first block big enough to hold the
+	// caller's request (iMinPayload). We deliberately do NOT require
+	// the block to match the geometrically-grown iPayload — the
+	// doubling exists to amortise *fresh* malloc costs, but recycling
+	// a smaller-but-sufficient block is always cheaper than a new
+	// heap alloc. Blocks in the free list keep their original
+	// m_iSize, so the search is O(N) in the free-list length
+	// (typically 1-2 entries in practice).
 	{
 		Block** ppPrev = &m_pFreeList;
 		for (Block* pCur = m_pFreeList; pCur != nullptr; pCur = pCur->m_pPrevious)
 		{
-			if (pCur->m_iSize >= iPayload)
+			if (pCur->m_iSize >= iMinPayload)
 			{
 				// unlink from the free list
 				*ppPrev = pCur->m_pPrevious;
@@ -574,6 +579,16 @@ void KArenaAllocator::GrowBy(std::size_t iMinPayload)
 	m_pHead   = pBlock;
 	m_pCursor = static_cast<char*>(pRaw) + kHeaderSize;
 	m_pEnd    = m_pCursor + iPayload;
+
+	// Geometric growth: each subsequent block doubles in size, capped.
+	// Without this an arena that grows to a megabyte burns ~120 separate
+	// malloc()s; with doubling that's ~10. Cap keeps single-block waste
+	// bounded for short-lived arenas.
+	constexpr std::size_t kMaxBlockSize = 256 * 1024;
+	if (m_iBlockSize < kMaxBlockSize)
+	{
+		m_iBlockSize = std::min(m_iBlockSize * 2, kMaxBlockSize);
+	}
 }
 
 DEKAF2_NAMESPACE_END

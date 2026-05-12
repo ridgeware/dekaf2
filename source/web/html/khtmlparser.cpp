@@ -1456,7 +1456,7 @@ void KHTMLParser::Invalid(const KHTMLStringObject& Object)
 //-----------------------------------------------------------------------------
 {
 	Invalid(Object.LeadIn());
-	Invalid(Object.sValue);
+	Invalid(Object.Value());
 
 } // Invalid
 
@@ -1566,7 +1566,16 @@ void KHTMLParser::SkipScript(KBufferedReader& InStream)
 bool KHTMLParser::Parse(KBufferedReader& InStream)
 //-----------------------------------------------------------------------------
 {
-	std::istream::int_type ch;
+	// Publish the active reader so derived classes can query the
+	// current source position from their Content() / Script() / Invalid()
+	// callbacks (used by the source-slicing accumulator path).
+	m_pActiveReader = &InStream;
+	struct ReaderGuard {
+		KHTMLParser* p;
+		~ReaderGuard() { p->m_pActiveReader = nullptr; p->m_bDecodingEntity = false; }
+	} guard{ this };
+
+	std::iostream::int_type ch;
 
 	while (DEKAF2_LIKELY((ch = InStream.Read()) != std::istream::traits_type::eof()))
 	{
@@ -1681,10 +1690,15 @@ bool KHTMLParser::Parse(KBufferedReader& InStream)
 		{
 			KString sEntity = KHTMLObject::DecodeEntity(InStream);
 
+			// Mark Content() callbacks during this loop as "decoded" so
+			// slicing-aware consumers force a transformation (the bytes
+			// don't 1:1 match source position).
+			m_bDecodingEntity = true;
 			for (auto ch : sEntity)
 			{
 				Content(ch);
 			}
+			m_bDecodingEntity = false;
 		}
 		else
 		{

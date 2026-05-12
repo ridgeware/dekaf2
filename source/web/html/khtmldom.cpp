@@ -544,13 +544,12 @@ KHTML::KHTML()
 //-----------------------------------------------------------------------------
 {
 	EmitEntitiesAsUTF8();
-	// inject our arena so the parser can (in a future step) write tag names,
-	// attribute names/values, and text content directly into arena memory
-	// rather than through per-tag KString allocations. The storage layout
-	// is now view-first (m_sName/m_sValue/...) so subsequent steps can flip
-	// individual parse paths over to KArenaAllocator::AllocateString() or a
-	// streaming KArenaStringBuilder without further changes to the parser
-	// callbacks.
+	// Inject our arena into the inherited KHTMLParser. With this set,
+	// KHTMLTag / KHTMLAttribute / KHTMLStringObject route their
+	// char-by-char accumulators through `KArenaStringBuilder` writing
+	// into our arena; text-content goes through `KHTML::Content` and
+	// the `ParseAccumulator` (with source-slicing when a stable region
+	// is registered).
 	SetArena(&m_Document);
 	PodResetTree();
 
@@ -602,11 +601,12 @@ bool KHTML::Parse(KString sSource)
 	// copies. If by value, one copy was made at the call site.
 	m_SourceBuffer = std::move(sSource);
 
-	// Register the source range with the arena so arena-string-allocations
-	// of views pointing into it pass through as-is (no copy). Phase-5
-	// in-situ parsing will rely on this; today's parser still produces
-	// fresh KString accumulators internally so the registration is a
-	// no-op except for any future views the caller hands in.
+	// Register the source range with the arena. This puts the parser
+	// into source-slicing mode for tag names, attribute names/values
+	// and text content: the `ParseAccumulator` produces views directly
+	// into m_SourceBuffer for any byte run that doesn't need a
+	// transformation (lowercase, entity decode, whitespace collapse).
+	// Modified runs fall back to the arena builder.
 	if (!m_SourceBuffer.empty())
 	{
 		m_Document.RegisterStableRegion(m_SourceBuffer.data(), m_SourceBuffer.size());
@@ -678,7 +678,7 @@ khtml::NodePOD* KHTML::PodAddElement(const KHTMLTag& Tag)
 void KHTML::PodAddStringNode(khtml::NodeKind kind, const KHTMLStringObject& Object)
 //-----------------------------------------------------------------------------
 {
-	m_PodHierarchy.back()->AddNode(kind, Object.sValue);
+	m_PodHierarchy.back()->AddNode(kind, Object.Value());
 
 } // PodAddStringNode
 
@@ -719,15 +719,18 @@ KString KHTML::Serialize(char chIndent) const
 void KHTML::clear()
 //-----------------------------------------------------------------------------
 {
-	// Discard any open builder BEFORE we reset the tree (the builder
-	// holds a lease on m_Document).
-	if (m_ContentBuilder.IsActive())
+	// Discard any open accumulator BEFORE we reset the tree — if it's
+	// in ArenaBuilder mode it holds a lease on m_Document.
+	if (m_bContentArmed)
 	{
-		(void) m_ContentBuilder.Finalize();
+		m_ContentAcc.Finalize();
+		m_bContentArmed = false;
 	}
 
 	PodResetTree();
 	m_SourceBuffer.clear();          // also unregisters via Document::clear path
+	m_sContentOwned.clear();
+	m_sContent = KStringView{};
 	ClearError();
 	m_Issues.clear();
 	m_bLastWasSpace = true;
@@ -740,18 +743,26 @@ void KHTML::clear()
 void KHTML::FlushText()
 //-----------------------------------------------------------------------------
 {
-	if (!m_ContentBuilder.IsActive()) return;
+	if (!m_bContentArmed) return;
 
-	// Finalize the open builder. Its view is stable inside the arena —
-	// use the adopt path so we do not waste an AllocateString copy.
-	auto sView = m_ContentBuilder.Finalize();
+	m_ContentAcc.Finalize();
+	m_bContentArmed = false;
+
 	const bool bDoNotEscape = m_bDoNotEscape;
 	m_bDoNotEscape = false;
 
-	if (!sView.empty())
+	if (!m_sContent.empty())
 	{
-		m_PodHierarchy.back()->AddTextAdopt(sView, bDoNotEscape);
+		// View is either in the arena (Builder mode), in the caller's
+		// stable source buffer (Slice mode), or in m_sContentOwned
+		// (Heap mode). All three outlive this text node; AddTextAdopt
+		// stores the view without copying.
+		m_PodHierarchy.back()->AddTextAdopt(m_sContent, bDoNotEscape);
 	}
+
+	// Reset the heap fallback so the next text run starts clean.
+	m_sContentOwned.clear();
+	m_sContent = KStringView{};
 
 } // FlushText
 
@@ -982,6 +993,15 @@ void KHTML::Finished()
 void KHTML::Content(char ch)
 //-----------------------------------------------------------------------------
 {
+	// Capture the original source byte (before any normalisation) so we
+	// can distinguish "identical to source" (AppendOriginal — slice
+	// extends) from "transformed" (AppendTransformed — promote to
+	// builder). The parser also tells us via IsDecodingEntity()
+	// whether this char came from an entity expansion (no source
+	// correspondence at all).
+	const char  chOriginal       = ch;
+	bool        bWasTransformed  = IsDecodingEntity();
+
 	if (!m_bPreformatted)
 	{
 		if (KASCII::kIsSpace(ch))
@@ -991,6 +1011,11 @@ void KHTML::Content(char ch)
 				return;
 			}
 			m_bLastWasSpace = true;
+			// whitespace normalisation: \t \n \r \v \f → ' '
+			if (chOriginal != ' ')
+			{
+				bWasTransformed = true;
+			}
 			ch = ' ';
 		}
 		else
@@ -999,12 +1024,37 @@ void KHTML::Content(char ch)
 		}
 	}
 
-	if (!m_ContentBuilder.IsActive())
+	if (!m_bContentArmed)
 	{
-		// Lazy-arm: takes the arena lease, blocked until FlushText().
-		m_ContentBuilder.Start(m_Document);
+		// pos: one byte BEFORE CurrentPos() (we've just read this ch);
+		// nullptr if no reader is bound or we're inside an entity decode
+		// (in which case slicing wouldn't be valid anyway).
+		const char* pSliceStart = nullptr;
+		const auto* pReader = ActiveReader();
+		if (pReader != nullptr && !IsDecodingEntity())
+		{
+			pSliceStart = pReader->CurrentPos() - 1;
+		}
+		m_ContentAcc.Start(m_sContentOwned, m_sContent, &m_Document, pSliceStart);
+		m_bContentArmed = true;
 	}
-	m_ContentBuilder.Append(ch);
+
+	const char* pAfter = (ActiveReader() != nullptr)
+	                       ? ActiveReader()->CurrentPos()
+	                       : nullptr;
+
+	if (bWasTransformed)
+	{
+		m_ContentAcc.AppendTransformed(ch, pAfter);
+	}
+	else if (pAfter != nullptr)
+	{
+		m_ContentAcc.AppendOriginal(ch, pAfter);
+	}
+	else
+	{
+		m_ContentAcc.AppendOriginal(ch);
+	}
 
 } // Content
 
@@ -1019,11 +1069,30 @@ void KHTML::Script(char ch)
 
 	m_bDoNotEscape = true;
 
-	if (!m_ContentBuilder.IsActive())
+	if (!m_bContentArmed)
 	{
-		m_ContentBuilder.Start(m_Document);
+		const char* pSliceStart = nullptr;
+		const auto* pReader = ActiveReader();
+		if (pReader != nullptr && !IsDecodingEntity())
+		{
+			pSliceStart = pReader->CurrentPos() - 1;
+		}
+		m_ContentAcc.Start(m_sContentOwned, m_sContent, &m_Document, pSliceStart);
+		m_bContentArmed = true;
 	}
-	m_ContentBuilder.Append(ch);
+
+	const char* pAfter = (ActiveReader() != nullptr)
+	                       ? ActiveReader()->CurrentPos()
+	                       : nullptr;
+
+	if (pAfter != nullptr && !IsDecodingEntity())
+	{
+		m_ContentAcc.AppendOriginal(ch, pAfter);
+	}
+	else
+	{
+		m_ContentAcc.AppendTransformed(ch, pAfter);
+	}
 
 } // Script
 
@@ -1038,11 +1107,30 @@ void KHTML::Invalid(char ch)
 
 	m_bDoNotEscape = true;
 
-	if (!m_ContentBuilder.IsActive())
+	if (!m_bContentArmed)
 	{
-		m_ContentBuilder.Start(m_Document);
+		const char* pSliceStart = nullptr;
+		const auto* pReader = ActiveReader();
+		if (pReader != nullptr && !IsDecodingEntity())
+		{
+			pSliceStart = pReader->CurrentPos() - 1;
+		}
+		m_ContentAcc.Start(m_sContentOwned, m_sContent, &m_Document, pSliceStart);
+		m_bContentArmed = true;
 	}
-	m_ContentBuilder.Append(ch);
+
+	const char* pAfter = (ActiveReader() != nullptr)
+	                       ? ActiveReader()->CurrentPos()
+	                       : nullptr;
+
+	if (pAfter != nullptr && !IsDecodingEntity())
+	{
+		m_ContentAcc.AppendOriginal(ch, pAfter);
+	}
+	else
+	{
+		m_ContentAcc.AppendTransformed(ch, pAfter);
+	}
 
 } // Invalid
 

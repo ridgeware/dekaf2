@@ -649,9 +649,12 @@ R"(
 }
 
 // =============================================================================
-// Phase-5 prep: KHTML(KString) sink-constructor + m_SourceBuffer +
-// stable-region registration. Parser-internal in-situ is not enabled yet;
-// these tests just verify the plumbing.
+// KHTML(KString) sink-constructor + m_SourceBuffer + stable-region
+// registration. Verifies that the parser does take ownership of the
+// caller's buffer, registers it with the arena, and that the
+// source-slicing accumulator subsequently produces views into the
+// caller's bytes (rather than arena copies) where no transformation
+// was needed.
 // =============================================================================
 
 TEST_CASE("KHTML source-buffer ownership")
@@ -750,13 +753,165 @@ TEST_CASE("KHTML source-buffer ownership")
 		KHTML doc;
 		doc.ParseStable(sSource);
 
-		// view is registered as stable region — future in-situ
-		// parsing would slice views out of it for free.
+		// view is registered as stable region — the source-slicing
+		// accumulator hands out views into it for free.
 		CHECK ( doc.Arena().StableRegionCount() == 1 );
 
 		// the parsed tree is built normally
 		auto root = doc.Root().FirstChild();
 		REQUIRE ( root );
 		CHECK   ( root.Name() == "z" );
+	}
+}
+
+// =============================================================================
+// Source-slicing edge cases — verify that views from a ParseStable call
+// actually point INTO the caller's source buffer when no transformation
+// is needed, and that they fall back to arena copies when the parser
+// has to lowercase/normalise/decode.
+// =============================================================================
+
+TEST_CASE("KHTML source-slicing edge cases")
+{
+	auto AddressInBuffer = [](KStringView view, KStringView buffer) -> bool
+	{
+		// returns true iff `view` lies entirely within `buffer` (i.e. the
+		// view points into the same backing memory).
+		if (view.empty()) return false;
+		auto* p   = view.data();
+		auto* end = p + view.size();
+		auto* b   = buffer.data();
+		auto* be  = b + buffer.size();
+		return p >= b && end <= be;
+	};
+
+	SECTION("lowercase tag + attribute slice from source")
+	{
+		KString sSource = "<div class='container'>hello world</div>";
+		KHTML doc;
+		doc.ParseStable(sSource);
+
+		auto root = doc.Root().FirstChild();
+		REQUIRE ( root );
+		CHECK   ( root.Name() == "div" );
+		CHECK   ( AddressInBuffer(root.Name(), sSource) ); // <-- slice
+
+		auto cls = root.FindAttr("class");
+		REQUIRE ( cls );
+		CHECK   ( cls.Value() == "container" );
+		CHECK   ( AddressInBuffer(cls.Value(), sSource) ); // <-- slice
+
+		auto text = root.FirstChild();
+		REQUIRE ( text );
+		CHECK   ( text.IsText() );
+		CHECK   ( text.Name() == "hello world" );
+		CHECK   ( AddressInBuffer(text.Name(), sSource) ); // <-- slice
+	}
+
+	SECTION("uppercase tag forces arena copy (lowercase transform)")
+	{
+		// "DIV" → "div" — the byte at position 'D' differs from the
+		// lowercased name, so slicing-mode promotes to arena builder.
+		KString sSource = "<DIV>text</DIV>";
+		KHTML doc;
+		doc.ParseStable(sSource);
+
+		auto root = doc.Root().FirstChild();
+		REQUIRE ( root );
+		CHECK   ( root.Name() == "div" );
+		CHECK_FALSE ( AddressInBuffer(root.Name(), sSource) ); // <-- in arena
+	}
+
+	SECTION("whitespace-only-spaces text slices; tabs/newlines force copy")
+	{
+		// pure spaces → slice
+		KString sPureSpaces = "<p>hello world goodbye</p>";
+		{
+			KHTML doc;
+			doc.ParseStable(sPureSpaces);
+			auto p = doc.Root().FirstChild();
+			REQUIRE ( p );
+			auto text = p.FirstChild();
+			REQUIRE ( text );
+			CHECK ( text.Name() == "hello world goodbye" );
+			CHECK ( AddressInBuffer(text.Name(), sPureSpaces) );
+		}
+
+		// tab/newline → normalised to single space → byte differs → arena
+		KString sMixedWs = "<p>hello\tworld\ngoodbye</p>";
+		{
+			KHTML doc;
+			doc.ParseStable(sMixedWs);
+			auto p = doc.Root().FirstChild();
+			REQUIRE ( p );
+			auto text = p.FirstChild();
+			REQUIRE ( text );
+			CHECK ( text.Name() == "hello world goodbye" );
+			CHECK_FALSE ( AddressInBuffer(text.Name(), sMixedWs) );
+		}
+	}
+
+	SECTION("entity in attribute value forces arena copy")
+	{
+		KString sSource = "<a href='/q?x=1&amp;y=2'>link</a>";
+		KHTML doc;
+		doc.ParseStable(sSource);
+
+		auto a = doc.Root().FirstChild();
+		REQUIRE ( a );
+		auto href = a.FindAttr("href");
+		REQUIRE ( href );
+		// decoded view contains the literal '&' — different from the
+		// "&amp;" bytes in source → cannot be a slice
+		CHECK ( href.Value() == "/q?x=1&y=2" );
+		CHECK_FALSE ( AddressInBuffer(href.Value(), sSource) );
+
+		// the unaffected text child still slices
+		auto text = a.FirstChild();
+		REQUIRE ( text );
+		CHECK ( text.Name() == "link" );
+		CHECK ( AddressInBuffer(text.Name(), sSource) );
+	}
+
+	SECTION("Parse(KString) (move-in) also slices — m_SourceBuffer is stable too")
+	{
+		KString sSource = "<span id='x'>content</span>";
+		KHTML doc;
+		doc.Parse(std::move(sSource));   // moves into m_SourceBuffer
+
+		auto root = doc.Root().FirstChild();
+		REQUIRE ( root );
+		CHECK ( root.Name() == "span" );
+
+		auto id = root.FindAttr("id");
+		REQUIRE ( id );
+		CHECK ( id.Value() == "x" );
+
+		// the slice now points into m_SourceBuffer (owned by doc)
+		// — we don't have direct access to verify the pointer, but we
+		// can verify content survives and the stable region is set
+		CHECK ( doc.Arena().StableRegionCount() == 1 );
+	}
+
+	SECTION("Parse(view) — no ParseStable — runs through arena builder")
+	{
+		// Without explicit ownership transfer and without ParseStable,
+		// the template path runs streaming. No stable region, so all
+		// accumulator bytes go through the arena builder — none slice.
+		KString sSource = "<em>italic</em>";
+		KHTML doc;
+		doc.Parse(KStringView(sSource));   // template → streaming
+
+		CHECK ( doc.Arena().StableRegionCount() == 0 );
+
+		auto em = doc.Root().FirstChild();
+		REQUIRE ( em );
+		CHECK ( em.Name() == "em" );
+		auto text = em.FirstChild();
+		REQUIRE ( text );
+		CHECK ( text.Name() == "italic" );
+		// neither name nor text point into sSource — they're in the arena
+		CHECK_FALSE ( AddressInBuffer(em.Name(),   sSource) );
+		CHECK_FALSE ( AddressInBuffer(text.Name(), sSource) );
 	}
 }

@@ -373,26 +373,27 @@ public:
 	virtual void clear() override;
 	virtual bool empty() const override;
 
-	// owning fallback storage; non-empty when self-owning
-	KString     sValueOwned {};
-	// current value - points either into sValueOwned or into an external arena
-	KStringView sValue      {};
-
-	KStringView LeadIn() const
-	{
-		return m_sLeadIn;
-	}
-
-	KStringView LeadOut() const
-	{
-		return m_sLeadOut;
-	}
+	/// @returns the parsed payload (between lead-in and lead-out) as a
+	/// view. Lifetime: valid as long as this object — or its backing
+	/// arena / source-buffer, when arena-allocated — is alive.
+	KStringView Value () const { return sValue;    }
+	KStringView LeadIn() const { return m_sLeadIn; }
+	KStringView LeadOut() const { return m_sLeadOut; }
 
 //------
 protected:
 //------
 
 	virtual bool SearchForLeadOut(KBufferedReader& InStream) = 0;
+
+	// owning fallback storage; non-empty in heap-mode (no arena was
+	// injected for this parse) or when the object was constructed
+	// owning (via the KString-arg ctor or a copy/move). The view-only
+	// arena-builder and source-slice modes leave it empty.
+	KString     sValueOwned {};
+	// current value — points either into sValueOwned, into the parser's
+	// arena, or into a caller-supplied stable source buffer.
+	KStringView sValue      {};
 
 	/// Append one byte to the current value-accumulator. Routes through
 	/// the transient `ParseAccumulator` armed by `Parse()`; falls back
@@ -1016,6 +1017,23 @@ protected:
 	/// @returns the currently injected arena, or nullptr if none.
 	khtml::Document* GetArena() const noexcept { return m_pArena; }
 
+	//-----------------------------------------------------------------------------
+	/// @returns the reader currently being parsed, or `nullptr` outside of
+	/// a parse run. Set by `Parse(KBufferedReader&)` for the duration of
+	/// its loop. Used by derived `Content()`/`Script()` overrides to
+	/// query `CurrentPos()` for source-slicing-aware text accumulation.
+	const KBufferedReader* ActiveReader() const noexcept { return m_pActiveReader; }
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// @returns true while the parser is inside an entity-decode loop,
+	/// i.e. each `Content(char)` callback during that window is emitting
+	/// a *decoded* byte that does not correspond 1:1 to a source byte at
+	/// `ActiveReader()->CurrentPos()`. Slicing-aware consumers must
+	/// treat those bytes as "transformed".
+	bool IsDecodingEntity() const noexcept { return m_bDecodingEntity; }
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
@@ -1027,8 +1045,10 @@ private:
 	DEKAF2_PRIVATE void SkipScript(KBufferedReader& InStream);
 	DEKAF2_PRIVATE void SkipInvalid(KBufferedReader& InStream);
 
-	khtml::Document* m_pArena { nullptr };
-	bool             m_bEmitEntitiesAsUTF8 { false };
+	khtml::Document*       m_pArena             { nullptr };
+	const KBufferedReader* m_pActiveReader      { nullptr };
+	bool                   m_bDecodingEntity    { false };
+	bool                   m_bEmitEntitiesAsUTF8 { false };
 
 }; // KHTMLParser
 

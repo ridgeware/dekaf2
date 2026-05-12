@@ -543,9 +543,10 @@ void html_parse_dom()
 		// Same source, but using ParseStable — caller promises sHTML
 		// outlives the document. Parser registers the buffer as a
 		// stable region and the ParseAccumulator runs in slicing
-		// mode: tag names, attribute names, and attribute values that
-		// don't need character transformation become views directly
-		// into sHTML — zero arena bytes consumed for those strings.
+		// mode: tag names, attribute names, attribute values, AND
+		// text content that don't need character transformation
+		// become views directly into sHTML — zero arena bytes
+		// consumed for those strings.
 		AllocationSnapshot a("KHTML parse-DOM/memory-stable x1000 (slicing)");
 		dekaf2::KProf ps("HTMLParse DOM from memory (ParseStable)");
 		ps.SetMultiplier(1000);
@@ -555,6 +556,49 @@ void html_parse_dom()
 			KHTML doc;
 			doc.ParseStable(sHTML);
 			KProf::Force(&doc);
+		}
+	}
+	{
+		// content-heavy synthetic input: long text inside tags. This
+		// is the workload where Content-slicing pays off most.
+		static const KString sContentHeavy = []{
+			KString s;
+			s.reserve(60'000);
+			s += "<article>";
+			for (int i = 0; i < 200; ++i)
+			{
+				s += "<p class='para'>"
+				     "Lorem ipsum dolor sit amet consectetur adipiscing elit "
+				     "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "
+				     "Ut enim ad minim veniam quis nostrud exercitation ullamco "
+				     "laboris nisi ut aliquip ex ea commodo consequat."
+				     "</p>";
+			}
+			s += "</article>";
+			return s;
+		}();
+
+		{
+			AllocationSnapshot a("KHTML content-heavy/Parse x100");
+			dekaf2::KProf ps("HTMLParse content-heavy (Parse)");
+			ps.SetMultiplier(100);
+			for (size_t count = 0; count < 100; ++count)
+			{
+				KHTML doc;
+				doc.Parse(KStringView(sContentHeavy));
+				KProf::Force(&doc);
+			}
+		}
+		{
+			AllocationSnapshot a("KHTML content-heavy/ParseStable x100");
+			dekaf2::KProf ps("HTMLParse content-heavy (ParseStable)");
+			ps.SetMultiplier(100);
+			for (size_t count = 0; count < 100; ++count)
+			{
+				KHTML doc;
+				doc.ParseStable(sContentHeavy);
+				KProf::Force(&doc);
+			}
 		}
 	}
 	{
@@ -687,9 +731,9 @@ void html_build()
 // including a longer inline style + a longer body text (≈ 120 bytes of
 // sentence-shaped content). Mirrors a real-world admin/listing page
 // rather than the 1000x5x3 micro-bench above. Entity content is left
-// out for now — the parse path still copies entities through KString,
-// so it would not show the Phase-5 win until in-situ entity decoding
-// lands. The hook is here so we can flip it on later.
+// out — entity decoding still goes through a temporary KString today;
+// adding entities here would skew comparisons against the heap-DOM
+// baseline.
 // ----------------------------------------------------------------------------
 
 void html_build_realistic()

@@ -92,8 +92,14 @@ public:
 	};
 
 	ParseAccumulator() = default;
-	ParseAccumulator(const ParseAccumulator&) = delete;
+	ParseAccumulator(const ParseAccumulator&)            = delete;
 	ParseAccumulator& operator=(const ParseAccumulator&) = delete;
+	// Move-ctor defaulted (KArenaStringBuilder has a move-ctor) so
+	// owning containers (e.g. KHTML) can default their own move-ctor.
+	// Move-assign deleted (KArenaStringBuilder deletes move-assign) —
+	// owning containers must not provide move-assign either.
+	ParseAccumulator(ParseAccumulator&&) noexcept = default;
+	ParseAccumulator& operator=(ParseAccumulator&&)        = delete;
 
 	//-----------------------------------------------------------------------------
 	/// Arm the accumulator. Picks the best available mode:

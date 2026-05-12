@@ -540,6 +540,24 @@ void html_parse_dom()
 		}
 	}
 	{
+		// Same source, but using ParseStable — caller promises sHTML
+		// outlives the document. Parser registers the buffer as a
+		// stable region and the ParseAccumulator runs in slicing
+		// mode: tag names, attribute names, and attribute values that
+		// don't need character transformation become views directly
+		// into sHTML — zero arena bytes consumed for those strings.
+		AllocationSnapshot a("KHTML parse-DOM/memory-stable x1000 (slicing)");
+		dekaf2::KProf ps("HTMLParse DOM from memory (ParseStable)");
+		ps.SetMultiplier(1000);
+
+		for (size_t count = 0; count < 1000; ++ count)
+		{
+			KHTML doc;
+			doc.ParseStable(sHTML);
+			KProf::Force(&doc);
+		}
+	}
+	{
 		AllocationSnapshot a("KHTML parse-DOM/file x100");
 		dekaf2::KProf ps("HTMLParse DOM from file");
 		ps.SetMultiplier(100);

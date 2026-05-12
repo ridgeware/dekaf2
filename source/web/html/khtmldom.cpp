@@ -579,7 +579,10 @@ bool KHTML::ParseStable(KStringView sView)
 	// Caller promises that sView outlives this document. We register
 	// the bytes as an arena stable region (no copy) and run the
 	// streaming parse path. No `m_SourceBuffer` is touched.
-	clear();
+	//
+	// Behaves like `Parse(KString)` in NOT calling clear() — the
+	// caller is responsible for calling clear() on reuse. This keeps
+	// per-call overhead parallel to the owning path.
 	if (!sView.empty())
 	{
 		m_Document.RegisterStableRegion(sView.data(), sView.size());

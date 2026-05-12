@@ -42,6 +42,7 @@
 #include <dekaf2/web/html/khtmlparser.h>
 #include <dekaf2/web/html/khtmlentities.h>
 #include <dekaf2/web/html/bits/khtmldom_node.h>  // for khtml::Document (KArenaAllocator)
+#include <dekaf2/web/html/bits/khtmlparse_accumulator.h>
 #include <dekaf2/containers/memory/karenaallocator.h>
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/core/strings/kstringutils.h>
@@ -505,28 +506,24 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening, b
 	auto iStart  = sOpening.size();
 	auto iLeadIn = m_sLeadIn.size();
 
-	// Arm an arena-backed accumulator if our arena is set. The pointer
-	// is published to the protected `m_pValueBuilder` slot so the
-	// virtual `SearchForLeadOut()` overrides in our subclasses can
-	// route into it via `AppendValueChar()`.
-	KArenaStringBuilder ValueBuilder;
-	const bool bUseArena = (m_pArena != nullptr);
-	if (bUseArena)
-	{
-		m_pValueBuilder = &ValueBuilder;
-	}
+	// Arm the accumulator. NOTE: we deliberately disable slicing mode
+	// for KHTMLStringObject — the lead-out probe in SearchForLeadOut()
+	// reads bytes that may or may not be part of the stored value
+	// (e.g. a `--` inside a comment that doesn't form `-->` is stored;
+	// the `--` that does is not). Tracking source positions through
+	// that logic is tricky and the win is small (comments / CDATA are
+	// usually short and few). Pass `nullptr` for the slice start so
+	// `Start()` falls through to ArenaBuilder / HeapKString mode.
+	khtml::ParseAccumulator ValueAcc;
+	ValueAcc.Start(sValueOwned, sValue, m_pArena, /*pCurrentSourcePos=*/ nullptr);
+	m_pValueAcc = &ValueAcc;
 
 	if (iStart >= iLeadIn)
 	{
 		sOpening.remove_prefix(iLeadIn);
-		if (bUseArena && !sOpening.empty())
+		if (!sOpening.empty())
 		{
-			ValueBuilder.Start(*m_pArena);
-			ValueBuilder.Append(sOpening);
-		}
-		else
-		{
-			sValueOwned = sOpening;
+			ValueAcc.AppendTransformed(sOpening, InStream.CurrentPos());
 		}
 	}
 	else
@@ -546,7 +543,7 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening, b
 				}
 				else
 				{
-					m_pValueBuilder = nullptr;
+					m_pValueAcc = nullptr;
 					return false;
 				}
 			}
@@ -564,31 +561,31 @@ bool KHTMLStringObject::Parse(KBufferedReader& InStream, KStringView sOpening, b
 
 	bool bOk = SearchForLeadOut(InStream);
 
-	// Finalize / re-point the view.
-	if (bUseArena && ValueBuilder.IsActive())
-	{
-		sValue = ValueBuilder.Finalize();
-	}
-	else
-	{
-		sValue = sValueOwned.ToView();
-	}
-	m_pValueBuilder = nullptr;
+	// Finalize — writes the view back to sValue.
+	ValueAcc.Finalize();
+	m_pValueAcc = nullptr;
 	return bOk;
 
 } // Parse
 
 //-----------------------------------------------------------------------------
-void KHTMLStringObject::AppendValueChar(char ch)
+void KHTMLStringObject::AppendValueChar(char ch, const char* pAfterPos)
 //-----------------------------------------------------------------------------
 {
-	if (m_pValueBuilder != nullptr)
+	if (m_pValueAcc != nullptr)
 	{
-		if (!m_pValueBuilder->IsActive())
+		if (pAfterPos != nullptr)
 		{
-			m_pValueBuilder->Start(*m_pArena);
+			m_pValueAcc->AppendOriginal(ch, pAfterPos);
 		}
-		m_pValueBuilder->Append(ch);
+		else
+		{
+			// no position handy — caller is replaying a previously
+			// consumed byte (e.g. an unmatched lead-out probe). The
+			// slice-end stays where it was; in arena/heap modes the
+			// byte is still copied through.
+			m_pValueAcc->AppendOriginal(ch);
+		}
 	}
 	else
 	{
@@ -637,61 +634,54 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 	enum class State { Start, Key, BeforeEqual, AfterEqual, Value };
 	State state { State::Start };
 
-	// Two sequential arena builders. Name accumulates first, gets
-	// finalized at the Key→BeforeEqual/AfterEqual transition; Value
-	// accumulates after that. The exclusive arena lease is held by at
-	// most one of them at a time.
-	KArenaStringBuilder NameBuilder;
-	KArenaStringBuilder ValueBuilder;
-	const bool bUseArena = (m_pArena != nullptr);
+	// Two sequential accumulators (name → value). Each picks the
+	// cheapest available mode at Start(): SourceSlice (free view into
+	// the caller's stable buffer) > ArenaBuilder > HeapKString.
+	khtml::ParseAccumulator NameAcc;
+	khtml::ParseAccumulator ValueAcc;
+	bool bNameStarted  = false;
+	bool bValueStarted = false;
 
-	auto AppendName = [&](char ch) {
-		if (bUseArena) {
-			if (!NameBuilder.IsActive()) NameBuilder.Start(*m_pArena);
-			NameBuilder.Append(ch);
-		} else {
-			m_sNameOwned.push_back(ch);
-		}
+	auto StartName = [&]() {
+		// CurrentPos() is the byte AFTER the just-read char (or the
+		// next byte to be read). The first call here is either right
+		// before consuming the first name byte, OR right after we have
+		// already consumed it via Read() (in which case the slice
+		// starts one byte earlier).
+		NameAcc.Start(m_sNameOwned, m_sName, m_pArena, InStream.CurrentPos());
+		bNameStarted = true;
 	};
 	auto FinalizeName = [&]() {
-		if (bUseArena && NameBuilder.IsActive()) {
-			m_sName = NameBuilder.Finalize();
-		} else {
+		if (bNameStarted)
+		{
+			// CurrentPos() sits one past the delimiter that ended the
+			// name — back up one to mark the last accumulated byte.
+			NameAcc.Finalize(InStream.CurrentPos() - 1);
+		}
+		else
+		{
 			m_sName = m_sNameOwned.ToView();
 		}
 	};
-	auto AppendValueChar = [&](char ch) {
-		if (bUseArena) {
-			if (!ValueBuilder.IsActive()) ValueBuilder.Start(*m_pArena);
-			ValueBuilder.Append(ch);
-		} else {
-			m_sValueOwned.push_back(ch);
-		}
-	};
-	auto AppendValueView = [&](KStringView s) {
-		if (bUseArena) {
-			if (!ValueBuilder.IsActive()) ValueBuilder.Start(*m_pArena);
-			ValueBuilder.Append(s);
-		} else {
-			m_sValueOwned.append(s);
-		}
-	};
 	auto FinalizeValue = [&]() {
-		if (bUseArena && ValueBuilder.IsActive()) {
-			m_sValue = ValueBuilder.Finalize();
-		} else {
+		if (bValueStarted)
+		{
+			ValueAcc.Finalize(InStream.CurrentPos() - 1);
+		}
+		else
+		{
 			m_sValue = m_sValueOwned.ToView();
 		}
 	};
 
 	if (!sOpening.empty())
 	{
-		if (bUseArena) {
-			NameBuilder.Start(*m_pArena);
-			NameBuilder.Append(sOpening);
-		} else {
-			m_sNameOwned = sOpening;
-		}
+		// The opening bytes were already consumed by the caller, so
+		// they are not part of the current Reader window. Push them
+		// through as a "transformed" run — slicing mode (if armed)
+		// will promote to a builder so the bytes are captured.
+		StartName();
+		NameAcc.AppendTransformed(sOpening, InStream.CurrentPos());
 		state = State::Key;
 	}
 
@@ -704,13 +694,31 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 			case State::Start:
 				if (ch == '>')
 				{
-					InStream.UnRead();
+					// Finalise first so slice end captures the right
+					// position, then UnRead so outer sees the '>'.
 					FinalizeName(); FinalizeValue();
+					InStream.UnRead();
 					return true;
 				}
 				else if (!KASCII::kIsSpace(ch))
 				{
-					AppendName(KASCII::kToLower(ch));
+					// One char already consumed by Read() — slice should
+					// start at THIS char, i.e. CurrentPos() - 1.
+					if (!bNameStarted)
+					{
+						NameAcc.Start(m_sNameOwned, m_sName, m_pArena,
+						              InStream.CurrentPos() - 1);
+						bNameStarted = true;
+					}
+					const char lc = KASCII::kToLower(ch);
+					if (lc == static_cast<char>(ch))
+					{
+						NameAcc.AppendOriginal(lc, InStream.CurrentPos());
+					}
+					else
+					{
+						NameAcc.AppendTransformed(lc, InStream.CurrentPos());
+					}
 					state = State::Key;
 				}
 				break;
@@ -718,6 +726,8 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 			case State::Key:
 				if (KASCII::kIsSpace(ch))
 				{
+					// space consumed — slice end = CurrentPos()-1
+					// (position of the space, exclusive).
 					FinalizeName();
 					state = State::BeforeEqual;
 				}
@@ -728,13 +738,21 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 				}
 				else if (ch == '>')
 				{
-					InStream.UnRead();
 					FinalizeName(); FinalizeValue();
+					InStream.UnRead();
 					return true;
 				}
 				else
 				{
-					AppendName(KASCII::kToLower(ch));
+					const char lc = KASCII::kToLower(ch);
+					if (lc == static_cast<char>(ch))
+					{
+						NameAcc.AppendOriginal(lc, InStream.CurrentPos());
+					}
+					else
+					{
+						NameAcc.AppendTransformed(lc, InStream.CurrentPos());
+					}
 				}
 				break;
 
@@ -746,8 +764,8 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 				else if (!KASCII::kIsSpace(ch))
 				{
 					// probably the next attribute - this one had no value
-					InStream.UnRead();
 					FinalizeValue();
+					InStream.UnRead();
 					return true;
 				}
 				break;
@@ -761,32 +779,52 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 					}
 					else
 					{
+						if (!bValueStarted)
+						{
+							ValueAcc.Start(m_sValueOwned, m_sValue, m_pArena,
+							               InStream.CurrentPos() - 1);
+							bValueStarted = true;
+						}
 						if (DEKAF2_UNLIKELY(bDecodeEntities && ch == '&'))
 						{
-							AppendValueView(KHTMLObject::DecodeEntity(InStream));
+							ValueAcc.AppendTransformed(
+							    KHTMLObject::DecodeEntity(InStream),
+							    InStream.CurrentPos());
 						}
 						else
 						{
-							AppendValueChar(ch);
-				}
+							ValueAcc.AppendOriginal(ch, InStream.CurrentPos());
+						}
 					}
 					state = State::Value;
 				}
 				break;
 
 			case State::Value:
+				if (!bValueStarted)
+				{
+					ValueAcc.Start(m_sValueOwned, m_sValue, m_pArena,
+					               InStream.CurrentPos() - 1);
+					bValueStarted = true;
+				}
 				if (DEKAF2_UNLIKELY(bDecodeEntities && ch == '&'))
 				{
-					AppendValueView(KHTMLObject::DecodeEntity(InStream));
+					ValueAcc.AppendTransformed(
+					    KHTMLObject::DecodeEntity(InStream),
+					    InStream.CurrentPos());
 				}
 				else if (m_chQuote)
 				{
 					if (ch != m_chQuote)
 					{
-						AppendValueChar(ch);
-				}
+						ValueAcc.AppendOriginal(ch, InStream.CurrentPos());
+					}
 					else
 					{
+						// closing quote consumed — slice end is
+						// CurrentPos()-1 (the byte just past, which
+						// equals the quote position; Finalize will
+						// exclude it via its end-exclusive contract)
 						FinalizeValue();
 						return true;
 					}
@@ -801,12 +839,16 @@ bool KHTMLAttribute::Parse(KBufferedReader& InStream, KStringView sOpening, bool
 
 					if (ch == '>' || ch == '/')
 					{
-						InStream.UnRead();
+						// finalise *before* unreading — slice end is
+						// CurrentPos()-1 == position of the delimiter
+						// we just consumed. Then UnRead so the outer
+						// caller sees the delimiter.
 						FinalizeValue();
+						InStream.UnRead();
 						return true;
 					}
 
-					AppendValueChar(ch);
+					ValueAcc.AppendOriginal(ch, InStream.CurrentPos());
 				}
 				break;
 		}
@@ -1058,25 +1100,17 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 	std::iostream::int_type ch;
 	std::size_t iCloseCount { 0 }; // helper to unread in case of invalid html
 
-	// Arena-backed accumulator for the tag name. Finalized at the
-	// Name→Attributes / Name→Close / Name→done transition, releasing
-	// the lease before any nested KHTMLAttribute::Parse opens its
-	// own builder.
-	KArenaStringBuilder NameBuilder;
-	const bool bUseArena = (m_pArena != nullptr);
+	// Tri-mode name accumulator (SourceSlice > ArenaBuilder > HeapKString).
+	khtml::ParseAccumulator NameAcc;
+	bool bNameStarted = false;
 
-	auto AppendName = [&](char ch) {
-		if (bUseArena) {
-			if (!NameBuilder.IsActive()) NameBuilder.Start(*m_pArena);
-			NameBuilder.Append(ch);
-		} else {
-			m_sNameOwned.push_back(ch);
-		}
-	};
 	auto FinalizeName = [&]() {
-		if (bUseArena && NameBuilder.IsActive()) {
-			m_sName = NameBuilder.Finalize();
-		} else {
+		if (bNameStarted)
+		{
+			NameAcc.Finalize(InStream.CurrentPos() - 1);
+		}
+		else
+		{
 			m_sName = m_sNameOwned.ToView();
 		}
 	};
@@ -1087,12 +1121,14 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 	{
 		if (iOSize > 1)
 		{
-			if (bUseArena) {
-				NameBuilder.Start(*m_pArena);
-				NameBuilder.Append(sOpening.substr(1, KStringView::npos));
-			} else {
-				m_sNameOwned = sOpening.substr(1, KStringView::npos);
-			}
+			// opening prefix bytes are already consumed by the caller —
+			// not part of the live Reader window. Push them as a
+			// "transformed" run (slicing would have to bridge a gap
+			// anyway, so we just promote to builder/heap).
+			NameAcc.Start(m_sNameOwned, m_sName, m_pArena, InStream.CurrentPos());
+			bNameStarted = true;
+			NameAcc.AppendTransformed(sOpening.substr(1, KStringView::npos),
+			                          InStream.CurrentPos());
 		}
 		state = State::Open;
 	}
@@ -1124,8 +1160,8 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				{
 					// error (no tag, probably a comment)
 					// make sure the INVALID destination will find this closing bracket
-					InStream.UnRead();
 					FinalizeName();
+					InStream.UnRead();
 					return false;
 				}
 				else if (ch == '/' && !IsClosing())
@@ -1134,15 +1170,31 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				}
 				else if (KASCII::kIsAlNum(ch))
 				{
-					AppendName(KASCII::kToLower(ch));
+					if (!bNameStarted)
+					{
+						// slice should start at THIS char (we already
+						// Read()'d it, so back off by one)
+						NameAcc.Start(m_sNameOwned, m_sName, m_pArena,
+						              InStream.CurrentPos() - 1);
+						bNameStarted = true;
+					}
+					const char lc = KASCII::kToLower(ch);
+					if (lc == static_cast<char>(ch))
+					{
+						NameAcc.AppendOriginal(lc, InStream.CurrentPos());
+					}
+					else
+					{
+						NameAcc.AppendTransformed(lc, InStream.CurrentPos());
+					}
 					state = State::Name;
 				}
 				else
 				{
 					// no spaces are allowed in front of tag names,
 					// and only ASCII alnums are permitted
-					InStream.UnRead();
 					FinalizeName();
+					InStream.UnRead();
 					return false;
 				}
 				break;
@@ -1150,7 +1202,9 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 			case State::Name:
 				if (KASCII::kIsSpace(ch))
 				{
-					// finalize before nested attribute parsing reclaims the lease
+					// Slice end is CurrentPos()-1 (just past the delim
+					// we read). The space has been consumed; attribute
+					// parsing continues from the byte after it.
 					FinalizeName();
 					m_Attributes.Parse(InStream, KStringView{}, bDecodeEntities);
 					state = State::Close;
@@ -1169,7 +1223,15 @@ bool KHTMLTag::Parse(KBufferedReader& InStream, KStringView sOpening, bool bDeco
 				}
 				else
 				{
-					AppendName(KASCII::kToLower(ch));
+					const char lc = KASCII::kToLower(ch);
+					if (lc == static_cast<char>(ch))
+					{
+						NameAcc.AppendOriginal(lc, InStream.CurrentPos());
+					}
+					else
+					{
+						NameAcc.AppendTransformed(lc, InStream.CurrentPos());
+					}
 				}
 				break;
 

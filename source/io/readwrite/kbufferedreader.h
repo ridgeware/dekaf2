@@ -146,6 +146,21 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// @returns the current cursor position in the underlying buffer.
+	/// For `KBufferedStringReader` this points directly into the caller's
+	/// source view; for stream-based readers it points into the internal
+	/// fill buffer (only the active fill window is valid).
+	///
+	/// Intended for "slice-from-stable-source" parser optimisations: if
+	/// the caller has registered the source range as a stable region with
+	/// the parser's arena, the parser can capture this pointer at the
+	/// start of an accumulation and produce a view directly into the
+	/// source — no copy into the arena — when no character-level
+	/// modification was applied.
+	const char* CurrentPos() const noexcept { return m_Arena.pos; }
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// returns maximum possible string view read size
 	virtual size_t MaxRead() const = 0;
 	//-----------------------------------------------------------------------------

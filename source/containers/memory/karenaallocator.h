@@ -297,6 +297,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// @returns true iff sSource is entirely contained in a registered
+	/// stable region. Linear scan over up to kMaxStableRegions entries.
+	/// Used by the parser to decide whether the current source position
+	/// is "slice-safe" — i.e. a view into it stays valid for the arena's
+	/// lifetime.
+	bool IsInStableRegion(KStringView sSource) const noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	// Open-ended cursor API
 	//
 	// Allows a caller (typically `KArenaStringBuilder`) to extend a string
@@ -422,12 +431,6 @@ private:
 	};
 	std::array<StableRegion, kMaxStableRegions> m_StableRegions {};
 	std::size_t                                 m_iStableRegionCount { 0 };
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// @returns true iff sSource is entirely contained in a registered
-	/// stable region. Linear scan over up to kMaxStableRegions entries.
-	bool IsInStableRegion(KStringView sSource) const noexcept;
 	//-----------------------------------------------------------------------------
 
 }; // KArenaAllocator

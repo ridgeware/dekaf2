@@ -54,8 +54,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-namespace khtml { class Document; } // fwd decl for arena injection
-class KArenaStringBuilder;          // fwd decl — Parse() uses one transiently
+namespace khtml { class Document; }         // fwd decl for arena injection
+namespace khtml { class ParseAccumulator; } // fwd decl — Parse() uses one transiently
+class KArenaStringBuilder;                  // fwd decl — used by KHTMLAttribute lambdas
 
 /// @addtogroup web_html
 /// @{
@@ -394,18 +395,23 @@ protected:
 	virtual bool SearchForLeadOut(KBufferedReader& InStream) = 0;
 
 	/// Append one byte to the current value-accumulator. Routes through
-	/// the arena builder when `Parse()` has armed one (m_pValueBuilder
-	/// non-null), otherwise grows `sValueOwned` on the heap. Used by
+	/// the transient `ParseAccumulator` armed by `Parse()`; falls back
+	/// to growing `sValueOwned` on the heap when none is armed. Used by
 	/// subclass `SearchForLeadOut()` implementations.
-	void AppendValueChar(char ch);
+	///
+	/// @param ch         byte to store
+	/// @param pAfterPos  source position **one past** the byte just read
+	///                   that produced `ch`. Used in slicing mode to
+	///                   extend the slice end. Pass `nullptr` if the
+	///                   byte is being re-played (not a fresh read).
+	void AppendValueChar(char ch, const char* pAfterPos = nullptr);
 
-	KStringView          m_sLeadIn  {};
-	KStringView          m_sLeadOut {};
-	// Transient builder pointer, set only while Parse() is running.
-	// Non-null = arena-backed accumulation; nullptr = heap fallback
-	// into `sValueOwned`. (Forward-declared above to avoid pulling
-	// the arena header into this public surface.)
-	KArenaStringBuilder* m_pValueBuilder { nullptr };
+	KStringView              m_sLeadIn  {};
+	KStringView              m_sLeadOut {};
+	// Transient accumulator pointer, set only while Parse() is running.
+	// Non-null = arena-aware accumulation (with slicing if the source is
+	// in a stable region); nullptr = heap fallback into `sValueOwned`.
+	khtml::ParseAccumulator* m_pValueAcc { nullptr };
 
 }; // KHTMLStringObject
 

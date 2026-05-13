@@ -181,11 +181,11 @@ namespace detail {
 // -- TextInput -------------------------------------------------------------
 
 template<typename String>
-TextInput<String>::TextInput(KHTMLNode where,
+TextInput<String>::TextInput(KHTMLNode parent,
                              String&    rResult,
                              KStringView sName,
                              const html::Classes& cls, KStringView sID)
-: parent(where, sName, KStringView{}, Input::TEXT, cls, sID)
+: base(parent, sName, KStringView{}, Input::TEXT, cls, sID)
 {
 	if (!detail::IsEmpty<String>::Check(rResult))
 	{
@@ -206,11 +206,11 @@ TextInput<String>::TextInput(KHTMLNode where,
 // -- NumericInput ----------------------------------------------------------
 
 template<typename Arithmetic>
-NumericInput<Arithmetic>::NumericInput(KHTMLNode where,
+NumericInput<Arithmetic>::NumericInput(KHTMLNode parent,
                                        Arithmetic& rResult,
                                        KStringView sName,
                                        const html::Classes& cls, KStringView sID)
-: parent(where, sName, KStringView{}, Input::NUMBER, cls, sID)
+: base(parent, sName, KStringView{}, Input::NUMBER, cls, sID)
 {
 	if (rResult != Arithmetic{})
 	{
@@ -234,11 +234,11 @@ NumericInput<Arithmetic>::NumericInput(KHTMLNode where,
 // -- DurationInput ---------------------------------------------------------
 
 template<typename Unit, typename Duration>
-DurationInput<Unit, Duration>::DurationInput(KHTMLNode where,
+DurationInput<Unit, Duration>::DurationInput(KHTMLNode parent,
                                              Duration&   rResult,
                                              KStringView sName,
                                              const html::Classes& cls, KStringView sID)
-: parent(where, sName, KStringView{}, Input::NUMBER, cls, sID)
+: base(parent, sName, KStringView{}, Input::NUMBER, cls, sID)
 {
 	auto iCount = std::chrono::duration_cast<Unit>(rResult).count();
 	if (iCount != 0)
@@ -263,11 +263,11 @@ DurationInput<Unit, Duration>::DurationInput(KHTMLNode where,
 // -- CheckBox --------------------------------------------------------------
 
 template<typename Boolean>
-CheckBox<Boolean>::CheckBox(KHTMLNode where,
+CheckBox<Boolean>::CheckBox(KHTMLNode parent,
                             Boolean&   rResult,
                             KStringView sName,
                             const html::Classes& cls, KStringView sID)
-: parent(where, sName, KStringView{}, Input::CHECKBOX, cls, sID)
+: base(parent, sName, KStringView{}, Input::CHECKBOX, cls, sID)
 {
 	if (rResult)
 	{
@@ -292,11 +292,11 @@ CheckBox<Boolean>::CheckBox(KHTMLNode where,
 // -- RadioButton -----------------------------------------------------------
 
 template<typename ValueType>
-RadioButton<ValueType>::RadioButton(KHTMLNode where,
+RadioButton<ValueType>::RadioButton(KHTMLNode parent,
                                     ValueType& rResult,
                                     KStringView sName,
                                     const html::Classes& cls, KStringView sID)
-: parent(where, sName, KStringView{}, Input::RADIO, cls, sID)
+: base(parent, sName, KStringView{}, Input::RADIO, cls, sID)
 {
 	khtml::InteractiveBinding binding;
 	binding.pResult  = static_cast<void*>(&rResult);
@@ -322,12 +322,12 @@ RadioButton<ValueType>::RadioButton(KHTMLNode where,
 // -- Selection -------------------------------------------------------------
 
 template<typename ValueType>
-Selection<ValueType>::Selection(KHTMLNode where,
+Selection<ValueType>::Selection(KHTMLNode parent,
                                 ValueType& rResult,
                                 KStringView sName,
                                 uint16_t    iSize,
                                 const html::Classes& cls, KStringView sID)
-: parent(where, sName, iSize, cls, sID)
+: base(parent, sName, iSize, cls, sID)
 , m_pResult(&rResult)
 {
 	khtml::InteractiveBinding binding;

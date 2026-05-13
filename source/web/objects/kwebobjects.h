@@ -271,12 +271,59 @@ public:
 		return This();
 	}
 
+	// Universal HTML attributes — always public, applicable to every
+	// element. The element-specific setters below are protected and
+	// re-exposed selectively by each derived class via `using`-decls,
+	// so an IDE's autocomplete on a concrete element type shows only
+	// the setters that actually apply to it.
 	self& SetDir       (DIR    dir    ) { KHTMLNode::SetAttribute("dir",     FromDir    (dir    )); return This(); }
 	self& SetDraggable (bool   bYesNo ) { SetBoolAttribute       ("draggable",          bYesNo  ); return This(); }
 	self& SetHidden    (bool   bYesNo ) { SetBoolAttribute       ("hidden",             bYesNo  ); return This(); }
 	self& SetLanguage  (KStringView v ) { if (!v.empty()) KHTMLNode::SetAttribute("lang",  v);     return This(); }
 	self& SetStyle     (KStringView v ) { if (!v.empty()) KHTMLNode::SetAttribute("style", v);     return This(); }
 	self& SetTitle     (KStringView v ) { if (!v.empty()) KHTMLNode::SetAttribute("title", v);     return This(); }
+
+	// -- generic attribute access (always public — escape hatch) --
+
+	self& SetAttribute(KString sName, KStringView sValue, bool bRemoveIfEmpty = false, bool bDoNotEscape = false)
+	{
+		if (bRemoveIfEmpty && sValue.empty()) { KHTMLNode::RemoveAttribute(sName); }
+		else                                  { KHTMLNode::SetAttribute(sName, sValue, '"', /*esc*/!bDoNotEscape); }
+		return This();
+	}
+
+	/// Generic value setter — accepts anything `kFormat("{}", v)` can
+	/// stringify (arithmetics, enums, std::chrono types, KDate, ...).
+	/// Disabled for string-like types (those go to the KStringView
+	/// overload) and for `bool` (that has its own boolean-attribute
+	/// overload).
+	template<typename T,
+	         std::enable_if_t<!std::is_convertible<T, KStringView>::value
+	                       && !std::is_same<typename std::remove_cv<typename std::remove_reference<T>::type>::type, bool>::value, int> = 0>
+	self& SetAttribute(KString sName, const T& value)
+	{
+		KHTMLNode::SetAttribute(sName, kFormat("{}", value));
+		return This();
+	}
+
+	self& SetAttribute(KString sName, bool bYesNo)
+	{
+		SetBoolAttribute(sName, bYesNo);
+		return This();
+	}
+
+	// -- text children --
+
+	self& AddText   (KStringView s) { KHTMLNode::AddText   (s);        return This(); }
+	self& AddRawText(KStringView s) { KHTMLNode::AddRawText(s);        return This(); }
+
+//----------
+protected:
+//----------
+
+	// Element-specific attribute setters. Protected so they don't pollute
+	// the autocomplete surface of unrelated elements; each derived
+	// class lifts the ones that apply via `using KWebObject::SetX;`.
 
 	self& SetLink      (KStringView sURL, bool bDoNotEscape = true) { if (!sURL.empty())  KHTMLNode::SetAttribute("href",   sURL, '"', /*esc*/!bDoNotEscape); return This(); }
 	self& SetSource    (KStringView sURL, bool bDoNotEscape = true) { if (!sURL.empty())  KHTMLNode::SetAttribute("src",    sURL, '"', /*esc*/!bDoNotEscape); return This(); }
@@ -346,32 +393,20 @@ public:
 	self& SetPreload(Preload p)                                      { KHTMLNode::SetAttribute("preload", FromPreload(p));                   return This(); }
 	self& SetType   (KStringView mime)                               { if (!mime.empty()) KHTMLNode::SetAttribute("type", mime);             return This(); }
 
-	// -- generic attribute access (KString name overload) --
-
-	self& SetAttribute(KString sName, KStringView sValue, bool bRemoveIfEmpty = false, bool bDoNotEscape = false)
+	// shared by quotation elements (blockquote, q) and ins/del
+	self& SetCite    (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("cite",     v); return This(); }
+	// shared by details and dialog
+	self& SetOpen    (bool b)        { SetBoolAttribute("open", b); return This(); }
+	// shared by a (Link) and area — sets the filename or just emits bare
+	self& SetDownload(KStringView v = KStringView{})
 	{
-		if (bRemoveIfEmpty && sValue.empty()) { KHTMLNode::RemoveAttribute(sName); }
-		else                                  { KHTMLNode::SetAttribute(sName, sValue, '"', /*esc*/!bDoNotEscape); }
+		if (v.empty()) KHTMLNode::SetAttribute("download", KStringView{}, /*q*/0, /*esc*/false);
+		else           KHTMLNode::SetAttribute("download", v);
 		return This();
 	}
-
-	template<typename N, std::enable_if_t<std::is_arithmetic<N>::value && !std::is_same<N, bool>::value, int> = 0>
-	self& SetAttribute(KString sName, N value)
-	{
-		KHTMLNode::SetAttribute(sName, kFormat("{}", value));
-		return This();
-	}
-
-	self& SetAttribute(KString sName, bool bYesNo)
-	{
-		SetBoolAttribute(sName, bYesNo);
-		return This();
-	}
-
-	// -- text children --
-
-	self& AddText   (KStringView s) { KHTMLNode::AddText   (s);        return This(); }
-	self& AddRawText(KStringView s) { KHTMLNode::AddRawText(s);        return This(); }
+	// shared by col and colgroup
+	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
+	self& SetSpan(A v)               { KHTMLNode::SetAttribute("span", kFormat("{}", v)); return This(); }
 
 //----------
 private:
@@ -395,30 +430,29 @@ namespace detail {
 } // namespace detail
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC HTML : public KWebObject<HTML>
+/// Generic free-name HTML element. The tag name is supplied at construction
+/// time — use this when you need an element that doesn't have a dedicated
+/// `KWebObject` subclass (e.g. `<label>`, `<aside>`, custom elements, ...).
+/// The `<html>` document root is created by `html::Page`, not by this class.
+class DEKAF2_PUBLIC Element : public KWebObject<Element>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	static constexpr KStringView s_sObjectName = "HTML";
+	static constexpr KStringView s_sObjectName = "Element";
 //----------
 public:
 //----------
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "html";
+	// no static TagName — the tag is dynamic, supplied per instance
 
-	HTML(KHTMLNode parent, KStringView sLanguage = KStringView{})
-	: KWebObject<HTML>(parent, TagName)
-	{
-		if (!sLanguage.empty()) KHTMLNode::SetAttribute("lang", sLanguage);
-	}
-
-	/// Free-name HTML element constructor for generic tags (mirrors the old
-	/// `html::HTML("label")` shortcut used by some consumers).
-	HTML(KHTMLNode parent, KStringView sTagName, KStringView sID)
-	: KWebObject<HTML>(parent, sTagName, sID)
+	Element(KHTMLNode parent,
+	        KStringView sTagName,
+	        const Classes& cls = html::Classes{},
+	        KStringView sID    = KStringView{})
+	: KWebObject<Element>(parent, sTagName, cls, sID)
 	{
 	}
 
-}; // HTML
+}; // Element
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A self-contained HTML document. Owns its own `KHTML` (which owns the
@@ -570,6 +604,11 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "td";
 
+	using KWebObject::SetColSpan;
+	using KWebObject::SetRowSpan;
+	using KWebObject::SetAlign;
+	using KWebObject::SetVAlign;
+
 	TableData(KHTMLNode parent,
 	          KStringView    sContent = KStringView{},
 	          const Classes& cls      = html::Classes{},
@@ -589,6 +628,11 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "th";
 
+	using KWebObject::SetColSpan;
+	using KWebObject::SetRowSpan;
+	using KWebObject::SetAlign;
+	using KWebObject::SetVAlign;
+
 	TableHeader(KHTMLNode parent,
 	            KStringView    sContent = KStringView{},
 	            const Classes& cls      = html::Classes{},
@@ -607,6 +651,11 @@ class DEKAF2_PUBLIC Link : public KWebObject<Link>
 public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "a";
+
+	using KWebObject::SetLink;
+	using KWebObject::SetTarget;
+	using KWebObject::SetRel;
+	using KWebObject::SetDownload;
 
 	Link(KHTMLNode parent,
 	     KStringView    sURL  = KStringView{},
@@ -629,14 +678,14 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "script";
 
-	Script(KHTMLNode parent, KStringView sCharset = "utf-8")
-	: KWebObject<Script>(parent, TagName)
-	{
-		if (!sCharset.empty()) KHTMLNode::SetAttribute("charset", sCharset);
-	}
+	// element-specific setters (lifted from KWebObject's protected pool)
+	using KWebObject::SetAsync;
+	using KWebObject::SetDefer;
+	using KWebObject::SetSource;
 
-	/// Convenience: construct + add a raw-text body.
-	Script(KHTMLNode parent, KStringView sBody, KStringView sCharset)
+	Script(KHTMLNode parent,
+	       KStringView sBody    = KStringView{},
+	       KStringView sCharset = "utf-8")
 	: KWebObject<Script>(parent, TagName)
 	{
 		if (!sCharset.empty()) KHTMLNode::SetAttribute("charset", sCharset);
@@ -653,10 +702,9 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "style";
 
-	StyleSheet(KHTMLNode parent)
-	: KWebObject<StyleSheet>(parent, TagName) {}
+	using KWebObject::SetLink;
 
-	StyleSheet(KHTMLNode parent, KStringView sStyleContent)
+	StyleSheet(KHTMLNode parent, KStringView sStyleContent = KStringView{})
 	: KWebObject<StyleSheet>(parent, TagName)
 	{
 		if (!sStyleContent.empty()) AddRawText(sStyleContent);
@@ -672,14 +720,56 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "link";
 
-	FavIcon(KHTMLNode parent, KStringView sURL, KStringView sMIME = KStringView{})
-	: KWebObject<FavIcon>(parent, TagName)
+	using KWebObject::SetLink;
+
+	FavIcon(KHTMLNode parent,
+	        KStringView sURL,
+	        KStringView sMIME  = KStringView{},
+	        const Classes& cls = html::Classes{},
+	        KStringView sID    = KStringView{})
+	: KWebObject<FavIcon>(parent, TagName, cls, sID)
 	{
 		SetRel("icon");
 		if (!sURL.empty())  SetLink(sURL);
 		if (!sMIME.empty()) SetType(sMIME);
 	}
 }; // FavIcon
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<meta>` element. Covers all four meta variants (name/content,
+/// http-equiv, charset, property/Open-Graph) via the respective setters.
+/// The default ctor signature matches the most common form:
+///   `head.Add<html::Meta>("description", "...");`
+class DEKAF2_PUBLIC Meta : public KWebObject<Meta>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Meta";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "meta";
+
+	using KWebObject::SetName;          // name="..."
+
+	Meta(KHTMLNode parent,
+	     KStringView sName    = KStringView{},
+	     KStringView sContent = KStringView{},
+	     const Classes& cls   = html::Classes{},
+	     KStringView sID      = KStringView{})
+	: KWebObject<Meta>(parent, TagName, cls, sID)
+	{
+		if (!sName.empty())    SetName(sName);
+		if (!sContent.empty()) SetContent(sContent);
+	}
+
+	/// Value half of `<meta name="..." content="...">`.
+	self& SetContent  (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("content",    v); return *this; }
+	/// `<meta http-equiv="..." content="...">` — emit an HTTP-equivalent header.
+	self& SetHttpEquiv(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("http-equiv", v); return *this; }
+	/// `<meta charset="...">` — document character set.
+	self& SetCharset  (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("charset",    v); return *this; }
+	/// `<meta property="og:..." content="...">` — Open Graph / RDFa property.
+	self& SetProperty (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("property",   v); return *this; }
+}; // Meta
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Break : public KWebObject<Break>
@@ -738,6 +828,12 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "img";
 
+	using KWebObject::SetSource;
+	using KWebObject::SetDescription;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+	using KWebObject::SetLoading;
+
 	Image(KHTMLNode parent,
 	      KStringView sURL,
 	      KStringView sDescription = KStringView{},
@@ -760,6 +856,8 @@ public:
 	static constexpr KStringView TagName = "form";
 
 	using self = Form;
+	using KWebObject::SetName;
+	using KWebObject::SetTarget;
 
 	Form(KHTMLNode parent,
 	     KStringView sAction = KStringView{},
@@ -827,8 +925,16 @@ public:
 
 	self& SetType(BUTTONTYPE type);
 
+	using KWebObject::SetDisabled;
+	using KWebObject::SetFormAction;
+	using KWebObject::SetFormMethod;
+	using KWebObject::SetFormEncType;
+	using KWebObject::SetFormTarget;
 	using KWebObject::SetName;
 	using KWebObject::SetValue;
+	using KWebObject::SetPlaceholder;
+	using KWebObject::SetReadOnly;
+	using KWebObject::SetRequired;
 	using KWebObject::SetType;          // KString MIME version (used by buttons too)
 }; // Button
 
@@ -840,6 +946,10 @@ class DEKAF2_PUBLIC Output : public KWebObject<Output>
 public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "output";
+
+	using KWebObject::SetFor;
+	using KWebObject::SetForm;
+	using KWebObject::SetName;
 
 	Output(KHTMLNode parent,
 	       KStringView sName,
@@ -894,21 +1004,34 @@ public:
 	      const Classes& cls = html::Classes{},
 	      KStringView sID = KStringView{});
 
-	/// Convenience overload — type-first.
-	Input(KHTMLNode parent,
-	      INPUTTYPE type,
-	      KStringView sName  = KStringView{},
-	      const Classes& cls = html::Classes{},
-	      KStringView sID = KStringView{})
-	: Input(parent, sName, KStringView{}, type, cls, sID)
-	{
-	}
-
 	self& SetType   (INPUTTYPE type);
 	self& SetChecked(bool      bYesNo);
 	self& SetStep   (float     step);
 
 	using KWebObject::SetType;          // KString MIME version
+	using KWebObject::SetDescription;
+	using KWebObject::SetAutofocus;
+	using KWebObject::SetDisabled;
+	using KWebObject::SetFormAction;
+	using KWebObject::SetFormMethod;
+	using KWebObject::SetFormEncType;
+	using KWebObject::SetFormNoValidate;
+	using KWebObject::SetFormTarget;
+	using KWebObject::SetHeigth;
+	using KWebObject::SetWidth;
+	using KWebObject::SetMultiple;
+	using KWebObject::SetDirectory;
+	using KWebObject::SetAccept;
+	using KWebObject::SetName;
+	using KWebObject::SetValue;
+	using KWebObject::SetSize;
+	using KWebObject::SetSource;
+	using KWebObject::SetMin;
+	using KWebObject::SetMax;
+	using KWebObject::SetRange;
+	using KWebObject::SetReadOnly;
+	using KWebObject::SetRequired;
+	using KWebObject::SetPlaceholder;
 }; // Input
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -921,6 +1044,9 @@ public:
 	static constexpr KStringView TagName = "option";
 
 	using self = Option;
+	using KWebObject::SetDisabled;
+	using KWebObject::SetLabel;
+	using KWebObject::SetValue;
 
 	Option(KHTMLNode parent,
 	       KStringView sLabel,
@@ -950,6 +1076,12 @@ public:
 	static constexpr KStringView TagName = "select";
 
 	using self = Select;
+	using KWebObject::SetAutofocus;
+	using KWebObject::SetDisabled;
+	using KWebObject::SetMultiple;
+	using KWebObject::SetName;
+	using KWebObject::SetRequired;
+	using KWebObject::SetSize;
 
 	Select(KHTMLNode parent,
 	       KStringView sName  = KStringView{},
@@ -961,13 +1093,6 @@ public:
 		if (!sName.empty()) SetName(sName);
 		SetSize(iSize);
 	}
-
-	using KWebObject::SetAutofocus;
-	using KWebObject::SetDisabled;
-	using KWebObject::SetMultiple;
-	using KWebObject::SetName;
-	using KWebObject::SetRequired;
-	using KWebObject::SetSize;
 }; // Select
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1059,9 +1184,9 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = TextInput<String>;
-	using parent = LabeledInput<self>;
+	using base   = LabeledInput<self>;
 
-	TextInput(KHTMLNode where,
+	TextInput(KHTMLNode parent,
 	          String&    rResult,
 	          KStringView sName  = KStringView{},
 	          const html::Classes& cls = html::Classes{},
@@ -1079,9 +1204,9 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = NumericInput<Arithmetic>;
-	using parent = LabeledInput<self>;
+	using base   = LabeledInput<self>;
 
-	NumericInput(KHTMLNode where,
+	NumericInput(KHTMLNode parent,
 	             Arithmetic& rResult,
 	             KStringView sName  = KStringView{},
 	             const html::Classes& cls = html::Classes{},
@@ -1098,9 +1223,9 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = DurationInput<Unit, Duration>;
-	using parent = LabeledInput<self>;
+	using base   = LabeledInput<self>;
 
-	DurationInput(KHTMLNode where,
+	DurationInput(KHTMLNode parent,
 	              Duration&  rResult,
 	              KStringView sName  = KStringView{},
 	              const html::Classes& cls = html::Classes{},
@@ -1117,9 +1242,9 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = RadioButton<ValueType>;
-	using parent = LabeledInput<self>;
+	using base   = LabeledInput<self>;
 
-	RadioButton(KHTMLNode where,
+	RadioButton(KHTMLNode parent,
 	            ValueType& rResult,
 	            KStringView sName  = KStringView{},
 	            const html::Classes& cls = html::Classes{},
@@ -1149,9 +1274,9 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = CheckBox<Boolean>;
-	using parent = LabeledInput<self>;
+	using base   = LabeledInput<self>;
 
-	CheckBox(KHTMLNode where,
+	CheckBox(KHTMLNode parent,
 	         Boolean&    rResult,
 	         KStringView sName  = KStringView{},
 	         const html::Classes& cls = html::Classes{},
@@ -1168,9 +1293,9 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = Selection<ValueType>;
-	using parent = LabeledInput<self, Select>;
+	using base   = LabeledInput<self, Select>;
 
-	Selection(KHTMLNode where,
+	Selection(KHTMLNode parent,
 	          ValueType&  rResult,
 	          KStringView sName  = KStringView{},
 	          uint16_t    iSize  = 1,
@@ -1268,6 +1393,14 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "iframe";
 
+	using KWebObject::SetSource;
+	using KWebObject::SetLoading;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+	using KWebObject::SetAllow;
+	using KWebObject::SetAllowFullscreen;
+	using KWebObject::SetScrolling;
+
 	IFrame(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
 	: KWebObject<IFrame>(parent, TagName, cls, sID)
 	{
@@ -1283,6 +1416,17 @@ class DEKAF2_PUBLIC Video : public KWebObject<Video>
 public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "video";
+
+	using KWebObject::SetSource;
+	using KWebObject::SetPoster;
+	using KWebObject::SetPreload;
+	using KWebObject::SetAutoplay;
+	using KWebObject::SetControls;
+	using KWebObject::SetLoop;
+	using KWebObject::SetPlaysInline;
+	using KWebObject::SetMuted;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
 
 	Video(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
 	: KWebObject<Video>(parent, TagName, cls, sID)
@@ -1300,6 +1444,15 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "audio";
 
+	using KWebObject::SetSource;
+	using KWebObject::SetAutoplay;
+	using KWebObject::SetPreload;
+	using KWebObject::SetControls;
+	using KWebObject::SetLoop;
+	using KWebObject::SetMuted;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+
 	Audio(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
 	: KWebObject<Audio>(parent, TagName, cls, sID)
 	{
@@ -1316,12 +1469,648 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "source";
 
+	using KWebObject::SetSource;
+	using KWebObject::SetType;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+
 	Source(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
 	: KWebObject<Source>(parent, TagName, cls, sID)
 	{
 		if (!sURL.empty()) SetSource(sURL);
 	}
 }; // Source
+
+// =============================================================================
+// Additional elements — added in bulk. Each class follows one of three shapes:
+//   (a) content-with-text: ctor takes leading KStringView sContent
+//   (b) container:         ctor takes only (parent, cls, sID)
+//   (c) void:              no content, no children
+// Element-specific setters are defined inline; shared setters are lifted from
+// KWebObject's protected pool via using-decls.
+// =============================================================================
+
+// -- head: <base> -----------------------------------------------------------
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Base : public KWebObject<Base>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Base";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "base";
+
+	using KWebObject::SetLink;
+	using KWebObject::SetTarget;
+
+	Base(KHTMLNode parent,
+	     KStringView sURL   = KStringView{},
+	     const Classes& cls = html::Classes{},
+	     KStringView sID    = KStringView{})
+	: KWebObject<Base>(parent, TagName, cls, sID)
+	{
+		if (!sURL.empty()) SetLink(sURL);
+	}
+}; // Base
+
+// -- semantic structural ----------------------------------------------------
+
+#define DEKAF2_HTML_DECLARE_CONTAINER(ClassName, sTag)                       \
+class DEKAF2_PUBLIC ClassName : public KWebObject<ClassName>                 \
+{                                                                            \
+	static constexpr KStringView s_sObjectName = #ClassName;                 \
+public:                                                                      \
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();                \
+	static constexpr KStringView TagName = sTag;                             \
+	ClassName(KHTMLNode parent,                                              \
+	          const Classes& cls = html::Classes{},                          \
+	          KStringView sID    = KStringView{})                            \
+	: KWebObject<ClassName>(parent, TagName, cls, sID) {}                    \
+}
+
+#define DEKAF2_HTML_DECLARE_TEXT(ClassName, sTag)                            \
+class DEKAF2_PUBLIC ClassName : public KWebObject<ClassName>                 \
+{                                                                            \
+	static constexpr KStringView s_sObjectName = #ClassName;                 \
+public:                                                                      \
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();                \
+	static constexpr KStringView TagName = sTag;                             \
+	ClassName(KHTMLNode parent,                                              \
+	          KStringView sContent = KStringView{},                          \
+	          const Classes& cls   = html::Classes{},                        \
+	          KStringView sID      = KStringView{})                          \
+	: KWebObject<ClassName>(parent, TagName, cls, sID)                       \
+	{ if (!sContent.empty()) AddText(sContent); }                            \
+}
+
+#define DEKAF2_HTML_DECLARE_VOID(ClassName, sTag)                            \
+class DEKAF2_PUBLIC ClassName : public KWebObject<ClassName>                 \
+{                                                                            \
+	static constexpr KStringView s_sObjectName = #ClassName;                 \
+public:                                                                      \
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();                \
+	static constexpr KStringView TagName = sTag;                             \
+	ClassName(KHTMLNode parent) : KWebObject<ClassName>(parent, TagName) {}  \
+}
+
+DEKAF2_HTML_DECLARE_CONTAINER(Footer,         "footer");
+DEKAF2_HTML_DECLARE_CONTAINER(Nav,            "nav");
+DEKAF2_HTML_DECLARE_CONTAINER(Main,           "main");
+DEKAF2_HTML_DECLARE_CONTAINER(Article,        "article");
+DEKAF2_HTML_DECLARE_CONTAINER(Section,        "section");
+DEKAF2_HTML_DECLARE_CONTAINER(Aside,          "aside");
+DEKAF2_HTML_DECLARE_CONTAINER(Address,        "address");
+DEKAF2_HTML_DECLARE_CONTAINER(Figure,         "figure");
+DEKAF2_HTML_DECLARE_TEXT     (FigureCaption,  "figcaption");
+
+// -- lists ------------------------------------------------------------------
+
+DEKAF2_HTML_DECLARE_CONTAINER(UnorderedList,    "ul");
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC OrderedList : public KWebObject<OrderedList>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "OrderedList";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "ol";
+
+	using KWebObject::SetType;     // "1", "A", "a", "I", "i"
+
+	OrderedList(KHTMLNode parent,
+	            const Classes& cls = html::Classes{},
+	            KStringView sID    = KStringView{})
+	: KWebObject<OrderedList>(parent, TagName, cls, sID) {}
+
+	self& SetReversed(bool b) { SetBoolAttribute("reversed", b); return *this; }
+	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
+	self& SetStart(A v)       { KHTMLNode::SetAttribute("start", kFormat("{}", v)); return *this; }
+}; // OrderedList
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC ListItem : public KWebObject<ListItem>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "ListItem";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "li";
+
+	using KWebObject::SetValue;    // for <li> inside <ol>
+
+	ListItem(KHTMLNode parent,
+	         KStringView sContent = KStringView{},
+	         const Classes& cls   = html::Classes{},
+	         KStringView sID      = KStringView{})
+	: KWebObject<ListItem>(parent, TagName, cls, sID)
+	{ if (!sContent.empty()) AddText(sContent); }
+}; // ListItem
+
+DEKAF2_HTML_DECLARE_CONTAINER(DescriptionList,   "dl");
+DEKAF2_HTML_DECLARE_TEXT     (DescriptionTerm,   "dt");
+DEKAF2_HTML_DECLARE_TEXT     (DescriptionDetail, "dd");
+
+// -- table sub-structure ----------------------------------------------------
+
+DEKAF2_HTML_DECLARE_TEXT     (TableCaption, "caption");
+DEKAF2_HTML_DECLARE_CONTAINER(TableHead,    "thead");
+DEKAF2_HTML_DECLARE_CONTAINER(TableBody,    "tbody");
+DEKAF2_HTML_DECLARE_CONTAINER(TableFoot,    "tfoot");
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC ColumnGroup : public KWebObject<ColumnGroup>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "ColumnGroup";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "colgroup";
+
+	using KWebObject::SetSpan;
+
+	ColumnGroup(KHTMLNode parent,
+	            const Classes& cls = html::Classes{},
+	            KStringView sID    = KStringView{})
+	: KWebObject<ColumnGroup>(parent, TagName, cls, sID) {}
+}; // ColumnGroup
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Column : public KWebObject<Column>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Column";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "col";
+
+	using KWebObject::SetSpan;
+
+	Column(KHTMLNode parent,
+	       const Classes& cls = html::Classes{},
+	       KStringView sID    = KStringView{})
+	: KWebObject<Column>(parent, TagName, cls, sID) {}
+}; // Column
+
+// -- form ------------------------------------------------------------------
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC TextArea : public KWebObject<TextArea>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "TextArea";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "textarea";
+
+	enum WRAP { SOFT, HARD };
+
+	using KWebObject::SetName;
+	using KWebObject::SetPlaceholder;
+	using KWebObject::SetReadOnly;
+	using KWebObject::SetRequired;
+	using KWebObject::SetDisabled;
+	using KWebObject::SetAutofocus;
+	using KWebObject::SetForm;
+
+	TextArea(KHTMLNode parent,
+	         KStringView sName    = KStringView{},
+	         KStringView sContent = KStringView{},
+	         const Classes& cls   = html::Classes{},
+	         KStringView sID      = KStringView{})
+	: KWebObject<TextArea>(parent, TagName, cls, sID)
+	{
+		if (!sName.empty())    SetName(sName);
+		if (!sContent.empty()) AddText(sContent);
+	}
+
+	self& SetRows     (uint16_t r) { KHTMLNode::SetAttribute("rows",      kFormat("{}", r)); return *this; }
+	self& SetCols     (uint16_t c) { KHTMLNode::SetAttribute("cols",      kFormat("{}", c)); return *this; }
+	self& SetMaxLength(uint32_t n) { KHTMLNode::SetAttribute("maxlength", kFormat("{}", n)); return *this; }
+	self& SetMinLength(uint32_t n) { KHTMLNode::SetAttribute("minlength", kFormat("{}", n)); return *this; }
+	self& SetWrap     (WRAP w)     { KHTMLNode::SetAttribute("wrap", w == HARD ? KStringView("hard") : KStringView("soft")); return *this; }
+}; // TextArea
+
+DEKAF2_HTML_DECLARE_CONTAINER(DataList, "datalist");
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC OptionGroup : public KWebObject<OptionGroup>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "OptionGroup";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "optgroup";
+
+	using KWebObject::SetLabel;
+	using KWebObject::SetDisabled;
+
+	OptionGroup(KHTMLNode parent,
+	            KStringView sLabel = KStringView{},
+	            const Classes& cls = html::Classes{},
+	            KStringView sID    = KStringView{})
+	: KWebObject<OptionGroup>(parent, TagName, cls, sID)
+	{
+		if (!sLabel.empty()) SetLabel(sLabel);
+	}
+}; // OptionGroup
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Meter : public KWebObject<Meter>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Meter";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "meter";
+
+	using KWebObject::SetMin;
+	using KWebObject::SetMax;
+	using KWebObject::SetRange;
+	using KWebObject::SetValue;
+	using KWebObject::SetForm;
+
+	Meter(KHTMLNode parent,
+	      KStringView sValue = KStringView{},
+	      const Classes& cls = html::Classes{},
+	      KStringView sID    = KStringView{})
+	: KWebObject<Meter>(parent, TagName, cls, sID)
+	{
+		if (!sValue.empty()) SetValue(sValue);
+	}
+
+	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
+	self& SetLow    (A v) { KHTMLNode::SetAttribute("low",     kFormat("{}", v)); return *this; }
+	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
+	self& SetHigh   (A v) { KHTMLNode::SetAttribute("high",    kFormat("{}", v)); return *this; }
+	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
+	self& SetOptimum(A v) { KHTMLNode::SetAttribute("optimum", kFormat("{}", v)); return *this; }
+}; // Meter
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Progress : public KWebObject<Progress>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Progress";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "progress";
+
+	using KWebObject::SetMax;
+	using KWebObject::SetValue;
+
+	Progress(KHTMLNode parent,
+	         KStringView sValue = KStringView{},
+	         const Classes& cls = html::Classes{},
+	         KStringView sID    = KStringView{})
+	: KWebObject<Progress>(parent, TagName, cls, sID)
+	{
+		if (!sValue.empty()) SetValue(sValue);
+	}
+}; // Progress
+
+// -- interactive ------------------------------------------------------------
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Details : public KWebObject<Details>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Details";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "details";
+
+	using KWebObject::SetOpen;
+
+	Details(KHTMLNode parent,
+	        const Classes& cls = html::Classes{},
+	        KStringView sID    = KStringView{})
+	: KWebObject<Details>(parent, TagName, cls, sID) {}
+}; // Details
+
+DEKAF2_HTML_DECLARE_TEXT(Summary, "summary");
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Dialog : public KWebObject<Dialog>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Dialog";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "dialog";
+
+	using KWebObject::SetOpen;
+
+	Dialog(KHTMLNode parent,
+	       const Classes& cls = html::Classes{},
+	       KStringView sID    = KStringView{})
+	: KWebObject<Dialog>(parent, TagName, cls, sID) {}
+}; // Dialog
+
+// -- media-ish --------------------------------------------------------------
+
+DEKAF2_HTML_DECLARE_CONTAINER(Picture, "picture");
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Canvas : public KWebObject<Canvas>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Canvas";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "canvas";
+
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+
+	Canvas(KHTMLNode parent,
+	       const Classes& cls = html::Classes{},
+	       KStringView sID    = KStringView{})
+	: KWebObject<Canvas>(parent, TagName, cls, sID) {}
+}; // Canvas
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Time : public KWebObject<Time>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Time";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "time";
+
+	Time(KHTMLNode parent,
+	     KStringView sContent = KStringView{},
+	     const Classes& cls   = html::Classes{},
+	     KStringView sID      = KStringView{})
+	: KWebObject<Time>(parent, TagName, cls, sID)
+	{ if (!sContent.empty()) AddText(sContent); }
+
+	self& SetDateTime(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("datetime", v); return *this; }
+}; // Time
+
+// -- quotes / annotations ---------------------------------------------------
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC BlockQuote : public KWebObject<BlockQuote>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "BlockQuote";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "blockquote";
+
+	using KWebObject::SetCite;
+
+	BlockQuote(KHTMLNode parent,
+	           KStringView sContent = KStringView{},
+	           const Classes& cls   = html::Classes{},
+	           KStringView sID      = KStringView{})
+	: KWebObject<BlockQuote>(parent, TagName, cls, sID)
+	{ if (!sContent.empty()) AddText(sContent); }
+}; // BlockQuote
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC InlineQuote : public KWebObject<InlineQuote>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "InlineQuote";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "q";
+
+	using KWebObject::SetCite;
+
+	InlineQuote(KHTMLNode parent,
+	            KStringView sContent = KStringView{},
+	            const Classes& cls   = html::Classes{},
+	            KStringView sID      = KStringView{})
+	: KWebObject<InlineQuote>(parent, TagName, cls, sID)
+	{ if (!sContent.empty()) AddText(sContent); }
+}; // InlineQuote
+
+DEKAF2_HTML_DECLARE_TEXT(Abbreviation, "abbr");
+DEKAF2_HTML_DECLARE_TEXT(Citation,     "cite");
+
+// -- inline text decoration -------------------------------------------------
+
+DEKAF2_HTML_DECLARE_TEXT(Strong,        "strong");
+DEKAF2_HTML_DECLARE_TEXT(Emphasis,      "em");
+DEKAF2_HTML_DECLARE_TEXT(Bold,          "b");
+DEKAF2_HTML_DECLARE_TEXT(Italic,        "i");
+DEKAF2_HTML_DECLARE_TEXT(Underline,     "u");
+DEKAF2_HTML_DECLARE_TEXT(Strikethrough, "s");
+DEKAF2_HTML_DECLARE_TEXT(Small,         "small");
+DEKAF2_HTML_DECLARE_TEXT(Subscript,     "sub");
+DEKAF2_HTML_DECLARE_TEXT(Superscript,   "sup");
+DEKAF2_HTML_DECLARE_TEXT(Mark,          "mark");
+DEKAF2_HTML_DECLARE_TEXT(Code,          "code");
+DEKAF2_HTML_DECLARE_TEXT(Keyboard,      "kbd");
+DEKAF2_HTML_DECLARE_TEXT(Sample,        "samp");
+DEKAF2_HTML_DECLARE_TEXT(Variable,      "var");
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Deleted : public KWebObject<Deleted>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Deleted";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "del";
+
+	using KWebObject::SetCite;
+
+	Deleted(KHTMLNode parent,
+	        KStringView sContent = KStringView{},
+	        const Classes& cls   = html::Classes{},
+	        KStringView sID      = KStringView{})
+	: KWebObject<Deleted>(parent, TagName, cls, sID)
+	{ if (!sContent.empty()) AddText(sContent); }
+
+	self& SetDateTime(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("datetime", v); return *this; }
+}; // Deleted
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Inserted : public KWebObject<Inserted>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Inserted";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "ins";
+
+	using KWebObject::SetCite;
+
+	Inserted(KHTMLNode parent,
+	         KStringView sContent = KStringView{},
+	         const Classes& cls   = html::Classes{},
+	         KStringView sID      = KStringView{})
+	: KWebObject<Inserted>(parent, TagName, cls, sID)
+	{ if (!sContent.empty()) AddText(sContent); }
+
+	self& SetDateTime(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("datetime", v); return *this; }
+}; // Inserted
+
+// -- niche / specialised ----------------------------------------------------
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Map : public KWebObject<Map>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Map";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "map";
+
+	using KWebObject::SetName;
+
+	Map(KHTMLNode parent,
+	    KStringView sName  = KStringView{},
+	    const Classes& cls = html::Classes{},
+	    KStringView sID    = KStringView{})
+	: KWebObject<Map>(parent, TagName, cls, sID)
+	{
+		if (!sName.empty()) SetName(sName);
+	}
+}; // Map
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Area : public KWebObject<Area>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Area";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "area";
+
+	enum SHAPE { DEFAULT, RECT, CIRCLE, POLY };
+
+	using KWebObject::SetLink;
+	using KWebObject::SetTarget;
+	using KWebObject::SetRel;
+	using KWebObject::SetDescription;
+	using KWebObject::SetDownload;
+	using KWebObject::SetType;
+
+	Area(KHTMLNode parent,
+	     const Classes& cls = html::Classes{},
+	     KStringView sID    = KStringView{})
+	: KWebObject<Area>(parent, TagName, cls, sID) {}
+
+	self& SetCoords(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("coords", v); return *this; }
+	self& SetShape (SHAPE s)
+	{
+		KStringView sV;
+		switch (s) { case DEFAULT: sV = "default"; break; case RECT: sV = "rect"; break;
+		             case CIRCLE:  sV = "circle";  break; case POLY: sV = "poly"; break; }
+		KHTMLNode::SetAttribute("shape", sV);
+		return *this;
+	}
+}; // Area
+
+DEKAF2_HTML_DECLARE_VOID(WordBreak,      "wbr");
+DEKAF2_HTML_DECLARE_TEXT(BiDirIsolate,   "bdi");
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC BiDirOverride : public KWebObject<BiDirOverride>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "BiDirOverride";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "bdo";
+
+	// SetDir is universal (public in KWebObject), so it is already visible.
+	BiDirOverride(KHTMLNode parent,
+	              KStringView sContent = KStringView{},
+	              const Classes& cls   = html::Classes{},
+	              KStringView sID      = KStringView{})
+	: KWebObject<BiDirOverride>(parent, TagName, cls, sID)
+	{ if (!sContent.empty()) AddText(sContent); }
+}; // BiDirOverride
+
+DEKAF2_HTML_DECLARE_CONTAINER(Ruby,      "ruby");
+DEKAF2_HTML_DECLARE_TEXT     (RubyParen, "rp");
+DEKAF2_HTML_DECLARE_TEXT     (RubyText,  "rt");
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Embed : public KWebObject<Embed>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Embed";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "embed";
+
+	using KWebObject::SetSource;
+	using KWebObject::SetType;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+
+	Embed(KHTMLNode parent,
+	      KStringView sURL   = KStringView{},
+	      const Classes& cls = html::Classes{},
+	      KStringView sID    = KStringView{})
+	: KWebObject<Embed>(parent, TagName, cls, sID)
+	{
+		if (!sURL.empty()) SetSource(sURL);
+	}
+}; // Embed
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Object : public KWebObject<Object>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Object";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "object";
+
+	using KWebObject::SetName;
+	using KWebObject::SetType;
+	using KWebObject::SetWidth;
+	using KWebObject::SetHeigth;
+	using KWebObject::SetForm;
+
+	Object(KHTMLNode parent,
+	       KStringView sData  = KStringView{},
+	       const Classes& cls = html::Classes{},
+	       KStringView sID    = KStringView{})
+	: KWebObject<Object>(parent, TagName, cls, sID)
+	{
+		if (!sData.empty()) KHTMLNode::SetAttribute("data", sData);
+	}
+
+	self& SetData(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("data", v); return *this; }
+}; // Object
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+class DEKAF2_PUBLIC Param : public KWebObject<Param>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Param";
+public:
+	static constexpr std::size_t TYPE = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "param";
+
+	using KWebObject::SetName;
+	using KWebObject::SetValue;
+
+	Param(KHTMLNode parent,
+	      KStringView sName  = KStringView{},
+	      KStringView sValue = KStringView{},
+	      const Classes& cls = html::Classes{},
+	      KStringView sID    = KStringView{})
+	: KWebObject<Param>(parent, TagName, cls, sID)
+	{
+		if (!sName.empty())  SetName(sName);
+		if (!sValue.empty()) SetValue(sValue);
+	}
+}; // Param
+
+#undef DEKAF2_HTML_DECLARE_CONTAINER
+#undef DEKAF2_HTML_DECLARE_TEXT
+#undef DEKAF2_HTML_DECLARE_VOID
 
 } // end of namespace html
 

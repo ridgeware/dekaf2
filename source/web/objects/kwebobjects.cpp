@@ -687,7 +687,6 @@ Input::self& Input::SetStep(float step)
 } // SetStep
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
-constexpr KStringView HTML::TagName;
 constexpr KStringView Div::TagName;
 constexpr KStringView Span::TagName;
 constexpr KStringView Paragraph::TagName;
@@ -699,6 +698,7 @@ constexpr KStringView Link::TagName;
 constexpr KStringView Script::TagName;
 constexpr KStringView StyleSheet::TagName;
 constexpr KStringView FavIcon::TagName;
+constexpr KStringView Meta::TagName;
 constexpr KStringView Break::TagName;
 constexpr KStringView HorizontalRuler::TagName;
 constexpr KStringView Header::TagName;
@@ -716,6 +716,71 @@ constexpr KStringView IFrame::TagName;
 constexpr KStringView Video::TagName;
 constexpr KStringView Audio::TagName;
 constexpr KStringView Source::TagName;
+// Additional elements
+constexpr KStringView Base::TagName;
+constexpr KStringView Footer::TagName;
+constexpr KStringView Nav::TagName;
+constexpr KStringView Main::TagName;
+constexpr KStringView Article::TagName;
+constexpr KStringView Section::TagName;
+constexpr KStringView Aside::TagName;
+constexpr KStringView Address::TagName;
+constexpr KStringView Figure::TagName;
+constexpr KStringView FigureCaption::TagName;
+constexpr KStringView UnorderedList::TagName;
+constexpr KStringView OrderedList::TagName;
+constexpr KStringView ListItem::TagName;
+constexpr KStringView DescriptionList::TagName;
+constexpr KStringView DescriptionTerm::TagName;
+constexpr KStringView DescriptionDetail::TagName;
+constexpr KStringView TableCaption::TagName;
+constexpr KStringView TableHead::TagName;
+constexpr KStringView TableBody::TagName;
+constexpr KStringView TableFoot::TagName;
+constexpr KStringView ColumnGroup::TagName;
+constexpr KStringView Column::TagName;
+constexpr KStringView TextArea::TagName;
+constexpr KStringView DataList::TagName;
+constexpr KStringView OptionGroup::TagName;
+constexpr KStringView Meter::TagName;
+constexpr KStringView Progress::TagName;
+constexpr KStringView Details::TagName;
+constexpr KStringView Summary::TagName;
+constexpr KStringView Dialog::TagName;
+constexpr KStringView Picture::TagName;
+constexpr KStringView Canvas::TagName;
+constexpr KStringView Time::TagName;
+constexpr KStringView BlockQuote::TagName;
+constexpr KStringView InlineQuote::TagName;
+constexpr KStringView Abbreviation::TagName;
+constexpr KStringView Citation::TagName;
+constexpr KStringView Strong::TagName;
+constexpr KStringView Emphasis::TagName;
+constexpr KStringView Bold::TagName;
+constexpr KStringView Italic::TagName;
+constexpr KStringView Underline::TagName;
+constexpr KStringView Strikethrough::TagName;
+constexpr KStringView Small::TagName;
+constexpr KStringView Subscript::TagName;
+constexpr KStringView Superscript::TagName;
+constexpr KStringView Mark::TagName;
+constexpr KStringView Code::TagName;
+constexpr KStringView Keyboard::TagName;
+constexpr KStringView Sample::TagName;
+constexpr KStringView Variable::TagName;
+constexpr KStringView Deleted::TagName;
+constexpr KStringView Inserted::TagName;
+constexpr KStringView Map::TagName;
+constexpr KStringView Area::TagName;
+constexpr KStringView WordBreak::TagName;
+constexpr KStringView BiDirIsolate::TagName;
+constexpr KStringView BiDirOverride::TagName;
+constexpr KStringView Ruby::TagName;
+constexpr KStringView RubyParen::TagName;
+constexpr KStringView RubyText::TagName;
+constexpr KStringView Embed::TagName;
+constexpr KStringView Object::TagName;
+constexpr KStringView Param::TagName;
 #endif
 
 } // end of namespace html

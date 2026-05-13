@@ -303,7 +303,7 @@ public:
 	/// remaining `args...` are forwarded.
 	///
 	///   auto div = body.Add<html::Div>("FormDiv");
-	///   form.Add<html::Input>(html::Input::TEXT, "user");
+	///   form.Add<html::Input>("user", "", html::Input::TEXT);
 	///
 	/// Returns the constructed `T` by value (T is a thin handle, usually
 	/// 8 byte).

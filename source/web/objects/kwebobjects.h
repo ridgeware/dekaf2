@@ -763,6 +763,7 @@ public:
 	using KWebObject::SetAsync;
 	using KWebObject::SetDefer;
 	using KWebObject::SetSource;
+	using KWebObject::SetType;
 
 	Script(KHTMLNode parent,
 	       KStringView sBody    = KStringView{},

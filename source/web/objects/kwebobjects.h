@@ -429,6 +429,145 @@ namespace detail {
 
 } // namespace detail
 
+// -- shape templates --------------------------------------------------------
+// Three element "shapes" (container / text-content / void) parameterised by
+// a tag struct. The tag struct provides two constexpr accessors:
+//   static constexpr KStringView name();  // C++ class name — used for TYPE hash
+//   static constexpr KStringView tag();   // HTML tag name — emitted in output
+// Reduces ~50 trivial element classes to one-line `using`-aliases at the
+// bottom of this file.
+
+namespace detail {
+
+template<typename Tag>
+class DEKAF2_PUBLIC HtmlContainer : public KWebObject<HtmlContainer<Tag>>
+{
+public:
+	static constexpr std::size_t TYPE    = Tag::name().Hash();
+	static constexpr KStringView TagName = Tag::tag();
+
+	HtmlContainer(KHTMLNode parent,
+	              const html::Classes& cls = html::Classes{},
+	              KStringView sID          = KStringView{})
+	: KWebObject<HtmlContainer<Tag>>(parent, TagName, cls, sID) {}
+};
+
+template<typename Tag>
+class DEKAF2_PUBLIC HtmlText : public KWebObject<HtmlText<Tag>>
+{
+public:
+	static constexpr std::size_t TYPE    = Tag::name().Hash();
+	static constexpr KStringView TagName = Tag::tag();
+
+	HtmlText(KHTMLNode parent,
+	         KStringView sContent     = KStringView{},
+	         const html::Classes& cls = html::Classes{},
+	         KStringView sID          = KStringView{})
+	: KWebObject<HtmlText<Tag>>(parent, TagName, cls, sID)
+	{ if (!sContent.empty()) this->AddText(sContent); }
+};
+
+template<typename Tag>
+class DEKAF2_PUBLIC HtmlVoid : public KWebObject<HtmlVoid<Tag>>
+{
+public:
+	static constexpr std::size_t TYPE    = Tag::name().Hash();
+	static constexpr KStringView TagName = Tag::tag();
+
+	HtmlVoid(KHTMLNode parent)
+	: KWebObject<HtmlVoid<Tag>>(parent, TagName) {}
+};
+
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+// C++14 ODR-defs for the template statics — one set covers all instantiations.
+template<typename Tag> constexpr KStringView HtmlContainer<Tag>::TagName;
+template<typename Tag> constexpr std::size_t HtmlContainer<Tag>::TYPE;
+template<typename Tag> constexpr KStringView HtmlText     <Tag>::TagName;
+template<typename Tag> constexpr std::size_t HtmlText     <Tag>::TYPE;
+template<typename Tag> constexpr KStringView HtmlVoid     <Tag>::TagName;
+template<typename Tag> constexpr std::size_t HtmlVoid     <Tag>::TYPE;
+#endif
+
+} // namespace detail
+
+// -- tag structs ------------------------------------------------------------
+// Per-element marker structs that carry the HTML tag name and C++ class name.
+// Grouped by section, mirroring the using-aliases throughout the file.
+namespace tags {
+
+// generic block / inline (pre-existing shapes refactored to the template)
+struct Div               { static constexpr KStringView name() { return "Div";               } static constexpr KStringView tag() { return "div";        } };
+struct Span              { static constexpr KStringView name() { return "Span";              } static constexpr KStringView tag() { return "span";       } };
+struct Paragraph         { static constexpr KStringView name() { return "Paragraph";         } static constexpr KStringView tag() { return "p";          } };
+struct Header            { static constexpr KStringView name() { return "Header";            } static constexpr KStringView tag() { return "header";     } };
+struct Preformatted      { static constexpr KStringView name() { return "Preformatted";      } static constexpr KStringView tag() { return "pre";        } };
+struct Break             { static constexpr KStringView name() { return "Break";             } static constexpr KStringView tag() { return "br";         } };
+struct HorizontalRuler   { static constexpr KStringView name() { return "HorizontalRuler";   } static constexpr KStringView tag() { return "hr";         } };
+struct Legend            { static constexpr KStringView name() { return "Legend";            } static constexpr KStringView tag() { return "legend";     } };
+struct Table             { static constexpr KStringView name() { return "Table";             } static constexpr KStringView tag() { return "table";      } };
+struct TableRow          { static constexpr KStringView name() { return "TableRow";          } static constexpr KStringView tag() { return "tr";         } };
+
+// semantic structural
+struct Footer            { static constexpr KStringView name() { return "Footer";            } static constexpr KStringView tag() { return "footer";     } };
+struct Nav               { static constexpr KStringView name() { return "Nav";               } static constexpr KStringView tag() { return "nav";        } };
+struct Main              { static constexpr KStringView name() { return "Main";              } static constexpr KStringView tag() { return "main";       } };
+struct Article           { static constexpr KStringView name() { return "Article";           } static constexpr KStringView tag() { return "article";    } };
+struct Section           { static constexpr KStringView name() { return "Section";           } static constexpr KStringView tag() { return "section";    } };
+struct Aside             { static constexpr KStringView name() { return "Aside";             } static constexpr KStringView tag() { return "aside";      } };
+struct Address           { static constexpr KStringView name() { return "Address";           } static constexpr KStringView tag() { return "address";    } };
+struct Figure            { static constexpr KStringView name() { return "Figure";            } static constexpr KStringView tag() { return "figure";     } };
+struct FigureCaption     { static constexpr KStringView name() { return "FigureCaption";     } static constexpr KStringView tag() { return "figcaption"; } };
+
+// lists
+struct UnorderedList     { static constexpr KStringView name() { return "UnorderedList";     } static constexpr KStringView tag() { return "ul";         } };
+struct DescriptionList   { static constexpr KStringView name() { return "DescriptionList";   } static constexpr KStringView tag() { return "dl";         } };
+struct DescriptionTerm   { static constexpr KStringView name() { return "DescriptionTerm";   } static constexpr KStringView tag() { return "dt";         } };
+struct DescriptionDetail { static constexpr KStringView name() { return "DescriptionDetail"; } static constexpr KStringView tag() { return "dd";         } };
+
+// table sub-structure
+struct TableCaption      { static constexpr KStringView name() { return "TableCaption";      } static constexpr KStringView tag() { return "caption";    } };
+struct TableHead         { static constexpr KStringView name() { return "TableHead";         } static constexpr KStringView tag() { return "thead";      } };
+struct TableBody         { static constexpr KStringView name() { return "TableBody";         } static constexpr KStringView tag() { return "tbody";      } };
+struct TableFoot         { static constexpr KStringView name() { return "TableFoot";         } static constexpr KStringView tag() { return "tfoot";      } };
+
+// form
+struct DataList          { static constexpr KStringView name() { return "DataList";          } static constexpr KStringView tag() { return "datalist";   } };
+
+// interactive
+struct Summary           { static constexpr KStringView name() { return "Summary";           } static constexpr KStringView tag() { return "summary";    } };
+
+// media-ish
+struct Picture           { static constexpr KStringView name() { return "Picture";           } static constexpr KStringView tag() { return "picture";    } };
+
+// quotes / annotations
+struct Abbreviation      { static constexpr KStringView name() { return "Abbreviation";      } static constexpr KStringView tag() { return "abbr";       } };
+struct Citation          { static constexpr KStringView name() { return "Citation";          } static constexpr KStringView tag() { return "cite";       } };
+
+// inline text decoration
+struct Strong            { static constexpr KStringView name() { return "Strong";            } static constexpr KStringView tag() { return "strong";     } };
+struct Emphasis          { static constexpr KStringView name() { return "Emphasis";          } static constexpr KStringView tag() { return "em";         } };
+struct Bold              { static constexpr KStringView name() { return "Bold";              } static constexpr KStringView tag() { return "b";          } };
+struct Italic            { static constexpr KStringView name() { return "Italic";            } static constexpr KStringView tag() { return "i";          } };
+struct Underline         { static constexpr KStringView name() { return "Underline";         } static constexpr KStringView tag() { return "u";          } };
+struct Strikethrough     { static constexpr KStringView name() { return "Strikethrough";     } static constexpr KStringView tag() { return "s";          } };
+struct Small             { static constexpr KStringView name() { return "Small";             } static constexpr KStringView tag() { return "small";      } };
+struct Subscript         { static constexpr KStringView name() { return "Subscript";         } static constexpr KStringView tag() { return "sub";        } };
+struct Superscript       { static constexpr KStringView name() { return "Superscript";       } static constexpr KStringView tag() { return "sup";        } };
+struct Mark              { static constexpr KStringView name() { return "Mark";              } static constexpr KStringView tag() { return "mark";       } };
+struct Code              { static constexpr KStringView name() { return "Code";              } static constexpr KStringView tag() { return "code";       } };
+struct Keyboard          { static constexpr KStringView name() { return "Keyboard";          } static constexpr KStringView tag() { return "kbd";        } };
+struct Sample            { static constexpr KStringView name() { return "Sample";            } static constexpr KStringView tag() { return "samp";       } };
+struct Variable          { static constexpr KStringView name() { return "Variable";          } static constexpr KStringView tag() { return "var";        } };
+
+// niche
+struct WordBreak         { static constexpr KStringView name() { return "WordBreak";         } static constexpr KStringView tag() { return "wbr";        } };
+struct BiDirIsolate      { static constexpr KStringView name() { return "BiDirIsolate";      } static constexpr KStringView tag() { return "bdi";        } };
+struct Ruby              { static constexpr KStringView name() { return "Ruby";              } static constexpr KStringView tag() { return "ruby";       } };
+struct RubyParen         { static constexpr KStringView name() { return "RubyParen";         } static constexpr KStringView tag() { return "rp";         } };
+struct RubyText          { static constexpr KStringView name() { return "RubyText";          } static constexpr KStringView tag() { return "rt";         } };
+
+} // namespace tags
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Generic free-name HTML element. The tag name is supplied at construction
 /// time — use this when you need an element that doesn't have a dedicated
@@ -530,70 +669,12 @@ private:
 
 }; // Page
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Div : public KWebObject<Div>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	static constexpr KStringView s_sObjectName = "Div";
-public:
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "div";
-
-	Div(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
-	: KWebObject<Div>(parent, TagName, cls, sID) {}
-}; // Div
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Span : public KWebObject<Span>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	static constexpr KStringView s_sObjectName = "Span";
-public:
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "span";
-
-	Span(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
-	: KWebObject<Span>(parent, TagName, cls, sID) {}
-}; // Span
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Paragraph : public KWebObject<Paragraph>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	static constexpr KStringView s_sObjectName = "Paragraph";
-public:
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "p";
-
-	Paragraph(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
-	: KWebObject<Paragraph>(parent, TagName, cls, sID) {}
-}; // Paragraph
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Table : public KWebObject<Table>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	static constexpr KStringView s_sObjectName = "Table";
-public:
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "table";
-
-	Table(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
-	: KWebObject<Table>(parent, TagName, cls, sID) {}
-}; // Table
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC TableRow : public KWebObject<TableRow>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	static constexpr KStringView s_sObjectName = "TableRow";
-public:
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "tr";
-
-	TableRow(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
-	: KWebObject<TableRow>(parent, TagName, cls, sID) {}
-}; // TableRow
+// Div, Span, Paragraph, Table, TableRow — pure container shape.
+using Div       = detail::HtmlContainer<tags::Div>;
+using Span      = detail::HtmlContainer<tags::Span>;
+using Paragraph = detail::HtmlContainer<tags::Paragraph>;
+using Table     = detail::HtmlContainer<tags::Table>;
+using TableRow  = detail::HtmlContainer<tags::TableRow>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC TableData : public KWebObject<TableData>
@@ -771,42 +852,10 @@ public:
 	self& SetProperty (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("property",   v); return *this; }
 }; // Meta
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Break : public KWebObject<Break>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	static constexpr KStringView s_sObjectName = "Break";
-public:
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "br";
-
-	Break(KHTMLNode parent) : KWebObject<Break>(parent, TagName) {}
-}; // Break
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC HorizontalRuler : public KWebObject<HorizontalRuler>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	static constexpr KStringView s_sObjectName = "HorizontalRuler";
-public:
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "hr";
-
-	HorizontalRuler(KHTMLNode parent) : KWebObject<HorizontalRuler>(parent, TagName) {}
-}; // HorizontalRuler
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Header : public KWebObject<Header>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	static constexpr KStringView s_sObjectName = "Header";
-public:
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "header";
-
-	Header(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
-	: KWebObject<Header>(parent, TagName, cls, sID) {}
-}; // Header
+// Break, HorizontalRuler — void shape. Header — container shape.
+using Break           = detail::HtmlVoid     <tags::Break>;
+using HorizontalRuler = detail::HtmlVoid     <tags::HorizontalRuler>;
+using Header          = detail::HtmlContainer<tags::Header>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Heading : public KWebObject<Heading>
@@ -870,21 +919,10 @@ public:
 	self& SetNoValidate(bool    bYesNo = true);
 }; // Form
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Legend : public KWebObject<Legend>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	static constexpr KStringView s_sObjectName = "Legend";
-public:
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "legend";
-
-	Legend(KHTMLNode parent, KStringView sLegend, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
-	: KWebObject<Legend>(parent, TagName, cls, sID)
-	{
-		AddText(sLegend);
-	}
-}; // Legend
+// Legend — text-content shape. NOTE: the legacy ctor required sLegend; the
+// template-form makes it optional (matching the rest of the *Text aliases),
+// which is purely additive.
+using Legend = detail::HtmlText<tags::Legend>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC FieldSet : public KWebObject<FieldSet>
@@ -1371,18 +1409,8 @@ public:
 	}
 }; // LineBreak
 
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DEKAF2_PUBLIC Preformatted : public KWebObject<Preformatted>
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-{
-	static constexpr KStringView s_sObjectName = "Preformatted";
-public:
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();
-	static constexpr KStringView TagName = "pre";
-
-	Preformatted(KHTMLNode parent, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
-	: KWebObject<Preformatted>(parent, TagName, cls, sID) {}
-}; // Preformatted
+// Preformatted — container shape.
+using Preformatted = detail::HtmlContainer<tags::Preformatted>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC IFrame : public KWebObject<IFrame>
@@ -1514,59 +1542,19 @@ public:
 	}
 }; // Base
 
-// -- semantic structural ----------------------------------------------------
-
-#define DEKAF2_HTML_DECLARE_CONTAINER(ClassName, sTag)                       \
-class DEKAF2_PUBLIC ClassName : public KWebObject<ClassName>                 \
-{                                                                            \
-	static constexpr KStringView s_sObjectName = #ClassName;                 \
-public:                                                                      \
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();                \
-	static constexpr KStringView TagName = sTag;                             \
-	ClassName(KHTMLNode parent,                                              \
-	          const Classes& cls = html::Classes{},                          \
-	          KStringView sID    = KStringView{})                            \
-	: KWebObject<ClassName>(parent, TagName, cls, sID) {}                    \
-}
-
-#define DEKAF2_HTML_DECLARE_TEXT(ClassName, sTag)                            \
-class DEKAF2_PUBLIC ClassName : public KWebObject<ClassName>                 \
-{                                                                            \
-	static constexpr KStringView s_sObjectName = #ClassName;                 \
-public:                                                                      \
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();                \
-	static constexpr KStringView TagName = sTag;                             \
-	ClassName(KHTMLNode parent,                                              \
-	          KStringView sContent = KStringView{},                          \
-	          const Classes& cls   = html::Classes{},                        \
-	          KStringView sID      = KStringView{})                          \
-	: KWebObject<ClassName>(parent, TagName, cls, sID)                       \
-	{ if (!sContent.empty()) AddText(sContent); }                            \
-}
-
-#define DEKAF2_HTML_DECLARE_VOID(ClassName, sTag)                            \
-class DEKAF2_PUBLIC ClassName : public KWebObject<ClassName>                 \
-{                                                                            \
-	static constexpr KStringView s_sObjectName = #ClassName;                 \
-public:                                                                      \
-	static constexpr std::size_t TYPE = s_sObjectName.Hash();                \
-	static constexpr KStringView TagName = sTag;                             \
-	ClassName(KHTMLNode parent) : KWebObject<ClassName>(parent, TagName) {}  \
-}
-
-DEKAF2_HTML_DECLARE_CONTAINER(Footer,         "footer");
-DEKAF2_HTML_DECLARE_CONTAINER(Nav,            "nav");
-DEKAF2_HTML_DECLARE_CONTAINER(Main,           "main");
-DEKAF2_HTML_DECLARE_CONTAINER(Article,        "article");
-DEKAF2_HTML_DECLARE_CONTAINER(Section,        "section");
-DEKAF2_HTML_DECLARE_CONTAINER(Aside,          "aside");
-DEKAF2_HTML_DECLARE_CONTAINER(Address,        "address");
-DEKAF2_HTML_DECLARE_CONTAINER(Figure,         "figure");
-DEKAF2_HTML_DECLARE_TEXT     (FigureCaption,  "figcaption");
+using Footer = detail::HtmlContainer<tags::Footer>;
+using Nav = detail::HtmlContainer<tags::Nav>;
+using Main = detail::HtmlContainer<tags::Main>;
+using Article = detail::HtmlContainer<tags::Article>;
+using Section = detail::HtmlContainer<tags::Section>;
+using Aside = detail::HtmlContainer<tags::Aside>;
+using Address = detail::HtmlContainer<tags::Address>;
+using Figure = detail::HtmlContainer<tags::Figure>;
+using FigureCaption = detail::HtmlText<tags::FigureCaption>;
 
 // -- lists ------------------------------------------------------------------
 
-DEKAF2_HTML_DECLARE_CONTAINER(UnorderedList,    "ul");
+using UnorderedList = detail::HtmlContainer<tags::UnorderedList>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC OrderedList : public KWebObject<OrderedList>
@@ -1608,16 +1596,16 @@ public:
 	{ if (!sContent.empty()) AddText(sContent); }
 }; // ListItem
 
-DEKAF2_HTML_DECLARE_CONTAINER(DescriptionList,   "dl");
-DEKAF2_HTML_DECLARE_TEXT     (DescriptionTerm,   "dt");
-DEKAF2_HTML_DECLARE_TEXT     (DescriptionDetail, "dd");
+using DescriptionList = detail::HtmlContainer<tags::DescriptionList>;
+using DescriptionTerm = detail::HtmlText<tags::DescriptionTerm>;
+using DescriptionDetail = detail::HtmlText<tags::DescriptionDetail>;
 
 // -- table sub-structure ----------------------------------------------------
 
-DEKAF2_HTML_DECLARE_TEXT     (TableCaption, "caption");
-DEKAF2_HTML_DECLARE_CONTAINER(TableHead,    "thead");
-DEKAF2_HTML_DECLARE_CONTAINER(TableBody,    "tbody");
-DEKAF2_HTML_DECLARE_CONTAINER(TableFoot,    "tfoot");
+using TableCaption = detail::HtmlText<tags::TableCaption>;
+using TableHead = detail::HtmlContainer<tags::TableHead>;
+using TableBody = detail::HtmlContainer<tags::TableBody>;
+using TableFoot = detail::HtmlContainer<tags::TableFoot>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC ColumnGroup : public KWebObject<ColumnGroup>
@@ -1692,7 +1680,7 @@ public:
 	self& SetWrap     (WRAP w)     { KHTMLNode::SetAttribute("wrap", w == HARD ? KStringView("hard") : KStringView("soft")); return *this; }
 }; // TextArea
 
-DEKAF2_HTML_DECLARE_CONTAINER(DataList, "datalist");
+using DataList = detail::HtmlContainer<tags::DataList>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC OptionGroup : public KWebObject<OptionGroup>
@@ -1789,7 +1777,7 @@ public:
 	: KWebObject<Details>(parent, TagName, cls, sID) {}
 }; // Details
 
-DEKAF2_HTML_DECLARE_TEXT(Summary, "summary");
+using Summary = detail::HtmlText<tags::Summary>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Dialog : public KWebObject<Dialog>
@@ -1810,7 +1798,7 @@ public:
 
 // -- media-ish --------------------------------------------------------------
 
-DEKAF2_HTML_DECLARE_CONTAINER(Picture, "picture");
+using Picture = detail::HtmlContainer<tags::Picture>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Canvas : public KWebObject<Canvas>
@@ -1889,25 +1877,25 @@ public:
 	{ if (!sContent.empty()) AddText(sContent); }
 }; // InlineQuote
 
-DEKAF2_HTML_DECLARE_TEXT(Abbreviation, "abbr");
-DEKAF2_HTML_DECLARE_TEXT(Citation,     "cite");
+using Abbreviation = detail::HtmlText<tags::Abbreviation>;
+using Citation = detail::HtmlText<tags::Citation>;
 
 // -- inline text decoration -------------------------------------------------
 
-DEKAF2_HTML_DECLARE_TEXT(Strong,        "strong");
-DEKAF2_HTML_DECLARE_TEXT(Emphasis,      "em");
-DEKAF2_HTML_DECLARE_TEXT(Bold,          "b");
-DEKAF2_HTML_DECLARE_TEXT(Italic,        "i");
-DEKAF2_HTML_DECLARE_TEXT(Underline,     "u");
-DEKAF2_HTML_DECLARE_TEXT(Strikethrough, "s");
-DEKAF2_HTML_DECLARE_TEXT(Small,         "small");
-DEKAF2_HTML_DECLARE_TEXT(Subscript,     "sub");
-DEKAF2_HTML_DECLARE_TEXT(Superscript,   "sup");
-DEKAF2_HTML_DECLARE_TEXT(Mark,          "mark");
-DEKAF2_HTML_DECLARE_TEXT(Code,          "code");
-DEKAF2_HTML_DECLARE_TEXT(Keyboard,      "kbd");
-DEKAF2_HTML_DECLARE_TEXT(Sample,        "samp");
-DEKAF2_HTML_DECLARE_TEXT(Variable,      "var");
+using Strong = detail::HtmlText<tags::Strong>;
+using Emphasis = detail::HtmlText<tags::Emphasis>;
+using Bold = detail::HtmlText<tags::Bold>;
+using Italic = detail::HtmlText<tags::Italic>;
+using Underline = detail::HtmlText<tags::Underline>;
+using Strikethrough = detail::HtmlText<tags::Strikethrough>;
+using Small = detail::HtmlText<tags::Small>;
+using Subscript = detail::HtmlText<tags::Subscript>;
+using Superscript = detail::HtmlText<tags::Superscript>;
+using Mark = detail::HtmlText<tags::Mark>;
+using Code = detail::HtmlText<tags::Code>;
+using Keyboard = detail::HtmlText<tags::Keyboard>;
+using Sample = detail::HtmlText<tags::Sample>;
+using Variable = detail::HtmlText<tags::Variable>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Deleted : public KWebObject<Deleted>
@@ -2008,8 +1996,8 @@ public:
 	}
 }; // Area
 
-DEKAF2_HTML_DECLARE_VOID(WordBreak,      "wbr");
-DEKAF2_HTML_DECLARE_TEXT(BiDirIsolate,   "bdi");
+using WordBreak = detail::HtmlVoid<tags::WordBreak>;
+using BiDirIsolate = detail::HtmlText<tags::BiDirIsolate>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC BiDirOverride : public KWebObject<BiDirOverride>
@@ -2029,9 +2017,9 @@ public:
 	{ if (!sContent.empty()) AddText(sContent); }
 }; // BiDirOverride
 
-DEKAF2_HTML_DECLARE_CONTAINER(Ruby,      "ruby");
-DEKAF2_HTML_DECLARE_TEXT     (RubyParen, "rp");
-DEKAF2_HTML_DECLARE_TEXT     (RubyText,  "rt");
+using Ruby = detail::HtmlContainer<tags::Ruby>;
+using RubyParen = detail::HtmlText<tags::RubyParen>;
+using RubyText = detail::HtmlText<tags::RubyText>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class DEKAF2_PUBLIC Embed : public KWebObject<Embed>
@@ -2107,10 +2095,6 @@ public:
 		if (!sValue.empty()) SetValue(sValue);
 	}
 }; // Param
-
-#undef DEKAF2_HTML_DECLARE_CONTAINER
-#undef DEKAF2_HTML_DECLARE_TEXT
-#undef DEKAF2_HTML_DECLARE_VOID
 
 } // end of namespace html
 

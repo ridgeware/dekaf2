@@ -64,8 +64,85 @@ DEKAF2_NAMESPACE_BEGIN
 /// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Parses HTML into an arena-backed POD tree and owns it. The public
-/// surface is `Parse(...)`, `Root()`, `Serialize(...)`.
+/// `KHTML` is the DOM-style consumer of `KHTMLParser`. It builds an
+/// **arena-backed POD tree** (`khtml::NodePOD` / `khtml::AttrPOD` in
+/// `khtml::Document`) as the streaming parser fires its callbacks, then
+/// exposes it via a handle (`KHTMLNode`) for traversal, mutation and
+/// serialisation.
+///
+/// ### Memory model
+///
+/// One `khtml::Document` (a `KArenaAllocator`) per `KHTML` owns:
+///  - the POD tree nodes (`NodePOD` ≈ 80 bytes, `AttrPOD` ≈ 16 bytes,
+///    arena-allocated, never freed individually — the whole arena
+///    resets at once)
+///  - the bytes that the parser's accumulators write directly into
+///    arena memory via `KArenaStringBuilder` (when source-slicing is
+///    not applicable)
+///  - optionally, the owned `m_SourceBuffer` (when `Parse(KString)`
+///    moved the input in) — registered with the arena as a **stable
+///    region** so source-slicing can hand out views into it for free
+///
+/// Arena blocks grow geometrically (`DefaultBlockSize → 256 KB cap`),
+/// so a parse of a ~64 KB document typically uses 8–10 heap
+/// allocations end-to-end (vs. several hundred thousand for a
+/// heap-DOM design).
+///
+/// ### The three Parse paths
+///
+/// All three eventually run the same streaming loop
+/// (`KHTMLParser::Parse(KBufferedReader&)`) — they differ in **what
+/// happens with the source bytes** and in **whether source-slicing is
+/// enabled**.
+///
+/// | Path                          | `m_SourceBuffer` | Stable region | Source-slicing | Use case |
+/// |-------------------------------|------------------|---------------|----------------|----------|
+/// | `Parse(KString)`              | move-in (own)    | yes           | yes            | Caller has a `KString`; max perf, you don't care about Original |
+/// | `Parse(view)` (template)      | not touched      | no            | no (arena only)| Caller has a view, no lifetime promise; safe & cheap |
+/// | `ParseStable(view)`           | not touched      | yes           | yes            | Caller has a view and **promises** it outlives `KHTML` |
+/// | `Parse(KInStream&)`           | cleared          | no            | no             | Streaming source (file, socket); slicing impossible |
+///
+/// `const char*` literals, `KStringView`, `KStringViewZ` and
+/// `std::string` all flow to the template path unless `KString{...}`
+/// is spelled explicitly — see overload resolution comments below.
+///
+/// ### Source-slicing (in-situ-light)
+///
+/// When source-slicing is enabled, `khtml::ParseAccumulator` runs in
+/// **SourceSlice** mode for the tag name, each attribute name + value,
+/// and each text-content run. As long as every byte matches the source
+/// 1:1, the final view is a `KStringView` straight into the caller's
+/// (or `m_SourceBuffer`'s) bytes — zero arena bytes consumed.
+///
+/// The first byte that needs to differ from the source (lowercased
+/// tag/attribute character, decoded entity, whitespace-normalised
+/// `\t/\n/\r → ' '`) promotes the accumulator to **ArenaBuilder** mode:
+/// the slice-so-far is copied into a `KArenaStringBuilder` and the
+/// transformed byte appended; further bytes write straight to arena.
+/// One promotion per accumulated string — never back to slicing.
+///
+/// `KHTMLStringObject` payloads (Comment / CData / DocumentType / PI)
+/// deliberately skip slicing because the lead-out-probe-logic doesn't
+/// map source positions cleanly to accumulated bytes — they always
+/// use ArenaBuilder mode.
+///
+/// ### Read / mutate / serialise
+///
+///  - `Root()` returns a `KHTMLNode` cursor at the synthetic document
+///    root; iterate `Children()` to walk top-level nodes.
+///  - `doc.Add<T>(args...)` (or `doc.Root().Add<T>(args...)`) builds
+///    KWebObjects into the tree.
+///  - `Serialize(...)` renders the POD tree back to HTML (string or
+///    stream, optional indent character).
+///  - `clear()` drops all content and recycles arena blocks.
+///
+/// ### Copy / move semantics
+///
+/// `KHTML` is **non-copyable** — the arena is non-copyable and
+/// cloning a populated document is rarely useful. It is movable
+/// (default), but the implicit move on a *populated* document is UB
+/// (see `khtml::Document`'s class comment). NRVO covers the typical
+/// `KHTML Make() { return ...; }` pattern safely.
 class DEKAF2_PUBLIC KHTML : public KErrorBase, public KHTMLParser
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -168,12 +245,18 @@ public:
 	bool ParseStable(KStringView sView);
 	//-----------------------------------------------------------------------------
 
+	/// Render the POD tree back to HTML into a stream / string.
+	/// `chIndent` is the per-level indent character (default tab); pass
+	/// `'\0'` for unindented compact output. Output is byte-for-byte
+	/// deterministic regardless of which Parse path produced the tree.
 	void    Serialize(KOutStream& Stream, char chIndent = '\t') const;
 	void    Serialize(KStringRef& sOut, char chIndent = '\t') const;
 	KString Serialize(char chIndent = '\t') const;
 
-	/// Clear all content (returns blocks to internal free list; the next
-	/// Parse() reuses them).
+	/// Clear all content. Arena blocks return to the internal free list
+	/// (not released to the heap) so the next `Parse()` recycles them
+	/// without further `malloc()` calls. Drops any registered stable
+	/// regions and the `m_SourceBuffer`.
 	void clear();
 
 	/// No content?
@@ -186,6 +269,9 @@ public:
 	/// true if we have content
 	operator bool() const { return !empty(); }
 
+	/// Per-parse diagnostics (unbalanced tags, recovered standalone
+	/// tags, etc.). The list is appended to during the parse; valid for
+	/// the document's lifetime, cleared on `clear()` / re-parse.
 	const std::vector<KString>& Issues() const { return m_Issues; }
 
 	/// Read/write handle at the synthetic root of the POD tree. The handle
@@ -203,8 +289,11 @@ public:
 		return KHTMLNode(const_cast<khtml::NodePOD*>(PodRoot()));
 	}
 
-	/// Add an element to the document root. Equivalent to
-	/// `Root().Add<T>(args...)`.
+	/// Construct a child of the synthetic document root. Equivalent to
+	/// `Root().Add<T>(args...)`. `T` must accept a `KHTMLNode` (the
+	/// parent handle) as its first ctor argument; the rest is
+	/// forwarded. See `khtml::NodeCursor::Add` for the CTAD-friendly
+	/// `Add<TemplateName>(args...)` shorthand.
 	template<class T, class... Args>
 	T Add(Args&&... args)
 	{

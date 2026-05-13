@@ -344,6 +344,258 @@ text-decoration: none
 
 #endif // __cpp_deduction_guides
 
+// Focused test for html::RadioButton — verifies that:
+//   1. four radios sharing one backing variable get the same auto-assigned
+//      `name` attribute after Page::Generate(),
+//   2. Page::Synchronize() flips `checked` to the radio whose `value` matches
+//      the supplied query-parm value (and removes it from the others),
+//   3. the backing variable is updated to the query-parm value,
+//   4. the same works for an enum-typed backing variable.
+//
+// Uses explicit template spelling so the test runs on C++14 too (no CTAD).
+TEST_CASE("KWebObjects.RadioButton")
+{
+	SECTION("KString-backed group — Synchronize selects matching radio")
+	{
+		KString sChoice { "blue" };
+
+		html::Page page("Radio Test");
+		auto form = page.Body().Add<html::Form>("/submit");
+
+		auto group = form.Add<html::FieldSet>("Colour");
+		group.Add<html::RadioButton<KString>>(sChoice).SetValue("red"   ).SetLabelAfter("red"   );
+		group.Add<html::RadioButton<KString>>(sChoice).SetValue("green" ).SetLabelAfter("green" );
+		group.Add<html::RadioButton<KString>>(sChoice).SetValue("blue"  ).SetLabelAfter("blue"  );
+		group.Add<html::RadioButton<KString>>(sChoice).SetValue("yellow").SetLabelAfter("yellow");
+
+		page.Generate();   // auto-assign names — all four share one `name`
+
+		// All four radios should share the same auto-assigned `name`
+		// attribute (because they share one backing variable).
+		auto sPreSync = page.Serialize();
+		INFO( sPreSync );
+		auto iName1 = sPreSync.find("name=\"");
+		auto iName2 = sPreSync.find("name=\"", iName1 + 1);
+		REQUIRE( iName1 != KString::npos );
+		REQUIRE( iName2 != KString::npos );
+		auto sName1 = sPreSync.substr(iName1, sPreSync.find('"', iName1 + 6) - iName1 + 1);
+		auto sName2 = sPreSync.substr(iName2, sPreSync.find('"', iName2 + 6) - iName2 + 1);
+		CHECK( sName1 == sName2 );
+
+		// Now pretend a form-submission picks "red".
+		url::KQueryParms Parms;
+		Parms.Add(KStringView{sName1}.substr(6, sName1.size() - 7),   // strip name=" ... "
+		          "red");
+		page.Synchronize(Parms);
+
+		// Backing variable updated to the submitted value.
+		CHECK( sChoice == "red" );
+
+		auto sOut = page.Serialize();
+		INFO( sOut );
+		// Exactly one radio is checked, and it's the red one.
+		std::size_t iCheckedCount = 0;
+		KStringView v{sOut};
+		for (auto pos = v.find("checked"); pos != KStringView::npos;
+		     pos = v.find("checked", pos + 1))
+		{
+			++iCheckedCount;
+		}
+		CHECK( iCheckedCount == 1 );
+		// Confirm the checked one sits next to value="red".
+		auto iRed = sOut.find(R"(value="red")");
+		REQUIRE( iRed != KString::npos );
+		auto sNearRed = sOut.substr(iRed > 50 ? iRed - 50 : 0,
+		                            sOut.find('>', iRed) - (iRed > 50 ? iRed - 50 : 0) + 1);
+		CHECK( sNearRed.contains("checked") );
+	}
+
+	SECTION("initial backing-variable value is reflected in `checked`")
+	{
+		// Mirror of how CheckBox treats its initial state: the radio whose
+		// `value` matches the backing variable should be initially checked
+		// on first render (before any Synchronize). This currently FAILS —
+		// kept here as the regression marker for the missing initial-state
+		// hookup in RadioButton's ctor.
+		KString sChoice { "blue" };
+
+		html::Page page("Radio Initial Test");
+		auto form  = page.Body().Add<html::Form>("/submit");
+		auto group = form.Add<html::FieldSet>("Colour");
+		group.Add<html::RadioButton<KString>>(sChoice).SetValue("red"  ).SetLabelAfter("red"  );
+		group.Add<html::RadioButton<KString>>(sChoice).SetValue("green").SetLabelAfter("green");
+		group.Add<html::RadioButton<KString>>(sChoice).SetValue("blue" ).SetLabelAfter("blue" );
+
+		page.Generate();   // just assigns names — no Synchronize
+
+		auto sOut = page.Serialize();
+		INFO( sOut );
+		// Exactly one radio (the blue one) should be checked, reflecting
+		// the initial sChoice = "blue".
+		std::size_t iCheckedCount = 0;
+		KStringView v{sOut};
+		for (auto pos = v.find("checked"); pos != KStringView::npos;
+		     pos = v.find("checked", pos + 1))
+		{
+			++iCheckedCount;
+		}
+		CHECK( iCheckedCount == 1 );
+
+		// And it should be the blue one.
+		auto iBlue = sOut.find(R"(value="blue")");
+		REQUIRE( iBlue != KString::npos );
+		auto iTagStart = sOut.rfind('<', iBlue);
+		auto iTagEnd   = sOut.find ('>', iBlue);
+		REQUIRE( iTagStart != KString::npos );
+		REQUIRE( iTagEnd   != KString::npos );
+		auto sTag = sOut.substr(iTagStart, iTagEnd - iTagStart + 1);
+		CHECK( sTag.contains("checked") );
+	}
+
+	SECTION("enum-backed initial state — value passed to SetValue matches backing variable")
+	{
+		enum Colour { RED = 0, GREEN = 1, BLUE = 2, YELLOW = 3 };
+		Colour eChoice { GREEN };
+
+		html::Page page("Enum Radio Initial Test");
+		auto form  = page.Body().Add<html::Form>("/submit");
+		auto group = form.Add<html::FieldSet>("Colour");
+		group.Add<html::RadioButton<Colour>>(eChoice).SetValue(RED  ).SetLabelAfter("red");
+		group.Add<html::RadioButton<Colour>>(eChoice).SetValue(GREEN).SetLabelAfter("green");
+		group.Add<html::RadioButton<Colour>>(eChoice).SetValue(BLUE ).SetLabelAfter("blue");
+
+		page.Generate();
+
+		auto sOut = page.Serialize();
+		INFO( sOut );
+		std::size_t iCheckedCount = 0;
+		KStringView v{sOut};
+		for (auto pos = v.find("checked"); pos != KStringView::npos;
+		     pos = v.find("checked", pos + 1))
+		{
+			++iCheckedCount;
+		}
+		CHECK( iCheckedCount == 1 );
+		auto iGreen = sOut.find(R"(value="1")");
+		REQUIRE( iGreen != KString::npos );
+		auto iTagStart = sOut.rfind('<', iGreen);
+		auto iTagEnd   = sOut.find ('>', iGreen);
+		REQUIRE( iTagStart != KString::npos );
+		REQUIRE( iTagEnd   != KString::npos );
+		auto sTag = sOut.substr(iTagStart, iTagEnd - iTagStart + 1);
+		CHECK( sTag.contains("checked") );
+	}
+
+	SECTION("enum-backed group — Synchronize picks matching enum value")
+	{
+		enum Colour { RED = 0, GREEN = 1, BLUE = 2, YELLOW = 3 };
+		Colour eChoice { BLUE };
+
+		html::Page page("Enum Radio Test");
+		auto form  = page.Body().Add<html::Form>("/submit");
+		auto group = form.Add<html::FieldSet>("Colour");
+		group.Add<html::RadioButton<Colour>>(eChoice).SetValue(RED   ).SetLabelAfter("red");
+		group.Add<html::RadioButton<Colour>>(eChoice).SetValue(GREEN ).SetLabelAfter("green");
+		group.Add<html::RadioButton<Colour>>(eChoice).SetValue(BLUE  ).SetLabelAfter("blue");
+		group.Add<html::RadioButton<Colour>>(eChoice).SetValue(YELLOW).SetLabelAfter("yellow");
+
+		page.Generate();
+		auto sPre = page.Serialize();
+		auto iName = sPre.find("name=\"");
+		REQUIRE( iName != KString::npos );
+		auto sNameQuoted = sPre.substr(iName, sPre.find('"', iName + 6) - iName + 1);
+		KString sName(KStringView{sNameQuoted}.substr(6, sNameQuoted.size() - 7));
+
+		url::KQueryParms Parms;
+		Parms.Add(sName, "1");   // GREEN
+		page.Synchronize(Parms);
+
+		CHECK( eChoice == GREEN );
+
+		auto sOut = page.Serialize();
+		std::size_t iCheckedCount = 0;
+		KStringView v{sOut};
+		for (auto pos = v.find("checked"); pos != KStringView::npos;
+		     pos = v.find("checked", pos + 1))
+		{
+			++iCheckedCount;
+		}
+		CHECK( iCheckedCount == 1 );
+		auto iGreen = sOut.find(R"(value="1")");
+		REQUIRE( iGreen != KString::npos );
+	}
+}
+
+// CheckBox parallels RadioButton's test. The pre-Phase-4 CheckBox kept a
+// `Boolean& m_bValue` reference member; the arena version replaced it with
+// `khtml::InteractiveBinding::pResult` (a `void*` into the document's
+// side-map), which is functionally equivalent — the binding holds the
+// address of the caller's variable, and pfnSync/pfnReset mutate through it.
+// These four sections lock that equivalence in.
+TEST_CASE("KWebObjects.CheckBox")
+{
+	SECTION("initial true — `checked` attribute is emitted")
+	{
+		bool bFlag { true };
+
+		html::Page page("CheckBox Initial True");
+		page.Body().Add<html::CheckBox<bool>>(bFlag, "flag").SetLabelAfter("on");
+
+		auto sOut = page.Serialize();
+		INFO( sOut );
+		CHECK( sOut.contains("checked") );
+	}
+
+	SECTION("initial false — no `checked` attribute")
+	{
+		bool bFlag { false };
+
+		html::Page page("CheckBox Initial False");
+		page.Body().Add<html::CheckBox<bool>>(bFlag, "flag").SetLabelAfter("on");
+
+		auto sOut = page.Serialize();
+		INFO( sOut );
+		CHECK_FALSE( sOut.contains("checked") );
+	}
+
+	SECTION("Synchronize with matching parm — variable becomes true, checked emitted")
+	{
+		bool bFlag { false };
+
+		html::Page page("CheckBox Sync Set");
+		page.Body().Add<html::CheckBox<bool>>(bFlag, "flag").SetLabelAfter("on");
+		page.Generate();
+
+		url::KQueryParms Parms;
+		Parms.Add("flag", "on");
+		page.Synchronize(Parms);
+
+		CHECK( bFlag == true );
+		auto sOut = page.Serialize();
+		CHECK( sOut.contains("checked") );
+	}
+
+	SECTION("Synchronize without parm — variable becomes false (form-submit semantics)")
+	{
+		// HTML form-submit convention: unchecked checkboxes don't submit
+		// their name at all. So `Synchronize` with no matching parm is
+		// the signal that the checkbox is unchecked — clear the variable.
+		bool bFlag { true };
+
+		html::Page page("CheckBox Sync Reset");
+		page.Body().Add<html::CheckBox<bool>>(bFlag, "flag").SetLabelAfter("on");
+		page.Generate();
+
+		url::KQueryParms Parms;
+		Parms.Add("unrelated", "x");
+		page.Synchronize(Parms);
+
+		CHECK( bFlag == false );
+		auto sOut = page.Serialize();
+		CHECK_FALSE( sOut.contains("checked") );
+	}
+}
+
 // Regression test for the C++ overload-resolution pitfall:
 //   SetAttribute("onchange", "setSomeParam(this.value)")
 // Without SFINAE on the bool overload, the string literal (const char*)

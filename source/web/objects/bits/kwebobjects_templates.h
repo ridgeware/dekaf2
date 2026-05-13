@@ -298,6 +298,7 @@ RadioButton<ValueType>::RadioButton(KHTMLNode parent,
                                     const html::Classes& cls, KStringView sID)
 : base(parent, sName, KStringView{}, Input::RADIO, cls, sID)
 {
+	m_pResult = &rResult;
 	khtml::InteractiveBinding binding;
 	binding.pResult  = static_cast<void*>(&rResult);
 	binding.pfnSync  = [](void* p, khtml::NodePOD* pInput, KStringView v)

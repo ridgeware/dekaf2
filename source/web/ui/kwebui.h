@@ -80,7 +80,11 @@ class DEKAF2_PUBLIC Stack : public KWebObject<Stack>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Stack";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE    = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "div";
 
@@ -102,6 +106,7 @@ public:
 		sStyle += sGap;
 		SetStyle(sStyle);
 	}
+
 }; // Stack
 
 
@@ -121,7 +126,11 @@ class DEKAF2_PUBLIC Card : public KWebObject<Card>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Card";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE    = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "div";
 
@@ -145,10 +154,14 @@ public:
 	KHTMLNode Body()   { return m_body;   }
 	KHTMLNode Footer() { return m_footer; }
 
+//----------
 private:
+//----------
+
 	KHTMLNode m_header;
 	KHTMLNode m_body;
 	KHTMLNode m_footer;
+
 }; // Card
 
 
@@ -173,7 +186,11 @@ class DEKAF2_PUBLIC Modal : public KWebObject<Modal>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Modal";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE    = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "div";
 
@@ -202,10 +219,14 @@ public:
 	template<typename F> Modal& Body  (F&& f) { std::forward<F>(f)(m_body);   return *this; }
 	template<typename F> Modal& Footer(F&& f) { std::forward<F>(f)(m_footer); return *this; }
 
+//----------
 private:
+//----------
+
 	KHTMLNode m_header;
 	KHTMLNode m_body;
 	KHTMLNode m_footer;
+
 }; // Modal
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE

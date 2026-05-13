@@ -448,7 +448,11 @@ namespace detail {
 template<typename Tag>
 class DEKAF2_PUBLIC HtmlContainer : public KWebObject<HtmlContainer<Tag>>
 {
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE    = Tag::name().Hash();
 	static constexpr KStringView TagName = Tag::tag();
 
@@ -461,7 +465,11 @@ public:
 template<typename Tag>
 class DEKAF2_PUBLIC HtmlText : public KWebObject<HtmlText<Tag>>
 {
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE    = Tag::name().Hash();
 	static constexpr KStringView TagName = Tag::tag();
 
@@ -476,7 +484,11 @@ public:
 template<typename Tag>
 class DEKAF2_PUBLIC HtmlVoid : public KWebObject<HtmlVoid<Tag>>
 {
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE    = Tag::name().Hash();
 	static constexpr KStringView TagName = Tag::tag();
 
@@ -687,7 +699,11 @@ class DEKAF2_PUBLIC TableData : public KWebObject<TableData>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "TableData";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "td";
 
@@ -704,6 +720,7 @@ public:
 	{
 		if (!sContent.empty()) AddText(sContent);
 	}
+
 }; // TableData
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -711,7 +728,11 @@ class DEKAF2_PUBLIC TableHeader : public KWebObject<TableHeader>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "TableHeader";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "th";
 
@@ -728,6 +749,7 @@ public:
 	{
 		if (!sContent.empty()) AddText(sContent);
 	}
+
 }; // TableHeader
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -735,7 +757,11 @@ class DEKAF2_PUBLIC Link : public KWebObject<Link>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Link";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "a";
 
@@ -754,6 +780,7 @@ public:
 		if (!sURL.empty())  SetLink(sURL);
 		if (!sText.empty()) AddText(sText);
 	}
+
 }; // Link
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -761,7 +788,11 @@ class DEKAF2_PUBLIC Script : public KWebObject<Script>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Script";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "script";
 
@@ -779,6 +810,7 @@ public:
 		if (!sCharset.empty()) KHTMLNode::SetAttribute("charset", sCharset);
 		if (!sBody.empty())    AddRawText(sBody);
 	}
+
 }; // Script
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -786,7 +818,11 @@ class DEKAF2_PUBLIC StyleSheet : public KWebObject<StyleSheet>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "StyleSheet";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "style";
 
@@ -797,6 +833,7 @@ public:
 	{
 		if (!sStyleContent.empty()) AddRawText(sStyleContent);
 	}
+
 }; // StyleSheet
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -804,7 +841,11 @@ class DEKAF2_PUBLIC FavIcon : public KWebObject<FavIcon>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "FavIcon";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "link";
 
@@ -821,6 +862,7 @@ public:
 		if (!sURL.empty())  SetLink(sURL);
 		if (!sMIME.empty()) SetType(sMIME);
 	}
+
 }; // FavIcon
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -832,7 +874,11 @@ class DEKAF2_PUBLIC Meta : public KWebObject<Meta>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Meta";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "meta";
 
@@ -857,6 +903,7 @@ public:
 	self& SetCharset  (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("charset",    v); return *this; }
 	/// `<meta property="og:..." content="...">` — Open Graph / RDFa property.
 	self& SetProperty (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("property",   v); return *this; }
+
 }; // Meta
 
 // Break, HorizontalRuler — void shape. Header — container shape.
@@ -869,10 +916,15 @@ class DEKAF2_PUBLIC Heading : public KWebObject<Heading>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Heading";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	Heading(KHTMLNode parent, uint16_t iLevel, KStringView sContent = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{});
+
 }; // Heading
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -880,7 +932,11 @@ class DEKAF2_PUBLIC Image : public KWebObject<Image>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Image";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "img";
 
@@ -900,6 +956,7 @@ public:
 		if (!sURL.empty())         SetSource(sURL);
 		if (!sDescription.empty()) SetDescription(sDescription);
 	}
+
 }; // Image
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -907,7 +964,11 @@ class DEKAF2_PUBLIC Form : public KWebObject<Form>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Form";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "form";
 
@@ -924,6 +985,7 @@ public:
 	self& SetEncType   (ENCTYPE enctype);
 	self& SetMethod    (METHOD  method);
 	self& SetNoValidate(bool    bYesNo = true);
+
 }; // Form
 
 // Legend — text-content shape. NOTE: the legacy ctor required sLegend; the
@@ -936,7 +998,11 @@ class DEKAF2_PUBLIC FieldSet : public KWebObject<FieldSet>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "FieldSet";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "fieldset";
 
@@ -945,6 +1011,7 @@ public:
 	{
 		if (!sLegend.empty()) this->template Add<Legend>(sLegend);
 	}
+
 }; // FieldSet
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -952,7 +1019,11 @@ class DEKAF2_PUBLIC Button : public KWebObject<Button>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Button";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "button";
 
@@ -981,6 +1052,7 @@ public:
 	using KWebObject::SetReadOnly;
 	using KWebObject::SetRequired;
 	using KWebObject::SetType;          // KString MIME version (used by buttons too)
+
 }; // Button
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -988,7 +1060,11 @@ class DEKAF2_PUBLIC Output : public KWebObject<Output>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Output";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "output";
 
@@ -1006,6 +1082,7 @@ public:
 		if (!sName.empty()) SetName(sName);
 		if (!sText.empty()) AddText(sText);
 	}
+
 }; // Output
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1013,7 +1090,11 @@ class DEKAF2_PUBLIC Input : public KWebObject<Input>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Input";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "input";
 
@@ -1077,6 +1158,7 @@ public:
 	using KWebObject::SetReadOnly;
 	using KWebObject::SetRequired;
 	using KWebObject::SetPlaceholder;
+
 }; // Input
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1084,7 +1166,11 @@ class DEKAF2_PUBLIC Option : public KWebObject<Option>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Option";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "option";
 
@@ -1109,6 +1195,7 @@ public:
 		SetBoolAttribute("selected", bYesNo);
 		return *this;
 	}
+
 }; // Option
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1116,7 +1203,11 @@ class DEKAF2_PUBLIC Select : public KWebObject<Select>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Select";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "select";
 
@@ -1138,6 +1229,7 @@ public:
 		if (!sName.empty()) SetName(sName);
 		SetSize(iSize);
 	}
+
 }; // Select
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1147,7 +1239,11 @@ class LabeledInput : public KWebObject<LabeledInput<Derived, Base>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "LabeledInput";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "label";
 
@@ -1225,7 +1321,11 @@ class TextInput : public LabeledInput<TextInput<String>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "TextInput";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = TextInput<String>;
@@ -1236,6 +1336,7 @@ public:
 	          KStringView sName  = KStringView{},
 	          const html::Classes& cls = html::Classes{},
 	          KStringView sID = KStringView{});
+
 }; // TextInput
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1245,7 +1346,11 @@ class NumericInput : public LabeledInput<NumericInput<Arithmetic>>
 {
 	static_assert(std::is_arithmetic<Arithmetic>::value, "Arithmetic type required");
 	static constexpr KStringView s_sObjectName = "NumericInput";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = NumericInput<Arithmetic>;
@@ -1256,6 +1361,7 @@ public:
 	             KStringView sName  = KStringView{},
 	             const html::Classes& cls = html::Classes{},
 	             KStringView sID = KStringView{});
+
 }; // NumericInput
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1264,7 +1370,11 @@ class DurationInput : public LabeledInput<DurationInput<Unit, Duration>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "DurationInput";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = DurationInput<Unit, Duration>;
@@ -1275,6 +1385,7 @@ public:
 	              KStringView sName  = KStringView{},
 	              const html::Classes& cls = html::Classes{},
 	              KStringView sID = KStringView{});
+
 }; // DurationInput
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1283,7 +1394,11 @@ class RadioButton : public LabeledInput<RadioButton<ValueType>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "RadioButton";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = RadioButton<ValueType>;
@@ -1295,18 +1410,41 @@ public:
 	            const html::Classes& cls = html::Classes{},
 	            KStringView sID = KStringView{});
 
+	/// SetValue — also installs the initial `checked` state when the new
+	/// value matches the backing variable's current value. Mirrors the
+	/// pre-arena semantics where the radio whose `value` equals the
+	/// backing variable is rendered selected from the start.
 	template<typename V>
 	self& SetValue(V v)
 	{
-		this->m_Base.KHTMLNode::SetAttribute("value", kFormat("{}", v));
+		auto sV = kFormat("{}", v);
+		this->m_Base.KHTMLNode::SetAttribute("value", sV);
+		if (m_pResult != nullptr && kFormat("{}", *m_pResult) == sV)
+		{
+			this->m_Base.KHTMLNode::SetAttribute("checked", KStringView{}, /*q*/0, /*esc*/false);
+		}
 		return *this;
 	}
 
 	self& SetValue(KStringView v)
 	{
-		if (!v.empty()) this->m_Base.KHTMLNode::SetAttribute("value", v);
+		if (!v.empty())
+		{
+			this->m_Base.KHTMLNode::SetAttribute("value", v);
+			if (m_pResult != nullptr && kFormat("{}", *m_pResult) == v)
+			{
+				this->m_Base.KHTMLNode::SetAttribute("checked", KStringView{}, /*q*/0, /*esc*/false);
+			}
+		}
 		return *this;
 	}
+
+//----------
+private:
+//----------
+
+	ValueType* m_pResult { nullptr };
+
 }; // RadioButton
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1315,7 +1453,11 @@ class CheckBox : public LabeledInput<CheckBox<Boolean>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "CheckBox";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = CheckBox<Boolean>;
@@ -1326,6 +1468,7 @@ public:
 	         KStringView sName  = KStringView{},
 	         const html::Classes& cls = html::Classes{},
 	         KStringView sID = KStringView{});
+
 }; // CheckBox
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1334,7 +1477,11 @@ class Selection : public LabeledInput<Selection<ValueType>, Select>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Selection";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	using self   = Selection<ValueType>;
@@ -1369,6 +1516,7 @@ private:
 	void AddOption(KStringView sLabel);
 
 	ValueType* m_pResult { nullptr };  // captured for SetOptions to know which is "selected"
+
 }; // Selection
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1379,13 +1527,18 @@ class DEKAF2_PUBLIC Text
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Text";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	Text(KHTMLNode parent, KStringView sText)
 	{
 		if (!sText.empty()) parent.AddText(sText);
 	}
+
 }; // Text
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1393,13 +1546,18 @@ class DEKAF2_PUBLIC RawText
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "RawText";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	RawText(KHTMLNode parent, KStringView sText)
 	{
 		if (!sText.empty()) parent.AddRawText(sText);
 	}
+
 }; // RawText
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1407,13 +1565,18 @@ class DEKAF2_PUBLIC LineBreak
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "LineBreak";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
 	LineBreak(KHTMLNode parent)
 	{
 		parent.AddRawText("\r\n");
 	}
+
 }; // LineBreak
 
 // Preformatted — container shape.
@@ -1424,7 +1587,11 @@ class DEKAF2_PUBLIC IFrame : public KWebObject<IFrame>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "IFrame";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "iframe";
 
@@ -1441,6 +1608,7 @@ public:
 	{
 		if (!sURL.empty()) SetSource(sURL);
 	}
+
 }; // IFrame
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1448,7 +1616,11 @@ class DEKAF2_PUBLIC Video : public KWebObject<Video>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Video";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "video";
 
@@ -1468,6 +1640,7 @@ public:
 	{
 		if (!sURL.empty()) SetSource(sURL);
 	}
+
 }; // Video
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1475,7 +1648,11 @@ class DEKAF2_PUBLIC Audio : public KWebObject<Audio>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Audio";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "audio";
 
@@ -1493,6 +1670,7 @@ public:
 	{
 		if (!sURL.empty()) SetSource(sURL);
 	}
+
 }; // Audio
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1500,7 +1678,11 @@ class DEKAF2_PUBLIC Source : public KWebObject<Source>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Source";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "source";
 
@@ -1514,6 +1696,7 @@ public:
 	{
 		if (!sURL.empty()) SetSource(sURL);
 	}
+
 }; // Source
 
 // =============================================================================
@@ -1532,7 +1715,11 @@ class DEKAF2_PUBLIC Base : public KWebObject<Base>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Base";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "base";
 
@@ -1547,6 +1734,7 @@ public:
 	{
 		if (!sURL.empty()) SetLink(sURL);
 	}
+
 }; // Base
 
 using Footer = detail::HtmlContainer<tags::Footer>;
@@ -1568,7 +1756,11 @@ class DEKAF2_PUBLIC OrderedList : public KWebObject<OrderedList>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "OrderedList";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "ol";
 
@@ -1582,6 +1774,7 @@ public:
 	self& SetReversed(bool b) { SetBoolAttribute("reversed", b); return *this; }
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetStart(A v)       { KHTMLNode::SetAttribute("start", kFormat("{}", v)); return *this; }
+
 }; // OrderedList
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1589,7 +1782,11 @@ class DEKAF2_PUBLIC ListItem : public KWebObject<ListItem>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "ListItem";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "li";
 
@@ -1601,6 +1798,7 @@ public:
 	         KStringView sID      = KStringView{})
 	: KWebObject<ListItem>(parent, TagName, cls, sID)
 	{ if (!sContent.empty()) AddText(sContent); }
+
 }; // ListItem
 
 using DescriptionList = detail::HtmlContainer<tags::DescriptionList>;
@@ -1619,7 +1817,11 @@ class DEKAF2_PUBLIC ColumnGroup : public KWebObject<ColumnGroup>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "ColumnGroup";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "colgroup";
 
@@ -1629,6 +1831,7 @@ public:
 	            const Classes& cls = html::Classes{},
 	            KStringView sID    = KStringView{})
 	: KWebObject<ColumnGroup>(parent, TagName, cls, sID) {}
+
 }; // ColumnGroup
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1636,7 +1839,11 @@ class DEKAF2_PUBLIC Column : public KWebObject<Column>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Column";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "col";
 
@@ -1646,6 +1853,7 @@ public:
 	       const Classes& cls = html::Classes{},
 	       KStringView sID    = KStringView{})
 	: KWebObject<Column>(parent, TagName, cls, sID) {}
+
 }; // Column
 
 // -- form ------------------------------------------------------------------
@@ -1655,7 +1863,11 @@ class DEKAF2_PUBLIC TextArea : public KWebObject<TextArea>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "TextArea";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "textarea";
 
@@ -1685,6 +1897,7 @@ public:
 	self& SetMaxLength(uint32_t n) { KHTMLNode::SetAttribute("maxlength", kFormat("{}", n)); return *this; }
 	self& SetMinLength(uint32_t n) { KHTMLNode::SetAttribute("minlength", kFormat("{}", n)); return *this; }
 	self& SetWrap     (WRAP w)     { KHTMLNode::SetAttribute("wrap", w == HARD ? KStringView("hard") : KStringView("soft")); return *this; }
+
 }; // TextArea
 
 using DataList = detail::HtmlContainer<tags::DataList>;
@@ -1694,7 +1907,11 @@ class DEKAF2_PUBLIC OptionGroup : public KWebObject<OptionGroup>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "OptionGroup";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "optgroup";
 
@@ -1709,6 +1926,7 @@ public:
 	{
 		if (!sLabel.empty()) SetLabel(sLabel);
 	}
+
 }; // OptionGroup
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1716,7 +1934,11 @@ class DEKAF2_PUBLIC Meter : public KWebObject<Meter>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Meter";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "meter";
 
@@ -1741,6 +1963,7 @@ public:
 	self& SetHigh   (A v) { KHTMLNode::SetAttribute("high",    kFormat("{}", v)); return *this; }
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetOptimum(A v) { KHTMLNode::SetAttribute("optimum", kFormat("{}", v)); return *this; }
+
 }; // Meter
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1748,7 +1971,11 @@ class DEKAF2_PUBLIC Progress : public KWebObject<Progress>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Progress";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "progress";
 
@@ -1763,6 +1990,7 @@ public:
 	{
 		if (!sValue.empty()) SetValue(sValue);
 	}
+
 }; // Progress
 
 // -- interactive ------------------------------------------------------------
@@ -1772,7 +2000,11 @@ class DEKAF2_PUBLIC Details : public KWebObject<Details>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Details";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "details";
 
@@ -1782,6 +2014,7 @@ public:
 	        const Classes& cls = html::Classes{},
 	        KStringView sID    = KStringView{})
 	: KWebObject<Details>(parent, TagName, cls, sID) {}
+
 }; // Details
 
 using Summary = detail::HtmlText<tags::Summary>;
@@ -1791,7 +2024,11 @@ class DEKAF2_PUBLIC Dialog : public KWebObject<Dialog>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Dialog";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "dialog";
 
@@ -1801,6 +2038,7 @@ public:
 	       const Classes& cls = html::Classes{},
 	       KStringView sID    = KStringView{})
 	: KWebObject<Dialog>(parent, TagName, cls, sID) {}
+
 }; // Dialog
 
 // -- media-ish --------------------------------------------------------------
@@ -1812,7 +2050,11 @@ class DEKAF2_PUBLIC Canvas : public KWebObject<Canvas>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Canvas";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "canvas";
 
@@ -1823,6 +2065,7 @@ public:
 	       const Classes& cls = html::Classes{},
 	       KStringView sID    = KStringView{})
 	: KWebObject<Canvas>(parent, TagName, cls, sID) {}
+
 }; // Canvas
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1830,7 +2073,11 @@ class DEKAF2_PUBLIC Time : public KWebObject<Time>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Time";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "time";
 
@@ -1842,6 +2089,7 @@ public:
 	{ if (!sContent.empty()) AddText(sContent); }
 
 	self& SetDateTime(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("datetime", v); return *this; }
+
 }; // Time
 
 // -- quotes / annotations ---------------------------------------------------
@@ -1851,7 +2099,11 @@ class DEKAF2_PUBLIC BlockQuote : public KWebObject<BlockQuote>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "BlockQuote";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "blockquote";
 
@@ -1863,6 +2115,7 @@ public:
 	           KStringView sID      = KStringView{})
 	: KWebObject<BlockQuote>(parent, TagName, cls, sID)
 	{ if (!sContent.empty()) AddText(sContent); }
+
 }; // BlockQuote
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1870,7 +2123,11 @@ class DEKAF2_PUBLIC InlineQuote : public KWebObject<InlineQuote>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "InlineQuote";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "q";
 
@@ -1882,6 +2139,7 @@ public:
 	            KStringView sID      = KStringView{})
 	: KWebObject<InlineQuote>(parent, TagName, cls, sID)
 	{ if (!sContent.empty()) AddText(sContent); }
+
 }; // InlineQuote
 
 using Abbreviation = detail::HtmlText<tags::Abbreviation>;
@@ -1909,7 +2167,11 @@ class DEKAF2_PUBLIC Deleted : public KWebObject<Deleted>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Deleted";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "del";
 
@@ -1923,6 +2185,7 @@ public:
 	{ if (!sContent.empty()) AddText(sContent); }
 
 	self& SetDateTime(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("datetime", v); return *this; }
+
 }; // Deleted
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1930,7 +2193,11 @@ class DEKAF2_PUBLIC Inserted : public KWebObject<Inserted>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Inserted";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "ins";
 
@@ -1944,6 +2211,7 @@ public:
 	{ if (!sContent.empty()) AddText(sContent); }
 
 	self& SetDateTime(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("datetime", v); return *this; }
+
 }; // Inserted
 
 // -- niche / specialised ----------------------------------------------------
@@ -1953,7 +2221,11 @@ class DEKAF2_PUBLIC Map : public KWebObject<Map>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Map";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "map";
 
@@ -1967,6 +2239,7 @@ public:
 	{
 		if (!sName.empty()) SetName(sName);
 	}
+
 }; // Map
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1974,7 +2247,11 @@ class DEKAF2_PUBLIC Area : public KWebObject<Area>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Area";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "area";
 
@@ -2001,6 +2278,7 @@ public:
 		KHTMLNode::SetAttribute("shape", sV);
 		return *this;
 	}
+
 }; // Area
 
 using WordBreak = detail::HtmlVoid<tags::WordBreak>;
@@ -2011,7 +2289,11 @@ class DEKAF2_PUBLIC BiDirOverride : public KWebObject<BiDirOverride>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "BiDirOverride";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "bdo";
 
@@ -2022,6 +2304,7 @@ public:
 	              KStringView sID      = KStringView{})
 	: KWebObject<BiDirOverride>(parent, TagName, cls, sID)
 	{ if (!sContent.empty()) AddText(sContent); }
+
 }; // BiDirOverride
 
 using Ruby = detail::HtmlContainer<tags::Ruby>;
@@ -2033,7 +2316,11 @@ class DEKAF2_PUBLIC Embed : public KWebObject<Embed>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Embed";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "embed";
 
@@ -2050,6 +2337,7 @@ public:
 	{
 		if (!sURL.empty()) SetSource(sURL);
 	}
+
 }; // Embed
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -2057,7 +2345,11 @@ class DEKAF2_PUBLIC Object : public KWebObject<Object>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Object";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "object";
 
@@ -2077,6 +2369,7 @@ public:
 	}
 
 	self& SetData(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("data", v); return *this; }
+
 }; // Object
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -2084,7 +2377,11 @@ class DEKAF2_PUBLIC Param : public KWebObject<Param>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 	static constexpr KStringView s_sObjectName = "Param";
+
+//----------
 public:
+//----------
+
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "param";
 
@@ -2101,6 +2398,7 @@ public:
 		if (!sName.empty())  SetName(sName);
 		if (!sValue.empty()) SetValue(sValue);
 	}
+
 }; // Param
 
 } // end of namespace html

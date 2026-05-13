@@ -247,7 +247,11 @@ public:
 		if (other.m_sText.empty()) { bWasOwned = true; }
 		m_sTextOwned       = std::move(other.m_sTextOwned);
 		m_bIsEntityEncoded = other.m_bIsEntityEncoded;
-		m_sText = bWasOwned ? m_sTextOwned.ToView() : other.m_sText;
+		// if/else (not ternary) — KString::ToView() returns KStringViewZ,
+		// which derives PRIVATELY from KStringView; gcc rejects the
+		// resulting common-type deduction in a ?:-expression.
+		if (bWasOwned) m_sText = m_sTextOwned.ToView();
+		else           m_sText = other.m_sText;
 	}
 
 	KHTMLText& operator=(const KHTMLText& other)
@@ -270,7 +274,8 @@ public:
 			if (other.m_sText.empty()) { bWasOwned = true; }
 			m_sTextOwned       = std::move(other.m_sTextOwned);
 			m_bIsEntityEncoded = other.m_bIsEntityEncoded;
-			m_sText = bWasOwned ? m_sTextOwned.ToView() : other.m_sText;
+			if (bWasOwned) m_sText = m_sTextOwned.ToView();
+			else           m_sText = other.m_sText;
 		}
 		return *this;
 	}
@@ -334,7 +339,10 @@ public:
 		                  && !other.sValueOwned.empty();
 		if (other.sValue.empty()) { bWasOwned = true; }
 		sValueOwned = std::move(other.sValueOwned);
-		sValue      = bWasOwned ? sValueOwned.ToView() : other.sValue;
+		// if/else (not ternary) — KString::ToView() returns KStringViewZ
+		// (private base KStringView), gcc rejects the ?:-common-type.
+		if (bWasOwned) sValue = sValueOwned.ToView();
+		else           sValue = other.sValue;
 	}
 
 	KHTMLStringObject& operator=(const KHTMLStringObject& other)
@@ -357,7 +365,8 @@ public:
 			                  && !other.sValueOwned.empty();
 			if (other.sValue.empty()) { bWasOwned = true; }
 			sValueOwned = std::move(other.sValueOwned);
-			sValue      = bWasOwned ? sValueOwned.ToView() : other.sValue;
+			if (bWasOwned) sValue = sValueOwned.ToView();
+			else           sValue = other.sValue;
 			m_sLeadIn   = other.m_sLeadIn;
 			m_sLeadOut  = other.m_sLeadOut;
 		}
@@ -468,8 +477,13 @@ public:
 		m_sValueOwned      = std::move(other.m_sValueOwned);
 		m_chQuote          = other.m_chQuote;
 		m_bIsEntityEncoded = other.m_bIsEntityEncoded;
-		m_sName  = bNameWasOwned  ? m_sNameOwned.ToView()  : other.m_sName;
-		m_sValue = bValueWasOwned ? m_sValueOwned.ToView() : other.m_sValue;
+		// if/else (not ternary) — KString::ToView() returns KStringViewZ,
+		// which derives PRIVATELY from KStringView; gcc rejects the
+		// common-type deduction in a ?:-expression.
+		if (bNameWasOwned)  m_sName  = m_sNameOwned.ToView();
+		else                m_sName  = other.m_sName;
+		if (bValueWasOwned) m_sValue = m_sValueOwned.ToView();
+		else                m_sValue = other.m_sValue;
 	}
 
 	KHTMLAttribute& operator=(const KHTMLAttribute& other)
@@ -500,8 +514,10 @@ public:
 			m_sValueOwned       = std::move(other.m_sValueOwned);
 			m_chQuote           = other.m_chQuote;
 			m_bIsEntityEncoded  = other.m_bIsEntityEncoded;
-			m_sName  = bNameWasOwned  ? m_sNameOwned.ToView()  : other.m_sName;
-			m_sValue = bValueWasOwned ? m_sValueOwned.ToView() : other.m_sValue;
+			if (bNameWasOwned)  m_sName  = m_sNameOwned.ToView();
+			else                m_sName  = other.m_sName;
+			if (bValueWasOwned) m_sValue = m_sValueOwned.ToView();
+			else                m_sValue = other.m_sValue;
 		}
 		return *this;
 	}
@@ -716,7 +732,11 @@ public:
 		                  && !other.m_sNameOwned.empty();
 		if (other.m_sName.empty()) { bWasOwned = true; }
 		m_sNameOwned = std::move(other.m_sNameOwned);
-		m_sName      = bWasOwned ? m_sNameOwned.ToView() : other.m_sName;
+		// if/else (not ternary) — KString::ToView() returns KStringViewZ,
+		// which derives PRIVATELY from KStringView; gcc rejects the
+		// common-type deduction in a ?:-expression.
+		if (bWasOwned) m_sName = m_sNameOwned.ToView();
+		else           m_sName = other.m_sName;
 	}
 
 	KHTMLTag& operator=(const KHTMLTag& other)
@@ -739,7 +759,8 @@ public:
 			                  && !other.m_sNameOwned.empty();
 			if (other.m_sName.empty()) { bWasOwned = true; }
 			m_sNameOwned = std::move(other.m_sNameOwned);
-			m_sName      = bWasOwned ? m_sNameOwned.ToView() : other.m_sName;
+			if (bWasOwned) m_sName = m_sNameOwned.ToView();
+			else           m_sName = other.m_sName;
 			m_Attributes = std::move(other.m_Attributes);
 			m_TagType    = other.m_TagType;
 		}

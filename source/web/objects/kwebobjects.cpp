@@ -686,6 +686,38 @@ Input::self& Input::SetStep(float step)
 
 } // SetStep
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr KStringView HTML::TagName;
+constexpr KStringView Div::TagName;
+constexpr KStringView Span::TagName;
+constexpr KStringView Paragraph::TagName;
+constexpr KStringView Table::TagName;
+constexpr KStringView TableRow::TagName;
+constexpr KStringView TableData::TagName;
+constexpr KStringView TableHeader::TagName;
+constexpr KStringView Link::TagName;
+constexpr KStringView Script::TagName;
+constexpr KStringView StyleSheet::TagName;
+constexpr KStringView FavIcon::TagName;
+constexpr KStringView Break::TagName;
+constexpr KStringView HorizontalRuler::TagName;
+constexpr KStringView Header::TagName;
+constexpr KStringView Image::TagName;
+constexpr KStringView Form::TagName;
+constexpr KStringView Legend::TagName;
+constexpr KStringView FieldSet::TagName;
+constexpr KStringView Button::TagName;
+constexpr KStringView Output::TagName;
+constexpr KStringView Input::TagName;
+constexpr KStringView Option::TagName;
+constexpr KStringView Select::TagName;
+constexpr KStringView Preformatted::TagName;
+constexpr KStringView IFrame::TagName;
+constexpr KStringView Video::TagName;
+constexpr KStringView Audio::TagName;
+constexpr KStringView Source::TagName;
+#endif
+
 } // end of namespace html
 
 DEKAF2_NAMESPACE_END

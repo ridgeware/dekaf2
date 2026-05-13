@@ -234,13 +234,15 @@ public:
 	}
 
 	KHTMLText(const KHTMLText& other)
-	: m_sTextOwned(other.m_sText)            // deep-copy view bytes into owned
+	: KHTMLObject(other)                     // explicit base init (gcc -Wextra)
+	, m_sTextOwned(other.m_sText)            // deep-copy view bytes into owned
 	, m_sText(m_sTextOwned.ToView())
 	, m_bIsEntityEncoded(other.m_bIsEntityEncoded)
 	{
 	}
 
 	KHTMLText(KHTMLText&& other) noexcept
+	: KHTMLObject(std::move(other))          // explicit base init (gcc -Wextra)
 	{
 		bool bWasOwned = (other.m_sText.data() == other.m_sTextOwned.data())
 		                  && !other.m_sTextOwned.empty();
@@ -325,14 +327,16 @@ public:
 	{}
 
 	KHTMLStringObject(const KHTMLStringObject& other)
-	: sValueOwned(other.sValue)                  // deep-copy view bytes into owned
+	: KHTMLObject(other)                         // explicit base init (gcc -Wextra)
+	, sValueOwned(other.sValue)                  // deep-copy view bytes into owned
 	, sValue(sValueOwned.ToView())
 	, m_sLeadIn(other.m_sLeadIn)
 	, m_sLeadOut(other.m_sLeadOut)
 	{}
 
 	KHTMLStringObject(KHTMLStringObject&& other) noexcept
-	: m_sLeadIn(other.m_sLeadIn)
+	: KHTMLObject(std::move(other))
+	, m_sLeadIn(other.m_sLeadIn)
 	, m_sLeadOut(other.m_sLeadOut)
 	{
 		bool bWasOwned = (other.sValue.data() == other.sValueOwned.data())
@@ -717,7 +721,8 @@ public:
 	using KHTMLObject::Parse;
 
 	KHTMLTag(const KHTMLTag& other)
-	: m_sNameOwned(other.m_sName)              // deep-copy view bytes into owned
+	: KHTMLObject(other)                       // explicit base init (gcc -Wextra)
+	, m_sNameOwned(other.m_sName)              // deep-copy view bytes into owned
 	, m_sName(m_sNameOwned.ToView())
 	, m_Attributes(other.m_Attributes)
 	, m_TagType(other.m_TagType)
@@ -725,7 +730,8 @@ public:
 	}
 
 	KHTMLTag(KHTMLTag&& other) noexcept
-	: m_Attributes(std::move(other.m_Attributes))
+	: KHTMLObject(std::move(other))
+	, m_Attributes(std::move(other.m_Attributes))
 	, m_TagType(other.m_TagType)
 	{
 		bool bWasOwned = (other.m_sName.data() == other.m_sNameOwned.data())

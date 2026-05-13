@@ -6,6 +6,16 @@ using namespace dekaf2;
 
 extern KString print_diff(KStringView s1, KStringView s2);
 
+// This TEST_CASE both verifies and illustrates idiomatic KWebObjects
+// usage with class-template-argument-deduction in `KHTMLNode::Add<T>()`
+// (the bare `Add<html::RadioButton>(arg)` form). CTAD is a C++17
+// feature (`__cpp_deduction_guides >= 201606`). On older toolchains
+// (notably gcc 6 on Debian stretch, which is C++14-only) the test is
+// skipped at the preprocessor level — the library still works with
+// the explicit-spelling form (`Add<html::RadioButton<KString>>(arg)`),
+// but the test prefers the modern shape to keep the example readable.
+#if defined(__cpp_deduction_guides) && __cpp_deduction_guides >= 201606L
+
 TEST_CASE("KWebObjects")
 {
 
@@ -331,3 +341,5 @@ text-decoration: none
 
 	}
 }
+
+#endif // __cpp_deduction_guides

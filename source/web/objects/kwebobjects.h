@@ -1044,6 +1044,11 @@ protected:
 
 }; // LabeledInput
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+template<typename Derived, typename Base>
+constexpr KStringView LabeledInput<Derived, Base>::TagName;
+#endif
+
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 template<typename String>
 class TextInput : public LabeledInput<TextInput<String>>

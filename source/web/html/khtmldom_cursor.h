@@ -329,11 +329,18 @@ public:
 	/// is a complete class (`html::Div`, `html::RadioButton<KString>`),
 	/// this overload is rejected and the first overload matches. No
 	/// ambiguity.
+	///
+	/// Only compiled when the compiler supports CTAD (C++17 feature,
+	/// `__cpp_deduction_guides >= 201606`). Older toolchains (gcc 6,
+	/// pre-C++17) lose this overload — callers must spell out the
+	/// template arguments explicitly.
+#if defined(__cpp_deduction_guides) && __cpp_deduction_guides >= 201606L
 	template<template<typename...> class T, class... Args>
 	auto Add(Args&&... args)
 	{
 		return T(*this, std::forward<Args>(args)...);
 	}
+#endif
 
 	bool operator==(const NodeCursor& other) const noexcept { return m_p == other.m_p; }
 	bool operator!=(const NodeCursor& other) const noexcept { return m_p != other.m_p; }

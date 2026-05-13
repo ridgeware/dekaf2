@@ -1134,4 +1134,8 @@ void KHTML::Invalid(char ch)
 
 } // Invalid
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr std::size_t khtml::Document::kInlineBufferSize;
+#endif
+
 DEKAF2_NAMESPACE_END

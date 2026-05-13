@@ -591,4 +591,10 @@ void KArenaAllocator::GrowBy(std::size_t iMinPayload)
 	}
 }
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr std::size_t KArenaAllocator::DefaultBlockSize;
+constexpr std::size_t KArenaAllocator::DefaultAlignment;
+constexpr std::size_t KArenaAllocator::kMaxStableRegions;
+#endif
+
 DEKAF2_NAMESPACE_END

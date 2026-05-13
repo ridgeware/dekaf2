@@ -306,7 +306,13 @@ public:
 		return This();
 	}
 
-	self& SetAttribute(KString sName, bool bYesNo)
+	/// Boolean-attribute setter. SFINAE-restricted to *exact* `bool` so that
+	/// string literals (`const char*`) don't accidentally match here via the
+	/// standard pointer-to-bool conversion (which would outrank the
+	/// user-defined conversion to KStringView).
+	template<typename B,
+	         std::enable_if_t<std::is_same<typename std::remove_cv<typename std::remove_reference<B>::type>::type, bool>::value, int> = 0>
+	self& SetAttribute(KString sName, B bYesNo)
 	{
 		SetBoolAttribute(sName, bYesNo);
 		return This();

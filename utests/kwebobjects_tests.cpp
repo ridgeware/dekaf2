@@ -343,3 +343,48 @@ text-decoration: none
 }
 
 #endif // __cpp_deduction_guides
+
+// Regression test for the C++ overload-resolution pitfall:
+//   SetAttribute("onchange", "setSomeParam(this.value)")
+// Without SFINAE on the bool overload, the string literal (const char*)
+// would match the bool overload via the standard pointer-to-bool
+// conversion (which outranks the user-defined conversion to KStringView),
+// silently emitting `onchange` as a bare boolean attribute instead of the
+// JS handler. SetAttribute's bool overload is now constrained to *exactly*
+// bool via SFINAE so string literals fall through to the KStringView path.
+TEST_CASE("KWebObjects.SetAttribute overload resolution")
+{
+	html::Page page("overload test");
+	auto p = page.Body().Add<html::Paragraph>();
+
+	SECTION("string literal goes to KStringView overload, not bool")
+	{
+		p.SetAttribute("onchange", "setSomeParam(this.value)");
+		auto sOut = page.Serialize();
+		CHECK      ( sOut.contains(R"JS(onchange="setSomeParam(this.value)")JS") );
+		CHECK_FALSE( sOut.contains(R"(onchange="true")")                         );
+	}
+
+	SECTION("exact bool still hits the boolean-attribute overload")
+	{
+		// HTML5 boolean attribute (in the s_BooleanAttributes table):
+		// gets emitted bare on `true`, removed on `false`.
+		p.SetAttribute("hidden", true);
+		// Non-HTML5-boolean: emits `name="true"` / `name="false"`.
+		p.SetAttribute("data-flag", true);
+		auto sOut = page.Serialize();
+
+		CHECK( sOut.contains("hidden")                  );  // bare
+		CHECK_FALSE( sOut.contains(R"(hidden="true")") );
+		CHECK( sOut.contains(R"(data-flag="true")")    );  // value-style
+	}
+
+	SECTION("arithmetic types hit the generic kFormat template")
+	{
+		p.SetAttribute("data-count", 42);
+		p.SetAttribute("data-ratio", 0.5);
+		auto sOut = page.Serialize();
+		CHECK( sOut.contains(R"(data-count="42")")  );
+		CHECK( sOut.contains(R"(data-ratio="0.5")") );
+	}
+}

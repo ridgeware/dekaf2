@@ -526,18 +526,18 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 		auto& socket   = tlsstream->GetTCPSocket();
 		std::unique_ptr<KIOStreamSocket> stream_base = std::move(tlsstream);
 
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 		auto* pStream  = stream_base.release();
 #endif
 
 		acceptor->async_accept(socket,
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 			[this, acceptor, pStream](boost::system::error_code ec)
 #else
 			[this, acceptor, stream = std::move(stream_base)](boost::system::error_code ec) mutable
 #endif
 		{
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 			std::unique_ptr<KIOStreamSocket> stream(pStream);
 #endif
 
@@ -573,7 +573,7 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 
 				stream->SetNoDelay(true);
 
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 				auto* Stream = stream.release();
 				m_ThreadPool.push([ this, Stream ]() mutable
 				{
@@ -598,18 +598,18 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 		auto& socket   = tcpstream->GetTCPSocket();
 		std::unique_ptr<KIOStreamSocket> stream_base = std::move(tcpstream);
 
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 		auto* pStream  = stream_base.release();
 #endif
 
 		acceptor->async_accept(socket,
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 			[this, acceptor, pStream](boost::system::error_code ec)
 #else
 			[this, acceptor, stream = std::move(stream_base)](boost::system::error_code ec) mutable
 #endif
 		{
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 			std::unique_ptr<KIOStreamSocket> stream(pStream);
 #endif
 
@@ -645,7 +645,7 @@ void KTCPServer::StartTCPAccept(std::shared_ptr<tcp::acceptor> acceptor)
 
 				stream->SetNoDelay(true);
 
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 				auto* Stream = stream.release();
 				m_ThreadPool.push([ this, Stream ]() mutable
 				{
@@ -710,18 +710,18 @@ void KTCPServer::StartUnixAccept()
 	auto unixstream = CreateKUnixStream(m_Timeout);
 	auto& socket    = unixstream->GetUnixSocket();
 
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 	auto* pStream   = unixstream.release();
 #endif
 
 	m_UnixAcceptor->async_accept(socket,
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 		[this, pStream](boost::system::error_code ec)
 #else
 		[this, unixstream = std::move(unixstream)](boost::system::error_code ec) mutable
 #endif
 	{
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 		std::unique_ptr<KUnixStream> unixstream(pStream);
 #endif
 
@@ -747,7 +747,7 @@ void KTCPServer::StartUnixAccept()
 			// down convert the type to a KIOStreamSocket*
 			std::unique_ptr<KIOStreamSocket> stream = std::move(unixstream);
 
-#if !DEKAF2_HAS_CPP_14
+#if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
 			auto* Stream = stream.release();
 			m_ThreadPool.push([ this, Stream ]() mutable
 			{

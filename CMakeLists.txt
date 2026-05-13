@@ -1539,6 +1539,7 @@ set(PUBLIC_HEADERS
 	source/web/html/khtmlentities.h
 	source/web/html/khtmlparser.h
 	source/web/objects/kwebobjects.h
+	source/web/ui/kwebui.h
 	source/web/url/kmime.h
 	source/web/push/kwebpush.h
 	source/web/push/bits/kwebpushsqlitedb.h

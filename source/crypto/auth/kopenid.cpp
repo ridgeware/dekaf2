@@ -322,7 +322,7 @@ bool KOpenIDProvider::Validate(const KJSON& Configuration, const KURL& URL, KStr
 	{
 		return SetError("no token signing algorithms");
 	}
-	if (!sScope.empty())
+	if (m_bMustSupportScope && !sScope.empty())
 	{
 		const auto& Scopes = Configuration["scopes_supported"];
 		if (Scopes.empty())
@@ -436,9 +436,10 @@ void KOpenIDProvider::Refresh(KUnixTime Now)
 } // Refresh
 
 //-----------------------------------------------------------------------------
-KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope, KDuration RefreshInterval)
+KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope, KDuration RefreshInterval, bool bMustSupportScope/*=true*/)
 //-----------------------------------------------------------------------------
 : m_sScope(sScope)
+, m_bMustSupportScope(bMustSupportScope)
 , m_URL(std::move(URL))
 , m_RefreshInterval(RefreshInterval)
 {

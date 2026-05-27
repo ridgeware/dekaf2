@@ -140,8 +140,9 @@ public:
 	/// query all known information about an OpenID provider, check if scope is
 	/// provided if not empty
 	KOpenIDProvider (KURL URL,
-					 KStringView sScope = KStringView{},
-					 KDuration RefreshInterval = std::chrono::hours(24));
+	                 KStringView sScope = KStringView{},
+	                 KDuration RefreshInterval = std::chrono::hours(24),
+	                 bool bMustSupportScope = true);
 
 	/// are all info valid?
 	bool IsValid() const { return !HasError(); }
@@ -168,6 +169,7 @@ private:
 	std::unique_ptr<std::atomic<KeysAndIssuer*>> m_CurrentKeys;
 
 	KString           m_sScope;
+	bool              m_bMustSupportScope {true};
 	KURL              m_URL;
 	KDuration         m_RefreshInterval {};
 	KUnixTime         m_LastRefresh;

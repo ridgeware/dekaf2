@@ -111,14 +111,14 @@ int KSql::Main(int argc, char** argv)
 	bool         bNoComp    = Options("nocomp                : do not attempt to compress the database connection"          , false);
 	bool         bNoTLS     = Options("notls                 : do not attempt to encrypt the database connection"           , false);
 	bool         bForceTLS  = Options("forcetls              : force encryption for the database connection, fail otherwise", false);
-	KStringViewZ sInfile    = Options("e,exec <file>         : execute the given SQL file"  ,          "");
+	KStringViewZ sInSQL     = Options("e,exec <file|sql>     : execute a SQL file or a quoted SQL literal",  "");
 
 	if (Options.Terminate() || iRetval)
 	{
 		return iRetval; // either error or completed (help, diff, ..)
 	}
 
-	if (sInfile)
+	if (sInSQL)
 	{
 		bQuiet = true;
 	}
@@ -188,7 +188,31 @@ int KSql::Main(int argc, char** argv)
 
 	auto Format = KSQL::CreateOutputFormat(sFormat);
 
-	return !SQL.RunInterpreter (Format, bQuiet, sInfile);
+	// If -e was given but the value is not an existing file, treat it as a
+	// literal SQL string by writing it to a temp file and passing that instead.
+	std::unique_ptr<KTempFile<>> pTempSQL;
+	KString sEffectiveInfile { sInSQL };
+	KString sTempFile;
+
+	if (sInSQL && !kFileExists(sInSQL))
+	{
+		sTempFile = kFormat ("{}/ksql-{}.sql", "/tmp", getpid());
+		if (!kWriteFile (sTempFile, sInSQL))
+		{
+			return SetError(kFormat ("could not write to temp file: {}",sTempFile));
+		}
+
+		sEffectiveInfile = sTempFile;
+	}
+
+	auto bOK = SQL.RunInterpreter (Format, bQuiet, sEffectiveInfile);
+
+	if (sTempFile)
+	{
+		kRemoveFile (sTempFile);
+	}
+
+	return !bOK;
 
 } // Main
 

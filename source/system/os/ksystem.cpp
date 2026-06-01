@@ -75,6 +75,7 @@
 	#include <sys/types.h>     // for getpwuid(), sysctl()
 	#include <pwd.h>           // for getpwuid()
 	#include <arpa/inet.h>
+	#include <sys/socket.h>    // for socket(), getsockopt(), SO_SNDBUF/SO_RCVBUF
 	#include <sys/ioctl.h>     // for ioctl(), TIOCGWINSZ
 	#include <grp.h>           // for getgrgid()
 	#ifdef DEKAF2_IS_MACOS
@@ -2300,22 +2301,57 @@ static uint64_t ReadProcSysUint(KStringView sKey)
 } // ReadProcSysUint
 
 //-----------------------------------------------------------------------------
-/// Read the middle value of a whitespace-separated triplet "min default max"
-/// from /proc/sys/<key>  (used for net.ipv4.tcp_wmem / tcp_rmem).
-static uint64_t ReadProcSysTripletDefault(KStringView sKey)
+/// Read the iField-th value (0-based) of a whitespace-separated triplet
+/// "min default max" from /proc/sys/<key> (e.g. net.ipv4.tcp_wmem / tcp_rmem):
+/// field 1 is the default, field 2 is the max.
+static uint64_t ReadProcSysTripletField(KStringView sKey, uint16_t iField)
 //-----------------------------------------------------------------------------
 {
 	KString sPath = kFormat("/proc/sys/{}", sKey);
 	sPath.Replace('.', '/');
 	KString sValue = kReadAll(sPath).Trim();
-	// skip first token to reach the middle (default) value
-	auto iEnd1  = sValue.find_first_of(" \t");
-	if (iEnd1  == KString::npos) return 0;
-	auto iStart = sValue.find_first_not_of(" \t", iEnd1);
-	if (iStart == KString::npos) return 0;
-	return KStringView(sValue.data() + iStart, sValue.size() - iStart).UInt64();
 
-} // ReadProcSysTripletDefault
+	auto iStart = sValue.find_first_not_of(" \t");
+
+	for (uint16_t i = 0; i < iField; ++i)
+	{
+		if (iStart == KString::npos) return 0;
+		auto iEnd = sValue.find_first_of(" \t", iStart); // end of the current token
+		if (iEnd == KString::npos) return 0;             // no further token
+		iStart = sValue.find_first_not_of(" \t", iEnd);  // start of the next token
+	}
+
+	if (iStart == KString::npos) return 0;
+	// UInt64() parses the leading digits of this token (it stops at whitespace)
+	return sValue.ToView(iStart).UInt64();
+
+} // ReadProcSysTripletField
+
+//-----------------------------------------------------------------------------
+/// Query a socket buffer size via getsockopt() on a throwaway socket. Used as a
+/// fallback for the per-socket *default* when net.core.{w,r}mem_default is not
+/// visible (e.g. inside a container's own netns on kernels that do not
+/// namespace those sysctls). Linux reports twice the usable size for
+/// SO_SNDBUF/SO_RCVBUF, so we halve it to match the sysctl semantics.
+static uint64_t GetSockOptBufDefault(int iSockType, int iOption)
+//-----------------------------------------------------------------------------
+{
+	int iFD = ::socket(AF_INET, iSockType, 0);
+	if (iFD < 0) return 0;
+
+	int       iValue  = 0;
+	socklen_t iLen    = sizeof(iValue);
+	uint64_t  iResult = 0;
+
+	if (::getsockopt(iFD, SOL_SOCKET, iOption, &iValue, &iLen) == 0 && iValue > 0)
+	{
+		iResult = static_cast<uint64_t>(iValue) / 2;
+	}
+
+	::close(iFD);
+	return iResult;
+
+} // GetSockOptBufDefault
 
 #elif defined(DEKAF2_IS_MACOS)
 
@@ -2351,20 +2387,28 @@ bool KSocketBufferLimits::Read(bool bForUDP)
 {
 #if defined(DEKAF2_IS_LINUX)
 
-	// net.core.* are the hard ceiling shared by TCP and UDP
+	// net.core.{w,r}mem_max are the SO_SNDBUF/SO_RCVBUF ceiling shared by TCP and
+	// UDP. On kernels that do not namespace them (older than ~6.12) they exist
+	// only in the init netns and are absent inside a container's own netns; fall
+	// back to the max field of the (always per-netns) tcp_{w,r}mem triplets.
 	iSendMax = ReadProcSysUint("net.core.wmem_max");
+	if (iSendMax == 0) iSendMax = ReadProcSysTripletField("net.ipv4.tcp_wmem", 2);
 	iRecvMax = ReadProcSysUint("net.core.rmem_max");
+	if (iRecvMax == 0) iRecvMax = ReadProcSysTripletField("net.ipv4.tcp_rmem", 2);
 
 	if (bForUDP)
 	{
+		// net.core.{w,r}mem_default, with a getsockopt() fallback when absent
 		iSendDefault = ReadProcSysUint("net.core.wmem_default");
+		if (iSendDefault == 0) iSendDefault = GetSockOptBufDefault(SOCK_DGRAM, SO_SNDBUF);
 		iRecvDefault = ReadProcSysUint("net.core.rmem_default");
+		if (iRecvDefault == 0) iRecvDefault = GetSockOptBufDefault(SOCK_DGRAM, SO_RCVBUF);
 	}
 	else // TCP
 	{
-		// tcp_wmem / tcp_rmem are "min default max" triplets; we want the middle value
-		iSendDefault = ReadProcSysTripletDefault("net.ipv4.tcp_wmem");
-		iRecvDefault = ReadProcSysTripletDefault("net.ipv4.tcp_rmem");
+		// tcp_wmem / tcp_rmem are "min default max" triplets; field 1 is the default
+		iSendDefault = ReadProcSysTripletField("net.ipv4.tcp_wmem", 1);
+		iRecvDefault = ReadProcSysTripletField("net.ipv4.tcp_rmem", 1);
 	}
 
 	return iSendMax > 0;

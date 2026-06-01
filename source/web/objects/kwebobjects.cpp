@@ -410,8 +410,28 @@ void GenerateNames(khtml::NodePOD* pRoot, khtml::Document* pDoc)
 					KStringView sID;
 					if (auto* pID = c->Attribute("id")) sID = pID->Value();
 
-					KHTMLNode(c).SetAttribute("value",
-						!sID.empty() ? KString(sID) : kFormat("_fobj{:x}", ++iCounter));
+					// Find the option's text label so we can use it as the
+					// implicit value. HTML semantics already do this — a
+					// <option> without value attribute submits its text
+					// content. Making it explicit on the rendered DOM keeps
+					// the value attribute consistent across the lifecycle
+					// (Generate → render → submit → Synchronize).
+					KStringView sLabel;
+					for (auto* cc = c->FirstChild(); cc; cc = cc->NextSibling())
+					{
+						if (cc->Kind() == khtml::NodeKind::Text)
+						{
+							sLabel = cc->Name();
+							break;
+						}
+					}
+
+					KString sValue;
+					if      (!sID.empty())    sValue = KString(sID);
+					else if (!sLabel.empty()) sValue = KString(sLabel);
+					else                      sValue = kFormat("_fobj{:x}", ++iCounter);
+
+					KHTMLNode(c).SetAttribute("value", sValue);
 				}
 			}
 			walk(c);

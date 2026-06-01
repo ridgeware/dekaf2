@@ -93,16 +93,16 @@ text-decoration: none
 					<label><input name="nooverlay" type="checkbox">no detection overlay</label><br>
 					<label><input name="motion" type="checkbox">show motion</label><label><input max="1000" min="-1" name="_fobj3" step="1" type="number" value="1000">motion area</label><br>
 					<label><input max="86400" min="1" name="interval" type="number" value="60">seconds between alarms</label><label><select name="selection" size="1">
-							<option value="_fobj4">
+							<option value="Sel1">
 								Sel1
 							</option>
-							<option value="_fobj5">
+							<option value="Sel2">
 								Sel2
 							</option>
-							<option value="_fobj6">
+							<option value="Sel3">
 								Sel3
 							</option>
-							<option selected value="_fobj7">
+							<option selected value="Sel4">
 								Sel4
 							</option>
 						</select>please choose a value</label>
@@ -111,13 +111,13 @@ text-decoration: none
 					<legend>
 						Radios
 					</legend>
-					<label><input name="_fobj8" type="radio" value="red">red</label><label><input name="_fobj8" type="radio" value="green">green</label><label><input name="_fobj8" type="radio" value="blue">blue</label><label><input name="_fobj8" type="radio" value="yellow">yellow</label>
+					<label><input name="_fobj4" type="radio" value="red">red</label><label><input name="_fobj4" type="radio" value="green">green</label><label><input name="_fobj4" type="radio" value="blue">blue</label><label><input name="_fobj4" type="radio" value="yellow">yellow</label>
 				</fieldset>
 				<fieldset>
 					<legend>
 						Radios with enums
 					</legend>
-					<label><input name="_fobj9" type="radio" value="0">red</label><label><input name="_fobj9" type="radio" value="1">green</label><label><input name="_fobj9" type="radio" value="2">blue</label><label><input checked name="_fobj9" type="radio" value="3">yellow</label>
+					<label><input name="_fobj5" type="radio" value="0">red</label><label><input name="_fobj5" type="radio" value="1">green</label><label><input name="_fobj5" type="radio" value="2">blue</label><label><input checked name="_fobj5" type="radio" value="3">yellow</label>
 				</fieldset>
 			</form>
 		</div>
@@ -171,8 +171,8 @@ text-decoration: none
 		Parms.Add("confidence", "0.55"  );
 		Parms.Add("maxconfidence", "0,99"); // try different decimal point
 		Parms.Add("_fobj3"    , "1001"  );  // this value is too large for the object (max = 1000)
-		Parms.Add("selection" , "_fobj7");
-		Parms.Add("_fobj9"    , "3"     );
+		Parms.Add("selection" , "Sel4"  );  // option values are now the labels (no _fobj for options)
+		Parms.Add("_fobj5"    , "3"     );  // enum-radio group shifted down by 4 (options no longer consume counter)
 
 		html::Page page("My First Web Page", "en");
 
@@ -638,5 +638,157 @@ TEST_CASE("KWebObjects.SetAttribute overload resolution")
 		auto sOut = page.Serialize();
 		CHECK( sOut.contains(R"(data-count="42")")  );
 		CHECK( sOut.contains(R"(data-ratio="0.5")") );
+	}
+}
+
+// Verifies html::Selection with explicit value= attributes and SetID:
+//  1. AddOption(label, value) marks the correct option as `selected` on initial
+//     render based on the backing variable's value (not index 0).
+//  2. SetID() on a Selection places the id= attribute on the inner <select>,
+//     not on the outer <label> wrapper. This matters for JS: getElementById()
+//     must return the <select> so that .value yields the selected option's value.
+//  3. Synchronize() updates the backing variable and the DOM `selected` state.
+TEST_CASE("KWebObjects.Selection")
+{
+	SECTION("AddOption(label,value) selects matching option for non-zero backing value")
+	{
+		uint16_t iMode { 2 };   // index 2 = "Astronomical"
+
+		html::Page page("Selection Value Test");
+		auto form = page.Body().Add<html::Form>("/submit");
+		form.Add<html::Selection<uint16_t>>(iMode, "mode")
+		    .AddOption("Official",      "0")
+		    .AddOption("Nautical",       "1")
+		    .AddOption("Astronomical",   "2")
+		    .AddOption("Fixed",          "3");
+		page.Generate();
+
+		auto sOut = page.Serialize();
+		INFO( sOut );
+
+		// Exactly one option should be selected.
+		std::size_t iSelCount = 0;
+		KStringView v{sOut};
+		for (auto pos = v.find("selected"); pos != KStringView::npos;
+		     pos = v.find("selected", pos + 1))
+		{
+			++iSelCount;
+		}
+		CHECK( iSelCount == 1 );
+
+		// The selected option must carry value="2".
+		auto iAstro = sOut.find(R"(value="2")");
+		REQUIRE( iAstro != KString::npos );
+		auto iTagStart = sOut.rfind('<', iAstro);
+		auto iTagEnd   = sOut.find ('>', iAstro);
+		REQUIRE( iTagStart != KString::npos );
+		REQUIRE( iTagEnd   != KString::npos );
+		auto sTag = sOut.substr(iTagStart, iTagEnd - iTagStart + 1);
+		CHECK( sTag.contains("selected") );
+	}
+
+	SECTION("SetID places id= on the inner <select>, not on the outer <label>")
+	{
+		uint16_t iMode { 1 };
+
+		html::Page page("Selection SetID Test");
+		auto form = page.Body().Add<html::Form>("/submit");
+		form.Add<html::Selection<uint16_t>>(iMode, "mode")
+		    .SetID("my-select")
+		    .AddOption("Official", "0")
+		    .AddOption("Nautical", "1");
+		page.Generate();
+
+		auto sOut = page.Serialize();
+		INFO( sOut );
+
+		// id="my-select" must appear on the <select> element.
+		auto iID = sOut.find(R"(id="my-select")");
+		REQUIRE( iID != KString::npos );
+		auto iTagStart = sOut.rfind('<', iID);
+		REQUIRE( iTagStart != KString::npos );
+		auto sTag = sOut.substr(iTagStart, sOut.find('>', iTagStart) - iTagStart + 1);
+		// The tag bearing the id must be a <select …>, not a <label>.
+		CHECK    ( sTag.contains("select") );
+		CHECK_FALSE( sTag.contains("label") );
+	}
+
+	SECTION("Synchronize updates backing variable and DOM selected state")
+	{
+		uint16_t iMode { 0 };
+
+		html::Page page("Selection Sync Test");
+		auto form = page.Body().Add<html::Form>("/submit");
+		form.Add<html::Selection<uint16_t>>(iMode, "mode")
+		    .AddOption("Official",    "0")
+		    .AddOption("Nautical",    "1")
+		    .AddOption("Astronomical","2");
+		page.Generate();
+
+		url::KQueryParms Parms;
+		Parms.Add("mode", "2");
+		page.Synchronize(Parms);
+
+		CHECK( iMode == 2 );
+
+		auto sOut = page.Serialize();
+		auto iAstro = sOut.find(R"(value="2")");
+		REQUIRE( iAstro != KString::npos );
+		auto iTagStart = sOut.rfind('<', iAstro);
+		auto iTagEnd   = sOut.find ('>', iAstro);
+		REQUIRE( iTagStart != KString::npos );
+		REQUIRE( iTagEnd   != KString::npos );
+		auto sTag = sOut.substr(iTagStart, iTagEnd - iTagStart + 1);
+		CHECK( sTag.contains("selected") );
+	}
+
+	SECTION("two Selections sharing options list — labels survive submit (no _fobj leak)")
+	{
+		// Regression test for a GenerateNames bug where <option>s without an
+		// explicit value= attribute had their value rewritten to an auto-
+		// generated `_fobj<hex>` handle. On submit the browser then returned
+		// the handle instead of the displayed label, and pfnSync stored
+		// "_fobj17e" into the bound variable.
+		//
+		// Repro: two Selection widgets in the same form, bound to different
+		// backing variables, both populated via SetOptions(comma-list) —
+		// each <option> ends up as `<option>label</option>` with no value
+		// attribute.
+		KString sFirst  { };
+		KString sSecond { };
+
+		html::Page page("Two-Selection regression");
+		auto form  = page.Body().Add<html::Form>("/submit");
+		auto group = form.Add<html::FieldSet>("Sensors");
+		group.Add<html::Selection<KString>>(sFirst,  "first" )
+		     .SetOptions("28-aaa,28-bbb,28-ccc");
+		group.Add<html::Selection<KString>>(sSecond, "second")
+		     .SetOptions("28-aaa,28-bbb,28-ccc");
+
+		page.Generate();
+
+		// No `value="_fobj…"` should appear anywhere in the serialised DOM —
+		// each <option> must carry its label as the value attribute (or be
+		// left value-attribute-free, which the current implementation does
+		// not but is a valid alternative).
+		auto sOut = page.Serialize();
+		INFO( sOut );
+		CHECK_FALSE( sOut.contains(R"(value="_fobj)") );
+
+		// Simulate a form submission picking different sensors for each
+		// Selection. With the bug present this used to write "_fobj…" into
+		// each backing variable; now it must store the chosen labels.
+		url::KQueryParms Parms;
+		Parms.Add("first",  "28-aaa");
+		Parms.Add("second", "28-bbb");
+		page.Synchronize(Parms);
+
+		CHECK( sFirst  == "28-aaa" );
+		CHECK( sSecond == "28-bbb" );
+
+		// And the post-Synchronize DOM still must not contain _fobj values.
+		auto sOut2 = page.Serialize();
+		INFO( sOut2 );
+		CHECK_FALSE( sOut2.contains(R"(value="_fobj)") );
 	}
 }

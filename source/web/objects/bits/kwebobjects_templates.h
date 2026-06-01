@@ -353,7 +353,10 @@ Selection<ValueType>::Selection(KHTMLNode parent,
 			if ((!sValAttr.empty() && sValAttr == v) || sLabel == v)
 			{
 				c.KHTMLNode::SetAttribute("selected", "");
-				*static_cast<ValueType*>(p) = detail::FromQueryParm<ValueType>::Apply(sLabel);
+				// Use the value attribute for conversion when present (supports
+				// numeric values with descriptive labels via AddOption(label, value)).
+				*static_cast<ValueType*>(p) = detail::FromQueryParm<ValueType>::Apply(
+				    sValAttr.empty() ? sLabel : sValAttr);
 			}
 			else
 			{
@@ -366,20 +369,23 @@ Selection<ValueType>::Selection(KHTMLNode parent,
 }
 
 template<typename ValueType>
-void Selection<ValueType>::AddOption(KStringView sLabel)
+Selection<ValueType>& Selection<ValueType>::AddOption(KStringView sLabel, KStringView sValue)
 {
 	auto opt = this->m_Base.template Add<Option>(sLabel);
+	if (!sValue.empty()) opt.SetValue(sValue);
 	if (m_pResult != nullptr)
 	{
-		// Compare textual representation of result with the option label.
-		// For string types this is direct; for arithmetics we kFormat it.
-		auto sCurrent = KString(detail::InitialAttrValue<ValueType>::Get(*m_pResult));
-		if (sCurrent == sLabel)
+		// Compare the current value against sValue when provided, otherwise
+		// against sLabel (legacy behaviour: label == value).
+		auto sCurrent  = KString(detail::InitialAttrValue<ValueType>::Get(*m_pResult));
+		KStringView sMatch = sValue.empty() ? sLabel : sValue;
+		if (sCurrent == sMatch)
 		{
 			opt.SetSelected(true);
 		}
 	}
 	// no per-option binding — the Select's pfnSync drives all options.
+	return *this;
 }
 
 template<typename ValueType>

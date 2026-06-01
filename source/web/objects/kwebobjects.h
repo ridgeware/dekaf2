@@ -1290,6 +1290,13 @@ public:
 
 	self& SetStep        (float step)         { m_Base.SetStep        (step); return This(); }
 
+	self& SetID(KStringView sID)
+	{
+		if (!sID.empty()) m_Base.KHTMLNode::SetAttribute("id", sID);
+		else              m_Base.KHTMLNode::RemoveAttribute("id");
+		return This();
+	}
+
 	self& SetAttribute(KStringView sName, KStringView sValue)
 	{
 		m_Base.KHTMLNode::SetAttribute(sName, sValue);
@@ -1494,10 +1501,10 @@ public:
 	          const html::Classes& cls = html::Classes{},
 	          KStringView sID = KStringView{});
 
-	/// Add options as comma-separated string.
+	/// Add options as comma-separated string (label == value for each option).
 	self& SetOptions(KStringView sOptions);
 
-	/// Add options from a container of stringable values.
+	/// Add options from a container of stringable values (label == value).
 	template<typename Container,
 	         std::enable_if_t<!detail::is_str<Container>::value, int> = 0>
 	self& SetOptions(const Container& list)
@@ -1509,13 +1516,17 @@ public:
 		return *this;
 	}
 
+	/// Add a single option with an optional separate value attribute.
+	/// When sValue is non-empty it is emitted as the HTML value="…" attribute
+	/// and used for matching / Synchronize(); sLabel is the displayed text.
+	/// When sValue is empty, sLabel serves as both display text and value.
+	self& AddOption(KStringView sLabel, KStringView sValue = KStringView{});
+
 //----------
 private:
 //----------
 
-	void AddOption(KStringView sLabel);
-
-	ValueType* m_pResult { nullptr };  // captured for SetOptions to know which is "selected"
+	ValueType* m_pResult { nullptr };  // captured for AddOption to know which is "selected"
 
 }; // Selection
 

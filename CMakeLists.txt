@@ -1544,6 +1544,9 @@ set(PUBLIC_HEADERS
 	source/web/push/kwebpush.h
 	source/web/push/bits/kwebpushsqlitedb.h
 	source/web/push/bits/kwebpushksqldb.h
+	source/web/push/kapplepush.h
+	source/web/push/bits/kapplepushsqlitedb.h
+	source/web/push/bits/kapplepushksqldb.h
 	source/web/url/kurl.h
 	source/web/url/kurlencode.h
 	source/web/url/kuseragent.h
@@ -1796,6 +1799,9 @@ set (SOURCES
 	source/web/push/kwebpush.cpp
 	source/web/push/bits/kwebpushsqlitedb.cpp
 	source/web/push/bits/kwebpushksqldb.cpp
+	source/web/push/kapplepush.cpp
+	source/web/push/bits/kapplepushsqlitedb.cpp
+	source/web/push/bits/kapplepushksqldb.cpp
 	source/web/url/kurl.cpp
 	source/web/url/kurlencode.cpp
 	source/web/url/kuseragent.cpp

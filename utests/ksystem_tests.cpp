@@ -313,6 +313,45 @@ TEST_CASE("KSystem")
 		CHECK ( kGetUptime().seconds().count() > 5 );
 	}
 
+	SECTION("KSocketBufferLimits")
+	{
+#if defined(DEKAF2_IS_LINUX) || defined(DEKAF2_IS_MACOS)
+		KSocketBufferLimits udp(/*bForUDP=*/true);
+		CHECK ( udp.iSendMax     > 0 );
+		CHECK ( udp.iSendDefault > 0 );
+		CHECK ( udp.iRecvMax     > 0 );
+		CHECK ( udp.iRecvDefault > 0 );
+
+		KSocketBufferLimits tcp(/*bForUDP=*/false);
+		CHECK ( tcp.iSendMax     > 0 );
+		CHECK ( tcp.iSendDefault > 0 );
+		CHECK ( tcp.iRecvMax     > 0 );
+		CHECK ( tcp.iRecvDefault > 0 );
+#endif
+	}
+
+	SECTION("KSharedMemoryLimits")
+	{
+#if defined(DEKAF2_IS_LINUX) || defined(DEKAF2_IS_MACOS)
+		KSharedMemoryLimits shm;
+		shm.Read();
+		CHECK ( shm.iMaxSegmentBytes > 0 );
+		CHECK ( shm.iTotalPages      > 0 );
+		CHECK ( shm.iMaxSegments     > 0 );
+#endif
+	}
+
+	SECTION("KFileDescriptorLimits")
+	{
+#if defined(DEKAF2_IS_LINUX) || defined(DEKAF2_IS_MACOS)
+		KFileDescriptorLimits fds;
+		fds.Read();
+		CHECK ( fds.iKernelMax   > 0 );
+		CHECK ( fds.iProcessSoft > 0 );
+		CHECK ( fds.iProcessHard > 0 );
+#endif
+	}
+
 	SECTION("kWhich")
 	{
 		// should find common executables

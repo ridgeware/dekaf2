@@ -44,6 +44,7 @@
 #include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/system/filesystem/bits/kfilesystem.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/system/process/kinshell.h>
@@ -2278,6 +2279,241 @@ KLoadAverage kGetLoadAverage()
 	return KLoadAverage::Create();
 
 } // kGetLoadAverage
+
+//=============================================================================
+// Socket / shared-memory / fd limit helpers
+//=============================================================================
+
+namespace {
+
+#if defined(DEKAF2_IS_LINUX)
+
+//-----------------------------------------------------------------------------
+/// Read a single integer from /proc/sys/<key> (dots converted to slashes).
+static uint64_t ReadProcSysUint(KStringView sKey)
+//-----------------------------------------------------------------------------
+{
+	KString sPath = kFormat("/proc/sys/{}", sKey);
+	sPath.Replace('.', '/');
+	return kReadAll(sPath).Trim().UInt64();
+
+} // ReadProcSysUint
+
+//-----------------------------------------------------------------------------
+/// Read the middle value of a whitespace-separated triplet "min default max"
+/// from /proc/sys/<key>  (used for net.ipv4.tcp_wmem / tcp_rmem).
+static uint64_t ReadProcSysTripletDefault(KStringView sKey)
+//-----------------------------------------------------------------------------
+{
+	KString sPath = kFormat("/proc/sys/{}", sKey);
+	sPath.Replace('.', '/');
+	KString sValue = kReadAll(sPath).Trim();
+	// skip first token to reach the middle (default) value
+	auto iEnd1  = sValue.find_first_of(" \t");
+	if (iEnd1  == KString::npos) return 0;
+	auto iStart = sValue.find_first_not_of(" \t", iEnd1);
+	if (iStart == KString::npos) return 0;
+	return KStringView(sValue.data() + iStart, sValue.size() - iStart).UInt64();
+
+} // ReadProcSysTripletDefault
+
+#elif defined(DEKAF2_IS_MACOS)
+
+//-----------------------------------------------------------------------------
+/// Wrapper around sysctlbyname() that returns uint64_t for any integer type.
+/// Safe on little-endian (all modern Macs): a 32-bit result written into the
+/// lower bytes of a zero-initialized 64-bit buffer gives the correct value.
+///
+/// Returns 0 on failure (unknown OID, EPERM, etc.). Callers should treat
+/// 0 as "unavailable" and provide a fallback where appropriate — modern
+/// macOS has retired several sysctls that older versions exposed (e.g.
+/// `net.inet.udp.sendspace` is gone from macOS 14+).
+static uint64_t MacSysctl(const char* sName)
+//-----------------------------------------------------------------------------
+{
+	uint64_t val = 0;
+	size_t   len = sizeof(val);
+	if (::sysctlbyname(sName, &val, &len, nullptr, 0) != 0)
+	{
+		return 0;
+	}
+	return val;
+
+} // MacSysctl
+
+#endif
+
+} // namespace
+
+//-----------------------------------------------------------------------------
+bool KSocketBufferLimits::Read(bool bForUDP)
+//-----------------------------------------------------------------------------
+{
+#if defined(DEKAF2_IS_LINUX)
+
+	// net.core.* are the hard ceiling shared by TCP and UDP
+	iSendMax = ReadProcSysUint("net.core.wmem_max");
+	iRecvMax = ReadProcSysUint("net.core.rmem_max");
+
+	if (bForUDP)
+	{
+		iSendDefault = ReadProcSysUint("net.core.wmem_default");
+		iRecvDefault = ReadProcSysUint("net.core.rmem_default");
+	}
+	else // TCP
+	{
+		// tcp_wmem / tcp_rmem are "min default max" triplets; we want the middle value
+		iSendDefault = ReadProcSysTripletDefault("net.ipv4.tcp_wmem");
+		iRecvDefault = ReadProcSysTripletDefault("net.ipv4.tcp_rmem");
+	}
+
+	return iSendMax > 0;
+
+#elif defined(DEKAF2_IS_MACOS)
+
+	// kern.ipc.maxsockbuf is the shared ceiling for send and recv
+	iSendMax = iRecvMax = MacSysctl("kern.ipc.maxsockbuf");
+
+	if (bForUDP)
+	{
+		// macOS 14+ retired `net.inet.udp.sendspace` — the UDP send buffer is
+		// now governed by the same per-socket logic as TCP send space. Fall
+		// back to the TCP value so callers always get a usable starting
+		// point, then to maxsockbuf / 2 as a last resort.
+		iSendDefault = MacSysctl("net.inet.udp.sendspace");
+		if (iSendDefault == 0) iSendDefault = MacSysctl("net.inet.tcp.sendspace");
+		if (iSendDefault == 0) iSendDefault = iSendMax / 2;
+
+		iRecvDefault = MacSysctl("net.inet.udp.recvspace");
+		if (iRecvDefault == 0) iRecvDefault = MacSysctl("net.inet.tcp.recvspace");
+		if (iRecvDefault == 0) iRecvDefault = iRecvMax / 2;
+	}
+	else // TCP
+	{
+		iSendDefault = MacSysctl("net.inet.tcp.sendspace");
+		iRecvDefault = MacSysctl("net.inet.tcp.recvspace");
+	}
+
+	return iSendMax > 0;
+
+#else
+
+	return false;
+
+#endif
+
+} // KSocketBufferLimits::Read
+
+//-----------------------------------------------------------------------------
+bool KSharedMemoryLimits::Read()
+//-----------------------------------------------------------------------------
+{
+#if defined(DEKAF2_IS_LINUX)
+
+	iMaxSegmentBytes = ReadProcSysUint("kernel.shmmax");
+	iTotalPages      = ReadProcSysUint("kernel.shmall");
+	iMaxSegments     = ReadProcSysUint("kernel.shmmni");
+
+	return iMaxSegmentBytes > 0;
+
+#elif defined(DEKAF2_IS_MACOS)
+
+	iMaxSegmentBytes = MacSysctl("kern.sysv.shmmax");
+	iTotalPages      = MacSysctl("kern.sysv.shmall");
+	iMaxSegments     = MacSysctl("kern.sysv.shmmni");
+
+	return iMaxSegmentBytes > 0;
+
+#else
+
+	return false;
+
+#endif
+
+} // KSharedMemoryLimits::Read
+
+//-----------------------------------------------------------------------------
+bool KFileDescriptorLimits::Read()
+//-----------------------------------------------------------------------------
+{
+	bool bOK = false;
+
+#if defined(DEKAF2_IS_LINUX)
+
+	iKernelMax = ReadProcSysUint("fs.file-max");
+	bOK = iKernelMax > 0;
+
+#elif defined(DEKAF2_IS_MACOS)
+
+	iKernelMax = MacSysctl("kern.maxfiles");
+	bOK = iKernelMax > 0;
+
+#endif
+
+#ifndef DEKAF2_IS_WINDOWS
+
+	struct rlimit rl;
+	if (::getrlimit(RLIMIT_NOFILE, &rl) == 0)
+	{
+		// Store the kernel's raw rlim_t value, no remapping. The platforms
+		// disagree on what RLIM_INFINITY actually IS:
+		//   Linux: RLIM_INFINITY == ULLONG_MAX (all bits set, 1.8e19)
+		//   macOS: RLIM_INFINITY == LLONG_MAX  (top bit clear, 9.2e18)
+		// Either value is already so far above any plausible fd count that
+		// "uncapped" is a safe interpretation. We used to coerce both to
+		// UINT64_MAX for "uniformity", but that bit pattern made Catch2's
+		// CHECK( ... > 0 ) report failure on macOS (Catch2 v3 binary-expr
+		// decomposition seems to mis-classify the comparison when one side
+		// is exactly UINT64_MAX). Keeping the raw value also gives the
+		// caller a hint of which platform conventions are at play.
+		iProcessSoft = static_cast<uint64_t>(rl.rlim_cur);
+		iProcessHard = static_cast<uint64_t>(rl.rlim_max);
+		bOK = true;
+	}
+
+#endif
+
+	return bOK;
+
+} // KFileDescriptorLimits::Read
+
+//-----------------------------------------------------------------------------
+bool KFileDescriptorLimits::Set(uint64_t iSoftLimit)
+//-----------------------------------------------------------------------------
+{
+#ifndef DEKAF2_IS_WINDOWS
+
+	struct rlimit rl;
+	if (::getrlimit(RLIMIT_NOFILE, &rl) != 0)
+	{
+		kDebug(1, "getrlimit: {}", ::strerror(errno));
+		return false;
+	}
+
+	// clamp to hard limit (RLIM_INFINITY means no ceiling)
+	if (rl.rlim_max != RLIM_INFINITY && iSoftLimit > static_cast<uint64_t>(rl.rlim_max))
+	{
+		iSoftLimit = static_cast<uint64_t>(rl.rlim_max);
+	}
+
+	rl.rlim_cur = static_cast<rlim_t>(iSoftLimit);
+
+	if (::setrlimit(RLIMIT_NOFILE, &rl) != 0)
+	{
+		kDebug(1, "setrlimit: {}", ::strerror(errno));
+		return false;
+	}
+
+	iProcessSoft = iSoftLimit;
+	return true;
+
+#else
+
+	return false;
+
+#endif
+
+} // KFileDescriptorLimits::Set
 
 
 DEKAF2_NAMESPACE_END

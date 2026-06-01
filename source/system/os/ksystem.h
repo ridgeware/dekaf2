@@ -530,6 +530,83 @@ bool kIsValidIPv6(KStringView sAddress)
 	return kIsIPv6Address(sAddress, false);
 }
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Socket buffer limits as reported by the kernel. Zero = not determinable.
+///
+/// Linux sysctls:
+///   - max:     net.core.wmem_max / rmem_max  (hard ceiling for SO_SNDBUF/SO_RCVBUF)
+///   - default: net.core.wmem_default / rmem_default  (UDP)
+///              net.ipv4.tcp_wmem[1] / tcp_rmem[1]    (TCP autotuning default)
+///
+/// macOS sysctls:
+///   - max:     kern.ipc.maxsockbuf  (shared ceiling for send + recv)
+///   - default: net.inet.{tcp,udp}.{send,recv}space
+///
+/// Windows has no kernel-level socket buffer tunables; all fields remain zero.
+struct DEKAF2_PUBLIC KSocketBufferLimits
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KSocketBufferLimits() = default;
+	KSocketBufferLimits(bool bForUDP) { Read(bForUDP); }
+
+	/// read the system buffer limits
+	/// @param bForUDP if true, reads the system settings for UDP sockets, else for TCP sockets
+	bool Read(bool bForUDP);
+
+	uint64_t iSendMax     { 0 }; ///< SO_SNDBUF ceiling
+	uint64_t iSendDefault { 0 }; ///< default send buffer (TCP: autotuning starting point)
+	uint64_t iRecvMax     { 0 }; ///< SO_RCVBUF ceiling
+	uint64_t iRecvDefault { 0 }; ///< default receive buffer (TCP: autotuning starting point)
+
+}; // KSocketBufferLimits
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// POSIX shared memory limits as reported by the kernel. Zero = not determinable.
+///
+/// Linux: kernel.shmmax / shmall / shmmni
+/// macOS: kern.sysv.shmmax / shmall / shmmni
+/// Windows: no shmget(2) equivalent; all fields remain zero.
+struct DEKAF2_PUBLIC KSharedMemoryLimits
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KSharedMemoryLimits() = default;
+	/// Construct and immediately read limits from the kernel.
+	KSharedMemoryLimits(bool) { Read(); }
+
+	/// Read current kernel POSIX shared memory limits into this object.
+	bool Read();
+
+	uint64_t iMaxSegmentBytes { 0 }; ///< max size of a single shmget() segment in bytes
+	uint64_t iTotalPages      { 0 }; ///< total pages allocatable across all segments; multiply by kGetPageSize() for bytes
+	uint64_t iMaxSegments     { 0 }; ///< max number of live shared memory identifiers
+
+}; // KSharedMemoryLimits
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// File descriptor limits at kernel-global and per-process level.
+///
+/// Linux: fs.file-max (kernel) + RLIMIT_NOFILE (process)
+/// macOS: kern.maxfiles (kernel) + RLIMIT_NOFILE (process)
+/// Windows: all fields remain zero.
+struct DEKAF2_PUBLIC KFileDescriptorLimits
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KFileDescriptorLimits() = default;
+	/// Construct and immediately read limits from the kernel.
+	KFileDescriptorLimits(bool) { Read(); }
+
+	/// Read current fd limits into this object.
+	bool Read();
+
+	/// Raise RLIMIT_NOFILE soft limit to @p iSoftLimit, clamped to the hard limit.
+	/// Does not require elevated privileges as long as @p iSoftLimit ≤ hard limit.
+	bool Set(uint64_t iSoftLimit);
+
+	uint64_t iKernelMax   { 0 }; ///< system-wide ceiling (fs.file-max / kern.maxfiles)
+	uint64_t iProcessSoft { 0 }; ///< RLIMIT_NOFILE soft — actual limit for this process
+	uint64_t iProcessHard { 0 }; ///< RLIMIT_NOFILE hard — unprivileged raise ceiling
+
+}; // KFileDescriptorLimits
 
 /// @}
 

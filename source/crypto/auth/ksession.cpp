@@ -317,11 +317,15 @@ KString KSession::SerializeAttributes(KDuration MaxAge) const
 KString KSession::SerializeSetCookie(KStringView sToken) const
 //-----------------------------------------------------------------------------
 {
-	// Format: name=value; Path=/; Secure; HttpOnly; SameSite=Strict
-	// Callers wanting a Max-Age (e.g. absolute timeout) can append manually;
-	// the default here is a session cookie (no Max-Age → ends with browser).
+	// Format: name=value; Path=/; Secure; HttpOnly; SameSite=Strict[; Max-Age=...]
+	//
+	// Default is a session cookie (no Max-Age → ends with browser). Setting
+	// Config::bPersistentCookie switches to a persistent cookie whose Max-Age
+	// matches the configured AbsoluteTimeout.
 	auto sCookie = kFormat("{}={}", m_Config.sCookieName, sToken);
-	sCookie += SerializeAttributes();
+	auto MaxAge  = m_Config.bPersistentCookie ? m_Config.AbsoluteTimeout
+	                                          : KDuration::zero();
+	sCookie += SerializeAttributes(MaxAge);
 	return sCookie;
 
 } // SerializeSetCookie

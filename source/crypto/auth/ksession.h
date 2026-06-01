@@ -211,6 +211,9 @@ public:
 		/// raw random bytes used for the token — gets base64url-encoded, so the
 		/// resulting string is ~4/3 of this value. 32 bytes = 256 bits of entropy.
 		std::size_t iTokenBytes      { 32 };
+		/// emit a persistent cookie (with Max-Age = AbsoluteTimeout) instead of
+		/// a pure session cookie.
+		bool        bPersistentCookie { false };
 	};
 
 	/// Authenticator signature: return true if (sUsername, sPassword) is a

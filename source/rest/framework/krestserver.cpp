@@ -1066,7 +1066,7 @@ void KRESTServer::RunPostResponse()
 } // RunPostResponseCallback
 
 //-----------------------------------------------------------------------------
-bool KRESTServer::SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength)
+bool KRESTServer::SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength, bool bAllowCompression)
 //-----------------------------------------------------------------------------
 {
 	if (!Stream || !Stream->Good())
@@ -1077,13 +1077,14 @@ bool KRESTServer::SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size
 
 	m_Stream = std::move(Stream);
 	m_iContentLength = iContentLength;
+	if (!bAllowCompression) m_bResponseCompression = false;
 
 	return true;
 
 } // SetStreamToOutput
 
 //-----------------------------------------------------------------------------
-bool KRESTServer::SetFileToOutput(KStringViewZ sFile)
+bool KRESTServer::SetFileToOutput(KStringViewZ sFile, bool bAllowCompression, bool bCheckMIMEType)
 //-----------------------------------------------------------------------------
 {
 	auto iContentLength = kFileSize(sFile);
@@ -1094,8 +1095,13 @@ bool KRESTServer::SetFileToOutput(KStringViewZ sFile)
 		return false;
 	}
 
+	if (bCheckMIMEType)
+	{
+		Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::CreateByExtension(sFile).Serialize());
+	}
+
 	kDebug(2, "open file: {}", sFile);
-	return SetStreamToOutput(std::make_unique<KInFile>(sFile), iContentLength);
+	return SetStreamToOutput(std::make_unique<KInFile>(sFile), iContentLength, bAllowCompression);
 
 } // SetFileToOutput
 
@@ -1190,7 +1196,7 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
 	// Compression can be a problem in streaming mode because we cannot reliably flush
 	// the output then. Also, we may not know the media type in advance, and hence
 	// switch compression on for already compressed media..
-	ConfigureCompression(m_Options.bAllowCompression && bAllowCompressionIfPossible);
+	ConfigureCompression(m_Options.bAllowCompression && m_bResponseCompression && bAllowCompressionIfPossible);
 
 	WriteHeaders();
 
@@ -1227,12 +1233,18 @@ void KRESTServer::Output()
 
 	if (!bOutputContent)
 	{
-		m_iContentLength = 0;
-		Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
+		// Only reset length and type when they were not explicitly set by the
+		// handler (e.g. via SetContentLengthToOutput for a HEAD response).
+		// m_iContentLength == npos means "not set yet".
+		if (m_iContentLength == npos)
+		{
+			m_iContentLength = 0;
+			Response.Headers.Remove(KHTTPHeader::CONTENT_TYPE);
+		}
 	}
 
 	// only allow output compression if this is HTTP mode and if we allow compression and have content
-	ConfigureCompression(m_Options.Out == HTTP && m_Options.bAllowCompression && bOutputContent);
+	ConfigureCompression(m_Options.Out == HTTP && m_Options.bAllowCompression && m_bResponseCompression && bOutputContent);
 
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
@@ -1924,6 +1936,7 @@ void KRESTServer::clear()
 	m_RequestCookies.reset();
 	m_TempDir.clear();
 	m_bIsStreaming         = false;
+	m_bResponseCompression = true;
 	m_bSwitchToWebSocket   = false;
 	m_bKeepWebSocketThread = false;
 	// do not clear m_Timers, the main Execute loop takes care of it

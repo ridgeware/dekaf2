@@ -284,16 +284,34 @@ public:
 	//-----------------------------------------------------------------------------
 	/// set file to output (mutually exclusive to other output types)
 	/// @param sFile the filename of the file to output
+	/// @param bAllowCompression set to false to suppress transfer compression for this response (e.g. for already-compressed formats like DMG, ZIP, …)
+	/// @param bCheckMIMEType if true, derive the Content-Type from the file extension via KMIME::ByExtension() and set it on the response, overriding the default application/json. Leave false (the default) when the caller sets the Content-Type explicitly or when the webserver catch-all has already done so, to avoid a redundant MIME lookup.
 	/// @return true if file exists and can be opened, false otherwise
-	bool SetFileToOutput(KStringViewZ sFile);
+	bool SetFileToOutput(KStringViewZ sFile, bool bAllowCompression = true, bool bCheckMIMEType = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// set stream to output (mutually exclusive to other output types)
 	/// @param Stream an open stream to read from
 	/// @param iContentLength the count of bytes to read, or npos for read until EOF (the default)
+	/// @param bAllowCompression set to false to suppress transfer compression for this response (e.g. for already-compressed formats like DMG, ZIP, …)
 	/// @return true if stream is good for reading, false otherwise
-	bool SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength = npos);
+	bool SetStreamToOutput(std::unique_ptr<KInStream> Stream, std::size_t iContentLength = npos, bool bAllowCompression = true);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Disable transfer compression for this response regardless of content type or
+	/// global compression settings. Useful for already-compressed payloads (binary
+	/// downloads, archives, …) where compressing again wastes CPU and - critically -
+	/// forces chunked transfer encoding, which removes the Content-Length header and
+	/// makes download-progress reporting impossible.
+	/// The flag is reset after Output() so it does not affect subsequent keep-alive
+	/// responses on the same connection.
+	void DisableCompression()
+	//-----------------------------------------------------------------------------
+	{
+		m_bResponseCompression = false;
+	}
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -724,6 +742,7 @@ private:
 	bool        m_bKeepAlive;            // whether connection will be kept alive
 	bool        m_bLostConnection;       // whether we lost our peer during flight
 	bool        m_bIsStreaming;          // true if we switched to streaming output
+	bool        m_bResponseCompression;  // per-response compression gate; reset in clear()
 	bool        m_bSwitchToWebSocket;    // true if we will switch to the websocket protocol
 	bool        m_bKeepWebSocketThread;  // true if we will handle the websocket in the running thread, and not in a common socket server
 

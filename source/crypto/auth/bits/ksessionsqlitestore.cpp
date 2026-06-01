@@ -226,6 +226,34 @@ bool KSessionSQLiteStore::Touch(KStringView sToken, KUnixTime tLastSeen)
 } // Touch
 
 //-----------------------------------------------------------------------------
+bool KSessionSQLiteStore::UpdateExtra(KStringView sToken, KStringView sExtra)
+//-----------------------------------------------------------------------------
+{
+	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+
+	if (db.IsError())
+	{
+		m_sError = kFormat("cannot open database for UpdateExtra: {}", db.Error());
+		return false;
+	}
+
+	auto stmt = db.Prepare(kFormat(
+		"update {} set extra=?1 where token=?2", m_sTableName));
+
+	stmt.Bind(1, sExtra, false);
+	stmt.Bind(2, sToken, false);
+
+	if (!stmt.Execute())
+	{
+		m_sError = kFormat("cannot update extra: {}", db.Error());
+		return false;
+	}
+
+	return true;
+
+} // UpdateExtra
+
+//-----------------------------------------------------------------------------
 bool KSessionSQLiteStore::Erase(KStringView sToken)
 //-----------------------------------------------------------------------------
 {

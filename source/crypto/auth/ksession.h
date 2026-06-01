@@ -158,6 +158,14 @@ public:
 		/// update the LastSeen timestamp for a token
 		virtual bool        Touch        (KStringView sToken, KUnixTime tLastSeen)         = 0;
 
+		/// replace the Extra payload of an existing session, leaving all other
+		/// fields (token, timestamps, user) untouched. Not pure-virtual: the
+		/// default returns false so that pre-existing custom Store backends keep
+		/// compiling — they simply do not support in-place Extra updates until
+		/// they override this. The three built-in stores override it.
+		/// @returns true if the session existed and its Extra was updated
+		virtual bool        UpdateExtra  (KStringView /*sToken*/, KStringView /*sExtra*/) { return false; }
+
 		/// erase a single session
 		virtual bool        Erase        (KStringView sToken)                              = 0;
 
@@ -272,6 +280,13 @@ public:
 	/// @returns true if the token is valid and not expired
 	DEKAF2_NODISCARD
 	bool Validate (KStringView sToken, Record* pOut = nullptr);
+
+	/// Replace the Extra payload of an existing, valid session without changing
+	/// its token, timestamps or user. Useful for refreshing server-side state
+	/// (e.g. rotated OAuth/OIDC tokens) while preserving the idle and absolute
+	/// timeouts. Returns false if the token is empty, unknown, or the configured
+	/// Store does not support in-place updates.
+	bool UpdateExtra (KStringView sToken, KStringView sExtra);
 
 	/// Explicitly invalidate a session (e.g. on logout).
 	/// @returns true if a session was found and erased

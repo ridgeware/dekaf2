@@ -63,6 +63,9 @@ target_link_libraries(kgrep dekaf2)
 add_executable(statinfo statinfo.cpp)
 target_link_libraries(statinfo dekaf2)
 
+add_executable(koidc_bff koidc_bff.cpp)
+target_link_libraries(koidc_bff dekaf2)
+
 add_executable(ktunnel
 	ktunnel.h
 	ktunnel.cpp

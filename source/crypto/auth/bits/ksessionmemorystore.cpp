@@ -119,6 +119,24 @@ bool KSessionMemoryStore::Touch(KStringView sToken, KUnixTime tLastSeen)
 } // Touch
 
 //-----------------------------------------------------------------------------
+bool KSessionMemoryStore::UpdateExtra(KStringView sToken, KStringView sExtra)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto it = m_Sessions.find(KString(sToken));
+
+	if (it == m_Sessions.end())
+	{
+		return false;
+	}
+
+	it->second.sExtra = sExtra;
+	return true;
+
+} // UpdateExtra
+
+//-----------------------------------------------------------------------------
 bool KSessionMemoryStore::Erase(KStringView sToken)
 //-----------------------------------------------------------------------------
 {

@@ -1384,6 +1384,7 @@ set(PUBLIC_HEADERS
 	source/crypto/auth/kawsauth.h
 	source/crypto/auth/kbcrypt.h
 	source/crypto/auth/kopenid.h
+	source/crypto/auth/kopenidclient.h
 	source/crypto/auth/ksession.h
 	source/crypto/auth/bits/ksessionmemorystore.h
 	source/crypto/auth/bits/ksessionsqlitestore.h
@@ -1653,6 +1654,7 @@ set (SOURCES
 	source/crypto/auth/kawsauth.cpp
 	source/crypto/auth/kbcrypt.cpp
 	source/crypto/auth/kopenid.cpp
+	source/crypto/auth/kopenidclient.cpp
 	source/crypto/auth/ksession.cpp
 	source/crypto/auth/bits/ksessionmemorystore.cpp
 	source/crypto/cipher/kblockcipher.cpp
@@ -2261,6 +2263,17 @@ if (DEKAF2_INSTALL_BIN)
 
 	add_executable(statinfo samples/statinfo.cpp)
 	target_link_libraries(statinfo dekaf2${DEKAF2_LINK_SHARED})
+
+	# a documentation-only demo (needs a live IdP to do anything), so keep it
+	# out of the default build — build explicitly with: cmake --build . --target koidc_bff
+	add_executable(koidc_bff EXCLUDE_FROM_ALL samples/koidc_bff.cpp)
+	# KOpenIDClient keeps its sessions in a SQLite-backed KSession store, so we
+	# link ksqlite (as ktunnel does) when SQLite was found.
+	if (SQLITE3_FOUND)
+		target_link_libraries(koidc_bff ksqlite${DEKAF2_LINK_SHARED} dekaf2${DEKAF2_LINK_SHARED})
+	else()
+		target_link_libraries(koidc_bff dekaf2${DEKAF2_LINK_SHARED})
+	endif()
 
 	add_executable(getentities EXCLUDE_FROM_ALL source/web/html/getentities.cpp)
 	target_link_libraries(getentities dekaf2${DEKAF2_LINK_SHARED})

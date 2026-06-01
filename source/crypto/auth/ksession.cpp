@@ -226,6 +226,19 @@ bool KSession::Logout(KStringView sToken)
 } // Logout
 
 //-----------------------------------------------------------------------------
+bool KSession::UpdateExtra(KStringView sToken, KStringView sExtra)
+//-----------------------------------------------------------------------------
+{
+	if (sToken.empty())
+	{
+		return false;
+	}
+
+	return m_Store->UpdateExtra(sToken, sExtra);
+
+} // UpdateExtra
+
+//-----------------------------------------------------------------------------
 std::size_t KSession::LogoutAllFor(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {

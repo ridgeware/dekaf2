@@ -70,6 +70,7 @@ public:
 	bool              Create       (const KSession::Record& Rec) override;
 	bool              Lookup       (KStringView sToken, KSession::Record* pOut) override;
 	bool              Touch        (KStringView sToken, KUnixTime tLastSeen) override;
+	bool              UpdateExtra  (KStringView sToken, KStringView sExtra) override;
 	bool              Erase        (KStringView sToken) override;
 	std::size_t       EraseAllFor  (KStringView sUsername) override;
 	std::size_t       PurgeExpired (KUnixTime tOldestLastSeen, KUnixTime tOldestCreated) override;

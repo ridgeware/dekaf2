@@ -168,6 +168,20 @@ bool KSessionKSQLStore::Touch(KStringView sToken, KUnixTime tLastSeen)
 } // Touch
 
 //-----------------------------------------------------------------------------
+bool KSessionKSQLStore::UpdateExtra(KStringView sToken, KStringView sExtra)
+//-----------------------------------------------------------------------------
+{
+	// KSQL::FormatSQL automatically escapes all string parameters, so the JSON
+	// payload in sExtra is injection-safe here.
+	return m_DB.ExecSQL(
+		"update {} set extra='{}' where token='{}'",
+		m_sTableName,
+		sExtra,
+		sToken);
+
+} // UpdateExtra
+
+//-----------------------------------------------------------------------------
 bool KSessionKSQLStore::Erase(KStringView sToken)
 //-----------------------------------------------------------------------------
 {

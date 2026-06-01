@@ -216,6 +216,7 @@ public:
 	static constexpr KStringViewZ WWW_FORM_URLENCODED    = "application/x-www-form-urlencoded";
 	static constexpr KStringViewZ AZV                    = "application/vnd.amazon.ebook";
 	static constexpr KStringViewZ BZ2                    = "application/x-bzip2";
+	static constexpr KStringViewZ DMG                    = "application/x-apple-diskimage";
 	static constexpr KStringViewZ CSH                    = "application/x-csh";
 	static constexpr KStringViewZ DOC                    = "application/msword";
 	static constexpr KStringViewZ DOCX                   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";

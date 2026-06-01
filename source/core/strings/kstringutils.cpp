@@ -77,6 +77,13 @@ std::size_t kReplace(KStringRef& sString,
 
 } // kReplace
 
+// #pragma GCC diagnostic ignored "-Wstringop-overread" does not suppress a
+// warning under LTO because GCC generates the constprop specialisation at link
+// time, outside the compile-time diagnostic context. "no-ipa-cp" prevents the
+// creation of such specialisations while still allowing normal inlining.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC optimize("no-ipa-cp")
+#endif
 //----------------------------------------------------------------------
 std::size_t kReplace(KStringRef& sString,
 					 const KStringView sSearch,

@@ -280,12 +280,7 @@ bool kAppendAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRe
 {
 	auto iSize(kGetSize(sFileName));
 
-	if (!iSize)
-	{
-		// empty file
-		return true;
-	}
-	else if (iSize < 0)
+	if (iSize <= 0)
 	{
 		// We could not determine the input size - this might be a
 		// proc file system entry or some other special file. Simply

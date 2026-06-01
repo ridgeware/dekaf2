@@ -111,6 +111,7 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "xml"_ksv  , XML        },
 		{ "swf"_ksv  , SWF        },
 		{ "bz2"_ksv  , BZ2        },
+		{ "dmg"_ksv  , DMG        },
 		{ "csh"_ksv  , CSH        },
 		{ "doc"_ksv  , DOC        },
 		{ "docx"_ksv , DOCX       },
@@ -301,6 +302,7 @@ bool KMIME::IsCompressible()
 		case OGA.Hash():
 		case SWF.Hash():
 		case BZ2.Hash():
+		case DMG.Hash():
 		case DOCX.Hash():
 		case JAR.Hash():
 		case ODP.Hash():

@@ -475,6 +475,15 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
+	/// erase all query parameters with the given key (KV storage only)
+	template<typename F, bool X = IsString, typename std::enable_if<!X, int>::type = 0 >
+	size_t erase (F&& key)
+	//-------------------------------------------------------------------------
+	{
+		return get().erase(std::forward<F>(key));
+	}
+
+	//-------------------------------------------------------------------------
 	/// modify member by setting argument
 	template<bool X = IsString, typename std::enable_if<X, int>::type = 0 >
 	void set (KStringView sv)

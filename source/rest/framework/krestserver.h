@@ -737,7 +737,8 @@ private:
 	std::unique_ptr<std::map<KStringView, KStringView>> m_RequestCookies;
 	std::function<void(const KRESTServer&)> m_PostResponseCallback; // if set, gets called after response generation
 	std::function<void(KWebSocket&)> m_WebSocketHandlerCallback; // filled by route handler during upgrade to websocket protocol, will be called every time a frame is received, or the connection is lost
-	KIOStreamSocket* m_StreamSocket { nullptr }; // the underlying KIOStreamSocket, if existing
+	KIOStreamSocket*  m_StreamSocket     { nullptr };            // the underlying KIOStreamSocket, if existing
+	const KRESTRoute* m_pLastLoggedRoute { nullptr };            // remembers the last route written to access log within this connection; used by NO_REPEAT_LOG to suppress subsequent identical entries in keepalive
 	uint16_t    m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds
 	bool        m_bKeepAlive;            // whether connection will be kept alive
 	bool        m_bLostConnection;       // whether we lost our peer during flight

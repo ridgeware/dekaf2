@@ -657,6 +657,10 @@ bool KRESTServer::Execute()
 	try
 	{
 		m_iRound = 0;
+		// per-connection state for NO_REPEAT_LOG suppression. NOT touched by
+		// clear() between keepalive rounds — the suppression depends on
+		// persisting the marker across rounds within the same connection.
+		m_pLastLoggedRoute = nullptr;
 
 		for (;;)
 		{
@@ -1055,6 +1059,17 @@ void KRESTServer::RunPostResponse()
 		m_PostResponseCallback(*this);
 		m_PostResponseCallback = nullptr;
 	}
+
+	// NO_REPEAT_LOG: suppress the access log entry when this route was already
+	// logged earlier in the same keep-alive cycle. The route handler is expected
+	// to surface per-request bytes/diagnostics elsewhere (kDebug, custom stats).
+	// First hit of the route is logged normally and the route pointer remembered.
+	if (Route && Route->Option.Has(KRESTRoute::Options::NO_REPEAT_LOG)
+	          && Route == m_pLastLoggedRoute)
+	{
+		return;
+	}
+	m_pLastLoggedRoute = Route;
 
 	m_Options.Logger.Log(*this);
 
@@ -1935,6 +1950,9 @@ void KRESTServer::clear()
 	m_JsonLogger.reset();
 	m_RequestCookies.reset();
 	m_TempDir.clear();
+	// NOT m_pLastLoggedRoute — that state must persist across keep-alive rounds.
+	// It is reset once per CONNECTION in Execute() at m_iRound = 0 instead.
+	// Resetting it here would defeat the NO_REPEAT_LOG suppression.
 	m_bIsStreaming         = false;
 	m_bResponseCompression = true;
 	m_bSwitchToWebSocket   = false;

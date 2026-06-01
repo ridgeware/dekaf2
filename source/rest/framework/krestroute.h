@@ -155,12 +155,13 @@ public:
 
 		enum OPT
 		{
-			NONE         = 0,       ///< no options
-			SSO_AUTH     = 1 << 0,  ///< requires SSO authentication
-			GENERIC_AUTH = 1 << 1,  ///< requires generic authentication (through KRESTServer::Options::AuthCallback)
-			NO_SSO_SCOPE = 1 << 2,  ///< do NOT check for SSO scope (from KRESTServer::Options::sAuthScope)
-			WEBSOCKET    = 1 << 3,  ///< promote into web socket, else fail
-			WEBDAV       = 1 << 4   ///< allow WebDAV methods (PROPFIND, MKCOL, COPY, MOVE) on catch-all routes
+			NONE          = 0,       ///< no options
+			SSO_AUTH      = 1 << 0,  ///< requires SSO authentication
+			GENERIC_AUTH  = 1 << 1,  ///< requires generic authentication (through KRESTServer::Options::AuthCallback)
+			NO_SSO_SCOPE  = 1 << 2,  ///< do NOT check for SSO scope (from KRESTServer::Options::sAuthScope)
+			WEBSOCKET     = 1 << 3,  ///< promote into web socket, else fail
+			WEBDAV        = 1 << 4,  ///< allow WebDAV methods (PROPFIND, MKCOL, COPY, MOVE) on catch-all routes
+			NO_REPEAT_LOG = 1 << 5   ///< log only the first request to this route within a keep-alive cycle
 		};
 
 		constexpr

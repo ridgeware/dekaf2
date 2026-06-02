@@ -61,6 +61,7 @@
 #include <dekaf2/web/url/kurl.h>          // KURL (returned by BuildLoginURL)
 #include <cstddef>
 #include <memory>
+#include <mutex>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -208,7 +209,9 @@ private:
 
 	Config                    m_Config;
 	std::unique_ptr<KSession> m_pSession;
-	KOpenIDProviderList       m_Providers;             ///< for id_token validation via KJWT (lazily filled)
+	KOpenIDProviderList       m_Providers;             ///< for id_token validation via KJWT (lazily filled, once)
+	std::once_flag            m_ProvidersOnce;         ///< guards the one-time build of m_Providers
+	std::mutex                m_RefreshMutex;          ///< serialises KOpenIDProvider::Refresh() to a single writer
 	KString                   m_sTokenEndpoint;
 	KString                   m_sAuthEndpoint;
 	KString                   m_sEndSessionEndpoint;

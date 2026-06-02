@@ -172,6 +172,10 @@ private:
 	bool              m_bMustSupportScope {true};
 	KURL              m_URL;
 	KDuration         m_RefreshInterval {};
+	/// retry interval used while we have no usable keys yet (e.g. the IdP was
+	/// unreachable at startup), so we recover within minutes instead of waiting
+	/// for the full refresh interval
+	KDuration         m_RetryInterval { chrono::minutes(3) };
 	KUnixTime         m_LastRefresh;
 
 }; // KOpenIDProvider

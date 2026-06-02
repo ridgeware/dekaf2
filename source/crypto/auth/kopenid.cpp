@@ -342,7 +342,17 @@ bool KOpenIDProvider::Validate(const KJSON& Configuration, const KURL& URL, KStr
 void KOpenIDProvider::Refresh(KUnixTime Now)
 //-----------------------------------------------------------------------------
 {
-	if (Now < m_LastRefresh + m_RefreshInterval)
+	// While we have no usable key set yet (e.g. the IdP was unreachable at
+	// startup) retry far more often than the normal refresh interval, so we
+	// recover within minutes instead of after a full day. Once we hold valid
+	// keys we use the long interval, which also preserves the lockless
+	// decaying-keys invariant (refreshes spaced >= one interval apart, and
+	// there are never live keys to decay while we are in the short-retry state).
+	const auto*     pCurrent  = m_CurrentKeys ? m_CurrentKeys->load(std::memory_order_relaxed) : nullptr;
+	const bool      bHaveKeys = pCurrent && !pCurrent->Keys.empty();
+	const KDuration Interval  = bHaveKeys ? m_RefreshInterval : m_RetryInterval;
+
+	if (Now < m_LastRefresh + Interval)
 	{
 		return;
 	}
@@ -374,6 +384,7 @@ void KOpenIDProvider::Refresh(KUnixTime Now)
 					m_DecayingKeys = std::move(m_Keys);
 					auto& sIssuer  = kjson::GetStringRef(Configuration, "issuer");
 					m_Keys         = std::make_unique<KeysAndIssuer>(KeysAndIssuer { std::move(Keys), sIssuer } );
+					ClearError(); // recovered - a prior failure's error must not linger, or IsValid() stays false
 					kDebug(2, "got {} valid keys from provider {}", m_Keys->Keys.size(), m_URL);
 				}
 				else

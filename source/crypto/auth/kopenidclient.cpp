@@ -55,6 +55,7 @@
 #include <dekaf2/web/url/kurl.h>                 // KURL
 #include <dekaf2/core/format/kformat.h>          // kFormat
 #include <dekaf2/core/logging/klog.h>            // kDebug
+#include <mutex>                                 // std::call_once, std::unique_lock
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -233,13 +234,26 @@ KString KOpenIDClient::ValidateIDToken(KStringView sIDToken, KStringView sExpect
 
 	if (m_Config.bVerifyIDTokenSignature)
 	{
-		// lazily build the provider list used for JWKS-based signature
-		// validation; KOpenIDProvider performs its own discovery + key refresh
-		// internally (and requires the issuer URL to use HTTPS)
-		if (m_Providers.empty())
+		// Build the provider list (which fetches discovery + JWKS) exactly once,
+		// thread-safely. KOpenIDProvider requires the issuer URL to use HTTPS.
+		std::call_once(m_ProvidersOnce, [this]
 		{
 			m_Providers.emplace_back(KURL(m_Config.sAuthority), KStringView{},
 			                         m_Config.DiscoveryRefresh, /*bMustSupportScope=*/false);
+		});
+
+		// Drive the periodic key refresh. Refresh() is interval-gated and
+		// self-throttling (and retries every few minutes while it has no keys,
+		// e.g. after a startup outage). We serialise it with a try-lock so it
+		// stays a single writer (KOpenIDProvider does lockless reads plus a
+		// single decaying stage) without ever blocking concurrent logins on the
+		// network fetch - a contending thread just proceeds with the current keys.
+		{
+			std::unique_lock<std::mutex> RefreshLock(m_RefreshMutex, std::try_to_lock);
+			if (RefreshLock.owns_lock())
+			{
+				m_Providers.front().Refresh();
+			}
 		}
 
 		// KJWT validates the signature against the provider's JWKS, plus issuer
@@ -283,10 +297,14 @@ KString KOpenIDClient::ValidateIDToken(KStringView sIDToken, KStringView sExpect
 	if (sUsername.empty())
 	{
 		sUsername = kjson::GetStringRef(Payload, "preferred_username");
-	}
-	if (sUsername.empty())
-	{
-		sUsername = kjson::GetStringRef(Payload, "sub");
+		if (sUsername.empty())
+		{
+			sUsername = kjson::GetStringRef(Payload, "sub");
+			if (sUsername.empty())
+			{
+				kDebug(1, "no username found in JWT");
+			}
+		}
 	}
 	return sUsername;
 

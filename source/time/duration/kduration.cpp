@@ -977,7 +977,9 @@ KMultiDuration::self& KMultiDuration::operator-=(const KMultiDuration& other)
 //-----------------------------------------------------------------------------
 {
 	KDuration::operator-=(other);
-	m_iRounds  -= other.m_iRounds;
+	// m_iRounds is unsigned - clamp at 0 instead of wrapping around if the other
+	// duration was built from more rounds than this one
+	m_iRounds  = (m_iRounds > other.m_iRounds) ? m_iRounds - other.m_iRounds : 0;
 
 	return *this;
 }

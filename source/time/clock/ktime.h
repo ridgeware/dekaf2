@@ -298,31 +298,50 @@ private:
 
 	// we do not permit addition or subtraction of years and months
 	// - they will always lead to unexpected results
-	constexpr void operator+=(chrono::months) noexcept {}
-	constexpr void operator+=(chrono::years ) noexcept {}
-	constexpr void operator-=(chrono::months) noexcept {}
-	constexpr void operator-=(chrono::years ) noexcept {}
+	void operator+=(chrono::months) = delete;
+	void operator+=(chrono::years ) = delete;
+	void operator-=(chrono::months) = delete;
+	void operator-=(chrono::years ) = delete;
 
 }; // KUnixTime
 
 DEKAF2_CONSTEXPR_14 KDuration operator-(const KUnixTime& left, const KUnixTime& right)
 { return KUnixTime::base(left) - KUnixTime::base(right); }
 
-template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+// The duration operators accept any std::chrono::duration as well as KDuration (which derives
+// from chrono::nanoseconds), and always return a KUnixTime (and not the std::chrono base time
+// point). Like the compound assignment operators they deliberately reject chrono::months and
+// chrono::years, as those would lead to unexpected results.
+// We also deliberately do not offer operator-(duration, KUnixTime), as subtracting a time point
+// from a duration is mathematically undefined (std::chrono does not offer it either).
+template<typename T, typename std::enable_if<detail::is_duration<T>::value
+         && !std::is_same<T, chrono::months>::value
+         && !std::is_same<T, chrono::years >::value, int>::type = 0>
 DEKAF2_CONSTEXPR_14 KUnixTime operator+(const KUnixTime& left, const T& right)
-{ return KUnixTime(left.time_since_epoch() + right.template duration<KUnixTime::duration>()); }
+{ return KUnixTime(left.time_since_epoch() + chrono::duration_cast<KUnixTime::duration>(right)); }
 
-template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+template<typename T, typename std::enable_if<detail::is_duration<T>::value
+         && !std::is_same<T, chrono::months>::value
+         && !std::is_same<T, chrono::years >::value, int>::type = 0>
 DEKAF2_CONSTEXPR_14 KUnixTime operator+(const T& left, const KUnixTime& right)
 { return right + left; }
 
-template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+template<typename T, typename std::enable_if<detail::is_duration<T>::value
+         && !std::is_same<T, chrono::months>::value
+         && !std::is_same<T, chrono::years >::value, int>::type = 0>
 DEKAF2_CONSTEXPR_14 KUnixTime operator-(const KUnixTime& left, const T& right)
-{ return KUnixTime(left.time_since_epoch() - right.template duration<KUnixTime::duration>()); }
+{ return KUnixTime(left.time_since_epoch() - chrono::duration_cast<KUnixTime::duration>(right)); }
 
-template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
-DEKAF2_CONSTEXPR_14 KUnixTime operator-(const T& left, const KUnixTime& right)
-{ return right - left; }
+// adding or subtracting chrono::months or chrono::years to a time point would silently use their
+// average duration (and never calendar semantics), which leads to unexpected results. We forbid it
+// (just like the compound assignment operators do) by deleting these overloads - otherwise the
+// inherited std::chrono operators would quietly accept them and return a plain std::chrono time point.
+template<typename T, typename std::enable_if<std::is_same<T, chrono::months>::value || std::is_same<T, chrono::years>::value, int>::type = 0>
+KUnixTime operator+(const KUnixTime& left, const T& right) = delete;
+template<typename T, typename std::enable_if<std::is_same<T, chrono::months>::value || std::is_same<T, chrono::years>::value, int>::type = 0>
+KUnixTime operator+(const T& left, const KUnixTime& right) = delete;
+template<typename T, typename std::enable_if<std::is_same<T, chrono::months>::value || std::is_same<T, chrono::years>::value, int>::type = 0>
+KUnixTime operator-(const KUnixTime& left, const T& right) = delete;
 
 //-----------------------------------------------------------------------------
 // constexpr implementation of struct timespec to KUnixTime conversion
@@ -767,9 +786,6 @@ public:
 	template<typename T, typename std::enable_if<std::is_same<T, time_t>::value, int>::type = 0>
 	DEKAF2_CONSTEXPR_17 self& operator-=(T Duration)      { return *this -= chrono::seconds(Duration); }
 
-	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
-	DEKAF2_CONSTEXPR_14 self& operator=(T Duration)       { return *this = Duration;                   }
-
 	// prefer the chrono::days/months/years += from KDate
 	using KDate::operator+=;
 	// prefer the chrono::days/months/years -= from KDate
@@ -835,6 +851,20 @@ private:
 }; // KUTCTime
 
 DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE(KUTCTime, left.to_sys(), right.to_sys())
+
+// Binary duration operators for KUTCTime. They are implemented in terms of the compound
+// assignment operators so that days/months/years keep their calendar semantics (from KDate,
+// preserving the time of day) while sub-day durations keep their time semantics, and so that
+// the result is always a KUTCTime - and never silently decays to a date-only KDate (which would
+// drop the time of day) or to a std::chrono time point.
+template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_17 KUTCTime operator+(const KUTCTime& left, T right) { KUTCTime tResult(left); tResult += right; return tResult; }
+
+template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_17 KUTCTime operator+(T left, const KUTCTime& right) { return right + left; }
+
+template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
+DEKAF2_CONSTEXPR_17 KUTCTime operator-(const KUTCTime& left, T right) { KUTCTime tResult(left); tResult -= right; return tResult; }
 
 #if DEKAF2_HAS_TIMEZONES
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

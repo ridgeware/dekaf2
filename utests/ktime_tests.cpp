@@ -7,12 +7,23 @@
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <array>
+#include <utility>
+#include <type_traits>
 
 #ifdef DEKAF2_IS_MACOS
 #include <availability.h>
 #endif
 
 using namespace dekaf2;
+
+namespace {
+// compile-time detection of whether `T + D` / `T - D` is well-formed (a deleted overload that
+// would be selected makes the expression ill-formed in the immediate context, i.e. yields false)
+template<class T, class D, class = void> struct can_add : std::false_type {};
+template<class T, class D> struct can_add<T, D, std::void_t<decltype(std::declval<T>() + std::declval<D>())>> : std::true_type {};
+template<class T, class D, class = void> struct can_sub : std::false_type {};
+template<class T, class D> struct can_sub<T, D, std::void_t<decltype(std::declval<T>() - std::declval<D>())>> : std::true_type {};
+} // end of anonymous namespace
 
 TEST_CASE("KTime") {
 
@@ -798,6 +809,71 @@ TEST_CASE("KTime") {
 		CHECK ( Tp2.time_since_epoch() == chrono::milliseconds(2445823524000) );
 		Tp2 -= 50;
 		CHECK ( Tp2.time_since_epoch() == chrono::milliseconds(2445823474000) );
+	}
+
+	SECTION("chrono duration arithmetic preserves the type")
+	{
+		// std::chrono::duration types must behave like KDuration for operator +/- and must
+		// NOT decay KUnixTime / KSteadyTime / KUTCTime to their std::chrono base types
+
+		KUnixTime U(2445823474);
+
+		// KUnixTime +/- std::chrono::duration must stay a KUnixTime (and not a std::chrono::time_point)
+		static_assert(std::is_same<decltype(U + chrono::seconds(1)        ), KUnixTime>::value, "KUnixTime + seconds must stay KUnixTime");
+		static_assert(std::is_same<decltype(chrono::seconds(1) + U        ), KUnixTime>::value, "seconds + KUnixTime must stay KUnixTime");
+		static_assert(std::is_same<decltype(U - chrono::milliseconds(1)   ), KUnixTime>::value, "KUnixTime - milliseconds must stay KUnixTime");
+		static_assert(std::is_same<decltype(U + chrono::hours(1)          ), KUnixTime>::value, "KUnixTime + hours must stay KUnixTime");
+		static_assert(std::is_same<decltype(U + KDuration(chrono::seconds(1))), KUnixTime>::value, "KUnixTime + KDuration must stay KUnixTime");
+
+		CHECK ( (U + chrono::seconds(60)).time_since_epoch() == chrono::milliseconds(2445823534000) );
+		CHECK ( (chrono::seconds(60) + U).time_since_epoch() == chrono::milliseconds(2445823534000) );
+		CHECK ( (U - chrono::minutes(1) ).time_since_epoch() == chrono::milliseconds(2445823414000) );
+
+		// KSteadyTime +/- std::chrono::duration must stay a KSteadyTime
+		KSteadyTime S = KSteadyTime::now();
+		static_assert(std::is_same<decltype(S + chrono::seconds(1)), KSteadyTime>::value, "KSteadyTime + seconds must stay KSteadyTime");
+		static_assert(std::is_same<decltype(chrono::seconds(1) + S), KSteadyTime>::value, "seconds + KSteadyTime must stay KSteadyTime");
+		static_assert(std::is_same<decltype(S - chrono::seconds(1)), KSteadyTime>::value, "KSteadyTime - seconds must stay KSteadyTime");
+		CHECK ( (S + chrono::seconds(10)) - S == chrono::seconds(10) );
+
+		// KUTCTime now supports binary +/- with durations, always returning a KUTCTime
+		// (previously + chrono::seconds was ill-formed, and + chrono::days silently returned a
+		// date-only KDate, dropping the time of day)
+		static_assert(std::is_same<decltype(KUTCTime() + chrono::seconds(1)), KUTCTime>::value, "KUTCTime + seconds must be KUTCTime");
+		static_assert(std::is_same<decltype(KUTCTime() + chrono::days(1)   ), KUTCTime>::value, "KUTCTime + days must be KUTCTime (not KDate)");
+		static_assert(std::is_same<decltype(chrono::days(1) + KUTCTime()   ), KUTCTime>::value, "days + KUTCTime must be KUTCTime");
+		static_assert(std::is_same<decltype(KUTCTime() - chrono::hours(1)  ), KUTCTime>::value, "KUTCTime - hours must be KUTCTime");
+
+		KUTCTime T(KDate(chrono::year(2024)/3/10), KTimeOfDay(chrono::hours(12), chrono::minutes(30), chrono::seconds(45)));
+
+		// adding days uses calendar semantics and keeps the time of day
+		KUTCTime Td = T + chrono::days(3);
+		CHECK ( Td.years().count()    == 2024 );
+		CHECK ( unsigned(Td.month())  == 3    );
+		CHECK ( Td.days().count()     == 13   );
+		CHECK ( Td.hours().count()    == 12   ); // time of day preserved
+		CHECK ( Td.minutes().count()  == 30   );
+		CHECK ( Td.seconds().count()  == 45   );
+
+		// adding sub-day durations works on the time of day and keeps the date
+		KUTCTime Th = T + chrono::hours(2);
+		CHECK ( Th.days().count()     == 10   ); // date preserved
+		CHECK ( Th.hours().count()    == 14   );
+		KUTCTime Ts = T - chrono::seconds(45);
+		CHECK ( Ts.minutes().count()  == 30   );
+		CHECK ( Ts.seconds().count()  == 0    );
+
+		// chrono::months / chrono::years are forbidden on the time points (they would silently use
+		// average durations instead of calendar math) - deleted, so they must not even compile
+		static_assert(!can_add<KUnixTime,      chrono::months>::value, "KUnixTime + months must be forbidden");
+		static_assert(!can_add<KUnixTime,      chrono::years >::value, "KUnixTime + years must be forbidden");
+		static_assert(!can_add<chrono::months, KUnixTime     >::value, "months + KUnixTime must be forbidden");
+		static_assert(!can_sub<KUnixTime,      chrono::months>::value, "KUnixTime - months must be forbidden");
+		static_assert(!can_add<KSteadyTime,    chrono::months>::value, "KSteadyTime + months must be forbidden");
+		static_assert(!can_add<KSteadyTime,    chrono::years >::value, "KSteadyTime + years must be forbidden");
+		// but on a broken-down KUTCTime calendar month/year arithmetic stays allowed
+		static_assert( can_add<KUTCTime,       chrono::months>::value, "KUTCTime + months must stay allowed (calendar)");
+		static_assert( can_add<KUTCTime,       chrono::years >::value, "KUTCTime + years must stay allowed (calendar)");
 	}
 
 	SECTION("diff")

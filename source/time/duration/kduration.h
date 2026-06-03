@@ -45,6 +45,7 @@
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/time/clock/kdate.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/types/ktemplate.h> // for detail::is_duration
 #include <vector>
 #include <type_traits>
 #include <ctime>      // struct timespec, time_t
@@ -311,31 +312,50 @@ private:
 
 	// we do not permit addition or subtraction of years and months
 	// - they will always lead to unexpected results
-	constexpr void operator+=(chrono::months) noexcept {}
-	constexpr void operator+=(chrono::years ) noexcept {}
-	constexpr void operator-=(chrono::months) noexcept {}
-	constexpr void operator-=(chrono::years ) noexcept {}
+	void operator+=(chrono::months) = delete;
+	void operator+=(chrono::years ) = delete;
+	void operator-=(chrono::months) = delete;
+	void operator-=(chrono::years ) = delete;
 
 }; // KSteadyTime
 
 DEKAF2_CONSTEXPR_14 KDuration operator-(const KSteadyTime& left, const KSteadyTime& right)
 { return KSteadyTime::base(left) - KSteadyTime::base(right); }
 
-template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+// The duration operators accept any std::chrono::duration as well as KDuration (which derives
+// from chrono::nanoseconds), and always return a KSteadyTime (and not the std::chrono base time
+// point). Like the compound assignment operators they deliberately reject chrono::months and
+// chrono::years, as those would lead to unexpected results.
+// We also deliberately do not offer operator-(duration, KSteadyTime), as subtracting a time point
+// from a duration is mathematically undefined (std::chrono does not offer it either).
+template<typename T, typename std::enable_if<detail::is_duration<T>::value
+         && !std::is_same<T, chrono::months>::value
+         && !std::is_same<T, chrono::years >::value, int>::type = 0>
 DEKAF2_CONSTEXPR_14 KSteadyTime operator+(const KSteadyTime& left, const T& right)
-{ return KSteadyTime(left.time_since_epoch() + right.template duration<KSteadyTime::duration>()); }
+{ return KSteadyTime(left.time_since_epoch() + chrono::duration_cast<KSteadyTime::duration>(right)); }
 
-template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+template<typename T, typename std::enable_if<detail::is_duration<T>::value
+         && !std::is_same<T, chrono::months>::value
+         && !std::is_same<T, chrono::years >::value, int>::type = 0>
 DEKAF2_CONSTEXPR_14 KSteadyTime operator+(const T& left, const KSteadyTime& right)
 { return right + left; }
 
-template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
+template<typename T, typename std::enable_if<detail::is_duration<T>::value
+         && !std::is_same<T, chrono::months>::value
+         && !std::is_same<T, chrono::years >::value, int>::type = 0>
 DEKAF2_CONSTEXPR_14 KSteadyTime operator-(const KSteadyTime& left, const T& right)
-{ return KSteadyTime(left.time_since_epoch() - right.template duration<KSteadyTime::duration>()); }
+{ return KSteadyTime(left.time_since_epoch() - chrono::duration_cast<KSteadyTime::duration>(right)); }
 
-template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
-DEKAF2_CONSTEXPR_14 KSteadyTime operator-(const T& left, const KSteadyTime& right)
-{ return right - left; }
+// adding or subtracting chrono::months or chrono::years to a time point would silently use their
+// average duration (and never calendar semantics), which leads to unexpected results. We forbid it
+// (just like the compound assignment operators do) by deleting these overloads - otherwise the
+// inherited std::chrono operators would quietly accept them and return a plain std::chrono time point.
+template<typename T, typename std::enable_if<std::is_same<T, chrono::months>::value || std::is_same<T, chrono::years>::value, int>::type = 0>
+KSteadyTime operator+(const KSteadyTime& left, const T& right) = delete;
+template<typename T, typename std::enable_if<std::is_same<T, chrono::months>::value || std::is_same<T, chrono::years>::value, int>::type = 0>
+KSteadyTime operator+(const T& left, const KSteadyTime& right) = delete;
+template<typename T, typename std::enable_if<std::is_same<T, chrono::months>::value || std::is_same<T, chrono::years>::value, int>::type = 0>
+KSteadyTime operator-(const KSteadyTime& left, const T& right) = delete;
 
 /// returns the KDuration until a certain point in time, from now on
 DEKAF2_NODISCARD DEKAF2_PUBLIC
@@ -458,7 +478,7 @@ public:
 	/// resets elapsed time, stops counter - call resume() to continue
 	void clear()
 	{
-		ClearDurationAndHalt(Duration::zero());
+		ClearDurationAndHalt();
 	}
 
 //----------
@@ -490,7 +510,7 @@ private:
 		return GetHalted() == true;
 	}
 
-	void ClearDurationAndHalt (Duration d)
+	void ClearDurationAndHalt ()
 	{
 		m_iDurationSoFar = Duration::zero();
 		SetHalted();

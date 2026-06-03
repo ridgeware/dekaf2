@@ -448,6 +448,83 @@ bool KRSAKey::Save(KStringViewZ sFilename, bool bPrivateKey, KStringView sPasswo
 } // Save
 
 //---------------------------------------------------------------------------
+KJSON KRSAKey::GetPublicJWK(KStringView sKid, KStringView sAlg) const
+//---------------------------------------------------------------------------
+{
+	if (!m_EVPPKey)
+	{
+		return KJSON{};
+	}
+
+	// big-endian BIGNUM bytes -> base64url (the inverse of Base64ToBignum)
+	auto BignumToBase64 = [](const BIGNUM* bn) -> KString
+	{
+		if (!bn)
+		{
+			return {};
+		}
+		KString sBin;
+		sBin.resize(static_cast<std::size_t>(BN_num_bytes(bn))); // BN_num_bytes is a macro, do not qualify
+		auto iLen = ::BN_bn2bin(bn, reinterpret_cast<unsigned char*>(&sBin[0]));
+		sBin.resize(iLen < 0 ? 0 : static_cast<std::size_t>(iLen));
+		return KBase64Url::Encode(sBin);
+	};
+
+	KString sN, sE;
+
+#if OPENSSL_VERSION_NUMBER >= 0x030000000
+
+	BIGNUM* pN = nullptr;
+	BIGNUM* pE = nullptr;
+
+	if (::EVP_PKEY_get_bn_param(m_EVPPKey, "n", &pN) != 1 ||
+	    ::EVP_PKEY_get_bn_param(m_EVPPKey, "e", &pE) != 1)
+	{
+		if (pN) ::BN_free(pN);
+		if (pE) ::BN_free(pE);
+		kDebug(1, KDigest::GetOpenSSLError("cannot read RSA public parameters"));
+		return KJSON{};
+	}
+
+	KUniquePtr<BIGNUM, ::BN_free> bnN(pN);
+	KUniquePtr<BIGNUM, ::BN_free> bnE(pE);
+	sN = BignumToBase64(bnN.get());
+	sE = BignumToBase64(bnE.get());
+
+#else
+
+	const RSA* rsa = ::EVP_PKEY_get0_RSA(m_EVPPKey);
+
+	if (!rsa)
+	{
+		return KJSON{};
+	}
+
+	const BIGNUM* pN = nullptr;
+	const BIGNUM* pE = nullptr;
+	::RSA_get0_key(rsa, &pN, &pE, nullptr); // const pointers owned by the RSA
+	sN = BignumToBase64(pN);
+	sE = BignumToBase64(pE);
+
+#endif
+
+	if (sN.empty() || sE.empty())
+	{
+		return KJSON{};
+	}
+
+	return KJSON {
+		{ "kty", "RSA"          },
+		{ "n",   std::move(sN)  },
+		{ "e",   std::move(sE)  },
+		{ "kid", KString(sKid)  },
+		{ "alg", KString(sAlg)  },
+		{ "use", "sig"          }
+	};
+
+} // GetPublicJWK
+
+//---------------------------------------------------------------------------
 KRSAKey::Parameters::Parameters(const KJSON& json)
 //---------------------------------------------------------------------------
 	:  n(kjson::GetStringRef(json, "n" ))

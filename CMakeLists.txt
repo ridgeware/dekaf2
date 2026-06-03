@@ -1385,6 +1385,7 @@ set(PUBLIC_HEADERS
 	source/crypto/auth/kbcrypt.h
 	source/crypto/auth/kopenid.h
 	source/crypto/auth/kopenidclient.h
+	source/crypto/auth/kopenidserver.h
 	source/crypto/auth/ksession.h
 	source/crypto/auth/bits/ksessionmemorystore.h
 	source/crypto/auth/bits/ksessioncachingstore.h
@@ -1656,6 +1657,7 @@ set (SOURCES
 	source/crypto/auth/kbcrypt.cpp
 	source/crypto/auth/kopenid.cpp
 	source/crypto/auth/kopenidclient.cpp
+	source/crypto/auth/kopenidserver.cpp
 	source/crypto/auth/ksession.cpp
 	source/crypto/auth/bits/ksessionmemorystore.cpp
 	source/crypto/auth/bits/ksessioncachingstore.cpp

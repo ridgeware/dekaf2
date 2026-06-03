@@ -151,6 +151,16 @@ public:
 	bool Load(KStringViewZ sFilename, KStringViewZ sPassword = KStringViewZ{});
 	/// save key to file (PEM format)
 	bool Save(KStringViewZ sFilename, bool bPrivateKey, KStringView sPassword = KStringView{});
+	/// Export the public key as a JWK (JSON Web Key) suitable for a JWKS
+	/// document: { "kty":"RSA", "n":..., "e":..., "kid":..., "alg":..., "use":"sig" }.
+	/// Modulus and exponent are base64url-encoded big-endian (JWK spec, the
+	/// inverse of Create(Parameters)/Create(json)). The result feeds an OpenID
+	/// provider's jwks_uri and is consumable by KOpenIDKeys / KJWT.
+	/// @param sKid the key id to advertise (the JWT header "kid")
+	/// @param sAlg the JWS algorithm, defaults to "RS256"
+	/// @return the JWK object, or an empty KJSON if no key is set
+	DEKAF2_NODISCARD
+	KJSON GetPublicJWK(KStringView sKid, KStringView sAlg = "RS256") const;
 
 //------
 private:

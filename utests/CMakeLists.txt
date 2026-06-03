@@ -166,6 +166,7 @@ set (USOURCES
 	ked25519sign_tests.cpp
 	kopenid_tests.cpp
 	kopenidclient_tests.cpp
+	kopenidserver_tests.cpp
 	khkdf_tests.cpp
 	kwebdav_tests.cpp
 	kwebpush_tests.cpp

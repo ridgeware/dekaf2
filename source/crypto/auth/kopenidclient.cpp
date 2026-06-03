@@ -239,6 +239,23 @@ KJSON KOpenIDClient::TokenRequest(KJSON jParams)
 } // TokenRequest
 
 //-----------------------------------------------------------------------------
+KUnixTime KOpenIDClient::AccessTokenExpiry(const KJSON& jTokenResponse) const
+//-----------------------------------------------------------------------------
+{
+	int64_t iExpiresIn = kjson::GetInt(jTokenResponse, "expires_in");
+
+	// "expires_in" is OPTIONAL (RFC 6749 §5.1). When the provider omits it (or
+	// sends a non-positive value), fall back to a configured default instead of
+	// letting the expiry collapse to "now" - which would force a silent refresh,
+	// or a re-login when no refresh_token is held, on every subsequent request.
+	KDuration TTL = (iExpiresIn > 0) ? KDuration(chrono::seconds(iExpiresIn))
+	                                 : m_Config.DefaultAccessTTL;
+
+	return KUnixTime::now() + TTL;
+
+} // AccessTokenExpiry
+
+//-----------------------------------------------------------------------------
 KString KOpenIDClient::ValidateIDToken(KStringView sIDToken, KStringView sExpectedNonce)
 //-----------------------------------------------------------------------------
 {
@@ -511,7 +528,7 @@ void KOpenIDClient::HandleCallback(KRESTServer& HTTP)
 	KString   sAccessToken  = kjson::GetStringRef(jTokens, "access_token");
 	KString   sRefreshToken = kjson::GetStringRef(jTokens, "refresh_token");
 	KString   sIDToken      = kjson::GetStringRef(jTokens, "id_token");
-	KUnixTime tExpiresAt    = KUnixTime::now() + KDuration(chrono::seconds(kjson::GetInt(jTokens, "expires_in")));
+	KUnixTime tExpiresAt    = AccessTokenExpiry(jTokens);
 
 	if (sAccessToken.empty())
 	{
@@ -605,7 +622,7 @@ KString KOpenIDClient::Authorize(KRESTServer& HTTP)
 
 		sAccessToken            = sNewAccess;
 		jTokens["access_token"] = sNewAccess;
-		jTokens["expires_at"]   = (KUnixTime::now() + KDuration(chrono::seconds(kjson::GetInt(jNew, "expires_in")))).to_time_t();
+		jTokens["expires_at"]   = AccessTokenExpiry(jNew).to_time_t();
 
 		// providers may rotate the refresh token and/or re-issue the id_token
 		KString sNewRefresh = kjson::GetStringRef(jNew, "refresh_token");

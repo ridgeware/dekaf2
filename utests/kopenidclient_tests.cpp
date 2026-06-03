@@ -111,6 +111,7 @@ struct MockIdP
 	KECKey  Key { true };   ///< freshly generated P-256 signing key
 	KString sBase;          ///< http://localhost:<port>
 	KString sNonce;         ///< nonce to embed into the next issued id_token
+	bool    bOmitExpiresIn { false }; ///< drop "expires_in" from the token response
 };
 
 //-----------------------------------------------------------------------------
@@ -310,9 +311,9 @@ TEST_CASE("KOpenIDClient")
 			{ "access_token",  bRefresh ? "access-2"  : "access-1"  },
 			{ "refresh_token", bRefresh ? "refresh-2" : "refresh-1" },
 			{ "id_token",      MakeES256JWT(Mock.Key, Mock.sBase, "alice", Mock.sNonce, 3600) },
-			{ "token_type",    "Bearer" },
-			{ "expires_in",    3600 }
+			{ "token_type",    "Bearer" }
 		};
+		if (!Mock.bOmitExpiresIn) http.json.tx["expires_in"] = 3600;
 	}, KRESTRoute::WWWFORM });
 
 	KREST::Options MockOpt;
@@ -417,6 +418,31 @@ TEST_CASE("KOpenIDClient")
 		// first protected request triggers a refresh_token exchange -> access-2
 		KString sProtected = Drive(AppRoutes2, "GET", "/protected", Cookies.Header());
 		CHECK ( sProtected.contains("alice|access-2") );
+	}
+
+	SECTION("missing expires_in defaults to Config::DefaultAccessTTL (no spurious refresh)")
+	{
+		// A provider that omits the OPTIONAL "expires_in" must not make the
+		// session look expired-on-arrival. With the default leeway (5 min) and
+		// DefaultAccessTTL (1 h) the token is comfortably valid, so the protected
+		// request serves the original access-1 without a refresh_token exchange.
+		// (Before the fix the expiry collapsed to "now" and this returned access-2.)
+		Mock.bOmitExpiresIn = true;
+
+		CookieJar Cookies;
+
+		KString sLogin = Drive(AppRoutes, "GET", "/auth/login", Cookies.Header());
+		Cookies.Apply(sLogin);
+		Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+		KString sState = URLParam(ResponseBody(sLogin), "state");
+
+		KString sCallback = Drive(AppRoutes, "GET",
+			kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+		Cookies.Apply(sCallback);
+		REQUIRE ( Cookies.Has("session") );
+
+		KString sProtected = Drive(AppRoutes, "GET", "/protected", Cookies.Header());
+		CHECK ( sProtected.contains("alice|access-1") );
 	}
 
 	SECTION("callback is rejected on id_token nonce mismatch")

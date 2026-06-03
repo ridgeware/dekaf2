@@ -121,6 +121,11 @@ public:
 		KDuration AbsoluteTimeout    { chrono::hours(8)    };
 		KDuration DiscoveryRefresh   { chrono::hours(24)   }; ///< how long discovery + JWKS are cached
 		KDuration ExpiryLeeway       { chrono::minutes(5)  }; ///< treat the access token as expired this long before its real expiry
+		/// Assumed access-token lifetime when the token response omits "expires_in"
+		/// (RFC 6749 marks it OPTIONAL). Without a fallback a missing value would
+		/// collapse the expiry to "now", forcing a silent refresh — or, with no
+		/// refresh_token, a re-login — on every subsequent request.
+		KDuration DefaultAccessTTL   { chrono::hours(1)    };
 		/// Verify the id_token signature against the provider's JWKS (via KJWT).
 		/// On by default. In the authorization-code back-channel the id_token is
 		/// received directly from the token endpoint over TLS, so signature
@@ -217,6 +222,10 @@ private:
 	DEKAF2_PRIVATE KString    GenerateRandom     (std::size_t iBytes = 16);
 	DEKAF2_PRIVATE bool       EnsureDiscovery    ();
 	DEKAF2_PRIVATE KJSON      TokenRequest       (KJSON jParams);
+	/// absolute access-token expiry from a token response's "expires_in"
+	/// (seconds); falls back to Config::DefaultAccessTTL when it is absent or
+	/// non-positive, so a missing expires_in does not collapse to "expires now".
+	DEKAF2_PRIVATE KUnixTime  AccessTokenExpiry  (const KJSON& jTokenResponse) const;
 	/// Validate an id_token's signature (via KJWT against the provider's JWKS)
 	/// and its nonce, then return the resolved username (empty on failure).
 	DEKAF2_PRIVATE KString    ValidateIDToken    (KStringView sIDToken, KStringView sExpectedNonce);

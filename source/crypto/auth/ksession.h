@@ -273,6 +273,37 @@ public:
 	               KStringView sUserAgent = {},
 	               KStringView sExtra     = {});
 
+	/// Create a session WITHOUT consulting the authenticator. For federated
+	/// logins (OpenID Connect, SAML, ...) where the credential check already
+	/// happened out-of-band and the caller vouches for the identity. Unlike
+	/// Login(), this never performs authentication — it fails only on an empty
+	/// username or a storage error. Safe to use on a KSession whose
+	/// authenticator validates local passwords: the two paths (password Login
+	/// and trusted federated login) coexist on one shared session store.
+	///
+	/// @warning This bypasses authentication entirely — it mints a valid
+	/// session for whatever sUsername you pass. The CALLER is solely responsible
+	/// for having verified that identity out-of-band (e.g. a validated OIDC
+	/// id_token); never pass an unauthenticated or attacker-influenced username.
+	/// @warning The username is the authorization principal, and a trusted
+	/// session is indistinguishable from a password Login for the same username
+	/// (same cookie, identical Record apart from the Extra payload). On a store
+	/// shared between local and federated logins, a federated identity and a
+	/// local account that happen to share a username are therefore
+	/// interchangeable. Reconcile the username namespaces (e.g. map the IdP's
+	/// subject 1:1 onto local accounts, or namespace federated identities) so
+	/// that neither can impersonate the other.
+	/// @param sUsername  the federated identity to create a session for
+	/// @param sClientIP  optional: client IP at login time, stored for audit
+	/// @param sUserAgent optional: user-agent at login time, stored for audit
+	/// @param sExtra     optional: application-specific opaque payload (JSON recommended)
+	/// @returns the new session token on success, empty string on error
+	DEKAF2_NODISCARD
+	KString CreateTrustedSession (KStringView sUsername,
+	                              KStringView sClientIP  = {},
+	                              KStringView sUserAgent = {},
+	                              KStringView sExtra     = {});
+
 	/// Validate an existing session token. On success, refreshes
 	/// LastSeen (both in the Store and in *pOut if given).
 	/// @param sToken the token received from the client's cookie
@@ -335,6 +366,13 @@ private:
 	/// Generate a cryptographically random, base64url-encoded token of
 	/// length corresponding to m_Config.iTokenBytes raw random bytes.
 	KString GenerateToken() const;
+
+	/// Build a fresh Record (token + timestamps + payload) and persist it via
+	/// the Store. Shared by Login() (after authentication passes) and
+	/// CreateTrustedSession() (no authentication). Assumes sUsername non-empty.
+	/// @returns the new token on success, empty on storage error
+	KString MakeSession(KStringView sUsername,  KStringView sClientIP,
+	                    KStringView sUserAgent, KStringView sExtra);
 
 	/// Compose the attribute tail ("; HttpOnly; Secure; ...") from the Config.
 	KString SerializeAttributes(KDuration MaxAge = KDuration::zero()) const;

@@ -123,6 +123,7 @@ set (USOURCES
 	krsasign_tests.cpp
 	ksharedmemory_tests.cpp
 	ksession_tests.cpp
+	ksessioncachingstore_tests.cpp
 	ksharedptr_tests.cpp
 	ksharedref_tests.cpp
 	ksnippets_tests.cpp

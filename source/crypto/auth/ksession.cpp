@@ -143,6 +143,35 @@ KString KSession::Login(KStringView sUsername,
 		return {};
 	}
 
+	return MakeSession(sUsername, sClientIP, sUserAgent, sExtra);
+
+} // Login
+
+//-----------------------------------------------------------------------------
+KString KSession::CreateTrustedSession(KStringView sUsername,
+                                       KStringView sClientIP,
+                                       KStringView sUserAgent,
+                                       KStringView sExtra)
+//-----------------------------------------------------------------------------
+{
+	if (sUsername.empty())
+	{
+		kDebug(2, "empty username rejected");
+		return {};
+	}
+
+	// no authenticator call — the identity was already vouched for out-of-band
+	// (e.g. a validated OIDC id_token). This is what lets an OIDC client share
+	// a KSession whose authenticator otherwise checks local passwords.
+	return MakeSession(sUsername, sClientIP, sUserAgent, sExtra);
+
+} // CreateTrustedSession
+
+//-----------------------------------------------------------------------------
+KString KSession::MakeSession(KStringView sUsername, KStringView sClientIP,
+                              KStringView sUserAgent, KStringView sExtra)
+//-----------------------------------------------------------------------------
+{
 	Record Rec;
 	Rec.sToken     = GenerateToken();
 	Rec.sUsername  = sUsername;
@@ -154,14 +183,14 @@ KString KSession::Login(KStringView sUsername,
 
 	if (!m_Store->Create(Rec))
 	{
-		SetError(kFormat("KSession::Login: Store::Create failed: {}", m_Store->GetLastError()));
+		SetError(kFormat("KSession: Store::Create failed: {}", m_Store->GetLastError()));
 		return {};
 	}
 
 	kDebug(2, "new session for user '{}' from {}", sUsername, sClientIP);
 	return std::move(Rec.sToken);
 
-} // Login
+} // MakeSession
 
 //-----------------------------------------------------------------------------
 bool KSession::Validate(KStringView sToken, Record* pOut)

@@ -135,8 +135,33 @@ public:
 	/// Construct with a configuration and a filesystem path for the session
 	/// store. The path is handed to KSession's SQLite-backed store, so it must
 	/// be a writable file location (the tokens of every logged-in user are kept
-	/// there server-side).
+	/// there server-side). This is the standalone form: the client owns a
+	/// private KSession dedicated to OIDC logins.
 	KOpenIDClient(Config config, KStringViewZ sSessionDBPath);
+
+	/// Construct sharing an externally-owned KSession. Use this when the
+	/// application maintains a single session store for *both* local
+	/// password logins and OIDC logins — e.g. a login page that offers both a
+	/// username/password form and a "Sign in with SSO" button, backed by one
+	/// cookie and one session table.
+	///
+	/// The application owns the KSession and configures it (cookie attributes,
+	/// store backend, timeouts, and its own password authenticator). This
+	/// client adopts the session's cookie name so the cookie it sets on an
+	/// OIDC login matches what the shared session validates, and it creates
+	/// OIDC sessions via KSession::CreateTrustedSession() — which bypasses the
+	/// authenticator, so the app's local-password authenticator is never
+	/// consulted for (and never rejects) a federated login.
+	///
+	/// @warning In this shared model the username is the shared authorization
+	/// principal: an OIDC session and a local-password session for the same
+	/// username are interchangeable (see KSession::CreateTrustedSession).
+	/// Ensure the IdP's usernames and your local accounts share one reconciled
+	/// namespace so that neither identity source can impersonate the other.
+	/// @param config   the OIDC configuration; sSessionCookieName is overridden
+	///                 by the shared session's cookie name for consistency
+	/// @param pSession the shared session store (must be non-null)
+	KOpenIDClient(Config config, std::shared_ptr<KSession> pSession);
 
 	/// Build the OIDC authorization URL and set the PKCE/state cookie. Returns
 	/// the URL the browser should be redirected to as a KURL (call Serialize()
@@ -208,7 +233,7 @@ private:
 	DEKAF2_PRIVATE KString    StateCookieName    () const;
 
 	Config                    m_Config;
-	std::unique_ptr<KSession> m_pSession;
+	std::shared_ptr<KSession> m_pSession;              ///< owned (standalone ctor) or shared (shared ctor)
 	KOpenIDProviderList       m_Providers;             ///< for id_token validation via KJWT (lazily filled, once)
 	std::once_flag            m_ProvidersOnce;         ///< guards the one-time build of m_Providers
 	std::mutex                m_RefreshMutex;          ///< serialises KOpenIDProvider::Refresh() to a single writer

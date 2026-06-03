@@ -90,6 +90,37 @@ TEST_CASE("KSession")
 		CHECK_FALSE ( Session.Logout(sToken) );
 	}
 
+	SECTION("CreateTrustedSession bypasses the authenticator")
+	{
+		KSession Session(std::make_unique<KSessionMemoryStore>(), TestConfig());
+		// an authenticator that rejects EVERYTHING — proves the trusted path
+		// does not consult it (the way an OIDC login coexists with a real
+		// local-password authenticator on a shared session)
+		Session.SetAuthenticator([](KStringView, KStringView) { return false; });
+
+		// password login is refused by the authenticator
+		CHECK ( Session.Login("alice", "wonder").empty() );
+		CHECK ( Session.Count() == 0 );
+
+		// trusted (federated) session is created regardless
+		auto sToken = Session.CreateTrustedSession("alice", "1.2.3.4", "ua",
+		                                           R"({"role":3})");
+		CHECK_FALSE ( sToken.empty() );
+		CHECK ( Session.Count() == 1 );
+
+		KSession::Record Rec;
+		CHECK ( Session.Validate(sToken, &Rec) );
+		CHECK ( Rec.sUsername == "alice"        );
+		CHECK ( Rec.sExtra    == R"({"role":3})" );
+
+		// empty username is still rejected
+		CHECK ( Session.CreateTrustedSession("").empty() );
+
+		// the trusted session logs out like any other
+		CHECK ( Session.Logout(sToken) );
+		CHECK ( Session.Count() == 0 );
+	}
+
 	SECTION("Validate refreshes LastSeen")
 	{
 		KSession Session(std::make_unique<KSessionMemoryStore>(), TestConfig());

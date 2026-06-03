@@ -72,14 +72,32 @@ KOpenIDClient::KOpenIDClient(Config config, KStringViewZ sSessionDBPath)
 	sc.IdleTimeout     = m_Config.IdleTimeout;
 	sc.AbsoluteTimeout = m_Config.AbsoluteTimeout;
 
-	m_pSession = std::make_unique<KSession>(sSessionDBPath, sc);
+	m_pSession = std::make_shared<KSession>(sSessionDBPath, sc);
 
-	// Authentication is performed by the OIDC code exchange, not by a password,
-	// so the KSession authenticator is a no-op: sessions are only ever created
-	// by CreateSession() after a successfully validated id_token.
-	m_pSession->SetAuthenticator([](KStringView, KStringView) { return true; });
+	// No authenticator is set: OIDC sessions are created by CreateSession()
+	// via KSession::CreateTrustedSession(), which does not consult one (the
+	// identity is vouched for by the validated id_token, not a password).
 
-} // KOpenIDClient
+} // KOpenIDClient (standalone)
+
+//-----------------------------------------------------------------------------
+KOpenIDClient::KOpenIDClient(Config config, std::shared_ptr<KSession> pSession)
+: m_Config(std::move(config))
+, m_pSession(std::move(pSession))
+//-----------------------------------------------------------------------------
+{
+	// The application owns and configures the shared KSession, including its
+	// own (local-password) authenticator. We must NOT touch that authenticator
+	// — OIDC sessions are created via KSession::CreateTrustedSession(), which
+	// bypasses it. We only adopt the session's cookie name so the cookie this
+	// client sets on an OIDC login is the same one the shared session reads
+	// back on validation.
+	if (m_pSession)
+	{
+		m_Config.sSessionCookieName = m_pSession->GetCookieName();
+	}
+
+} // KOpenIDClient (shared session)
 
 //-----------------------------------------------------------------------------
 KString KOpenIDClient::StateCookieName() const
@@ -315,7 +333,11 @@ KString KOpenIDClient::CreateSession(KStringView sUsername, KStringView sClientI
                                      KStringView sUserAgent, const KJSON& jTokens)
 //-----------------------------------------------------------------------------
 {
-	return m_pSession->Login(sUsername, "", sClientIP, sUserAgent, jTokens.dump());
+	// trusted: the id_token was already validated (signature + nonce) before we
+	// got here, so we bypass the KSession authenticator. This works identically
+	// whether the session is private (standalone ctor) or shared with an
+	// application that uses a real password authenticator.
+	return m_pSession->CreateTrustedSession(sUsername, sClientIP, sUserAgent, jTokens.dump());
 
 } // CreateSession
 

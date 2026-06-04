@@ -614,7 +614,7 @@ void RenderAdminHome(KRESTServer& HTTP, KStringView sUser)
 //-----------------------------------------------------------------------------
 /// admin: the optional outgoing-mail (SMTP) configuration. With no relay set,
 /// every email feature stays off. sTestMsg reports the result of a test send.
-void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KssodSettingsStore::Smtp& Smtp,
+void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsStore::Smtp& Smtp,
                     KStringView sMsg, bool bError, uint16_t iStatus)
 //-----------------------------------------------------------------------------
 {
@@ -661,7 +661,7 @@ void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KssodSettingsSto
 }
 
 //-----------------------------------------------------------------------------
-void RenderUsers(KRESTServer& HTTP, KStringView sUser, KssodUserStore& Users,
+void RenderUsers(KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
                  KStringView sMsg, bool bError, uint16_t iStatus,
                  const KJSON& Prefill)
 //-----------------------------------------------------------------------------
@@ -727,7 +727,7 @@ void RenderUsers(KRESTServer& HTTP, KStringView sUser, KssodUserStore& Users,
 
 //-----------------------------------------------------------------------------
 /// blunt confirmation before deleting a user (and their assignments)
-void RenderUserDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser, KssodUserStore& Users)
+void RenderUserDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser, KSSOdUserStore& Users)
 //-----------------------------------------------------------------------------
 {
 	std::size_t nAssign = 0;
@@ -759,7 +759,7 @@ void RenderUserDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringView 
 }
 
 //-----------------------------------------------------------------------------
-void RenderClients(KRESTServer& HTTP, KStringView sUser, KssodClientStore& Clients,
+void RenderClients(KRESTServer& HTTP, KStringView sUser, KSSOdClientStore& Clients,
                    KStringView sMsg, bool bError, uint16_t iStatus,
                    const KJSON& Prefill)
 //-----------------------------------------------------------------------------
@@ -927,7 +927,7 @@ void RenderClientEdit(KRESTServer& HTTP, KStringView sUser, KStringView sClientI
 
 //-----------------------------------------------------------------------------
 /// blunt confirmation before deleting an app (and everything tied to it)
-void RenderClientDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringView sClientID, KssodUserStore& Users)
+void RenderClientDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringView sClientID, KSSOdUserStore& Users)
 //-----------------------------------------------------------------------------
 {
 	std::size_t nRoles  = Users.ListRoles(sClientID).size();
@@ -960,7 +960,7 @@ void RenderClientDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringVie
 
 //-----------------------------------------------------------------------------
 void RenderClientAccess(KRESTServer& HTTP, KStringView sUser, KStringView sClientID,
-                        KssodUserStore& Users, KStringView sMsg, bool bError, uint16_t iStatus,
+                        KSSOdUserStore& Users, KStringView sMsg, bool bError, uint16_t iStatus,
                         const KJSON& Prefill)
 //-----------------------------------------------------------------------------
 {
@@ -1062,7 +1062,7 @@ void RenderClientAccess(KRESTServer& HTTP, KStringView sUser, KStringView sClien
 /// roles that user holds at that client. The user name links to the per-user
 /// editor below.
 void RenderAccessOverview(KRESTServer& HTTP, KStringView sAdmin,
-                          KssodUserStore& Users, KssodClientStore& Clients)
+                          KSSOdUserStore& Users, KSSOdClientStore& Clients)
 //-----------------------------------------------------------------------------
 {
 	html::Page Page("Access overview", "en");
@@ -1075,7 +1075,7 @@ void RenderAccessOverview(KRESTServer& HTTP, KStringView sAdmin,
 	auto ClientList = Clients.List();
 
 	// user -> client -> assignment (roles + access flag)
-	std::map<KString, std::map<KString, KssodUserStore::GlobalAssignment>> Grid;
+	std::map<KString, std::map<KString, KSSOdUserStore::GlobalAssignment>> Grid;
 	for (const auto& A : Users.ListAllAssignments()) Grid[A.sUsername][A.sClientID] = A;
 
 	auto Table = CB.Add<html::Table>();
@@ -1092,7 +1092,7 @@ void RenderAccessOverview(KRESTServer& HTTP, KStringView sAdmin,
 		for (const auto& Info : ClientList)
 		{
 			auto Cell = Row.Add<html::TableData>();
-			const KssodUserStore::GlobalAssignment* pA = nullptr;
+			const KSSOdUserStore::GlobalAssignment* pA = nullptr;
 			if (uit != Grid.end())
 			{
 				auto cit = uit->second.find(Info.Client.sClientID);
@@ -1114,7 +1114,7 @@ void RenderAccessOverview(KRESTServer& HTTP, KStringView sAdmin,
 /// role checkboxes (pre-ticked to the user's current grants). One submit writes
 /// the user's complete access across every client.
 void RenderUserAccess(KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser,
-                      KssodUserStore& Users, KssodClientStore& Clients,
+                      KSSOdUserStore& Users, KSSOdClientStore& Clients,
                       KStringView sMsg, bool bError, uint16_t iStatus)
 //-----------------------------------------------------------------------------
 {

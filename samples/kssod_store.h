@@ -42,8 +42,8 @@
 // kssod_store.h
 //
 // SQLite-backed persistence for the kssod sample OpenID Connect provider:
-//   * KssodUserStore   — implements KOpenIDServer::UserStore   + user management
-//   * KssodClientStore — implements KOpenIDServer::ClientStore + client management
+//   * KSSOdUserStore   — implements KOpenIDServer::UserStore   + user management
+//   * KSSOdClientStore — implements KOpenIDServer::ClientStore + client management
 //
 // Both share one SQLite database file (the same file the KSessionSQLiteStore
 // uses for the OP login sessions — just different tables). Each operation opens
@@ -63,13 +63,13 @@ using namespace dekaf2;
 
 /// Create the kssod schema (users + clients tables) and set WAL pragmas.
 /// @returns false and fills sError on failure.
-bool KssodInitDatabase(KString sDatabase, KString& sError);
+bool KSSOdInitDatabase(KString sDatabase, KString& sError);
 
-//-----------------------------------------------------------------------------
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// SQLite user directory. Beyond the OIDC UserStore interface (VerifyPassword +
 /// GetClaims) it offers the management operations the provider's own UI needs.
-class KssodUserStore : public KOpenIDServer::UserStore
-//-----------------------------------------------------------------------------
+class KSSOdUserStore : public KOpenIDServer::UserStore
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 public:
 	struct User
@@ -88,7 +88,7 @@ public:
 		bool    bAccess { true }; ///< false = suspended: roles are kept but not active
 	};
 
-	explicit KssodUserStore(KString sDatabase) : m_sDatabase(std::move(sDatabase)) {}
+	explicit KSSOdUserStore(KString sDatabase) : m_sDatabase(std::move(sDatabase)) {}
 
 	// --- KOpenIDServer::UserStore ---
 	bool VerifyPassword(KStringView sUsername, KStringView sPassword) override;
@@ -163,13 +163,14 @@ public:
 private:
 	KString    m_sDatabase;
 	std::mutex m_Mutex;
-};
 
-//-----------------------------------------------------------------------------
+}; // KSSOdUserStore
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// SQLite relying-party registry. The list-valued columns (redirect URIs,
 /// post-logout URIs, scopes) are stored newline-separated.
-class KssodClientStore : public KOpenIDServer::ClientStore
-//-----------------------------------------------------------------------------
+class KSSOdClientStore : public KOpenIDServer::ClientStore
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 public:
 	/// a registered client plus the kssod-specific access policy (the library's
@@ -180,7 +181,7 @@ public:
 		bool   bRequireAssignment { false };
 	};
 
-	explicit KssodClientStore(KString sDatabase) : m_sDatabase(std::move(sDatabase)) {}
+	explicit KSSOdClientStore(KString sDatabase) : m_sDatabase(std::move(sDatabase)) {}
 
 	// --- KOpenIDServer::ClientStore ---
 	bool Lookup(KStringView sClientID, Client& Out) override;
@@ -201,14 +202,15 @@ public:
 private:
 	KString    m_sDatabase;
 	std::mutex m_Mutex;
-};
 
-//-----------------------------------------------------------------------------
+}; // KSSOdClientStore
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A tiny key/value settings store (one shared table). kssod uses it to hold the
 /// optional outgoing-mail configuration: if no relay is set, every email feature
 /// (verification, password recovery, email OTP) is simply unavailable.
-class KssodSettingsStore
-//-----------------------------------------------------------------------------
+class KSSOdSettingsStore
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 public:
 	/// the outgoing-mail relay; bConfigured() is false until a URL and From are set
@@ -222,7 +224,7 @@ public:
 		bool    IsConfigured() const { return !sURL.empty() && !sFrom.empty(); }
 	};
 
-	explicit KssodSettingsStore(KString sDatabase) : m_sDatabase(std::move(sDatabase)) {}
+	explicit KSSOdSettingsStore(KString sDatabase) : m_sDatabase(std::move(sDatabase)) {}
 
 	KString Get(KStringView sKey);
 	bool    Set(KStringView sKey, KStringView sValue);
@@ -234,4 +236,5 @@ public:
 private:
 	KString    m_sDatabase;
 	std::mutex m_Mutex;
-};
+
+}; // KSSOdSettingsStore

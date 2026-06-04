@@ -47,8 +47,8 @@
 // party (e.g. an app written with KOpenIDClient, see koidc_bff.cpp).
 //
 // Persistence (all in one SQLite file, --db):
-//   * users    : KssodUserStore   (table kssod_users)
-//   * clients  : KssodClientStore (table kssod_clients)
+//   * users    : KSSOdUserStore   (table kssod_users)
+//   * clients  : KSSOdClientStore (table kssod_clients)
 //   * sessions : KSessionSQLiteStore behind a KSessionCachingStore
 //                (the OP login sessions that make SSO work)
 //   * signing  : the RS256 private key is persisted as PEM (--key), so tokens
@@ -103,10 +103,10 @@ using namespace dekaf2;
 
 namespace {
 
-//=============================================================================
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 //  in-memory grant store (codes + refresh tokens; transient by design)
-//=============================================================================
 class MemoryGrantStore : public KOpenIDServer::GrantStore
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 public:
 	bool SaveCode(const Code& Rec) override
@@ -141,12 +141,12 @@ private:
 	std::map<KString, Refresh> m_Refresh;
 };
 
-//=============================================================================
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// In-memory store of half-finished logins: a user has passed the password step
 /// but still owes a second factor. Keyed by an opaque token carried in the 2FA
 /// form; entries expire so an abandoned prompt cannot be resumed indefinitely.
 class PendingTwoFactorStore
-//=============================================================================
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 public:
 	/// what we learn back about a pending login (bValid=false if unknown/expired)
@@ -220,7 +220,7 @@ private:
 /// send a plaintext email via the configured relay; fills sError on failure.
 /// The whole message is also logged at debug level so a demo install without a
 /// real relay can still read the link/code from the server log.
-bool SendMail(const KssodSettingsStore::Smtp& Smtp, KStringView sTo,
+bool SendMail(const KSSOdSettingsStore::Smtp& Smtp, KStringView sTo,
               KStringView sSubject, KStringView sBody, KString& sError)
 //-----------------------------------------------------------------------------
 {
@@ -262,7 +262,7 @@ KString CurrentUser(KRESTServer& HTTP, KSession& Session)
 //-----------------------------------------------------------------------------
 /// gate an admin-only route. On success returns true and fills sUserOut.
 /// Not signed in -> 302 to /login (throws). Signed in but not admin -> 403 page.
-bool GateAdmin(KRESTServer& HTTP, KSession& Session, KssodUserStore& Users, KString& sUserOut)
+bool GateAdmin(KRESTServer& HTTP, KSession& Session, KSSOdUserStore& Users, KString& sUserOut)
 //-----------------------------------------------------------------------------
 {
 	sUserOut = CurrentUser(HTTP, Session);
@@ -305,7 +305,7 @@ int main(int argc, char** argv)
 
 		// --- schema ----------------------------------------------------------
 		KString sError;
-		if (!KssodInitDatabase(sDB, sError))
+		if (!KSSOdInitDatabase(sDB, sError))
 		{
 			KErr.FormatLine("kssod: {}", sError);
 			return 1;
@@ -333,10 +333,10 @@ int main(int argc, char** argv)
 		}
 
 		// --- stores ----------------------------------------------------------
-		auto pUsers    = std::make_shared<KssodUserStore>(sDB);
-		auto pClients  = std::make_shared<KssodClientStore>(sDB);
+		auto pUsers    = std::make_shared<KSSOdUserStore>(sDB);
+		auto pClients  = std::make_shared<KSSOdClientStore>(sDB);
 		auto pGrants   = std::make_shared<MemoryGrantStore>();
-		auto pSettings = std::make_shared<KssodSettingsStore>(sDB);
+		auto pSettings = std::make_shared<KSSOdSettingsStore>(sDB);
 
 		// seed an empty database with demo data
 		if (pUsers->Count() == 0)
@@ -820,7 +820,7 @@ int main(int argc, char** argv)
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
 
 			const auto& Q = HTTP.GetQueryParms();
-			KssodSettingsStore::Smtp Smtp;
+			KSSOdSettingsStore::Smtp Smtp;
 			Smtp.sURL      = Q["smtp_url"];
 			Smtp.sUser     = Q["smtp_user"];
 			Smtp.sPass     = Q["smtp_pass"];
@@ -1003,7 +1003,7 @@ int main(int argc, char** argv)
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
 
 			KStringView sClientID = HTTP.GetQueryParms()["client_id"];
-			KssodClientStore::ClientInfo Info;
+			KSSOdClientStore::ClientInfo Info;
 			if (sClientID.empty() || !pClients->LookupInfo(sClientID, Info)) { Redirect(HTTP, "/admin/clients"); }
 
 			// repopulate the textareas one URI per line, scopes space separated
@@ -1030,7 +1030,7 @@ int main(int argc, char** argv)
 			const auto& Q        = HTTP.GetQueryParms();
 			KString     sClientID = Q["client_id"];
 
-			KssodClientStore::ClientInfo Existing;
+			KSSOdClientStore::ClientInfo Existing;
 			if (sClientID.empty() || !pClients->LookupInfo(sClientID, Existing)) { Redirect(HTTP, "/admin/clients"); }
 
 			KStringView sSecret  = Q["secret"];

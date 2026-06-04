@@ -69,7 +69,7 @@ KString DefaultRoleOn(KSQLite::Database& db, KStringView sClientID)
 } // anonymous namespace
 
 //-----------------------------------------------------------------------------
-bool KssodInitDatabase(KString sDatabase, KString& sError)
+bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 //-----------------------------------------------------------------------------
 {
 	KSQLite::Database db(sDatabase, KSQLite::Mode::READWRITECREATE);
@@ -182,14 +182,14 @@ bool KssodInitDatabase(KString sDatabase, KString& sError)
 
 	return true;
 
-} // KssodInitDatabase
+} // KSSOdInitDatabase
 
 // =============================================================================
-// KssodUserStore
+// KSSOdUserStore
 // =============================================================================
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::VerifyPassword(KStringView sUsername, KStringView sPassword)
+bool KSSOdUserStore::VerifyPassword(KStringView sUsername, KStringView sPassword)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -207,7 +207,7 @@ bool KssodUserStore::VerifyPassword(KStringView sUsername, KStringView sPassword
 } // VerifyPassword
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::GetClaims(KStringView sUsername, KJSON& Claims)
+bool KSSOdUserStore::GetClaims(KStringView sUsername, KJSON& Claims)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -229,7 +229,7 @@ bool KssodUserStore::GetClaims(KStringView sUsername, KJSON& Claims)
 } // GetClaims
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::AddUser(KStringView sUsername, KStringView sPassword,
+bool KSSOdUserStore::AddUser(KStringView sUsername, KStringView sPassword,
                              KStringView sName, KStringView sEmail, bool bAdmin)
 //-----------------------------------------------------------------------------
 {
@@ -254,7 +254,7 @@ bool KssodUserStore::AddUser(KStringView sUsername, KStringView sPassword,
 } // AddUser
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::ChangePassword(KStringView sUsername, KStringView sNewPassword)
+bool KSSOdUserStore::ChangePassword(KStringView sUsername, KStringView sNewPassword)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -272,7 +272,7 @@ bool KssodUserStore::ChangePassword(KStringView sUsername, KStringView sNewPassw
 } // ChangePassword
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::DeleteUser(KStringView sUsername)
+bool KSSOdUserStore::DeleteUser(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -296,7 +296,7 @@ bool KssodUserStore::DeleteUser(KStringView sUsername)
 } // DeleteUser
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::IsAdmin(KStringView sUsername)
+bool KSSOdUserStore::IsAdmin(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -311,7 +311,7 @@ bool KssodUserStore::IsAdmin(KStringView sUsername)
 } // IsAdmin
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::Exists(KStringView sUsername)
+bool KSSOdUserStore::Exists(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -326,7 +326,7 @@ bool KssodUserStore::Exists(KStringView sUsername)
 } // Exists
 
 //-----------------------------------------------------------------------------
-std::size_t KssodUserStore::Count()
+std::size_t KSSOdUserStore::Count()
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -340,7 +340,7 @@ std::size_t KssodUserStore::Count()
 } // Count
 
 //-----------------------------------------------------------------------------
-std::vector<KssodUserStore::User> KssodUserStore::List()
+std::vector<KSSOdUserStore::User> KSSOdUserStore::List()
 //-----------------------------------------------------------------------------
 {
 	std::vector<User> Out;
@@ -366,7 +366,7 @@ std::vector<KssodUserStore::User> KssodUserStore::List()
 } // List
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::HasTotp(KStringView sUsername)
+bool KSSOdUserStore::HasTotp(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	return !GetTotpSecret(sUsername).empty();
@@ -374,7 +374,7 @@ bool KssodUserStore::HasTotp(KStringView sUsername)
 } // HasTotp
 
 //-----------------------------------------------------------------------------
-KString KssodUserStore::GetTotpSecret(KStringView sUsername)
+KString KSSOdUserStore::GetTotpSecret(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -389,7 +389,7 @@ KString KssodUserStore::GetTotpSecret(KStringView sUsername)
 } // GetTotpSecret
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::SetTotpSecret(KStringView sUsername, KStringView sSecretBase32)
+bool KSSOdUserStore::SetTotpSecret(KStringView sUsername, KStringView sSecretBase32)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -405,7 +405,7 @@ bool KssodUserStore::SetTotpSecret(KStringView sUsername, KStringView sSecretBas
 } // SetTotpSecret
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::ClearTotp(KStringView sUsername)
+bool KSSOdUserStore::ClearTotp(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -426,7 +426,7 @@ bool KssodUserStore::ClearTotp(KStringView sUsername)
 } // ClearTotp
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::SetBackupCodes(KStringView sUsername, const std::vector<KString>& Hashes)
+bool KSSOdUserStore::SetBackupCodes(KStringView sUsername, const std::vector<KString>& Hashes)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -452,7 +452,7 @@ bool KssodUserStore::SetBackupCodes(KStringView sUsername, const std::vector<KSt
 } // SetBackupCodes
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::ConsumeBackupCode(KStringView sUsername, KStringView sCodeHash)
+bool KSSOdUserStore::ConsumeBackupCode(KStringView sUsername, KStringView sCodeHash)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -476,7 +476,7 @@ bool KssodUserStore::ConsumeBackupCode(KStringView sUsername, KStringView sCodeH
 } // ConsumeBackupCode
 
 //-----------------------------------------------------------------------------
-std::size_t KssodUserStore::CountBackupCodes(KStringView sUsername)
+std::size_t KSSOdUserStore::CountBackupCodes(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -491,7 +491,7 @@ std::size_t KssodUserStore::CountBackupCodes(KStringView sUsername)
 } // CountBackupCodes
 
 //-----------------------------------------------------------------------------
-KString KssodUserStore::GetEmail(KStringView sUsername)
+KString KSSOdUserStore::GetEmail(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -506,7 +506,7 @@ KString KssodUserStore::GetEmail(KStringView sUsername)
 } // GetEmail
 
 //-----------------------------------------------------------------------------
-KString KssodUserStore::FindByEmail(KStringView sEmail)
+KString KSSOdUserStore::FindByEmail(KStringView sEmail)
 //-----------------------------------------------------------------------------
 {
 	if (sEmail.empty()) return KString{}; // never match users without an address
@@ -524,7 +524,7 @@ KString KssodUserStore::FindByEmail(KStringView sEmail)
 } // FindByEmail
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::IsEmailVerified(KStringView sUsername)
+bool KSSOdUserStore::IsEmailVerified(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -539,7 +539,7 @@ bool KssodUserStore::IsEmailVerified(KStringView sUsername)
 } // IsEmailVerified
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::SetEmailVerified(KStringView sUsername, bool bVerified)
+bool KSSOdUserStore::SetEmailVerified(KStringView sUsername, bool bVerified)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -555,7 +555,7 @@ bool KssodUserStore::SetEmailVerified(KStringView sUsername, bool bVerified)
 } // SetEmailVerified
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::HasEmailOtp(KStringView sUsername)
+bool KSSOdUserStore::HasEmailOtp(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -570,7 +570,7 @@ bool KssodUserStore::HasEmailOtp(KStringView sUsername)
 } // HasEmailOtp
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::SetEmailOtp(KStringView sUsername, bool bEnabled)
+bool KSSOdUserStore::SetEmailOtp(KStringView sUsername, bool bEnabled)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -586,7 +586,7 @@ bool KssodUserStore::SetEmailOtp(KStringView sUsername, bool bEnabled)
 } // SetEmailOtp
 
 //-----------------------------------------------------------------------------
-KString KssodUserStore::CreateEmailToken(KStringView sUsername, KStringView sPurpose)
+KString KSSOdUserStore::CreateEmailToken(KStringView sUsername, KStringView sPurpose)
 //-----------------------------------------------------------------------------
 {
 	// recovery links are short-lived; verification links may sit in an inbox longer
@@ -619,7 +619,7 @@ KString KssodUserStore::CreateEmailToken(KStringView sUsername, KStringView sPur
 } // CreateEmailToken
 
 //-----------------------------------------------------------------------------
-KString KssodUserStore::ConsumeEmailToken(KStringView sToken, KStringView sPurpose)
+KString KSSOdUserStore::ConsumeEmailToken(KStringView sToken, KStringView sPurpose)
 //-----------------------------------------------------------------------------
 {
 	if (sToken.empty()) return KString{};
@@ -657,7 +657,7 @@ KString KssodUserStore::ConsumeEmailToken(KStringView sToken, KStringView sPurpo
 } // ConsumeEmailToken
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::AuthorizeClientAccess(KStringView sUsername, KStringView sClientID, KJSON& jClientClaims)
+bool KSSOdUserStore::AuthorizeClientAccess(KStringView sUsername, KStringView sClientID, KJSON& jClientClaims)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -707,7 +707,7 @@ bool KssodUserStore::AuthorizeClientAccess(KStringView sUsername, KStringView sC
 } // AuthorizeClientAccess
 
 //-----------------------------------------------------------------------------
-std::vector<KString> KssodUserStore::ListRoles(KStringView sClientID)
+std::vector<KString> KSSOdUserStore::ListRoles(KStringView sClientID)
 //-----------------------------------------------------------------------------
 {
 	std::vector<KString> Out;
@@ -725,7 +725,7 @@ std::vector<KString> KssodUserStore::ListRoles(KStringView sClientID)
 } // ListRoles
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::AddRole(KStringView sClientID, KStringView sRole)
+bool KSSOdUserStore::AddRole(KStringView sClientID, KStringView sRole)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -741,7 +741,7 @@ bool KssodUserStore::AddRole(KStringView sClientID, KStringView sRole)
 } // AddRole
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::DeleteRole(KStringView sClientID, KStringView sRole)
+bool KSSOdUserStore::DeleteRole(KStringView sClientID, KStringView sRole)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -788,7 +788,7 @@ bool KssodUserStore::DeleteRole(KStringView sClientID, KStringView sRole)
 } // DeleteRole
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::GrantRoles(KStringView sUsername, KStringView sClientID, const std::vector<KString>& Roles)
+bool KSSOdUserStore::GrantRoles(KStringView sUsername, KStringView sClientID, const std::vector<KString>& Roles)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -829,7 +829,7 @@ bool KssodUserStore::GrantRoles(KStringView sUsername, KStringView sClientID, co
 } // GrantRoles
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::Upsert(KStringView sUsername, KStringView sClientID, bool bAccess, const std::vector<KString>& Roles)
+bool KSSOdUserStore::Upsert(KStringView sUsername, KStringView sClientID, bool bAccess, const std::vector<KString>& Roles)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -867,7 +867,7 @@ bool KssodUserStore::Upsert(KStringView sUsername, KStringView sClientID, bool b
 } // Upsert
 
 //-----------------------------------------------------------------------------
-KString KssodUserStore::DefaultRole(KStringView sClientID)
+KString KSSOdUserStore::DefaultRole(KStringView sClientID)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -880,7 +880,7 @@ KString KssodUserStore::DefaultRole(KStringView sClientID)
 } // DefaultRole
 
 //-----------------------------------------------------------------------------
-bool KssodUserStore::SetDefaultRole(KStringView sClientID, KStringView sRole)
+bool KSSOdUserStore::SetDefaultRole(KStringView sClientID, KStringView sRole)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -907,7 +907,7 @@ bool KssodUserStore::SetDefaultRole(KStringView sClientID, KStringView sRole)
 } // SetDefaultRole
 
 //-----------------------------------------------------------------------------
-std::vector<KssodUserStore::GlobalAssignment> KssodUserStore::ListAllAssignments()
+std::vector<KSSOdUserStore::GlobalAssignment> KSSOdUserStore::ListAllAssignments()
 //-----------------------------------------------------------------------------
 {
 	std::vector<GlobalAssignment> Out;
@@ -933,7 +933,7 @@ std::vector<KssodUserStore::GlobalAssignment> KssodUserStore::ListAllAssignments
 } // ListAllAssignments
 
 //-----------------------------------------------------------------------------
-std::vector<KssodUserStore::Assignment> KssodUserStore::ListAssignments(KStringView sClientID)
+std::vector<KSSOdUserStore::Assignment> KSSOdUserStore::ListAssignments(KStringView sClientID)
 //-----------------------------------------------------------------------------
 {
 	std::vector<Assignment> Out;
@@ -959,11 +959,11 @@ std::vector<KssodUserStore::Assignment> KssodUserStore::ListAssignments(KStringV
 } // ListAssignments
 
 // =============================================================================
-// KssodClientStore
+// KSSOdClientStore
 // =============================================================================
 
 //-----------------------------------------------------------------------------
-bool KssodClientStore::Lookup(KStringView sClientID, Client& Out)
+bool KSSOdClientStore::Lookup(KStringView sClientID, Client& Out)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -989,7 +989,7 @@ bool KssodClientStore::Lookup(KStringView sClientID, Client& Out)
 } // Lookup
 
 //-----------------------------------------------------------------------------
-bool KssodClientStore::AddClient(const Client& Client, bool bRequireAssignment)
+bool KSSOdClientStore::AddClient(const Client& Client, bool bRequireAssignment)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -1017,7 +1017,7 @@ bool KssodClientStore::AddClient(const Client& Client, bool bRequireAssignment)
 } // AddClient
 
 //-----------------------------------------------------------------------------
-bool KssodClientStore::UpdateClient(const Client& Client, bool bRequireAssignment, bool bUpdateSecret)
+bool KSSOdClientStore::UpdateClient(const Client& Client, bool bRequireAssignment, bool bUpdateSecret)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -1059,7 +1059,7 @@ bool KssodClientStore::UpdateClient(const Client& Client, bool bRequireAssignmen
 } // UpdateClient
 
 //-----------------------------------------------------------------------------
-bool KssodClientStore::LookupInfo(KStringView sClientID, ClientInfo& Out)
+bool KSSOdClientStore::LookupInfo(KStringView sClientID, ClientInfo& Out)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -1086,7 +1086,7 @@ bool KssodClientStore::LookupInfo(KStringView sClientID, ClientInfo& Out)
 } // LookupInfo
 
 //-----------------------------------------------------------------------------
-bool KssodClientStore::DeleteClient(KStringView sClientID)
+bool KSSOdClientStore::DeleteClient(KStringView sClientID)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -1109,7 +1109,7 @@ bool KssodClientStore::DeleteClient(KStringView sClientID)
 } // DeleteClient
 
 //-----------------------------------------------------------------------------
-bool KssodClientStore::Exists(KStringView sClientID)
+bool KSSOdClientStore::Exists(KStringView sClientID)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -1124,7 +1124,7 @@ bool KssodClientStore::Exists(KStringView sClientID)
 } // Exists
 
 //-----------------------------------------------------------------------------
-std::size_t KssodClientStore::Count()
+std::size_t KSSOdClientStore::Count()
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -1138,7 +1138,7 @@ std::size_t KssodClientStore::Count()
 } // Count
 
 //-----------------------------------------------------------------------------
-std::vector<KssodClientStore::ClientInfo> KssodClientStore::List()
+std::vector<KSSOdClientStore::ClientInfo> KSSOdClientStore::List()
 //-----------------------------------------------------------------------------
 {
 	std::vector<ClientInfo> Out;
@@ -1169,11 +1169,11 @@ std::vector<KssodClientStore::ClientInfo> KssodClientStore::List()
 } // List
 
 // =============================================================================
-//  KssodSettingsStore
+//  KSSOdSettingsStore
 // =============================================================================
 
 //-----------------------------------------------------------------------------
-KString KssodSettingsStore::Get(KStringView sKey)
+KString KSSOdSettingsStore::Get(KStringView sKey)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -1188,7 +1188,7 @@ KString KssodSettingsStore::Get(KStringView sKey)
 } // Get
 
 //-----------------------------------------------------------------------------
-bool KssodSettingsStore::Set(KStringView sKey, KStringView sValue)
+bool KSSOdSettingsStore::Set(KStringView sKey, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -1204,7 +1204,7 @@ bool KssodSettingsStore::Set(KStringView sKey, KStringView sValue)
 } // Set
 
 //-----------------------------------------------------------------------------
-KssodSettingsStore::Smtp KssodSettingsStore::LoadSmtp()
+KSSOdSettingsStore::Smtp KSSOdSettingsStore::LoadSmtp()
 //-----------------------------------------------------------------------------
 {
 	Smtp Config;
@@ -1218,7 +1218,7 @@ KssodSettingsStore::Smtp KssodSettingsStore::LoadSmtp()
 } // LoadSmtp
 
 //-----------------------------------------------------------------------------
-bool KssodSettingsStore::SaveSmtp(const Smtp& Config)
+bool KSSOdSettingsStore::SaveSmtp(const Smtp& Config)
 //-----------------------------------------------------------------------------
 {
 	return Set("smtp_url",      Config.sURL)

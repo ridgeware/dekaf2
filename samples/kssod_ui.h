@@ -90,22 +90,22 @@ void RenderReset     (KRESTServer& HTTP, KStringView sToken, KStringView sError,
 // --- admin pages ---
 void RenderForbidden (KRESTServer& HTTP, KStringView sUser);
 void RenderAdminHome (KRESTServer& HTTP, KStringView sUser);
-void RenderSettings  (KRESTServer& HTTP, KStringView sUser, const KssodSettingsStore::Smtp& Smtp,
+void RenderSettings  (KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsStore::Smtp& Smtp,
                       KStringView sMsg, bool bError, uint16_t iStatus = 200);
-void RenderUsers     (KRESTServer& HTTP, KStringView sUser, KssodUserStore& Users,
+void RenderUsers     (KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
                       KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200,
                       const KJSON& Prefill = KJSON::object());
-void RenderUserDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser, KssodUserStore& Users);
-void RenderClients   (KRESTServer& HTTP, KStringView sUser, KssodClientStore& Clients,
+void RenderUserDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser, KSSOdUserStore& Users);
+void RenderClients   (KRESTServer& HTTP, KStringView sUser, KSSOdClientStore& Clients,
                       KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200,
                       const KJSON& Prefill = KJSON::object());
 void RenderClientEdit(KRESTServer& HTTP, KStringView sUser, KStringView sClientID,
                       const KJSON& Values, KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200);
-void RenderClientDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringView sClientID, KssodUserStore& Users);
+void RenderClientDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringView sClientID, KSSOdUserStore& Users);
 void RenderClientAccess(KRESTServer& HTTP, KStringView sUser, KStringView sClientID,
-                        KssodUserStore& Users, KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200,
+                        KSSOdUserStore& Users, KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200,
                         const KJSON& Prefill = KJSON::object());
-void RenderAccessOverview(KRESTServer& HTTP, KStringView sAdmin, KssodUserStore& Users, KssodClientStore& Clients);
+void RenderAccessOverview(KRESTServer& HTTP, KStringView sAdmin, KSSOdUserStore& Users, KSSOdClientStore& Clients);
 void RenderUserAccess(KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser,
-                      KssodUserStore& Users, KssodClientStore& Clients,
+                      KSSOdUserStore& Users, KSSOdClientStore& Clients,
                       KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200);

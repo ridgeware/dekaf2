@@ -62,7 +62,13 @@ TEST_CASE("KTOTP")
 			{  1111111111, "14050471", "67062674", "99943326" },
 			{  1234567890, "89005924", "91819424", "93441116" },
 			{  2000000000, "69279037", "90698825", "38618901" },
+#if !DEKAF2_HAS_NANOSECONDS_SYS_CLOCK
+			// RFC 6238's last vector is ~year 2603. KUnixTime is a
+			// std::chrono::system_clock::time_point, so it can only carry this when
+			// the clock tick is coarser than nanoseconds (e.g. libc++'s microseconds);
+			// a nanosecond tick (libstdc++) overflows int64 around year 2262.
 			{ 20000000000, "65353130", "77737706", "47863826" },
+#endif
 		};
 
 		KTOTP t1(KBase32::Encode(sSha1));   t1.Digits(8).UseAlgorithm(KTOTP::Algorithm::SHA1);

@@ -291,7 +291,7 @@ KHTMLObject::TagProperty KHTMLObject::GetTagProperty(KStringView sTag)
 		{ "sup"_ksv      , TagProperty::Inline                             },
 		{ "svg"_ksv      , TagProperty::Inline | TagProperty::Embedded     },
 		{ "template"_ksv , TagProperty::Inline                             },
-		{ "textarea"_ksv , TagProperty::Inline | TagProperty::InlineBlock  },
+		{ "textarea"_ksv , TagProperty::Inline | TagProperty::InlineBlock | TagProperty::Preformatted },
 		{ "time"_ksv     , TagProperty::Inline                             },
 		{ "track"_ksv    , TagProperty::Standalone                         },
 		{ "tt"_ksv       , TagProperty::Inline                             },

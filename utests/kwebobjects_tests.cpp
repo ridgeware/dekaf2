@@ -792,3 +792,23 @@ TEST_CASE("KWebObjects.Selection")
 		CHECK_FALSE( sOut2.contains(R"(value="_fobj)") );
 	}
 }
+
+TEST_CASE("KWebObjects.Textarea preformatted")
+{
+	// regression: <textarea> is whitespace-significant, so the serializer must not
+	// indent its text content. Indentation previously corrupted textarea values
+	// (the leading tabs pushed the text right, so it rendered as if centered).
+	html::Page page("t", "en");
+	auto outer = page.Body().Add<html::Element>("div");
+	auto inner = outer.Add<html::Element>("div");
+	auto ta    = inner.Add<html::Element>("textarea");
+	ta.SetAttribute("name", "field");
+	ta.AddText("VERBATIM-TEXTAREA-VALUE");
+	page.Generate();
+
+	auto sOut = page.Serialize();
+	INFO( sOut );
+	CHECK ( sOut.contains("VERBATIM-TEXTAREA-VALUE") );
+	// the value must NOT be preceded by indentation tabs
+	CHECK_FALSE( sOut.contains("\tVERBATIM-TEXTAREA-VALUE") );
+}

@@ -137,6 +137,30 @@ public:
 		/// fill standard OIDC claims (sub, name, email, ...) for sUsername
 		/// @returns false if the user is unknown
 		virtual bool GetClaims(KStringView sUsername, KJSON& Claims) = 0;
+
+		/// Per-client authorization hook. Decides whether sUsername may obtain
+		/// tokens for sClientID and supplies client-scoped claims (e.g. roles) to
+		/// merge into the issued tokens. Called at /authorize (an early denial
+		/// redirects the browser back to the client with error=access_denied) and
+		/// again at /token (a denial there fails the exchange, and the returned
+		/// claims are embedded fresh into the id/access tokens).
+		///
+		/// The default allows every user and adds no extra claims — i.e. an open
+		/// provider where any authenticated user may use any registered client.
+		/// Override to implement assignment-based access control and RBAC; the
+		/// access *policy* (open vs assignment-required, per client or global)
+		/// lives entirely in the implementation.
+		///
+		/// @param sUsername     the authenticated subject
+		/// @param sClientID     the relying party being accessed
+		/// @param jClientClaims receives client-scoped claims to merge into the
+		///                      tokens, e.g. { "roles": ["admin","editor"] }
+		/// @returns true to allow, false to deny access to this client
+		virtual bool AuthorizeClientAccess(KStringView sUsername, KStringView sClientID, KJSON& jClientClaims)
+		{
+			(void)sUsername; (void)sClientID; (void)jClientClaims;
+			return true;
+		}
 	};
 
 	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -272,7 +296,8 @@ private:
 	/// @returns true if the signature and issuer are valid
 	DEKAF2_PRIVATE bool        VerifyOwnJWT     (KStringView sJWT, KJSON& Payload) const;
 	DEKAF2_PRIVATE KJSON       IssueTokens      (KStringView sSubject, KStringView sClientID,
-	                                             KStringView sScope, KStringView sNonce, KUnixTime tAuthTime);
+	                                             KStringView sScope, KStringView sNonce, KUnixTime tAuthTime,
+	                                             const KJSON& jClientClaims = KJSON::object());
 	DEKAF2_PRIVATE bool        AuthenticateClient(KRESTServer& HTTP, const ClientStore::Client& Client,
 	                                             KStringView sFormClientSecret);
 	DEKAF2_PRIVATE void        TokenError       (KRESTServer& HTTP, KStringView sError, KStringView sDescription);

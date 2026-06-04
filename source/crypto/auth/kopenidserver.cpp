@@ -244,6 +244,22 @@ KOpenIDServer::AuthRequest KOpenIDServer::ParseAuthRequest(KRESTServer& HTTP, KS
 KURL KOpenIDServer::IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView sSubject)
 //-----------------------------------------------------------------------------
 {
+	// per-client access control: the application decides whether this user may
+	// use this client. A denial still redirects back to the client (per OIDC),
+	// but with error=access_denied instead of a code.
+	KJSON jClientClaims;
+	if (!m_Users->AuthorizeClientAccess(sSubject, Req.sClientID, jClientClaims))
+	{
+		kDebug(1, "user '{}' is not authorized for client '{}'", sSubject, Req.sClientID);
+		KURL URL(Req.sRedirectURI);
+		URL.Query->Set("error", "access_denied");
+		if (!Req.sState.empty())
+		{
+			URL.Query->Set("state", Req.sState);
+		}
+		return URL;
+	}
+
 	GrantStore::Code Code;
 	Code.sCode          = KBase64Url::Encode(kGetRandom(32));
 	Code.sClientID      = Req.sClientID;
@@ -430,7 +446,7 @@ KString KOpenIDServer::SignJWT(const KJSON& Payload) const
 //-----------------------------------------------------------------------------
 KJSON KOpenIDServer::IssueTokens(KStringView sSubject, KStringView sClientID,
                                  KStringView sScope,   KStringView sNonce,
-                                 KUnixTime tAuthTime)
+                                 KUnixTime tAuthTime,  const KJSON& jClientClaims)
 //-----------------------------------------------------------------------------
 {
 	KUnixTime tNow = KUnixTime::now();
@@ -442,6 +458,14 @@ KJSON KOpenIDServer::IssueTokens(KStringView sSubject, KStringView sClientID,
 	{
 		idClaims = std::move(UserClaims);
 	}
+	// merge the per-client claims (e.g. "roles") supplied by AuthorizeClientAccess
+	if (jClientClaims.is_object())
+	{
+		for (auto it = jClientClaims.begin(); it != jClientClaims.end(); ++it)
+		{
+			idClaims[it.key()] = it.value();
+		}
+	}
 	idClaims["iss"]       = m_Config.sIssuer;
 	idClaims["sub"]       = sSubject;
 	idClaims["aud"]       = sClientID;
@@ -450,7 +474,7 @@ KJSON KOpenIDServer::IssueTokens(KStringView sSubject, KStringView sClientID,
 	idClaims["auth_time"] = tAuthTime.to_time_t();
 	if (!sNonce.empty())
 	{
-		idClaims["nonce"] = KString(sNonce);
+		idClaims["nonce"] = sNonce;
 	}
 
 	KString sIdToken = SignJWT(idClaims);
@@ -465,6 +489,15 @@ KJSON KOpenIDServer::IssueTokens(KStringView sSubject, KStringView sClientID,
 		{ "exp"      , (tNow + m_Config.AccessTTL).to_time_t() },
 		{ "scope"    , sScope             }
 	};
+	// expose the same client-scoped claims (roles) to resource servers, without
+	// letting them shadow the standard access-token claims
+	if (jClientClaims.is_object())
+	{
+		for (auto it = jClientClaims.begin(); it != jClientClaims.end(); ++it)
+		{
+			if (!kjson::Exists(acClaims, it.key())) acClaims[it.key()] = it.value();
+		}
+	}
 
 	KString sAccessToken = SignJWT(acClaims);
 
@@ -585,7 +618,15 @@ void KOpenIDServer::HandleToken(KRESTServer& HTTP)
 			return TokenError(HTTP, "invalid_grant", "PKCE verification failed");
 		}
 
-		HTTP.json.tx = IssueTokens(Code.sSubject, Code.sClientID, Code.sScope, Code.sNonce, Code.tAuthTime);
+		// re-check per-client access (it may have been revoked since /authorize)
+		// and fetch the current client-scoped claims (roles) to embed
+		KJSON jClientClaims;
+		if (!m_Users->AuthorizeClientAccess(Code.sSubject, Code.sClientID, jClientClaims))
+		{
+			return TokenError(HTTP, "access_denied", "user is not authorized for this client");
+		}
+
+		HTTP.json.tx = IssueTokens(Code.sSubject, Code.sClientID, Code.sScope, Code.sNonce, Code.tAuthTime, jClientClaims);
 		return;
 	}
 
@@ -617,7 +658,16 @@ void KOpenIDServer::HandleToken(KRESTServer& HTTP)
 			return TokenError(HTTP, "invalid_client", "client authentication failed");
 		}
 
-		HTTP.json.tx = IssueTokens(R.sSubject, R.sClientID, R.sScope, KStringView{}, R.tAuthTime);
+		// re-check access on refresh too (access may have been revoked since the
+		// grant was issued — the refresh token can live for weeks) and refresh the
+		// client-scoped claims (roles) so rotated tokens carry the current set
+		KJSON jClientClaims;
+		if (!m_Users->AuthorizeClientAccess(R.sSubject, R.sClientID, jClientClaims))
+		{
+			return TokenError(HTTP, "access_denied", "user is not authorized for this client");
+		}
+
+		HTTP.json.tx = IssueTokens(R.sSubject, R.sClientID, R.sScope, KStringView{}, R.tAuthTime, jClientClaims);
 		return;
 	}
 

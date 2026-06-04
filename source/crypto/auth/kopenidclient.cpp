@@ -520,7 +520,7 @@ void KOpenIDClient::HandleCallback(KRESTServer& HTTP)
 
 	KJSON jTokens = TokenRequest({
 		{ "grant_type"   , "authorization_code"  },
-		{ "code"         , KString(sCode)        },
+		{ "code"         , sCode                 },
 		{ "redirect_uri" , m_Config.sCallbackURI },
 		{ "code_verifier", Login.sVerifier       }
 	});

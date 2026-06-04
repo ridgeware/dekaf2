@@ -83,7 +83,9 @@ KString URLParam(KStringView sURL, KStringView sName)
 
 struct TestUserStore : KOpenIDServer::UserStore
 {
-	KString sAliceHash; // bcrypt of "secret"
+	KString sAliceHash;        // bcrypt of "secret"
+	bool    bDenyAccess { false }; // make AuthorizeClientAccess deny
+	KJSON   ClientClaims;      // client-scoped claims to return (e.g. {"roles":[...]})
 
 	bool VerifyPassword(KStringView user, KStringView pass) override
 	{
@@ -93,6 +95,12 @@ struct TestUserStore : KOpenIDServer::UserStore
 	{
 		if (user != "alice") return false;
 		Claims = { { "name", "Alice Example" }, { "email", "alice@example.com" } };
+		return true;
+	}
+	bool AuthorizeClientAccess(KStringView /*user*/, KStringView /*clientID*/, KJSON& jClientClaims) override
+	{
+		if (bDenyAccess) return false;
+		if (ClientClaims.is_object()) jClientClaims = ClientClaims;
 		return true;
 	}
 };
@@ -403,6 +411,69 @@ TEST_CASE("KOpenIDServer")
 		KString r12 = Drive("GET", "/logout", "");
 		CHECK ( r12.contains("302") );
 		CHECK ( FirstHeader(r12, "Location") == "/" );
+	}
+
+	SECTION("client-scoped roles from AuthorizeClientAccess are embedded in the tokens")
+	{
+		pUsers->ClientClaims = { { "roles", KJSON::array({ "admin", "editor" }) } };
+
+		CookieJar Cookies;
+		Cookies.Apply(Drive("GET", sAuthorizeQuery, Cookies.Header()));
+		KString r2 = Drive("POST", "/login", Cookies.Header(), "username=alice&password=secret");
+		Cookies.Apply(r2);
+		KString sCode = URLParam(FirstHeader(r2, "Location"), "code");
+		REQUIRE_FALSE ( sCode.empty() );
+
+		KString sBody = kFormat(
+			"grant_type=authorization_code&code={}&redirect_uri=http://localhost/cb"
+			"&code_verifier={}&client_id=test-client&client_secret=test-secret", sCode, sVerifier);
+		KJSON jTok = kjson::Parse(ResponseBody(Drive("POST", "/token", "", sBody)));
+
+		auto IdParts = KStringView(kjson::GetStringRef(jTok, "id_token")).Split('.');
+		REQUIRE ( IdParts.size() == 3 );
+		KJSON jId = kjson::Parse(KBase64Url::Decode(IdParts[1]));
+		REQUIRE ( jId["roles"].is_array() );
+		CHECK ( jId["roles"].dump().contains("admin")  );
+		CHECK ( jId["roles"].dump().contains("editor") );
+
+		// roles are exposed to resource servers via the access token too
+		auto AcParts = KStringView(kjson::GetStringRef(jTok, "access_token")).Split('.');
+		REQUIRE ( AcParts.size() == 3 );
+		KJSON jAc = kjson::Parse(KBase64Url::Decode(AcParts[1]));
+		CHECK ( jAc["roles"].is_array() );
+	}
+
+	SECTION("access denied at authorize redirects with error=access_denied and no code")
+	{
+		pUsers->bDenyAccess = true;
+
+		CookieJar Cookies;
+		Cookies.Apply(Drive("GET", sAuthorizeQuery, Cookies.Header()));
+		KString r2 = Drive("POST", "/login", Cookies.Header(), "username=alice&password=secret");
+
+		KString sLoc = FirstHeader(r2, "Location");
+		CHECK ( r2.contains("302") );
+		CHECK ( sLoc.starts_with("http://localhost/cb?") );
+		CHECK ( sLoc.contains("error=access_denied") );
+		CHECK ( URLParam(sLoc, "code").empty() );
+	}
+
+	SECTION("access revoked between authorize and token is denied at the token endpoint")
+	{
+		CookieJar Cookies;
+		Cookies.Apply(Drive("GET", sAuthorizeQuery, Cookies.Header()));
+		KString r2 = Drive("POST", "/login", Cookies.Header(), "username=alice&password=secret");
+		Cookies.Apply(r2);
+		KString sCode = URLParam(FirstHeader(r2, "Location"), "code");
+		REQUIRE_FALSE ( sCode.empty() ); // allowed at authorize
+
+		pUsers->bDenyAccess = true;      // revoke before the code exchange
+
+		KString sBody = kFormat(
+			"grant_type=authorization_code&code={}&redirect_uri=http://localhost/cb"
+			"&code_verifier={}&client_id=test-client&client_secret=test-secret", sCode, sVerifier);
+		KJSON jErr = kjson::Parse(ResponseBody(Drive("POST", "/token", "", sBody)));
+		CHECK ( kjson::GetStringRef(jErr, "error") == "access_denied" );
 	}
 
 	SECTION("PKCE mismatch is rejected at the token endpoint")

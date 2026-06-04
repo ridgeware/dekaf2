@@ -106,9 +106,11 @@ set (USOURCES
 	kpty_tests.cpp
 	kpool_tests.cpp
 	kprops_tests.cpp
+	kqrcode_tests.cpp
 	kquotedprintable_tests.cpp
 	krandom_tests.cpp
 	kreader_tests.cpp
+	kreedsolomon_tests.cpp
 	kregex_tests.cpp
 	kreplacer_tests.cpp
 	krest_tests.cpp

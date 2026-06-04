@@ -1529,11 +1529,14 @@ set(PUBLIC_HEADERS
 	source/util/archive/kuntar.h
 	source/util/cli/koptions.h
 	source/util/cli/kxterm.h
+	source/util/codec/kgaloisfield.h
+	source/util/codec/kreedsolomon.h
 	source/util/id/kuuid.h
 	source/util/mail/kmail.h
 	source/util/mail/ksmtp.h
 	source/util/misc/ktemperature.h
 	source/util/misc/kversion.h
+	source/util/qrcode/kqrcode.h
 	source/util/text/kdiff.h
 	source/util/text/kngram.h
 	source/web/html/khtmlcontentblocks.h
@@ -1791,10 +1794,13 @@ set (SOURCES
 	source/util/archive/kuntar.cpp
 	source/util/cli/koptions.cpp
 	source/util/cli/kxterm.cpp
+	source/util/codec/kgaloisfield.cpp
+	source/util/codec/kreedsolomon.cpp
 	source/util/id/kuuid.cpp
 	source/util/mail/kmail.cpp
 	source/util/mail/ksmtp.cpp
 	source/util/misc/kversion.cpp
+	source/util/qrcode/kqrcode.cpp
 	source/util/text/kdiff.cpp
 	source/web/html/khtmlcontentblocks.cpp
 	source/web/html/khtmldom.cpp

@@ -58,6 +58,7 @@ COPY --from=build-stage /usr/local/bin/klog          \
                         /usr/local/bin/mysql-newuser \
                         /usr/local/bin/findcol       \
                         /usr/local/bin/kport         \
+                        /usr/local/bin/kssod         \
                         /usr/local/bin/ktunnel       \
                         /usr/local/bin/my-ip-addr     /usr/local/bin/
 COPY --from=build-stage /usr/local/include/dekaf2     /usr/local/include/dekaf2

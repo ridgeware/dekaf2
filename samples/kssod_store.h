@@ -177,8 +177,9 @@ public:
 	/// Client struct intentionally does not carry the require-assignment flag)
 	struct ClientInfo
 	{
-		Client Client;
-		bool   bRequireAssignment { false };
+		// the type is spelled fully qualified on purpose
+		KOpenIDServer::ClientStore::Client Client;
+		bool                               bRequireAssignment { false };
 	};
 
 	explicit KSSOdClientStore(KString sDatabase) : m_sDatabase(std::move(sDatabase)) {}

@@ -288,20 +288,41 @@ int main(int argc, char** argv)
 	try
 	{
 		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow=*/true);
-		Options.SetBriefDescription("kssod - a minimal, persistent OpenID Connect provider (SSO server)");
+		Options.SetBriefDescription("kssod - an OpenID Connect provider (SSO server)");
 
-		uint16_t iPort    = Options("http <port>   : TCP port to bind to (default 8080)", 8080);
-		bool     bTLS     = Options("tls           : serve HTTPS with an ephemeral self-signed certificate", false);
-		KString  sIssuer  = Options("issuer <url>  : public issuer base URL (default http(s)://localhost:<port>)",
-		                            kFormat("{}://localhost:{}", bTLS ? "https" : "http", iPort));
-		KString  sDB      = Options("db <path>     : SQLite database file", "kssod.sqlite");
-		KString  sKeyFile = Options("key <path>    : RS256 signing key (PEM); generated if missing", "kssod.key");
-		uint16_t iTimeout = Options("timeout <sec> : server connection timeout (default 5)", 5);
+		KREST::Options Settings;
+
+		KString sConfigDir = kGetConfigPath();
+
+		Settings.iPort                = Options("http <port>           : TCP port to bind to (default 8080)", 8080);
+		bool     bTLS                 = Options("tls                   : serve HTTPS with an ephemeral self-signed certificate", false);
+		KString  sIssuer              = Options("issuer <url>          : public issuer base URL (default http(s)://localhost:<port>)",
+		                                        kFormat("{}://localhost:{}", bTLS ? "https" : "http", Settings.iPort));
+		KString  sDB                  = Options("db <path>             : SQLite database file", kFormat("{}/kssod.sqlite", sConfigDir));
+		KString  sKeyFile             = Options("signkey <path>        : RS256 token signing key (PEM); generated if missing", kFormat("{}/kssod.key", sConfigDir));
+		Settings.iMaxConnections      = Options("n <max>               : max parallel connections (default 25)", 25);
+//		Settings.iMaxKeepaliveRounds  = Options("keepalive <maxrounds> : max keepalive rounds (default 10, 0 == off)", 10);
+		Settings.iTimeout             = Options("timeout <seconds>     : server timeout (default 5)", 5);
+		double dRateLimit             = Options("ratelimit <req/s>     : per-IP request rate limit, e.g. 10 or 0.5 (default 0 == off)", 0.0);
+		uint16_t iRateBurst           = Options("rateburst <count>     : rate limit burst size (default 10)", 10);
+		uint16_t iConnLimit           = Options("connlimit <max>       : per-IP max concurrent connections (default 0 == off)", 0);
+		KStringViewZ sMaxBody         = Options("maxbody <size>        : max request body size, supports k/M/G suffixes (default 1M, 0 == unlimited)", "1M");
+		Settings.sCert                = Options("cert <file>           : TLS certificate filepath (.pem), defaults to self-signed ephemeral cert", "");
+		Settings.sKey                 = Options("key <file>            : TLS private key filepath (.pem), defaults to ephemeral key", "");
+//		Settings.bStoreEphemeralCert  = Options("persist               : should a self-signed cert be persisted to disk and reused at next start?", false);
+//		Settings.bCreateEphemeralCert =!Options("notls                 : do NOT switch to TLS mode if cert and key were not provided", false);
+		Settings.sTLSPassword         = Options("tlspass <pass>        : TLS certificate password, if any", "");
+		Settings.sAllowedCipherSuites = Options("ciphers <suites>      : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
 
 		if (Options.Terminate())
 		{
 			return 0;
 		}
+
+		if (dRateLimit > 0) Settings.SetRateLimit(dRateLimit, iRateBurst);
+		if (iConnLimit > 0) Settings.SetConnectionLimit(iConnLimit);
+
+		Settings.iMaxRequestBodySize = kFromBinarySize(sMaxBody);
 
 		// --- schema ----------------------------------------------------------
 		KString sError;
@@ -1219,15 +1240,12 @@ int main(int argc, char** argv)
 		}, KRESTRoute::WWWFORM });
 
 		// --- run -------------------------------------------------------------
-		KREST::Options Settings;
 		Settings.Type                 = KREST::HTTP;
-		Settings.iPort                = iPort;
-		Settings.iTimeout             = iTimeout;
 		Settings.bBlocking            = true;
 		Settings.bCreateEphemeralCert = bTLS;
 
 		KOut.FormatLine(":: kssod listening on {}://localhost:{}  (issuer: {}, db: {})",
-		                bTLS ? "https" : "http", iPort, sIssuer, sDB);
+		                bTLS ? "https" : "http", Settings.iPort, sIssuer, sDB);
 		if (!bTLS)
 		{
 			KOut.FormatLine(":: plain HTTP (dev): cookies are non-Secure; pass --tls for HTTPS");

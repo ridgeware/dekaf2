@@ -2290,13 +2290,11 @@ if (DEKAF2_INSTALL_BIN)
 	endif()
 
 	# a runnable demo OpenID Connect provider (SSO server) built on KOpenIDServer.
-	# Keep it out of the default build; build explicitly with:
-	#   cmake --build . --target kssod
 	# It persists users / clients / sessions in a SQLite file (KSessionSQLiteStore
 	# behind KSessionCachingStore), so it needs ksqlite. Only defined when SQLite
 	# was found.
 	if (SQLITE3_FOUND)
-		add_executable(kssod EXCLUDE_FROM_ALL
+		add_executable(kssod
 			samples/kssod.cpp
 			samples/kssod_store.cpp
 			samples/kssod_store.h
@@ -2516,6 +2514,10 @@ if (DEKAF2_INSTALL_BIN)
 	if (DEKAF2_HAS_NCURSES)
 		install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
 	endif()
+	if (SQLITE3_FOUND)
+		install(TARGETS kssod DESTINATION ${dekaf2_bin_dest})
+	endif()
+
 
 	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mysql-newuser"   DESTINATION ${dekaf2_bin_dest})
 	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/findcol"         DESTINATION ${dekaf2_bin_dest})
@@ -2589,6 +2591,7 @@ add_custom_target(uninstall
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kreplace"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/ksql"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/krypt"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kssod"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/ktunnel"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/statinfo"
 )

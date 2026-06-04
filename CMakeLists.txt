@@ -75,7 +75,7 @@ if (WIN32)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.1.16 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.1.17 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -2287,6 +2287,23 @@ if (DEKAF2_INSTALL_BIN)
 		target_link_libraries(koidc_bff ksqlite${DEKAF2_LINK_SHARED} dekaf2${DEKAF2_LINK_SHARED})
 	else()
 		target_link_libraries(koidc_bff dekaf2${DEKAF2_LINK_SHARED})
+	endif()
+
+	# a runnable demo OpenID Connect provider (SSO server) built on KOpenIDServer.
+	# Keep it out of the default build; build explicitly with:
+	#   cmake --build . --target kssod
+	# It persists users / clients / sessions in a SQLite file (KSessionSQLiteStore
+	# behind KSessionCachingStore), so it needs ksqlite. Only defined when SQLite
+	# was found.
+	if (SQLITE3_FOUND)
+		add_executable(kssod EXCLUDE_FROM_ALL
+			samples/kssod.cpp
+			samples/kssod_store.cpp
+			samples/kssod_store.h
+			samples/kssod_ui.cpp
+			samples/kssod_ui.h
+		)
+		target_link_libraries(kssod ksqlite${DEKAF2_LINK_SHARED} dekaf2${DEKAF2_LINK_SHARED})
 	endif()
 
 	add_executable(getentities EXCLUDE_FROM_ALL source/web/html/getentities.cpp)

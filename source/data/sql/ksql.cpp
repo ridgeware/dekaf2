@@ -11093,7 +11093,7 @@ static KString MakeDescribeTableSQL (KSQL::DBT iDBType, KStringView sTable)
 } // MakeDescribeTableSQL
 
 //-----------------------------------------------------------------------------
-bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFile)
+bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFile, bool bSavedFormatAllowed)
 //-----------------------------------------------------------------------------
 {
 	SetFlag (KSQL::F_IgnoreSelectKeyword);
@@ -11110,14 +11110,14 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 	}
 
 	// Load persisted interpreter config (~/.config/{prog}/config.json).
-	// If a "format" entry is present and recognized, it overrides the caller-supplied Format.
+	// Only used when the caller did not explicitly specify a format (bSavedFormatAllowed).
 	// Subsequent format changes (bare style word or .format dot command) are persisted here.
 	KConfig Config;
 
-	if (Config("format").is_string())
+	if (bSavedFormatAllowed && Config("format").is_string())
 	{
 		auto sSavedStyle = Config("format").String();
-		
+
 		if (KFormTable::IsKnownStyle(sSavedStyle))
 		{
 			Format = CreateOutputFormat(sSavedStyle);

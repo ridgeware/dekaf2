@@ -105,7 +105,7 @@ int KSql::Main(int argc, char** argv)
 	KStringViewZ sHostname  = Options("host <url>            : database server hostname"    , "localhost");
 	uint16_t     iDBPort    = Options("port <number>         : database server port number" ,           0);
 	bool         bQuiet     = Options("q,-quiet              : only show db output"         ,       false);
-	KStringViewZ sFormat    = Options(kFormat("f,-format <format> : output format: {}, default ascii", KFormTable::GetSupportedStyles()), "ascii");
+	KStringViewZ sFormat    = Options(kFormat("f,-format <format> : output format: {}, default ascii", KFormTable::GetSupportedStyles()), "");
 	bool         bVersion   = Options("v,-version            : show version information"    ,       false);
 	KDuration    Timeout    = chrono::seconds(Options("to,timeout <seconds> : connect timeout in seconds, default 5"         ,    5));
 	bool         bNoComp    = Options("nocomp                : do not attempt to compress the database connection"          , false);
@@ -186,7 +186,7 @@ int KSql::Main(int argc, char** argv)
 		}
 	}
 
-	auto Format = KSQL::CreateOutputFormat(sFormat);
+	auto Format = KSQL::CreateOutputFormat(sFormat.empty() ? "ascii" : sFormat);
 
 	// If -e was given but the value is not an existing file, treat it as a
 	// literal SQL string by writing it to a temp file and passing that instead.
@@ -205,7 +205,7 @@ int KSql::Main(int argc, char** argv)
 		sEffectiveInfile = sTempFile;
 	}
 
-	auto bOK = SQL.RunInterpreter (Format, bQuiet, sEffectiveInfile);
+	auto bOK = SQL.RunInterpreter (Format, bQuiet, sEffectiveInfile, /*bSavedFormatAllowed=*/ sFormat.empty());
 
 	if (sTempFile)
 	{

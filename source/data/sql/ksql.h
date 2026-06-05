@@ -1596,7 +1596,7 @@ public:
 	void  InvalidateConnectSummary () const { m_sConnectSummary.clear(); InvalidateConnectHash(); }
 
 	/// start the command line interpreter
-	bool  RunInterpreter (OutputFormat Format = OutputFormat::ASCII, bool bQuiet = false, KStringViewZ sSQLFile = KStringViewZ{});
+	bool  RunInterpreter (OutputFormat Format = OutputFormat::ASCII, bool bQuiet = false, KStringViewZ sSQLFile = KStringViewZ{}, bool bSavedFormatAllowed = true);
 
 //----------
 private:

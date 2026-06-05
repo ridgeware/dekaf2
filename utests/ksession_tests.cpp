@@ -186,6 +186,73 @@ TEST_CASE("KSession")
 		CHECK ( Session.Validate(sB1) );
 	}
 
+	SECTION("ListSessionsFor lists one user's sessions with their metadata, excluding others")
+	{
+		KSession Session(std::make_unique<KSessionMemoryStore>(), TestConfig());
+		Session.SetAuthenticator(TestAuthenticator);
+
+		auto sA1 = Session.Login("alice", "wonder",  "10.0.0.1", "Mozilla/5.0 Chrome/138 Safari");
+		auto sA2 = Session.Login("alice", "wonder",  "10.0.0.2", "Mozilla/5.0 Firefox/128");
+		auto sB1 = Session.Login("bob",   "builder", "10.0.0.3", "curl/8");
+		REQUIRE ( !sA1.empty() );
+		REQUIRE ( !sA2.empty() );
+		REQUIRE ( !sB1.empty() );
+
+		auto Alice = Session.ListSessionsFor("alice");
+		CHECK ( Alice.size() == 2 );
+
+		bool bHasA1 = false, bHasA2 = false, bLeakedBob = false;
+		for (const auto& Rec : Alice)
+		{
+			CHECK ( Rec.sUsername == "alice" );
+			CHECK ( !Rec.sToken.empty() );            // the raw token is carried for correlation/revoke
+			if (Rec.sToken == sA1)
+			{
+				bHasA1 = true;
+				CHECK ( Rec.sClientIP  == "10.0.0.1" );
+				CHECK ( Rec.sUserAgent == "Mozilla/5.0 Chrome/138 Safari" );
+			}
+			if (Rec.sToken == sA2) bHasA2     = true;
+			if (Rec.sToken == sB1) bLeakedBob = true;
+		}
+		CHECK ( bHasA1 );
+		CHECK ( bHasA2 );
+		CHECK_FALSE ( bLeakedBob );                   // bob's session must not leak into alice's list
+
+		CHECK ( Session.ListSessionsFor("bob").size() == 1 );
+		CHECK ( Session.ListSessionsFor("nobody").empty() );
+		CHECK ( Session.ListSessionsFor("").empty() );
+
+		// revoking a single session (per-session logout) removes just that one
+		CHECK ( Session.Logout(sA1) );
+		auto Alice2 = Session.ListSessionsFor("alice");
+		CHECK ( Alice2.size() == 1 );
+		CHECK ( Alice2.front().sToken == sA2 );
+	}
+
+	SECTION("ListSessionsFor omits idle-expired sessions")
+	{
+		auto cfg = TestConfig();
+		cfg.IdleTimeout     = std::chrono::milliseconds(500);
+		cfg.AbsoluteTimeout = std::chrono::hours(1);
+
+		KSession Session(std::make_unique<KSessionMemoryStore>(), cfg);
+		Session.SetAuthenticator(TestAuthenticator);
+
+		auto sOld = Session.Login("alice", "wonder");
+		REQUIRE ( !sOld.empty() );
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(1200)); // age past the idle window
+
+		auto sNew = Session.Login("alice", "wonder");
+		REQUIRE ( !sNew.empty() );
+
+		// the store still holds both rows, but the live-list filters the idle one out
+		auto Live = Session.ListSessionsFor("alice");
+		CHECK ( Live.size() == 1 );
+		CHECK ( Live.front().sToken == sNew );
+	}
+
 	SECTION("PurgeExpired removes idle- and absolute-expired sessions only")
 	{
 		auto cfg = TestConfig();

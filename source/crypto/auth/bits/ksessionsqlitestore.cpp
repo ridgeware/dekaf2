@@ -308,6 +308,45 @@ std::size_t KSessionSQLiteStore::EraseAllFor(KStringView sUsername)
 } // EraseAllFor
 
 //-----------------------------------------------------------------------------
+std::size_t KSessionSQLiteStore::ListFor(KStringView sUsername, std::vector<KSession::Record>& Out)
+//-----------------------------------------------------------------------------
+{
+	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+
+	if (db.IsError())
+	{
+		m_sError = kFormat("cannot open database for ListFor: {}", db.Error());
+		return 0;
+	}
+
+	auto stmt = db.Prepare(kFormat(
+		"select token, username, created_utc, last_seen_utc, client_ip, user_agent, extra "
+		"from {} where username=?1 order by last_seen_utc desc", m_sTableName));
+
+	stmt.Bind(1, sUsername, false);
+
+	std::size_t iAdded = 0;
+
+	while (stmt.NextRow())
+	{
+		auto Row = stmt.GetRow();
+		KSession::Record Rec;
+		Rec.sToken     = Row.Col(1).String();
+		Rec.sUsername  = Row.Col(2).String();
+		Rec.tCreated   = KUnixTime::from_time_t(Row.Col(3).Int64());
+		Rec.tLastSeen  = KUnixTime::from_time_t(Row.Col(4).Int64());
+		Rec.sClientIP  = Row.Col(5).String();
+		Rec.sUserAgent = Row.Col(6).String();
+		Rec.sExtra     = Row.Col(7).String();
+		Out.push_back(std::move(Rec));
+		++iAdded;
+	}
+
+	return iAdded;
+
+} // ListFor
+
+//-----------------------------------------------------------------------------
 std::size_t KSessionSQLiteStore::PurgeExpired(KUnixTime tOldestLastSeen,
                                               KUnixTime tOldestCreated)
 //-----------------------------------------------------------------------------

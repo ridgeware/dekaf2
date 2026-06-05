@@ -453,6 +453,62 @@ void RenderAccount(KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSO
 			F.Add<html::Button>("Turn off email codes", html::Button::SUBMIT, html::Classes{"danger"});
 		}
 	}
+
+	// --- sessions: the list of this user's live SSO sessions ---
+	CB.Add<html::Heading>(3, "Sessions");
+
+	if (!St.Sessions.empty())
+	{
+		auto Table = CB.Add<html::Table>();
+		auto Head  = Table.Add<html::TableRow>();
+		Head.Add<html::TableHeader>("Device");
+		Head.Add<html::TableHeader>("IP address");
+		Head.Add<html::TableHeader>("Signed in");
+		Head.Add<html::TableHeader>("Last active");
+		Head.Add<html::TableHeader>("");
+
+		for (const auto& S : St.Sessions)
+		{
+			auto Row = Table.Add<html::TableRow>();
+
+			// "Chrome 138 · macOS 14 · Desktop", skipping the parts we could not parse
+			KString sDevice = S.sBrowser.empty() ? KString("Unknown device") : S.sBrowser;
+			if (!S.sOS.empty())     sDevice += kFormat(" · {}", S.sOS);
+			if (!S.sDevice.empty()) sDevice += kFormat(" · {}", S.sDevice);
+			Row.Add<html::TableData>(sDevice);
+
+			Row.Add<html::TableData>(S.sClientIP.empty() ? KStringView("—") : KStringView(S.sClientIP));
+			Row.Add<html::TableData>(S.sSignedIn);
+			Row.Add<html::TableData>(S.sLastActive);
+
+			auto Action = Row.Add<html::TableData>();
+			if (S.bCurrent)
+			{
+				// the current session is identified, not revocable from here -
+				// use the normal sign-out (or "sign out everywhere") for it
+				Action.Add<html::Span>(html::Classes{"badge on"}).AddText("This device");
+			}
+			else
+			{
+				auto F = Action.Add<html::Form>("/account/sessions/close");
+				F.SetMethod(html::Form::POST);
+				F.Add<html::Input>("id", S.sRevokeID, html::Input::HIDDEN);
+				F.Add<html::Button>("Sign out", html::Button::SUBMIT, html::Classes{"secondary"});
+			}
+		}
+	}
+
+	// --- sessions: sign out of every browser ---
+	CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+	    "Signed in on a shared or someone else's computer? This ends your single sign-on "
+	    "session in every browser, so no app can sign you in silently again. Apps you are "
+	    "already signed in to stay open until they next check with this provider.");
+	{
+		auto F = CB.Add<html::Form>("/account/sessions/close-all");
+		F.SetMethod(html::Form::POST);
+		F.Add<html::Button>("Sign out everywhere", html::Button::SUBMIT, html::Classes{"danger"});
+	}
+
 	SendPage(HTTP, Page, iStatus);
 }
 
@@ -863,6 +919,16 @@ void RenderClients(KRESTServer& HTTP, KStringView sUser, KSSOdClientStore& Clien
 		Label.Add<html::Input>("require_assignment", "1", html::Input::CHECKBOX).SetChecked(PrefillChecked(Prefill, "require_assignment"));
 		Label.AddText("Restrict to assigned users only");
 	}
+	// re-authentication policy: how this app interacts with single sign-on
+	{
+		auto Label = Form.Add<html::Element>("label");
+		Label.Add<html::Input>("force_login", "1", html::Input::CHECKBOX).SetChecked(PrefillChecked(Prefill, "force_login"));
+		Label.AddText("Always ask for the password (skip single sign-on for this app)");
+	}
+	LabeledInput(Form, "Re-authenticate after how many minutes (0 = no limit)", "max_auth_age", html::Input::TEXT, /*bRequired=*/false).SetValue(PrefillVal(Prefill, "max_auth_age"));
+	Form.Add<html::Paragraph>(html::Classes{"help"})
+	    .AddText("Forces a fresh login when the single sign-on session is older than this, even if the user is still signed in. "
+	             "Useful for sensitive apps. Leave 0 and unchecked for normal single sign-on.");
 	Form.Add<html::Button>("Add app");
 
 	BackLink(Body);
@@ -911,6 +977,16 @@ void RenderClientEdit(KRESTServer& HTTP, KStringView sUser, KStringView sClientI
 		Label.Add<html::Input>("require_assignment", "1", html::Input::CHECKBOX).SetChecked(PrefillChecked(Values, "require_assignment"));
 		Label.AddText("Restrict to assigned users only");
 	}
+	// re-authentication policy: how this app interacts with single sign-on
+	{
+		auto Label = Form.Add<html::Element>("label");
+		Label.Add<html::Input>("force_login", "1", html::Input::CHECKBOX).SetChecked(PrefillChecked(Values, "force_login"));
+		Label.AddText("Always ask for the password (skip single sign-on for this app)");
+	}
+	LabeledInput(Form, "Re-authenticate after how many minutes (0 = no limit)", "max_auth_age", html::Input::TEXT, /*bRequired=*/false).SetValue(PrefillVal(Values, "max_auth_age"));
+	Form.Add<html::Paragraph>(html::Classes{"help"})
+	    .AddText("Forces a fresh login when the single sign-on session is older than this, even if the user is still signed in. "
+	             "Leave 0 and unchecked for normal single sign-on.");
 	Form.Add<html::Paragraph>(html::Classes{"help"})
 	    .AddText("Manage this app's role catalog and user assignments on its \"Manage\" page.");
 

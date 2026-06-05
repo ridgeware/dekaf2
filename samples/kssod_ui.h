@@ -63,6 +63,20 @@
 using namespace dekaf2;
 
 /// the self-service state the account page needs beyond the OIDC claims
+/// one row of the "active sessions" list. The renderer never sees the raw
+/// session token; sRevokeID is an opaque hash of it, safe to put in a form.
+struct SessionView
+{
+	KString sRevokeID;     ///< opaque id (hash of the token) for the revoke form
+	KString sBrowser;      ///< e.g. "Chrome 138" (or "Unknown" if no user-agent)
+	KString sOS;           ///< e.g. "macOS 14" (may be empty)
+	KString sDevice;       ///< "Desktop" / "Mobile" / "Tablet" (may be empty)
+	KString sClientIP;     ///< client IP at login time (may be empty)
+	KString sSignedIn;     ///< formatted login timestamp
+	KString sLastActive;   ///< formatted last-seen timestamp
+	bool    bCurrent { false }; ///< the session making the current request
+};
+
 struct AccountState
 {
 	bool        bHasTotp       { false };
@@ -70,6 +84,7 @@ struct AccountState
 	bool        bEmailVerified { false };
 	bool        bEmailOtp      { false }; ///< email used as the second factor
 	bool        bSmtp          { false }; ///< an email relay is configured
+	std::vector<SessionView> Sessions;    ///< this user's live SSO sessions
 };
 
 // --- end-user pages ---

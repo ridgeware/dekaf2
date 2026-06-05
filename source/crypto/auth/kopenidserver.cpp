@@ -124,17 +124,25 @@ void KOpenIDServer::ServeJWKS(KRESTServer& HTTP)
 } // ServeJWKS
 
 //-----------------------------------------------------------------------------
-KString KOpenIDServer::LoggedInUser(KRESTServer& HTTP)
+bool KOpenIDServer::CurrentSession(KRESTServer& HTTP, KSession::Record& Out)
 //-----------------------------------------------------------------------------
 {
 	KStringView sToken = HTTP.GetCookie(m_LoginSession->GetCookieName());
 	if (sToken.empty())
 	{
-		return {};
+		return false;
 	}
 
+	return m_LoginSession->Validate(sToken, &Out);
+
+} // CurrentSession
+
+//-----------------------------------------------------------------------------
+KString KOpenIDServer::LoggedInUser(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
 	KSession::Record Record;
-	if (!m_LoginSession->Validate(sToken, &Record))
+	if (!CurrentSession(HTTP, Record))
 	{
 		return {};
 	}
@@ -234,6 +242,18 @@ KOpenIDServer::AuthRequest KOpenIDServer::ParseAuthRequest(KRESTServer& HTTP, KS
 		sError = "scope must include 'openid'";
 		return Req;
 	}
+
+	// authentication-freshness inputs: the RP's prompt/max_age, and a snapshot of
+	// the client's own re-auth policy. All four are evaluated in HandleAuthorize.
+	Req.sPrompt = Q["prompt"];
+	KStringView sMaxAge = Q["max_age"];
+	if (!sMaxAge.empty())
+	{
+		Req.iMaxAgeSeconds = sMaxAge.Int64();
+		if (Req.iMaxAgeSeconds < 0) Req.iMaxAgeSeconds = 0; // junk / negative -> "must have authenticated now"
+	}
+	Req.bClientForceLogin = Client.bForceLogin;
+	Req.ClientMaxAuthAge  = Client.MaxAuthAge;
 
 	Req.bValid = true;
 	return Req;
@@ -350,6 +370,20 @@ void KOpenIDServer::ExpirePendingCookie(KRESTServer& HTTP)
 } // ExpirePendingCookie
 
 //-----------------------------------------------------------------------------
+KURL KOpenIDServer::ErrorRedirectURL(const AuthRequest& Req, KStringView sError)
+//-----------------------------------------------------------------------------
+{
+	KURL URL(Req.sRedirectURI);
+	URL.Query->Set("error", sError);
+	if (!Req.sState.empty())
+	{
+		URL.Query->Set("state", Req.sState);
+	}
+	return URL;
+
+} // ErrorRedirectURL
+
+//-----------------------------------------------------------------------------
 void KOpenIDServer::HandleAuthorize(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
@@ -362,19 +396,54 @@ void KOpenIDServer::HandleAuthorize(KRESTServer& HTTP)
 		throw KHTTPError(KHTTPError::H4xx_BADREQUEST, kFormat("invalid authorization request: {}", sError));
 	}
 
-	KString sUser = LoggedInUser(HTTP);
-
-	if (sUser.empty())
+	// OIDC 'prompt': we honor 'none' (never show UI) and 'login' (force re-auth).
+	bool bPromptNone  = false;
+	bool bPromptLogin = false;
+	for (auto sToken : Req.sPrompt.Split(' '))
 	{
-		// not authenticated at the OP: stash the validated request and send the
-		// browser to the application's login screen
+		if      (sToken == "none")  bPromptNone  = true;
+		else if (sToken == "login") bPromptLogin = true;
+	}
+
+	KSession::Record Session;
+	bool bHaveSession = CurrentSession(HTTP, Session);
+
+	// decide whether an interactive (re-)authentication is required. The session's
+	// tCreated is its authentication time; the four triggers are the RP's
+	// prompt=login and max_age, and the client's bForceLogin and MaxAuthAge policy.
+	bool bMustReauth = false;
+	if (bHaveSession)
+	{
+		const KDuration Age = KUnixTime::now() - Session.tCreated;
+
+		if      (bPromptLogin)                                                              bMustReauth = true;
+		else if (Req.bClientForceLogin)                                                     bMustReauth = true;
+		else if (Req.iMaxAgeSeconds >= 0 && Age > chrono::seconds(Req.iMaxAgeSeconds))      bMustReauth = true;
+		else if (!Req.ClientMaxAuthAge.IsZero() && Age > Req.ClientMaxAuthAge)              bMustReauth = true;
+	}
+
+	if (!bHaveSession || bMustReauth)
+	{
+		if (bPromptNone)
+		{
+			// the RP forbade any interaction, but we would have to prompt: per OIDC,
+			// hand the error back to the client instead of showing the login screen.
+			kDebug(1, "authorize: prompt=none but {} for client '{}'",
+			       bHaveSession ? "re-authentication required" : "no active session", Req.sClientID);
+			Redirect(HTTP, ErrorRedirectURL(Req, "login_required").Serialize());
+			return;
+		}
+
+		// stash the validated request and send the browser to the login screen.
+		// (A forced re-auth over a live session lands here too: the fresh login
+		// in CompleteLogin mints a new session, advancing the authentication time.)
 		SetPendingCookie(HTTP, Req);
 		Redirect(HTTP, m_Config.sLoginPath);
 		return;
 	}
 
-	// already authenticated (SSO): issue the code and bounce back to the client
-	KURL RedirectURL = IssueCodeAndRedirectURL(Req, sUser);
+	// authenticated and fresh enough (SSO): issue the code and bounce back to the client
+	KURL RedirectURL = IssueCodeAndRedirectURL(Req, Session.sUsername);
 	if (RedirectURL.empty())
 	{
 		throw KHTTPError(KHTTPError::H5xx_ERROR, "could not issue authorization code");

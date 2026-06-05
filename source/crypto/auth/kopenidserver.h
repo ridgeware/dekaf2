@@ -176,6 +176,18 @@ public:
 			std::vector<KString> PostLogoutRedirectURIs; ///< exact-match allow-list for RP-initiated logout
 			std::vector<KString> Scopes;                 ///< scopes this client may request
 			bool                 bPublic { false };      ///< public client: no secret, PKCE only
+			/// Re-authentication policy (enforced at /authorize, independent of what
+			/// the relying party requests): when the OP login session is older than
+			/// this, force a fresh interactive login before issuing a code. Zero (the
+			/// default) imposes no limit, leaving normal single sign-on in effect.
+			/// This is the IdP-side equivalent of an OIDC max_age, applied to a third-
+			/// party app that never sends one itself.
+			KDuration            MaxAuthAge  { KDuration::zero() };
+			/// Re-authentication policy: when true, always re-authenticate at
+			/// /authorize even if a live OP session exists — as if every request
+			/// carried prompt=login. Use for sensitive clients that must never be
+			/// entered via silent SSO.
+			bool                 bForceLogin { false };
 		};
 		virtual ~ClientStore() = default;
 		/// @returns true and fills Out if sClientID is registered
@@ -269,13 +281,17 @@ private:
 	/// the result of validating an /authorize request
 	struct AuthRequest
 	{
-		KString sClientID;
-		KString sRedirectURI;
-		KString sScope;
-		KString sState;
-		KString sNonce;
-		KString sCodeChallenge;
-		bool    bValid { false };
+		KString   sClientID;
+		KString   sRedirectURI;
+		KString   sScope;
+		KString   sState;
+		KString   sNonce;
+		KString   sCodeChallenge;
+		KString   sPrompt;                              ///< OIDC 'prompt' (space-delimited set; we honor 'none' and 'login')
+		int64_t   iMaxAgeSeconds    { -1 };             ///< OIDC 'max_age' in seconds; -1 == not supplied
+		bool      bClientForceLogin { false };          ///< snapshot of the client's force-login policy
+		KDuration ClientMaxAuthAge  { KDuration::zero() }; ///< snapshot of the client's max-auth-age policy
+		bool      bValid { false };
 	};
 
 	DEKAF2_PRIVATE AuthRequest ParseAuthRequest (KRESTServer& HTTP, KString& sError);
@@ -287,6 +303,13 @@ private:
 	DEKAF2_PRIVATE AuthRequest ReadPendingCookie(KRESTServer& HTTP);
 	DEKAF2_PRIVATE void        ExpirePendingCookie(KRESTServer& HTTP);
 	DEKAF2_PRIVATE KString     LoggedInUser     (KRESTServer& HTTP); ///< sub from the OP session, or empty
+	/// the OP login session behind the request's cookie; on success fills Out
+	/// (username + tCreated, the authentication time used for the max_age / re-auth
+	/// decision). @returns false if there is no cookie or the session is invalid/expired.
+	DEKAF2_PRIVATE bool        CurrentSession   (KRESTServer& HTTP, KSession::Record& Out);
+	/// build the client's redirect_uri carrying an OAuth error (e.g. login_required),
+	/// preserving state — for the prompt=none path, which must not show a login screen.
+	DEKAF2_PRIVATE KURL        ErrorRedirectURL (const AuthRequest& Req, KStringView sError);
 	DEKAF2_PRIVATE KString     SignJWT          (const KJSON& Payload) const;
 	/// verify a JWT THIS OP issued: checks the RS256 signature against our own
 	/// public key and that "iss" matches. Does NOT check expiry — the caller

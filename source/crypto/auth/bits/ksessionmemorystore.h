@@ -73,6 +73,7 @@ public:
 	bool              UpdateExtra  (KStringView sToken, KStringView sExtra) override;
 	bool              Erase        (KStringView sToken) override;
 	std::size_t       EraseAllFor  (KStringView sUsername) override;
+	std::size_t       ListFor      (KStringView sUsername, std::vector<KSession::Record>& Out) override;
 	std::size_t       PurgeExpired (KUnixTime tOldestLastSeen, KUnixTime tOldestCreated) override;
 	std::size_t       Count        () const override;
 	KString           GetLastError () const override { return m_sError; }

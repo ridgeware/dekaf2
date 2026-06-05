@@ -127,6 +127,8 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"  scopes             text    not null default '',"   // newline-separated
 		"  is_public          integer not null default 0,"
 		"  require_assignment integer not null default 0,"     // only assigned users may use this client
+		"  force_login        integer not null default 0,"     // re-auth policy: always prompt, never silent SSO
+		"  max_auth_age       integer not null default 0,"     // re-auth policy: force fresh login when OP session older than this many seconds (0 = no limit)
 		"  created_utc        integer not null default 0"
 		")",
 
@@ -157,6 +159,8 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		// best-effort (see the loop): they error on a fresh DB where the column
 		// already exists, which is expected and ignored.
 		"alter table kssod_clients add column require_assignment integer not null default 0",
+		"alter table kssod_clients add column force_login integer not null default 0",
+		"alter table kssod_clients add column max_auth_age integer not null default 0",
 		"alter table kssod_roles add column is_default integer not null default 0",
 		"alter table kssod_assignments add column access integer not null default 1",
 		"alter table kssod_users add column totp_secret text not null default ''",
@@ -972,7 +976,7 @@ bool KSSOdClientStore::Lookup(KStringView sClientID, Client& Out)
 	if (db.IsError()) return false;
 
 	auto stmt = db.Prepare(
-		"select client_id, secret_hash, redirect_uris, postlogout_uris, scopes, is_public "
+		"select client_id, secret_hash, redirect_uris, postlogout_uris, scopes, is_public, force_login, max_auth_age "
 		"from kssod_clients where client_id=?1");
 	stmt.Bind(1, sClientID);
 	if (!stmt.NextRow()) return false;
@@ -984,6 +988,8 @@ bool KSSOdClientStore::Lookup(KStringView sClientID, Client& Out)
 	Out.PostLogoutRedirectURIs = Row.Col(4).String().Split<std::vector<KString>>('\n');
 	Out.Scopes                 = Row.Col(5).String().Split<std::vector<KString>>('\n');
 	Out.bPublic                = Row.Col(6).Int64() != 0;
+	Out.bForceLogin            = Row.Col(7).Int64() != 0;
+	Out.MaxAuthAge             = KDuration(chrono::seconds(Row.Col(8).Int64())); // stored as seconds
 	return true;
 
 } // Lookup
@@ -1002,8 +1008,8 @@ bool KSSOdClientStore::AddClient(const Client& Client, bool bRequireAssignment)
 	KString sScopes;     sScopes.Join(Client.Scopes, "\n");
 
 	auto stmt = db.Prepare(
-		"insert into kssod_clients (client_id, secret_hash, redirect_uris, postlogout_uris, scopes, is_public, require_assignment, created_utc) "
-		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)");
+		"insert into kssod_clients (client_id, secret_hash, redirect_uris, postlogout_uris, scopes, is_public, require_assignment, force_login, max_auth_age, created_utc) "
+		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)");
 	stmt.Bind(1, Client.sClientID);
 	stmt.Bind(2, Client.sClientSecretHash);
 	stmt.Bind(3, sRedirect);
@@ -1011,7 +1017,9 @@ bool KSSOdClientStore::AddClient(const Client& Client, bool bRequireAssignment)
 	stmt.Bind(5, sScopes);
 	stmt.Bind(6, static_cast<int64_t>(Client.bPublic ? 1 : 0));
 	stmt.Bind(7, static_cast<int64_t>(bRequireAssignment ? 1 : 0));
-	stmt.Bind(8, static_cast<int64_t>(KUnixTime::now().to_time_t()));
+	stmt.Bind(8, static_cast<int64_t>(Client.bForceLogin ? 1 : 0));
+	stmt.Bind(9, static_cast<int64_t>(Client.MaxAuthAge.seconds().count())); // KDuration -> seconds at the SQLite boundary
+	stmt.Bind(10, static_cast<int64_t>(KUnixTime::now().to_time_t()));
 	return stmt.Execute();
 
 } // AddClient
@@ -1034,7 +1042,7 @@ bool KSSOdClientStore::UpdateClient(const Client& Client, bool bRequireAssignmen
 	{
 		auto stmt = db.Prepare(
 			"update kssod_clients set secret_hash=?2, redirect_uris=?3, postlogout_uris=?4, "
-			"scopes=?5, is_public=?6, require_assignment=?7 where client_id=?1");
+			"scopes=?5, is_public=?6, require_assignment=?7, force_login=?8, max_auth_age=?9 where client_id=?1");
 		stmt.Bind(1, Client.sClientID);
 		stmt.Bind(2, Client.sClientSecretHash);
 		stmt.Bind(3, sRedirect);
@@ -1042,18 +1050,22 @@ bool KSSOdClientStore::UpdateClient(const Client& Client, bool bRequireAssignmen
 		stmt.Bind(5, sScopes);
 		stmt.Bind(6, static_cast<int64_t>(Client.bPublic ? 1 : 0));
 		stmt.Bind(7, static_cast<int64_t>(bRequireAssignment ? 1 : 0));
+		stmt.Bind(8, static_cast<int64_t>(Client.bForceLogin ? 1 : 0));
+		stmt.Bind(9, static_cast<int64_t>(Client.MaxAuthAge.seconds().count()));
 		return stmt.Execute();
 	}
 
 	auto stmt = db.Prepare(
 		"update kssod_clients set redirect_uris=?2, postlogout_uris=?3, scopes=?4, "
-		"is_public=?5, require_assignment=?6 where client_id=?1");
+		"is_public=?5, require_assignment=?6, force_login=?7, max_auth_age=?8 where client_id=?1");
 	stmt.Bind(1, Client.sClientID);
 	stmt.Bind(2, sRedirect);
 	stmt.Bind(3, sPostLogout);
 	stmt.Bind(4, sScopes);
 	stmt.Bind(5, static_cast<int64_t>(Client.bPublic ? 1 : 0));
 	stmt.Bind(6, static_cast<int64_t>(bRequireAssignment ? 1 : 0));
+	stmt.Bind(7, static_cast<int64_t>(Client.bForceLogin ? 1 : 0));
+	stmt.Bind(8, static_cast<int64_t>(Client.MaxAuthAge.seconds().count()));
 	return stmt.Execute();
 
 } // UpdateClient
@@ -1068,7 +1080,7 @@ bool KSSOdClientStore::LookupInfo(KStringView sClientID, ClientInfo& Out)
 	if (db.IsError()) return false;
 
 	auto stmt = db.Prepare(
-		"select client_id, secret_hash, redirect_uris, postlogout_uris, scopes, is_public, require_assignment "
+		"select client_id, secret_hash, redirect_uris, postlogout_uris, scopes, is_public, require_assignment, force_login, max_auth_age "
 		"from kssod_clients where client_id=?1");
 	stmt.Bind(1, sClientID);
 	if (!stmt.NextRow()) return false;
@@ -1081,6 +1093,8 @@ bool KSSOdClientStore::LookupInfo(KStringView sClientID, ClientInfo& Out)
 	Out.Client.Scopes                 = Row.Col(5).String().Split<std::vector<KString>>('\n');
 	Out.Client.bPublic                = Row.Col(6).Int64() != 0;
 	Out.bRequireAssignment            = Row.Col(7).Int64() != 0;
+	Out.Client.bForceLogin            = Row.Col(8).Int64() != 0;
+	Out.Client.MaxAuthAge             = KDuration(chrono::seconds(Row.Col(9).Int64()));
 	return true;
 
 } // LookupInfo

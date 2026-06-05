@@ -172,6 +172,14 @@ public:
 		/// erase all sessions belonging to the given user; returns count erased
 		virtual std::size_t EraseAllFor  (KStringView sUsername)                           = 0;
 
+		/// list all sessions belonging to the given user (liveness filtering is the
+		/// caller's responsibility — KSession::ListSessionsFor drops expired ones).
+		/// Appends to Out and returns the number appended. Not pure-virtual: the
+		/// default returns 0 so that pre-existing custom Store backends keep
+		/// compiling — they simply expose no session list until they override this.
+		/// The three built-in stores override it.
+		virtual std::size_t ListFor      (KStringView /*sUsername*/, std::vector<Record>& /*Out*/) { return 0; }
+
 		/// erase all sessions that are either idle-expired or absolute-expired
 		/// @param tOldestLastSeen sessions with LastSeen before this are idle-expired
 		/// @param tOldestCreated  sessions with Created  before this are absolute-expired
@@ -326,6 +334,15 @@ public:
 	/// Invalidate every session for the given user (e.g. after password change).
 	/// @returns count of sessions erased
 	std::size_t LogoutAllFor (KStringView sUsername);
+
+	/// List all currently live sessions for a user (idle- and absolute-expired
+	/// ones are filtered out, applying the same rule as Validate()), ordered most
+	/// recently active first. Each returned Record still carries its raw sToken,
+	/// so callers can correlate the request's own session or revoke a specific
+	/// one via Logout() — do NOT expose sToken to clients. Requires a Store that
+	/// implements ListFor (all bundled backends do); returns empty otherwise.
+	DEKAF2_NODISCARD
+	std::vector<Record> ListSessionsFor (KStringView sUsername);
 
 	/// Manually trigger the expired-session purge. Called automatically
 	/// by the background timer if PurgeInterval is positive.

@@ -20,6 +20,8 @@
 #include <map>
 #include <unordered_map>
 #include <memory>
+#include <thread>
+#include <chrono>
 
 using namespace dekaf2;
 
@@ -107,7 +109,9 @@ struct TestUserStore : KOpenIDServer::UserStore
 
 struct TestClientStore : KOpenIDServer::ClientStore
 {
-	KString sSecretHash; // bcrypt of "test-secret"
+	KString   sSecretHash;                  // bcrypt of "test-secret"
+	bool      bForceLogin { false };        // re-auth policy: always prompt
+	KDuration MaxAuthAge  { KDuration::zero() }; // re-auth policy: max OP-session age
 
 	bool Lookup(KStringView clientID, Client& Out) override
 	{
@@ -118,6 +122,8 @@ struct TestClientStore : KOpenIDServer::ClientStore
 		Out.PostLogoutRedirectURIs = { "http://localhost/after-logout" };
 		Out.Scopes                 = { "openid", "profile", "email" };
 		Out.bPublic                = false;
+		Out.bForceLogin            = bForceLogin;
+		Out.MaxAuthAge             = MaxAuthAge;
 		return true;
 	}
 };
@@ -502,5 +508,89 @@ TEST_CASE("KOpenIDServer")
 		KString r = Drive("GET", sBad, "");
 		CHECK_FALSE ( r.contains("302") );      // must NOT redirect anywhere
 		CHECK ( r.contains("400") );
+	}
+
+	SECTION("re-authentication policy: prompt, max_age, and per-client policy")
+	{
+		// establish a fresh OP login session and return its cookie jar
+		auto LogIn = [&]() -> CookieJar
+		{
+			CookieJar C;
+			C.Apply(Drive("GET", sAuthorizeQuery, C.Header()));                            // -> /login, pending cookie
+			C.Apply(Drive("POST", "/login", C.Header(), "username=alice&password=secret")); // -> code + OP session cookie
+			return C;
+		};
+
+		// a second authorize (distinct PKCE/state) with optional extra query params
+		KString sVer2  = KBase64Url::Encode(kGetRandom(32));
+		KString sChal2 = KBase64Url::Encode(KSHA256(sVer2).Digest());
+		auto AuthorizeQ = [&](KStringView sExtra) -> KString
+		{
+			return kFormat(
+				"/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/cb"
+				"&scope=openid&state=s2&code_challenge={}&code_challenge_method=S256{}", sChal2, sExtra);
+		};
+
+		SECTION("prompt=login forces re-auth despite a live session")
+		{
+			auto C = LogIn();
+			// sanity: a plain authorize is silent SSO straight back to the client
+			CHECK ( FirstHeader(Drive("GET", AuthorizeQ(""), C.Header()), "Location").starts_with("http://localhost/cb?") );
+			// prompt=login overrides SSO -> back to the login screen
+			CHECK ( FirstHeader(Drive("GET", AuthorizeQ("&prompt=login"), C.Header()), "Location") == "/login" );
+		}
+
+		SECTION("prompt=none returns login_required instead of a login screen")
+		{
+			// no session: cannot prompt -> error back to the client (not /login)
+			KString sLoc = FirstHeader(Drive("GET", AuthorizeQ("&prompt=none"), ""), "Location");
+			CHECK ( sLoc.starts_with("http://localhost/cb?") );
+			CHECK ( sLoc.contains("error=login_required") );
+			CHECK ( URLParam(sLoc, "state") == "s2" );
+
+			// a live session with no re-auth trigger -> a silent code, no error
+			auto C = LogIn();
+			KString sLoc2 = FirstHeader(Drive("GET", AuthorizeQ("&prompt=none"), C.Header()), "Location");
+			CHECK ( sLoc2.starts_with("http://localhost/cb?") );
+			CHECK_FALSE ( sLoc2.contains("error=") );
+			CHECK_FALSE ( URLParam(sLoc2, "code").empty() );
+		}
+
+		SECTION("prompt=none plus a re-auth trigger -> login_required (never a silent prompt)")
+		{
+			auto C = LogIn();
+			// max_age=0 demands a just-now authentication, but prompt=none forbids UI
+			KString sLoc = FirstHeader(Drive("GET", AuthorizeQ("&prompt=none&max_age=0"), C.Header()), "Location");
+			CHECK ( sLoc.contains("error=login_required") );
+		}
+
+		SECTION("request max_age forces re-auth when the session is older than it")
+		{
+			auto C = LogIn();
+			// max_age=0: any non-zero session age exceeds it -> /login
+			CHECK ( FirstHeader(Drive("GET", AuthorizeQ("&max_age=0"), C.Header()), "Location") == "/login" );
+			// a generous max_age leaves SSO intact
+			CHECK ( FirstHeader(Drive("GET", AuthorizeQ("&max_age=3600"), C.Header()), "Location").starts_with("http://localhost/cb?") );
+		}
+
+		SECTION("client bForceLogin always re-authenticates")
+		{
+			auto C = LogIn();
+			CHECK ( FirstHeader(Drive("GET", AuthorizeQ(""), C.Header()), "Location").starts_with("http://localhost/cb?") );
+			pClients->bForceLogin = true;
+			CHECK ( FirstHeader(Drive("GET", AuthorizeQ(""), C.Header()), "Location") == "/login" );
+		}
+
+		SECTION("client MaxAuthAge forces re-auth once the session is older than it")
+		{
+			auto C = LogIn();
+			// a generous policy leaves SSO intact
+			pClients->MaxAuthAge = std::chrono::hours(1);
+			CHECK ( FirstHeader(Drive("GET", AuthorizeQ(""), C.Header()), "Location").starts_with("http://localhost/cb?") );
+			// a tiny policy, after a short wait, forces a fresh login
+			std::this_thread::sleep_for(std::chrono::milliseconds(30));
+			pClients->MaxAuthAge = std::chrono::milliseconds(5);
+			CHECK ( FirstHeader(Drive("GET", AuthorizeQ(""), C.Header()), "Location") == "/login" );
+		}
 	}
 }

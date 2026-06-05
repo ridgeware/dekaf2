@@ -46,6 +46,7 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/logging/klog.h>
+#include <algorithm>
 
 // NOTE: the SQLite- and KSQL-backed convenience constructors are defined
 // in the separate translation units ksessionsqlitestore.cpp and
@@ -279,6 +280,42 @@ std::size_t KSession::LogoutAllFor(KStringView sUsername)
 	return m_Store->EraseAllFor(sUsername);
 
 } // LogoutAllFor
+
+//-----------------------------------------------------------------------------
+std::vector<KSession::Record> KSession::ListSessionsFor(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::vector<Record> Sessions;
+
+	if (sUsername.empty())
+	{
+		return Sessions;
+	}
+
+	m_Store->ListFor(sUsername, Sessions);
+
+	// drop sessions that Validate() would reject, so the caller only ever sees
+	// sessions a request could still use. Mirror the cutoffs from PurgeExpired:
+	// a zero timeout means "disabled", i.e. never expires on that axis.
+	auto tNow = KUnixTime::now();
+	const bool bIdle = m_Config.IdleTimeout     > KDuration::zero();
+	const bool bAbs  = m_Config.AbsoluteTimeout > KDuration::zero();
+
+	Sessions.erase(std::remove_if(Sessions.begin(), Sessions.end(),
+		[&](const Record& Rec)
+		{
+			if (bAbs  && tNow - Rec.tCreated  > m_Config.AbsoluteTimeout) return true;
+			if (bIdle && tNow - Rec.tLastSeen > m_Config.IdleTimeout)     return true;
+			return false;
+		}), Sessions.end());
+
+	// most recently active first
+	std::sort(Sessions.begin(), Sessions.end(),
+		[](const Record& a, const Record& b) { return a.tLastSeen > b.tLastSeen; });
+
+	return Sessions;
+
+} // ListSessionsFor
 
 //-----------------------------------------------------------------------------
 std::size_t KSession::PurgeExpired()

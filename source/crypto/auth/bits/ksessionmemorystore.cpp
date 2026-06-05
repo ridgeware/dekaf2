@@ -172,6 +172,27 @@ std::size_t KSessionMemoryStore::EraseAllFor(KStringView sUsername)
 } // EraseAllFor
 
 //-----------------------------------------------------------------------------
+std::size_t KSessionMemoryStore::ListFor(KStringView sUsername, std::vector<KSession::Record>& Out)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	std::size_t iAdded = 0;
+
+	for (const auto& Pair : m_Sessions)
+	{
+		if (Pair.second.sUsername == sUsername)
+		{
+			Out.push_back(Pair.second);
+			++iAdded;
+		}
+	}
+
+	return iAdded;
+
+} // ListFor
+
+//-----------------------------------------------------------------------------
 std::size_t KSessionMemoryStore::PurgeExpired(KUnixTime tOldestLastSeen,
                                               KUnixTime tOldestCreated)
 //-----------------------------------------------------------------------------

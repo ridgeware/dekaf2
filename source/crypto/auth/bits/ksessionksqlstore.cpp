@@ -208,6 +208,40 @@ std::size_t KSessionKSQLStore::EraseAllFor(KStringView sUsername)
 } // EraseAllFor
 
 //-----------------------------------------------------------------------------
+std::size_t KSessionKSQLStore::ListFor(KStringView sUsername, std::vector<KSession::Record>& Out)
+//-----------------------------------------------------------------------------
+{
+	// KSQL::FormatSQL automatically escapes all string parameters, so the
+	// username is injection-safe interpolated into the '{}' placeholder.
+	if (!m_DB.ExecQuery(
+		"select token, username, created_utc, last_seen_utc, client_ip, user_agent, extra "
+		"from {} where username='{}' order by last_seen_utc desc",
+		m_sTableName, sUsername))
+	{
+		return 0;
+	}
+
+	std::size_t iAdded = 0;
+
+	while (m_DB.NextRow())
+	{
+		KSession::Record Rec;
+		Rec.sToken     = m_DB.Get(1);
+		Rec.sUsername  = m_DB.Get(2);
+		Rec.tCreated   = m_DB.GetUnixTime(3);
+		Rec.tLastSeen  = m_DB.GetUnixTime(4);
+		Rec.sClientIP  = m_DB.Get(5);
+		Rec.sUserAgent = m_DB.Get(6);
+		Rec.sExtra     = m_DB.Get(7);
+		Out.push_back(std::move(Rec));
+		++iAdded;
+	}
+
+	return iAdded;
+
+} // ListFor
+
+//-----------------------------------------------------------------------------
 std::size_t KSessionKSQLStore::PurgeExpired(KUnixTime tOldestLastSeen,
                                             KUnixTime tOldestCreated)
 //-----------------------------------------------------------------------------

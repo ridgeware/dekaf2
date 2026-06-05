@@ -233,6 +233,33 @@ std::size_t KSessionCachingStore::EraseAllFor(KStringView sUsername)
 } // EraseAllFor
 
 //-----------------------------------------------------------------------------
+std::size_t KSessionCachingStore::ListFor(KStringView sUsername, std::vector<KSession::Record>& Out)
+//-----------------------------------------------------------------------------
+{
+	auto State = m_State.unique();
+
+	// the backend holds every session (Create writes through), so it is the
+	// authoritative source for the full list
+	const std::size_t iBefore = Out.size();
+	State->Backend->ListFor(sUsername, Out);
+
+	// overlay any coalesced (not-yet-flushed) LastSeen updates the cache holds,
+	// so the listing reflects the most recent activity even before a Flush
+	for (std::size_t i = iBefore; i < Out.size(); ++i)
+	{
+		auto it = State->Cache.find(Out[i].sToken);
+		if (it != State->Cache.end() && it->second.bLastSeenDirty
+		    && it->second.Rec.tLastSeen > Out[i].tLastSeen)
+		{
+			Out[i].tLastSeen = it->second.Rec.tLastSeen;
+		}
+	}
+
+	return Out.size() - iBefore;
+
+} // ListFor
+
+//-----------------------------------------------------------------------------
 std::size_t KSessionCachingStore::PurgeExpired(KUnixTime tOldestLastSeen,
                                                KUnixTime tOldestCreated)
 //-----------------------------------------------------------------------------

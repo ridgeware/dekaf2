@@ -89,6 +89,7 @@
 #include <dekaf2/crypto/hash/kmessagedigest.h>  // KSHA256 (pending-2FA token)
 #include <dekaf2/crypto/random/krandom.h>       // kGetRandom (pending-2FA token)
 #include <dekaf2/web/url/kurl.h>
+#include <dekaf2/web/url/kuseragent.h>      // KHTTPUserAgent: browser/OS/device for the session list
 #include <dekaf2/util/mail/kmail.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/core/format/kformat.h>
@@ -260,6 +261,53 @@ KString CurrentUser(KRESTServer& HTTP, KSession& Session)
 }
 
 //-----------------------------------------------------------------------------
+/// human label for a parsed device type (the yaml-free fast classifier)
+KStringView DeviceTypeName(KHTTPUserAgent::DeviceType Type)
+//-----------------------------------------------------------------------------
+{
+	switch (Type)
+	{
+		case KHTTPUserAgent::DeviceType::Desktop: return "Desktop";
+		case KHTTPUserAgent::DeviceType::Mobile:  return "Mobile";
+		case KHTTPUserAgent::DeviceType::Tablet:  return "Tablet";
+		case KHTTPUserAgent::DeviceType::Unknown: break;
+	}
+	return {};
+}
+
+//-----------------------------------------------------------------------------
+/// build the renderable session list for a user, marking the request's own
+/// session and deriving a stable, non-secret revoke id from each token
+std::vector<SessionView> SessionViewsFor(KRESTServer& HTTP, KSession& Session, KStringView sUser)
+//-----------------------------------------------------------------------------
+{
+	std::vector<SessionView> Out;
+	KStringView sCurrentToken = HTTP.GetCookie(Session.GetCookieName());
+
+	for (const auto& Rec : Session.ListSessionsFor(sUser))
+	{
+		SessionView V;
+		// the revoke id is a hash of the token: stable, opaque, safe in HTML -
+		// the raw token (the live credential) never leaves the server
+		V.sRevokeID = KSHA256(Rec.sToken).HexDigest();
+
+		if (!Rec.sUserAgent.empty())
+		{
+			KHTTPUserAgent UA(Rec.sUserAgent);
+			V.sBrowser = UA.GetBrowser().GetString();
+			V.sOS      = UA.GetOS().GetString();
+			V.sDevice  = DeviceTypeName(UA.GetDeviceType());
+		}
+		V.sClientIP   = Rec.sClientIP;
+		V.sSignedIn   = Rec.tCreated.to_string();
+		V.sLastActive = Rec.tLastSeen.to_string();
+		V.bCurrent    = (Rec.sToken == sCurrentToken);
+		Out.push_back(std::move(V));
+	}
+	return Out;
+}
+
+//-----------------------------------------------------------------------------
 /// gate an admin-only route. On success returns true and fills sUserOut.
 /// Not signed in -> 302 to /login (throws). Signed in but not admin -> 403 page.
 bool GateAdmin(KRESTServer& HTTP, KSession& Session, KSSOdUserStore& Users, KString& sUserOut)
@@ -295,9 +343,9 @@ int main(int argc, char** argv)
 		KString sConfigDir = kGetConfigPath();
 
 		Settings.iPort                = Options("http <port>           : TCP port to bind to (default 8080)", 8080);
-		bool     bTLS                 = Options("tls                   : serve HTTPS with an ephemeral self-signed certificate", false);
+		bool     bNoTLS               = Options("notls                 : serve plain HTTP instead of TLS — also disables Secure cookies; for local testing only", false);
 		KString  sIssuer              = Options("issuer <url>          : public issuer base URL (default http(s)://localhost:<port>)",
-		                                        kFormat("{}://localhost:{}", bTLS ? "https" : "http", Settings.iPort));
+		                                        kFormat("{}://localhost:{}", !bNoTLS ? "https" : "http", Settings.iPort));
 		KString  sDB                  = Options("db <path>             : SQLite database file", kFormat("{}/kssod.sqlite", sConfigDir));
 		KString  sKeyFile             = Options("signkey <path>        : RS256 token signing key (PEM); generated if missing", kFormat("{}/kssod.key", sConfigDir));
 		Settings.iMaxConnections      = Options("n <max>               : max parallel connections (default 25)", 25);
@@ -309,15 +357,26 @@ int main(int argc, char** argv)
 		KStringViewZ sMaxBody         = Options("maxbody <size>        : max request body size, supports k/M/G suffixes (default 1M, 0 == unlimited)", "1M");
 		Settings.sCert                = Options("cert <file>           : TLS certificate filepath (.pem), defaults to self-signed ephemeral cert", "");
 		Settings.sKey                 = Options("key <file>            : TLS private key filepath (.pem), defaults to ephemeral key", "");
-//		Settings.bStoreEphemeralCert  = Options("persist               : should a self-signed cert be persisted to disk and reused at next start?", false);
-//		Settings.bCreateEphemeralCert =!Options("notls                 : do NOT switch to TLS mode if cert and key were not provided", false);
+		Settings.bStoreEphemeralCert  = Options("persist               : should a self-signed cert be persisted to disk and reused at next start?", false);
 		Settings.sTLSPassword         = Options("tlspass <pass>        : TLS certificate password, if any", "");
 		Settings.sAllowedCipherSuites = Options("ciphers <suites>      : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
+		uint32_t iSessionIdleMin      = Options("session-idle <minutes>: sign-in session idle timeout in minutes (default 30)", 30);
+		uint32_t iSessionMaxHours     = Options("session-max <hours>   : sign-in session absolute lifetime in hours (default 8)", 8);
 
 		if (Options.Terminate())
 		{
 			return 0;
 		}
+
+		// TLS is the default, like every other dekaf2 HTTP server: an ephemeral
+		// self-signed cert is created when none is given; --cert/--key supply a
+		// real one; --notls opts out into plain HTTP. bCreateEphemeralCert is the
+		// "make one up if no real cert was loaded" fallback (KREST still loads
+		// --cert/--key when present). bTLS is the effective TLS state, used to
+		// gate Secure cookies and the issuer scheme: the server serves TLS unless
+		// --notls was given without a real cert.
+		Settings.bCreateEphemeralCert = !bNoTLS;
+		const bool bTLS = !bNoTLS || !Settings.sCert.empty() || !Settings.sKey.empty();
 
 		if (dRateLimit > 0) Settings.SetRateLimit(dRateLimit, iRateBurst);
 		if (iConnLimit > 0) Settings.SetConnectionLimit(iConnLimit);
@@ -389,9 +448,15 @@ int main(int argc, char** argv)
 
 		// --- the OP login session: SQLite store behind the caching layer -----
 		KSession::Config SessionConfig;
-		SessionConfig.sCookieName = "kssod_session";
-		SessionConfig.sSameSite   = "Lax";   // sent on the cross-site /authorize navigation
-		SessionConfig.bSecure     = bTLS;
+		SessionConfig.sCookieName     = "kssod_session";
+		SessionConfig.sSameSite       = "Lax";   // sent on the cross-site /authorize navigation
+		SessionConfig.bSecure         = bTLS;
+		// Bound how long a sign-in stays usable for silent SSO. The cookie itself
+		// stays non-persistent (bPersistentCookie defaults to false), i.e. a session
+		// cookie the browser drops when it closes — so an abandoned login does not
+		// outlive the browser, and these timeouts cap it even if it does not.
+		SessionConfig.IdleTimeout     = std::chrono::minutes(iSessionIdleMin);
+		SessionConfig.AbsoluteTimeout = std::chrono::hours(iSessionMaxHours);
 		auto pSession = std::make_shared<KSession>(
 			std::make_unique<KSessionCachingStore>(std::make_unique<KSessionSQLiteStore>(sDB)),
 			SessionConfig);
@@ -413,7 +478,7 @@ int main(int argc, char** argv)
 		PendingTwoFactorStore Pending2FA;
 
 		// gather the self-service state the account page renders
-		auto AccountStateFor = [&pUsers, &pSettings](KStringView sUser)
+		auto AccountStateFor = [&pUsers, &pSettings, &pSession](KRESTServer& HTTP, KStringView sUser)
 		{
 			AccountState St;
 			St.bHasTotp       = pUsers->HasTotp(sUser);
@@ -421,6 +486,7 @@ int main(int argc, char** argv)
 			St.bEmailVerified = pUsers->IsEmailVerified(sUser);
 			St.bEmailOtp      = pUsers->HasEmailOtp(sUser);
 			St.bSmtp          = pSettings->SmtpConfigured();
+			St.Sessions       = SessionViewsFor(HTTP, *pSession, sUser);
 			return St;
 		};
 
@@ -567,8 +633,54 @@ int main(int argc, char** argv)
 			if (sUser.empty()) Redirect(HTTP, "/login");
 			KJSON Claims;
 			pUsers->GetClaims(sUser, Claims);
-			RenderAccount(HTTP, sUser, pUsers->IsAdmin(sUser), Claims, {}, false, AccountStateFor(sUser));
+			RenderAccount(HTTP, sUser, pUsers->IsAdmin(sUser), Claims, {}, false, AccountStateFor(HTTP, sUser));
 		} });
+
+		// sign out of every browser: end all of this user's OP login sessions. Apps
+		// the user is already signed in to stay open until they next contact us, but
+		// no further silent SSO can happen anywhere — and this browser is logged out
+		// at once. (Existing app sessions ending only on their next sign-in is the
+		// inherent limit of provider-side logout; see the help text on the page.)
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/sessions/close-all",
+			[&pSession, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser = CurrentUser(HTTP, *pSession);
+			if (sUser.empty()) Redirect(HTTP, "/login");
+			pSession->LogoutAllFor(sUser);
+			HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, pSession->SerializeExpiryCookie());
+			Redirect(HTTP, "/login");
+		}, KRESTRoute::WWWFORM });
+
+		// end a single session, identified by the opaque revoke id (a hash of the
+		// token) shown in the list - we never accept a raw token from the client
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/sessions/close",
+			[&pSession, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser = CurrentUser(HTTP, *pSession);
+			if (sUser.empty()) { Redirect(HTTP, "/login"); return; }
+
+			KStringView sId = HTTP.GetQueryParms()["id"];
+			if (!sId.empty())
+			{
+				KStringView sCurrentToken = HTTP.GetCookie(pSession->GetCookieName());
+				for (const auto& Rec : pSession->ListSessionsFor(sUser))
+				{
+					if (KSHA256(Rec.sToken).HexDigest() == sId)
+					{
+						pSession->Logout(Rec.sToken);
+						// if the user closed their own current session, also drop the cookie
+						if (Rec.sToken == sCurrentToken)
+						{
+							HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, pSession->SerializeExpiryCookie());
+							Redirect(HTTP, "/login");
+							return;
+						}
+						break;
+					}
+				}
+			}
+			Redirect(HTTP, "/account");
+		}, KRESTRoute::WWWFORM });
 
 		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/password",
 			[&pSession, &pUsers, &AccountStateFor, &Redirect](KRESTServer& HTTP)
@@ -592,12 +704,12 @@ int main(int argc, char** argv)
 
 			if (!sError.empty())
 			{
-				RenderAccount(HTTP, sUser, bAdmin, Claims, sError, true, AccountStateFor(sUser),
+				RenderAccount(HTTP, sUser, bAdmin, Claims, sError, true, AccountStateFor(HTTP, sUser),
 				              KHTTPError::H4xx_BADREQUEST);
 				return;
 			}
 			pUsers->ChangePassword(sUser, sNew);
-			RenderAccount(HTTP, sUser, bAdmin, Claims, "Password changed.", false, AccountStateFor(sUser));
+			RenderAccount(HTTP, sUser, bAdmin, Claims, "Password changed.", false, AccountStateFor(HTTP, sUser));
 		}, KRESTRoute::WWWFORM });
 
 		// ----- email: verification + email-OTP-as-2FA toggle -----
@@ -617,7 +729,7 @@ int main(int argc, char** argv)
 			if (sEmail.empty() || !pSettings->SmtpConfigured())
 			{
 				RenderAccount(HTTP, sUser, bAdmin, Claims, "Email is not available right now.", true,
-				              AccountStateFor(sUser), KHTTPError::H4xx_BADREQUEST);
+				              AccountStateFor(HTTP, sUser), KHTTPError::H4xx_BADREQUEST);
 				return;
 			}
 
@@ -628,7 +740,7 @@ int main(int argc, char** argv)
 			                 "\r\n\r\nThe link is valid for 24 hours.", sUser, sIssuer, sToken), sErr);
 
 			RenderAccount(HTTP, sUser, bAdmin, Claims,
-			              kFormat("We sent a verification link to {}.", sEmail), false, AccountStateFor(sUser));
+			              kFormat("We sent a verification link to {}.", sEmail), false, AccountStateFor(HTTP, sUser));
 		}, KRESTRoute::WWWFORM });
 
 		// public: follow the verification link from the email
@@ -961,10 +1073,15 @@ int main(int argc, char** argv)
 			KStringView sSecret   = Q["secret"];
 			bool        bPublic   = Q["confidential"].empty(); // checked = confidential, so unchecked = public
 			bool        bRequire  = !Q["require_assignment"].empty();
+			// re-authentication policy (minutes in the UI, stored as a KDuration)
+			int64_t     iMaxAgeMin = Q["max_auth_age"].Int64();
+			if (iMaxAgeMin < 0) iMaxAgeMin = 0;
 
 			KOpenIDServer::ClientStore::Client Client;
 			Client.sClientID              = sClientID;
 			Client.bPublic                = bPublic;
+			Client.bForceLogin            = !Q["force_login"].empty();
+			Client.MaxAuthAge             = KDuration(std::chrono::minutes(iMaxAgeMin));
 			// the URI/scope fields are free text (one per line or space separated);
 			// KSimpleSpacedWords breaks them at any whitespace, skipping empties
 			KSimpleSpacedWords Redirects  (Q["redirect_uris"]);
@@ -984,7 +1101,9 @@ int main(int argc, char** argv)
 				{ "scopes",             Q["scopes"]             },
 				{ "supported_roles",    Q["supported_roles"]    },
 				{ "confidential",       Q["confidential"]       },
-				{ "require_assignment", Q["require_assignment"] }
+				{ "require_assignment", Q["require_assignment"] },
+				{ "force_login",        Q["force_login"]        },
+				{ "max_auth_age",       Q["max_auth_age"]       }
 			};
 
 			KStringView sError;
@@ -1037,6 +1156,9 @@ int main(int argc, char** argv)
 				{ "postlogout_uris",    sPostLogout                        },
 				{ "scopes",             sScopes                            },
 				{ "require_assignment", Info.bRequireAssignment ? "1" : "" },
+				{ "force_login",        Info.Client.bForceLogin ? "1" : "" },
+				{ "max_auth_age",       Info.Client.MaxAuthAge.IsZero()
+				                        ? KString{} : kFormat("{}", Info.Client.MaxAuthAge.minutes().count()) },
 			};
 			RenderClientEdit(HTTP, sUser, sClientID, Values);
 		} });
@@ -1057,10 +1179,14 @@ int main(int argc, char** argv)
 			KStringView sSecret  = Q["secret"];
 			bool        bPublic  = Q["confidential"].empty(); // checked = confidential
 			bool        bRequire = !Q["require_assignment"].empty();
+			int64_t     iMaxAgeMin = Q["max_auth_age"].Int64();
+			if (iMaxAgeMin < 0) iMaxAgeMin = 0;
 
 			KOpenIDServer::ClientStore::Client Client;
 			Client.sClientID              = sClientID;
 			Client.bPublic                = bPublic;
+			Client.bForceLogin            = !Q["force_login"].empty();
+			Client.MaxAuthAge             = KDuration(std::chrono::minutes(iMaxAgeMin));
 			KSimpleSpacedWords Redirects  (Q["redirect_uris"]);
 			KSimpleSpacedWords PostLogouts(Q["postlogout_uris"]);
 			KSimpleSpacedWords Scopes     (Q["scopes"]);
@@ -1076,6 +1202,8 @@ int main(int argc, char** argv)
 				{ "postlogout_uris",    Q["postlogout_uris"]    },
 				{ "scopes",             Q["scopes"]             },
 				{ "require_assignment", Q["require_assignment"] },
+				{ "force_login",        Q["force_login"]        },
+				{ "max_auth_age",       Q["max_auth_age"]       },
 			};
 
 			// a confidential client must end up with a secret: either a new one was
@@ -1242,13 +1370,12 @@ int main(int argc, char** argv)
 		// --- run -------------------------------------------------------------
 		Settings.Type                 = KREST::HTTP;
 		Settings.bBlocking            = true;
-		Settings.bCreateEphemeralCert = bTLS;
 
 		KOut.FormatLine(":: kssod listening on {}://localhost:{}  (issuer: {}, db: {})",
 		                bTLS ? "https" : "http", Settings.iPort, sIssuer, sDB);
 		if (!bTLS)
 		{
-			KOut.FormatLine(":: plain HTTP (dev): cookies are non-Secure; pass --tls for HTTPS");
+			KOut.FormatLine(":: plain HTTP (--notls): cookies are non-Secure — do not use in production");
 		}
 		KOut.Flush(); // the server blocks below; flush the banner now (stdout is
 		              // fully buffered when redirected to a file/pipe)

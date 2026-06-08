@@ -2461,11 +2461,20 @@ bool IntWriteFile(KStringViewZ sPath, std::ios_base::openmode OpenMode, KStringV
 		int fd = ::open(sPath.c_str(), flags, static_cast<mode_t>(iMode));
 		if (fd < 0)
 		{
-			kWarning("cannot open file: {}: {}", sPath, strerror(errno));
+			kDebug(1, "cannot open file: {}: {}", sPath, strerror(errno));
 			return false;
 		}
 
-		::fchmod(fd, static_cast<mode_t>(iMode));
+		// enforce the requested mode. open(O_CREAT, iMode) already applied it on a fresh
+		// create, but if open() reused a pre-existing inode (O_TRUNC / O_APPEND) only
+		// this fchmod() narrows it. If we cannot set the mode, do NOT write potentially
+		// secret contents into a file that may be wider than requested: fail closed.
+		if (::fchmod(fd, static_cast<mode_t>(iMode)) != 0)
+		{
+			kDebug(1, "cannot set mode on file: {}: {}", sPath, strerror(errno));
+			::close(fd);
+			return false;
+		}
 
 		bool        bOK = true;
 		const char* p   = sContents.data();
@@ -2485,7 +2494,13 @@ bool IntWriteFile(KStringViewZ sPath, std::ios_base::openmode OpenMode, KStringV
 			n -= static_cast<std::size_t>(iWritten);
 		}
 
-		::close(fd);
+		// a close() error after a successful write can signal lost data (deferred
+		// write-back failures surface here on some filesystems), so fold it into bOK.
+		if (::close(fd) != 0 && bOK)
+		{
+			kDebug(1, "error closing file: {}: {}", sPath, strerror(errno));
+			bOK = false;
+		}
 		return bOK;
 	}
 #endif
@@ -2494,7 +2509,7 @@ bool IntWriteFile(KStringViewZ sPath, std::ios_base::openmode OpenMode, KStringV
 
 	if (!file.is_open())
 	{
-		kWarning ("cannot open file: {}", sPath);
+		kDebug(1, "cannot open file: {}", sPath);
 		return false;
 	}
 

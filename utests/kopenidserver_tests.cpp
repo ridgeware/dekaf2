@@ -595,6 +595,24 @@ TEST_CASE("KOpenIDServer")
 		CHECK ( r.contains("400") );
 	}
 
+	SECTION("a forged pending-authorize cookie yields no code on login resume")
+	{
+		// The pending request lives server-side; the browser holds only an opaque
+		// handle. An attacker who plants a handle the OP never issued (this also
+		// covers replaying the old base64-JSON cookie shape, which is now read as a
+		// handle) must NOT cause a code to be minted: a valid login still succeeds,
+		// but resolves to the post-login default, not to any client redirect_uri.
+		KString sLogin = Drive("POST", "/login",
+			"__Host-oidc_authorize=an-attacker-fabricated-handle",
+			"username=alice&password=secret");
+
+		CHECK ( sLogin.contains("302") );                          // login itself succeeded
+		KString sLocation = FirstHeader(sLogin, "Location");
+		CHECK ( sLocation == "/" );                                // sPostLoginRedirect, NOT a client
+		CHECK_FALSE ( sLocation.starts_with("http://localhost/cb") );
+		CHECK_FALSE ( sLocation.contains("code=") );               // no authorization code issued
+	}
+
 	SECTION("re-authentication policy: prompt, max_age, and per-client policy")
 	{
 		// establish a fresh OP login session and return its cookie jar

@@ -59,8 +59,10 @@
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/web/url/kurl.h>          // KURL (built by IssueCodeAndRedirectURL)
+#include <dekaf2/threading/primitives/kthreadsafe.h> // m_PendingAuth
 #include <memory>
 #include <vector>
+#include <unordered_map>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -311,7 +313,27 @@ private:
 		bool      bValid { false };
 	};
 
+	/// a validated /authorize request parked server-side while the user logs in;
+	/// the browser only holds an opaque random handle to it (see SetPendingCookie),
+	/// so a pending request can neither be forged nor tampered with from the client
+	struct PendingAuth
+	{
+		KString   sClientID;
+		KString   sRedirectURI;
+		KString   sScope;
+		KString   sState;
+		KString   sNonce;
+		KString   sCodeChallenge;
+		KUnixTime tExpiry;
+	};
+
 	DEKAF2_PRIVATE AuthRequest ParseAuthRequest (KRESTServer& HTTP, KString& sError);
+	/// validate a client request: client exists, redirect_uri is on the registered
+	/// allow-list (exact match), a PKCE challenge is present, and the scope is
+	/// 'openid' plus a subset of the client's allowed scopes. Shared by /authorize
+	/// and the login-resume path so both enforce the same rules. Also snapshots the
+	/// client's force-login / max-auth-age policy. @returns false and sets sError.
+	DEKAF2_PRIVATE bool        ValidateClientRequest(AuthRequest& Req, KString& sError);
 	/// issue+store a single-use code and build the client's redirect_uri with the
 	/// code (and state) appended; @returns the URL as a KURL, or an empty KURL
 	/// (empty() == true) if the code could not be stored. Serialize at the boundary.
@@ -319,6 +341,11 @@ private:
 	DEKAF2_PRIVATE void        SetPendingCookie (KRESTServer& HTTP, const AuthRequest& Req);
 	DEKAF2_PRIVATE AuthRequest ReadPendingCookie(KRESTServer& HTTP);
 	DEKAF2_PRIVATE void        ExpirePendingCookie(KRESTServer& HTTP);
+	/// name of the pending-authorize handle cookie; the "__Host-" prefix (which
+	/// forces Secure + Path=/ + no Domain, defeating subdomain cookie injection) is
+	/// only valid over HTTPS, so it is used exactly when cookies are marked Secure.
+	DEKAF2_PRIVATE KStringView PendingCookieName() const
+	{ return m_Config.bSecureCookies ? "__Host-oidc_authorize" : "oidc_authorize"; }
 	DEKAF2_PRIVATE KString     LoggedInUser     (KRESTServer& HTTP); ///< sub from the OP session, or empty
 	/// the OP login session behind the request's cookie; on success fills Out
 	/// (username + tCreated, the authentication time used for the max_age / re-auth
@@ -350,6 +377,10 @@ private:
 	std::shared_ptr<GrantStore>   m_Grants;
 	KRSAKey                       m_SigningKey;
 	KJSON                         m_PublicJWK;   ///< precomputed public JWK for the JWKS endpoint
+	/// server-side store of validated, pending /authorize requests, keyed by the
+	/// random handle carried in the oidc_authorize cookie. Lets the login-resume
+	/// path recover the request without trusting any client-supplied cookie data.
+	KThreadSafe<std::unordered_map<KString, PendingAuth>> m_PendingAuth;
 
 }; // KOpenIDServer
 

@@ -152,6 +152,84 @@ KString KOpenIDServer::LoggedInUser(KRESTServer& HTTP)
 } // LoggedInUser
 
 //-----------------------------------------------------------------------------
+bool KOpenIDServer::ValidateClientRequest(AuthRequest& Req, KString& sError)
+//-----------------------------------------------------------------------------
+{
+	if (Req.sClientID.empty())
+	{
+		sError = "missing client_id";
+		return false;
+	}
+
+	ClientStore::Client Client;
+	if (!m_Clients->Lookup(Req.sClientID, Client))
+	{
+		sError = "unknown client";
+		return false;
+	}
+
+	// exact redirect_uri match against the registered allow-list (no open redirect)
+	bool bRedirectOK = false;
+	for (const auto& sURI : Client.RedirectURIs)
+	{
+		if (sURI == Req.sRedirectURI)
+		{
+			bRedirectOK = true;
+			break;
+		}
+	}
+	if (!bRedirectOK)
+	{
+		sError = "redirect_uri not registered";
+		return false;
+	}
+
+	// a PKCE challenge must be present (the S256 method is checked at /authorize)
+	if (Req.sCodeChallenge.empty())
+	{
+		sError = "PKCE with code_challenge_method=S256 is required";
+		return false;
+	}
+
+	// the requested scope must contain 'openid' and be a subset of the client's allowed scopes
+	bool bHasOpenID = false;
+	for (auto sReq : Req.sScope.Split(' '))
+	{
+		if (sReq == "openid")
+		{
+			bHasOpenID = true;
+		}
+
+		bool bAllowed = false;
+		for (const auto& sAllowed : Client.Scopes)
+		{
+			if (sAllowed == sReq)
+			{
+				bAllowed = true;
+				break;
+			}
+		}
+
+		if (!bAllowed)
+		{
+			sError = kFormat("scope not allowed for this client: {}", sReq);
+			return false;
+		}
+	}
+	if (!bHasOpenID)
+	{
+		sError = "scope must include 'openid'";
+		return false;
+	}
+
+	// snapshot the client's re-auth policy (used by HandleAuthorize)
+	Req.bClientForceLogin = Client.bForceLogin;
+	Req.ClientMaxAuthAge  = Client.MaxAuthAge;
+	return true;
+
+} // ValidateClientRequest
+
+//-----------------------------------------------------------------------------
 KOpenIDServer::AuthRequest KOpenIDServer::ParseAuthRequest(KRESTServer& HTTP, KString& sError)
 //-----------------------------------------------------------------------------
 {
@@ -167,84 +245,27 @@ KOpenIDServer::AuthRequest KOpenIDServer::ParseAuthRequest(KRESTServer& HTTP, KS
 	Req.sNonce         = Q["nonce"];
 	Req.sCodeChallenge = Q["code_challenge"];
 
-	if (Req.sClientID.empty())
-	{
-		sError = "missing client_id";
-		return Req;
-	}
-
-	ClientStore::Client Client;
-	if (!m_Clients->Lookup(Req.sClientID, Client))
-	{
-		sError = "unknown client";
-		return Req;
-	}
-
-	// exact redirect_uri match against the registered allow-list (no open redirect)
-	bool bRedirectOK = false;
-
-	for (const auto& sURI : Client.RedirectURIs)
-	{
-		if (sURI == Req.sRedirectURI)
-		{
-			bRedirectOK = true;
-			break;
-		}
-	}
-
-	if (!bRedirectOK)
-	{
-		sError = "redirect_uri not registered";
-		return Req;
-	}
-
 	if (sResponseType != "code")
 	{
 		sError = "unsupported response_type (only 'code')";
 		return Req;
 	}
 
-	if (Req.sCodeChallenge.empty() || sMethod != "S256")
+	// the PKCE *method* can only be checked here on the live query (it is not part
+	// of the parked request); the challenge presence + client/redirect/scope checks
+	// live in ValidateClientRequest, which runs again on the login-resume path.
+	if (sMethod != "S256")
 	{
 		sError = "PKCE with code_challenge_method=S256 is required";
 		return Req;
 	}
 
-	// the requested scope must contain 'openid' and be a subset of the client's allowed scopes
-	bool bHasOpenID = false;
-
-	for (auto sReq : Req.sScope.Split(' '))
+	if (!ValidateClientRequest(Req, sError))
 	{
-		if (sReq == "openid")
-		{
-			bHasOpenID = true;
-		}
-
-		bool bAllowed = false;
-
-		for (const auto& sAllowed : Client.Scopes)
-		{
-			if (sAllowed == sReq)
-			{
-				bAllowed = true;
-				break;
-			}
-		}
-
-		if (!bAllowed)
-		{
-			sError = kFormat("scope not allowed for this client: {}", sReq);
-			return Req;
-		}
-	}
-	if (!bHasOpenID)
-	{
-		sError = "scope must include 'openid'";
 		return Req;
 	}
 
-	// authentication-freshness inputs: the RP's prompt/max_age, and a snapshot of
-	// the client's own re-auth policy. All four are evaluated in HandleAuthorize.
+	// authentication-freshness inputs from the live query (direct /authorize only)
 	Req.sPrompt = Q["prompt"];
 	KStringView sMaxAge = Q["max_age"];
 	if (!sMaxAge.empty())
@@ -252,8 +273,6 @@ KOpenIDServer::AuthRequest KOpenIDServer::ParseAuthRequest(KRESTServer& HTTP, KS
 		Req.iMaxAgeSeconds = sMaxAge.Int64();
 		if (Req.iMaxAgeSeconds < 0) Req.iMaxAgeSeconds = 0; // junk / negative -> "must have authenticated now"
 	}
-	Req.bClientForceLogin = Client.bForceLogin;
-	Req.ClientMaxAuthAge  = Client.MaxAuthAge;
 
 	Req.bValid = true;
 	return Req;
@@ -314,19 +333,37 @@ KURL KOpenIDServer::IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView 
 void KOpenIDServer::SetPendingCookie(KRESTServer& HTTP, const AuthRequest& Req)
 //-----------------------------------------------------------------------------
 {
-	KJSON j = {
-		{ "c" , Req.sClientID      },
-		{ "r" , Req.sRedirectURI   },
-		{ "s" , Req.sScope         },
-		{ "st", Req.sState         },
-		{ "n" , Req.sNonce         },
-		{ "cc", Req.sCodeChallenge }
-	};
+	// Park the already-validated request SERVER-SIDE and hand the browser only an
+	// unguessable random handle. The browser therefore carries no client-supplied
+	// request data, so a planted/tossed cookie can neither forge nor tamper with a
+	// pending authorize (the worst it can do is name a handle that does not exist).
+	KString sHandle = KBase64Url::Encode(kGetRandom(32));
+
+	PendingAuth P;
+	P.sClientID      = Req.sClientID;
+	P.sRedirectURI   = Req.sRedirectURI;
+	P.sScope         = Req.sScope;
+	P.sState         = Req.sState;
+	P.sNonce         = Req.sNonce;
+	P.sCodeChallenge = Req.sCodeChallenge;
+	P.tExpiry        = KUnixTime::now() + chrono::seconds(300);
+
+	{
+		auto Store = m_PendingAuth.unique();
+		// opportunistically drop expired entries so the map cannot grow unbounded
+		auto tNow = KUnixTime::now();
+		for (auto it = Store->begin(); it != Store->end(); )
+		{
+			if (it->second.tExpiry < tNow) it = Store->erase(it);
+			else                           ++it;
+		}
+		(*Store)[sHandle] = std::move(P);
+	}
 
 	KStringView sSecure = m_Config.bSecureCookies ? " Secure;" : "";
 	HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE,
-		kFormat("oidc_authorize={}; HttpOnly;{} SameSite=Lax; Path=/; Max-Age=300",
-		        KBase64Url::Encode(j.dump()), sSecure));
+		kFormat("{}={}; HttpOnly;{} SameSite=Lax; Path=/; Max-Age=300",
+		        PendingCookieName(), sHandle, sSecure));
 
 } // SetPendingCookie
 
@@ -334,27 +371,38 @@ void KOpenIDServer::SetPendingCookie(KRESTServer& HTTP, const AuthRequest& Req)
 KOpenIDServer::AuthRequest KOpenIDServer::ReadPendingCookie(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
+	// non-destructive lookup: PendingClientID() reads it to render the access-denied
+	// interstitial without consuming it; ExpirePendingCookie() is the consume point.
 	AuthRequest Req;
 
-	KStringView sEncoded = HTTP.GetCookie("oidc_authorize");
-	if (sEncoded.empty())
+	KStringView sHandle = HTTP.GetCookie(PendingCookieName());
+	if (sHandle.empty())
 	{
 		return Req;
 	}
 
-	KJSON j = kjson::Parse(KBase64Url::Decode(sEncoded));
-	if (!j.is_object())
+	auto Store = m_PendingAuth.unique();
+	auto it = Store->find(KString(sHandle));
+	if (it == Store->end())
 	{
 		return Req;
 	}
+	if (it->second.tExpiry < KUnixTime::now())
+	{
+		Store->erase(it);
+		return Req;
+	}
 
-	Req.sClientID      = kjson::GetStringRef(j, "c" );
-	Req.sRedirectURI   = kjson::GetStringRef(j, "r" );
-	Req.sScope         = kjson::GetStringRef(j, "s" );
-	Req.sState         = kjson::GetStringRef(j, "st");
-	Req.sNonce         = kjson::GetStringRef(j, "n" );
-	Req.sCodeChallenge = kjson::GetStringRef(j, "cc");
-	Req.bValid         = !Req.sClientID.empty() && !Req.sRedirectURI.empty();
+	const auto& P      = it->second;
+	Req.sClientID      = P.sClientID;
+	Req.sRedirectURI   = P.sRedirectURI;
+	Req.sScope         = P.sScope;
+	Req.sState         = P.sState;
+	Req.sNonce         = P.sNonce;
+	Req.sCodeChallenge = P.sCodeChallenge;
+	// the stored request was validated at /authorize; CompleteLogin re-validates it
+	// before issuing a code (so a client de-registered meanwhile is still caught)
+	Req.bValid         = true;
 	return Req;
 
 } // ReadPendingCookie
@@ -363,9 +411,17 @@ KOpenIDServer::AuthRequest KOpenIDServer::ReadPendingCookie(KRESTServer& HTTP)
 void KOpenIDServer::ExpirePendingCookie(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
+	// consume the server-side entry, then tell the browser to drop the handle cookie
+	KStringView sHandle = HTTP.GetCookie(PendingCookieName());
+	if (!sHandle.empty())
+	{
+		auto Store = m_PendingAuth.unique();
+		Store->erase(KString(sHandle));
+	}
+
 	KStringView sSecure = m_Config.bSecureCookies ? " Secure;" : "";
 	HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE,
-		kFormat("oidc_authorize=; HttpOnly;{} SameSite=Lax; Path=/; Max-Age=0", sSecure));
+		kFormat("{}=; HttpOnly;{} SameSite=Lax; Path=/; Max-Age=0", PendingCookieName(), sSecure));
 
 } // ExpirePendingCookie
 
@@ -504,13 +560,22 @@ KString KOpenIDServer::CompleteLogin(KRESTServer& HTTP, KStringView sUsername)
 	AuthRequest Req = ReadPendingCookie(HTTP);
 	ExpirePendingCookie(HTTP);
 
-	if (Req.bValid)
+	// Re-validate before issuing a code, even though the parked request was already
+	// validated at /authorize: this enforces the redirect_uri allow-list / PKCE /
+	// scope on the resume path too (defense in depth, and it catches a client that
+	// was de-registered or reconfigured between /authorize and the login).
+	KString sError;
+	if (Req.bValid && ValidateClientRequest(Req, sError))
 	{
 		KURL RedirectURL = IssueCodeAndRedirectURL(Req, sUsername);
 		if (!RedirectURL.empty())
 		{
 			return RedirectURL.Serialize();
 		}
+	}
+	else if (Req.bValid)
+	{
+		kDebug(1, "pending authorize failed re-validation on login resume: {}", sError);
 	}
 
 	return m_Config.sPostLoginRedirect;

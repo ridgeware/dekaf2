@@ -148,4 +148,69 @@ TEST_CASE("KHTTPHeader")
 		sHeader = kFormat("{}: none", KHTTPHeader::CONTENT_TYPE);
 		CHECK ( sHeader == "content-type: none");
 	}
+
+	SECTION("GetRanges")
+	{
+		static constexpr uint64_t iSize = 1000; // valid byte offsets 0..999
+
+		// closed range
+		{
+			auto Ranges = KHTTPHeader::GetRanges("bytes=0-499", iSize);
+			REQUIRE ( Ranges.size() == 1 );
+			CHECK ( Ranges.front().GetStart() == 0   );
+			CHECK ( Ranges.front().GetEnd()   == 499 );
+			CHECK ( Ranges.front().GetSize()  == 500 );
+		}
+
+		// open ended range "start-"
+		{
+			auto Ranges = KHTTPHeader::GetRanges("bytes=500-", iSize);
+			REQUIRE ( Ranges.size() == 1 );
+			CHECK ( Ranges.front().GetStart() == 500 );
+			CHECK ( Ranges.front().GetEnd()   == 999 );
+			CHECK ( Ranges.front().GetSize()  == 500 );
+		}
+
+		// closed range with end past EOF is clamped to the last byte
+		{
+			auto Ranges = KHTTPHeader::GetRanges("bytes=900-5000", iSize);
+			REQUIRE ( Ranges.size() == 1 );
+			CHECK ( Ranges.front().GetStart() == 900 );
+			CHECK ( Ranges.front().GetEnd()   == 999 );
+			CHECK ( Ranges.front().GetSize()  == 100 );
+		}
+
+		// suffix range "-N" = the last N bytes (must be exactly N, not N+1)
+		{
+			auto Ranges = KHTTPHeader::GetRanges("bytes=-100", iSize);
+			REQUIRE ( Ranges.size() == 1 );
+			CHECK ( Ranges.front().GetStart() == 900 );
+			CHECK ( Ranges.front().GetEnd()   == 999 );
+			CHECK ( Ranges.front().GetSize()  == 100 );
+		}
+
+		// suffix equal to the resource size = the whole resource
+		{
+			auto Ranges = KHTTPHeader::GetRanges("bytes=-1000", iSize);
+			REQUIRE ( Ranges.size() == 1 );
+			CHECK ( Ranges.front().GetStart() == 0   );
+			CHECK ( Ranges.front().GetEnd()   == 999 );
+			CHECK ( Ranges.front().GetSize()  == 1000 );
+		}
+
+		// suffix larger than the resource = the whole resource (not a negative start)
+		{
+			auto Ranges = KHTTPHeader::GetRanges("bytes=-2000", iSize);
+			REQUIRE ( Ranges.size() == 1 );
+			CHECK ( Ranges.front().GetStart() == 0   );
+			CHECK ( Ranges.front().GetEnd()   == 999 );
+			CHECK ( Ranges.front().GetSize()  == 1000 );
+		}
+
+		// no Range header at all -> no ranges
+		{
+			auto Ranges = KHTTPHeader::GetRanges("", iSize);
+			CHECK ( Ranges.empty() );
+		}
+	}
 }

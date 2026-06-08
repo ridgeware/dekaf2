@@ -201,6 +201,12 @@ public:
 		Check(sBase64Token, Providers, sScope, sExpectedAudience, tClockLeeway);
 	}
 
+	/// construct with a token - old version, now deprecated
+	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, KDuration tClockLeeway)
+	: KJWT(sBase64Token, Providers, sScope, KStringView{}, tClockLeeway)
+	{
+	}
+
 	/// check a new token
 	/// @param sExpectedAudience if non-empty, the token's "aud" claim must contain
 	/// it (string or array form, RFC 7519); empty (the default) imposes no audience

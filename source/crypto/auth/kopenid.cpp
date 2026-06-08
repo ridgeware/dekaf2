@@ -495,7 +495,7 @@ bool KJWT::SetError(KStringView sError)
 } // SetError
 
 //-----------------------------------------------------------------------------
-bool KJWT::Validate(KStringView sIssuer, KStringView sScope, KStringView sExpectedAudience, KDuration tClockLeeway)
+bool KJWT::Validate(KStringView sIssuer, KStringView sScope, KStringView sExpectedAudience, KStringView sExpectedTokenUse, KDuration tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, Payload.dump(1, '\t'));
@@ -521,6 +521,16 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, KStringView sExpect
 	if (!AudienceMatches(Payload, sExpectedAudience))
 	{
 		return SetError(kFormat("token audience does not satisfy expected audience '{}'", sExpectedAudience));
+	}
+
+	// token type binding: opt-in (empty = no constraint, so existing callers are
+	// unaffected). See TokenUseMatches() for the exact rule - in short, a token whose
+	// token_use claim is PRESENT and differs is rejected, which blocks presenting an
+	// OIDC id_token (token_use=="id", same issuer and same aud=client_id as the access
+	// token) as a bearer access token at a resource-server endpoint.
+	if (!TokenUseMatches(Payload, sExpectedTokenUse))
+	{
+		return SetError(kFormat("token use does not satisfy expected token_use '{}'", sExpectedTokenUse));
 	}
 
 	if (!sScope.empty())
@@ -608,7 +618,27 @@ bool KJWT::AudienceMatches(const KJSON& Payload, KStringView sExpectedAudience)
 } // AudienceMatches
 
 //-----------------------------------------------------------------------------
-bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, KStringView sExpectedAudience, KDuration tClockLeeway)
+bool KJWT::TokenUseMatches(const KJSON& Payload, KStringView sExpectedTokenUse)
+//-----------------------------------------------------------------------------
+{
+	// An empty expected token use means "do not constrain". This is the default for
+	// Check()/Validate(), so existing callers keep behaving exactly as before: token
+	// type binding is strictly opt-in.
+	if (sExpectedTokenUse.empty())
+	{
+		return true;
+	}
+
+	const KString& sTokenUse = kjson::GetStringRef(Payload, "token_use");
+
+	// A token that OMITS the token_use claim is accepted.
+	// Comparison is case-sensitive.
+	return sTokenUse.empty() || sTokenUse == sExpectedTokenUse;
+
+} // TokenUseMatches
+
+//-----------------------------------------------------------------------------
+bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, KStringView sExpectedAudience, KStringView sExpectedTokenUse, KDuration tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	m_bSignatureIsValid = false;
@@ -682,7 +712,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			SetError("");
 
 			// exit here if we cannot validate
-			return Validate(KeysAndIssuer.sIssuer, sScope, sExpectedAudience, tClockLeeway);
+			return Validate(KeysAndIssuer.sIssuer, sScope, sExpectedAudience, sExpectedTokenUse, tClockLeeway);
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)

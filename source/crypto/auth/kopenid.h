@@ -196,14 +196,14 @@ public:
 	KJWT() = default;
 
 	/// construct with a token
-	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KStringView sExpectedAudience = KStringView{}, KDuration tClockLeeway = chrono::seconds(5))
+	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KStringView sExpectedAudience = KStringView{}, KStringView sExpectedTokenUse = KStringView{}, KDuration tClockLeeway = chrono::seconds(5))
 	{
-		Check(sBase64Token, Providers, sScope, sExpectedAudience, tClockLeeway);
+		Check(sBase64Token, Providers, sScope, sExpectedAudience, sExpectedTokenUse, tClockLeeway);
 	}
 
 	/// construct with a token - old version, now deprecated
 	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, KDuration tClockLeeway)
-	: KJWT(sBase64Token, Providers, sScope, KStringView{}, tClockLeeway)
+	: KJWT(sBase64Token, Providers, sScope, KStringView{}, KStringView{}, tClockLeeway)
 	{
 	}
 
@@ -211,7 +211,12 @@ public:
 	/// @param sExpectedAudience if non-empty, the token's "aud" claim must contain
 	/// it (string or array form, RFC 7519); empty (the default) imposes no audience
 	/// constraint, so existing callers are unaffected. See AudienceMatches().
-	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KStringView sExpectedAudience = KStringView{}, KDuration tClockLeeway = chrono::seconds(5));
+	/// @param sExpectedTokenUse if non-empty, a PRESENT "token_use" claim must equal
+	/// it; a token that omits the claim is accepted. This lets an OAuth2 resource
+	/// server require "access" and thereby reject an OIDC id_token (token_use=="id")
+	/// presented as a bearer access token, without breaking third-party access
+	/// tokens that omit token_use. Empty (the default) imposes no constraint.
+	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KStringView sExpectedAudience = KStringView{}, KStringView sExpectedTokenUse = KStringView{}, KDuration tClockLeeway = chrono::seconds(5));
 
 	/// is all info valid?
 	bool IsValid() const { return !HasError(); }
@@ -237,12 +242,24 @@ public:
 	DEKAF2_NODISCARD
 	static bool AudienceMatches(const KJSON& Payload, KStringView sExpectedAudience);
 
+	/// Does a token payload's "token_use" claim satisfy the expected token use?
+	/// @param Payload the decoded JWT payload
+	/// @param sExpectedTokenUse the token use the caller requires (e.g. "access" for a
+	/// resource server). An EMPTY value means "do not constrain" (the default), so
+	/// existing callers are unaffected. A token that OMITS the token_use claim is
+	/// accepted (third-party access tokens commonly carry no token_use); only a token
+	/// whose token_use is PRESENT and differs is rejected - which blocks presenting an
+	/// OIDC id_token (token_use=="id") as a bearer access token. Case-sensitive.
+	/// @return true if the token use is acceptable
+	DEKAF2_NODISCARD
+	static bool TokenUseMatches(const KJSON& Payload, KStringView sExpectedTokenUse);
+
 //----------
 private:
 //----------
 
 	DEKAF2_PRIVATE
-	bool Validate(KStringView sIssuer, KStringView sScope, KStringView sExpectedAudience, KDuration tClockLeeway);
+	bool Validate(KStringView sIssuer, KStringView sScope, KStringView sExpectedAudience, KStringView sExpectedTokenUse, KDuration tClockLeeway);
 	DEKAF2_PRIVATE
 	bool SetError(KStringView sError);
 	DEKAF2_PRIVATE

@@ -412,6 +412,30 @@ TEST_CASE("KOpenIDServer")
 			CHECK ( kjson::GetStringRef(kjson::Parse(ResponseBody(sResp)), "error") == "invalid_token" );
 		}
 
+		// 6c) the generic resource-server path (KJWT::Check, as used by KRESTServer with
+		//     Options::sAuthAudience) must also keep an id_token from being replayed as a
+		//     bearer access token: both tokens now share aud=client_id, so an aud pin
+		//     alone cannot tell them apart - token_use is the guard. (Regression test:
+		//     token_use was enforced only at /userinfo, not on the RS path,
+		//     so an aud-pinned RS accepted the id_token as a bearer.)
+		{
+			auto IdP = KStringView(sIdToken).Split('.');
+			auto AcP = KStringView(sAccessToken).Split('.');
+			REQUIRE ( IdP.size() == 3 );
+			REQUIRE ( AcP.size() == 3 );
+			KJSON jIdPayload = kjson::Parse(KBase64Url::Decode(IdP[1]));
+			KJSON jAcPayload = kjson::Parse(KBase64Url::Decode(AcP[1]));
+
+			// both carry aud=client_id, so an aud pin alone cannot distinguish them
+			CHECK ( KJWT::AudienceMatches(jIdPayload, "test-client") );
+			CHECK ( KJWT::AudienceMatches(jAcPayload, "test-client") );
+
+			// an RS requiring token_use=="access" accepts the access_token ...
+			CHECK       ( KJWT::TokenUseMatches(jAcPayload, "access") );
+			// ... and rejects the id_token presented as a bearer -> no impersonation
+			CHECK_FALSE ( KJWT::TokenUseMatches(jIdPayload, "access") );
+		}
+
 		// 7) refresh_token grant -> fresh tokens
 		KString sRefreshBody = kFormat(
 			"grant_type=refresh_token&refresh_token={}&client_id=test-client&client_secret=test-secret",

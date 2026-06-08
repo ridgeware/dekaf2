@@ -108,10 +108,18 @@ public:
 	{
 		KString   sIssuer;                          ///< issuer URL (== the "iss" claim); must be HTTPS in production
 		KString   sKid { "key-1" };                 ///< key id advertised in the JWKS and JWT headers
-		KDuration AuthCodeTTL { chrono::seconds(60) }; ///< authorization code lifetime (issuance -> token exchange)
-		KDuration AccessTTL   { chrono::minutes(5)  }; ///< access_token lifetime
-		KDuration IdTokenTTL  { chrono::minutes(5)  }; ///< id_token lifetime
-		KDuration RefreshTTL  { chrono::hours(720)  }; ///< refresh_token lifetime (default 30 days)
+		KDuration AuthCodeTTL    { chrono::seconds(60) }; ///< authorization code lifetime (issuance -> token exchange)
+		KDuration AccessTTL      { chrono::minutes(5)  }; ///< access_token lifetime
+		KDuration IdTokenTTL     { chrono::minutes(5)  }; ///< id_token lifetime
+		KDuration RefreshTTL     { chrono::hours(720)  }; ///< refresh_token lifetime (default 30 days)
+		/// how long a validated /authorize request is parked server-side while the user
+		/// logs in (also the Max-Age of the handle cookie). Keep short.
+		KDuration PendingAuthTTL { chrono::seconds(300) };
+		/// hard cap on the number of concurrently parked /authorize requests. Bounds
+		/// memory and CPU against an unauthenticated /authorize flood: once reached, a
+		/// new park first sweeps expired entries and, if still full, evicts the entry
+		/// nearest expiry. 0 disables the cap (not recommended in production).
+		std::size_t MaxPendingAuth  {    10000 };
 		KString   sLoginPath        { "/login" };   ///< app route that renders the login form (authorize redirects here)
 		KString   sPostLoginRedirect{ "/"      };   ///< where CompleteLogin() sends the browser when no authorize is pending
 		KString   sAuthorizePath    { "/authorize" };
@@ -342,8 +350,13 @@ private:
 	/// becomes the id_token "auth_time", which RPs rely on for max_age / step-up.
 	DEKAF2_PRIVATE KURL        IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView sSubject, KUnixTime tAuthTime);
 	DEKAF2_PRIVATE void        SetPendingCookie (KRESTServer& HTTP, const AuthRequest& Req);
+	/// non-destructive, read-only lookup of the parked request (shared lock); used to
+	/// render the access-denied interstitial without consuming the pending entry.
 	DEKAF2_PRIVATE AuthRequest ReadPendingCookie(KRESTServer& HTTP);
-	DEKAF2_PRIVATE void        ExpirePendingCookie(KRESTServer& HTTP);
+	/// atomically find+copy+erase the parked request under a single write lock and
+	/// clear the handle cookie - the single consume point, so two concurrent resumes
+	/// of the same handle cannot both mint a code (mirrors the atomic TakeCode).
+	DEKAF2_PRIVATE AuthRequest TakePendingCookie(KRESTServer& HTTP);
 	/// name of the pending-authorize handle cookie; the "__Host-" prefix (which
 	/// forces Secure + Path=/ + no Domain, defeating subdomain cookie injection) is
 	/// only valid over HTTPS, so it is used exactly when cookies are marked Secure.

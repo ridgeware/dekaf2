@@ -346,24 +346,42 @@ void KOpenIDServer::SetPendingCookie(KRESTServer& HTTP, const AuthRequest& Req)
 	P.sState         = Req.sState;
 	P.sNonce         = Req.sNonce;
 	P.sCodeChallenge = Req.sCodeChallenge;
-	P.tExpiry        = KUnixTime::now() + chrono::seconds(300);
+	P.tExpiry        = KUnixTime::now() + m_Config.PendingAuthTTL;
 
 	{
 		auto Store = m_PendingAuth.unique();
-		// opportunistically drop expired entries so the map cannot grow unbounded
-		auto tNow = KUnixTime::now();
-		for (auto it = Store->begin(); it != Store->end(); )
+
+		// Bound the store against an unauthenticated /authorize flood. The common path
+		// (below the cap) is a cheap O(1) insert - we only pay for an O(N) sweep of
+		// expired entries once the map reaches the cap, so a burst is amortized, not
+		// O(N^2) per park. If the sweep does not get us back under the cap (all entries
+		// still live), evict the one nearest expiry to make room.
+		if (m_Config.MaxPendingAuth != 0 && Store->size() >= m_Config.MaxPendingAuth)
 		{
-			if (it->second.tExpiry < tNow) it = Store->erase(it);
-			else                           ++it;
+			auto tNow = KUnixTime::now();
+			for (auto it = Store->begin(); it != Store->end(); )
+			{
+				if (it->second.tExpiry < tNow) it = Store->erase(it);
+				else                           ++it;
+			}
+			if (Store->size() >= m_Config.MaxPendingAuth)
+			{
+				auto oldest = Store->begin();
+				for (auto it = Store->begin(); it != Store->end(); ++it)
+				{
+					if (it->second.tExpiry < oldest->second.tExpiry) oldest = it;
+				}
+				if (oldest != Store->end()) Store->erase(oldest);
+			}
 		}
+
 		(*Store)[sHandle] = std::move(P);
 	}
 
 	KStringView sSecure = m_Config.bSecureCookies ? " Secure;" : "";
 	HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE,
-		kFormat("{}={}; HttpOnly;{} SameSite=Lax; Path=/; Max-Age=300",
-		        PendingCookieName(), sHandle, sSecure));
+		kFormat("{}={}; HttpOnly;{} SameSite=Lax; Path=/; Max-Age={}",
+		        PendingCookieName(), sHandle, sSecure, m_Config.PendingAuthTTL.seconds().count()));
 
 } // SetPendingCookie
 
@@ -371,8 +389,10 @@ void KOpenIDServer::SetPendingCookie(KRESTServer& HTTP, const AuthRequest& Req)
 KOpenIDServer::AuthRequest KOpenIDServer::ReadPendingCookie(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
-	// non-destructive lookup: PendingClientID() reads it to render the access-denied
-	// interstitial without consuming it; ExpirePendingCookie() is the consume point.
+	// non-destructive, read-only lookup under a SHARED lock: PendingClientID() reads it
+	// to render the access-denied interstitial without consuming it. An expired entry
+	// is reported as absent here (not erased) - the consume point is TakePendingCookie,
+	// and stale entries are reaped by SetPendingCookie's cap-triggered sweep.
 	AuthRequest Req;
 
 	KStringView sHandle = HTTP.GetCookie(PendingCookieName());
@@ -381,15 +401,10 @@ KOpenIDServer::AuthRequest KOpenIDServer::ReadPendingCookie(KRESTServer& HTTP)
 		return Req;
 	}
 
-	auto Store = m_PendingAuth.unique();
+	auto Store = m_PendingAuth.shared();
 	auto it = Store->find(KString(sHandle));
-	if (it == Store->end())
+	if (it == Store->end() || it->second.tExpiry < KUnixTime::now())
 	{
-		return Req;
-	}
-	if (it->second.tExpiry < KUnixTime::now())
-	{
-		Store->erase(it);
 		return Req;
 	}
 
@@ -400,7 +415,7 @@ KOpenIDServer::AuthRequest KOpenIDServer::ReadPendingCookie(KRESTServer& HTTP)
 	Req.sState         = P.sState;
 	Req.sNonce         = P.sNonce;
 	Req.sCodeChallenge = P.sCodeChallenge;
-	// the stored request was validated at /authorize; CompleteLogin re-validates it
+	// the stored request was validated at /authorize; the consume path re-validates it
 	// before issuing a code (so a client de-registered meanwhile is still caught)
 	Req.bValid         = true;
 	return Req;
@@ -408,22 +423,45 @@ KOpenIDServer::AuthRequest KOpenIDServer::ReadPendingCookie(KRESTServer& HTTP)
 } // ReadPendingCookie
 
 //-----------------------------------------------------------------------------
-void KOpenIDServer::ExpirePendingCookie(KRESTServer& HTTP)
+KOpenIDServer::AuthRequest KOpenIDServer::TakePendingCookie(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
-	// consume the server-side entry, then tell the browser to drop the handle cookie
+	// atomically find+copy+erase the parked request under a single write lock, so two
+	// concurrent resumes carrying the same handle cannot both read it live and each
+	// mint a code (mirrors the atomic TakeCode/TakeRefresh). The entry is consumed
+	// (erased) whether it was still valid or already expired.
+	AuthRequest Req;
+
 	KStringView sHandle = HTTP.GetCookie(PendingCookieName());
 	if (!sHandle.empty())
 	{
 		auto Store = m_PendingAuth.unique();
-		Store->erase(KString(sHandle));
+		auto it = Store->find(KString(sHandle));
+		if (it != Store->end())
+		{
+			if (it->second.tExpiry >= KUnixTime::now())
+			{
+				const auto& P      = it->second;
+				Req.sClientID      = P.sClientID;
+				Req.sRedirectURI   = P.sRedirectURI;
+				Req.sScope         = P.sScope;
+				Req.sState         = P.sState;
+				Req.sNonce         = P.sNonce;
+				Req.sCodeChallenge = P.sCodeChallenge;
+				Req.bValid         = true;
+			}
+			Store->erase(it);
+		}
 	}
 
+	// tell the browser to drop the handle cookie
 	KStringView sSecure = m_Config.bSecureCookies ? " Secure;" : "";
 	HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE,
 		kFormat("{}=; HttpOnly;{} SameSite=Lax; Path=/; Max-Age=0", PendingCookieName(), sSecure));
 
-} // ExpirePendingCookie
+	return Req;
+
+} // TakePendingCookie
 
 //-----------------------------------------------------------------------------
 KURL KOpenIDServer::ErrorRedirectURL(const AuthRequest& Req, KStringView sError)
@@ -558,9 +596,8 @@ KString KOpenIDServer::CompleteLogin(KRESTServer& HTTP, KStringView sUsername)
 
 	HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, m_LoginSession->SerializeSetCookie(sToken));
 
-	// resume a pending authorize, if any
-	AuthRequest Req = ReadPendingCookie(HTTP);
-	ExpirePendingCookie(HTTP);
+	// resume a pending authorize, if any (atomically consume it)
+	AuthRequest Req = TakePendingCookie(HTTP);
 
 	// Re-validate before issuing a code, even though the parked request was already
 	// validated at /authorize: this enforces the redirect_uri allow-list / PKCE /
@@ -597,8 +634,7 @@ KString KOpenIDServer::PendingClientID(KRESTServer& HTTP)
 KString KOpenIDServer::DeclineAccess(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
-	AuthRequest Req = ReadPendingCookie(HTTP);
-	ExpirePendingCookie(HTTP);
+	AuthRequest Req = TakePendingCookie(HTTP);
 
 	if (!Req.bValid)
 	{

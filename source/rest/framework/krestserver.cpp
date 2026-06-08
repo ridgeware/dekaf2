@@ -235,7 +235,12 @@ void KRESTServer::VerifyAuthentication(KStringView sAuthorization)
 							sScope = m_Options.sAuthScope;
 						}
 
-						if (m_AuthToken.Check(sAuthorization, m_Options.Authenticators, sScope, m_Options.sAuthAudience))
+						// a bearer token presented to a resource server must be an ACCESS token:
+						// require token_use=="access" so that an OIDC id_token (token_use=="id",
+						// which our OP binds to the same aud=client_id as the access token) cannot
+						// be replayed here as a bearer. Tokens that omit token_use are still accepted
+						// - see KJWT::Check.
+						if (m_AuthToken.Check(sAuthorization, m_Options.Authenticators, sScope, m_Options.sAuthAudience, "access"))
 						{
 							// success
 							SetAuthenticatedUser(kjson::GetString(GetAuthToken(), "sub"));

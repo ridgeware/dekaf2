@@ -50,6 +50,45 @@ TEST_CASE("KJWT audience matching")
 	}
 }
 
+TEST_CASE("KJWT token_use matching")
+{
+	// token_use binding is the guard that keeps an OIDC id_token from being replayed
+	// as a bearer access token at a resource server once both token kinds share the
+	// same aud=client_id. Like audience binding it is strictly opt-in.
+
+	SECTION("empty expected token_use accepts any token (opt-in default)")
+	{
+		KJSON jAccess; jAccess["token_use"] = "access";
+		KJSON jId;     jId    ["token_use"] = "id";
+		KJSON jNone;   jNone  ["sub"]       = "user"; // no token_use claim at all
+
+		CHECK ( KJWT::TokenUseMatches(jAccess, "") );
+		CHECK ( KJWT::TokenUseMatches(jId,     "") );
+		CHECK ( KJWT::TokenUseMatches(jNone,   "") );
+		CHECK ( KJWT::TokenUseMatches(jAccess, KStringView{}) );
+	}
+
+	SECTION("a present token_use must match exactly and case-sensitively")
+	{
+		KJSON jAccess; jAccess["token_use"] = "access";
+		KJSON jId;     jId    ["token_use"] = "id";
+
+		CHECK       ( KJWT::TokenUseMatches(jAccess, "access") );
+		CHECK_FALSE ( KJWT::TokenUseMatches(jId,     "access") );  // id_token rejected as access token
+		CHECK_FALSE ( KJWT::TokenUseMatches(jAccess, "Access") );  // case-sensitive
+		CHECK       ( KJWT::TokenUseMatches(jId,     "id") );
+	}
+
+	SECTION("a token that omits token_use is accepted (third-party access tokens)")
+	{
+		// enterprise / third-party access tokens commonly carry no token_use claim;
+		// requiring "access" must not break them - only a PRESENT, mismatching value
+		// is rejected.
+		KJSON jTok; jTok["sub"] = "user";
+		CHECK ( KJWT::TokenUseMatches(jTok, "access") );
+	}
+}
+
 TEST_CASE("KOpenIDKeys")
 {
 	SECTION("empty default ctor")

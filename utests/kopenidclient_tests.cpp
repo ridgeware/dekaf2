@@ -77,7 +77,8 @@ KString URLParam(KStringView sURL, KStringView sName)
 //-----------------------------------------------------------------------------
 // forge an ES256-signed JWT (id_token) using the given EC key
 KString MakeES256JWT(const KECKey& Key, KStringView sIssuer, KStringView sSub,
-                     KStringView sNonce, int64_t iTTL, KStringView sAudience = "test-client")
+                     KStringView sNonce, int64_t iTTL, KStringView sAudience = "test-client",
+                     KStringView sAzp = KStringView{})
 //-----------------------------------------------------------------------------
 {
 	KJSON Header  = { { "alg", "ES256" }, { "kid", "test-ec" }, { "typ", "JWT" } };
@@ -91,6 +92,7 @@ KString MakeES256JWT(const KECKey& Key, KStringView sIssuer, KStringView sSub,
 		{ "nonce", KString(sNonce)  },
 		{ "preferred_username", KString(sSub) }
 	};
+	if (!sAzp.empty()) Payload["azp"] = KString(sAzp);
 
 	KString sInput = KBase64Url::Encode(Header.dump());
 	sInput += '.';
@@ -112,6 +114,7 @@ struct MockIdP
 	KString sBase;          ///< http://localhost:<port>
 	KString sNonce;         ///< nonce to embed into the next issued id_token
 	KString sAud { "test-client" }; ///< audience to mint into the next id_token (default = our client_id)
+	KString sAzp;           ///< authorized party (azp) to mint; empty = omit the claim
 	bool    bOmitExpiresIn { false }; ///< drop "expires_in" from the token response
 };
 
@@ -311,7 +314,7 @@ TEST_CASE("KOpenIDClient")
 		http.json.tx = {
 			{ "access_token",  bRefresh ? "access-2"  : "access-1"  },
 			{ "refresh_token", bRefresh ? "refresh-2" : "refresh-1" },
-			{ "id_token",      MakeES256JWT(Mock.Key, Mock.sBase, "alice", Mock.sNonce, 3600, Mock.sAud) },
+			{ "id_token",      MakeES256JWT(Mock.Key, Mock.sBase, "alice", Mock.sNonce, 3600, Mock.sAud, Mock.sAzp) },
 			{ "token_type",    "Bearer" }
 		};
 		if (!Mock.bOmitExpiresIn) http.json.tx["expires_in"] = 3600;
@@ -486,6 +489,30 @@ TEST_CASE("KOpenIDClient")
 		Cookies.Apply(sCallback);
 
 		// the audience check must reject it: no session may be established
+		CHECK_FALSE ( Cookies.Has("session") );
+
+		KString sProtected = Drive(AppRoutes, "GET", "/protected", Cookies.Header());
+		CHECK ( sProtected.contains("ANON") );
+	}
+
+	SECTION("callback is rejected on id_token azp mismatch")
+	{
+		CookieJar Cookies;
+
+		KString sLogin = Drive(AppRoutes, "GET", "/auth/login", Cookies.Header());
+		Cookies.Apply(sLogin);
+		KString sState = URLParam(ResponseBody(sLogin), "state");
+		Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+
+		// aud is correct (our client_id), but azp names a DIFFERENT authorized party,
+		// so azp is the only reason to reject -> proves the azp check is enforced
+		Mock.sAud = "test-client";
+		Mock.sAzp = "some-other-client";
+
+		KString sCallback = Drive(AppRoutes, "GET",
+			kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+		Cookies.Apply(sCallback);
+
 		CHECK_FALSE ( Cookies.Has("session") );
 
 		KString sProtected = Drive(AppRoutes, "GET", "/protected", Cookies.Header());

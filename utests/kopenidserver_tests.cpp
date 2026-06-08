@@ -650,6 +650,56 @@ TEST_CASE("KOpenIDServer")
 		CHECK_FALSE ( sLocation.contains("code=") );               // no authorization code issued
 	}
 
+	SECTION("id_token auth_time reflects the original login, not the code-issuance time")
+	{
+		CookieJar Cookies;
+
+		// 1) interactive login -> token1
+		KString sVer1 = KBase64Url::Encode(kGetRandom(32));
+		KString sCh1  = KBase64Url::Encode(KSHA256(sVer1).Digest());
+		KString sAz1  = kFormat("/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/cb"
+			"&scope=openid&state=s1&nonce=n1&code_challenge={}&code_challenge_method=S256", sCh1);
+		KString r1 = Drive("GET", sAz1, Cookies.Header()); Cookies.Apply(r1);
+		KString r2 = Drive("POST", "/login", Cookies.Header(), "username=alice&password=secret"); Cookies.Apply(r2);
+		KString sCode1 = URLParam(FirstHeader(r2, "Location"), "code");
+		REQUIRE_FALSE ( sCode1.empty() );
+		KString sBody1 = kFormat("grant_type=authorization_code&code={}&redirect_uri=http://localhost/cb"
+			"&code_verifier={}&client_id=test-client&client_secret=test-secret", sCode1, sVer1);
+		KString sId1 = kjson::GetStringRef(kjson::Parse(ResponseBody(Drive("POST", "/token", "", sBody1))), "id_token");
+		auto P1 = KStringView(sId1).Split('.');
+		REQUIRE ( P1.size() == 3 );
+		KJSON jId1 = kjson::Parse(KBase64Url::Decode(P1[1]));
+		int64_t iAuth1 = kjson::GetInt(jId1, "auth_time");
+		REQUIRE ( iAuth1 > 0 );
+
+		// let the wall clock advance past a one-second boundary (auth_time/iat are
+		// second-resolution), so a silent SSO re-issue gets a strictly later iat
+		std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+		// 2) silent SSO (the live session is reused, no /login) -> token2
+		KString sVer2 = KBase64Url::Encode(kGetRandom(32));
+		KString sCh2  = KBase64Url::Encode(KSHA256(sVer2).Digest());
+		KString sAz2  = kFormat("/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/cb"
+			"&scope=openid&state=s2&nonce=n2&code_challenge={}&code_challenge_method=S256", sCh2);
+		KString r3 = Drive("GET", sAz2, Cookies.Header());
+		REQUIRE ( FirstHeader(r3, "Location").starts_with("http://localhost/cb?") ); // SSO, no login screen
+		KString sCode2 = URLParam(FirstHeader(r3, "Location"), "code");
+		REQUIRE_FALSE ( sCode2.empty() );
+		KString sBody2 = kFormat("grant_type=authorization_code&code={}&redirect_uri=http://localhost/cb"
+			"&code_verifier={}&client_id=test-client&client_secret=test-secret", sCode2, sVer2);
+		KString sId2 = kjson::GetStringRef(kjson::Parse(ResponseBody(Drive("POST", "/token", "", sBody2))), "id_token");
+		auto P2 = KStringView(sId2).Split('.');
+		REQUIRE ( P2.size() == 3 );
+		KJSON jId2 = kjson::Parse(KBase64Url::Decode(P2[1]));
+		int64_t iAuth2 = kjson::GetInt(jId2, "auth_time");
+		int64_t iIat2  = kjson::GetInt(jId2, "iat");
+
+		// auth_time is pinned to the original login (NOT advanced to issuance time),
+		// and the SSO token was demonstrably issued later than the user authenticated
+		CHECK ( iAuth2 == iAuth1 );
+		CHECK ( iIat2  >  iAuth2 );
+	}
+
 	SECTION("re-authentication policy: prompt, max_age, and per-client policy")
 	{
 		// establish a fresh OP login session and return its cookie jar

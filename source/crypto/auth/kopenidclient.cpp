@@ -340,6 +340,21 @@ KString KOpenIDClient::ValidateIDToken(KStringView sIDToken, KStringView sExpect
 		return {};
 	}
 
+	// OIDC core requirement: when an "azp" (authorized party) claim is present - which
+	// it MUST be when the token has multiple audiences - it has to equal this RP's
+	// client_id. This is the second audience-confinement check after "aud" (without
+	// it, a token issued for a different authorized party would be indistinguishable).
+	// Absent azp (the common single-audience case) imposes no constraint.
+	if (!m_Config.sClientID.empty())
+	{
+		const KString& sAzp = kjson::GetStringRef(Payload, "azp");
+		if (!sAzp.empty() && sAzp != m_Config.sClientID)
+		{
+			kDebug(1, "id_token azp '{}' is not our client_id '{}'", sAzp, m_Config.sClientID);
+			return {};
+		}
+	}
+
 	KString sUsername = kjson::GetStringRef(Payload, "username");
 	if (sUsername.empty())
 	{

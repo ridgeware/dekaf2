@@ -337,7 +337,10 @@ private:
 	/// issue+store a single-use code and build the client's redirect_uri with the
 	/// code (and state) appended; @returns the URL as a KURL, or an empty KURL
 	/// (empty() == true) if the code could not be stored. Serialize at the boundary.
-	DEKAF2_PRIVATE KURL        IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView sSubject);
+	/// @param tAuthTime when the user actually authenticated (the OP session's
+	/// creation time for a silent-SSO resolution, or "now" for a fresh login) —
+	/// becomes the id_token "auth_time", which RPs rely on for max_age / step-up.
+	DEKAF2_PRIVATE KURL        IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView sSubject, KUnixTime tAuthTime);
 	DEKAF2_PRIVATE void        SetPendingCookie (KRESTServer& HTTP, const AuthRequest& Req);
 	DEKAF2_PRIVATE AuthRequest ReadPendingCookie(KRESTServer& HTTP);
 	DEKAF2_PRIVATE void        ExpirePendingCookie(KRESTServer& HTTP);

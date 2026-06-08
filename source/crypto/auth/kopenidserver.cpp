@@ -280,7 +280,7 @@ KOpenIDServer::AuthRequest KOpenIDServer::ParseAuthRequest(KRESTServer& HTTP, KS
 } // ParseAuthRequest
 
 //-----------------------------------------------------------------------------
-KURL KOpenIDServer::IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView sSubject)
+KURL KOpenIDServer::IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView sSubject, KUnixTime tAuthTime)
 //-----------------------------------------------------------------------------
 {
 	// per-client access control: the application decides whether this user may
@@ -307,7 +307,7 @@ KURL KOpenIDServer::IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView 
 	Code.sNonce         = Req.sNonce;
 	Code.sScope         = Req.sScope;
 	Code.sSubject       = sSubject;
-	Code.tAuthTime      = KUnixTime::now();
+	Code.tAuthTime      = tAuthTime; // the real authentication time, not "now" (see caller)
 	Code.tExpiry        = KUnixTime::now() + m_Config.AuthCodeTTL;
 
 	if (!m_Grants->SaveCode(Code))
@@ -523,8 +523,10 @@ void KOpenIDServer::HandleAuthorize(KRESTServer& HTTP)
 		}
 	}
 
-	// authorized: issue the code and bounce back to the client
-	KURL RedirectURL = IssueCodeAndRedirectURL(Req, Session.sUsername);
+	// authorized: issue the code and bounce back to the client. This is the silent
+	// SSO path (no re-auth happened), so the authentication time is the session's
+	// creation time, NOT now - otherwise auth_time would falsely read as "just now".
+	KURL RedirectURL = IssueCodeAndRedirectURL(Req, Session.sUsername, Session.tCreated);
 	if (RedirectURL.empty())
 	{
 		throw KHTTPError(KHTTPError::H5xx_ERROR, "could not issue authorization code");
@@ -567,7 +569,8 @@ KString KOpenIDServer::CompleteLogin(KRESTServer& HTTP, KStringView sUsername)
 	KString sError;
 	if (Req.bValid && ValidateClientRequest(Req, sError))
 	{
-		KURL RedirectURL = IssueCodeAndRedirectURL(Req, sUsername);
+		// fresh interactive login just happened, so the authentication time is now
+		KURL RedirectURL = IssueCodeAndRedirectURL(Req, sUsername, KUnixTime::now());
 		if (!RedirectURL.empty())
 		{
 			return RedirectURL.Serialize();

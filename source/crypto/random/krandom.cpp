@@ -41,6 +41,7 @@
 */
 
 #include <dekaf2/crypto/random/krandom.h>
+#include <dekaf2/core/logging/klog.h>
 #include <random>
 #include <cstdlib>
 
@@ -88,12 +89,20 @@ uint32_t kRandom32()
 #if DEKAF2_HAS_ARC4RANDOM
 	return arc4random();
 #elif DEKAF2_HAS_GETRANDOM
-	uint32_t iValue;
-	getrandom(&iValue, sizeof(iValue), 0);
+	// zero-initialize so a (rare) CSPRNG failure yields a DEFINED value rather than an
+	// indeterminate stack read (UB / potential stale-stack leak).
+	uint32_t iValue = 0;
+	if (getrandom(&iValue, sizeof(iValue), 0) != static_cast<ssize_t>(sizeof(iValue)))
+	{
+		kDebug(1, "getrandom() failed");
+	}
 	return iValue;
 #else
-	uint32_t iValue;
-	::RAND_bytes(reinterpret_cast<unsigned char*>(&iValue), static_cast<int>(sizeof(iValue)));
+	uint32_t iValue = 0;
+	if (1 != ::RAND_bytes(reinterpret_cast<unsigned char*>(&iValue), static_cast<int>(sizeof(iValue))))
+	{
+		kDebug(1, "RAND_bytes() failed");
+	}
 	return iValue;
 #endif
 
@@ -106,12 +115,20 @@ uint64_t kRandom64()
 #if DEKAF2_HAS_ARC4RANDOM
 	return static_cast<uint64_t>(arc4random()) | static_cast<uint64_t>(arc4random()) << 32;
 #elif DEKAF2_HAS_GETRANDOM
-	uint64_t iValue;
-	getrandom(&iValue, sizeof(iValue), 0);
+	// zero-initialize so a (rare) CSPRNG failure yields a DEFINED value rather than an
+	// indeterminate stack read (UB / potential stale-stack leak).
+	uint64_t iValue = 0;
+	if (getrandom(&iValue, sizeof(iValue), 0) != static_cast<ssize_t>(sizeof(iValue)))
+	{
+		kDebug(1, "getrandom() failed");
+	}
 	return iValue;
 #else
-	uint64_t iValue;
-	::RAND_bytes(reinterpret_cast<unsigned char*>(&iValue), static_cast<int>(sizeof(iValue)));
+	uint64_t iValue = 0;
+	if (1 != ::RAND_bytes(reinterpret_cast<unsigned char*>(&iValue), static_cast<int>(sizeof(iValue))))
+	{
+		kDebug(1, "RAND_bytes() failed");
+	}
 	return iValue;
 #endif
 
@@ -207,7 +224,18 @@ KString kGetRandom(std::size_t iCount)
 //-----------------------------------------------------------------------------
 {
 	KString sRandom(iCount, '\0');
-	kGetRandom(&sRandom[0], iCount);
+
+	// fail CLOSED: if the CSPRNG fails we must NOT hand back the fixed-length zero
+	// string we just allocated - that would be a fully predictable "secret" (the same
+	// base64 every time). Return empty instead, so a caller minting a token/handle gets
+	// an obviously-unusable value rather than a constant one. (Only the OpenSSL /
+	// getrandom paths can fail; arc4random cannot.)
+	if (iCount != 0 && !kGetRandom(&sRandom[0], iCount))
+	{
+		kDebug(1, "CSPRNG failed - returning empty string");
+		sRandom.clear();
+	}
+
 	return sRandom;
 
 } // kGetRandom

@@ -76,7 +76,7 @@ DEKAF2_CONSTEXPR_17 uint8_t MulNoTable(uint16_t a, uint16_t b, uint16_t iPrimiti
 } // anonymous namespace
 
 //-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17 KGaloisField::Tables KGaloisField::BuildTables(uint16_t iPrimitive, uint8_t iGenerator)
+DEKAF2_FULL_CONSTEXPR_17 KGaloisField::Tables KGaloisField::BuildTables(uint16_t iPrimitive, uint8_t iGenerator)
 //-----------------------------------------------------------------------------
 {
 	Tables t {};

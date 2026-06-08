@@ -128,10 +128,8 @@ private:
 	};
 
 	// the cold path (table generation) lives in kgaloisfield.cpp so it is compiled
-	// once, not in every TU that includes this header. DEKAF2_CONSTEXPR_17 keeps
-	// BuildTables usable in a compile-time constant on C++17 (a plain inline call
-	// on C++14).
-	static DEKAF2_CONSTEXPR_17 Tables BuildTables(uint16_t iPrimitive, uint8_t iGenerator);
+	// once, not in every TU that includes this header.
+	static DEKAF2_FULL_CONSTEXPR_17 Tables BuildTables(uint16_t iPrimitive, uint8_t iGenerator);
 	static const Tables& DefaultTables();
 
 	Tables m_Tables;

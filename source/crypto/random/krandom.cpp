@@ -50,26 +50,22 @@
 #endif
 
 #if !DEKAF2_HAS_ARC4RANDOM && !DEKAF2_HAS_GETRANDOM
-	#include <dekaf2/threading/primitives/kthreadsafe.h>
+	// no platform CSPRNG primitive available (e.g. an old glibc lacking
+	// getrandom() and without arc4random): fall back to OpenSSL's RAND_bytes,
+	// which dekaf2 always links. This keeps every random path cryptographically
+	// secure and lets us drop the std::mt19937 fallback entirely.
+	#include <openssl/rand.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
 
 namespace detail {
 
-#if !DEKAF2_HAS_ARC4RANDOM && !DEKAF2_HAS_GETRANDOM
-KThreadSafe<std::mt19937> g_Dekaf2Random;
-#endif
-
 //---------------------------------------------------------------------------
 void kSetRandomSeed()
 //---------------------------------------------------------------------------
 {
 	std::random_device RandDevice;
-
-#if !DEKAF2_HAS_ARC4RANDOM && !DEKAF2_HAS_GETRANDOM
-	g_Dekaf2Random.unique()->seed(RandDevice());
-#endif
 
 	srand(RandDevice());
 #ifndef DEKAF2_IS_WINDOWS
@@ -96,7 +92,9 @@ uint32_t kRandom32()
 	getrandom(&iValue, sizeof(iValue), 0);
 	return iValue;
 #else
-	return detail::g_Dekaf2Random.unique().get()();
+	uint32_t iValue;
+	::RAND_bytes(reinterpret_cast<unsigned char*>(&iValue), static_cast<int>(sizeof(iValue)));
+	return iValue;
 #endif
 
 } // kRandom32
@@ -112,8 +110,9 @@ uint64_t kRandom64()
 	getrandom(&iValue, sizeof(iValue), 0);
 	return iValue;
 #else
-	auto rand = detail::g_Dekaf2Random.unique();
-	return static_cast<uint64_t>((*rand)()) | static_cast<uint64_t>((*rand)()) << 32;
+	uint64_t iValue;
+	::RAND_bytes(reinterpret_cast<unsigned char*>(&iValue), static_cast<int>(sizeof(iValue)));
+	return iValue;
 #endif
 
 } // kRandom64
@@ -190,26 +189,11 @@ bool kGetRandom(void* buf, std::size_t iCount)
 
 #else
 
-	auto* it = static_cast<uint8_t*>(buf);
-	auto* ie = it + iCount;
-
-	while (ie - it >= 4)
+	// OpenSSL's CSPRNG fills the whole buffer in one call - no 32-bit looping,
+	// and (unlike getrandom) no 256-byte chunk limit to work around.
+	if (1 != ::RAND_bytes(static_cast<unsigned char*>(buf), static_cast<int>(iCount)))
 	{
-		uint32_t r = kRandom32();
-		*it++ = r & 0xff;
-		*it++ = (r >>= 8) & 0xff;
-		*it++ = (r >>= 8) & 0xff;
-		*it++ = (r >>= 8) & 0xff;
-	}
-
-	if (ie - it > 0)
-	{
-		uint32_t r = kRandom32();
-		while (ie - it > 0)
-		{
-			*it++ = r & 0xff;
-			r >>= 8;
-		}
+		return false;
 	}
 
 #endif

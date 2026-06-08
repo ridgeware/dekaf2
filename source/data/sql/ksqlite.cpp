@@ -617,7 +617,14 @@ bool Statement::Bind(ParIndex iOneBasedIndex, double iValue)
 bool Statement::Bind(ParIndex iOneBasedIndex, StringView sValue, bool bCopy)
 //--------------------------------------------------------------------------------
 {
-	return Success(sqlite3_bind_text(m_Row, iOneBasedIndex, sValue.data(), static_cast<int>(sValue.size()), bCopy ? SQLITE_TRANSIENT : SQLITE_STATIC));
+	// A default-constructed/empty string view has data()==nullptr, and
+	// sqlite3_bind_text() binds SQL NULL for a null pointer - which silently turns
+	// an empty string into NULL (and fails NOT NULL columns). Bind an empty view as
+	// the empty string instead; callers that want SQL NULL use the no-value Bind().
+	return Success(sqlite3_bind_text(m_Row, iOneBasedIndex,
+	                                 sValue.data() ? sValue.data() : "",
+	                                 static_cast<int>(sValue.size()),
+	                                 bCopy ? SQLITE_TRANSIENT : SQLITE_STATIC));
 }
 
 //--------------------------------------------------------------------------------

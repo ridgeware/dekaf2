@@ -98,6 +98,39 @@ TEST_CASE("KSQLite")
 		}
 	}
 
+	SECTION("an empty string view binds '' (not NULL); explicit Bind() binds NULL")
+	{
+		auto sFilename = kFormat("{}/sqlite_emptybind.db", TempDir.Name());
+		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+		REQUIRE_FALSE ( db.IsError() );
+		db.ExecuteVoid("drop table if exists nn");
+		REQUIRE ( db.ExecuteVoid("create table nn (id integer primary key, txt text not null)") );
+
+		// a default-constructed (null-data) string view must bind the empty string and
+		// satisfy the NOT NULL constraint (previously it bound SQL NULL and failed)
+		{
+			auto Ins = db.Prepare("insert into nn (id, txt) values (1, ?1)");
+			CHECK ( Ins.Bind(1, KStringView{}) );
+			CHECK ( Ins.Execute() );
+		}
+		{
+			auto Sel = db.Prepare("select txt, txt is null, length(txt) from nn where id=1");
+			REQUIRE ( Sel.NextRow() );
+			auto Row = Sel.GetRow();
+			CHECK ( Row.Col(1).String() == "" );
+			CHECK ( Row.Col(2).Int64()  == 0 );  // "txt IS NULL" is false: stored '' , not NULL
+			CHECK ( Row.Col(3).Int64()  == 0 );  // length('') == 0
+		}
+
+		// the explicit no-value Bind() still binds SQL NULL — which the NOT NULL
+		// column correctly rejects (this also proves the column really is NOT NULL)
+		{
+			auto Ins = db.Prepare("insert into nn (id, txt) values (2, ?1)");
+			CHECK ( Ins.Bind(1) );
+			CHECK_FALSE ( Ins.Execute() );
+		}
+	}
+
 	SECTION("Multi-statement ExecuteVoid")
 	{
 		auto sFilename = kFormat("{}/sqlite_multi_exec.db", TempDir.Name());

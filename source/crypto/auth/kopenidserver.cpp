@@ -626,6 +626,105 @@ KString KOpenIDServer::SignJWT(const KJSON& Payload) const
 
 } // SignJWT
 
+namespace {
+
+//-----------------------------------------------------------------------------
+/// OIDC Core 5.4: the standard scope that governs the release of a given claim.
+/// Returns 'p'rofile, 'e'mail, 'h' (phone) or 'a'ddress, or 0 if the claim is not
+/// governed by a standard scope (then it is application-defined and passed through).
+char ScopeGroupOfClaim(KStringView sClaim)
+//-----------------------------------------------------------------------------
+{
+	switch (sClaim.Hash())
+	{
+		case "email"_hash:
+		case "email_verified"_hash:
+			return 'e';
+
+		case "phone_number"_hash:
+		case "phone_number_verified"_hash:
+			return 'h';
+
+		case "address"_hash:
+			return 'a';
+
+		case "name"_hash:
+		case "family_name"_hash:
+		case "given_name"_hash:
+		case "middle_name"_hash:
+		case "nickname"_hash:
+		case "preferred_username"_hash:
+		case "profile"_hash:
+		case "picture"_hash:
+		case "website"_hash:
+		case "gender"_hash:
+		case "birthdate"_hash:
+		case "zoneinfo"_hash:
+		case "locale"_hash:
+		case "updated_at"_hash:
+			return 'p';
+
+		default:
+			return 0;
+	}
+}
+
+//-----------------------------------------------------------------------------
+/// Return only those identity claims that the granted scope authorizes (OIDC Core
+/// 5.4). "sub" is always kept; a claim not governed by a standard scope is passed
+/// through (the UserStore deliberately returned it). This is what stops e.g.
+/// name/email from leaking into a token whose scope did not include profile/email.
+KJSON FilterClaimsByScope(const KJSON& Claims, KStringView sScope)
+//-----------------------------------------------------------------------------
+{
+	KJSON Out = KJSON::object();
+	if (!Claims.is_object()) return Out;
+
+	bool bProfile = false, bEmail = false, bPhone = false, bAddress = false;
+	for (auto sTok : sScope.Split(' '))
+	{
+		switch (sTok.Hash())
+		{
+			case "profile"_hash:
+				bProfile = true;
+				break;
+
+			case "email"_hash:
+				bEmail   = true;
+				break;
+
+			case "phone"_hash:
+				bPhone   = true;
+				break;
+
+			case "address"_hash:
+				bAddress = true;
+				break;
+
+			default:
+				break;
+		}
+	}
+
+	for (auto it = Claims.begin(); it != Claims.end(); ++it)
+	{
+		KStringView sKey = it.key();
+		if (sKey == "sub") { Out[it.key()] = it.value(); continue; }
+
+		char chGroup = ScopeGroupOfClaim(sKey);
+		const bool bAllowed = (chGroup == 0)                          // app-defined: pass through
+		                   || (chGroup == 'p' && bProfile)
+		                   || (chGroup == 'e' && bEmail)
+		                   || (chGroup == 'h' && bPhone)
+		                   || (chGroup == 'a' && bAddress);
+		if (bAllowed) Out[it.key()] = it.value();
+	}
+	return Out;
+
+} // FilterClaimsByScope
+
+} // anonymous namespace
+
 //-----------------------------------------------------------------------------
 KJSON KOpenIDServer::IssueTokens(KStringView sSubject, KStringView sClientID,
                                  KStringView sScope,   KStringView sNonce,
@@ -634,12 +733,15 @@ KJSON KOpenIDServer::IssueTokens(KStringView sSubject, KStringView sClientID,
 {
 	KUnixTime tNow = KUnixTime::now();
 
-	// --- id_token: start from the user's profile claims, then set the core claims ---
+	// --- id_token: the user's profile claims, gated by the granted scope, then the
+	// core claims. Scope gating (OIDC Core 5.4) keeps e.g. email out of a token whose
+	// scope did not include 'email'. (The requested scope is already constrained to
+	// the client's registered scopes at /authorize.) ---
 	KJSON idClaims;
 	KJSON UserClaims;
 	if (m_Users->GetClaims(sSubject, UserClaims) && UserClaims.is_object())
 	{
-		idClaims = std::move(UserClaims);
+		idClaims = FilterClaimsByScope(UserClaims, sScope);
 	}
 	// merge the per-client claims (e.g. "roles") supplied by AuthorizeClientAccess
 	if (jClientClaims.is_object())
@@ -916,11 +1018,15 @@ void KOpenIDServer::HandleUserInfo(KRESTServer& HTTP)
 	}
 
 	const KString& sSub = kjson::GetStringRef(Payload, "sub");
-	KJSON Claims;
-	if (!m_Users->GetClaims(sSub, Claims) || !Claims.is_object())
+	KJSON Full;
+	if (!m_Users->GetClaims(sSub, Full) || !Full.is_object())
 	{
-		Claims = KJSON::object();
+		Full = KJSON::object();
 	}
+	// release only the claims the access token's scope authorizes (OIDC Core 5.4) -
+	// the same gate as the id_token, so /userinfo cannot hand out e.g. email to a
+	// token that was issued without the 'email' scope
+	KJSON Claims = FilterClaimsByScope(Full, kjson::GetStringRef(Payload, "scope"));
 	Claims["sub"] = sSub;
 	HTTP.json.tx  = std::move(Claims);
 

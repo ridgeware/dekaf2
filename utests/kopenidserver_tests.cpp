@@ -370,7 +370,8 @@ TEST_CASE("KOpenIDServer")
 		CHECK ( kjson::GetStringRef(jPayload, "aud")   == "test-client" );
 		CHECK ( kjson::GetStringRef(jPayload, "sub")   == "alice" );
 		CHECK ( kjson::GetStringRef(jPayload, "nonce") == "the-nonce" );
-		CHECK ( kjson::GetStringRef(jPayload, "email") == "alice@example.com" );
+		CHECK ( kjson::GetStringRef(jPayload, "name")  == "Alice Example" ); // 'profile' scope granted
+		CHECK_FALSE ( kjson::Exists(jPayload, "email") );                    // 'email' scope NOT requested
 		CHECK ( kjson::GetStringRef(jPayload, "token_use") == "id" );
 
 		// 5) the code is single-use: replaying it must fail
@@ -390,8 +391,9 @@ TEST_CASE("KOpenIDServer")
 			KRESTServer Srv(stream, "127.0.0.1:48999", url::KProtocol::HTTP, 48999, Routes, o);
 			Srv.Execute();
 			KJSON jUI = kjson::Parse(ResponseBody(sResp));
-			CHECK ( kjson::GetStringRef(jUI, "sub")   == "alice" );
-			CHECK ( kjson::GetStringRef(jUI, "email") == "alice@example.com" );
+			CHECK ( kjson::GetStringRef(jUI, "sub")  == "alice" );
+			CHECK ( kjson::GetStringRef(jUI, "name") == "Alice Example" ); // 'profile' granted
+			CHECK_FALSE ( kjson::Exists(jUI, "email") );                   // 'email' not granted -> withheld
 		}
 
 		// 6b) token-type confinement: presenting the id_token as a bearer at
@@ -456,6 +458,41 @@ TEST_CASE("KOpenIDServer")
 		KString r12 = Drive("GET", "/logout", "");
 		CHECK ( r12.contains("302") );
 		CHECK ( FirstHeader(r12, "Location") == "/" );
+	}
+
+	SECTION("released identity claims follow the granted scope (email vs profile)")
+	{
+		CookieJar Cookies;
+
+		KString sVer = KBase64Url::Encode(kGetRandom(32));
+		KString sCh  = KBase64Url::Encode(KSHA256(sVer).Digest());
+
+		// request ONLY 'openid email' (no 'profile')
+		KString sAuthz = kFormat(
+			"/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/cb"
+			"&scope=openid%20email&state=s&nonce=n&code_challenge={}&code_challenge_method=S256", sCh);
+
+		KString a1 = Drive("GET", sAuthz, Cookies.Header());
+		Cookies.Apply(a1);
+		KString a2 = Drive("POST", "/login", Cookies.Header(), "username=alice&password=secret");
+		Cookies.Apply(a2);
+		KString sLoc  = FirstHeader(a2, "Location");
+		REQUIRE ( sLoc.starts_with("http://localhost/cb?") );
+		KString sCode = URLParam(sLoc, "code");
+		REQUIRE_FALSE ( sCode.empty() );
+
+		KString sBody = kFormat(
+			"grant_type=authorization_code&code={}&redirect_uri=http://localhost/cb"
+			"&code_verifier={}&client_id=test-client&client_secret=test-secret", sCode, sVer);
+		KJSON jTok = kjson::Parse(ResponseBody(Drive("POST", "/token", "", sBody)));
+		KString sId = kjson::GetStringRef(jTok, "id_token");
+		REQUIRE_FALSE ( sId.empty() );
+
+		auto P = KStringView(sId).Split('.');
+		REQUIRE ( P.size() == 3 );
+		KJSON jId = kjson::Parse(KBase64Url::Decode(P[1]));
+		CHECK ( kjson::GetStringRef(jId, "email") == "alice@example.com" ); // 'email' scope granted
+		CHECK_FALSE ( kjson::Exists(jId, "name") );                         // 'profile' NOT requested -> withheld
 	}
 
 	SECTION("client-scoped roles from AuthorizeClientAccess are embedded in the tokens")

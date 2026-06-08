@@ -166,8 +166,12 @@ std::vector<KHTTPHeader::Range> KHTTPHeader::GetRanges(KStringView sContent, std
 				{
 					if (!rp.second.empty())
 					{
-						iEnd   = std::min(iResourceEnd, rp.second.UInt64());
-						iStart = iResourceEnd - iEnd;
+						// "bytes=-N": the last N bytes. Clamp the suffix length to the
+						// resource *size* (not size-1) and offset from it, so that N >= size
+						// returns the whole resource and N < size returns exactly N bytes
+						// (using size-1 here returned N+1 bytes, off by one).
+						iEnd   = std::min(iResourceSize, rp.second.UInt64());
+						iStart = iResourceSize - iEnd;
 						iEnd   = iResourceEnd;
 					}
 					else

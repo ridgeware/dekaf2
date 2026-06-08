@@ -122,6 +122,32 @@ TEST_CASE("KFilesystem")
 		CHECK ( iVerifyMode == iOldMode );
 	}
 
+#ifndef DEKAF2_IS_WINDOWS
+	SECTION("kWriteFile applies a requested mode atomically (LOW-4)")
+	{
+		kCreateDir(sDirectory); // self-contained: do not depend on earlier sections
+		// a dedicated path so we never clobber the shared sFile other sections rely on
+		KString sModeFile = sDirectory; sModeFile += kDirSep; sModeFile += "modetest.secret";
+
+		// a secret-style write must end up exactly 0600 - never group/other-readable,
+		// not even for the brief window the old open-then-chmod sequence allowed
+		CHECK ( kWriteFile(sModeFile, "secret-bytes", 0600) );
+		CHECK ( kNonEmptyFileExists(sModeFile) );
+		CHECK ( (kGetMode(sModeFile) & 0777) == 0600 );
+
+		// overwriting a file that currently has broader perms still enforces 0600
+		CHECK ( kChangeMode(sModeFile, 0644) );
+		CHECK ( kWriteFile(sModeFile, "again", 0600) );
+		CHECK ( (kGetMode(sModeFile) & 0777) == 0600 );
+
+		// a public mode round-trips as well
+		CHECK ( kWriteFile(sModeFile, "public", 0644) );
+		CHECK ( (kGetMode(sModeFile) & 0777) == 0644 );
+
+		kRemoveFile(sModeFile);
+	}
+#endif
+
 	SECTION("KFile stats")
 	{
 		CHECK( kNonEmptyFileExists(sFile) == true );

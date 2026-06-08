@@ -2442,6 +2442,54 @@ namespace {
 bool IntWriteFile(KStringViewZ sPath, std::ios_base::openmode OpenMode, KStringView sContents, int iMode)
 //-----------------------------------------------------------------------------
 {
+#ifndef DEKAF2_IS_WINDOWS
+	// When a caller requests a specific mode (e.g. 0600 for a private key), create
+	// the file with that mode applied ATOMICALLY at open() time, rather than opening
+	// at the umask default and chmod()-ing afterwards.
+	// On a fresh create, open(O_CREAT, iMode) yields exactly iMode (the bits we set
+	// have no group/other component for secrets); fchmod() then also enforces the
+	// mode if the file already existed (open() only applies the mode on creation).
+	// O_NOFOLLOW (truncating writes only) refuses a pre-planted symlink at the path
+	// for these sensitive writes; append writes keep following symlinks so a
+	// legitimately symlinked target (e.g. a history file) is not broken.
+	// This does not apply for Windows, which has a ACL based protection model.
+	if (iMode != DEKAF2_MODE_CREATE_FILE)
+	{
+		const bool bAppend = (OpenMode & std::ios_base::app) != 0;
+		int flags = O_WRONLY | O_CREAT | (bAppend ? O_APPEND : (O_TRUNC | O_NOFOLLOW));
+
+		int fd = ::open(sPath.c_str(), flags, static_cast<mode_t>(iMode));
+		if (fd < 0)
+		{
+			kWarning("cannot open file: {}: {}", sPath, strerror(errno));
+			return false;
+		}
+
+		::fchmod(fd, static_cast<mode_t>(iMode));
+
+		bool        bOK = true;
+		const char* p   = sContents.data();
+		std::size_t n   = sContents.size();
+
+		while (n != 0)
+		{
+			ssize_t iWritten = ::write(fd, p, n);
+			if (iWritten < 0)
+			{
+				if (errno == EINTR) continue;
+				kDebug(1, "cannot write file: {}: {}", sPath, strerror(errno));
+				bOK = false;
+				break;
+			}
+			p += iWritten;
+			n -= static_cast<std::size_t>(iWritten);
+		}
+
+		::close(fd);
+		return bOK;
+	}
+#endif
+
 	KOutFile file(sPath, OpenMode);
 
 	if (!file.is_open())

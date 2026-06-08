@@ -80,6 +80,7 @@ constexpr KStringView CSS =
 	"nav.nav{display:flex;gap:1rem;align-items:center;background:var(--primary);padding:.8rem 1.2rem}"
 	"nav.nav a{color:#fff;text-decoration:none;font-size:.95rem}"
 	"nav.nav a.brand{font-weight:700;margin-right:auto}"
+	"nav.nav .navuser{color:rgba(255,255,255,.8);font-size:.9rem;padding-left:1rem;border-left:1px solid rgba(255,255,255,.25)}"
 	"button.themetoggle{margin:0;padding:.3rem;background:transparent;color:#fff;border:0;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center}"
 	"button.themetoggle:hover{background:rgba(255,255,255,.18)}"
 	"button.themetoggle svg{width:1.2rem;height:1.2rem}"
@@ -87,6 +88,7 @@ constexpr KStringView CSS =
 	"html[data-theme=dark] .themetoggle .icon-moon{display:none}"
 	"html[data-theme=dark] .themetoggle .icon-sun{display:inline}"
 	"main.wrap{max-width:46rem;margin:2rem auto;padding:0 1rem}"
+	"main.wrap.wide{max-width:72rem}"  // table-heavy admin pages get more room
 	".card{background:var(--surface);border-radius:12px;box-shadow:0 1px 6px var(--shadow);margin-bottom:1.5rem;overflow:hidden}"
 	".card-header{padding:.9rem 1.3rem;border-bottom:1px solid var(--border)}"
 	".card-header h3{margin:0;font-size:1.15rem}"
@@ -154,7 +156,14 @@ constexpr KStringView THEME_JS =
 	"document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();"
 	"function kssodToggleTheme(){var d=document.documentElement,k=d.getAttribute('data-theme')==='dark';"
 	"try{if(k){d.removeAttribute('data-theme');localStorage.setItem('kssod-theme','light');}"
-	"else{d.setAttribute('data-theme','dark');localStorage.setItem('kssod-theme','dark');}}catch(e){}}";
+	"else{d.setAttribute('data-theme','dark');localStorage.setItem('kssod-theme','dark');}}catch(e){}}"
+	// fill the client-secret field with 32 random bytes hex-encoded (browser CSPRNG)
+	"function kssodGenSecret(){var a=new Uint8Array(32);crypto.getRandomValues(a);"
+	"var h=Array.from(a,function(b){return b.toString(16).padStart(2,'0');}).join('');"
+	"var e=document.getElementById('client_secret_field');if(e)e.value=h;}"
+	// confirm an admin-checkbox toggle before submitting; revert the box on cancel
+	"function kssodConfirmAdmin(c){var m=c.checked?'Make this user an administrator?':'Remove administrator rights from this user?';"
+	"if(confirm(m)){c.form.submit();}else{c.checked=!c.checked;}}";
 
 // Inline outline icons (Feather-style, stroke=currentColor so they pick up the
 // tile's white text colour). Recognisable admin iconography: people, app grid,
@@ -178,7 +187,7 @@ void SendPage(KRESTServer& HTTP, html::Page& Page, uint16_t iStatus = 200)
 }
 //-----------------------------------------------------------------------------
 /// open a page: head meta + stylesheet + nav bar; returns the <main> content node
-KHTMLNode BeginPage(html::Page& Page, KStringView sUser, bool bAdmin)
+KHTMLNode BeginPage(html::Page& Page, KStringView sUser, bool bAdmin, bool bWide = false)
 //-----------------------------------------------------------------------------
 {
 	Page.AddMeta("viewport", "width=device-width, initial-scale=1");
@@ -194,7 +203,9 @@ KHTMLNode BeginPage(html::Page& Page, KStringView sUser, bool bAdmin)
 	}
 	else
 	{
-		if (bAdmin) Nav.Add<html::Link>("/admin", "Admin");
+		if (bAdmin) Nav.Add<html::Link>("/admin", "Administrate");
+		// whose account these actions belong to — shown right before Account/Sign out
+		Nav.Add<html::Span>(html::Classes{"navuser"}).AddText(sUser);
 		Nav.Add<html::Link>("/account", "Account");
 		Nav.Add<html::Link>("/logout", "Sign out");
 	}
@@ -207,7 +218,7 @@ KHTMLNode BeginPage(html::Page& Page, KStringView sUser, bool bAdmin)
 	Toggle.AddRawText(SVG_MOON);
 	Toggle.AddRawText(SVG_SUN);
 
-	return Page.Body().Add<html::Element>("main", html::Classes{"wrap"});
+	return Page.Body().Add<html::Element>("main", html::Classes{bWide ? "wrap wide" : "wrap"});
 }
 
 //-----------------------------------------------------------------------------
@@ -390,6 +401,24 @@ void RenderAccount(KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSO
 		}
 	}
 
+	// self-service email change — only when verification is possible (an SMTP relay
+	// is configured). Changing the address sends a fresh confirmation link to it and
+	// marks it unverified until confirmed; without SMTP this stays admin-only.
+	if (St.bSmtp)
+	{
+		auto EF = CB.Add<html::Form>("/account/email");
+		EF.SetMethod(html::Form::POST);
+		LabeledInput(EF, sEmail.empty() ? "Add an email address" : "Change email address",
+		             "email", html::Input::EMAIL, /*bRequired=*/false).SetValue(sEmail);
+		// re-authentication: email is the recovery anchor, so confirm with the password
+		LabeledInput(EF, "Confirm with your current password", "password", html::Input::PASSWORD);
+		EF.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+		    "We'll send a confirmation link to the new address; your current one stays active "
+		    "until you click it. A security heads-up also goes to your old address.");
+		EF.Add<html::Button>(sEmail.empty() ? "Add email" : "Change email",
+		                     html::Button::SUBMIT, html::Classes{"secondary"});
+	}
+
 	// --- change password ---
 	CB.Add<html::Heading>(3, "Change password");
 	auto Form = CB.Add<html::Form>("/account/password");
@@ -525,6 +554,36 @@ void RenderInfo(KRESTServer& HTTP, KStringView sTitle, KStringView sMessage,
 	CB.Add<html::Paragraph>().AddText(sMessage);
 	if (!sLinkURL.empty()) CB.Add<html::Paragraph>().Add<html::Link>(sLinkURL, sLinkText);
 	SendPage(HTTP, Page, iStatus);
+}
+
+//-----------------------------------------------------------------------------
+void RenderNoAccess(KRESTServer& HTTP, KStringView sUser, KStringView sClientID)
+//-----------------------------------------------------------------------------
+{
+	html::Page Page("No access", "en");
+	auto Body = BeginPage(Page, sUser, /*bAdmin=*/false);
+	auto Card = Body.Add<html::ui::Card>("No access");
+	auto CB   = Card.Body();
+
+	KString sApp = sClientID.empty() ? KString("this application")
+	                                 : kFormat("\"{}\"", sClientID);
+	CB.Add<html::Paragraph>().AddText(
+	    kFormat("You are signed in as {}, who is not allowed to use {}.", sUser, sApp));
+	CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+	    "Sign in with a different account that has access, or go back to the app.");
+
+	auto Actions = CB.Add<html::Div>(html::Classes{"actions"});
+	// primary: switch account — ends this session and returns to the login screen
+	// with the original request preserved, so the next sign-in resumes it
+	auto Switch = Actions.Add<html::Form>("/no-access/switch");
+	Switch.SetMethod(html::Form::POST);
+	Switch.Add<html::Button>("Sign in as a different user");
+	// secondary: give up — hand error=access_denied back to the app
+	auto Back = Actions.Add<html::Form>("/no-access/decline");
+	Back.SetMethod(html::Form::POST);
+	Back.Add<html::Button>("Back to the app", html::Button::SUBMIT, html::Classes{"secondary"});
+
+	SendPage(HTTP, Page, 403);
 }
 
 //-----------------------------------------------------------------------------
@@ -671,7 +730,7 @@ void RenderAdminHome(KRESTServer& HTTP, KStringView sUser)
 /// admin: the optional outgoing-mail (SMTP) configuration. With no relay set,
 /// every email feature stays off. sTestMsg reports the result of a test send.
 void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsStore::Smtp& Smtp,
-                    KStringView sMsg, bool bError, uint16_t iStatus)
+                    KStringView sMsg, bool bError, bool bForcePwOnRevert, uint16_t iStatus)
 //-----------------------------------------------------------------------------
 {
 	html::Page Page("Email settings", "en");
@@ -712,6 +771,24 @@ void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsSto
 		LabeledInput(TF, "Send to", "to", html::Input::EMAIL).SetValue(Smtp.sFrom);
 		TF.Add<html::Button>("Send test email", html::Button::SUBMIT, html::Classes{"secondary"});
 	}
+
+	// security policy: how aggressively to recover from a reverted email-change takeover
+	CB.Add<html::Heading>(3, "Security");
+	{
+		auto SF = CB.Add<html::Form>("/admin/settings/security");
+		SF.SetMethod(html::Form::POST);
+		{
+			auto Label = SF.Add<html::Element>("label");
+			Label.Add<html::Input>("force_pw_on_revert", "1", html::Input::CHECKBOX).SetChecked(bForcePwOnRevert);
+			Label.AddText("Force a password reset when a reverted email change had already completed");
+		}
+		SF.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+		    "If an email change happens via a hijacked session and is later reverted from the old "
+		    "address, the attacker may already have reset the password. On (recommended) makes the "
+		    "revert force a fresh password; off is more convenient but less safe.");
+		SF.Add<html::Button>("Save security settings", html::Button::SUBMIT, html::Classes{"secondary"});
+	}
+
 	BackLink(CB, "/admin", "Back");
 	SendPage(HTTP, Page, iStatus);
 }
@@ -723,7 +800,7 @@ void RenderUsers(KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
 //-----------------------------------------------------------------------------
 {
 	html::Page Page("Users", "en");
-	auto Body = BeginPage(Page, sUser, /*bAdmin=*/true);
+	auto Body = BeginPage(Page, sUser, /*bAdmin=*/true, /*bWide=*/true);
 
 	// -- list --
 	auto ListCard = Body.Add<html::ui::Card>("Users");
@@ -743,14 +820,38 @@ void RenderUsers(KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
 		auto Row = Table.Add<html::TableRow>();
 		Row.Add<html::TableData>(User.sUsername);
 		Row.Add<html::TableData>(User.sName);
-		Row.Add<html::TableData>(User.sEmail);
-		Row.Add<html::TableData>(User.bAdmin ? "yes" : "no");
+		Row.Add<html::TableData>(User.sEmail.empty() ? KStringView("—") : KStringView(User.sEmail));
+		// admin status as a checkbox — scannable at a glance in a long list; toggling
+		// it (with a confirm) promotes/demotes via /admin/users/admin. Your own status
+		// is read-only (no self-lockout).
+		{
+			auto AdminCell = Row.Add<html::TableData>();
+			if (User.sUsername == sUser)
+			{
+				AdminCell.Add<html::Input>("admin", "1", html::Input::CHECKBOX)
+				         .SetChecked(true)
+				         .SetAttribute("disabled", "disabled")
+				         .SetAttribute("title", "You can't change your own admin status");
+			}
+			else
+			{
+				auto AF = AdminCell.Add<html::Form>("/admin/users/admin");
+				AF.SetMethod(html::Form::POST);
+				AF.Add<html::Input>("username", User.sUsername, html::Input::HIDDEN);
+				AF.Add<html::Input>("admin", "1", html::Input::CHECKBOX)
+				  .SetChecked(User.bAdmin)
+				  .SetAttribute("onchange", "kssodConfirmAdmin(this)");
+			}
+		}
 		// button-link to this user's full access grid (clients x roles)
 		Row.Add<html::TableData>()
 		   .Add<html::Link>(kFormat("/admin/users/access?user={}", User.sUsername), "Manage")
 		   .SetClass(html::Classes{"btn"});
 		auto Actions = Row.Add<html::TableData>();
-		if (User.sUsername != sUser) // can't delete yourself
+		// edit name/email — allowed for any user (including yourself; no lockout risk)
+		Actions.Add<html::Link>(kFormat("/admin/users/edit?username={}", User.sUsername), "Edit")
+		       .SetClass(html::Classes{"btn"});
+		if (User.sUsername != sUser) // can't delete yourself (admin toggle lives in the Admin column)
 		{
 			auto Form = Actions.Add<html::Form>("/admin/users/delete");
 			Form.SetMethod(html::Form::POST);
@@ -778,6 +879,37 @@ void RenderUsers(KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
 	Form.Add<html::Button>("Add user");
 
 	BackLink(Body);
+	SendPage(HTTP, Page, iStatus);
+}
+
+//-----------------------------------------------------------------------------
+/// edit a user's profile (name + email). The username is the account key and is
+/// not editable. Changing the email runs through the reset-and-notify path.
+void RenderUserEdit(KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser,
+                    KStringView sName, KStringView sEmail, KStringView sMsg, bool bError, uint16_t iStatus)
+//-----------------------------------------------------------------------------
+{
+	html::Page Page("Edit user", "en");
+	auto Body = BeginPage(Page, sAdmin, /*bAdmin=*/true);
+	auto Card = Body.Add<html::ui::Card>(kFormat("Edit user — {}", sTargetUser));
+	auto CB   = Card.Body();
+	CB.Add<html::Paragraph>(html::Classes{"muted"}).AddText("The username is the account key and cannot be changed.");
+	Msg(CB, sMsg, bError);
+
+	auto Form = CB.Add<html::Form>("/admin/users/edit");
+	Form.SetMethod(html::Form::POST);
+	Form.Add<html::Input>("username", sTargetUser, html::Input::HIDDEN);
+	LabeledInput(Form, "Full name", "name",  html::Input::TEXT,  /*bRequired=*/false).SetValue(sName);
+	LabeledInput(Form, "Email",     "email", html::Input::EMAIL, /*bRequired=*/false).SetValue(sEmail);
+	Form.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+	    "Changing the email clears its verified status and turns off email-based two-step "
+	    "verification; a heads-up is sent to the previous address.");
+
+	// Cancel left of Save, matching the app-edit page
+	auto Actions = Form.Add<html::Div>(html::Classes{"actions"});
+	Actions.Add<html::Link>("/admin/users", "Cancel").SetClass(html::Classes{"btn"});
+	Actions.Add<html::Button>("Save changes");
+
 	SendPage(HTTP, Page, iStatus);
 }
 
@@ -821,7 +953,7 @@ void RenderClients(KRESTServer& HTTP, KStringView sUser, KSSOdClientStore& Clien
 //-----------------------------------------------------------------------------
 {
 	html::Page Page("Apps", "en");
-	auto Body = BeginPage(Page, sUser, /*bAdmin=*/true);
+	auto Body = BeginPage(Page, sUser, /*bAdmin=*/true, /*bWide=*/true);
 
 	// -- list --
 	auto ListCard = Body.Add<html::ui::Card>("Apps");
@@ -902,7 +1034,10 @@ void RenderClients(KRESTServer& HTTP, KStringView sUser, KSSOdClientStore& Clien
 	// the secret field is shown via CSS only while the box above is checked
 	{
 		auto SecretField = Form.Add<html::Div>(html::Classes{"secretfield"});
-		LabeledInput(SecretField, "Client secret", "secret", html::Input::TEXT, /*bRequired=*/false).SetValue(PrefillVal(Prefill, "secret"));
+		LabeledInput(SecretField, "Client secret", "secret", html::Input::TEXT, /*bRequired=*/false)
+		    .SetValue(PrefillVal(Prefill, "secret")).SetAttribute("id", "client_secret_field");
+		SecretField.Add<html::Button>("Generate", html::Button::BUTTON, html::Classes{"secondary"})
+		           .SetAttribute("onclick", "kssodGenSecret()");
 		SecretField.Add<html::Paragraph>(html::Classes{"help"})
 		           .AddText("A password only this provider and the app's backend know. The backend presents it when "
 		                    "it exchanges the login code for tokens — and because it stays on your server, no user can read it.");
@@ -925,7 +1060,7 @@ void RenderClients(KRESTServer& HTTP, KStringView sUser, KSSOdClientStore& Clien
 		Label.Add<html::Input>("force_login", "1", html::Input::CHECKBOX).SetChecked(PrefillChecked(Prefill, "force_login"));
 		Label.AddText("Always ask for the password (skip single sign-on for this app)");
 	}
-	LabeledInput(Form, "Re-authenticate after how many minutes (0 = no limit)", "max_auth_age", html::Input::TEXT, /*bRequired=*/false).SetValue(PrefillVal(Prefill, "max_auth_age"));
+	LabeledInput(Form, "Re-authenticate if login older than — e.g. 30m, 1h, 2h30m (0 = no limit)", "max_auth_age", html::Input::TEXT, /*bRequired=*/false).SetValue(PrefillVal(Prefill, "max_auth_age"));
 	Form.Add<html::Paragraph>(html::Classes{"help"})
 	    .AddText("Forces a fresh login when the single sign-on session is older than this, even if the user is still signed in. "
 	             "Useful for sensitive apps. Leave 0 and unchecked for normal single sign-on.");
@@ -964,7 +1099,10 @@ void RenderClientEdit(KRESTServer& HTTP, KStringView sUser, KStringView sClientI
 	}
 	{
 		auto SecretField = Form.Add<html::Div>(html::Classes{"secretfield"});
-		LabeledInput(SecretField, "New client secret (leave blank to keep the current one)", "secret", html::Input::TEXT, /*bRequired=*/false);
+		LabeledInput(SecretField, "New client secret (leave blank to keep the current one)", "secret", html::Input::TEXT, /*bRequired=*/false)
+		    .SetAttribute("id", "client_secret_field");
+		SecretField.Add<html::Button>("Generate", html::Button::BUTTON, html::Classes{"secondary"})
+		           .SetAttribute("onclick", "kssodGenSecret()");
 		SecretField.Add<html::Paragraph>(html::Classes{"help"})
 		           .AddText("Only fill this in to rotate the secret. Switching the app to \"no own backend\" clears the secret.");
 	}
@@ -983,7 +1121,7 @@ void RenderClientEdit(KRESTServer& HTTP, KStringView sUser, KStringView sClientI
 		Label.Add<html::Input>("force_login", "1", html::Input::CHECKBOX).SetChecked(PrefillChecked(Values, "force_login"));
 		Label.AddText("Always ask for the password (skip single sign-on for this app)");
 	}
-	LabeledInput(Form, "Re-authenticate after how many minutes (0 = no limit)", "max_auth_age", html::Input::TEXT, /*bRequired=*/false).SetValue(PrefillVal(Values, "max_auth_age"));
+	LabeledInput(Form, "Re-authenticate if login older than — e.g. 30m, 1h, 2h30m (0 = no limit)", "max_auth_age", html::Input::TEXT, /*bRequired=*/false).SetValue(PrefillVal(Values, "max_auth_age"));
 	Form.Add<html::Paragraph>(html::Classes{"help"})
 	    .AddText("Forces a fresh login when the single sign-on session is older than this, even if the user is still signed in. "
 	             "Leave 0 and unchecked for normal single sign-on.");
@@ -1041,7 +1179,7 @@ void RenderClientAccess(KRESTServer& HTTP, KStringView sUser, KStringView sClien
 //-----------------------------------------------------------------------------
 {
 	html::Page Page("Client access", "en");
-	auto Body = BeginPage(Page, sUser, /*bAdmin=*/true);
+	auto Body = BeginPage(Page, sUser, /*bAdmin=*/true, /*bWide=*/true);
 
 	std::vector<KString> Roles    = Users.ListRoles(sClientID);
 	KString              sDefault = Users.DefaultRole(sClientID);
@@ -1142,7 +1280,7 @@ void RenderAccessOverview(KRESTServer& HTTP, KStringView sAdmin,
 //-----------------------------------------------------------------------------
 {
 	html::Page Page("Access overview", "en");
-	auto Body = BeginPage(Page, sAdmin, /*bAdmin=*/true);
+	auto Body = BeginPage(Page, sAdmin, /*bAdmin=*/true, /*bWide=*/true);
 	auto Card = Body.Add<html::ui::Card>("Users & access");
 	auto CB   = Card.Body();
 	CB.Add<html::Paragraph>(html::Classes{"muted"})
@@ -1195,7 +1333,7 @@ void RenderUserAccess(KRESTServer& HTTP, KStringView sAdmin, KStringView sTarget
 //-----------------------------------------------------------------------------
 {
 	html::Page Page("User access", "en");
-	auto Body = BeginPage(Page, sAdmin, /*bAdmin=*/true);
+	auto Body = BeginPage(Page, sAdmin, /*bAdmin=*/true, /*bWide=*/true);
 	auto Card = Body.Add<html::ui::Card>(kFormat("Access — {}", sTargetUser));
 	auto CB   = Card.Body();
 	Msg(CB, sMsg, bError);

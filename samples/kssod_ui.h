@@ -99,6 +99,9 @@ void Render2FASetup  (KRESTServer& HTTP, KStringView sUser, bool bAdmin,
 void RenderBackupCodes(KRESTServer& HTTP, KStringView sUser, bool bAdmin, const std::vector<KString>& Codes);
 void RenderInfo      (KRESTServer& HTTP, KStringView sTitle, KStringView sMessage,
                       KStringView sLinkURL = {}, KStringView sLinkText = {}, uint16_t iStatus = 200);
+/// shown when a signed-in user is not authorized for the app they tried to enter:
+/// offers to sign in as a different account or to abandon and return to the app.
+void RenderNoAccess  (KRESTServer& HTTP, KStringView sUser, KStringView sClientID);
 void RenderForgot    (KRESTServer& HTTP, KStringView sMsg, bool bError, uint16_t iStatus = 200);
 void RenderReset     (KRESTServer& HTTP, KStringView sToken, KStringView sError, uint16_t iStatus = 200);
 
@@ -106,7 +109,10 @@ void RenderReset     (KRESTServer& HTTP, KStringView sToken, KStringView sError,
 void RenderForbidden (KRESTServer& HTTP, KStringView sUser);
 void RenderAdminHome (KRESTServer& HTTP, KStringView sUser);
 void RenderSettings  (KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsStore::Smtp& Smtp,
-                      KStringView sMsg, bool bError, uint16_t iStatus = 200);
+                      KStringView sMsg, bool bError, bool bForcePwOnRevert = true, uint16_t iStatus = 200);
+void RenderUserEdit  (KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser,
+                      KStringView sName, KStringView sEmail, KStringView sMsg = {}, bool bError = false,
+                      uint16_t iStatus = 200);
 void RenderUsers     (KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
                       KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200,
                       const KJSON& Prefill = KJSON::object());

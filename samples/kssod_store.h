@@ -102,10 +102,16 @@ public:
 	bool        AddUser       (KStringView sUsername, KStringView sPassword,
 	                           KStringView sName, KStringView sEmail, bool bAdmin);
 	bool        ChangePassword(KStringView sUsername, KStringView sNewPassword);
+	bool        SetName       (KStringView sUsername, KStringView sName); ///< update the display name
 	bool        DeleteUser    (KStringView sUsername);
 	bool        IsAdmin       (KStringView sUsername);
+	/// promote/demote: set the administrator flag on an existing user. The caller
+	/// is responsible for the policy guards (don't demote yourself / the last admin).
+	bool        SetAdmin      (KStringView sUsername, bool bAdmin);
 	bool        Exists        (KStringView sUsername);
 	std::size_t Count         ();
+	/// number of administrators — for the "don't remove the last admin" guard
+	std::size_t CountAdmins   ();
 	std::vector<User> List    ();
 
 	// --- two-factor auth (TOTP) ---
@@ -120,17 +126,30 @@ public:
 
 	// --- email (address, verification, email-OTP-as-2FA) ---
 	KString     GetEmail        (KStringView sUsername);                ///< the user's address ('' if none)
+	/// change a user's email address. Resets email_verified (a new address is
+	/// unconfirmed) and turns off email-as-2FA (its channel changed) — so the new
+	/// address must be re-verified before email features apply to it again.
+	bool        SetEmail        (KStringView sUsername, KStringView sEmail);
+	// --- pending email change (two-phase: the new address is only swapped in once
+	//     it is verified, so the old one stays the active recovery anchor meanwhile) ---
+	KString     GetPendingEmail (KStringView sUsername);                ///< the requested-but-unconfirmed new address ('' if none)
+	bool        SetPendingEmail (KStringView sUsername, KStringView sEmail); ///< stage a change; pass '' to cancel
+	bool        ApplyPendingEmail(KStringView sUsername);               ///< swap pending in: email=pending, pending='', verified=1
+	bool        RestoreEmail    (KStringView sUsername, KStringView sEmail); ///< revert: email=sEmail, verified=1, pending='' (resets email_otp)
 	KString     FindByEmail     (KStringView sEmail);                   ///< username for an address, or '' (for recovery)
 	bool        IsEmailVerified (KStringView sUsername);
 	bool        SetEmailVerified(KStringView sUsername, bool bVerified);
 	bool        HasEmailOtp     (KStringView sUsername);                ///< email used as the second factor?
 	bool        SetEmailOtp     (KStringView sUsername, bool bEnabled);
-	/// mint a single-use email token (verify/recovery), store its hash with a
-	/// purpose-dependent expiry, and return the plaintext for the emailed link
-	KString     CreateEmailToken (KStringView sUsername, KStringView sPurpose);
+	/// mint a single-use email token (verify/recovery/revert), store its hash with a
+	/// purpose-dependent expiry plus an optional payload, and return the plaintext
+	/// for the emailed link. The payload carries purpose data (e.g. the prior email
+	/// address for a 'revert' token, so a completed change can be undone).
+	KString     CreateEmailToken (KStringView sUsername, KStringView sPurpose, KStringView sData = {});
 	/// validate+consume a token: returns the username on success (and deletes the
-	/// row), or '' if unknown/expired/wrong purpose
-	KString     ConsumeEmailToken(KStringView sToken, KStringView sPurpose);
+	/// row), or '' if unknown/expired/wrong purpose. If pData is non-null it receives
+	/// the stored payload.
+	KString     ConsumeEmailToken(KStringView sToken, KStringView sPurpose, KString* pData = nullptr);
 
 	// --- role catalog (the set of roles defined for a client) ---
 	std::vector<KString> ListRoles (KStringView sClientID);
@@ -233,6 +252,13 @@ public:
 	Smtp    LoadSmtp();
 	bool    SaveSmtp(const Smtp& Config);
 	bool    SmtpConfigured() { return LoadSmtp().IsConfigured(); }
+
+	/// security policy: when an email-change takeover is reverted and the change had
+	/// already completed, force the user to set a new password (the attacker may have
+	/// changed it). Default ON — security over convenience; admins can turn it off for
+	/// convenience.
+	bool    ForcePwOnRevert()          { return Get("revert_force_pw") != "0"; } // absent/'' -> on
+	bool    SetForcePwOnRevert(bool b) { return Set("revert_force_pw", b ? "1" : "0"); }
 
 private:
 	KString    m_sDatabase;

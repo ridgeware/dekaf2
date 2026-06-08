@@ -442,7 +442,32 @@ void KOpenIDServer::HandleAuthorize(KRESTServer& HTTP)
 		return;
 	}
 
-	// authenticated and fresh enough (SSO): issue the code and bounce back to the client
+	// authenticated and fresh enough — but is this user authorized for this client?
+	// A *silently-resolved* SSO session that is denied must NOT dead-end with
+	// access_denied (the user never got a chance to pick the right account): stash
+	// the request and send the browser to the access-denied screen, where the app
+	// offers to sign in as a different (authorized) account or to return to the
+	// client. A denial AFTER an interactive login happens in CompleteLogin and
+	// still returns access_denied, so this cannot loop. prompt=none forbids any
+	// interaction, so there the spec error goes straight back to the client.
+	{
+		KJSON jClaims;
+		if (!m_Users->AuthorizeClientAccess(Session.sUsername, Req.sClientID, jClaims))
+		{
+			if (bPromptNone)
+			{
+				Redirect(HTTP, ErrorRedirectURL(Req, "access_denied").Serialize());
+				return;
+			}
+			kDebug(1, "authorize: user '{}' not authorized for client '{}' on a live session -> access-denied screen",
+			       Session.sUsername, Req.sClientID);
+			SetPendingCookie(HTTP, Req);
+			Redirect(HTTP, m_Config.sAccessDeniedPath);
+			return;
+		}
+	}
+
+	// authorized: issue the code and bounce back to the client
 	KURL RedirectURL = IssueCodeAndRedirectURL(Req, Session.sUsername);
 	if (RedirectURL.empty())
 	{
@@ -491,6 +516,30 @@ KString KOpenIDServer::CompleteLogin(KRESTServer& HTTP, KStringView sUsername)
 	return m_Config.sPostLoginRedirect;
 
 } // CompleteLogin
+
+//-----------------------------------------------------------------------------
+KString KOpenIDServer::PendingClientID(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	return ReadPendingCookie(HTTP).sClientID;
+
+} // PendingClientID
+
+//-----------------------------------------------------------------------------
+KString KOpenIDServer::DeclineAccess(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	AuthRequest Req = ReadPendingCookie(HTTP);
+	ExpirePendingCookie(HTTP);
+
+	if (!Req.bValid)
+	{
+		return {};
+	}
+
+	return ErrorRedirectURL(Req, "access_denied").Serialize();
+
+} // DeclineAccess
 
 //-----------------------------------------------------------------------------
 KString KOpenIDServer::SignJWT(const KJSON& Payload) const
@@ -842,9 +891,11 @@ void KOpenIDServer::HandleLogout(KRESTServer& HTTP)
 	}
 
 	ClientStore::Client Client;
-	bool bAllowed = false;
+	bool bAllowed     = false;
+	bool bClientFound = false;
 	if (!sClientID.empty() && m_Clients->Lookup(sClientID, Client))
 	{
+		bClientFound = true;
 		for (const auto& sURI : Client.PostLogoutRedirectURIs)
 		{
 			if (sURI == sPostLogout) { bAllowed = true; break; }
@@ -853,7 +904,22 @@ void KOpenIDServer::HandleLogout(KRESTServer& HTTP)
 
 	if (!bAllowed)
 	{
-		kDebug(1, "logout: post_logout_redirect_uri not registered for client '{}': {}", sClientID, sPostLogout);
+		// The client only ever gets a generic error. The registered set is logged
+		// server-side (admin-only, debug level >= 1) so a typo - the match is exact
+		// and case-sensitive, e.g. "/login/" vs "/Login/" - is visible in the log
+		// without leaking the app's URLs in the HTTP response.
+		if (!bClientFound)
+		{
+			kDebug(1, "logout: post_logout_redirect_uri rejected - client '{}' not found (requested '{}')",
+			       sClientID, sPostLogout);
+		}
+		else
+		{
+			KString sRegistered;
+			sRegistered.Join(Client.PostLogoutRedirectURIs, " | ");
+			kDebug(1, "logout: post_logout_redirect_uri not registered for client '{}': requested '{}', registered: [{}]",
+			       sClientID, sPostLogout, sRegistered);
+		}
 		throw KHTTPError(KHTTPError::H4xx_BADREQUEST, "post_logout_redirect_uri is not registered");
 	}
 

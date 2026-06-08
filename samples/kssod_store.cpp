@@ -93,7 +93,8 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"  is_admin       integer not null default 0,"
 		"  totp_secret    text    not null default '',"   // base32; empty = TOTP off
 		"  email_verified integer not null default 0,"    // address confirmed via emailed link
-		"  email_otp      integer not null default 0,"     // email used as the second factor
+		"  email_otp      integer not null default 0,"    // email used as the second factor
+		"  pending_email  text    not null default '',"   // requested-but-unconfirmed new address (pending-change model)
 		"  created_utc    integer not null default 0"
 		")",
 
@@ -108,7 +109,8 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"create table if not exists kssod_email_tokens ("
 		"  token_hash  text    not null,"
 		"  username    text    not null,"
-		"  purpose     text    not null,"   // 'verify' | 'recovery'
+		"  purpose     text    not null,"   // 'verify' | 'recovery' | 'revert'
+		"  data        text    not null default '',"   // purpose payload (e.g. the prior email for a 'revert' token)
 		"  expires_utc integer not null default 0,"
 		"  primary key (token_hash)"
 		")",
@@ -166,6 +168,8 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"alter table kssod_users add column totp_secret text not null default ''",
 		"alter table kssod_users add column email_verified integer not null default 0",
 		"alter table kssod_users add column email_otp integer not null default 0",
+		"alter table kssod_users add column pending_email text not null default ''",
+		"alter table kssod_email_tokens add column data text not null default ''",
 	};
 
 	for (const auto sSQL : s_sDDL)
@@ -276,6 +280,22 @@ bool KSSOdUserStore::ChangePassword(KStringView sUsername, KStringView sNewPassw
 } // ChangePassword
 
 //-----------------------------------------------------------------------------
+bool KSSOdUserStore::SetName(KStringView sUsername, KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (db.IsError()) return false;
+
+	auto stmt = db.Prepare("update kssod_users set name=?1 where username=?2");
+	stmt.Bind(1, sName);
+	stmt.Bind(2, sUsername);
+	return stmt.Execute();
+
+} // SetName
+
+//-----------------------------------------------------------------------------
 bool KSSOdUserStore::DeleteUser(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
@@ -342,6 +362,36 @@ std::size_t KSSOdUserStore::Count()
 	return stmt.NextRow() ? static_cast<std::size_t>(stmt.GetRow().Col(1).Int64()) : 0;
 
 } // Count
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::SetAdmin(KStringView sUsername, bool bAdmin)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (db.IsError()) return false;
+
+	auto stmt = db.Prepare("update kssod_users set is_admin=?1 where username=?2");
+	stmt.Bind(1, static_cast<int64_t>(bAdmin ? 1 : 0));
+	stmt.Bind(2, sUsername);
+	return stmt.Execute();
+
+} // SetAdmin
+
+//-----------------------------------------------------------------------------
+std::size_t KSSOdUserStore::CountAdmins()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (db.IsError()) return 0;
+
+	auto stmt = db.Prepare("select count(*) from kssod_users where is_admin<>0");
+	return stmt.NextRow() ? static_cast<std::size_t>(stmt.GetRow().Col(1).Int64()) : 0;
+
+} // CountAdmins
 
 //-----------------------------------------------------------------------------
 std::vector<KSSOdUserStore::User> KSSOdUserStore::List()
@@ -510,6 +560,93 @@ KString KSSOdUserStore::GetEmail(KStringView sUsername)
 } // GetEmail
 
 //-----------------------------------------------------------------------------
+bool KSSOdUserStore::SetEmail(KStringView sUsername, KStringView sEmail)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (db.IsError()) return false;
+
+	// a changed address is unconfirmed, and email-as-2FA depended on the old one —
+	// reset both so the new address must be re-verified before email features apply
+	auto stmt = db.Prepare("update kssod_users set email=?1, email_verified=0, email_otp=0 where username=?2");
+	stmt.Bind(1, sEmail);
+	stmt.Bind(2, sUsername);
+	return stmt.Execute();
+
+} // SetEmail
+
+//-----------------------------------------------------------------------------
+KString KSSOdUserStore::GetPendingEmail(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (db.IsError()) return KString{};
+
+	auto stmt = db.Prepare("select pending_email from kssod_users where username=?1");
+	stmt.Bind(1, sUsername);
+	return stmt.NextRow() ? KString(stmt.GetRow().Col(1).String()) : KString{};
+
+} // GetPendingEmail
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::SetPendingEmail(KStringView sUsername, KStringView sEmail)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (db.IsError()) return false;
+
+	auto stmt = db.Prepare("update kssod_users set pending_email=?1 where username=?2");
+	stmt.Bind(1, sEmail);
+	stmt.Bind(2, sUsername);
+	return stmt.Execute();
+
+} // SetPendingEmail
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::ApplyPendingEmail(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (db.IsError()) return false;
+
+	// swap the pending address in and mark it verified. email_otp survives: the very
+	// link that triggers this proves control of the new address, so email-2FA may
+	// keep targeting it. No-op if there is no pending change.
+	auto stmt = db.Prepare("update kssod_users set email=pending_email, pending_email='', email_verified=1 "
+	                       "where username=?1 and pending_email<>''");
+	stmt.Bind(1, sUsername);
+	return stmt.Execute();
+
+} // ApplyPendingEmail
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::RestoreEmail(KStringView sUsername, KStringView sEmail)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (db.IsError()) return false;
+
+	// revert: restore the prior (verified) address, drop any pending change, and turn
+	// email-2FA off — the attacker controlled the new mailbox in the interim
+	auto stmt = db.Prepare("update kssod_users set email=?1, email_verified=1, pending_email='', email_otp=0 "
+	                       "where username=?2");
+	stmt.Bind(1, sEmail);
+	stmt.Bind(2, sUsername);
+	return stmt.Execute();
+
+} // RestoreEmail
+
+//-----------------------------------------------------------------------------
 KString KSSOdUserStore::FindByEmail(KStringView sEmail)
 //-----------------------------------------------------------------------------
 {
@@ -590,11 +727,14 @@ bool KSSOdUserStore::SetEmailOtp(KStringView sUsername, bool bEnabled)
 } // SetEmailOtp
 
 //-----------------------------------------------------------------------------
-KString KSSOdUserStore::CreateEmailToken(KStringView sUsername, KStringView sPurpose)
+KString KSSOdUserStore::CreateEmailToken(KStringView sUsername, KStringView sPurpose, KStringView sData)
 //-----------------------------------------------------------------------------
 {
-	// recovery links are short-lived; verification links may sit in an inbox longer
-	int64_t iTTLSeconds = (sPurpose == "recovery") ? (60 * 60) : (24 * 60 * 60);
+	// recovery links are short-lived; verification links may sit in an inbox longer;
+	// a revert link (the security net) gets the longest window
+	KDuration iTTL = (sPurpose == "recovery") ? std::chrono::hours(1)
+	               : (sPurpose == "revert")   ? std::chrono::days(7)
+	               :                            std::chrono::days(1);
 
 	// the plaintext goes only into the emailed link; we keep just its hash
 	KString sToken = KSHA256(kGetRandom(32)).HexDigest();
@@ -612,18 +752,19 @@ KString KSSOdUserStore::CreateEmailToken(KStringView sUsername, KStringView sPur
 		stmt.Bind(2, sPurpose);
 		stmt.Execute();
 	}
-	auto stmt = db.Prepare("insert into kssod_email_tokens (token_hash, username, purpose, expires_utc) "
-	                       "values (?1, ?2, ?3, ?4)");
+	auto stmt = db.Prepare("insert into kssod_email_tokens (token_hash, username, purpose, data, expires_utc) "
+	                       "values (?1, ?2, ?3, ?4, ?5)");
 	stmt.Bind(1, sHash);
 	stmt.Bind(2, sUsername);
 	stmt.Bind(3, sPurpose);
-	stmt.Bind(4, static_cast<int64_t>((KUnixTime::now() + KDuration(std::chrono::seconds(iTTLSeconds))).to_time_t()));
+	stmt.Bind(4, sData);
+	stmt.Bind(5, static_cast<int64_t>((KUnixTime::now() + iTTL).to_time_t()));
 	return stmt.Execute() ? sToken : KString{};
 
 } // CreateEmailToken
 
 //-----------------------------------------------------------------------------
-KString KSSOdUserStore::ConsumeEmailToken(KStringView sToken, KStringView sPurpose)
+KString KSSOdUserStore::ConsumeEmailToken(KStringView sToken, KStringView sPurpose, KString* pData)
 //-----------------------------------------------------------------------------
 {
 	if (sToken.empty()) return KString{};
@@ -636,16 +777,18 @@ KString KSSOdUserStore::ConsumeEmailToken(KStringView sToken, KStringView sPurpo
 	if (db.IsError()) return KString{};
 
 	KString sUsername;
+	KString sData;
 	int64_t iExpires = 0;
 	{
-		auto stmt = db.Prepare("select username, expires_utc from kssod_email_tokens "
+		auto stmt = db.Prepare("select username, data, expires_utc from kssod_email_tokens "
 		                       "where token_hash=?1 and purpose=?2");
 		stmt.Bind(1, sHash);
 		stmt.Bind(2, sPurpose);
 		if (!stmt.NextRow()) return KString{};
 		auto Row  = stmt.GetRow();
 		sUsername = Row.Col(1).String();
-		iExpires  = Row.Col(2).Int64();
+		sData     = Row.Col(2).String();
+		iExpires  = Row.Col(3).Int64();
 	}
 
 	// single-use: the row is gone whether or not it had expired
@@ -656,6 +799,7 @@ KString KSSOdUserStore::ConsumeEmailToken(KStringView sToken, KStringView sPurpo
 	}
 
 	if (KUnixTime::now().to_time_t() > iExpires) return KString{}; // expired
+	if (pData) *pData = std::move(sData);
 	return sUsername;
 
 } // ConsumeEmailToken

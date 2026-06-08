@@ -354,14 +354,15 @@ int main(int argc, char** argv)
 		double dRateLimit             = Options("ratelimit <req/s>     : per-IP request rate limit, e.g. 10 or 0.5 (default 0 == off)", 0.0);
 		uint16_t iRateBurst           = Options("rateburst <count>     : rate limit burst size (default 10)", 10);
 		uint16_t iConnLimit           = Options("connlimit <max>       : per-IP max concurrent connections (default 0 == off)", 0);
+		KString  sTrustedProxies      = Options("trusted-proxies <list>: comma-separated IPs/CIDRs of trusted reverse proxies, for X-Forwarded-For — record the real client IP instead of the proxy's, e.g. 172.31.0.0/16 (default none)", "");
 		KStringViewZ sMaxBody         = Options("maxbody <size>        : max request body size, supports k/M/G suffixes (default 1M, 0 == unlimited)", "1M");
 		Settings.sCert                = Options("cert <file>           : TLS certificate filepath (.pem), defaults to self-signed ephemeral cert", "");
 		Settings.sKey                 = Options("key <file>            : TLS private key filepath (.pem), defaults to ephemeral key", "");
 		Settings.bStoreEphemeralCert  = Options("persist               : should a self-signed cert be persisted to disk and reused at next start?", false);
 		Settings.sTLSPassword         = Options("tlspass <pass>        : TLS certificate password, if any", "");
 		Settings.sAllowedCipherSuites = Options("ciphers <suites>      : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
-		uint32_t iSessionIdleMin      = Options("session-idle <minutes>: sign-in session idle timeout in minutes (default 30)", 30);
-		uint32_t iSessionMaxHours     = Options("session-max <hours>   : sign-in session absolute lifetime in hours (default 8)", 8);
+		KString  sSessionIdle         = Options("session-idle <dur>    : sign-in session idle timeout, suffixes s/m/h/d/w (default 30m)", "30m");
+		KString  sSessionMax          = Options("session-max <dur>     : sign-in session absolute lifetime, suffixes s/m/h/d/w (default 8h)", "8h");
 
 		if (Options.Terminate())
 		{
@@ -380,6 +381,11 @@ int main(int argc, char** argv)
 
 		if (dRateLimit > 0) Settings.SetRateLimit(dRateLimit, iRateBurst);
 		if (iConnLimit > 0) Settings.SetConnectionLimit(iConnLimit);
+		// Trust the configured reverse proxies so GetRemoteIP() walks past them in
+		// X-Forwarded-For to the real client. Deliberately CLI-only: this is the
+		// trust boundary for client-IP spoofing and belongs to whoever controls
+		// the deployment topology, not to the admin web session.
+		if (!sTrustedProxies.empty()) Settings.AddTrustedProxies(sTrustedProxies);
 
 		Settings.iMaxRequestBodySize = kFromBinarySize(sMaxBody);
 
@@ -455,8 +461,21 @@ int main(int argc, char** argv)
 		// stays non-persistent (bPersistentCookie defaults to false), i.e. a session
 		// cookie the browser drops when it closes — so an abandoned login does not
 		// outlive the browser, and these timeouts cap it even if it does not.
-		SessionConfig.IdleTimeout     = std::chrono::minutes(iSessionIdleMin);
-		SessionConfig.AbsoluteTimeout = std::chrono::hours(iSessionMaxHours);
+		SessionConfig.IdleTimeout     = kParseDuration(sSessionIdle);
+		SessionConfig.AbsoluteTimeout = kParseDuration(sSessionMax);
+		// kParseDuration is case-sensitive and yields zero on an unparseable string
+		// (e.g. "8H" instead of "8h"). Fall back to the defaults rather than ship a
+		// zero (= immediately-expiring / disabled) session lifetime.
+		if (SessionConfig.IdleTimeout.IsZero())
+		{
+			kWarning("invalid --session-idle '{}', using 30m", sSessionIdle);
+			SessionConfig.IdleTimeout = std::chrono::minutes(30);
+		}
+		if (SessionConfig.AbsoluteTimeout.IsZero())
+		{
+			kWarning("invalid --session-max '{}', using 8h", sSessionMax);
+			SessionConfig.AbsoluteTimeout = std::chrono::hours(8);
+		}
 		auto pSession = std::make_shared<KSession>(
 			std::make_unique<KSessionCachingStore>(std::make_unique<KSessionSQLiteStore>(sDB)),
 			SessionConfig);
@@ -651,6 +670,40 @@ int main(int argc, char** argv)
 			Redirect(HTTP, "/login");
 		}, KRESTRoute::WWWFORM });
 
+		// ----- access-denied interstitial -----
+		// KOpenIDServer redirects here when a silently-resolved SSO session is not
+		// authorized for the requested client — instead of dead-ending the user with
+		// access_denied without a chance to pick the right account. The page offers
+		// to switch account or to return to the app.
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/no-access",
+			[&pSession, &Server, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser = CurrentUser(HTTP, *pSession);
+			if (sUser.empty()) Redirect(HTTP, "/login");
+			RenderNoAccess(HTTP, sUser, Server.PendingClientID(HTTP));
+		} });
+
+		// switch account: end the current session and return to the login screen. The
+		// pending authorize request (a separate cookie) is preserved, so signing in as
+		// a different account resumes it via CompleteLogin.
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/no-access/switch",
+			[&pSession, &Redirect](KRESTServer& HTTP)
+		{
+			KStringView sToken = HTTP.GetCookie(pSession->GetCookieName());
+			if (!sToken.empty()) pSession->Logout(sToken);
+			HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, pSession->SerializeExpiryCookie());
+			Redirect(HTTP, "/login");
+		}, KRESTRoute::WWWFORM });
+
+		// give up: hand error=access_denied back to the app and clear the pending request
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/no-access/decline",
+			[&Server, &Redirect](KRESTServer& HTTP)
+		{
+			KString sURL = Server.DeclineAccess(HTTP);
+			if (sURL.empty()) sURL = "/";
+			Redirect(HTTP, sURL);
+		}, KRESTRoute::WWWFORM });
+
 		// end a single session, identified by the opaque revoke id (a hash of the
 		// token) shown in the list - we never accept a raw token from the client
 		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/sessions/close",
@@ -733,7 +786,7 @@ int main(int argc, char** argv)
 				return;
 			}
 
-			KString sToken = pUsers->CreateEmailToken(sUser, "verify");
+			KString sToken = pUsers->CreateEmailToken(sUser, "verify", sEmail); // payload: the address being confirmed
 			KString sErr;
 			SendMail(pSettings->LoadSmtp(), sEmail, "Confirm your kssod email",
 			         kFormat("Hello {},\r\n\r\nplease confirm this address by opening:\r\n{}/verify-email?token={}"
@@ -743,11 +796,90 @@ int main(int argc, char** argv)
 			              kFormat("We sent a verification link to {}.", sEmail), false, AccountStateFor(HTTP, sUser));
 		}, KRESTRoute::WWWFORM });
 
+		// self-service: change your own email address. Hardened, because email is the
+		// account-recovery anchor: requires (a) re-authentication, uses (b) a pending-
+		// change model (the new address is only swapped in once it is confirmed, so the
+		// old one stays the active anchor meanwhile), and (c) emails a revert link to
+		// the OLD address. Only offered when verification is possible (SMTP) — else
+		// it is admin-only.
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/email",
+			[&pSession, &pUsers, &pSettings, &sIssuer, &AccountStateFor, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser = CurrentUser(HTTP, *pSession);
+			if (sUser.empty()) Redirect(HTTP, "/login");
+
+			bool        bAdmin    = pUsers->IsAdmin(sUser);
+			const auto& Q         = HTTP.GetQueryParms();
+			KStringView sNewEmail = Q["email"];
+			KJSON       Claims;
+
+			auto Fail = [&](KStringView sMsg, uint16_t iStatus, bool bIsError = true)
+			{
+				pUsers->GetClaims(sUser, Claims);
+				RenderAccount(HTTP, sUser, bAdmin, Claims, sMsg, bIsError, AccountStateFor(HTTP, sUser), iStatus);
+			};
+
+			if (!pSettings->SmtpConfigured())
+			{
+				Fail("Changing your email needs an email relay configured by an administrator.", KHTTPError::H4xx_BADREQUEST);
+				return;
+			}
+			// (a) re-auth: a logged-in-but-unattended session must not silently re-point
+			// the recovery anchor
+			if (!pUsers->VerifyPassword(sUser, Q["password"]))
+			{
+				Fail("Please confirm your current password to change your email.", KHTTPError::H4xx_BADREQUEST);
+				return;
+			}
+			if (sNewEmail.empty())
+			{
+				Fail("Please enter an email address.", KHTTPError::H4xx_BADREQUEST);
+				return;
+			}
+			KString sOldEmail = pUsers->GetEmail(sUser);
+			if (sNewEmail == sOldEmail)
+			{
+				Fail("That is already your email address.", 200, /*bIsError=*/false);
+				return;
+			}
+
+			// (b) stage the change — do NOT swap the address in yet
+			pUsers->SetPendingEmail(sUser, sNewEmail);
+			KString sErr;
+
+			// confirmation to the NEW address — clicking it completes the swap. The
+			// token carries the target address so /verify-email can tell a pending-change
+			// confirmation apart from a plain "verify my current address" link.
+			KString sVerify = pUsers->CreateEmailToken(sUser, "verify", sNewEmail);
+			SendMail(pSettings->LoadSmtp(), sNewEmail, "Confirm your new kssod email",
+			         kFormat("Hello {},\r\n\r\nconfirm this as your new address by opening:\r\n{}/verify-email?token={}"
+			                 "\r\n\r\nUntil you do, your account keeps its current address. The link is valid for 24 hours.",
+			                 sUser, sIssuer, sVerify), sErr);
+
+			// (c) security notice + revert link to the OLD address. The token carries the
+			// old address so even an already-completed change can be undone.
+			if (!sOldEmail.empty())
+			{
+				KString sRevert = pUsers->CreateEmailToken(sUser, "revert", sOldEmail);
+				SendMail(pSettings->LoadSmtp(), sOldEmail, "Your kssod email is being changed",
+				         kFormat("Hello {},\r\n\r\na change of your address to {} was requested. If this was you, "
+				                 "confirm via the link sent to the new address.\r\n\r\nIf this was NOT you, cancel it and "
+				                 "secure your account here:\r\n{}/undo-email-change?token={}\r\n\r\nThis link is valid for 7 days.",
+				                 sUser, sNewEmail, sIssuer, sRevert), sErr);
+			}
+
+			pUsers->GetClaims(sUser, Claims);
+			RenderAccount(HTTP, sUser, bAdmin, Claims,
+			              kFormat("We sent a confirmation link to {}. Your current address stays active until you confirm it.", sNewEmail),
+			              false, AccountStateFor(HTTP, sUser));
+		}, KRESTRoute::WWWFORM });
+
 		// public: follow the verification link from the email
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/verify-email",
 			[&pUsers](KRESTServer& HTTP)
 		{
-			KString sUser = pUsers->ConsumeEmailToken(HTTP.GetQueryParms()["token"], "verify");
+			KString sTarget;
+			KString sUser = pUsers->ConsumeEmailToken(HTTP.GetQueryParms()["token"], "verify", &sTarget);
 			if (sUser.empty())
 			{
 				// the link itself was well-formed; the token is just stale - a 200
@@ -757,9 +889,72 @@ int main(int argc, char** argv)
 				           "/account", "Go to your account");
 				return;
 			}
-			pUsers->SetEmailVerified(sUser, true);
-			RenderInfo(HTTP, "Email confirmed", "Thanks - your email address is now verified.",
-			           "/account", "Go to your account");
+			// the token carries the address it was issued for: if that matches a pending
+			// change, this link confirms the NEW address — swap it in. Otherwise it just
+			// confirms the (current) address it was issued for (the plain verify flow).
+			if (!sTarget.empty() && sTarget == pUsers->GetPendingEmail(sUser))
+			{
+				pUsers->ApplyPendingEmail(sUser);
+				RenderInfo(HTTP, "Email confirmed", "Thanks - your new email address is now active and verified.",
+				           "/account", "Go to your account");
+			}
+			else
+			{
+				pUsers->SetEmailVerified(sUser, true);
+				RenderInfo(HTTP, "Email confirmed", "Thanks - your email address is now verified.",
+				           "/account", "Go to your account");
+			}
+		} });
+
+		// public: the revert/cancel link from the security notice sent to the OLD
+		// address when an email change was requested (see /account/email). Undoes an
+		// email-change takeover; the token carries the prior address.
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/undo-email-change",
+			[&pSession, &pUsers, &pSettings, &Redirect](KRESTServer& HTTP)
+		{
+			KString sOldEmail;
+			KString sUser = pUsers->ConsumeEmailToken(HTTP.GetQueryParms()["token"], "revert", &sOldEmail);
+			if (sUser.empty())
+			{
+				RenderInfo(HTTP, "Link expired",
+				           "This link is invalid or has expired. If you still need to secure your account, "
+				           "contact your administrator.", "/login", "Back to sign in");
+				return;
+			}
+
+			// always sign the user out everywhere — this kicks the attacker's session
+			pSession->LogoutAllFor(sUser);
+
+			// Fall 1 — the change never completed (current address still equals the old
+			// one): nothing was compromised, just cancel the staged change. A stale verify
+			// link is then harmless (with no pending change it only re-verifies the old
+			// address). No forced password reset.
+			if (pUsers->GetEmail(sUser) == sOldEmail)
+			{
+				pUsers->SetPendingEmail(sUser, "");
+				RenderInfo(HTTP, "Change cancelled",
+				           "The pending email change was cancelled and all sessions were signed out. "
+				           "If you didn't start this, change your password to be safe.",
+				           "/login", "Back to sign in");
+				return;
+			}
+
+			// Fall 2 — the change had already completed: restore the prior address.
+			pUsers->RestoreEmail(sUser, sOldEmail);
+
+			// the attacker controlled the new mailbox and may have reset the password.
+			// Whether to force a fresh password here is the admin-configurable policy
+			// (default on). We reuse the recovery flow for the forced reset.
+			if (pSettings->ForcePwOnRevert())
+			{
+				KString sReset = pUsers->CreateEmailToken(sUser, "recovery");
+				Redirect(HTTP, kFormat("/reset?token={}", sReset));
+			}
+
+			RenderInfo(HTTP, "Change reverted",
+			           "Your previous email address was restored and all sessions were signed out. "
+			           "We strongly recommend you reset your password now.",
+			           "/forgot", "Reset password");
 		} });
 
 		// turn email codes on/off as the second factor (verified address required)
@@ -943,7 +1138,7 @@ int main(int argc, char** argv)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
-			RenderSettings(HTTP, sUser, pSettings->LoadSmtp(), {}, false);
+			RenderSettings(HTTP, sUser, pSettings->LoadSmtp(), {}, false, pSettings->ForcePwOnRevert());
 		} });
 
 		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/settings",
@@ -964,7 +1159,20 @@ int main(int argc, char** argv)
 			RenderSettings(HTTP, sUser, Smtp,
 			               Smtp.IsConfigured() ? "Saved. Email features are now available."
 			                                   : "Saved. Set a relay URL and From address to enable email features.",
-			               false);
+			               false, pSettings->ForcePwOnRevert());
+		}, KRESTRoute::WWWFORM });
+
+		// security policy toggle: force a password reset when an email-change takeover
+		// is reverted after it had already completed (default on)
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/settings/security",
+			[&pSession, &pUsers, &pSettings](KRESTServer& HTTP)
+		{
+			KString sUser;
+			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
+
+			pSettings->SetForcePwOnRevert(!HTTP.GetQueryParms()["force_pw_on_revert"].empty());
+			RenderSettings(HTTP, sUser, pSettings->LoadSmtp(), "Security settings saved.", false,
+			               pSettings->ForcePwOnRevert());
 		}, KRESTRoute::WWWFORM });
 
 		// fire a one-off test message to confirm the relay actually works
@@ -983,7 +1191,7 @@ int main(int argc, char** argv)
 			RenderSettings(HTTP, sUser, Smtp,
 			               bOK ? kFormat("Test email sent to {}.", sTo)
 			                   : kFormat("Could not send: {}", sErr),
-			               !bOK, bOK ? 200 : KHTTPError::H4xx_BADREQUEST);
+			               !bOK, pSettings->ForcePwOnRevert(), bOK ? 200 : KHTTPError::H4xx_BADREQUEST);
 		}, KRESTRoute::WWWFORM });
 
 		// ----- users -----
@@ -1053,6 +1261,99 @@ int main(int argc, char** argv)
 			Redirect(HTTP, "/admin/users");
 		}, KRESTRoute::WWWFORM });
 
+		// promote/demote a user's administrator status after the fact (the add form
+		// only sets it at creation time)
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/users/admin",
+			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser;
+			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
+
+			const auto& Q          = HTTP.GetQueryParms();
+			KStringView sTarget    = Q["username"];
+			bool        bMakeAdmin = !Q["admin"].empty(); // "1" promotes; absent demotes
+
+			if (sTarget.empty() || !pUsers->Exists(sTarget)) { Redirect(HTTP, "/admin/users"); }
+
+			// guards (only relevant when removing rights): never lock yourself out,
+			// and never remove the last administrator
+			KStringView sError;
+			if (!bMakeAdmin)
+			{
+				if (sTarget == sUser)
+				{
+					sError = "You cannot remove your own administrator rights.";
+				}
+				else if (pUsers->IsAdmin(sTarget) && pUsers->CountAdmins() <= 1)
+				{
+					sError = "Cannot remove the last administrator.";
+				}
+			}
+
+			if (!sError.empty())
+			{
+				RenderUsers(HTTP, sUser, *pUsers, sError, true, KHTTPError::H4xx_BADREQUEST);
+				return;
+			}
+
+			pUsers->SetAdmin(sTarget, bMakeAdmin);
+			Redirect(HTTP, "/admin/users");
+		}, KRESTRoute::WWWFORM });
+
+		// admin: change a user's email address (the add form only sets it at creation
+		// time). Resets the verified flag + email-2FA for the new address.
+		// show the edit form for a user (name + email; the username is the key)
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin/users/edit",
+			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser;
+			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
+
+			KStringView sTarget = HTTP.GetQueryParms()["username"];
+			if (sTarget.empty() || !pUsers->Exists(sTarget))
+			{
+				Redirect(HTTP, "/admin/users");
+			}
+
+			KJSON Claims;
+			pUsers->GetClaims(sTarget, Claims);
+			RenderUserEdit(HTTP, sUser, sTarget,
+			               kjson::GetStringRef(Claims, "name"), kjson::GetStringRef(Claims, "email"));
+		} });
+
+		// save name / email edits. The admin is trusted, so an email change is an
+		// immediate swap (no pending/revert dance), but it still clears the verified
+		// flag + email-2FA and sends a courtesy heads-up to the OLD address.
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/users/edit",
+			[&pSession, &pUsers, &pSettings, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser;
+			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
+
+			const auto& Q       = HTTP.GetQueryParms();
+			KStringView sTarget = Q["username"];
+			KStringView sName   = Q["name"];
+			KStringView sEmail  = Q["email"];
+
+			if (sTarget.empty() || !pUsers->Exists(sTarget)) { Redirect(HTTP, "/admin/users"); }
+
+			pUsers->SetName(sTarget, sName);
+
+			KString sOld = pUsers->GetEmail(sTarget);
+			if (sEmail != sOld)
+			{
+				pUsers->SetEmail(sTarget, sEmail);
+				if (pSettings->SmtpConfigured() && !sOld.empty())
+				{
+					KString sErr;
+					SendMail(pSettings->LoadSmtp(), sOld, "Your kssod email was changed",
+					         kFormat("Hello {},\r\n\r\nan administrator changed your account's email address to {}. "
+					                 "If you did not expect this, contact your administrator.", sTarget, sEmail), sErr);
+				}
+			}
+			Redirect(HTTP, "/admin/users");
+		}, KRESTRoute::WWWFORM });
+
 		// ----- clients -----
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin/clients",
 			[&pSession, &pUsers, &pClients](KRESTServer& HTTP)
@@ -1073,15 +1374,25 @@ int main(int argc, char** argv)
 			KStringView sSecret   = Q["secret"];
 			bool        bPublic   = Q["confidential"].empty(); // checked = confidential, so unchecked = public
 			bool        bRequire  = !Q["require_assignment"].empty();
-			// re-authentication policy (minutes in the UI, stored as a KDuration)
-			int64_t     iMaxAgeMin = Q["max_auth_age"].Int64();
-			if (iMaxAgeMin < 0) iMaxAgeMin = 0;
+			// re-auth policy: a bare number stays minutes (back-compat with the old
+			// minutes-only field); a unit suffix (30m / 1h / 2h30m) parses as a full
+			// duration. The store persists it as seconds at the SQLite boundary.
+			KString sMaxAge = Q["max_auth_age"];
+			sMaxAge.Trim();
+			sMaxAge.MakeLowerASCII(); // forgiving: 30M / 1H parse the same as 30m / 1h
+			if (KASCII::kIsDigit(sMaxAge.back()))
+			{
+				// default is minutes
+				sMaxAge += 'm';
+			}
+			KDuration MaxAuthAge = sMaxAge.empty() ? KDuration::zero() : kParseDuration(sMaxAge);
+			if (MaxAuthAge.seconds().count() < 0) MaxAuthAge = KDuration::zero();
 
 			KOpenIDServer::ClientStore::Client Client;
 			Client.sClientID              = sClientID;
 			Client.bPublic                = bPublic;
 			Client.bForceLogin            = !Q["force_login"].empty();
-			Client.MaxAuthAge             = KDuration(std::chrono::minutes(iMaxAgeMin));
+			Client.MaxAuthAge             = MaxAuthAge;
 			// the URI/scope fields are free text (one per line or space separated);
 			// KSimpleSpacedWords breaks them at any whitespace, skipping empties
 			KSimpleSpacedWords Redirects  (Q["redirect_uris"]);
@@ -1157,8 +1468,9 @@ int main(int argc, char** argv)
 				{ "scopes",             sScopes                            },
 				{ "require_assignment", Info.bRequireAssignment ? "1" : "" },
 				{ "force_login",        Info.Client.bForceLogin ? "1" : "" },
-				{ "max_auth_age",       Info.Client.MaxAuthAge.IsZero()
-				                        ? KString{} : kFormat("{}", Info.Client.MaxAuthAge.minutes().count()) },
+				{ "max_auth_age",       Info.Client.MaxAuthAge.IsZero() ? KString{}
+				                        // reciprocal of kParseDuration: Condensed = "1h", "30m", "8h30m"
+				                        : Info.Client.MaxAuthAge.ToString(KDuration::Format::Condensed, KDuration::BaseInterval::Seconds) },
 			};
 			RenderClientEdit(HTTP, sUser, sClientID, Values);
 		} });
@@ -1179,14 +1491,24 @@ int main(int argc, char** argv)
 			KStringView sSecret  = Q["secret"];
 			bool        bPublic  = Q["confidential"].empty(); // checked = confidential
 			bool        bRequire = !Q["require_assignment"].empty();
-			int64_t     iMaxAgeMin = Q["max_auth_age"].Int64();
-			if (iMaxAgeMin < 0) iMaxAgeMin = 0;
+			// bare number = minutes (back-compat); a unit suffix (30m / 1h / 2h30m)
+			// parses as a duration; stored as seconds at the SQLite boundary.
+			KString sMaxAge = Q["max_auth_age"];
+			sMaxAge.Trim();
+			sMaxAge.MakeLowerASCII(); // forgiving: 30M / 1H parse the same as 30m / 1h
+			if (KASCII::kIsDigit(sMaxAge.back()))
+			{
+				// default is minutes
+				sMaxAge += 'm';
+			}
+			KDuration MaxAuthAge = sMaxAge.empty() ? KDuration::zero() : kParseDuration(sMaxAge);
+			if (MaxAuthAge.seconds().count() < 0) MaxAuthAge = KDuration::zero();
 
 			KOpenIDServer::ClientStore::Client Client;
 			Client.sClientID              = sClientID;
 			Client.bPublic                = bPublic;
 			Client.bForceLogin            = !Q["force_login"].empty();
-			Client.MaxAuthAge             = KDuration(std::chrono::minutes(iMaxAgeMin));
+			Client.MaxAuthAge             = MaxAuthAge;
 			KSimpleSpacedWords Redirects  (Q["redirect_uris"]);
 			KSimpleSpacedWords PostLogouts(Q["postlogout_uris"]);
 			KSimpleSpacedWords Scopes     (Q["scopes"]);

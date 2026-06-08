@@ -117,6 +117,12 @@ public:
 		KString   sUserInfoPath     { "/userinfo"  };
 		KString   sJWKSPath         { "/jwks"      };
 		KString   sLogoutPath       { "/logout"    };
+		/// app route shown when a signed-in user is NOT authorized for the client
+		/// they tried to enter. Instead of dead-ending a silently-resolved SSO
+		/// session with access_denied, HandleAuthorize stashes the request and
+		/// sends the browser here, where the app offers to sign in as a different
+		/// (authorized) account or to return to the client.
+		KString   sAccessDeniedPath { "/no-access" };
 		std::vector<KString> Scopes { "openid", "profile", "email" }; ///< scopes the OP advertises/grants
 		/// set the Secure attribute on the transient "authorize" cookie that
 		/// carries a pending request across the login screen. Keep true in
@@ -273,6 +279,17 @@ public:
 	/// session cookie on the response.
 	/// @returns the redirect URL, or empty on error (e.g. code could not be stored)
 	KString CompleteLogin (KRESTServer& HTTP, KStringView sUsername);
+
+	/// The client_id of the authorize request currently parked across the login /
+	/// access-denied screens (read from the transient pending cookie), or empty if
+	/// none is pending. Lets the access-denied page name the application.
+	KString PendingClientID(KRESTServer& HTTP);
+
+	/// Decline the pending authorize request: clears the pending cookie and returns
+	/// the client's redirect_uri carrying error=access_denied (and the original
+	/// state). For the "back to the app" choice on the access-denied page.
+	/// @returns the redirect URL, or empty if no request is pending.
+	KString DeclineAccess (KRESTServer& HTTP);
 
 //----------
 private:

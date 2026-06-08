@@ -247,6 +247,17 @@ TEST_CASE("KOpenIDServer")
 		h.Response.Headers.Set(KHTTPHeader::LOCATION, Server.CompleteLogin(h, Q["username"]));
 		throw KHTTPError(KHTTPError::H302_MOVED_TEMPORARILY, "");
 	}, KRESTRoute::WWWFORM });
+	// the application owns the access-denied screen too; minimal handlers to
+	// exercise the interstitial helpers (PendingClientID / DeclineAccess)
+	Routes.AddRoute({ KHTTPMethod::GET, false, "/no-access", [&Server](KRESTServer& h)
+	{
+		h.SetRawOutput(Server.PendingClientID(h)); // body = the parked client_id (or empty)
+	}});
+	Routes.AddRoute({ KHTTPMethod::POST, false, "/no-access/decline", [&Server](KRESTServer& h)
+	{
+		h.Response.Headers.Set(KHTTPHeader::LOCATION, Server.DeclineAccess(h));
+		throw KHTTPError(KHTTPError::H302_MOVED_TEMPORARILY, "");
+	}, KRESTRoute::WWWFORM });
 
 	// --- a stream-driven request helper (no socket needed: the OP never calls out) ---
 	auto Drive = [&Routes](KStringView sMethod, KStringView sPathQuery, KStringView sCookie,
@@ -449,7 +460,7 @@ TEST_CASE("KOpenIDServer")
 		CHECK ( jAc["roles"].is_array() );
 	}
 
-	SECTION("access denied at authorize redirects with error=access_denied and no code")
+	SECTION("access denied right after an interactive login returns access_denied (terminal)")
 	{
 		pUsers->bDenyAccess = true;
 
@@ -462,6 +473,52 @@ TEST_CASE("KOpenIDServer")
 		CHECK ( sLoc.starts_with("http://localhost/cb?") );
 		CHECK ( sLoc.contains("error=access_denied") );
 		CHECK ( URLParam(sLoc, "code").empty() );
+	}
+
+	SECTION("a denied *silent* SSO session goes to the access-denied screen, not access_denied")
+	{
+		CookieJar Cookies;
+		// establish an OP session while access is still allowed
+		Cookies.Apply(Drive("GET", sAuthorizeQuery, Cookies.Header()));
+		Cookies.Apply(Drive("POST", "/login", Cookies.Header(), "username=alice&password=secret"));
+
+		// revoke access, then do a *silent* authorize (the session is present)
+		pUsers->bDenyAccess = true;
+		KString sChal2 = KBase64Url::Encode(KSHA256(KBase64Url::Encode(kGetRandom(32))).Digest());
+		KString sAuth2 = kFormat(
+			"/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/cb"
+			"&scope=openid&state=s2&code_challenge={}&code_challenge_method=S256", sChal2);
+
+		KString r = Drive("GET", sAuth2, Cookies.Header());
+		Cookies.Apply(r);
+		CHECK ( r.contains("302") );
+		CHECK ( FirstHeader(r, "Location") == "/no-access" ); // interstitial, NOT the client
+
+		// the parked request is recoverable so the screen can name the app...
+		CHECK ( ResponseBody(Drive("GET", "/no-access", Cookies.Header())).contains("test-client") );
+
+		// ...and declining hands error=access_denied (with state) back to the client
+		KString sLoc = FirstHeader(Drive("POST", "/no-access/decline", Cookies.Header()), "Location");
+		CHECK ( sLoc.starts_with("http://localhost/cb?") );
+		CHECK ( sLoc.contains("error=access_denied") );
+		CHECK ( URLParam(sLoc, "state") == "s2" );
+	}
+
+	SECTION("prompt=none over a denied session returns access_denied (no interstitial)")
+	{
+		CookieJar Cookies;
+		Cookies.Apply(Drive("GET", sAuthorizeQuery, Cookies.Header()));
+		Cookies.Apply(Drive("POST", "/login", Cookies.Header(), "username=alice&password=secret"));
+
+		pUsers->bDenyAccess = true;
+		KString sChal2 = KBase64Url::Encode(KSHA256(KBase64Url::Encode(kGetRandom(32))).Digest());
+		KString sAuth2 = kFormat(
+			"/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost/cb"
+			"&scope=openid&state=s2&prompt=none&code_challenge={}&code_challenge_method=S256", sChal2);
+
+		KString sLoc = FirstHeader(Drive("GET", sAuth2, Cookies.Header()), "Location");
+		CHECK ( sLoc.starts_with("http://localhost/cb?") );
+		CHECK ( sLoc.contains("error=access_denied") );
 	}
 
 	SECTION("access revoked between authorize and token is denied at the token endpoint")

@@ -512,18 +512,18 @@ int main(int argc, char** argv)
 		KRESTRoutes Routes;
 
 		// ===================== OIDC protocol endpoints =======================
-		Routes.AddRoute({ KHTTPMethod::GET,  false, "/.well-known/openid-configuration",
-			[&Server](KRESTServer& HTTP) { Server.ServeDiscovery(HTTP); } });
-		Routes.AddRoute({ KHTTPMethod::GET,  false, "/jwks",
-			[&Server](KRESTServer& HTTP) { Server.ServeJWKS(HTTP); } });
-		Routes.AddRoute({ KHTTPMethod::GET,  false, "/authorize",
-			[&Server](KRESTServer& HTTP) { Server.HandleAuthorize(HTTP); } });
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/token",
-			[&Server](KRESTServer& HTTP) { Server.HandleToken(HTTP); }, KRESTRoute::WWWFORM });
-		Routes.AddRoute({ KHTTPMethod::GET,  false, "/userinfo",
-			[&Server](KRESTServer& HTTP) { Server.HandleUserInfo(HTTP); } });
-		Routes.AddRoute({ KHTTPMethod::GET,  false, "/logout",
-			[&Server](KRESTServer& HTTP) { Server.HandleLogout(HTTP); } });
+		Routes.AddRoute("/.well-known/openid-configuration").Get(
+			[&Server](KRESTServer& HTTP) { Server.ServeDiscovery(HTTP); });
+		Routes.AddRoute("/jwks").Get(
+			[&Server](KRESTServer& HTTP) { Server.ServeJWKS(HTTP); });
+		Routes.AddRoute("/authorize").Get(
+			[&Server](KRESTServer& HTTP) { Server.HandleAuthorize(HTTP); });
+		Routes.AddRoute("/token").Post(
+			[&Server](KRESTServer& HTTP) { Server.HandleToken(HTTP); }).Parse(KRESTRoute::WWWFORM);
+		Routes.AddRoute("/userinfo").Get(
+			[&Server](KRESTServer& HTTP) { Server.HandleUserInfo(HTTP); });
+		Routes.AddRoute("/logout").Get(
+			[&Server](KRESTServer& HTTP) { Server.HandleLogout(HTTP); });
 
 		// ======================== end-user web UI ============================
 
@@ -531,7 +531,7 @@ int main(int argc, char** argv)
 		// users are sent straight to their home - admins to the admin dashboard,
 		// everyone else to their account page; anonymous visitors get the sign-in
 		// landing. (The nav bar carries the same links, so no menu page is needed.)
-		Routes.AddRoute({ KHTTPMethod::GET, false, "",
+		Routes.AddRoute("").Get(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
@@ -540,14 +540,14 @@ int main(int argc, char** argv)
 				Redirect(HTTP, pUsers->IsAdmin(sUser) ? "/admin" : "/account");
 			}
 			RenderLanding(HTTP);
-		} });
+		});
 
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/login",
+		Routes.AddRoute("/login").Get(
 			[&pSession, &pSettings, &Redirect](KRESTServer& HTTP)
 		{
 			if (!CurrentUser(HTTP, *pSession).empty()) Redirect(HTTP, "/");
 			RenderLogin(HTTP, "", pSettings->SmtpConfigured());
-		} });
+		});
 
 		// kicks off the email-OTP step: mint a code, mail it, remember its hash.
 		// shared by POST /login and the "resend" route.
@@ -562,7 +562,7 @@ int main(int argc, char** argv)
 			return sToken;
 		};
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/login",
+		Routes.AddRoute("/login").Post(
 			[&Server, &pUsers, &pSettings, &Pending2FA, &BeginEmailOtp](KRESTServer& HTTP)
 		{
 			const auto& Q = HTTP.GetQueryParms();
@@ -588,9 +588,9 @@ int main(int argc, char** argv)
 			}
 			HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, Server.CompleteLogin(HTTP, sUser));
 			throw KHTTPError(KHTTPError::H302_MOVED_TEMPORARILY, "");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/login/2fa",
+		Routes.AddRoute("/login/2fa").Post(
 			[&Server, &pUsers, &pSettings, &Pending2FA](KRESTServer& HTTP)
 		{
 			const auto& Q        = HTTP.GetQueryParms();
@@ -621,10 +621,10 @@ int main(int argc, char** argv)
 			Pending2FA.Consume(sPending);
 			HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, Server.CompleteLogin(HTTP, P.sUsername));
 			throw KHTTPError(KHTTPError::H302_MOVED_TEMPORARILY, "");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// resend the email sign-in code (email method only)
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/login/2fa/resend",
+		Routes.AddRoute("/login/2fa/resend").Post(
 			[&pUsers, &pSettings, &Pending2FA](KRESTServer& HTTP)
 		{
 			const auto& Q        = HTTP.GetQueryParms();
@@ -643,9 +643,9 @@ int main(int argc, char** argv)
 			SendMail(pSettings->LoadSmtp(), pUsers->GetEmail(P.sUsername), "Your kssod sign-in code",
 			         kFormat("Your sign-in code is {}\r\n\r\nIt expires in 5 minutes.", sCode), sErr);
 			RenderTwoFactor(HTTP, sPending, "email", "A new code is on its way.", false);
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/account",
+		Routes.AddRoute("/account").Get(
 			[&pSession, &pUsers, &AccountStateFor, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
@@ -653,14 +653,14 @@ int main(int argc, char** argv)
 			KJSON Claims;
 			pUsers->GetClaims(sUser, Claims);
 			RenderAccount(HTTP, sUser, pUsers->IsAdmin(sUser), Claims, {}, false, AccountStateFor(HTTP, sUser));
-		} });
+		});
 
 		// sign out of every browser: end all of this user's OP login sessions. Apps
 		// the user is already signed in to stay open until they next contact us, but
 		// no further silent SSO can happen anywhere — and this browser is logged out
 		// at once. (Existing app sessions ending only on their next sign-in is the
 		// inherent limit of provider-side logout; see the help text on the page.)
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/sessions/close-all",
+		Routes.AddRoute("/account/sessions/close-all").Post(
 			[&pSession, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
@@ -668,45 +668,45 @@ int main(int argc, char** argv)
 			pSession->LogoutAllFor(sUser);
 			HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, pSession->SerializeExpiryCookie());
 			Redirect(HTTP, "/login");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// ----- access-denied interstitial -----
 		// KOpenIDServer redirects here when a silently-resolved SSO session is not
 		// authorized for the requested client — instead of dead-ending the user with
 		// access_denied without a chance to pick the right account. The page offers
 		// to switch account or to return to the app.
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/no-access",
+		Routes.AddRoute("/no-access").Get(
 			[&pSession, &Server, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty()) Redirect(HTTP, "/login");
 			RenderNoAccess(HTTP, sUser, Server.PendingClientID(HTTP));
-		} });
+		});
 
 		// switch account: end the current session and return to the login screen. The
 		// pending authorize request (a separate cookie) is preserved, so signing in as
 		// a different account resumes it via CompleteLogin.
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/no-access/switch",
+		Routes.AddRoute("/no-access/switch").Post(
 			[&pSession, &Redirect](KRESTServer& HTTP)
 		{
 			KStringView sToken = HTTP.GetCookie(pSession->GetCookieName());
 			if (!sToken.empty()) pSession->Logout(sToken);
 			HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, pSession->SerializeExpiryCookie());
 			Redirect(HTTP, "/login");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// give up: hand error=access_denied back to the app and clear the pending request
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/no-access/decline",
+		Routes.AddRoute("/no-access/decline").Post(
 			[&Server, &Redirect](KRESTServer& HTTP)
 		{
 			KString sURL = Server.DeclineAccess(HTTP);
 			if (sURL.empty()) sURL = "/";
 			Redirect(HTTP, sURL);
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// end a single session, identified by the opaque revoke id (a hash of the
 		// token) shown in the list - we never accept a raw token from the client
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/sessions/close",
+		Routes.AddRoute("/account/sessions/close").Post(
 			[&pSession, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
@@ -733,9 +733,9 @@ int main(int argc, char** argv)
 				}
 			}
 			Redirect(HTTP, "/account");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/password",
+		Routes.AddRoute("/account/password").Post(
 			[&pSession, &pUsers, &AccountStateFor, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
@@ -763,12 +763,12 @@ int main(int argc, char** argv)
 			}
 			pUsers->ChangePassword(sUser, sNew);
 			RenderAccount(HTTP, sUser, bAdmin, Claims, "Password changed.", false, AccountStateFor(HTTP, sUser));
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// ----- email: verification + email-OTP-as-2FA toggle -----
 
 		// send (or resend) a verification link to the signed-in user's address
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/email/verify-send",
+		Routes.AddRoute("/account/email/verify-send").Post(
 			[&pSession, &pUsers, &pSettings, &sIssuer, &AccountStateFor, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
@@ -794,7 +794,7 @@ int main(int argc, char** argv)
 
 			RenderAccount(HTTP, sUser, bAdmin, Claims,
 			              kFormat("We sent a verification link to {}.", sEmail), false, AccountStateFor(HTTP, sUser));
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// self-service: change your own email address. Hardened, because email is the
 		// account-recovery anchor: requires (a) re-authentication, uses (b) a pending-
@@ -802,7 +802,7 @@ int main(int argc, char** argv)
 		// old one stays the active anchor meanwhile), and (c) emails a revert link to
 		// the OLD address. Only offered when verification is possible (SMTP) — else
 		// it is admin-only.
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/email",
+		Routes.AddRoute("/account/email").Post(
 			[&pSession, &pUsers, &pSettings, &sIssuer, &AccountStateFor, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
@@ -872,10 +872,10 @@ int main(int argc, char** argv)
 			RenderAccount(HTTP, sUser, bAdmin, Claims,
 			              kFormat("We sent a confirmation link to {}. Your current address stays active until you confirm it.", sNewEmail),
 			              false, AccountStateFor(HTTP, sUser));
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// public: follow the verification link from the email
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/verify-email",
+		Routes.AddRoute("/verify-email").Get(
 			[&pUsers](KRESTServer& HTTP)
 		{
 			KString sTarget;
@@ -904,12 +904,12 @@ int main(int argc, char** argv)
 				RenderInfo(HTTP, "Email confirmed", "Thanks - your email address is now verified.",
 				           "/account", "Go to your account");
 			}
-		} });
+		});
 
 		// public: the revert/cancel link from the security notice sent to the OLD
 		// address when an email change was requested (see /account/email). Undoes an
 		// email-change takeover; the token carries the prior address.
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/undo-email-change",
+		Routes.AddRoute("/undo-email-change").Get(
 			[&pSession, &pUsers, &pSettings, &Redirect](KRESTServer& HTTP)
 		{
 			KString sOldEmail;
@@ -955,10 +955,10 @@ int main(int argc, char** argv)
 			           "Your previous email address was restored and all sessions were signed out. "
 			           "We strongly recommend you reset your password now.",
 			           "/forgot", "Reset password");
-		} });
+		});
 
 		// turn email codes on/off as the second factor (verified address required)
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/2fa/email/on",
+		Routes.AddRoute("/account/2fa/email/on").Post(
 			[&pSession, &pUsers, &pSettings, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
@@ -969,28 +969,28 @@ int main(int argc, char** argv)
 				pUsers->SetEmailOtp(sUser, true);
 			}
 			Redirect(HTTP, "/account");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/2fa/email/off",
+		Routes.AddRoute("/account/2fa/email/off").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty()) Redirect(HTTP, "/login");
 			pUsers->SetEmailOtp(sUser, false);
 			Redirect(HTTP, "/account");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// ----- password recovery (public) -----
 
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/forgot",
+		Routes.AddRoute("/forgot").Get(
 			[&pSession, &pSettings, &Redirect](KRESTServer& HTTP)
 		{
 			if (!CurrentUser(HTTP, *pSession).empty()) Redirect(HTTP, "/account");
 			if (!pSettings->SmtpConfigured())          Redirect(HTTP, "/login"); // feature off
 			RenderForgot(HTTP, {}, false);
-		} });
+		});
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/forgot",
+		Routes.AddRoute("/forgot").Post(
 			[&pUsers, &pSettings, &sIssuer](KRESTServer& HTTP)
 		{
 			KStringView sEmail = HTTP.GetQueryParms()["email"];
@@ -1013,16 +1013,16 @@ int main(int argc, char** argv)
 			RenderInfo(HTTP, "Check your email",
 			           "If that address belongs to an account, we just sent a password reset link.",
 			           "/login", "Back to sign in");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/reset",
+		Routes.AddRoute("/reset").Get(
 			[](KRESTServer& HTTP)
 		{
 			// the token is validated on submit; here we just carry it into the form
 			RenderReset(HTTP, HTTP.GetQueryParms()["token"], {});
-		} });
+		});
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/reset",
+		Routes.AddRoute("/reset").Post(
 			[&pUsers](KRESTServer& HTTP)
 		{
 			const auto& Q       = HTTP.GetQueryParms();
@@ -1053,21 +1053,21 @@ int main(int argc, char** argv)
 			pUsers->ChangePassword(sUser, sNew);
 			RenderInfo(HTTP, "Password updated", "Your password has been changed. You can sign in now.",
 			           "/login", "Sign in");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// ----- two-step verification (TOTP) enrolment -----
 
 		// step 1: mint a fresh secret and show it for the user to add to their app
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/2fa/setup",
+		Routes.AddRoute("/account/2fa/setup").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty()) Redirect(HTTP, "/login");
 			Render2FASetup(HTTP, sUser, pUsers->IsAdmin(sUser), KTOTP::Generate().Secret(), "");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// step 2: the user confirmed a code -> store the secret, hand out backup codes
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/2fa/enable",
+		Routes.AddRoute("/account/2fa/enable").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
@@ -1093,10 +1093,10 @@ int main(int argc, char** argv)
 			pUsers->SetBackupCodes(sUser, Hashes);
 
 			RenderBackupCodes(HTTP, sUser, pUsers->IsAdmin(sUser), Codes);
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// regenerate backup codes (invalidates the previous set)
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/2fa/backup",
+		Routes.AddRoute("/account/2fa/backup").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
@@ -1110,38 +1110,38 @@ int main(int argc, char** argv)
 			pUsers->SetBackupCodes(sUser, Hashes);
 
 			RenderBackupCodes(HTTP, sUser, pUsers->IsAdmin(sUser), Codes);
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// disable 2FA (drops the secret and any remaining backup codes)
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/account/2fa/disable",
+		Routes.AddRoute("/account/2fa/disable").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty()) Redirect(HTTP, "/login");
 			pUsers->ClearTotp(sUser);
 			Redirect(HTTP, "/account");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// ========================== admin web UI =============================
 
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin",
+		Routes.AddRoute("/admin").Get(
 			[&pSession, &pUsers](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
 			RenderAdminHome(HTTP, sUser);
-		} });
+		});
 
 		// ----- email (SMTP) settings -----
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin/settings",
+		Routes.AddRoute("/admin/settings").Get(
 			[&pSession, &pUsers, &pSettings](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
 			RenderSettings(HTTP, sUser, pSettings->LoadSmtp(), {}, false, pSettings->ForcePwOnRevert());
-		} });
+		});
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/settings",
+		Routes.AddRoute("/admin/settings").Post(
 			[&pSession, &pUsers, &pSettings](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1160,11 +1160,11 @@ int main(int argc, char** argv)
 			               Smtp.IsConfigured() ? "Saved. Email features are now available."
 			                                   : "Saved. Set a relay URL and From address to enable email features.",
 			               false, pSettings->ForcePwOnRevert());
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// security policy toggle: force a password reset when an email-change takeover
 		// is reverted after it had already completed (default on)
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/settings/security",
+		Routes.AddRoute("/admin/settings/security").Post(
 			[&pSession, &pUsers, &pSettings](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1173,10 +1173,10 @@ int main(int argc, char** argv)
 			pSettings->SetForcePwOnRevert(!HTTP.GetQueryParms()["force_pw_on_revert"].empty());
 			RenderSettings(HTTP, sUser, pSettings->LoadSmtp(), "Security settings saved.", false,
 			               pSettings->ForcePwOnRevert());
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// fire a one-off test message to confirm the relay actually works
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/settings/test",
+		Routes.AddRoute("/admin/settings/test").Post(
 			[&pSession, &pUsers, &pSettings](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1192,18 +1192,18 @@ int main(int argc, char** argv)
 			               bOK ? kFormat("Test email sent to {}.", sTo)
 			                   : kFormat("Could not send: {}", sErr),
 			               !bOK, pSettings->ForcePwOnRevert(), bOK ? 200 : KHTTPError::H4xx_BADREQUEST);
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// ----- users -----
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin/users",
+		Routes.AddRoute("/admin/users").Get(
 			[&pSession, &pUsers](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
 			RenderUsers(HTTP, sUser, *pUsers);
-		} });
+		});
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/users/add",
+		Routes.AddRoute("/admin/users/add").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1238,9 +1238,9 @@ int main(int argc, char** argv)
 				return;
 			}
 			Redirect(HTTP, "/admin/users");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/users/delete",
+		Routes.AddRoute("/admin/users/delete").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1259,11 +1259,11 @@ int main(int argc, char** argv)
 			}
 			pUsers->DeleteUser(sTarget); // cascades the user's assignments
 			Redirect(HTTP, "/admin/users");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// promote/demote a user's administrator status after the fact (the add form
 		// only sets it at creation time)
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/users/admin",
+		Routes.AddRoute("/admin/users/admin").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1298,12 +1298,12 @@ int main(int argc, char** argv)
 
 			pUsers->SetAdmin(sTarget, bMakeAdmin);
 			Redirect(HTTP, "/admin/users");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// admin: change a user's email address (the add form only sets it at creation
 		// time). Resets the verified flag + email-2FA for the new address.
 		// show the edit form for a user (name + email; the username is the key)
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin/users/edit",
+		Routes.AddRoute("/admin/users/edit").Get(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1319,12 +1319,12 @@ int main(int argc, char** argv)
 			pUsers->GetClaims(sTarget, Claims);
 			RenderUserEdit(HTTP, sUser, sTarget,
 			               kjson::GetStringRef(Claims, "name"), kjson::GetStringRef(Claims, "email"));
-		} });
+		});
 
 		// save name / email edits. The admin is trusted, so an email change is an
 		// immediate swap (no pending/revert dance), but it still clears the verified
 		// flag + email-2FA and sends a courtesy heads-up to the OLD address.
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/users/edit",
+		Routes.AddRoute("/admin/users/edit").Post(
 			[&pSession, &pUsers, &pSettings, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1352,18 +1352,18 @@ int main(int argc, char** argv)
 				}
 			}
 			Redirect(HTTP, "/admin/users");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// ----- clients -----
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin/clients",
+		Routes.AddRoute("/admin/clients").Get(
 			[&pSession, &pUsers, &pClients](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
 			RenderClients(HTTP, sUser, *pClients);
-		} });
+		});
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/clients/add",
+		Routes.AddRoute("/admin/clients/add").Post(
 			[&pSession, &pUsers, &pClients, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1444,10 +1444,10 @@ int main(int argc, char** argv)
 				pUsers->AddRole(sClientID, sRole);
 			}
 			Redirect(HTTP, "/admin/clients");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// show the edit form for an existing app, prefilled with its current settings
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin/clients/edit",
+		Routes.AddRoute("/admin/clients/edit").Get(
 			[&pSession, &pUsers, &pClients, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1473,10 +1473,10 @@ int main(int argc, char** argv)
 				                        : Info.Client.MaxAuthAge.ToString(KDuration::Format::Condensed, KDuration::BaseInterval::Seconds) },
 			};
 			RenderClientEdit(HTTP, sUser, sClientID, Values);
-		} });
+		});
 
 		// save edits to an existing app
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/clients/edit",
+		Routes.AddRoute("/admin/clients/edit").Post(
 			[&pSession, &pUsers, &pClients, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1553,9 +1553,9 @@ int main(int argc, char** argv)
 				return;
 			}
 			Redirect(HTTP, "/admin/clients");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/clients/delete",
+		Routes.AddRoute("/admin/clients/delete").Post(
 			[&pSession, &pUsers, &pClients, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1573,23 +1573,23 @@ int main(int argc, char** argv)
 			}
 			pClients->DeleteClient(sTarget); // cascades roles + assignments
 			Redirect(HTTP, "/admin/clients");
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// ----- per-client access / role assignment -----
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin/clients/access",
+		Routes.AddRoute("/admin/clients/access").Get(
 			[&pSession, &pUsers](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
 			KStringView sClientID = HTTP.GetQueryParms()["client_id"];
 			RenderClientAccess(HTTP, sUser, sClientID, *pUsers);
-		} });
+		});
 
 		// (per-client "assign" was removed: assignment is done in the per-user
 		//  grid at /admin/users/access — see GET /admin/users/access/save)
 
 		// ----- role catalog (per client) -----
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/clients/roles/add",
+		Routes.AddRoute("/admin/clients/roles/add").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1613,9 +1613,9 @@ int main(int argc, char** argv)
 			}
 			pUsers->AddRole(sClientID, sRole);
 			Redirect(HTTP, kFormat("/admin/clients/access?client_id={}", sClientID));
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/clients/roles/delete",
+		Routes.AddRoute("/admin/clients/roles/delete").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1626,9 +1626,9 @@ int main(int argc, char** argv)
 			KStringView sRole     = Q["role"];
 			if (!sClientID.empty() && !sRole.empty()) pUsers->DeleteRole(sClientID, sRole);
 			Redirect(HTTP, kFormat("/admin/clients/access?client_id={}", sClientID));
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/clients/roles/default",
+		Routes.AddRoute("/admin/clients/roles/default").Post(
 			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1638,18 +1638,18 @@ int main(int argc, char** argv)
 			KStringView sClientID = Q["client_id"];
 			if (!sClientID.empty()) pUsers->SetDefaultRole(sClientID, Q["role"]); // empty role clears it
 			Redirect(HTTP, kFormat("/admin/clients/access?client_id={}", sClientID));
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// ----- global access overview + per-user grid -----
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin/access",
+		Routes.AddRoute("/admin/access").Get(
 			[&pSession, &pUsers, &pClients](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
 			RenderAccessOverview(HTTP, sUser, *pUsers, *pClients);
-		} });
+		});
 
-		Routes.AddRoute({ KHTTPMethod::GET, false, "/admin/users/access",
+		Routes.AddRoute("/admin/users/access").Get(
 			[&pSession, &pUsers, &pClients, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1657,9 +1657,9 @@ int main(int argc, char** argv)
 			KStringView sTarget = HTTP.GetQueryParms()["user"];
 			if (sTarget.empty() || !pUsers->Exists(sTarget)) { Redirect(HTTP, "/admin/access"); }
 			RenderUserAccess(HTTP, sUser, sTarget, *pUsers, *pClients);
-		} });
+		});
 
-		Routes.AddRoute({ KHTTPMethod::POST, false, "/admin/users/access/save",
+		Routes.AddRoute("/admin/users/access/save").Post(
 			[&pSession, &pUsers, &pClients, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
@@ -1687,7 +1687,7 @@ int main(int argc, char** argv)
 				pUsers->Upsert(sTarget, sClientID, bAccess, Selected);
 			}
 			Redirect(HTTP, "/admin/access"); // back to the overview after saving
-		}, KRESTRoute::WWWFORM });
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// --- run -------------------------------------------------------------
 		Settings.Type                 = KREST::HTTP;

@@ -77,15 +77,15 @@ KString URLParam(KStringView sURL, KStringView sName)
 //-----------------------------------------------------------------------------
 // forge an ES256-signed JWT (id_token) using the given EC key
 KString MakeES256JWT(const KECKey& Key, KStringView sIssuer, KStringView sSub,
-                     KStringView sNonce, int64_t iTTL)
+                     KStringView sNonce, int64_t iTTL, KStringView sAudience = "test-client")
 //-----------------------------------------------------------------------------
 {
 	KJSON Header  = { { "alg", "ES256" }, { "kid", "test-ec" }, { "typ", "JWT" } };
 	int64_t iNow  = KUnixTime::now().to_time_t();
 	KJSON Payload = {
-		{ "iss",   KString(sIssuer) },
-		{ "sub",   KString(sSub)    },
-		{ "aud",   "test-client"    },
+		{ "iss",   KString(sIssuer)   },
+		{ "sub",   KString(sSub)      },
+		{ "aud",   KString(sAudience) },
 		{ "exp",   iNow + iTTL      },
 		{ "iat",   iNow             },
 		{ "nonce", KString(sNonce)  },
@@ -111,6 +111,7 @@ struct MockIdP
 	KECKey  Key { true };   ///< freshly generated P-256 signing key
 	KString sBase;          ///< http://localhost:<port>
 	KString sNonce;         ///< nonce to embed into the next issued id_token
+	KString sAud { "test-client" }; ///< audience to mint into the next id_token (default = our client_id)
 	bool    bOmitExpiresIn { false }; ///< drop "expires_in" from the token response
 };
 
@@ -310,7 +311,7 @@ TEST_CASE("KOpenIDClient")
 		http.json.tx = {
 			{ "access_token",  bRefresh ? "access-2"  : "access-1"  },
 			{ "refresh_token", bRefresh ? "refresh-2" : "refresh-1" },
-			{ "id_token",      MakeES256JWT(Mock.Key, Mock.sBase, "alice", Mock.sNonce, 3600) },
+			{ "id_token",      MakeES256JWT(Mock.Key, Mock.sBase, "alice", Mock.sNonce, 3600, Mock.sAud) },
 			{ "token_type",    "Bearer" }
 		};
 		if (!Mock.bOmitExpiresIn) http.json.tx["expires_in"] = 3600;
@@ -461,6 +462,30 @@ TEST_CASE("KOpenIDClient")
 		Cookies.Apply(sCallback);
 
 		// no session must have been established
+		CHECK_FALSE ( Cookies.Has("session") );
+
+		KString sProtected = Drive(AppRoutes, "GET", "/protected", Cookies.Header());
+		CHECK ( sProtected.contains("ANON") );
+	}
+
+	SECTION("callback is rejected on id_token audience mismatch (cross-client replay)")
+	{
+		CookieJar Cookies;
+
+		KString sLogin = Drive(AppRoutes, "GET", "/auth/login", Cookies.Header());
+		Cookies.Apply(sLogin);
+		KString sState = URLParam(ResponseBody(sLogin), "state");
+		// keep the nonce CORRECT so that audience is the only reason to reject
+		Mock.sNonce = URLParam(ResponseBody(sLogin), "nonce");
+
+		// the provider mints an id_token for a DIFFERENT client (aud != our client_id)
+		Mock.sAud = "some-other-client";
+
+		KString sCallback = Drive(AppRoutes, "GET",
+			kFormat("/auth/callback?code=any-code&state={}", sState), Cookies.Header());
+		Cookies.Apply(sCallback);
+
+		// the audience check must reject it: no session may be established
 		CHECK_FALSE ( Cookies.Has("session") );
 
 		KString sProtected = Drive(AppRoutes, "GET", "/protected", Cookies.Header());

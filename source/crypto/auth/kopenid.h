@@ -196,13 +196,16 @@ public:
 	KJWT() = default;
 
 	/// construct with a token
-	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KDuration tClockLeeway = chrono::seconds(5))
+	KJWT(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KStringView sExpectedAudience = KStringView{}, KDuration tClockLeeway = chrono::seconds(5))
 	{
-		Check(sBase64Token, Providers, sScope, tClockLeeway);
+		Check(sBase64Token, Providers, sScope, sExpectedAudience, tClockLeeway);
 	}
 
 	/// check a new token
-	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KDuration tClockLeeway = chrono::seconds(5));
+	/// @param sExpectedAudience if non-empty, the token's "aud" claim must contain
+	/// it (string or array form, RFC 7519); empty (the default) imposes no audience
+	/// constraint, so existing callers are unaffected. See AudienceMatches().
+	bool Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope = KStringView{}, KStringView sExpectedAudience = KStringView{}, KDuration tClockLeeway = chrono::seconds(5));
 
 	/// is all info valid?
 	bool IsValid() const { return !HasError(); }
@@ -216,12 +219,24 @@ public:
 	/// clear all data
 	void clear();
 
+	/// Does a token payload's "aud" (audience) claim satisfy the expected audience?
+	/// @param Payload the decoded JWT payload
+	/// @param sExpectedAudience the audience the caller requires. An EMPTY value
+	/// means "do not constrain the audience" (the default), so callers that pass
+	/// no audience - and tokens validated without one - are completely unaffected:
+	/// audience binding is opt-in.
+	/// Per RFC 7519 "aud" is either a single string or an array of strings; an
+	/// array matches if it contains the expected value. Comparison is case-sensitive.
+	/// @return true if the audience is acceptable
+	DEKAF2_NODISCARD
+	static bool AudienceMatches(const KJSON& Payload, KStringView sExpectedAudience);
+
 //----------
 private:
 //----------
 
 	DEKAF2_PRIVATE
-	bool Validate(KStringView sIssuer, KStringView sScope, KDuration tClockLeeway);
+	bool Validate(KStringView sIssuer, KStringView sScope, KStringView sExpectedAudience, KDuration tClockLeeway);
 	DEKAF2_PRIVATE
 	bool SetError(KStringView sError);
 	DEKAF2_PRIVATE

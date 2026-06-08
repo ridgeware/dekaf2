@@ -5,8 +5,50 @@
 #include <dekaf2/crypto/ec/kecsign.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/crypto/encoding/khex.h>
+#include <dekaf2/data/json/kjson.h>
 
 using namespace dekaf2;
+
+TEST_CASE("KJWT audience matching")
+{
+	// An EMPTY expected audience must accept every token shape. This is the
+	// opt-in default and the reason adding the audience parameter cannot break
+	// existing KRESTServer / SSO deployments.
+	SECTION("empty expected audience accepts any token (opt-in default)")
+	{
+		KJSON jString; jString["aud"] = "some-resource";
+		KJSON jArray;  jArray ["aud"] = KJSON::array({ "api://a", "api://b" });
+		KJSON jNone;   jNone  ["sub"] = "user"; // no aud claim at all
+
+		CHECK ( KJWT::AudienceMatches(jString, "") );
+		CHECK ( KJWT::AudienceMatches(jArray,  "") );
+		CHECK ( KJWT::AudienceMatches(jNone,   "") );
+		CHECK ( KJWT::AudienceMatches(jString, KStringView{}) );
+	}
+
+	// --- Step 3: opt-in correctness ------------------------------------------
+	SECTION("string aud is matched exactly and case-sensitively")
+	{
+		KJSON jTok; jTok["aud"] = "client-A";
+		CHECK       ( KJWT::AudienceMatches(jTok, "client-A") );
+		CHECK_FALSE ( KJWT::AudienceMatches(jTok, "client-B") );
+		CHECK_FALSE ( KJWT::AudienceMatches(jTok, "Client-A") );  // case-sensitive
+	}
+
+	SECTION("array aud is matched by membership (multi-aud style)")
+	{
+		KJSON jTok; jTok["aud"] = KJSON::array({ "client-A", "https://api.example" });
+		CHECK       ( KJWT::AudienceMatches(jTok, "client-A") );
+		CHECK       ( KJWT::AudienceMatches(jTok, "https://api.example") );
+		CHECK_FALSE ( KJWT::AudienceMatches(jTok, "client-B") );
+	}
+
+	SECTION("a missing aud is rejected only when an audience is actually expected")
+	{
+		KJSON jTok; jTok["sub"] = "user";
+		CHECK_FALSE ( KJWT::AudienceMatches(jTok, "client-A") );
+	}
+}
 
 TEST_CASE("KOpenIDKeys")
 {

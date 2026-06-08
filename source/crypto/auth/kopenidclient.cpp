@@ -328,6 +328,18 @@ KString KOpenIDClient::ValidateIDToken(KStringView sIDToken, KStringView sExpect
 		return {};
 	}
 
+	// OIDC core requirement: the id_token "aud" MUST identify this RP, otherwise
+	// a token minted for a different client of the same OP would be accepted
+	// (cross-client replay). Enforced in both the signature-verified and the
+	// decode-only path. AudienceMatches accepts the single-string and the array
+	// form (RFC 7519); an empty sClientID (no client configured) imposes no
+	// constraint, so this never breaks an unconfigured RP.
+	if (!KJWT::AudienceMatches(Payload, m_Config.sClientID))
+	{
+		kDebug(1, "id_token audience does not include our client_id '{}'", m_Config.sClientID);
+		return {};
+	}
+
 	KString sUsername = kjson::GetStringRef(Payload, "username");
 	if (sUsername.empty())
 	{

@@ -587,6 +587,7 @@ KJSON KOpenIDServer::IssueTokens(KStringView sSubject, KStringView sClientID,
 	idClaims["iss"]       = m_Config.sIssuer;
 	idClaims["sub"]       = sSubject;
 	idClaims["aud"]       = sClientID;
+	idClaims["token_use"] = "id";   // lets /userinfo tell id_tokens from access_tokens
 	idClaims["iat"]       = tNow.to_time_t();
 	idClaims["exp"]       = (tNow + m_Config.IdTokenTTL).to_time_t();
 	idClaims["auth_time"] = tAuthTime.to_time_t();
@@ -597,12 +598,17 @@ KJSON KOpenIDServer::IssueTokens(KStringView sSubject, KStringView sClientID,
 
 	KString sIdToken = SignJWT(idClaims);
 
-	// --- access_token: a self-validating JWT (aud = issuer, so /userinfo accepts it) ---
+	// --- access_token: a self-validating JWT. "aud" now identifies the client the
+	// token was minted for, so a resource server can bind tokens to itself via
+	// KRESTServer::Options::sAuthAudience (defends against cross-client/cross-RS
+	// replay). Because the id_token now also carries aud=client_id, the token type
+	// is distinguished by an explicit "token_use" claim, which /userinfo checks. ---
 	KJSON acClaims = {
 		{ "iss"      , m_Config.sIssuer   },
 		{ "sub"      , sSubject           },
-		{ "aud"      , m_Config.sIssuer   },
+		{ "aud"      , sClientID          },
 		{ "client_id", sClientID          },
+		{ "token_use", "access"           },
 		{ "iat"      , tNow.to_time_t()   },
 		{ "exp"      , (tNow + m_Config.AccessTTL).to_time_t() },
 		{ "scope"    , sScope             }
@@ -832,8 +838,12 @@ void KOpenIDServer::HandleUserInfo(KRESTServer& HTTP)
 	sToken.remove_prefix("Bearer ") || sToken.remove_prefix("bearer ");
 
 	KJSON Payload;
+	// require a verified, unexpired ACCESS token. The token_use check rejects an
+	// id_token presented as a bearer (token-type confusion): both token kinds now
+	// carry aud=client_id, so the type marker - not the audience - distinguishes them.
 	if (!VerifyOwnJWT(sToken, Payload)
-	    || KUnixTime::now() >= KUnixTime(kjson::GetInt(Payload, "exp")))
+	    || KUnixTime::now() >= KUnixTime(kjson::GetInt(Payload, "exp"))
+	    || kjson::GetStringRef(Payload, "token_use") != "access")
 	{
 		HTTP.SetStatus(401);
 		HTTP.json.tx = { { "error", "invalid_token" } };

@@ -235,7 +235,7 @@ void KRESTServer::VerifyAuthentication(KStringView sAuthorization)
 							sScope = m_Options.sAuthScope;
 						}
 
-						if (m_AuthToken.Check(sAuthorization, m_Options.Authenticators, sScope))
+						if (m_AuthToken.Check(sAuthorization, m_Options.Authenticators, sScope, m_Options.sAuthAudience))
 						{
 							// success
 							SetAuthenticatedUser(kjson::GetString(GetAuthToken(), "sub"));

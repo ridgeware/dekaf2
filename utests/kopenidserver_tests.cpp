@@ -343,6 +343,17 @@ TEST_CASE("KOpenIDServer")
 		REQUIRE_FALSE ( sAccessToken.empty() );
 		REQUIRE_FALSE ( sRefresh.empty() );
 
+		// the access_token now binds aud=client_id (so a resource server can pin it)
+		// and is marked token_use=access (so /userinfo can tell it from an id_token)
+		{
+			auto AParts = KStringView(sAccessToken).Split('.');
+			REQUIRE ( AParts.size() == 3 );
+			KJSON jAccess = kjson::Parse(KBase64Url::Decode(AParts[1]));
+			CHECK ( kjson::GetStringRef(jAccess, "aud")       == "test-client" );
+			CHECK ( kjson::GetStringRef(jAccess, "client_id") == "test-client" );
+			CHECK ( kjson::GetStringRef(jAccess, "token_use") == "access"      );
+		}
+
 		// 4) validate the id_token against the published JWKS
 		KJSON jJWKS = kjson::Parse(ResponseBody(Drive("GET", "/jwks", "")));
 		KOpenIDKeys Keys(jJWKS);
@@ -360,6 +371,7 @@ TEST_CASE("KOpenIDServer")
 		CHECK ( kjson::GetStringRef(jPayload, "sub")   == "alice" );
 		CHECK ( kjson::GetStringRef(jPayload, "nonce") == "the-nonce" );
 		CHECK ( kjson::GetStringRef(jPayload, "email") == "alice@example.com" );
+		CHECK ( kjson::GetStringRef(jPayload, "token_use") == "id" );
 
 		// 5) the code is single-use: replaying it must fail
 		KString r5 = Drive("POST", "/token", "", sTokenBody);
@@ -380,6 +392,22 @@ TEST_CASE("KOpenIDServer")
 			KJSON jUI = kjson::Parse(ResponseBody(sResp));
 			CHECK ( kjson::GetStringRef(jUI, "sub")   == "alice" );
 			CHECK ( kjson::GetStringRef(jUI, "email") == "alice@example.com" );
+		}
+
+		// 6b) token-type confinement: presenting the id_token as a bearer at
+		//     /userinfo must be rejected (both tokens carry aud=client_id now, so
+		//     the token_use marker is what keeps them apart)
+		{
+			KString sReqId = kFormat("GET /userinfo HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {}\r\n\r\n", sIdToken);
+			KString sResp;
+			KInStringStream iss(sReqId);
+			KOutStringStream oss(sResp);
+			KStream stream(iss, oss);
+			KRESTServer::Options o;
+			KRESTServer Srv(stream, "127.0.0.1:48999", url::KProtocol::HTTP, 48999, Routes, o);
+			Srv.Execute();
+			CHECK ( sResp.contains("401") );
+			CHECK ( kjson::GetStringRef(kjson::Parse(ResponseBody(sResp)), "error") == "invalid_token" );
 		}
 
 		// 7) refresh_token grant -> fresh tokens

@@ -495,7 +495,7 @@ bool KJWT::SetError(KStringView sError)
 } // SetError
 
 //-----------------------------------------------------------------------------
-bool KJWT::Validate(KStringView sIssuer, KStringView sScope, KDuration tClockLeeway)
+bool KJWT::Validate(KStringView sIssuer, KStringView sScope, KStringView sExpectedAudience, KDuration tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	kDebug(3, Payload.dump(1, '\t'));
@@ -514,6 +514,13 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, KDuration tClockLee
 								Payload["iss"].get_ref<const KString&>(),
 #endif
 								sIssuer));
+	}
+
+	// audience binding: opt-in (empty = no constraint, so existing callers and
+	// tokens validated without an expected audience are unaffected)
+	if (!AudienceMatches(Payload, sExpectedAudience))
+	{
+		return SetError(kFormat("token audience does not satisfy expected audience '{}'", sExpectedAudience));
 	}
 
 	if (!sScope.empty())
@@ -575,7 +582,33 @@ bool KJWT::Validate(KStringView sIssuer, KStringView sScope, KDuration tClockLee
 } // Validate
 
 //-----------------------------------------------------------------------------
-bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, KDuration tClockLeeway)
+bool KJWT::AudienceMatches(const KJSON& Payload, KStringView sExpectedAudience)
+//-----------------------------------------------------------------------------
+{
+	// An empty expected audience means "do not constrain the audience". This is
+	// the default for Check()/Validate(), so existing callers keep behaving
+	// exactly as before. Audience binding is strictly opt-in.
+	if (sExpectedAudience.empty())
+	{
+		return true;
+	}
+
+	// RFC 7519: "aud" is either a single case-sensitive string, or an array of
+	// such strings -
+	// the array matches if it contains the expected value.
+	const KString& sAudience = kjson::GetStringRef(Payload, "aud");
+
+	if (!sAudience.empty())
+	{
+		return sAudience == sExpectedAudience;
+	}
+
+	return kjson::Contains(kjson::GetArray(Payload, "aud"), sExpectedAudience);
+
+} // AudienceMatches
+
+//-----------------------------------------------------------------------------
+bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, KStringView sExpectedAudience, KDuration tClockLeeway)
 //-----------------------------------------------------------------------------
 {
 	m_bSignatureIsValid = false;
@@ -649,7 +682,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			SetError("");
 
 			// exit here if we cannot validate
-			return Validate(KeysAndIssuer.sIssuer, sScope, tClockLeeway);
+			return Validate(KeysAndIssuer.sIssuer, sScope, sExpectedAudience, tClockLeeway);
 		}
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)

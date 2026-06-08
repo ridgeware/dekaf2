@@ -158,6 +158,10 @@ public:
 		KOpenIDProviderList Authenticators;
 		/// If non-empty, check that SSO token authorizes one of the given scopes (comma separated list)
 		KString sAuthScope;
+		/// If non-empty, require the bearer token's "aud" claim to contain this value
+		/// (the resource server's expected audience, e.g. its client_id). Empty (the
+		/// default) imposes no audience check.
+		KString sAuthAudience;
 		/// Allow KLog profiling triggered by a KLOG header?
 		KHTTPHeader KLogHeader;
 		/// Server name for this instance, will be used in diagnostic output

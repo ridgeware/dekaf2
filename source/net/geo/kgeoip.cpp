@@ -1060,11 +1060,10 @@ KGeoIP::LocationIDs KGeoIP::LookupIDs (const KIPAddress& IP) const
 		DecodeRecord (iDataOffset, View, KStringView{}, false); // numeric fields only, no strings
 	}
 
-	// slices the LocationIDs base out of the view. The move is intentional and must NOT
-	// be "corrected" away as a pessimizing move: the return type (LocationIDs) differs from
-	// the local (LocationView), so copy elision can never apply here - without the move this
-	// would copy the base (incl. its SubdivisionGeoNameIDs vector) instead of moving it.
-	return std::move(View);
+	// returns the view sliced to its LocationIDs base. Returning the named local is an
+	// implicit move under C++20 (the base, incl. its SubdivisionGeoNameIDs vector, is moved;
+	// under C++17/14 the small base is merely copied) - so no explicit std::move.
+	return View;
 
 } // LookupIDs
 

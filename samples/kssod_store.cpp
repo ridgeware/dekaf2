@@ -731,10 +731,12 @@ KString KSSOdUserStore::CreateEmailToken(KStringView sUsername, KStringView sPur
 //-----------------------------------------------------------------------------
 {
 	// recovery links are short-lived; verification links may sit in an inbox longer;
-	// a revert link (the security net) gets the longest window
-	KDuration iTTL = (sPurpose == "recovery") ? std::chrono::hours(1)
-	               : (sPurpose == "revert")   ? std::chrono::days(7)
-	               :                            std::chrono::days(1);
+	// a revert link (the security net) gets the longest window.
+	// we do not use the std::chrono namespace here because pre-C++17 did not
+	// know std::chrono::days() - but dekaf2::chrono does.
+	KDuration iTTL = (sPurpose == "recovery") ? chrono::hours(1)
+	               : (sPurpose == "revert")   ? chrono::days(7)
+	               :                            chrono::days(1);
 
 	// the plaintext goes only into the emailed link; we keep just its hash
 	KString sToken = KSHA256(kGetRandom(32)).HexDigest();

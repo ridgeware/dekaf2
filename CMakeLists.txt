@@ -1454,6 +1454,7 @@ set(PUBLIC_HEADERS
 	source/io/pipes/koutpipe.h
 	source/io/pipes/kpipe.h
 	source/io/readwrite/kbufferedreader.h
+	source/io/readwrite/kmemorymap.h
 	source/io/readwrite/kread.h
 	source/io/readwrite/kreader.h
 	source/io/readwrite/kwrite.h
@@ -1725,6 +1726,7 @@ set (SOURCES
 	source/io/pipes/koutpipe.cpp
 	source/io/pipes/kpipe.cpp
 	source/io/readwrite/kbufferedreader.cpp
+	source/io/readwrite/kmemorymap.cpp
 	source/io/readwrite/kread.cpp
 	source/io/readwrite/kreader.cpp
 	source/io/readwrite/kwrite.cpp

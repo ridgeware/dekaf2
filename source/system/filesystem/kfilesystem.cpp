@@ -104,8 +104,10 @@ KFileLock::KFileLock(KStringViewZ sPath, Mode mode)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_IS_WINDOWS
-	m_hFile = CreateFileA(
-		sPath.c_str(),
+	auto wsPath = kutf::Convert<std::wstring>(sPath);
+
+	m_hFile = CreateFileW(
+		wsPath.c_str(),
 		GENERIC_READ | (mode == Exclusive ? GENERIC_WRITE : 0),
 		FILE_SHARE_READ | FILE_SHARE_WRITE,
 		nullptr,

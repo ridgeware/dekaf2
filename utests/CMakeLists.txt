@@ -61,6 +61,7 @@ set (USOURCES
 	kfindsetofchars_tests.cpp
 	kformat_tests.cpp
 	kformtable_tests.cpp
+	kgeoip_tests.cpp
 	kgetruntimestack_tests.cpp
 	khash_tests.cpp
 	khmac_tests.cpp

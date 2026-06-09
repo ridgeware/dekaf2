@@ -1473,6 +1473,7 @@ set(PUBLIC_HEADERS
 	source/net/address/kipnetwork.h
 	source/net/address/knetworkinterface.h
 	source/net/address/kresolve.h
+	source/net/geo/kgeoip.h
 	source/net/quic/kquicstream.h
 	source/net/udp/kdtlsserver.h
 	source/net/udp/kdtlssocket.h
@@ -1745,6 +1746,7 @@ set (SOURCES
 	source/net/address/kipnetwork.cpp
 	source/net/address/knetworkinterface.cpp
 	source/net/address/kresolve.cpp
+	source/net/geo/kgeoip.cpp
 	source/net/quic/kquicstream.cpp
 	source/net/udp/kdtlsserver.cpp
 	source/net/udp/kdtlssocket.cpp

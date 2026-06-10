@@ -74,6 +74,9 @@ add_executable(ktunnel
 )
 target_link_libraries(ktunnel dekaf2)
 
+add_executable(kgeoip kgeoip.cpp)
+target_link_libraries(kgeoip dekaf2)
+
 # ================================= INSTALLATION =====================================
 
 set(bin_dest "bin")
@@ -85,7 +88,7 @@ set(share_dest "share/${PROJECT_NAME}")
 # always put this first, otherwise it risks to remove other already installed cmake config files
 #install(EXPORT ${PROJECT_NAME} DESTINATION "${lib_dest}")
 
-install(TARGETS kreplace kgrep statinfo DESTINATION ${bin_dest})
+install(TARGETS kreplace kgrep statinfo kgeoip DESTINATION ${bin_dest})
 
 set(CPACK_SOURCE_GENERATOR ZIP)
 set(CPACK_SOURCE_IGNORE_FILES ${ignored_files})

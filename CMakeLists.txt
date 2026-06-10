@@ -2261,6 +2261,9 @@ if (DEKAF2_INSTALL_BIN)
 	add_executable(krypt samples/krypt.cpp)
 	target_link_libraries(krypt dekaf2${DEKAF2_LINK_SHARED})
 
+	add_executable(kgeoip samples/kgeoip.cpp)
+	target_link_libraries(kgeoip dekaf2${DEKAF2_LINK_SHARED})
+
 	add_executable(ktunnel
 		samples/ktunnel.cpp
 		samples/ktunnel.h
@@ -2514,7 +2517,7 @@ endif() # DEKAF2_INSTALL_LIB
 
 if (DEKAF2_INSTALL_BIN)
 
-	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql krypt ktunnel statinfo DESTINATION ${dekaf2_bin_dest})
+	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql krypt kgeoip ktunnel statinfo DESTINATION ${dekaf2_bin_dest})
 	if (DEKAF2_HAS_NCURSES)
 		install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
 	endif()
@@ -2595,6 +2598,7 @@ add_custom_target(uninstall
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kreplace"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/ksql"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/krypt"
+	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kgeoip"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/kssod"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/ktunnel"
 	COMMAND "${CMAKE_COMMAND}" -E remove "${CMAKE_INSTALL_PREFIX}/${dekaf2_bin_dest}/statinfo"

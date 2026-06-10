@@ -59,6 +59,17 @@
  *   - fixing possible underflow in diagnostics values
  *   - fixing inefficient wait for detached threads to finish
  *
+ *  June 2026, Joachim Schurig
+ *   - fixing lost thread wakeup (pool hang in stop()/join) by writing the
+ *     abort flags and the interrupt flag under the condition variable's
+ *     mutex, and establishing the global lock order m_cond_mutex before
+ *     m_resize_mutex (stop(), resize())
+ *   - threads aborting out of an idle wait now pass a possibly consumed
+ *     task notification on to another waiting thread
+ *   - resize() now refuses to run while a stop() is joining the threads
+ *   - the detached thread counter now notifies under its mutex, to not
+ *     touch a destroyed condition variable when racing pool destruction
+ *
  *********************************************************/
 
 
@@ -252,6 +263,9 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Shall we log the shutdown?
+	/// Call this before the pool is started (or resized) - the callback is read by the
+	/// worker threads without synchronization, so registering it on a running pool is a
+	/// data race.
 	/// @param callback callback function called at each shutdown thread with some diagnostics
 	void register_shutdown_callback(ShutdownCallback callback)
 	//-----------------------------------------------------------------------------
@@ -431,10 +445,14 @@ private:
 	void push_packaged_task(std::packaged_task<void()> task);
 	std::size_t calc_shrink(std::size_t iHaveIdle) const;
 
-	/// try to grow the pool by the chosen growth strategy - call if there are no idle threads, but queued tasks (and pass the count of tasks in iQueued)
+	/// try to grow the pool by the chosen growth strategy - call if there are no idle threads, but queued tasks (and pass the count of tasks in iQueued).
+	/// Must be called with m_cond_mutex held (lock order: m_cond_mutex before m_resize_mutex)
 	bool grow(std::size_t iQueued);
 
-	/// try to shrink the pool by the chosen growth strategy - call if there are idle threads, but no queued tasks
+	/// try to shrink the pool by the chosen growth strategy - call if there are idle threads, but no queued tasks.
+	/// Must be called with m_cond_mutex held: shrink() sets thread abort flags that the workers'
+	/// wait predicate reads under m_cond_mutex - writing them under the same mutex prevents a
+	/// lost wakeup (lock order: m_cond_mutex before m_resize_mutex)
 	bool shrink(std::size_t iQueued);
 
 	/// start one thread

@@ -158,4 +158,50 @@ TEST_CASE("KThreadPool")
 
 		CHECK ( iCounter == 100 );
 	}
+
+	SECTION("stop race stress")
+	{
+		// regression test for a lost thread wakeup: stop() used to set the abort and
+		// interrupt flags without holding the condition variable's mutex, so a worker
+		// could evaluate the wait predicate to false, miss the notify_all(), and sleep
+		// forever - hanging stop() in join(). The race window opens when workers are
+		// idle (or about to go idle) at the moment stop() is called, so we cycle pools
+		// with mostly idle threads through immediate stops
+		for (int iteration = 0; iteration < 100; ++iteration)
+		{
+			std::atomic<int> iCounter { 0 };
+
+			KThreadPool Pool(4, KThreadPool::PrestartAll, KThreadPool::ShrinkNever);
+
+			// one task for four threads - three stay idle, the fourth races
+			// stop() on its way back into the idle wait
+			Pool.push([&iCounter]() { ++iCounter; });
+
+			Pool.stop(iteration % 2 == 0); // alternate kill and drain
+
+			if (iteration % 2 != 0)
+			{
+				CHECK ( iCounter == 1 ); // drained stop must have run the task
+			}
+		}
+	}
+
+	SECTION("resize shrink does not lose idle threads")
+	{
+		// regression test for the same lost wakeup through resize(): shrink() sets
+		// eAbort::Resize on (typically idle) threads and detaches them - if the wakeup
+		// is lost, the detached thread never finishes, ma_iDetachedThreadsToFinish
+		// never drops to zero, and the next stop() hangs in the detached wait
+		for (int iteration = 0; iteration < 50; ++iteration)
+		{
+			KThreadPool Pool(8, KThreadPool::PrestartAll, KThreadPool::ShrinkNever);
+
+			// all eight threads are idle - force-shrink six of them away
+			Pool.resize(2);
+
+			Pool.stop(false); // must not hang waiting for the detached threads
+
+			CHECK ( Pool.is_stopped() );
+		}
+	}
 }

@@ -52,6 +52,17 @@
  *   - adding growth and shrink policy setup, permitting to dynamically
  *     resize the thread pool depending on usage
  *
+ *  June 2026, Joachim Schurig
+ *   - fixing lost thread wakeup (pool hang in stop()/join) by writing the
+ *     abort flags and the interrupt flag under the condition variable's
+ *     mutex, and establishing the global lock order m_cond_mutex before
+ *     m_resize_mutex (stop(), resize())
+ *   - threads aborting out of an idle wait now pass a possibly consumed
+ *     task notification on to another waiting thread
+ *   - resize() now refuses to run while a stop() is joining the threads
+ *   - the detached thread counter now notifies under its mutex, to not
+ *     touch a destroyed condition variable when racing pool destruction
+ *
  *********************************************************/
 
 
@@ -121,16 +132,27 @@ void KThreadPool::set_strategy(GrowthPolicy Growth, ShrinkPolicy Shrink)
 bool KThreadPool::resize(std::size_t nThreads, GrowthPolicy Growth, ShrinkPolicy Shrink)
 //-----------------------------------------------------------------------------
 {
-	// avoid race with push_packaged_task by acuiring (and releasing)
-	// m_cond_mutex (in n_queued()) before m_resize_mutex - as resize()
-	// is normally unused, and if used only called very rarely, we do
-	// not care for the cost of unconditionally locking m_cond_mutex here.
-	// Also, the absolute value of n_queued() is not really important in
-	// grow()/shrink(), as it is only used as a heuristic there, not as
-	// an exact value.
+	// the absolute value of n_queued() is not really important in grow()/shrink(),
+	// as it is only used as a heuristic there, not as an exact value - so read it
+	// before taking the locks below (n_queued() takes m_cond_mutex itself)
 	auto iQueued = n_queued();
 
+	// grow() and shrink() must be called with m_cond_mutex held: shrink() sets
+	// thread abort flags that the workers' wait predicate reads under m_cond_mutex,
+	// and only writing them under the same mutex prevents a lost wakeup (see the
+	// comment in stop()). Lock order is m_cond_mutex before m_resize_mutex, as in
+	// push_packaged_task(). As resize() is only called rarely, we do not care for
+	// the cost of unconditionally locking m_cond_mutex here.
+	std::unique_lock<std::mutex>           cond_lock(m_cond_mutex);
 	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
+
+	if (ma_interrupt)
+	{
+		// a stop() is in progress and joins the threads without holding the locks -
+		// we must neither change the thread vector nor detach threads now. (restart()
+		// is unaffected: stop() resets ma_interrupt before it returns.)
+		return false;
+	}
 
 	m_Growth       = Growth;
 	m_Shrink       = Shrink;
@@ -373,29 +395,41 @@ void KThreadPool::clear()
 void KThreadPool::stop(bool bKill)
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
-
-	if (bKill)
 	{
-		for (size_t i = 0, n = size(); i < n; ++i)
+		// The abort flags and ma_interrupt MUST be written under m_cond_mutex: the
+		// worker threads read them in the wait predicate under m_cond_mutex, and only
+		// writing them under the same mutex makes the flag change and the worker's
+		// transition into sleep mutually exclusive. Otherwise a worker could evaluate
+		// the predicate to false, then miss our notify_all() below (fired while the
+		// worker is between predicate and sleep), and sleep forever - hanging the
+		// join() below.
+		// Lock order is m_cond_mutex before m_resize_mutex, as in push_packaged_task()
+		// (which holds m_cond_mutex when calling grow() and shrink()).
+		std::unique_lock<std::mutex>           cond_lock(m_cond_mutex);
+		std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
+
+		if (bKill)
 		{
-			// do not increase the counter for detached threads, as we
-			// want to finish these with join() - therefore set a differnt
-			// abort flag than for the resize case
-			*m_abort[i] = eAbort::Stop; // command the threads to stop
+			for (auto& abort : m_abort)
+			{
+				// do not increase the counter for detached threads, as we
+				// want to finish these with join() - therefore set a different
+				// abort flag than for the resize case
+				*abort = eAbort::Stop; // command the threads to stop
+			}
 		}
+
+		ma_interrupt = true;
+
+		// both locks are released here - we have to unlock, as the stopping threads
+		// may wish to access the size member when printing their shutdown diagnostics
 	}
-
-	ma_interrupt = true;
-
-	// have to unlock here, as we stop other threads that may
-	// wish to access to the size member when printing their
-	// shutdown diagnostics
-	lock.unlock();
 
 	m_cond_var.notify_all();  // stop all waiting threads
 
-	// wait for the computing threads to finish
+	// wait for the computing threads to finish - the thread vector can no longer
+	// change, as neither push_packaged_task() nor resize() grow or shrink the
+	// pool once ma_interrupt is set
 	for (auto& m_thread : m_threads)
 	{
 		if (m_thread->joinable())
@@ -411,7 +445,7 @@ void KThreadPool::stop(bool bKill)
 	}
 
 	// and lock again to do the final resize
-	lock.lock();
+	std::unique_lock<std::recursive_mutex> lock(m_resize_mutex);
 
 	// we do not clear the task queue..
 	m_threads .clear();
@@ -521,6 +555,12 @@ bool KThreadPool::run_thread(std::size_t i)
 				// unlock the cond mutex, the diagnostic output needs it, too
 				lock.unlock();
 
+				// our wakeup may have consumed a notify_one() that was meant to
+				// announce a queued task - pass the baton on to another waiting
+				// thread, which will then check the queue (a stray notification
+				// is harmless, the wait predicate guards against it)
+				m_cond_var.notify_one();
+
 				notify_thread_shutdown(true, abort);
 
 				return;
@@ -615,10 +655,12 @@ void KThreadPool::notify_thread_shutdown(bool bWasIdle, eAbort abort)
 	if (abort == eAbort::Resize)
 	{
 		// decrease the count of detached threads to wait for in the join()
-		{
-			std::lock_guard<std::mutex> lock(m_detached_mutex);
-			--ma_iDetachedThreadsToFinish;
-		}
+		std::lock_guard<std::mutex> lock(m_detached_mutex);
+		--ma_iDetachedThreadsToFinish;
+		// notify while still holding the mutex: once the counter dropped to zero,
+		// a stop() that has not yet entered the wait can pass its predicate without
+		// ever sleeping, return, and let the pool be destroyed - a notify after the
+		// unlock would then touch a destroyed condition variable
 		m_detached_cv.notify_one();
 	}
 

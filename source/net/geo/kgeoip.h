@@ -267,9 +267,10 @@ public:
 	/// set the default language for localized names (city, country). Used when a
 	/// lookup does not request a language, and as the fallback when a requested
 	/// language is missing from a record. Defaults to "en". Kept across Open/Close.
+	/// The tag is normalized to BCP-47 case (e.g. "PT-br" -> "pt-BR").
 	KGeoIP& SetDefaultLanguage (KStringView sLanguage)
 	{
-		m_sDefaultLanguage = sLanguage;
+		m_sDefaultLanguage = NormalizeLanguage (sLanguage);
 		return *this;
 	}
 
@@ -291,6 +292,11 @@ private:
 	/// walk the search tree for the given address bits, returning the final record value
 	DEKAF2_NODISCARD
 	uint32_t FindNode (const uint8_t* pAddress, int iStartBit, int iBitCount, uint32_t iStartNode) const;
+
+	/// normalize a language tag to BCP-47 case conventions (language subtag lower case,
+	/// region subtag upper case), e.g. "PT-br" -> "pt-BR", so we match the database keys
+	DEKAF2_NODISCARD
+	static KString NormalizeLanguage (KStringView sLanguage);
 
 	/// resolve an address to its data section offset; false if not found
 	DEKAF2_NODISCARD

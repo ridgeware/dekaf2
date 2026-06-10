@@ -158,6 +158,16 @@ TEST_CASE("KGeoIP")
 		CHECK( GeoIP.Lookup ("214.78.120.5", "ja").sCity        == "サンディエゴ" );
 		CHECK( GeoIP.Lookup ("214.78.120.5", "ru").sCountryName == "США" );
 
+		// a language range matches a more specific tag (RFC 4647): the database carries
+		// "pt-BR" but no plain "pt", so requesting "pt" must still resolve to the pt-BR name
+		CHECK( GeoIP.Lookup ("2001:218::1", "pt").sCountryName    == "Japão" );
+		CHECK( GeoIP.Lookup ("2001:218::1", "pt-BR").sCountryName == "Japão" );
+
+		// the requested tag is normalized to BCP-47 case before matching
+		CHECK( GeoIP.Lookup ("2001:218::1", "PT-br").sCountryName == "Japão" ); // -> pt-BR
+		CHECK( GeoIP.Lookup ("2001:218::1", "ZH-cn").sCountryName == "日本"   );  // -> zh-CN
+		CHECK( GeoIP.Lookup ("2001:218::1", "JA").sCountryName    == "日本"   );  // -> ja
+
 		// requested language missing in the record -> fall back to the default ("en");
 		// the San Diego city record carries no zh-CN name
 		CHECK( GeoIP.Lookup ("214.78.120.5", "zh-CN").sCity == "San Diego" );

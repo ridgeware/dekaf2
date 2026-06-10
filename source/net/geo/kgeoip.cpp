@@ -723,6 +723,28 @@ uint32_t KGeoIP::FindNode (const uint8_t* pAddress, int iStartBit, int iBitCount
 } // FindNode
 
 //-----------------------------------------------------------------------------
+KString KGeoIP::NormalizeLanguage (KStringView sLanguage)
+//-----------------------------------------------------------------------------
+{
+	// BCP-47 case conventions: the language (primary) subtag is lower case, the region
+	// subtag is upper case. Geo databases use only language[-region] (no script subtags),
+	// so we lower case up to the first '-' and upper case the rest.
+	auto iDash = sLanguage.find ('-');
+
+	if (iDash == KStringView::npos)
+	{
+		return KString (sLanguage).MakeLower();
+	}
+
+	KString sResult (sLanguage.substr (0, iDash));
+	sResult.MakeLower();
+	sResult += '-';
+	sResult += KString (sLanguage.substr (iDash + 1)).MakeUpper();
+	return sResult;
+
+} // NormalizeLanguage
+
+//-----------------------------------------------------------------------------
 bool KGeoIP::FindDataOffset (const KIPAddress& IP, std::size_t& iDataOffset) const
 //-----------------------------------------------------------------------------
 {
@@ -777,22 +799,56 @@ void KGeoIP::DecodeRecord (std::size_t iDataOffset, LocationView& View, KStringV
 {
 	MMDBDecoder oData (m_pDataSection, m_iDataSize);
 
+	// the primary subtag of a language tag is everything before the first '-'
+	// (e.g. "pt" of "pt-BR"). dekaf2 has no ICU locale data, but for matching a
+	// requested language range against the available tags this is all we need.
+	auto PrimarySubtag = [] (KStringView sLang) -> KStringView
+	{
+		auto iDash = sLang.find ('-');
+		return (iDash == KStringView::npos) ? sLang : sLang.substr (0, iDash);
+	};
+
+	// match one language tag against the "names" keys: exact match first, then a
+	// primary-subtag match per RFC 4647 lookup (so "pt" matches "pt-BR", and a missing
+	// "pt-BR" still matches another "pt-*" variant - at least one is picked)
+	auto FindForLang = [&] (std::size_t iNamesMap, KStringView sLang, std::size_t& iValueOffset) -> bool
+	{
+		if (oData.FindKey (iNamesMap, sLang, iValueOffset))
+		{
+			return true;
+		}
+
+		KStringView sPrimary = PrimarySubtag (sLang);
+		bool        bFound   = false;
+
+		oData.ForEachInMap (iNamesMap, [&] (KStringView sKey, std::size_t iValue)
+		{
+			if (!bFound && PrimarySubtag (sKey) == sPrimary)
+			{
+				iValueOffset = iValue;
+				bFound       = true;
+			}
+		});
+
+		return bFound;
+	};
+
 	// resolve a localized name from a "names" map: requested -> default -> first available
 	auto Localized = [&] (std::size_t iNames) -> KStringView
 	{
 		std::size_t iName;
 
-		if (oData.FindKey (iNames, sLanguage, iName))
+		if (FindForLang (iNames, sLanguage, iName))
 		{
 			return oData.GetStringView (iName);
 		}
-		if (sLanguage != m_sDefaultLanguage && oData.FindKey (iNames, m_sDefaultLanguage, iName))
+		if (sLanguage != m_sDefaultLanguage && FindForLang (iNames, m_sDefaultLanguage, iName))
 		{
 			return oData.GetStringView (iName);
 		}
 		if (oData.FirstValue (iNames, iName))
 		{
-			return oData.GetStringView (iName); // first language the record carries
+			return oData.GetStringView (iName); // any language the record carries
 		}
 
 		return KStringView();
@@ -999,8 +1055,10 @@ KGeoIP::LocationView KGeoIP::LookupView (const KIPAddress& IP, KStringView sLang
 
 	if (FindDataOffset (IP, iDataOffset))
 	{
-		// empty language means "use the configured default"
-		KStringView sLang = sLanguage.empty() ? KStringView(m_sDefaultLanguage) : sLanguage;
+		// empty language means "use the configured default" (already normalized); a
+		// requested tag is normalized to BCP-47 case so it matches the database keys
+		KString     sRequested = sLanguage.empty() ? KString{} : NormalizeLanguage (sLanguage);
+		KStringView sLang      = sLanguage.empty() ? KStringView (m_sDefaultLanguage) : KStringView (sRequested);
 		DecodeRecord (iDataOffset, View, sLang, true);
 	}
 

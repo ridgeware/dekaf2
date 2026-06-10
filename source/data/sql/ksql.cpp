@@ -11251,7 +11251,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 		else if (sSQL.empty() && sLine == "help")
 		{
 			kWriteLine ();
-			kPrintLine (":: enter SQL command, query or any of the following control commands:");
+			kWriteLine (":: enter SQL command, query or any of the following control commands:");
 			kWriteLine ("::   clear          : clear screen");
 			kWriteLine ("::   quiet          : toggle quiet mode");
 			kWriteLine ("::   quit           : end the interpreter");
@@ -11297,7 +11297,7 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 
 				case "help"_casehash:
 					kWriteLine ();
-					kPrintLine (":: dot commands (SQLite-style, normalized for all supported db types):");
+					kWriteLine (":: dot commands (SQLite-style, normalized for all supported db types):");
 					kWriteLine ("::   .help                : show this help");
 					kWriteLine ("::   .quit  / .exit       : end the interpreter");
 					kWriteLine ("::   .tables   [pattern]  : list tables (LIKE pattern, default %)");

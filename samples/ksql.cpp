@@ -93,6 +93,16 @@ int KSql::Main(int argc, char** argv)
 
 	});
 
+	// bare (positional) arguments are database names: collect them during the parse.
+	// The ad hoc mechanism only catches unknown options (with dashes) - a leading bare
+	// command would otherwise be flagged as "excess argument" by the parser.
+	std::vector<KStringViewZ> Databases;
+
+	Options.UnknownCommand([&](KOptions::ArgList& Args)
+	{
+		while (!Args.empty()) { Databases.push_back(Args.pop()); }
+	});
+
 	int iRetval = Options.Parse(argc, argv, KOut);
 
 	kDebug (1, "Options about to be defined");
@@ -107,20 +117,29 @@ int KSql::Main(int argc, char** argv)
 	bool         bQuiet     = Options("q,-quiet              : only show db output"         ,       false);
 	KStringViewZ sFormat    = Options(kFormat("f,-format <format> : output format: {}, default ascii", KFormTable::GetSupportedStyles()), "");
 	bool         bVersion   = Options("v,-version            : show version information"    ,       false);
-	KDuration    Timeout    = chrono::seconds(Options("to,timeout <seconds> : connect timeout in seconds, default 5"         ,    5));
+	KDuration    Timeout    = chrono::seconds(Options("to,timeout <seconds> : connect timeout in seconds, default 5"        ,    5));
 	bool         bNoComp    = Options("nocomp                : do not attempt to compress the database connection"          , false);
 	bool         bNoTLS     = Options("notls                 : do not attempt to encrypt the database connection"           , false);
 	bool         bForceTLS  = Options("forcetls              : force encryption for the database connection, fail otherwise", false);
-	KStringViewZ sInSQL     = Options("e,exec <file|sql>     : execute a SQL file or a quoted SQL literal",  "");
+	KStringViewZ sInSQL     = Options("e,exec <file|sql>     : execute a SQL file or a quoted SQL literal"                  ,    "");
 
-	if (Options.Terminate() || iRetval)
-	{
-		return iRetval; // either error or completed (help, diff, ..)
-	}
+	if (!Options.Check()) return iRetval;
 
 	if (sInSQL)
 	{
 		bQuiet = true;
+	}
+
+	if (!Databases.empty())
+	{
+		if (sDatabase.empty() && sDBC.empty() && Databases.size() == 1)
+		{
+			sDatabase = Databases.front();
+		}
+		else
+		{
+			SetError(kFormat("unexpected parameters: {}", kJoined(Databases)));
+		}
 	}
 
 	KSQL::DBT DBType = KSQL::DBT::MYSQL;

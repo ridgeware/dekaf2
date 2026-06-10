@@ -2175,10 +2175,12 @@ KOptions::Values::~Values()
 			// we have a callback for unknown commands
 			ArgList Args;
 
-			// collect all unconsumed commands
+			// collect all unconsumed commands - with push_front, like the parser's main
+			// loop, so that pop() (which takes from the back) yields the args in command
+			// line order
 			for (; m_iConsumed < size(); ++m_iConsumed)
 			{
-				Args.push_back(m_Params[m_iConsumed]);
+				Args.push_front(m_Params[m_iConsumed]);
 			}
 
 			// and call the callback with the params

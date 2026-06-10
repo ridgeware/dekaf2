@@ -65,7 +65,8 @@ DEKAF2_NAMESPACE_BEGIN
 /// KFormTable takes data from different sources (strings, numbers, JSON, KROW) and
 /// renders it as a formatted table into a stream, string, or JSON object. Supported
 /// output styles include ASCII box drawing, Unicode box styles (bold, thin, double,
-/// rounded), space-separated, vertical key-value pairs, HTML, JSON, CSV, and Markdown.
+/// rounded), space-separated, vertical key-value pairs, HTML, JSON, NDJSON, CSV, and
+/// Markdown.
 ///
 /// Column definitions can be set explicitly via the constructor or AddColDef(), or they
 /// are created automatically from the data. For styles that require fixed column widths
@@ -128,7 +129,8 @@ public:
 		HTML     = 1 << 7,  ///< HTML @<table@> markup with @<tr@>, @<td@>, @<th@> elements
 		JSON     = 1 << 8,  ///< JSON array output (array of arrays or array of objects)
 		CSV      = 1 << 9,  ///< RFC 4180 CSV output with proper quoting
-		Markdown = 1 << 10  ///< Markdown table with | separators and alignment markers in header separator
+		Markdown = 1 << 10, ///< Markdown table with | separators and alignment markers in header separator
+		NDJSON   = 1 << 11  ///< newline-delimited JSON (one JSON object per line, no enclosing array) - streams row by row
 	};
 
 	/// Column alignment. Can be combined with Wrap using bitwise OR. Auto is the default
@@ -176,11 +178,11 @@ public:
 	{
 		ColDef() = default;
 		/// construct with width and optional alignment
-		ColDef(size_type iWidth, Alignment iAlign = Alignment::Auto) : m_iWidth(iWidth), m_iAlign(iAlign) {}
+		ColDef(size_type iWidth, Alignment iAlign = Alignment::Auto) : m_iWidth(iWidth), m_iAlign(iAlign), m_bAutoWidth(iWidth == 0) {}
 		/// construct with column name, optional width, and optional alignment
-		ColDef(KString sColName, size_type iWidth = 0, Alignment iAlign = Alignment::Auto) : m_sColName(std::move(sColName)), m_iWidth(iWidth), m_iAlign(iAlign) {}
+		ColDef(KString sColName, size_type iWidth = 0, Alignment iAlign = Alignment::Auto) : m_sColName(std::move(sColName)), m_iWidth(iWidth), m_iAlign(iAlign), m_bAutoWidth(iWidth == 0) {}
 		/// construct with column name, display name, optional width, and optional alignment
-		ColDef(KString sColName, KString sDispName, size_type iWidth = 0, Alignment iAlign = Alignment::Auto) : m_sColName(std::move(sColName)), m_sDispName(std::move(sDispName)), m_iWidth(iWidth), m_iAlign(iAlign) {}
+		ColDef(KString sColName, KString sDispName, size_type iWidth = 0, Alignment iAlign = Alignment::Auto) : m_sColName(std::move(sColName)), m_sDispName(std::move(sDispName)), m_iWidth(iWidth), m_iAlign(iAlign), m_bAutoWidth(iWidth == 0) {}
 
 		/// returns the display name if set, otherwise the column name
 		const KString& GetDispName() const { return m_sDispName.empty() ? m_sColName : m_sDispName; }
@@ -189,6 +191,8 @@ public:
 		KString   m_sDispName;         ///< display name shown in headers (if empty, m_sColName is used)
 		size_type m_iWidth { 0 };      ///< column width in Unicode codepoints (0 = auto-sized)
 		Alignment m_iAlign { Alignment::Auto }; ///< column alignment
+		bool      m_bAutoWidth { true };        ///< width was auto (constructed as 0); seeded to the header and grown to the data, and never used to truncate non-fixed-width styles like HTML
+		bool      m_bMeasured  { false };       ///< true once a DryMode() pass has measured data for this column - markdown pads/truncates only measured or user-fixed widths, so it can stream unpadded without a measuring pass
 	};
 
 	using ColDefs = std::vector<ColDef>;
@@ -222,6 +226,17 @@ public:
 	void SetMaxColWidth(size_type iMaxWidth);
 	/// set the maximum column count
 	void SetMaxColCount(size_type iMaxColCount);
+
+	/// Enable or disable printing of the column header row (default: enabled). When disabled,
+	/// the visible header row (column names, and for box/markdown styles its separator) is
+	/// suppressed across all styles - e.g. a headerless CSV emits only data rows. JSON and
+	/// NDJSON never carry a header row (the keys travel with each object), and the Vertical
+	/// style keeps its (invisible) header pass because it sizes the key column from it.
+	/// @param bYesNo true to print the header row, false to suppress it
+	void SetPrintHeader(bool bYesNo) { m_bPrintHeader = bYesNo; }
+	/// returns true if the column header row is printed
+	DEKAF2_NODISCARD
+	bool GetPrintHeader() const { return m_bPrintHeader; }
 
 	/// open a new output stream - normally done by constructor
 	void Open(KOutStream&  Out);
@@ -301,6 +316,14 @@ public:
 		}
 	}
 
+	/// Force the table header (top border and/or column header row, as applicable to the
+	/// current style) to be emitted now, even before the first data row. Useful for
+	/// streaming output, where the header should appear up front and should still be
+	/// written when no data rows follow at all (e.g. a CSV with a header but no records).
+	/// Has no effect if the header was already emitted, or in dry mode. Respects
+	/// SetPrintHeader(false) and styles that carry no header row (JSON/NDJSON).
+	void PrintHeader() { if (!m_bGetExtents && !m_bHadTopPrinted) { PrintTop(); } }
+
 	/// when printing single columns, closes one row
 	void PrintNextRow();
 
@@ -363,7 +386,7 @@ public:
 
 	/// Convert a style name string into a Style enum value. Recognized names (case-insensitive):
 	/// "ascii", "query", "table", "bold", "thin", "double", "rounded", "spaced",
-	/// "vertical", "html", "json", "csv", "markdown", "md".
+	/// "vertical", "html", "json", "ndjson", "jsonl", "csv", "markdown", "md".
 	/// An optional leading '-' is stripped. Returns ASCII on unrecognized input.
 	DEKAF2_NODISCARD
 	static Style StringToStyle(KStringView sStyle);
@@ -446,6 +469,7 @@ private:
 	Style     m_Style            { Style::ASCII };
 	bool      m_bHadTopPrinted   { false };
 	bool      m_bGetExtents      { false };
+	bool      m_bPrintHeader     { true  };
 	bool      m_bHaveColHeaders  { false };
 	bool      m_bInTableHeader   { false };
 	bool      m_bInWrapContinuation { false };

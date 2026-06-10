@@ -881,4 +881,157 @@ R"(
 		CHECK ( Table.GetPrintedRows() == 2 );
 		CHECK ( sOut == sExpected );
 	}
+
+	SECTION("NDJSON streams one object per line")
+	{
+		// KJSON serializes object keys in (alphabetical) sort order, not insertion order -
+		// which is irrelevant for NDJSON consumers, who address fields by key
+		static constexpr KStringView sExpected =
+R"(
+{"city":"Mountain View","ip":"8.8.8.8"}
+{"city":"","ip":"1.1.1.1"}
+)";
+
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		KFormTable Table(sOut);
+		Table.SetStyle(KFormTable::Style::NDJSON);
+		Table.AddColDef(KFormTable::ColDef("ip"));
+		Table.AddColDef(KFormTable::ColDef("city"));
+		// no dry pass and no header row - each row is emitted immediately as one object,
+		// and a missing value stays in the schema as an empty string ("city":"")
+		Table.PrintRow(std::vector<KStringView>{ "8.8.8.8", "Mountain View" });
+		Table.PrintRow(std::vector<KStringView>{ "1.1.1.1", ""              });
+		Table.Close();
+
+		CHECK ( Table.GetStyle() == KFormTable::Style::NDJSON );
+		CHECK ( Table.GetPrintedRows() == 2 );
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("Markdown without a measuring pass streams unpadded and untruncated")
+	{
+		static constexpr KStringView sExpected =
+R"(
+| ip | city |
+|----|------|
+| 8.8.8.8 | Mountain View |
+)";
+
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		KFormTable Table(sOut);
+		Table.SetStyle(KFormTable::Style::Markdown);
+		Table.AddColDef(KFormTable::ColDef("ip"));
+		Table.AddColDef(KFormTable::ColDef("city"));
+		// no dry pass: the auto widths are only seeded from the header names, so the data
+		// cells print unpadded and in full - jagged but valid markdown, and streamable
+		Table.PrintRow(std::vector<KStringView>{ "8.8.8.8", "Mountain View" });
+		Table.Close();
+
+		CHECK ( Table.GetPrintedRows() == 1 );
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("Markdown with a measuring pass pads and respects SetMaxColWidth")
+	{
+		static constexpr KStringView sExpected =
+R"(
+| ip      | city       |
+|---------|------------|
+| 8.8.8.8 | Mountain V>|
+)";
+
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		std::vector<std::vector<KStringView>> Data { { "8.8.8.8", "Mountain View" } };
+
+		KFormTable Table(sOut);
+		Table.SetStyle(KFormTable::Style::Markdown);
+		Table.SetMaxColWidth(10);
+		Table.AddColDef(KFormTable::ColDef("ip"));
+		Table.AddColDef(KFormTable::ColDef("city"));
+
+		// the dry pass turns the widths into measured extents: cells pad to them again,
+		// and content beyond the width cap is cut and flagged with the '>' marker
+		Table.DryMode(true);
+		for (auto& Row : Data) { Table.PrintRow(Row); }
+		Table.DryMode(false);
+		for (auto& Row : Data) { Table.PrintRow(Row); }
+		Table.Close();
+
+		CHECK ( Table.GetPrintedRows() == 1 );
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("ndjson and jsonl are recognized style names")
+	{
+		CHECK ( KFormTable::IsKnownStyle("ndjson") );
+		CHECK ( KFormTable::IsKnownStyle("jsonl")  );
+		CHECK ( KFormTable::StringToStyle("ndjson") == KFormTable::Style::NDJSON );
+		CHECK ( KFormTable::StringToStyle("jsonl")  == KFormTable::Style::NDJSON );
+		CHECK ( KFormTable::StringToStyle("NDJSON") == KFormTable::Style::NDJSON ); // case-insensitive
+		CHECK ( KFormTable::GetSupportedStyles().contains("ndjson") );
+	}
+
+	SECTION("SetPrintHeader(false) omits the CSV header row")
+	{
+		static constexpr KStringView sExpected =
+R"(
+8.8.8.8,US
+1.1.1.1,AU
+)";
+
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		KFormTable Table(sOut);
+		Table.SetStyle(KFormTable::Style::CSV);
+		Table.SetPrintHeader(false);
+		CHECK_FALSE ( Table.GetPrintHeader() );
+		Table.AddColDef(KFormTable::ColDef("ip"));
+		Table.AddColDef(KFormTable::ColDef("cc"));
+		Table.PrintRow(std::vector<KStringView>{ "8.8.8.8", "US" });
+		Table.PrintRow(std::vector<KStringView>{ "1.1.1.1", "AU" });
+		Table.Close();
+
+		sOut.Replace("\r\n", "\n"); // CSV emits canonical CRLF
+		CHECK ( Table.GetPrintedRows() == 2 );
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("SetPrintHeader(false) keeps the box frame but drops the header row")
+	{
+		static constexpr KStringView sExpected =
+R"(
++---------+----+
+| 8.8.8.8 | US |
+| 1.1.1.1 | AU |
++---------+----+
+)";
+
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		std::vector<std::vector<KStringView>> Data { { "8.8.8.8", "US" }, { "1.1.1.1", "AU" } };
+
+		KFormTable Table(sOut);
+		Table.SetStyle(KFormTable::Style::ASCII);
+		Table.SetPrintHeader(false);
+		Table.AddColDef(KFormTable::ColDef("ip"));
+		Table.AddColDef(KFormTable::ColDef("cc"));
+
+		// box needs the measuring pass to size the columns to the data
+		Table.DryMode(true);
+		for (auto& Row : Data) { Table.PrintRow(Row); }
+		Table.DryMode(false);
+		for (auto& Row : Data) { Table.PrintRow(Row); }
+		Table.Close();
+
+		CHECK ( Table.GetPrintedRows() == 2 );
+		CHECK ( sOut == sExpected );
+	}
 }

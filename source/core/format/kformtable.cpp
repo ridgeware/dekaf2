@@ -224,6 +224,7 @@ void KFormTable::PrintSeparator()
 
 			case Style::HTML:
 			case Style::JSON:
+			case Style::NDJSON:
 			case Style::CSV:
 			case Style::Vertical:
 				break;
@@ -280,6 +281,7 @@ void KFormTable::PrintTop()
 			case Style::Markdown:
 			case Style::Spaced:
 			case Style::JSON:
+			case Style::NDJSON:
 			case Style::CSV:
 			case Style::Vertical:
 				break;
@@ -287,7 +289,12 @@ void KFormTable::PrintTop()
 
 		CheckHaveColHeaders();
 
-		if (m_bHaveColHeaders && m_Style != Style::JSON)
+		// JSON/NDJSON carry their keys per object, so they never get a header row. The
+		// visible header row is suppressed by SetPrintHeader(false) - but the Vertical
+		// style always runs the (invisible) header pass, because that is where it sizes
+		// the key column from the column names.
+		if (m_bHaveColHeaders && m_Style != Style::JSON && m_Style != Style::NDJSON
+		    && (m_bPrintHeader || m_Style == Style::Vertical))
 		{
 			m_bInTableHeader = true;
 
@@ -355,6 +362,7 @@ void KFormTable::PrintBottom()
 
 			case Style::Markdown:
 			case Style::Spaced:
+			case Style::NDJSON:
 			case Style::CSV:
 			case Style::Vertical:
 				break;
@@ -389,6 +397,14 @@ KFormTable::size_type KFormTable::FitWidth(size_type iColumn, KStringView sText)
 	if (m_ColDefs[iColumn].m_iWidth < iWidth)
 	{
 		m_ColDefs[iColumn].m_iWidth = iWidth;
+	}
+
+	if (m_bGetExtents)
+	{
+		// this width is now backed by a measuring pass over the data - for markdown that
+		// turns it from a mere hint (seeded from the header name) into an authoritative
+		// extent that may pad and truncate
+		m_ColDefs[iColumn].m_bMeasured = true;
 	}
 
 	return iWidth;
@@ -427,13 +443,36 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 		// get the defaults for the current column format
 		if (m_iColumn < ColCount())
 		{
-			// don't trim HTML tables, except the user has set the
-			// width explicitly
-			if (m_Style != Style::HTML || m_bColDefsUserSet)
+			const auto& Col = m_ColDefs[m_iColumn];
+
+			if (m_Style == Style::HTML)
 			{
-				iWidth = m_ColDefs[m_iColumn].m_iWidth;
+				// don't trim HTML tables, except the user has set an explicit (non-auto)
+				// column width - only having added ColDefs (for names/alignment) with
+				// auto width must not cause truncation of the cell content
+				if (!Col.m_bAutoWidth)
+				{
+					iWidth = Col.m_iWidth;
+				}
 			}
-			iAlign = m_ColDefs[m_iColumn].m_iAlign;
+			else if (m_Style == Style::Markdown)
+			{
+				// markdown renders fine unpadded, so an auto width that was only seeded
+				// from the header name and never confirmed by a measuring pass must
+				// neither pad nor truncate the data - this is what lets markdown stream
+				// row by row without a look-ahead. A measured or user-fixed width pads
+				// and truncates as usual.
+				if (!Col.m_bAutoWidth || Col.m_bMeasured)
+				{
+					iWidth = Col.m_iWidth;
+				}
+			}
+			else
+			{
+				iWidth = Col.m_iWidth;
+			}
+
+			iAlign = Col.m_iAlign;
 		}
 	}
 
@@ -560,6 +599,7 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 			break;
 
 		case Style::JSON:
+		case Style::NDJSON:
 		case Style::CSV:
 		case Style::Vertical:
 			break;
@@ -568,7 +608,8 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 	switch (m_Style)
 	{
 		case Style::JSON:
-			kAssert(m_JsonOut, "no JSON pointer");
+		case Style::NDJSON:
+			kAssert(m_Style == Style::NDJSON || m_JsonOut, "no JSON pointer");
 			if (m_bHaveColHeaders)
 			{
 				if (!m_iColumn)
@@ -732,6 +773,7 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 			break;
 
 		case Style::JSON:
+		case Style::NDJSON:
 		case Style::CSV:
 			break;
 
@@ -927,9 +969,9 @@ bool KFormTable::PrintJSON(const KJSON& json)
 			}
 			else
 			{
-				if (m_Style != Style::JSON)
+				if (m_Style != Style::JSON && m_Style != Style::NDJSON)
 				{
-					// only print empty column for missing key if output style is not JSON
+					// only print empty column for missing key if output style is not JSON/NDJSON
 					// (would result in keys with empty values otherwise)
 					PrintColumnInt(false, "");
 				}
@@ -948,7 +990,7 @@ void KFormTable::PrintNextRow()
 {
 	if (!m_bGetExtents && m_iColumn > 0)
 	{
-		if ((m_Style & (Style::JSON | Style::Vertical)) == 0)
+		if ((m_Style & (Style::JSON | Style::NDJSON | Style::Vertical)) == 0)
 		{
 			for (size_type iCol = m_iColumn; iCol < ColCount(); ++iCol)
 			{
@@ -985,6 +1027,17 @@ void KFormTable::PrintNextRow()
 						if (m_JsonOut->empty()) *m_JsonOut = KJSON::array();
 						m_JsonOut->push_back(std::move(m_JsonRow));
 					}
+				}
+				break;
+
+			case Style::NDJSON:
+				// emit the row as a single compact JSON object on its own line, right now -
+				// no enclosing array, so it streams and stays parseable line by line
+				if (!m_JsonRow.empty())
+				{
+					m_Out->Write(m_JsonRow.dump());
+					m_Out->Write('\n');
+					m_JsonRow = KJSON();
 				}
 				break;
 
@@ -1223,6 +1276,9 @@ void KFormTable::SetStyle(Style Style)
 		case Style::Markdown:
 		case Style::Spaced:
 		case Style::Vertical:
+		case Style::NDJSON:
+			// NDJSON builds each row's object on the fly and writes it straight to the
+			// output stream, so it needs neither a KCSV nor a JSON accumulator
 			break;
 	}
 
@@ -1260,7 +1316,12 @@ void KFormTable::CheckHaveColHeaders()
 bool KFormTable::WantDryMode() const
 //-----------------------------------------------------------------------------
 {
-	return ((m_Style & (Box | Style::Spaced | Style::Markdown)) != 0) && m_ColDefs.empty();
+	// a measuring (dry) pass benefits the styles that render with fixed column widths -
+	// this is purely a property of the style. It applies whether the columns were auto
+	// created from the data or set explicitly via AddColDef(): a column's width is a
+	// minimum that the dry pass grows to fit the widest cell (AddColDef() already seeds
+	// it to the header width), so the caller does not need to special-case pre-set columns.
+	return (m_Style & (Box | Style::Spaced | Style::Markdown)) != 0;
 }
 
 // single source of truth for all style name mappings
@@ -1274,12 +1335,14 @@ static constexpr KFormTable::StyleDef s_Styles[] =
 	{ "spaced",   KFormTable::Style::Spaced,   "space-separated columns",   false },
 	{ "vertical", KFormTable::Style::Vertical, "key : value, one column per line", false },
 	{ "json",     KFormTable::Style::JSON,     "JSON array",                false },
+	{ "ndjson",   KFormTable::Style::NDJSON,   "newline-delimited JSON (one object per line)", false },
 	{ "csv",      KFormTable::Style::CSV,      "comma-separated values",    false },
 	{ "html",     KFormTable::Style::HTML,     "HTML table",                false },
 	{ "markdown", KFormTable::Style::Markdown, "Markdown table",            false },
-	{ "query",    KFormTable::Style::ASCII,    "",                         true  },
-	{ "table",    KFormTable::Style::ASCII,    "",                         true  },
-	{ "md",       KFormTable::Style::Markdown, "",                         true  },
+	{ "query",    KFormTable::Style::ASCII,    "",                          true  },
+	{ "table",    KFormTable::Style::ASCII,    "",                          true  },
+	{ "md",       KFormTable::Style::Markdown, "",                          true  },
+	{ "jsonl",    KFormTable::Style::NDJSON,   "",                          true  },
 };
 
 //-----------------------------------------------------------------------------

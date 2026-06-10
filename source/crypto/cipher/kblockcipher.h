@@ -171,6 +171,11 @@ public:
 
 	/// copy assignment
 	KBlockCipher& operator=(const KBlockCipher&) = delete;
+	/// move assignment - deleted on purpose: KBlockCipher owns an OpenSSL cipher context
+	/// and, mid-operation, live output pointers, so it is move-CONSTRUCTIBLE but not
+	/// move-assignable (assigning over an in-flight cipher has no well-defined meaning).
+	/// Declaring it = delete makes that explicit instead of leaving it implicitly gone.
+	KBlockCipher& operator=(KBlockCipher&&) = delete;
 
 	/// set a password and optionally a salt - will be used to compute the key for the cipher
 	/// - call either this or SetKey() after construction
@@ -349,16 +354,16 @@ private:
 	std::size_t          m_iStartOfString {       0 };
 	std::streampos       m_iStartOfStream {       0 };
 	uint64_t             m_iNonceIV       {       0 };
-	Direction            m_Direction;
-	Algorithm            m_Algorithm;
-	Mode                 m_Mode;
-	bool                 m_bInlineIV       { false };
-	bool                 m_bInlineTag      { false };
-	bool                 m_bKeyIsSet       { false };
-	bool                 m_bInitCompleted  { false };
-	bool                 m_bTagIsSet       { false };
-	bool                 m_bIVIsSet        { false };
-	bool                 m_bCCMDataAdded   { false };
+	Direction            m_Direction      { Decrypt };
+	Algorithm            m_Algorithm        {   AES };
+	Mode                 m_Mode             {   GCM };
+	bool                 m_bInlineIV        { false };
+	bool                 m_bInlineTag       { false };
+	bool                 m_bKeyIsSet        { false };
+	bool                 m_bInitCompleted   { false };
+	bool                 m_bTagIsSet        { false };
+	bool                 m_bIVIsSet         { false };
+	bool                 m_bCCMDataAdded    { false };
 
 }; // KBlockCipher
 

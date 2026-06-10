@@ -500,4 +500,149 @@ TEST_CASE("KAES")
 	}
 }
 
+TEST_CASE("KBlockCipher move construction")
+{
+	// regression: the move ctor used to omit m_Algorithm/m_Mode (which have no default
+	// member initializer), leaving them indeterminate in the moved-to object -> reading
+	// them via GetMode()/GetAlgorithm() (as the encrypt/decrypt paths do) was undefined
+	// behavior. It also default-constructed the base classes, dropping their state.
+	SECTION("a moved-to cipher keeps algorithm/mode and encrypts+decrypts correctly")
+	{
+		KStringView sPassword = "MySecretPassword";
+		KString     sClear    = "this is a secret message for your eyes only";
+
+		KString sEncrypted;
+		{
+			KBlockCipher Tmp(KBlockCipher::Encrypt, KBlockCipher::AES, KBlockCipher::GCM, KBlockCipher::B256);
+			KBlockCipher Enc(std::move(Tmp));   // exercise the move ctor
+
+			CHECK ( Enc.GetAlgorithm() == KBlockCipher::AES );
+			CHECK ( Enc.GetMode()      == KBlockCipher::GCM );
+
+			CHECK ( Enc.SetPassword(sPassword) );
+			CHECK ( Enc.SetOutput(sEncrypted) );
+			CHECK ( Enc.Add(sClear) );
+			CHECK ( Enc.Finalize() );
+		}
+		CHECK_FALSE ( sEncrypted.empty() );
+
+		KString sDecrypted;
+		KBlockCipher Dec(KBlockCipher::Decrypt, KBlockCipher::AES, KBlockCipher::GCM, KBlockCipher::B256);
+		CHECK ( Dec.SetPassword(sPassword) );
+		CHECK ( Dec.SetOutput(sDecrypted) );
+		CHECK ( Dec.Add(sEncrypted) );
+		CHECK ( Dec.Finalize() );
+		CHECK ( sDecrypted == sClear );
+	}
+
+	SECTION("the throw-on-error flag survives a move (base-class state is transferred)")
+	{
+		KBlockCipher Tmp(KBlockCipher::Encrypt);
+		Tmp.SetThrowOnError(true);
+		KBlockCipher Enc(std::move(Tmp));
+		CHECK ( Enc.WouldThrowOnError() );
+	}
+
+	SECTION("KBlockCipher lives in a std::vector (growth relocates via the noexcept move ctor)")
+	{
+		// vector growth relocates existing elements with move_if_noexcept(): since the
+		// move ctor is noexcept and the copy ctor is deleted, reallocation uses the move
+		// CTOR - never the (deleted) move-assignment. So a vector of ciphers works for
+		// emplace_back/growth/iteration even though the type is not move-assignable.
+		KStringView sPassword = "MySecretPassword";
+		KString     sClear    = "secret payload living in a vector";
+		KString     sEncrypted;
+
+		{
+			std::vector<KBlockCipher> Ciphers;
+			for (int i = 0; i < 8; ++i)   // no reserve() -> forces several reallocations
+			{
+				Ciphers.emplace_back(KBlockCipher::Encrypt, KBlockCipher::AES, KBlockCipher::GCM, KBlockCipher::B256);
+			}
+			CHECK ( Ciphers.size() == 8 );
+
+			// after all the internal relocations the elements are still valid, usable
+			// ciphers (this would break if the move ctor left m_Algorithm/m_Mode
+			// indeterminate)
+			CHECK ( Ciphers.back().GetAlgorithm() == KBlockCipher::AES );
+			CHECK ( Ciphers.back().GetMode()      == KBlockCipher::GCM );
+			CHECK ( Ciphers.back().SetPassword(sPassword) );
+			CHECK ( Ciphers.back().SetOutput(sEncrypted) );
+			CHECK ( Ciphers.back().Add(sClear) );
+			CHECK ( Ciphers.back().Finalize() );
+		}
+		CHECK_FALSE ( sEncrypted.empty() );
+
+		// the ciphertext produced by the vector-resident cipher decrypts correctly
+		KString sDecrypted;
+		KBlockCipher Dec(KBlockCipher::Decrypt, KBlockCipher::AES, KBlockCipher::GCM, KBlockCipher::B256);
+		CHECK ( Dec.SetPassword(sPassword) );
+		CHECK ( Dec.SetOutput(sDecrypted) );
+		CHECK ( Dec.Add(sEncrypted) );
+		CHECK ( Dec.Finalize() );
+		CHECK ( sDecrypted == sClear );
+	}
+}
+
+TEST_CASE("KBlockCipher destructor never throws")
+{
+	// a destructor is implicitly noexcept, so a thrown exception would call
+	// std::terminate(). A GCM decryption finalize fails on a tampered / auth-mismatched
+	// ciphertext; with SetThrowOnError(true) that throws - and if the caller relied on
+	// the destructor to finalize, the throw used to escape the noexcept destructor.
+	KStringView sPassword = "MySecretPassword";
+
+	KString sCipher;
+	{
+		KToAES Enc;                       // AES-256-GCM, inline IV + tag
+		Enc.SetPassword(sPassword);
+		Enc.SetOutput(sCipher);
+		Enc.Add("top secret payload");
+		REQUIRE ( Enc.Finalize() );
+	}
+	REQUIRE_FALSE ( sCipher.empty() );
+
+	// corrupt the encrypted payload (the inline tag sits at the FRONT, so flipping the
+	// last byte hits ciphertext) so that GCM tag verification fails at finalize
+	sCipher.back() = static_cast<char>(sCipher.back() ^ 0xFF);
+
+	SECTION("relying on the destructor to finalize a failed decrypt does not terminate")
+	{
+		{
+			KString  sOut;
+			KFromAES Dec;
+			Dec.SetThrowOnError(true);
+			Dec.SetPassword(sPassword);
+			Dec.SetOutput(sOut);
+			Dec.Add(sCipher);
+			// deliberately NOT calling Finalize(): the destructor must finalize without
+			// letting the resulting error throw out of the noexcept destructor
+		}
+		// reaching this line proves the destructor swallowed the error instead of
+		// calling std::terminate()
+		CHECK ( true );
+	}
+
+	SECTION("an explicit Finalize() still reports the failure (throw contract intact)")
+	{
+		KString  sOut;
+		KFromAES Dec;
+		Dec.SetThrowOnError(true);
+		Dec.SetPassword(sPassword);
+		Dec.SetOutput(sOut);
+		Dec.Add(sCipher);
+		CHECK_THROWS ( Dec.Finalize() );
+	}
+
+	SECTION("without throw-on-error a failed decrypt just returns false")
+	{
+		KString  sOut;
+		KFromAES Dec;
+		Dec.SetPassword(sPassword);
+		Dec.SetOutput(sOut);
+		Dec.Add(sCipher);
+		CHECK_FALSE ( Dec.Finalize() );
+	}
+}
+
 #endif

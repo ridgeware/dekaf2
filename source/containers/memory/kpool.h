@@ -52,6 +52,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <vector>
+#include <iterator>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -105,11 +107,14 @@ public:
 
 	virtual ~KPoolControl() = default;
 
-	/// returns a pointer to an object that can be deleted with delete
+	/// returns a pointer to an object that can be deleted with delete. May throw or
+	/// return nullptr - in both cases the pool releases the reserved capacity again,
+	/// and (for nullptr) get() returns a null pointer
 	virtual Value* Create() { return new Value(); };
 
 	/// called once an object is taken from the pool, bIsNew is set to
-	/// true when the object was newly created
+	/// true when the object was newly created. Note that value is nullptr
+	/// when Create() returned nullptr
 	virtual void Popped(Value* value, bool bIsNew) {};
 
 	/// called once an object is returned to the pool
@@ -141,6 +146,7 @@ struct KPoolMutex
 			pred();
 		}
 		void notify_one() {}
+		void notify_all() {}
 	};
 
 	mutable MyMutex m_Mutex;
@@ -307,25 +313,40 @@ public:
 	{
 		if (m_bDisabled == bDisablePooling)
 		{
-			// short circuit without lock
+			// short circuit without lock - when racing a concurrent disable() this
+			// may report a stale previous state, which is acceptable: any
+			// serialization of the two calls leaves the pool in the same state
 			return bDisablePooling;
 		}
 		else
 		{
-			typename base_type::MyLock Lock(base_type::m_Mutex);
-			bool bWasDisabled = m_bDisabled;
+			pool_type Retired;
+			bool      bWasDisabled;
 
-			if (bWasDisabled != bDisablePooling)
 			{
-				m_bDisabled = bDisablePooling;
+				typename base_type::MyLock Lock(base_type::m_Mutex);
+				bWasDisabled = m_bDisabled;
 
-				if (bDisablePooling)
+				if (bWasDisabled != bDisablePooling)
 				{
-					m_Pool.clear();
+					m_bDisabled = bDisablePooling;
+
+					if (bDisablePooling)
+					{
+						// move the pooled objects out instead of clearing in place,
+						// so that their destructors (e.g. closing database
+						// connections) run outside the lock, below
+						Retired.swap(m_Pool);
+
+						// and wake all waiters in get() - with pooling disabled
+						// they bail out of the wait and create fresh objects
+						base_type::m_CondVar.notify_all();
+					}
 				}
 			}
 
 			return bWasDisabled;
+			// the retired objects destruct here, outside the lock
 		}
 	}
 
@@ -375,6 +396,9 @@ public:
 		}
 
 		m_iMaxSize = iMaxSize;
+
+		// a raised limit may unblock waiters in get()
+		base_type::m_CondVar.notify_all();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -387,12 +411,19 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// returns a std::unique_ptr<Value> pointing to a valid object - convert it at
-	/// any time to a std::shared_ptr<Value> if more appropriate
+	/// any time to a std::shared_ptr<Value> if more appropriate.
+	/// The returned pointer (and any shared_ptr created from it) must not outlive
+	/// the pool itself - its deleter returns the object into the pool
 	auto get()
 	//-----------------------------------------------------------------------------
 	{
-		Value* value { nullptr };
-		bool bNew { false };
+		Value* value     { nullptr };
+		bool   bNew      { false   };
+		bool   bReserved { false   };
+		// objects shrunken out of the pool by AdjustPoolSize() - they destruct at
+		// the end of get(), outside the lock (their destructors, e.g. closing a
+		// database connection, must not run under the pool mutex)
+		pool_type Retired;
 
 		if (!m_bDisabled)
 		{
@@ -402,20 +433,31 @@ public:
 			// available from the pool if used count reached maximum,
 			// in a non-shared environment the lambda returns immediately
 			// after execution
-			base_type::m_CondVar.wait(Lock, [this, &value]() -> bool
+			base_type::m_CondVar.wait(Lock, [this, &value, &bReserved, &Retired]() -> bool
 			{
-				if (!m_Pool.empty())
+				if (m_bDisabled)
+				{
+					// pooling was switched off while we waited - bail out (without
+					// reserving a slot) and create a fresh object below
+					return true;
+				}
+				else if (!m_Pool.empty())
 				{
 					value = m_Pool.back().release();
 					m_Pool.pop_back();
 					++m_iPopped;
-					AdjustPoolSize();
+					bReserved = true;
+					AdjustPoolSize(Retired);
 					return true;
 				}
-				else if (m_iPopped <= m_iMaxSize)
+				else if (m_iPopped < m_iMaxSize || (iIntervals && m_iPopped < time_series::GetAbsoluteMaxSize()))
 				{
+					// there is either room below the current maximum, or, with
+					// dynamic sizing, below the absolute ceiling (AdjustPoolSize()
+					// then raises the dynamic maximum to the new used count)
 					++m_iPopped; // reserve a creation slot
-					AdjustPoolSize();
+					bReserved = true;
+					AdjustPoolSize(Retired);
 					return true;
 				}
 				else
@@ -427,17 +469,49 @@ public:
 
 		if (!value)
 		{
+			// if Create() throws we have to release a reserved creation slot again,
+			// and wake a waiter that may be blocked on the used count - otherwise
+			// the slot would leak, and enough failed creation attempts would block
+			// the pool forever. This needs a RAII guard, not a catch: the exception
+			// must propagate to the caller, but a rethrowing 'throw;' does not
+			// compile without exception support - unlike the DEKAF2_CATCH in
+			// AdjustPoolSize(), whose dead block is well-formed.
+			struct ReleaseSlotOnFailure
+			{
+				~ReleaseSlotOnFailure()
+				{
+					if (pPool)
+					{
+						typename base_type::MyLock Lock(pPool->base_type::m_Mutex);
+						--pPool->m_iPopped;
+						pPool->base_type::m_CondVar.notify_one();
+					}
+				}
+				KPoolBase* pPool;
+			};
+
+			ReleaseSlotOnFailure Guard { bReserved ? this : nullptr };
+
 			value = m_Control.Create();
 			bNew  = true;
 
-			if (m_bDisabled)
+			if (DEKAF2_LIKELY(value != nullptr))
 			{
-				// when pooling is disabled the predicate above is not
-				// reached, but deleter() always decrements m_iPopped,
-				// so we need to balance it here
-				typename base_type::MyLock Lock(base_type::m_Mutex);
-				++m_iPopped;
+				Guard.pPool = nullptr; // creation succeeded - keep the slot
+
+				if (!bReserved)
+				{
+					// pooling is (or was, while we waited) disabled, or the
+					// non-shared pool is over its limit - deleter() always
+					// decrements m_iPopped, so we need to balance it here
+					typename base_type::MyLock Lock(base_type::m_Mutex);
+					++m_iPopped;
+				}
 			}
+			// else: Create() returned nullptr - keep the guard armed, so that a
+			// reserved slot is released again, and take no slot in the unreserved
+			// case either: the unique_ptr deleter never runs for a nullptr, so the
+			// slot could never be returned
 		}
 
 		auto PoolDeleter = [this](Value* value) { this->deleter(value, true); };
@@ -474,6 +548,8 @@ private:
 		{
 			typename base_type::MyLock Lock(base_type::m_Mutex);
 
+			bool bNotify { false };
+
 			if (bFromUniquePtr)
 			{
 				if (DEKAF2_UNLIKELY(!m_iPopped))
@@ -483,6 +559,11 @@ private:
 				else
 				{
 					--m_iPopped;
+					// the used count dropped - that alone can unblock a waiter in
+					// get(), even when the object is not pooled below (a waiter
+					// blocked on the used count would otherwise sleep until some
+					// other object gets pooled, which may never happen)
+					bNotify = true;
 				}
 			}
 
@@ -490,9 +571,17 @@ private:
 			{
 				if (value && m_Pool.size() + m_iPopped < m_iMaxSize)
 				{
+					// in theory push_back could throw bad_alloc, which would escape
+					// through the noexcept unique_ptr destructor and terminate - we
+					// accept that, as at this point the system is out of memory anyway
 					m_Pool.push_back(std::move(ptr));
-					base_type::m_CondVar.notify_one();
+					bNotify = true;
 				}
+			}
+
+			if (bNotify)
+			{
+				base_type::m_CondVar.notify_one();
 			}
 		}
 
@@ -506,54 +595,72 @@ private:
 	}
 
 	//-----------------------------------------------------------------------------
-	// call only when lock is set
-	void AdjustPoolSize()
+	// call only when lock is set. Objects shrunken out of the pool are moved into
+	// Retired, where the caller destructs them after releasing the lock
+	void AdjustPoolSize(pool_type& Retired)
 	//-----------------------------------------------------------------------------
 	{
-		if (iIntervals && m_bDisabled == false)
+		// this is bookkeeping only - it must never throw (e.g. bad_alloc from the
+		// time series or the retired objects) into the caller's wait predicate, where an
+		// exception would leak the just popped object and its used count
+		DEKAF2_TRY
 		{
-			// get the current time in the time_series resolution
-			auto tNow = time_series::GetCurrentTime();
-			// add a new data point to the current interval
-			time_series::AddToIntervals(tNow, m_iPopped);
-
-			// check if we shall adjust the max pool size, doing that after
-			// one duration of the resolution has passed
-			if (time_series::GetLastAverage() < tNow)
+			if (iIntervals && m_bDisabled == false)
 			{
-				// one interval has passed since the last averages calculation
-				time_series::SetLastAverage(tNow);
-				auto Values = time_series::GetIntervalsSum();
-				kDebug(2, "last {} intervals pool usage: min: {} mean: {} max: {}, oldmax: {}",
-					   iIntervals, Values.Min(), Values.Mean(), Values.Max(), m_iMaxSize);
-				m_iMaxSize = Values.Max();
+				// get the current time in the time_series resolution
+				auto tNow = time_series::GetCurrentTime();
+				// add a new data point to the current interval
+				time_series::AddToIntervals(tNow, m_iPopped);
 
-				// now compute new vector size
-				auto iPoolSize = m_Pool.size();
-
-				if (m_iMaxSize < iPoolSize + m_iPopped)
+				// check if we shall adjust the max pool size, doing that after
+				// one duration of the resolution has passed
+				if (time_series::GetLastAverage() < tNow)
 				{
-					size_type iRemove = (m_iMaxSize < m_iPopped)
-					                     ? iPoolSize
-					                     : iPoolSize - (m_iMaxSize - m_iPopped);
+					// one interval has passed since the last averages calculation
+					time_series::SetLastAverage(tNow);
+					auto Values = time_series::GetIntervalsSum();
+					kDebug(2, "last {} intervals pool usage: min: {} mean: {} max: {}, oldmax: {}",
+						   iIntervals, Values.Min(), Values.Mean(), Values.Max(), m_iMaxSize);
+					m_iMaxSize = Values.Max();
 
-					if (iRemove)
+					// now compute new vector size
+					auto iPoolSize = m_Pool.size();
+
+					if (m_iMaxSize < iPoolSize + m_iPopped)
 					{
-						kDebug(2, "shrinking pool by {} elements, new size {}", iRemove, iPoolSize - iRemove);
-						// and remove from the begin() (== oldest objects)
-						m_Pool.erase(m_Pool.begin(), m_Pool.begin() + iRemove);
+						size_type iRemove = (m_iMaxSize < m_iPopped)
+						                     ? iPoolSize
+						                     : iPoolSize - (m_iMaxSize - m_iPopped);
+
+						if (iRemove)
+						{
+							kDebug(2, "shrinking pool by {} elements, new size {}", iRemove, iPoolSize - iRemove);
+							// remove from the begin() (== oldest objects), moving them
+							// into Retired - their destructors run after the caller
+							// released the lock
+							Retired.insert(Retired.end(),
+											 std::make_move_iterator(m_Pool.begin()),
+											 std::make_move_iterator(m_Pool.begin() + iRemove));
+							m_Pool.erase(m_Pool.begin(), m_Pool.begin() + iRemove);
+						}
+					}
+				}
+				else if (m_iPopped > m_iMaxSize)
+				{
+					if (m_iPopped <= time_series::GetAbsoluteMaxSize())
+					{
+						// make sure we can always grow the pool in automatic resize mode
+						// as long as we did not hit the absolute ceiling..
+						m_iMaxSize = m_iPopped;
 					}
 				}
 			}
-			else if (m_iPopped > m_iMaxSize)
-			{
-				if (m_iPopped <= time_series::GetAbsoluteMaxSize())
-				{
-					// make sure we can always grow the pool in automatic resize mode
-					// as long as we did not hit the absolute ceiling..
-					m_iMaxSize = m_iPopped;
-				}
-			}
+		}
+		DEKAF2_CATCH (...)
+		{
+			// the pool counters stay consistent, only the statistics data point
+			// (and possibly a deferred shrink) is lost
+			kDebug(1, "exception in pool bookkeeping ignored");
 		}
 	}
 
@@ -585,6 +692,9 @@ KPoolControl<Value> KPoolBase<Value, iIntervals, Resolution, bShared>::s_Default
 ///
 /// @note For single-threaded or thread-local use. For shared multi-threaded
 /// access, use KSharedPool instead.
+///
+/// @note Objects obtained from get() (including shared_ptr copies of them) must
+/// not outlive the pool itself - their deleter returns them into the pool.
 ///
 /// ## Basic Usage
 ///
@@ -703,6 +813,9 @@ public:
 ///
 /// All other features (RAII return, KPoolControl hooks, dynamic sizing,
 /// disable/enable) work identically to KPool.
+///
+/// @note Objects obtained from get() (including shared_ptr copies of them) must
+/// not outlive the pool itself - their deleter returns them into the pool.
 ///
 /// ```
 /// KSQLControl       Control("/path/to/dbc");

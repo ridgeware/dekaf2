@@ -345,9 +345,8 @@ TEST_CASE("KPool")
 		Threads.Join();
 
 		CHECK ( Pool.used() == 0 );
-		// the pool limit is 5, but we allow <= so up to 6 concurrent
-		// objects may exist (m_iPopped <= m_iMaxSize allows one extra)
-		CHECK ( iMaxConcurrent.load() <= 6 );
+		// the pool limit is exact: no more than 5 concurrent objects may exist
+		CHECK ( iMaxConcurrent.load() <= 5 );
 	}
 
 // gcc 6 has difficulties casting timepoints of different durations
@@ -402,4 +401,147 @@ TEST_CASE("KPool")
 		CHECK ( Stats.iMaxPool   ==  10 );
 	}
 #endif
+
+	SECTION("non-shared pool over the limit keeps counting correctly")
+	{
+		// regression test: a non-shared (non-blocking) pool hands out objects beyond
+		// its maximum - those objects used to be created without accounting, which
+		// underflowed m_iPopped when they were returned
+		MyControl Control;
+		KPool<MyType> Pool(Control, 2);
+
+		auto p1 = Pool.get();
+		auto p2 = Pool.get();
+		auto p3 = Pool.get(); // over the limit - non-shared pools do not block
+		auto p4 = Pool.get();
+
+		CHECK ( Pool.used() == 4 ); // all in use are counted, even over the limit
+
+		p1.reset();
+		p2.reset();
+		p3.reset();
+		p4.reset();
+
+		CHECK ( Pool.used() == 0 ); // and no underflow on return
+		CHECK ( Pool.size() <= 2 ); // only up to the maximum gets pooled
+	}
+
+	SECTION("shared pool blocks at the exact maximum")
+	{
+		// regression test: the used count check was off by one, so a pool with a
+		// maximum of 2 would hand out 3 objects before blocking
+		MyControl Control;
+		KSharedPool<MyType> Pool(Control, 2);
+
+		auto p1 = Pool.get();
+		auto p2 = Pool.get();
+		CHECK ( Pool.used() == 2 );
+
+		std::atomic<bool> bGotIt { false };
+
+		std::thread t([&]()
+		{
+			auto p3 = Pool.get(); // must block: 2 of 2 in use
+			bGotIt = true;
+		});
+
+		kSleep(chrono::milliseconds(100));
+		CHECK_FALSE ( bGotIt );  // still blocked at the maximum
+
+		p1.reset();              // frees a slot - must wake the waiter
+
+		t.join();
+		CHECK ( bGotIt );
+	}
+
+	SECTION("disable unblocks waiting getters")
+	{
+		// regression test: a thread blocked in get() never rechecked the disabled
+		// flag, so disable(true) left it sleeping although it should bail out and
+		// create a fresh object
+		MyControl Control;
+		KSharedPool<MyType> Pool(Control, 1);
+
+		auto p1 = Pool.get();
+
+		std::atomic<bool> bGotIt { false };
+
+		std::thread t([&]()
+		{
+			auto p2 = Pool.get(); // blocks: 1 of 1 in use
+			bGotIt = true;
+		});
+
+		kSleep(chrono::milliseconds(100));
+		CHECK_FALSE ( bGotIt );
+
+		Pool.disable(true);      // waiters bail out and create fresh objects
+
+		t.join();
+		CHECK ( bGotIt );
+
+		p1.reset();
+		Pool.disable(false);
+		CHECK ( Pool.used() == 0 );
+	}
+
+	SECTION("growing max_size unblocks waiting getters")
+	{
+		// regression test: raising the limit did not notify threads blocked on the
+		// old, smaller limit
+		MyControl Control;
+		KSharedPool<MyType> Pool(Control, 1);
+
+		auto p1 = Pool.get();
+
+		std::atomic<bool> bGotIt { false };
+
+		std::thread t([&]()
+		{
+			auto p2 = Pool.get(); // blocks: 1 of 1 in use
+			bGotIt = true;
+		});
+
+		kSleep(chrono::milliseconds(100));
+		CHECK_FALSE ( bGotIt );
+
+		Pool.max_size(2);        // raising the limit must wake the waiter
+
+		t.join();
+		CHECK ( bGotIt );
+	}
+
+	SECTION("a throwing Create() does not leak the reserved slot")
+	{
+		// regression test: get() reserved a creation slot before calling Create() -
+		// if that threw (e.g. a failing database connect), the slot leaked, and
+		// enough failed attempts blocked the pool forever
+		class ThrowControl : public KPoolControl<MyType>
+		{
+		public:
+			MyType* Create() override
+			{
+				if (bThrow)
+				{
+					throw std::runtime_error("create failed");
+				}
+				return new MyType();
+			}
+			bool bThrow { false };
+		};
+
+		ThrowControl Control;
+		KSharedPool<MyType> Pool(Control, 2);
+
+		Control.bThrow = true;
+		CHECK_THROWS ( Pool.get() );
+		CHECK_THROWS ( Pool.get() );
+		CHECK_THROWS ( Pool.get() );
+		CHECK ( Pool.used() == 0 ); // the reserved slots were released again
+
+		Control.bThrow = false;
+		auto p1 = Pool.get();       // would block forever had the slots leaked
+		auto p2 = Pool.get();
+		CHECK ( Pool.used() == 2 );
+	}
 }

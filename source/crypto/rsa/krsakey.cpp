@@ -65,7 +65,10 @@ DEKAF2_NAMESPACE_BEGIN
 //---------------------------------------------------------------------------
 KRSAKey::KRSAKey(KRSAKey&& other) noexcept
 //---------------------------------------------------------------------------
-: m_EVPPKey(other.m_EVPPKey)
+// move the KErrorBase subobject too, otherwise it is default-constructed and the
+// throw-on-error flag (and any error state) is silently dropped on move
+: KErrorBase(std::move(other))
+, m_EVPPKey(other.m_EVPPKey)
 , m_bIsPrivateKey(other.m_bIsPrivateKey)
 {
 	other.m_EVPPKey       = nullptr;
@@ -79,6 +82,7 @@ KRSAKey& KRSAKey::operator=(KRSAKey&& other) noexcept
 	if (this != &other)
 	{
 		clear();
+		KErrorBase::operator=(std::move(other));
 		m_EVPPKey             = other.m_EVPPKey;
 		m_bIsPrivateKey       = other.m_bIsPrivateKey;
 		other.m_EVPPKey       = nullptr;
@@ -86,6 +90,8 @@ KRSAKey& KRSAKey::operator=(KRSAKey&& other) noexcept
 	}
 	return *this;
 }
+
+namespace {
 
 //---------------------------------------------------------------------------
 BIGNUM* Base64ToBignum(KStringView sBase64)
@@ -101,6 +107,8 @@ BIGNUM* Base64ToBignum(KStringView sBase64)
 	return BN_bin2bn(reinterpret_cast<unsigned char*>(sBin.data()), static_cast<int>(sBin.size()), nullptr);
 
 } // Base64ToBignum
+
+} // end of anonymous namespace
 
 //---------------------------------------------------------------------------
 void KRSAKey::clear()
@@ -140,6 +148,8 @@ bool KRSAKey::Create(uint16_t iKeylen)
 		 || ::RSA_generate_key_ex(rsa.get(), iKeylen, bn.get(), nullptr) != 1
 		 || ::EVP_PKEY_set1_RSA(m_EVPPKey, rsa.get()) != 1)
 		{
+			// free the half-built key so empty()/HasError() stay consistent on failure
+			clear();
 			return SetError(KDigest::GetOpenSSLError("cannot generate new key"));
 		}
 	}
@@ -236,6 +246,11 @@ bool KRSAKey::Create(const Parameters& parms)
 		params.reset(::OSSL_PARAM_BLD_to_param(params_build.get()));
 	}
 
+	if (!params)
+	{
+		return SetError(KDigest::GetOpenSSLError("cannot build key"));
+	}
+
 	// Create RSA key from params
 	KUniquePtr<EVP_PKEY_CTX, ::EVP_PKEY_CTX_free> ctx(::EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr));
 
@@ -301,7 +316,12 @@ bool KRSAKey::Create(const Parameters& parms)
 		return SetError(KDigest::GetOpenSSLError("cannot build key"));
 	}
 
-	EVP_PKEY_assign(m_EVPPKey, EVP_PKEY_RSA, rsa.release());
+	if (::EVP_PKEY_assign(m_EVPPKey, EVP_PKEY_RSA, rsa.get()) != 1)
+	{
+		// on failure rsa is still owned by the KUniquePtr and freed here (no leak)
+		return SetError(KDigest::GetOpenSSLError("cannot build key"));
+	}
+	rsa.release(); // ownership transferred to m_EVPPKey only on success
 
 #endif
 
@@ -350,13 +370,16 @@ bool KRSAKey::Create(KStringView sPEMKey, KStringViewZ sPassword)
 		m_EVPPKey = ::PEM_read_bio_PrivateKey(key_bio.get(), nullptr, nullptr,
 		                                      sPassword.empty() ? nullptr
 		                                                        : const_cast<KStringViewZ::value_type*>(&sPassword[0]));
-		m_bIsPrivateKey = true;
 	}
 
 	if (!m_EVPPKey)
 	{
 		return SetError(KDigest::GetOpenSSLError("cannot load key"));
 	}
+
+	// set the flag only after a successful load, so a failed private-key load does not
+	// leave m_bIsPrivateKey set on an empty() object
+	m_bIsPrivateKey = bIsPrivateKey;
 
 	return true;
 

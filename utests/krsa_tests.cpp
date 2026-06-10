@@ -83,4 +83,45 @@ EBrURx/EsHSk
 		CHECK ( sPlain == sPlaintext );
 		CHECK ( sCiphertext != sOneCiphertext );
 	}
+
+	SECTION("a moved KRSAEncrypt/KRSADecrypt does not double-free and still works")
+	{
+		// regression: KRSAEncrypt/KRSADecrypt own a raw EVP_PKEY_CTX*, free it in the
+		// dtor, but used to declare neither move nor deleted-copy -> std::move bound to
+		// the implicit SHALLOW copy, so source and destination shared one ctx and
+		// EVP_PKEY_CTX_free ran twice on it (double free / SIGABRT). After the fix the
+		// move ctor/assignment transfer the ctx and null the source.
+		KRSAKey PubKey(sPubKey);
+		KRSAKey PrivKey(sPrivKey);
+		REQUIRE_FALSE ( PubKey.empty()  );
+		REQUIRE_FALSE ( PrivKey.empty() );
+
+		KString sCipher;
+		{
+			KRSAEncrypt Src(PubKey, true);
+			KRSAEncrypt Enc(std::move(Src));   // before fix: shallow copy -> shared ctx
+			CHECK_FALSE ( Enc.HasError() );
+			sCipher = Enc.Encrypt(sPlaintext);
+			// both Src and Enc destruct here; before the fix they free the same ctx
+		}
+		CHECK_FALSE ( sCipher.empty() );
+
+		KString sPlain;
+		{
+			KRSADecrypt Src(PrivKey, true);
+			KRSADecrypt Dec(std::move(Src));   // before fix: shallow copy -> shared ctx
+			CHECK_FALSE ( Dec.HasError() );
+			sPlain = Dec.Decrypt(sCipher);
+		}
+		CHECK ( sPlain == sPlaintext );
+
+		// move-ASSIGNMENT path too (used to fall back to the implicit shallow copy-assign)
+		{
+			KRSAEncrypt A(PubKey, true);
+			KRSAEncrypt B(PubKey, true);
+			B = std::move(A);
+			CHECK_FALSE ( B.HasError() );
+			CHECK_FALSE ( B.Encrypt(sPlaintext).empty() );
+		}
+	}
 }

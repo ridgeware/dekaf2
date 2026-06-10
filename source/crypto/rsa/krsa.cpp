@@ -75,6 +75,34 @@ KRSAEncrypt::~KRSAEncrypt()
 } // dtor
 
 //---------------------------------------------------------------------------
+KRSAEncrypt::KRSAEncrypt(KRSAEncrypt&& other) noexcept
+//---------------------------------------------------------------------------
+: KErrorBase(std::move(other))
+, m_ctx(other.m_ctx)
+{
+	other.m_ctx = nullptr;
+
+} // move ctor
+
+//---------------------------------------------------------------------------
+KRSAEncrypt& KRSAEncrypt::operator=(KRSAEncrypt&& other) noexcept
+//---------------------------------------------------------------------------
+{
+	if (this != &other)
+	{
+		if (m_ctx)
+		{
+			::EVP_PKEY_CTX_free(m_ctx);
+		}
+		KErrorBase::operator=(std::move(other));
+		m_ctx       = other.m_ctx;
+		other.m_ctx = nullptr;
+	}
+	return *this;
+
+} // move assignment
+
+//---------------------------------------------------------------------------
 KString KRSAEncrypt::Encrypt(KStringView sInput) const
 //---------------------------------------------------------------------------
 {
@@ -133,6 +161,34 @@ KRSADecrypt::~KRSADecrypt()
 	}
 
 } // dtor
+
+//---------------------------------------------------------------------------
+KRSADecrypt::KRSADecrypt(KRSADecrypt&& other) noexcept
+//---------------------------------------------------------------------------
+: KErrorBase(std::move(other))
+, m_ctx(other.m_ctx)
+{
+	other.m_ctx = nullptr;
+
+} // move ctor
+
+//---------------------------------------------------------------------------
+KRSADecrypt& KRSADecrypt::operator=(KRSADecrypt&& other) noexcept
+//---------------------------------------------------------------------------
+{
+	if (this != &other)
+	{
+		if (m_ctx)
+		{
+			::EVP_PKEY_CTX_free(m_ctx);
+		}
+		KErrorBase::operator=(std::move(other));
+		m_ctx       = other.m_ctx;
+		other.m_ctx = nullptr;
+	}
+	return *this;
+
+} // move assignment
 
 //---------------------------------------------------------------------------
 KString KRSADecrypt::Decrypt(KStringView sInput) const

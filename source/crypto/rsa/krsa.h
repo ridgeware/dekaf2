@@ -73,6 +73,13 @@ public:
 	KRSAEncrypt(const KRSAKey& Key, bool bEME_OAEP = true);
 	~KRSAEncrypt();
 
+	/// copy is deleted: this class owns a raw EVP_PKEY_CTX* freed in the dtor, so a
+	/// shallow copy would double-free / dangle. Move transfers the context instead.
+	KRSAEncrypt(const KRSAEncrypt&)            = delete;
+	KRSAEncrypt& operator=(const KRSAEncrypt&) = delete;
+	KRSAEncrypt(KRSAEncrypt&& other) noexcept;
+	KRSAEncrypt& operator=(KRSAEncrypt&& other) noexcept;
+
 	/// encrypt with RSA
 	/// @param sInput the input data to encrypt
 	/// @return the ciphertext
@@ -107,6 +114,13 @@ public:
 	/// non-OAEP padding (for older implementations). Defaults to true for EME_OAP.
 	KRSADecrypt(const KRSAKey& Key, bool bEME_OAEP = true);
 	~KRSADecrypt();
+
+	/// copy is deleted: this class owns a raw EVP_PKEY_CTX* freed in the dtor, so a
+	/// shallow copy would double-free / dangle. Move transfers the context instead.
+	KRSADecrypt(const KRSADecrypt&)            = delete;
+	KRSADecrypt& operator=(const KRSADecrypt&) = delete;
+	KRSADecrypt(KRSADecrypt&& other) noexcept;
+	KRSADecrypt& operator=(KRSADecrypt&& other) noexcept;
 
 	/// decrypt with RSA
 	/// @param sInput the ciphertext data to decrypt

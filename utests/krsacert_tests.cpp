@@ -51,6 +51,33 @@ TEST_CASE("KRSACert")
 		CHECK ( Cert2.CheckDomain(KString("example.com")) == true );
 	}
 
+	SECTION("throw-on-error flag survives a cert move (KErrorBase state is transferred)")
+	{
+		// regression: the move ctor only transferred m_X509Cert, so the KErrorBase
+		// subobject (incl. the throw-on-error flag) was dropped on move.
+		KRSAKey Key(1024);
+		KRSACert Cert(Key, "localhost", "US");
+		Cert.SetThrowOnError(true);
+		REQUIRE ( Cert.WouldThrowOnError() );
+
+		KRSACert Moved(std::move(Cert));
+		CHECK ( Moved.WouldThrowOnError() );
+	}
+
+	SECTION("CheckDomain is length-aware (an embedded NUL does not cause a false match)")
+	{
+		// regression: CheckByNID compared the cert field as a NUL-terminated C-string,
+		// ignoring its real length. A CN of "localhost\0evil.example" would then match
+		// the truncated "localhost". A length-aware compare must reject it.
+		KRSAKey Key(1024);
+		KString sCN(KStringView("localhost\0evil.example", 22)); // embedded NUL
+		KRSACert Cert(Key, sCN, "US");
+		REQUIRE ( Cert.empty() == false );
+
+		// the actual CN is the full 22-byte string, not "localhost"
+		CHECK_FALSE ( Cert.CheckDomain("localhost") );
+	}
+
 	SECTION("ValidFromFuture")
 	{
 		// notAfter must be ValidFrom + ValidFor, not now + ValidFor
@@ -59,7 +86,7 @@ TEST_CASE("KRSACert")
 		auto FutureStart = KUnixTime::now() + chrono::hours(24 * 30); // 30 days from now
 		auto ValidFor    = chrono::hours(24 * 365); // 1 year
 
-		KRSACert Cert(Key, "localhost", "US", "", KDuration(ValidFor), FutureStart);
+		KRSACert Cert(Key, "localhost", "US", "", "", KDuration(ValidFor), FutureStart);
 		CHECK ( Cert.empty() == false );
 
 		// the cert should NOT be valid now (starts 30 days from now)

@@ -123,6 +123,7 @@ set (USOURCES
 	kron_tests.cpp
 	krow_tests.cpp
 	krsa_tests.cpp
+	krsacert_tests.cpp
 	krsakey_tests.cpp
 	krsasign_tests.cpp
 	ksharedmemory_tests.cpp

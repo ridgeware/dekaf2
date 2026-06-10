@@ -134,7 +134,10 @@ KUnixTime from_ASN1_time(const ASN1_TIME* asn1_time)
 //---------------------------------------------------------------------------
 KRSACert::KRSACert(KRSACert&& other) noexcept
 //---------------------------------------------------------------------------
-: m_X509Cert(other.m_X509Cert)
+// move the KErrorBase subobject too, otherwise it is default-constructed and the
+// throw-on-error flag (and any error state) is silently dropped on move
+: KErrorBase(std::move(other))
+, m_X509Cert(other.m_X509Cert)
 {
 	other.m_X509Cert = nullptr;
 }
@@ -146,6 +149,7 @@ KRSACert& KRSACert::operator=(KRSACert&& other) noexcept
 	if (this != &other)
 	{
 		clear();
+		KErrorBase::operator=(std::move(other));
 		m_X509Cert       = other.m_X509Cert;
 		other.m_X509Cert = nullptr;
 	}
@@ -359,7 +363,10 @@ x509_st* KRSACert::GetCert() const
 {
 	if (!m_X509Cert)
 	{
-		SetError("X509 cert not yet created..");
+		// do not SetError() from a const observer (surprising side effect, and it would
+		// clobber a prior error); just log - mirrors KRSAKey::GetEVPPKey(). The
+		// caller (GetPEM) still surfaces an error via the subsequent write failure.
+		kDebug(1, "X509 cert not yet created..");
 	}
 
 	return m_X509Cert;
@@ -501,7 +508,10 @@ bool KRSACert::CheckByNID(KStringViewZ sCheckme, int nid) const
 		{
 			if (ec >= 0)
 			{
-				if (sCheckme == reinterpret_cast<char*>(utf8))
+				// compare length-aware: ASN.1 strings may contain embedded NUL bytes,
+				// so a C-string compare could truncate and yield a false match (e.g. a
+				// CN of "host\0evil" matching "host")
+				if (sCheckme == KStringView(reinterpret_cast<const char*>(utf8), static_cast<std::size_t>(ec)))
 				{
 					OPENSSL_free(utf8);
 					return true;

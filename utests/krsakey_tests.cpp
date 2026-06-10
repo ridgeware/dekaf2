@@ -115,6 +115,19 @@ EBrURx/EsHSk
 		CHECK ( Key1.empty()        == true  );
 	}
 
+	SECTION("throw-on-error flag survives a move (KErrorBase state is transferred)")
+	{
+		// regression: the move ctor only listed m_EVPPKey/m_bIsPrivateKey, so the
+		// KErrorBase subobject was default-constructed and the throw-on-error flag (and
+		// any error state) was silently dropped on move.
+		KRSAKey Key(sPrivKey);
+		Key.SetThrowOnError(true);
+		REQUIRE ( Key.WouldThrowOnError() );
+
+		KRSAKey Moved(std::move(Key));
+		CHECK ( Moved.WouldThrowOnError() );
+	}
+
 	SECTION("CreateFromJWKPrivateKey")
 	{
 		// test Create(Parameters) with full private key

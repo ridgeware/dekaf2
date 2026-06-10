@@ -215,8 +215,15 @@ int KSql::Main(int argc, char** argv)
 
 	if (sInSQL && !kFileExists(sInSQL))
 	{
+		KString sSQL { sInSQL };
+		sSQL.Trim();
+		if (!sSQL.empty() && sSQL.back() != ';')
+		{
+			sSQL += ';';
+		}
+
 		sTempFile = kFormat ("{}/ksql-{}.sql", "/tmp", getpid());
-		if (!kWriteFile (sTempFile, sInSQL))
+		if (!kWriteFile (sTempFile, sSQL))
 		{
 			return SetError(kFormat ("could not write to temp file: {}",sTempFile));
 		}

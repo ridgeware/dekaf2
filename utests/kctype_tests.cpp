@@ -176,6 +176,106 @@ TEST_CASE("KCType")
 		CHECK ( KASCII::kIsCntrl('\t') == false );  // KASCII: blank is not control
 		CHECK ( (std::iscntrl('\t') != 0) == true  );  // libc: HT is control
 	}
+
+	SECTION("IsIdeographic")
+	{
+		// positives - one representative codepoint per covered script/block
+		CHECK ( KCodePoint(0x4F60 ).IsIdeographic() );  // 你 CJK unified ideograph
+		CHECK ( KCodePoint(0x3042 ).IsIdeographic() );  // Hiragana A
+		CHECK ( KCodePoint(0x30AB ).IsIdeographic() );  // Katakana KA
+		CHECK ( KCodePoint(0xD55C ).IsIdeographic() );  // Hangul syllable HAN
+		CHECK ( KCodePoint(0x3105 ).IsIdeographic() );  // Bopomofo B
+		CHECK ( KCodePoint(0x31A0 ).IsIdeographic() );  // Bopomofo extended
+		CHECK ( KCodePoint(0x3005 ).IsIdeographic() );  // ideographic iteration mark
+		CHECK ( KCodePoint(0x2E80 ).IsIdeographic() );  // CJK radical (range start)
+		CHECK ( KCodePoint(0x3400 ).IsIdeographic() );  // CJK extension A (range start)
+		CHECK ( KCodePoint(0x4DBF ).IsIdeographic() );  // CJK extension A (range end)
+		CHECK ( KCodePoint(0xF900 ).IsIdeographic() );  // CJK compatibility ideograph
+		CHECK ( KCodePoint(0xFF76 ).IsIdeographic() );  // halfwidth Katakana KA
+		CHECK ( KCodePoint(0x20000).IsIdeographic() );  // CJK extension B (plane 2)
+		CHECK ( KCodePoint(0x2A700).IsIdeographic() );  // CJK extension C (plane 2)
+
+		// negatives - punctuation and symbols delimit, they are not ideographic
+		CHECK_FALSE ( KCodePoint('A'    ).IsIdeographic() );  // latin
+		CHECK_FALSE ( KCodePoint('0'    ).IsIdeographic() );  // ascii digit
+		CHECK_FALSE ( KCodePoint(' '    ).IsIdeographic() );  // space
+		CHECK_FALSE ( KCodePoint(0x03B1 ).IsIdeographic() );  // Greek alpha
+		CHECK_FALSE ( KCodePoint(0x0410 ).IsIdeographic() );  // Cyrillic A
+		CHECK_FALSE ( KCodePoint(0x3001 ).IsIdeographic() );  // ideographic comma (punctuation)
+		CHECK_FALSE ( KCodePoint(0x3002 ).IsIdeographic() );  // ideographic full stop (punctuation)
+		CHECK_FALSE ( KCodePoint(0xFF01 ).IsIdeographic() );  // fullwidth exclamation mark
+		CHECK_FALSE ( KCodePoint(0x4DC0 ).IsIdeographic() );  // Yijing hexagram (gap between ext A and unified)
+		CHECK_FALSE ( KCodePoint(0x2FE0 ).IsIdeographic() );  // gap above the CJK radicals block
+		CHECK_FALSE ( KCodePoint(0x1F600).IsIdeographic() );  // emoji
+		CHECK_FALSE ( KCodePoint(0x40000).IsIdeographic() );  // above the covered planes
+
+		// exhaustive equivalence with the original flat OR over the same ranges,
+		// over the whole Unicode space - proves the bracketed tree did not slip a
+		// boundary (e.g. the Yijing gap, or the ext A upper bound)
+		auto Reference = [](uint32_t cp)
+		{
+			return (cp >= 0x2E80  && cp <= 0x2FDF)
+			    || (cp >= 0x3005  && cp <= 0x3007)
+			    || (cp >= 0x3031  && cp <= 0x3035)
+			    || (cp >= 0x3040  && cp <= 0x30FF)
+			    || (cp >= 0x3100  && cp <= 0x312F)
+			    || (cp >= 0x31A0  && cp <= 0x31BF)
+			    || (cp >= 0x31F0  && cp <= 0x31FF)
+			    || (cp >= 0x3400  && cp <= 0x4DBF)
+			    || (cp >= 0x4E00  && cp <= 0x9FFF)
+			    || (cp >= 0xAC00  && cp <= 0xD7A3)
+			    || (cp >= 0xF900  && cp <= 0xFAFF)
+			    || (cp >= 0xFF66  && cp <= 0xFF9D)
+			    || (cp >= 0x20000 && cp <= 0x3FFFF);
+		};
+
+		int64_t iFirstMismatch = -1;
+
+		for (uint32_t cp = 0; cp <= 0x110000 && iFirstMismatch < 0; ++cp)
+		{
+			if (KCodePoint(cp).IsIdeographic() != Reference(cp))
+			{
+				iFirstMismatch = cp;
+			}
+		}
+
+		INFO ( "first IsIdeographic mismatch at codepoint (decimal, -1 == none): " << iFirstMismatch );
+		CHECK ( iFirstMismatch == -1 );
+	}
+
+	SECTION("kIsIdeographic")
+	{
+		// positives - one representative codepoint per covered script/block
+		CHECK ( kIsIdeographic(0x4F60 ) );  // 你 CJK unified ideograph
+		CHECK ( kIsIdeographic(0x3042 ) );  // Hiragana A
+		CHECK ( kIsIdeographic(0x30AB ) );  // Katakana KA
+		CHECK ( kIsIdeographic(0xD55C ) );  // Hangul syllable HAN
+		CHECK ( kIsIdeographic(0x3105 ) );  // Bopomofo B
+		CHECK ( kIsIdeographic(0x31A0 ) );  // Bopomofo extended
+		CHECK ( kIsIdeographic(0x3005 ) );  // ideographic iteration mark
+		CHECK ( kIsIdeographic(0x2E80 ) );  // CJK radical (range start)
+		CHECK ( kIsIdeographic(0x3400 ) );  // CJK extension A (range start)
+		CHECK ( kIsIdeographic(0x4DBF ) );  // CJK extension A (range end)
+		CHECK ( kIsIdeographic(0xF900 ) );  // CJK compatibility ideograph
+		CHECK ( kIsIdeographic(0xFF76 ) );  // halfwidth Katakana KA
+		CHECK ( kIsIdeographic(0x20000) );  // CJK extension B (plane 2)
+		CHECK ( kIsIdeographic(0x2A700) );  // CJK extension C (plane 2)
+
+		// negatives - punctuation and symbols delimit, they are not ideographic
+		CHECK_FALSE ( kIsIdeographic('A'    ) );  // latin
+		CHECK_FALSE ( kIsIdeographic('0'    ) );  // ascii digit
+		CHECK_FALSE ( kIsIdeographic(' '    ) );  // space
+		CHECK_FALSE ( kIsIdeographic(0x03B1 ) );  // Greek alpha
+		CHECK_FALSE ( kIsIdeographic(0x0410 ) );  // Cyrillic A
+		CHECK_FALSE ( kIsIdeographic(0x3001 ) );  // ideographic comma (punctuation)
+		CHECK_FALSE ( kIsIdeographic(0x3002 ) );  // ideographic full stop (punctuation)
+		CHECK_FALSE ( kIsIdeographic(0xFF01 ) );  // fullwidth exclamation mark
+		CHECK_FALSE ( kIsIdeographic(0x4DC0 ) );  // Yijing hexagram (gap between ext A and unified)
+		CHECK_FALSE ( kIsIdeographic(0x2FE0 ) );  // gap above the CJK radicals block
+		CHECK_FALSE ( kIsIdeographic(0x1F600) );  // emoji
+		CHECK_FALSE ( kIsIdeographic(0x40000) );  // above the covered planes
+	}
+
 }
 
 #endif // Windows

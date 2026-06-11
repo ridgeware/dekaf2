@@ -82,6 +82,39 @@ KCodePoint::Property KCodePoint::GetHighUnicodeProperty() const
 
 } // GetHighUnicodeProperty
 
+//-----------------------------------------------------------------------------
+bool KCodePoint::IsIdeographic() const
+//-----------------------------------------------------------------------------
+{
+	const auto cp = m_CodePoint;
+
+	// bracketed range tree, ordered by frequency: a non-CJK codepoint is
+	// rejected in one comparison, a CJK unified ideograph confirmed in three
+	if (cp < 0x2E80) return false;             // ASCII, Latin, Greek, Cyrillic, Arabic, ... and most symbols
+
+	if (cp <= 0x9FFF)                          // the dense BMP CJK zone
+	{
+		if (cp >= 0x4E00) return true;         // CJK unified ideographs (the bulk)
+		if (cp <= 0x2FDF) return true;         // CJK radicals, Kangxi radicals
+		if (cp >= 0x3400) return cp <= 0x4DBF; // CJK extension A (0x4DC0..0x4DFF Yijing -> false)
+
+		return (cp >= 0x3040 && cp <= 0x30FF)  // Hiragana, Katakana
+			|| (cp >= 0x3005 && cp <= 0x3007)  // ideographic iteration mark, closing mark, zero
+			|| (cp >= 0x3031 && cp <= 0x3035)  // vertical kana repeat marks
+			|| (cp >= 0x3100 && cp <= 0x312F)  // Bopomofo
+			|| (cp >= 0x31A0 && cp <= 0x31BF)  // Bopomofo extended
+			|| (cp >= 0x31F0 && cp <= 0x31FF); // Katakana phonetic extensions
+	}
+
+	if (cp <  0xAC00) return false;            // Yi and others
+	if (cp <= 0xD7A3) return true;             // Hangul syllables
+	if (cp <  0xF900) return false;
+	if (cp <= 0xFAFF) return true;             // CJK compatibility ideographs
+	if (cp >= 0xFF66 && cp <= 0xFF9D) return true; // halfwidth Katakana
+	return (cp >= 0x20000 && cp <= 0x3FFFF);   // CJK extensions B and up (planes 2 and 3)
+
+} // IsIdeographic
+
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 
 constexpr kutf::codepoint_t KCodePoint::MAX_ASCII;

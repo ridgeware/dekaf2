@@ -717,6 +717,16 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// is this codepoint from an ideographic or syllabic CJK script (Han,
+	/// Hiragana, Katakana, Hangul, Bopomofo)? Such scripts are written without
+	/// word separators, so each of these codepoints is a word boundary by itself.
+	/// CJK punctuation and symbols are deliberately not included - they delimit
+	/// words, they do not form them.
+	DEKAF2_NODISCARD
+	bool IsIdeographic() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD
 	KCodePoint ToUpper() const
 	//-----------------------------------------------------------------------------
@@ -1055,6 +1065,15 @@ inline bool kIsXDigit(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsXDigit();
+}
+
+//-----------------------------------------------------------------------------
+template<class CP>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+inline bool kIsIdeographic(CP ch)
+//-----------------------------------------------------------------------------
+{
+	return KCodePoint(ch).IsIdeographic();
 }
 
 //-----------------------------------------------------------------------------

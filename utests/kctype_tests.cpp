@@ -276,6 +276,35 @@ TEST_CASE("KCType")
 		CHECK_FALSE ( kIsIdeographic(0x40000) );  // above the covered planes
 	}
 
+	SECTION("IsMark")
+	{
+		// positives - one representative per mark category
+		CHECK ( KCodePoint(0x0301).IsMark() );  // combining acute accent (Mn)
+		CHECK ( KCodePoint(0x0E31).IsMark() );  // Thai mai han-akat (Mn)
+		CHECK ( KCodePoint(0x0E49).IsMark() );  // Thai mai tho, tone mark (Mn)
+		CHECK ( KCodePoint(0x093F).IsMark() );  // Devanagari vowel sign I (Mc)
+		CHECK ( KCodePoint(0x094D).IsMark() );  // Devanagari virama (Mn)
+		CHECK ( KCodePoint(0x064E).IsMark() );  // Arabic fatha (Mn)
+		CHECK ( KCodePoint(0x05B8).IsMark() );  // Hebrew qamats (Mn)
+		CHECK ( KCodePoint(0x3099).IsMark() );  // combining dakuten (Mn)
+		CHECK ( KCodePoint(0x20DD).IsMark() );  // combining enclosing circle (Me)
+
+		CHECK ( kIsMark(0x0301) );
+		CHECK ( kIsMark(0x093F) );
+
+		// negatives
+		CHECK_FALSE ( KCodePoint('a'   ).IsMark() );  // latin letter
+		CHECK_FALSE ( KCodePoint('0'   ).IsMark() );  // digit
+		CHECK_FALSE ( KCodePoint(' '   ).IsMark() );  // space
+		CHECK_FALSE ( KCodePoint(0x0E01).IsMark() );  // Thai ko kai (Lo, a base letter)
+		CHECK_FALSE ( KCodePoint(0x0939).IsMark() );  // Devanagari HA (Lo)
+		CHECK_FALSE ( KCodePoint(0x200D).IsMark() );  // zero width joiner (Cf, not a mark)
+		CHECK_FALSE ( KCodePoint(0x00B4).IsMark() );  // spacing acute accent (Sk, not combining)
+
+		CHECK_FALSE ( kIsMark('a') );
+		CHECK_FALSE ( kIsMark(0x200D) );
+	}
+
 }
 
 #endif // Windows

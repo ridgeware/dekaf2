@@ -128,7 +128,9 @@ KStringViewPair CountText::NextPair()
 
 	kutf::ForEach(m_sInput, [&iSizeConsumed, &bIsEmpty](uint32_t ch)
 	{
-		if (!kIsAlNum(ch))
+		// a combining mark continues a word, but never starts one -
+		// orphaned marks stay in the skeleton
+		if (!kIsAlNum(ch) && (bIsEmpty || !kIsMark(ch)))
 		{
 			if (!bIsEmpty)
 			{
@@ -160,7 +162,9 @@ KStringViewPair SimpleText::NextPair()
 
 	kutf::ForEach(m_sInput, [&iSizeSkel, &iSizeWord](uint32_t ch)
 	{
-		if (!kIsAlNum(ch))
+		// a combining mark continues a word, but never starts one -
+		// orphaned marks stay in the skeleton
+		if (!kIsAlNum(ch) && !(iSizeWord && kIsMark(ch)))
 		{
 			if (iSizeWord)
 			{
@@ -301,7 +305,9 @@ KStringViewPair CountHTML::NextPair()
 				iStartEntity = iSizeConsumed;
 				++iSizeConsumed;
 			}
-			else if (!kIsAlNum(ch))
+			// a combining mark continues a word, but never starts one -
+			// orphaned marks stay in the skeleton
+			else if (!kIsAlNum(ch) && (bIsEmpty || !kIsMark(ch)))
 			{
 				if (!bIsEmpty)
 				{
@@ -452,7 +458,9 @@ std::pair<KString, KStringView> SimpleHTML::NextPair()
 				iStartEntity = iSizeSkel + iSizeWord;
 				++iSizeWord;
 			}
-			else if (!kIsAlNum(ch))
+			// a combining mark continues a word, but never starts one -
+			// orphaned marks stay in the skeleton
+			else if (!kIsAlNum(ch) && (sPair.first.empty() || !kIsMark(ch)))
 			{
 				if (!sPair.first.empty())
 				{
@@ -590,7 +598,9 @@ std::pair<KString, KString> NormalizingHTML::NextPair()
 		}
 		else
 		{
-			if (!kIsAlNum(ch))
+			// a combining mark continues a word, but never starts one -
+			// orphaned marks stay in the skeleton
+			if (!kIsAlNum(ch) && !(iSizeWord && kIsMark(ch)))
 			{
 				if (iSizeWord)
 				{

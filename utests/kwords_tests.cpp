@@ -249,6 +249,169 @@ TEST_CASE("KWords") {
 		}
 	}
 
+	SECTION("KSimpleWordCounter with combining marks")
+	{
+		// combining marks (Mn, Mc, Me) continue a word, but never start one -
+		// otherwise Thai (Mn vowels/tones), Indic scripts (Mc/Mn matras, virama),
+		// vocalized Arabic (Mn harakat) and NFD input get shredded at every mark
+
+		struct test_t
+		{
+			KStringView sInput;
+			size_t iCount;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "น้ำ", 1 },               // Thai "water": U+0E19, U+0E49 (Mn), U+0E33
+			{ "หิว มาก", 2 },           // Thai with space: U+0E34 (Mn) inside first word
+			{ "हिन्दी भाषा", 2 },          // Hindi: U+093F/U+0940 (Mc), U+094D (Mn) inside words
+			{ "cafe\xcc\x81 bar", 2 },  // NFD Latin: e + U+0301 (Mn)
+			{ "مُحَمَّد", 1 },              // vocalized Arabic: U+064E/U+064F/U+0651 (Mn)
+			{ " \xcc\x81 ", 0 },        // orphaned mark stays in the skeleton
+			{ "\xcc\x81", 0 }           // orphaned mark only
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleWordCounter Words(it.sInput);
+			INFO (it.sInput);
+			CHECK ( it.iCount == Words->size() );
+		}
+	}
+
+	SECTION("KSimpleWords with combining marks")
+	{
+		struct test_t
+		{
+			KStringView sInput;
+			std::vector<KStringView> sOutput;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "น้ำดื่ม",
+				{
+					"น้ำดื่ม"
+				}
+			},
+			{ "हिन्दी भाषा",
+				{
+					"हिन्दी",
+					"भाषा"
+				}
+			},
+			{ "cafe\xcc\x81 bar",
+				{
+					"cafe\xcc\x81",
+					"bar"
+				}
+			},
+			{ "\xcc\x81" "abc",
+				{
+					"abc"
+				}
+			}
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleWords Words(it.sInput);
+
+			INFO (it.sInput);
+			CHECK ( it.sOutput.size() == Words->size() );
+
+			auto sit = it.sOutput.begin();
+
+			for (auto& wit : *Words)
+			{
+				if (sit == it.sOutput.end())
+				{
+					CHECK ( wit == "" );
+				}
+				else
+				{
+					CHECK ( wit  == *sit  );
+					++sit;
+				}
+			}
+		}
+	}
+
+	SECTION("KSimpleSkeletonWords with combining marks")
+	{
+		struct test_t
+		{
+			KStringView sInput;
+			std::vector<KStringViewPair> sOutput;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "हिन्दी भाषा",
+				{
+					{ "हिन्दी", "" },
+					{ "भाषा", " " }
+				}
+			},
+			{ "a \xcc\x81" "xyz",
+				{
+					{ "a", "" },
+					{ "xyz", " \xcc\x81" }
+				}
+			},
+			{ "น้ำ.",
+				{
+					{ "น้ำ", "" },
+					{ "", "." }
+				}
+			}
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleSkeletonWords Words(it.sInput);
+
+			CHECK ( it.sOutput.size() == Words->size() );
+
+			auto sit = it.sOutput.begin();
+
+			for (auto& wit : *Words)
+			{
+				CHECK ( wit.first  == sit->first  );
+				CHECK ( wit.second == sit->second );
+				++sit;
+			}
+		}
+	}
+
+	SECTION("KSimpleHTMLWordCounter with combining marks")
+	{
+		struct test_t
+		{
+			KStringView sInput;
+			size_t iCount;
+		};
+
+		// source, target
+		std::vector<test_t> stest
+		{
+			{ "<p>हिन्दी</p> น้ำ", 2 },
+			{ "cafe\xcc\x81<b>!</b>", 1 }
+		};
+
+		for (auto& it : stest)
+		{
+			KSimpleHTMLWordCounter Words(it.sInput);
+
+			INFO (it.sInput);
+			CHECK ( it.iCount == Words->size() );
+		}
+	}
+
 	SECTION("KSimpleHTMLWordCounter")
 	{
 		struct test_t

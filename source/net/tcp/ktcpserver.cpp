@@ -706,6 +706,18 @@ bool KTCPServer::SetupUnixAcceptor()
 void KTCPServer::StartUnixAccept()
 //-----------------------------------------------------------------------------
 {
+	// Do not (re-)arm an accept during shutdown. Stop() sets the shutdown flag (m_bQuit)
+	// before it resets m_UnixAcceptor, so a chained accept (see the end of this function)
+	// must bail here - otherwise it would call async_accept() on a now-null m_UnixAcceptor
+	// and crash (SIGSEGV / UBSan null member call). The IsShuttingDown() check inside the
+	// handler runs *before* the chained call, so it cannot catch a shutdown that begins
+	// while the handler is running. Unlike StartTCPAccept(), which holds the acceptor alive
+	// via a shared_ptr captured in the handler, this path uses the m_UnixAcceptor member.
+	if (IsShuttingDown())
+	{
+		return;
+	}
+
 	// Ownership model: see StartTCPAccept.
 	auto unixstream = CreateKUnixStream(m_Timeout);
 	auto& socket    = unixstream->GetUnixSocket();

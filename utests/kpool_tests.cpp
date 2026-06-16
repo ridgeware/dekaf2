@@ -354,7 +354,9 @@ TEST_CASE("KPool")
 
 	SECTION("dynamic")
 	{
-		using PoolResolution = std::chrono::duration<long, std::ratio<1, 1000>>;
+		// NOTE: the rep must be 64 bit - on Windows (LLP64) 'long' is 32 bit and a
+		// millisecond-since-epoch count overflows it, breaking the dynamic resize logic
+		using PoolResolution = std::chrono::duration<std::int64_t, std::ratio<1, 1000>>;
 		MyControl Control;
 		using PoolType = KPool<MyType, 3, PoolResolution>;
 		PoolType Pool(Control);

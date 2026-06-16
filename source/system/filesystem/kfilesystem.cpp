@@ -118,9 +118,16 @@ KFileLock::KFileLock(KStringViewZ sPath, Mode mode)
 
 	if (m_hFile != INVALID_HANDLE_VALUE)
 	{
+		// Windows LockFileEx is MANDATORY locking (POSIX flock is advisory): locking the data
+		// range would block our own (and any other) handle from reading/writing the file. Every
+		// caller uses KFileLock advisorily and does its file I/O through separate handles, so we
+		// lock a single sentinel byte far beyond any real content instead. That turns the lock
+		// into a pure advisory cross-process mutex and leaves data I/O unaffected, matching flock().
 		OVERLAPPED ov{};
+		ov.Offset     = 0xFFFFFFFF;
+		ov.OffsetHigh = 0x7FFFFFFF;   // sentinel offset ~2^63-1, never part of file data
 		DWORD dwFlags = mode == Exclusive ? LOCKFILE_EXCLUSIVE_LOCK : 0;
-		LockFileEx(m_hFile, dwFlags, 0, MAXDWORD, MAXDWORD, &ov);
+		LockFileEx(m_hFile, dwFlags, 0, 1, 0, &ov);
 	}
 #else
 	m_fd = ::open(sPath.c_str(), O_RDONLY);
@@ -141,7 +148,9 @@ KFileLock::~KFileLock()
 	if (m_hFile != INVALID_HANDLE_VALUE)
 	{
 		OVERLAPPED ov{};
-		UnlockFileEx(m_hFile, 0, MAXDWORD, MAXDWORD, &ov);
+		ov.Offset     = 0xFFFFFFFF;
+		ov.OffsetHigh = 0x7FFFFFFF;   // must match the sentinel byte locked in the ctor
+		UnlockFileEx(m_hFile, 0, 1, 0, &ov);
 		CloseHandle(m_hFile);
 	}
 #else

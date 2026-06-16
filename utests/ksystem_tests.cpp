@@ -173,8 +173,16 @@ TEST_CASE("KSystem")
 		auto iTicks2 = kGetMicroTicksPerThread()         - iStart2;
 		auto iTicks3 = kGetMicroTicksPerChildProcesses() - iStart3;
 
+#ifdef DEKAF2_IS_WINDOWS
+		// CPU time on Windows comes from GetProcessTimes()/GetThreadTimes(), which only
+		// resolve at the scheduler tick (~15ms), so a short workload can legitimately
+		// measure 0 elapsed ticks - just sanity-check the counters did not run backwards
+		CHECK ( iTicks1 < 1000000000 );
+		CHECK ( iTicks2 < 1000000000 );
+#else
 		CHECK ( iTicks1 > 0 );
 		CHECK ( iTicks2 > 0 );
+#endif
 	}
 
 	SECTION("GetFileNameFromFileDescriptor")
@@ -368,6 +376,16 @@ TEST_CASE("KSystem")
 	SECTION("kWhich")
 	{
 		// should find common executables
+#ifdef DEKAF2_IS_WINDOWS
+		// ls/sh do not exist on Windows; cmd.exe and where.exe live in System32 (always on PATH)
+		auto sCmd = kWhich("cmd");
+		CHECK ( sCmd.empty() == false );
+		CHECK ( sCmd.contains(kDirSep) );
+
+		auto sWhere = kWhich("where");
+		CHECK ( sWhere.empty() == false );
+		CHECK ( sWhere.contains(kDirSep) );
+#else
 		auto sLS = kWhich("ls");
 		CHECK ( sLS.empty() == false );
 		CHECK ( sLS.front() == '/' );
@@ -375,6 +393,7 @@ TEST_CASE("KSystem")
 		auto sSH = kWhich("sh");
 		CHECK ( sSH.empty() == false );
 		CHECK ( sSH.front() == '/' );
+#endif
 
 		// should return empty for nonexistent commands
 		CHECK ( kWhich("thiscommanddoesnotexist99") == "" );

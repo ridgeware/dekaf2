@@ -1099,10 +1099,13 @@ String kFormNumber(Arithmetic i, typename String::value_type chSeparator = ',', 
 		// now insert the separator every N digits
 		auto iLast = iEvery;
 
-		if (i < 0)
+		if DEKAF2_CONSTEXPR_IF (std::is_signed<Arithmetic>::value)
 		{
-			// do not count the leading '-' as an insertion point
-			++iLast;
+			if (i < 0)
+			{
+				// do not count the leading '-' as an insertion point
+				++iLast;
+			}
 		}
 
 		auto iPos = iDecSepPos;

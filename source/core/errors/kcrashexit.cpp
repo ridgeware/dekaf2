@@ -56,6 +56,8 @@
  #include <sys/resource.h>      // to allow core dumps
  #include <csignal>
  #include <unistd.h>            // for ::write()
+#elif defined(DEKAF2_IS_WINDOWS)
+ #include <io.h>                // for ::_write()
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -206,7 +208,13 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	{
 		// second crash from another thread - minimal safe output, no allocations
 		const char sMsg[] = "\n[second crash in another thread - aborting immediately]\n";
+#ifdef DEKAF2_IS_WINDOWS
+		// STDERR_FILENO maps to STD_ERROR_HANDLE on Windows (a GetStdHandle() value,
+		// not a CRT file descriptor), so write to the CRT stderr fd (2) directly
+		::_write(2, sMsg, sizeof(sMsg) - 1);
+#else
 		::write(STDERR_FILENO, sMsg, sizeof(sMsg) - 1);
+#endif
 		::_exit(1);
 	}
 

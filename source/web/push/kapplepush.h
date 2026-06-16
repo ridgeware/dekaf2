@@ -149,7 +149,7 @@ public:
 	{
 		KString sTeamID;        ///< 10-char Apple Team ID
 		KString sKeyID;         ///< 10-char Auth Key ID (from the .p8 filename)
-		KString sBundleID;      ///< app bundle identifier (e.g. "net.int7.vocito")
+		KString sBundleID;      ///< app bundle identifier (e.g. "org.sample.app")
 		KString sAuthKeyPEM;    ///< contents of the .p8 file (PEM-encoded ES256 private key)
 		bool    bSandbox{false};///< true → api.sandbox.push.apple.com (development builds)
 	};

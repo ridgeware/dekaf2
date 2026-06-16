@@ -133,7 +133,7 @@ private:
 	type getImpl() const
 	//-----------------------------------------------------------------------------
 	{
-		if (_size == sizeof(store) * 8)
+		if DEKAF2_CONSTEXPR_IF (_size == sizeof(store) * 8)
 		{
 			return store;
 		}
@@ -166,7 +166,7 @@ private:
 	void setImpl(type value)
 	//-----------------------------------------------------------------------------
 	{
-		if (_size == sizeof(store) * 8)
+		if DEKAF2_CONSTEXPR_IF (_size == sizeof(store) * 8)
 		{
 			store = value;
 		}

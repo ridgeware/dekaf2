@@ -2,6 +2,12 @@
 #include <dekaf2/rest/serving/kwebserverpermissions.h>
 #include <dekaf2/http/protocol/khttp_method.h>
 
+// Windows <windows.h> (winnt.h) defines a DELETE macro that collides with
+// KHTTPMethod::DELETE used below - undef it after the includes pulled it back in
+#ifdef DELETE
+	#undef DELETE
+#endif
+
 using namespace dekaf2;
 
 TEST_CASE("KWebServerPermissions")

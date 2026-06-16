@@ -118,23 +118,39 @@ KStringViewZ kGetEnv (KStringViewZ szEnvVar, KStringViewZ szDefault)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_IS_WINDOWS
-	static thread_local std::array<char, 256> Buffer;
-	std::size_t iRead { 0 };
-	auto err = getenv_s(&iRead, Buffer.data(), Buffer.size(), szEnvVar.c_str());
+	// getenv_s() returns ERANGE (and does NOT fill the buffer) when the value is
+	// larger than the buffer - PATH routinely exceeds a few hundred bytes - so we
+	// size first with a null buffer, then read into a buffer of the required size.
+	static thread_local KString sBuffer;
+	std::size_t iRequired { 0 };
 
-	if (err)
+	// query the required size (including the trailing NUL)
+	getenv_s(&iRequired, nullptr, 0, szEnvVar.c_str());
+
+	if (iRequired == 0)
 	{
-		kWarning("cannot get {}", szEnvVar);
+		// variable does not exist
+		return szDefault;
 	}
 
-	if (iRead == 0 || Buffer[0] == '\0')
+	sBuffer.resize(iRequired);
+	std::size_t iRead { 0 };
+
+	if (getenv_s(&iRead, &sBuffer[0], sBuffer.size(), szEnvVar.c_str()) != 0 || iRead == 0)
+	{
+		kWarning("cannot get {}", szEnvVar);
+		return szDefault;
+	}
+
+	// drop the trailing NUL that getenv_s counted into iRead
+	sBuffer.resize(iRead - 1);
+
+	if (sBuffer.empty())
 	{
 		return szDefault;
 	}
-	else
-	{
-		return Buffer.data();
-	}
+
+	return sBuffer;
 #else
 	KStringViewZ sValue = ::getenv(szEnvVar.c_str());
 

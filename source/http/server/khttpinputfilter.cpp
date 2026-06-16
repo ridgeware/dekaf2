@@ -69,13 +69,14 @@ public:
 	{
 		if (m_iCount >= m_iMaxSize)
 		{
-			// set the flag before throwing - the throw may be swallowed
-			// by the std::istream layer (badbit set, exception lost),
-			// so the caller must also check IsBodySizeLimitExceeded()
+			// Signal the limit by setting the flag and returning EOF (-1) - do NOT throw
+			// from inside a boost::iostreams filter: the exception is unreliable across the
+			// stream layer, and on MSVC it gets swallowed without setting EOF/error, so the
+			// read is retried in an endless loop. The caller checks IsBodySizeLimitExceeded()
+			// after the read and raises the 413 at the proper level (KRESTServer::Parse).
 			if (m_pExceeded) *m_pExceeded = true;
 
-			throw KHTTPError { KHTTPError::H4xx_PAYLOAD_TOO_LARGE,
-				kFormat("decompressed request body exceeds size limit of {} bytes", m_iMaxSize) };
+			return -1;
 		}
 
 		auto iRemaining = static_cast<std::streamsize>(m_iMaxSize - m_iCount);

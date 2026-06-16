@@ -305,7 +305,7 @@ TEST_CASE("KLogRotate")
 
 		// should have a timestamp-named file
 		KDirectory Dir(sDir);
-		Dir.Match("timestamp\\.log\\.[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z");
+		Dir.Match("timestamp\\.log\\.[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}Z");
 		CHECK ( Dir.size() == 1 );
 	}
 

@@ -481,7 +481,8 @@ KString KWebDAV::ResolveFilesystemPath(KStringView sDocumentRoot, KStringView sR
 
 	if (!sRelPath.empty())
 	{
-		sPath += kDirSep;
+		// WebDAV paths are URL paths and always use '/', never the OS separator
+		sPath += '/';
 		sPath += sRelPath;
 	}
 

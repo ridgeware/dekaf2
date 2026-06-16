@@ -246,14 +246,32 @@ namespace std
 	using pid_t   = int32_t;
 	using uid_t   = uint32_t;
 
+	// STDIN/OUT/ERR_FILENO map to the GetStdHandle() identifiers on Windows (they are NOT
+	// CRT file descriptors). Use the real <windows.h> macros when they are already visible,
+	// otherwise fall back to their fixed SDK values ((DWORD)-10 / -11 / -12, from winbase.h)
+	// so that headers using these as default arguments (e.g. kxterm.h, ksystem.h) still
+	// compile without first pulling in <windows.h> - the utests build without the PCH that
+	// otherwise provides it. The numeric value is identical either way.
 	#ifndef STDIN_FILENO
-		#define STDIN_FILENO STD_INPUT_HANDLE
+		#ifdef STD_INPUT_HANDLE
+			#define STDIN_FILENO STD_INPUT_HANDLE
+		#else
+			#define STDIN_FILENO (-10)
+		#endif
 	#endif
 	#ifndef STDOUT_FILENO
-		#define STDOUT_FILENO STD_OUTPUT_HANDLE
+		#ifdef STD_OUTPUT_HANDLE
+			#define STDOUT_FILENO STD_OUTPUT_HANDLE
+		#else
+			#define STDOUT_FILENO (-11)
+		#endif
 	#endif
 	#ifndef STDERR_FILENO
-		#define STDERR_FILENO STD_ERROR_HANDLE
+		#ifdef STD_ERROR_HANDLE
+			#define STDERR_FILENO STD_ERROR_HANDLE
+		#else
+			#define STDERR_FILENO (-12)
+		#endif
 	#endif
 
 	#include <process.h>

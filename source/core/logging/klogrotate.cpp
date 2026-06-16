@@ -286,8 +286,8 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 		}
 		else
 		{
-			// "YYYY-MM-DDThh:mm:ssZ"
-			Rotated.Match(kFormat("{}\\.[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}T[0-9]{{2}}:[0-9]{{2}}:[0-9]{{2}}Z(\\.gz|\\.zstd|)", KRegex::EscapeText(sBasename)));
+			// "YYYY-MM-DDThh-mm-ssZ"
+			Rotated.Match(kFormat("{}\\.[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}T[0-9]{{2}}-[0-9]{{2}}-[0-9]{{2}}Z(\\.gz|\\.zstd|)", KRegex::EscapeText(sBasename)));
 		}
 
 		bool bCheckAge { true };
@@ -344,7 +344,7 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 			else if (!conf.MaxAge.IsZero())
 			{
 				// simply check the timestamps for expiration, no rotation needed
-				constexpr KStringView sTimestampMask("YYYY-MM-DDThh:mm:ssZ");
+				constexpr KStringView sTimestampMask("YYYY-MM-DDThh-mm-ssZ");
 				auto sTimestamp   = Rotate.Filename().substr(sBasename.size()+1, sTimestampMask.size());
 				KUnixTime tRotate = kParseTimestamp(sTimestampMask, sTimestamp);
 
@@ -375,7 +375,8 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 	}
 	else
 	{
-		sTempfile = kFormat("{}.{:%Y-%m-%dT%H:%M:%SZ}", conf.sLogFilename, tNow);
+		// note: '-' as time separator, not ':' - colons are illegal in Windows (NTFS) filenames
+		sTempfile = kFormat("{}.{:%Y-%m-%dT%H-%M-%SZ}", conf.sLogFilename, tNow);
 	}
 
 	if (conf.iKeepSize > 0 || conf.bCopyTrunc)
@@ -383,8 +384,11 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 		// take an exclusive lock to prevent concurrent writes during rotation
 		KFileLock Lock(conf.sLogFilename, KFileLock::Exclusive);
 
-		// keep the newest records in the old place, write the older ones into the temp location
-		KFile LogFile(conf.sLogFilename);
+		// keep the newest records in the old place, write the older ones into the temp location.
+		// read the source through a dedicated read-only stream: interleaving reads and writes on
+		// a single std::fstream is undefined behavior, and on MSVC the reads then return 0 bytes.
+		// we rewrite the kept portion further down through a separate write-only handle.
+		KInFile LogFile(conf.sLogFilename);
 		// do not trim!
 		LogFile.SetReaderTrim("", "");
 
@@ -418,20 +422,24 @@ KString KLogRotate::Rotate(KUnixTime tNow, const Config& conf, const KFileStat& 
 		// close the output
 		OutFile.close();
 
-		// read the remaining content into a buffer
+		// read the remaining content into a buffer, then close the read handle
 		auto sBuffer = LogFile.ReadRemaining();
+		LogFile.close();
 
-		if (!LogFile.KOutStream::Rewind())
+		// rewrite the kept portion in place through a separate write-only handle, opened
+		// in|out (no truncation), so there is no read/write interleaving on the handle.
+		// write the kept portion first, then truncate - if we crash between write and
+		// truncate we have duplicate data (recoverable), not lost data.
+		KFile KeepFile(conf.sLogFilename, std::ios_base::in | std::ios_base::out);
+
+		if (!KeepFile.is_open())
 		{
-			kDebug(1, "cannot seek to start: {}", conf.sLogFilename);
+			kDebug(1, "cannot open log file for writing: {}", conf.sLogFilename);
 			return {};
 		}
 
-		// write the kept portion first, then truncate - if we crash between
-		// write and truncate we have duplicate data (recoverable), not lost data
-		LogFile.Write(sBuffer);
-		// and close it
-		LogFile.close();
+		KeepFile.Write(sBuffer);
+		KeepFile.close();
 
 		// now truncate the stale tail
 		kResizeFile(conf.sLogFilename, sBuffer.size());

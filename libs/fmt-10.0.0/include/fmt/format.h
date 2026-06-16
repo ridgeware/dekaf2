@@ -554,7 +554,11 @@ inline auto get_data(Container& c) -> typename Container::value_type* {
   return c.data();
 }
 
-#if defined(_SECURE_SCL) && _SECURE_SCL
+// NOTE (dekaf2): stdext::checked_array_iterator was removed from the MSVC STL in recent
+// VS 2022 toolsets (~14.4x+), so the original _SECURE_SCL path no longer compiles in debug
+// builds (_ITERATOR_DEBUG_LEVEL != 0). It is only a debug-iterator nicety (fmt reserves the
+// output capacity itself), so we always fall back to a raw pointer. Remove on fmt upgrade.
+#if 0 && defined(_SECURE_SCL) && _SECURE_SCL
 // Make a checked iterator to avoid MSVC warnings.
 template <typename T> using checked_ptr = stdext::checked_array_iterator<T*>;
 template <typename T>

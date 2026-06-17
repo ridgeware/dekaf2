@@ -45,11 +45,31 @@
 /// @file kmru.h
 /// provides a least / most recently used container
 
+#include <dekaf2/core/init/kdefinitions.h> // for the GCC warning guards below
+// boost::multi_index provokes a false-positive -Wstringop-overflow / -Warray-bounds
+// on GCC >= 16 (a bogus ~2^64 memset bound in bucket_array::clear()). The diagnostic is
+// anchored at the boost header line, so silencing it around the include covers every
+// instantiation of the resulting container in any translation unit.
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic push
+#ifdef DEKAF2_HAS_WARN_ARRAY_BOUNDS
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+#ifdef DEKAF2_HAS_WARN_STRINGOP_OVERFLOW
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+#ifdef DEKAF2_HAS_WARN_STRINGOP_OVERREAD
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+#endif
+#endif
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic pop
+#endif
 #include <iterator>
 #include <dekaf2/containers/associative/bits/kmutable_pair.h>
 

@@ -108,10 +108,17 @@
 
 #ifdef DEKAF2_HAS_DBLIB
   #ifndef __STDC_VERSION__
-	// FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
+	// FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types.
 	// C++ unfortunately does not require to set it, so we match it with the
-	// value of __cplusplus
-	#define __STDC_VERSION__ __cplusplus
+	// value of __cplusplus, scoped tightly to the FreeTDS includes (defining it
+	// for the whole TU via -D would make other system headers take a C99 path,
+	// e.g. redefining 'restrict' on macOS).
+	// GCC >= 16 (PR120778) emits an *unsuppressable* warning on a #define of
+	// __STDC_VERSION__, so skip it there - modern FreeTDS (>= 1.3) keys off
+	// __cplusplus directly and no longer needs this.
+	#if !DEKAF2_IS_GCC || DEKAF2_GCC_VERSION < 160000
+	  #define __STDC_VERSION__ __cplusplus
+	#endif
   #endif
   // dependent headers when building DBLIB (these are *not* part of our distribution):
   #include <sqlfront.h>        // dblib top level include
@@ -123,10 +130,17 @@
 
 #ifdef DEKAF2_HAS_CTLIB
 	#ifndef __STDC_VERSION__
-	  // FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types
+	  // FreeTDS depends on __STDC_VERSION__ to _not_ redefine standard types.
 	  // C++ unfortunately does not require to set it, so we match it with the
-	  // value of __cplusplus
-	  #define __STDC_VERSION__ __cplusplus
+	  // value of __cplusplus, scoped tightly to the FreeTDS includes (defining it
+	  // for the whole TU via -D would make other system headers take a C99 path,
+	  // e.g. redefining 'restrict' on macOS).
+	  // GCC >= 16 (PR120778) emits an *unsuppressable* warning on a #define of
+	  // __STDC_VERSION__, so skip it there - modern FreeTDS (>= 1.3) keys off
+	  // __cplusplus directly and no longer needs this.
+	  #if !DEKAF2_IS_GCC || DEKAF2_GCC_VERSION < 160000
+	    #define __STDC_VERSION__ __cplusplus
+	  #endif
 	#endif
   #include <ctpublic.h>        // CTLIB, alternative to DBLIB for Sybase and MS SQL Server
   #include <sybdb.h>	       // "sybdb.h is the only other file you need" (FreeTDS doc) -- ctpublic.h should actually already include it

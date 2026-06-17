@@ -60,11 +60,30 @@
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/core/types/ktemplate.h>
 #include <dekaf2/core/format/kformtable.h>
+// boost::multi_index provokes a false-positive -Wstringop-overflow / -Warray-bounds
+// on GCC >= 16 (a bogus ~2^64 memset bound in bucket_array::clear()). The diagnostic is
+// anchored at the boost header line, so silencing it around the include covers every
+// instantiation of the resulting container in any translation unit.
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic push
+#ifdef DEKAF2_HAS_WARN_ARRAY_BOUNDS
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+#ifdef DEKAF2_HAS_WARN_STRINGOP_OVERFLOW
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+#ifdef DEKAF2_HAS_WARN_STRINGOP_OVERREAD
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+#endif
+#endif
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/composite_key.hpp>
+#if DEKAF2_IS_GCC
+#pragma GCC diagnostic pop
+#endif
 #include <cinttypes>
 #include <vector>
 #include <tuple>

@@ -727,6 +727,19 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers)
 		Client.Read(sBroadcast);
 		CHECK ( sBroadcast == "broadcast" );
 
+		// a rapid burst of server-initiated sends - in worker mode these are queued and
+		// flushed asynchronously; verify they all arrive and keep their order
+		for (int iMsg = 0; iMsg < 10; ++iMsg)
+		{
+			CHECK ( pServer.load()->Send(iHandle.load(), kFormat("msg{}", iMsg)) );
+		}
+		for (int iMsg = 0; iMsg < 10; ++iMsg)
+		{
+			KStringRef sBurst;
+			Client.Read(sBurst);
+			CHECK ( sBurst == kFormat("msg{}", iMsg) );
+		}
+
 		CHECK ( pServer.load()->size() == 1 );
 	}
 	// the client is gone now - the socket is closed and the server should notice

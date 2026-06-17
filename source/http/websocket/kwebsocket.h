@@ -59,9 +59,12 @@
 #include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/threading/execution/kthreadpool.h>
 #include <vector>
+#include <deque>
 #include <atomic>
 #include <thread>
 #include <memory>
+#include <mutex>
+#include <utility>
 #include <functional>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -492,6 +495,14 @@ public:
 		/// per connection read (idle) timeout - a connection that is silent for this
 		/// long is considered dead and removed
 		KDuration                 IdleTimeout    { chrono::minutes(60) };
+		/// per connection write timeout - a single frame write that cannot complete within
+		/// this time fails and the connection is dropped (bounds how long a slow consumer
+		/// can occupy a writer thread)
+		KDuration                 WriteTimeout   { chrono::seconds(30) };
+		/// maximum number of bytes that may be queued for sending on one connection before it
+		/// is dropped as a slow consumer (0 = unlimited). Only relevant with iWorkerThreads > 0,
+		/// where Send()/Broadcast() queue and a worker flushes asynchronously
+		std::size_t               iMaxQueueBytes { 16 * 1024 * 1024 };
 
 	}; // Options
 
@@ -507,13 +518,16 @@ public:
 	Handle      AddWebSocket(KWebSocket WebSocket);
 
 	/// send a text or binary message to a specific connection - thread safe, may be called
-	/// from any thread, blocks until the message is written or the write timeout elapses
-	/// @returns false if the handle is unknown or the write failed
+	/// from any thread. With iWorkerThreads > 0 the message is queued and written asynchronously
+	/// by a worker (the call does not block on the socket); in single thread mode it is written
+	/// synchronously. Messages to one connection keep their order in both cases.
+	/// @returns false if the handle is unknown, the connection was dropped as a slow consumer
+	/// (queue over iMaxQueueBytes), or - in single thread mode - the write failed
 	bool        Send      (Handle iHandle, KString sMessage, bool bIsBinary = false);
-	/// send a json message (as UTF8 text) to a specific connection
+	/// send a json message (as UTF8 text) to a specific connection (see Send() for threading)
 	bool        Send      (Handle iHandle, const KJSON& jMessage);
-	/// send a message to all connected clients
-	/// @returns the number of connections the message was successfully written to
+	/// send a message to all connected clients (queued asynchronously per connection in worker mode)
+	/// @returns the number of connections the message was accepted for (queued or written)
 	std::size_t Broadcast (KString sMessage, bool bIsBinary = false);
 	/// send a ping to a specific connection
 	bool        Ping      (Handle iHandle, KString sMessage = KString{});
@@ -528,15 +542,21 @@ private:
 //----------
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// one managed websocket connection - the websocket plus its cached socket fd
+	/// one managed websocket connection - the websocket, its cached socket fd, and the
+	/// outbound send queue (drained by an offloaded writer in worker thread mode)
 	struct Connection
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
 		Connection(KWebSocket WebSocket, int iFd)
 		: WebSocket(std::move(WebSocket)), iFd(iFd) {}
 
-		KWebSocket WebSocket;
-		int        iFd;
+		KWebSocket                           WebSocket;
+		int                                  iFd;
+		std::mutex                           OutMutex;             // guards the send queue and its flags
+		std::deque<std::pair<KString, bool>> OutQueue;             // pending (message, bIsBinary) frames, FIFO
+		std::size_t                          iQueuedBytes { 0 };   // total bytes currently queued
+		bool                                 bFlushing    { false };// a flush task is scheduled/running for this connection
+		std::atomic<bool>                    bDead        { false };// set when the connection is being torn down
 
 	}; // Connection
 
@@ -548,6 +568,10 @@ private:
 	void          OnReadable       (Handle iHandle);
 	/// read one message and call the handler, then re-arm the socket (runs inline or in a worker)
 	void          ServiceConnection(ConnectionPtr pConnection, Handle iHandle);
+	/// send synchronously (single thread mode) or queue and schedule the offloaded writer (worker mode)
+	bool          QueueOrWrite     (const ConnectionPtr& pConnection, KString sMessage, bool bIsBinary);
+	/// drain a connection's send queue on a worker thread (only one flusher per connection at a time)
+	void          FlushConnection  (ConnectionPtr pConnection);
 	/// remove a connection, stop watching its socket, and call its close handler
 	void          RemoveConnection (Handle iHandle);
 

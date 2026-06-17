@@ -1448,6 +1448,7 @@ KWebSocketServer::Handle KWebSocketServer::AddWebSocket(KWebSocket WebSocket)
 	}
 
 	WebSocket.SetReadTimeout(m_Options.IdleTimeout);
+	WebSocket.SetWriteTimeout(m_Options.WriteTimeout);
 	WebSocket.SetServerContext(this, iHandle);
 
 	// the finish callback lets the application (or KWebSocket itself) tear the connection down
@@ -1558,6 +1559,9 @@ void KWebSocketServer::RemoveConnection(Handle iHandle)
 
 	kDebug(2, "removing websocket connection with handle {}", iHandle);
 
+	// stop any in-flight or queued flusher from touching this connection
+	pConnection->bDead = true;
+
 	// stop watching the socket
 	m_Poll.Remove(pConnection->iFd);
 
@@ -1578,7 +1582,7 @@ bool KWebSocketServer::Send(Handle iHandle, KString sMessage, bool bIsBinary)
 		return false;
 	}
 
-	return pConnection->WebSocket.Write(std::move(sMessage), bIsBinary);
+	return QueueOrWrite(pConnection, std::move(sMessage), bIsBinary);
 
 } // Send
 
@@ -1594,7 +1598,8 @@ bool KWebSocketServer::Send(Handle iHandle, const KJSON& jMessage)
 		return false;
 	}
 
-	return pConnection->WebSocket.Write(jMessage);
+	// json is UTF8 when dumped, therefore send as text
+	return QueueOrWrite(pConnection, jMessage.dump(), false);
 
 } // Send
 
@@ -1602,7 +1607,7 @@ bool KWebSocketServer::Send(Handle iHandle, const KJSON& jMessage)
 std::size_t KWebSocketServer::Broadcast(KString sMessage, bool bIsBinary)
 //-----------------------------------------------------------------------------
 {
-	// copy the connection pointers out under the lock, then write without holding it
+	// copy the connection pointers out under the lock, then queue/write without holding it
 	std::vector<ConnectionPtr> Targets;
 
 	{
@@ -1620,7 +1625,8 @@ std::size_t KWebSocketServer::Broadcast(KString sMessage, bool bIsBinary)
 
 	for (auto& pConnection : Targets)
 	{
-		if (pConnection->WebSocket.Write(sMessage, bIsBinary))
+		// pass a copy of the message to each connection (QueueOrWrite takes it by value)
+		if (QueueOrWrite(pConnection, sMessage, bIsBinary))
 		{
 			++iSent;
 		}
@@ -1629,6 +1635,105 @@ std::size_t KWebSocketServer::Broadcast(KString sMessage, bool bIsBinary)
 	return iSent;
 
 } // Broadcast
+
+//-----------------------------------------------------------------------------
+bool KWebSocketServer::QueueOrWrite(const ConnectionPtr& pConnection, KString sMessage, bool bIsBinary)
+//-----------------------------------------------------------------------------
+{
+	if (m_Options.iWorkerThreads == 0)
+	{
+		// single thread mode: there is no worker to offload to - write synchronously
+		return pConnection->WebSocket.Write(std::move(sMessage), bIsBinary);
+	}
+
+	bool bSchedule { false };
+
+	{
+		std::unique_lock<std::mutex> Lock(pConnection->OutMutex);
+
+		if (pConnection->bDead)
+		{
+			return false;
+		}
+
+		if (m_Options.iMaxQueueBytes && pConnection->iQueuedBytes + sMessage.size() > m_Options.iMaxQueueBytes)
+		{
+			// slow consumer - it cannot drain its queue fast enough, drop the connection
+			kDebug(1, "send queue overflow on handle {} ({} bytes queued) - dropping slow consumer",
+			          pConnection->WebSocket.GetHandle(), pConnection->iQueuedBytes);
+			pConnection->bDead = true;
+			Lock.unlock();
+			RemoveConnection(pConnection->WebSocket.GetHandle());
+			return false;
+		}
+
+		pConnection->iQueuedBytes += sMessage.size();
+		pConnection->OutQueue.emplace_back(std::move(sMessage), bIsBinary);
+
+		if (!pConnection->bFlushing)
+		{
+			// take the flusher role for this connection
+			pConnection->bFlushing = true;
+			bSchedule              = true;
+		}
+	}
+
+	if (bSchedule)
+	{
+		m_ThreadPool.push(&KWebSocketServer::FlushConnection, this, pConnection);
+	}
+
+	return true;
+
+} // QueueOrWrite
+
+//-----------------------------------------------------------------------------
+void KWebSocketServer::FlushConnection(ConnectionPtr pConnection)
+//-----------------------------------------------------------------------------
+{
+	for (;;)
+	{
+		KString sMessage;
+		bool    bIsBinary { false };
+
+		{
+			std::unique_lock<std::mutex> Lock(pConnection->OutMutex);
+
+			if (pConnection->bDead || pConnection->OutQueue.empty())
+			{
+				// nothing more to do - release the flusher role (checked under the lock
+				// together with the queue state, so a concurrent Send() either sees the
+				// queue we are about to leave or re-takes the role)
+				pConnection->bFlushing = false;
+				return;
+			}
+
+			sMessage  = std::move(pConnection->OutQueue.front().first);
+			bIsBinary = pConnection->OutQueue.front().second;
+			pConnection->OutQueue.pop_front();
+			pConnection->iQueuedBytes -= sMessage.size();
+		}
+
+		// write outside the queue lock - this may block (TLS-safe), but on a worker thread,
+		// never on the caller of Send()
+		if (!pConnection->WebSocket.Write(std::move(sMessage), bIsBinary))
+		{
+			kDebug(1, "write failed on handle {} - dropping connection", pConnection->WebSocket.GetHandle());
+
+			{
+				std::unique_lock<std::mutex> Lock(pConnection->OutMutex);
+				pConnection->bDead        = true;
+				pConnection->bFlushing    = false;
+				pConnection->iQueuedBytes = 0;
+				pConnection->OutQueue.clear();
+			}
+
+			RemoveConnection(pConnection->WebSocket.GetHandle());
+			return;
+		}
+	}
+
+} // FlushConnection
 
 //-----------------------------------------------------------------------------
 bool KWebSocketServer::Ping(Handle iHandle, KString sMessage)

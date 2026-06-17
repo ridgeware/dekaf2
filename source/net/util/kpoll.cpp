@@ -234,31 +234,39 @@ void KPoll::Stop()
 void KPoll::Add(int fd, Parameters Parms)
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+	{
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+
+		// a fresh entry is armed by default
+		Parms.bArmed = true;
 
 #ifdef __cpp_lib_map_try_emplace
-	m_FileDescriptors.insert_or_assign(fd, std::move(Parms));
+		m_FileDescriptors.insert_or_assign(fd, std::move(Parms));
 #else
-	auto it = m_FileDescriptors.find(fd);
+		auto it = m_FileDescriptors.find(fd);
 
-	if (it != m_FileDescriptors.end())
-	{
-		it->second = std::move(Parms);
-	}
-	else
-	{
-		m_FileDescriptors.emplace(fd, std::move(Parms));
-	}
+		if (it != m_FileDescriptors.end())
+		{
+			it->second = std::move(Parms);
+		}
+		else
+		{
+			m_FileDescriptors.emplace(fd, std::move(Parms));
+		}
 #endif
 
-	kDebug(2, "added file descriptor {}", fd);
+		kDebug(2, "added file descriptor {}", fd);
 
-	m_bModified = true;
+		m_bModified = true;
 
-	if (!m_Thread && m_bAutoStart)
-	{
-		StartLocked();
+		if (!m_Thread && m_bAutoStart)
+		{
+			StartLocked();
+		}
 	}
+
+	// wake the watcher so it rebuilds the poll vector without waiting for the timeout
+	m_Interruptor.Wake();
 
 } // Add
 
@@ -266,52 +274,160 @@ void KPoll::Add(int fd, Parameters Parms)
 void KPoll::Remove(int fd)
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+	{
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
-	if (m_FileDescriptors.erase(fd) != 1)
-	{
-		kDebug(2, "cannot remove file descriptor {}: not found", fd);
-	}
-	else
-	{
+		if (m_FileDescriptors.erase(fd) != 1)
+		{
+			kDebug(2, "cannot remove file descriptor {}: not found", fd);
+			return;
+		}
+
 		kDebug(2, "removed file descriptor {}", fd);
 		m_bModified = true;
 	}
 
+	m_Interruptor.Wake();
+
 } // Remove
 
 //-----------------------------------------------------------------------------
-void KPoll::BuildPollVec(std::vector<pollfd>& fds)
+void KPoll::Arm(int fd)
 //-----------------------------------------------------------------------------
 {
-	fds.clear();
+	{
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
 
-	std::shared_lock<std::shared_mutex> Lock(m_Mutex);
+		auto it = m_FileDescriptors.find(fd);
 
-	// collect all file descriptors we should watch
-	m_bModified = false;
+		if (it == m_FileDescriptors.end())
+		{
+			kDebug(2, "cannot arm file descriptor {}: not found", fd);
+			return;
+		}
 
-	fds.reserve(m_FileDescriptors.size());
+		it->second.bArmed = true;
+		m_ArmQueue.push_back(fd);
+		m_bArmPending = true;
+	}
+
+	m_Interruptor.Wake();
+
+} // Arm
+
+//-----------------------------------------------------------------------------
+void KPoll::BuildPollVec()
+//-----------------------------------------------------------------------------
+{
+	m_Fds.clear();
+	m_FdIndex.clear();
+
+	// the interruptor always sits at index 0 (if available) and is never
+	// swap-removed, so socket indices in m_FdIndex stay valid
+	if (m_Interruptor.IsValid())
+	{
+		pollfd pfd{};
+		pfd.fd     = m_Interruptor.GetFD();
+		pfd.events = POLLIN;
+		m_Fds.push_back(pfd);
+	}
+
+	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+
+	// a rebuild subsumes any pending re-arms
+	m_bModified   = false;
+	m_bArmPending = false;
+	m_ArmQueue.clear();
+
+	m_Fds.reserve(m_Fds.size() + m_FileDescriptors.size());
 
 	for (const auto& FileDescriptor : m_FileDescriptors)
 	{
-		pollfd pfd;
+		if (!FileDescriptor.second.bArmed || !FileDescriptor.second.iEvents)
+		{
+			// disarmed (currently processed by a worker) or no events to watch
+			continue;
+		}
+
+		pollfd pfd{};
 		pfd.fd     = FileDescriptor.first;
-		pfd.events = FileDescriptor.second.iEvents;
-		fds.push_back(pfd);
+		pfd.events = AdjustEvents(FileDescriptor.first, FileDescriptor.second.iEvents);
+		m_FdIndex[FileDescriptor.first] = m_Fds.size();
+		m_Fds.push_back(pfd);
 	}
 
-	kDebug(2, "built new poll fd vector with {} elements", fds.size());
+	kDebug(2, "built new poll fd vector with {} elements", m_FdIndex.size());
 
 } // BuildPollVec
 
 //-----------------------------------------------------------------------------
-void KPoll::Triggered(int fd, uint16_t events)
+void KPoll::DrainArmQueue()
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+
+	m_bArmPending = false;
+
+	for (auto fd : m_ArmQueue)
+	{
+		auto it = m_FileDescriptors.find(fd);
+
+		if (it == m_FileDescriptors.end() || !it->second.bArmed || !it->second.iEvents)
+		{
+			continue;
+		}
+
+		if (m_FdIndex.find(fd) != m_FdIndex.end())
+		{
+			// already in the poll vector
+			continue;
+		}
+
+		pollfd pfd{};
+		pfd.fd     = fd;
+		pfd.events = AdjustEvents(fd, it->second.iEvents);
+		m_FdIndex[fd] = m_Fds.size();
+		m_Fds.push_back(pfd);
+	}
+
+	m_ArmQueue.clear();
+
+} // DrainArmQueue
+
+//-----------------------------------------------------------------------------
+void KPoll::RemoveFromPollVec(int fd)
+//-----------------------------------------------------------------------------
+{
+	auto it = m_FdIndex.find(fd);
+
+	if (it == m_FdIndex.end())
+	{
+		return;
+	}
+
+	auto iIndex = it->second;
+	auto iLast  = m_Fds.size() - 1;
+
+	if (iIndex != iLast)
+	{
+		// swap the last entry into the freed slot and fix its index
+		m_Fds[iIndex] = m_Fds[iLast];
+		m_FdIndex[m_Fds[iIndex].fd] = iIndex;
+	}
+
+	m_Fds.pop_back();
+	m_FdIndex.erase(it);
+
+} // RemoveFromPollVec
+
+//-----------------------------------------------------------------------------
+void KPoll::DispatchTriggered(int fd, uint16_t events)
 //-----------------------------------------------------------------------------
 {
 	kDebug(2, "fd {}: event {}", fd, events);
 
 	Parameters CBP;
+	bool       bRemoveFromVec { false };
 
 	{
 		// lock the map
@@ -322,27 +438,35 @@ void KPoll::Triggered(int fd, uint16_t events)
 
 		if (it == m_FileDescriptors.end())
 		{
-			// this fd is no more existing in the map
+			// this fd is no more existing in the map - drop it from the poll vector
 			kDebug(2, "could not find fd {}", fd);
-			m_bModified = true;
-			return;
+			bRemoveFromVec = true;
 		}
-
-		// check if we should only trigger once
-		if (it->second.bOnce)
+		else if (it->second.bOnce)
 		{
-			// get callback and parm
+			// get callback and parm, and remove the file descriptor from the map
 			CBP = std::move(it->second);
-			// and remove the file descriptor from the map
 			m_FileDescriptors.erase(it);
-			// and set a flag to rebuild the vector
-			m_bModified = true;
+			bRemoveFromVec = true;
 		}
 		else
 		{
 			// copy callback and parm
 			CBP = it->second;
+
+			if (it->second.bRearm)
+			{
+				// disarm until the consumer calls Arm() again - this serializes
+				// dispatch of this fd while a worker processes the event
+				it->second.bArmed = false;
+				bRemoveFromVec    = true;
+			}
 		}
+	}
+
+	if (bRemoveFromVec)
+	{
+		RemoveFromPollVec(fd);
 	}
 
 	if (CBP.Callback)
@@ -351,33 +475,37 @@ void KPoll::Triggered(int fd, uint16_t events)
 		CBP.Callback(fd, events, CBP.iParameter);
 	}
 
-} // Triggered
+} // DispatchTriggered
 
 //-----------------------------------------------------------------------------
 void KPoll::Watch()
 //-----------------------------------------------------------------------------
 {
-	std::vector<pollfd> fds;
+	// force an initial build so the interruptor gets into the poll vector
+	m_bModified = true;
 
 	while (!m_bStop)
 	{
 		if (m_bModified)
 		{
-			BuildPollVec(fds);
-
-			if (fds.empty())
-			{
-				while (!m_bModified && !m_bStop)
-				{
-					kSleep(m_Timeout ? m_Timeout : chrono::milliseconds(100));
-				}
-				continue;
-			}
-
-			AdjustPollVec(fds);
+			BuildPollVec();
+		}
+		else if (m_bArmPending)
+		{
+			DrainArmQueue();
 		}
 
-		auto iEvents = kPoll(fds, m_Timeout);
+		if (m_Fds.empty())
+		{
+			// no interruptor (e.g. Windows) and no fds to watch: sleep-wait for a change
+			while (!m_bModified && !m_bArmPending && !m_bStop)
+			{
+				kSleep(m_Timeout ? m_Timeout : chrono::milliseconds(100));
+			}
+			continue;
+		}
+
+		auto iEvents = kPoll(m_Fds, m_Timeout);
 
 		if (iEvents < 0)
 		{
@@ -385,46 +513,67 @@ void KPoll::Watch()
 			return;
 		}
 
-		if (iEvents > 0)
+		if (iEvents <= 0)
 		{
-			// find the file descriptors that have events:
-			for (const auto& pfd : fds)
-			{
-				if (pfd.revents)
-				{
-					Triggered(pfd.fd, pfd.revents);
+			continue;
+		}
 
-					if (--iEvents == 0)
-					{
-						break;
-					}
-				}
+		// collect the fired socket fds first - dispatch and disarm may modify m_Fds
+		std::vector<std::pair<int, uint16_t>> Fired;
+		Fired.reserve(iEvents);
+
+		for (const auto& pfd : m_Fds)
+		{
+			if (!pfd.revents)
+			{
+				continue;
 			}
+
+			if (m_Interruptor.IsValid() && pfd.fd == m_Interruptor.GetFD())
+			{
+				// just a wakeup - drain it and do not dispatch
+				m_Interruptor.Clear();
+			}
+			else
+			{
+				Fired.emplace_back(pfd.fd, static_cast<uint16_t>(pfd.revents));
+			}
+
+			if (--iEvents == 0)
+			{
+				break;
+			}
+		}
+
+		for (const auto& Fire : Fired)
+		{
+			DispatchTriggered(Fire.first, Fire.second);
 		}
 	}
 
 } // Watch
 
 //-----------------------------------------------------------------------------
-void KPoll::AdjustPollVec(std::vector<pollfd>& fds)
+uint16_t KPoll::AdjustEvents(int fd, uint16_t iEvents) const
 //-----------------------------------------------------------------------------
 {
-} // AdjustPollVec
+	return iEvents;
+
+} // AdjustEvents
 
 //-----------------------------------------------------------------------------
-void KSocketWatch::AdjustPollVec(std::vector<pollfd>& fds)
+uint16_t KSocketWatch::AdjustEvents(int fd, uint16_t iEvents) const
 //-----------------------------------------------------------------------------
 {
 #if DEKAF2_IS_MACOS
-	for (auto& pfd : fds)
-	{
-		// needed on macOS to detect disconnects
-		// (this looks silly, but test it - it is needed - it is a known BSD quirk)
-		pfd.events |= POLLHUP;
-	}
+	// needed on macOS to detect disconnects
+	// (this looks silly, but test it - it is needed - it is a known BSD quirk)
+	iEvents |= POLLHUP;
 #endif
 
-} // AdjustPollVec
+	return iEvents;
+
+} // AdjustEvents
 
 #if !DEKAF2_IS_WINDOWS
 

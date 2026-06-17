@@ -159,6 +159,8 @@ public:
 		std::size_t iParameter { 0 };      ///< arbitrary parameter to pass in callback
 		uint16_t    iEvents    { 0 };      ///< the file desc events to watch for
 		bool        bOnce      { false };  ///< trigger only once, or repeatedly?
+		bool        bRearm     { false };  ///< if set, the fd is disarmed (removed from the poll set) when it triggers, and stays in the registry until Arm() re-enables it - this serializes per-fd dispatch for a reactor that hands the work to a worker pool
+		bool        bArmed     { true  };  ///< internal: is this fd currently part of the poll set? (managed by KPoll, do not set)
 	};
 
 	KPoll(KDuration Timeout = chrono::milliseconds(100), bool bAutoStart = true)
@@ -173,6 +175,9 @@ public:
 	void Add(int fd, Parameters Parms);
 	/// remove a file descriptor from watch
 	void Remove(int fd);
+	/// re-arm a file descriptor that was disarmed after a bRearm trigger - call this
+	/// once you are done processing the event, so the fd is watched again
+	void Arm(int fd);
 
 	/// start the watcher
 	void Start();
@@ -183,15 +188,18 @@ public:
 protected:
 //----------
 
-	void BuildPollVec(std::vector<pollfd>& fds);
-	void Triggered(int fd, uint16_t events);
+	void BuildPollVec();
+	void DrainArmQueue();
+	void RemoveFromPollVec(int fd);
+	void DispatchTriggered(int fd, uint16_t events);
 	void Watch();
-	/// called after BuildPollVec() to let subclasses adjust event masks
-	virtual void AdjustPollVec(std::vector<pollfd>& fds);
+	/// let subclasses adjust the event mask for a single fd (e.g. add POLLHUP on macOS)
+	virtual uint16_t AdjustEvents(int fd, uint16_t iEvents) const;
 
-	KDuration         m_Timeout    { chrono::milliseconds(100) };
-	std::atomic<bool> m_bModified  { false };
-	std::atomic<bool> m_bStop      { false };
+	KDuration         m_Timeout      { chrono::milliseconds(100) };
+	std::atomic<bool> m_bModified    { false };
+	std::atomic<bool> m_bArmPending  { false };
+	std::atomic<bool> m_bStop        { false };
 
 //----------
 private:
@@ -202,6 +210,12 @@ private:
 	std::shared_mutex m_Mutex;
 	std::unique_ptr<std::thread> m_Thread;
 	std::unordered_map<int, Parameters> m_FileDescriptors;
+	std::vector<int>  m_ArmQueue;                     ///< fds waiting to be re-armed (guarded by m_Mutex)
+
+	// the following two are owned exclusively by the watcher thread and need no locking
+	KPollInterruptor  m_Interruptor;                  ///< wakes poll() on Add/Remove/Arm (no-op on Windows)
+	std::vector<pollfd> m_Fds;                        ///< the poll vector (interruptor at index 0 if valid)
+	std::unordered_map<int, std::size_t> m_FdIndex;   ///< fd -> index into m_Fds (socket fds only)
 
 	bool              m_bAutoStart {  true };
 
@@ -224,7 +238,7 @@ public:
 protected:
 //----------
 
-	virtual void AdjustPollVec(std::vector<pollfd>& fds) override final;
+	virtual uint16_t AdjustEvents(int fd, uint16_t iEvents) const override final;
 
 }; // KSocketWatch
 

@@ -158,7 +158,11 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 			{
 				// now move the connection to the websocket event handler, and return this
 				// thread into the pool
-				auto handle = m_WebSocketServer.AddWebSocket(KWebSocket(Stream, RESTServer.GetWebSocketHandler(), false));
+				KWebSocket WebSocket(Stream, RESTServer.GetWebSocketHandler(), false);
+				WebSocket.SetConnectHandler(RESTServer.GetWebSocketConnectHandler());
+				WebSocket.SetCloseHandler  (RESTServer.GetWebSocketCloseHandler());
+
+				auto handle = m_WebSocketServer.AddWebSocket(std::move(WebSocket));
 
 				if (handle > 0)
 				{
@@ -289,7 +293,11 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				Options.Out = KRESTServer::HTTP;
 
 				m_SocketWatch     = std::make_unique<KSocketWatch>(chrono::milliseconds(250));
-				m_WebSocketServer = std::make_unique<KWebSocketServer>();
+				KWebSocketServer::Options WebSocketOptions;
+				WebSocketOptions.iWorkerThreads = Options.iWebSocketWorkerThreads;
+				WebSocketOptions.Growth         = Options.Growth;
+				WebSocketOptions.Shrink         = Options.Shrink;
+				m_WebSocketServer = std::make_unique<KWebSocketServer>(std::move(WebSocketOptions));
 				m_Server          = std::make_unique<RESTServer>(Options,
 																 Routes,
 																 *m_SocketWatch,
@@ -366,7 +374,11 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
 				Options.Out       = KRESTServer::HTTP;
 				m_SocketWatch     = std::make_unique<KSocketWatch>(chrono::milliseconds(250));
-				m_WebSocketServer = std::make_unique<KWebSocketServer>();
+				KWebSocketServer::Options WebSocketOptions;
+				WebSocketOptions.iWorkerThreads = Options.iWebSocketWorkerThreads;
+				WebSocketOptions.Growth         = Options.Growth;
+				WebSocketOptions.Shrink         = Options.Shrink;
+				m_WebSocketServer = std::make_unique<KWebSocketServer>(std::move(WebSocketOptions));
 				m_Server          = std::make_unique<RESTServer>(Options,
 																 Routes,
 																 *m_SocketWatch,

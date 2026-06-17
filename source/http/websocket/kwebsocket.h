@@ -56,6 +56,8 @@
 #include <dekaf2/io/streams/kstream.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/time/duration/ktimer.h>
+#include <dekaf2/net/util/kpoll.h>
+#include <dekaf2/threading/execution/kthreadpool.h>
 #include <vector>
 #include <atomic>
 #include <thread>
@@ -66,6 +68,8 @@ DEKAF2_NAMESPACE_BEGIN
 
 /// @addtogroup http_websocket
 /// @{
+
+class KWebSocketServer;
 
 class DEKAF2_PUBLIC KWebSocketError : public KException
 {
@@ -384,6 +388,24 @@ public:
 	void               Finish                       ();
 	/// called upon reception of a new frame by a connection controller, will call the registered handler function
 	void               CallHandler                  (Frame Frame);
+	/// call the registered message handler with the frame currently held by this instance
+	void               CallHandler                  ()                             { if (m_Handler) m_Handler(*this); }
+	/// set a callback that is called once after the connection has been registered with a KWebSocketServer
+	void               SetConnectHandler            (std::function<void(KWebSocket&)> Connect) { m_ConnectHandler = std::move(Connect); }
+	/// set a callback that is called once when the connection is removed from a KWebSocketServer (argument is the handle)
+	void               SetCloseHandler              (std::function<void(std::size_t)> Close)   { m_CloseHandler   = std::move(Close);   }
+	/// call the connect handler (called by KWebSocketServer after registration)
+	void               CallConnectHandler           ()                             { if (m_ConnectHandler) m_ConnectHandler(*this); }
+	/// call the close handler (called by KWebSocketServer on removal)
+	void               CallCloseHandler             (std::size_t iHandle)          { if (m_CloseHandler) m_CloseHandler(iHandle); }
+	/// set the owning server and the handle for this connection (called by KWebSocketServer::AddWebSocket)
+	void               SetServerContext             (KWebSocketServer* pServer, std::size_t iHandle) { m_pServer = pServer; m_iHandle = iHandle; }
+	/// returns the handle of this connection within its KWebSocketServer (0 if not added to one)
+	DEKAF2_NODISCARD
+	std::size_t        GetHandle                    ()                       const { return m_iHandle;             }
+	/// returns the owning KWebSocketServer (nullptr if not added to one) - use it to send to other connections
+	DEKAF2_NODISCARD
+	KWebSocketServer*  GetServer                    ()                       const { return m_pServer;             }
 	/// returns a reference to the current frame
 	Frame&             GetFrame                     ()                             { return m_Frame;               }
 	/// returns a reference to the stream socket for this instance
@@ -412,6 +434,10 @@ private:
 	std::unique_ptr<KIOStreamSocket> m_Stream;
 	std::function<void(KWebSocket&)> m_Handler;
 	std::function<void()>            m_Finish;
+	std::function<void(KWebSocket&)> m_ConnectHandler;
+	std::function<void(std::size_t)> m_CloseHandler;
+	KWebSocketServer*                m_pServer      { nullptr };
+	std::size_t                      m_iHandle      { 0 };
 	std::mutex                       m_StreamMutex;
 	KDuration                        m_ReadTimeout  { chrono::minutes(60) };
 	KDuration                        m_WriteTimeout { chrono::seconds(30) };
@@ -422,7 +448,25 @@ private:
 }; // KWebSocket
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Maintain multiple websocket connections and their event handlers
+/// Maintains multiple websocket connections and dispatches their incoming events.
+///
+/// A single I/O (reactor) thread polls all connection sockets for incoming data.
+/// When a socket becomes readable it is disarmed (so it is not dispatched twice)
+/// and the work - reading one full message and calling the message handler - is
+/// either run inline in the I/O thread (Options::iWorkerThreads == 0, single
+/// thread mode) or handed to a bounded worker thread pool. After the handler
+/// returns the socket is re-armed. This serializes events per connection while
+/// allowing parallelism across connections.
+///
+/// To send a message to a specific client from any thread, use Send() with the
+/// Handle returned by AddWebSocket() (the application typically learns the handle
+/// in the connect handler via KWebSocket::GetHandle() and keeps its own
+/// identity -> handle mapping).
+///
+/// When used together with the REST framework the connection is created and added
+/// automatically on a websocket upgrade - you only set the handlers from the route
+/// handler. See KRESTServer::SetWebSocketHandler for a complete server-side example.
+/// @see KRESTServer::SetWebSocketHandler
 class DEKAF2_PUBLIC KWebSocketServer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -433,21 +477,87 @@ public:
 
 	using Handle = std::size_t;
 
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// configuration for the websocket server
+	struct Options
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		/// number of worker threads handling events - 0 (default) runs the handlers
+		/// inline in the single I/O thread (a slow handler then blocks all connections)
+		std::size_t               iWorkerThreads { 0 };
+		/// growth policy for the worker thread pool
+		KThreadPool::GrowthPolicy Growth         { KThreadPool::PrestartSome };
+		/// shrink policy for the worker thread pool
+		KThreadPool::ShrinkPolicy Shrink         { KThreadPool::ShrinkSome   };
+		/// per connection read (idle) timeout - a connection that is silent for this
+		/// long is considered dead and removed
+		KDuration                 IdleTimeout    { chrono::minutes(60) };
+
+	}; // Options
+
 	KWebSocketServer();
+	explicit KWebSocketServer(Options Options);
 	~KWebSocketServer();
 
-	Handle AddWebSocket(KWebSocket WebSocket);
+	KWebSocketServer(const KWebSocketServer&)            = delete;
+	KWebSocketServer& operator=(const KWebSocketServer&) = delete;
+
+	/// add an upgraded websocket connection to the server, start watching it for incoming
+	/// messages, and return a stable handle to address it (0 on failure)
+	Handle      AddWebSocket(KWebSocket WebSocket);
+
+	/// send a text or binary message to a specific connection - thread safe, may be called
+	/// from any thread, blocks until the message is written or the write timeout elapses
+	/// @returns false if the handle is unknown or the write failed
+	bool        Send      (Handle iHandle, KString sMessage, bool bIsBinary = false);
+	/// send a json message (as UTF8 text) to a specific connection
+	bool        Send      (Handle iHandle, const KJSON& jMessage);
+	/// send a message to all connected clients
+	/// @returns the number of connections the message was successfully written to
+	std::size_t Broadcast (KString sMessage, bool bIsBinary = false);
+	/// send a ping to a specific connection
+	bool        Ping      (Handle iHandle, KString sMessage = KString{});
+	/// close a specific connection (sends a close frame and removes it)
+	bool        Close     (Handle iHandle, uint16_t iStatusCode = 1000, KString sReason = KString{});
+	/// @returns the number of currently connected clients
+	DEKAF2_NODISCARD
+	std::size_t size      () const;
 
 //----------
 private:
 //----------
 
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// one managed websocket connection - the websocket plus its cached socket fd
+	struct Connection
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		Connection(KWebSocket WebSocket, int iFd)
+		: WebSocket(std::move(WebSocket)), iFd(iFd) {}
+
+		KWebSocket WebSocket;
+		int        iFd;
+
+	}; // Connection
+
+	using ConnectionPtr = std::shared_ptr<Connection>;
+
+	/// look up a connection by handle (returns nullptr if unknown)
+	ConnectionPtr GetConnection    (Handle iHandle) const;
+	/// called by the reactor when a connection's socket has incoming data
+	void          OnReadable       (Handle iHandle);
+	/// read one message and call the handler, then re-arm the socket (runs inline or in a worker)
+	void          ServiceConnection(ConnectionPtr pConnection, Handle iHandle);
+	/// remove a connection, stop watching its socket, and call its close handler
+	void          RemoveConnection (Handle iHandle);
+
+	Options                       m_Options;
+	KPoll                         m_Poll;
+	KThreadPool                   m_ThreadPool;
 	KThreadSafe<
-	    KUnorderedMap<std::size_t, KWebSocket>
+	    KUnorderedMap<Handle, ConnectionPtr>
 	>                             m_Connections;
-	std::unique_ptr<std::thread>  m_Executor;
-	std::atomic<std::size_t>      m_iLastID      { 0 };
-	std::atomic<bool>             m_bStop    { false };
+	std::atomic<Handle>           m_iLastID      { 0 };
 
 }; // KWebSocketServer
 

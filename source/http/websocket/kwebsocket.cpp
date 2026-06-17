@@ -1095,15 +1095,19 @@ KWebSocket::KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<v
 //-----------------------------------------------------------------------------
 KWebSocket::KWebSocket(KWebSocket&& other)
 //-----------------------------------------------------------------------------
-: m_Frame        (std::move(other.m_Frame  ))
-, m_Stream       (std::move(other.m_Stream ))
-, m_Handler      (std::move(other.m_Handler))
-, m_Finish       (std::move(other.m_Finish ))
-, m_ReadTimeout  (other.m_ReadTimeout )
-, m_WriteTimeout (other.m_WriteTimeout)
-, m_PingInterval (other.m_PingInterval)
-, m_TimerID      (other.m_TimerID     )
-, m_bMaskTx      (other.m_bMaskTx     )
+: m_Frame          (std::move(other.m_Frame         ))
+, m_Stream         (std::move(other.m_Stream        ))
+, m_Handler        (std::move(other.m_Handler       ))
+, m_Finish         (std::move(other.m_Finish        ))
+, m_ConnectHandler (std::move(other.m_ConnectHandler))
+, m_CloseHandler   (std::move(other.m_CloseHandler  ))
+, m_pServer        (other.m_pServer     )
+, m_iHandle        (other.m_iHandle     )
+, m_ReadTimeout    (other.m_ReadTimeout )
+, m_WriteTimeout   (other.m_WriteTimeout)
+, m_PingInterval   (other.m_PingInterval)
+, m_TimerID        (other.m_TimerID     )
+, m_bMaskTx        (other.m_bMaskTx     )
 {
 	other.m_TimerID      = KTimer::InvalidID;
 	other.m_PingInterval = KDuration::zero();
@@ -1372,67 +1376,300 @@ void KWebSocket::Finish()
 //-----------------------------------------------------------------------------
 KWebSocketServer::KWebSocketServer()
 //-----------------------------------------------------------------------------
+: KWebSocketServer(Options{})
 {
-/*
-	// start the executor thread
-	m_Executor = std::make_unique<std::thread>([]()
+} // ctor
+
+//-----------------------------------------------------------------------------
+KWebSocketServer::KWebSocketServer(Options Options)
+//-----------------------------------------------------------------------------
+: m_Options(std::move(Options))
+{
+	if (m_Options.iWorkerThreads > 0)
 	{
-		// TODO implement KPoll interface
-	});
-*/
+		kDebug(2, "starting websocket server with {} worker threads", m_Options.iWorkerThreads);
+		m_ThreadPool.resize(m_Options.iWorkerThreads, m_Options.Growth, m_Options.Shrink);
+	}
+	else
+	{
+		kDebug(2, "starting websocket server in single thread mode");
+	}
+
+	// the reactor (m_Poll) auto-starts its watcher thread on the first Add()
+
 } // ctor
 
 //-----------------------------------------------------------------------------
 KWebSocketServer::~KWebSocketServer()
 //-----------------------------------------------------------------------------
 {
-	if (m_Executor)
-	{
-		// tell the thread to stop
-		m_bStop = true;
-		// and block until it is home
-		m_Executor->join();
-	}
+	// stop dispatching new events first, then drain in-flight workers,
+	// then let the connection map (and its sockets) be destroyed
+	m_Poll.Stop();
+	m_ThreadPool.stop();
 
 } // dtor
+
+//-----------------------------------------------------------------------------
+KWebSocketServer::ConnectionPtr KWebSocketServer::GetConnection(Handle iHandle) const
+//-----------------------------------------------------------------------------
+{
+	auto Connections = m_Connections.shared();
+
+	auto it = Connections->find(iHandle);
+
+	if (it == Connections->end())
+	{
+		return nullptr;
+	}
+
+	return it->second;
+
+} // GetConnection
 
 //-----------------------------------------------------------------------------
 KWebSocketServer::Handle KWebSocketServer::AddWebSocket(KWebSocket WebSocket)
 //-----------------------------------------------------------------------------
 {
-	Handle handle { ++m_iLastID };
+	auto iFd = WebSocket.GetStream().GetNativeSocket();
 
-	if (!handle)
+	if (iFd < 0)
 	{
-		// overflow..
-		handle = ++m_iLastID;
+		kDebug(1, "cannot add websocket: invalid socket");
+		return 0;
 	}
 
-	WebSocket.SetFinishCallback([handle, this]()
+	Handle iHandle { ++m_iLastID };
+
+	if (!iHandle)
+	{
+		// handle 0 is reserved for "invalid" - skip it on overflow
+		iHandle = ++m_iLastID;
+	}
+
+	WebSocket.SetReadTimeout(m_Options.IdleTimeout);
+	WebSocket.SetServerContext(this, iHandle);
+
+	// the finish callback lets the application (or KWebSocket itself) tear the connection down
+	WebSocket.SetFinishCallback([iHandle, this]()
+	{
+		RemoveConnection(iHandle);
+	});
+
+	auto pConnection = std::make_shared<Connection>(std::move(WebSocket), iFd);
+
 	{
 		auto Connections = m_Connections.unique();
 
-		auto it = Connections->find(handle);
+		auto p = Connections->insert({ iHandle, pConnection });
+
+		if (!p.second)
+		{
+			throw KWebSocketError("cannot add websocket");
+		}
+	}
+
+	kDebug(2, "added websocket connection with handle {} on fd {}", iHandle, iFd);
+
+	// the connection is now registered - let the application learn its handle
+	pConnection->WebSocket.CallConnectHandler();
+
+	// start watching the socket for incoming data: dispatch once, then disarm until
+	// ServiceConnection() re-arms it (this serializes per-connection dispatch)
+	KPoll::Parameters Params;
+	Params.iParameter = iHandle;
+	Params.iEvents    = POLLIN;
+	Params.bRearm     = true;
+	Params.Callback   = [this](int iFd, uint16_t iEvents, std::size_t iHandle)
+	{
+		OnReadable(iHandle);
+	};
+
+	m_Poll.Add(iFd, std::move(Params));
+
+	return iHandle;
+
+} // AddWebSocket
+
+//-----------------------------------------------------------------------------
+void KWebSocketServer::OnReadable(Handle iHandle)
+//-----------------------------------------------------------------------------
+{
+	auto pConnection = GetConnection(iHandle);
+
+	if (!pConnection)
+	{
+		// gone in the meantime
+		return;
+	}
+
+	if (m_Options.iWorkerThreads == 0)
+	{
+		// single thread mode: handle inline in the reactor thread
+		ServiceConnection(std::move(pConnection), iHandle);
+	}
+	else
+	{
+		// hand the work to a worker thread, return the reactor thread to polling
+		m_ThreadPool.push(&KWebSocketServer::ServiceConnection, this, std::move(pConnection), iHandle);
+	}
+
+} // OnReadable
+
+//-----------------------------------------------------------------------------
+void KWebSocketServer::ServiceConnection(ConnectionPtr pConnection, Handle iHandle)
+//-----------------------------------------------------------------------------
+{
+	// read one full message (Read() returns false on close, error, or timeout)
+	if (!pConnection->WebSocket.Read())
+	{
+		RemoveConnection(iHandle);
+		return;
+	}
+
+	// invoke the application's message handler with the freshly read frame
+	pConnection->WebSocket.CallHandler();
+
+	// re-arm the socket so the next message gets dispatched (no-op if it was removed)
+	m_Poll.Arm(pConnection->iFd);
+
+} // ServiceConnection
+
+//-----------------------------------------------------------------------------
+void KWebSocketServer::RemoveConnection(Handle iHandle)
+//-----------------------------------------------------------------------------
+{
+	ConnectionPtr pConnection;
+
+	{
+		auto Connections = m_Connections.unique();
+
+		auto it = Connections->find(iHandle);
 
 		if (it == Connections->end())
 		{
-			kDebug(2, "connection already removed");
+			kDebug(2, "connection {} already removed", iHandle);
 			return;
 		}
 
+		pConnection = std::move(it->second);
 		Connections->erase(it);
-
-	});
-
-	auto p = m_Connections.unique()->insert({handle, std::move(WebSocket)});
-
-	if (!p.second)
-	{
-		throw KWebSocketError("cannot add websocket");
 	}
 
-	return handle;
+	kDebug(2, "removing websocket connection with handle {}", iHandle);
 
-} // AddConnection
+	// stop watching the socket
+	m_Poll.Remove(pConnection->iFd);
+
+	// notify the application
+	pConnection->WebSocket.CallCloseHandler(iHandle);
+
+} // RemoveConnection
+
+//-----------------------------------------------------------------------------
+bool KWebSocketServer::Send(Handle iHandle, KString sMessage, bool bIsBinary)
+//-----------------------------------------------------------------------------
+{
+	auto pConnection = GetConnection(iHandle);
+
+	if (!pConnection)
+	{
+		kDebug(2, "cannot send to handle {}: unknown connection", iHandle);
+		return false;
+	}
+
+	return pConnection->WebSocket.Write(std::move(sMessage), bIsBinary);
+
+} // Send
+
+//-----------------------------------------------------------------------------
+bool KWebSocketServer::Send(Handle iHandle, const KJSON& jMessage)
+//-----------------------------------------------------------------------------
+{
+	auto pConnection = GetConnection(iHandle);
+
+	if (!pConnection)
+	{
+		kDebug(2, "cannot send to handle {}: unknown connection", iHandle);
+		return false;
+	}
+
+	return pConnection->WebSocket.Write(jMessage);
+
+} // Send
+
+//-----------------------------------------------------------------------------
+std::size_t KWebSocketServer::Broadcast(KString sMessage, bool bIsBinary)
+//-----------------------------------------------------------------------------
+{
+	// copy the connection pointers out under the lock, then write without holding it
+	std::vector<ConnectionPtr> Targets;
+
+	{
+		auto Connections = m_Connections.shared();
+
+		Targets.reserve(Connections->size());
+
+		for (const auto& Connection : *Connections)
+		{
+			Targets.push_back(Connection.second);
+		}
+	}
+
+	std::size_t iSent { 0 };
+
+	for (auto& pConnection : Targets)
+	{
+		if (pConnection->WebSocket.Write(sMessage, bIsBinary))
+		{
+			++iSent;
+		}
+	}
+
+	return iSent;
+
+} // Broadcast
+
+//-----------------------------------------------------------------------------
+bool KWebSocketServer::Ping(Handle iHandle, KString sMessage)
+//-----------------------------------------------------------------------------
+{
+	auto pConnection = GetConnection(iHandle);
+
+	if (!pConnection)
+	{
+		return false;
+	}
+
+	return pConnection->WebSocket.Ping(std::move(sMessage));
+
+} // Ping
+
+//-----------------------------------------------------------------------------
+bool KWebSocketServer::Close(Handle iHandle, uint16_t iStatusCode, KString sReason)
+//-----------------------------------------------------------------------------
+{
+	auto pConnection = GetConnection(iHandle);
+
+	if (!pConnection)
+	{
+		return false;
+	}
+
+	bool bResult = pConnection->WebSocket.Close(iStatusCode, std::move(sReason));
+
+	RemoveConnection(iHandle);
+
+	return bResult;
+
+} // Close
+
+//-----------------------------------------------------------------------------
+std::size_t KWebSocketServer::size() const
+//-----------------------------------------------------------------------------
+{
+	return m_Connections.shared()->size();
+
+} // size
 
 DEKAF2_NAMESPACE_END

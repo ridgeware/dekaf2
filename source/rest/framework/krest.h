@@ -117,6 +117,11 @@ public:
 		KThreadPool::GrowthPolicy Growth { KThreadPool::PrestartSome };
 		/// Shrink policy for removal of idle worker threads
 		KThreadPool::ShrinkPolicy Shrink { KThreadPool::ShrinkSome };
+		/// number of worker threads for the websocket event server (connections that were
+		/// upgraded and not kept in their own thread). 0 (default) runs the websocket handlers
+		/// inline in the single websocket I/O thread (a slow handler then blocks all websockets);
+		/// a value > 0 dispatches handlers to that many worker threads
+		std::size_t iWebSocketWorkerThreads { 0 };
 		/// timeout in seconds (default 5)
 		uint16_t iTimeout { 5 };
 		/// signals that will shutdown the server (default SIGINT, SIGTERM)

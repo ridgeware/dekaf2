@@ -610,7 +610,62 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// sets a callback that will be called every time a websocket frame is received, or the connection is lost
+	/// sets a callback that will be called every time a websocket frame is received.
+	///
+	/// Set this (and optionally SetWebSocketConnectHandler / SetWebSocketCloseHandler) from the
+	/// route handler of a route that was registered for the websocket protocol (method "WEBSOCKET",
+	/// or KRESTRoute::Options::WEBSOCKET). After the route handler returns, the upgraded connection
+	/// is moved into the server's KWebSocketServer, which watches it on a single I/O thread and
+	/// dispatches incoming messages either inline (Options::iWebSocketWorkerThreads == 0) or to a
+	/// worker pool. Inside a handler, KWebSocket::GetServer() reaches the KWebSocketServer so you
+	/// can send to other connections, and KWebSocket::GetHandle() identifies this connection.
+	///
+	/// @code
+	/// // your own (thread safe) mapping of application identity -> connection handle, plus the server
+	/// KThreadSafe<std::map<KString, KWebSocketServer::Handle>> Users;
+	/// std::atomic<KWebSocketServer*> pServer { nullptr };
+	///
+	/// KRESTRoutes Routes;
+	/// // register the route for the websocket protocol (RouteBuilder interface)
+	/// Routes.AddRoute("/chat/:USER").Options({ KRESTRoute::Options::WEBSOCKET }).Get([&](KRESTServer& HTTP)
+	/// {
+	///     auto sUser = HTTP.GetQueryParmSafe("USER");
+	///
+	///     // called for every message received from this client
+	///     HTTP.SetWebSocketHandler([](KWebSocket& WebSocket)
+	///     {
+	///         // relay the received message to every connected client
+	///         WebSocket.GetServer()->Broadcast(WebSocket.GetFrame().GetPayload());
+	///     });
+	///
+	///     // called once after the connection has been registered - record its handle
+	///     HTTP.SetWebSocketConnectHandler([&, sUser](KWebSocket& WebSocket)
+	///     {
+	///         pServer = WebSocket.GetServer();
+	///         Users.unique()->insert_or_assign(sUser, WebSocket.GetHandle());
+	///     });
+	///
+	///     // called once when the connection is gone - clean up
+	///     HTTP.SetWebSocketCloseHandler([&, sUser](KWebSocketServer::Handle)
+	///     {
+	///         Users.unique()->erase(sUser);
+	///     });
+	/// });
+	///
+	/// KREST::Options Options;
+	/// Options.Type                    = KREST::HTTP;
+	/// Options.iPort                   = 8080;
+	/// Options.iWebSocketWorkerThreads = 0;   // 0 = handle inline in the I/O thread, N = use a worker pool
+	///
+	/// KREST Server;
+	/// Server.Execute(Options, Routes);
+	///
+	/// // from any other thread you can now push to a specific user by handle:
+	/// auto Handles = Users.shared();
+	/// auto it      = Handles->find("alice");
+	/// if (it != Handles->end() && pServer) { pServer.load()->Send(it->second, "you have a new message"); }
+	/// @endcode
+	/// @see KWebSocketServer, SetWebSocketConnectHandler, SetWebSocketCloseHandler
 	void SetWebSocketHandler(std::function<void(KWebSocket&)> WebSocketHandler)
 	//-----------------------------------------------------------------------------
 	{
@@ -624,6 +679,44 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return m_WebSocketHandlerCallback;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// sets a callback that is called once after the websocket connection has been registered
+	/// with the websocket server - the application typically records the handle (KWebSocket::GetHandle())
+	/// against its own identity here, to be able to send to this client later
+	void SetWebSocketConnectHandler(std::function<void(KWebSocket&)> WebSocketConnectHandler)
+	//-----------------------------------------------------------------------------
+	{
+		m_WebSocketConnectHandlerCallback = std::move(WebSocketConnectHandler);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// gets the websocket connect callback
+	DEKAF2_NODISCARD
+	const std::function<void(KWebSocket&)>& GetWebSocketConnectHandler()
+	//-----------------------------------------------------------------------------
+	{
+		return m_WebSocketConnectHandlerCallback;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// sets a callback that is called once when the websocket connection is removed from the
+	/// websocket server (the argument is the connection handle) - the application uses this to
+	/// clean up its identity to handle mapping
+	void SetWebSocketCloseHandler(std::function<void(std::size_t)> WebSocketCloseHandler)
+	//-----------------------------------------------------------------------------
+	{
+		m_WebSocketCloseHandlerCallback = std::move(WebSocketCloseHandler);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// gets the websocket close callback
+	DEKAF2_NODISCARD
+	const std::function<void(std::size_t)>& GetWebSocketCloseHandler()
+	//-----------------------------------------------------------------------------
+	{
+		return m_WebSocketCloseHandlerCallback;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -741,6 +834,8 @@ private:
 	std::unique_ptr<std::map<KStringView, KStringView>> m_RequestCookies;
 	std::function<void(const KRESTServer&)> m_PostResponseCallback; // if set, gets called after response generation
 	std::function<void(KWebSocket&)> m_WebSocketHandlerCallback; // filled by route handler during upgrade to websocket protocol, will be called every time a frame is received, or the connection is lost
+	std::function<void(KWebSocket&)> m_WebSocketConnectHandlerCallback; // optional, called once after the connection has been registered with the websocket server
+	std::function<void(std::size_t)> m_WebSocketCloseHandlerCallback;   // optional, called once when the connection is removed from the websocket server
 	KIOStreamSocket*  m_StreamSocket     { nullptr };            // the underlying KIOStreamSocket, if existing
 	const KRESTRoute* m_pLastLoggedRoute { nullptr };            // remembers the last route written to access log within this connection; used by NO_REPEAT_LOG to suppress subsequent identical entries in keepalive
 	uint16_t    m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds

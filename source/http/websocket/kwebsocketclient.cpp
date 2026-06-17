@@ -356,7 +356,7 @@ std::size_t KWebSocketClient::Read(KStringRef& sBuffer, std::size_t len)
 			return 0;
 		}
 
-		auto iRead = std::min(m_sRXBuffer.size(), len);
+		iRead = std::min(m_sRXBuffer.size(), len);
 
 		sBuffer.append(m_sRXBuffer.data(), iRead);
 

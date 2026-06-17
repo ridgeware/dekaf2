@@ -1,9 +1,13 @@
 #include "catch.hpp"
 #include <dekaf2/http/websocket/kwebsocket.h>
+#include <dekaf2/http/websocket/kwebsocketclient.h>
+#include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/http/protocol/khttp_request.h>
 #include <dekaf2/http/protocol/khttp_response.h>
+#include <dekaf2/system/os/ksystem.h>
+#include <atomic>
 
 using namespace dekaf2;
 
@@ -640,5 +644,113 @@ TEST_CASE("KWebSocket Preamble")
 		CHECK ( RxFrame.GetChannel() == 1000 );
 		CHECK ( RxFrame.size()       == 200 );
 		CHECK ( RxFrame.GetPayload() == sPayload );
+	}
+}
+
+namespace {
+
+//-----------------------------------------------------------------------------
+// drives one full lifecycle against a KWebSocketServer running behind a KREST
+// server: connect, echo round-trips (exercising disarm/re-arm), a server initiated
+// push and broadcast addressed by handle, and disconnect detection
+void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers)
+//-----------------------------------------------------------------------------
+{
+	KREST::Options Options;
+	Options.Type                    = KREST::HTTP;
+	Options.iPort                   = iPort;
+	Options.iTimeout                = 2;
+	Options.bBlocking               = false;
+	Options.bCreateEphemeralCert    = false;
+	Options.iWebSocketWorkerThreads = iWorkers;
+
+	std::atomic<KWebSocketServer*> pServer   { nullptr };
+	std::atomic<std::size_t>       iHandle   { 0 };
+	std::atomic<int>               iConnects { 0 };
+	std::atomic<int>               iCloses   { 0 };
+
+	KRESTRoutes Routes;
+	Routes.AddRoute({ KHTTPMethod::GET, { KRESTRoute::Options::WEBSOCKET }, "/ws", [&](KRESTServer& http)
+	{
+		http.SetWebSocketHandler([](KWebSocket& WebSocket)
+		{
+			// echo the received payload back to the client
+			WebSocket.Write(WebSocket.GetFrame().GetPayload(), false);
+		});
+		http.SetWebSocketConnectHandler([&](KWebSocket& WebSocket)
+		{
+			pServer = WebSocket.GetServer();
+			iHandle = WebSocket.GetHandle();
+			++iConnects;
+		});
+		http.SetWebSocketCloseHandler([&](std::size_t)
+		{
+			++iCloses;
+		});
+	}});
+
+	KREST Server;
+	REQUIRE ( Server.Execute(Options, Routes) );
+
+	{
+		KWebSocketClient Client(KURL(kFormat("ws://localhost:{}/ws", iPort)), KHTTPStreamOptions{});
+		Client.SetTimeout(chrono::seconds(3));
+
+		REQUIRE ( Client.Connect() );
+
+		// echo round-trip
+		REQUIRE ( Client.Write("hello") );
+		KStringRef sReply;
+		Client.Read(sReply);
+		CHECK ( sReply == "hello" );
+
+		// a second message - verifies the socket was re-armed after the first
+		REQUIRE ( Client.Write("world") );
+		sReply.clear();
+		Client.Read(sReply);
+		CHECK ( sReply == "world" );
+
+		// the connect handler runs before any message dispatch, so by now it has run
+		CHECK ( iConnects.load() == 1 );
+		REQUIRE ( pServer.load() != nullptr );
+		CHECK ( iHandle.load()  != 0 );
+
+		// server-initiated push from this thread, addressing the connection by its handle
+		CHECK ( pServer.load()->Send(iHandle.load(), "pushed", false) );
+		KStringRef sPush;
+		Client.Read(sPush);
+		CHECK ( sPush == "pushed" );
+
+		// broadcast (to the single connected client)
+		CHECK ( pServer.load()->Broadcast("broadcast") == 1 );
+		KStringRef sBroadcast;
+		Client.Read(sBroadcast);
+		CHECK ( sBroadcast == "broadcast" );
+
+		CHECK ( pServer.load()->size() == 1 );
+	}
+	// the client is gone now - the socket is closed and the server should notice
+
+	// wait (with a generous timeout) for the server to detect the disconnect
+	for (int iWait = 0; iWait < 300 && iCloses.load() == 0; ++iWait)
+	{
+		kSleep(chrono::milliseconds(10));
+	}
+
+	CHECK ( iCloses.load() == 1 );
+}
+
+} // anonymous namespace
+
+TEST_CASE("KWebSocketServer")
+{
+	SECTION("single thread mode")
+	{
+		RunWebSocketServerTest(6788, 0);
+	}
+
+	SECTION("worker thread pool")
+	{
+		RunWebSocketServerTest(6789, 4);
 	}
 }

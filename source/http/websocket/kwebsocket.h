@@ -80,6 +80,109 @@ class DEKAF2_PUBLIC KWebSocketError : public KException
 };
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// permessage-deflate (RFC 7692) codec for one websocket connection.
+///
+/// Holds the persistent raw-DEFLATE (zlib) compression and decompression streams for one
+/// connection. Compress()/Decompress() operate on a whole message (the DEFLATE stream spans
+/// all frames of a message). With context takeover the LZ77 window is retained across messages
+/// for a better ratio (at ~256KB+40KB resident per connection); with no_context_takeover the
+/// compressor is reset after each message. The decompressor always keeps its context, which is
+/// correct regardless of the peer's choice (a reset peer simply emits no cross-message back refs).
+///
+/// zlib is hidden behind a pimpl so <zlib.h> does not leak into this header.
+///
+/// You normally do not construct this directly: the negotiation helpers below build/parse the
+/// Sec-WebSocket-Extensions header, and the codec is enabled on a connection for you. On the
+/// server set KRESTServer::Options::WebSocketDeflate (a ServerConfig); on the client call
+/// KWebSocketClient::SetPerMessageDeflate(). Messages are then transparently compressed on write
+/// and decompressed on read.
+///
+/// @code
+/// // server: accept permessage-deflate, reset compressors per message to cap memory at scale
+/// Options.WebSocketDeflate.bEnable                  = true;
+/// Options.WebSocketDeflate.bServerNoContextTakeover = true;
+/// Options.WebSocketDeflate.bClientNoContextTakeover = true;
+///
+/// // client: offer permessage-deflate on the next Connect()
+/// Client.SetPerMessageDeflate(true);
+/// @endcode
+/// @see KRESTServer, KWebSocketClient
+class DEKAF2_PUBLIC KWebSocketPMCE
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	/// the four RFC 7692 negotiated parameters plus an enabled flag
+	struct Parameters
+	{
+		bool    bClientNoContextTakeover { false };  ///< the client resets its compressor after each message
+		bool    bServerNoContextTakeover { false };  ///< the server resets its compressor after each message
+		uint8_t iClientMaxWindowBits     { 15    };  ///< the client's compression window (8..15)
+		uint8_t iServerMaxWindowBits     { 15    };  ///< the server's compression window (8..15)
+		bool    bEnabled                 { false };  ///< true if permessage-deflate was negotiated
+	};
+
+	/// construct the codec for a negotiated parameter set
+	/// @param Params the negotiated parameters
+	/// @param bServer true on the server side (we then compress with the server window and reset
+	/// our compressor per bServerNoContextTakeover; false on the client side, vice versa)
+	KWebSocketPMCE(Parameters Params, bool bServer);
+	~KWebSocketPMCE();
+
+	KWebSocketPMCE(const KWebSocketPMCE&)            = delete;
+	KWebSocketPMCE& operator=(const KWebSocketPMCE&) = delete;
+
+	/// compress one full message - the returned bytes are the raw-deflate output with the trailing
+	/// empty block (0x00 0x00 0xFF 0xFF) removed, ready to put into a frame with RSV1 set
+	/// @returns false on a zlib error
+	bool Compress  (KStringView sInput, KString& sOutput);
+	/// decompress one full message (the reassembled payload of a frame that had RSV1 set)
+	/// @returns false on a zlib error
+	bool Decompress(KStringView sInput, KString& sOutput);
+
+	/// the parameters this codec was created with
+	const Parameters& GetParameters() const { return m_Params; }
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// server side policy for accepting permessage-deflate offers
+	struct ServerConfig
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		bool    bEnable                  { true  };  ///< accept permessage-deflate if the client offers it
+		bool    bServerNoContextTakeover { false };  ///< force: reset the server compressor after each message (saves memory at scale)
+		bool    bClientNoContextTakeover { false };  ///< force: ask the client to reset its compressor after each message
+		uint8_t iServerMaxWindowBits     { 15    };  ///< cap the server compressor window (8..15)
+
+	}; // ServerConfig
+
+	/// negotiate permessage-deflate on the server from a client's Sec-WebSocket-Extensions offer
+	/// @param sClientOffer the client's Sec-WebSocket-Extensions header value (may list several extensions)
+	/// @param Config the server's policy
+	/// @param sResponse receives the Sec-WebSocket-Extensions value to send back (empty if declined)
+	/// @return the negotiated parameters, with bEnabled true if permessage-deflate was accepted
+	static Parameters NegotiateServer  (KStringView sClientOffer, const ServerConfig& Config, KString& sResponse);
+	/// build a client's Sec-WebSocket-Extensions offer value for permessage-deflate
+	static KString    BuildClientOffer (bool bClientNoContextTakeover = false, bool bServerNoContextTakeover = false);
+	/// parse the server's accepted Sec-WebSocket-Extensions response into negotiated parameters
+	/// @return parameters with bEnabled true if the server accepted permessage-deflate
+	static Parameters ParseServerResponse(KStringView sServerResponse);
+
+//----------
+private:
+//----------
+
+	struct Impl;
+
+	Parameters              m_Params;
+	bool                    m_bServer;
+	std::unique_ptr<Impl>   m_pImpl;
+
+}; // KWebSocketPMCE
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// represents one single websocket connection
 class DEKAF2_PUBLIC KWebSocket
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -139,6 +242,10 @@ public:
 		FrameType   Type            ()             const { return m_Opcode;      }
 		/// @return the Finished flag
 		bool        Finished        ()             const { return m_bIsFin;      }
+		/// @return the RSV1 reserved bit (used by permessage-deflate to mark a compressed message)
+		bool        GetRSV1         ()             const { return (m_iExtension & 0x04) != 0; }
+		/// set or clear the RSV1 reserved bit (permessage-deflate sets it on the first frame of a compressed message)
+		void        SetRSV1         (bool bYesNo = true) { if (bYesNo) { m_iExtension |= 0x04; } else { m_iExtension &= ~0x04; } }
 		/// @return the payload size decoded from the header
 		uint64_t    AnnouncedSize   ()             const { return m_iPayloadLen; }
 		/// has this frame been sent with xoring?
@@ -288,6 +395,11 @@ public:
 		bool           empty      () const           { return GetPayload().empty();    }
 		/// returns size of the payload
 		std::size_t    size       () const           { return GetPayload().size();     }
+		/// set the payload (also updates the announced payload length)
+		void           SetPayload (KString sPayload);
+		/// @return true if the first data frame of this message had the RSV1 bit set
+		/// (i.e. it is a permessage-deflate compressed message)
+		bool           IsCompressed() const          { return m_bMessageCompressed;    }
 		/// reset frame to initial state
 		void           clear      ();
 
@@ -300,8 +412,6 @@ public:
 	protected:
 	//----------
 
-		/// set payload
-		void           SetPayload (KString sPayload);
 		/// returns payload
 		KString&       GetPayloadRef ()              { return m_sPayload;           }
 
@@ -322,6 +432,7 @@ public:
 		void           UnMask     (KStringRef& sBuffer);
 
 		KString m_sPayload;
+		bool    m_bMessageCompressed { false };  // first data frame of the message had RSV1 set
 
 	}; // Frame
 
@@ -340,6 +451,15 @@ public:
 
 	/// set write timeout. probably in the seconds range (defaults to 30 seconds)
 	void SetWriteTimeout(KDuration WriteTimeout) { m_WriteTimeout = WriteTimeout; }
+
+	/// enable permessage-deflate (RFC 7692) compression/decompression on this connection,
+	/// using the negotiated parameters - text and binary messages are then transparently
+	/// compressed on Write() and decompressed on Read()
+	/// @param Params the negotiated permessage-deflate parameters
+	/// @param bServer true on the server side, false on the client side
+	void EnablePerMessageDeflate(KWebSocketPMCE::Parameters Params, bool bServer);
+	/// @return true if permessage-deflate is active on this connection
+	bool HasPerMessageDeflate() const { return m_PMCE != nullptr; }
 
 	/// read one full data frame from the web socket, store in internal frame buffer
 	/// @returns false if timeout
@@ -439,6 +559,7 @@ private:
 	std::function<void()>            m_Finish;
 	std::function<void(KWebSocket&)> m_ConnectHandler;
 	std::function<void(std::size_t)> m_CloseHandler;
+	std::unique_ptr<KWebSocketPMCE>  m_PMCE;
 	KWebSocketServer*                m_pServer      { nullptr };
 	std::size_t                      m_iHandle      { 0 };
 	std::mutex                       m_StreamMutex;

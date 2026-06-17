@@ -219,6 +219,10 @@ public:
 		/// with a configured KRateLimiter to enable per-IP request throttling.
 		/// When null (the default), rate limiting is completely disabled with zero overhead.
 		std::shared_ptr<KRateLimiter> RateLimiter;
+		/// Policy for the permessage-deflate (RFC 7692) websocket extension. Disabled by default
+		/// (WebSocketDeflate.bEnable == false). Set WebSocketDeflate.bEnable = true to accept client
+		/// offers; set bServerNoContextTakeover/bClientNoContextTakeover to cap per-connection memory.
+		KWebSocketPMCE::ServerConfig WebSocketDeflate { false };
 
 	}; // Options
 
@@ -657,6 +661,13 @@ public:
 	/// Options.iPort                   = 8080;
 	/// Options.iWebSocketWorkerThreads = 0;   // 0 = handle inline in the I/O thread, N = use a worker pool
 	///
+	/// // optionally accept permessage-deflate (RFC 7692) compression if the client offers it.
+	/// // For high connection counts also set the no_context_takeover flags to cap per-connection
+	/// // memory (compression history is then not retained across messages):
+	/// Options.WebSocketDeflate.bEnable                  = true;
+	/// Options.WebSocketDeflate.bServerNoContextTakeover = true;
+	/// Options.WebSocketDeflate.bClientNoContextTakeover = true;
+	///
 	/// KREST Server;
 	/// Server.Execute(Options, Routes);
 	///
@@ -665,7 +676,7 @@ public:
 	/// auto it      = Handles->find("alice");
 	/// if (it != Handles->end() && pServer) { pServer.load()->Send(it->second, "you have a new message"); }
 	/// @endcode
-	/// @see KWebSocketServer, SetWebSocketConnectHandler, SetWebSocketCloseHandler
+	/// @see KWebSocketServer, SetWebSocketConnectHandler, SetWebSocketCloseHandler, KWebSocketPMCE
 	void SetWebSocketHandler(std::function<void(KWebSocket&)> WebSocketHandler)
 	//-----------------------------------------------------------------------------
 	{
@@ -717,6 +728,16 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return m_WebSocketCloseHandlerCallback;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// gets the permessage-deflate parameters negotiated during the websocket upgrade
+	/// (bEnabled is false if permessage-deflate was not negotiated)
+	DEKAF2_NODISCARD
+	const KWebSocketPMCE::Parameters& GetWebSocketPMCEParameters() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_WebSocketPMCEParams;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -836,6 +857,7 @@ private:
 	std::function<void(KWebSocket&)> m_WebSocketHandlerCallback; // filled by route handler during upgrade to websocket protocol, will be called every time a frame is received, or the connection is lost
 	std::function<void(KWebSocket&)> m_WebSocketConnectHandlerCallback; // optional, called once after the connection has been registered with the websocket server
 	std::function<void(std::size_t)> m_WebSocketCloseHandlerCallback;   // optional, called once when the connection is removed from the websocket server
+	KWebSocketPMCE::Parameters       m_WebSocketPMCEParams;             // permessage-deflate parameters negotiated during the upgrade (bEnabled false if not negotiated)
 	KIOStreamSocket*  m_StreamSocket     { nullptr };            // the underlying KIOStreamSocket, if existing
 	const KRESTRoute* m_pLastLoggedRoute { nullptr };            // remembers the last route written to access log within this connection; used by NO_REPEAT_LOG to suppress subsequent identical entries in keepalive
 	uint16_t    m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds

@@ -121,6 +121,16 @@ KWebSocketClient& KWebSocketClient::SetBinary (bool bYesNo)
 }
 
 //-----------------------------------------------------------------------------
+KWebSocketClient& KWebSocketClient::SetPerMessageDeflate (bool bYesNo, bool bClientNoContextTakeover, bool bServerNoContextTakeover)
+//-----------------------------------------------------------------------------
+{
+	m_bRequestPMCE             = bYesNo;
+	m_bClientNoContextTakeover = bClientNoContextTakeover;
+	m_bServerNoContextTakeover = bServerNoContextTakeover;
+	return *this;
+}
+
+//-----------------------------------------------------------------------------
 KWebSocketClient& KWebSocketClient::AddHeader (KHTTPHeader Header, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
@@ -170,6 +180,12 @@ bool KWebSocketClient::Connect (KStringView sWebSocketProtocols)
 	if (!sWebSocketProtocols.empty())
 	{
 		AddHeader(KHTTPHeader::SEC_WEBSOCKET_PROTOCOL, sWebSocketProtocols );
+	}
+
+	if (m_bRequestPMCE)
+	{
+		AddHeader(KHTTPHeader::SEC_WEBSOCKET_EXTENSIONS,
+		          KWebSocketPMCE::BuildClientOffer(m_bClientNoContextTakeover, m_bServerNoContextTakeover));
 	}
 
 	if (m_URL.Protocol != url::KProtocol::UNIX)
@@ -232,6 +248,17 @@ bool KWebSocketClient::Connect (KStringView sWebSocketProtocols)
 		return SetError("bad server response on upgrade request");
 	}
 
+	// did the server accept permessage-deflate?
+	if (m_bRequestPMCE)
+	{
+		auto Params = KWebSocketPMCE::ParseServerResponse(Response.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_EXTENSIONS));
+
+		if (Params.bEnabled)
+		{
+			m_PMCE = std::make_unique<KWebSocketPMCE>(std::move(Params), false);
+		}
+	}
+
 	return true;
 
 } // Connect
@@ -252,7 +279,25 @@ bool KWebSocketClient::Write(KString sBuffer)
 {
 	if (!sBuffer.empty() && Good())
 	{
-		class KWebSocket::Frame OutFrame(std::move(sBuffer), m_bIsBinary);
+		class KWebSocket::Frame OutFrame;
+
+		if (m_PMCE)
+		{
+			// transparently compress and flag the frame with RSV1
+			KString sCompressed;
+
+			if (!m_PMCE->Compress(sBuffer, sCompressed))
+			{
+				return false;
+			}
+
+			OutFrame = KWebSocket::Frame(std::move(sCompressed), m_bIsBinary);
+			OutFrame.SetRSV1(true);
+		}
+		else
+		{
+			OutFrame = KWebSocket::Frame(std::move(sBuffer), m_bIsBinary);
+		}
 
 		if (!OutFrame.Write(Request.UnfilteredStream(), true))
 		{
@@ -336,7 +381,22 @@ bool KWebSocketClient::GetNextFrameIfEmpty()
 			}
 		}
 
-		m_sRXBuffer = m_RXFrame.GetPayload();
+		if (m_PMCE && m_RXFrame.IsCompressed())
+		{
+			// transparently decompress a permessage-deflate message
+			m_sRXDecompressed.clear();
+
+			if (!m_PMCE->Decompress(m_RXFrame.GetPayload(), m_sRXDecompressed))
+			{
+				return false;
+			}
+
+			m_sRXBuffer = m_sRXDecompressed;
+		}
+		else
+		{
+			m_sRXBuffer = m_RXFrame.GetPayload();
+		}
 	}
 
 	return true;

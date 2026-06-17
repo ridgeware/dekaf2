@@ -96,6 +96,18 @@ public:
 	self& SetQuery  (url::KQuery Query);
 	/// Set binary mode, default is text mode
 	self& SetBinary (bool bYesNo = true);
+	/// Request the permessage-deflate (RFC 7692) extension on the next Connect(). If the server
+	/// accepts it, messages are transparently compressed on Write() and decompressed on Read().
+	/// @param bYesNo enable or disable the offer
+	/// @param bClientNoContextTakeover offer to reset our (client) compressor after each message
+	/// @param bServerNoContextTakeover ask the server to reset its compressor after each message
+	/// @code
+	/// KWebSocketClient Client(KURL("wss://example.com/chat"), KHTTPStreamOptions{});
+	/// Client.SetPerMessageDeflate(true);
+	/// if (Client.Connect()) { Client.Write("hello"); }   // sent compressed if the server accepted
+	/// @endcode
+	/// @see KWebSocketPMCE, KRESTServer (server side: Options::WebSocketDeflate)
+	self& SetPerMessageDeflate (bool bYesNo = true, bool bClientNoContextTakeover = false, bool bServerNoContextTakeover = false);
 	/// Add (overwrite) a request header to existing headers
 	self& AddHeader(KHTTPHeader Header, KStringView sValue);
 
@@ -171,7 +183,12 @@ protected:
 	KString     m_sPath;
 	url::KQuery m_Query;
 	bool        m_bIsBinary { false };
+	bool        m_bRequestPMCE { false };
+	bool        m_bClientNoContextTakeover { false };
+	bool        m_bServerNoContextTakeover { false };
+	std::unique_ptr<KWebSocketPMCE> m_PMCE;
 	class KWebSocket::Frame m_RXFrame;
+	KString     m_sRXDecompressed;          // holds the decompressed payload when permessage-deflate is active
 	KStringView m_sRXBuffer;
 
 }; // KWebSocketClient

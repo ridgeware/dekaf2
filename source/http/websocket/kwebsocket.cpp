@@ -48,6 +48,9 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/core/strings/ksplit.h>
+#include <zlib.h>
+#include <algorithm>
 
 DEKAF2_NAMESPACE_BEGIN
 namespace {
@@ -55,7 +58,320 @@ namespace {
 // this suffix is defined in RFC 6455
 static constexpr KStringViewZ s_sWebsocket_sec_key_suffix = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
+// the empty DEFLATE block that terminates a Z_SYNC_FLUSH, per RFC 7692 stripped on send and appended on receive
+static constexpr unsigned char s_DeflateTail[4] = { 0x00, 0x00, 0xFF, 0xFF };
+
+// clamp a negotiated max_window_bits to the range zlib's raw deflate accepts (9..15)
+uint8_t ClampWindowBits(uint8_t iBits)
+{
+	if (iBits <  9) { return  9; }
+	if (iBits > 15) { return 15; }
+	return iBits;
+}
+
 } // end of anonymous namespace
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+struct KWebSocketPMCE::Impl
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	z_stream Deflate {};
+	z_stream Inflate {};
+	bool     bDeflateInit { false };
+	bool     bInflateInit { false };
+	bool     bResetDeflate { false };  // reset our compressor after each message (our direction's no_context_takeover)
+
+}; // Impl
+
+//-----------------------------------------------------------------------------
+KWebSocketPMCE::KWebSocketPMCE(Parameters Params, bool bServer)
+//-----------------------------------------------------------------------------
+: m_Params(std::move(Params))
+, m_bServer(bServer)
+, m_pImpl(std::make_unique<Impl>())
+{
+	// we compress with our own window; the peer inflates with a window >= ours
+	auto iWindowBits = ClampWindowBits(m_bServer ? m_Params.iServerMaxWindowBits : m_Params.iClientMaxWindowBits);
+
+	// reset our compressor per message if our direction negotiated no_context_takeover
+	m_pImpl->bResetDeflate = m_bServer ? m_Params.bServerNoContextTakeover : m_Params.bClientNoContextTakeover;
+
+	// negative windowBits selects raw deflate (no zlib header/trailer)
+	if (deflateInit2(&m_pImpl->Deflate, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+	                 -static_cast<int>(iWindowBits), 8, Z_DEFAULT_STRATEGY) != Z_OK)
+	{
+		throw KWebSocketError("cannot initialize permessage-deflate compressor");
+	}
+	m_pImpl->bDeflateInit = true;
+
+	// always inflate with the maximum window - it accepts any window the peer used
+	if (inflateInit2(&m_pImpl->Inflate, -15) != Z_OK)
+	{
+		throw KWebSocketError("cannot initialize permessage-deflate decompressor");
+	}
+	m_pImpl->bInflateInit = true;
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KWebSocketPMCE::~KWebSocketPMCE()
+//-----------------------------------------------------------------------------
+{
+	if (m_pImpl)
+	{
+		if (m_pImpl->bDeflateInit) { deflateEnd(&m_pImpl->Deflate); }
+		if (m_pImpl->bInflateInit) { inflateEnd(&m_pImpl->Inflate); }
+	}
+
+} // dtor
+
+//-----------------------------------------------------------------------------
+bool KWebSocketPMCE::Compress(KStringView sInput, KString& sOutput)
+//-----------------------------------------------------------------------------
+{
+	auto& strm = m_pImpl->Deflate;
+
+	strm.next_in  = reinterpret_cast<Bytef*>(const_cast<char*>(sInput.data()));
+	strm.avail_in = static_cast<uInt>(sInput.size());
+
+	std::array<char, 16384> Buffer;
+
+	do
+	{
+		strm.next_out  = reinterpret_cast<Bytef*>(Buffer.data());
+		strm.avail_out = static_cast<uInt>(Buffer.size());
+
+		auto iResult = deflate(&strm, Z_SYNC_FLUSH);
+
+		if (iResult != Z_OK && iResult != Z_BUF_ERROR)
+		{
+			kDebug(1, "deflate failed: {}", iResult);
+			return false;
+		}
+
+		sOutput.append(Buffer.data(), Buffer.size() - strm.avail_out);
+	}
+	while (strm.avail_out == 0);
+
+	// a Z_SYNC_FLUSH ends in the 4 byte empty block (0x00 0x00 0xFF 0xFF) - strip it (RFC 7692).
+	// For an empty message zlib emits nothing at all; then the stripped result is empty and the
+	// receiver, which re-appends the 4 bytes, would see an incomplete block. RFC 7692 §7.2.3.6
+	// handles this by sending a single 0x00 byte (an empty uncompressed block header) so that the
+	// receiver's re-appended 0x00 0x00 0xFF 0xFF completes a valid (harmless) empty block.
+	if (sOutput.size() >= 4 &&
+	    std::memcmp(sOutput.data() + sOutput.size() - 4, s_DeflateTail, 4) == 0)
+	{
+		sOutput.erase(sOutput.size() - 4);
+	}
+
+	if (sOutput.empty())
+	{
+		sOutput += '\0';
+	}
+
+	if (m_pImpl->bResetDeflate)
+	{
+		deflateReset(&strm);
+	}
+
+	return true;
+
+} // Compress
+
+//-----------------------------------------------------------------------------
+bool KWebSocketPMCE::Decompress(KStringView sInput, KString& sOutput)
+//-----------------------------------------------------------------------------
+{
+	auto& strm = m_pImpl->Inflate;
+
+	// append the empty block that the sender stripped, then inflate the whole
+	KString sCompressed { sInput };
+	sCompressed.append(reinterpret_cast<const char*>(s_DeflateTail), 4);
+
+	strm.next_in  = reinterpret_cast<Bytef*>(const_cast<char*>(sCompressed.data()));
+	strm.avail_in = static_cast<uInt>(sCompressed.size());
+
+	std::array<char, 16384> Buffer;
+
+	for (;;)
+	{
+		strm.next_out  = reinterpret_cast<Bytef*>(Buffer.data());
+		strm.avail_out = static_cast<uInt>(Buffer.size());
+
+		auto iResult = inflate(&strm, Z_SYNC_FLUSH);
+
+		if (iResult != Z_OK && iResult != Z_BUF_ERROR && iResult != Z_STREAM_END)
+		{
+			kDebug(1, "inflate failed: {}", iResult);
+			return false;
+		}
+
+		sOutput.append(Buffer.data(), Buffer.size() - strm.avail_out);
+
+		if (iResult == Z_STREAM_END || (strm.avail_in == 0 && strm.avail_out != 0))
+		{
+			break;
+		}
+	}
+
+	// we intentionally never reset the inflate stream - keeping its context is correct
+	// regardless of the peer's no_context_takeover setting
+
+	return true;
+
+} // Decompress
+
+//-----------------------------------------------------------------------------
+KWebSocketPMCE::Parameters KWebSocketPMCE::NegotiateServer(KStringView sClientOffer, const ServerConfig& Config, KString& sResponse)
+//-----------------------------------------------------------------------------
+{
+	Parameters Params; // bEnabled defaults to false
+	sResponse.clear();
+
+	if (!Config.bEnable)
+	{
+		return Params;
+	}
+
+	// the client may offer several extensions, comma separated - find permessage-deflate
+	for (auto sExtension : sClientOffer.Split(","))
+	{
+		auto Parts = sExtension.Split(";");
+
+		if (Parts.empty() || Parts.front() != "permessage-deflate")
+		{
+			continue;
+		}
+
+		// read the offered parameters
+		bool    bOfferedClientMaxWindow { false };
+		uint8_t iOfferedClientMaxWindow { 15 };
+		uint8_t iOfferedServerMaxWindow { 15 };
+		bool    bOfferedClientNoContext { false };
+		bool    bOfferedServerNoContext { false };
+
+		for (std::size_t iPart = 1; iPart < Parts.size(); ++iPart)
+		{
+			auto Pair = kSplitToPair(Parts[iPart], "=");
+
+			if      (Pair.first == "client_no_context_takeover")
+			{
+				bOfferedClientNoContext = true;
+			}
+			else if (Pair.first == "server_no_context_takeover")
+			{
+				bOfferedServerNoContext = true;
+			}
+			else if (Pair.first == "client_max_window_bits")
+			{
+				bOfferedClientMaxWindow = true;
+				if (!Pair.second.empty())
+				{
+					iOfferedClientMaxWindow = Pair.second.UInt16();
+				}
+			}
+			else if (Pair.first == "server_max_window_bits")
+			{
+				if (!Pair.second.empty())
+				{
+					iOfferedServerMaxWindow = Pair.second.UInt16();
+				}
+			}
+		}
+
+		// agree on the result
+		Params.bEnabled                 = true;
+		Params.bServerNoContextTakeover = Config.bServerNoContextTakeover || bOfferedServerNoContext;
+		Params.bClientNoContextTakeover = Config.bClientNoContextTakeover || bOfferedClientNoContext;
+		Params.iServerMaxWindowBits     = std::min<uint8_t>(Config.iServerMaxWindowBits, std::min<uint8_t>(iOfferedServerMaxWindow, 15));
+		// we may only constrain the client window if the client offered the token
+		Params.iClientMaxWindowBits     = bOfferedClientMaxWindow ? std::min<uint8_t>(iOfferedClientMaxWindow, 15) : 15;
+
+		if (Params.iServerMaxWindowBits < 8) { Params.iServerMaxWindowBits = 8; }
+		if (Params.iClientMaxWindowBits < 8) { Params.iClientMaxWindowBits = 8; }
+
+		// build the response header value
+		sResponse = "permessage-deflate";
+		if (Params.bClientNoContextTakeover)              { sResponse += "; client_no_context_takeover"; }
+		if (Params.bServerNoContextTakeover)              { sResponse += "; server_no_context_takeover"; }
+		if (Params.iServerMaxWindowBits < 15)             { sResponse += kFormat("; server_max_window_bits={}", Params.iServerMaxWindowBits); }
+		if (bOfferedClientMaxWindow && Params.iClientMaxWindowBits < 15)
+		                                                  { sResponse += kFormat("; client_max_window_bits={}", Params.iClientMaxWindowBits); }
+
+		return Params;
+	}
+
+	return Params;
+
+} // NegotiateServer
+
+//-----------------------------------------------------------------------------
+KString KWebSocketPMCE::BuildClientOffer(bool bClientNoContextTakeover, bool bServerNoContextTakeover)
+//-----------------------------------------------------------------------------
+{
+	KString sOffer = "permessage-deflate";
+
+	// advertise that we accept a server-chosen client window (lets the server cap our memory)
+	sOffer += "; client_max_window_bits";
+
+	if (bClientNoContextTakeover)
+	{
+		sOffer += "; client_no_context_takeover";
+	}
+	if (bServerNoContextTakeover)
+	{
+		sOffer += "; server_no_context_takeover";
+	}
+
+	return sOffer;
+
+} // BuildClientOffer
+
+//-----------------------------------------------------------------------------
+KWebSocketPMCE::Parameters KWebSocketPMCE::ParseServerResponse(KStringView sServerResponse)
+//-----------------------------------------------------------------------------
+{
+	Parameters Params;
+
+	for (auto sExtension : sServerResponse.Split(","))
+	{
+		auto Parts = sExtension.Split(";");
+
+		if (Parts.empty() || Parts.front() != "permessage-deflate")
+		{
+			continue;
+		}
+
+		Params.bEnabled = true;
+
+		for (std::size_t iPart = 1; iPart < Parts.size(); ++iPart)
+		{
+			auto Pair = kSplitToPair(Parts[iPart], "=");
+
+			if      (Pair.first == "client_no_context_takeover")
+			{
+				Params.bClientNoContextTakeover = true;
+			}
+			else if (Pair.first == "server_no_context_takeover")
+			{
+				Params.bServerNoContextTakeover = true;
+			}
+			else if (Pair.first == "client_max_window_bits" && !Pair.second.empty())
+			{
+				Params.iClientMaxWindowBits = Pair.second.UInt16();
+			}
+			else if (Pair.first == "server_max_window_bits" && !Pair.second.empty())
+			{
+				Params.iServerMaxWindowBits = Pair.second.UInt16();
+			}
+		}
+
+		return Params;
+	}
+
+	return Params;
+
+} // ParseServerResponse
 
 //-----------------------------------------------------------------------------
 void KWebSocket::FrameHeader::clear()
@@ -694,6 +1010,13 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 			return false;
 		}
 
+		// remember whether the first data frame of this message was compressed (RSV1),
+		// continuation frames carry RSV1=0 and must not clear it
+		if (Type() == FrameType::Text || Type() == FrameType::Binary)
+		{
+			m_bMessageCompressed = GetRSV1();
+		}
+
 		if (!GetHaveEncoder())
 		{
 			// without encoder, read the preamble directly from the stream
@@ -1101,6 +1424,7 @@ KWebSocket::KWebSocket(KWebSocket&& other)
 , m_Finish         (std::move(other.m_Finish        ))
 , m_ConnectHandler (std::move(other.m_ConnectHandler))
 , m_CloseHandler   (std::move(other.m_CloseHandler  ))
+, m_PMCE           (std::move(other.m_PMCE          ))
 , m_pServer        (other.m_pServer     )
 , m_iHandle        (other.m_iHandle     )
 , m_ReadTimeout    (other.m_ReadTimeout )
@@ -1158,6 +1482,20 @@ bool KWebSocket::Read()
 		}
 
 		// stream changed state while acquiring lock, repeat waiting
+	}
+
+	// transparently decompress a permessage-deflate compressed message
+	if (m_PMCE && m_Frame.IsCompressed())
+	{
+		KString sDecompressed;
+
+		if (!m_PMCE->Decompress(m_Frame.GetPayload(), sDecompressed))
+		{
+			kDebug(1, "permessage-deflate decompression failed");
+			return false;
+		}
+
+		m_Frame.SetPayload(std::move(sDecompressed));
 	}
 
 	return true;
@@ -1284,9 +1622,36 @@ bool KWebSocket::Write(KWebSocket::Frame Frame)
 } // KWebSocket::Write
 
 //-----------------------------------------------------------------------------
+void KWebSocket::EnablePerMessageDeflate(KWebSocketPMCE::Parameters Params, bool bServer)
+//-----------------------------------------------------------------------------
+{
+	if (Params.bEnabled)
+	{
+		m_PMCE = std::make_unique<KWebSocketPMCE>(std::move(Params), bServer);
+	}
+
+} // EnablePerMessageDeflate
+
+//-----------------------------------------------------------------------------
 bool KWebSocket::Write(KString sFrame, bool bIsBinary)
 //-----------------------------------------------------------------------------
 {
+	if (m_PMCE)
+	{
+		// transparently compress the message and mark the frame with RSV1
+		KString sCompressed;
+
+		if (!m_PMCE->Compress(sFrame, sCompressed))
+		{
+			kDebug(1, "permessage-deflate compression failed");
+			return false;
+		}
+
+		KWebSocket::Frame Frame(std::move(sCompressed), bIsBinary);
+		Frame.SetRSV1(true);
+		return Write(std::move(Frame));
+	}
+
 	return Write(KWebSocket::Frame(std::move(sFrame), bIsBinary));
 
 } // KWebSocket::Write
@@ -1296,7 +1661,7 @@ bool KWebSocket::Write(const KJSON& jFrame)
 //-----------------------------------------------------------------------------
 {
 	// json is UTF8 when dumped, therefore set text mode
-	return Write(KWebSocket::Frame(Frame::FrameType::Text, jFrame.dump()));
+	return Write(jFrame.dump(), false);
 
 } // KWebSocket::Write
 

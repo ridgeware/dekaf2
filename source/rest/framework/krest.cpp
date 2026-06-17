@@ -161,6 +161,7 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 				KWebSocket WebSocket(Stream, RESTServer.GetWebSocketHandler(), false);
 				WebSocket.SetConnectHandler(RESTServer.GetWebSocketConnectHandler());
 				WebSocket.SetCloseHandler  (RESTServer.GetWebSocketCloseHandler());
+				WebSocket.EnablePerMessageDeflate(RESTServer.GetWebSocketPMCEParameters(), true);
 
 				auto handle = m_WebSocketServer.AddWebSocket(std::move(WebSocket));
 

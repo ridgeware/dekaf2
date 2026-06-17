@@ -653,21 +653,23 @@ namespace {
 // drives one full lifecycle against a KWebSocketServer running behind a KREST
 // server: connect, echo round-trips (exercising disarm/re-arm), a server initiated
 // push and broadcast addressed by handle, and disconnect detection
-void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers)
+void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate = false)
 //-----------------------------------------------------------------------------
 {
 	KREST::Options Options;
-	Options.Type                    = KREST::HTTP;
-	Options.iPort                   = iPort;
-	Options.iTimeout                = 2;
-	Options.bBlocking               = false;
-	Options.bCreateEphemeralCert    = false;
-	Options.iWebSocketWorkerThreads = iWorkers;
+	Options.Type                        = KREST::HTTP;
+	Options.iPort                       = iPort;
+	Options.iTimeout                    = 2;
+	Options.bBlocking                   = false;
+	Options.bCreateEphemeralCert        = false;
+	Options.iWebSocketWorkerThreads     = iWorkers;
+	Options.WebSocketDeflate.bEnable    = bDeflate;
 
-	std::atomic<KWebSocketServer*> pServer   { nullptr };
-	std::atomic<std::size_t>       iHandle   { 0 };
-	std::atomic<int>               iConnects { 0 };
-	std::atomic<int>               iCloses   { 0 };
+	std::atomic<KWebSocketServer*> pServer    { nullptr };
+	std::atomic<std::size_t>       iHandle    { 0 };
+	std::atomic<int>               iConnects  { 0 };
+	std::atomic<int>               iCloses    { 0 };
+	std::atomic<bool>              bServerPMCE { false };
 
 	KRESTRoutes Routes;
 	Routes.AddRoute({ KHTTPMethod::GET, { KRESTRoute::Options::WEBSOCKET }, "/ws", [&](KRESTServer& http)
@@ -679,8 +681,9 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers)
 		});
 		http.SetWebSocketConnectHandler([&](KWebSocket& WebSocket)
 		{
-			pServer = WebSocket.GetServer();
-			iHandle = WebSocket.GetHandle();
+			pServer     = WebSocket.GetServer();
+			iHandle     = WebSocket.GetHandle();
+			bServerPMCE = WebSocket.HasPerMessageDeflate();
 			++iConnects;
 		});
 		http.SetWebSocketCloseHandler([&](std::size_t)
@@ -695,6 +698,11 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers)
 	{
 		KWebSocketClient Client(KURL(kFormat("ws://localhost:{}/ws", iPort)), KHTTPStreamOptions{});
 		Client.SetTimeout(chrono::seconds(3));
+
+		if (bDeflate)
+		{
+			Client.SetPerMessageDeflate(true);
+		}
 
 		REQUIRE ( Client.Connect() );
 
@@ -714,6 +722,9 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers)
 		CHECK ( iConnects.load() == 1 );
 		REQUIRE ( pServer.load() != nullptr );
 		CHECK ( iHandle.load()  != 0 );
+
+		// permessage-deflate must have been negotiated end-to-end exactly when requested
+		CHECK ( bServerPMCE.load() == bDeflate );
 
 		// server-initiated push from this thread, addressing the connection by its handle
 		CHECK ( pServer.load()->Send(iHandle.load(), "pushed", false) );
@@ -765,5 +776,92 @@ TEST_CASE("KWebSocketServer")
 	SECTION("worker thread pool")
 	{
 		RunWebSocketServerTest(6789, 4);
+	}
+
+	SECTION("permessage-deflate, single thread mode")
+	{
+		RunWebSocketServerTest(6790, 0, true);
+	}
+
+	SECTION("permessage-deflate, worker thread pool")
+	{
+		RunWebSocketServerTest(6791, 4, true);
+	}
+}
+
+namespace {
+
+//-----------------------------------------------------------------------------
+// round-trips a sequence of messages through a matched server/client permessage-deflate
+// codec pair, in both directions, verifying lossless compression across messages
+void RunPMCERoundtrip(KWebSocketPMCE::Parameters Params)
+//-----------------------------------------------------------------------------
+{
+	Params.bEnabled = true;
+
+	KWebSocketPMCE Server(Params, true);
+	KWebSocketPMCE Client(Params, false);
+
+	std::vector<KString> Messages =
+	{
+		"Hello, WebSocket!",
+		"Hello, WebSocket!",   // a repeat - with context takeover this compresses very well
+		R"({"type":"chat","user":"alice","text":"the quick brown fox jumps over the lazy dog"})",
+		R"({"type":"chat","user":"bob","text":"the quick brown fox jumps over the lazy dog"})",
+		KString(1000, 'a'),
+		KString{},             // empty message edge case
+		"final message",
+	};
+
+	for (const auto& sMsg : Messages)
+	{
+		// server -> client
+		KString sCompressed, sDecompressed;
+		CHECK ( Server.Compress(sMsg, sCompressed) );
+		CHECK ( Client.Decompress(sCompressed, sDecompressed) );
+		CHECK ( sDecompressed == sMsg );
+
+		// client -> server
+		KString sCompressed2, sDecompressed2;
+		CHECK ( Client.Compress(sMsg, sCompressed2) );
+		CHECK ( Server.Decompress(sCompressed2, sDecompressed2) );
+		CHECK ( sDecompressed2 == sMsg );
+	}
+}
+
+} // anonymous namespace
+
+TEST_CASE("KWebSocketPMCE")
+{
+	SECTION("context takeover")
+	{
+		RunPMCERoundtrip(KWebSocketPMCE::Parameters{});
+	}
+
+	SECTION("no context takeover")
+	{
+		KWebSocketPMCE::Parameters Params;
+		Params.bClientNoContextTakeover = true;
+		Params.bServerNoContextTakeover = true;
+		RunPMCERoundtrip(Params);
+	}
+
+	SECTION("reduced window bits")
+	{
+		KWebSocketPMCE::Parameters Params;
+		Params.iServerMaxWindowBits = 9;
+		Params.iClientMaxWindowBits = 10;
+		RunPMCERoundtrip(Params);
+	}
+
+	SECTION("actually compresses repetitive data")
+	{
+		KWebSocketPMCE Server(KWebSocketPMCE::Parameters{}, true);
+
+		KString sMsg(2000, 'x');
+		KString sCompressed;
+
+		CHECK ( Server.Compress(sMsg, sCompressed) );
+		CHECK ( sCompressed.size() < sMsg.size() );
 	}
 }

@@ -935,6 +935,21 @@ bool KRESTServer::Execute()
 				Response.Headers.Add(KHTTPHeader::SEC_WEBSOCKET_ACCEPT, KWebSocket::GenerateServerSecKeyResponse(sClientSecKey, true));
 				Response.Headers.Add(KHTTPHeader::UPGRADE, "websocket");
 				Response.SetStatus(KHTTPError::H1xx_SWITCHING_PROTOCOLS);
+
+				// negotiate the permessage-deflate extension (RFC 7692) if enabled and offered
+				if (m_Options.WebSocketDeflate.bEnable)
+				{
+					KString sExtensionResponse;
+					m_WebSocketPMCEParams = KWebSocketPMCE::NegotiateServer(
+						Request.Headers.Get(KHTTPHeader::SEC_WEBSOCKET_EXTENSIONS),
+						m_Options.WebSocketDeflate,
+						sExtensionResponse);
+
+					if (m_WebSocketPMCEParams.bEnabled)
+					{
+						Response.Headers.Add(KHTTPHeader::SEC_WEBSOCKET_EXTENSIONS, sExtensionResponse);
+					}
+				}
 			}
 
 			// We offer a keep-alive if the client did not explicitly

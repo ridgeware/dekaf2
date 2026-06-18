@@ -126,6 +126,10 @@ public:
 	/// write from string, creates one sent frame
 	bool Write(KString sBuffer);
 
+	/// send a ping frame to the server (the server answers with a pong)
+	/// @param sMessage an optional payload returned with the pong
+	bool Ping(KString sMessage = KString{});
+
 	/// Read a character
 	/// @returns std::istream::traits_type::eof() (== -1) if no input available
 	std::istream::int_type Read();

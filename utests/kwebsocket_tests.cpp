@@ -669,13 +669,16 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate 
 	std::atomic<std::size_t>       iHandle    { 0 };
 	std::atomic<int>               iConnects  { 0 };
 	std::atomic<int>               iCloses    { 0 };
+	std::atomic<int>               iHandled   { 0 };
 	std::atomic<bool>              bServerPMCE { false };
 
 	KRESTRoutes Routes;
 	Routes.AddRoute({ KHTTPMethod::GET, { KRESTRoute::Options::WEBSOCKET }, "/ws", [&](KRESTServer& http)
 	{
-		http.SetWebSocketHandler([](KWebSocket& WebSocket)
+		http.SetWebSocketHandler([&](KWebSocket& WebSocket)
 		{
+			// the handler must only see data messages, never Ping/Pong control frames
+			++iHandled;
 			// echo the received payload back to the client
 			WebSocket.Write(WebSocket.GetFrame().GetPayload(), false);
 		});
@@ -752,6 +755,16 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate 
 		}
 
 		CHECK ( pServer.load()->size() == 1 );
+
+		// send a ping (no read afterwards) - the server auto-answers with a pong, but the ping
+		// must NOT reach the message handler. The iHandled check below (still == 2) verifies this.
+		CHECK ( Client.Ping() );
+
+		// give the reactor a moment to process and filter the ping
+		for (int iWait = 0; iWait < 50 && iHandled.load() != 2; ++iWait)
+		{
+			kSleep(chrono::milliseconds(10));
+		}
 	}
 	// the client is gone now - the socket is closed and the server should notice
 
@@ -762,6 +775,10 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate 
 	}
 
 	CHECK ( iCloses.load() == 1 );
+
+	// the handler must have been called exactly twice (for "hello" and "world"),
+	// never for the ping we sent
+	CHECK ( iHandled.load() == 2 );
 }
 
 } // anonymous namespace

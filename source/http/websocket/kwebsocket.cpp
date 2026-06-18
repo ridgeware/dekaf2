@@ -1893,8 +1893,17 @@ void KWebSocketServer::ServiceConnection(ConnectionPtr pConnection, Handle iHand
 		return;
 	}
 
-	// invoke the application's message handler with the freshly read frame
-	pConnection->WebSocket.CallHandler();
+	// only deliver data messages to the application handler - Ping/Pong are control frames
+	// (Ping is auto-answered by the frame reader). A fragmented data message ends with
+	// Type() == Continuation, so we filter on the control types, not on the data types.
+	auto eType = pConnection->WebSocket.GetFrame().Type();
+
+	if (eType != KWebSocket::Frame::FrameType::Ping &&
+	    eType != KWebSocket::Frame::FrameType::Pong)
+	{
+		// invoke the application's message handler with the freshly read frame
+		pConnection->WebSocket.CallHandler();
+	}
 
 	// re-arm the socket so the next message gets dispatched (no-op if it was removed)
 	m_Poll.Arm(pConnection->iFd);

@@ -310,6 +310,23 @@ bool KWebSocketClient::Write(KString sBuffer)
 } // Write
 
 //-----------------------------------------------------------------------------
+bool KWebSocketClient::Ping(KString sMessage)
+//-----------------------------------------------------------------------------
+{
+	if (!Good())
+	{
+		return false;
+	}
+
+	class KWebSocket::Frame Frame;
+	Frame.Ping(std::move(sMessage));
+
+	// masking is required from client to server
+	return Frame.Write(Request.UnfilteredStream(), true);
+
+} // Ping
+
+//-----------------------------------------------------------------------------
 std::istream::int_type KWebSocketClient::Read()
 //-----------------------------------------------------------------------------
 {

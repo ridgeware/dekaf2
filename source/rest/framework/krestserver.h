@@ -633,7 +633,7 @@ public:
 	/// // register the route for the websocket protocol (RouteBuilder interface)
 	/// Routes.AddRoute("/chat/:USER").Options({ KRESTRoute::Options::WEBSOCKET }).Get([&](KRESTServer& HTTP)
 	/// {
-	///     auto sUser = HTTP.GetQueryParmSafe("USER");
+	///     auto sUser = HTTP.GetQueryParm("USER");
 	///
 	///     // called for every message received from this client
 	///     HTTP.SetWebSocketHandler([](KWebSocket& WebSocket)

@@ -662,8 +662,9 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate 
 	Options.iTimeout                    = 2;
 	Options.bBlocking                   = false;
 	Options.bCreateEphemeralCert        = false;
-	Options.iWebSocketWorkerThreads     = iWorkers;
-	Options.WebSocketDeflate.bEnable    = bDeflate;
+	Options.iWebSocketWorkerThreads        = iWorkers;
+	Options.iWebSocketMaxConcurrentWrites  = 2;   // exercise the capped writer work-class tag
+	Options.WebSocketDeflate.bEnable       = bDeflate;
 
 	std::atomic<KWebSocketServer*> pServer    { nullptr };
 	std::atomic<std::size_t>       iHandle    { 0 };

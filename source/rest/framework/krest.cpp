@@ -296,6 +296,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				m_SocketWatch     = std::make_unique<KSocketWatch>(chrono::milliseconds(250));
 				KWebSocketServer::Options WebSocketOptions;
 				WebSocketOptions.iWorkerThreads = Options.iWebSocketWorkerThreads;
+				WebSocketOptions.iMaxConcurrentWrites = Options.iWebSocketMaxConcurrentWrites;
 				WebSocketOptions.Growth         = Options.Growth;
 				WebSocketOptions.Shrink         = Options.Shrink;
 				m_WebSocketServer = std::make_unique<KWebSocketServer>(std::move(WebSocketOptions));
@@ -377,6 +378,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				m_SocketWatch     = std::make_unique<KSocketWatch>(chrono::milliseconds(250));
 				KWebSocketServer::Options WebSocketOptions;
 				WebSocketOptions.iWorkerThreads = Options.iWebSocketWorkerThreads;
+				WebSocketOptions.iMaxConcurrentWrites = Options.iWebSocketMaxConcurrentWrites;
 				WebSocketOptions.Growth         = Options.Growth;
 				WebSocketOptions.Shrink         = Options.Shrink;
 				m_WebSocketServer = std::make_unique<KWebSocketServer>(std::move(WebSocketOptions));

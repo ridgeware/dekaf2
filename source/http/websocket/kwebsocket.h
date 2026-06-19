@@ -624,6 +624,11 @@ public:
 		/// is dropped as a slow consumer (0 = unlimited). Only relevant with iWorkerThreads > 0,
 		/// where Send()/Broadcast() queue and a worker flushes asynchronously
 		std::size_t               iMaxQueueBytes { 16 * 1024 * 1024 };
+		/// maximum number of connections being flushed (written to) concurrently (0 = unlimited).
+		/// The outbound flushes run on the same worker pool as the read handlers but under their
+		/// own work-class tag with this concurrency cap, so a swarm of slow consumers cannot tie up
+		/// every worker and starve the readers. Only relevant with iWorkerThreads > 0.
+		std::size_t               iMaxConcurrentWrites { 0 };
 
 	}; // Options
 
@@ -682,6 +687,10 @@ private:
 	}; // Connection
 
 	using ConnectionPtr = std::shared_ptr<Connection>;
+
+	// work-class tag for outbound flushes on the shared worker pool (reads use the default tag);
+	// configured with iMaxConcurrentWrites so writes cannot starve reads
+	static constexpr KThreadPool::Tag s_WriteTag { 1 };
 
 	/// look up a connection by handle (returns nullptr if unknown)
 	ConnectionPtr GetConnection    (Handle iHandle) const;

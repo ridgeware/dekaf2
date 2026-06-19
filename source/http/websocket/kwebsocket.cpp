@@ -1754,6 +1754,15 @@ KWebSocketServer::KWebSocketServer(Options Options)
 	{
 		kDebug(2, "starting websocket server with {} worker threads", m_Options.iWorkerThreads);
 		m_ThreadPool.resize(m_Options.iWorkerThreads, m_Options.Growth, m_Options.Shrink);
+
+		if (m_Options.iMaxConcurrentWrites > 0)
+		{
+			// cap the number of concurrent outbound flushes so a swarm of slow consumers cannot
+			// occupy every worker and starve the readers (reads run on the default tag)
+			KThreadPool::TagConfig WriteCfg;
+			WriteCfg.iMaxConcurrency = m_Options.iMaxConcurrentWrites;
+			m_ThreadPool.ConfigureTag(s_WriteTag, WriteCfg);
+		}
 	}
 	else
 	{
@@ -2054,7 +2063,9 @@ bool KWebSocketServer::QueueOrWrite(const ConnectionPtr& pConnection, KString sM
 
 	if (bSchedule)
 	{
-		m_ThreadPool.push(&KWebSocketServer::FlushConnection, this, pConnection);
+		// flushes run under their own work-class tag (capped by iMaxConcurrentWrites) so slow
+		// consumers cannot starve the readers, which run on the default tag
+		m_ThreadPool.PushTagged(s_WriteTag, [this, pConnection]() { FlushConnection(pConnection); });
 	}
 
 	return true;

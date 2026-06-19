@@ -122,6 +122,10 @@ public:
 		/// inline in the single websocket I/O thread (a slow handler then blocks all websockets);
 		/// a value > 0 dispatches handlers to that many worker threads
 		std::size_t iWebSocketWorkerThreads { 0 };
+		/// max number of websocket connections being written to concurrently (0 = unlimited).
+		/// Outbound flushes share the worker pool but run under a capped work-class tag, so slow
+		/// consumers cannot starve the readers. Only relevant with iWebSocketWorkerThreads > 0.
+		std::size_t iWebSocketMaxConcurrentWrites { 0 };
 		/// timeout in seconds (default 5)
 		uint16_t iTimeout { 5 };
 		/// signals that will shutdown the server (default SIGINT, SIGTERM)

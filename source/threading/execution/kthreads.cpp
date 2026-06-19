@@ -92,8 +92,6 @@ std::thread::id KThreads::Add(std::thread newThread)
 bool KThreads::RemoveInt(std::thread::id ThreadID, bool bWarnIfFailed)
 //-----------------------------------------------------------------------------
 {
-	std::thread Thread;
-
 	{
 		auto Threads = m_Threads.unique();
 
@@ -110,12 +108,19 @@ bool KThreads::RemoveInt(std::thread::id ThreadID, bool bWarnIfFailed)
 			return false;
 		}
 
-		Thread = std::move(it->second);
+		// Hand the thread over to the decay list while still holding the
+		// m_Threads lock. A worker started by Create() calls this on itself, so
+		// it must never become invisible to Join(): if we released m_Threads
+		// before inserting into m_Decay, the owner could observe an empty pool
+		// in that gap, return from Join() and destroy *this - and the worker
+		// would then lock the already-destroyed m_Decay mutex (EINVAL -> abort).
+		// Keeping the thread in m_Threads until it is in m_Decay closes that
+		// window. Lock order is always m_Threads -> m_Decay (no caller nests the
+		// reverse), so acquiring m_Decay here cannot deadlock.
+		m_Decay.unique()->push_back(std::move(it->second));
 
 		Threads->erase(it);
 	}
-
-	m_Decay.unique()->push_back(std::move(Thread));
 
 	kDebug(2, "removed thread with id {}", ThreadID);
 	return true;

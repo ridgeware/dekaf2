@@ -68,6 +68,7 @@ set (SOURCES
 	ksplit_bench.cpp
 	kstring_bench.cpp
 	kstringview_bench.cpp
+	kthreadpool_bench.cpp
 	ktime_bench.cpp
 	kurl_bench.cpp
 	kurlencode_bench.cpp

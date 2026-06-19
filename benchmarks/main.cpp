@@ -53,6 +53,7 @@ extern void kreplace_bench();
 extern void khash_bench();
 extern void ktime_bench();
 extern void kmemsearch_bench();
+extern void kthreadpool_bench();
 
 using namespace dekaf2;
 
@@ -141,6 +142,7 @@ int main(int argc, char* argv[])
 		{ "khash",           &khash_bench           },
 		{ "ktime",           &ktime_bench           },
 		{ "kmemsearch",      &kmemsearch_bench      },
+		{ "kthreadpool",     &kthreadpool_bench     },
 	};
 
 	for (int ii = 1; ii < argc; ++ii)

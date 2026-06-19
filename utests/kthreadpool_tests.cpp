@@ -2,8 +2,30 @@
 
 #include <dekaf2/threading/execution/kthreadpool.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <vector>
+#include <mutex>
+#include <atomic>
+#include <future>
+#include <chrono>
+#include <thread>
+#include <algorithm>
 
 using namespace dekaf2;
+
+namespace {
+
+// spin until pred() is true or a timeout elapses (keeps the fair-scheduling tests non-flaky)
+template<typename Pred>
+bool WaitUntil(Pred pred, int iMaxMillis = 5000)
+{
+	for (int i = 0; i < iMaxMillis && !pred(); i += 5)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	}
+	return pred();
+}
+
+} // anonymous namespace
 
 TEST_CASE("KThreadPool")
 {
@@ -203,5 +225,253 @@ TEST_CASE("KThreadPool")
 
 			CHECK ( Pool.is_stopped() );
 		}
+	}
+}
+
+TEST_CASE("KThreadPool fair scheduling")
+{
+	SECTION("weighted DRR dispatch order")
+	{
+		// one worker so the pop order is exactly the scheduler's dispatch order
+		KThreadPool Pool(1);
+
+		KThreadPool::TagConfig HeavyCfg; HeavyCfg.iWeight = 3;
+		KThreadPool::TagConfig LightCfg; LightCfg.iWeight = 1;
+		Pool.ConfigureTag(1, HeavyCfg);
+		Pool.ConfigureTag(2, LightCfg);
+
+		std::vector<int> Order;
+		std::mutex       OrderMutex;
+
+		// fill both tags while paused, so all tasks are queued before any runs
+		Pool.pause(true);
+
+		for (int i = 0; i < 6; ++i)
+		{
+			Pool.PushTagged(1, [&]() { std::lock_guard<std::mutex> L(OrderMutex); Order.push_back(1); });
+		}
+		for (int i = 0; i < 6; ++i)
+		{
+			Pool.PushTagged(2, [&]() { std::lock_guard<std::mutex> L(OrderMutex); Order.push_back(2); });
+		}
+
+		Pool.pause(false);
+
+		REQUIRE ( WaitUntil([&]() { std::lock_guard<std::mutex> L(OrderMutex); return Order.size() == 12; }) );
+
+		std::lock_guard<std::mutex> L(OrderMutex);
+
+		auto iOnes = std::count(Order.begin(), Order.end(), 1);
+		auto iTwos = std::count(Order.begin(), Order.end(), 2);
+		CHECK ( iOnes == 6 );
+		CHECK ( iTwos == 6 );
+
+		// while both tags are active, weight 3:1 must hold - the first 4 dispatched are 3x tag1, 1x tag2
+		auto iOnesFirst4 = std::count(Order.begin(), Order.begin() + 4, 1);
+		CHECK ( iOnesFirst4 == 3 );
+	}
+
+	SECTION("bounded queue, Reject -> broken futures")
+	{
+		KThreadPool Pool(1);
+
+		KThreadPool::TagConfig Cfg;
+		Cfg.iMaxQueue      = 2;
+		Cfg.OverflowPolicy = KThreadPool::Overflow::Reject;
+		Pool.ConfigureTag(1, Cfg);
+
+		std::atomic<int> iRan { 0 };
+		std::vector<std::future<void>> Futures;
+
+		Pool.pause(true);
+		for (int i = 0; i < 5; ++i)
+		{
+			Futures.push_back(Pool.PushTagged(1, [&]() { ++iRan; }));
+		}
+		Pool.pause(false);
+
+		REQUIRE ( WaitUntil([&]() { return iRan.load() == 2; }) );
+
+		int iCompleted { 0 };
+		int iRejected  { 0 };
+
+		for (auto& f : Futures)
+		{
+			try { f.get(); ++iCompleted; }
+			catch (const std::future_error&) { ++iRejected; }
+		}
+
+		CHECK ( iCompleted == 2 );   // only two fit the bounded queue
+		CHECK ( iRejected  == 3 );   // the rest were rejected -> broken futures
+		CHECK ( iRan.load() == 2 );
+	}
+
+	SECTION("bounded queue, DropOldest")
+	{
+		KThreadPool Pool(1);
+
+		KThreadPool::TagConfig Cfg;
+		Cfg.iMaxQueue      = 2;
+		Cfg.OverflowPolicy = KThreadPool::Overflow::DropOldest;
+		Pool.ConfigureTag(1, Cfg);
+
+		std::vector<int> Ran;
+		std::mutex       RanMutex;
+
+		Pool.pause(true);
+		// push ids 1..4; with DropOldest and depth 2, ids 1 and 2 get dropped, 3 and 4 survive
+		for (int id = 1; id <= 4; ++id)
+		{
+			Pool.PushTagged(1, [&, id]() { std::lock_guard<std::mutex> L(RanMutex); Ran.push_back(id); });
+		}
+		Pool.pause(false);
+
+		REQUIRE ( WaitUntil([&]() { std::lock_guard<std::mutex> L(RanMutex); return Ran.size() == 2; }) );
+
+		std::lock_guard<std::mutex> L(RanMutex);
+		CHECK ( std::find(Ran.begin(), Ran.end(), 3) != Ran.end() );
+		CHECK ( std::find(Ran.begin(), Ran.end(), 4) != Ran.end() );
+		CHECK ( std::find(Ran.begin(), Ran.end(), 1) == Ran.end() );
+		CHECK ( std::find(Ran.begin(), Ran.end(), 2) == Ran.end() );
+	}
+
+	SECTION("PushTagged returns the result via future")
+	{
+		KThreadPool Pool(2);
+
+		auto future = Pool.PushTagged(7, [](int a, int b) { return a + b; }, 20, 22);
+		CHECK ( future.get() == 42 );
+	}
+
+	SECTION("per-tag concurrency cap")
+	{
+		// plenty of workers, but the tag may only run 2 of its tasks at once
+		KThreadPool Pool(8, KThreadPool::PrestartAll);
+
+		KThreadPool::TagConfig Cfg;
+		Cfg.iMaxConcurrency = 2;
+		Pool.ConfigureTag(1, Cfg);
+
+		std::atomic<int> iConcurrent    { 0 };
+		std::atomic<int> iMaxConcurrent { 0 };
+		std::atomic<int> iDone          { 0 };
+
+		for (int i = 0; i < 10; ++i)
+		{
+			Pool.PushTagged(1, [&]()
+			{
+				int iCur = ++iConcurrent;
+
+				// record the high-water mark of concurrent tasks for this tag
+				int iPrev = iMaxConcurrent.load();
+				while (iCur > iPrev && !iMaxConcurrent.compare_exchange_weak(iPrev, iCur)) {}
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(40));  // hold the slot
+
+				--iConcurrent;
+				++iDone;
+			});
+		}
+
+		REQUIRE ( WaitUntil([&]() { return iDone.load() == 10; }, 10000) );
+		CHECK   ( iMaxConcurrent.load() <= 2 );
+
+		// an uncapped tag must still run freely in parallel alongside the capped one
+		std::atomic<int> iOther { 0 };
+		std::vector<std::future<void>> Others;
+		for (int i = 0; i < 5; ++i)
+		{
+			Others.push_back(Pool.PushTagged(2, [&]() { ++iOther; }));
+		}
+		for (auto& f : Others) { f.get(); }
+		CHECK ( iOther.load() == 5 );
+	}
+
+	SECTION("coalesced debounce-rerun")
+	{
+		KThreadPool Pool(2);
+
+		std::atomic<int>  iRuns    { 0 };
+		std::atomic<bool> bStarted { false };
+		std::atomic<bool> bRelease { false };
+
+		auto Work = [&]()
+		{
+			++iRuns;
+			bStarted = true;
+			// the first run blocks so we can pile up submissions while it executes;
+			// the rerun does not block (bRelease is already set by then)
+			while (!bRelease.load()) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); }
+		};
+
+		// first submission schedules a run for key 1
+		auto f1 = Pool.PushCoalesced(1, 1, Work);
+
+		REQUIRE ( WaitUntil([&]() { return bStarted.load(); }) );
+
+		// while that run is executing, five more submissions for the same key must collapse
+		// into exactly one follow-up run (debounce)
+		std::vector<std::shared_future<void>> Fs;
+		for (int i = 0; i < 5; ++i)
+		{
+			Fs.push_back(Pool.PushCoalesced(1, 1, Work));
+		}
+
+		bRelease = true;
+
+		f1.get();
+		for (auto& f : Fs) { f.get(); }
+
+		// the original run plus exactly one coalesced rerun = 2, never 6
+		CHECK ( iRuns.load() == 2 );
+	}
+
+	SECTION("coalesce keys are independent")
+	{
+		KThreadPool Pool(4);
+
+		std::atomic<int> iKeyA { 0 };
+		std::atomic<int> iKeyB { 0 };
+
+		auto fa = Pool.PushCoalesced(1, 100, [&]() { ++iKeyA; });
+		auto fb = Pool.PushCoalesced(1, 200, [&]() { ++iKeyB; });
+
+		fa.get();
+		fb.get();
+
+		CHECK ( iKeyA.load() == 1 );
+		CHECK ( iKeyB.load() == 1 );
+	}
+
+	SECTION("member functions and void / non-void returns")
+	{
+		struct Worker
+		{
+			std::atomic<int> iCalls { 0 };
+			void Bump()             { ++iCalls; }                 // void member
+			int  Add(int a, int b)  { ++iCalls; return a + b; }   // non-void member
+		};
+
+		Worker W;
+		KThreadPool Pool(2);
+
+		// member function, void return -> takes the single-packaged_task void overload
+		auto fv = Pool.PushTagged(1, &Worker::Bump, &W);
+		fv.get();
+
+		// member function, non-void return -> result delivered through the future
+		auto fr = Pool.PushTagged(1, &Worker::Add, &W, 40, 2);
+		CHECK ( fr.get() == 42 );
+
+		// member function via PushCoalesced (it std::binds, so member pointers just work)
+		auto fc = Pool.PushCoalesced(2, 99, &Worker::Bump, &W);
+		fc.get();
+
+		// a plain void lambda likewise takes the void overload
+		std::atomic<bool> bRan { false };
+		Pool.PushTagged(1, [&]() { bRan = true; }).get();
+
+		CHECK ( W.iCalls.load() == 3 );
+		CHECK ( bRan.load()     == true );
 	}
 }

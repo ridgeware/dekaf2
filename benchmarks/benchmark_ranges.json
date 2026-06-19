@@ -19,5 +19,14 @@
 	"slow path (50 cols)"            : { "min_nsec":   700, "max_nsec":  10000 },
 	"fast path + hash (50 cols)"     : { "min_nsec":   120, "max_nsec":   1900 },
 	"fast path no hash (50 cols)"    : { "min_nsec":   100, "max_nsec":   1700 },
-	"hash only (50 cols)"            : { "min_nsec":    12, "max_nsec":    200 }
+	"hash only (50 cols)"            : { "min_nsec":    12, "max_nsec":    200 },
+
+	"_comment_kthreadpool": "KThreadPool per-task push+execute overhead (4 workers, trivial tasks). Thread scheduling varies a lot across cores/contention, so these bounds are wide on purpose - they catch an algorithmic blowup (e.g. a regression to O(queue) or O(threads) per task), not small drifts.",
+
+	"untagged push+exec (fast path)"     : { "min_nsec":   150, "max_nsec":   4000 },
+	"tagged push+exec (DRR, 4 tags)"     : { "min_nsec":   150, "max_nsec":   4500 },
+	"tagged push+exec (DRR, 16 tags)"    : { "min_nsec":   200, "max_nsec":   5000 },
+	"tagged push+exec (cap=2)"           : { "min_nsec":   200, "max_nsec":   6000 },
+	"PushTagged void (1 task alloc)"     : { "min_nsec":   150, "max_nsec":   4000 },
+	"PushTagged non-void (2 task allocs)": { "min_nsec":   250, "max_nsec":   6000 }
 }

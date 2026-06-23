@@ -86,6 +86,7 @@ private:
 	{
 		KString sInputFile;
 		KString sMongoConnectionString;
+		KString sMongoDatabase;  // overrides URI database; falls back to URI default, then "test"
 		KString sCollectionNames;
 		KString sDBC;
 		KString sTablePrefix;
@@ -129,6 +130,7 @@ private:
 
 	void        InitializeMongoDB ();
 	bool        ConnectToMongoDB ();
+	KString     ResolveMongoDatabaseName () const;
 	void        ShowVersion ();
 	bool        GetCollectionFromFile();
 	bool        GetCollectionsFromMongoDB ();

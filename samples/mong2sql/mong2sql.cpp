@@ -107,6 +107,10 @@ int Mong2SQL::Main(int argc, char* argv[])
 		.Help("specify the MongoDB connection string")
 		.Set(m_Config.sMongoConnectionString);
 
+	Options.Option("db <name>")
+		.Help("MongoDB database name (overrides any database in the connection string)")
+		.Set(m_Config.sMongoDatabase);
+
 	Options.Option("prefix <table_prefix>")
 		.Help("specify a prefix for all MySQL table names (will be uppercased and end with _)")
 		.Set(m_Config.sTablePrefix);
@@ -407,6 +411,30 @@ bool Mong2SQL::ConnectToMongoDB()
 }
 
 //-----------------------------------------------------------------------------
+KString Mong2SQL::ResolveMongoDatabaseName() const
+//-----------------------------------------------------------------------------
+{
+	// precedence: -db CLI option > URI default db > hard-coded "test"
+	if (!m_Config.sMongoDatabase.empty())
+	{
+		return m_Config.sMongoDatabase;
+	}
+
+	if (!m_Config.sMongoConnectionString.empty())
+	{
+		mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
+		KString sFromUri = uri.database();
+		if (!sFromUri.empty())
+		{
+			return sFromUri;
+		}
+	}
+
+	return "test";
+
+} // ResolveMongoDatabaseName
+
+//-----------------------------------------------------------------------------
 bool Mong2SQL::LoadDBC()
 //-----------------------------------------------------------------------------
 {
@@ -465,18 +493,10 @@ bool Mong2SQL::GetCollectionsFromMongoDB ()
 
 	try
 	{
-		mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
-		
-		// Extract database name from connection string or use default
-		KString sDatabaseName = uri.database();
-		if (sDatabaseName.empty())
-		{
-			sDatabaseName = "test"; // MongoDB default database
-		}
-		
+		KString sDatabaseName = ResolveMongoDatabaseName();
 		auto database = (*m_MongoClient)[sDatabaseName.c_str()];
-		
-		Verbose(1, "MongoDB: listing (and sizing) collections ...");
+
+		Verbose(1, "MongoDB: listing (and sizing) collections in database '{}' ...", sDatabaseName);
 		
 		m_Collections = KJSON::array();
 
@@ -925,10 +945,9 @@ KString Mong2SQL::DeduceCacheFile (KStringView sCollectionName) const
 		return {};
 	}
 
-	mongocxx::uri uri{m_Config.sMongoConnectionString.c_str()};
-	KString       sDatabaseName   = uri.database();
-	auto          sCacheFile      = kFormat ("/var/tmp/{}/{}.json", sDatabaseName, sCollectionName);
-	
+	KString sDatabaseName = ResolveMongoDatabaseName();
+	auto    sCacheFile    = kFormat ("/var/tmp/{}/{}.json", sDatabaseName, sCollectionName);
+
 	return sCacheFile;
 
 } // DeduceCacheFile
@@ -953,11 +972,12 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 		return std::move (oCollection);
 	}
 
-	auto oLoaded = LoadMetaDataFromCache (sCollectionName);
-	if (!oLoaded.empty())
-	{
-		return oLoaded;
-	}
+	// Note: do NOT short-circuit on LoadMetaDataFromCache here. The cache is
+	// schema-only (no documents), so returning it would leave callers like
+	// DumpCollections / CopyCollections with nothing to iterate. The caller's
+	// upstream (GetCollectionsFromMongoDB) has already merged any cached
+	// metadata into `oCollection`; if it was complete the early-return above
+	// already fired. Fall through and re-query MongoDB for documents.
 
 	KJSON oBuilt;
 	oBuilt[collection_name] = sCollectionName;
@@ -979,12 +999,8 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 		{
 			mongocxx::uri localUri{m_Config.sMongoConnectionString.c_str()};
 			mongocxx::client localClient{localUri};
-			KString sDbName = localUri.database();
-			if (sDbName.empty())
-			{
-				sDbName = "test";
-			}
-		
+			KString sDbName = ResolveMongoDatabaseName();
+
 			auto database   = localClient[sDbName.c_str()];
 			auto collection = database[sCollectionName.c_str()];
 		
@@ -1222,12 +1238,18 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 	// Store in cache (if it came from MongoDB and no filters were applied)
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	bool bIsFiltered = (m_Config.iLimitEnd > 0 || !m_Config.sGrep.empty());
-	
+
 	if (!m_Config.sInputFile)
 	{
 		if (bIsFiltered)
 		{
 			Verbose(1, "{}: skipping cache write (filtered results)", sCollectionName);
+		}
+		else if (iDocCount == 0)
+		{
+			// don't persist empty/incomplete results - a subsequent run would
+			// then short-circuit on this useless cache and dump nothing.
+			Verbose(1, "{}: skipping cache write (no documents loaded)", sCollectionName);
 		}
 		else
 		{

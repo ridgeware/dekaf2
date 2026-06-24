@@ -137,12 +137,26 @@ public:
 		bool      bVerifyIDTokenSignature { true };
 	};
 
-	/// Construct with a configuration and a filesystem path for the session
-	/// store. The path is handed to KSession's SQLite-backed store, so it must
-	/// be a writable file location (the tokens of every logged-in user are kept
-	/// there server-side). This is the standalone form: the client owns a
-	/// private KSession dedicated to OIDC logins.
+	/// Standalone form with an in-memory session store (KSessionMemoryStore). The
+	/// store is volatile and process-local — sessions are lost on restart and are
+	/// not shared across processes — so this suits development/testing or single-
+	/// process deployments. The client owns a private KSession dedicated to OIDC
+	/// logins. Always available, independent of the SQL build/link options.
+	explicit KOpenIDClient(Config config);
+
+#if DEKAF2_HAS_SQLITE3
+	/// Standalone form with a SQLite-backed session store (KSessionSQLiteStore) at
+	/// the given filesystem path. The path must be a writable file location (the
+	/// tokens of every logged-in user are kept there server-side). The client owns
+	/// a private KSession. Only available when dekaf2 is built with SQLite support.
 	KOpenIDClient(Config config, KStringViewZ sSessionDBPath);
+#endif
+
+	/// Standalone form with a KSQL-backed session store (KSessionKSQLStore) on the
+	/// given, already-open KSQL connection. The caller owns the connection and must
+	/// keep it alive for the lifetime of this client. The client owns a private
+	/// KSession dedicated to OIDC logins.
+	KOpenIDClient(Config config, KSQL& db);
 
 	/// Construct sharing an externally-owned KSession. Use this when the
 	/// application maintains a single session store for *both* local
@@ -240,6 +254,9 @@ private:
 	DEKAF2_PRIVATE void       ExpireStateCookie  (KRESTServer& HTTP);
 	DEKAF2_PRIVATE void       Redirect           (KRESTServer& HTTP, KStringView sURL);
 	DEKAF2_PRIVATE KString    StateCookieName    () const;
+	/// Build the KSession::Config (cookie name, security flags, timeouts) from
+	/// m_Config — shared by the standalone constructors.
+	DEKAF2_PRIVATE KSession::Config MakeSessionConfig() const;
 
 	Config                    m_Config;
 	std::shared_ptr<KSession> m_pSession;              ///< owned (standalone ctor) or shared (shared ctor)

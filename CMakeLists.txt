@@ -75,7 +75,7 @@ if (WIN32)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.1.19 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.1.20 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -1664,6 +1664,7 @@ set (SOURCES
 	source/crypto/auth/kbcrypt.cpp
 	source/crypto/auth/kopenid.cpp
 	source/crypto/auth/kopenidclient.cpp
+	source/crypto/auth/bits/kopenidclientksql.cpp
 	source/crypto/auth/kopenidserver.cpp
 	source/crypto/auth/ksession.cpp
 	source/crypto/auth/ktotp.cpp

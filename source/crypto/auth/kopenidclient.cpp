@@ -42,6 +42,7 @@
 
 #include <dekaf2/crypto/auth/kopenidclient.h>
 
+#include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>   // KSHA256
 #include <dekaf2/crypto/encoding/kbase64.h>      // KBase64Url
 #include <dekaf2/crypto/random/krandom.h>        // kGetRandom
@@ -60,8 +61,7 @@
 DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
-KOpenIDClient::KOpenIDClient(Config config, KStringViewZ sSessionDBPath)
-: m_Config(std::move(config))
+KSession::Config KOpenIDClient::MakeSessionConfig() const
 //-----------------------------------------------------------------------------
 {
 	KSession::Config sc;
@@ -71,14 +71,42 @@ KOpenIDClient::KOpenIDClient(Config config, KStringViewZ sSessionDBPath)
 	sc.bHttpOnly       = true;
 	sc.IdleTimeout     = m_Config.IdleTimeout;
 	sc.AbsoluteTimeout = m_Config.AbsoluteTimeout;
+	return sc;
 
-	m_pSession = std::make_shared<KSession>(sSessionDBPath, sc);
+} // MakeSessionConfig
 
-	// No authenticator is set: OIDC sessions are created by CreateSession()
-	// via KSession::CreateTrustedSession(), which does not consult one (the
-	// identity is vouched for by the validated id_token, not a password).
+// All standalone constructors below own a private KSession and set no
+// authenticator: OIDC sessions are created by CreateSession() via
+// KSession::CreateTrustedSession(), which does not consult one (the identity is
+// vouched for by the validated id_token, not a password).
 
-} // KOpenIDClient (standalone)
+//-----------------------------------------------------------------------------
+KOpenIDClient::KOpenIDClient(Config config)
+: m_Config(std::move(config))
+//-----------------------------------------------------------------------------
+{
+	// in-memory store: volatile and process-local
+	m_pSession = std::make_shared<KSession>(std::make_unique<KSessionMemoryStore>(), MakeSessionConfig());
+
+} // KOpenIDClient (standalone, in-memory)
+
+#if DEKAF2_HAS_SQLITE3
+//-----------------------------------------------------------------------------
+KOpenIDClient::KOpenIDClient(Config config, KStringViewZ sSessionDBPath)
+: m_Config(std::move(config))
+//-----------------------------------------------------------------------------
+{
+	// SQLite-backed store at sSessionDBPath
+	m_pSession = std::make_shared<KSession>(sSessionDBPath, MakeSessionConfig());
+
+} // KOpenIDClient (standalone, SQLite)
+#endif
+
+// NOTE: the KSQL-backed standalone constructor KOpenIDClient(Config, KSQL&) is
+// deliberately NOT defined here. It lives in bits/kopenidclientksql.cpp (which is
+// linked into the ksql2 library) so that this core TU carries no references to KSQL
+// symbols - applications that do not link ksql2 can still use the in-memory, SQLite,
+// or shared-KSession backends. See kwebpush/kapplepush for the same split.
 
 //-----------------------------------------------------------------------------
 KOpenIDClient::KOpenIDClient(Config config, std::shared_ptr<KSession> pSession)

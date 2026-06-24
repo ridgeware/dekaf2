@@ -114,6 +114,7 @@ OPTION(DEKAF2_BUILD_STATIC_DEKAF2 "build a static version of dekaf2" ON)
 OPTION(DEKAF2_BUILD_SHARED_DEKAF2 "build a shared version of dekaf2" OFF)
 OPTION(DEKAF2_DUAL_TARGET "install Release and Debug versions of dekaf2 side by side" ON)
 OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
+OPTION(DEKAF2_BUILD_SAMPLES "build and install samples" ON)
 OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
 OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
 OPTION(DEKAF2_INSTALL_SHARE "install share data" ON)
@@ -2244,6 +2245,19 @@ if (DEKAF2_INSTALL_BIN)
 	add_executable(dekaf2project tools/dekaf2project.cpp)
 	target_link_libraries(dekaf2project dekaf2${DEKAF2_LINK_SHARED})
 
+	add_executable(getentities EXCLUDE_FROM_ALL source/web/html/getentities.cpp)
+	target_link_libraries(getentities dekaf2${DEKAF2_LINK_SHARED})
+
+	add_executable(genunicodetables EXCLUDE_FROM_ALL source/core/types/genunicodetables.cpp)
+	target_link_libraries(genunicodetables dekaf2${DEKAF2_LINK_SHARED})
+
+	add_executable(diff-speedtest EXCLUDE_FROM_ALL from/google/diff-speedtest.cpp)
+	target_link_libraries(diff-speedtest dekaf2${DEKAF2_LINK_SHARED})
+
+endif()
+
+if (DEKAF2_BUILD_SAMPLES)
+
 	add_executable(kurl samples/kurl.cpp samples/kurl.h)
 	target_link_libraries(kurl dekaf2${DEKAF2_LINK_SHARED})
 
@@ -2309,15 +2323,6 @@ if (DEKAF2_INSTALL_BIN)
 	else()
 		message(STATUS "kssod would need sqlite3 - not built")
 	endif()
-
-	add_executable(getentities EXCLUDE_FROM_ALL source/web/html/getentities.cpp)
-	target_link_libraries(getentities dekaf2${DEKAF2_LINK_SHARED})
-
-	add_executable(genunicodetables EXCLUDE_FROM_ALL source/core/types/genunicodetables.cpp)
-	target_link_libraries(genunicodetables dekaf2${DEKAF2_LINK_SHARED})
-
-	add_executable(diff-speedtest EXCLUDE_FROM_ALL from/google/diff-speedtest.cpp)
-	target_link_libraries(diff-speedtest dekaf2${DEKAF2_LINK_SHARED})
 
 	add_subdirectory(samples/mong2sql)
 
@@ -2520,10 +2525,6 @@ if (DEKAF2_INSTALL_BIN)
 	if (DEKAF2_HAS_NCURSES)
 		install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
 	endif()
-	if (SQLITE3_FOUND)
-		install(TARGETS ktunnel kssod DESTINATION ${dekaf2_bin_dest})
-	endif()
-
 
 	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/mysql-newuser"   DESTINATION ${dekaf2_bin_dest})
 	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/findcol"         DESTINATION ${dekaf2_bin_dest})
@@ -2532,6 +2533,15 @@ if (DEKAF2_INSTALL_BIN)
 	install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/dekaf2unflat.py" DESTINATION ${dekaf2_bin_dest})
 
 endif() # DEKAF2_INSTALL_BIN
+
+if (DEKAF2_BUILD_SAMPLES)
+
+	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql krypt kgeoip statinfo DESTINATION ${dekaf2_bin_dest})
+	if (SQLITE3_FOUND)
+		install(TARGETS ktunnel kssod DESTINATION ${dekaf2_bin_dest})
+	endif()
+
+endif()
 
 if (DEKAF2_INSTALL_INCLUDE)
 

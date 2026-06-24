@@ -208,13 +208,17 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 	{
 		// second crash from another thread - minimal safe output, no allocations
 		const char sMsg[] = "\n[second crash in another thread - aborting immediately]\n";
+		// best-effort output - we deliberately ignore the result (glibc marks write() as
+		// warn_unused_result under _FORTIFY_SOURCE; the assignment plus the (void) cast below
+		// silences it portably down to C++14, without the C++17 [[maybe_unused]] attribute)
 #ifdef DEKAF2_IS_WINDOWS
 		// STDERR_FILENO maps to STD_ERROR_HANDLE on Windows (a GetStdHandle() value,
 		// not a CRT file descriptor), so write to the CRT stderr fd (2) directly
-		::_write(2, sMsg, sizeof(sMsg) - 1);
+		auto iWritten = ::_write(2, sMsg, sizeof(sMsg) - 1);
 #else
-		::write(STDERR_FILENO, sMsg, sizeof(sMsg) - 1);
+		auto iWritten = ::write(STDERR_FILENO, sMsg, sizeof(sMsg) - 1);
 #endif
+		(void)iWritten;
 		::_exit(1);
 	}
 

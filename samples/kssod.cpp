@@ -260,6 +260,7 @@ KString CurrentUser(KRESTServer& HTTP, KSession& Session)
 	return Record.sUsername;
 }
 
+#if DEKAF2_HAS_USER_AGENT_PARSER
 //-----------------------------------------------------------------------------
 /// human label for a parsed device type (the yaml-free fast classifier)
 KStringView DeviceTypeName(KHTTPUserAgent::DeviceType Type)
@@ -274,6 +275,7 @@ KStringView DeviceTypeName(KHTTPUserAgent::DeviceType Type)
 	}
 	return {};
 }
+#endif
 
 //-----------------------------------------------------------------------------
 /// build the renderable session list for a user, marking the request's own
@@ -291,6 +293,7 @@ std::vector<SessionView> SessionViewsFor(KRESTServer& HTTP, KSession& Session, K
 		// the raw token (the live credential) never leaves the server
 		V.sRevokeID = KSHA256(Rec.sToken).HexDigest();
 
+#if DEKAF2_HAS_USER_AGENT_PARSER
 		if (!Rec.sUserAgent.empty())
 		{
 			KHTTPUserAgent UA(Rec.sUserAgent);
@@ -298,6 +301,8 @@ std::vector<SessionView> SessionViewsFor(KRESTServer& HTTP, KSession& Session, K
 			V.sOS      = UA.GetOS().GetString();
 			V.sDevice  = DeviceTypeName(UA.GetDeviceType());
 		}
+#endif
+
 		V.sClientIP   = Rec.sClientIP;
 		V.sSignedIn   = Rec.tCreated.to_string();
 		V.sLastActive = Rec.tLastSeen.to_string();

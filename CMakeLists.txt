@@ -2264,22 +2264,18 @@ if (DEKAF2_INSTALL_BIN)
 	add_executable(kgeoip samples/kgeoip.cpp)
 	target_link_libraries(kgeoip dekaf2${DEKAF2_LINK_SHARED})
 
-	add_executable(ktunnel
-		samples/ktunnel.cpp
-		samples/ktunnel.h
-		samples/ktunnel_admin.cpp
-		samples/ktunnel_admin.h
-		samples/ktunnel_store.cpp
-		samples/ktunnel_store.h
-	)
-	# ktunnel's admin-UI persists its users / tunnel configuration / audit
-	# events in a SQLite file, so we need to link ksqlite too. SQLite is
-	# detected optionally by the top-level CMakeLists.txt — guard against
-	# a missing SQLite install so a plain "-notls" tunnel can still build.
 	if (SQLITE3_FOUND)
+		add_executable(ktunnel
+			samples/ktunnel.cpp
+			samples/ktunnel.h
+			samples/ktunnel_admin.cpp
+			samples/ktunnel_admin.h
+			samples/ktunnel_store.cpp
+			samples/ktunnel_store.h
+		)
 		target_link_libraries(ktunnel ksqlite${DEKAF2_LINK_SHARED} dekaf2${DEKAF2_LINK_SHARED})
 	else()
-		message(FATAL_ERROR "ktunnel requires SQLite3 — install it or disable the admin UI build")
+		message(STATUS "ktunnel would need sqlite3 - not built")
 	endif()
 
 	add_executable(statinfo samples/statinfo.cpp)
@@ -2309,6 +2305,8 @@ if (DEKAF2_INSTALL_BIN)
 			samples/kssod_ui.h
 		)
 		target_link_libraries(kssod ksqlite${DEKAF2_LINK_SHARED} dekaf2${DEKAF2_LINK_SHARED})
+	else()
+		message(STATUS "kssod would need sqlite3 - not built")
 	endif()
 
 	add_executable(getentities EXCLUDE_FROM_ALL source/web/html/getentities.cpp)
@@ -2517,12 +2515,12 @@ endif() # DEKAF2_INSTALL_LIB
 
 if (DEKAF2_INSTALL_BIN)
 
-	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql krypt kgeoip ktunnel statinfo DESTINATION ${dekaf2_bin_dest})
+	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql krypt kgeoip statinfo DESTINATION ${dekaf2_bin_dest})
 	if (DEKAF2_HAS_NCURSES)
 		install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
 	endif()
 	if (SQLITE3_FOUND)
-		install(TARGETS kssod DESTINATION ${dekaf2_bin_dest})
+		install(TARGETS ktunnel kssod DESTINATION ${dekaf2_bin_dest})
 	endif()
 
 
@@ -2537,7 +2535,7 @@ endif() # DEKAF2_INSTALL_BIN
 if (DEKAF2_INSTALL_INCLUDE)
 
 	# install hierarchical headers (preserves source/ directory structure under dekaf2/)
-	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/source/" DESTINATION "${dekaf2_include_dest}/dekaf2" FILES_MATCHING PATTERN "*.h")
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/source/" DESTINATION "${dekaf2_include_dest}/dekaf2" FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 
 	# install flat backward-compatible header stubs
 	if (DEKAF2_INSTALL_FLAT_HEADERS)

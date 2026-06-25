@@ -1049,6 +1049,13 @@ KJSON Mong2SQL::DigestCollection (const KJSON& oCollection) const
 		
 		// Build query options (only skip, not limit - limit applied after grep)
 		mongocxx::options::find findOpts{};
+		// Large collections + slow downstream processing keep the cursor open
+		// for hours. Mongo reaps idle cursors after ~10 minutes by default,
+		// surfacing as "cursor id N not found" or socket timeouts during
+		// getMore. no_cursor_timeout disables the server-side reap; a larger
+		// batch_size cuts round-trips so brief network blips are less fatal.
+		findOpts.no_cursor_timeout(true);
+		findOpts.batch_size(500);
 		if (iSkip > 0)
 		{
 			findOpts.skip(iSkip);
@@ -1601,8 +1608,12 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 			return;
 		}
 
-		// Fetch all documents from MongoDB
-		auto cursor = collection.find({});
+		// Fetch all documents from MongoDB. Same long-cursor protection as in
+		// DigestCollection - see comment there for the rationale.
+		mongocxx::options::find findOpts{};
+		findOpts.no_cursor_timeout(true);
+		findOpts.batch_size(500);
+		auto cursor = collection.find({}, findOpts);
 
 		for (const auto& doc : cursor)
 		{

@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.8...3.31)
 if (NOT DEKAF2_USE_SYSTEM_FMTLIB)
 	# add the format lib
 	set(CMAKE_REQUIRED_QUIET TRUE)
-	add_subdirectory(fmt-11.2.0)
+	add_subdirectory(fmt-12.2.0)
 endif()
 
 # add fast regular expressions

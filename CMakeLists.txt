@@ -12,7 +12,14 @@
 #
 message(STATUS "======================== starting cmake configuration ========================")
 
-if(CMAKE_VERSION VERSION_LESS "3.27.0")
+# DEKAF2_VCPKG_BUILD is a -D switch (formally declared as an option further down). In a
+# package-manager build the environment is already clean and modern, so we skip dekaf2's
+# self-setup machinery (buildsetup / cmakeinstall / boostinstall) and the legacy low
+# cmake_minimum_required dance, and require a current cmake right away.
+if (DEKAF2_VCPKG_BUILD)
+	cmake_minimum_required(VERSION 3.19)
+	set(DEKAF2_NO_BUILDSETUP ON)
+elseif(CMAKE_VERSION VERSION_LESS "3.27.0")
 	cmake_minimum_required(VERSION 2.8.12)
 else()
 	cmake_minimum_required(VERSION 3.13...4.0)
@@ -114,6 +121,7 @@ OPTION(DEKAF2_BUILD_STATIC_DEKAF2 "build a static version of dekaf2" ON)
 OPTION(DEKAF2_BUILD_SHARED_DEKAF2 "build a shared version of dekaf2" OFF)
 OPTION(DEKAF2_DUAL_TARGET "install Release and Debug versions of dekaf2 side by side" ON)
 OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
+OPTION(DEKAF2_VCPKG_BUILD "build for vcpkg: no self-setup, find_package deps, single triplet-driven config" OFF)
 OPTION(DEKAF2_BUILD_SAMPLES "build and install samples" ON)
 OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
 OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
@@ -233,11 +241,14 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 	set (IS_MACOS ON)
 	# suppress ranlib "has no symbols" warning for object files that compile to empty
 	# ARCHIVE_FINISH handles the build step, the wrapper script handles install
-	set(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols <TARGET>")
-	set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols <TARGET>")
-	file(WRITE "${CMAKE_BINARY_DIR}/ranlib_wrapper.sh" "#!/bin/sh\nexec /usr/bin/ranlib -no_warning_for_no_symbols \"$@\"\n")
-	file(CHMOD "${CMAKE_BINARY_DIR}/ranlib_wrapper.sh" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
-	set(CMAKE_RANLIB "${CMAKE_BINARY_DIR}/ranlib_wrapper.sh")
+	# (skipped in vcpkg mode - vcpkg provides its own toolchain / archiver settings)
+	if (NOT DEKAF2_VCPKG_BUILD)
+		set(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols <TARGET>")
+		set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols <TARGET>")
+		file(WRITE "${CMAKE_BINARY_DIR}/ranlib_wrapper.sh" "#!/bin/sh\nexec /usr/bin/ranlib -no_warning_for_no_symbols \"$@\"\n")
+		file(CHMOD "${CMAKE_BINARY_DIR}/ranlib_wrapper.sh" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+		set(CMAKE_RANLIB "${CMAKE_BINARY_DIR}/ranlib_wrapper.sh")
+	endif()
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	set (IS_WINDOWS ON)
 	# get the Windows major version
@@ -255,6 +266,13 @@ cmake_host_system_information(RESULT NUMBER_OF_PHYSICAL_CORES QUERY NUMBER_OF_PH
 cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
 
 # ========================= SWITCHING CONFIG ON ENVIRONMENT =========================
+
+# in package/vcpkg mode the package manager owns the Debug/Release split (via triplets) and
+# the install layout, so force the dual-target / versioned-target layouts off
+if (DEKAF2_VCPKG_BUILD)
+	set(DEKAF2_DUAL_TARGET       OFF CACHE BOOL "install Release and Debug versions of dekaf2 side by side" FORCE)
+	set(DEKAF2_VERSION_IN_TARGET OFF CACHE BOOL "include version number in target" FORCE)
+endif()
 
 if (CPU_ARM AND NOT CPU_ARM EQUAL 64)
 	message(STATUS "no ASAN/UBSAN support for ARM32")
@@ -370,7 +388,8 @@ endif()
 
 # on macOS, add Homebrew prefixes for keg-only packages to CMAKE_PREFIX_PATH
 # so that find_package() can locate them without manual -D flags
-if (APPLE)
+# (skipped in vcpkg mode - the vcpkg toolchain manages CMAKE_PREFIX_PATH)
+if (APPLE AND NOT DEKAF2_VCPKG_BUILD)
 	execute_process(
 		COMMAND brew --prefix
 		OUTPUT_VARIABLE HOMEBREW_PREFIX

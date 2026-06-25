@@ -164,7 +164,7 @@ option(FMT_WERROR "Halt the compilation with an error on compiler warnings."
 
 # Options that control generation of various targets.
 option(FMT_DOC "Generate the doc target." ${FMT_MASTER_PROJECT})
-option(FMT_INSTALL "Generate the install target." ON)
+option(FMT_INSTALL "Generate the install target." OFF) # dekaf2: OFF - dekaf2 installs the fmt headers itself; avoid fmt self-installing on sudo make install
 option(FMT_TEST "Generate the test target." ${FMT_MASTER_PROJECT})
 option(FMT_FUZZ "Generate the fuzz target." OFF)
 option(FMT_CUDA_TEST "Generate the cuda-test target." OFF)
@@ -337,7 +337,7 @@ set(FMT_DEBUG_POSTFIX d CACHE STRING "Debug library postfix.")
 
 set_target_properties(fmt PROPERTIES
   VERSION ${FMT_VERSION} SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}
-  PUBLIC_HEADER "${FMT_HEADERS}"
+#  PUBLIC_HEADER "${FMT_HEADERS}" # need to disable for dekaf2 - otherwise the main installer would always include these, but search them at the wrong place..
   DEBUG_POSTFIX "${FMT_DEBUG_POSTFIX}"
 
   # Workaround for Visual Studio 2017:

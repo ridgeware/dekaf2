@@ -190,7 +190,7 @@ DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kFormat(KRuntimeFormatString sFormat, Args&&... args) noexcept
 {
 #if DEKAF2_FORMAT_INLINE
-	return DEKAF2_FORMAT_NAMESPACE::vformat(sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(std::forward<Args>(args)...));
+	return DEKAF2_FORMAT_NAMESPACE::vformat(sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
 #else
 	return kformat_detail::Format(sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
 #endif
@@ -202,7 +202,7 @@ DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kFormat(const std::locale& locale, KRuntimeFormatString sFormat, Args&&... args) noexcept
 {
 #if DEKAF2_FORMAT_INLINE
-	return DEKAF2_FORMAT_NAMESPACE::vformat(locale, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(std::forward<Args>(args)...));
+	return DEKAF2_FORMAT_NAMESPACE::vformat(locale, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
 #else
 	return kformat_detail::Format(locale, sFormat.get(), DEKAF2_FORMAT_NAMESPACE::make_format_args(args...));
 #endif

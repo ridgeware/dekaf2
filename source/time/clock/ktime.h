@@ -1436,7 +1436,10 @@ DEKAF2_NODISCARD DEKAF2_PUBLIC
 }
 
 /// Create a time stamp following std::format patterns
-/// @param locale a system locale to localize day and month names
+/// @param locale a system locale used for the locale-dependent conversions. Note that
+///        std::format and fmt only apply the locale to fields that carry the 'L' flag,
+///        e.g. "{:L%A %c}" - without 'L' the locale-independent (C) form is used, even
+///        though a locale was passed (this is the standard's per-field opt-in behaviour).
 /// @param time a date/time object. If omitted, defaults to current time
 /// @param sFormat format string, defaults to "{:%Y-%m-%d %H:%M:%S}"
 /// @return the timestamp string

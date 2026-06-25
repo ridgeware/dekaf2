@@ -272,6 +272,8 @@ cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
 if (DEKAF2_VCPKG_BUILD)
 	set(DEKAF2_DUAL_TARGET       OFF CACHE BOOL "install Release and Debug versions of dekaf2 side by side" FORCE)
 	set(DEKAF2_VERSION_IN_TARGET OFF CACHE BOOL "include version number in target" FORCE)
+	# use the package manager's libraries instead of the vendored copies
+	set(DEKAF2_USE_SYSTEM_FMTLIB ON CACHE BOOL "use a system installed fmtlib instead of our own copy" FORCE)
 endif()
 
 if (CPU_ARM AND NOT CPU_ARM EQUAL 64)
@@ -1151,9 +1153,13 @@ if (NOT DEKAF2_NO_NEED_FOR_LIBATOMIC)
 endif()
 
 if (DEKAF2_USE_SYSTEM_FMTLIB)
+	# dekaf2 needs fmt >= 11 (locale 'L' flag semantics)
+	find_package(fmt 11 CONFIG REQUIRED)
+	set(DEKAF2_FMT_TARGET fmt::fmt)
 	set(DMESSAGE_FMT "a system installed")
 else()
 	set(DEKAF2_FMT_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-12.2.0/include")
+	set(DEKAF2_FMT_TARGET fmt)
 	set(DMESSAGE_FMT "our own")
 endif()
 
@@ -2036,7 +2042,7 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 
 set(DEKAF2_LINK_LIBRARIES
 	PUBLIC
-		fmt
+		${DEKAF2_FMT_TARGET}
 		nlohmann-json
 		date-tz
 		${Boost_LIBRARIES}

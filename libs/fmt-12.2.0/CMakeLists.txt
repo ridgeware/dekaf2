@@ -256,11 +256,17 @@ function (setup_target target kind)
     target_compile_definitions(${target} ${kind} FMT_UNICODE=0)
   endif ()
 
-  set_target_properties(
-    ${target}
-    PROPERTIES VERSION ${FMT_VERSION}
-               SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}
-               DEBUG_POSTFIX "${FMT_DEBUG_POSTFIX}")
+  # dekaf2: VERSION/SOVERSION/DEBUG_POSTFIX are not allowed on INTERFACE libraries before
+  # CMake 3.19 (fmt-header-only is INTERFACE) - skip them there so older CMake (e.g. on
+  # Debian Stretch / gcc 6.2) can still configure; they are meaningless on INTERFACE anyway
+  get_target_property(_fmt_target_type ${target} TYPE)
+  if (NOT _fmt_target_type STREQUAL "INTERFACE_LIBRARY")
+    set_target_properties(
+      ${target}
+      PROPERTIES VERSION ${FMT_VERSION}
+                 SOVERSION ${CPACK_PACKAGE_VERSION_MAJOR}
+                 DEBUG_POSTFIX "${FMT_DEBUG_POSTFIX}")
+  endif ()
 endfunction ()
 
 set(FMT_HEADERS)
@@ -286,7 +292,8 @@ endforeach ()
 # Add the main fmt library.
 add_library(fmt src/format.cc ${FMT_HEADERS} README.md ChangeLog.md)
 setup_target(fmt PUBLIC)
-set_target_properties(fmt PROPERTIES PUBLIC_HEADER "${FMT_HEADERS}")
+# dekaf2: disabled - otherwise dekaf2's own install(TARGETS fmt) would pull fmt's public headers into the install at the wrong place
+#set_target_properties(fmt PROPERTIES PUBLIC_HEADER "${FMT_HEADERS}")
 
 if (FMT_OS)
   target_sources(fmt PRIVATE src/os.cc)

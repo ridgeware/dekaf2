@@ -1579,15 +1579,12 @@ void Mong2SQL::CopyCollection (const KJSON& oCollection)
 	// Create local MongoDB connection (thread-safe)
 	else try
 	{
-		kDebug (1, "collection is already loaded");
 		mongocxx::uri mongoUri{m_Config.sMongoConnectionString.c_str()};
 		mongocxx::client mongoClient{mongoUri};
-		KString sDbName = mongoUri.database();
-		if (!sDbName)
-		{
-			sDbName = "test";
-		}
-		
+		KString sDbName = ResolveMongoDatabaseName();
+
+		kDebug (1, "{}: querying MongoDB database '{}' for documents to copy", sCollectionName, sDbName);
+
 		auto database   = mongoClient[sDbName.c_str()];
 		auto collection = database[sCollectionName.c_str()];
 		
@@ -1768,7 +1765,101 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 		kDebug(1, "{}: no non-null columns found, skipping table creation", sTableName);
 		return KString{};
 	}
-	
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	// Row-size budget: InnoDB's hard limit for the inline portion of a row is
+	// ~8126 bytes (half a 16KB page). Combined with row_format=dynamic, large
+	// values can spill off-page using a 20-byte pointer, but only TEXT/BLOB
+	// columns spill unconditionally - VARCHARs still cost ~4*N + 2 bytes
+	// inline under utf8mb4. Wide Mongo documents flattened to many VARCHARs
+	// quickly exceed the limit. So: estimate the row width, and if it busts
+	// budget, promote the widest VARCHAR(N) to TEXT until we are under, then
+	// regenerate alignment widths.
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	auto EstimateInlineBytes = [](KStringView sType) -> std::size_t
+	{
+		if (sType.starts_with("varchar("))
+		{
+			auto sNum = sType;
+			sNum.remove_prefix(8); // strip "varchar("
+			return 4 * sNum.UInt64() + 2; // utf8mb4 max + 2-byte length prefix
+		}
+		if (sType == "tinytext"    ) return 20; // off-page pointer in row_format=dynamic
+		if (sType == "text"        ) return 20;
+		if (sType == "mediumtext"  ) return 20;
+		if (sType == "longtext"    ) return 20;
+		if (sType == "bigint"      ) return 8;
+		if (sType == "int"         ) return 4;
+		if (sType == "smallint"    ) return 2;
+		if (sType == "tinyint"     ) return 1;
+		if (sType == "boolean"     ) return 1;
+		if (sType == "double"      ) return 8;
+		if (sType == "float"       ) return 4;
+		return 8; // safe default for anything we did not enumerate
+	};
+
+	static constexpr std::size_t s_iInlineRowBudget = 7500; // safe headroom below 8126
+
+	auto TotalInline = [&]() -> std::size_t
+	{
+		std::size_t iTotal = 0;
+		for (const auto& col : activeColumns)
+		{
+			iTotal += EstimateInlineBytes(col[sql_type].String());
+		}
+		return iTotal;
+	};
+
+	std::size_t iInitialBytes = TotalInline();
+
+	while (TotalInline() > s_iInlineRowBudget)
+	{
+		// find the widest remaining VARCHAR to promote to TEXT
+		auto        itWidest     = activeColumns.end();
+		std::size_t iWidestBytes = 0;
+		for (auto it = activeColumns.begin(); it != activeColumns.end(); ++it)
+		{
+			KString sType = (*it)[sql_type].String();
+			if (sType.starts_with("varchar("))
+			{
+				std::size_t iBytes = EstimateInlineBytes(sType);
+				if (iBytes > iWidestBytes)
+				{
+					iWidestBytes = iBytes;
+					itWidest     = it;
+				}
+			}
+		}
+
+		if (itWidest == activeColumns.end())
+		{
+			// nothing left to promote - row is already as narrow as we can make it
+			kDebug(1, "{}: row budget exceeded (~{} bytes) but no VARCHAR left to promote", sTableName, TotalInline());
+			break;
+		}
+
+		KString sOldType = (*itWidest)[sql_type].String();
+		KString sColName = (*itWidest)[column_name].String();
+		(*itWidest)[sql_type] = "text";
+		kDebug(1, "{}: promoting '{}' from {} to text to fit row-size budget", sTableName, sColName, sOldType);
+	}
+
+	std::size_t iFinalBytes = TotalInline();
+	if (iFinalBytes < iInitialBytes)
+	{
+		kDebug(1, "{}: estimated inline row width trimmed from {} to {} bytes (budget {})",
+			sTableName, iInitialBytes, iFinalBytes, s_iInlineRowBudget);
+
+		// types changed - recompute alignment widths
+		iMaxNameWidth = 0;
+		iMaxTypeWidth = 0;
+		for (const auto& col : activeColumns)
+		{
+			iMaxNameWidth = std::max(iMaxNameWidth, col[column_name].String().size());
+			iMaxTypeWidth = std::max(iMaxTypeWidth, col[sql_type].String().size());
+		}
+	}
+
 	// Generate column definitions with aligned columns
 	for (std::size_t ii = 0; ii < activeColumns.size(); ++ii)
 	{
@@ -1798,7 +1889,7 @@ KString Mong2SQL::GenerateCreateTableDDL (const KJSON& table) const
 		sSQL += "\n";
 	}
 	
-	sSQL += ") engine=InnoDB default charset=utf8mb4;\n";
+	sSQL += ") engine=InnoDB default charset=utf8mb4 row_format=dynamic;\n";
 	
 	return sSQL;
 	

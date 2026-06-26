@@ -1,0 +1,37 @@
+{
+  "name": "dekaf2",
+  "version-semver": "2.1.20",
+  "description": "C++14/17/20/23 rapid application development framework",
+  "homepage": "https://github.com/ridgeware/dekaf2",
+  "license": "MIT",
+  "dependencies": [
+    "openssl",
+    "zlib",
+    "bzip2",
+    "fmt",
+    "nlohmann-json",
+    "frozen",
+    "date",
+    "simdutf",
+    { "name": "boost-iostreams",     "version>=": "1.72.0" },
+    { "name": "boost-serialization", "version>=": "1.72.0" },
+    "boost-system",
+    "boost-asio",
+    "boost-multi-index",
+    { "name": "vcpkg-cmake",        "host": true },
+    { "name": "vcpkg-cmake-config", "host": true }
+  ],
+  "default-features": [ "useragent", "http2", "compression" ],
+  "features": {
+    "mysql":       { "description": "MySQL/MariaDB KSQL backend",                    "dependencies": [ "libmariadb" ] },
+    "postgres":    { "description": "PostgreSQL KSQL backend",                       "dependencies": [ "libpq"      ] },
+    "sqlite":      { "description": "SQLite3 KSQLite backend",                       "dependencies": [ "sqlite3"    ] },
+    "yaml":        { "description": "YAML support",                                  "dependencies": [ "yaml-cpp"   ] },
+    "useragent":   { "description": "User-Agent parser (uap-cpp, requires YAML)",    "dependencies": [ { "name": "dekaf2", "default-features": false, "features": [ "yaml" ] } ] },
+    "http2":       { "description": "HTTP/2 client and server support",              "dependencies": [ "nghttp2"    ] },
+    "http3":       { "description": "HTTP/3 support (needs OpenSSL >= 3.3)",         "dependencies": [ "nghttp3"    ] },
+    "compression": { "description": "LZMA, Zstd and Brotli (de)compression",         "dependencies": [ "liblzma", "zstd", "brotli" ] },
+    "zip":         { "description": "ZIP archive support",                           "dependencies": [ "libzip"     ] },
+    "freetds":     { "description": "MS SQL Server via FreeTDS",                     "dependencies": [ "freetds"    ] }
+  }
+}

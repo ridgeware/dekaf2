@@ -286,14 +286,14 @@ TEST_CASE("KTime") {
 #ifndef DEKAF2_HAS_MUSL
 #ifdef __MAC_26_0
 				// YES. THEY CHANGED THE MONTH AND DAY LOCALE NAMES WITH MACOS26.
-				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:%A %c}") == "mardi mar.  1 janv. 00:59:59 1974" );
-				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo. 31 Dez. 17:59:59 1973" );
+				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:L%A %c}") == "mardi mar.  1 janv. 00:59:59 1974" );
+				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:L%A %c}") == "Montag Mo. 31 Dez. 17:59:59 1973" );
 #elif DEKAF2_IS_WINDOWS
-				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:%A %c}") == "mardi 01/01/1974 00:59:59" );
-				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag 31.12.1973 17:59:59" );
+				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:L%A %c}") == "mardi 01/01/1974 00:59:59" );
+				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:L%A %c}") == "Montag 31.12.1973 17:59:59" );
 #else
-				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:%A %c}") == "Mardi Mar  1 jan 00:59:59 1974" );
-				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
+				CHECK ( kFormTimestamp(std::locale(), KLocalTime(UTC1, tz), "{:L%A %c}") == "Mardi Mar  1 jan 00:59:59 1974" );
+				CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:L%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
 #endif
 #endif
 			}
@@ -349,11 +349,11 @@ TEST_CASE("KTime") {
 #ifndef DEKAF2_HAS_MUSL
 				if (bHasTimezone) {
 #ifdef __MAC_26_0
-					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo. 31 Dez. 17:59:59 1973" );
+					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:L%A %c}") == "Montag Mo. 31 Dez. 17:59:59 1973" );
 #elif DEKAF2_IS_WINDOWS
-					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag 31.12.1973 17:59:59" );
+					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:L%A %c}") == "Montag 31.12.1973 17:59:59" );
 #else
-					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
+					CHECK ( kFormTimestamp(std::locale("de_DE.UTF-8"), KLocalTime(UTC1, kFindTimezone("America/Mexico_City", true)), "{:L%A %c}") == "Montag Mo 31 Dez 17:59:59 1973" );
 #endif
 				}
 #endif

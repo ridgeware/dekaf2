@@ -125,6 +125,7 @@ OPTION(DEKAF2_VCPKG_BUILD "build for vcpkg: no self-setup, find_package deps, si
 OPTION(DEKAF2_USE_VENDORED_DATE "use the vendored hhinnant/date instead of find_package(date)" ON)
 OPTION(DEKAF2_USE_VENDORED_SIMDUTF "use the vendored simdutf instead of find_package(simdutf)" ON)
 OPTION(DEKAF2_USE_VENDORED_FROZEN "use the vendored frozen instead of find_package(frozen)" ON)
+OPTION(DEKAF2_USE_VENDORED_NLOHMANN "use the vendored nlohmann-json instead of find_package(nlohmann_json)" ON)
 OPTION(DEKAF2_BUILD_SAMPLES "build and install samples" ON)
 OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
 OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
@@ -280,6 +281,7 @@ if (DEKAF2_VCPKG_BUILD)
 	set(DEKAF2_USE_VENDORED_DATE OFF CACHE BOOL "use the vendored hhinnant/date" FORCE)
 	set(DEKAF2_USE_VENDORED_SIMDUTF OFF CACHE BOOL "use the vendored simdutf" FORCE)
 	set(DEKAF2_USE_VENDORED_FROZEN OFF CACHE BOOL "use the vendored frozen" FORCE)
+	set(DEKAF2_USE_VENDORED_NLOHMANN OFF CACHE BOOL "use the vendored nlohmann-json" FORCE)
 endif()
 
 if (CPU_ARM AND NOT CPU_ARM EQUAL 64)
@@ -1187,6 +1189,16 @@ else()
 	set(DEKAF2_FROZEN_TARGET frozen::frozen)
 endif()
 
+# nlohmann-json: the vendored 'nlohmann-json' INTERFACE target, or find_package(nlohmann_json).
+# dekaf2 needs the MSVC (noexcept) and gcc6 patches, so vcpkg uses an overlay-port that carries
+# them; the dekaf2-side wiring is the same either way.
+if (DEKAF2_USE_VENDORED_NLOHMANN)
+	set(DEKAF2_NLOHMANN_TARGET nlohmann-json)
+else()
+	find_package(nlohmann_json CONFIG REQUIRED)
+	set(DEKAF2_NLOHMANN_TARGET nlohmann_json::nlohmann_json)
+endif()
+
 # check if we have a working std::format implementation
 if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_HAS_STD_FORMAT
@@ -2077,7 +2089,7 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 set(DEKAF2_LINK_LIBRARIES
 	PUBLIC
 		${DEKAF2_FMT_TARGET}
-		nlohmann-json
+		${DEKAF2_NLOHMANN_TARGET}
 		${DEKAF2_DATE_TARGET}
 		${Boost_LIBRARIES}
 		${OPENSSL_LIBRARIES}
@@ -2549,7 +2561,10 @@ if (DEKAF2_INSTALL_LIB)
 		install(TARGETS fmt EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	endif()
 
-	install(TARGETS nlohmann-json re2 EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	install(TARGETS re2 EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	if (DEKAF2_USE_VENDORED_NLOHMANN)
+		install(TARGETS nlohmann-json EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	endif()
 	if (DEKAF2_USE_VENDORED_FROZEN)
 		install(TARGETS frozen EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	endif()
@@ -2619,7 +2634,9 @@ if (DEKAF2_INSTALL_INCLUDE)
 		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/compat/flat/" DESTINATION "${dekaf2_include_dest}/dekaf2" FILES_MATCHING PATTERN "*.h")
 	endif()
 
-	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/"  DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")
+	if (DEKAF2_USE_VENDORED_NLOHMANN)
+		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/"  DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")
+	endif()
 	if (DEKAF2_USE_VENDORED_FROZEN)
 		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/"      DESTINATION "${dekaf2_include_dest}/frozen"   FILES_MATCHING PATTERN "*.h")
 	endif()

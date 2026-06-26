@@ -53,8 +53,12 @@
 #pragma clang diagnostic ignored "-Wextra-semi"
 #endif
 
-#include "../../../../../from/simdutf/simdutf.h"
-#include "../../../../../from/simdutf/simdutf.cpp"
+#if DEKAF2_USE_SYSTEM_SIMDUTF
+	#include <simdutf.h>
+#else
+	#include "../../../../../from/simdutf/simdutf.h"
+	#include "../../../../../from/simdutf/simdutf.cpp"
+#endif
 
 #if DEKAF2_IS_CLANG
 #pragma clang diagnostic pop

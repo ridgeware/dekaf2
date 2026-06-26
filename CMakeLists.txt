@@ -123,6 +123,7 @@ OPTION(DEKAF2_DUAL_TARGET "install Release and Debug versions of dekaf2 side by 
 OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
 OPTION(DEKAF2_VCPKG_BUILD "build for vcpkg: no self-setup, find_package deps, single triplet-driven config" OFF)
 OPTION(DEKAF2_USE_VENDORED_DATE "use the vendored hhinnant/date instead of find_package(date)" ON)
+OPTION(DEKAF2_USE_VENDORED_SIMDUTF "use the vendored simdutf instead of find_package(simdutf)" ON)
 OPTION(DEKAF2_BUILD_SAMPLES "build and install samples" ON)
 OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
 OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
@@ -276,6 +277,7 @@ if (DEKAF2_VCPKG_BUILD)
 	# use the package manager's libraries instead of the vendored copies
 	set(DEKAF2_USE_SYSTEM_FMTLIB ON CACHE BOOL "use a system installed fmtlib instead of our own copy" FORCE)
 	set(DEKAF2_USE_VENDORED_DATE OFF CACHE BOOL "use the vendored hhinnant/date" FORCE)
+	set(DEKAF2_USE_VENDORED_SIMDUTF OFF CACHE BOOL "use the vendored simdutf" FORCE)
 endif()
 
 if (CPU_ARM AND NOT CPU_ARM EQUAL 64)
@@ -384,6 +386,15 @@ elseif (DEKAF2_WITH_SIMDUTF AND "${CPU_ARM}" STREQUAL "64" AND CMAKE_COMPILER_IS
 	message(STATUS "simdutf: switched off for arm64 with gcc < 8, missing vld1q_u32_x2 instruction")
 else()
 	message(STATUS "simdutf: ${DEKAF2_WITH_SIMDUTF}")
+endif()
+
+# simdutf: vendored (the from/simdutf amalgamation is #included + compiled into bits/simd/kutf.cpp),
+# or find_package(simdutf) -> link simdutf::simdutf and let the sources include the system <simdutf.h>.
+# DEKAF2_USE_SYSTEM_SIMDUTF (in kconfiguration.h) switches the includes in kutf.cpp / kbase64.cpp.
+if (DEKAF2_WITH_SIMDUTF AND NOT DEKAF2_USE_VENDORED_SIMDUTF)
+	find_package(simdutf CONFIG REQUIRED)
+	set(DEKAF2_SIMDUTF_TARGET simdutf::simdutf)
+	set(DEKAF2_USE_SYSTEM_SIMDUTF ON)
 endif()
 
 if (DEKAF2_LINK_TIME_OPTIMIZATION AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -2072,6 +2083,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${MACOS_FRAMEWORKS}
 		${WINDOWS_LIBRARIES}
 		re2
+		${DEKAF2_SIMDUTF_TARGET}
 		${UAP-CPP_LIBRARIES}
 		${YAML_CPP_LIBRARIES}
 		${JEMalloc_LIBRARIES}

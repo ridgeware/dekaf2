@@ -50,6 +50,8 @@
 	#include <boost/archive/iterators/insert_linebreaks.hpp>
 	#include <boost/archive/iterators/transform_width.hpp>
 	#include <boost/archive/iterators/remove_whitespace.hpp>
+#elif DEKAF2_USE_SYSTEM_SIMDUTF
+	#include <simdutf.h>
 #else
 	#include "../../../from/simdutf/simdutf.h"
 #endif

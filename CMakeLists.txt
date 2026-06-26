@@ -2549,6 +2549,16 @@ if (DEKAF2_INSTALL_INCLUDE)
 
 endif() # DEKAF2_INSTALL_INCLUDE
 
+# namespaced ALIAS targets, so the build tree exposes the same canonical names as the installed
+# package (which is exported with NAMESPACE dekaf2::). Consumers pulling dekaf2 in via
+# add_subdirectory()/FetchContent then link dekaf2::dekaf2 / dekaf2::ksql2 / dekaf2::ksqlite -
+# exactly like find_package(dekaf2) consumers do.
+foreach (_dekaf2_target dekaf2 dekaf2-shared ksql2 ksql2-shared ksqlite ksqlite-shared)
+	if (TARGET ${_dekaf2_target} AND NOT TARGET dekaf2::${_dekaf2_target})
+		add_library(dekaf2::${_dekaf2_target} ALIAS ${_dekaf2_target})
+	endif()
+endforeach()
+
 # ================================= INSTALLATION =====================================
 
 if (DEKAF2_INSTALL_LIB)

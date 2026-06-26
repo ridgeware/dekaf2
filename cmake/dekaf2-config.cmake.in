@@ -27,6 +27,24 @@ if (@DEKAF2_HAS_LIBYAML@) # DEKAF2_HAS_LIBYAML
 	find_dependency(yaml-cpp)
 endif()
 
+# external libs dekaf2 may have been built against via find_package. Only pull them in here
+# when NOT vendored - a vendored copy is bundled into dekaf2-targets.cmake instead.
+if (@DEKAF2_USE_SYSTEM_FMTLIB@) # DEKAF2_USE_SYSTEM_FMTLIB
+	find_dependency(fmt CONFIG)
+endif()
+if (NOT @DEKAF2_USE_VENDORED_NLOHMANN@) # DEKAF2_USE_VENDORED_NLOHMANN
+	find_dependency(nlohmann_json CONFIG)
+endif()
+if (NOT @DEKAF2_USE_VENDORED_DATE@) # DEKAF2_USE_VENDORED_DATE
+	find_dependency(date CONFIG)
+endif()
+if (NOT @DEKAF2_USE_VENDORED_FROZEN@) # DEKAF2_USE_VENDORED_FROZEN
+	find_dependency(frozen CONFIG)
+endif()
+if (@DEKAF2_WITH_SIMDUTF@ AND NOT @DEKAF2_USE_VENDORED_SIMDUTF@) # simdutf via find_package
+	find_dependency(simdutf CONFIG)
+endif()
+
 cmake_policy(POP)
 
 if (@DEKAF2_DUAL_TARGET@) # DEKAF2_DUAL_TARGET

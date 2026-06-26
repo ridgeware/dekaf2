@@ -122,6 +122,7 @@ OPTION(DEKAF2_BUILD_SHARED_DEKAF2 "build a shared version of dekaf2" OFF)
 OPTION(DEKAF2_DUAL_TARGET "install Release and Debug versions of dekaf2 side by side" ON)
 OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
 OPTION(DEKAF2_VCPKG_BUILD "build for vcpkg: no self-setup, find_package deps, single triplet-driven config" OFF)
+OPTION(DEKAF2_USE_VENDORED_DATE "use the vendored hhinnant/date instead of find_package(date)" ON)
 OPTION(DEKAF2_BUILD_SAMPLES "build and install samples" ON)
 OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
 OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
@@ -274,6 +275,7 @@ if (DEKAF2_VCPKG_BUILD)
 	set(DEKAF2_VERSION_IN_TARGET OFF CACHE BOOL "include version number in target" FORCE)
 	# use the package manager's libraries instead of the vendored copies
 	set(DEKAF2_USE_SYSTEM_FMTLIB ON CACHE BOOL "use a system installed fmtlib instead of our own copy" FORCE)
+	set(DEKAF2_USE_VENDORED_DATE OFF CACHE BOOL "use the vendored hhinnant/date" FORCE)
 endif()
 
 if (CPU_ARM AND NOT CPU_ARM EQUAL 64)
@@ -1926,47 +1928,57 @@ if (IS_WINDOWS)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS _SCL_SECURE_NO_WARNINGS NOMINMAX)
 endif()
 
-# we have to create the timezone library even when dekaf2 itself has
+# we have to provide the timezone library even when dekaf2 itself has
 # std::chrono timezones - the reason is that users may compile with
 # C++ < 20, in which case the std headers do not expose the timezone
 # functionality.. as a fallback we then provide the tzlib of hhinnant
 
-set(DATE_PUBLIC_HEADERS
-	from/hhinnant/date/ios.h
-	from/hhinnant/date/date.h
-	from/hhinnant/date/tz.h
-	from/hhinnant/date/tz_private.h
-)
+# build the vendored date-tz from from/hhinnant/date, or use find_package(date) -> date::date-tz.
+if (DEKAF2_USE_VENDORED_DATE)
+	set(DATE_PUBLIC_HEADERS
+		from/hhinnant/date/ios.h
+		from/hhinnant/date/date.h
+		from/hhinnant/date/tz.h
+		from/hhinnant/date/tz_private.h
+	)
 
-# build the date library with tz support
-add_library(date-tz ${DATE_PUBLIC_HEADERS} from/hhinnant/date/tz.cpp)
+	add_library(date-tz ${DATE_PUBLIC_HEADERS} from/hhinnant/date/tz.cpp)
 
-target_include_directories(date-tz
-	PUBLIC
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant>
-	$<INSTALL_INTERFACE:${dekaf2_include_dest}>
-)
+	target_include_directories(date-tz
+		PUBLIC
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant>
+		$<INSTALL_INTERFACE:${dekaf2_include_dest}>
+	)
 
-if (IS_WINDOWS)
-	set(USE_OS_TZDB 0)
+	if (IS_WINDOWS)
+		set(USE_OS_TZDB 0)
+	else()
+		set(USE_OS_TZDB 1)
+	endif()
+
+	target_compile_definitions(date-tz
+		PRIVATE
+		AUTO_DOWNLOAD=0
+		HAS_REMOTE_API=0
+		INSTALL=.
+		PUBLIC
+		USE_OS_TZDB=${USE_OS_TZDB}
+	)
+
+	# The vendored date sources/headers need the DEKAF2_STD_CHRONO_HAS_LOCAL_T /
+	# DEKAF2_HAS_STD_TIME_STREAM_OPS macros (they have #ifdefs on them and don't
+	# include kconfiguration.h), so those are set PUBLIC on date-tz below.
+	if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)
+		target_compile_definitions(date-tz PUBLIC DEKAF2_STD_CHRONO_HAS_LOCAL_T=1)
+	endif()
+	if (DEKAF2_HAS_STD_TIME_STREAM_OPS)
+		target_compile_definitions(date-tz PUBLIC DEKAF2_HAS_STD_TIME_STREAM_OPS=1)
+	endif()
+
+	set(DEKAF2_DATE_TARGET date-tz)
 else()
-	set(USE_OS_TZDB 1)
-endif()
-
-target_compile_definitions(date-tz
-	PRIVATE
-	AUTO_DOWNLOAD=0
-	HAS_REMOTE_API=0
-	INSTALL=.
-	PUBLIC
-	USE_OS_TZDB=${USE_OS_TZDB}
-)
-
-if (DEKAF2_STD_CHRONO_HAS_LOCAL_T)
-	target_compile_definitions(date-tz PUBLIC DEKAF2_STD_CHRONO_HAS_LOCAL_T=1)
-endif()
-if (DEKAF2_HAS_STD_TIME_STREAM_OPS)
-	target_compile_definitions(date-tz PUBLIC DEKAF2_HAS_STD_TIME_STREAM_OPS=1)
+	find_package(date CONFIG REQUIRED)
+	set(DEKAF2_DATE_TARGET date::date-tz)
 endif()
 
 set (COMPRESSORS
@@ -2044,7 +2056,7 @@ set(DEKAF2_LINK_LIBRARIES
 	PUBLIC
 		${DEKAF2_FMT_TARGET}
 		nlohmann-json
-		date-tz
+		${DEKAF2_DATE_TARGET}
 		${Boost_LIBRARIES}
 		${OPENSSL_LIBRARIES}
 		frozen
@@ -2514,7 +2526,10 @@ if (DEKAF2_INSTALL_LIB)
 		install(TARGETS fmt EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	endif()
 
-	install(TARGETS nlohmann-json re2 frozen date-tz EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	install(TARGETS nlohmann-json re2 frozen EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	if (DEKAF2_USE_VENDORED_DATE)
+		install(TARGETS date-tz EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	endif()
 
 	if (DEKAF2_HAS_USER_AGENT_PARSER)
 		install(TARGETS uap-cpp-static EXPORT ${PROJECT_NAME}-targets               DESTINATION ${dekaf2_lib_dest})
@@ -2583,7 +2598,9 @@ if (DEKAF2_INSTALL_INCLUDE)
 	if (NOT DEKAF2_USE_SYSTEM_FMTLIB)
 		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-12.2.0/include/fmt/" DESTINATION "${dekaf2_include_dest}/fmt"      FILES_MATCHING PATTERN "*.h")
 	endif()
-	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant/date/"              DESTINATION "${dekaf2_include_dest}/date"     FILES_MATCHING PATTERN "*.h")
+	if (DEKAF2_USE_VENDORED_DATE)
+		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/hhinnant/date/"          DESTINATION "${dekaf2_include_dest}/date"     FILES_MATCHING PATTERN "*.h")
+	endif()
 
 endif() # DEKAF2_INSTALL_INCLUDE
 

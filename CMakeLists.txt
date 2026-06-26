@@ -124,6 +124,7 @@ OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
 OPTION(DEKAF2_VCPKG_BUILD "build for vcpkg: no self-setup, find_package deps, single triplet-driven config" OFF)
 OPTION(DEKAF2_USE_VENDORED_DATE "use the vendored hhinnant/date instead of find_package(date)" ON)
 OPTION(DEKAF2_USE_VENDORED_SIMDUTF "use the vendored simdutf instead of find_package(simdutf)" ON)
+OPTION(DEKAF2_USE_VENDORED_FROZEN "use the vendored frozen instead of find_package(frozen)" ON)
 OPTION(DEKAF2_BUILD_SAMPLES "build and install samples" ON)
 OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
 OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
@@ -278,6 +279,7 @@ if (DEKAF2_VCPKG_BUILD)
 	set(DEKAF2_USE_SYSTEM_FMTLIB ON CACHE BOOL "use a system installed fmtlib instead of our own copy" FORCE)
 	set(DEKAF2_USE_VENDORED_DATE OFF CACHE BOOL "use the vendored hhinnant/date" FORCE)
 	set(DEKAF2_USE_VENDORED_SIMDUTF OFF CACHE BOOL "use the vendored simdutf" FORCE)
+	set(DEKAF2_USE_VENDORED_FROZEN OFF CACHE BOOL "use the vendored frozen" FORCE)
 endif()
 
 if (CPU_ARM AND NOT CPU_ARM EQUAL 64)
@@ -1176,6 +1178,15 @@ else()
 	set(DMESSAGE_FMT "our own")
 endif()
 
+# frozen: the vendored 'frozen' INTERFACE target, or find_package(frozen) -> frozen::frozen
+# (frozen's transparent lookup is upstream; dekaf2's only header change was a C++23 cosmetic)
+if (DEKAF2_USE_VENDORED_FROZEN)
+	set(DEKAF2_FROZEN_TARGET frozen)
+else()
+	find_package(frozen CONFIG REQUIRED)
+	set(DEKAF2_FROZEN_TARGET frozen::frozen)
+endif()
+
 # check if we have a working std::format implementation
 if (CMAKE_CXX_STANDARD GREATER 17)
 	try_compile(DEKAF2_HAS_STD_FORMAT
@@ -2070,7 +2081,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${DEKAF2_DATE_TARGET}
 		${Boost_LIBRARIES}
 		${OPENSSL_LIBRARIES}
-		frozen
+		${DEKAF2_FROZEN_TARGET}
 		Threads::Threads
 		${DEKAF2_ATOMIC_LIB}
 	PRIVATE
@@ -2538,7 +2549,10 @@ if (DEKAF2_INSTALL_LIB)
 		install(TARGETS fmt EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	endif()
 
-	install(TARGETS nlohmann-json re2 frozen EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	install(TARGETS nlohmann-json re2 EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	if (DEKAF2_USE_VENDORED_FROZEN)
+		install(TARGETS frozen EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
+	endif()
 	if (DEKAF2_USE_VENDORED_DATE)
 		install(TARGETS date-tz EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	endif()
@@ -2606,7 +2620,9 @@ if (DEKAF2_INSTALL_INCLUDE)
 	endif()
 
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/"  DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")
-	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/"      DESTINATION "${dekaf2_include_dest}/frozen"   FILES_MATCHING PATTERN "*.h")
+	if (DEKAF2_USE_VENDORED_FROZEN)
+		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/"      DESTINATION "${dekaf2_include_dest}/frozen"   FILES_MATCHING PATTERN "*.h")
+	endif()
 	if (NOT DEKAF2_USE_SYSTEM_FMTLIB)
 		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-12.2.0/include/fmt/" DESTINATION "${dekaf2_include_dest}/fmt"      FILES_MATCHING PATTERN "*.h")
 	endif()

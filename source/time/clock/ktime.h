@@ -1611,6 +1611,15 @@ template<> struct formatter<std::tm> : formatter<std::chrono::sys_time<std::chro
 #if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KUnixTime> : formatter<std::tm>
 {
+	// a KUnixTime is always UTC, so %Z (-> "UTC") and %z (-> "+0000") must stay valid even on
+	// platforms whose std::tm has no tm_gmtoff field (e.g. MSVC). fmt's formatter<std::tm>::parse
+	// keys has_timezone on has_tm_gmtoff<std::tm> (false on MSVC) and would otherwise reject them
+	// at compile time; force it on here, exactly as fmt itself does for sys_time (likewise UTC).
+	DEKAF2_CONSTEXPR_14 auto parse(parse_context<char>& ctx) -> const char*
+	{
+		return this->do_parse(ctx, true);
+	}
+
 	template <typename FormatContext>
 	DEKAF2_CONSTEXPR_14
 	auto format(const DEKAF2_PREFIX KUnixTime& time, FormatContext& ctx) const

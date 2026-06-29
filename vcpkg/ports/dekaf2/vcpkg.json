@@ -10,8 +10,6 @@
     "bzip2",
     "fmt",
     "nlohmann-json",
-    "frozen",
-    "date",
     "simdutf",
     { "name": "boost-iostreams",     "version>=": "1.72.0" },
     { "name": "boost-serialization", "version>=": "1.72.0" },
@@ -21,7 +19,7 @@
     { "name": "vcpkg-cmake",        "host": true },
     { "name": "vcpkg-cmake-config", "host": true }
   ],
-  "default-features": [ "useragent", "http2", "compression" ],
+  "default-features": [ "sqlite", "yaml", "useragent", "http2", "http3", "compression", "zip" ],
   "features": {
     "mysql":       { "description": "MySQL/MariaDB KSQL backend",                    "dependencies": [ "libmariadb" ] },
     "postgres":    { "description": "PostgreSQL KSQL backend",                       "dependencies": [ "libpq"      ] },

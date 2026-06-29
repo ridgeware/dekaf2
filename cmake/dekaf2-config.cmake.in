@@ -38,11 +38,29 @@ endif()
 if (NOT @DEKAF2_USE_VENDORED_DATE@) # DEKAF2_USE_VENDORED_DATE
 	find_dependency(date CONFIG)
 endif()
-if (NOT @DEKAF2_USE_VENDORED_FROZEN@) # DEKAF2_USE_VENDORED_FROZEN
-	find_dependency(frozen CONFIG)
-endif()
 if (@DEKAF2_WITH_SIMDUTF@ AND NOT @DEKAF2_USE_VENDORED_SIMDUTF@) # simdutf via find_package
 	find_dependency(simdutf CONFIG)
+endif()
+
+# in package/vcpkg mode the system libraries are linked through their imported targets (see the
+# matching block in CMakeLists.txt), so the consumer has to recreate those targets here. In the
+# normal build they are baked into dekaf2-targets.cmake as absolute paths and need nothing.
+if (@DEKAF2_VCPKG_BUILD@) # DEKAF2_VCPKG_BUILD
+	find_dependency(ZLIB)
+	find_dependency(BZip2)
+	if (@DEKAF2_HAS_LIBLZMA@)
+		find_dependency(LibLZMA)
+	endif()
+	if (@DEKAF2_HAS_LIBZSTD@)
+		find_dependency(zstd CONFIG)
+	endif()
+	if (@DEKAF2_HAS_LIBBROTLI@)
+		find_dependency(unofficial-brotli CONFIG)
+	endif()
+	if (@DEKAF2_HAS_NGHTTP2@)
+		find_dependency(PkgConfig)
+		pkg_check_modules(dekaf2_nghttp2 REQUIRED IMPORTED_TARGET libnghttp2)
+	endif()
 endif()
 
 cmake_policy(POP)

@@ -19,9 +19,7 @@ if (DEKAF2_HAS_WARN_ARRAY_BOUNDS)
 endif()
 
 # add the frozen lib (constexpr set and map)
-if (DEKAF2_USE_VENDORED_FROZEN)
-	add_subdirectory(frozen EXCLUDE_FROM_ALL)
-endif()
+add_subdirectory(frozen EXCLUDE_FROM_ALL)
 
 if (DEKAF2_WITH_USER_AGENT_PARSER)
 	# add the user agent parser with regular expressions

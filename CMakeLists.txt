@@ -124,7 +124,6 @@ OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
 OPTION(DEKAF2_VCPKG_BUILD "build for vcpkg: no self-setup, find_package deps, single triplet-driven config" OFF)
 OPTION(DEKAF2_USE_VENDORED_DATE "use the vendored hhinnant/date instead of find_package(date)" ON)
 OPTION(DEKAF2_USE_VENDORED_SIMDUTF "use the vendored simdutf instead of find_package(simdutf)" ON)
-OPTION(DEKAF2_USE_VENDORED_FROZEN "use the vendored frozen instead of find_package(frozen)" ON)
 OPTION(DEKAF2_USE_VENDORED_NLOHMANN "use the vendored nlohmann-json instead of find_package(nlohmann_json)" ON)
 OPTION(DEKAF2_BUILD_SAMPLES "build and install samples" ON)
 OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
@@ -198,6 +197,22 @@ endif()
 
 message(STATUS "CMake build type: ${CMAKE_BUILD_TYPE}")
 
+# in package/vcpkg mode the package manager owns the Debug/Release split (via triplets) and the
+# install layout - force the dual-target / versioned-target layouts off (and pick the package
+# manager's libraries) here, BEFORE the install destinations below are computed from these switches.
+if (DEKAF2_VCPKG_BUILD)
+	set(DEKAF2_DUAL_TARGET       OFF CACHE BOOL "install Release and Debug versions of dekaf2 side by side" FORCE)
+	set(DEKAF2_VERSION_IN_TARGET OFF CACHE BOOL "include version number in target" FORCE)
+	# use the package manager's libraries instead of the vendored copies
+	set(DEKAF2_USE_SYSTEM_FMTLIB ON CACHE BOOL "use a system installed fmtlib instead of our own copy" FORCE)
+	set(DEKAF2_USE_VENDORED_SIMDUTF OFF CACHE BOOL "use the vendored simdutf" FORCE)
+	set(DEKAF2_USE_VENDORED_NLOHMANN OFF CACHE BOOL "use the vendored nlohmann-json" FORCE)
+	# date stays vendored even in package mode: our hhinnant/date copy is patched with
+	# DEKAF2_STD_CHRONO_* interop switches (plus old-compiler fixes) that the stock package lacks.
+	# Without them, when std::chrono provides the calendar but not the timezone db (e.g. AppleClang),
+	# date's local_t does not match the std::chrono calendar types dekaf2 builds against.
+endif()
+
 if (DEKAF2_DUAL_TARGET)
 	# we only support the Release and Debug output locations - other
 	# build types have to pick either or
@@ -270,19 +285,6 @@ cmake_host_system_information(RESULT NUMBER_OF_PHYSICAL_CORES QUERY NUMBER_OF_PH
 cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
 
 # ========================= SWITCHING CONFIG ON ENVIRONMENT =========================
-
-# in package/vcpkg mode the package manager owns the Debug/Release split (via triplets) and
-# the install layout, so force the dual-target / versioned-target layouts off
-if (DEKAF2_VCPKG_BUILD)
-	set(DEKAF2_DUAL_TARGET       OFF CACHE BOOL "install Release and Debug versions of dekaf2 side by side" FORCE)
-	set(DEKAF2_VERSION_IN_TARGET OFF CACHE BOOL "include version number in target" FORCE)
-	# use the package manager's libraries instead of the vendored copies
-	set(DEKAF2_USE_SYSTEM_FMTLIB ON CACHE BOOL "use a system installed fmtlib instead of our own copy" FORCE)
-	set(DEKAF2_USE_VENDORED_DATE OFF CACHE BOOL "use the vendored hhinnant/date" FORCE)
-	set(DEKAF2_USE_VENDORED_SIMDUTF OFF CACHE BOOL "use the vendored simdutf" FORCE)
-	set(DEKAF2_USE_VENDORED_FROZEN OFF CACHE BOOL "use the vendored frozen" FORCE)
-	set(DEKAF2_USE_VENDORED_NLOHMANN OFF CACHE BOOL "use the vendored nlohmann-json" FORCE)
-endif()
 
 if (CPU_ARM AND NOT CPU_ARM EQUAL 64)
 	message(STATUS "no ASAN/UBSAN support for ARM32")
@@ -1180,18 +1182,10 @@ else()
 	set(DMESSAGE_FMT "our own")
 endif()
 
-# frozen: the vendored 'frozen' INTERFACE target, or find_package(frozen) -> frozen::frozen
-# (frozen's transparent lookup is upstream; dekaf2's only header change was a C++23 cosmetic)
-if (DEKAF2_USE_VENDORED_FROZEN)
-	set(DEKAF2_FROZEN_TARGET frozen)
-else()
-	find_package(frozen CONFIG REQUIRED)
-	set(DEKAF2_FROZEN_TARGET frozen::frozen)
-endif()
-
 # nlohmann-json: the vendored 'nlohmann-json' INTERFACE target, or find_package(nlohmann_json).
-# dekaf2 needs the MSVC (noexcept) and gcc6 patches, so vcpkg uses an overlay-port that carries
-# them; the dekaf2-side wiring is the same either way.
+# The vendored copy carries only a gcc6 patch (the MSVC C7755 noexcept issue is handled in KJSON2,
+# which shadows nlohmann's CompatibleType ctor); vcpkg therefore uses the stock nlohmann-json port,
+# no overlay. The dekaf2-side wiring is the same either way.
 if (DEKAF2_USE_VENDORED_NLOHMANN)
 	set(DEKAF2_NLOHMANN_TARGET nlohmann-json)
 else()
@@ -2015,6 +2009,39 @@ else()
 	set(DEKAF2_DATE_TARGET date::date-tz)
 endif()
 
+if (DEKAF2_VCPKG_BUILD)
+	# the package-mode export must be relocatable, so link the external dependencies through their
+	# imported targets instead of the absolute *_LIBRARIES paths the find modules return - those
+	# would bake this machine's package tree into dekaf2-targets.cmake. The package manager
+	# guarantees a current CMake, where all of these targets exist; the normal build path keeps
+	# the *_LIBRARIES variables untouched. The targets also carry their own include directories,
+	# so the manually added *_INCLUDE_DIR entries become redundant (and must not leak into export).
+	set(OPENSSL_LIBRARIES   OpenSSL::SSL OpenSSL::Crypto)
+	set(OPENSSL_INCLUDE_DIR "")
+	set(Boost_INCLUDE_DIR   "")   # already pulled in via the Boost:: targets
+	set(ZLIB_LIBRARIES      ZLIB::ZLIB)
+	set(BZIP2_LIBRARIES     BZip2::BZip2)
+	if (DEKAF2_HAS_LIBLZMA)
+		set(LIBLZMA_LIBRARIES LibLZMA::LibLZMA)
+	endif()
+	if (DEKAF2_HAS_LIBZSTD)
+		find_package(zstd CONFIG REQUIRED)
+		set(ZSTD_LIBRARIES zstd::libzstd)
+	endif()
+	if (DEKAF2_HAS_LIBBROTLI)
+		find_package(unofficial-brotli CONFIG REQUIRED)
+		set(BROTLI_LIBRARIES        unofficial::brotli::brotlidec unofficial::brotli::brotlienc unofficial::brotli::brotlicommon)
+		set(BROTLI_STATIC_LIBRARIES ${BROTLI_LIBRARIES})
+	endif()
+	if (DEKAF2_HAS_NGHTTP2)
+		# the package manager ships nghttp2 with a pkg-config file but no CMake config,
+		# so wrap it in an imported target (PkgConfig::dekaf2_nghttp2)
+		find_package(PkgConfig REQUIRED)
+		pkg_check_modules(dekaf2_nghttp2 REQUIRED IMPORTED_TARGET libnghttp2)
+		set(NGHTTP2_LIBRARIES PkgConfig::dekaf2_nghttp2)
+	endif()
+endif()
+
 set (COMPRESSORS
 	${ZLIB_LIBRARIES}
 	${BZIP2_LIBRARIES}
@@ -2093,7 +2120,7 @@ set(DEKAF2_LINK_LIBRARIES
 		${DEKAF2_DATE_TARGET}
 		${Boost_LIBRARIES}
 		${OPENSSL_LIBRARIES}
-		${DEKAF2_FROZEN_TARGET}
+		frozen
 		Threads::Threads
 		${DEKAF2_ATOMIC_LIB}
 	PRIVATE
@@ -2575,9 +2602,7 @@ if (DEKAF2_INSTALL_LIB)
 	if (DEKAF2_USE_VENDORED_NLOHMANN)
 		install(TARGETS nlohmann-json EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	endif()
-	if (DEKAF2_USE_VENDORED_FROZEN)
-		install(TARGETS frozen EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
-	endif()
+	install(TARGETS frozen EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	if (DEKAF2_USE_VENDORED_DATE)
 		install(TARGETS date-tz EXPORT ${PROJECT_NAME}-targets DESTINATION ${dekaf2_lib_dest})
 	endif()
@@ -2647,9 +2672,7 @@ if (DEKAF2_INSTALL_INCLUDE)
 	if (DEKAF2_USE_VENDORED_NLOHMANN)
 		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/from/nlohmann/include/nlohmann/"  DESTINATION "${dekaf2_include_dest}/nlohmann" FILES_MATCHING PATTERN "*.hpp")
 	endif()
-	if (DEKAF2_USE_VENDORED_FROZEN)
-		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/"      DESTINATION "${dekaf2_include_dest}/frozen"   FILES_MATCHING PATTERN "*.h")
-	endif()
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/frozen/include/frozen/"      DESTINATION "${dekaf2_include_dest}/frozen"   FILES_MATCHING PATTERN "*.h")
 	if (NOT DEKAF2_USE_SYSTEM_FMTLIB)
 		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/libs/fmt-12.2.0/include/fmt/" DESTINATION "${dekaf2_include_dest}/fmt"      FILES_MATCHING PATTERN "*.h")
 	endif()

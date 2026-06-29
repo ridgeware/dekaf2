@@ -845,9 +845,12 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 #endif
                    , int > = 0 >
     basic_json(CompatibleType && val) // NOLINT(bugprone-forwarding-reference-overload,bugprone-exception-escape)
-#if !defined(_MSC_VER) && !(defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 7)
-    // MSVC and GCC < 7 eagerly evaluate this noexcept spec during
-    // is_constructible checks, causing hard errors or infinite recursion
+#if !(defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 7)
+    // GCC < 7 eagerly evaluates this noexcept spec during is_constructible checks,
+    // causing infinite template recursion, so it is dropped there. MSVC mis-evaluates
+    // it as self-referential too (error C7755), but dekaf2's KJSON2 shadows this
+    // constructor with a noexcept-free one of identical signature, suppressing it, so
+    // MSVC keeps the noexcept here.
     noexcept(noexcept(
                 JSONSerializer<U>::to_json(std::declval<basic_json_t&>(),
                                            std::forward<CompatibleType>(val))))

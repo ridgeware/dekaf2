@@ -50,6 +50,14 @@
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/http/server/khttperror.h>
 
+#ifdef DEKAF2_IS_WINDOWS
+// Windows has a DELETE macro in winnt.h which interferes with
+// dekaf2::KHTTPMethod::DELETE (macros are evil!)
+	#ifdef DELETE
+		#undef DELETE
+	#endif
+#endif
+
 DEKAF2_NAMESPACE_BEGIN
 
 /// @addtogroup rest_framework

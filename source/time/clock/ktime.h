@@ -1615,7 +1615,11 @@ template<> struct formatter<DEKAF2_PREFIX KUnixTime> : formatter<std::tm>
 	// platforms whose std::tm has no tm_gmtoff field (e.g. MSVC). fmt's formatter<std::tm>::parse
 	// keys has_timezone on has_tm_gmtoff<std::tm> (false on MSVC) and would otherwise reject them
 	// at compile time; force it on here, exactly as fmt itself does for sys_time (likewise UTC).
-	DEKAF2_CONSTEXPR_14 auto parse(parse_context<char>& ctx) -> const char*
+	// FMT_CONSTEXPR (not DEKAF2_CONSTEXPR_14): mirror fmt's own parse. This class is non-literal
+	// (its std::tm base has a non-literal member), and GCC < 7 rejects a constexpr non-template
+	// member function in such a class - FMT_CONSTEXPR is empty there. (format below is a template,
+	// which GCC < 7 accepts as constexpr, so it stays DEKAF2_CONSTEXPR_14 like the sibling formatters.)
+	FMT_CONSTEXPR auto parse(parse_context<char>& ctx) -> const char*
 	{
 		return this->do_parse(ctx, true);
 	}

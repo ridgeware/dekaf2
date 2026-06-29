@@ -1805,7 +1805,10 @@ KWebSocketServer::ConnectionPtr KWebSocketServer::GetConnection(Handle iHandle) 
 KWebSocketServer::Handle KWebSocketServer::AddWebSocket(KWebSocket WebSocket)
 //-----------------------------------------------------------------------------
 {
-	auto iFd = WebSocket.GetStream().GetNativeSocket();
+	// dekaf2 tracks fds as int (KPoll, the connection table); narrow the native handle here so
+	// the invalid-socket check below works on Windows too (SOCKET is unsigned -> "< 0" is never
+	// true; static_cast<int>(INVALID_SOCKET) == -1) and so the fd stays formattable/loggable.
+	int iFd = static_cast<int>(WebSocket.GetStream().GetNativeSocket());
 
 	if (iFd < 0)
 	{

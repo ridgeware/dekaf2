@@ -82,7 +82,7 @@ if (WIN32)
 endif()
 
 # declare the project
-project(dekaf2 VERSION 2.1.20 DESCRIPTION "C++14/17/20/23 rapid application development framework")
+project(dekaf2 VERSION 2.1.21 DESCRIPTION "C++14/17/20/23 rapid application development framework")
 
 # force cpack to pick version numbers from this project, and not from a parent
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
@@ -2637,7 +2637,7 @@ endif() # DEKAF2_INSTALL_LIB
 
 if (DEKAF2_INSTALL_BIN)
 
-	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql krypt kgeoip statinfo DESTINATION ${dekaf2_bin_dest})
+	install(TARGETS klog createdbc dekaf2project DESTINATION ${dekaf2_bin_dest})
 	if (DEKAF2_HAS_NCURSES)
 		install(TARGETS unixmenu DESTINATION ${dekaf2_bin_dest})
 	endif()
@@ -2652,7 +2652,7 @@ endif() # DEKAF2_INSTALL_BIN
 
 if (DEKAF2_BUILD_SAMPLES)
 
-	install(TARGETS klog createdbc dekaf2project kurl khttp kgrep kreplace ksql krypt kgeoip statinfo DESTINATION ${dekaf2_bin_dest})
+	install(TARGETS kurl khttp kgrep kreplace ksql krypt kgeoip statinfo DESTINATION ${dekaf2_bin_dest})
 	if (SQLITE3_FOUND)
 		install(TARGETS ktunnel kssod DESTINATION ${dekaf2_bin_dest})
 	endif()

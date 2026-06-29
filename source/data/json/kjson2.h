@@ -586,6 +586,28 @@ public:
 
 					using base::base;
 
+#ifdef _MSC_VER
+	// MSVC eagerly evaluates the noexcept-specifier of nlohmann's basic_json(CompatibleType&&)
+	// constructor during overload resolution and rejects it as self-referential (error C7755)
+	// whenever string_t is not std::string (i.e. KString). We shadow that constructor with one of
+	// identical signature, so the inherited one is excluded as a candidate and its noexcept-
+	// specifier is never instantiated, but we leave the noexcept-specifier off. The body mirrors
+	// nlohmann's, minus the private set_parents()/assert_invariant() (which are no-ops outside of
+	// JSON_DIAGNOSTICS / debug builds). GCC < 7 suffers a separate is_compatible_type recursion
+	// during iteration that this neither does nor can address.
+					template < typename CompatibleType,
+						typename U = nlohmann::detail::uncvref_t<CompatibleType>,
+						nlohmann::detail::enable_if_t <
+							!nlohmann::detail::is_basic_json<U>::value
+							&& nlohmann::detail::is_compatible_type<base, U>::value
+						, int > = 0 >
+					KJSON2(CompatibleType&& val)
+					{
+						base::template json_serializer<U, void>::to_json(static_cast<base&>(*this),
+						                                                 std::forward<CompatibleType>(val));
+					}
+#endif
+
 	// service methods
 
 	/// Parses a string into json, can throw for parsing errors on request

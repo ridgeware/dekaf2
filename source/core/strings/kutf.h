@@ -325,13 +325,13 @@ static_assert(__cplusplus >= 201103L, "The UTF code lib needs at least a C++11 c
 #endif
 
 #ifdef __has_include
-	#if __has_include("kconfiguration.h") && __has_include("kctype.h")
+	#if __has_include("kconfiguration.h") && __has_include(<dekaf2/core/types/kctype.h>)
 		#include "kconfiguration.h"
 	#endif
 #endif
 
 #if defined(DEKAF2) || DEKAF_MAJOR_VERSION >= 2 \
- || (__has_include("kdefinitions.h") && __has_include("kctype.h"))
+ || (__has_include(<dekaf2/core/init/kdefinitions.h>) && __has_include(<dekaf2/core/types/kctype.h>))
 	#define KUTF_DEKAF2 1
 	#ifndef KUTF_WITH_SIMDUTF
 		#ifdef DEKAF2_WITH_SIMDUTF

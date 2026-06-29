@@ -1,0 +1,31 @@
+dekaf2 provides CMake targets:
+
+    find_package(dekaf2 CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE dekaf2::dekaf2)
+
+    # SQL convenience libraries (link the one matching an enabled backend):
+    target_link_libraries(main PRIVATE dekaf2::ksql2)     # mysql / postgres / freetds
+    target_link_libraries(main PRIVATE dekaf2::ksqlite)   # sqlite
+
+dekaf2 is a framework - most capabilities are optional features.
+
+  Enabled by default: sqlite, yaml, useragent, http2, http3, compression, zip
+  Opt-in database backends (pick the one(s) you need):
+      mysql      MySQL / MariaDB
+      postgres   PostgreSQL
+      freetds    MS SQL Server (FreeTDS)
+
+Select features in classic mode:
+
+    vcpkg install dekaf2[core,mysql,postgres]
+    vcpkg install dekaf2[*]            # build everything dekaf2 offers
+
+or in manifest mode (vcpkg.json):
+
+    "dependencies": [
+        { "name": "dekaf2", "features": [ "mysql", "postgres" ] }
+    ]
+
+List every feature with its description any time:
+
+    vcpkg search dekaf2

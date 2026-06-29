@@ -412,7 +412,7 @@ void KPoll::RemoveFromPollVec(int fd)
 	{
 		// swap the last entry into the freed slot and fix its index
 		m_Fds[iIndex] = m_Fds[iLast];
-		m_FdIndex[m_Fds[iIndex].fd] = iIndex;
+		m_FdIndex[static_cast<int>(m_Fds[iIndex].fd)] = iIndex;
 	}
 
 	m_Fds.pop_back();
@@ -536,7 +536,8 @@ void KPoll::Watch()
 			}
 			else
 			{
-				Fired.emplace_back(pfd.fd, static_cast<uint16_t>(pfd.revents));
+				// pfd.fd is SOCKET (unsigned, 64-bit) on Windows; dekaf2 tracks fds as int
+				Fired.emplace_back(static_cast<int>(pfd.fd), static_cast<uint16_t>(pfd.revents));
 			}
 
 			if (--iEvents == 0)

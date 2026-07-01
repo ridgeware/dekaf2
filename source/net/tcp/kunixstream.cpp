@@ -90,6 +90,19 @@ std::streamsize KUnixStream::UnixStreamReader(void* sBuffer, std::streamsize iCo
 			{
 				kDebug(2, "input stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
 			}
+			else if (IOStream.m_Stream.ec == boost::asio::error::operation_aborted)
+			{
+				// benign -- typically a client-side timeout or graceful cancel.
+				// We still record the error so callers see it via Error() (e.g. the
+				// HTTP client reports a timeout as "Operation canceled" / 598), but
+				// we set it through the non-logging SetError overload so the klog
+				// chatter is demoted from SetError's built-in kDebug(1) to kDebug(3).
+				kDebug(3, "{} read canceled at endpoint {}: {}",
+				       "unix",
+				       IOStream.m_Stream.sEndpoint,
+				       IOStream.m_Stream.ec.message());
+				IOStream.SetError(KErrorBase(IOStream.m_Stream.ec.message(), IOStream.m_Stream.ec.value()));
+			}
 			else
 			{
 				IOStream.SetError(kFormat("cannot read from {} stream: {}",
@@ -146,6 +159,18 @@ std::streamsize KUnixStream::UnixStreamWriter(const void* sBuffer, std::streamsi
 				if (IOStream.m_Stream.ec.value() == boost::asio::error::eof)
 				{
 					kDebug(2, "output stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
+				}
+				else if (IOStream.m_Stream.ec == boost::asio::error::operation_aborted)
+				{
+					// same rationale as the reader path above -- record the error via
+					// the non-logging SetError overload so callers still see it via
+					// Error(), while the klog chatter is demoted from kDebug(1) to
+					// kDebug(3).
+					kDebug(3, "{} write canceled at endpoint {}: {}",
+					       "unix",
+					       IOStream.m_Stream.sEndpoint,
+					       IOStream.m_Stream.ec.message());
+					IOStream.SetError(KErrorBase(IOStream.m_Stream.ec.message(), IOStream.m_Stream.ec.value()));
 				}
 				else
 				{

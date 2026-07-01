@@ -91,12 +91,15 @@ std::streamsize KTCPStream::TCPStreamReader(void* sBuffer, std::streamsize iCoun
 			else if (IOStream.m_Stream.ec == boost::asio::error::operation_aborted)
 			{
 				// benign -- typically a client-side timeout or graceful cancel.
-				// The asio error code stays on m_Stream.ec so callers still see it;
-				// only the klog chatter is demoted from SetError's built-in
-				// kDebug(1) to kDebug(3).
-				kDebug(3, "tcp read canceled at endpoint {}: {}",
+				// We still record the error so callers see it via Error() (e.g. the
+				// HTTP client reports a timeout as "Operation canceled" / 598), but
+				// we set it through the non-logging SetError overload so the klog
+				// chatter is demoted from SetError's built-in kDebug(1) to kDebug(3).
+				kDebug(3, "{} read canceled at endpoint {}: {}",
+				       "tcp",
 				       IOStream.m_Stream.sEndpoint,
 				       IOStream.m_Stream.ec.message());
+				IOStream.SetError(KErrorBase(IOStream.m_Stream.ec.message(), IOStream.m_Stream.ec.value()));
 			}
 			else
 			{
@@ -156,12 +159,15 @@ std::streamsize KTCPStream::TCPStreamWriter(const void* sBuffer, std::streamsize
 				}
 				else if (IOStream.m_Stream.ec == boost::asio::error::operation_aborted)
 				{
-					// same rationale as the reader path above -- demote canceled to
-					// kDebug(3) so a client-side abort/timeout doesn't spam klog at
-					// level 1.
-					kDebug(3, "tcp write canceled at endpoint {}: {}",
+					// same rationale as the reader path above -- record the error via
+					// the non-logging SetError overload so callers still see it via
+					// Error(), while the klog chatter is demoted from kDebug(1) to
+					// kDebug(3).
+					kDebug(3, "{} write canceled at endpoint {}: {}",
+					       "tcp",
 					       IOStream.m_Stream.sEndpoint,
 					       IOStream.m_Stream.ec.message());
+					IOStream.SetError(KErrorBase(IOStream.m_Stream.ec.message(), IOStream.m_Stream.ec.value()));
 				}
 				else
 				{

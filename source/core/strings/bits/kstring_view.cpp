@@ -59,7 +59,7 @@ void* memrchr(const void* s, int c, size_t n)
 	return DEKAF2_PREFIX detail::neon::kMemRChr(s, c, n);
 #else
 
-#if DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if DEKAF2_FIND_FIRST_OF_USE_SSE
 	{
 		const char* p = static_cast<const char*>(s);
 		char ch = static_cast<char>(c);

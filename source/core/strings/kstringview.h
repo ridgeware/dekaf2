@@ -84,14 +84,7 @@
 
 #if (defined(__SSE4_2__) || defined DEKAF2_IS_MSC) \
  && (!DEKAF2_IS_GCC || (DEKAF2_GCC_VERSION_MAJOR >= 8 || defined(NDEBUG)))
-	#define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
-#else
-	#if DEKAF2_ARM || DEKAF2_ARM64
-		// The x86 simd emulation through sse2neon would be 3-8 times slower,
-		// therefore we do not use it. It can be enabled though by
-		// setting DEKAF2_FIND_FIRST_OF_USE_SIMD to 1
-//		#define DEKAF2_FIND_FIRST_OF_USE_SIMD 1
-	#endif
+	#define DEKAF2_FIND_FIRST_OF_USE_SSE 1
 #endif
 
 // =================== configure string view base =====================

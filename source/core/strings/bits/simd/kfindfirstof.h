@@ -67,7 +67,7 @@ std::size_t kFindLastOf  (KStringView haystack, KStringView needles, bool bNot);
 
 namespace sse {
 
-#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if !DEKAF2_FIND_FIRST_OF_USE_SSE
 
 /// non-sse version of kFindFirstOf
 /// @param haystack the string to search in
@@ -105,7 +105,7 @@ std::size_t kFindLastNotOf  (KStringView haystack, KStringView needles)
 	return DEKAF2_PREFIX detail::no_sse::kFindLastOf(haystack, needles, true);
 }
 
-#else // !DEKAF2_FIND_FIRST_OF_USE_SIMD
+#else // !DEKAF2_FIND_FIRST_OF_USE_SSE
 
 /// sse version of kFindFirstOf
 /// @param haystack the string to search in

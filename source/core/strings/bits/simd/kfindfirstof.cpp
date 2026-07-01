@@ -120,7 +120,7 @@ std::size_t kFindLastOf(KStringView haystack, KStringView needles, bool bNot)
 } // end of namespace detail
 DEKAF2_NAMESPACE_END
 
-#if DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if DEKAF2_FIND_FIRST_OF_USE_SSE
 
 #if DEKAF2_ARM || DEKAF2_ARM64
 	// this _would_ work, but it is 3 to 8 times slower

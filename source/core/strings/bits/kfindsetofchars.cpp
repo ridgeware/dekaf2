@@ -42,13 +42,18 @@
 
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/bits/kfindsetofchars.h>
-#if DEKAF2_FIND_FIRST_OF_USE_SIMD
+
+#if DEKAF2_FIND_FIRST_OF_USE_SSE
 #include <dekaf2/core/strings/bits/simd/kfindfirstof.h>
+#endif
+
+#if DEKAF2_USE_COMPRESSED_SEARCH_TABLES && DEKAF2_HAS_NEON
+#include <dekaf2/core/strings/bits/simd/kmemsearch_neon.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
 
-#if DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if DEKAF2_FIND_FIRST_OF_USE_SSE
 
 //-----------------------------------------------------------------------------
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, size_type pos) const
@@ -105,6 +110,118 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 }
 
 #elif DEKAF2_USE_COMPRESSED_SEARCH_TABLES
+
+#if DEKAF2_HAS_NEON
+/* NEON byteset search over the 4 x 64 bit membership mask, using the in-house
+   kFindByteset / kRFindByteset kernels (see kmemsearch_neon). find_*_not_in is
+   obtained by searching the inverted mask. */
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	if (pos >= sHaystack.length())
+	{
+		return KStringView::npos;
+	}
+
+	const char* pHaystack       = (sHaystack.data() + pos);
+	size_t      iHaystackLength = (sHaystack.length() - pos);
+
+	const char* pResult         = detail::neon::kFindByteset(pHaystack, iHaystackLength, m_iMask);
+
+	if (pResult)
+	{
+		return (pResult - pHaystack + pos);
+	}
+	else
+	{
+		return KStringView::npos;
+	}
+}
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(KStringView sHaystack, const size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	if (pos >= sHaystack.length())
+	{
+		return KStringView::npos;
+	}
+
+	const char* pHaystack       = (sHaystack.data() + pos);
+	size_t      iHaystackLength = (sHaystack.length() - pos);
+
+	/* there is no inverted find_first_of; instead we search for the first byte
+	   that IS a member of the inverted set, which is the same position */
+	uint64_t    iInverseMask[4];
+
+	for (std::size_t iMaskIdx = 0; iMaskIdx < 4; iMaskIdx++)
+	{
+		iInverseMask[iMaskIdx] = ~m_iMask[iMaskIdx];
+	}
+
+	const char* pResult = detail::neon::kFindByteset(pHaystack, iHaystackLength, iInverseMask);
+
+	if (pResult)
+	{
+		return (pResult - pHaystack + pos);
+	}
+	else
+	{
+		return KStringView::npos;
+	}
+}
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	const char* pHaystack       = (sHaystack.data());
+	size_t      iHaystackLength = (pos < sHaystack.length()? (pos + 1) : sHaystack.length());
+
+	const char* pResult = detail::neon::kRFindByteset(pHaystack, iHaystackLength, m_iMask);
+
+	if (pResult)
+	{
+		return (pResult - pHaystack);
+	}
+	else
+	{
+		return KStringView::npos;
+	}
+}
+
+//-----------------------------------------------------------------------------
+KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaystack, size_type pos) const
+//-----------------------------------------------------------------------------
+{
+	const char* pHaystack       = (sHaystack.data());
+	size_t      iHaystackLength = (pos < sHaystack.length()? (pos + 1) : sHaystack.length());
+
+	/* there is no inverted find_last_of; instead we search for the last byte
+	   that IS a member of the inverted set, which is the same position */
+	uint64_t    iInverseMask[4];
+
+	for (std::size_t iMaskIdx = 0; iMaskIdx < 4; iMaskIdx++)
+	{
+		iInverseMask[iMaskIdx] = ~m_iMask[iMaskIdx];
+	}
+
+	const char* pResult = detail::neon::kRFindByteset(pHaystack, iHaystackLength, iInverseMask);
+
+	if (pResult)
+	{
+		return (pResult - pHaystack);
+	}
+	else
+	{
+		return KStringView::npos;
+	}
+}
+
+#else
+/* Non-SIMD Implementation based on compressed search tables (needle bitset) */
 
 //-----------------------------------------------------------------------------
 // this is in fact constexpr, but we do not use it
@@ -204,6 +321,9 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, 
 	return it - ie;
 }
 
-#endif // DEKAF2_FIND_FIRST_OF_USE_SIMD
+#endif // DEKAF2_HAS_NEON
+
+#endif // DEKAF2_FIND_FIRST_OF_USE_SSE
+
 
 DEKAF2_NAMESPACE_END

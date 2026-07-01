@@ -52,6 +52,7 @@
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <cstddef>
+#include <cstdint>
 
 // NEON is mandatory on ARMv8/AArch64, so we can enable it unconditionally on
 // every ARM64 target. MSVC does not advertise __ARM_NEON, it simply assumes
@@ -161,6 +162,38 @@ std::size_t kFindLastOf(const char*  pHaystack,
                         const char*  pNeedles,
                         std::size_t  iNeedleCount,
                         bool         bNot) noexcept;
+
+/// Forward scan: find the first byte in haystack[0..iLen) whose value is a
+/// member of the 256-bit byte set encoded in Mask (4 x 64 bits, laid out as
+/// 32 little-endian bytes; bit ch is set iff byte value ch is in the set).
+///
+/// Each 16-byte window is classified with the dual-table NEON trick: the top
+/// 3 bits of a haystack byte index one of the 32 mask bytes, looked up in two
+/// vqtbl1q_u8 halves (the top half covers byte values 0..127, the bottom half
+/// 128..255; out-of-range table indices return 0, so the two halves can be
+/// OR'd), and the low 3 bits select the membership bit to test. This is the
+/// set-membership analogue of kFindFirstOf and handles needle sets of any size
+/// (unlike kFindFirstOf, which is limited to <= 16 needle bytes).
+///
+/// find_first_not_of is obtained by the caller passing an inverted mask.
+///
+/// @param pHaystack start of the haystack
+/// @param iLen      haystack length in bytes
+/// @param Mask      256-bit membership set (little-endian byte order)
+/// @return pointer to the first matching byte, or nullptr if none.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+const char* kFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept;
+
+/// Backward scan: find the last byte in haystack[0..iLen) whose value is a
+/// member of the 256-bit byte set encoded in Mask. See kFindByteset for the
+/// mask layout and algorithm.
+///
+/// @param pHaystack start of the haystack
+/// @param iLen      haystack length in bytes
+/// @param Mask      256-bit membership set (little-endian byte order)
+/// @return pointer to the last matching byte, or nullptr if none.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+const char* kRFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept;
 
 } // end of namespace neon
 } // end of namespace detail

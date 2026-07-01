@@ -50,7 +50,7 @@
 #include <dekaf2/core/strings/bits/simd/kmemsearch_neon.h>
 #include <cinttypes>
 
-#if !DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if !DEKAF2_FIND_FIRST_OF_USE_SSE
 // Use bit shifted search tables (compressed into 4 x 64bits)
 // instead of flat tables (256 x 8bits).
 // The compressed table approach is slower though on larger
@@ -59,6 +59,22 @@
 // we opt to use those. As flat tables are the default, simply
 // do not define any other option.
 // #define DEKAF2_USE_COMPRESSED_SEARCH_TABLES 1
+#endif
+
+#if DEKAF2_HAS_NEON
+// On NEON we search the needle set with the SIMD byteset kernels
+// (detail::neon::kFindByteset / kRFindByteset), which operate directly on the
+// 256 bit (4 x 64) membership mask - so we use the compressed search tables to
+// hold that mask. The kernel indexes the mask by byte value, so we drop the
+// m_iOffset / m_iBuckets bookkeeping (it would only complicate the lookup).
+#define DEKAF2_USE_COMPRESSED_SEARCH_TABLES 1
+#define DEKAF2_USE_COMPRESSED_SEARCH_TABLES_OFFSET 0
+#elif DEKAF2_USE_COMPRESSED_SEARCH_TABLES
+#define DEKAF2_USE_COMPRESSED_SEARCH_TABLES_OFFSET 1
+#endif
+
+#if DEKAF2_FIND_FIRST_OF_USE_SSE && !DEKAF2_USE_COMPRESSED_SEARCH_TABLES
+#define DEKAF2_FIND_FIRST_OF_USE_SV_NEEDLE 1
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -76,7 +92,7 @@ class DEKAF2_PUBLIC KFindSetOfChars
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
-#if !DEKAF2_FIND_FIRST_OF_USE_SIMD && !DEKAF2_USE_COMPRESSED_SEARCH_TABLES
+#if !DEKAF2_FIND_FIRST_OF_USE_SV_NEEDLE && !DEKAF2_USE_COMPRESSED_SEARCH_TABLES
 
 	// State is encoded in the top 2 bits of m_table[0]. The lower 6 bits of
 	// m_table[0] are free for per-state metadata:
@@ -173,7 +189,7 @@ public:
 private:
 //------
 
-#if DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if DEKAF2_FIND_FIRST_OF_USE_SV_NEEDLE
 
 	KStringView m_sNeedles;
 
@@ -183,8 +199,11 @@ private:
 	size_type find_last_in (KStringView sHaystack, size_type pos, bool bNot) const;
 
 	uint64_t m_iMask[4] { 0, 0, 0, 0 };
+
+#if DEKAF2_USE_COMPRESSED_SEARCH_TABLES_OFFSET
 	uint8_t  m_iOffset  { 0 };
 	uint8_t  m_iBuckets { 0 };
+#endif
 
 #else // plain tables
 
@@ -242,7 +261,7 @@ private:
 
 
 
-#if DEKAF2_FIND_FIRST_OF_USE_SIMD
+#if DEKAF2_FIND_FIRST_OF_USE_SV_NEEDLE
 
 DEKAF2_CONSTEXPR_14
 KFindSetOfChars::KFindSetOfChars(KStringView sNeedles) : m_sNeedles(sNeedles) {}
@@ -280,6 +299,7 @@ KFindSetOfChars::KFindSetOfChars(KStringView sNeedles)
 
 	if (!sNeedles.empty())
 	{
+#if DEKAF2_USE_COMPRESSED_SEARCH_TABLES_OFFSET
 		uint8_t iLowest  { 255 };
 		uint8_t iHighest {   0 };
 
@@ -290,22 +310,56 @@ KFindSetOfChars::KFindSetOfChars(KStringView sNeedles)
 		}
 
 		m_iBuckets  = (iHighest - iLowest) / 64 + 1;
+
 		// try to align on a multiple of 64
 		auto iLowest64 = (iLowest / 64) * 64;
 		m_iOffset = (iHighest < iLowest64 + 64 * m_iBuckets) ? iLowest64 : iLowest;
+		uint8_t iOffset = m_iOffset;
+#else
+		uint8_t iOffset{   0 };
+#endif
 
 		for (auto Needle : sNeedles)
 		{
 			auto ch = static_cast<uint8_t>(Needle);
 
-			auto iBucket = (ch - m_iOffset) / 64;
-			m_iMask[iBucket] |= 1ull << (ch - (m_iOffset + 64 * iBucket));
+			auto iBucket = (ch - iOffset) / 64;
+			m_iMask[iBucket] |= 1ull << (ch - (iOffset + 64 * iBucket));
 		}
 	}
 }
 
+#if DEKAF2_USE_COMPRESSED_SEARCH_TABLES_OFFSET
+
+// this is the C++ compressed table branch
+// we accept another strlen() in the conversion to KStringView
 DEKAF2_CONSTEXPR_14
 KFindSetOfChars::KFindSetOfChars(const char* szNeedles) : KFindSetOfChars(KStringView(szNeedles)) {}
+
+#else
+
+// NEON byteset branch - no offset value, the mask spans the full 256 bit range.
+// Build the mask in a single pass over the C string so we avoid the extra
+// strlen() that the KStringView conversion above would incur; this is the
+// high performance path.
+DEKAF2_CONSTEXPR_14
+KFindSetOfChars::KFindSetOfChars(const char* szNeedles)
+{
+	if (szNeedles)
+	{
+		for (;;)
+		{
+			auto ch = static_cast<unsigned char>(*szNeedles++);
+			if (!ch) break;
+			auto iBucket = ch / 64;
+			m_iMask[iBucket] |= 1ull << (ch - 64 * iBucket);
+		}
+	}
+}
+
+#endif
+
+#if !DEKAF2_HAS_NEON
 
 inline
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos) const
@@ -331,20 +385,40 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 	return find_last_in(sHaystack, pos, true);
 }
 
-DEKAF2_CONSTEXPR_14
-bool KFindSetOfChars::empty() const { return m_iBuckets == 0; }
+#endif
 
 DEKAF2_CONSTEXPR_14
-bool KFindSetOfChars::is_single_char() const { return m_iBuckets == 1 && kBitCountOne(m_iMask[0]) == 1; }
+bool KFindSetOfChars::empty() const
+{
+#if DEKAF2_USE_COMPRESSED_SEARCH_TABLES_OFFSET
+	return m_iBuckets == 0;
+#else
+	return ((m_iMask[0] == 0) && (m_iMask[1] == 0) && (m_iMask[2] == 0) && (m_iMask[3] == 0));
+#endif
+}
+
+DEKAF2_CONSTEXPR_14
+bool KFindSetOfChars::is_single_char() const
+{
+#if DEKAF2_USE_COMPRESSED_SEARCH_TABLES_OFFSET
+	return m_iBuckets == 1 && kBitCountOne(m_iMask[0]) == 1;
+#else
+	return (kBitCountOne(m_iMask[0]) + kBitCountOne(m_iMask[1]) + kBitCountOne(m_iMask[2]) + kBitCountOne(m_iMask[3])) == 1;
+#endif
+}
 
 DEKAF2_CONSTEXPR_14
 bool KFindSetOfChars::contains(const value_type ch) const
 {
 	auto uch = static_cast<uint8_t>(ch);
+#if DEKAF2_USE_COMPRESSED_SEARCH_TABLES_OFFSET
 	if (uch < m_iOffset) return false;
 	uch -= m_iOffset;
+#endif
 	auto bucket = uch / 64;
-	if (m_iBuckets < bucket) return false;
+#if DEKAF2_USE_COMPRESSED_SEARCH_TABLES_OFFSET
+	if (m_iBuckets <= bucket) return false;
+#endif
 	return m_iMask[bucket] & (1ull << (uch - bucket * 64));
 }
 

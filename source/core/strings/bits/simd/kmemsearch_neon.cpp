@@ -80,6 +80,38 @@ uint64_t NibbleMask(uint8x16_t cmp) noexcept
 	           0);
 }
 
+//-----------------------------------------------------------------------------
+// Byte-set membership test for a 16-byte haystack window against a 256-bit
+// set held in two 128-bit halves (vTop = byte values 0..127, vBottom =
+// 128..255). Returns a lane vector that is 0xFF where the byte is in the set,
+// 0x00 otherwise - ready to feed into NibbleMask().
+//
+// Serial equivalent: (set_byte[c >> 3] & (1u << (c & 7))) != 0
+//
+// c >> 3 is the byte index into the 32-byte set (range 0..31). vqtbl1q_u8
+// answers out-of-range indices (>= 16) with 0, so we look the index up in both
+// halves - subtracting 16 for the bottom half makes the "wrong" half underflow
+// past 16 and return 0 - then OR the two results. vtstq_u8 finally broadcasts
+// "(looked_up & bit) != 0" across each lane.
+//-----------------------------------------------------------------------------
+DEKAF2_ALWAYS_INLINE
+uint8x16_t BytesetMatch(uint8x16_t chunk, uint8x16_t vTop, uint8x16_t vBottom) noexcept
+{
+	const uint8x16_t vByteIndex = vshrq_n_u8(chunk, 3);
+	const uint8x16_t vBitMask   = vshlq_u8(vdupq_n_u8(1),
+	                                       vreinterpretq_s8_u8(vandq_u8(chunk, vdupq_n_u8(7))));
+	const uint8x16_t vHi        = vqtbl1q_u8(vTop,    vByteIndex);
+	const uint8x16_t vLo        = vqtbl1q_u8(vBottom, vsubq_u8(vByteIndex, vdupq_n_u8(16)));
+	return vtstq_u8(vorrq_u8(vHi, vLo), vBitMask);
+}
+
+// scalar membership test for the loop tails, matching BytesetMatch semantics
+DEKAF2_ALWAYS_INLINE
+bool BytesetContains(const uint64_t (&Mask)[4], uint8_t ch) noexcept
+{
+	return (Mask[ch >> 6] & (uint64_t(1) << (ch & 63))) != 0;
+}
+
 } // anon
 
 //-----------------------------------------------------------------------------
@@ -602,6 +634,93 @@ std::size_t kFindLastOf(const char*  pHaystack,
 	return npos;
 
 } // kFindLastOf
+
+//-----------------------------------------------------------------------------
+const char* kFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept
+//-----------------------------------------------------------------------------
+{
+	const uint8_t* const pMask   = reinterpret_cast<const uint8_t*>(&Mask[0]);
+	const uint8x16_t     vTop     = vld1q_u8(pMask);        // byte values 0..127
+	const uint8x16_t     vBottom  = vld1q_u8(pMask + 16);   // byte values 128..255
+
+	const uint8_t* const pBase = reinterpret_cast<const uint8_t*>(pHaystack);
+	std::size_t          i     = 0;
+
+	// NEON main loop: 16 bytes per iteration
+	while (i + 16 <= iLen)
+	{
+		uint8x16_t chunk = vld1q_u8(pBase + i);
+		uint8x16_t cmp   = BytesetMatch(chunk, vTop, vBottom);
+		uint64_t   mask  = NibbleMask(cmp);
+
+		if (mask)
+		{
+			int idx = kBitCountRightZero(mask) >> 2;
+			return reinterpret_cast<const char*>(pBase + i + idx);
+		}
+
+		i += 16;
+	}
+
+	// scalar tail: up to 15 remaining bytes
+	while (i < iLen)
+	{
+		if (BytesetContains(Mask, pBase[i]))
+		{
+			return reinterpret_cast<const char*>(pBase + i);
+		}
+
+		++i;
+	}
+
+	return nullptr;
+
+} // kFindByteset
+
+//-----------------------------------------------------------------------------
+const char* kRFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept
+//-----------------------------------------------------------------------------
+{
+	const uint8_t* const pMask   = reinterpret_cast<const uint8_t*>(&Mask[0]);
+	const uint8x16_t     vTop     = vld1q_u8(pMask);        // byte values 0..127
+	const uint8x16_t     vBottom  = vld1q_u8(pMask + 16);   // byte values 128..255
+
+	const uint8_t* const pBase = reinterpret_cast<const uint8_t*>(pHaystack);
+	std::size_t          n     = iLen;
+	const uint8_t*       pEnd  = pBase + n;
+
+	// NEON main loop: process 16 bytes from the tail towards the start
+	while (n >= 16)
+	{
+		pEnd -= 16;
+		n    -= 16;
+
+		uint8x16_t chunk = vld1q_u8(pEnd);
+		uint8x16_t cmp   = BytesetMatch(chunk, vTop, vBottom);
+		uint64_t   mask  = NibbleMask(cmp);
+
+		if (mask)
+		{
+			// last match within this 16-byte window
+			int idx = (63 - kBitCountLeftZero(mask)) >> 2;
+			return reinterpret_cast<const char*>(pEnd + idx);
+		}
+	}
+
+	// scalar tail: the first 0..15 bytes of the buffer, scanned back to front
+	while (n)
+	{
+		--n;
+
+		if (BytesetContains(Mask, pBase[n]))
+		{
+			return reinterpret_cast<const char*>(pBase + n);
+		}
+	}
+
+	return nullptr;
+
+} // kRFindByteset
 
 } // end of namespace neon
 } // end of namespace detail

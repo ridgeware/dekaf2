@@ -88,6 +88,16 @@ std::streamsize KTCPStream::TCPStreamReader(void* sBuffer, std::streamsize iCoun
 			{
 				kDebug(2, "input stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
 			}
+			else if (IOStream.m_Stream.ec == boost::asio::error::operation_aborted)
+			{
+				// benign -- typically a client-side timeout or graceful cancel.
+				// The asio error code stays on m_Stream.ec so callers still see it;
+				// only the klog chatter is demoted from SetError's built-in
+				// kDebug(1) to kDebug(3).
+				kDebug(3, "tcp read canceled at endpoint {}: {}",
+				       IOStream.m_Stream.sEndpoint,
+				       IOStream.m_Stream.ec.message());
+			}
 			else
 			{
 				IOStream.SetError(kFormat("cannot read from {} stream: {}",
@@ -143,6 +153,15 @@ std::streamsize KTCPStream::TCPStreamWriter(const void* sBuffer, std::streamsize
 				if (IOStream.m_Stream.ec.value() == boost::asio::error::eof)
 				{
 					kDebug(2, "output stream got closed by endpoint {}", IOStream.m_Stream.sEndpoint);
+				}
+				else if (IOStream.m_Stream.ec == boost::asio::error::operation_aborted)
+				{
+					// same rationale as the reader path above -- demote canceled to
+					// kDebug(3) so a client-side abort/timeout doesn't spam klog at
+					// level 1.
+					kDebug(3, "tcp write canceled at endpoint {}: {}",
+					       IOStream.m_Stream.sEndpoint,
+					       IOStream.m_Stream.ec.message());
 				}
 				else
 				{

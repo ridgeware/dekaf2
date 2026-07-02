@@ -171,9 +171,17 @@ std::size_t kFindLastOf(const char*  pHaystack,
 /// 3 bits of a haystack byte index one of the 32 mask bytes, looked up in two
 /// vqtbl1q_u8 halves (the top half covers byte values 0..127, the bottom half
 /// 128..255; out-of-range table indices return 0, so the two halves can be
-/// OR'd), and the low 3 bits select the membership bit to test. This is the
-/// set-membership analogue of kFindFirstOf and handles needle sets of any size
-/// (unlike kFindFirstOf, which is limited to <= 16 needle bytes).
+/// OR'd), and the low 3 bits select the membership bit to test. Sets that
+/// only contain byte values < 128 (ASCII, the common case) use a faster
+/// single-table variant. This is the set-membership analogue of kFindFirstOf
+/// and handles needle sets of any size (unlike kFindFirstOf, which is limited
+/// to <= 16 needle bytes).
+///
+/// The tail after the last full 16-byte block is also processed in SIMD: with
+/// an overlapping load of the final 16 bytes when the haystack is long enough,
+/// or - for haystacks shorter than 16 bytes - with a page-guarded overread
+/// whose overflow lanes are discarded. Only tiny haystacks ending within 15
+/// bytes of a page boundary fall back to a scalar loop.
 ///
 /// find_first_not_of is obtained by the caller passing an inverted mask.
 ///

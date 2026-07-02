@@ -52,6 +52,17 @@ DEKAF2_NAMESPACE_BEGIN
 namespace detail {
 namespace neon   {
 
+// the byteset kernels below read the 4 x 64 bit membership mask through a
+// byte pointer and index it as set_byte[ch >> 3] - that layout only matches
+// the bit positions produced by KFindSetOfChars' mask construction on
+// little-endian targets (which is every supported ARM64 platform). The check
+// mirrors the conditions under which kbit.h can declare kIsLittleEndian()
+// constexpr - where it cannot (MSVC before C++20), the target is Windows on
+// ARM64, which is little-endian by ABI definition.
+#if defined(__BYTE_ORDER__) || DEKAF2_HAS_STD_BIT
+static_assert(kIsLittleEndian(), "the NEON byteset kernels assume a little-endian layout of the 4 x 64 bit mask");
+#endif
+
 namespace {
 
 //-----------------------------------------------------------------------------
@@ -105,11 +116,86 @@ uint8x16_t BytesetMatch(uint8x16_t chunk, uint8x16_t vTop, uint8x16_t vBottom) n
 	return vtstq_u8(vorrq_u8(vHi, vLo), vBitMask);
 }
 
+//-----------------------------------------------------------------------------
+// Byte-set membership test for sets that only contain byte values < 128 (all
+// four mask words beyond the first two are zero) - the overwhelmingly common
+// case, as parsing needle sets are ASCII. Haystack bytes >= 128 produce table
+// indices >= 16, which vqtbl1q_u8 answers with 0: exactly right, they can
+// never be members of an ASCII-only set. This saves the second table lookup,
+// the index adjustment and the OR of the general version above - 3 of its 8
+// vector ops per 16 byte block.
+//-----------------------------------------------------------------------------
+DEKAF2_ALWAYS_INLINE
+uint8x16_t BytesetMatchAscii(uint8x16_t chunk, uint8x16_t vTop) noexcept
+{
+	const uint8x16_t vByteIndex = vshrq_n_u8(chunk, 3);
+	const uint8x16_t vBitMask   = vshlq_u8(vdupq_n_u8(1),
+	                                       vreinterpretq_s8_u8(vandq_u8(chunk, vdupq_n_u8(7))));
+	return vtstq_u8(vqtbl1q_u8(vTop, vByteIndex), vBitMask);
+}
+
+//-----------------------------------------------------------------------------
+// Byte-set membership test for sets whose upper half is fully populated (mask
+// words 2 and 3 all ones) - the exact dual of the ASCII-only case above, and
+// what every find_*_not_of with an ASCII needle set produces after mask
+// inversion (e.g. the whitespace trimming in kSplit): every byte >= 128 is a
+// member by definition, so a single unsigned compare replaces the second
+// table lookup and its index adjustment. One op less than the general
+// version, and the compare only depends on the input chunk, which shortens
+// the dependency chain of the merge.
+//-----------------------------------------------------------------------------
+DEKAF2_ALWAYS_INLINE
+uint8x16_t BytesetMatchAsciiInverted(uint8x16_t chunk, uint8x16_t vTop) noexcept
+{
+	const uint8x16_t vByteIndex = vshrq_n_u8(chunk, 3);
+	const uint8x16_t vBitMask   = vshlq_u8(vdupq_n_u8(1),
+	                                       vreinterpretq_s8_u8(vandq_u8(chunk, vdupq_n_u8(7))));
+	const uint8x16_t vLowMatch  = vtstq_u8(vqtbl1q_u8(vTop, vByteIndex), vBitMask);
+	return vorrq_u8(vLowMatch, vcgeq_u8(chunk, vdupq_n_u8(0x80)));
+}
+
+// the three specializations of the byteset membership test, selected once per
+// kernel call from the mask contents
+enum BytesetKind { BytesetGeneral, BytesetAsciiOnly, BytesetAsciiInverted };
+
+template<BytesetKind kKind>
+DEKAF2_ALWAYS_INLINE
+uint8x16_t BytesetMatchFor(uint8x16_t chunk, uint8x16_t vTop, uint8x16_t vBottom) noexcept
+{
+	return (kKind == BytesetAsciiOnly)     ? BytesetMatchAscii        (chunk, vTop)
+	     : (kKind == BytesetAsciiInverted) ? BytesetMatchAsciiInverted(chunk, vTop)
+	     :                                   BytesetMatch             (chunk, vTop, vBottom);
+}
+
 // scalar membership test for the loop tails, matching BytesetMatch semantics
 DEKAF2_ALWAYS_INLINE
 bool BytesetContains(const uint64_t (&Mask)[4], uint8_t ch) noexcept
 {
 	return (Mask[ch >> 6] & (uint64_t(1) << (ch & 63))) != 0;
+}
+
+// A 16 byte load from pAddr cannot fault as long as it does not cross the
+// boundary of the smallest page size in use (same reasoning and constant as
+// in the SSE implementation, see kfindfirstof.cpp: 4k pages are the smallest
+// granularity on our targets, and larger pages - like the 16k pages of Apple
+// Silicon - are always multiples of it).
+DEKAF2_ALWAYS_INLINE
+bool SamePage(const uint8_t* pAddr) noexcept
+{
+#ifdef DEKAF2_HAS_ASAN
+	// the overread is page-safe, but not object-safe: ASAN tracks object
+	// bounds and would (rightfully, from its point of view) report the
+	// deliberate read past the end of the haystack. Pretend the load would
+	// cross a page so that sanitizer builds take the scalar tail instead -
+	// this keeps ASAN coverage for all remaining kernel logic.
+	(void)pAddr;
+	return false;
+#else
+	constexpr std::size_t kMinPageSize = 4096;
+
+	return (reinterpret_cast<uintptr_t>(pAddr) / kMinPageSize)
+	    == (reinterpret_cast<uintptr_t>(pAddr + 15) / kMinPageSize);
+#endif
 }
 
 } // anon
@@ -635,22 +721,35 @@ std::size_t kFindLastOf(const char*  pHaystack,
 
 } // kFindLastOf
 
-//-----------------------------------------------------------------------------
-const char* kFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept
-//-----------------------------------------------------------------------------
-{
-	const uint8_t* const pMask   = reinterpret_cast<const uint8_t*>(&Mask[0]);
-	const uint8x16_t     vTop     = vld1q_u8(pMask);        // byte values 0..127
-	const uint8x16_t     vBottom  = vld1q_u8(pMask + 16);   // byte values 128..255
+namespace {
 
-	const uint8_t* const pBase = reinterpret_cast<const uint8_t*>(pHaystack);
-	std::size_t          i     = 0;
+//-----------------------------------------------------------------------------
+// Shared implementation of kFindByteset, instantiated once for ASCII-only
+// sets (single table lookup) and once for the general case. The tail after
+// the 16-byte main loop is also handled in SIMD:
+//
+//  - iLen >= 16: one overlapping load of the last 16 bytes. The lanes that
+//    overlap the region the main loop already scanned are known non-matching,
+//    so the first set nibble automatically lies in the fresh region - no
+//    masking needed.
+//  - iLen < 16: one 16-byte load reading past the end of the haystack, which
+//    cannot fault as long as it does not cross a page boundary (SamePage).
+//    Matches in the overflow lanes are discarded before the reduction. Only
+//    the rare case of a tiny haystack ending within 15 bytes of a page
+//    boundary falls back to a scalar loop.
+//-----------------------------------------------------------------------------
+template<BytesetKind kKind>
+DEKAF2_ALWAYS_INLINE
+const char* FindBytesetImpl(const uint8_t* pBase, std::size_t iLen, const uint64_t (&Mask)[4],
+                            uint8x16_t vTop, uint8x16_t vBottom) noexcept
+{
+	std::size_t i = 0;
 
 	// NEON main loop: 16 bytes per iteration
 	while (i + 16 <= iLen)
 	{
 		uint8x16_t chunk = vld1q_u8(pBase + i);
-		uint8x16_t cmp   = BytesetMatch(chunk, vTop, vBottom);
+		uint8x16_t cmp   = BytesetMatchFor<kKind>(chunk, vTop, vBottom);
 		uint64_t   mask  = NibbleMask(cmp);
 
 		if (mask)
@@ -662,32 +761,67 @@ const char* kFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t
 		i += 16;
 	}
 
-	// scalar tail: up to 15 remaining bytes
-	while (i < iLen)
-	{
-		if (BytesetContains(Mask, pBase[i]))
-		{
-			return reinterpret_cast<const char*>(pBase + i);
-		}
+	const std::size_t iRest = iLen - i;
 
-		++i;
+	if (iRest)
+	{
+		if (i)
+		{
+			// overlapping load of the last 16 bytes - the first 16 - iRest
+			// lanes repeat already scanned (and non-matching) bytes
+			uint8x16_t chunk = vld1q_u8(pBase + iLen - 16);
+			uint8x16_t cmp   = BytesetMatchFor<kKind>(chunk, vTop, vBottom);
+			uint64_t   mask  = NibbleMask(cmp);
+
+			if (mask)
+			{
+				int idx = kBitCountRightZero(mask) >> 2;
+				return reinterpret_cast<const char*>(pBase + iLen - 16 + idx);
+			}
+		}
+		else if (SamePage(pBase))
+		{
+			// the whole haystack is shorter than 16 bytes: overread within
+			// the page and discard matches beyond the end
+			uint8x16_t chunk = vld1q_u8(pBase);
+			uint8x16_t cmp   = BytesetMatchFor<kKind>(chunk, vTop, vBottom);
+			uint64_t   mask  = NibbleMask(cmp) & ((uint64_t(1) << (4 * iRest)) - 1);
+
+			if (mask)
+			{
+				int idx = kBitCountRightZero(mask) >> 2;
+				return reinterpret_cast<const char*>(pBase + idx);
+			}
+		}
+		else
+		{
+			// rare: a tiny haystack ending within 15 bytes of a page boundary
+			for (; i < iLen; ++i)
+			{
+				if (BytesetContains(Mask, pBase[i]))
+				{
+					return reinterpret_cast<const char*>(pBase + i);
+				}
+			}
+		}
 	}
 
 	return nullptr;
 
-} // kFindByteset
+} // FindBytesetImpl
 
 //-----------------------------------------------------------------------------
-const char* kRFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept
+// Shared implementation of kRFindByteset - the backward mirror of
+// FindBytesetImpl, with the same tail strategy applied to the first 0..15
+// bytes of the buffer.
 //-----------------------------------------------------------------------------
+template<BytesetKind kKind>
+DEKAF2_ALWAYS_INLINE
+const char* RFindBytesetImpl(const uint8_t* pBase, std::size_t iLen, const uint64_t (&Mask)[4],
+                             uint8x16_t vTop, uint8x16_t vBottom) noexcept
 {
-	const uint8_t* const pMask   = reinterpret_cast<const uint8_t*>(&Mask[0]);
-	const uint8x16_t     vTop     = vld1q_u8(pMask);        // byte values 0..127
-	const uint8x16_t     vBottom  = vld1q_u8(pMask + 16);   // byte values 128..255
-
-	const uint8_t* const pBase = reinterpret_cast<const uint8_t*>(pHaystack);
-	std::size_t          n     = iLen;
-	const uint8_t*       pEnd  = pBase + n;
+	std::size_t    n    = iLen;
+	const uint8_t* pEnd = pBase + n;
 
 	// NEON main loop: process 16 bytes from the tail towards the start
 	while (n >= 16)
@@ -696,7 +830,7 @@ const char* kRFindByteset(const char* pHaystack, std::size_t iLen, const uint64_
 		n    -= 16;
 
 		uint8x16_t chunk = vld1q_u8(pEnd);
-		uint8x16_t cmp   = BytesetMatch(chunk, vTop, vBottom);
+		uint8x16_t cmp   = BytesetMatchFor<kKind>(chunk, vTop, vBottom);
 		uint64_t   mask  = NibbleMask(cmp);
 
 		if (mask)
@@ -707,18 +841,109 @@ const char* kRFindByteset(const char* pHaystack, std::size_t iLen, const uint64_
 		}
 	}
 
-	// scalar tail: the first 0..15 bytes of the buffer, scanned back to front
-	while (n)
+	if (n)
 	{
-		--n;
-
-		if (BytesetContains(Mask, pBase[n]))
+		if (iLen >= 16)
 		{
-			return reinterpret_cast<const char*>(pBase + n);
+			// overlapping load of the first 16 bytes - the lanes >= n repeat
+			// already scanned (and non-matching) bytes, so the highest set
+			// nibble automatically lies below n
+			uint8x16_t chunk = vld1q_u8(pBase);
+			uint8x16_t cmp   = BytesetMatchFor<kKind>(chunk, vTop, vBottom);
+			uint64_t   mask  = NibbleMask(cmp);
+
+			if (mask)
+			{
+				int idx = (63 - kBitCountLeftZero(mask)) >> 2;
+				return reinterpret_cast<const char*>(pBase + idx);
+			}
+		}
+		else if (SamePage(pBase))
+		{
+			// the whole haystack is shorter than 16 bytes: overread within
+			// the page and discard matches beyond the end
+			uint8x16_t chunk = vld1q_u8(pBase);
+			uint8x16_t cmp   = BytesetMatchFor<kKind>(chunk, vTop, vBottom);
+			uint64_t   mask  = NibbleMask(cmp) & ((uint64_t(1) << (4 * n)) - 1);
+
+			if (mask)
+			{
+				int idx = (63 - kBitCountLeftZero(mask)) >> 2;
+				return reinterpret_cast<const char*>(pBase + idx);
+			}
+		}
+		else
+		{
+			// rare: a tiny haystack ending within 15 bytes of a page boundary
+			while (n)
+			{
+				--n;
+
+				if (BytesetContains(Mask, pBase[n]))
+				{
+					return reinterpret_cast<const char*>(pBase + n);
+				}
+			}
 		}
 	}
 
 	return nullptr;
+
+} // RFindBytesetImpl
+
+} // anon
+
+//-----------------------------------------------------------------------------
+const char* kFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept
+//-----------------------------------------------------------------------------
+{
+	const uint8_t* const pMask   = reinterpret_cast<const uint8_t*>(&Mask[0]);
+	const uint8x16_t     vTop    = vld1q_u8(pMask);        // byte values 0..127
+	const uint8x16_t     vBottom = vld1q_u8(pMask + 16);   // byte values 128..255
+	const uint8_t* const pBase   = reinterpret_cast<const uint8_t*>(pHaystack);
+
+	if ((Mask[2] | Mask[3]) == 0)
+	{
+		// ASCII-only needle set (the common case for parsing delimiters)
+		return FindBytesetImpl<BytesetAsciiOnly>(pBase, iLen, Mask, vTop, vBottom);
+	}
+	else if ((Mask[2] & Mask[3]) == ~uint64_t(0))
+	{
+		// fully populated upper half: an inverted ASCII set, as produced by
+		// find_*_not_of with ASCII needles (e.g. whitespace trimming)
+		return FindBytesetImpl<BytesetAsciiInverted>(pBase, iLen, Mask, vTop, vBottom);
+	}
+	else
+	{
+		return FindBytesetImpl<BytesetGeneral>(pBase, iLen, Mask, vTop, vBottom);
+	}
+
+} // kFindByteset
+
+//-----------------------------------------------------------------------------
+const char* kRFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept
+//-----------------------------------------------------------------------------
+{
+	const uint8_t* const pMask   = reinterpret_cast<const uint8_t*>(&Mask[0]);
+	const uint8x16_t     vTop    = vld1q_u8(pMask);        // byte values 0..127
+	const uint8x16_t     vBottom = vld1q_u8(pMask + 16);   // byte values 128..255
+	const uint8_t* const pBase   = reinterpret_cast<const uint8_t*>(pHaystack);
+
+	if ((Mask[2] | Mask[3]) == 0)
+	{
+		// ASCII-only needle set (the common case for parsing delimiters)
+		return RFindBytesetImpl<BytesetAsciiOnly>(pBase, iLen, Mask, vTop, vBottom);
+	}
+	else if ((Mask[2] & Mask[3]) == ~uint64_t(0))
+	{
+		// fully populated upper half: an inverted ASCII set, as produced by
+		// find_*_not_of with ASCII needles (e.g. whitespace trimming)
+		return RFindBytesetImpl<BytesetAsciiInverted>(pBase, iLen, Mask, vTop, vBottom);
+	}
+	else
+	{
+		return RFindBytesetImpl<BytesetGeneral>(pBase, iLen, Mask, vTop, vBottom);
+	}
 
 } // kRFindByteset
 

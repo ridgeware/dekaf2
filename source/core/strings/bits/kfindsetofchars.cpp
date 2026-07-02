@@ -43,7 +43,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/bits/kfindsetofchars.h>
 
-#if DEKAF2_FIND_FIRST_OF_USE_SSE
+#if DEKAF2_FIND_FIRST_OF_USE_SV_NEEDLE
 #include <dekaf2/core/strings/bits/simd/kfindfirstof.h>
 #endif
 
@@ -53,7 +53,9 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-#if DEKAF2_FIND_FIRST_OF_USE_SSE
+// this selection must mirror the member selection in kfindsetofchars.h:
+// the m_sNeedles based methods below only exist in the SV_NEEDLE configuration
+#if DEKAF2_FIND_FIRST_OF_USE_SV_NEEDLE
 
 //-----------------------------------------------------------------------------
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, size_type pos) const
@@ -114,12 +116,20 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 #if DEKAF2_HAS_NEON
 /* NEON byteset search over the 4 x 64 bit membership mask, using the in-house
    kFindByteset / kRFindByteset kernels (see kmemsearch_neon). find_*_not_in is
-   obtained by searching the inverted mask. */
+   obtained by searching the inverted mask. Sets with exactly one member (like
+   the default comma delimiter of kSplit) dispatch to the single-character
+   search instead, which runs at memchr speed - over twice the byteset
+   throughput on long scans. */
 
 //-----------------------------------------------------------------------------
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos) const
 //-----------------------------------------------------------------------------
 {
+	if (is_single_char())
+	{
+		return kFind(sHaystack, static_cast<value_type>(m_iSingleChar), pos);
+	}
+
 	if (pos >= sHaystack.length())
 	{
 		return KStringView::npos;
@@ -144,6 +154,11 @@ KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack,
 KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(KStringView sHaystack, const size_type pos) const
 //-----------------------------------------------------------------------------
 {
+	if (is_single_char())
+	{
+		return kFindNot(sHaystack, static_cast<value_type>(m_iSingleChar), pos);
+	}
+
 	if (pos >= sHaystack.length())
 	{
 		return KStringView::npos;
@@ -177,6 +192,11 @@ KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(KStringView sHayst
 KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, size_type pos) const
 //-----------------------------------------------------------------------------
 {
+	if (is_single_char())
+	{
+		return kRFind(sHaystack, static_cast<value_type>(m_iSingleChar), pos);
+	}
+
 	const char* pHaystack       = (sHaystack.data());
 	size_t      iHaystackLength = (pos < sHaystack.length()? (pos + 1) : sHaystack.length());
 
@@ -196,6 +216,11 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, 
 KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaystack, size_type pos) const
 //-----------------------------------------------------------------------------
 {
+	if (is_single_char())
+	{
+		return kRFindNot(sHaystack, static_cast<value_type>(m_iSingleChar), pos);
+	}
+
 	const char* pHaystack       = (sHaystack.data());
 	size_t      iHaystackLength = (pos < sHaystack.length()? (pos + 1) : sHaystack.length());
 
@@ -323,7 +348,7 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_in(KStringView sHaystack, 
 
 #endif // DEKAF2_HAS_NEON
 
-#endif // DEKAF2_FIND_FIRST_OF_USE_SSE
+#endif // DEKAF2_FIND_FIRST_OF_USE_SV_NEEDLE
 
 
 DEKAF2_NAMESPACE_END

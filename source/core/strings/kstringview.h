@@ -1843,49 +1843,9 @@ DEKAF2_NAMESPACE_END
 
 DEKAF2_NAMESPACE_BEGIN
 
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline
-std::size_t kFindFirstOf(KStringView haystack,
-                         const KFindSetOfChars& needles,
-                         std::size_t pos = 0)
-//-----------------------------------------------------------------------------
-{
-	return needles.find_first_in(haystack, pos);
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline
-std::size_t kFindFirstNotOf(KStringView haystack,
-                            const KFindSetOfChars& needles,
-                            std::size_t pos = 0)
-//-----------------------------------------------------------------------------
-{
-	return needles.find_first_not_in(haystack, pos);
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline
-std::size_t kFindLastOf(KStringView haystack,
-                        const KFindSetOfChars& needles,
-                        std::size_t pos = npos)
-//-----------------------------------------------------------------------------
-{
-	return needles.find_last_in(haystack, pos);
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_NODISCARD DEKAF2_PUBLIC
-inline
-std::size_t kFindLastNotOf(KStringView haystack,
-                           const KFindSetOfChars& needles,
-                           std::size_t pos = npos)
-//-----------------------------------------------------------------------------
-{
-	return needles.find_last_not_in(haystack, pos);
-}
+// note: the free-standing kFindFirstOf/kFindLastOf/kFindFirstNotOf/kFindLastNotOf
+// helpers taking a KFindSetOfChars are defined in kfindsetofchars.h (included
+// right above), together with all other inline code that needs the complete type
 
 //-----------------------------------------------------------------------------
 /// Find delimiter chars prefixed by even number of escape characters (0, 2, ...).
@@ -2034,69 +1994,11 @@ KStringView::size_type KStringView::find_first_not_of(value_type ch, size_type p
 	return kFindNot(*this, ch, pos);
 }
 
-//-----------------------------------------------------------------------------
-inline
-KStringView::size_type KStringView::find_first_of(const KFindSetOfChars& CharSet, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
-{
-	return kFindFirstOf(*this, CharSet, pos);
-}
-
-//-----------------------------------------------------------------------------
-inline
-KStringView::size_type KStringView::find_first_of(const value_type* s, size_type pos, size_type count) const noexcept
-//-----------------------------------------------------------------------------
-{
-	return find_first_of(KStringView(s, count), pos);
-}
-
-//-----------------------------------------------------------------------------
-inline
-KStringView::size_type KStringView::find_last_of(const KFindSetOfChars& CharSet, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
-{
-	return kFindLastOf(*this, CharSet, pos);
-}
-
-//-----------------------------------------------------------------------------
-inline
-KStringView::size_type KStringView::find_last_of(const value_type* s, size_type pos, size_type count) const noexcept
-//-----------------------------------------------------------------------------
-{
-	return find_last_of(KStringView(s, count), pos);
-}
-
-//-----------------------------------------------------------------------------
-inline
-KStringView::size_type KStringView::find_first_not_of(const KFindSetOfChars& CharSet, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
-{
-	return kFindFirstNotOf(*this, CharSet, pos);
-}
-
-//-----------------------------------------------------------------------------
-inline
-KStringView::size_type KStringView::find_first_not_of(const value_type* s, size_type pos, size_type count) const noexcept
-//-----------------------------------------------------------------------------
-{
-	return find_first_not_of(KStringView(s, count), pos);
-}
-
-//-----------------------------------------------------------------------------
-inline
-KStringView::size_type KStringView::find_last_not_of(const KFindSetOfChars& CharSet, size_type pos) const noexcept
-//-----------------------------------------------------------------------------
-{
-	return kFindLastNotOf(*this, CharSet, pos);
-}
-
-//-----------------------------------------------------------------------------
-inline
-KStringView::size_type KStringView::find_last_not_of(const value_type* s, size_type pos, size_type count) const noexcept
-//-----------------------------------------------------------------------------
-{
-	return find_last_not_of(KStringView(s, count), pos);
-}
+// note: the KStringView members that take or construct a KFindSetOfChars
+// (find_first_of, find_last_of, find_first_not_of, find_last_not_of - both
+// the CharSet and the (s, pos, count) overloads) are defined in
+// kfindsetofchars.h (included right above) together with the free-standing
+// helpers, so that this file never accesses the forward-declared type
 
 //-----------------------------------------------------------------------------
 DEKAF2_CONSTEXPR_14

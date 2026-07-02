@@ -92,6 +92,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/system/os/ksignals.h>
 #include <dekaf2/threading/execution/kthreads.h>
+#include <deque>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -414,14 +415,18 @@ void KThreadPool::clear()
 	// empty the task queues of all tags (destroying the tasks breaks their futures).
 	// The dropped tasks and coalesce states are destroyed only after the unlock - the
 	// destructors of their captured user objects may touch this pool again (e.g. push),
-	// which would deadlock under the mutex
-	std::vector<std::queue<std::packaged_task<void()>>>      DroppedQueues;
+	// which would deadlock under the mutex.
+	// Note: the queues are collected in a std::deque, not a std::vector - libstdc++'s
+	// std::deque has a throwing move constructor, so vector growth (or reserve) falls
+	// back to copy construction for the strong exception guarantee, which does not
+	// compile for queues of move-only std::packaged_task. A deque as outer container
+	// never relocates its elements and therefore needs neither copy nor move.
+	std::deque<std::queue<std::packaged_task<void()>>>       DroppedQueues;
 	std::vector<std::unordered_map<uint64_t, CoalesceState>> DroppedCoalesce;
 
 	{
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
 
-		DroppedQueues  .reserve(m_Tags.size());
 		DroppedCoalesce.reserve(m_Tags.size());
 
 		for (auto& Pair : m_Tags)

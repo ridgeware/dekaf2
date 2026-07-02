@@ -76,6 +76,13 @@
  *   - PushCoalesced() collapses repeated submissions for the same key into a
  *     single debounced run with at most one follow-up (for idempotent
  *     "refresh/recompute X" work)
+ *   - hardening after review: keep the wakeup for a freed concurrency slot
+ *     when the finishing worker aborts (the lost wakeup could stall a capped
+ *     tag's queued work after a shrink); destroy tasks dropped by DropOldest
+ *     or clear() outside the pool mutex (destructors of captured user objects
+ *     may touch the pool again); break the futures of a coalesced run that a
+ *     bounded tag rejects, instead of leaving them pending forever; clamp a
+ *     tag weight of 0 to 1; avoid a hash lookup per tag in the DRR scan
  *
  *********************************************************/
 
@@ -404,20 +411,32 @@ void KThreadPool::pause(bool bYesNo)
 void KThreadPool::clear()
 //-----------------------------------------------------------------------------
 {
-	// empty the task queues of all tags (destroying the tasks breaks their futures)
-	std::unique_lock<std::mutex> lock(m_cond_mutex);
+	// empty the task queues of all tags (destroying the tasks breaks their futures).
+	// The dropped tasks and coalesce states are destroyed only after the unlock - the
+	// destructors of their captured user objects may touch this pool again (e.g. push),
+	// which would deadlock under the mutex
+	std::vector<std::queue<std::packaged_task<void()>>>      DroppedQueues;
+	std::vector<std::unordered_map<uint64_t, CoalesceState>> DroppedCoalesce;
 
-	for (auto& Pair : m_Tags)
 	{
-		std::queue<std::packaged_task<void()>> Empty;
-		std::swap(Pair.second.Queue, Empty);
-		Pair.second.iDeficit = 0;
-		// drop coalesce state too (pending coalesce futures break); a key whose run is
-		// currently executing is left to its completion handler (it finds itself erased)
-		Pair.second.Coalesce.clear();
-	}
+		std::unique_lock<std::mutex> lock(m_cond_mutex);
 
-	m_iTotalQueued = 0;
+		DroppedQueues  .reserve(m_Tags.size());
+		DroppedCoalesce.reserve(m_Tags.size());
+
+		for (auto& Pair : m_Tags)
+		{
+			DroppedQueues.emplace_back();
+			std::swap(Pair.second.Queue, DroppedQueues.back());
+			Pair.second.iDeficit = 0;
+			// drop coalesce state too (pending coalesce futures break); a key whose run is
+			// currently executing is left to its completion handler (it finds itself erased)
+			DroppedCoalesce.emplace_back();
+			std::swap(Pair.second.Coalesce, DroppedCoalesce.back());
+		}
+
+		m_iTotalQueued = 0;
+	}
 
 } // clear
 
@@ -543,6 +562,17 @@ bool KThreadPool::run_thread(std::size_t i)
 				// account for the finished task - this may free a per-tag concurrency slot
 				bool bWakeOther = sched_task_done(_tag);
 
+				if (bWakeOther)
+				{
+					// a capped tag can run again - wake a waiting worker (it blocks on our
+					// mutex until we release it). This must happen BEFORE the abort check:
+					// a worker that exits below would swallow the wakeup for the freed
+					// slot, and the capped tag's queued work could stall until the next
+					// push (all other workers may be asleep, the shrink's notify_all came
+					// while this tag was still at its cap)
+					m_cond_var.notify_one();
+				}
+
 				if (abort != eAbort::None)
 				{
 					lock.unlock();
@@ -550,13 +580,6 @@ bool KThreadPool::run_thread(std::size_t i)
 					notify_thread_shutdown(false, abort);
 
 					return; // return even if the queue is not empty yet
-				}
-
-				if (bWakeOther)
-				{
-					// a capped tag can run again - wake a waiting worker (it blocks on our
-					// mutex until we release it just below)
-					m_cond_var.notify_one();
 				}
 
 				bMoreTasks = sched_dequeue(_f, _tag);
@@ -629,6 +652,13 @@ bool KThreadPool::run_thread(std::size_t i)
 void KThreadPool::ConfigureTag(Tag tag, TagConfig config)
 //-----------------------------------------------------------------------------
 {
+	if (config.iWeight == 0)
+	{
+		// enforce the documented minimum of 1 - a weight of 0 would let the DRR
+		// deficit counter sink without bound (and dispatch like weight 1 anyway)
+		config.iWeight = 1;
+	}
+
 	std::unique_lock<std::mutex> lock(m_cond_mutex);
 	sched_tag(tag).Config = config;
 
@@ -647,13 +677,17 @@ KThreadPool::TagState& KThreadPool::sched_tag(Tag tag)
 
 	// first time we see this tag: auto-register it with the default TagConfig (weight 1, unbounded,
 	// no concurrency cap) and add it to the round-robin order. ConfigureTag() can override this later.
-	m_TagOrder.push_back(tag);
-	return m_Tags[tag];
+	// The cached state pointer stays valid: unordered_map references survive rehashing, and tags
+	// are never erased.
+	auto& State = m_Tags[tag];
+	m_TagOrder.emplace_back(tag, &State);
+	return State;
 
 } // sched_tag
 
 //-----------------------------------------------------------------------------
-std::size_t KThreadPool::sched_enqueue(Tag tag, std::packaged_task<void()>&& task, bool& bAccepted)
+std::size_t KThreadPool::sched_enqueue(Tag tag, std::packaged_task<void()>&& task, bool& bAccepted,
+                                       std::packaged_task<void()>& dropped)
 //-----------------------------------------------------------------------------
 {
 	bAccepted = true;
@@ -669,7 +703,11 @@ std::size_t KThreadPool::sched_enqueue(Tag tag, std::packaged_task<void()>&& tas
 			return m_iTotalQueued;
 		}
 
-		// DropOldest: drop this tag's oldest task (its future breaks), then enqueue the new one
+		// DropOldest: drop this tag's oldest task (its future breaks), then enqueue the new
+		// one. The dropped task is handed to the caller and destroyed only after m_cond_mutex
+		// is released - the destructors of the task's captured user objects may touch this
+		// pool again (e.g. push), which would deadlock under the mutex
+		dropped = std::move(State.Queue.front());
 		State.Queue.pop();
 		--m_iTotalQueued;
 	}
@@ -696,7 +734,7 @@ bool KThreadPool::sched_dequeue(std::packaged_task<void()>& task, Tag& tag)
 	// no DRR arithmetic
 	if (iTags == 1)
 	{
-		auto& State = m_Tags[m_TagOrder[0]];
+		auto& State = *m_TagOrder[0].second;
 
 		if (State.Queue.empty())
 		{
@@ -713,7 +751,7 @@ bool KThreadPool::sched_dequeue(std::packaged_task<void()>& task, Tag& tag)
 		State.Queue.pop();
 		--m_iTotalQueued;
 		++State.iRunning;
-		tag = m_TagOrder[0];
+		tag = m_TagOrder[0].first;
 		return true;
 	}
 
@@ -721,8 +759,8 @@ bool KThreadPool::sched_dequeue(std::packaged_task<void()>& task, Tag& tag)
 	// and a tag at its concurrency cap is skipped (its slots are busy)
 	for (std::size_t scanned = 0; scanned < iTags; ++scanned)
 	{
-		auto  iThisTag = m_TagOrder[m_iTagCursor];
-		auto& State    = m_Tags[iThisTag];
+		auto  iThisTag = m_TagOrder[m_iTagCursor].first;
+		auto& State    = *m_TagOrder[m_iTagCursor].second;
 
 		bool bServiceable = !State.Queue.empty()
 		                 && (State.Config.iMaxConcurrency == 0 || State.iRunning < State.Config.iMaxConcurrency);
@@ -793,21 +831,9 @@ bool KThreadPool::sched_task_done(Tag tag)
 } // sched_task_done
 
 //-----------------------------------------------------------------------------
-void KThreadPool::push_to_tag(std::packaged_task<void()> task, Tag tag)
+void KThreadPool::bookkeep_enqueue(std::size_t iWaiting)
 //-----------------------------------------------------------------------------
 {
-	std::unique_lock<std::mutex> lock(m_cond_mutex);
-
-	bool bAccepted = true;
-	auto iWaiting  = sched_enqueue(tag, std::move(task), bAccepted);
-
-	if (!bAccepted)
-	{
-		// rejected (queue full) - the task is destroyed when this function returns, breaking
-		// its future; no wakeup or growth needed
-		return;
-	}
-
 	if (iWaiting - 1 > ma_iMaxWaitingTasks)
 	{
 		ma_iMaxWaitingTasks = iWaiting - 1;
@@ -824,6 +850,31 @@ void KThreadPool::push_to_tag(std::packaged_task<void()> task, Tag tag)
 			shrink(iWaiting);
 		}
 	}
+
+} // bookkeep_enqueue
+
+//-----------------------------------------------------------------------------
+void KThreadPool::push_to_tag(std::packaged_task<void()> task, Tag tag)
+//-----------------------------------------------------------------------------
+{
+	// a task evicted by DropOldest lives here so that it is destroyed only after the
+	// unlock (the destructors of its captured user objects may touch this pool again)
+	std::packaged_task<void()> dropped;
+
+	std::unique_lock<std::mutex> lock(m_cond_mutex);
+
+	bool bAccepted = true;
+	auto iWaiting  = sched_enqueue(tag, std::move(task), bAccepted, dropped);
+
+	if (!bAccepted)
+	{
+		// rejected (queue full) - the task is destroyed when this function returns (after
+		// the unlock, it still sits in the task parameter), breaking its future; no wakeup
+		// or growth needed
+		return;
+	}
+
+	bookkeep_enqueue(iWaiting);
 
 	lock.unlock();
 
@@ -853,8 +904,13 @@ std::packaged_task<void()> KThreadPool::make_coalesce_task(Tag tag, uint64_t iKe
 std::shared_future<void> KThreadPool::push_coalesced_task(Tag tag, uint64_t iKey, std::function<void()> callable)
 //-----------------------------------------------------------------------------
 {
-	std::shared_future<void> future;
-	bool                     bNotify { false };
+	std::shared_future<void>   future;
+	bool                       bNotify { false };
+	// both live until after the unlock: destroying user captures (the dropped task's, or an
+	// abandoned generation's callable) must not happen under m_cond_mutex, and destroying an
+	// abandoned generation's promise breaks the waiters' futures (broken_promise)
+	CoalesceState              Abandoned;
+	std::packaged_task<void()> dropped;
 
 	{
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
@@ -881,33 +937,20 @@ std::shared_future<void> KThreadPool::push_coalesced_task(Tag tag, uint64_t iKey
 			CS.bQueued = true;
 
 			bool bAccepted = true;
-			auto iWaiting  = sched_enqueue(tag, make_coalesce_task(tag, iKey), bAccepted);
+			auto iWaiting  = sched_enqueue(tag, make_coalesce_task(tag, iKey), bAccepted, dropped);
 
 			if (bAccepted)
 			{
-				if (iWaiting - 1 > ma_iMaxWaitingTasks)
-				{
-					ma_iMaxWaitingTasks = iWaiting - 1;
-				}
-
-				if (!ma_interrupt)
-				{
-					if (ma_n_idle == 0)
-					{
-						grow(iWaiting);
-					}
-					else if (iWaiting <= 1 && ++ma_iShrinkCounter % 25 == 0)
-					{
-						shrink(iWaiting);
-					}
-				}
-
+				bookkeep_enqueue(iWaiting);
 				bNotify = true;
 			}
 			else
 			{
-				// a bounded coalesce tag was full - undo the queued mark
-				CS.bQueued = false;
+				// the bounded tag rejected the run - no run will ever cover this generation,
+				// so drop the key's state entirely: destroying its promise (after the unlock)
+				// breaks the returned futures, matching PushTagged's reject behavior
+				Abandoned = std::move(CS);
+				State.Coalesce.erase(iKey);
 			}
 		}
 		// else: a run is queued or in progress; this submission attached to CS.Promise and will
@@ -968,6 +1011,9 @@ void KThreadPool::run_coalesce(Tag tag, uint64_t iKey)
 
 	// completion: schedule exactly one more run if submissions arrived during this run
 	bool bNotify { false };
+	// both live until after the unlock - see push_coalesced_task for the rationale
+	CoalesceState              Abandoned;
+	std::packaged_task<void()> dropped;
 	{
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
 
@@ -985,9 +1031,17 @@ void KThreadPool::run_coalesce(Tag tag, uint64_t iKey)
 			// triggers arrived during the run - re-run once
 			CS.bQueued = true;
 			bool bAccepted = true;
-			sched_enqueue(tag, make_coalesce_task(tag, iKey), bAccepted);
+			sched_enqueue(tag, make_coalesce_task(tag, iKey), bAccepted, dropped);
 			bNotify = bAccepted;
-			if (!bAccepted) { CS.bQueued = false; }
+
+			if (!bAccepted)
+			{
+				// the bounded tag rejected the rerun - no run will ever cover this
+				// generation, so drop the key's state; destroying its promise (after the
+				// unlock) breaks the waiters' futures instead of leaving them pending forever
+				Abandoned = std::move(CS);
+				itTag->second.Coalesce.erase(itKey);
+			}
 		}
 		else
 		{

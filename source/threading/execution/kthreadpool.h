@@ -83,6 +83,13 @@
  *   - PushCoalesced() collapses repeated submissions for the same key into a
  *     single debounced run with at most one follow-up (for idempotent
  *     "refresh/recompute X" work)
+ *   - hardening after review: keep the wakeup for a freed concurrency slot
+ *     when the finishing worker aborts (the lost wakeup could stall a capped
+ *     tag's queued work after a shrink); destroy tasks dropped by DropOldest
+ *     or clear() outside the pool mutex (destructors of captured user objects
+ *     may touch the pool again); break the futures of a coalesced run that a
+ *     bounded tag rejects, instead of leaving them pending forever; clamp a
+ *     tag weight of 0 to 1; avoid a hash lookup per tag in the DRR scan
 
  *********************************************************/
 
@@ -100,6 +107,7 @@
 #include <queue>
 #include <chrono>
 #include <unordered_map>
+#include <utility>
 #include <cstdint>
 
 /// @file kthreadpool.h
@@ -140,6 +148,9 @@ DEKAF2_NAMESPACE_BEGIN
 /// @note Tags are meant to be a small, fixed set of work CLASSES (e.g. requests, background,
 /// monitoring). Never use a distinct tag per request/connection - the tag set is never pruned.
 /// (Coalesce keys, below, may be per-entity - they are dropped when drained.)
+/// @note Weights are dispatch counts per DRR round: a tag dispatches up to its full weight
+/// consecutively before the turn moves on. Keep weights small (single to double digits) -
+/// a huge weight monopolizes dispatching for that many consecutive tasks each round.
 /// @code
 /// constexpr KThreadPool::Tag Requests = 1, Monitoring = 2;
 /// KThreadPool::TagConfig Req;  Req.iWeight = 9; // requests get ~9x the dispatch share ...
@@ -175,6 +186,11 @@ DEKAF2_NAMESPACE_BEGIN
 /// key is queued or in progress, further submissions fold into a single follow-up run (latest callable
 /// wins; a trigger arriving during a run causes exactly one rerun, so the last change is never missed).
 /// Use it for idempotent "refresh / recompute X" work where running duplicates is pointless.
+/// @note Use coalescing on unbounded tags (coalescing self-limits to at most one queued run per
+/// key, so a queue bound gains nothing). In particular never combine it with Overflow::DropOldest:
+/// the evicted task may be the pending coalesce run itself, leaving its key permanently stuck.
+/// On Overflow::Reject a coalesced run that cannot be scheduled breaks its futures
+/// (broken_promise), like a rejected PushTagged.
 /// @code
 /// // many triggers for the same resource collapse into at most one in-flight + one pending run
 /// auto shared = Pool.PushCoalesced(Refresh, iResourceId, [&]{ RecomputeDerivedState(iResourceId); });
@@ -438,7 +454,7 @@ public:
 	/// per work-class policy
 	struct TagConfig
 	{
-		uint32_t    iWeight         { 1 };                 ///< relative DRR dispatch share per round (>= 1)
+		uint32_t    iWeight         { 1 };                 ///< relative DRR dispatch share per round (>= 1, a 0 is clamped to 1; keep weights small)
 		std::size_t iMaxQueue       { 0 };                 ///< max queued tasks for this tag, 0 = unbounded
 		std::size_t iMaxConcurrency { 0 };                 ///< max tasks of this tag running at once, 0 = unbounded
 		Overflow    OverflowPolicy  { Overflow::Reject };  ///< what to do when iMaxQueue is exceeded
@@ -554,7 +570,10 @@ public:
 	/// object (PushCoalesced(tag, key, &Class::Method, &obj, args...)).
 	/// @returns a shared_future<void> that completes when the run covering this submission
 	/// finishes (it is shared because several submissions may collapse into one run; the
-	/// callable's own return value, if any, is discarded).
+	/// callable's own return value, if any, is discarded). If the run's exception escapes,
+	/// it propagates to every waiter of that run. Use coalescing on unbounded tags - never
+	/// with Overflow::DropOldest (see the class documentation); on a bounded tag's Reject
+	/// the returned future breaks (broken_promise), like a rejected PushTagged.
 	template<typename Function, typename... Args>
 	std::shared_future<void> PushCoalesced(Tag tag, uint64_t iKey, Function&& f, Args&&... args)
 	//-----------------------------------------------------------------------------
@@ -601,8 +620,11 @@ private:
 
 	/// get (creating with default config if unknown) the state for a tag
 	TagState&   sched_tag    (Tag tag);
-	/// enqueue under a tag respecting its bound/overflow; sets bAccepted, returns total queued
-	std::size_t sched_enqueue(Tag tag, std::packaged_task<void()>&& task, bool& bAccepted);
+	/// enqueue under a tag respecting its bound/overflow; sets bAccepted, returns total queued.
+	/// A task evicted by DropOldest is returned in dropped: the caller must destroy it only
+	/// after releasing m_cond_mutex (destructors of captured user objects may touch the pool)
+	std::size_t sched_enqueue(Tag tag, std::packaged_task<void()>&& task, bool& bAccepted,
+	                          std::packaged_task<void()>& dropped);
 	/// dequeue the next task by weighted DRR honoring per-tag concurrency caps; on success sets
 	/// task and tag (and bumps that tag's running count); returns false if nothing runnable
 	bool        sched_dequeue(std::packaged_task<void()>& task, Tag& tag);
@@ -611,6 +633,9 @@ private:
 	bool        sched_task_done(Tag tag);
 	/// enqueue a task under a tag and wake/grow as needed (the public push paths funnel here)
 	void        push_to_tag  (std::packaged_task<void()> task, Tag tag);
+	/// stats and pool growth/shrink bookkeeping after a successful enqueue - call with
+	/// m_cond_mutex held, passing the total queue count returned by sched_enqueue()
+	void        bookkeep_enqueue(std::size_t iWaiting);
 
 	/// implementation of PushCoalesced (callable already bound to its args)
 	std::shared_future<void>   push_coalesced_task(Tag tag, uint64_t iKey, std::function<void()> callable);
@@ -641,7 +666,7 @@ private:
 	std::vector<std::unique_ptr<std::thread>>             m_threads;
 	std::vector<std::shared_ptr<std::atomic<eAbort>>>     m_abort;
 	std::unordered_map<Tag, TagState>                     m_Tags;          ///< per work-class state (DefaultTag created lazily)
-	std::vector<Tag>                                      m_TagOrder;      ///< stable round-robin order of tags
+	std::vector<std::pair<Tag, TagState*>>                m_TagOrder;      ///< stable round-robin order of tags, with the state pointer cached to spare the hash lookup in the DRR scan (unordered_map references are rehash-stable)
 	std::size_t                                           m_iTagCursor   { 0 };  ///< DRR cursor into m_TagOrder
 	std::size_t                                           m_iTotalQueued { 0 };  ///< total tasks queued across all tags
 	bool                                                  m_bQueuePaused { false };

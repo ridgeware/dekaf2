@@ -474,4 +474,130 @@ TEST_CASE("KThreadPool fair scheduling")
 		CHECK ( W.iCalls.load() == 3 );
 		CHECK ( bRan.load()     == true );
 	}
+
+	SECTION("coalesced run rejected by a bounded tag breaks its future")
+	{
+		KThreadPool Pool(1);
+
+		KThreadPool::TagConfig Cfg;
+		Cfg.iMaxQueue      = 1;
+		Cfg.OverflowPolicy = KThreadPool::Overflow::Reject;
+		Pool.ConfigureTag(1, Cfg);
+
+		std::atomic<int> iRan { 0 };
+
+		Pool.pause(true);
+
+		// fills the bounded queue (depth 1)
+		auto fTagged = Pool.PushTagged(1, [&]() { ++iRan; });
+
+		// the coalesce run cannot be scheduled - its future must break, not pend forever
+		auto fCoalesced = Pool.PushCoalesced(1, 42, [&]() { ++iRan; });
+
+		Pool.pause(false);
+
+		REQUIRE ( WaitUntil([&]() { return iRan.load() == 1; }) );
+
+		fTagged.get(); // the queued task completed normally
+
+		bool bBroken { false };
+		try { fCoalesced.get(); }
+		catch (const std::future_error&) { bBroken = true; }
+		CHECK ( bBroken );
+
+		// the key's state was dropped - a later submission starts fresh and runs
+		auto fRetry = Pool.PushCoalesced(1, 42, [&]() { ++iRan; });
+		fRetry.get();
+		CHECK ( iRan.load() == 2 );
+	}
+
+	SECTION("DropOldest eviction runs user destructors outside the pool mutex")
+	{
+		KThreadPool Pool(1);
+
+		KThreadPool::TagConfig Cfg;
+		Cfg.iMaxQueue      = 1;
+		Cfg.OverflowPolicy = KThreadPool::Overflow::DropOldest;
+		Pool.ConfigureTag(1, Cfg);
+
+		std::atomic<int> iDtorPushRan { 0 };
+		std::atomic<int> iSurvivorRan { 0 };
+
+		Pool.pause(true);
+
+		{
+			// a guard whose destructor pushes back into the pool - if the evicted task were
+			// destroyed under the pool mutex, this push would deadlock
+			std::shared_ptr<void> Guard(nullptr, [&Pool, &iDtorPushRan](void*)
+			{
+				Pool.push([&iDtorPushRan]() { ++iDtorPushRan; });
+			});
+
+			Pool.PushTagged(1, [Guard = std::move(Guard)]() {});
+		}
+
+		// evicts the guard-holding task -> its destructor pushes to DefaultTag
+		Pool.PushTagged(1, [&]() { ++iSurvivorRan; });
+
+		Pool.pause(false);
+
+		REQUIRE ( WaitUntil([&]() { return iSurvivorRan.load() == 1 && iDtorPushRan.load() == 1; }) );
+	}
+
+	SECTION("capped tag keeps draining after a shrink aborts the finishing worker")
+	{
+		// regression for a lost wakeup: a worker aborted by a shrink right after finishing a
+		// capped tag's task must still wake a waiting worker for the freed concurrency slot -
+		// otherwise the tag's queued work stalls until the next push
+		KThreadPool Pool(2, KThreadPool::PrestartAll, KThreadPool::ShrinkNever);
+
+		KThreadPool::TagConfig Cfg;
+		Cfg.iMaxConcurrency = 1;
+		Pool.ConfigureTag(1, Cfg);
+
+		std::atomic<int>  iDone { 0 };
+		std::atomic<bool> bFirstRunning { false };
+
+		Pool.PushTagged(1, [&]()
+		{
+			bFirstRunning = true;
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			++iDone;
+		});
+
+		REQUIRE ( WaitUntil([&]() { return bFirstRunning.load(); }) );
+
+		for (int i = 0; i < 3; ++i)
+		{
+			Pool.PushTagged(1, [&]() { ++iDone; });
+		}
+
+		// shrink while the capped task runs - one of the two workers gets aborted (possibly
+		// the one that is just finishing the capped task)
+		Pool.resize(1);
+
+		CHECK ( WaitUntil([&]() { return iDone.load() == 4; }) );
+	}
+
+	SECTION("a tag weight of 0 is clamped to 1 and dispatches normally")
+	{
+		KThreadPool Pool(1);
+
+		KThreadPool::TagConfig Cfg;
+		Cfg.iWeight = 0;
+		Pool.ConfigureTag(1, Cfg);
+		Pool.ConfigureTag(2, KThreadPool::TagConfig{});
+
+		std::atomic<int> iRan { 0 };
+
+		Pool.pause(true);
+		for (int i = 0; i < 4; ++i)
+		{
+			Pool.PushTagged(1, [&]() { ++iRan; });
+			Pool.PushTagged(2, [&]() { ++iRan; });
+		}
+		Pool.pause(false);
+
+		REQUIRE ( WaitUntil([&]() { return iRan.load() == 8; }) );
+	}
 }

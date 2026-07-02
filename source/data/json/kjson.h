@@ -122,8 +122,63 @@ DEKAF2_NAMESPACE_BEGIN
 /// @addtogroup data_json
 /// @{
 
+#ifndef DEKAF2_KJSON_UNCONSTRAINED_SERIALIZER
+	#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 7
+		#define DEKAF2_KJSON_UNCONSTRAINED_SERIALIZER 1
+	#else
+		#define DEKAF2_KJSON_UNCONSTRAINED_SERIALIZER 0
+	#endif
+#endif
+
+#if DEKAF2_KJSON_UNCONSTRAINED_SERIALIZER
+
+namespace kjson { namespace detail {
+
+/// LJSON's serializer for GCC < 7: an nlohmann::adl_serializer whose to_json() is
+/// shadowed by an unconstrained overload without noexcept specifier.
+///
+/// Background: GCC < 7 (like MSVC) instantiates the noexcept specifier of constructor
+/// candidates already during overload resolution, e.g. for any is_constructible<LJSON, T>
+/// check. nlohmann's CompatibleType constructor computes both its enable_if constraint
+/// (through has_to_json) and its noexcept specifier by resolving json_serializer<U>::to_json(),
+/// and adl_serializer's to_json() declaration in turn resolves ::nlohmann::to_json() with
+/// all its constrained overloads, whose type traits run is_constructible<LJSON, X> for
+/// nested value types X - on GCC < 7 this instantiates the constructor's noexcept specifier
+/// again, now for X, and recurses infinitely once the chain revisits a type.
+///
+/// The unconstrained shadow makes both the constraint and the noexcept specifier resolve
+/// immediately, without looking into ::nlohmann::to_json()'s overload set. The net effect
+/// equals patching the constructor in json.hpp down to a !is_basic_json<U> constraint
+/// without noexcept specifier (as dekaf2 did on the vendored copy before this serializer
+/// existed): the constructor is never noexcept, and construction from a really incompatible
+/// type fails with a hard error in the constructor's body instead of being SFINAEd away -
+/// acceptable for such old compilers. from_json() and the type-aware to_json() resolution
+/// in the constructor's body are inherited unchanged.
+/// see notes/gcc6-kjsonserializer-repro.cpp for a compiler explorer reproduction.
+template<typename ValueType, typename SFINAE = void>
+struct KJsonSerializer : nlohmann::adl_serializer<ValueType, SFINAE>
+{
+	template<typename BasicJsonType, typename TargetType = ValueType>
+	static void to_json(BasicJsonType& j, TargetType&& val)
+	{
+		::nlohmann::to_json(j, std::forward<TargetType>(val));
+	}
+};
+
+} } // end of namespace kjson::detail
+
+// the native nlohmann::json type, using KString instead of std::string though, and, for
+// GCC < 7 only, our own serializer, which lets an unpatched nlohmann::json build there
+using LJSON = nlohmann::basic_json<std::map, std::vector, DEKAF2_PREFIX KString,
+                                   bool, std::int64_t, std::uint64_t, double,
+                                   std::allocator, kjson::detail::KJsonSerializer>;
+
+#else
+
 // the native nlohmann::json type, using KString instead of std::string though
 using LJSON = nlohmann::basic_json<std::map, std::vector, DEKAF2_PREFIX KString>;
+
+#endif
 
 #ifdef DEKAF2_WRAPPED_KJSON
 	class KJSON2;

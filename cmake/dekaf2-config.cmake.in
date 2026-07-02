@@ -33,7 +33,7 @@ if (@DEKAF2_USE_SYSTEM_FMTLIB@) # DEKAF2_USE_SYSTEM_FMTLIB
 	find_dependency(fmt CONFIG)
 endif()
 if (NOT @DEKAF2_USE_VENDORED_NLOHMANN@) # DEKAF2_USE_VENDORED_NLOHMANN
-	find_dependency(nlohmann_json CONFIG)
+	find_dependency(nlohmann_json 3.11.2 CONFIG)
 endif()
 if (NOT @DEKAF2_USE_VENDORED_DATE@) # DEKAF2_USE_VENDORED_DATE
 	find_dependency(date CONFIG)

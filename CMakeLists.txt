@@ -124,7 +124,7 @@ OPTION(DEKAF2_VERSION_IN_TARGET "include version number in target" OFF)
 OPTION(DEKAF2_VCPKG_BUILD "build for vcpkg: no self-setup, find_package deps, single triplet-driven config" OFF)
 OPTION(DEKAF2_USE_VENDORED_DATE "use the vendored hhinnant/date instead of find_package(date)" ON)
 OPTION(DEKAF2_USE_VENDORED_SIMDUTF "use the vendored simdutf instead of find_package(simdutf)" ON)
-OPTION(DEKAF2_USE_VENDORED_NLOHMANN "use the vendored nlohmann-json instead of find_package(nlohmann_json)" ON)
+OPTION(DEKAF2_USE_VENDORED_NLOHMANN "use the vendored nlohmann-json instead of find_package(nlohmann_json) (needs >= 3.11.2)" ON)
 OPTION(DEKAF2_BUILD_SAMPLES "build and install samples" ON)
 OPTION(DEKAF2_INSTALL_BIN "build and install bin artifacts" ON)
 OPTION(DEKAF2_INSTALL_LIB "build and install lib artifacts" ON)
@@ -1183,13 +1183,21 @@ else()
 endif()
 
 # nlohmann-json: the vendored 'nlohmann-json' INTERFACE target, or find_package(nlohmann_json).
-# The vendored copy carries only a gcc6 patch (the MSVC C7755 noexcept issue is handled in KJSON2,
-# which shadows nlohmann's CompatibleType ctor); vcpkg therefore uses the stock nlohmann-json port,
-# no overlay. The dekaf2-side wiring is the same either way.
+# The vendored copy is pristine upstream (the MSVC C7755 noexcept issue is handled in KJSON2,
+# which shadows nlohmann's CompatibleType ctor, and the GCC < 7 template recursion by the
+# KJsonSerializer in kjson.h); vcpkg therefore uses the stock nlohmann-json port, no overlay.
+# The dekaf2-side wiring is the same either way.
+#
+# DEKAF2_USE_VENDORED_NLOHMANN=OFF is a supported opt-in wherever the system package is
+# at least 3.11.2 - dekaf2 uses value_t::binary (needs >= 3.8), std::hash over the KString
+# basic_json (needs >= 3.10), and get<bool>() through KString (needs >= 3.11.2). That covers
+# e.g. debian >= bookworm, ubuntu >= 24.04, fedora >= 39, alpine >= 3.17, opensuse leap >= 15.5,
+# EPEL >= 9, homebrew and vcpkg - but not debian <= bullseye, ubuntu <= 22.04, EPEL <= 8, or
+# amazonlinux (which has no nlohmann package at all): those stay on the vendored copy.
 if (DEKAF2_USE_VENDORED_NLOHMANN)
 	set(DEKAF2_NLOHMANN_TARGET nlohmann-json)
 else()
-	find_package(nlohmann_json CONFIG REQUIRED)
+	find_package(nlohmann_json 3.11.2 CONFIG REQUIRED)
 	set(DEKAF2_NLOHMANN_TARGET nlohmann_json::nlohmann_json)
 endif()
 

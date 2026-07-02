@@ -594,7 +594,8 @@ public:
 	// specifier is never instantiated, but we leave the noexcept-specifier off. The body mirrors
 	// nlohmann's, minus the private set_parents()/assert_invariant() (which are no-ops outside of
 	// JSON_DIAGNOSTICS / debug builds). GCC < 7 suffers a separate is_compatible_type recursion
-	// during iteration that this neither does nor can address.
+	// that a shadow at KJSON2 level cannot address (it also triggers on the base type) - that
+	// one is handled by the unconstrained KJsonSerializer::to_json() shadow in kjson.h.
 					template < typename CompatibleType,
 						typename U = nlohmann::detail::uncvref_t<CompatibleType>,
 						nlohmann::detail::enable_if_t <

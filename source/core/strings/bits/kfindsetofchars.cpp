@@ -115,11 +115,12 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 
 #if DEKAF2_HAS_NEON
 /* NEON byteset search over the 4 x 64 bit membership mask, using the in-house
-   kFindByteset / kRFindByteset kernels (see kmemsearch_neon). find_*_not_in is
-   obtained by searching the inverted mask. Sets with exactly one member (like
-   the default comma delimiter of kSplit) dispatch to the single-character
-   search instead, which runs at memchr speed - over twice the byteset
-   throughput on long scans. */
+   kFindByteset / kRFindByteset kernels (see kmemsearch_neon). find_*_not_in
+   passes the original mask to the kFindBytesetNot variants, which negate the
+   membership test (ASCII sets) or search an internally inverted mask. Sets
+   with exactly one member (like the default comma delimiter of kSplit)
+   dispatch to the single-character search instead, which runs at memchr
+   speed - over twice the byteset throughput on long scans. */
 
 //-----------------------------------------------------------------------------
 KFindSetOfChars::size_type KFindSetOfChars::find_first_in(KStringView sHaystack, const size_type pos) const
@@ -167,16 +168,7 @@ KFindSetOfChars::size_type KFindSetOfChars::find_first_not_in(KStringView sHayst
 	const char* pHaystack       = (sHaystack.data() + pos);
 	size_t      iHaystackLength = (sHaystack.length() - pos);
 
-	/* there is no inverted find_first_of; instead we search for the first byte
-	   that IS a member of the inverted set, which is the same position */
-	uint64_t    iInverseMask[4];
-
-	for (std::size_t iMaskIdx = 0; iMaskIdx < 4; iMaskIdx++)
-	{
-		iInverseMask[iMaskIdx] = ~m_iMask[iMaskIdx];
-	}
-
-	const char* pResult = detail::neon::kFindByteset(pHaystack, iHaystackLength, iInverseMask);
+	const char* pResult = detail::neon::kFindBytesetNot(pHaystack, iHaystackLength, m_iMask);
 
 	if (pResult)
 	{
@@ -224,16 +216,7 @@ KFindSetOfChars::size_type KFindSetOfChars::find_last_not_in(KStringView sHaysta
 	const char* pHaystack       = (sHaystack.data());
 	size_t      iHaystackLength = (pos < sHaystack.length()? (pos + 1) : sHaystack.length());
 
-	/* there is no inverted find_last_of; instead we search for the last byte
-	   that IS a member of the inverted set, which is the same position */
-	uint64_t    iInverseMask[4];
-
-	for (std::size_t iMaskIdx = 0; iMaskIdx < 4; iMaskIdx++)
-	{
-		iInverseMask[iMaskIdx] = ~m_iMask[iMaskIdx];
-	}
-
-	const char* pResult = detail::neon::kRFindByteset(pHaystack, iHaystackLength, iInverseMask);
+	const char* pResult = detail::neon::kRFindBytesetNot(pHaystack, iHaystackLength, m_iMask);
 
 	if (pResult)
 	{

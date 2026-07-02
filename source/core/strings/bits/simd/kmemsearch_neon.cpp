@@ -135,36 +135,33 @@ uint8x16_t BytesetMatchAscii(uint8x16_t chunk, uint8x16_t vTop) noexcept
 }
 
 //-----------------------------------------------------------------------------
-// Byte-set membership test for sets whose upper half is fully populated (mask
-// words 2 and 3 all ones) - the exact dual of the ASCII-only case above, and
-// what every find_*_not_of with an ASCII needle set produces after mask
-// inversion (e.g. the whitespace trimming in kSplit): every byte >= 128 is a
-// member by definition, so a single unsigned compare replaces the second
-// table lookup and its index adjustment. One op less than the general
-// version, and the compare only depends on the input chunk, which shortens
-// the dependency chain of the merge.
+// Non-membership test against an ASCII-only set: negate the lane result of
+// the ASCII membership test - one vmvn instead of inverting the mask up
+// front. Bytes >= 128 index past the table, yield 0 and negate to a match,
+// which is exactly right: they can never be members of an ASCII-only set.
+// This serves find_*_not_of with ASCII needles (e.g. the whitespace trimming
+// in kSplit) at 6 vector ops per block. For sets that do contain bytes
+// >= 128 this trick would lose (general test plus negation is 9 ops), so
+// those keep searching an up-front inverted mask instead - see
+// kFindBytesetNot.
 //-----------------------------------------------------------------------------
 DEKAF2_ALWAYS_INLINE
-uint8x16_t BytesetMatchAsciiInverted(uint8x16_t chunk, uint8x16_t vTop) noexcept
+uint8x16_t BytesetMatchAsciiNegated(uint8x16_t chunk, uint8x16_t vTop) noexcept
 {
-	const uint8x16_t vByteIndex = vshrq_n_u8(chunk, 3);
-	const uint8x16_t vBitMask   = vshlq_u8(vdupq_n_u8(1),
-	                                       vreinterpretq_s8_u8(vandq_u8(chunk, vdupq_n_u8(7))));
-	const uint8x16_t vLowMatch  = vtstq_u8(vqtbl1q_u8(vTop, vByteIndex), vBitMask);
-	return vorrq_u8(vLowMatch, vcgeq_u8(chunk, vdupq_n_u8(0x80)));
+	return vmvnq_u8(BytesetMatchAscii(chunk, vTop));
 }
 
 // the three specializations of the byteset membership test, selected once per
 // kernel call from the mask contents
-enum BytesetKind { BytesetGeneral, BytesetAsciiOnly, BytesetAsciiInverted };
+enum BytesetKind { BytesetGeneral, BytesetAsciiOnly, BytesetAsciiNegated };
 
 template<BytesetKind kKind>
 DEKAF2_ALWAYS_INLINE
 uint8x16_t BytesetMatchFor(uint8x16_t chunk, uint8x16_t vTop, uint8x16_t vBottom) noexcept
 {
-	return (kKind == BytesetAsciiOnly)     ? BytesetMatchAscii        (chunk, vTop)
-	     : (kKind == BytesetAsciiInverted) ? BytesetMatchAsciiInverted(chunk, vTop)
-	     :                                   BytesetMatch             (chunk, vTop, vBottom);
+	return (kKind == BytesetAsciiOnly)    ? BytesetMatchAscii       (chunk, vTop)
+	     : (kKind == BytesetAsciiNegated) ? BytesetMatchAsciiNegated(chunk, vTop)
+	     :                                  BytesetMatch            (chunk, vTop, vBottom);
 }
 
 // scalar membership test for the loop tails, matching BytesetMatch semantics
@@ -172,6 +169,16 @@ DEKAF2_ALWAYS_INLINE
 bool BytesetContains(const uint64_t (&Mask)[4], uint8_t ch) noexcept
 {
 	return (Mask[ch >> 6] & (uint64_t(1) << (ch & 63))) != 0;
+}
+
+// kind-aware variant for the loop tails: the negated kind searches bytes that
+// are NOT members of the (non-inverted) mask
+template<BytesetKind kKind>
+DEKAF2_ALWAYS_INLINE
+bool BytesetContainsFor(const uint64_t (&Mask)[4], uint8_t ch) noexcept
+{
+	return (kKind == BytesetAsciiNegated) ? !BytesetContains(Mask, ch)
+	                                      :  BytesetContains(Mask, ch);
 }
 
 // A 16 byte load from pAddr cannot fault as long as it does not cross the
@@ -798,7 +805,7 @@ const char* FindBytesetImpl(const uint8_t* pBase, std::size_t iLen, const uint64
 			// rare: a tiny haystack ending within 15 bytes of a page boundary
 			for (; i < iLen; ++i)
 			{
-				if (BytesetContains(Mask, pBase[i]))
+				if (BytesetContainsFor<kKind>(Mask, pBase[i]))
 				{
 					return reinterpret_cast<const char*>(pBase + i);
 				}
@@ -879,7 +886,7 @@ const char* RFindBytesetImpl(const uint8_t* pBase, std::size_t iLen, const uint6
 			{
 				--n;
 
-				if (BytesetContains(Mask, pBase[n]))
+				if (BytesetContainsFor<kKind>(Mask, pBase[n]))
 				{
 					return reinterpret_cast<const char*>(pBase + n);
 				}
@@ -907,18 +914,41 @@ const char* kFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t
 		// ASCII-only needle set (the common case for parsing delimiters)
 		return FindBytesetImpl<BytesetAsciiOnly>(pBase, iLen, Mask, vTop, vBottom);
 	}
-	else if ((Mask[2] & Mask[3]) == ~uint64_t(0))
-	{
-		// fully populated upper half: an inverted ASCII set, as produced by
-		// find_*_not_of with ASCII needles (e.g. whitespace trimming)
-		return FindBytesetImpl<BytesetAsciiInverted>(pBase, iLen, Mask, vTop, vBottom);
-	}
 	else
 	{
 		return FindBytesetImpl<BytesetGeneral>(pBase, iLen, Mask, vTop, vBottom);
 	}
 
 } // kFindByteset
+
+//-----------------------------------------------------------------------------
+const char* kFindBytesetNot(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept
+//-----------------------------------------------------------------------------
+{
+	if ((Mask[2] | Mask[3]) == 0)
+	{
+		// ASCII-only needle set: negate the membership test per block instead
+		// of searching an inverted mask - one op less in the inner loop, and
+		// no up-front mask inversion
+		const uint8_t* const pMask   = reinterpret_cast<const uint8_t*>(&Mask[0]);
+		const uint8x16_t     vTop    = vld1q_u8(pMask);
+		const uint8_t* const pBase   = reinterpret_cast<const uint8_t*>(pHaystack);
+
+		return FindBytesetImpl<BytesetAsciiNegated>(pBase, iLen, Mask, vTop, vTop);
+	}
+	else
+	{
+		// sets containing bytes >= 128 are better off searching the inverted
+		// mask (a negated general test would cost an extra op per block).
+		// kFindByteset re-dispatches: if the inverse turns out ASCII-only
+		// (original set contained all bytes >= 128), it even takes the
+		// single-table fast path
+		const uint64_t Inverse[4] { ~Mask[0], ~Mask[1], ~Mask[2], ~Mask[3] };
+
+		return kFindByteset(pHaystack, iLen, Inverse);
+	}
+
+} // kFindBytesetNot
 
 //-----------------------------------------------------------------------------
 const char* kRFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept
@@ -934,18 +964,41 @@ const char* kRFindByteset(const char* pHaystack, std::size_t iLen, const uint64_
 		// ASCII-only needle set (the common case for parsing delimiters)
 		return RFindBytesetImpl<BytesetAsciiOnly>(pBase, iLen, Mask, vTop, vBottom);
 	}
-	else if ((Mask[2] & Mask[3]) == ~uint64_t(0))
-	{
-		// fully populated upper half: an inverted ASCII set, as produced by
-		// find_*_not_of with ASCII needles (e.g. whitespace trimming)
-		return RFindBytesetImpl<BytesetAsciiInverted>(pBase, iLen, Mask, vTop, vBottom);
-	}
 	else
 	{
 		return RFindBytesetImpl<BytesetGeneral>(pBase, iLen, Mask, vTop, vBottom);
 	}
 
 } // kRFindByteset
+
+//-----------------------------------------------------------------------------
+const char* kRFindBytesetNot(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept
+//-----------------------------------------------------------------------------
+{
+	if ((Mask[2] | Mask[3]) == 0)
+	{
+		// ASCII-only needle set: negate the membership test per block instead
+		// of searching an inverted mask - one op less in the inner loop, and
+		// no up-front mask inversion
+		const uint8_t* const pMask   = reinterpret_cast<const uint8_t*>(&Mask[0]);
+		const uint8x16_t     vTop    = vld1q_u8(pMask);
+		const uint8_t* const pBase   = reinterpret_cast<const uint8_t*>(pHaystack);
+
+		return RFindBytesetImpl<BytesetAsciiNegated>(pBase, iLen, Mask, vTop, vTop);
+	}
+	else
+	{
+		// sets containing bytes >= 128 are better off searching the inverted
+		// mask (a negated general test would cost an extra op per block).
+		// kRFindByteset re-dispatches: if the inverse turns out ASCII-only
+		// (original set contained all bytes >= 128), it even takes the
+		// single-table fast path
+		const uint64_t Inverse[4] { ~Mask[0], ~Mask[1], ~Mask[2], ~Mask[3] };
+
+		return kRFindByteset(pHaystack, iLen, Inverse);
+	}
+
+} // kRFindBytesetNot
 
 } // end of namespace neon
 } // end of namespace detail

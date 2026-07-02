@@ -183,7 +183,7 @@ std::size_t kFindLastOf(const char*  pHaystack,
 /// whose overflow lanes are discarded. Only tiny haystacks ending within 15
 /// bytes of a page boundary fall back to a scalar loop.
 ///
-/// find_first_not_of is obtained by the caller passing an inverted mask.
+/// find_first_not_of is served by kFindBytesetNot below.
 ///
 /// @param pHaystack start of the haystack
 /// @param iLen      haystack length in bytes
@@ -202,6 +202,32 @@ const char* kFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t
 /// @return pointer to the last matching byte, or nullptr if none.
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 const char* kRFindByteset(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept;
+
+/// Forward scan for NON-membership (find_first_not_of): find the first byte
+/// in haystack[0..iLen) whose value is not a member of the set encoded in
+/// Mask - pass the original (non-inverted) mask. For ASCII-only sets the
+/// kernel negates the membership test per block, which is one op cheaper than
+/// searching an inverted mask; for sets containing bytes >= 128 it inverts
+/// the mask internally and searches that.
+///
+/// @param pHaystack start of the haystack
+/// @param iLen      haystack length in bytes
+/// @param Mask      256-bit membership set (little-endian byte order)
+/// @return pointer to the first non-member byte, or nullptr if none.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+const char* kFindBytesetNot(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept;
+
+/// Backward scan for NON-membership (find_last_not_of): find the last byte in
+/// haystack[0..iLen) whose value is not a member of the set encoded in Mask -
+/// pass the original (non-inverted) mask. See kFindBytesetNot for the
+/// strategy.
+///
+/// @param pHaystack start of the haystack
+/// @param iLen      haystack length in bytes
+/// @param Mask      256-bit membership set (little-endian byte order)
+/// @return pointer to the last non-member byte, or nullptr if none.
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+const char* kRFindBytesetNot(const char* pHaystack, std::size_t iLen, const uint64_t (&Mask)[4]) noexcept;
 
 } // end of namespace neon
 } // end of namespace detail

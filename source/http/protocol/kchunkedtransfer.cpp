@@ -43,6 +43,7 @@
 #include <dekaf2/http/protocol/kchunkedtransfer.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/core/logging/klog.h>
+#include <limits>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -234,6 +235,20 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 					if (iNibble <= MaxHex)
 					{
+						// guard against overflow of the signed chunk size accumulator.
+						// A crafted chunk-size line with enough hex digits overflows
+						// m_iRemainingInChunk; depending on how it wraps it silently
+						// truncates the body or mis-frames a huge chunk as the
+						// terminating 0-chunk (a request-smuggling surface), and on the
+						// pre-C++20 compilers dekaf2 still targets the signed overflow is
+						// undefined behavior. Reject any size that cannot be represented.
+						if (DEKAF2_UNLIKELY(m_iRemainingInChunk > (std::numeric_limits<std::streamsize>::max() >> 4)))
+						{
+							kDebug(1, "chunk size too large, aborting transfer");
+							m_State = Finished;
+							return iResult;
+						}
+
 						m_iRemainingInChunk <<= 4;
 						m_iRemainingInChunk += iNibble;
 						m_State = ReadingSize;

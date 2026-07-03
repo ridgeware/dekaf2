@@ -71,6 +71,7 @@ set (USOURCES
 	khtmldom_node_tests.cpp
 	khtmldom_tests.cpp
 	khtmlentities_tests.cpp
+	kchunkedtransfer_tests.cpp
 	khttp_header_tests.cpp
 	khttp_method_tests.cpp
 	khttp_request_tests.cpp

@@ -198,8 +198,21 @@ KStringView KInHTTPRequestLine::GetQuery() const
 {
 	if (m_iMethodLen)
 	{
-		auto iQueryStart = m_iMethodLen + 1 + m_iPathLen + 1;
-		return KStringView { m_sFull.data() + iQueryStart, m_sFull.size() - iQueryStart - m_iVersionLen - 1 };
+		// the resource is "path" or "path?query"; m_iPathLen covers "path".
+		// When there is no '?' the path length equals the whole resource length,
+		// and there is no query. Computing a query view in that case underflowed
+		// the (unsigned) length to ~SIZE_MAX and yielded an out-of-bounds view.
+		auto iResourceLen = m_sFull.size() - m_iMethodLen - 1 - m_iVersionLen - 1;
+
+		if (m_iPathLen >= iResourceLen)
+		{
+			// no query component
+			return {};
+		}
+
+		auto iQueryStart = m_iMethodLen + 1 + m_iPathLen + 1; // + 1 skips the '?'
+		auto iQueryLen   = iResourceLen - m_iPathLen - 1;      // - 1 for the '?'
+		return KStringView { m_sFull.data() + iQueryStart, iQueryLen };
 	}
 	else
 	{
@@ -495,7 +508,7 @@ bool KInHTTPRequest::Parse()
 	{
 		if (Error().empty())
 		{
-			return SetError("conflicting Content-Length and Transfer-Encoding headers");
+			return SetError("invalid message framing (Content-Length / Transfer-Encoding)");
 		}
 		return false;
 	}

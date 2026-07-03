@@ -123,3 +123,44 @@ TEST_CASE("KHTTPRequest")
 	}
 
 }
+
+TEST_CASE("KInHTTPRequestLine::GetQuery")
+{
+	// request line without a query string: GetQuery() must return an empty view,
+	// not an out-of-bounds view from an unsigned length underflow (reachable e.g.
+	// through the %q access-log directive on any query-less request).
+	{
+		KInHTTPRequestLine RL;
+		RL.Parse("GET /path HTTP/1.1");
+		auto q = RL.GetQuery();
+		CHECK ( q.empty() );
+		CHECK ( q.size() == 0 );
+		CHECK ( RL.GetPath() == "/path" );
+	}
+
+	// with a query string it is returned without the leading '?'
+	{
+		KInHTTPRequestLine RL;
+		RL.Parse("GET /path?x=1&y=2 HTTP/1.1");
+		CHECK ( RL.GetQuery() == "x=1&y=2" );
+		CHECK ( RL.GetPath()  == "/path" );
+	}
+
+	// present but empty query ("path?")
+	{
+		KInHTTPRequestLine RL;
+		RL.Parse("GET /path? HTTP/1.1");
+		auto q = RL.GetQuery();
+		CHECK ( q.empty() );
+		CHECK ( q.size() == 0 );
+		CHECK ( RL.GetPath() == "/path" );
+	}
+
+	// root path, no query
+	{
+		KInHTTPRequestLine RL;
+		RL.Parse("GET / HTTP/1.1");
+		CHECK ( RL.GetQuery().empty() );
+		CHECK ( RL.GetPath() == "/" );
+	}
+}

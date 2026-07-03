@@ -47,8 +47,11 @@ DEKAF2_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 KSessionCachingStore::KSessionCachingStore(std::unique_ptr<KSession::Store> Backend)
 //-----------------------------------------------------------------------------
-: m_State(SharedState{ {}, std::move(Backend) })
 {
+	// not set through the init list: gcc 7 warns on the aggregate's {} for the
+	// cache map selecting boost multi_index's explicit default constructor
+	m_State.unique()->Backend = std::move(Backend);
+
 } // ctor
 
 //-----------------------------------------------------------------------------

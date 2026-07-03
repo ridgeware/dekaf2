@@ -130,7 +130,9 @@ struct has_subscript_operator<T, Index, std::void_t<
 	decltype(std::declval<T>()[std::declval<Index>()])
 >> : std::true_type { };
 
-#if DEKAF2_GCC_VERSION_MAJOR == 8
+// gcc 7 and 8 emit a spurious -Wunused-result on nodiscard functions probed
+// in the unevaluated decltype below
+#if DEKAF2_GCC_VERSION_MAJOR >= 7 && DEKAF2_GCC_VERSION_MAJOR <= 8
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
 #endif
@@ -157,7 +159,7 @@ DEKAF2_HAS_MEMBER_FUNCTION(capacity,  has_capacity );
 DEKAF2_HAS_MEMBER_FUNCTION(Parse,     has_Parse    );
 DEKAF2_HAS_MEMBER_FUNCTION(Serialize, has_Serialize);
 
-#if DEKAF2_GCC_VERSION_MAJOR == 8
+#if DEKAF2_GCC_VERSION_MAJOR >= 7 && DEKAF2_GCC_VERSION_MAJOR <= 8
 #pragma GCC diagnostic pop
 #endif
 

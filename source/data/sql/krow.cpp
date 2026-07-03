@@ -57,6 +57,35 @@ constexpr KStringView ESCAPE_MYSQL { "'\"\\`\0"_ksv };
 // TODO check the rules for MSSQL, particularly for \0 and \Z
 constexpr KStringView ESCAPE_MSSQL { "\'"_ksv   };
 
+// the same escape sets as prebuilt constexpr search sets - construction at
+// compile time, so the DBT driven escape paths need no per-call setup
+constexpr KFindSetOfChars ESCAPE_MYSQL_SET { ESCAPE_MYSQL };
+constexpr KFindSetOfChars ESCAPE_MSSQL_SET { ESCAPE_MSSQL };
+
+namespace {
+
+//-----------------------------------------------------------------------------
+/// the KFindSetOfChars analogon to KROW::EscapedCharacters()
+const KFindSetOfChars& EscapedCharacterSet(KROW::DBT iDBType)
+//-----------------------------------------------------------------------------
+{
+	switch (iDBType)
+	{
+		case KROW::DBT::SQLSERVER:
+		case KROW::DBT::SQLSERVER15:
+		case KROW::DBT::SYBASE:
+		case KROW::DBT::POSTGRESQL:
+		case KROW::DBT::SQLITE3:
+			return ESCAPE_MSSQL_SET;
+		case KROW::DBT::MYSQL:
+		default:
+			return ESCAPE_MYSQL_SET;
+	}
+
+} // EscapedCharacterSet
+
+} // end of anonymous namespace
+
 int16_t detail::KCommonSQLBase::m_iDebugLevel { 2 };
 
 
@@ -255,6 +284,15 @@ bool KROW::NeedsEscape (KStringView sCol, KStringView sCharsToEscape)
 } // NeedsEscape
 
 //-----------------------------------------------------------------------------
+bool KROW::NeedsEscape (KStringView sCol, DBT iDBType)
+//-----------------------------------------------------------------------------
+{
+	// uses the constexpr search sets - no per-call set construction
+	return EscapedCharacterSet(iDBType).find_first_in(sCol) != KStringView::npos;
+
+} // NeedsEscape
+
+//-----------------------------------------------------------------------------
 KSQLString KROW::EscapeChars (KStringView sCol, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
 //-----------------------------------------------------------------------------
 {
@@ -298,21 +336,30 @@ KSQLString KROW::EscapeChars (KStringView sCol, DBT iDBType)
 			// these DBs cannot handle NUL in string literals:
 			// - CTLIB: server parser treats NUL as end-of-string, ct_bind uses CS_FMT_NULLTERM
 			// - LIBPQ: PQexec uses null-terminated C strings, PostgreSQL text rejects NUL
-			auto sResult = EscapeChars (sCol, ESCAPE_MSSQL);
+			KSQLString sResult;
+			sResult.ref() = kEscapeChars(sCol, ESCAPE_MSSQL_SET, 0);
 			sResult.ref().RemoveChars('\0');
 			return sResult;
 		}
 		case DBT::SQLITE3:
-			return EscapeChars (sCol, ESCAPE_MSSQL);
+		{
+			KSQLString sResult;
+			sResult.ref() = kEscapeChars(sCol, ESCAPE_MSSQL_SET, 0);
+			return sResult;
+		}
 		case DBT::MYSQL:
 		default:
-			return EscapeChars (sCol, ESCAPE_MYSQL, '\\');
+		{
+			KSQLString sResult;
+			sResult.ref() = kEscapeChars(sCol, ESCAPE_MYSQL_SET, '\\');
+			return sResult;
+		}
 	}
 
 } // EscapeChars
 
 //-----------------------------------------------------------------------------
-KSQLString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
+KSQLString KROW::EscapeColWithSet (const KROW::value_type& Col, const KFindSetOfChars& Escapables, KString::value_type iEscapeChar)
 //-----------------------------------------------------------------------------
 {
 	// Note: if iEscapeChar is ZERO, then the char is used as its own escape char (i.e. it gets doubled up).
@@ -324,7 +371,7 @@ KSQLString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToE
 
 	if (iMaxLen)
 	{
-		sEscaped = EscapeChars(Col.second.sValue.Left(iMaxLen), sCharsToEscape, iEscapeChar);
+		sEscaped.ref() = kEscapeChars(Col.second.sValue.Left(iMaxLen), Escapables, iEscapeChar);
 
 		if (sEscaped.size() > iMaxLen)
 		{
@@ -350,7 +397,7 @@ KSQLString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToE
 			{
 				// as long as we are not completely sure about the MS escapes we just drop all of
 				// them trailing a cutoff string
-				while (iClipAt > 0 && sCharsToEscape.find(sEscaped.str()[iClipAt-1]) != KStringView::npos)
+				while (iClipAt > 0 && Escapables.contains(sEscaped.str()[iClipAt-1]))
 				{
 					--iClipAt;
 				}
@@ -361,10 +408,18 @@ KSQLString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToE
 	}
 	else
 	{
-		sEscaped = EscapeChars(Col.second.sValue, sCharsToEscape, iEscapeChar);
+		sEscaped.ref() = kEscapeChars(Col.second.sValue, Escapables, iEscapeChar);
 	}
 
 	return sEscaped;
+
+} // EscapeColWithSet
+
+//-----------------------------------------------------------------------------
+KSQLString KROW::EscapeChars (const KROW::value_type& Col, KStringView sCharsToEscape, KString::value_type iEscapeChar/*=0*/)
+//-----------------------------------------------------------------------------
+{
+	return EscapeColWithSet(Col, sCharsToEscape, iEscapeChar);
 
 } // EscapeChars
 
@@ -382,14 +437,14 @@ KSQLString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 			// these DBs cannot handle NUL in string literals:
 			// - CTLIB: server parser treats NUL as end-of-string, ct_bind uses CS_FMT_NULLTERM
 			// - LIBPQ: PQexec uses null-terminated C strings, PostgreSQL text rejects NUL
-			auto sResult = EscapeChars (Col, ESCAPE_MSSQL);
+			auto sResult = EscapeColWithSet (Col, ESCAPE_MSSQL_SET, 0);
 			sResult.ref().RemoveChars('\0');
 			return sResult;
 		}
 		case DBT::SQLITE3:
-			return EscapeChars (Col, ESCAPE_MSSQL);
+			return EscapeColWithSet (Col, ESCAPE_MSSQL_SET, 0);
 		default:
-			return EscapeChars (Col, ESCAPE_MYSQL, '\\');
+			return EscapeColWithSet (Col, ESCAPE_MYSQL_SET, '\\');
 	}
 
 } // EscapeChars

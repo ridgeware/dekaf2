@@ -695,11 +695,9 @@ public:
 
 	DEKAF2_NODISCARD
 	static bool NeedsEscape (KStringView sCol, KStringView sCharsToEscape);
+	/// checks against the constexpr prebuilt escape set for the given DB type
 	DEKAF2_NODISCARD
-	static bool NeedsEscape (KStringView sCol, DBT iDBType = DBT::MYSQL)
-	{
-		return NeedsEscape(sCol, EscapedCharacters(iDBType));
-	}
+	static bool NeedsEscape (KStringView sCol, DBT iDBType = DBT::MYSQL);
 
 	DEKAF2_NODISCARD
 	static KSQLString EscapeChars (KStringView sCol, KStringView sCharsToEscape,
@@ -786,6 +784,11 @@ public:
 //----------
 private:
 //----------
+
+	DEKAF2_NODISCARD
+	static KSQLString EscapeColWithSet (const value_type& Col, const KFindSetOfChars& Escapables,
+										KString::value_type iEscapeChar);
+
 	mutable KString m_sTablename;
 	mutable KString m_sLastError;
 

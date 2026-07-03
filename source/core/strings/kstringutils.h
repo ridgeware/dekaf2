@@ -1657,12 +1657,12 @@ T kFromString(KStringView sValue, uint16_t iBase = 10)
 //-----------------------------------------------------------------------------
 /// Escape problematic characters for command input in sInput, return escaped string
 /// @param sInput the input string
-/// @param sCharsToEscape the list of chars to escape
+/// @param Escapables the set of chars to escape
 /// @param chEscapeChar the escape character, typically a backslash. If it is \0, the escaped character
 /// itself is used as the escape char, it then gets doubled
 /// @returns the escaped string
 DEKAF2_NODISCARD DEKAF2_PUBLIC
-KString kEscapeChars(KStringView sInput, KStringView sCharsToEscape, KString::value_type chEscapeChar);
+KString kEscapeChars(KStringView sInput, const KFindSetOfChars& Escapables, KString::value_type chEscapeChar);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------

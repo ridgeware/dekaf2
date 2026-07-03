@@ -634,13 +634,11 @@ bool kIsURL(KStringView str) noexcept
 }
 
 //-----------------------------------------------------------------------------
-KString kEscapeChars(KStringView sInput, KStringView sCharsToEscape, KString::value_type chEscapeChar)
+KString kEscapeChars(KStringView sInput, const KFindSetOfChars& Escapables, KString::value_type chEscapeChar)
 //-----------------------------------------------------------------------------
 {
 	KString sEscaped;
 	sEscaped.reserve(sInput.size());
-
-	KFindSetOfChars Escapables(sCharsToEscape);
 
 	for (KStringView::size_type iStart; (iStart = Escapables.find_first_in(sInput)) != KStringView::npos; )
 	{

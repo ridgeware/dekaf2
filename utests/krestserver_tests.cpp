@@ -314,6 +314,68 @@ x-klog: -level 1
 		CHECK ( sResponse.contains("HTTP/1.1 400") );
 	}
 
+	SECTION("out-of-range Content-Length rejected")
+	{
+		// a Content-Length above INT64_MAX wraps to a negative std::streamsize.
+		// It must be rejected: a negative size would otherwise bypass the
+		// Content-Length/Transfer-Encoding conflict check (which is gated on
+		// a non-negative size), re-opening a request smuggling desync.
+		KString sRequest =
+			"POST /api HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Content-Type: application/json\r\n"
+			"Content-Length: 18446744073709551615\r\n"
+			"Transfer-Encoding: chunked\r\n"
+			"\r\n"
+			"a\r\n"
+			"{\"a\":\"b\"}\r\n"
+			"0\r\n"
+			"\r\n";
+
+		KString sResponse;
+		KInStringStream iss(sRequest);
+		KOutStringStream oss(sResponse);
+		KStream stream(iss, oss);
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/api", [&](KRESTServer& http)
+		{
+			http.json.tx["status"] = "ok";
+		}});
+		KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+		Server.Execute();
+
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+	}
+
+	SECTION("malformed Content-Length rejected")
+	{
+		// Content-Length must be 1*DIGIT (RFC 7230 3.3.2). A lenient parse would
+		// read "9abc" as 9 while a front-end might read it differently -> desync.
+		KString sRequest =
+			"POST /api HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Content-Type: application/json\r\n"
+			"Content-Length: 9abc\r\n"
+			"\r\n"
+			"{\"a\":\"b\"}";
+
+		KString sResponse;
+		KInStringStream iss(sRequest);
+		KOutStringStream oss(sResponse);
+		KStream stream(iss, oss);
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/api", [&](KRESTServer& http)
+		{
+			http.json.tx["status"] = "ok";
+		}});
+		KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+		Server.Execute();
+
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+	}
+
 	SECTION("4xx error sets Content-Type to JSON")
 	{
 		// test that the Content-Type is reset to JSON when a handler

@@ -994,6 +994,14 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// strictly parse a Content-Length header value per RFC 7230 3.3.2 (1*DIGIT).
+	/// Returns the value, or -1 if empty, not all digits, or out of the range of
+	/// a signed std::streamsize. Does NOT accept a sign, whitespace or trailing
+	/// characters - unlike the general purpose KStringView::UInt64().
+	static std::streamsize ParseContentLength(KStringView sValue) noexcept;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// returns -1 for chunked content, 0 for no content, > 0 = size of content
 	std::streamsize ContentLength() const;
 	//-----------------------------------------------------------------------------

@@ -214,3 +214,26 @@ TEST_CASE("KHTTPHeader")
 		}
 	}
 }
+
+
+TEST_CASE("KHTTPHeaders::ParseContentLength")
+{
+	using H = KHTTPHeaders;
+	// valid: pure digits, full non-negative std::streamsize range
+	CHECK ( H::ParseContentLength("0")                   == 0 );
+	CHECK ( H::ParseContentLength("10")                  == 10 );
+	CHECK ( H::ParseContentLength("007")                 == 7 );
+	CHECK ( H::ParseContentLength("9223372036854775807") == 9223372036854775807LL ); // INT64_MAX
+
+	// invalid -> -1 (empty, sign, whitespace, trailing garbage, out of range)
+	CHECK ( H::ParseContentLength("")                    == -1 );
+	CHECK ( H::ParseContentLength("+10")                 == -1 );
+	CHECK ( H::ParseContentLength("-1")                  == -1 );
+	CHECK ( H::ParseContentLength(" 10")                 == -1 );
+	CHECK ( H::ParseContentLength("10 ")                 == -1 );
+	CHECK ( H::ParseContentLength("10abc")               == -1 );
+	CHECK ( H::ParseContentLength("0x10")                == -1 );
+	CHECK ( H::ParseContentLength("9223372036854775808")  == -1 ); // INT64_MAX + 1
+	CHECK ( H::ParseContentLength("18446744073709551616") == -1 ); // 2^64 (would wrap to 0)
+	CHECK ( H::ParseContentLength("99999999999999999999999999") == -1 );
+}

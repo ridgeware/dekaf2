@@ -52,6 +52,7 @@
 #if !DEKAF2_HTTP_HEADER_VIEW_PIPELINE
 	#include <boost/foreach.hpp>
 #endif
+#include <limits>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -386,19 +387,51 @@ bool KHTTPHeaders::Serialize(KOutStream& Stream) const
 } // Serialize
 
 //-----------------------------------------------------------------------------
-std::streamsize KHTTPHeaders::ContentLength() const
+std::streamsize KHTTPHeaders::ParseContentLength(KStringView sValue) noexcept
 //-----------------------------------------------------------------------------
 {
-	std::streamsize iSize { -1 };
+	// RFC 7230 3.3.2: Content-Length = 1*DIGIT. Parse strictly - reject a sign,
+	// whitespace, trailing garbage and any value that would not fit into a
+	// signed std::streamsize (which would otherwise wrap and, being > 0 or < 0,
+	// mislead the body framing / smuggling checks). This is intentionally
+	// stricter than KStringView::UInt64().
 
-	KStringView sSize = Headers.Get(KHTTPHeader::CONTENT_LENGTH);
-
-	if (!sSize.empty())
+	if (sValue.empty())
 	{
-		iSize = sSize.UInt64();
+		return -1;
+	}
+
+	constexpr std::streamsize iMax = std::numeric_limits<std::streamsize>::max();
+
+	std::streamsize iSize { 0 };
+
+	for (auto ch : sValue)
+	{
+		if (!KASCII::kIsDigit(ch))
+		{
+			return -1;
+		}
+
+		std::streamsize iDigit = ch - '0';
+
+		// reject before multiplying/adding would overflow
+		if (iSize > (iMax - iDigit) / 10)
+		{
+			return -1;
+		}
+
+		iSize = iSize * 10 + iDigit;
 	}
 
 	return iSize;
+
+} // ParseContentLength
+
+//-----------------------------------------------------------------------------
+std::streamsize KHTTPHeaders::ContentLength() const
+//-----------------------------------------------------------------------------
+{
+	return ParseContentLength(Headers.Get(KHTTPHeader::CONTENT_LENGTH));
 
 } // ContentLength
 

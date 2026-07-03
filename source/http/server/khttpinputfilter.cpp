@@ -110,7 +110,26 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode, KHT
 
 	if (!sRemainingContentSize.empty())
 	{
-		m_iContentSize = sRemainingContentSize.UInt64();
+		// strict RFC 7230 3.3.2 parse: digits only, in range of std::streamsize.
+		// A lenient parse would accept a sign, trailing garbage or an overflowing
+		// value (which wraps - e.g. 2^64 -> 0, or > INT64_MAX -> negative). Such a
+		// value would mislead the body framing and silently defeat the
+		// Content-Length/Transfer-Encoding conflict check below, opening a
+		// request-smuggling desync.
+		m_iContentSize = KHTTPHeaders::ParseContentLength(sRemainingContentSize);
+
+		if (DEKAF2_UNLIKELY(m_iContentSize < 0))
+		{
+			// header was present but is not a valid Content-Length
+			if (iStatusCode == 0)
+			{
+				kDebug(1, "rejecting request with invalid Content-Length: {}", sRemainingContentSize);
+				return false;
+			}
+
+			kDebug(1, "ignoring invalid Content-Length in response: {}", sRemainingContentSize);
+			// leave m_iContentSize as -1 (unknown length, read until EOF)
+		}
 	}
 	else if (iStatusCode == 204)
 	{

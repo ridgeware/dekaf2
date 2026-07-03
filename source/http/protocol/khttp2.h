@@ -204,6 +204,13 @@ protected:
 private:
 //----------
 
+	friend struct SessionCallbacks;
+
+	static Session* ToThis(void* user_data)
+	{
+		return static_cast<Session*>(user_data);
+	}
+
 	static KStringView ToView(const uint8_t* value, size_t len)
 	{
 		return { reinterpret_cast<const char*>(value), len };
@@ -221,79 +228,6 @@ private:
 	nghttp2_session* m_Session { nullptr };
 	std::unordered_map<Stream::ID, Stream> m_Streams;
 	KString          m_sAuthority; // the common authority for all Streams managed by this Session
-
-	// -------------------------------------------------------------------
-	// the static C style callback functions which translate from C to C++
-	// -------------------------------------------------------------------
-
-	static Session* ToThis(void* user_data) 
-	{
-		return static_cast<Session*>(user_data);
-	}
-
-	static nghttp2_ssize OnReceiveCallback(
-		nghttp2_session* session,
-		uint8_t* buf, size_t length,
-		int flags,
-		void* user_data
-	);
-
-	static nghttp2_ssize OnSendCallback(
-		nghttp2_session* session,
-		const uint8_t* data, size_t length,
-		int flags,
-		void* user_data
-	);
-
-	static int OnHeaderCallback(
-		nghttp2_session* session,
-		const void* frame,
-		const uint8_t* name, size_t namelen,
-		const uint8_t* value, size_t valuelen,
-		uint8_t flags,
-		void* user_data
-	);
-
-	static int OnBeginHeadersCallback(
-		nghttp2_session* session,
-		const void* frame,
-		void* user_data
-	);
-
-	static int OnFrameRecvCallback(
-		nghttp2_session* session,
-		const void* frame,
-		void *user_data
-	);
-
-	static int OnDataChunkRecvCallback(
-		nghttp2_session* session,
-		uint8_t flags, Stream::ID stream_id,
-		const uint8_t* data, size_t len,
-		void* user_data
-	);
-
-	static nghttp2_ssize OnDataSourceReadCallback(
-		nghttp2_session *session,
-		Stream::ID stream_id,
-		uint8_t* buf, size_t length,
-		uint32_t* data_flags, void* source,
-		void *user_data
-	);
-
-	static int OnSendDataCallback(
-		nghttp2_session* session,
-		void* frame,
-		const uint8_t* framehd, size_t length,
-		void* source,
-		void* user_data
-	);
-
-	static int OnStreamCloseCallback(
-		nghttp2_session* session,
-		Stream::ID stream_id, uint32_t error_code,
-		void* user_data
-	);
 
 }; // Session
 

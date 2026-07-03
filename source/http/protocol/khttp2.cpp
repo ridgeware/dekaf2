@@ -199,101 +199,101 @@ void Stream::Close ()
 } // Close
 
 //-----------------------------------------------------------------------------
-nghttp2_ssize Session::OnReceiveCallback(
+// nghttp2 C-ABI callback trampolines. Defined here (not in the header) so they
+// can name nghttp2's frame / data-source union types directly - those are
+// anonymous-union typedefs that cannot be forward declared in the header, which
+// is why the Session dispatch methods take them as void*. With the exact typedef
+// signatures the trampolines register WITHOUT a function-pointer reinterpret_cast
+// (calling a function through a pointer of a different function type is undefined
+// behavior in C++, and is trapped by -fsanitize=function / CFI).
+//
+// SessionCallbacks is a friend of Session, so it forwards to Session's private
+// dispatch methods without any of them becoming part of the public interface -
+// the abstraction keeps its implementation hidden.
+//-----------------------------------------------------------------------------
+struct SessionCallbacks
+{
+
+static nghttp2_ssize OnReceiveCallback(
 	nghttp2_session* session,
 	uint8_t* buf, size_t length,
 	int flags,
 	void* user_data
 )
-//-----------------------------------------------------------------------------
 {
-	return ToThis(user_data)->OnReceive(KBuffer(buf, length), flags);
+	return Session::ToThis(user_data)->OnReceive(KBuffer(buf, length), flags);
 }
 
-//-----------------------------------------------------------------------------
-nghttp2_ssize Session::OnSendCallback(
+static nghttp2_ssize OnSendCallback(
 	nghttp2_session* session,
 	const uint8_t* data, size_t length,
 	int flags,
 	void* user_data
 )
-//-----------------------------------------------------------------------------
 {
-	return ToThis(user_data)->OnSend(KConstBuffer(data, length), flags);
+	return Session::ToThis(user_data)->OnSend(KConstBuffer(data, length), flags);
 }
 
-//-----------------------------------------------------------------------------
-int Session::OnHeaderCallback(
+static int OnHeaderCallback(
 	nghttp2_session* session,
-	const void* frame,
+	const nghttp2_frame* frame,
 	const uint8_t* name, size_t namelen,
 	const uint8_t* value, size_t valuelen,
 	uint8_t flags,
 	void* user_data
 )
-//-----------------------------------------------------------------------------
 {
-	return ToThis(user_data)->OnHeader(frame, ToView(name, namelen), ToView(value, valuelen), flags);
+	return Session::ToThis(user_data)->OnHeader(frame, Session::ToView(name, namelen), Session::ToView(value, valuelen), flags);
 }
 
-//-----------------------------------------------------------------------------
-int Session::OnBeginHeadersCallback(
+static int OnBeginHeadersCallback(
 	nghttp2_session* session,
-	const void* frame,
+	const nghttp2_frame* frame,
 	void* user_data
-//-----------------------------------------------------------------------------
 )
 {
-	return ToThis(user_data)->OnBeginHeaders(frame);
+	return Session::ToThis(user_data)->OnBeginHeaders(frame);
 }
 
-//-----------------------------------------------------------------------------
-int Session::OnFrameRecvCallback(
+static int OnFrameRecvCallback(
 	nghttp2_session* session,
-	const void* frame,
-	void *user_data
+	const nghttp2_frame* frame,
+	void* user_data
 )
-//-----------------------------------------------------------------------------
 {
-	return ToThis(user_data)->OnFrameRecv(frame);
+	return Session::ToThis(user_data)->OnFrameRecv(frame);
 }
 
-//-----------------------------------------------------------------------------
-int Session::OnDataChunkRecvCallback(
+static int OnDataChunkRecvCallback(
 	nghttp2_session* session,
 	uint8_t flags, Stream::ID stream_id,
 	const uint8_t* data, size_t len,
 	void* user_data
 )
-//-----------------------------------------------------------------------------
 {
-	return ToThis(user_data)->OnDataChunkRecv(flags, stream_id, KConstBuffer(data, len));
+	return Session::ToThis(user_data)->OnDataChunkRecv(flags, stream_id, KConstBuffer(data, len));
 }
 
-//-----------------------------------------------------------------------------
-int Session::OnStreamCloseCallback(
+static int OnStreamCloseCallback(
 	nghttp2_session* session,
 	Stream::ID stream_id, uint32_t error_code,
 	void* user_data
 )
-//-----------------------------------------------------------------------------
 {
-	return ToThis(user_data)->OnStreamClose(stream_id, error_code);
+	return Session::ToThis(user_data)->OnStreamClose(stream_id, error_code);
 }
 
-//-----------------------------------------------------------------------------
-nghttp2_ssize Session::OnDataSourceReadCallback(
-	nghttp2_session *session,
+static nghttp2_ssize OnDataSourceReadCallback(
+	nghttp2_session* session,
 	Stream::ID stream_id,
 	uint8_t* buf, size_t length,
-	uint32_t* data_flags, void* source, // nghttp2_data_source*
-	void *user_data
+	uint32_t* data_flags, nghttp2_data_source* source,
+	void* user_data
 )
-//-----------------------------------------------------------------------------
 {
 	if (!source) return NGHTTP2_ERR_CALLBACK_FAILURE;
 
-	KDataProvider* Data = static_cast<KDataProvider*>(static_cast<nghttp2_data_source*>(source)->ptr);
+	KDataProvider* Data = static_cast<KDataProvider*>(source->ptr);
 
 	*data_flags = NGHTTP2_DATA_FLAG_NONE;
 
@@ -329,21 +329,20 @@ nghttp2_ssize Session::OnDataSourceReadCallback(
 
 } // OnDataSourceReadCallback
 
-//-----------------------------------------------------------------------------
-int Session::OnSendDataCallback(
+static int OnSendDataCallback(
 	nghttp2_session* session,
-	void* frame,
+	nghttp2_frame* frame,
 	const uint8_t* framehd, size_t length,
-	void* source,
+	nghttp2_data_source* source,
 	void* user_data
 )
-//-----------------------------------------------------------------------------
 {
 	if (!source) return NGHTTP2_ERR_CALLBACK_FAILURE;
-	KDataProvider* Data = static_cast<KDataProvider*>(static_cast<nghttp2_data_source*>(source)->ptr);
-	return ToThis(user_data)->OnSendData(frame, framehd, length, *Data);
+	KDataProvider* Data = static_cast<KDataProvider*>(source->ptr);
+	return Session::ToThis(user_data)->OnSendData(frame, framehd, length, *Data);
+}
 
-} // OnSendDataCallback
+}; // struct SessionCallbacks
 
 //-----------------------------------------------------------------------------
 Session::Session(KTLSStream& TLSStream, bool bIsClient)
@@ -358,18 +357,18 @@ Session::Session(KTLSStream& TLSStream, bool bIsClient)
 		return;
 	}
 #if DEKAF2_OLD_NGHTTP2_VERSION
-	nghttp2_session_callbacks_set_send_callback               (callbacks, OnSendCallback         );
-	nghttp2_session_callbacks_set_recv_callback               (callbacks, OnReceiveCallback      );
+	nghttp2_session_callbacks_set_send_callback               (callbacks, SessionCallbacks::OnSendCallback         );
+	nghttp2_session_callbacks_set_recv_callback               (callbacks, SessionCallbacks::OnReceiveCallback      );
 #else
-	nghttp2_session_callbacks_set_send_callback2              (callbacks, OnSendCallback         );
-	nghttp2_session_callbacks_set_recv_callback2              (callbacks, OnReceiveCallback      );
+	nghttp2_session_callbacks_set_send_callback2              (callbacks, SessionCallbacks::OnSendCallback         );
+	nghttp2_session_callbacks_set_recv_callback2              (callbacks, SessionCallbacks::OnReceiveCallback      );
 #endif
-	nghttp2_session_callbacks_set_send_data_callback          (callbacks, reinterpret_cast<nghttp2_send_data_callback>       (OnSendDataCallback    ));
-	nghttp2_session_callbacks_set_on_frame_recv_callback      (callbacks, reinterpret_cast<nghttp2_on_frame_recv_callback>   (OnFrameRecvCallback   ));
-	nghttp2_session_callbacks_set_on_data_chunk_recv_callback (callbacks, OnDataChunkRecvCallback);
-	nghttp2_session_callbacks_set_on_stream_close_callback    (callbacks, OnStreamCloseCallback  );
-	nghttp2_session_callbacks_set_on_header_callback          (callbacks, reinterpret_cast<nghttp2_on_header_callback>       (OnHeaderCallback      ));
-	nghttp2_session_callbacks_set_on_begin_headers_callback   (callbacks, reinterpret_cast<nghttp2_on_begin_headers_callback>(OnBeginHeadersCallback));
+	nghttp2_session_callbacks_set_send_data_callback          (callbacks, SessionCallbacks::OnSendDataCallback     );
+	nghttp2_session_callbacks_set_on_frame_recv_callback      (callbacks, SessionCallbacks::OnFrameRecvCallback    );
+	nghttp2_session_callbacks_set_on_data_chunk_recv_callback (callbacks, SessionCallbacks::OnDataChunkRecvCallback);
+	nghttp2_session_callbacks_set_on_stream_close_callback    (callbacks, SessionCallbacks::OnStreamCloseCallback  );
+	nghttp2_session_callbacks_set_on_header_callback          (callbacks, SessionCallbacks::OnHeaderCallback       );
+	nghttp2_session_callbacks_set_on_begin_headers_callback   (callbacks, SessionCallbacks::OnBeginHeadersCallback );
 	int rv;
 
 	if (bIsClient)
@@ -809,11 +808,7 @@ Stream::ID Session::NewRequest (Stream Stream,
 
 	if (SendData && !SendData->IsEOF())
 	{
-#if DEKAF2_OLD_NGHTTP2_VERSION
-		Data.read_callback = reinterpret_cast<nghttp2_data_source_read_callback >(OnDataSourceReadCallback);
-#else
-		Data.read_callback = reinterpret_cast<nghttp2_data_source_read_callback2>(OnDataSourceReadCallback);
-#endif
+		Data.read_callback = SessionCallbacks::OnDataSourceReadCallback;
 		Data.source.ptr    = SendData.get();
 	}
 	else
@@ -827,11 +822,11 @@ Stream::ID Session::NewRequest (Stream Stream,
 #else
 	auto StreamID = nghttp2_submit_request2(
 #endif
-											m_Session,
-											nullptr,
-											Headers.data(), Headers.size(),
-											Data.source.ptr ? &Data : nullptr,
-											nullptr);
+		m_Session,
+		nullptr,
+		Headers.data(), Headers.size(),
+		Data.source.ptr ? &Data : nullptr,
+		nullptr);
 
 	if (kWouldLog(2))
 	{

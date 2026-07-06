@@ -229,8 +229,9 @@ bool KSSOdUserStore::GetClaims(KStringView sUsername, KJSON& Claims)
 
 	auto Row = stmt.GetRow();
 	Claims = {
-		{ "name",  Row.Col(1).String() },
-		{ "email", Row.Col(2).String() }
+		{ "preferred_username", sUsername           },
+		{ "name",               Row.Col(1).String() },
+		{ "email",              Row.Col(2).String() }
 	};
 	return true;
 

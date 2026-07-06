@@ -150,7 +150,7 @@ public:
 		virtual ~UserStore() = default;
 		/// @returns true iff (sUsername, sPassword) is a valid, enabled credential pair
 		virtual bool VerifyPassword(KStringView sUsername, KStringView sPassword) = 0;
-		/// fill standard OIDC claims (sub, name, email, ...) for sUsername
+		/// fill standard OIDC claims (sub, name, email, preferred_username, ...) for sUsername
 		/// @returns false if the user is unknown
 		virtual bool GetClaims(KStringView sUsername, KJSON& Claims) = 0;
 

@@ -52,6 +52,7 @@
 #include <atomic>
 #include <unordered_map>
 #include <mutex>
+#include <condition_variable>
 
 /// @file ktimer.h
 /// general timing facilities
@@ -69,6 +70,9 @@ DEKAF2_NAMESPACE_BEGIN
 /// but from then on repeat intervals can be as short as needed, down
 /// to micro- (MacOS) or nanoseconds (Linux).
 /// KTimer does not start a timing thread until a timer is started.
+/// Cancel() and the destructor synchronize with callbacks in flight: after
+/// they returned, no callback of the cancelled timer (resp. of this KTimer)
+/// is running anymore.
 class DEKAF2_PUBLIC KTimer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -103,6 +107,8 @@ public:
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
+	/// waits for the timing thread and for all callbacks still in flight -
+	/// do not destroy a KTimer from inside one of its callbacks
 	~KTimer();
 	//---------------------------------------------------------------------------
 
@@ -161,7 +167,13 @@ public:
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
-	/// cancel pending timer. Returns false if not found.
+	/// cancel pending timer. Waits until a callback of this timer that is
+	/// currently executing has returned - except when called from inside that
+	/// callback itself, which is legal and only prevents further executions.
+	/// After Cancel() returned the callback is not running and will not run
+	/// again. Do not hold locks the callback needs when calling Cancel().
+	/// Returns false if the ID is not found - for a one shot timer that can
+	/// also mean its execution has just been dispatched.
 	bool Cancel(ID_t ID);
 	//---------------------------------------------------------------------------
 
@@ -317,10 +329,24 @@ private:
 	//---------------------------------------------------------------------------
 
 	struct Timer;
+	struct Control;
 
 	//---------------------------------------------------------------------------
 	DEKAF2_PRIVATE
 	ID_t AddTimer(Timer timer);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	DEKAF2_PRIVATE
+	/// run one due timer - directly, or detached in its own thread
+	void RunDue(const Timer& timer, KUnixTime Tp);
+	//---------------------------------------------------------------------------
+
+	//---------------------------------------------------------------------------
+	DEKAF2_PRIVATE
+	/// execute a callback guarded by its control block, so that Cancel() can
+	/// wait for it
+	static void RunGuarded(const Callback& CB, KUnixTime Tp, Control& Ctrl);
 	//---------------------------------------------------------------------------
 
 	//---------------------------------------------------------------------------
@@ -339,6 +365,45 @@ private:
 		Once      = 1 << 0, // this timer shall be run only once
 		OwnThread = 1 << 1, // the callback shall be called in its own thread
 	};
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// shared between the timer map entry, a running callback, and Cancel() -
+	/// lets Cancel() wait for a callback in flight
+	struct Control
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		std::mutex              Mutex;
+		std::condition_variable CVDone;
+		bool                    bCancelled { false };
+		uint32_t                iRunning   {     0 };
+
+	}; // Control
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// counts callbacks running in their own (detached) threads, so that the
+	/// destructor can wait for them - shared so it outlives the KTimer
+	struct Flight
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+		std::mutex              Mutex;
+		std::condition_variable CVDone;
+		std::size_t             iInFlight { 0 };
+
+	}; // Flight
+
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// keeps the flight count raised from before its thread is created until
+	/// the thread drops its copy at exit
+	class InFlight
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	public:
+		InFlight(std::shared_ptr<Flight> pFlight);
+		~InFlight();
+	private:
+		std::shared_ptr<Flight> m_pFlight;
+
+	}; // InFlight
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	struct Timer
@@ -364,6 +429,7 @@ private:
 		KDuration     Interval { KDuration::zero() };
 		Callback      CB       { nullptr           };
 		enum Flags    Flags    { None              };
+		std::shared_ptr<Control> Control;
 	};
 
 	KDuration                          m_MaxIdle;
@@ -373,6 +439,7 @@ private:
 	std::atomic<bool>                  m_bPause            { false };
 	std::atomic<bool>                  m_bIsPaused         { false };
 	std::atomic<bool>                  m_bAddedTimer       { false };
+	std::shared_ptr<Flight>            m_Flight            { std::make_shared<Flight>() };
 
 	KThreadSafe<std::unordered_map<ID_t, Timer>> m_Timers;
 

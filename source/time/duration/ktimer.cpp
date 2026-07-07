@@ -47,6 +47,36 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+// points to the control block of the callback the current thread is executing,
+// so that Cancel() from inside a callback does not wait for itself
+thread_local const void* tls_pRunningControl = nullptr;
+
+} // end of anonymous namespace
+
+//---------------------------------------------------------------------------
+KTimer::InFlight::InFlight(std::shared_ptr<Flight> pFlight)
+//---------------------------------------------------------------------------
+: m_pFlight(std::move(pFlight))
+{
+	std::lock_guard<std::mutex> Lock(m_pFlight->Mutex);
+	++m_pFlight->iInFlight;
+
+} // ctor InFlight
+
+//---------------------------------------------------------------------------
+KTimer::InFlight::~InFlight()
+//---------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_pFlight->Mutex);
+	--m_pFlight->iInFlight;
+	// notify before unlock - the woken destructor may destroy the KTimer,
+	// this object only shares ownership of the flight control
+	m_pFlight->CVDone.notify_all();
+
+} // dtor InFlight
+
 //---------------------------------------------------------------------------
 KTimer::KTimer(KDuration MaxIdle)
 //---------------------------------------------------------------------------
@@ -77,6 +107,11 @@ KTimer::~KTimer()
 			m_TimingThread->join();
 			kDebug(2, "joined timer thread");
 		}
+
+		// wait for callbacks that still run in their own (detached) threads -
+		// no new ones can start, the timing thread is gone
+		std::unique_lock<std::mutex> FlightLock(m_Flight->Mutex);
+		m_Flight->CVDone.wait(FlightLock, [this]{ return m_Flight->iInFlight == 0; });
 	}
 
 } // dtor
@@ -94,6 +129,9 @@ void KTimer::CleanupChildAfterFork()
 	// deliberate post-fork cleanup hack - there is no conforming way to
 	// abandon a std::thread that no longer exists in the child process.
 	memset(reinterpret_cast<void*>(&m_TimingThread), 0, sizeof(m_TimingThread));
+	// callback threads did not survive the fork either - start with a clean
+	// flight count so a later destruction does not wait forever
+	m_Flight = std::make_shared<Flight>();
 
 } // CleanupChildAfterFork
 
@@ -107,6 +145,8 @@ KTimer::ID_t KTimer::AddTimer(Timer timer)
 	{
 		timer.ID = GetNextID();
 	}
+
+	timer.Control = std::make_shared<struct Control>();
 
 	ID_t ID;
 
@@ -182,17 +222,41 @@ void KTimer::SleepUntil(KUnixTime timepoint)
 bool KTimer::Cancel(ID_t ID)
 //---------------------------------------------------------------------------
 {
-	auto Timers = m_Timers.unique();
+	std::shared_ptr<struct Control> pControl;
 
-	auto it = Timers->find(ID);
-
-	if (it == Timers->end())
 	{
-		// ID not known for this timer
-		return false;
+		auto Timers = m_Timers.unique();
+
+		auto it = Timers->find(ID);
+
+		if (it == Timers->end())
+		{
+			// ID not known for this timer
+			return false;
+		}
+
+		pControl = std::move(it->second.Control);
+
+		Timers->erase(it);
 	}
 
-	Timers->erase(it);
+	if (pControl)
+	{
+		std::unique_lock<std::mutex> Lock(pControl->Mutex);
+
+		// prevents any callback of this timer that has already been extracted
+		// from the timer map from starting
+		pControl->bCancelled = true;
+
+		if (tls_pRunningControl == pControl.get())
+		{
+			// called from inside the own callback - do not wait for ourselves
+			return true;
+		}
+
+		// drain: wait until no callback of this timer is running anymore
+		pControl->CVDone.wait(Lock, [&pControl]{ return pControl->iRunning == 0; });
+	}
 
 	return true;
 
@@ -280,49 +344,74 @@ bool KTimer::Restart(ID_t ID, KUnixTime timepoint)
 
 } // Restart
 
-namespace {
-
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class DueCallback
-//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//---------------------------------------------------------------------------
+void KTimer::RunGuarded(const Callback& CB, KUnixTime Tp, Control& Ctrl)
+//---------------------------------------------------------------------------
 {
-
-//----------
-public:
-//----------
-
-	//---------------------------------------------------------------------------
-	DueCallback(KTimer::Callback CB, bool bOwnThread)
-	//---------------------------------------------------------------------------
-	: m_CB(std::move(CB))
-	, m_bOwnThread(bOwnThread)
 	{
+		std::lock_guard<std::mutex> Lock(Ctrl.Mutex);
+
+		if (Ctrl.bCancelled)
+		{
+			// cancelled after extraction from the timer map
+			return;
+		}
+
+		++Ctrl.iRunning;
 	}
 
-	//---------------------------------------------------------------------------
-	void Run(KUnixTime Tp)
-	//---------------------------------------------------------------------------
+	// marks this thread as the one executing the callback, and brings the
+	// running count down again even when the callback throws
+	class Running
 	{
-		if (m_bOwnThread)
+	public:
+		Running(Control& Ctrl)
+		: m_Ctrl(Ctrl)
+		, m_pPrevious(tls_pRunningControl)
 		{
-			kMakeThread(m_CB, Tp).detach();
+			tls_pRunningControl = &Ctrl;
 		}
-		else
+		~Running()
 		{
-			m_CB(Tp);
+			tls_pRunningControl = m_pPrevious;
+			std::lock_guard<std::mutex> Lock(m_Ctrl.Mutex);
+			--m_Ctrl.iRunning;
+			// notify before unlock - the woken Cancel() may drop the last
+			// other reference to this control right after
+			m_Ctrl.CVDone.notify_all();
 		}
+	private:
+		Control&    m_Ctrl;
+		const void* m_pPrevious;
+	};
+
+	Running RunningGuard(Ctrl);
+
+	CB(Tp);
+
+} // RunGuarded
+
+//---------------------------------------------------------------------------
+void KTimer::RunDue(const Timer& timer, KUnixTime Tp)
+//---------------------------------------------------------------------------
+{
+	if ((timer.Flags & OwnThread) == OwnThread)
+	{
+		// raise the flight count before the thread exists, so that the
+		// destructor cannot miss it - the thread drops it at exit
+		auto pInFlight = std::make_shared<InFlight>(m_Flight);
+
+		kMakeThread([CB = timer.CB, Tp, pControl = timer.Control, pInFlight]()
+		{
+			RunGuarded(CB, Tp, *pControl);
+		}).detach();
+	}
+	else
+	{
+		RunGuarded(timer.CB, Tp, *timer.Control);
 	}
 
-//----------
-private:
-//----------
-
-	KTimer::Callback m_CB;
-	bool             m_bOwnThread;
-
-}; // DueCallback
-
-} // end of anonymous namespace
+} // RunDue
 
 //---------------------------------------------------------------------------
 void KTimer::Pause()
@@ -393,9 +482,9 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 		}
 	}
 
-	std::vector<DueCallback> DueCallbacks;
-	std::vector<ID_t>        CancelledCallbacks;
-	uint16_t                 iLooped { 0 };
+	std::vector<Timer> DueTimers;
+	std::vector<ID_t>  CancelledCallbacks;
+	uint16_t           iLooped { 0 };
 
 	for (;;)
 	{
@@ -474,7 +563,7 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 
 				if (Timer.ExpiresAt <= tNow)
 				{
-					DueCallbacks.push_back(DueCallback(Timer.CB, Timer.Flags & OwnThread));
+					DueTimers.push_back(Timer);
 
 					if ((Timer.Flags & Once) == Once)
 					{
@@ -508,13 +597,13 @@ void KTimer::TimingLoop(KDuration MaxIdle)
 		if (m_bShutdown) return;
 
 		// now call all due callbacks
-		for (auto& Due : DueCallbacks)
+		for (auto& Due : DueTimers)
 		{
-			Due.Run(tNow);
+			RunDue(Due, tNow);
 		}
 
 		// and delete the temporary vector
-		DueCallbacks.clear();
+		DueTimers.clear();
 	}
 
 } // TimingLoop

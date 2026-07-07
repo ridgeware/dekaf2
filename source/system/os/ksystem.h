@@ -384,9 +384,10 @@ KTTYSize kGetTerminalSize(int fd =
 #endif
                           , uint16_t iDefaultColumns = 80, uint16_t iDefaultLines = 25);
 
-/// returns true if the argument points inside the preinitialized data segment of the program
-/// (this is important to make a difference e.g. between objects that persist, and those that
-/// can go away)
+/// returns true if the argument points inside the preinitialized data segments of the program
+/// image or one of its shared libraries loaded at program start (this is important to make a
+/// difference e.g. between objects that persist, and those that can go away) - objects loaded
+/// later through dlopen() are not covered, their constants count as dynamic
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsInsideDataSegment(const void* addr);
 

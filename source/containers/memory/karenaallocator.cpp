@@ -357,11 +357,10 @@ void KArenaAllocator::ClearStableRegions() noexcept
 KStringView KArenaAllocator::AllocateString(KStringView sSource)
 //-----------------------------------------------------------------------------
 {
-	// The test for kIsInsideDataSegment() is very cheap on Linux (just two
-	// address compares). It is relatively complex though on MacOS, where a
-	// number of address ranges need to be checked. If in doubt if this
-	// destroys the performance gain of the arena allocator do your own
-	// benchmark.
+	// The test for kIsInsideDataSegment() is a binary search over the sorted
+	// list of preinitialized segments of all images loaded at program start -
+	// a handful of address compares. If in doubt if this destroys the
+	// performance gain of the arena allocator do your own benchmark.
 	if (sSource.empty() || kIsInsideDataSegment(sSource.data()))
 	{
 		// no allocation needed - this string is empty or a literal in the data segment

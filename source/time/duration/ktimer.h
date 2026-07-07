@@ -429,7 +429,8 @@ private:
 		KDuration     Interval { KDuration::zero() };
 		Callback      CB       { nullptr           };
 		enum Flags    Flags    { None              };
-		std::shared_ptr<Control> Control;
+		// elaborated form, like enum Flags above - the member reuses the type name
+		std::shared_ptr<struct Control> Control;
 	};
 
 	KDuration                          m_MaxIdle;

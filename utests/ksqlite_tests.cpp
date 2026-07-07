@@ -180,8 +180,8 @@ TEST_CASE("KSQLite")
 		CHECK ( Result.Error().empty() == false );
 
 		db.SetThrow(true);
-		CHECK_THROWS_AS ( db.ExecSQL("this is not sql"), KSQLite::Exception );
-		CHECK_THROWS_AS ( db.ExecQuery("neither is this"), KSQLite::Exception );
+		CHECK_THROWS_AS ( db.ExecSQL("this is not sql"), const KSQLite::Exception& );
+		CHECK_THROWS_AS ( db.ExecQuery("neither is this"), const KSQLite::Exception& );
 		db.SetThrow(false);
 
 		auto Query = db.ExecQuery("still not sql");

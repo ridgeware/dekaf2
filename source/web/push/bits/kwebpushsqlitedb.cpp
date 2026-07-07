@@ -64,13 +64,13 @@ bool KWebPushSQLiteDB::CreateTables()
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		m_sError = kFormat("cannot open database: {}", m_sDatabase);
 		return false;
 	}
 
-	if (!db.ExecuteVoid(
+	auto Result = db.ExecSQL(
 		"create table if not exists PUSH_SUBSCRIPTIONS ("
 		"    user_id     text    not null,"
 		"    endpoint    text    not null,"
@@ -80,21 +80,25 @@ bool KWebPushSQLiteDB::CreateTables()
 		"    created_utc integer not null default 0,"
 		"    lastmod_utc integer not null default 0,"
 		"    primary key(endpoint)"
-		")"))
+		")");
+
+	if (!Result)
 	{
-		m_sError = kFormat("cannot create PUSH_SUBSCRIPTIONS table: {}", db.Error());
+		m_sError = kFormat("cannot create PUSH_SUBSCRIPTIONS table: {}", Result.Error());
 		return false;
 	}
 
-	if (!db.ExecuteVoid(
+	Result = db.ExecSQL(
 		"create table if not exists VAPID_KEYS ("
 		"    key         text    not null primary key,"
 		"    value       text    not null,"
 		"    created_utc integer not null default 0,"
 		"    lastmod_utc integer not null default 0"
-		")"))
+		")");
+
+	if (!Result)
 	{
-		m_sError = kFormat("cannot create VAPID_KEYS table: {}", db.Error());
+		m_sError = kFormat("cannot create VAPID_KEYS table: {}", Result.Error());
 		return false;
 	}
 
@@ -108,7 +112,7 @@ bool KWebPushSQLiteDB::StoreVAPIDKey(KStringView sKey, KStringView sValue)
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		m_sError = "cannot open database for storing VAPID key";
 		return false;
@@ -121,16 +125,14 @@ bool KWebPushSQLiteDB::StoreVAPIDKey(KStringView sKey, KStringView sValue)
 	// stretch ships SQLite 3.16.2. The scalar subquery preserves the
 	// original created_utc on an existing row; for a new row it evaluates
 	// to NULL and COALESCE falls back to the current timestamp.
-	auto stmt = db.Prepare(
+	auto Result = db.ExecSQL(
 		"insert or replace into VAPID_KEYS (key, value, created_utc, lastmod_utc) "
-		"values (?1, ?2, coalesce((select created_utc from VAPID_KEYS where key=?1), ?3), ?3)");
-	stmt.Bind(1, sKey,   false);
-	stmt.Bind(2, sValue, false);
-	stmt.Bind(3, iNow);
+		"values (?1, ?2, coalesce((select created_utc from VAPID_KEYS where key=?1), ?3), ?3)",
+		sKey, sValue, iNow);
 
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot store VAPID key '{}': {}", sKey, db.Error());
+		m_sError = kFormat("cannot store VAPID key '{}': {}", sKey, Result.Error());
 		return false;
 	}
 
@@ -144,20 +146,12 @@ KString KWebPushSQLiteDB::LoadVAPIDKey(KStringView sKey)
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		return {};
 	}
 
-	auto stmt = db.Prepare("select value from VAPID_KEYS where key=?1");
-	stmt.Bind(1, sKey, false);
-
-	if (stmt.NextRow())
-	{
-		return stmt.GetRow().Col(1).String();
-	}
-
-	return {};
+	return db.SingleStringQuery("select value from VAPID_KEYS where key=?1", sKey);
 
 } // LoadVAPIDKey
 
@@ -167,7 +161,7 @@ bool KWebPushSQLiteDB::StoreSubscription(const KWebPush::Subscription& sub)
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		m_sError = "cannot open database for StoreSubscription";
 		return false;
@@ -179,20 +173,14 @@ bool KWebPushSQLiteDB::StoreSubscription(const KWebPush::Subscription& sub)
 	// The scalar subquery preserves the original created_utc for an existing
 	// subscription (keyed by endpoint), and defaults to the current time on
 	// first insert.
-	auto stmt = db.Prepare(
+	auto Result = db.ExecSQL(
 		"insert or replace into PUSH_SUBSCRIPTIONS (user_id, endpoint, p256dh, auth, useragent, created_utc, lastmod_utc) "
-		"values (?1, ?2, ?3, ?4, ?5, coalesce((select created_utc from PUSH_SUBSCRIPTIONS where endpoint=?2), ?6), ?6)");
+		"values (?1, ?2, ?3, ?4, ?5, coalesce((select created_utc from PUSH_SUBSCRIPTIONS where endpoint=?2), ?6), ?6)",
+		sub.sUser, sub.sEndpoint, sub.sP256dh, sub.sAuth, sub.sUserAgent, iNow);
 
-	stmt.Bind(1, sub.sUser,      false);
-	stmt.Bind(2, sub.sEndpoint,  false);
-	stmt.Bind(3, sub.sP256dh,    false);
-	stmt.Bind(4, sub.sAuth,      false);
-	stmt.Bind(5, sub.sUserAgent, false);
-	stmt.Bind(6, iNow);
-
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot insert subscription: {}", db.Error());
+		m_sError = kFormat("cannot insert subscription: {}", Result.Error());
 		return false;
 	}
 
@@ -206,18 +194,17 @@ bool KWebPushSQLiteDB::RemoveSubscription(KStringView sEndpoint)
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		m_sError = "cannot open database for RemoveSubscription";
 		return false;
 	}
 
-	auto stmt = db.Prepare("delete from PUSH_SUBSCRIPTIONS where endpoint=?1");
-	stmt.Bind(1, sEndpoint, false);
+	auto Result = db.ExecSQL("delete from PUSH_SUBSCRIPTIONS where endpoint=?1", sEndpoint);
 
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot delete subscription: {}", db.Error());
+		m_sError = kFormat("cannot delete subscription: {}", Result.Error());
 		return false;
 	}
 
@@ -231,18 +218,17 @@ bool KWebPushSQLiteDB::RemoveUserSubscriptions(KStringView sUser)
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		m_sError = "cannot open database for RemoveUserSubscriptions";
 		return false;
 	}
 
-	auto stmt = db.Prepare("delete from PUSH_SUBSCRIPTIONS where user_id=?1");
-	stmt.Bind(1, sUser, false);
+	auto Result = db.ExecSQL("delete from PUSH_SUBSCRIPTIONS where user_id=?1", sUser);
 
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot delete subscriptions for user '{}': {}", sUser, db.Error());
+		m_sError = kFormat("cannot delete subscriptions for user '{}': {}", sUser, Result.Error());
 		return false;
 	}
 
@@ -258,31 +244,25 @@ std::vector<KWebPush::Subscription> KWebPushSQLiteDB::GetSubscriptions(KStringVi
 
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		return Subs;
 	}
 
-	KSQLite::Statement stmt = sUser.empty()
-		? db.Prepare("select user_id, endpoint, p256dh, auth, useragent, created_utc, lastmod_utc from PUSH_SUBSCRIPTIONS")
-		: db.Prepare("select user_id, endpoint, p256dh, auth, useragent, created_utc, lastmod_utc from PUSH_SUBSCRIPTIONS where user_id=?1");
+	auto Query = sUser.empty()
+		? db.ExecQuery("select user_id, endpoint, p256dh, auth, useragent, created_utc, lastmod_utc from PUSH_SUBSCRIPTIONS")
+		: db.ExecQuery("select user_id, endpoint, p256dh, auth, useragent, created_utc, lastmod_utc from PUSH_SUBSCRIPTIONS where user_id=?1", sUser);
 
-	if (!sUser.empty())
+	for (auto& Row : Query)
 	{
-		stmt.Bind(1, sUser, false);
-	}
-
-	while (stmt.NextRow())
-	{
-		auto Row = stmt.GetRow();
 		KWebPush::Subscription sub;
-		sub.sUser      = Row.Col(1).String();
-		sub.sEndpoint  = Row.Col(2).String();
-		sub.sP256dh    = Row.Col(3).String();
-		sub.sAuth      = Row.Col(4).String();
-		sub.sUserAgent = Row.Col(5).String();
-		sub.tCreated   = KUnixTime::from_time_t(Row.Col(6).Int64());
-		sub.tLastMod   = KUnixTime::from_time_t(Row.Col(7).Int64());
+		sub.sUser      = Row.Get<KString>(1);
+		sub.sEndpoint  = Row.Get<KString>(2);
+		sub.sP256dh    = Row.Get<KString>(3);
+		sub.sAuth      = Row.Get<KString>(4);
+		sub.sUserAgent = Row.Get<KString>(5);
+		sub.tCreated   = KUnixTime::from_time_t(Row.Get<int64_t>(6));
+		sub.tLastMod   = KUnixTime::from_time_t(Row.Get<int64_t>(7));
 		Subs.push_back(std::move(sub));
 	}
 
@@ -296,19 +276,12 @@ bool KWebPushSQLiteDB::HasSubscriptions()
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		return false;
 	}
 
-	auto stmt = db.Prepare("select count(*) from PUSH_SUBSCRIPTIONS");
-
-	if (stmt.NextRow())
-	{
-		return stmt.GetRow().Col(1).Int64() > 0;
-	}
-
-	return false;
+	return db.SingleIntQuery("select count(*) from PUSH_SUBSCRIPTIONS") > 0;
 
 } // HasSubscriptions
 

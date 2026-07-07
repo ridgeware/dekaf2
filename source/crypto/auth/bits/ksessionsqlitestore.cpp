@@ -69,9 +69,9 @@ bool KSessionSQLiteStore::Initialize()
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
-		m_sError = kFormat("cannot open database '{}': {}", m_sDatabase, db.Error());
+		m_sError = kFormat("cannot open database '{}'", m_sDatabase);
 		return false;
 	}
 
@@ -91,25 +91,31 @@ bool KSessionSQLiteStore::Initialize()
 		"    extra         text    not null default ''"
 		")", m_sTableName);
 
-	if (!db.ExecuteVoid(sSQL))
+	auto Result = db.ExecSQL(sSQL);
+
+	if (!Result)
 	{
-		m_sError = kFormat("cannot create table '{}': {}", m_sTableName, db.Error());
+		m_sError = kFormat("cannot create table '{}': {}", m_sTableName, Result.Error());
 		return false;
 	}
 
-	if (!db.ExecuteVoid(kFormat(
+	Result = db.ExecSQL(kFormat(
 		"create index if not exists {}_user_idx on {}(username)",
-		m_sTableName, m_sTableName)))
+		m_sTableName, m_sTableName));
+
+	if (!Result)
 	{
-		m_sError = kFormat("cannot create user index: {}", db.Error());
+		m_sError = kFormat("cannot create user index: {}", Result.Error());
 		return false;
 	}
 
-	if (!db.ExecuteVoid(kFormat(
+	Result = db.ExecSQL(kFormat(
 		"create index if not exists {}_lastseen_idx on {}(last_seen_utc)",
-		m_sTableName, m_sTableName)))
+		m_sTableName, m_sTableName));
+
+	if (!Result)
 	{
-		m_sError = kFormat("cannot create last_seen index: {}", db.Error());
+		m_sError = kFormat("cannot create last_seen index: {}", Result.Error());
 		return false;
 	}
 
@@ -129,28 +135,23 @@ bool KSessionSQLiteStore::Create(const KSession::Record& Rec)
 
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
-		m_sError = kFormat("cannot open database for Create: {}", db.Error());
+		m_sError = "cannot open database for Create";
 		return false;
 	}
 
-	auto stmt = db.Prepare(kFormat(
+	auto Result = db.ExecSQL(kFormat(
 		"insert into {} (token, username, created_utc, last_seen_utc, client_ip, user_agent, extra) "
 		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-		m_sTableName));
+		m_sTableName),
+		Rec.sToken, Rec.sUsername,
+		Rec.tCreated.to_time_t(), Rec.tLastSeen.to_time_t(),
+		Rec.sClientIP, Rec.sUserAgent, Rec.sExtra);
 
-	stmt.Bind(1, Rec.sToken,     false);
-	stmt.Bind(2, Rec.sUsername,  false);
-	stmt.Bind(3, Rec.tCreated.to_time_t());
-	stmt.Bind(4, Rec.tLastSeen.to_time_t());
-	stmt.Bind(5, Rec.sClientIP,  false);
-	stmt.Bind(6, Rec.sUserAgent, false);
-	stmt.Bind(7, Rec.sExtra,     false);
-
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot insert session: {}", db.Error());
+		m_sError = kFormat("cannot insert session: {}", Result.Error());
 		return false;
 	}
 
@@ -164,33 +165,32 @@ bool KSessionSQLiteStore::Lookup(KStringView sToken, KSession::Record* pOut)
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
-		m_sError = kFormat("cannot open database for Lookup: {}", db.Error());
+		m_sError = "cannot open database for Lookup";
 		return false;
 	}
 
-	auto stmt = db.Prepare(kFormat(
+	auto Query = db.ExecQuery(kFormat(
 		"select token, username, created_utc, last_seen_utc, client_ip, user_agent, extra "
-		"from {} where token=?1", m_sTableName));
+		"from {} where token=?1", m_sTableName),
+		sToken);
 
-	stmt.Bind(1, sToken, false);
-
-	if (!stmt.NextRow())
+	if (!Query.Next())
 	{
 		return false;
 	}
 
 	if (pOut)
 	{
-		auto Row = stmt.GetRow();
-		pOut->sToken     = Row.Col(1).String();
-		pOut->sUsername  = Row.Col(2).String();
-		pOut->tCreated   = KUnixTime::from_time_t(Row.Col(3).Int64());
-		pOut->tLastSeen  = KUnixTime::from_time_t(Row.Col(4).Int64());
-		pOut->sClientIP  = Row.Col(5).String();
-		pOut->sUserAgent = Row.Col(6).String();
-		pOut->sExtra     = Row.Col(7).String();
+		auto& Row = Query.GetRow();
+		pOut->sToken     = Row.Get<KString>(1);
+		pOut->sUsername  = Row.Get<KString>(2);
+		pOut->tCreated   = KUnixTime::from_time_t(Row.Get<int64_t>(3));
+		pOut->tLastSeen  = KUnixTime::from_time_t(Row.Get<int64_t>(4));
+		pOut->sClientIP  = Row.Get<KString>(5);
+		pOut->sUserAgent = Row.Get<KString>(6);
+		pOut->sExtra     = Row.Get<KString>(7);
 	}
 
 	return true;
@@ -203,21 +203,19 @@ bool KSessionSQLiteStore::Touch(KStringView sToken, KUnixTime tLastSeen)
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
-		m_sError = kFormat("cannot open database for Touch: {}", db.Error());
+		m_sError = "cannot open database for Touch";
 		return false;
 	}
 
-	auto stmt = db.Prepare(kFormat(
-		"update {} set last_seen_utc=?1 where token=?2", m_sTableName));
+	auto Result = db.ExecSQL(kFormat(
+		"update {} set last_seen_utc=?1 where token=?2", m_sTableName),
+		tLastSeen.to_time_t(), sToken);
 
-	stmt.Bind(1, tLastSeen.to_time_t());
-	stmt.Bind(2, sToken, false);
-
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot update last_seen: {}", db.Error());
+		m_sError = kFormat("cannot update last_seen: {}", Result.Error());
 		return false;
 	}
 
@@ -231,21 +229,19 @@ bool KSessionSQLiteStore::UpdateExtra(KStringView sToken, KStringView sExtra)
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
-		m_sError = kFormat("cannot open database for UpdateExtra: {}", db.Error());
+		m_sError = "cannot open database for UpdateExtra";
 		return false;
 	}
 
-	auto stmt = db.Prepare(kFormat(
-		"update {} set extra=?1 where token=?2", m_sTableName));
+	auto Result = db.ExecSQL(kFormat(
+		"update {} set extra=?1 where token=?2", m_sTableName),
+		sExtra, sToken);
 
-	stmt.Bind(1, sExtra, false);
-	stmt.Bind(2, sToken, false);
-
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot update extra: {}", db.Error());
+		m_sError = kFormat("cannot update extra: {}", Result.Error());
 		return false;
 	}
 
@@ -259,24 +255,23 @@ bool KSessionSQLiteStore::Erase(KStringView sToken)
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
-		m_sError = kFormat("cannot open database for Erase: {}", db.Error());
+		m_sError = "cannot open database for Erase";
 		return false;
 	}
 
-	auto stmt = db.Prepare(kFormat(
-		"delete from {} where token=?1", m_sTableName));
+	auto Result = db.ExecSQL(kFormat(
+		"delete from {} where token=?1", m_sTableName),
+		sToken);
 
-	stmt.Bind(1, sToken, false);
-
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot delete session: {}", db.Error());
+		m_sError = kFormat("cannot delete session: {}", Result.Error());
 		return false;
 	}
 
-	return db.AffectedRows() > 0;
+	return Result.AffectedRows() > 0;
 
 } // Erase
 
@@ -286,24 +281,23 @@ std::size_t KSessionSQLiteStore::EraseAllFor(KStringView sUsername)
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
-		m_sError = kFormat("cannot open database for EraseAllFor: {}", db.Error());
+		m_sError = "cannot open database for EraseAllFor";
 		return 0;
 	}
 
-	auto stmt = db.Prepare(kFormat(
-		"delete from {} where username=?1", m_sTableName));
+	auto Result = db.ExecSQL(kFormat(
+		"delete from {} where username=?1", m_sTableName),
+		sUsername);
 
-	stmt.Bind(1, sUsername, false);
-
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot delete user sessions: {}", db.Error());
+		m_sError = kFormat("cannot delete user sessions: {}", Result.Error());
 		return 0;
 	}
 
-	return static_cast<std::size_t>(db.AffectedRows());
+	return static_cast<std::size_t>(Result.AffectedRows());
 
 } // EraseAllFor
 
@@ -313,31 +307,29 @@ std::size_t KSessionSQLiteStore::ListFor(KStringView sUsername, std::vector<KSes
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
-		m_sError = kFormat("cannot open database for ListFor: {}", db.Error());
+		m_sError = "cannot open database for ListFor";
 		return 0;
 	}
 
-	auto stmt = db.Prepare(kFormat(
+	auto Query = db.ExecQuery(kFormat(
 		"select token, username, created_utc, last_seen_utc, client_ip, user_agent, extra "
-		"from {} where username=?1 order by last_seen_utc desc", m_sTableName));
-
-	stmt.Bind(1, sUsername, false);
+		"from {} where username=?1 order by last_seen_utc desc", m_sTableName),
+		sUsername);
 
 	std::size_t iAdded = 0;
 
-	while (stmt.NextRow())
+	for (auto& Row : Query)
 	{
-		auto Row = stmt.GetRow();
 		KSession::Record Rec;
-		Rec.sToken     = Row.Col(1).String();
-		Rec.sUsername  = Row.Col(2).String();
-		Rec.tCreated   = KUnixTime::from_time_t(Row.Col(3).Int64());
-		Rec.tLastSeen  = KUnixTime::from_time_t(Row.Col(4).Int64());
-		Rec.sClientIP  = Row.Col(5).String();
-		Rec.sUserAgent = Row.Col(6).String();
-		Rec.sExtra     = Row.Col(7).String();
+		Rec.sToken     = Row.Get<KString>(1);
+		Rec.sUsername  = Row.Get<KString>(2);
+		Rec.tCreated   = KUnixTime::from_time_t(Row.Get<int64_t>(3));
+		Rec.tLastSeen  = KUnixTime::from_time_t(Row.Get<int64_t>(4));
+		Rec.sClientIP  = Row.Get<KString>(5);
+		Rec.sUserAgent = Row.Get<KString>(6);
+		Rec.sExtra     = Row.Get<KString>(7);
 		Out.push_back(std::move(Rec));
 		++iAdded;
 	}
@@ -363,50 +355,39 @@ std::size_t KSessionSQLiteStore::PurgeExpired(KUnixTime tOldestLastSeen,
 
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
-		m_sError = kFormat("cannot open database for PurgeExpired: {}", db.Error());
+		m_sError = "cannot open database for PurgeExpired";
 		return 0;
 	}
 
 	KString sSQL = kFormat("delete from {} where ", m_sTableName);
 
-	if (bCheckIdle && bCheckAbs)
-	{
-		sSQL += "last_seen_utc < ?1 or created_utc < ?2";
-	}
-	else if (bCheckIdle)
-	{
-		sSQL += "last_seen_utc < ?1";
-	}
-	else
-	{
-		sSQL += "created_utc < ?1";
-	}
-
-	auto stmt = db.Prepare(sSQL);
+	KSQLite::ExecResult Result;
 
 	if (bCheckIdle && bCheckAbs)
 	{
-		stmt.Bind(1, tOldestLastSeen.to_time_t());
-		stmt.Bind(2, tOldestCreated.to_time_t());
+		sSQL  += "last_seen_utc < ?1 or created_utc < ?2";
+		Result = db.ExecSQL(sSQL, tOldestLastSeen.to_time_t(), tOldestCreated.to_time_t());
 	}
 	else if (bCheckIdle)
 	{
-		stmt.Bind(1, tOldestLastSeen.to_time_t());
+		sSQL  += "last_seen_utc < ?1";
+		Result = db.ExecSQL(sSQL, tOldestLastSeen.to_time_t());
 	}
 	else
 	{
-		stmt.Bind(1, tOldestCreated.to_time_t());
+		sSQL  += "created_utc < ?1";
+		Result = db.ExecSQL(sSQL, tOldestCreated.to_time_t());
 	}
 
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot purge expired: {}", db.Error());
+		m_sError = kFormat("cannot purge expired: {}", Result.Error());
 		return 0;
 	}
 
-	return static_cast<std::size_t>(db.AffectedRows());
+	return static_cast<std::size_t>(Result.AffectedRows());
 
 } // PurgeExpired
 
@@ -416,20 +397,13 @@ std::size_t KSessionSQLiteStore::Count() const
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
 
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
-		m_sError = kFormat("cannot open database for Count: {}", db.Error());
+		m_sError = "cannot open database for Count";
 		return 0;
 	}
 
-	auto stmt = db.Prepare(kFormat("select count(*) from {}", m_sTableName));
-
-	if (stmt.NextRow())
-	{
-		return static_cast<std::size_t>(stmt.GetRow().Col(1).Int64());
-	}
-
-	return 0;
+	return static_cast<std::size_t>(db.SingleIntQuery(kFormat("select count(*) from {}", m_sTableName)));
 
 } // Count
 

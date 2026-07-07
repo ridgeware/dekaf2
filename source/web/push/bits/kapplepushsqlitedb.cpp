@@ -63,7 +63,7 @@ bool KApplePushSQLiteDB::CreateTables()
 //-----------------------------------------------------------------------------
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		m_sError = kFormat("cannot open database: {}", m_sDatabase);
 		return false;
@@ -72,7 +72,7 @@ bool KApplePushSQLiteDB::CreateTables()
 	// One row per (user_id, device_id). Both push tokens (regular and VoIP)
 	// live on the same row — apps with PushKit register both as part of one
 	// device record. Either may be empty if that channel isn't yet known.
-	if (!db.ExecuteVoid(
+	auto Result = db.ExecSQL(
 		"create table if not exists APNS_SUBSCRIPTIONS ("
 		"    user_id     text    not null,"
 		"    device_id   text    not null,"
@@ -82,9 +82,11 @@ bool KApplePushSQLiteDB::CreateTables()
 		"    created_utc integer not null default 0,"
 		"    lastmod_utc integer not null default 0,"
 		"    primary key(user_id, device_id)"
-		")"))
+		")");
+
+	if (!Result)
 	{
-		m_sError = kFormat("cannot create APNS_SUBSCRIPTIONS table: {}", db.Error());
+		m_sError = kFormat("cannot create APNS_SUBSCRIPTIONS table: {}", Result.Error());
 		return false;
 	}
 
@@ -97,7 +99,7 @@ bool KApplePushSQLiteDB::StoreSubscription(const KApplePush::Subscription& sub)
 //-----------------------------------------------------------------------------
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		m_sError = "cannot open database for StoreSubscription";
 		return false;
@@ -107,19 +109,14 @@ bool KApplePushSQLiteDB::StoreSubscription(const KApplePush::Subscription& sub)
 
 	// INSERT OR REPLACE + COALESCE — same SQLite-3.16-portable upsert idiom
 	// used by KWebPushSQLiteDB. Preserves created_utc on update.
-	auto stmt = db.Prepare(
+	auto Result = db.ExecSQL(
 		"insert or replace into APNS_SUBSCRIPTIONS (user_id, device_id, token, voip_token, useragent, created_utc, lastmod_utc) "
-		"values (?1, ?2, ?3, ?4, ?5, coalesce((select created_utc from APNS_SUBSCRIPTIONS where user_id=?1 and device_id=?2), ?6), ?6)");
-	stmt.Bind(1, sub.sUser,      false);
-	stmt.Bind(2, sub.sDeviceID,  false);
-	stmt.Bind(3, sub.sToken,     false);
-	stmt.Bind(4, sub.sVoIPToken, false);
-	stmt.Bind(5, sub.sUserAgent, false);
-	stmt.Bind(6, iNow);
+		"values (?1, ?2, ?3, ?4, ?5, coalesce((select created_utc from APNS_SUBSCRIPTIONS where user_id=?1 and device_id=?2), ?6), ?6)",
+		sub.sUser, sub.sDeviceID, sub.sToken, sub.sVoIPToken, sub.sUserAgent, iNow);
 
-	if (!stmt.Execute())
+	if (!Result)
 	{
-		m_sError = kFormat("cannot insert APNs subscription: {}", db.Error());
+		m_sError = kFormat("cannot insert APNs subscription: {}", Result.Error());
 		return false;
 	}
 	return true;
@@ -131,15 +128,13 @@ bool KApplePushSQLiteDB::RemoveSubscription(KStringView sUser, KStringView sDevi
 //-----------------------------------------------------------------------------
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		m_sError = "cannot open database for RemoveSubscription";
 		return false;
 	}
-	auto stmt = db.Prepare("delete from APNS_SUBSCRIPTIONS where user_id=?1 and device_id=?2");
-	stmt.Bind(1, sUser,     false);
-	stmt.Bind(2, sDeviceID, false);
-	return stmt.Execute();
+	return static_cast<bool>(db.ExecSQL("delete from APNS_SUBSCRIPTIONS where user_id=?1 and device_id=?2",
+	                                    sUser, sDeviceID));
 
 } // RemoveSubscription
 
@@ -148,14 +143,12 @@ bool KApplePushSQLiteDB::RemoveUserSubscriptions(KStringView sUser)
 //-----------------------------------------------------------------------------
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
-	if (db.IsError())
+	if (!db.IsOpen())
 	{
 		m_sError = "cannot open database for RemoveUserSubscriptions";
 		return false;
 	}
-	auto stmt = db.Prepare("delete from APNS_SUBSCRIPTIONS where user_id=?1");
-	stmt.Bind(1, sUser, false);
-	return stmt.Execute();
+	return static_cast<bool>(db.ExecSQL("delete from APNS_SUBSCRIPTIONS where user_id=?1", sUser));
 
 } // RemoveUserSubscriptions
 
@@ -166,26 +159,25 @@ std::vector<KApplePush::Subscription> KApplePushSQLiteDB::GetSubscriptions(KStri
 	std::vector<KApplePush::Subscription> out;
 
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
-	if (db.IsError()) return out;
+	if (!db.IsOpen()) return out;
 
-	KString sQuery = "select user_id, device_id, token, voip_token, useragent, created_utc, lastmod_utc "
-	                 "from APNS_SUBSCRIPTIONS";
-	if (!sUser.empty()) sQuery += " where user_id=?1";
+	static constexpr KStringView sSelect = "select user_id, device_id, token, voip_token, useragent, created_utc, lastmod_utc "
+	                                       "from APNS_SUBSCRIPTIONS";
 
-	auto stmt = db.Prepare(sQuery);
-	if (!sUser.empty()) stmt.Bind(1, sUser, false);
+	auto Query = sUser.empty()
+		? db.ExecQuery(sSelect)
+		: db.ExecQuery(KString(sSelect) + " where user_id=?1", sUser);
 
-	while (stmt.NextRow())
+	for (auto& row : Query)
 	{
-		auto row = stmt.GetRow();
 		KApplePush::Subscription sub;
-		sub.sUser      = row.Col(1).String();
-		sub.sDeviceID  = row.Col(2).String();
-		sub.sToken     = row.Col(3).String();
-		sub.sVoIPToken = row.Col(4).String();
-		sub.sUserAgent = row.Col(5).String();
-		sub.tCreated   = KUnixTime(row.Col(6).Int64());
-		sub.tLastMod   = KUnixTime(row.Col(7).Int64());
+		sub.sUser      = row.Get<KString>(1);
+		sub.sDeviceID  = row.Get<KString>(2);
+		sub.sToken     = row.Get<KString>(3);
+		sub.sVoIPToken = row.Get<KString>(4);
+		sub.sUserAgent = row.Get<KString>(5);
+		sub.tCreated   = KUnixTime(row.Get<int64_t>(6));
+		sub.tLastMod   = KUnixTime(row.Get<int64_t>(7));
 		out.push_back(std::move(sub));
 	}
 	return out;
@@ -197,13 +189,8 @@ bool KApplePushSQLiteDB::HasSubscriptions()
 //-----------------------------------------------------------------------------
 {
 	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
-	if (db.IsError()) return false;
-	auto stmt = db.Prepare("select count(*) from APNS_SUBSCRIPTIONS");
-	if (stmt.NextRow())
-	{
-		return stmt.GetRow().Col(1).Int64() > 0;
-	}
-	return false;
+	if (!db.IsOpen()) return false;
+	return db.SingleIntQuery("select count(*) from APNS_SUBSCRIPTIONS") > 0;
 
 } // HasSubscriptions
 

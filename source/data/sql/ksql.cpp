@@ -206,8 +206,8 @@ DEKAF2_NAMESPACE_BEGIN
 struct KSQL::KSQLiteState
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database                    Database;
-	std::unique_ptr<KSQLite::Statement>  Statement;
+	std::unique_ptr<KSQLite::Database>   Database;
+	std::unique_ptr<KSQLite::Cursor>     Cursor;
 };
 #endif
 
@@ -1742,9 +1742,11 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout/*=30s*/, Transport Transp
 
 		kDebug (3, "KSQLite::Database::Connect({})...", m_sDatabase);
 
-		if (!m_SQLite->Database.Connect(m_sDatabase, KSQLite::READWRITECREATE))
+		m_SQLite->Database = std::make_unique<KSQLite::Database>(m_sDatabase, KSQLite::READWRITECREATE);
+
+		if (!m_SQLite->Database->IsOpen())
 		{
-			auto sError = kFormat("SQLITE3: {}", m_SQLite->Database.Error());
+			auto sError = kFormat("SQLITE3: cannot open '{}'", m_sDatabase);
 			m_SQLite.reset();
 			return SetError(sError);
 		}
@@ -2482,20 +2484,22 @@ bool KSQL::ExecLastRawSQL (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRawSQ
 					}
 				}
 
-				kDebug (3, "KSQLite::ExecuteVoid()...");
+				kDebug (3, "KSQLite::ExecSQL()...");
 
-				if (!m_SQLite->Database.ExecuteVoid(m_sLastSQL.str()))
+				auto Result = m_SQLite->Database->ExecSQL(m_sLastSQL.str());
+
+				if (!Result)
 				{
-					sError    = kFormat("SQLITE3: {}", m_SQLite->Database.Error());
-					iErrorNum = m_SQLite->Database.IsError();
+					sError    = kFormat("SQLITE3: {}", Result.Error());
+					iErrorNum = Result.ErrorCode();
 					break;
 				}
 
-				m_iNumRowsAffected = m_SQLite->Database.AffectedRows();
+				m_iNumRowsAffected = Result.AffectedRows();
 
 				if (QueryType != QueryType::Select)
 				{
-					m_iLastInsertID = m_SQLite->Database.LastInsertID();
+					m_iLastInsertID = Result.LastInsertID();
 
 					if (m_iLastInsertID)
 					{
@@ -3808,18 +3812,18 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 			return SetError("SQLITE3: no connection");
 		}
 
-		kDebug (3, "KSQLite::Prepare()...");
+		kDebug (3, "KSQLite::ExecQuery()...");
 
-		m_SQLite->Statement = std::make_unique<KSQLite::Statement>(m_SQLite->Database, m_sLastSQL.str());
+		m_SQLite->Cursor = std::make_unique<KSQLite::Cursor>(m_SQLite->Database->ExecQuery(m_sLastSQL.str()));
 
-		if (!m_SQLite->Statement->GetRow().Statement())
+		if (!*m_SQLite->Cursor)
 		{
-			auto sError = kFormat("SQLITE3: {}", m_SQLite->Database.Error());
-			m_SQLite->Statement.reset();
+			auto sError = kFormat("SQLITE3: {}", m_SQLite->Cursor->Error());
+			m_SQLite->Cursor.reset();
 			return SetError(sError);
 		}
 
-		auto Row = m_SQLite->Statement->GetRow();
+		auto& Row = m_SQLite->Cursor->GetRow();
 		m_iNumColumns = Row.size();
 
 		kDebug (3, "num columns: {}", m_iNumColumns);
@@ -3830,7 +3834,7 @@ bool KSQL::ExecLastRawQuery (Flags iFlags/*=0*/, KStringView sAPI/*="ExecLastRaw
 		for (KSQLite::Row::ColIndex ii = 1; ii <= static_cast<KSQLite::Row::ColIndex>(m_iNumColumns); ++ii)
 		{
 			KColInfo ColInfo;
-			ColInfo.sColName = Row.Col(ii).GetNameAs();
+			ColInfo.sColName = Row.GetColName(ii);
 			ColInfo.SetColumnType(DBT::SQLITE3, 0, 0);
 			m_dColInfo.push_back(std::move(ColInfo));
 		}
@@ -4383,17 +4387,17 @@ bool KSQL::BufferResults ()
 	// - - - - - - - - - - - - - - - - -
 	case API::SQLITE3:
 	// - - - - - - - - - - - - - - - - -
-		if (m_SQLite && m_SQLite->Statement)
+		if (m_SQLite && m_SQLite->Cursor)
 		{
-			while (m_SQLite->Statement->NextRow())
+			while (m_SQLite->Cursor->Next())
 			{
 				++m_iNumRowsBuffered;
 
-				auto Row = m_SQLite->Statement->GetRow();
+				auto& Row = m_SQLite->Cursor->GetRow();
 
 				for (KROW::Index ii = 0; ii < m_iNumColumns; ++ii)
 				{
-					KString sColVal = Row.Col(static_cast<KSQLite::Row::ColIndex>(ii + 1)).String();
+					KString sColVal = Row.Get<KString>(static_cast<KSQLite::Row::ColIndex>(ii + 1));
 
 					sColVal.Replace('\n', 2);
 
@@ -4633,11 +4637,11 @@ bool KSQL::NextRow ()
 				// - - - - - - - - - - - - - - - - -
 			case API::SQLITE3:
 				// - - - - - - - - - - - - - - - - -
-				if (m_SQLite && m_SQLite->Statement)
+				if (m_SQLite && m_SQLite->Cursor)
 				{
-					kDebug (4, "KSQLite::Statement::NextRow()...");
+					kDebug (4, "KSQLite::Cursor::Next()...");
 
-					if (m_SQLite->Statement->NextRow())
+					if (m_SQLite->Cursor->Next())
 					{
 						++m_iRowNum;
 						kDebug (4, "KSQLite gave us row {}", m_iRowNum);
@@ -5123,7 +5127,7 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 	#ifdef DEKAF2_HAS_SQLITE3
 	if (m_SQLite)
 	{
-		m_SQLite->Statement.reset();
+		m_SQLite->Cursor.reset();
 	}
 	#endif
 
@@ -5286,10 +5290,10 @@ KStringView KSQL::Get (KROW::Index iOneBasedColNum, bool fTrimRight/*=true*/)
 			// - - - - - - - - - - - - - - - - -
 			case API::SQLITE3:
 			// - - - - - - - - - - - - - - - - -
-				if (m_SQLite && m_SQLite->Statement)
+				if (m_SQLite && m_SQLite->Cursor)
 				{
-					auto Row = m_SQLite->Statement->GetRow();
-					sRtnValue = Row.Col(static_cast<KSQLite::Row::ColIndex>(iOneBasedColNum)).String();
+					auto& Row = m_SQLite->Cursor->GetRow();
+					sRtnValue = Row.GetRawView(static_cast<KSQLite::Row::ColIndex>(iOneBasedColNum));
 				}
 				else
 				{

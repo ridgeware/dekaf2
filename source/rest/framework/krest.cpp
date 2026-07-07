@@ -172,10 +172,14 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 			}
 			else
 			{
-				// create a websocket instance
-				KWebSocket WebSocket(Stream, RESTServer.GetWebSocketHandler(), false);
+				// create a shared-managed websocket instance, so that the handler
+				// can register WeakHandle() handles for lifetime safe writes from
+				// other threads
+				auto pWebSocket = KWebSocket::Create(Stream, RESTServer.GetWebSocketHandler(), false);
 				// and run it right here through its own handler
-				RESTServer.GetWebSocketHandler()(WebSocket);
+				RESTServer.GetWebSocketHandler()(*pWebSocket);
+				// our reference drops here - the socket lives on for as long as
+				// any locked weak handle still uses it
 			}
 		}
 		else

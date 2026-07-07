@@ -184,6 +184,14 @@ private:
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// represents one single websocket connection
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a websocket (RFC6455) connection.
+/// Threading: Write(), Ping() and Close() are thread-safe - concurrent
+/// writers serialize internally, and a write may run concurrently with the
+/// owning thread's Read(). Read() itself is single threaded (one reading
+/// thread only). For lifetime safe cross-thread writes obtain a WeakHandle()
+/// (available on instances constructed with Create()) and Write() through
+/// its lock().
 class DEKAF2_PUBLIC KWebSocket
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -446,6 +454,20 @@ public:
 
 	~KWebSocket();
 
+	/// create a shared-managed KWebSocket: its WeakHandle() then returns
+	/// non-empty, lifetime safe handles for cross-thread writes
+	static std::shared_ptr<KWebSocket> Create(std::unique_ptr<KIOStreamSocket>& Stream,
+	                                          std::function<void(KWebSocket&)> WebSocketHandler,
+	                                          bool bMaskTx);
+
+	/// a weak handle to this socket, usable from any thread: lock() it, and if
+	/// the result is non-null, Write() through it - the lock keeps the socket
+	/// alive for the duration of the call. Empty if the socket is not
+	/// shared-managed (stack constructed, or owned by a KWebSocketServer -
+	/// use Send() by handle there).
+	DEKAF2_NODISCARD
+	std::weak_ptr<KWebSocket> WeakHandle() const { return m_WeakSelf; }
+
 	/// set read timeout, probably in the minutes to hours range (defaults to 60 minutes)
 	void SetReadTimeout(KDuration ReadTimeout)   { m_ReadTimeout  = ReadTimeout;  }
 
@@ -473,17 +495,20 @@ public:
 	/// @returns false if timeout
 	bool Read(KJSON& sFrame);
 
-	/// write one full data frame to web socket
+	/// write one full data frame to web socket - thread-safe, concurrent
+	/// writers serialize internally
 	/// @returns false if unsuccessful
 	bool Write(KWebSocket::Frame Frame);
 
-	/// write one full data frame from string to web socket
+	/// write one full data frame from string to web socket - thread-safe,
+	/// concurrent writers serialize internally
 	/// @param sFrame the data to write
 	/// @param bIsBinary set to false if this is UTF8 text, else to true
 	/// @returns false if unsuccessful
 	bool Write(KString sFrame, bool bIsBinary = false);
 
-	/// write one full data frame from json to web socket
+	/// write one full data frame from json to web socket - thread-safe,
+	/// concurrent writers serialize internally
 	/// @param jFrame the json data to write
 	/// @returns false if unsuccessful
 	bool Write(const KJSON& jFrame);
@@ -500,7 +525,9 @@ public:
 	/// @returns false if unsuccessful
 	bool Close(uint16_t iStatusCode = 1000, KString sReason = KString{});
 
-	/// force automatic pings being sent to the counterpart to keep the connection alive
+	/// force automatic pings being sent to the counterpart to keep the connection alive.
+	/// The ping timer is bound to this instance - do not move the instance after
+	/// enabling AutoPing. Pings stop reliably at destruction.
 	/// @param PingInterval the time interval at which to send pings, defaults to five minutes, 0 switches AutoPing off
 	/// @returns true if automatic pings could be setup, false otherwise
 	bool AutoPing(KDuration PingInterval = chrono::minutes(5));
@@ -529,7 +556,8 @@ public:
 	/// returns the owning KWebSocketServer (nullptr if not added to one) - use it to send to other connections
 	DEKAF2_NODISCARD
 	KWebSocketServer*  GetServer                    ()                       const { return m_pServer;             }
-	/// returns a reference to the current frame
+	/// returns a reference to the current (received) frame - only valid in the
+	/// reading thread
 	Frame&             GetFrame                     ()                             { return m_Frame;               }
 	/// returns a reference to the stream socket for this instance
 	KIOStreamSocket&   GetStream                    ()                             { return *m_Stream.get();       }
@@ -553,6 +581,8 @@ private:
 
 	bool ReadInt(std::function<bool(const KString&)> Func);
 
+	// m_Frame holds received frames only - the write path keeps its frames
+	// local, so writes never race the reading thread on this member
 	Frame                            m_Frame;
 	std::unique_ptr<KIOStreamSocket> m_Stream;
 	std::function<void(KWebSocket&)> m_Handler;
@@ -560,9 +590,14 @@ private:
 	std::function<void(KWebSocket&)> m_ConnectHandler;
 	std::function<void(std::size_t)> m_CloseHandler;
 	std::unique_ptr<KWebSocketPMCE>  m_PMCE;
+	std::weak_ptr<KWebSocket>        m_WeakSelf;
 	KWebSocketServer*                m_pServer      { nullptr };
 	std::size_t                      m_iHandle      { 0 };
 	std::mutex                       m_StreamMutex;
+	// serializes permessage-deflate compression together with the frame write:
+	// the deflate window is shared across messages, so compressed messages must
+	// reach the wire in compression order
+	std::mutex                       m_PMCEMutex;
 	KDuration                        m_ReadTimeout  { chrono::minutes(60) };
 	KDuration                        m_WriteTimeout { chrono::seconds(30) };
 	KDuration                        m_PingInterval;

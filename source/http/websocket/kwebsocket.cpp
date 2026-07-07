@@ -1435,6 +1435,10 @@ KWebSocket::KWebSocket(KWebSocket&& other)
 {
 	other.m_TimerID      = KTimer::InvalidID;
 	other.m_PingInterval = KDuration::zero();
+	// a moved-from instance is no longer shared-managed - and the moved-to
+	// instance is a different object, so it starts without a weak self
+	other.m_WeakSelf.reset();
+
 } // move ctor
 
 //-----------------------------------------------------------------------------
@@ -1444,6 +1448,18 @@ KWebSocket::~KWebSocket()
 	AutoPing(KDuration::zero());
 
 } // dtor
+
+//-----------------------------------------------------------------------------
+std::shared_ptr<KWebSocket> KWebSocket::Create(std::unique_ptr<KIOStreamSocket>& Stream,
+                                               std::function<void(KWebSocket&)> WebSocketHandler,
+                                               bool bMaskTx)
+//-----------------------------------------------------------------------------
+{
+	auto pWebSocket = std::make_shared<KWebSocket>(Stream, std::move(WebSocketHandler), bMaskTx);
+	pWebSocket->m_WeakSelf = pWebSocket;
+	return pWebSocket;
+
+} // Create
 
 //-----------------------------------------------------------------------------
 bool KWebSocket::Read()
@@ -1587,7 +1603,9 @@ bool KWebSocket::Write(KWebSocket::Frame Frame)
 		return false;
 	}
 
-	m_Frame = std::move(Frame);
+	// the frame stays local to this call - concurrent writers each carry their
+	// own frame and only serialize on the stream mutex, and none of them races
+	// the reading thread's use of m_Frame
 
 	for (;;)
 	{
@@ -1605,7 +1623,7 @@ bool KWebSocket::Write(KWebSocket::Frame Frame)
 			// return immediately from poll
 			if (m_Stream->IsWriteReady(KDuration()))
 			{
-				if (!m_Frame.Write(*m_Stream, m_bMaskTx))
+				if (!Frame.Write(*m_Stream, m_bMaskTx))
 				{
 					return false;
 				}
@@ -1638,6 +1656,11 @@ bool KWebSocket::Write(KString sFrame, bool bIsBinary)
 {
 	if (m_PMCE)
 	{
+		// compression and frame write must happen as one unit: the deflate
+		// window is shared across messages, so the receiving inflater needs
+		// the compressed messages on the wire in compression order
+		std::lock_guard<std::mutex> Lock(m_PMCEMutex);
+
 		// transparently compress the message and mark the frame with RSV1
 		KString sCompressed;
 
@@ -1707,10 +1730,31 @@ bool KWebSocket::AutoPing(KDuration PingInterval)
 		return true;
 	}
 
-	m_TimerID = Timer.CallEvery(m_PingInterval, [this](KUnixTime tNow)
+	auto WeakSelf = m_WeakSelf;
+
+	if (!WeakSelf.expired())
 	{
-		Ping();
-	});
+		// lifetime safe: the ping keeps the socket alive for its duration,
+		// and no-ops once the socket is gone
+		m_TimerID = Timer.CallEvery(m_PingInterval, [WeakSelf](KUnixTime)
+		{
+			auto pSelf = WeakSelf.lock();
+
+			if (pSelf)
+			{
+				pSelf->Ping();
+			}
+		});
+	}
+	else
+	{
+		// not shared-managed: the destructor's Timer.Cancel() drains a ping
+		// in flight, so no ping can run on a destroyed socket
+		m_TimerID = Timer.CallEvery(m_PingInterval, [this](KUnixTime)
+		{
+			Ping();
+		});
+	}
 
 	return m_TimerID != KTimer::InvalidID;
 

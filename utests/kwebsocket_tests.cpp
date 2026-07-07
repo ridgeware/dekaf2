@@ -4,12 +4,80 @@
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/io/streams/kstringstream.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/format/kformat.h>
 #include <dekaf2/http/protocol/khttp_request.h>
 #include <dekaf2/http/protocol/khttp_response.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/net/tcp/ktcpserver.h>
+#include <dekaf2/net/util/kiostreamsocket.h>
 #include <atomic>
+#include <future>
+#include <memory>
+#include <set>
+#include <thread>
+#include <vector>
 
 using namespace dekaf2;
+
+namespace {
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+// hands the accepted raw socket over to the test instead of running a protocol
+class KSocketHandoverServer : public KTCPServer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+public:
+
+	KSocketHandoverServer(uint16_t iPort)
+	: KTCPServer(iPort, false, 2)
+	{
+	}
+
+	std::unique_ptr<KIOStreamSocket> WaitForSocket()
+	{
+		return m_Promise.get_future().get();
+	}
+
+protected:
+
+	virtual void Session(std::unique_ptr<KIOStreamSocket>& Stream) override
+	{
+		m_Promise.set_value(std::move(Stream));
+	}
+
+private:
+
+	std::promise<std::unique_ptr<KIOStreamSocket>> m_Promise;
+
+}; // KSocketHandoverServer
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+// a connected (server, client) pair of websockets over loopback TCP
+struct KWebSocketPair
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KWebSocketPair(uint16_t iPort)
+	: Server(iPort)
+	{
+		Server.Start(chrono::seconds(2), false);
+
+		auto ClientStream = KIOStreamSocket::Create(KURL(kFormat("http://127.0.0.1:{}", iPort)));
+		auto ServerStream = Server.WaitForSocket();
+
+		if (ClientStream && ClientStream->Good() && ServerStream && ServerStream->Good())
+		{
+			pServer = KWebSocket::Create(ServerStream, [](KWebSocket&){}, false);
+			pClient = std::make_shared<KWebSocket>(ClientStream, [](KWebSocket&){}, true);
+		}
+	}
+
+	KSocketHandoverServer       Server;
+	std::shared_ptr<KWebSocket> pServer;
+	std::shared_ptr<KWebSocket> pClient;
+
+}; // KWebSocketPair
+
+} // end of anonymous namespace
 
 TEST_CASE("KWebSocket")
 {
@@ -881,5 +949,134 @@ TEST_CASE("KWebSocketPMCE")
 
 		CHECK ( Server.Compress(sMsg, sCompressed) );
 		CHECK ( sCompressed.size() < sMsg.size() );
+	}
+
+	SECTION("concurrent writers")
+	{
+		KWebSocketPair Pair(7671);
+		REQUIRE ( Pair.pServer != nullptr );
+		REQUIRE ( Pair.pClient != nullptr );
+
+		constexpr int iThreads = 4;
+		constexpr int iFrames  = 25;
+
+		std::set<KString> Received;
+
+		std::thread Reader([&]()
+		{
+			Pair.pClient->SetReadTimeout(chrono::seconds(5));
+			KString sFrame;
+
+			for (int i = 0; i < iThreads * iFrames; ++i)
+			{
+				if (!Pair.pClient->Read(sFrame))
+				{
+					break;
+				}
+				Received.insert(sFrame);
+			}
+		});
+
+		std::vector<std::thread> Writers;
+		std::atomic<int> iFailed { 0 };
+
+		for (int iThread = 0; iThread < iThreads; ++iThread)
+		{
+			Writers.push_back(std::thread([&, iThread]()
+			{
+				for (int iFrame = 0; iFrame < iFrames; ++iFrame)
+				{
+					if (!Pair.pServer->Write(kFormat("writer-{}-frame-{}", iThread, iFrame)))
+					{
+						++iFailed;
+					}
+				}
+			}));
+		}
+
+		for (auto& Writer : Writers)
+		{
+			Writer.join();
+		}
+		Reader.join();
+
+		CHECK ( iFailed == 0 );
+		// every frame arrived intact, none interleaved or lost
+		CHECK ( Received.size() == std::size_t(iThreads * iFrames) );
+	}
+
+	SECTION("weak handle lifetime")
+	{
+		std::weak_ptr<KWebSocket> Weak;
+		std::atomic<bool>         bStop   { false };
+		std::atomic<int>          iWrites { 0     };
+
+		{
+			KWebSocketPair Pair(7672);
+			REQUIRE ( Pair.pServer != nullptr );
+
+			// only Create() hands out weak handles
+			Weak = Pair.pServer->WeakHandle();
+			CHECK ( Weak.expired() == false );
+			CHECK ( Pair.pClient->WeakHandle().expired() == true );
+
+			std::thread Sender([&]()
+			{
+				while (!bStop)
+				{
+					auto pWS = Weak.lock();
+
+					if (!pWS)
+					{
+						break;
+					}
+
+					if (pWS->Write(KString("push")))
+					{
+						++iWrites;
+					}
+
+					kSleep(chrono::milliseconds(2));
+				}
+			});
+
+			// let the sender run against the live socket
+			kSleep(chrono::milliseconds(50));
+
+			// drop the owner while the sender is racing - the socket lives
+			// until the sender releases its lock
+			Pair.pServer.reset();
+
+			kSleep(chrono::milliseconds(50));
+			bStop = true;
+			Sender.join();
+		}
+
+		CHECK ( iWrites > 0 );
+		CHECK ( Weak.expired() == true );
+		CHECK ( Weak.lock() == nullptr );
+	}
+
+	SECTION("AutoPing vs destruction")
+	{
+		for (int iRound = 0; iRound < 3; ++iRound)
+		{
+			KWebSocketPair Pair(uint16_t(7673 + iRound * 2));
+			REQUIRE ( Pair.pServer != nullptr );
+
+			// shared-managed path: the ping holds a weak handle
+			Pair.pServer->AutoPing(chrono::milliseconds(20));
+			// not shared-managed path: destruction drains the ping timer
+			Pair.pClient->AutoPing(chrono::milliseconds(20));
+
+			kSleep(chrono::milliseconds(50 + iRound * 15));
+
+			// destroy both sides while pings are due or in flight
+			Pair.pServer.reset();
+			Pair.pClient.reset();
+		}
+
+		// reaching this point without crash or hang is the assertion
+		CHECK ( true );
 	}
 }

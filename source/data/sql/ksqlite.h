@@ -228,9 +228,9 @@ class DBConnector;
 
 #ifdef DEKAF2
 // transparent lookup: find() takes a StringView without constructing a key copy
-// (std::hash<KString> hashes KStringView, std::equal_to<> compares heterogeneously)
+// (std::hash<KString> hashes KStringView, KUnorderedMap compares heterogeneously)
 template<class Value>
-using StringMap = KUnorderedMap<String, Value, std::hash<String>, std::equal_to<>>;
+using StringMap = KUnorderedMap<String, Value>;
 #define KSQLITE_HAS_TRANSPARENT_LOOKUP 1
 #elif defined(KSQLITE_HAS_STRING_VIEW) && defined(__cpp_lib_generic_unordered_lookup)
 // transparent hash so that find() takes a string_view without a key copy

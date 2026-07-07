@@ -58,6 +58,8 @@
 /// a static, default constructed value.
 /// All types have a contains() member that returns true if the searched element
 /// is found.
+/// The comparators default to the transparent std::less<> / std::equal_to<>, so
+/// heterogeneous lookups compare in place instead of constructing a temporary Key.
 
 #ifndef BOOST_NO_CXX98_FUNCTION_BASE
 	#define BOOST_NO_CXX98_FUNCTION_BASE
@@ -99,7 +101,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 template<
 	class Key,
-	class Compare = std::less<Key>,
+	class Compare = std::less<>,
 	class Allocator = std::allocator<Key>
 >
 class KSet : public boost::multi_index::multi_index_container<
@@ -127,7 +129,7 @@ public:
 
 template<
 	class Key,
-	class Compare = std::less<Key>,
+	class Compare = std::less<>,
 	class Allocator = std::allocator<Key>
 >
 class KMultiSet : public boost::multi_index::multi_index_container<
@@ -155,7 +157,7 @@ public:
 template<
 	class Key,
 	class Value,
-	class Compare = std::less<Key>,
+	class Compare = std::less<>,
 	class Allocator = std::allocator<std::pair<const Key, Value> >
 >
 class KMap : public boost::multi_index::multi_index_container<
@@ -220,7 +222,7 @@ const Value KMap<Key, Value, Compare, Allocator>::s_Empty = Value();
 template<
 	class Key,
 	class Value,
-	class Compare = std::less<Key>,
+	class Compare = std::less<>,
 	class Allocator = std::allocator<std::pair<const Key, Value> >
 >
 class KMultiMap : public boost::multi_index::multi_index_container<
@@ -290,7 +292,7 @@ const Value KMultiMap<Key, Value, Compare, Allocator>::s_Empty = Value();
 template<
 	class Key,
 	class Hash = std::hash<Key>,
-	class KeyEqual = std::equal_to<Key>,
+	class KeyEqual = std::equal_to<>,
 	class Allocator = std::allocator<Key>
 >
 class KUnorderedSet : public boost::multi_index::multi_index_container<
@@ -319,7 +321,7 @@ public:
 template<
 	class Key,
 	class Hash = std::hash<Key>,
-	class KeyEqual = std::equal_to<Key>,
+	class KeyEqual = std::equal_to<>,
 	class Allocator = std::allocator<Key>
 >
 class KUnorderedMultiSet : public boost::multi_index::multi_index_container<
@@ -349,7 +351,7 @@ template<
 	class Key,
 	class Value,
 	class Hash = std::hash<Key>,
-	class KeyEqual = std::equal_to<Key>,
+	class KeyEqual = std::equal_to<>,
 	class Allocator = std::allocator< std::pair<const Key, Value> >
 >
 class KUnorderedMap : public boost::multi_index::multi_index_container<
@@ -416,7 +418,7 @@ template<
 	class Key,
 	class Value,
 	class Hash = std::hash<Key>,
-	class KeyEqual = std::equal_to<Key>,
+	class KeyEqual = std::equal_to<>,
 	class Allocator = std::allocator< std::pair<const Key, Value> >
 >
 class KUnorderedMultiMap : public boost::multi_index::multi_index_container<

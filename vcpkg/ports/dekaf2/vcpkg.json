@@ -1,6 +1,6 @@
 {
   "name": "dekaf2",
-  "version-semver": "2.1.23",
+  "version-semver": "2.1.24",
   "description": "C++14/17/20/23 rapid application development framework",
   "homepage": "https://github.com/ridgeware/dekaf2",
   "license": "MIT",

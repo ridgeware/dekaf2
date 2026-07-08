@@ -156,6 +156,10 @@
 /// @ingroup net
 /// @brief Polling, tunneling, and connection management.
 
+/// @defgroup net_geo Geolocation
+/// @ingroup net
+/// @brief IP geolocation lookups via GeoIP databases.
+
 // =============================================================================
 // http/ submodules
 // =============================================================================
@@ -336,3 +340,11 @@
 /// @defgroup util_misc Miscellaneous
 /// @ingroup util
 /// @brief Address handling, temperature conversion, and other utilities.
+
+/// @defgroup util_codec Error Correction
+/// @ingroup util
+/// @brief Reed-Solomon forward error correction and Galois field arithmetic.
+
+/// @defgroup util_qrcode QR Codes
+/// @ingroup util
+/// @brief QR code generation as SVG or block-character text.

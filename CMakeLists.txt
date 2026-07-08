@@ -892,6 +892,20 @@ if (DOXYGEN_FOUND)
 		${CMAKE_CURRENT_BINARY_DIR}/doxyfile @ONLY
 	)
 
+	# warn when kconfiguration.h.in gained a feature macro that the doxyfile's
+	# define profile does not classify yet (see scripts/check-doxygen-defines.sh)
+	find_program(BASH_PROGRAM bash)
+	if (BASH_PROGRAM)
+		execute_process(
+			COMMAND ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check-doxygen-defines.sh
+			RESULT_VARIABLE DOXYGEN_DEFINE_DRIFT
+			OUTPUT_QUIET ERROR_VARIABLE DOXYGEN_DEFINE_DRIFT_MSG
+		)
+		if (NOT DOXYGEN_DEFINE_DRIFT EQUAL 0)
+			message(WARNING "Doxygen define profile out of sync:\n${DOXYGEN_DEFINE_DRIFT_MSG}")
+		endif ()
+	endif ()
+
 	# execute doxygen
 	add_custom_target(
 		dekaf2-doc

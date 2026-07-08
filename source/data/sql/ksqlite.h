@@ -29,7 +29,7 @@
  // |\|   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE        |\|
  // |/|   WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR           |/|
  // |\|   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS        |\|
- // |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |\|
+ // |/|   OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR          |/|
  // |\|   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR        |\|
  // |/|   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         |/|
  // |\|   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            |\|
@@ -1035,6 +1035,9 @@ public:
 	bool Commit();
 	/// is this transaction a nested savepoint?
 	bool IsNested() const noexcept { return m_iDepth > 0; }
+	/// did the transaction begin successfully? May be false when another process
+	/// holds the write lock for longer than the busy timeout.
+	bool IsOpen() const noexcept { return m_bOpen; }
 
 //----------
 private:

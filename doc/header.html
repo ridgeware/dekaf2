@@ -1,4 +1,4 @@
-<!-- HTML header for doxygen 1.16.1-->
+<!-- HTML header for doxygen 1.17.0-->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="$langISO">
 <head>
@@ -15,8 +15,12 @@
 <!--BEGIN FULL_SIDEBAR-->
 <script type="text/javascript">var page_layout=1;</script>
 <!--END FULL_SIDEBAR-->
-<script type="text/javascript" src="$relpath^jquery.js"></script>
+<!--BEGIN HTML_DYNAMIC_SECTIONS-->
 <script type="text/javascript" src="$relpath^dynsections.js"></script>
+<!--END HTML_DYNAMIC_SECTIONS-->
+<!--BEGIN HTML_CODE_FOLDING-->
+<script type="text/javascript" src="$relpath^codefolding.js"></script>
+<!--END HTML_CODE_FOLDING-->
 <!--BEGIN COPY_CLIPBOARD-->
 <script type="text/javascript" src="$relpath^clipboard.js"></script>
 <!--END COPY_CLIPBOARD-->
@@ -24,13 +28,80 @@ $treeview
 $search
 $mathjax
 $darkmode
+$mermaidjs
 <link href="$relpath^$stylesheet" rel="stylesheet" type="text/css" />
 $extrastylesheet
+<script type="text/javascript">
+/* doxygen >= 1.16 no longer ships jquery, but doxygen-awesome's init() (up to v2.4.2)
+   still calls it - provide the tiny subset it uses: $(fn), $(document).ready(fn),
+   $(window).resize(fn) */
+if (typeof window.$ === 'undefined') {
+    window.$ = function(arg) {
+        if (typeof arg === 'function') {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', arg);
+            } else {
+                arg();
+            }
+        }
+        return {
+            ready:  function(fn) { window.$(fn); },
+            resize: function(fn) { window.addEventListener('resize', fn); }
+        };
+    };
+}
+</script>
 <script type="text/javascript" src="$relpath^doxygen-awesome-darkmode-toggle.js"></script>
 <script type="text/javascript" src="$relpath^doxygen-awesome-interactive-toc.js"></script>
 <script type="text/javascript">
     DoxygenAwesomeDarkModeToggle.init()
     DoxygenAwesomeInteractiveToc.init()
+</script>
+<script type="text/javascript">
+/* the page outline labels every overload with just the member name - a class with
+   17 constructors shows 17 identical entries. Number them cppreference-style and
+   put the full signature into the tooltip. The panel is built by doxygen's own JS,
+   so wait for it via MutationObserver. */
+document.addEventListener('DOMContentLoaded', function() {
+    const pageNav = document.getElementById('page-nav');
+    if (!pageNav) return;
+
+    function signatureFor(link) {
+        const id = decodeURIComponent((link.hash || '').slice(1));
+        let el = id ? document.getElementById(id) : null;
+        for (let i = 0; el && i < 5; ++i) {
+            if (el.classList && el.classList.contains('memitem')) break;
+            el = el.nextElementSibling;
+        }
+        const proto = el && el.querySelector ? el.querySelector('.memproto') : null;
+        return proto ? proto.textContent.replace(/\s+/g, ' ').trim() : '';
+    }
+
+    function disambiguate() {
+        const groups = new Map();
+        pageNav.querySelectorAll('ul.page-outline a[href*="#"]').forEach(function(a) {
+            if (a.dataset.overloadTagged) return;
+            const name = a.textContent.trim();
+            if (!groups.has(name)) groups.set(name, []);
+            groups.get(name).push(a);
+        });
+        groups.forEach(function(links) {
+            if (links.length < 2) return;
+            links.forEach(function(a, i) {
+                a.dataset.overloadTagged = '1';
+                const idx = document.createElement('span');
+                idx.style.opacity = '0.65';
+                idx.textContent = ' (' + (i + 1) + ')';
+                a.appendChild(idx);
+                const sig = signatureFor(a);
+                if (sig) a.title = sig;
+            });
+        });
+    }
+
+    new MutationObserver(disambiguate).observe(pageNav, {childList: true, subtree: true});
+    disambiguate();
+});
 </script>
 </head>
 <body>

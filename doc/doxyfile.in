@@ -34,8 +34,8 @@ BRIEF_MEMBER_DESC      = YES
 REPEAT_BRIEF           = YES
 # create details if only brief?
 ALWAYS_DETAILED_SEC    = YES
-# show inherited members in child class?
-INLINE_INHERITED_MEMB  = YES
+# keep inherited members in their own per-base sections (cppreference style)
+INLINE_INHERITED_MEMB  = NO
 # is multiline /// allowed for brief?
 MULTILINE_CPP_IS_BRIEF = YES
 JAVADOC_AUTOBRIEF      = YES
@@ -66,6 +66,8 @@ CLASS_GRAPH            = YES
 COLLABORATION_GRAPH    = NO
 GROUP_GRAPHS           = NO
 DOT_GRAPH_MAX_NODES    = 64
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
 HTML_TIMESTAMP         = YES
 HTML_DYNAMIC_SECTIONS  = NO
 GENERATE_TREEVIEW      = YES

@@ -136,6 +136,7 @@ class DEKAF2_PUBLIC KCaseStringViewBase : public KStringView
 public:
 //------
 
+	/// inherits constructor from KStringView
 	using KStringView::KStringView;
 
 	//-----------------------------------------------------------------------------
@@ -226,6 +227,7 @@ class DEKAF2_PUBLIC KCaseStringBase : public KString
 public:
 //------
 
+	/// inherits constructor from KString
 	using KString::KString;
 
 	//-----------------------------------------------------------------------------

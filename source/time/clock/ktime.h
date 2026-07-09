@@ -790,9 +790,9 @@ public:
 	/// we need this constructor because otherwise gcc versions < 9 complain about conversion ambiguities
 	           explicit KUTCTime (const detail::KParsedTimestampBase& parsed) noexcept;
 
-	// allowing all base class constructors -> KDate
+	/// inherits constructor from KDate - the time of day defaults to midnight
 	using KDate::KDate;
-	// allowing all base class constructors -> KTimeOfDay
+	/// inherits constructor from KTimeOfDay - the date is left default constructed
 	using KTimeOfDay::KTimeOfDay;
 
 	/// get the current time as GMT / UTC time

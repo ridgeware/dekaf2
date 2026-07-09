@@ -232,6 +232,7 @@ class DEKAF2_PUBLIC KSocketWatch : public KPoll
 public:
 //----------
 
+	/// inherits constructor from KPoll
 	using KPoll::KPoll;
 
 //----------

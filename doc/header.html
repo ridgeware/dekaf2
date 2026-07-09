@@ -61,10 +61,20 @@ if (typeof window.$ === 'undefined') {
 /* the page outline labels every overload with just the member name - a class with
    17 constructors shows 17 identical entries. Number them cppreference-style and
    put the full signature into the tooltip. The panel is built by doxygen's own JS,
-   so wait for it via MutationObserver. */
+   so wait for it via MutationObserver.
+   Also undo doxygen 1.17's navtree.js bug of assigning escapeHtml()ed names to
+   textContent, which renders "operator+=" as "operator+&#x3D;". */
 document.addEventListener('DOMContentLoaded', function() {
     const pageNav = document.getElementById('page-nav');
     if (!pageNav) return;
+
+    const entities = {'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&#x27;':"'",'&#x60;':'`','&#x3D;':'='};
+    function decodeEntities(node) {
+        const tn = node.firstChild;
+        if (tn && tn.nodeType === Node.TEXT_NODE) {
+            tn.nodeValue = tn.nodeValue.replace(/&(?:amp|lt|gt|quot|#x27|#x60|#x3D);/g, function(m) { return entities[m]; });
+        }
+    }
 
     function signatureFor(link) {
         const id = decodeURIComponent((link.hash || '').slice(1));
@@ -81,6 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const groups = new Map();
         pageNav.querySelectorAll('ul.page-outline a[href*="#"]').forEach(function(a) {
             if (a.dataset.overloadTagged) return;
+            decodeEntities(a);
             const name = a.textContent.trim();
             if (!groups.has(name)) groups.set(name, []);
             groups.get(name).push(a);
@@ -101,6 +112,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     new MutationObserver(disambiguate).observe(pageNav, {childList: true, subtree: true});
     disambiguate();
+
+    // the same double-escape affects member names in the left class tree
+    const sideNav = document.getElementById('side-nav');
+    if (sideNav) {
+        function decodeTree() {
+            sideNav.querySelectorAll('a').forEach(decodeEntities);
+        }
+        new MutationObserver(decodeTree).observe(sideNav, {childList: true, subtree: true});
+        decodeTree();
+    }
 });
 </script>
 </head>

@@ -120,6 +120,7 @@ class DEKAF2_PUBLIC KSharedBar : private KBAR
 public:
 //----------
 
+	/// inherits constructor from KBAR
 	using KBAR::KBAR;
 
 	uint64_t  SetFlags (uint64_t iFlags);

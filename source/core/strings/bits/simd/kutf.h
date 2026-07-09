@@ -345,7 +345,7 @@ std::size_t convert_utf16_to_utf32(const char16_t* input, std::size_t length, ch
  *
  * @param input         the UTF-8 string to convert
  * @param length        the length of the string in bytes
- * @param utf32_buffer  the pointer to buffer that can hold conversion result
+ * @param utf32_output  the pointer to buffer that can hold conversion result
  * @return the number of written char32_t; 0 if the input was not valid UTF-8
  * string
  */
@@ -361,7 +361,7 @@ std::size_t convert_utf8_to_utf32(const char* input, std::size_t length, char32_
  *
  * @param input         the UTF-8 string to convert
  * @param length        the length of the string in bytes
- * @param utf16_buffer  the pointer to buffer that can hold conversion result
+ * @param utf16_output  the pointer to buffer that can hold conversion result
  * @return the number of written char16_t; 0 if the input was not valid UTF-8
  * string
  */

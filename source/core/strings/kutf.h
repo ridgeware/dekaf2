@@ -59,7 +59,7 @@
 /// push performance for bulk operations by at least 2 times (for case changes) to 5 times (for encoding conversions)
 /// and 10 times (for validation and count) compared to the discrete template code. simdutf is wrapped seamlessly
 /// into the existing template interface. Performance measurements were done on both amd64 and aarch64 with
-/// (nearly) comparable results. When using this header standalone, please #define KUTF_WITH_SIMDUTF 1
+/// (nearly) comparable results. When using this header standalone, please \#define KUTF_WITH_SIMDUTF 1
 /// and make sure <simdutf.h> is in the include path.
 ///
 /// PLEASE NOTE: When using simdutf, invalid codepoints will not be marked with the REPLACEMENT_CHARACTER,
@@ -536,7 +536,7 @@ codepoint_t CodepointCast(Char ch)
 //-----------------------------------------------------------------------------
 /// Returns the count of characters that a UTF representation for a given codepoint would need for the chosen
 /// UTF bit width (8/16/32)
-/// @param template param iWidth: the target UTF width in bytes or bits, defaults to 8 (=UTF8)
+/// @tparam iWidth the target UTF width in bytes or bits, defaults to 8 (=UTF8)
 /// @param codepoint the codepoint to check for its output count
 /// @return the count of output units needed to represent the given codepoint
 template<std::size_t iWidth = 8>
@@ -697,8 +697,6 @@ void ToUTF(Char codepoint, Iterator it)
 
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8/UTF16/UTF32 sequence written at iterator it
-/// @param codepoint the codepoint to write
-/// @param it the output iterator to write at
 template<typename Char, typename Iterator,
          typename std::enable_if<std::is_integral<Char>::value
                                  && std::is_integral<typename Iterator::value_type>::value
@@ -712,13 +710,13 @@ void ToUTF(Char codepoint, Iterator it)
 
 //-----------------------------------------------------------------------------
 /// Convert a codepoint into a UTF8/UTF16/UTF32 sequence appended to UTF
+/// @param codepoint the codepoint to write
+/// @param UTF the output container to write into (typically a string type)
 template<typename Char, typename UTFContainer,
          typename std::enable_if<std::is_integral<Char>::value
                                  && KUTF_detail::HasSize<UTFContainer>::value, int>::type = 0>
 KUTF_CONSTEXPR_14
 void ToUTF(Char codepoint, UTFContainer& UTF)
-/// @param codepoint the codepoint to write
-/// @param UTF the output container to write into (typically a string type)
 //-----------------------------------------------------------------------------
 {
 	ToUTF(codepoint, std::back_inserter(UTF));

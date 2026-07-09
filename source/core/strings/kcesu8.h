@@ -40,7 +40,7 @@
 
 #pragma once
 
-/// @file kutfcesu.h
+/// @file kcesu8.h
 /// helpers to repair badly converted UTF8
 
 #include <dekaf2/core/strings/kutf.h>

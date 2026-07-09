@@ -638,44 +638,58 @@ public:
 
 }; // KDate
 
+/// @}
+
 // +- years
+/// @relates KDate
 inline constexpr
 KDate operator+(const KDate& left, const chrono::years& right) noexcept
 { KDate d = operator+(KDate::base(left), right); d.to_floor(); return d; }
 
+/// @relates KDate
 inline constexpr
 KDate operator+(const chrono::years& left, const KDate& right) noexcept
 { return right + left; }
 
+/// @relates KDate
 inline constexpr
 KDate operator-(const KDate& left, const chrono::years& right) noexcept
 { KDate d = operator-(KDate::base(left), right); d.to_floor(); return d; }
 
 // +- months
+/// @relates KDate
 inline constexpr
 KDate operator+(const KDate& left, const chrono::months& right) noexcept
 { KDate d = operator+(KDate::base(left), right); d.to_floor(); return d; }
 
+/// @relates KDate
 inline constexpr
 KDate operator+(const chrono::months& left, const KDate& right) noexcept
 { return right + left; }
 
+/// @relates KDate
 inline constexpr
 KDate operator-(const KDate& left, const chrono::months& right) noexcept
 { KDate d = operator-(KDate::base(left), right); d.to_floor(); return d; }
 
 // +- days
+/// @relates KDate
 inline constexpr
 KDate operator+(const KDate& left, const chrono::days& right) noexcept
 { return chrono::sys_days(left) + right; }
 
+/// @relates KDate
 inline constexpr
 KDate operator+(const chrono::days& left, const KDate& right) noexcept
 { return right + left; }
 
+/// @relates KDate
 inline constexpr
 KDate operator-(const KDate& left, const chrono::days& right) noexcept
 { return chrono::sys_days(left) - right; }
+
+/// @addtogroup time_clock
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// helper class to give easy access on years or months in a day count
@@ -813,26 +827,25 @@ constexpr KDateDiff::KDateDiff(const KConstDate& left, const KConstDate& right) 
 	}
 }
 
-/// @addtogroup time_clock
-/// @{
-
+/// @relates KDate
 inline constexpr
 KDateDiff operator-(const KDate&      left, const KDate&      right)
 { return KDateDiff(left, right); }
 
+/// @relates KConstDate
 inline constexpr
 KDateDiff operator-(const KConstDate& left, const KConstDate& right)
 { return KDateDiff(left, right); }
 
+/// @relates KConstDate
 inline constexpr
 KDateDiff operator-(const KConstDate& left, const KDate&      right)
 { return KDateDiff(left, right); }
 
+/// @relates KDate
 inline constexpr
 KDateDiff operator-(const KDate&      left, const KConstDate& right)
 { return KDateDiff(left, right); }
-
-/// @}
 
 inline constexpr
 KDate& KDate::to_trunc() noexcept
@@ -1011,9 +1024,7 @@ KString KDays::to_string() const
 	return kFormat("{}", *this);
 }
 
-/// @addtogroup time_clock
-/// @{
-
+/// @relates KConstDate
 inline DEKAF2_PUBLIC
 std::ostream& operator<<(std::ostream& stream, KConstDate date)
 {
@@ -1022,6 +1033,7 @@ std::ostream& operator<<(std::ostream& stream, KConstDate date)
 	return stream;
 }
 
+/// @relates KDate
 inline DEKAF2_PUBLIC
 std::ostream& operator<<(std::ostream& stream, KDate date)
 {
@@ -1030,6 +1042,7 @@ std::ostream& operator<<(std::ostream& stream, KDate date)
 	return stream;
 }
 
+/// @relates KDays
 inline DEKAF2_PUBLIC
 std::ostream& operator<<(std::ostream& stream, KDays days)
 {
@@ -1038,6 +1051,7 @@ std::ostream& operator<<(std::ostream& stream, KDays days)
 	return stream;
 }
 
+/// @relates KDateDiff
 inline DEKAF2_PUBLIC
 std::ostream& operator<<(std::ostream& stream, KDateDiff datediff)
 {
@@ -1047,7 +1061,6 @@ std::ostream& operator<<(std::ostream& stream, KDateDiff datediff)
 }
 
 
-/// @}
 
 DEKAF2_NAMESPACE_END
 

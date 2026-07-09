@@ -305,6 +305,9 @@ private:
 
 }; // KUnixTime
 
+/// @}
+
+/// @relates KUnixTime
 DEKAF2_CONSTEXPR_14 KDuration operator-(const KUnixTime& left, const KUnixTime& right)
 { return KUnixTime::base(left) - KUnixTime::base(right); }
 
@@ -314,18 +317,21 @@ DEKAF2_CONSTEXPR_14 KDuration operator-(const KUnixTime& left, const KUnixTime& 
 // chrono::years, as those would lead to unexpected results.
 // We also deliberately do not offer operator-(duration, KUnixTime), as subtracting a time point
 // from a duration is mathematically undefined (std::chrono does not offer it either).
+/// @relates KUnixTime
 template<typename T, typename std::enable_if<detail::is_duration<T>::value
          && !std::is_same<T, chrono::months>::value
          && !std::is_same<T, chrono::years >::value, int>::type = 0>
 DEKAF2_CONSTEXPR_14 KUnixTime operator+(const KUnixTime& left, const T& right)
 { return KUnixTime(left.time_since_epoch() + chrono::duration_cast<KUnixTime::duration>(right)); }
 
+/// @relates KUnixTime
 template<typename T, typename std::enable_if<detail::is_duration<T>::value
          && !std::is_same<T, chrono::months>::value
          && !std::is_same<T, chrono::years >::value, int>::type = 0>
 DEKAF2_CONSTEXPR_14 KUnixTime operator+(const T& left, const KUnixTime& right)
 { return right + left; }
 
+/// @relates KUnixTime
 template<typename T, typename std::enable_if<detail::is_duration<T>::value
          && !std::is_same<T, chrono::months>::value
          && !std::is_same<T, chrono::years >::value, int>::type = 0>
@@ -336,14 +342,14 @@ DEKAF2_CONSTEXPR_14 KUnixTime operator-(const KUnixTime& left, const T& right)
 // average duration (and never calendar semantics), which leads to unexpected results. We forbid it
 // (just like the compound assignment operators do) by deleting these overloads - otherwise the
 // inherited std::chrono operators would quietly accept them and return a plain std::chrono time point.
+/// @relates KUnixTime
 template<typename T, typename std::enable_if<std::is_same<T, chrono::months>::value || std::is_same<T, chrono::years>::value, int>::type = 0>
 KUnixTime operator+(const KUnixTime& left, const T& right) = delete;
+/// @relates KUnixTime
 template<typename T, typename std::enable_if<std::is_same<T, chrono::months>::value || std::is_same<T, chrono::years>::value, int>::type = 0>
 KUnixTime operator+(const T& left, const KUnixTime& right) = delete;
 template<typename T, typename std::enable_if<std::is_same<T, chrono::months>::value || std::is_same<T, chrono::years>::value, int>::type = 0>
 KUnixTime operator-(const KUnixTime& left, const T& right) = delete;
-
-/// @}
 
 //-----------------------------------------------------------------------------
 // constexpr implementation of struct timespec to KUnixTime conversion
@@ -637,7 +643,10 @@ private:
 
 }; // KConstTimeOfDay
 
+/// @}
+
 //-----------------------------------------------------------------------------
+/// @relates KConstTimeOfDay
 constexpr bool operator==(const KConstTimeOfDay& left, const KConstTimeOfDay& right)
 //-----------------------------------------------------------------------------
 {
@@ -649,6 +658,7 @@ constexpr bool operator==(const KConstTimeOfDay& left, const KConstTimeOfDay& ri
 }
 
 //-----------------------------------------------------------------------------
+/// @relates KConstTimeOfDay
 constexpr bool operator< (const KConstTimeOfDay& left, const KConstTimeOfDay& right)
 //-----------------------------------------------------------------------------
 {
@@ -657,10 +667,9 @@ constexpr bool operator< (const KConstTimeOfDay& left, const KConstTimeOfDay& ri
 
 DEKAF2_COMPARISON_OPERATORS(KConstTimeOfDay)
 
+/// @relates KConstTimeOfDay
 constexpr KDuration operator-(const KConstTimeOfDay& left, const KConstTimeOfDay& right)
 { return left.to_duration() - right.to_duration(); }
-
-/// @}
 
 //-----------------------------------------------------------------------------
 constexpr std::tm KConstTimeOfDay::to_tm () const noexcept
@@ -865,6 +874,8 @@ private:
 
 }; // KUTCTime
 
+/// @}
+
 DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE(KUTCTime, left.to_sys(), right.to_sys())
 
 // Binary duration operators for KUTCTime. They are implemented in terms of the compound
@@ -872,16 +883,22 @@ DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE(KUTCTime, left.to_sys(), right.to_s
 // preserving the time of day) while sub-day durations keep their time semantics, and so that
 // the result is always a KUTCTime - and never silently decays to a date-only KDate (which would
 // drop the time of day) or to a std::chrono time point.
+/// @relates KUTCTime
 template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
 DEKAF2_CONSTEXPR_17 KUTCTime operator+(const KUTCTime& left, T right) { KUTCTime tResult(left); tResult += right; return tResult; }
 
+/// @relates KUTCTime
 template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
 DEKAF2_CONSTEXPR_17 KUTCTime operator+(T left, const KUTCTime& right) { return right + left; }
 
+/// @relates KUTCTime
 template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
 DEKAF2_CONSTEXPR_17 KUTCTime operator-(const KUTCTime& left, T right) { KUTCTime tResult(left); tResult -= right; return tResult; }
 
 #if DEKAF2_HAS_TIMEZONES
+/// @addtogroup time_clock
+/// @{
+
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A broken down time representation in local time (any timezone that this system supports) - you
 /// cannot do arithmetics on it, because that is in general invalid on local times (you may step
@@ -1072,29 +1089,32 @@ inline KUTCTime::KUTCTime (const KLocalTime& local) noexcept : KUTCTime(KUnixTim
 inline KUnixTime::KUnixTime(const KLocalTime& local) noexcept : KUnixTime(local.to_unix()) {}
 DEKAF2_CONSTEXPR_14 KUnixTime::KUnixTime(const KUTCTime& utc) noexcept : KUnixTime(utc.to_unix()) {}
 
-/// @addtogroup time_clock
-/// @{
-
 DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE (KLocalTime, left.to_sys(), right.to_sys())
 DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES(KUTCTime, KLocalTime, first.to_sys(), second.to_sys())
 
+/// @relates KUTCTime
 constexpr
 inline KDuration operator-(const KUTCTime&   left, const KUTCTime&   right) { return left.to_sys() - right.to_sys(); }
+/// @relates KLocalTime
 inline KDuration operator-(const KLocalTime& left, const KLocalTime& right) { return left.to_sys() - right.to_sys(); }
+/// @relates KUTCTime
 inline KDuration operator-(const KUTCTime&   left, const KLocalTime& right) { return left.to_sys() - right.to_sys(); }
+/// @relates KLocalTime
 inline KDuration operator-(const KLocalTime& left, const KUTCTime&   right) { return left.to_sys() - right.to_sys(); }
 
+/// @relates KLocalTime
 inline chrono::system_clock::duration operator-(const KLocalTime& left, const chrono::system_clock::time_point right) { return left.to_sys() - right; }
+/// @relates KLocalTime
 inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KLocalTime& right) { return left - right.to_sys(); }
 
 #endif // of DEKAF2_HAS_TIMEZONES
 
+/// @relates KUTCTime
 constexpr
 inline chrono::system_clock::duration operator-(const KUTCTime& left, const chrono::system_clock::time_point right) { return left.to_sys() - right; }
+/// @relates KUTCTime
 constexpr
 inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KUTCTime& right) { return left - right.to_sys(); }
-
-/// @}
 
 namespace detail {
 
@@ -1919,9 +1939,7 @@ inline KString KConstDate::to_string (const std::locale& locale) const noexcept
 	return detail::FormTimestamp(locale, *this, detail::fDefaultDate);
 }
 
-/// @addtogroup time_clock
-/// @{
-
+/// @relates KLocalTime
 inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KLocalTime time)
 {
 	auto s = time.to_string();
@@ -1929,6 +1947,7 @@ inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KLocalTime t
 	return stream;
 }
 
+/// @relates KUnixTime
 inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KUnixTime time)
 {
 	auto s = time.to_string();
@@ -1936,6 +1955,7 @@ inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KUnixTime ti
 	return stream;
 }
 
+/// @relates KUTCTime
 inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KUTCTime time)
 {
 	auto s = time.to_string();
@@ -1944,6 +1964,5 @@ inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KUTCTime tim
 }
 
 
-/// @}
 
 DEKAF2_NAMESPACE_END

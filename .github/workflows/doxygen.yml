@@ -25,7 +25,15 @@ jobs:
           submodules: true
 
       - name: Install Doxygen and Graphviz
-        run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
+        # pin doxygen to the same release we use locally - apt would install 1.9.8,
+        # which generates markedly different HTML and breaks the custom header
+        env:
+          DOXYGEN_VERSION: 1.17.0
+        run: |
+          sudo apt-get update && sudo apt-get install -y graphviz
+          curl -fsSL https://www.doxygen.nl/files/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz | tar -xz
+          sudo make -C doxygen-${DOXYGEN_VERSION} install
+          doxygen --version
 
       - name: Configure with CMake (generates doxyfile from doxyfile.in)
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release

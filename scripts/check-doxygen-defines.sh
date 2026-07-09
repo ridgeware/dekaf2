@@ -58,4 +58,28 @@ if [ -n "$drift" ]; then
 	exit 1
 fi
 
+# every function-like DEKAF2_* macro invoked at the start of a line in a header
+# must be expanded (usually to nothing) via PREDEFINED - doxygen does not expand
+# unknown macros, then misreads the invocation as an unterminated declaration and
+# can swallow the following class or function (this cost us the KLocalTime page)
+invoked=$(grep -rhoE '^[[:space:]]*DEKAF2_[A-Z_0-9]+\(' "$root/source" --include='*.h' \
+	| tr -d ' \t(' | sort -u)
+
+predefined_fn=$(awk '
+	$1 == "PREDEFINED" { inblock = 1 }
+	inblock {
+		print
+		if ($0 !~ /\\[[:space:]]*$/) inblock = 0
+	}
+' "$doxy" | grep -oE 'DEKAF2?_[A-Za-z0-9_]+\(' | tr -d '(' | sort -u)
+
+fndrift=$(comm -23 <(printf '%s\n' "$invoked") <(printf '%s\n' "$predefined_fn"))
+
+if [ -n "$fndrift" ]; then
+	echo "check-doxygen-defines: function-like DEKAF2_* macro(s) invoked in headers but" >&2
+	echo "  not expanded via PREDEFINED in doc/doxyfile.in (add as no-op, e.g. NAME(x)= ):" >&2
+	printf '    %s\n' $fndrift >&2
+	exit 1
+fi
+
 echo "check-doxygen-defines: doc/doxyfile.in is in sync with cmake/kconfiguration.h.in"

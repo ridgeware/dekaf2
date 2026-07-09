@@ -343,6 +343,8 @@ KUnixTime operator+(const T& left, const KUnixTime& right) = delete;
 template<typename T, typename std::enable_if<std::is_same<T, chrono::months>::value || std::is_same<T, chrono::years>::value, int>::type = 0>
 KUnixTime operator-(const KUnixTime& left, const T& right) = delete;
 
+/// @}
+
 //-----------------------------------------------------------------------------
 // constexpr implementation of struct timespec to KUnixTime conversion
 DEKAF2_NODISCARD
@@ -443,6 +445,9 @@ DEKAF2_CONSTEXPR_14 std::tm KUnixTime::to_tm(KUnixTime tp) noexcept
 
 } // KUnixTime::to_tm
 
+/// @addtogroup time_clock
+/// @{
+
 /// returns the KDuration until a certain point in time, from now on
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KDuration kUntil(KUnixTime timepoint);
@@ -450,6 +455,8 @@ KDuration kUntil(KUnixTime timepoint);
 /// returns the KDuration since a certain point in time, until now
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KDuration kSince(KUnixTime timepoint);
+
+/// @}
 
 //-----------------------------------------------------------------------------
 constexpr KUnixTime KConstDate::to_unix () const noexcept
@@ -495,6 +502,9 @@ constexpr KStringView fDefaultTime { "{:%H:%M:%S}" };
 #endif
 
 } // end of namespace detail
+
+/// @addtogroup time_clock
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// constexpr breaking down any duration or timepoint into a const 24h duration with accessors for hours, minutes, seconds, subseconds
@@ -650,6 +660,8 @@ DEKAF2_COMPARISON_OPERATORS(KConstTimeOfDay)
 constexpr KDuration operator-(const KConstTimeOfDay& left, const KConstTimeOfDay& right)
 { return left.to_duration() - right.to_duration(); }
 
+/// @}
+
 //-----------------------------------------------------------------------------
 constexpr std::tm KConstTimeOfDay::to_tm () const noexcept
 //-----------------------------------------------------------------------------
@@ -666,6 +678,9 @@ constexpr std::tm KConstTimeOfDay::to_tm () const noexcept
 	return tm;
 
 } // KConstTimeOfDay::to_tm
+
+/// @addtogroup time_clock
+/// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// constexpr breaking down any duration or timepoint into a 24h duration with accessors for hours, minutes, seconds, subseconds.
@@ -1051,9 +1066,14 @@ private:
 
 }; // KLocalTime
 
+/// @}
+
 inline KUTCTime::KUTCTime (const KLocalTime& local) noexcept : KUTCTime(KUnixTime(local.to_sys())) {}
 inline KUnixTime::KUnixTime(const KLocalTime& local) noexcept : KUnixTime(local.to_unix()) {}
 DEKAF2_CONSTEXPR_14 KUnixTime::KUnixTime(const KUTCTime& utc) noexcept : KUnixTime(utc.to_unix()) {}
+
+/// @addtogroup time_clock
+/// @{
 
 DEKAF2_WRAPPED_COMPARISON_OPERATORS_ONE_TYPE (KLocalTime, left.to_sys(), right.to_sys())
 DEKAF2_WRAPPED_COMPARISON_OPERATORS_TWO_TYPES(KUTCTime, KLocalTime, first.to_sys(), second.to_sys())
@@ -1073,6 +1093,8 @@ constexpr
 inline chrono::system_clock::duration operator-(const KUTCTime& left, const chrono::system_clock::time_point right) { return left.to_sys() - right; }
 constexpr
 inline chrono::system_clock::duration operator-(const chrono::system_clock::time_point left, const KUTCTime& right) { return left - right.to_sys(); }
+
+/// @}
 
 namespace detail {
 
@@ -1377,6 +1399,9 @@ inline KUTCTime   ::KUTCTime    (const detail::KParsedTimestampBase& parsed) noe
 inline KLocalTime ::KLocalTime  (const detail::KParsedTimestampBase& parsed) noexcept : KLocalTime (parsed.to_local ()) {}
 #endif
 
+/// @addtogroup time_clock
+/// @{
+
 /// returns the current system time as KUnixTime in high resolution (clang libc++: microseconds, gnu libstdc++: nanoseconds)
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 inline          KUnixTime kNow                    ()
@@ -1584,6 +1609,8 @@ inline                     KString kTranslateDuration   (const KDuration& Durati
 {
 	return Duration.ToString(bLongForm ? KDuration::Format::Long : KDuration::Format::Smart, Interval);
 }
+
+/// @}
 
 DEKAF2_NAMESPACE_END
 
@@ -1891,6 +1918,9 @@ inline KString KConstDate::to_string (const std::locale& locale) const noexcept
 {
 	return detail::FormTimestamp(locale, *this, detail::fDefaultDate);
 }
+
+/// @addtogroup time_clock
+/// @{
 
 inline DEKAF2_PUBLIC std::ostream& operator<<(std::ostream& stream, KLocalTime time)
 {

@@ -299,7 +299,7 @@ constexpr chrono::year operator ""y (unsigned long long y) noexcept { return chr
 
 #if DEKAF2_USE_HINNANT_TIMEZONE
 
-#if !DEKAF2_USE_HINNANT_DATE && (!defined(DEKAF2_STD_CHRONO_HAS_LOCAL_T) || !DEKAF2_HAS_CPP20)
+#if !DEKAF2_USE_HINNANT_DATE && (!defined(DEKAF2_STD_CHRONO_HAS_LOCAL_T) || !DEKAF2_HAS_CPP_20)
 template <class Duration>
 using local_time = date::local_time<Duration>;
 using date::local_seconds;
@@ -328,6 +328,8 @@ using zoned_time = date::zoned_time<Duration, TimeZonePtr>;
 
 
 
+
+/// @}
 
 namespace detail {
 
@@ -436,6 +438,9 @@ constexpr chrono::days yearday_from_civil(const chrono::year_month_day& ymd) noe
 
 } // end of namespace detail
 
+/// @addtogroup time_clock
+/// @{
+
 class KUnixTime;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -529,6 +534,8 @@ private:
 
 }; // KConstDate
 
+/// @}
+
 
 //-----------------------------------------------------------------------------
 DEKAF2_NODISCARD
@@ -552,6 +559,9 @@ constexpr std::tm KConstDate::to_tm () const noexcept
 	return tm;
 
 } // KConstDate::to_tm
+
+/// @addtogroup time_clock
+/// @{
 
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -750,6 +760,8 @@ private:
 
 }; // KDateDiff
 
+/// @}
+
 constexpr KDateDiff::KDateDiff(const KConstDate& left, const KConstDate& right) noexcept
 : base(left.to_sys_days() - right.to_sys_days())
 {
@@ -801,6 +813,9 @@ constexpr KDateDiff::KDateDiff(const KConstDate& left, const KConstDate& right) 
 	}
 }
 
+/// @addtogroup time_clock
+/// @{
+
 inline constexpr
 KDateDiff operator-(const KDate&      left, const KDate&      right)
 { return KDateDiff(left, right); }
@@ -816,6 +831,8 @@ KDateDiff operator-(const KConstDate& left, const KDate&      right)
 inline constexpr
 KDateDiff operator-(const KDate&      left, const KConstDate& right)
 { return KDateDiff(left, right); }
+
+/// @}
 
 inline constexpr
 KDate& KDate::to_trunc() noexcept
@@ -993,6 +1010,9 @@ KString KDays::to_string() const
 {
 	return kFormat("{}", *this);
 }
+
+/// @addtogroup time_clock
+/// @{
 
 inline DEKAF2_PUBLIC
 std::ostream& operator<<(std::ostream& stream, KConstDate date)

@@ -118,6 +118,9 @@
 /// @addtogroup core_errors
 /// @{
 	using KSourceLocation = std::source_location;
+
+/// @}
+
 	DEKAF2_NAMESPACE_END
 
 	#define DEKAF2_HAS_STD_SOURCE_LOCATION 1
@@ -164,6 +167,9 @@
 	#endif
 
 	DEKAF2_NAMESPACE_BEGIN
+
+/// @addtogroup core_errors
+/// @{
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// modeled after the C++20 std::source_location, returns limited names (no return values, no parameters, no objects, just the pure function names)

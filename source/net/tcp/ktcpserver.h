@@ -426,7 +426,7 @@ private:
 
 	//-----------------------------------------------------------------------------
 	DEKAF2_PRIVATE
-	void StartUnixAccept();
+	void StartUnixAccept(std::shared_ptr<boost::asio::local::stream_protocol::acceptor> acceptor);
 	//-----------------------------------------------------------------------------
 #endif
 

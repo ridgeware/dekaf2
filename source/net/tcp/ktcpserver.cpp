@@ -696,27 +696,22 @@ bool KTCPServer::SetupUnixAcceptor()
 		return SetError(kFormat("listener for socket file {} could not open", m_sSocketFile));
 	}
 
-	StartUnixAccept();
+	StartUnixAccept(m_UnixAcceptor);
 
 	return true;
 
 } // SetupUnixAcceptor
 
 //-----------------------------------------------------------------------------
-void KTCPServer::StartUnixAccept()
+void KTCPServer::StartUnixAccept(std::shared_ptr<boost::asio::local::stream_protocol::acceptor> acceptor)
 //-----------------------------------------------------------------------------
 {
-	// Do not (re-)arm an accept during shutdown. Stop() sets the shutdown flag (m_bQuit)
-	// before it resets m_UnixAcceptor, so a chained accept (see the end of this function)
-	// must bail here - otherwise it would call async_accept() on a now-null m_UnixAcceptor
-	// and crash (SIGSEGV / UBSan null member call). The IsShuttingDown() check inside the
-	// handler runs *before* the chained call, so it cannot catch a shutdown that begins
-	// while the handler is running. Unlike StartTCPAccept(), which holds the acceptor alive
-	// via a shared_ptr captured in the handler, this path uses the m_UnixAcceptor member.
-	if (IsShuttingDown())
-	{
-		return;
-	}
+	// The acceptor travels as a shared_ptr parameter and is captured in the
+	// handler, exactly like in StartTCPAccept - Stop() resetting m_UnixAcceptor
+	// concurrently can therefore neither null out nor destroy the acceptor this
+	// accept chain works on. Stop() closes the acceptor before resetting the
+	// member, so a chained accept on it completes immediately with an error and
+	// the handler bails out via IsShuttingDown().
 
 	// Ownership model: see StartTCPAccept.
 	auto unixstream = CreateKUnixStream(m_Timeout);
@@ -726,11 +721,11 @@ void KTCPServer::StartUnixAccept()
 	auto* pStream   = unixstream.release();
 #endif
 
-	m_UnixAcceptor->async_accept(socket,
+	acceptor->async_accept(socket,
 #if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
-		[this, pStream](boost::system::error_code ec)
+		[this, acceptor, pStream](boost::system::error_code ec)
 #else
-		[this, unixstream = std::move(unixstream)](boost::system::error_code ec) mutable
+		[this, acceptor, unixstream = std::move(unixstream)](boost::system::error_code ec) mutable
 #endif
 	{
 #if !DEKAF2_HAS_CPP_14 || DEKAF2_CLASSIC_ASIO
@@ -775,7 +770,7 @@ void KTCPServer::StartUnixAccept()
 		}
 
 		// chain the next accept
-		StartUnixAccept();
+		StartUnixAccept(acceptor);
 	});
 
 } // StartUnixAccept

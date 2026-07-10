@@ -2158,7 +2158,7 @@ KString kFormBytes (
 		sSeparator,
 		bDeleteZeroDecimals,
 		iDivisor,
-		3,
+		iMaxDigits,
 		detail::sByteUnits,
 		false
 	);
@@ -2202,7 +2202,7 @@ KString kFormRoundedNumber (
 		sSeparator,
 		bDeleteZeroDecimals,
 		iDivisor,
-		3,
+		iMaxDigits,
 		sUnits
 	);
 }

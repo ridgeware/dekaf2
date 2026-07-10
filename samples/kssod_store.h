@@ -47,7 +47,7 @@
 //
 // Both share one SQLite database file (the same file the KSessionSQLiteStore
 // uses for the OP login sessions — just different tables). Each operation opens
-// a short-lived KSQLite::Database handle (the ktunnel_store pattern); a mutex
+// a short-lived KSQLite handle (the ktunnel_store pattern); a mutex
 // serializes writers, WAL mode lets readers run concurrently.
 
 #pragma once

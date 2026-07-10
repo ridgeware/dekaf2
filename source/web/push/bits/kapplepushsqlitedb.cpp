@@ -62,7 +62,7 @@ KApplePushSQLiteDB::KApplePushSQLiteDB(KString sDatabase)
 bool KApplePushSQLiteDB::CreateTables()
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen())
 	{
 		m_sError = kFormat("cannot open database: {}", m_sDatabase);
@@ -98,7 +98,7 @@ bool KApplePushSQLiteDB::CreateTables()
 bool KApplePushSQLiteDB::StoreSubscription(const KApplePush::Subscription& sub)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen())
 	{
 		m_sError = "cannot open database for StoreSubscription";
@@ -127,7 +127,7 @@ bool KApplePushSQLiteDB::StoreSubscription(const KApplePush::Subscription& sub)
 bool KApplePushSQLiteDB::RemoveSubscription(KStringView sUser, KStringView sDeviceID)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 	if (!db.IsOpen())
 	{
 		m_sError = "cannot open database for RemoveSubscription";
@@ -142,7 +142,7 @@ bool KApplePushSQLiteDB::RemoveSubscription(KStringView sUser, KStringView sDevi
 bool KApplePushSQLiteDB::RemoveUserSubscriptions(KStringView sUser)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 	if (!db.IsOpen())
 	{
 		m_sError = "cannot open database for RemoveUserSubscriptions";
@@ -158,7 +158,7 @@ std::vector<KApplePush::Subscription> KApplePushSQLiteDB::GetSubscriptions(KStri
 {
 	std::vector<KApplePush::Subscription> out;
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return out;
 
 	static constexpr KStringView sSelect = "select user_id, device_id, token, voip_token, useragent, created_utc, lastmod_utc "
@@ -188,7 +188,7 @@ std::vector<KApplePush::Subscription> KApplePushSQLiteDB::GetSubscriptions(KStri
 bool KApplePushSQLiteDB::HasSubscriptions()
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 	return db.SingleIntQuery("select count(*) from APNS_SUBSCRIPTIONS") > 0;
 

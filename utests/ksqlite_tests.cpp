@@ -23,7 +23,7 @@ TEST_CASE("KSQLite")
 	{
 		auto sFilename = kFormat("{}/sqlite_basic.db", TempDir.Name());
 
-		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+		KSQLite db(sFilename, KSQLite::Mode::READWRITECREATE);
 		REQUIRE ( db.IsOpen() );
 
 		REQUIRE ( db.ExecSQL(
@@ -106,7 +106,7 @@ TEST_CASE("KSQLite")
 	{
 		auto sFilename = kFormat("{}/sqlite_cache.db", TempDir.Name());
 
-		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+		KSQLite db(sFilename, KSQLite::Mode::READWRITECREATE);
 		REQUIRE ( db.ExecSQL("create table c (n integer)") );
 
 		auto iCompiled = db.Compilations();
@@ -156,7 +156,7 @@ TEST_CASE("KSQLite")
 		Opts.iMode           = KSQLite::Mode::READWRITECREATE;
 		Opts.iStatementCache = 0;
 
-		KSQLite::Database db(sFilename, Opts);
+		KSQLite db(sFilename, Opts);
 		REQUIRE ( db.ExecSQL("create table c (n integer)") );
 
 		for (int i = 0; i < 4; ++i)
@@ -172,7 +172,7 @@ TEST_CASE("KSQLite")
 	{
 		auto sFilename = kFormat("{}/sqlite_errors.db", TempDir.Name());
 
-		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+		KSQLite db(sFilename, KSQLite::Mode::READWRITECREATE);
 
 		auto Result = db.ExecSQL("this is not sql");
 		CHECK ( !Result );
@@ -194,7 +194,7 @@ TEST_CASE("KSQLite")
 	{
 		auto sFilename = kFormat("{}/sqlite_null.db", TempDir.Name());
 
-		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+		KSQLite db(sFilename, KSQLite::Mode::READWRITECREATE);
 		REQUIRE ( db.ExecSQL("create table nn (id integer primary key, txt text not null, opt text null)") );
 
 		// a default constructed (null-data) string view binds the empty string
@@ -224,7 +224,7 @@ TEST_CASE("KSQLite")
 	{
 		auto sFilename = kFormat("{}/sqlite_multi.db", TempDir.Name());
 
-		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+		KSQLite db(sFilename, KSQLite::Mode::READWRITECREATE);
 
 		CHECK ( db.ExecSQL(
 			"CREATE TABLE multi1 (id INTEGER PRIMARY KEY, val TEXT);"
@@ -241,7 +241,7 @@ TEST_CASE("KSQLite")
 	{
 		auto sFilename = kFormat("{}/sqlite_blob.db", TempDir.Name());
 
-		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+		KSQLite db(sFilename, KSQLite::Mode::READWRITECREATE);
 		REQUIRE ( db.ExecSQL("CREATE TABLE bintest (id INTEGER PRIMARY KEY, data BLOB)") );
 
 		KStringView sWithNul("hello\0world", 11);
@@ -261,12 +261,12 @@ TEST_CASE("KSQLite")
 	{
 		auto sFilename = kFormat("{}/sqlite_txn.db", TempDir.Name());
 
-		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+		KSQLite db(sFilename, KSQLite::Mode::READWRITECREATE);
 		REQUIRE ( db.ExecSQL("create table t (n integer)") );
 
 		// rollback on destruction
 		{
-			KSQLite::Transaction Txn(db);
+			auto Txn = db.BeginTransaction();
 			CHECK ( Txn.IsNested() == false );
 			CHECK ( Txn.ExecSQL("insert into t values (1)") );
 		}
@@ -274,7 +274,7 @@ TEST_CASE("KSQLite")
 
 		// commit persists
 		{
-			KSQLite::Transaction Txn(db);
+			auto Txn = db.BeginTransaction();
 			CHECK ( Txn.ExecSQL("insert into t values (1)") );
 			CHECK ( Txn.Commit() );
 		}
@@ -283,10 +283,10 @@ TEST_CASE("KSQLite")
 		// a nested transaction becomes a savepoint - inner rollback keeps
 		// the outer writes
 		{
-			KSQLite::Transaction Outer(db);
+			auto Outer = db.BeginTransaction();
 			CHECK ( Outer.ExecSQL("insert into t values (2)") );
 			{
-				KSQLite::Transaction Inner(db);
+				auto Inner = db.BeginTransaction();
 				CHECK ( Inner.IsNested() );
 				CHECK ( Inner.ExecSQL("insert into t values (3)") );
 			}
@@ -301,7 +301,7 @@ TEST_CASE("KSQLite")
 	{
 		auto sFilename = kFormat("{}/sqlite_many.db", TempDir.Name());
 
-		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+		KSQLite db(sFilename, KSQLite::Mode::READWRITECREATE);
 		REQUIRE ( db.ExecSQL("create table em (n integer unique, s text)") );
 
 		std::vector<std::tuple<int64_t, KString>> Params;
@@ -330,7 +330,7 @@ TEST_CASE("KSQLite")
 		auto sFilename = kFormat("{}/sqlite_fk.db", TempDir.Name());
 
 		{
-			KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+			KSQLite db(sFilename, KSQLite::Mode::READWRITECREATE);
 			REQUIRE ( db.ExecSQL("create table parent (id integer primary key);"
 			                     "create table child (pid integer references parent(id));") );
 
@@ -344,7 +344,7 @@ TEST_CASE("KSQLite")
 			Opts.iMode        = KSQLite::Mode::READWRITE;
 			Opts.bForeignKeys = false;
 
-			KSQLite::Database db(sFilename, Opts);
+			KSQLite db(sFilename, Opts);
 			CHECK ( db.ExecSQL("insert into child values (?1)", 4711) );
 			CHECK ( db.ExecSQL("delete from child where pid=?1", 4711) );
 		}
@@ -354,7 +354,7 @@ TEST_CASE("KSQLite")
 	{
 		auto sFilename = kFormat("{}/sqlite_conc.db", TempDir.Name());
 
-		KSQLite::Database db(sFilename, KSQLite::Mode::READWRITECREATE);
+		KSQLite db(sFilename, KSQLite::Mode::READWRITECREATE);
 		REQUIRE ( db.ExecSQL("create table t (n integer)") );
 
 		std::atomic<int> iCaught { 0 };
@@ -362,7 +362,7 @@ TEST_CASE("KSQLite")
 
 		// another thread must not slip into an open transaction
 		{
-			KSQLite::Transaction Txn(db);
+			auto Txn = db.BeginTransaction();
 			CHECK ( Txn.ExecSQL("insert into t values (1)") );
 
 			std::thread Intruder([&]()
@@ -427,7 +427,7 @@ TEST_CASE("KSQLite")
 		Opts.iMode = KSQLite::Mode::READWRITECREATE;
 		Opts.bWAL  = true;
 
-		KSQLite::Database Prototype(sFilename, Opts);
+		KSQLite Prototype(sFilename, Opts);
 		REQUIRE ( Prototype.ExecSQL("create table many (tid integer, n integer)") );
 
 		constexpr int iThreads = 8;
@@ -442,7 +442,7 @@ TEST_CASE("KSQLite")
 			Threads.push_back(std::thread([&, tid]()
 			{
 				// the copy constructor opens a new connection to the same file
-				KSQLite::Database db(Prototype);
+				KSQLite db(Prototype);
 
 				if (!db.IsOpen())
 				{

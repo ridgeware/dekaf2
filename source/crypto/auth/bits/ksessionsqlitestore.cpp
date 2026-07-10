@@ -67,7 +67,7 @@ KSessionSQLiteStore::KSessionSQLiteStore(KString sDatabase, KString sTableName)
 bool KSessionSQLiteStore::Initialize()
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 
 	if (!db.IsOpen())
 	{
@@ -133,7 +133,7 @@ bool KSessionSQLiteStore::Create(const KSession::Record& Rec)
 		return false;
 	}
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
 	{
@@ -163,7 +163,7 @@ bool KSessionSQLiteStore::Create(const KSession::Record& Rec)
 bool KSessionSQLiteStore::Lookup(KStringView sToken, KSession::Record* pOut)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 
 	if (!db.IsOpen())
 	{
@@ -201,7 +201,7 @@ bool KSessionSQLiteStore::Lookup(KStringView sToken, KSession::Record* pOut)
 bool KSessionSQLiteStore::Touch(KStringView sToken, KUnixTime tLastSeen)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
 	{
@@ -227,7 +227,7 @@ bool KSessionSQLiteStore::Touch(KStringView sToken, KUnixTime tLastSeen)
 bool KSessionSQLiteStore::UpdateExtra(KStringView sToken, KStringView sExtra)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
 	{
@@ -253,7 +253,7 @@ bool KSessionSQLiteStore::UpdateExtra(KStringView sToken, KStringView sExtra)
 bool KSessionSQLiteStore::Erase(KStringView sToken)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
 	{
@@ -279,7 +279,7 @@ bool KSessionSQLiteStore::Erase(KStringView sToken)
 std::size_t KSessionSQLiteStore::EraseAllFor(KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
 	{
@@ -305,7 +305,7 @@ std::size_t KSessionSQLiteStore::EraseAllFor(KStringView sUsername)
 std::size_t KSessionSQLiteStore::ListFor(KStringView sUsername, std::vector<KSession::Record>& Out)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 
 	if (!db.IsOpen())
 	{
@@ -353,7 +353,7 @@ std::size_t KSessionSQLiteStore::PurgeExpired(KUnixTime tOldestLastSeen,
 		return 0;
 	}
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
 	{
@@ -395,7 +395,7 @@ std::size_t KSessionSQLiteStore::PurgeExpired(KUnixTime tOldestLastSeen,
 std::size_t KSessionSQLiteStore::Count() const
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 
 	if (!db.IsOpen())
 	{

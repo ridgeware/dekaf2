@@ -75,7 +75,7 @@ using namespace dekaf2;
 ///
 /// All write operations are serialized by an internal mutex — SQLite itself
 /// is fine with concurrent reads from multiple threads, but `ExecSQL`-style
-/// writes through a single `KSQLite::Database` instance are simpler to reason
+/// writes through a single `KSQLite` instance are simpler to reason
 /// about with an external lock. Reads are also taken under the lock for
 /// simplicity; lock contention is a non-issue for admin UI traffic.
 class KTunnelStore
@@ -280,12 +280,12 @@ private:
 	/// Initial schema migration — idempotent. Called from the ctor.
 	bool              InitializeSchema       ();
 
-	/// Open a fresh KSQLite::Database handle for one query. We do not hold
+	/// Open a fresh KSQLite handle for one query. We do not hold
 	/// a long-lived handle because that would require the caller to
 	/// synchronize its prepared statements; opening on demand is trivial
 	/// and, for admin-UI traffic, has no performance impact.
-	KSQLite::Database OpenRW ();
-	KSQLite::Database OpenRO ();
+	KSQLite OpenRW ();
+	KSQLite OpenRO ();
 
 	void              SetError (KString sError);
 

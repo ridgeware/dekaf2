@@ -62,7 +62,7 @@ KWebPushSQLiteDB::KWebPushSQLiteDB(KString sDatabase)
 bool KWebPushSQLiteDB::CreateTables()
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 
 	if (!db.IsOpen())
 	{
@@ -110,7 +110,7 @@ bool KWebPushSQLiteDB::CreateTables()
 bool KWebPushSQLiteDB::StoreVAPIDKey(KStringView sKey, KStringView sValue)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 
 	if (!db.IsOpen())
 	{
@@ -144,7 +144,7 @@ bool KWebPushSQLiteDB::StoreVAPIDKey(KStringView sKey, KStringView sValue)
 KString KWebPushSQLiteDB::LoadVAPIDKey(KStringView sKey)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 
 	if (!db.IsOpen())
 	{
@@ -159,7 +159,7 @@ KString KWebPushSQLiteDB::LoadVAPIDKey(KStringView sKey)
 bool KWebPushSQLiteDB::StoreSubscription(const KWebPush::Subscription& sub)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 
 	if (!db.IsOpen())
 	{
@@ -192,7 +192,7 @@ bool KWebPushSQLiteDB::StoreSubscription(const KWebPush::Subscription& sub)
 bool KWebPushSQLiteDB::RemoveSubscription(KStringView sEndpoint)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
 	{
@@ -216,7 +216,7 @@ bool KWebPushSQLiteDB::RemoveSubscription(KStringView sEndpoint)
 bool KWebPushSQLiteDB::RemoveUserSubscriptions(KStringView sUser)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITE);
 
 	if (!db.IsOpen())
 	{
@@ -242,7 +242,7 @@ std::vector<KWebPush::Subscription> KWebPushSQLiteDB::GetSubscriptions(KStringVi
 {
 	std::vector<KWebPush::Subscription> Subs;
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 
 	if (!db.IsOpen())
 	{
@@ -274,7 +274,7 @@ std::vector<KWebPush::Subscription> KWebPushSQLiteDB::GetSubscriptions(KStringVi
 bool KWebPushSQLiteDB::HasSubscriptions()
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 
 	if (!db.IsOpen())
 	{

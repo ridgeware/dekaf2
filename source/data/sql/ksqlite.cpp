@@ -51,7 +51,7 @@
 DEKAF2_NAMESPACE_BEGIN
 #endif
 
-namespace KSQLite {
+namespace {
 
 //--------------------------------------------------------------------------------
 inline bool Success(int ec)
@@ -61,22 +61,24 @@ inline bool Success(int ec)
 }
 
 //--------------------------------------------------------------------------------
-inline uint64_t HashSQL(StringView sSQL)
+inline uint64_t HashSQL(KSQLite::StringView sSQL)
 //--------------------------------------------------------------------------------
 {
 #ifdef DEKAF2
 	auto iHash = static_cast<uint64_t>(sSQL.Hash());
 #else
-	auto iHash = static_cast<uint64_t>(std::hash<StringView>{}(sSQL));
+	auto iHash = static_cast<uint64_t>(std::hash<KSQLite::StringView>{}(sSQL));
 #endif
 	// 0 is the empty slot marker of the probation ring
 	return iHash ? iHash : 1;
 }
 
+} // end of anonymous namespace
+
 //=================================== Claim ======================================
 
 //--------------------------------------------------------------------------------
-detail::Claim::Claim(DBConnector& Connector)
+KSQLite::detail::Claim::Claim(DBConnector& Connector)
 //--------------------------------------------------------------------------------
 	: m_pConnector(&Connector)
 {
@@ -95,7 +97,7 @@ detail::Claim::Claim(DBConnector& Connector)
 	{
 		m_pConnector = nullptr;
 		throw ConcurrencyError("KSQLite: simultaneous use of one connection from multiple threads"
-		                       " - use one Database per thread (copies open their own connection)");
+		                       " - use one KSQLite instance per thread (copies open their own connection)");
 	}
 
 	Connector.m_iClaimDepth = 1;
@@ -103,7 +105,7 @@ detail::Claim::Claim(DBConnector& Connector)
 } // ctor Claim
 
 //--------------------------------------------------------------------------------
-void detail::Claim::Release() noexcept
+void KSQLite::detail::Claim::Release() noexcept
 //--------------------------------------------------------------------------------
 {
 	if (m_pConnector)
@@ -120,7 +122,7 @@ void detail::Claim::Release() noexcept
 //================================= DBConnector ==================================
 
 //--------------------------------------------------------------------------------
-detail::DBConnector::DBConnector(StringViewZ sFilename, Options Opts)
+KSQLite::detail::DBConnector::DBConnector(StringViewZ sFilename, Options Opts)
 //--------------------------------------------------------------------------------
 	: m_Options(std::move(Opts))
 {
@@ -129,7 +131,7 @@ detail::DBConnector::DBConnector(StringViewZ sFilename, Options Opts)
 } // ctor DBConnector
 
 //--------------------------------------------------------------------------------
-detail::DBConnector::DBConnector(const DBConnector& other)
+KSQLite::detail::DBConnector::DBConnector(const DBConnector& other)
 //--------------------------------------------------------------------------------
 	: m_Options(other.m_Options)
 {
@@ -138,7 +140,7 @@ detail::DBConnector::DBConnector(const DBConnector& other)
 } // copy ctor DBConnector
 
 //--------------------------------------------------------------------------------
-detail::DBConnector::~DBConnector()
+KSQLite::detail::DBConnector::~DBConnector()
 //--------------------------------------------------------------------------------
 {
 	ClearStatementCache();
@@ -147,7 +149,7 @@ detail::DBConnector::~DBConnector()
 } // dtor DBConnector
 
 //--------------------------------------------------------------------------------
-bool detail::DBConnector::Connect(StringViewZ sFilename)
+bool KSQLite::detail::DBConnector::Connect(StringViewZ sFilename)
 //--------------------------------------------------------------------------------
 {
 	if (m_DB != nullptr)
@@ -199,7 +201,7 @@ bool detail::DBConnector::Connect(StringViewZ sFilename)
 } // Connect
 
 //--------------------------------------------------------------------------------
-void detail::DBConnector::ApplyOptions()
+void KSQLite::detail::DBConnector::ApplyOptions()
 //--------------------------------------------------------------------------------
 {
 	sqlite3_busy_timeout(m_DB, static_cast<int>(m_Options.BusyTimeout.count()));
@@ -226,7 +228,7 @@ void detail::DBConnector::ApplyOptions()
 } // ApplyOptions
 
 //--------------------------------------------------------------------------------
-bool detail::DBConnector::SetBusyTimeout(std::chrono::milliseconds Timeout)
+bool KSQLite::detail::DBConnector::SetBusyTimeout(std::chrono::milliseconds Timeout)
 //--------------------------------------------------------------------------------
 {
 	m_Options.BusyTimeout = Timeout;
@@ -241,7 +243,7 @@ bool detail::DBConnector::SetBusyTimeout(std::chrono::milliseconds Timeout)
 } // SetBusyTimeout
 
 //--------------------------------------------------------------------------------
-sqlite3_stmt* detail::DBConnector::Compile(StringView sSQL)
+sqlite3_stmt* KSQLite::detail::DBConnector::Compile(StringView sSQL)
 //--------------------------------------------------------------------------------
 {
 	sqlite3_stmt* pStmt = nullptr;
@@ -268,7 +270,7 @@ sqlite3_stmt* detail::DBConnector::Compile(StringView sSQL)
 } // Compile
 
 //--------------------------------------------------------------------------------
-detail::StmtHandle detail::DBConnector::GetStatement(StringView sSQL)
+KSQLite::detail::StmtHandle KSQLite::detail::DBConnector::GetStatement(StringView sSQL)
 //--------------------------------------------------------------------------------
 {
 	if (!m_DB)
@@ -371,7 +373,7 @@ detail::StmtHandle detail::DBConnector::GetStatement(StringView sSQL)
 } // GetStatement
 
 //--------------------------------------------------------------------------------
-void detail::DBConnector::PutStatement(StmtHandle& Handle) noexcept
+void KSQLite::detail::DBConnector::PutStatement(StmtHandle& Handle) noexcept
 //--------------------------------------------------------------------------------
 {
 	if (!Handle.m_pStmt)
@@ -400,7 +402,7 @@ void detail::DBConnector::PutStatement(StmtHandle& Handle) noexcept
 } // PutStatement
 
 //--------------------------------------------------------------------------------
-void detail::DBConnector::ClearStatementCache() noexcept
+void KSQLite::detail::DBConnector::ClearStatementCache() noexcept
 //--------------------------------------------------------------------------------
 {
 	for (auto& Entry : m_StmtCache)
@@ -413,14 +415,14 @@ void detail::DBConnector::ClearStatementCache() noexcept
 } // ClearStatementCache
 
 //--------------------------------------------------------------------------------
-int detail::DBConnector::LastErrorCode() const noexcept
+int KSQLite::detail::DBConnector::LastErrorCode() const noexcept
 //--------------------------------------------------------------------------------
 {
 	return m_DB ? sqlite3_extended_errcode(m_DB) : SQLITE_CANTOPEN;
 }
 
 //--------------------------------------------------------------------------------
-String detail::DBConnector::LastError() const
+KSQLite::String KSQLite::detail::DBConnector::LastError() const
 //--------------------------------------------------------------------------------
 {
 	if (!m_DB)
@@ -437,28 +439,28 @@ String detail::DBConnector::LastError() const
 //================================== binding =====================================
 
 //--------------------------------------------------------------------------------
-bool detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, std::nullptr_t)
+bool KSQLite::detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, std::nullptr_t)
 //--------------------------------------------------------------------------------
 {
 	return Success(sqlite3_bind_null(pStmt, iOneBased));
 }
 
 //--------------------------------------------------------------------------------
-bool detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, int64_t iValue)
+bool KSQLite::detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, int64_t iValue)
 //--------------------------------------------------------------------------------
 {
 	return Success(sqlite3_bind_int64(pStmt, iOneBased, iValue));
 }
 
 //--------------------------------------------------------------------------------
-bool detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, double fValue)
+bool KSQLite::detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, double fValue)
 //--------------------------------------------------------------------------------
 {
 	return Success(sqlite3_bind_double(pStmt, iOneBased, fValue));
 }
 
 //--------------------------------------------------------------------------------
-bool detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, StringView sValue)
+bool KSQLite::detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, StringView sValue)
 //--------------------------------------------------------------------------------
 {
 	// a default constructed string view has data() == nullptr, and
@@ -471,7 +473,7 @@ bool detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, StringView sValue)
 }
 
 //--------------------------------------------------------------------------------
-bool detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, const Blob& Value)
+bool KSQLite::detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, const Blob& Value)
 //--------------------------------------------------------------------------------
 {
 	return Success(sqlite3_bind_blob(pStmt, iOneBased, Value.pData,
@@ -480,15 +482,19 @@ bool detail::BindOne(sqlite3_stmt* pStmt, int iOneBased, const Blob& Value)
 
 //===================================== Row ======================================
 
+namespace {
+
 //--------------------------------------------------------------------------------
-inline bool ValidColumn(sqlite3_stmt* pStmt, Row::ColIndex iOneBased, Row::ColIndex iColumnCount)
+inline bool ValidColumn(sqlite3_stmt* pStmt, int iOneBased, int iColumnCount)
 //--------------------------------------------------------------------------------
 {
 	return pStmt && iOneBased >= 1 && iOneBased <= iColumnCount;
 }
 
+} // end of anonymous namespace
+
 //--------------------------------------------------------------------------------
-int64_t Row::GetInt64(ColIndex iOneBased) const
+int64_t KSQLite::Row::GetInt64(ColIndex iOneBased) const
 //--------------------------------------------------------------------------------
 {
 	return ValidColumn(m_pStmt, iOneBased, m_iColumnCount)
@@ -497,7 +503,7 @@ int64_t Row::GetInt64(ColIndex iOneBased) const
 }
 
 //--------------------------------------------------------------------------------
-double Row::GetDouble(ColIndex iOneBased) const
+double KSQLite::Row::GetDouble(ColIndex iOneBased) const
 //--------------------------------------------------------------------------------
 {
 	return ValidColumn(m_pStmt, iOneBased, m_iColumnCount)
@@ -506,7 +512,7 @@ double Row::GetDouble(ColIndex iOneBased) const
 }
 
 //--------------------------------------------------------------------------------
-String Row::GetString(ColIndex iOneBased) const
+KSQLite::String KSQLite::Row::GetString(ColIndex iOneBased) const
 //--------------------------------------------------------------------------------
 {
 	if (!ValidColumn(m_pStmt, iOneBased, m_iColumnCount))
@@ -524,7 +530,7 @@ String Row::GetString(ColIndex iOneBased) const
 } // Row::GetString
 
 //--------------------------------------------------------------------------------
-StringView Row::GetRawView(ColIndex iOneBased) const
+KSQLite::StringView KSQLite::Row::GetRawView(ColIndex iOneBased) const
 //--------------------------------------------------------------------------------
 {
 	if (!ValidColumn(m_pStmt, iOneBased, m_iColumnCount))
@@ -540,7 +546,7 @@ StringView Row::GetRawView(ColIndex iOneBased) const
 } // Row::GetRawView
 
 //--------------------------------------------------------------------------------
-bool Row::IsNull(ColIndex iOneBased) const
+bool KSQLite::Row::IsNull(ColIndex iOneBased) const
 //--------------------------------------------------------------------------------
 {
 	return !ValidColumn(m_pStmt, iOneBased, m_iColumnCount)
@@ -548,7 +554,7 @@ bool Row::IsNull(ColIndex iOneBased) const
 }
 
 //--------------------------------------------------------------------------------
-Row::ColIndex Row::GetColIndex(StringView sColName) const
+KSQLite::Row::ColIndex KSQLite::Row::GetColIndex(StringView sColName) const
 //--------------------------------------------------------------------------------
 {
 	if (m_NameMap.empty() && m_pStmt)
@@ -571,7 +577,7 @@ Row::ColIndex Row::GetColIndex(StringView sColName) const
 } // Row::GetColIndex
 
 //--------------------------------------------------------------------------------
-StringViewZ Row::GetColName(ColIndex iOneBased) const
+KSQLite::StringViewZ KSQLite::Row::GetColName(ColIndex iOneBased) const
 //--------------------------------------------------------------------------------
 {
 	if (ValidColumn(m_pStmt, iOneBased, m_iColumnCount))
@@ -591,7 +597,7 @@ StringViewZ Row::GetColName(ColIndex iOneBased) const
 //==================================== Cursor ====================================
 
 //--------------------------------------------------------------------------------
-Cursor::Cursor(SharedConnector Connector, detail::Claim Claim, detail::StmtHandle Handle, bool bMayThrow)
+KSQLite::Cursor::Cursor(SharedConnector Connector, detail::Claim Claim, detail::StmtHandle Handle, bool bMayThrow)
 //--------------------------------------------------------------------------------
 	: m_Connector (std::move(Connector))
 	, m_Claim     (std::move(Claim))
@@ -611,7 +617,7 @@ Cursor::Cursor(SharedConnector Connector, detail::Claim Claim, detail::StmtHandl
 } // ctor Cursor
 
 //--------------------------------------------------------------------------------
-Cursor::Cursor(Cursor&& other) noexcept
+KSQLite::Cursor::Cursor(Cursor&& other) noexcept
 //--------------------------------------------------------------------------------
 	: m_Connector  (std::move(other.m_Connector))
 	, m_Claim      (std::move(other.m_Claim))
@@ -630,7 +636,7 @@ Cursor::Cursor(Cursor&& other) noexcept
 } // move ctor Cursor
 
 //--------------------------------------------------------------------------------
-Cursor::~Cursor()
+KSQLite::Cursor::~Cursor()
 //--------------------------------------------------------------------------------
 {
 	if (m_Handle && m_Connector)
@@ -642,7 +648,7 @@ Cursor::~Cursor()
 } // dtor Cursor
 
 //--------------------------------------------------------------------------------
-void Cursor::SetError(StringView sSQL)
+void KSQLite::Cursor::SetError(StringView sSQL)
 //--------------------------------------------------------------------------------
 {
 	m_iErrorCode = m_Connector ? m_Connector->LastErrorCode() : SQLITE_CANTOPEN;
@@ -676,7 +682,7 @@ void Cursor::SetError(StringView sSQL)
 } // Cursor::SetError
 
 //--------------------------------------------------------------------------------
-bool Cursor::Next()
+bool KSQLite::Cursor::Next()
 //--------------------------------------------------------------------------------
 {
 	if (!m_Handle || m_bDone)
@@ -713,7 +719,7 @@ bool Cursor::Next()
 } // Cursor::Next
 
 //--------------------------------------------------------------------------------
-Cursor::iterator::iterator(Cursor& Cursor, bool bToEnd)
+KSQLite::Cursor::iterator::iterator(Cursor& Cursor, bool bToEnd)
 //--------------------------------------------------------------------------------
 	: m_pCursor(bToEnd ? nullptr : &Cursor)
 {
@@ -735,7 +741,7 @@ Cursor::iterator::iterator(Cursor& Cursor, bool bToEnd)
 } // ctor Cursor::iterator
 
 //--------------------------------------------------------------------------------
-Cursor::iterator& Cursor::iterator::operator++()
+KSQLite::Cursor::iterator& KSQLite::Cursor::iterator::operator++()
 //--------------------------------------------------------------------------------
 {
 	if (m_pCursor && !m_pCursor->Next())
@@ -750,14 +756,14 @@ Cursor::iterator& Cursor::iterator::operator++()
 //=================================== Database ===================================
 
 //--------------------------------------------------------------------------------
-Database::Database(StringViewZ sFilename, Options Opts)
+KSQLite::KSQLite(StringViewZ sFilename, Options Opts)
 //--------------------------------------------------------------------------------
 	: m_Connector(std::make_shared<detail::DBConnector>(sFilename, std::move(Opts)))
 {
 } // ctor Database
 
 //--------------------------------------------------------------------------------
-Database::Database(StringViewZ sFilename, Mode iMode)
+KSQLite::KSQLite(StringViewZ sFilename, Mode iMode)
 //--------------------------------------------------------------------------------
 {
 	Options Opts;
@@ -767,7 +773,7 @@ Database::Database(StringViewZ sFilename, Mode iMode)
 } // ctor Database
 
 //--------------------------------------------------------------------------------
-Database::Database(const Database& other)
+KSQLite::KSQLite(const KSQLite& other)
 //--------------------------------------------------------------------------------
 	: m_Connector(other.m_Connector ? std::make_shared<detail::DBConnector>(*other.m_Connector) : nullptr)
 	, m_bMayThrow(other.m_bMayThrow)
@@ -775,24 +781,24 @@ Database::Database(const Database& other)
 } // copy ctor Database
 
 //--------------------------------------------------------------------------------
-Database& Database::operator=(const Database& other)
+KSQLite& KSQLite::operator=(const KSQLite& other)
 //--------------------------------------------------------------------------------
 {
 	m_Connector = other.m_Connector ? std::make_shared<detail::DBConnector>(*other.m_Connector) : nullptr;
 	m_bMayThrow = other.m_bMayThrow;
 	return *this;
 
-} // Database::operator=
+} // KSQLite::operator=
 
 //--------------------------------------------------------------------------------
-bool Database::IsOpen() const noexcept
+bool KSQLite::IsOpen() const noexcept
 //--------------------------------------------------------------------------------
 {
 	return m_Connector && m_Connector->IsOpen();
 }
 
 //--------------------------------------------------------------------------------
-ExecResult Database::NoConnection()
+KSQLite::ExecResult KSQLite::NoConnection()
 //--------------------------------------------------------------------------------
 {
 	ExecResult Result;
@@ -806,10 +812,10 @@ ExecResult Database::NoConnection()
 
 	return Result;
 
-} // Database::NoConnection
+} // KSQLite::NoConnection
 
 //--------------------------------------------------------------------------------
-ExecResult Database::PrepareError(StringView sSQL)
+KSQLite::ExecResult KSQLite::PrepareError(StringView sSQL)
 //--------------------------------------------------------------------------------
 {
 	ExecResult Result;
@@ -834,10 +840,10 @@ ExecResult Database::PrepareError(StringView sSQL)
 
 	return Result;
 
-} // Database::PrepareError
+} // KSQLite::PrepareError
 
 //--------------------------------------------------------------------------------
-ExecResult Database::BindError(StringView sSQL)
+KSQLite::ExecResult KSQLite::BindError(StringView sSQL)
 //--------------------------------------------------------------------------------
 {
 	ExecResult Result;
@@ -862,10 +868,10 @@ ExecResult Database::BindError(StringView sSQL)
 
 	return Result;
 
-} // Database::BindError
+} // KSQLite::BindError
 
 //--------------------------------------------------------------------------------
-Cursor Database::MakeErrorCursor()
+KSQLite::Cursor KSQLite::MakeErrorCursor()
 //--------------------------------------------------------------------------------
 {
 	Cursor Result(nullptr, detail::Claim(), detail::StmtHandle(), m_bMayThrow);
@@ -875,10 +881,10 @@ Cursor Database::MakeErrorCursor()
 
 	return Result;
 
-} // Database::MakeErrorCursor
+} // KSQLite::MakeErrorCursor
 
 //--------------------------------------------------------------------------------
-ExecResult Database::ExecHandle(detail::StmtHandle& Handle, bool bKeepHandle)
+KSQLite::ExecResult KSQLite::ExecHandle(detail::StmtHandle& Handle, bool bKeepHandle)
 //--------------------------------------------------------------------------------
 {
 	ExecResult Result;
@@ -922,10 +928,10 @@ ExecResult Database::ExecHandle(detail::StmtHandle& Handle, bool bKeepHandle)
 
 	return Result;
 
-} // Database::ExecHandle
+} // KSQLite::ExecHandle
 
 //--------------------------------------------------------------------------------
-ExecResult Database::IntExecSQL(StringView sSQL)
+KSQLite::ExecResult KSQLite::IntExecSQL(StringView sSQL)
 //--------------------------------------------------------------------------------
 {
 	ExecResult Result;
@@ -994,64 +1000,64 @@ ExecResult Database::IntExecSQL(StringView sSQL)
 
 	return Result;
 
-} // Database::IntExecSQL
+} // KSQLite::IntExecSQL
 
 //--------------------------------------------------------------------------------
-bool Database::HasTable(StringViewZ sTable)
+bool KSQLite::HasTable(StringViewZ sTable)
 //--------------------------------------------------------------------------------
 {
 	return SingleIntQuery("select count(*) from sqlite_master where type='table' and name=?1",
 	                      StringView(sTable)) > 0;
 
-} // Database::HasTable
+} // KSQLite::HasTable
 
 //--------------------------------------------------------------------------------
-const String& Database::Filename() const noexcept
+const KSQLite::String& KSQLite::Filename() const noexcept
 //--------------------------------------------------------------------------------
 {
 	static const String s_sEmpty;
 
 	return m_Connector ? m_Connector->Filename() : s_sEmpty;
 
-} // Database::Filename
+} // KSQLite::Filename
 
 //--------------------------------------------------------------------------------
-bool Database::SetBusyTimeout(std::chrono::milliseconds BusyTimeout)
+bool KSQLite::SetBusyTimeout(std::chrono::milliseconds BusyTimeout)
 //--------------------------------------------------------------------------------
 {
 	return m_Connector ? m_Connector->SetBusyTimeout(BusyTimeout) : false;
 }
 
 //--------------------------------------------------------------------------------
-sqlite3* Database::NativeHandle() noexcept
+sqlite3* KSQLite::NativeHandle() noexcept
 //--------------------------------------------------------------------------------
 {
 	return m_Connector ? m_Connector->NativeHandle() : nullptr;
 }
 
 //--------------------------------------------------------------------------------
-Database::size_type Database::Compilations() const noexcept
+KSQLite::size_type KSQLite::Compilations() const noexcept
 //--------------------------------------------------------------------------------
 {
 	return m_Connector ? m_Connector->Compilations() : 0;
 }
 
 //--------------------------------------------------------------------------------
-Database::size_type Database::CacheHits() const noexcept
+KSQLite::size_type KSQLite::CacheHits() const noexcept
 //--------------------------------------------------------------------------------
 {
 	return m_Connector ? m_Connector->CacheHits() : 0;
 }
 
 //--------------------------------------------------------------------------------
-Database::size_type Database::CachedStatements() const noexcept
+KSQLite::size_type KSQLite::CachedStatements() const noexcept
 //--------------------------------------------------------------------------------
 {
 	return m_Connector ? m_Connector->CachedStatements() : 0;
 }
 
 //--------------------------------------------------------------------------------
-bool Database::Key(StringView sKey)
+bool KSQLite::Key(StringView sKey)
 //--------------------------------------------------------------------------------
 {
 #ifdef SQLITE_HAS_CODEC
@@ -1062,10 +1068,10 @@ bool Database::Key(StringView sKey)
 	return false;
 #endif
 
-} // Database::Key
+} // KSQLite::Key
 
 //--------------------------------------------------------------------------------
-bool Database::Rekey(StringView sKey)
+bool KSQLite::Rekey(StringView sKey)
 //--------------------------------------------------------------------------------
 {
 #ifdef SQLITE_HAS_CODEC
@@ -1076,10 +1082,10 @@ bool Database::Rekey(StringView sKey)
 	return false;
 #endif
 
-} // Database::Rekey
+} // KSQLite::Rekey
 
 //--------------------------------------------------------------------------------
-bool Database::IsEncrypted(StringViewZ sFilename)
+bool KSQLite::IsEncrypted(StringViewZ sFilename)
 //--------------------------------------------------------------------------------
 {
 	if (!sFilename.empty())
@@ -1095,12 +1101,12 @@ bool Database::IsEncrypted(StringViewZ sFilename)
 	}
 	return false;
 
-} // Database::IsEncrypted
+} // KSQLite::IsEncrypted
 
 //================================== Transaction =================================
 
 //--------------------------------------------------------------------------------
-Transaction::Transaction(Database& db, Kind iKind)
+KSQLite::Transaction::Transaction(KSQLite& db, Kind iKind)
 //--------------------------------------------------------------------------------
 	: m_DB(db)
 	, m_Claim(db.m_Connector ? detail::Claim(*db.m_Connector) : detail::Claim())
@@ -1148,7 +1154,7 @@ Transaction::Transaction(Database& db, Kind iKind)
 } // ctor Transaction
 
 //--------------------------------------------------------------------------------
-Transaction::~Transaction()
+KSQLite::Transaction::~Transaction()
 //--------------------------------------------------------------------------------
 {
 	if (m_bOpen && !m_bCommitted)
@@ -1184,7 +1190,7 @@ Transaction::~Transaction()
 } // dtor Transaction
 
 //--------------------------------------------------------------------------------
-bool Transaction::Commit()
+bool KSQLite::Transaction::Commit()
 //--------------------------------------------------------------------------------
 {
 	if (!m_bOpen || m_bCommitted)
@@ -1220,7 +1226,7 @@ bool Transaction::Commit()
 } // Transaction::Commit
 
 //--------------------------------------------------------------------------------
-String Transaction::SavepointName() const
+KSQLite::String KSQLite::Transaction::SavepointName() const
 //--------------------------------------------------------------------------------
 {
 	String sName("ksqlite_sp_");
@@ -1232,8 +1238,6 @@ String Transaction::SavepointName() const
 	return sName;
 
 } // Transaction::SavepointName
-
-} // end of namespace KSQLite
 
 #ifdef DEKAF2
 DEKAF2_NAMESPACE_END

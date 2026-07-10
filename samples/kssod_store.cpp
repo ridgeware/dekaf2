@@ -58,7 +58,7 @@ namespace {
 //-----------------------------------------------------------------------------
 // the client's default role on an already-open db handle (no locking) - used by
 // the grant/set methods which already hold the mutex and a db connection
-KString DefaultRoleOn(KSQLite::Database& db, KStringView sClientID)
+KString DefaultRoleOn(KSQLite& db, KStringView sClientID)
 //-----------------------------------------------------------------------------
 {
 	return db.SingleStringQuery("select role from kssod_roles where client_id=?1 and is_default<>0 limit 1", sClientID);
@@ -70,7 +70,7 @@ KString DefaultRoleOn(KSQLite::Database& db, KStringView sClientID)
 bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen())
 	{
 		sError = kFormat("cannot open '{}'", sDatabase);
@@ -201,7 +201,7 @@ bool KSSOdUserStore::VerifyPassword(KStringView sUsername, KStringView sPassword
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 
 	KString sHash = db.SingleStringQuery("select pw_hash from kssod_users where username=?1", sUsername);
@@ -217,7 +217,7 @@ bool KSSOdUserStore::GetClaims(KStringView sUsername, KJSON& Claims)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 
 	auto Query = db.ExecQuery("select name, email from kssod_users where username=?1", sUsername);
@@ -240,7 +240,7 @@ bool KSSOdUserStore::AddUser(KStringView sUsername, KStringView sPassword,
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	KString sHash = KBCrypt().GenerateHash(KString(sPassword));
@@ -260,7 +260,7 @@ bool KSSOdUserStore::ChangePassword(KStringView sUsername, KStringView sNewPassw
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	KString sHash = KBCrypt().GenerateHash(KString(sNewPassword));
@@ -275,7 +275,7 @@ bool KSSOdUserStore::SetName(KStringView sUsername, KStringView sName)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	return static_cast<bool>(db.ExecSQL("update kssod_users set name=?1 where username=?2", sName, sUsername));
@@ -288,7 +288,7 @@ bool KSSOdUserStore::DeleteUser(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// cascade: deleting a user also removes their per-client assignments (and the
@@ -310,7 +310,7 @@ bool KSSOdUserStore::IsAdmin(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 
 	return db.SingleIntQuery("select is_admin from kssod_users where username=?1", sUsername) != 0;
@@ -323,7 +323,7 @@ bool KSSOdUserStore::Exists(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 
 	return db.SingleIntQuery("select 1 from kssod_users where username=?1", sUsername) != 0;
@@ -336,7 +336,7 @@ std::size_t KSSOdUserStore::Count()
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return 0;
 
 	return static_cast<std::size_t>(db.SingleIntQuery("select count(*) from kssod_users"));
@@ -349,7 +349,7 @@ bool KSSOdUserStore::SetAdmin(KStringView sUsername, bool bAdmin)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	return static_cast<bool>(db.ExecSQL("update kssod_users set is_admin=?1 where username=?2",
@@ -363,7 +363,7 @@ std::size_t KSSOdUserStore::CountAdmins()
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return 0;
 
 	return static_cast<std::size_t>(db.SingleIntQuery("select count(*) from kssod_users where is_admin<>0"));
@@ -378,7 +378,7 @@ std::vector<KSSOdUserStore::User> KSSOdUserStore::List()
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return Out;
 
 	for (auto& Row : db.ExecQuery("select username, name, email, is_admin from kssod_users order by username asc"))
@@ -408,7 +408,7 @@ KString KSSOdUserStore::GetTotpSecret(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return KString{};
 
 	return db.SingleStringQuery("select totp_secret from kssod_users where username=?1", sUsername);
@@ -421,7 +421,7 @@ bool KSSOdUserStore::SetTotpSecret(KStringView sUsername, KStringView sSecretBas
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	return static_cast<bool>(db.ExecSQL("update kssod_users set totp_secret=?1 where username=?2",
@@ -435,7 +435,7 @@ bool KSSOdUserStore::ClearTotp(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// disabling 2FA drops the secret AND the now-useless backup codes
@@ -454,7 +454,7 @@ bool KSSOdUserStore::SetBackupCodes(KStringView sUsername, const std::vector<KSt
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// replace the set: drop the old codes, then insert the new batch
@@ -473,7 +473,7 @@ bool KSSOdUserStore::ConsumeBackupCode(KStringView sUsername, KStringView sCodeH
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// must exist before we delete it: a code is valid exactly once
@@ -493,7 +493,7 @@ std::size_t KSSOdUserStore::CountBackupCodes(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return 0;
 
 	return static_cast<std::size_t>(db.SingleIntQuery("select count(*) from kssod_backup_codes where username=?1", sUsername));
@@ -506,7 +506,7 @@ KString KSSOdUserStore::GetEmail(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return KString{};
 
 	return db.SingleStringQuery("select email from kssod_users where username=?1", sUsername);
@@ -519,7 +519,7 @@ bool KSSOdUserStore::SetEmail(KStringView sUsername, KStringView sEmail)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// a changed address is unconfirmed, and email-as-2FA depended on the old one —
@@ -535,7 +535,7 @@ KString KSSOdUserStore::GetPendingEmail(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return KString{};
 
 	return db.SingleStringQuery("select pending_email from kssod_users where username=?1", sUsername);
@@ -548,7 +548,7 @@ bool KSSOdUserStore::SetPendingEmail(KStringView sUsername, KStringView sEmail)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	return static_cast<bool>(db.ExecSQL("update kssod_users set pending_email=?1 where username=?2",
@@ -562,7 +562,7 @@ bool KSSOdUserStore::ApplyPendingEmail(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// swap the pending address in and mark it verified. email_otp survives: the very
@@ -579,7 +579,7 @@ bool KSSOdUserStore::RestoreEmail(KStringView sUsername, KStringView sEmail)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// revert: restore the prior (verified) address, drop any pending change, and turn
@@ -597,7 +597,7 @@ KString KSSOdUserStore::FindByEmail(KStringView sEmail)
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return KString{};
 
 	// case-insensitive: addresses are compared without regard to letter case
@@ -611,7 +611,7 @@ bool KSSOdUserStore::IsEmailVerified(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 
 	return db.SingleIntQuery("select email_verified from kssod_users where username=?1", sUsername) != 0;
@@ -624,7 +624,7 @@ bool KSSOdUserStore::SetEmailVerified(KStringView sUsername, bool bVerified)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	return static_cast<bool>(db.ExecSQL("update kssod_users set email_verified=?1 where username=?2",
@@ -638,7 +638,7 @@ bool KSSOdUserStore::HasEmailOtp(KStringView sUsername)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 
 	return db.SingleIntQuery("select email_otp from kssod_users where username=?1", sUsername) != 0;
@@ -651,7 +651,7 @@ bool KSSOdUserStore::SetEmailOtp(KStringView sUsername, bool bEnabled)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	return static_cast<bool>(db.ExecSQL("update kssod_users set email_otp=?1 where username=?2",
@@ -677,7 +677,7 @@ KString KSSOdUserStore::CreateEmailToken(KStringView sUsername, KStringView sPur
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return KString{};
 
 	// at most one live token per user+purpose: drop any earlier one first
@@ -700,7 +700,7 @@ KString KSSOdUserStore::ConsumeEmailToken(KStringView sToken, KStringView sPurpo
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return KString{};
 
 	KString sUsername;
@@ -731,7 +731,7 @@ bool KSSOdUserStore::AuthorizeClientAccess(KStringView sUsername, KStringView sC
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 
 	// does this client require explicit assignment?
@@ -778,7 +778,7 @@ std::vector<KString> KSSOdUserStore::ListRoles(KStringView sClientID)
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return Out;
 
 	for (auto& Row : db.ExecQuery("select role from kssod_roles where client_id=?1 order by role asc", sClientID))
@@ -795,7 +795,7 @@ bool KSSOdUserStore::AddRole(KStringView sClientID, KStringView sRole)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	return static_cast<bool>(db.ExecSQL("insert or ignore into kssod_roles (client_id, role) values (?1, ?2)",
@@ -809,7 +809,7 @@ bool KSSOdUserStore::DeleteRole(KStringView sClientID, KStringView sRole)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// 1) collect the assignments that grant this role (read fully before writing)
@@ -847,7 +847,7 @@ bool KSSOdUserStore::GrantRoles(KStringView sUsername, KStringView sClientID, co
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// read the user's current roles for this client (if any)
@@ -884,7 +884,7 @@ bool KSSOdUserStore::Upsert(KStringView sUsername, KStringView sClientID, bool b
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// no access AND no roles -> there is nothing left to remember, so drop the
@@ -916,7 +916,7 @@ KString KSSOdUserStore::DefaultRole(KStringView sClientID)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return {};
 
 	return DefaultRoleOn(db, sClientID);
@@ -929,7 +929,7 @@ bool KSSOdUserStore::SetDefaultRole(KStringView sClientID, KStringView sRole)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// clear the current default for this client...
@@ -953,7 +953,7 @@ std::vector<KSSOdUserStore::GlobalAssignment> KSSOdUserStore::ListAllAssignments
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return Out;
 
 	for (auto& Row : db.ExecQuery("select username, client_id, roles, access from kssod_assignments"))
@@ -977,7 +977,7 @@ std::vector<KSSOdUserStore::Assignment> KSSOdUserStore::ListAssignments(KStringV
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return Out;
 
 	for (auto& Row : db.ExecQuery("select username, roles, access from kssod_assignments where client_id=?1 order by username asc",
@@ -1003,7 +1003,7 @@ bool KSSOdClientStore::Lookup(KStringView sClientID, Client& Out)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 
 	auto Query = db.ExecQuery(
@@ -1030,7 +1030,7 @@ bool KSSOdClientStore::AddClient(const Client& Client, bool bRequireAssignment)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	KString sRedirect;   sRedirect.Join(Client.RedirectURIs, "\n");
@@ -1059,7 +1059,7 @@ bool KSSOdClientStore::UpdateClient(const Client& Client, bool bRequireAssignmen
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	KString sRedirect;   sRedirect.Join(Client.RedirectURIs, "\n");
@@ -1103,7 +1103,7 @@ bool KSSOdClientStore::LookupInfo(KStringView sClientID, ClientInfo& Out)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 
 	auto Query = db.ExecQuery(
@@ -1131,7 +1131,7 @@ bool KSSOdClientStore::DeleteClient(KStringView sClientID)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	// cascade: deleting an app removes everything tied to it - its role catalog
@@ -1152,7 +1152,7 @@ bool KSSOdClientStore::Exists(KStringView sClientID)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
 
 	return db.SingleIntQuery("select 1 from kssod_clients where client_id=?1", sClientID) != 0;
@@ -1165,7 +1165,7 @@ std::size_t KSSOdClientStore::Count()
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return 0;
 
 	return static_cast<std::size_t>(db.SingleIntQuery("select count(*) from kssod_clients"));
@@ -1180,7 +1180,7 @@ std::vector<KSSOdClientStore::ClientInfo> KSSOdClientStore::List()
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return Out;
 
 	for (auto& Row : db.ExecQuery(
@@ -1211,7 +1211,7 @@ KString KSSOdSettingsStore::Get(KStringView sKey)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return KString{};
 
 	return db.SingleStringQuery("select value from kssod_settings where key=?1", sKey);
@@ -1224,7 +1224,7 @@ bool KSSOdSettingsStore::Set(KStringView sKey, KStringView sValue)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
 	return static_cast<bool>(db.ExecSQL("insert or replace into kssod_settings (key, value) values (?1, ?2)",

@@ -206,7 +206,7 @@ DEKAF2_NAMESPACE_BEGIN
 struct KSQL::KSQLiteState
 //-----------------------------------------------------------------------------
 {
-	std::unique_ptr<KSQLite::Database>   Database;
+	std::unique_ptr<KSQLite>   Database;
 	std::unique_ptr<KSQLite::Cursor>     Cursor;
 };
 #endif
@@ -1740,9 +1740,9 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout/*=30s*/, Transport Transp
 
 		m_SQLite = std::make_unique<KSQLiteState>();
 
-		kDebug (3, "KSQLite::Database::Connect({})...", m_sDatabase);
+		kDebug (3, "KSQLite::Connect({})...", m_sDatabase);
 
-		m_SQLite->Database = std::make_unique<KSQLite::Database>(m_sDatabase, KSQLite::READWRITECREATE);
+		m_SQLite->Database = std::make_unique<KSQLite>(m_sDatabase, KSQLite::READWRITECREATE);
 
 		if (!m_SQLite->Database->IsOpen())
 		{

@@ -120,10 +120,10 @@ void KTunnelStore::SetError (KString sError)
 } // SetError
 
 //-----------------------------------------------------------------------------
-KSQLite::Database KTunnelStore::OpenRW ()
+KSQLite KTunnelStore::OpenRW ()
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen())
 	{
 		SetError(kFormat("cannot open '{}' for write", m_sDatabase));
@@ -133,10 +133,10 @@ KSQLite::Database KTunnelStore::OpenRW ()
 } // OpenRW
 
 //-----------------------------------------------------------------------------
-KSQLite::Database KTunnelStore::OpenRO ()
+KSQLite KTunnelStore::OpenRO ()
 //-----------------------------------------------------------------------------
 {
-	KSQLite::Database db(m_sDatabase, KSQLite::Mode::READONLY);
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen())
 	{
 		SetError(kFormat("cannot open '{}' for read", m_sDatabase));

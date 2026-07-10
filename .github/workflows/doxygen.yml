@@ -31,8 +31,9 @@ jobs:
           DOXYGEN_VERSION: 1.17.0
         run: |
           sudo apt-get update && sudo apt-get install -y graphviz
-          curl -fsSL https://www.doxygen.nl/files/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz | tar -xz
-          sudo make -C doxygen-${DOXYGEN_VERSION} install
+          # unpack outside the checkout - the doc build scans the whole source tree
+          curl -fsSL https://www.doxygen.nl/files/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz | tar -xz -C "$RUNNER_TEMP"
+          sudo make -C "$RUNNER_TEMP/doxygen-${DOXYGEN_VERSION}" install
           doxygen --version
 
       - name: Configure with CMake (generates doxyfile from doxyfile.in)

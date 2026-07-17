@@ -276,6 +276,16 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 		endif()
 
+		if (IS_MACOS)
+			# On Intel Macs, the libzip include is located in /usr/local/include, but
+			# that directory is not marked a system directory as the toolchain includes it
+			# before our cmake SYSTEM flag is treated, hence the warnings about libzip's
+			# use of nullable being only a clang extension break the debug build.
+			# Force the system flag through the compile options.
+			# We do this for ARM Macs, too, to keep the directory status balanced for both.
+			add_compile_options(-isystem /usr/local/include)
+		endif()
+
 		if (CMAKE_COMPILER_IS_GNUCXX)
 
 			if (DEKAF2_HAS_WARN_ARRAY_BOUNDS AND CMAKE_CXX_STANDARD LESS 17)

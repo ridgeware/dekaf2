@@ -19,6 +19,7 @@ EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/benchmarks/*  \
                          @PROJECT_SOURCE_DIR@/from/*        \
                          @PROJECT_SOURCE_DIR@/libs/*        \
                          @PROJECT_SOURCE_DIR@/notes/*       \
+                         @PROJECT_SOURCE_DIR@/doxygen-*     \
                          @PROJECT_SOURCE_DIR@/samples/*     \
                          @PROJECT_SOURCE_DIR@/scripts/*     \
                          @PROJECT_SOURCE_DIR@/smoketests/*  \

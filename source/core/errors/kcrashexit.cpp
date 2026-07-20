@@ -45,6 +45,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/system/os/kgetruntimestack.h>
 #include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/system/os/ksystem.h>  // for kGetThreadName(), kGetTid()
 #ifndef DEKAF2_WITH_KLOG
 #include <dekaf2/io/readwrite/kwriter.h>
 #endif
@@ -131,6 +132,21 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 		sWarning += kFormat ("|{:^17}\n",   "*  *  *");
 		sWarning += kFormat ("|{:^17}\n", "*    *    *");
 		sWarning += kFormat ("|{:^17}\n",      '*');
+	}
+
+	// identify the crashing thread - klog prefixes each line with the thread name
+	// anyway, but the crash callback and the syslog serializer only see this text
+	{
+		auto sThreadName = kGetThreadName();
+
+		if (sThreadName.empty())
+		{
+			sWarning += kFormat ("in thread {}\n", kGetTid());
+		}
+		else
+		{
+			sWarning += kFormat ("in thread {} (tid {})\n", sThreadName, kGetTid());
+		}
 	}
 
 	switch (iSignalNum)

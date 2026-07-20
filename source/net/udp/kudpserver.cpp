@@ -41,6 +41,7 @@
 
 #include <dekaf2/net/udp/kudpserver.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/threading/execution/kthreads.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -90,6 +91,9 @@ bool KUDPServer::Start(DatagramCallback Callback, bool bBlock)
 		m_Thread = std::make_unique<std::thread>(kMakeThread(
 			[this, Callback = std::move(Callback)]() mutable
 			{
+				// name the IO thread for debugging tools - in the blocking case
+				// above the caller's own thread runs the server and keeps its name
+				kSetThreadName("udp:io");
 				RunLoop(std::move(Callback));
 			}));
 	}

@@ -46,9 +46,12 @@
 
 #include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/types/ktemplate.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <algorithm>
+#include <atomic>
 #include <thread>
 #include <utility>
 #include <unordered_map>
@@ -112,10 +115,20 @@ public:
 	template<class Function, class... Args>
 	std::thread::id CreateOne(Function&& f, Args&&... args)
 	{
+		// package callable and args via std::bind (C++11/14 compatible, and works
+		// around an apple-clang issue with perfect-forwarding parameter packs into
+		// a lambda - same workaround as in KThreads::Create)
+		auto Callable = std::bind(std::forward<Function>(f), std::forward<Args>(args)...);
+
 		// create the thread and start it - use kMakeThread() so that the new
 		// thread has the per-thread signal mask and crash-handler alt stack
 		// installed before the user callable runs
-		return Store(kMakeThread(std::forward<Function>(f), std::forward<Args>(args)...));
+		return Store(kMakeThread([Callable = std::move(Callable), iThread = m_iThreadNum++]() mutable
+		{
+			// name the thread for debugging tools like ps, top, or gdb
+			kSetThreadName(kFormat("parallel:{}", iThread));
+			Callable();
+		}));
 	}
 	//-----------------------------------------------------------------------------
 
@@ -153,6 +166,7 @@ private:
 //----------
 
 	std::size_t m_numThreads     { 0 };
+	std::atomic<std::size_t> m_iThreadNum { 0 };  ///< running number for the thread names
 	bool        m_start_detached { false };
 
 }; // KRunThreads

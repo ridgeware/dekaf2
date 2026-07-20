@@ -89,6 +89,7 @@
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/crypto/random/krandom.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/threading/execution/kthreads.h>
 #if DEKAF2_HAS_ED25519 && DEKAF2_HAS_X25519
 	#include <dekaf2/crypto/ec/kx25519.h>           // ephemeral DH for v2 handshake
@@ -473,6 +474,10 @@ void KTunnel::Connection::PumpToTunnel()
 void KTunnel::Connection::PumpFromTunnel()
 //-----------------------------------------------------------------------------
 {
+	// name this thread for debugging tools like ps, top, or gdb - PumpFromTunnel()
+	// always runs on its own thread, while PumpToTunnel() runs on the caller's
+	kSetThreadName("tunnelpump");
+
 	if (!m_DirectStream || !m_Tunnel)
 	{
 		throw KError(kFormat("[{}] no stream for channel", GetID()));

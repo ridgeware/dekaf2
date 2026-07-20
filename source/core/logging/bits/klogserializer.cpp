@@ -281,15 +281,15 @@ KString KLogTTYSerializer::PrintStatus(bool bHiRes)
 {
 	// desired formats (the thread column shows the thread name where set,
 	// and the thread id / the relative thread number (HiRes) otherwise):
-	// | WAR | MYPRO | 17202 |       12345 | 2001-08-24 10:37:04 |
-	// | WAR | MYPRO | 17202 |      rest:7 | 2001-08-24 10:37:04 |
+	// | WAR | MYPRO | 17202 | 12345       | 2001-08-24 10:37:04 |
+	// | WAR | MYPRO | 17202 | rest:7      | 2001-08-24 10:37:04 |
 	// HiRes:
-	// | 11:34:48.123456 | 55717 |           0 | +9.0µs | 7.8ms | KHTTPClient::Parse(): HTTP-200 OK
-	// | 11:34:48.123457 | 55717 |   wsreactor | +123µs | 123ms | KHTTPClient::Parse(): HTTP-200 OK
+	// | 11:34:48.123456 | 55717 | 0           | +9.0µs | 7.8ms | KHTTPClient::Parse(): HTTP-200 OK
+	// | 11:34:48.123457 | 55717 | wsreactor   | +123µs | 123ms | KHTTPClient::Parse(): HTTP-200 OK
 
 	if (!bHiRes)
 	{
-		return kFormat("| {:3.3s} | {:5.5s} | {:5d} | {:>11.11s} | {:%Y-%m-%d %H:%M:%S} | ",
+		return kFormat("| {:3.3s} | {:5.5s} | {:5d} | {:11.11s} | {:%Y-%m-%d %H:%M:%S} | ",
 					   LevelAsString(), m_sShortName, m_Pid,
 					   m_sThreadName.empty() ? kFormat("{}", m_Tid) : m_sThreadName, m_Time);
 	}
@@ -326,7 +326,7 @@ KString KLogTTYSerializer::PrintStatus(bool bHiRes)
 		uint64_t iThread = m_Tid < s_iStartThread ? m_Tid + 65535 - s_iStartThread : m_Tid - s_iStartThread;
 #endif
 
-		return kFormat("|{:2}| {:%H:%M:%S}.{:06} | {:5d} | {:>11.11s} | +{:>5.5s} | {:>5.5s} | ",
+		return kFormat("|{:2}| {:%H:%M:%S}.{:06} | {:5d} | {:11.11s} | +{:>5.5s} | {:>5.5s} | ",
 					   m_iLevel,
 					   m_Time,
 					   m_Time.subseconds().microseconds().count(),

@@ -173,6 +173,44 @@ bool kSetThreadName (KStringView sName);
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kGetThreadName ();
 
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Renames the calling thread for the lifetime of this object and restores the
+/// previous name at destruction - shows the current work of a pool thread in
+/// debugging tools like ps, top, or gdb (and in klog's thread column)
+class DEKAF2_PUBLIC KThreadNameScope
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	/// construct without renaming - call Rename() later
+	KThreadNameScope () = default;
+	/// rename the calling thread to @p sName (an empty name does nothing)
+	KThreadNameScope (KStringView sName) { Rename(sName); }
+	~KThreadNameScope () { Restore(); }
+
+	KThreadNameScope(const KThreadNameScope&)            = delete;
+	KThreadNameScope(KThreadNameScope&&)                 = delete;
+	KThreadNameScope& operator=(const KThreadNameScope&) = delete;
+	KThreadNameScope& operator=(KThreadNameScope&&)      = delete;
+
+	/// rename the calling thread to @p sName (an empty name does nothing) - the name
+	/// to restore is captured at the first effective Rename() only
+	void Rename  (KStringView sName);
+	/// restore the original thread name now instead of at destruction
+	void Restore ();
+
+//------
+private:
+//------
+
+	KString m_sOldName;
+	bool    m_bRestore { false };
+
+}; // KThreadNameScope
+
 /// return own UID
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 uint32_t kGetUid();

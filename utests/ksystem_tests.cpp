@@ -104,8 +104,28 @@ TEST_CASE("KSystem")
 			REQUIRE ( pthread_getname_np(pthread_self(), szName, sizeof(szName)) == 0 );
 			CHECK ( KStringView(szName) == "averylongthread" );
 			CHECK ( kGetThreadName() == "averylongthread" );
+
+			// a scoped rename restores the previous name at destruction
+			{
+				KThreadNameScope Scope("scopedname");
+				CHECK ( kGetThreadName() == "scopedname" );
+			}
+			CHECK ( kGetThreadName() == "averylongthread" );
 #endif
 		}).join();
+
+#ifndef DEKAF2_IS_WINDOWS
+		std::thread([]()
+		{
+			// a scoped rename on an unnamed thread restores the unnamed state
+			// (on Linux: the inherited process name, verbatim)
+			{
+				KThreadNameScope Scope("scopedname");
+				CHECK ( kGetThreadName() == "scopedname" );
+			}
+			CHECK ( kGetThreadName().empty() );
+		}).join();
+#endif
 	}
 
 	SECTION("kSystem")

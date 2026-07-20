@@ -599,7 +599,10 @@ bool kSetThreadName (KStringView sName)
 } // kSetThreadName
 
 //-----------------------------------------------------------------------------
-KString kGetThreadName ()
+// the thread name exactly as the OS reports it - on Linux that is the inherited
+// process name for unnamed threads, which kGetThreadName() filters out, but which
+// KThreadNameScope needs verbatim to restore it faithfully
+static KString kGetThreadNameRaw ()
 //-----------------------------------------------------------------------------
 {
 #if defined(DEKAF2_IS_WINDOWS)
@@ -638,26 +641,10 @@ KString kGetThreadName ()
 
 	if (prctl(PR_GET_NAME, szName.data()) != 0)
 	{
-		return KString{};
+		szName[0] = 0;
 	}
 
-	KString sName(szName.data());
-
-	// unnamed threads inherit the process name on Linux - report them as unnamed,
-	// so that callers can apply their own fallback (like klog's thread id)
-	static const KString s_sProcessName = []() -> KString
-	{
-		KString sComm = kReadAll("/proc/self/comm");
-		sComm.TrimRight();
-		return sComm;
-	}();
-
-	if (sName == s_sProcessName)
-	{
-		sName.clear();
-	}
-
-	return sName;
+	return KString(szName.data());
 
 #else
 
@@ -673,7 +660,67 @@ KString kGetThreadName ()
 
 #endif
 
+} // kGetThreadNameRaw
+
+//-----------------------------------------------------------------------------
+KString kGetThreadName ()
+//-----------------------------------------------------------------------------
+{
+	KString sName = kGetThreadNameRaw();
+
+#if defined(DEKAF2_IS_LINUX)
+
+	// unnamed threads inherit the process name on Linux - report them as unnamed,
+	// so that callers can apply their own fallback (like klog's thread id)
+	static const KString s_sProcessName = []() -> KString
+	{
+		KString sComm = kReadAll("/proc/self/comm");
+		sComm.TrimRight();
+		return sComm;
+	}();
+
+	if (sName == s_sProcessName)
+	{
+		sName.clear();
+	}
+
+#endif
+
+	return sName;
+
 } // kGetThreadName
+
+//-----------------------------------------------------------------------------
+void KThreadNameScope::Rename (KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	if (!sName.empty())
+	{
+		if (!m_bRestore)
+		{
+			// capture the OS name verbatim (not kGetThreadName(), whose Linux
+			// filter would turn an inherited process name into an empty string
+			// and make the restore below blank the thread's name)
+			m_sOldName = kGetThreadNameRaw();
+			m_bRestore = true;
+		}
+
+		kSetThreadName(sName);
+	}
+
+} // KThreadNameScope::Rename
+
+//-----------------------------------------------------------------------------
+void KThreadNameScope::Restore ()
+//-----------------------------------------------------------------------------
+{
+	if (m_bRestore)
+	{
+		m_bRestore = false;
+		kSetThreadName(m_sOldName);
+	}
+
+} // KThreadNameScope::Restore
 
 //-----------------------------------------------------------------------------
 uint32_t kGetUid()

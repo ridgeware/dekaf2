@@ -51,6 +51,7 @@
 #include <dekaf2/core/strings/kregex.h>
 #include <dekaf2/http/client/kwebclient.h>
 #include <dekaf2/core/errors/kcrashexit.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/io/streams/kcountingstreambuf.h>
 #include <dekaf2/data/sql/krow.h>
@@ -647,6 +648,79 @@ void KRESTServer::Parse()
 } // Parse
 
 //-----------------------------------------------------------------------------
+KString KRESTServer::ThreadNameForRoute(const KRESTRoute& Route) const
+//-----------------------------------------------------------------------------
+{
+	if (m_Options.ThreadName == Options::ThreadNameMode::None)
+	{
+		return KString{};
+	}
+
+	auto sWorkerName = kGetThreadName();
+
+	if (sWorkerName.empty())
+	{
+		// this thread carries no name, so it is not a pool worker - do not rename
+		// it (in CGI or CLI modes this is the caller's own thread, on Linux even
+		// the one that shows as the process name)
+		return KString{};
+	}
+
+	switch (m_Options.ThreadName)
+	{
+		case Options::ThreadNameMode::None:
+			// already handled above - only here to keep the switch exhaustive
+			break;
+
+		case Options::ThreadNameMode::RouteIndex:
+		{
+			auto iIndex = m_Routes.GetRouteIndex(Route);
+
+			if (iIndex == KRESTRoutes::npos)
+			{
+				// e.g. the default route - keep the worker name
+				break;
+			}
+
+			return kFormat("{}#{}", sWorkerName, iIndex);
+		}
+
+		case Options::ThreadNameMode::RouteStart:
+		{
+			// the route template cut at its first parameter or wildcard - possibly
+			// ambiguous between routes sharing a prefix, but in practice mostly
+			// sufficient, and it reveals neither parameter names nor route structure
+			KString sName;
+
+			for (const auto& sPart : Route.vURLParts)
+			{
+				auto ch = sPart.front();
+
+				if (ch == '\0' || ch == ':' || ch == '=' || ch == '*')
+				{
+					break;
+				}
+
+				sName += '/';
+				sName += sPart;
+			}
+
+			// if the route starts with a parameter, the name is empty here, and
+			// the worker keeps its pool name
+			return sName;
+		}
+
+		case Options::ThreadNameMode::RouteName:
+			// the full route TEMPLATE (e.g. "/user/:id"), which is a static
+			// string and never contains request data
+			return Route.sRoute;
+	}
+
+	return KString{};
+
+} // ThreadNameForRoute
+
+//-----------------------------------------------------------------------------
 bool KRESTServer::Execute()
 //-----------------------------------------------------------------------------
 {
@@ -674,6 +748,11 @@ bool KRESTServer::Execute()
 									 m_Options.sServername,
 									 GetRemoteIP()));
 			clear();
+
+			// carries the route's name for this thread from route resolution until the
+			// end of the round (per Options::ThreadName), and restores the worker name
+			// after, also when an exception unwinds into the catch below
+			KThreadNameScope RouteThreadName;
 
 			// per default we output JSON
 			Response.Headers.Add(KHTTPHeader::CONTENT_TYPE, KMIME::JSON);
@@ -832,6 +911,8 @@ bool KRESTServer::Execute()
 			{
 				throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("empty callback for {}", sURLPath) };
 			}
+
+			RouteThreadName.Rename(ThreadNameForRoute(*Route));
 
 			// OPTIONS method is allowed without Authorization header (it is used to request
 			// for Authorization permission)

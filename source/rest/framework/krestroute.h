@@ -617,6 +617,17 @@ public:
 		return m_DefaultRoute;
 	}
 
+	static constexpr std::size_t npos { std::size_t(-1) };
+
+	//-----------------------------------------------------------------------------
+	/// Get the position of @p Route in the routes table (= the order of registration)
+	/// @param Route a route reference obtained from FindRoute()
+	/// @return the index of @p Route, or npos if the route is not part of the table
+	/// (e.g. the default route)
+	DEKAF2_NODISCARD
+	std::size_t GetRouteIndex(const KRESTRoute& Route) const;
+	//-----------------------------------------------------------------------------
+
 	//-----------------------------------------------------------------------------
 	/// Clear all routes
 	void clear();

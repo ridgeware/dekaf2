@@ -124,6 +124,22 @@ public:
 			VERIFY_AUTH_HEADER
 		};
 
+		/// how to name the worker thread while a request executes (from route resolution
+		/// to the end of the response), to show the current work of a thread in debugging
+		/// tools like ps, top, or gdb, and in klog's thread column. Only threads that
+		/// already carry a name are renamed (pool workers), never the caller's own thread
+		/// (CGI, CLI, or blocking modes).
+		/// CAUTION: thread names are visible to ALL local users of a host, not only to
+		/// this process - RouteName therefore exposes the API's route structure, which
+		/// may assist reconnaissance. Route templates never contain request data, though.
+		enum class ThreadNameMode : uint8_t
+		{
+			None,        ///< keep the pool worker name (default)
+			RouteIndex,  ///< append the route's registration index to the worker name, e.g. "rest:7#42" - reveals no API details, resolvable through own klog output
+			RouteStart,  ///< use the route template cut at its first parameter or wildcard, e.g. "/user" for "/user/:id" - ambiguous between routes sharing a prefix, but reveals neither parameter names nor the route structure
+			RouteName    ///< use the full route template, e.g. "/user/:id" - reveals the API's route structure to all local users
+		};
+
 		/// Add one header to the list of fixed additional headers
 		/// @param Header the KHTTPHeader to add
 		/// @param sValue the value for the header
@@ -212,6 +228,8 @@ public:
 		bool bMicrosecondTimerHeader { false };
 		/// Force pretty printing in release builds, too?
 		bool bPrettyPrint { false };
+		/// Name the worker thread after the executed route? (default = None, see ThreadNameMode)
+		ThreadNameMode ThreadName { ThreadNameMode::None };
 		/// Maximum request body size in bytes (default 256 MB). Set to 0 for unlimited.
 		/// Can be overridden per route with KRESTRoute::iMaxRequestBodySize.
 		std::size_t iMaxRequestBodySize { 256 * 1024 * 1024 };
@@ -819,6 +837,14 @@ protected:
 	//-----------------------------------------------------------------------------
 	/// prepare for another round in keep-alive: clear previous request data
 	void clear();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// compute the thread name for the executing route per Options::ThreadName - empty
+	/// if disabled, or if the calling thread carries no name (then it is not a pool
+	/// worker, and we will not rename e.g. the caller's thread in CGI or CLI mode)
+	DEKAF2_NODISCARD
+	KString ThreadNameForRoute(const KRESTRoute& Route) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

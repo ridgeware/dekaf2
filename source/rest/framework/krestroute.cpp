@@ -340,6 +340,27 @@ void KRESTRoutes::AddRoute(KRESTRoute _Route)
 } // AddRoute
 
 //-----------------------------------------------------------------------------
+std::size_t KRESTRoutes::GetRouteIndex(const KRESTRoute& Route) const
+//-----------------------------------------------------------------------------
+{
+	// std::less gives a total pointer order also for pointers into different
+	// objects, where the builtin comparison would be unspecified
+	std::less<const KRESTRoute*> Before;
+
+	const auto* pRoute = &Route;
+	const auto* pFirst = m_Routes.data();
+	const auto* pLast  = pFirst + m_Routes.size();
+
+	if (!Before(pRoute, pFirst) && Before(pRoute, pLast))
+	{
+		return static_cast<std::size_t>(pRoute - pFirst);
+	}
+
+	return npos;
+
+} // GetRouteIndex
+
+//-----------------------------------------------------------------------------
 KRESTRoutes::RouteBuilder KRESTRoutes::AddRoute(KString sRoute)
 //-----------------------------------------------------------------------------
 {

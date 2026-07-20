@@ -231,6 +231,17 @@ void KPoll::Stop()
 } // Stop
 
 //-----------------------------------------------------------------------------
+void KPoll::SetThreadName(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	// the watcher thread reads the name under m_Mutex when it starts
+	std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+
+	m_sThreadName = sName;
+
+} // SetThreadName
+
+//-----------------------------------------------------------------------------
 void KPoll::Add(int fd, Parameters Parms)
 //-----------------------------------------------------------------------------
 {
@@ -481,6 +492,12 @@ void KPoll::DispatchTriggered(int fd, uint16_t events)
 void KPoll::Watch()
 //-----------------------------------------------------------------------------
 {
+	{
+		// name this thread for debugging tools like ps, top, or gdb
+		std::unique_lock<std::shared_mutex> Lock(m_Mutex);
+		kSetThreadName(m_sThreadName);
+	}
+
 	// force an initial build so the interruptor gets into the poll vector
 	m_bModified = true;
 

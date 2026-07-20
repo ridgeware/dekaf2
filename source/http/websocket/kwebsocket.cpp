@@ -1794,6 +1794,11 @@ KWebSocketServer::KWebSocketServer(Options Options)
 //-----------------------------------------------------------------------------
 : m_Options(std::move(Options))
 {
+	// name the reactor and worker threads for debugging tools - the reactor
+	// thread only starts on the first Add(), the workers with the resize below
+	m_Poll.SetThreadName("wsreactor");
+	m_ThreadPool.set_thread_name("wsworker");
+
 	if (m_Options.iWorkerThreads > 0)
 	{
 		kDebug(2, "starting websocket server with {} worker threads", m_Options.iWorkerThreads);

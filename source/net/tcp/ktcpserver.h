@@ -122,13 +122,17 @@ public:
 	/// defaults to true
 	/// @param Growth policy for creation of new worker threads
 	/// @param Shrink policy for removal of idle worker threads
+	/// @param sPoolThreadName base name for the worker threads, as shown by debugging tools
+	/// like ps, top, or gdb - workers are named '<name>:<index>', the IO thread '<name>:io'.
+	/// Defaults to "tcp", empty leaves the threads unnamed
 	KTCPServer (
 		uint16_t iPort,
 		bool     bTLS,
 		uint16_t iMaxThreads    = 50,
 		bool     bStoreNewCerts = true,
 		KThreadPool::GrowthPolicy Growth = KThreadPool::PrestartSome,
-		KThreadPool::ShrinkPolicy Shrink = KThreadPool::ShrinkSome
+		KThreadPool::ShrinkPolicy Shrink = KThreadPool::ShrinkSome,
+		KStringView sPoolThreadName = "tcp"
 	);
 	//-----------------------------------------------------------------------------
 
@@ -140,11 +144,15 @@ public:
 	/// More connections can be handled, but will have to wait in an rx queue until a worker thread is available.
 	/// @param Growth policy for creation of new worker threads
 	/// @param Shrink policy for removal of idle worker threads
+	/// @param sPoolThreadName base name for the worker threads, as shown by debugging tools
+	/// like ps, top, or gdb - workers are named '<name>:<index>', the IO thread '<name>:io'.
+	/// Defaults to "tcp", empty leaves the threads unnamed
 	KTCPServer(
 		KStringView sSocketFile,
 		uint16_t    iMaxThreads = 50,
 		KThreadPool::GrowthPolicy Growth = KThreadPool::PrestartSome,
-		KThreadPool::ShrinkPolicy Shrink = KThreadPool::ShrinkSome
+		KThreadPool::ShrinkPolicy Shrink = KThreadPool::ShrinkSome,
+		KStringView sPoolThreadName = "tcp"
 	);
 	//-----------------------------------------------------------------------------
 #endif

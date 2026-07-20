@@ -99,6 +99,7 @@ protected:
 	int         m_iLevel { 0 };
 	pid_t       m_Pid { 0 };
 	uint64_t    m_Tid { 0 }; // tid is 64 bit on OSX
+	KString     m_sThreadName;
 	KUnixTime   m_Time;
 	KStringView m_sShortName;
 	KStringView m_sPathName;

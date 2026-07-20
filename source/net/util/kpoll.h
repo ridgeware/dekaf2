@@ -45,6 +45,8 @@
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/containers/sequential/kspan.h>
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/threading/primitives/kthreadsafe.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <functional>
@@ -183,10 +185,21 @@ public:
 	void Start();
 	/// stop the watcher
 	void Stop();
+	/// set the name of the watcher thread, as shown by debugging tools like ps, top,
+	/// or gdb (default "kpoll") - call before the watcher is started
+	void SetThreadName(KStringView sName);
 
 //----------
 protected:
 //----------
+
+	/// for subclasses that fix their own watcher thread name
+	KPoll(KStringView sThreadName, KDuration Timeout, bool bAutoStart)
+	: m_Timeout(Timeout)
+	, m_sThreadName(sThreadName)
+	, m_bAutoStart(bAutoStart)
+	{
+	}
 
 	void BuildPollVec();
 	void DrainArmQueue();
@@ -211,6 +224,7 @@ private:
 	std::unique_ptr<std::thread> m_Thread;
 	std::unordered_map<int, Parameters> m_FileDescriptors;
 	std::vector<int>  m_ArmQueue;                     ///< fds waiting to be re-armed (guarded by m_Mutex)
+	KString           m_sThreadName { "kpoll" };      ///< name of the watcher thread (guarded by m_Mutex)
 
 	// the following two are owned exclusively by the watcher thread and need no locking
 	KPollInterruptor  m_Interruptor;                  ///< wakes poll() on Add/Remove/Arm (no-op on Windows)
@@ -232,8 +246,11 @@ class DEKAF2_PUBLIC KSocketWatch : public KPoll
 public:
 //----------
 
-	/// inherits constructor from KPoll
-	using KPoll::KPoll;
+	/// same interface as the KPoll constructor, names the watcher thread "socketwatch"
+	KSocketWatch(KDuration Timeout = chrono::milliseconds(100), bool bAutoStart = true)
+	: KPoll("socketwatch", Timeout, bAutoStart)
+	{
+	}
 
 //----------
 protected:

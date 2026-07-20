@@ -97,6 +97,8 @@
 #pragma once
 
 #include <dekaf2/core/init/kdefinitions.h> // for DEKAF2_NAMESPACE, DEKAF2_NODISCARD and DEKAF2_PUBLIC
+#include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
 #include <functional>
 #include <thread>
 #include <atomic>
@@ -237,6 +239,13 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Construct a thread pool with nThreads size and a base name for its worker
+	/// threads (see set_thread_name()) - if nThreads == 0 starts as many threads
+	/// as CPU threads are available
+	KThreadPool(std::size_t nThreads, KStringView sThreadName, GrowthPolicy Growth = PrestartSome, ShrinkPolicy Shrink = ShrinkSome);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// The destructor waits for all the functions in the queue to be finished
 	~KThreadPool();
 	//-----------------------------------------------------------------------------
@@ -317,6 +326,21 @@ public:
 	//-----------------------------------------------------------------------------
 	/// set the strategies for growing and shrinking the pool
 	void set_strategy(GrowthPolicy Growth, ShrinkPolicy Shrink);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set the base name for the pool's worker threads, as shown by debugging tools
+	/// like ps, top, or gdb - each worker names itself '<name>:<index>' when it starts.
+	/// Threads already running keep their current name, so call this before the pool
+	/// is started (or resized) to have all workers named.
+	/// @param sName the base name, or empty to not name the threads
+	void set_thread_name(KStringView sName);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Get the base name for the pool's worker threads (empty if unnamed)
+	DEKAF2_NODISCARD
+	KString get_thread_name() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -670,6 +694,7 @@ private:
 	std::size_t                                           m_iTagCursor   { 0 };  ///< DRR cursor into m_TagOrder
 	std::size_t                                           m_iTotalQueued { 0 };  ///< total tasks queued across all tags
 	bool                                                  m_bQueuePaused { false };
+	KString                                               m_sThreadName;   ///< base name for the worker threads (guarded by m_cond_mutex)
 
 	std::atomic<std::size_t>     ma_iMaxThreadsEver          { 0 };
 	std::atomic<std::size_t>     ma_iMaxThreads              { 0 };

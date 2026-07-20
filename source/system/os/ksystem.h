@@ -159,6 +159,20 @@ inline pid_t kGetPid()
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 uint64_t kGetTid();
 
+/// Set the name of the calling thread, as shown by debugging tools like ps, top, or gdb.
+/// Names longer than 15 characters get truncated on Linux and MacOS.
+/// @param sName the new thread name
+/// @return true on success
+DEKAF2_PUBLIC
+bool kSetThreadName (KStringView sName);
+
+/// Get the name of the calling thread, as shown by debugging tools like ps, top, or gdb.
+/// On Linux, unnamed threads inherit the process name - those report the empty string,
+/// same as unnamed threads on the other platforms.
+/// @return the thread's own name, or the empty string if the thread has no distinct name
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kGetThreadName ();
+
 /// return own UID
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 uint32_t kGetUid();

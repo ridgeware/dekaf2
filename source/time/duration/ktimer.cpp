@@ -42,6 +42,7 @@
 
 #include <dekaf2/time/duration/ktimer.h>
 #include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/core/logging/klog.h>
 
@@ -455,6 +456,9 @@ void KTimer::Resume()
 void KTimer::TimingLoop(KDuration MaxIdle)
 //---------------------------------------------------------------------------
 {
+	// name this thread for debugging tools like ps, top, or gdb
+	kSetThreadName("ktimer");
+
 	// make sure we do not catch signals in this thread (this can happen if
 	// the signal handler thread had not been started at init of dekaf2)
 	kBlockAllSignals();

@@ -43,6 +43,7 @@
 #include <dekaf2/system/os/ksignals.h>
 #include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/core/errors/kcrashexit.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/threading/execution/kparallel.h>
 #include <dekaf2/core/logging/klog.h>
 #include <chrono>
@@ -258,6 +259,9 @@ void KSignals::BlockAllSignals(bool bExceptSEGVandFPE)
 void KSignals::WaitForSignals()
 //-----------------------------------------------------------------------------
 {
+	// name this thread for debugging tools like ps, top, or gdb
+	kSetThreadName("ksignals");
+
 	// this is the thread that waits for signals
 	// first set up the default handler
 	kDebug(2, "new signal handler thread started");

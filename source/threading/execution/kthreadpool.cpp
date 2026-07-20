@@ -89,8 +89,10 @@
 
 #include <dekaf2/threading/execution/kthreadpool.h>
 #include <dekaf2/core/types/bits/kmake_unique.h>
+#include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/threading/execution/kthreads.h>
 #include <deque>
 
@@ -99,6 +101,15 @@ DEKAF2_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 KThreadPool::KThreadPool(std::size_t nThreads, GrowthPolicy Growth, ShrinkPolicy Shrink)
 //-----------------------------------------------------------------------------
+{
+	resize(nThreads ? nThreads : std::thread::hardware_concurrency(), Growth, Shrink);
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KThreadPool::KThreadPool(std::size_t nThreads, KStringView sThreadName, GrowthPolicy Growth, ShrinkPolicy Shrink)
+//-----------------------------------------------------------------------------
+: m_sThreadName(sThreadName)
 {
 	resize(nThreads ? nThreads : std::thread::hardware_concurrency(), Growth, Shrink);
 
@@ -150,6 +161,27 @@ void KThreadPool::set_strategy(GrowthPolicy Growth, ShrinkPolicy Shrink)
 	m_Shrink = Shrink;
 
 } // set_strategy
+
+//-----------------------------------------------------------------------------
+void KThreadPool::set_thread_name(KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	// the workers read the name under m_cond_mutex when they start
+	std::unique_lock<std::mutex> lock(m_cond_mutex);
+
+	m_sThreadName = sName;
+
+} // set_thread_name
+
+//-----------------------------------------------------------------------------
+KString KThreadPool::get_thread_name() const
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock<std::mutex> lock(m_cond_mutex);
+
+	return m_sThreadName;
+
+} // get_thread_name
 
 //-----------------------------------------------------------------------------
 bool KThreadPool::resize(std::size_t nThreads, GrowthPolicy Growth, ShrinkPolicy Shrink)
@@ -528,7 +560,7 @@ bool KThreadPool::run_thread(std::size_t i)
 	// a copy of the shared ptr to the abort
 	std::shared_ptr<std::atomic<eAbort>> abort_ptr(m_abort[i]);
 
-	auto f = [this, abort_ptr]()
+	auto f = [this, abort_ptr, i]()
 	{
 		// kSetupThreadSignalHandling() is done by kMakeThread() below - no
 		// need to call it explicitly here.
@@ -536,6 +568,12 @@ bool KThreadPool::run_thread(std::size_t i)
 		std::packaged_task<void()> _f;
 		Tag                        _tag { DefaultTag };  // work-class of the task in _f
 		std::unique_lock<std::mutex> lock(m_cond_mutex);
+
+		if (!m_sThreadName.empty())
+		{
+			// name this worker for debugging tools (the name is guarded by m_cond_mutex)
+			kSetThreadName(kFormat("{}:{}", m_sThreadName, i));
+		}
 
 		bool bMoreTasks = sched_dequeue(_f, _tag);
 

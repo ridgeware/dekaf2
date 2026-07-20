@@ -84,6 +84,7 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
 #include <dekaf2/net/address/knetworkinterface.h>
@@ -956,8 +957,15 @@ bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 	else
 	{
 		m_IOThread = std::make_unique<std::thread>(kMakeThread(
-			[this, Promise = std::move(promise)]() mutable
+			[this, Promise = std::move(promise), sPoolName = m_ThreadPool.get_thread_name()]() mutable
 			{
+				if (!sPoolName.empty())
+				{
+					// name the IO thread for debugging tools - in the blocking case
+					// above the caller's own thread runs the server and keeps its name
+					kSetThreadName(kFormat("{}:io", sPoolName));
+				}
+
 				Promise.set_value_at_thread_exit(0);
 				RunServer();
 
@@ -1149,10 +1157,11 @@ KTCPServer::KTCPServer(
 	uint16_t iMaxThreads,
 	bool     bStoreNewCerts,
 	KThreadPool::GrowthPolicy Growth,
-	KThreadPool::ShrinkPolicy Shrink
+	KThreadPool::ShrinkPolicy Shrink,
+	KStringView sPoolThreadName
 )
 //-----------------------------------------------------------------------------
-	: m_ThreadPool(iMaxThreads, Growth, Shrink)
+	: m_ThreadPool(iMaxThreads, sPoolThreadName, Growth, Shrink)
 	, m_iPort(iPort)
 	, m_bIsTLS(bTLS)
 	, m_bStoreNewCerts(bStoreNewCerts)
@@ -1165,10 +1174,11 @@ KTCPServer::KTCPServer(
 	KStringView sSocketFile,
 	uint16_t    iMaxThreads,
 	KThreadPool::GrowthPolicy Growth,
-	KThreadPool::ShrinkPolicy Shrink
+	KThreadPool::ShrinkPolicy Shrink,
+	KStringView sPoolThreadName
 )
 //-----------------------------------------------------------------------------
-	: m_ThreadPool(iMaxThreads, Growth, Shrink)
+	: m_ThreadPool(iMaxThreads, sPoolThreadName, Growth, Shrink)
 	, m_sSocketFile(sSocketFile)
 	, m_iPort(0)
 {

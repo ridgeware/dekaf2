@@ -50,6 +50,7 @@
 #include <dekaf2/time/scheduler/bits/kron_utils.h>
 #include "croncpp.h"
 #include <dekaf2/core/init/kcompatibility.h>
+#include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/threading/execution/kthreads.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -773,6 +774,9 @@ std::size_t Kron::FinishWaitingJobs()
 void Kron::Launcher(KDuration CheckEvery)
 //-----------------------------------------------------------------------------
 {
+	// name this thread for debugging tools like ps, top, or gdb
+	kSetThreadName("kron");
+
 	if (CheckEvery == KDuration::zero())
 	{
 		CheckEvery = std::chrono::seconds(1);

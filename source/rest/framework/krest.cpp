@@ -313,7 +313,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 																 Options.iMaxConnections,
 																 Options.bStoreEphemeralCert,
 																 Options.Growth,
-																 Options.Shrink);
+																 Options.Shrink,
+																 "rest");
 
 				if (bUseTLS)
 				{
@@ -393,7 +394,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 																 Options.sSocketFile,
 																 Options.iMaxConnections,
 																 Options.Growth,
-																 Options.Shrink);
+																 Options.Shrink,
+																 "rest");
 
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);

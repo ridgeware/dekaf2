@@ -53,6 +53,7 @@
 #include <dekaf2/core/types/kctype.h>
 #include <thread>
 #include <cstdlib>
+#include <cstring>         // for std::memcpy() - kSetThreadName()
 #include <ctime>
 #include <array>
 #include <algorithm>       // for std::sort(), std::upper_bound() - kIsInsideDataSegment()
@@ -95,6 +96,7 @@
 		// Unix
 		#include <sys/sysinfo.h> // for sysinfo()
 		#include <sys/syscall.h>
+		#include <sys/prctl.h>   // for prctl() - kGetThreadName()
 		#include <limits.h>    // for MAX_PATH
 		#if DEKAF2_HAS_INCLUDE(<link.h>)
 			#include <link.h>  // for dl_iterate_phdr() - kIsInsideDataSegment()
@@ -547,6 +549,131 @@ uint64_t kGetTid()
 #endif
 
 } // kGetTid
+
+//-----------------------------------------------------------------------------
+bool kSetThreadName (KStringView sName)
+//-----------------------------------------------------------------------------
+{
+#if defined(DEKAF2_IS_WINDOWS)
+
+	// SetThreadDescription() exists since Windows 10 1607. dekaf2 targets Vista
+	// (_WIN32_WINNT 0x0600, for inet_pton()), and even a Windows 10 target could
+	// not express the 1607 line - therefore resolve the function dynamically,
+	// and fail silently where it is missing
+	using SetThreadDescriptionFunc = HRESULT(WINAPI*)(HANDLE, PCWSTR);
+
+	static SetThreadDescriptionFunc pSetThreadDescription = []() -> SetThreadDescriptionFunc
+	{
+		HMODULE hKernel32 = GetModuleHandleW(L"kernel32.dll");
+		return hKernel32 ? reinterpret_cast<SetThreadDescriptionFunc>(GetProcAddress(hKernel32, "SetThreadDescription"))
+		                 : nullptr;
+	}();
+
+	if (pSetThreadDescription == nullptr)
+	{
+		return false;
+	}
+
+	auto wsName = kutf::Convert<std::wstring>(sName);
+
+	return SUCCEEDED(pSetThreadDescription(GetCurrentThread(), wsName.c_str()));
+
+#else
+
+	// the kernel's comm field is 16 bytes including the NUL - 15 visible chars.
+	// Hard truncation is fine for a debugging label (a clipped UTF-8 tail included)
+	std::array<char, 16> szName;
+	auto iLen = std::min(sName.size(), szName.size() - 1);
+	std::memcpy(szName.data(), sName.data(), iLen);
+	szName[iLen] = 0;
+
+	#if defined(DEKAF2_IS_MACOS)
+		// MacOS can only name the CURRENT thread - single-argument variant
+		return pthread_setname_np(szName.data()) == 0;
+	#else
+		return pthread_setname_np(pthread_self(), szName.data()) == 0;
+	#endif
+
+#endif
+
+} // kSetThreadName
+
+//-----------------------------------------------------------------------------
+KString kGetThreadName ()
+//-----------------------------------------------------------------------------
+{
+#if defined(DEKAF2_IS_WINDOWS)
+
+	// GetThreadDescription() exists since Windows 10 1607 - resolved dynamically
+	// for the same reason as SetThreadDescription() in kSetThreadName()
+	using GetThreadDescriptionFunc = HRESULT(WINAPI*)(HANDLE, PWSTR*);
+
+	static GetThreadDescriptionFunc pGetThreadDescription = []() -> GetThreadDescriptionFunc
+	{
+		HMODULE hKernel32 = GetModuleHandleW(L"kernel32.dll");
+		return hKernel32 ? reinterpret_cast<GetThreadDescriptionFunc>(GetProcAddress(hKernel32, "GetThreadDescription"))
+		                 : nullptr;
+	}();
+
+	KString sName;
+
+	if (pGetThreadDescription != nullptr)
+	{
+		PWSTR pwsName { nullptr };
+
+		if (SUCCEEDED(pGetThreadDescription(GetCurrentThread(), &pwsName)) && pwsName != nullptr)
+		{
+			sName = kutf::Convert<KString>(pwsName);
+			LocalFree(pwsName);
+		}
+	}
+
+	return sName;
+
+#elif defined(DEKAF2_IS_LINUX)
+
+	// a single cheap syscall (~180ns, the same class as the gettid() in kGetTid()),
+	// while glibc's pthread_getname_np() may read /proc/self/task/<tid>/comm
+	std::array<char, 16> szName;
+
+	if (prctl(PR_GET_NAME, szName.data()) != 0)
+	{
+		return KString{};
+	}
+
+	KString sName(szName.data());
+
+	// unnamed threads inherit the process name on Linux - report them as unnamed,
+	// so that callers can apply their own fallback (like klog's thread id)
+	static const KString s_sProcessName = []() -> KString
+	{
+		KString sComm = kReadAll("/proc/self/comm");
+		sComm.TrimRight();
+		return sComm;
+	}();
+
+	if (sName == s_sProcessName)
+	{
+		sName.clear();
+	}
+
+	return sName;
+
+#else
+
+	// MacOS (and the BSDs): unnamed threads simply report an empty name
+	std::array<char, 64> szName;
+
+	if (pthread_getname_np(pthread_self(), szName.data(), szName.size()) != 0)
+	{
+		szName[0] = 0;
+	}
+
+	return KString(szName.data());
+
+#endif
+
+} // kGetThreadName
 
 //-----------------------------------------------------------------------------
 uint32_t kGetUid()

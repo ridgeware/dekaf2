@@ -77,6 +77,37 @@ TEST_CASE("KSystem")
 		CHECK ( i != 0 );
 	}
 
+	SECTION("ThreadName")
+	{
+		// run in a joined thread to not rename the utest main thread
+		std::thread([]()
+		{
+			// an unnamed thread reports an empty name (on Linux it inherits the
+			// process name, which kGetThreadName() filters out)
+			CHECK ( kGetThreadName().empty() );
+
+#ifdef DEKAF2_IS_WINDOWS
+			// needs Windows 10 1607 for Set/GetThreadDescription()
+			if (kSetThreadName("utestthread"))
+			{
+				CHECK ( kGetThreadName() == "utestthread" );
+			}
+#else
+			CHECK ( kSetThreadName("utestthread") );
+			char szName[64] {};
+			REQUIRE ( pthread_getname_np(pthread_self(), szName, sizeof(szName)) == 0 );
+			CHECK ( KStringView(szName) == "utestthread" );
+			CHECK ( kGetThreadName() == "utestthread" );
+
+			// longer names get truncated to the 15 chars of the kernel's comm field
+			CHECK ( kSetThreadName("averylongthreadname") );
+			REQUIRE ( pthread_getname_np(pthread_self(), szName, sizeof(szName)) == 0 );
+			CHECK ( KStringView(szName) == "averylongthread" );
+			CHECK ( kGetThreadName() == "averylongthread" );
+#endif
+		}).join();
+	}
+
 	SECTION("kSystem")
 	{
 		KString sOutput;

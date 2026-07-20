@@ -64,6 +64,7 @@ void KLogData::Set(int iLevel, KStringView sShortName, KStringView sPathName, KS
 	m_iLevel        = iLevel;
 	m_Pid           = kGetPid();
 	m_Tid           = kGetTid();
+	m_sThreadName   = kGetThreadName();
 	m_Time          = kNow();
 	m_sFunctionName = SanitizeFunctionName(sFunction);
 	m_sShortName    = sShortName;
@@ -278,16 +279,19 @@ KString KLogTTYSerializer::LevelAsString()
 KString KLogTTYSerializer::PrintStatus(bool bHiRes)
 //---------------------------------------------------------------------------
 {
-	// desired formats:
-	// | WAR | MYPRO | 17202 | 12345 | 2001-08-24 10:37:04 |
+	// desired formats (the thread column shows the thread name where set,
+	// and the thread id / the relative thread number (HiRes) otherwise):
+	// | WAR | MYPRO | 17202 |       12345 | 2001-08-24 10:37:04 |
+	// | WAR | MYPRO | 17202 |      rest:7 | 2001-08-24 10:37:04 |
 	// HiRes:
-	// | 11:34:48.123456 | 55717 |     0 | +9.0µs | 7.8ms | KHTTPClient::Parse(): HTTP-200 OK
-	// | 11:34:48.123457 | 55717 |     0 | +123µs | 123ms | KHTTPClient::Parse(): HTTP-200 OK
+	// | 11:34:48.123456 | 55717 |           0 | +9.0µs | 7.8ms | KHTTPClient::Parse(): HTTP-200 OK
+	// | 11:34:48.123457 | 55717 |   wsreactor | +123µs | 123ms | KHTTPClient::Parse(): HTTP-200 OK
 
 	if (!bHiRes)
 	{
-		return kFormat("| {:3.3s} | {:5.5s} | {:5d} | {:5d} | {:%Y-%m-%d %H:%M:%S} | ",
-					   LevelAsString(), m_sShortName, m_Pid, m_Tid, m_Time);
+		return kFormat("| {:3.3s} | {:5.5s} | {:5d} | {:>11.11s} | {:%Y-%m-%d %H:%M:%S} | ",
+					   LevelAsString(), m_sShortName, m_Pid,
+					   m_sThreadName.empty() ? kFormat("{}", m_Tid) : m_sThreadName, m_Time);
 	}
 	else
 	{
@@ -322,12 +326,12 @@ KString KLogTTYSerializer::PrintStatus(bool bHiRes)
 		uint64_t iThread = m_Tid < s_iStartThread ? m_Tid + 65535 - s_iStartThread : m_Tid - s_iStartThread;
 #endif
 
-		return kFormat("|{:2}| {:%H:%M:%S}.{:06} | {:5d} | {:5d} | +{:>5.5s} | {:>5.5s} | ",
+		return kFormat("|{:2}| {:%H:%M:%S}.{:06} | {:5d} | {:>11.11s} | +{:>5.5s} | {:>5.5s} | ",
 					   m_iLevel,
 					   m_Time,
 					   m_Time.subseconds().microseconds().count(),
 					   m_Pid,
-					   iThread,
+					   m_sThreadName.empty() ? kFormat("{}", iThread) : m_sThreadName,
 					   thisTicks,
 					   totalTicks);
 	}
@@ -394,6 +398,12 @@ KJSON KLogJSONSerializer::CreateObject() const
 	json["level"] = m_iLevel;
 	json["pid"] = m_Pid;
 	json["tid"] = m_Tid;
+
+	if (!m_sThreadName.empty())
+	{
+		json["thread_name"] = m_sThreadName;
+	}
+
 	auto ttime = m_Time.to_time_t();
 	json["time_t"] = ttime;
 	json["usecs"] = (m_Time - KUnixTime(ttime)).microseconds().count();

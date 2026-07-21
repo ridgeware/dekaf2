@@ -186,7 +186,7 @@ TEST_CASE("KROW")
 			CHECK ( sSQL == "0xffd80027ab" );
 		}
 		{
-			auto sSQL = KROW::BinaryToSQL(sBin, DBT::SQLSERVER15);
+			auto sSQL = KROW::BinaryToSQL(sBin, DBT::SQLSERVER_UTF8);
 			CHECK ( sSQL == "0xffd80027ab" );
 		}
 		{

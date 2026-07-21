@@ -244,18 +244,18 @@ public:
 	{
 		// the DBT constant is used to govern certain SQL statments:
 		// never change the absolute values, they are persisted in config files
-		NONE        = 0,   // must stay zero
-		MYSQL       = 100, // assume we're connecting to MySQL
-		ORACLE6     = 206, // assume we're connecting to an Oracle6 rdbms
-		ORACLE7     = 207, // assume we're connecting to an Oracle7 rdbms
-		ORACLE8     = 208, // assume we're connecting to an Oracle8 rdbms
-		ORACLE      = 200, // use the latest assumptions about Oracle
-		SQLSERVER   = 300, // SQLServer with UTF-16 storage in n(var)char
-		SQLSERVER15 = 315, // SQLServer with UTF-8 storage in (var)char, from v15 onwards (2019)
-		SYBASE      = 400,
-		INFORMIX    = 500,
-		SQLITE3     = 600, // assume we're connecting to SQLite3
-		POSTGRESQL  = 700  // assume we're connecting to PostgreSQL
+		NONE           = 0,   // must stay zero
+		MYSQL          = 100, // assume we're connecting to MySQL
+		ORACLE6        = 206, // assume we're connecting to an Oracle6 rdbms
+		ORACLE7        = 207, // assume we're connecting to an Oracle7 rdbms
+		ORACLE8        = 208, // assume we're connecting to an Oracle8 rdbms
+		ORACLE         = 200, // use the latest assumptions about Oracle
+		SQLSERVER      = 300, // any MS SQLServer from v7.0 onwards, with UTF-16 storage in n(var)char
+		SQLSERVER_UTF8 = 315, // MS SQLServer with UTF-8 storage in (var)char through a _UTF8 collation, available from v15 (2019) onwards
+		SYBASE         = 400,
+		INFORMIX       = 500,
+		SQLITE3        = 600, // assume we're connecting to SQLite3
+		POSTGRESQL     = 700  // assume we're connecting to PostgreSQL
 	};
 
 	enum class API
@@ -273,6 +273,11 @@ public:
 		INFORMIX = 80000, // connect to Informix using their API
 		ODBC     = 90000  // connect to something using ODBC APIs
 	};
+
+	/// returns true if iDBType is any flavor of MS SQLServer
+	static constexpr bool IsMSSQLServer (DBT iDBType) { return iDBType == DBT::SQLSERVER || iDBType == DBT::SQLSERVER_UTF8; }
+	/// returns true if string literals need a prefixed N to be read as unicode
+	static constexpr bool NeedsUnicodeLiterals (DBT iDBType) { return iDBType == DBT::SQLSERVER; }
 
 	static void     SetDebugLevel (int16_t iNewLevel) { m_iDebugLevel = iNewLevel; }
 	static int16_t  GetDebugLevel () { return m_iDebugLevel; }

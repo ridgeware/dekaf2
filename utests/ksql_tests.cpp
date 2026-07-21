@@ -712,6 +712,49 @@ TEST_CASE("KSQL-SQLite3")
 		CHECK ( iCount > 0 );
 	}
 
+	SECTION("ListProcedures")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		db.ExecSQL("drop table if exists TEST_TRIG");
+		REQUIRE ( db.ExecSQL(
+			"create table TEST_TRIG (\n"
+			"    id        integer       primary key,\n"
+			"    stamp     text          null\n"
+			")") );
+		REQUIRE ( db.ExecSQL(
+			"create trigger TEST_TRIGGER after insert on TEST_TRIG\n"
+			"begin\n"
+			"    update TEST_TRIG set stamp = 'inserted' where id = new.id;\n"
+			"end") );
+
+		// SQLite has no stored procedures, ListProcedures returns the triggers
+		REQUIRE ( db.ListProcedures() );
+		REQUIRE ( db.NextRow() );
+		CHECK ( db.Get(1) == "TEST_TRIGGER" );
+		CHECK ( db.Get(2) == "trigger" );
+		CHECK ( db.Get(3) == "TEST_TRIG" );
+		CHECK ( !db.NextRow() );
+	}
+
+	SECTION("ListDatabases")
+	{
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+
+		REQUIRE ( db.ListDatabases() );
+		REQUIRE ( db.NextRow() );
+		CHECK ( db.Get(1) == "main" );
+		// sqlite returns the resolved path, which may differ from sDBFile (e.g. /var vs /private/var)
+		CHECK ( db.Get(2).ends_with("/ksql_sqlite_test.db") );
+		CHECK ( !db.NextRow() );
+	}
+
 	SECTION("DescribeTable")
 	{
 		KSQL db;

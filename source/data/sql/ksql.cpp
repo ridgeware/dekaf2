@@ -386,7 +386,7 @@ void KSQL::KColInfo::SetColumnType (DBT iDBType, int iNativeDataType, KCOL::Len 
 			break;
 
 		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
+		case DBT::SQLSERVER_UTF8:
 		case DBT::SYBASE:
 			switch (iNativeDataType)
 			{
@@ -748,9 +748,7 @@ bool KSQL::SetError(KString sError, uint32_t iErrorNum/*=-1*/, bool bNoThrow/*=f
 //-----------------------------------------------------------------------------
 {
 	// check if this is in fact no error
-	if (   m_iDBType == DBT::SQLSERVER
-		|| m_iDBType == DBT::SQLSERVER15
-		|| m_iDBType == DBT::SYBASE )
+	if (IsMSSQLServer(m_iDBType) || m_iDBType == DBT::SYBASE)
 	{
 		if (sError.empty() || (!sError.contains(" Severity ") && sError.contains("State")))
 		{
@@ -1000,9 +998,10 @@ bool KSQL::SetDBType (KStringView sDBType)
 	{
 		return (SetDBType (DBT::SQLSERVER));
 	}
-	if (sDBType == "sqlserver15")
+	if (sDBType == "sqlserver_utf8" || sDBType == "sqlserver15")
 	{
-		return (SetDBType (DBT::SQLSERVER15));
+		// "sqlserver15" is the deprecated old name for the UTF-8 collation profile
+		return (SetDBType (DBT::SQLSERVER_UTF8));
 	}
 	if (sDBType == "sybase")
 	{
@@ -2728,7 +2727,7 @@ bool KSQL::PreparedToRetry (uint32_t iErrorNum, KString* sError)
 
 #if defined(DEKAF2_HAS_DBLIB) || defined(DEKAF2_HAS_CTLIB)
 			case DBT::SQLSERVER:
-			case DBT::SQLSERVER15:
+			case DBT::SQLSERVER_UTF8:
 			case DBT::SYBASE:
 				switch (iErrorNum)
 				{
@@ -2978,7 +2977,7 @@ bool KSQL::ExecSQLFile (KStringViewZ sFilename)
 	//   //ORA|                       -- line applies to Oracle only
 	//   //SYB|                       -- line applies to Sybase only
 	//   //MSS|                       -- line applies to (MS)SQLServer only
-	KString sLeader = (m_iDBType == DBT::SQLSERVER || m_iDBType == DBT::SQLSERVER15)
+	KString sLeader = IsMSSQLServer(m_iDBType)
 		? "MSS"
 		: TxDBType(m_iDBType).ToUpper();
 
@@ -4898,8 +4897,7 @@ bool KSQL::LoadColumnLayout(KROW& Row, KStringView sColumns)
 {
 	KStringView sExpandedColumns = sColumns.empty() ? "*" : sColumns;
 
-	if (GetDBType() == DBT::SQLSERVER ||
-		GetDBType() == DBT::SQLSERVER15)
+	if (IsMSSQLServer(GetDBType()))
 	{
 		if (!ExecRawQuery(FormatSQL("select top 0 {} from {}", sExpandedColumns, Row.GetTablename()), Flags::F_None, "LoadColumnLayout"))
 		{
@@ -5114,9 +5112,7 @@ void KSQL::EndQuery (bool bDestructor/*=false*/)
 	#endif
 
 	#ifdef DEKAF2_HAS_CTLIB
-	if (GetDBType() == DBT::SQLSERVER   ||
-		GetDBType() == DBT::SQLSERVER15 ||
-		GetDBType() == DBT::SYBASE)
+	if (IsMSSQLServer(GetDBType()) || GetDBType() == DBT::SYBASE)
 	{
 		ctlib_flush_results();
 	}
@@ -5618,7 +5614,7 @@ bool KSQL::SetAPISet (API iAPISet)
 		case DBT::ORACLE:               m_iAPISet = API::OCI8;        break;
 
 		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
+		case DBT::SQLSERVER_UTF8:
 		case DBT::SYBASE:               m_iAPISet = API::CTLIB;       break; // choices: API::DBLIB -or- API::CTLIB
 
 		case DBT::INFORMIX:             m_iAPISet = API::INFORMIX;    break;
@@ -5732,7 +5728,7 @@ void KSQL::BuildTranslationList (TXList& pList, DBT iDBType)
 
 			case DBT::SYBASE:
 			case DBT::SQLSERVER:
-			case DBT::SQLSERVER15:
+			case DBT::SQLSERVER_UTF8:
 				pList.Add (sName, g_Translation.sSybase);
 				break;
 
@@ -5816,8 +5812,9 @@ KSQL::DBT KSQL::TxDBType (KStringView sDBType)
 		case "sqlserver"_casehash:
 			DBType = DBT::SQLSERVER;
 			break;
-		case "sqlserver15"_casehash:
-			DBType = DBT::SQLSERVER15;
+		case "sqlserver_utf8"_casehash:
+		case "sqlserver15"_casehash: // deprecated old name
+			DBType = DBT::SQLSERVER_UTF8;
 			break;
 		case "sybase"_casehash:
 			DBType = DBT::SYBASE;
@@ -5844,19 +5841,19 @@ KStringView KSQL::TxDBType (DBT iDBType)
 {
 	switch (iDBType)
 	{
-		case DBT::NONE:         return ("NotInitialized");
-		case DBT::MYSQL:        return ("MySQL");
-		case DBT::SQLITE3:      return ("SQLite3");
-		case DBT::ORACLE6:      return ("Oracle6");
-		case DBT::ORACLE7:      return ("Oracle7");
-		case DBT::ORACLE8:      return ("Oracle8");
-		case DBT::ORACLE:       return ("Oracle");
-		case DBT::SQLSERVER:    return ("SQLServer");
-		case DBT::SQLSERVER15:  return ("SQLServer15");
-		case DBT::SYBASE:       return ("Sybase");
-		case DBT::INFORMIX:     return ("Informix");
-		case DBT::POSTGRESQL:   return ("PostgreSQL");
-		default:                return ("MysteryType");
+		case DBT::NONE:           return ("NotInitialized");
+		case DBT::MYSQL:          return ("MySQL");
+		case DBT::SQLITE3:        return ("SQLite3");
+		case DBT::ORACLE6:        return ("Oracle6");
+		case DBT::ORACLE7:        return ("Oracle7");
+		case DBT::ORACLE8:        return ("Oracle8");
+		case DBT::ORACLE:         return ("Oracle");
+		case DBT::SQLSERVER:      return ("SQLServer");
+		case DBT::SQLSERVER_UTF8: return ("SQLServer_UTF8");
+		case DBT::SYBASE:         return ("Sybase");
+		case DBT::INFORMIX:       return ("Informix");
+		case DBT::POSTGRESQL:     return ("PostgreSQL");
+		default:                  return ("MysteryType");
 	}
 
 } // TxDBType
@@ -5900,7 +5897,7 @@ KString KSQL::GetSupportedDBTypes ()
 	sTypes += "oracle, oracle6, oracle7, oracle8, ";
 #endif
 #if defined(DEKAF2_HAS_DBLIB) || defined(DEKAF2_HAS_CTLIB)
-	sTypes += "sqlserver, sqlserver15, sybase, ";
+	sTypes += "sqlserver, sqlserver_utf8, sybase, ";
 #endif
 
 	sTypes.TrimRight(", ");
@@ -6155,17 +6152,12 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	case DBT::MYSQL:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		// NONE OF THE ARGS: sLike, fIncludeViews and fRestrictToMine are supported for MySQL.
 		// fIncludeViews:   MySQL supports VIEWS and they appear in the "show table status" results with type=nullptr
 		// fRestrictToMine: the MySQL "show table status" command only does exactly that
-		if (sLike != "%"_ksv)
-		{
-			kDebug (GetDebugLevel(), "warning: {}: MySQL 'show table status' does not support arguments", sLike);
-		}
 		{
 			EndQuery ();
 			auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
-			return ExecQuery ("show table status");
+			return ExecQuery ("show table status like '{}'", sLike);
 		}
 		break;
 
@@ -6229,9 +6221,30 @@ bool KSQL::ListTables (KStringView sLike/*="%"*/, bool fIncludeViews/*=false*/, 
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	case DBT::SQLSERVER:
-	case DBT::SQLSERVER15:
+	case DBT::SQLSERVER_UTF8:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		return (ExecQuery ("select * from sysobjects where type = 'U' and name like '{}' order by name", sLike));
+		// uses the sysobjects catalog, which works from SQLServer v7.0 up to today's versions
+		// fRestrictToMine is not supported
+		if (fIncludeViews)
+		{
+			return (ExecQuery (
+				"select name, case type when 'U' then 'TABLE' else 'VIEW' end, user_name(uid)\n"
+				"  from sysobjects\n"
+				" where type in ('U','V')\n"
+				"   and name like '{}'\n"
+				" order by 1",
+					sLike));
+		}
+		else // !fIncludeViews
+		{
+			return (ExecQuery (
+				"select name, 'TABLE', user_name(uid)\n"
+				"  from sysobjects\n"
+				" where type = 'U'\n"
+				"   and name like '{}'\n"
+				" order by 1",
+					sLike));
+		}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	case DBT::SQLITE3:
@@ -6309,16 +6322,11 @@ bool KSQL::ListProcedures (KStringView sLike/*="%"*/, bool fRestrictToMine/*=tru
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	case DBT::MYSQL:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		// NONE OF THE ARGS: sLike and fRestrictToMine are supported for MySQL.
 		// fRestrictToMine: the MySQL "show procedure status" command only does exactly that
-		if (sLike != "%"_ksv)
-		{
-			kDebug (GetDebugLevel(), "warning: {}: MySQL 'show procedure status' does not support arguments", sLike);
-		}
 		{
 			EndQuery ();
 			auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
-			return ExecQuery ("show procedure status");
+			return ExecQuery ("show procedure status like '{}'", sLike);
 		}
 		break;
 
@@ -6329,10 +6337,41 @@ bool KSQL::ListProcedures (KStringView sLike/*="%"*/, bool fRestrictToMine/*=tru
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-	// case SQLSERVER:
-	// case SQLSERVER15:
+	case DBT::SQLSERVER:
+	case DBT::SQLSERVER_UTF8:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
-		// return (ExecQuery ("select * from sysobjects where type = 'P' and name like '{}' order by name", sLike));
+		// uses the sysobjects catalog, which works from SQLServer v7.0 up to today's versions
+		// fRestrictToMine is not supported
+		return (ExecQuery (
+			"select name, user_name(uid)\n"
+			"  from sysobjects\n"
+			" where type = 'P'\n"
+			"   and name like '{}'\n"
+			" order by 1",
+				sLike));
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::SQLITE3:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		// SQLite has no stored procedures - triggers are the only stored code in the schema
+		return (ExecQuery (
+			"select name, type, tbl_name\n"
+			"  from sqlite_master\n"
+			" where type = 'trigger'\n"
+			"   and name like '{}'\n"
+			" order by 1",
+				sLike));
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::POSTGRESQL:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		return (ExecQuery (
+			"select routine_name, routine_type\n"
+			"  from information_schema.routines\n"
+			" where routine_schema = 'public'\n"
+			"   and routine_name like '{}'\n"
+			" order by 1",
+				sLike));
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	default:
@@ -6343,6 +6382,66 @@ bool KSQL::ListProcedures (KStringView sLike/*="%"*/, bool fRestrictToMine/*=tru
 	return (false);
 
 } // ListProcedures
+
+//-----------------------------------------------------------------------------
+bool KSQL::ListDatabases (KStringView sLike/*="%"*/)
+//-----------------------------------------------------------------------------
+{
+	switch (m_iDBType)
+	{
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::MYSQL:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		{
+			EndQuery ();
+			auto Guard = ScopedFlags (F_IgnoreSelectKeyword);
+			return ExecQuery ("show databases like '{}'", sLike);
+		}
+		break;
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::SQLSERVER:
+	case DBT::SQLSERVER_UTF8:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		// uses the sysdatabases catalog, which works from SQLServer v7.0 up to today's versions
+		return (ExecQuery (
+			"select name\n"
+			"  from master.dbo.sysdatabases\n"
+			" where name like '{}'\n"
+			" order by 1",
+				sLike));
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::SQLITE3:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		// lists the attached databases (at least 'main')
+		return (ExecQuery (
+			"select name, file\n"
+			"  from pragma_database_list()\n"
+			" where name like '{}'\n"
+			" order by 1",
+				sLike));
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	case DBT::POSTGRESQL:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		return (ExecQuery (
+			"select datname\n"
+			"  from pg_database\n"
+			" where datistemplate = false\n"
+			"   and datname like '{}'\n"
+			" order by 1",
+				sLike));
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+	default:
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+		return SetError(kFormat( "ListDatabases(): {} not supported yet.", TxDBType(m_iDBType)));
+	}
+
+	return (false);
+
+} // ListDatabases
 
 //-----------------------------------------------------------------------------
 bool KSQL::DescribeTable (KStringView sTablename)
@@ -6382,7 +6481,7 @@ bool KSQL::DescribeTable (KStringView sTablename)
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 	case DBT::SQLSERVER:
-	case DBT::SQLSERVER15:
+	case DBT::SQLSERVER_UTF8:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		{
 			//uint32_t iFlags = GetFlags();
@@ -6487,7 +6586,7 @@ KJSON KSQL::FindColumn (KStringView sColLike, KStringView sSchemaName/*current d
 	case DBT::ORACLE8:
 	case DBT::ORACLE:
 	case DBT::SQLSERVER:
-	case DBT::SQLSERVER15:
+	case DBT::SQLSERVER_UTF8:
 	default:
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 		SetError(kFormat ("KSQL::FindColumn() not coded yet for {}", TxDBType(m_iDBType)));
@@ -6883,7 +6982,7 @@ bool KSQL::Insert (const std::vector<KROW>& Rows, bool bIgnoreDupes)
 		}
 
 		// do not use the "ignore" insert with SQLServer
-		if (!Row.AppendInsert(m_sLastSQL, m_iDBType, false, GetDBType() != DBT::SQLSERVER && GetDBType() != DBT::SQLSERVER15))
+		if (!Row.AppendInsert(m_sLastSQL, m_iDBType, false, !IsMSSQLServer(GetDBType())))
 		{
 			m_iNumRowsAffected = iInsertedRows;
 			return SetError(Row.GetLastError());
@@ -7366,8 +7465,7 @@ bool KSQL::UpdateOrInsert (KROW& Row, const KROW& AdditionalInsertCols, bool* pb
 uint64_t KSQL::GetLastInsertID ()
 //-----------------------------------------------------------------------------
 {
-	if (m_iDBType == DBT::SQLSERVER ||
-		m_iDBType == DBT::SQLSERVER15)
+	if (IsMSSQLServer(m_iDBType))
 	{
 		int64_t iID = SingleIntQuery ("select @@identity");
 		if (iID <= 0)
@@ -8246,12 +8344,37 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=ASCII
 {
 	kDebug (2, "...");
 
-	KString sResult;
-
 	if (!ExecRawQuery (sSQL, GetFlags(), "OutputQuery"))
 	{
-		return sResult;
+		return KString{};
 	}
+
+	return QueryOpenRows (iFormat, piNumRows);
+
+} // QueryAllRows
+
+//-----------------------------------------------------------------------------
+std::size_t KSQL::OutputLastQuery (OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
+//-----------------------------------------------------------------------------
+{
+	kDebug (2, "...");
+
+	size_t iNumRows{0};
+	auto   sResult = QueryOpenRows (iFormat, &iNumRows);
+
+	kWrite (fpout, sResult) && kFlush(fpout);
+
+	return iNumRows;
+
+} // OutputLastQuery
+
+//-----------------------------------------------------------------------------
+KString KSQL::QueryOpenRows (OutputFormat iFormat/*=ASCII*/, std::size_t* piNumRows/*=NULL*/)
+//-----------------------------------------------------------------------------
+{
+	kDebug (2, "...");
+
+	KString sResult;
 
 	KFormTable Table(sResult);
 	Table.SetStyle(iFormat);
@@ -8270,7 +8393,8 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=ASCII
 		Table.DryMode(false);
 
 		EndQuery ();
-		ExecLastRawQuery (GetFlags(), "OutputQuery");
+		// the query already ran once, so do not re-check for the select keyword
+		ExecLastRawQuery (Flags(GetFlags() | F_IgnoreSelectKeyword), "QueryOpenRows");
 	}
 
 	// for a weird reason gcc 11.5 crashes here with ctlib when iterating
@@ -8290,7 +8414,7 @@ KString KSQL::QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat/*=ASCII
 
 	return sResult;
 
-} // QueryAllRows
+} // QueryOpenRows
 
 //-----------------------------------------------------------------------------
 bool KSQL::BeginTransaction (KStringView sOptions/*=""*/)
@@ -8302,7 +8426,7 @@ bool KSQL::BeginTransaction (KStringView sOptions/*=""*/)
 			return sOptions.empty() ? ExecSQL("start transaction") : ExecSQL("start transaction {}", sOptions);
 
 		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
+		case DBT::SQLSERVER_UTF8:
 			if (!sOptions.empty()) kDebug(2, "options are not supported for SQLServer: {}", sOptions);
 			return ExecSQL ("begin transaction");
 
@@ -8334,7 +8458,7 @@ bool KSQL::CommitTransaction (KStringView sOptions/*=""*/)
 		}
 
 		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
+		case DBT::SQLSERVER_UTF8:
 		{
 			if (!sOptions.empty()) kDebug(2, "options are not supported for SQLServer: {}", sOptions);
 			auto iSave = GetNumRowsAffected();
@@ -8371,7 +8495,7 @@ bool KSQL::RollbackTransaction (KStringView sOptions/*=""*/)
 			return sOptions.empty() ? ExecSQL("rollback") : ExecSQL("rollback {}", sOptions);
 
 		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
+		case DBT::SQLSERVER_UTF8:
 			if (!sOptions.empty()) kDebug(2, "options are not supported for SQLServer: {}", sOptions);
 			return ExecSQL ("rollback");
 
@@ -9708,7 +9832,7 @@ KSQL::ConnectionID KSQL::GetConnectionID(bool bQueryIfUnknown)
 				break;
 
 			case DBT::SQLSERVER:
-			case DBT::SQLSERVER15:
+			case DBT::SQLSERVER_UTF8:
 				iID = SingleIntQuery("select @@spid");
 				break;
 
@@ -10007,7 +10131,7 @@ KJSON KSQL::LoadSchema (KStringView sDBName/*=""*/, KStringView sStartsWith/*=""
 		break;
 
 	case DBT::SQLSERVER:
-	case DBT::SQLSERVER15:
+	case DBT::SQLSERVER_UTF8:
 		return _LoadSchema_SS (sDBName, sStartsWith, options);
 		break;
 
@@ -10155,7 +10279,7 @@ KJSON KSQL::_LoadSchema_MySQL (KStringView sDBName/*=""*/, KStringView sStartsWi
 			break;
 
 		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
+		case DBT::SQLSERVER_UTF8:
 			if (!ExecQuery ("exec sp_columns {}", sTable))
 			{
 				SetError(kFormat("{}: {}: {}", ConnectSummary(), GetLastSQL(), GetLastError()));
@@ -11008,107 +11132,24 @@ void KSQL::PurgeTempTables ()
 } // PurgeTempTables
 
 //-----------------------------------------------------------------------------
-/// Build a SQL string that lists tables for the given DB type.
-/// Returns an empty KString if the DB type is not supported.
-static KString MakeListTablesSQL (KSQL::DBT iDBType, KStringView sLike)
+/// Expand a bare word into a LIKE pattern by wrapping it in percent signs.
+static KString MakeLikePattern (KStringView sArg)
 //-----------------------------------------------------------------------------
 {
-	KString sLikeEsc(sLike);
-	sLikeEsc.Replace(KStringView("'"), KStringView("''"));
+	KString sLike { sArg };
 
-	switch (iDBType)
+	if (sLike.empty())
 	{
-		case KSQL::DBT::MYSQL:
-			return kFormat("show tables like '{}'", sLikeEsc);
-
-		case KSQL::DBT::POSTGRESQL:
-			return kFormat(
-				"select table_name, table_type\n"
-				"  from information_schema.tables\n"
-				" where table_schema = 'public'\n"
-				"   and table_name like '{}'\n"
-				" order by 1", sLikeEsc);
-
-		case KSQL::DBT::SQLITE3:
-			return kFormat(
-				"select name, type\n"
-				"  from sqlite_master\n"
-				" where type in ('table','view')\n"
-				"   and name like '{}'\n"
-				" order by 1", sLikeEsc);
-
-		case KSQL::DBT::SQLSERVER:
-		case KSQL::DBT::SQLSERVER15:
-			return kFormat("select name from sysobjects where type='U' and name like '{}' order by name", sLikeEsc);
-
-		default:
-			return KString();
+		sLike = "%";
+	}
+	else if (!sLike.contains('%') && !sLike.contains('_'))
+	{
+		sLike = kFormat("%{}%", sLike);
 	}
 
-} // MakeListTablesSQL
+	return sLike;
 
-//-----------------------------------------------------------------------------
-/// Build a SQL string that lists databases for the given DB type.
-/// Returns an empty KString if the DB type is not supported.
-static KString MakeListDatabasesSQL (KSQL::DBT iDBType)
-//-----------------------------------------------------------------------------
-{
-	switch (iDBType)
-	{
-		case KSQL::DBT::MYSQL:
-			return KString("show databases");
-
-		case KSQL::DBT::POSTGRESQL:
-			return KString("select datname from pg_database where datistemplate = false order by datname");
-
-		case KSQL::DBT::SQLITE3:
-			return KString("pragma database_list");
-
-		case KSQL::DBT::SQLSERVER:
-		case KSQL::DBT::SQLSERVER15:
-			return KString("select name from sys.databases order by name");
-
-		default:
-			return KString();
-	}
-
-} // MakeListDatabasesSQL
-
-//-----------------------------------------------------------------------------
-/// Build a SQL string that describes a table for the given DB type.
-/// Returns an empty KString if the DB type is not supported.
-static KString MakeDescribeTableSQL (KSQL::DBT iDBType, KStringView sTable)
-//-----------------------------------------------------------------------------
-{
-	KString sTableEsc(sTable);
-	sTableEsc.Replace(KStringView("'"), KStringView("''"));
-	sTableEsc.Replace(KStringView("`"), KStringView("``"));
-
-	switch (iDBType)
-	{
-		case KSQL::DBT::MYSQL:
-			return kFormat("desc `{}`", sTableEsc);
-
-		case KSQL::DBT::POSTGRESQL:
-			return kFormat(
-				"select column_name, data_type, is_nullable, character_maximum_length, column_default\n"
-				"  from information_schema.columns\n"
-				" where table_schema = 'public'\n"
-				"   and table_name = '{}'\n"
-				" order by ordinal_position", sTableEsc);
-
-		case KSQL::DBT::SQLITE3:
-			return kFormat("pragma table_info('{}')", sTableEsc);
-
-		case KSQL::DBT::SQLSERVER:
-		case KSQL::DBT::SQLSERVER15:
-			return kFormat("sp_help '{}'", sTableEsc);
-
-		default:
-			return KString();
-	}
-
-} // MakeDescribeTableSQL
+} // MakeLikePattern
 
 //-----------------------------------------------------------------------------
 bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFile, bool bSavedFormatAllowed)
@@ -11316,41 +11357,51 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 				case "help"_casehash:
 					kWriteLine ();
 					kWriteLine (":: dot commands (SQLite-style, normalized for all supported db types):");
-					kWriteLine ("::   .help                : show this help");
-					kWriteLine ("::   .quit  / .exit       : end the interpreter");
-					kWriteLine ("::   .tables   [pattern]  : list tables (LIKE pattern, default %)");
-					kWriteLine ("::   .schema   [<table>]  : describe a table or list tables if no arg");
-					kWriteLine ("::   .databases           : list databases");
-					kWriteLine ("::   .clear               : clear screen");
-					kWriteLine ("::   .quiet               : toggle quiet mode");
-					kWriteLine ("::   .system   <cmd>      : execute a shell command");
-					kWriteLine ("::   .source   <file>     : read and execute SQL commands");
-					kWriteLine ("::   .klog     <n>        : set klog level 0..4");
-					kWriteLine ("::   .format   <style>    : change output format");
+					kWriteLine ("::   .help                 : show this help");
+					kWriteLine ("::   .quit  / .exit        : end the interpreter");
+					kWriteLine ("::   .tables     [pattern] : list tables and views (LIKE pattern, default %)");
+					kWriteLine ("::   .schema     [<table>] : describe a table or list tables if no arg");
+					kWriteLine ("::   .procedures [pattern] : list stored procedures (LIKE pattern, default %)");
+					kWriteLine ("::   .databases            : list databases");
+					kWriteLine ("::   .clear                : clear screen");
+					kWriteLine ("::   .quiet                : toggle quiet mode");
+					kWriteLine ("::   .system     <cmd>     : execute a shell command");
+					kWriteLine ("::   .source     <file>    : read and execute SQL commands");
+					kWriteLine ("::   .klog       <n>       : set klog level 0..4");
+					kWriteLine ("::   .format     <style>   : change output format");
 					kWriteLine ();
 					break;
 
 				case "tables"_casehash:
 				{
-					KString sLike { sCmd };
-					if (sLike.empty())
+					KStopTime Timer;
+					if (!ListTables(MakeLikePattern(sCmd), /*fIncludeViews=*/true))
 					{
-						sLike = "%";
-					}
-					else if (!sLike.contains('%') && !sLike.contains('_'))
-					{
-						sLike = kFormat("%{}%", sLike);
-					}
-
-					auto sQuery = MakeListTablesSQL(GetDBType(), sLike);
-					if (sQuery.empty())
-					{
-						kPrintLine(":: .tables: not supported for {}", TxDBType(GetDBType()));
+						kPrintLine(":: .tables: {}", GetLastError());
 					}
 					else
 					{
-						KStopTime Timer;
-						auto iResults = OutputQuery(sQuery, Format);
+						auto iResults = OutputLastQuery(Format);
+						Terminal.FGColor(KXTerm::ColorCode::Blue);
+						if (!bQuiet)
+						{
+							kPrintLine(":: {} {} in set ({})", iResults, (iResults == 1) ? "row" : "rows", Timer.elapsed());
+						}
+						Terminal.ResetCharModes();
+					}
+					break;
+				}
+
+				case "procedures"_casehash:
+				{
+					KStopTime Timer;
+					if (!ListProcedures(MakeLikePattern(sCmd)))
+					{
+						kPrintLine(":: .procedures: {}", GetLastError());
+					}
+					else
+					{
+						auto iResults = OutputLastQuery(Format);
 						Terminal.FGColor(KXTerm::ColorCode::Blue);
 						if (!bQuiet)
 						{
@@ -11363,38 +11414,37 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 
 				case "schema"_casehash:
 				{
-					KString sQuery;
+					bool bOK;
 					if (sCmd.empty())
 					{
 						// no arg → list all tables
-						sQuery = MakeListTablesSQL(GetDBType(), "%");
+						bOK = ListTables("%", /*fIncludeViews=*/true);
 					}
 					else
 					{
-						sQuery = MakeDescribeTableSQL(GetDBType(), sCmd);
+						bOK = DescribeTable(sCmd);
 					}
 
-					if (sQuery.empty())
+					if (!bOK)
 					{
-						kPrintLine(":: .schema: not supported for {}", TxDBType(GetDBType()));
+						kPrintLine(":: .schema: {}", GetLastError());
 					}
 					else
 					{
-						OutputQuery(sQuery, Format);
+						OutputLastQuery(Format);
 					}
 					break;
 				}
 
 				case "databases"_casehash:
 				{
-					auto sQuery = MakeListDatabasesSQL(GetDBType());
-					if (sQuery.empty())
+					if (!ListDatabases())
 					{
-						kPrintLine(":: .databases: not supported for {}", TxDBType(GetDBType()));
+						kPrintLine(":: .databases: {}", GetLastError());
 					}
 					else
 					{
-						OutputQuery(sQuery, Format);
+						OutputLastQuery(Format);
 					}
 					break;
 				}

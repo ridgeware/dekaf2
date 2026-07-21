@@ -72,7 +72,7 @@ const KFindSetOfChars& EscapedCharacterSet(KROW::DBT iDBType)
 	switch (iDBType)
 	{
 		case KROW::DBT::SQLSERVER:
-		case KROW::DBT::SQLSERVER15:
+		case KROW::DBT::SQLSERVER_UTF8:
 		case KROW::DBT::SYBASE:
 		case KROW::DBT::POSTGRESQL:
 		case KROW::DBT::SQLITE3:
@@ -310,7 +310,7 @@ KStringView KROW::EscapedCharacters (DBT iDBType)
 	switch (iDBType)
 	{
 		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
+		case DBT::SQLSERVER_UTF8:
 		case DBT::SYBASE:
 		case DBT::POSTGRESQL:
 		case DBT::SQLITE3:
@@ -329,7 +329,7 @@ KSQLString KROW::EscapeChars (KStringView sCol, DBT iDBType)
 	switch (iDBType)
 	{
 		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
+		case DBT::SQLSERVER_UTF8:
 		case DBT::SYBASE:
 		case DBT::POSTGRESQL:
 		{
@@ -430,7 +430,7 @@ KSQLString KROW::EscapeChars (const KROW::value_type& Col, DBT iDBType)
 	switch (iDBType)
 	{
 		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
+		case DBT::SQLSERVER_UTF8:
 		case DBT::SYBASE:
 		case DBT::POSTGRESQL:
 		{
@@ -462,7 +462,7 @@ KSQLString KROW::BinaryToSQL (KStringView sData, DBT iDBType)
 	switch (iDBType)
 	{
 		case DBT::SQLSERVER:
-		case DBT::SQLSERVER15:
+		case DBT::SQLSERVER_UTF8:
 		case DBT::SYBASE:
 			// MSSQL/Sybase: 0xabcdef
 			sOut.reserve(2 + iHexLen);
@@ -630,7 +630,7 @@ void KROW::PrintValuesForInsert(KSQLString& sSQL, DBT iDBType) const
 			// will not properly decode them!
 			sSQL.ref() += kFormat ("{}\n\t{}'{}'",
 							 (bComma) ? "," : "",
-							 iDBType == DBT::SQLSERVER ? "N" : "",
+							 NeedsUnicodeLiterals(iDBType) ? "N" : "",
 							 EscapeChars (it, iDBType));
 		}
 		bComma = true;
@@ -699,7 +699,7 @@ KSQLString KROW::FormInsert (DBT iDBType, bool bIdentityInsert/*=false*/, bool b
 
 	PrintValuesForInsert(sSQL, iDBType);
 
-	if (bIdentityInsert && (iDBType == DBT::SQLSERVER || iDBType == DBT::SQLSERVER15))
+	if (bIdentityInsert && IsMSSQLServer(iDBType))
 	{
 		sSQL.ref() = kFormat("SET IDENTITY_INSERT {} ON \n"
 					"{} \n"
@@ -743,7 +743,7 @@ bool KROW::AppendInsert (KSQLString& sSQL, DBT iDBType, bool bIdentityInsert/*=f
 
 	PrintValuesForInsert(sSQL, iDBType);
 
-	if (bIdentityInsert && (iDBType == DBT::SQLSERVER || iDBType == DBT::SQLSERVER15))
+	if (bIdentityInsert && IsMSSQLServer(iDBType))
 	{
 		m_sLastError = "KROW::AppendInsert(): cannot append row to existing DDL statement with IDENTITY_INSERT provision";
 		kDebugLog (1, m_sLastError);
@@ -845,7 +845,7 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 					// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
 					// will not properly decode them!
 					sSQL.ref() += kFormat ("{}'{}'\n",
-										   iDBType == DBT::SQLSERVER ? "N" : "",
+										   NeedsUnicodeLiterals(iDBType) ? "N" : "",
 										   EscapeChars (it, iDBType));
 				}
 			}
@@ -892,7 +892,7 @@ KSQLString KROW::FormUpdate (DBT iDBType) const
 			// WARNING: SQLServer < v15 NEEDS the prefixed N in front of UTF8 string columns, or it
 			// will not properly decode them!
 			sSQL.ref() += kFormat("{}'{}'\n",
-								  iDBType == DBT::SQLSERVER ? "N" : "",
+								  NeedsUnicodeLiterals(iDBType) ? "N" : "",
 								  EscapeChars (it, iDBType));
 		}
 	}
@@ -978,7 +978,7 @@ KSQLString KROW::FormSelect (DBT iDBType, bool bSelectAllColumns) const
 				sSQL.ref() += kFormat("{}{}={}'{}'\n",
 								sPrefix,
 								it.first,
-								iDBType == DBT::SQLSERVER ? "N" : "",
+								NeedsUnicodeLiterals(iDBType) ? "N" : "",
 								EscapeChars (it, iDBType));
 			}
 		}
@@ -1049,7 +1049,7 @@ KSQLString KROW::FormDelete (DBT iDBType) const
 			sSQL.ref() += kFormat(" {} {}={}'{}'\n",
 							(!kk) ? "where" : "  and",
 							it.first,
-							iDBType == DBT::SQLSERVER ? "N" : "",
+							NeedsUnicodeLiterals(iDBType) ? "N" : "",
 							EscapeChars (it, iDBType));
 		}
 

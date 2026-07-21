@@ -822,10 +822,20 @@ public:
 
 	// canned queries:
 	bool   ListTables (KStringView sLike = "%", bool fIncludeViews = false, bool fRestrictToMine = true);
-	                                                  // ORACLE rtns: TableName, 'TABLE'|'VIEW', Owner
-	                                                  // MYSQL  rtns: TableName, etc. (see "show table status")
+	                                                  // ORACLE    rtns: TableName, 'TABLE'|'VIEW', Owner
+	                                                  // MYSQL     rtns: TableName, etc. (see "show table status")
+	                                                  // SQLSERVER rtns: TableName, 'TABLE'|'VIEW', Owner
+	                                                  // PGSQL     rtns: TableName, TableType
 	bool   ListProcedures (KStringView sLike = "%", bool fRestrictToMine = true);
-	                                                  // MYSQL  rtns: ProcedureName, etc. (see "show procedure status")
+	                                                  // MYSQL     rtns: ProcedureName, etc. (see "show procedure status")
+	                                                  // SQLSERVER rtns: ProcedureName, Owner
+	                                                  // SQLITE3   rtns: TriggerName, 'trigger', TableName (SQLite has no procedures, this lists triggers)
+	                                                  // PGSQL     rtns: RoutineName, 'FUNCTION'|'PROCEDURE'
+	bool   ListDatabases (KStringView sLike = "%");
+	                                                  // MYSQL     rtns: DatabaseName
+	                                                  // SQLSERVER rtns: DatabaseName
+	                                                  // SQLITE3   rtns: SchemaName, FileName (the attached databases)
+	                                                  // PGSQL     rtns: DatabaseName
 	/// search data dictionary and describe a table definition.
 	/// returns an open query with: ColName, Datatype, Null, Key, Default, Extras..
 	bool   DescribeTable (KStringView sTablename);
@@ -845,7 +855,11 @@ public:
 	std::size_t OutputQuery  (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout)
 		{ return OutputQuery (sSQL, CreateOutputFormat(sFormat), fpout); }
 	std::size_t OutputQuery  (KStringView sSQL, OutputFormat iFormat=OutputFormat::ASCII, FILE* fpout = stdout);
+	/// output the currently open query (e.g. from ListTables()) in the given format
+	std::size_t OutputLastQuery (OutputFormat iFormat=OutputFormat::ASCII, FILE* fpout = stdout);
 	KString     QueryAllRows (const KSQLString& sSQL, OutputFormat iFormat=OutputFormat::ASCII, std::size_t* piNumRows=NULL);
+	/// format all rows of the currently open query and return them as a string
+	KString     QueryOpenRows (OutputFormat iFormat=OutputFormat::ASCII, std::size_t* piNumRows=NULL);
 
 	void   DisableRetries() { m_bDisableRetries = true;  }
 	void   EnableRetries()  { m_bDisableRetries = false; }

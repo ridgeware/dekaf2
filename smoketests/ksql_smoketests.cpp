@@ -126,7 +126,7 @@ static bool SqlServerIdentityInsert (KSQL& db, KStringView sTablename, KStringVi
 //-----------------------------------------------------------------------------
 {
 	if (db.GetDBType() == KSQL::DBT::SQLSERVER ||
-		db.GetDBType() == KSQL::DBT::SQLSERVER15)
+		db.GetDBType() == KSQL::DBT::SQLSERVER_UTF8)
 	{
 		// avoid this errors:
 		// Cannot insert explicit value for identity column in table 'XXX' when IDENTITY_INSERT is set to OFF.
@@ -146,7 +146,7 @@ void Check_CtSend(KSQL& db)
 {
 	// check if this is a SQLServer connection
 	if (db.GetDBType() != KSQL::DBT::SQLSERVER &&
-		db.GetDBType() != KSQL::DBT::SQLSERVER15)
+		db.GetDBType() != KSQL::DBT::SQLSERVER_UTF8)
 	{
 		return;
 	}
@@ -346,7 +346,7 @@ TEST_CASE("KSQL")
 					break;
 
 				case KSQL::DBT::SQLSERVER:
-				case KSQL::DBT::SQLSERVER15:
+				case KSQL::DBT::SQLSERVER_UTF8:
 					sExpected = "insert into FRED values ('this is {{not}} a valid {{token}}', getdate())";
 					break;
 
@@ -454,9 +454,9 @@ TEST_CASE("KSQL")
 
 		kDebugLog (1, "AUTO INCREMENT");
 
-		if ((db.GetDBType() == KSQL::DBT::MYSQL)       ||
-			(db.GetDBType() == KSQL::DBT::SQLSERVER)   ||
-			(db.GetDBType() == KSQL::DBT::SQLSERVER15) ||
+		if ((db.GetDBType() == KSQL::DBT::MYSQL)          ||
+			(db.GetDBType() == KSQL::DBT::SQLSERVER)      ||
+			(db.GetDBType() == KSQL::DBT::SQLSERVER_UTF8) ||
 			(db.GetDBType() == KSQL::DBT::POSTGRESQL))
 		{
 
@@ -493,9 +493,9 @@ TEST_CASE("KSQL")
 		{
 			kDebug (1, "round {}", ii);
 
-			bool bHasAutoIncrement = ((db.GetDBType() == KSQL::DBT::MYSQL)       ||
-									  (db.GetDBType() == KSQL::DBT::SQLSERVER)   ||
-									  (db.GetDBType() == KSQL::DBT::SQLSERVER15) ||
+			bool bHasAutoIncrement = ((db.GetDBType() == KSQL::DBT::MYSQL)          ||
+									  (db.GetDBType() == KSQL::DBT::SQLSERVER)      ||
+									  (db.GetDBType() == KSQL::DBT::SQLSERVER_UTF8) ||
 									  (db.GetDBType() == KSQL::DBT::POSTGRESQL));
 			bool bIsFirstRow       = (ii==1);
 
@@ -813,7 +813,7 @@ TEST_CASE("KSQL")
 		)"));
 
 		if (db.GetDBType() == KSQL::DBT::SQLSERVER ||
-			db.GetDBType() == KSQL::DBT::SQLSERVER15)
+			db.GetDBType() == KSQL::DBT::SQLSERVER_UTF8)
 		{
 			fp.Write (HereDoc(R"(
 				|IF OBJECT_ID('FRED', 'U') IS NOT NULL DROP TABLE FRED;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

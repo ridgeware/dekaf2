@@ -25,5 +25,7 @@ for f in "${HTMLDIR}"/navtreedata.js "${HTMLDIR}"/group__*.js; do
 done
 
 if [ ${#files[@]} -gt 0 ]; then
-	perl -pi -e 's/^(\s*\[ ")([^"]*)/$1 . ($2 =~ s{dekaf2::}{}gr)/e' "${files[@]}"
+	# copy the captures into lexicals BEFORE the inner substitution runs -
+	# a successful inner match clobbers $1/$2
+	perl -pi -e 's/^(\s*\[ ")([^"]*)/my ($p, $n) = ($1, $2); $n =~ s{dekaf2::}{}g; $p . $n/e' "${files[@]}"
 fi

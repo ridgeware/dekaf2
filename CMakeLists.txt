@@ -906,10 +906,20 @@ if (DOXYGEN_FOUND)
 		endif ()
 	endif ()
 
+	# after doxygen, strip the dekaf2:: display prefix that doxygen writes
+	# into the navtree for group members despite HIDE_SCOPE_NAMES (classes
+	# are unqualified there, see doc/doxygen-fix-navtree-scope.sh)
+	if (BASH_PROGRAM)
+		set(DEKAF2_DOC_FIX_NAVTREE
+			COMMAND ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/doc/doxygen-fix-navtree-scope.sh ${CMAKE_CURRENT_BINARY_DIR}/html
+		)
+	endif ()
+
 	# execute doxygen
 	add_custom_target(
 		dekaf2-doc
 		${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxyfile
+		${DEKAF2_DOC_FIX_NAVTREE}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 		COMMENT "Generating API documentation with Doxygen" VERBATIM
 	)

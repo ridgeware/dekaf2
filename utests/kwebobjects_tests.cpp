@@ -46,10 +46,10 @@ text-decoration: none
 	</head>
 	<body>
 		<p>
-			<img alt="this is a test image" class=".nodecoration" loading="lazy" src="http://some.image.url/at/a/path.png"><br>
-			<img alt="this is a test image" class=".nodecoration" loading="lazy" src="http://some.image.url/at/a/path.png">
+			<img alt="this is a test image" class="nodecoration" loading="lazy" src="http://some.image.url/at/a/path.png"><br>
+			<img alt="this is a test image" class="nodecoration" loading="lazy" src="http://some.image.url/at/a/path.png">
 		</p>
-		<div class=".nodecoration" id="FormDiv">
+		<div class="nodecoration" id="FormDiv">
 			<p>
 				<form accept-charset="utf-8" action="MyForm">
 					<button name="q" type="submit" value="button1">
@@ -61,7 +61,7 @@ text-decoration: none
 					</button>
 				</form>
 			</p>
-			<p class=".nodecoration" id="TextPar">
+			<p class="nodecoration" id="TextPar">
 				hello world<a href="/images/test.png"><img alt="preview" id="IMGID" src="/Images/test_small.png"></a>
 			</p>
 			<form accept-charset="utf-8" action="/Setup/">

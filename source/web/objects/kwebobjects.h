@@ -69,9 +69,13 @@ DEKAF2_NAMESPACE_BEGIN
 namespace html {
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// CSS class definition (selector + body). Held by user code, not part of
-/// the DOM. Registered with a Page via `page.AddClass(c)` to emit into the
-/// page's `<style>` block.
+/// A CSS rule: a selector and its declarations. Held by user code, not
+/// part of the DOM. Register it with a Page via `page.AddClass(c)` to
+/// emit it into the page's `<style>` block, where the selector appears
+/// verbatim (`.myclass { ... }`, or e.g. `body { ... }` for a type
+/// selector). A Class with a class selector (leading dot) can also be
+/// attached to elements: `parent.Add<html::Div>(cls)` puts the selector
+/// minus its dot into the element's `class` attribute.
 class DEKAF2_PUBLIC Class
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -81,11 +85,15 @@ public:
 //----------
 
 	Class() = default;
+	/// construct from a CSS selector and the declarations for it
 	Class(KString sClassName, KString sClassDefinition = KString{});
 
-	const KString GetName()       const { return m_sClassName;       }
-	const KString GetDefinition() const { return m_sClassDefinition; }
+	/// @returns the selector
+	const KString& GetName()       const { return m_sClassName;       }
+	/// @returns the CSS declarations
+	const KString& GetDefinition() const { return m_sClassDefinition; }
 
+	/// @returns true if selector or declarations are empty
 	bool empty() const { return m_sClassName.empty() || m_sClassDefinition.empty(); }
 
 //----------

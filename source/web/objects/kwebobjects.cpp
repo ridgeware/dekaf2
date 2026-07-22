@@ -61,7 +61,13 @@ Classes::self& Classes::Add(const Class& Class)
 {
 	if (!Class.empty())
 	{
-		return Add(Class.GetName().ToView());
+		KStringView sName = Class.GetName();
+
+		// the name may be a dotted selector or a plain class name - strip
+		// a leading dot so both forms yield the class token
+		sName.remove_prefix('.');
+
+		return Add(sName);
 	}
 	else
 	{

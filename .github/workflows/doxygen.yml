@@ -40,7 +40,9 @@ jobs:
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build documentation
-        run: doxygen build/doxyfile
+        run: |
+          doxygen build/doxyfile
+          doc/doxygen-fix-navtree-scope.sh html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

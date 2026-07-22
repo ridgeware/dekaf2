@@ -63,7 +63,11 @@
 /// `AppendOriginal()`, and promotes itself to Arena-Builder mode the
 /// first time `AppendTransformed()` is called (because at that point
 /// the source bytes diverge from the parsed bytes, e.g. an uppercase
-/// `ch != tolower(ch)` or an entity expansion).
+/// `ch != tolower(ch)` or an entity expansion). The promotion copies
+/// the bytes sliced so far into the builder and stays in builder mode
+/// until `Finalize()` — for this one string only: each accumulation is
+/// independent, so the next `Start()` begins again in Source-Slice
+/// mode when the source allows it.
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>

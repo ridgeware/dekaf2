@@ -96,12 +96,10 @@ public:
 		return *this;
 	}
 
-	/// Inject an arena pointer. When non-null, derived `Parse()` methods
-	/// route their char-by-char accumulators through `KArenaStringBuilder`
-	/// so the resulting `m_s*` views point directly into arena memory —
-	/// no follow-up copy needed in the DOM (`AllocateString`
-	/// recognises arena-self views and short-circuits). Default nullptr
-	/// keeps the heap-KString fallback, used by the streaming SAX path.
+	/// Inject a string arena: `Parse()` then stores parsed strings in the
+	/// arena (valid for the arena's lifetime) instead of in the object's
+	/// own KString members. Used by `KHTML`; default (nullptr) keeps
+	/// self-owned strings.
 	virtual void SetArena(khtml::Document* pArena) noexcept { m_pArena = pArena; }
 	khtml::Document* GetArena() const noexcept { return m_pArena; }
 
@@ -165,10 +163,7 @@ public:
 protected:
 //------
 
-	/// Optional arena. When non-null, derived Parse() methods route
-	/// char-by-char accumulators through `KArenaStringBuilder` so the
-	/// resulting `m_s*` views point straight into arena memory. nullptr
-	/// = heap-KString fallback (the SAX default).
+	// optional string arena - see SetArena()
 	khtml::Document* m_pArena { nullptr };
 
 }; // KHTMLObject
@@ -386,9 +381,9 @@ public:
 	virtual void clear() override;
 	virtual bool empty() const override;
 
-	/// @returns the parsed payload (between lead-in and lead-out) as a
-	/// view. Lifetime: valid as long as this object — or its backing
-	/// arena / source-buffer, when arena-allocated — is alive.
+	/// @returns the payload between lead-in and lead-out. The view stays
+	/// valid as long as this object (or, when arena-parsed, the arena)
+	/// lives.
 	KStringView Value () const { return sValue;    }
 	KStringView LeadIn() const { return m_sLeadIn; }
 	KStringView LeadOut() const { return m_sLeadOut; }
@@ -408,16 +403,11 @@ protected:
 	// arena, or into a caller-supplied stable source buffer.
 	KStringView sValue      {};
 
-	/// Append one byte to the current value-accumulator. Routes through
-	/// the transient `ParseAccumulator` armed by `Parse()`; falls back
-	/// to growing `sValueOwned` on the heap when none is armed. Used by
-	/// subclass `SearchForLeadOut()` implementations.
-	///
+	/// Append one byte to the value. Used by subclass SearchForLeadOut()
+	/// implementations.
 	/// @param ch         byte to store
-	/// @param pAfterPos  source position **one past** the byte just read
-	///                   that produced `ch`. Used in slicing mode to
-	///                   extend the slice end. Pass `nullptr` if the
-	///                   byte is being re-played (not a fresh read).
+	/// @param pAfterPos  source position one past the byte just read, or
+	///                   nullptr if the byte is replayed (not a fresh read)
 	void AppendValueChar(char ch, const char* pAfterPos = nullptr);
 
 	KStringView              m_sLeadIn  {};
@@ -975,112 +965,60 @@ protected:
 }; // KHTMLProcessingInstruction
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Streaming, callback-driven (SAX-style) HTML parser. It tokenises the
-/// input into the `KHTMLObject`-family of value types (`KHTMLTag`,
-/// `KHTMLComment`, `KHTMLCData`, `KHTMLDocumentType`,
-/// `KHTMLProcessingInstruction`) and individual content characters, and
-/// invokes overridable hooks on each event. Consumers either subclass and
-/// override the hooks (`KHTML` for full DOM, `KHTMLContentBlocks` for
-/// block aggregation, application-specific subclasses for cherry-picking
-/// the data they need) or instantiate the parser directly to validate
-/// input.
+/// Streaming (SAX-style) HTML parser. It reads the input once, front to
+/// back, keeps no document in memory, and reports everything it finds
+/// through virtual callback methods:
 ///
-/// ### Input pathways
+///  - `Object(KHTMLObject&)` — a complete tag, comment, CDATA section,
+///    DOCTYPE, or processing instruction was parsed
+///  - `Content(char)`        — one character of text content
+///  - `Script(char)`         — one character of `<script>` body
+///  - `Invalid(char)`        — one character of unparseable input
+///  - `Finished()`           — end of input
 ///
-/// Three entry points cover the realistic input sources:
-///  - `Parse(KInStream&)` — read from any stream (file, socket, pipe).
-///    Wraps the stream in a `KBufferedStreamReader`.
-///  - `Parse(KBufferedReader&)` — the actual streaming loop. Used
-///    internally; called directly when the consumer already has a
-///    buffered reader (e.g. wrapping a custom source).
-///  - `Parse(T&& sInput)` — a constrained template that takes anything
-///    `KStringView` is constructible from (`KString`, `KStringView`,
-///    `KStringViewZ`, `const char*`, `std::string`, `std::string_view`, ...). Routes
-///    through the virtual `ParseImpl(KStringView)` hook which derived
-///    classes (notably `KHTML::ParseImpl`) can override to insert
-///    buffer-ownership / stable-region semantics before delegating
-///    back to the streaming loop.
+/// To use the parser, derive from it and override the callbacks you are
+/// interested in — all default implementations are no-ops:
 ///
-/// The template is SFINAE-constrained on `is_constructible<KStringView,T>`
-/// so it doesn't capture stream types, and it loses overload resolution
-/// to any concrete `Parse(KString)` overload in a derived class — that's
-/// how `KHTML::Parse(KString)` cleanly intercepts the owning path
-/// without forcing a `using`-declaration tug-of-war.
+/// @code
+/// class LinkCollector : public KHTMLParser
+/// {
+/// public:
+///     std::vector<KString> Links;
 ///
-/// ### Callback hooks (override in subclasses)
+/// protected:
+///     void Object(KHTMLObject& Object) override
+///     {
+///         if (Object.Type() == KHTMLTag::TYPE)
+///         {
+///             auto& Tag = static_cast<KHTMLTag&>(Object);
+///             if (Tag.IsOpening() && Tag.Name() == "a")
+///             {
+///                 Links.push_back(Tag.Attribute("href"));
+///             }
+///         }
+///     }
+/// };
 ///
-/// All hooks are virtual member functions called from the streaming loop.
-/// Default implementations are no-ops; subclasses pick the ones they need.
+/// LinkCollector Collector;
+/// Collector.Parse(InStream); // or a KString, KStringView, const char*, ...
+/// @endcode
 ///
-///  - `Object(KHTMLObject&)`  — a complete tag / comment / CData /
-///    DocumentType / ProcessingInstruction was recognised. The argument
-///    is a **temporary** living only for the duration of the call;
-///    persistent storage of its bytes requires the consumer to copy.
-///  - `Content(char)`         — one byte of character content (whitespace
-///    is already collapsed in the parser's default behaviour).
-///  - `Script(char)`          — one byte of `<script>` body content
-///    (untouched by entity decoding or whitespace collapsing).
-///  - `Invalid(char)`         — one byte that the parser couldn't fit
-///    into the grammar (e.g. malformed tag fragment, unclosed comment).
-///  - `Finished()`            — end-of-input reached; consumers should
-///    flush any pending in-flight state from earlier `Content()` etc.
+/// The object passed to `Object()` lives only for the duration of the
+/// call — copy the data you want to keep, as above in the push_back() call.
 ///
-/// ### Arena injection (for in-situ-friendly storage)
+/// The parser does not alter the text content it reports: whitespace
+/// passes through uncollapsed, and entities like `&amp;` pass through
+/// verbatim unless `EmitEntitiesAsUTF8()` was called, which decodes
+/// them into UTF-8 before they reach `Content()`.
 ///
-/// `KHTMLObject`-derived classes store their bytes in a two-member
-/// pattern: a `KStringView` (the public view) plus an optional owning
-/// `KString` fallback (`m_*Owned`). The view can point into one of
-/// three places:
+/// Two ready-made consumers ship with dekaf2: `KHTML` builds a document
+/// tree from the callbacks, and `KHTMLContentBlocks` aggregates text
+/// blocks.
 ///
-///  1. The KHTMLObject's own KString fallback — the SAX default when
-///     no arena is injected.
-///  2. The injected arena (via `SetArena()`), populated through a
-///     `KArenaStringBuilder` that the per-class `Parse()` methods use
-///     for char-by-char accumulation. The arena's lifetime governs
-///     view validity.
-///  3. A stable region the caller has registered with the arena (see
-///     `khtml::Document::RegisterStableRegion`). Unmodified
-///     substrings are sliced straight out of the caller's source
-///     buffer — zero arena bytes consumed for those strings. This is
-///     "source-slicing" mode; it's transparent to the SAX consumer
-///     because the public view types don't change.
-///
-/// Lowering / entity-decoding / whitespace-normalisation always force
-/// promotion to the arena builder (slicing mode would lose
-/// correctness). All decisions happen inside `khtml::ParseAccumulator`,
-/// per accumulated string, transparently to the parser loop.
-///
-/// ### Hooks for slicing-aware consumers
-///
-/// Consumers that override `Content()` / `Script()` / `Invalid()` and
-/// want to participate in source-slicing can query:
-///
-///  - `ActiveReader()` — the buffered reader currently being parsed
-///    (`nullptr` outside of a parse). Their `CurrentPos()` gives the
-///    source position one past the just-read byte.
-///  - `IsDecodingEntity()` — true while the parser is iterating the
-///    bytes of a decoded entity. Those bytes do not correspond to a
-///    source position and must therefore be treated as
-///    "transformed" (i.e. cannot extend a source slice).
-///
-/// `KHTML::Content()` etc. use both hooks to drive its
-/// `ParseAccumulator` correctly.
-///
-/// ### Tag-internal accumulators
-///
-/// `KHTMLTag::Parse` / `KHTMLAttribute::Parse` /
-/// `KHTMLStringObject::Parse` each instantiate one or two local
-/// `khtml::ParseAccumulator` objects per accumulated string (tag name,
-/// attribute name, attribute value, comment/CData payload, ...) — the
-/// same tri-mode mechanism as `KHTML::Content`. With an arena set, all
-/// these strings land in arena or as source-slices instead of
-/// heap-allocated `KString`s.
-///
-/// ### Subclasses that ship with dekaf2
-///
-///  - `KHTML` — builds an arena-backed POD tree (`khtml::NodePOD`) and
-///    exposes it via `Root()` for traversal / mutation.
-///  - `KHTMLContentBlocks` — aggregates text blocks.
+/// Implementation note: `SetArena()`, `ActiveReader()` and
+/// `IsDecodingEntity()` exist for `KHTML`'s string storage (see
+/// `bits/khtmlparse_accumulator.h`) — subclasses of the parser itself
+/// can ignore them.
 class DEKAF2_PUBLIC KHTMLParser
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1097,34 +1035,25 @@ public:
 
 	virtual ~KHTMLParser();
 
-	/// Parse from an istream. Wraps the stream in a buffered reader and
-	/// delegates to `Parse(KBufferedReader&)`. No source-slicing — the
-	/// fill buffer is internal and transient.
+	/// Parse from an input stream (file, socket, pipe)
+	/// @returns true on success
 	virtual bool Parse(KInStream& InStream);
 
-	/// Streaming-parse loop entry. The buffered reader must outlive the
-	/// call. Emits callbacks (`Object`, `Content`, `Script`, `Invalid`,
-	/// `Finished`) as it tokenises. If an arena is set (`SetArena`) and
-	/// the reader is over a stable source region, accumulators inside
-	/// `KHTMLObject`-derived `Parse` methods plus the subclass
-	/// `Content`-style callbacks can slice views straight out of the
-	/// source without copying.
+	/// Parse from a temporary input stream, e.g. `Parse(KInFile("index.html"))`
+	/// @returns true on success
+	bool Parse(KInStream&& InStream) { return Parse(InStream); }
+
+	/// Parse from a buffered reader. This is the main parse loop — all
+	/// other entry points end up here. Fires the callbacks while reading.
+	/// @returns true on success
 	virtual bool Parse(KBufferedReader& InStream);
 
-	/// Memory-parse entry as a constrained template. SFINAE on
-	/// `is_constructible<KStringView, T>` accepts everything string-y
-	/// (`KString`, `KStringView`, `KStringViewZ`, `const char*`,
-	/// `std::string`,`std::string_view`, ...). Being a template, this entry *loses* to any
-	/// concrete `Parse(KString)` overload in a derived class (notably
-	/// `KHTML`) under overload resolution — non-template beats template
-	/// at equal match quality. That cleanly resolves the `const char*`
-	/// ambiguity that would otherwise force a
-	/// `-Woverloaded-virtual` workaround.
-	///
-	/// The actual virtual hook is `ParseImpl(KStringView)` below;
-	/// derived classes override it to intercept the memory-parse path
-	/// (e.g. for owning-buffer or stable-region semantics) without
-	/// touching the public template.
+	/// Parse from anything a KStringView can be constructed from
+	/// (`KString`, `KStringView`, `const char*`, `std::string`, ...).
+	/// A concrete `Parse(KString)` overload in a derived class (like
+	/// `KHTML`'s) takes precedence over this template for `KString`
+	/// arguments; the virtual hook behind this entry is `ParseImpl()`.
+	/// @returns true on success
 	template<typename T,
 	         typename std::enable_if<
 	             std::is_constructible<KStringView, T&&>::value
@@ -1136,77 +1065,66 @@ public:
 		return ParseImpl(KStringView(std::forward<T>(sInput)));
 	}
 
-	/// Switch entity-decoding to UTF-8 output mode. When enabled, any
-	/// `&entity;` token encountered in character content is decoded
-	/// during the parse and the decoded UTF-8 bytes are pushed through
-	/// `Content(char)` one byte at a time (with `IsDecodingEntity()`
-	/// returning true during that window). When disabled (the default),
-	/// the entity bytes pass through verbatim.
+	/// Decode `&entity;` sequences found in text content and emit the
+	/// decoded UTF-8 bytes through `Content()`. Default is off: entities
+	/// pass through verbatim.
 	KHTMLParser& EmitEntitiesAsUTF8() { m_bEmitEntitiesAsUTF8 = true; return *this; }
 
 //------
 protected:
 //------
 
-	/// Memory-parse virtual entry. Derived classes (notably `KHTML`)
-	/// override this to route through their owning buffer before the
-	/// streaming pass runs. Default impl: wrap the view in a buffered
-	/// string reader and delegate to `Parse(KBufferedReader&)`.
+	/// Virtual hook behind the string `Parse()` template. Default wraps
+	/// the view in a buffered reader and calls `Parse(KBufferedReader&)`;
+	/// derived classes override it to intercept the string-parse path.
 	virtual bool ParseImpl(KStringView sInput);
 
-	/// Called once per complete `KHTMLObject` (tag, comment, CData,
-	/// DocumentType, processing instruction) that the parser recognised.
-	/// The `Object` reference points at a stack-local instance whose
-	/// content views are valid only for the duration of this call —
-	/// copy out (e.g. via `Clone()` or by extracting `Name()` /
-	/// `Value()` into your own storage) if you need to keep bytes
-	/// beyond the call.
+	/// Called once per complete tag, comment, CDATA section, DOCTYPE, or
+	/// processing instruction. The object lives only for the duration of
+	/// this call — copy its data (or `Clone()` it) to keep it.
 	virtual void Object(KHTMLObject& Object);
 
-	/// One byte of character content (whitespace-collapsed in the
-	/// non-preformatted default). If the parser is in
-	/// `IsDecodingEntity()` mode, `ch` is one byte of a decoded entity
-	/// (UTF-8) and does not correspond to a source position.
+	/// Called with one character of text content at a time, unmodified —
+	/// no whitespace collapsing, no entity decoding. Exception: with
+	/// `EmitEntitiesAsUTF8()` active, decoded entity bytes arrive here
+	/// instead of the entity's source characters (with
+	/// `IsDecodingEntity()` returning true while they do).
 	virtual void Content(char ch);
 
-	/// One byte of `<script>` body content (passes through verbatim —
-	/// no entity decoding, no whitespace collapsing). Followed by a
-	/// closing `Object(KHTMLTag)` callback for `</script>` once the
-	/// body ends.
+	/// Called with one character of `<script>` body at a time, verbatim.
+	/// The closing `</script>` arrives as an `Object()` callback
+	/// afterwards.
 	virtual void Script(char ch);
 
-	/// One byte that the parser could not fit into the grammar (e.g.
-	/// malformed tag fragment, unclosed comment). Subclasses can
-	/// recover, log, or pass through verbatim.
+	/// Called with one character of input the parser could not parse
+	/// (e.g. a malformed tag fragment or an unclosed comment).
 	virtual void Invalid(char ch);
 
-	/// End-of-input reached. Override to flush any in-flight state
-	/// accumulated from `Content()`/`Script()`/`Invalid()`.
+	/// Called at end of input. Override to flush state kept between
+	/// `Content()`/`Script()`/`Invalid()` calls.
 	virtual void Finished();
 
-	/// Inject an arena into the parser. When non-null, parsed object strings
-	/// (tag names, attribute names/values, text content) will be promoted into
-	/// the arena so that the views in KHTMLObject derivatives remain valid
-	/// for the arena's lifetime. When null, parsed object strings remain in
-	/// their owning KString fallback (the default).
+	/// Inject a string arena: parsed strings (tag and attribute names,
+	/// values) are then stored in the arena, where they stay valid for
+	/// the arena's lifetime instead of dying with the callback-local
+	/// objects. Used by `KHTML`. Default (nullptr): each object passed
+	/// to `Object()` owns its strings.
 	void SetArena(khtml::Document* pArena) noexcept { m_pArena = pArena; }
 	/// @returns the currently injected arena, or nullptr if none.
 	khtml::Document* GetArena() const noexcept { return m_pArena; }
 
 	//-----------------------------------------------------------------------------
-	/// @returns the reader currently being parsed, or `nullptr` outside of
-	/// a parse run. Set by `Parse(KBufferedReader&)` for the duration of
-	/// its loop. Used by derived `Content()`/`Script()` overrides to
-	/// query `CurrentPos()` for source-slicing-aware text accumulation.
+	/// @returns the reader currently being parsed, or nullptr outside a
+	/// parse run. Lets `Content()`/`Script()` overrides query the current
+	/// source position (`KHTML` uses this to store text as views into
+	/// the source instead of copying it).
 	const KBufferedReader* ActiveReader() const noexcept { return m_pActiveReader; }
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// @returns true while the parser is inside an entity-decode loop,
-	/// i.e. each `Content(char)` callback during that window is emitting
-	/// a *decoded* byte that does not correspond 1:1 to a source byte at
-	/// `ActiveReader()->CurrentPos()`. Slicing-aware consumers must
-	/// treat those bytes as "transformed".
+	/// @returns true while `Content()` is being called with the decoded
+	/// bytes of an entity — those bytes have no 1:1 position in the
+	/// source
 	bool IsDecodingEntity() const noexcept { return m_bDecodingEntity; }
 	//-----------------------------------------------------------------------------
 

@@ -43,10 +43,10 @@
 
 
 /// @file khtmldom.h
-/// KHTML: arena-backed HTML document. Parser writes directly into the POD
-/// shadow tree; builder access is through `KHTMLNode` handles obtained
-/// from `KHTML::Root()` and via the parent-first `parent.Add<T>(...)`
-/// idiom (see `notes/kwebobjects-migration-guide.md`).
+/// KHTML: an HTML document, parsed into a node tree. Access the tree
+/// through `KHTMLNode` handles starting at `KHTML::Root()`; build new
+/// content with `parent.Add<T>(...)` (see
+/// `notes/kwebobjects-migration-guide.md`).
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/web/html/khtmlparser.h>
@@ -64,85 +64,75 @@ DEKAF2_NAMESPACE_BEGIN
 /// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// `KHTML` is the DOM-style consumer of `KHTMLParser`. It builds an
-/// **arena-backed POD tree** (`khtml::NodePOD` / `khtml::AttrPOD` in
-/// `khtml::Document`) as the streaming parser fires its callbacks, then
-/// exposes it via a handle (`KHTMLNode`) for traversal, mutation and
-/// serialisation.
+/// KHTML parses HTML into a document tree which can be traversed,
+/// modified, and serialized back to HTML.
 ///
-/// ### Memory model
+/// @code
+/// KHTML Doc;
+/// Doc.Parse(KInFile("index.html"));        // or any string type
 ///
-/// One `khtml::Document` (a `KArenaAllocator`) per `KHTML` owns:
-///  - the POD tree nodes (`NodePOD` ≈ 80 bytes, `AttrPOD` ≈ 16 bytes,
-///    arena-allocated, never freed individually — the whole arena
-///    resets at once)
-///  - the bytes that the parser's accumulators write directly into
-///    arena memory via `KArenaStringBuilder` (when source-slicing is
-///    not applicable)
-///  - optionally, the owned `m_SourceBuffer` (when `Parse(KString)`
-///    moved the input in) — registered with the arena as a **stable
-///    region** so source-slicing can hand out views into it for free
+/// for (auto Node : Doc.Root().Children())  // walk the top-level nodes
+/// {
+///     if (Node.IsElement() && Node.Name() == "html") { /* ... */ }
+/// }
 ///
-/// Arena blocks grow geometrically (`DefaultBlockSize → 256 KB cap`),
-/// so a parse of a ~64 KB document typically uses 8–10 heap
-/// allocations end-to-end (vs. several hundred thousand for a
-/// heap-DOM design).
+/// Doc.Add<html::Paragraph>();              // add content (see kwebobjects.h)
+/// Doc.Serialize(KOut);                     // render back to HTML
+/// @endcode
 ///
-/// ### The three Parse paths
+/// While parsing, tag and attribute names are lowercased, entities are
+/// decoded, and whitespace in non-preformatted text is collapsed.
+/// Parse problems (e.g. unbalanced tags) do not stop the parse — they
+/// are recovered from and reported through Issues().
 ///
-/// All three eventually run the same streaming loop
-/// (`KHTMLParser::Parse(KBufferedReader&)`) — they differ in **what
-/// happens with the source bytes** and in **whether source-slicing is
-/// enabled**.
+/// ### Choosing a Parse method
 ///
-/// | Path                          | `m_SourceBuffer` | Stable region | Source-slicing | Use case |
-/// |-------------------------------|------------------|---------------|----------------|----------|
-/// | `Parse(KString)`              | move-in (own)    | yes           | yes            | Caller has a `KString`; max perf, you don't care about Original |
-/// | `Parse(view)` (template)      | not touched      | no            | no (arena only)| Caller has a view, no lifetime promise; safe & cheap |
-/// | `ParseStable(view)`           | not touched      | yes           | yes            | Caller has a view and **promises** it outlives `KHTML` |
-/// | `Parse(KInStream&)`           | cleared          | no            | no             | Streaming source (file, socket); slicing impossible |
+/// All overloads build the same tree. They differ in who owns the input
+/// bytes afterwards:
 ///
-/// `const char*` literals, `KStringView`, `KStringViewZ` and
-/// `std::string` all flow to the template path unless `KString{...}`
-/// is spelled explicitly — see overload resolution comments below.
+/// | Call                | The input is    | The caller must                              |
+/// |---------------------|-----------------|----------------------------------------------|
+/// | `Parse(KString)`    | moved/copied in | nothing — the document owns it               |
+/// | `Parse(KInStream&)` | streamed        | nothing                                      |
+/// | `ParseStable(view)` | referenced      | keep the bytes alive as long as the document |
 ///
-/// ### Source-slicing (in-situ-light)
+/// `Parse(std::move(sHtml))` is the fastest way to parse a string you no
+/// longer need. `ParseStable(sView)` is equally fast and leaves
+/// ownership with the caller. Passing a `KStringView` / `const char*`
+/// to `Parse()` is always safe: those bytes are copied while parsing.
 ///
-/// When source-slicing is enabled, `khtml::ParseAccumulator` runs in
-/// **SourceSlice** mode for the tag name, each attribute name + value,
-/// and each text-content run. As long as every byte matches the source
-/// 1:1, the final view is a `KStringView` straight into the caller's
-/// (or `m_SourceBuffer`'s) bytes — zero arena bytes consumed.
+/// ### How strings are stored (implementation note)
 ///
-/// The first byte that needs to differ from the source (lowercased
-/// tag/attribute character, decoded entity, whitespace-normalised
-/// `\t/\n/\r → ' '`) promotes the accumulator to **ArenaBuilder** mode:
-/// the slice-so-far is copied into a `KArenaStringBuilder` and the
-/// transformed byte appended; further bytes write straight to arena.
-/// One promotion per accumulated string — never back to slicing.
+/// Nodes and strings live in a single arena owned by the document and
+/// are released all at once (or recycled, see clear()). When the source
+/// buffer is known to stay alive — the `Parse(KString)` and
+/// `ParseStable()` paths — most strings are not even copied into the
+/// arena: a tag name, attribute name/value, or text run that is
+/// byte-identical to the source is stored as a view into the source
+/// buffer. Only a string that has to differ from its source spelling
+/// gets copied into the arena.
 ///
-/// `KHTMLStringObject` payloads (Comment / CData / DocumentType / PI)
-/// deliberately skip slicing because the lead-out-probe-logic doesn't
-/// map source positions cleanly to accumulated bytes — they always
-/// use ArenaBuilder mode.
+/// This decision falls per string, and every string starts out as a
+/// view. Example — parsing `<p title="a&amp;b">Hello world</p>`:
+///  - `p`, `title` and `Hello world` match their source bytes and stay
+///    views into the source — no memory consumed
+///  - `a&b` differs from its source spelling `a&amp;b`, so this one
+///    string is copied into the arena; the strings before and after it
+///    are unaffected and remain views
 ///
-/// ### Read / mutate / serialise
+/// The same holds for a tag name that had to be lowercased or a text
+/// run with collapsed whitespace: only the affected string is copied.
+/// With `Parse(KInStream&)` or a plain view there is no lifetime
+/// guarantee on the source, so every string goes into the arena.
 ///
-///  - `Root()` returns a `KHTMLNode` cursor at the synthetic document
-///    root; iterate `Children()` to walk top-level nodes.
-///  - `doc.Add<T>(args...)` (or `doc.Root().Add<T>(args...)`) builds
-///    KWebObjects into the tree.
-///  - `Serialize(...)` renders the POD tree back to HTML (string or
-///    stream, optional indent character).
-///  - `clear()` drops all content and recycles arena blocks.
+/// ### Copy / move
 ///
-/// ### Copy / move semantics
-///
-/// `KHTML` is **non-copyable** — the arena is non-copyable and
-/// cloning a populated document is rarely useful. It is movable
-/// (default), but the implicit move on a *populated* document is UB
-/// (see `khtml::Document`'s class comment). NRVO covers the typical
-/// `KHTML Make() { return ...; }` pattern safely.
+/// KHTML is non-copyable. Moving a *populated* document is undefined
+/// behaviour (see khtml::Document); returning a local by value is safe
+/// (NRVO):
+/// @code
+/// KHTML Make() { KHTML Doc; Doc.Parse("<p>hi</p>"); return Doc; }
+/// @endcode
 class DEKAF2_PUBLIC KHTML : public KErrorBase, public KHTMLParser
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -166,12 +156,9 @@ public:
 	virtual ~KHTML();
 
 	//-----------------------------------------------------------------------------
-	/// Construct and immediately parse from a source string. Takes the
-	/// source by value — the caller chooses ownership: `KHTML(std::move(buf))`
-	/// hands the bytes to the document (zero copies; the buffer becomes
-	/// `m_SourceBuffer` and is registered with the arena as a stable
-	/// region for views to point into). `KHTML(buf)` copies at the
-	/// call-site, leaving the caller's buffer untouched.
+	/// Construct and immediately parse from a source string. Same
+	/// semantics as `Parse(KString)`: `KHTML(std::move(sBuffer))` hands the
+	/// buffer to the document without copying, `KHTML(sBuffer)` copies it.
 	KHTML(KString sSource);
 	//-----------------------------------------------------------------------------
 
@@ -183,65 +170,37 @@ public:
 	// parsing is in base class
 
 	//-----------------------------------------------------------------------------
-	/// Parse a source string with **buffer ownership**: takes the source
-	/// by value, so `Parse(std::move(buf))` moves the buffer into the
-	/// document (zero copies). The buffer is held as `m_SourceBuffer`
-	/// and registered as a stable arena region, which enables the
-	/// parser's source-slicing mode (see `khtml::ParseAccumulator`):
-	/// tag names, attribute names/values and unmodified text-content
-	/// runs become `KStringView` slices straight into `m_SourceBuffer`,
-	/// without copying into the arena. Runs that need a transformation
-	/// (lowercase tag/attr name, entity decode, whitespace collapse)
-	/// fall back to the arena builder.
-	///
-	/// Use this overload when:
-	///  - you have a `KString` you can move,
-	///  - or you don't want to manage the source-buffer lifetime
-	///    (we copy it in for you).
-	///
-	/// For `KStringView` / `const char*` callers, the SFINAE template
-	/// from `KHTMLParser` (brought in via the using-declaration below)
-	/// runs the streaming path **without** copying into `m_SourceBuffer`
-	/// and **without** registering a stable region — every accumulator
-	/// then writes to the arena. Callers who want source-slicing on a
-	/// non-owned view they have a lifetime promise for must use
-	/// `ParseStable(view)` instead.
-	///
-	/// Clears any previous parse result first. Returns true on success.
+	/// Parse a source string that the document takes ownership of:
+	/// `Parse(std::move(sBuffer))` moves the buffer in without copying,
+	/// `Parse(sBuffer)` copies it. The document keeps the buffer alive so
+	/// that parsed strings can be stored as views into it (see the class
+	/// description). Clears any previous content first.
+	/// @returns true on success
 	bool Parse(KString sSource);
 
-	// Stream input clears m_SourceBuffer and runs the streaming path
-	// unchanged. Stream readers have no stable source range so slicing
-	// is never active here — all accumulators run in arena-builder mode.
+	/// Parse from an input stream (file, socket, ...). Clears any
+	/// previous content first.
+	/// @returns true on success
 	bool Parse(KInStream& InStream) override;
 
-	// Bring in the base template + stream overloads. The SFINAE template
-	// in the base class loses to our concrete `Parse(KString)` only when
-	// the argument is convertible to KString *and* the template is no
-	// better-fit. For `KStringView` / `const char*` args the template
-	// wins (exact reference binding vs. user-defined conversion), so
-	// they run the non-owning streaming path. Caller chooses ownership
-	// by writing `doc.Parse(KString{...})` explicitly, or non-owning +
-	// slicing via `doc.ParseStable(view)`.
+	// Bring in the base class string template. Overload resolution:
+	// KString arguments pick the concrete Parse(KString) above, while
+	// KStringView / const char* arguments pick the base template (exact
+	// reference binding beats the user-defined conversion to KString)
+	// and are therefore copied during the parse, not into the document.
 	using KHTMLParser::Parse;
 
 	//-----------------------------------------------------------------------------
-	/// Parse a non-owning view that the caller **guarantees** stays alive
-	/// at least as long as this `KHTML` document — typically a view into
-	/// a `KString` the caller already holds. The range is registered
-	/// with the arena as a stable region, which activates source-slicing
-	/// in the `ParseAccumulator`: tag names, attribute names/values and
-	/// unmodified text-content runs become `KStringView`s straight into
-	/// the caller's bytes — zero arena bytes for those strings.
+	/// Parse a view whose bytes the caller **guarantees** stay alive and
+	/// unmoved at least as long as this document — typically a view into
+	/// a `KString` the caller already holds. Parsed strings can then be
+	/// stored as views into the caller's bytes instead of being copied
+	/// (see the class description).
 	///
-	/// Performance: on text-heavy input this saves ~40 % memory and
-	/// ~20 % parse time compared to `Parse(view)` (which copies through
-	/// the arena builder).
-	///
-	/// Misuse warning: if the underlying bytes go away or move before
-	/// this document is dropped, any views into them dangle. If you
-	/// don't already own a long-lived buffer, use `Parse(KString{view})`
-	/// instead — it copies but is safe.
+	/// If the underlying bytes go away or move before the document does,
+	/// the document's strings dangle. When in doubt use
+	/// `Parse(KString{sView})` — it copies, but is always safe.
+	/// @returns true on success
 	bool ParseStable(KStringView sView);
 	//-----------------------------------------------------------------------------
 

@@ -40,11 +40,22 @@
 
 
 /// @file kwebobjects.h
-/// Phase 4 design: KWebObjects are non-virtual 8-byte handles (KHTMLNode)
-/// into a KHTML's arena-backed POD tree. Construction always goes through
-/// a parent KHTMLNode — there is no "detached" mode any more; the
-/// canonical idiom is `parent.Add<html::T>(args...)`. See
-/// `notes/kwebobjects-migration-guide.md` for the conversion patterns.
+/// Typed builder classes for HTML elements ("KWebObjects"), one per HTML
+/// tag, in namespace `html`. Every element is a small handle into a KHTML
+/// document tree and is always constructed into a parent node:
+///
+/// @code
+/// html::Page Page("My Page", "en");
+///
+/// auto Form = Page.Add<html::Form>("/submit");
+/// Form.Add<html::Button>("OK").SetName("action").SetValue("ok");
+///
+/// Page.Serialize(KOut);
+/// @endcode
+///
+/// Setters return the element reference, so calls can be chained as
+/// above, and each element type only exposes the setters that apply to
+/// it.
 
 #include <dekaf2/core/init/kdefinitions.h>
 #include <dekaf2/core/strings/kstring.h>
@@ -135,17 +146,23 @@ public:
 		Add(KStringView(sClassName));
 	}
 
+	/// add the class name of the given class definition (a leading
+	/// selector dot is stripped)
 	self& Add(const Class& Class);
 
+	/// add all names from another collection
 	self& Add(const Classes& Classes)
 	{
 		return Add(Classes.m_sClassNames.ToView());
 	}
 
+	/// add one class name
 	self& Add(KStringView sClassName);
 
+	/// @returns all class names, space separated
 	const KString& GetClasses() const { return m_sClassNames; }
 
+	/// @returns true if no class names were added
 	bool empty() const { return m_sClassNames.empty(); }
 
 //----------
@@ -174,15 +191,24 @@ public:
 	static constexpr KStringView s_sObjectName = "KWebObjectBase";
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 
+	/// form data encodings (`enctype` attribute)
 	enum ENCTYPE { URLENCODED, FORMDATA, PLAIN };
+	/// form submission methods (`method` attribute)
 	enum METHOD  { GET, POST, DIALOG };
+	/// image/iframe loading strategies (`loading` attribute)
 	enum LOADING { AUTO, EAGER, LAZY };
+	/// browsing-context targets (`target` attribute)
 	enum TARGET  { SELF, BLANK, PARENT, TOP };
+	/// text directions (`dir` attribute)
 	enum DIR     { LTR, RTL };
+	/// horizontal alignment (legacy `align` attribute)
 	enum ALIGN   { LEFT, CENTER, RIGHT };
+	/// vertical alignment (legacy `valign` attribute)
 	enum VALIGN  { VTOP, VMIDDLE, VBOTTOM };
+	/// media preload strategies (`preload` attribute)
 	enum Preload { None, Metadata, Auto };
 
+	/// pixel count for width/height/size attributes
 	using Pixels = uint32_t;
 
 	KWebObjectBase() = default;
@@ -215,7 +241,9 @@ public:
 	/// and call each binding's pfnSync with the matching query-parm value.
 	void Synchronize(const url::KQueryParms& Parms);
 
-	// -- static helpers (unchanged from pre-Phase-4) ---------------------------
+	/// @name enum to attribute-value conversion
+	/// @returns the attribute value string for the given enum value
+	/// @{
 
 	static KStringView FromMethod  (METHOD  method  );
 	static KStringView FromTarget  (TARGET  target  );
@@ -225,6 +253,8 @@ public:
 	static KStringView FromAlign   (ALIGN   align   );
 	static KStringView FromVAlign  (VALIGN  valign  );
 	static KStringView FromPreload (Preload preload );
+
+	/// @}
 
 //----------
 protected:
@@ -265,6 +295,7 @@ public:
 
 	// -- universal attribute setters --
 
+	/// set the `id` attribute, or remove it when sID is empty
 	self& SetID(KStringView sID)
 	{
 		if (!sID.empty()) KHTMLNode::SetAttribute("id", sID);
@@ -272,6 +303,7 @@ public:
 		return This();
 	}
 
+	/// set the `class` attribute, or remove it when cls is empty
 	self& SetClass(const html::Classes& cls)
 	{
 		if (!cls.empty()) KHTMLNode::SetAttribute("class", cls.GetClasses());
@@ -284,15 +316,23 @@ public:
 	// re-exposed selectively by each derived class via `using`-decls,
 	// so an IDE's autocomplete on a concrete element type shows only
 	// the setters that actually apply to it.
+
+	/// set the text direction (`dir` attribute)
 	self& SetDir       (DIR    dir    ) { KHTMLNode::SetAttribute("dir",     FromDir    (dir    )); return This(); }
+	/// set or remove the boolean `draggable` attribute
 	self& SetDraggable (bool   bYesNo ) { SetBoolAttribute       ("draggable",          bYesNo  ); return This(); }
+	/// set or remove the boolean `hidden` attribute
 	self& SetHidden    (bool   bYesNo ) { SetBoolAttribute       ("hidden",             bYesNo  ); return This(); }
+	/// set the `lang` attribute
 	self& SetLanguage  (KStringView v ) { if (!v.empty()) KHTMLNode::SetAttribute("lang",  v);     return This(); }
+	/// set inline CSS (`style` attribute)
 	self& SetStyle     (KStringView v ) { if (!v.empty()) KHTMLNode::SetAttribute("style", v);     return This(); }
+	/// set the `title` attribute (typically shown as tooltip)
 	self& SetTitle     (KStringView v ) { if (!v.empty()) KHTMLNode::SetAttribute("title", v);     return This(); }
 
 	// -- generic attribute access (always public — escape hatch) --
 
+	/// set any attribute by name — for attributes without a dedicated setter
 	self& SetAttribute(KString sName, KStringView sValue, bool bRemoveIfEmpty = false, bool bDoNotEscape = false)
 	{
 		if (bRemoveIfEmpty && sValue.empty()) { KHTMLNode::RemoveAttribute(sName); }
@@ -300,11 +340,10 @@ public:
 		return This();
 	}
 
-	/// Generic value setter — accepts anything `kFormat("{}", v)` can
-	/// stringify (arithmetics, enums, std::chrono types, KDate, ...).
-	/// Disabled for string-like types (those go to the KStringView
-	/// overload) and for `bool` (that has its own boolean-attribute
-	/// overload).
+	/// set any attribute to a formatted value — accepts anything
+	/// `kFormat("{}", v)` can stringify (arithmetics, enums, std::chrono
+	/// types, KDate, ...). Strings go to the KStringView overload, bool
+	/// to the boolean-attribute overload.
 	template<typename T,
 	         std::enable_if_t<!std::is_convertible<T, KStringView>::value
 	                       && !std::is_same<typename std::remove_cv<typename std::remove_reference<T>::type>::type, bool>::value, int> = 0>
@@ -314,10 +353,9 @@ public:
 		return This();
 	}
 
-	/// Boolean-attribute setter. SFINAE-restricted to *exact* `bool` so that
-	/// string literals (`const char*`) don't accidentally match here via the
-	/// standard pointer-to-bool conversion (which would outrank the
-	/// user-defined conversion to KStringView).
+	/// set or remove any boolean attribute by name. (Restricted to exact
+	/// `bool` so that string literals don't match here via the standard
+	/// pointer-to-bool conversion.)
 	template<typename B,
 	         std::enable_if_t<std::is_same<typename std::remove_cv<typename std::remove_reference<B>::type>::type, bool>::value, int> = 0>
 	self& SetAttribute(KString sName, B bYesNo)
@@ -328,7 +366,9 @@ public:
 
 	// -- text children --
 
+	/// append a text child; the text is entity-encoded on output
 	self& AddText   (KStringView s) { KHTMLNode::AddText   (s);        return This(); }
+	/// append a raw text child, emitted verbatim (no entity encoding)
 	self& AddRawText(KStringView s) { KHTMLNode::AddRawText(s);        return This(); }
 
 //----------
@@ -339,29 +379,49 @@ protected:
 	// the autocomplete surface of unrelated elements; each derived
 	// class lifts the ones that apply via `using KWebObject::SetX;`.
 
+	/// set the `href` attribute
 	self& SetLink      (KStringView sURL, bool bDoNotEscape = true) { if (!sURL.empty())  KHTMLNode::SetAttribute("href",   sURL, '"', /*esc*/!bDoNotEscape); return This(); }
+	/// set the `src` attribute
 	self& SetSource    (KStringView sURL, bool bDoNotEscape = true) { if (!sURL.empty())  KHTMLNode::SetAttribute("src",    sURL, '"', /*esc*/!bDoNotEscape); return This(); }
+	/// set the `poster` attribute (preview image for videos)
 	self& SetPoster    (KStringView sURL, bool bDoNotEscape = true) { if (!sURL.empty())  KHTMLNode::SetAttribute("poster", sURL, '"', /*esc*/!bDoNotEscape); return This(); }
+	/// set the `alt` attribute (alternative text)
 	self& SetDescription(KStringView v)                             { if (!v.empty())    KHTMLNode::SetAttribute("alt",    v);                                  return This(); }
 
-	self& SetHeigth(Pixels p) { KHTMLNode::SetAttribute("heigth", kFormat("{}", p)); return This(); }
+	/// set the height in pixels (`height` attribute)
+	self& SetHeight(Pixels p) { KHTMLNode::SetAttribute("height", kFormat("{}", p)); return This(); }
+	/// set the width in pixels (`width` attribute)
 	self& SetWidth (Pixels p) { KHTMLNode::SetAttribute("width",  kFormat("{}", p)); return This(); }
+	/// set the `size` attribute
 	self& SetSize  (Pixels p) { KHTMLNode::SetAttribute("size",   kFormat("{}", p)); return This(); }
 
+	/// set the `loading` strategy (eager/lazy)
 	self& SetLoading (LOADING l) { KHTMLNode::SetAttribute("loading", FromLoading(l)); return This(); }
+	/// set the legacy `align` attribute
 	self& SetAlign   (ALIGN   a) { KHTMLNode::SetAttribute("align",   FromAlign  (a)); return This(); }
+	/// set the legacy `valign` attribute
 	self& SetVAlign  (VALIGN  v) { KHTMLNode::SetAttribute("valign",  FromVAlign (v)); return This(); }
 
+	/// set the `name` attribute
 	self& SetName  (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("name",  v); return This(); }
+	/// set the `value` attribute
 	self& SetValue (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("value", v); return This(); }
 
+	/// set the `target` browsing context
 	self& SetTarget(TARGET  t) { KHTMLNode::SetAttribute("target", FromTarget (t)); return This(); }
 
+	/// set the `rel` attribute (relationship of the linked resource)
 	self& SetRel(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("rel", v); return This(); }
+
+	/// @name boolean attributes
+	/// set or remove the boolean attribute of the same name — emitted
+	/// bare when set (`<input disabled>`), absent when unset
+	/// @{
 
 	self& SetDisabled        (bool b) { SetBoolAttribute("disabled",        b); return This(); }
 	self& SetAutofocus       (bool b) { SetBoolAttribute("autofocus",       b); return This(); }
 	self& SetMultiple        (bool b) { SetBoolAttribute("multiple",        b); return This(); }
+	/// sets both `directory` and `webkitdirectory`
 	self& SetDirectory       (bool b) { SetBoolAttribute("directory",       b);
 	                                    SetBoolAttribute("webkitdirectory", b); return This(); }
 	self& SetReadOnly        (bool b) { SetBoolAttribute("readonly",        b); return This(); }
@@ -373,52 +433,80 @@ protected:
 	self& SetMuted           (bool b) { SetBoolAttribute("muted",           b); return This(); }
 	self& SetFormNoValidate  (bool b) { SetBoolAttribute("formnovalidate",  b); return This(); }
 
+	/// @}
+
+	/// @name per-control form overrides
+	/// override the owning form's action/method/enctype/target for the
+	/// control that submits the form (`formaction`, `formmethod`, ...)
+	/// @{
+
 	self& SetFormAction(KStringView v)  { if (!v.empty()) KHTMLNode::SetAttribute("formaction",  v);                       return This(); }
 	self& SetFormMethod (METHOD  m)     { KHTMLNode::SetAttribute("formmethod",  FromMethod (m));                          return This(); }
 	self& SetFormEncType(ENCTYPE e)     { KHTMLNode::SetAttribute("formenctype", FromEncType(e));                          return This(); }
 	self& SetFormTarget (TARGET  t)     { KHTMLNode::SetAttribute("formtarget",  FromTarget (t));                          return This(); }
 
+	/// @}
+
+	/// set the `accept` attribute (file types for file inputs)
 	self& SetAccept     (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("accept",      v); return This(); }
+	/// set the `placeholder` attribute
 	self& SetPlaceholder(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("placeholder", v); return This(); }
+	/// set the `label` attribute
 	self& SetLabel      (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("label",       v); return This(); }
+	/// set the `for` attribute (ID of the associated control)
 	self& SetFor        (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("for",         v); return This(); }
+	/// set the `form` attribute (ID of the owning form)
 	self& SetForm       (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("form",        v); return This(); }
+	/// set the `allow` attribute (iframe permissions policy)
 	self& SetAllow      (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("allow",       v); return This(); }
+	/// set the legacy `scrolling` attribute
 	self& SetScrolling  (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("scrolling",   v); return This(); }
 
+	/// set the `min` attribute
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetMin(A v)        { KHTMLNode::SetAttribute("min", kFormat("{}", v)); return This(); }
 
+	/// set the `max` attribute
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetMax(A v)        { KHTMLNode::SetAttribute("max", kFormat("{}", v)); return This(); }
 
+	/// set both `min` and `max`
 	template<typename A>
 	self& SetRange(A mn, A mx) { SetMin(mn); SetMax(mx); return This(); }
 
+	/// set the `colspan` attribute
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetColSpan(A v)    { KHTMLNode::SetAttribute("colspan", kFormat("{}", v)); return This(); }
 
+	/// set the `rowspan` attribute
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetRowSpan(A v)    { KHTMLNode::SetAttribute("rowspan", kFormat("{}", v)); return This(); }
 
+	/// set the bare `autoplay` attribute
 	self& SetAutoplay()                                              { KHTMLNode::SetAttribute("autoplay", "", /*q*/0, /*esc*/false);        return This(); }
+	/// set the bare `controls` attribute
 	self& SetControls()                                              { KHTMLNode::SetAttribute("controls", "", /*q*/0, /*esc*/false);        return This(); }
+	/// set the bare `allowfullscreen` attribute
 	self& SetAllowFullscreen()                                       { KHTMLNode::SetAttribute("allowfullscreen", "", /*q*/0, /*esc*/false); return This(); }
+	/// set the media `preload` strategy
 	self& SetPreload(Preload p)                                      { KHTMLNode::SetAttribute("preload", FromPreload(p));                   return This(); }
+	/// set the `type` attribute (MIME type)
 	self& SetType   (KStringView mime)                               { if (!mime.empty()) KHTMLNode::SetAttribute("type", mime);             return This(); }
 
-	// shared by quotation elements (blockquote, q) and ins/del
+	/// set the `cite` attribute — source URL of a quote or edit
+	/// (blockquote, q, ins, del)
 	self& SetCite    (KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("cite",     v); return This(); }
-	// shared by details and dialog
+	/// set or remove the boolean `open` attribute (details, dialog)
 	self& SetOpen    (bool b)        { SetBoolAttribute("open", b); return This(); }
-	// shared by a (Link) and area — sets the filename or just emits bare
+	/// set the `download` attribute on a link: non-empty = suggested
+	/// filename, empty = bare attribute (a, area)
 	self& SetDownload(KStringView v = KStringView{})
 	{
 		if (v.empty()) KHTMLNode::SetAttribute("download", KStringView{}, /*q*/0, /*esc*/false);
 		else           KHTMLNode::SetAttribute("download", v);
 		return This();
 	}
-	// shared by col and colgroup
+	/// set the `span` attribute — the number of columns (col, colgroup)
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetSpan(A v)               { KHTMLNode::SetAttribute("span", kFormat("{}", v)); return This(); }
 
@@ -453,6 +541,8 @@ namespace detail {
 
 namespace detail {
 
+/// Container-shape element: the ctor takes (parent, classes, id);
+/// content is added afterwards through Add<>() / AddText().
 template<typename Tag>
 class DEKAF2_PUBLIC HtmlContainer : public KWebObject<HtmlContainer<Tag>>
 {
@@ -470,6 +560,8 @@ public:
 	: KWebObject<HtmlContainer<Tag>>(parent, TagName, cls, sID) {}
 };
 
+/// Text-shape element: like the container shape, but the ctor takes an
+/// optional text content as first argument after the parent.
 template<typename Tag>
 class DEKAF2_PUBLIC HtmlText : public KWebObject<HtmlText<Tag>>
 {
@@ -489,6 +581,7 @@ public:
 	{ if (!sContent.empty()) this->AddText(sContent); }
 };
 
+/// Void-shape element: no content, no children (like `<br>`).
 template<typename Tag>
 class DEKAF2_PUBLIC HtmlVoid : public KWebObject<HtmlVoid<Tag>>
 {
@@ -630,6 +723,8 @@ class DEKAF2_PUBLIC Page
 public:
 //----------
 
+	/// Create a page skeleton: DOCTYPE, `<html>` (with `lang` when
+	/// sLanguage is non-empty), `<head>` with `<title>`, and `<body>`.
 	Page(KStringView sTitle, KStringView sLanguage = KStringView{});
 
 	Page(const Page&)            = delete;
@@ -695,14 +790,19 @@ private:
 
 }; // Page
 
-// Div, Span, Paragraph, Table, TableRow — pure container shape.
+/// `<div>` — generic block container
 using Div       = detail::HtmlContainer<tags::Div>;
+/// `<span>` — generic inline container
 using Span      = detail::HtmlContainer<tags::Span>;
+/// `<p>` — a paragraph
 using Paragraph = detail::HtmlContainer<tags::Paragraph>;
+/// `<table>` — a table; add TableRow (or TableHead/TableBody/TableFoot) children
 using Table     = detail::HtmlContainer<tags::Table>;
+/// `<tr>` — a table row; add TableData / TableHeader children
 using TableRow  = detail::HtmlContainer<tags::TableRow>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<td>` — a table data cell, with optional cell text
 class DEKAF2_PUBLIC TableData : public KWebObject<TableData>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -732,6 +832,7 @@ public:
 }; // TableData
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<th>` — a table header cell, with optional cell text
 class DEKAF2_PUBLIC TableHeader : public KWebObject<TableHeader>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -761,6 +862,7 @@ public:
 }; // TableHeader
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<a>` — a hyperlink, with optional target URL and link text
 class DEKAF2_PUBLIC Link : public KWebObject<Link>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -792,6 +894,8 @@ public:
 }; // Link
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<script>` — an inline script (body passed to the ctor, emitted
+/// verbatim) or an external one (empty body, URL via SetSource())
 class DEKAF2_PUBLIC Script : public KWebObject<Script>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -822,6 +926,7 @@ public:
 }; // Script
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<style>` — an inline CSS block (content emitted verbatim)
 class DEKAF2_PUBLIC StyleSheet : public KWebObject<StyleSheet>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -845,6 +950,7 @@ public:
 }; // StyleSheet
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<link rel="icon">` — the page's favicon (head element)
 class DEKAF2_PUBLIC FavIcon : public KWebObject<FavIcon>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -914,12 +1020,16 @@ public:
 
 }; // Meta
 
-// Break, HorizontalRuler — void shape. Header — container shape.
+/// `<br>` — a line break
 using Break           = detail::HtmlVoid     <tags::Break>;
+/// `<hr>` — a horizontal ruler / thematic break
 using HorizontalRuler = detail::HtmlVoid     <tags::HorizontalRuler>;
+/// `<header>` — introductory content of a page or section
 using Header          = detail::HtmlContainer<tags::Header>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<h1>`..`<h6>` — a heading of the level given in the ctor, with
+/// optional heading text
 class DEKAF2_PUBLIC Heading : public KWebObject<Heading>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -936,6 +1046,7 @@ public:
 }; // Heading
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<img>` — an image, with URL and optional alternative text
 class DEKAF2_PUBLIC Image : public KWebObject<Image>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -951,7 +1062,7 @@ public:
 	using KWebObject::SetSource;
 	using KWebObject::SetDescription;
 	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
+	using KWebObject::SetHeight;
 	using KWebObject::SetLoading;
 
 	Image(KHTMLNode parent,
@@ -968,6 +1079,7 @@ public:
 }; // Image
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<form>` — an HTML form, with optional action URL
 class DEKAF2_PUBLIC Form : public KWebObject<Form>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -989,19 +1101,23 @@ public:
 	     const Classes& cls = html::Classes{},
 	     KStringView sID = KStringView{});
 
+	/// set the `action` URL the form submits to
 	self& SetAction    (KStringView sAction);
+	/// set the form data encoding (`enctype`)
 	self& SetEncType   (ENCTYPE enctype);
+	/// set the submission method (`method`)
 	self& SetMethod    (METHOD  method);
+	/// set or remove the boolean `novalidate` attribute
 	self& SetNoValidate(bool    bYesNo = true);
 
 }; // Form
 
-// Legend — text-content shape. NOTE: the legacy ctor required sLegend; the
-// template-form makes it optional (matching the rest of the *Text aliases),
-// which is purely additive.
+/// `<legend>` — the caption of a FieldSet, with optional caption text
 using Legend = detail::HtmlText<tags::Legend>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<fieldset>` — groups form controls; a non-empty sLegend adds a
+/// `<legend>` child
 class DEKAF2_PUBLIC FieldSet : public KWebObject<FieldSet>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1023,6 +1139,7 @@ public:
 }; // FieldSet
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<button>` — a button, with optional label text; type defaults to SUBMIT
 class DEKAF2_PUBLIC Button : public KWebObject<Button>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1035,6 +1152,7 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "button";
 
+	/// button behaviors (`type` attribute)
 	enum BUTTONTYPE { SUBMIT, RESET, BUTTON };
 
 	using self = Button;
@@ -1047,6 +1165,7 @@ public:
 		if (!sLabel.empty()) AddText(sLabel);
 	}
 
+	/// set the button behavior (submit/reset/plain button)
 	self& SetType(BUTTONTYPE type);
 
 	using KWebObject::SetDisabled;
@@ -1064,6 +1183,7 @@ public:
 }; // Button
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<output>` — the result of a calculation or user action
 class DEKAF2_PUBLIC Output : public KWebObject<Output>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1094,6 +1214,9 @@ public:
 }; // Output
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<input>` — a form input of any INPUTTYPE (default TEXT), with
+/// optional name and initial value. For inputs bound to a program
+/// variable see TextInput, NumericInput, CheckBox, RadioButton.
 class DEKAF2_PUBLIC Input : public KWebObject<Input>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1106,6 +1229,7 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "input";
 
+	/// input types (`type` attribute)
 	enum INPUTTYPE {
 		CHECKBOX,
 		COLOR,
@@ -1138,8 +1262,11 @@ public:
 	      const Classes& cls = html::Classes{},
 	      KStringView sID = KStringView{});
 
+	/// set the input type
 	self& SetType   (INPUTTYPE type);
+	/// set or remove the boolean `checked` attribute (checkboxes, radios)
 	self& SetChecked(bool      bYesNo);
+	/// set the `step` increment for numeric inputs
 	self& SetStep   (float     step);
 
 	using KWebObject::SetType;          // KString MIME version
@@ -1151,7 +1278,7 @@ public:
 	using KWebObject::SetFormEncType;
 	using KWebObject::SetFormNoValidate;
 	using KWebObject::SetFormTarget;
-	using KWebObject::SetHeigth;
+	using KWebObject::SetHeight;
 	using KWebObject::SetWidth;
 	using KWebObject::SetMultiple;
 	using KWebObject::SetDirectory;
@@ -1170,6 +1297,8 @@ public:
 }; // Input
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<option>` — an entry of a Select or DataList: sLabel is the display
+/// text, the optional sValue the submitted value
 class DEKAF2_PUBLIC Option : public KWebObject<Option>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1198,6 +1327,7 @@ public:
 		if (!sLabel.empty()) AddText(sLabel);
 	}
 
+	/// set or remove the boolean `selected` attribute
 	self& SetSelected(bool bYesNo)
 	{
 		SetBoolAttribute("selected", bYesNo);
@@ -1207,6 +1337,9 @@ public:
 }; // Option
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<select>` — a dropdown (iSize == 1) or list box (iSize > 1); add
+/// Option children. For a select bound to a program variable see
+/// Selection.
 class DEKAF2_PUBLIC Select : public KWebObject<Select>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1241,7 +1374,10 @@ public:
 }; // Select
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// CRTP wrapper that wraps `Base` (default `Input`) inside a `<label>`.
+/// A form control (`Base`, default `Input`) wrapped inside a `<label>`
+/// element. SetLabelBefore()/SetLabelAfter() place the label text; all
+/// other setters forward to the wrapped control. Base class of the
+/// bound inputs (TextInput, CheckBox, Selection, ...).
 template<typename Derived, typename Base = Input>
 class LabeledInput : public KWebObject<LabeledInput<Derived, Base>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1266,8 +1402,12 @@ public:
 	{
 	}
 
+	/// place label text before the wrapped control
 	self& SetLabelBefore(KStringView sLabel) { wobj::SetTextBefore(sLabel); return This(); }
+	/// place label text after the wrapped control
 	self& SetLabelAfter (KStringView sLabel) { wobj::SetTextAfter (sLabel); return This(); }
+
+	// -- all following setters forward to the wrapped control --
 
 	self& SetType        (Input::INPUTTYPE t) { m_Base.SetType        (t); return This(); }
 	self& SetChecked     (bool b)             { m_Base.SetChecked     (b); return This(); }
@@ -1282,7 +1422,7 @@ public:
 	self& SetDirectory   (bool b)             { m_Base.SetDirectory   (b); return This(); }
 	self& SetAccept      (KStringView v)      { m_Base.SetAccept      (v); return This(); }
 	self& SetFormNoValidate(bool b)           { m_Base.SetFormNoValidate(b); return This(); }
-	self& SetHeigth      (typename wobj::Pixels p) { m_Base.SetHeigth (p); return This(); }
+	self& SetHeight      (typename wobj::Pixels p) { m_Base.SetHeight (p); return This(); }
 	self& SetWidth       (typename wobj::Pixels p) { m_Base.SetWidth  (p); return This(); }
 	self& SetSize        (typename wobj::Pixels p) { m_Base.SetSize   (p); return This(); }
 	self& SetFormMethod  (typename wobj::METHOD  m){ m_Base.SetFormMethod (m); return This(); }
@@ -1311,7 +1451,9 @@ public:
 		return This();
 	}
 
+	/// @returns the wrapped control
 	Base&       GetBase()       { return m_Base; }
+	/// @returns the wrapped control
 	const Base& GetBase() const { return m_Base; }
 
 //----------
@@ -1331,6 +1473,10 @@ constexpr KStringView LabeledInput<Derived, Base>::TagName;
 #endif
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<label>`-wrapped text `<input>` bound to a string variable: a
+/// non-empty rResult is emitted as the initial `value`, and
+/// `Synchronize()` writes the submitted form value back into rResult.
+/// rResult must outlive the document.
 template<typename String>
 class TextInput : public LabeledInput<TextInput<String>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1355,6 +1501,10 @@ public:
 }; // TextInput
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<label>`-wrapped numeric `<input>` bound to an arithmetic variable:
+/// a non-zero rResult is emitted as the initial `value`, and
+/// `Synchronize()` writes the submitted form value back into rResult.
+/// rResult must outlive the document.
 template<typename Arithmetic>
 class NumericInput : public LabeledInput<NumericInput<Arithmetic>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1380,6 +1530,10 @@ public:
 }; // NumericInput
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<label>`-wrapped numeric `<input>` bound to a chrono duration: the
+/// form value is entered in `Unit` resolution (default seconds), and
+/// `Synchronize()` converts it back into rResult's `Duration` type.
+/// rResult must outlive the document.
 template<typename Unit = std::chrono::seconds, typename Duration = std::chrono::high_resolution_clock::duration>
 class DurationInput : public LabeledInput<DurationInput<Unit, Duration>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1404,6 +1558,11 @@ public:
 }; // DurationInput
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<label>`-wrapped radio `<input>` bound to a variable shared by all
+/// radios of the same group (= same name): the radio whose value equals
+/// rResult renders selected, and `Synchronize()` writes the value of
+/// the selected radio back into rResult. rResult must outlive the
+/// document.
 template<typename ValueType>
 class RadioButton : public LabeledInput<RadioButton<ValueType>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1425,10 +1584,8 @@ public:
 	            const html::Classes& cls = html::Classes{},
 	            KStringView sID = KStringView{});
 
-	/// SetValue — also installs the initial `checked` state when the new
-	/// value matches the backing variable's current value. Mirrors the
-	/// pre-arena semantics where the radio whose `value` equals the
-	/// backing variable is rendered selected from the start.
+	/// set this radio's `value` — also sets `checked` when the value
+	/// matches the bound variable's current value
 	template<typename V>
 	self& SetValue(V v)
 	{
@@ -1463,6 +1620,10 @@ private:
 }; // RadioButton
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<label>`-wrapped checkbox `<input>` bound to a boolean variable: a
+/// true rResult renders checked, and `Synchronize()` writes the
+/// submitted state back into rResult. rResult must outlive the
+/// document.
 template<typename Boolean>
 class CheckBox : public LabeledInput<CheckBox<Boolean>>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1487,6 +1648,10 @@ public:
 }; // CheckBox
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<label>`-wrapped `<select>` bound to a variable: the option whose
+/// value equals rResult renders selected, and `Synchronize()` writes
+/// the value of the chosen option back into rResult. rResult must
+/// outlive the document.
 template<typename ValueType>
 class Selection : public LabeledInput<Selection<ValueType>, Select>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1561,6 +1726,9 @@ public:
 }; // Text
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Helper that emits a raw text child onto a parent (verbatim, no
+/// entity encoding). Provided to allow `parent.Add<RawText>(content)`;
+/// equivalent to `parent.AddRawText(content)`.
 class DEKAF2_PUBLIC RawText
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1580,6 +1748,8 @@ public:
 }; // RawText
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Helper that emits a line break into the serialized HTML *source* —
+/// not a `<br>` element (that is `Break`)
 class DEKAF2_PUBLIC LineBreak
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1598,10 +1768,11 @@ public:
 
 }; // LineBreak
 
-// Preformatted — container shape.
+/// `<pre>` — preformatted text (whitespace is preserved)
 using Preformatted = detail::HtmlContainer<tags::Preformatted>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<iframe>` — an embedded browsing context, with optional URL
 class DEKAF2_PUBLIC IFrame : public KWebObject<IFrame>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1617,7 +1788,7 @@ public:
 	using KWebObject::SetSource;
 	using KWebObject::SetLoading;
 	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
+	using KWebObject::SetHeight;
 	using KWebObject::SetAllow;
 	using KWebObject::SetAllowFullscreen;
 	using KWebObject::SetScrolling;
@@ -1631,6 +1802,8 @@ public:
 }; // IFrame
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<video>` — a video player; set the URL directly or add Source
+/// children for alternative formats
 class DEKAF2_PUBLIC Video : public KWebObject<Video>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1652,7 +1825,7 @@ public:
 	using KWebObject::SetPlaysInline;
 	using KWebObject::SetMuted;
 	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
+	using KWebObject::SetHeight;
 
 	Video(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
 	: KWebObject<Video>(parent, TagName, cls, sID)
@@ -1663,6 +1836,8 @@ public:
 }; // Video
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<audio>` — an audio player; set the URL directly or add Source
+/// children for alternative formats
 class DEKAF2_PUBLIC Audio : public KWebObject<Audio>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1682,7 +1857,7 @@ public:
 	using KWebObject::SetLoop;
 	using KWebObject::SetMuted;
 	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
+	using KWebObject::SetHeight;
 
 	Audio(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
 	: KWebObject<Audio>(parent, TagName, cls, sID)
@@ -1693,6 +1868,7 @@ public:
 }; // Audio
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<source>` — one media source of a Picture / Video / Audio parent
 class DEKAF2_PUBLIC Source : public KWebObject<Source>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1708,7 +1884,7 @@ public:
 	using KWebObject::SetSource;
 	using KWebObject::SetType;
 	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
+	using KWebObject::SetHeight;
 
 	Source(KHTMLNode parent, KStringView sURL = KStringView{}, const Classes& cls = html::Classes{}, KStringView sID = KStringView{})
 	: KWebObject<Source>(parent, TagName, cls, sID)
@@ -1730,6 +1906,8 @@ public:
 // -- head: <base> -----------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<base>` — the base URL for all relative URLs in the document (head
+/// element)
 class DEKAF2_PUBLIC Base : public KWebObject<Base>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1756,21 +1934,32 @@ public:
 
 }; // Base
 
+/// `<footer>` — closing content of a page or section
 using Footer = detail::HtmlContainer<tags::Footer>;
+/// `<nav>` — a navigation block
 using Nav = detail::HtmlContainer<tags::Nav>;
+/// `<main>` — the main content of the page
 using Main = detail::HtmlContainer<tags::Main>;
+/// `<article>` — a self-contained composition
 using Article = detail::HtmlContainer<tags::Article>;
+/// `<section>` — a thematic section
 using Section = detail::HtmlContainer<tags::Section>;
+/// `<aside>` — content set aside from the main flow (side notes, boxes)
 using Aside = detail::HtmlContainer<tags::Aside>;
+/// `<address>` — contact information
 using Address = detail::HtmlContainer<tags::Address>;
+/// `<figure>` — self-contained media with optional FigureCaption
 using Figure = detail::HtmlContainer<tags::Figure>;
+/// `<figcaption>` — the caption of a Figure
 using FigureCaption = detail::HtmlText<tags::FigureCaption>;
 
 // -- lists ------------------------------------------------------------------
 
+/// `<ul>` — an unordered list; add ListItem children
 using UnorderedList = detail::HtmlContainer<tags::UnorderedList>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<ol>` — an ordered (numbered) list; add ListItem children
 class DEKAF2_PUBLIC OrderedList : public KWebObject<OrderedList>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1790,13 +1979,16 @@ public:
 	            KStringView sID    = KStringView{})
 	: KWebObject<OrderedList>(parent, TagName, cls, sID) {}
 
+	/// number the list downwards (boolean `reversed` attribute)
 	self& SetReversed(bool b) { SetBoolAttribute("reversed", b); return *this; }
+	/// set the start number (`start` attribute)
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetStart(A v)       { KHTMLNode::SetAttribute("start", kFormat("{}", v)); return *this; }
 
 }; // OrderedList
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<li>` — a list item, with optional item text
 class DEKAF2_PUBLIC ListItem : public KWebObject<ListItem>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1820,18 +2012,27 @@ public:
 
 }; // ListItem
 
+/// `<dl>` — a description list of DescriptionTerm / DescriptionDetail pairs
 using DescriptionList = detail::HtmlContainer<tags::DescriptionList>;
+/// `<dt>` — a term in a DescriptionList
 using DescriptionTerm = detail::HtmlText<tags::DescriptionTerm>;
+/// `<dd>` — the description of the preceding DescriptionTerm
 using DescriptionDetail = detail::HtmlText<tags::DescriptionDetail>;
 
 // -- table sub-structure ----------------------------------------------------
 
+/// `<caption>` — the caption of a Table
 using TableCaption = detail::HtmlText<tags::TableCaption>;
+/// `<thead>` — groups the header rows of a Table
 using TableHead = detail::HtmlContainer<tags::TableHead>;
+/// `<tbody>` — groups the body rows of a Table
 using TableBody = detail::HtmlContainer<tags::TableBody>;
+/// `<tfoot>` — groups the footer rows of a Table
 using TableFoot = detail::HtmlContainer<tags::TableFoot>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<colgroup>` — a group of table columns; add Column children or use
+/// SetSpan()
 class DEKAF2_PUBLIC ColumnGroup : public KWebObject<ColumnGroup>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1854,6 +2055,8 @@ public:
 }; // ColumnGroup
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<col>` — a table column inside a ColumnGroup, for column-wide
+/// attributes
 class DEKAF2_PUBLIC Column : public KWebObject<Column>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1878,6 +2081,8 @@ public:
 // -- form ------------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<textarea>` — a multi-line text input, with optional name and
+/// initial content
 class DEKAF2_PUBLIC TextArea : public KWebObject<TextArea>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1890,6 +2095,7 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "textarea";
 
+	/// line-wrap submission modes (`wrap` attribute)
 	enum WRAP { SOFT, HARD };
 
 	using KWebObject::SetName;
@@ -1911,17 +2117,25 @@ public:
 		if (!sContent.empty()) AddText(sContent);
 	}
 
+	/// set the number of visible text rows
 	self& SetRows     (uint16_t r) { KHTMLNode::SetAttribute("rows",      kFormat("{}", r)); return *this; }
+	/// set the visible width in average character widths
 	self& SetCols     (uint16_t c) { KHTMLNode::SetAttribute("cols",      kFormat("{}", c)); return *this; }
+	/// set the maximum input length in characters
 	self& SetMaxLength(uint32_t n) { KHTMLNode::SetAttribute("maxlength", kFormat("{}", n)); return *this; }
+	/// set the minimum input length in characters
 	self& SetMinLength(uint32_t n) { KHTMLNode::SetAttribute("minlength", kFormat("{}", n)); return *this; }
+	/// choose whether line wraps are submitted (HARD) or not (SOFT)
 	self& SetWrap     (WRAP w)     { KHTMLNode::SetAttribute("wrap", w == HARD ? KStringView("hard") : KStringView("soft")); return *this; }
 
 }; // TextArea
 
+/// `<datalist>` — a list of Option children offered as autocomplete
+/// suggestions for an Input (linked via the input's `list` attribute)
 using DataList = detail::HtmlContainer<tags::DataList>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<optgroup>` — a labeled group of Options inside a Select
 class DEKAF2_PUBLIC OptionGroup : public KWebObject<OptionGroup>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1949,6 +2163,7 @@ public:
 }; // OptionGroup
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<meter>` — a gauge showing a scalar value within a known range
 class DEKAF2_PUBLIC Meter : public KWebObject<Meter>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -1976,16 +2191,21 @@ public:
 		if (!sValue.empty()) SetValue(sValue);
 	}
 
+	/// set the upper bound of the "low" range
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetLow    (A v) { KHTMLNode::SetAttribute("low",     kFormat("{}", v)); return *this; }
+	/// set the lower bound of the "high" range
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetHigh   (A v) { KHTMLNode::SetAttribute("high",    kFormat("{}", v)); return *this; }
+	/// set the optimal value
 	template<typename A, std::enable_if_t<std::is_arithmetic<A>::value, int> = 0>
 	self& SetOptimum(A v) { KHTMLNode::SetAttribute("optimum", kFormat("{}", v)); return *this; }
 
 }; // Meter
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<progress>` — a progress bar (value out of SetMax(), indeterminate
+/// without a value)
 class DEKAF2_PUBLIC Progress : public KWebObject<Progress>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2015,6 +2235,8 @@ public:
 // -- interactive ------------------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<details>` — a collapsible disclosure widget; a Summary child
+/// provides the always-visible caption
 class DEKAF2_PUBLIC Details : public KWebObject<Details>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2036,9 +2258,12 @@ public:
 
 }; // Details
 
+/// `<summary>` — the always-visible caption of a Details widget
 using Summary = detail::HtmlText<tags::Summary>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<dialog>` — a dialog box, hidden unless SetOpen(true) (or shown via
+/// script)
 class DEKAF2_PUBLIC Dialog : public KWebObject<Dialog>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2062,9 +2287,12 @@ public:
 
 // -- media-ish --------------------------------------------------------------
 
+/// `<picture>` — an image with alternative Sources; the Image child is
+/// the fallback
 using Picture = detail::HtmlContainer<tags::Picture>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<canvas>` — a script-drawable graphics area
 class DEKAF2_PUBLIC Canvas : public KWebObject<Canvas>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2078,7 +2306,7 @@ public:
 	static constexpr KStringView TagName = "canvas";
 
 	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
+	using KWebObject::SetHeight;
 
 	Canvas(KHTMLNode parent,
 	       const Classes& cls = html::Classes{},
@@ -2088,6 +2316,7 @@ public:
 }; // Canvas
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<time>` — a date/time annotation for the contained text
 class DEKAF2_PUBLIC Time : public KWebObject<Time>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2107,6 +2336,7 @@ public:
 	: KWebObject<Time>(parent, TagName, cls, sID)
 	{ if (!sContent.empty()) AddText(sContent); }
 
+	/// set the machine-readable date/time (`datetime` attribute)
 	self& SetDateTime(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("datetime", v); return *this; }
 
 }; // Time
@@ -2114,6 +2344,7 @@ public:
 // -- quotes / annotations ---------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<blockquote>` — a block-level quotation
 class DEKAF2_PUBLIC BlockQuote : public KWebObject<BlockQuote>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2138,6 +2369,7 @@ public:
 }; // BlockQuote
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<q>` — an inline quotation
 class DEKAF2_PUBLIC InlineQuote : public KWebObject<InlineQuote>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2161,27 +2393,44 @@ public:
 
 }; // InlineQuote
 
+/// `<abbr>` — an abbreviation; use SetTitle() for the expansion
 using Abbreviation = detail::HtmlText<tags::Abbreviation>;
+/// `<cite>` — the title of a cited work
 using Citation = detail::HtmlText<tags::Citation>;
 
 // -- inline text decoration -------------------------------------------------
 
+/// `<strong>` — strong importance (typically bold)
 using Strong = detail::HtmlText<tags::Strong>;
+/// `<em>` — emphasis (typically italic)
 using Emphasis = detail::HtmlText<tags::Emphasis>;
+/// `<b>` — bold, without added importance
 using Bold = detail::HtmlText<tags::Bold>;
+/// `<i>` — italic, without added emphasis
 using Italic = detail::HtmlText<tags::Italic>;
+/// `<u>` — underlined
 using Underline = detail::HtmlText<tags::Underline>;
+/// `<s>` — struck-through
 using Strikethrough = detail::HtmlText<tags::Strikethrough>;
+/// `<small>` — side comments and fine print
 using Small = detail::HtmlText<tags::Small>;
+/// `<sub>` — subscript
 using Subscript = detail::HtmlText<tags::Subscript>;
+/// `<sup>` — superscript
 using Superscript = detail::HtmlText<tags::Superscript>;
+/// `<mark>` — highlighted text
 using Mark = detail::HtmlText<tags::Mark>;
+/// `<code>` — a code fragment
 using Code = detail::HtmlText<tags::Code>;
+/// `<kbd>` — keyboard input
 using Keyboard = detail::HtmlText<tags::Keyboard>;
+/// `<samp>` — sample program output
 using Sample = detail::HtmlText<tags::Sample>;
+/// `<var>` — a variable name
 using Variable = detail::HtmlText<tags::Variable>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<del>` — text marked as deleted from the document
 class DEKAF2_PUBLIC Deleted : public KWebObject<Deleted>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2203,11 +2452,13 @@ public:
 	: KWebObject<Deleted>(parent, TagName, cls, sID)
 	{ if (!sContent.empty()) AddText(sContent); }
 
+	/// set the machine-readable date/time (`datetime` attribute)
 	self& SetDateTime(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("datetime", v); return *this; }
 
 }; // Deleted
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<ins>` — text marked as inserted into the document
 class DEKAF2_PUBLIC Inserted : public KWebObject<Inserted>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2229,6 +2480,7 @@ public:
 	: KWebObject<Inserted>(parent, TagName, cls, sID)
 	{ if (!sContent.empty()) AddText(sContent); }
 
+	/// set the machine-readable date/time (`datetime` attribute)
 	self& SetDateTime(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("datetime", v); return *this; }
 
 }; // Inserted
@@ -2236,6 +2488,8 @@ public:
 // -- niche / specialised ----------------------------------------------------
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<map>` — an image map: Area children define the clickable regions;
+/// referenced from an Image via its `usemap` attribute
 class DEKAF2_PUBLIC Map : public KWebObject<Map>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2262,6 +2516,7 @@ public:
 }; // Map
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<area>` — a clickable region inside a Map
 class DEKAF2_PUBLIC Area : public KWebObject<Area>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2274,6 +2529,7 @@ public:
 	static constexpr std::size_t TYPE = s_sObjectName.Hash();
 	static constexpr KStringView TagName = "area";
 
+	/// region shapes (`shape` attribute)
 	enum SHAPE { DEFAULT, RECT, CIRCLE, POLY };
 
 	using KWebObject::SetLink;
@@ -2288,7 +2544,9 @@ public:
 	     KStringView sID    = KStringView{})
 	: KWebObject<Area>(parent, TagName, cls, sID) {}
 
+	/// set the region coordinates (`coords` attribute)
 	self& SetCoords(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("coords", v); return *this; }
+	/// set the region shape
 	self& SetShape (SHAPE s)
 	{
 		KStringView sV;
@@ -2300,10 +2558,13 @@ public:
 
 }; // Area
 
+/// `<wbr>` — a word-break opportunity
 using WordBreak = detail::HtmlVoid<tags::WordBreak>;
+/// `<bdi>` — isolates bidirectional text from its surroundings
 using BiDirIsolate = detail::HtmlText<tags::BiDirIsolate>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<bdo>` — overrides the text direction (set it with SetDir())
 class DEKAF2_PUBLIC BiDirOverride : public KWebObject<BiDirOverride>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2326,11 +2587,15 @@ public:
 
 }; // BiDirOverride
 
+/// `<ruby>` — base text with ruby annotations (East Asian pronunciation aids)
 using Ruby = detail::HtmlContainer<tags::Ruby>;
+/// `<rp>` — fallback parenthesis for browsers without ruby support
 using RubyParen = detail::HtmlText<tags::RubyParen>;
+/// `<rt>` — the annotation text of a Ruby element
 using RubyText = detail::HtmlText<tags::RubyText>;
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<embed>` — embedded external content handled by a browser plugin
 class DEKAF2_PUBLIC Embed : public KWebObject<Embed>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2346,7 +2611,7 @@ public:
 	using KWebObject::SetSource;
 	using KWebObject::SetType;
 	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
+	using KWebObject::SetHeight;
 
 	Embed(KHTMLNode parent,
 	      KStringView sURL   = KStringView{},
@@ -2360,6 +2625,8 @@ public:
 }; // Embed
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<object>` — an embedded external resource, with optional resource
+/// URL (the `data` attribute)
 class DEKAF2_PUBLIC Object : public KWebObject<Object>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -2375,7 +2642,7 @@ public:
 	using KWebObject::SetName;
 	using KWebObject::SetType;
 	using KWebObject::SetWidth;
-	using KWebObject::SetHeigth;
+	using KWebObject::SetHeight;
 	using KWebObject::SetForm;
 
 	Object(KHTMLNode parent,
@@ -2387,11 +2654,13 @@ public:
 		if (!sData.empty()) KHTMLNode::SetAttribute("data", sData);
 	}
 
+	/// set the resource URL (`data` attribute)
 	self& SetData(KStringView v) { if (!v.empty()) KHTMLNode::SetAttribute("data", v); return *this; }
 
 }; // Object
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `<param>` — a name/value parameter of an Object element
 class DEKAF2_PUBLIC Param : public KWebObject<Param>
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

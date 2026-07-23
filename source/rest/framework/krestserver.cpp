@@ -561,7 +561,7 @@ void KRESTServer::Parse()
 				json.rx.clear();
 				if (m_Options.bThrowIfInvalidJson)
 				{
-					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, kFormat ("invalid JSON: {}", sError) };
+					throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid JSON" };
 				}
 			}
 			else

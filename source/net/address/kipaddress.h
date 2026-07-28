@@ -107,11 +107,21 @@ bool kIsPrivateIP(const KIPAddress& IP, bool bExcludeDocker = true);
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsPrivateIP(KStringView sIP, bool bExcludeDocker = true);
 
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// exception class for dekaf2 IP address errors
 class KIPError : public KError
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
+
+//----------
+public:
+//----------
+
 	using KError::KError;
-};
+
+	enum { PREFIX_TOO_LARGE = 444, INVALID_DIGIT_IN_PREFIX = 445 };
+
+}; // KIPError
 
 namespace detail {
 

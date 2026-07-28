@@ -76,7 +76,7 @@ uint8_t detail::KIPNetworkBase::PrefixLengthFromString (KStringView sNetwork, ui
 
 				if (!KASCII::kIsDigit(ch))
 				{
-					ec = KIPError("invalid digit in prefix", 445);
+					ec = KIPError("invalid digit in prefix", KIPError::INVALID_DIGIT_IN_PREFIX);
 					iPrefixLength = 0;
 					break;
 				}
@@ -87,7 +87,7 @@ uint8_t detail::KIPNetworkBase::PrefixLengthFromString (KStringView sNetwork, ui
 
 			if (iPrefixLength > iMaxPrefixLength)
 			{
-				ec = KIPError("prefix too large", 444);
+				ec = KIPError("prefix too large", KIPError::PREFIX_TOO_LARGE);
 				iPrefixLength = iMaxPrefixLength;
 			}
 		}
@@ -521,10 +521,12 @@ KIPNetwork KIPNetwork::FromString(KStringView sNetwork, bool bAcceptSingleHost, 
 {
 	KIPNetwork4 n4(sNetwork, bAcceptSingleHost, ec);
 
-	// 444 is our 'prefix too large' error - it does not invalidate the address,
+	// 'prefix too large' does not invalidate the address,
 	// and we do not change into IPv6 mode - this was an IPv4 address
-	// 445 is our 'invalid digit in prefix' error - same as above
-	if (!ec || ec.value() == 444 || ec.value() == 445)
+	// 'invalid digit in prefix' - same as above
+	if (!ec ||
+	     ec.value() == KIPError::PREFIX_TOO_LARGE ||
+	     ec.value() == KIPError::INVALID_DIGIT_IN_PREFIX)
 	{
 		return KIPNetwork(std::move(n4));
 	}
@@ -533,7 +535,9 @@ KIPNetwork KIPNetwork::FromString(KStringView sNetwork, bool bAcceptSingleHost, 
 
 	KIPNetwork6 n6(sNetwork, bAcceptSingleHost, ec);
 
-	if (!ec || ec.value() == 444 || ec.value() == 445)
+	if (!ec ||
+	     ec.value() == KIPError::PREFIX_TOO_LARGE ||
+	     ec.value() == KIPError::INVALID_DIGIT_IN_PREFIX)
 	{
 		return KIPNetwork(std::move(n6));
 	}

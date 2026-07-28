@@ -80,7 +80,9 @@ void KRESTServer::Options::AddTrustedProxies(KStringView sProxies)
 	{
 		KIPError ec;
 		KIPNetwork Proxy(sProxy, true, ec);
-		if (ec && ec.value() != 444 && ec.value() != 445)
+		if (ec &&
+		    ec.value() != KIPError::PREFIX_TOO_LARGE &&
+		    ec.value() != KIPError::INVALID_DIGIT_IN_PREFIX)
 		{
 			kDebug(1, "{}: {}", sProxy, ec.what());
 		}

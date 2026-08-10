@@ -1587,16 +1587,6 @@ bool operator==(const T& left, const T& right)
 }
 
 //-----------------------------------------------------------------------------
-template<typename T,
-		 typename std::enable_if<std::is_same<T, KStringView>::value == true, int>::type = 0>
-DEKAF2_CONSTEXPR_14
-bool operator!=(const T& left, const T& right)
-//-----------------------------------------------------------------------------
-{
-	return !operator==(left, right);
-}
-
-//-----------------------------------------------------------------------------
 template<typename T, typename U,
 		 typename std::enable_if<detail::is_kstringview_assignable<const T&, true>::value == true &&
                                  detail::is_kstringview_assignable<const U&, true>::value == true, int>::type = 0>
@@ -1626,29 +1616,7 @@ bool operator<(const KStringView left, const KStringView right)
 	return left.compare(right) < 0;
 }
 
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17 DEKAF2_PUBLIC
-bool operator>(const KStringView left, const KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return right < left;
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17 DEKAF2_PUBLIC
-bool operator<=(const KStringView left, const KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return !(left > right);
-}
-
-//-----------------------------------------------------------------------------
-DEKAF2_CONSTEXPR_17 DEKAF2_PUBLIC
-bool operator>=(const KStringView left, const KStringView right)
-//-----------------------------------------------------------------------------
-{
-	return !(right < left);
-}
+DEKAF2_COMPARISON_OPERATORS_BY_VALUE_WITH_ATTR(DEKAF2_CONSTEXPR_17 DEKAF2_PUBLIC, KStringView)
 
 // ======================= end comparisons ========================
 

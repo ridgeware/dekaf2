@@ -32,6 +32,39 @@ TEST_CASE("KStringView") {
 #endif
 	}
 
+	SECTION("comparison operators")
+	{
+		// a strictly ordered pair - with equal operands a broken >= or <= goes undetected
+		KStringView svA { "aaa" };
+		KStringView svB { "bbb" };
+
+		CHECK (   svA <  svB  );
+		CHECK (   svA <= svB  );
+		CHECK ( !(svA >  svB) );
+		CHECK ( !(svA >= svB) );
+
+		CHECK (   svB >  svA  );
+		CHECK (   svB >= svA  );
+		CHECK ( !(svB <  svA) );
+		CHECK ( !(svB <= svA) );
+
+		CHECK (   svA <= svA  );
+		CHECK (   svA >= svA  );
+		CHECK ( !(svA <  svA) );
+		CHECK ( !(svA >  svA) );
+
+		CHECK ( KString("23:30")     >  KString("22:00")     );
+		CHECK ( KString("23:30")     >= KString("22:00")     );
+		CHECK ( !(KString("12:00")   >= KString("22:00"))    );
+
+		// mixed types all route through the KStringView operators
+		CHECK ( KString("bbb")       >= KStringView("aaa")   );
+		CHECK ( KStringView("bbb")   >= "aaa"                );
+		CHECK ( "bbb"                >= KStringView("aaa")   );
+		CHECK ( KStringViewZ("bbb")  >= KStringViewZ("aaa")  );
+		CHECK ( KStringViewZ("bbb")  <= KStringViewZ("bbb")  );
+	}
+
 	SECTION("find")
 	{
 		KStringView sv("0123456  9abcdef h");

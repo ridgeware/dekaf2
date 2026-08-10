@@ -655,6 +655,18 @@ inline Type& operator Operator (Type& left, Type right) \
 // assume "inline" as the function attribute
 #define DEKAF2_COMPARISON_OPERATORS(Type) DEKAF2_COMPARISON_OPERATORS_WITH_ATTR(inline, Type)
 
+// same as DEKAF2_COMPARISON_OPERATORS_WITH_ATTR, but taking the operands by value - for
+// cheap-to-copy types whose implicit conversions cannot bind to a const Type& (like a
+// conversion from a type that inherits Type privately)
+#define DEKAF2_COMPARISON_OPERATORS_BY_VALUE_WITH_ATTR(Attr, Type) \
+ Attr bool operator!=(const Type left, const Type right) { return !(left == right); } \
+ Attr bool operator> (const Type left, const Type right) { return   right < left;   } \
+ Attr bool operator<=(const Type left, const Type right) { return !(right < left);  } \
+ Attr bool operator>=(const Type left, const Type right) { return !(left  < right); }
+
+// assume "inline" as the function attribute
+#define DEKAF2_COMPARISON_OPERATORS_BY_VALUE(Type) DEKAF2_COMPARISON_OPERATORS_BY_VALUE_WITH_ATTR(inline, Type)
+
 // helper macro to generate all comparison operators for one type from some
 // transformation, like function call or type conversion. Refer to the objects
 // in the wrapper with "left" or "right"

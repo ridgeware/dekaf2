@@ -808,13 +808,55 @@ test=xyz
 test=def
 test=xyz
 )";
-                          
+
         KInStringStream iss(sFile);
-        
+
         KProps<KString, KString, false, false> props;
         CHECK ( props.Load(iss) == 3     );
         CHECK ( props.size()    == 3     );
         CHECK ( props["test"]   == "xyz" );
     }
+
+	SECTION("comparison operators")
+	{
+		// a strictly ordered pair - with equal operands a broken >= or <= goes undetected,
+		// const objects verify the const correctness of the operators
+		const KProps<KString, KString> lesser  {{ "key", "aaa" }};
+		const KProps<KString, KString> greater {{ "key", "bbb" }};
+
+		CHECK (   lesser  <  greater  );
+		CHECK (   lesser  <= greater  );
+		CHECK ( !(lesser  >  greater) );
+		CHECK ( !(lesser  >= greater) );
+
+		CHECK (   greater >  lesser   );
+		CHECK (   greater >= lesser   );
+		CHECK ( !(greater <  lesser)  );
+		CHECK ( !(greater <= lesser)  );
+
+		CHECK (   lesser  <= lesser   );
+		CHECK (   lesser  >= lesser   );
+	}
+
+	SECTION("value_type (KMutablePair) comparison operators")
+	{
+		using Pair = KProps<KString, KString>::value_type;
+
+		const Pair lesser  { "key", "aaa" };
+		const Pair greater { "key", "bbb" };
+
+		CHECK (   lesser  <  greater  );
+		CHECK (   lesser  <= greater  );
+		CHECK ( !(lesser  >  greater) );
+		CHECK ( !(lesser  >= greater) );
+
+		CHECK (   greater >  lesser   );
+		CHECK (   greater >= lesser   );
+		CHECK ( !(greater <  lesser)  );
+		CHECK ( !(greater <= lesser)  );
+
+		CHECK (   lesser  <= lesser   );
+		CHECK (   lesser  >= lesser   );
+	}
 
 }

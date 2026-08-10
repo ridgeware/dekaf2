@@ -127,7 +127,7 @@ struct KMutablePair
 	bool operator>=(const KMutablePair& other) const
 	//-----------------------------------------------------------------------------
 	{
-		return !(other < *this);
+		return !(*this < other);
 	}
 
 	Key           first;

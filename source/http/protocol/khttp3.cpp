@@ -564,9 +564,20 @@ bool Stream::SendToQuic(const nghttp3_vec* vecs, std::size_t num_vecs, bool bFin
 	kDebug(4, "[stream {}] writing {} bytes", StreamID, iTotalLen);
 	/*
 	 * we let SSL_write_ex2(3) to conclude the stream for us (send FIN)
-	 * after all data are written.
+	 * after all data are written. OpenSSL concludes the stream with the
+	 * first write call that fully accepts its data and carries the flag,
+	 * so only the write of the last data vector may set it.
 	 */
-	uint64_t iFlags = bFin ? SSL_WRITE_FLAG_CONCLUDE : 0;
+	std::size_t iLastVec { 0 };
+
+	for (std::size_t i = num_vecs; i-- > 0;)
+	{
+		if (vecs[i].len > 0)
+		{
+			iLastVec = i;
+			break;
+		}
+	}
 
 	std::size_t total_written { 0 };
 
@@ -576,6 +587,8 @@ bool Stream::SendToQuic(const nghttp3_vec* vecs, std::size_t num_vecs, bool bFin
 		{
 			continue;
 		}
+
+		uint64_t iFlags = (bFin && i == iLastVec) ? SSL_WRITE_FLAG_CONCLUDE : 0;
 
 		std::size_t written { 0 };
 

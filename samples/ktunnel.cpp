@@ -1718,7 +1718,10 @@ int Tunnel::Main(int argc, char** argv)
 		"                                side as -trust-fingerprint. Reads the\n"
 		"                                identity from -identity-key <path> or\n"
 		"                                from the default location next to the\n"
-		"                                admin DB. Then exits.\n",
+		"                                admin DB. Then exits.\n"
+		"\n"
+		"  -install with -e/-exposed (protected host) skips the admin\n"
+		"  bootstrap — a protected host has no admin DB or server identity.\n",
 		KService::GetHelp()));
 
 	// define cli options
@@ -1726,6 +1729,7 @@ int Tunnel::Main(int argc, char** argv)
 	m_Config.iPort         = Options("p,port       : port number to listen at for TLS connections (if exposed host), or connect to (if protected host) - defaults to 443.", 443);
 	m_Config.iRawPort      = Options("f,forward    : port number to listen at for raw TCP connections that will be forwarded (if exposed host)", 0);
 	KStringView sSecrets   = Options("s,secret     : on the protected host: REQUIRED, the password used to log in to the exposed host (must match the bcrypt-hashed password of the matching row in the exposed host's `nodes` table). On the exposed host: only used in ad-hoc mode (with -f / -t), where it is the comma-separated list of pre-shared secrets for peer authentication; in stateful mode it is ignored — manage the admin password via `ktunnel -set-admin` and node accounts via the admin UI.", "").String();
+	KString sSecretFile    = Options("secret-file <path> : runtime alternative to -s: read the login secret from <path> instead of putting it on the command line. The whole file content is used as a single secret (one trailing newline is stripped). Unlike the bootstrap-only -pass-file, this flag is read on every start, so a service can be installed without the secret ending up in the systemd unit / SCM ImagePath. Mutually exclusive with -s.", "");
 	m_Config.DefaultTarget = Options("t,target     : if exposed host, takes the domain:port of a default target, if no other target had been specified in the incoming data connect", "");
 	m_Config.iMaxTunneledConnections
 	                       = Options("m,maxtunnels : if exposed host, maximum number of tunnels to open, defaults to 10 - if protected host, the setting has no effect.", 10);
@@ -1771,6 +1775,38 @@ int Tunnel::Main(int argc, char** argv)
 	for (auto& sSecret : sSecrets.Split())
 	{
 		m_Config.Secrets.insert(sSecret);
+	}
+
+	// A runtime secret file (-secret-file) is the service-safe alternative to
+	// -s: the secret stays out of the persisted unit / ImagePath and is read
+	// on every start. The whole file is one secret; strip a trailing newline
+	// so an editor-written file works. -s and -secret-file are exclusive.
+	if (!sSecretFile.empty())
+	{
+		if (!m_Config.Secrets.empty())
+		{
+			SetError("use either -s / -secret or -secret-file, not both");
+		}
+
+		KString sFileSecret;
+
+		if (!kReadAll(sSecretFile, sFileSecret))
+		{
+			SetError(kFormat("cannot read secret file '{}'", sSecretFile));
+		}
+
+		while (!sFileSecret.empty()
+		       && (sFileSecret.back() == '\n' || sFileSecret.back() == '\r'))
+		{
+			sFileSecret.pop_back();
+		}
+
+		if (sFileSecret.empty())
+		{
+			SetError(kFormat("secret file '{}' is empty", sSecretFile));
+		}
+
+		m_Config.Secrets.insert(std::move(sFileSecret));
 	}
 
 	if (!m_Config.iMaxTunneledConnections) SetError("maxtunnels should be at least 1");
@@ -2607,7 +2643,18 @@ int main(int argc, char** argv)
 
 	if (HasBootstrapFlag(argc, argv, "install"))
 	{
-		if (!BootstrapAdminForInstall(argc, argv)) return 1;
+		// A protected-host install (-e/-exposed present) has no admin DB,
+		// no admin UI and no server identity — the runtime never opens
+		// either. Skip the bootstrap entirely so the install needs no
+		// admin password and leaves no unused ktunnel.db behind.
+		if (HasBootstrapFlag(argc, argv, "e") || HasBootstrapFlag(argc, argv, "exposed"))
+		{
+			KOut.FormatLine("ktunnel: protected-host install (-e given) — skipping admin bootstrap");
+		}
+		else if (!BootstrapAdminForInstall(argc, argv))
+		{
+			return 1;
+		}
 		// Fall through: KService::Run sees -install and registers the
 		// service. The runtime service launch will then read the seeded
 		// admin password from the same DB.

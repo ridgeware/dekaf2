@@ -1019,6 +1019,13 @@ TEST_CASE("UTF") {
 			auto s8 = kutf::Convert<std::string>(L"Aé日");
 			CHECK ( s8 == "Aé日" );
 		}
+		// mutable wchar_t* -> return type (like PWSTR from Windows APIs)
+		{
+			std::wstring wsBuffer(L"Aé日");
+			wchar_t* pWide = &wsBuffer[0];
+			auto s8 = kutf::Convert<std::string>(pWide);
+			CHECK ( s8 == "Aé日" );
+		}
 		// wchar_t* nullptr
 		{
 			std::string sOut;

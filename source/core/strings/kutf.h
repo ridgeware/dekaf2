@@ -1899,7 +1899,9 @@ OutType Convert(Iterator it, Iterator ie)
 /// Convert any string in UTF8, UTF16, or UTF32 into any string in UTF8, UTF16, or UTF32
 /// @param sInput the UTF input container (typically a string type)
 /// @return a UTF container (typically a string type)
-template<typename OutType, typename InpType>
+template<typename OutType, typename InpType,
+         typename std::enable_if<!std::is_integral<InpType>::value
+                              && KUTF_detail::HasSize<InpType>::value, int>::type = 0>
 KUTF_CONSTEXPR_14
 OutType Convert(const InpType& sInput)
 //-----------------------------------------------------------------------------

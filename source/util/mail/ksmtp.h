@@ -96,6 +96,9 @@ public:
 	bool Good() const;
 	/// Send a KMail to the mail relay
 	bool Send(const KMail& Mail);
+	/// Returns the last SMTP reply code received from the server, 0 if none
+	DEKAF2_NODISCARD
+	uint16_t GetLastReplyCode() const { return m_iLastReplyCode; }
 	/// Set the connection timeout, preset is 15 seconds
 	void SetTimeout(KDuration Timeout) { m_Timeout = Timeout; }
 	/// Set the connection timeout in seconds, preset is 15
@@ -118,6 +121,8 @@ private:
 	std::unique_ptr<KIOStreamSocket> m_Connection;
 	// the TCP timeout
 	KDuration m_Timeout { KStreamOptions::GetDefaultTimeout() };
+	// the last SMTP reply code received from the server
+	uint16_t m_iLastReplyCode { 0 };
 
 }; // KSMTP
 

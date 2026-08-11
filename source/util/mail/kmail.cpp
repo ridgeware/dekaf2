@@ -144,9 +144,21 @@ KMail& KMail::Body(KMIMEMultiPart parts)
 {
 	m_Parts = std::move(parts);
 	m_iBody = 0;
+	m_sSerializedBody.clear();
 	return *this;
 
 } // Body
+
+//-----------------------------------------------------------------------------
+KMail& KMail::SerializedBody(KString sBody)
+//-----------------------------------------------------------------------------
+{
+	m_Parts = KMIMEMultiPart();
+	m_iBody = 0;
+	m_sSerializedBody = std::move(sBody);
+	return *this;
+
+} // SerializedBody
 
 //-----------------------------------------------------------------------------
 KMail& KMail::LoadBodyFrom(KStringViewZ sPath)
@@ -311,6 +323,7 @@ KMail& KMail::Attach(KMIMEPart part)
 		m_Parts = KMIMEMultiPart(KMIME::MULTIPART_MIXED);
 	}
 	m_Parts += std::move(part);
+	m_sSerializedBody.clear();
 	return *this;
 
 } // Attach
@@ -355,7 +368,7 @@ bool KMail::Good() const
 		return SetError("missing subject");
 	}
 
-	if (m_Parts.empty())
+	if (m_Parts.empty() && m_sSerializedBody.empty())
 	{
 		kDebug(1, "no body in mail");
 	}
@@ -403,6 +416,11 @@ const KString& KMail::Subject() const
 KString KMail::Serialize() const
 //-----------------------------------------------------------------------------
 {
+	if (!m_sSerializedBody.empty())
+	{
+		return m_sSerializedBody;
+	}
+
 	KString sBody;
 
 	if (m_Replacer)
@@ -423,6 +441,14 @@ KUnixTime KMail::Time() const
 //-----------------------------------------------------------------------------
 {
 	return m_Time;
+}
+
+//-----------------------------------------------------------------------------
+KMail& KMail::Time(KUnixTime tTime)
+//-----------------------------------------------------------------------------
+{
+	m_Time = tTime;
+	return *this;
 }
 
 //-----------------------------------------------------------------------------

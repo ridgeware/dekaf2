@@ -92,6 +92,7 @@ set (USOURCES
 	klockmap_tests.cpp
 	klog_tests.cpp
 	klogrotate_tests.cpp
+	kmailspool_tests.cpp
 	kmemorymap_tests.cpp
 	kmessagedigest_tests.cpp
 	kmime_tests.cpp

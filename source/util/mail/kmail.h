@@ -121,6 +121,10 @@ public:
 	/// any previously set content.
 	self& Body(KMIMEMultiPart part);
 
+	/// Set the mail body from an already serialized MIME structure, as returned
+	/// by Serialize(). This voids any previously set content.
+	self& SerializedBody(KString sBody);
+
 	/// Set the mail body to a multipart structure (or to a single part). This voids
 	/// any previously set content.
 	self& operator=(KMIMEMultiPart part)
@@ -214,6 +218,9 @@ public:
 	DEKAF2_NODISCARD
 	KUnixTime Time() const;
 
+	/// Set creation time, e.g. when restoring a stored mail
+	self& Time(KUnixTime tTime);
+
 //----------
 private:
 //----------
@@ -225,6 +232,7 @@ private:
 	map_t m_Bcc;
 	map_t m_From; // actually we only need one single key and value for From
 	KString m_Subject;
+	KString m_sSerializedBody;
 
 	std::shared_ptr<KReplacer> m_Replacer;
 	KUnixTime m_Time { KUnixTime::now() };

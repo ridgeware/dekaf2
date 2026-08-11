@@ -64,6 +64,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 		
 		if (!m_Connection->WriteLine(sTx).Flush().Good())
 		{
+			m_iLastReplyCode = 0;
 			if (bDisconnectOnFailure)
 			{
 				Disconnect();
@@ -86,6 +87,7 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 
 			if (!m_Connection->ReadLine(sLine))
 			{
+				m_iLastReplyCode = 0;
 				if (bDisconnectOnFailure)
 				{
 					Disconnect();
@@ -107,6 +109,8 @@ bool KSMTP::Talk(KStringView sTx, KStringView sRx, ESMTPParms* parms, bool bDisc
 				// this is a continuation line.. skip it
 				continue;
 			}
+
+			m_iLastReplyCode = KStringView(sLine).Left(3).UInt16();
 
 			if (!sLine.starts_with(sRx))
 			{
@@ -299,6 +303,8 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 
 	ClearError();
 
+	m_iLastReplyCode = 0;
+
 	// force TLS socket for opportunistic TLS, do not allow ALPN HTTP2 upgrade
 	m_Connection = KIOStreamSocket::Create(Relay, true, m_Timeout);
 
@@ -438,7 +444,11 @@ void KSMTP::Disconnect()
 {
 	if (Good())
 	{
+		// preserve the reply code of the last transaction across the
+		// QUIT exchange
+		auto iLastReplyCode = m_iLastReplyCode;
 		Talk("QUIT", "221", nullptr, false);
+		m_iLastReplyCode = iLastReplyCode;
 	}
 	if (m_Connection)
 	{

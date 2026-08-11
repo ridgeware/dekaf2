@@ -1625,6 +1625,7 @@ set(PUBLIC_HEADERS
 	source/util/codec/kreedsolomon.h
 	source/util/id/kuuid.h
 	source/util/mail/kmail.h
+	source/util/mail/kmailspool.h
 	source/util/mail/ksmtp.h
 	source/util/misc/ktemperature.h
 	source/util/misc/kversion.h
@@ -1895,6 +1896,7 @@ set (SOURCES
 	source/util/codec/kreedsolomon.cpp
 	source/util/id/kuuid.cpp
 	source/util/mail/kmail.cpp
+	source/util/mail/kmailspool.cpp
 	source/util/mail/ksmtp.cpp
 	source/util/misc/kversion.cpp
 	source/util/qrcode/kqrcode.cpp

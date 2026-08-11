@@ -96,7 +96,6 @@ streams`. Stop with `Ctrl-C`. Only once that works, set it up as a service.
 | `-aes`                    | Optional: X25519+Ed25519+HKDF handshake, identity pinning + forward secrecy on top of TLS.      |
 | `-trust-fingerprint <fp>` | With `-aes`: accept exactly this server fingerprint (from `ktunnel -fingerprint`).              |
 | `-to, --timeout <s>`      | Timeout / reconnect interval in seconds (default 30).                                           |
-| `-notls`                  | Only if the tunnel itself uses unencrypted HTTP (not recommended).                              |
 
 > For a **headless service** always use `-trust-fingerprint`, **not**
 > `-trust-on-first-use`: the latter needs an interactive TTY and fails under

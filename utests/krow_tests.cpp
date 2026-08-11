@@ -150,6 +150,128 @@ TEST_CASE("KROW")
 		}
 	}
 
+	SECTION("UTF8 clipping")
+	{
+		// clipping a column value to a max length must never leave an orphaned
+		// (incomplete) UTF-8 sequence at the end (e.g. a lone lead byte '\xE2')
+
+		// MySQL style escaping (backslash escape char)
+		static constexpr KStringView sMySQLSet { "\'\"\\`\0"_ksv };
+		// MSSQL style escaping (quote doubling, no escape char)
+		static constexpr KStringView sMSSQLSet { "\"'"_ksv };
+
+		SECTION("three byte sequence (EURO SIGN)")
+		{
+			// "abc€xyz", the € (U+20AC) is the three bytes E2 82 AC
+			KStringView sInput { "abc" "\xE2\x82\xAC" "xyz" };
+			CHECK ( sInput.size() == 9 );
+
+			{
+				// cut right after the lead byte -> whole € must be dropped
+				KROW::value_type Value { "key", KCOL { sInput, KCOL::NOFLAG, 4 } };
+				auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+				CHECK ( sEscaped == "abc" );
+				CHECK ( sEscaped.size() == 3 );
+			}
+			{
+				// cut after two of the three bytes -> whole € must be dropped
+				KROW::value_type Value { "key", KCOL { sInput, KCOL::NOFLAG, 5 } };
+				auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+				CHECK ( sEscaped == "abc" );
+				CHECK ( sEscaped.size() == 3 );
+			}
+			{
+				// cut exactly on the codepoint boundary -> € is complete, kept
+				KROW::value_type Value { "key", KCOL { sInput, KCOL::NOFLAG, 6 } };
+				auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+				CHECK ( sEscaped == "abc" "\xE2\x82\xAC" );
+				CHECK ( sEscaped.size() == 6 );
+			}
+			{
+				// same, but through the MSSQL escape path
+				KROW::value_type Value { "key", KCOL { sInput, KCOL::NOFLAG, 5 } };
+				auto sEscaped = KROW::EscapeChars(Value, sMSSQLSet, '\0');
+				CHECK ( sEscaped == "abc" );
+				CHECK ( sEscaped.size() == 3 );
+			}
+		}
+
+		SECTION("two byte sequence")
+		{
+			// "abéxyz", the é (U+00E9) is the two bytes C3 A9
+			KStringView sInput { "ab" "\xC3\xA9" "xyz" };
+
+			{
+				KROW::value_type Value { "key", KCOL { sInput, KCOL::NOFLAG, 3 } };
+				auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+				CHECK ( sEscaped == "ab" );
+				CHECK ( sEscaped.size() == 2 );
+			}
+			{
+				// cut on the boundary -> é kept
+				KROW::value_type Value { "key", KCOL { sInput, KCOL::NOFLAG, 4 } };
+				auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+				CHECK ( sEscaped == "ab" "\xC3\xA9" );
+				CHECK ( sEscaped.size() == 4 );
+			}
+		}
+
+		SECTION("four byte sequence (emoji)")
+		{
+			// "a😀xyz", the 😀 (U+1F600) is the four bytes F0 9F 98 80
+			KStringView sInput { "a" "\xF0\x9F\x98\x80" "xyz" };
+
+			{
+				KROW::value_type Value { "key", KCOL { sInput, KCOL::NOFLAG, 3 } };
+				auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+				CHECK ( sEscaped == "a" );
+				CHECK ( sEscaped.size() == 1 );
+			}
+			{
+				KROW::value_type Value { "key", KCOL { sInput, KCOL::NOFLAG, 4 } };
+				auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+				CHECK ( sEscaped == "a" );
+				CHECK ( sEscaped.size() == 1 );
+			}
+			{
+				// cut on the boundary -> 😀 kept
+				KROW::value_type Value { "key", KCOL { sInput, KCOL::NOFLAG, 5 } };
+				auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+				CHECK ( sEscaped == "a" "\xF0\x9F\x98\x80" );
+				CHECK ( sEscaped.size() == 5 );
+			}
+		}
+
+		SECTION("escape overflow clips into UTF-8 sequence")
+		{
+			// "12'€": escaping the quote grows the string past the limit, so the
+			// clip logic kicks in and can land in the middle of the € sequence
+			KROW::value_type Value { "key", KCOL { "12'" "\xE2\x82\xAC", KCOL::NOFLAG, 5 } };
+			auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+			CHECK ( sEscaped == "12\\'" );
+			CHECK ( sEscaped.size() == 4 );
+		}
+
+		SECTION("plain ASCII is unaffected")
+		{
+			KROW::value_type Value { "key", KCOL { "1234567890", KCOL::NOFLAG, 5 } };
+			auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+			CHECK ( sEscaped == "12345" );
+			CHECK ( sEscaped.size() == 5 );
+		}
+
+		SECTION("pre-existing invalid bytes are not eaten")
+		{
+			// Latin-1 content: the trailing '\xE9' looks like a UTF-8 lead byte,
+			// but the cut at 4 does not split anything - only cuts that actually
+			// split a sequence may remove bytes
+			KROW::value_type Value { "key", KCOL { "Caf" "\xE9" "xyz", KCOL::NOFLAG, 4 } };
+			auto sEscaped = KROW::EscapeChars(Value, sMySQLSet, '\\');
+			CHECK ( sEscaped == "Caf" "\xE9" );
+			CHECK ( sEscaped.size() == 4 );
+		}
+	}
+
 	SECTION("StoreLoad")
 	{
 		KROW row;

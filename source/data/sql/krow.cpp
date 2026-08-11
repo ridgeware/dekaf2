@@ -42,6 +42,7 @@
 
 #include <dekaf2/data/sql/krow.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/data/csv/kcsv.h>
 #include <dekaf2/crypto/encoding/khex.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
@@ -83,6 +84,26 @@ const KFindSetOfChars& EscapedCharacterSet(KROW::DBT iDBType)
 	}
 
 } // EscapedCharacterSet
+
+//-----------------------------------------------------------------------------
+/// returns iCutAt, moved backwards if a cut at that byte position would split
+/// a multibyte UTF8 sequence - the new position then drops the sequence
+std::size_t AdjustCutToUTF8Boundary(KStringView sStr, std::size_t iCutAt)
+//-----------------------------------------------------------------------------
+{
+	if (iCutAt < sStr.size())
+	{
+		// if the first byte dropped by the cut is a UTF8 continuation byte the
+		// cut splits a sequence - move it back onto the sequence's start byte
+		while (iCutAt > 0 && kutf::IsContinuationByte(kutf::CodepointCast(sStr[iCutAt])))
+		{
+			--iCutAt;
+		}
+	}
+
+	return iCutAt;
+
+} // AdjustCutToUTF8Boundary
 
 } // end of anonymous namespace
 
@@ -371,13 +392,16 @@ KSQLString KROW::EscapeColWithSet (const KROW::value_type& Col, const KFindSetOf
 
 	if (iMaxLen)
 	{
-		sEscaped.ref() = kEscapeChars(Col.second.sValue.Left(iMaxLen), Escapables, iEscapeChar);
+		// make sure the cut at iMaxLen does not split a multibyte UTF8 sequence
+		auto iCutAt = AdjustCutToUTF8Boundary(Col.second.sValue, iMaxLen);
+
+		sEscaped.ref() = kEscapeChars(Col.second.sValue.Left(iCutAt), Escapables, iEscapeChar);
 
 		if (sEscaped.size() > iMaxLen)
 		{
 			kDebug (1, "clipping {}='{:.10}...' with length {} to {} chars", Col.first, sEscaped, sEscaped.size(), iMaxLen);
 
-			auto iClipAt { iMaxLen };
+			std::size_t iClipAt { iMaxLen };
 
 			// watch out for a trailing escape or escape char, depending on the algorithm:
 			if (iEscapeChar)
@@ -402,6 +426,12 @@ KSQLString KROW::EscapeColWithSet (const KROW::value_type& Col, const KFindSetOf
 					--iClipAt;
 				}
 			}
+
+			// the clip position may split a multibyte UTF8 sequence as well. This
+			// cannot reintroduce a dangling escape char: the adjustment only strips
+			// continuation bytes, and an escape char followed by a continuation
+			// byte can only be the second char of an escaped pair.
+			iClipAt = AdjustCutToUTF8Boundary(sEscaped.str(), iClipAt);
 
 			sEscaped.resize(iClipAt);
 		}

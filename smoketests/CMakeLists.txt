@@ -34,6 +34,7 @@ set (USOURCES
 	khttp3_smoketests.cpp
 	khttpclient_smoketests.cpp
 	kinshell_smoketests.cpp
+	ksmtp_smoketests.cpp
 	ktlsstream_smoketests.cpp
 	ksql_smoketests.cpp
 	kresolve_smoketests.cpp

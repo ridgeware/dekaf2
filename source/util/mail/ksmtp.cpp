@@ -313,7 +313,13 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 		return SetError(kFormat("cannot connect to SMTP server {}:{} - {}", Relay.Domain.Serialize(), Relay.Port.Serialize(), m_Connection->GetLastError()));
 	}
 
-	if (m_Connection->IsTLS())
+	// on port 465 (submissions) the server expects a TLS handshake right away -
+	// on all other ports the session starts in plaintext and upgrades through
+	// STARTTLS after the EHLO
+	uint16_t iPort = Relay.Port.empty() ? Relay.Protocol.DefaultPort() : Relay.Port.Serialize().UInt16();
+	bool bImplicitTLS = (iPort == 465);
+
+	if (m_Connection->IsTLS() && !bImplicitTLS)
 	{
 		// we want an opportunistic TLS handshake (after having issued STARTTLS)
 		m_Connection->SetManualTLSHandshake(true);
@@ -345,9 +351,9 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 		}
 	}
 
-	bool bIsTLS { false };
+	bool bIsTLS { bImplicitTLS };
 
-	if (m_Connection->IsTLS() && Parms.find("STARTTLS") != Parms.end())
+	if (!bIsTLS && m_Connection->IsTLS() && Parms.find("STARTTLS") != Parms.end())
 	{
 		// prepare for TLS handshake
 		if (!Talk("STARTTLS", "220"))

@@ -89,6 +89,9 @@ public:
 	/// Connect to mail relay. Relay may contain a user's name and pass, or
 	/// they can be set explicitly with sUsername / sPassword, which will override
 	/// anything in the URL.
+	/// The session starts in plaintext and upgrades through STARTTLS when the
+	/// server offers it - except on port 465 (submissions), where TLS is
+	/// negotiated right away.
 	bool Connect(const KURL& Relay, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
 	/// Disconnect from mail relay
 	void Disconnect();

@@ -117,6 +117,10 @@ KOptions::OptionalParm::OptionalParm(KOptions& base, KStringView sOption, KStrin
 		// The string was already persisted before this constructor was called,
 		// we do not persist it a second time.
 		IntHelp(pair.second, 0);
+		// and keep only the names before the help text, else the help
+		// formatter prints the full string as the option name, and the name
+		// registration splits the help text at any comma into phantom names
+		m_sNames = pair.first;
 	}
 	else if (!sArgDescription.empty())
 	{

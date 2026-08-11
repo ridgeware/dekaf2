@@ -1562,6 +1562,8 @@ set(PUBLIC_HEADERS
 	source/net/address/knetworkinterface.h
 	source/net/address/kresolve.h
 	source/net/geo/kgeoip.h
+	source/net/mqtt/bits/kmqttcodec.h
+	source/net/mqtt/kmqttclient.h
 	source/net/quic/kquicstream.h
 	source/net/udp/kdtlsserver.h
 	source/net/udp/kdtlssocket.h
@@ -1837,6 +1839,8 @@ set (SOURCES
 	source/net/address/knetworkinterface.cpp
 	source/net/address/kresolve.cpp
 	source/net/geo/kgeoip.cpp
+	source/net/mqtt/bits/kmqttcodec.cpp
+	source/net/mqtt/kmqttclient.cpp
 	source/net/quic/kquicstream.cpp
 	source/net/udp/kdtlsserver.cpp
 	source/net/udp/kdtlssocket.cpp
@@ -2412,6 +2416,9 @@ if (DEKAF2_BUILD_SAMPLES)
 	add_executable(kgeoip samples/kgeoip.cpp)
 	target_link_libraries(kgeoip dekaf2${DEKAF2_LINK_SHARED})
 
+	add_executable(kmqtt samples/kmqtt.cpp)
+	target_link_libraries(kmqtt dekaf2${DEKAF2_LINK_SHARED})
+
 	if (SQLITE3_FOUND)
 		add_executable(ktunnel
 			samples/ktunnel.cpp
@@ -2686,7 +2693,7 @@ endif() # DEKAF2_INSTALL_BIN
 
 if (DEKAF2_BUILD_SAMPLES)
 
-	install(TARGETS kurl khttp kgrep kreplace ksql krypt kgeoip statinfo DESTINATION ${dekaf2_bin_dest})
+	install(TARGETS kurl khttp kgrep kreplace ksql krypt kgeoip kmqtt statinfo DESTINATION ${dekaf2_bin_dest})
 	if (SQLITE3_FOUND)
 		install(TARGETS ktunnel kssod DESTINATION ${dekaf2_bin_dest})
 	endif()

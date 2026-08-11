@@ -77,6 +77,9 @@ target_link_libraries(ktunnel dekaf2)
 add_executable(kgeoip kgeoip.cpp)
 target_link_libraries(kgeoip dekaf2)
 
+add_executable(kmqtt kmqtt.cpp)
+target_link_libraries(kmqtt dekaf2)
+
 # ================================= INSTALLATION =====================================
 
 set(bin_dest "bin")

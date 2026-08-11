@@ -98,6 +98,7 @@ set (USOURCES
 	kmime_tests.cpp
 	kmodifyingstreambuf_tests.cpp
 	kmpsearch_tests.cpp
+	kmqtt_tests.cpp
 	knetworkinterface_tests.cpp
 	kngram_tests.cpp
 	koptions_tests.cpp

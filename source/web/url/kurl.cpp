@@ -279,64 +279,90 @@ private:
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 DEKAF2_CONSTEXPR_14
-Protocols s_Canonical [KProtocol::UNKNOWN+1] =
+Protocols s_Canonical [] =
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
-	{    0, ""       , ""          }, // Empty placeholder for UNDEFINED, parse has not been run yet.
-	{   25, ""       , "mailto:"   }, // mailto stays first, auto second!
-	{   80, "auto"   , "//"        }, // auto falls back to HTTP..
-	{   80, ""       , "http://"   },
-	{  443, ""       , "https://"  },
-	{    0, ""       , "file://"   },
-	{   21, ""       , "ftp://"    },
-	{  990, ""       , "ftps://"   },
-	{   22, ""       , "ssh://"    },
-	{ 9418, ""       , "git://"    },
-	{   22, ""       , "git+ssh://"},
-	{    0, ""       , "svn://"    },
-	{   22, ""       , "svn+ssh://"},
-	{  119, ""       , "news://"   },
-	{  119, ""       , "nntp://"   },
-	{  563, ""       , "nntps://"  },
-	{   23, ""       , "telnet://" },
-	{  992, ""       , "telnets://"},
-	{   70, ""       , "gopher://" },
-	{    0, ""       , "unix://"   }, // this is for unix socket files ("unix:///this/is/my/socket")
-	{   25, ""       , "smtp://"   },
-	{  587, ""       , "smtps://"  },
-	{  110, ""       , "pop3://"   },
-	{  995, ""       , "pop3s://"  },
-	{  143, ""       , "imap://"   },
-	{  993, ""       , "imaps://"  },
-	{  194, ""       , "irc://"    },
-	{   80, ""       , "ws://"     },
-	{  443, ""       , "wss://"    },
-	{  554, ""       , "rtsp://"   },
-	{  322, ""       , "rtsps://"  },
-	{ 1935, ""       , "rtmp://"   },
-	{  443, ""       , "rtmps://"  },
-	{    0, ""       , "whep://"   },
-	{    0, ""       , "wheps://"  },
-	{    0, ""       , "srt://"    },
-	{    0, ""       , "udp://"    },
-	{   69, ""       , "tftp://"   },
-	{  115, ""       , "sftp://"   },
-	{  123, ""       , "ntp://"    },
-	{  161, ""       , "snmp://"   },
-	{  179, ""       , "bgp://"    },
-	{  389, ""       , "ldap://"   },
-	{  636, ""       , "ldaps://"  },
-	{  401, ""       , "ups://"    },
-	{  502, ""       , "mbap://"   },
-	{  540, ""       , "uucp://"   },
-	{  631, ""       , "ipp://"    },
-	{  631, ""       , "ipps://"   }, // shares default port with ipp://
-	{  689, ""       , "nmap://"   },
-	{  873, ""       , "rsync://"  },
-	{  888, ""       , "cddbp://"  },
-	{ 1080, ""       , "socks://"  },
-	{    0, ""       , ""          }  // Empty placeholder for UNKNOWN, use m_sProto.
+	{     0, ""       , ""              }, // Empty placeholder for UNDEFINED, parse has not been run yet.
+	{    25, ""       , "mailto:"       }, // mailto stays first, auto second!
+	{    80, "auto"   , "//"            }, // auto falls back to HTTP..
+	{    80, ""       , "http://"       },
+	{   443, ""       , "https://"      },
+	{     0, ""       , "file://"       },
+	{    21, ""       , "ftp://"        },
+	{   990, ""       , "ftps://"       },
+	{    22, ""       , "ssh://"        },
+	{  9418, ""       , "git://"        },
+	{    22, ""       , "git+ssh://"    },
+	{  3690, ""       , "svn://"        },
+	{    22, ""       , "svn+ssh://"    },
+	{   119, ""       , "news://"       },
+	{   119, ""       , "nntp://"       },
+	{   563, ""       , "nntps://"      },
+	{    23, ""       , "telnet://"     },
+	{   992, ""       , "telnets://"    },
+	{    70, ""       , "gopher://"     },
+	{     0, ""       , "unix://"       }, // this is for unix socket files ("unix:///this/is/my/socket")
+	{    25, ""       , "smtp://"       },
+	{   587, ""       , "smtps://"      },
+	{   110, ""       , "pop3://"       },
+	{   995, ""       , "pop3s://"      },
+	{   143, ""       , "imap://"       },
+	{   993, ""       , "imaps://"      },
+	{  6667, ""       , "irc://"        }, // common usage; the IANA port 194 was never adopted
+	{    80, ""       , "ws://"         },
+	{   443, ""       , "wss://"        },
+	{   554, ""       , "rtsp://"       },
+	{   322, ""       , "rtsps://"      },
+	{  1935, ""       , "rtmp://"       },
+	{   443, ""       , "rtmps://"      },
+	{    80, ""       , "whep://"       }, // http based, hence the http/https ports
+	{   443, ""       , "wheps://"      },
+	{     0, ""       , "srt://"        },
+	{     0, ""       , "udp://"        },
+	{    69, ""       , "tftp://"       },
+	{    22, ""       , "sftp://"       }, // common usage: the SSH file transfer protocol, not RFC 913 (port 115)
+	{   123, ""       , "ntp://"        },
+	{   161, ""       , "snmp://"       },
+	{   179, ""       , "bgp://"        },
+	{   389, ""       , "ldap://"       },
+	{   636, ""       , "ldaps://"      },
+	{   401, ""       , "ups://"        },
+	{   502, ""       , "mbap://"       },
+	{   540, ""       , "uucp://"       },
+	{   631, ""       , "ipp://"        },
+	{   631, ""       , "ipps://"       }, // shares default port with ipp://
+	{   689, ""       , "nmap://"       },
+	{   873, ""       , "rsync://"      },
+	{   888, ""       , "cddbp://"      },
+	{  1080, ""       , "socks://"      },
+	{  1883, ""       , "mqtt://"       },
+	{  8883, ""       , "mqtts://"      },
+	{     0, ""       , "dtls://"       }, // no IANA default port - like udp://, but with TLS
+	{     0, ""       , "otpauth://"    }, // TOTP/HOTP provisioning URIs, see KTOTP::URI()
+	{     0, ""       , "tcp://"        }, // generic plain TCP transport
+	{     0, ""       , "tls://"        }, // generic TLS transport
+	{  6379, ""       , "redis://"      },
+	{  6379, ""       , "rediss://"     }, // TLS, no own IANA port - shares it with redis://
+	{  5432, ""       , "postgresql://" },
+	{  3306, ""       , "mysql://"      },
+	{ 27017, ""       , "mongodb://"    },
+	{  5672, ""       , "amqp://"       },
+	{  5671, ""       , "amqps://"      },
+	{  4222, ""       , "nats://"       },
+	{  5683, ""       , "coap://"       },
+	{  5684, ""       , "coaps://"      },
+	{  6697, ""       , "ircs://"       },
+	{     0, ""       , "s3://"         }, // no host:port semantics, the "domain" is the bucket
+	{   445, ""       , "smb://"        },
+	{  5900, ""       , "vnc://"        },
+	{  4840, ""       , "opc.tcp://"    }, // OPC UA
+	{     0, ""       , ""              }  // Empty placeholder for UNKNOWN, use m_sProto.
 };
+
+// a missing row would silently zero-fill the tail of a sized array, so derive
+// the size from the initializer list and compare against the enum
+static_assert(sizeof(s_Canonical) / sizeof(s_Canonical[0]) == KProtocol::UNKNOWN + 1,
+              "s_Canonical is out of sync with KProtocol::eProto");
 
 //-----------------------------------------------------------------------------
 void KProtocol::SetProto(KStringView svProto)
@@ -501,7 +527,9 @@ KStringView KProtocol::Serialize () const
 {
 	KStringView sProto;
 
-	// m_eProto is UNKNOWN for protocols like "opaquelocktoken://"
+	// m_eProto is UNKNOWN for slash-schemes that are not in s_Canonical.
+	// Colon-only schemes like WebDAV's "opaquelocktoken:" do not even get
+	// accepted as a protocol by Parse() - mailto: is the only one
 	switch (m_eProto)
 	{
 		case UNDEFINED:

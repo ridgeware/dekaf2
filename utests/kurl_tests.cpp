@@ -606,6 +606,107 @@ TEST_CASE ("KURL")
             CHECK (target == expect);
         }
 
+        SECTION ("Protocol table entries with default ports")
+        {
+            struct Expected
+            {
+                KStringView             sURL;
+                dekaf2::url::KProtocol  Proto;
+                uint16_t                iPort;
+            };
+
+            // all protocols of the table in kurl.cpp, in enum order
+            const Expected Table[] =
+            {
+                { "mailto:alice@example.com"     , dekaf2::url::KProtocol::MAILTO     ,    25 },
+                { "//host/path"                  , dekaf2::url::KProtocol::AUTO       ,    80 },
+                { "http://host/path"             , dekaf2::url::KProtocol::HTTP       ,    80 },
+                { "https://host/path"            , dekaf2::url::KProtocol::HTTPS      ,   443 },
+                { "file:///path/file.ext"        , dekaf2::url::KProtocol::FILE       ,     0 },
+                { "ftp://host/file"              , dekaf2::url::KProtocol::FTP        ,    21 },
+                { "ftps://host/file"             , dekaf2::url::KProtocol::FTPS       ,   990 },
+                { "ssh://host"                   , dekaf2::url::KProtocol::SSH        ,    22 },
+                { "git://host/repo"              , dekaf2::url::KProtocol::GIT        ,  9418 },
+                { "git+ssh://host/repo"          , dekaf2::url::KProtocol::GIT_SSH    ,    22 },
+                { "svn://host/repo"              , dekaf2::url::KProtocol::SVN        ,  3690 },
+                { "svn+ssh://host/repo"          , dekaf2::url::KProtocol::SVN_SSH    ,    22 },
+                { "news://host/group"            , dekaf2::url::KProtocol::NEWS       ,   119 },
+                { "nntp://host/group"            , dekaf2::url::KProtocol::NNTP       ,   119 },
+                { "nntps://host/group"           , dekaf2::url::KProtocol::NNTPS      ,   563 },
+                { "telnet://host"                , dekaf2::url::KProtocol::TELNET     ,    23 },
+                { "telnets://host"               , dekaf2::url::KProtocol::TELNETS    ,   992 },
+                { "gopher://host"                , dekaf2::url::KProtocol::GOPHER     ,    70 },
+                { "unix:///var/run/app.sock"     , dekaf2::url::KProtocol::UNIX       ,     0 },
+                { "smtp://host"                  , dekaf2::url::KProtocol::SMTP       ,    25 },
+                { "smtps://host"                 , dekaf2::url::KProtocol::SMTPS      ,   587 },
+                { "pop3://host"                  , dekaf2::url::KProtocol::POP3       ,   110 },
+                { "pop3s://host"                 , dekaf2::url::KProtocol::POP3S      ,   995 },
+                { "imap://host"                  , dekaf2::url::KProtocol::IMAP       ,   143 },
+                { "imaps://host"                 , dekaf2::url::KProtocol::IMAPS      ,   993 },
+                { "irc://host/channel"           , dekaf2::url::KProtocol::IRC        ,  6667 },
+                { "ws://host/path"               , dekaf2::url::KProtocol::WS         ,    80 },
+                { "wss://host/path"              , dekaf2::url::KProtocol::WSS        ,   443 },
+                { "rtsp://host/stream"           , dekaf2::url::KProtocol::RTSP       ,   554 },
+                { "rtsps://host/stream"          , dekaf2::url::KProtocol::RTSPS      ,   322 },
+                { "rtmp://host/stream"           , dekaf2::url::KProtocol::RTMP       ,  1935 },
+                { "rtmps://host/stream"          , dekaf2::url::KProtocol::RTMPS      ,   443 },
+                { "whep://host/stream"           , dekaf2::url::KProtocol::WHEP       ,    80 },
+                { "wheps://host/stream"          , dekaf2::url::KProtocol::WHEPS      ,   443 },
+                { "srt://host"                   , dekaf2::url::KProtocol::SRT        ,     0 },
+                { "udp://host"                   , dekaf2::url::KProtocol::UDP        ,     0 },
+                { "tftp://host/file"             , dekaf2::url::KProtocol::TFTP       ,    69 },
+                { "sftp://host/file"             , dekaf2::url::KProtocol::SFTP       ,    22 },
+                { "ntp://host"                   , dekaf2::url::KProtocol::NTP        ,   123 },
+                { "snmp://host"                  , dekaf2::url::KProtocol::SNMP       ,   161 },
+                { "bgp://host"                   , dekaf2::url::KProtocol::BGP        ,   179 },
+                { "ldap://host"                  , dekaf2::url::KProtocol::LDAP       ,   389 },
+                { "ldaps://host"                 , dekaf2::url::KProtocol::LDAPS      ,   636 },
+                { "ups://host"                   , dekaf2::url::KProtocol::UPS        ,   401 },
+                { "mbap://plc"                   , dekaf2::url::KProtocol::MBAP       ,   502 },
+                { "uucp://host"                  , dekaf2::url::KProtocol::UUCP       ,   540 },
+                { "ipp://printer/queue"          , dekaf2::url::KProtocol::IPP        ,   631 },
+                { "ipps://printer/queue"         , dekaf2::url::KProtocol::IPPS       ,   631 },
+                { "nmap://host"                  , dekaf2::url::KProtocol::NMAP       ,   689 },
+                { "rsync://host/module"          , dekaf2::url::KProtocol::RSYNC      ,   873 },
+                { "cddbp://host"                 , dekaf2::url::KProtocol::CDDBP      ,   888 },
+                { "socks://proxy"                , dekaf2::url::KProtocol::SOCKS      ,  1080 },
+                { "mqtt://broker/topic"          , dekaf2::url::KProtocol::MQTT       ,  1883 },
+                { "mqtts://broker/topic"         , dekaf2::url::KProtocol::MQTTS      ,  8883 },
+                { "dtls://host"                  , dekaf2::url::KProtocol::DTLS       ,     0 },
+                { "otpauth://totp/Svc:alice"     , dekaf2::url::KProtocol::OTPAUTH    ,     0 },
+                { "tcp://host:1234"              , dekaf2::url::KProtocol::TCP        ,     0 },
+                { "tls://host:1234"              , dekaf2::url::KProtocol::TLS        ,     0 },
+                { "redis://cache"                , dekaf2::url::KProtocol::REDIS      ,  6379 },
+                { "rediss://cache"               , dekaf2::url::KProtocol::REDISS     ,  6379 },
+                { "postgresql://user:pass@db/db1", dekaf2::url::KProtocol::POSTGRESQL ,  5432 },
+                { "mysql://user:pass@db/db1"     , dekaf2::url::KProtocol::MYSQL      ,  3306 },
+                { "mongodb://db"                 , dekaf2::url::KProtocol::MONGODB    , 27017 },
+                { "amqp://queue"                 , dekaf2::url::KProtocol::AMQP       ,  5672 },
+                { "amqps://queue"                , dekaf2::url::KProtocol::AMQPS      ,  5671 },
+                { "nats://bus"                   , dekaf2::url::KProtocol::NATS       ,  4222 },
+                { "coap://sensor"                , dekaf2::url::KProtocol::COAP       ,  5683 },
+                { "coaps://sensor"               , dekaf2::url::KProtocol::COAPS      ,  5684 },
+                { "ircs://chat"                  , dekaf2::url::KProtocol::IRCS       ,  6697 },
+                { "s3://bucket/key"              , dekaf2::url::KProtocol::S3         ,     0 },
+                { "smb://fileserver/share"       , dekaf2::url::KProtocol::SMB        ,   445 },
+                { "vnc://desktop"                , dekaf2::url::KProtocol::VNC        ,  5900 },
+                { "opc.tcp://plc/node"           , dekaf2::url::KProtocol::OPC_TCP    ,  4840 },
+            };
+
+            // one entry per protocol except UNDEFINED and UNKNOWN
+            CHECK ( sizeof(Table)/sizeof(Table[0]) == dekaf2::url::KProtocol::UNKNOWN - 1 );
+
+            for (const auto& Entry : Table)
+            {
+                INFO  (Entry.sURL);
+                dekaf2::KURL URL (Entry.sURL);
+                CHECK (URL.Protocol == Entry.Proto);
+                CHECK (URL.Protocol.DefaultPort() == Entry.iPort);
+                // the scheme survives a serialization roundtrip
+                CHECK (URL.Serialize() == Entry.sURL);
+            }
+        }
+
         SECTION ("Protocol solo unit (pass even with missing slash)")
         {
             KString solo ("https:/");

@@ -72,11 +72,11 @@ KMQTTClient::KMQTTClient(KURL URL, KString sClientID)
 : m_URL      (std::move(URL))
 , m_sClientID(std::move(sClientID))
 {
-	// mqtt:// and mqtts:// are not in dekaf2's protocol table, so the port has
-	// to be filled in here rather than by KURL::DefaultPort()
 	if (m_URL.Port.empty())
 	{
-		m_URL.Port = (m_URL.Protocol.Serialize().starts_with("mqtts")) ? "8883" : "1883";
+		auto iPort = m_URL.Protocol.DefaultPort();
+		// a broker address without scheme defaults to plain mqtt
+		m_URL.Port = KString::to_string(iPort ? iPort : 1883);
 	}
 
 } // ctor
@@ -142,7 +142,7 @@ void KMQTTClient::SetStateCallback(StateCallback Callback)
 std::unique_ptr<KIOStreamSocket> KMQTTClient::OpenSession(KStringView sSessionID, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	bool bTLS = m_URL.Protocol.Serialize().starts_with("mqtts");
+	bool bTLS = (m_URL.Protocol == url::KProtocol::MQTTS);
 
 	KTCPEndPoint EndPoint(m_URL.Domain, m_URL.Port);
 

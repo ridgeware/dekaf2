@@ -54,7 +54,6 @@
 #include <atomic>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -71,25 +70,28 @@ class KIOStreamSocket;
 /// arrives again within seconds, so a lost packet costs nothing, and typical
 /// publishers send at QoS 0 anyway.
 ///
-/// **Two connections to the broker, one per direction.** A dekaf2 socket
-/// stream is thread affine: it holds a single io_service and a single error
-/// code for both directions, so a read and a write in flight at the same time
-/// consume each other's completions and the write is silently lost. Rather
-/// than serialising around that, the reading session and the publishing
-/// session get a socket each, and each socket is touched by exactly one
-/// thread at a time. Once dekaf2 grows per-direction state this collapses
-/// back into one connection.
+/// **One connection, owned by the reader thread.** dekaf2 socket streams
+/// tolerate only one thread at a time, so the reader owns the socket alone:
+/// between received
+/// packets it multiplexes over IsReadReady() and sends whatever the public
+/// calls have queued up meanwhile — subscriptions, unsubscriptions, and
+/// published messages. The public calls never touch the socket, they enqueue
+/// and return.
 ///
-/// **No PINGREQ**: both sessions announce keep alive 0, which tells the broker
-/// not to drop them for being quiet — the reading session must never write,
-/// and the publishing session has nothing to say between publishes. A dead
-/// connection is noticed instead by the read timeout (reader side) and by a
-/// failing write (publisher side), both of which reconnect.
+/// **Publish() is asynchronous**: it queues the message, and the reader
+/// sends it within the poll interval (a tenth of a second). At QoS 0 a
+/// message without a connection has no delivery promise anyway - what is
+/// still queued when the connection breaks is dropped with it.
+///
+/// **Keep alive**: the connection announces keep alive 0, so the broker does
+/// not drop it for being quiet. A silence watchdog probes with PINGREQ once
+/// nothing was received for the silence timeout, and reconnects only when
+/// the broker stays mute - a quiet broker costs a ping every few minutes,
+/// not a reconnect.
 ///
 /// **Subscriptions survive a reconnect**: they are remembered and re-sent
-/// after every successful connect. Subscribe() while running hands the topic
-/// to the reader thread, which sends it between two received packets — the
-/// only thread allowed to write on that socket.
+/// after every successful connect. Subscribe() and Unsubscribe() while
+/// running take effect within the poll interval.
 ///
 /// Callbacks run on the reader thread: keep them short and thread safe.
 class DEKAF2_PUBLIC KMQTTClient
@@ -109,9 +111,9 @@ public:
 	//-----------------------------------------------------------------------------
 	/// @param URL broker address, mqtt:// (plain) or mqtts:// (TLS); the default
 	/// ports are 1883 and 8883
-	/// @param sClientID basis for the two session ids ("<id>-sub" and
-	/// "<id>-pub"); it must be unique on the broker, as two clients sharing an
-	/// id disconnect each other, which looks exactly like a reconnect loop
+	/// @param sClientID the session id; it must be unique on the broker, as
+	/// two clients sharing an id disconnect each other, which looks exactly
+	/// like a reconnect loop
 	KMQTTClient(KURL URL, KString sClientID);
 	//-----------------------------------------------------------------------------
 
@@ -128,11 +130,9 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// How long the reading connection may stay silent before it is considered
-	/// dead and re-established. This is a watchdog, not a protocol timeout: a
-	/// dekaf2 read timeout closes the socket, which is exactly what is wanted
-	/// here. Pick it well above the slowest expected message interval.
-	/// Default 2 minutes.
+	/// How long the connection may stay silent before the watchdog probes it
+	/// with a PINGREQ; the connection is re-established only when the broker
+	/// does not answer either. Default 2 minutes.
 	void SetSilenceTimeout(KDuration Timeout);
 	//-----------------------------------------------------------------------------
 
@@ -159,21 +159,23 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Subscribe to a topic filter (`+` matches one level, `#` the rest and
 	/// only at the end). Remembered for the next reconnect. May be called
-	/// before Start(); while running it takes effect as soon as the reader
-	/// thread comes up for air between two packets.
+	/// before Start(); while running it takes effect within the poll
+	/// interval.
 	bool Subscribe(KString sTopicFilter);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Drop a subscription from the remembered set (including one not yet
-	/// sent). It stops arriving after the next reconnect — unsubscribing on a
-	/// live session would mean writing on the reader's socket.
+	/// sent). On a live session the reader sends an UNSUBSCRIBE within the
+	/// poll interval.
 	bool Unsubscribe(KStringView sTopicFilter);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Publish a message (QoS 0, not retained). Opens the publishing
-	/// connection on first use and re-opens it after a failure.
+	/// Publish a message (QoS 0, not retained). Asynchronous: the message is
+	/// queued and leaves within the poll interval once the connection is up.
+	/// @return false for an unusable topic or a full queue - and true means
+	/// queued, not delivered: at QoS 0 there is no delivery promise
 	bool Publish(KStringView sTopic, KStringView sPayload);
 	//-----------------------------------------------------------------------------
 
@@ -205,7 +207,7 @@ private:
 	/// open a socket to the broker (TLS for mqtts://) and run the MQTT
 	/// handshake on it. @return the connected stream, or nullptr with the
 	/// error recorded
-	DEKAF2_PRIVATE std::unique_ptr<KIOStreamSocket> OpenSession(KStringView sSessionID, KDuration Timeout);
+	DEKAF2_PRIVATE std::unique_ptr<KIOStreamSocket> OpenSession();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -217,6 +219,11 @@ private:
 	//-----------------------------------------------------------------------------
 	/// send SUBSCRIBE for one filter on the reader's stream — reader thread only
 	DEKAF2_PRIVATE bool SendSubscribe(KIOStreamSocket& Stream, KStringView sTopicFilter);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// send UNSUBSCRIBE for one filter on the reader's stream — reader thread only
+	DEKAF2_PRIVATE bool SendUnsubscribe(KIOStreamSocket& Stream, KStringView sTopicFilter);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -239,13 +246,16 @@ private:
 	MessageCallback            m_OnMessage;
 	StateCallback              m_OnState;
 
-	/// the subscribing session — reader thread only, never written to from
+	/// a queued message, waiting for the reader thread to send it
+	struct Message
+	{
+		KString sTopic;
+		KString sPayload;
+	};
+
+	/// the broker connection — reader thread only, never touched from
 	/// anywhere else (see the class comment)
-	std::unique_ptr<KIOStreamSocket> m_ReadStream;
-	/// the publishing session — used by whoever calls Publish(), serialised
-	/// on the mutex below, and never read from
-	std::unique_ptr<KIOStreamSocket> m_WriteStream;
-	std::mutex                 m_WriteMutex;
+	std::unique_ptr<KIOStreamSocket> m_Stream;
 
 	std::thread                m_Reader;
 	std::atomic<bool>          m_bStop      { false };
@@ -256,7 +266,11 @@ private:
 	/// handed to the reader thread, which sends them between two packets and
 	/// drops duplicates against what this session already subscribed
 	KThreadSafe<std::vector<KString>> m_PendingSubscriptions;
-	/// SUBSCRIBE needs a packet id even at QoS 0
+	/// unsubscriptions for the reader thread
+	KThreadSafe<std::vector<KString>> m_PendingUnsubscribes;
+	/// published messages for the reader thread
+	KThreadSafe<std::vector<Message>> m_PendingPublishes;
+	/// SUBSCRIBE and UNSUBSCRIBE need a packet id even at QoS 0
 	std::atomic<uint16_t>      m_iPacketID  { 1 };
 
 	mutable KThreadSafe<KString> m_sLastError;

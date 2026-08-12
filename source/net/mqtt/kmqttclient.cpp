@@ -60,9 +60,16 @@ constexpr uint8_t      s_iProtocolLevel { 4 };
 /// how long to wait before reconnecting after a lost connection
 constexpr auto         s_ReconnectDelay = chrono::seconds(5);
 
-/// the publishing session is quiet by nature; this is only the connect and
-/// write timeout, not a silence watchdog
-constexpr auto         s_WriteTimeout   = chrono::seconds(10);
+/// connect timeout, and the deadline for completing a started packet or
+/// answering a PINGREQ - the silence watchdog is a separate, longer clock
+constexpr auto         s_ProtocolTimeout = chrono::seconds(10);
+
+/// granularity of the reader loop: the longest wait until queued
+/// subscriptions and messages go out
+constexpr auto         s_PollInterval    = chrono::milliseconds(100);
+
+/// bound for the publish queue - above it, Publish() refuses
+constexpr std::size_t  s_iMaxQueuedMessages = 1024;
 
 } // end of anonymous namespace
 
@@ -139,14 +146,14 @@ void KMQTTClient::SetStateCallback(StateCallback Callback)
 } // SetStateCallback
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KIOStreamSocket> KMQTTClient::OpenSession(KStringView sSessionID, KDuration Timeout)
+std::unique_ptr<KIOStreamSocket> KMQTTClient::OpenSession()
 //-----------------------------------------------------------------------------
 {
 	bool bTLS = (m_URL.Protocol == url::KProtocol::MQTTS);
 
 	KTCPEndPoint EndPoint(m_URL.Domain, m_URL.Port);
 
-	KStreamOptions Options(Timeout);
+	KStreamOptions Options(s_ProtocolTimeout);
 
 	if (bTLS && m_bVerifyCerts) Options.Set(KStreamOptions::VerifyCert);
 
@@ -183,15 +190,13 @@ std::unique_ptr<KIOStreamSocket> KMQTTClient::OpenSession(KStringView sSessionID
 
 	sBody += static_cast<char>(iFlags);
 
-	// Keep alive 0: the broker must not drop us for being quiet. The reading
-	// session is not allowed to write a PINGREQ (its socket belongs to the
-	// reader thread alone), and the publishing session has nothing to say
-	// between publishes. Death is detected by the silence watchdog on one side
-	// and by a failing write on the other.
+	// Keep alive 0: the broker must not drop us for being quiet. Death is
+	// detected on our side instead: the silence watchdog probes with a
+	// PINGREQ and reconnects when the broker stays mute.
 	sBody += static_cast<char>(0);
 	sBody += static_cast<char>(0);
 
-	kmqtt::AppendString(sBody, sSessionID);
+	kmqtt::AppendString(sBody, m_sClientID);
 
 	if (bSendUser)     kmqtt::AppendString(sBody, m_sUser);
 	if (bSendPassword) kmqtt::AppendString(sBody, m_sPassword);
@@ -240,7 +245,7 @@ std::unique_ptr<KIOStreamSocket> KMQTTClient::OpenSession(KStringView sSessionID
 		return nullptr;
 	}
 
-	kDebug(1, "session '{}' connected to {}", sSessionID, EndPoint.Serialize());
+	kDebug(1, "session '{}' connected to {}", m_sClientID, EndPoint.Serialize());
 
 	return Stream;
 
@@ -263,6 +268,23 @@ bool KMQTTClient::SendSubscribe(KIOStreamSocket& Stream, KStringView sTopicFilte
 	return kmqtt::WritePacket(Stream, (kmqtt::Subscribe << 4) | 0x02, sBody);
 
 } // SendSubscribe
+
+//-----------------------------------------------------------------------------
+bool KMQTTClient::SendUnsubscribe(KIOStreamSocket& Stream, KStringView sTopicFilter)
+//-----------------------------------------------------------------------------
+{
+	uint16_t iPacketID = m_iPacketID++;
+
+	KString sBody;
+
+	sBody += static_cast<char>((iPacketID >> 8) & 0xFF);
+	sBody += static_cast<char>( iPacketID       & 0xFF);
+	kmqtt::AppendString(sBody, sTopicFilter);
+
+	// the standard prescribes the lower nibble 0b0010 for UNSUBSCRIBE
+	return kmqtt::WritePacket(Stream, (kmqtt::Unsubscribe << 4) | 0x02, sBody);
+
+} // SendUnsubscribe
 
 //-----------------------------------------------------------------------------
 void KMQTTClient::HandlePacket(uint8_t iFirstByte, const KString& sBody)
@@ -319,59 +341,86 @@ void KMQTTClient::Listen()
 {
 	while (!m_bStop)
 	{
-		// the silence timeout is the watchdog: a dekaf2 read timeout closes
-		// the socket, which is precisely the wanted reaction to a connection
-		// that has gone quiet for longer than any message interval
-		m_ReadStream = OpenSession(kFormat("{}-sub", m_sClientID), m_SilenceTimeout);
+		m_Stream = OpenSession();
 
-		if (m_ReadStream)
+		if (m_Stream)
 		{
-			// doubles as the dedup set for pending subscriptions handed over
-			// while this session runs
+			// doubles as the dedup set for subscriptions handed over while
+			// this session runs
 			std::vector<KString> SessionTopics = *m_Subscriptions.shared();
 
-			bool bSubscribed = true;
+			bool bSessionGood = true;
 
 			for (const KString& sTopic : SessionTopics)
 			{
 				// without this a reconnected client sits there looking healthy
 				// and deaf
-				if (!SendSubscribe(*m_ReadStream, sTopic))
+				if (!SendSubscribe(*m_Stream, sTopic))
 				{
 					SetError(kFormat("cannot subscribe to {}", sTopic));
-					bSubscribed = false;
+					bSessionGood = false;
 					break;
 				}
 			}
 
-			// Subscriptions handed over while running are sent here and after
-			// every received packet — this is the one thread allowed to write
-			// on this socket, and at these points it is between two reads.
-			auto DrainPending = [&]() -> bool
+			// everything the public calls have queued up since the last drain:
+			// subscriptions, unsubscriptions, and published messages
+			auto DrainQueues = [&]() -> bool
 			{
-				if (m_PendingSubscriptions.shared()->empty()) return true;
-
-				std::vector<KString> Pending;
-				Pending.swap(*m_PendingSubscriptions.unique());
-
-				for (KString& sTopic : Pending)
+				if (!m_PendingSubscriptions.shared()->empty())
 				{
-					// already covered by the replay at connect time
-					if (std::find(SessionTopics.begin(), SessionTopics.end(), sTopic) != SessionTopics.end()) continue;
+					std::vector<KString> Pending;
+					Pending.swap(*m_PendingSubscriptions.unique());
 
-					if (!SendSubscribe(*m_ReadStream, sTopic)) return false;
+					for (KString& sTopic : Pending)
+					{
+						// already covered by the replay at connect time
+						if (std::find(SessionTopics.begin(), SessionTopics.end(), sTopic) != SessionTopics.end()) continue;
 
-					SessionTopics.push_back(std::move(sTopic));
+						if (!SendSubscribe(*m_Stream, sTopic)) return false;
+
+						SessionTopics.push_back(std::move(sTopic));
+					}
+				}
+
+				if (!m_PendingUnsubscribes.shared()->empty())
+				{
+					std::vector<KString> Pending;
+					Pending.swap(*m_PendingUnsubscribes.unique());
+
+					for (const KString& sTopic : Pending)
+					{
+						SessionTopics.erase(std::remove(SessionTopics.begin(), SessionTopics.end(), sTopic), SessionTopics.end());
+
+						if (!SendUnsubscribe(*m_Stream, sTopic)) return false;
+					}
+				}
+
+				if (!m_PendingPublishes.shared()->empty())
+				{
+					std::vector<Message> Pending;
+					Pending.swap(*m_PendingPublishes.unique());
+
+					for (const Message& Msg : Pending)
+					{
+						KString sBody;
+
+						kmqtt::AppendString(sBody, Msg.sTopic);
+						sBody += Msg.sPayload;
+
+						// QoS 0, not retained, not a duplicate - all flag bits stay zero
+						if (!kmqtt::WritePacket(*m_Stream, kmqtt::Publish << 4, sBody)) return false;
+					}
 				}
 
 				return true;
 			};
 
 			// a topic subscribed between the snapshot above and now sits in
-			// the pending list — send it before declaring the session up
-			if (bSubscribed) bSubscribed = DrainPending();
+			// the pending list - send it before declaring the session up
+			if (bSessionGood) bSessionGood = DrainQueues();
 
-			if (bSubscribed)
+			if (bSessionGood)
 			{
 				kDebug(1, "listening with {} subscriptions", SessionTopics.size());
 
@@ -379,15 +428,56 @@ void KMQTTClient::Listen()
 
 				if (m_OnState) m_OnState(true);
 
+				// the silence watchdog: probe with a PINGREQ after the silence
+				// timeout, reconnect when the broker does not answer either
+				KStopTime SinceLastPacket;
+				KStopTime SincePing (KStopTime::Halted);
+				bool      bPingSent { false };
+
 				uint8_t iFirstByte { 0 };
 				KString sBody;
 
-				while (!m_bStop && kmqtt::ReadPacket(*m_ReadStream, iFirstByte, sBody, m_iMaxPacketSize))
+				while (!m_bStop)
 				{
-					HandlePacket(iFirstByte, sBody);
+					if (m_Stream->IsReadReady(s_PollInterval))
+					{
+						// the packet is (partially) here - ReadPacket blocks
+						// until it is complete, a torn packet dies with the
+						// stream timeout
+						if (!kmqtt::ReadPacket(*m_Stream, iFirstByte, sBody, m_iMaxPacketSize)) break;
 
-					if (!DrainPending()) break;
+						HandlePacket(iFirstByte, sBody);
+
+						SinceLastPacket.clear();
+						bPingSent = false;
+					}
+					else if (!m_Stream->is_open())
+					{
+						break;
+					}
+
+					if (!DrainQueues()) break;
+
+					if (!bPingSent)
+					{
+						if (SinceLastPacket.elapsed() > m_SilenceTimeout)
+						{
+							if (!kmqtt::WritePacket(*m_Stream, kmqtt::PingReq << 4, "")) break;
+
+							bPingSent = true;
+							SincePing.clear();
+						}
+					}
+					else if (SincePing.elapsed() > s_ProtocolTimeout)
+					{
+						SetError("broker does not answer the PINGREQ");
+						break;
+					}
 				}
+
+				// on a controlled stop, hand the queued messages to the wire
+				// before hanging up
+				if (m_bStop && m_Stream->is_open()) DrainQueues();
 
 				m_bConnected = false;
 
@@ -397,7 +487,7 @@ void KMQTTClient::Listen()
 			}
 		}
 
-		m_ReadStream.reset();
+		m_Stream.reset();
 
 		// backoff before the next attempt, but stay responsive to Stop()
 		for (uint16_t iTenth = 0; iTenth < s_ReconnectDelay.count() * 10 && !m_bStop; ++iTenth)
@@ -425,20 +515,9 @@ void KMQTTClient::Stop()
 {
 	m_bStop = true;
 
-	// closing the socket is what unblocks a reader sitting in Read(). It is
-	// touched from here rather than from the reader itself, which is the one
-	// exception to the single thread rule — and a safe one, because a close
-	// only cancels, it does not post a new operation.
-	if (m_ReadStream) m_ReadStream->Disconnect();
-
 	if (m_Reader.joinable()) m_Reader.join();
 
-	m_ReadStream.reset();
-
-	{
-		std::lock_guard<std::mutex> Lock(m_WriteMutex);
-		m_WriteStream.reset();
-	}
+	m_Stream.reset();
 
 	m_bConnected = false;
 
@@ -489,18 +568,29 @@ bool KMQTTClient::Unsubscribe(KStringView sTopicFilter)
 		}
 	}
 
-	KThreadSafe<std::vector<KString>>::UniqueLocked Subscriptions = m_Subscriptions.unique();
-
-	for (std::size_t iIndex = 0; iIndex < Subscriptions->size(); ++iIndex)
 	{
-		if ((*Subscriptions)[iIndex] == sTopicFilter)
+		KThreadSafe<std::vector<KString>>::UniqueLocked Subscriptions = m_Subscriptions.unique();
+
+		bool bFound = false;
+
+		for (std::size_t iIndex = 0; iIndex < Subscriptions->size(); ++iIndex)
 		{
-			Subscriptions->erase(Subscriptions->begin() + iIndex);
-			return true;
+			if ((*Subscriptions)[iIndex] == sTopicFilter)
+			{
+				Subscriptions->erase(Subscriptions->begin() + iIndex);
+				bFound = true;
+				break;
+			}
 		}
+
+		if (!bFound) return false;
 	}
 
-	return false;
+	// the reader thread sends the UNSUBSCRIBE within the poll interval; a
+	// filter this session never subscribed gets one anyway, which is harmless
+	m_PendingUnsubscribes.unique()->push_back(KString(sTopicFilter));
+
+	return true;
 
 } // Unsubscribe
 
@@ -510,30 +600,19 @@ bool KMQTTClient::Publish(KStringView sTopic, KStringView sPayload)
 {
 	if (sTopic.empty() || sTopic.size() > kmqtt::MaxStringLength) return false;
 
-	std::lock_guard<std::mutex> Lock(m_WriteMutex);
+	// asynchronous by design: enqueued here, sent by the reader thread within
+	// the poll interval - the caller never touches (or waits for) the socket
+	KThreadSafe<std::vector<Message>>::UniqueLocked Pending = m_PendingPublishes.unique();
 
-	// opened on first use and re-opened after a failure — this session exists
-	// only so that publishing never touches the reader's socket
-	if (!m_WriteStream)
+	if (Pending->size() >= s_iMaxQueuedMessages)
 	{
-		m_WriteStream = OpenSession(kFormat("{}-pub", m_sClientID), s_WriteTimeout);
-
-		if (!m_WriteStream) return false;
+		SetError("publish queue is full");
+		return false;
 	}
 
-	KString sBody;
+	Pending->push_back({ KString(sTopic), KString(sPayload) });
 
-	kmqtt::AppendString(sBody, sTopic);
-	sBody += sPayload;
-
-	// QoS 0, not retained, not a duplicate - all flag bits stay zero
-	if (kmqtt::WritePacket(*m_WriteStream, kmqtt::Publish << 4, sBody)) return true;
-
-	// a broken publishing session is dropped so the next call rebuilds it
-	SetError("publish failed, dropping the publishing session");
-	m_WriteStream.reset();
-
-	return false;
+	return true;
 
 } // Publish
 

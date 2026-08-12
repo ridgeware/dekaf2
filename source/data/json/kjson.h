@@ -173,10 +173,24 @@ using LJSON = nlohmann::basic_json<std::map, std::vector, DEKAF2_PREFIX KString,
                                    bool, std::int64_t, std::uint64_t, double,
                                    std::allocator, kjson::detail::KJsonSerializer>;
 
+// LJSON with objects that keep their keys in insertion order - for building payloads
+// for (spec violating) APIs that expect object keys in a fixed order. Key lookup is
+// linear, so this is a type for building and serializing, not a general replacement
+// for KJSON
+using LOrderedJSON = nlohmann::basic_json<nlohmann::ordered_map, std::vector, DEKAF2_PREFIX KString,
+                                          bool, std::int64_t, std::uint64_t, double,
+                                          std::allocator, kjson::detail::KJsonSerializer>;
+
 #else
 
 // the native nlohmann::json type, using KString instead of std::string though
 using LJSON = nlohmann::basic_json<std::map, std::vector, DEKAF2_PREFIX KString>;
+
+// LJSON with objects that keep their keys in insertion order - for building payloads
+// for (spec violating) APIs that expect object keys in a fixed order. Key lookup is
+// linear, so this is a type for building and serializing, not a general replacement
+// for KJSON
+using LOrderedJSON = nlohmann::basic_json<nlohmann::ordered_map, std::vector, DEKAF2_PREFIX KString>;
 
 #endif
 

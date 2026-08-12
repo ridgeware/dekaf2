@@ -677,3 +677,45 @@ TEST_CASE("LJSON")
 }
 #endif
 #endif
+
+// LOrderedJSON is independent of the KJSON wrapping - test it unconditionally
+TEST_CASE("LOrderedJSON")
+{
+	using namespace dekaf2;
+
+	SECTION("insertion order is preserved")
+	{
+		LOrderedJSON j;
+		j["type"]                 = "PROJECT";
+		j["key"]["projectId"]     = "6a38a";
+		j["config"]["name"]       = "Test";
+		j["config"]["autoStart"]  = true;
+		j["state"]["status"]      = "IN_PROGRESS";
+		// would sort first in a std::map backed object
+		j["aardvark"]             = 1;
+
+		CHECK ( j.dump() == R"({"type":"PROJECT","key":{"projectId":"6a38a"},"config":{"name":"Test","autoStart":true},"state":{"status":"IN_PROGRESS"},"aardvark":1})" );
+	}
+
+	SECTION("parse and dump keep the document order")
+	{
+		KStringView sDoc = R"({"zulu":1,"alpha":{"november":2,"charlie":3},"mike":[{"yankee":4,"bravo":5}]})";
+
+		auto j = LOrderedJSON::parse(sDoc.begin(), sDoc.end());
+
+		CHECK ( j.dump() == sDoc );
+	}
+
+	SECTION("dekaf2 string types interoperate")
+	{
+		KString     sKey  = "first";
+		KStringView svVal = "value1";
+
+		LOrderedJSON j;
+		j[sKey]     = svVal;
+		j["second"] = KString("value2");
+
+		CHECK ( j.dump() == R"({"first":"value1","second":"value2"})" );
+		CHECK ( j["first"].get<KString>() == "value1" );
+	}
+}

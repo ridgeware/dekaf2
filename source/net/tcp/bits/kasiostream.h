@@ -45,10 +45,13 @@
 /// provides asio stream abstraction with deadline timer
 
 #include <dekaf2/core/init/kdefinitions.h>
+#include <dekaf2/core/errors/kcrashexit.h>
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/net/tcp/bits/kasio.h>
+
+#include <atomic>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -63,6 +66,8 @@ struct KAsioTraits
 		{ Socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec); }
 	static void SocketClose(StreamType& Socket, boost::system::error_code& ec)
 		{ Socket.close(ec); }
+	static void SocketCancel(StreamType& Socket, boost::system::error_code& ec)
+		{ Socket.cancel(ec); }
 	static void SocketPeek(StreamType& Socket, boost::system::error_code& ec)
 		{ uint16_t buffer; Socket.receive(boost::asio::buffer(&buffer, 1), Socket.message_peek, ec); }
 };
@@ -70,6 +75,16 @@ struct KAsioTraits
 } // end of namespace detail
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// asio stream with deadline timer, the transport under the socket stream
+/// classes.
+///
+/// Reads and writes share one io_service and one completion state, so a
+/// stream may be driven by ONE thread at any point in time (the thread may
+/// change, with synchronization on the handover) - concurrent operations
+/// consume each other's completions and corrupt each other's stack frames.
+/// Concurrent use trips an assert in RunTimed() in debug builds, and a
+/// kWarning in release builds. The one sanctioned cross-thread call is
+/// closing the socket to unblock a pending operation.
 template<typename StreamType, typename Traits = detail::KAsioTraits<StreamType>>
 struct KAsioStream
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -203,10 +218,23 @@ struct KAsioStream
 #endif
 		{
 			boost::system::error_code ignored_ec;
-			Traits::SocketClose(Socket, ignored_ec);
+
+			if (bCancelOnTimeout)
+			{
+				// cancel the pending operations, but keep the connection open -
+				// they return with an aborted error, and the caller may retry
+				Traits::SocketCancel(Socket, ignored_ec);
+				kDebug(3, "operation timeout ({}), canceled: {}",
+					   Timeout, sEndpoint);
+			}
+			else
+			{
+				Traits::SocketClose(Socket, ignored_ec);
+				kDebug(2, "Connection timeout ({}): {}",
+					   Timeout, sEndpoint);
+			}
+
 			ClearTimer();
-			kDebug(2, "Connection timeout ({}): {}",
-				   Timeout, sEndpoint);
 		}
 
 		Timer.async_wait(std::bind(&KAsioStream<StreamType, Traits>::CheckTimer, this));
@@ -216,6 +244,21 @@ struct KAsioStream
 	void RunTimed()
 	//-----------------------------------------------------------------------------
 	{
+		// a tripwire, not a lock: overlapping operations mean two threads on
+		// one stream, which corrupts the shared completion state (see the
+		// class docs) - make that loud instead of silently losing data. The
+		// exchange costs a few nanoseconds against the syscalls it guards,
+		// so it stays active in release builds, where it warns instead of
+		// crashing
+		if (DEKAF2_UNLIKELY(bInRun.exchange(true)))
+		{
+#ifdef NDEBUG
+			kWarning("concurrent operations on a socket stream to {} - streams may only be used by one thread at a time", sEndpoint);
+#else
+			detail::kFailedAssert("concurrent operations on a socket stream - streams may only be used by one thread at a time");
+#endif
+		}
+
 		ResetTimer();
 
 		try
@@ -234,6 +277,15 @@ struct KAsioStream
 		}
 
 		ClearTimer();
+
+		if (bCancelOnTimeout && ec == boost::asio::error::operation_aborted)
+		{
+			// a canceled operation is a repeatable timeout, not a stream
+			// error - it must neither fail Good() nor block later writes
+			ec.clear();
+		}
+
+		bInRun = false;
 	}
 
 	boost::asio::io_service     IOService;
@@ -246,6 +298,10 @@ struct KAsioStream
 #endif
 	boost::system::error_code   ec;
 	KDuration                   Timeout;
+	/// cancel operations on timeout instead of closing the connection
+	bool                        bCancelOnTimeout { false };
+	/// tripwire against concurrent operations, see RunTimed()
+	std::atomic<bool>           bInRun           { false };
 
 }; // KAsioStream
 

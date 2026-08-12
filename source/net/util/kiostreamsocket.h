@@ -67,6 +67,23 @@ DEKAF2_NAMESPACE_BEGIN
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// base class for the std::iostream based internet stream classes
+///
+/// ### One thread at a time
+/// A stream may be driven by ONE thread at any point in time - which thread
+/// that is may change, with proper synchronization on the handover. Reads
+/// and writes share a single event loop and a single completion state, so
+/// even one reader plus one writer in parallel consume each other's
+/// completions - the losing operation is silently dropped, and its
+/// completion may scribble over a stack frame that has already returned.
+/// Concurrent operations trip an assert in debug builds and a kWarning in
+/// release builds.
+/// The one sanctioned cross-thread call is Disconnect() (or
+/// SignalDisconnecting()), to unblock a thread that sits in a read.
+///
+/// For protocols with server side push (one thread mostly reading, others
+/// occasionally writing) do not share one stream: either use one connection
+/// per direction, or a single thread that multiplexes over IsReadReady() -
+/// see KStreamOptions::CancelOnTimeout for repeatable read timeouts.
 class DEKAF2_PUBLIC KIOStreamSocket : public KErrorBase, public KReaderWriter<std::iostream>
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

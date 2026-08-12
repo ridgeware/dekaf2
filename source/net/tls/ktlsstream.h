@@ -79,6 +79,8 @@ struct KAsioTLSTraits
 	}
 	static void SocketClose(StreamType& Socket, boost::system::error_code& ec)
 		{ Socket.next_layer().close(ec); }
+	static void SocketCancel(StreamType& Socket, boost::system::error_code& ec)
+		{ Socket.next_layer().cancel(ec); }
 	static void SocketPeek(StreamType& Socket, boost::system::error_code& ec)
 		{ uint16_t buffer; Socket.next_layer().receive(boost::asio::buffer(&buffer, 1), Socket.next_layer().message_peek, ec); }
 };

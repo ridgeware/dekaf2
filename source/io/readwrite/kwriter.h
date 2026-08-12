@@ -301,7 +301,17 @@ public:
 	self_type& Flush()
 	//-----------------------------------------------------------------------------
 	{
-		ostream().flush();
+		// flush through the streambuf, not through ostream::flush() - the
+		// latter guards with a sentry and silently does nothing once the
+		// stream state is unclean, and on a bidirectional socket stream an
+		// eofbit from a timed out read would then block all further output
+		auto* streambuf = ostream().rdbuf();
+
+		if (streambuf == nullptr || streambuf->pubsync() == -1)
+		{
+			ostream().setstate(std::ios_base::badbit);
+		}
+
 		return *this;
 	}
 

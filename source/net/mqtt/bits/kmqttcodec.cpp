@@ -111,22 +111,12 @@ bool WritePacket(KOutStream& Stream, uint8_t iFirstByte, KStringView sBody)
 	AppendVarInt(sPacket, sBody.size());
 	sPacket += sBody;
 
-	// Flushed through the streambuf, NOT through Flush(): the latter goes via
-	// ostream::flush(), which uses a sentry and therefore does nothing at all
-	// while the stream state is unclean — and on a socket that state is dirty
-	// most of the time, because every partial read raises eofbit (see
-	// ReadPacket). kWrite() has no such scruples and puts the bytes into the
-	// buffer regardless, so the packet would sit there, written but never
-	// sent, and only a state check would hint at it. pubsync() is the same
-	// bypass on the way out.
-	Stream.Write(sPacket.data(), sPacket.size());
+	// Flush() delivers past the ostream sentry, so an eofbit raised by a
+	// timed out read does not block the output side
+	Stream.Write(sPacket.data(), sPacket.size()).Flush();
 
-	std::streambuf* pBuffer = Stream.ostream().rdbuf();
-
-	if (pBuffer != nullptr) pBuffer->pubsync();
-
-	// only a hard error counts: eofbit is noise here (see above), and on a
-	// socket stream the state may still carry the verdict of the last read
+	// only a hard error counts: eofbit is noise on a socket stream, where
+	// the state may still carry the verdict of the last read
 	return !Stream.ostream().bad();
 
 } // WritePacket

@@ -67,7 +67,7 @@ public:
 	using self = KStreamOptions;
 
 	/// general stream options
-	enum Options : uint8_t
+	enum Options : uint16_t
 	{
 		None            = 0,      ///< no options, use for non-HTTP connections, or to restrict to HTTP1 connections
 		VerifyCert      = 1 << 0, ///< verify server certificate
@@ -78,6 +78,7 @@ public:
 		ForceIPv4       = 1 << 5, ///< force an IPv4 connection
 		ForceIPv6       = 1 << 6, ///< force an IPv6 connection
 		DefaultsForHTTP = 1 << 7, ///< use for HTTP, per default tries HTTP2 and allows HTTP1, can be changed through kSetTLSDefaults()
+		CancelOnTimeout = 1 << 8, ///< a timed out operation cancels instead of closing the connection - the timeout becomes a repeatable condition, and the connection stays usable. Use with IsReadReady() for polling clients (push protocols like MQTT). Note that a timed out read still raises eofbit on the iostream: call clear() before the next std-API read (block reads through Read()/kRead() are not affected)
 	};
 
 	/// address family, used mainly for resolver setup

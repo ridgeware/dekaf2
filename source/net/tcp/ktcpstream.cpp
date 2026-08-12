@@ -219,6 +219,8 @@ bool KTCPStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 	SetTimeout(Options.GetTimeout());
 
+	m_Stream.bCancelOnTimeout = Options.IsSet(KStreamOptions::CancelOnTimeout);
+
 	SetUnresolvedEndPoint(Endpoint);
 
 	auto& sHostname = Endpoint.Domain.get();

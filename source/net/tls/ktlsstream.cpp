@@ -433,6 +433,7 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	ResetDisconnectingState();
 
 	m_StreamOptions = Options;
+	m_Stream.bCancelOnTimeout = Options.IsSet(KStreamOptions::CancelOnTimeout);
 	m_Stream.bNeedHandshake = true;
 	m_bRetryWithHTTP1 = false;
 

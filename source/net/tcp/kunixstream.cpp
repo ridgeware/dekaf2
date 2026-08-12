@@ -222,6 +222,8 @@ bool KUnixStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 
 	SetTimeout(Options.GetTimeout());
 
+	m_Stream.bCancelOnTimeout = Options.IsSet(KStreamOptions::CancelOnTimeout);
+
 	SetUnresolvedEndPoint(Endpoint);
 
 	if (!Endpoint.bIsUnixDomain)

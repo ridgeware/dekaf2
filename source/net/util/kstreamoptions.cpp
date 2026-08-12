@@ -42,6 +42,8 @@
 #include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/core/logging/klog.h>
 
+#include <algorithm>
+
 #if !DEKAF2_IS_WINDOWS
 	#include <sys/socket.h>
 	#include <netinet/in.h>
@@ -113,6 +115,25 @@ KStreamOptions::Options KStreamOptions::GetDefaults(Options Options)
 } // GetTLSDefaults
 
 //-----------------------------------------------------------------------------
+KStreamOptions& KStreamOptions::SetDeadPeerDetection(KDuration tWithin)
+//-----------------------------------------------------------------------------
+{
+	constexpr int64_t iProbes { 3 };
+
+	auto iTotal = std::max<int64_t>(2, tWithin.seconds().count());
+	auto iIdle  = std::max<int64_t>(1, iTotal / 2);
+	auto iIntvl = std::max<int64_t>(1, (iTotal - iIdle) / iProbes);
+
+	m_KeepAliveInterval      = chrono::seconds(iIdle);
+	m_KeepAliveProbeInterval = chrono::seconds(iIntvl);
+	m_iKeepAliveProbeCount   = iProbes;
+	m_ConnectionDropTimeout  = chrono::seconds(iTotal);
+
+	return *this;
+
+} // SetDeadPeerDetection
+
+//-----------------------------------------------------------------------------
 bool KStreamOptions::ApplySocketOptions(int socket, bool bIgnoreIfDefault)
 //-----------------------------------------------------------------------------
 {
@@ -121,6 +142,22 @@ bool KStreamOptions::ApplySocketOptions(int socket, bool bIgnoreIfDefault)
 	if (!bIgnoreIfDefault || GetKeepAliveInterval() > KDuration::zero())
 	{
 		if (!kSetTCPKeepAliveInterval(socket, GetKeepAliveInterval()))
+		{
+			bReturn = false;
+		}
+	}
+
+	if (GetKeepAliveProbeInterval() > KDuration::zero() || GetKeepAliveProbeCount() > 0)
+	{
+		if (!kSetTCPKeepAliveProbes(socket, GetKeepAliveProbeInterval(), GetKeepAliveProbeCount()))
+		{
+			bReturn = false;
+		}
+	}
+
+	if (GetConnectionDropTimeout() > KDuration::zero())
+	{
+		if (!kSetTCPConnectionDropTimeout(socket, GetConnectionDropTimeout()))
 		{
 			bReturn = false;
 		}
@@ -340,6 +377,186 @@ bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepaliveInterval)
 	return true;
 
 } // kSetTCPKeepAliveInterval
+
+//-----------------------------------------------------------------------------
+KDuration kGetTCPKeepAliveProbeInterval(int socket)
+//-----------------------------------------------------------------------------
+{
+#ifdef TCP_KEEPINTVL
+	int iInt { 0 };
+	::socklen_t iSize { sizeof(iInt) };
+
+#ifdef DEKAF2_IS_WINDOWS
+	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_KEEPINTVL, reinterpret_cast<char*>(&iInt), &iSize) || !iSize)
+#else
+	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_KEEPINTVL, &iInt, &iSize) || !iSize)
+#endif
+	{
+		kDebug(1, "cannot get TCP_KEEPINTVL from fd {}: {}", socket, strerror(errno));
+		return KDuration::zero();
+	}
+
+	return chrono::seconds(iInt);
+#else
+	kDebug(2, "TCP_KEEPINTVL is not available on this platform");
+	return KDuration::zero();
+#endif
+
+} // kGetTCPKeepAliveProbeInterval
+
+//-----------------------------------------------------------------------------
+uint16_t kGetTCPKeepAliveProbeCount(int socket)
+//-----------------------------------------------------------------------------
+{
+#ifdef TCP_KEEPCNT
+	int iInt { 0 };
+	::socklen_t iSize { sizeof(iInt) };
+
+#ifdef DEKAF2_IS_WINDOWS
+	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, reinterpret_cast<char*>(&iInt), &iSize) || !iSize)
+#else
+	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, &iInt, &iSize) || !iSize)
+#endif
+	{
+		kDebug(1, "cannot get TCP_KEEPCNT from fd {}: {}", socket, strerror(errno));
+		return 0;
+	}
+
+	return static_cast<uint16_t>(iInt);
+#else
+	kDebug(2, "TCP_KEEPCNT is not available on this platform");
+	return 0;
+#endif
+
+} // kGetTCPKeepAliveProbeCount
+
+//-----------------------------------------------------------------------------
+bool kSetTCPKeepAliveProbes(int socket, KDuration tProbeInterval, uint16_t iProbeCount)
+//-----------------------------------------------------------------------------
+{
+	bool bReturn { true };
+
+	int iSeconds { static_cast<int>(tProbeInterval.seconds().count()) };
+
+	if (iSeconds > 0)
+	{
+#ifdef TCP_KEEPINTVL
+#ifdef DEKAF2_IS_WINDOWS
+		if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_KEEPINTVL, reinterpret_cast<const char*>(&iSeconds), sizeof(iSeconds)))
+#else
+		if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_KEEPINTVL, &iSeconds, sizeof(iSeconds)))
+#endif
+		{
+			kDebug(1, "cannot set TCP_KEEPINTVL to {} on fd {}: {}", iSeconds, socket, strerror(errno));
+			bReturn = false;
+		}
+		else
+		{
+			kDebug(3, "set TCP_KEEPINTVL to {}s on fd {}", iSeconds, socket);
+		}
+#else
+		kDebug(2, "TCP_KEEPINTVL is not available on this platform");
+#endif
+	}
+
+	if (iProbeCount > 0)
+	{
+#ifdef TCP_KEEPCNT
+		int iCount { iProbeCount };
+
+#ifdef DEKAF2_IS_WINDOWS
+		if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, reinterpret_cast<const char*>(&iCount), sizeof(iCount)))
+#else
+		if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, &iCount, sizeof(iCount)))
+#endif
+		{
+			kDebug(1, "cannot set TCP_KEEPCNT to {} on fd {}: {}", iCount, socket, strerror(errno));
+			bReturn = false;
+		}
+		else
+		{
+			kDebug(3, "set TCP_KEEPCNT to {} on fd {}", iCount, socket);
+		}
+#else
+		kDebug(2, "TCP_KEEPCNT is not available on this platform");
+#endif
+	}
+
+	return bReturn;
+
+} // kSetTCPKeepAliveProbes
+
+//-----------------------------------------------------------------------------
+KDuration kGetTCPConnectionDropTimeout(int socket)
+//-----------------------------------------------------------------------------
+{
+#if defined(TCP_USER_TIMEOUT)
+	// linux, in milliseconds
+	unsigned int iValue { 0 };
+	::socklen_t  iSize  { sizeof(iValue) };
+
+	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_USER_TIMEOUT, &iValue, &iSize) || !iSize)
+	{
+		kDebug(1, "cannot get TCP_USER_TIMEOUT from fd {}: {}", socket, strerror(errno));
+		return KDuration::zero();
+	}
+
+	return chrono::milliseconds(iValue);
+#elif defined(TCP_RXT_CONNDROPTIME)
+	// macOS, in seconds
+	int iValue { 0 };
+	::socklen_t iSize { sizeof(iValue) };
+
+	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_RXT_CONNDROPTIME, &iValue, &iSize) || !iSize)
+	{
+		kDebug(1, "cannot get TCP_RXT_CONNDROPTIME from fd {}: {}", socket, strerror(errno));
+		return KDuration::zero();
+	}
+
+	return chrono::seconds(iValue);
+#else
+	kDebug(2, "no connection drop timeout on this platform");
+	return KDuration::zero();
+#endif
+
+} // kGetTCPConnectionDropTimeout
+
+//-----------------------------------------------------------------------------
+bool kSetTCPConnectionDropTimeout(int socket, KDuration tDrop)
+//-----------------------------------------------------------------------------
+{
+	if (tDrop <= KDuration::zero()) return true;
+
+#if defined(TCP_USER_TIMEOUT)
+	// linux, in milliseconds
+	unsigned int iValue { static_cast<unsigned int>(tDrop.milliseconds().count()) };
+
+	if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_USER_TIMEOUT, &iValue, sizeof(iValue)))
+	{
+		kDebug(1, "cannot set TCP_USER_TIMEOUT to {} on fd {}: {}", iValue, socket, strerror(errno));
+		return false;
+	}
+
+	kDebug(3, "set TCP_USER_TIMEOUT to {}ms on fd {}", iValue, socket);
+#elif defined(TCP_RXT_CONNDROPTIME)
+	// macOS, in seconds
+	int iValue { static_cast<int>(tDrop.seconds().count()) };
+
+	if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_RXT_CONNDROPTIME, &iValue, sizeof(iValue)))
+	{
+		kDebug(1, "cannot set TCP_RXT_CONNDROPTIME to {} on fd {}: {}", iValue, socket, strerror(errno));
+		return false;
+	}
+
+	kDebug(3, "set TCP_RXT_CONNDROPTIME to {}s on fd {}", iValue, socket);
+#else
+	// best effort: there is no equivalent option on this platform (Windows)
+	kDebug(2, "no connection drop timeout on this platform");
+#endif
+
+	return true;
+
+} // kSetTCPConnectionDropTimeout
 
 //-----------------------------------------------------------------------------
 bool kSetLingerTimeout(int socket, KDuration tLingerTimeout)

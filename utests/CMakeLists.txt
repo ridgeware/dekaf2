@@ -141,6 +141,7 @@ set (USOURCES
 	ksql_tests.cpp
 	ksqlite_tests.cpp
 	kstack_tests.cpp
+	kstreamoptions_tests.cpp
 	kstring_tests.cpp
 	kstreambuf_tests.cpp
 	kstringstream_tests.cpp

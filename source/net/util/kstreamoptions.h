@@ -133,6 +133,29 @@ public:
 	/// set the keepalive interval that will be set with these options, default is KDuration::zero (off)
 	self& SetKeepAliveInterval(KDuration tKeepAlive) { m_KeepAliveInterval = tKeepAlive; return *this; }
 
+	/// set the interval between keepalive probes, default is KDuration::zero (system default,
+	/// typically 75 seconds - the total detection time is interval times probe count)
+	self& SetKeepAliveProbeInterval(KDuration tInterval) { m_KeepAliveProbeInterval = tInterval; return *this; }
+
+	/// set the number of unanswered keepalive probes before the connection is dropped,
+	/// default 0 (system default, typically 8 or 9)
+	self& SetKeepAliveProbeCount(uint16_t iCount) { m_iKeepAliveProbeCount = iCount; return *this; }
+
+	/// drop the connection after this long of unacknowledged retransmissions, default
+	/// KDuration::zero (system default). Maps to TCP_USER_TIMEOUT on Linux (where it then
+	/// also bounds keepalive probing and overrides the probe count) and TCP_RXT_CONNDROPTIME
+	/// on macOS; there is no equivalent on Windows. Unlike the keepalive settings this also
+	/// bounds a connection that carries application traffic.
+	self& SetConnectionDropTimeout(KDuration tDrop) { m_ConnectionDropTimeout = tDrop; return *this; }
+
+	/// Configure the whole keepalive parameter set from one intent: consider the connection
+	/// dead when the peer has not answered for tWithin, whether the connection is idle or
+	/// carries traffic. Waits half the time before probing, then sends three probes across
+	/// the second half, and bounds the retransmission path to the same total (the latter on
+	/// Linux and macOS only). Values are clamped to full seconds with a minimum of one
+	/// second each, so budgets below about four seconds detect later than requested.
+	self& SetDeadPeerDetection(KDuration tWithin);
+
 	/// set the linger timeout that will be set with these options, default is KDuration::zero (off)
 	self& SetLingerTimeout(KDuration tLinger) { m_LingerTimeout = tLinger; return *this; }
 
@@ -141,6 +164,15 @@ public:
 
 	/// returns keepalive interval (that will be set with these options)
 	KDuration GetKeepAliveInterval() const { return m_KeepAliveInterval; }
+
+	/// returns the interval between keepalive probes (that will be set with these options)
+	KDuration GetKeepAliveProbeInterval() const { return m_KeepAliveProbeInterval; }
+
+	/// returns the count of unanswered keepalive probes that drop the connection (that will be set with these options)
+	uint16_t GetKeepAliveProbeCount() const { return m_iKeepAliveProbeCount; }
+
+	/// returns the connection drop timeout (that will be set with these options)
+	KDuration GetConnectionDropTimeout() const { return m_ConnectionDropTimeout; }
 
 	/// returns linger timeout (that will be set with these options)
 	KDuration GetLingerTimeout() const { return m_LingerTimeout; }
@@ -192,10 +224,13 @@ private:
 	static constexpr KDuration s_DefaultKeepAliveInterval { chrono::seconds( 0) };
 	static constexpr KDuration s_DefaultLingerTimeout     { chrono::seconds( 0) };
 
-	KDuration m_Timeout           { s_DefaultTimeout           };
-	KDuration m_KeepAliveInterval { s_DefaultKeepAliveInterval };
-	KDuration m_LingerTimeout     { s_DefaultLingerTimeout     };
-	Options   m_Options           { None                       };
+	KDuration m_Timeout                { s_DefaultTimeout           };
+	KDuration m_KeepAliveInterval      { s_DefaultKeepAliveInterval };
+	KDuration m_KeepAliveProbeInterval { KDuration::zero()          };
+	KDuration m_ConnectionDropTimeout  { KDuration::zero()          };
+	KDuration m_LingerTimeout          { s_DefaultLingerTimeout     };
+	Options   m_Options                { None                       };
+	uint16_t  m_iKeepAliveProbeCount   { 0                          };
 
 }; // KStreamOptions
 
@@ -257,6 +292,38 @@ KDuration kGetTCPKeepAliveInterval(int socket);
 /// @param tKeepAliveInterval the keepalive interval for this socket
 /// @returns false on failure
 bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepAliveInterval);
+
+/// get the interval between TCP keepalive probes for this socket
+/// @param socket the socket to query
+/// @returns the probe interval, or 0 when it cannot be read
+KDuration kGetTCPKeepAliveProbeInterval(int socket);
+
+/// get the count of unanswered TCP keepalive probes after which the connection is dropped
+/// @param socket the socket to query
+/// @returns the probe count, or 0 when it cannot be read
+uint16_t kGetTCPKeepAliveProbeCount(int socket);
+
+/// set interval and count of the TCP keepalive probes - a zero value leaves the system default
+/// @param socket the socket to set the options on
+/// @param tProbeInterval the interval between two keepalive probes
+/// @param iProbeCount the count of unanswered probes after which the connection is dropped
+/// @returns false on failure
+bool kSetTCPKeepAliveProbes(int socket, KDuration tProbeInterval, uint16_t iProbeCount);
+
+/// get the connection drop timeout for this socket
+/// @param socket the socket to query
+/// @returns the drop timeout, or 0 on platforms without the option
+KDuration kGetTCPConnectionDropTimeout(int socket);
+
+/// set the connection drop timeout: drop the connection after this long of unacknowledged
+/// retransmissions. Maps to TCP_USER_TIMEOUT on Linux (where it then also bounds keepalive
+/// probing and overrides the probe count) and TCP_RXT_CONNDROPTIME on macOS; a no-op on
+/// platforms without such an option (Windows). Unlike the keepalive settings this also
+/// bounds a connection that carries application traffic.
+/// @param socket the socket to set the option on
+/// @param tDrop the drop timeout
+/// @returns false on failure
+bool kSetTCPConnectionDropTimeout(int socket, KDuration tDrop);
 
 /// get the linger timeout set for this socket - 0 if lingering is off
 /// @param socket the socket to query

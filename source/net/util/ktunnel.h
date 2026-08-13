@@ -44,6 +44,7 @@
 
 /// @file ktunnel.h
 #include <dekaf2/net/util/kiostreamsocket.h>
+#include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/containers/associative/kassociative.h>
 #include <dekaf2/crypto/cipher/kblockcipher.h>
 #include <dekaf2/crypto/ec/ked25519sign.h>  // KEd25519Key for ServerIdentity (DEKAF2_HAS_ED25519)
@@ -62,6 +63,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <queue>
+#include <deque>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -309,12 +311,16 @@ public:
 		/// set the outside connection stream if not given with the ctor
 		void        SetDirectStream       (KIOStreamSocket* DirectStream) { m_DirectStream = DirectStream; }
 
-		/// runs the data pump into the tunnel
-		void        PumpToTunnel          ();
-		/// runs the data pump out of the tunnel
-		void        PumpFromTunnel        ();
+		/// Runs the data pump for this connection in BOTH directions, on the
+		/// calling thread - it owns the direct stream alone (socket streams
+		/// tolerate only one thread at a time, and a reader plus a writer on
+		/// one stream consume each other's completions). One poll covers
+		/// reading and writing, and outbound data is written in whatever
+		/// chunks the stream takes right now, so a stalled peer cannot block
+		/// the reading direction. Returns when either side closed.
+		void        Pump                  ();
 
-		/// puts data into the direct connection's queue, may force a Pause frame if queue is too large
+		/// puts data into the direct connection's queue and wakes the pump, may force a Pause frame if queue is too large
 		void        SendData              (Message&& FromTunnel);
 		/// shuts this connection down
 		void        Disconnect            ();
@@ -324,8 +330,8 @@ public:
 		/// false when the channel is closed (Disconnect frame or tunnel
 		/// stop); sOut is left unchanged in that case. Intended for channel
 		/// types that do not have a DirectStream (OpenRepl / future
-		/// OpenShell), so PumpFromTunnel() is not running. Safe to call from
-		/// a single consumer thread.
+		/// OpenShell), so Pump() is not running. Safe to call from a single
+		/// consumer thread.
 		bool                   ReadData   (KString& sOut);
 		/// Send a Data-frame payload back over this channel. Safe to call
 		/// concurrently with ReadData(). No-op if the channel is already
@@ -355,8 +361,13 @@ public:
 		KIOStreamSocket*                     m_DirectStream { nullptr };
 		std::mutex                           m_QueueMutex;
 		std::condition_variable              m_FreshData;
+		/// serialises the pause flag handover in Resume()
 		std::mutex                           m_TunnelMutex;
-		std::condition_variable              m_ResumeTunnel;
+		/// wakes Pump() out of its poll when another thread queued outbound
+		/// data, lifted a pause, or asked for a disconnect. Owned by the
+		/// Connection (not by the stream), so it stays valid as long as
+		/// anyone holds the Connection
+		KPollInterruptor                     m_Wakeup;
 		std::size_t                          m_iID          { 0 };
 		bool                                 m_bRXPaused    { false };
 		std::atomic<bool>                    m_bPaused      { false };
@@ -482,8 +493,18 @@ protected:
 	bool HaveTunnel      () const;
 	/// read a message from the stream, blocks until timeout, then throws
 	void ReadMessage     (Message&  message);
-	/// write a message to the stream, blocks until timeout, then throws
+	/// Write a message to the stream, blocks until timeout, then throws. Only
+	/// for the single threaded login phase and for the Run() reactor draining
+	/// the outbound queue - everyone else uses QueueMessage()
 	void WriteMessage    (Message&& message);
+	/// Hand a message to the tunnel: it is appended to the outbound queue and
+	/// Run() writes it as soon as the stream takes it. Callable from any
+	/// thread, and it never touches the stream, which tolerates only one
+	/// thread at a time - a blocking write from a foreign thread would starve
+	/// the reader behind it (and with it the whole tunnel)
+	void QueueMessage    (Message&& message);
+	/// dispatch one message that arrived through the tunnel - Run() only
+	void HandleMessage   (Message&& FromTunnel);
 	/// if we are establishing the tunnel connection we have to login with node/secret
 	bool Login           (KStringView sNode, KStringView sSecret);
 	/// waits for the other tunnel side to connect
@@ -535,6 +556,11 @@ private:
 
 	Config                 m_Config;
 	KThreadSafe<TunnelEnv> m_Tunnel;
+	/// messages waiting to go out through the tunnel, filled by any thread,
+	/// drained by Run()
+	KThreadSafe<std::deque<Message>> m_OutQueue;
+	/// wakes Run() out of its poll when another thread queued a message
+	KPollInterruptor       m_Wakeup;
 	Connections            m_Connections;
 	KThreads               m_Threads;
 	KDuration              m_RTT;

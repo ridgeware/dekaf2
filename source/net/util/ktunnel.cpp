@@ -210,11 +210,13 @@ std::size_t KTunnel::Message::GetChannel() const
 	std::size_t iChannel;
 	auto it = m_Preamble.begin();
 
-	iChannel  = *++it;
+	// read as unsigned - char is signed on most platforms, and any byte above
+	// 0x7f would else be sign extended into a huge channel number
+	iChannel  = static_cast<unsigned char>(*++it);
 	iChannel *= 256;
-	iChannel += *++it;
+	iChannel += static_cast<unsigned char>(*++it);
 	iChannel *= 256;
-	iChannel += *++it;
+	iChannel += static_cast<unsigned char>(*++it);
 
 	return iChannel;
 
@@ -382,83 +384,221 @@ void KTunnel::Connection::Resume()
 	// resume
 	m_bPaused = false;
 
-	m_ResumeTunnel.notify_one();
+	// wake a Pump() that stopped polling for readability while paused
+	m_Wakeup.Wake();
 
 } // Resume
 
 //-----------------------------------------------------------------------------
-void KTunnel::Connection::PumpToTunnel()
+void KTunnel::Connection::Pump()
 //-----------------------------------------------------------------------------
 {
-	if (!m_DirectStream)
+	if (!m_DirectStream || !m_Tunnel)
 	{
 		return;
 	}
+
+	// name this thread for debugging tools like ps, top, or gdb
+	kSetThreadName("tunnelpump");
 
 	try
 	{
 		KReservedBuffer<KDefaultCopyBufSize - 12> Data;
 
-		// read until disconnect or timeout
-		for (;;)
+		// the outbound message currently going to the direct stream, and how
+		// much of it already went out - a partial write is normal here
+		Message     ToDirect;
+		bool        bHaveOutbound { false };
+		std::size_t iWritten      { 0 };
+
+		// no I/O in either direction for this long tears the connection down -
+		// the same deadline the stream timeout used to enforce on its own
+		auto      IdleTimeout = m_DirectStream->GetTimeout();
+		KStopTime Idle;
+
+		for (;!m_bQuit;)
 		{
-			KStopTime Stop;
-			auto iEvents = m_DirectStream->CheckIfReady(POLLIN | POLLHUP);
-			kDebug(3, "[{}]: poll: events: {:b} ({:x}), took {}", GetID(), iEvents, iEvents, Stop.elapsed());
+			// somebody closed the direct stream on us - same reasoning as in
+			// KTunnel::Run(), do not poll a descriptor that is gone
+			if (m_DirectStream->IsDisconnecting()) break;
 
-			if (iEvents == 0)
+			// ---- pick up the next outbound message ---------------------------
+
+			if (!bHaveOutbound)
 			{
-				// timeout
-				kDebug(2, "[{}]: timeout from {}", GetID(), m_DirectStream->GetEndPointAddress())
-				break;
-			}
-			else if ((iEvents & POLLIN) != 0)
-			{
-				if (IsPaused())
+				bool bDisconnect { false };
+
 				{
-					kDebug(2, "[{}]: paused", GetID());
-					// we are requested to hold on sending data.. wait on a semaphore
-					// until we get woken up again
-					std::unique_lock<std::mutex> Lock(m_TunnelMutex);
-					// 	protect from spurious wakeups by checking IsPaused()
-					m_ResumeTunnel.wait(Lock, [this]{ return !IsPaused(); });
-					kDebug(2, "[{}]: unpaused", GetID());
-					// now poll again to see if our input stream is still available
-					continue;
+					std::unique_lock<std::mutex> Lock(m_QueueMutex);
+
+					while (!m_MessageQueue.empty())
+					{
+						auto& Msg = m_MessageQueue.front();
+
+						if (Msg.GetType() == Message::Disconnect)
+						{
+							kDebug(3, "[{}]: got disconnect frame for {}", GetID(), m_DirectStream->GetEndPointAddress());
+							bDisconnect = true;
+							m_MessageQueue.pop();
+							break;
+						}
+
+						if (Msg.GetType() == Message::Data)
+						{
+							ToDirect      = std::move(Msg);
+							bHaveOutbound = true;
+							iWritten      = 0;
+							m_MessageQueue.pop();
+							break;
+						}
+
+						// nothing we would write to the direct stream
+						m_MessageQueue.pop();
+					}
+
+					// check if we had formerly sent a Pause frame, and we have again room
+					// in the output queue
+					if (m_bRXPaused && m_MessageQueue.size() < MaxMessageQueueSize() / 2)
+					{
+						m_bRXPaused = false;
+						Lock.unlock();
+						// request to resume from the other end of the tunnel
+						m_Tunnel(Message(Message::Resume, GetID()));
+					}
 				}
 
-				Stop.clear();
-				auto iRead = m_DirectStream->direct_read_some(Data.data(), Data.capacity());
-				kDebug(3, "[{}]: {}: read {} chars, took {}", GetID(), m_DirectStream->GetEndPointAddress(), iRead, Stop.elapsed());
-
-				if (iRead > 0)
+				if (bDisconnect)
 				{
-					Data.resize(iRead);
-					Message data(Message::Data, m_iID, KStringView(Data.data(), Data.size()));
-					m_Tunnel(std::move(data));
-				}
-				else
-				{
-					// timeout or disconnected
-					kDebug(2, "[{}]: disconnected from {}", GetID(), m_DirectStream->GetEndPointAddress())
+					Disconnect();
 					break;
 				}
 			}
 
-			if ((iEvents & POLLHUP) != 0)
+			// ---- what can we do right now, without waiting? -------------------
+
+			// Both directions are asked separately and with a zero timeout: a
+			// combined CheckIfReady() would report POLLIN alone as soon as any
+			// layer holds readable bytes (streambuf, or an undrained TLS record),
+			// and the write side would starve exactly under load.
+			bool bCanWrite = bHaveOutbound && m_DirectStream->IsWriteReady(KDuration(), false);
+			// while paused we must not read - the other tunnel end asked us to
+			// stop feeding it
+			bool bCanRead  = !IsPaused()   && m_DirectStream->IsReadReady (KDuration(), false);
+
+			bool bDidIO { false };
+
+			// ---- write whatever the stream takes right now --------------------
+
+			if (bCanWrite)
 			{
-				// disconnected
-				kDebug(2, "[{}]: got disconnected from {}", GetID(), m_DirectStream->GetEndPointAddress())
-				break;
+				const auto& sPayload = ToDirect.GetMessage();
+
+				auto iWrote = m_DirectStream->direct_write_some(sPayload.data() + iWritten,
+				                                               sPayload.size() - iWritten);
+
+				if (iWrote < 0)
+				{
+					kDebug(2, "[{}]: cannot write to {}", GetID(), m_DirectStream->GetEndPointAddress());
+					break;
+				}
+
+				if (iWrote > 0)
+				{
+					bDidIO    = true;
+					iWritten += static_cast<std::size_t>(iWrote);
+
+					kDebug(3, "[{}]: {}: wrote {} of {} chars", GetID(),
+					       m_DirectStream->GetEndPointAddress(), iWritten, sPayload.size());
+
+					if (iWritten >= sPayload.size())
+					{
+						// this one is out, the next round picks up the next
+						bHaveOutbound = false;
+						iWritten      = 0;
+					}
+				}
 			}
-			else if ((iEvents & (POLLERR | POLLNVAL)) != 0)
+
+			// ---- read and forward into the tunnel ----------------------------
+
+			if (bCanRead)
 			{
-				// error
-				kDebug(2, "[{}]: got error from {}", GetID(), m_DirectStream->GetEndPointAddress())
+				auto iRead = m_DirectStream->direct_read_some(Data.data(), Data.capacity());
+
+				if (iRead <= 0)
+				{
+					// disconnected
+					kDebug(2, "[{}]: disconnected from {}", GetID(), m_DirectStream->GetEndPointAddress());
+					break;
+				}
+
+				bDidIO = true;
+				Data.resize(iRead);
+				kDebug(3, "[{}]: {}: read {} chars", GetID(), m_DirectStream->GetEndPointAddress(), iRead);
+				m_Tunnel(Message(Message::Data, m_iID, KStringView(Data.data(), Data.size())));
+				Data.reset();
+			}
+
+			if (bDidIO)
+			{
+				// there was work - look for more before going to sleep
+				Idle.clear();
+				continue;
+			}
+
+			// ---- neither direction can proceed - wait ------------------------
+
+			short iWhat { POLLHUP };
+
+			if (!IsPaused())   iWhat |= POLLIN;
+			if (bHaveOutbound) iWhat |= POLLOUT;
+
+			struct pollfd fds[2];
+			std::size_t   iCount { 1 };
+
+			fds[0].fd      = m_DirectStream->GetNativeSocket();
+			fds[0].events  = iWhat;
+			fds[0].revents = 0;
+
+			if (m_Wakeup.IsValid())
+			{
+				fds[1].fd      = m_Wakeup.GetFD();
+				fds[1].events  = POLLIN;
+				fds[1].revents = 0;
+				iCount         = 2;
+			}
+
+			// without a working interruptor (Windows) nobody can wake us, so we
+			// wait in short slices to keep the outbound latency low
+			auto Timeout = m_Wakeup.IsValid() ? IdleTimeout : KDuration(chrono::milliseconds(20));
+
+			auto iResult = kPoll(KSpan<pollfd>(fds, iCount), Timeout);
+
+			if (iResult < 0)
+			{
+				kDebug(2, "[{}]: poll error for {}", GetID(), m_DirectStream->GetEndPointAddress());
 				break;
 			}
 
-			Data.reset();
+			if (iResult > 0 && iCount == 2 && fds[1].revents)
+			{
+				// woken from another thread (queued data, resume, disconnect) -
+				// drain the interruptor and re-evaluate at the top
+				m_Wakeup.Clear();
+				continue;
+			}
+
+			if (iResult > 0 && (fds[0].revents & (POLLHUP | POLLERR | POLLNVAL)) != 0)
+			{
+				kDebug(2, "[{}]: got disconnected from {}", GetID(), m_DirectStream->GetEndPointAddress());
+				break;
+			}
+
+			if (iResult == 0 && Idle.elapsed() >= IdleTimeout)
+			{
+				kDebug(2, "[{}]: timeout from {}", GetID(), m_DirectStream->GetEndPointAddress());
+				break;
+			}
 		}
 
 		m_Tunnel(Message(Message::Disconnect, m_iID));
@@ -468,90 +608,7 @@ void KTunnel::Connection::PumpToTunnel()
 		kDebug(1, ex.what());
 	}
 
-} // Connection::PumpToTunnel
-
-//-----------------------------------------------------------------------------
-void KTunnel::Connection::PumpFromTunnel()
-//-----------------------------------------------------------------------------
-{
-	// name this thread for debugging tools like ps, top, or gdb - PumpFromTunnel()
-	// always runs on its own thread, while PumpToTunnel() runs on the caller's
-	kSetThreadName("tunnelpump");
-
-	if (!m_DirectStream || !m_Tunnel)
-	{
-		throw KError(kFormat("[{}] no stream for channel", GetID()));
-	}
-
-	try
-	{
-		for (;!m_bQuit;)
-		{
-			std::unique_lock<std::mutex> Lock(m_QueueMutex);
-
-			for (;!m_MessageQueue.empty();)
-			{
-				// get next message from top
-				auto& MessageToDirect = m_MessageQueue.front();
-
-				if (MessageToDirect.GetType() == Message::Data)
-				{
-					KStopTime Stop;
-					// check if we can immediately write data
-					if (!m_DirectStream->IsWriteReady(KDuration()))
-					{
-						// no - get out of the lock
-						Lock.unlock();
-						// and wait until timeout for write readiness
-						if (!m_DirectStream->IsWriteReady())
-						{
-							throw KError(kFormat("[{}] cannot write to direct stream ({})", GetID(), 1));
-						}
-						// we can now write again, acquire the lock again
-						Lock.lock();
-					}
-					kDebug(3, "polled for {}", Stop.elapsedAndClear());
-					// write the message
-					if (m_DirectStream->Write(MessageToDirect.GetMessage()).Flush().Good() == false)
-					{
-						throw KError(kFormat("[{}] cannot write to direct stream ({})", GetID(), 2));
-					}
-					kDebug(3, "[{}]: {}: wrote {} chars, took {}", GetID(), m_DirectStream->GetEndPointAddress(), MessageToDirect.size(), Stop.elapsed());
-				}
-				else if (MessageToDirect.GetType() == Message::Disconnect)
-				{
-					kDebug(3, "[{}]: got disconnect frame for {}", GetID(), m_DirectStream->GetEndPointAddress());
-					Disconnect();
-				}
-				// remove the message from the top
-				m_MessageQueue.pop();
-
-				// check if we had formerly sent a Pause frame, and we have again room
-				// in the output queue
-				if (m_bRXPaused && m_MessageQueue.size() < MaxMessageQueueSize() / 2)
-				{
-					// request to resume from the other end of the tunnel
-					m_Tunnel(Message(Message::Resume, GetID()));
-					m_bRXPaused = false;
-				}
-			}
-
-			if (!m_bQuit)
-			{
-				// and wait for new data coming in
-				KStopTime Stop;
-				m_FreshData.wait(Lock, [this]{ return !m_MessageQueue.empty() || m_bQuit.load(std::memory_order_relaxed); });
-				kDebug(3, "[{}]: {}: waited for new data, took {}", GetID(), m_DirectStream->GetEndPointAddress(), Stop.elapsed());
-			}
-		}
-	}
-	catch (const std::exception& ex)
-	{
-		kDebug(1, ex.what());
-		// TODO throw?
-	}
-
-} // Connection::PumpFromTunnel
+} // Connection::Pump
 
 //-----------------------------------------------------------------------------
 void KTunnel::Connection::SendData(Message&& FromTunnel)
@@ -572,10 +629,15 @@ void KTunnel::Connection::SendData(Message&& FromTunnel)
 			kDebug(3, "[{}]: requested pause, took {}", GetID(), Stop.elapsedAndClear());
 		}
 
+		// for consumers that wait on the queue (ReadData on REPL channels)
 		m_FreshData.notify_one();
 
 	}
-	kDebug(3, "[{}]: notified writer thread, took {}", GetID(), Stop.elapsed());
+
+	// and for a Pump() that sits in its poll
+	m_Wakeup.Wake();
+
+	kDebug(3, "[{}]: notified the pump, took {}", GetID(), Stop.elapsed());
 
 } // Connection::SendData
 
@@ -586,6 +648,7 @@ void KTunnel::Connection::Disconnect()
 	m_bQuit = true;
 
 	m_FreshData.notify_all();
+	m_Wakeup.Wake();
 
 	if (m_DirectStream)
 	{
@@ -865,16 +928,22 @@ KTunnel::~KTunnel()
 void KTunnel::Stop()
 //-----------------------------------------------------------------------------
 {
-	// Thread-safe stop: disconnecting the underlying stream causes the
-	// blocked Read/Write inside Run() to fail and HaveTunnel() to return
-	// false on the next loop iteration, so Run() returns promptly.
-	auto Tunnel = m_Tunnel.unique();
-
-	if (Tunnel->Stream)
+	// Thread-safe stop: disconnecting the underlying stream makes
+	// HaveTunnel() false, so Run() returns on its next loop iteration.
 	{
-		kDebug(2, "stopping tunnel");
-		Tunnel->Stream->Disconnect();
+		auto Tunnel = m_Tunnel.unique();
+
+		if (Tunnel->Stream)
+		{
+			kDebug(2, "stopping tunnel");
+			Tunnel->Stream->Disconnect();
+		}
 	}
+
+	// and wake Run() out of its poll - closing a socket does not reliably
+	// unblock a poll() that waits on it (that is what the interruptor is for),
+	// so without this Run() would sit there until its idle timeout
+	m_Wakeup.Wake();
 
 } // KTunnel::Stop
 
@@ -887,14 +956,14 @@ void KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& Connect
 		throw KError("invalid stream socket");
 	}
 
-	auto Connection = m_Connections.Create(0, [this](Message&& msg){ WriteMessage(std::move(msg)); }, DirectStream);
+	auto Connection = m_Connections.Create(0, [this](Message&& msg){ QueueMessage(std::move(msg)); }, DirectStream);
 
 	if (!Connection)
 	{
 		throw KError("cannot create new connection");
 	}
 
-	WriteMessage(Message(Message::Connect, Connection->GetID(), ConnectToEndpoint.Serialize()));
+	QueueMessage(Message(Message::Connect, Connection->GetID(), ConnectToEndpoint.Serialize()));
 
 	auto iID = Connection->GetID();
 
@@ -911,11 +980,8 @@ void KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& Connect
 
 	kDebug(1, "[{}]: requested forward connection to {}", iID, ConnectToEndpoint);
 
-	auto pump = kMakeThread(&KTunnel::Connection::PumpFromTunnel, Connection.get());
-
-	Connection->PumpToTunnel();
-
-	pump.join();
+	// both directions on this thread - the stream tolerates only one
+	Connection->Pump();
 
 } // Connect
 
@@ -933,7 +999,7 @@ std::shared_ptr<KTunnel::Connection> KTunnel::OpenRepl()
 	// duplex Connection::ReadData() / WriteData() API. The initiator
 	// side sends the OpenRepl frame; on the peer side the Run() switch
 	// dispatches it into the configured OpenReplCallback.
-	auto Connection = m_Connections.Create(0, [this](Message&& msg){ WriteMessage(std::move(msg)); }, nullptr);
+	auto Connection = m_Connections.Create(0, [this](Message&& msg){ QueueMessage(std::move(msg)); }, nullptr);
 
 	if (!Connection)
 	{
@@ -941,7 +1007,7 @@ std::shared_ptr<KTunnel::Connection> KTunnel::OpenRepl()
 		return {};
 	}
 
-	WriteMessage(Message(Message::OpenRepl, Connection->GetID()));
+	QueueMessage(Message(Message::OpenRepl, Connection->GetID()));
 
 	kDebug(1, "[{}]: requested REPL channel", Connection->GetID());
 
@@ -1004,51 +1070,23 @@ KString KTunnel::GetLoginNode() const
 void KTunnel::ReadMessage(Message& message)
 //-----------------------------------------------------------------------------
 {
-	for (;;)
+	auto Tunnel = m_Tunnel.unique();
+
+	if (!Tunnel->Stream)
 	{
-		{
-			auto Stream = GetStream();
+		throw KError("no tunnel stream for reading");
+	}
 
-			if (!Stream)
-			{
-				throw KError("no tunnel stream for reading");
-			}
+	message.Read(*Tunnel->Stream, Tunnel->Decryptor.get());
+	kDebug(3, message.Debug());
 
-			// return latest after set stream timeout
-			if (!Stream->IsReadReady())
-			{
-				throw KError(Stream->GetLastError());
-			}
-		}
-
-		{
-			auto Tunnel = m_Tunnel.unique();
-
-			if (!Tunnel->Stream)
-			{
-				throw KError("no tunnel stream for reading");
-			}
-
-			// return immediately from poll
-			if (Tunnel->Stream->IsReadReady(KDuration()))
-			{
-				message.Read(*Tunnel->Stream, Tunnel->Decryptor.get());
-				kDebug(3, message.Debug());
-
-				// count only payload-carrying Data frames, not protocol
-				// frames (Login/Helo/Ping/Pong/Control/Connect/...). This
-				// gives the admin UI a metric that directly reflects how
-				// much tunneled application traffic went through.
-				if (message.GetType() == Message::Data)
-				{
-					m_iBytesRx.fetch_add(message.size(), std::memory_order_relaxed);
-				}
-
-				break;
-			}
-		}
-
-		// stream changed state while acquiring lock, repeat waiting
+	// count only payload-carrying Data frames, not protocol frames
+	// (Login/Helo/Ping/Pong/Control/Connect/...). This gives the admin UI a
+	// metric that directly reflects how much tunneled application traffic
+	// went through.
+	if (message.GetType() == Message::Data)
+	{
+		m_iBytesRx.fetch_add(message.size(), std::memory_order_relaxed);
 	}
 
 } // KTunnel::ReadMessage
@@ -1057,54 +1095,40 @@ void KTunnel::ReadMessage(Message& message)
 void KTunnel::WriteMessage(Message&& message)
 //-----------------------------------------------------------------------------
 {
-	for (;;)
+	auto Tunnel = m_Tunnel.unique();
+
+	if (!Tunnel->Stream)
 	{
-		{
-			auto Stream = GetStream();
+		throw KError("no tunnel stream for writing");
+	}
 
-			if (!Stream)
-			{
-				throw KError("no tunnel stream for writing");
-			}
+	kDebug(3, message.Debug());
+	// snapshot type+size BEFORE Write() - Write may move/consume the payload
+	// buffer depending on Frame internals
+	const auto msgType = message.GetType();
+	const auto msgSize = message.size();
 
-			// return latest after set stream timeout
-			if (!Stream->IsWriteReady())
-			{
-				throw KError(Stream->GetLastError());
-			}
-		}
+	KStopTime Stop;
+	message.Write(*Tunnel->Stream, m_bMaskTx, Tunnel->Encryptor.get());
+	kDebug(3, "took {}", Stop.elapsed());
 
-		{
-			auto Tunnel = m_Tunnel.unique();
-
-			if (!Tunnel->Stream)
-			{
-				throw KError("no tunnel stream for writing");
-			}
-
-			// return immediately from poll
-			if (Tunnel->Stream->IsWriteReady(KDuration()))
-			{
-				kDebug(3, message.Debug());
-				// snapshot type+size BEFORE Write() — Write may move/consume
-				// the payload buffer depending on Frame internals
-				const auto   msgType = message.GetType();
-				const auto   msgSize = message.size();
-				KStopTime Stop;
-				message.Write(*Tunnel->Stream, m_bMaskTx, Tunnel->Encryptor.get());
-				kDebug(3, "took {}", Stop.elapsed());
-				if (msgType == Message::Data)
-				{
-					m_iBytesTx.fetch_add(msgSize, std::memory_order_relaxed);
-				}
-				break;
-			}
-		}
-
-		// stream changed state while acquiring lock, repeat waiting
+	if (msgType == Message::Data)
+	{
+		m_iBytesTx.fetch_add(msgSize, std::memory_order_relaxed);
 	}
 
 } // KTunnel::WriteMessage
+
+//-----------------------------------------------------------------------------
+void KTunnel::QueueMessage(Message&& message)
+//-----------------------------------------------------------------------------
+{
+	m_OutQueue.unique()->push_back(std::move(message));
+
+	// wake Run() if it sits in its poll
+	m_Wakeup.Wake();
+
+} // KTunnel::QueueMessage
 
 //-----------------------------------------------------------------------------
 void KTunnel::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
@@ -1127,11 +1151,8 @@ void KTunnel::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 			{
 				Connection->SetDirectStream(TargetStream.get());
 
-				auto pump = kMakeThread(&Connection::PumpFromTunnel, Connection.get());
-
-				Connection->PumpToTunnel();
-
-				pump.join();
+				// both directions on this thread - the stream tolerates only one
+				Connection->Pump();
 			}
 			else
 			{
@@ -1636,7 +1657,7 @@ void KTunnel::PingTest(KUnixTime Time)
 	if (HaveTunnel())
 	{
 		KStopTime RTT;
-		WriteMessage(Message(Message::Ping, 0, kToStringView(RTT)));
+		QueueMessage(Message(Message::Ping, 0, kToStringView(RTT)));
 	}
 
 } // KTunnel::TimingCallback
@@ -1658,196 +1679,333 @@ void KTunnel::Run()
 		);
 	}
 
-	SetTimeout(m_Config.ControlPing + m_Config.ConnectTimeout);
+	auto IdleTimeout = m_Config.ControlPing + m_Config.ConnectTimeout;
+
+	SetTimeout(IdleTimeout);
+
+	// From here on this thread owns the tunnel stream: it reads incoming
+	// messages and it is the only one writing outgoing ones, which everybody
+	// else hands over through QueueMessage(). Both directions are checked
+	// separately with a zero timeout - a combined poll would report readability
+	// alone as soon as any layer holds bytes (streambuf, or an undrained TLS
+	// record) and the write side would starve under load.
+	KStopTime Idle;
 
 	for (;HaveTunnel();)
 	{
-		Message FromTunnel;
-		ReadMessage(FromTunnel);
-
-		kDebug(3, "open connections: {}", m_Connections.size());
-
-		// get a shorthand for the channel
-		auto chan = FromTunnel.GetChannel();
-
-		switch (FromTunnel.GetType())
 		{
-			case Message::Ping:
+			auto Stream = GetStream();
+
+			// Stop() (from any thread) closed the socket - a clean Disconnect()
+			// leaves no error behind, so HaveTunnel() would still be true. Leave
+			// here, and above all do not poll the closed descriptor: its number
+			// may already belong to another socket
+			if (!Stream || Stream->IsDisconnecting()) break;
+		}
+
+		bool bDidIO { false };
+
+		// ---- send one message, if the stream takes it right now ------------
+
+		// exactly one per round, strictly alternating with the read below:
+		// draining the whole queue here would starve the reading direction
+		// under load, and the channels waiting for incoming data would run
+		// into their idle timeout
+		if (!m_OutQueue.shared()->empty())
+		{
+			auto Stream = GetStream();
+
+			if (Stream && Stream->IsWriteReady(KDuration(), false))
 			{
-				// check if the channel is alive on our end
-				if (!chan || m_Connections.Exists(chan))
+				Message ToTunnel;
+				bool    bHaveOne { false };
+
 				{
-					// respond with pong
-					FromTunnel.SetType(Message::Pong);
-					WriteMessage(std::move(FromTunnel));
-				}
-				else
-				{
-					WriteMessage(Message(Message::Disconnect, chan));
-				}
+					auto OutQueue = m_OutQueue.unique();
 
-
-				break;
-			}
-
-			case Message::Pong:
-				// do nothing, but note RTT
-				if (FromTunnel.size() == sizeof(KStopTime))
-				{
-					auto RTT(kFromStringView<KStopTime>(FromTunnel.GetMessage()));
-					m_RTT = RTT.elapsed();
-					kDebug(1, "roundtrip: {}", m_RTT);
-				}
-				break;
-
-			case Message::Idle:
-				// really do nothing
-				break;
-
-			case Message::Control:
-				if (chan != 0)
-				{
-					throw KError(kFormat("[{}]: received control message on non-zero channel", chan));
-				}
-				// we currently do not exchange control messages
-				break;
-
-			case Message::Connect:
-			{
-				// open a new stream to endpoint, and data stream to exposed host
-				KTCPEndPoint TargetHost(FromTunnel.GetMessage());
-				kDebug(3, "got connect request: {} for channel {}", TargetHost, chan);
-
-				auto Connection = m_Connections.Create(chan, [this](Message&& msg){ WriteMessage(std::move(msg)); }, nullptr);
-
-				if (Connection)
-				{
-					m_Threads.Create(&KTunnel::ConnectToTarget, this, chan, std::move(TargetHost));
-				}
-				else
-				{
-					WriteMessage(Message(Message::Disconnect, chan));
-				}
-
-				break;
-			}
-
-			case Message::Data:
-			{
-				auto Connection = m_Connections.Get(chan, false);
-
-				if (!Connection)
-				{
-					WriteMessage(Message(Message::Disconnect, chan));
-				}
-				else
-				{
-					Connection->SendData(std::move(FromTunnel));
-				}
-				break;
-			}
-
-			case Message::Pause:
-			{
-				auto Connection = m_Connections.Get(chan, false);
-
-				if (!Connection)
-				{
-					WriteMessage(Message(Message::Disconnect, chan));
-				}
-				else
-				{
-					Connection->Pause();
-				}
-				break;
-			}
-
-			case Message::Resume:
-			{
-				auto Connection = m_Connections.Get(chan, false);
-
-				if (!Connection)
-				{
-					WriteMessage(Message(Message::Disconnect, chan));
-				}
-				else
-				{
-					Connection->Resume();
-				}
-				break;
-			}
-
-			case Message::Disconnect:
-			{
-				auto Connection = m_Connections.Get(chan, false);
-
-				if (Connection)
-				{
-					// put the disconnect into the queue
-					Connection->SendData(std::move(FromTunnel));
-				}
-				break;
-			}
-
-			case Message::OpenRepl:
-			{
-				// the peer requests a REPL channel on our side — only
-				// accept if an OpenReplCallback is configured
-				if (!m_Config.OpenReplCallback)
-				{
-					kDebug(1, "[{}]: OpenRepl requested but no OpenReplCallback configured", chan);
-					WriteMessage(Message(Message::Disconnect, chan));
-					break;
-				}
-
-				auto Connection = m_Connections.Create(chan, [this](Message&& msg){ WriteMessage(std::move(msg)); }, nullptr);
-
-				if (Connection)
-				{
-					// Hand the Connection to the REPL callback on its
-					// own worker thread. When the callback returns the
-					// connection is disconnected and removed from the
-					// registry, mirroring ConnectToTarget()'s lifecycle.
-					m_Threads.Create([this, cb=m_Config.OpenReplCallback, Connection]()
+					if (!OutQueue->empty())
 					{
-						try
-						{
-							cb(Connection);
-						}
-						catch (const std::exception& ex)
-						{
-							kDebug(1, "[{}]: REPL handler threw: {}", Connection->GetID(), ex.what());
-						}
-						Connection->Disconnect();
-						m_Connections.Remove(Connection->GetID());
-					});
+						ToTunnel = std::move(OutQueue->front());
+						OutQueue->pop_front();
+						bHaveOne = true;
+					}
 				}
-				else
+
+				if (bHaveOne)
 				{
-					WriteMessage(Message(Message::Disconnect, chan));
+					WriteMessage(std::move(ToTunnel));
+					bDidIO = true;
 				}
-
-				break;
 			}
+		}
 
-			case Message::OpenShell:
-			case Message::ShellResize:
+		// ---- receive and dispatch one message ------------------------------
+
+		{
+			auto Stream = GetStream();
+
+			if (Stream && Stream->IsReadReady(KDuration(), false))
 			{
-				// reserved for a future PTY-shell channel — reject for now
-				kDebug(1, "[{}]: {} not implemented yet", chan, FromTunnel.PrintType());
-				WriteMessage(Message(Message::Disconnect, chan));
-				break;
+				Message FromTunnel;
+				ReadMessage(FromTunnel);
+				HandleMessage(std::move(FromTunnel));
+				bDidIO = true;
 			}
+		}
 
-			case Message::Login:
-			case Message::Helo:
-				throw KError("received login handshake in an established connection");
+		if (bDidIO)
+		{
+			// there was work - look for more before going to sleep
+			Idle.clear();
+			continue;
+		}
 
-			case Message::None:
-				throw KError("received invalid message type");
+		// ---- neither direction can proceed - wait --------------------------
+
+		short iWhat { POLLIN | POLLHUP };
+
+		if (!m_OutQueue.shared()->empty()) iWhat |= POLLOUT;
+
+		struct pollfd fds[2];
+		std::size_t   iCount { 1 };
+
+		{
+			auto Stream = GetStream();
+
+			if (!Stream) break;
+
+			fds[0].fd = Stream->GetNativeSocket();
+		}
+
+		fds[0].events  = iWhat;
+		fds[0].revents = 0;
+
+		if (m_Wakeup.IsValid())
+		{
+			fds[1].fd      = m_Wakeup.GetFD();
+			fds[1].events  = POLLIN;
+			fds[1].revents = 0;
+			iCount         = 2;
+		}
+
+		// without a working interruptor (Windows) nobody can wake us, so we
+		// wait in short slices to keep the outbound latency low
+		auto Timeout = m_Wakeup.IsValid() ? IdleTimeout : KDuration(chrono::milliseconds(20));
+
+		auto iResult = kPoll(KSpan<pollfd>(fds, iCount), Timeout);
+
+		if (iResult < 0)
+		{
+			throw KError("poll error on the tunnel stream");
+		}
+
+		if (iResult > 0 && iCount == 2 && fds[1].revents)
+		{
+			// another thread queued a message - drain the interruptor and
+			// re-evaluate at the top
+			m_Wakeup.Clear();
+			continue;
+		}
+
+		if (iResult > 0 && (fds[0].revents & (POLLHUP | POLLERR | POLLNVAL)) != 0)
+		{
+			throw KError("the tunnel connection was closed");
+		}
+
+		if (iResult == 0 && Idle.elapsed() >= IdleTimeout)
+		{
+			throw KError(kFormat("no message from the tunnel for {}", IdleTimeout));
 		}
 	}
 
 } // KTunnel::Run
+
+//-----------------------------------------------------------------------------
+void KTunnel::HandleMessage(Message&& FromTunnel)
+//-----------------------------------------------------------------------------
+{
+	kDebug(3, "open connections: {}", m_Connections.size());
+
+	// get a shorthand for the channel
+	auto chan = FromTunnel.GetChannel();
+
+	switch (FromTunnel.GetType())
+	{
+		case Message::Ping:
+		{
+			// check if the channel is alive on our end
+			if (!chan || m_Connections.Exists(chan))
+			{
+				// respond with pong
+				FromTunnel.SetType(Message::Pong);
+				QueueMessage(std::move(FromTunnel));
+			}
+			else
+			{
+				QueueMessage(Message(Message::Disconnect, chan));
+			}
+
+
+			break;
+		}
+
+		case Message::Pong:
+			// do nothing, but note RTT
+			if (FromTunnel.size() == sizeof(KStopTime))
+			{
+				auto RTT(kFromStringView<KStopTime>(FromTunnel.GetMessage()));
+				m_RTT = RTT.elapsed();
+				kDebug(1, "roundtrip: {}", m_RTT);
+			}
+			break;
+
+		case Message::Idle:
+			// really do nothing
+			break;
+
+		case Message::Control:
+			if (chan != 0)
+			{
+				throw KError(kFormat("[{}]: received control message on non-zero channel", chan));
+			}
+			// we currently do not exchange control messages
+			break;
+
+		case Message::Connect:
+		{
+			// open a new stream to endpoint, and data stream to exposed host
+			KTCPEndPoint TargetHost(FromTunnel.GetMessage());
+			kDebug(3, "got connect request: {} for channel {}", TargetHost, chan);
+
+			auto Connection = m_Connections.Create(chan, [this](Message&& msg){ QueueMessage(std::move(msg)); }, nullptr);
+
+			if (Connection)
+			{
+				m_Threads.Create(&KTunnel::ConnectToTarget, this, chan, std::move(TargetHost));
+			}
+			else
+			{
+				QueueMessage(Message(Message::Disconnect, chan));
+			}
+
+			break;
+		}
+
+		case Message::Data:
+		{
+			auto Connection = m_Connections.Get(chan, false);
+
+			if (!Connection)
+			{
+				QueueMessage(Message(Message::Disconnect, chan));
+			}
+			else
+			{
+				Connection->SendData(std::move(FromTunnel));
+			}
+			break;
+		}
+
+		case Message::Pause:
+		{
+			auto Connection = m_Connections.Get(chan, false);
+
+			if (!Connection)
+			{
+				QueueMessage(Message(Message::Disconnect, chan));
+			}
+			else
+			{
+				Connection->Pause();
+			}
+			break;
+		}
+
+		case Message::Resume:
+		{
+			auto Connection = m_Connections.Get(chan, false);
+
+			if (!Connection)
+			{
+				QueueMessage(Message(Message::Disconnect, chan));
+			}
+			else
+			{
+				Connection->Resume();
+			}
+			break;
+		}
+
+		case Message::Disconnect:
+		{
+			auto Connection = m_Connections.Get(chan, false);
+
+			if (Connection)
+			{
+				// put the disconnect into the queue
+				Connection->SendData(std::move(FromTunnel));
+			}
+			break;
+		}
+
+		case Message::OpenRepl:
+		{
+			// the peer requests a REPL channel on our side — only
+			// accept if an OpenReplCallback is configured
+			if (!m_Config.OpenReplCallback)
+			{
+				kDebug(1, "[{}]: OpenRepl requested but no OpenReplCallback configured", chan);
+				QueueMessage(Message(Message::Disconnect, chan));
+				break;
+			}
+
+			auto Connection = m_Connections.Create(chan, [this](Message&& msg){ QueueMessage(std::move(msg)); }, nullptr);
+
+			if (Connection)
+			{
+				// Hand the Connection to the REPL callback on its
+				// own worker thread. When the callback returns the
+				// connection is disconnected and removed from the
+				// registry, mirroring ConnectToTarget()'s lifecycle.
+				m_Threads.Create([this, cb=m_Config.OpenReplCallback, Connection]()
+				{
+					try
+					{
+						cb(Connection);
+					}
+					catch (const std::exception& ex)
+					{
+						kDebug(1, "[{}]: REPL handler threw: {}", Connection->GetID(), ex.what());
+					}
+					Connection->Disconnect();
+					m_Connections.Remove(Connection->GetID());
+				});
+			}
+			else
+			{
+				QueueMessage(Message(Message::Disconnect, chan));
+			}
+
+			break;
+		}
+
+		case Message::OpenShell:
+		case Message::ShellResize:
+		{
+			// reserved for a future PTY-shell channel — reject for now
+			kDebug(1, "[{}]: {} not implemented yet", chan, FromTunnel.PrintType());
+			QueueMessage(Message(Message::Disconnect, chan));
+			break;
+		}
+
+		case Message::Login:
+		case Message::Helo:
+			throw KError("received login handshake in an established connection");
+
+		case Message::None:
+			throw KError("received invalid message type");
+	}
+
+} // KTunnel::HandleMessage
 
 DEKAF2_NAMESPACE_END

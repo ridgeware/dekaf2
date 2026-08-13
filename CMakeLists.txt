@@ -2419,6 +2419,11 @@ if (DEKAF2_BUILD_SAMPLES)
 	add_executable(kmqtt samples/kmqtt.cpp)
 	target_link_libraries(kmqtt dekaf2${DEKAF2_LINK_SHARED})
 
+	# an end to end integrity test for KTunnel - not part of the default build,
+	# it needs a minute to run: cmake --build . --target ktunnel_test
+	add_executable(ktunnel_test EXCLUDE_FROM_ALL samples/ktunnel_test.cpp)
+	target_link_libraries(ktunnel_test dekaf2${DEKAF2_LINK_SHARED})
+
 	if (SQLITE3_FOUND)
 		add_executable(ktunnel
 			samples/ktunnel.cpp

@@ -306,7 +306,9 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 	m_iLastReplyCode = 0;
 
 	// force TLS socket for opportunistic TLS, do not allow ALPN HTTP2 upgrade
-	m_Connection = KIOStreamSocket::Create(Relay, true, m_Timeout);
+	m_Connection = KIOStreamSocket::Create(Relay, true,
+	                                       KStreamOptions(m_bVerifyCerts ? KStreamOptions::VerifyCert
+	                                                                     : KStreamOptions::None, m_Timeout));
 
 	if (!Good())
 	{
@@ -334,6 +336,13 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 		return false;
 	}
 
+	if (sUsername.empty() && sPassword.empty())
+	{
+		// check if we have username and password in the URL
+		sUsername = Relay.User.get();
+		sPassword = Relay.Password.get();
+	}
+
 	// try ESMTP
 	ESMTPParms Parms;
 	
@@ -344,11 +353,22 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 		{
 			return false;
 		}
-		else
+
+		// SMTP success - but plain SMTP knows neither STARTTLS nor authentication,
+		// so fail loudly instead of silently dropping what the caller asked for
+		if (m_bRequireTLS && !bImplicitTLS)
 		{
-			// SMTP success. No authentication, no STARTTLS
-			return true;
+			Disconnect();
+			return SetError("encryption required, but the server only speaks plain SMTP");
 		}
+
+		if (!sUsername.empty() || !sPassword.empty())
+		{
+			Disconnect();
+			return SetError("credentials given, but the server does not support authentication");
+		}
+
+		return true;
 	}
 
 	bool bIsTLS { bImplicitTLS };
@@ -380,11 +400,10 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 		bIsTLS = true;
 	}
 
-	if (sUsername.empty() && sPassword.empty())
+	if (m_bRequireTLS && !bIsTLS)
 	{
-		// check if we have username and password in the URL
-		sUsername = Relay.User.get();
-		sPassword = Relay.Password.get();
+		Disconnect();
+		return SetError("encryption required, but the server does not offer STARTTLS");
 	}
 
 	// evaluate ESMTP response

@@ -91,7 +91,8 @@ public:
 	/// anything in the URL.
 	/// The session starts in plaintext and upgrades through STARTTLS when the
 	/// server offers it - except on port 465 (submissions), where TLS is
-	/// negotiated right away.
+	/// negotiated right away. With SetRequireTLS() the connect fails instead
+	/// of continuing in plaintext.
 	bool Connect(const KURL& Relay, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
 	/// Disconnect from mail relay
 	void Disconnect();
@@ -106,6 +107,11 @@ public:
 	void SetTimeout(KDuration Timeout) { m_Timeout = Timeout; }
 	/// Set the connection timeout in seconds, preset is 15
 	void SetTimeout(uint16_t iSeconds) { SetTimeout(chrono::seconds(iSeconds)); }
+	/// Require an encrypted session: Connect() then fails unless TLS gets established,
+	/// either right away (port 465) or through STARTTLS. Preset is off (opportunistic TLS)
+	void SetRequireTLS(bool bYesNo = true) { m_bRequireTLS = bYesNo; }
+	/// Verify the server certificate? Preset is off
+	void SetVerifyCerts(bool bYesNo = true) { m_bVerifyCerts = bYesNo; }
 
 //----------
 private:
@@ -126,6 +132,10 @@ private:
 	KDuration m_Timeout { KStreamOptions::GetDefaultTimeout() };
 	// the last SMTP reply code received from the server
 	uint16_t m_iLastReplyCode { 0 };
+	// fail Connect() if the session cannot be encrypted?
+	bool m_bRequireTLS { false };
+	// verify the server certificate?
+	bool m_bVerifyCerts { false };
 
 }; // KSMTP
 

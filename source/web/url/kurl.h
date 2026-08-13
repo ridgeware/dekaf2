@@ -1030,6 +1030,21 @@ public:
 	uint16_t DefaultPort() const;
 	//-------------------------------------------------------------------------
 
+	//-------------------------------------------------------------------------
+	/// returns true if the scheme mandates a connection that is TLS wrapped from
+	/// the first byte on (like https, imaps, mqtts) - STARTTLS-style upgrades do
+	/// not count as wrapping
+	DEKAF2_NODISCARD
+	bool WrapInTLS() const;
+	//-------------------------------------------------------------------------
+
+	//-------------------------------------------------------------------------
+	/// returns true if the given port is a default port of TLS wrapping schemes
+	/// only - use to decide on TLS for connections without a scheme
+	DEKAF2_NODISCARD
+	static bool WrapInTLS(uint16_t iPort);
+	//-------------------------------------------------------------------------
+
 //------
 private:
 //------

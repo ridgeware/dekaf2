@@ -249,15 +249,17 @@ public:
 //----------
 
 	DEKAF2_CONSTEXPR_14
-	Protocols(uint16_t _iPort, KStringView _sName, KStringView sPrefix)
+	Protocols(uint16_t _iPort, KStringView _sName, KStringView sPrefix, bool _bWrapInTLS = false)
 	: iPort(_iPort)
 	, sName(_sName.empty() ? sPrefix.substr(0, constexpr_find(':', sPrefix)) : _sName)
 	, sProtoPrefix(sPrefix)
+	, bWrapInTLS(_bWrapInTLS)
 	{
 	}
 	const uint16_t    iPort;
 	const KStringView sName;
 	const KStringView sProtoPrefix;
+	const bool        bWrapInTLS; ///< the scheme mandates TLS from the first byte (no STARTTLS-style upgrades)
 
 //----------
 private:
@@ -286,10 +288,10 @@ Protocols s_Canonical [] =
 	{    25, ""       , "mailto:"       }, // mailto stays first, auto second!
 	{    80, "auto"   , "//"            }, // auto falls back to HTTP..
 	{    80, ""       , "http://"       },
-	{   443, ""       , "https://"      },
+	{   443, ""       , "https://"     , true },
 	{     0, ""       , "file://"       },
 	{    21, ""       , "ftp://"        },
-	{   990, ""       , "ftps://"       },
+	{   990, ""       , "ftps://"      , true },
 	{    22, ""       , "ssh://"        },
 	{  9418, ""       , "git://"        },
 	{    22, ""       , "git+ssh://"    },
@@ -297,26 +299,26 @@ Protocols s_Canonical [] =
 	{    22, ""       , "svn+ssh://"    },
 	{   119, ""       , "news://"       },
 	{   119, ""       , "nntp://"       },
-	{   563, ""       , "nntps://"      },
+	{   563, ""       , "nntps://"     , true },
 	{    23, ""       , "telnet://"     },
-	{   992, ""       , "telnets://"    },
+	{   992, ""       , "telnets://"   , true },
 	{    70, ""       , "gopher://"     },
 	{     0, ""       , "unix://"       }, // this is for unix socket files ("unix:///this/is/my/socket")
 	{    25, ""       , "smtp://"       },
 	{   587, ""       , "smtps://"      },
 	{   110, ""       , "pop3://"       },
-	{   995, ""       , "pop3s://"      },
+	{   995, ""       , "pop3s://"     , true },
 	{   143, ""       , "imap://"       },
-	{   993, ""       , "imaps://"      },
+	{   993, ""       , "imaps://"     , true },
 	{  6667, ""       , "irc://"        }, // common usage; the IANA port 194 was never adopted
 	{    80, ""       , "ws://"         },
-	{   443, ""       , "wss://"        },
+	{   443, ""       , "wss://"       , true },
 	{   554, ""       , "rtsp://"       },
-	{   322, ""       , "rtsps://"      },
+	{   322, ""       , "rtsps://"     , true },
 	{  1935, ""       , "rtmp://"       },
-	{   443, ""       , "rtmps://"      },
+	{   443, ""       , "rtmps://"     , true },
 	{    80, ""       , "whep://"       }, // http based, hence the http/https ports
-	{   443, ""       , "wheps://"      },
+	{   443, ""       , "wheps://"     , true },
 	{     0, ""       , "srt://"        },
 	{     0, ""       , "udp://"        },
 	{    69, ""       , "tftp://"       },
@@ -325,33 +327,33 @@ Protocols s_Canonical [] =
 	{   161, ""       , "snmp://"       },
 	{   179, ""       , "bgp://"        },
 	{   389, ""       , "ldap://"       },
-	{   636, ""       , "ldaps://"      },
+	{   636, ""       , "ldaps://"     , true },
 	{   401, ""       , "ups://"        },
 	{   502, ""       , "mbap://"       },
 	{   540, ""       , "uucp://"       },
 	{   631, ""       , "ipp://"        },
-	{   631, ""       , "ipps://"       }, // shares default port with ipp://
+	{   631, ""       , "ipps://"      , true }, // TLS; shares default port with ipp://
 	{   689, ""       , "nmap://"       },
 	{   873, ""       , "rsync://"      },
 	{   888, ""       , "cddbp://"      },
 	{  1080, ""       , "socks://"      },
 	{  1883, ""       , "mqtt://"       },
-	{  8883, ""       , "mqtts://"      },
-	{     0, ""       , "dtls://"       }, // no IANA default port - like udp://, but with TLS
+	{  8883, ""       , "mqtts://"     , true },
+	{     0, ""       , "dtls://"      , true }, // no IANA default port - like udp://, but with TLS (over UDP: DTLS)
 	{     0, ""       , "otpauth://"    }, // TOTP/HOTP provisioning URIs, see KTOTP::URI()
 	{     0, ""       , "tcp://"        }, // generic plain TCP transport
-	{     0, ""       , "tls://"        }, // generic TLS transport
+	{     0, ""       , "tls://"       , true }, // generic TLS transport
 	{  6379, ""       , "redis://"      },
-	{  6379, ""       , "rediss://"     }, // TLS, no own IANA port - shares it with redis://
+	{  6379, ""       , "rediss://"    , true }, // TLS, no own IANA port - shares it with redis://
 	{  5432, ""       , "postgresql://" },
 	{  3306, ""       , "mysql://"      },
 	{ 27017, ""       , "mongodb://"    },
 	{  5672, ""       , "amqp://"       },
-	{  5671, ""       , "amqps://"      },
+	{  5671, ""       , "amqps://"     , true },
 	{  4222, ""       , "nats://"       },
 	{  5683, ""       , "coap://"       },
-	{  5684, ""       , "coaps://"      },
-	{  6697, ""       , "ircs://"       },
+	{  5684, ""       , "coaps://"     , true }, // CoAP over DTLS
+	{  6697, ""       , "ircs://"      , true },
 	{     0, ""       , "s3://"         }, // no host:port semantics, the "domain" is the bucket
 	{   445, ""       , "smb://"        },
 	{  5900, ""       , "vnc://"        },
@@ -592,6 +594,44 @@ uint16_t KProtocol::DefaultPort() const
 
 	return iPort;
 }
+
+//-----------------------------------------------------------------------------
+bool KProtocol::WrapInTLS() const
+//-----------------------------------------------------------------------------
+{
+	return s_Canonical[m_eProto].bWrapInTLS;
+
+} // WrapInTLS
+
+//-----------------------------------------------------------------------------
+bool KProtocol::WrapInTLS(uint16_t iPort)
+//-----------------------------------------------------------------------------
+{
+	if (!iPort)
+	{
+		return false;
+	}
+
+	bool bFound { false };
+
+	for (const auto& Proto : s_Canonical)
+	{
+		if (Proto.iPort == iPort)
+		{
+			if (!Proto.bWrapInTLS)
+			{
+				// at least one scheme speaks plaintext on this port (like
+				// redis/rediss on 6379) - do not wrap
+				return false;
+			}
+
+			bFound = true;
+		}
+	}
+
+	return bFound;
+
+} // WrapInTLS
 
 //-----------------------------------------------------------------------------
 /// Restores instance to empty state

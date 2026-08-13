@@ -149,7 +149,7 @@ void KMQTTClient::SetStateCallback(StateCallback Callback)
 std::unique_ptr<KIOStreamSocket> KMQTTClient::OpenSession()
 //-----------------------------------------------------------------------------
 {
-	bool bTLS = (m_URL.Protocol == url::KProtocol::MQTTS);
+	bool bTLS = m_URL.Protocol.WrapInTLS();
 
 	KTCPEndPoint EndPoint(m_URL.Domain, m_URL.Port);
 

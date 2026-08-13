@@ -502,11 +502,11 @@ bool KHTTPClient::Connect(const KURL& url)
 		if (FilterByNoProxyList(url, kGetEnv("NO_PROXY")))
 		{
 			// which protocol?
-			bool bIsHTTPS = url.Protocol == url::KProtocol::HTTPS ||
-			                (url::KProtocol::UNDEFINED && url.Port.get() == 443);
+			bool bIsTLS = url.Protocol.WrapInTLS() ||
+			              (url.Protocol == url::KProtocol::UNDEFINED && url::KProtocol::WrapInTLS(url.Port.get()));
 
 			// try to read proxy setup from environment
-			auto sProxy = kGetEnv(bIsHTTPS ? "HTTPS_PROXY" : "HTTP_PROXY");
+			auto sProxy = kGetEnv(bIsTLS ? "HTTPS_PROXY" : "HTTP_PROXY");
 
 			if (!sProxy.empty())
 			{
@@ -534,10 +534,10 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 	}
 
 	// which protocol on which connection segment?
-	bool bTargetIsHTTPS = url.Protocol   == url::KProtocol::HTTPS || (url::KProtocol::UNDEFINED && url.Port.get()   == 443);
-	bool bProxyIsHTTPS  = Proxy.Protocol == url::KProtocol::HTTPS || (url::KProtocol::UNDEFINED && Proxy.Port.get() == 443);
+	bool bTargetIsTLS = url.Protocol.WrapInTLS()   || (url.Protocol   == url::KProtocol::UNDEFINED && url::KProtocol::WrapInTLS(url.Port.get()));
+	bool bProxyIsTLS  = Proxy.Protocol.WrapInTLS() || (Proxy.Protocol == url::KProtocol::UNDEFINED && url::KProtocol::WrapInTLS(Proxy.Port.get()));
 
-	if (!bTargetIsHTTPS)
+	if (!bTargetIsTLS)
 	{
 		// check if we are already connected to this proxy (for all HTTP targets
 		// it is our connection endpoint)
@@ -560,13 +560,13 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 	kDebug(2, "connecting via proxy {}", Proxy.Serialize());
 
 	// Connect the proxy. Use a TLS connection if either proxy or target is HTTPS.
-	if (!Connect(KIOStreamSocket::Create(Proxy, bProxyIsHTTPS || bTargetIsHTTPS, m_StreamOptions)))
+	if (!Connect(KIOStreamSocket::Create(Proxy, bProxyIsTLS || bTargetIsTLS, m_StreamOptions)))
 	{
 		// error is already set
 		return false;
 	}
 
-	if (bTargetIsHTTPS)
+	if (bTargetIsTLS)
 	{
 		// Connect to the proxy in either HTTP or HTTPS and request a transparent
 		// tunnel to the target with CONNECT, then start the TLS handshake.
@@ -582,7 +582,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 		// into the outer TLS connection to the proxy, and also use late TLS
 		// handshaking to first talk to the proxy server.
 
-		if (bProxyIsHTTPS)
+		if (bProxyIsTLS)
 		{
 			// Make the existing connect to the proxy the tunnel for the inner
 			// connection to the target TLS server (and let it own the outer

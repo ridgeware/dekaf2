@@ -366,9 +366,8 @@ std::unique_ptr<KIOStreamSocket> KIOStreamSocket::Create(const KURL& URL, bool b
 		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
-	if ((URL.Protocol == url::KProtocol::UNDEFINED && Port.get() == 443) ||
-	    URL.Protocol == url::KProtocol::HTTPS ||
-	    URL.Protocol == url::KProtocol::WSS   ||
+	if (URL.Protocol.WrapInTLS() ||
+	    (URL.Protocol == url::KProtocol::UNDEFINED && url::KProtocol::WrapInTLS(Port.get())) ||
 	    bForceTLS)
 	{
 #if DEKAF2_HAS_OPENSSL_QUIC

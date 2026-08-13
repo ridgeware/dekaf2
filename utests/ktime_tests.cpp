@@ -1251,6 +1251,25 @@ TEST_CASE("KTime") {
 		}
 
 #if DEKAF2_HAS_FMT_FORMAT
+		// the spec expansion that answers %Z/%z on platforms whose std::tm has
+		// no timezone fields (MSVC) - tested on all platforms, used on those
+		{
+			using dekaf2::detail::kExpandZoneSpecs;
+			auto JST = chrono::hours(9);
+
+			CHECK ( kExpandZoneSpecs("%Z %c"      , "JST", JST) == "JST %c"        );
+			CHECK ( kExpandZoneSpecs("%z"         , "JST", JST) == "+0900"         );
+			CHECK ( kExpandZoneSpecs("%Ez"        , "JST", JST) == "+09:00"        );
+			CHECK ( kExpandZoneSpecs("%Oz"        , "JST", JST) == "+09:00"        );
+			CHECK ( kExpandZoneSpecs("%Z %Y-%m-%d", "JST", JST) == "JST %Y-%m-%d"  );
+			CHECK ( kExpandZoneSpecs("%%Z"        , "JST", JST) == "%%Z"           ); // escaped stays escaped
+			CHECK ( kExpandZoneSpecs("%EY %Z"     , "JST", JST) == "%EY JST"       ); // %E only expands before z
+			CHECK ( kExpandZoneSpecs(">8%Z"       , "JST", JST) == ">8JST"         ); // fill/align pass through
+			CHECK ( kExpandZoneSpecs("%"          , "JST", JST) == "%"             ); // trailing percent survives
+			CHECK ( kExpandZoneSpecs("%z", "", -(chrono::hours(3) + chrono::minutes(30))) == "-0330" );
+			CHECK ( kExpandZoneSpecs("%Ez", "", -(chrono::hours(3) + chrono::minutes(30))) == "-03:30" );
+		}
+
 		// the zone specs %Z/%z have to work on all platforms, also on those
 		// whose std::tm has no timezone fields (MSVC) - KUTCTime and KUnixTime
 		// answer with UTC, KLocalTime with its real zone

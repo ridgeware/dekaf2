@@ -395,6 +395,70 @@ detail::KParsedWebTimestamp::raw_time detail::KParsedWebTimestamp::Parse(KString
 namespace detail {
 
 //-----------------------------------------------------------------------------
+KString kExpandZoneSpecs(KStringView sSpec, KStringView sAbbrev, chrono::seconds Offset)
+//-----------------------------------------------------------------------------
+{
+	auto FormatOffset = [&Offset](bool bWithColon) -> KString
+	{
+		auto iMinutes = chrono::duration_cast<chrono::minutes>(Offset).count();
+		auto iAbs     = (iMinutes < 0) ? -iMinutes : iMinutes;
+		auto chSign   = (iMinutes < 0) ? '-' : '+';
+
+		if (bWithColon) return kFormat("{}{:02}:{:02}", chSign, iAbs / 60, iAbs % 60);
+		else            return kFormat("{}{:02}{:02}" , chSign, iAbs / 60, iAbs % 60);
+	};
+
+	KString sExpanded;
+	sExpanded.reserve(sSpec.size());
+
+	for (auto it = sSpec.begin(), end = sSpec.end(); it != end; ++it)
+	{
+		if (*it != '%' || it + 1 == end)
+		{
+			sExpanded += *it;
+			continue;
+		}
+
+		switch (*(it + 1))
+		{
+			case '%':
+				// a literal percent - keep it escaped, and do not let its next
+				// character look like a spec introducer
+				sExpanded += "%%";
+				++it;
+				break;
+
+			case 'Z':
+				sExpanded += sAbbrev;
+				++it;
+				break;
+
+			case 'z':
+				sExpanded += FormatOffset(false);
+				++it;
+				break;
+
+			case 'E':
+			case 'O':
+				if (it + 2 != end && *(it + 2) == 'z')
+				{
+					sExpanded += FormatOffset(true);
+					it += 2;
+					break;
+				}
+				DEKAF2_FALLTHROUGH;
+
+			default:
+				sExpanded += '%';
+				break;
+		}
+	}
+
+	return sExpanded;
+
+} // kExpandZoneSpecs
+
+//-----------------------------------------------------------------------------
 const std::array<KString, 12>& GetDefaultLocalMonthNames(bool bAbbreviated)
 //-----------------------------------------------------------------------------
 {

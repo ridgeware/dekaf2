@@ -1250,6 +1250,30 @@ TEST_CASE("KTime") {
 			}
 		}
 
+#if DEKAF2_HAS_FMT_FORMAT
+		// the zone specs %Z/%z have to work on all platforms, also on those
+		// whose std::tm has no timezone fields (MSVC) - KUTCTime and KUnixTime
+		// answer with UTC, KLocalTime with its real zone
+		{
+			KUTCTime utc("2012-01-31 03:15:00");
+			CHECK ( kFormat("{:%Z}",  utc) == "UTC"   );
+			CHECK ( kFormat("{:%z}",  utc) == "+0000" );
+
+			KUnixTime unix1(utc);
+			CHECK ( kFormat("{:%Z}",  unix1) == "UTC"   );
+
+			if (bHasTimezone)
+			{
+				KLocalTime TokyoTime("2012-01-31 12:15:00", kFindTimezone("Asia/Tokyo", true));
+				CHECK ( kFormat("{:%Z}",  TokyoTime) == "JST"    );
+				CHECK ( kFormat("{:%z}",  TokyoTime) == "+0900"  );
+				CHECK ( kFormat("{:%Ez}", TokyoTime) == "+09:00" );
+				CHECK ( kFormat("{:%%Z}", TokyoTime) == "%Z"     ); // an escaped percent stays literal
+				CHECK ( kFormat("{:%Z %Y-%m-%d}", TokyoTime) == "JST 2012-01-31" );
+			}
+		}
+#endif
+
 		if (false && bHasTimezone && bHasLocale)
 		{
 			                                  // create the local time in Tokyo on Jan 1, 2012

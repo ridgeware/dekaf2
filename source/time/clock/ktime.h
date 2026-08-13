@@ -1737,6 +1737,13 @@ template<> struct formatter<DEKAF2_PREFIX KTimeOfDay> : formatter<std::chrono::h
 #if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KUTCTime> : formatter<std::tm>
 {
+	// a KUTCTime is always UTC - keep %Z/%z valid on platforms whose std::tm has no
+	// timezone fields, exactly as in the KUnixTime formatter above (see there)
+	FMT_CONSTEXPR auto parse(parse_context<char>& ctx) -> const char*
+	{
+		return this->do_parse(ctx, true);
+	}
+
 	template <typename FormatContext>
 	auto format(const DEKAF2_PREFIX KUTCTime& time, FormatContext& ctx) const
 	{
@@ -1758,12 +1765,95 @@ template<> struct formatter<DEKAF2_PREFIX KUTCTime> : formatter<std::chrono::sys
 #if DEKAF2_HAS_FMT_FORMAT
 template<> struct formatter<DEKAF2_PREFIX KLocalTime> : formatter<std::tm>
 {
+	// accept %Z/%z also on platforms whose std::tm has no timezone fields (see the
+	// KUnixTime formatter above), and remember the raw spec - on those platforms
+	// format() below has to answer the zone specs itself
+	FMT_CONSTEXPR auto parse(parse_context<char>& ctx) -> const char*
+	{
+		auto it  = ctx.begin();
+		auto end = this->do_parse(ctx, true);
+		m_sSpec  = { it, static_cast<std::size_t>(end - it) };
+		return end;
+	}
+
 	template <typename FormatContext>
 	DEKAF2_CONSTEXPR_14
 	auto format(const DEKAF2_PREFIX KLocalTime& time, FormatContext& ctx) const
 	{
+#ifndef DEKAF2_IS_WINDOWS
+		// std::tm carries tm_zone/tm_gmtoff here, and to_tm() fills them - fmt
+		// answers %Z/%z from the tm fields
 		return formatter<std::tm>::format(time.to_tm(), ctx);
+#else
+		// no timezone fields in std::tm - fmt cannot answer %Z/%z from the tm and
+		// would fall back to "UTC"/+0000. But the KLocalTime knows its zone, so we
+		// answer the zone specs ourselves: substitute them with their literal values
+		// and hand the remaining spec back to fmt
+		DEKAF2_PREFIX KString sSpec("{:");
+
+		for (auto it = m_sSpec.begin(), end = m_sSpec.end(); it != end; ++it)
+		{
+			if (*it != '%' || it + 1 == end)
+			{
+				sSpec += *it;
+				continue;
+			}
+
+			switch (*(it + 1))
+			{
+				case '%':
+					// a literal percent - keep it escaped, and do not let its next
+					// character look like a spec introducer
+					sSpec += "%%";
+					++it;
+					break;
+
+				case 'Z':
+					sSpec += time.get_zone_abbrev();
+					++it;
+					break;
+
+				case 'z':
+					sSpec += FormatOffset(time.get_utc_offset(), false);
+					++it;
+					break;
+
+				case 'E':
+				case 'O':
+					if (it + 2 != end && *(it + 2) == 'z')
+					{
+						sSpec += FormatOffset(time.get_utc_offset(), true);
+						it += 2;
+						break;
+					}
+					DEKAF2_FALLTHROUGH;
+
+				default:
+					sSpec += '%';
+					break;
+			}
+		}
+
+		sSpec += '}';
+
+		return format_to(ctx.out(), runtime(sSpec), time.to_tm());
+#endif
 	}
+
+private:
+
+#ifdef DEKAF2_IS_WINDOWS
+	/// format a utc offset as +0900 (%z) or +09:00 (%Ez/%Oz)
+	static DEKAF2_PREFIX KString FormatOffset(std::chrono::seconds offset, bool bWithColon)
+	{
+		auto iMinutes = std::chrono::duration_cast<std::chrono::minutes>(offset).count();
+		auto iAbs     = (iMinutes < 0) ? -iMinutes : iMinutes;
+		return DEKAF2_PREFIX kFormat(bWithColon ? "{}{:02}:{:02}" : "{}{:02}{:02}",
+		                             (iMinutes < 0) ? '-' : '+', iAbs / 60, iAbs % 60);
+	}
+#endif
+
+	basic_string_view<char> m_sSpec;
 };
 #else
 template<> struct formatter<DEKAF2_PREFIX KLocalTime> : formatter<std::chrono::local_time<std::chrono::seconds>>

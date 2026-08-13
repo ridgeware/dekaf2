@@ -261,6 +261,10 @@ public:
 	int CheckIfReady(int what)                   { return CheckIfReady(what,    m_Timeout, true); }
 	/// check any ::poll() flag with the specified timeout - returns 0 or the event(s) that triggered
 	int CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAnError = false);
+	/// check any ::poll() flag on the socket descriptor alone, ignoring data that is already
+	/// buffered in the stream or TLS layers - returns 0 or the event(s) that triggered.
+	/// Use this to wait without holding the serialization that guards the upper layers
+	int CheckIfReadyRaw(int what, KDuration Timeout, bool bTimeoutIsAnError = false);
 
 	// ------ static factory methods -------
 

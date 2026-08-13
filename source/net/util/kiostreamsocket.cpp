@@ -182,6 +182,29 @@ int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAn
 		}
 	}
 
+	return CheckIfReadyRaw(what, Timeout, bTimeoutIsAnError);
+
+} // CheckIfReady
+
+//-----------------------------------------------------------------------------
+int KIOStreamSocket::CheckIfReadyRaw(int what, KDuration Timeout, bool bTimeoutIsAnError)
+//-----------------------------------------------------------------------------
+{
+	// This is the right wait for a thread that idles while another one may be
+	// inside the stream or TLS object: it touches nothing but the descriptor.
+	// Check the upper layers with a zero timeout CheckIfReady() under your
+	// serialization before waiting here - buffered input only ever appears
+	// through your own reads, so the descriptor alone cannot miss new data.
+
+	// Check BEFORE poll() - another thread may have called SignalDisconnecting()
+	// already (e.g. during shutdown). Do not enter poll() in that case - the
+	// socket may be closed underneath us at any moment.
+	if (IsDisconnecting())
+	{
+		SetError(kFormat("connection with {} is being disconnected", GetEndPoint().empty() ? GetEndPointAddress() : GetEndPoint()));
+		return 0;
+	}
+
 	// Poll on both the socket and the interruptor FD (for waking from another thread)
 	int iResult;
 #if !DEKAF2_IS_WINDOWS
@@ -238,7 +261,7 @@ int KIOStreamSocket::CheckIfReady(int what, KDuration Timeout, bool bTimeoutIsAn
 	// event(s) triggered
 	return iResult;
 
-} // CheckIfReady
+} // CheckIfReadyRaw
 
 //-----------------------------------------------------------------------------
 bool KIOStreamSocket::StartManualTLSHandshake()
@@ -343,7 +366,10 @@ std::unique_ptr<KIOStreamSocket> KIOStreamSocket::Create(const KURL& URL, bool b
 		Port = KString::to_string(URL.Protocol.DefaultPort());
 	}
 
-	if ((url::KProtocol::UNDEFINED && Port.get() == 443) || URL.Protocol == url::KProtocol::HTTPS || bForceTLS)
+	if ((URL.Protocol == url::KProtocol::UNDEFINED && Port.get() == 443) ||
+	    URL.Protocol == url::KProtocol::HTTPS ||
+	    URL.Protocol == url::KProtocol::WSS   ||
+	    bForceTLS)
 	{
 #if DEKAF2_HAS_OPENSSL_QUIC
 		if (Options.IsSet(KStreamOptions::RequestHTTP3))

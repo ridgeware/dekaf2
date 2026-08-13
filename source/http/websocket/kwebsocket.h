@@ -186,9 +186,11 @@ private:
 /// represents one single websocket connection
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// a websocket (RFC6455) connection.
-/// Threading: Write(), Ping() and Close() are thread-safe - concurrent
-/// writers serialize internally, and a write may run concurrently with the
-/// owning thread's Read(). Read() itself is single threaded (one reading
+/// Threading: Write(), Ping() and Close() are thread-safe - all stream
+/// operations, including Read()'s, serialize on an internal mutex, and a
+/// thread that waits for readability or writability does so on the socket
+/// descriptor alone, without touching the stream or TLS layers another
+/// thread may be operating. Read() itself is single threaded (one reading
 /// thread only). For lifetime safe cross-thread writes obtain a WeakHandle()
 /// (available on instances constructed with Create()) and Write() through
 /// its lock().
@@ -611,11 +613,20 @@ private:
 ///
 /// A single I/O (reactor) thread polls all connection sockets for incoming data.
 /// When a socket becomes readable it is disarmed (so it is not dispatched twice)
-/// and the work - reading one full message and calling the message handler - is
-/// either run inline in the I/O thread (Options::iWorkerThreads == 0, single
-/// thread mode) or handed to a bounded worker thread pool. After the handler
-/// returns the socket is re-armed. This serializes events per connection while
-/// allowing parallelism across connections.
+/// and the work - reading the waiting messages and calling the message handler -
+/// is either run inline in the I/O thread (Options::iWorkerThreads == 0, single
+/// thread mode) or handed to a bounded worker thread pool.
+///
+/// Each connection has exactly one owner at any point in time: either the task
+/// that reads and dispatches messages, or the task that writes queued outbound
+/// messages - never both at once, so the connection's stream (and its TLS
+/// object) is only ever operated by one thread at a time. Send(), Ping() and
+/// Close() append to the connection's outbound queue and never touch the
+/// stream themselves; the queue is drained by the current owner before it
+/// releases the connection, or a flush takes the ownership right away if the
+/// connection is idle. Only after the owner released the connection is its
+/// socket re-armed with the reactor. This serializes all I/O per connection
+/// while allowing parallelism across connections.
 ///
 /// To send a message to a specific client from any thread, use Send() with the
 /// Handle returned by AddWebSocket() (the application typically learns the handle
@@ -656,8 +667,7 @@ public:
 		/// can occupy a writer thread)
 		KDuration                 WriteTimeout   { chrono::seconds(30) };
 		/// maximum number of bytes that may be queued for sending on one connection before it
-		/// is dropped as a slow consumer (0 = unlimited). Only relevant with iWorkerThreads > 0,
-		/// where Send()/Broadcast() queue and a worker flushes asynchronously
+		/// is dropped as a slow consumer (0 = unlimited)
 		std::size_t               iMaxQueueBytes { 16 * 1024 * 1024 };
 		/// maximum number of connections being flushed (written to) concurrently (0 = unlimited).
 		/// The outbound flushes run on the same worker pool as the read handlers but under their
@@ -679,20 +689,24 @@ public:
 	Handle      AddWebSocket(KWebSocket WebSocket);
 
 	/// send a text or binary message to a specific connection - thread safe, may be called
-	/// from any thread. With iWorkerThreads > 0 the message is queued and written asynchronously
-	/// by a worker (the call does not block on the socket); in single thread mode it is written
-	/// synchronously. Messages to one connection keep their order in both cases.
-	/// @returns false if the handle is unknown, the connection was dropped as a slow consumer
-	/// (queue over iMaxQueueBytes), or - in single thread mode - the write failed
+	/// from any thread. The message is queued; it is written by the connection's current
+	/// owner, or - if the connection is idle - by a flush that starts right away (with
+	/// iWorkerThreads > 0 on a worker, in single thread mode on the calling thread).
+	/// Messages to one connection keep their order.
+	/// @returns false if the handle is unknown, a Close is already queued, the connection
+	/// was dropped as a slow consumer (queue over iMaxQueueBytes), or - in single thread
+	/// mode, when written on the calling thread - the write failed
 	bool        Send      (Handle iHandle, KString sMessage, bool bIsBinary = false);
 	/// send a json message (as UTF8 text) to a specific connection (see Send() for threading)
 	bool        Send      (Handle iHandle, const KJSON& jMessage);
-	/// send a message to all connected clients (queued asynchronously per connection in worker mode)
-	/// @returns the number of connections the message was accepted for (queued or written)
+	/// send a message to all connected clients (see Send() for threading)
+	/// @returns the number of connections the message was accepted for
 	std::size_t Broadcast (KString sMessage, bool bIsBinary = false);
-	/// send a ping to a specific connection
+	/// send a ping to a specific connection (queued like Send())
 	bool        Ping      (Handle iHandle, KString sMessage = KString{});
-	/// close a specific connection (sends a close frame and removes it)
+	/// close a specific connection: queues a close frame (like Send(), so already queued
+	/// messages still go out first) and removes the connection once it was written -
+	/// further sends to the handle fail immediately
 	bool        Close     (Handle iHandle, uint16_t iStatusCode = 1000, KString sReason = KString{});
 	/// @returns the number of currently connected clients
 	DEKAF2_NODISCARD
@@ -703,21 +717,38 @@ private:
 //----------
 
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	/// one managed websocket connection - the websocket, its cached socket fd, and the
-	/// outbound send queue (drained by an offloaded writer in worker thread mode)
+	/// one managed websocket connection - the websocket, its cached socket fd, the
+	/// outbound send queue, and the ownership flag that serializes all I/O on it
 	struct Connection
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	{
+		/// one queued outbound item
+		struct OutMessage
+		{
+			enum Kind : uint8_t { Data, Ping, Close };
+
+			OutMessage() = default;
+			OutMessage(Kind kind, KString sPayload, bool bIsBinary = false, uint16_t iStatus = 0)
+			: sPayload(std::move(sPayload)), iStatus(iStatus), kind(kind), bIsBinary(bIsBinary) {}
+
+			KString  sPayload;
+			uint16_t iStatus   { 0     };
+			Kind     kind      { Data  };
+			bool     bIsBinary { false };
+
+		}; // OutMessage
+
 		Connection(KWebSocket WebSocket, int iFd)
 		: WebSocket(std::move(WebSocket)), iFd(iFd) {}
 
-		KWebSocket                           WebSocket;
-		int                                  iFd;
-		std::mutex                           OutMutex;             // guards the send queue and its flags
-		std::deque<std::pair<KString, bool>> OutQueue;             // pending (message, bIsBinary) frames, FIFO
-		std::size_t                          iQueuedBytes { 0 };   // total bytes currently queued
-		bool                                 bFlushing    { false };// a flush task is scheduled/running for this connection
-		std::atomic<bool>                    bDead        { false };// set when the connection is being torn down
+		KWebSocket              WebSocket;
+		int                     iFd;
+		std::mutex              Mutex;                 // guards the send queue and the flags below
+		std::deque<OutMessage>  OutQueue;              // pending outbound items, FIFO
+		std::size_t             iQueuedBytes { 0 };    // total bytes currently queued
+		bool                    bBusy        { false };// somebody owns the stream right now (read service or flush)
+		bool                    bClosing     { false };// a Close is queued - no further sends accepted
+		std::atomic<bool>       bDead        { false };// set when the connection is being torn down
 
 	}; // Connection
 
@@ -729,13 +760,17 @@ private:
 
 	/// look up a connection by handle (returns nullptr if unknown)
 	ConnectionPtr GetConnection    (Handle iHandle) const;
-	/// called by the reactor when a connection's socket has incoming data
+	/// called by the reactor when a connection's socket has incoming data - takes the
+	/// ownership if the connection is idle, else leaves the socket disarmed for the owner
 	void          OnReadable       (Handle iHandle);
-	/// read one message and call the handler, then re-arm the socket (runs inline or in a worker)
+	/// owner: read and dispatch the waiting messages, then flush or release (runs inline
+	/// or in a worker)
 	void          ServiceConnection(ConnectionPtr pConnection, Handle iHandle);
-	/// send synchronously (single thread mode) or queue and schedule the offloaded writer (worker mode)
-	bool          QueueOrWrite     (const ConnectionPtr& pConnection, KString sMessage, bool bIsBinary);
-	/// drain a connection's send queue on a worker thread (only one flusher per connection at a time)
+	/// queue one outbound item and start a flush if the connection is idle - never
+	/// touches the stream when somebody else owns it
+	bool          QueueOrWrite     (const ConnectionPtr& pConnection, Connection::OutMessage Message);
+	/// owner: drain the connection's send queue, then release the ownership and re-arm
+	/// the socket
 	void          FlushConnection  (ConnectionPtr pConnection);
 	/// remove a connection, stop watching its socket, and call its close handler
 	void          RemoveConnection (Handle iHandle);

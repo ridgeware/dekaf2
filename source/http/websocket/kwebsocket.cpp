@@ -1475,17 +1475,11 @@ bool KWebSocket::Read()
 	for (;;)
 	{
 		{
-			// return latest after set stream timeout
-			if (!m_Stream->IsReadReady(m_ReadTimeout))
-			{
-				return false;
-			}
-		}
-
-		{
 			std::unique_lock<std::mutex> Lock(m_StreamMutex);
 
-			// return immediately from poll
+			// the layer aware check (streambuf, TLS buffers, socket) and the
+			// frame read run under the lock, so no concurrent writer is inside
+			// the stream or TLS object while we look at or operate them
 			if (m_Stream->IsReadReady(KDuration()))
 			{
 				if (!m_Frame.Read(*m_Stream, *m_Stream, m_bMaskTx))
@@ -1497,7 +1491,15 @@ bool KWebSocket::Read()
 			}
 		}
 
-		// stream changed state while acquiring lock, repeat waiting
+		// nothing buffered anywhere - wait for new data on the wire, on the
+		// socket descriptor alone: without the lock we must not touch the
+		// upper layers, a concurrent writer may be operating them. Buffered
+		// input only ever appears through our own reads, so the socket alone
+		// cannot miss anything
+		if (!m_Stream->CheckIfReadyRaw(POLLIN, m_ReadTimeout))
+		{
+			return false;
+		}
 	}
 
 	// transparently decompress a permessage-deflate compressed message
@@ -1610,17 +1612,9 @@ bool KWebSocket::Write(KWebSocket::Frame Frame)
 	for (;;)
 	{
 		{
-			// return latest after set stream timeout
-			if (!m_Stream->IsWriteReady(m_WriteTimeout))
-			{
-				return false;
-			}
-		}
-
-		{
 			std::unique_lock<std::mutex> Lock(m_StreamMutex);
 
-			// return immediately from poll
+			// check and write under the lock - see Read() for the reasoning
 			if (m_Stream->IsWriteReady(KDuration()))
 			{
 				if (!Frame.Write(*m_Stream, m_bMaskTx))
@@ -1632,7 +1626,11 @@ bool KWebSocket::Write(KWebSocket::Frame Frame)
 			}
 		}
 
-		// stream changed state while acquiring lock, repeat waiting
+		// wait on the socket descriptor alone, see Read()
+		if (!m_Stream->CheckIfReadyRaw(POLLOUT, m_WriteTimeout))
+		{
+			return false;
+		}
 	}
 
 	return true;
@@ -1930,6 +1928,26 @@ void KWebSocketServer::OnReadable(Handle iHandle)
 		return;
 	}
 
+	{
+		std::unique_lock<std::mutex> Lock(pConnection->Mutex);
+
+		if (pConnection->bDead)
+		{
+			return;
+		}
+
+		if (pConnection->bBusy)
+		{
+			// somebody owns this connection right now. Its socket is disarmed (this
+			// dispatch disarmed it), and the owner re-arms it on release - the
+			// readable data simply waits until then
+			return;
+		}
+
+		// take the ownership for the read service
+		pConnection->bBusy = true;
+	}
+
 	if (m_Options.iWorkerThreads == 0)
 	{
 		// single thread mode: handle inline in the reactor thread
@@ -1947,27 +1965,77 @@ void KWebSocketServer::OnReadable(Handle iHandle)
 void KWebSocketServer::ServiceConnection(ConnectionPtr pConnection, Handle iHandle)
 //-----------------------------------------------------------------------------
 {
-	// read one full message (Read() returns false on close, error, or timeout)
-	if (!pConnection->WebSocket.Read())
+	// we own this connection until we release bBusy or hand over to a flush
+
+	for (;;)
 	{
-		RemoveConnection(iHandle);
-		return;
+		// read one full message (Read() returns false on close, error, or timeout)
+		if (!pConnection->WebSocket.Read())
+		{
+			RemoveConnection(iHandle);
+			return;
+		}
+
+		// only deliver data messages to the application handler - Ping/Pong are control frames
+		// (Ping is auto-answered by the frame reader). A fragmented data message ends with
+		// Type() == Continuation, so we filter on the control types, not on the data types.
+		auto eType = pConnection->WebSocket.GetFrame().Type();
+
+		if (eType != KWebSocket::Frame::FrameType::Ping &&
+		    eType != KWebSocket::Frame::FrameType::Pong)
+		{
+			// invoke the application's message handler with the freshly read frame
+			pConnection->WebSocket.CallHandler();
+		}
+
+		// a read may have pulled more than one message into the stream's buffers -
+		// the poll only sees the socket, so anything buffered above it has to be
+		// consumed now or it would sit there until new bytes arrive on the wire
+		if (!pConnection->WebSocket.GetStream().IsReadReady(KDuration()))
+		{
+			break;
+		}
 	}
 
-	// only deliver data messages to the application handler - Ping/Pong are control frames
-	// (Ping is auto-answered by the frame reader). A fragmented data message ends with
-	// Type() == Continuation, so we filter on the control types, not on the data types.
-	auto eType = pConnection->WebSocket.GetFrame().Type();
+	// drain what got queued for sending while we serviced, then release and re-arm
+	bool bFlush { false };
 
-	if (eType != KWebSocket::Frame::FrameType::Ping &&
-	    eType != KWebSocket::Frame::FrameType::Pong)
 	{
-		// invoke the application's message handler with the freshly read frame
-		pConnection->WebSocket.CallHandler();
+		std::unique_lock<std::mutex> Lock(pConnection->Mutex);
+
+		if (pConnection->bDead)
+		{
+			// removed in the meantime - the poll registration is gone
+			return;
+		}
+
+		if (pConnection->OutQueue.empty())
+		{
+			// release under the same lock that checked the queue - a concurrent
+			// Send() therefore either sees our release or we see its message
+			pConnection->bBusy = false;
+		}
+		else
+		{
+			// keep the ownership for the flush
+			bFlush = true;
+		}
 	}
 
-	// re-arm the socket so the next message gets dispatched (no-op if it was removed)
-	m_Poll.Arm(pConnection->iFd);
+	if (!bFlush)
+	{
+		// re-arm the socket so the next message gets dispatched (no-op if it was removed)
+		m_Poll.Arm(pConnection->iFd);
+	}
+	else if (m_Options.iWorkerThreads == 0)
+	{
+		FlushConnection(std::move(pConnection));
+	}
+	else
+	{
+		// hand the ownership to a flusher on the write work class
+		m_ThreadPool.PushTagged(s_WriteTag, [this, pConnection = std::move(pConnection)]() { FlushConnection(pConnection); });
+	}
 
 } // ServiceConnection
 
@@ -2017,7 +2085,7 @@ bool KWebSocketServer::Send(Handle iHandle, KString sMessage, bool bIsBinary)
 		return false;
 	}
 
-	return QueueOrWrite(pConnection, std::move(sMessage), bIsBinary);
+	return QueueOrWrite(pConnection, Connection::OutMessage(Connection::OutMessage::Data, std::move(sMessage), bIsBinary));
 
 } // Send
 
@@ -2034,7 +2102,7 @@ bool KWebSocketServer::Send(Handle iHandle, const KJSON& jMessage)
 	}
 
 	// json is UTF8 when dumped, therefore send as text
-	return QueueOrWrite(pConnection, jMessage.dump(), false);
+	return QueueOrWrite(pConnection, Connection::OutMessage(Connection::OutMessage::Data, jMessage.dump()));
 
 } // Send
 
@@ -2061,7 +2129,7 @@ std::size_t KWebSocketServer::Broadcast(KString sMessage, bool bIsBinary)
 	for (auto& pConnection : Targets)
 	{
 		// pass a copy of the message to each connection (QueueOrWrite takes it by value)
-		if (QueueOrWrite(pConnection, sMessage, bIsBinary))
+		if (QueueOrWrite(pConnection, Connection::OutMessage(Connection::OutMessage::Data, sMessage, bIsBinary)))
 		{
 			++iSent;
 		}
@@ -2072,26 +2140,20 @@ std::size_t KWebSocketServer::Broadcast(KString sMessage, bool bIsBinary)
 } // Broadcast
 
 //-----------------------------------------------------------------------------
-bool KWebSocketServer::QueueOrWrite(const ConnectionPtr& pConnection, KString sMessage, bool bIsBinary)
+bool KWebSocketServer::QueueOrWrite(const ConnectionPtr& pConnection, Connection::OutMessage Message)
 //-----------------------------------------------------------------------------
 {
-	if (m_Options.iWorkerThreads == 0)
-	{
-		// single thread mode: there is no worker to offload to - write synchronously
-		return pConnection->WebSocket.Write(std::move(sMessage), bIsBinary);
-	}
-
-	bool bSchedule { false };
+	bool bTakeOwnership { false };
 
 	{
-		std::unique_lock<std::mutex> Lock(pConnection->OutMutex);
+		std::unique_lock<std::mutex> Lock(pConnection->Mutex);
 
-		if (pConnection->bDead)
+		if (pConnection->bDead || pConnection->bClosing)
 		{
 			return false;
 		}
 
-		if (m_Options.iMaxQueueBytes && pConnection->iQueuedBytes + sMessage.size() > m_Options.iMaxQueueBytes)
+		if (m_Options.iMaxQueueBytes && pConnection->iQueuedBytes + Message.sPayload.size() > m_Options.iMaxQueueBytes)
 		{
 			// slow consumer - it cannot drain its queue fast enough, drop the connection
 			kDebug(1, "send queue overflow on handle {} ({} bytes queued) - dropping slow consumer",
@@ -2102,19 +2164,34 @@ bool KWebSocketServer::QueueOrWrite(const ConnectionPtr& pConnection, KString sM
 			return false;
 		}
 
-		pConnection->iQueuedBytes += sMessage.size();
-		pConnection->OutQueue.emplace_back(std::move(sMessage), bIsBinary);
-
-		if (!pConnection->bFlushing)
+		if (Message.kind == Connection::OutMessage::Close)
 		{
-			// take the flusher role for this connection
-			pConnection->bFlushing = true;
-			bSchedule              = true;
+			// nothing may be queued after a close
+			pConnection->bClosing = true;
+		}
+
+		pConnection->iQueuedBytes += Message.sPayload.size();
+		pConnection->OutQueue.push_back(std::move(Message));
+
+		if (!pConnection->bBusy)
+		{
+			// the connection is idle - take the ownership for a flush
+			pConnection->bBusy = true;
+			bTakeOwnership     = true;
 		}
 	}
 
-	if (bSchedule)
+	if (bTakeOwnership)
 	{
+		if (m_Options.iWorkerThreads == 0)
+		{
+			// single thread mode: flush on the calling thread - we own the stream,
+			// the reactor leaves this connection alone while bBusy is set
+			FlushConnection(pConnection);
+
+			return !pConnection->bDead;
+		}
+
 		// flushes run under their own work-class tag (capped by iMaxConcurrentWrites) so slow
 		// consumers cannot starve the readers, which run on the default tag
 		m_ThreadPool.PushTagged(s_WriteTag, [this, pConnection]() { FlushConnection(pConnection); });
@@ -2128,47 +2205,66 @@ bool KWebSocketServer::QueueOrWrite(const ConnectionPtr& pConnection, KString sM
 void KWebSocketServer::FlushConnection(ConnectionPtr pConnection)
 //-----------------------------------------------------------------------------
 {
+	// we own this connection until we release bBusy
+
 	for (;;)
 	{
-		KString sMessage;
-		bool    bIsBinary { false };
+		Connection::OutMessage Message;
 
 		{
-			std::unique_lock<std::mutex> Lock(pConnection->OutMutex);
+			std::unique_lock<std::mutex> Lock(pConnection->Mutex);
 
-			if (pConnection->bDead || pConnection->OutQueue.empty())
+			if (pConnection->bDead)
 			{
-				// nothing more to do - release the flusher role (checked under the lock
-				// together with the queue state, so a concurrent Send() either sees the
-				// queue we are about to leave or re-takes the role)
-				pConnection->bFlushing = false;
+				// removed in the meantime - the poll registration is gone
 				return;
 			}
 
-			sMessage  = std::move(pConnection->OutQueue.front().first);
-			bIsBinary = pConnection->OutQueue.front().second;
-			pConnection->OutQueue.pop_front();
-			pConnection->iQueuedBytes -= sMessage.size();
-		}
-
-		// write outside the queue lock - this may block (TLS-safe), but on a worker thread,
-		// never on the caller of Send()
-		if (!pConnection->WebSocket.Write(std::move(sMessage), bIsBinary))
-		{
-			kDebug(1, "write failed on handle {} - dropping connection", pConnection->WebSocket.GetHandle());
-
+			if (pConnection->OutQueue.empty())
 			{
-				std::unique_lock<std::mutex> Lock(pConnection->OutMutex);
-				pConnection->bDead        = true;
-				pConnection->bFlushing    = false;
-				pConnection->iQueuedBytes = 0;
-				pConnection->OutQueue.clear();
+				// release under the same lock that checked the queue - a concurrent
+				// Send() therefore either sees our release or we see its message
+				pConnection->bBusy = false;
+				break;
 			}
 
+			Message = std::move(pConnection->OutQueue.front());
+			pConnection->OutQueue.pop_front();
+			pConnection->iQueuedBytes -= Message.sPayload.size();
+		}
+
+		// write outside the queue lock - this may block, but we are the only
+		// thread on this stream
+		bool bOK { false };
+
+		switch (Message.kind)
+		{
+			case Connection::OutMessage::Data:
+				bOK = pConnection->WebSocket.Write(std::move(Message.sPayload), Message.bIsBinary);
+				break;
+
+			case Connection::OutMessage::Ping:
+				bOK = pConnection->WebSocket.Ping(std::move(Message.sPayload));
+				break;
+
+			case Connection::OutMessage::Close:
+				// send the close frame and take the connection down - anything
+				// still queued behind it is discarded by design
+				pConnection->WebSocket.Close(Message.iStatus, std::move(Message.sPayload));
+				RemoveConnection(pConnection->WebSocket.GetHandle());
+				return;
+		}
+
+		if (!bOK)
+		{
+			kDebug(1, "write failed on handle {} - dropping connection", pConnection->WebSocket.GetHandle());
 			RemoveConnection(pConnection->WebSocket.GetHandle());
 			return;
 		}
 	}
+
+	// re-arm the socket so incoming data gets dispatched again (no-op if it was removed)
+	m_Poll.Arm(pConnection->iFd);
 
 } // FlushConnection
 
@@ -2183,7 +2279,7 @@ bool KWebSocketServer::Ping(Handle iHandle, KString sMessage)
 		return false;
 	}
 
-	return pConnection->WebSocket.Ping(std::move(sMessage));
+	return QueueOrWrite(pConnection, Connection::OutMessage(Connection::OutMessage::Ping, std::move(sMessage)));
 
 } // Ping
 
@@ -2198,11 +2294,9 @@ bool KWebSocketServer::Close(Handle iHandle, uint16_t iStatusCode, KString sReas
 		return false;
 	}
 
-	bool bResult = pConnection->WebSocket.Close(iStatusCode, std::move(sReason));
-
-	RemoveConnection(iHandle);
-
-	return bResult;
+	// the close frame lines up behind already queued messages; the connection is
+	// removed by the flusher once the frame went out
+	return QueueOrWrite(pConnection, Connection::OutMessage(Connection::OutMessage::Close, std::move(sReason), false, iStatusCode));
 
 } // Close
 

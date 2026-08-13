@@ -721,7 +721,7 @@ namespace {
 // drives one full lifecycle against a KWebSocketServer running behind a KREST
 // server: connect, echo round-trips (exercising disarm/re-arm), a server initiated
 // push and broadcast addressed by handle, and disconnect detection
-void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate = false)
+void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate = false, bool bTLS = false)
 //-----------------------------------------------------------------------------
 {
 	KREST::Options Options;
@@ -729,7 +729,10 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate 
 	Options.iPort                       = iPort;
 	Options.iTimeout                    = 2;
 	Options.bBlocking                   = false;
-	Options.bCreateEphemeralCert        = false;
+	// with TLS the server runs on a one-time self signed cert (which the client
+	// accepts, it does not verify) - but never persist it into ~/.config
+	Options.bCreateEphemeralCert        = bTLS;
+	Options.bStoreEphemeralCert         = false;
 	Options.iWebSocketWorkerThreads        = iWorkers;
 	Options.iWebSocketMaxConcurrentWrites  = 2;   // exercise the capped writer work-class tag
 	Options.WebSocketDeflate.bEnable       = bDeflate;
@@ -768,7 +771,7 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate 
 	REQUIRE ( Server.Execute(Options, Routes) );
 
 	{
-		KWebSocketClient Client(KURL(kFormat("ws://localhost:{}/ws", iPort)), KHTTPStreamOptions{});
+		KWebSocketClient Client(KURL(kFormat("{}://localhost:{}/ws", bTLS ? "wss" : "ws", iPort)), KHTTPStreamOptions{});
 		Client.SetTimeout(chrono::seconds(3));
 
 		if (bDeflate)
@@ -850,6 +853,171 @@ void RunWebSocketServerTest(uint16_t iPort, std::size_t iWorkers, bool bDeflate 
 	CHECK ( iHandled.load() == 2 );
 }
 
+//-----------------------------------------------------------------------------
+// saturates a KWebSocketServer with concurrent echo traffic, server pushes, and
+// a server-side close: several clients echo interleaved with broadcasts from
+// another thread, so read services and queued writes compete for the
+// per-connection ownership - lost, reordered, or corrupted messages fail
+void RunWebSocketServerStressTest(uint16_t iPort, std::size_t iWorkers, bool bTLS = false)
+//-----------------------------------------------------------------------------
+{
+	constexpr std::size_t iClients  { 6  };
+	constexpr int         iMessages { 150 };
+
+	KREST::Options Options;
+	Options.Type                          = KREST::HTTP;
+	Options.iPort                         = iPort;
+	Options.iTimeout                      = 5;
+	Options.bBlocking                     = false;
+	// see RunWebSocketServerTest() on the ephemeral cert
+	Options.bCreateEphemeralCert          = bTLS;
+	Options.bStoreEphemeralCert           = false;
+	Options.iWebSocketWorkerThreads       = iWorkers;
+	Options.iWebSocketMaxConcurrentWrites = 2;
+
+	std::atomic<KWebSocketServer*>          pServer { nullptr };
+	std::atomic<int>                        iCloses { 0 };
+	KThreadSafe<std::vector<std::size_t>>   Handles;
+
+	KRESTRoutes Routes;
+	Routes.AddRoute({ KHTTPMethod::GET, { KRESTRoute::Options::WEBSOCKET }, "/ws", [&](KRESTServer& http)
+	{
+		http.SetWebSocketHandler([](KWebSocket& WebSocket)
+		{
+			// echo from the owner thread - the supported in-handler write pattern
+			WebSocket.Write(WebSocket.GetFrame().GetPayload(), false);
+		});
+		http.SetWebSocketConnectHandler([&](KWebSocket& WebSocket)
+		{
+			pServer = WebSocket.GetServer();
+			Handles.unique()->push_back(WebSocket.GetHandle());
+		});
+		http.SetWebSocketCloseHandler([&](std::size_t)
+		{
+			++iCloses;
+		});
+	}});
+
+	KREST Server;
+	REQUIRE ( Server.Execute(Options, Routes) );
+
+	std::atomic<int>  iEchoErrors  { 0 };
+	std::atomic<int>  iDoneClients { 0 };
+	std::atomic<bool> bStop        { false };
+
+	std::vector<std::thread> Clients;
+
+	for (std::size_t iClient = 0; iClient < iClients; ++iClient)
+	{
+		Clients.push_back(std::thread([&, iClient]()
+		{
+			KWebSocketClient Client(KURL(kFormat("{}://localhost:{}/ws", bTLS ? "wss" : "ws", iPort)), KHTTPStreamOptions{});
+			Client.SetTimeout(chrono::seconds(5));
+
+			if (!Client.Connect())
+			{
+				++iEchoErrors;
+				++iDoneClients;
+				return;
+			}
+
+			// half a KB of payload so several messages share a TCP segment now and then
+			KString sFiller(512, static_cast<char>('a' + iClient));
+
+			for (int iMsg = 0; iMsg < iMessages; ++iMsg)
+			{
+				auto sExpected = kFormat("c{}m{}-{}", iClient, iMsg, sFiller);
+
+				if (!Client.Write(sExpected))
+				{
+					++iEchoErrors;
+					break;
+				}
+
+				// read until our echo arrives - broadcasts may interleave at any point
+				for(;;)
+				{
+					KStringRef sReply;
+
+					if (!Client.Read(sReply))
+					{
+						++iEchoErrors;
+						++iDoneClients;
+						return;
+					}
+
+					if (sReply == sExpected)
+					{
+						break;
+					}
+
+					if (!KStringView(sReply).starts_with("bcast"))
+					{
+						// neither our echo nor a broadcast - something got lost or garbled
+						++iEchoErrors;
+						++iDoneClients;
+						return;
+					}
+				}
+			}
+
+			// the echo phase is over - only now may the broadcaster stop and the
+			// server side close us (incrementing later, at thread end, would
+			// deadlock: the close we drain for is only sent once all clients
+			// are accounted for)
+			++iDoneClients;
+
+			// keep reading broadcasts until the server closes the connection -
+			// mind that the parameterless Read() returns eof (-1, truthy!) at
+			// the end, so read into a string
+			KStringRef sDrain;
+
+			while (Client.Read(sDrain))
+			{
+			}
+		}));
+	}
+
+	// hammer broadcasts from this thread while the echoes run
+	std::size_t iBroadcasts { 0 };
+
+	while (iDoneClients.load() < static_cast<int>(iClients) && !bStop.load())
+	{
+		pServer.load() ? pServer.load()->Broadcast("bcast") : 0;
+		++iBroadcasts;
+		kSleep(chrono::milliseconds(2));
+	}
+
+	for (auto& Client : Clients)
+	{
+		if (Client.joinable())
+		{
+			// close all connections from the server side once the echo phase is over
+			if (pServer.load())
+			{
+				for (auto iHandle : *Handles.shared())
+				{
+					pServer.load()->Close(iHandle);
+				}
+			}
+
+			bStop = true;
+			Client.join();
+		}
+	}
+
+	CHECK ( iEchoErrors.load() == 0 );
+	CHECK ( iBroadcasts        >  0 );
+
+	// every connection saw its server-side close
+	for (int iWait = 0; iWait < 300 && iCloses.load() < static_cast<int>(iClients); ++iWait)
+	{
+		kSleep(chrono::milliseconds(10));
+	}
+
+	CHECK ( iCloses.load() == static_cast<int>(iClients) );
+}
+
 } // anonymous namespace
 
 TEST_CASE("KWebSocketServer")
@@ -872,6 +1040,36 @@ TEST_CASE("KWebSocketServer")
 	SECTION("permessage-deflate, worker thread pool")
 	{
 		RunWebSocketServerTest(6791, 4, true);
+	}
+
+	SECTION("TLS, single thread mode")
+	{
+		RunWebSocketServerTest(6794, 0, false, true);
+	}
+
+	SECTION("TLS, worker thread pool")
+	{
+		RunWebSocketServerTest(6795, 4, false, true);
+	}
+
+	SECTION("concurrent echo, broadcast and close, single thread mode")
+	{
+		RunWebSocketServerStressTest(6792, 0);
+	}
+
+	SECTION("concurrent echo, broadcast and close, worker thread pool")
+	{
+		RunWebSocketServerStressTest(6793, 4);
+	}
+
+	SECTION("concurrent echo, broadcast and close over TLS, single thread mode")
+	{
+		RunWebSocketServerStressTest(6796, 0, true);
+	}
+
+	SECTION("concurrent echo, broadcast and close over TLS, worker thread pool")
+	{
+		RunWebSocketServerStressTest(6797, 4, true);
 	}
 }
 

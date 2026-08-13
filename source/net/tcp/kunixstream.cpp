@@ -69,6 +69,26 @@ std::streamsize KUnixStream::direct_read_some(void* sBuffer, std::streamsize iCo
 } // direct_read_some
 
 //-----------------------------------------------------------------------------
+std::streamsize KUnixStream::direct_write_some(const void* sBuffer, std::streamsize iCount)
+//-----------------------------------------------------------------------------
+{
+	std::streamsize iWrote { 0 };
+
+	// one write_some, no loop - a partial write is a valid result here
+	GetAsioSocket().async_write_some(boost::asio::buffer(sBuffer, iCount),
+	[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+	{
+		m_Stream.ec = ec;
+		iWrote = bytes_transferred;
+	});
+
+	m_Stream.RunTimed();
+
+	return iWrote;
+
+} // direct_write_some
+
+//-----------------------------------------------------------------------------
 std::streamsize KUnixStream::UnixStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {

@@ -170,6 +170,10 @@ public:
 	std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) override final;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	std::streamsize direct_write_some(const void* sBuffer, std::streamsize iCount) override final;
+	//-----------------------------------------------------------------------------
+
 //----------
 private:
 //----------

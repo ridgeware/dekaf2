@@ -265,6 +265,49 @@ std::streamsize KTLSStream::direct_read_some(void* sBuffer, std::streamsize iCou
 } // direct_read_some
 
 //-----------------------------------------------------------------------------
+std::streamsize KTLSStream::direct_write_some(const void* sBuffer, std::streamsize iCount)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Stream.bManualHandshake)
+	{
+		if (!Handshake())
+		{
+			return -1;
+		}
+	}
+
+	std::streamsize iWrote { 0 };
+
+	// one write_some, no loop - a partial write is a valid result here. The TLS
+	// engine may internally read (a renegotiation needs incoming records) and
+	// retry on WANT_WRITE, which is exactly why this must not run concurrently
+	// with a read on another thread
+	if (!m_Stream.bManualHandshake)
+	{
+		GetAsioSocket().async_write_some(boost::asio::buffer(sBuffer, iCount),
+		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+		{
+			m_Stream.ec = ec;
+			iWrote = bytes_transferred;
+		});
+	}
+	else
+	{
+		GetAsioSocket().next_layer().async_write_some(boost::asio::buffer(sBuffer, iCount),
+		[&](const boost::system::error_code& ec, std::size_t bytes_transferred)
+		{
+			m_Stream.ec = ec;
+			iWrote = bytes_transferred;
+		});
+	}
+
+	m_Stream.RunTimed();
+
+	return iWrote;
+
+} // direct_write_some
+
+//-----------------------------------------------------------------------------
 std::streamsize KTLSStream::TLSStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {

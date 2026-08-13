@@ -132,6 +132,29 @@ public:
 	/// are immediately available - do not mix these reads with streambuf based reads, they are not synchronized
 	virtual std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) = 0;
 
+	/// Check if this stream is currently in the process of being disconnected
+	/// (from any thread). Returns true after a Disconnect() started - on any
+	/// thread - and before the optional state reset on a reconnect.
+	///
+	/// An event loop must ask this before it polls the stream's descriptor: a
+	/// clean Disconnect() leaves no error behind, so Good() may still be true,
+	/// while the descriptor is closed and its number may already have been
+	/// handed to another socket.
+	bool IsDisconnecting() const
+	{
+		return m_bDisconnecting.load(std::memory_order_acquire);
+	}
+
+	/// Write directly to the stream, not using the std::streambuf hierarchy - writes only as many characters as
+	/// the stream accepts right now and returns that count, which may be less than iCount (or 0). Do not mix
+	/// these writes with streambuf based writes, they are not synchronized.
+	///
+	/// This is the write counterpart of direct_read_some(), and the primitive for event loops that carry both
+	/// directions on one thread: unlike Write()/kWrite(), which loop until everything is out (and flag a short
+	/// write as a stream error), a partial write here is a normal result - keep the remainder and come back
+	/// after the next poll. That keeps a stalled peer from blocking the reading direction.
+	virtual std::streamsize direct_write_some(const void* sBuffer, std::streamsize iCount) = 0;
+
 	// ------ the virtual methods that can be implemented by a child -------
 
 	/// Gets the underlying openssl handle of the stream
@@ -291,14 +314,6 @@ protected:
 		m_Interruptor.Wake();
 	}
 
-	/// Check if this stream is currently in the process of being
-	/// disconnected (from any thread). Returns true after SignalDisconnecting()
-	/// was called and before the optional state reset (on a reconnect).
-	bool IsDisconnecting() const
-	{
-		return m_bDisconnecting.load(std::memory_order_acquire);
-	}
-
 	/// Reset the disconnecting state. Derived classes should call this
 	/// at the beginning of a successful Connect() on a previously used
 	/// stream to allow polling again on the reconnected socket.
@@ -342,6 +357,7 @@ public:
 	virtual native_socket_type GetNativeSocket() override final { return -1; }
 	virtual bool Good() const override final { return good(); }
 	virtual std::streamsize direct_read_some(void* sBuffer, std::streamsize iCount) override final { return 0; };
+	virtual std::streamsize direct_write_some(const void* sBuffer, std::streamsize iCount) override final { return 0; };
 
 }; // KStreamSocketAdaptor
 

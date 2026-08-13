@@ -223,6 +223,21 @@ std::streamsize KQuicStream::direct_read_some(void* sBuffer, std::streamsize iCo
 } // direct_read_some
 
 //-----------------------------------------------------------------------------
+std::streamsize KQuicStream::direct_write_some(const void* sBuffer, std::streamsize iCount)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iWrote { 0 };
+
+	if (!::SSL_write_ex(GetNativeTLSHandle(), sBuffer, iCount, &iWrote))
+	{
+		SetSSLError();
+	}
+
+	return static_cast<std::streamsize>(iWrote);
+
+} // direct_write_some
+
+//-----------------------------------------------------------------------------
 std::streamsize KQuicStream::QuicStreamReader(void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {

@@ -3,6 +3,7 @@
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/net/util/kstreamoptions.h>
+#include <dekaf2/system/os/ksystem.h>
 
 using namespace dekaf2;
 
@@ -33,6 +34,24 @@ protected:
 	}
 
 }; // KPingPongServer
+
+/// accepts a connection and then never reads from it, so the sending side
+/// fills up its buffers
+class KSilentServer : public KTCPServer
+{
+
+public:
+
+	using KTCPServer::KTCPServer;
+
+protected:
+
+	virtual void Session(std::unique_ptr<KIOStreamSocket>& stream) override
+	{
+		kSleep(chrono::seconds(3));
+	}
+
+}; // KSilentServer
 
 } // end of anonymous namespace
 
@@ -82,6 +101,49 @@ TEST_CASE("KIOStreamSocket")
 		CHECK ( sLine == "extra" );
 
 		// nothing left on any layer - a zero timeout poll returns false
+		CHECK ( Stream.IsReadReady(chrono::milliseconds(0), false) == false );
+	}
+
+	SECTION("direct_write_some reports partial writes and keeps the stream")
+	{
+		KSilentServer Server(7614, false, 2);
+		Server.Start(chrono::seconds(10), false);
+
+		KTCPStream Stream(KTCPEndPoint("127.0.0.1:7614"),
+		                  KStreamOptions(KStreamOptions::CancelOnTimeout, chrono::milliseconds(300)));
+
+		REQUIRE ( Stream.Good() == true );
+
+		KString sBlob(64 * 1024, 'x');
+
+		std::size_t     iTotal { 0 };
+		std::streamsize iWrote { 0 };
+		bool            bShortWrite { false };
+
+		// the peer never reads, so the buffers fill up and the writes get
+		// short - which is a normal result here, not a stream error
+		for (uint16_t iRound = 0; iRound < 2000; ++iRound)
+		{
+			iWrote = Stream.direct_write_some(sBlob.data(), sBlob.size());
+
+			if (iWrote < 0) break;
+
+			iTotal += static_cast<std::size_t>(iWrote);
+
+			if (static_cast<std::size_t>(iWrote) < sBlob.size())
+			{
+				bShortWrite = true;
+				break;
+			}
+		}
+
+		CHECK ( iTotal      >  0    );
+		CHECK ( bShortWrite == true );
+
+		// and the connection is still alive and usable afterwards - this is
+		// what a Write()/kWrite() would have broken with a badbit
+		CHECK ( Stream.is_open()                                   == true  );
+		CHECK ( Stream.Good()                                      == true  );
 		CHECK ( Stream.IsReadReady(chrono::milliseconds(0), false) == false );
 	}
 }

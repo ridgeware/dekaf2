@@ -15,13 +15,17 @@ FROM ${from} AS build-stage
 
 FROM runenv AS final
 
-COPY --from=build-stage /usr/local/bin/klog           /usr/local/bin/klog
-COPY --from=build-stage /usr/local/bin/createdbc      /usr/local/bin/createdbc
-COPY --from=build-stage /usr/local/bin/kurl           /usr/local/bin/kurl
-COPY --from=build-stage /usr/local/bin/khttp          /usr/local/bin/khttp
-COPY --from=build-stage /usr/local/bin/kreplace       /usr/local/bin/kreplace
-COPY --from=build-stage /usr/local/bin/kgrep          /usr/local/bin/kgrep
-COPY --from=build-stage /usr/local/bin/ksql           /usr/local/bin/ksql
+COPY --from=build-stage /usr/local/bin/klog          \
+                        /usr/local/bin/createdbc     \
+                        /usr/local/bin/kurl          \
+                        /usr/local/bin/khttp         \
+                        /usr/local/bin/kreplace      \
+                        /usr/local/bin/kgrep         \
+                        /usr/local/bin/ksql          \
+                        /usr/local/bin/krypt         \
+                        /usr/local/bin/kssod         \
+                        /usr/local/bin/ktunnel       \
+                        /usr/local/bin/kmqtt          /usr/local/bin/
 
 RUN groupadd -r dekaf2 && useradd -r -s /bin/false -g dekaf2 dekaf2
 

@@ -60,6 +60,7 @@ COPY --from=build-stage /usr/local/bin/klog          \
                         /usr/local/bin/kport         \
                         /usr/local/bin/kssod         \
                         /usr/local/bin/ktunnel       \
+                        /usr/local/bin/kmqtt         \
                         /usr/local/bin/my-ip-addr     /usr/local/bin/
 COPY --from=build-stage /usr/local/include/dekaf2     /usr/local/include/dekaf2
 COPY --from=build-stage /usr/local/lib/dekaf2         /usr/local/lib/dekaf2

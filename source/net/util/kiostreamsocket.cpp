@@ -207,7 +207,6 @@ int KIOStreamSocket::CheckIfReadyRaw(int what, KDuration Timeout, bool bTimeoutI
 
 	// Poll on both the socket and the interruptor FD (for waking from another thread)
 	int iResult;
-#if !DEKAF2_IS_WINDOWS
 	int iInterruptorFD = m_Interruptor.GetFD();
 	if (iInterruptorFD >= 0)
 	{
@@ -238,7 +237,6 @@ int KIOStreamSocket::CheckIfReadyRaw(int what, KDuration Timeout, bool bTimeoutI
 		// fall through to the shared timeout/error handling below
 	}
 	else
-#endif
 	{
 		iResult = kPoll(GetNativeSocket(), what, Timeout);
 	}

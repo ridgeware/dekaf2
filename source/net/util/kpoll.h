@@ -93,13 +93,12 @@ int kPoll(int fd, int what, KDuration Timeout);
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Helper class to interrupt poll() from another thread.
-/// Uses eventfd on Linux (efficient) and pipe on other POSIX systems.
-/// On Windows this is a no-op because WSAPoll correctly unblocks on socket close.
+/// Uses eventfd on Linux (efficient), a pair of connected loopback sockets on
+/// Windows (WSAPoll can only wait on sockets), and a pipe on other POSIX systems.
 class DEKAF2_PUBLIC KPollInterruptor
 {
 public:
-#if !DEKAF2_IS_WINDOWS
-	/// Create the interruptor (eventfd on Linux, pipe on other POSIX)
+	/// Create the interruptor
 	KPollInterruptor();
 
 	/// Close the interruptor file descriptors
@@ -111,7 +110,7 @@ public:
 	KPollInterruptor(KPollInterruptor&&) = delete;
 	KPollInterruptor& operator=(KPollInterruptor&&) = delete;
 
-	/// Get the file descriptor to poll on (read end for pipe, eventfd for Linux)
+	/// Get the file descriptor to poll on (the read end)
 	int GetFD() const { return m_fd; }
 
 	/// Wake up any poll() call waiting on this interruptor
@@ -129,17 +128,8 @@ public:
 private:
 	int m_fd { -1 };
 #if !DEKAF2_IS_LINUX
-	int m_write_fd { -1 };  // only needed for pipe
+	int m_write_fd { -1 };  // the write end for pipe and socket pair
 #endif
-#else  // DEKAF2_IS_WINDOWS
-	// Windows: no-op implementation
-	KPollInterruptor() = default;
-	int GetFD() const { return -1; }
-	void Wake() {}
-	void Clear() {}
-	void Close() {}
-	bool IsValid() const { return false; }
-#endif  // DEKAF2_IS_WINDOWS
 }; // KPollInterruptor
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

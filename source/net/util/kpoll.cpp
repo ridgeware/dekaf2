@@ -48,6 +48,7 @@
 #if !DEKAF2_IS_WINDOWS
 	#include <sys/types.h>
 	#include <sys/socket.h>
+	#include <netinet/in.h>
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
@@ -593,13 +594,130 @@ uint16_t KSocketWatch::AdjustEvents(int fd, uint16_t iEvents) const
 
 } // AdjustEvents
 
-#if !DEKAF2_IS_WINDOWS
+#if DEKAF2_IS_WINDOWS
+
+namespace {
+
+//-----------------------------------------------------------------------------
+/// create a pair of connected loopback TCP sockets as a self-pipe - on Windows
+/// the only fd type WSAPoll can wait on is a socket, so eventfd or pipes are
+/// no option there. The code itself is platform independent.
+bool kCreateLoopbackPair(int& iReadFd, int& iWriteFd)
+//-----------------------------------------------------------------------------
+{
+	iReadFd  = -1;
+	iWriteFd = -1;
+
+#if DEKAF2_IS_WINDOWS
+	using socket_t = SOCKET;
+	const socket_t iInvalid = INVALID_SOCKET;
+#else
+	using socket_t = int;
+	const socket_t iInvalid = -1;
+#endif
+
+	auto CloseSocket = [&](socket_t socket)
+	{
+		if (socket != iInvalid)
+		{
+#if DEKAF2_IS_WINDOWS
+			::closesocket(socket);
+#else
+			::close(socket);
+#endif
+		}
+	};
+
+	auto SetNonBlocking = [](socket_t socket) -> bool
+	{
+#if DEKAF2_IS_WINDOWS
+		u_long iMode = 1;
+		return ::ioctlsocket(socket, FIONBIO, &iMode) == 0;
+#else
+		auto iFlags = ::fcntl(socket, F_GETFL, 0);
+		return iFlags >= 0 && ::fcntl(socket, F_SETFL, iFlags | O_NONBLOCK) >= 0;
+#endif
+	};
+
+	socket_t Listener = ::socket(AF_INET, SOCK_STREAM, 0);
+
+	if (Listener == iInvalid)
+	{
+		return false;
+	}
+
+	socket_t Writer = iInvalid;
+	socket_t Reader = iInvalid;
+	bool     bOK    = false;
+
+	do
+	{
+		sockaddr_in Address {};
+		Address.sin_family      = AF_INET;
+		Address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		Address.sin_port        = 0;
+
+		if (::bind(Listener, reinterpret_cast<sockaddr*>(&Address), sizeof(Address)) != 0) break;
+		if (::listen(Listener, 1) != 0) break;
+
+		socklen_t iLen = sizeof(Address);
+		if (::getsockname(Listener, reinterpret_cast<sockaddr*>(&Address), &iLen) != 0) break;
+
+		Writer = ::socket(AF_INET, SOCK_STREAM, 0);
+		if (Writer == iInvalid) break;
+		if (::connect(Writer, reinterpret_cast<sockaddr*>(&Address), sizeof(Address)) != 0) break;
+
+		Reader = ::accept(Listener, nullptr, nullptr);
+		if (Reader == iInvalid) break;
+
+		// make sure we accepted our own connect and not that of another local
+		// process that raced us onto the listener port
+		sockaddr_in Local {};
+		sockaddr_in Peer  {};
+		socklen_t   iLocalLen = sizeof(Local);
+		socklen_t   iPeerLen  = sizeof(Peer);
+		if (::getsockname(Writer, reinterpret_cast<sockaddr*>(&Local), &iLocalLen) != 0) break;
+		if (::getpeername(Reader, reinterpret_cast<sockaddr*>(&Peer ), &iPeerLen ) != 0) break;
+		if (Local.sin_port != Peer.sin_port) break;
+
+		if (!SetNonBlocking(Reader) || !SetNonBlocking(Writer)) break;
+
+		bOK = true;
+	}
+	while (false);
+
+	CloseSocket(Listener);
+
+	if (!bOK)
+	{
+		CloseSocket(Reader);
+		CloseSocket(Writer);
+		return false;
+	}
+
+	iReadFd  = static_cast<int>(Reader);
+	iWriteFd = static_cast<int>(Writer);
+
+	return true;
+
+} // kCreateLoopbackPair
+
+} // end of anonymous namespace
+
+#endif // DEKAF2_IS_WINDOWS
 
 //-----------------------------------------------------------------------------
 KPollInterruptor::KPollInterruptor()
 //-----------------------------------------------------------------------------
 {
-#if DEKAF2_IS_LINUX
+#if DEKAF2_IS_WINDOWS
+	if (!kCreateLoopbackPair(m_fd, m_write_fd))
+	{
+		kDebug(2, "failed to create loopback socket pair: {}", GetPollError());
+		m_fd       = -1;
+		m_write_fd = -1;
+	}
+#elif DEKAF2_IS_LINUX
 	m_fd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
 	if (m_fd < 0)
 	{
@@ -651,6 +769,9 @@ void KPollInterruptor::Wake()
 #if DEKAF2_IS_LINUX
 	eventfd_t value = 1;
 	::eventfd_write(m_fd, value);
+#elif DEKAF2_IS_WINDOWS
+	char byte = 1;
+	::send(static_cast<SOCKET>(m_write_fd), &byte, 1, 0);
 #else
 	char byte = 1;
 	::write(m_write_fd, &byte, 1);
@@ -665,6 +786,9 @@ void KPollInterruptor::Clear()
 #if DEKAF2_IS_LINUX
 	eventfd_t value;
 	::eventfd_read(m_fd, &value);
+#elif DEKAF2_IS_WINDOWS
+	char buf[16];
+	while (::recv(static_cast<SOCKET>(m_fd), buf, sizeof(buf), 0) > 0) {}
 #else
 	char buf[16];
 	while (::read(m_fd, buf, sizeof(buf)) > 0) {}
@@ -681,6 +805,17 @@ void KPollInterruptor::Close()
 		::close(m_fd);
 		m_fd = -1;
 	}
+#elif DEKAF2_IS_WINDOWS
+	if (m_fd >= 0)
+	{
+		::closesocket(static_cast<SOCKET>(m_fd));
+		m_fd = -1;
+	}
+	if (m_write_fd >= 0)
+	{
+		::closesocket(static_cast<SOCKET>(m_write_fd));
+		m_write_fd = -1;
+	}
 #else
 	if (m_fd >= 0)
 	{
@@ -694,7 +829,5 @@ void KPollInterruptor::Close()
 	}
 #endif
 } // Close
-
-#endif // !DEKAF2_IS_WINDOWS
 
 DEKAF2_NAMESPACE_END

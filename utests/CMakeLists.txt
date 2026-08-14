@@ -94,6 +94,7 @@ set (USOURCES
 	klog_tests.cpp
 	klogrotate_tests.cpp
 	kmailspool_tests.cpp
+	kpoll_tests.cpp
 	ksmtp_tests.cpp
 	kmemorymap_tests.cpp
 	kmessagedigest_tests.cpp

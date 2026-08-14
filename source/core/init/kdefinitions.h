@@ -360,6 +360,17 @@
 
 #define DEKAF2_NODISCARD_PEDANTIC DEKAF2_NODISCARD
 
+#if DEKAF2_HAS_CPP_17 && DEKAF2_HAS_CPP_ATTRIBUTE(maybe_unused)
+	#define DEKAF2_MAYBE_UNUSED [[maybe_unused]]
+#elif DEKAF2_HAS_CPP_ATTRIBUTE(gnu::unused)
+	// gcc < 7 has no maybe_unused, but knows its own unused attribute
+	#define DEKAF2_MAYBE_UNUSED [[gnu::unused]]
+#elif DEKAF2_HAS_ATTRIBUTE(unused)
+	#define DEKAF2_MAYBE_UNUSED __attribute__((unused))
+#else
+	#define DEKAF2_MAYBE_UNUSED
+#endif
+
 #if defined(__clang__) || defined(__GNUC__)
 	#define DEKAF2_DEPRECATED(msg) __attribute__((__deprecated__(msg)))
 #elif defined(DEKAF2_IS_MSC)

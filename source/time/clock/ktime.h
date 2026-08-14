@@ -1794,33 +1794,64 @@ template<> struct formatter<DEKAF2_PREFIX KLocalTime> : formatter<std::tm>
 	auto format(const DEKAF2_PREFIX KLocalTime& time, FormatContext& ctx) const
 	{
 #ifndef DEKAF2_IS_WINDOWS
-		constexpr bool bTmCarriesZone = true;
+		// std::tm carries tm_zone/tm_gmtoff here, and to_tm() fills them - fmt
+		// answers %Z/%z from the tm fields
+		return formatter<std::tm>::format(time.to_tm(), ctx);
 #else
-		constexpr bool bTmCarriesZone = false;
-#endif
-
-		// deliberately a plain if, not if constexpr and not the preprocessor: both
-		// branches have to compile on every platform, so no branch can rot unseen
-		// on the platform that does not run it
-		if (bTmCarriesZone)
-		{
-			// std::tm carries tm_zone/tm_gmtoff here, and to_tm() fills them - fmt
-			// answers %Z/%z from the tm fields
-			return formatter<std::tm>::format(time.to_tm(), ctx);
-		}
-
 		// no timezone fields in std::tm - fmt cannot answer %Z/%z from the tm and
 		// would fall back to "UTC"/+0000. But the KLocalTime knows its zone, so we
 		// answer the zone specs ourselves: substitute them with their literal values
-		// and hand the remaining spec back to fmt
-		DEKAF2_PREFIX KString sSpec("{:");
-		sSpec += DEKAF2_PREFIX detail::kExpandZoneSpecs( { m_sSpec.data(), m_sSpec.size() },
-		                                                 time.get_zone_abbrev(),
-		                                                 time.get_utc_offset() );
-		sSpec += '}';
+		// and hand the remaining spec back to fmt.
+		// Split the spec into the fill/align/width/L prefix and the chrono part -
+		// only the latter can hold zone specs, and the prefix never contains a '%'
+		DEKAF2_PREFIX KStringView sSpec   ( m_sSpec.data(), m_sSpec.size() );
+		auto                      iChrono = sSpec.find('%');
+		DEKAF2_PREFIX KStringView sPrefix = sSpec.substr(0, iChrono);
+		DEKAF2_PREFIX KStringView sChrono = (iChrono == DEKAF2_PREFIX KStringView::npos)
+		                                    ? DEKAF2_PREFIX KStringView{}
+		                                    : sSpec.substr(iChrono);
 
-		return format_to(ctx.out(), runtime(basic_string_view<char>(sSpec.data(), sSpec.size())),
+		auto sExpanded = DEKAF2_PREFIX detail::kExpandZoneSpecs(sChrono,
+		                                                        time.get_zone_abbrev(),
+		                                                        time.get_utc_offset());
+
+		if (sExpanded == sChrono)
+		{
+			// no zone specs in play - take the exact route through the base
+			// formatter, which also keeps the locale handling untouched
+			return formatter<std::tm>::format(time.to_tm(), ctx);
+		}
+
+		auto out = ctx.out();
+
+		// fmt only accepts a chrono format that starts with '%' - if the spec
+		// began with a zone spec, its expansion is now a leading literal, so
+		// emit that directly (a width from the prefix then only applies to the
+		// remainder - acceptable for the exotic mix of width and leading %Z)
+		if (!sExpanded.empty() && sExpanded.front() != '%')
+		{
+			auto iRest    = sExpanded.find('%');
+			auto sLiteral = DEKAF2_PREFIX KStringView(sExpanded).substr(0, iRest);
+			out = std::copy(sLiteral.begin(), sLiteral.end(), out);
+			sExpanded.erase(0, sLiteral.size());
+		}
+
+		if (sExpanded.empty() && sPrefix.empty())
+		{
+			// the whole spec was zone specs - everything is out already
+			return out;
+		}
+
+		DEKAF2_PREFIX KString sNested("{:");
+		sNested += sPrefix;
+		sNested += sExpanded;
+		sNested += '}';
+
+		// format the remainder through fmt, forwarding the caller's locale
+		return format_to(out, ctx.locale(),
+		                 runtime(basic_string_view<char>(sNested.data(), sNested.size())),
 		                 time.to_tm());
+#endif
 	}
 
 private:

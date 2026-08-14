@@ -42,6 +42,7 @@
 #include <dekaf2/net/udp/kdtlssocket.h>
 #include <dekaf2/net/address/kresolve.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/errors/kcrashexit.h>
 #include <dekaf2/time/duration/kduration.h>
 
 #if !DEKAF2_IS_WINDOWS
@@ -56,6 +57,40 @@
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+namespace {
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// a tripwire, not a lock: overlapping operations mean two threads inside one
+/// SSL object, which corrupts its state - make that loud instead of silently
+/// losing data. Same policy as KAsioStream::RunTimed(): assert in debug
+/// builds, kWarning in release builds
+struct KOpTripwire
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	KOpTripwire(std::atomic<bool>& bInOp, const KTCPEndPoint& Endpoint)
+	: m_bInOp(bInOp)
+	{
+		if (DEKAF2_UNLIKELY(m_bInOp.exchange(true)))
+		{
+#ifdef NDEBUG
+			kWarning("concurrent operations on a DTLS socket with {} - the socket may only be used by one thread at a time", Endpoint);
+#else
+			detail::kFailedAssert("concurrent operations on a DTLS socket - the socket may only be used by one thread at a time");
+#endif
+		}
+	}
+
+	~KOpTripwire()
+	{
+		m_bInOp = false;
+	}
+
+	std::atomic<bool>& m_bInOp;
+
+}; // KOpTripwire
+
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 KDTLSSocket::KDTLSSocket(KDuration Timeout)
@@ -222,6 +257,8 @@ bool KDTLSSocket::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 bool KDTLSSocket::DoHandshake()
 //-----------------------------------------------------------------------------
 {
+	KOpTripwire Tripwire(m_bInOp, m_Endpoint);
+
 	// Retry SSL_connect until it completes, fails with a real error, or the
 	// overall connect timeout elapses. The datagram BIO has its own per-read
 	// timeout equal to m_Timeout, but a single flight lost in the DTLS
@@ -302,6 +339,8 @@ std::streamsize KDTLSSocket::Send(const void* pBuffer, std::streamsize iCount)
 		return -1;
 	}
 
+	KOpTripwire Tripwire(m_bInOp, m_Endpoint);
+
 	auto iSent = ::SSL_write(m_SSL.get(), pBuffer, static_cast<int>(iCount));
 
 	if (iSent <= 0)
@@ -332,6 +371,8 @@ std::streamsize KDTLSSocket::Receive(void* pBuffer, std::streamsize iCount)
 		SetError("DTLS socket not connected");
 		return -1;
 	}
+
+	KOpTripwire Tripwire(m_bInOp, m_Endpoint);
 
 	auto iReceived = ::SSL_read(m_SSL.get(), pBuffer, static_cast<int>(iCount));
 

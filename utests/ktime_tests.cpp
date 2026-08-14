@@ -1284,11 +1284,19 @@ TEST_CASE("KTime") {
 			if (bHasTimezone)
 			{
 				KLocalTime TokyoTime("2012-01-31 12:15:00", kFindTimezone("Asia/Tokyo", true));
-				CHECK ( kFormat("{:%Z}",  TokyoTime) == "JST"    );
+
+				// the abbreviation TEXT belongs to the platform's tzdb (POSIX
+				// tzdata says "JST", MS/ICU says "GMT+9") - what the formatter
+				// has to guarantee is that %Z emits exactly what the tzdb
+				// reports. The offsets are numerically identical everywhere.
+				auto sAbbrev = TokyoTime.get_zone_abbrev();
+
+				CHECK ( sAbbrev.empty() == false );
+				CHECK ( kFormat("{:%Z}",  TokyoTime) == sAbbrev  );
 				CHECK ( kFormat("{:%z}",  TokyoTime) == "+0900"  );
 				CHECK ( kFormat("{:%Ez}", TokyoTime) == "+09:00" );
 				CHECK ( kFormat("{:%%Z}", TokyoTime) == "%Z"     ); // an escaped percent stays literal
-				CHECK ( kFormat("{:%Z %Y-%m-%d}", TokyoTime) == "JST 2012-01-31" );
+				CHECK ( kFormat("{:%Z %Y-%m-%d}", TokyoTime) == kFormat("{} 2012-01-31", sAbbrev) );
 			}
 		}
 #endif

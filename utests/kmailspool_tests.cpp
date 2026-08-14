@@ -338,10 +338,16 @@ TEST_CASE("KMailSpool")
 
 		KMailSpool::Options Options;
 		Options.sSpoolDir     = SpoolDir.Name();
-		Options.Relay         = KURL(kFormat("smtp://localhost:{}", iPort));
-		// no scheduled retry within this test, MaxAge quickly exceeded
+		// pin the relay to IPv4 - "localhost" would make the failing connect
+		// try ::1 first and double its duration
+		Options.Relay         = KURL(kFormat("smtp://127.0.0.1:{}", iPort));
+		// no scheduled retry within this test, MaxAge exceeded by the sleep below.
+		// MaxAge has to comfortably outlast ONE failed connect attempt, or the
+		// mail is already overaged at its first reschedule and gets dropped -
+		// on Windows a refused loopback connect costs around a second (winsock
+		// retries the SYN after a RST), not microseconds as on POSIX
 		Options.RetryInterval = chrono::hours(1);
-		Options.MaxAge        = chrono::milliseconds(100);
+		Options.MaxAge        = chrono::seconds(2);
 		Options.Timeout       = chrono::seconds(1);
 
 		KMailSpool Spool(Options);
@@ -354,7 +360,7 @@ TEST_CASE("KMailSpool")
 		}));
 
 		// age the mail beyond MaxAge, then bring up the relay
-		kSleep(chrono::milliseconds(200));
+		kSleep(chrono::milliseconds(2500));
 
 		auto Server = std::make_unique<FakeSMTPServer>(iPort);
 		REQUIRE( Server->Start(chrono::seconds(2), false) );

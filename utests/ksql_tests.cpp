@@ -750,8 +750,9 @@ TEST_CASE("KSQL-SQLite3")
 		REQUIRE ( db.ListDatabases() );
 		REQUIRE ( db.NextRow() );
 		CHECK ( db.Get(1) == "main" );
-		// sqlite returns the resolved path, which may differ from sDBFile (e.g. /var vs /private/var)
-		CHECK ( db.Get(2).ends_with("/ksql_sqlite_test.db") );
+		// sqlite returns the resolved path, which may differ from sDBFile (e.g. /var
+		// vs /private/var) and uses the platform's directory separators
+		CHECK ( kBasename(db.Get(2)) == "ksql_sqlite_test.db" );
 		CHECK ( !db.NextRow() );
 	}
 

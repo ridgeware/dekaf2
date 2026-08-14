@@ -60,9 +60,11 @@ TEST_CASE("KPoll")
 		// quiet after construction
 		CHECK ( kPoll(Interruptor.GetFD(), POLLIN, KDuration()) == 0 );
 
-		// a wake makes the fd readable, a clear drains it
+		// a wake makes the fd readable, a clear drains it. Test with != 0: on
+		// Windows POLLIN is the composite POLLRDNORM|POLLRDBAND, and a TCP
+		// socket only ever raises POLLRDNORM
 		Interruptor.Wake();
-		CHECK ( (kPoll(Interruptor.GetFD(), POLLIN, chrono::seconds(5)) & POLLIN) == POLLIN );
+		CHECK ( (kPoll(Interruptor.GetFD(), POLLIN, chrono::seconds(5)) & POLLIN) != 0 );
 		Interruptor.Clear();
 		CHECK ( kPoll(Interruptor.GetFD(), POLLIN, KDuration()) == 0 );
 
@@ -74,7 +76,7 @@ TEST_CASE("KPoll")
 		});
 
 		KStopTime Took;
-		CHECK ( (kPoll(Interruptor.GetFD(), POLLIN, chrono::seconds(10)) & POLLIN) == POLLIN );
+		CHECK ( (kPoll(Interruptor.GetFD(), POLLIN, chrono::seconds(10)) & POLLIN) != 0 );
 		CHECK ( Took.elapsed() < chrono::seconds(5) );
 
 		Waker.join();

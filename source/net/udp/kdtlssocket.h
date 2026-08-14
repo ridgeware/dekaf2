@@ -57,6 +57,8 @@
 typedef struct ssl_st SSL;
 typedef struct bio_st BIO;
 
+#include <atomic>
+
 DEKAF2_NAMESPACE_BEGIN
 
 /// @addtogroup net_udp
@@ -66,6 +68,13 @@ DEKAF2_NAMESPACE_BEGIN
 /// A DTLS-encrypted UDP socket. Uses OpenSSL's DTLS implementation directly
 /// (not through boost::asio's SSL layer, which does not support DTLS).
 /// The socket handles DTLS handshake, send, and receive with timeout support.
+///
+/// ### One thread at a time
+/// Like the socket streams, this socket may be driven by ONE thread at any
+/// point in time - which thread that is may change, with synchronization on
+/// the handover. OpenSSL allows only one thread inside an SSL object, so
+/// concurrent operations corrupt its state. They trip an assert in debug
+/// builds and a kWarning in release builds.
 class DEKAF2_PUBLIC KDTLSSocket : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -218,6 +227,8 @@ private:
 	KTCPEndPoint                m_Endpoint;
 	KDuration                   m_Timeout;
 	std::size_t                 m_iMaxDatagramSize { s_iDefaultMaxDatagramSize };
+	/// tripwire against concurrent operations in the SSL object, see the class docs
+	std::atomic<bool>           m_bInOp            { false };
 
 }; // KDTLSSocket
 

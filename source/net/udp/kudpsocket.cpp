@@ -42,6 +42,7 @@
 #include <dekaf2/net/udp/kudpsocket.h>
 #include <dekaf2/net/address/kresolve.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/errors/kcrashexit.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -612,6 +613,19 @@ void KUDPSocket::CheckTimer()
 void KUDPSocket::RunTimed()
 //-----------------------------------------------------------------------------
 {
+	// a tripwire, not a lock: overlapping operations mean two threads on one
+	// socket, which corrupts the shared completion state (see the class docs) -
+	// make that loud instead of silently losing data. Same construction as in
+	// KAsioStream::RunTimed()
+	if (DEKAF2_UNLIKELY(m_bInRun.exchange(true)))
+	{
+#ifdef NDEBUG
+		kWarning("concurrent operations on a UDP socket with {} - the socket may only be used by one thread at a time", m_Endpoint);
+#else
+		detail::kFailedAssert("concurrent operations on a UDP socket - the socket may only be used by one thread at a time");
+#endif
+	}
+
 	ResetTimer();
 
 	try
@@ -629,6 +643,8 @@ void KUDPSocket::RunTimed()
 	}
 
 	ClearTimer();
+
+	m_bInRun = false;
 
 } // RunTimed
 

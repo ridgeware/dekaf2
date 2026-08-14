@@ -53,6 +53,8 @@
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/time/duration/kduration.h>
 
+#include <atomic>
+
 DEKAF2_NAMESPACE_BEGIN
 
 /// @addtogroup net_udp
@@ -62,6 +64,14 @@ DEKAF2_NAMESPACE_BEGIN
 /// A message-oriented UDP socket with timeout support. Supports both
 /// connected mode (Send/Receive with a default endpoint) and unconnected
 /// mode (SendTo/ReceiveFrom with per-call endpoints), as well as multicast.
+///
+/// ### One thread at a time
+/// Like the socket streams, this socket may be driven by ONE thread at any
+/// point in time - which thread that is may change, with synchronization on
+/// the handover. Send and receive share a single event loop and a single
+/// completion state, so concurrent operations consume each other's
+/// completions. They trip an assert in debug builds and a kWarning in
+/// release builds.
 class DEKAF2_PUBLIC KUDPSocket : public KErrorBase
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -304,6 +314,8 @@ private:
 	KDuration                   m_Timeout;
 	std::size_t                 m_iMaxDatagramSize { s_iDefaultMaxDatagramSize };
 	KTCPEndPoint                m_Endpoint;
+	/// tripwire against concurrent operations, see RunTimed()
+	std::atomic<bool>           m_bInRun           { false };
 
 }; // KUDPSocket
 

@@ -405,6 +405,14 @@ ReverseLookup(
 KString PrintResolvedAddress(resolver_endpoint_tcp_type endpoint)
 //-----------------------------------------------------------------------------
 {
+	if (endpoint == resolver_endpoint_tcp_type{})
+	{
+		// this is the end iterator - classic asio hands it to the connect
+		// handler when the connect failed on all endpoints, and it must not
+		// be dereferenced
+		return KString{};
+	}
+
 	if (endpoint->endpoint().address().is_v6())
 	{
 		return kFormat("[{}]:{}",

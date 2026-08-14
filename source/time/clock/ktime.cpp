@@ -738,7 +738,7 @@ bool AddDigit(char ch, uint32_t iMax, Value& iValue)
 	iValue *= 10;
 	iValue += ch - '0';
 	return iValue <= iMax;
-};
+}
 
 } // end of anonymous namespace
 

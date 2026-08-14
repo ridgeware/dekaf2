@@ -950,4 +950,8 @@ void KHTTPTrustedRemoteEndpoint::clear() noexcept
 
 } // KHTTPTrustedRemoteEndpoint::clear
 
+#ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
+constexpr std::size_t KHTTPHeaders::MAX_HEADERCOUNT;
+#endif
+
 DEKAF2_NAMESPACE_END

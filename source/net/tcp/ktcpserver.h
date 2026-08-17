@@ -258,6 +258,16 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Set stream options to apply to accepted connections, e.g. keepalive and drop
+	/// timeout from SetDeadPeerDetection() - options left at their defaults apply nothing
+	/// @param Options the stream options
+	void SetStreamOptions(KStreamOptions Options)
+	//-----------------------------------------------------------------------------
+	{
+		m_StreamOptions = Options;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Start the server
 	/// @param Timeout Timeout for I/O operations (default 15 seconds)
 	/// @param bBlock If true will only return when server is destructed. If false
@@ -474,6 +484,7 @@ private:
 	std::atomic<int>  m_iStarted              {     0 };
 	uint16_t          m_iPort                 {     0 };
 	KDuration         m_Timeout               { KStreamOptions::GetDefaultTimeout() };
+	KStreamOptions    m_StreamOptions;
 	KHTTPVersion      m_HTTPVersion           { KHTTPVersion::none };
 	std::atomic<bool> m_bQuit                 { false };
 	bool              m_bStartIPv4            {  true };

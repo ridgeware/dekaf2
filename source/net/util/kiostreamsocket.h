@@ -193,6 +193,15 @@ public:
 		return kSetTCPNoDelay(GetNativeSocket(), bYesNo);
 	}
 
+	/// Configure TCP keepalive on the underlying socket such that a dead peer is
+	/// detected and the connection dropped within the given duration
+	/// @param tWithin the maximum time until a dead peer is detected
+	/// @returns false on failure
+	bool SetDeadPeerDetection(KDuration tWithin)
+	{
+		return KStreamOptions().SetDeadPeerDetection(tWithin).ApplySocketOptions(GetNativeSocket());
+	}
+
 	/// Get the I/O timeout
 	KDuration GetTimeout() const { return m_Timeout; }
 

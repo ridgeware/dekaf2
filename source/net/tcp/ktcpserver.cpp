@@ -236,6 +236,11 @@ void KTCPServer::RunSession(std::unique_ptr<KIOStreamSocket>& stream)
 		kDebug(3, "handling new TCP connection from {} on port {}",
 		          stream->GetEndPointAddress(),
 		          m_iPort);
+
+		// apply configured socket options (keepalive, drop timeout) to the accepted
+		// connection - options left at their defaults apply nothing. Not for unix
+		// domain sockets, they have no TCP options.
+		m_StreamOptions.ApplySocketOptions(stream->GetNativeSocket(), true);
 	}
 
 	DEKAF2_TRY

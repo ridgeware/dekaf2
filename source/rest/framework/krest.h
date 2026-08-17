@@ -128,6 +128,9 @@ public:
 		std::size_t iWebSocketMaxConcurrentWrites { 0 };
 		/// timeout in seconds (default 5)
 		uint16_t iTimeout { 5 };
+		/// stream options to apply to accepted connections, e.g. keepalive and drop
+		/// timeout from KStreamOptions::SetDeadPeerDetection()
+		KStreamOptions StreamOptions;
 		/// signals that will shutdown the server (default SIGINT, SIGTERM)
 		std::vector<int> RegisterSignalsForShutdown { SIGINT, SIGTERM };
 #ifdef DEKAF2_HAS_UNIX_SOCKETS

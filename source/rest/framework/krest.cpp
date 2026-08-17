@@ -363,6 +363,8 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					m_Server->AddSelfSignedCertDomain(sDomain);
 				}
 
+				m_Server->SetStreamOptions(Options.StreamOptions);
+
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);
 

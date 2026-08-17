@@ -79,6 +79,10 @@ public:
 	/// The individual request path will be added to the basic path, same for query parms.
 	self& SetURL    (KURL URL, KHTTPStreamOptions);
 
+	/// Set stream options for the connection - requests for HTTP/2 or HTTP/3 are
+	/// removed, the websocket handshake only exists on HTTP/1.1
+	self& SetStreamOptions (KHTTPStreamOptions Options);
+
 	/// Get the API URL, const version
 	const KURL& GetURL() const      { return m_URL;                                              }
 
@@ -165,7 +169,6 @@ public:
 	using base::AutoConfigureProxy;
 	using base::AllowRedirects;
 	using base::AllowConnectionRetry;
-	using base::SetStreamOptions;
 	using base::GetStreamOptions;
 	using base::SetVerifyCerts;
 	using base::GetVerifyCerts;

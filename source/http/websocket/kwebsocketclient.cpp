@@ -78,11 +78,23 @@ KWebSocketClient& KWebSocketClient::SetURL(KURL URL, KHTTPStreamOptions Options)
 	// do not clear the query part - we will use it if it is set
 	m_URL.Fragment.clear();
 
-	KHTTPClient::SetStreamOptions(Options);
+	SetStreamOptions(Options);
 
 	return *this;
 
 } // SetURL
+
+//-----------------------------------------------------------------------------
+KWebSocketClient& KWebSocketClient::SetStreamOptions(KHTTPStreamOptions Options)
+//-----------------------------------------------------------------------------
+{
+	// the RFC 6455 handshake only exists on HTTP/1.1 - on a negotiated h2/h3
+	// connection the upgrade headers would be dropped
+	KHTTPClient::SetStreamOptions(Options.Unset(KStreamOptions::RequestHTTP2 | KStreamOptions::RequestHTTP3));
+
+	return *this;
+
+} // SetStreamOptions
 
 //-----------------------------------------------------------------------------
 void KWebSocketClient::clear()

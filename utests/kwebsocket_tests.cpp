@@ -91,6 +91,39 @@ TEST_CASE("KWebSocket")
 		CHECK ( KWebSocket::FrameHeader::FrameTypeToString(KWebSocket::FrameHeader::Continuation) == "Continuation" );
 	}
 
+	SECTION("client never requests h2/h3")
+	{
+		// the RFC 6455 handshake only exists on HTTP/1.1 - the client has to
+		// remove h2/h3 requests from the stream options on every path they
+		// can be set through
+
+		static constexpr auto h2h3 = KStreamOptions::RequestHTTP2 | KStreamOptions::RequestHTTP3;
+
+		{
+			// options ctor
+			KWebSocketClient Client { KHTTPStreamOptions { KStreamOptions::DefaultsForHTTP } };
+			CHECK_FALSE ( Client.GetStreamOptions().IsSet(KStreamOptions::RequestHTTP2) );
+			CHECK_FALSE ( Client.GetStreamOptions().IsSet(KStreamOptions::RequestHTTP3) );
+		}
+		{
+			// URL ctor
+			KWebSocketClient Client { KURL("wss://example.com/chat"), KHTTPStreamOptions { KStreamOptions::DefaultsForHTTP | KStreamOptions::RequestHTTP3 } };
+			CHECK_FALSE ( Client.GetStreamOptions().IsSet(KStreamOptions::RequestHTTP2) );
+			CHECK_FALSE ( Client.GetStreamOptions().IsSet(KStreamOptions::RequestHTTP3) );
+		}
+		{
+			// SetURL and SetStreamOptions
+			KWebSocketClient Client { KHTTPStreamOptions{} };
+			Client.SetURL(KURL("wss://example.com/chat"), KHTTPStreamOptions { KStreamOptions::DefaultsForHTTP });
+			CHECK_FALSE ( Client.GetStreamOptions().IsSet(KStreamOptions::RequestHTTP2) );
+			CHECK_FALSE ( Client.GetStreamOptions().IsSet(KStreamOptions::RequestHTTP3) );
+
+			Client.SetStreamOptions(KHTTPStreamOptions { h2h3 });
+			CHECK_FALSE ( Client.GetStreamOptions().IsSet(KStreamOptions::RequestHTTP2) );
+			CHECK_FALSE ( Client.GetStreamOptions().IsSet(KStreamOptions::RequestHTTP3) );
+		}
+	}
+
 	SECTION("StatusCodeToString")
 	{
 		CHECK ( KWebSocket::FrameHeader::StatusCodeToString(1000) == "Normal Closure"       );

@@ -72,6 +72,7 @@ int main(int argc, char** argv)
 		KString      sPass;
 		KString      sClientID = "kmqtt";
 		bool         bNoVerify = false;
+		uint32_t     iWait     = 0;
 		KStringViewZ sCommand;
 		KStringViewZ sTopic;
 		KStringViewZ sPayload;
@@ -81,8 +82,9 @@ int main(int argc, char** argv)
 		Options.Option("pass <password> : broker password").Set(sPass);
 		Options.Option("id <clientid>   : client id, must be unique on the broker").Set(sClientID);
 		Options.Option("k,noverify      : do not verify the broker certificate (mqtts only)").Set(bNoVerify, true);
+		Options.Option("wait <seconds>  : for sub: stop collecting after this many seconds (default: run until Ctrl-C)").Set(iWait);
 
-		Options.Command("sub <topic>").Help("subscribe and print every message until Ctrl-C")
+		Options.Command("sub <topic>").Help("subscribe and print every message, until Ctrl-C or for -wait seconds")
 		([&](KStringViewZ sArg) { sCommand = "sub"; sTopic = sArg; });
 
 		Options.Command("pub <topic> [<payload>]").Help("publish one message and exit")
@@ -125,6 +127,14 @@ int main(int argc, char** argv)
 		{
 			Client.Subscribe(sTopic);
 			Client.Start();
+
+			if (iWait)
+			{
+				// bounded collection window for scripted use, e.g. topic inventories
+				kSleep(chrono::seconds(iWait));
+				Client.Stop();
+				return 0;
+			}
 
 			for (;;) kSleep(chrono::seconds(1));   // Ctrl-C to quit
 		}

@@ -228,6 +228,10 @@ public:
 		bool bMicrosecondTimerHeader { false };
 		/// Force pretty printing in release builds, too?
 		bool bPrettyPrint { false };
+		/// Serialize a json.tx that a route handler set to an empty array or object
+		/// as [] or {} body? (default = true). When false, an empty json.tx produces
+		/// no body at all, like a never touched (null) json.tx
+		bool bEmitEmptyJsonContainers { true };
 		/// Name the worker thread after the executed route? (default = None, see ThreadNameMode)
 		ThreadNameMode ThreadName { ThreadNameMode::None };
 		/// Maximum request body size in bytes (default 256 MB). Set to 0 for unlimited.

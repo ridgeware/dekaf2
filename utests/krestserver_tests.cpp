@@ -412,7 +412,7 @@ x-klog: -level 1
 		// [] or {} - strict clients (e.g. a browser's Response.json()) treat an
 		// empty body as a parse error, not as an empty result. Only a never
 		// touched json.tx produces no body.
-		auto Serve = [](std::function<void(KRESTServer&)> Handler) -> KString
+		auto Serve = [](std::function<void(KRESTServer&)> Handler, bool bEmitEmptyJsonContainers = true) -> KString
 		{
 			KString sRequest =
 				"GET /test HTTP/1.1\r\n"
@@ -424,6 +424,9 @@ x-klog: -level 1
 			KOutStringStream oss(sResponse);
 			KStream stream(iss, oss);
 			KRESTServer::Options Options;
+			// same output in release and debug builds
+			Options.bPrettyPrint = true;
+			Options.bEmitEmptyJsonContainers = bEmitEmptyJsonContainers;
 			KRESTRoutes Routes;
 			Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
 			{
@@ -453,6 +456,23 @@ x-klog: -level 1
 		CHECK ( sResponse.contains("HTTP/1.1 200") );
 		CHECK ( sResponse.contains("content-length: 0") );
 		CHECK ( Body(sResponse).empty() );
+
+		// with bEmitEmptyJsonContainers = false, empty containers produce no
+		// body either (the behavior for consumers that rely on it)
+		sResponse = Serve([](KRESTServer& http) { http.json.tx = KJSON::array(); }, false);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( sResponse.contains("content-length: 0") );
+		CHECK ( Body(sResponse).empty() );
+
+		sResponse = Serve([](KRESTServer& http) { http.json.tx = KJSON::object(); }, false);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( sResponse.contains("content-length: 0") );
+		CHECK ( Body(sResponse).empty() );
+
+		// non-empty json is unaffected by the option
+		sResponse = Serve([](KRESTServer& http) { http.json.tx = KJSON { {"key", "value"} }; }, false);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( Body(sResponse) == "{\n\t\"key\": \"value\"\n}\n" );
 	}
 
 }

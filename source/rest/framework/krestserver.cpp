@@ -1332,17 +1332,22 @@ void KRESTServer::Output()
 
 	ThrowIfDisconnected();
 
+	// with bEmitEmptyJsonContainers a handler that sets an empty array or object
+	// gets it serialized as [] or {} - only a never touched json.tx (null)
+	// produces no body. Without the option any empty json.tx produces no body.
+	auto bHaveJsonToEmit = [this]() -> bool
+	{
+		return m_Options.bEmitEmptyJsonContainers ? !json.tx.is_null() : !json.tx.empty();
+	};
+
 	// do we have output after all? we need to check this before announcing compressed output,
 	// because for compressed output we would switch to chunked output, which would output
 	// some bytes even for empty bodies - which e.g. in case of websocket upgrades would
 	// cause browsers other than Firefox to choke.
-	// json.tx is checked with is_null(), not empty(): a handler that sets an
-	// empty array or object gets it serialized as [] or {} - only a never
-	// touched json.tx (null) produces no body
 	bool bOutputContent = !m_sRawOutput.empty() ||
 	                       m_Stream             ||
 	                      !m_sMessage.empty()   ||
-	                      !json.tx.is_null()    ||
+	                       bHaveJsonToEmit()    ||
 	                      !xml.tx.empty()       ||
 	                      (m_JsonLogger && !m_JsonLogger->empty() && !m_Options.KLogHeader.empty());
 
@@ -1392,7 +1397,7 @@ void KRESTServer::Output()
 				// the content:
 				if (!m_sMessage.empty())
 				{
-					if (!json.tx.is_null() || Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::JSON)
+					if (bHaveJsonToEmit() || Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::JSON)
 					{
 						json.tx["message"] = std::move(m_sMessage);
 					}
@@ -1411,7 +1416,7 @@ void KRESTServer::Output()
 					}
 				}
 
-				if (!json.tx.is_null())
+				if (bHaveJsonToEmit())
 				{
 					kDebug (2, "serializing JSON response");
 					sContent = json.tx.dump(m_iJSONPrint, '\t');
@@ -1532,13 +1537,13 @@ void KRESTServer::Output()
 			{
 				if (!m_sMessage.empty())
 				{
-					if (!json.tx.is_null() || Route->Parser == KRESTRoute::JSON)
+					if (bHaveJsonToEmit() || Route->Parser == KRESTRoute::JSON)
 					{
 						json.tx["message"] = std::move(m_sMessage);
 					}
 				}
 
-				if (!json.tx.is_null())
+				if (bHaveJsonToEmit())
 				{
 					tjson["body"] = std::move(json.tx);
 				}
@@ -1596,13 +1601,13 @@ void KRESTServer::Output()
 			{
 				if (!m_sMessage.empty())
 				{
-					if (!json.tx.is_null() || Route->Parser == KRESTRoute::JSON)
+					if (bHaveJsonToEmit() || Route->Parser == KRESTRoute::JSON)
 					{
 						json.tx["message"] = std::move(m_sMessage);
 					}
 				}
 
-				if (!json.tx.is_null())
+				if (bHaveJsonToEmit())
 				{
 					Response.UnfilteredStream() << json.tx.dump(m_iJSONPrint, '\t');
 					// finish with a linefeed (the json serializer does not add one)

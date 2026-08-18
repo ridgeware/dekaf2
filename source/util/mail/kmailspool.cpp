@@ -413,10 +413,11 @@ bool KMailSpool::Spool(const KMail& Mail, SpoolEntry& Entry)
 
 	KJSON jEnvelope;
 
-	AddAddresses(jEnvelope["from"], Mail.From());
-	AddAddresses(jEnvelope["to"  ], Mail.To  ());
-	AddAddresses(jEnvelope["cc"  ], Mail.Cc  ());
-	AddAddresses(jEnvelope["bcc" ], Mail.Bcc ());
+	AddAddresses(jEnvelope["from"    ], Mail.From   ());
+	AddAddresses(jEnvelope["reply_to"], Mail.ReplyTo());
+	AddAddresses(jEnvelope["to"      ], Mail.To     ());
+	AddAddresses(jEnvelope["cc"      ], Mail.Cc     ());
+	AddAddresses(jEnvelope["bcc"     ], Mail.Bcc    ());
 	jEnvelope["subject"] = Mail.Subject();
 	jEnvelope["time"]    = Mail.Time().to_time_t();
 
@@ -477,6 +478,12 @@ bool KMailSpool::Restore(const SpoolEntry& Entry, KMail& Mail) const
 	for (const auto& it : jEnvelope["from"].items())
 	{
 		Mail.From(it.key(), it.value().String());
+	}
+
+	// not present in spool files written before Reply-To existed
+	for (const auto& it : jEnvelope["reply_to"].items())
+	{
+		Mail.ReplyTo(it.key(), it.value().String());
 	}
 
 	for (const auto& it : jEnvelope["to"].items())

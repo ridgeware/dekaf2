@@ -211,7 +211,9 @@ TEST_CASE("KMailSpool")
 		{
 			KMailSpool Spool(Options);
 
-			CHECK ( Spool.Add(MakeMail("spooled-mail", "spooled body")) );
+			auto Mail = MakeMail("spooled-mail", "spooled body");
+			Mail.ReplyTo("human@example.com", "Human");
+			CHECK ( Spool.Add(std::move(Mail)) );
 
 			CHECK ( WaitFor(chrono::seconds(5), [&]()
 			{
@@ -247,6 +249,8 @@ TEST_CASE("KMailSpool")
 		CHECK ( sMessage.contains("TestSender") );
 		CHECK ( sMessage.contains("rcpt@example.com") );
 		CHECK ( sMessage.contains("copy@example.com") );
+		// the Reply-To survived the disk roundtrip
+		CHECK ( sMessage.contains("human@example.com") );
 	}
 
 	SECTION("successful connection flushes all spooled mail")

@@ -88,6 +88,10 @@ public:
 	/// second arg is the full name or nothing
 	self& From(KString sFrom, KString sPretty = KString{});
 
+	/// Set the Reply-To address, first arg is the email, second arg is the
+	/// full name or nothing. When unset, sending falls back to From.
+	self& ReplyTo(KString sReplyTo, KString sPretty = KString{});
+
 	/// Set the subject
 	self& Subject(KString sSubject);
 
@@ -206,6 +210,10 @@ public:
 	DEKAF2_NODISCARD
 	const map_t& From() const;
 
+	/// Returns the Reply-To address - empty when never set
+	DEKAF2_NODISCARD
+	const map_t& ReplyTo() const;
+
 	/// Returns the subject
 	DEKAF2_NODISCARD
 	const KString& Subject() const;
@@ -231,6 +239,7 @@ private:
 	map_t m_Cc;
 	map_t m_Bcc;
 	map_t m_From; // actually we only need one single key and value for From
+	map_t m_ReplyTo; // single key and value, empty unless explicitly set
 	KString m_Subject;
 	KString m_sSerializedBody;
 

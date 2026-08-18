@@ -253,7 +253,9 @@ bool KSMTP::Send(const KMail& Mail)
 		return false;
 	}
 
-	if (!PrettyPrint("Reply-To", Mail.From()))
+	// Reply-To defaults to From, which keeps mail from existing callers
+	// byte-identical - an explicitly set Reply-To wins
+	if (!PrettyPrint("Reply-To", Mail.ReplyTo().empty() ? Mail.From() : Mail.ReplyTo()))
 	{
 		return false;
 	}

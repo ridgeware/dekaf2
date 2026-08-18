@@ -406,4 +406,53 @@ x-klog: -level 1
 		CHECK ( sResponse.contains("application/xml") == false );
 	}
 
+	SECTION("empty JSON containers produce a body")
+	{
+		// a handler that sets json.tx to an empty array or object must produce
+		// [] or {} - strict clients (e.g. a browser's Response.json()) treat an
+		// empty body as a parse error, not as an empty result. Only a never
+		// touched json.tx produces no body.
+		auto Serve = [](std::function<void(KRESTServer&)> Handler) -> KString
+		{
+			KString sRequest =
+				"GET /test HTTP/1.1\r\n"
+				"Host: localhost\r\n"
+				"\r\n";
+
+			KString sResponse;
+			KInStringStream iss(sRequest);
+			KOutStringStream oss(sResponse);
+			KStream stream(iss, oss);
+			KRESTServer::Options Options;
+			KRESTRoutes Routes;
+			Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+			{
+				Handler(http);
+			}});
+			KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+			Server.Execute();
+			return sResponse;
+		};
+
+		auto Body = [](KStringView sResponse) -> KStringView
+		{
+			auto iPos = sResponse.find("\r\n\r\n");
+			return (iPos == KStringView::npos) ? sResponse : sResponse.substr(iPos + 4);
+		};
+
+		auto sResponse = Serve([](KRESTServer& http) { http.json.tx = KJSON::array(); });
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( Body(sResponse) == "[]\n" );
+
+		sResponse = Serve([](KRESTServer& http) { http.json.tx = KJSON::object(); });
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( Body(sResponse) == "{}\n" );
+
+		// an untouched json.tx still produces no body at all
+		sResponse = Serve([](KRESTServer& http) { });
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( sResponse.contains("content-length: 0") );
+		CHECK ( Body(sResponse).empty() );
+	}
+
 }

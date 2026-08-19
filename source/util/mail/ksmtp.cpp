@@ -348,10 +348,10 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 	// try ESMTP
 	ESMTPParms Parms;
 	
-	if (!Talk(kFormat("EHLO {}", "localhost"), "250", &Parms, false))
+	if (!Talk(kFormat("EHLO {}", m_sHeloName), "250", &Parms, false))
 	{
 		// failed. try SMTP
-		if (!Talk(kFormat("HELO {}", "localhost"), "250"))
+		if (!Talk(kFormat("HELO {}", m_sHeloName), "250"))
 		{
 			return false;
 		}
@@ -394,7 +394,7 @@ bool KSMTP::Connect(const KURL& Relay, KStringView sUsername, KStringView sPassw
 
 		// we have now switched to TLS, redo the EHLO (the server may now
 		// advertise different features)
-		if (!Talk("EHLO localhost", "250", &Parms))
+		if (!Talk(kFormat("EHLO {}", m_sHeloName), "250", &Parms))
 		{
 			return false;
 		}

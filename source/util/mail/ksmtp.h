@@ -96,7 +96,9 @@ public:
 	bool Connect(const KURL& Relay, KStringView sUsername = KStringView{}, KStringView sPassword = KStringView{});
 	/// Disconnect from mail relay
 	void Disconnect();
-	/// Returns true if connected to a mail relay
+	/// Returns true if connected to a mail relay. Reflects the socket state,
+	/// not the SMTP session: a relay that closed the connection is only
+	/// noticed on the next write
 	bool Good() const;
 	/// Send a KMail to the mail relay
 	bool Send(const KMail& Mail);
@@ -112,6 +114,9 @@ public:
 	void SetRequireTLS(bool bYesNo = true) { m_bRequireTLS = bYesNo; }
 	/// Verify the server certificate? Preset is off
 	void SetVerifyCerts(bool bYesNo = true) { m_bVerifyCerts = bYesNo; }
+	/// Set the name announced in the EHLO/HELO handshake, preset is "localhost".
+	/// Set it to the sending host's FQDN when the relay checks it
+	void SetHeloName(KString sName) { m_sHeloName = std::move(sName); }
 
 //----------
 private:
@@ -128,6 +133,8 @@ private:
 
 	// The TCP stream class
 	std::unique_ptr<KIOStreamSocket> m_Connection;
+	// the name announced in the EHLO/HELO handshake
+	KString m_sHeloName { "localhost" };
 	// the TCP timeout
 	KDuration m_Timeout { KStreamOptions::GetDefaultTimeout() };
 	// the last SMTP reply code received from the server

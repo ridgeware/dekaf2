@@ -205,6 +205,19 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Bind the listening socket to one address, e.g. "127.0.0.1" or "10.0.0.5"
+	/// or "fd00::5", instead of all interfaces (the default). The address alone
+	/// determines the address family - the v4_Only()/v6_Only() selection is then
+	/// ignored, and there is no dual stack handling. An invalid address makes
+	/// Start() fail instead of falling back to the wildcard.
+	/// @param sAddress the address to bind to, empty = all interfaces
+	void SetBindAddress(KString sAddress)
+	//-----------------------------------------------------------------------------
+	{
+		m_sBindAddress = std::move(sAddress);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Load the TLS certificates from files (.pem format)
 	bool LoadTLSCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword = KStringView{});
 	//-----------------------------------------------------------------------------
@@ -290,7 +303,10 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Checks if the given port can be bound to
-	static bool IsPortAvailable(uint16_t iPort);
+	/// @param iPort the port to check
+	/// @param sBindAddress check binding to this address instead of the wildcard,
+	/// empty = wildcard. An invalid address returns false.
+	static bool IsPortAvailable(uint16_t iPort, KStringViewZ sBindAddress = KStringViewZ{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -475,6 +491,7 @@ private:
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 	KString           m_sSocketFile;
 #endif
+	KString           m_sBindAddress;
 	KString           m_sCert;
 	KString           m_sKey;
 	KString           m_sPassword;

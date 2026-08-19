@@ -506,4 +506,55 @@ TEST_CASE("KREST")
 		}
 	}
 
+	SECTION("HTTP bind address")
+	{
+		KRESTRoutes Routes;
+
+		uint16_t iCalledTest { 0 };
+
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			++iCalledTest;
+			http.json.tx["response"] = "hello world";
+		}});
+
+		KREST::Options Options;
+		Options.Type         = KREST::HTTP;
+		Options.iPort        = 30304;
+		Options.sBindAddress = "127.0.0.1";
+		Options.bBlocking    = false;
+		Options.bCreateEphemeralCert = false;
+
+		KREST REST;
+
+		if (!REST.Execute(Options, Routes))
+		{
+			CHECK ( REST.Error() == "" );
+		}
+		else
+		{
+			KHTTPError ec;
+			KJsonRestClient Client("http://127.0.0.1:30304");
+			Client.RequestCompression(false);
+			Client.AllowConnectionRetry(false);
+
+			auto jResult = Client.Get("test").SetError(ec).Request();
+
+			CHECK (ec.value()   == 0  );
+			CHECK (ec.message() == "" );
+			CHECK (iCalledTest  == 1  );
+		}
+
+		// an invalid bind address must fail the start, not fall back to the wildcard
+		KREST::Options BadOptions;
+		BadOptions.Type         = KREST::HTTP;
+		BadOptions.iPort        = 30305;
+		BadOptions.sBindAddress = "not.an.ip.address";
+		BadOptions.bBlocking    = false;
+		BadOptions.bCreateEphemeralCert = false;
+
+		KREST BadREST;
+		CHECK ( BadREST.Execute(BadOptions, Routes) == false );
+	}
+
 }

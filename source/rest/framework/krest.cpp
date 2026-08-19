@@ -289,7 +289,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					iPort = bUseTLS ? 443 : 80;
 				}
 
-				if (!RESTServer::IsPortAvailable(iPort))
+				if (!RESTServer::IsPortAvailable(iPort, Options.sBindAddress))
 				{
 					return SetError(kFormat("port {} is in use - abort", iPort));
 				}
@@ -364,6 +364,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				}
 
 				m_Server->SetStreamOptions(Options.StreamOptions);
+				m_Server->SetBindAddress(Options.sBindAddress);
 
 				m_Server->RegisterShutdownWithSignals(Options.RegisterSignalsForShutdown);
 				m_Server->RegisterShutdownCallback(m_ShutdownCallback);

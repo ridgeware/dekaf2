@@ -110,6 +110,10 @@ public:
 		ServerType Type { UNDEFINED };
 		/// listen port (default none)
 		uint16_t iPort { 0 };
+		/// optional address to bind the listening socket to, e.g. "127.0.0.1" or
+		/// "10.0.0.5". Empty (the default) binds to all interfaces. An invalid
+		/// address fails the server start
+		KString sBindAddress;
 		/// max worker threads (default 50). One connection uses one worker thread.
 		/// If there are no idle worker threads, the connection request is put in an rx wait queue.
 		uint16_t iMaxConnections { 50 };

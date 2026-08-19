@@ -298,13 +298,33 @@ void KTCPServer::RunSession(std::unique_ptr<KIOStreamSocket>& stream)
 
 //-----------------------------------------------------------------------------
 // static
-bool KTCPServer::IsPortAvailable(uint16_t iPort)
+bool KTCPServer::IsPortAvailable(uint16_t iPort, KStringViewZ sBindAddress/*={}*/)
 //-----------------------------------------------------------------------------
 {
 	DEKAF2_TRY
 	{
 		boost::asio::io_service io_service;
 		tcp::endpoint local_endpoint(tcp::v4(), iPort);
+
+		if (!sBindAddress.empty())
+		{
+			boost::system::error_code ec;
+
+#if (DEKAF2_CLASSIC_ASIO)
+			auto Address = boost::asio::ip::address::from_string(sBindAddress.c_str(), ec);
+#else
+			auto Address = boost::asio::ip::make_address(sBindAddress.c_str(), ec);
+#endif
+
+			if (ec)
+			{
+				kDebug(1, "invalid bind address '{}': {}", sBindAddress, ec.message());
+				return false;
+			}
+
+			local_endpoint = tcp::endpoint(Address, iPort);
+		}
+
 		tcp::acceptor acceptor(io_service, local_endpoint, true); // true means reuse_addr
 		acceptor.close();
 		return true;
@@ -438,6 +458,42 @@ bool KTCPServer::SetupTCPAcceptors()
 {
 	bool bTryIPv6 = m_bStartIPv6;
 	bool bNeedIPv4 = m_bStartIPv4;
+
+	if (!m_sBindAddress.empty())
+	{
+		// an explicit bind address determines the address family by itself -
+		// no dual stack handling, and no wildcard fallback on failure
+		bTryIPv6  = false;
+		bNeedIPv4 = false;
+
+		boost::system::error_code ec;
+
+#if (DEKAF2_CLASSIC_ASIO)
+		// Boost < 1.66 does not have boost::asio::ip::make_address; the legacy
+		// name is boost::asio::ip::address::from_string.
+		auto Address = boost::asio::ip::address::from_string(m_sBindAddress.c_str(), ec);
+#else
+		auto Address = boost::asio::ip::make_address(m_sBindAddress.c_str(), ec);
+#endif
+
+		if (ec)
+		{
+			return SetError(kFormat("invalid bind address '{}': {}", m_sBindAddress, ec.message()));
+		}
+
+		DEKAF2_TRY
+		{
+			kDebug(2, "opening {} listener on {}:{}", IsTLS() ? "TLS" : "TCP", m_sBindAddress, m_iPort);
+
+			tcp::endpoint local_endpoint(Address, m_iPort);
+			auto acceptor = std::make_shared<tcp::acceptor>(m_asio, local_endpoint, true); // true means reuse_addr
+			m_TCPAcceptors.push_back(std::move(acceptor));
+		}
+		DEKAF2_CATCH(const std::exception& e)
+		{
+			return SetError(kFormat("cannot bind to {}:{}: {}", m_sBindAddress, m_iPort, e.what()));
+		}
+	}
 
 	if (bTryIPv6)
 	{

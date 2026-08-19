@@ -114,6 +114,16 @@ public:
 	bool Login (KStringView sUsername, KStringView sPassword,
 	            KStringView sExtra = {});
 
+	/// Create a new server-side session WITHOUT consulting the authenticator,
+	/// and emit a Set-Cookie header on the response. For identities that were
+	/// established out of band - a validated OIDC id_token, a redeemed one-time
+	/// invitation, an internal service account. The caller vouches for the
+	/// identity; see the warnings on KSession::CreateTrustedSession.
+	/// @param sUsername the externally authenticated user to create a session for
+	/// @param sExtra    optional application-specific payload (e.g. role JSON)
+	/// @returns true on success; false leaves the response state untouched
+	bool LoginTrusted (KStringView sUsername, KStringView sExtra = {});
+
 	/// Invalidate the current session (if any) on the server and emit
 	/// a cookie-expiry Set-Cookie header so the browser drops the cookie.
 	/// @returns true if a session existed and was erased
@@ -129,6 +139,12 @@ public:
 //------
 private:
 //------
+
+	/// emit the Set-Cookie header for sToken and update the local record -
+	/// the common tail of Login() and LoginTrusted()
+	bool AcceptNewSession (KString sToken, KStringView sUsername,
+	                       KString sClientIP, KString sUserAgent,
+	                       KStringView sExtra);
 
 	KSession&           m_Session;
 	KRESTServer&        m_HTTP;

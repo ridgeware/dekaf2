@@ -78,6 +78,33 @@ bool KRESTSession::Login(KStringView sUsername,
 
 	auto sToken = m_Session.Login(sUsername, sPassword, sClientIP, sUserAgent, sExtra);
 
+	return AcceptNewSession(std::move(sToken), sUsername, std::move(sClientIP), std::move(sUserAgent), sExtra);
+
+} // Login
+
+//-----------------------------------------------------------------------------
+bool KRESTSession::LoginTrusted(KStringView sUsername,
+                                KStringView sExtra)
+//-----------------------------------------------------------------------------
+{
+	auto sClientIP = m_HTTP.GetRemoteIP();
+
+	// User-Agent header may be absent — Request.Headers.Get() returns
+	// empty string in that case.
+	auto sUserAgent = m_HTTP.Request.Headers.Get(KHTTPHeader::USER_AGENT);
+
+	auto sToken = m_Session.CreateTrustedSession(sUsername, sClientIP, sUserAgent, sExtra);
+
+	return AcceptNewSession(std::move(sToken), sUsername, std::move(sClientIP), std::move(sUserAgent), sExtra);
+
+} // LoginTrusted
+
+//-----------------------------------------------------------------------------
+bool KRESTSession::AcceptNewSession(KString sToken, KStringView sUsername,
+                                    KString sClientIP, KString sUserAgent,
+                                    KStringView sExtra)
+//-----------------------------------------------------------------------------
+{
 	if (sToken.empty())
 	{
 		return false;
@@ -96,13 +123,13 @@ bool KRESTSession::Login(KStringView sUsername,
 	m_Record.tCreated   = KUnixTime::now();
 	m_Record.tLastSeen  = m_Record.tCreated;
 	m_Record.sClientIP  = std::move(sClientIP);
-	m_Record.sUserAgent = sUserAgent;
+	m_Record.sUserAgent = std::move(sUserAgent);
 	m_Record.sExtra     = sExtra;
 	m_bValid            = true;
 
 	return true;
 
-} // Login
+} // AcceptNewSession
 
 //-----------------------------------------------------------------------------
 bool KRESTSession::Logout()

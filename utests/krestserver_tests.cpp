@@ -5,8 +5,11 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/rest/framework/krest.h>
+#include <dekaf2/rest/framework/krestsession.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/io/compression/kcompression.h>
+#include <dekaf2/crypto/auth/ksession.h>
+#include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
 
 using namespace dekaf2;
 
@@ -473,6 +476,50 @@ x-klog: -level 1
 		sResponse = Serve([](KRESTServer& http) { http.json.tx = KJSON { {"key", "value"} }; }, false);
 		CHECK ( sResponse.contains("HTTP/1.1 200") );
 		CHECK ( Body(sResponse) == "{\n\t\"key\": \"value\"\n}\n" );
+	}
+
+	SECTION("KRESTSession LoginTrusted")
+	{
+		KSession::Config Config;
+		Config.sCookieName   = "test_session";
+		Config.sCookiePath   = "/";
+		Config.bSecure       = false;                 // no "__Host-" prefix rules in the test
+		Config.PurgeInterval = KDuration::zero();     // no background timer in the test
+		KSession Session(std::make_unique<KSessionMemoryStore>(), Config);
+		REQUIRE_FALSE ( Session.HasError() );
+
+		KString sRequest =
+			"GET /login HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"User-Agent: utest\r\n"
+			"\r\n";
+
+		KString sResponse;
+		KInStringStream iss(sRequest);
+		KOutStringStream oss(sResponse);
+		KStream stream(iss, oss);
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+
+		bool    bLoggedIn { false };
+		KString sUser;
+
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/login", [&](KRESTServer& http)
+		{
+			// no password involved - the identity is vouched for by the caller
+			KRESTSession Sess(Session, http);
+			bLoggedIn = Sess.LoginTrusted("alice@example.com", R"({"role":"guest"})");
+			sUser     = Sess.GetUser();
+			http.json.tx["ok"] = bLoggedIn;
+		}});
+
+		KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+		Server.Execute();
+
+		CHECK ( bLoggedIn );
+		CHECK ( sUser == "alice@example.com" );
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( sResponse.ToLowerASCII().contains("set-cookie: test_session=") );
 	}
 
 }

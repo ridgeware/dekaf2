@@ -58,6 +58,9 @@
 #include <fstream>
 #include <random>
 #include <locale>
+#ifdef DEKAF2_STATIC_EXECUTABLES
+	#include <openssl/crypto.h>
+#endif
 #ifdef DEKAF2_IS_OSX
 	#include <CoreFoundation/CoreFoundation.h> // for locale retrieval
 #endif
@@ -99,6 +102,29 @@ void local_split_in_path_and_name(const KString& sFullPath, KStringView& sPath, 
 
 	sPath = KStringView(sFullPath.data(), pos);
 }
+
+#ifdef DEKAF2_STATIC_EXECUTABLES
+//---------------------------------------------------------------------------
+// a fully static binary carries its own (vanilla) OpenSSL, but OpenSSL
+// would still auto-load the openssl.cnf of the TARGET system at first use.
+// Vendor-patched targets reference downstream-only directives there (e.g.
+// rh-allow-sha1-signatures on RHEL-family), which a vanilla OpenSSL rejects -
+// with config_diagnostics=1 that kills every SSL_CTX creation. Config-
+// activated features could not work anyway: providers are dlopen'ed shared
+// objects, which a static binary cannot load. So opt out of config auto-
+// loading before the first crypto call. We do not control where that first
+// call comes from: any static initializer, in dekaf2 or in the linking
+// application, may touch OpenSSL before main(). A priority constructor is
+// the only placement guaranteed to run first - its .init_array.101 entry
+// precedes all default-priority C++ static initializers. The option is
+// Linux-only, where the attribute is reliable.
+__attribute__((constructor(101)))
+static void kNoOpenSSLConfigAutoload()
+//---------------------------------------------------------------------------
+{
+	OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, nullptr);
+}
+#endif
 
 //---------------------------------------------------------------------------
 Dekaf::Dekaf()

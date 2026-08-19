@@ -637,7 +637,8 @@ public:
 		T           Get(StringView sColName) const
 		{ return Get<T>(GetColIndex(sColName)); }
 
-		/// access to a column (one based) for explicit conversion, e.g.
+		/// access to a column (one based, unlike the sqlite3 C API which counts
+		/// from 0) for explicit conversion, e.g.
 		/// Row.Col(2).Int64() or Row.Col("name").String()
 		Column      Col(ColIndex iOneBased) const;
 

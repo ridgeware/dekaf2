@@ -109,6 +109,7 @@ OPTION(DEKAF2_WITH_KLOG "build with KLOG" ON)
 OPTION(DEKAF2_KLOG_WITH_TCP "enable KLOG to log on TCP/HTTP" ON)
 OPTION(DEKAF2_PREFER_STATIC_LIBS "prefer linking with static libs over dynamic" OFF)
 OPTION(DEKAF2_FORCE_STATIC_LIBS "force linking with static libs except for system libs" OFF)
+OPTION(DEKAF2_STATIC_EXECUTABLES "link executables fully static - needs a static libc (musl)" OFF)
 OPTION(DEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS "force linking with static libs including system libs on Windows" ON)
 OPTION(DEKAF2_USE_SHARED_BOOST "link dynamically to boost" OFF)
 OPTION(DEKAF2_USE_PRECOMPILED_HEADERS "use precompiled headers" ON)
@@ -289,6 +290,15 @@ cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
 if (CPU_ARM AND NOT CPU_ARM EQUAL 64)
 	message(STATUS "no ASAN/UBSAN support for ARM32")
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
+endif()
+
+if (DEKAF2_STATIC_EXECUTABLES)
+	if (APPLE OR WIN32)
+		# there is no static libSystem / no static OS DLLs - the closest
+		# equivalent on these platforms is DEKAF2_FORCE_STATIC_LIBS alone
+		message(FATAL_ERROR "DEKAF2_STATIC_EXECUTABLES is only supported on Linux/BSD, see DEKAF2_STATIC_BINARIES.md")
+	endif()
+	set (DEKAF2_FORCE_STATIC_LIBS ON)
 endif()
 
 if (IS_WINDOWS)
@@ -876,6 +886,21 @@ if (LIBUNWIND_INCLUDE_DIR AND LIBUNWIND_LIBRARY)
 	unset(_unwind_dir)
 	unset(_unwind_arch)
 	unset(_unwind_arch_lib)
+endif()
+
+# ========================== FULLY STATIC EXECUTABLES ============================
+
+if (DEKAF2_STATIC_EXECUTABLES)
+	add_link_options(-static)
+	if (DEKAF2_HAS_LIBUNWIND)
+		# libunwind.a and libgcc_eh.a both define the _Unwind_* symbols. Dynamic
+		# linking resolves the duplicate by interposition; a static link makes it
+		# a hard error. Take the first definition (libunwind's, which precedes
+		# the implicit libgcc_eh on the link line) to reproduce the dynamic
+		# behaviour.
+		add_link_options(-Wl,--allow-multiple-definition)
+	endif()
+	message(STATUS "linking executables fully static")
 endif()
 
 # =================================== Doxygen ====================================

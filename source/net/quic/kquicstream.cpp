@@ -51,7 +51,16 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-static KTLSContext s_KQuicClientContext { false, KTLSContext::Transport::Quic };
+//-----------------------------------------------------------------------------
+/// the default client context, constructed on first use - as a file-scope
+/// static it would build an SSL context (and initialize OpenSSL) before
+/// main() in every program, whether it uses QUIC or not
+static KTLSContext& KQuicClientContext()
+//-----------------------------------------------------------------------------
+{
+	static KTLSContext s_KQuicClientContext { false, KTLSContext::Transport::Quic };
+	return s_KQuicClientContext;
+}
 
 //-----------------------------------------------------------------------------
 bool KQuicStream::IsDisconnected()
@@ -297,7 +306,7 @@ std::streamsize KQuicStream::QuicStreamWriter(const void* sBuffer, std::streamsi
 //-----------------------------------------------------------------------------
 KQuicStream::KQuicStream()
 //-----------------------------------------------------------------------------
-: KQuicStream(s_KQuicClientContext, KStreamOptions::GetDefaultTimeout())
+: KQuicStream(KQuicClientContext(), KStreamOptions::GetDefaultTimeout())
 {
 }
 
@@ -323,7 +332,7 @@ KQuicStream::KQuicStream(KTLSContext& Context,
 //-----------------------------------------------------------------------------
 KQuicStream::KQuicStream(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
-: KQuicStream(s_KQuicClientContext, Options.GetTimeout())
+: KQuicStream(KQuicClientContext(), Options.GetTimeout())
 {
 	Connect(Endpoint, Options);
 }
@@ -582,7 +591,7 @@ std::unique_ptr<KQuicStream> CreateKQuicServer(KTLSContext& Context, KDuration T
 std::unique_ptr<KQuicClient> CreateKQuicClient()
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KQuicClient>(s_KQuicClientContext, KStreamOptions::GetDefaultTimeout());
+	return std::make_unique<KQuicClient>(KQuicClientContext(), KStreamOptions::GetDefaultTimeout());
 }
 
 //-----------------------------------------------------------------------------

@@ -47,7 +47,16 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-static KTLSContext s_KTLSClientContext { false, KTLSContext::Transport::Tcp };
+//-----------------------------------------------------------------------------
+/// the default client context, constructed on first use - as a file-scope
+/// static it would build an SSL context (and initialize OpenSSL) before
+/// main() in every program, whether it uses TLS or not
+static KTLSContext& KTLSClientContext()
+//-----------------------------------------------------------------------------
+{
+	static KTLSContext s_KTLSClientContext { false, KTLSContext::Transport::Tcp };
+	return s_KTLSClientContext;
+}
 
 //-----------------------------------------------------------------------------
 bool KTLSStream::Handshake()
@@ -429,7 +438,7 @@ std::streamsize KTLSStream::TLSStreamWriter(const void* sBuffer, std::streamsize
 //-----------------------------------------------------------------------------
 KTLSStream::KTLSStream()
 //-----------------------------------------------------------------------------
-: KTLSStream(s_KTLSClientContext, KStreamOptions::GetDefaultTimeout())
+: KTLSStream(KTLSClientContext(), KStreamOptions::GetDefaultTimeout())
 {
 }
 
@@ -455,7 +464,7 @@ KTLSStream::KTLSStream(KTLSContext& Context,
 KTLSStream::KTLSStream(const KTCPEndPoint& Endpoint,
                        KStreamOptions Options)
 //-----------------------------------------------------------------------------
-: KTLSStream(s_KTLSClientContext, Options.GetTimeout())
+: KTLSStream(KTLSClientContext(), Options.GetTimeout())
 {
 	Connect(Endpoint, Options);
 }
@@ -585,7 +594,7 @@ std::unique_ptr<KTLSStream> CreateKTLSServer(KTLSContext& Context, KDuration Tim
 std::unique_ptr<KTLSClient> CreateKTLSClient()
 //-----------------------------------------------------------------------------
 {
-	return std::make_unique<KTLSClient>(s_KTLSClientContext);
+	return std::make_unique<KTLSClient>(KTLSClientContext());
 }
 
 //-----------------------------------------------------------------------------

@@ -43,8 +43,137 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/types/kfrozen.h>
 #include <openssl/opensslv.h>
+#include <openssl/ssl.h>
+
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
+	#define DEKAF2_HAS_TLS_CLIENT_HELLO_CB 1
+#else
+	#define DEKAF2_HAS_TLS_CLIENT_HELLO_CB 0
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+namespace {
+
+//-----------------------------------------------------------------------------
+// index for the ALPN preference list stored as SSL_CTX ex_data - the free
+// function ties the string's lifetime to that of the SSL_CTX, which in-flight
+// handshakes keep alive after an SNI context switch
+int GetALPNExDataIndex()
+//-----------------------------------------------------------------------------
+{
+	static int s_iIndex = ::SSL_CTX_get_ex_new_index(0, nullptr, nullptr, nullptr,
+	[](void*, void* ptr, CRYPTO_EX_DATA*, int, long, void*)
+	{
+		delete static_cast<KString*>(ptr);
+	});
+
+	return s_iIndex;
+
+} // GetALPNExDataIndex
+
+//-----------------------------------------------------------------------------
+// SNI hostnames are case insensitive, and may carry a trailing root dot
+KString NormalizeSNIName(KStringView sHostname)
+//-----------------------------------------------------------------------------
+{
+	sHostname.remove_suffix('.');
+	return sHostname.ToLowerASCII();
+
+} // NormalizeSNIName
+
+#if DEKAF2_HAS_TLS_CLIENT_HELLO_CB
+
+//-----------------------------------------------------------------------------
+// extract the first host_name entry from a raw server_name extension (RFC 6066):
+// uint16 list size, then entries of uint8 name type (0 = host_name), uint16 size, name
+KStringView ParseSNIHostName(const unsigned char* pData, std::size_t iSize)
+//-----------------------------------------------------------------------------
+{
+	if (iSize < 2)
+	{
+		return {};
+	}
+
+	std::size_t iList = (pData[0] << 8) | pData[1];
+	pData += 2;
+	iSize -= 2;
+
+	if (iList < iSize)
+	{
+		iSize = iList;
+	}
+
+	while (iSize >= 3)
+	{
+		auto iType        = pData[0];
+		std::size_t iName = (pData[1] << 8) | pData[2];
+		pData += 3;
+		iSize -= 3;
+
+		if (iName > iSize)
+		{
+			break;
+		}
+
+		if (iType == 0)
+		{
+			return { reinterpret_cast<const char*>(pData), iName };
+		}
+
+		pData += iName;
+		iSize -= iName;
+	}
+
+	return {};
+
+} // ParseSNIHostName
+
+//-----------------------------------------------------------------------------
+// extract the protocol names from a raw ALPN extension (RFC 7301):
+// uint16 list size, then entries of uint8 size, name
+std::vector<KStringView> ParseALPNProtocols(const unsigned char* pData, std::size_t iSize)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KStringView> Protocols;
+
+	if (iSize < 2)
+	{
+		return Protocols;
+	}
+
+	std::size_t iList = (pData[0] << 8) | pData[1];
+	pData += 2;
+	iSize -= 2;
+
+	if (iList < iSize)
+	{
+		iSize = iList;
+	}
+
+	while (iSize >= 1)
+	{
+		std::size_t iProto = pData[0];
+		pData += 1;
+		iSize -= 1;
+
+		if (!iProto || iProto > iSize)
+		{
+			break;
+		}
+
+		Protocols.push_back({ reinterpret_cast<const char*>(pData), iProto });
+		pData += iProto;
+		iSize -= iProto;
+	}
+
+	return Protocols;
+
+} // ParseALPNProtocols
+
+#endif // of DEKAF2_HAS_TLS_CLIENT_HELLO_CB
+
+} // end of anonymous namespace
 
 #if (DEKAF2_CLASSIC_ASIO)
 boost::asio::io_service KTLSContext::s_IO_Service;
@@ -206,6 +335,258 @@ bool KTLSContext::SetAdditionalTLSVerifyPath(KStringView sVerifyPath)
 	return true;
 
 } // SetAdditionalTLSVerifyPath
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::ClientHello::HasALPN(KStringView sProtocol) const
+//-----------------------------------------------------------------------------
+{
+	for (auto sALPN : ALPNs)
+	{
+		if (sALPN == sProtocol)
+		{
+			return true;
+		}
+	}
+
+	return false;
+
+} // ClientHello::HasALPN
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::InstallSNIDispatch()
+//-----------------------------------------------------------------------------
+{
+	auto SNI = m_SNIDispatch.unique();
+
+	if (!SNI->bInstalled)
+	{
+#if DEKAF2_HAS_TLS_CLIENT_HELLO_CB
+		::SSL_CTX_set_client_hello_cb(m_Context.native_handle(), &ClientHelloCallback, this);
+#else
+		SSL_CTX_set_tlsext_servername_callback(m_Context.native_handle(), &ServerNameCallback);
+		SSL_CTX_set_tlsext_servername_arg(m_Context.native_handle(), this);
+#endif
+		SNI->bInstalled = true;
+	}
+
+	return true;
+
+} // InstallSNIDispatch
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::AddSNIContext(KStringView sHostname, std::shared_ptr<KTLSContext> Context)
+//-----------------------------------------------------------------------------
+{
+	if (GetRole() != boost::asio::ssl::stream_base::server)
+	{
+		return SetError("SNI dispatch requires a server context");
+	}
+
+	if (!Context || Context->GetRole() != boost::asio::ssl::stream_base::server)
+	{
+		return SetError("the SNI context must be a server context");
+	}
+
+	if (Context.get() == this)
+	{
+		return SetError("cannot add a context to itself");
+	}
+
+	auto sName = NormalizeSNIName(sHostname);
+
+	if (sName.empty())
+	{
+		return SetError("empty SNI hostname");
+	}
+
+	if (!InstallSNIDispatch())
+	{
+		return false;
+	}
+
+	kDebug(2, "adding SNI context for {}", sName);
+
+	m_SNIDispatch.unique()->Hosts[std::move(sName)] = std::move(Context);
+
+	return true;
+
+} // AddSNIContext
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::RemoveSNIContext(KStringView sHostname)
+//-----------------------------------------------------------------------------
+{
+	return m_SNIDispatch.unique()->Hosts.erase(NormalizeSNIName(sHostname)) > 0;
+
+} // RemoveSNIContext
+
+//-----------------------------------------------------------------------------
+std::shared_ptr<KTLSContext> KTLSContext::GetSNIContext(KStringView sHostname) const
+//-----------------------------------------------------------------------------
+{
+	auto sName = NormalizeSNIName(sHostname);
+
+	if (!sName.empty())
+	{
+		auto SNI = m_SNIDispatch.shared();
+
+		if (!SNI->Hosts.empty())
+		{
+			auto it = SNI->Hosts.find(sName);
+
+			if (it != SNI->Hosts.end())
+			{
+				return it->second;
+			}
+
+			// no exact match - a wildcard entry may match the leftmost label
+			auto iDot = sName.find('.');
+
+			if (iDot != KString::npos && iDot > 0 && iDot + 1 < sName.size())
+			{
+				KString sWildcard("*");
+				sWildcard += sName.ToView(iDot);
+
+				it = SNI->Hosts.find(sWildcard);
+
+				if (it != SNI->Hosts.end())
+				{
+					return it->second;
+				}
+			}
+		}
+	}
+
+	return nullptr;
+
+} // GetSNIContext
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::SetSNICallback(SNICallback Callback)
+//-----------------------------------------------------------------------------
+{
+	if (GetRole() != boost::asio::ssl::stream_base::server)
+	{
+		return SetError("SNI dispatch requires a server context");
+	}
+
+	if (!InstallSNIDispatch())
+	{
+		return false;
+	}
+
+	m_SNIDispatch.unique()->Callback = std::move(Callback);
+
+	return true;
+
+} // SetSNICallback
+
+//-----------------------------------------------------------------------------
+std::shared_ptr<KTLSContext> KTLSContext::ResolveSNI(const ClientHello& Hello) const
+//-----------------------------------------------------------------------------
+{
+	SNICallback Callback;
+
+	{
+		// copy the callback out of the lock - it may itself call GetSNIContext()
+		Callback = m_SNIDispatch.shared()->Callback;
+	}
+
+	if (Callback)
+	{
+		auto Context = Callback(Hello);
+
+		if (Context)
+		{
+			if (Context->GetRole() == boost::asio::ssl::stream_base::server)
+			{
+				return Context;
+			}
+
+			kDebug(1, "SNI callback returned a client context - ignored");
+		}
+	}
+
+	if (!Hello.sServerName.empty())
+	{
+		return GetSNIContext(Hello.sServerName);
+	}
+
+	return nullptr;
+
+} // ResolveSNI
+
+#if DEKAF2_HAS_TLS_CLIENT_HELLO_CB
+
+//-----------------------------------------------------------------------------
+int KTLSContext::ClientHelloCallback(ssl_st* ssl, int* al, void* arg)
+//-----------------------------------------------------------------------------
+{
+	auto* self = static_cast<KTLSContext*>(arg);
+
+	if (self)
+	{
+		ClientHello Hello;
+
+		const unsigned char* pExt;
+		std::size_t iExt;
+
+		if (::SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_server_name, &pExt, &iExt))
+		{
+			Hello.sServerName = ParseSNIHostName(pExt, iExt);
+		}
+
+		if (::SSL_client_hello_get0_ext(ssl, TLSEXT_TYPE_application_layer_protocol_negotiation, &pExt, &iExt))
+		{
+			Hello.ALPNs = ParseALPNProtocols(pExt, iExt);
+		}
+
+		auto Context = self->ResolveSNI(Hello);
+
+		if (Context)
+		{
+			kDebug(3, "switching TLS context for SNI host {}", Hello.sServerName);
+			::SSL_set_SSL_CTX(ssl, Context->m_Context.native_handle());
+		}
+	}
+
+	return SSL_CLIENT_HELLO_SUCCESS;
+
+} // ClientHelloCallback
+
+#else // of DEKAF2_HAS_TLS_CLIENT_HELLO_CB
+
+//-----------------------------------------------------------------------------
+int KTLSContext::ServerNameCallback(ssl_st* ssl, int* al, void* arg)
+//-----------------------------------------------------------------------------
+{
+	auto* self = static_cast<KTLSContext*>(arg);
+
+	if (self)
+	{
+		ClientHello Hello;
+
+		auto* sName = ::SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+
+		if (sName)
+		{
+			Hello.sServerName = sName;
+		}
+
+		auto Context = self->ResolveSNI(Hello);
+
+		if (Context)
+		{
+			kDebug(3, "switching TLS context for SNI host {}", Hello.sServerName);
+			::SSL_set_SSL_CTX(ssl, Context->m_Context.native_handle());
+		}
+	}
+
+	return SSL_TLSEXT_ERR_OK;
+
+} // ServerNameCallback
+
+#endif // of DEKAF2_HAS_TLS_CLIENT_HELLO_CB
 
 //-----------------------------------------------------------------------------
 bool KTLSContext::LoadTLSCertificates(KStringViewZ sCert, KStringViewZ sKey, KStringView sPassword)
@@ -541,25 +922,70 @@ bool KTLSContext::SetAllowHTTP2(bool bAlsoAllowHTTP1)
 } // SetAllowHTTP2
 
 //-----------------------------------------------------------------------------
+int KTLSContext::ALPNSelectCallback(ssl_st* ssl, const unsigned char** out, unsigned char* outlen,
+                                    const unsigned char* in, unsigned int inlen, void* arg)
+//-----------------------------------------------------------------------------
+{
+	// read the preference list from the current SSL_CTX - after an SNI dispatch this
+	// is the selected context, not the one the connection was accepted with
+	auto* Ctx   = ::SSL_get_SSL_CTX(ssl);
+	auto* sALPN = Ctx ? static_cast<const KString*>(::SSL_CTX_get_ex_data(Ctx, GetALPNExDataIndex())) : nullptr;
+
+	if (sALPN && !sALPN->empty())
+	{
+		unsigned char* pSelected;
+		unsigned char  iSelected;
+
+		if (::SSL_select_next_proto(&pSelected, &iSelected,
+		                            reinterpret_cast<const unsigned char*>(sALPN->data()),
+		                            static_cast<unsigned int>(sALPN->size()),
+		                            in, inlen) == OPENSSL_NPN_NEGOTIATED)
+		{
+			*out    = pSelected;
+			*outlen = iSelected;
+			return SSL_TLSEXT_ERR_OK;
+		}
+	}
+
+	// RFC 7301: no overlap is answered with a fatal no_application_protocol alert
+	return SSL_TLSEXT_ERR_ALERT_FATAL;
+
+} // ALPNSelectCallback
+
+//-----------------------------------------------------------------------------
 bool KTLSContext::SetALPNRaw(KStringView sALPN)
 //-----------------------------------------------------------------------------
 {
-	if (GetRole() != boost::asio::ssl::stream_base::client)
+	if (GetRole() == boost::asio::ssl::stream_base::client)
 	{
-		kDebug(1, "ALPN setup only supported in client mode");
-		return false;
+		auto iResult = ::SSL_CTX_set_alpn_protos(m_Context.native_handle(),
+		                                         reinterpret_cast<const unsigned char*>(sALPN.data()),
+		                                         static_cast<unsigned int>(sALPN.size()));
+
+		if (iResult == 0)
+		{
+			return true;
+		}
+
+		return SetError(kFormat("failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sALPN), iResult));
 	}
 
-	auto iResult = ::SSL_CTX_set_alpn_protos(m_Context.native_handle(),
-	                                         reinterpret_cast<const unsigned char*>(sALPN.data()),
-	                                         static_cast<unsigned int>(sALPN.size()));
+	// server mode: store the preference list in the SSL_CTX itself (see ALPNSelectCallback)
+	auto* Ctx        = m_Context.native_handle();
+	auto* sProtocols = new KString(sALPN);
+	auto* sOld       = static_cast<KString*>(::SSL_CTX_get_ex_data(Ctx, GetALPNExDataIndex()));
 
-	if (iResult == 0)
+	if (!::SSL_CTX_set_ex_data(Ctx, GetALPNExDataIndex(), sProtocols))
 	{
-		return true;
+		delete sProtocols;
+		return SetError("cannot store ALPN protocol list");
 	}
 
-	return SetError(kFormat("failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sALPN), iResult));
+	delete sOld;
+
+	::SSL_CTX_set_alpn_select_cb(Ctx, &ALPNSelectCallback, nullptr);
+
+	return true;
 
 } // SetALPNRaw
 

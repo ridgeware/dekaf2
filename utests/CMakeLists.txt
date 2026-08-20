@@ -162,6 +162,7 @@ set (USOURCES
 	ktime_tests.cpp
 	ktimer_tests.cpp
 	ktimeseries_tests.cpp
+	ktlscontext_tests.cpp
 	ktotp_tests.cpp
 	kuntar_tests.cpp
 	kurl_tests.cpp

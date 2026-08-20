@@ -886,21 +886,14 @@ if (LIBUNWIND_INCLUDE_DIR AND LIBUNWIND_LIBRARY)
 	unset(_unwind_dir)
 	unset(_unwind_arch)
 	unset(_unwind_arch_lib)
-endif()
-
-# ========================== FULLY STATIC EXECUTABLES ============================
-
-if (DEKAF2_STATIC_EXECUTABLES)
-	add_link_options(-static)
-	if (DEKAF2_HAS_LIBUNWIND)
-		# libunwind.a and libgcc_eh.a both define the _Unwind_* symbols. Dynamic
-		# linking resolves the duplicate by interposition; a static link makes it
-		# a hard error. Take the first definition (libunwind's, which precedes
-		# the implicit libgcc_eh on the link line) to reproduce the dynamic
-		# behaviour.
-		add_link_options(-Wl,--allow-multiple-definition)
+	# libunwind built with xz minidebuginfo support (e.g. Alpine's) references
+	# lzma_* symbols - in a static link liblzma must follow libunwind on the
+	# link line, so append it here instead of relying on the optional
+	# compressor detection
+	find_library(LIBUNWIND_LZMA_LIBRARY NAMES lzma)
+	if (LIBUNWIND_LZMA_LIBRARY)
+		list(APPEND LIBUNWIND_LIBRARIES ${LIBUNWIND_LZMA_LIBRARY})
 	endif()
-	message(STATUS "linking executables fully static")
 endif()
 
 # =================================== Doxygen ====================================

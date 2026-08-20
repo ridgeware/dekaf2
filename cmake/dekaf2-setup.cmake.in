@@ -152,6 +152,30 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			message(STATUS "thread stack size: 1 MiB (Windows pthread default — no global override applied)")
 		endif()
 
+		# ========================== FULLY STATIC EXECUTABLES ============================
+
+		# baked in at dekaf2 configure time: a dekaf2 built with
+		# DEKAF2_STATIC_EXECUTABLES makes every binary that inherits the build
+		# flags link statically as well - the dekaf2 build itself (which includes
+		# this file) just like an external consumer, which needs no configuration
+		# of its own for it. See DEKAF2_STATIC_BINARIES.md.
+		if ("@DEKAF2_STATIC_EXECUTABLES@" STREQUAL "ON")
+			# the static resolution of the consumer's own find_package calls
+			# (CMAKE_FIND_LIBRARY_SUFFIXES etc.) is handled at the top of
+			# dekaf2-config.cmake - it must precede the find_dependency calls
+			# there, which run before this file is included
+			add_link_options(-static)
+			if ("@DEKAF2_HAS_LIBUNWIND@" STREQUAL "1")
+				# libunwind.a and libgcc_eh.a both define the _Unwind_* symbols.
+				# Dynamic linking resolves the duplicate by interposition; a
+				# static link makes it a hard error. Take the first definition
+				# (libunwind's, which precedes the implicit libgcc_eh on the
+				# link line) to reproduce the dynamic behaviour.
+				add_link_options(-Wl,--allow-multiple-definition)
+			endif()
+			message(STATUS "linking executables fully static")
+		endif()
+
 		# ================================ ASAN / UBSAN =================================
 
 		if (CMAKE_GENERATOR STREQUAL "Xcode")

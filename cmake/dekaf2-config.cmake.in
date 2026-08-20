@@ -18,6 +18,16 @@ endif()
 
 include(CMakeFindDependencyMacro)
 
+if ("@DEKAF2_STATIC_EXECUTABLES@" STREQUAL "ON")
+	# this dekaf2 was built for fully static executables - every dependency,
+	# ours below and the consumer's own, must resolve to static archives:
+	# an absolute .so path on the link line fails a -static link. This has
+	# to happen before the first find_dependency, which caches its result.
+	set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+	set(OPENSSL_USE_STATIC_LIBS ON)
+	set(Boost_USE_STATIC_LIBS ON)
+endif()
+
 # the required dependencies
 find_dependency(Threads)
 find_dependency(OpenSSL)

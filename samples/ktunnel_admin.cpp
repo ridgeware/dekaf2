@@ -256,8 +256,7 @@ constexpr KStringView s_sAdminsURL    = "/Configure/admins";
 constexpr KStringView s_sNodesURL     = "/Configure/nodes";
 constexpr KStringView s_sTunnelsURL   = "/Configure/tunnels";
 constexpr KStringView s_sEventsURL    = "/Configure/events";
-constexpr KStringView s_sPeersURL     = "/Configure/peers";
-constexpr KStringView s_sPeerReplURL  = "/Configure/peers/repl";
+constexpr KStringView s_sNodeReplURL  = "/Configure/nodes/repl";
 
 // The matching routes — no trailing slashes, because KRESTServer strips
 // them off the request path before looking up a route.
@@ -280,9 +279,11 @@ constexpr KStringView s_sTunnelsDeleteRoute    = "/Configure/tunnels/delete";
 constexpr KStringView s_sTunnelsEditRoute      = "/Configure/tunnels/edit";
 constexpr KStringView s_sTunnelsUpdateRoute    = "/Configure/tunnels/update";
 constexpr KStringView s_sEventsRoute           = "/Configure/events";
+// legacy URL - the peers page merged into the nodes page, the route only
+// redirects there so that old bookmarks keep working
 constexpr KStringView s_sPeersRoute            = "/Configure/peers";
-constexpr KStringView s_sPeerReplRoute         = "/Configure/peers/repl";
-constexpr KStringView s_sPeerReplWsRoute       = "/Configure/peers/repl/ws";
+constexpr KStringView s_sNodeReplRoute         = "/Configure/nodes/repl";
+constexpr KStringView s_sNodeReplWsRoute       = "/Configure/nodes/repl/ws";
 
 // Matching user-visible URLs used for form actions and redirects.
 constexpr KStringView s_sAdminsAddURL          = "/Configure/admins/add";
@@ -582,7 +583,6 @@ void AdminUI::RenderTopBar (html::Page& Page,
 		{ "admins",    s_sAdminsURL,    "Admins"    },
 		{ "nodes",     s_sNodesURL,     "Nodes"     },
 		{ "tunnels",   s_sTunnelsURL,   "Tunnels"   },
-		{ "peers",     s_sPeersURL,     "Peers"     },
 		{ "events",    s_sEventsURL,    "Events"    },
 		{ "logout",    s_sLogoutURL,    "Logout"    },
 	};
@@ -600,6 +600,30 @@ void AdminUI::RenderTopBar (html::Page& Page,
 	top.AddRawText(sNav);
 
 } // RenderTopBar
+
+//-----------------------------------------------------------------------------
+/// Render the state pill for a tunnel listener — shared by the dashboard
+/// and the tunnels page.
+static KString ListenerStatePill (ExposedServer::ListenerState eState, KStringView sError)
+//-----------------------------------------------------------------------------
+{
+	using S = ExposedServer::ListenerState;
+	switch (eState)
+	{
+		case S::Listening:
+			return "<span class=\"pill ok\">listening</span>";
+		case S::OwnerOffline:
+			return "<span class=\"pill info\">node offline</span>";
+		case S::PortError:
+			return kFormat("<span class=\"pill fail\">port error</span>"
+			               "<div class=\"muted\" style=\"font-size:0.7rem\">{}</div>",
+			               KHTMLEntity::EncodeMandatory(sError));
+		case S::Stopped:
+			break;
+	}
+	return "<span class=\"pill neutral\">stopped</span>";
+
+} // ListenerStatePill
 
 //-----------------------------------------------------------------------------
 void AdminUI::ShowDashboard (KRESTServer& HTTP)
@@ -631,18 +655,28 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 		f.AddText(sError);
 	}
 
-	// --- Section 1: active tunnels ------------------------------------
+	// One-line mental model — the three terms the whole UI is built on.
 	{
-		auto Tunnels = m_Server.SnapshotActiveTunnels();
+		auto p = main.Add<html::Paragraph>();
+		p.SetAttribute("class", "muted");
+		p.AddText("A node connects in from behind its firewall. A tunnel "
+		          "forwards a listen port to a target its node can reach. "
+		          "Each use of a tunnel opens a connection.");
+	}
+
+	// --- Section 1: connected nodes -----------------------------------
+	{
+		auto Connected = m_Server.SnapshotActiveTunnels();
 
 		auto sec = main.Add<html::Div>(html::Classes("section"));
-		sec.Add<html::Heading>(2, kFormat("Active tunnels ({})", Tunnels.size()));
+		sec.Add<html::Heading>(2, kFormat("Connected nodes ({})", Connected.size()));
 
-		if (Tunnels.empty())
+		if (Connected.empty())
 		{
 			auto p = sec.Add<html::Paragraph>();
 			p.SetAttribute("class", "muted");
-			p.AddText("No tunnel peers are currently connected.");
+			p.AddText("No nodes are currently connected. Nodes appear here "
+			          "once they complete the login handshake.");
 		}
 		else
 		{
@@ -654,26 +688,34 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 			         "<th class=\"num\">Conns</th>"
 			         "<th class=\"num\">RX</th>"
 			         "<th class=\"num\">TX</th>"
+			         "<th></th>"
 			         "</tr></thead><tbody>";
 
-			for (const auto& at : Tunnels)
+			for (const auto& at : Connected)
 			{
 				const auto iConn  = at.Tunnel->GetConnectionCount();
 				const auto iRx    = at.Tunnel->GetBytesRx();
 				const auto iTx    = at.Tunnel->GetBytesTx();
 				const auto sDur   = FormatDuration(tNow - at.tConnected);
 
+				KString sReplURL = kFormat("{}?node={}",
+					s_sNodeReplURL,
+					kUrlEncode(at.sNode, URIPart::Query));
+
 				sTable += kFormat(
-					"<tr><td>{}</td><td>{}</td><td>{}</td>"
+					"<tr><td><a href=\"{}\">{}</a></td><td>{}</td><td>{}</td>"
 					"<td class=\"num\">{}</td>"
 					"<td class=\"num\">{}</td>"
-					"<td class=\"num\">{}</td></tr>",
+					"<td class=\"num\">{}</td>"
+					"<td><a class=\"btn small\" href=\"{}\">Open REPL</a></td></tr>",
+					KHTMLEntity::EncodeMandatory(s_sNodesURL),
 					KHTMLEntity::EncodeMandatory(at.sNode),
 					KHTMLEntity::EncodeMandatory(at.EndpointAddr.Serialize()),
 					KHTMLEntity::EncodeMandatory(sDur),
 					iConn,
 					kFormBytes(iRx),
-					kFormBytes(iTx));
+					kFormBytes(iTx),
+					KHTMLEntity::EncodeMandatory(sReplURL));
 			}
 
 			sTable += "</tbody></table>";
@@ -681,7 +723,43 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 		}
 	}
 
-	// --- Section 2: recent events -------------------------------------
+	// --- Section 2: tunnel states -------------------------------------
+	{
+		auto ListenerMap = m_Server.SnapshotListenerStates();
+
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Tunnels ({})", ListenerMap.size()));
+
+		if (ListenerMap.empty())
+		{
+			auto p = sec.Add<html::Paragraph>();
+			p.SetAttribute("class", "muted");
+			p.AddText("No tunnels configured yet. Add one under ");
+			p.Add<html::Link>(s_sTunnelsURL, "Tunnels");
+			p.AddText(".");
+		}
+		else
+		{
+			KString sTable;
+			sTable += "<table class=\"grid\"><thead><tr>"
+			          "<th>Tunnel</th><th>Runtime</th>"
+			          "</tr></thead><tbody>";
+
+			for (const auto& kv : ListenerMap)
+			{
+				sTable += kFormat(
+					"<tr><td><a href=\"{}\">{}</a></td><td>{}</td></tr>",
+					KHTMLEntity::EncodeMandatory(s_sTunnelsURL),
+					KHTMLEntity::EncodeMandatory(kv.first),
+					ListenerStatePill(kv.second.eState, kv.second.sError));
+			}
+
+			sTable += "</tbody></table>";
+			sec.AddRawText(sTable);
+		}
+	}
+
+	// --- Section 3: recent events -------------------------------------
 	{
 		static constexpr std::size_t kEventLimit = 10;
 
@@ -1108,6 +1186,20 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 
 	auto Nodes = m_Server.GetStore().GetAllNodes();
 
+	// Live state: which nodes are connected right now (name → snapshot),
+	// and how many tunnels each node owns (for the cross-link column).
+	KUnorderedMap<KString, ExposedServer::ActiveTunnel> Online;
+	for (auto& at : m_Server.SnapshotActiveTunnels())
+	{
+		Online.emplace(at.sNode, std::move(at));
+	}
+
+	KUnorderedMap<KString, std::size_t> TunnelCount;
+	for (const auto& t : m_Server.GetStore().GetAllTunnels())
+	{
+		++TunnelCount[t.sNode];
+	}
+
 	auto Page = MakePage("ktunnel — Nodes");
 	RenderTopBar(Page, "nodes", sMe);
 
@@ -1138,15 +1230,50 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 		}
 		else
 		{
+			const auto tNow = KUnixTime::now();
+
 			KString sTable;
 			sTable += "<table class=\"grid\"><thead><tr>"
-			          "<th>Name</th><th>Enabled</th><th>Last login</th>"
-			          "<th>Created</th><th></th>"
+			          "<th>Name</th><th>Status</th><th>Enabled</th><th>Last login</th>"
+			          "<th>Created</th><th class=\"num\">Tunnels</th><th></th>"
 			          "</tr></thead><tbody>";
 
 			for (const auto& n : Nodes)
 			{
-				KString sActions = kFormat(
+				// Live status: online with duration and remote address when a
+				// control connection is up, plain offline otherwise.
+				KString sStatus;
+				auto itOnline = Online.find(n.sName);
+				if (itOnline != Online.end())
+				{
+					sStatus = kFormat(
+						"<span class=\"pill ok\">online</span> "
+						"<span class=\"muted\" style=\"font-size:0.7rem\">{} · {}</span>",
+						KHTMLEntity::EncodeMandatory(
+							FormatDuration(tNow - itOnline->second.tConnected)),
+						KHTMLEntity::EncodeMandatory(
+							itOnline->second.EndpointAddr.Serialize()));
+				}
+				else
+				{
+					sStatus = "<span class=\"pill neutral\">offline</span>";
+				}
+
+				const auto itCount = TunnelCount.find(n.sName);
+				const auto iTunnels = (itCount != TunnelCount.end()) ? itCount->second : 0;
+
+				KString sActions;
+
+				if (itOnline != Online.end())
+				{
+					sActions += kFormat(
+						"<a class=\"btn small\" href=\"{}?node={}\">Open REPL</a> ",
+						KHTMLEntity::EncodeMandatory(s_sNodeReplURL),
+						KHTMLEntity::EncodeMandatory(
+							kUrlEncode(n.sName, URIPart::Query)));
+				}
+
+				sActions += kFormat(
 					"<form method=\"post\" action=\"{}\" class=\"inline-form\">"
 					"<input type=\"hidden\" name=\"name\" value=\"{}\">"
 					"<input type=\"hidden\" name=\"enable\" value=\"{}\">"
@@ -1167,9 +1294,13 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 
 				sTable += kFormat(
 					"<tr><td>{}</td>"
+					"<td>{}</td>"
 					"<td><span class=\"pill {}\">{}</span></td>"
-					"<td>{}</td><td>{}</td><td>{}</td></tr>",
+					"<td>{}</td><td>{}</td>"
+					"<td class=\"num\"><a href=\"{}\">{}</a></td>"
+					"<td>{}</td></tr>",
 					KHTMLEntity::EncodeMandatory(n.sName),
+					sStatus,
 					n.bEnabled ? "ok"      : "neutral",
 					n.bEnabled ? "enabled" : "disabled",
 					n.tLastLogin.to_time_t() > 0
@@ -1178,6 +1309,8 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 					n.tCreated.to_time_t() > 0
 						? kFormat("{} UTC", n.tCreated.to_string())
 						: KString("—"),
+					KHTMLEntity::EncodeMandatory(s_sTunnelsURL),
+					iTunnels,
 					sActions);
 			}
 
@@ -1479,27 +1612,6 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 	auto Nodes        = Store.GetAllNodes();
 	auto ListenerMap  = m_Server.SnapshotListenerStates();
 
-	// Rendering helper for the listener-state pill.
-	auto StatePill = [](ExposedServer::ListenerState s,
-	                    KStringView sError) -> KString
-	{
-		using S = ExposedServer::ListenerState;
-		switch (s)
-		{
-			case S::Listening:
-				return "<span class=\"pill ok\">listening</span>";
-			case S::OwnerOffline:
-				return "<span class=\"pill info\">owner offline</span>";
-			case S::PortError:
-				return kFormat("<span class=\"pill fail\">port error</span>"
-				               "<div class=\"muted\" style=\"font-size:0.7rem\">{}</div>",
-				               KHTMLEntity::EncodeMandatory(sError));
-			case S::Stopped:
-			default:
-				return "<span class=\"pill neutral\">stopped</span>";
-		}
-	};
-
 	auto Page = MakePage("ktunnel — Tunnels");
 	RenderTopBar(Page, "tunnels", sMe);
 
@@ -1577,7 +1689,7 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 				auto it = ListenerMap.find(t.sName);
 				if (it != ListenerMap.end())
 				{
-					sState = StatePill(it->second.eState, it->second.sError);
+					sState = ListenerStatePill(it->second.eState, it->second.sError);
 				}
 				else
 				{
@@ -1616,12 +1728,13 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 					KHTMLEntity::EncodeMandatory(t.sName));
 
 				sTable += kFormat(
-					"<tr><td>{}</td><td>{}</td>"
+					"<tr><td>{}</td><td><a href=\"{}\">{}</a></td>"
 					"<td>{}</td><td>{}:{}</td>"
 					"<td><span class=\"pill {}\">{}</span></td>"
 					"<td>{}</td>"
 					"<td>{}</td></tr>",
 					KHTMLEntity::EncodeMandatory(t.sName),
+					KHTMLEntity::EncodeMandatory(s_sNodesURL),
 					KHTMLEntity::EncodeMandatory(t.sNode),
 					t.iListenPort,
 					KHTMLEntity::EncodeMandatory(t.sTargetHost),
@@ -2227,127 +2340,49 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 } // ShowEvents
 
 //-----------------------------------------------------------------------------
-void AdminUI::ShowPeers (KRESTServer& HTTP)
+void AdminUI::ShowNodeRepl (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
 
 	const KString sMe(Sess.GetUser());
-	auto Peers = m_Server.SnapshotActiveTunnels();
+	KString sNode(HTTP.GetQueryParm("node"));
 
-	auto Page = MakePage("ktunnel — Peers");
-	RenderTopBar(Page, "peers", sMe);
-
-	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
-
-	auto sec = main.Add<html::Div>(html::Classes("section"));
-	sec.Add<html::Heading>(2, kFormat("Connected peers ({})", Peers.size()));
-
-	if (Peers.empty())
+	if (sNode.empty())
 	{
-		auto p = sec.Add<html::Paragraph>();
-		p.SetAttribute("class", "muted");
-		p.AddText("No tunnel peers currently connected. Peers appear here once "
-		          "they complete the login handshake.");
-	}
-	else
-	{
-		KString sTable;
-		sTable += "<table class=\"grid\"><thead><tr>"
-		          "<th>Peer node</th><th>Remote</th><th>Connected since</th>"
-		          "<th>Streams</th><th>Rx bytes</th><th>Tx bytes</th>"
-		          "<th></th></tr></thead><tbody>";
-
-		for (const auto& p : Peers)
-		{
-			// live counters via the shared_ptr — safe: the snapshot
-			// returned copies of the shared_ptr, so the KTunnel cannot
-			// be destroyed underneath us during this single rendering.
-			std::size_t iStreams = 0;
-			uint64_t    iRx = 0, iTx = 0;
-			if (p.Tunnel)
-			{
-				iStreams = p.Tunnel->GetConnectionCount();
-				iRx      = p.Tunnel->GetBytesRx();
-				iTx      = p.Tunnel->GetBytesTx();
-			}
-
-			KString sReplURL = kFormat("{}?peer={}",
-				s_sPeerReplURL,
-				kUrlEncode(p.sNode, URIPart::Query));
-
-			sTable += kFormat(
-				"<tr>"
-				"<td>{}</td>"
-				"<td>{}</td>"
-				"<td>{} UTC</td>"
-				"<td>{}</td>"
-				"<td>{}</td>"
-				"<td>{}</td>"
-				"<td><a class=\"btn small\" href=\"{}\">Open REPL</a></td>"
-				"</tr>",
-				KHTMLEntity::EncodeMandatory(p.sNode),
-				KHTMLEntity::EncodeMandatory(p.EndpointAddr.Serialize()),
-				p.tConnected.to_string(),
-				iStreams,
-				iRx,
-				iTx,
-				KHTMLEntity::EncodeMandatory(sReplURL));
-		}
-
-		sTable += "</tbody></table>";
-		sec.AddRawText(sTable);
-	}
-
-	RenderPage(HTTP, Page);
-
-} // ShowPeers
-
-//-----------------------------------------------------------------------------
-void AdminUI::ShowPeerRepl (KRESTServer& HTTP)
-//-----------------------------------------------------------------------------
-{
-	KRESTSession Sess(*m_Session, HTTP);
-	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
-
-	const KString sMe(Sess.GetUser());
-	KString sPeer(HTTP.GetQueryParm("peer"));
-
-	if (sPeer.empty())
-	{
-		RedirectWithFlash(HTTP, s_sPeersURL, "", "Missing peer parameter.");
+		RedirectWithFlash(HTTP, s_sNodesURL, "", "Missing node parameter.");
 		return;
 	}
 
-	// Verify the peer is currently online — otherwise no point
+	// Verify the node is currently online — otherwise no point
 	// rendering the REPL UI.
-	auto Tunnel = m_Server.GetTunnelForNode(sPeer);
+	auto Tunnel = m_Server.GetTunnelForNode(sNode);
 	if (!Tunnel)
 	{
-		RedirectWithFlash(HTTP, s_sPeersURL, "",
-		                  kFormat("Peer '{}' is not currently connected.", sPeer));
+		RedirectWithFlash(HTTP, s_sNodesURL, "",
+		                  kFormat("Node '{}' is not currently connected.", sNode));
 		return;
 	}
 
-	auto Page = MakePage(kFormat("ktunnel — REPL · {}", sPeer));
-	RenderTopBar(Page, "peers", sMe);
+	auto Page = MakePage(kFormat("ktunnel — REPL · {}", sNode));
+	RenderTopBar(Page, "nodes", sMe);
 
 	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 	auto sec  = main.Add<html::Div>(html::Classes("section"));
 
-	sec.Add<html::Heading>(2, kFormat("REPL — {}", sPeer));
+	sec.Add<html::Heading>(2, kFormat("REPL — {}", sNode));
 
 	// The WebSocket URL is relative so it inherits the same scheme +
 	// host + port as the page. The browser WebSocket API
 	// auto-translates http: to ws: and https: to wss:.
-	KString sWsPath = kFormat("{}?peer={}",
-		s_sPeerReplWsRoute,
-		kUrlEncode(sPeer, URIPart::Query));
+	KString sWsPath = kFormat("{}?node={}",
+		s_sNodeReplWsRoute,
+		kUrlEncode(sNode, URIPart::Query));
 
 	// Inline HTML + JS. <pre> for output (monospace, preserves
 	// whitespace), <input> for input, enter to send. The client
-	// sends whole lines with a trailing '\n' so the peer-side line
+	// sends whole lines with a trailing '\n' so the node-side line
 	// splitter in ProtectedHost::RunRepl() works.
 	// NOTE: the inline script below must NOT contain // line comments,
 	// because the HTML is emitted on a single line (no newlines between
@@ -2437,46 +2472,46 @@ void AdminUI::ShowPeerRepl (KRESTServer& HTTP)
 		"}})();\n"
 		"</script>\n",
 		KHTMLEntity::EncodeMandatory(sWsPath),
-		KHTMLEntity::EncodeMandatory(s_sPeersURL));
+		KHTMLEntity::EncodeMandatory(s_sNodesURL));
 
 	sec.AddRawText(sBody);
 
 	RenderPage(HTTP, Page);
 
-} // ShowPeerRepl
+} // ShowNodeRepl
 
 //-----------------------------------------------------------------------------
-void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
+void AdminUI::HandleNodeReplWs (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
 
 	const KString sMe(Sess.GetUser());
-	KString sPeer(HTTP.GetQueryParm("peer"));
+	KString sNode(HTTP.GetQueryParm("node"));
 
 	auto LogReject = [&](KStringView sReason)
 	{
 		KTunnelStore::Event ev;
 		ev.sKind     = "repl_reject";
 		ev.sAdmin    = sMe;
-		ev.sNode     = sPeer;
+		ev.sNode     = sNode;
 		ev.sRemoteIP = HTTP.GetRemoteIP();
 		ev.sDetail   = sReason;
 		m_Server.GetStore().LogEvent(ev);
 	};
 
-	if (sPeer.empty())
+	if (sNode.empty())
 	{
-		LogReject("missing peer parameter");
+		LogReject("missing node parameter");
 		HTTP.Response.SetStatus(KHTTPError::H4xx_BADREQUEST);
 		return;
 	}
 
-	auto Tunnel = m_Server.GetTunnelForNode(sPeer);
+	auto Tunnel = m_Server.GetTunnelForNode(sNode);
 	if (!Tunnel)
 	{
-		LogReject("peer not connected");
+		LogReject("node not connected");
 		HTTP.Response.SetStatus(KHTTPError::H5xx_UNAVAILABLE);
 		return;
 	}
@@ -2484,7 +2519,7 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 	auto Connection = Tunnel->OpenRepl();
 	if (!Connection)
 	{
-		LogReject("peer has no free channel");
+		LogReject("node has no free channel");
 		HTTP.Response.SetStatus(KHTTPError::H5xx_UNAVAILABLE);
 		return;
 	}
@@ -2495,23 +2530,23 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 		KTunnelStore::Event ev;
 		ev.sKind     = "repl_open";
 		ev.sAdmin    = sMe;
-		ev.sNode     = sPeer;
+		ev.sNode     = sNode;
 		ev.sRemoteIP = HTTP.GetRemoteIP();
 		ev.sDetail   = kFormat("channel {}", Connection->GetID());
 		m_Server.GetStore().LogEvent(ev);
 	}
 
 	HTTP.SetWebSocketHandler(
-	[this, sPeer, sMe, sRemote = HTTP.GetRemoteIP(), Connection]
+	[this, sNode, sMe, sRemote = HTTP.GetRemoteIP(), Connection]
 	(KWebSocket& WebSocket)
 	{
-		// Dedicated pump thread: peer channel → browser WebSocket.
+		// Dedicated pump thread: node channel → browser WebSocket.
 		// The main handler thread runs the reverse direction. Either
 		// direction seeing EOF tears the other down so we get a clean
 		// join() at the end.
 		std::atomic<bool> bQuit { false };
 
-		std::thread PeerToBrowser = kMakeThread([&bQuit, &WebSocket, Connection]()
+		std::thread NodeToBrowser = kMakeThread([&bQuit, &WebSocket, Connection]()
 		{
 			for (;!bQuit.load(std::memory_order_acquire);)
 			{
@@ -2525,7 +2560,7 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 			WebSocket.Close(KWebSocket::Frame::NormalClosure);
 		});
 
-		// Browser → peer channel. WebSocket::Read has a default read
+		// Browser → node channel. WebSocket::Read has a default read
 		// timeout (60 minutes); set something shorter so we notice
 		// bQuit flips from the other thread without waiting forever.
 		WebSocket.SetReadTimeout(chrono::seconds(5));
@@ -2544,14 +2579,14 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 			Connection->WriteData(std::move(sFrame));
 		}
 		bQuit.store(true, std::memory_order_release);
-		// Wake up PeerToBrowser if it is still blocked in ReadData
+		// Wake up NodeToBrowser if it is still blocked in ReadData
 		Connection->Disconnect();
-		PeerToBrowser.join();
+		NodeToBrowser.join();
 
 		KTunnelStore::Event ev;
 		ev.sKind     = "repl_close";
 		ev.sAdmin    = sMe;
-		ev.sNode     = sPeer;
+		ev.sNode     = sNode;
 		ev.sRemoteIP = sRemote;
 		ev.sDetail   = kFormat("channel {}", Connection->GetID());
 		m_Server.GetStore().LogEvent(ev);
@@ -2559,14 +2594,14 @@ void AdminUI::HandlePeerReplWs (KRESTServer& HTTP)
 
 	HTTP.SetKeepWebSocketInRunningThread();
 
-} // HandlePeerReplWs
+} // HandleNodeReplWs
 
 //-----------------------------------------------------------------------------
-void AdminUI::HandlePeerReplCert (KRESTServer& HTTP)
+void AdminUI::HandleNodeReplCert (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	// This handler is matched for plain (non-upgrade) HTTPS navigations
-	// to the same URL as HandlePeerReplWs. The sole purpose is to answer
+	// to the same URL as HandleNodeReplWs. The sole purpose is to answer
 	// 200 OK (instead of falling through to the default 302 redirect, which
 	// Safari would follow without ever presenting the TLS warning) so the
 	// user can accept the self-signed certificate for this exact URL. Once
@@ -2574,11 +2609,11 @@ void AdminUI::HandlePeerReplCert (KRESTServer& HTTP)
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
 
-	const KString sPeer(HTTP.GetQueryParm("peer"));
-	const KString sPeersURL(s_sPeersURL);
+	const KString sNode(HTTP.GetQueryParm("node"));
+	const KString sNodesURL(s_sNodesURL);
 
 	auto Page = MakePage("ktunnel — Certificate accepted");
-	RenderTopBar(Page, "peers", Sess.GetUser());
+	RenderTopBar(Page, "nodes", Sess.GetUser());
 
 	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 	auto sec  = main.Add<html::Div>(html::Classes("section"));
@@ -2588,20 +2623,20 @@ void AdminUI::HandlePeerReplCert (KRESTServer& HTTP)
 	KString sBody = kFormat(
 		"<p>The self-signed TLS certificate for this host is now trusted "
 		"for WebSocket connections as well.</p>\n"
-		"<p>Close this tab and reload the REPL page for peer "
+		"<p>Close this tab and reload the REPL page for node "
 		"<strong>{}</strong>.</p>\n"
-		"<p><a href=\"{}?peer={}\" class=\"btn\">Back to REPL</a> "
-		"<a href=\"{}\" class=\"btn small\">Peers list</a></p>\n",
-		KHTMLEntity::EncodeMandatory(sPeer),
-		s_sPeerReplURL,
-		kUrlEncode(sPeer, URIPart::Query),
-		sPeersURL);
+		"<p><a href=\"{}?node={}\" class=\"btn\">Back to REPL</a> "
+		"<a href=\"{}\" class=\"btn small\">Nodes list</a></p>\n",
+		KHTMLEntity::EncodeMandatory(sNode),
+		s_sNodeReplURL,
+		kUrlEncode(sNode, URIPart::Query),
+		sNodesURL);
 
 	sec.AddRawText(sBody);
 
 	RenderPage(HTTP, Page);
 
-} // HandlePeerReplCert
+} // HandleNodeReplCert
 
 //-----------------------------------------------------------------------------
 void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
@@ -2697,21 +2732,27 @@ void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 	      .Get ([this](KRESTServer& HTTP) { ShowEvents(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
 
-	// --- Peers (live tunnel peers + REPL bridge, admin-only) ---------
+	// --- Node REPL bridge (admin-only) -------------------------------
+	// The former peers page merged into the nodes page; keep the old URL
+	// as a redirect so bookmarks and muscle memory continue to work.
 	Routes.AddRoute(KString(s_sPeersRoute))
-	      .Get ([this](KRESTServer& HTTP) { ShowPeers(HTTP); })
+	      .Get ([](KRESTServer& HTTP)
+	      {
+	          HTTP.Response.SetStatus(KHTTPError::H302_MOVED_TEMPORARILY);
+	          HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, s_sNodesURL);
+	      })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
 
-	Routes.AddRoute(KString(s_sPeerReplRoute))
-	      .Get ([this](KRESTServer& HTTP) { ShowPeerRepl(HTTP); })
+	Routes.AddRoute(KString(s_sNodeReplRoute))
+	      .Get ([this](KRESTServer& HTTP) { ShowNodeRepl(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
 
 	// WebSocket endpoint for the browser REPL proxy. Same route shape
 	// as /Tunnel in ExposedServer::Run(): NOREAD + WEBSOCKET option,
 	// and the handler installs SetWebSocketHandler + the in-thread
 	// flag before returning.
-	Routes.AddRoute(KString(s_sPeerReplWsRoute))
-	      .Get ([this](KRESTServer& HTTP) { HandlePeerReplWs(HTTP); })
+	Routes.AddRoute(KString(s_sNodeReplWsRoute))
+	      .Get ([this](KRESTServer& HTTP) { HandleNodeReplWs(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD)
 	      .Options(KRESTRoute::Options::WEBSOCKET);
 
@@ -2722,8 +2763,8 @@ void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 	// Without this route the request falls through to the default 302
 	// redirect on /Configure/, which Safari follows without ever
 	// presenting the TLS warning.
-	Routes.AddRoute(KString(s_sPeerReplWsRoute))
-	      .Get ([this](KRESTServer& HTTP) { HandlePeerReplCert(HTTP); })
+	Routes.AddRoute(KString(s_sNodeReplWsRoute))
+	      .Get ([this](KRESTServer& HTTP) { HandleNodeReplCert(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
 
 } // RegisterRoutes

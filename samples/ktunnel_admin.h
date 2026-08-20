@@ -199,28 +199,23 @@ private:
 	/// the corresponding dropdown entries on render.
 	void ShowEvents           (KRESTServer& HTTP);
 
-	/// GET /Configure/peers — list currently connected tunnel peers
-	/// (from ExposedServer::SnapshotActiveTunnels) with an "Open REPL"
-	/// button per row.
-	void ShowPeers            (KRESTServer& HTTP);
-
-	/// GET /Configure/peers/repl?peer=<node> — minimal HTML+JS page
-	/// that opens a WebSocket to /Configure/peers/repl/ws and renders
+	/// GET /Configure/nodes/repl?node=<node> — minimal HTML+JS page
+	/// that opens a WebSocket to /Configure/nodes/repl/ws and renders
 	/// the duplex text stream in a <pre>.
-	void ShowPeerRepl         (KRESTServer& HTTP);
+	void ShowNodeRepl         (KRESTServer& HTTP);
 
-	/// GET /Configure/peers/repl/ws?peer=<node> — WebSocket endpoint
+	/// GET /Configure/nodes/repl/ws?node=<node> — WebSocket endpoint
 	/// that proxies frames between the browser and a freshly opened
-	/// REPL channel on the named peer's active KTunnel.
-	void HandlePeerReplWs     (KRESTServer& HTTP);
+	/// REPL channel on the named node's active KTunnel.
+	void HandleNodeReplWs     (KRESTServer& HTTP);
 
-	/// GET /Configure/peers/repl/ws?peer=<node> — same URL but matched
+	/// GET /Configure/nodes/repl/ws?node=<node> — same URL but matched
 	/// for plain (non-upgrade) HTTPS navigations. Renders a tiny 200-OK
 	/// landing page so Safari can cache a self-signed certificate
 	/// exception for this exact URL (WebKit tracks cert exceptions
 	/// per URL for WSS, independently of the HTTPS page that loaded
 	/// the REPL).
-	void HandlePeerReplCert   (KRESTServer& HTTP);
+	void HandleNodeReplCert   (KRESTServer& HTTP);
 
 	/// Render the common top-bar (brand + nav) into the body of @p Page
 	/// and mark the nav entry identified by @p sActive as the active one

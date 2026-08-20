@@ -1673,88 +1673,133 @@ int Tunnel::Main(int argc, char** argv)
 	// we will throw when setting errors
 	SetThrowOnError(true);
 
-	// setup CLI option parsing
-	KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
+	// setup CLI option parsing - classic mode: define all options first
+	// (which is what enables the sectioned help), then parse
+	KOptions Options(true, KLog::STDOUT, /*bThrow*/true);
 
-	// Add the service-management help block from KService, plus our
-	// own admin-bootstrap subcommand documentation. Both are evaluated
-	// in main() before this KOptions parser ever runs (see
-	// FilterBootstrapArgs); we include the help here purely so they
-	// show up in `ktunnel --help`.
-	Options.SetAdditionalHelp(kFormat(
-		"{}\n"
-		"admin bootstrap (one-shot, evaluated before service registration):\n"
-		"  -set-admin                  : create or rotate the admin login in the\n"
-		"                                config DB, then exit. Use this before\n"
-		"                                first interactive launch, or any time\n"
-		"                                you need to rotate the password.\n"
-		"  -admin-user <name>          : username for -set-admin (target row to\n"
-		"                                create / rotate; default: admin) and for\n"
-		"                                -install on a fresh DB (skips the\n"
-		"                                interactive name prompt). When -install\n"
-		"                                runs against a DB that already has an\n"
-		"                                admin row this flag is ignored — use\n"
-		"                                -set-admin to add or rotate admins.\n"
-		"                                Not persisted into the generated unit /\n"
-		"                                plist / SCM record.\n"
-		"  -add-node                   : create or rotate a tunnel-endpoint\n"
-		"                                (`nodes` table) login in the config DB,\n"
-		"                                then exit. Combine with -node-name\n"
-		"                                <name> and -pass-file <path> to seed a\n"
-		"                                node non-interactively.\n"
-		"  -node-name <name>           : node name for -add-node. Required when\n"
-		"                                -add-node is given. Not persisted into\n"
-		"                                the generated unit / plist / SCM record.\n"
-		"  -pass-file <path>           : read the admin (or node) password from\n"
-		"                                <path> instead of prompting on the TTY.\n"
-		"                                Used for non-interactive provisioning.\n"
-		"                                The file is read once and not\n"
-		"                                referenced by the running service.\n"
-		"  -fingerprint                : print the SHA-256 fingerprint of the\n"
-		"                                exposed-host Ed25519 identity (the\n"
-		"                                public key the server signs the v2\n"
-		"                                AES handshake with). Use this to read\n"
-		"                                back what to put on the protected\n"
-		"                                side as -trust-fingerprint. Reads the\n"
-		"                                identity from -identity-key <path> or\n"
-		"                                from the default location next to the\n"
-		"                                admin DB. Then exits.\n"
-		"\n"
-		"  -install with -e/-exposed (protected host) skips the admin\n"
-		"  bootstrap — a protected host has no admin DB or server identity.\n",
-		KService::GetHelp()));
+	Options.SetBriefDescription("secure reverse tunnel");
 
-	// define cli options
-	m_Config.ExposedHost   = Options("e,exposed    : exposed host - the host to keep an ongoing control connection to. Expects domain name or IP address. If not defined, then this is the exposed host itself.", "");
-	m_Config.iPort         = Options("p,port       : port number to listen at for TLS connections (if exposed host), or connect to (if protected host) - defaults to 443.", 443);
-	m_Config.iRawPort      = Options("f,forward    : port number to listen at for raw TCP connections that will be forwarded (if exposed host)", 0);
-	KStringView sSecrets   = Options("s,secret     : on the protected host: REQUIRED, the password used to log in to the exposed host (must match the bcrypt-hashed password of the matching row in the exposed host's `nodes` table). On the exposed host: only used in ad-hoc mode (with -f / -t), where it is the comma-separated list of pre-shared secrets for peer authentication; in stateful mode it is ignored — manage the admin password via `ktunnel -set-admin` and node accounts via the admin UI.", "").String();
-	KString sSecretFile    = Options("secret-file <path> : runtime alternative to -s: read the login secret from <path> instead of putting it on the command line. The whole file content is used as a single secret (one trailing newline is stripped). Unlike the bootstrap-only -pass-file, this flag is read on every start, so a service can be installed without the secret ending up in the systemd unit / SCM ImagePath. Mutually exclusive with -s.", "");
-	m_Config.DefaultTarget = Options("t,target     : if exposed host, takes the domain:port of a default target, if no other target had been specified in the incoming data connect", "");
-	m_Config.iMaxTunneledConnections
-	                       = Options("m,maxtunnels : if exposed host, maximum number of tunnels to open, defaults to 10 - if protected host, the setting has no effect.", 10);
-	m_Config.sCertFile     = Options("cert <file>  : if exposed host, TLS certificate filepath (.pem) - if option is unused a self-signed cert is created", "");
-	m_Config.sKeyFile      = Options("key <file>   : if exposed host, TLS private key filepath (.pem) - if option is unused a new key is created", "");
-	m_Config.sTLSPassword  = Options("tlspass <pass> : if exposed host, TLS certificate password, if any", "");
-	m_Config.bNoTLS        = Options("notls        : do not use TLS, but unencrypted HTTP", false);
-	m_Config.bAESPayload   = Options("aes          : encrypt payload with AES on top of the websocket. Engages the v2 X25519+Ed25519+HKDF handshake — the server signs every handshake with its long-term identity key, and the client checks the fingerprint against -trust-fingerprint or known_servers (or, with -trust-on-first-use, prompts interactively). Provides forward secrecy and protects against an active TLS-intercepting middlebox even if the corporate CA is in the local trust store.", false);
-	m_Config.Timeout       = chrono::seconds(Options("to,timeout <seconds> : data connection timeout in seconds (default 30)", 30));
-	m_Config.bPersistCert  = Options("persist      : should a self-signed cert (and, in ad-hoc mode, the Ed25519 server identity used for -aes) be persisted to disk and reused at next start? Without this flag the AdHoc identity is regenerated at every start, forcing protected-side peers to re-confirm the new fingerprint each time.", false);
-	m_Config.sCipherSuites = Options("ciphers <suites> : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
-	m_Config.bQuiet        = Options("q,quiet      : do not output status to stdout", false);
-	m_Config.sDatabasePath = Options("db <path>    : if exposed host (stateful mode), path to the SQLite admin/config DB. Defaults to /var/lib/ktunnel/ktunnel.db when running as root (or as a system service), $HOME/.config/ktunnel/ktunnel.db otherwise. Not used in ad-hoc mode (with -f / -t).", "");
-	m_Config.sPeerNode     = Options("n,node <name> : if protected host, node name to log in with (must exist as an enabled row in the exposed host's `nodes` table) - defaults to 'node'", "node");
-	m_Config.sIdentityKeyPath
-	                       = Options("identity-key <path> : if exposed host with -aes, path to the Ed25519 server-identity PEM file. Defaults to ktunnel_ed25519.pem next to the admin DB (Stateful) or to $HOME/.config/ktunnel/ktunnel_ed25519.pem (AdHoc with -persist). In AdHoc mode without -persist this is ignored and an ephemeral key is generated at start-up. Auto-created by `-install`.", "");
-	m_Config.sTrustFingerprint
-	                       = Options("trust-fingerprint <hex> : if protected host with -aes, accept exactly this server fingerprint (lowercase hex with colons, as printed by `ktunnel -fingerprint`). One-shot, not persisted; takes precedence over known_servers.", "");
-	m_Config.bTrustOnFirstUse
-	                       = Options("trust-on-first-use : if protected host with -aes and the server's identity is not yet in known_servers, prompt the operator interactively (TTY required) to accept the presented fingerprint and persist it for next time. Without this flag an unknown server is rejected outright.", false);
-	m_Config.sKnownServersPath
-	                       = Options("known-servers <path> : if protected host with -aes, override the path to the trust store (default: $HOME/.config/ktunnel/known_servers).", "");
+	// defaults, overwritten by the option callbacks below when given
+	m_Config.iPort                   = 443;
+	m_Config.iMaxTunneledConnections = 10;
+	m_Config.sPeerNode               = "node";
 
-	// do a final check if all required options were set
-	if (!Options.Check()) return 1;
+	KString  sSecrets;
+	KString  sSecretFile;
+	uint32_t iTimeoutSecs = 30;
+
+	Options.Option("p,port <port>").Section("options for both roles")
+	       .Help("port number to listen at (exposed host) or to connect to (protected host) - defaults to 443.")
+	       .Set(m_Config.iPort);
+	Options.Option("s,secret <secret>")
+	       .Help("protected host: REQUIRED, the password used to log in to the exposed host (must match the bcrypt-hashed password of the matching row in the exposed host's `nodes` table). Exposed host: only used in ad-hoc mode (with -f / -t), where it is the comma-separated list of pre-shared secrets for peer authentication; in stateful mode it is ignored — manage the admin password via `ktunnel -set-admin` and node accounts via the admin UI.")
+	       .Set(sSecrets);
+	Options.Option("secret-file <path>")
+	       .Help("runtime alternative to -s: read the login secret from <path> instead of putting it on the command line. The whole file content is used as a single secret (one trailing newline is stripped). Unlike the bootstrap-only -pass-file, this flag is read on every start, so a service can be installed without the secret ending up in the systemd unit / SCM ImagePath. Mutually exclusive with -s.")
+	       .Set(sSecretFile);
+	Options.Option("aes")
+	       .Help("encrypt payload with AES on top of the websocket. Engages the v2 X25519+Ed25519+HKDF handshake — the server signs every handshake with its long-term identity key, and the client checks the fingerprint against -trust-fingerprint or known_servers (or, with -trust-on-first-use, prompts interactively). Provides forward secrecy and protects against an active TLS-intercepting middlebox even where the local TLS trust store itself cannot be trusted.")
+	       .Set(m_Config.bAESPayload, true);
+	Options.Option("to,timeout <seconds>")
+	       .Help("data connection timeout in seconds (default 30).")
+	       .Set(iTimeoutSecs);
+	Options.Option("notls")
+	       .Help("do not use TLS, but unencrypted HTTP. Both ends of the tunnel must use the same setting.")
+	       .Set(m_Config.bNoTLS, true);
+	Options.Option("q,quiet")
+	       .Help("do not output status to stdout.")
+	       .Set(m_Config.bQuiet, true);
+
+	Options.Option("f,forward <port>").Section("exposed host (the default role - without -e)")
+	       .Help("port number to listen at for raw TCP connections that will be forwarded (ad-hoc mode, together with -t).")
+	       .Set(m_Config.iRawPort);
+	Options.Option("t,target <host:port>")
+	       .Help("default target for forwarded connections when the incoming data connect does not specify one (ad-hoc mode, together with -f).")
+	       .Callback([this](KStringViewZ sValue) { m_Config.DefaultTarget = sValue; });
+	Options.Option("m,maxtunnels <count>")
+	       .Help("maximum number of tunnels to open, defaults to 10.")
+	       .Set(m_Config.iMaxTunneledConnections);
+	Options.Option("cert <file>")
+	       .Help("TLS certificate filepath (.pem) - without this option a self-signed cert is created.")
+	       .Set(m_Config.sCertFile);
+	Options.Option("key <file>")
+	       .Help("TLS private key filepath (.pem) - without this option a new key is created.")
+	       .Set(m_Config.sKeyFile);
+	Options.Option("tlspass <pass>")
+	       .Help("TLS certificate password, if any.")
+	       .Set(m_Config.sTLSPassword);
+	Options.Option("persist")
+	       .Help("persist a self-signed cert (and, in ad-hoc mode, the Ed25519 server identity used for -aes) to disk and reuse it at the next start. Without this flag the ad-hoc identity is regenerated at every start, forcing protected-side peers to re-confirm the new fingerprint each time.")
+	       .Set(m_Config.bPersistCert, true);
+	Options.Option("ciphers <suites>")
+	       .Help("colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305.")
+	       .Set(m_Config.sCipherSuites);
+	Options.Option("db <path>")
+	       .Help("path to the SQLite admin/config DB (stateful mode). Defaults to /var/lib/ktunnel/ktunnel.db when running as root (or as a system service), $HOME/.config/ktunnel/ktunnel.db otherwise. Not used in ad-hoc mode (with -f / -t).")
+	       .Set(m_Config.sDatabasePath);
+	Options.Option("identity-key <path>")
+	       .Help("with -aes: path to the Ed25519 server-identity PEM file. Defaults to ktunnel_ed25519.pem next to the admin DB (stateful) or to $HOME/.config/ktunnel/ktunnel_ed25519.pem (ad-hoc with -persist). In ad-hoc mode without -persist this is ignored and an ephemeral key is generated at start-up. Auto-created by `-install`.")
+	       .Set(m_Config.sIdentityKeyPath);
+
+	Options.Option("e,exposed <host>").Section("protected host (the role selected by -e)")
+	       .Help("the exposed host to keep an ongoing control connection to, as domain name or IP address. This option selects the protected role - without it, this ktunnel is the exposed host itself.")
+	       .Callback([this](KStringViewZ sValue) { m_Config.ExposedHost = sValue; });
+	Options.Option("n,node <name>")
+	       .Help("node name to log in with (must exist as an enabled row in the exposed host's `nodes` table) - defaults to 'node'.")
+	       .Set(m_Config.sPeerNode);
+	Options.Option("trust-fingerprint <hex>")
+	       .Help("with -aes: accept exactly this server fingerprint (lowercase hex with colons, as printed by `ktunnel -fingerprint`). One-shot, not persisted; takes precedence over known_servers.")
+	       .Set(m_Config.sTrustFingerprint);
+	Options.Option("trust-on-first-use")
+	       .Help("with -aes: when the server's identity is not yet in known_servers, prompt the operator interactively (TTY required) to accept the presented fingerprint and persist it for next time. Without this flag an unknown server is rejected outright.")
+	       .Set(m_Config.bTrustOnFirstUse, true);
+	Options.Option("known-servers <path>")
+	       .Help("with -aes: override the path to the trust store (default: $HOME/.config/ktunnel/known_servers).")
+	       .Set(m_Config.sKnownServersPath);
+
+	// The following options never reach this parser: the service-management
+	// flags are consumed by KService::Run() (which then does not call into
+	// here), and the admin-bootstrap flags are evaluated and stripped in
+	// main() before KService::Run(). They are registered without callbacks
+	// so that the generated help documents them in one consistent format.
+
+	Options.Option("install").Section("service management (evaluated before all other options)")
+	       .Help("install ktunnel as a system service. All further arguments on the command line are baked into the generated unit / plist / SCM record and replayed on every service start. Falls back to a user-scoped unit when not run as root (Linux/macOS). With -e (protected host) the admin bootstrap below is skipped - a protected host has no admin DB or server identity.");
+	Options.Option("uninstall")
+	       .Help("remove a previously installed service");
+	Options.Option("start")
+	       .Help("ask the service manager to start the service");
+	Options.Option("stop")
+	       .Help("ask the service manager to stop the service");
+	Options.Option("status")
+	       .Help("print the current service state");
+
+	Options.Option("set-admin").Section("admin bootstrap (one-shot, evaluated before service registration)")
+	       .Help("create or rotate the admin login in the config DB, then exit. Use before the first interactive launch, or to rotate the password.");
+	Options.Option("add-node")
+	       .Help("create or rotate a tunnel-endpoint (`nodes` table) login in the config DB, then exit. Combine with -node-name and -pass-file to seed a node non-interactively.");
+#if DEKAF2_HAS_ED25519
+	Options.Option("fingerprint")
+	       .Help("print the SHA-256 fingerprint of the exposed-host Ed25519 identity - the value protected hosts pin with -trust-fingerprint - then exit. Reads -identity-key or the default path next to the admin DB.");
+#endif
+	Options.Option("admin-user <name>")
+	       .Help("user name for -set-admin (default: admin) and for -install on a fresh DB. Ignored by -install when admins already exist. Not persisted into the generated unit / plist / SCM record.");
+	Options.Option("node-name <name>")
+	       .Help("node name for -add-node, required there. Not persisted into the generated unit / plist / SCM record.");
+	Options.Option("pass-file <path>")
+	       .Help("read the admin (or node) password from <path> instead of prompting on the TTY, for non-interactive provisioning. The file is read once and never referenced by the running service.");
+
+	// parse - this runs the option callbacks, verifies that all required
+	// options were given, and rejects unknown ones
+	auto iParseError = Options.Parse(argc, argv);
+
+	if (iParseError)
+	{
+		// -1 means the help was requested and printed - not an error
+		return (iParseError < 0) ? 0 : iParseError;
+	}
+
+	m_Config.Timeout = chrono::seconds(iTimeoutSecs);
 
 	if (!m_Config.iPort)
 	{

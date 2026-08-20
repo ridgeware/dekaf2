@@ -454,8 +454,21 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mo
 # ================================ FreeTDS ====================================
 
 if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_FREETDS)
-	# FreeTDS (for KSQL) - if not available it's simply skipped
+	# FreeTDS (for KSQL) - if not available it's simply skipped.
+	# This block deliberately runs before the static-suffix restriction below,
+	# so that a dynamic-only FreeTDS still serves a PREFER_STATIC build. A
+	# FORCE_STATIC build however must not record a .so path (the executable
+	# link would fail with "attempted static link of dynamic object"), so
+	# restrict the suffixes just around this search.
+	if (DEKAF2_FORCE_STATIC_LIBS)
+		set(LIBSFX_FREETDS_BACKUP ${CMAKE_FIND_LIBRARY_SUFFIXES})
+		set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+	endif()
 	find_package(FreeTDS QUIET)
+	if (DEKAF2_FORCE_STATIC_LIBS)
+		set(CMAKE_FIND_LIBRARY_SUFFIXES ${LIBSFX_FREETDS_BACKUP})
+		unset(LIBSFX_FREETDS_BACKUP)
+	endif()
 	if(FREETDS_FOUND)
 		set(DEKAF2_HAS_FREETDS 1)
 		set(DEKAF2_HAS_CTLIB 1)

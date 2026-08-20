@@ -1692,6 +1692,15 @@ bool KSQL::OpenConnection (KDuration ConnectionTimeout/*=30s*/, Transport Transp
 		DBSETLUSER (pLogin, GetDBUser());
 		DBSETLPWD  (pLogin, GetDBPass());
 		DBSETLAPP  (pLogin, "KSQL");
+#ifdef DBSETLPORT
+		// FreeTDS extension - without it the port is taken from freetds.conf
+		// or defaults to 1433, and an explicitly configured port would be
+		// silently ignored
+		if (GetDBPort())
+		{
+			DBSETLPORT (pLogin, GetDBPort());
+		}
+#endif
 
 		m_pDBPROC = dbopen(pLogin, GetDBHost());
 		if (!m_pDBPROC)

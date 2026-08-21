@@ -1675,6 +1675,7 @@ set(PUBLIC_HEADERS
 	source/web/ui/kwebui.h
 	source/web/url/kmime.h
 	source/web/acme/kacmeclient.h
+	source/web/acme/kacmemanager.h
 	source/web/push/kwebpush.h
 	source/web/push/bits/kwebpushsqlitedb.h
 	source/web/push/bits/kwebpushksqldb.h
@@ -1946,6 +1947,7 @@ set (SOURCES
 	source/web/objects/kwebobjects.cpp
 	source/web/url/kmime.cpp
 	source/web/acme/kacmeclient.cpp
+	source/web/acme/kacmemanager.cpp
 	source/web/push/kwebpush.cpp
 	source/web/push/bits/kwebpushsqlitedb.cpp
 	source/web/push/bits/kwebpushksqldb.cpp

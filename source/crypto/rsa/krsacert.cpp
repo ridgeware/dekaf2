@@ -66,22 +66,31 @@ DEKAF2_NAMESPACE_BEGIN
 namespace {
 
 //---------------------------------------------------------------------------
+KStringView from_ASN1_string(const ASN1_STRING* asn1_string)
+//---------------------------------------------------------------------------
+{
+	if (!asn1_string) return {};
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	auto asn1_data   = ::ASN1_STRING_get0_data(asn1_string);
+#else
+	auto asn1_data   = asn1_string->data;
+#endif
+	auto asn1_length = ::ASN1_STRING_length(asn1_string);
+
+	if (!asn1_data || asn1_length < 0) return {};
+
+	return { reinterpret_cast<const char*>(asn1_data), static_cast<std::size_t>(asn1_length) };
+
+} // from_ASN1_string
+
+//---------------------------------------------------------------------------
 KUnixTime from_ASN1_time(const ASN1_TIME* asn1_time)
 //---------------------------------------------------------------------------
 {
-	if (!asn1_time) return {};
+	auto sTime = from_ASN1_string(asn1_time);
 
-#if OPENSSL_VERSION_NUMBER >= 0x010100000
-	auto asn1_data   = ::ASN1_STRING_get0_data(asn1_time);
-	auto asn1_length = ::ASN1_STRING_length(asn1_time);
-#else
-	auto asn1_data   = asn1_time->data;
-	auto asn1_length = asn1_time->length;
-#endif
-
-	if (!asn1_data || asn1_length < 13) return {};
-
-	KStringView sTime(reinterpret_cast<const char*>(asn1_data), asn1_length);
+	if (sTime.size() < 13) return {};
 
 	KStringView sFormat = "YYYYMMDDhhmmss";
 
@@ -484,6 +493,60 @@ bool KRSACert::Save(KStringViewZ sFilename)
 	return kWriteFile(sFilename, GetPEM());
 
 } // Save
+
+//---------------------------------------------------------------------------
+std::vector<KString> KRSACert::GetSANs() const
+//---------------------------------------------------------------------------
+{
+	std::vector<KString> SANs;
+
+	if (!m_X509Cert)
+	{
+		return SANs;
+	}
+
+	auto* Names = static_cast<GENERAL_NAMES*>(::X509_get_ext_d2i(m_X509Cert, NID_subject_alt_name, nullptr, nullptr));
+
+	if (!Names)
+	{
+		return SANs;
+	}
+
+	for (int i = 0; i < sk_GENERAL_NAME_num(Names); ++i)
+	{
+		auto* Name = sk_GENERAL_NAME_value(Names, i);
+
+		if (Name->type == GEN_DNS)
+		{
+			SANs.push_back(KString(from_ASN1_string(Name->d.dNSName)));
+		}
+		else if (Name->type == GEN_IPADD)
+		{
+			auto sIPBytes = from_ASN1_string(Name->d.iPAddress);
+			auto* pIP     = reinterpret_cast<const unsigned char*>(sIPBytes.data());
+
+			if (sIPBytes.size() == 4)
+			{
+				SANs.push_back(kFormat("{}.{}.{}.{}", pIP[0], pIP[1], pIP[2], pIP[3]));
+			}
+			else if (sIPBytes.size() == 16)
+			{
+				KString sIP;
+				for (int b = 0; b < 16; b += 2)
+				{
+					if (!sIP.empty()) sIP += ':';
+					sIP += kFormat("{:02x}{:02x}", pIP[b], pIP[b + 1]);
+				}
+				SANs.push_back(std::move(sIP));
+			}
+		}
+	}
+
+	sk_GENERAL_NAME_pop_free(Names, GENERAL_NAME_free);
+
+	return SANs;
+
+} // GetSANs
 
 //---------------------------------------------------------------------------
 KUnixTime KRSACert::ValidFrom() const

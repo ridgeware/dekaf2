@@ -50,6 +50,7 @@
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/time/duration/kduration.h>
+#include <vector>
 
 struct x509_st;
 
@@ -159,6 +160,9 @@ public:
 	bool Load(KStringViewZ sFilename);
 	/// save cert to file (PEM format)
 	bool Save(KStringViewZ sFilename);
+
+	/// return the cert's Subject Alternative Names (DNS names and IP addresses)
+	std::vector<KString> GetSANs() const;
 
 	/// return time from which on this cert is valid
 	KUnixTime ValidFrom() const;

@@ -93,6 +93,9 @@ public:
 		KString   sContact;
 		/// existing account key in PEM format - empty creates a new account key
 		KString   sAccountKeyPEM;
+		/// certificate profile to request (CA specific, e.g. "shortlived") -
+		/// empty lets the CA choose
+		KString   sProfile;
 		/// key length for newly created account and certificate keys
 		uint16_t  iKeyLength     { 2048               };
 		/// interval between status polls

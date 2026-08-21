@@ -76,6 +76,7 @@
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/net/tls/ktlscontext.h>
 #include <dekaf2/net/tls/ktlsstream.h>
+#include <dekaf2/web/acme/kacmemanager.h>
 #include <dekaf2/net/tcp/ktcpstream.h>
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
 #include <dekaf2/net/tcp/kunixstream.h>
@@ -451,6 +452,37 @@ bool KTCPServer::SetupTLSContext()
 	return true;
 
 } // SetupTLSContext
+
+//-----------------------------------------------------------------------------
+bool KTCPServer::SetACME(std::vector<KString> Domains, KString sContact, KString sDirectoryURL, KString sStorageDir, bool bVerifyTLS)
+//-----------------------------------------------------------------------------
+{
+	if (!IsTLS())
+	{
+		return SetError("ACME needs a TLS server");
+	}
+
+	if (Domains.empty())
+	{
+		return SetError("no domains");
+	}
+
+	KAcmeManager::Options Options;
+	Options.Domains         = std::move(Domains);
+	Options.sStorageDir     = std::move(sStorageDir);
+	Options.Acme.sContact   = std::move(sContact);
+	Options.Acme.bVerifyTLS = bVerifyTLS;
+
+	if (!sDirectoryURL.empty())
+	{
+		Options.Acme.sDirectoryURL = std::move(sDirectoryURL);
+	}
+
+	m_AcmeManager = std::make_unique<KAcmeManager>(std::move(Options));
+
+	return true;
+
+} // SetACME
 
 //-----------------------------------------------------------------------------
 bool KTCPServer::SetupTCPAcceptors()
@@ -1008,6 +1040,14 @@ bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 		return false;
 	}
 
+	// start ACME certificate management - the first order runs in the background
+	// once the server is listening, until then the cert from SetupTLSContext serves
+	if (m_AcmeManager && !m_AcmeManager->Start(*m_TLSContext))
+	{
+		promise.set_value(1);
+		return SetError(m_AcmeManager->CopyLastError());
+	}
+
 	if (bBlock)
 	{
 		RunServer();
@@ -1045,6 +1085,13 @@ bool KTCPServer::Start(KDuration Timeout, bool bBlock)
 bool KTCPServer::Stop()
 //-----------------------------------------------------------------------------
 {
+	// stop renewal checks before taking down the server - the manager would
+	// otherwise touch a TLS context that a restart replaces
+	if (m_AcmeManager)
+	{
+		m_AcmeManager->Stop();
+	}
+
 	// always set quit flag first, even before checking IsRunning() -
 	// the IO thread may be in the setup phase before ++m_iStarted
 	bool bWasShuttingDown = m_bQuit.exchange(true);

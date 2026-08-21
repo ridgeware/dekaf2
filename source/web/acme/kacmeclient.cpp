@@ -590,8 +590,14 @@ KAcmeClient::Certificate KAcmeClient::OrderCertificate(const std::vector<KString
 		jIdentifiers.push_back(KJSON { { "type", "dns" }, { "value", sDomain } });
 	}
 
-	auto jOrder = SignedPost(KURL(m_jDirectory["newOrder"].String()),
-	                         KJSON { { "identifiers", std::move(jIdentifiers) } }.dump());
+	KJSON jNewOrder { { "identifiers", std::move(jIdentifiers) } };
+
+	if (!m_Options.sProfile.empty())
+	{
+		jNewOrder["profile"] = m_Options.sProfile;
+	}
+
+	auto jOrder = SignedPost(KURL(m_jDirectory["newOrder"].String()), jNewOrder.dump());
 
 	if (HasError())
 	{

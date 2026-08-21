@@ -91,6 +91,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// @{
 
 class KTLSContext;
+class KAcmeManager;
 
 /// Policy for Subject Alternative Names in self-signed certificates
 enum class SelfSignedCertSANPolicy
@@ -279,6 +280,20 @@ public:
 	{
 		return m_TLSContext.get();
 	}
+
+	//-----------------------------------------------------------------------------
+	/// Automatically obtain and renew the server's TLS certificate via ACME with the
+	/// tls-alpn-01 challenge - port 443 of the domains must reach this server. The
+	/// server starts with its configured or self-signed certificate and switches as
+	/// soon as one is issued. See KAcmeManager for mechanics, storage and renewal.
+	/// @param Domains the domains for the certificate
+	/// @param sContact optional account contact, e.g. "mailto:admin@example.com"
+	/// @param sDirectoryURL the ACME directory, empty = Let's Encrypt production
+	/// @param sStorageDir directory for account key, certificate and key, empty = default
+	/// @param bVerifyTLS verify the directory endpoint's CA - disable for test servers
+	/// like Pebble with their own test CA
+	bool SetACME(std::vector<KString> Domains, KString sContact = "", KString sDirectoryURL = "", KString sStorageDir = "", bool bVerifyTLS = true);
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Set stream options to apply to accepted connections, e.g. keepalive and drop
@@ -493,6 +508,7 @@ private:
 		                                      m_UnixAcceptor;
 #endif
 	std::unique_ptr<KTLSContext>              m_TLSContext;
+	std::unique_ptr<KAcmeManager>             m_AcmeManager;
 	std::mutex                                m_StartupMutex;
 	std::condition_variable                   m_StartedUp;
 

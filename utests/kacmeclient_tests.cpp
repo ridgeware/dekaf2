@@ -16,6 +16,20 @@ using namespace dekaf2;
 namespace {
 
 //-----------------------------------------------------------------------------
+// ASN1_STRING_get0_data() only exists from OpenSSL 1.1.0 on
+KStringView Asn1View(const ASN1_STRING* String)
+//-----------------------------------------------------------------------------
+{
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	return { reinterpret_cast<const char*>(::ASN1_STRING_get0_data(String)),
+	         static_cast<std::size_t>(::ASN1_STRING_length(String)) };
+#else
+	return { reinterpret_cast<const char*>(String->data),
+	         static_cast<std::size_t>(String->length) };
+#endif
+}
+
+//-----------------------------------------------------------------------------
 // a client/server SSL pair, connected through an in-memory BIO pair
 struct TLSPair
 //-----------------------------------------------------------------------------
@@ -168,8 +182,7 @@ TEST_CASE("KAcmeClient")
 
 			auto* Name = sk_GENERAL_NAME_value(SANs, 0);
 			REQUIRE ( Name->type == GEN_DNS );
-			CHECK   ( KStringView(reinterpret_cast<const char*>(::ASN1_STRING_get0_data(Name->d.dNSName)),
-			                      static_cast<std::size_t>(::ASN1_STRING_length(Name->d.dNSName))) == sDomain );
+			CHECK   ( Asn1View(Name->d.dNSName) == sDomain );
 
 			sk_GENERAL_NAME_pop_free(SANs, GENERAL_NAME_free);
 		}
@@ -193,8 +206,7 @@ TEST_CASE("KAcmeClient")
 			KString sExpected("\x04\x20", 2);
 			sExpected += KSHA256(sKeyAuth).Digest();
 
-			CHECK ( KStringView(reinterpret_cast<const char*>(::ASN1_STRING_get0_data(Data)),
-			                    static_cast<std::size_t>(::ASN1_STRING_length(Data))) == sExpected );
+			CHECK ( Asn1View(Data) == sExpected );
 		}
 
 		::X509_free(Cert);

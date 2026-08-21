@@ -36,6 +36,7 @@ set (USOURCES
 	karenaallocator_tests.cpp
 	kassociative_tests.cpp
 	kacmeclient_tests.cpp
+	kacmemanager_tests.cpp
 	kawsauth_tests.cpp
 	kbase64_tests.cpp
 	kbcrypt_tests.cpp

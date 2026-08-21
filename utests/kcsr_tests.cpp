@@ -9,6 +9,24 @@
 
 using namespace dekaf2;
 
+namespace {
+
+//-----------------------------------------------------------------------------
+// ASN1_STRING_get0_data() only exists from OpenSSL 1.1.0 on
+KStringView Asn1View(const ASN1_STRING* String)
+//-----------------------------------------------------------------------------
+{
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	return { reinterpret_cast<const char*>(::ASN1_STRING_get0_data(String)),
+	         static_cast<std::size_t>(::ASN1_STRING_length(String)) };
+#else
+	return { reinterpret_cast<const char*>(String->data),
+	         static_cast<std::size_t>(String->length) };
+#endif
+}
+
+} // end of anonymous namespace
+
 TEST_CASE("KCSR")
 {
 	KRSAKey Key(2048);
@@ -55,8 +73,7 @@ TEST_CASE("KCSR")
 		{
 			auto* Name = sk_GENERAL_NAME_value(SANs, i);
 			REQUIRE ( Name->type == GEN_DNS );
-			Domains.push_back(KString(reinterpret_cast<const char*>(::ASN1_STRING_get0_data(Name->d.dNSName)),
-			                          static_cast<std::size_t>(::ASN1_STRING_length(Name->d.dNSName))));
+			Domains.push_back(KString(Asn1View(Name->d.dNSName)));
 		}
 
 		CHECK ( Domains[0] == "www.example.com" );

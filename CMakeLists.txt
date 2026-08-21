@@ -1525,6 +1525,7 @@ set(PUBLIC_HEADERS
 	source/crypto/hash/khash.h
 	source/crypto/hash/khmac.h
 	source/crypto/hash/kmessagedigest.h
+	source/crypto/rsa/kcsr.h
 	source/crypto/rsa/krsa.h
 	source/crypto/rsa/krsacert.h
 	source/crypto/ec/keckey.h
@@ -1673,6 +1674,7 @@ set(PUBLIC_HEADERS
 	source/web/objects/kwebobjects.h
 	source/web/ui/kwebui.h
 	source/web/url/kmime.h
+	source/web/acme/kacmeclient.h
 	source/web/push/kwebpush.h
 	source/web/push/bits/kwebpushsqlitedb.h
 	source/web/push/bits/kwebpushksqldb.h
@@ -1803,6 +1805,7 @@ set (SOURCES
 	source/crypto/hash/khmac.cpp
 	source/crypto/hash/kmessagedigest.cpp
 	source/crypto/rsa/krsa.cpp
+	source/crypto/rsa/kcsr.cpp
 	source/crypto/rsa/krsacert.cpp
 	source/crypto/ec/keckey.cpp
 	source/crypto/ec/kecsign.cpp
@@ -1942,6 +1945,7 @@ set (SOURCES
 	source/web/html/khtmlparser.cpp
 	source/web/objects/kwebobjects.cpp
 	source/web/url/kmime.cpp
+	source/web/acme/kacmeclient.cpp
 	source/web/push/kwebpush.cpp
 	source/web/push/bits/kwebpushsqlitedb.cpp
 	source/web/push/bits/kwebpushksqldb.cpp

@@ -35,6 +35,7 @@ set (USOURCES
 	kallocator_tests.cpp
 	karenaallocator_tests.cpp
 	kassociative_tests.cpp
+	kacmeclient_tests.cpp
 	kawsauth_tests.cpp
 	kbase64_tests.cpp
 	kbcrypt_tests.cpp
@@ -51,6 +52,7 @@ set (USOURCES
 	kcookie_tests.cpp
 	kcountingstreambuf_tests.cpp
 	kcrc_tests.cpp
+	kcsr_tests.cpp
 	kcsv_tests.cpp
 	kdate_tests.cpp
 	kdiff_tests.cpp

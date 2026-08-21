@@ -271,6 +271,16 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Returns the server's TLS context, e.g. to configure SNI dispatch or attach an
+	/// ACME client. The context is created by Start() - before that, and for non-TLS
+	/// servers, returns nullptr.
+	KTLSContext* GetTLSContext()
+	//-----------------------------------------------------------------------------
+	{
+		return m_TLSContext.get();
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Set stream options to apply to accepted connections, e.g. keepalive and drop
 	/// timeout from SetDeadPeerDetection() - options left at their defaults apply nothing
 	/// @param Options the stream options

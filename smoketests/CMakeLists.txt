@@ -30,6 +30,7 @@ set (UHEADERS
 
 set (USOURCES
 	main.cpp
+	kacmeclient_smoketests.cpp
 	khttp2_smoketests.cpp
 	khttp3_smoketests.cpp
 	khttpclient_smoketests.cpp

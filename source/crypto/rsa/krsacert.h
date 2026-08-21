@@ -140,6 +140,16 @@ public:
 	/// get the cert from a PEM string
 	bool Create(KStringView sPEMCert);
 
+	/// add an X509v3 extension to a created cert - sign the cert again with Sign() afterwards
+	/// @param sOID the extension's OID in dotted notation, e.g. "1.3.6.1.5.5.7.1.31"
+	/// @param sDER the DER encoded extension value
+	/// @param bCritical mark the extension critical, default false
+	bool AddExtension(KStringViewZ sOID, KStringView sDER, bool bCritical = false);
+
+	/// sign the cert with the given key, e.g. after AddExtension(). Uses SHA-256, which
+	/// any external parser can verify (Create() may pick SHA3-256 for local certs)
+	bool Sign(const KRSAKey& Key);
+
 	/// get the cert, may return nullptr in case of error or default construction
 	x509_st* GetCert() const;
 	/// get the cert as a PEM string

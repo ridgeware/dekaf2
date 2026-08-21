@@ -262,10 +262,14 @@ bool KRSACert::Create
 		return SetError(KDigest::GetOpenSSLError("error setting organization"));
 	}
 
-	// country code, org name, and common name (domain)
+	// country code and common name (domain)
 	auto sUpperCountryCode = sCountryCode.ToUpperASCII();
-	if (!::X509_NAME_add_entry_by_txt(name, "C",  MBSTRING_UTF8, reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sUpperCountryCode[0])), static_cast<int>(sUpperCountryCode.size()), -1, 0) ||
-		!::X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_UTF8, reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sDomain[0]))          , static_cast<int>(sDomain.size())          , -1, 0))
+	if (!sUpperCountryCode.empty() && !::X509_NAME_add_entry_by_txt(name, "C",  MBSTRING_UTF8, reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sUpperCountryCode[0])), static_cast<int>(sUpperCountryCode.size()), -1, 0))
+	{
+		return SetError(KDigest::GetOpenSSLError("error setting country code"));
+	}
+
+	if (!::X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_UTF8, reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sDomain[0])), static_cast<int>(sDomain.size()), -1, 0))
 	{
 		return SetError(KDigest::GetOpenSSLError("error creating name"));
 	}
@@ -332,6 +336,68 @@ bool KRSACert::Create
 	return true;
 
 } // Create
+
+//---------------------------------------------------------------------------
+bool KRSACert::AddExtension(KStringViewZ sOID, KStringView sDER, bool bCritical)
+//---------------------------------------------------------------------------
+{
+	if (!m_X509Cert)
+	{
+		return SetError("no cert");
+	}
+
+	KUniquePtr<ASN1_OBJECT, ::ASN1_OBJECT_free> obj(::OBJ_txt2obj(sOID.c_str(), 1));
+
+	if (!obj)
+	{
+		return SetError(KDigest::GetOpenSSLError(kFormat("invalid OID: {}", sOID)));
+	}
+
+	KUniquePtr<ASN1_OCTET_STRING, ::ASN1_OCTET_STRING_free> data(::ASN1_OCTET_STRING_new());
+
+	if (!data || !::ASN1_OCTET_STRING_set(data.get(), reinterpret_cast<const unsigned char*>(sDER.data()), static_cast<int>(sDER.size())))
+	{
+		return SetError(KDigest::GetOpenSSLError("cannot create extension data"));
+	}
+
+	KUniquePtr<X509_EXTENSION, ::X509_EXTENSION_free> ext(::X509_EXTENSION_create_by_OBJ(nullptr, obj.get(), bCritical, data.get()));
+
+	if (!ext)
+	{
+		return SetError(KDigest::GetOpenSSLError("cannot create extension"));
+	}
+
+	if (!::X509_add_ext(m_X509Cert, ext.get(), -1))
+	{
+		return SetError(KDigest::GetOpenSSLError("cannot add extension"));
+	}
+
+	return true;
+
+} // AddExtension
+
+//---------------------------------------------------------------------------
+bool KRSACert::Sign(const KRSAKey& Key)
+//---------------------------------------------------------------------------
+{
+	if (!m_X509Cert)
+	{
+		return SetError("no cert");
+	}
+
+	if (Key.GetEVPPKey() == nullptr)
+	{
+		return SetError("no key");
+	}
+
+	if (!::X509_sign(m_X509Cert, Key.GetEVPPKey(), ::EVP_sha256()))
+	{
+		return SetError(KDigest::GetOpenSSLError("error signing cert"));
+	}
+
+	return true;
+
+} // Sign
 
 //---------------------------------------------------------------------------
 bool KRSACert::Create(KStringView sPEMCert)

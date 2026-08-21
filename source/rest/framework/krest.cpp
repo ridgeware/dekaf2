@@ -356,6 +356,19 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					m_Server->SetAllowedCipherSuites(Options.sAllowedCipherSuites);
 				}
 
+				if (!Options.ACMEDomains.empty())
+				{
+					// also called without TLS, for its clear error message
+					if (!m_Server->SetACME(Options.ACMEDomains,
+					                       Options.sACMEContact,
+					                       Options.sACMEDirectoryURL,
+					                       Options.sACMEStorage,
+					                       Options.bACMEVerifyTLS))
+					{
+						return SetError(m_Server->CopyLastError());
+					}
+				}
+
 				m_Server->SetSelfSignedCertSANPolicy(Options.SANPolicy);
 
 				for (auto& sDomain : Options.SANDomains)
@@ -673,6 +686,14 @@ KThreadPool::Diagnostics KREST::GetDiagnostics() const
 	return m_Server ? m_Server->GetDiagnostics() : KThreadPool::Diagnostics{};
 
 } // GetDiagnostics
+
+//-----------------------------------------------------------------------------
+KTLSContext* KREST::GetTLSContext()
+//-----------------------------------------------------------------------------
+{
+	return m_Server ? m_Server->GetTLSContext() : nullptr;
+
+} // GetTLSContext
 
 //-----------------------------------------------------------------------------
 void KREST::RegisterShutdownCallback(KThreadPool::ShutdownCallback callback)

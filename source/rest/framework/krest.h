@@ -172,6 +172,21 @@ public:
 		/// Additional domain names or IP addresses to include in the self-signed
 		/// certificate's SAN extension (e.g. "myserver.example.com" or "203.0.113.42")
 		std::vector<KString> SANDomains;
+		/// Domains for an automatically obtained and renewed TLS certificate via
+		/// ACME with the tls-alpn-01 challenge - empty (the default) disables ACME.
+		/// The server starts with its configured or self-signed cert and switches
+		/// once the certificate is issued. Port 443 of the domains must reach this
+		/// server. See KTCPServer::SetACME() and KAcmeManager.
+		std::vector<KString> ACMEDomains;
+		/// the ACME account contact, e.g. "mailto:admin@example.com"
+		KString sACMEContact;
+		/// the ACME directory URL, empty = Let's Encrypt production
+		KString sACMEDirectoryURL;
+		/// storage directory for the ACME account key and certificate, empty = default
+		KString sACMEStorage;
+		/// verify the ACME directory endpoint's CA - disable for test servers
+		/// like Pebble with their own test CA
+		bool bACMEVerifyTLS { true };
 		/// do we want to poll connections for disconnects?
 		bool bPollForDisconnect { false };
 		/// additional callback function to call in case of disconnect, argument is the thread ID
@@ -205,6 +220,11 @@ public:
 	/// get diagnostics when running with a TCP server
 	DEKAF2_NODISCARD
 	KThreadPool::Diagnostics GetDiagnostics() const;
+	/// Returns the TLS context of a running HTTP server started with Execute(),
+	/// e.g. to configure SNI dispatch or attach an ACME manager. Returns nullptr
+	/// before Execute(), for non-TLS servers, and for non-server modes.
+	DEKAF2_NODISCARD
+	KTLSContext* GetTLSContext();
 	/// Shall we log the shutdown in TCP server mode?
 	/// @param callback callback function called at each shutdown thread with some diagnostics
 	void RegisterShutdownCallback(KThreadPool::ShutdownCallback callback);

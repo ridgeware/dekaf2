@@ -139,21 +139,35 @@ WantedBy=multi-user.target
 
 ## 6. TLS certificate
 
-The control port is TLS. Two options:
+The control port is TLS. Three options:
 
 * **Self-signed (default, with `-persist`)**: ktunnel auto-creates a self-signed cert
   and — with `-persist` — reuses it across restarts. This is fine for the tunnel
   itself, because **the Protected Host does not verify the exposed host's TLS
   certificate**; peer authentication is done cryptographically by `-aes`
   fingerprint pinning. Browsers hitting the admin UI will show a cert warning.
-* **Real certificate** (recommended if admins use the web UI over the internet):
-  supply PEM files and add them to the install command:
+* **Automatic via ACME** (recommended if admins use the web UI over the internet):
+  ktunnel obtains and renews a Let's Encrypt certificate itself, proving domain
+  ownership with the built-in tls-alpn-01 challenge on the control port — no
+  certbot, no port 80, no restart on renewal:
+  ```
+  sudo ktunnel -install -p 443 -aes -persist \
+       -acme tunnel.example.com -acme-contact mailto:admin@example.com
+  ```
+  Port 443 of the domain(s) must reach this host directly. The server starts with
+  the self-signed cert and switches as soon as the certificate is issued; account
+  key and certificate persist in the TLS config directory, and renewal runs in
+  the background 30 days before expiry (or earlier when the CA requests it via
+  ACME Renewal Information). Use `-acme-dir` to test against the Let's Encrypt
+  staging directory first.
+* **Externally managed certificate**: supply PEM files and add them to the
+  install command:
   ```
   sudo ktunnel -install -p 443 -aes -persist \
        -cert /etc/ktunnel/fullchain.pem -key /etc/ktunnel/privkey.pem
   ```
-  With a Let's Encrypt cert, point `-cert`/`-key` at the live files and restart the
-  service after each renewal (e.g. a certbot deploy hook running
+  With a certbot-managed cert, point `-cert`/`-key` at the live files and restart
+  the service after each renewal (e.g. a certbot deploy hook running
   `systemctl restart ktunnel`).
 
 Either way, **use `-aes`** on any untrusted network path — it authenticates the

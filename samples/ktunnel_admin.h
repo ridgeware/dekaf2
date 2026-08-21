@@ -199,6 +199,26 @@ private:
 	/// the corresponding dropdown entries on render.
 	void ShowEvents           (KRESTServer& HTTP);
 
+	/// GET /Configure/certificate — ACME certificate management: status
+	/// (domains, validity, last error) and the configuration form.
+	void ShowCertificate      (KRESTServer& HTTP);
+
+	/// GET /Configure/log — live log view (polling the ring buffer) and
+	/// the debug level selector.
+	void ShowLog              (KRESTServer& HTTP);
+
+	/// GET /Configure/log/tail?since=<seq> — JSON with the buffered log
+	/// lines after <seq> and the next cursor, for the live view's poll loop.
+	void HandleLogTail        (KRESTServer& HTTP);
+
+	/// POST /Configure/log/level — set and persist the KLog debug level.
+	void HandleLogLevel       (KRESTServer& HTTP);
+
+	/// POST /Configure/certificate/update — persist the ACME settings and
+	/// reconfigure certificate management on the running server. An empty
+	/// domain list disables ACME.
+	void HandleCertificateUpdate (KRESTServer& HTTP);
+
 	/// GET /Configure/nodes/repl?node=<node> — minimal HTML+JS page
 	/// that opens a WebSocket to /Configure/nodes/repl/ws and renders
 	/// the duplex text stream in a <pre>.

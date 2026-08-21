@@ -51,6 +51,10 @@
 #include <dekaf2/crypto/auth/kbcrypt.h>
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/web/acme/kacmemanager.h>
+#include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/logging/bits/klogwriter.h>
+#include <deque>
 #include <dekaf2/web/objects/kwebobjects.h>
 #include <dekaf2/http/websocket/kwebsocket.h>
 #include <dekaf2/http/websocket/kwebsocketclient.h>
@@ -157,6 +161,14 @@ public:
 	bool                   bNoTLS         { false };
 	bool                   bQuiet         { false };
 
+	/// Protected host only: bcrypt hash of the password that unlocks the
+	/// interactive shell offered through the admin REPL (the `shell`
+	/// command). Empty (the default) disables the shell entirely - the
+	/// command is then not even offered. Seeded by Tunnel::Main() from
+	/// `-shell-pass-file` / `-shell-password`, which take the plaintext
+	/// and are hashed once at start-up so the plaintext is never stored.
+	KString                sShellPasswordHash;
+
 //----------
 private:
 //----------
@@ -167,6 +179,73 @@ private:
 
 class TunnelListener;
 class AdminUI;
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// KLog mirror writer keeping the last N serialized log lines in a ring
+/// buffer with increasing sequence numbers - feeds the admin UI's live
+/// log view. Installed with KLog::SetMirror(), so it sees exactly what
+/// the configured log writer sees, at the active log level.
+class LogRing : public KLogWriter
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	explicit LogRing (std::size_t iMaxLines = 500)
+	: m_iMaxLines(iMaxLines)
+	{
+	}
+
+	virtual bool Write (int iLevel, bool bIsMultiline, KStringViewZ sOut) override
+	{
+		KString sLine(sOut);
+		sLine.TrimRight("\r\n");
+
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		m_Lines.push_back({ ++m_iLastSeq, std::move(sLine) });
+
+		if (m_Lines.size() > m_iMaxLines)
+		{
+			m_Lines.pop_front();
+		}
+
+		return true;
+	}
+
+	virtual bool Good () const override { return true; }
+
+	/// return all buffered lines with a sequence number above iSince, and the
+	/// highest sequence number seen so far (the cursor for the next call)
+	std::pair<uint64_t, std::vector<KString>> GetSince (uint64_t iSince) const
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		std::vector<KString> Lines;
+
+		for (const auto& Line : m_Lines)
+		{
+			if (Line.first > iSince)
+			{
+				Lines.push_back(Line.second);
+			}
+		}
+
+		return { m_iLastSeq, std::move(Lines) };
+	}
+
+//----------
+private:
+//----------
+
+	std::deque<std::pair<uint64_t, KString>> m_Lines;
+	std::size_t        m_iMaxLines;
+	uint64_t           m_iLastSeq { 0 };
+	mutable std::mutex m_Mutex;
+
+}; // LogRing
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class ExposedServer
@@ -183,6 +262,13 @@ public:
 		KString  sKeyFile;
 		KString  sTLSPassword;
 		KString  sCipherSuites;
+		/// comma separated domains for an automatically obtained and renewed
+		/// TLS certificate via ACME (tls-alpn-01) - empty disables ACME
+		KString  sACMEDomains;
+		/// optional ACME account contact, e.g. "mailto:admin@example.com"
+		KString  sACMEContact;
+		/// alternative ACME directory URL, empty = Let's Encrypt production
+		KString  sACMEDirectory;
 		/// Path to the long-term Ed25519 server-identity PEM file used
 		/// by the v2 AES handshake to sign hello-ack frames. Resolved by
 		/// Tunnel::Main() based on -persist (AdHoc) or the DB directory
@@ -193,7 +279,9 @@ public:
 		KString  sIdentityKeyPath;
 		uint16_t iPort    { 0 };
 		uint16_t iRawPort { 0 };
-		bool     bPersistCert { false };
+		bool     bPersistCert  { false };
+		/// do not verify the ACME directory's CA (test servers like Pebble)
+		bool     bACMENoVerify { false };
 	};
 
 	ExposedServer (const Config& config);
@@ -282,6 +370,35 @@ public:
 	/// admin UI. Never null after successful construction.
 	KTunnelStore&             GetStore               ()       { return *m_Store; }
 	const KTunnelStore&       GetStore               () const { return *m_Store; }
+
+	/// Snapshot of the ACME certificate management state, for the admin UI.
+	struct ACMEStatus
+	{
+		bool      bEnabled { false };
+		KString   sDomains;    ///< comma separated
+		KString   sContact;
+		KString   sDirectory;  ///< empty = Let's Encrypt production
+		KUnixTime ValidUntil;  ///< epoch while no certificate is installed yet
+		KString   sError;      ///< last configuration or order error, empty if none
+		bool      bNoVerify { false }; ///< the CLI test flag -acme-noverify
+	};
+
+	/// (Re)configure automatic TLS certificates via ACME on the running
+	/// server. Empty sDomains stops certificate management. Thread-safe,
+	/// called from Run() at startup and from the admin UI at runtime.
+	bool                      ConfigureACME          (KStringView sDomains,
+	                                                  KStringView sContact,
+	                                                  KStringView sDirectory,
+	                                                  bool        bNoVerify);
+
+	/// Current ACME state for display. Thread-safe.
+	ACMEStatus                GetACMEStatus          () const;
+
+	/// The live log ring buffer feeding the admin UI - null in ad-hoc mode.
+	std::shared_ptr<LogRing>  GetLogRing             () const { return m_LogRing; }
+
+	/// Set the global KLog debug level and persist it in the store.
+	void                      SetLogLevel            (int iLevel);
 
 	/// Access to the shared bcrypt verifier. Never null after
 	/// successful construction.
@@ -393,6 +510,20 @@ private:
 	std::unique_ptr<AdminUI>          m_AdminUI;
 	const Config&                     m_Config;
 
+	/// ACME certificate management - configured by Run() after the REST
+	/// server is up, and reconfigured at runtime from the admin UI
+	std::unique_ptr<KAcmeManager>     m_AcmeManager;
+	/// live log ring buffer for the admin UI (stateful mode only)
+	std::shared_ptr<LogRing>          m_LogRing;
+	/// the REST server's TLS context, set by Run() after Execute()
+	KTLSContext*                      m_TLSContext { nullptr };
+	KString                           m_sACMEDomains;
+	KString                           m_sACMEContact;
+	KString                           m_sACMEDirectory;
+	KString                           m_sACMEError;
+	bool                              m_bACMENoVerify { false };
+	mutable std::mutex                m_ACMEMutex;
+
 #if DEKAF2_HAS_ED25519
 	/// Long-term Ed25519 server identity used by the v2 AES handshake to
 	/// sign hello-ack frames. Loaded (or generated, in AdHoc with
@@ -497,6 +628,13 @@ private:
 	/// duplex text channel. Returns (and the tunnel closes the channel)
 	/// when the remote end disconnects or the user types 'exit'.
 	void RunRepl (std::shared_ptr<KTunnel::Connection> Connection);
+
+	/// Interactive shell over the REPL channel, entered from RunRepl() on
+	/// the `shell` command after a correct password. Spawns a login shell
+	/// on a pseudo-terminal and pumps bytes between it and the Connection
+	/// until either side closes. Only reachable when a shell password hash
+	/// is configured (see ExtendedConfig::sShellPasswordHash).
+	void RunShell (KTunnel::Connection& Connection);
 
 	const ExtendedConfig&           m_Config;
 	std::atomic<bool>               m_bQuit            { false };

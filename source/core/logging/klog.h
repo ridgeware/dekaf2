@@ -219,6 +219,18 @@ public:
 #endif
 
 	//---------------------------------------------------------------------------
+	/// Set a mirror writer that receives every serialized log line in addition to
+	/// the configured writer, e.g. for a live log view - a nullptr removes it.
+	/// The mirror's Write() is called from any logging thread under the log mutex.
+	self& SetMirror(std::shared_ptr<KLogWriter> Mirror)
+	//---------------------------------------------------------------------------
+#ifdef DEKAF2_WITH_KLOG
+	;
+#else
+	{ return *this; }
+#endif
+
+	//---------------------------------------------------------------------------
 	/// For long running threads, sync the per-thread log level to the global
 	/// log level (it may have changed through the Dekaf() timing thread)
 	static void SyncLevel()
@@ -701,6 +713,7 @@ private:
 	KUnixTime m_sTimestampFlagfile;
 	std::unique_ptr<KLogSerializer> m_Serializer;
 	std::unique_ptr<KLogWriter> m_Logger;
+	std::shared_ptr<KLogWriter> m_Mirror;
 	// the m_Traces vector is protected by the s_LogMutex
 	std::vector<KString> m_Traces;
 

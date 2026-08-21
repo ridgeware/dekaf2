@@ -266,6 +266,18 @@ public:
 	void                     LogUsageSample  (const UsageSample& sample);
 	std::vector<UsageSample> GetRecentUsage  (KStringView sTunnelName, std::size_t iLimit = 60);
 
+	// --- Settings (key/value) ----------------------------------------------
+	//
+	// Small generic key/value store for admin-configurable server settings
+	// (e.g. the ACME certificate configuration or the log level). Values are
+	// plain strings; the reader supplies the default for missing keys.
+
+	/// Return the value for sKey, or sDefault if the key does not exist.
+	KString           GetSetting             (KStringView sKey, KStringView sDefault = "");
+
+	/// Insert or overwrite the value for sKey.
+	bool              SetSetting             (KStringView sKey, KStringView sValue);
+
 	// --- Utilities --------------------------------------------------------
 
 	/// Returns the last error message produced by this store. Empty if OK.

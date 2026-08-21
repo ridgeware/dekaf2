@@ -244,6 +244,13 @@ bool KTunnelStore::InitializeSchema ()
 		"  connections integer not null default 0"
 		")",
 		"create index if not exists usage_samples_idx on usage_samples(tunnel_name, ts_utc)",
+
+		// Settings: generic key/value store for admin-configurable server
+		// settings (ACME certificate config, log level, ...).
+		"create table if not exists settings ("
+		"  key   text primary key,"
+		"  value text not null default ''"
+		")",
 	};
 
 	for (const auto sSQL : s_sDDL)
@@ -1081,3 +1088,46 @@ KTunnelStore::GetRecentUsage (KStringView sTunnelName, std::size_t iLimit)
 	return out;
 
 } // GetRecentUsage
+
+//-----------------------------------------------------------------------------
+KString KTunnelStore::GetSetting (KStringView sKey, KStringView sDefault)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRO();
+	if (!db.IsOpen()) return KString(sDefault);
+
+	auto Query = db.ExecQuery("select value from settings where key=?1", sKey);
+
+	if (!Query.Next())
+	{
+		return KString(sDefault);
+	}
+
+	return Query.GetRow().Col(1).String();
+
+} // GetSetting
+
+//-----------------------------------------------------------------------------
+bool KTunnelStore::SetSetting (KStringView sKey, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (!db.IsOpen()) return false;
+
+	auto Result = db.ExecSQL(
+		"insert into settings (key, value) values (?1, ?2) "
+		"on conflict(key) do update set value=excluded.value",
+		sKey, sValue);
+
+	if (!Result)
+	{
+		SetError(kFormat("SetSetting: {}", Result.Error()));
+		return false;
+	}
+	return true;
+
+} // SetSetting

@@ -447,6 +447,16 @@ KLog& KLog::SetWriter(std::unique_ptr<KLogWriter> logger)
 } // SetWriter
 
 //---------------------------------------------------------------------------
+KLog& KLog::SetMirror(std::shared_ptr<KLogWriter> Mirror)
+//---------------------------------------------------------------------------
+{
+	std::lock_guard<std::recursive_mutex> Lock(m_LogMutex);
+	m_Mirror = std::move(Mirror);
+	return *this;
+
+} // SetMirror
+
+//---------------------------------------------------------------------------
 KLog& KLog::SetWriter(Writer writer, KStringViewZ sLogname)
 //---------------------------------------------------------------------------
 {
@@ -901,7 +911,14 @@ bool KLog::IntDebug(int iLevel, KStringView sFunction, KStringView sMessage)
 
 		if (m_Serializer->Matches(m_bEGrep, m_bInvertedGrep, m_sGrepExpression))
 		{
-			m_Logger->Write(iLevel, m_Serializer->IsMultiline(), m_Serializer->Get(GetUSecMode()));
+			auto sSerialized = m_Serializer->Get(GetUSecMode());
+
+			m_Logger->Write(iLevel, m_Serializer->IsMultiline(), sSerialized);
+
+			if (DEKAF2_UNLIKELY(m_Mirror != nullptr))
+			{
+				m_Mirror->Write(iLevel, m_Serializer->IsMultiline(), sSerialized);
+			}
 		}
 	}
 
@@ -978,7 +995,15 @@ void KLog::TraceDownCaller(int iSkipStackLines, KStringView sSkipFiles, KStringV
 		sFile += Frame.sLineNumber;
 
 		m_Serializer->Set(-2, m_sShortName, m_sPathName, sFunction, sFile);
-		m_Logger->Write(-2, m_Serializer->IsMultiline(), m_Serializer->Get());
+
+		auto sSerialized = m_Serializer->Get();
+
+		m_Logger->Write(-2, m_Serializer->IsMultiline(), sSerialized);
+
+		if (DEKAF2_UNLIKELY(m_Mirror != nullptr))
+		{
+			m_Mirror->Write(-2, m_Serializer->IsMultiline(), sSerialized);
+		}
 	}
 
 } // TraceDownCaller

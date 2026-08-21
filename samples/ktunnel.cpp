@@ -79,6 +79,8 @@
 #include <dekaf2/system/os/ksignals.h> // SIGINT/SIGTERM chain in ExposedServer ctor
 #include <dekaf2/system/filesystem/kfilesystem.h> // kReadAll for -pass-file
 #include <dekaf2/crypto/auth/kbcrypt.h>
+#include <dekaf2/core/strings/kstringutils.h> // kSafeErase
+#include <dekaf2/system/process/kpty.h>       // interactive shell login
 #include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/io/readwrite/kwriter.h>
@@ -87,6 +89,9 @@
 #include <dekaf2/containers/associative/kassociative.h>
 #include <csignal> // SIGINT, SIGTERM
 #include <future>
+#include <thread>
+#include <atomic>
+#include <array>
 
 #if !defined(DEKAF2_IS_WINDOWS)
 	#include <unistd.h>      // ::isatty check in CapturePassword
@@ -611,6 +616,113 @@ std::shared_ptr<KTunnel> ExposedServer::GetTunnelForNode (KStringView sNode) con
 } // GetTunnelForNode
 
 //-----------------------------------------------------------------------------
+bool ExposedServer::ConfigureACME (KStringView sDomains,
+                                   KStringView sContact,
+                                   KStringView sDirectory,
+                                   bool        bNoVerify)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_ACMEMutex);
+
+	if (m_AcmeManager)
+	{
+		m_AcmeManager->Stop();
+		m_AcmeManager.reset();
+	}
+
+	m_sACMEDomains   = sDomains;
+	m_sACMEContact   = sContact;
+	m_sACMEDirectory = sDirectory;
+	m_bACMENoVerify  = bNoVerify;
+	m_sACMEError.clear();
+
+	if (sDomains.empty())
+	{
+		return true;
+	}
+
+	if (!m_TLSContext)
+	{
+		m_sACMEError = "no TLS context - is the server running with TLS?";
+		return false;
+	}
+
+	KAcmeManager::Options Options;
+
+	for (const auto sDomain : sDomains.Split(","))
+	{
+		Options.Domains.push_back(KString(sDomain));
+	}
+
+	Options.Acme.sContact   = sContact;
+	Options.Acme.bVerifyTLS = !bNoVerify;
+
+	if (!sDirectory.empty())
+	{
+		Options.Acme.sDirectoryURL = sDirectory;
+	}
+
+	m_AcmeManager = std::make_unique<KAcmeManager>(std::move(Options));
+
+	if (!m_AcmeManager->Start(*m_TLSContext))
+	{
+		m_sACMEError = m_AcmeManager->Error();
+		m_AcmeManager.reset();
+		return false;
+	}
+
+	m_Config.Message("ACME certificates for {} - the tls-alpn-01 validation "
+	                 "connects to port 443 of these domains and must reach "
+	                 "this server (local port {})",
+	                 sDomains, m_Config.iPort);
+
+	return true;
+
+} // ConfigureACME
+
+//-----------------------------------------------------------------------------
+void ExposedServer::SetLogLevel (int iLevel)
+//-----------------------------------------------------------------------------
+{
+	KLog::getInstance().SetLevel(iLevel);
+
+	if (m_Store)
+	{
+		m_Store->SetSetting("log_level", KString::to_string(iLevel));
+	}
+
+} // SetLogLevel
+
+//-----------------------------------------------------------------------------
+ExposedServer::ACMEStatus ExposedServer::GetACMEStatus () const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_ACMEMutex);
+
+	ACMEStatus Status;
+	Status.bEnabled   = (m_AcmeManager != nullptr);
+	Status.sDomains   = m_sACMEDomains;
+	Status.sContact   = m_sACMEContact;
+	Status.sDirectory = m_sACMEDirectory;
+	Status.sError     = m_sACMEError;
+	Status.bNoVerify  = m_bACMENoVerify;
+
+	if (m_AcmeManager)
+	{
+		Status.ValidUntil = m_AcmeManager->ValidUntil();
+
+		// while no certificate is installed, surface what the last order said
+		if (Status.ValidUntil == KUnixTime() && m_AcmeManager->HasError())
+		{
+			Status.sError = m_AcmeManager->Error();
+		}
+	}
+
+	return Status;
+
+} // GetACMEStatus
+
+//-----------------------------------------------------------------------------
 void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 //-----------------------------------------------------------------------------
 {
@@ -1093,6 +1205,11 @@ ExposedServer::~ExposedServer()
 		}
 	}
 	Listeners->clear();
+
+	if (m_LogRing)
+	{
+		KLog::getInstance().SetMirror(nullptr);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -1156,6 +1273,18 @@ ExposedServer::ExposedServer (const Config& config)
 			                 "to create the admin login (admin UI is unreachable "
 			                 "until then)",
 			                 m_Store->GetDatabasePath());
+		}
+
+		// live log view for the admin UI: mirror all serialized log lines
+		// into a ring buffer, and apply a persisted debug level
+		m_LogRing = std::make_shared<LogRing>();
+		KLog::getInstance().SetMirror(m_LogRing);
+
+		auto sLogLevel = m_Store->GetSetting("log_level");
+
+		if (!sLogLevel.empty())
+		{
+			KLog::getInstance().SetLevel(sLogLevel.Int32());
 		}
 	}
 	else
@@ -1324,6 +1453,43 @@ ExposedServer::ExposedServer (const Config& config)
 
 	if (!Http.Execute(Settings, Routes)) throw KError(Http.Error());
 
+	// ACME certificate management runs against the live TLS context of the
+	// REST server we just started. In stateful mode the store is the source
+	// of truth and CLI flags seed/update it, so the admin UI shows and edits
+	// what is actually in effect; in ad-hoc mode the CLI flags apply directly.
+	if (!m_Config.bNoTLS)
+	{
+		m_TLSContext    = Http.GetTLSContext();
+		m_bACMENoVerify = m_Config.bACMENoVerify;
+
+		KString sDomains   = m_Config.sACMEDomains;
+		KString sContact   = m_Config.sACMEContact;
+		KString sDirectory = m_Config.sACMEDirectory;
+
+		if (bStateful)
+		{
+			if (!sDomains.empty())
+			{
+				m_Store->SetSetting("acme_domains"  , sDomains);
+				m_Store->SetSetting("acme_contact"  , sContact);
+				m_Store->SetSetting("acme_directory", sDirectory);
+			}
+			else
+			{
+				sDomains   = m_Store->GetSetting("acme_domains");
+				sContact   = m_Store->GetSetting("acme_contact");
+				sDirectory = m_Store->GetSetting("acme_directory");
+			}
+		}
+
+		if (!ConfigureACME(sDomains, sContact, sDirectory, m_bACMENoVerify))
+		{
+			// the server keeps running with its bootstrap cert - the error is
+			// shown on the certificate page of the admin UI
+			m_Config.Message("ACME setup failed: {}", GetACMEStatus().sError);
+		}
+	}
+
 	// Start per-tunnel listeners — this is the single path that handles
 	// both DB-configured tunnels (enabled rows in `tunnels`) and the
 	// optional CLI-driven tunnel (`-f <port>` + `-t <target>`). See
@@ -1481,8 +1647,55 @@ void ProtectedHost::RunRepl(std::shared_ptr<KTunnel::Connection> Connection)
 					"Commands:\n"
 					"  help     - this help\n"
 					"  status   - tunnel status and traffic counters\n"
-					"  version  - build version\n"
-					"  exit     - close this REPL session\n";
+					"  version  - build version\n";
+
+				if (!m_Config.sShellPasswordHash.empty())
+				{
+					sReply += "  shell    - open an interactive shell (asks for a password)\n";
+				}
+
+				sReply += "  exit     - close this REPL session\n";
+			}
+			else if (sCmd == "shell")
+			{
+				if (m_Config.sShellPasswordHash.empty())
+				{
+					sReply = "shell login is not enabled on this host\n";
+				}
+				else
+				{
+					// prompt, read one line as the password, verify, and on
+					// success hand the whole channel to the PTY pump
+					Connection->WriteData("Password: ");
+
+					KString sPrompt;
+					if (!Connection->ReadData(sPrompt))
+					{
+						return; // channel closed during the prompt
+					}
+
+					KString sPassword(sPrompt);
+					sPassword.TrimRight("\r\n");
+
+					KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);
+					const bool bOk = BCrypt.ValidatePassword(sPassword, m_Config.sShellPasswordHash);
+					kSafeErase(sPassword);
+					kSafeErase(sPrompt);
+
+					if (!bOk)
+					{
+						kWarning("ktunnel: failed shell login attempt");
+						Connection->WriteData("access denied\n> ");
+						continue;
+					}
+
+					kDebug(1, "ktunnel: shell login accepted");
+					RunShell(*Connection);
+
+					// the shell has ended - back to the REPL prompt
+					Connection->WriteData("[shell closed]\n> ");
+					continue;
+				}
 			}
 			else if (sCmd == "status")
 			{
@@ -1531,6 +1744,74 @@ void ProtectedHost::RunRepl(std::shared_ptr<KTunnel::Connection> Connection)
 	}
 
 } // ProtectedHost::RunRepl
+
+//-----------------------------------------------------------------------------
+void ProtectedHost::RunShell(KTunnel::Connection& Connection)
+//-----------------------------------------------------------------------------
+{
+	// spawn an interactive shell on a pseudo-terminal. NoLogin because the
+	// caller already authenticated with the shell password - we just want a
+	// shell with the ktunnel process's privileges. The short read timeout
+	// lets the reader loop notice both new output and the child's exit.
+	KPTY Shell(KPTY::NoLogin, /*sShell*/{}, chrono::milliseconds(250));
+
+	if (!Shell.is_open())
+	{
+		Connection.WriteData("cannot open shell\n");
+		return;
+	}
+
+	std::atomic<bool> bDone { false };
+
+	// PTY -> Connection: forward shell output to the remote admin
+	auto Reader = std::thread([&]()
+	{
+		std::array<char, 4096> Buffer;
+
+		while (!bDone.load())
+		{
+			auto iRead = Shell.Read(Buffer.data(), Buffer.size());
+
+			if (iRead > 0)
+			{
+				Connection.WriteData(KString(Buffer.data(), iRead));
+			}
+			else if (!Shell.IsRunning())
+			{
+				// no data and the child is gone - the shell has exited
+				break;
+			}
+			// otherwise it was just a read timeout - loop and try again
+		}
+
+		bDone.store(true);
+
+		// wake the ReadData() below so the main loop returns
+		Connection.Disconnect();
+	});
+
+	// Connection -> PTY: feed remote keystrokes into the shell
+	KString sInput;
+
+	while (!bDone.load() && Connection.ReadData(sInput))
+	{
+		if (!sInput.empty())
+		{
+			Shell.Write(sInput).Flush();
+		}
+		sInput.clear();
+	}
+
+	// either the remote closed the channel or the shell exited - tear both down
+	bDone.store(true);
+	Shell.Close();
+
+	if (Reader.joinable())
+	{
+		Reader.join();
+	}
+
+} // RunShell
 
 //-----------------------------------------------------------------------------
 void ProtectedHost::Run()
@@ -1686,6 +1967,8 @@ int Tunnel::Main(int argc, char** argv)
 
 	KString  sSecrets;
 	KString  sSecretFile;
+	KString  sShellPassword;
+	KString  sShellPassFile;
 	uint32_t iTimeoutSecs = 30;
 
 	Options.Option("p,port <port>").Section("options for both roles")
@@ -1734,6 +2017,18 @@ int Tunnel::Main(int argc, char** argv)
 	Options.Option("ciphers <suites>")
 	       .Help("colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305.")
 	       .Set(m_Config.sCipherSuites);
+	Options.Option("acme <domains>")
+	       .Help("comma separated domains for an automatic TLS certificate via ACME (default CA: Let's Encrypt), proven with the tls-alpn-01 challenge. The exposed host must be reachable from the internet on port 443 of these domains. The server starts with a self-signed cert and switches once the certificate is issued; renewal is automatic, key and cert persist in the TLS config directory. Mutually exclusive with -cert, -key and -notls.")
+	       .Set(m_Config.sACMEDomains);
+	Options.Option("acme-contact <mail>")
+	       .Help("optional contact for the ACME account, e.g. \"mailto:admin@example.com\".")
+	       .Set(m_Config.sACMEContact);
+	Options.Option("acme-dir <url>")
+	       .Help("alternative ACME directory URL, e.g. the Let's Encrypt staging directory for tests. Defaults to Let's Encrypt production.")
+	       .Set(m_Config.sACMEDirectory);
+	Options.Option("acme-noverify")
+	       .Help("do not verify the TLS certificate of the ACME directory - only for test servers like Pebble with their own CA.")
+	       .Set(m_Config.bACMENoVerify, true);
 	Options.Option("db <path>")
 	       .Help("path to the SQLite admin/config DB (stateful mode). Defaults to /var/lib/ktunnel/ktunnel.db when running as root (or as a system service), $HOME/.config/ktunnel/ktunnel.db otherwise. Not used in ad-hoc mode (with -f / -t).")
 	       .Set(m_Config.sDatabasePath);
@@ -1756,6 +2051,12 @@ int Tunnel::Main(int argc, char** argv)
 	Options.Option("known-servers <path>")
 	       .Help("with -aes: override the path to the trust store (default: $HOME/.config/ktunnel/known_servers).")
 	       .Set(m_Config.sKnownServersPath);
+	Options.Option("shell-pass-file <path>")
+	       .Help("protected host: enable an interactive shell over the admin REPL, unlocked by the password read from <path> (the whole file, one trailing newline stripped). The password is hashed at start-up and never stored in the clear. Without this (or -shell-password) the shell is disabled. The shell runs with the privileges of the ktunnel process - protect the file and use -aes.")
+	       .Set(sShellPassFile);
+	Options.Option("shell-password <password>")
+	       .Help("protected host: like -shell-pass-file but takes the plaintext password directly on the command line (visible in the process list - prefer -shell-pass-file for anything but a quick test).")
+	       .Set(sShellPassword);
 
 	// The following options never reach this parser: the service-management
 	// flags are consumed by KService::Run() (which then does not call into
@@ -1816,6 +2117,22 @@ int Tunnel::Main(int argc, char** argv)
 		SetError("the protected host may not have a cert or key option");
 	}
 
+	if (!m_Config.sACMEDomains.empty())
+	{
+		if (!IsExposed())
+		{
+			SetError("the protected host may not have an acme option");
+		}
+		else if (m_Config.bNoTLS)
+		{
+			SetError("-acme needs TLS, do not combine it with -notls");
+		}
+		else if (!m_Config.sCertFile.empty() || !m_Config.sKeyFile.empty())
+		{
+			SetError("use either -acme or -cert/-key");
+		}
+	}
+
 	// split and store list of secrets
 	for (auto& sSecret : sSecrets.Split())
 	{
@@ -1852,6 +2169,44 @@ int Tunnel::Main(int argc, char** argv)
 		}
 
 		m_Config.Secrets.insert(std::move(sFileSecret));
+	}
+
+	// Protected-host shell login: take the plaintext from -shell-pass-file
+	// or -shell-password, hash it once here, and keep only the hash. The
+	// shell is opt-in and protected-only.
+	{
+		if (!sShellPassword.empty() && !sShellPassFile.empty())
+		{
+			SetError("use either -shell-password or -shell-pass-file, not both");
+		}
+
+		if (!sShellPassFile.empty())
+		{
+			if (!kReadAll(sShellPassFile, sShellPassword))
+			{
+				SetError(kFormat("cannot read shell password file '{}'", sShellPassFile));
+			}
+
+			while (!sShellPassword.empty()
+			       && (sShellPassword.back() == '\n' || sShellPassword.back() == '\r'))
+			{
+				sShellPassword.pop_back();
+			}
+		}
+
+		if (!sShellPassword.empty())
+		{
+			if (IsExposed())
+			{
+				SetError("the shell login is a protected-host option (use with -e)");
+			}
+			else
+			{
+				KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);
+				m_Config.sShellPasswordHash = BCrypt.GenerateHash(sShellPassword);
+				kSafeErase(sShellPassword);
+			}
+		}
 	}
 
 	if (!m_Config.iMaxTunneledConnections) SetError("maxtunnels should be at least 1");

@@ -256,6 +256,8 @@ constexpr KStringView s_sAdminsURL    = "/Configure/admins";
 constexpr KStringView s_sNodesURL     = "/Configure/nodes";
 constexpr KStringView s_sTunnelsURL   = "/Configure/tunnels";
 constexpr KStringView s_sEventsURL    = "/Configure/events";
+constexpr KStringView s_sCertURL      = "/Configure/certificate";
+constexpr KStringView s_sLogURL       = "/Configure/log";
 constexpr KStringView s_sNodeReplURL  = "/Configure/nodes/repl";
 
 // The matching routes — no trailing slashes, because KRESTServer strips
@@ -279,6 +281,11 @@ constexpr KStringView s_sTunnelsDeleteRoute    = "/Configure/tunnels/delete";
 constexpr KStringView s_sTunnelsEditRoute      = "/Configure/tunnels/edit";
 constexpr KStringView s_sTunnelsUpdateRoute    = "/Configure/tunnels/update";
 constexpr KStringView s_sEventsRoute           = "/Configure/events";
+constexpr KStringView s_sCertRoute             = "/Configure/certificate";
+constexpr KStringView s_sCertUpdateRoute       = "/Configure/certificate/update";
+constexpr KStringView s_sLogRoute              = "/Configure/log";
+constexpr KStringView s_sLogTailRoute          = "/Configure/log/tail";
+constexpr KStringView s_sLogLevelRoute         = "/Configure/log/level";
 // legacy URL - the peers page merged into the nodes page, the route only
 // redirects there so that old bookmarks keep working
 constexpr KStringView s_sPeersRoute            = "/Configure/peers";
@@ -298,6 +305,9 @@ constexpr KStringView s_sTunnelsToggleURL      = "/Configure/tunnels/toggle";
 constexpr KStringView s_sTunnelsDeleteURL      = "/Configure/tunnels/delete";
 constexpr KStringView s_sTunnelsEditURL        = "/Configure/tunnels/edit";
 constexpr KStringView s_sTunnelsUpdateURL      = "/Configure/tunnels/update";
+constexpr KStringView s_sCertUpdateURL         = "/Configure/certificate/update";
+// note: the log tail URL only appears inside the live view's inline script
+constexpr KStringView s_sLogLevelURL           = "/Configure/log/level";
 
 // --------------------------------------------------------------------------
 // Small pure-functional helpers used by the dashboard rendering.
@@ -579,12 +589,14 @@ void AdminUI::RenderTopBar (html::Page& Page,
 		KStringView sLabel;
 	};
 	static constexpr NavEntry s_NavEntries[] = {
-		{ "dashboard", s_sDashboardURL, "Dashboard" },
-		{ "admins",    s_sAdminsURL,    "Admins"    },
-		{ "nodes",     s_sNodesURL,     "Nodes"     },
-		{ "tunnels",   s_sTunnelsURL,   "Tunnels"   },
-		{ "events",    s_sEventsURL,    "Events"    },
-		{ "logout",    s_sLogoutURL,    "Logout"    },
+		{ "dashboard", s_sDashboardURL, "Dashboard"   },
+		{ "admins",    s_sAdminsURL,    "Admins"      },
+		{ "nodes",     s_sNodesURL,     "Nodes"       },
+		{ "tunnels",   s_sTunnelsURL,   "Tunnels"     },
+		{ "cert",      s_sCertURL,      "Certificate" },
+		{ "log",       s_sLogURL,       "Log"         },
+		{ "events",    s_sEventsURL,    "Events"      },
+		{ "logout",    s_sLogoutURL,    "Logout"      },
 	};
 
 	KString sNav = "<nav>";
@@ -2340,6 +2352,312 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 } // ShowEvents
 
 //-----------------------------------------------------------------------------
+void AdminUI::ShowCertificate (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sNotice = HTTP.GetQueryParm("notice");
+	const auto&   sError  = HTTP.GetQueryParm("error");
+
+	const auto Status = m_Server.GetACMEStatus();
+
+	auto Page = MakePage("ktunnel — Certificate");
+	RenderTopBar(Page, "cert", sMe);
+
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
+
+	if (!sNotice.empty())
+	{
+		auto f = main.Add<html::Div>(html::Classes("flash ok"));
+		f.AddText(sNotice);
+	}
+	else if (!sError.empty())
+	{
+		auto f = main.Add<html::Div>(html::Classes("flash err"));
+		f.AddText(sError);
+	}
+
+	// --- Section 1: status ---------------------------------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "ACME certificate");
+
+		KString sStatus;
+
+		if (!Status.bEnabled)
+		{
+			sStatus = "<span class=\"pill neutral\">disabled</span>"
+			          "<div class=\"muted\">The server uses its configured or "
+			          "self-signed certificate.</div>";
+		}
+		else if (Status.ValidUntil != KUnixTime())
+		{
+			sStatus = kFormat(
+				"<span class=\"pill ok\">active</span>"
+				"<div>Certificate for <b>{}</b>, valid until {} UTC. "
+				"Renewal is automatic.</div>",
+				KHTMLEntity::EncodeMandatory(Status.sDomains),
+				Status.ValidUntil.to_string());
+		}
+		else
+		{
+			sStatus = kFormat(
+				"<span class=\"pill info\">pending</span>"
+				"<div>Ordering a certificate for <b>{}</b> ...</div>",
+				KHTMLEntity::EncodeMandatory(Status.sDomains));
+		}
+
+		if (!Status.sError.empty())
+		{
+			sStatus += kFormat("<div class=\"flash err\">{}</div>",
+			                   KHTMLEntity::EncodeMandatory(Status.sError));
+		}
+
+		sec.AddRawText(sStatus);
+	}
+
+	// --- Section 2: configuration form ----------------------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Configuration");
+
+		KString sForm = kFormat(
+			"<form method=\"post\" action=\"{}\">"
+			"<div class=\"row\">"
+			"<div class=\"field\"><label>Domains (comma separated, empty disables ACME)</label>"
+			"<input type=\"text\" name=\"domains\" value=\"{}\" autocomplete=\"off\" "
+			"placeholder=\"tunnel.example.com\"></div>"
+			"<div class=\"field\"><label>Contact (optional)</label>"
+			"<input type=\"text\" name=\"contact\" value=\"{}\" autocomplete=\"off\" "
+			"placeholder=\"mailto:admin@example.com\"></div>"
+			"<div class=\"field\"><label>Directory URL (empty = Let&#39;s Encrypt)</label>"
+			"<input type=\"text\" name=\"directory\" value=\"{}\" autocomplete=\"off\" "
+			"placeholder=\"https://acme-v02.api.letsencrypt.org/directory\"></div>"
+			"<button type=\"submit\" class=\"btn\">Save &amp; apply</button>"
+			"</div></form>"
+			"<div class=\"muted\">Validation uses the tls-alpn-01 challenge on this "
+			"server: port 443 of the domains must reach it. Changes apply "
+			"immediately, without a restart.</div>",
+			KHTMLEntity::EncodeMandatory(s_sCertUpdateURL),
+			KHTMLEntity::EncodeMandatory(Status.sDomains),
+			KHTMLEntity::EncodeMandatory(Status.sContact),
+			KHTMLEntity::EncodeMandatory(Status.sDirectory));
+		sec.AddRawText(sForm);
+	}
+
+	RenderPage(HTTP, Page);
+
+} // ShowCertificate
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleCertificateUpdate (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+
+	KString sDomains   = HTTP.GetQueryParm("domains");
+	KString sContact   = HTTP.GetQueryParm("contact");
+	KString sDirectory = HTTP.GetQueryParm("directory");
+
+	sDomains.Trim();
+	sContact.Trim();
+	sDirectory.Trim();
+
+	auto& Store = m_Server.GetStore();
+	Store.SetSetting("acme_domains"  , sDomains);
+	Store.SetSetting("acme_contact"  , sContact);
+	Store.SetSetting("acme_directory", sDirectory);
+
+	// keep the CLI test flag -acme-noverify as it is
+	const bool bOk = m_Server.ConfigureACME(sDomains, sContact, sDirectory,
+	                                        m_Server.GetACMEStatus().bNoVerify);
+
+	KTunnelStore::Event ev;
+	ev.sKind   = "config_change";
+	ev.sAdmin  = sMe;
+	ev.sDetail = sDomains.empty()
+	           ? KString("acme disabled")
+	           : kFormat("acme domains={} contact={} directory={}",
+	                     sDomains, sContact,
+	                     sDirectory.empty() ? "letsencrypt" : sDirectory);
+	Store.LogEvent(ev);
+
+	if (!bOk)
+	{
+		RedirectWithFlash(HTTP, s_sCertURL, "",
+		                  kFormat("ACME setup failed: {}", m_Server.GetACMEStatus().sError));
+		return;
+	}
+
+	RedirectWithFlash(HTTP, s_sCertURL,
+	                  sDomains.empty()
+	                  ? KString("ACME disabled.")
+	                  : kFormat("ACME enabled for {} - ordering in the background.", sDomains),
+	                  "");
+
+} // HandleCertificateUpdate
+
+//-----------------------------------------------------------------------------
+void AdminUI::ShowLog (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sNotice = HTTP.GetQueryParm("notice");
+	const auto&   sError  = HTTP.GetQueryParm("error");
+
+	auto Page = MakePage("ktunnel — Log");
+	RenderTopBar(Page, "log", sMe);
+
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
+
+	if (!sNotice.empty())
+	{
+		auto f = main.Add<html::Div>(html::Classes("flash ok"));
+		f.AddText(sNotice);
+	}
+	else if (!sError.empty())
+	{
+		auto f = main.Add<html::Div>(html::Classes("flash err"));
+		f.AddText(sError);
+	}
+
+	// --- Section 1: debug level -----------------------------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Debug level");
+
+		const int iLevel = KLog::GetLevel();
+
+		KString sOptions;
+		for (int i = 0; i <= 3; ++i)
+		{
+			sOptions += kFormat("<option value=\"{}\"{}>{}{}</option>",
+			                    i,
+			                    (i == iLevel) ? " selected" : "",
+			                    i,
+			                    i == 0 ? " (warnings only)" : "");
+		}
+
+		KString sForm = kFormat(
+			"<form method=\"post\" action=\"{}\">"
+			"<div class=\"row\">"
+			"<div class=\"field\"><label>KLog debug level</label>"
+			"<select name=\"level\">{}</select></div>"
+			"<button type=\"submit\" class=\"btn\">Apply</button>"
+			"</div></form>"
+			"<div class=\"muted\">Applies immediately to the running server and "
+			"persists across restarts.</div>",
+			KHTMLEntity::EncodeMandatory(s_sLogLevelURL),
+			sOptions);
+		sec.AddRawText(sForm);
+	}
+
+	// --- Section 2: live log ---------------------------------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Live log");
+
+		// the poll loop fetches new ring buffer lines once a second and
+		// keeps the view pinned to the bottom while it is scrolled there
+		sec.AddRawText(
+			"<pre id=\"klog\" style=\"max-height:60vh;min-height:10rem;overflow:auto;"
+			"background:#14161a;color:#d6d8de;padding:0.6rem;border-radius:6px;"
+			"font-size:0.72rem;line-height:1.35\"></pre>"
+			"<script>\n"
+			"(function() {\n"
+			"  var pre = document.getElementById('klog');\n"
+			"  var since = 0;\n"
+			"  function poll() {\n"
+			"    fetch('/Configure/log/tail?since=' + since, { credentials: 'same-origin' })\n"
+			"      .then(function(r) { return r.json(); })\n"
+			"      .then(function(j) {\n"
+			"        since = j.next;\n"
+			"        if (j.lines && j.lines.length) {\n"
+			"          var atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;\n"
+			"          pre.textContent += j.lines.join('\\n') + '\\n';\n"
+			"          if (pre.textContent.length > 400000) {\n"
+			"            var cut = pre.textContent.indexOf('\\n', 100000);\n"
+			"            if (cut > 0) pre.textContent = pre.textContent.slice(cut + 1);\n"
+			"          }\n"
+			"          if (atEnd) pre.scrollTop = pre.scrollHeight;\n"
+			"        }\n"
+			"        setTimeout(poll, 1000);\n"
+			"      })\n"
+			"      .catch(function() { setTimeout(poll, 5000); });\n"
+			"  }\n"
+			"  poll();\n"
+			"})();\n"
+			"</script>");
+	}
+
+	RenderPage(HTTP, Page);
+
+} // ShowLog
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleLogTail (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	uint64_t iSince = HTTP.GetQueryParm("since").UInt64();
+
+	KJSON jLines = KJSON::array();
+	uint64_t iNext = 0;
+
+	if (auto Ring = m_Server.GetLogRing())
+	{
+		auto Result = Ring->GetSince(iSince);
+		iNext = Result.first;
+
+		for (auto& sLine : Result.second)
+		{
+			jLines.push_back(std::move(sLine));
+		}
+	}
+
+	HTTP.json.tx["next"]  = iNext;
+	HTTP.json.tx["lines"] = std::move(jLines);
+
+} // HandleLogTail
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleLogLevel (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+
+	int iLevel = HTTP.GetQueryParm("level").Int32();
+
+	if (iLevel < 0) iLevel = 0;
+	if (iLevel > 3) iLevel = 3;
+
+	m_Server.SetLogLevel(iLevel);
+
+	KTunnelStore::Event ev;
+	ev.sKind   = "config_change";
+	ev.sAdmin  = sMe;
+	ev.sDetail = kFormat("log level {}", iLevel);
+	m_Server.GetStore().LogEvent(ev);
+
+	RedirectWithFlash(HTTP, s_sLogURL, kFormat("Log level set to {}.", iLevel), "");
+
+} // HandleLogLevel
+
+//-----------------------------------------------------------------------------
 void AdminUI::ShowNodeRepl (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
@@ -2731,6 +3049,28 @@ void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 	Routes.AddRoute(KString(s_sEventsRoute))
 	      .Get ([this](KRESTServer& HTTP) { ShowEvents(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	// --- ACME certificate management (status + configuration) --------
+	Routes.AddRoute(KString(s_sCertRoute))
+	      .Get ([this](KRESTServer& HTTP) { ShowCertificate(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	Routes.AddRoute(KString(s_sCertUpdateRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleCertificateUpdate(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	// --- Log (live view + debug level) --------------------------------
+	Routes.AddRoute(KString(s_sLogRoute))
+	      .Get ([this](KRESTServer& HTTP) { ShowLog(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	Routes.AddRoute(KString(s_sLogTailRoute))
+	      .Get ([this](KRESTServer& HTTP) { HandleLogTail(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	Routes.AddRoute(KString(s_sLogLevelRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleLogLevel(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
 
 	// --- Node REPL bridge (admin-only) -------------------------------
 	// The former peers page merged into the nodes page; keep the old URL

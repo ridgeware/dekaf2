@@ -165,14 +165,9 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 			# dekaf2-config.cmake - it must precede the find_dependency calls
 			# there, which run before this file is included
 			add_link_options(-static)
-			if ("@DEKAF2_HAS_LIBUNWIND@" STREQUAL "1")
-				# libunwind.a and libgcc_eh.a both define the _Unwind_* symbols.
-				# Dynamic linking resolves the duplicate by interposition; a
-				# static link makes it a hard error. Take the first definition
-				# (libunwind's, which precedes the implicit libgcc_eh on the
-				# link line) to reproduce the dynamic behaviour.
-				add_link_options(-Wl,--allow-multiple-definition)
-			endif()
+			# note: libunwind is deliberately not detected in a static build - its
+			# _Unwind_* symbols would displace libgcc_eh's, which breaks C++
+			# exception unwinding across thread boundaries.
 			message(STATUS "linking executables fully static")
 		endif()
 

@@ -880,9 +880,19 @@ endif()
 # Used as a GDB-independent stack-unwinding fallback on platforms that lack
 # glibc backtrace() (e.g. Alpine Linux / musl).  Detection is unconditional:
 # libunwind is a small, well-contained library and we always use it when found.
+#
+# EXCEPT with fully static executables: there libunwind.a's _Unwind_* symbols
+# would win over libgcc_eh's (the link uses --allow-multiple-definition), and
+# libstdc++ is built against libgcc_eh's unwinder - the mix breaks C++
+# exception unwinding across thread boundaries (a throw in a worker thread
+# calls std::terminate instead of reaching its catch).
 
-find_path   (LIBUNWIND_INCLUDE_DIR libunwind.h)
-find_library(LIBUNWIND_LIBRARY     NAMES unwind)
+if (NOT DEKAF2_STATIC_EXECUTABLES)
+	find_path   (LIBUNWIND_INCLUDE_DIR libunwind.h)
+	find_library(LIBUNWIND_LIBRARY     NAMES unwind)
+else()
+	message(STATUS "not using libunwind with static executables - it would break exception unwinding")
+endif()
 
 if (LIBUNWIND_INCLUDE_DIR AND LIBUNWIND_LIBRARY)
 	set(DEKAF2_HAS_LIBUNWIND 1)

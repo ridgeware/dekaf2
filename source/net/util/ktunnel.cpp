@@ -187,6 +187,36 @@ KString KTunnel::Message::Debug() const
 	return kFormat("[{}]: {} {} chars: {}", GetChannel(), PrintType(), size(), PrintData());
 }
 
+namespace {
+
+//-----------------------------------------------------------------------------
+// describe an unexpected handshake frame: type byte, payload size, and a short
+// hex (plus text, if printable) sample of the payload - enough to tell a
+// foreign protocol, a version mismatch, or a scanner apart in the event log
+KString DescribeUnexpectedFrame(const KTunnel::Message& Frame)
+//-----------------------------------------------------------------------------
+{
+	auto sSample = KStringView(Frame.GetMessage()).Left(16);
+
+	KString sInfo = kFormat("type byte {}, {} payload bytes",
+	                        static_cast<unsigned>(Frame.GetType()), Frame.size());
+
+	if (!sSample.empty())
+	{
+		sInfo += kFormat(", starts with 0x{}", KEncode::Hex(sSample));
+
+		if (!kIsBinary(sSample))
+		{
+			sInfo += kFormat(" ('{}')", sSample);
+		}
+	}
+
+	return sInfo;
+
+} // DescribeUnexpectedFrame
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 void KTunnel::Message::SetChannel(std::size_t iChannel)
 //-----------------------------------------------------------------------------
@@ -1272,7 +1302,8 @@ void KTunnel::SetupEncryption (KStringView sNode)
 
 	if (Ack.GetType() != Message::Login)
 	{
-		throw KError(kFormat("v2 handshake: expected hello-ack, got {}", Ack.PrintType()));
+		throw KError(kFormat("v2 handshake: expected hello-ack, got {} ({})",
+		                     Ack.PrintType(), DescribeUnexpectedFrame(Ack)));
 	}
 
 	KJSON oAck = kjson::Parse(Ack.GetMessage());
@@ -1398,8 +1429,8 @@ bool KTunnel::SetupEncryption (Message& HelloFrame, KString& sOutNode)
 
 	if (HelloFrame.GetType() != Message::Login)
 	{
-		throw KError(kFormat("v2 handshake: first frame must be Login, got {}",
-		                     HelloFrame.PrintType()));
+		throw KError(kFormat("v2 handshake: first frame must be Login, got {} ({})",
+		                     HelloFrame.PrintType(), DescribeUnexpectedFrame(HelloFrame)));
 	}
 
 	KJSON oHello = kjson::Parse(HelloFrame.GetMessage());
@@ -1584,7 +1615,8 @@ void KTunnel::WaitForLogin()
 
 		if (Auth.GetType() != Message::Login)
 		{
-			throw KError(kFormat("v2 handshake: expected auth frame, got {}", Auth.PrintType()));
+			throw KError(kFormat("v2 handshake: expected auth frame, got {} ({})",
+			                     Auth.PrintType(), DescribeUnexpectedFrame(Auth)));
 		}
 
 		KJSON oAuth = kjson::Parse(Auth.GetMessage());
@@ -1603,7 +1635,8 @@ void KTunnel::WaitForLogin()
 	{
 		if (Login.GetType() != Message::Login)
 		{
-			throw KError(kFormat("invalid message type {}", Login.PrintType()));
+			throw KError(kFormat("invalid message type {} ({})",
+			                     Login.PrintType(), DescribeUnexpectedFrame(Login)));
 		}
 		// Basic flow: extract node/pass from a "Basic <base64>" string.
 		// KHTTPHeaders calls the parsed login identifier `sUsername` for

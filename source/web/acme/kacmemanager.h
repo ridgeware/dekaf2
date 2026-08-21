@@ -53,6 +53,7 @@
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/time/duration/ktimer.h>
 #include <dekaf2/web/acme/kacmeclient.h>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -117,6 +118,10 @@ public:
 	/// is installed yet
 	KUnixTime ValidUntil() const;
 
+	/// the http-01 challenge responder for Challenge::Http01 - serve its return value
+	/// as text/plain for requests to /.well-known/acme-challenge/(token) on port 80
+	std::function<KString(KStringView)> GetHTTPChallengeResolver() const;
+
 //------
 private:
 //------
@@ -144,6 +149,7 @@ private:
 	KTimer::ID_t                 m_iTimerID      { KTimer::InvalidID };
 	KTimer::ID_t                 m_iFirstCheckID { KTimer::InvalidID };
 	KUnixTime                    m_ValidUntil;
+	KString                      m_sCertID;
 	mutable std::mutex           m_Mutex;
 
 }; // KAcmeManager

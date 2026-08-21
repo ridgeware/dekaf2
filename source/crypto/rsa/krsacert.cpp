@@ -549,6 +549,72 @@ std::vector<KString> KRSACert::GetSANs() const
 } // GetSANs
 
 //---------------------------------------------------------------------------
+KString KRSACert::GetSerialBytes() const
+//---------------------------------------------------------------------------
+{
+	KString sSerial;
+
+	if (!m_X509Cert)
+	{
+		return sSerial;
+	}
+
+	// take the DER encoding to get the exact integer bytes, including a
+	// possible leading zero byte for a set high bit
+	unsigned char* pDER { nullptr };
+
+	auto iLen = ::i2d_ASN1_INTEGER(X509_get_serialNumber(m_X509Cert), &pDER);
+
+	if (iLen > 2)
+	{
+		// skip the tag and length header
+		std::size_t iHeader = 2;
+
+		if (pDER[1] & 0x80)
+		{
+			iHeader += pDER[1] & 0x7f;
+		}
+
+		if (static_cast<std::size_t>(iLen) > iHeader)
+		{
+			sSerial.assign(reinterpret_cast<const char*>(pDER) + iHeader, iLen - iHeader);
+		}
+	}
+
+	::OPENSSL_free(pDER);
+
+	return sSerial;
+
+} // GetSerialBytes
+
+//---------------------------------------------------------------------------
+KString KRSACert::GetAuthorityKeyIdentifier() const
+//---------------------------------------------------------------------------
+{
+	KString sKeyID;
+
+	if (!m_X509Cert)
+	{
+		return sKeyID;
+	}
+
+	auto* AKID = static_cast<AUTHORITY_KEYID*>(::X509_get_ext_d2i(m_X509Cert, NID_authority_key_identifier, nullptr, nullptr));
+
+	if (AKID)
+	{
+		if (AKID->keyid)
+		{
+			sKeyID = from_ASN1_string(AKID->keyid);
+		}
+
+		::AUTHORITY_KEYID_free(AKID);
+	}
+
+	return sKeyID;
+
+} // GetAuthorityKeyIdentifier
+
+//---------------------------------------------------------------------------
 KUnixTime KRSACert::ValidFrom() const
 //---------------------------------------------------------------------------
 {

@@ -68,6 +68,14 @@ KAcmeManager::KAcmeManager(Options Options)
 	{
 		m_Options.sStorageDir = KRSACert::GetDefaultTLSDirectory();
 	}
+
+	// reuse a stored account key unless one was given
+	if (m_Options.Acme.sAccountKeyPEM.empty())
+	{
+		m_Options.Acme.sAccountKeyPEM = kReadAll(StoragePath(AccountFile));
+	}
+
+	m_Acme = std::make_unique<KAcmeClient>(m_Options.Acme);
 }
 
 //-----------------------------------------------------------------------------
@@ -102,24 +110,23 @@ bool KAcmeManager::Start(KTLSContext& Context, bool bBlockUntilIssued)
 		return SetError(kFormat("cannot create storage directory {}", m_Options.sStorageDir));
 	}
 
-	// reuse a stored account key unless one was given
-	if (m_Options.Acme.sAccountKeyPEM.empty())
-	{
-		m_Options.Acme.sAccountKeyPEM = kReadAll(StoragePath(AccountFile));
-	}
-
 	m_Context = &Context;
-	m_Acme    = std::make_unique<KAcmeClient>(m_Options.Acme);
 
-	if (!m_Acme->AttachTo(Context))
+	if (m_Options.Acme.ChallengeType == KAcmeClient::Challenge::TlsAlpn01)
 	{
-		return SetError(m_Acme->CopyLastError());
+		// http-01 needs no SNI dispatch - its responder is wired into an HTTP
+		// server on port 80, see GetHTTPChallengeResolver()
+		if (!m_Acme->AttachTo(Context))
+		{
+			return SetError(m_Acme->CopyLastError());
+		}
 	}
 
 	// a stored certificate bridges the time until the first renewal check
 	{
 		std::lock_guard<std::mutex> Lock(m_Mutex);
 		m_ValidUntil = KUnixTime();
+		m_sCertID.clear();
 		LoadFromDisk();
 	}
 
@@ -182,19 +189,44 @@ KUnixTime KAcmeManager::ValidUntil() const
 } // ValidUntil
 
 //-----------------------------------------------------------------------------
+std::function<KString(KStringView)> KAcmeManager::GetHTTPChallengeResolver() const
+//-----------------------------------------------------------------------------
+{
+	return m_Acme->GetHTTPChallengeResolver();
+
+} // GetHTTPChallengeResolver
+
+//-----------------------------------------------------------------------------
 bool KAcmeManager::CheckAndRenew()
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	if (m_ValidUntil != KUnixTime() && (m_ValidUntil - KUnixTime::now()) > m_Options.RenewBefore)
+	bool bRenew = (m_ValidUntil == KUnixTime())
+	           || (m_ValidUntil - KUnixTime::now()) <= m_Options.RenewBefore;
+
+	if (!bRenew && !m_sCertID.empty())
+	{
+		// ask the CA for its suggested renewal window (ARI, RFC 9773) - it can
+		// only advance the renewal (e.g. before a revocation), RenewBefore stays
+		// the upper bound, and ARI failures simply keep the local policy
+		auto Window = m_Acme->GetRenewalInfo(m_sCertID);
+
+		if (Window.IsValid() && KUnixTime::now() >= Window.WindowStart)
+		{
+			kDebug(1, "CA suggests renewal since {:%F %T}", Window.WindowStart);
+			bRenew = true;
+		}
+	}
+
+	if (!bRenew)
 	{
 		return true;
 	}
 
 	kDebug(2, "ordering certificate for {}", kJoined(m_Options.Domains));
 
-	auto Cert = m_Acme->OrderCertificate(m_Options.Domains);
+	auto Cert = m_Acme->OrderCertificate(m_Options.Domains, m_sCertID);
 
 	if (!Cert.IsValid())
 	{
@@ -314,6 +346,7 @@ bool KAcmeManager::Install(KStringView sCertPEM, KStringView sKeyPEM)
 
 	KRSACert Leaf(sCertPEM);
 	m_ValidUntil = Leaf.ValidUntil();
+	m_sCertID    = KAcmeClient::CreateARICertID(sCertPEM);
 
 	kDebug(1, "installed certificate for {}, valid until {:%F %T}", kJoined(m_Options.Domains), m_ValidUntil);
 

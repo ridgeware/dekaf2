@@ -1,7 +1,9 @@
 #include "catch.hpp"
 
+#include <dekaf2/crypto/ec/keckey.h>
 #include <dekaf2/crypto/rsa/kcsr.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
+#include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
@@ -81,6 +83,28 @@ TEST_CASE("KCSR")
 
 		sk_GENERAL_NAME_pop_free(SANs, GENERAL_NAME_free);
 		sk_X509_EXTENSION_pop_free(Exts, X509_EXTENSION_free);
+		::X509_REQ_free(Req);
+	}
+
+	SECTION("ECKey")
+	{
+		KECKey ECKey(true);
+		REQUIRE ( ECKey.empty() == false );
+
+		KCSR Csr(ECKey, { "ec.example.com" });
+		REQUIRE ( Csr.empty()    == false );
+		CHECK   ( Csr.HasError() == false );
+
+		auto sDER = Csr.GetDER();
+		const auto* pDER = reinterpret_cast<const unsigned char*>(sDER.data());
+		auto* Req = ::d2i_X509_REQ(nullptr, &pDER, static_cast<long>(sDER.size()));
+		REQUIRE ( Req != nullptr );
+
+		auto* PubKey = ::X509_REQ_get_pubkey(Req);
+		REQUIRE ( PubKey != nullptr );
+		CHECK   ( ::EVP_PKEY_base_id(PubKey)    == EVP_PKEY_EC );
+		CHECK   ( ::X509_REQ_verify(Req, PubKey) == 1 );
+		::EVP_PKEY_free(PubKey);
 		::X509_REQ_free(Req);
 	}
 

@@ -4,8 +4,10 @@
 #include <dekaf2/web/acme/kacmemanager.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
 #include <dekaf2/http/client/kwebclient.h>
+#include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/net/tls/ktlsstream.h>
+#include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <openssl/ssl.h>
@@ -35,8 +37,6 @@ using namespace dekaf2;
 	#define DEKAF2_SMOKETEST_HAS_TLS_ALPN 0
 #endif
 
-#if DEKAF2_SMOKETEST_HAS_TLS_ALPN
-
 namespace {
 
 struct AcmeEnv
@@ -47,6 +47,7 @@ struct AcmeEnv
 		sDomain    = kGetEnv("DEKAF2_ACME_DOMAIN", "host.containers.internal");
 		bVerify    = kGetEnv("DEKAF2_ACME_VERIFY", "0") == "1";
 		iPort      = KString(kGetEnv("DEKAF2_ACME_PORT", "5001")).UInt16();
+		iHttpPort  = KString(kGetEnv("DEKAF2_ACME_HTTP_PORT", "5002")).UInt16();
 	}
 
 	/// returns true when an ACME server responds at the directory URL
@@ -62,6 +63,7 @@ struct AcmeEnv
 	KString  sDomain;
 	bool     bVerify;
 	uint16_t iPort;
+	uint16_t iHttpPort;
 
 }; // AcmeEnv
 
@@ -136,8 +138,6 @@ PeerInfo GetPeerInfo(uint16_t iPort, KStringView sSNI)
 } // GetPeerInfo
 
 } // end of anonymous namespace
-
-#endif // of DEKAF2_SMOKETEST_HAS_TLS_ALPN
 
 TEST_CASE("KAcmeClient_ACME")
 {
@@ -253,6 +253,22 @@ TEST_CASE("KAcmeManager_ACME")
 		CHECK ( kNonEmptyFileExists(kFormat("{}{}acme-privkey.pem", Tmp.Name(), kDirSep)) );
 		CHECK ( kNonEmptyFileExists(kFormat("{}{}acme-account.pem", Tmp.Name(), kDirSep)) );
 
+		// ARI: the CA knows the issued certificate and suggests a renewal window
+		{
+			auto sCertID = KAcmeClient::CreateARICertID(kReadAll(kFormat("{}{}acme-cert.pem", Tmp.Name(), kDirSep)));
+			CHECK ( sCertID.empty() == false );
+
+			KAcmeClient::Options AriOptions;
+			AriOptions.sDirectoryURL = Env.sDirectory;
+			AriOptions.bVerifyTLS    = Env.bVerify;
+
+			KAcmeClient Ari(std::move(AriOptions));
+			auto Window = Ari.GetRenewalInfo(sCertID);
+
+			CHECK ( Window.IsValid() == true );
+			CHECK ( Window.WindowEnd > Window.WindowStart );
+		}
+
 		// the timer renews (RenewBefore is huge) - the served serial must change
 		bool bRenewed = false;
 
@@ -290,6 +306,127 @@ TEST_CASE("KAcmeManager_ACME")
 	Server.Stop();
 
 #endif
+}
+
+TEST_CASE("KAcmeClient_EC")
+{
+#if !DEKAF2_SMOKETEST_HAS_TLS_ALPN
+
+	WARN("tls-alpn-01 needs at least OpenSSL 1.1.1 on the server side - skipping");
+
+#else
+
+	AcmeEnv Env;
+
+	if (!Env.HaveServer())
+	{
+		WARN("no ACME server at " << Env.sDirectory << " - skipping (start Pebble, see comment in this file)");
+		return;
+	}
+
+	KTCPServer Server(Env.iPort, true, 10, false);
+	REQUIRE ( Server.Start(chrono::seconds(15), false) == true );
+
+	// order with P-256 account and certificate keys (ES256 JWS)
+	KAcmeClient::Options Options;
+	Options.sDirectoryURL = Env.sDirectory;
+	Options.bVerifyTLS    = Env.bVerify;
+	Options.Keys          = KAcmeClient::KeyType::EC;
+
+	KAcmeClient Acme(std::move(Options));
+	REQUIRE ( Acme.AttachTo(*Server.GetTLSContext()) == true );
+
+	auto Cert = Acme.OrderCertificate({ Env.sDomain });
+
+	INFO    ( Acme.Error() );
+	REQUIRE ( Acme.HasError() == false );
+	REQUIRE ( Cert.IsValid()  == true  );
+
+	// the issued cert carries an EC public key
+	KRSACert Leaf(Cert.sCertPEM);
+	REQUIRE ( Leaf.empty() == false );
+
+	auto* PubKey = ::X509_get_pubkey(Leaf.GetCert());
+	REQUIRE ( PubKey != nullptr );
+	CHECK   ( ::EVP_PKEY_base_id(PubKey) == EVP_PKEY_EC );
+	::EVP_PKEY_free(PubKey);
+
+	// both keys load as P-256 keys, and the cert serves from the TLS context
+	CHECK ( KECKey(KStringView(Cert.sKeyPEM)).empty()        == false );
+	CHECK ( KECKey(KStringView(Cert.sAccountKeyPEM)).empty() == false );
+
+	REQUIRE ( Server.GetTLSContext()->SetTLSCertificates(Cert.sCertPEM, Cert.sKeyPEM) == true );
+
+	Server.Stop();
+
+#endif
+}
+
+TEST_CASE("KAcmeClient_HTTP01")
+{
+	// http-01 has no OpenSSL version requirements - the responder is plain HTTP
+
+	AcmeEnv Env;
+
+	if (!Env.HaveServer())
+	{
+		WARN("no ACME server at " << Env.sDirectory << " - skipping (start Pebble, see comment in this file)");
+		return;
+	}
+
+	KAcmeClient::Options Options;
+	Options.sDirectoryURL = Env.sDirectory;
+	Options.bVerifyTLS    = Env.bVerify;
+	Options.ChallengeType = KAcmeClient::Challenge::Http01;
+
+	KAcmeClient Acme(std::move(Options));
+
+	auto Resolver = Acme.GetHTTPChallengeResolver();
+
+	CHECK ( Resolver("unknown-token") == "" );
+
+	// serve the challenge on Pebble's http-01 validation port
+	KRESTRoutes Routes;
+
+	Routes.AddRoute({ KHTTPMethod::GET, false, "/.well-known/acme-challenge/:token", [&Resolver](KRESTServer& http)
+	{
+		auto sKeyAuth = Resolver(http.Request.Resource.Query[":token"]);
+
+		if (sKeyAuth.empty())
+		{
+			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "no such challenge" };
+		}
+
+		http.SetRawOutput(std::move(sKeyAuth));
+
+	}, KRESTRoute::PLAIN });
+
+	KREST::Options RESTOptions;
+	RESTOptions.Type                 = KREST::HTTP;
+	RESTOptions.iPort                = Env.iHttpPort;
+	RESTOptions.bBlocking            = false;
+	RESTOptions.bCreateEphemeralCert = false; // else the server speaks TLS
+
+	KREST REST;
+	REQUIRE ( REST.Execute(RESTOptions, Routes) == true );
+
+	// the responder must answer 404 for unknown tokens
+	{
+		KWebClient Probe;
+		auto sBody = Probe.Get(KURL(kFormat("http://localhost:{}/.well-known/acme-challenge/foo", Env.iHttpPort)));
+		INFO  ( sBody );
+		CHECK ( Probe.GetStatusCode() == 404 );
+	}
+
+	auto Cert = Acme.OrderCertificate({ Env.sDomain });
+
+	INFO    ( Acme.Error() );
+	REQUIRE ( Acme.HasError() == false );
+	REQUIRE ( Cert.IsValid()  == true  );
+
+	KRSACert Leaf(Cert.sCertPEM);
+	CHECK ( Leaf.empty()      == false );
+	CHECK ( Leaf.IsValidNow() == true  );
 }
 
 TEST_CASE("KTCPServer_SetACME")

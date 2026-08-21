@@ -45,6 +45,7 @@
 /// @file kcsr.h
 /// PKCS#10 certificate signing requests
 
+#include <dekaf2/crypto/ec/keckey.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>
@@ -87,6 +88,18 @@ public:
 		Create(Key, Domains, sCountryCode, sOrganization);
 	}
 
+	/// construct with a new signing request for an EC key
+	KCSR
+	(
+		const KECKey&               Key,
+		const std::vector<KString>& Domains,
+		KStringView                 sCountryCode  = "",
+		KStringView                 sOrganization = ""
+	)
+	{
+		Create(Key, Domains, sCountryCode, sOrganization);
+	}
+
 	KCSR(const KCSR& other) = delete;
 	KCSR(KCSR&& other) noexcept;
 	// dtor
@@ -117,7 +130,22 @@ public:
 		const std::vector<KString>& Domains,
 		KStringView                 sCountryCode  = "",
 		KStringView                 sOrganization = ""
-	);
+	)
+	{
+		return Create(Key.GetEVPPKey(), Domains, sCountryCode, sOrganization);
+	}
+
+	/// create a new signing request for an EC key
+	bool Create
+	(
+		const KECKey&               Key,
+		const std::vector<KString>& Domains,
+		KStringView                 sCountryCode  = "",
+		KStringView                 sOrganization = ""
+	)
+	{
+		return Create(Key.GetEVPPKey(), Domains, sCountryCode, sOrganization);
+	}
 
 	/// get the request, may return nullptr in case of error or default construction
 	X509_req_st* GetRequest() const { return m_Request; }
@@ -129,6 +157,15 @@ public:
 //------
 private:
 //------
+
+	DEKAF2_PRIVATE
+	bool Create
+	(
+		evp_pkey_st*                pKey,
+		const std::vector<KString>& Domains,
+		KStringView                 sCountryCode,
+		KStringView                 sOrganization
+	);
 
 	X509_req_st* m_Request { nullptr };
 

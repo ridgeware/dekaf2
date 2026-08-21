@@ -93,7 +93,7 @@ void KCSR::clear()
 //---------------------------------------------------------------------------
 bool KCSR::Create
 (
-	const KRSAKey&              Key,
+	evp_pkey_st*                pKey,
 	const std::vector<KString>& Domains,
 	KStringView                 sCountryCode,
 	KStringView                 sOrganization
@@ -102,7 +102,7 @@ bool KCSR::Create
 {
 	clear();
 
-	if (Key.GetEVPPKey() == nullptr)
+	if (pKey == nullptr)
 	{
 		return SetError("no key");
 	}
@@ -195,13 +195,13 @@ bool KCSR::Create
 		}
 	}
 
-	if (!::X509_REQ_set_pubkey(m_Request, Key.GetEVPPKey()))
+	if (!::X509_REQ_set_pubkey(m_Request, pKey))
 	{
 		return SetError(KDigest::GetOpenSSLError("error setting public key"));
 	}
 
 	// SHA-256, as the CA must be able to verify this signature as proof of possession
-	if (!::X509_REQ_sign(m_Request, Key.GetEVPPKey(), ::EVP_sha256()))
+	if (!::X509_REQ_sign(m_Request, pKey, ::EVP_sha256()))
 	{
 		return SetError(KDigest::GetOpenSSLError("error signing request"));
 	}

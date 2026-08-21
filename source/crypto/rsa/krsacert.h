@@ -164,6 +164,14 @@ public:
 	/// return the cert's Subject Alternative Names (DNS names and IP addresses)
 	std::vector<KString> GetSANs() const;
 
+	/// return the serial number as its DER integer bytes (including a leading
+	/// zero byte for a set high bit), e.g. for an ACME ARI certificate ID
+	KString GetSerialBytes() const;
+
+	/// return the keyIdentifier bytes of the Authority Key Identifier extension,
+	/// empty if the cert has none (e.g. self-signed certs created by this class)
+	KString GetAuthorityKeyIdentifier() const;
+
 	/// return time from which on this cert is valid
 	KUnixTime ValidFrom() const;
 	/// return time until which this cert is valid

@@ -48,6 +48,7 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/crypto/ec/keckey.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/http/client/kwebclient.h>
@@ -85,6 +86,18 @@ public:
 	static constexpr KStringViewZ LetsEncrypt        = "https://acme-v02.api.letsencrypt.org/directory";
 	static constexpr KStringViewZ LetsEncryptStaging = "https://acme-staging-v02.api.letsencrypt.org/directory";
 
+	enum class Challenge
+	{
+		TlsAlpn01, ///< validation on port 443 through the SNI dispatch, see AttachTo()
+		Http01     ///< validation on port 80, see GetHTTPChallengeResolver()
+	};
+
+	enum class KeyType
+	{
+		RSA,       ///< RSA keys (iKeyLength bits), JWS with RS256
+		EC         ///< P-256 keys, JWS with ES256 - smaller certs, faster handshakes
+	};
+
 	struct Options
 	{
 		/// the ACME directory URL, default is Let's Encrypt production
@@ -96,6 +109,11 @@ public:
 		/// certificate profile to request (CA specific, e.g. "shortlived") -
 		/// empty lets the CA choose
 		KString   sProfile;
+		/// the challenge type proving domain ownership, default tls-alpn-01
+		Challenge ChallengeType  { Challenge::TlsAlpn01 };
+		/// the type of newly created account and certificate keys, default RSA.
+		/// A stored account key keeps the type it was created with.
+		KeyType   Keys           { KeyType::RSA         };
 		/// key length for newly created account and certificate keys
 		uint16_t  iKeyLength     { 2048               };
 		/// interval between status polls
@@ -121,6 +139,17 @@ public:
 
 	}; // Certificate
 
+	struct RenewalInfo
+	{
+		/// returns true if the CA supplied a renewal window
+		bool IsValid() const { return WindowStart != KUnixTime() && WindowEnd != KUnixTime(); }
+
+		/// the CA's suggested renewal window (RFC 9773)
+		KUnixTime WindowStart;
+		KUnixTime WindowEnd;
+
+	}; // RenewalInfo
+
 	KAcmeClient();
 	KAcmeClient(Options Options);
 
@@ -133,20 +162,46 @@ public:
 	/// instead of AttachTo(). Stays valid after this client is destroyed.
 	KTLSContext::SNICallback GetChallengeResolver() const;
 
+	/// the http-01 challenge responder for Challenge::Http01: returns the response
+	/// body for a request to /.well-known/acme-challenge/(token), or an empty string
+	/// if no such challenge is pending. Serve it as text/plain on port 80 of the
+	/// ordered domains. Stays valid after this client is destroyed.
+	std::function<KString(KStringView)> GetHTTPChallengeResolver() const;
+
 	/// order a certificate for the given domains, proving ownership with tls-alpn-01
 	/// challenges served through the attached context. Blocks until the certificate
 	/// is issued or validation failed (check with Certificate::IsValid()).
 	/// @param Domains the requested domains - no wildcards (those need dns-01)
-	Certificate OrderCertificate(const std::vector<KString>& Domains);
+	/// @param sReplacesCertID the ARI certificate ID (see CreateARICertID()) of the
+	/// certificate this order replaces - links the renewal for the CA (RFC 9773),
+	/// which typically relaxes rate limits. Retried without on rejection.
+	Certificate OrderCertificate(const std::vector<KString>& Domains, KStringView sReplacesCertID = KStringView{});
+
+	/// fetch the CA's suggested renewal window for a certificate (RFC 9773). A CA
+	/// without ARI support and fetch failures return an invalid RenewalInfo but set
+	/// no error - the caller falls back to its local renewal policy.
+	/// @param sARICertID the certificate ID from CreateARICertID()
+	RenewalInfo GetRenewalInfo(KStringView sARICertID);
+
+	/// compute the ARI certificate ID (RFC 9773) of a PEM certificate:
+	/// base64url(AKI keyIdentifier) "." base64url(serial bytes).
+	/// @returns the ID, or an empty string if the cert has no Authority Key Identifier
+	static KString CreateARICertID(KStringView sCertPEM);
 
 	/// RFC 7638 thumbprint of an RSA key's public JWK (SHA-256, base64url)
 	static KString JWKThumbprint(const KRSAKey& Key);
+
+	/// RFC 7638 thumbprint of a P-256 key's public JWK (SHA-256, base64url)
+	static KString JWKThumbprint(const KECKey& Key);
 
 	/// sign a JWS in flattened JSON serialization with RS256
 	/// @param Key the signing key
 	/// @param jProtected the protected header - alg is set to RS256
 	/// @param sPayload the payload, may be empty (POST-as-GET)
 	static KString SignJWS(const KRSAKey& Key, KJSON jProtected, KStringView sPayload);
+
+	/// sign a JWS in flattened JSON serialization with ES256
+	static KString SignJWS(const KECKey& Key, KJSON jProtected, KStringView sPayload);
 
 	/// create a server TLS context carrying a tls-alpn-01 challenge certificate
 	/// (RFC 8737) for sDomain, with ALPN restricted to acme-tls/1
@@ -159,9 +214,20 @@ public:
 private:
 //------
 
-	using ChallengeMap = KThreadSafe<std::unordered_map<KString, std::shared_ptr<KTLSContext>>>;
+	using ChallengeMap     = KThreadSafe<std::unordered_map<KString, std::shared_ptr<KTLSContext>>>;
+	using HTTPChallengeMap = KThreadSafe<std::unordered_map<KString, KString>>;
 
-	static KJSON GetPublicJWK   (const KRSAKey& Key);
+	// the account key operations, dispatching on the key type
+	DEKAF2_PRIVATE
+	bool    LoadOrCreateAccountKey();
+	DEKAF2_PRIVATE
+	KJSON   AccountJWK        () const;
+	DEKAF2_PRIVATE
+	KString AccountThumbprint () const;
+	DEKAF2_PRIVATE
+	KString AccountSign       (KJSON jProtected, KStringView sPayload) const;
+	DEKAF2_PRIVATE
+	KString AccountPEM        ();
 
 	bool    FetchDirectory ();
 	bool    FetchNonce     ();
@@ -171,13 +237,16 @@ private:
 	KJSON   PollStatus     (const KURL& URL);
 	bool    DoAuthorization(const KURL& URL);
 
-	Options                       m_Options;
-	KWebClient                    m_HTTP;
-	KRSAKey                       m_AccountKey;
-	KJSON                         m_jDirectory;
-	KString                       m_sKid;
-	KString                       m_sNonce;
-	std::shared_ptr<ChallengeMap> m_Challenges;
+	Options                           m_Options;
+	KWebClient                        m_HTTP;
+	KRSAKey                           m_AccountKey;
+	KECKey                            m_AccountKeyEC;
+	KJSON                             m_jDirectory;
+	KString                           m_sKid;
+	KString                           m_sNonce;
+	std::shared_ptr<ChallengeMap>     m_Challenges;
+	std::shared_ptr<HTTPChallengeMap> m_HTTPChallenges;
+	bool                              m_bAccountIsEC { false };
 
 }; // KAcmeClient
 

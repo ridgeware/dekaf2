@@ -3,6 +3,8 @@
 #include <dekaf2/web/acme/kacmeclient.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
+#include <dekaf2/crypto/ec/keckey.h>
+#include <dekaf2/crypto/ec/kecsign.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/crypto/rsa/krsasign.h>
@@ -230,6 +232,83 @@ TEST_CASE("KAcmeClient")
 		CHECK ( Resolver(Hello) == nullptr ); // no challenge pending for the name
 	}
 
+	SECTION("ECAccountKeys")
+	{
+		KECKey Key(true);
+		REQUIRE ( Key.empty() == false );
+
+		// the JWK carries the P-256 point coordinates
+		auto jJWK = Key.GetPublicJWK("mykid");
+		CHECK ( jJWK["kty"] == "EC"    );
+		CHECK ( jJWK["crv"] == "P-256" );
+		CHECK ( jJWK["alg"] == "ES256" );
+		CHECK ( jJWK["x"].String().size() == 43 ); // 32 bytes base64url
+		CHECK ( jJWK["y"].String().size() == 43 );
+
+		// the thumbprint is stable and SHA-256 sized
+		auto sThumb = KAcmeClient::JWKThumbprint(Key);
+		CHECK ( sThumb.size() == 43 );
+		CHECK ( sThumb == KAcmeClient::JWKThumbprint(Key) );
+
+		// an ES256 JWS verifies over protected.payload
+		auto sJWS = KAcmeClient::SignJWS(Key, KJSON { { "nonce", "abc" } }, R"({"foo":"bar"})");
+
+		KJSON jJWS;
+		KString sError;
+		REQUIRE ( kjson::Parse(jJWS, sJWS, sError) == true );
+
+		KJSON jProtected;
+		REQUIRE ( kjson::Parse(jProtected, KBase64Url::Decode(jJWS["protected"].String()), sError) == true );
+		CHECK   ( jProtected["alg"] == "ES256" );
+
+		auto sSignature = KBase64Url::Decode(jJWS["signature"].String());
+		CHECK ( sSignature.size() == 64 ); // raw r||s
+
+		KECVerify Verifier;
+		CHECK ( Verifier.Verify(Key,
+		                        kFormat("{}.{}", jJWS["protected"].String(), jJWS["payload"].String()),
+		                        sSignature) == true );
+	}
+
+	SECTION("ARICertID")
+	{
+		KRSAKey  Key(2048);
+		KRSACert Cert(Key, "ari.test", "", "", "", chrono::days(7));
+		REQUIRE ( Cert.HasError() == false );
+
+		// a cert without an Authority Key Identifier has no ARI ID
+		CHECK ( KAcmeClient::CreateARICertID(Cert.GetPEM()) == "" );
+
+		// add a known AKI: SEQUENCE { [0] keyIdentifier (20 bytes) }
+		KString sKeyID;
+		for (int i = 0; i < 20; ++i)
+		{
+			sKeyID += static_cast<char>(i);
+		}
+
+		KString sAKI("\x30\x16\x80\x14", 4);
+		sAKI += sKeyID;
+
+		REQUIRE ( Cert.AddExtension("2.5.29.35", sAKI) == true );
+		REQUIRE ( Cert.Sign(Key) == true );
+
+		auto sPEM = Cert.GetPEM();
+
+		KRSACert Parsed(sPEM);
+		CHECK ( Parsed.GetAuthorityKeyIdentifier() == sKeyID );
+		CHECK ( Parsed.GetSerialBytes().empty()    == false  );
+
+		CHECK ( KAcmeClient::CreateARICertID(sPEM) ==
+		        kFormat("{}.{}", KBase64Url::Encode(sKeyID), KBase64Url::Encode(Parsed.GetSerialBytes())) );
+	}
+
+	SECTION("RFC3339")
+	{
+		// ARI renewal windows come as RFC 3339 timestamps
+		KUnixTime Parsed = kParseTimestamp("2026-08-21T12:00:00Z");
+		CHECK ( Parsed.to_time_t() == 1787313600 );
+	}
+
 	SECTION("Errors")
 	{
 		KAcmeClient Acme;
@@ -238,5 +317,8 @@ TEST_CASE("KAcmeClient")
 		CHECK ( Acme.HasError()                                        == true  );
 		CHECK ( Acme.OrderCertificate({ "*.example.com" }).IsValid()   == false );
 		CHECK ( Acme.Error().contains("wildcard")                      == true  );
+
+		// ARI failures are advisory and set no error
+		CHECK ( Acme.GetRenewalInfo("").IsValid()                      == false );
 	}
 }

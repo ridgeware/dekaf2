@@ -42,6 +42,7 @@
 
 #include <dekaf2/crypto/ec/keckey.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h>
 #include <openssl/evp.h>
@@ -482,6 +483,32 @@ KString KECKey::GetPEM(bool bPrivateKey) const
 	return KString(pPEM, static_cast<std::size_t>(iLen));
 
 } // GetPEM
+
+//-----------------------------------------------------------------------------
+KJSON KECKey::GetPublicJWK(KStringView sKid, KStringView sAlg) const
+//-----------------------------------------------------------------------------
+{
+	auto sRaw = GetPublicKeyRaw();
+
+	// uncompressed P-256 point: 0x04 || x (32 bytes) || y (32 bytes)
+	if (sRaw.size() != 65 || sRaw.front() != 0x04)
+	{
+		return KJSON{};
+	}
+
+	KStringView sPoint(sRaw);
+
+	return KJSON {
+		{ "kty", "EC"                                     },
+		{ "crv", "P-256"                                  },
+		{ "x",   KBase64Url::Encode(sPoint.substr( 1, 32))},
+		{ "y",   KBase64Url::Encode(sPoint.substr(33, 32))},
+		{ "kid", KString(sKid)                            },
+		{ "alg", KString(sAlg)                            },
+		{ "use", "sig"                                    }
+	};
+
+} // GetPublicJWK
 
 //---------------------------------------------------------------------------
 KString KECKey::DeriveSharedSecret(KStringView sPeerPublicRaw) const

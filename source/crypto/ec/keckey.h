@@ -118,6 +118,7 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/data/json/kjson.h>
 
 struct evp_pkey_st;
 
@@ -214,6 +215,15 @@ public:
 	/// @return PEM string, empty on error
 	DEKAF2_NODISCARD
 	KString GetPEM(bool bPrivateKey = true) const;
+
+	/// Export the public key as a JWK (JSON Web Key) suitable for a JWKS
+	/// document: { "kty":"EC", "crv":"P-256", "x":..., "y":..., "kid":..., "alg":..., "use":"sig" }.
+	/// The coordinates are base64url-encoded big-endian (JWK spec).
+	/// @param sKid the key id to advertise (the JWT header "kid")
+	/// @param sAlg the JWS algorithm, defaults to "ES256"
+	/// @return the JWK object, or an empty KJSON if no key is set
+	DEKAF2_NODISCARD
+	KJSON GetPublicJWK(KStringView sKid, KStringView sAlg = "ES256") const;
 
 	/// perform ECDH key derivation with a peer's public key
 	/// @param sPeerPublicRaw the peer's uncompressed public key (65 bytes)

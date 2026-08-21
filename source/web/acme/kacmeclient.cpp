@@ -44,13 +44,17 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/types/kscopeguard.h>
+#include <dekaf2/core/types/bits/kunique_deleter.h>
+#include <dekaf2/crypto/ec/kecsign.h>
 #include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/crypto/rsa/kcsr.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
 #include <dekaf2/crypto/rsa/krsasign.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <openssl/evp.h>
 #include <openssl/opensslv.h>
+#include <openssl/pem.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
 	#define DEKAF2_HAS_TLS_ALPN_DISPATCH 1
@@ -67,6 +71,48 @@ constexpr KStringViewZ AcmeIdOID   = "1.3.6.1.5.5.7.1.31"; // id-pe-acmeIdentifi
 constexpr KStringViewZ BadNonce    = "urn:ietf:params:acme:error:badNonce";
 constexpr KStringViewZ ReplayNonce = "Replay-Nonce";
 
+//-----------------------------------------------------------------------------
+bool IsECPEM(KStringView sPEM)
+//-----------------------------------------------------------------------------
+{
+	KUniquePtr<BIO, ::BIO_free_all> bio(::BIO_new_mem_buf(sPEM.data(), static_cast<int>(sPEM.size())));
+	KUniquePtr<EVP_PKEY, ::EVP_PKEY_free> key(::PEM_read_bio_PrivateKey(bio.get(), nullptr, nullptr, nullptr));
+
+	return key && ::EVP_PKEY_base_id(key.get()) == EVP_PKEY_EC;
+
+} // IsECPEM
+
+//-----------------------------------------------------------------------------
+// set the algorithm in the protected header and return the JWS signing input
+KString BuildSigningInput(KJSON& jProtected, KStringView sAlg, KStringView sPayload)
+//-----------------------------------------------------------------------------
+{
+	jProtected["alg"] = sAlg;
+
+	return kFormat("{}.{}", KBase64Url::Encode(jProtected.dump()), KBase64Url::Encode(sPayload));
+
+} // BuildSigningInput
+
+//-----------------------------------------------------------------------------
+// assemble the flattened JSON serialization from signing input and signature
+KString FinishJWS(KStringView sSigningInput, KStringView sSignature)
+//-----------------------------------------------------------------------------
+{
+	if (sSignature.empty())
+	{
+		return {};
+	}
+
+	auto iDot = sSigningInput.find('.');
+
+	return KJSON {
+		{ "protected", sSigningInput.substr(0, iDot)  },
+		{ "payload"  , sSigningInput.substr(iDot + 1) },
+		{ "signature", KBase64Url::Encode(sSignature) }
+	}.dump();
+
+} // FinishJWS
+
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -81,29 +127,10 @@ KAcmeClient::KAcmeClient(Options Options)
 //-----------------------------------------------------------------------------
 : m_Options(std::move(Options))
 , m_Challenges(std::make_shared<ChallengeMap>())
+, m_HTTPChallenges(std::make_shared<HTTPChallengeMap>())
 {
 	m_HTTP.SetVerifyCerts(m_Options.bVerifyTLS);
 }
-
-//-----------------------------------------------------------------------------
-KJSON KAcmeClient::GetPublicJWK(const KRSAKey& Key)
-//-----------------------------------------------------------------------------
-{
-	auto jFull = Key.GetPublicJWK("", "RS256");
-
-	if (jFull.empty())
-	{
-		return KJSON{};
-	}
-
-	// the account JWK in a JWS header carries only the key parameters
-	return KJSON {
-		{ "e"  , jFull["e"  ].String() },
-		{ "kty", jFull["kty"].String() },
-		{ "n"  , jFull["n"  ].String() }
-	};
-
-} // GetPublicJWK
 
 //-----------------------------------------------------------------------------
 KString KAcmeClient::JWKThumbprint(const KRSAKey& Key)
@@ -126,34 +153,168 @@ KString KAcmeClient::JWKThumbprint(const KRSAKey& Key)
 } // JWKThumbprint
 
 //-----------------------------------------------------------------------------
+KString KAcmeClient::JWKThumbprint(const KECKey& Key)
+//-----------------------------------------------------------------------------
+{
+	auto jJWK = Key.GetPublicJWK("", "ES256");
+
+	if (jJWK.empty())
+	{
+		return {};
+	}
+
+	auto sCanonical = kFormat(R"({{"crv":"P-256","kty":"EC","x":"{}","y":"{}"}})",
+	                          jJWK["x"].String(), jJWK["y"].String());
+
+	return KBase64Url::Encode(KSHA256(sCanonical).Digest());
+
+} // JWKThumbprint
+
+//-----------------------------------------------------------------------------
 KString KAcmeClient::SignJWS(const KRSAKey& Key, KJSON jProtected, KStringView sPayload)
 //-----------------------------------------------------------------------------
 {
-	jProtected["alg"] = "RS256";
-
-	auto sProtected64 = KBase64Url::Encode(jProtected.dump());
-	auto sPayload64   = KBase64Url::Encode(sPayload);
+	auto sInput = BuildSigningInput(jProtected, "RS256", sPayload);
 
 	KRSASign Signer(KRSASign::Digest::SHA256);
-	Signer.Update(sProtected64);
-	Signer.Update(".");
-	Signer.Update(sPayload64);
+	Signer.Update(sInput);
 
 	auto sSignature = Signer.Sign(Key);
 
 	if (sSignature.empty())
 	{
 		kDebug(1, "cannot sign JWS: {}", Signer.Error());
-		return {};
+	}
+
+	return FinishJWS(sInput, sSignature);
+
+} // SignJWS
+
+//-----------------------------------------------------------------------------
+KString KAcmeClient::SignJWS(const KECKey& Key, KJSON jProtected, KStringView sPayload)
+//-----------------------------------------------------------------------------
+{
+	auto sInput = BuildSigningInput(jProtected, "ES256", sPayload);
+
+	KECSign Signer;
+
+	auto sSignature = Signer.Sign(Key, sInput);
+
+	if (sSignature.empty())
+	{
+		kDebug(1, "cannot sign JWS: {}", Signer.Error());
+	}
+
+	return FinishJWS(sInput, sSignature);
+
+} // SignJWS
+
+//-----------------------------------------------------------------------------
+KJSON KAcmeClient::AccountJWK() const
+//-----------------------------------------------------------------------------
+{
+	// the account JWK in a JWS header carries only the key parameters
+	if (m_bAccountIsEC)
+	{
+		auto jFull = m_AccountKeyEC.GetPublicJWK("", "ES256");
+
+		if (jFull.empty())
+		{
+			return KJSON{};
+		}
+
+		return KJSON {
+			{ "crv", jFull["crv"].String() },
+			{ "kty", jFull["kty"].String() },
+			{ "x"  , jFull["x"  ].String() },
+			{ "y"  , jFull["y"  ].String() }
+		};
+	}
+
+	auto jFull = m_AccountKey.GetPublicJWK("", "RS256");
+
+	if (jFull.empty())
+	{
+		return KJSON{};
 	}
 
 	return KJSON {
-		{ "protected", std::move(sProtected64)        },
-		{ "payload"  , std::move(sPayload64)          },
-		{ "signature", KBase64Url::Encode(sSignature) }
-	}.dump();
+		{ "e"  , jFull["e"  ].String() },
+		{ "kty", jFull["kty"].String() },
+		{ "n"  , jFull["n"  ].String() }
+	};
 
-} // SignJWS
+} // AccountJWK
+
+//-----------------------------------------------------------------------------
+KString KAcmeClient::AccountThumbprint() const
+//-----------------------------------------------------------------------------
+{
+	return m_bAccountIsEC ? JWKThumbprint(m_AccountKeyEC) : JWKThumbprint(m_AccountKey);
+
+} // AccountThumbprint
+
+//-----------------------------------------------------------------------------
+KString KAcmeClient::AccountSign(KJSON jProtected, KStringView sPayload) const
+//-----------------------------------------------------------------------------
+{
+	return m_bAccountIsEC ? SignJWS(m_AccountKeyEC, std::move(jProtected), sPayload)
+	                      : SignJWS(m_AccountKey  , std::move(jProtected), sPayload);
+
+} // AccountSign
+
+//-----------------------------------------------------------------------------
+KString KAcmeClient::AccountPEM()
+//-----------------------------------------------------------------------------
+{
+	return m_bAccountIsEC ? m_AccountKeyEC.GetPEM(true) : m_AccountKey.GetPEM(true);
+
+} // AccountPEM
+
+//-----------------------------------------------------------------------------
+bool KAcmeClient::LoadOrCreateAccountKey()
+//-----------------------------------------------------------------------------
+{
+	if (!m_AccountKey.empty() || !m_AccountKeyEC.empty())
+	{
+		return true;
+	}
+
+	if (!m_Options.sAccountKeyPEM.empty())
+	{
+		// a stored key keeps its type, whatever Options.Keys says
+		if (IsECPEM(m_Options.sAccountKeyPEM))
+		{
+			m_bAccountIsEC = true;
+
+			if (!m_AccountKeyEC.CreateFromPEM(m_Options.sAccountKeyPEM))
+			{
+				return SetError(kFormat("cannot load account key: {}", m_AccountKeyEC.Error()));
+			}
+		}
+		else if (!m_AccountKey.Create(KStringView(m_Options.sAccountKeyPEM)))
+		{
+			return SetError(kFormat("cannot load account key: {}", m_AccountKey.Error()));
+		}
+	}
+	else if (m_Options.Keys == KeyType::EC)
+	{
+		m_bAccountIsEC = true;
+		m_AccountKeyEC = KECKey(true);
+
+		if (m_AccountKeyEC.empty())
+		{
+			return SetError(kFormat("cannot create account key: {}", m_AccountKeyEC.Error()));
+		}
+	}
+	else if (!m_AccountKey.Create(m_Options.iKeyLength))
+	{
+		return SetError(kFormat("cannot create account key: {}", m_AccountKey.Error()));
+	}
+
+	return true;
+
+} // LoadOrCreateAccountKey
 
 //-----------------------------------------------------------------------------
 std::shared_ptr<KTLSContext> KAcmeClient::CreateChallengeContext(KStringView sDomain, KStringView sKeyAuthorization, uint16_t iKeyLength)
@@ -220,6 +381,24 @@ KTLSContext::SNICallback KAcmeClient::GetChallengeResolver() const
 } // GetChallengeResolver
 
 //-----------------------------------------------------------------------------
+std::function<KString(KStringView)> KAcmeClient::GetHTTPChallengeResolver() const
+//-----------------------------------------------------------------------------
+{
+	// the lambda shares ownership of the challenge map, so it stays valid
+	// after this client is destroyed
+	auto Challenges = m_HTTPChallenges;
+
+	return [Challenges](KStringView sToken) -> KString
+	{
+		auto Map = Challenges->shared();
+		auto it  = Map->find(KString(sToken));
+
+		return (it != Map->end()) ? it->second : KString{};
+	};
+
+} // GetHTTPChallengeResolver
+
+//-----------------------------------------------------------------------------
 bool KAcmeClient::AttachTo(KTLSContext& Context) const
 //-----------------------------------------------------------------------------
 {
@@ -231,6 +410,74 @@ bool KAcmeClient::AttachTo(KTLSContext& Context) const
 #endif
 
 } // AttachTo
+
+//-----------------------------------------------------------------------------
+KString KAcmeClient::CreateARICertID(KStringView sCertPEM)
+//-----------------------------------------------------------------------------
+{
+	KRSACert Cert(sCertPEM);
+
+	auto sAKI    = Cert.GetAuthorityKeyIdentifier();
+	auto sSerial = Cert.GetSerialBytes();
+
+	if (sAKI.empty() || sSerial.empty())
+	{
+		return {};
+	}
+
+	return kFormat("{}.{}", KBase64Url::Encode(sAKI), KBase64Url::Encode(sSerial));
+
+} // CreateARICertID
+
+//-----------------------------------------------------------------------------
+KAcmeClient::RenewalInfo KAcmeClient::GetRenewalInfo(KStringView sARICertID)
+//-----------------------------------------------------------------------------
+{
+	RenewalInfo Info;
+
+	if (sARICertID.empty())
+	{
+		return Info;
+	}
+
+	if (!FetchDirectory())
+	{
+		ClearError(); // ARI is advisory - callers fall back to their local policy
+		return Info;
+	}
+
+	auto sURL = m_jDirectory["renewalInfo"].String();
+
+	if (sURL.empty())
+	{
+		kDebug(2, "CA does not support ARI");
+		return Info;
+	}
+
+	// RFC 9773: an unauthenticated GET
+	auto sResponse = m_HTTP.Get(KURL(kFormat("{}/{}", sURL, sARICertID)));
+
+	if (m_HTTP.GetStatusCode() != 200)
+	{
+		kDebug(2, "no renewal info for {}: HTTP {}", sARICertID, m_HTTP.GetStatusCode());
+		return Info;
+	}
+
+	KJSON jInfo;
+	KString sError;
+
+	if (!kjson::Parse(jInfo, sResponse, sError))
+	{
+		kDebug(1, "invalid renewal info: {}", sError);
+		return Info;
+	}
+
+	Info.WindowStart = kParseTimestamp(jInfo["suggestedWindow"]["start"].String());
+	Info.WindowEnd   = kParseTimestamp(jInfo["suggestedWindow"]["end"  ].String());
+
+	return Info;
+
+} // GetRenewalInfo
 
 //-----------------------------------------------------------------------------
 bool KAcmeClient::FetchDirectory()
@@ -300,10 +547,10 @@ KString KAcmeClient::SignedRequest(const KURL& URL, KStringView sPayload, bool b
 		}
 		else
 		{
-			jProtected["jwk"] = GetPublicJWK(m_AccountKey);
+			jProtected["jwk"] = AccountJWK();
 		}
 
-		auto sBody = SignJWS(m_AccountKey, std::move(jProtected), sPayload);
+		auto sBody = AccountSign(std::move(jProtected), sPayload);
 
 		if (sBody.empty())
 		{
@@ -380,19 +627,9 @@ bool KAcmeClient::CreateAccount()
 		return true;
 	}
 
-	if (m_AccountKey.empty())
+	if (!LoadOrCreateAccountKey())
 	{
-		if (!m_Options.sAccountKeyPEM.empty())
-		{
-			if (!m_AccountKey.Create(KStringView(m_Options.sAccountKeyPEM)))
-			{
-				return SetError(kFormat("cannot load account key: {}", m_AccountKey.Error()));
-			}
-		}
-		else if (!m_AccountKey.Create(m_Options.iKeyLength))
-		{
-			return SetError(kFormat("cannot create account key: {}", m_AccountKey.Error()));
-		}
+		return false;
 	}
 
 	KJSON jPayload { { "termsOfServiceAgreed", true } };
@@ -483,11 +720,14 @@ bool KAcmeClient::DoAuthorization(const KURL& URL)
 
 	auto sDomain = jAuthz["identifier"]["value"].String();
 
+	const bool  bHttp       = (m_Options.ChallengeType == Challenge::Http01);
+	KStringView sWantedType = bHttp ? "http-01" : "tls-alpn-01";
+
 	KJSON jChallenge;
 
 	for (auto& jOffered : jAuthz["challenges"])
 	{
-		if (jOffered["type"] == "tls-alpn-01")
+		if (jOffered["type"] == sWantedType)
 		{
 			jChallenge = jOffered;
 			break;
@@ -496,23 +736,34 @@ bool KAcmeClient::DoAuthorization(const KURL& URL)
 
 	if (jChallenge.empty())
 	{
-		return SetError(kFormat("no tls-alpn-01 challenge offered for {}", sDomain));
+		return SetError(kFormat("no {} challenge offered for {}", sWantedType, sDomain));
 	}
 
-	auto sKeyAuth  = kFormat("{}.{}", jChallenge["token"].String(), JWKThumbprint(m_AccountKey));
-	auto Challenge = CreateChallengeContext(sDomain, sKeyAuth, m_Options.iKeyLength);
-
-	if (!Challenge)
-	{
-		return SetError(kFormat("cannot create challenge context for {}", sDomain));
-	}
-
+	auto sToken       = jChallenge["token"].String();
+	auto sKeyAuth     = kFormat("{}.{}", sToken, AccountThumbprint());
 	auto sLowerDomain = sDomain.ToLowerASCII();
 
 	// serve the challenge until validation completed, then remove it
-	m_Challenges->unique().get()[sLowerDomain] = std::move(Challenge);
+	if (bHttp)
+	{
+		m_HTTPChallenges->unique().get()[sToken] = sKeyAuth;
+	}
+	else
+	{
+		auto Challenge = CreateChallengeContext(sDomain, sKeyAuth, m_Options.iKeyLength);
 
-	KAtScopeEnd( m_Challenges->unique().get().erase(sLowerDomain) );
+		if (!Challenge)
+		{
+			return SetError(kFormat("cannot create challenge context for {}", sDomain));
+		}
+
+		m_Challenges->unique().get()[sLowerDomain] = std::move(Challenge);
+	}
+
+	KAtScopeEnd(
+		if (bHttp) m_HTTPChallenges->unique().get().erase(sToken);
+		else       m_Challenges->unique().get().erase(sLowerDomain);
+	);
 
 	// ask the CA to validate
 	SignedPost(KURL(jChallenge["url"].String()), "{}");
@@ -555,7 +806,7 @@ bool KAcmeClient::DoAuthorization(const KURL& URL)
 } // DoAuthorization
 
 //-----------------------------------------------------------------------------
-KAcmeClient::Certificate KAcmeClient::OrderCertificate(const std::vector<KString>& Domains)
+KAcmeClient::Certificate KAcmeClient::OrderCertificate(const std::vector<KString>& Domains, KStringView sReplacesCertID)
 //-----------------------------------------------------------------------------
 {
 	Certificate Issued;
@@ -597,7 +848,23 @@ KAcmeClient::Certificate KAcmeClient::OrderCertificate(const std::vector<KString
 		jNewOrder["profile"] = m_Options.sProfile;
 	}
 
+	if (!sReplacesCertID.empty())
+	{
+		// link this order to the certificate it renews (RFC 9773)
+		jNewOrder["replaces"] = KString(sReplacesCertID);
+	}
+
 	auto jOrder = SignedPost(KURL(m_jDirectory["newOrder"].String()), jNewOrder.dump());
+
+	if (HasError() && !sReplacesCertID.empty())
+	{
+		// a CA may reject the replaces link, e.g. when the certificate was
+		// already replaced - the order itself is still fine without it
+		kDebug(1, "newOrder with replaces failed ({}), retrying without", Error());
+		ClearError();
+		jNewOrder.erase("replaces");
+		jOrder = SignedPost(KURL(m_jDirectory["newOrder"].String()), jNewOrder.dump());
+	}
 
 	if (HasError())
 	{
@@ -623,8 +890,21 @@ KAcmeClient::Certificate KAcmeClient::OrderCertificate(const std::vector<KString
 	}
 
 	// finalize the order with a CSR for a fresh certificate key
-	KRSAKey CertKey(m_Options.iKeyLength);
-	KCSR    Csr(CertKey, Domains);
+	KCSR    Csr;
+	KString sCertKeyPEM;
+
+	if (m_Options.Keys == KeyType::EC)
+	{
+		KECKey CertKey(true);
+		Csr.Create(CertKey, Domains);
+		sCertKeyPEM = CertKey.GetPEM(true);
+	}
+	else
+	{
+		KRSAKey CertKey(m_Options.iKeyLength);
+		Csr.Create(CertKey, Domains);
+		sCertKeyPEM = CertKey.GetPEM(true);
+	}
 
 	if (Csr.HasError())
 	{
@@ -670,8 +950,8 @@ KAcmeClient::Certificate KAcmeClient::OrderCertificate(const std::vector<KString
 	}
 
 	Issued.sCertPEM       = std::move(sChain);
-	Issued.sKeyPEM        = CertKey.GetPEM(true);
-	Issued.sAccountKeyPEM = m_AccountKey.GetPEM(true);
+	Issued.sKeyPEM        = std::move(sCertKeyPEM);
+	Issued.sAccountKeyPEM = AccountPEM();
 
 	kDebug(2, "certificate issued for {}", kJoined(Domains));
 

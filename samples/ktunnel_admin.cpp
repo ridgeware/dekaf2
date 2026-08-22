@@ -49,7 +49,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/threading/execution/kthreads.h>
-#include <dekaf2/web/html/khtmlentities.h>
+#include <dekaf2/web/ui/kwebui.h>
 #include <dekaf2/web/url/kmime.h>
 #include <algorithm>
 #include <unordered_set>
@@ -312,8 +312,8 @@ constexpr KStringView s_sLogLevelURL           = "/Configure/log/level";
 // --------------------------------------------------------------------------
 // Small pure-functional helpers used by the dashboard rendering.
 //
-// HTML-escaping, byte formatting and timestamp formatting are delegated
-// to dekaf2 (KHTMLEntity::EncodeMandatory / kFormBytes / KUnixTime::to_string).
+// HTML-escaping happens by construction in the web objects; byte and
+// timestamp formatting are delegated to kFormBytes / KUnixTime::to_string.
 // --------------------------------------------------------------------------
 
 /// Format a duration as "5s", "12m 34s", "3h 12m", "2d 4h" for compact
@@ -566,22 +566,29 @@ void AdminUI::HandleLogout (KRESTServer& HTTP)
 } // HandleLogout
 
 //-----------------------------------------------------------------------------
+/// render the request feedback banner - a notice wins over an error
+static void RenderFlash (KHTMLNode Parent, KStringView sNotice, KStringView sError)
+//-----------------------------------------------------------------------------
+{
+	if (!sNotice.empty())
+	{
+		Parent.Add<html::ui::Flash>(sNotice);
+	}
+	else if (!sError.empty())
+	{
+		Parent.Add<html::ui::Flash>(sError, html::ui::Flash::Error);
+	}
+
+} // RenderFlash
+
+//-----------------------------------------------------------------------------
 void AdminUI::RenderTopBar (html::Page& Page,
                             KStringView sActive,
                             KStringView sAdmin) const
 //-----------------------------------------------------------------------------
 {
-	auto top = Page.Body().Add<html::Div>(html::Classes("top"));
-
-	{
-		auto brand = top.Add<html::Div>(html::Classes("brand"));
-		brand.AddText(kFormat("ktunnel admin · {}", sAdmin));
-	}
-
-	// We build the nav as a single RawText block so we can attach the
-	// "active" class to exactly one entry without juggling Classes()
-	// objects across conditions. The UI is admin-only — every signed-in
-	// user has full access — so all nav entries are always shown.
+	// The UI is admin-only — every signed-in user has full access — so all
+	// nav entries are always shown.
 	struct NavEntry
 	{
 		KStringView sKey;
@@ -599,43 +606,94 @@ void AdminUI::RenderTopBar (html::Page& Page,
 		{ "logout",    s_sLogoutURL,    "Logout"      },
 	};
 
-	KString sNav = "<nav>";
+	auto Nav = Page.Body().Add<html::ui::NavBar>(kFormat("ktunnel admin · {}", sAdmin));
+
 	for (const auto& e : s_NavEntries)
 	{
-		sNav += kFormat("<a href=\"{}\"{}>{}</a>",
-		                KHTMLEntity::EncodeMandatory(e.sURL),
-		                (e.sKey == sActive) ? " class=\"active\"" : "",
-		                KHTMLEntity::EncodeMandatory(e.sLabel));
+		Nav.Link(e.sLabel, e.sURL, e.sKey == sActive);
 	}
-	sNav += "</nav>";
-
-	top.AddRawText(sNav);
 
 } // RenderTopBar
 
 //-----------------------------------------------------------------------------
+/// render a colored status pill: span.pill.<sPillClass>
+static void RenderPill (KHTMLNode Parent, KStringView sPillClass, KStringView sText)
+//-----------------------------------------------------------------------------
+{
+	Parent.Add<html::Span>(html::Classes(kFormat("pill {}", sPillClass))).AddText(sText);
+
+} // RenderPill
+
+//-----------------------------------------------------------------------------
+/// fill a node <select> with all known nodes. Disabled nodes are included
+/// for convenience (an admin may want to pre-stage a tunnel for a node that
+/// is not yet enabled), with a hint label.
+static void AddNodeOptions (html::Select& Select,
+                            const std::vector<KTunnelStore::Node>& Nodes,
+                            KStringView sSelected = KStringView{})
+//-----------------------------------------------------------------------------
+{
+	for (const auto& n : Nodes)
+	{
+		Select.Add<html::Option>(n.bEnabled ? n.sName
+		                                    : kFormat("{} (disabled)", n.sName),
+		                         n.sName)
+		      .SetSelected(n.sName == sSelected);
+	}
+
+} // AddNodeOptions
+
+//-----------------------------------------------------------------------------
+/// render an event table — shared by the dashboard and the events page
+static void RenderEventTable (KHTMLNode Parent, const std::vector<KTunnelStore::Event>& Events)
+//-----------------------------------------------------------------------------
+{
+	auto Table = Parent.Add<html::ui::Table>();
+	Table.Headers({ "Time", "Kind", "Admin", "Node", "Tunnel", "Remote", "Detail" });
+
+	for (const auto& e : Events)
+	{
+		auto Row = Table.AddRow();
+		Row.Add<html::TableData>(kFormat("{} UTC", e.tTimestamp.to_string()));
+		RenderPill(Row.Add<html::TableData>(), PillForEventKind(e.sKind), e.sKind);
+		Row.Add<html::TableData>(e.sAdmin);
+		Row.Add<html::TableData>(e.sNode);
+		Row.Add<html::TableData>(e.sTunnelName);
+		Row.Add<html::TableData>(e.sRemoteIP);
+		Row.Add<html::TableData>(e.sDetail);
+	}
+
+} // RenderEventTable
+
+//-----------------------------------------------------------------------------
 /// Render the state pill for a tunnel listener — shared by the dashboard
 /// and the tunnels page.
-static KString ListenerStatePill (ExposedServer::ListenerState eState, KStringView sError)
+static void RenderListenerStatePill (KHTMLNode Parent, ExposedServer::ListenerState eState, KStringView sError)
 //-----------------------------------------------------------------------------
 {
 	using S = ExposedServer::ListenerState;
 	switch (eState)
 	{
 		case S::Listening:
-			return "<span class=\"pill ok\">listening</span>";
+			RenderPill(Parent, "ok", "listening");
+			return;
 		case S::OwnerOffline:
-			return "<span class=\"pill info\">node offline</span>";
+			RenderPill(Parent, "info", "node offline");
+			return;
 		case S::PortError:
-			return kFormat("<span class=\"pill fail\">port error</span>"
-			               "<div class=\"muted\" style=\"font-size:0.7rem\">{}</div>",
-			               KHTMLEntity::EncodeMandatory(sError));
+			RenderPill(Parent, "fail", "port error");
+			{
+				auto div = Parent.Add<html::Div>(html::Classes("muted"));
+				div.SetAttribute("style", "font-size:0.7rem");
+				div.AddText(sError);
+			}
+			return;
 		case S::Stopped:
 			break;
 	}
-	return "<span class=\"pill neutral\">stopped</span>";
+	RenderPill(Parent, "neutral", "stopped");
 
-} // ListenerStatePill
+} // RenderListenerStatePill
 
 //-----------------------------------------------------------------------------
 void AdminUI::ShowDashboard (KRESTServer& HTTP)
@@ -656,16 +714,7 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 
 	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
-	if (!sNotice.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash ok"));
-		f.AddText(sNotice);
-	}
-	else if (!sError.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash err"));
-		f.AddText(sError);
-	}
+	RenderFlash(main, sNotice, sError);
 
 	// One-line mental model — the three terms the whole UI is built on.
 	{
@@ -694,14 +743,8 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 		{
 			const auto tNow = KUnixTime::now();
 
-			KString sTable;
-			sTable += "<table class=\"grid\"><thead><tr>"
-			         "<th>Node</th><th>Remote</th><th>Connected</th>"
-			         "<th class=\"num\">Conns</th>"
-			         "<th class=\"num\">RX</th>"
-			         "<th class=\"num\">TX</th>"
-			         "<th></th>"
-			         "</tr></thead><tbody>";
+			auto Table = sec.Add<html::ui::Table>();
+			Table.Headers({ "Node", "Remote", "Connected", "Conns", "RX", "TX", "" });
 
 			for (const auto& at : Connected)
 			{
@@ -714,24 +757,15 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 					s_sNodeReplURL,
 					kUrlEncode(at.sNode, URIPart::Query));
 
-				sTable += kFormat(
-					"<tr><td><a href=\"{}\">{}</a></td><td>{}</td><td>{}</td>"
-					"<td class=\"num\">{}</td>"
-					"<td class=\"num\">{}</td>"
-					"<td class=\"num\">{}</td>"
-					"<td><a class=\"btn small\" href=\"{}\">Open REPL</a></td></tr>",
-					KHTMLEntity::EncodeMandatory(s_sNodesURL),
-					KHTMLEntity::EncodeMandatory(at.sNode),
-					KHTMLEntity::EncodeMandatory(at.EndpointAddr.Serialize()),
-					KHTMLEntity::EncodeMandatory(sDur),
-					iConn,
-					kFormBytes(iRx),
-					kFormBytes(iTx),
-					KHTMLEntity::EncodeMandatory(sReplURL));
+				auto Row = Table.AddRow();
+				Row.Add<html::TableData>().Add<html::Link>(s_sNodesURL, at.sNode);
+				Row.Add<html::TableData>(at.EndpointAddr.Serialize());
+				Row.Add<html::TableData>(sDur);
+				Row.Add<html::TableData>(kFormat("{}", iConn)).SetAttribute("class", "num");
+				Row.Add<html::TableData>(kFormBytes(iRx)).SetAttribute("class", "num");
+				Row.Add<html::TableData>(kFormBytes(iTx)).SetAttribute("class", "num");
+				Row.Add<html::TableData>().Add<html::Link>(sReplURL, "Open REPL", html::Classes{"btn small"});
 			}
-
-			sTable += "</tbody></table>";
-			sec.AddRawText(sTable);
 		}
 	}
 
@@ -752,22 +786,15 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 		}
 		else
 		{
-			KString sTable;
-			sTable += "<table class=\"grid\"><thead><tr>"
-			          "<th>Tunnel</th><th>Runtime</th>"
-			          "</tr></thead><tbody>";
+			auto Table = sec.Add<html::ui::Table>();
+			Table.Headers({ "Tunnel", "Runtime" });
 
 			for (const auto& kv : ListenerMap)
 			{
-				sTable += kFormat(
-					"<tr><td><a href=\"{}\">{}</a></td><td>{}</td></tr>",
-					KHTMLEntity::EncodeMandatory(s_sTunnelsURL),
-					KHTMLEntity::EncodeMandatory(kv.first),
-					ListenerStatePill(kv.second.eState, kv.second.sError));
+				auto Row = Table.AddRow();
+				Row.Add<html::TableData>().Add<html::Link>(s_sTunnelsURL, kv.first);
+				RenderListenerStatePill(Row.Add<html::TableData>(), kv.second.eState, kv.second.sError);
 			}
-
-			sTable += "</tbody></table>";
-			sec.AddRawText(sTable);
 		}
 	}
 
@@ -788,30 +815,7 @@ void AdminUI::ShowDashboard (KRESTServer& HTTP)
 		}
 		else
 		{
-			KString sTable;
-			sTable += "<table class=\"grid\"><thead><tr>"
-			         "<th>Time</th><th>Kind</th><th>Admin</th><th>Node</th>"
-			         "<th>Tunnel</th><th>Remote</th><th>Detail</th>"
-			         "</tr></thead><tbody>";
-
-			for (const auto& e : Events)
-			{
-				sTable += kFormat(
-					"<tr><td>{} UTC</td>"
-					"<td><span class=\"pill {}\">{}</span></td>"
-					"<td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
-					e.tTimestamp.to_string(),
-					KHTMLEntity::EncodeMandatory(PillForEventKind(e.sKind)),
-					KHTMLEntity::EncodeMandatory(e.sKind),
-					KHTMLEntity::EncodeMandatory(e.sAdmin),
-					KHTMLEntity::EncodeMandatory(e.sNode),
-					KHTMLEntity::EncodeMandatory(e.sTunnelName),
-					KHTMLEntity::EncodeMandatory(e.sRemoteIP),
-					KHTMLEntity::EncodeMandatory(e.sDetail));
-			}
-
-			sTable += "</tbody></table>";
-			sec.AddRawText(sTable);
+			RenderEventTable(sec, Events);
 
 			auto p = sec.Add<html::Paragraph>();
 			p.SetAttribute("class", "muted");
@@ -902,63 +906,43 @@ void AdminUI::ShowAdmins (KRESTServer& HTTP)
 	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
 	// --- flash banner (if any) ----------------------------------------
-	if (!sNotice.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash ok"));
-		f.AddText(sNotice);
-	}
-	else if (!sError.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash err"));
-		f.AddText(sError);
-	}
+	RenderFlash(main, sNotice, sError);
 
 	// --- Section 1: admin list ----------------------------------------
 	{
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, kFormat("Admins ({})", Admins.size()));
 
-		KString sTable;
-		sTable += "<table class=\"grid\"><thead><tr>"
-		          "<th>Username</th><th>Last login</th>"
-		          "<th>Created</th><th></th>"
-		          "</tr></thead><tbody>";
+		auto Table = sec.Add<html::ui::Table>();
+		Table.Headers({ "Username", "Last login", "Created", "" });
 
 		for (const auto& a : Admins)
 		{
-			KString sActions;
+			auto Row = Table.AddRow();
+			Row.Add<html::TableData>(a.sUsername);
+			Row.Add<html::TableData>(a.tLastLogin.to_time_t() > 0
+			                             ? kFormat("{} UTC", a.tLastLogin.to_string())
+			                             : KString("—"));
+			Row.Add<html::TableData>(a.tCreated.to_time_t() > 0
+			                             ? kFormat("{} UTC", a.tCreated.to_string())
+			                             : KString("—"));
+
+			auto Actions = Row.Add<html::TableData>();
 			if (a.sUsername == sMe)
 			{
-				sActions = "<span class=\"pill neutral\">You</span>";
+				RenderPill(Actions, "neutral", "You");
 			}
 			else
 			{
-				sActions = kFormat(
-					"<form method=\"post\" action=\"{}\" class=\"inline-form\" "
-					"onsubmit=\"return confirm('Delete admin {}?');\">"
-					"<input type=\"hidden\" name=\"username\" value=\"{}\">"
-					"<button type=\"submit\" class=\"btn danger small\">Delete</button>"
-					"</form>",
-					KHTMLEntity::EncodeMandatory(s_sAdminsDeleteURL),
-					KHTMLEntity::EncodeMandatory(a.sUsername),
-					KHTMLEntity::EncodeMandatory(a.sUsername));
+				auto Form = Actions.Add<html::Form>(s_sAdminsDeleteURL, html::Classes{"inline-form"});
+				Form.SetMethod(html::Form::POST);
+				Form.SetAttribute("onsubmit",
+				                  kFormat("return confirm('Delete admin {}?');", a.sUsername));
+				Form.Add<html::Input>("username", a.sUsername, html::Input::HIDDEN);
+				Form.Add<html::Button>("Delete", html::Button::SUBMIT,
+				                       html::Classes{"btn danger small"});
 			}
-
-			sTable += kFormat(
-				"<tr><td>{}</td>"
-				"<td>{}</td><td>{}</td><td>{}</td></tr>",
-				KHTMLEntity::EncodeMandatory(a.sUsername),
-				a.tLastLogin.to_time_t() > 0
-					? kFormat("{} UTC", a.tLastLogin.to_string())
-					: KString("—"),
-				a.tCreated.to_time_t() > 0
-					? kFormat("{} UTC", a.tCreated.to_string())
-					: KString("—"),
-				sActions);
 		}
-
-		sTable += "</tbody></table>";
-		sec.AddRawText(sTable);
 	}
 
 	// --- Section 2: add admin form ------------------------------------
@@ -966,17 +950,15 @@ void AdminUI::ShowAdmins (KRESTServer& HTTP)
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, "Add admin");
 
-		KString sForm = kFormat(
-			"<form method=\"post\" action=\"{}\">"
-			"<div class=\"row\">"
-			"<div class=\"field\"><label>Username</label>"
-			"<input type=\"text\" name=\"username\" required autocomplete=\"off\"></div>"
-			"<div class=\"field\"><label>Password</label>"
-			"<input type=\"password\" name=\"password\" required autocomplete=\"new-password\"></div>"
-			"<button type=\"submit\" class=\"btn\">Add</button>"
-			"</div></form>",
-			KHTMLEntity::EncodeMandatory(s_sAdminsAddURL));
-		sec.AddRawText(sForm);
+		auto Form = sec.Add<html::Form>(s_sAdminsAddURL);
+		Form.SetMethod(html::Form::POST);
+
+		auto Row = Form.Add<html::Div>(html::Classes("row"));
+		Row.Add<html::ui::Field>("Username", "username")
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "off");
+		Row.Add<html::ui::Field>("Password", "password", "", html::Input::PASSWORD)
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password");
+		Row.Add<html::Button>("Add", html::Button::SUBMIT, html::Classes{"btn"});
 	}
 
 	// --- Section 3: change own password -------------------------------
@@ -984,19 +966,17 @@ void AdminUI::ShowAdmins (KRESTServer& HTTP)
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, kFormat("Change password · {}", sMe));
 
-		KString sForm = kFormat(
-			"<form method=\"post\" action=\"{}\">"
-			"<div class=\"row\">"
-			"<div class=\"field\"><label>Current password</label>"
-			"<input type=\"password\" name=\"current_password\" required autocomplete=\"current-password\"></div>"
-			"<div class=\"field\"><label>New password</label>"
-			"<input type=\"password\" name=\"new_password\" required autocomplete=\"new-password\"></div>"
-			"<div class=\"field\"><label>Confirm new password</label>"
-			"<input type=\"password\" name=\"confirm_password\" required autocomplete=\"new-password\"></div>"
-			"<button type=\"submit\" class=\"btn\">Change</button>"
-			"</div></form>",
-			KHTMLEntity::EncodeMandatory(s_sAdminsChangePwURL));
-		sec.AddRawText(sForm);
+		auto Form = sec.Add<html::Form>(s_sAdminsChangePwURL);
+		Form.SetMethod(html::Form::POST);
+
+		auto Row = Form.Add<html::Div>(html::Classes("row"));
+		Row.Add<html::ui::Field>("Current password", "current_password", "", html::Input::PASSWORD)
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "current-password");
+		Row.Add<html::ui::Field>("New password", "new_password", "", html::Input::PASSWORD)
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password");
+		Row.Add<html::ui::Field>("Confirm new password", "confirm_password", "", html::Input::PASSWORD)
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password");
+		Row.Add<html::Button>("Change", html::Button::SUBMIT, html::Classes{"btn"});
 	}
 
 	RenderPage(HTTP, Page);
@@ -1217,16 +1197,7 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 
 	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
-	if (!sNotice.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash ok"));
-		f.AddText(sNotice);
-	}
-	else if (!sError.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash err"));
-		f.AddText(sError);
-	}
+	RenderFlash(main, sNotice, sError);
 
 	// --- Section 1: node list -----------------------------------------
 	{
@@ -1244,90 +1215,73 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 		{
 			const auto tNow = KUnixTime::now();
 
-			KString sTable;
-			sTable += "<table class=\"grid\"><thead><tr>"
-			          "<th>Name</th><th>Status</th><th>Enabled</th><th>Last login</th>"
-			          "<th>Created</th><th class=\"num\">Tunnels</th><th></th>"
-			          "</tr></thead><tbody>";
+			auto Table = sec.Add<html::ui::Table>();
+			Table.Headers({ "Name", "Status", "Enabled", "Last login", "Created", "Tunnels", "" });
 
 			for (const auto& n : Nodes)
 			{
+				auto Row = Table.AddRow();
+				Row.Add<html::TableData>(n.sName);
+
 				// Live status: online with duration and remote address when a
 				// control connection is up, plain offline otherwise.
-				KString sStatus;
+				auto Status   = Row.Add<html::TableData>();
 				auto itOnline = Online.find(n.sName);
 				if (itOnline != Online.end())
 				{
-					sStatus = kFormat(
-						"<span class=\"pill ok\">online</span> "
-						"<span class=\"muted\" style=\"font-size:0.7rem\">{} · {}</span>",
-						KHTMLEntity::EncodeMandatory(
-							FormatDuration(tNow - itOnline->second.tConnected)),
-						KHTMLEntity::EncodeMandatory(
-							itOnline->second.EndpointAddr.Serialize()));
+					RenderPill(Status, "ok", "online");
+					Status.Add<html::Span>(html::Classes("muted"))
+					      .SetStyle("font-size:0.7rem")
+					      .AddText(kFormat("{} · {}",
+					                       FormatDuration(tNow - itOnline->second.tConnected),
+					                       itOnline->second.EndpointAddr.Serialize()));
 				}
 				else
 				{
-					sStatus = "<span class=\"pill neutral\">offline</span>";
+					RenderPill(Status, "neutral", "offline");
 				}
 
-				const auto itCount = TunnelCount.find(n.sName);
+				RenderPill(Row.Add<html::TableData>(),
+				           n.bEnabled ? "ok"      : "neutral",
+				           n.bEnabled ? "enabled" : "disabled");
+				Row.Add<html::TableData>(n.tLastLogin.to_time_t() > 0
+				                             ? kFormat("{} UTC", n.tLastLogin.to_string())
+				                             : KString("—"));
+				Row.Add<html::TableData>(n.tCreated.to_time_t() > 0
+				                             ? kFormat("{} UTC", n.tCreated.to_string())
+				                             : KString("—"));
+
+				const auto itCount  = TunnelCount.find(n.sName);
 				const auto iTunnels = (itCount != TunnelCount.end()) ? itCount->second : 0;
 
-				KString sActions;
+				Row.Add<html::TableData>().SetAttribute("class", "num")
+				   .Add<html::Link>(s_sTunnelsURL, kFormat("{}", iTunnels));
+
+				auto Actions = Row.Add<html::TableData>();
 
 				if (itOnline != Online.end())
 				{
-					sActions += kFormat(
-						"<a class=\"btn small\" href=\"{}?node={}\">Open REPL</a> ",
-						KHTMLEntity::EncodeMandatory(s_sNodeReplURL),
-						KHTMLEntity::EncodeMandatory(
-							kUrlEncode(n.sName, URIPart::Query)));
+					Actions.Add<html::Link>(kFormat("{}?node={}",
+					                                s_sNodeReplURL,
+					                                kUrlEncode(n.sName, URIPart::Query)),
+					                        "Open REPL", html::Classes{"btn small"});
 				}
 
-				sActions += kFormat(
-					"<form method=\"post\" action=\"{}\" class=\"inline-form\">"
-					"<input type=\"hidden\" name=\"name\" value=\"{}\">"
-					"<input type=\"hidden\" name=\"enable\" value=\"{}\">"
-					"<button type=\"submit\" class=\"btn small\">{}</button>"
-					"</form> "
-					"<form method=\"post\" action=\"{}\" class=\"inline-form\" "
-					"onsubmit=\"return confirm('Delete node {}?');\">"
-					"<input type=\"hidden\" name=\"name\" value=\"{}\">"
-					"<button type=\"submit\" class=\"btn danger small\">Delete</button>"
-					"</form>",
-					KHTMLEntity::EncodeMandatory(s_sNodesToggleURL),
-					KHTMLEntity::EncodeMandatory(n.sName),
-					n.bEnabled ? "0" : "1",
-					n.bEnabled ? "Disable" : "Enable",
-					KHTMLEntity::EncodeMandatory(s_sNodesDeleteURL),
-					KHTMLEntity::EncodeMandatory(n.sName),
-					KHTMLEntity::EncodeMandatory(n.sName));
+				auto Toggle = Actions.Add<html::Form>(s_sNodesToggleURL, html::Classes{"inline-form"});
+				Toggle.SetMethod(html::Form::POST);
+				Toggle.Add<html::Input>("name",   n.sName,                html::Input::HIDDEN);
+				Toggle.Add<html::Input>("enable", n.bEnabled ? "0" : "1", html::Input::HIDDEN);
+				Toggle.Add<html::Button>(n.bEnabled ? "Disable" : "Enable",
+				                         html::Button::SUBMIT, html::Classes{"btn small"});
 
-				sTable += kFormat(
-					"<tr><td>{}</td>"
-					"<td>{}</td>"
-					"<td><span class=\"pill {}\">{}</span></td>"
-					"<td>{}</td><td>{}</td>"
-					"<td class=\"num\"><a href=\"{}\">{}</a></td>"
-					"<td>{}</td></tr>",
-					KHTMLEntity::EncodeMandatory(n.sName),
-					sStatus,
-					n.bEnabled ? "ok"      : "neutral",
-					n.bEnabled ? "enabled" : "disabled",
-					n.tLastLogin.to_time_t() > 0
-						? kFormat("{} UTC", n.tLastLogin.to_string())
-						: KString("—"),
-					n.tCreated.to_time_t() > 0
-						? kFormat("{} UTC", n.tCreated.to_string())
-						: KString("—"),
-					KHTMLEntity::EncodeMandatory(s_sTunnelsURL),
-					iTunnels,
-					sActions);
+				auto Delete = Actions.Add<html::Form>(s_sNodesDeleteURL, html::Classes{"inline-form"});
+				Delete.SetMethod(html::Form::POST);
+				Delete.SetAttribute("onsubmit",
+				                    kFormat("return confirm('Delete node {}?');", n.sName));
+				Delete.Add<html::Input>("name", n.sName, html::Input::HIDDEN);
+				Delete.Add<html::Button>("Delete", html::Button::SUBMIT,
+				                         html::Classes{"btn danger small"});
 			}
-
-			sTable += "</tbody></table>";
-			sec.AddRawText(sTable);
 		}
 	}
 
@@ -1336,20 +1290,22 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, "Add node");
 
-		KString sForm = kFormat(
-			"<form method=\"post\" action=\"{}\">"
-			"<div class=\"row\">"
-			"<div class=\"field\"><label>Name</label>"
-			"<input type=\"text\" name=\"name\" required autocomplete=\"off\"></div>"
-			"<div class=\"field\"><label>Password</label>"
-			"<input type=\"password\" name=\"password\" required autocomplete=\"new-password\"></div>"
-			"<div class=\"field\"><label class=\"checkbox\">"
-			"<input type=\"checkbox\" name=\"enabled\" value=\"1\" checked>"
-			"<span>Enabled</span></label></div>"
-			"<button type=\"submit\" class=\"btn\">Add</button>"
-			"</div></form>",
-			KHTMLEntity::EncodeMandatory(s_sNodesAddURL));
-		sec.AddRawText(sForm);
+		auto Form = sec.Add<html::Form>(s_sNodesAddURL);
+		Form.SetMethod(html::Form::POST);
+
+		auto Row = Form.Add<html::Div>(html::Classes("row"));
+		Row.Add<html::ui::Field>("Name", "name")
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "off");
+		Row.Add<html::ui::Field>("Password", "password", "", html::Input::PASSWORD)
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password");
+
+		auto Field = Row.Add<html::Div>(html::Classes("field"));
+		auto Label = Field.AddElement("label");
+		Label.SetAttribute("class", "checkbox");
+		Label.Add<html::Input>("enabled", "1", html::Input::CHECKBOX).SetChecked(true);
+		Label.Add<html::Span>().AddText("Enabled");
+
+		Row.Add<html::Button>("Add", html::Button::SUBMIT, html::Classes{"btn"});
 	}
 
 	// --- Section 3: reset node password -------------------------------
@@ -1357,30 +1313,22 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, "Reset node password");
 
-		KString sNodeOptions;
-		for (const auto& n : Nodes)
-		{
-			sNodeOptions += kFormat(
-				"<option value=\"{}\">{}{}</option>",
-				KHTMLEntity::EncodeMandatory(n.sName),
-				KHTMLEntity::EncodeMandatory(n.sName),
-				n.bEnabled ? "" : " (disabled)");
-		}
+		auto Form = sec.Add<html::Form>(s_sNodesResetPwURL);
+		Form.SetMethod(html::Form::POST);
 
-		KString sForm = kFormat(
-			"<form method=\"post\" action=\"{}\">"
-			"<div class=\"row\">"
-			"<div class=\"field\"><label>Node</label>"
-			"<select name=\"name\" required>{}</select></div>"
-			"<div class=\"field\"><label>New password</label>"
-			"<input type=\"password\" name=\"new_password\" required autocomplete=\"new-password\"></div>"
-			"<div class=\"field\"><label>Confirm new password</label>"
-			"<input type=\"password\" name=\"confirm_password\" required autocomplete=\"new-password\"></div>"
-			"<button type=\"submit\" class=\"btn\">Reset</button>"
-			"</div></form>",
-			KHTMLEntity::EncodeMandatory(s_sNodesResetPwURL),
-			sNodeOptions);
-		sec.AddRawText(sForm);
+		auto Row = Form.Add<html::Div>(html::Classes("row"));
+
+		auto Field = Row.Add<html::Div>(html::Classes("field"));
+		Field.AddElement("label").AddText("Node");
+		auto Select = Field.Add<html::Select>("name");
+		Select.SetRequired(true);
+		AddNodeOptions(Select, Nodes);
+
+		Row.Add<html::ui::Field>("New password", "new_password", "", html::Input::PASSWORD)
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password");
+		Row.Add<html::ui::Field>("Confirm new password", "confirm_password", "", html::Input::PASSWORD)
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password");
+		Row.Add<html::Button>("Reset", html::Button::SUBMIT, html::Classes{"btn"});
 	}
 
 	RenderPage(HTTP, Page);
@@ -1629,16 +1577,7 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 
 	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
-	if (!sNotice.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash ok"));
-		f.AddText(sNotice);
-	}
-	else if (!sError.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash err"));
-		f.AddText(sError);
-	}
+	RenderFlash(main, sNotice, sError);
 
 	// --- Section 0: built-in forwarder from CLI -----------------------
 	// Only shown when the process was launched with -f/-t. This row is
@@ -1657,23 +1596,26 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 		          "Not stored in the database; restart ktunnel with "
 		          "different flags to change it.");
 
-		KString sTarget = m_Config.DefaultTarget.empty()
-			? KString("<em class=\"muted\">(no default target)</em>")
-			: kFormat("{}:{}",
-			          KHTMLEntity::EncodeMandatory(m_Config.DefaultTarget.Domain.get()),
-			          m_Config.DefaultTarget.Port.get());
+		auto Table = sec.Add<html::ui::Table>();
+		Table.Headers({ "Name", "Forward port", "Target", "Runtime" });
 
-		KString sTable;
-		sTable += "<table class=\"grid\"><thead><tr>"
-		          "<th>Name</th><th>Forward port</th><th>Target</th><th>Runtime</th>"
-		          "</tr></thead><tbody>";
-		sTable += kFormat("<tr><td><em>(builtin)</em></td>"
-		                  "<td>{}</td><td>{}</td>"
-		                  "<td><span class=\"pill ok\">listening</span></td></tr>",
-		                  m_Config.iRawPort,
-		                  sTarget);
-		sTable += "</tbody></table>";
-		sec.AddRawText(sTable);
+		auto Row = Table.AddRow();
+		Row.Add<html::TableData>().AddElement("em").AddText("(builtin)");
+		Row.Add<html::TableData>(kFormat("{}", m_Config.iRawPort));
+
+		auto Target = Row.Add<html::TableData>();
+		if (m_Config.DefaultTarget.empty())
+		{
+			Target.AddElement("em").SetAttribute("class", "muted").AddText("(no default target)");
+		}
+		else
+		{
+			Target.AddText(kFormat("{}:{}",
+			                       m_Config.DefaultTarget.Domain.get(),
+			                       m_Config.DefaultTarget.Port.get()));
+		}
+
+		RenderPill(Row.Add<html::TableData>(), "ok", "listening");
 	}
 
 	// --- Section 1: tunnel list ---------------------------------------
@@ -1689,23 +1631,29 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 		}
 		else
 		{
-			KString sTable;
-			sTable += "<table class=\"grid\"><thead><tr>"
-			          "<th>Name</th><th>Node</th><th>Forward port</th>"
-			          "<th>Target</th><th>Config</th><th>Runtime</th>"
-			          "<th></th></tr></thead><tbody>";
+			auto Table = sec.Add<html::ui::Table>();
+			Table.Headers({ "Name", "Node", "Forward port", "Target", "Config", "Runtime", "" });
 
 			for (const auto& t : Tunnels)
 			{
-				KString sState;
-				auto it = ListenerMap.find(t.sName);
+				auto Row = Table.AddRow();
+				Row.Add<html::TableData>(t.sName);
+				Row.Add<html::TableData>().Add<html::Link>(s_sNodesURL, t.sNode);
+				Row.Add<html::TableData>(kFormat("{}", t.iListenPort));
+				Row.Add<html::TableData>(kFormat("{}:{}", t.sTargetHost, t.iTargetPort));
+				RenderPill(Row.Add<html::TableData>(),
+				           t.bEnabled ? "ok"      : "neutral",
+				           t.bEnabled ? "enabled" : "disabled");
+
+				auto State = Row.Add<html::TableData>();
+				auto it    = ListenerMap.find(t.sName);
 				if (it != ListenerMap.end())
 				{
-					sState = ListenerStatePill(it->second.eState, it->second.sError);
+					RenderListenerStatePill(State, it->second.eState, it->second.sError);
 				}
 				else
 				{
-					sState = "<span class=\"pill neutral\">stopped</span>";
+					RenderPill(State, "neutral", "stopped");
 				}
 
 				// Build the ?name=<n> edit-link safely even if the tunnel
@@ -1716,49 +1664,27 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 					s_sTunnelsEditURL,
 					kUrlEncode(t.sName, URIPart::Query));
 
-				KString sActions = kFormat(
-					"<a href=\"{}\" class=\"btn small\" "
-					"style=\"text-decoration:none;display:inline-flex;"
-					"align-items:center;justify-content:center;\">Edit</a> "
-					"<form method=\"post\" action=\"{}\" class=\"inline-form\">"
-					"<input type=\"hidden\" name=\"name\" value=\"{}\">"
-					"<input type=\"hidden\" name=\"enable\" value=\"{}\">"
-					"<button type=\"submit\" class=\"btn small\">{}</button>"
-					"</form> "
-					"<form method=\"post\" action=\"{}\" class=\"inline-form\" "
-					"onsubmit=\"return confirm('Delete tunnel {}?');\">"
-					"<input type=\"hidden\" name=\"name\" value=\"{}\">"
-					"<button type=\"submit\" class=\"btn danger small\">Delete</button>"
-					"</form>",
-					KHTMLEntity::EncodeMandatory(sEditURL),
-					KHTMLEntity::EncodeMandatory(s_sTunnelsToggleURL),
-					KHTMLEntity::EncodeMandatory(t.sName),
-					t.bEnabled ? "0" : "1",
-					t.bEnabled ? "Disable" : "Enable",
-					KHTMLEntity::EncodeMandatory(s_sTunnelsDeleteURL),
-					KHTMLEntity::EncodeMandatory(t.sName),
-					KHTMLEntity::EncodeMandatory(t.sName));
+				auto Actions = Row.Add<html::TableData>();
 
-				sTable += kFormat(
-					"<tr><td>{}</td><td><a href=\"{}\">{}</a></td>"
-					"<td>{}</td><td>{}:{}</td>"
-					"<td><span class=\"pill {}\">{}</span></td>"
-					"<td>{}</td>"
-					"<td>{}</td></tr>",
-					KHTMLEntity::EncodeMandatory(t.sName),
-					KHTMLEntity::EncodeMandatory(s_sNodesURL),
-					KHTMLEntity::EncodeMandatory(t.sNode),
-					t.iListenPort,
-					KHTMLEntity::EncodeMandatory(t.sTargetHost),
-					t.iTargetPort,
-					t.bEnabled ? "ok"      : "neutral",
-					t.bEnabled ? "enabled" : "disabled",
-					sState,
-					sActions);
+				Actions.Add<html::Link>(sEditURL, "Edit", html::Classes{"btn small"})
+				       .SetStyle("text-decoration:none;display:inline-flex;"
+				                 "align-items:center;justify-content:center;");
+
+				auto Toggle = Actions.Add<html::Form>(s_sTunnelsToggleURL, html::Classes{"inline-form"});
+				Toggle.SetMethod(html::Form::POST);
+				Toggle.Add<html::Input>("name",   t.sName,               html::Input::HIDDEN);
+				Toggle.Add<html::Input>("enable", t.bEnabled ? "0" : "1", html::Input::HIDDEN);
+				Toggle.Add<html::Button>(t.bEnabled ? "Disable" : "Enable",
+				                         html::Button::SUBMIT, html::Classes{"btn small"});
+
+				auto Delete = Actions.Add<html::Form>(s_sTunnelsDeleteURL, html::Classes{"inline-form"});
+				Delete.SetMethod(html::Form::POST);
+				Delete.SetAttribute("onsubmit",
+				                    kFormat("return confirm('Delete tunnel {}?');", t.sName));
+				Delete.Add<html::Input>("name", t.sName, html::Input::HIDDEN);
+				Delete.Add<html::Button>("Delete", html::Button::SUBMIT,
+				                         html::Classes{"btn danger small"});
 			}
-
-			sTable += "</tbody></table>";
-			sec.AddRawText(sTable);
 		}
 	}
 
@@ -1778,49 +1704,48 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 		}
 		else
 		{
-			// Node <select> lists all known nodes. Disabled nodes are
-			// included for convenience (an admin may want to pre-stage a
-			// tunnel for a node that is not yet enabled), with a hint label.
-			KString sNodeOptions;
-			for (const auto& n : Nodes)
+			auto Form = sec.Add<html::Form>(s_sTunnelsAddURL);
+			Form.SetMethod(html::Form::POST);
+
 			{
-				sNodeOptions += kFormat(
-					"<option value=\"{}\">{}{}</option>",
-					KHTMLEntity::EncodeMandatory(n.sName),
-					KHTMLEntity::EncodeMandatory(n.sName),
-					n.bEnabled ? "" : " (disabled)");
+				auto Row = Form.Add<html::Div>(html::Classes("row"));
+
+				Row.Add<html::ui::Field>("Name", "name")
+				   .Input().SetRequired(true).SetAttribute("autocomplete", "off");
+
+				auto Field = Row.Add<html::Div>(html::Classes("field"));
+				Field.AddElement("label").AddText("Node");
+				auto Select = Field.Add<html::Select>("node");
+				Select.SetRequired(true);
+				AddNodeOptions(Select, Nodes);
 			}
 
-			KString sForm = kFormat(
-				"<form method=\"post\" action=\"{}\">"
-				"<div class=\"row\">"
-				"<div class=\"field\"><label>Name</label>"
-				"<input type=\"text\" name=\"name\" required autocomplete=\"off\"></div>"
-				"<div class=\"field\"><label>Node</label>"
-				"<select name=\"node\" required>{}</select></div>"
-				"</div>"
-				"<div class=\"row\">"
-				"<div class=\"field\"><label>Forward port</label>"
-				"<input type=\"number\" name=\"listen_port\" min=\"1\" max=\"65535\" required></div>"
-				"<div class=\"field\"><label>Target host</label>"
-				"<input type=\"text\" name=\"target_host\" required></div>"
-				"<div class=\"field\"><label>Target port</label>"
-				"<input type=\"number\" name=\"target_port\" min=\"1\" max=\"65535\" required></div>"
-				"</div>"
-				"<p class=\"muted\" style=\"margin-top:0.25rem;font-size:0.75rem\">"
-				"Forward port binds on all interfaces (0.0.0.0 + [::]). Keep it "
-				"distinct from the admin/control port (-p on the CLI)."
-				"</p>"
-				"<div class=\"row\">"
-				"<div class=\"field\"><label class=\"checkbox\">"
-				"<input type=\"checkbox\" name=\"enabled\" value=\"1\" checked>"
-				"<span>Enabled</span></label></div>"
-				"<button type=\"submit\" class=\"btn\">Add tunnel</button>"
-				"</div></form>",
-				KHTMLEntity::EncodeMandatory(s_sTunnelsAddURL),
-				sNodeOptions);
+			{
+				auto Row = Form.Add<html::Div>(html::Classes("row"));
 
-			sec.AddRawText(sForm);
+				Row.Add<html::ui::Field>("Forward port", "listen_port", "", html::Input::NUMBER)
+				   .Input().SetRange(1, 65535).SetRequired(true);
+				Row.Add<html::ui::Field>("Target host", "target_host")
+				   .Input().SetRequired(true);
+				Row.Add<html::ui::Field>("Target port", "target_port", "", html::Input::NUMBER)
+				   .Input().SetRange(1, 65535).SetRequired(true);
+			}
+
+			Form.Add<html::Paragraph>(html::Classes("muted"))
+			    .SetStyle("margin-top:0.25rem;font-size:0.75rem")
+			    .AddText("Forward port binds on all interfaces (0.0.0.0 + [::]). Keep it "
+			             "distinct from the admin/control port (-p on the CLI).");
+
+			{
+				auto Row   = Form.Add<html::Div>(html::Classes("row"));
+				auto Field = Row.Add<html::Div>(html::Classes("field"));
+				auto Label = Field.AddElement("label");
+				Label.SetAttribute("class", "checkbox");
+				Label.Add<html::Input>("enabled", "1", html::Input::CHECKBOX).SetChecked(true);
+				Label.Add<html::Span>().AddText("Enabled");
+
+				Row.Add<html::Button>("Add tunnel", html::Button::SUBMIT, html::Classes{"btn"});
+			}
 		}
 	}
 
@@ -2034,75 +1959,62 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 
 	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
-	if (!sNotice.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash ok"));
-		f.AddText(sNotice);
-	}
-	else if (!sError.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash err"));
-		f.AddText(sError);
-	}
+	RenderFlash(main, sNotice, sError);
 
 	auto sec = main.Add<html::Div>(html::Classes("section"));
 	sec.Add<html::Heading>(2, kFormat("Edit tunnel · {}", oT->sName));
 
-	// Node <select> with the current node pre-selected.
-	KString sNodeOptions;
-	for (const auto& n : Nodes)
+	auto Form = sec.Add<html::Form>(s_sTunnelsUpdateURL);
+	Form.SetMethod(html::Form::POST);
+	Form.Add<html::Input>("name", oT->sName, html::Input::HIDDEN);
+
 	{
-		sNodeOptions += kFormat(
-			"<option value=\"{}\"{}>{}{}</option>",
-			KHTMLEntity::EncodeMandatory(n.sName),
-			(n.sName == oT->sNode) ? " selected" : "",
-			KHTMLEntity::EncodeMandatory(n.sName),
-			n.bEnabled ? "" : " (disabled)");
+		auto Row = Form.Add<html::Div>(html::Classes("row"));
+
+		// The name stays read-only — it is the primary key that matches
+		// the listener registry. Renaming is a delete + add; we surface
+		// that as a separate UX action later if anyone asks.
+		Row.Add<html::ui::Field>("Name (read-only)", "", oT->sName)
+		   .Input().SetDisabled(true);
+
+		auto Field = Row.Add<html::Div>(html::Classes("field"));
+		Field.AddElement("label").AddText("Node");
+		auto Select = Field.Add<html::Select>("node");
+		Select.SetRequired(true);
+		AddNodeOptions(Select, Nodes, oT->sNode);
 	}
 
-	// The name stays read-only — it is the primary key that matches
-	// the listener registry. Renaming is a delete + add; we surface
-	// that as a separate UX action later if anyone asks.
-	KString sForm = kFormat(
-		"<form method=\"post\" action=\"{}\">"
-		"<input type=\"hidden\" name=\"name\" value=\"{}\">"
-		"<div class=\"row\">"
-		"<div class=\"field\"><label>Name (read-only)</label>"
-		"<input type=\"text\" value=\"{}\" disabled></div>"
-		"<div class=\"field\"><label>Node</label>"
-		"<select name=\"node\" required>{}</select></div>"
-		"</div>"
-		"<div class=\"row\">"
-		"<div class=\"field\"><label>Forward port</label>"
-		"<input type=\"number\" name=\"listen_port\" value=\"{}\" min=\"1\" max=\"65535\" required></div>"
-		"<div class=\"field\"><label>Target host</label>"
-		"<input type=\"text\" name=\"target_host\" value=\"{}\" required></div>"
-		"<div class=\"field\"><label>Target port</label>"
-		"<input type=\"number\" name=\"target_port\" value=\"{}\" min=\"1\" max=\"65535\" required></div>"
-		"</div>"
-		"<p class=\"muted\" style=\"margin-top:0.25rem;font-size:0.75rem\">"
-		"Forward port binds on all interfaces (0.0.0.0 + [::]). Keep it "
-		"distinct from the admin/control port (-p on the CLI)."
-		"</p>"
-		"<div class=\"row\">"
-		"<div class=\"field\"><label class=\"checkbox\">"
-		"<input type=\"checkbox\" name=\"enabled\" value=\"1\"{}>"
-		"<span>Enabled</span></label></div>"
-		"<button type=\"submit\" class=\"btn\">Save</button>"
-		"<a href=\"{}\" class=\"btn\" style=\"background:#475569;text-decoration:none;"
-		"display:inline-flex;align-items:center;justify-content:center;\">Cancel</a>"
-		"</div></form>",
-		KHTMLEntity::EncodeMandatory(s_sTunnelsUpdateURL),
-		KHTMLEntity::EncodeMandatory(oT->sName),
-		KHTMLEntity::EncodeMandatory(oT->sName),
-		sNodeOptions,
-		oT->iListenPort,
-		KHTMLEntity::EncodeMandatory(oT->sTargetHost),
-		oT->iTargetPort,
-		oT->bEnabled ? " checked" : "",
-		KHTMLEntity::EncodeMandatory(s_sTunnelsURL));
+	{
+		auto Row = Form.Add<html::Div>(html::Classes("row"));
 
-	sec.AddRawText(sForm);
+		Row.Add<html::ui::Field>("Forward port", "listen_port",
+		                         kFormat("{}", oT->iListenPort), html::Input::NUMBER)
+		   .Input().SetRange(1, 65535).SetRequired(true);
+		Row.Add<html::ui::Field>("Target host", "target_host", oT->sTargetHost)
+		   .Input().SetRequired(true);
+		Row.Add<html::ui::Field>("Target port", "target_port",
+		                         kFormat("{}", oT->iTargetPort), html::Input::NUMBER)
+		   .Input().SetRange(1, 65535).SetRequired(true);
+	}
+
+	Form.Add<html::Paragraph>(html::Classes("muted"))
+	    .SetStyle("margin-top:0.25rem;font-size:0.75rem")
+	    .AddText("Forward port binds on all interfaces (0.0.0.0 + [::]). Keep it "
+	             "distinct from the admin/control port (-p on the CLI).");
+
+	{
+		auto Row   = Form.Add<html::Div>(html::Classes("row"));
+		auto Field = Row.Add<html::Div>(html::Classes("field"));
+		auto Label = Field.AddElement("label");
+		Label.SetAttribute("class", "checkbox");
+		Label.Add<html::Input>("enabled", "1", html::Input::CHECKBOX).SetChecked(oT->bEnabled);
+		Label.Add<html::Span>().AddText("Enabled");
+
+		Row.Add<html::Button>("Save", html::Button::SUBMIT, html::Classes{"btn"});
+		Row.Add<html::Link>(s_sTunnelsURL, "Cancel", html::Classes{"btn"})
+		   .SetStyle("background:#475569;text-decoration:none;"
+		             "display:inline-flex;align-items:center;justify-content:center;");
+	}
 
 	RenderPage(HTTP, Page);
 
@@ -2233,8 +2145,8 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 	const KString sMe(Sess.GetUser());
 
 	// Filter inputs from the URL query. Both are safe to echo back
-	// unchanged into the form because they land inside attribute values
-	// that we put through KHTMLEntity::EncodeMandatory.
+	// unchanged into the form because they land inside attribute values,
+	// which the web objects escape on serialization.
 	const auto& sKind  = HTTP.GetQueryParm("kind");
 	const auto& sLimit = HTTP.GetQueryParm("limit");
 
@@ -2259,51 +2171,41 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, "Filter");
 
+		auto Form = sec.Add<html::Form>(s_sEventsURL);
+		auto Row  = Form.Add<html::Div>(html::Classes("row"));
+
 		// Build the kind <select>: a blank first option means "no
 		// constraint" and matches the (?1 = '') branch in GetEvents.
-		KString sKindOptions;
-		sKindOptions += kFormat("<option value=\"\"{}>all kinds</option>",
-		                        sKind.empty() ? " selected" : "");
-		for (const auto& k : Kinds)
 		{
-			sKindOptions += kFormat(
-				"<option value=\"{}\"{}>{}</option>",
-				KHTMLEntity::EncodeMandatory(k),
-				(k == sKind) ? " selected" : "",
-				KHTMLEntity::EncodeMandatory(k));
+			auto Field = Row.Add<html::Div>(html::Classes("field"));
+			Field.AddElement("label").AddText("Kind");
+			auto Select = Field.Add<html::Select>("kind");
+			// explicit value="" - a value-less option would submit its label
+			Select.Add<html::Option>("all kinds").SetSelected(sKind.empty())
+			      .SetAttribute("value", "");
+			for (const auto& k : Kinds)
+			{
+				Select.Add<html::Option>(k, k).SetSelected(k == sKind);
+			}
 		}
 
 		// Limit dropdown: three fixed steps — we always rank "current"
 		// selection as selected, default 100.
-		auto limitOpt = [&](KStringView sValue, KStringView sLabel)
 		{
-			const bool sel = (sLimit == sValue)
-			              || (sLimit.empty() && sValue == "100");
-			return kFormat("<option value=\"{}\"{}>{}</option>",
-			               sValue, sel ? " selected" : "", sLabel);
-		};
-		KString sLimitOptions;
-		sLimitOptions += limitOpt("100",  "100");
-		sLimitOptions += limitOpt("500",  "500");
-		sLimitOptions += limitOpt("1000", "1000");
+			auto Field = Row.Add<html::Div>(html::Classes("field"));
+			Field.AddElement("label").AddText("Limit");
+			auto Select = Field.Add<html::Select>("limit");
+			for (KStringView sValue : { "100", "500", "1000" })
+			{
+				Select.Add<html::Option>(sValue, sValue)
+				      .SetSelected(sLimit == sValue || (sLimit.empty() && sValue == "100"));
+			}
+		}
 
-		KString sForm = kFormat(
-			"<form method=\"get\" action=\"{}\">"
-			"<div class=\"row\">"
-			"<div class=\"field\"><label>Kind</label>"
-			"<select name=\"kind\">{}</select></div>"
-			"<div class=\"field\"><label>Limit</label>"
-			"<select name=\"limit\">{}</select></div>"
-			"<button type=\"submit\" class=\"btn\">Apply</button>"
-			"<a href=\"{}\" class=\"btn\" style=\"background:#475569;text-decoration:none;"
-			"display:inline-flex;align-items:center;justify-content:center;\">Reset</a>"
-			"</div></form>",
-			KHTMLEntity::EncodeMandatory(s_sEventsURL),
-			sKindOptions,
-			sLimitOptions,
-			KHTMLEntity::EncodeMandatory(s_sEventsURL));
-
-		sec.AddRawText(sForm);
+		Row.Add<html::Button>("Apply", html::Button::SUBMIT, html::Classes{"btn"});
+		Row.Add<html::Link>(s_sEventsURL, "Reset", html::Classes{"btn"})
+		   .SetStyle("background:#475569;text-decoration:none;"
+		             "display:inline-flex;align-items:center;justify-content:center;");
 	}
 
 	// --- events table -------------------------------------------------
@@ -2320,30 +2222,7 @@ void AdminUI::ShowEvents (KRESTServer& HTTP)
 		}
 		else
 		{
-			KString sTable;
-			sTable += "<table class=\"grid\"><thead><tr>"
-			         "<th>Time</th><th>Kind</th><th>Admin</th><th>Node</th>"
-			         "<th>Tunnel</th><th>Remote</th><th>Detail</th>"
-			         "</tr></thead><tbody>";
-
-			for (const auto& e : Events)
-			{
-				sTable += kFormat(
-					"<tr><td>{} UTC</td>"
-					"<td><span class=\"pill {}\">{}</span></td>"
-					"<td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
-					e.tTimestamp.to_string(),
-					KHTMLEntity::EncodeMandatory(PillForEventKind(e.sKind)),
-					KHTMLEntity::EncodeMandatory(e.sKind),
-					KHTMLEntity::EncodeMandatory(e.sAdmin),
-					KHTMLEntity::EncodeMandatory(e.sNode),
-					KHTMLEntity::EncodeMandatory(e.sTunnelName),
-					KHTMLEntity::EncodeMandatory(e.sRemoteIP),
-					KHTMLEntity::EncodeMandatory(e.sDetail));
-			}
-
-			sTable += "</tbody></table>";
-			sec.AddRawText(sTable);
+			RenderEventTable(sec, Events);
 		}
 	}
 
@@ -2369,54 +2248,41 @@ void AdminUI::ShowCertificate (KRESTServer& HTTP)
 
 	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
-	if (!sNotice.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash ok"));
-		f.AddText(sNotice);
-	}
-	else if (!sError.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash err"));
-		f.AddText(sError);
-	}
+	RenderFlash(main, sNotice, sError);
 
 	// --- Section 1: status ---------------------------------------------
 	{
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, "ACME certificate");
 
-		KString sStatus;
-
 		if (!Status.bEnabled)
 		{
-			sStatus = "<span class=\"pill neutral\">disabled</span>"
-			          "<div class=\"muted\">The server uses its configured or "
-			          "self-signed certificate.</div>";
+			RenderPill(sec, "neutral", "disabled");
+			sec.Add<html::Div>(html::Classes("muted"))
+			   .AddText("The server uses its configured or self-signed certificate.");
 		}
 		else if (Status.ValidUntil != KUnixTime())
 		{
-			sStatus = kFormat(
-				"<span class=\"pill ok\">active</span>"
-				"<div>Certificate for <b>{}</b>, valid until {} UTC. "
-				"Renewal is automatic.</div>",
-				KHTMLEntity::EncodeMandatory(Status.sDomains),
-				Status.ValidUntil.to_string());
+			RenderPill(sec, "ok", "active");
+			auto div = sec.Add<html::Div>();
+			div.AddText("Certificate for ");
+			div.AddElement("b").AddText(Status.sDomains);
+			div.AddText(kFormat(", valid until {} UTC. Renewal is automatic.",
+			                    Status.ValidUntil.to_string()));
 		}
 		else
 		{
-			sStatus = kFormat(
-				"<span class=\"pill info\">pending</span>"
-				"<div>Ordering a certificate for <b>{}</b> ...</div>",
-				KHTMLEntity::EncodeMandatory(Status.sDomains));
+			RenderPill(sec, "info", "pending");
+			auto div = sec.Add<html::Div>();
+			div.AddText("Ordering a certificate for ");
+			div.AddElement("b").AddText(Status.sDomains);
+			div.AddText(" ...");
 		}
 
 		if (!Status.sError.empty())
 		{
-			sStatus += kFormat("<div class=\"flash err\">{}</div>",
-			                   KHTMLEntity::EncodeMandatory(Status.sError));
+			sec.Add<html::ui::Flash>(Status.sError, html::ui::Flash::Error);
 		}
-
-		sec.AddRawText(sStatus);
 	}
 
 	// --- Section 2: configuration form ----------------------------------
@@ -2424,28 +2290,27 @@ void AdminUI::ShowCertificate (KRESTServer& HTTP)
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, "Configuration");
 
-		KString sForm = kFormat(
-			"<form method=\"post\" action=\"{}\">"
-			"<div class=\"row\">"
-			"<div class=\"field\"><label>Domains (comma separated, empty disables ACME)</label>"
-			"<input type=\"text\" name=\"domains\" value=\"{}\" autocomplete=\"off\" "
-			"placeholder=\"tunnel.example.com\"></div>"
-			"<div class=\"field\"><label>Contact (optional)</label>"
-			"<input type=\"text\" name=\"contact\" value=\"{}\" autocomplete=\"off\" "
-			"placeholder=\"mailto:admin@example.com\"></div>"
-			"<div class=\"field\"><label>Directory URL (empty = Let&#39;s Encrypt)</label>"
-			"<input type=\"text\" name=\"directory\" value=\"{}\" autocomplete=\"off\" "
-			"placeholder=\"https://acme-v02.api.letsencrypt.org/directory\"></div>"
-			"<button type=\"submit\" class=\"btn\">Save &amp; apply</button>"
-			"</div></form>"
-			"<div class=\"muted\">Validation uses the tls-alpn-01 challenge on this "
-			"server: port 443 of the domains must reach it. Changes apply "
-			"immediately, without a restart.</div>",
-			KHTMLEntity::EncodeMandatory(s_sCertUpdateURL),
-			KHTMLEntity::EncodeMandatory(Status.sDomains),
-			KHTMLEntity::EncodeMandatory(Status.sContact),
-			KHTMLEntity::EncodeMandatory(Status.sDirectory));
-		sec.AddRawText(sForm);
+		auto Form = sec.Add<html::Form>(s_sCertUpdateURL);
+		Form.SetMethod(html::Form::POST);
+
+		auto Row = Form.Add<html::Div>(html::Classes("row"));
+		Row.Add<html::ui::Field>("Domains (comma separated, empty disables ACME)",
+		                         "domains", Status.sDomains)
+		   .Input().SetAttribute("autocomplete", "off")
+		           .SetAttribute("placeholder", "tunnel.example.com");
+		Row.Add<html::ui::Field>("Contact (optional)", "contact", Status.sContact)
+		   .Input().SetAttribute("autocomplete", "off")
+		           .SetAttribute("placeholder", "mailto:admin@example.com");
+		Row.Add<html::ui::Field>("Directory URL (empty = Let's Encrypt)",
+		                         "directory", Status.sDirectory)
+		   .Input().SetAttribute("autocomplete", "off")
+		           .SetAttribute("placeholder", "https://acme-v02.api.letsencrypt.org/directory");
+		Row.Add<html::Button>("Save & apply", html::Button::SUBMIT, html::Classes{"btn"});
+
+		sec.Add<html::Div>(html::Classes("muted"))
+		   .AddText("Validation uses the tls-alpn-01 challenge on this "
+		            "server: port 443 of the domains must reach it. Changes apply "
+		            "immediately, without a restart.");
 	}
 
 	RenderPage(HTTP, Page);
@@ -2519,16 +2384,7 @@ void AdminUI::ShowLog (KRESTServer& HTTP)
 
 	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
 
-	if (!sNotice.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash ok"));
-		f.AddText(sNotice);
-	}
-	else if (!sError.empty())
-	{
-		auto f = main.Add<html::Div>(html::Classes("flash err"));
-		f.AddText(sError);
-	}
+	RenderFlash(main, sNotice, sError);
 
 	// --- Section 1: debug level -----------------------------------------
 	{
@@ -2537,28 +2393,25 @@ void AdminUI::ShowLog (KRESTServer& HTTP)
 
 		const int iLevel = KLog::GetLevel();
 
-		KString sOptions;
+		auto Form = sec.Add<html::Form>(s_sLogLevelURL);
+		Form.SetMethod(html::Form::POST);
+
+		auto Row   = Form.Add<html::Div>(html::Classes("row"));
+		auto Field = Row.Add<html::Div>(html::Classes("field"));
+		Field.AddElement("label").AddText("KLog debug level");
+		auto Select = Field.Add<html::Select>("level");
 		for (int i = 0; i <= 3; ++i)
 		{
-			sOptions += kFormat("<option value=\"{}\"{}>{}{}</option>",
-			                    i,
-			                    (i == iLevel) ? " selected" : "",
-			                    i,
-			                    i == 0 ? " (warnings only)" : "");
+			Select.Add<html::Option>(i == 0 ? KString("0 (warnings only)")
+			                                : kFormat("{}", i),
+			                         kFormat("{}", i))
+			      .SetSelected(i == iLevel);
 		}
+		Row.Add<html::Button>("Apply", html::Button::SUBMIT, html::Classes{"btn"});
 
-		KString sForm = kFormat(
-			"<form method=\"post\" action=\"{}\">"
-			"<div class=\"row\">"
-			"<div class=\"field\"><label>KLog debug level</label>"
-			"<select name=\"level\">{}</select></div>"
-			"<button type=\"submit\" class=\"btn\">Apply</button>"
-			"</div></form>"
-			"<div class=\"muted\">Applies immediately to the running server and "
-			"persists across restarts.</div>",
-			KHTMLEntity::EncodeMandatory(s_sLogLevelURL),
-			sOptions);
-		sec.AddRawText(sForm);
+		sec.Add<html::Div>(html::Classes("muted"))
+		   .AddText("Applies immediately to the running server and "
+		            "persists across restarts.");
 	}
 
 	// --- Section 2: live log ---------------------------------------------
@@ -2566,32 +2419,34 @@ void AdminUI::ShowLog (KRESTServer& HTTP)
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, "Live log");
 
+		sec.AddElement("pre").SetAttribute("id", "klog")
+		   .SetAttribute("style",
+		                 "max-height:60vh;min-height:10rem;overflow:auto;"
+		                 "background:#14161a;color:#d6d8de;padding:0.6rem;"
+		                 "border-radius:6px;font-size:0.72rem;line-height:1.35");
+
 		// the live view gets new ring buffer lines pushed as Server-Sent
 		// Events. Not HTTP polling (at debug levels >= 1 every poll logs
 		// itself and floods the very view it feeds), and not a WebSocket
 		// (Safari does not extend an accepted self-signed certificate to
 		// wss:// - SSE rides on the page's own HTTPS connection). Reconnect
 		// comes with EventSource for free.
-		sec.AddRawText(
-			"<pre id=\"klog\" style=\"max-height:60vh;min-height:10rem;overflow:auto;"
-			"background:#14161a;color:#d6d8de;padding:0.6rem;border-radius:6px;"
-			"font-size:0.72rem;line-height:1.35\"></pre>"
-			"<script>\n"
-			"(function() {\n"
-			"  var pre = document.getElementById('klog');\n"
-			"  var es  = new EventSource('/Configure/log/stream');\n"
-			"  es.onmessage = function(e) {\n"
-			"    if (!e.data) return;\n"
-			"    var atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;\n"
-			"    pre.textContent += e.data + '\\n';\n"
-			"    if (pre.textContent.length > 400000) {\n"
-			"      var cut = pre.textContent.indexOf('\\n', 100000);\n"
-			"      if (cut > 0) pre.textContent = pre.textContent.slice(cut + 1);\n"
-			"    }\n"
-			"    if (atEnd) pre.scrollTop = pre.scrollHeight;\n"
-			"  };\n"
-			"})();\n"
-			"</script>");
+		sec.Add<html::Script>(R"(
+(function() {
+  var pre = document.getElementById('klog');
+  var es  = new EventSource('/Configure/log/stream');
+  es.onmessage = function(e) {
+    if (!e.data) return;
+    var atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
+    pre.textContent += e.data + '\n';
+    if (pre.textContent.length > 400000) {
+      var cut = pre.textContent.indexOf('\n', 100000);
+      if (cut > 0) pre.textContent = pre.textContent.slice(cut + 1);
+    }
+    if (atEnd) pre.scrollTop = pre.scrollHeight;
+  };
+})();
+)");
 	}
 
 	RenderPage(HTTP, Page);
@@ -2719,6 +2574,19 @@ void AdminUI::ShowNodeRepl (KRESTServer& HTTP)
 	}
 
 	auto Page = MakePage(kFormat("ktunnel — REPL · {}", sNode));
+
+	Page.AddStyle(R"(
+.repl-out { background:#0f1419; color:#d6deeb; padding:0.75rem;
+            border-radius:6px; min-height:22rem; max-height:55vh;
+            overflow:auto; font-family:ui-monospace,Menlo,monospace;
+            font-size:0.85rem; white-space:pre-wrap; word-break:break-all; }
+.repl-in  { display:flex; gap:0.5rem; margin-top:0.5rem; }
+.repl-in input { flex:1; font-family:ui-monospace,Menlo,monospace; }
+.repl-status { margin-top:0.5rem; font-size:0.8rem; }
+.repl-status.ok  { color:#8fd19e; }
+.repl-status.err { color:#f5a3a3; }
+)");
+
 	RenderTopBar(Page, "nodes", sMe);
 
 	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
@@ -2726,108 +2594,95 @@ void AdminUI::ShowNodeRepl (KRESTServer& HTTP)
 
 	sec.Add<html::Heading>(2, kFormat("REPL — {}", sNode));
 
+	// <pre> for output (monospace, preserves whitespace), <input> for
+	// input, enter to send. The client sends whole lines with a trailing
+	// '\n' so the node-side line splitter in ProtectedHost::RunRepl() works.
+	sec.AddElement("pre").SetAttribute("id", "out").SetAttribute("class", "repl-out");
+
+	{
+		auto Row = sec.Add<html::Div>(html::Classes("repl-in"));
+		Row.Add<html::Input>("", "", html::Input::TEXT, html::Classes{}, "in")
+		   .SetAutofocus(true)
+		   .SetAttribute("autocomplete", "off")
+		   .SetAttribute("placeholder", "type a command and press Enter");
+		Row.Add<html::Button>("Send",  html::Button::BUTTON, html::Classes{"btn small"},        "send");
+		Row.Add<html::Button>("Close", html::Button::BUTTON, html::Classes{"btn small danger"}, "close");
+	}
+
+	sec.Add<html::Div>(html::Classes("repl-status"))
+	   .SetAttribute("id", "status").AddText("connecting…");
+	sec.Add<html::Div>(html::Classes("repl-status"))
+	   .SetAttribute("id", "hint").SetStyle("display:none;");
+
 	// The WebSocket URL is relative so it inherits the same scheme +
 	// host + port as the page. The browser WebSocket API
 	// auto-translates http: to ws: and https: to wss:.
-	KString sWsPath = kFormat("{}?node={}",
-		s_sNodeReplWsRoute,
-		kUrlEncode(sNode, URIPart::Query));
+	KString sScript(R"(
+(function() {
+  var wsProto  = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+  var wsPath   = '__WSPATH__';
+  var wsUrl    = wsProto + '//' + window.location.host + wsPath;
+  var out      = document.getElementById('out');
+  var inp      = document.getElementById('in');
+  var sendBtn  = document.getElementById('send');
+  var closeBtn = document.getElementById('close');
+  var status   = document.getElementById('status');
+  var hint     = document.getElementById('hint');
+  function setStatus(text, cls) {
+    status.textContent = text;
+    status.className = 'repl-status ' + (cls || '');
+  }
+  function append(text) {
+    out.textContent += text;
+    out.scrollTop = out.scrollHeight;
+  }
+  var ws = new WebSocket(wsUrl);
+  // Safari silently drops WSS handshakes when the page's self-signed
+  // cert has not been separately trusted for wss://. onerror/onclose
+  // never fire, so we fall back to a 3s timeout: if we are still in
+  // CONNECTING, show a hint that links to the https:// variant of the
+  // same path so the user can accept the cert in a fresh tab and
+  // reload the REPL page.
+  var hintTimer = setTimeout(function() {
+    if (ws.readyState !== WebSocket.CONNECTING) return;
+    if (window.location.protocol !== 'https:') return;
+    var httpsUrl = 'https://' + window.location.host + wsPath;
+    hint.style.display = 'block';
+    hint.className = 'repl-status err';
+    hint.innerHTML =
+      'WebSocket still connecting after 3s. If you are using Safari '
+      + 'with a self-signed certificate, open '
+      + '<a href="' + httpsUrl + '" target="_blank" rel="noopener">this URL</a> '
+      + 'in a new tab, accept the certificate, then reload this page.';
+  }, 3000);
+  ws.onopen    = function() { clearTimeout(hintTimer); hint.style.display='none'; setStatus('connected', 'ok'); inp.focus(); };
+  ws.onmessage = function(ev) { append(ev.data); };
+  ws.onerror   = function()  { clearTimeout(hintTimer); setStatus('connection error', 'err'); };
+  ws.onclose   = function()  { clearTimeout(hintTimer); setStatus('disconnected', 'err'); inp.disabled = true; };
+  function send() {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    var line = inp.value;
+    inp.value = '';
+    append(line + '\n');
+    ws.send(line + '\n');
+  }
+  inp.addEventListener('keydown', function(ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); send(); }
+  });
+  sendBtn.addEventListener('click', send);
+  closeBtn.addEventListener('click', function() {
+    try { ws.close(); } catch (e) {}
+    window.location.href = '__NODESURL__';
+  });
+})();
+)");
 
-	// Inline HTML + JS. <pre> for output (monospace, preserves
-	// whitespace), <input> for input, enter to send. The client
-	// sends whole lines with a trailing '\n' so the node-side line
-	// splitter in ProtectedHost::RunRepl() works.
-	// NOTE: the inline script below must NOT contain // line comments,
-	// because the HTML is emitted on a single line (no newlines between
-	// the concatenated C++ string literals). A '//' comment would then
-	// swallow the remainder of the file up to </script> and produce an
-	// "Unexpected end of script" parse error in the browser. Use C++
-	// comments here instead; every JS line ends with a '\n' so that
-	// browser devtools can report useful line numbers.
-	KString sBody = kFormat(
-		"<style>\n"
-		".repl-out {{ background:#0f1419; color:#d6deeb; padding:0.75rem;\n"
-		"            border-radius:6px; min-height:22rem; max-height:55vh;\n"
-		"            overflow:auto; font-family:ui-monospace,Menlo,monospace;\n"
-		"            font-size:0.85rem; white-space:pre-wrap; word-break:break-all; }}\n"
-		".repl-in  {{ display:flex; gap:0.5rem; margin-top:0.5rem; }}\n"
-		".repl-in input {{ flex:1; font-family:ui-monospace,Menlo,monospace; }}\n"
-		".repl-status {{ margin-top:0.5rem; font-size:0.8rem; }}\n"
-		".repl-status.ok  {{ color:#8fd19e; }}\n"
-		".repl-status.err {{ color:#f5a3a3; }}\n"
-		"</style>\n"
-		"<pre id=\"out\" class=\"repl-out\"></pre>\n"
-		"<div class=\"repl-in\">\n"
-		"  <input id=\"in\" type=\"text\" autocomplete=\"off\" autofocus\n"
-		"         placeholder=\"type a command and press Enter\">\n"
-		"  <button id=\"send\" class=\"btn small\" type=\"button\">Send</button>\n"
-		"  <button id=\"close\" class=\"btn small danger\" type=\"button\">Close</button>\n"
-		"</div>\n"
-		"<div id=\"status\" class=\"repl-status\">connecting&hellip;</div>\n"
-		"<div id=\"hint\" class=\"repl-status\" style=\"display:none;\"></div>\n"
-		"<script>\n"
-		"(function() {{\n"
-		"  var wsProto  = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';\n"
-		"  var wsPath   = '{}';\n"
-		"  var wsUrl    = wsProto + '//' + window.location.host + wsPath;\n"
-		"  var out      = document.getElementById('out');\n"
-		"  var inp      = document.getElementById('in');\n"
-		"  var sendBtn  = document.getElementById('send');\n"
-		"  var closeBtn = document.getElementById('close');\n"
-		"  var status   = document.getElementById('status');\n"
-		"  var hint     = document.getElementById('hint');\n"
-		"  function setStatus(text, cls) {{\n"
-		"    status.textContent = text;\n"
-		"    status.className = 'repl-status ' + (cls || '');\n"
-		"  }}\n"
-		"  function append(text) {{\n"
-		"    out.textContent += text;\n"
-		"    out.scrollTop = out.scrollHeight;\n"
-		"  }}\n"
-		"  var ws = new WebSocket(wsUrl);\n"
-		// Safari silently drops WSS handshakes when the page's self-signed
-		// cert has not been separately trusted for wss://. onerror/onclose
-		// never fire, so we fall back to a 3s timeout: if we are still in
-		// CONNECTING, show a hint that links to the https:// variant of the
-		// same path so the user can accept the cert in a fresh tab and
-		// reload the REPL page.
-		"  var hintTimer = setTimeout(function() {{\n"
-		"    if (ws.readyState !== WebSocket.CONNECTING) return;\n"
-		"    if (window.location.protocol !== 'https:') return;\n"
-		"    var httpsUrl = 'https://' + window.location.host + wsPath;\n"
-		"    hint.style.display = 'block';\n"
-		"    hint.className = 'repl-status err';\n"
-		"    hint.innerHTML =\n"
-		"      'WebSocket still connecting after 3s. If you are using Safari '\n"
-		"      + 'with a self-signed certificate, open '\n"
-		"      + '<a href=\"' + httpsUrl + '\" target=\"_blank\" rel=\"noopener\">this URL</a> '\n"
-		"      + 'in a new tab, accept the certificate, then reload this page.';\n"
-		"  }}, 3000);\n"
-		"  ws.onopen    = function() {{ clearTimeout(hintTimer); hint.style.display='none'; setStatus('connected', 'ok'); inp.focus(); }};\n"
-		"  ws.onmessage = function(ev) {{ append(ev.data); }};\n"
-		"  ws.onerror   = function()  {{ clearTimeout(hintTimer); setStatus('connection error', 'err'); }};\n"
-		"  ws.onclose   = function()  {{ clearTimeout(hintTimer); setStatus('disconnected', 'err'); inp.disabled = true; }};\n"
-		"  function send() {{\n"
-		"    if (ws.readyState !== WebSocket.OPEN) return;\n"
-		"    var line = inp.value;\n"
-		"    inp.value = '';\n"
-		"    append(line + '\\n');\n"
-		"    ws.send(line + '\\n');\n"
-		"  }}\n"
-		"  inp.addEventListener('keydown', function(ev) {{\n"
-		"    if (ev.key === 'Enter') {{ ev.preventDefault(); send(); }}\n"
-		"  }});\n"
-		"  sendBtn.addEventListener('click', send);\n"
-		"  closeBtn.addEventListener('click', function() {{\n"
-		"    try {{ ws.close(); }} catch (e) {{}}\n"
-		"    window.location.href = '{}';\n"
-		"  }});\n"
-		"}})();\n"
-		"</script>\n",
-		KHTMLEntity::EncodeMandatory(sWsPath),
-		KHTMLEntity::EncodeMandatory(s_sNodesURL));
+	sScript.Replace("__WSPATH__",   kFormat("{}?node={}",
+	                                        s_sNodeReplWsRoute,
+	                                        kUrlEncode(sNode, URIPart::Query)));
+	sScript.Replace("__NODESURL__", s_sNodesURL);
 
-	sec.AddRawText(sBody);
+	sec.Add<html::Script>(sScript);
 
 	RenderPage(HTTP, Page);
 
@@ -2973,19 +2828,25 @@ void AdminUI::HandleNodeReplCert (KRESTServer& HTTP)
 
 	sec.Add<html::Heading>(2, "Certificate accepted");
 
-	KString sBody = kFormat(
-		"<p>The self-signed TLS certificate for this host is now trusted "
-		"for WebSocket connections as well.</p>\n"
-		"<p>Close this tab and reload the REPL page for node "
-		"<strong>{}</strong>.</p>\n"
-		"<p><a href=\"{}?node={}\" class=\"btn\">Back to REPL</a> "
-		"<a href=\"{}\" class=\"btn small\">Nodes list</a></p>\n",
-		KHTMLEntity::EncodeMandatory(sNode),
-		s_sNodeReplURL,
-		kUrlEncode(sNode, URIPart::Query),
-		sNodesURL);
+	sec.Add<html::Paragraph>()
+	   .AddText("The self-signed TLS certificate for this host is now trusted "
+	            "for WebSocket connections as well.");
 
-	sec.AddRawText(sBody);
+	{
+		auto p = sec.Add<html::Paragraph>();
+		p.AddText("Close this tab and reload the REPL page for node ");
+		p.AddElement("strong").AddText(sNode);
+		p.AddText(".");
+	}
+
+	{
+		auto p = sec.Add<html::Paragraph>();
+		p.Add<html::Link>(kFormat("{}?node={}",
+		                          s_sNodeReplURL,
+		                          kUrlEncode(sNode, URIPart::Query)),
+		                  "Back to REPL", html::Classes{"btn"});
+		p.Add<html::Link>(sNodesURL, "Nodes list", html::Classes{"btn small"});
+	}
 
 	RenderPage(HTTP, Page);
 

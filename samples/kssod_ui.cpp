@@ -488,17 +488,12 @@ void RenderAccount(KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSO
 
 	if (!St.Sessions.empty())
 	{
-		auto Table = CB.Add<html::Table>();
-		auto Head  = Table.Add<html::TableRow>();
-		Head.Add<html::TableHeader>("Device");
-		Head.Add<html::TableHeader>("IP address");
-		Head.Add<html::TableHeader>("Signed in");
-		Head.Add<html::TableHeader>("Last active");
-		Head.Add<html::TableHeader>("");
+		auto Table = CB.Add<html::ui::Table>(html::Classes{});
+		Table.Headers({ "Device", "IP address", "Signed in", "Last active", "" });
 
 		for (const auto& S : St.Sessions)
 		{
-			auto Row = Table.Add<html::TableRow>();
+			auto Row = Table.AddRow();
 
 			// "Chrome 138 · macOS 14 · Desktop", skipping the parts we could not parse
 			KString sDevice = S.sBrowser.empty() ? KString("Unknown device") : S.sBrowser;
@@ -806,18 +801,12 @@ void RenderUsers(KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
 	auto ListCard = Body.Add<html::ui::Card>("Users");
 	auto LB       = ListCard.Body();
 
-	auto Table = LB.Add<html::Table>();
-	auto Head  = Table.Add<html::TableRow>();
-	Head.Add<html::TableHeader>("Username");
-	Head.Add<html::TableHeader>("Name");
-	Head.Add<html::TableHeader>("Email");
-	Head.Add<html::TableHeader>("Admin");
-	Head.Add<html::TableHeader>("Access");
-	Head.Add<html::TableHeader>("");
+	auto Table = LB.Add<html::ui::Table>(html::Classes{});
+	Table.Headers({ "Username", "Name", "Email", "Admin", "Access", "" });
 
 	for (const auto& User : Users.List())
 	{
-		auto Row = Table.Add<html::TableRow>();
+		auto Row = Table.AddRow();
 		Row.Add<html::TableData>(User.sUsername);
 		Row.Add<html::TableData>(User.sName);
 		Row.Add<html::TableData>(User.sEmail.empty() ? KStringView("—") : KStringView(User.sEmail));
@@ -967,20 +956,13 @@ void RenderClients(KRESTServer& HTTP, KStringView sUser, KSSOdClientStore& Clien
 	  .AddText("Use \"Manage\" (under Users & roles) to control who may sign in to an app and what roles they receive in "
 	           "its tokens, and \"Edit\" to change an app's settings.");
 
-	auto Table = LB.Add<html::Table>();
-	auto Head  = Table.Add<html::TableRow>();
-	Head.Add<html::TableHeader>("Client ID");
-	Head.Add<html::TableHeader>("Type");
-	Head.Add<html::TableHeader>("Redirect URIs");
-	Head.Add<html::TableHeader>("Scopes");
-	Head.Add<html::TableHeader>("Access");
-	Head.Add<html::TableHeader>("Users & roles");
-	Head.Add<html::TableHeader>("");
+	auto Table = LB.Add<html::ui::Table>(html::Classes{});
+	Table.Headers({ "Client ID", "Type", "Redirect URIs", "Scopes", "Access", "Users & roles", "" });
 
 	for (const auto& Info : Clients.List())
 	{
 		const auto& Client = Info.Client;
-		auto Row = Table.Add<html::TableRow>();
+		auto Row = Table.AddRow();
 		Row.Add<html::TableData>(Client.sClientID);
 		Row.Add<html::TableData>(Client.bPublic ? "public" : "confidential");
 		KString sRedirects; sRedirects.Join(Client.RedirectURIs, " ");
@@ -1194,15 +1176,12 @@ void RenderClientAccess(KRESTServer& HTTP, KStringView sUser, KStringView sClien
 	}
 	else
 	{
-		auto RoleTable = RB.Add<html::Table>();
-		auto Head      = RoleTable.Add<html::TableRow>();
-		Head.Add<html::TableHeader>("Role");
-		Head.Add<html::TableHeader>("Default");
-		Head.Add<html::TableHeader>("");
+		auto RoleTable = RB.Add<html::ui::Table>(html::Classes{});
+		RoleTable.Headers({ "Role", "Default", "" });
 		for (const auto& sRole : Roles)
 		{
 			bool bIsDefault = (sRole == sDefault);
-			auto Row = RoleTable.Add<html::TableRow>();
+			auto Row = RoleTable.AddRow();
 			Row.Add<html::TableData>(sRole);
 			// default column: mark the default, or offer to make this one default
 			auto DefCell = Row.Add<html::TableData>();
@@ -1243,14 +1222,11 @@ void RenderClientAccess(KRESTServer& HTTP, KStringView sUser, KStringView sClien
 	else
 	{
 		// read-only overview; access + roles are managed per user in the grid
-		auto Table = MB.Add<html::Table>();
-		auto Head  = Table.Add<html::TableRow>();
-		Head.Add<html::TableHeader>("User");
-		Head.Add<html::TableHeader>("Status");
-		Head.Add<html::TableHeader>("Roles");
+		auto Table = MB.Add<html::ui::Table>(html::Classes{});
+		Table.Headers({ "User", "Status", "Roles" });
 		for (const auto& A : Members)
 		{
-			auto Row = Table.Add<html::TableRow>();
+			auto Row = Table.AddRow();
 			// the user name links to that user's full access grid (edit there)
 			Row.Add<html::TableData>().Add<html::Link>(kFormat("/admin/users/access?user={}", A.sUsername), A.sUsername);
 			auto Status = Row.Add<html::TableData>();
@@ -1292,14 +1268,15 @@ void RenderAccessOverview(KRESTServer& HTTP, KStringView sAdmin,
 	std::map<KString, std::map<KString, KSSOdUserStore::GlobalAssignment>> Grid;
 	for (const auto& A : Users.ListAllAssignments()) Grid[A.sUsername][A.sClientID] = A;
 
-	auto Table = CB.Add<html::Table>();
-	auto Head  = Table.Add<html::TableRow>();
-	Head.Add<html::TableHeader>("User");
-	for (const auto& Info : ClientList) Head.Add<html::TableHeader>(Info.Client.sClientID);
+	std::vector<KStringView> Headers { "User" };
+	for (const auto& Info : ClientList) Headers.push_back(Info.Client.sClientID);
+
+	auto Table = CB.Add<html::ui::Table>(html::Classes{});
+	Table.Headers(Headers);
 
 	for (const auto& U : Users.List())
 	{
-		auto Row = Table.Add<html::TableRow>();
+		auto Row = Table.AddRow();
 		Row.Add<html::TableData>().Add<html::Link>(kFormat("/admin/users/access?user={}", U.sUsername), U.sUsername);
 
 		auto uit = Grid.find(U.sUsername);
@@ -1354,11 +1331,8 @@ void RenderUserAccess(KRESTServer& HTTP, KStringView sAdmin, KStringView sTarget
 	auto Form = CB.Add<html::Form>(kFormat("/admin/users/access/save?user={}", sTargetUser));
 	Form.SetMethod(html::Form::POST);
 
-	auto Table = Form.Add<html::Table>();
-	auto Head  = Table.Add<html::TableRow>();
-	Head.Add<html::TableHeader>("Client");
-	Head.Add<html::TableHeader>("Access");
-	Head.Add<html::TableHeader>("Roles");
+	auto Table = Form.Add<html::ui::Table>(html::Classes{});
+	Table.Headers({ "Client", "Access", "Roles" });
 
 	auto ClientList = Clients.List();
 	for (std::size_t i = 0; i < ClientList.size(); ++i)
@@ -1371,7 +1345,7 @@ void RenderUserAccess(KRESTServer& HTTP, KStringView sAdmin, KStringView sTarget
 		auto ait = CurrentAccess.find(sClientID);
 		bool bActive = (ait != CurrentAccess.end()) && ait->second; // access on iff active row
 
-		auto Row = Table.Add<html::TableRow>();
+		auto Row = Table.AddRow();
 
 		auto NameCell = Row.Add<html::TableData>();
 		NameCell.AddText(sClientID);

@@ -798,6 +798,18 @@ public:
 		return m_StreamSocket;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// set a callback that is polled while this connection waits for its next
+	/// request - when it returns true the connection is closed instead of
+	/// blocking a worker for the full read timeout. KREST wires it to the tcp
+	/// server's shutdown flag, so idle keep-alive connections end promptly on
+	/// server stop.
+	void SetStopCheck(std::function<bool()> StopCheck)
+	//-----------------------------------------------------------------------------
+	{
+		m_StopCheck = std::move(StopCheck);
+	}
+
 //------
 protected:
 //------
@@ -889,6 +901,7 @@ private:
 	std::function<void(std::size_t)> m_WebSocketCloseHandlerCallback;   // optional, called once when the connection is removed from the websocket server
 	KWebSocketPMCE::Parameters       m_WebSocketPMCEParams;             // permessage-deflate parameters negotiated during the upgrade (bEnabled false if not negotiated)
 	KIOStreamSocket*  m_StreamSocket     { nullptr };            // the underlying KIOStreamSocket, if existing
+	std::function<bool()> m_StopCheck;                           // polled while waiting for the next request, true = close the connection (server shutdown)
 	const KRESTRoute* m_pLastLoggedRoute { nullptr };            // remembers the last route written to access log within this connection; used by NO_REPEAT_LOG to suppress subsequent identical entries in keepalive
 	uint16_t    m_iRound = std::numeric_limits<uint16_t>::max(); // keepalive rounds
 	bool        m_bKeepAlive;            // whether connection will be kept alive

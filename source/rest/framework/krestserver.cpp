@@ -765,6 +765,41 @@ bool KRESTServer::Execute()
 				Response.Headers.Add(it.first, it.second);
 			}
 
+			// Wait for the request in short slices instead of blocking
+			// inside Parse() for the full read timeout: an idle keep-alive
+			// connection would otherwise pin this worker until its client
+			// disconnects, and a server shutdown could not proceed
+			if (m_StopCheck)
+			{
+				auto* Socket = GetStreamSocket();
+
+				if (Socket)
+				{
+					KStopTime Waited;
+
+					for (;;)
+					{
+						if (Socket->IsReadReady(chrono::milliseconds(500)))
+						{
+							// request data (or EOF) is pending - let Parse() read it
+							break;
+						}
+
+						if (m_StopCheck())
+						{
+							kDebug(2, "server shutdown in keepalive round {}", m_iRound + 1);
+							return false;
+						}
+
+						if (Waited.elapsed() >= Socket->GetTimeout())
+						{
+							kDebug(3, "read timeout in keepalive round {}", m_iRound + 1);
+							return false;
+						}
+					}
+				}
+			}
+
 			bool bOK { false };
 
 			{

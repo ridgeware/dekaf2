@@ -85,6 +85,11 @@ void KREST::RESTServer::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 	// interact directly with the socket
 	RESTServer.SetStreamSocket(*Stream);
 
+	// close idle keep-alive connections when the server stops - without
+	// this every browser that holds a connection open pins a worker for
+	// the full read timeout, and Stop() (systemctl stop) hangs that long
+	RESTServer.SetStopCheck([this]() { return KTCPServer::IsShuttingDown(); });
+
 	// keep a local copy of the socket for KSocketWatch
 	auto nativeSocket = Stream->GetNativeSocket();
 

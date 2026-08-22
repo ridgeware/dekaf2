@@ -333,9 +333,12 @@ public:
 	/// without owner verification. This is the route used by the
 	/// synthetic "cli" listener that represents the legacy
 	/// `-f <port> -t <target>` CLI configuration.
-	void ForwardStreamForOwner (KIOStreamSocket& Downstream,
-	                            const KTCPEndPoint& Endpoint,
-	                            KStringView sOwner);
+	/// Returns how the forwarded connection ended - a non-empty
+	/// sDisconnectReason carries the error the node reported (e.g.
+	/// "cannot connect to target").
+	KTunnel::ConnectResult ForwardStreamForOwner (KIOStreamSocket& Downstream,
+	                                              const KTCPEndPoint& Endpoint,
+	                                              KStringView sOwner);
 
 	/// Per-listener runtime state reported to the admin UI.
 	/// @li `Stopped` — configured as disabled, or not in the registry
@@ -351,6 +354,10 @@ public:
 		KString       sName;         ///< tunnels.name
 		ListenerState eState { ListenerState::Stopped };
 		KString       sError;        ///< populated for PortError
+		uint64_t      iForwarded     { 0 }; ///< connections successfully forwarded
+		uint64_t      iFailed        { 0 }; ///< connections that failed to forward
+		KString       sLastConnError;       ///< most recent forward error, empty if none
+		KUnixTime     tLastConnError;       ///< when sLastConnError happened
 	};
 
 	/// Thread-safe map from tunnel name → current listener state. Names
@@ -384,10 +391,60 @@ public:
 	/// null shared_ptr if that node is not connected.
 	std::shared_ptr<KTunnel>  GetTunnelForNode       (KStringView sNode) const;
 
+	/// Snapshot of one multiplexed connection currently carried over a
+	/// tunnel, used by the admin UI.
+	struct ActiveConnection
+	{
+		KString     sNode;      ///< owning node
+		std::size_t iChannel  { 0 };
+		KString     sTarget;    ///< endpoint the node forwards to
+		KString     sPeer;      ///< downstream peer address on this server
+		KUnixTime   tStart;     ///< when the connection was opened
+		uint64_t    iBytesToTarget   { 0 };
+		uint64_t    iBytesFromTarget { 0 };
+	};
+
+	/// Thread-safe snapshot of all multiplexed connections over all
+	/// currently-connected tunnels, for the admin UI.
+	std::vector<ActiveConnection> SnapshotConnections () const;
+
+	/// Log a failed forward attempt as a "conn_fail" event. Called by
+	/// TunnelListener::Session with the error the node reported.
+	void LogConnFailure (KStringView sTunnelName,
+	                     KStringView sOwner,
+	                     const KTCPEndPoint& Target,
+	                     KStringView sRemoteIP,
+	                     KStringView sReason);
+
 	/// Access to the persistent configuration / audit store backing the
 	/// admin UI. Never null after successful construction.
 	KTunnelStore&             GetStore               ()       { return *m_Store; }
 	const KTunnelStore&       GetStore               () const { return *m_Store; }
+
+	/// Runtime-tunable tunnel settings, persisted in the store's settings
+	/// table and editable in the admin UI. Changed values apply to NEW
+	/// control tunnels and forwarded connections - existing ones keep the
+	/// values they started with.
+	struct TunnelSettings
+	{
+		KDuration   Timeout;
+		KDuration   ConnectTimeout;
+		KDuration   ControlPing;
+		std::size_t iMaxTunneledConnections { 0 };
+	};
+
+	/// Snapshot of the currently active tunable settings. Thread-safe.
+	TunnelSettings GetTunnelSettings () const { return *m_Tunables.shared(); }
+
+	/// SHA-256 fingerprint of the Ed25519 server identity used by the v2
+	/// AES handshake - the value protected hosts pin with
+	/// -trust-fingerprint. Empty when AES mode is off.
+	KString GetServerFingerprint () const;
+
+	/// Apply new tunable settings and persist them in the settings table.
+	/// Thread-safe, called from the admin UI. Returns false when a value
+	/// is out of range (nothing is applied then).
+	bool SetTunnelSettings (const TunnelSettings& Settings, KStringView sActor);
 
 	/// Snapshot of the ACME certificate management state, for the admin UI.
 	struct ACMEStatus
@@ -528,6 +585,11 @@ private:
 	std::unique_ptr<AdminUI>          m_AdminUI;
 	const Config&                     m_Config;
 
+	/// runtime-tunable settings - seeded from m_Config, overridden by
+	/// persisted values from the settings table, changed at runtime by
+	/// the admin UI via SetTunnelSettings()
+	KThreadSafe<TunnelSettings>       m_Tunables;
+
 	/// ACME certificate management - configured by Run() after the REST
 	/// server is up, and reconfigured at runtime from the admin UI
 	std::unique_ptr<KAcmeManager>     m_AcmeManager;
@@ -598,6 +660,15 @@ public:
 	KStringView    GetName   () const { return m_sName; }
 	KStringView    GetOwner  () const { return m_sOwner; }
 
+	/// connections successfully forwarded through this listener
+	uint64_t       GetForwardedCount () const { return m_iForwarded; }
+	/// connections that failed to forward (no tunnel, node-side error,
+	/// or the target closed without sending any data)
+	uint64_t       GetFailedCount    () const { return m_iFailed;    }
+	/// the most recent forward error with its timestamp - the string is
+	/// empty if no error happened yet
+	std::pair<KString, KUnixTime> GetLastError () const { return *m_LastError.shared(); }
+
 //----------
 protected:
 //----------
@@ -608,10 +679,18 @@ protected:
 private:
 //----------
 
+	/// count a failed forward, remember it as the last error, and log a
+	/// "conn_fail" event
+	void RecordFailure (KStringView sReason, KStringView sRemoteIP);
+
 	ExposedServer& m_ExposedServer;
 	KString        m_sName;
 	KString        m_sOwner;
 	KTCPEndPoint   m_Target;
+
+	std::atomic<uint64_t> m_iForwarded { 0 };
+	std::atomic<uint64_t> m_iFailed    { 0 };
+	KThreadSafe<std::pair<KString, KUnixTime>> m_LastError;
 
 }; // TunnelListener
 

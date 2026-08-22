@@ -49,6 +49,7 @@
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/threading/execution/kthreads.h>
+#include <dekaf2/core/init/dekaf2.h>  // Dekaf::getInstance().GetTimer() for the check watchdog
 #include <dekaf2/web/ui/kwebui.h>
 #include <dekaf2/web/url/kmime.h>
 #include <algorithm>
@@ -257,6 +258,7 @@ constexpr KStringView s_sNodesURL     = "/Configure/nodes";
 constexpr KStringView s_sTunnelsURL   = "/Configure/tunnels";
 constexpr KStringView s_sEventsURL    = "/Configure/events";
 constexpr KStringView s_sCertURL      = "/Configure/certificate";
+constexpr KStringView s_sSettingsURL  = "/Configure/settings";
 constexpr KStringView s_sLogURL       = "/Configure/log";
 constexpr KStringView s_sNodeReplURL  = "/Configure/nodes/repl";
 
@@ -274,15 +276,19 @@ constexpr KStringView s_sNodesAddRoute         = "/Configure/nodes/add";
 constexpr KStringView s_sNodesToggleRoute      = "/Configure/nodes/toggle";
 constexpr KStringView s_sNodesDeleteRoute      = "/Configure/nodes/delete";
 constexpr KStringView s_sNodesResetPwRoute     = "/Configure/nodes/resetpass";
+constexpr KStringView s_sNodesInstallRoute     = "/Configure/nodes/install";
 constexpr KStringView s_sTunnelsRoute          = "/Configure/tunnels";
 constexpr KStringView s_sTunnelsAddRoute       = "/Configure/tunnels/add";
 constexpr KStringView s_sTunnelsToggleRoute    = "/Configure/tunnels/toggle";
 constexpr KStringView s_sTunnelsDeleteRoute    = "/Configure/tunnels/delete";
 constexpr KStringView s_sTunnelsEditRoute      = "/Configure/tunnels/edit";
 constexpr KStringView s_sTunnelsUpdateRoute    = "/Configure/tunnels/update";
+constexpr KStringView s_sTunnelsCheckRoute     = "/Configure/tunnels/check";
 constexpr KStringView s_sEventsRoute           = "/Configure/events";
 constexpr KStringView s_sCertRoute             = "/Configure/certificate";
 constexpr KStringView s_sCertUpdateRoute       = "/Configure/certificate/update";
+constexpr KStringView s_sSettingsRoute         = "/Configure/settings";
+constexpr KStringView s_sSettingsUpdateRoute   = "/Configure/settings/update";
 constexpr KStringView s_sLogRoute              = "/Configure/log";
 constexpr KStringView s_sLogStreamRoute        = "/Configure/log/stream";
 constexpr KStringView s_sLogLevelRoute         = "/Configure/log/level";
@@ -300,12 +306,15 @@ constexpr KStringView s_sNodesAddURL           = "/Configure/nodes/add";
 constexpr KStringView s_sNodesToggleURL        = "/Configure/nodes/toggle";
 constexpr KStringView s_sNodesDeleteURL        = "/Configure/nodes/delete";
 constexpr KStringView s_sNodesResetPwURL       = "/Configure/nodes/resetpass";
+constexpr KStringView s_sNodesInstallURL       = "/Configure/nodes/install";
 constexpr KStringView s_sTunnelsAddURL         = "/Configure/tunnels/add";
 constexpr KStringView s_sTunnelsToggleURL      = "/Configure/tunnels/toggle";
 constexpr KStringView s_sTunnelsDeleteURL      = "/Configure/tunnels/delete";
 constexpr KStringView s_sTunnelsEditURL        = "/Configure/tunnels/edit";
 constexpr KStringView s_sTunnelsUpdateURL      = "/Configure/tunnels/update";
+constexpr KStringView s_sTunnelsCheckURL       = "/Configure/tunnels/check";
 constexpr KStringView s_sCertUpdateURL         = "/Configure/certificate/update";
+constexpr KStringView s_sSettingsUpdateURL     = "/Configure/settings/update";
 // note: the log event-stream URL only appears inside the live view's inline script
 constexpr KStringView s_sLogLevelURL           = "/Configure/log/level";
 
@@ -344,6 +353,7 @@ KStringView PillForEventKind (KStringView sKind)
 	 || sKind == "node_login_fail"
 	 || sKind == "handshake_fail"
 	 || sKind == "tunnel_error"
+	 || sKind == "conn_fail"
 	 || sKind == "auth_reject")       return "fail";
 	if (sKind == "tunnel_disconnect"
 	 || sKind == "tunnel_stop"
@@ -601,6 +611,7 @@ void AdminUI::RenderTopBar (html::Page& Page,
 		{ "nodes",     s_sNodesURL,     "Nodes"       },
 		{ "tunnels",   s_sTunnelsURL,   "Tunnels"     },
 		{ "cert",      s_sCertURL,      "Certificate" },
+		{ "settings",  s_sSettingsURL,  "Settings"    },
 		{ "log",       s_sLogURL,       "Log"         },
 		{ "events",    s_sEventsURL,    "Events"      },
 		{ "logout",    s_sLogoutURL,    "Logout"      },
@@ -1259,6 +1270,11 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 
 				auto Actions = Row.Add<html::TableData>();
 
+				Actions.Add<html::Link>(kFormat("{}?node={}",
+				                                s_sNodesInstallURL,
+				                                kUrlEncode(n.sName, URIPart::Query)),
+				                        "Install", html::Classes{"btn small"});
+
 				if (itOnline != Online.end())
 				{
 					Actions.Add<html::Link>(kFormat("{}?node={}",
@@ -1297,7 +1313,10 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 		Row.Add<html::ui::Field>("Name", "name")
 		   .Input().SetRequired(true).SetAttribute("autocomplete", "off");
 		Row.Add<html::ui::Field>("Password", "password", "", html::Input::PASSWORD)
-		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password");
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password")
+		           .SetAttribute("id", "node_add_pw");
+		Row.Add<html::Button>("Generate", html::Button::BUTTON, html::Classes{"btn small"})
+		   .SetAttribute("onclick", "ktGenPassword(this, ['node_add_pw'])");
 
 		auto Field = Row.Add<html::Div>(html::Classes("field"));
 		auto Label = Field.AddElement("label");
@@ -1325,11 +1344,47 @@ void AdminUI::ShowNodes (KRESTServer& HTTP)
 		AddNodeOptions(Select, Nodes);
 
 		Row.Add<html::ui::Field>("New password", "new_password", "", html::Input::PASSWORD)
-		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password");
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password")
+		           .SetAttribute("id", "node_reset_pw");
 		Row.Add<html::ui::Field>("Confirm new password", "confirm_password", "", html::Input::PASSWORD)
-		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password");
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password")
+		           .SetAttribute("id", "node_reset_pw2");
+		Row.Add<html::Button>("Generate", html::Button::BUTTON, html::Classes{"btn small"})
+		   .SetAttribute("onclick", "ktGenPassword(this, ['node_reset_pw', 'node_reset_pw2'])");
 		Row.Add<html::Button>("Reset", html::Button::SUBMIT, html::Classes{"btn"});
 	}
+
+	// generate a strong random password into the given fields, make it
+	// visible, and copy it to the clipboard (with a button-label ack)
+	main.Add<html::Script>(R"(
+function ktGenPassword(button, fieldIds) {
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var pw = '';
+  while (pw.length < 24) {
+    var a = new Uint8Array(32);
+    crypto.getRandomValues(a);
+    for (var i = 0; i < a.length && pw.length < 24; ++i) {
+      // 248 = 4 * 62: reject the tail to keep the distribution uniform
+      if (a[i] < 248) pw += chars[a[i] % 62];
+    }
+  }
+  fieldIds.forEach(function(id) {
+    var f = document.getElementById(id);
+    if (f) { f.type = 'text'; f.value = pw; }
+  });
+  function ack(label) {
+    var old = button.textContent;
+    button.textContent = label;
+    setTimeout(function() { button.textContent = old; }, 2000);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(pw).then(function() { ack('Copied!'); },
+                                           function() { ack('Generated'); });
+  } else {
+    ack('Generated');
+  }
+}
+)");
 
 	RenderPage(HTTP, Page);
 
@@ -1540,6 +1595,186 @@ void AdminUI::HandleNodesResetPass (KRESTServer& HTTP)
 
 } // HandleNodesResetPass
 
+//-----------------------------------------------------------------------------
+void AdminUI::ShowNodeInstall (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sNode = HTTP.GetQueryParm("node");
+
+	auto oNode = m_Server.GetStore().GetNode(sNode);
+	if (!oNode)
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "",
+		                  kFormat("Node '{}' does not exist.", sNode));
+		return;
+	}
+
+	// the name is embedded in a shell script and a JS string below -
+	// only pass it through when it cannot break out of either context
+	if (oNode->sName.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	                                   "abcdefghijklmnopqrstuvwxyz"
+	                                   "0123456789._-") != KString::npos)
+	{
+		RedirectWithFlash(HTTP, s_sNodesURL, "",
+		                  kFormat("Node '{}' contains characters that cannot be "
+		                          "used in a setup script - stick to letters, "
+		                          "digits, '.', '_' and '-'.", oNode->sName));
+		return;
+	}
+
+	// best-effort default for the public address of this server: the
+	// Host header the admin used to reach this page (minus the port)
+	KTCPEndPoint HostHeader(HTTP.Request.Headers.Get(KHTTPHeader::HOST));
+	KString sDefaultHost = HostHeader.Domain.get();
+
+	auto Page = MakePage(kFormat("ktunnel — Install {}", sNode));
+	RenderTopBar(Page, "nodes", sMe);
+
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
+
+	// --- Section 1: parameters ------------------------------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Install protected host · {}", sNode));
+
+		auto p = sec.Add<html::Paragraph>();
+		p.SetAttribute("class", "muted");
+		p.AddText("Everything below is generated in your browser - the node "
+		          "password never travels back to this server. The protected "
+		          "host needs a ktunnel binary first (e.g. copy a static build "
+		          "to /usr/local/bin).");
+
+		auto Row = sec.Add<html::Div>(html::Classes("row"));
+		Row.Add<html::ui::Field>("Exposed host (public address)", "", sDefaultHost)
+		   .Input().SetAttribute("id", "ki_host").SetAttribute("autocomplete", "off");
+		Row.Add<html::ui::Field>("Node password", "")
+		   .Input().SetAttribute("id", "ki_pw").SetAttribute("autocomplete", "off")
+		           .SetAttribute("placeholder", "paste the generated password");
+	}
+
+	// --- Section 2: setup script ----------------------------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Setup script (run as root on the protected host)");
+
+		sec.AddElement("textarea").SetAttribute("id", "ki_script")
+		   .SetAttribute("readonly", "readonly").SetAttribute("rows", "14")
+		   .SetAttribute("style", "width:100%;font-family:ui-monospace,Menlo,monospace;"
+		                          "font-size:0.75rem;white-space:pre;overflow-x:auto");
+
+		sec.Add<html::Button>("Copy script", html::Button::BUTTON, html::Classes{"btn small"})
+		   .SetAttribute("onclick", "ktCopy(this, 'ki_script')");
+	}
+
+	// --- Section 3: one-shot install over SSH ----------------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Or install in one step over SSH");
+
+		auto Row = sec.Add<html::Div>(html::Classes("row"));
+		Row.Add<html::ui::Field>("SSH target", "", "")
+		   .Input().SetAttribute("id", "ki_ssh").SetAttribute("autocomplete", "off")
+		           .SetAttribute("placeholder", "root@protected-host");
+
+		sec.AddElement("textarea").SetAttribute("id", "ki_sshcmd")
+		   .SetAttribute("readonly", "readonly").SetAttribute("rows", "16")
+		   .SetAttribute("style", "width:100%;font-family:ui-monospace,Menlo,monospace;"
+		                          "font-size:0.75rem;white-space:pre;overflow-x:auto");
+
+		sec.Add<html::Button>("Copy SSH command", html::Button::BUTTON, html::Classes{"btn small"})
+		   .SetAttribute("onclick", "ktCopy(this, 'ki_sshcmd')");
+
+		auto p = sec.Add<html::Paragraph>();
+		p.SetAttribute("class", "muted");
+		p.AddText("Run this from your workstation. To also copy the binary "
+		          "first: scp ktunnel root@protected-host:/usr/local/bin/");
+	}
+
+	// build the script client-side from the fields above; server-fixed
+	// parts (node, port, AES pinning) are substituted before delivery
+	KString sScript(R"(
+(function() {
+  var tpl =
+    "#!/bin/sh\n" +
+    "# ktunnel protected-host setup for node '__NODE__'\n" +
+    "# generated by the admin UI of __HOSTNAME__\n" +
+    "set -e\n" +
+    "command -v ktunnel >/dev/null 2>&1 || {\n" +
+    "  echo 'ktunnel binary not found - copy a static build to /usr/local/bin first' >&2\n" +
+    "  exit 1\n" +
+    "}\n" +
+    "umask 077\n" +
+    "mkdir -p /etc/ktunnel\n" +
+    "cat > /etc/ktunnel/secret.__NODE__ << 'KTEOF'\n" +
+    "__PASSWORD__\n" +
+    "KTEOF\n" +
+    "ktunnel -install -e __HOST__ -p __PORT__ -n __NODE__ -secret-file /etc/ktunnel/secret.__NODE____EXTRA__\n" +
+    "ktunnel -start\n" +
+    "ktunnel -status\n";
+
+  var elHost   = document.getElementById('ki_host');
+  var elPw     = document.getElementById('ki_pw');
+  var elSsh    = document.getElementById('ki_ssh');
+  var elScript = document.getElementById('ki_script');
+  var elSshCmd = document.getElementById('ki_sshcmd');
+
+  function rebuild() {
+    var host = elHost.value.trim() || '<exposed-host>';
+    var pw   = elPw.value          || '<node-password>';
+    var s    = tpl.split('__HOST__').join(host).split('__PASSWORD__').join(pw);
+    elScript.value = s;
+    var ssh = elSsh.value.trim() || 'root@' + host;
+    elSshCmd.value = "ssh " + ssh + " sh << 'KTSH'\n" + s + "KTSH";
+  }
+
+  [elHost, elPw, elSsh].forEach(function(el) { el.addEventListener('input', rebuild); });
+  rebuild();
+})();
+
+function ktCopy(button, id) {
+  var el  = document.getElementById(id);
+  var ack = function(label) {
+    var old = button.textContent;
+    button.textContent = label;
+    setTimeout(function() { button.textContent = old; }, 2000);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(el.value).then(function() { ack('Copied!'); },
+                                                 function() { el.select(); ack('Select & copy'); });
+  } else {
+    el.select();
+    ack('Select & copy');
+  }
+}
+)");
+
+	// the AES trust pin and a possible -notls travel inside __EXTRA__
+	KString sExtra;
+	if (m_Config.bNoTLS)
+	{
+		sExtra += " -notls";
+	}
+	const auto sFingerprint = m_Server.GetServerFingerprint();
+	if (m_Config.bAESPayload && !sFingerprint.empty())
+	{
+		sExtra += kFormat(" -aes -trust-fingerprint {}", sFingerprint);
+	}
+
+	sScript.Replace("__NODE__",     oNode->sName);
+	sScript.Replace("__PORT__",     KString::to_string(m_Config.iPort));
+	sScript.Replace("__HOSTNAME__", sDefaultHost);
+	sScript.Replace("__EXTRA__",    sExtra);
+
+	main.Add<html::Script>(sScript);
+
+	RenderPage(HTTP, Page);
+
+} // ShowNodeInstall
+
 namespace {
 
 /// Extract a decimal port number from a form field. Returns 0 if the
@@ -1571,6 +1806,11 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 	auto Tunnels      = Store.GetAllTunnels();
 	auto Nodes        = Store.GetAllNodes();
 	auto ListenerMap  = m_Server.SnapshotListenerStates();
+	auto Connections  = m_Server.SnapshotConnections();
+	auto ActiveNodes  = m_Server.SnapshotActiveTunnels();
+
+	KUnorderedSet<KString> OnlineNodes;
+	for (const auto& at : ActiveNodes) OnlineNodes.insert(at.sNode);
 
 	auto Page = MakePage("ktunnel — Tunnels");
 	RenderTopBar(Page, "tunnels", sMe);
@@ -1649,7 +1889,26 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 				auto it    = ListenerMap.find(t.sName);
 				if (it != ListenerMap.end())
 				{
-					RenderListenerStatePill(State, it->second.eState, it->second.sError);
+					const auto& li = it->second;
+
+					RenderListenerStatePill(State, li.eState, li.sError);
+
+					if (li.iForwarded || li.iFailed)
+					{
+						auto Stats = State.Add<html::Div>(html::Classes("muted"));
+						Stats.SetStyle("font-size:0.7rem");
+						Stats.AddText(kFormat("{} forwarded · {} failed",
+						                      li.iForwarded, li.iFailed));
+					}
+
+					if (!li.sLastConnError.empty())
+					{
+						auto Err = State.Add<html::Div>(html::Classes("muted"));
+						Err.SetStyle("font-size:0.7rem;color:#f5a3a3");
+						Err.AddText(kFormat("{} UTC: {}",
+						                    li.tLastConnError.to_string(),
+						                    li.sLastConnError));
+					}
 				}
 				else
 				{
@@ -1670,6 +1929,17 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 				       .SetStyle("text-decoration:none;display:inline-flex;"
 				                 "align-items:center;justify-content:center;");
 
+				if (OnlineNodes.count(t.sNode))
+				{
+					// ask the node to try a TCP connect to the target -
+					// tells reachability apart from protocol problems
+					auto Check = Actions.Add<html::Form>(s_sTunnelsCheckURL, html::Classes{"inline-form"});
+					Check.SetMethod(html::Form::POST);
+					Check.Add<html::Input>("name", t.sName, html::Input::HIDDEN);
+					Check.Add<html::Button>("Test target", html::Button::SUBMIT,
+					                        html::Classes{"btn small"});
+				}
+
 				auto Toggle = Actions.Add<html::Form>(s_sTunnelsToggleURL, html::Classes{"inline-form"});
 				Toggle.SetMethod(html::Form::POST);
 				Toggle.Add<html::Input>("name",   t.sName,               html::Input::HIDDEN);
@@ -1688,7 +1958,42 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 		}
 	}
 
-	// --- Section 2: add tunnel form -----------------------------------
+	// --- Section 2: active connections --------------------------------
+	// Live view of every multiplexed connection currently running over
+	// any tunnel — the fastest way to see whether traffic actually flows.
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Active connections ({})", Connections.size()));
+
+		if (Connections.empty())
+		{
+			auto p = sec.Add<html::Paragraph>();
+			p.SetAttribute("class", "muted");
+			p.AddText("No connections are open right now. This list shows "
+			          "every TCP connection currently forwarded through a tunnel.");
+		}
+		else
+		{
+			const auto tNow = KUnixTime::now();
+
+			auto Table = sec.Add<html::ui::Table>();
+			Table.Headers({ "Node", "Channel", "Target", "From", "Age", "To target", "From target" });
+
+			for (const auto& c : Connections)
+			{
+				auto Row = Table.AddRow();
+				Row.Add<html::TableData>(c.sNode);
+				Row.Add<html::TableData>(kFormat("{}", c.iChannel));
+				Row.Add<html::TableData>(c.sTarget);
+				Row.Add<html::TableData>(c.sPeer);
+				Row.Add<html::TableData>(FormatDuration(tNow - c.tStart));
+				Row.Add<html::TableData>(kFormBytes(c.iBytesToTarget)).SetAttribute("class", "num");
+				Row.Add<html::TableData>(kFormBytes(c.iBytesFromTarget)).SetAttribute("class", "num");
+			}
+		}
+	}
+
+	// --- Section 3: add tunnel form -----------------------------------
 	{
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, "Add tunnel");
@@ -2136,6 +2441,96 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 } // HandleTunnelsUpdate
 
 //-----------------------------------------------------------------------------
+void AdminUI::HandleTunnelsCheck (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const auto& sName = HTTP.GetQueryParm("name");
+
+	auto oT = m_Server.GetStore().GetTunnel(sName);
+	if (!oT)
+	{
+		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
+		                  kFormat("Tunnel '{}' does not exist.", sName));
+		return;
+	}
+
+	const KTCPEndPoint Target(oT->sTargetHost, oT->iTargetPort);
+
+	auto Tunnel = m_Server.GetTunnelForNode(oT->sNode);
+	if (!Tunnel)
+	{
+		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
+		                  kFormat("Node '{}' is not currently connected.", oT->sNode));
+		return;
+	}
+
+	auto Conn = Tunnel->OpenRepl();
+	if (!Conn)
+	{
+		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
+		                  kFormat("Cannot open a control channel to node '{}'.", oT->sNode));
+		return;
+	}
+
+	// a watchdog unblocks the ReadData loop below if the node never
+	// answers (e.g. the channel died mid-request)
+	auto& Timer    = Dekaf::getInstance().GetTimer();
+	auto  iTimerID = Timer.CallOnce(chrono::seconds(15), [Conn](KUnixTime) { Conn->Disconnect(); });
+
+	Conn->WriteData(kFormat("check {}\n", Target.Serialize()));
+
+	// the REPL answers with its banner and prompts around the result -
+	// collect frames until we see the result line (or the channel dies)
+	KString sResult;
+	KString sChunk;
+
+	while (sResult.empty() && Conn->ReadData(sChunk))
+	{
+		for (auto sLine : sChunk.Split("\n"))
+		{
+			if (sLine.starts_with("OK:")
+			 || sLine.starts_with("FAIL:")
+			 || sLine.starts_with("usage:")
+			 || sLine.starts_with("unknown command"))
+			{
+				sResult = sLine;
+				break;
+			}
+		}
+	}
+
+	Timer.Cancel(iTimerID);
+	Tunnel->CloseRepl(Conn);
+
+	if (sResult.starts_with("OK:"))
+	{
+		RedirectWithFlash(HTTP, s_sTunnelsURL,
+		                  kFormat("Node '{}': {}", oT->sNode, sResult), "");
+	}
+	else if (sResult.starts_with("unknown command"))
+	{
+		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
+		                  kFormat("Node '{}' runs an older ktunnel without the "
+		                          "'check' command - update the node to test "
+		                          "target reachability from here.", oT->sNode));
+	}
+	else if (sResult.empty())
+	{
+		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
+		                  kFormat("Node '{}' did not answer within 15 seconds.", oT->sNode));
+	}
+	else
+	{
+		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
+		                  kFormat("Node '{}': {}", oT->sNode, sResult));
+	}
+
+} // HandleTunnelsCheck
+
+//-----------------------------------------------------------------------------
 void AdminUI::ShowEvents (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
@@ -2367,6 +2762,136 @@ void AdminUI::HandleCertificateUpdate (KRESTServer& HTTP)
 	                  "");
 
 } // HandleCertificateUpdate
+
+//-----------------------------------------------------------------------------
+void AdminUI::ShowSettings (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sNotice = HTTP.GetQueryParm("notice");
+	const auto&   sError  = HTTP.GetQueryParm("error");
+
+	const auto Tunables = m_Server.GetTunnelSettings();
+
+	auto Page = MakePage("ktunnel — Settings");
+	RenderTopBar(Page, "settings", sMe);
+
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
+
+	RenderFlash(main, sNotice, sError);
+
+	// --- Section 1: tunable settings -----------------------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Tunnel settings");
+
+		auto Form = sec.Add<html::Form>(s_sSettingsUpdateURL);
+		Form.SetMethod(html::Form::POST);
+
+		auto Row = Form.Add<html::Div>(html::Classes("row"));
+		Row.Add<html::ui::Field>("Data timeout (seconds)", "timeout",
+		                         kFormat("{}", Tunables.Timeout.seconds().count()),
+		                         html::Input::NUMBER)
+		   .Input().SetRange(1, 86400).SetRequired(true);
+		Row.Add<html::ui::Field>("Connect timeout (seconds)", "connect_timeout",
+		                         kFormat("{}", Tunables.ConnectTimeout.seconds().count()),
+		                         html::Input::NUMBER)
+		   .Input().SetRange(1, 3600).SetRequired(true);
+		Row.Add<html::ui::Field>("Control ping (seconds)", "control_ping",
+		                         kFormat("{}", Tunables.ControlPing.seconds().count()),
+		                         html::Input::NUMBER)
+		   .Input().SetRange(5, 3600).SetRequired(true);
+		Row.Add<html::ui::Field>("Max connections per tunnel", "max_connections",
+		                         kFormat("{}", Tunables.iMaxTunneledConnections),
+		                         html::Input::NUMBER)
+		   .Input().SetRange(1, 1000000).SetRequired(true);
+		Row.Add<html::Button>("Save & apply", html::Button::SUBMIT, html::Classes{"btn"});
+
+		sec.Add<html::Div>(html::Classes("muted"))
+		   .AddText("Applies to new tunnels and connections - existing ones keep "
+		            "the values they started with. Persists across restarts and "
+		            "overrides the matching CLI options at the next start. The "
+		            "control ping must be the same on both tunnel ends.");
+	}
+
+	// --- Section 2: startup configuration (read-only) ------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Startup configuration");
+
+		auto p = sec.Add<html::Paragraph>();
+		p.SetAttribute("class", "muted");
+		p.AddText("Fixed at process start - change via CLI options (or the "
+		          "installed service definition) and restart.");
+
+		auto Table = sec.Add<html::ui::Table>();
+		Table.Headers({ "Option", "Value" });
+
+		Table.AddRow({ "Admin / control port", kFormat("{}", m_Config.iPort) });
+
+		KString sTLS;
+		const auto ACME = m_Server.GetACMEStatus();
+		if      (m_Config.bNoTLS)            sTLS = "disabled (-notls)";
+		else if (ACME.bEnabled)              sTLS = kFormat("ACME certificate for {}", ACME.sDomains);
+		else if (!m_Config.sCertFile.empty())sTLS = kFormat("certificate file {}", m_Config.sCertFile);
+		else if (m_Config.bPersistCert)      sTLS = "self-signed (persisted)";
+		else                                 sTLS = "self-signed (ephemeral)";
+		Table.AddRow({ "TLS", sTLS });
+
+		Table.AddRow({ "Cipher suites", m_Config.sCipherSuites.empty()
+		                                    ? KStringView("PFS (default)")
+		                                    : KStringView(m_Config.sCipherSuites) });
+		Table.AddRow({ "AES payload encryption", m_Config.bAESPayload ? "on (-aes)" : "off" });
+
+		if (m_Config.bAESPayload)
+		{
+			Table.AddRow({ "Identity key", m_Config.sIdentityKeyPath });
+		}
+
+		Table.AddRow({ "Database", m_Config.sDatabasePath });
+
+		if (m_Config.iRawPort)
+		{
+			Table.AddRow({ "Built-in forwarder (-f/-t)",
+			               kFormat("port {} -> {}", m_Config.iRawPort, m_Config.DefaultTarget) });
+		}
+	}
+
+	RenderPage(HTTP, Page);
+
+} // ShowSettings
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleSettingsUpdate (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+
+	ExposedServer::TunnelSettings Settings;
+	Settings.Timeout                 = chrono::seconds(HTTP.GetQueryParm("timeout"        ).UInt64());
+	Settings.ConnectTimeout          = chrono::seconds(HTTP.GetQueryParm("connect_timeout").UInt64());
+	Settings.ControlPing             = chrono::seconds(HTTP.GetQueryParm("control_ping"   ).UInt64());
+	Settings.iMaxTunneledConnections = HTTP.GetQueryParm("max_connections").UInt64();
+
+	if (!m_Server.SetTunnelSettings(Settings, sMe))
+	{
+		RedirectWithFlash(HTTP, s_sSettingsURL, "",
+		                  "Values out of range - timeouts need at least 1 second, "
+		                  "the control ping at least 5 seconds, and at least one "
+		                  "connection must be allowed.");
+		return;
+	}
+
+	RedirectWithFlash(HTTP, s_sSettingsURL,
+	                  "Settings saved. They apply to new tunnels and connections.", "");
+
+} // HandleSettingsUpdate
 
 //-----------------------------------------------------------------------------
 void AdminUI::ShowLog (KRESTServer& HTTP)
@@ -2745,7 +3270,7 @@ void AdminUI::HandleNodeReplWs (KRESTServer& HTTP)
 	}
 
 	HTTP.SetWebSocketHandler(
-	[this, sNode, sMe, sRemote = HTTP.GetRemoteIP(), Connection]
+	[this, sNode, sMe, sRemote = HTTP.GetRemoteIP(), Tunnel, Connection]
 	(KWebSocket& WebSocket)
 	{
 		// Dedicated pump thread: node channel → browser WebSocket.
@@ -2787,8 +3312,9 @@ void AdminUI::HandleNodeReplWs (KRESTServer& HTTP)
 			Connection->WriteData(std::move(sFrame));
 		}
 		bQuit.store(true, std::memory_order_release);
-		// Wake up NodeToBrowser if it is still blocked in ReadData
-		Connection->Disconnect();
+		// Wake up NodeToBrowser if it is still blocked in ReadData,
+		// unblock the node-side handler, and free the channel slot
+		Tunnel->CloseRepl(Connection);
 		NodeToBrowser.join();
 
 		KTunnelStore::Event ev;
@@ -2916,6 +3442,10 @@ void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 	      .Post([this](KRESTServer& HTTP) { HandleNodesResetPass(HTTP); })
 	      .Parse(KRESTRoute::ParserType::WWWFORM);
 
+	Routes.AddRoute(KString(s_sNodesInstallRoute))
+	      .Get ([this](KRESTServer& HTTP) { ShowNodeInstall(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD);
+
 	// --- Tunnels sub-tree (list + add + enable/disable + delete) -----
 	Routes.AddRoute(KString(s_sTunnelsRoute))
 	      .Get ([this](KRESTServer& HTTP) { ShowTunnels(HTTP); })
@@ -2939,6 +3469,19 @@ void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 
 	Routes.AddRoute(KString(s_sTunnelsUpdateRoute))
 	      .Post([this](KRESTServer& HTTP) { HandleTunnelsUpdate(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	Routes.AddRoute(KString(s_sTunnelsCheckRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleTunnelsCheck(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	// --- Settings (tunable tunnel parameters + read-only startup config) ---
+	Routes.AddRoute(KString(s_sSettingsRoute))
+	      .Get ([this](KRESTServer& HTTP) { ShowSettings(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	Routes.AddRoute(KString(s_sSettingsUpdateRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleSettingsUpdate(HTTP); })
 	      .Parse(KRESTRoute::ParserType::WWWFORM);
 
 	// --- Events (read-only audit log with kind/user/limit filter) ----

@@ -348,6 +348,28 @@ public:
 		/// check if this connection shall pause sending frames
 		bool        IsPaused              () const { return m_bPaused;  }
 
+		/// set the target endpoint this connection forwards to (for diagnostics)
+		void        SetTarget             (KTCPEndPoint Target);
+		/// returns the target endpoint this connection forwards to
+		KTCPEndPoint GetTarget            () const;
+		/// set the address of the local peer whose stream we forward (for diagnostics)
+		void        SetPeer               (KString sPeer);
+		/// returns the address of the local peer whose stream we forward
+		KString     GetPeer               () const;
+		/// returns the wall-clock time this connection was created
+		KUnixTime   GetStartTime          () const { return m_tStart;   }
+		/// returns the bytes written to the direct stream so far
+		uint64_t    GetBytesToDirect      () const { return m_iBytesToDirect;   }
+		/// returns the bytes read from the direct stream so far
+		uint64_t    GetBytesFromDirect    () const { return m_iBytesFromDirect; }
+		/// returns the error the peer reported in its Disconnect frame,
+		/// or the empty string after a normal close
+		KString     GetDisconnectReason   () const;
+		/// like GetDisconnectReason(), but waits up to Timeout for a late
+		/// Disconnect frame - for the case that the direct stream closed
+		/// before the peer's error arrived
+		KString     WaitForDisconnectReason (KDuration Timeout) const;
+
 		/// max size for the message queue for one connection
 		static constexpr
 		std::size_t MaxMessageQueueSize   ()       { return 20;         }
@@ -359,8 +381,15 @@ public:
 		std::queue<Message>                  m_MessageQueue;
 		std::function<void(Message&&)>       m_Tunnel;
 		KIOStreamSocket*                     m_DirectStream { nullptr };
-		std::mutex                           m_QueueMutex;
-		std::condition_variable              m_FreshData;
+		mutable std::mutex                   m_QueueMutex;
+		/// diagnostics, all protected by m_QueueMutex
+		KTCPEndPoint                         m_Target;
+		KString                              m_sPeer;
+		KString                              m_sDisconnectReason;
+		const KUnixTime                      m_tStart { KUnixTime::now() };
+		std::atomic<uint64_t>                m_iBytesToDirect   { 0 };
+		std::atomic<uint64_t>                m_iBytesFromDirect { 0 };
+		mutable std::condition_variable      m_FreshData;
 		/// serialises the pause flag handover in Resume()
 		std::mutex                           m_TunnelMutex;
 		/// wakes Pump() out of its poll when another thread queued outbound
@@ -398,6 +427,8 @@ public:
 		bool                        Exists (std::size_t iID);
 		/// returns current count of connections
 		std::size_t                 size   () const;
+		/// returns a snapshot of all current connections
+		std::vector<std::shared_ptr<Connection>> Snapshot () const;
 
 	//----------
 	private:
@@ -429,9 +460,24 @@ public:
 	// dtor
 	~KTunnel();
 
+	/// how a forwarded connection ended, returned by Connect()
+	struct ConnectResult
+	{
+		/// error the peer reported in its Disconnect frame, empty on a normal close
+		KString  sDisconnectReason;
+		/// payload bytes sent towards the target
+		uint64_t iBytesToTarget   { 0 };
+		/// payload bytes received from the target
+		uint64_t iBytesFromTarget { 0 };
+	};
+
 	/// connect an incoming direct stream with the tunnel and the endpoint at the other side of the tunnel - will throw
 	/// on error or return after connection is closed from the other end
-	void         Connect            (KIOStreamSocket* DirectStream, const KTCPEndPoint& ConnectToEndpoint);
+	ConnectResult Connect           (KIOStreamSocket* DirectStream, const KTCPEndPoint& ConnectToEndpoint);
+
+	/// returns a snapshot of all multiplexed connections currently carried
+	/// over this tunnel
+	std::vector<std::shared_ptr<Connection>> GetConnectionSnapshot () const { return m_Connections.Snapshot(); }
 
 	/// Open a new REPL channel on the remote peer. Allocates a channel
 	/// ID, sends an OpenRepl frame, and returns the local Connection
@@ -440,6 +486,12 @@ public:
 	/// Config::OpenReplCallback. Returns a null shared_ptr if no free
 	/// channel is available or the tunnel is not established.
 	std::shared_ptr<Connection> OpenRepl ();
+
+	/// Close a REPL channel opened with OpenRepl(): sends a Disconnect
+	/// frame so the peer's handler unblocks, tears the local Connection
+	/// down, and removes it from the connection registry. Without this
+	/// the channel slot stays occupied until the tunnel itself dies.
+	void CloseRepl (const std::shared_ptr<Connection>& Connection);
 
 	/// run the event handler for this tunnel - may throw or return on error, otherwise blocking the current thread
 	void         Run                ();

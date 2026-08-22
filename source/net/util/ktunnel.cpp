@@ -536,6 +536,7 @@ void KTunnel::Connection::Pump()
 				{
 					bDidIO    = true;
 					iWritten += static_cast<std::size_t>(iWrote);
+					m_iBytesToDirect.fetch_add(static_cast<uint64_t>(iWrote), std::memory_order_relaxed);
 
 					kDebug(3, "[{}]: {}: wrote {} of {} chars", GetID(),
 					       m_DirectStream->GetEndPointAddress(), iWritten, sPayload.size());
@@ -564,6 +565,7 @@ void KTunnel::Connection::Pump()
 
 				bDidIO = true;
 				Data.resize(iRead);
+				m_iBytesFromDirect.fetch_add(static_cast<uint64_t>(iRead), std::memory_order_relaxed);
 				kDebug(3, "[{}]: {}: read {} chars", GetID(), m_DirectStream->GetEndPointAddress(), iRead);
 				m_Tunnel(Message(Message::Data, m_iID, KStringView(Data.data(), Data.size())));
 				Data.reset();
@@ -641,12 +643,78 @@ void KTunnel::Connection::Pump()
 } // Connection::Pump
 
 //-----------------------------------------------------------------------------
+void KTunnel::Connection::SetTarget(KTCPEndPoint Target)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_QueueMutex);
+	m_Target = std::move(Target);
+}
+
+//-----------------------------------------------------------------------------
+KTCPEndPoint KTunnel::Connection::GetTarget() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_QueueMutex);
+	return m_Target;
+}
+
+//-----------------------------------------------------------------------------
+void KTunnel::Connection::SetPeer(KString sPeer)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_QueueMutex);
+	m_sPeer = std::move(sPeer);
+}
+
+//-----------------------------------------------------------------------------
+KString KTunnel::Connection::GetPeer() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_QueueMutex);
+	return m_sPeer;
+}
+
+//-----------------------------------------------------------------------------
+KString KTunnel::Connection::GetDisconnectReason() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_QueueMutex);
+	return m_sDisconnectReason;
+}
+
+//-----------------------------------------------------------------------------
+KString KTunnel::Connection::WaitForDisconnectReason(KDuration Timeout) const
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock<std::mutex> Lock(m_QueueMutex);
+
+	// SendData() notifies m_FreshData on every arriving frame, including
+	// the Disconnect that carries the reason
+	m_FreshData.wait_for(Lock, Timeout.duration(), [this]
+	{
+		return !m_sDisconnectReason.empty();
+	});
+
+	return m_sDisconnectReason;
+}
+
+//-----------------------------------------------------------------------------
 void KTunnel::Connection::SendData(Message&& FromTunnel)
 //-----------------------------------------------------------------------------
 {
 	KStopTime Stop;
 	{
 		std::lock_guard<std::mutex> Lock(m_QueueMutex);
+
+		// an optional Disconnect payload carries the peer's error (e.g.
+		// "cannot connect to target"). Capture it right here at frame
+		// arrival: the pump may already have ended when it comes in
+		// (a downstream that closed first), and a WaitForDisconnectReason
+		// caller sits on m_FreshData for exactly this
+		if (FromTunnel.GetType() == Message::Disconnect && !FromTunnel.GetMessage().empty())
+		{
+			m_sDisconnectReason = FromTunnel.GetMessage();
+		}
 
 		m_MessageQueue.push(std::move(FromTunnel));
 
@@ -775,6 +843,24 @@ std::size_t KTunnel::Connections::size() const
 {
 	return m_Connections.shared()->size();
 }
+
+//-----------------------------------------------------------------------------
+std::vector<std::shared_ptr<KTunnel::Connection>> KTunnel::Connections::Snapshot() const
+//-----------------------------------------------------------------------------
+{
+	std::vector<std::shared_ptr<Connection>> Result;
+
+	auto Connections = m_Connections.shared();
+	Result.reserve(Connections->size());
+
+	for (const auto& kv : *Connections)
+	{
+		Result.push_back(kv.second);
+	}
+
+	return Result;
+
+} // Connections::Snapshot
 
 //-----------------------------------------------------------------------------
 std::shared_ptr<KTunnel::Connection> KTunnel::Connections::Create(std::size_t iID, std::function<void(Message&&)> TunnelSend, KIOStreamSocket* DirectStream)
@@ -978,7 +1064,7 @@ void KTunnel::Stop()
 } // KTunnel::Stop
 
 //-----------------------------------------------------------------------------
-void KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& ConnectToEndpoint)
+KTunnel::ConnectResult KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& ConnectToEndpoint)
 //-----------------------------------------------------------------------------
 {
 	if (!DirectStream || !DirectStream->Good())
@@ -992,6 +1078,9 @@ void KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& Connect
 	{
 		throw KError("cannot create new connection");
 	}
+
+	Connection->SetTarget(ConnectToEndpoint);
+	Connection->SetPeer(DirectStream->GetEndPointAddress().Serialize());
 
 	QueueMessage(Message(Message::Connect, Connection->GetID(), ConnectToEndpoint.Serialize()));
 
@@ -1012,6 +1101,23 @@ void KTunnel::Connect(KIOStreamSocket* DirectStream, const KTCPEndPoint& Connect
 
 	// both directions on this thread - the stream tolerates only one
 	Connection->Pump();
+
+	ConnectResult Result;
+	Result.sDisconnectReason = Connection->GetDisconnectReason();
+	// on this side the direct stream is the downstream peer, so bytes
+	// written to it came FROM the target, bytes read from it went TO it
+	Result.iBytesToTarget    = Connection->GetBytesFromDirect();
+	Result.iBytesFromTarget  = Connection->GetBytesToDirect();
+
+	if (Result.sDisconnectReason.empty() && Result.iBytesFromTarget == 0)
+	{
+		// the target never answered - when the downstream closed first,
+		// the peer's Disconnect frame with the error may still be in
+		// flight, so give it a moment before reporting "no reason"
+		Result.sDisconnectReason = Connection->WaitForDisconnectReason(chrono::milliseconds(250));
+	}
+
+	return Result;
 
 } // Connect
 
@@ -1044,6 +1150,22 @@ std::shared_ptr<KTunnel::Connection> KTunnel::OpenRepl()
 	return Connection;
 
 } // OpenRepl
+
+//-----------------------------------------------------------------------------
+void KTunnel::CloseRepl(const std::shared_ptr<Connection>& Connection)
+//-----------------------------------------------------------------------------
+{
+	if (!Connection) return;
+
+	kDebug(1, "[{}]: closing REPL channel", Connection->GetID());
+
+	// tell the peer so its handler thread unblocks from ReadData()
+	QueueMessage(Message(Message::Disconnect, Connection->GetID()));
+
+	Connection->Disconnect();
+	m_Connections.Remove(Connection->GetID());
+
+} // CloseRepl
 
 //-----------------------------------------------------------------------------
 bool KTunnel::HaveTunnel() const
@@ -1187,6 +1309,12 @@ void KTunnel::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 			else
 			{
 				kDebug(1, "cannot connect to target {}", Target);
+				// tell the other side WHY the channel dies - it logs the
+				// reason for its operators, who otherwise only see a
+				// silently dropped connection
+				QueueMessage(Message(Message::Disconnect, iID,
+				                     kFormat("cannot connect to target {}: {}",
+				                             Target, TargetStream->Error())));
 			}
 			// should this not yet have been done
 			Connection->Disconnect();
@@ -1199,6 +1327,8 @@ void KTunnel::ConnectToTarget(std::size_t iID, KTCPEndPoint Target)
 	catch (const std::exception& ex)
 	{
 		kDebug(1, ex.what());
+		QueueMessage(Message(Message::Disconnect, iID,
+		                     kFormat("error connecting to target {}: {}", Target, ex.what())));
 	}
 
 	m_Connections.Remove(iID);
@@ -1914,11 +2044,14 @@ void KTunnel::HandleMessage(Message&& FromTunnel)
 
 			if (Connection)
 			{
+				Connection->SetTarget(TargetHost);
 				m_Threads.Create(&KTunnel::ConnectToTarget, this, chan, std::move(TargetHost));
 			}
 			else
 			{
-				QueueMessage(Message(Message::Disconnect, chan));
+				QueueMessage(Message(Message::Disconnect, chan,
+				                     kFormat("connection limit reached ({})",
+				                             m_Config.iMaxTunneledConnections)));
 			}
 
 			break;
@@ -2011,6 +2144,9 @@ void KTunnel::HandleMessage(Message&& FromTunnel)
 						kDebug(1, "[{}]: REPL handler threw: {}", Connection->GetID(), ex.what());
 					}
 					Connection->Disconnect();
+					// tell the initiator, whose ReadData() otherwise
+					// blocks until the tunnel itself dies
+					QueueMessage(Message(Message::Disconnect, Connection->GetID()));
 					m_Connections.Remove(Connection->GetID());
 				});
 			}

@@ -163,6 +163,12 @@ private:
 	/// Form body: `name`, `new_password`, `confirm_password`.
 	void HandleNodesResetPass   (KRESTServer& HTTP);
 
+	/// GET /Configure/nodes/install?node=<n> — render a ready-to-run
+	/// setup script (and an SSH one-liner) that installs ktunnel as the
+	/// protected host for this node. The node password is inserted
+	/// client-side only and never travels back to the server.
+	void ShowNodeInstall        (KRESTServer& HTTP);
+
 	/// GET /Configure/tunnels — list configured tunnels + Add form.
 	/// Supports `?notice=…` / `?error=…` flash banners.
 	void ShowTunnels          (KRESTServer& HTTP);
@@ -192,6 +198,20 @@ private:
 	/// identifying the row. Changing the listener key (host/port/
 	/// target/node) triggers a restart via ReconcileListeners.
 	void HandleTunnelsUpdate  (KRESTServer& HTTP);
+
+	/// POST /Configure/tunnels/check — ask the tunnel's owner node to
+	/// test a TCP connect to the tunnel's target and report the result
+	/// as a flash banner. Form body: `name`.
+	void HandleTunnelsCheck   (KRESTServer& HTTP);
+
+	/// GET /Configure/settings — runtime-tunable tunnel settings (editable,
+	/// persisted) plus a read-only view of the startup configuration.
+	void ShowSettings         (KRESTServer& HTTP);
+
+	/// POST /Configure/settings/update — apply + persist the tunable
+	/// settings. Form body: `timeout`, `connect_timeout`, `control_ping`
+	/// (all in seconds), `max_connections`.
+	void HandleSettingsUpdate (KRESTServer& HTTP);
 
 	/// GET /Configure/events — full audit log with optional filters in
 	/// the URL query: `?kind=…`, `?limit=100|500|1000`.  Unknown limit

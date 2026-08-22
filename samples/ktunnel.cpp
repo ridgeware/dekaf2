@@ -84,6 +84,7 @@
 #include <dekaf2/threading/execution/kthreads.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/io/readwrite/kwriter.h>
+#include <dekaf2/net/tcp/ktcpstream.h>  // CreateKTCPStream for the REPL 'check' command
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/util/cli/kxterm.h>  // kPromptForPassword for -set-admin / -install
 #include <dekaf2/containers/associative/kassociative.h>
@@ -738,6 +739,16 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 	// captures do not race across parallel clients.
 	KTunnel::Config TunnelCfg = m_Config;
 
+	// overlay the runtime-tunable settings - they may have been changed
+	// in the admin UI since process start
+	{
+		auto Tunables = m_Tunables.shared();
+		TunnelCfg.Timeout                 = Tunables->Timeout;
+		TunnelCfg.ConnectTimeout          = Tunables->ConnectTimeout;
+		TunnelCfg.ControlPing             = Tunables->ControlPing;
+		TunnelCfg.iMaxTunneledConnections = Tunables->iMaxTunneledConnections;
+	}
+
 	// The auth callback runs inside KTunnel::WaitForLogin on the tunnel's
 	// Run() thread. To get the verified node name back onto this
 	// (ControlStream) thread so we can register the tunnel in the
@@ -887,9 +898,10 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 } // ControlStream
 
 //-----------------------------------------------------------------------------
-void ExposedServer::ForwardStreamForOwner (KIOStreamSocket&    Downstream,
-                                           const KTCPEndPoint& Endpoint,
-                                           KStringView         sOwner)
+KTunnel::ConnectResult
+ExposedServer::ForwardStreamForOwner (KIOStreamSocket&    Downstream,
+                                      const KTCPEndPoint& Endpoint,
+                                      KStringView         sOwner)
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, "per-owner forward: from={} owner={} target={}",
@@ -911,30 +923,17 @@ void ExposedServer::ForwardStreamForOwner (KIOStreamSocket&    Downstream,
 	if (!Tunnel)
 	{
 		// The peer for this owner is not connected right now (or no
-		// tunnel at all, for the wildcard case). Log it once per
-		// rejected connection and close cleanly — we prefer that over
-		// letting the caller's TCP half-open the socket.
-		if (m_Store)
-		{
-			KTunnelStore::Event ev;
-			ev.sKind     = "auth_reject";
-			ev.sNode     = sOwner;
-			ev.sRemoteIP = Downstream.GetEndPointAddress().Serialize();
-			ev.sDetail   = bWildcard
-				? kFormat("no tunnel currently connected — dropped raw conn from {}",
-				          Downstream.GetEndPointAddress())
-				: kFormat("owner node '{}' not currently connected — "
-				          "dropped raw conn from {}",
-				          sOwner, Downstream.GetEndPointAddress());
-			m_Store->LogEvent(ev);
-		}
+		// tunnel at all, for the wildcard case). Close cleanly — we
+		// prefer that over letting the caller's TCP half-open the
+		// socket. The caller (TunnelListener::Session) records the
+		// failure and logs the event.
 		throw KError(bWildcard
 			? KString("no tunnel established")
-			: kFormat("no active tunnel for owner node '{}'", sOwner));
+			: kFormat("no active tunnel for owner node '{}' - dropped connection", sOwner));
 	}
 
-	Downstream.SetTimeout(m_Config.Timeout);
-	Tunnel->Connect(&Downstream, Endpoint);
+	Downstream.SetTimeout(m_Tunables.shared()->Timeout);
+	return Tunnel->Connect(&Downstream, Endpoint);
 
 } // ForwardStreamForOwner
 
@@ -946,9 +945,57 @@ void TunnelListener::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 	// delegate to the ExposedServer so the tunnel lookup happens under
 	// the right mutex. Exceptions bubble back into KTCPServer where they
 	// close the stream and log a warning.
-	m_ExposedServer.ForwardStreamForOwner(*Stream, m_Target, m_sOwner);
+	KString sRemoteIP = Stream->GetEndPointAddress().Serialize();
+
+	try
+	{
+		auto Result = m_ExposedServer.ForwardStreamForOwner(*Stream, m_Target, m_sOwner);
+
+		if (!Result.sDisconnectReason.empty())
+		{
+			// the node told us why the channel died (e.g. it cannot
+			// reach the target)
+			RecordFailure(Result.sDisconnectReason, sRemoteIP);
+		}
+		else if (Result.iBytesFromTarget == 0)
+		{
+			// no error reported, but the target never sent a byte -
+			// either the target closed instantly, or the node runs an
+			// older ktunnel that does not report connect errors yet
+			RecordFailure(kFormat("target {} sent no data before the connection closed "
+			                      "({} bytes sent to it)",
+			                      m_Target, Result.iBytesToTarget),
+			              sRemoteIP);
+		}
+		else
+		{
+			++m_iForwarded;
+		}
+	}
+	catch (const std::exception& ex)
+	{
+		// no tunnel for the owner, or the forward setup failed
+		RecordFailure(ex.what(), sRemoteIP);
+		throw;
+	}
 
 } // TunnelListener::Session
+
+//-----------------------------------------------------------------------------
+void TunnelListener::RecordFailure (KStringView sReason, KStringView sRemoteIP)
+//-----------------------------------------------------------------------------
+{
+	++m_iFailed;
+
+	{
+		auto LastError = m_LastError.unique();
+		LastError->first  = sReason;
+		LastError->second = KUnixTime::now();
+	}
+
+	m_ExposedServer.LogConnFailure(m_sName, m_sOwner, m_Target, sRemoteIP, sReason);
+
+} // TunnelListener::RecordFailure
 
 //-----------------------------------------------------------------------------
 KUnorderedMap<KString, ExposedServer::ListenerInfo>
@@ -981,11 +1028,122 @@ ExposedServer::SnapshotListenerStates () const
 		                                             info.eState = ListenerState::OwnerOffline;
 		else                                         info.eState = ListenerState::Listening;
 
+		if (kv.second.Listener)
+		{
+			info.iForwarded     = kv.second.Listener->GetForwardedCount();
+			info.iFailed        = kv.second.Listener->GetFailedCount();
+			auto LastError      = kv.second.Listener->GetLastError();
+			info.sLastConnError = std::move(LastError.first);
+			info.tLastConnError = LastError.second;
+		}
+
 		out.emplace(kv.first, std::move(info));
 	}
 	return out;
 
 } // SnapshotListenerStates
+
+//-----------------------------------------------------------------------------
+std::vector<ExposedServer::ActiveConnection> ExposedServer::SnapshotConnections () const
+//-----------------------------------------------------------------------------
+{
+	std::vector<ActiveConnection> out;
+
+	for (const auto& at : SnapshotActiveTunnels())
+	{
+		for (const auto& Connection : at.Tunnel->GetConnectionSnapshot())
+		{
+			ActiveConnection conn;
+			conn.sNode            = at.sNode;
+			conn.iChannel         = Connection->GetID();
+			conn.sTarget          = Connection->GetTarget().Serialize();
+			conn.sPeer            = Connection->GetPeer();
+			conn.tStart           = Connection->GetStartTime();
+			// on the exposed side the direct stream is the downstream
+			// peer: bytes read from it went to the target
+			conn.iBytesToTarget   = Connection->GetBytesFromDirect();
+			conn.iBytesFromTarget = Connection->GetBytesToDirect();
+			out.push_back(std::move(conn));
+		}
+	}
+
+	return out;
+
+} // SnapshotConnections
+
+//-----------------------------------------------------------------------------
+KString ExposedServer::GetServerFingerprint () const
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_HAS_ED25519
+	if (m_ServerIdentity)
+	{
+		return KTunnel::FormatFingerprint(m_ServerIdentity->GetPublicKeyRaw());
+	}
+#endif
+	return {};
+
+} // GetServerFingerprint
+
+//-----------------------------------------------------------------------------
+bool ExposedServer::SetTunnelSettings (const TunnelSettings& Settings, KStringView sActor)
+//-----------------------------------------------------------------------------
+{
+	if (Settings.Timeout        < chrono::seconds(1)
+	 || Settings.ConnectTimeout < chrono::seconds(1)
+	 || Settings.ControlPing    < chrono::seconds(5)
+	 || Settings.iMaxTunneledConnections < 1)
+	{
+		return false;
+	}
+
+	*m_Tunables.unique() = Settings;
+
+	if (m_Store)
+	{
+		m_Store->SetSetting("tunnel_timeout_s",
+		                    KString::to_string(Settings.Timeout.seconds().count()));
+		m_Store->SetSetting("tunnel_connect_timeout_s",
+		                    KString::to_string(Settings.ConnectTimeout.seconds().count()));
+		m_Store->SetSetting("tunnel_control_ping_s",
+		                    KString::to_string(Settings.ControlPing.seconds().count()));
+		m_Store->SetSetting("tunnel_max_connections",
+		                    KString::to_string(Settings.iMaxTunneledConnections));
+
+		KTunnelStore::Event ev;
+		ev.sKind   = "config_change";
+		ev.sAdmin  = sActor;
+		ev.sDetail = kFormat("tunnel settings: timeout {}, connect timeout {}, "
+		                     "control ping {}, max connections {}",
+		                     Settings.Timeout, Settings.ConnectTimeout,
+		                     Settings.ControlPing, Settings.iMaxTunneledConnections);
+		m_Store->LogEvent(ev);
+	}
+
+	return true;
+
+} // SetTunnelSettings
+
+//-----------------------------------------------------------------------------
+void ExposedServer::LogConnFailure (KStringView sTunnelName,
+                                    KStringView sOwner,
+                                    const KTCPEndPoint& Target,
+                                    KStringView sRemoteIP,
+                                    KStringView sReason)
+//-----------------------------------------------------------------------------
+{
+	if (m_Store)
+	{
+		KTunnelStore::Event ev;
+		ev.sKind       = "conn_fail";
+		ev.sNode       = sOwner;
+		ev.sTunnelName = sTunnelName;
+		ev.sRemoteIP   = sRemoteIP;
+		ev.sDetail     = kFormat("forward to {} failed: {}", Target, sReason);
+		m_Store->LogEvent(ev);
+	}
+
+} // LogConnFailure
 
 //-----------------------------------------------------------------------------
 std::vector<ExposedServer::DesiredTunnel> ExposedServer::GatherDesiredTunnels () const
@@ -1139,6 +1297,8 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 
 			try
 			{
+				const auto Tunables = GetTunnelSettings();
+
 				entry.Listener = std::make_unique<TunnelListener>
 				(
 					this,
@@ -1147,12 +1307,12 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 					Target,
 					t.Key.iListenPort,        // KTCPServer ctor: port
 					/* bSSL        = */ false,
-					/* iMaxConns   = */ m_Config.iMaxTunneledConnections
+					/* iMaxConns   = */ Tunables.iMaxTunneledConnections
 				);
 
 				// Non-blocking: Start() returns after the accept
 				// thread is up and running.
-				if (!entry.Listener->Start(m_Config.Timeout, /*bBlock=*/false))
+				if (!entry.Listener->Start(Tunables.Timeout, /*bBlock=*/false))
 				{
 					entry.sError = kFormat("Start() failed on port {}",
 					                       t.Key.iListenPort);
@@ -1239,6 +1399,16 @@ ExposedServer::ExposedServer (const Config& config)
 //-----------------------------------------------------------------------------
 : m_Config(config)
 {
+	// seed the tunable settings from the CLI/compile-time defaults -
+	// persisted values from the settings table override them below
+	{
+		auto Tunables = m_Tunables.unique();
+		Tunables->Timeout                 = m_Config.Timeout;
+		Tunables->ConnectTimeout          = m_Config.ConnectTimeout;
+		Tunables->ControlPing             = m_Config.ControlPing;
+		Tunables->iMaxTunneledConnections = m_Config.iMaxTunneledConnections;
+	}
+
 	const bool bStateful = (m_Config.eMode == ExtendedConfig::Mode::Stateful);
 
 	if (bStateful)
@@ -1275,6 +1445,21 @@ ExposedServer::ExposedServer (const Config& config)
 			                 "to create the admin login (admin UI is unreachable "
 			                 "until then)",
 			                 m_Store->GetDatabasePath());
+		}
+
+		// tunable tunnel settings: values persisted from the admin UI
+		// override the CLI/compile-time defaults captured above
+		{
+			auto Tunables = m_Tunables.unique();
+
+			auto sValue = m_Store->GetSetting("tunnel_timeout_s");
+			if (!sValue.empty()) Tunables->Timeout        = chrono::seconds(sValue.UInt64());
+			sValue = m_Store->GetSetting("tunnel_connect_timeout_s");
+			if (!sValue.empty()) Tunables->ConnectTimeout = chrono::seconds(sValue.UInt64());
+			sValue = m_Store->GetSetting("tunnel_control_ping_s");
+			if (!sValue.empty()) Tunables->ControlPing    = chrono::seconds(sValue.UInt64());
+			sValue = m_Store->GetSetting("tunnel_max_connections");
+			if (!sValue.empty()) Tunables->iMaxTunneledConnections = sValue.UInt64();
 		}
 
 		// live log view for the admin UI: mirror all serialized log lines
@@ -1647,16 +1832,17 @@ void ProtectedHost::RunRepl(std::shared_ptr<KTunnel::Connection> Connection)
 			{
 				sReply =
 					"Commands:\n"
-					"  help     - this help\n"
-					"  status   - tunnel status and traffic counters\n"
-					"  version  - build version\n";
+					"  help              - this help\n"
+					"  status            - tunnel status and traffic counters\n"
+					"  check <host:port> - test a TCP connect to a target from this host\n"
+					"  version           - build version\n";
 
 				if (!m_Config.sShellPasswordHash.empty())
 				{
-					sReply += "  shell    - open an interactive shell (asks for a password)\n";
+					sReply += "  shell             - open an interactive shell (asks for a password)\n";
 				}
 
-				sReply += "  exit     - close this REPL session\n";
+				sReply += "  exit              - close this REPL session\n";
 			}
 			else if (sCmd == "shell")
 			{
@@ -1719,6 +1905,47 @@ void ProtectedHost::RunRepl(std::shared_ptr<KTunnel::Connection> Connection)
 						m_pCurrentTunnel->GetConnectionCount(),
 						m_pCurrentTunnel->GetBytesRx(),
 						m_pCurrentTunnel->GetBytesTx());
+				}
+			}
+			else if (sCmd.starts_with("check ") || sCmd == "check")
+			{
+				// test a TCP connect from THIS host to the given target -
+				// the fastest way to tell whether a tunnel target is
+				// actually reachable from the node
+				KStringView sTarget = sCmd;
+				sTarget.remove_prefix("check");
+				sTarget.Trim();
+
+				if (sTarget.empty())
+				{
+					sReply = "usage: check <host:port>\n";
+				}
+				else
+				{
+					KTCPEndPoint Target(sTarget);
+
+					if (Target.Port.get() == 0)
+					{
+						sReply = kFormat("'{}' has no port - use host:port\n", sTarget);
+					}
+					else
+					{
+						KStreamOptions Options;
+						Options.SetTimeout(m_Config.ConnectTimeout);
+
+						KStopTime Took;
+						auto TargetStream = CreateKTCPStream(Target, Options);
+
+						if (TargetStream->Good())
+						{
+							sReply = kFormat("OK: connected to {} in {}\n", Target, Took.elapsed());
+						}
+						else
+						{
+							sReply = kFormat("FAIL: cannot connect to {}: {}\n",
+							                 Target, TargetStream->Error());
+						}
+					}
 				}
 			}
 			else if (sCmd == "version")
@@ -1986,7 +2213,8 @@ int Tunnel::Main(int argc, char** argv)
 	       .Help("encrypt payload with AES on top of the websocket. Engages the v2 X25519+Ed25519+HKDF handshake — the server signs every handshake with its long-term identity key, and the client checks the fingerprint against -trust-fingerprint or known_servers (or, with -trust-on-first-use, prompts interactively). Provides forward secrecy and protects against an active TLS-intercepting middlebox even where the local TLS trust store itself cannot be trusted.")
 	       .Set(m_Config.bAESPayload, true);
 	Options.Option("to,timeout <seconds>")
-	       .Help("data connection timeout in seconds (default 30).")
+	       .Help("data connection timeout in seconds (default 30). Stateful exposed host: a value saved on the admin "
+	             "UI's settings page overrides this at the next start.")
 	       .Set(iTimeoutSecs);
 	Options.Option("notls")
 	       .Help("do not use TLS, but unencrypted HTTP. Both ends of the tunnel must use the same setting.")
@@ -2002,7 +2230,8 @@ int Tunnel::Main(int argc, char** argv)
 	       .Help("default target for forwarded connections when the incoming data connect does not specify one (ad-hoc mode, together with -f).")
 	       .Callback([this](KStringViewZ sValue) { m_Config.DefaultTarget = sValue; });
 	Options.Option("m,maxtunnels <count>")
-	       .Help("maximum number of tunnels to open, defaults to 10.")
+	       .Help("maximum number of tunnels to open, defaults to 10. Stateful exposed host: a value saved on the "
+	             "admin UI's settings page overrides this at the next start.")
 	       .Set(m_Config.iMaxTunneledConnections);
 	Options.Option("cert <file>")
 	       .Help("TLS certificate filepath (.pem) - without this option a self-signed cert is created.")

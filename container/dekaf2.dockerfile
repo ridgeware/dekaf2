@@ -26,12 +26,13 @@ COPY . /home/dekaf2/
 # change into build dir
 WORKDIR /home/dekaf2/build/${buildtype}
 
-# create cmake setup
+# create cmake setup - build_options come last so they can override the
+# defaults above (with a repeated -D option the last one wins)
 RUN cmake \
   -DCMAKE_BUILD_TYPE="${buildtype}" \
-  ${build_options} \
   -DDEKAF2_NO_BUILDSETUP=ON \
   -DDEKAF2_USE_JEMALLOC=ON \
+  ${build_options} \
   ../../
 
 # build

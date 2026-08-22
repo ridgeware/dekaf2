@@ -1,13 +1,13 @@
 # dekaf2 dockerfile
 #
 # this dockerfile takes the arguments
-# from          : the base image to build from
+# tag : the base alpine image tag to build from
 #
 # to build a dekaf2 image
 
-ARG from="alpine:latest"
+ARG tag="latest"
 
-FROM ${from} AS runenv
+FROM alpine:${tag} AS runenv
 
 ENV TZ=Europe/Paris
 
@@ -15,9 +15,9 @@ ENV TZ=Europe/Paris
 RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
   apk upgrade && \
   apk add libcrypto3 libssl3 zlib libbz2 mariadb-connector-c \
-    libpq libzip xz-libs zstd-libs brotli-libs sqlite-libs jemalloc \
+    libzip xz-libs zstd-libs brotli-libs sqlite-libs icu jemalloc \
     musl-locales musl-locales-lang tzdata bash nghttp2-libs nghttp3 \
-    shadow yaml-cpp libuuid libunwind
+    shadow yaml-cpp libuuid
 # freetds
 
 FROM runenv AS buildenv
@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
 
 # build environment:
 RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
-  apk add cmake gcc g++ gdb git make findutils patch tar
+  apk add cmake gcc g++ gdb git make findutils patch tar coreutils
 
 ENV CC=gcc
 ENV CXX=g++
@@ -52,12 +52,13 @@ COPY . /home/dekaf2/
 # change into build dir
 WORKDIR /home/dekaf2/build/${buildtype}
 
-# create cmake setup
+# create cmake setup - build_options come last so they can override the
+# defaults above (with a repeated -D option the last one wins)
 RUN cmake \
   -DCMAKE_BUILD_TYPE="${buildtype}" \
-  ${build_options} \
   -DDEKAF2_NO_BUILDSETUP=ON \
   -DDEKAF2_USE_JEMALLOC=ON \
+  ${build_options} \
   ../../
 
 # build

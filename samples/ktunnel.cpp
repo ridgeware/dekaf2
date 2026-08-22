@@ -100,6 +100,8 @@
 
 using namespace dekaf2;
 
+thread_local int LogRing::s_iSuppressed { 0 };
+
 // ==========================================================================
 // AES handshake helpers (Ed25519 server identity, X25519 ECDH, HKDF-SHA256)
 // ==========================================================================

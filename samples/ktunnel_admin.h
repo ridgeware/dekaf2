@@ -207,9 +207,14 @@ private:
 	/// the debug level selector.
 	void ShowLog              (KRESTServer& HTTP);
 
-	/// GET /Configure/log/tail?since=<seq> — JSON with the buffered log
-	/// lines after <seq> and the next cursor, for the live view's poll loop.
-	void HandleLogTail        (KRESTServer& HTTP);
+	/// GET /Configure/log/stream — Server-Sent Events endpoint pushing new
+	/// log ring buffer lines to the live view about once a second. A push
+	/// channel instead of HTTP polling, as at debug levels >= 1 every poll
+	/// request would log itself and flood the very view it feeds. SSE
+	/// instead of a WebSocket because it runs on the page's own HTTPS
+	/// connection and therefore inherits an accepted self-signed
+	/// certificate - Safari does not extend such an exception to wss://.
+	void HandleLogStream      (KRESTServer& HTTP);
 
 	/// POST /Configure/log/level — set and persist the KLog debug level.
 	void HandleLogLevel       (KRESTServer& HTTP);

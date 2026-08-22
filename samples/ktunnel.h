@@ -198,8 +198,24 @@ public:
 	{
 	}
 
+	/// Suppresses ring capture for the calling thread while an instance is
+	/// alive. Used by the live view's streaming handler: the debug lines its
+	/// own write path produces must not feed back into the stream it serves.
+	/// They still reach the regular log writer.
+	class SuppressForThisThread
+	{
+	public:
+		SuppressForThisThread()  { ++s_iSuppressed; }
+		~SuppressForThisThread() { --s_iSuppressed; }
+	};
+
 	virtual bool Write (int iLevel, bool bIsMultiline, KStringViewZ sOut) override
 	{
+		if (s_iSuppressed)
+		{
+			return true;
+		}
+
 		KString sLine(sOut);
 		sLine.TrimRight("\r\n");
 
@@ -244,6 +260,8 @@ private:
 	std::size_t        m_iMaxLines;
 	uint64_t           m_iLastSeq { 0 };
 	mutable std::mutex m_Mutex;
+
+	static thread_local int s_iSuppressed;
 
 }; // LogRing
 

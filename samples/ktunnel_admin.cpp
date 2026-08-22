@@ -284,7 +284,7 @@ constexpr KStringView s_sEventsRoute           = "/Configure/events";
 constexpr KStringView s_sCertRoute             = "/Configure/certificate";
 constexpr KStringView s_sCertUpdateRoute       = "/Configure/certificate/update";
 constexpr KStringView s_sLogRoute              = "/Configure/log";
-constexpr KStringView s_sLogTailRoute          = "/Configure/log/tail";
+constexpr KStringView s_sLogStreamRoute        = "/Configure/log/stream";
 constexpr KStringView s_sLogLevelRoute         = "/Configure/log/level";
 // legacy URL - the peers page merged into the nodes page, the route only
 // redirects there so that old bookmarks keep working
@@ -306,7 +306,7 @@ constexpr KStringView s_sTunnelsDeleteURL      = "/Configure/tunnels/delete";
 constexpr KStringView s_sTunnelsEditURL        = "/Configure/tunnels/edit";
 constexpr KStringView s_sTunnelsUpdateURL      = "/Configure/tunnels/update";
 constexpr KStringView s_sCertUpdateURL         = "/Configure/certificate/update";
-// note: the log tail URL only appears inside the live view's inline script
+// note: the log event-stream URL only appears inside the live view's inline script
 constexpr KStringView s_sLogLevelURL           = "/Configure/log/level";
 
 // --------------------------------------------------------------------------
@@ -2566,8 +2566,12 @@ void AdminUI::ShowLog (KRESTServer& HTTP)
 		auto sec = main.Add<html::Div>(html::Classes("section"));
 		sec.Add<html::Heading>(2, "Live log");
 
-		// the poll loop fetches new ring buffer lines once a second and
-		// keeps the view pinned to the bottom while it is scrolled there
+		// the live view gets new ring buffer lines pushed as Server-Sent
+		// Events. Not HTTP polling (at debug levels >= 1 every poll logs
+		// itself and floods the very view it feeds), and not a WebSocket
+		// (Safari does not extend an accepted self-signed certificate to
+		// wss:// - SSE rides on the page's own HTTPS connection). Reconnect
+		// comes with EventSource for free.
 		sec.AddRawText(
 			"<pre id=\"klog\" style=\"max-height:60vh;min-height:10rem;overflow:auto;"
 			"background:#14161a;color:#d6d8de;padding:0.6rem;border-radius:6px;"
@@ -2575,26 +2579,17 @@ void AdminUI::ShowLog (KRESTServer& HTTP)
 			"<script>\n"
 			"(function() {\n"
 			"  var pre = document.getElementById('klog');\n"
-			"  var since = 0;\n"
-			"  function poll() {\n"
-			"    fetch('/Configure/log/tail?since=' + since, { credentials: 'same-origin' })\n"
-			"      .then(function(r) { return r.json(); })\n"
-			"      .then(function(j) {\n"
-			"        since = j.next;\n"
-			"        if (j.lines && j.lines.length) {\n"
-			"          var atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;\n"
-			"          pre.textContent += j.lines.join('\\n') + '\\n';\n"
-			"          if (pre.textContent.length > 400000) {\n"
-			"            var cut = pre.textContent.indexOf('\\n', 100000);\n"
-			"            if (cut > 0) pre.textContent = pre.textContent.slice(cut + 1);\n"
-			"          }\n"
-			"          if (atEnd) pre.scrollTop = pre.scrollHeight;\n"
-			"        }\n"
-			"        setTimeout(poll, 1000);\n"
-			"      })\n"
-			"      .catch(function() { setTimeout(poll, 5000); });\n"
-			"  }\n"
-			"  poll();\n"
+			"  var es  = new EventSource('/Configure/log/stream');\n"
+			"  es.onmessage = function(e) {\n"
+			"    if (!e.data) return;\n"
+			"    var atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;\n"
+			"    pre.textContent += e.data + '\\n';\n"
+			"    if (pre.textContent.length > 400000) {\n"
+			"      var cut = pre.textContent.indexOf('\\n', 100000);\n"
+			"      if (cut > 0) pre.textContent = pre.textContent.slice(cut + 1);\n"
+			"    }\n"
+			"    if (atEnd) pre.scrollTop = pre.scrollHeight;\n"
+			"  };\n"
 			"})();\n"
 			"</script>");
 	}
@@ -2604,32 +2599,72 @@ void AdminUI::ShowLog (KRESTServer& HTTP)
 } // ShowLog
 
 //-----------------------------------------------------------------------------
-void AdminUI::HandleLogTail (KRESTServer& HTTP)
+void AdminUI::HandleLogStream (KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	KRESTSession Sess(*m_Session, HTTP);
 	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
 
-	uint64_t iSince = HTTP.GetQueryParm("since").UInt64();
+	auto Ring = m_Server.GetLogRing();
 
-	KJSON jLines = KJSON::array();
-	uint64_t iNext = 0;
-
-	if (auto Ring = m_Server.GetLogRing())
+	if (!Ring)
 	{
-		auto Result = Ring->GetSince(iSince);
-		iNext = Result.first;
-
-		for (auto& sLine : Result.second)
-		{
-			jLines.push_back(std::move(sLine));
-		}
+		HTTP.Response.SetStatus(KHTTPError::H5xx_UNAVAILABLE);
+		return;
 	}
 
-	HTTP.json.tx["next"]  = iNext;
-	HTTP.json.tx["lines"] = std::move(jLines);
+	// keep this thread's own write path debug lines out of the ring - they
+	// would otherwise feed back into the very stream they belong to
+	LogRing::SuppressForThisThread Suppress;
 
-} // HandleLogTail
+	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE , "text/event-stream");
+	HTTP.Response.Headers.Set(KHTTPHeader::CACHE_CONTROL, "no-cache");
+
+	// switch to streaming output, without compression - a compressor would
+	// buffer the events instead of flushing them out line by line
+	HTTP.Stream(/*bAllowCompressionIfPossible*/false);
+
+	// reconnect delay for the browser's EventSource
+	HTTP.Response.Write("retry: 3000\n\n");
+	HTTP.Response.Flush();
+
+	uint64_t iSince = 0;
+
+	for (;;)
+	{
+		auto Result = Ring->GetSince(iSince);
+		iSince      = Result.first;
+
+		KString sEvent;
+
+		if (Result.second.empty())
+		{
+			// SSE comment as liveness probe - a failing write is our only
+			// reliable signal that the browser is gone
+			sEvent = ": ping\n\n";
+		}
+		else
+		{
+			for (const auto& sLine : Result.second)
+			{
+				sEvent += "data: ";
+				sEvent += sLine;
+				sEvent += '\n';
+			}
+			sEvent += '\n';
+		}
+
+		if (HTTP.Response.Write(sEvent) != sEvent.size() || HTTP.GetLostConnection())
+		{
+			break;
+		}
+
+		HTTP.Response.Flush();
+
+		kSleep(chrono::seconds(1));
+	}
+
+} // HandleLogStream
 
 //-----------------------------------------------------------------------------
 void AdminUI::HandleLogLevel (KRESTServer& HTTP)
@@ -3064,8 +3099,8 @@ void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 	      .Get ([this](KRESTServer& HTTP) { ShowLog(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
 
-	Routes.AddRoute(KString(s_sLogTailRoute))
-	      .Get ([this](KRESTServer& HTTP) { HandleLogTail(HTTP); })
+	Routes.AddRoute(KString(s_sLogStreamRoute))
+	      .Get ([this](KRESTServer& HTTP) { HandleLogStream(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
 
 	Routes.AddRoute(KString(s_sLogLevelRoute))

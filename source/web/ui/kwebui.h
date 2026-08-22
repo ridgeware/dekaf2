@@ -59,6 +59,8 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/web/objects/kwebobjects.h>
+#include <optional>
+#include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -229,11 +231,249 @@ private:
 
 }; // Modal
 
+// =============================================================================
+// -- Feedback -----------------------------------------------------------------
+// =============================================================================
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `Flash` — one-shot request feedback banner (notice, error, info).
+///
+///   if (!sNotice.empty()) main.Add<html::ui::Flash>(sNotice);
+///   if (!sError.empty())  main.Add<html::ui::Flash>(sError, html::ui::Flash::Error);
+///
+/// Default CSS classes are `flash ok|err|info`; pass explicit Classes to
+/// override (e.g. Bootstrap's `alert alert-danger`).
+class DEKAF2_PUBLIC Flash : public KWebObject<Flash>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Flash";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE    = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "div";
+
+	enum LEVEL { Success, Error, Info };
+
+	Flash(KHTMLNode parent,
+	      KStringView sMessage,
+	      LEVEL level = Success,
+	      Classes cls = Classes{},
+	      KStringView sID = KStringView{})
+	: KWebObject<Flash>(parent, TagName,
+	                    !cls.empty() ? std::move(cls)
+	                                 : Classes{level == Success ? "flash ok"
+	                                         : level == Error   ? "flash err"
+	                                                            : "flash info"},
+	                    sID)
+	{
+		AddText(sMessage);
+	}
+
+}; // Flash
+
+
+// =============================================================================
+// -- Navigation ---------------------------------------------------------------
+// =============================================================================
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `NavBar` — brand text plus a row of links, of which one can be marked
+/// active:
+///
+///   auto nav = body.Add<html::ui::NavBar>("myapp admin");
+///   nav.Link("Dashboard", "/",       bSection == "dashboard")
+///      .Link("Users",     "/users",  bSection == "users")
+///      .Link("Logout",    "/logout");
+///
+/// Structure: div.top > div.brand + nav > a(.active)*
+class DEKAF2_PUBLIC NavBar : public KWebObject<NavBar>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "NavBar";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE    = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "div";
+
+	NavBar(KHTMLNode parent,
+	       KStringView sBrand = KStringView{},
+	       const Classes& cls = Classes{"top"},
+	       KStringView sID    = KStringView{})
+	: KWebObject<NavBar>(parent, TagName, cls, sID)
+	{
+		m_brand = this->template Add<html::Div>(html::Classes{"brand"});
+		if (!sBrand.empty())
+		{
+			m_brand.AddText(sBrand);
+		}
+		m_nav = AddElement("nav");
+	}
+
+	/// append a nav link - bActive marks the current section's entry
+	NavBar& Link(KStringView sLabel, KStringView sURL, bool bActive = false)
+	{
+		m_nav.template Add<html::Link>(sURL, sLabel,
+		                               bActive ? Classes{"active"} : Classes{});
+		return *this;
+	}
+
+	/// slot accessor for richer brand content
+	KHTMLNode Brand() { return m_brand; }
+
+//----------
+private:
+//----------
+
+	KHTMLNode m_brand;
+	KHTMLNode m_nav;
+
+}; // NavBar
+
+
+// =============================================================================
+// -- Data ---------------------------------------------------------------------
+// =============================================================================
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `Table` — thead/tbody scaffolding with convenient row building:
+///
+///   auto table = sec.Add<html::ui::Table>();
+///   table.Headers({ "Name", "Created", "" });
+///   for (const auto& Row : Rows)
+///   {
+///       auto tr = table.AddRow();
+///       tr.Add<html::TableData>(Row.sName);
+///       tr.Add<html::TableData>(Row.sCreated);
+///       auto actions = tr.Add<html::TableData>();  // complex cell content
+///       actions.Add<html::Form>("/delete") ...;
+///   }
+///
+/// Plain text rows go in one call: `table.AddRow({ "a", "b", "c" });`
+class DEKAF2_PUBLIC Table : public KWebObject<Table>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "UITable";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE    = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "table";
+
+	Table(KHTMLNode parent,
+	      const Classes& cls = Classes{"grid"},
+	      KStringView sID    = KStringView{})
+	: KWebObject<Table>(parent, TagName, cls, sID)
+	{
+		m_head = AddElement("thead");
+		m_body = AddElement("tbody");
+	}
+
+	/// set the header row (thead > tr > th*)
+	Table& Headers(const std::vector<KStringView>& Columns)
+	{
+		auto tr = m_head.template Add<html::TableRow>();
+
+		for (auto sColumn : Columns)
+		{
+			tr.template Add<html::TableHeader>(sColumn);
+		}
+
+		return *this;
+	}
+
+	/// append an empty body row - add cells with Add<html::TableData>()
+	KHTMLNode AddRow()
+	{
+		return m_body.template Add<html::TableRow>();
+	}
+
+	/// append a body row of plain text cells, and return it for amendments
+	KHTMLNode AddRow(const std::vector<KStringView>& Cells)
+	{
+		auto tr = AddRow();
+
+		for (auto sCell : Cells)
+		{
+			tr.template Add<html::TableData>(sCell);
+		}
+
+		return tr;
+	}
+
+//----------
+private:
+//----------
+
+	KHTMLNode m_head;
+	KHTMLNode m_body;
+
+}; // Table
+
+
+// =============================================================================
+// -- Forms --------------------------------------------------------------------
+// =============================================================================
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// `Field` — a labeled form input:
+///
+///   auto field = form.Add<html::ui::Field>("Username", "username");
+///   field.Input().SetRequired().SetAutoComplete("off");
+///
+/// Structure: div.field > label + input
+class DEKAF2_PUBLIC Field : public KWebObject<Field>
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+	static constexpr KStringView s_sObjectName = "Field";
+
+//----------
+public:
+//----------
+
+	static constexpr std::size_t TYPE    = s_sObjectName.Hash();
+	static constexpr KStringView TagName = "div";
+
+	Field(KHTMLNode parent,
+	      KStringView sLabel,
+	      KStringView sName,
+	      KStringView sValue         = KStringView{},
+	      html::Input::INPUTTYPE type = html::Input::TEXT,
+	      const Classes& cls          = Classes{"field"},
+	      KStringView sID             = KStringView{})
+	: KWebObject<Field>(parent, TagName, cls, sID)
+	{
+		AddElement("label").AddText(sLabel);
+		m_input.emplace(this->template Add<html::Input>(sName, sValue, type));
+	}
+
+	/// the wrapped input, for SetRequired(), SetPlaceholder(), ...
+	html::Input& Input() { return *m_input; }
+
+//----------
+private:
+//----------
+
+	std::optional<html::Input> m_input;
+
+}; // Field
+
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 // C++14 ODR-defs (TagName is a constexpr static, may be ODR-used)
 constexpr KStringView Stack::TagName;
 constexpr KStringView Card::TagName;
 constexpr KStringView Modal::TagName;
+constexpr KStringView Flash::TagName;
+constexpr KStringView NavBar::TagName;
+constexpr KStringView Table::TagName;
+constexpr KStringView Field::TagName;
 #endif
 
 } // namespace ui

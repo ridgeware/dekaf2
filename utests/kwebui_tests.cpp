@@ -100,4 +100,93 @@ TEST_CASE("KWebUI")
 		}
 		CHECK( iCount == 3 );
 	}
+
+	SECTION("Flash — levels and custom classes")
+	{
+		html::Page page("Flash Demo");
+		auto body = page.Body();
+
+		body.Add<html::ui::Flash>("saved.");
+		body.Add<html::ui::Flash>("boom & bust", html::ui::Flash::Error);
+		body.Add<html::ui::Flash>("styled", html::ui::Flash::Info, html::Classes{"alert alert-info"});
+
+		auto sOut = page.Serialize();
+
+		CHECK( sOut.contains(R"(class="flash ok")")        );
+		CHECK( sOut.contains("saved.")                     );
+		CHECK( sOut.contains(R"(class="flash err")")       );
+		CHECK( sOut.contains("boom &amp; bust")            ); // escaped by construction
+		CHECK( sOut.contains(R"(class="alert alert-info")"));
+	}
+
+	SECTION("NavBar — brand, links, active marker")
+	{
+		html::Page page("Nav Demo");
+		auto body = page.Body();
+
+		auto nav = body.Add<html::ui::NavBar>("myapp admin");
+		nav.Link("Dashboard", "/",      false)
+		   .Link("Users",     "/users", true)
+		   .Link("Logout",    "/logout");
+
+		auto sOut = page.Serialize();
+
+		CHECK( sOut.contains(R"(class="top")")             );
+		CHECK( sOut.contains(R"(class="brand")")           );
+		CHECK( sOut.contains("myapp admin")                );
+		CHECK( sOut.contains("<nav>")                      );
+		CHECK( sOut.contains(R"(href="/users")")           );
+		CHECK( sOut.contains(R"(class="active")")          );
+		// exactly one active entry
+		CHECK( sOut.find(R"(class="active")") == sOut.rfind(R"(class="active")") );
+	}
+
+	SECTION("Table — headers, text rows, complex cells")
+	{
+		html::Page page("Table Demo");
+		auto body = page.Body();
+
+		auto table = body.Add<html::ui::Table>();
+		table.Headers({ "Name", "Created", "" });
+		table.AddRow({ "alice", "2026-01-01" });
+
+		auto tr = table.AddRow();
+		tr.Add<html::TableData>("bob <admin>");
+		tr.Add<html::TableData>("2026-02-02");
+		auto actions = tr.Add<html::TableData>();
+		auto form    = actions.Add<html::Form>("/delete");
+		form.SetMethod(html::Form::POST);
+		form.Add<html::Button>("Delete");
+
+		auto sOut = page.Serialize();
+
+		CHECK( sOut.contains(R"(class="grid")")      );
+		CHECK( sOut.contains("<thead>")              );
+		CHECK( sOut.contains("<th>") );
+		CHECK( sOut.contains("Name") );
+		CHECK( sOut.contains("<tbody>")              );
+		CHECK( sOut.contains("alice")                );
+		CHECK( sOut.contains("bob &lt;admin&gt;")    ); // escaped by construction
+		CHECK( sOut.contains(R"(action="/delete")")  );
+		CHECK( sOut.contains(R"(method="post")")     );
+	}
+
+	SECTION("Field — label plus input")
+	{
+		html::Page page("Field Demo");
+		auto body = page.Body();
+
+		auto form  = body.Add<html::Form>("/login");
+		auto field = form.Add<html::ui::Field>("Username", "username");
+		field.Input().SetRequired(true);
+		form.Add<html::ui::Field>("Password", "password", "", html::Input::PASSWORD);
+
+		auto sOut = page.Serialize();
+
+		CHECK( sOut.contains(R"(class="field")")       );
+		CHECK( sOut.contains("<label>Username</label>"));
+		CHECK( sOut.contains(R"(name="username")")     );
+		CHECK( sOut.contains("required")               );
+		CHECK( sOut.contains(R"(type="password")")     );
+	}
 }

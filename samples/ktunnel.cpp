@@ -1378,6 +1378,12 @@ ExposedServer::~ExposedServer()
 void ExposedServer::Shutdown()
 //-----------------------------------------------------------------------------
 {
+	// first stop the long-running request handlers (SSE live-log, REPL
+	// websocket) - they poll this flag and end their loops within a few
+	// seconds, so KREST's worker drain does not have to wait for their
+	// browsers to disconnect
+	m_bShuttingDown = true;
+
 	// Shared lock is enough — we only read the vector and dereference
 	// weak_ptrs; the erase pass in ControlStream's scope guard will run
 	// once each session unwinds, which cannot happen before KTunnel::Stop()

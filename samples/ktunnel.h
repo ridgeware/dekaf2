@@ -441,6 +441,13 @@ public:
 	/// -trust-fingerprint. Empty when AES mode is off.
 	KString GetServerFingerprint () const;
 
+	/// True once Shutdown() ran. Long-running request handlers (the SSE
+	/// live-log stream, the REPL websocket) poll this to end their loops -
+	/// without that they keep their worker threads alive until their
+	/// browser disconnects, and `systemctl stop` runs into the kill
+	/// timeout instead of stopping the service promptly.
+	bool IsShuttingDown () const { return m_bShuttingDown.load(std::memory_order_relaxed); }
+
 	/// Apply new tunable settings and persist them in the settings table.
 	/// Thread-safe, called from the admin UI. Returns false when a value
 	/// is out of range (nothing is applied then).
@@ -589,6 +596,9 @@ private:
 	/// persisted values from the settings table, changed at runtime by
 	/// the admin UI via SetTunnelSettings()
 	KThreadSafe<TunnelSettings>       m_Tunables;
+
+	/// set by Shutdown(), polled by long-running request handlers
+	std::atomic<bool>                 m_bShuttingDown { false };
 
 	/// ACME certificate management - configured by Run() after the REST
 	/// server is up, and reconfigured at runtime from the admin UI

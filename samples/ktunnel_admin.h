@@ -201,7 +201,10 @@ private:
 
 	/// POST /Configure/tunnels/check — ask the tunnel's owner node to
 	/// test a TCP connect to the tunnel's target and report the result
-	/// as a flash banner. Form body: `name`.
+	/// as a flash banner. Form body: `name`, optional `mode=probe` to
+	/// skip the node's REPL 'check' command and probe over the native
+	/// Connect path directly (the automatic fallback when the node runs
+	/// an older ktunnel without the 'check' command).
 	void HandleTunnelsCheck   (KRESTServer& HTTP);
 
 	/// GET /Configure/settings — runtime-tunable tunnel settings (editable,

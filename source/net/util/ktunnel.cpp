@@ -699,6 +699,35 @@ KString KTunnel::Connection::WaitForDisconnectReason(KDuration Timeout) const
 }
 
 //-----------------------------------------------------------------------------
+KTunnel::Connection::Activity KTunnel::Connection::WaitForActivity(KDuration Timeout) const
+//-----------------------------------------------------------------------------
+{
+	std::unique_lock<std::mutex> Lock(m_QueueMutex);
+
+	auto bActivity = m_FreshData.wait_for(Lock, Timeout.duration(), [this]
+	{
+		return !m_MessageQueue.empty() || m_bQuit.load(std::memory_order_relaxed);
+	});
+
+	if (!bActivity)
+	{
+		return Activity::Timeout;
+	}
+
+	if (!m_MessageQueue.empty())
+	{
+		// only Data and Disconnect frames are queued on a connection
+		return m_MessageQueue.front().GetType() == Message::Disconnect
+			? Activity::Closed
+			: Activity::Data;
+	}
+
+	// m_bQuit triggered the wakeup
+	return Activity::Closed;
+
+} // Connection::WaitForActivity
+
+//-----------------------------------------------------------------------------
 void KTunnel::Connection::SendData(Message&& FromTunnel)
 //-----------------------------------------------------------------------------
 {
@@ -1120,6 +1149,120 @@ KTunnel::ConnectResult KTunnel::Connect(KIOStreamSocket* DirectStream, const KTC
 	return Result;
 
 } // Connect
+
+//-----------------------------------------------------------------------------
+KTunnel::ProbeResult KTunnel::ProbeConnect(const KTCPEndPoint& ConnectToEndpoint, KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	ProbeResult Result;
+
+	auto Connection = m_Connections.Create(0, [this](Message&& msg){ QueueMessage(std::move(msg)); }, nullptr);
+
+	if (!Connection)
+	{
+		Result.sMessage = "cannot create new connection";
+		return Result;
+	}
+
+	auto iID = Connection->GetID();
+
+	// mark the channel for the connection snapshot
+	Connection->SetTarget(ConnectToEndpoint);
+	Connection->SetPeer("probe");
+
+	kDebug(1, "[{}]: probing connect to {}", iID, ConnectToEndpoint);
+
+	KStopTime Took;
+
+	QueueMessage(Message(Message::Connect, iID, ConnectToEndpoint.Serialize()));
+
+	// Wait in one-second slices, and ping the channel with a Pause frame
+	// between them. On a live channel the Pause is a no-op (the channel
+	// is torn down right after the probe anyway), but every peer version
+	// answers a control frame for an unknown channel with a Disconnect -
+	// which turns a silently failed connect on an old node (that reports
+	// no errors) into a detectable close.
+	auto Verdict = Connection::Activity::Timeout;
+
+	for (;;)
+	{
+		auto Remaining = Timeout - Took.elapsed();
+
+		if (Remaining <= KDuration::zero())
+		{
+			break;
+		}
+
+		Verdict = Connection->WaitForActivity(std::min<KDuration>(Remaining, chrono::seconds(1)));
+
+		if (Verdict != Connection::Activity::Timeout)
+		{
+			break;
+		}
+
+		QueueMessage(Message(Message::Pause, iID));
+	}
+
+	switch (Verdict)
+	{
+		case Connection::Activity::Data:
+			Result.bConnected = true;
+			Result.sMessage   = kFormat("target {} accepted the connection and sent data",
+			                            ConnectToEndpoint);
+			break;
+
+		case Connection::Activity::Closed:
+		{
+			auto sReason = Connection->GetDisconnectReason();
+
+			if (!sReason.empty())
+			{
+				// the peer told us what went wrong
+				Result.sMessage = std::move(sReason);
+			}
+			else if (Took.elapsed() >= Timeout / 2)
+			{
+				// a silent close this late is the peer's idle timeout on a
+				// connection that CAME UP but never saw data - a peer that
+				// could not connect reports that error long before (a node
+				// too old to report errors cannot be told apart here)
+				Result.bConnected = true;
+				Result.sMessage   = kFormat("connection to {} stayed open for {} until "
+				                            "the node's idle timeout - the target accepted it "
+				                            "(an old node without error reporting cannot rule "
+				                            "out a connect timeout)",
+				                            ConnectToEndpoint, Took.elapsed());
+			}
+			else
+			{
+				Result.sMessage = kFormat("the connect to {} failed after {} (the node "
+				                          "reports no details - it runs an older ktunnel; "
+				                          "typically the target refused the connection, the "
+				                          "name did not resolve, or the target closed instantly)",
+				                          ConnectToEndpoint, Took.elapsed());
+			}
+			break;
+		}
+
+		case Connection::Activity::Timeout:
+			// the channel answered every liveness ping and reported no
+			// error within the connect window - the connection is up, the
+			// target just has not sent anything yet
+			Result.bConnected = true;
+			Result.sMessage   = kFormat("target {} accepted the connection (no data within "
+			                            "{} - normal for protocols where the client speaks first)",
+			                            ConnectToEndpoint, Timeout);
+			break;
+	}
+
+	// tear the probe channel down on both sides
+	QueueMessage(Message(Message::Disconnect, iID));
+	Connection->Disconnect();
+	m_Connections.Remove(iID);
+
+	return Result;
+
+} // ProbeConnect
 
 //-----------------------------------------------------------------------------
 std::shared_ptr<KTunnel::Connection> KTunnel::OpenRepl()

@@ -2467,65 +2467,90 @@ void AdminUI::HandleTunnelsCheck (KRESTServer& HTTP)
 		return;
 	}
 
-	auto Conn = Tunnel->OpenRepl();
-	if (!Conn)
-	{
-		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
-		                  kFormat("Cannot open a control channel to node '{}'.", oT->sNode));
-		return;
-	}
+	const auto Tunables    = m_Server.GetTunnelSettings();
+	// the node's own connect attempt runs with ConnectTimeout - give
+	// its answer a little headroom on top of that
+	const auto WaitForNode = Tunables.ConnectTimeout + chrono::seconds(5);
 
-	// a watchdog unblocks the ReadData loop below if the node never
-	// answers (e.g. the channel died mid-request)
-	auto& Timer    = Dekaf::getInstance().GetTimer();
-	auto  iTimerID = Timer.CallOnce(chrono::seconds(15), [Conn](KUnixTime) { Conn->Disconnect(); });
-
-	Conn->WriteData(kFormat("check {}\n", Target.Serialize()));
-
-	// the REPL answers with its banner and prompts around the result -
-	// collect frames until we see the result line (or the channel dies)
+	// The REPL check is the preferred mode: it answers fast and reports
+	// the connect latency. When the node's REPL does not know the
+	// 'check' command (older ktunnel), does not answer, or `mode=probe`
+	// was requested, fall back to a direct probe over the native
+	// Connect path - the exact path a forwarded connection takes.
 	KString sResult;
-	KString sChunk;
 
-	while (sResult.empty() && Conn->ReadData(sChunk))
+	if (HTTP.GetQueryParm("mode") != "probe")
 	{
-		for (auto sLine : sChunk.Split("\n"))
+		auto Conn = Tunnel->OpenRepl();
+
+		if (Conn)
 		{
-			if (sLine.starts_with("OK:")
-			 || sLine.starts_with("FAIL:")
-			 || sLine.starts_with("usage:")
-			 || sLine.starts_with("unknown command"))
+			// a watchdog unblocks the ReadData loop below if the node
+			// never answers (e.g. the channel died mid-request)
+			auto& Timer    = Dekaf::getInstance().GetTimer();
+			auto  iTimerID = Timer.CallOnce(WaitForNode, [Conn](KUnixTime) { Conn->Disconnect(); });
+
+			Conn->WriteData(kFormat("check {}\n", Target.Serialize()));
+
+			// the REPL answers with its banner and prompts around the
+			// result - collect frames until we see the result line (or
+			// the channel dies)
+			KString sChunk;
+			bool    bUnknownCommand { false };
+
+			while (sResult.empty() && !bUnknownCommand && Conn->ReadData(sChunk))
 			{
-				sResult = sLine;
-				break;
+				for (auto sLine : sChunk.Split("\n"))
+				{
+					if (sLine.starts_with("OK:")
+					 || sLine.starts_with("FAIL:")
+					 || sLine.starts_with("usage:"))
+					{
+						sResult = sLine;
+						break;
+					}
+
+					if (sLine.starts_with("unknown command"))
+					{
+						// old node without 'check' - use the fallback
+						bUnknownCommand = true;
+						break;
+					}
+				}
 			}
+
+			Timer.Cancel(iTimerID);
+			Tunnel->CloseRepl(Conn);
 		}
 	}
 
-	Timer.Cancel(iTimerID);
-	Tunnel->CloseRepl(Conn);
+	if (!sResult.empty())
+	{
+		if (sResult.starts_with("OK:"))
+		{
+			RedirectWithFlash(HTTP, s_sTunnelsURL,
+			                  kFormat("Node '{}': {}", oT->sNode, sResult), "");
+		}
+		else
+		{
+			RedirectWithFlash(HTTP, s_sTunnelsURL, "",
+			                  kFormat("Node '{}': {}", oT->sNode, sResult));
+		}
+		return;
+	}
 
-	if (sResult.starts_with("OK:"))
+	// direct mode: probe over the native Connect path
+	auto Probe = Tunnel->ProbeConnect(Target, WaitForNode);
+
+	if (Probe.bConnected)
 	{
 		RedirectWithFlash(HTTP, s_sTunnelsURL,
-		                  kFormat("Node '{}': {}", oT->sNode, sResult), "");
-	}
-	else if (sResult.starts_with("unknown command"))
-	{
-		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
-		                  kFormat("Node '{}' runs an older ktunnel without the "
-		                          "'check' command - update the node to test "
-		                          "target reachability from here.", oT->sNode));
-	}
-	else if (sResult.empty())
-	{
-		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
-		                  kFormat("Node '{}' did not answer within 15 seconds.", oT->sNode));
+		                  kFormat("Direct probe: {}", Probe.sMessage), "");
 	}
 	else
 	{
 		RedirectWithFlash(HTTP, s_sTunnelsURL, "",
-		                  kFormat("Node '{}': {}", oT->sNode, sResult));
+		                  kFormat("Direct probe: {}", Probe.sMessage));
 	}
 
 } // HandleTunnelsCheck
@@ -3041,6 +3066,14 @@ void AdminUI::HandleLogStream (KRESTServer& HTTP)
 
 		HTTP.Response.Flush();
 
+		// end the stream when the server shuts down - otherwise this
+		// worker keeps running until the browser disconnects, and
+		// `systemctl stop` runs into its kill timeout
+		if (m_Server.IsShuttingDown())
+		{
+			break;
+		}
+
 		kSleep(chrono::seconds(1));
 	}
 
@@ -3299,7 +3332,7 @@ void AdminUI::HandleNodeReplWs (KRESTServer& HTTP)
 		WebSocket.SetReadTimeout(chrono::seconds(5));
 
 		KString sFrame;
-		while (!bQuit.load(std::memory_order_acquire))
+		while (!bQuit.load(std::memory_order_acquire) && !m_Server.IsShuttingDown())
 		{
 			if (!WebSocket.Read(sFrame))
 			{

@@ -370,6 +370,15 @@ public:
 		/// before the peer's error arrived
 		KString     WaitForDisconnectReason (KDuration Timeout) const;
 
+		/// what WaitForActivity() observed on the channel
+		enum class Activity : uint8_t { Timeout, Closed, Data };
+
+		/// wait up to Timeout for activity on this channel: Data = a data
+		/// frame arrived, Closed = the channel was closed (the peer's
+		/// reason, if any, is available from GetDisconnectReason()),
+		/// Timeout = nothing happened. Does not consume queued frames.
+		Activity    WaitForActivity       (KDuration Timeout) const;
+
 		/// max size for the message queue for one connection
 		static constexpr
 		std::size_t MaxMessageQueueSize   ()       { return 20;         }
@@ -478,6 +487,25 @@ public:
 	/// returns a snapshot of all multiplexed connections currently carried
 	/// over this tunnel
 	std::vector<std::shared_ptr<Connection>> GetConnectionSnapshot () const { return m_Connections.Snapshot(); }
+
+	/// verdict of a ProbeConnect()
+	struct ProbeResult
+	{
+		/// true when the target accepted the connection
+		bool    bConnected { false };
+		/// what happened, suitable for display
+		KString sMessage;
+	};
+
+	/// Probe a connect to an endpoint on the other side of the tunnel,
+	/// over the exact Connect path a forwarded connection takes, but
+	/// without a local stream. Waits up to Timeout for the peer's verdict:
+	/// an error reported by the peer means the target is unreachable,
+	/// arriving data or a silently open channel means the target accepted
+	/// the connection. Timeout should exceed the peer's ConnectTimeout.
+	/// Works against any peer version - old nodes without error reporting
+	/// degrade to the silent-open/closed distinction.
+	ProbeResult ProbeConnect (const KTCPEndPoint& ConnectToEndpoint, KDuration Timeout);
 
 	/// Open a new REPL channel on the remote peer. Allocates a channel
 	/// ID, sends an OpenRepl frame, and returns the local Connection

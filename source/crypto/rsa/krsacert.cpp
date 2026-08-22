@@ -330,14 +330,10 @@ bool KRSACert::Create
 		::X509_EXTENSION_free(ext);
 	}
 
-	// sign the certificate with the private key
-	if (!::X509_sign(m_X509Cert, Key.GetEVPPKey(),
-#if OPENSSL_VERSION_NUMBER >= 0x010101000
-		EVP_sha3_256()
-#else
-		EVP_sha256()
-#endif
-	))
+	// sign the certificate with the private key. SHA-256, not SHA3: browsers
+	// (BoringSSL, WebKit, NSS) cannot verify RSA-SHA3 signatures - Chrome
+	// answers such a cert with the non-bypassable ERR_CERT_INVALID
+	if (!::X509_sign(m_X509Cert, Key.GetEVPPKey(), ::EVP_sha256()))
 	{
 		return SetError(KDigest::GetOpenSSLError("error signing cert"));
 	}

@@ -147,8 +147,8 @@ public:
 	/// @param bCritical mark the extension critical, default false
 	bool AddExtension(KStringViewZ sOID, KStringView sDER, bool bCritical = false);
 
-	/// sign the cert with the given key, e.g. after AddExtension(). Uses SHA-256, which
-	/// any external parser can verify (Create() may pick SHA3-256 for local certs)
+	/// sign the cert with the given key, e.g. after AddExtension(). Uses SHA-256,
+	/// like Create() - the one signature algorithm every external parser verifies
 	bool Sign(const KRSAKey& Key);
 
 	/// get the cert, may return nullptr in case of error or default construction

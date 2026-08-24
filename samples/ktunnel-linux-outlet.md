@@ -1,11 +1,12 @@
-# Installing ktunnel as a *Protected Endpoint* on Linux
+# Installing ktunnel as an *Outlet* on Linux
 
 This guide describes installing the dekaf2 sample app **ktunnel** on a Linux machine
 that sits **behind a firewall** (no inbound traffic possible, as in mobile networks)
-and, on its own, opens a connection to an **Exposed Host** at any IP/DNS *outside*.
-The Exposed Host is almost always another Linux machine.
+and, on its own, opens a connection to a **Relay** at any IP/DNS *outside*. The
+Relay is almost always another Linux machine. An outlet runs inside the target
+network and opens the final connections to the targets the relay asks for.
 
-The Protected Host on Linux is installed as a **systemd** unit. KService writes the
+The Outlet on Linux is installed as a **systemd** unit. KService writes the
 unit file, runs `daemon-reload`, and enables it for boot.
 
 ---
@@ -15,33 +16,34 @@ unit file, runs `daemon-reload`, and enables it for boot.
 ```
        e.g. port 1234           e.g. port 443
                                       |
-client >>--TCP/TLS-->> ktunnel <<--TLS-WS--<< ktunnel >>--TCP/TLS-->> target(s)
-                      (exposed)       |       (protected)
+ app   >>--TCP/TLS-->> ktunnel <<--TLS-WS--<< ktunnel >>--TCP/TLS-->> target(s)
+                       (relay)        |       (outlet)
                              firewall |
 ```
 
-* **Exposed Host** – listens (publicly reachable), manages nodes/tunnels, decides
+* **Relay** – listens (publicly reachable), manages outlets/inlets/tunnels, decides
   the forwarding targets. Runs *elsewhere*.
-* **Protected Host** – *this Linux host*. Opens an **outbound-only** HTTPS/WebSocket
-  control connection to the Exposed Host and, on its request, opens data streams to
+* **Outlet** – *this Linux host*. Opens an **outbound-only** HTTPS/WebSocket
+  control connection to the Relay and, on its request, opens data streams to
   the targets. **It does not listen on any port.**
 
-The switch that turns a ktunnel into a Protected Host is `-e <exposed-host>`:
-> *"exposed host – the host to keep an ongoing control connection to. If not
-> defined, then this is the exposed host itself."*
+The switch that turns a ktunnel into an Outlet is `-relay <host>` (formerly
+`-e`/`-exposed`, still accepted):
+> *"the relay to keep an ongoing control connection to. If not defined, then
+> this ktunnel is the relay itself."*
 
 ---
 
 ## 2. Prerequisites
 
 * A `ktunnel` binary built for this Linux distro (or a dekaf2 install that ships it).
-* A running **Exposed Host** with an **enabled node account** matching your
-  `-n <node>` / `-s <secret>`. Created on the exposed side, e.g. with
-  `ktunnel -add-node -node-name linux-node -pass-file secret.txt` or via the admin
-  UI (`/Configure/`). The **forwarding targets are configured on the exposed side**,
-  not here.
-* Optional but recommended: the **Ed25519 fingerprint** of the Exposed Host for
-  identity pinning. On the exposed host, print it with:
+* A running **Relay** with an **enabled outlet account** matching your
+  `-n <name>` / `-s <secret>`. Created on the relay side, e.g. with
+  `ktunnel -add-outlet -outlet-name linux-outlet -pass-file secret.txt` or via the
+  admin UI (`/Configure/`, page *Outlets*). The **forwarding targets are configured
+  on the relay side**, not here.
+* Optional but recommended: the **Ed25519 fingerprint** of the Relay for
+  identity pinning. On the relay, print it with:
   ```
   ktunnel -fingerprint
   ```
@@ -78,20 +80,20 @@ Before registering the service, run the **exact runtime command line** once in a
 shell (without `-install`):
 
 ```
-ktunnel -e tunnel.example.com -p 443 -n linux-node -s "S3cr3t!" -aes -trust-fingerprint "a1:b2:c3:...:ff"
+ktunnel -relay tunnel.example.com -p 443 -n linux-outlet -s "S3cr3t!" -aes -trust-fingerprint "a1:b2:c3:...:ff"
 ```
 
 You should see `connecting …`, then `control stream opened - now waiting for data
 streams`. Stop with `Ctrl-C`. Only once that works, set it up as a service.
 
-### Relevant options for the Protected Host
+### Relevant options for the Outlet
 
 | Option                    | Meaning                                                                                         |
 | ------------------------- | ----------------------------------------------------------------------------------------------- |
-| `-e, --exposed <host>`    | DNS/IP of the Exposed Host. **Enables** protected mode. Any external address.                   |
-| `-p, --port <n>`          | Port on the Exposed Host to connect to (default **443**).                                       |
-| `-n, --node <name>`       | Node name to log in with (must be an enabled row in the exposed host's `nodes` table).          |
-| `-s, --secret <pw>`       | Password of the node account (bcrypt-checked against that row). Required unless `-secret-file`. |
+| `-relay <host>`           | DNS/IP of the Relay. **Enables** outlet mode. Any external address. (`-e`/`-exposed` = aliases.)|
+| `-p, --port <n>`          | Port on the Relay to connect to (default **443**).                                              |
+| `-n, --name <name>`       | Outlet name to log in with (must be an enabled outlet account on the relay). (`-node` = alias.) |
+| `-s, --secret <pw>`       | Password of the outlet account (bcrypt-checked). Required unless `-secret-file`.                |
 | `-secret-file <path>`     | Runtime alternative to `-s`: read the secret from a file, kept out of the persisted service.    |
 | `-aes`                    | Optional: X25519+Ed25519+HKDF handshake, identity pinning + forward secrecy on top of TLS.      |
 | `-trust-fingerprint <fp>` | With `-aes`: accept exactly this server fingerprint (from `ktunnel -fingerprint`).              |
@@ -99,17 +101,17 @@ streams`. Stop with `Ctrl-C`. Only once that works, set it up as a service.
 
 > For a **headless service** always use `-trust-fingerprint`, **not**
 > `-trust-on-first-use`: the latter needs an interactive TTY and fails under
-> systemd. With `-trust-fingerprint` the Protected Host also writes **no** files
+> systemd. With `-trust-fingerprint` the Outlet also writes **no** files
 > (no `known_servers`).
 >
-> `-m/-maxtunnels`, `-f`, `-t`, `-cert`, `-key`, `-db` apply to the Exposed Host
-> only and are not set here.
+> `-m/-maxtunnels`, `-f`, `-t`, `-cert`, `-key`, `-db` apply to the Relay
+> only and are not set here. `-L` selects the *inlet* role, not the outlet role.
 
 ---
 
 ## 5. Install as a systemd service (system-wide)
 
-First put the node secret in a file readable only by the service account — this
+First put the outlet secret in a file readable only by the service account — this
 keeps it **out of** the systemd unit (see §10):
 
 ```
@@ -122,15 +124,15 @@ Then run the same command line as the test, prefixed with `-install`, using
 `-secret-file` instead of `-s`, as root:
 
 ```
-sudo /usr/local/bin/ktunnel -install -e tunnel.example.com -p 443 -n linux-node -secret-file /etc/ktunnel/secret -aes -trust-fingerprint "a1:b2:c3:...:ff"
+sudo /usr/local/bin/ktunnel -install -relay tunnel.example.com -p 443 -n linux-outlet -secret-file /etc/ktunnel/secret -aes -trust-fingerprint "a1:b2:c3:...:ff"
 ```
 
 What this does:
 
-* Because `-e` is present, `-install` recognizes protected-host mode and **skips
-  the admin bootstrap** (message: *"protected-host install (-e given) — skipping
+* Because `-relay` is present, `-install` recognizes the outlet role and **skips
+  the admin bootstrap** (message: *"remote-role install (-relay given) — skipping
   admin bootstrap"*). No admin password is requested and no `ktunnel.db` /
-  `ktunnel_ed25519.pem` is created — those are only needed by the Exposed Host.
+  `ktunnel_ed25519.pem` is created — those are only needed by the Relay.
 * Writes the unit file to `/etc/systemd/system/ktunnel.service`, with the arguments
   after `-install` baked verbatim into `ExecStart=`, then runs
   `systemctl daemon-reload` and `systemctl enable ktunnel` (auto-start at boot).
@@ -151,7 +153,7 @@ After=network.target
 [Service]
 Type=notify
 NotifyAccess=main
-ExecStart=/usr/local/bin/ktunnel -e tunnel.example.com -p 443 -n linux-node -secret-file /etc/ktunnel/secret -aes -trust-fingerprint a1:b2:c3:...:ff --service
+ExecStart=/usr/local/bin/ktunnel -relay tunnel.example.com -p 443 -n linux-outlet -secret-file /etc/ktunnel/secret -aes -trust-fingerprint a1:b2:c3:...:ff --service
 Restart=on-failure
 RestartSec=5
 
@@ -173,7 +175,7 @@ sudo systemctl edit ktunnel        # add:  [Service]\n  User=ktunnel
 sudo systemctl daemon-reload
 ```
 
-A protected host only makes outbound connections and (with `-trust-fingerprint`)
+An outlet only makes outbound connections and (with `-trust-fingerprint`)
 writes nothing, so an unprivileged account is sufficient.
 
 ---
@@ -184,7 +186,7 @@ If you cannot use root, run `-install` as your normal user. KService automatical
 falls back to a **user-scope** unit and prints a hint on stderr:
 
 ```
-ktunnel -install -e tunnel.example.com -p 443 -n linux-node -secret-file ~/.config/ktunnel/secret -aes -trust-fingerprint "a1:b2:c3:...:ff"
+ktunnel -install -relay tunnel.example.com -p 443 -n linux-outlet -secret-file ~/.config/ktunnel/secret -aes -trust-fingerprint "a1:b2:c3:...:ff"
 ```
 
 * Unit path: `~/.config/systemd/user/ktunnel.service` (`WantedBy=default.target`).
@@ -210,16 +212,16 @@ systemctl --user status ktunnel
 journalctl --user -u ktunnel -f
 ```
 
-On connection loss the Protected Host retries at the `-timeout` interval; if the
+On connection loss the Outlet retries at the `-timeout` interval; if the
 process itself exits non-zero, systemd restarts it after `RestartSec=5`.
 
 ---
 
 ## 8. Firewall
 
-The Protected Host connects **outbound only** and does not listen on any port.
+The Outlet connects **outbound only** and does not listen on any port.
 Most host firewalls permit outbound traffic by default → usually **no inbound rule
-is needed**. Only if egress is filtered, allow outbound TCP to the exposed host,
+is needed**. Only if egress is filtered, allow outbound TCP to the relay,
 e.g.:
 
 ```
@@ -244,7 +246,7 @@ tcp dport 443 accept
 | Uninstall | `sudo ktunnel -uninstall`  (disables + removes the unit) |
 | Update    | stop → replace binary → start                            |
 
-If the command line changes (exposed host, port, node, secret, fingerprint), either
+If the command line changes (relay, port, name, secret, fingerprint), either
 `ktunnel -uninstall` and reinstall with the new arguments, or edit `ExecStart=` in
 the unit file and run `systemctl daemon-reload` + restart. `systemctl stop ktunnel`
 triggers a clean disconnect within milliseconds (SIGTERM is routed to the tunnel's
@@ -257,13 +259,13 @@ shutdown handler).
 * **Keep the secret out of the unit:** prefer `-secret-file /etc/ktunnel/secret`
   (mode `0600`, owned by the service account) over `-s <secret>`. With `-s` the
   secret is baked into `ExecStart=` in `/etc/systemd/system/ktunnel.service`, which
-  is world-readable by default. Either way it is the **node password**, not the
-  admin password; rotate it on the exposed side if compromised (then update the
+  is world-readable by default. Either way it is the **outlet password**, not the
+  admin password; rotate it on the relay side if compromised (then update the
   file and `systemctl restart ktunnel`).
 * **Identity pinning:** `-aes -trust-fingerprint` adds protection, on top of TLS,
   against an active TLS-intercepting middlebox — even where the local TLS trust store
   itself cannot be trusted (the Ed25519 pin does not rely on the certificate PKI).
-  Note that the protected host does **not** verify the exposed host's TLS certificate
-  by default, so with a self-signed exposed cert the fingerprint pin is what actually
+  Note that the outlet does **not** verify the relay's TLS certificate
+  by default, so with a self-signed relay cert the fingerprint pin is what actually
   authenticates the peer — use `-aes` on any untrusted path.
 * **Least privilege:** run under a dedicated system user (§5) rather than root.

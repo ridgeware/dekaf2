@@ -63,14 +63,19 @@ using namespace dekaf2;
 /// Schema:
 ///   - `admins`        : admin login accounts (bcrypt-hashed). Admins are the
 ///                       only identity that can sign into the web UI.
-///   - `nodes`         : tunnel-endpoint accounts (bcrypt-hashed). Nodes
-///                       authenticate the ktunnel control stream and own
-///                       listener configurations, but cannot reach the UI.
-///   - `tunnels`       : per-tunnel listener configuration, owned by a node.
+///   - `nodes`         : outlet accounts (bcrypt-hashed) - the table keeps
+///                       its legacy name. Outlets authenticate the ktunnel
+///                       control stream and own listener configurations,
+///                       but cannot reach the UI.
+///   - `inlets`        : inlet accounts (bcrypt-hashed).
+///   - `tunnels`       : per-tunnel listener configuration, owned by an outlet.
 ///   - `events`        : append-only audit log (admin actions, tunnel
 ///                       lifecycle, login outcomes). Distinguishes the
-///                       admin-actor (admin column) from the node-actor
+///                       admin-actor (admin column) from the outlet-actor
 ///                       (node column) so audit queries are unambiguous.
+///                       Outlet event kinds keep their historical
+///                       names (node_login_ok, ...) so existing databases
+///                       stay consistent; inlet kinds are inlet_*.
 ///   - `usage_samples` : periodic RX/TX / connection-count snapshots per tunnel.
 ///
 /// All write operations are serialized by an internal mutex — SQLite itself
@@ -146,16 +151,17 @@ public:
 	/// Stamp the last_login_utc column with the given time.
 	void              SetAdminLastLogin       (KStringView sUsername, KUnixTime tNow);
 
-	// --- Nodes ------------------------------------------------------------
+	// --- Outlets ------------------------------------------------------------
 	//
-	// A node is a tunnel-endpoint account: the credentials a remote ktunnel
-	// instance presents in its v2 hello / Basic-auth login frame. Nodes do
-	// NOT have any web UI access; they exist only so the exposed peer can
-	// authenticate inbound tunnel connections. Disabling a node lets an
-	// admin temporarily lock out a remote endpoint without losing its
-	// configuration.
+	// An outlet is the account of the ktunnel that runs inside the target
+	// network and dials out to the relay: the credentials it presents in
+	// its v2 hello / Basic-auth login frame. Outlets do NOT have any web
+	// UI access; they exist only so the relay can authenticate inbound
+	// control connections. Disabling an outlet lets an admin temporarily
+	// lock out a remote endpoint without losing its configuration.
+	// Stored in the legacy `nodes` table.
 
-	struct Node
+	struct Outlet
 	{
 		int64_t   iID           { 0 };
 		KString   sName;         ///< endpoint name, unique (used as login id)
@@ -165,46 +171,46 @@ public:
 		KUnixTime tLastLogin;    ///< zero if never logged in
 	};
 
-	/// Count nodes (all, regardless of enabled state).
-	std::size_t       CountNodes ();
+	/// Count outlets (all, regardless of enabled state).
+	std::size_t       CountOutlets ();
 
 	/// Insert a node row, returns false if the name already exists.
-	bool              AddNode    (const Node& node);
+	bool              AddOutlet  (const Outlet& outlet);
 
 	/// Overwrite the bcrypt hash for an existing node.
-	bool              UpdateNodePasswordHash (KStringView sName, KStringView sBcryptHash);
+	bool              UpdateOutletPasswordHash (KStringView sName, KStringView sBcryptHash);
 
 	/// Toggle the `enabled` bit of an existing node.
-	bool              SetNodeEnabled         (KStringView sName, bool bEnabled);
+	bool              SetOutletEnabled       (KStringView sName, bool bEnabled);
 
 	/// Remove a node row. Tunnels referencing this node keep their FK as a
 	/// dangling reference — the admin UI flags such tunnels and the
 	/// ReconcileListeners loop refuses to start them.
-	bool              DeleteNode             (KStringView sName);
+	bool              DeleteOutlet           (KStringView sName);
 
 	/// Fetch one node. Returns a null unique_ptr if it does not exist.
-	std::unique_ptr<Node> GetNode            (KStringView sName);
+	std::unique_ptr<Outlet> GetOutlet        (KStringView sName);
 
 	/// Return all nodes sorted by name ascending.
-	std::vector<Node>  GetAllNodes           ();
+	std::vector<Outlet> GetAllOutlets        ();
 
 	/// Return only the enabled nodes (used by ReconcileListeners and by
 	/// the admin UI's tunnel-owner dropdown).
-	std::vector<Node>  GetEnabledNodes       ();
+	std::vector<Outlet> GetEnabledOutlets    ();
 
 	/// Stamp the last_login_utc column for the given node with the given
 	/// time. Called from the tunnel auth callback on successful login.
-	void              SetNodeLastLogin       (KStringView sName, KUnixTime tNow);
+	void              SetOutletLastLogin     (KStringView sName, KUnixTime tNow);
 
-	// --- Clients ----------------------------------------------------------
+	// --- Inlets -----------------------------------------------------------
 	//
-	// Client identities are the third realm, next to `admins` (web UI) and
-	// `nodes` (protected hosts). A client is an operator-side ktunnel that
-	// connects IN to the exposed host, authenticates, and asks for a
-	// forwarding channel to a *named tunnel*. It never names a host itself,
-	// so a client account cannot turn the exposed host into an open proxy.
+	// Inlet identities are the third realm, next to `admins` (web UI) and
+	// outlets. An inlet is an operator-side ktunnel that connects IN to
+	// the relay, authenticates, and asks for a forwarding channel to a
+	// *named tunnel*. It never names a host itself, so an inlet account
+	// cannot turn the relay into an open proxy.
 
-	struct Client
+	struct Inlet
 	{
 		int64_t   iID           { 0 };
 		KString   sName;         ///< client name, unique (used as login id)
@@ -218,29 +224,29 @@ public:
 	};
 
 	/// Insert a client row, returns false if the name already exists.
-	bool              AddClient  (const Client& client);
+	bool              AddInlet   (const Inlet& inlet);
 
 	/// Overwrite the bcrypt hash for an existing client.
-	bool              UpdateClientPasswordHash (KStringView sName, KStringView sBcryptHash);
+	bool              UpdateInletPasswordHash  (KStringView sName, KStringView sBcryptHash);
 
 	/// Replace the list of tunnels a client may open (empty = all).
-	bool              SetClientAllowTunnels    (KStringView sName, KStringView sAllowTunnels);
+	bool              SetInletAllowTunnels     (KStringView sName, KStringView sAllowTunnels);
 
 	/// Toggle the `enabled` bit of an existing client.
-	bool              SetClientEnabled         (KStringView sName, bool bEnabled);
+	bool              SetInletEnabled          (KStringView sName, bool bEnabled);
 
 	/// Remove a client row.
-	bool              DeleteClient             (KStringView sName);
+	bool              DeleteInlet              (KStringView sName);
 
 	/// Fetch one client. Returns a null unique_ptr if it does not exist.
-	std::unique_ptr<Client> GetClient          (KStringView sName);
+	std::unique_ptr<Inlet> GetInlet            (KStringView sName);
 
 	/// Return all clients sorted by name ascending.
-	std::vector<Client> GetAllClients          ();
+	std::vector<Inlet> GetAllInlets           ();
 
 	/// Stamp the last_login_utc column of a client. Called from the client
 	/// tunnel's auth callback on successful login.
-	void              SetClientLastLogin       (KStringView sName, KUnixTime tNow);
+	void              SetInletLastLogin        (KStringView sName, KUnixTime tNow);
 
 	// --- Tunnels ----------------------------------------------------------
 
@@ -248,7 +254,7 @@ public:
 	{
 		int64_t   iID          { 0 };
 		KString   sName;                 ///< logical name, unique
-		KString   sNode;                 ///< endpoint (nodes.name) authorised to drive this listener
+		KString   sOutlet;               ///< outlet (stored in the legacy `nodes` table) authorised to drive this listener
 		/// Port the exposed host binds to for forwarded downstream
 		/// connections, on the interface named by sBindAddress.
 		uint16_t  iListenPort  { 0 };
@@ -288,7 +294,7 @@ public:
 		KUnixTime tTimestamp;
 		KString   sKind;         ///< "admin_login_ok" | "admin_login_fail" | "node_login_ok" | "node_login_fail" | "handshake_fail" | "tunnel_start" | "tunnel_stop" | "tunnel_disconnect" | "tunnel_error" | "config_change" | "bootstrap" | "admin_add" | "admin_del" | "node_add" | "node_del" | "node_disable" | "node_enable" | ...
 		KString   sAdmin;        ///< admin who performed this action (UI write paths). Empty for purely automatic events.
-		KString   sNode;         ///< node-endpoint involved (tunnel lifecycle / handshake events). Empty for admin-only events.
+		KString   sOutlet;       ///< outlet involved (tunnel lifecycle / handshake events; stored in the `node` column). Empty for admin-only events.
 		KString   sTunnelName;   ///< optional
 		KString   sRemoteIP;     ///< optional
 		KString   sDetail;       ///< free-form

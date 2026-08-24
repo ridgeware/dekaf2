@@ -1,9 +1,10 @@
-# Installing ktunnel as a *Protected Endpoint* on Windows 11
+# Installing ktunnel as an *Outlet* on Windows 11
 
 This guide describes installing the dekaf2 sample app **ktunnel** on a Windows 11
 machine that sits **behind a firewall** (no inbound traffic possible, as in mobile
-networks) and, on its own, opens a connection to an **Exposed Host** at any IP/DNS
-*outside*.
+networks) and, on its own, opens a connection to a **Relay** at any IP/DNS
+*outside*. An outlet runs inside the target network and opens the final connections
+to the targets the relay asks for.
 
 ---
 
@@ -12,33 +13,34 @@ networks) and, on its own, opens a connection to an **Exposed Host** at any IP/D
 ```
        e.g. port 1234           e.g. port 443
                                       |
-client >>--TCP/TLS-->> ktunnel <<--TLS-WS--<< ktunnel >>--TCP/TLS-->> target(s)
-                      (exposed)       |       (protected)
+ app   >>--TCP/TLS-->> ktunnel <<--TLS-WS--<< ktunnel >>--TCP/TLS-->> target(s)
+                       (relay)        |       (outlet)
                              firewall |
 ```
 
-* **Exposed Host** – listens (publicly reachable), manages nodes/tunnels, decides
+* **Relay** – listens (publicly reachable), manages outlets/inlets/tunnels, decides
   the forwarding targets. Runs *elsewhere*, not on this PC.
-* **Protected Host** – *this Windows PC*. Opens an **outbound-only** HTTPS/WebSocket
-  control connection to the Exposed Host and, on its request, opens data streams to
+* **Outlet** – *this Windows PC*. Opens an **outbound-only** HTTPS/WebSocket
+  control connection to the Relay and, on its request, opens data streams to
   the targets. **It does not listen on any port.**
 
-The switch that turns a ktunnel into a Protected Host is `-e <exposed-host>`:
-> *"exposed host – the host to keep an ongoing control connection to. If not
-> defined, then this is the exposed host itself."*
+The switch that turns a ktunnel into an Outlet is `-relay <host>` (formerly
+`-e`/`-exposed`, still accepted):
+> *"the relay to keep an ongoing control connection to. If not defined, then
+> this ktunnel is the relay itself."*
 
 ---
 
 ## 2. Prerequisites
 
 * `ktunnel.exe` (release build of dekaf2 for Windows).
-* A running **Exposed Host** with an **enabled node account** matching your
-  `-n <node>` / `-s <secret>`. Created on the exposed side, e.g. with
-  `ktunnel -add-node -node-name win11-node -pass-file secret.txt` or via the admin
-  UI (`/Configure/`). The **forwarding targets are configured on the exposed side**,
-  not here.
-* Optional but recommended: the **Ed25519 fingerprint** of the Exposed Host for
-  identity pinning. On the exposed host, print it with:
+* A running **Relay** with an **enabled outlet account** matching your
+  `-n <name>` / `-s <secret>`. Created on the relay side, e.g. with
+  `ktunnel -add-outlet -outlet-name win11-outlet -pass-file secret.txt` or via the
+  admin UI (`/Configure/`, page *Outlets*). The **forwarding targets are configured
+  on the relay side**, not here.
+* Optional but recommended: the **Ed25519 fingerprint** of the Relay for
+  identity pinning. On the relay, print it with:
   ```
   ktunnel -fingerprint
   ```
@@ -120,20 +122,20 @@ Before registering the service, test the **exact runtime command line** once in 
 elevated Command Prompt (without `-install`, without `--service`):
 
 ```
-"C:\Program Files\ktunnel\ktunnel.exe" -e tunnel.example.com -p 443 -n win11-node -s "S3cr3t!" -aes -trust-fingerprint "a1:b2:c3:...:ff"
+"C:\Program Files\ktunnel\ktunnel.exe" -relay tunnel.example.com -p 443 -n win11-outlet -s "S3cr3t!" -aes -trust-fingerprint "a1:b2:c3:...:ff"
 ```
 
 You should see `connecting …`, then `control stream opened - now waiting for data
 streams`. Stop with `Ctrl-C`. Only once that works, set it up as a service.
 
-### Relevant options for the Protected Host
+### Relevant options for the Outlet
 
 | Option                    | Meaning                                                                                         |
 | ------------------------- | ----------------------------------------------------------------------------------------------- |
-| `-e, --exposed <host>`    | DNS/IP of the Exposed Host. **Enables** protected mode. Any external address.                   |
-| `-p, --port <n>`          | Port on the Exposed Host to connect to (default **443**).                                       |
-| `-n, --node <name>`       | Node name to log in with (must be an enabled row in the exposed host's `nodes` table).          |
-| `-s, --secret <pw>`       | Password of the node account (bcrypt-checked against that row). Required unless `-secret-file`. |
+| `-relay <host>`           | DNS/IP of the Relay. **Enables** outlet mode. Any external address. (`-e`/`-exposed` = aliases.)|
+| `-p, --port <n>`          | Port on the Relay to connect to (default **443**).                                              |
+| `-n, --name <name>`       | Outlet name to log in with (must be an enabled outlet account on the relay). (`-node` = alias.) |
+| `-s, --secret <pw>`       | Password of the outlet account (bcrypt-checked). Required unless `-secret-file`.                |
 | `-secret-file <path>`     | Runtime alternative to `-s`: read the secret from a file, kept out of the persisted service.    |
 | `-aes`                    | Optional: X25519+Ed25519+HKDF handshake, identity pinning + forward secrecy on top of TLS.      |
 | `-trust-fingerprint <fp>` | With `-aes`: accept exactly this server fingerprint (from `ktunnel -fingerprint`).              |
@@ -141,17 +143,17 @@ streams`. Stop with `Ctrl-C`. Only once that works, set it up as a service.
 
 > For a **headless service** always use `-trust-fingerprint`, **not**
 > `-trust-on-first-use`: the latter needs an interactive TTY and fails in a service
-> context. With `-trust-fingerprint` the Protected Host also writes **no** files
+> context. With `-trust-fingerprint` the Outlet also writes **no** files
 > (no `known_servers`) → no conflict with *Controlled Folder Access*.
 >
-> `-m/-maxtunnels`, `-f`, `-t`, `-cert`, `-key`, `-db` apply to the Exposed Host
-> only and are not set here.
+> `-m/-maxtunnels`, `-f`, `-t`, `-cert`, `-key`, `-db` apply to the Relay
+> only and are not set here. `-L` selects the *inlet* role, not the outlet role.
 
 ---
 
 ## 6. Install as a Windows service
 
-First put the node secret in a file so it stays **out of** the SCM ImagePath (see
+First put the outlet secret in a file so it stays **out of** the SCM ImagePath (see
 §10). In an **elevated** PowerShell, create it and lock it down to SYSTEM +
 Administrators:
 
@@ -165,14 +167,14 @@ Then install — the same command line as the interactive test, prefixed with
 `-install` and using `-secret-file` instead of `-s`:
 
 ```
-"C:\Program Files\ktunnel\ktunnel.exe" -install -e tunnel.example.com -p 443 -n win11-node -secret-file "C:\ProgramData\ktunnel\secret.txt" -aes -trust-fingerprint "a1:b2:c3:...:ff"
+"C:\Program Files\ktunnel\ktunnel.exe" -install -relay tunnel.example.com -p 443 -n win11-outlet -secret-file "C:\ProgramData\ktunnel\secret.txt" -aes -trust-fingerprint "a1:b2:c3:...:ff"
 ```
 
-* Because `-e` is present, `-install` recognizes protected-host mode and
-  **skips the admin bootstrap** (message: *"protected-host install (-e given) —
+* Because `-relay` is present, `-install` recognizes the outlet role and
+  **skips the admin bootstrap** (message: *"remote-role install (-relay given) —
   skipping admin bootstrap"*). No admin password is requested and no
   `ktunnel.db` / `ktunnel_ed25519.pem` is created — those are only needed by the
-  Exposed Host.
+  Relay.
 * `-secret-file` is a **runtime** flag: it is replayed on every start and the secret
   is read from the file each time, so the secret itself never enters the ImagePath.
   The service runs as LocalSystem, which can read the file above. (`-s` is still
@@ -197,14 +199,14 @@ sc start ktunnel
 sc query ktunnel
 ```
 `services.msc` shows the service under the display name **KTunnel**. On connection
-loss, the Protected Host automatically retries a reconnect at the `-timeout`
+loss, the Outlet automatically retries a reconnect at the `-timeout`
 interval.
 
 ---
 
 ## 8. Firewall
 
-The Protected Host connects **outbound only** and does not listen on any port.
+The Outlet connects **outbound only** and does not listen on any port.
 Windows Defender Firewall allows outbound traffic by default → usually **no inbound
 rule is needed**. Only if outbound traffic is filtered by policy, add an outbound
 allow rule (elevated PowerShell):
@@ -226,7 +228,7 @@ New-NetFirewallRule -DisplayName "ktunnel outbound" -Direction Outbound `
 | Uninstall | `ktunnel -uninstall`                              |
 | Update    | stop → replace EXE → `Unblock-File` again → start |
 
-If the command line changes (exposed host, port, node, secret, fingerprint),
+If the command line changes (relay, port, name, secret, fingerprint),
 **uninstall and reinstall with the new arguments** — the SCM stores the arguments
 statically in the ImagePath.
 
@@ -237,13 +239,13 @@ statically in the ImagePath.
 * **Keep the secret out of the ImagePath:** prefer `-secret-file` (see §6) over
   `-s <secret>`. With `-s`, the secret is baked into the service ImagePath
   (`HKLM\SYSTEM\CurrentControlSet\Services\ktunnel\ImagePath`, readable by
-  administrators via `sc qc ktunnel`). Either way it is the **node password**, not
-  the admin password; rotate it on the exposed side if compromised (then update the
+  administrators via `sc qc ktunnel`). Either way it is the **outlet password**, not
+  the admin password; rotate it on the relay side if compromised (then update the
   file and restart the service).
 * **Identity pinning:** `-aes -trust-fingerprint` adds protection, on top of TLS,
   against an active TLS-intercepting middlebox — even where the local TLS trust store
   itself cannot be trusted (the Ed25519 pin does not rely on the certificate PKI).
-  The protected host does not verify the exposed host's TLS certificate by default,
+  The outlet does not verify the relay's TLS certificate by default,
   so on any untrusted path the fingerprint pin is what authenticates the peer — use
   `-aes`.
 * **Signing** the EXE avoids Defender exclusions and MOTW special handling.

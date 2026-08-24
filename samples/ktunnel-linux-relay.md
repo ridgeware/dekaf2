@@ -1,14 +1,15 @@
-# Installing ktunnel as an *Exposed Host* on Linux
+# Installing ktunnel as a *Relay* on Linux
 
 This guide describes installing the dekaf2 sample app **ktunnel** on a
-publicly-reachable Linux machine acting as the **Exposed Host**: it listens for the
-outbound control connections from one or more **Protected Hosts** (behind firewalls),
-listens on one or more forward ports for clients, and multiplexes client traffic
-through the tunnels to targets that the Protected Hosts can reach.
+publicly-reachable Linux machine acting as the **Relay**: it listens for the
+outbound control connections from one or more **Outlets** (which run inside the
+target networks, behind firewalls), listens on one or more forward ports — and,
+optionally, accepts **Inlets** — and multiplexes that traffic through the
+outlets to the targets they can reach.
 
-The Exposed Host is installed as a **systemd** unit and runs in **Stateful mode**: a
-small SQLite database holds the admin login, the node accounts, and the tunnel
-definitions, all managed through a built-in web admin UI.
+The Relay is installed as a **systemd** unit and runs in **Stateful mode**: a
+small SQLite database holds the admin login, the outlet and inlet accounts, and
+the tunnel definitions, all managed through a built-in web admin UI.
 
 ---
 
@@ -17,35 +18,41 @@ definitions, all managed through a built-in web admin UI.
 ```
        e.g. port 1234           e.g. port 443
                                       |
-client >>--TCP/TLS-->> ktunnel <<--TLS-WS--<< ktunnel >>--TCP/TLS-->> target(s)
-                      (exposed)       |       (protected)
+ app   >>--TCP/TLS-->> ktunnel <<--TLS-WS--<< ktunnel >>--TCP/TLS-->> target(s)
+                       (relay)        |       (outlet)
                              firewall |
 ```
 
-* **Exposed Host** – *this Linux host*. Publicly reachable. Terminates the tunnel
-  control connections, serves the admin UI, and listens on the forward ports where
-  clients connect.
-* **Protected Host** – runs elsewhere behind a firewall; connects **outbound** to
-  this host and dials the actual targets.
+* **Relay** – *this Linux host*. Publicly reachable. Terminates the tunnel
+  control connections, serves the admin UI, and either listens on forward ports
+  itself or hands traffic to a tunnel that an inlet asked for by name.
+* **Outlet** – runs elsewhere inside the target network, connects **outbound**
+  to this host and dials the actual targets.
+* **Inlet** – optional, operator-side: connects outbound to this host too and
+  offers local ports that map to named tunnels (the `ssh -L` equivalent), so a
+  tunnel needs no publicly reachable forward port at all.
 
-A ktunnel is an Exposed Host precisely when `-e`/`-exposed` is **absent** — it then
-listens instead of connecting out.
+A ktunnel is a Relay precisely when `-relay` (the former `-e`/`-exposed`) is
+**absent** — it then listens instead of connecting out.
 
 ---
 
 ## 2. Ports and modes
 
-* **Control / admin HTTPS port** (`-p`, default **443**): the Protected Hosts connect
-  here (`/Tunnel`, upgraded to WebSocket), and the admin UI lives here
-  (`/Configure/`). Must be reachable from the Protected Hosts (and from wherever you
-  administer it).
-* **Forward ports**: one per tunnel, defined in the admin UI (listen port → target
-  host:port, owned by a node). These are where the *clients* connect. Each needs an
-  inbound firewall rule.
+* **Control / admin HTTPS port** (`-p`, default **443**): outlets and inlets
+  connect here (`/Tunnel` resp. `/Inlet`, upgraded to WebSocket), and the admin
+  UI lives here (`/Configure/`). Must be reachable from the outlets/inlets (and
+  from wherever you administer it).
+* **Forward ports**: one per tunnel, defined in the admin UI (listen port →
+  target host:port, owned by an outlet). These are where downstream *clients*
+  connect directly. Each needs an inbound firewall rule — unless the tunnel is
+  reached exclusively through an inlet, in which case it can be bound to
+  `127.0.0.1` and needs no rule.
 * **Stateful vs AdHoc**: launched by systemd, ktunnel always runs **Stateful**
-  (DB-backed, admin UI). `-f`/`-t`/`-s` are rejected in service mode — tunnels and
-  node accounts are configured through the DB / admin UI, not the CLI. AdHoc mode
-  (`-f`/`-t` on an interactive CLI) exists only for recovery (see §9).
+  (DB-backed, admin UI). `-f`/`-t`/`-s` are rejected in service mode — tunnels
+  and outlet/inlet accounts are configured through the DB / admin UI, not the
+  CLI. AdHoc mode (`-f`/`-t` on an interactive CLI) exists only for recovery
+  (see §9).
 
 ---
 
@@ -76,8 +83,8 @@ the path is not guaranteed to be mounted early at boot. If you keep it under a c
 
 ## 5. Install as a systemd service
 
-`-install` on an Exposed Host does two things in one step: it **bootstraps the
-config DB** (admin login + Ed25519 server identity), then **registers the systemd
+`-install` on a Relay does two things in one step: it **bootstraps the config
+DB** (admin login + Ed25519 server identity), then **registers the systemd
 unit**.
 
 ### Interactive install (prompts for the admin password)
@@ -87,8 +94,8 @@ sudo /usr/local/bin/ktunnel -install -p 443 -aes -persist
 ```
 
 You will be prompted for the admin **name** (default `admin`) and **password**. On
-success it prints the server's Ed25519 **fingerprint** — copy it; the Protected
-Hosts need it for `-aes -trust-fingerprint`.
+success it prints the server's Ed25519 **fingerprint** — copy it; the outlets and
+inlets need it for `-aes -trust-fingerprint`.
 
 ### Non-interactive install (for provisioning)
 
@@ -102,7 +109,9 @@ sudo shred -u /root/ktunnel-admin.pw
 What the install does:
 
 * **Config DB**: `/var/lib/ktunnel/ktunnel.db` (mode 0700, created for root). Holds
-  `admins`, `nodes`, `tunnels`, and an `events` audit log.
+  the admin, outlet and inlet accounts, the tunnel definitions, and an `events`
+  audit log. (For backward compatibility the tables are still named `nodes` and
+  `clients` on disk.)
 * **Server identity**: `/var/lib/ktunnel/ktunnel_ed25519.pem` — the long-term
   Ed25519 key the server signs the `-aes` v2 handshake with. Created here so the
   fingerprint is available before first start.
@@ -132,8 +141,8 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-> Re-running `-install` is idempotent for the admin row: if `admins` already has an
-> entry it is left untouched (rotate later with `ktunnel -set-admin`).
+> Re-running `-install` is idempotent for the admin row: if the admin table already
+> has an entry it is left untouched (rotate later with `ktunnel -set-admin`).
 
 ---
 
@@ -143,9 +152,9 @@ The control port is TLS. Three options:
 
 * **Self-signed (default, with `-persist`)**: ktunnel auto-creates a self-signed cert
   and — with `-persist` — reuses it across restarts. This is fine for the tunnel
-  itself, because **the Protected Host does not verify the exposed host's TLS
-  certificate**; peer authentication is done cryptographically by `-aes`
-  fingerprint pinning. Browsers hitting the admin UI will show a cert warning.
+  itself, because **the outlet does not verify the relay's TLS certificate**; peer
+  authentication is done cryptographically by `-aes` fingerprint pinning. Browsers
+  hitting the admin UI will show a cert warning.
 * **Automatic via ACME** (recommended if admins use the web UI over the internet):
   ktunnel obtains and renews a Let's Encrypt certificate itself, proving domain
   ownership with the built-in tls-alpn-01 challenge on the control port — no
@@ -171,7 +180,7 @@ The control port is TLS. Three options:
   `systemctl restart ktunnel`).
 
 Either way, **use `-aes`** on any untrusted network path — it authenticates the
-exposed host to the protected peers and adds forward secrecy on top of TLS.
+relay to the connecting peers and adds forward secrecy on top of TLS.
 
 ---
 
@@ -189,7 +198,7 @@ Confirm the admin UI answers (self-signed → `-k`):
 curl -k https://localhost:443/Configure/
 ```
 
-Read back the fingerprint any time for handing to Protected Hosts:
+Read back the fingerprint any time for handing to outlets and inlets:
 
 ```
 sudo ktunnel -fingerprint
@@ -199,30 +208,38 @@ sudo ktunnel -fingerprint
 
 ## 8. Post-install configuration
 
-A fresh Exposed Host has an admin login but no node accounts and no tunnels yet.
+A fresh Relay has an admin login but no outlet accounts and no tunnels yet.
 
-**a) Create a node account** for each Protected Host (its `-n` / `-s` credentials).
-From the CLI:
+**a) Create an outlet account** for each target-network ktunnel (its `-n` / `-s`
+credentials). From the CLI:
 
 ```
-printf '%s' 'S3cr3t!' | sudo tee /root/node.pw >/dev/null
-sudo ktunnel -add-node -node-name linux-node -pass-file /root/node.pw
-sudo shred -u /root/node.pw
+printf '%s' 'S3cr3t!' | sudo tee /root/outlet.pw >/dev/null
+sudo ktunnel -add-outlet -outlet-name linux-outlet -pass-file /root/outlet.pw
+sudo shred -u /root/outlet.pw
 ```
 
-or add it in the admin UI. The Protected Host then logs in with
-`-n linux-node -secret-file <file>` (or `-s`).
+or add it in the admin UI under *Outlets*. The outlet then logs in with
+`-n linux-outlet -secret-file <file>` (or `-s`). The `-add-node` / `-node-name`
+spellings still work as aliases.
 
 **b) Define the tunnels** in the admin UI at `https://<host>:443/Configure/`:
-each tunnel is *listen port → target host:port*, owned by a node. Example: listen on
-`8443`, target `10.0.0.5:443`, owner `linux-node` — a client connecting to
-`<exposed>:8443` is forwarded through that node's tunnel to `10.0.0.5:443` on the
-protected network. Changes are applied live (listeners are reconciled without a
-restart); a port that collides with the admin port or another tunnel is reported on
-the Tunnels page instead of crashing the service.
+each tunnel is *listen port → target host:port*, owned by an outlet. Example: listen
+on `8443`, target `10.0.0.5:443`, owner `linux-outlet` — a client connecting to
+`<relay>:8443` is forwarded through that outlet's tunnel to `10.0.0.5:443` on the
+target network. A tunnel can additionally be bound to a single interface and
+restricted with an allow-list of source networks; bind it to `127.0.0.1` to make it
+reachable only through an inlet. Changes are applied live (listeners are reconciled
+without a restart); a port that collides with the admin port or another tunnel is
+reported on the Tunnels page instead of crashing the service.
 
-**c) Hand each Protected Host**: the exposed host DNS/IP, the control port, its node
-name + secret, and the fingerprint from §7.
+**c) Optionally create inlet accounts** under *Inlets* for operators who should
+reach a tunnel from their own machine with `-L`. An inlet may be restricted to a
+list of tunnel names.
+
+**d) Hand each outlet**: the relay's DNS/IP, the control port, its outlet name +
+secret, and the fingerprint from §7. The admin UI's *Outlets → Install* page
+generates a ready-to-run setup script for exactly this.
 
 ---
 
@@ -242,10 +259,11 @@ a service configuration — `-f`/`-t`/`-s` are rejected when launched by systemd
 
 ## 10. Firewall
 
-Unlike the Protected Host, the Exposed Host **listens** and needs inbound rules:
+Unlike an outlet, the Relay **listens** and needs inbound rules:
 
 * the control / admin port (`-p`, e.g. 443),
-* every forward port you define in the admin UI (e.g. 8443).
+* every forward port you define in the admin UI (e.g. 8443) — except tunnels bound
+  to `127.0.0.1` and reached only through inlets.
 
 ```
 # firewalld
@@ -258,31 +276,33 @@ sudo ufw allow 443/tcp
 sudo ufw allow 8443/tcp
 ```
 
-Restrict the admin/control port with source filtering if only known Protected Hosts
-and admins should reach it.
+Restrict the admin/control port with source filtering if only known outlets, inlets
+and admins should reach it. A forward port can also be narrowed per tunnel with its
+allow-list in the admin UI, without a firewall rule.
 
 ---
 
 ## 11. Operation / maintenance
 
-| Task            | Command                                                           |
-| --------------- | ----------------------------------------------------------------- |
-| Stop            | `sudo ktunnel -stop`  or `sudo systemctl stop ktunnel`            |
-| Status          | `sudo ktunnel -status`  or `systemctl status ktunnel`             |
-| Logs            | `sudo journalctl -u ktunnel -f`                                   |
-| Rotate admin pw | `sudo ktunnel -set-admin [-admin-user <name>]`                    |
-| Add/rotate node | `sudo ktunnel -add-node -node-name <n> -pass-file <f>`            |
-| Fingerprint     | `sudo ktunnel -fingerprint`                                       |
-| Uninstall       | `sudo ktunnel -uninstall`  (leaves the DB in `/var/lib/ktunnel/`) |
-| Update          | stop → replace binary → start                                     |
+| Task              | Command                                                           |
+| ----------------- | ----------------------------------------------------------------- |
+| Stop              | `sudo ktunnel -stop`  or `sudo systemctl stop ktunnel`           |
+| Status            | `sudo ktunnel -status`  or `systemctl status ktunnel`             |
+| Logs              | `sudo journalctl -u ktunnel -f`                                   |
+| Rotate admin pw   | `sudo ktunnel -set-admin [-admin-user <name>]`                    |
+| Add/rotate outlet | `sudo ktunnel -add-outlet -outlet-name <n> -pass-file <f>`        |
+| Add/rotate inlet  | `sudo ktunnel -add-inlet -inlet-name <n> -pass-file <f>`          |
+| Fingerprint       | `sudo ktunnel -fingerprint`                                       |
+| Uninstall         | `sudo ktunnel -uninstall`  (leaves the DB in `/var/lib/ktunnel/`) |
+| Update            | stop → replace binary → start                                     |
 
 `-uninstall` removes the unit only; the DB and identity in `/var/lib/ktunnel/` are
-kept so a reinstall keeps the same admins, nodes, tunnels, and fingerprint. Back up
-`/var/lib/ktunnel/` to preserve both.
+kept so a reinstall keeps the same admins, outlets, inlets, tunnels, and fingerprint.
+Back up `/var/lib/ktunnel/` to preserve both.
 
 If you change the install-time arguments (`-p`, `-aes`, `-cert`, …), `-uninstall` and
 reinstall, or edit `ExecStart=` and run `systemctl daemon-reload` + restart. Runtime
-tunnel/node changes go through the admin UI, not the unit.
+tunnel/outlet/inlet changes go through the admin UI, not the unit.
 
 ---
 
@@ -296,6 +316,6 @@ tunnel/node changes go through the admin UI, not the unit.
   filtering and use a real TLS cert if admins reach it over the internet.
 * **Identity key** `/var/lib/ktunnel/ktunnel_ed25519.pem` is the server's long-term
   identity — back it up and guard it (mode 0600). Rotating it changes the fingerprint
-  and forces every Protected Host to update `-trust-fingerprint`.
+  and forces every outlet and inlet to update `-trust-fingerprint`.
 * **Audit log**: the `events` table records logins, handshake failures, and tunnel
   lifecycle — inspect it via the admin UI or directly with `sqlite3`.

@@ -2207,7 +2207,7 @@ void KTunnel::HandleMessage(Message&& FromTunnel)
 
 		case Message::Connect:
 		{
-			// open a new stream to endpoint, and data stream to exposed host
+			// open a new stream to endpoint, and data stream to the waiting peer
 			KTCPEndPoint TargetHost(FromTunnel.GetMessage());
 			kDebug(3, "got connect request: {} for channel {}", TargetHost, chan);
 

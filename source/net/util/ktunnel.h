@@ -119,7 +119,7 @@ public:
 	/// transmitted.
 	///
 	/// Arguments:
-	///   * sHostPort       "host:port" of the exposed peer (for use as a
+	///   * sHostPort       "host:port" of the waiting peer (for use as a
 	///                     known-hosts lookup key and for prompts).
 	///   * sRawPubKey      32 raw bytes of the server's Ed25519 public
 	///                     key (suitable for serialisation into a
@@ -163,7 +163,7 @@ public:
 		bool                   bAESPayload    { false };
 
 #if DEKAF2_HAS_ED25519
-		/// Server-side identity key (Ed25519). REQUIRED on the *exposed*
+		/// Server-side identity key (Ed25519). REQUIRED on the *waiting*
 		/// (waiting) side when bAESPayload is true: every v2 hello-ack
 		/// frame is signed with this key so the protected side can
 		/// authenticate the server against a known fingerprint and refuse
@@ -177,7 +177,7 @@ public:
 		/// (initiating) side when bAESPayload is true: invoked exactly once
 		/// per handshake to decide whether the presented server identity is
 		/// trusted. See TrustChecker for the contract. Ignored on the
-		/// exposed side.
+		/// waiting side.
 		TrustChecker                  TrustCallback;
 #endif
 

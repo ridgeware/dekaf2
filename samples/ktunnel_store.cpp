@@ -173,9 +173,9 @@ bool KTunnelStore::InitializeSchema ()
 		"  last_login_utc integer not null default 0"
 		")",
 
-		// Nodes: tunnel-endpoint accounts. A node is the credential the
-		// remote ktunnel instance presents during the v2 handshake (or
-		// the legacy Basic-auth login frame). Nodes have NO web UI
+		// Outlets (legacy table name `nodes`): the credential a remote
+		// ktunnel outlet presents during the v2 handshake (or the legacy
+		// Basic-auth login frame). Outlets have NO web UI
 		// access; the UI is admin-only. The `enabled` bit lets an admin
 		// temporarily lock out a remote endpoint without losing its
 		// configuration or its tunnel ownership.
@@ -188,10 +188,15 @@ bool KTunnelStore::InitializeSchema ()
 		"  last_login_utc integer not null default 0"
 		")",
 
-		// Clients: operator-side ktunnel identities that connect IN and ask
+		// Inlets: operator-side ktunnel identities that connect IN and ask
 		// for a forwarding channel to a named tunnel. Separate realm from
-		// `nodes` (protected hosts) and `admins` (web UI).
-		"create table if not exists clients ("
+		// outlets (legacy table `nodes`) and `admins` (web UI). Unlike the
+		// nodes table, this one could be renamed along with the role - it
+		// never shipped under its interim name `clients`; the best-effort
+		// rename below only serves databases created from pre-release
+		// builds of that short window.
+		"alter table clients rename to inlets",
+		"create table if not exists inlets ("
 		"  id             integer primary key autoincrement,"
 		"  name           text    not null unique,"
 		"  pw_hash        text    not null,"
@@ -202,8 +207,8 @@ bool KTunnelStore::InitializeSchema ()
 		")",
 
 		// Tunnels: one row per listener the admin configured. A tunnel
-		// is keyed by name (human-readable); the owning node decides
-		// whose ktunnel login is accepted for this listener.
+		// is keyed by name (human-readable); the owning outlet (legacy
+		// column name `node`) decides whose login is accepted for it.
 		//
 		// Note: historically there was a listen_host column here, but
 		// KTCPServer always binds to the wildcard address (0.0.0.0 +
@@ -228,13 +233,13 @@ bool KTunnelStore::InitializeSchema ()
 		"alter table tunnels add column allow_from   text not null default ''",
 
 		// Events: append-only audit log. No foreign keys — an admin or
-		// a node can be deleted but we want to keep its historical log
+		// an outlet can be deleted but we want to keep its historical log
 		// entries. Two actor columns:
 		//   * `admin` for events caused by an admin via the web UI
 		//     (admin_add, node_disable, config_change, ...)
-		//   * `node`  for events caused by tunnel-endpoint activity
-		//     (node_login_ok, node_login_fail, handshake_fail,
-		//      tunnel_disconnect, ...)
+		//   * `node`  for events caused by outlet activity (the column
+		//     and the event kinds keep their historical names:
+		//     node_login_ok, node_login_fail, handshake_fail, ...)
 		// A given event row populates at most one of these; the dual
 		// columns make audit queries unambiguous instead of overloading
 		// a single "username" string.
@@ -466,18 +471,18 @@ void KTunnelStore::SetAdminLastLogin (KStringView sUsername, KUnixTime tNow)
 
 } // SetAdminLastLogin
 
-// ============================= Nodes ====================================
+// ============================ Outlets ====================================
 //
-// Tunnel-endpoint identities. A node authenticates the ktunnel control
-// stream and owns one or more listener configurations in `tunnels`. Nodes
-// have NO web UI access; toggling `enabled` lets an admin lock out an
-// endpoint without losing its config.
+// Outlet identities (stored in the legacy `nodes` table). An outlet
+// authenticates the ktunnel control stream and owns one or more listener
+// configurations in `tunnels`. Outlets have NO web UI access; toggling
+// `enabled` lets an admin lock out an endpoint without losing its config.
 
 namespace {
 
-KTunnelStore::Node NodeFromRow (const KSQLite::Row& Row)
+KTunnelStore::Outlet OutletFromRow (const KSQLite::Row& Row)
 {
-	KTunnelStore::Node n;
+	KTunnelStore::Outlet n;
 	n.iID           = Row.Col(1).Int64();
 	n.sName         = Row.Col(2).String();
 	n.sPasswordHash = Row.Col(3).String();
@@ -487,13 +492,13 @@ KTunnelStore::Node NodeFromRow (const KSQLite::Row& Row)
 	return n;
 }
 
-constexpr KStringView s_sNodeCols =
+constexpr KStringView s_sOutletCols =
 	"id, name, pw_hash, enabled, created_utc, last_login_utc";
 
 } // anonymous
 
 //-----------------------------------------------------------------------------
-std::size_t KTunnelStore::CountNodes ()
+std::size_t KTunnelStore::CountOutlets ()
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -503,15 +508,15 @@ std::size_t KTunnelStore::CountNodes ()
 
 	return static_cast<std::size_t>(db.SingleIntQuery("select count(*) from nodes"));
 
-} // CountNodes
+} // CountOutlets
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::AddNode (const Node& node)
+bool KTunnelStore::AddOutlet (const Outlet& outlet)
 //-----------------------------------------------------------------------------
 {
-	if (node.sName.empty() || node.sPasswordHash.empty())
+	if (outlet.sName.empty() || outlet.sPasswordHash.empty())
 	{
-		SetError("AddNode: empty name or hash");
+		SetError("AddOutlet: empty name or hash");
 		return false;
 	}
 
@@ -523,24 +528,24 @@ bool KTunnelStore::AddNode (const Node& node)
 	auto Result = db.ExecSQL(
 		"insert into nodes (name, pw_hash, enabled, created_utc, last_login_utc) "
 		"values (?1, ?2, ?3, ?4, ?5)",
-		node.sName,
-		node.sPasswordHash,
-		static_cast<int64_t>(node.bEnabled ? 1 : 0),
-		static_cast<int64_t>((node.tCreated == KUnixTime{}) ? KUnixTime::now().to_time_t()
-		                                                    : node.tCreated.to_time_t()),
-		static_cast<int64_t>(node.tLastLogin.to_time_t()));
+		outlet.sName,
+		outlet.sPasswordHash,
+		static_cast<int64_t>(outlet.bEnabled ? 1 : 0),
+		static_cast<int64_t>((outlet.tCreated == KUnixTime{}) ? KUnixTime::now().to_time_t()
+		                                                    : outlet.tCreated.to_time_t()),
+		static_cast<int64_t>(outlet.tLastLogin.to_time_t()));
 
 	if (!Result)
 	{
-		SetError(kFormat("AddNode: insert failed: {}", Result.Error()));
+		SetError(kFormat("AddOutlet: insert failed: {}", Result.Error()));
 		return false;
 	}
 	return true;
 
-} // AddNode
+} // AddOutlet
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::UpdateNodePasswordHash (KStringView sName, KStringView sBcryptHash)
+bool KTunnelStore::UpdateOutletPasswordHash (KStringView sName, KStringView sBcryptHash)
 //-----------------------------------------------------------------------------
 {
 	if (sName.empty() || sBcryptHash.empty())
@@ -559,15 +564,15 @@ bool KTunnelStore::UpdateNodePasswordHash (KStringView sName, KStringView sBcryp
 
 	if (!Result)
 	{
-		SetError(kFormat("UpdateNodePasswordHash: {}", Result.Error()));
+		SetError(kFormat("UpdateOutletPasswordHash: {}", Result.Error()));
 		return false;
 	}
 	return true;
 
-} // UpdateNodePasswordHash
+} // UpdateOutletPasswordHash
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::SetNodeEnabled (KStringView sName, bool bEnabled)
+bool KTunnelStore::SetOutletEnabled (KStringView sName, bool bEnabled)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -580,15 +585,15 @@ bool KTunnelStore::SetNodeEnabled (KStringView sName, bool bEnabled)
 
 	if (!Result)
 	{
-		SetError(kFormat("SetNodeEnabled: {}", Result.Error()));
+		SetError(kFormat("SetOutletEnabled: {}", Result.Error()));
 		return false;
 	}
 	return true;
 
-} // SetNodeEnabled
+} // SetOutletEnabled
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::DeleteNode (KStringView sName)
+bool KTunnelStore::DeleteOutlet (KStringView sName)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -600,16 +605,16 @@ bool KTunnelStore::DeleteNode (KStringView sName)
 
 	if (!Result)
 	{
-		SetError(kFormat("DeleteNode: {}", Result.Error()));
+		SetError(kFormat("DeleteOutlet: {}", Result.Error()));
 		return false;
 	}
 	return true;
 
-} // DeleteNode
+} // DeleteOutlet
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTunnelStore::Node>
-KTunnelStore::GetNode (KStringView sName)
+std::unique_ptr<KTunnelStore::Outlet>
+KTunnelStore::GetOutlet (KStringView sName)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -617,44 +622,44 @@ KTunnelStore::GetNode (KStringView sName)
 	auto db = OpenRO();
 	if (!db.IsOpen()) return nullptr;
 
-	auto Query = db.ExecQuery(kFormat("select {} from nodes where name=?1", s_sNodeCols), sName);
+	auto Query = db.ExecQuery(kFormat("select {} from nodes where name=?1", s_sOutletCols), sName);
 
 	if (!Query.Next())
 	{
 		return nullptr;
 	}
 
-	return std::make_unique<Node>(NodeFromRow(Query.GetRow()));
+	return std::make_unique<Outlet>(OutletFromRow(Query.GetRow()));
 
-} // GetNode
+} // GetOutlet
 
 //-----------------------------------------------------------------------------
-std::vector<KTunnelStore::Node> KTunnelStore::GetAllNodes ()
+std::vector<KTunnelStore::Outlet> KTunnelStore::GetAllOutlets ()
 //-----------------------------------------------------------------------------
 {
-	std::vector<Node> out;
+	std::vector<Outlet> out;
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
 	auto db = OpenRO();
 	if (!db.IsOpen()) return out;
 
-	auto Query = db.ExecQuery(kFormat("select {} from nodes order by name asc", s_sNodeCols));
+	auto Query = db.ExecQuery(kFormat("select {} from nodes order by name asc", s_sOutletCols));
 
 	while (Query.Next())
 	{
-		out.push_back(NodeFromRow(Query.GetRow()));
+		out.push_back(OutletFromRow(Query.GetRow()));
 	}
 
 	return out;
 
-} // GetAllNodes
+} // GetAllOutlets
 
 //-----------------------------------------------------------------------------
-std::vector<KTunnelStore::Node> KTunnelStore::GetEnabledNodes ()
+std::vector<KTunnelStore::Outlet> KTunnelStore::GetEnabledOutlets ()
 //-----------------------------------------------------------------------------
 {
-	std::vector<Node> out;
+	std::vector<Outlet> out;
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
@@ -662,19 +667,19 @@ std::vector<KTunnelStore::Node> KTunnelStore::GetEnabledNodes ()
 	if (!db.IsOpen()) return out;
 
 	auto Query = db.ExecQuery(kFormat(
-		"select {} from nodes where enabled=1 order by name asc", s_sNodeCols));
+		"select {} from nodes where enabled=1 order by name asc", s_sOutletCols));
 
 	while (Query.Next())
 	{
-		out.push_back(NodeFromRow(Query.GetRow()));
+		out.push_back(OutletFromRow(Query.GetRow()));
 	}
 
 	return out;
 
-} // GetEnabledNodes
+} // GetEnabledOutlets
 
 //-----------------------------------------------------------------------------
-void KTunnelStore::SetNodeLastLogin (KStringView sName, KUnixTime tNow)
+void KTunnelStore::SetOutletLastLogin (KStringView sName, KUnixTime tNow)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -685,15 +690,15 @@ void KTunnelStore::SetNodeLastLogin (KStringView sName, KUnixTime tNow)
 	db.ExecSQL("update nodes set last_login_utc=?1 where name=?2",
 	           static_cast<int64_t>(tNow.to_time_t()), sName);
 
-} // SetNodeLastLogin
+} // SetOutletLastLogin
 
-// ============================ Clients ===================================
+// ============================ Inlets ====================================
 
 namespace {
 
-KTunnelStore::Client ClientFromRow (const KSQLite::Row& Row)
+KTunnelStore::Inlet InletFromRow (const KSQLite::Row& Row)
 {
-	KTunnelStore::Client c;
+	KTunnelStore::Inlet c;
 	c.iID           = Row.Col(1).Int64();
 	c.sName         = Row.Col(2).String();
 	c.sPasswordHash = Row.Col(3).String();
@@ -704,18 +709,18 @@ KTunnelStore::Client ClientFromRow (const KSQLite::Row& Row)
 	return c;
 }
 
-constexpr KStringView s_sClientCols =
+constexpr KStringView s_sInletCols =
 	"id, name, pw_hash, enabled, allow_tunnels, created_utc, last_login_utc";
 
 } // anonymous
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::AddClient (const Client& client)
+bool KTunnelStore::AddInlet (const Inlet& inlet)
 //-----------------------------------------------------------------------------
 {
-	if (client.sName.empty() || client.sPasswordHash.empty())
+	if (inlet.sName.empty() || inlet.sPasswordHash.empty())
 	{
-		SetError("AddClient: empty name or hash");
+		SetError("AddInlet: empty name or hash");
 		return false;
 	}
 
@@ -725,28 +730,28 @@ bool KTunnelStore::AddClient (const Client& client)
 	if (!db.IsOpen()) return false;
 
 	auto Result = db.ExecSQL(
-		"insert into clients (name, pw_hash, enabled, allow_tunnels, "
+		"insert into inlets (name, pw_hash, enabled, allow_tunnels, "
 		"                     created_utc, last_login_utc) "
 		"values (?1, ?2, ?3, ?4, ?5, ?6)",
-		client.sName,
-		client.sPasswordHash,
-		static_cast<int64_t>(client.bEnabled ? 1 : 0),
-		client.sAllowTunnels,
-		static_cast<int64_t>((client.tCreated == KUnixTime{}) ? KUnixTime::now().to_time_t()
-		                                                      : client.tCreated.to_time_t()),
-		static_cast<int64_t>(client.tLastLogin.to_time_t()));
+		inlet.sName,
+		inlet.sPasswordHash,
+		static_cast<int64_t>(inlet.bEnabled ? 1 : 0),
+		inlet.sAllowTunnels,
+		static_cast<int64_t>((inlet.tCreated == KUnixTime{}) ? KUnixTime::now().to_time_t()
+		                                                      : inlet.tCreated.to_time_t()),
+		static_cast<int64_t>(inlet.tLastLogin.to_time_t()));
 
 	if (!Result)
 	{
-		SetError(kFormat("AddClient: insert failed: {}", Result.Error()));
+		SetError(kFormat("AddInlet: insert failed: {}", Result.Error()));
 		return false;
 	}
 	return true;
 
-} // AddClient
+} // AddInlet
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::UpdateClientPasswordHash (KStringView sName, KStringView sBcryptHash)
+bool KTunnelStore::UpdateInletPasswordHash (KStringView sName, KStringView sBcryptHash)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -754,19 +759,19 @@ bool KTunnelStore::UpdateClientPasswordHash (KStringView sName, KStringView sBcr
 	auto db = OpenRW();
 	if (!db.IsOpen()) return false;
 
-	auto Result = db.ExecSQL("update clients set pw_hash=?1 where name=?2", sBcryptHash, sName);
+	auto Result = db.ExecSQL("update inlets set pw_hash=?1 where name=?2", sBcryptHash, sName);
 
 	if (!Result)
 	{
-		SetError(kFormat("UpdateClientPasswordHash: {}", Result.Error()));
+		SetError(kFormat("UpdateInletPasswordHash: {}", Result.Error()));
 		return false;
 	}
 	return true;
 
-} // UpdateClientPasswordHash
+} // UpdateInletPasswordHash
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::SetClientAllowTunnels (KStringView sName, KStringView sAllowTunnels)
+bool KTunnelStore::SetInletAllowTunnels (KStringView sName, KStringView sAllowTunnels)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -774,20 +779,20 @@ bool KTunnelStore::SetClientAllowTunnels (KStringView sName, KStringView sAllowT
 	auto db = OpenRW();
 	if (!db.IsOpen()) return false;
 
-	auto Result = db.ExecSQL("update clients set allow_tunnels=?1 where name=?2",
+	auto Result = db.ExecSQL("update inlets set allow_tunnels=?1 where name=?2",
 	                         sAllowTunnels, sName);
 
 	if (!Result)
 	{
-		SetError(kFormat("SetClientAllowTunnels: {}", Result.Error()));
+		SetError(kFormat("SetInletAllowTunnels: {}", Result.Error()));
 		return false;
 	}
 	return true;
 
-} // SetClientAllowTunnels
+} // SetInletAllowTunnels
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::SetClientEnabled (KStringView sName, bool bEnabled)
+bool KTunnelStore::SetInletEnabled (KStringView sName, bool bEnabled)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -795,20 +800,20 @@ bool KTunnelStore::SetClientEnabled (KStringView sName, bool bEnabled)
 	auto db = OpenRW();
 	if (!db.IsOpen()) return false;
 
-	auto Result = db.ExecSQL("update clients set enabled=?1 where name=?2",
+	auto Result = db.ExecSQL("update inlets set enabled=?1 where name=?2",
 	                         static_cast<int64_t>(bEnabled ? 1 : 0), sName);
 
 	if (!Result)
 	{
-		SetError(kFormat("SetClientEnabled: {}", Result.Error()));
+		SetError(kFormat("SetInletEnabled: {}", Result.Error()));
 		return false;
 	}
 	return true;
 
-} // SetClientEnabled
+} // SetInletEnabled
 
 //-----------------------------------------------------------------------------
-bool KTunnelStore::DeleteClient (KStringView sName)
+bool KTunnelStore::DeleteInlet (KStringView sName)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -816,20 +821,20 @@ bool KTunnelStore::DeleteClient (KStringView sName)
 	auto db = OpenRW();
 	if (!db.IsOpen()) return false;
 
-	auto Result = db.ExecSQL("delete from clients where name=?1", sName);
+	auto Result = db.ExecSQL("delete from inlets where name=?1", sName);
 
 	if (!Result)
 	{
-		SetError(kFormat("DeleteClient: {}", Result.Error()));
+		SetError(kFormat("DeleteInlet: {}", Result.Error()));
 		return false;
 	}
 	return true;
 
-} // DeleteClient
+} // DeleteInlet
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KTunnelStore::Client>
-KTunnelStore::GetClient (KStringView sName)
+std::unique_ptr<KTunnelStore::Inlet>
+KTunnelStore::GetInlet (KStringView sName)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -837,41 +842,41 @@ KTunnelStore::GetClient (KStringView sName)
 	auto db = OpenRO();
 	if (!db.IsOpen()) return nullptr;
 
-	auto Query = db.ExecQuery(kFormat("select {} from clients where name=?1", s_sClientCols), sName);
+	auto Query = db.ExecQuery(kFormat("select {} from inlets where name=?1", s_sInletCols), sName);
 
 	if (!Query.Next())
 	{
 		return nullptr;
 	}
 
-	return std::make_unique<Client>(ClientFromRow(Query.GetRow()));
+	return std::make_unique<Inlet>(InletFromRow(Query.GetRow()));
 
-} // GetClient
+} // GetInlet
 
 //-----------------------------------------------------------------------------
-std::vector<KTunnelStore::Client> KTunnelStore::GetAllClients ()
+std::vector<KTunnelStore::Inlet> KTunnelStore::GetAllInlets ()
 //-----------------------------------------------------------------------------
 {
-	std::vector<Client> out;
+	std::vector<Inlet> out;
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
 	auto db = OpenRO();
 	if (!db.IsOpen()) return out;
 
-	auto Query = db.ExecQuery(kFormat("select {} from clients order by name asc", s_sClientCols));
+	auto Query = db.ExecQuery(kFormat("select {} from inlets order by name asc", s_sInletCols));
 
 	while (Query.Next())
 	{
-		out.push_back(ClientFromRow(Query.GetRow()));
+		out.push_back(InletFromRow(Query.GetRow()));
 	}
 
 	return out;
 
-} // GetAllClients
+} // GetAllInlets
 
 //-----------------------------------------------------------------------------
-void KTunnelStore::SetClientLastLogin (KStringView sName, KUnixTime tNow)
+void KTunnelStore::SetInletLastLogin (KStringView sName, KUnixTime tNow)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -879,10 +884,10 @@ void KTunnelStore::SetClientLastLogin (KStringView sName, KUnixTime tNow)
 	auto db = OpenRW();
 	if (!db.IsOpen()) return;
 
-	db.ExecSQL("update clients set last_login_utc=?1 where name=?2",
+	db.ExecSQL("update inlets set last_login_utc=?1 where name=?2",
 	           static_cast<int64_t>(tNow.to_time_t()), sName);
 
-} // SetClientLastLogin
+} // SetInletLastLogin
 
 // ============================ Tunnels ===================================
 
@@ -893,7 +898,7 @@ KTunnelStore::Tunnel TunnelFromRow (const KSQLite::Row& Row)
 	KTunnelStore::Tunnel t;
 	t.iID          = Row.Col(1).Int64();
 	t.sName        = Row.Col(2).String();
-	t.sNode        = Row.Col(3).String();
+	t.sOutlet      = Row.Col(3).String();
 	t.iListenPort  = static_cast<uint16_t>(Row.Col(4).Int64());
 	t.sTargetHost  = Row.Col(5).String();
 	t.iTargetPort  = static_cast<uint16_t>(Row.Col(6).Int64());
@@ -947,7 +952,7 @@ bool KTunnelStore::AddTunnel (const Tunnel& t)
 		"                     created_utc, modified_utc) "
 		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
 		t.sName,
-		t.sNode,
+		t.sOutlet,
 		static_cast<int64_t>(t.iListenPort),
 		t.sTargetHost,
 		static_cast<int64_t>(t.iTargetPort),
@@ -988,7 +993,7 @@ bool KTunnelStore::UpdateTunnel (const Tunnel& t)
 		"  bind_address=?7, allow_from=?8, modified_utc=?9 "
 		"where name=?1",
 		t.sName,
-		t.sNode,
+		t.sOutlet,
 		static_cast<int64_t>(t.iListenPort),
 		t.sTargetHost,
 		static_cast<int64_t>(t.iTargetPort),
@@ -1120,8 +1125,9 @@ std::vector<KTunnelStore::Tunnel> KTunnelStore::GetEnabledTunnels ()
 //
 // Two-actor model: every event row carries at most one of (admin, node).
 // Admin actions (UI write paths) populate the admin column; tunnel
-// lifecycle / handshake events populate the node column. This keeps audit
-// queries unambiguous without overloading a single "who" string.
+// lifecycle / handshake events populate the node column (which carries
+// the outlet name - column and kinds keep their historical names). This
+// keeps audit queries unambiguous without overloading a single "who".
 
 namespace {
 
@@ -1135,7 +1141,7 @@ KTunnelStore::Event EventFromRow (const KSQLite::Row& Row)
 	e.tTimestamp  = KUnixTime::from_time_t(Row.Col(2).Int64());
 	e.sKind       = Row.Col(3).String();
 	e.sAdmin      = Row.Col(4).String();
-	e.sNode       = Row.Col(5).String();
+	e.sOutlet     = Row.Col(5).String();
 	e.sTunnelName = Row.Col(6).String();
 	e.sRemoteIP   = Row.Col(7).String();
 	e.sDetail     = Row.Col(8).String();
@@ -1161,7 +1167,7 @@ void KTunnelStore::LogEvent (const Event& ev)
 		static_cast<int64_t>(tTs.to_time_t()),
 		ev.sKind,
 		ev.sAdmin,
-		ev.sNode,
+		ev.sOutlet,
 		ev.sTunnelName,
 		ev.sRemoteIP,
 		ev.sDetail);

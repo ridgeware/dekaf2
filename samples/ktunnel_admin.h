@@ -72,12 +72,12 @@ public:
 //----------
 
 	/// Construct the AdminUI.
-	/// @param Server the owning ExposedServer. Must outlive this instance.
+	/// @param Server the owning RelayServer. Must outlive this instance.
 	///               Used for access to the persistent store (admins,
 	///               nodes, tunnels, events), the shared bcrypt
 	///               verifier, and the live active-tunnel map for
 	///               dashboard stats.
-	explicit AdminUI (ExposedServer& Server);
+	explicit AdminUI (RelayServer& Server);
 
 	~AdminUI();
 
@@ -143,53 +143,53 @@ private:
 	void HandleAdminsChangePass (KRESTServer& HTTP);
 
 	/// GET /Configure/nodes — list nodes + Add/Toggle/Reset-password.
-	void ShowNodes              (KRESTServer& HTTP);
+	void ShowOutlets              (KRESTServer& HTTP);
 
 	/// POST /Configure/nodes/add — add a new node. Requires `name`,
 	/// `password` and optional `enabled` in the form body.
-	void HandleNodesAdd         (KRESTServer& HTTP);
+	void HandleOutletsAdd         (KRESTServer& HTTP);
 
 	/// POST /Configure/nodes/toggle — flip the `enabled` flag of a
 	/// node. Form body: `name`, `enable` ("1" enables, anything else
 	/// disables).
-	void HandleNodesToggle      (KRESTServer& HTTP);
+	void HandleOutletsToggle      (KRESTServer& HTTP);
 
 	/// POST /Configure/nodes/delete — delete a node by `name`. Tunnels
 	/// referencing it stay in the DB with a now-dangling owner reference;
 	/// ReconcileListeners surfaces them as `OwnerOffline`.
-	void HandleNodesDelete      (KRESTServer& HTTP);
+	void HandleOutletsDelete      (KRESTServer& HTTP);
 
 	/// POST /Configure/nodes/resetpass — set a new password for a node.
 	/// Form body: `name`, `new_password`, `confirm_password`.
-	void HandleNodesResetPass   (KRESTServer& HTTP);
+	void HandleOutletsResetPass   (KRESTServer& HTTP);
 
 	/// GET /Configure/nodes/install?node=<n> — render a ready-to-run
 	/// setup script (and an SSH one-liner) that installs ktunnel as the
 	/// protected host for this node. The node password is inserted
 	/// client-side only and never travels back to the server.
-	void ShowNodeInstall        (KRESTServer& HTTP);
+	void ShowOutletInstall        (KRESTServer& HTTP);
 
 	/// GET /Configure/clients — list client identities + Add form.
 	/// Clients are the third realm: operator-side ktunnels that connect in
 	/// with `-client` and ask for a channel to a named tunnel.
-	void ShowClients            (KRESTServer& HTTP);
+	void ShowInlets            (KRESTServer& HTTP);
 
 	/// POST /Configure/clients/add — create a client identity.
 	/// Form body: `name`, `password`, optional `allow_tunnels`, optional
 	/// `enabled` checkbox.
-	void HandleClientsAdd       (KRESTServer& HTTP);
+	void HandleInletsAdd       (KRESTServer& HTTP);
 
 	/// POST /Configure/clients/toggle — flip the enabled bit.
-	void HandleClientsToggle    (KRESTServer& HTTP);
+	void HandleInletsToggle    (KRESTServer& HTTP);
 
 	/// POST /Configure/clients/delete — delete a client identity.
-	void HandleClientsDelete    (KRESTServer& HTTP);
+	void HandleInletsDelete    (KRESTServer& HTTP);
 
 	/// POST /Configure/clients/resetpass — set a new client password.
-	void HandleClientsResetPass (KRESTServer& HTTP);
+	void HandleInletsResetPass (KRESTServer& HTTP);
 
 	/// POST /Configure/clients/tunnels — replace a client's allow list.
-	void HandleClientsTunnels   (KRESTServer& HTTP);
+	void HandleInletsTunnels   (KRESTServer& HTTP);
 
 	/// GET /Configure/tunnels — list configured tunnels + Add form.
 	/// Supports `?notice=…` / `?error=…` flash banners.
@@ -272,12 +272,12 @@ private:
 	/// GET /Configure/nodes/repl?node=<node> — minimal HTML+JS page
 	/// that opens a WebSocket to /Configure/nodes/repl/ws and renders
 	/// the duplex text stream in a <pre>.
-	void ShowNodeRepl         (KRESTServer& HTTP);
+	void ShowOutletRepl         (KRESTServer& HTTP);
 
 	/// GET /Configure/nodes/repl/ws?node=<node> — WebSocket endpoint
 	/// that proxies frames between the browser and a freshly opened
 	/// REPL channel on the named node's active KTunnel.
-	void HandleNodeReplWs     (KRESTServer& HTTP);
+	void HandleOutletReplWs     (KRESTServer& HTTP);
 
 	/// GET /Configure/nodes/repl/ws?node=<node> — same URL but matched
 	/// for plain (non-upgrade) HTTPS navigations. Renders a tiny 200-OK
@@ -285,7 +285,7 @@ private:
 	/// exception for this exact URL (WebKit tracks cert exceptions
 	/// per URL for WSS, independently of the HTTPS page that loaded
 	/// the REPL).
-	void HandleNodeReplCert   (KRESTServer& HTTP);
+	void HandleOutletReplCert   (KRESTServer& HTTP);
 
 	/// Render the common top-bar (brand + nav) into the body of @p Page
 	/// and mark the nav entry identified by @p sActive as the active one
@@ -303,8 +303,8 @@ private:
 	                        KStringView sNotice,
 	                        KStringView sError) const;
 
-	ExposedServer&               m_Server;      ///< non-owning back-ref
-	const ExposedServer::Config& m_Config;      ///< == m_Server.config
+	RelayServer&               m_Server;      ///< non-owning back-ref
+	const RelayServer::Config& m_Config;      ///< == m_Server.config
 	std::unique_ptr<KSession>    m_Session;
 
 }; // AdminUI

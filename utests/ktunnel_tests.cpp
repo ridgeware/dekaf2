@@ -69,11 +69,11 @@ TEST_CASE("KTunnel")
 	}
 }
 
-TEST_CASE("KTunnel client relay")
+TEST_CASE("KTunnel inlet relay")
 {
 	SECTION("a tunnel name round-trips through KTCPEndPoint")
 	{
-		// the client encodes the tunnel name in the Connect frame's
+		// the inlet encodes the tunnel name in the Connect frame's
 		// endpoint - the relay reads it back from the domain part
 		KTCPEndPoint Named("sqlserver", 0);
 		KTCPEndPoint Parsed(Named.Serialize());
@@ -83,7 +83,7 @@ TEST_CASE("KTunnel client relay")
 
 	SECTION("Connection duplex is what the relay bridges with")
 	{
-		// the relay pumps ClientChannel <-> NodeChannel purely through
+		// the relay pumps InletChannel <-> OutletChannel purely through
 		// ReadData()/WriteData(), so verify that pairing in isolation
 		std::vector<KTunnel::Message> Sent;
 

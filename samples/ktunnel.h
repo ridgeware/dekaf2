@@ -82,7 +82,7 @@ class ExtendedConfig : public KTunnel::Config
 public:
 //----------
 
-	/// Operating mode of the exposed host. Selected by Tunnel::Main()
+	/// Operating mode of the relay. Selected by Tunnel::Main()
 	/// based on the CLI arguments and on whether the process was
 	/// launched by a service manager.
 	///
@@ -122,17 +122,18 @@ public:
 	/// operator supplied an explicit `-db <path>` override. Left empty
 	/// when running in AdHoc mode (no DB is opened at all).
 	KString                sDatabasePath;
-	/// Node name sent by the *protected* host when logging in to the
-	/// exposed host. Must match a row in the exposed host's `nodes`
-	/// table (its password is the bcrypt-hashed value managed by an
-	/// admin via `ktunnel -add-node` or the admin UI). Ignored on the
-	/// exposed host. Set via `-n <name>` on the CLI; defaults to "node",
+	/// Identity name sent by a connecting *outlet* or *inlet* when
+	/// logging in at the relay. Must match a row in the relay's outlet
+	/// store (legacy `nodes` table) resp. inlet store (`clients` table);
+	/// the password is the bcrypt-hashed value managed by an admin via
+	/// `ktunnel -add-outlet` / `-add-inlet` or the admin UI. Ignored on
+	/// the relay. Set via `-n <name>` on the CLI; defaults to "outlet",
 	/// a placeholder that must usually be overridden — the bootstrap
-	/// flows seed admin accounts (`-set-admin`), not node accounts.
-	KString                sPeerNode      { "node" };
+	/// flows seed admin accounts (`-set-admin`), not outlet accounts.
+	KString                sPeerName      { "outlet" };
 
 	/// Protected-side trust configuration for the v2 AES handshake.
-	/// All four are unused on the exposed side.
+	/// All four are unused on the relay side.
 	///
 	/// `sTrustFingerprint` (CLI: `-trust-fingerprint <hex>`):
 	///   one-shot trust override. If non-empty and matches the server's
@@ -155,25 +156,25 @@ public:
 	bool                   bTrustOnFirstUse { false };
 	KString                sKnownServersPath;
 
-	/// Operating mode of the exposed host (see Mode). Populated by
-	/// Tunnel::Main() before ExposedServer is constructed. On the
-	/// protected host side this field is unused.
+	/// Operating mode of the relay (see Mode). Populated by
+	/// Tunnel::Main() before RelayServer is constructed. On the
+	/// outlet side this field is unused.
 	Mode                   eMode          { Mode::Stateful };
 	bool                   bNoTLS         { false };
 	bool                   bQuiet         { false };
 
-	/// Client role (`-client`): the client identity to log in with at the
-	/// exposed host's /Client endpoint (a row in its `clients` table), and
-	/// the local forwards to serve. sPeerNode / sSecret carry the
-	/// credentials, exactly as for a protected host.
-	bool                   bClientRole    { false };
+	/// Inlet role (selected by -L): offers local ports that are forwarded
+	/// to named tunnels on the relay, over the relay's /Inlet endpoint.
+	/// sPeerName / sSecret carry the credentials - an inlet identity from
+	/// the relay's `clients` table, not an outlet account.
+	bool                   bInletRole     { false };
 
 	/// one entry per `-L [<bindaddr>:]<localport>:<tunnelname>`
 	struct LocalForward
 	{
 		KString  sBindAddress;   ///< empty = 127.0.0.1
 		uint16_t iLocalPort { 0 };
-		KString  sTunnel;        ///< tunnel name on the exposed host
+		KString  sTunnel;        ///< tunnel name on the relay
 	};
 	std::vector<LocalForward> LocalForwards;
 
@@ -282,7 +283,7 @@ private:
 }; // LogRing
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class ExposedServer
+class RelayServer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -318,8 +319,8 @@ public:
 		bool     bACMENoVerify { false };
 	};
 
-	ExposedServer (const Config& config);
-	~ExposedServer ();
+	RelayServer (const Config& config);
+	~RelayServer ();
 
 	/// Request a graceful shutdown of every currently-open control
 	/// stream so their KTunnel::Run() unblocks promptly. Thread-safe
@@ -350,7 +351,7 @@ public:
 	/// synthetic "cli" listener that represents the legacy
 	/// `-f <port> -t <target>` CLI configuration.
 	/// Returns how the forwarded connection ended - a non-empty
-	/// sDisconnectReason carries the error the node reported (e.g.
+	/// sDisconnectReason carries the error the outlet reported (e.g.
 	/// "cannot connect to target").
 	KTunnel::ConnectResult ForwardStreamForOwner (KIOStreamSocket& Downstream,
 	                                              const KTCPEndPoint& Endpoint,
@@ -360,7 +361,7 @@ public:
 	/// @li `Stopped` — configured as disabled, or not in the registry
 	/// @li `Listening` — registry entry is up and the TCP acceptor runs
 	/// @li `PortError` — tried to bind but the OS refused (port in use)
-	/// @li `OwnerOffline` — listener is up but the owner node has no
+	/// @li `OwnerOffline` — listener is up but the owning outlet has no
 	///     active tunnel; new connections get rejected at accept time
 	enum class ListenerState : std::uint8_t { Stopped, Listening, PortError, OwnerOffline };
 
@@ -394,7 +395,7 @@ public:
 	/// snapshot's lifetime even if the peer disconnects in between.
 	struct ActiveTunnel
 	{
-		KString                  sNode;        ///< login node on the tunnel
+		KString                  sOutlet;      ///< outlet name logged in on the tunnel
 		KTCPEndPoint             EndpointAddr; ///< remote address of the peer
 		KUnixTime                tConnected;   ///< wall-clock time of login
 		std::shared_ptr<KTunnel> Tunnel;       ///< non-null
@@ -404,17 +405,17 @@ public:
 	/// server. Returns an empty vector if nobody is connected.
 	std::vector<ActiveTunnel> SnapshotActiveTunnels () const;
 
-	/// Returns the (one) currently-active tunnel for a given node, or a
-	/// null shared_ptr if that node is not connected.
-	std::shared_ptr<KTunnel>  GetTunnelForNode       (KStringView sNode) const;
+	/// Returns the (one) currently-active tunnel for a given outlet, or a
+	/// null shared_ptr if that outlet is not connected.
+	std::shared_ptr<KTunnel>  GetTunnelForOutlet     (KStringView sOutlet) const;
 
 	/// Snapshot of one multiplexed connection currently carried over a
 	/// tunnel, used by the admin UI.
 	struct ActiveConnection
 	{
-		KString     sNode;      ///< owning node
+		KString     sOutlet;    ///< owning outlet
 		std::size_t iChannel  { 0 };
-		KString     sTarget;    ///< endpoint the node forwards to
+		KString     sTarget;    ///< endpoint the outlet forwards to
 		KString     sPeer;      ///< downstream peer address on this server
 		KUnixTime   tStart;     ///< when the connection was opened
 		uint64_t    iBytesToTarget   { 0 };
@@ -425,39 +426,39 @@ public:
 	/// currently-connected tunnels, for the admin UI.
 	std::vector<ActiveConnection> SnapshotConnections () const;
 
-	/// Snapshot of one currently-connected client (an operator-side
-	/// ktunnel started with -client), used by the admin UI.
-	struct ActiveClient
+	/// Snapshot of one currently-connected inlet (an operator-side
+	/// ktunnel with -L forwards), used by the admin UI.
+	struct ActiveInlet
 	{
-		KString                  sName;        ///< client identity
+		KString                  sName;        ///< inlet identity
 		KTCPEndPoint             EndpointAddr; ///< where it connected from
 		KUnixTime                tConnected;
 		std::shared_ptr<KTunnel> Tunnel;       ///< non-null
 	};
 
-	/// Thread-safe snapshot of the clients currently logged in. Unlike
-	/// nodes, several connections may share one client identity - each
+	/// Thread-safe snapshot of the inlets currently logged in. Unlike
+	/// outlets, several connections may share one inlet identity - each
 	/// gets its own entry.
-	std::vector<ActiveClient> SnapshotActiveClients () const;
+	std::vector<ActiveInlet> SnapshotActiveInlets () const;
 
 	/// Log a failed forward attempt as a "conn_fail" event. Called by
-	/// TunnelListener::Session with the error the node reported.
+	/// TunnelListener::Session with the error the outlet reported.
 	void LogConnFailure (KStringView sTunnelName,
 	                     KStringView sOwner,
 	                     const KTCPEndPoint& Target,
 	                     KStringView sRemoteIP,
 	                     KStringView sReason);
 
-	/// Serve one incoming *client* control stream (the /Client endpoint):
-	/// authenticates against the `clients` table and then relays every
-	/// forwarding channel the client opens into the tunnel of the node
+	/// Serve one incoming *inlet* control stream (the /Inlet endpoint):
+	/// authenticates against the inlet store and then relays every
+	/// forwarding channel the inlet opens into the tunnel of the outlet
 	/// that owns the requested tunnel row. Runs on the websocket thread
-	/// and returns when the client disconnects.
-	void ClientStream (std::unique_ptr<KIOStreamSocket> Stream);
+	/// and returns when the inlet disconnects.
+	void InletStream (std::unique_ptr<KIOStreamSocket> Stream);
 
-	/// Verify a client login against the `clients` table. Logs
-	/// "client_login_ok" / "client_login_fail" events.
-	bool VerifyClientLogin (KStringView sClient, KStringView sSecret,
+	/// Verify an inlet login against the `inlets` table. Logs
+	/// "inlet_login_ok" / "inlet_login_fail" events.
+	bool VerifyInletLogin (KStringView sInlet, KStringView sSecret,
 	                        const KTCPEndPoint& RemoteAddr);
 
 	/// Log a connection rejected by a listener's allow list as a
@@ -488,7 +489,7 @@ public:
 	TunnelSettings GetTunnelSettings () const { return *m_Tunables.shared(); }
 
 	/// SHA-256 fingerprint of the Ed25519 server identity used by the v2
-	/// AES handshake - the value protected hosts pin with
+	/// AES handshake - the value outlets and inlets pin with
 	/// -trust-fingerprint. Empty when AES mode is off.
 	KString GetServerFingerprint () const;
 
@@ -551,17 +552,17 @@ protected:
 private:
 //----------
 
-	/// Verify a tunnel-login (node, secret) pair against the persistent
+	/// Verify a tunnel-login (outlet, secret) pair against the persistent
 	/// store. Called from the KTunnel::Config::AuthCallback installed
 	/// per ControlStream(). Logs a node_login_ok / node_login_fail event
 	/// as a side effect.
-	bool                      VerifyNodeLogin        (KStringView sNode, KStringView sSecret,
+	bool                      VerifyOutletLogin      (KStringView sOutlet, KStringView sSecret,
 	                                                  const KTCPEndPoint& RemoteAddr);
 
-	void                      RegisterActiveTunnel   (KStringView sNode,
+	void                      RegisterActiveTunnel   (KStringView sOutlet,
 	                                                  const KTCPEndPoint& RemoteAddr,
 	                                                  std::shared_ptr<KTunnel> Tunnel);
-	void                      UnregisterActiveTunnel (KStringView sNode,
+	void                      UnregisterActiveTunnel (KStringView sOutlet,
 	                                                  const std::shared_ptr<KTunnel>& Tunnel);
 
 	/// "First-come-first-served" pick used by ForwardStreamForOwner
@@ -570,8 +571,8 @@ private:
 	/// tunnel is currently connected.
 	std::shared_ptr<KTunnel>  PickDefaultTunnel      () const;
 
-	/// node-name -> active tunnel. We accept only one tunnel per node for
-	/// now; a second login from the same node replaces the first (and the
+	/// outlet-name -> active tunnel. We accept only one tunnel per outlet
+	/// for now; a second login from the same outlet replaces the first (and the
 	/// previous tunnel is Stop()ed so it drops its resources).
 	/// KThreadSafe couples the map with a shared_mutex: readers
 	/// (SnapshotActiveTunnels, GetTunnelForNode, PickDefaultTunnel,
@@ -588,10 +589,10 @@ private:
 	/// the tunnel's poll() and lets the KREST worker thread drain.
 	///
 	/// Why not m_ActiveTunnels: that map only holds *authenticated*
-	/// peers keyed by node-name, so a peer stuck in the login exchange
+	/// peers keyed by outlet-name, so a peer stuck in the login exchange
 	/// would be invisible to it. Using a weak_ptr registry here covers
 	/// both the pre- and post-auth windows without changing the
-	/// semantics of the by-node lookup map.
+	/// semantics of the by-outlet lookup map.
 	KThreadSafe<std::vector<std::weak_ptr<KTunnel>>>  m_ControlTunnels;
 
 	/// Snapshot key for the listener registry: the per-row fields that
@@ -603,7 +604,7 @@ private:
 		uint16_t iListenPort  { 0 };
 		KString  sTargetHost;
 		uint16_t iTargetPort  { 0 };
-		KString  sOwnerNode;
+		KString  sOwnerOutlet;
 		/// interface to bind to, empty = wildcard. Part of the key: a
 		/// change needs a rebind, i.e. a listener restart
 		KString  sBindAddress;
@@ -612,7 +613,7 @@ private:
 			return iListenPort  == o.iListenPort
 			    && iTargetPort  == o.iTargetPort
 			    && sTargetHost  == o.sTargetHost
-			    && sOwnerNode   == o.sOwnerNode
+			    && sOwnerOutlet == o.sOwnerOutlet
 			    && sBindAddress == o.sBindAddress;
 		}
 	};
@@ -651,18 +652,18 @@ private:
 	std::unique_ptr<AdminUI>          m_AdminUI;
 	const Config&                     m_Config;
 
-	/// Clients currently logged in at the /Client endpoint, keyed by the
-	/// tunnel instance (one client identity may hold several connections).
+	/// Inlets currently logged in at the /Inlet endpoint, keyed by the
+	/// tunnel instance (one inlet identity may hold several connections).
 	/// Registered by ClientStream on successful login, removed when its
 	/// stream ends.
-	struct ActiveClientEntry
+	struct ActiveInletEntry
 	{
 		KString                sName;
 		KTCPEndPoint           EndpointAddr;
 		KUnixTime              tConnected;
 		std::weak_ptr<KTunnel> Tunnel;
 	};
-	KThreadSafe<KUnorderedMap<const KTunnel*, ActiveClientEntry>> m_ActiveClients;
+	KThreadSafe<KUnorderedMap<const KTunnel*, ActiveInletEntry>> m_ActiveInlets;
 
 	/// runtime-tunable settings - seeded from m_Config, overridden by
 	/// persisted values from the settings table, changed at runtime by
@@ -703,7 +704,7 @@ private:
 	/// ReconcileListeners and the destructor take a unique lock.
 	KThreadSafe<KUnorderedMap<KString, ListenerEntry>> m_Listeners;
 
-}; // ExposedServer
+}; // RelayServer
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -726,13 +727,13 @@ public:
 //----------
 
 	template<typename... Args>
-	TunnelListener (ExposedServer*      Exposed,
+	TunnelListener (RelayServer*        Relay,
 	                KString             sName,
 	                KString             sOwner,
 	                const KTCPEndPoint& Target,
 	                Args&&...           args)
 	: KTCPServer (std::forward<Args>(args)...)
-	, m_ExposedServer (*Exposed)
+	, m_RelayServer   (*Relay)
 	, m_sName         (std::move(sName))
 	, m_sOwner        (std::move(sOwner))
 	, m_Target        (Target)
@@ -755,7 +756,7 @@ public:
 
 	/// connections successfully forwarded through this listener
 	uint64_t       GetForwardedCount () const { return m_iForwarded; }
-	/// connections that failed to forward (no tunnel, node-side error,
+	/// connections that failed to forward (no tunnel, outlet-side error,
 	/// or the target closed without sending any data)
 	uint64_t       GetFailedCount    () const { return m_iFailed;    }
 	/// the most recent forward error with its timestamp - the string is
@@ -779,7 +780,7 @@ private:
 	/// true if the peer may connect to this listener (whitelist check)
 	bool IsAllowed (const KIPAddress& Peer) const;
 
-	ExposedServer& m_ExposedServer;
+	RelayServer& m_RelayServer;
 	KString        m_sName;
 	KString        m_sOwner;
 	KTCPEndPoint   m_Target;
@@ -796,7 +797,7 @@ private:
 }; // TunnelListener
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-class ProtectedHost
+class OutletHost
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -804,7 +805,7 @@ class ProtectedHost
 public:
 //----------
 
-	ProtectedHost (const ExtendedConfig& Config);
+	OutletHost (const ExtendedConfig& Config);
 
 	/// Run the reconnect loop (blocking). Returns cleanly when Shutdown() is
 	/// called from a signal handler or service-control handler.
@@ -821,7 +822,7 @@ private:
 //----------
 
 	/// REPL handler wired into KTunnel::Config::OpenReplCallback when
-	/// this peer connects to the exposed host. Runs on a tunnel worker
+	/// this peer connects to the relay. Runs on a tunnel worker
 	/// thread; the handed-in Connection is this peer's side of a
 	/// duplex text channel. Returns (and the tunnel closes the channel)
 	/// when the remote end disconnects or the user types 'exit'.
@@ -840,19 +841,19 @@ private:
 	std::condition_variable         m_CV;
 	KTunnel*                        m_pCurrentTunnel   { nullptr };
 
-}; // ProtectedHost
+}; // OutletHost
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// The operator-side role (`-client`): connects OUT to the exposed host's
-/// /Client endpoint, authenticates with a client identity, and offers local
-/// ports that are forwarded to *named tunnels* on the exposed host - the
-/// `ssh -L` equivalent inside ktunnel.
+/// The inlet role (selected by giving -L forwards): connects OUT to the
+/// relay's /Inlet endpoint, authenticates with an inlet identity, and
+/// offers local ports that are forwarded to *named tunnels* on the relay -
+/// the `ssh -L` equivalent inside ktunnel.
 ///
-/// The point of this role is that the exposed host then needs no publicly
+/// The point of this role is that the relay then needs no publicly
 /// reachable forward port at all: the tunnel it serves is reached over the
 /// already authenticated (and, with -aes, encrypted and fingerprint-pinned)
 /// control connection.
-class ClientHost
+class InletHost
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -862,8 +863,8 @@ public:
 
 	using Forward = ExtendedConfig::LocalForward;
 
-	ClientHost (const ExtendedConfig& Config);
-	~ClientHost ();
+	InletHost (const ExtendedConfig& Config);
+	~InletHost ();
 
 	/// connect, authenticate and serve the local ports until Shutdown()
 	void Run      ();
@@ -888,7 +889,7 @@ private:
 	std::mutex                         m_Mutex;
 	std::condition_variable            m_CV;
 
-}; // ClientHost
+}; // InletHost
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Tunnel : public KErrorBase
@@ -901,8 +902,8 @@ public:
 
 	int  Main               (int argc, char** argv);
 
-	/// is this the exposed host?
-	bool IsExposed          () const
+	/// is this the relay?
+	bool IsRelay          () const
 	{
 		return m_Config.ExposedHost.empty();
 	}
@@ -911,6 +912,6 @@ public:
 private:
 //----------
 
-	ExposedServer::Config m_Config;
+	RelayServer::Config m_Config;
 
 }; // KTunnel

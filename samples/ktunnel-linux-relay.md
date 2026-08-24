@@ -110,8 +110,8 @@ What the install does:
 
 * **Config DB**: `/var/lib/ktunnel/ktunnel.db` (mode 0700, created for root). Holds
   the admin, outlet and inlet accounts, the tunnel definitions, and an `events`
-  audit log. (For backward compatibility the tables are still named `nodes` and
-  `clients` on disk.)
+  audit log. (For backward compatibility the outlet table is still named `nodes`
+  on disk, and outlet event kinds are still `node_*`.)
 * **Server identity**: `/var/lib/ktunnel/ktunnel_ed25519.pem` — the long-term
   Ed25519 key the server signs the `-aes` v2 handshake with. Created here so the
   fingerprint is available before first start.

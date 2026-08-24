@@ -1172,6 +1172,27 @@ void RelayServer::InletStream (std::unique_ptr<KIOStreamSocket> Stream)
 	DEKAF2_CATCH (const std::exception& ex)
 	{
 		kDebug(1, "[inlet]: {}", ex.what());
+
+		// Mirror what ControlStream does for outlets: persist the
+		// v2-handshake reason so the operator sees WHY an inlet could not
+		// get in - without this, a mismatched -aes setting looks like
+		// complete silence on the admin UI. A rejected login is already
+		// logged from VerifyInletLogin as inlet_login_fail and needs no
+		// duplicate here.
+		if (m_Store)
+		{
+			KStringView sWhat = ex.what();
+
+			if (sWhat.starts_with("v2 handshake:"))
+			{
+				KTunnelStore::Event ev;
+				ev.sKind     = "inlet_handshake_fail";
+				ev.sAdmin    = *sInletName->shared();   // empty if never authenticated
+				ev.sRemoteIP = EndpointAddress.Serialize();
+				ev.sDetail   = sWhat;
+				m_Store->LogEvent(ev);
+			}
+		}
 	}
 
 	kDebug(1, "[inlet]: closed inlet stream from {}", EndpointAddress);

@@ -370,6 +370,7 @@ KStringView PillForEventKind (KStringView sKind)
 	 || sKind == "conn_fail"
 	 || sKind == "conn_reject"
 	 || sKind == "inlet_login_fail"
+	 || sKind == "inlet_handshake_fail"
 	 || sKind == "inlet_reject"
 	 || sKind == "auth_reject")       return "fail";
 	if (sKind == "tunnel_disconnect"

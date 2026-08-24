@@ -42,6 +42,7 @@
 #pragma once
 
 #include <dekaf2/net/util/ktunnel.h>
+#include <dekaf2/net/address/kipnetwork.h>
 #include <dekaf2/util/cli/koptions.h>
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/system/os/ksystem.h>
@@ -356,6 +357,7 @@ public:
 		KString       sError;        ///< populated for PortError
 		uint64_t      iForwarded     { 0 }; ///< connections successfully forwarded
 		uint64_t      iFailed        { 0 }; ///< connections that failed to forward
+		uint64_t      iRejected      { 0 }; ///< connections refused by the allow list
 		KString       sLastConnError;       ///< most recent forward error, empty if none
 		KUnixTime     tLastConnError;       ///< when sLastConnError happened
 	};
@@ -413,6 +415,13 @@ public:
 	void LogConnFailure (KStringView sTunnelName,
 	                     KStringView sOwner,
 	                     const KTCPEndPoint& Target,
+	                     KStringView sRemoteIP,
+	                     KStringView sReason);
+
+	/// Log a connection rejected by a listener's allow list as a
+	/// "conn_reject" event.
+	void LogConnReject  (KStringView sTunnelName,
+	                     KStringView sOwner,
 	                     KStringView sRemoteIP,
 	                     KStringView sReason);
 
@@ -553,12 +562,16 @@ private:
 		KString  sTargetHost;
 		uint16_t iTargetPort  { 0 };
 		KString  sOwnerNode;
+		/// interface to bind to, empty = wildcard. Part of the key: a
+		/// change needs a rebind, i.e. a listener restart
+		KString  sBindAddress;
 		bool operator== (const ListenerKey& o) const noexcept
 		{
-			return iListenPort == o.iListenPort
-			    && iTargetPort == o.iTargetPort
-			    && sTargetHost == o.sTargetHost
-			    && sOwnerNode  == o.sOwnerNode;
+			return iListenPort  == o.iListenPort
+			    && iTargetPort  == o.iTargetPort
+			    && sTargetHost  == o.sTargetHost
+			    && sOwnerNode   == o.sOwnerNode
+			    && sBindAddress == o.sBindAddress;
 		}
 	};
 
@@ -576,8 +589,12 @@ private:
 	/// a CLI-driven synthetic row into a single source of truth.
 	struct DesiredTunnel
 	{
-		KString     sName;   ///< unique tunnel name (e.g. "cli")
-		ListenerKey Key;     ///< listen port + target + owner
+		KString     sName;     ///< unique tunnel name (e.g. "cli")
+		ListenerKey Key;       ///< listen port + target + owner + bind address
+		/// comma separated IPs / CIDRs allowed to connect, empty = any.
+		/// Not part of the key - it is applied to a running listener
+		/// without restarting it, so live connections survive an edit
+		KString     sAllowFrom;
 	};
 
 	/// Build the list of tunnels that should currently be listening.
@@ -670,6 +687,17 @@ public:
 	KStringView    GetName   () const { return m_sName; }
 	KStringView    GetOwner  () const { return m_sOwner; }
 
+	/// Replace the set of source networks allowed to connect. Empty list
+	/// means no restriction. Thread-safe and applied to the next incoming
+	/// connection, so an edit does not need a listener restart.
+	void SetAllowedFrom (KStringView sAllowFrom);
+
+	/// the whitelist as configured, empty when unrestricted
+	KString        GetAllowedFrom    () const { return *m_sAllowFrom.shared(); }
+
+	/// connections rejected because their source was not on the whitelist
+	uint64_t       GetRejectedCount  () const { return m_iRejected;  }
+
 	/// connections successfully forwarded through this listener
 	uint64_t       GetForwardedCount () const { return m_iForwarded; }
 	/// connections that failed to forward (no tunnel, node-side error,
@@ -693,6 +721,9 @@ private:
 	/// "conn_fail" event
 	void RecordFailure (KStringView sReason, KStringView sRemoteIP);
 
+	/// true if the peer may connect to this listener (whitelist check)
+	bool IsAllowed (const KIPAddress& Peer) const;
+
 	ExposedServer& m_ExposedServer;
 	KString        m_sName;
 	KString        m_sOwner;
@@ -700,7 +731,12 @@ private:
 
 	std::atomic<uint64_t> m_iForwarded { 0 };
 	std::atomic<uint64_t> m_iFailed    { 0 };
+	std::atomic<uint64_t> m_iRejected  { 0 };
 	KThreadSafe<std::pair<KString, KUnixTime>> m_LastError;
+	/// parsed whitelist, empty = unrestricted. Kept next to the original
+	/// string so the UI can show what was configured
+	KThreadSafe<std::vector<KIPNetwork>> m_AllowFrom;
+	KThreadSafe<KString>                 m_sAllowFrom;
 
 }; // TunnelListener
 

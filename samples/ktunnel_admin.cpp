@@ -354,6 +354,7 @@ KStringView PillForEventKind (KStringView sKind)
 	 || sKind == "handshake_fail"
 	 || sKind == "tunnel_error"
 	 || sKind == "conn_fail"
+	 || sKind == "conn_reject"
 	 || sKind == "auth_reject")       return "fail";
 	if (sKind == "tunnel_disconnect"
 	 || sKind == "tunnel_stop"
@@ -625,6 +626,54 @@ void AdminUI::RenderTopBar (html::Page& Page,
 	}
 
 } // RenderTopBar
+
+//-----------------------------------------------------------------------------
+/// Validate a bind address (empty = wildcard) and an allow list of comma
+/// separated IPs / CIDR networks (empty = unrestricted). Returns an error
+/// message for the flash banner, or the empty string when both are fine.
+static KString ValidateAccess (KStringView sBindAddress, KStringView sAllowFrom)
+//-----------------------------------------------------------------------------
+{
+	if (!sBindAddress.empty())
+	{
+		KIPError ec;
+		KIPAddress Address(sBindAddress, ec);
+
+		if (ec)
+		{
+			return kFormat("'{}' is not a valid bind address: {}", sBindAddress, ec.message());
+		}
+	}
+
+	for (auto sPart : sAllowFrom.Split(","))
+	{
+		if (sPart.empty()) continue;
+
+		KIPError ec;
+		// bAcceptSingleHost: a bare address counts as a /32 resp. /128
+		KIPNetwork Net(sPart, true, ec);
+
+		if (ec)
+		{
+			return kFormat("'{}' in the allow list is not an IP or CIDR network: {}",
+			               sPart, ec.message());
+		}
+	}
+
+	return {};
+
+} // ValidateAccess
+
+//-----------------------------------------------------------------------------
+/// describe a listener's access control for events and the UI
+static KString DescribeAccess (KStringView sBindAddress, KStringView sAllowFrom)
+//-----------------------------------------------------------------------------
+{
+	return kFormat("bind {}, allow {}",
+	               sBindAddress.empty() ? KStringView("*")   : sBindAddress,
+	               sAllowFrom.empty()   ? KStringView("any") : sAllowFrom);
+
+} // DescribeAccess
 
 //-----------------------------------------------------------------------------
 /// render a colored status pill: span.pill.<sPillClass>
@@ -1643,8 +1692,7 @@ void AdminUI::ShowNodeInstall (KRESTServer& HTTP)
 
 		auto p = sec.Add<html::Paragraph>();
 		p.SetAttribute("class", "muted");
-		p.AddText("Everything below is generated in your browser - the node "
-		          "password never travels back to this server. The protected "
+		p.AddText("The script below is assembled in your browser. The protected "
 		          "host needs a ktunnel binary first (e.g. copy a static build "
 		          "to /usr/local/bin).");
 
@@ -1653,7 +1701,22 @@ void AdminUI::ShowNodeInstall (KRESTServer& HTTP)
 		   .Input().SetAttribute("id", "ki_host").SetAttribute("autocomplete", "off");
 		Row.Add<html::ui::Field>("Node password", "")
 		   .Input().SetAttribute("id", "ki_pw").SetAttribute("autocomplete", "off")
-		           .SetAttribute("placeholder", "paste the generated password");
+		           .SetAttribute("placeholder", "paste it, or generate a new one");
+		Row.Add<html::Button>("Generate & set", html::Button::BUTTON, html::Classes{"btn small"})
+		   .SetAttribute("onclick", "ktGenNodePassword(this)");
+
+		// Stored passwords are bcrypt hashes, so an existing password cannot
+		// be shown here - the button generates a new one, sets it on the node
+		// account (same path as "Reset node password"), and puts it into the
+		// script. Only that button sends the password to this server; a value
+		// you paste yourself stays in the browser.
+		sec.Add<html::Div>(html::Classes("muted"))
+		   .AddText("Node passwords are stored as bcrypt hashes and cannot be "
+		            "shown again. Either paste the password you kept when the "
+		            "node was created, or press \"Generate & set\" to give the "
+		            "node a fresh one right now - that replaces its current "
+		            "password immediately, so an already running protected host "
+		            "with the old one stops logging in.");
 	}
 
 	// --- Section 2: setup script ----------------------------------------
@@ -1735,20 +1798,56 @@ void AdminUI::ShowNodeInstall (KRESTServer& HTTP)
   rebuild();
 })();
 
+function ktAck(button, label) {
+  var old = button.textContent;
+  button.textContent = label;
+  setTimeout(function() { button.textContent = old; }, 2500);
+}
+
 function ktCopy(button, id) {
-  var el  = document.getElementById(id);
-  var ack = function(label) {
-    var old = button.textContent;
-    button.textContent = label;
-    setTimeout(function() { button.textContent = old; }, 2000);
-  };
+  var el = document.getElementById(id);
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(el.value).then(function() { ack('Copied!'); },
-                                                 function() { el.select(); ack('Select & copy'); });
+    navigator.clipboard.writeText(el.value).then(function() { ktAck(button, 'Copied!'); },
+                                                 function() { el.select(); ktAck(button, 'Select & copy'); });
   } else {
     el.select();
-    ack('Select & copy');
+    ktAck(button, 'Select & copy');
   }
+}
+
+// generate a fresh node password, set it on the node account through the
+// regular reset endpoint, and drop it into the script fields
+function ktGenNodePassword(button) {
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var pw = '';
+  while (pw.length < 24) {
+    var a = new Uint8Array(32);
+    crypto.getRandomValues(a);
+    for (var i = 0; i < a.length && pw.length < 24; ++i) {
+      // 248 = 4 * 62: reject the tail to keep the distribution uniform
+      if (a[i] < 248) pw += chars[a[i] % 62];
+    }
+  }
+  var body = new URLSearchParams();
+  body.append('name',             '__NODE__');
+  body.append('new_password',     pw);
+  body.append('confirm_password', pw);
+  button.disabled = true;
+  fetch('__RESETURL__', { method: 'POST', credentials: 'same-origin', body: body })
+    .then(function(r) {
+      button.disabled = false;
+      if (!r.ok) { ktAck(button, 'Failed'); return; }
+      var f = document.getElementById('ki_pw');
+      f.value = pw;
+      f.dispatchEvent(new Event('input'));
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(pw).then(function() { ktAck(button, 'Set & copied'); },
+                                               function() { ktAck(button, 'Password set'); });
+      } else {
+        ktAck(button, 'Password set');
+      }
+    })
+    .catch(function() { button.disabled = false; ktAck(button, 'Failed'); });
 }
 )");
 
@@ -1765,6 +1864,7 @@ function ktCopy(button, id) {
 	}
 
 	sScript.Replace("__NODE__",     oNode->sName);
+	sScript.Replace("__RESETURL__", s_sNodesResetPwURL);
 	sScript.Replace("__PORT__",     KString::to_string(m_Config.iPort));
 	sScript.Replace("__HOSTNAME__", sDefaultHost);
 	sScript.Replace("__EXTRA__",    sExtra);
@@ -1872,15 +1972,46 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 		else
 		{
 			auto Table = sec.Add<html::ui::Table>();
-			Table.Headers({ "Name", "Node", "Forward port", "Target", "Config", "Runtime", "" });
+			Table.Headers({ "Name", "Node", "Forward port", "Target", "Access", "Config", "Runtime", "" });
 
 			for (const auto& t : Tunnels)
 			{
 				auto Row = Table.AddRow();
 				Row.Add<html::TableData>(t.sName);
 				Row.Add<html::TableData>().Add<html::Link>(s_sNodesURL, t.sNode);
-				Row.Add<html::TableData>(kFormat("{}", t.iListenPort));
+				Row.Add<html::TableData>(t.sBindAddress.empty()
+				                             ? kFormat("{}", t.iListenPort)
+				                             : kFormat("{}:{}", t.sBindAddress, t.iListenPort));
 				Row.Add<html::TableData>(kFormat("{}:{}", t.sTargetHost, t.iTargetPort));
+
+				// access control at a glance: a listener on the wildcard
+				// without an allow list is reachable by anyone
+				{
+					auto Access = Row.Add<html::TableData>();
+
+					if (!t.sAllowFrom.empty())
+					{
+						RenderPill(Access, "ok", "allow list");
+						auto div = Access.Add<html::Div>(html::Classes("muted"));
+						div.SetStyle("font-size:0.7rem");
+						div.AddText(t.sAllowFrom);
+					}
+					else if (!t.sBindAddress.empty())
+					{
+						RenderPill(Access, "info", "bound");
+						auto div = Access.Add<html::Div>(html::Classes("muted"));
+						div.SetStyle("font-size:0.7rem");
+						div.AddText(kFormat("{} only", t.sBindAddress));
+					}
+					else
+					{
+						RenderPill(Access, "fail", "open");
+						auto div = Access.Add<html::Div>(html::Classes("muted"));
+						div.SetStyle("font-size:0.7rem");
+						div.AddText("any source may reach the target");
+					}
+				}
+
 				RenderPill(Row.Add<html::TableData>(),
 				           t.bEnabled ? "ok"      : "neutral",
 				           t.bEnabled ? "enabled" : "disabled");
@@ -1893,12 +2024,15 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 
 					RenderListenerStatePill(State, li.eState, li.sError);
 
-					if (li.iForwarded || li.iFailed)
+					if (li.iForwarded || li.iFailed || li.iRejected)
 					{
 						auto Stats = State.Add<html::Div>(html::Classes("muted"));
 						Stats.SetStyle("font-size:0.7rem");
-						Stats.AddText(kFormat("{} forwarded · {} failed",
-						                      li.iForwarded, li.iFailed));
+						Stats.AddText(li.iRejected
+							? kFormat("{} forwarded · {} failed · {} rejected",
+							          li.iForwarded, li.iFailed, li.iRejected)
+							: kFormat("{} forwarded · {} failed",
+							          li.iForwarded, li.iFailed));
 					}
 
 					if (!li.sLastConnError.empty())
@@ -2036,10 +2170,25 @@ void AdminUI::ShowTunnels (KRESTServer& HTTP)
 				   .Input().SetRange(1, 65535).SetRequired(true);
 			}
 
+			{
+				auto Row = Form.Add<html::Div>(html::Classes("row"));
+
+				Row.Add<html::ui::Field>("Bind address (empty = all interfaces)", "bind_address")
+				   .Input().SetAttribute("autocomplete", "off")
+				           .SetAttribute("placeholder", "127.0.0.1");
+				Row.Add<html::ui::Field>("Allow from (empty = any source)", "allow_from")
+				   .Input().SetAttribute("autocomplete", "off")
+				           .SetAttribute("placeholder", "192.168.1.0/24, 10.0.0.5");
+			}
+
 			Form.Add<html::Paragraph>(html::Classes("muted"))
 			    .SetStyle("margin-top:0.25rem;font-size:0.75rem")
-			    .AddText("Forward port binds on all interfaces (0.0.0.0 + [::]). Keep it "
-			             "distinct from the admin/control port (-p on the CLI).");
+			    .AddText("Keep the forward port distinct from the admin/control port "
+			             "(-p on the CLI). Without a bind address the port is open on "
+			             "every interface, and without an allow list any source may "
+			             "connect and reach the target - the target's own "
+			             "authentication is then the only gate. Bind to 127.0.0.1 to "
+			             "reach it through `ssh -L` instead.");
 
 			{
 				auto Row   = Form.Add<html::Div>(html::Classes("row"));
@@ -2073,6 +2222,8 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 	const auto& sTargetHost = HTTP.GetQueryParm("target_host");
 	const auto& sTargetPort = HTTP.GetQueryParm("target_port");
 	const auto& sEnabled    = HTTP.GetQueryParm("enabled");
+	const auto& sBindAddr   = HTTP.GetQueryParm("bind_address");
+	const auto& sAllowFrom  = HTTP.GetQueryParm("allow_from");
 
 	if (sName.empty() || sNodeName.empty() || sTargetHost.empty())
 	{
@@ -2086,6 +2237,13 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 	if (iListenPort == 0 || iTargetPort == 0)
 	{
 		RedirectWithFlash(HTTP, s_sTunnelsURL, "", "Ports must be valid numbers between 1 and 65535.");
+		return;
+	}
+
+	auto sAccessError = ValidateAccess(sBindAddr, sAllowFrom);
+	if (!sAccessError.empty())
+	{
+		RedirectWithFlash(HTTP, s_sTunnelsURL, "", sAccessError);
 		return;
 	}
 
@@ -2107,8 +2265,10 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 	t.sNode       = sNodeName;
 	t.iListenPort = iListenPort;
 	t.sTargetHost = sTargetHost;
-	t.iTargetPort = iTargetPort;
-	t.bEnabled    = !sEnabled.empty();
+	t.iTargetPort  = iTargetPort;
+	t.bEnabled     = !sEnabled.empty();
+	t.sBindAddress = sBindAddr;
+	t.sAllowFrom   = sAllowFrom;
 
 	if (!Store.AddTunnel(t))
 	{
@@ -2121,10 +2281,12 @@ void AdminUI::HandleTunnelsAdd (KRESTServer& HTTP)
 	ev.sAdmin      = sMe;
 	ev.sNode       = t.sNode;
 	ev.sTunnelName = t.sName;
-	ev.sDetail     = kFormat("added tunnel [::]:{} -> {}:{} (node {}){}",
+	ev.sDetail     = kFormat("added tunnel {}:{} -> {}:{} (node {}, {}){}",
+	                         t.sBindAddress.empty() ? KStringView("[::]") : KStringView(t.sBindAddress),
 	                         t.iListenPort,
 	                         t.sTargetHost, t.iTargetPort,
 	                         t.sNode,
+	                         DescribeAccess(t.sBindAddress, t.sAllowFrom),
 	                         t.bEnabled ? "" : " [disabled]");
 	Store.LogEvent(ev);
 
@@ -2302,10 +2464,25 @@ void AdminUI::ShowTunnelEdit (KRESTServer& HTTP)
 		   .Input().SetRange(1, 65535).SetRequired(true);
 	}
 
+	{
+		auto Row = Form.Add<html::Div>(html::Classes("row"));
+
+		Row.Add<html::ui::Field>("Bind address (empty = all interfaces)",
+		                         "bind_address", oT->sBindAddress)
+		   .Input().SetAttribute("autocomplete", "off")
+		           .SetAttribute("placeholder", "127.0.0.1");
+		Row.Add<html::ui::Field>("Allow from (empty = any source)",
+		                         "allow_from", oT->sAllowFrom)
+		   .Input().SetAttribute("autocomplete", "off")
+		           .SetAttribute("placeholder", "192.168.1.0/24, 10.0.0.5");
+	}
+
 	Form.Add<html::Paragraph>(html::Classes("muted"))
 	    .SetStyle("margin-top:0.25rem;font-size:0.75rem")
-	    .AddText("Forward port binds on all interfaces (0.0.0.0 + [::]). Keep it "
-	             "distinct from the admin/control port (-p on the CLI).");
+	    .AddText("Keep the forward port distinct from the admin/control port "
+	             "(-p on the CLI). Changing the bind address restarts the listener "
+	             "and drops its live connections; changing the allow list only "
+	             "affects new ones.");
 
 	{
 		auto Row   = Form.Add<html::Div>(html::Classes("row"));
@@ -2340,6 +2517,8 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 	const auto& sTargetHost = HTTP.GetQueryParm("target_host");
 	const auto& sTargetPort = HTTP.GetQueryParm("target_port");
 	const auto& sEnabled    = HTTP.GetQueryParm("enabled");
+	const auto& sBindAddr   = HTTP.GetQueryParm("bind_address");
+	const auto& sAllowFrom  = HTTP.GetQueryParm("allow_from");
 
 	if (sName.empty())
 	{
@@ -2388,14 +2567,23 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 		return;
 	}
 
+	auto sAccessError = ValidateAccess(sBindAddr, sAllowFrom);
+	if (!sAccessError.empty())
+	{
+		BackToEdit(sAccessError);
+		return;
+	}
+
 	// Compose the new row. KTunnelStore::UpdateTunnel keeps id/created_utc,
 	// so we only need to fill the editable fields + the name key.
 	KTunnelStore::Tunnel t = *oExisting;
 	t.sNode       = sNodeName;
 	t.iListenPort = iListenPort;
 	t.sTargetHost = sTargetHost;
-	t.iTargetPort = iTargetPort;
-	t.bEnabled    = !sEnabled.empty();
+	t.iTargetPort  = iTargetPort;
+	t.bEnabled     = !sEnabled.empty();
+	t.sBindAddress = sBindAddr;
+	t.sAllowFrom   = sAllowFrom;
 
 	if (!Store.UpdateTunnel(t))
 	{
@@ -2420,6 +2608,14 @@ void AdminUI::HandleTunnelsUpdate (KRESTServer& HTTP)
 	                   kFormat("{}:{}", t.sTargetHost,          t.iTargetPort));
 	addDiff("enabled", oExisting->bEnabled ? KStringView("yes") : KStringView("no"),
 	                   t.bEnabled          ? KStringView("yes") : KStringView("no"));
+	addDiff("bind_address", oExisting->sBindAddress.empty() ? KStringView("*")
+	                                                       : KStringView(oExisting->sBindAddress),
+	                        t.sBindAddress.empty()         ? KStringView("*")
+	                                                       : KStringView(t.sBindAddress));
+	addDiff("allow_from",   oExisting->sAllowFrom.empty()  ? KStringView("any")
+	                                                       : KStringView(oExisting->sAllowFrom),
+	                        t.sAllowFrom.empty()           ? KStringView("any")
+	                                                       : KStringView(t.sAllowFrom));
 
 	if (sDiff.empty()) sDiff = "(no changes)";
 

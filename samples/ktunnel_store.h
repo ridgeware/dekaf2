@@ -204,12 +204,22 @@ public:
 		KString   sName;                 ///< logical name, unique
 		KString   sNode;                 ///< endpoint (nodes.name) authorised to drive this listener
 		/// Port the exposed host binds to for forwarded downstream
-		/// connections. Bind address is always the wildcard (0.0.0.0
-		/// + [::] dual-stack): KTCPServer has no per-interface option.
+		/// connections, on the interface named by sBindAddress.
 		uint16_t  iListenPort  { 0 };
 		KString   sTargetHost;           ///< default target, used if client does not pass one
 		uint16_t  iTargetPort  { 0 };
 		bool      bEnabled     { true };
+		/// Interface the listener binds to. Empty means the wildcard
+		/// (0.0.0.0 + [::] dual-stack, reachable from everywhere);
+		/// "127.0.0.1" restricts it to the exposed host itself, which is
+		/// the pattern for reaching the target through `ssh -L` instead of
+		/// an open port.
+		KString   sBindAddress;
+		/// Comma separated list of IPs / CIDR networks that may connect to
+		/// the listener. Empty means no restriction. Checked before the
+		/// connection is forwarded; a rejected connection is closed and
+		/// logged as a "conn_reject" event.
+		KString   sAllowFrom;
 		KUnixTime tCreated;
 		KUnixTime tModified;
 	};

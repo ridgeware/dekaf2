@@ -938,6 +938,56 @@ ExposedServer::ForwardStreamForOwner (KIOStreamSocket&    Downstream,
 } // ForwardStreamForOwner
 
 //-----------------------------------------------------------------------------
+void TunnelListener::SetAllowedFrom (KStringView sAllowFrom)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KIPNetwork> Networks;
+
+	for (auto sPart : sAllowFrom.Split(","))
+	{
+		if (sPart.empty()) continue;
+
+		KIPError ec;
+		// bAcceptSingleHost: a bare address is a /32 resp. /128
+		KIPNetwork Net(sPart, true, ec);
+
+		if (ec)
+		{
+			// ReconcileListeners validated the list before it got here, so
+			// this can only happen through a hand-edited DB - drop the
+			// entry rather than silently widening or closing the listener
+			kDebug(1, "tunnel '{}': ignoring bad source '{}': {}",
+			       m_sName, sPart, ec.message());
+			continue;
+		}
+
+		Networks.push_back(std::move(Net));
+	}
+
+	*m_AllowFrom.unique()  = std::move(Networks);
+	*m_sAllowFrom.unique() = sAllowFrom;
+
+} // TunnelListener::SetAllowedFrom
+
+//-----------------------------------------------------------------------------
+bool TunnelListener::IsAllowed (const KIPAddress& Peer) const
+//-----------------------------------------------------------------------------
+{
+	auto Networks = m_AllowFrom.shared();
+
+	// no whitelist configured means no restriction
+	if (Networks->empty()) return true;
+
+	for (const auto& Net : *Networks)
+	{
+		if (Net.Contains(Peer)) return true;
+	}
+
+	return false;
+
+} // TunnelListener::IsAllowed
+
+//-----------------------------------------------------------------------------
 void TunnelListener::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 //-----------------------------------------------------------------------------
 {
@@ -946,6 +996,33 @@ void TunnelListener::Session (std::unique_ptr<KIOStreamSocket>& Stream)
 	// the right mutex. Exceptions bubble back into KTCPServer where they
 	// close the stream and log a warning.
 	KString sRemoteIP = Stream->GetEndPointAddress().Serialize();
+
+	// access control comes first: an unauthorised source must not even
+	// cause a channel to be opened on the node
+	{
+		KIPError ec;
+		KIPAddress Peer(Stream->GetEndPointAddress().Domain.get(), ec);
+
+		if (ec || !IsAllowed(Peer))
+		{
+			++m_iRejected;
+
+			{
+				auto LastError = m_LastError.unique();
+				LastError->first  = ec
+					? kFormat("cannot parse source address '{}': {}", sRemoteIP, ec.message())
+					: kFormat("source {} is not on the allow list", sRemoteIP);
+				LastError->second = KUnixTime::now();
+			}
+
+			m_ExposedServer.LogConnReject(m_sName, m_sOwner, sRemoteIP,
+			                              ec ? KStringView("unparseable source address")
+			                                 : KStringView("source not on the allow list"));
+
+			// close quietly - no need to tell a scanner why
+			return;
+		}
+	}
 
 	try
 	{
@@ -1032,6 +1109,7 @@ ExposedServer::SnapshotListenerStates () const
 		{
 			info.iForwarded     = kv.second.Listener->GetForwardedCount();
 			info.iFailed        = kv.second.Listener->GetFailedCount();
+			info.iRejected      = kv.second.Listener->GetRejectedCount();
 			auto LastError      = kv.second.Listener->GetLastError();
 			info.sLastConnError = std::move(LastError.first);
 			info.tLastConnError = LastError.second;
@@ -1125,6 +1203,28 @@ bool ExposedServer::SetTunnelSettings (const TunnelSettings& Settings, KStringVi
 } // SetTunnelSettings
 
 //-----------------------------------------------------------------------------
+void ExposedServer::LogConnReject (KStringView sTunnelName,
+                                   KStringView sOwner,
+                                   KStringView sRemoteIP,
+                                   KStringView sReason)
+//-----------------------------------------------------------------------------
+{
+	kDebug(1, "tunnel '{}': rejected connection from {}: {}", sTunnelName, sRemoteIP, sReason);
+
+	if (m_Store)
+	{
+		KTunnelStore::Event ev;
+		ev.sKind       = "conn_reject";
+		ev.sNode       = sOwner;
+		ev.sTunnelName = sTunnelName;
+		ev.sRemoteIP   = sRemoteIP;
+		ev.sDetail     = sReason;
+		m_Store->LogEvent(ev);
+	}
+
+} // LogConnReject
+
+//-----------------------------------------------------------------------------
 void ExposedServer::LogConnFailure (KStringView sTunnelName,
                                     KStringView sOwner,
                                     const KTCPEndPoint& Target,
@@ -1162,8 +1262,10 @@ std::vector<ExposedServer::DesiredTunnel> ExposedServer::GatherDesiredTunnels ()
 			d.sName           = t.sName;
 			d.Key.iListenPort = t.iListenPort;
 			d.Key.sTargetHost = t.sTargetHost;
-			d.Key.iTargetPort = t.iTargetPort;
-			d.Key.sOwnerNode  = t.sNode;
+			d.Key.iTargetPort  = t.iTargetPort;
+			d.Key.sOwnerNode   = t.sNode;
+			d.Key.sBindAddress = t.sBindAddress;
+			d.sAllowFrom       = t.sAllowFrom;
 			out.push_back(std::move(d));
 		}
 	}
@@ -1207,24 +1309,45 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 	//     second (and later) tunnel that wants a port already claimed
 	//     by another desired tunnel. The first-seen tunnel wins.
 	KUnorderedMap<KString, KString> PreflightError;   // tunnel name → error detail
-	KUnorderedMap<uint16_t, KString> PortOwner;       // port → first tunnel that wants it
+	// port → the (bind address, tunnel name) pairs already claiming it.
+	// Two tunnels may share a port on *different* addresses, but a
+	// wildcard bind takes the port on every interface and therefore
+	// conflicts with any other bind on it.
+	KUnorderedMap<uint16_t, std::vector<std::pair<KString, KString>>> PortOwners;
 
 	for (const auto& t : Desired)
 	{
 		if (m_Config.iPort != 0 && t.Key.iListenPort == m_Config.iPort)
 		{
+			// the admin server binds the wildcard, so this collides
+			// regardless of the tunnel's bind address
 			PreflightError.emplace(t.sName,
 				kFormat("port {} conflicts with admin HTTPS port",
 				        t.Key.iListenPort));
 			continue;
 		}
 
-		auto ins = PortOwner.emplace(t.Key.iListenPort, t.sName);
-		if (!ins.second)
+		auto& Owners = PortOwners[t.Key.iListenPort];
+		bool  bTaken { false };
+
+		for (const auto& Owner : Owners)
 		{
-			PreflightError.emplace(t.sName,
-				kFormat("port {} already claimed by tunnel '{}'",
-				        t.Key.iListenPort, ins.first->second));
+			if (Owner.first == t.Key.sBindAddress
+			 || Owner.first.empty() || t.Key.sBindAddress.empty())
+			{
+				PreflightError.emplace(t.sName,
+					kFormat("{}port {} already claimed by tunnel '{}'{}",
+					        t.Key.sBindAddress.empty() ? "" : kFormat("{}:", t.Key.sBindAddress),
+					        t.Key.iListenPort, Owner.second,
+					        Owner.first.empty() ? " on all interfaces" : ""));
+				bTaken = true;
+				break;
+			}
+		}
+
+		if (!bTaken)
+		{
+			Owners.emplace_back(t.Key.sBindAddress, t.sName);
 		}
 	}
 
@@ -1269,6 +1392,31 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 		}
 		else
 		{
+			// unchanged key - but the allow list is not part of the key,
+			// so push a possibly edited one into the running listener.
+			// That keeps live connections alive across a whitelist edit.
+			if (it->second.Listener)
+			{
+				auto ai = std::find_if(Desired.begin(), Desired.end(),
+				                       [&](const DesiredTunnel& d) { return d.sName == it->first; });
+
+				if (ai != Desired.end() && it->second.Listener->GetAllowedFrom() != ai->sAllowFrom)
+				{
+					it->second.Listener->SetAllowedFrom(ai->sAllowFrom);
+
+					if (m_Store)
+					{
+						KTunnelStore::Event ev;
+						ev.sKind       = "config_change";
+						ev.sAdmin      = sActor;
+						ev.sTunnelName = it->first;
+						ev.sDetail     = ai->sAllowFrom.empty()
+							? KString("allow list cleared - the listener now accepts any source")
+							: kFormat("allow list set to {}", ai->sAllowFrom);
+						m_Store->LogEvent(ev);
+					}
+				}
+			}
 			++it;
 		}
 	}
@@ -1310,12 +1458,24 @@ void ExposedServer::ReconcileListeners (KStringView sActor)
 					/* iMaxConns   = */ Tunables.iMaxTunneledConnections
 				);
 
+				// empty bind address keeps the dual-stack wildcard bind
+				if (!t.Key.sBindAddress.empty())
+				{
+					entry.Listener->SetBindAddress(t.Key.sBindAddress);
+				}
+
+				entry.Listener->SetAllowedFrom(t.sAllowFrom);
+
 				// Non-blocking: Start() returns after the accept
 				// thread is up and running.
 				if (!entry.Listener->Start(Tunables.Timeout, /*bBlock=*/false))
 				{
-					entry.sError = kFormat("Start() failed on port {}",
-					                       t.Key.iListenPort);
+					entry.sError = kFormat("Start() failed on {}:{}: {}",
+					                       t.Key.sBindAddress.empty()
+					                           ? KStringView("*")
+					                           : KStringView(t.Key.sBindAddress),
+					                       t.Key.iListenPort,
+					                       entry.Listener->Error());
 				}
 			}
 			catch (const std::exception& ex)

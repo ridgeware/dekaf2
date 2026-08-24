@@ -205,9 +205,14 @@ bool KTunnelStore::InitializeSchema ()
 		"  target_host  text    not null default '',"
 		"  target_port  integer not null default 0,"
 		"  enabled      integer not null default 1,"
+		"  bind_address text    not null default '',"
+		"  allow_from   text    not null default '',"
 		"  created_utc  integer not null default 0,"
 		"  modified_utc integer not null default 0"
 		")",
+		// migrations for DBs created before the access-control columns
+		"alter table tunnels add column bind_address text not null default ''",
+		"alter table tunnels add column allow_from   text not null default ''",
 
 		// Events: append-only audit log. No foreign keys — an admin or
 		// a node can be deleted but we want to keep its historical log
@@ -683,14 +688,17 @@ KTunnelStore::Tunnel TunnelFromRow (const KSQLite::Row& Row)
 	t.sTargetHost  = Row.Col(5).String();
 	t.iTargetPort  = static_cast<uint16_t>(Row.Col(6).Int64());
 	t.bEnabled     = Row.Col(7).Int64() != 0;
-	t.tCreated     = KUnixTime::from_time_t(Row.Col(8).Int64());
-	t.tModified    = KUnixTime::from_time_t(Row.Col(9).Int64());
+	t.sBindAddress = Row.Col(8).String();
+	t.sAllowFrom   = Row.Col(9).String();
+	t.tCreated     = KUnixTime::from_time_t(Row.Col(10).Int64());
+	t.tModified    = KUnixTime::from_time_t(Row.Col(11).Int64());
 	return t;
 }
 
 constexpr KStringView s_sTunnelCols =
 	"id, name, node, listen_port, "
-	"target_host, target_port, enabled, created_utc, modified_utc";
+	"target_host, target_port, enabled, bind_address, allow_from, "
+	"created_utc, modified_utc";
 
 } // anonymous
 
@@ -725,14 +733,17 @@ bool KTunnelStore::AddTunnel (const Tunnel& t)
 	auto Result = db.ExecSQL(
 		"insert into tunnels (name, node, listen_port, "
 		"                     target_host, target_port, enabled, "
+		"                     bind_address, allow_from, "
 		"                     created_utc, modified_utc) "
-		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+		"values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
 		t.sName,
 		t.sNode,
 		static_cast<int64_t>(t.iListenPort),
 		t.sTargetHost,
 		static_cast<int64_t>(t.iTargetPort),
 		static_cast<int64_t>(t.bEnabled ? 1 : 0),
+		t.sBindAddress,
+		t.sAllowFrom,
 		static_cast<int64_t>(tNow),
 		static_cast<int64_t>(tNow));
 
@@ -763,7 +774,8 @@ bool KTunnelStore::UpdateTunnel (const Tunnel& t)
 	auto Result = db.ExecSQL(
 		"update tunnels set "
 		"  node=?2, listen_port=?3, "
-		"  target_host=?4, target_port=?5, enabled=?6, modified_utc=?7 "
+		"  target_host=?4, target_port=?5, enabled=?6, "
+		"  bind_address=?7, allow_from=?8, modified_utc=?9 "
 		"where name=?1",
 		t.sName,
 		t.sNode,
@@ -771,6 +783,8 @@ bool KTunnelStore::UpdateTunnel (const Tunnel& t)
 		t.sTargetHost,
 		static_cast<int64_t>(t.iTargetPort),
 		static_cast<int64_t>(t.bEnabled ? 1 : 0),
+		t.sBindAddress,
+		t.sAllowFrom,
 		static_cast<int64_t>(KUnixTime::now().to_time_t()));
 
 	if (!Result)

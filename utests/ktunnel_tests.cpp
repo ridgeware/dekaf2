@@ -68,3 +68,45 @@ TEST_CASE("KTunnel")
 		CHECK ( Connection.GetBytesFromDirect() == 0 );
 	}
 }
+
+TEST_CASE("KTunnel client relay")
+{
+	SECTION("a tunnel name round-trips through KTCPEndPoint")
+	{
+		// the client encodes the tunnel name in the Connect frame's
+		// endpoint - the relay reads it back from the domain part
+		KTCPEndPoint Named("sqlserver", 0);
+		KTCPEndPoint Parsed(Named.Serialize());
+
+		CHECK ( KString(Parsed.Domain.get()) == "sqlserver" );
+	}
+
+	SECTION("Connection duplex is what the relay bridges with")
+	{
+		// the relay pumps ClientChannel <-> NodeChannel purely through
+		// ReadData()/WriteData(), so verify that pairing in isolation
+		std::vector<KTunnel::Message> Sent;
+
+		auto Channel = std::make_shared<KTunnel::Connection>(
+			7, [&Sent](KTunnel::Message&& msg) { Sent.push_back(std::move(msg)); });
+
+		// outbound: WriteData turns into a Data frame on our channel
+		Channel->WriteData("select 1");
+
+		REQUIRE ( Sent.size() == 1 );
+		CHECK   ( Sent[0].GetType()    == KTunnel::Message::Data );
+		CHECK   ( Sent[0].GetChannel() == 7                      );
+		CHECK   ( Sent[0].GetMessage() == "select 1"             );
+
+		// inbound: a Data frame handed in is what ReadData() returns
+		Channel->SendData(KTunnel::Message(KTunnel::Message::Data, 7, "one row"));
+
+		KString sIn;
+		REQUIRE ( Channel->ReadData(sIn) );
+		CHECK   ( sIn == "one row"       );
+
+		// a Disconnect closes the channel for the reader
+		Channel->SendData(KTunnel::Message(KTunnel::Message::Disconnect, 7));
+		CHECK ( !Channel->ReadData(sIn) );
+	}
+}

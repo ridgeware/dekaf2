@@ -162,6 +162,21 @@ public:
 	bool                   bNoTLS         { false };
 	bool                   bQuiet         { false };
 
+	/// Client role (`-client`): the client identity to log in with at the
+	/// exposed host's /Client endpoint (a row in its `clients` table), and
+	/// the local forwards to serve. sPeerNode / sSecret carry the
+	/// credentials, exactly as for a protected host.
+	bool                   bClientRole    { false };
+
+	/// one entry per `-L [<bindaddr>:]<localport>:<tunnelname>`
+	struct LocalForward
+	{
+		KString  sBindAddress;   ///< empty = 127.0.0.1
+		uint16_t iLocalPort { 0 };
+		KString  sTunnel;        ///< tunnel name on the exposed host
+	};
+	std::vector<LocalForward> LocalForwards;
+
 	/// Protected host only: bcrypt hash of the password that unlocks the
 	/// interactive shell offered through the admin REPL (the `shell`
 	/// command). Empty (the default) disables the shell entirely - the
@@ -410,6 +425,21 @@ public:
 	/// currently-connected tunnels, for the admin UI.
 	std::vector<ActiveConnection> SnapshotConnections () const;
 
+	/// Snapshot of one currently-connected client (an operator-side
+	/// ktunnel started with -client), used by the admin UI.
+	struct ActiveClient
+	{
+		KString                  sName;        ///< client identity
+		KTCPEndPoint             EndpointAddr; ///< where it connected from
+		KUnixTime                tConnected;
+		std::shared_ptr<KTunnel> Tunnel;       ///< non-null
+	};
+
+	/// Thread-safe snapshot of the clients currently logged in. Unlike
+	/// nodes, several connections may share one client identity - each
+	/// gets its own entry.
+	std::vector<ActiveClient> SnapshotActiveClients () const;
+
 	/// Log a failed forward attempt as a "conn_fail" event. Called by
 	/// TunnelListener::Session with the error the node reported.
 	void LogConnFailure (KStringView sTunnelName,
@@ -417,6 +447,18 @@ public:
 	                     const KTCPEndPoint& Target,
 	                     KStringView sRemoteIP,
 	                     KStringView sReason);
+
+	/// Serve one incoming *client* control stream (the /Client endpoint):
+	/// authenticates against the `clients` table and then relays every
+	/// forwarding channel the client opens into the tunnel of the node
+	/// that owns the requested tunnel row. Runs on the websocket thread
+	/// and returns when the client disconnects.
+	void ClientStream (std::unique_ptr<KIOStreamSocket> Stream);
+
+	/// Verify a client login against the `clients` table. Logs
+	/// "client_login_ok" / "client_login_fail" events.
+	bool VerifyClientLogin (KStringView sClient, KStringView sSecret,
+	                        const KTCPEndPoint& RemoteAddr);
 
 	/// Log a connection rejected by a listener's allow list as a
 	/// "conn_reject" event.
@@ -609,6 +651,19 @@ private:
 	std::unique_ptr<AdminUI>          m_AdminUI;
 	const Config&                     m_Config;
 
+	/// Clients currently logged in at the /Client endpoint, keyed by the
+	/// tunnel instance (one client identity may hold several connections).
+	/// Registered by ClientStream on successful login, removed when its
+	/// stream ends.
+	struct ActiveClientEntry
+	{
+		KString                sName;
+		KTCPEndPoint           EndpointAddr;
+		KUnixTime              tConnected;
+		std::weak_ptr<KTunnel> Tunnel;
+	};
+	KThreadSafe<KUnorderedMap<const KTunnel*, ActiveClientEntry>> m_ActiveClients;
+
 	/// runtime-tunable settings - seeded from m_Config, overridden by
 	/// persisted values from the settings table, changed at runtime by
 	/// the admin UI via SetTunnelSettings()
@@ -786,6 +841,54 @@ private:
 	KTunnel*                        m_pCurrentTunnel   { nullptr };
 
 }; // ProtectedHost
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The operator-side role (`-client`): connects OUT to the exposed host's
+/// /Client endpoint, authenticates with a client identity, and offers local
+/// ports that are forwarded to *named tunnels* on the exposed host - the
+/// `ssh -L` equivalent inside ktunnel.
+///
+/// The point of this role is that the exposed host then needs no publicly
+/// reachable forward port at all: the tunnel it serves is reached over the
+/// already authenticated (and, with -aes, encrypted and fingerprint-pinned)
+/// control connection.
+class ClientHost
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	using Forward = ExtendedConfig::LocalForward;
+
+	ClientHost (const ExtendedConfig& Config);
+	~ClientHost ();
+
+	/// connect, authenticate and serve the local ports until Shutdown()
+	void Run      ();
+
+	/// ask Run() to return (signal handler)
+	void Shutdown ();
+
+	/// the tunnel currently in use, or null while reconnecting
+	std::shared_ptr<KTunnel> GetTunnel () const { return *m_Tunnel.shared(); }
+
+//----------
+private:
+//----------
+
+	/// local listener for one -L mapping
+	class LocalListener;
+
+	const ExtendedConfig&              m_Config;
+	KThreadSafe<std::shared_ptr<KTunnel>> m_Tunnel;
+	std::vector<std::unique_ptr<LocalListener>> m_Listeners;
+	std::atomic<bool>                  m_bQuit { false };
+	std::mutex                         m_Mutex;
+	std::condition_variable            m_CV;
+
+}; // ClientHost
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 class Tunnel : public KErrorBase

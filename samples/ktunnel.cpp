@@ -519,6 +519,77 @@ bool ExposedServer::VerifyNodeLogin (KStringView sNode, KStringView sSecret,
 } // VerifyNodeLogin
 
 //-----------------------------------------------------------------------------
+bool ExposedServer::VerifyClientLogin (KStringView sClient, KStringView sSecret,
+                                       const KTCPEndPoint& RemoteAddr)
+//-----------------------------------------------------------------------------
+{
+	// client identities live only in the stateful store - AdHoc mode has
+	// no `clients` table and therefore no client role at all
+	if (!m_Store)
+	{
+		kDebug(1, "client login from {} rejected: ad-hoc mode has no client accounts", RemoteAddr);
+		return false;
+	}
+
+	auto LogFail = [&](KStringView sDetail)
+	{
+		KTunnelStore::Event ev;
+		ev.sKind     = "client_login_fail";
+		ev.sAdmin    = sClient;   // the client name is the actor here
+		ev.sRemoteIP = RemoteAddr.Serialize();
+		ev.sDetail   = sDetail;
+		m_Store->LogEvent(ev);
+	};
+
+	if (sClient.empty())
+	{
+		LogFail("empty client name");
+		return false;
+	}
+
+	auto oClient = m_Store->GetClient(sClient);
+
+	// same constant-time dummy compare as VerifyNodeLogin, so a missing
+	// row cannot be told apart from a wrong password by response time
+	static constexpr KStringViewZ s_sDummyHash =
+		"$2a$04$abcdefghijklmnopqrstuuSQgFuZgk5ErgR6KPK8e6QlYxwZpzIbG";
+
+	KString sPassword(sSecret);
+
+	if (!oClient)
+	{
+		(void) m_BCrypt->ValidatePassword(sPassword, s_sDummyHash);
+		LogFail("unknown client");
+		return false;
+	}
+
+	if (!oClient->bEnabled)
+	{
+		(void) m_BCrypt->ValidatePassword(sPassword, s_sDummyHash);
+		LogFail("client disabled");
+		return false;
+	}
+
+	if (!m_BCrypt->ValidatePassword(sPassword, oClient->sPasswordHash))
+	{
+		LogFail("bad password");
+		return false;
+	}
+
+	m_Store->SetClientLastLogin(sClient, KUnixTime::now());
+
+	KTunnelStore::Event ev;
+	ev.sKind     = "client_login_ok";
+	ev.sAdmin    = sClient;
+	ev.sRemoteIP = RemoteAddr.Serialize();
+	ev.sDetail   = "client tunnel";
+	m_Store->LogEvent(ev);
+
+	return true;
+
+} // VerifyClientLogin
+
+//-----------------------------------------------------------------------------
 void ExposedServer::RegisterActiveTunnel (KStringView sNode,
                                           const KTCPEndPoint& RemoteAddr,
                                           std::shared_ptr<KTunnel> Tunnel)
@@ -898,6 +969,214 @@ void ExposedServer::ControlStream(std::unique_ptr<KIOStreamSocket> Stream)
 } // ControlStream
 
 //-----------------------------------------------------------------------------
+void ExposedServer::ClientStream (std::unique_ptr<KIOStreamSocket> Stream)
+//-----------------------------------------------------------------------------
+{
+	const auto EndpointAddress = Stream->GetEndPointAddress();
+
+	kDebug(1, "[client]: opened client stream from {}", EndpointAddress);
+
+	KTunnel::Config TunnelCfg = m_Config;
+
+	{
+		auto Tunables = m_Tunables.shared();
+		TunnelCfg.Timeout                 = Tunables->Timeout;
+		TunnelCfg.ConnectTimeout          = Tunables->ConnectTimeout;
+		TunnelCfg.ControlPing             = Tunables->ControlPing;
+		TunnelCfg.iMaxTunneledConnections = Tunables->iMaxTunneledConnections;
+	}
+
+#if DEKAF2_HAS_ED25519
+	TunnelCfg.ServerIdentity = m_ServerIdentity;
+#endif
+
+	// the verified client name, needed by the relay below for its
+	// authorisation check. Written by the auth callback on the tunnel's
+	// Run() thread before any Connect frame can arrive
+	auto sClientName = std::make_shared<KThreadSafe<KString>>();
+	// filled right after the tunnel exists - the auth callback only runs
+	// once Run() is going, so it always sees the assigned pointer
+	auto TunnelHolder = std::make_shared<std::weak_ptr<KTunnel>>();
+
+	TunnelCfg.AuthCallback = [this, sClientName, TunnelHolder, EndpointAddress]
+	                         (KStringView sClient, KStringView sSecret) -> bool
+	{
+		if (!VerifyClientLogin(sClient, sSecret, EndpointAddress)) return false;
+
+		*sClientName->unique() = sClient;
+
+		// make the session visible to the admin UI
+		if (auto Live = TunnelHolder->lock())
+		{
+			ActiveClientEntry entry;
+			entry.sName        = sClient;
+			entry.EndpointAddr = EndpointAddress;
+			entry.tConnected   = KUnixTime::now();
+			entry.Tunnel       = Live;
+
+			m_ActiveClients.unique()->emplace(Live.get(), std::move(entry));
+		}
+
+		return true;
+	};
+
+	// A client never dials a host: it names a tunnel, and we relay the
+	// channel into the tunnel of the node that owns that row. This is
+	// what keeps a client account from turning the exposed host into an
+	// open proxy.
+	TunnelCfg.ConnectCallback = [this, sClientName, EndpointAddress]
+	                            (std::shared_ptr<KTunnel::Connection> ClientChannel,
+	                             KTCPEndPoint Requested)
+	{
+		const KString sClient    = *sClientName->shared();
+		// the "endpoint" carries the tunnel name in its domain part -
+		// KTCPEndPoint round-trips a bare name with port 0
+		const KString sTunnelName(Requested.Domain.get());
+
+		auto Reject = [&](KStringView sReason)
+		{
+			kDebug(1, "[client {}]: refusing '{}': {}", sClient, sTunnelName, sReason);
+
+			if (m_Store)
+			{
+				KTunnelStore::Event ev;
+				ev.sKind       = "client_reject";
+				ev.sAdmin      = sClient;
+				ev.sTunnelName = sTunnelName;
+				ev.sRemoteIP   = EndpointAddress.Serialize();
+				ev.sDetail     = sReason;
+				m_Store->LogEvent(ev);
+			}
+		};
+
+		if (!m_Store)                { Reject("no store");            return; }
+		if (sTunnelName.empty())     { Reject("no tunnel requested"); return; }
+
+		auto oClient = m_Store->GetClient(sClient);
+
+		if (!oClient || !oClient->bEnabled)
+		{
+			Reject("client account is gone or disabled");
+			return;
+		}
+
+		// empty allow list means every configured tunnel
+		if (!oClient->sAllowTunnels.empty())
+		{
+			bool bAllowed { false };
+
+			for (auto sAllowed : oClient->sAllowTunnels.Split(","))
+			{
+				if (sAllowed == sTunnelName) { bAllowed = true; break; }
+			}
+
+			if (!bAllowed)
+			{
+				Reject(kFormat("tunnel '{}' is not in the client's allow list", sTunnelName));
+				return;
+			}
+		}
+
+		auto oTunnel = m_Store->GetTunnel(sTunnelName);
+
+		if (!oTunnel)            { Reject("no such tunnel");        return; }
+		if (!oTunnel->bEnabled)  { Reject("tunnel is disabled");    return; }
+
+		auto NodeTunnel = GetTunnelForNode(oTunnel->sNode);
+
+		if (!NodeTunnel)
+		{
+			Reject(kFormat("node '{}' is not currently connected", oTunnel->sNode));
+			return;
+		}
+
+		const KTCPEndPoint Target(oTunnel->sTargetHost, oTunnel->iTargetPort);
+
+		auto NodeChannel = NodeTunnel->OpenForward(Target);
+
+		if (!NodeChannel)
+		{
+			Reject(kFormat("cannot open a channel on node '{}'", oTunnel->sNode));
+			return;
+		}
+
+		const auto sPeerLabel = kFormat("client {} @ {}", sClient, EndpointAddress);
+		ClientChannel->SetPeer(sPeerLabel);
+		ClientChannel->SetTarget(Target);
+		// the node-side channel is the one the admin UI lists under the
+		// node's tunnel - without this it would show an empty source
+		NodeChannel->SetPeer(sPeerLabel);
+
+		kDebug(1, "[client {}]: relaying '{}' to {} via node '{}'",
+		       sClient, sTunnelName, Target, oTunnel->sNode);
+
+		if (m_Store)
+		{
+			KTunnelStore::Event ev;
+			ev.sKind       = "client_forward";
+			ev.sAdmin      = sClient;
+			ev.sNode       = oTunnel->sNode;
+			ev.sTunnelName = sTunnelName;
+			ev.sRemoteIP   = EndpointAddress.Serialize();
+			ev.sDetail     = kFormat("forwarding to {}", Target);
+			m_Store->LogEvent(ev);
+		}
+
+		// Bridge the two channels. One direction runs on this thread, the
+		// other on a helper - both end as soon as either side closes.
+		std::atomic<bool> bQuit { false };
+
+		auto NodeToClient = kMakeThread([&bQuit, NodeChannel, ClientChannel]()
+		{
+			kSetThreadName("clientrelay");
+
+			KString sData;
+			while (!bQuit.load(std::memory_order_acquire) && NodeChannel->ReadData(sData))
+			{
+				ClientChannel->WriteData(std::move(sData));
+			}
+			bQuit.store(true, std::memory_order_release);
+			// unblock the other direction
+			ClientChannel->Disconnect();
+		});
+
+		KString sData;
+		while (!bQuit.load(std::memory_order_acquire) && ClientChannel->ReadData(sData))
+		{
+			NodeChannel->WriteData(std::move(sData));
+		}
+		bQuit.store(true, std::memory_order_release);
+
+		NodeTunnel->CloseRepl(NodeChannel);   // Disconnect + free the channel slot
+		NodeToClient.join();
+
+		kDebug(1, "[client {}]: relay for '{}' closed", sClient, sTunnelName);
+	};
+
+	auto Tunnel = std::make_shared<KTunnel>(TunnelCfg, std::move(Stream));
+
+	*TunnelHolder = Tunnel;
+
+	{
+		m_ControlTunnels.unique()->emplace_back(Tunnel);
+	}
+
+	KAtScopeEnd( m_ActiveClients.unique()->erase(Tunnel.get()) );
+
+	DEKAF2_TRY
+	{
+		Tunnel->Run();
+	}
+	DEKAF2_CATCH (const std::exception& ex)
+	{
+		kDebug(1, "[client]: {}", ex.what());
+	}
+
+	kDebug(1, "[client]: closed client stream from {}", EndpointAddress);
+
+} // ClientStream
+
+//-----------------------------------------------------------------------------
 KTunnel::ConnectResult
 ExposedServer::ForwardStreamForOwner (KIOStreamSocket&    Downstream,
                                       const KTCPEndPoint& Endpoint,
@@ -1201,6 +1480,33 @@ bool ExposedServer::SetTunnelSettings (const TunnelSettings& Settings, KStringVi
 	return true;
 
 } // SetTunnelSettings
+
+//-----------------------------------------------------------------------------
+std::vector<ExposedServer::ActiveClient> ExposedServer::SnapshotActiveClients () const
+//-----------------------------------------------------------------------------
+{
+	std::vector<ActiveClient> out;
+
+	auto Clients = m_ActiveClients.shared();
+	out.reserve(Clients->size());
+
+	for (const auto& kv : *Clients)
+	{
+		auto Live = kv.second.Tunnel.lock();
+
+		if (!Live) continue;   // torn down between erase and snapshot
+
+		ActiveClient c;
+		c.sName        = kv.second.sName;
+		c.EndpointAddr = kv.second.EndpointAddr;
+		c.tConnected   = kv.second.tConnected;
+		c.Tunnel       = std::move(Live);
+		out.push_back(std::move(c));
+	}
+
+	return out;
+
+} // SnapshotActiveClients
 
 //-----------------------------------------------------------------------------
 void ExposedServer::LogConnReject (KStringView sTunnelName,
@@ -1768,6 +2074,25 @@ ExposedServer::ExposedServer (const Config& config)
 		HTTP.SetKeepWebSocketInRunningThread();
 
 	}).Parse(KRESTRoute::ParserType::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
+
+	// The client endpoint: an operator-side ktunnel connects here,
+	// authenticates against the `clients` table with the first frame
+	// (same login mechanics as /Tunnel) and then asks for forwarding
+	// channels by tunnel NAME. Stateful mode only - AdHoc has no client
+	// accounts.
+	if (bStateful)
+	{
+		Routes.AddRoute("/Client").Get([this](KRESTServer& HTTP)
+		{
+			HTTP.SetWebSocketHandler([this](KWebSocket& WebSocket)
+			{
+				ClientStream(WebSocket.MoveStream());
+			});
+
+			HTTP.SetKeepWebSocketInRunningThread();
+
+		}).Parse(KRESTRoute::ParserType::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
+	}
 
 	// set a default route — in Stateful mode we redirect unknown
 	// paths to the admin UI, in AdHoc mode there is no admin UI so
@@ -2339,6 +2664,199 @@ void ProtectedHost::Run()
 
 } // ProtectedHost::Run
 
+// ======================== client role ===================================
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// One local port of a ClientHost. Every accepted connection asks the
+/// exposed host for a channel to the mapped tunnel name.
+class ClientHost::LocalListener : public KTCPServer
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//----------
+public:
+//----------
+
+	LocalListener (ClientHost& Client, Forward Fwd, std::size_t iMaxConns)
+	: KTCPServer     (Fwd.iLocalPort, /*bSSL=*/false, iMaxConns)
+	, m_Client       (Client)
+	, m_Forward      (std::move(Fwd))
+	{
+		// a local forward that anyone on the network could use would
+		// undo the point of the exercise - loopback unless asked otherwise
+		SetBindAddress(m_Forward.sBindAddress.empty() ? KString("127.0.0.1")
+		                                              : m_Forward.sBindAddress);
+	}
+
+	const Forward& GetForward () const { return m_Forward; }
+
+//----------
+protected:
+//----------
+
+	void Session (std::unique_ptr<KIOStreamSocket>& Stream) override final
+	{
+		auto Tunnel = m_Client.GetTunnel();
+
+		if (!Tunnel)
+		{
+			kDebug(1, "local port {}: no tunnel to the exposed host", m_Forward.iLocalPort);
+			return;
+		}
+
+		// the endpoint carries the TUNNEL NAME - the exposed host resolves
+		// it to node + target, we never name a host ourselves
+		Tunnel->Connect(Stream.get(), KTCPEndPoint(m_Forward.sTunnel, 0));
+	}
+
+//----------
+private:
+//----------
+
+	ClientHost& m_Client;
+	Forward     m_Forward;
+
+}; // ClientHost::LocalListener
+
+//-----------------------------------------------------------------------------
+ClientHost::ClientHost (const ExtendedConfig& Config)
+//-----------------------------------------------------------------------------
+: m_Config(Config)
+{
+}
+
+//-----------------------------------------------------------------------------
+ClientHost::~ClientHost ()
+//-----------------------------------------------------------------------------
+{
+	for (auto& Listener : m_Listeners)
+	{
+		if (Listener && Listener->IsRunning()) Listener->Stop();
+	}
+}
+
+//-----------------------------------------------------------------------------
+void ClientHost::Shutdown ()
+//-----------------------------------------------------------------------------
+{
+	m_bQuit.store(true, std::memory_order_release);
+
+	if (auto Tunnel = *m_Tunnel.shared())
+	{
+		Tunnel->Stop();
+	}
+
+	m_CV.notify_all();
+
+} // ClientHost::Shutdown
+
+//-----------------------------------------------------------------------------
+void ClientHost::Run ()
+//-----------------------------------------------------------------------------
+{
+	// start the local listeners once - they survive reconnects and simply
+	// refuse connections while the control tunnel is down
+	for (const auto& Fwd : m_Config.LocalForwards)
+	{
+		auto Listener = std::make_unique<LocalListener>(*this, Fwd, m_Config.iMaxTunneledConnections);
+
+		const auto sBind = Fwd.sBindAddress.empty() ? KStringView("127.0.0.1")
+		                                            : KStringView(Fwd.sBindAddress);
+
+		if (!Listener->Start(m_Config.Timeout, /*bBlock=*/false))
+		{
+			m_Config.Message("cannot listen on {}:{}: {}", sBind, Fwd.iLocalPort, Listener->Error());
+			continue;
+		}
+
+		m_Config.Message("forwarding {}:{} -> tunnel '{}' at {}",
+		                 sBind, Fwd.iLocalPort, Fwd.sTunnel, m_Config.ExposedHost);
+
+		m_Listeners.push_back(std::move(Listener));
+	}
+
+	if (m_Listeners.empty())
+	{
+		m_Config.Message("no local forward could be started - nothing to do");
+		return;
+	}
+
+	KHTTPStreamOptions StreamOptions;
+	StreamOptions.SetTimeout(m_Config.ConnectTimeout);
+	StreamOptions.Unset(KStreamOptions::RequestHTTP2);
+
+	while (!m_bQuit.load(std::memory_order_acquire))
+	{
+		try
+		{
+			KURL ExposedHost;
+			ExposedHost.Protocol = m_Config.bNoTLS ? url::KProtocol::HTTP : url::KProtocol::HTTPS;
+			ExposedHost.Domain   = m_Config.ExposedHost.Domain;
+			ExposedHost.Port     = m_Config.ExposedHost.Port;
+			ExposedHost.Path     = "/Client";
+
+			KWebSocketClient WebSocket(ExposedHost, StreamOptions);
+			WebSocket.SetTimeout(m_Config.ConnectTimeout);
+			WebSocket.SetBinary();
+
+			m_Config.Message("connecting {}..", ExposedHost);
+
+			if (!WebSocket.Connect())
+			{
+				throw KError("cannot establish client connection");
+			}
+
+			KTunnel::Config TunnelCfg = m_Config;
+
+#if DEKAF2_HAS_ED25519
+			TunnelCfg.TrustCallback = BuildClientTrustCallback(m_Config);
+#endif
+
+			// we are the initiating side and log in with the client identity
+			auto Tunnel = std::make_shared<KTunnel>(TunnelCfg, std::move(WebSocket.GetStream()),
+			                                        m_Config.sPeerNode, *m_Config.Secrets.begin());
+
+			*m_Tunnel.unique() = Tunnel;
+
+			auto ClearTunnel = [this]() noexcept { m_Tunnel.unique()->reset(); };
+			auto Guard = KScopeGuard<decltype(ClearTunnel)>(ClearTunnel);
+
+			m_Config.Message("client connected - local ports are live");
+
+			Tunnel->Run();
+
+			if (m_bQuit.load(std::memory_order_acquire)) break;
+
+			m_Config.Message("lost connection - now sleeping for {} and retrying",
+			                 m_Config.ConnectTimeout);
+		}
+		catch (const std::exception& ex)
+		{
+			if (m_bQuit.load(std::memory_order_acquire)) break;
+
+			m_Config.Message("{}", ex.what());
+			m_Config.Message("could not connect - now sleeping for {} and retrying",
+			                 m_Config.ConnectTimeout);
+		}
+
+		{
+			std::unique_lock<std::mutex> Lock(m_Mutex);
+			m_CV.wait_for(Lock, m_Config.ConnectTimeout.duration(), [this]()
+			{
+				return m_bQuit.load(std::memory_order_acquire);
+			});
+		}
+	}
+
+	for (auto& Listener : m_Listeners)
+	{
+		if (Listener && Listener->IsRunning()) Listener->Stop();
+	}
+
+	m_Config.Message("client shut down");
+
+} // ClientHost::Run
+
 //-----------------------------------------------------------------------------
 int Tunnel::Main(int argc, char** argv)
 //-----------------------------------------------------------------------------
@@ -2455,6 +2973,65 @@ int Tunnel::Main(int argc, char** argv)
 	       .Help("protected host: like -shell-pass-file but takes the plaintext password directly on the command line (visible in the process list - prefer -shell-pass-file for anything but a quick test).")
 	       .Set(sShellPassword);
 
+	Options.Option("client").Section("client (the role selected by -client, needs -e)")
+	       .Help("connect to the exposed host as a CLIENT and offer local ports that are forwarded to named tunnels there (the `ssh -L` equivalent). Log in with -n <client-name> and -s/-secret-file, using an identity from the exposed host's `clients` table - NOT a node account. With this the exposed host needs no publicly reachable forward port at all.")
+	       .Set(m_Config.bClientRole, true);
+	Options.Option("L,forward-local <[bindaddr:]localport:tunnel>")
+	       .Help("client: listen on <localport> and forward every connection to the tunnel named <tunnel> on the exposed host. Repeatable. Binds 127.0.0.1 unless an explicit bind address is given - the whole point of the client role is that the forwarded port is not publicly reachable. The tunnel name is resolved on the exposed host; a client never names a target host itself.")
+	       .Callback([this](KStringViewZ sValue)
+	       {
+	           // parse from the right, so an IPv6 bind address (full of
+	           // colons itself) needs no quoting: [bindaddr:]port:tunnel
+	           KStringView sRest(sValue);
+
+	           auto iLastColon = sRest.rfind(':');
+
+	           if (iLastColon == KStringView::npos)
+	           {
+	               throw KOptions::WrongParameterError("expected [<bindaddr>:]<localport>:<tunnelname>");
+	           }
+
+	           ExtendedConfig::LocalForward Fwd;
+	           Fwd.sTunnel = sRest.substr(iLastColon + 1);
+	           sRest.remove_suffix(sRest.size() - iLastColon);
+
+	           auto iPortColon = sRest.rfind(':');
+	           KStringView sPort;
+
+	           if (iPortColon == KStringView::npos)
+	           {
+	               sPort = sRest;
+	           }
+	           else
+	           {
+	               sPort            = sRest.substr(iPortColon + 1);
+	               Fwd.sBindAddress = sRest.substr(0, iPortColon);
+	           }
+
+	           const auto iPort = sPort.UInt64();
+
+	           if (Fwd.sTunnel.empty() || iPort == 0 || iPort > 65535)
+	           {
+	               throw KOptions::WrongParameterError(
+	                   kFormat("bad forward '{}' - expected [<bindaddr>:]<localport>:<tunnelname>", sValue));
+	           }
+
+	           if (!Fwd.sBindAddress.empty())
+	           {
+	               KIPError ec;
+	               KIPAddress Address(Fwd.sBindAddress, ec);
+
+	               if (ec)
+	               {
+	                   throw KOptions::WrongParameterError(
+	                       kFormat("'{}' is not a valid bind address: {}", Fwd.sBindAddress, ec.message()));
+	               }
+	           }
+
+	           Fwd.iLocalPort = static_cast<uint16_t>(iPort);
+	           m_Config.LocalForwards.push_back(std::move(Fwd));
+	       });
+
 	// The following options never reach this parser: the service-management
 	// flags are consumed by KService::Run() (which then does not call into
 	// here), and the admin-bootstrap flags are evaluated and stripped in
@@ -2476,6 +3053,8 @@ int Tunnel::Main(int argc, char** argv)
 	       .Help("create or rotate the admin login in the config DB, then exit. Use before the first interactive launch, or to rotate the password.");
 	Options.Option("add-node")
 	       .Help("create or rotate a tunnel-endpoint (`nodes` table) login in the config DB, then exit. Combine with -node-name and -pass-file to seed a node non-interactively.");
+	Options.Option("add-client")
+	       .Help("create or rotate a client (`clients` table) login in the config DB, then exit. Combine with -client-name, optionally -client-tunnels, and -pass-file to seed a client non-interactively.");
 #if DEKAF2_HAS_ED25519
 	Options.Option("fingerprint")
 	       .Help("print the SHA-256 fingerprint of the exposed-host Ed25519 identity - the value protected hosts pin with -trust-fingerprint - then exit. Reads -identity-key or the default path next to the admin DB.");
@@ -2484,6 +3063,10 @@ int Tunnel::Main(int argc, char** argv)
 	       .Help("user name for -set-admin (default: admin) and for -install on a fresh DB. Ignored by -install when admins already exist. Not persisted into the generated unit / plist / SCM record.");
 	Options.Option("node-name <name>")
 	       .Help("node name for -add-node, required there. Not persisted into the generated unit / plist / SCM record.");
+	Options.Option("client-name <name>")
+	       .Help("client name for -add-client, required there.");
+	Options.Option("client-tunnels <list>")
+	       .Help("comma separated tunnel names a client created with -add-client may open. Empty (the default) allows every configured tunnel.");
 	Options.Option("pass-file <path>")
 	       .Help("read the admin (or node) password from <path> instead of prompting on the TTY, for non-interactive provisioning. The file is read once and never referenced by the running service.");
 
@@ -2614,7 +3197,28 @@ int Tunnel::Main(int argc, char** argv)
 	// authenticated entirely against the users table in the store.
 	if (!IsExposed() && m_Config.Secrets.empty())
 	{
-		SetError("protected host needs a (shared) secret");
+		SetError(m_Config.bClientRole ? "client needs a secret (-s or -secret-file)"
+		                              : "protected host needs a (shared) secret");
+	}
+
+	if (m_Config.bClientRole)
+	{
+		if (IsExposed())
+		{
+			SetError("-client needs -e <exposed host>");
+		}
+		if (m_Config.LocalForwards.empty())
+		{
+			SetError("-client needs at least one -L <localport>:<tunnelname>");
+		}
+		if (!m_Config.sShellPasswordHash.empty())
+		{
+			SetError("-shell-pass-file / -shell-password are protected-host options, not client options");
+		}
+	}
+	else if (!m_Config.LocalForwards.empty())
+	{
+		SetError("-L <localport>:<tunnelname> only works together with -client");
 	}
 
 	if (IsExposed())
@@ -2750,6 +3354,20 @@ int Tunnel::Main(int argc, char** argv)
 		}
 
 		ExposedServer Exposed(m_Config);
+	}
+	else if (m_Config.bClientRole)
+	{
+		m_Config.Message("starting as client, connecting exposed host with{} TLS at {}",
+		                 m_Config.bNoTLS ? "out" : "",
+		                 m_Config.ExposedHost);
+
+		ClientHost Client(m_Config);
+
+		KService::SetShutdownHandler([&Client]() { Client.Shutdown(); });
+
+		Client.Run();
+
+		KService::SetShutdownHandler(nullptr);
 	}
 	else
 	{
@@ -3066,6 +3684,86 @@ bool SeedNode (KStringView  sPath,
 } // SeedNode
 
 //-----------------------------------------------------------------------------
+/// Open the store at @p sPath, hash @p sPassword, upsert the client row at
+/// @p sName. Same contract as SeedNode, for the third identity realm: an
+/// operator-side ktunnel that connects IN with `-client`.
+bool SeedClient (KStringView  sPath,
+                 KStringView  sName,
+                 KStringViewZ sPassword,
+                 KStringView  sAllowTunnels)
+//-----------------------------------------------------------------------------
+{
+	KTunnelStore Store(sPath);
+
+	if (Store.HasError())
+	{
+		KErr.FormatLine(">> ktunnel: cannot open store '{}': {}",
+		                Store.GetDatabasePath(), Store.GetLastError());
+		return false;
+	}
+
+	KBCrypt BCrypt(std::chrono::milliseconds(100), /*bComputeAtFirstUse=*/false);
+
+	auto sHash = BCrypt.GenerateHash(sPassword);
+
+	if (sHash.empty())
+	{
+		KErr.FormatLine(">> ktunnel: failed to hash client password");
+		return false;
+	}
+
+	auto oExisting = Store.GetClient(sName);
+
+	if (oExisting)
+	{
+		if (!Store.UpdateClientPasswordHash(sName, sHash))
+		{
+			KErr.FormatLine(">> ktunnel: cannot update client '{}': {}",
+			                sName, Store.GetLastError());
+			return false;
+		}
+		if (!sAllowTunnels.empty())
+		{
+			Store.SetClientAllowTunnels(sName, sAllowTunnels);
+		}
+		KOut.FormatLine("client '{}' updated in {}", sName, Store.GetDatabasePath());
+
+		KTunnelStore::Event ev;
+		ev.sKind   = "client_password_change";
+		ev.sAdmin  = sName;
+		ev.sDetail = "password rotated via -add-client";
+		Store.LogEvent(ev);
+	}
+	else
+	{
+		KTunnelStore::Client c;
+		c.sName         = sName;
+		c.sPasswordHash = sHash;
+		c.bEnabled      = true;
+		c.sAllowTunnels = sAllowTunnels;
+
+		if (!Store.AddClient(c))
+		{
+			KErr.FormatLine(">> ktunnel: cannot create client '{}': {}",
+			                sName, Store.GetLastError());
+			return false;
+		}
+		KOut.FormatLine("client '{}' created in {}{}", sName, Store.GetDatabasePath(),
+		                sAllowTunnels.empty() ? " (may use every tunnel)"
+		                                      : kFormat(" (tunnels: {})", sAllowTunnels));
+
+		KTunnelStore::Event ev;
+		ev.sKind   = "client_add";
+		ev.sAdmin  = c.sName;
+		ev.sDetail = "client seeded via -add-client";
+		Store.LogEvent(ev);
+	}
+
+	return true;
+
+} // SeedClient
+
+//-----------------------------------------------------------------------------
 /// Interactive admin-name capture for first-install bootstrap. Echoes a
 /// `[default]` hint and accepts an empty Enter as "use the default". The
 /// returned name has been Trim()ed; an empty return means stdin is not a
@@ -3195,6 +3893,31 @@ int RunAddNode (int argc, char** argv)
 	return SeedNode(sDBPath, sName, sPassword) ? 0 : 1;
 
 } // RunAddNode
+
+//-----------------------------------------------------------------------------
+int RunAddClient (int argc, char** argv)
+//-----------------------------------------------------------------------------
+{
+	auto sName = GetBootstrapFlagValue(argc, argv, "client-name");
+	if (sName.empty())
+	{
+		KErr.FormatLine(">> ktunnel: -add-client requires -client-name <name>");
+		return 1;
+	}
+
+	const auto sDBPath  = ResolveBootstrapDBPath(argc, argv, /*bForceSystem=*/false);
+	const auto sTunnels = GetBootstrapFlagValue(argc, argv, "client-tunnels");
+
+	KString sPassword;
+
+	if (!CapturePassword(argc, argv, sPassword))
+	{
+		return 1;
+	}
+
+	return SeedClient(sDBPath, sName, sPassword, sTunnels) ? 0 : 1;
+
+} // RunAddClient
 
 //-----------------------------------------------------------------------------
 /// Handle the bootstrap step that runs immediately before the actual
@@ -3426,6 +4149,11 @@ int main(int argc, char** argv)
 		return RunSetAdmin(argc, argv);
 	}
 
+	if (HasBootstrapFlag(argc, argv, "add-client"))
+	{
+		return RunAddClient(argc, argv);
+	}
+
 	if (HasBootstrapFlag(argc, argv, "add-node"))
 	{
 		return RunAddNode(argc, argv);
@@ -3446,7 +4174,7 @@ int main(int argc, char** argv)
 		// admin password and leaves no unused ktunnel.db behind.
 		if (HasBootstrapFlag(argc, argv, "e") || HasBootstrapFlag(argc, argv, "exposed"))
 		{
-			KOut.FormatLine("ktunnel: protected-host install (-e given) — skipping admin bootstrap");
+			KOut.FormatLine("ktunnel: remote-role install (-e given) — skipping admin bootstrap");
 		}
 		else if (!BootstrapAdminForInstall(argc, argv))
 		{

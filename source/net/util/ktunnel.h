@@ -181,6 +181,16 @@ public:
 		TrustChecker                  TrustCallback;
 #endif
 
+		/// Optional handler invoked when a Connect frame arrives, INSTEAD of
+		/// dialing the requested endpoint from this process. The handler owns
+		/// the Connection and drives it with Connection::ReadData() /
+		/// Connection::WriteData(); returning tears the channel down. Runs on
+		/// its own worker thread. Used by a relay that does not connect to the
+		/// endpoint itself but forwards the channel into another tunnel - the
+		/// endpoint is then a name the relay resolves, not necessarily a host.
+		/// If unset, Connect frames dial the endpoint as usual.
+		std::function<void(std::shared_ptr<Connection>, KTCPEndPoint)>  ConnectCallback;
+
 		/// Optional handler invoked on the peer side when the remote end
 		/// requests a REPL channel via an OpenRepl frame. The handler owns
 		/// the Connection and should use Connection::ReadData() /
@@ -514,6 +524,14 @@ public:
 	/// Config::OpenReplCallback. Returns a null shared_ptr if no free
 	/// channel is available or the tunnel is not established.
 	std::shared_ptr<Connection> OpenRepl ();
+
+	/// Open a new forwarding channel on the remote peer: allocates a
+	/// channel, sends a Connect frame for @p Target, and returns the local
+	/// Connection for duplex Connection::ReadData() / WriteData() I/O -
+	/// the variant of Connect() for callers that have no local stream to
+	/// pump, e.g. a relay bridging two tunnels. Close it with CloseRepl().
+	/// Returns a null shared_ptr if no channel is available.
+	std::shared_ptr<Connection> OpenForward (const KTCPEndPoint& Target);
 
 	/// Close a REPL channel opened with OpenRepl(): sends a Disconnect
 	/// frame so the peer's handler unblocks, tears the local Connection

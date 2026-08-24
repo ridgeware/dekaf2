@@ -255,6 +255,7 @@ constexpr KStringView s_sLogoutURL    = "/Configure/logout";
 constexpr KStringView s_sDashboardURL = "/Configure/";
 constexpr KStringView s_sAdminsURL    = "/Configure/admins";
 constexpr KStringView s_sNodesURL     = "/Configure/nodes";
+constexpr KStringView s_sClientsURL   = "/Configure/clients";
 constexpr KStringView s_sTunnelsURL   = "/Configure/tunnels";
 constexpr KStringView s_sEventsURL    = "/Configure/events";
 constexpr KStringView s_sCertURL      = "/Configure/certificate";
@@ -277,6 +278,12 @@ constexpr KStringView s_sNodesToggleRoute      = "/Configure/nodes/toggle";
 constexpr KStringView s_sNodesDeleteRoute      = "/Configure/nodes/delete";
 constexpr KStringView s_sNodesResetPwRoute     = "/Configure/nodes/resetpass";
 constexpr KStringView s_sNodesInstallRoute     = "/Configure/nodes/install";
+constexpr KStringView s_sClientsRoute          = "/Configure/clients";
+constexpr KStringView s_sClientsAddRoute       = "/Configure/clients/add";
+constexpr KStringView s_sClientsToggleRoute    = "/Configure/clients/toggle";
+constexpr KStringView s_sClientsDeleteRoute    = "/Configure/clients/delete";
+constexpr KStringView s_sClientsResetPwRoute   = "/Configure/clients/resetpass";
+constexpr KStringView s_sClientsTunnelsRoute   = "/Configure/clients/tunnels";
 constexpr KStringView s_sTunnelsRoute          = "/Configure/tunnels";
 constexpr KStringView s_sTunnelsAddRoute       = "/Configure/tunnels/add";
 constexpr KStringView s_sTunnelsToggleRoute    = "/Configure/tunnels/toggle";
@@ -307,6 +314,11 @@ constexpr KStringView s_sNodesToggleURL        = "/Configure/nodes/toggle";
 constexpr KStringView s_sNodesDeleteURL        = "/Configure/nodes/delete";
 constexpr KStringView s_sNodesResetPwURL       = "/Configure/nodes/resetpass";
 constexpr KStringView s_sNodesInstallURL       = "/Configure/nodes/install";
+constexpr KStringView s_sClientsAddURL         = "/Configure/clients/add";
+constexpr KStringView s_sClientsToggleURL      = "/Configure/clients/toggle";
+constexpr KStringView s_sClientsDeleteURL      = "/Configure/clients/delete";
+constexpr KStringView s_sClientsResetPwURL     = "/Configure/clients/resetpass";
+constexpr KStringView s_sClientsTunnelsURL     = "/Configure/clients/tunnels";
 constexpr KStringView s_sTunnelsAddURL         = "/Configure/tunnels/add";
 constexpr KStringView s_sTunnelsToggleURL      = "/Configure/tunnels/toggle";
 constexpr KStringView s_sTunnelsDeleteURL      = "/Configure/tunnels/delete";
@@ -346,6 +358,8 @@ KString FormatDuration (KDuration dur)
 KStringView PillForEventKind (KStringView sKind)
 {
 	if (sKind == "admin_login_ok"
+	 || sKind == "client_login_ok"
+	 || sKind == "client_forward"
 	 || sKind == "node_login_ok"
 	 || sKind == "tunnel_connect"
 	 || sKind == "tunnel_start")      return "ok";
@@ -355,6 +369,8 @@ KStringView PillForEventKind (KStringView sKind)
 	 || sKind == "tunnel_error"
 	 || sKind == "conn_fail"
 	 || sKind == "conn_reject"
+	 || sKind == "client_login_fail"
+	 || sKind == "client_reject"
 	 || sKind == "auth_reject")       return "fail";
 	if (sKind == "tunnel_disconnect"
 	 || sKind == "tunnel_stop"
@@ -367,6 +383,8 @@ KStringView PillForEventKind (KStringView sKind)
 	 || sKind == "admin_password_change"
 	 || sKind == "node_add"
 	 || sKind == "node_enable"
+	 || sKind == "client_add"
+	 || sKind == "client_password_change"
 	 || sKind == "node_password_change")
 	                                  return "info";
 	return "neutral";
@@ -610,6 +628,7 @@ void AdminUI::RenderTopBar (html::Page& Page,
 		{ "dashboard", s_sDashboardURL, "Dashboard"   },
 		{ "admins",    s_sAdminsURL,    "Admins"      },
 		{ "nodes",     s_sNodesURL,     "Nodes"       },
+		{ "clients",   s_sClientsURL,   "Clients"     },
 		{ "tunnels",   s_sTunnelsURL,   "Tunnels"     },
 		{ "cert",      s_sCertURL,      "Certificate" },
 		{ "settings",  s_sSettingsURL,  "Settings"    },
@@ -1643,6 +1662,514 @@ void AdminUI::HandleNodesResetPass (KRESTServer& HTTP)
 	                  kFormat("Password reset for node '{}'.", sName), "");
 
 } // HandleNodesResetPass
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleClientsAdd (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sName     = HTTP.GetQueryParm("name");
+	const auto&   sPassword = HTTP.GetQueryParm("password");
+	const auto&   sTunnels  = HTTP.GetQueryParm("allow_tunnels");
+	const auto&   sEnabled  = HTTP.GetQueryParm("enabled");
+
+	if (sName.empty() || sPassword.empty())
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "", "Name and password must not be empty.");
+		return;
+	}
+
+	auto& Store = m_Server.GetStore();
+
+	if (Store.GetClient(sName))
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "", kFormat("Client '{}' already exists.", sName));
+		return;
+	}
+
+	auto sHash = m_Server.GetBCrypt().GenerateHash(KStringViewZ(sPassword));
+
+	if (sHash.empty())
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "", "Failed to hash the password.");
+		return;
+	}
+
+	KTunnelStore::Client c;
+	c.sName         = sName;
+	c.sPasswordHash = sHash;
+	c.bEnabled      = !sEnabled.empty();
+	c.sAllowTunnels = sTunnels;
+
+	if (!Store.AddClient(c))
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "",
+		                  kFormat("Cannot add client: {}", Store.GetLastError()));
+		return;
+	}
+
+	KTunnelStore::Event ev;
+	ev.sKind   = "client_add";
+	ev.sAdmin  = sMe;
+	ev.sDetail = kFormat("added client '{}' ({}){}", c.sName,
+	                     c.sAllowTunnels.empty() ? KString("all tunnels")
+	                                             : kFormat("tunnels: {}", c.sAllowTunnels),
+	                     c.bEnabled ? "" : " [disabled]");
+	Store.LogEvent(ev);
+
+	RedirectWithFlash(HTTP, s_sClientsURL, kFormat("Client '{}' added.", c.sName), "");
+
+} // HandleClientsAdd
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleClientsToggle (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sName   = HTTP.GetQueryParm("name");
+	const bool    bEnable = (HTTP.GetQueryParm("enable") == "1");
+
+	auto& Store = m_Server.GetStore();
+
+	if (sName.empty() || !Store.GetClient(sName))
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "", kFormat("Client '{}' does not exist.", sName));
+		return;
+	}
+
+	if (!Store.SetClientEnabled(sName, bEnable))
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "",
+		                  kFormat("Cannot change client: {}", Store.GetLastError()));
+		return;
+	}
+
+	KTunnelStore::Event ev;
+	ev.sKind   = bEnable ? "client_enable" : "client_disable";
+	ev.sAdmin  = sMe;
+	ev.sDetail = kFormat("client '{}'", sName);
+	Store.LogEvent(ev);
+
+	RedirectWithFlash(HTTP, s_sClientsURL,
+	                  kFormat("Client '{}' {}.", sName, bEnable ? "enabled" : "disabled"), "");
+
+} // HandleClientsToggle
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleClientsDelete (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sName = HTTP.GetQueryParm("name");
+
+	auto& Store = m_Server.GetStore();
+
+	if (sName.empty() || !Store.GetClient(sName))
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "", kFormat("Client '{}' does not exist.", sName));
+		return;
+	}
+
+	if (!Store.DeleteClient(sName))
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "",
+		                  kFormat("Cannot delete client: {}", Store.GetLastError()));
+		return;
+	}
+
+	KTunnelStore::Event ev;
+	ev.sKind   = "client_del";
+	ev.sAdmin  = sMe;
+	ev.sDetail = kFormat("deleted client '{}'", sName);
+	Store.LogEvent(ev);
+
+	RedirectWithFlash(HTTP, s_sClientsURL, kFormat("Client '{}' deleted.", sName), "");
+
+} // HandleClientsDelete
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleClientsResetPass (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sName = HTTP.GetQueryParm("name");
+	const auto&   sNew  = HTTP.GetQueryParm("new_password");
+
+	if (sName.empty() || sNew.empty())
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "", "Client and new password are required.");
+		return;
+	}
+	if (sNew.size() < 6)
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "", "New password must be at least 6 characters long.");
+		return;
+	}
+
+	auto& Store = m_Server.GetStore();
+
+	if (!Store.GetClient(sName))
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "", kFormat("Client '{}' does not exist.", sName));
+		return;
+	}
+
+	auto sHash = m_Server.GetBCrypt().GenerateHash(KStringViewZ(sNew));
+
+	if (sHash.empty() || !Store.UpdateClientPasswordHash(sName, sHash))
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "",
+		                  kFormat("Cannot update password: {}", Store.GetLastError()));
+		return;
+	}
+
+	KTunnelStore::Event ev;
+	ev.sKind   = "client_password_change";
+	ev.sAdmin  = sMe;
+	ev.sDetail = kFormat("client '{}'", sName);
+	Store.LogEvent(ev);
+
+	RedirectWithFlash(HTTP, s_sClientsURL, kFormat("Password reset for client '{}'.", sName), "");
+
+} // HandleClientsResetPass
+
+//-----------------------------------------------------------------------------
+void AdminUI::HandleClientsTunnels (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sName    = HTTP.GetQueryParm("name");
+	const auto&   sTunnels = HTTP.GetQueryParm("allow_tunnels");
+
+	auto& Store = m_Server.GetStore();
+
+	if (sName.empty() || !Store.GetClient(sName))
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "", kFormat("Client '{}' does not exist.", sName));
+		return;
+	}
+
+	// warn instead of failing: a name that does not exist yet may be
+	// created later, but a typo should not go unnoticed
+	KString sUnknown;
+
+	for (auto sWanted : sTunnels.Split(","))
+	{
+		if (sWanted.empty()) continue;
+
+		if (!Store.GetTunnel(sWanted))
+		{
+			if (!sUnknown.empty()) sUnknown += ", ";
+			sUnknown += sWanted;
+		}
+	}
+
+	if (!Store.SetClientAllowTunnels(sName, sTunnels))
+	{
+		RedirectWithFlash(HTTP, s_sClientsURL, "",
+		                  kFormat("Cannot update client: {}", Store.GetLastError()));
+		return;
+	}
+
+	KTunnelStore::Event ev;
+	ev.sKind   = "config_change";
+	ev.sAdmin  = sMe;
+	ev.sDetail = kFormat("client '{}' may use {}", sName,
+	                     sTunnels.empty() ? KString("all tunnels") : KString(sTunnels));
+	Store.LogEvent(ev);
+
+	RedirectWithFlash(HTTP, s_sClientsURL,
+	                  kFormat("Client '{}' updated.{}", sName,
+	                          sUnknown.empty() ? KString()
+	                                           : kFormat(" Note: no tunnel named {} exists (yet).", sUnknown)),
+	                  "");
+
+} // HandleClientsTunnels
+
+//-----------------------------------------------------------------------------
+void AdminUI::ShowClients (KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KRESTSession Sess(*m_Session, HTTP);
+	if (!Sess.RequireLoginOrRedirect(s_sLoginURL)) return;
+
+	const KString sMe(Sess.GetUser());
+	const auto&   sNotice = HTTP.GetQueryParm("notice");
+	const auto&   sError  = HTTP.GetQueryParm("error");
+
+	auto& Store   = m_Server.GetStore();
+	auto  Clients = Store.GetAllClients();
+	auto  Tunnels = Store.GetAllTunnels();
+	auto  Live    = m_Server.SnapshotActiveClients();
+
+	KUnorderedSet<KString> OnlineClients;
+	for (const auto& c : Live) OnlineClients.insert(c.sName);
+
+	auto Page = MakePage("ktunnel — Clients");
+	RenderTopBar(Page, "clients", sMe);
+
+	auto main = Page.Body().Add<html::Div>(html::Classes("main"));
+
+	RenderFlash(main, sNotice, sError);
+
+	{
+		auto p = main.Add<html::Paragraph>();
+		p.SetAttribute("class", "muted");
+		p.AddText("A client is an operator-side ktunnel started with -client. It "
+		          "connects in here, authenticates, and asks for a channel to a "
+		          "tunnel BY NAME - it never names a target host itself. Use this "
+		          "instead of exposing a forward port: bind such a tunnel to "
+		          "127.0.0.1 and it is only reachable through an authenticated client.");
+	}
+
+	// --- Section 1: client list ---------------------------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Clients ({})", Clients.size()));
+
+		if (Clients.empty())
+		{
+			auto p = sec.Add<html::Paragraph>();
+			p.SetAttribute("class", "muted");
+			p.AddText("No client identities yet. Add one below, then start "
+			          "ktunnel on the operator's machine with "
+			          "-client -e <this host> -n <name> -s <password> "
+			          "-L <localport>:<tunnel>.");
+		}
+		else
+		{
+			auto Table = sec.Add<html::ui::Table>();
+			Table.Headers({ "Name", "Enabled", "May use", "Last login", "Created", "" });
+
+			for (const auto& c : Clients)
+			{
+				auto Row  = Table.AddRow();
+				auto Name = Row.Add<html::TableData>();
+				Name.AddText(c.sName);
+				if (OnlineClients.count(c.sName))
+				{
+					RenderPill(Name, "ok", "connected");
+				}
+
+				RenderPill(Row.Add<html::TableData>(),
+				           c.bEnabled ? "ok"      : "neutral",
+				           c.bEnabled ? "enabled" : "disabled");
+
+				auto Allowed = Row.Add<html::TableData>();
+				if (c.sAllowTunnels.empty())
+				{
+					RenderPill(Allowed, "info", "all tunnels");
+				}
+				else
+				{
+					Allowed.AddText(c.sAllowTunnels);
+				}
+
+				Row.Add<html::TableData>(c.tLastLogin.to_time_t() > 0
+				                             ? kFormat("{} UTC", c.tLastLogin.to_string())
+				                             : KString("—"));
+				Row.Add<html::TableData>(c.tCreated.to_time_t() > 0
+				                             ? kFormat("{} UTC", c.tCreated.to_string())
+				                             : KString("—"));
+
+				auto Actions = Row.Add<html::TableData>();
+
+				auto Toggle = Actions.Add<html::Form>(s_sClientsToggleURL, html::Classes{"inline-form"});
+				Toggle.SetMethod(html::Form::POST);
+				Toggle.Add<html::Input>("name",   c.sName,                html::Input::HIDDEN);
+				Toggle.Add<html::Input>("enable", c.bEnabled ? "0" : "1", html::Input::HIDDEN);
+				Toggle.Add<html::Button>(c.bEnabled ? "Disable" : "Enable",
+				                         html::Button::SUBMIT, html::Classes{"btn small"});
+
+				auto Delete = Actions.Add<html::Form>(s_sClientsDeleteURL, html::Classes{"inline-form"});
+				Delete.SetMethod(html::Form::POST);
+				Delete.SetAttribute("onsubmit",
+				                    kFormat("return confirm('Delete client {}?');", c.sName));
+				Delete.Add<html::Input>("name", c.sName, html::Input::HIDDEN);
+				Delete.Add<html::Button>("Delete", html::Button::SUBMIT,
+				                         html::Classes{"btn danger small"});
+			}
+		}
+	}
+
+	// --- Section 1b: live client sessions ------------------------------
+	// One client identity may hold several connections at once, so this
+	// lists sessions, not accounts.
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, kFormat("Connected clients ({})", Live.size()));
+
+		if (Live.empty())
+		{
+			auto p = sec.Add<html::Paragraph>();
+			p.SetAttribute("class", "muted");
+			p.AddText("No client is connected right now. A client only holds a "
+			          "connection while its ktunnel runs - it has no admin UI of "
+			          "its own, so this is where you watch it.");
+		}
+		else
+		{
+			const auto tNow = KUnixTime::now();
+
+			auto Table = sec.Add<html::ui::Table>();
+			Table.Headers({ "Client", "From", "Connected", "Channels", "RX", "TX" });
+
+			for (const auto& c : Live)
+			{
+				auto Row = Table.AddRow();
+				Row.Add<html::TableData>(c.sName);
+				Row.Add<html::TableData>(c.EndpointAddr.Serialize());
+				Row.Add<html::TableData>(FormatDuration(tNow - c.tConnected));
+				Row.Add<html::TableData>(kFormat("{}", c.Tunnel->GetConnectionCount()))
+				   .SetAttribute("class", "num");
+				Row.Add<html::TableData>(kFormBytes(c.Tunnel->GetBytesRx()))
+				   .SetAttribute("class", "num");
+				Row.Add<html::TableData>(kFormBytes(c.Tunnel->GetBytesTx()))
+				   .SetAttribute("class", "num");
+			}
+		}
+	}
+
+	// --- Section 2: add client ----------------------------------------
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Add client");
+
+		auto Form = sec.Add<html::Form>(s_sClientsAddURL);
+		Form.SetMethod(html::Form::POST);
+
+		auto Row = Form.Add<html::Div>(html::Classes("row"));
+		Row.Add<html::ui::Field>("Name", "name")
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "off");
+		Row.Add<html::ui::Field>("Password", "password", "", html::Input::PASSWORD)
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password")
+		           .SetAttribute("id", "client_add_pw");
+		Row.Add<html::Button>("Generate", html::Button::BUTTON, html::Classes{"btn small"})
+		   .SetAttribute("onclick", "ktGenPassword(this, ['client_add_pw'])");
+		Row.Add<html::ui::Field>("May use tunnels (empty = all)", "allow_tunnels")
+		   .Input().SetAttribute("autocomplete", "off")
+		           .SetAttribute("placeholder", "db, web");
+
+		auto Field = Row.Add<html::Div>(html::Classes("field"));
+		auto Label = Field.AddElement("label");
+		Label.SetAttribute("class", "checkbox");
+		Label.Add<html::Input>("enabled", "1", html::Input::CHECKBOX).SetChecked(true);
+		Label.Add<html::Span>().AddText("Enabled");
+
+		Row.Add<html::Button>("Add", html::Button::SUBMIT, html::Classes{"btn"});
+
+		if (!Tunnels.empty())
+		{
+			KString sNames;
+			for (const auto& t : Tunnels)
+			{
+				if (!sNames.empty()) sNames += ", ";
+				sNames += t.sName;
+			}
+			sec.Add<html::Div>(html::Classes("muted"))
+			   .AddText(kFormat("Configured tunnels: {}", sNames));
+		}
+	}
+
+	// --- Section 3: reset password / change allow list ------------------
+	if (!Clients.empty())
+	{
+		auto sec = main.Add<html::Div>(html::Classes("section"));
+		sec.Add<html::Heading>(2, "Reset client password");
+
+		auto Form = sec.Add<html::Form>(s_sClientsResetPwURL);
+		Form.SetMethod(html::Form::POST);
+
+		auto Row   = Form.Add<html::Div>(html::Classes("row"));
+		auto Field = Row.Add<html::Div>(html::Classes("field"));
+		Field.AddElement("label").AddText("Client");
+		auto Select = Field.Add<html::Select>("name");
+		Select.SetRequired(true);
+		for (const auto& c : Clients)
+		{
+			Select.Add<html::Option>(c.bEnabled ? c.sName
+			                                    : kFormat("{} (disabled)", c.sName),
+			                         c.sName);
+		}
+
+		Row.Add<html::ui::Field>("New password", "new_password", "", html::Input::PASSWORD)
+		   .Input().SetRequired(true).SetAttribute("autocomplete", "new-password")
+		           .SetAttribute("id", "client_reset_pw");
+		Row.Add<html::Button>("Generate", html::Button::BUTTON, html::Classes{"btn small"})
+		   .SetAttribute("onclick", "ktGenPassword(this, ['client_reset_pw'])");
+		Row.Add<html::Button>("Reset", html::Button::SUBMIT, html::Classes{"btn"});
+
+		auto sec2 = main.Add<html::Div>(html::Classes("section"));
+		sec2.Add<html::Heading>(2, "Change allowed tunnels");
+
+		auto Form2 = sec2.Add<html::Form>(s_sClientsTunnelsURL);
+		Form2.SetMethod(html::Form::POST);
+
+		auto Row2   = Form2.Add<html::Div>(html::Classes("row"));
+		auto Field2 = Row2.Add<html::Div>(html::Classes("field"));
+		Field2.AddElement("label").AddText("Client");
+		auto Select2 = Field2.Add<html::Select>("name");
+		Select2.SetRequired(true);
+		for (const auto& c : Clients)
+		{
+			Select2.Add<html::Option>(c.sName, c.sName);
+		}
+
+		Row2.Add<html::ui::Field>("May use tunnels (empty = all)", "allow_tunnels")
+		    .Input().SetAttribute("autocomplete", "off")
+		            .SetAttribute("placeholder", "db, web");
+		Row2.Add<html::Button>("Save", html::Button::SUBMIT, html::Classes{"btn"});
+	}
+
+	// same generator as on the nodes page
+	main.Add<html::Script>(R"(
+function ktGenPassword(button, fieldIds) {
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  var pw = '';
+  while (pw.length < 24) {
+    var a = new Uint8Array(32);
+    crypto.getRandomValues(a);
+    for (var i = 0; i < a.length && pw.length < 24; ++i) {
+      // 248 = 4 * 62: reject the tail to keep the distribution uniform
+      if (a[i] < 248) pw += chars[a[i] % 62];
+    }
+  }
+  fieldIds.forEach(function(id) {
+    var f = document.getElementById(id);
+    if (f) { f.type = 'text'; f.value = pw; }
+  });
+  function ack(label) {
+    var old = button.textContent;
+    button.textContent = label;
+    setTimeout(function() { button.textContent = old; }, 2000);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(pw).then(function() { ack('Copied!'); },
+                                           function() { ack('Generated'); });
+  } else {
+    ack('Generated');
+  }
+}
+)");
+
+	RenderPage(HTTP, Page);
+
+} // ShowClients
 
 //-----------------------------------------------------------------------------
 void AdminUI::ShowNodeInstall (KRESTServer& HTTP)
@@ -3674,6 +4201,31 @@ void AdminUI::RegisterRoutes (KRESTRoutes& Routes)
 	Routes.AddRoute(KString(s_sNodesInstallRoute))
 	      .Get ([this](KRESTServer& HTTP) { ShowNodeInstall(HTTP); })
 	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	// --- Clients (operator-side ktunnel identities) -------------------
+	Routes.AddRoute(KString(s_sClientsRoute))
+	      .Get ([this](KRESTServer& HTTP) { ShowClients(HTTP); })
+	      .Parse(KRESTRoute::ParserType::NOREAD);
+
+	Routes.AddRoute(KString(s_sClientsAddRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleClientsAdd(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	Routes.AddRoute(KString(s_sClientsToggleRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleClientsToggle(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	Routes.AddRoute(KString(s_sClientsDeleteRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleClientsDelete(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	Routes.AddRoute(KString(s_sClientsResetPwRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleClientsResetPass(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
+
+	Routes.AddRoute(KString(s_sClientsTunnelsRoute))
+	      .Post([this](KRESTServer& HTTP) { HandleClientsTunnels(HTTP); })
+	      .Parse(KRESTRoute::ParserType::WWWFORM);
 
 	// --- Tunnels sub-tree (list + add + enable/disable + delete) -----
 	Routes.AddRoute(KString(s_sTunnelsRoute))

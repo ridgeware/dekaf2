@@ -1295,6 +1295,34 @@ std::shared_ptr<KTunnel::Connection> KTunnel::OpenRepl()
 } // OpenRepl
 
 //-----------------------------------------------------------------------------
+std::shared_ptr<KTunnel::Connection> KTunnel::OpenForward(const KTCPEndPoint& Target)
+//-----------------------------------------------------------------------------
+{
+	if (!HaveTunnel())
+	{
+		kDebug(1, "cannot open forward channel: no tunnel");
+		return {};
+	}
+
+	auto Connection = m_Connections.Create(0, [this](Message&& msg){ QueueMessage(std::move(msg)); }, nullptr);
+
+	if (!Connection)
+	{
+		kDebug(1, "cannot open forward channel: out of channels");
+		return {};
+	}
+
+	Connection->SetTarget(Target);
+
+	QueueMessage(Message(Message::Connect, Connection->GetID(), Target.Serialize()));
+
+	kDebug(1, "[{}]: requested forward channel to {}", Connection->GetID(), Target);
+
+	return Connection;
+
+} // OpenForward
+
+//-----------------------------------------------------------------------------
 void KTunnel::CloseRepl(const std::shared_ptr<Connection>& Connection)
 //-----------------------------------------------------------------------------
 {
@@ -2188,7 +2216,30 @@ void KTunnel::HandleMessage(Message&& FromTunnel)
 			if (Connection)
 			{
 				Connection->SetTarget(TargetHost);
-				m_Threads.Create(&KTunnel::ConnectToTarget, this, chan, std::move(TargetHost));
+
+				if (m_Config.ConnectCallback)
+				{
+					// a relay handles the channel itself instead of us
+					// dialing the endpoint - mirrors the OpenRepl path
+					m_Threads.Create([this, cb=m_Config.ConnectCallback, Connection, TargetHost]()
+					{
+						try
+						{
+							cb(Connection, TargetHost);
+						}
+						catch (const std::exception& ex)
+						{
+							kDebug(1, "[{}]: connect handler threw: {}", Connection->GetID(), ex.what());
+						}
+						Connection->Disconnect();
+						QueueMessage(Message(Message::Disconnect, Connection->GetID()));
+						m_Connections.Remove(Connection->GetID());
+					});
+				}
+				else
+				{
+					m_Threads.Create(&KTunnel::ConnectToTarget, this, chan, std::move(TargetHost));
+				}
 			}
 			else
 			{

@@ -169,6 +169,28 @@ private:
 	/// client-side only and never travels back to the server.
 	void ShowNodeInstall        (KRESTServer& HTTP);
 
+	/// GET /Configure/clients — list client identities + Add form.
+	/// Clients are the third realm: operator-side ktunnels that connect in
+	/// with `-client` and ask for a channel to a named tunnel.
+	void ShowClients            (KRESTServer& HTTP);
+
+	/// POST /Configure/clients/add — create a client identity.
+	/// Form body: `name`, `password`, optional `allow_tunnels`, optional
+	/// `enabled` checkbox.
+	void HandleClientsAdd       (KRESTServer& HTTP);
+
+	/// POST /Configure/clients/toggle — flip the enabled bit.
+	void HandleClientsToggle    (KRESTServer& HTTP);
+
+	/// POST /Configure/clients/delete — delete a client identity.
+	void HandleClientsDelete    (KRESTServer& HTTP);
+
+	/// POST /Configure/clients/resetpass — set a new client password.
+	void HandleClientsResetPass (KRESTServer& HTTP);
+
+	/// POST /Configure/clients/tunnels — replace a client's allow list.
+	void HandleClientsTunnels   (KRESTServer& HTTP);
+
 	/// GET /Configure/tunnels — list configured tunnels + Add form.
 	/// Supports `?notice=…` / `?error=…` flash banners.
 	void ShowTunnels          (KRESTServer& HTTP);

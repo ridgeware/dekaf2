@@ -188,6 +188,19 @@ bool KTunnelStore::InitializeSchema ()
 		"  last_login_utc integer not null default 0"
 		")",
 
+		// Clients: operator-side ktunnel identities that connect IN and ask
+		// for a forwarding channel to a named tunnel. Separate realm from
+		// `nodes` (protected hosts) and `admins` (web UI).
+		"create table if not exists clients ("
+		"  id             integer primary key autoincrement,"
+		"  name           text    not null unique,"
+		"  pw_hash        text    not null,"
+		"  enabled        integer not null default 1,"
+		"  allow_tunnels  text    not null default '',"
+		"  created_utc    integer not null default 0,"
+		"  last_login_utc integer not null default 0"
+		")",
+
 		// Tunnels: one row per listener the admin configured. A tunnel
 		// is keyed by name (human-readable); the owning node decides
 		// whose ktunnel login is accepted for this listener.
@@ -673,6 +686,203 @@ void KTunnelStore::SetNodeLastLogin (KStringView sName, KUnixTime tNow)
 	           static_cast<int64_t>(tNow.to_time_t()), sName);
 
 } // SetNodeLastLogin
+
+// ============================ Clients ===================================
+
+namespace {
+
+KTunnelStore::Client ClientFromRow (const KSQLite::Row& Row)
+{
+	KTunnelStore::Client c;
+	c.iID           = Row.Col(1).Int64();
+	c.sName         = Row.Col(2).String();
+	c.sPasswordHash = Row.Col(3).String();
+	c.bEnabled      = Row.Col(4).Int64() != 0;
+	c.sAllowTunnels = Row.Col(5).String();
+	c.tCreated      = KUnixTime::from_time_t(Row.Col(6).Int64());
+	c.tLastLogin    = KUnixTime::from_time_t(Row.Col(7).Int64());
+	return c;
+}
+
+constexpr KStringView s_sClientCols =
+	"id, name, pw_hash, enabled, allow_tunnels, created_utc, last_login_utc";
+
+} // anonymous
+
+//-----------------------------------------------------------------------------
+bool KTunnelStore::AddClient (const Client& client)
+//-----------------------------------------------------------------------------
+{
+	if (client.sName.empty() || client.sPasswordHash.empty())
+	{
+		SetError("AddClient: empty name or hash");
+		return false;
+	}
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (!db.IsOpen()) return false;
+
+	auto Result = db.ExecSQL(
+		"insert into clients (name, pw_hash, enabled, allow_tunnels, "
+		"                     created_utc, last_login_utc) "
+		"values (?1, ?2, ?3, ?4, ?5, ?6)",
+		client.sName,
+		client.sPasswordHash,
+		static_cast<int64_t>(client.bEnabled ? 1 : 0),
+		client.sAllowTunnels,
+		static_cast<int64_t>((client.tCreated == KUnixTime{}) ? KUnixTime::now().to_time_t()
+		                                                      : client.tCreated.to_time_t()),
+		static_cast<int64_t>(client.tLastLogin.to_time_t()));
+
+	if (!Result)
+	{
+		SetError(kFormat("AddClient: insert failed: {}", Result.Error()));
+		return false;
+	}
+	return true;
+
+} // AddClient
+
+//-----------------------------------------------------------------------------
+bool KTunnelStore::UpdateClientPasswordHash (KStringView sName, KStringView sBcryptHash)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (!db.IsOpen()) return false;
+
+	auto Result = db.ExecSQL("update clients set pw_hash=?1 where name=?2", sBcryptHash, sName);
+
+	if (!Result)
+	{
+		SetError(kFormat("UpdateClientPasswordHash: {}", Result.Error()));
+		return false;
+	}
+	return true;
+
+} // UpdateClientPasswordHash
+
+//-----------------------------------------------------------------------------
+bool KTunnelStore::SetClientAllowTunnels (KStringView sName, KStringView sAllowTunnels)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (!db.IsOpen()) return false;
+
+	auto Result = db.ExecSQL("update clients set allow_tunnels=?1 where name=?2",
+	                         sAllowTunnels, sName);
+
+	if (!Result)
+	{
+		SetError(kFormat("SetClientAllowTunnels: {}", Result.Error()));
+		return false;
+	}
+	return true;
+
+} // SetClientAllowTunnels
+
+//-----------------------------------------------------------------------------
+bool KTunnelStore::SetClientEnabled (KStringView sName, bool bEnabled)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (!db.IsOpen()) return false;
+
+	auto Result = db.ExecSQL("update clients set enabled=?1 where name=?2",
+	                         static_cast<int64_t>(bEnabled ? 1 : 0), sName);
+
+	if (!Result)
+	{
+		SetError(kFormat("SetClientEnabled: {}", Result.Error()));
+		return false;
+	}
+	return true;
+
+} // SetClientEnabled
+
+//-----------------------------------------------------------------------------
+bool KTunnelStore::DeleteClient (KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (!db.IsOpen()) return false;
+
+	auto Result = db.ExecSQL("delete from clients where name=?1", sName);
+
+	if (!Result)
+	{
+		SetError(kFormat("DeleteClient: {}", Result.Error()));
+		return false;
+	}
+	return true;
+
+} // DeleteClient
+
+//-----------------------------------------------------------------------------
+std::unique_ptr<KTunnelStore::Client>
+KTunnelStore::GetClient (KStringView sName)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRO();
+	if (!db.IsOpen()) return nullptr;
+
+	auto Query = db.ExecQuery(kFormat("select {} from clients where name=?1", s_sClientCols), sName);
+
+	if (!Query.Next())
+	{
+		return nullptr;
+	}
+
+	return std::make_unique<Client>(ClientFromRow(Query.GetRow()));
+
+} // GetClient
+
+//-----------------------------------------------------------------------------
+std::vector<KTunnelStore::Client> KTunnelStore::GetAllClients ()
+//-----------------------------------------------------------------------------
+{
+	std::vector<Client> out;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRO();
+	if (!db.IsOpen()) return out;
+
+	auto Query = db.ExecQuery(kFormat("select {} from clients order by name asc", s_sClientCols));
+
+	while (Query.Next())
+	{
+		out.push_back(ClientFromRow(Query.GetRow()));
+	}
+
+	return out;
+
+} // GetAllClients
+
+//-----------------------------------------------------------------------------
+void KTunnelStore::SetClientLastLogin (KStringView sName, KUnixTime tNow)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	auto db = OpenRW();
+	if (!db.IsOpen()) return;
+
+	db.ExecSQL("update clients set last_login_utc=?1 where name=?2",
+	           static_cast<int64_t>(tNow.to_time_t()), sName);
+
+} // SetClientLastLogin
 
 // ============================ Tunnels ===================================
 

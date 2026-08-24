@@ -196,6 +196,52 @@ public:
 	/// time. Called from the tunnel auth callback on successful login.
 	void              SetNodeLastLogin       (KStringView sName, KUnixTime tNow);
 
+	// --- Clients ----------------------------------------------------------
+	//
+	// Client identities are the third realm, next to `admins` (web UI) and
+	// `nodes` (protected hosts). A client is an operator-side ktunnel that
+	// connects IN to the exposed host, authenticates, and asks for a
+	// forwarding channel to a *named tunnel*. It never names a host itself,
+	// so a client account cannot turn the exposed host into an open proxy.
+
+	struct Client
+	{
+		int64_t   iID           { 0 };
+		KString   sName;         ///< client name, unique (used as login id)
+		KString   sPasswordHash; ///< bcrypt hash (60 chars)
+		bool      bEnabled      { true };
+		/// Comma separated list of tunnel names this client may open.
+		/// Empty means every configured tunnel.
+		KString   sAllowTunnels;
+		KUnixTime tCreated;
+		KUnixTime tLastLogin;    ///< zero if never logged in
+	};
+
+	/// Insert a client row, returns false if the name already exists.
+	bool              AddClient  (const Client& client);
+
+	/// Overwrite the bcrypt hash for an existing client.
+	bool              UpdateClientPasswordHash (KStringView sName, KStringView sBcryptHash);
+
+	/// Replace the list of tunnels a client may open (empty = all).
+	bool              SetClientAllowTunnels    (KStringView sName, KStringView sAllowTunnels);
+
+	/// Toggle the `enabled` bit of an existing client.
+	bool              SetClientEnabled         (KStringView sName, bool bEnabled);
+
+	/// Remove a client row.
+	bool              DeleteClient             (KStringView sName);
+
+	/// Fetch one client. Returns a null unique_ptr if it does not exist.
+	std::unique_ptr<Client> GetClient          (KStringView sName);
+
+	/// Return all clients sorted by name ascending.
+	std::vector<Client> GetAllClients          ();
+
+	/// Stamp the last_login_utc column of a client. Called from the client
+	/// tunnel's auth callback on successful login.
+	void              SetClientLastLogin       (KStringView sName, KUnixTime tNow);
+
 	// --- Tunnels ----------------------------------------------------------
 
 	struct Tunnel

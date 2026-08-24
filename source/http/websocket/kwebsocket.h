@@ -485,16 +485,33 @@ public:
 	/// @return true if permessage-deflate is active on this connection
 	bool HasPerMessageDeflate() const { return m_PMCE != nullptr; }
 
+	/// the reason for the outcome of the last Read() - query with GetReadState()
+	/// after Read() returned false to distinguish a harmless timeout from a dead
+	/// connection
+	enum class ReadState : uint8_t
+	{
+		Success,   ///< a data frame was read (a false return despite Success means
+		           ///< the payload was rejected, e.g. by a failed JSON parse - the
+		           ///< connection itself is intact)
+		Timeout,   ///< the read timeout expired - the connection is still alive
+		PeerClose, ///< the peer sent a Close frame - the conversation has ended
+		Error      ///< stream error, EOF, or protocol failure - the connection is dead
+	};
+
+	/// @returns the reason for the outcome of the last Read() - after a false
+	/// return, only Timeout and Success (rejected payload) justify reading again
+	ReadState GetReadState() const { return m_ReadState; }
+
 	/// read one full data frame from the web socket, store in internal frame buffer
-	/// @returns false if timeout
+	/// @returns false on timeout, received Close frame, or error - see GetReadState()
 	bool Read();
 
 	/// read one full data frame from the web socket, store in string
-	/// @returns false if timeout
+	/// @returns false on timeout, received Close frame, or error - see GetReadState()
 	bool Read(KString& sFrame);
 
 	/// read one full data frame from the web socket, store in json
-	/// @returns false if timeout
+	/// @returns false on timeout, received Close frame, or error - see GetReadState()
 	bool Read(KJSON& sFrame);
 
 	/// write one full data frame to web socket - thread-safe, concurrent
@@ -603,7 +620,8 @@ private:
 	KDuration                        m_ReadTimeout  { chrono::minutes(60) };
 	KDuration                        m_WriteTimeout { chrono::seconds(30) };
 	KDuration                        m_PingInterval;
-	KTimer::ID_t                     m_TimerID      { KTimer::InvalidID };
+	KTimer::ID_t                     m_TimerID      { KTimer::InvalidID   };
+	ReadState                        m_ReadState    { ReadState::Success  };
 	bool                             m_bMaskTx      { false };
 
 }; // KWebSocket

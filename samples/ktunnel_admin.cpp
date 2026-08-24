@@ -4060,11 +4060,11 @@ void AdminUI::HandleOutletReplWs (KRESTServer& HTTP)
 		{
 			if (!WebSocket.Read(sFrame))
 			{
-				// timeout: re-check bQuit and keep waiting unless
-				// close/error happened (Read() returns false in both
-				// cases — use the atomic as the tie-breaker)
-				if (bQuit.load(std::memory_order_acquire)) break;
-				continue;
+				// only a timeout allows another Read() - a Close frame or a
+				// dead socket returns false instantly and forever, looping
+				// on those would spin at 100% CPU
+				if (WebSocket.GetReadState() == KWebSocket::ReadState::Timeout) continue;
+				break;
 			}
 			Connection->WriteData(std::move(sFrame));
 		}

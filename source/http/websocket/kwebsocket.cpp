@@ -1469,6 +1469,7 @@ bool KWebSocket::Read()
 
 	if (!m_Stream)
 	{
+		m_ReadState = ReadState::Error;
 		return false;
 	}
 
@@ -1484,6 +1485,7 @@ bool KWebSocket::Read()
 			{
 				if (!m_Frame.Read(*m_Stream, *m_Stream, m_bMaskTx))
 				{
+					m_ReadState = ReadState::Error;
 					return false;
 				}
 
@@ -1498,6 +1500,9 @@ bool KWebSocket::Read()
 		// cannot miss anything
 		if (!m_Stream->CheckIfReadyRaw(POLLIN, m_ReadTimeout))
 		{
+			// CheckIfReadyRaw() sets a stream error for all its failure modes
+			// except an expired timeout - use that to tell the two apart
+			m_ReadState = m_Stream->HasError() ? ReadState::Error : ReadState::Timeout;
 			return false;
 		}
 	}
@@ -1510,12 +1515,14 @@ bool KWebSocket::Read()
 		if (!m_PMCE->Decompress(m_Frame.GetPayload(), sDecompressed))
 		{
 			kDebug(1, "permessage-deflate decompression failed");
+			m_ReadState = ReadState::Error;
 			return false;
 		}
 
 		m_Frame.SetPayload(std::move(sDecompressed));
 	}
 
+	m_ReadState = ReadState::Success;
 	return true;
 
 } // KWebSocket::Read
@@ -1533,13 +1540,16 @@ bool KWebSocket::ReadInt(std::function<bool(const KString&)> Func)
 
 		switch (m_Frame.Type())
 		{
-			// this is what we waited for
+			// this is what we waited for - a false return from Func (e.g. a
+			// failed JSON parse) leaves the state at Success: the frame level
+			// is intact, only the payload was rejected
 			case KWebSocket::Frame::FrameType::Text:
 			case KWebSocket::Frame::FrameType::Binary:
 				return Func(m_Frame.GetPayload());
 
 			// answered by the Frame reader itself, simply return false
 			case KWebSocket::Frame::FrameType::Close:
+				m_ReadState = ReadState::PeerClose;
 				return false;
 
 			// these are handled by the Frame reader itself, just continue reading

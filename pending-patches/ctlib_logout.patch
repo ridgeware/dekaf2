@@ -1,0 +1,67 @@
+diff --git a/source/data/sql/ksql.cpp b/source/data/sql/ksql.cpp
+index e2a19c3a..af466b15 100644
+--- a/source/data/sql/ksql.cpp
++++ b/source/data/sql/ksql.cpp
+@@ -7686,13 +7686,43 @@ bool KSQL::ctlib_login ()
+ bool KSQL::ctlib_logout ()
+ //-----------------------------------------------------------------------------
+ {
++	// Tear down in full even when a step fails, and never attempt a graceful
++	// close on a connection we already know is broken.
++	//
++	// Two defects were being hit by long-running SQL Server syncs (paxapis
++	// pax1/pax2 through an ssh tunnel to a session-reaping source):
++	//
++	//  1. LEAK: ct_cancel() writes an attention packet, so it FAILS on a dead
++	//     socket -- and the old code returned right there, before ct_cmd_drop /
++	//     ct_close / ct_con_drop / ct_exit / cs_ctx_drop. The command,
++	//     connection and context stayed allocated and non-null while the caller
++	//     marked the connection closed, so the next OpenConnection() allocated
++	//     fresh handles and the old set leaked -- once per dropped connection,
++	//     thousands of times over a full sync.
++	//
++	//  2. RECURSION: ct_close(conn, CS_UNUSED) is a *graceful* close -- FreeTDS
++	//     tries to send a logout token. When the socket is already gone that
++	//     write fails, and FreeTDS' failure path calls tds_close_socket(), which
++	//     calls tds_disconnect(), which tries to write again:
++	//         tds_disconnect -> tds_put_byte -> tds_write_packet
++	//                        -> tds_connection_put_packet -> tds_close_socket
++	//                        -> tds_disconnect -> ...
++	//     Unbounded recursion off the worker stack => SIGBUS at a guard page.
++	//     CS_FORCE_CLOSE drops the socket without the logout write.
++	bool bOK       { true };
++	bool bWasAlive { true };
++
+ 	if (m_pCtConnection)
+ 	{
+ 		kDebug (KSQL2_CTDEBUG, "calling ct_cancel...");
+ 		if (ct_cancel(m_pCtConnection, nullptr, CS_CANCEL_ALL) != CS_SUCCEED)
+ 		{
+ 			ctlib_api_error ("ctlib_logout>ct_cancel");
+-			return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
++			SetError(m_sCtLibLastError, m_iCtLibErrorNum);
++			// cancel could not reach the server: treat the connection as dead
++			// and fall through, so nothing below is leaked
++			bWasAlive = false;
++			bOK       = false;
+ 		}
+ 	}
+ 
+@@ -7706,7 +7736,7 @@ bool KSQL::ctlib_logout ()
+ 	if (m_pCtConnection)
+ 	{
+ 		kDebug (KSQL2_CTDEBUG, "calling ct_close...");
+-		ct_close    (m_pCtConnection, CS_UNUSED);
++		ct_close    (m_pCtConnection, bWasAlive ? CS_UNUSED : CS_FORCE_CLOSE);
+ 
+ 		kDebug (KSQL2_CTDEBUG, "calling ct_con_drop...");
+ 		ct_con_drop (m_pCtConnection);
+@@ -7723,7 +7753,7 @@ bool KSQL::ctlib_logout ()
+ 		m_pCtContext = nullptr;
+ 	}
+ 
+-	return (true);
++	return bOK;
+ 
+ } // ctlib_logout
+ 

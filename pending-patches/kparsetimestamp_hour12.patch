@@ -1,0 +1,27 @@
+diff --git a/source/time/clock/ktime.cpp b/source/time/clock/ktime.cpp
+index 84311472..7b0bd67e 100644
+--- a/source/time/clock/ktime.cpp
++++ b/source/time/clock/ktime.cpp
+@@ -789,16 +789,17 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
+ 
+ 				switch (ch)
+ 				{
+-					case 'a':
+-						if (tm.hour > 11) return Invalid;
++					case 'a': // AM: 12-hour clock runs 1..12; 12 AM is midnight (00)
++						if (tm.hour > 12) return Invalid;
++						if (tm.hour == 12) tm.hour = 0;
+ 						break;
+ 
+ 					case 'm':
+ 						break;
+ 
+-					case 'p':
+-						if (tm.hour > 11) return Invalid;
+-						tm.hour += 12;
++					case 'p': // PM: 1..11 map to +12; 12 PM is noon and stays 12
++						if (tm.hour > 12) return Invalid;
++						if (tm.hour != 12) tm.hour += 12;
+ 						break;
+ 
+ 					default:

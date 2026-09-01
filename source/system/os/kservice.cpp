@@ -611,6 +611,46 @@ int SystemctlCapture(bool bUserScope, KStringView sArgs, KString& sOutputOut)
 } // SystemctlCapture
 
 //-----------------------------------------------------------------------------
+/// Enable systemd lingering for the invoking user, so their user manager (and
+/// with it a freshly installed user-scope unit) runs from boot to shutdown
+/// instead of only while the user has a login session. Best-effort: polkit
+/// allows the unauthenticated self-linger by default
+/// (org.freedesktop.login1.set-self-linger), but a hardened policy may deny
+/// it - then print the sudo command as a hint. Notices go to stderr like the
+/// other install hints, this is CLI-facing output.
+void EnableLingerForInvokingUser()
+//-----------------------------------------------------------------------------
+{
+	KString sLinger;
+
+	// query first so repeated -install runs stay quiet
+	if (kSystem(kFormat("loginctl show-user {} --property=Linger", kGetUid()), sLinger) == 0
+	    && sLinger.contains("Linger=yes"))
+	{
+		return;
+	}
+
+	if (kSystem("loginctl enable-linger") == 0)
+	{
+		kPrintLine(stderr,
+		           ":: enabled lingering — the service will run from boot to shutdown,\n"
+		           ":: independent of login sessions. Lingering is a per-user setting\n"
+		           ":: and affects all enabled user services of this account\n"
+		           ":: (revert with `loginctl disable-linger`)");
+	}
+	else
+	{
+		kPrintLine(stderr,
+		           ":: could not enable lingering — the service will stop when your last\n"
+		           ":: login session ends, and start again at the next login. To let it\n"
+		           ":: run from boot to shutdown instead, run once:\n"
+		           "::   sudo loginctl enable-linger {}",
+		           kGetUsername(kGetUid()));
+	}
+
+} // EnableLingerForInvokingUser
+
+//-----------------------------------------------------------------------------
 /// Render the contents of the systemd unit file for the given install
 /// parameters.
 KString BuildUnitFile(KStringView sServiceName, const KService::InstallOptions& Opts)
@@ -1046,7 +1086,7 @@ int KService::Run(KStringView sServiceName,
 	// knows our pid but being explicit avoids races with forked children.
 	if (!s.sNotifySocket.empty())
 	{
-		SdNotify(kFormat("READY=1\nMAINPID={}\n", static_cast<long>(::getpid())));
+		SdNotify(kFormat("READY=1\nMAINPID={}\n", static_cast<long>(kGetPid())));
 	}
 
 	int iExit = 0;
@@ -1082,7 +1122,7 @@ int KService::Run(KStringView sServiceName,
 	// children, so getppid() == 1 is the canonical signal that we are
 	// running as a launch daemon / agent. Scripts, ssh sessions, and
 	// terminal launches never see this parent.
-	const bool bIsService = (::getppid() == 1);
+	const bool bIsService = (kGetPpid() == 1);
 
 	if (!bIsService)
 	{
@@ -1240,7 +1280,7 @@ bool KService::Install(KStringView sServiceName, const InstallOptions& Opts)
 	// interactive sessions get a clear hint about what happened.
 	bool bUserScope = Opts.bUserScope;
 
-	if (!bUserScope && ::getuid() != 0)
+	if (!bUserScope && kGetUid() != 0)
 	{
 		// write directly to stderr so the hint is visible even when KLog
 		// warnings are disabled — this is a CLI-facing notice, not a bug
@@ -1312,6 +1352,15 @@ bool KService::Install(KStringView sServiceName, const InstallOptions& Opts)
 		Systemctl(bUserScope, kFormat("disable {}", sQuotedName));
 	}
 
+	// A user-scope unit only lives as long as the user's systemd instance,
+	// which logind stops when the user's last login session ends. Lingering
+	// keeps that instance - and with it this service - running from boot to
+	// shutdown, which is what an installed daemon is expected to do.
+	if (bUserScope && EffectiveOpts.bEnableLinger && EffectiveOpts.Mode != StartMode::Disabled)
+	{
+		EnableLingerForInvokingUser();
+	}
+
 	return true;
 
 #elif defined(DEKAF2_IS_MACOS)
@@ -1321,12 +1370,14 @@ bool KService::Install(KStringView sServiceName, const InstallOptions& Opts)
 	// Same policy as Linux: if caller didn't request user-scope but we are
 	// not root, fall back to a LaunchAgent install. Direct stderr notice so
 	// it's visible even with KLog silenced.
-	if (!bUserScope && ::getuid() != 0)
+	if (!bUserScope && kGetUid() != 0)
 	{
 		kPrintLine(stderr,
 		           ":: not running as root — installing '{}' as LaunchAgent "
 		           "under ~/Library/LaunchAgents\n"
-		           ":: run with sudo for a system-wide LaunchDaemon install",
+		           ":: run with sudo for a system-wide LaunchDaemon install\n"
+		           ":: note: a LaunchAgent only runs while you are logged in — a service\n"
+		           ":: that must survive logout needs the LaunchDaemon install (sudo)",
 		           sServiceName);
 		bUserScope = true;
 	}
@@ -1992,7 +2043,7 @@ void KService::ReportState(State state, uint32_t iWaitHintMs)
 	switch (state)
 	{
 		case State::Running:
-			SdNotify(kFormat("READY=1\nMAINPID={}\n", static_cast<long>(::getpid())));
+			SdNotify(kFormat("READY=1\nMAINPID={}\n", static_cast<long>(kGetPid())));
 			break;
 		case State::StopPending:
 		case State::Stopped:

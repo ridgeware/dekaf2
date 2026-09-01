@@ -389,11 +389,23 @@ public:
 		/// hint — so `./mysvc -install` without sudo always produces a
 		/// functional user-level install. Ignored on Windows.
 		bool      bUserScope;
+		/// Linux, user scope only: enable systemd lingering for the target
+		/// account (`loginctl enable-linger`) so the user manager - and with
+		/// it this service - runs from boot to shutdown. Without lingering a
+		/// user-scope service is stopped when the user's last login session
+		/// ends and only starts again at the next login. Set to false for a
+		/// deliberately session-bound service. Lingering is a property of the
+		/// *user*, not of the unit: it affects all enabled user services of
+		/// that account. Best-effort - if polkit denies the unauthenticated
+		/// self-linger, Install() prints the sudo command as a hint instead
+		/// of failing. No effect on system scope, macOS (LaunchAgents are
+		/// inherently session-bound) or Windows.
+		bool      bEnableLinger;
 
 		// user-declared default constructor so this struct can be used as a
 		// default-argument value without triggering Clang's lazy-parsing issue
 		// with in-class member initialisers
-		InstallOptions() : Mode(StartMode::Automatic), bUserScope(false) {}
+		InstallOptions() : Mode(StartMode::Automatic), bUserScope(false), bEnableLinger(true) {}
 	};
 
 	//-----------------------------------------------------------------------------

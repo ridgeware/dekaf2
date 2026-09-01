@@ -61,10 +61,14 @@ A ktunnel is a Relay precisely when `-relay` (the former `-e`/`-exposed`) is
 * A `ktunnel` binary built for this Linux distro (or a dekaf2 install that ships it),
   built with Ed25519 support if you want `-aes` identity pinning.
 * A public DNS name / IP reachable on the control port and the forward ports.
-* **root** (a public listener on 443 and machine-wide state belong to a system
-  service). Non-root falls back to a user-scope unit, but then the state lives under
-  `~/.config/ktunnel/` and the service stops with your session unless you enable
-  lingering — not recommended for a public endpoint.
+* **root or non-root.** Root installs a system unit (state under `/var/lib/ktunnel/`,
+  can bind ports below 1024). Non-root falls back to a user-scope unit: state lives
+  under `~/.config/ktunnel/`, `-install` enables lingering so the unit survives
+  logout and starts at boot, and ports below 1024 need
+  `setcap cap_net_bind_service=+ep` on the binary (or a port ≥ 1024).
+  In both scopes the generated unit is a base — add hardening or other overrides
+  with `systemctl [--user] edit ktunnel`; drop-ins survive `-install` / `-uninstall`
+  cycles.
 
 ---
 

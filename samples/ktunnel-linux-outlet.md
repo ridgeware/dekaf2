@@ -191,8 +191,13 @@ ktunnel -install -relay tunnel.example.com -p 443 -n linux-outlet -secret-file ~
 
 * Unit path: `~/.config/systemd/user/ktunnel.service` (`WantedBy=default.target`).
 * Manage it with `systemctl --user …` instead of `sudo systemctl …`.
-* To keep it running after logout / across reboots without an active session, enable
-  lingering once: `sudo loginctl enable-linger $USER`.
+* `-install` also enables **lingering** for your account, so the service survives
+  logout and starts at boot without a login session. Should that fail (hardened
+  polkit), it prints the manual command: `sudo loginctl enable-linger $USER`.
+  Note that lingering is a per-user setting — it affects all enabled user services
+  of the account; revert with `loginctl disable-linger`.
+* The generated unit is a base — add hardening or other overrides with
+  `systemctl --user edit ktunnel`; drop-ins survive `-install` / `-uninstall` cycles.
 
 ---
 

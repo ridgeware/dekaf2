@@ -155,6 +155,10 @@ inline pid_t kGetPid()
 	return getpid();
 }
 
+/// return parent process ID (0 on Windows, which has no direct equivalent)
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+pid_t kGetPpid();
+
 /// return thread ID
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 uint64_t kGetTid();

@@ -7686,13 +7686,24 @@ bool KSQL::ctlib_login ()
 bool KSQL::ctlib_logout ()
 //-----------------------------------------------------------------------------
 {
+	// Tear down in full even when a step fails, and never attempt a graceful
+	// close on a connection we already know is broken.
+	bool bOK       { true };
+	bool bWasAlive { true };
+
 	if (m_pCtConnection)
 	{
 		kDebug (KSQL2_CTDEBUG, "calling ct_cancel...");
 		if (ct_cancel(m_pCtConnection, nullptr, CS_CANCEL_ALL) != CS_SUCCEED)
 		{
 			ctlib_api_error ("ctlib_logout>ct_cancel");
-			return SetError(m_sCtLibLastError, m_iCtLibErrorNum);
+			// bNoThrow: in SetThrow(true) mode a throw here would skip the
+			// teardown below, and we may run in the destructor path
+			SetError(m_sCtLibLastError, m_iCtLibErrorNum, /*bNoThrow=*/true);
+			// cancel could not reach the server: treat the connection as dead
+			// and fall through, so nothing below is leaked
+			bWasAlive = false;
+			bOK       = false;
 		}
 	}
 
@@ -7706,7 +7717,7 @@ bool KSQL::ctlib_logout ()
 	if (m_pCtConnection)
 	{
 		kDebug (KSQL2_CTDEBUG, "calling ct_close...");
-		ct_close    (m_pCtConnection, CS_UNUSED);
+		ct_close    (m_pCtConnection, bWasAlive ? CS_UNUSED : CS_FORCE_CLOSE);
 
 		kDebug (KSQL2_CTDEBUG, "calling ct_con_drop...");
 		ct_con_drop (m_pCtConnection);
@@ -7723,7 +7734,7 @@ bool KSQL::ctlib_logout ()
 		m_pCtContext = nullptr;
 	}
 
-	return (true);
+	return bOK;
 
 } // ctlib_logout
 

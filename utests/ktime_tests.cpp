@@ -416,9 +416,73 @@ TEST_CASE("KTime") {
 		CHECK ( sTime == "Tue, 03 Aug 2021 14:53:42 GMT" );
 	}
 
+	SECTION("kParseTimestamp 12-hour clock")
+	{
+		// hour 12 is the special case on the 12-hour dial:
+		// 12 AM is midnight (00:00), 12 PM is noon (12:00)
+		static constexpr KStringView sFormat = "NNN DD, YYYY hh:mm:ss aa";
+
+		static constexpr std::array<std::pair<KStringView, KStringView>, 12> Timestamps
+		{{
+			{ "Jun 15, 2024 12:00:00 AM", "2024-06-15 00:00:00" },
+			{ "Jun 15, 2024 12:59:59 AM", "2024-06-15 00:59:59" },
+			{ "Jun 15, 2024 12:00:00 PM", "2024-06-15 12:00:00" },
+			{ "Jun 15, 2024 12:59:59 PM", "2024-06-15 12:59:59" },
+			{ "Jun 15, 2024 12:00:00 am", "2024-06-15 00:00:00" },
+			{ "Jun 15, 2024 12:00:00 pm", "2024-06-15 12:00:00" },
+			{ "Jun 15, 2024 01:00:00 AM", "2024-06-15 01:00:00" },
+			{ "Jun 15, 2024 01:00:00 PM", "2024-06-15 13:00:00" },
+			{ "Jun 15, 2024 11:59:59 AM", "2024-06-15 11:59:59" },
+			{ "Jun 15, 2024 11:59:59 PM", "2024-06-15 23:59:59" },
+			// hour 0 is not on a 12-hour dial, but is accepted since ever
+			{ "Jun 15, 2024 00:30:00 AM", "2024-06-15 00:30:00" },
+			{ "Jun 15, 2024 00:30:00 PM", "2024-06-15 12:30:00" },
+		}};
+
+		for (auto& Timestamp : Timestamps)
+		{
+			auto tTime = kParseTimestamp(sFormat, Timestamp.first);
+			INFO  ( Timestamp.first );
+			CHECK ( tTime.ok() );
+			auto sTime = kFormTimestamp(tTime);
+			INFO  ( Timestamp.second );
+			CHECK ( sTime == Timestamp.second );
+		}
+
+		// hours beyond 12 do not exist on a 12-hour dial
+		CHECK_FALSE ( kParseTimestamp(sFormat, "Jun 15, 2024 13:00:00 AM").ok() );
+		CHECK_FALSE ( kParseTimestamp(sFormat, "Jun 15, 2024 13:00:00 PM").ok() );
+	}
+
+	SECTION("kParseTimestamp single-digit hour and day")
+	{
+		// US formats write hour and day of month without leading zeros
+		auto tTime = kParseTimestamp("NNN DD, YYYY h:mm:ss aa", "Jun 15, 2024 2:39:58 PM");
+		CHECK ( tTime.ok() );
+		CHECK ( kFormTimestamp(tTime) == "2024-06-15 14:39:58" );
+
+		tTime = kParseTimestamp("NNN D, YYYY hh:mm:ss aa", "Jun 5, 2024 12:39:58 AM");
+		CHECK ( tTime.ok() );
+		CHECK ( kFormTimestamp(tTime) == "2024-06-05 00:39:58" );
+
+		tTime = kParseTimestamp("NNN D, YYYY h:mm:ss aa", "Jun 5, 2024 2:39:58 PM");
+		CHECK ( tTime.ok() );
+		CHECK ( kFormTimestamp(tTime) == "2024-06-05 14:39:58" );
+
+		// a single-digit field consumes exactly one digit
+		CHECK_FALSE ( kParseTimestamp("NNN D, YYYY h:mm:ss aa" , "Jun 15, 2024 2:39:58 PM" ).ok() );
+		CHECK_FALSE ( kParseTimestamp("NNN DD, YYYY h:mm:ss aa", "Jun 15, 2024 12:39:58 PM").ok() );
+
+		// SQL Server space-pads day and hour instead - the day is handled by
+		// the D format char itself, the hour by a literal space in the format
+		tTime = kParseTimestamp("NNN DD YYYY  h:mm:ss:SSSaa", "Jun  5 2024  2:39:58:000PM");
+		CHECK ( tTime.ok() );
+		CHECK ( kFormTimestamp(tTime) == "2024-06-05 14:39:58" );
+	}
+
 	SECTION("kParseTimestamp 2")
 	{
-		static constexpr std::array<std::pair<KStringView, KStringView>, 137> Timestamps
+		static constexpr std::array<std::pair<KStringView, KStringView>, 149> Timestamps
 		{{
 			{ "2024-03-08T17:10:42.440000-01:30","Fri, 08 Mar 2024 18:40:42 GMT" },
 
@@ -457,6 +521,18 @@ TEST_CASE("KTime") {
 
 			{ "Aug 29, 2021 10:23:42 AM"       , "Sun, 29 Aug 2021 10:23:42 GMT" },
 			{ "Aug 30, 2021 10:23:42 PM"       , "Mon, 30 Aug 2021 22:23:42 GMT" }, // test PM as well
+			{ "Jun 15, 2024 12:00:00 AM"       , "Sat, 15 Jun 2024 00:00:00 GMT" }, // 12 AM is midnight
+			{ "Jun 15, 2024 12:00:00 PM"       , "Sat, 15 Jun 2024 12:00:00 GMT" }, // 12 PM is noon
+			{ "Jun 15, 2024 2:39:58 PM"        , "Sat, 15 Jun 2024 14:39:58 GMT" }, // single-digit hour (US convention)
+			{ "Jun 5, 2024 12:39:58 AM"        , "Wed, 05 Jun 2024 00:39:58 GMT" }, // single-digit day
+			{ "Jun 5, 2024 2:39:58 PM"         , "Wed, 05 Jun 2024 14:39:58 GMT" }, // single-digit day and hour
+			{ "Jun 5, 2024 12:00:00 AM"        , "Wed, 05 Jun 2024 00:00:00 GMT" }, // midnight, single-digit day
+			{ "Jan  1 1900 12:00:00:000AM"     , "Mon, 01 Jan 1900 00:00:00 GMT" }, // SQL Server CONVERT style 109 (FreeTDS date rendering)
+			{ "Jun 15 2024 12:39:58:123PM"     , "Sat, 15 Jun 2024 12:39:58 GMT" }, // style 109, noon
+			{ "Jun  5 2024  2:39:58:000PM"     , "Wed, 05 Jun 2024 14:39:58 GMT" }, // style 109, space padded day and hour
+			{ "Jun 15 2024  2:39:58:000AM"     , "Sat, 15 Jun 2024 02:39:58 GMT" }, // style 109, space padded hour
+			{ "Oct 12 2026 12:00:00:AM"        , "Mon, 12 Oct 2026 00:00:00 GMT" }, // Sybase 12-hour rendering without milliseconds
+			{ "Oct 12 2026  2:00:00:PM"        , "Mon, 12 Oct 2026 14:00:00 GMT" }, // dito, space padded hour
 			{ "2021-08-31 02:53:42-0730"       , "Tue, 31 Aug 2021 10:23:42 GMT" },
 			{ "2021-08-10T02:53:42-0730"       , "Tue, 10 Aug 2021 10:23:42 GMT" },
 			{ "2021-08-11T10:23:42.321Z"       , "Wed, 11 Aug 2021 10:23:42 GMT" },

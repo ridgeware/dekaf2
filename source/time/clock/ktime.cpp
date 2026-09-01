@@ -789,16 +789,17 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 				switch (ch)
 				{
-					case 'a':
-						if (tm.hour > 11) return Invalid;
+					case 'a': // AM: 12-hour clock runs 1..12; 12 AM is midnight (00)
+						if (tm.hour > 12) return Invalid;
+						if (tm.hour == 12) tm.hour = 0;
 						break;
 
 					case 'm':
 						break;
 
-					case 'p':
-						if (tm.hour > 11) return Invalid;
-						tm.hour += 12;
+					case 'p': // PM: 1..11 map to +12; 12 PM is noon and stays 12
+						if (tm.hour > 12) return Invalid;
+						if (tm.hour != 12) tm.hour += 12;
 						break;
 
 					default:
@@ -1013,7 +1014,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 	}; // TimeFormat
 
-	using FormatArray = std::array<TimeFormat, 137>;
+	using FormatArray = std::array<TimeFormat, 144>;
 
 	// order formats by size
 	static constexpr FormatArray Formats
@@ -1045,6 +1046,8 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 
 		{ "YYYY-MM-DDThh:mm:ss.SSSSSSZ"    , 10 }, // 2024-10-19T14:24:29.490163Z, AWS timestamp with microseconds, UTC
 
+		{ "NNN DD YYYY  h:mm:ss:SSSaa"     , 12 }, // Jun  5 2024  2:39:58:000PM (SQL Server CONVERT style 109, space padded hour)
+		{ "NNN DD YYYY hh:mm:ss:SSSaa"     , 20 }, // Jan  1 1900 12:00:00:000AM (SQL Server CONVERT style 109, FreeTDS date rendering)
 		{ "DD/NNN/YYYY:hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017:06:36:15 -0700
 		{ "DD/NNN/YYYY hh:mm:ss ZZZZZ"     , 11 }, // 19/Apr/2017 06:36:15 -0700
 		{ "NNN DD hh:mm:ss ZZZZZ YYYY"     , 15 }, // Jan 21 18:20:11 +0000 2017
@@ -1053,7 +1056,7 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		{ "YYYY-MM-DD hh:mm:ss ZZZZZ"      , 19 }, // 2017-10-14 22:11:20 +0000 (date output with -rfc-3339 option)
 		{ "YYYY-MM-DDThh:mm:ss.SSSSZ"      , 10 }, // 2024-10-19T14:24:29.490163Z, AWS timestamp with 100 microseconds, UTC
 
-		{ "NNN DD, YYYY hh:mm:ss aa"       , 21 }, // Dec 02, 2017 2:39:58 AM
+		{ "NNN DD, YYYY hh:mm:ss aa"       , 21 }, // Dec 02, 2017 12:39:58 AM
 		{ "YYYY-MM-DD hh:mm:ssZZZZZ"       , 10 }, // 2017-10-14 22:11:20+0000
 		{ "YYYY-MM-DDThh:mm:ss.SSSZ"       , 19 }, // 2002-12-06T19:23:15.372Z
 		{ "YYYY-MM-DDThh:mm:ssZZZZZ"       , 10 }, // 2017-10-14T22:11:20+0000
@@ -1061,13 +1064,18 @@ detail::KParsedTimestamp::raw_time detail::KParsedTimestamp::Parse(KStringView s
 		{ "YYYY NNN DD hh:mm:ss.SSS"       ,  4 }, // 2002 Dec 06 19:23:15.372
 		{ "DD-NNN-YYYY hh:mm:ss.SSS"       ,  2 }, // 17-Apr-1998 14:32:12.372
 
+		{ "NNN DD, YYYY h:mm:ss aa"        ,  6 }, // Dec 02, 2017 2:39:58 AM (US single-digit hour, e.g. Java DateFormat)
+		{ "NNN D, YYYY hh:mm:ss aa"        ,  5 }, // Dec 2, 2017 12:39:58 AM (US single-digit day)
 		{ "YYYY-MM-DD hh:mm:ss zzz"        , 19 }, // 2017-10-14 22:11:20 PDT
 		{ "YYYY-MM-DD hh:mm:ss,SSS"        , 19 }, // 2002-12-06 19:23:15,372
 		{ "YYYY-MM-DD hh:mm:ss.SSS"        , 10 }, // 2002-12-06 19:23:15.372
 		{ "YYYY-MM-DDThh:mm:ss.SSS"        , 10 }, // 2002-12-06T19:23:15.372
 		{ "YYYY-MM-DD*hh:mm:ss:SSS"        , 10 }, // 2002-12-06*19:23:15:372
+		{ "NNN DD YYYY  h:mm:ss:aa"        , 12 }, // Oct 12 2026  2:00:00:PM (Sybase 12-hour rendering without milliseconds)
+		{ "NNN DD YYYY hh:mm:ss:aa"        , 20 }, // Oct 12 2026 12:00:00:AM (Sybase 12-hour rendering without milliseconds)
 
 		{ "YYYYMMDDhhmmss.SSSSSSZ"         , 14 }, // 20141024192327.000000Z (LDAP RFC-2252/X.680/X.208) *
+		{ "NNN D, YYYY h:mm:ss aa"         ,  5 }, // Dec 2, 2017 2:39:58 AM (US single-digit day and hour)
 
 		{ "YYYYMMDD hh:mm:ss.SSS"          , 17 }, // 20211230 12:23:54.372
 

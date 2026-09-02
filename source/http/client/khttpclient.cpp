@@ -44,6 +44,7 @@
 #include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kcaseless.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/crypto/random/krandom.h>
 
@@ -482,17 +483,12 @@ bool KHTTPClient::FilterByNoProxyList(const KURL& url, KStringView sNoProxy)
 } // FilterByNoProxyList
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::Connect(const KURL& url)
+KURL KHTTPClient::ProxyFor(const KURL& url) const
 //-----------------------------------------------------------------------------
 {
 	if (!m_Proxy.empty())
 	{
-		return Connect(url, m_Proxy);
-	}
-
-	if (AlreadyConnected(url))
-	{
-		return true;
+		return m_Proxy;
 	}
 
 	if (m_bAutoProxy)
@@ -510,27 +506,42 @@ bool KHTTPClient::Connect(const KURL& url)
 
 			if (!sProxy.empty())
 			{
-				KURL Proxy(sProxy);
-
-				if (!Proxy.empty())
-				{
-					return Connect(url, Proxy);
-				}
+				return KURL(sProxy);
 			}
 		}
 	}
 
-	return Connect(KIOStreamSocket::Create(url, false, m_StreamOptions));
+	return KURL{};
 
-} // Connect
+} // ProxyFor
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
+bool KHTTPClient::Connect(const KURL& url, const KURL& GivenProxy, KStringView sTLSHostname)
 //-----------------------------------------------------------------------------
 {
+	if (sTLSHostname.empty())
+	{
+		// the configured name - may be empty as well, which means url's domain
+		sTLSHostname = m_sTLSHostname;
+	}
+
+	if (GivenProxy.empty() && m_Proxy.empty() && AlreadyConnected(url, sTLSHostname))
+	{
+		// an existing direct connection is good enough, no need to look for a proxy
+		return true;
+	}
+
+	// no proxy given: the configured one, if any
+	const KURL Proxy = GivenProxy.empty() ? ProxyFor(url) : GivenProxy;
+
 	if (Proxy.empty())
 	{
-		return Connect(KIOStreamSocket::Create(url, false, m_StreamOptions));
+		if (AlreadyConnected(url, sTLSHostname))
+		{
+			return true;
+		}
+
+		return Connect(KIOStreamSocket::Create(url, false, m_StreamOptions, sTLSHostname));
 	}
 
 	// which protocol on which connection segment?
@@ -551,7 +562,7 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 	{
 		// check if we are already connected to the target server (for all CONNECTed
 		// targets it is our connection endpoint)
-		if (AlreadyConnected(url))
+		if (AlreadyConnected(url, sTLSHostname))
 		{
 			return true;
 		}
@@ -612,6 +623,21 @@ bool KHTTPClient::Connect(const KURL& url, const KURL& Proxy)
 		{
 			return SetError(kFormat("proxy server returned {} {}", Response.iStatusCode, Response.sStatusString));
 		}
+
+		// the tunnel is up - the handshake shall carry the target's identity, not the
+		// proxy's. With a TLS proxy this one handshake is still the one to the proxy.
+		KStringView sIdentity = sTLSHostname;
+
+		if (bProxyIsTLS)
+		{
+			sIdentity = Proxy.Domain.get();
+		}
+		else if (sIdentity.empty())
+		{
+			sIdentity = url.Domain.get();
+		}
+
+		m_Connection->SetTLSHostname(sIdentity);
 
 		// end of header, start TLS
 		if (!m_Connection->StartManualTLSHandshake())
@@ -1346,7 +1372,7 @@ bool KHTTPClient::CheckForRedirect(KURL& URL, KHTTPMethod& RequestMethod, bool b
 } // CheckForRedirect
 
 //-----------------------------------------------------------------------------
-bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint) const
+bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint, KStringView sTLSHostname) const
 //-----------------------------------------------------------------------------
 {
 	if (!m_bKeepAlive || !m_Connection || !m_Connection->Good())
@@ -1356,6 +1382,25 @@ bool KHTTPClient::AlreadyConnected(const KTCPEndPoint& EndPoint) const
 
 	if (EndPoint == m_Connection->GetEndPoint())
 	{
+		if (m_Connection->IsTLS())
+		{
+			// same endpoint, but the same host talked to? An empty name stands for the endpoint's domain
+			KStringView sWanted = sTLSHostname.empty() ? KStringView(EndPoint.Domain.get()) : sTLSHostname;
+			KStringView sHave   = m_Connection->GetTLSHostname();
+
+			if (sHave.empty())
+			{
+				sHave = m_Connection->GetEndPoint().Domain.get();
+			}
+
+			// host names are case insensitive
+			if (kCaselessCompare(sWanted, sHave) != 0)
+			{
+				kDebug(2, "connected to {}, but talking to {} instead of {}", EndPoint, sHave, sWanted);
+				return false;
+			}
+		}
+
 		kDebug(2, "already connected to {}", EndPoint);
 		return true;
 	}

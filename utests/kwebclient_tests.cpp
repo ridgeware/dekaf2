@@ -5,6 +5,14 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/rest/framework/krest.h>
+#include <dekaf2/net/tls/ktlscontext.h>
+#include <dekaf2/net/tls/ktlsstream.h>
+#include <dekaf2/crypto/rsa/krsacert.h>
+#include <dekaf2/crypto/rsa/krsakey.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/streams/kstringstream.h>
+#include <openssl/opensslv.h>
+#include <mutex>
 
 #ifndef DEKAF2_IS_WINDOWS
 
@@ -201,6 +209,140 @@ TEST_CASE("KWebClient") {
 		CHECK( HTTP.GetStatusCode() == 200 );
 		CHECK( HTTP.Error() == "" );
 		HTTP.Disconnect();
+	}
+
+	SECTION("TLS identity")
+	{
+		// a server cert for localhost, with the loopback address as IP SAN
+		KRSAKey  Key(2048);
+		KRSACert Cert;
+		REQUIRE ( Cert.Create(Key, "localhost", "US", "", "DNS:localhost,IP:127.0.0.1") );
+
+		constexpr KRESTRoutes::FunctionTable RTable[]
+		{
+			{ "GET",  false, "/test0", rest_test_no_timeout, KRESTRoute::PLAIN },
+		};
+
+		KRESTRoutes Routes;
+		Routes.AddFunctionTable(RTable);
+
+		KREST::Options Options;
+		Options.Type                 = KREST::HTTP;
+		Options.iPort                = 7657;
+		Options.bPollForDisconnect   = false;
+		Options.bBlocking            = false;
+		Options.bCreateEphemeralCert = false;
+		Options.bPEMsAreFilenames    = false;
+		Options.sCert                = Cert.GetPEM();
+		Options.sKey                 = Key.GetPEM(true);
+
+		KREST REST;
+		REQUIRE ( REST.Execute(Options, Routes) );
+		REQUIRE ( REST.GetTLSContext() != nullptr );
+
+		// record the SNI of every handshake
+		std::mutex SNIMutex;
+		KString    sSNI;
+		bool       bHadHandshake { false };
+
+		REST.GetTLSContext()->SetSNICallback([&](const KTLSContext::ClientHello& Hello) -> std::shared_ptr<KTLSContext>
+		{
+			std::lock_guard<std::mutex> Lock(SNIMutex);
+			sSNI          = Hello.sServerName;
+			bHadHandshake = true;
+			return nullptr;
+		});
+
+		auto LastSNI = [&]() -> KString
+		{
+			std::lock_guard<std::mutex> Lock(SNIMutex);
+			KString sLast = bHadHandshake ? sSNI : KString("<no handshake>");
+			bHadHandshake = false;
+			sSNI.clear();
+			return sLast;
+		};
+
+		KWebClient HTTP;
+		HTTP.SetTimeout(chrono::seconds(2));
+
+		// connected by name: the name is the SNI
+		CHECK ( HTTP.Get("https://localhost:7657/test0") == "" );
+		CHECK ( HTTP.GetStatusCode() == 200 );
+		CHECK ( LastSNI() == "localhost" );
+		HTTP.Disconnect();
+
+		// connected by address: an IP literal is not permitted in SNI, none is sent
+		CHECK ( HTTP.Get("https://127.0.0.1:7657/test0") == "" );
+		CHECK ( HTTP.GetStatusCode() == 200 );
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L
+		// the client hello callback sees every handshake, the older SNI callback only those with a name
+		CHECK ( LastSNI() == "" );
+#else
+		LastSNI();
+#endif
+
+		// same connect address, but the request URL names the host: the name is the SNI,
+		// and the open connection to the address is not reused for it
+		KString sRet;
+		KOutStringStream oss(sRet);
+		CHECK ( HTTP.HttpRequest2Host(oss, "https://127.0.0.1:7657", "https://localhost/test0") );
+		CHECK ( HTTP.GetStatusCode() == 200 );
+		CHECK ( LastSNI() == "localhost" );
+		HTTP.Disconnect();
+
+		// an explicit name wins
+		HTTP.SetTLSHostname("explicit.test");
+		CHECK ( HTTP.Get("https://127.0.0.1:7657/test0") == "" );
+		CHECK ( HTTP.GetStatusCode() == 200 );
+		CHECK ( LastSNI() == "explicit.test" );
+		HTTP.SetTLSHostname("");
+		HTTP.Disconnect();
+
+		// a name for one connection (KWebClient manages its connections itself and
+		// keeps Connect() protected, so this is the KHTTPClient level)
+		{
+			KHTTPClient Client;
+			CHECK ( Client.Connect("https://127.0.0.1:7657", {}, "perconnect.test") );
+			CHECK ( LastSNI() == "perconnect.test" );
+			CHECK ( Client.Resource("https://perconnect.test/test0", KHTTPMethod::GET) );
+			CHECK ( Client.SendRequest() );
+			CHECK ( Client.Response.iStatusCode == 200 );
+			// the request went over the connection just made, no second handshake
+			CHECK ( LastSNI() == "<no handshake>" );
+		}
+
+		// certificate verification, with a client context that trusts the test cert
+		KTempDir TempDir;
+		KString  sCertFile = kFormat("{}/cert.pem", TempDir.Name());
+		REQUIRE ( kWriteFile(sCertFile, Cert.GetPEM()) );
+
+		KTLSContext ClientCtx(false);
+		ClientCtx.GetContext().load_verify_file(sCertFile.c_str());
+
+		auto Verified = [&](KStringView sTLSHostname) -> bool
+		{
+			KTLSStream Stream(ClientCtx, chrono::seconds(2));
+
+			if (!sTLSHostname.empty())
+			{
+				REQUIRE ( Stream.SetTLSHostname(sTLSHostname) );
+			}
+
+			if (!Stream.Connect(KTCPEndPoint("127.0.0.1:7657"), KStreamOptions(true)))
+			{
+				return false;
+			}
+
+			// the handshake runs with the first I/O
+			Stream.Write("GET /test0 HTTP/1.0\r\nHost: localhost\r\n\r\n").Flush();
+
+			KString sLine;
+			return Stream.ReadLine(sLine) && sLine.starts_with("HTTP/1.1 200");
+		};
+
+		CHECK ( Verified("localhost")  == true  ); // the name in the cert, while connected to the address
+		CHECK ( Verified("")           == true  ); // the address itself, checked against the IP SAN
+		CHECK ( Verified("wrong.test") == false ); // a name the cert does not carry
 	}
 
 	SECTION("timeout Unix")

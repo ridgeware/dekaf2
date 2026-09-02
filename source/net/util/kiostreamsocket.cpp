@@ -278,6 +278,14 @@ bool KIOStreamSocket::SetManualTLSHandshake(bool bYes)
 }
 
 //-----------------------------------------------------------------------------
+bool KIOStreamSocket::SetTLSHostname(KStringView sHostname)
+//-----------------------------------------------------------------------------
+{
+	kDebug(2, "method not supported - no TLS stream type");
+	return false;
+}
+
+//-----------------------------------------------------------------------------
 bool KIOStreamSocket::SetALPNRaw(KStringView sALPN)
 //-----------------------------------------------------------------------------
 {
@@ -347,7 +355,7 @@ void KIOStreamSocket::SetConnectedEndPointAddress(const KTCPEndPoint& Endpoint)
 
 
 //-----------------------------------------------------------------------------
-std::unique_ptr<KIOStreamSocket> KIOStreamSocket::Create(const KURL& URL, bool bForceTLS, KStreamOptions Options)
+std::unique_ptr<KIOStreamSocket> KIOStreamSocket::Create(const KURL& URL, bool bForceTLS, KStreamOptions Options, KStringView sTLSHostname)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_HAS_UNIX_SOCKETS
@@ -371,12 +379,19 @@ std::unique_ptr<KIOStreamSocket> KIOStreamSocket::Create(const KURL& URL, bool b
 #if DEKAF2_HAS_OPENSSL_QUIC
 		if (Options.IsSet(KStreamOptions::RequestHTTP3))
 		{
-			return std::make_unique<KQuicStream>(KTCPEndPoint(URL.Domain, Port), Options);
+			// QUIC handshakes in Connect(), so the identity has to be known before
+			auto Stream = std::make_unique<KQuicStream>();
+			Stream->SetTLSHostname(sTLSHostname);
+			Stream->Connect(KTCPEndPoint(URL.Domain, Port), Options);
+			return Stream;
 		}
 		else
 #endif
 		{
-			return std::make_unique<KTLSStream>(KTCPEndPoint(URL.Domain, Port), Options);
+			// TLS handshakes with the first I/O, the identity can still be set after the connect
+			auto Stream = std::make_unique<KTLSStream>(KTCPEndPoint(URL.Domain, Port), Options);
+			Stream->SetTLSHostname(sTLSHostname);
+			return Stream;
 		}
 	}
 	else // NOLINT: we want the else after return..

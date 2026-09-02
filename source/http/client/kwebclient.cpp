@@ -129,9 +129,19 @@ bool KWebClient::HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, K
 	{
 		ConnectTime.resume();
 
-		bool bReuseConnection = AlreadyConnected(ConnectURL);
+		// the host to talk to for TLS: an explicit setting wins, else with a separate
+		// connect URL the request URL names it - in the Host header as before, and in
+		// SNI and the certificate check as well
+		KStringView sTLSHostname = GetTLSHostname();
 
-		if (bReuseConnection || Connect(ConnectURL))
+		if (sTLSHostname.empty() && bHaveSeparateConnectURL && !RequestURL.Domain.empty())
+		{
+			sTLSHostname = RequestURL.Domain.get();
+		}
+
+		bool bReuseConnection = AlreadyConnected(ConnectURL, sTLSHostname);
+
+		if (bReuseConnection || Connect(ConnectURL, KURL{}, sTLSHostname))
 		{
 			ConnectTime.halt();
 

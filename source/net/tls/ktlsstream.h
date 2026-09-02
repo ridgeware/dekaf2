@@ -234,6 +234,18 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Name the host to talk to when it differs from the host connected to, e.g. when
+	/// connecting to an IP address. Used for SNI and the certificate check. Only possible
+	/// before the TLS handshake
+	virtual bool SetTLSHostname(KStringView sHostname) override final;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// The name set with SetTLSHostname(), empty if the connected host is used
+	virtual KStringView GetTLSHostname() const override final { return m_sTLSHostname; }
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Allow to switch to HTTP2
 	/// @param bAlsoAllowHTTP1 if set to false, only HTTP/2 connections are permitted. Else a fallback on
 	/// HTTP/1.1 is permitted. Default is true.
@@ -346,9 +358,16 @@ private:
 	bool Handshake();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// set SNI and the name to verify for the coming handshake
+	DEKAF2_PRIVATE
+	bool ApplyTLSIdentity();
+	//-----------------------------------------------------------------------------
+
 	KAsioTLSStream<asio_stream_type> m_Stream;
 	KBufferedStreamBuf m_TLSStreamBuf { &TLSStreamReader, &TLSStreamWriter, this, this };
 	KStreamOptions m_StreamOptions;
+	KString m_sTLSHostname;
 	bool m_bRetryWithHTTP1 { false };
 
 }; // KTLSStream

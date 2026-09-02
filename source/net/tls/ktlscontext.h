@@ -213,6 +213,18 @@ public:
 		return m_Role;
 	}
 
+	//-----------------------------------------------------------------------------
+	/// Set the client side identity on a TLS connection before its handshake: the SNI
+	/// hostname and, with bVerifyCert, the name the server certificate is checked against.
+	/// An IP address sends no SNI (RFC 6066) and is checked against the certificate's IP
+	/// addresses.
+	/// @param ssl the connection
+	/// @param sHostname the host to talk to, a DNS name or an IP address (IPv6 with or without brackets)
+	/// @param bVerifyCert set up the certificate name check
+	/// @returns the error description, empty on success
+	static KString SetClientIdentity(ssl_st* ssl, KStringView sHostname, bool bVerifyCert);
+	//-----------------------------------------------------------------------------
+
 //----------
 private:
 //----------

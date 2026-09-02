@@ -84,6 +84,22 @@ bool KQuicStream::StartManualTLSHandshake()
 }
 
 //-----------------------------------------------------------------------------
+bool KQuicStream::SetTLSHostname(KStringView sHostname)
+//-----------------------------------------------------------------------------
+{
+	if (!m_bNeedHandshake)
+	{
+		kDebug(2, "TLS handshake already done, cannot set hostname: {}", sHostname);
+		return false;
+	}
+
+	m_sTLSHostname = sHostname;
+
+	return true;
+
+} // SetTLSHostname
+
+//-----------------------------------------------------------------------------
 bool KQuicStream::Handshake()
 //-----------------------------------------------------------------------------
 {
@@ -502,11 +518,6 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		::SSL_set_bio(GetNativeTLSHandle(), bio, bio);
 	}
 
-	if (!::SSL_set1_host(GetNativeTLSHandle(), sHostname.c_str()))
-	{
-		return SetError(kFormat("Failed to set the certificate verification hostname: {}", sHostname));
-	}
-
 	// QUIC mandates peer verification, but we still allow to switch it off
 	// for testing
 	if (Options.IsSet(KStreamOptions::VerifyCert))
@@ -520,10 +531,15 @@ bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		::SSL_set_verify(GetNativeTLSHandle(), SSL_VERIFY_NONE, nullptr);
 	}
 
-	// make sure client side SNI works..
-	if (!::SSL_set_tlsext_host_name(GetNativeTLSHandle(), sHostname.c_str()))
 	{
-		return SetError(kFormat("failed to set SNI hostname: {}", sHostname));
+		// SNI and the name to verify: the host to talk to, which may differ from the host connected to
+		auto sError = KTLSContext::SetClientIdentity(GetNativeTLSHandle(),
+		                                             m_sTLSHostname.empty() ? sHostname : m_sTLSHostname,
+		                                             Options.IsSet(KStreamOptions::VerifyCert));
+		if (!sError.empty())
+		{
+			return SetError(std::move(sError));
+		}
 	}
 
 	if (!Good() || GetNativeSocket() < 0)

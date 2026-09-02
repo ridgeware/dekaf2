@@ -96,12 +96,18 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Send given request method and return raw response to an output stream - this variant is needed for Unix socket requests, which need a separate URL for the connection target
+	/// Send given request method and return raw response to an output stream
+	/// - this variant takes a separate URL for the connection target:
+	///   a Unix socket, or a TCP host that differs from the request URL's host (e.g. an IP address).
+	///   The request URL names the host talked to, in the Host header as well as for SNI and the certificate check
 	bool HttpRequest2Host (KOutStream& OutStream, const KURL& HostURL, KURL RequestURL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView sRequestBody = KStringView{}, KMIME MIME = KMIME::JSON);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Send given request method and return raw response as a string - this variant is needed for Unix socket requests, which need a separate URL for the connection target
+	/// Send given request method and return raw response as a string
+	/// - this variant takes a separate URL for the connection target:
+	///   a Unix socket, or a TCP host that differs from the request URL's host (e.g. an IP address).
+	///   The request URL names the host talked to, in the Host header as well as for SNI and the certificate check
 	KString HttpRequest2Host (const KURL& HostURL, KURL URL, KHTTPMethod RequestMethod = KHTTPMethod::GET, KStringView sRequestBody = KStringView{}, const KMIME& MIME = KMIME::JSON);
 	//-----------------------------------------------------------------------------
 

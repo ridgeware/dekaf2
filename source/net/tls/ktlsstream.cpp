@@ -67,6 +67,16 @@ bool KTLSStream::Handshake()
 		return true;
 	}
 
+	if (m_Stream.GetContext().GetRole() == boost::asio::ssl::stream_base::client)
+	{
+		// applied here and not in Connect(), so that the identity can still be set
+		// between the connect and a delayed handshake (proxy tunnels)
+		if (!ApplyTLSIdentity())
+		{
+			return false;
+		}
+	}
+
 	m_Stream.bNeedHandshake = false;
 
 	m_Stream.Socket.async_handshake(m_Stream.GetContext().GetRole(),
@@ -187,6 +197,39 @@ bool KTLSStream::SetManualTLSHandshake(bool bYesno)
 	}
 
 } // SetManualTLSHandshake
+
+//-----------------------------------------------------------------------------
+bool KTLSStream::SetTLSHostname(KStringView sHostname)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Stream.bNeedHandshake)
+	{
+		kDebug(2, "TLS handshake already done, cannot set hostname: {}", sHostname);
+		return false;
+	}
+
+	m_sTLSHostname = sHostname;
+
+	return true;
+
+} // SetTLSHostname
+
+//-----------------------------------------------------------------------------
+bool KTLSStream::ApplyTLSIdentity()
+//-----------------------------------------------------------------------------
+{
+	const KString& sHostname = m_sTLSHostname.empty() ? GetEndPoint().Domain.get() : m_sTLSHostname;
+
+	auto sError = KTLSContext::SetClientIdentity(GetNativeTLSHandle(), sHostname,
+	                                             m_StreamOptions.IsSet(KStreamOptions::VerifyCert));
+	if (!sError.empty())
+	{
+		return SetError(std::move(sError));
+	}
+
+	return true;
+
+} // ApplyTLSIdentity
 
 //-----------------------------------------------------------------------------
 bool KTLSStream::SetRequestHTTP2(bool bAlsoAllowHTTP1)
@@ -506,14 +549,7 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 		{
 			GetAsioSocket().set_verify_mode(boost::asio::ssl::verify_peer
 			                              | boost::asio::ssl::verify_fail_if_no_peer_cert);
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-			// looks as if asio is not setting the expected host name though? Let's do it manually.
-			// that only works though with OpenSSL versions >= 1.1.0
-			if (!::SSL_set1_host(GetNativeTLSHandle(), sHostname.c_str()))
-			{
-				return SetError(kFormat("Failed to set the certificate verification hostname: {}", sHostname));
-			}
-#endif
+			// the name to verify is set together with the SNI in Handshake()
 		}
 		else
 		{
@@ -531,12 +567,6 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 			{
 				SetRequestHTTP2(m_StreamOptions.IsSet(KStreamOptions::FallBackToHTTP1));
 			}
-		}
-
-		// make sure client side SNI works..
-		if (!::SSL_set_tlsext_host_name(GetNativeTLSHandle(), sHostname.c_str()))
-		{
-			return SetError(kFormat("failed to set SNI hostname: {}", sHostname));
 		}
 
 		boost::asio::async_connect(GetTCPSocket(), hosts,

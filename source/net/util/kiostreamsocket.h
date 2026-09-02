@@ -171,6 +171,14 @@ public:
 	/// written
 	virtual bool SetManualTLSHandshake(bool bYes);
 
+	/// For TLS streams: name the host to talk to when it differs from the host connected
+	/// to, e.g. when connecting to an IP address. Used for SNI and the certificate check.
+	/// Only possible before the TLS handshake
+	virtual bool SetTLSHostname(KStringView sHostname);
+
+	/// For TLS streams: the name set with SetTLSHostname(), empty if the connected host is used
+	virtual KStringView GetTLSHostname() const { return KStringView{}; }
+
 	/// Set the endpoint address when in server mode
 	virtual void SetConnectedEndPointAddress(const KTCPEndPoint& Endpoint);
 
@@ -278,9 +286,10 @@ public:
 	// ------ static factory methods -------
 
 	// this interface uses KURL instead of KTCPEndPoint to allow construction like "https://www.abc.de" - otherwise the protocol would be lost..
-	/// create a stream socket according to protocol and options
+	/// create a stream socket according to protocol and options - sTLSHostname names the host to talk to
+	/// for TLS (SNI and certificate check) if it differs from URL's domain, e.g. when URL is an IP address
 	static std::unique_ptr<KIOStreamSocket> 
-	Create(const KURL& URL, bool bForceTLS = false, KStreamOptions Options = KStreamOptions::None);
+	Create(const KURL& URL, bool bForceTLS = false, KStreamOptions Options = KStreamOptions::None, KStringView sTLSHostname = KStringView{});
 	/// create a stream socket around any std::iostream
 	static std::unique_ptr<KIOStreamSocket> 
 	Create(std::iostream& IOStream);

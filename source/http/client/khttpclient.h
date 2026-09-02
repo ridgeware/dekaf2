@@ -257,12 +257,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Connect with a KURL object (or a string)
-	bool Connect(const KURL& url);
-	//-----------------------------------------------------------------------------
-
-	//-----------------------------------------------------------------------------
-	/// Connect with a KURL object (or a string) through a KURL proxy (or a string)
- 	bool Connect(const KURL& url, const KURL& Proxy);
+	/// @param url the URL to connect to
+	/// @param Proxy the proxy to connect through - if empty, the configured one is used, if any
+	/// @param sTLSHostname the host to talk to for TLS (SNI and certificate check) when it
+	/// differs from url's domain, e.g. when url is an IP address. Applies to this connection
+	/// only, SetTLSHostname() sets it for all. If empty, the name set with SetTLSHostname()
+	/// is used, and if that one is empty, too, url's domain
+	bool Connect(const KURL& url, const KURL& Proxy = KURL{}, KStringView sTLSHostname = KStringView{});
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -505,6 +506,26 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Name the host to talk to for TLS (SNI and certificate check) when it is not the
+	/// host connected to. Overrides the automatic choice - the connected URL's domain, or
+	/// with HttpRequest2Host() the request URL's domain. An empty name resets to the
+	/// automatic choice
+	self& SetTLSHostname(KString sHostname)
+	//-----------------------------------------------------------------------------
+	{
+		m_sTLSHostname = std::move(sHostname);
+		return *this;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// The name set with SetTLSHostname(), empty if none
+	const KString& GetTLSHostname() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_sTLSHostname;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Create a derived authentication object that shall be used for authentication
 	self& Authentication(std::unique_ptr<Authenticator> _Authenticator)
 	//-----------------------------------------------------------------------------
@@ -557,8 +578,15 @@ protected:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Returns true if we are already connected to the endpoint
-	bool AlreadyConnected(const KTCPEndPoint& EndPoint) const;
+	/// Returns true if we are already connected to the endpoint - for TLS also talking to
+	/// the same host (an empty sTLSHostname stands for the endpoint's domain)
+	bool AlreadyConnected(const KTCPEndPoint& EndPoint, KStringView sTLSHostname = KStringView{}) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// The proxy to use for url: the one set explicitly, else with automatic proxy
+	/// configuration the one from the environment, else empty
+	KURL ProxyFor(const KURL& url) const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -654,6 +682,7 @@ private:
 	std::unique_ptr<Authenticator>   m_Authenticator;
 
 	KString            m_sForcedHost;
+	KString            m_sTLSHostname;
 	KString            m_sCompressors;
 	KURL               m_Proxy;
 	KHTTPStreamOptions m_StreamOptions;

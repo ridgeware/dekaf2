@@ -44,6 +44,8 @@
 #include <dekaf2/core/types/kfrozen.h>
 #include <openssl/opensslv.h>
 #include <openssl/ssl.h>
+#include <openssl/x509_vfy.h>
+#include <dekaf2/net/address/kipaddress.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
 	#define DEKAF2_HAS_TLS_CLIENT_HELLO_CB 1
@@ -988,6 +990,62 @@ bool KTLSContext::SetALPNRaw(KStringView sALPN)
 	return true;
 
 } // SetALPNRaw
+
+//-----------------------------------------------------------------------------
+KString KTLSContext::SetClientIdentity(ssl_st* ssl, KStringView sHostname, bool bVerifyCert)
+//-----------------------------------------------------------------------------
+{
+	// an IPv6 address may come in the brackets of a URL
+	if (sHostname.size() > 2 && sHostname.front() == '[' && sHostname.back() == ']')
+	{
+		sHostname.remove_prefix(1);
+		sHostname.remove_suffix(1);
+	}
+
+	// the OpenSSL calls need a C string
+	KString sHost(sHostname);
+
+	bool bIsIP = kIsIPv4Address(sHost) || kIsIPv6Address(sHost, false);
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	if (bVerifyCert)
+	{
+		auto* Param = ::SSL_get0_param(ssl);
+
+		if (bIsIP)
+		{
+			// clear a name set earlier - both would have to match otherwise
+			::X509_VERIFY_PARAM_set1_host(Param, nullptr, 0);
+
+			if (!::X509_VERIFY_PARAM_set1_ip_asc(Param, sHost.c_str()))
+			{
+				return kFormat("failed to set the certificate verification address: {}", sHost);
+			}
+		}
+		else
+		{
+			::X509_VERIFY_PARAM_set1_ip(Param, nullptr, 0);
+
+			if (!::SSL_set1_host(ssl, sHost.c_str()))
+			{
+				return kFormat("failed to set the certificate verification hostname: {}", sHost);
+			}
+		}
+	}
+#endif
+
+	// RFC 6066 does not permit IP literals in SNI - send none, and drop one set earlier
+	// (a separate variable, the OpenSSL macro does not parenthesize its argument)
+	const char* szSNI = bIsIP ? nullptr : sHost.c_str();
+
+	if (!::SSL_set_tlsext_host_name(ssl, szSNI))
+	{
+		return kFormat("failed to set SNI hostname: {}", sHost);
+	}
+
+	return KString{};
+
+} // SetClientIdentity
 
 DEKAF2_NAMESPACE_END
 

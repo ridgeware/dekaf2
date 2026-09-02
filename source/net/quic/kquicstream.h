@@ -150,6 +150,18 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Name the host to talk to when it differs from the host connected to, e.g. when
+	/// connecting to an IP address. Used for SNI and the certificate check. Only possible
+	/// before Connect(), which handshakes
+	virtual bool SetTLSHostname(KStringView sHostname) override final;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// The name set with SetTLSHostname(), empty if the connected host is used
+	virtual KStringView GetTLSHostname() const override final { return m_sTLSHostname; }
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Gets the underlying OS level native socket of the stream
 	virtual native_socket_type GetNativeSocket() override final
 	//-----------------------------------------------------------------------------
@@ -228,6 +240,7 @@ private:
 	                       m_SSL;
 	native_socket_type     m_NativeSocket   { native_socket_type(-1) };
 	bool                   m_bNeedHandshake { true };
+	KString                m_sTLSHostname;
 
 	KBufferedStreamBuf     m_QuicStreamBuf { &QuicStreamReader, &QuicStreamWriter, this, this };
 

@@ -207,7 +207,9 @@ void KWebServer::Check
 				ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
 			}
 
-			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("file not found: {}", sResourcePath) };
+			// the path is not echoed (hardening): the client knows what it asked for, and
+			// on a catch-all route it is whatever the caller sent
+			throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "file not found" };
 		}
 	}
 

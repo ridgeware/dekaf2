@@ -1,6 +1,7 @@
 #include "catch.hpp"
 #include <dekaf2/http/protocol/khttp_header.h>
 #include <dekaf2/http/client/khttpclient.h>
+#include <dekaf2/io/streams/kstringstream.h>
 #include <vector>
 
 using namespace dekaf2;
@@ -138,6 +139,22 @@ TEST_CASE("KHTTPHeader")
 			CHECK ( ContentTypes[5].iQuality == 50 );
 			CHECK ( ContentTypes[5].sValue == "text/html" );
 		}
+	}
+
+	SECTION("Serialize drops headers with CR or LF")
+	{
+		KHTTPHeaders Headers;
+		Headers.Headers.Add(KHTTPHeader::CONTENT_TYPE, "text/plain");
+		Headers.Headers.Add(KHTTPHeader::LOCATION, "/elsewhere\r\nSet-Cookie: injected=1");
+		Headers.Headers.Add(KHTTPHeader::CONNECTION, "close");
+
+		KString sOut;
+		KOutStringStream oss(sOut);
+		CHECK ( Headers.Serialize(oss) );
+		CHECK ( sOut.starts_with("content-type: text/plain") );
+		CHECK ( sOut.contains("connection: close") );
+		CHECK_FALSE ( sOut.contains("location") );
+		CHECK_FALSE ( sOut.contains("injected") );
 	}
 
 	SECTION("Format")

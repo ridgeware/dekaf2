@@ -165,6 +165,7 @@ public:
 		VIA,
 		WARNING,
 		WWW_AUTHENTICATE,
+		X_CONTENT_TYPE_OPTIONS,
 		X_FORWARDED_FOR,
 		X_FORWARDED_HOST,
 		X_FORWARDED_PROTO,
@@ -426,6 +427,8 @@ public:
 				return "warning";
 			case WWW_AUTHENTICATE:
 				return "www-authenticate";
+			case X_CONTENT_TYPE_OPTIONS:
+				return "x-content-type-options";
 			case X_FORWARDED_FOR:
 				return "x-forwarded-for";
 			case X_FORWARDED_HOST:
@@ -700,6 +703,8 @@ public:
 				return WARNING;
 			case "WWW-Authenticate"_casehash:
 				return WWW_AUTHENTICATE;
+			case "X-Content-Type-Options"_casehash:
+				return X_CONTENT_TYPE_OPTIONS;
 			case "X-Forwarded-For"_casehash:
 				return X_FORWARDED_FOR;
 			case "X-Forwarded-Host"_casehash:

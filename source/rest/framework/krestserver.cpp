@@ -57,6 +57,7 @@
 #include <dekaf2/data/sql/krow.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/http/websocket/kwebsocket.h>
+#include <dekaf2/web/html/khtmlentities.h>
 #include <dekaf2/core/types/kscopeguard.h>
 #include <utility>
 
@@ -758,6 +759,10 @@ bool KRESTServer::Execute()
 
 			// per default we output JSON
 			Response.Headers.Add(KHTTPHeader::CONTENT_TYPE, KMIME::JSON);
+
+			// browsers shall take the content type as declared and not
+			// sniff markup or scripts out of text or JSON responses
+			Response.Headers.Add(KHTTPHeader::X_CONTENT_TYPE_OPTIONS, "nosniff");
 
 			// add additional response headers
 			for (auto& it : m_Options.ResponseHeaders)
@@ -1770,13 +1775,14 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 			 Response.Headers.Get(KHTTPHeader::CONTENT_TYPE) == KMIME::HTML_UTF8)
 	{
 		// write the error message as an HTML page if there is no
-		// JSON error output and the content type is HTML
+		// JSON error output and the content type is HTML - the message
+		// may carry request data (paths, parameters), hence the escaping
 		// warning: when using clang's std::format, the below throws a format error when
 		// the {} and </h2> are directly adjacent (no space).
 		m_sRawOutput = kFormat("<html><head>HTTP Error {}</head><body><h2>{} {} </h2></body></html>\n",
 		                       Response.GetStatusCode(),
 		                       Response.GetStatusCode(),
-		                       sError);
+		                       KHTMLEntity::EncodeMandatory(sError));
 	}
 	else
 	{

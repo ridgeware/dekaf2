@@ -368,8 +368,21 @@ bool KHTTPHeaders::Serialize(KOutStream& Stream) const
 {
 	for (const auto& iter : Headers)
 	{
-		kDebug (2, "{}: {}", iter.first.Serialize(), iter.second);
-		if (   !Stream.Write(iter.first.Serialize())
+		KStringViewZ sName = iter.first.Serialize();
+
+		// a LF in the value ends the header line early and lets the remainder
+		// pass as further headers (response splitting), a bare CR does the same
+		// with older recipients - such a header is not sent. Names are not
+		// checked, they come from code.
+		if (DEKAF2_UNLIKELY(iter.second.find('\n') != KString::npos
+		                 || iter.second.find('\r') != KString::npos))
+		{
+			kDebug (1, "dropping header '{}' - value contains CR or LF", sName);
+			continue;
+		}
+
+		kDebug (2, "{}: {}", sName, iter.second);
+		if (   !Stream.Write(sName)
 			|| !Stream.Write(": ")
 			|| !Stream.WriteLine(iter.second))
 		{

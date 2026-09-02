@@ -168,7 +168,8 @@ public:
 		KHTTPHeader TimerHeader;
 		/// File to record requests into - filename may not change during execution
 		KString sRecordFile;
-		/// Fixed additional headers
+		/// Fixed additional headers - added after the defaults Content-Type: application/json
+		/// and X-Content-Type-Options: nosniff, which a route handler may still overwrite
 		KHTTPHeaders::KHeaderMap ResponseHeaders;
 		/// Valid authentication instances for user verification
 		KOpenIDProviderList Authenticators;

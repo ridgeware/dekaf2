@@ -64,6 +64,20 @@ TEST_CASE("KREST")
 			throw KHTTPError{ KHTTPError::H4xx_BADREQUEST, "missing parameters" };
 		}});
 
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/splitting", [&](KRESTServer& http)
+		{
+			// a redirect target with an injected header line
+			http.Response.Headers.Set(KHTTPHeader::LOCATION, "/elsewhere\r\nSet-Cookie: injected=1");
+			throw KHTTPError{ KHTTPError::H302_MOVED_TEMPORARILY, "moved temporarily" };
+		}});
+
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/htmlthrow", [&](KRESTServer& http)
+		{
+			// an error message with markup, rendered into an HTML error page
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
+			throw KHTTPError{ KHTTPError::H4xx_BADREQUEST, "<script>alert('x')</script> & \"q\"" };
+		}});
+
 		bool bMatchedWildcardAtEnd { false };
 
 		Routes.AddRoute({ KHTTPMethod::GET, false, "/wildcard/at/end/*", [&](KRESTServer& http)
@@ -119,7 +133,7 @@ TEST_CASE("KREST")
 		CHECK ( bCalledNoSlashPath == false );
 
 		sOut.clear();
-		KString sCompare = "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 31\r\nconnection: close\r\n\r\n{\n\t\"response\": \"hello world\"\n}\n";
+		KString sCompare = "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\nx-content-type-options: nosniff\r\ncontent-length: 31\r\nconnection: close\r\n\r\n{\n\t\"response\": \"hello world\"\n}\n";
 		CHECK ( REST.Simulate(Options, Routes, "/test", oss) == true );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
@@ -194,7 +208,7 @@ TEST_CASE("KREST")
 		CHECK ( sOut.contains("HTTP/1.1 400 BAD REQUEST") );
 
 		sOut.clear();
-		sCompare = "HTTP/1.1 400 BAD REQUEST\r\ncontent-type: application/json\r\ncontent-length: 37\r\nconnection: close\r\n\r\n{\n\t\"message\": \"missing parameters\"\n}\n";
+		sCompare = "HTTP/1.1 400 BAD REQUEST\r\ncontent-type: application/json\r\nx-content-type-options: nosniff\r\ncontent-length: 37\r\nconnection: close\r\n\r\n{\n\t\"message\": \"missing parameters\"\n}\n";
 		CHECK ( REST.Simulate(Options, Routes, "/throw", oss) == true );
 		CHECK ( sOut.contains("HTTP/1.1 400 BAD REQUEST") );
 		CHECK ( sOut == sCompare );
@@ -205,7 +219,21 @@ TEST_CASE("KREST")
 		CHECK ( sName == "Peter" );
 
 		sOut.clear();
-		sCompare = "HTTP/1.1 404 NOT FOUND\r\ncontent-type: application/json\r\ncontent-length: 45\r\nconnection: close\r\n\r\n{\n\t\"message\": \"invalid path: GET /unknown\"\n}\n";
+		CHECK ( REST.Simulate(Options, Routes, "/htmlthrow", oss) == true );
+		CHECK ( sOut.contains("HTTP/1.1 400 BAD REQUEST") );
+		CHECK ( sOut.contains("content-type: text/html; charset=UTF-8") );
+		CHECK ( sOut.contains("x-content-type-options: nosniff") );
+		CHECK ( sOut.contains("<h2>400 &lt;script&gt;alert(&apos;x&apos;)&lt;/script&gt; &amp; &quot;q&quot; </h2>") );
+		CHECK_FALSE ( sOut.contains("<script>") );
+
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/splitting", oss) == true );
+		CHECK ( sOut.contains("HTTP/1.1 302") );
+		CHECK_FALSE ( sOut.contains("location:") );
+		CHECK_FALSE ( sOut.contains("injected") );
+
+		sOut.clear();
+		sCompare = "HTTP/1.1 404 NOT FOUND\r\ncontent-type: application/json\r\nx-content-type-options: nosniff\r\ncontent-length: 45\r\nconnection: close\r\n\r\n{\n\t\"message\": \"invalid path: GET /unknown\"\n}\n";
 		CHECK ( REST.Simulate(Options, Routes, "/unknown", oss) == false );
 		CHECK ( sOut == sCompare );
 		CHECK ( bCalledTest == true  );
@@ -367,7 +395,7 @@ TEST_CASE("KREST")
 		CHECK ( REST.Simulate(Options, Routes, "/user/Peter/address", oss) == true );
 
 		sOut.clear();
-		KString sCompare = "HTTP/1.1 404 NOT FOUND\r\ncontent-type: application/json\r\ncontent-length: 45\r\nconnection: close\r\n\r\n{\n\t\"message\": \"invalid path: GET /unknown\"\n}\n";
+		KString sCompare = "HTTP/1.1 404 NOT FOUND\r\ncontent-type: application/json\r\nx-content-type-options: nosniff\r\ncontent-length: 45\r\nconnection: close\r\n\r\n{\n\t\"message\": \"invalid path: GET /unknown\"\n}\n";
 
 		CHECK ( REST.Simulate(Options, Routes, "/unknown", oss) == false );
 		CHECK ( sOut == sCompare );
@@ -432,7 +460,16 @@ TEST_CASE("KREST")
 		{
 			sOut.erase(0, iPos2+4);
 		}
-		CHECK ( sOut == "<html><head>HTTP Error 404</head><body><h2>404 file not found: /web/unknown.html </h2></body></html>\n" );
+		CHECK ( sOut == "<html><head>HTTP Error 404</head><body><h2>404 file not found </h2></body></html>\n" );
+
+		// a decoded request path must not reach the 404 page at all
+		sOut.clear();
+		CHECK ( REST.Simulate(Options, Routes, "/web/%3Cscript%3Ealert(1)%3C%2Fscript%3E.html", oss) == true );
+		CHECK ( sOut.contains("HTTP/1.1 404 NOT FOUND") );
+		CHECK ( sOut.contains("content-type: text/html; charset=UTF-8") );
+		CHECK ( sOut.contains("x-content-type-options: nosniff") );
+		CHECK_FALSE ( sOut.contains("<script>") );
+		CHECK_FALSE ( sOut.contains("alert(1)") );
 	}
 
 	SECTION("HTTP keepalive")

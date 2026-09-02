@@ -41,6 +41,7 @@
 
 #include <dekaf2/http/server/khttprouter.h>
 #include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/web/html/khtmlentities.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/rest/serving/kwebserver.h>
 #include <dekaf2/time/clock/ktime.h>
@@ -307,13 +308,14 @@ void KHTTPRouter::ErrorHandler(const std::exception& ex)
 
 	KString sContent = R"(<html><head>Error</head><body><h2>)";
 
+	// the message may carry request data, hence the escaping
 	if (sError.empty())
 	{
-		sContent += Response.sStatusString;
+		KHTMLEntity::AppendMandatory(sContent, Response.sStatusString);
 	}
 	else
 	{
-		sContent += sError;
+		KHTMLEntity::AppendMandatory(sContent, sError);
 	}
 
 	// close the html body

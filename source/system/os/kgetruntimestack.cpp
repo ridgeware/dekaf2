@@ -61,6 +61,10 @@
 #if DEKAF2_HAS_LIBUNWIND
 	#define UNW_LOCAL_ONLY
 	#include <libunwind.h>
+	#if DEKAF2_HAS_INCLUDE(<link.h>)
+		#include <link.h>          // for dl_iterate_phdr() - load address of the executable
+		#define DEKAF2_HAS_DL_ITERATE_PHDR 1
+	#endif
 #endif
 
 #include <stdio.h>
@@ -540,6 +544,27 @@ FrameVec GetBacktraceCallstack (int iSkipStackLines)
 
 #if SUPPORT_LIBUNWIND_PRINTCALLSTACK
 
+#if DEKAF2_HAS_DL_ITERATE_PHDR
+//-----------------------------------------------------------------------------
+// the load address of the main executable - 0 for a non-PIE binary. addr2line
+// wants link time addresses, so this is what to subtract from runtime addresses
+uintptr_t GetMainLoadAddress()
+//-----------------------------------------------------------------------------
+{
+	uintptr_t iBase { 0 };
+
+	::dl_iterate_phdr([](struct dl_phdr_info* info, size_t, void* data) -> int
+	{
+		// the first object reported is the main executable
+		*static_cast<uintptr_t*>(data) = static_cast<uintptr_t>(info->dlpi_addr);
+		return 1; // stop iterating
+	}, &iBase);
+
+	return iBase;
+
+} // GetMainLoadAddress
+#endif // DEKAF2_HAS_DL_ITERATE_PHDR
+
 //-----------------------------------------------------------------------------
 FrameVec GetLibunwindCallstack (int iSkipStackLines)
 //-----------------------------------------------------------------------------
@@ -555,6 +580,9 @@ FrameVec GetLibunwindCallstack (int iSkipStackLines)
 	// +1 to skip this function itself
 	int iToSkip = iSkipStackLines + 1;
 
+	// the return addresses of the frames, resolved to file and line further down
+	std::vector<unw_word_t> IPs;
+
 	while (unw_step(&cursor) > 0)
 	{
 		if (iToSkip > 0)
@@ -563,8 +591,11 @@ FrameVec GetLibunwindCallstack (int iSkipStackLines)
 			continue;
 		}
 
-		char sRaw[512];
+		char       sRaw[512];
 		unw_word_t offset;
+		unw_word_t ip { 0 };
+
+		unw_get_reg(&cursor, UNW_REG_IP, &ip);
 
 		KStackFrame Frame;
 
@@ -578,12 +609,54 @@ FrameVec GetLibunwindCallstack (int iSkipStackLines)
 		}
 		else
 		{
-			unw_word_t ip;
-			unw_get_reg(&cursor, UNW_REG_IP, &ip);
 			Frame.sFunction = kFormat("{:#x}", static_cast<uintptr_t>(ip));
 		}
 
+		IPs.push_back(ip);
 		Frames.push_back(std::move(Frame));
+	}
+
+	if (!Frames.empty())
+	{
+		// resolve file names and line numbers through addr2line. Only frames inside the
+		// executable resolve (which holds all dekaf2 code when linked statically) - frames
+		// from shared libraries keep just their function name
+#if DEKAF2_HAS_DL_ITERATE_PHDR
+		auto iBase = GetMainLoadAddress();
+#else
+		uintptr_t iBase { 0 };
+#endif
+		std::vector<KString>     Addresses;
+		std::vector<KStringView> AddressViews;
+		Addresses.reserve(IPs.size());
+		AddressViews.reserve(IPs.size());
+
+		for (auto ip : IPs)
+		{
+			// a return address points behind the call - step back into the call instruction
+			Addresses.push_back(kFormat("{:#x}", static_cast<uintptr_t>(ip) - iBase - 1));
+		}
+
+		for (const auto& sAddress : Addresses)
+		{
+			AddressViews.push_back(sAddress);
+		}
+
+		auto vResolved = Addr2Line(AddressViews);
+
+		if (vResolved.size() == Frames.size())
+		{
+			for (std::size_t i = 0; i < Frames.size(); ++i)
+			{
+				KStackFrame Resolved(vResolved[i]);
+
+				if (!Resolved.sFile.empty())
+				{
+					Frames[i].sFile       = std::move(Resolved.sFile);
+					Frames[i].sLineNumber = std::move(Resolved.sLineNumber);
+				}
+			}
+		}
 	}
 
 	return Frames;
@@ -778,15 +851,24 @@ KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 
 #if SUPPORT_BACKTRACE_PRINTCALLSTACK
 	auto Stack = detail::bt::GetBacktraceCallstack(iSkipStackLines);
+#elif SUPPORT_LIBUNWIND_PRINTCALLSTACK
+	auto Stack = detail::bt::GetLibunwindCallstack(iSkipStackLines);
+#else
+	// no stack walker on this platform
+	(void)iSkipStackLines;
+	FrameVec Stack;
+#endif
 
 	for (auto& Frame : Stack)
 	{
-		if (!Frame.sFile.In(sSkipFiles))
+		// a frame without a file name cannot be checked against the skip list - it is
+		// either unresolved or from outside the executable, in any case not the caller
+		// we are looking for
+		if (!Frame.sFile.empty() && !Frame.sFile.In(sSkipFiles))
 		{
 			return Frame;
 		}
 	}
-#endif
 
 	return {};
 

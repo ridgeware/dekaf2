@@ -9,6 +9,7 @@
 #%   -arch    : architecture: solaris, win32, freebsd, hp10, AWS etc.
 #%   -archx   : architecture (with version)
 #%   bindir   : same as -archx
+#%   portable : tag of portable (static Linux) binaries: amd64 or arm64 - on other systems the native tag
 #%
 
 if [[ ${1} = -x ]]; then
@@ -147,6 +148,21 @@ case "$1" in
 		;;
 	-archx|-ARCHX|-bindir|-BINDIR|bindir|BINDIR)
 		echo "$BIN"
+		;;
+	-portable|-PORTABLE|portable|PORTABLE)
+		# a portable binary is a static Linux (ELF) binary that only depends on the
+		# architecture, not on the distribution. Other systems have no portable binaries -
+		# a Mach-O on an arm64 Mac must not claim the tag of the Linux arm64 build -
+		# so they get their native platform tag, which names the OS as well
+		if [[ $(uname) != Linux ]]; then
+			echo "$BIN"
+		else
+			case $(uname -m) in
+				x86_64|amd64)  echo "amd64" ;;
+				aarch64|arm64) echo "arm64" ;;
+				*)             uname -m     ;;
+			esac
+		fi
 		;;
 	*)
 		awk '($0 ~ /^#%/) {print substr($0,3)}' $0

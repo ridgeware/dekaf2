@@ -49,6 +49,7 @@
 #include <dekaf2/crypto/encoding/kbase64.h>      // KBase64Url
 #include <dekaf2/crypto/random/krandom.h>        // kGetRandom
 #include <dekaf2/web/url/kurl.h>                 // KURL
+#include <dekaf2/web/url/kurlencode.h>           // kUrlDecode for Basic credentials
 #include <dekaf2/http/protocol/khttp_header.h>   // KHTTPHeader, BasicAuthParms
 #include <dekaf2/http/server/khttperror.h>       // KHTTPError
 #include <dekaf2/rest/framework/krestserver.h>   // KRESTServer
@@ -585,6 +586,14 @@ bool KOpenIDServer::VerifyPassword(KStringView sUsername, KStringView sPassword)
 KString KOpenIDServer::CompleteLogin(KRESTServer& HTTP, KStringView sUsername)
 //-----------------------------------------------------------------------------
 {
+	// a session that is already present (re-authentication, or a login while signed
+	// in) is superseded - end it, so its cookie value is no more usable anywhere
+	KStringView sOld = HTTP.GetCookie(m_LoginSession->GetCookieName());
+	if (!sOld.empty())
+	{
+		m_LoginSession->Logout(sOld);
+	}
+
 	// establish the OP login session for the (already authenticated) user
 	KString sToken = m_LoginSession->CreateTrustedSession(
 		sUsername, HTTP.GetRemoteIP(), HTTP.Request.Headers[KHTTPHeader::USER_AGENT]);
@@ -767,7 +776,8 @@ KJSON FilterClaimsByScope(const KJSON& Claims, KStringView sScope)
 //-----------------------------------------------------------------------------
 KJSON KOpenIDServer::IssueTokens(KStringView sSubject, KStringView sClientID,
                                  KStringView sScope,   KStringView sNonce,
-                                 KUnixTime tAuthTime,  const KJSON& jClientClaims)
+                                 KUnixTime tAuthTime,  const KJSON& jClientClaims,
+                                 KStringView sFamily,  KUnixTime tAbsoluteExpiry)
 //-----------------------------------------------------------------------------
 {
 	KUnixTime tNow = KUnixTime::now();
@@ -831,61 +841,130 @@ KJSON KOpenIDServer::IssueTokens(KStringView sSubject, KStringView sClientID,
 
 	KString sAccessToken = SignJWT(acClaims);
 
-	// --- refresh_token: opaque, stored server-side, rotated on use ---
-	KString sRefresh = KBase64Url::Encode(kGetRandom(32));
-	GrantStore::Refresh R;
-	R.sToken    = sRefresh;
-	R.sClientID = sClientID;
-	R.sScope    = sScope;
-	R.sSubject  = sSubject;
-	R.tAuthTime = tAuthTime;
-	R.tExpiry   = tNow + m_Config.RefreshTTL;
-	m_Grants->SaveRefresh(R);
-
-	return KJSON {
+	KJSON Response {
 		{ "access_token" , std::move(sAccessToken) },
 		{ "token_type"   , "Bearer"                },
 		{ "expires_in"   , m_Config.AccessTTL.seconds().count() },
 		{ "id_token"     , std::move(sIdToken)     },
-		{ "refresh_token", std::move(sRefresh)     },
 		{ "scope"        , sScope                  }
 	};
+
+	// --- refresh_token: opaque, stored server-side, rotated on use. Every rotation
+	// gets a fresh token with the normal lifetime, but the family as a whole ends at
+	// tAbsoluteExpiry - at that point the user has to authenticate again ---
+	if (tNow < tAbsoluteExpiry)
+	{
+		KString sRefresh = KBase64Url::Encode(kGetRandom(32));
+		GrantStore::Refresh R;
+		R.sToken          = sRefresh;
+		R.sClientID       = sClientID;
+		R.sScope          = sScope;
+		R.sSubject        = sSubject;
+		R.tAuthTime       = tAuthTime;
+		R.sFamily         = sFamily;
+		R.tAbsoluteExpiry = tAbsoluteExpiry;
+		R.tExpiry         = tNow + m_Config.RefreshTTL;
+		if (R.tExpiry > tAbsoluteExpiry) R.tExpiry = tAbsoluteExpiry;
+
+		// a token the store could not keep must not reach the client - it would
+		// be unknown at its first use
+		if (m_Grants->SaveRefresh(R))
+		{
+			Response["refresh_token"] = std::move(sRefresh);
+		}
+		else
+		{
+			kDebug(1, "cannot store refresh token for client {} - issuing tokens without one", sClientID);
+		}
+	}
+
+	return Response;
 
 } // IssueTokens
 
 //-----------------------------------------------------------------------------
-bool KOpenIDServer::AuthenticateClient(KRESTServer& HTTP, const ClientStore::Client& Client,
-                                       KStringView sFormClientSecret)
+KString KOpenIDServer::AuthenticateClient(KRESTServer& HTTP, KStringView sFormClientID,
+                                          KStringView sFormClientSecret, ClientStore::Client& Client,
+                                          KString& sDescription)
 //-----------------------------------------------------------------------------
 {
-	if (Client.bPublic)
+	// client_secret_basic: RFC 6749 2.3.1 form-urlencodes both parts before base64
+	auto    Basic        = HTTP.Request.GetBasicAuthParms();
+	KString sBasicUser   = Basic.sUsername;
+	KString sBasicSecret = Basic.sPassword;
+	kUrlDecode(sBasicUser);
+	kUrlDecode(sBasicSecret);
+
+	if (!sBasicSecret.empty() && !sFormClientSecret.empty())
 	{
-		// public client: no secret, PKCE is the proof
-		return true;
+		// RFC 6749 2.3: not more than one authentication method per request
+		sDescription = "more than one client authentication method";
+		return "invalid_request";
 	}
 
-	// client_secret_post (form field) or client_secret_basic (Authorization: Basic)
-	KString sSecret(sFormClientSecret);
-	if (sSecret.empty())
+	if (!sFormClientID.empty() && !sBasicUser.empty() && sFormClientID != sBasicUser)
 	{
-		auto Basic = HTTP.Request.GetBasicAuthParms();
-		sSecret = Basic.sPassword;
-	}
-	if (sSecret.empty())
-	{
-		return false;
+		sDescription = "client_id and Authorization name different clients";
+		return "invalid_request";
 	}
 
-	return KBCrypt().ValidatePassword(sSecret, Client.sClientSecretHash);
+	// the request has to name its client: client_id (RFC 6749 4.1.3, 6 - required for
+	// public clients) or the Basic user
+	KStringView sClientID = !sFormClientID.empty() ? sFormClientID : KStringView(sBasicUser);
+
+	if (sClientID.empty())
+	{
+		sDescription = "missing client_id";
+		return "invalid_request";
+	}
+
+	bool bKnown = m_Clients->Lookup(sClientID, Client);
+
+	if (bKnown && Client.bPublic)
+	{
+		// no secret to check, PKCE is the proof
+		return KString{};
+	}
+
+	// client_secret_post (form field) or client_secret_basic (Authorization: Basic) -
+	// an unknown client gets the same answer as a wrong secret
+	KStringView sSecret = !sFormClientSecret.empty() ? sFormClientSecret : KStringView(sBasicSecret);
+
+	if (!bKnown || sSecret.empty() || !KBCrypt().ValidatePassword(KString(sSecret), Client.sClientSecretHash))
+	{
+		sDescription = "client authentication failed";
+		return "invalid_client";
+	}
+
+	return KString{};
 
 } // AuthenticateClient
+
+//-----------------------------------------------------------------------------
+void KOpenIDServer::NoStore(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	HTTP.Response.Headers.Set(KHTTPHeader::CACHE_CONTROL, "no-store");
+	HTTP.Response.Headers.Set(KHTTPHeader::PRAGMA,        "no-cache");
+
+} // NoStore
 
 //-----------------------------------------------------------------------------
 void KOpenIDServer::TokenError(KRESTServer& HTTP, KStringView sError, KStringView sDescription)
 //-----------------------------------------------------------------------------
 {
 	kDebug(1, "token error: {} ({})", sError, sDescription);
-	HTTP.SetStatus(sError == "invalid_client" ? 401 : 400);
+	NoStore(HTTP);
+	if (sError == "invalid_client")
+	{
+		// RFC 6749 5.2: a 401 names the authentication scheme the endpoint supports
+		HTTP.SetStatus(401);
+		HTTP.Response.Headers.Set(KHTTPHeader::WWW_AUTHENTICATE, "Basic realm=\"token\"");
+	}
+	else
+	{
+		HTTP.SetStatus(400);
+	}
 	HTTP.json.tx = {
 		{ "error"            , sError       },
 		{ "error_description", sDescription }
@@ -899,8 +978,19 @@ void KOpenIDServer::HandleToken(KRESTServer& HTTP)
 {
 	// NOTE: the /token route must be registered with the WWWFORM parser, so the
 	// form-encoded body is available through GetQueryParms().
+	// RFC 6749 3.2: the parameters travel in the body. The form parser merges the URL
+	// query into the same map, so a query string is refused - it would put codes and
+	// secrets into access logs and referrers
+	if (!HTTP.Request.RequestLine.GetQuery().empty())
+	{
+		return TokenError(HTTP, "invalid_request", "parameters must be sent in the request body");
+	}
+
+	NoStore(HTTP);
+
 	const auto& Q = HTTP.GetQueryParms();
 	KStringView sGrantType    = Q["grant_type"];
+	KStringView sClientID     = Q["client_id"];
 	KStringView sClientSecret = Q["client_secret"];
 
 	if (sGrantType == "authorization_code")
@@ -914,10 +1004,25 @@ void KOpenIDServer::HandleToken(KRESTServer& HTTP)
 			return TokenError(HTTP, "invalid_request", "missing code");
 		}
 
+		// the client first (RFC 6749 4.1.3): a request that cannot prove its client must
+		// not consume the code - else anyone who saw the code could void the sign-in
+		ClientStore::Client Client;
+		KString sAuthDescription;
+		KString sAuthError = AuthenticateClient(HTTP, sClientID, sClientSecret, Client, sAuthDescription);
+		if (!sAuthError.empty())
+		{
+			return TokenError(HTTP, sAuthError, sAuthDescription);
+		}
+
 		GrantStore::Code Code;
 		if (!m_Grants->TakeCode(sCode, Code)) // single-use: fetch+delete
 		{
 			return TokenError(HTTP, "invalid_grant", "unknown or already-used code");
+		}
+		if (Code.sClientID != Client.sClientID)
+		{
+			// RFC 6749 4.1.3: the code belongs to the client it was issued to
+			return TokenError(HTTP, "invalid_grant", "code was issued to another client");
 		}
 		if (KUnixTime::now() >= Code.tExpiry)
 		{
@@ -926,16 +1031,6 @@ void KOpenIDServer::HandleToken(KRESTServer& HTTP)
 		if (sRedirectURI != Code.sRedirectURI)
 		{
 			return TokenError(HTTP, "invalid_grant", "redirect_uri mismatch");
-		}
-
-		ClientStore::Client Client;
-		if (!m_Clients->Lookup(Code.sClientID, Client))
-		{
-			return TokenError(HTTP, "invalid_client", "unknown client");
-		}
-		if (!AuthenticateClient(HTTP, Client, sClientSecret))
-		{
-			return TokenError(HTTP, "invalid_client", "client authentication failed");
 		}
 
 		// PKCE: SHA256(verifier) must equal the stored challenge
@@ -953,10 +1048,13 @@ void KOpenIDServer::HandleToken(KRESTServer& HTTP)
 		KJSON jClientClaims;
 		if (!m_Users->AuthorizeClientAccess(Code.sSubject, Code.sClientID, jClientClaims))
 		{
-			return TokenError(HTTP, "access_denied", "user is not authorized for this client");
+			// RFC 6749 5.2 has no access_denied at the token endpoint
+			return TokenError(HTTP, "invalid_grant", "user is not authorized for this client");
 		}
 
-		HTTP.json.tx = IssueTokens(Code.sSubject, Code.sClientID, Code.sScope, Code.sNonce, Code.tAuthTime, jClientClaims);
+		// a new authorization starts a new refresh token family
+		HTTP.json.tx = IssueTokens(Code.sSubject, Code.sClientID, Code.sScope, Code.sNonce, Code.tAuthTime, jClientClaims,
+		                           KBase64Url::Encode(kGetRandom(16)), KUnixTime::now() + m_Config.RefreshAbsoluteTTL);
 		return;
 	}
 
@@ -968,24 +1066,60 @@ void KOpenIDServer::HandleToken(KRESTServer& HTTP)
 			return TokenError(HTTP, "invalid_request", "missing refresh_token");
 		}
 
+		// the client first: without its credentials a confidential client's stolen
+		// refresh token can neither be redeemed nor used to trigger a revocation
+		ClientStore::Client Client;
+		KString sAuthDescription;
+		KString sAuthError = AuthenticateClient(HTTP, sClientID, sClientSecret, Client, sAuthDescription);
+		if (!sAuthError.empty())
+		{
+			return TokenError(HTTP, sAuthError, sAuthDescription);
+		}
+
 		GrantStore::Refresh R;
 		if (!m_Grants->TakeRefresh(sRefresh, R)) // rotation: fetch+delete
 		{
+			KString sFamily;
+			if (m_Grants->WasConsumedRefresh(sRefresh, sFamily))
+			{
+				// a rotated token presented again: either the legitimate client lost
+				// the race against a thief, or the thief comes late - in both cases
+				// the authorization is compromised and the whole family gets revoked
+				// (OAuth 2.0 Security BCP 4.14.2)
+				kDebug(1, "refresh token reuse detected - revoking family {}", sFamily);
+				m_Grants->RevokeRefreshFamily(sFamily);
+			}
 			return TokenError(HTTP, "invalid_grant", "unknown refresh_token");
 		}
-		if (KUnixTime::now() >= R.tExpiry)
+
+		KUnixTime tNow = KUnixTime::now();
+
+		// the family (an authorization from before this field existed has none)
+		KString   sFamily         = R.sFamily.empty() ? KBase64Url::Encode(kGetRandom(16)) : R.sFamily;
+		KUnixTime tAbsoluteExpiry = R.tAbsoluteExpiry.time_since_epoch().count() ? R.tAbsoluteExpiry
+		                                                                         : tNow + m_Config.RefreshAbsoluteTTL;
+
+		// the consumed token stays known until the family would have ended, so that a
+		// replay is recognized as such
+		m_Grants->RememberConsumedRefresh(sRefresh, sFamily, tAbsoluteExpiry);
+
+		if (R.sClientID != Client.sClientID)
+		{
+			// an authenticated client presents a token that was issued to another one:
+			// the token has leaked, the authorization is compromised
+			kDebug(1, "refresh token of client {} presented by client {} - revoking family {}",
+			       R.sClientID, Client.sClientID, sFamily);
+			m_Grants->RevokeRefreshFamily(sFamily);
+			return TokenError(HTTP, "invalid_grant", "refresh_token was issued to another client");
+		}
+
+		if (tNow >= R.tExpiry)
 		{
 			return TokenError(HTTP, "invalid_grant", "refresh_token expired");
 		}
-
-		ClientStore::Client Client;
-		if (!m_Clients->Lookup(R.sClientID, Client))
+		if (tNow >= tAbsoluteExpiry)
 		{
-			return TokenError(HTTP, "invalid_client", "unknown client");
-		}
-		if (!AuthenticateClient(HTTP, Client, sClientSecret))
-		{
-			return TokenError(HTTP, "invalid_client", "client authentication failed");
+			return TokenError(HTTP, "invalid_grant", "the authorization has expired, sign in again");
 		}
 
 		// re-check access on refresh too (access may have been revoked since the
@@ -994,10 +1128,11 @@ void KOpenIDServer::HandleToken(KRESTServer& HTTP)
 		KJSON jClientClaims;
 		if (!m_Users->AuthorizeClientAccess(R.sSubject, R.sClientID, jClientClaims))
 		{
-			return TokenError(HTTP, "access_denied", "user is not authorized for this client");
+			return TokenError(HTTP, "invalid_grant", "user is not authorized for this client");
 		}
 
-		HTTP.json.tx = IssueTokens(R.sSubject, R.sClientID, R.sScope, KStringView{}, R.tAuthTime, jClientClaims);
+		HTTP.json.tx = IssueTokens(R.sSubject, R.sClientID, R.sScope, KStringView{}, R.tAuthTime, jClientClaims,
+		                           sFamily, tAbsoluteExpiry);
 		return;
 	}
 
@@ -1038,6 +1173,8 @@ bool KOpenIDServer::VerifyOwnJWT(KStringView sJWT, KJSON& Payload) const
 void KOpenIDServer::HandleUserInfo(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
+	NoStore(HTTP);
+
 	KString     sBearer(HTTP.Request.Headers[KHTTPHeader::AUTHORIZATION]);
 	KStringView sToken(sBearer);
 	sToken.TrimLeft();
@@ -1052,6 +1189,8 @@ void KOpenIDServer::HandleUserInfo(KRESTServer& HTTP)
 	    || kjson::GetStringRef(Payload, "token_use") != "access")
 	{
 		HTTP.SetStatus(401);
+		// RFC 6750 3: the challenge names the scheme and the error
+		HTTP.Response.Headers.Set(KHTTPHeader::WWW_AUTHENTICATE, "Bearer error=\"invalid_token\"");
 		HTTP.json.tx = { { "error", "invalid_token" } };
 		return;
 	}
@@ -1075,17 +1214,51 @@ void KOpenIDServer::HandleUserInfo(KRESTServer& HTTP)
 void KOpenIDServer::HandleLogout(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
-	// 1) terminate the OP session unconditionally (server-side erase + clear the
-	//    browser cookie). Logout must succeed regardless of the redirect outcome.
+	const auto& Q           = HTTP.GetQueryParms();
+	KStringView sPostLogout = Q["post_logout_redirect_uri"];
+	KStringView sHint       = Q["id_token_hint"];
+	KString     sClientID   = Q["client_id"];
+
+	// 0) a request that carries an id_token_hint proves that the relying party acts
+	//    for the user who is signed in here (OIDC RP-Initiated Logout 1.0, 2.): the
+	//    hint has to verify, its subject has to be the session's user, and its
+	//    audience has to be the client_id when both are given
+	KJSON Hint;
+	bool  bHintVerified = !sHint.empty() && VerifyOwnJWT(sHint, Hint);
+
+	if (!sHint.empty())
+	{
+		KString sSessionUser = LoggedInUser(HTTP);
+
+		if (!bHintVerified)
+		{
+			throw KHTTPError(KHTTPError::H4xx_BADREQUEST, "invalid id_token_hint");
+		}
+		if (!sSessionUser.empty() && kjson::GetStringRef(Hint, "sub") != sSessionUser)
+		{
+			throw KHTTPError(KHTTPError::H4xx_BADREQUEST, "id_token_hint does not belong to the current session");
+		}
+		if (!sClientID.empty() && kjson::GetStringRef(Hint, "aud") != sClientID)
+		{
+			throw KHTTPError(KHTTPError::H4xx_BADREQUEST, "id_token_hint was not issued to client_id");
+		}
+	}
+	else if (!m_Config.sLogoutConfirmPath.empty())
+	{
+		// without a hint anybody can send the browser here with a link - the
+		// application asks the user before the session ends
+		Redirect(HTTP, m_Config.sLogoutConfirmPath);
+		return;
+	}
+
+	// 1) terminate the OP session (server-side erase + clear the browser cookie).
+	//    Logout must succeed regardless of the redirect outcome.
 	KStringView sToken = HTTP.GetCookie(m_LoginSession->GetCookieName());
 	if (!sToken.empty())
 	{
 		m_LoginSession->Logout(sToken);
 	}
 	HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, m_LoginSession->SerializeExpiryCookie());
-
-	const auto& Q           = HTTP.GetQueryParms();
-	KStringView sPostLogout = Q["post_logout_redirect_uri"];
 
 	// 2) nothing requested -> go to the OP's own default landing page
 	if (sPostLogout.empty())
@@ -1099,15 +1272,9 @@ void KOpenIDServer::HandleLogout(KRESTServer& HTTP)
 	//    (exact match) - otherwise this is an open redirect. Identify the client
 	//    by the explicit client_id, else by the "aud" of a verified id_token_hint
 	//    (the latter is what KOpenIDClient sends).
-	KString sClientID = Q["client_id"];
-	if (sClientID.empty())
+	if (sClientID.empty() && bHintVerified)
 	{
-		KStringView sHint = Q["id_token_hint"];
-		KJSON       Hint;
-		if (!sHint.empty() && VerifyOwnJWT(sHint, Hint))
-		{
-			sClientID = kjson::GetStringRef(Hint, "aud");
-		}
+		sClientID = kjson::GetStringRef(Hint, "aud");
 	}
 
 	ClientStore::Client Client;

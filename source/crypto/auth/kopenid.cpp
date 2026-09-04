@@ -683,7 +683,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			{
 				SetError(kFormat("invalid provider: {}", Provider.Error()));
 				// try the next provider ..
-				break;
+				continue;
 			}
 
 			// get access on the atomic storage
@@ -701,7 +701,7 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			{
 				SetError(KeysAndIssuer.Keys.Error());
 				// try the next provider ..
-				break;
+				continue;
 			}
 
 			// mark that the token itself is from the right issuer (so that we could

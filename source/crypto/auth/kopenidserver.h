@@ -112,6 +112,9 @@ public:
 		KDuration AccessTTL      { chrono::minutes(5)  }; ///< access_token lifetime
 		KDuration IdTokenTTL     { chrono::minutes(5)  }; ///< id_token lifetime
 		KDuration RefreshTTL     { chrono::hours(720)  }; ///< refresh_token lifetime (default 30 days)
+		/// lifetime of a whole refresh token family: every rotation issues a fresh token,
+		/// but none outlives the authorization it descends from (default 90 days)
+		KDuration RefreshAbsoluteTTL { chrono::hours(2160) };
 		/// how long a validated /authorize request is parked server-side while the user
 		/// logs in (also the Max-Age of the handle cookie). Keep short.
 		KDuration PendingAuthTTL { chrono::seconds(300) };
@@ -122,6 +125,11 @@ public:
 		std::size_t MaxPendingAuth  {    10000 };
 		KString   sLoginPath        { "/login" };   ///< app route that renders the login form (authorize redirects here)
 		KString   sPostLoginRedirect{ "/"      };   ///< where CompleteLogin() sends the browser when no authorize is pending
+		/// If set, a logout request that carries no verifiable id_token_hint does not end
+		/// the session but redirects here, and the app asks the user (with a POST) - a
+		/// plain link from anywhere must not be able to sign the user out (OIDC RP-Initiated
+		/// Logout 1.0, 2.). Empty (the default) ends the session on every logout request.
+		KString   sLogoutConfirmPath;
 		KString   sAuthorizePath    { "/authorize" };
 		KString   sTokenPath        { "/token"     };
 		KString   sUserInfoPath     { "/userinfo"  };
@@ -237,6 +245,8 @@ public:
 			KString   sSubject;
 			KUnixTime tAuthTime;
 			KUnixTime tExpiry;
+			KString   sFamily;         ///< the authorization this token descends from - all rotations share it
+			KUnixTime tAbsoluteExpiry; ///< the end of the whole family, rotations do not extend it
 		};
 		virtual ~GrantStore() = default;
 		virtual bool SaveCode    (const Code& Rec)                  = 0;
@@ -247,6 +257,29 @@ public:
 		virtual bool TakeRefresh (KStringView sToken, Refresh& Out) = 0;
 		/// drop expired codes/refresh tokens (call periodically)
 		virtual void PurgeExpired(KUnixTime tNow)                   = 0;
+
+		// --- refresh token reuse detection (OAuth 2.0 Security BCP 4.14.2) ---
+		// A rotated token that is presented again means the token was stolen (or the
+		// thief was faster than the client). A store that implements these three lets
+		// the server revoke the whole family then; the defaults forgo the detection.
+
+		/// remember that sToken was consumed, until tUntil (the family's end)
+		virtual bool RememberConsumedRefresh(KStringView sToken, KStringView sFamily, KUnixTime tUntil)
+		{
+			(void)sToken; (void)sFamily; (void)tUntil;
+			return false;
+		}
+		/// was sToken consumed earlier? fills the family it belonged to
+		virtual bool WasConsumedRefresh(KStringView sToken, KString& sFamilyOut)
+		{
+			(void)sToken; (void)sFamilyOut;
+			return false;
+		}
+		/// drop every live refresh token of the family
+		virtual void RevokeRefreshFamily(KStringView sFamily)
+		{
+			(void)sFamily;
+		}
 	};
 
 	/// @param config       OP configuration (issuer, TTLs, endpoint paths)
@@ -275,7 +308,10 @@ public:
 	void HandleToken    (KRESTServer& HTTP);
 	/// GET /userinfo — return the subject's claims for a valid Bearer access token
 	void HandleUserInfo (KRESTServer& HTTP);
-	/// GET /logout — clear the OP session and 302 to post_logout_redirect_uri
+	/// GET /logout — clear the OP session and 302 to post_logout_redirect_uri. An
+	/// id_token_hint has to belong to the current session (and to client_id, if both
+	/// are given); without a verifiable hint the request is sent to
+	/// Config::sLogoutConfirmPath when that is set
 	void HandleLogout   (KRESTServer& HTTP);
 
 	/// Verify a username/password pair (thin pass-through to the UserStore), for
@@ -370,6 +406,8 @@ private:
 	/// build the client's redirect_uri carrying an OAuth error (e.g. login_required),
 	/// preserving state — for the prompt=none path, which must not show a login screen.
 	DEKAF2_PRIVATE KURL        ErrorRedirectURL (const AuthRequest& Req, KStringView sError);
+	/// token and userinfo responses must not be cached (RFC 6749 5.1, RFC 6750 3)
+	DEKAF2_PRIVATE void        NoStore          (KRESTServer& HTTP);
 	DEKAF2_PRIVATE KString     SignJWT          (const KJSON& Payload) const;
 	/// verify a JWT THIS OP issued: checks the RS256 signature against our own
 	/// public key and that "iss" matches. Does NOT check expiry — the caller
@@ -378,11 +416,20 @@ private:
 	/// @param Payload  receives the decoded payload on success
 	/// @returns true if the signature and issuer are valid
 	DEKAF2_PRIVATE bool        VerifyOwnJWT     (KStringView sJWT, KJSON& Payload) const;
+	/// @param sFamily the refresh token family (the authorization) the tokens belong to
+	/// @param tAbsoluteExpiry when the family ends - no refresh token is issued beyond it
 	DEKAF2_PRIVATE KJSON       IssueTokens      (KStringView sSubject, KStringView sClientID,
 	                                             KStringView sScope, KStringView sNonce, KUnixTime tAuthTime,
-	                                             const KJSON& jClientClaims = KJSON::object());
-	DEKAF2_PRIVATE bool        AuthenticateClient(KRESTServer& HTTP, const ClientStore::Client& Client,
-	                                             KStringView sFormClientSecret);
+	                                             const KJSON& jClientClaims,
+	                                             KStringView sFamily, KUnixTime tAbsoluteExpiry);
+	/// resolves and authenticates the client of a token request (RFC 6749 2.3, 3.2.1): the
+	/// identity comes from client_id or the Basic user (both, if given, have to agree), a
+	/// confidential client proves it with its secret. Fills Client on success and returns an
+	/// empty string, else the OAuth error code (sDescription carries the reason):
+	/// invalid_client or invalid_request
+	DEKAF2_PRIVATE KString     AuthenticateClient(KRESTServer& HTTP, KStringView sFormClientID,
+	                                              KStringView sFormClientSecret, ClientStore::Client& Client,
+	                                              KString& sDescription);
 	DEKAF2_PRIVATE void        TokenError       (KRESTServer& HTTP, KStringView sError, KStringView sDescription);
 	DEKAF2_PRIVATE void        Redirect         (KRESTServer& HTTP, KStringView sURL);
 

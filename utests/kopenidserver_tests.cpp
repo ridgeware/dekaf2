@@ -115,8 +115,10 @@ struct TestClientStore : KOpenIDServer::ClientStore
 
 	bool Lookup(KStringView clientID, Client& Out) override
 	{
-		if (clientID != "test-client") return false;
-		Out.sClientID              = "test-client";
+		// two confidential clients with the same secret: grants of one must not be
+		// redeemable by the other
+		if (clientID != "test-client" && clientID != "other-client") return false;
+		Out.sClientID              = clientID;
 		Out.sClientSecretHash      = sSecretHash;
 		Out.RedirectURIs           = { "http://localhost/cb" };
 		Out.PostLogoutRedirectURIs = { "http://localhost/after-logout" };
@@ -165,6 +167,33 @@ struct TestGrantStore : KOpenIDServer::GrantStore
 		return true;
 	}
 	void PurgeExpired(KUnixTime) override {}
+
+	// rotation leaves tombstones, a replayed token names its family
+	struct Tombstone { KString sFamily; KUnixTime tUntil; };
+	std::unordered_map<KString, Tombstone> Consumed;
+
+	bool RememberConsumedRefresh(KStringView sToken, KStringView sFamily, KUnixTime tUntil) override
+	{
+		std::lock_guard<std::mutex> L(Mutex);
+		Consumed[KString(sToken)] = Tombstone{ KString(sFamily), tUntil };
+		return true;
+	}
+	bool WasConsumedRefresh(KStringView sToken, KString& sFamilyOut) override
+	{
+		std::lock_guard<std::mutex> L(Mutex);
+		auto it = Consumed.find(KString(sToken));
+		if (it == Consumed.end()) return false;
+		sFamilyOut = it->second.sFamily;
+		return true;
+	}
+	void RevokeRefreshFamily(KStringView sFamily) override
+	{
+		std::lock_guard<std::mutex> L(Mutex);
+		for (auto it = Refreshes.begin(); it != Refreshes.end(); )
+		{
+			it = (it->second.sFamily == sFamily) ? Refreshes.erase(it) : std::next(it);
+		}
+	}
 };
 
 // a browser-ish cookie jar
@@ -261,7 +290,7 @@ TEST_CASE("KOpenIDServer")
 
 	// --- a stream-driven request helper (no socket needed: the OP never calls out) ---
 	auto Drive = [&Routes](KStringView sMethod, KStringView sPathQuery, KStringView sCookie,
-	                       KStringView sFormBody = {}) -> KString
+	                       KStringView sFormBody = {}, KStringView sExtraHeaders = {}) -> KString
 	{
 		KString sReq = kFormat("{} {} HTTP/1.1\r\nHost: localhost\r\nUser-Agent: utest\r\n", sMethod, sPathQuery);
 		if (!sCookie.empty()) sReq += kFormat("Cookie: {}\r\n", sCookie);
@@ -270,6 +299,7 @@ TEST_CASE("KOpenIDServer")
 			sReq += "Content-Type: application/x-www-form-urlencoded\r\n";
 			sReq += kFormat("Content-Length: {}\r\n", sFormBody.size());
 		}
+		sReq += sExtraHeaders;
 		sReq += "\r\n";
 		sReq += sFormBody;
 
@@ -292,6 +322,27 @@ TEST_CASE("KOpenIDServer")
 		"&redirect_uri=http://localhost/cb&scope=openid%20profile"
 		"&state=the-state&nonce=the-nonce&code_challenge={}&code_challenge_method=S256",
 		sChallenge);
+
+	// --- a fresh authorization code for test-client (interactive login) -----
+	auto ObtainCode = [&]() -> KString
+	{
+		CookieJar Cookies;
+		Cookies.Apply(Drive("GET", sAuthorizeQuery, Cookies.Header()));
+		KString r = Drive("POST", "/login", Cookies.Header(), "username=alice&password=secret");
+		return URLParam(FirstHeader(r, "Location"), "code");
+	};
+
+	// --- the code exchange body for test-client (client_secret_post) ----------
+	auto CodeBody = [&](KStringView sCode, KStringView sClientID = "test-client", KStringView sSecret = "test-secret")
+	{
+		return kFormat("grant_type=authorization_code&code={}&redirect_uri=http://localhost/cb"
+		               "&code_verifier={}&client_id={}&client_secret={}", sCode, sVerifier, sClientID, sSecret);
+	};
+
+	auto TokenError = [](KStringView sResponse) -> KString
+	{
+		return kjson::GetStringRef(kjson::Parse(ResponseBody(sResponse)), "error");
+	};
 
 	SECTION("discovery + jwks")
 	{
@@ -625,7 +676,111 @@ TEST_CASE("KOpenIDServer")
 			"grant_type=authorization_code&code={}&redirect_uri=http://localhost/cb"
 			"&code_verifier={}&client_id=test-client&client_secret=test-secret", sCode, sVerifier);
 		KJSON jErr = kjson::Parse(ResponseBody(Drive("POST", "/token", "", sBody)));
-		CHECK ( kjson::GetStringRef(jErr, "error") == "access_denied" );
+		// RFC 6749 5.2 has no access_denied at the token endpoint
+		CHECK ( kjson::GetStringRef(jErr, "error") == "invalid_grant" );
+	}
+
+	SECTION("the token endpoint refuses parameters in the URL query")
+	{
+		KString r = Drive("POST", "/token?client_secret=test-secret", "",
+		                  "grant_type=refresh_token&refresh_token=x&client_id=test-client");
+		CHECK ( r.starts_with("HTTP/1.1 400") );
+		CHECK ( FirstHeader(r, "Cache-Control") == "no-store" );
+		CHECK ( TokenError(r) == "invalid_request" );
+	}
+
+	SECTION("client authentication comes before the code is consumed")
+	{
+		KString sCode = ObtainCode();
+		REQUIRE_FALSE ( sCode.empty() );
+
+		// a wrong secret: 401 with a challenge, no caching - and the code survives
+		KString rBad = Drive("POST", "/token", "", CodeBody(sCode, "test-client", "wrong"));
+		CHECK ( rBad.starts_with("HTTP/1.1 401") );
+		CHECK ( FirstHeader(rBad, "WWW-Authenticate").starts_with("Basic") );
+		CHECK ( FirstHeader(rBad, "Cache-Control") == "no-store" );
+		CHECK ( TokenError(rBad) == "invalid_client" );
+
+		// an unknown client is indistinguishable from a wrong secret
+		CHECK ( TokenError(Drive("POST", "/token", "", CodeBody(sCode, "nobody", "test-secret"))) == "invalid_client" );
+
+		// the legitimate client still gets its tokens
+		KJSON jTok = kjson::Parse(ResponseBody(Drive("POST", "/token", "", CodeBody(sCode))));
+		CHECK_FALSE ( kjson::GetStringRef(jTok, "access_token").empty() );
+	}
+
+	SECTION("a code is bound to the client it was issued to")
+	{
+		KString sCode = ObtainCode();
+		REQUIRE_FALSE ( sCode.empty() );
+
+		// other-client authenticates fine, but the code is not its own
+		CHECK ( TokenError(Drive("POST", "/token", "", CodeBody(sCode, "other-client"))) == "invalid_grant" );
+		// and it is spent now
+		CHECK ( TokenError(Drive("POST", "/token", "", CodeBody(sCode))) == "invalid_grant" );
+	}
+
+	SECTION("client_secret_basic works, two authentication methods do not")
+	{
+		KString sBasic = kFormat("Authorization: Basic {}\r\n", KBase64::Encode("test-client:test-secret"));
+
+		// Basic plus a form secret: RFC 6749 2.3 allows one method per request
+		CHECK ( TokenError(Drive("POST", "/token", "",
+		                         "grant_type=refresh_token&refresh_token=x&client_secret=test-secret",
+		                         sBasic)) == "invalid_request" );
+		// Basic names one client, the form another
+		CHECK ( TokenError(Drive("POST", "/token", "",
+		                         "grant_type=refresh_token&refresh_token=x&client_id=other-client",
+		                         sBasic)) == "invalid_request" );
+		// no client at all
+		CHECK ( TokenError(Drive("POST", "/token", "",
+		                         "grant_type=refresh_token&refresh_token=x")) == "invalid_request" );
+
+		// Basic alone identifies and authenticates the client
+		KString sCode = ObtainCode();
+		REQUIRE_FALSE ( sCode.empty() );
+		KString sBody = kFormat("grant_type=authorization_code&code={}&redirect_uri=http://localhost/cb"
+		                        "&code_verifier={}", sCode, sVerifier);
+		KJSON jTok = kjson::Parse(ResponseBody(Drive("POST", "/token", "", sBody, sBasic)));
+		CHECK_FALSE ( kjson::GetStringRef(jTok, "access_token").empty() );
+	}
+
+	SECTION("refresh token rotation: a replayed token revokes the whole family")
+	{
+		KString sCode = ObtainCode();
+		REQUIRE_FALSE ( sCode.empty() );
+		KJSON   jTok = kjson::Parse(ResponseBody(Drive("POST", "/token", "", CodeBody(sCode))));
+		KString sRT1 = kjson::GetStringRef(jTok, "refresh_token");
+		REQUIRE_FALSE ( sRT1.empty() );
+
+		auto RefreshBody = [](KStringView sRT, KStringView sClientID = "test-client")
+		{
+			return kFormat("grant_type=refresh_token&refresh_token={}&client_id={}&client_secret=test-secret", sRT, sClientID);
+		};
+
+		// rotation: a new refresh token replaces the presented one
+		KJSON   jRef = kjson::Parse(ResponseBody(Drive("POST", "/token", "", RefreshBody(sRT1))));
+		KString sRT2 = kjson::GetStringRef(jRef, "refresh_token");
+		REQUIRE_FALSE ( sRT2.empty() );
+		CHECK ( sRT2 != sRT1 );
+
+		// the old one comes back: somebody has a copy - the family dies (BCP 4.14.2)
+		CHECK ( TokenError(Drive("POST", "/token", "", RefreshBody(sRT1))) == "invalid_grant" );
+		CHECK ( TokenError(Drive("POST", "/token", "", RefreshBody(sRT2))) == "invalid_grant" );
+	}
+
+	SECTION("a refresh token presented by another client revokes the authorization")
+	{
+		KString sCode = ObtainCode();
+		REQUIRE_FALSE ( sCode.empty() );
+		KJSON   jTok = kjson::Parse(ResponseBody(Drive("POST", "/token", "", CodeBody(sCode))));
+		KString sRT  = kjson::GetStringRef(jTok, "refresh_token");
+		REQUIRE_FALSE ( sRT.empty() );
+
+		KString sOther = kFormat("grant_type=refresh_token&refresh_token={}&client_id=other-client&client_secret=test-secret", sRT);
+		KString sOwner = kFormat("grant_type=refresh_token&refresh_token={}&client_id=test-client&client_secret=test-secret", sRT);
+		CHECK ( TokenError(Drive("POST", "/token", "", sOther)) == "invalid_grant" );
+		CHECK ( TokenError(Drive("POST", "/token", "", sOwner)) == "invalid_grant" );
 	}
 
 	SECTION("PKCE mismatch is rejected at the token endpoint")

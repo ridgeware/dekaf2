@@ -1623,21 +1623,27 @@ public:
 DEKAF2_PUBLIC inline
 KString kGetBaseDomain (KStringView sHostName) { return url::GetDomainIdentity(sHostName); }
 
-/// checks if a url path contains directory traversals
-/// @returns true if url path does not contain a directory traversal attempt, false otherwise
+/// checks if a url path can safely be mapped onto a file system path: no directory
+/// traversal (. or ..), no whitespace-only component, no double slash, no NUL byte,
+/// no backslash
+/// @returns true if the url path is safe, false otherwise
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kIsSafeURLPath(KStringView sPath);
 
-/// checks if a url path contains directory traversals
-/// @returns true if url path does not contain a directory traversal attempt, false otherwise
+/// checks if a url path can safely be mapped onto a file system path: no directory
+/// traversal (. or ..), no whitespace-only component, no double slash, no NUL byte,
+/// no backslash
+/// @returns true if the url path is safe, false otherwise
 DEKAF2_NODISCARD DEKAF2_PUBLIC inline
 bool kIsSafeURLPath(const url::KPath& Path)
 {
 	return kIsSafeURLPath(Path.get());
 }
 
-/// checks if a url path contains directory traversals
-/// @returns true if url path does not contain a directory traversal attempt, false otherwise
+/// checks if a url path can safely be mapped onto a file system path: no directory
+/// traversal (. or ..), no whitespace-only component, no double slash, no NUL byte,
+/// no backslash
+/// @returns true if the url path is safe, false otherwise
 DEKAF2_NODISCARD DEKAF2_PUBLIC inline
 bool kIsSafeURL(const KURL& URL)
 {

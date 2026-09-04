@@ -1004,6 +1004,17 @@ bool KTCPEndPoint::operator<(const KTCPEndPoint& other) const
 bool kIsSafeURLPath(KStringView sPath)
 //-------------------------------------------------------------------------
 {
+	// a NUL truncates the path in the file system calls, a backslash is a path
+	// separator on Windows, and a double slash is collapsed by the file system -
+	// each makes the path on disk differ from the path a permission check has
+	// looked at, and none of them has a place in a URL path
+	if (sPath.find('\0')  != KStringView::npos ||
+	    sPath.find('\\')  != KStringView::npos ||
+	    sPath.find("//")  != KStringView::npos)
+	{
+		return false;
+	}
+
 	// split into path components
 	for (auto it : kSplits(sPath, '/'))
 	{

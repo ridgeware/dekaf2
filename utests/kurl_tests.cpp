@@ -1742,3 +1742,23 @@ TEST_CASE("KURL::Normalize")
 	   CHECK ( bChanged   == false );
    }
 }
+
+TEST_CASE("kIsSafeURLPath::FileSystemHazards")
+{
+	// each of these makes the path on disk differ from the path a permission
+	// check has looked at
+	CHECK ( kIsSafeURLPath("/files//private/x")           == false ); // collapsed by the file system
+	CHECK ( kIsSafeURLPath("//private/x")                 == false );
+	CHECK ( kIsSafeURLPath(KStringView("/files/..\0", 9)) == false ); // NUL truncates the C string
+	CHECK ( kIsSafeURLPath(KStringView("/a\0b", 4))       == false );
+	CHECK ( kIsSafeURLPath("/static/..\\..\\win.ini")     == false ); // separator on Windows
+	CHECK ( kIsSafeURLPath("/a\\b")                       == false );
+
+	// still fine
+	CHECK ( kIsSafeURLPath("/files/private/x")            == true  );
+	CHECK ( kIsSafeURLPath("/files/private/")             == true  ); // trailing slash
+	CHECK ( kIsSafeURLPath("/")                           == true  );
+	CHECK ( kIsSafeURLPath("")                            == true  );
+	CHECK ( kIsSafeURLPath("/.well-known/acme/token")     == true  );
+	CHECK ( kIsSafeURLPath("/a b/c-d_e.f")                == true  );
+}

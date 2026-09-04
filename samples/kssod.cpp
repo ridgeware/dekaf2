@@ -631,16 +631,24 @@ int main(int argc, char** argv)
 				return;
 			}
 
+			// Fetch Metadata is set by the browser and cannot be influenced by a page,
+			// so where it is present it decides alone. same-origin: our own page,
+			// none: a URL the user typed or bookmarked.
 			KStringView sSite = HTTP.Request.Headers.Get("sec-fetch-site");
 
-			// same-origin: our own page, none: a URL the user typed or bookmarked
-			if (!sSite.empty() && sSite != "same-origin" && sSite != "none")
+			if (!sSite.empty())
 			{
-				throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "cross-site request rejected" };
+				if (sSite != "same-origin" && sSite != "none")
+				{
+					throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "cross-site request rejected" };
+				}
+				return;
 			}
 
 			// browsers without Fetch Metadata still send the Origin of a form post - it
-			// has to name the host the request was sent to
+			// has to name the host the request was sent to. "null" is not an origin: it
+			// is what a page with Referrer-Policy: no-referrer (ours, but also any
+			// attacker's) makes the browser send, so it cannot vouch for anything.
 			KStringView sOrigin = HTTP.Request.Headers.Get(KHTTPHeader::ORIGIN);
 
 			if (sOrigin.empty())
@@ -666,7 +674,7 @@ int main(int argc, char** argv)
 			KURL    Issuer(sIssuer);
 			KString sIssuerHost = HostPort(Issuer.Domain, Issuer.Port);
 
-			if (sOriginHost.empty()
+			if (sOrigin == "null" || sOriginHost.empty()
 			    || (!kCaselessEqual(sOriginHost, sPublicHost) && !kCaselessEqual(sOriginHost, sIssuerHost)))
 			{
 				throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "cross-site request rejected" };

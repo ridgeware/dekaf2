@@ -1434,7 +1434,8 @@ namespace rapidxml
             // Remove current contents
             this->remove_all_nodes();
             this->remove_all_attributes();
-			m_xml_declaration = nullptr;
+            m_xml_declaration = nullptr;
+            m_parse_depth     = 0;
             
             // Parse BOM, if any
             parse_bom<Flags>(text);
@@ -2108,6 +2109,9 @@ namespace rapidxml
         template<int Flags>
         xml_node<Ch> *parse_element(Ch *&text)
         {
+            // dekaf2: bound the nesting depth (see max_parse_depth)
+            parse_depth_guard depth_guard(m_parse_depth, text);
+
             // Create element node
             xml_node<Ch> *element = this->allocate_node(node_element);
 
@@ -2373,7 +2377,27 @@ namespace rapidxml
             }
         }
 
-		xml_node<Ch> *m_xml_declaration { nullptr };
+        xml_node<Ch> *m_xml_declaration { nullptr };
+
+        // dekaf2: the parser recurses once per nesting level of elements - an
+        // unbounded depth overflows the stack. Documents nested deeper than
+        // max_parse_depth are rejected with a parse_error.
+        static const std::size_t max_parse_depth = 256;
+        std::size_t m_parse_depth { 0 };
+
+        struct parse_depth_guard
+        {
+            parse_depth_guard(std::size_t &depth, Ch *text)
+            : m_depth(depth)
+            {
+                if (++m_depth > max_parse_depth)
+                {
+                    RAPIDXML_PARSE_ERROR("element nesting too deep", text);
+                }
+            }
+            ~parse_depth_guard() { --m_depth; }
+            std::size_t &m_depth;
+        };
     };
 
     //! \cond internal

@@ -212,3 +212,27 @@ R"(<myroot attr1="&amp;value1">Text directly in root
 		CHECK ( DOM.Serialize(KXML::Terse) == R"(<!DOCTYPE html>)" );
 	}
 }
+
+TEST_CASE("KXML nesting depth")
+{
+	auto Nested = [](std::size_t iDepth) -> KString
+	{
+		KString sXML;
+		for (std::size_t i = 0; i < iDepth; ++i) sXML += "<a>";
+		sXML += "x";
+		for (std::size_t i = 0; i < iDepth; ++i) sXML += "</a>";
+		return sXML;
+	};
+
+	SECTION("moderate nesting parses")
+	{
+		KXML xml(Nested(200));
+		CHECK ( static_cast<bool>(xml) == true );
+	}
+
+	SECTION("excessive nesting is a parse error, not a stack overflow")
+	{
+		KXML xml(Nested(100000));
+		CHECK ( static_cast<bool>(xml) == false );
+	}
+}

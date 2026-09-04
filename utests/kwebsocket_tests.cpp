@@ -174,6 +174,60 @@ TEST_CASE("KWebSocket")
 		CHECK ( sServerKey.empty() );
 	}
 
+	SECTION("server rejects an unmasked client frame")
+	{
+		// FIN + text, unmasked, 5 bytes payload
+		KString sWire("\x81\x05Hello", 7);
+		KString sOutBuf;
+		KOutStringStream oss(sOutBuf);
+
+		{
+			// server role (we do not mask our tx): RFC 6455 5.1 demands failing the connection
+			KInStringStream iss(sWire);
+			KWebSocket::Frame RxFrame;
+			CHECK ( RxFrame.Read(iss, oss, false) == false );
+		}
+		{
+			// client role: servers send unmasked frames
+			KInStringStream iss(sWire);
+			KWebSocket::Frame RxFrame;
+			CHECK ( RxFrame.Read(iss, oss, true) == true );
+			CHECK ( RxFrame.GetPayload() == "Hello" );
+		}
+	}
+
+	SECTION("oversized frame is rejected before allocation")
+	{
+		// FIN + text, masked, 64 bit length 0x7fffffffffffffff, mask key, no payload
+		KString sWire("\x81\xff\x7f\xff\xff\xff\xff\xff\xff\xff\x01\x02\x03\x04", 14);
+		KInStringStream iss(sWire);
+		KString sOutBuf;
+		KOutStringStream oss(sOutBuf);
+		KWebSocket::Frame RxFrame;
+		CHECK ( RxFrame.Read(iss, oss, false) == false );
+	}
+
+	SECTION("message size limit is configurable")
+	{
+		auto iDefault = KWebSocket::GetMaxMessageSize();
+		CHECK ( iDefault == 16 * 1024 * 1024 );
+
+		KWebSocket::SetMaxMessageSize(4);
+
+		KWebSocket::Frame TxFrame(KWebSocket::FrameHeader::Text, "Hello");
+		KString sWire;
+		KOutStringStream oss(sWire);
+		CHECK ( TxFrame.Write(oss, true) );
+
+		KInStringStream iss(sWire);
+		KString sOutBuf;
+		KOutStringStream oss2(sOutBuf);
+		KWebSocket::Frame RxFrame;
+		CHECK ( RxFrame.Read(iss, oss2, false) == false );
+
+		KWebSocket::SetMaxMessageSize(iDefault);
+	}
+
 	SECTION("Frame Text construction and round-trip")
 	{
 		KWebSocket::Frame TxFrame(KWebSocket::FrameHeader::Text, "Hello, WebSocket!");
@@ -193,7 +247,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.Type()       == KWebSocket::FrameHeader::Text );
 		CHECK ( RxFrame.GetPayload() == "Hello, WebSocket!" );
 		CHECK ( RxFrame.Finished()   == true );
@@ -219,7 +273,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.Type()       == KWebSocket::FrameHeader::Binary );
 		CHECK ( RxFrame.GetPayload() == sData );
 	}
@@ -237,7 +291,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.Type()       == KWebSocket::FrameHeader::Text );
 		CHECK ( RxFrame.GetPayload() == "" );
 	}
@@ -260,7 +314,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.GetPayload() == sData );
 	}
 
@@ -282,7 +336,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.GetPayload() == sData );
 	}
 
@@ -323,7 +377,7 @@ TEST_CASE("KWebSocket")
 		KString sPongOutput;
 		KOutStringStream oss2(sPongOutput);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 
 		CHECK ( RxFrame.Type()       == KWebSocket::FrameHeader::Ping );
 		CHECK ( RxFrame.GetPayload() == "ping-data" );
@@ -348,7 +402,7 @@ TEST_CASE("KWebSocket")
 		KOutStringStream oss2(sCloseReply);
 		KWebSocket::Frame RxFrame;
 		// Read returns false on Close (connection terminated)
-		CHECK ( RxFrame.Read(iss, oss2, false) == false );
+		CHECK ( RxFrame.Read(iss, oss2, true) == false );
 		CHECK ( RxFrame.GetStatusCode() == 1000 );
 		// the close reply should have been written
 		CHECK ( sCloseReply.size() > 0 );
@@ -367,7 +421,7 @@ TEST_CASE("KWebSocket")
 		KString sCloseReply;
 		KOutStringStream oss2(sCloseReply);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) == false );
+		CHECK ( RxFrame.Read(iss, oss2, true) == false );
 		CHECK ( RxFrame.GetStatusCode() == 1001 );
 	}
 
@@ -398,7 +452,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.Type()       == KWebSocket::FrameHeader::Text );
 		CHECK ( RxFrame.GetPayload() == sPayload );
 	}
@@ -419,11 +473,11 @@ TEST_CASE("KWebSocket")
 		KOutStringStream oss2(sOutBuf);
 
 		KWebSocket::Frame RxFrame1;
-		CHECK ( RxFrame1.Read(iss, oss2, false) );
+		CHECK ( RxFrame1.Read(iss, oss2, true) );
 		CHECK ( RxFrame1.GetPayload() == "first" );
 
 		KWebSocket::Frame RxFrame2;
-		CHECK ( RxFrame2.Read(iss, oss2, false) );
+		CHECK ( RxFrame2.Read(iss, oss2, true) );
 		CHECK ( RxFrame2.GetPayload() == "second" );
 	}
 
@@ -515,7 +569,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.GetPayload() == sData );
 	}
 
@@ -535,7 +589,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.GetPayload() == sData );
 	}
 
@@ -555,7 +609,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.GetPayload() == sData );
 	}
 
@@ -575,7 +629,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.GetPayload() == sData );
 	}
 
@@ -613,7 +667,7 @@ TEST_CASE("KWebSocket")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		KWebSocket::Frame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 		CHECK ( RxFrame.Type()       == KWebSocket::FrameHeader::Pong );
 		CHECK ( RxFrame.GetPayload() == "pong-response" );
 	}
@@ -670,7 +724,7 @@ TEST_CASE("KWebSocket Preamble")
 		KString sOutBuf;
 		KOutStringStream oss2(sOutBuf);
 		PreambleFrame RxFrame;
-		CHECK ( RxFrame.Read(iss, oss2, false) );
+		CHECK ( RxFrame.Read(iss, oss2, true) );
 
 		CHECK ( RxFrame.GetType()    == 1 );
 		CHECK ( RxFrame.GetChannel() == 0 );

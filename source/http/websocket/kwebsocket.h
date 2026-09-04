@@ -456,6 +456,13 @@ public:
 
 	~KWebSocket();
 
+	/// set the maximum size of a received message: all fragments together, and with
+	/// permessage-deflate the inflated payload. A larger message fails the connection.
+	/// Default 16 MiB.
+	static void        SetMaxMessageSize(std::size_t iBytes) { s_iMaxMessageSize.store(iBytes, std::memory_order_relaxed); }
+	/// returns the maximum size of a received message
+	static std::size_t GetMaxMessageSize()                   { return s_iMaxMessageSize.load(std::memory_order_relaxed);  }
+
 	/// create a shared-managed KWebSocket: its WeakHandle() then returns
 	/// non-empty, lifetime safe handles for cross-thread writes
 	static std::shared_ptr<KWebSocket> Create(std::unique_ptr<KIOStreamSocket>& Stream,
@@ -623,6 +630,8 @@ private:
 	KTimer::ID_t                     m_TimerID      { KTimer::InvalidID   };
 	ReadState                        m_ReadState    { ReadState::Success  };
 	bool                             m_bMaskTx      { false };
+
+	static std::atomic<std::size_t>  s_iMaxMessageSize;
 
 }; // KWebSocket
 

@@ -398,7 +398,10 @@ bool KWebSocketClient::GetNextFrameIfEmpty()
 
 		for(;;)
 		{
-			if (!m_RXFrame.Read(Response.UnfilteredStream(), Request.UnfilteredStream(), false))
+			// a client masks its frames, also the automatic pong and close replies
+			// written from within Read() (RFC 6455 5.1) - this also tells Read() that
+			// the unmasked frames of the server are the expected ones
+			if (!m_RXFrame.Read(Response.UnfilteredStream(), Request.UnfilteredStream(), true))
 			{
 				return false;
 			}

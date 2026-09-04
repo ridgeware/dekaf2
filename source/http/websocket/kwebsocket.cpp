@@ -208,6 +208,13 @@ bool KWebSocketPMCE::Decompress(KStringView sInput, KString& sOutput)
 
 		sOutput.append(Buffer.data(), Buffer.size() - strm.avail_out);
 
+		if (sOutput.size() > KWebSocket::GetMaxMessageSize())
+		{
+			// a small compressed frame may inflate to gigabytes
+			kDebug(1, "inflated message exceeds the maximum message size of {} bytes", KWebSocket::GetMaxMessageSize());
+			return false;
+		}
+
 		if (iResult == Z_STREAM_END || (strm.avail_in == 0 && strm.avail_out != 0))
 		{
 			break;
@@ -1010,6 +1017,25 @@ bool KWebSocket::Frame::Read(KInStream& InStream, KOutStream& OutStream, bool bM
 			return false;
 		}
 
+		if (!bMaskTx && !IsMaskedRx())
+		{
+			// RFC 6455 5.1: a server must fail the connection on an unmasked client frame
+			kDebug(1, "unmasked frame from client - failing the connection");
+			return false;
+		}
+
+		{
+			// the announced size is used for the buffer allocation below - bound it,
+			// together with what the fragments of this message have accumulated
+			auto iMaxSize = KWebSocket::GetMaxMessageSize();
+
+			if (AnnouncedSize() > iMaxSize || m_sPayload.size() > iMaxSize - AnnouncedSize())
+			{
+				kDebug(1, "frame of {} bytes exceeds the maximum message size of {} bytes - failing the connection", AnnouncedSize(), iMaxSize);
+				return false;
+			}
+		}
+
 		// remember whether the first data frame of this message was compressed (RSV1),
 		// continuation frames carry RSV1=0 and must not clear it
 		if (Type() == FrameType::Text || Type() == FrameType::Binary)
@@ -1395,6 +1421,8 @@ bool KWebSocket::CheckForUpgradeResponse(KStringView sClientSecKey, KStringView 
 	return true;
 
 } // CheckForUpgradeResponse
+
+std::atomic<std::size_t> KWebSocket::s_iMaxMessageSize { 16 * 1024 * 1024 };
 
 //-----------------------------------------------------------------------------
 KWebSocket::KWebSocket(std::unique_ptr<KIOStreamSocket>& Stream, std::function<void(KWebSocket&)> WebSocketHandler, bool bMaskTx)

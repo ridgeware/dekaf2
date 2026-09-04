@@ -6,6 +6,9 @@
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/rest/framework/krestsession.h>
+#include <dekaf2/rest/serving/kwebserverpermissions.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/io/compression/kcompression.h>
 #include <dekaf2/crypto/auth/ksession.h>
@@ -476,6 +479,322 @@ x-klog: -level 1
 		sResponse = Serve([](KRESTServer& http) { http.json.tx = KJSON { {"key", "value"} }; }, false);
 		CHECK ( sResponse.contains("HTTP/1.1 200") );
 		CHECK ( Body(sResponse) == "{\n\t\"key\": \"value\"\n}\n" );
+	}
+
+	// runs one request stream through a KRESTServer and returns the raw response(s)
+	auto RunRequest = [](KStringView sRequest, KRESTRoutes& Routes, KRESTServer::Options& Options) -> KString
+	{
+		KString sResponse;
+		KInStringStream iss(sRequest);
+		KOutStringStream oss(sResponse);
+		KStream stream(iss, oss);
+		KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+		Server.Execute();
+		return sResponse;
+	};
+
+	SECTION("Transfer-Encoding other than a single chunked is rejected")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		KString sBody;
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/plain", [&](KRESTServer& http)
+		{
+			sBody = http.GetRequestBody();
+			http.json.tx["status"] = "ok";
+		}, KRESTRoute::PLAIN });
+
+		// "gzip, chunked" - chunked is not the only coding
+		auto sResponse = RunRequest(
+			"POST /plain HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Transfer-Encoding: gzip, chunked\r\n"
+			"\r\n"
+			"5\r\nhello\r\n0\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+
+		// two Transfer-Encoding headers
+		sResponse = RunRequest(
+			"POST /plain HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Transfer-Encoding: identity\r\n"
+			"Transfer-Encoding: chunked\r\n"
+			"\r\n"
+			"5\r\nhello\r\n0\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+
+		// "xchunked"
+		sResponse = RunRequest(
+			"POST /plain HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Transfer-Encoding: xchunked\r\n"
+			"\r\n"
+			"5\r\nhello\r\n0\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+
+		// case insensitive single chunked is fine
+		sBody.clear();
+		sResponse = RunRequest(
+			"POST /plain HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Transfer-Encoding: Chunked\r\n"
+			"\r\n"
+			"5\r\nhello\r\n0\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( sBody == "hello" );
+	}
+
+	SECTION("chunk extensions are accepted, framing errors close the connection")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		KString sBody;
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/plain", [&](KRESTServer& http)
+		{
+			sBody = http.GetRequestBody();
+			http.json.tx["status"] = "ok";
+		}, KRESTRoute::PLAIN });
+
+		auto sResponse = RunRequest(
+			"POST /plain HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Transfer-Encoding: chunked\r\n"
+			"\r\n"
+			"5;name=value\r\nhello\r\n0\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( sResponse.contains("connection: keep-alive") );
+		CHECK ( sBody == "hello" );
+
+		// an invalid chunk size - whatever follows must not be taken as
+		// the body, and the connection must not be reused
+		sBody.clear();
+		sResponse = RunRequest(
+			"POST /plain HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Transfer-Encoding: chunked\r\n"
+			"\r\n"
+			"zz\r\nGET /plain HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		CHECK ( sBody.empty() );
+		CHECK ( sResponse.contains("connection: close") );
+		// the smuggled GET was not answered
+		CHECK ( sResponse.find("HTTP/1.1") == sResponse.rfind("HTTP/1.1") );
+	}
+
+	SECTION("multiple Host headers are rejected")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			http.json.tx["status"] = "ok";
+		}});
+
+		auto sResponse = RunRequest(
+			"GET /test HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Host: evil\r\n"
+			"\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+		CHECK ( sResponse.contains("multiple Host headers") );
+	}
+
+	SECTION("HTTP/2 and HTTP/3 text request lines are rejected")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			http.json.tx["status"] = "ok";
+		}});
+
+		auto sResponse = RunRequest("GET /test HTTP/2\r\nHost: localhost\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+
+		sResponse = RunRequest("GET /test HTTP/3\r\nHost: localhost\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+
+		sResponse = RunRequest("GET /test HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+	}
+
+	SECTION("whitespace between header name and colon is rejected")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/api", [&](KRESTServer& http)
+		{
+			http.json.tx["status"] = "ok";
+		}});
+
+		auto sResponse = RunRequest(
+			"POST /api HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Content-Length : 2\r\n"
+			"\r\n"
+			"{}", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 400") );
+	}
+
+	SECTION("unread request body is discarded before the next keepalive request")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		uint16_t iPosts { 0 };
+		uint16_t iGets  { 0 };
+		Routes.AddRoute({ KHTTPMethod::POST, false, "/noread", [&](KRESTServer& http)
+		{
+			++iPosts;
+			http.json.tx["status"] = "ok";
+		}, KRESTRoute::NOREAD });
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			++iGets;
+			http.json.tx["status"] = "ok";
+		}});
+
+		// the body is not read by the NOREAD route - without discarding it,
+		// "hello" would be parsed as the next request line
+		auto sResponse = RunRequest(
+			"POST /noread HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Content-Length: 5\r\n"
+			"\r\n"
+			"hello"
+			"GET /test HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"\r\n", Routes, Options);
+		CHECK ( iPosts == 1 );
+		CHECK ( iGets  == 1 );
+		CHECK ( sResponse.find("HTTP/1.1 200") != sResponse.rfind("HTTP/1.1 200") );
+		CHECK ( sResponse.contains("HTTP/1.1 400") == false );
+
+		// a large unread body closes the connection after the response instead
+		iPosts = iGets = 0;
+		KString sLarge(100 * 1024, 'x');
+		sResponse = RunRequest(kFormat(
+			"POST /noread HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Content-Length: {}\r\n"
+			"\r\n"
+			"{}"
+			"GET /test HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"\r\n", sLarge.size(), sLarge), Routes, Options);
+		CHECK ( iPosts == 1 );
+		CHECK ( iGets  == 0 );
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( sResponse.contains("connection: close") );
+	}
+
+	SECTION("OPTIONS is exempt from authentication only on a dedicated OPTIONS route")
+	{
+		KRESTServer::Options Options;
+		Options.AuthLevel = KRESTServer::Options::VERIFY_AUTH_HEADER;
+
+		{
+			// a route for any method (the INVALID method matches all) that requires SSO -
+			// OPTIONS must not slip through
+			KRESTRoutes Routes;
+			bool bCalled { false };
+			Routes.AddRoute({ KHTTPMethod{KHTTPMethod::INVALID}, true, "/secured", [&](KRESTServer& http)
+			{
+				bCalled = true;
+				http.json.tx["status"] = "ok";
+			}});
+
+			auto sResponse = RunRequest("OPTIONS /secured HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+			CHECK ( sResponse.contains("HTTP/1.1 401") );
+			CHECK ( bCalled == false );
+		}
+		{
+			// a dedicated OPTIONS route (CORS preflight) stays open
+			KRESTRoutes Routes;
+			bool bCalled { false };
+			Routes.AddRoute({ KHTTPMethod::OPTIONS, true, "/secured", [&](KRESTServer& http)
+			{
+				bCalled = true;
+				http.json.tx["status"] = "ok";
+			}});
+
+			auto sResponse = RunRequest("OPTIONS /secured HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+			CHECK ( sResponse.contains("HTTP/1.1 200") );
+			CHECK ( bCalled == true );
+		}
+	}
+
+	SECTION("invalid UTF-8 in the request is not a 500")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			http.json.tx["status"] = "ok";
+		}});
+
+		// the path lands in the 404 message - a strict JSON serializer would
+		// throw on the invalid byte and turn this into a 500
+		auto sResponse = RunRequest("GET /%FF%FE HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 404") );
+		CHECK ( sResponse.contains("HTTP/1.1 500") == false );
+	}
+
+	SECTION("status text with CR or LF is replaced")
+	{
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/status", [&](KRESTServer& http)
+		{
+			http.SetStatus(400, "bad\r\nInjected: header");
+			http.json.tx["status"] = "bad";
+		}});
+
+		auto sResponse = RunRequest("GET /status HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.starts_with("HTTP/1.1 400 BAD REQUEST\r\n") );
+		CHECK ( sResponse.contains("Injected") == false );
+	}
+
+	SECTION("base route is removed only as a whole path segment")
+	{
+		KRESTServer::Options Options;
+		Options.sBaseRoute = "/api";
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			http.json.tx["status"] = "ok";
+		}});
+
+		auto sResponse = RunRequest("GET /api/test HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+
+		sResponse = RunRequest("GET /apix/test HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 404") );
+	}
+
+	SECTION("ad hoc index links are percent and entity encoded")
+	{
+		KTempDir WebRoot;
+		{
+			KOutFile OutFile(kFormat("{}/a\"b.html", WebRoot.Name()));
+			CHECK ( OutFile.is_open() );
+			OutFile.Write("x");
+		}
+		{
+			KOutFile OutFile(kFormat("{}/<x>&y.html", WebRoot.Name()));
+			CHECK ( OutFile.is_open() );
+			OutFile.Write("x");
+		}
+
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddWebServer(WebRoot.Name(), "/web/*", KWebServerPermissions(KJSON{{ "permissions", "read|browse" }}), KJSON{});
+
+		auto sResponse = RunRequest("GET /web/ HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
+		CHECK ( sResponse.contains("HTTP/1.1 200") );
+		CHECK ( sResponse.contains("href=\"a%22b.html\"") );
+		CHECK ( sResponse.contains("href=\"%3Cx%3E%26y.html\"") );
+		CHECK ( sResponse.contains("&lt;x&gt;&amp;y.html") );
+		CHECK ( sResponse.contains("<x>") == false );
+		CHECK ( sResponse.contains("\"a\"b") == false );
 	}
 
 	SECTION("KRESTSession LoginTrusted")

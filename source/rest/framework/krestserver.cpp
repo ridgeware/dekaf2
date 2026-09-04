@@ -63,6 +63,52 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+//-----------------------------------------------------------------------------
+/// serialize with U+FFFD for invalid UTF-8 instead of throwing - the data may stem
+/// from the request, and a serializer exception would turn the response into a 500
+/// or, thrown from the error handler, drop the connection
+KString DumpJSON(const KJSON& json, int iIndent)
+//-----------------------------------------------------------------------------
+{
+	return json.dump(iIndent, '\t', false, LJSON::error_handler_t::replace);
+
+} // DumpJSON
+
+//-----------------------------------------------------------------------------
+/// quote a value for a POSIX shell
+KString ShellQuote(KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	KString sQuoted;
+	sQuoted.reserve(sValue.size() + 2);
+	sQuoted += '\'';
+
+	for (auto ch : sValue)
+	{
+		if (ch == '\'')
+		{
+			sQuoted += "'\\''";
+		}
+		else
+		{
+			sQuoted += ch;
+		}
+	}
+
+	sQuoted += '\'';
+
+	return sQuoted;
+
+} // ShellQuote
+
+/// an unread request body remainder up to this size is discarded to keep the
+/// connection alive, a larger remainder closes the connection
+constexpr std::size_t MaxDiscardedBodySize = 64 * 1024;
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 void KRESTServer::Options::AddHeader(KHTTPHeader Header, KString sValue)
 //-----------------------------------------------------------------------------
@@ -574,7 +620,7 @@ void KRESTServer::Parse()
 				if (m_Options.bRecordRequest)
 				{
 					// dump the json to record it
-					m_sRequestBody = json.rx.dump(-1);
+					m_sRequestBody = DumpJSON(json.rx, -1);
 				}
 			}
 
@@ -907,8 +953,15 @@ bool KRESTServer::Execute()
 
 			KString sURLPath = Request.Resource.Path.get();
 
-			// try to remove_prefix, do not complain if not existing
-			sURLPath.remove_prefix(m_Options.sBaseRoute);
+			// remove the base route, but only as a whole path segment - "/apix/y" is not below "/api"
+			if (sURLPath.starts_with(m_Options.sBaseRoute)
+				&& (m_Options.sBaseRoute.empty()
+					|| m_Options.sBaseRoute.back() == '/'
+					|| sURLPath.size() == m_Options.sBaseRoute.size()
+					|| sURLPath[m_Options.sBaseRoute.size()] == '/'))
+			{
+				sURLPath.remove_prefix(m_Options.sBaseRoute.size());
+			}
 
 			// check if we have rewrite rules for the request path
 			if (m_Routes.RewritePath(sURLPath) > 0)
@@ -956,9 +1009,10 @@ bool KRESTServer::Execute()
 
 			RouteThreadName.Rename(ThreadNameForRoute(*Route));
 
-			// OPTIONS method is allowed without Authorization header (it is used to request
-			// for Authorization permission)
-			if (Request.Method != KHTTPMethod::OPTIONS)
+			// a CORS preflight comes without credentials, therefore an OPTIONS request is exempt
+			// from authentication - but only on a route registered for OPTIONS: on a route
+			// matched through its empty method the handler would otherwise run unauthenticated
+			if (Request.Method != KHTTPMethod::OPTIONS || Route->Method != KHTTPMethod::OPTIONS)
 			{
 				if (Route->Option.Has(KRESTRoute::Options::GENERIC_AUTH))
 				{
@@ -1124,6 +1178,20 @@ bool KRESTServer::Execute()
 					// 5xx errors, or 4xx with unconsumed request body
 					// (e.g. rejected uploads) break the keepalive loop
 					throw;
+				}
+			}
+
+			if (m_bKeepAlive && !Request.IsInputConsumed())
+			{
+				// the handler left (part of) the request body unread - on a keep-alive
+				// connection those bytes would be parsed as the next request. Discard a
+				// small remainder, else close the connection after the response
+				Request.Read(kGetNullOutStream(), MaxDiscardedBodySize);
+
+				if (!Request.IsInputConsumed())
+				{
+					kDebug(2, "request body not consumed by handler - closing connection after response");
+					m_bKeepAlive = false;
 				}
 			}
 
@@ -1459,7 +1527,7 @@ void KRESTServer::Output()
 				if (bHaveJsonToEmit())
 				{
 					kDebug (2, "serializing JSON response");
-					sContent = json.tx.dump(m_iJSONPrint, '\t');
+					sContent = DumpJSON(json.tx, m_iJSONPrint);
 				}
 				else if (!xml.tx.empty())
 				{
@@ -1617,7 +1685,7 @@ void KRESTServer::Output()
 
 			m_iContentLength = kjson::GetStringRef(tjson, "body").size();
 
-			Response.UnfilteredStream() << tjson.dump(m_iJSONPrint, '\t') << "\n";
+			Response.UnfilteredStream() << DumpJSON(tjson, m_iJSONPrint) << "\n";
 		}
 		break;
 
@@ -1649,7 +1717,7 @@ void KRESTServer::Output()
 
 				if (bHaveJsonToEmit())
 				{
-					Response.UnfilteredStream() << json.tx.dump(m_iJSONPrint, '\t');
+					Response.UnfilteredStream() << DumpJSON(json.tx, m_iJSONPrint);
 					// finish with a linefeed (the json serializer does not add one)
 					Response.UnfilteredStream().WriteLine();
 				}
@@ -1838,7 +1906,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 				}
 				else
 				{
-					sContent = json.tx.dump(iJSONPretty, '\t');
+					sContent = DumpJSON(json.tx, iJSONPretty);
 
 					// ensure that all JSON responses end in a newline:
 					if (!sContent.ends_with('\n'))
@@ -1908,7 +1976,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 			json.tx["isBase64Encoded"] = false;
 			json.tx["body"] = KJSON::object();
 			json.tx["body"] += { "message", sError };
-			Response.UnfilteredStream() << json.tx.dump(iJSONPretty, '\t') << "\n";
+			Response.UnfilteredStream() << DumpJSON(json.tx, iJSONPretty) << "\n";
 		}
 		break;
 
@@ -1977,19 +2045,20 @@ void KRESTServer::RecordRequestForReplay ()
 			{
 				sContentType = KMIME::JSON;
 			}
-			sAdditionalHeader.Format(" -H '{}: {}'", KHTTPHeader(KHTTPHeader::CONTENT_TYPE), sContentType);
+			sAdditionalHeader.Format(" -H {}", ShellQuote(kFormat("{}: {}", KHTTPHeader(KHTTPHeader::CONTENT_TYPE), sContentType)));
 
 			KString& sReferer = Request.Headers.Get(KHTTPHeader::REFERER);
 			if (!sReferer.empty())
 			{
-				sAdditionalHeader += kFormat(" -H '{}: {}'", KHTTPHeader(KHTTPHeader::REFERER), sReferer);
+				sAdditionalHeader += kFormat(" -H {}", ShellQuote(kFormat("{}: {}", KHTTPHeader(KHTTPHeader::REFERER), sReferer)));
 			}
 		}
 
-		oss.Format(R"(curl -i{} -X "{}" "http://localhost{}")",
-						  sAdditionalHeader,
-						  Request.Method.Serialize(),
-						  Request.RequestLine.GetResource());
+		// everything that stems from the request is shell quoted - the record file is a script
+		oss.Format("curl -i{} -X {} {}",
+		           sAdditionalHeader,
+		           ShellQuote(Request.Method.Serialize()),
+		           ShellQuote(kFormat("http://localhost{}", Request.RequestLine.GetResource())));
 
 		KString sPost { GetRequestBody() };
 
@@ -1997,11 +2066,8 @@ void KRESTServer::RecordRequestForReplay ()
 		{
 			// remove any line breaks
 			sPost.Collapse("\n\r", ' ');
-			// escape single quotes for bash
-			sPost.Replace("'", "'\\''");
-			oss.Write(" -d '");
-			oss.Write(sPost);
-			oss.Write('\'');
+			oss.Write(" -d ");
+			oss.Write(ShellQuote(sPost));
 		}
 
 		oss.Flush();

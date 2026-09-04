@@ -43,6 +43,7 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/web/objects/kwebobjects.h>
+#include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -216,6 +217,11 @@ void AddIndexItem(html::Table table, const KDirectory::DirEntry& Item, bool bWit
 		sItemLink += '/';
 	}
 
+	// file names are chosen by whoever may write into this directory - the link is
+	// percent encoded as a URL path and, other than with the SetLink() default,
+	// entity encoded as an attribute value
+	KString sEncodedLink = KEncode::URL(sItemLink, URIPart::Path);
+
 	KString sTitle;
 
 	if (bIsDirectory)
@@ -225,7 +231,8 @@ void AddIndexItem(html::Table table, const KDirectory::DirEntry& Item, bool bWit
 		sTitle += '\'';
 
 		auto td     = row.Add<html::TableData>();
-		auto link   = td.Add<html::Link>(sItemLink);
+		auto link   = td.Add<html::Link>();
+		link.SetLink(sEncodedLink, /*bDoNotEscape=*/false);
 		auto button = link.Add<html::Button>();
 		button.SetType(html::Button::BUTTON).AddRawText(sFolderIcon).SetTitle(sTitle);
 	}
@@ -241,7 +248,7 @@ void AddIndexItem(html::Table table, const KDirectory::DirEntry& Item, bool bWit
 	{
 		auto td = row.Add<html::TableData>();
 		td.SetAlign(html::TableData::LEFT);
-		td.Add<html::Link>(sItemLink, Item.Filename()).SetTitle(sTitle);
+		td.Add<html::Link>(KStringView{}, Item.Filename()).SetLink(sEncodedLink, /*bDoNotEscape=*/false).SetTitle(sTitle);
 	}
 
 	row.Add<html::TableData>(Item.ModificationTime().to_string()).SetAlign(html::TableData::LEFT);

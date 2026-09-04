@@ -56,6 +56,16 @@ using namespace dekaf2;
 namespace {
 
 //-----------------------------------------------------------------------------
+/// bcrypt for user passwords - a workload above the library default of 8, as
+/// recommended for interactive logins (about 65 ms per check on current hardware).
+/// Client secrets keep the default: they are random and checked on every token call.
+KBCrypt PasswordHasher()
+//-----------------------------------------------------------------------------
+{
+	return KBCrypt(static_cast<uint16_t>(10));
+}
+
+//-----------------------------------------------------------------------------
 // the client's default role on an already-open db handle (no locking) - used by
 // the grant/set methods which already hold the mutex and a db connection
 KString DefaultRoleOn(KSQLite& db, KStringView sClientID)
@@ -90,6 +100,7 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"  email          text    not null default '',"
 		"  is_admin       integer not null default 0,"
 		"  totp_secret    text    not null default '',"   // base32; empty = TOTP off
+		"  totp_last_step integer not null default 0,"    // the last accepted TOTP time step (replay guard)
 		"  email_verified integer not null default 0,"    // address confirmed via emailed link
 		"  email_otp      integer not null default 0,"    // email used as the second factor
 		"  pending_email  text    not null default '',"   // requested-but-unconfirmed new address (pending-change model)
@@ -168,6 +179,7 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"alter table kssod_users add column email_otp integer not null default 0",
 		"alter table kssod_users add column pending_email text not null default ''",
 		"alter table kssod_email_tokens add column data text not null default ''",
+		"alter table kssod_users add column totp_last_step integer not null default 0",
 	};
 
 	for (const auto sSQL : s_sDDL)
@@ -205,9 +217,15 @@ bool KSSOdUserStore::VerifyPassword(KStringView sUsername, KStringView sPassword
 	if (!db.IsOpen()) return false;
 
 	KString sHash = db.SingleStringQuery("select pw_hash from kssod_users where username=?1", sUsername);
-	if (sHash.empty()) return false;
 
-	return KBCrypt().ValidatePassword(KString(sPassword), sHash);
+	// an unknown user takes as long as a wrong password: bcrypt runs either way,
+	// against a fixed dummy hash when there is no user (else the response time
+	// tells which user names exist)
+	static const KString s_sDummyHash = PasswordHasher().GenerateHash("kssod-no-such-user");
+
+	bool bValid = PasswordHasher().ValidatePassword(KString(sPassword), sHash.empty() ? s_sDummyHash : sHash);
+
+	return bValid && !sHash.empty();
 
 } // VerifyPassword
 
@@ -243,7 +261,7 @@ bool KSSOdUserStore::AddUser(KStringView sUsername, KStringView sPassword,
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
-	KString sHash = KBCrypt().GenerateHash(KString(sPassword));
+	KString sHash = PasswordHasher().GenerateHash(KString(sPassword));
 
 	return static_cast<bool>(db.ExecSQL(
 		"insert into kssod_users (username, pw_hash, name, email, is_admin, created_utc) "
@@ -263,7 +281,7 @@ bool KSSOdUserStore::ChangePassword(KStringView sUsername, KStringView sNewPassw
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
-	KString sHash = KBCrypt().GenerateHash(KString(sNewPassword));
+	KString sHash = PasswordHasher().GenerateHash(KString(sNewPassword));
 
 	return static_cast<bool>(db.ExecSQL("update kssod_users set pw_hash=?1 where username=?2", sHash, sUsername));
 
@@ -447,6 +465,26 @@ bool KSSOdUserStore::ClearTotp(KStringView sUsername)
 	return true;
 
 } // ClearTotp
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::AcceptTotpStep(KStringView sUsername, int64_t iStep)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	// read and update under the store mutex - two logins with the same code
+	// cannot both pass
+	auto iLast = db.SingleIntQuery("select totp_last_step from kssod_users where username=?1", sUsername);
+
+	if (iStep <= iLast) return false;
+
+	return static_cast<bool>(db.ExecSQL("update kssod_users set totp_last_step=?1 where username=?2",
+	                                    iStep, sUsername));
+
+} // AcceptTotpStep
 
 //-----------------------------------------------------------------------------
 bool KSSOdUserStore::SetBackupCodes(KStringView sUsername, const std::vector<KString>& Hashes)

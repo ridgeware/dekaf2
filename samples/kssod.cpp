@@ -89,11 +89,13 @@
 #include <dekaf2/crypto/hash/kmessagedigest.h>  // KSHA256 (pending-2FA token)
 #include <dekaf2/crypto/random/krandom.h>       // kGetRandom (pending-2FA token)
 #include <dekaf2/web/url/kurl.h>
+#include <dekaf2/crypto/encoding/kencode.h>  // KEncode::URL for query values in redirects
 #include <dekaf2/web/url/kuseragent.h>      // KHTTPUserAgent: browser/OS/device for the session list
 #include <dekaf2/util/mail/kmail.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/strings/kwords.h>        // KSimpleSpacedWords: split free-text fields at whitespace
+#include <dekaf2/core/strings/kcaseless.h>     // kCaselessEqual: Origin vs Host in the CSRF check
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/core/logging/klog.h>
 #include <map>
@@ -133,13 +135,39 @@ public:
 	void PurgeExpired(KUnixTime tNow) override
 	{
 		std::lock_guard<std::mutex> L(m_Mutex);
-		for (auto it = m_Codes.begin();   it != m_Codes.end();   ) { it = (tNow >= it->second.tExpiry) ? m_Codes.erase(it)   : std::next(it); }
-		for (auto it = m_Refresh.begin(); it != m_Refresh.end(); ) { it = (tNow >= it->second.tExpiry) ? m_Refresh.erase(it) : std::next(it); }
+		for (auto it = m_Codes.begin();    it != m_Codes.end();    ) { it = (tNow >= it->second.tExpiry) ? m_Codes.erase(it)    : std::next(it); }
+		for (auto it = m_Refresh.begin();  it != m_Refresh.end();  ) { it = (tNow >= it->second.tExpiry) ? m_Refresh.erase(it)  : std::next(it); }
+		for (auto it = m_Consumed.begin(); it != m_Consumed.end(); ) { it = (tNow >= it->second.tUntil)  ? m_Consumed.erase(it) : std::next(it); }
+	}
+
+	// reuse detection: rotated tokens leave a tombstone that names their family, so
+	// that a replay can revoke every token of that authorization
+	bool RememberConsumedRefresh(KStringView sToken, KStringView sFamily, KUnixTime tUntil) override
+	{
+		std::lock_guard<std::mutex> L(m_Mutex);
+		m_Consumed[KString(sToken)] = Consumed{ KString(sFamily), tUntil };
+		return true;
+	}
+	bool WasConsumedRefresh(KStringView sToken, KString& sFamilyOut) override
+	{
+		std::lock_guard<std::mutex> L(m_Mutex);
+		auto it = m_Consumed.find(KString(sToken));
+		if (it == m_Consumed.end()) return false;
+		sFamilyOut = it->second.sFamily;
+		return true;
+	}
+	void RevokeRefreshFamily(KStringView sFamily) override
+	{
+		std::lock_guard<std::mutex> L(m_Mutex);
+		for (auto it = m_Refresh.begin(); it != m_Refresh.end(); ) { it = (it->second.sFamily == sFamily) ? m_Refresh.erase(it) : std::next(it); }
 	}
 private:
-	std::mutex                 m_Mutex;
-	std::map<KString, Code>    m_Codes;
-	std::map<KString, Refresh> m_Refresh;
+	struct Consumed { KString sFamily; KUnixTime tUntil; };
+
+	std::mutex                  m_Mutex;
+	std::map<KString, Code>     m_Codes;
+	std::map<KString, Refresh>  m_Refresh;
+	std::map<KString, Consumed> m_Consumed;
 };
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -175,13 +203,31 @@ public:
 		return Pending{ it->second.sUsername, it->second.sMethod, it->second.sEmailCodeHash, true };
 	}
 
-	/// replace the emailed code (used when the user asks to resend it)
+	/// replace the emailed code (used when the user asks to resend it) - refused
+	/// after MaxResends, so a pending token cannot be used to flood a mailbox
 	bool SetEmailCode(KStringView sToken, KStringView sCodeHash)
 	{
 		std::lock_guard<std::mutex> Lock(m_Mutex);
 		auto it = m_Pending.find(KString(sToken));
 		if (it == m_Pending.end()) return false;
+		if (++it->second.iResends > MaxResends) return false;
 		it->second.sEmailCodeHash = KString(sCodeHash);
+		return true;
+	}
+
+	/// count a wrong code. A 6 digit code must not be guessable within the TTL:
+	/// after MaxFailures the pending login is dropped, and the user starts over
+	/// with the password. Returns false when the login was dropped.
+	bool RegisterFailure(KStringView sToken)
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		auto it = m_Pending.find(KString(sToken));
+		if (it == m_Pending.end()) return false;
+		if (++it->second.iFailures >= MaxFailures)
+		{
+			m_Pending.erase(it);
+			return false;
+		}
 		return true;
 	}
 
@@ -192,7 +238,18 @@ public:
 	}
 
 private:
-	struct Entry { KString sUsername; KString sMethod; KString sEmailCodeHash; KUnixTime tExpires; };
+	struct Entry
+	{
+		KString   sUsername;
+		KString   sMethod;
+		KString   sEmailCodeHash;
+		KUnixTime tExpires;
+		uint16_t  iFailures { 0 };
+		uint16_t  iResends  { 0 };
+	};
+
+	static constexpr uint16_t MaxFailures { 5 };
+	static constexpr uint16_t MaxResends  { 3 };
 
 	KString Insert(KStringView sUsername, KStringView sMethod, KStringView sCodeHash)
 	{
@@ -216,6 +273,139 @@ private:
 	std::map<KString, Entry>   m_Pending;
 	KDuration                  m_TTL { std::chrono::minutes(5) };
 };
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// Failure counter with a sliding window, keyed by an arbitrary string (a user
+/// name, a client IP, an email address). Slows password guessing and mail
+/// flooding without permanent lockouts: after MaxFailures within Window the key
+/// is refused until the window has passed.
+class FailureThrottle
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+public:
+	FailureThrottle(uint16_t iMaxFailures, KDuration Window)
+	: m_iMaxFailures(iMaxFailures), m_Window(Window) {}
+
+	/// is the key currently permitted to try?
+	bool Allowed(KStringView sKey)
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		Sweep();
+		auto it = m_Failures.find(KString(sKey));
+		return it == m_Failures.end() || it->second.iCount < m_iMaxFailures;
+	}
+
+	/// record a failed attempt
+	void Failure(KStringView sKey)
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		auto& Entry = m_Failures[KString(sKey)];
+		if (Entry.iCount == 0) Entry.tWindowStart = KUnixTime::now();
+		++Entry.iCount;
+	}
+
+	/// forget the key (after a success)
+	void Reset(KStringView sKey)
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		m_Failures.erase(KString(sKey));
+	}
+
+private:
+	struct Entry { KUnixTime tWindowStart; uint32_t iCount { 0 }; };
+
+	void Sweep()
+	{
+		auto tNow = KUnixTime::now();
+		for (auto it = m_Failures.begin(); it != m_Failures.end(); )
+		{
+			it = (it->second.tWindowStart + m_Window < tNow) ? m_Failures.erase(it) : std::next(it);
+		}
+	}
+
+	std::mutex                m_Mutex;
+	std::map<KString, Entry>  m_Failures;
+	uint16_t                  m_iMaxFailures;
+	KDuration                 m_Window;
+};
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The TOTP secret of an enrolment in progress, kept on the server between the
+/// setup page and the confirming code - the browser only displays it, it does
+/// not get to choose it.
+class PendingTotpEnrolment
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+public:
+	/// mint a fresh secret for the user, replacing an unfinished one
+	KString Begin(KStringView sUsername)
+	{
+		KString sSecret = KTOTP::Generate().Secret();
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		m_Pending[KString(sUsername)] = Entry{ sSecret, KUnixTime::now() + m_TTL };
+		return sSecret;
+	}
+
+	/// the secret of an unfinished enrolment, or empty if there is none (or it expired)
+	KString Get(KStringView sUsername)
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		auto it = m_Pending.find(KString(sUsername));
+		if (it == m_Pending.end()) return {};
+		if (it->second.tExpires < KUnixTime::now()) { m_Pending.erase(it); return {}; }
+		return it->second.sSecret;
+	}
+
+	void Consume(KStringView sUsername)
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		m_Pending.erase(KString(sUsername));
+	}
+
+private:
+	struct Entry { KString sSecret; KUnixTime tExpires; };
+
+	std::mutex               m_Mutex;
+	std::map<KString, Entry> m_Pending;
+	KDuration                m_TTL { std::chrono::minutes(10) };
+};
+
+//-----------------------------------------------------------------------------
+/// verify a TOTP code and accept each time step only once (RFC 6238 5.2): a code
+/// that was observed - shoulder surfing, a phishing relay - cannot be replayed
+/// within its validity window
+bool VerifyTotpOnce(KSSOdUserStore& Users, KStringView sUsername, KStringView sCode)
+//-----------------------------------------------------------------------------
+{
+	KTOTP Totp(Users.GetTotpSecret(sUsername));
+
+	if (Totp.empty() || !Totp.Verify(sCode))
+	{
+		return false;
+	}
+
+	// the code is valid - find the time step it belongs to (Verify() accepted one of
+	// the three around now) and let the store accept that step once
+	KString sNormalized(sCode);
+	sNormalized.Replace(" ", "");
+	sNormalized.Replace("-", "");
+
+	auto tNow    = KUnixTime::now();
+	auto iPeriod = Totp.GetPeriod();
+
+	for (int iSkew = -1; iSkew <= 1; ++iSkew)
+	{
+		KUnixTime tStep = tNow + KDuration(std::chrono::seconds(iSkew * iPeriod));
+
+		if (Totp.FormatCode(tStep) == sNormalized)
+		{
+			return Users.AcceptTotpStep(sUsername, tStep.to_time_t() / iPeriod);
+		}
+	}
+
+	return false;
+
+} // VerifyTotpOnce
 
 //-----------------------------------------------------------------------------
 /// send a plaintext email via the configured relay; fills sError on failure.
@@ -412,6 +602,53 @@ int main(int argc, char** argv)
 
 		Settings.iMaxRequestBodySize = kFromBinarySize(sMaxBody);
 
+		// --- browser-facing hardening ----------------------------------------
+		// an identity provider's pages must not be framed (clickjacking of the login
+		// and consent screens), must not leak their URLs (they may carry one-time
+		// tokens) to other sites, and must not linger in caches
+		Settings.AddHeader(KHTTPHeader::X_FRAME_OPTIONS,  "DENY");
+		Settings.AddHeader("content-security-policy",     "frame-ancestors 'none'");
+		Settings.AddHeader("referrer-policy",             "no-referrer");
+		Settings.AddHeader(KHTTPHeader::CACHE_CONTROL,    "no-store");
+
+		// Cross-site request forgery: every state change below is a POST that is
+		// authenticated by the session cookie. SameSite=Lax keeps the cookie off
+		// cross-site POSTs in current browsers, but not in all, and not within the
+		// first minutes after it was set. Browsers label the origin of a request
+		// with Fetch Metadata and Origin - a POST to the UI has to come from our
+		// own pages. The token endpoint is exempt: relying parties call it.
+		Settings.PostRouteCallback = [](KRESTServer& HTTP)
+		{
+			if (HTTP.Request.Method != KHTTPMethod::POST || HTTP.Request.Resource.Path.get() == "/token")
+			{
+				return;
+			}
+
+			KStringView sSite = HTTP.Request.Headers.Get("sec-fetch-site");
+
+			// same-origin: our own page, none: a URL the user typed or bookmarked
+			if (!sSite.empty() && sSite != "same-origin" && sSite != "none")
+			{
+				throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "cross-site request rejected" };
+			}
+
+			// browsers without Fetch Metadata still send the Origin of a form post - it
+			// has to name the host the request was sent to
+			KStringView sOrigin = HTTP.Request.Headers.Get(KHTTPHeader::ORIGIN);
+
+			if (!sOrigin.empty())
+			{
+				KURL   Origin(sOrigin);
+				KString sOriginHost = Origin.Domain.get();
+				if (!Origin.Port.empty()) sOriginHost += kFormat(":{}", Origin.Port.get());
+
+				if (sOriginHost.empty() || !kCaselessEqual(sOriginHost, HTTP.Request.Headers.Get(KHTTPHeader::HOST)))
+				{
+					throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "cross-site request rejected" };
+				}
+			}
+		};
+
 		// --- schema ----------------------------------------------------------
 		KString sError;
 		if (!KSSOdInitDatabase(sDB, sError))
@@ -477,7 +714,10 @@ int main(int argc, char** argv)
 
 		// --- the OP login session: SQLite store behind the caching layer -----
 		KSession::Config SessionConfig;
-		SessionConfig.sCookieName     = "kssod_session";
+		// __Host-: the browser only accepts the cookie from this very host, Secure and
+		// with Path=/ - a sibling host cannot plant its own session cookie here. The
+		// prefix requires Secure, so plain HTTP (--notls, local tests) does without it.
+		SessionConfig.sCookieName     = bTLS ? "__Host-kssod_session" : "kssod_session";
 		SessionConfig.sSameSite       = "Lax";   // sent on the cross-site /authorize navigation
 		SessionConfig.bSecure         = bTLS;
 		// Bound how long a sign-in stays usable for silent SSO. The cookie itself
@@ -508,6 +748,9 @@ int main(int argc, char** argv)
 		Config.sIssuer        = sIssuer;
 		Config.sKid           = "kssod-key-1";
 		Config.bSecureCookies = bTLS;
+		// a GET /logout without an id_token_hint (i.e. not from a relying party acting for
+		// the signed-in user) asks the user first instead of ending the session
+		Config.sLogoutConfirmPath = "/logout/confirm";
 		KOpenIDServer Server(std::move(Config), pSession, pUsers, pClients, pGrants, std::move(SigningKey));
 
 		auto Redirect = [](KRESTServer& HTTP, KStringView sURL)
@@ -518,6 +761,15 @@ int main(int argc, char** argv)
 
 		// half-finished logins (password ok, second factor still owed)
 		PendingTwoFactorStore Pending2FA;
+
+		// password guessing: 10 failures per user name or per client address within
+		// 15 minutes, then that key has to wait for the window to pass
+		FailureThrottle LoginThrottle(10, std::chrono::minutes(15));
+		// recovery mails: 5 requests per client address within 15 minutes
+		FailureThrottle RecoveryThrottle(5, std::chrono::minutes(15));
+
+		// authenticator enrolments in progress
+		PendingTotpEnrolment Enrolments;
 
 		// gather the self-service state the account page renders
 		auto AccountStateFor = [&pUsers, &pSettings, &pSession](KRESTServer& HTTP, KStringView sUser)
@@ -548,6 +800,26 @@ int main(int argc, char** argv)
 		Routes.AddRoute("/logout").Get(
 			[&Server](KRESTServer& HTTP) { Server.HandleLogout(HTTP); });
 
+		// the OP's own sign-out: a POST (covered by the CSRF check above) that ends this
+		// browser's session. GET /logout serves relying parties, whose id_token_hint
+		// proves they act for the signed-in user - a bare GET lands on the confirmation
+		Routes.AddRoute("/logout/confirm").Get(
+			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser = CurrentUser(HTTP, *pSession);
+			if (sUser.empty()) Redirect(HTTP, "/");
+			RenderLogoutConfirm(HTTP, sUser, pUsers->IsAdmin(sUser));
+		});
+
+		Routes.AddRoute("/logout/local").Post(
+			[&pSession, &Redirect](KRESTServer& HTTP)
+		{
+			KStringView sToken = HTTP.GetCookie(pSession->GetCookieName());
+			if (!sToken.empty()) pSession->Logout(sToken);
+			HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, pSession->SerializeExpiryCookie());
+			Redirect(HTTP, "/");
+		}).Parse(KRESTRoute::WWWFORM);
+
 		// ======================== end-user web UI ============================
 
 		// landing / home router (root is normalized to "" by the router). Signed-in
@@ -566,9 +838,11 @@ int main(int argc, char** argv)
 		});
 
 		Routes.AddRoute("/login").Get(
-			[&pSession, &pSettings, &Redirect](KRESTServer& HTTP)
+			[&pSession, &pSettings, &Server, &Redirect](KRESTServer& HTTP)
 		{
-			if (!CurrentUser(HTTP, *pSession).empty()) Redirect(HTTP, "/");
+			// a signed-in user only gets the form when an authorize request is parked
+			// for re-authentication (prompt=login, max_age, a force-login client)
+			if (!CurrentUser(HTTP, *pSession).empty() && Server.PendingClientID(HTTP).empty()) Redirect(HTTP, "/");
 			RenderLogin(HTTP, "", pSettings->SmtpConfigured());
 		});
 
@@ -586,16 +860,29 @@ int main(int argc, char** argv)
 		};
 
 		Routes.AddRoute("/login").Post(
-			[&Server, &pUsers, &pSettings, &Pending2FA, &BeginEmailOtp](KRESTServer& HTTP)
+			[&Server, &pUsers, &pSettings, &Pending2FA, &BeginEmailOtp, &LoginThrottle](KRESTServer& HTTP)
 		{
 			const auto& Q = HTTP.GetQueryParms();
 			KString sUser = Q["username"];
+			KString sIP   = HTTP.GetRemoteIP();
+
+			if (!LoginThrottle.Allowed(sUser) || !LoginThrottle.Allowed(sIP))
+			{
+				RenderLogin(HTTP, "Too many failed sign-in attempts. Please wait a few minutes and try again.",
+				            pSettings->SmtpConfigured(), KHTTPError::H4xx_TOOMANYREQUESTS);
+				return;
+			}
+
 			if (!Server.VerifyPassword(sUser, Q["password"]))
 			{
+				LoginThrottle.Failure(sUser);
+				LoginThrottle.Failure(sIP);
 				RenderLogin(HTTP, "Invalid username or password.", pSettings->SmtpConfigured(),
 				            KHTTPError::H4xx_NOTAUTH);
 				return;
 			}
+
+			LoginThrottle.Reset(sUser);
 			// password ok - demand the second factor (if any) before the session
 			// cookie is issued (CompleteLogin runs only after step two). An
 			// authenticator app takes precedence over email codes.
@@ -630,10 +917,17 @@ int main(int argc, char** argv)
 			KStringView sCode = Q["code"];
 			bool bOK = (P.sMethod == "email")
 			         ? (KTOTP::HashCode(sCode) == P.sEmailCodeHash)
-			         : (KTOTP(pUsers->GetTotpSecret(P.sUsername)).Verify(sCode)
+			         : (VerifyTotpOnce(*pUsers, P.sUsername, sCode)
 			            || pUsers->ConsumeBackupCode(P.sUsername, KTOTP::HashCode(sCode)));
 			if (!bOK)
 			{
+				if (!Pending2FA.RegisterFailure(sPending))
+				{
+					// too many wrong codes - the pending login is gone, back to step one
+					RenderLogin(HTTP, "Too many wrong codes. Please sign in again.",
+					            pSettings->SmtpConfigured(), KHTTPError::H4xx_NOTAUTH);
+					return;
+				}
 				RenderTwoFactor(HTTP, sPending, P.sMethod,
 				                (P.sMethod == "email") ? "That code is not valid. Check your email and try again."
 				                                       : "That code is not valid. Try again or use a backup code.",
@@ -659,9 +953,15 @@ int main(int argc, char** argv)
 				            pSettings->SmtpConfigured(), KHTTPError::H4xx_NOTAUTH);
 				return;
 			}
-			// mint a new code on the EXISTING pending token (so the same form works on)
+			// mint a new code on the EXISTING pending token (so the same form works on) -
+			// a few times only, the token must not become a mail cannon
 			KString sCode = KTOTP::GenerateNumericCode(6);
-			Pending2FA.SetEmailCode(sPending, KTOTP::HashCode(sCode));
+			if (!Pending2FA.SetEmailCode(sPending, KTOTP::HashCode(sCode)))
+			{
+				RenderTwoFactor(HTTP, sPending, "email", "No more codes can be sent for this sign-in. Enter the last code you received, or sign in again.",
+				                true, KHTTPError::H4xx_TOOMANYREQUESTS);
+				return;
+			}
 			KString sErr;
 			SendMail(pSettings->LoadSmtp(), pUsers->GetEmail(P.sUsername), "Your kssod sign-in code",
 			         kFormat("Your sign-in code is {}\r\n\r\nIt expires in 5 minutes.", sCode), sErr);
@@ -995,10 +1295,20 @@ int main(int argc, char** argv)
 		}).Parse(KRESTRoute::WWWFORM);
 
 		Routes.AddRoute("/account/2fa/email/off").Post(
-			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+			[&pSession, &pUsers, &AccountStateFor, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty()) Redirect(HTTP, "/login");
+			// weakening the account needs the password, not only the session
+			if (!pUsers->VerifyPassword(sUser, HTTP.GetQueryParms()["password"]))
+			{
+				KJSON Claims;
+				pUsers->GetClaims(sUser, Claims);
+				RenderAccount(HTTP, sUser, pUsers->IsAdmin(sUser), Claims,
+				              "Please confirm your password to turn off email codes.", true,
+				              AccountStateFor(HTTP, sUser), KHTTPError::H4xx_BADREQUEST);
+				return;
+			}
 			pUsers->SetEmailOtp(sUser, false);
 			Redirect(HTTP, "/account");
 		}).Parse(KRESTRoute::WWWFORM);
@@ -1014,13 +1324,18 @@ int main(int argc, char** argv)
 		});
 
 		Routes.AddRoute("/forgot").Post(
-			[&pUsers, &pSettings, &sIssuer](KRESTServer& HTTP)
+			[&pUsers, &pSettings, &sIssuer, &RecoveryThrottle](KRESTServer& HTTP)
 		{
 			KStringView sEmail = HTTP.GetQueryParms()["email"];
+			KString     sIP    = HTTP.GetRemoteIP();
 
 			// look the user up, but never reveal whether the address exists: the
-			// response is identical whether or not we actually sent anything
-			if (pSettings->SmtpConfigured())
+			// response is identical whether or not we actually sent anything - also
+			// when the address is throttled (it counts every request, not only hits)
+			bool bAllowed = RecoveryThrottle.Allowed(sIP);
+			RecoveryThrottle.Failure(sIP);
+
+			if (bAllowed && pSettings->SmtpConfigured())
 			{
 				KString sUser = pUsers->FindByEmail(sEmail);
 				if (!sUser.empty() && pUsers->IsEmailVerified(sUser))
@@ -1082,23 +1397,27 @@ int main(int argc, char** argv)
 
 		// step 1: mint a fresh secret and show it for the user to add to their app
 		Routes.AddRoute("/account/2fa/setup").Post(
-			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+			[&pSession, &pUsers, &Enrolments, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty()) Redirect(HTTP, "/login");
-			Render2FASetup(HTTP, sUser, pUsers->IsAdmin(sUser), KTOTP::Generate().Secret(), "");
+			// the secret stays on the server until the code confirms it
+			Render2FASetup(HTTP, sUser, pUsers->IsAdmin(sUser), Enrolments.Begin(sUser), "");
 		}).Parse(KRESTRoute::WWWFORM);
 
 		// step 2: the user confirmed a code -> store the secret, hand out backup codes
 		Routes.AddRoute("/account/2fa/enable").Post(
-			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+			[&pSession, &pUsers, &Enrolments, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty()) Redirect(HTTP, "/login");
 
-			const auto& Q       = HTTP.GetQueryParms();
-			KStringView sSecret = Q["secret"];
-			if (!KTOTP(KString(sSecret)).Verify(Q["code"]))
+			// the secret is the one we showed on the setup page - never one the browser sends
+			KString sSecret = Enrolments.Get(sUser);
+			if (sSecret.empty()) Redirect(HTTP, "/account"); // no enrolment in progress, or it expired
+
+			const auto& Q = HTTP.GetQueryParms();
+			if (!KTOTP(sSecret).Verify(Q["code"]))
 			{
 				// wrong code: re-show the SAME secret so the user can retry
 				Render2FASetup(HTTP, sUser, pUsers->IsAdmin(sUser), sSecret,
@@ -1106,6 +1425,7 @@ int main(int argc, char** argv)
 				               KHTTPError::H4xx_BADREQUEST);
 				return;
 			}
+			Enrolments.Consume(sUser);
 			pUsers->SetTotpSecret(sUser, sSecret);
 
 			// issue a fresh set of single-use backup codes (stored hashed)
@@ -1120,11 +1440,23 @@ int main(int argc, char** argv)
 
 		// regenerate backup codes (invalidates the previous set)
 		Routes.AddRoute("/account/2fa/backup").Post(
-			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+			[&pSession, &pUsers, &AccountStateFor, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty())        Redirect(HTTP, "/login");
 			if (!pUsers->HasTotp(sUser)) Redirect(HTTP, "/account"); // nothing to back up
+
+			// new backup codes are valid second factors - a hijacked session must not
+			// be able to obtain them without the password
+			if (!pUsers->VerifyPassword(sUser, HTTP.GetQueryParms()["password"]))
+			{
+				KJSON Claims;
+				pUsers->GetClaims(sUser, Claims);
+				RenderAccount(HTTP, sUser, pUsers->IsAdmin(sUser), Claims,
+				              "Please confirm your password to regenerate the backup codes.", true,
+				              AccountStateFor(HTTP, sUser), KHTTPError::H4xx_BADREQUEST);
+				return;
+			}
 
 			auto Codes = KTOTP::GenerateBackupCodes();
 			std::vector<KString> Hashes;
@@ -1137,10 +1469,20 @@ int main(int argc, char** argv)
 
 		// disable 2FA (drops the secret and any remaining backup codes)
 		Routes.AddRoute("/account/2fa/disable").Post(
-			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+			[&pSession, &pUsers, &AccountStateFor, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser = CurrentUser(HTTP, *pSession);
 			if (sUser.empty()) Redirect(HTTP, "/login");
+			// weakening the account needs the password, not only the session
+			if (!pUsers->VerifyPassword(sUser, HTTP.GetQueryParms()["password"]))
+			{
+				KJSON Claims;
+				pUsers->GetClaims(sUser, Claims);
+				RenderAccount(HTTP, sUser, pUsers->IsAdmin(sUser), Claims,
+				              "Please confirm your password to turn off two-step verification.", true,
+				              AccountStateFor(HTTP, sUser), KHTTPError::H4xx_BADREQUEST);
+				return;
+			}
 			pUsers->ClearTotp(sUser);
 			Redirect(HTTP, "/account");
 		}).Parse(KRESTRoute::WWWFORM);
@@ -1177,6 +1519,12 @@ int main(int argc, char** argv)
 			Smtp.sPass     = Q["smtp_pass"];
 			Smtp.sFrom     = Q["smtp_from"];
 			Smtp.sFromName = Q["smtp_fromname"];
+			// the form never shows the stored password - a blank field keeps it, as
+			// long as there still is a user name for it
+			if (Smtp.sPass.empty() && !Smtp.sUser.empty())
+			{
+				Smtp.sPass = pSettings->LoadSmtp().sPass;
+			}
 			pSettings->SaveSmtp(Smtp);
 
 			RenderSettings(HTTP, sUser, Smtp,
@@ -1248,6 +1596,11 @@ int main(int argc, char** argv)
 			if (sName.empty() || sPassword.empty())
 			{
 				RenderUsers(HTTP, sUser, *pUsers, "Username and password are required.", true, KHTTPError::H4xx_BADREQUEST, Prefill);
+				return;
+			}
+			if (sPassword.size() < 8)
+			{
+				RenderUsers(HTTP, sUser, *pUsers, "The password must be at least 8 characters.", true, KHTTPError::H4xx_BADREQUEST, Prefill);
 				return;
 			}
 			if (pUsers->Exists(sName))
@@ -1635,7 +1988,7 @@ int main(int argc, char** argv)
 				return;
 			}
 			pUsers->AddRole(sClientID, sRole);
-			Redirect(HTTP, kFormat("/admin/clients/access?client_id={}", sClientID));
+			Redirect(HTTP, kFormat("/admin/clients/access?client_id={}", KEncode::URL(sClientID)));
 		}).Parse(KRESTRoute::WWWFORM);
 
 		Routes.AddRoute("/admin/clients/roles/delete").Post(
@@ -1648,7 +2001,7 @@ int main(int argc, char** argv)
 			KStringView sClientID = Q["client_id"];
 			KStringView sRole     = Q["role"];
 			if (!sClientID.empty() && !sRole.empty()) pUsers->DeleteRole(sClientID, sRole);
-			Redirect(HTTP, kFormat("/admin/clients/access?client_id={}", sClientID));
+			Redirect(HTTP, kFormat("/admin/clients/access?client_id={}", KEncode::URL(sClientID)));
 		}).Parse(KRESTRoute::WWWFORM);
 
 		Routes.AddRoute("/admin/clients/roles/default").Post(
@@ -1660,7 +2013,7 @@ int main(int argc, char** argv)
 			const auto& Q = HTTP.GetQueryParms();
 			KStringView sClientID = Q["client_id"];
 			if (!sClientID.empty()) pUsers->SetDefaultRole(sClientID, Q["role"]); // empty role clears it
-			Redirect(HTTP, kFormat("/admin/clients/access?client_id={}", sClientID));
+			Redirect(HTTP, kFormat("/admin/clients/access?client_id={}", KEncode::URL(sClientID)));
 		}).Parse(KRESTRoute::WWWFORM);
 
 		// ----- global access overview + per-user grid -----

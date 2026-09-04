@@ -119,6 +119,9 @@ public:
 	KString     GetTotpSecret (KStringView sUsername);             ///< base32 secret, empty if none
 	bool        SetTotpSecret (KStringView sUsername, KStringView sSecretBase32); ///< enroll/enable
 	bool        ClearTotp     (KStringView sUsername);             ///< disable (also drops backup codes)
+	/// accept a TOTP time step once (RFC 6238 5.2): false if this step, or a later one,
+	/// was already used to sign in - a code that was observed cannot be replayed
+	bool        AcceptTotpStep(KStringView sUsername, int64_t iStep);
 	// backup/recovery codes: stored hashed, single-use
 	bool        SetBackupCodes(KStringView sUsername, const std::vector<KString>& Hashes); ///< replace the set
 	bool        ConsumeBackupCode(KStringView sUsername, KStringView sCodeHash);           ///< verify+delete one

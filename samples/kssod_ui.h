@@ -102,6 +102,9 @@ void RenderInfo      (KRESTServer& HTTP, KStringView sTitle, KStringView sMessag
 /// shown when a signed-in user is not authorized for the app they tried to enter:
 /// offers to sign in as a different account or to abandon and return to the app.
 void RenderNoAccess  (KRESTServer& HTTP, KStringView sUser, KStringView sClientID);
+/// asks the signed-in user to confirm a sign-out that was requested without proof
+/// (a plain link to /logout) - the confirmation is a POST
+void RenderLogoutConfirm(KRESTServer& HTTP, KStringView sUser, bool bAdmin);
 void RenderForgot    (KRESTServer& HTTP, KStringView sMsg, bool bError, uint16_t iStatus = 200);
 void RenderReset     (KRESTServer& HTTP, KStringView sToken, KStringView sError, uint16_t iStatus = 200);
 

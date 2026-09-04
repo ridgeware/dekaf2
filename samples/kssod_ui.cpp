@@ -58,6 +58,7 @@
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/strings/kwords.h>        // KSimpleSpacedWords (role string -> tokens)
+#include <dekaf2/crypto/encoding/kencode.h>    // KEncode::URL for query values in links
 
 using namespace dekaf2;
 
@@ -207,7 +208,11 @@ KHTMLNode BeginPage(html::Page& Page, KStringView sUser, bool bAdmin, bool bWide
 		// whose account these actions belong to — shown right before Account/Sign out
 		Nav.Add<html::Span>(html::Classes{"navuser"}).AddText(sUser);
 		Nav.Add<html::Link>("/account", "Account");
-		Nav.Add<html::Link>("/logout", "Sign out");
+		// sign-out is a POST: a link (GET) could be planted by any other site
+		auto Out = Nav.Add<html::Form>("/logout/local");
+		Out.SetMethod(html::Form::POST);
+		Out.SetClass(html::Classes{"navform"});
+		Out.Add<html::Button>("Sign out", html::Button::SUBMIT, html::Classes{"linklike"});
 	}
 	// dark-mode toggle (moon/sun), far right of the nav
 	auto Toggle = Nav.Add<html::Element>("button", html::Classes{"themetoggle"});
@@ -227,6 +232,27 @@ void Msg(KHTMLNode Parent, KStringView sText, bool bError)
 {
 	if (sText.empty()) return;
 	Parent.Add<html::Paragraph>(html::Classes{bError ? "err" : "ok"}).AddText(sText);
+}
+
+//-----------------------------------------------------------------------------
+/// a link target "<path>?<key>=<value>" with the value percent encoded - user names and
+/// client ids are chosen by administrators, but they are data, not URL syntax
+KString QueryLink(KStringView sPath, KStringView sKey, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	return kFormat("{}?{}={}", sPath, sKey, KEncode::URL(sValue));
+}
+
+//-----------------------------------------------------------------------------
+/// add a link whose target is built from data: the URL is percent encoded by
+/// QueryLink(), and - other than with the SetLink() default - entity encoded as
+/// an attribute value
+html::Link DataLink(KHTMLNode Parent, KStringView sURL, KStringView sText)
+//-----------------------------------------------------------------------------
+{
+	auto Link = Parent.Add<html::Link>(KStringView{}, sText);
+	Link.SetLink(sURL, /*bDoNotEscape=*/false);
+	return Link;
 }
 
 //-----------------------------------------------------------------------------
@@ -446,12 +472,16 @@ void RenderAccount(KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSO
 		CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(
 		    kFormat("{} backup code{} left. Each code works once if you lose your authenticator.",
 		            St.iBackupCodes, St.iBackupCodes == 1 ? "" : "s"));
+		// both actions weaken or re-key the second factor: they ask for the password,
+		// so a hijacked session alone cannot take them
 		auto Row = CB.Add<html::Div>(html::Classes{"actions"});
 		auto F1  = Row.Add<html::Form>("/account/2fa/backup");
 		F1.SetMethod(html::Form::POST);
+		LabeledInput(F1, "Current password", "password", html::Input::PASSWORD);
 		F1.Add<html::Button>("Regenerate backup codes", html::Button::SUBMIT, html::Classes{"secondary"});
 		auto F2  = Row.Add<html::Form>("/account/2fa/disable");
 		F2.SetMethod(html::Form::POST);
+		LabeledInput(F2, "Current password", "password", html::Input::PASSWORD);
 		F2.Add<html::Button>("Turn off", html::Button::SUBMIT, html::Classes{"danger"});
 	}
 
@@ -479,6 +509,7 @@ void RenderAccount(KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSO
 			}
 			auto F = CB.Add<html::Form>("/account/2fa/email/off");
 			F.SetMethod(html::Form::POST);
+			LabeledInput(F, "Current password", "password", html::Input::PASSWORD);
 			F.Add<html::Button>("Turn off email codes", html::Button::SUBMIT, html::Classes{"danger"});
 		}
 	}
@@ -549,6 +580,24 @@ void RenderInfo(KRESTServer& HTTP, KStringView sTitle, KStringView sMessage,
 	CB.Add<html::Paragraph>().AddText(sMessage);
 	if (!sLinkURL.empty()) CB.Add<html::Paragraph>().Add<html::Link>(sLinkURL, sLinkText);
 	SendPage(HTTP, Page, iStatus);
+}
+
+//-----------------------------------------------------------------------------
+void RenderLogoutConfirm(KRESTServer& HTTP, KStringView sUser, bool bAdmin)
+//-----------------------------------------------------------------------------
+{
+	html::Page Page("Sign out", "en");
+	auto Body = BeginPage(Page, sUser, bAdmin);
+	auto Card = Body.Add<html::ui::Card>("Sign out?");
+	auto CB   = Card.Body();
+	CB.Add<html::Paragraph>().AddText(kFormat(
+	    "This ends the single sign-on session of {} in this browser. Apps you are already "
+	    "signed in to stay open until they next check with this provider.", sUser));
+	auto F = CB.Add<html::Form>("/logout/local");
+	F.SetMethod(html::Form::POST);
+	F.Add<html::Button>("Sign out", html::Button::SUBMIT, html::Classes{"danger"});
+	BackLink(CB, "/", "Cancel");
+	SendPage(HTTP, Page, 200);
 }
 
 //-----------------------------------------------------------------------------
@@ -623,7 +672,8 @@ void RenderReset(KRESTServer& HTTP, KStringView sToken, KStringView sError, uint
 //-----------------------------------------------------------------------------
 /// the enrolment page: show the new secret (otpauth link + bare key) and ask the
 /// user to type a code to confirm their app is set up before we enable 2FA.
-/// sSecret is carried in a hidden field to the /account/2fa/enable handler.
+/// sSecret is only displayed - the /account/2fa/enable handler uses the copy it
+/// kept on the server, the browser does not get to choose the secret.
 void Render2FASetup(KRESTServer& HTTP, KStringView sUser, bool bAdmin,
                     KStringView sSecret, KStringView sError, uint16_t iStatus)
 //-----------------------------------------------------------------------------
@@ -650,7 +700,6 @@ void Render2FASetup(KRESTServer& HTTP, KStringView sUser, bool bAdmin,
 	    "Then enter the 6-digit code the app shows, to confirm it works:");
 	auto Form = CB.Add<html::Form>("/account/2fa/enable");
 	Form.SetMethod(html::Form::POST);
-	Form.Add<html::Input>("secret", sSecret, html::Input::HIDDEN);
 	auto Field = LabeledInput(Form, "Authentication code", "code", html::Input::TEXT);
 	Field.SetClass(html::Classes{"otp"}).SetAutofocus(true);
 	Field.SetAttribute("inputmode", "numeric");
@@ -750,7 +799,10 @@ void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsSto
 	Form.Add<html::Paragraph>(html::Classes{"help"}).AddText(
 	    "Use smtp:// for STARTTLS (often port 587) or smtps:// for implicit TLS (port 465).");
 	LabeledInput(Form, "Username", "smtp_user", html::Input::TEXT, /*bRequired=*/false).SetValue(Smtp.sUser);
-	LabeledInput(Form, "Password", "smtp_pass", html::Input::PASSWORD, /*bRequired=*/false).SetValue(Smtp.sPass);
+	// the stored password is never sent back to the browser; blank keeps it
+	LabeledInput(Form, "Password", "smtp_pass", html::Input::PASSWORD, /*bRequired=*/false)
+	    .SetAttribute("placeholder", Smtp.sPass.empty() ? "" : "(unchanged - enter a new one to replace it)")
+	    .SetAttribute("autocomplete", "new-password");
 	LabeledInput(Form, "From address", "smtp_from", html::Input::EMAIL, /*bRequired=*/false)
 	    .SetValue(Smtp.sFrom).SetAttribute("placeholder", "kssod@example.com");
 	LabeledInput(Form, "From name (optional)", "smtp_fromname", html::Input::TEXT, /*bRequired=*/false)
@@ -834,11 +886,11 @@ void RenderUsers(KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
 		}
 		// button-link to this user's full access grid (clients x roles)
 		Row.Add<html::TableData>()
-		   .Add<html::Link>(kFormat("/admin/users/access?user={}", User.sUsername), "Manage")
+		   .Add<html::Link>(KStringView{}, "Manage").SetLink(QueryLink("/admin/users/access", "user", User.sUsername), false)
 		   .SetClass(html::Classes{"btn"});
 		auto Actions = Row.Add<html::TableData>();
 		// edit name/email — allowed for any user (including yourself; no lockout risk)
-		Actions.Add<html::Link>(kFormat("/admin/users/edit?username={}", User.sUsername), "Edit")
+		DataLink(Actions, QueryLink("/admin/users/edit", "username", User.sUsername), "Edit")
 		       .SetClass(html::Classes{"btn"});
 		if (User.sUsername != sUser) // can't delete yourself (admin toggle lives in the Admin column)
 		{
@@ -975,11 +1027,11 @@ void RenderClients(KRESTServer& HTTP, KStringView sUser, KSSOdClientStore& Clien
 		                                                         : "Any signed-in user can sign in");
 		// button-link to the per-client user assignment + role management page
 		Row.Add<html::TableData>()
-		   .Add<html::Link>(kFormat("/admin/clients/access?client_id={}", Client.sClientID), "Manage")
+		   .Add<html::Link>(KStringView{}, "Manage").SetLink(QueryLink("/admin/clients/access", "client_id", Client.sClientID), false)
 		   .SetClass(html::Classes{"btn"});
 		// actions: edit the app's settings, or delete it
 		auto Actions = Row.Add<html::TableData>();
-		Actions.Add<html::Link>(kFormat("/admin/clients/edit?client_id={}", Client.sClientID), "Edit")
+		DataLink(Actions, QueryLink("/admin/clients/edit", "client_id", Client.sClientID), "Edit")
 		       .SetClass(html::Classes{"btn"});
 		auto Form = Actions.Add<html::Form>("/admin/clients/delete");
 		Form.SetMethod(html::Form::POST);
@@ -1228,7 +1280,7 @@ void RenderClientAccess(KRESTServer& HTTP, KStringView sUser, KStringView sClien
 		{
 			auto Row = Table.AddRow();
 			// the user name links to that user's full access grid (edit there)
-			Row.Add<html::TableData>().Add<html::Link>(kFormat("/admin/users/access?user={}", A.sUsername), A.sUsername);
+			DataLink(Row.Add<html::TableData>(), QueryLink("/admin/users/access", "user", A.sUsername), A.sUsername);
 			auto Status = Row.Add<html::TableData>();
 			if (A.bAccess) Status.AddText("active");
 			else           Status.Add<html::Span>(html::Classes{"muted"}).AddText("suspended");
@@ -1277,7 +1329,7 @@ void RenderAccessOverview(KRESTServer& HTTP, KStringView sAdmin,
 	for (const auto& U : Users.List())
 	{
 		auto Row = Table.AddRow();
-		Row.Add<html::TableData>().Add<html::Link>(kFormat("/admin/users/access?user={}", U.sUsername), U.sUsername);
+		DataLink(Row.Add<html::TableData>(), QueryLink("/admin/users/access", "user", U.sUsername), U.sUsername);
 
 		auto uit = Grid.find(U.sUsername);
 		for (const auto& Info : ClientList)
@@ -1328,7 +1380,7 @@ void RenderUserAccess(KRESTServer& HTTP, KStringView sAdmin, KStringView sTarget
 		}
 	}
 
-	auto Form = CB.Add<html::Form>(kFormat("/admin/users/access/save?user={}", sTargetUser));
+	auto Form = CB.Add<html::Form>(QueryLink("/admin/users/access/save", "user", sTargetUser));
 	Form.SetMethod(html::Form::POST);
 
 	auto Table = Form.Add<html::ui::Table>(html::Classes{});

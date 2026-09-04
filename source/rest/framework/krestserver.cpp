@@ -1999,15 +1999,8 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 void KRESTServer::SetStatus (uint16_t iCode, KStringView sOptionalStatusString/*=""*/)
 //-----------------------------------------------------------------------------
 {
-	if (iCode < 400)
-	{
-		Response.SetStatus (KHTTPError::ConvertToRealStatusCode(iCode),
-		                    kFirstNonEmpty(sOptionalStatusString, KHTTPError::GetStatusString(iCode)));
-	}
-	else
-	{
-		Response.SetStatus (iCode, kFirstNonEmpty (sOptionalStatusString, "INTERNAL SERVER ERROR"));
-	}
+	// converts pseudo codes and fills in the status text if none is given
+	Response.SetStatus (iCode, sOptionalStatusString);
 
 } // SetStatus
 

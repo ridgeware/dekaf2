@@ -41,6 +41,8 @@
 
 #include <dekaf2/rest/serving/kwebserverpermissions.h>
 #include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/strings/kutf.h>
+#include <dekaf2/core/types/kctype.h>
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/core/logging/klog.h>
 #include <algorithm>
@@ -54,6 +56,52 @@
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+namespace {
+
+//-----------------------------------------------------------------------------
+/// path prefix match, exact or ignoring case (where the file system treats /private
+/// and /Private as the same directory, a permission set for one has to cover the
+/// other). Returns the length of the matched prefix in sPath (which may differ from
+/// the length of sPrefix for a caseless match), or npos if sPrefix is not a prefix
+/// of sPath
+std::size_t MatchPathPrefix(KStringView sPath, KStringView sPrefix, bool bIgnoreCase)
+//-----------------------------------------------------------------------------
+{
+	if (!bIgnoreCase)
+	{
+		return sPath.starts_with(sPrefix) ? sPrefix.size() : KStringView::npos;
+	}
+
+	// compare codepoint by codepoint, folded to lowercase - the file systems fold
+	// the whole of Unicode, not only Latin1
+	auto it  = sPath.begin();
+	auto ie  = sPath.end();
+	auto pit = sPrefix.begin();
+	auto pie = sPrefix.end();
+
+	while (pit != pie)
+	{
+		if (it == ie)
+		{
+			return KStringView::npos;
+		}
+
+		auto cpPath   = kutf::Codepoint(it, ie);
+		auto cpPrefix = kutf::Codepoint(pit, pie);
+
+		if (cpPath != cpPrefix
+			&& KCodePoint(cpPath).ToLower().value() != KCodePoint(cpPrefix).ToLower().value())
+		{
+			return KStringView::npos;
+		}
+	}
+
+	return static_cast<std::size_t>(it - sPath.begin());
+
+} // MatchPathPrefix
+
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 KWebServerPermissions::Permission KWebServerPermissions::ParsePermissions(KStringView sPermissions)
@@ -144,6 +192,9 @@ KWebServerPermissions::Permission KWebServerPermissions::MethodToPermission(KHTT
 		case KHTTPMethod::PATCH:
 		case KHTTPMethod::MKCOL:
 		case KHTTPMethod::COPY:
+		case KHTTPMethod::PROPPATCH: // sets file times
+		case KHTTPMethod::LOCK:      // creates lock-null resources
+		case KHTTPMethod::UNLOCK:
 			return Write;
 
 		case KHTTPMethod::DELETE:
@@ -320,12 +371,14 @@ KWebServerPermissions::Permission KWebServerPermissions::LookupDirectory(KString
 	// longest-prefix-match: m_DirPerms is sorted by path length descending
 	for (const auto& Entry : m_DirPerms)
 	{
-		if (sPath.starts_with(Entry.sPath))
+		auto iPrefix = MatchPathPrefix(sPath, Entry.sPath, m_bCaseInsensitivePaths);
+
+		if (iPrefix != KStringView::npos)
 		{
 			// make sure this is a real prefix match at a path boundary
-			if (sPath.size() == Entry.sPath.size() ||
-			    Entry.sPath == "/"                  ||
-			    sPath[Entry.sPath.size()] == '/')
+			if (iPrefix == sPath.size() ||
+			    Entry.sPath == "/"      ||
+			    sPath[iPrefix] == '/')
 			{
 				return Entry.iPerms;
 			}
@@ -351,12 +404,14 @@ KWebServerPermissions::Permission KWebServerPermissions::LookupUser(KStringView 
 			continue;
 		}
 
-		if (sPath.starts_with(Entry.second.sPath))
+		auto iPrefix = MatchPathPrefix(sPath, Entry.second.sPath, m_bCaseInsensitivePaths);
+
+		if (iPrefix != KStringView::npos)
 		{
 			// path boundary check
-			if (sPath.size() == Entry.second.sPath.size() ||
-			    Entry.second.sPath == "/"                  ||
-			    sPath[Entry.second.sPath.size()] == '/')
+			if (iPrefix == sPath.size()  ||
+			    Entry.second.sPath == "/" ||
+			    sPath[iPrefix] == '/')
 			{
 				if (Entry.second.sPath.size() > iBestLen)
 				{
@@ -415,6 +470,14 @@ bool KWebServerPermissions::IsAllowed(KStringView sUsername, KHTTPMethod Method,
 //-----------------------------------------------------------------------------
 {
 	Permission iRequired  = MethodToPermission(Method);
+
+	if (iRequired == None)
+	{
+		// a method without a permission mapping is not permitted, rather than
+		// permitted for everyone
+		return false;
+	}
+
 	Permission iEffective = Resolve(sUsername, sPath);
 
 	return (iEffective & iRequired) == iRequired;

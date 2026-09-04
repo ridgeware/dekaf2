@@ -45,6 +45,56 @@ TEST_CASE("KWebServerPermissions")
 		CHECK(KWebServerPermissions::MethodToPermission(KHTTPMethod::POST)    == KWebServerPermissions::Write);
 		CHECK(KWebServerPermissions::MethodToPermission(KHTTPMethod::PATCH)   == KWebServerPermissions::Write);
 		CHECK(KWebServerPermissions::MethodToPermission(KHTTPMethod::DELETE)  == KWebServerPermissions::Erase);
+		// WebDAV methods that change the file system need Write
+		CHECK(KWebServerPermissions::MethodToPermission(KHTTPMethod::PROPPATCH) == KWebServerPermissions::Write);
+		CHECK(KWebServerPermissions::MethodToPermission(KHTTPMethod::LOCK)      == KWebServerPermissions::Write);
+		CHECK(KWebServerPermissions::MethodToPermission(KHTTPMethod::UNLOCK)    == KWebServerPermissions::Write);
+	}
+
+	SECTION("CaseSensitivityIsExplicit")
+	{
+		KJSON jConfig = {{ "permissions", "all" }, { "directories", {{ "/private", "none" }, { "/\u0434\u0430\u043d\u043d\u044b\u0435", "none" }} }};
+		KWebServerPermissions Perms(jConfig);
+
+		// default: exact match - a differently spelled path is another directory
+		CHECK ( Perms.HasCaseInsensitivePaths() == false );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET, "/private/x") == false );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET, "/\u0434\u0430\u043d\u043d\u044b\u0435/x") == false );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET, "/Private/x") == true  );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET, "/\u0414\u0410\u041d\u041d\u042b\u0415/x") == true );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET, "/privateer/x") == true  ); // segment boundary
+
+		// on a file system that ignores case the permission has to cover the other
+		// spellings, also beyond Latin1 (cyrillic uppercase)
+		Perms.SetCaseInsensitivePaths();
+		CHECK ( Perms.HasCaseInsensitivePaths() == true );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET, "/Private/x") == false );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET, "/PRIVATE"  ) == false );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET, "/\u0414\u0410\u041d\u041d\u042b\u0415/x") == false );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET, "/privateer/x") == true  ); // still a segment boundary
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET, "/public/x"   ) == true  );
+	}
+
+	SECTION("MethodsWithoutMappingAreDenied")
+	{
+		KJSON jConfig = {{ "permissions", "all" }};
+		KWebServerPermissions Perms(jConfig);
+
+		// a method the permission model does not know is denied, not free for all
+		CHECK ( KWebServerPermissions::MethodToPermission(KHTTPMethod::CONNECT) == KWebServerPermissions::None );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::CONNECT, "/") == false );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::GET,     "/") == true  );
+	}
+
+	SECTION("LockAndProppatchNeedWrite")
+	{
+		KJSON jConfig = {{ "permissions", "read|browse" }, { "directories", {{ "/upload", "all" }} }};
+		KWebServerPermissions Perms(jConfig);
+
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::LOCK,      "/pub/x"    ) == false );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::PROPPATCH, "/pub/x"    ) == false );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::LOCK,      "/upload/x" ) == true  );
+		CHECK ( Perms.IsAllowed("", KHTTPMethod::PROPPATCH, "/upload/x" ) == true  );
 	}
 
 	SECTION("DefaultPermissions")

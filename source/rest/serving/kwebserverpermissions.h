@@ -61,6 +61,10 @@ DEKAF2_NAMESPACE_BEGIN
 /// Directory permissions define the structural maximum for a path.
 /// User permissions define what an authenticated user may do.
 /// The effective permission is the intersection of both.
+/// Paths are matched per path segment, and by default exactly. Where the document root
+/// sits on a file system that ignores case, set SetCaseInsensitivePaths(), and the
+/// match ignores case as well (Unicode wide) - KRESTRoutes::AddWebServer() does that
+/// after probing the file system.
 class DEKAF2_PUBLIC KWebServerPermissions
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -124,6 +128,14 @@ public:
 	/// returns true if any users are configured (meaning authentication is required)
 	DEKAF2_NODISCARD
 	bool HasUsers() const { return !m_Users.empty(); }
+
+	/// declare the paths as belonging to a file system that ignores case - the lookup
+	/// then ignores case too (Unicode wide), so that a permission set for /private also
+	/// covers /Private, which is the same directory there. Default: exact match
+	void SetCaseInsensitivePaths(bool bYesNo = true) { m_bCaseInsensitivePaths = bYesNo; }
+
+	/// returns true if the lookup ignores case
+	bool HasCaseInsensitivePaths() const { return m_bCaseInsensitivePaths; }
 
 	/// authenticate a user with password
 	/// @param sUsername the username
@@ -204,6 +216,7 @@ private:
 	std::vector<std::pair<KString, UserEntry>> m_Users;
 
 	Permission m_DefaultPerms { static_cast<Permission>(Read | Browse) };
+	bool       m_bCaseInsensitivePaths { false };
 
 }; // KWebServerPermissions
 

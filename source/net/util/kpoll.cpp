@@ -484,7 +484,21 @@ void KPoll::DispatchTriggered(int fd, uint16_t events)
 	if (CBP.Callback)
 	{
 		kDebug(2, "calling callback for fd {}, param {}", fd, CBP.iParameter);
-		CBP.Callback(fd, events, CBP.iParameter);
+
+		// an exception from a callback must not end the watcher thread - all other
+		// watched descriptors would go unserviced for the rest of the process lifetime
+		DEKAF2_TRY
+		{
+			CBP.Callback(fd, events, CBP.iParameter);
+		}
+		DEKAF2_CATCH (const std::exception& ex)
+		{
+			kException(ex);
+		}
+		DEKAF2_CATCH (...)
+		{
+			kUnknownException();
+		}
 	}
 
 } // DispatchTriggered

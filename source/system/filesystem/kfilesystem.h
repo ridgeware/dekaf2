@@ -168,6 +168,18 @@ bool kDirExists (KStringViewZ sPath);
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
+/// Checks if the file system holding sPath ignores case in file names (like APFS,
+/// NTFS or FAT do). This is determined by probing the path, not by platform: the
+/// last path component (or, if it has no letters, one of its parents) is looked up
+/// with its letters in the opposite case, and has to resolve to the same entry.
+/// @param sPath an existing file or directory
+/// @return true if the file system ignores case, false if it does not, or if that
+/// could not be determined (path not existing, no letters in the path)
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool kIsCaseInsensitiveFileSystem (KStringViewZ sPath);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// rename a file or directory, fails across file system boundaries (use kMove instead)
 DEKAF2_PUBLIC
 bool kRename (KStringViewZ sOldPath, KStringViewZ sNewPath);

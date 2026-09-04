@@ -906,3 +906,22 @@ TEST_CASE("KFilesystem")
 		CHECK ( bLockAcquired == true );
 	}
 }
+
+TEST_CASE("kIsCaseInsensitiveFileSystem")
+{
+	KTempDir Dir;
+	REQUIRE ( kDirExists(Dir.Name()) );
+
+	auto sFile = kFormat("{}/CaseProbe.txt", Dir.Name());
+	REQUIRE ( kWriteFile(sFile, "x") );
+
+	// the oracle: does the other spelling of the file resolve?
+	bool bIgnoresCase = kFileExists(kFormat("{}/caseprobe.txt", Dir.Name()));
+
+	CHECK ( kIsCaseInsensitiveFileSystem(sFile)      == bIgnoresCase );
+	CHECK ( kIsCaseInsensitiveFileSystem(Dir.Name()) == bIgnoresCase );
+
+	// unknown paths cannot be probed
+	CHECK ( kIsCaseInsensitiveFileSystem(kFormat("{}/does-not-exist", Dir.Name())) == false );
+	CHECK ( kIsCaseInsensitiveFileSystem("") == false );
+}

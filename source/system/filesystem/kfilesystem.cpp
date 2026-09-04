@@ -328,6 +328,70 @@ bool kDirExists (KStringViewZ sPath)
 } // kDirExists
 
 //-----------------------------------------------------------------------------
+bool kIsCaseInsensitiveFileSystem (KStringViewZ sPath)
+//-----------------------------------------------------------------------------
+{
+	KString sProbe = sPath;
+	sProbe.TrimRight(detail::kAllowedDirSep);
+
+	for (;;)
+	{
+		if (sProbe.empty())
+		{
+			return false;
+		}
+
+		KFileStat Original(sProbe);
+
+		if (!Original.Exists())
+		{
+			kDebug(2, "path does not exist: {}", sProbe);
+			return false;
+		}
+
+		// swap the case of the ASCII letters in the last path component
+		auto    iSep      = sProbe.find_last_of(detail::kAllowedDirSep);
+		auto    iStart    = (iSep == KString::npos) ? 0 : iSep + 1;
+		bool    bLetters  = false;
+		KString sSwapped  = sProbe;
+
+		for (auto i = iStart; i < sSwapped.size(); ++i)
+		{
+			auto ch = sSwapped[i];
+
+			if (KASCII::kIsAlpha(ch))
+			{
+				sSwapped[i] = static_cast<char>(ch ^ 0x20);
+				bLetters    = true;
+			}
+		}
+
+		if (bLetters)
+		{
+			KFileStat Swapped(sSwapped);
+
+			if (!Swapped.Exists())
+			{
+				return false;
+			}
+
+			// the same entry? where the file system reports inodes compare them,
+			// else the existence of the other spelling has to suffice
+			return Original.Inode() == 0 || Swapped.Inode() == Original.Inode();
+		}
+
+		// no letters in this component - probe the parent
+		if (iSep == KString::npos || iSep == 0)
+		{
+			return false;
+		}
+
+		sProbe.erase(iSep);
+	}
+
+} // kIsCaseInsensitiveFileSystem
+
+//-----------------------------------------------------------------------------
 KStringView kExtension(KStringView sFilePath)
 //-----------------------------------------------------------------------------
 {

@@ -45,6 +45,7 @@
 #include <dekaf2/io/streams/kcountingstreambuf.h>
 #include <dekaf2/io/compression/bits/kiostreams_filters.h>
 #include <dekaf2/http/server/khttperror.h>
+#include <iterator>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -136,9 +137,27 @@ bool KInHTTPFilter::Parse(const KHTTPHeaders& headers, uint16_t iStatusCode, KHT
 		m_iContentSize = 0;
 	}
 
-	m_bChunked = (HTTPVersion & (KHTTPVersion::http2 | KHTTPVersion::http3))
-	              ? false
-	              : headers.Headers.Get(KHTTPHeader::TRANSFER_ENCODING).ToLowerASCII() == "chunked";
+	m_bChunked = false;
+
+	if ((HTTPVersion & (KHTTPVersion::http2 | KHTTPVersion::http3)) == 0)
+	{
+		auto TransferEncodings = headers.Headers.equal_range(KHTTPHeader::TRANSFER_ENCODING);
+
+		if (TransferEncodings.first != TransferEncodings.second)
+		{
+			m_bChunked = TransferEncodings.first->second.ToLowerASCII() == "chunked";
+
+			// a request with a Transfer-Encoding other than exactly one "chunked"
+			// ("gzip, chunked", "xchunked", two headers) has no reliably determinable
+			// body length and must be rejected (RFC 9112 6.1) - reading it as
+			// unchunked would leave the body to be read as the next request
+			if (iStatusCode == 0 && (!m_bChunked || std::next(TransferEncodings.first) != TransferEncodings.second))
+			{
+				kDebug(1, "rejecting request with unsupported Transfer-Encoding: {}", TransferEncodings.first->second);
+				return false;
+			}
+		}
+	}
 
 	// reject Content-Length + Transfer-Encoding conflict (RFC 7230 §3.3.3)
 	if (m_bChunked && m_iContentSize >= 0)

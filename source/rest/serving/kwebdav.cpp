@@ -613,9 +613,9 @@ void KWebDAV::Propfind(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView
 #if DEKAF2_IS_WINDOWS
 		// On Windows, KDirectory entry paths use native backslashes but
 		// sDocumentRoot may use forward slashes - normalize for matching.
-		// Do NOT replace backslashes on Unix where \ is a valid filename char.
+		// Do NOT replace backslashes on Unix where \\ is a valid filename char.
 		KString sDocRootNormalized(sDocumentRoot);
-		sDocRootNormalized.Replace('\', '/');
+		sDocRootNormalized.Replace('\\', '/');
 #endif
 
 		while (!Pending.empty())
@@ -632,7 +632,7 @@ void KWebDAV::Propfind(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView
 			{
 #if DEKAF2_IS_WINDOWS
 				KString sChildNormalized = Entry.Path();
-				sChildNormalized.Replace('\', '/');
+				sChildNormalized.Replace('\\', '/');
 				KStringView sRelChild = sChildNormalized;
 
 				// make the child path relative to document root

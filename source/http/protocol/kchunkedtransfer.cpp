@@ -237,7 +237,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 				{
 					// ignore the extension up to the end of the line
 				}
-				else if (c == ';' || c == ' ' || c == '	')
+				else if (c == ';' || c == ' ' || c == '\t')
 				{
 					// a chunk extension (RFC 9112 7.1.1) follows the size - it is
 					// ignored, but it does not end the transfer

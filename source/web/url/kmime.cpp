@@ -250,9 +250,20 @@ bool KMIME::ByInspection(KStringViewZ sFilename, KStringView Default)
 		return false;
 	}
 
+	// the output is one line per file - a line break in the name breaks its parsing
+	if (sFilename.find_first_of("\r\n") != KStringView::npos)
+	{
+		kDebug(2, "file name not suitable for content inspection: {}", sFilename);
+		m_mime = Default;
+		return false;
+	}
+
 	if (kNonEmptyFileExists(sFilename))
 	{
-		KInPipe Pipe(kFormat("{} --mime-type {}", s_sFileCommand, sFilename));
+		// the argument vector goes to the file command as is - whitespace and quotes
+		// in the name are no issue. The -- keeps a name starting with a dash from
+		// being read as an option
+		KInPipe Pipe({ s_sFileCommand, "--mime-type", "--", KString(sFilename) });
 
 		if (Pipe.is_open())
 		{

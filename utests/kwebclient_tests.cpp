@@ -1,6 +1,7 @@
 #include "catch.hpp"
 
 #include <dekaf2/http/client/kwebclient.h>
+#include <openssl/ssl.h>
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/system/os/ksystem.h>
@@ -343,6 +344,18 @@ TEST_CASE("KWebClient") {
 		CHECK ( Verified("localhost")  == true  ); // the name in the cert, while connected to the address
 		CHECK ( Verified("")           == true  ); // the address itself, checked against the IP SAN
 		CHECK ( Verified("wrong.test") == false ); // a name the cert does not carry
+
+		{
+			// a server name set on the native handle between Connect() and a manual
+			// handshake is honored - code written before SetTLSHostname() existed
+			// selects the SNI this way
+			KTLSStream Stream(ClientCtx, chrono::seconds(2));
+			Stream.SetManualTLSHandshake(true);
+			REQUIRE ( Stream.Connect(KTCPEndPoint("127.0.0.1:7657"), KStreamOptions(KStreamOptions::None)) );
+			::SSL_set_tlsext_host_name(Stream.GetNativeTLSHandle(), "native.test");
+			REQUIRE ( Stream.StartManualTLSHandshake() );
+			CHECK ( LastSNI() == "native.test" );
+		}
 	}
 
 	SECTION("timeout Unix")

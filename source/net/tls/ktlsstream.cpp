@@ -218,7 +218,17 @@ bool KTLSStream::SetTLSHostname(KStringView sHostname)
 bool KTLSStream::ApplyTLSIdentity()
 //-----------------------------------------------------------------------------
 {
-	const KString& sHostname = m_sTLSHostname.empty() ? GetEndPoint().Domain.get() : m_sTLSHostname;
+	KStringView sHostname = m_sTLSHostname;
+
+	if (sHostname.empty())
+	{
+		// a server name set directly on the native handle before the handshake (the
+		// way to select the SNI before SetTLSHostname() existed) wins over the domain
+		// of the endpoint
+		const char* szSNI = ::SSL_get_servername(GetNativeTLSHandle(), TLSEXT_NAMETYPE_host_name);
+
+		sHostname = (szSNI && *szSNI) ? KStringView(szSNI) : KStringView(GetEndPoint().Domain.get());
+	}
 
 	auto sError = KTLSContext::SetClientIdentity(GetNativeTLSHandle(), sHostname,
 	                                             m_StreamOptions.IsSet(KStreamOptions::VerifyCert));
@@ -530,6 +540,11 @@ bool KTLSStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	m_StreamOptions = Options;
 	m_Stream.bCancelOnTimeout = Options.IsSet(KStreamOptions::CancelOnTimeout);
 	m_Stream.bNeedHandshake = true;
+
+	// drop the server name of a previous connection of this stream object - a
+	// name set on the native handle between Connect() and the handshake is
+	// honored by ApplyTLSIdentity() and must not stem from an earlier peer
+	::SSL_set_tlsext_host_name(GetNativeTLSHandle(), nullptr);
 	m_bRetryWithHTTP1 = false;
 
 	SetUnresolvedEndPoint(Endpoint);

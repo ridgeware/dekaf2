@@ -97,7 +97,8 @@ PeerInfo GetPeerInfo(uint16_t iPort, KStringView sSNI)
 
 	if (!sSNI.empty())
 	{
-		::SSL_set_tlsext_host_name(Client.GetNativeTLSHandle(), KString(sSNI).c_str());
+		// the identity for SNI and certificate verification of the handshake
+		REQUIRE ( Client.SetTLSHostname(sSNI) );
 	}
 
 	if (!Client.StartManualTLSHandshake())
@@ -176,10 +177,14 @@ TEST_CASE("KAcmeClient_ACME")
 	REQUIRE ( Cert.IsValid()  == true  );
 	CHECK   ( Cert.sAccountKeyPEM.empty() == false );
 
-	// the leaf is currently valid
 	KRSACert Leaf(Cert.sCertPEM);
 	CHECK ( Leaf.empty()      == false );
-	CHECK ( Leaf.IsValidNow() == true  );
+
+	// the leaf is valid - Pebble does not backdate notBefore, so allow for a CA clock
+	// that runs a little ahead of ours (e.g. in a VM)
+	INFO  ( kFormat("leaf valid from {:%F %T} until {:%F %T}, now {:%F %T}", Leaf.ValidFrom(), Leaf.ValidUntil(), KUnixTime::now()) );
+	CHECK ( Leaf.ValidFrom()  <= KUnixTime::now() + chrono::seconds(30) );
+	CHECK ( Leaf.ValidUntil() >  KUnixTime::now() );
 
 	// renewal path 1: publish the issued cert through SNI dispatch - this switches
 	// per handshake and is therefore effective for the very next connection
@@ -426,7 +431,11 @@ TEST_CASE("KAcmeClient_HTTP01")
 
 	KRSACert Leaf(Cert.sCertPEM);
 	CHECK ( Leaf.empty()      == false );
-	CHECK ( Leaf.IsValidNow() == true  );
+	// the leaf is valid - Pebble does not backdate notBefore, so allow for a CA clock
+	// that runs a little ahead of ours (e.g. in a VM)
+	INFO  ( kFormat("leaf valid from {:%F %T} until {:%F %T}, now {:%F %T}", Leaf.ValidFrom(), Leaf.ValidUntil(), KUnixTime::now()) );
+	CHECK ( Leaf.ValidFrom()  <= KUnixTime::now() + chrono::seconds(30) );
+	CHECK ( Leaf.ValidUntil() >  KUnixTime::now() );
 }
 
 TEST_CASE("KTCPServer_SetACME")

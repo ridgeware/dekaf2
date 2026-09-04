@@ -107,7 +107,18 @@ bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
 		return SetError("missing http version");
 	}
 	
-	if (!Stream.FormatLine("{} {} {}", GetHTTPVersion(), iStatusCode, sStatusString))
+	// the status text goes verbatim into the status line - a CR or LF in it would end
+	// the line early and let the remainder pass as headers (response splitting). Such
+	// a text (it may have been built from request data) is replaced by the canonical one
+	KStringView sStatus = sStatusString;
+
+	if (DEKAF2_UNLIKELY(sStatus.find('\n') != KStringView::npos || sStatus.find('\r') != KStringView::npos))
+	{
+		kDebug(1, "status text contains CR or LF - replaced by the default text for status {}", iStatusCode);
+		sStatus = KHTTPError::GetStatusString(iStatusCode);
+	}
+
+	if (!Stream.FormatLine("{} {} {}", GetHTTPVersion(), iStatusCode, sStatus))
 	{
 		return SetError("Cannot write headers");
 	}

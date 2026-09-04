@@ -47,6 +47,7 @@
 #include <dekaf2/web/url/kmime.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/format/kformat.h>
+#include <dekaf2/core/types/kctype.h>
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/util/id/kuuid.h>
 #include <array>
@@ -243,6 +244,68 @@ void AddPropertyValue(KXMLNode& Prop, KStringView sLocalName, const KFileStat& S
 } // AddPropertyValue
 
 //-----------------------------------------------------------------------------
+/// property names from request bodies are echoed as element names in the 207
+/// response, where they cannot be escaped - accept plain names only
+bool IsValidXMLName(KStringView sName) noexcept
+//-----------------------------------------------------------------------------
+{
+	if (sName.empty() || sName.size() > 256)
+	{
+		return false;
+	}
+
+	if (!KASCII::kIsAlpha(sName.front()) && sName.front() != '_')
+	{
+		return false;
+	}
+
+	for (auto ch : sName)
+	{
+		if (!KASCII::kIsAlNum(ch) && ch != '_' && ch != '-' && ch != '.')
+		{
+			return false;
+		}
+	}
+
+	return true;
+
+} // IsValidXMLName
+
+/// XML request bodies (PROPFIND, PROPPATCH, LOCK) are small documents - the body
+/// size limit of the REST server does not apply to the NOREAD routes of the WebDAV
+/// handler, so the bound is enforced here before the body is parsed
+constexpr std::size_t MaxXMLBodySize = 1024 * 1024;
+
+//-----------------------------------------------------------------------------
+/// read an XML request body, bounded by MaxXMLBodySize
+KString ReadXMLBody(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	KString sBody;
+
+	if (!HTTP.Request.HasContent(HTTP.Request.Method))
+	{
+		return sBody;
+	}
+
+	if (HTTP.Request.ContentLength() > static_cast<std::streamsize>(MaxXMLBodySize))
+	{
+		throw KHTTPError { KHTTPError::H4xx_PAYLOAD_TOO_LARGE, kFormat("request body exceeds {} bytes", MaxXMLBodySize) };
+	}
+
+	// read one byte more than permitted to detect an oversized chunked body
+	HTTP.Request.Read(sBody, MaxXMLBodySize + 1);
+
+	if (sBody.size() > MaxXMLBodySize)
+	{
+		throw KHTTPError { KHTTPError::H4xx_PAYLOAD_TOO_LARGE, kFormat("request body exceeds {} bytes", MaxXMLBodySize) };
+	}
+
+	return sBody;
+
+} // ReadXMLBody
+
+//-----------------------------------------------------------------------------
 /// parse the PROPFIND request body to determine what properties are requested
 PropfindRequest ParsePropfindBody(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
@@ -255,7 +318,7 @@ PropfindRequest ParsePropfindBody(KRESTServer& HTTP)
 		return Request;
 	}
 
-	auto sBody = HTTP.Read();
+	auto sBody = ReadXMLBody(HTTP);
 
 	if (sBody.empty())
 	{
@@ -296,7 +359,16 @@ PropfindRequest ParsePropfindBody(KRESTServer& HTTP)
 
 					for (const auto& PropChild : Child)
 					{
-						Request.RequestedProps.emplace_back(StripNamespacePrefix(PropChild.GetName()));
+						auto sPropName = StripNamespacePrefix(PropChild.GetName());
+
+						if (IsValidXMLName(sPropName))
+						{
+							Request.RequestedProps.emplace_back(sPropName);
+						}
+						else
+						{
+							kDebug(1, "ignoring invalid property name in PROPFIND request");
+						}
 					}
 
 					return Request;
@@ -439,6 +511,14 @@ KString ParseDestination(const KRESTServer& HTTP, KStringView sRoute)
 		throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "invalid Destination header" };
 	}
 
+	// the destination has to be below the route of this WebDAV server
+	KStringView sRelative = sPath;
+
+	if (!sRelative.remove_prefix(sRoute) || (!sRelative.empty() && sRelative.front() != '/'))
+	{
+		throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "Destination outside of the WebDAV root" };
+	}
+
 	return sPath;
 
 } // ParseDestination
@@ -525,59 +605,74 @@ void KWebDAV::Propfind(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView
 	// if it is a directory and depth > 0, list children
 	if (Stat.IsDirectory() && iDepth > 0)
 	{
-		KDirectory Dir(sFilePath, KFileTypes::ALL, iDepth > 1);
+		// walk the tree level by level and never deeper than requested - a recursive
+		// KDirectory would list the whole subtree regardless of the Depth header
+		std::vector<std::pair<KString, uint32_t>> Pending;
+		Pending.emplace_back(sFilePath, 1);
 
-		kDebug(2, "PROPFIND depth {} on '{}' (docroot '{}'), found {} entries",
-		       iDepth, sFilePath, sDocumentRoot, Dir.size());
-
+#if DEKAF2_IS_WINDOWS
 		// On Windows, KDirectory entry paths use native backslashes but
 		// sDocumentRoot may use forward slashes - normalize for matching.
-		// Do NOT replace backslashes on Unix where \\ is a valid filename char.
-#if DEKAF2_IS_WINDOWS
+		// Do NOT replace backslashes on Unix where \ is a valid filename char.
 		KString sDocRootNormalized(sDocumentRoot);
-		sDocRootNormalized.Replace('\\', '/');
+		sDocRootNormalized.Replace('\', '/');
 #endif
 
-		for (const auto& Entry : Dir)
+		while (!Pending.empty())
 		{
-#if DEKAF2_IS_WINDOWS
-			KString sChildNormalized = Entry.Path();
-			sChildNormalized.Replace('\\', '/');
-			KStringView sRelChild = sChildNormalized;
-#else
-			KStringView sRelChild = Entry.Path();
-#endif
+			auto Current = std::move(Pending.back());
+			Pending.pop_back();
 
-			// make the child path relative to document root
-			if (!sRelChild.remove_prefix(
-#if DEKAF2_IS_WINDOWS
-				sDocRootNormalized
-#else
-				sDocumentRoot
-#endif
-			))
+			KDirectory Dir(Current.first, KFileTypes::ALL, false);
+
+			kDebug(2, "PROPFIND level {} on '{}' (docroot '{}'), found {} entries",
+			       Current.second, Current.first, sDocumentRoot, Dir.size());
+
+			for (const auto& Entry : Dir)
 			{
-				kDebug(2, "PROPFIND: child path '{}' does not start with docroot '{}', skipping",
-				       Entry.Path(), sDocumentRoot);
-				continue;
+#if DEKAF2_IS_WINDOWS
+				KString sChildNormalized = Entry.Path();
+				sChildNormalized.Replace('\', '/');
+				KStringView sRelChild = sChildNormalized;
+
+				// make the child path relative to document root
+				if (!sRelChild.remove_prefix(sDocRootNormalized))
+#else
+				KStringView sRelChild = Entry.Path();
+
+				// make the child path relative to document root
+				if (!sRelChild.remove_prefix(sDocumentRoot))
+#endif
+				{
+					kDebug(2, "PROPFIND: child path '{}' does not start with docroot '{}', skipping",
+					       Entry.Path(), sDocumentRoot);
+					continue;
+				}
+
+				bool bIsDirectory = Entry.Type() == KFileType::DIRECTORY;
+
+				// build the href: route prefix + relative path
+				// (note: sRoute has the trailing /* already stripped by KHTTPAnalyzedPath)
+				KString sHref = sRoute;
+				sHref += sRelChild;
+
+				// add trailing slash for directories
+				if (bIsDirectory && !sHref.ends_with('/'))
+				{
+					sHref += '/';
+				}
+
+				auto sChildContentType = Entry.Type() == KFileType::FILE
+				                       ? KMIME::CreateByExtension(Entry.Path()).Serialize()
+				                       : KString{};
+
+				AddPropfindEntry(Root, sHref, Entry.FileStat(), sChildContentType, PFReq);
+
+				if (bIsDirectory && Current.second < iDepth)
+				{
+					Pending.emplace_back(Entry.Path(), Current.second + 1);
+				}
 			}
-
-			// build the href: route prefix + relative path
-			// (note: sRoute has the trailing /* already stripped by KHTTPAnalyzedPath)
-			KString sHref = sRoute;
-			sHref += sRelChild;
-
-			// add trailing slash for directories
-			if (Entry.Type() == KFileType::DIRECTORY && !sHref.ends_with('/'))
-			{
-				sHref += '/';
-			}
-
-			auto sChildContentType = Entry.Type() == KFileType::FILE
-			                       ? KMIME::CreateByExtension(Entry.Path()).Serialize()
-			                       : KString{};
-
-			AddPropfindEntry(Root, sHref, Entry.FileStat(), sChildContentType, PFReq);
 		}
 	}
 
@@ -598,7 +693,7 @@ void KWebDAV::Proppatch(KRESTServer& HTTP, KStringView sDocumentRoot, KStringVie
 		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("not found: {}", sRequestPath) };
 	}
 
-	auto sBody = HTTP.Read();
+	auto sBody = ReadXMLBody(HTTP);
 
 	if (sBody.empty())
 	{
@@ -644,6 +739,12 @@ void KWebDAV::Proppatch(KRESTServer& HTTP, KStringView sDocumentRoot, KStringVie
 				for (const auto& Property : PropNode)
 				{
 					auto sLocalName = StripNamespacePrefix(Property.GetName());
+
+					if (!IsValidXMLName(sLocalName))
+					{
+						kDebug(1, "ignoring invalid property name in PROPPATCH request");
+						continue;
+					}
 
 					if (bIsSet && sLocalName == dav::getlastmodified)
 					{
@@ -864,7 +965,7 @@ void KWebDAV::Lock(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRe
 
 	// parse the lock request body (we accept it but don't deeply validate)
 	KString sOwnerHref;
-	auto sBody = HTTP.Read();
+	auto sBody = ReadXMLBody(HTTP);
 
 	if (!sBody.empty())
 	{

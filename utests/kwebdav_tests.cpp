@@ -49,6 +49,24 @@ TEST_CASE("KWebDAV")
 			KWebDAV::ResolveFilesystemPath("/var/www", "/../etc/passwd", ""),
 			const KHTTPError&
 		);
+
+		// a double slash is collapsed by the file system, but not by a permission lookup
+		CHECK_THROWS_AS (
+			KWebDAV::ResolveFilesystemPath("/var/www", "/dav//private/x", "/dav"),
+			const KHTTPError&
+		);
+
+		// a NUL truncates the path in the file system calls
+		CHECK_THROWS_AS (
+			KWebDAV::ResolveFilesystemPath("/var/www", KStringView("/dav/..\0", 8), "/dav"),
+			const KHTTPError&
+		);
+
+		// a backslash is a path separator on Windows
+		CHECK_THROWS_AS (
+			KWebDAV::ResolveFilesystemPath("/var/www", "/dav/..\\..\\x", "/dav"),
+			const KHTTPError&
+		);
 	}
 
 	SECTION("MethodToPermission for WebDAV methods")
@@ -58,6 +76,9 @@ TEST_CASE("KWebDAV")
 		CHECK ( KWebServerPermissions::MethodToPermission(KHTTPMethod::COPY)     == KWebServerPermissions::Write );
 		CHECK ( KWebServerPermissions::MethodToPermission(KHTTPMethod::MOVE)     == (KWebServerPermissions::Write | KWebServerPermissions::Erase) );
 		CHECK ( KWebServerPermissions::MethodToPermission(KHTTPMethod::OPTIONS)  == KWebServerPermissions::Read );
+		CHECK ( KWebServerPermissions::MethodToPermission(KHTTPMethod::PROPPATCH) == KWebServerPermissions::Write );
+		CHECK ( KWebServerPermissions::MethodToPermission(KHTTPMethod::LOCK)     == KWebServerPermissions::Write );
+		CHECK ( KWebServerPermissions::MethodToPermission(KHTTPMethod::UNLOCK)   == KWebServerPermissions::Write );
 	}
 
 	SECTION("KHTTPMethod WebDAV methods parse and serialize")

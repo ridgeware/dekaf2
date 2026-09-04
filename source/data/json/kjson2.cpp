@@ -256,7 +256,8 @@ bool KJSON2::Parse(StringViewT sJson, bool bThrow)
 	{
 		DEKAF2_TRY
 		{
-			*this = base::parse(sJson.cbegin(), sJson.cend());
+			// the kjson parser enforces kjson::MaxParseDepth
+			kjson::Parse(ToBase(), sJson);
 		}
 
 		DEKAF2_CATCH (const exception& ex)
@@ -290,7 +291,8 @@ bool KJSON2::Parse(IStreamT& istream, bool bThrow)
 
 	DEKAF2_TRY
 	{
-		istream >> ToBase();
+		// the kjson parser enforces kjson::MaxParseDepth
+		kjson::Parse(ToBase(), istream);
 		return true;
 	}
 

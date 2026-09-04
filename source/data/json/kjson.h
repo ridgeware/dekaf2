@@ -209,6 +209,12 @@ namespace kjson
 	/// @return false if first non-space char could not be returned into the stream, true otherwise
 	bool SkipLeadingSpace(KInStream& InStream);
 
+	/// maximum nesting depth of arrays and objects accepted by the Parse() functions.
+	/// The parser itself is iterative, but serialization and comparison of the parsed
+	/// document recurse once per level - a document nested deeper than a worker thread's
+	/// stack allows would crash the process there. Deeper input is a parse error.
+	constexpr std::size_t MaxParseDepth = 512;
+
 	/// Parse a string, throws with KJSON::exception in case of error
 	/// @param json the json output
 	/// @param sJSON the input string to parse

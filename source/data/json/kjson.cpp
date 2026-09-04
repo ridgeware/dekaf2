@@ -55,6 +55,108 @@ DEKAF2_NAMESPACE_BEGIN
 
 namespace kjson {
 
+namespace {
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// the DOM builder of the json library, wrapped to stop at MaxParseDepth
+class KDepthLimitedDOMBuilder
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+
+//------
+public:
+//------
+
+	// the input adapter type only serves the lexer pointer used for diagnostic
+	// positions, which stays unset here
+	using DOMBuilder = nlohmann::detail::json_sax_dom_parser<LJSON, nlohmann::detail::input_stream_adapter>;
+
+	KDepthLimitedDOMBuilder(LJSON& json) : m_DOM(json, /*allow_exceptions=*/true) {}
+
+	bool null()                                                          { return m_DOM.null();                                 }
+	bool boolean(bool bValue)                                            { return m_DOM.boolean(bValue);                        }
+	bool number_integer(LJSON::number_integer_t iValue)                  { return m_DOM.number_integer(iValue);                 }
+	bool number_unsigned(LJSON::number_unsigned_t iValue)                { return m_DOM.number_unsigned(iValue);                }
+	bool number_float(LJSON::number_float_t fValue, const LJSON::string_t& sValue) { return m_DOM.number_float(fValue, sValue); }
+	bool string(LJSON::string_t& sValue)                                 { return m_DOM.string(sValue);                         }
+	bool binary(LJSON::binary_t& Value)                                  { return m_DOM.binary(Value);                          }
+	bool key(LJSON::string_t& sKey)                                      { return m_DOM.key(sKey);                              }
+	bool start_object(std::size_t iElements)                             { return Descend() && m_DOM.start_object(iElements);   }
+	bool end_object()                                                    { --m_iDepth; return m_DOM.end_object();               }
+	bool start_array(std::size_t iElements)                              { return Descend() && m_DOM.start_array(iElements);    }
+	bool end_array()                                                     { --m_iDepth; return m_DOM.end_array();                }
+
+	template<class Exception>
+	bool parse_error(std::size_t iPosition, const std::string& sLastToken, const Exception& ex)
+	{
+		return m_DOM.parse_error(iPosition, sLastToken, ex);
+	}
+
+	/// did parsing stop because the nesting exceeded MaxParseDepth?
+	bool TooDeep() const { return m_bTooDeep; }
+
+//------
+private:
+//------
+
+	bool Descend()
+	{
+		if (++m_iDepth > MaxParseDepth)
+		{
+			m_bTooDeep = true;
+			return false;
+		}
+		return true;
+	}
+
+	DOMBuilder  m_DOM;
+	std::size_t m_iDepth   { 0 };
+	bool        m_bTooDeep { false };
+
+}; // KDepthLimitedDOMBuilder
+
+//-----------------------------------------------------------------------------
+/// the parse error for a document nested deeper than MaxParseDepth
+LJSON::parse_error TooDeepError()
+//-----------------------------------------------------------------------------
+{
+	return LJSON::parse_error::create(101, std::size_t(0),
+	                                  kFormat("nesting depth exceeds {}", MaxParseDepth).str(),
+	                                  static_cast<const LJSON*>(nullptr));
+
+} // TooDeepError
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+void ParseDepthLimited(LJSON& json, KStringView sJSON)
+//-----------------------------------------------------------------------------
+{
+	KDepthLimitedDOMBuilder Builder(json);
+
+	if (!LJSON::sax_parse(sJSON.cbegin(), sJSON.cend(), &Builder) && Builder.TooDeep())
+	{
+		json = LJSON{};
+		throw TooDeepError();
+	}
+
+} // ParseDepthLimited
+
+//-----------------------------------------------------------------------------
+void ParseDepthLimited(LJSON& json, std::istream& InStream)
+//-----------------------------------------------------------------------------
+{
+	KDepthLimitedDOMBuilder Builder(json);
+
+	// non-strict, like operator>>() - stop after the first complete value
+	if (!LJSON::sax_parse(InStream, &Builder, nlohmann::detail::input_format_t::json, false) && Builder.TooDeep())
+	{
+		json = LJSON{};
+		throw TooDeepError();
+	}
+
+} // ParseDepthLimited
+
 //-----------------------------------------------------------------------------
 /// remove leading "[json.exception.out_of_range.401] " etc from sMessage
 const char* kStripJSONExceptionMessage(const char* sMessage) noexcept
@@ -127,7 +229,7 @@ bool Parse (LJSON& json, KStringView sJSON, KStringRef& sError) noexcept
 #endif
 		DEKAF2_TRY
 		{
-			json = LJSON::parse(sJSON.cbegin(), sJSON.cend());
+			ParseDepthLimited(json, sJSON);
 		}
 
 		DEKAF2_CATCH (const LJSON::exception& exc)
@@ -156,7 +258,7 @@ void Parse (LJSON& json, KStringView sJSON)
 	{
 		// avoid throwing an exception for empty input - JSON will simply
 		// be empty too, so no error.
-		json = LJSON::parse(sJSON.cbegin(), sJSON.cend());
+		ParseDepthLimited(json, sJSON);
 	}
 
 } // Parse
@@ -257,7 +359,7 @@ bool Parse (LJSON& json, KInStream& InStream, KStringRef& sError) noexcept
 
 	DEKAF2_TRY
 	{
-		InStream >> json;
+		ParseDepthLimited(json, InStream.istream());
 		return true;
 	}
 
@@ -277,7 +379,7 @@ void Parse (LJSON& json, KInStream& InStream)
 
 	if (SkipLeadingSpace(InStream))
 	{
-		InStream >> json;
+		ParseDepthLimited(json, InStream.istream());
 	}
 
 } // Parse

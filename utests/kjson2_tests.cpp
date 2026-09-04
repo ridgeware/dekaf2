@@ -1,6 +1,7 @@
 #include "catch.hpp"
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/data/sql/krow.h>
+#include <dekaf2/io/streams/kstringstream.h>
 #include <vector>
 
 #ifndef DEKAF2_IS_WINDOWS
@@ -1456,6 +1457,34 @@ TEST_CASE("KJSON2")
 		CHECK ( *it == 1 );
 		++it;
 		CHECK ( it == j.rend() );
+	}
+
+	SECTION("nesting depth")
+	{
+		auto Nested = [](std::size_t iDepth) -> KString
+		{
+			KString sJSON;
+			sJSON.reserve(iDepth * 2);
+			for (std::size_t i = 0; i < iDepth; ++i) sJSON += '[';
+			for (std::size_t i = 0; i < iDepth; ++i) sJSON += ']';
+			return sJSON;
+		};
+
+		KJSON2 json;
+		CHECK ( json.Parse(Nested(kjson::MaxParseDepth)) == true );
+		CHECK ( json.is_array() );
+
+		// deeper input is a parse error, not a stack overflow at serialization
+		CHECK ( json.Parse(Nested(kjson::MaxParseDepth + 1)) == false );
+		CHECK ( json.is_null() );
+
+		CHECK_THROWS_AS ( json.Parse(Nested(kjson::MaxParseDepth + 1), true), const KJSON2::exception& );
+
+		{
+			auto sJSON = Nested(kjson::MaxParseDepth + 1);
+			KInStringStream iss(sJSON);
+			CHECK ( json.Parse(iss) == false );
+		}
 	}
 }
 #endif

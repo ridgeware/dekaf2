@@ -1,6 +1,7 @@
 #include "catch.hpp"
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/data/sql/krow.h>
+#include <dekaf2/io/streams/kstringstream.h>
 #include <vector>
 
 #ifndef DEKAF2_IS_WINDOWS
@@ -717,5 +718,65 @@ TEST_CASE("LOrderedJSON")
 
 		CHECK ( j.dump() == R"({"first":"value1","second":"value2"})" );
 		CHECK ( j["first"].get<KString>() == "value1" );
+	}
+}
+
+TEST_CASE("kjson::Parse nesting depth")
+{
+	using namespace dekaf2;
+
+	auto Nested = [](std::size_t iDepth) -> KString
+	{
+		KString sJSON;
+		sJSON.reserve(iDepth * 2);
+		for (std::size_t i = 0; i < iDepth; ++i) sJSON += '[';
+		for (std::size_t i = 0; i < iDepth; ++i) sJSON += ']';
+		return sJSON;
+	};
+
+	SECTION("depth at the limit is accepted")
+	{
+		LJSON   json;
+		KString sError;
+		CHECK ( kjson::Parse(json, Nested(kjson::MaxParseDepth), sError) == true );
+		CHECK ( sError.empty() );
+		CHECK ( json.is_array() );
+	}
+
+	SECTION("depth beyond the limit is a parse error, from a string")
+	{
+		LJSON   json;
+		KString sError;
+		CHECK ( kjson::Parse(json, Nested(kjson::MaxParseDepth + 1), sError) == false );
+		CHECK ( sError.contains("nesting depth") );
+		CHECK ( json.is_null() );
+	}
+
+	SECTION("depth beyond the limit is a parse error, from a stream")
+	{
+		LJSON   json;
+		KString sError;
+		auto sJSON = Nested(kjson::MaxParseDepth + 1);
+		KInStringStream iss(sJSON);
+		CHECK ( kjson::Parse(json, iss, sError) == false );
+		CHECK ( sError.contains("nesting depth") );
+	}
+
+	SECTION("depth beyond the limit throws in the throwing variant")
+	{
+		LJSON json;
+		CHECK_THROWS_AS ( kjson::Parse(json, Nested(kjson::MaxParseDepth + 1)), const LJSON::exception& );
+	}
+
+	SECTION("objects count as levels, too")
+	{
+		LJSON   json;
+		KString sError;
+		KString sJSON;
+		for (std::size_t i = 0; i < kjson::MaxParseDepth + 1; ++i) sJSON += "{\"a\":";
+		sJSON += "1";
+		for (std::size_t i = 0; i < kjson::MaxParseDepth + 1; ++i) sJSON += '}';
+		CHECK ( kjson::Parse(json, sJSON, sError) == false );
+		CHECK ( sError.contains("nesting depth") );
 	}
 }

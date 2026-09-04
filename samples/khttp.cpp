@@ -113,6 +113,11 @@ public:
 		Settings.sAllowedCipherSuites = Options("ciphers <suites>      : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
 		std::vector<KStringViewZ> Domains = Options("domain <name>     : additional domain or IP for the TLS certificate (repeatable)", std::vector<KStringViewZ>{});
 		bool bNoLocalNets             = Options("nolocalnets           : do not include local network addresses in the self-signed TLS certificate", false);
+		std::vector<KStringViewZ> ACMEDomains = Options("acme <domain> : obtain and renew the TLS certificate for <domain> via ACME / Let's Encrypt (repeatable) - the CA connects to port 443 of the domain, which must reach this server", std::vector<KStringViewZ>{});
+		Settings.sACMEContact         = Options("acmecontact <mailto>  : ACME account contact, e.g. mailto:admin@example.com", "");
+		Settings.sACMEDirectoryURL    = Options("acmedir <url>         : ACME directory URL, default Let's Encrypt production", "");
+		Settings.sACMEStorage         = Options("acmestore <directory> : storage for the ACME account key and certificate, default the TLS config directory", "");
+		Settings.bACMEVerifyTLS       =!Options("acmenoverify          : do not verify the ACME directory's CA (test servers like Pebble)", false);
 		Settings.sBaseRoute           = Options("baseroute </path>     : route prefix, e.g. '/khttp', default none", "");
 		KStringViewZ sRestLog         = Options("restlog <file>        : write rest server log to <file> - default off", "");
 		Settings.KLogHeader           = Options("headerlog <x-klog>    : set header name to request and return trace logs, default off", "");
@@ -121,6 +126,15 @@ public:
 
 		// do a final check if all required options were set
 		if (!Options.Check()) return 1;
+
+		// automatic certificates via ACME - the server starts with the configured or
+		// the self-signed cert and switches once the certificate is issued
+		for (auto& sDomain : ACMEDomains)
+		{
+			Settings.ACMEDomains.push_back(sDomain);
+		}
+
+		if (!Settings.ACMEDomains.empty() && !Settings.bCreateEphemeralCert && Settings.sCert.empty()) SetError("acme needs a TLS server - do not combine it with notls");
 
 		// configure SAN policy for self-signed certs
 		for (auto& sDomain : Domains)

@@ -366,6 +366,11 @@ int main(int argc, char** argv)
 		Settings.bStoreEphemeralCert  = Options("persist               : should a self-signed cert be persisted to disk and reused at next start?", false);
 		Settings.sTLSPassword         = Options("tlspass <pass>        : TLS certificate password, if any", "");
 		Settings.sAllowedCipherSuites = Options("ciphers <suites>      : colon delimited list of permitted cipher suites for TLS (check your OpenSSL documentation for values), defaults to \"PFS\", which selects all suites with Perfect Forward Secrecy and GCM or POLY1305", "");
+		std::vector<KStringViewZ> ACMEDomains = Options("acme <domain>    : obtain and renew the TLS certificate for <domain> via ACME / Let's Encrypt (repeatable) - the CA connects to port 443 of the domain, which must reach this server; set --issuer to the same domain", std::vector<KStringViewZ>{});
+		Settings.sACMEContact         = Options("acmecontact <mailto>  : ACME account contact, e.g. mailto:admin@example.com", "");
+		Settings.sACMEDirectoryURL    = Options("acmedir <url>         : ACME directory URL, default Let's Encrypt production", "");
+		Settings.sACMEStorage         = Options("acmestore <directory> : storage for the ACME account key and certificate, default the TLS config directory", "");
+		Settings.bACMEVerifyTLS       =!Options("acmenoverify          : do not verify the ACME directory's CA (test servers like Pebble)", false);
 		KString  sSessionIdle         = Options("session-idle <dur>    : sign-in session idle timeout, suffixes s/m/h/d/w (default 30m)", "30m");
 		KString  sSessionMax          = Options("session-max <dur>     : sign-in session absolute lifetime, suffixes s/m/h/d/w (default 8h)", "8h");
 
@@ -383,6 +388,19 @@ int main(int argc, char** argv)
 		// --notls was given without a real cert.
 		Settings.bCreateEphemeralCert = !bNoTLS;
 		const bool bTLS = !bNoTLS || !Settings.sCert.empty() || !Settings.sKey.empty();
+
+		// automatic certificates via ACME - the server starts with the configured or
+		// the self-signed cert and switches once the certificate is issued
+		for (auto& sDomain : ACMEDomains)
+		{
+			Settings.ACMEDomains.push_back(sDomain);
+		}
+
+		if (!Settings.ACMEDomains.empty() && !bTLS)
+		{
+			KErr.FormatLine("kssod: --acme needs a TLS server - do not combine it with --notls");
+			return 1;
+		}
 
 		if (dRateLimit > 0) Settings.SetRateLimit(dRateLimit, iRateBurst);
 		if (iConnLimit > 0) Settings.SetConnectionLimit(iConnLimit);

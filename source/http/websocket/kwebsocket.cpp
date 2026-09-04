@@ -126,7 +126,7 @@ KWebSocketPMCE::~KWebSocketPMCE()
 } // dtor
 
 //-----------------------------------------------------------------------------
-bool KWebSocketPMCE::Compress(KStringView sInput, KString& sOutput)
+bool KWebSocketPMCE::Compress(KStringView sInput, KStringRef& sOutput)
 //-----------------------------------------------------------------------------
 {
 	auto& strm = m_pImpl->Deflate;
@@ -179,7 +179,7 @@ bool KWebSocketPMCE::Compress(KStringView sInput, KString& sOutput)
 } // Compress
 
 //-----------------------------------------------------------------------------
-bool KWebSocketPMCE::Decompress(KStringView sInput, KString& sOutput)
+bool KWebSocketPMCE::Decompress(KStringView sInput, KStringRef& sOutput)
 //-----------------------------------------------------------------------------
 {
 	auto& strm = m_pImpl->Inflate;
@@ -229,7 +229,7 @@ bool KWebSocketPMCE::Decompress(KStringView sInput, KString& sOutput)
 } // Decompress
 
 //-----------------------------------------------------------------------------
-KWebSocketPMCE::Parameters KWebSocketPMCE::NegotiateServer(KStringView sClientOffer, const ServerConfig& Config, KString& sResponse)
+KWebSocketPMCE::Parameters KWebSocketPMCE::NegotiateServer(KStringView sClientOffer, const ServerConfig& Config, KStringRef& sResponse)
 //-----------------------------------------------------------------------------
 {
 	Parameters Params; // bEnabled defaults to false
@@ -1241,14 +1241,14 @@ bool KWebSocket::Frame::Write(KOutStream& OutStream, bool bMask)
 } // Write
 
 //-----------------------------------------------------------------------------
-bool KWebSocket::Frame::Encode(KStringView sInput, KString& sEncoded)
+bool KWebSocket::Frame::Encode(KStringView sInput, KStringRef& sEncoded)
 //-----------------------------------------------------------------------------
 {
 	return false;
 }
 
 //-----------------------------------------------------------------------------
-bool KWebSocket::Frame::Decode(KStringView sEncoded, KString& sDecoded)
+bool KWebSocket::Frame::Decode(KStringView sEncoded, KStringRef& sDecoded)
 //-----------------------------------------------------------------------------
 {
 	return false;
@@ -1599,7 +1599,7 @@ bool KWebSocket::ReadInt(std::function<bool(const KString&)> Func)
 } // KWebSocket::ReadInt
 
 //-----------------------------------------------------------------------------
-bool KWebSocket::Read(KString& sFrame)
+bool KWebSocket::Read(KStringRef& sFrame)
 //-----------------------------------------------------------------------------
 {
 	sFrame.clear();

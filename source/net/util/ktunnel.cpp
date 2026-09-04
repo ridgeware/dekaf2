@@ -267,7 +267,7 @@ char* KTunnel::Message::GetPreambleBuf() const
 }
 
 //-----------------------------------------------------------------------------
-bool KTunnel::Message::Encode(KStringView sInput, KString& sEncoded)
+bool KTunnel::Message::Encode(KStringView sInput, KStringRef& sEncoded)
 //-----------------------------------------------------------------------------
 {
 	if (!m_Cipher)
@@ -294,7 +294,7 @@ bool KTunnel::Message::Encode(KStringView sInput, KString& sEncoded)
 } // Encode
 
 //-----------------------------------------------------------------------------
-bool KTunnel::Message::Decode(KStringView sEncoded, KString& sDecoded)
+bool KTunnel::Message::Decode(KStringView sEncoded, KStringRef& sDecoded)
 //-----------------------------------------------------------------------------
 {
 	if (!m_Cipher)
@@ -784,7 +784,7 @@ void KTunnel::Connection::Disconnect()
 }
 
 //-----------------------------------------------------------------------------
-bool KTunnel::Connection::ReadData(KString& sOut)
+bool KTunnel::Connection::ReadData(KStringRef& sOut)
 //-----------------------------------------------------------------------------
 {
 	// Consumer-side of the message queue for channels that do NOT have
@@ -1718,7 +1718,7 @@ void KTunnel::SetupEncryption (KStringView sNode)
 } // SetupEncryption (client)
 
 //-----------------------------------------------------------------------------
-bool KTunnel::SetupEncryption (Message& HelloFrame, KString& sOutNode)
+bool KTunnel::SetupEncryption (Message& HelloFrame, KStringRef& sOutNode)
 //-----------------------------------------------------------------------------
 {
 	// Server-side half of the v2 handshake. The hello frame has been

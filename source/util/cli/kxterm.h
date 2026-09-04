@@ -390,7 +390,7 @@ public:
 	/// @return true if editing was ended with a newline/return key, false in case of an input error
 	bool EditLine(
 		KStringView sPrompt,
-		KString&    sLine,
+		KStringRef& sLine,
 		KStringView sPromptFormatStart = KXTermCodes::Bold(),
 		KStringView sPromptFormatEnd   = KXTermCodes::NoBold()
 	);

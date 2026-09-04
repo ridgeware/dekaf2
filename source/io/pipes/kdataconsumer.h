@@ -139,14 +139,14 @@ public:
 //----------
 
 	/// Construct around a string buffer
-	KStringConsumer(KString& sBuffer) : m_sBuffer(sBuffer) {}
+	KStringConsumer(KStringRef& sBuffer) : m_sBuffer(sBuffer) {}
 	/// Construct around a string buffer, and a callback function that is called when all bytes for the request
 	/// have been received. The callback should return without blocking!
-	KStringConsumer(KString& sBuffer, std::function<void(KStringConsumer&)> callback) : m_Callback(std::move(callback)), m_sBuffer(sBuffer) {}
+	KStringConsumer(KStringRef& sBuffer, std::function<void(KStringConsumer&)> callback) : m_Callback(std::move(callback)), m_sBuffer(sBuffer) {}
 	/// write size_t bytes into string
 	virtual std::size_t Write (const void* buffer , std::size_t) override final;
 	/// return reference for the string buffer
-	KString& GetData() { return m_sBuffer; }
+	KStringRef& GetData() { return m_sBuffer; }
 
 //----------
 protected:
@@ -159,7 +159,7 @@ private:
 //----------
 
 	std::function<void(KStringConsumer&)> m_Callback { nullptr };
-	KString& m_sBuffer;
+	KStringRef& m_sBuffer;
 
 }; // KStringConsumer
 
@@ -190,7 +190,10 @@ private:
 //----------
 
 	std::function<void(KBufferedConsumer&)> m_Callback { nullptr };
-	KString m_sBuffer;
+	// the owned buffer has the reference type of the base class: its reference is
+	// bound in the base constructor, before this member is constructed, so no
+	// conversion call may be involved
+	KStringRef m_sBuffer;
 
 }; // KBufferedConsumer
 

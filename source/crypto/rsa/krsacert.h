@@ -233,8 +233,8 @@ public:
 	static KString CheckOrCreateKeyAndCert
 	(
 		bool        bThrowOnError,
-		KString&    sKey,
-		KString&    sCert,
+		KStringRef& sKey,
+		KStringRef& sCert,
 		KString     sPassword         = KString{},
 		KStringView sDomain           = "localhost",
 		KStringView sCountryCode      = "US",

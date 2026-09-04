@@ -699,7 +699,7 @@ KCodePoint KXTerm::ReadEscaped(kutf::ReadIterator& it, const kutf::ReadIterator&
 //-----------------------------------------------------------------------------
 bool KXTerm::EditLine(
 	KStringView sPrompt,
-	KString&    sLine,
+	KStringRef& sLine,
 	KStringView sPromptFormatStart,
 	KStringView sPromptFormatEnd
 )

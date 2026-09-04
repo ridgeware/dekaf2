@@ -767,8 +767,8 @@ KString KRSACert::GetDefaultTLSDirectory()
 KString KRSACert::CheckOrCreateKeyAndCert
 (
 	bool        bThrowOnError,
-	KString&    sKey,
-	KString&    sCert,
+	KStringRef& sKey,
+	KStringRef& sCert,
 	KString     sPassword,
 	KStringView sDomain,
 	KStringView sCountryCode,

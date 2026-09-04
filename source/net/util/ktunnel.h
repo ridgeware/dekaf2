@@ -287,8 +287,8 @@ public:
 
 		std::size_t    GetPreambleSize () const override final;
 		char*          GetPreambleBuf  () const override final;
-		bool           Encode          (KStringView sInput,   KString& sEncoded) override final;
-		bool           Decode          (KStringView sEncoded, KString& sDecoded) override final;
+		bool           Encode          (KStringView sInput,   KStringRef& sEncoded) override final;
+		bool           Decode          (KStringView sEncoded, KStringRef& sDecoded) override final;
 
 	//----------
 	private:
@@ -342,7 +342,7 @@ public:
 		/// types that do not have a DirectStream (OpenRepl / future
 		/// OpenShell), so Pump() is not running. Safe to call from a single
 		/// consumer thread.
-		bool                   ReadData   (KString& sOut);
+		bool                   ReadData   (KStringRef& sOut);
 		/// Send a Data-frame payload back over this channel. Safe to call
 		/// concurrently with ReadData(). No-op if the channel is already
 		/// torn down.
@@ -634,7 +634,7 @@ protected:
 	/// AES ciphers. Throws on malformed input or missing ServerIdentity.
 	/// Returns true on success (kept as bool for symmetry with the
 	/// existing call site, even though the failure path always throws).
-	bool SetupEncryption (Message& HelloFrame, KString& sOutNode);
+	bool SetupEncryption (Message& HelloFrame, KStringRef& sOutNode);
 #endif
 
 //----------

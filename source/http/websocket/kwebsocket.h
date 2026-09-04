@@ -138,10 +138,10 @@ public:
 	/// compress one full message - the returned bytes are the raw-deflate output with the trailing
 	/// empty block (0x00 0x00 0xFF 0xFF) removed, ready to put into a frame with RSV1 set
 	/// @returns false on a zlib error
-	bool Compress  (KStringView sInput, KString& sOutput);
+	bool Compress  (KStringView sInput, KStringRef& sOutput);
 	/// decompress one full message (the reassembled payload of a frame that had RSV1 set)
 	/// @returns false on a zlib error
-	bool Decompress(KStringView sInput, KString& sOutput);
+	bool Decompress(KStringView sInput, KStringRef& sOutput);
 
 	/// the parameters this codec was created with
 	const Parameters& GetParameters() const { return m_Params; }
@@ -163,7 +163,7 @@ public:
 	/// @param Config the server's policy
 	/// @param sResponse receives the Sec-WebSocket-Extensions value to send back (empty if declined)
 	/// @return the negotiated parameters, with bEnabled true if permessage-deflate was accepted
-	static Parameters NegotiateServer  (KStringView sClientOffer, const ServerConfig& Config, KString& sResponse);
+	static Parameters NegotiateServer  (KStringView sClientOffer, const ServerConfig& Config, KStringRef& sResponse);
 	/// build a client's Sec-WebSocket-Extensions offer value for permessage-deflate
 	static KString    BuildClientOffer (bool bClientNoContextTakeover = false, bool bServerNoContextTakeover = false);
 	/// parse the server's accepted Sec-WebSocket-Extensions response into negotiated parameters
@@ -426,9 +426,9 @@ public:
 		KString&       GetPayloadRef ()              { return m_sPayload;           }
 
 		/// transparent encoding interface, appends to sEncoded
-		virtual bool   Encode   (KStringView sInput,   KString& sEncoded);
+		virtual bool   Encode   (KStringView sInput,   KStringRef& sEncoded);
 		/// transparent decoding interface, appends to sDecoded
-		virtual bool   Decode   (KStringView sEncoded, KString& sDecoded);
+		virtual bool   Decode   (KStringView sEncoded, KStringRef& sDecoded);
 		/// try to decode content if the previous read was without decoder (called by children that have setup another decoder now e.g.)
 		bool           TryDecode();
 
@@ -515,7 +515,7 @@ public:
 
 	/// read one full data frame from the web socket, store in string
 	/// @returns false on timeout, received Close frame, or error - see GetReadState()
-	bool Read(KString& sFrame);
+	bool Read(KStringRef& sFrame);
 
 	/// read one full data frame from the web socket, store in json
 	/// @returns false on timeout, received Close frame, or error - see GetReadState()

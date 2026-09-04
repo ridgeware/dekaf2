@@ -305,7 +305,7 @@ bool KInHTTPFilter::IsInputConsumed() const
 	if (m_Filter && !m_Filter->empty())
 	{
 		auto chunker = m_Filter->component<KChunkedSource>(static_cast<int>(m_Filter->size()-1));
-		return chunker && chunker->IsFinished();
+		return chunker && chunker->IsFinished() && !chunker->HadError();
 	}
 
 	// filter was never created - input is consumed if no content was expected

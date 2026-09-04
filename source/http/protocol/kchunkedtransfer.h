@@ -67,6 +67,7 @@ private:
 	{
 		StartingUp,
 		ReadingSize,
+		SkipChunkExtension,
 		SkipUntilEmptyLine,
 		HadNonEmptyLine,
 		IsNotChunked,
@@ -115,6 +116,12 @@ public:
 	bool IsFinished() const { return m_State == Finished || (m_State == IsNotChunked && m_iContentLen == 0); }
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// returns true if the transfer was aborted by a framing error - the stream
+	/// position is then undefined, and the connection must not be reused
+	bool HadError() const { return m_bError; }
+	//-----------------------------------------------------------------------------
+
 //------
 private:
 //------
@@ -125,6 +132,7 @@ private:
 	std::streamsize  m_iCount            { 0 };
 	std::streamsize* m_pCount            { nullptr };
 	STATE m_State;
+	bool  m_bError                       { false };
 
 };
 

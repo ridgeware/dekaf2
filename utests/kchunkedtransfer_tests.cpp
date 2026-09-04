@@ -36,6 +36,48 @@ TEST_CASE("KChunkedSource")
 		CHECK ( ReadChunked("0\r\n\r\n").empty() );
 	}
 
+	SECTION("chunk extensions are ignored")
+	{
+		// RFC 9112 7.1.1 - extensions and trailers do not end the transfer
+		CHECK ( ReadChunked("5;ext=value\r\nHello\r\n6 ; a=\"b\"\r\n World\r\n0\r\nTrailer: x\r\n\r\n") == "Hello World" );
+	}
+
+	SECTION("invalid chunk size character aborts with an error")
+	{
+		// the remainder must not be read as an unchunked body - it could be the next request
+		KInStringStream iss("zz\r\nGET /admin HTTP/1.1\r\n\r\n");
+		KChunkedSource  Source(iss, true);
+		auto sBody = Source.read();
+		CHECK ( sBody.empty()       );
+		CHECK ( Source.IsFinished() );
+		CHECK ( Source.HadError()   );
+	}
+
+	SECTION("missing chunk size aborts with an error")
+	{
+		KInStringStream iss("\r\nHello\r\n0\r\n\r\n");
+		KChunkedSource  Source(iss, true);
+		CHECK ( Source.read().empty() );
+		CHECK ( Source.HadError()     );
+	}
+
+	SECTION("chunk data longer than announced aborts with an error")
+	{
+		KInStringStream iss("5\r\nHello World\r\n0\r\n\r\n");
+		KChunkedSource  Source(iss, true);
+		CHECK ( Source.read() == "Hello" );
+		CHECK ( Source.HadError()         );
+	}
+
+	SECTION("a clean transfer has no error")
+	{
+		KInStringStream iss("5\r\nHello\r\n0\r\n\r\n");
+		KChunkedSource  Source(iss, true);
+		CHECK ( Source.read() == "Hello" );
+		CHECK ( Source.IsFinished()       );
+		CHECK ( Source.HadError() == false );
+	}
+
 	SECTION("oversized chunk size is rejected without overflow")
 	{
 		// A crafted chunk-size line whose value does not fit into the signed

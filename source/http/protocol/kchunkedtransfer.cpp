@@ -167,8 +167,9 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 				else if (ird <= 0)
 				{
 					kDebug(1, "cannot read from stream, return {} instead of {} bytes", iResult, n);
-					// our stream got foul
-					m_State = Finished;
+					// our stream got foul - the chunk is incomplete
+					m_bError = true;
+					m_State  = Finished;
 					return iResult;
 				}
 
@@ -188,9 +189,13 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 				}
 				else
 				{
-					kDebug(1, "invalid chunk end");
-					// this is a protocol failure
-					m_State = IsNotChunked;
+					// a protocol failure - the stream position is lost, the transfer
+					// cannot continue. Never fall back to reading the remainder as an
+					// unchunked body: that would consume whatever follows on the
+					// connection, e.g. the next request
+					kDebug(1, "invalid chunk end, aborting transfer");
+					m_bError = true;
+					m_State  = Finished;
 					return iResult;
 				}
 				break;
@@ -198,6 +203,7 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 
 			case StartingUp:
 			case ReadingSize:
+			case SkipChunkExtension:
 			{
 				if (c == CarriageReturn)
 				{
@@ -205,18 +211,17 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 				}
 				else if (c == LineFeed)
 				{
-					// stop reading the size on LF
+					if (m_State == StartingUp)
+					{
+						// not a single size digit - a protocol error, see above
+						kDebug(1, "invalid chunk start, aborting transfer");
+						m_bError = true;
+						m_State  = Finished;
+						return iResult;
+					}
+
 					if (m_iRemainingInChunk == 0)
 					{
-						if (m_State == StartingUp)
-						{
-							// we had not even seen a 0 ..
-							kDebug(1, "invalid chunk start, switching to unchunked transfer");
-							// this is a protocol error
-							m_State = IsNotChunked;
-							return iResult;
-						}
-
 						// this is the last chunk of a series.
 						// Stop skipping at the next empty line
 						m_State = SkipUntilEmptyLine;
@@ -227,6 +232,24 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 						// switch to chunk reading mode
 						m_State = ReadingChunk;
 					}
+				}
+				else if (m_State == SkipChunkExtension)
+				{
+					// ignore the extension up to the end of the line
+				}
+				else if (c == ';' || c == ' ' || c == '	')
+				{
+					// a chunk extension (RFC 9112 7.1.1) follows the size - it is
+					// ignored, but it does not end the transfer
+					if (m_State == StartingUp)
+					{
+						kDebug(1, "invalid chunk start, aborting transfer");
+						m_bError = true;
+						m_State  = Finished;
+						return iResult;
+					}
+
+					m_State = SkipChunkExtension;
 				}
 				else
 				{
@@ -245,7 +268,8 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 						if (DEKAF2_UNLIKELY(m_iRemainingInChunk > (std::numeric_limits<std::streamsize>::max() >> 4)))
 						{
 							kDebug(1, "chunk size too large, aborting transfer");
-							m_State = Finished;
+							m_bError = true;
+							m_State  = Finished;
 							return iResult;
 						}
 
@@ -255,9 +279,11 @@ std::streamsize KChunkedSource::read(char* s, std::streamsize n)
 					}
 					else
 					{
-						kDebug(1, "invalid chunk start, not a hex character - transfer will fail");
-						m_State = IsNotChunked;
-						// TODO: try to put back the hex chars read so far (or throw)
+						// a protocol error, see above
+						kDebug(1, "invalid chunk size character, aborting transfer");
+						m_bError = true;
+						m_State  = Finished;
+						return iResult;
 					}
 				}
 				break;

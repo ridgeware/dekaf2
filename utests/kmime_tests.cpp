@@ -90,6 +90,17 @@ TEST_CASE("KMIME")
 
 			CHECK( a.ByInspection(TempFile.Name()) );
 
+			{
+				// a file name with whitespace and quotes - it must reach the file
+				// command as one argument
+				KTempDir Dir;
+				auto sName = kFormat("{}/name with spaces 'and' \"quotes\".zzz2", Dir.Name());
+				REQUIRE ( kWriteFile(sName, "<html><head></head><body><p>test</p></body></html>") );
+				KMIME b;
+				CHECK ( b.ByInspection(sName) );
+				CHECK ( b == "text/html" );
+			}
+
 			// for older OS/file utility versions json will not be detected,
 			// but fail to text/plain
 

@@ -88,7 +88,17 @@ protected:
 	int*     m_writePdes   { &m_readPdes[2] };
 
 	//-----------------------------------------------------------------------------
+	/// opens the pipe(s) and executes sCommand - split at whitespace into arguments
+	/// when sShell is empty, else passed as one argument to `sShell -c`
 	bool Open(KString sCommand, KStringViewZ sShell, OpenMode Mode,
+			  const std::vector<std::pair<KString, KString>>& Environment);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// opens the pipe(s) and executes the argument vector as is - no shell, no word
+	/// splitting, hence safe for arguments with whitespace or quotes (like file names
+	/// from outside). The first element is the program, searched in the PATH
+	bool Open(std::vector<KString> Args, OpenMode Mode,
 			  const std::vector<std::pair<KString, KString>>& Environment);
 	//-----------------------------------------------------------------------------
 

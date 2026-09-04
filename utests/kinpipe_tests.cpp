@@ -42,6 +42,21 @@ TEST_CASE("KInPipe")
 		CHECK(0 == pipe.Close());
 	}
 
+	SECTION("KInPipe argument vector")
+	{
+		// the vector goes to the child as is - whitespace and quotes are no delimiters
+		KInPipe pipe({ "echo", "a b", "c'd\"e", "-n" });
+		CHECK ( pipe.is_open() );
+		KString sLine;
+		CHECK ( pipe.ReadLine(sLine) );
+		CHECK ( sLine == "a b c'd\"e -n" );
+		CHECK ( 0 == pipe.Close() );
+
+		// an empty vector cannot be executed
+		KInPipe pipe2;
+		CHECK ( pipe2.Open(std::vector<KString>{}) == false );
+	}
+
 	SECTION("KInPipe fail_to_open")
 	{
 		KInPipe pipe;

@@ -93,6 +93,17 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// Opens a pipe and executes the argument vector as is - no shell, no word splitting
+	/// @param Args the program (first element, searched in the PATH) and its arguments
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	KOutPipe(std::vector<KString> Args,
+			 const std::vector<std::pair<KString, KString>>& Environment = {})
+	//-----------------------------------------------------------------------------
+	{
+		Open(std::move(Args), Environment);
+	}
+
+	//-----------------------------------------------------------------------------
 	/// Default Destructor
 	~KOutPipe()
 	//-----------------------------------------------------------------------------
@@ -107,6 +118,16 @@ public:
 	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
 	/// @return true on success, false if pipe to child could not be opened
 	bool Open(KString sCommand, KStringViewZ sShell = "",
+			  const std::vector<std::pair<KString, KString>>& Environment = {});
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Opens a pipe and executes the argument vector as is - no shell, no word splitting,
+	/// hence safe for arguments that carry whitespace or quotes (like file names from outside)
+	/// @param Args the program (first element, searched in the PATH) and its arguments
+	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
+	/// @return true on success, false if pipe to child could not be opened
+	bool Open(std::vector<KString> Args,
 			  const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
 

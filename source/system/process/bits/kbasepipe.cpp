@@ -57,7 +57,49 @@ DEKAF2_NAMESPACE_BEGIN
 bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
+	sCommand.TrimLeft();
+
+	if (sCommand.empty())
+	{
+		// an empty command is invalid also with a shell
+		Close(); // ensure a previous pipe is closed
+		m_iExitCode = EINVAL;
+		return false;
+	}
+
+	std::vector<KString> Args;
+
+	if (sShell.empty())
+	{
+		// split the command line into arguments (honoring quotes)
+		std::vector<const char*> argV;
+		kSplitArgsInPlace(argV, sCommand);
+		Args.reserve(argV.size());
+
+		for (auto szArg : argV)
+		{
+			Args.emplace_back(szArg);
+		}
+	}
+	else
+	{
+		Args.reserve(3);
+		Args.emplace_back(sShell);
+		Args.emplace_back("-c");
+		Args.push_back(std::move(sCommand));
+	}
+
+	return Open(std::move(Args), Mode, Environment);
+
+} // Open
+
+//-----------------------------------------------------------------------------
+bool KBasePipe::Open(std::vector<KString> Args, OpenMode Mode, const std::vector<std::pair<KString, KString>>& Environment)
+//-----------------------------------------------------------------------------
+{
 	Close(); // ensure a previous pipe is closed
+
+	KStringView sCommand = Args.empty() ? KStringView{} : KStringView(Args.front());
 
 	if (m_pid)
 	{
@@ -68,8 +110,6 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const
 	m_Mode = Mode;
 
 	m_iExitCode = 0;
-
-	sCommand.TrimLeft();
 
 	if (sCommand.empty())
 	{
@@ -95,7 +135,18 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const
 		}
 	}
 
-	kDebug(2, "executing: {}", sCommand);
+	if (kWouldLog(2))
+	{
+		KString sJoined;
+
+		for (const auto& sArg : Args)
+		{
+			if (!sJoined.empty()) sJoined += ' ';
+			sJoined += sArg;
+		}
+
+		kDebug(2, "executing: {}", sJoined);
+	}
 
 	// we need to do the object allocations in the parent
 	// process as otherwise leak detectors would claim the
@@ -103,17 +154,11 @@ bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const
 	// never run the destructor)
 
 	std::vector<const char*> argV;
+	argV.reserve(Args.size() + 1);
 
-	if (sShell.empty())
+	for (const auto& sArg : Args)
 	{
-		kSplitArgsInPlace(argV, sCommand);
-	}
-	else
-	{
-		argV.reserve(4);
-		argV.push_back(sShell.c_str());
-		argV.push_back("-c");
-		argV.push_back(sCommand.c_str());
+		argV.push_back(sArg.c_str());
 	}
 
 	// terminate with nullptr

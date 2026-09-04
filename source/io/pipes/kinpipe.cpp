@@ -62,6 +62,22 @@ bool KInPipe::Open(KString sCommand, KStringViewZ sShell,
 } // Open
 
 //-----------------------------------------------------------------------------
+bool KInPipe::Open(std::vector<KString> Args,
+				   const std::vector<std::pair<KString, KString>>& Environment)
+//-----------------------------------------------------------------------------
+{
+	if (!KBasePipe::Open(std::move(Args), PipeRead, Environment))
+	{
+		return false;
+	}
+
+	KFDReader::open(m_readPdes[0]);
+
+	return KFDReader::good();
+
+} // Open
+
+//-----------------------------------------------------------------------------
 int KInPipe::Close(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {

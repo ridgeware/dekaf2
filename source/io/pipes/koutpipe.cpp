@@ -62,6 +62,22 @@ bool KOutPipe::Open(KString sCommand, KStringViewZ sShell,
 } // Open
 
 //-----------------------------------------------------------------------------
+bool KOutPipe::Open(std::vector<KString> Args,
+					const std::vector<std::pair<KString, KString>>& Environment)
+//-----------------------------------------------------------------------------
+{
+	if (!KBasePipe::Open(std::move(Args), PipeWrite, Environment))
+	{
+		return false;
+	}
+
+	KFDWriter::open(m_writePdes[1]);
+
+	return KFDWriter::good();
+
+} // Open
+
+//-----------------------------------------------------------------------------
 int KOutPipe::Close(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {

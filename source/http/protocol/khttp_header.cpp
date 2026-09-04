@@ -260,7 +260,7 @@ static_assert(std::is_nothrow_move_constructible<KHTTPHeader>::value,
 			  "KHTTPHeader is intended to be nothrow move constructible, but is not!");
 
 //-----------------------------------------------------------------------------
-bool KHTTPHeaders::Parse(KInStream& Stream)
+bool KHTTPHeaders::Parse(KInStream& Stream, bool bRejectSpaceBeforeColon)
 //-----------------------------------------------------------------------------
 {
 	// Continuation lines are no more allowed in HTTP headers, so we don't
@@ -329,6 +329,13 @@ bool KHTTPHeaders::Parse(KInStream& Stream)
 		{
 			kDebug(2, "dropping invalid header: {}", sLine);
 			continue;
+		}
+
+		if (bRejectSpaceBeforeColon && pos > 0 && KASCII::kIsSpace(sLine[pos - 1]))
+		{
+			// "Content-Length : 5" - a proxy may have dropped this header as invalid,
+			// while we would frame the message with it (request smuggling)
+			return SetError("whitespace between header name and colon");
 		}
 
 		if (++iHeaderCount > MAX_HEADERCOUNT)

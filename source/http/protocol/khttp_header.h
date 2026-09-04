@@ -971,7 +971,12 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// parses from Stream into headers
-	bool Parse(KInStream& Stream);
+	/// @param Stream the input stream
+	/// @param bRejectSpaceBeforeColon fail on whitespace between a header name and its
+	/// colon instead of trimming it - mandatory for HTTP requests (RFC 9112 5.1): a proxy
+	/// in front may have dropped such a header, and diverging views of the message
+	/// framing open a request smuggling desync. Responses and MIME headers stay lenient.
+	bool Parse(KInStream& Stream, bool bRejectSpaceBeforeColon = false);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

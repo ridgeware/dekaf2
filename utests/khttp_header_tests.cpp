@@ -254,3 +254,32 @@ TEST_CASE("KHTTPHeaders::ParseContentLength")
 	CHECK ( H::ParseContentLength("18446744073709551616") == -1 ); // 2^64 (would wrap to 0)
 	CHECK ( H::ParseContentLength("99999999999999999999999999") == -1 );
 }
+
+TEST_CASE("KHTTPHeaders::Parse")
+{
+	SECTION("whitespace before the colon is trimmed in lenient mode")
+	{
+		KInStringStream iss("Content-Length : 5\r\nX-Test\t: value\r\n\r\n");
+		KHTTPHeaders Headers;
+		CHECK ( Headers.Parse(iss) == true );
+		CHECK ( Headers.Headers.Get(KHTTPHeader::CONTENT_LENGTH) == "5" );
+		CHECK ( Headers.Headers.Get("X-Test") == "value" );
+	}
+
+	SECTION("whitespace before the colon is rejected in strict mode")
+	{
+		KInStringStream iss("Content-Length : 5\r\n\r\n");
+		KHTTPHeaders Headers;
+		CHECK ( Headers.Parse(iss, true) == false );
+		CHECK ( Headers.Error().contains("whitespace") );
+	}
+
+	SECTION("strict mode accepts well formed headers")
+	{
+		KInStringStream iss("Content-Length: 5\r\nHost: localhost\r\n\r\n");
+		KHTTPHeaders Headers;
+		CHECK ( Headers.Parse(iss, true) == true );
+		CHECK ( Headers.Headers.Get(KHTTPHeader::CONTENT_LENGTH) == "5" );
+		CHECK ( Headers.Headers.Get(KHTTPHeader::HOST) == "localhost" );
+	}
+}

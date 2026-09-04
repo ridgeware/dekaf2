@@ -617,7 +617,14 @@ int main(int argc, char** argv)
 		// first minutes after it was set. Browsers label the origin of a request
 		// with Fetch Metadata and Origin - a POST to the UI has to come from our
 		// own pages. The token endpoint is exempt: relying parties call it.
-		Settings.PostRouteCallback = [](KRESTServer& HTTP)
+		//
+		// "Our own pages" is judged by the public host of this request, which is
+		// not necessarily the Host header: a reverse proxy may have rewritten that
+		// to the upstream address (Caddy does since 2.11 for HTTPS upstreams, nginx
+		// always did). Trusted proxies hand us the original host in X-Forwarded-Host
+		// (see --trusted-proxies); the issuer is accepted as well, being the one
+		// public address an identity provider has by definition.
+		Settings.PostRouteCallback = [&sIssuer](KRESTServer& HTTP)
 		{
 			if (HTTP.Request.Method != KHTTPMethod::POST || HTTP.Request.Resource.Path.get() == "/token")
 			{
@@ -636,16 +643,33 @@ int main(int argc, char** argv)
 			// has to name the host the request was sent to
 			KStringView sOrigin = HTTP.Request.Headers.Get(KHTTPHeader::ORIGIN);
 
-			if (!sOrigin.empty())
+			if (sOrigin.empty())
 			{
-				KURL   Origin(sOrigin);
-				KString sOriginHost = Origin.Domain.get();
-				if (!Origin.Port.empty()) sOriginHost += kFormat(":{}", Origin.Port.get());
+				return;
+			}
 
-				if (sOriginHost.empty() || !kCaselessEqual(sOriginHost, HTTP.Request.Headers.Get(KHTTPHeader::HOST)))
-				{
-					throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "cross-site request rejected" };
-				}
+			auto HostPort = [](const url::KDomain& Domain, const url::KPort& Port) -> KString
+			{
+				KString sHostPort = Domain.get();
+				if (!sHostPort.empty() && !Port.empty()) sHostPort += kFormat(":{}", Port.get());
+				return sHostPort;
+			};
+
+			KURL    Origin(sOrigin);
+			KString sOriginHost = HostPort(Origin.Domain, Origin.Port);
+
+			// the public host of this request: forwarded by a trusted proxy, else the Host header
+			const auto& Forwarded   = HTTP.Request.GetRemoteHost();
+			KString     sPublicHost = HostPort(Forwarded.Domain, Forwarded.Port);
+			if (sPublicHost.empty()) sPublicHost = HTTP.Request.Headers.Get(KHTTPHeader::HOST);
+
+			KURL    Issuer(sIssuer);
+			KString sIssuerHost = HostPort(Issuer.Domain, Issuer.Port);
+
+			if (sOriginHost.empty()
+			    || (!kCaselessEqual(sOriginHost, sPublicHost) && !kCaselessEqual(sOriginHost, sIssuerHost)))
+			{
+				throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "cross-site request rejected" };
 			}
 		};
 

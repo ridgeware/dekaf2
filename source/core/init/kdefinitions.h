@@ -371,6 +371,18 @@
 	#define DEKAF2_MAYBE_UNUSED
 #endif
 
+// [[noreturn]] is a C++11 attribute, but compilers without __has_cpp_attribute
+// (gcc < 5) get their own spelling
+#if DEKAF2_HAS_CPP_ATTRIBUTE(noreturn)
+	#define DEKAF2_NORETURN [[noreturn]]
+#elif defined(__clang__) || defined(__GNUC__)
+	#define DEKAF2_NORETURN __attribute__((noreturn))
+#elif defined(DEKAF2_IS_MSC)
+	#define DEKAF2_NORETURN __declspec(noreturn)
+#else
+	#define DEKAF2_NORETURN
+#endif
+
 #if defined(__clang__) || defined(__GNUC__)
 	#define DEKAF2_DEPRECATED(msg) __attribute__((__deprecated__(msg)))
 #elif defined(DEKAF2_IS_MSC)

@@ -493,7 +493,9 @@ public:
 	/// @param sWWWDir the base directory of the web server
 	/// @param sRoute a REST route, wildcards allowed: /my/path/*/img/* , minimum ("/*") - no default
 	/// @param Permissions the permissions configuration for directory and user access control
-	/// @param jConfig json configuration for styles, indexfile etc. (autoindex/upload are derived from permissions)
+	/// @param jConfig json configuration for styles, indexfile etc. (autoindex/upload are derived from permissions).
+	/// "case_insensitive" (bool) overrides the file system probe that decides whether the permission
+	/// lookup ignores case in paths
 	void AddWebServer(KString sWWWDir, KString sRoute, KWebServerPermissions Permissions, KJSON jConfig = {});
 	//-----------------------------------------------------------------------------
 
@@ -503,7 +505,9 @@ public:
 	/// @param sWWWDir the base directory of the WebDAV server
 	/// @param sRoute a REST route, wildcards allowed: /my/path/*/img/* , minimum ("/*") - no default
 	/// @param Permissions the permissions configuration for directory and user access control
-	/// @param jConfig json configuration for styles, indexfile etc. (autoindex/upload are derived from permissions)
+	/// @param jConfig json configuration for styles, indexfile etc. (autoindex/upload are derived from permissions).
+	/// "case_insensitive" (bool) overrides the file system probe that decides whether the permission
+	/// lookup ignores case in paths
 	void AddWebDAV(KString sWWWDir, KString sRoute, KWebServerPermissions Permissions, KJSON jConfig = {});
 	//-----------------------------------------------------------------------------
 

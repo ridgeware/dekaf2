@@ -44,6 +44,7 @@
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/rest/serving/kwebserver.h>
 #include <dekaf2/rest/serving/kwebdav.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/time/clock/ktime.h>
 #include <dekaf2/time/duration/kduration.h>
@@ -374,6 +375,12 @@ void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute, KWebServerPermis
 {
 	m_WebServerPermissions = std::move(Permissions);
 
+	// a permission set for /private has to cover /Private where the file system treats
+	// both as the same directory - probe the document root, unless the config decides
+	m_WebServerPermissions.SetCaseInsensitivePaths(jConfig.contains("case_insensitive")
+	                                               ? kjson::GetBool(jConfig, "case_insensitive")
+	                                               : kIsCaseInsensitiveFileSystem(sWWWDir));
+
 	if (!jConfig.contains("parser"))
 	{
 		jConfig["parser"] = "NOREAD";
@@ -394,6 +401,12 @@ void KRESTRoutes::AddWebDAV(KString sWWWDir, KString sRoute, KWebServerPermissio
 //-----------------------------------------------------------------------------
 {
 	m_WebServerPermissions = std::move(Permissions);
+
+	// a permission set for /private has to cover /Private where the file system treats
+	// both as the same directory - probe the document root, unless the config decides
+	m_WebServerPermissions.SetCaseInsensitivePaths(jConfig.contains("case_insensitive")
+	                                               ? kjson::GetBool(jConfig, "case_insensitive")
+	                                               : kIsCaseInsensitiveFileSystem(sWWWDir));
 
 	if (!jConfig.contains("parser"))
 	{

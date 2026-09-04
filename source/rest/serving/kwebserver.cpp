@@ -53,6 +53,15 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+namespace {
+
+/// the createDir/deleteFile/deleteDir form posts of the ad hoc index page carry
+/// a name only - the body size limit of the REST server does not apply to the
+/// NOREAD route of the web server, so the bound is enforced here
+constexpr std::size_t MaxFormBodySize = 64 * 1024;
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 void KWebServer::Check
 (
@@ -157,8 +166,9 @@ void KWebServer::Check
 				m_iFileSize  = this->GetFileStat().Size();
 				m_iFileStart = 0;
 
-				// check for ranges
-				auto Ranges = RequestHeaders.GetRanges(m_iFileSize);
+				// check for ranges - a malformed or unsatisfiable Range header is a 416,
+				// not a one byte partial response
+				auto Ranges = KHTTPHeader::GetRanges(RequestHeaders.Headers.Get(KHTTPHeader::RANGE), m_iFileSize, true);
 
 				if (!Ranges.empty())
 				{
@@ -357,8 +367,17 @@ KHTTPMethod KWebServer::Serve
 			{
 				// we may have a create/delete file/directory request in HTTP POST logic, issued from
 				// a web browser and not from a REST client
+				KString sForm;
+				// read one byte more than permitted to detect an oversized body
+				m_InputStream->Read(sForm, MaxFormBodySize + 1);
+
+				if (sForm.size() > MaxFormBodySize)
+				{
+					throw KHTTPError { KHTTPError::H4xx_PAYLOAD_TOO_LARGE, kFormat("form body exceeds {} bytes", MaxFormBodySize) };
+				}
+
 				KString sBody;
-				kUrlDecode(m_InputStream->ReadAll(), sBody);
+				kUrlDecode(sForm, sBody);
 
 				if (sBody.remove_prefix("createDir="))
 				{

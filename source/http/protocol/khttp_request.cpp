@@ -45,6 +45,7 @@
 #include "kconfiguration.h"
 #include <dekaf2/net/address/kipaddress.h>
 #include <dekaf2/net/address/kipnetwork.h>
+#include <iterator>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -299,7 +300,7 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 		kDebug (2, RequestLine.Get());
 		if (!Words.empty())
 		{
-			return SetError(kFormat("{}: {} words instead of 3", "invalid request line: {}", Words.size(), kEscapeForLogging(sLine.Left(40))));
+			return SetError(kFormat("invalid request line: {} words instead of 3: {}", Words.size(), kEscapeForLogging(RequestLine.Get().Left(40))));
 		}
 		else
 		{
@@ -315,10 +316,19 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	if (GetHTTPVersion() == KHTTPVersion::none)
 	{
-		return SetError(kFormat("invalid HTTP version: {}", Words[2]));
+		return SetError(kFormat("invalid HTTP version: {}", kEscapeForLogging(Words[2])));
 	}
 
-	if (!KHTTPHeaders::Parse(Stream))
+	if ((GetHTTPVersion() & (KHTTPVersion::http2 | KHTTPVersion::http3)) != 0)
+	{
+		// HTTP/2 and HTTP/3 have no text request line - a text request claiming
+		// them would be framed as if it had no body (the input filter ignores
+		// Transfer-Encoding for those versions), leaving the body to be read as
+		// the next request
+		return SetError("HTTP/2 and HTTP/3 have no text request line");
+	}
+
+	if (!KHTTPHeaders::Parse(Stream, true))
 	{
 		// error is already set
 		return false;
@@ -329,14 +339,20 @@ bool KHTTPRequestHeaders::Parse(KInStream& Stream)
 
 	// check for HTTP conformity:
 	// need a HOST header that ideally matches us - will ATM only check for non-emptyness
-	auto it = Headers.find(KHTTPHeader::HOST);
+	auto Hosts = Headers.equal_range(KHTTPHeader::HOST);
 
-	if (it == Headers.end())
+	if (Hosts.first == Hosts.second)
 	{
 		return SetError("no Host header");
 	}
 
-	if (it->second.empty())
+	if (std::next(Hosts.first) != Hosts.second)
+	{
+		// RFC 9112 3.2 - intermediaries may route on either one
+		return SetError("multiple Host headers");
+	}
+
+	if (Hosts.first->second.empty())
 	{
 		return SetError("empty host header");
 	}

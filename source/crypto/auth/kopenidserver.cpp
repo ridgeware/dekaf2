@@ -281,7 +281,7 @@ KOpenIDServer::AuthRequest KOpenIDServer::ParseAuthRequest(KRESTServer& HTTP, KS
 } // ParseAuthRequest
 
 //-----------------------------------------------------------------------------
-KURL KOpenIDServer::IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView sSubject, KUnixTime tAuthTime)
+KURL KOpenIDServer::IssueCodeAndRedirectURL(KRESTServer& HTTP, const AuthRequest& Req, KStringView sSubject, KUnixTime tAuthTime)
 //-----------------------------------------------------------------------------
 {
 	// per-client access control: the application decides whether this user may
@@ -291,6 +291,7 @@ KURL KOpenIDServer::IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView 
 	if (!m_Users->AuthorizeClientAccess(sSubject, Req.sClientID, jClientClaims))
 	{
 		kDebug(1, "user '{}' is not authorized for client '{}'", sSubject, Req.sClientID);
+		if (m_Config.AuditHook) m_Config.AuditHook(HTTP, "sso.code", sSubject, Req.sClientID, false);
 		KURL URL(Req.sRedirectURI);
 		URL.Query->Set("error", "access_denied");
 		if (!Req.sState.empty())
@@ -326,6 +327,7 @@ KURL KOpenIDServer::IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView 
 	{
 		URL.Query->Set("state", Req.sState);
 	}
+	if (m_Config.AuditHook) m_Config.AuditHook(HTTP, "sso.code", sSubject, Req.sClientID, true);
 	return URL;
 
 } // IssueCodeAndRedirectURL
@@ -549,6 +551,8 @@ void KOpenIDServer::HandleAuthorize(KRESTServer& HTTP)
 		KJSON jClaims;
 		if (!m_Users->AuthorizeClientAccess(Session.sUsername, Req.sClientID, jClaims))
 		{
+			// (a grant here is reported by IssueCodeAndRedirectURL right below)
+			if (m_Config.AuditHook) m_Config.AuditHook(HTTP, "sso.code", Session.sUsername, Req.sClientID, false);
 			if (bPromptNone)
 			{
 				Redirect(HTTP, ErrorRedirectURL(Req, "access_denied").Serialize());
@@ -565,7 +569,7 @@ void KOpenIDServer::HandleAuthorize(KRESTServer& HTTP)
 	// authorized: issue the code and bounce back to the client. This is the silent
 	// SSO path (no re-auth happened), so the authentication time is the session's
 	// creation time, NOT now - otherwise auth_time would falsely read as "just now".
-	KURL RedirectURL = IssueCodeAndRedirectURL(Req, Session.sUsername, Session.tCreated);
+	KURL RedirectURL = IssueCodeAndRedirectURL(HTTP, Req, Session.sUsername, Session.tCreated);
 	if (RedirectURL.empty())
 	{
 		throw KHTTPError(KHTTPError::H5xx_ERROR, "could not issue authorization code");
@@ -616,7 +620,7 @@ KString KOpenIDServer::CompleteLogin(KRESTServer& HTTP, KStringView sUsername)
 	if (Req.bValid && ValidateClientRequest(Req, sError))
 	{
 		// fresh interactive login just happened, so the authentication time is now
-		KURL RedirectURL = IssueCodeAndRedirectURL(Req, sUsername, KUnixTime::now());
+		KURL RedirectURL = IssueCodeAndRedirectURL(HTTP, Req, sUsername, KUnixTime::now());
 		if (!RedirectURL.empty())
 		{
 			return RedirectURL.Serialize();
@@ -1049,8 +1053,10 @@ void KOpenIDServer::HandleToken(KRESTServer& HTTP)
 		if (!m_Users->AuthorizeClientAccess(Code.sSubject, Code.sClientID, jClientClaims))
 		{
 			// RFC 6749 5.2 has no access_denied at the token endpoint
+			if (m_Config.AuditHook) m_Config.AuditHook(HTTP, "sso.token", Code.sSubject, Code.sClientID, false);
 			return TokenError(HTTP, "invalid_grant", "user is not authorized for this client");
 		}
+		if (m_Config.AuditHook) m_Config.AuditHook(HTTP, "sso.token", Code.sSubject, Code.sClientID, true);
 
 		// a new authorization starts a new refresh token family
 		HTTP.json.tx = IssueTokens(Code.sSubject, Code.sClientID, Code.sScope, Code.sNonce, Code.tAuthTime, jClientClaims,
@@ -1128,8 +1134,10 @@ void KOpenIDServer::HandleToken(KRESTServer& HTTP)
 		KJSON jClientClaims;
 		if (!m_Users->AuthorizeClientAccess(R.sSubject, R.sClientID, jClientClaims))
 		{
+			if (m_Config.AuditHook) m_Config.AuditHook(HTTP, "sso.refresh", R.sSubject, R.sClientID, false);
 			return TokenError(HTTP, "invalid_grant", "user is not authorized for this client");
 		}
+		if (m_Config.AuditHook) m_Config.AuditHook(HTTP, "sso.refresh", R.sSubject, R.sClientID, true);
 
 		HTTP.json.tx = IssueTokens(R.sSubject, R.sClientID, R.sScope, KStringView{}, R.tAuthTime, jClientClaims,
 		                           sFamily, tAbsoluteExpiry);
@@ -1217,7 +1225,9 @@ void KOpenIDServer::HandleLogout(KRESTServer& HTTP)
 	const auto& Q           = HTTP.GetQueryParms();
 	KStringView sPostLogout = Q["post_logout_redirect_uri"];
 	KStringView sHint       = Q["id_token_hint"];
+	KStringView sState      = Q["state"];
 	KString     sClientID   = Q["client_id"];
+	KString     sSessionUser = LoggedInUser(HTTP);
 
 	// 0) a request that carries an id_token_hint proves that the relying party acts
 	//    for the user who is signed in here (OIDC RP-Initiated Logout 1.0, 2.): the
@@ -1228,8 +1238,6 @@ void KOpenIDServer::HandleLogout(KRESTServer& HTTP)
 
 	if (!sHint.empty())
 	{
-		KString sSessionUser = LoggedInUser(HTTP);
-
 		if (!bHintVerified)
 		{
 			throw KHTTPError(KHTTPError::H4xx_BADREQUEST, "invalid id_token_hint");
@@ -1243,15 +1251,76 @@ void KOpenIDServer::HandleLogout(KRESTServer& HTTP)
 			throw KHTTPError(KHTTPError::H4xx_BADREQUEST, "id_token_hint was not issued to client_id");
 		}
 	}
-	else if (!m_Config.sLogoutConfirmPath.empty())
+	if (sClientID.empty() && bHintVerified)
 	{
-		// without a hint anybody can send the browser here with a link - the
-		// application asks the user before the session ends
-		Redirect(HTTP, m_Config.sLogoutConfirmPath);
+		sClientID = kjson::GetStringRef(Hint, "aud");
+	}
+
+	// 1) where to send the browser afterwards. A requested post_logout_redirect_uri
+	//    is attacker-supplied and MUST match one of the client's registered
+	//    post-logout URIs exactly - otherwise this is an open redirect. Without a
+	//    request, a client that is known (by client_id or the hint's audience) gets
+	//    its first registered post-logout URI: relying parties that call the end
+	//    session endpoint bare (Immich, for one) still return to their own login.
+	//    Decided before anything else happens, so that a bad request fails here
+	//    and not after the user confirmed and was signed out.
+	KString sTarget;
+	ClientStore::Client Client;
+	bool bClientFound = !sClientID.empty() && m_Clients->Lookup(sClientID, Client);
+
+	if (!sPostLogout.empty())
+	{
+		bool bAllowed = false;
+		if (bClientFound)
+		{
+			for (const auto& sURI : Client.PostLogoutRedirectURIs)
+			{
+				if (sURI == sPostLogout) { bAllowed = true; break; }
+			}
+		}
+		if (!bAllowed)
+		{
+			// The client only ever gets a generic error. The registered set is logged
+			// server-side (admin-only, debug level >= 1) so a typo - the match is exact
+			// and case-sensitive, e.g. "/login/" vs "/Login/" - is visible in the log
+			// without leaking the app's URLs in the HTTP response.
+			if (!bClientFound)
+			{
+				kDebug(1, "logout: post_logout_redirect_uri rejected - client '{}' not found (requested '{}')",
+				       sClientID, sPostLogout);
+			}
+			else
+			{
+				KString sRegistered;
+				sRegistered.Join(Client.PostLogoutRedirectURIs, " | ");
+				kDebug(1, "logout: post_logout_redirect_uri not registered for client '{}': requested '{}', registered: [{}]",
+				       sClientID, sPostLogout, sRegistered);
+			}
+			throw KHTTPError(KHTTPError::H4xx_BADREQUEST, "post_logout_redirect_uri is not registered");
+		}
+		sTarget = sPostLogout;
+	}
+	else if (bClientFound && !Client.PostLogoutRedirectURIs.empty())
+	{
+		sTarget = Client.PostLogoutRedirectURIs.front();
+	}
+
+	// 2) without a hint anybody can send the browser here with a link - the
+	//    application asks the user first. The confirmation page posts back here
+	//    (a POST cannot be planted as a link, and the application's CSRF check
+	//    covers it), carrying client_id, post_logout_redirect_uri and state, so
+	//    the user still returns to the app they came from.
+	if (sHint.empty() && !m_Config.sLogoutConfirmPath.empty() && HTTP.Request.Method != KHTTPMethod::POST)
+	{
+		KURL Confirm(m_Config.sLogoutConfirmPath);
+		if (!sClientID.empty())   Confirm.Query->Set("client_id",                sClientID);
+		if (!sPostLogout.empty()) Confirm.Query->Set("post_logout_redirect_uri", sPostLogout);
+		if (!sState.empty())      Confirm.Query->Set("state",                    sState);
+		Redirect(HTTP, Confirm.Serialize());
 		return;
 	}
 
-	// 1) terminate the OP session (server-side erase + clear the browser cookie).
+	// 3) terminate the OP session (server-side erase + clear the browser cookie).
 	//    Logout must succeed regardless of the redirect outcome.
 	KStringView sToken = HTTP.GetCookie(m_LoginSession->GetCookieName());
 	if (!sToken.empty())
@@ -1260,59 +1329,18 @@ void KOpenIDServer::HandleLogout(KRESTServer& HTTP)
 	}
 	HTTP.Response.Headers.Add(KHTTPHeader::SET_COOKIE, m_LoginSession->SerializeExpiryCookie());
 
-	// 2) nothing requested -> go to the OP's own default landing page
-	if (sPostLogout.empty())
+	if (m_Config.AuditHook && !sSessionUser.empty())
+	{
+		m_Config.AuditHook(HTTP, "sso.logout", sSessionUser, sClientID, true);
+	}
+
+	// 4) back to the app, carrying its state - or to our own landing page
+	if (sTarget.empty())
 	{
 		Redirect(HTTP, m_Config.sPostLoginRedirect);
 		return;
 	}
-
-	// 3) a redirect target was requested. It is attacker-supplied, so it MUST be
-	//    validated against the requesting client's registered post-logout URIs
-	//    (exact match) - otherwise this is an open redirect. Identify the client
-	//    by the explicit client_id, else by the "aud" of a verified id_token_hint
-	//    (the latter is what KOpenIDClient sends).
-	if (sClientID.empty() && bHintVerified)
-	{
-		sClientID = kjson::GetStringRef(Hint, "aud");
-	}
-
-	ClientStore::Client Client;
-	bool bAllowed     = false;
-	bool bClientFound = false;
-	if (!sClientID.empty() && m_Clients->Lookup(sClientID, Client))
-	{
-		bClientFound = true;
-		for (const auto& sURI : Client.PostLogoutRedirectURIs)
-		{
-			if (sURI == sPostLogout) { bAllowed = true; break; }
-		}
-	}
-
-	if (!bAllowed)
-	{
-		// The client only ever gets a generic error. The registered set is logged
-		// server-side (admin-only, debug level >= 1) so a typo - the match is exact
-		// and case-sensitive, e.g. "/login/" vs "/Login/" - is visible in the log
-		// without leaking the app's URLs in the HTTP response.
-		if (!bClientFound)
-		{
-			kDebug(1, "logout: post_logout_redirect_uri rejected - client '{}' not found (requested '{}')",
-			       sClientID, sPostLogout);
-		}
-		else
-		{
-			KString sRegistered;
-			sRegistered.Join(Client.PostLogoutRedirectURIs, " | ");
-			kDebug(1, "logout: post_logout_redirect_uri not registered for client '{}': requested '{}', registered: [{}]",
-			       sClientID, sPostLogout, sRegistered);
-		}
-		throw KHTTPError(KHTTPError::H4xx_BADREQUEST, "post_logout_redirect_uri is not registered");
-	}
-
-	// 4) honor the validated target, carrying the client's state back if present
-	KURL        URL(sPostLogout);
-	KStringView sState = Q["state"];
+	KURL URL(sTarget);
 	if (!sState.empty())
 	{
 		URL.Query->Set("state", sState);

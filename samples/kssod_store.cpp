@@ -164,6 +164,23 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"  primary key (client_id, role)"
 		")",
 
+		// the audit trail (see KSSOdAuditStore). ts is ISO 8601 UTC text: it sorts
+		// and compares correctly as a string, which keeps the filters simple.
+		"create table if not exists kssod_audit ("
+		"  id      integer primary key autoincrement,"
+		"  ts      text not null,"
+		"  event   text not null,"
+		"  outcome text not null default '',"
+		"  actor   text not null default '',"
+		"  subject text not null default '',"
+		"  ip      text not null default '',"
+		"  ua      text not null default '',"
+		"  details text not null default ''"
+		")",
+		"create index if not exists kssod_audit_ts      on kssod_audit(ts)",
+		"create index if not exists kssod_audit_actor   on kssod_audit(actor)",
+		"create index if not exists kssod_audit_subject on kssod_audit(subject)",
+
 		// migrations: bring a database created by an older kssod up to date.
 		// "create table if not exists" never alters an existing table, so columns
 		// added after the first release must be patched in here. These are
@@ -1295,3 +1312,217 @@ bool KSSOdSettingsStore::SaveSmtp(const Smtp& Config)
 	    && Set("smtp_fromname", Config.sFromName);
 
 } // SaveSmtp
+
+//=============================================================================
+//  KSSOdAuditStore
+//=============================================================================
+
+//-----------------------------------------------------------------------------
+KSSOdAuditStore::KSSOdAuditStore(KString sDatabase, KStringViewZ sMirror)
+//-----------------------------------------------------------------------------
+: m_sDatabase(std::move(sDatabase))
+{
+	if (sMirror == "-")
+	{
+		m_bMirrorStdout = true;
+	}
+	else if (!sMirror.empty())
+	{
+		m_Mirror.open(sMirror, std::ios_base::app);
+		if (!m_Mirror.is_open())
+		{
+			KErr.FormatLine("kssod: cannot open audit mirror {} - continuing without", sMirror);
+		}
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+void KSSOdAuditStore::Write(KStringView sEvent, KStringView sOutcome, KStringView sActor, KStringView sSubject,
+                            KStringView sIP, KStringView sUA, const KJSON& Details)
+//-----------------------------------------------------------------------------
+{
+	KString sTime    = kFormTimestamp(KUTCTime::now(), "{:%Y-%m-%dT%H:%M:%SZ}");
+	KString sDetails = (Details.is_object() && !Details.empty()) ? Details.dump() : KString{};
+
+	Entry E;
+	E.sTime = sTime; E.sEvent = sEvent; E.sOutcome = sOutcome; E.sActor = sActor;
+	E.sSubject = sSubject; E.sIP = sIP; E.sUA = sUA; E.sDetails = sDetails;
+
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+		if (db.IsOpen())
+		{
+			E.iID = db.ExecSQL("insert into kssod_audit (ts, event, outcome, actor, subject, ip, ua, details) "
+			                   "values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+			                   sTime, sEvent, sOutcome, sActor, sSubject, sIP, sUA, sDetails).LastInsertID();
+		}
+		else
+		{
+			KErr.FormatLine("kssod: audit: cannot open database, event {} {} lost", sEvent, sOutcome);
+		}
+
+		if (m_bMirrorStdout || m_Mirror.is_open())
+		{
+			KJSON j = Details.is_object() ? Details : KJSON::object();
+			j["ts"] = sTime;   j["event"] = sEvent;     j["outcome"] = sOutcome;
+			j["actor"] = sActor; j["subject"] = sSubject; j["ip"] = sIP; j["ua"] = sUA;
+			KOutStream& Out = m_bMirrorStdout ? KOut : static_cast<KOutStream&>(m_Mirror);
+			Out.WriteLine(j.dump());
+			Out.Flush();
+		}
+	}
+
+	// outside the lock: the observer may write records of its own
+	if (m_Observer) m_Observer(E);
+
+} // Write
+
+namespace {
+
+// the filter as one static WHERE clause: every criterion is bound always and
+// switched off by an empty value, so the statement has a fixed parameter list
+// (KSQLite binds variadically) and stays cacheable.
+//   ?1 event  ?2 outcome  ?3 ip  ?4 since  ?5 until  ?6 user  ?7 text (LIKE pattern)
+//   ?8..?12: 1 to invert the criterion in ?1, ?2, ?3, ?6, ?7 - "(match) != 1"
+//   is NOT match, "(match) != 0" is match, so the negation is a bind value too
+constexpr KStringView s_sAuditWhere =
+	" where (?1 = '' or (event = ?1) != ?8)"
+	"   and (?2 = '' or (outcome = ?2) != ?9)"
+	"   and (?3 = '' or (ip = ?3) != ?10)"
+	"   and (?4 = '' or ts >= ?4)"
+	"   and (?5 = '' or ts <= ?5)"
+	"   and (?6 = '' or (actor = ?6 or subject = ?6) != ?11)"
+	"   and (?7 = '' or (actor like ?7 or subject like ?7 or ip like ?7"
+	"                 or event like ?7 or outcome like ?7 or details like ?7) != ?12)";
+
+// a bare date in "until" means "through the end of that day"
+KString UntilOf(const KSSOdAuditStore::Filter& F)
+{
+	KString sUntil = F.sUntil;
+	if (sUntil.size() == 10) sUntil += "T23:59:59Z";
+	return sUntil;
+}
+
+KString LikeOf(const KSSOdAuditStore::Filter& F)
+{
+	return F.sText.empty() ? KString{} : kFormat("%{}%", F.sText);
+}
+
+} // anonymous namespace
+
+//-----------------------------------------------------------------------------
+std::vector<KSSOdAuditStore::Entry> KSSOdAuditStore::Query(const Filter& F)
+//-----------------------------------------------------------------------------
+{
+	std::vector<Entry> Out;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return Out;
+
+	KString sSQL = "select id, ts, event, outcome, actor, subject, ip, ua, details from kssod_audit";
+	sSQL += s_sAuditWhere;
+	sSQL += " order by id desc limit ?13 offset ?14";
+
+	for (auto& Row : db.ExecQuery(sSQL, F.sEvent, F.sOutcome, F.sIP, F.sSince, UntilOf(F), F.sUser, LikeOf(F),
+	                              int64_t(F.bNotEvent), int64_t(F.bNotOutcome), int64_t(F.bNotIP), int64_t(F.bNotUser), int64_t(F.bNotText),
+	                              static_cast<int64_t>(F.iLimit), static_cast<int64_t>(F.iOffset)))
+	{
+		Entry E;
+		E.iID      = Row.Col(1).Int64();
+		E.sTime    = Row.Col(2).String();
+		E.sEvent   = Row.Col(3).String();
+		E.sOutcome = Row.Col(4).String();
+		E.sActor   = Row.Col(5).String();
+		E.sSubject = Row.Col(6).String();
+		E.sIP      = Row.Col(7).String();
+		E.sUA      = Row.Col(8).String();
+		E.sDetails = Row.Col(9).String();
+		Out.push_back(std::move(E));
+	}
+	return Out;
+
+} // Query
+
+//-----------------------------------------------------------------------------
+std::size_t KSSOdAuditStore::Count(const Filter& F)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return 0;
+
+	KString sSQL = "select count(*) from kssod_audit";
+	sSQL += s_sAuditWhere;
+
+	return static_cast<std::size_t>(db.SingleIntQuery(sSQL, F.sEvent, F.sOutcome, F.sIP, F.sSince, UntilOf(F),
+	                                                  F.sUser, LikeOf(F),
+	                                                  int64_t(F.bNotEvent), int64_t(F.bNotOutcome), int64_t(F.bNotIP),
+	                                                  int64_t(F.bNotUser), int64_t(F.bNotText)));
+
+} // Count
+
+//-----------------------------------------------------------------------------
+std::vector<KString> KSSOdAuditStore::Events()
+//-----------------------------------------------------------------------------
+{
+	std::vector<KString> Out;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return Out;
+
+	for (auto& Row : db.ExecQuery("select distinct event from kssod_audit order by event"))
+	{
+		Out.push_back(Row.Col(1).String());
+	}
+	return Out;
+
+} // Events
+
+//-----------------------------------------------------------------------------
+std::size_t KSSOdAuditStore::Purge(KDuration KeepFor)
+//-----------------------------------------------------------------------------
+{
+	if (KeepFor <= KDuration::zero()) return 0;
+
+	KString sCutoff = kFormTimestamp(KUTCTime(KUnixTime::now() - KeepFor), "{:%Y-%m-%dT%H:%M:%SZ}");
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return 0;
+
+	return db.ExecSQL("delete from kssod_audit where ts < ?1", sCutoff).AffectedRows();
+
+} // Purge
+
+//-----------------------------------------------------------------------------
+KSSOdSettingsStore::Alerts KSSOdSettingsStore::LoadAlerts()
+//-----------------------------------------------------------------------------
+{
+	Alerts A;
+	A.bEnabled = Get("alerts_enabled") != "0";                    // absent -> on
+	A.bDigest  = Get("alerts_digest")  != "0";
+	if (auto sHours = Get("alerts_cooldown_h"); !sHours.empty())  A.Cooldown  = std::chrono::hours(sHours.UInt32());
+	if (auto sMax   = Get("alerts_daily_max");  !sMax.empty())    A.iDailyMax = sMax.UInt16();
+	return A;
+
+} // LoadAlerts
+
+//-----------------------------------------------------------------------------
+bool KSSOdSettingsStore::SaveAlerts(const Alerts& A)
+//-----------------------------------------------------------------------------
+{
+	return Set("alerts_enabled",    A.bEnabled ? "1" : "0")
+	    && Set("alerts_digest",     A.bDigest  ? "1" : "0")
+	    && Set("alerts_cooldown_h", KString::to_string(A.Cooldown.hours().count()))
+	    && Set("alerts_daily_max",  KString::to_string(A.iDailyMax));
+
+} // SaveAlerts

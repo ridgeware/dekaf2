@@ -104,7 +104,8 @@ void RenderInfo      (KRESTServer& HTTP, KStringView sTitle, KStringView sMessag
 void RenderNoAccess  (KRESTServer& HTTP, KStringView sUser, KStringView sClientID);
 /// asks the signed-in user to confirm a sign-out that was requested without proof
 /// (a plain link to /logout) - the confirmation is a POST
-void RenderLogoutConfirm(KRESTServer& HTTP, KStringView sUser, bool bAdmin);
+void RenderLogoutConfirm(KRESTServer& HTTP, KStringView sUser, bool bAdmin,
+                         KStringView sClientID = {}, KStringView sPostLogout = {}, KStringView sState = {});
 void RenderForgot    (KRESTServer& HTTP, KStringView sMsg, bool bError, uint16_t iStatus = 200);
 void RenderReset     (KRESTServer& HTTP, KStringView sToken, KStringView sError, uint16_t iStatus = 200);
 
@@ -112,6 +113,7 @@ void RenderReset     (KRESTServer& HTTP, KStringView sToken, KStringView sError,
 void RenderForbidden (KRESTServer& HTTP, KStringView sUser);
 void RenderAdminHome (KRESTServer& HTTP, KStringView sUser);
 void RenderSettings  (KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsStore::Smtp& Smtp,
+                      const KSSOdSettingsStore::Alerts& Alerts,
                       KStringView sMsg, bool bError, bool bForcePwOnRevert = true, uint16_t iStatus = 200);
 void RenderUserEdit  (KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser,
                       KStringView sName, KStringView sEmail, KStringView sMsg = {}, bool bError = false,
@@ -130,6 +132,12 @@ void RenderClientAccess(KRESTServer& HTTP, KStringView sUser, KStringView sClien
                         KSSOdUserStore& Users, KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200,
                         const KJSON& Prefill = KJSON::object());
 void RenderAccessOverview(KRESTServer& HTTP, KStringView sAdmin, KSSOdUserStore& Users, KSSOdClientStore& Clients);
+/// admin: the searchable audit trail. F is the active filter (echoed back into the
+/// form), Rows the page of matches, iTotal the match count across all pages,
+/// Events the distinct event names for the dropdown.
+void RenderAudit     (KRESTServer& HTTP, KStringView sAdmin, const KSSOdAuditStore::Filter& F,
+                      const std::vector<KSSOdAuditStore::Entry>& Rows, std::size_t iTotal,
+                      const std::vector<KString>& Events);
 void RenderUserAccess(KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser,
                       KSSOdUserStore& Users, KSSOdClientStore& Clients,
                       KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200);

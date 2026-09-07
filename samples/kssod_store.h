@@ -56,6 +56,9 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/data/json/kjson.h>
+#include <dekaf2/io/readwrite/kwriter.h>   // KOutFile: the audit mirror
+#include <dekaf2/time/clock/ktime.h>       // KDuration: audit retention
+#include <functional>
 #include <mutex>
 #include <vector>
 
@@ -189,6 +192,78 @@ private:
 }; // KSSOdUserStore
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+/// The audit trail: one row per security-relevant event - sign-in steps, every
+/// change to accounts, clients, roles and settings, and every SSO grant. Lives in
+/// the same SQLite file so the admin UI can search it; optionally mirrored as
+/// JSON lines to a file (or stdout) for shipping to an external collector.
+/// Never stores a credential: the record says who did what to whom, from where,
+/// with which outcome - not with which password.
+class KSSOdAuditStore
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+{
+public:
+	struct Entry
+	{
+		int64_t iID { 0 };
+		KString sTime;      ///< ISO 8601 UTC
+		KString sEvent;     ///< dotted event name, e.g. "auth.login", "admin.user.delete"
+		KString sOutcome;   ///< "ok" or the failure reason, e.g. "wrong", "throttled"
+		KString sActor;     ///< the signed-in user who acted ('' for anonymous)
+		KString sSubject;   ///< whom or what it concerns: user, client id, email
+		KString sIP;
+		KString sUA;
+		KString sDetails;   ///< JSON object with event-specific fields (no secrets)
+	};
+
+	/// all criteria are optional and combine with AND; sText searches actor,
+	/// subject, ip, event, outcome and details as substrings
+	/// Each of the value criteria can be inverted with its bNot flag ("everything
+	/// that is NOT by alice"); the time window cannot.
+	struct Filter
+	{
+		KString     sText;
+		KString     sEvent;
+		KString     sOutcome;
+		KString     sUser;      ///< matches actor OR subject exactly
+		KString     sIP;
+		KString     sSince;     ///< ISO 8601 (date or date-time), inclusive
+		KString     sUntil;     ///< ISO 8601, inclusive (a bare date means end of that day)
+		bool        bNotText    { false };
+		bool        bNotEvent   { false };
+		bool        bNotOutcome { false };
+		bool        bNotUser    { false };
+		bool        bNotIP      { false };
+		std::size_t iLimit  { 100 };
+		std::size_t iOffset { 0 };
+	};
+
+	/// @param sDatabase the shared SQLite file
+	/// @param sMirror   append every record as a JSON line here as well; "-" = stdout, empty = no mirror
+	KSSOdAuditStore(KString sDatabase, KStringViewZ sMirror = {});
+
+	void Write(KStringView sEvent, KStringView sOutcome, KStringView sActor, KStringView sSubject,
+	           KStringView sIP, KStringView sUA, const KJSON& Details = KJSON::object());
+
+	/// an observer sees every record right after it was stored (called without the
+	/// store's lock held, on the writing thread) - the watchdog hangs here
+	using Observer = std::function<void(const Entry&)>;
+	void SetObserver(Observer Fn) { m_Observer = std::move(Fn); }
+
+	std::vector<Entry>   Query (const Filter& F);
+	std::size_t          Count (const Filter& F);
+	std::vector<KString> Events();                    ///< distinct event names, for a filter dropdown
+	std::size_t          Purge (KDuration KeepFor);   ///< delete rows older than now - KeepFor; returns the count
+
+private:
+	std::mutex m_Mutex;
+	KString    m_sDatabase;
+	KOutFile   m_Mirror;
+	bool       m_bMirrorStdout { false };
+	Observer   m_Observer;
+
+}; // KSSOdAuditStore
+
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// SQLite relying-party registry. The list-valued columns (redirect URIs,
 /// post-logout URIs, scopes) are stored newline-separated.
 class KSSOdClientStore : public KOpenIDServer::ClientStore
@@ -262,6 +337,17 @@ public:
 	/// convenience.
 	bool    ForcePwOnRevert()          { return Get("revert_force_pw") != "0"; } // absent/'' -> on
 	bool    SetForcePwOnRevert(bool b) { return Set("revert_force_pw", b ? "1" : "0"); }
+
+	/// the watchdog's knobs (see KSSOdWatchdog)
+	struct Alerts
+	{
+		bool      bEnabled  { true };                 ///< send alert mails at all (needs a relay)
+		KDuration Cooldown  { std::chrono::hours(4) }; ///< per signal and target: one mail, then silence
+		uint16_t  iDailyMax { 6 };                    ///< hard cap on alert mails per day
+		bool      bDigest   { true };                 ///< daily summary of configuration changes
+	};
+	Alerts  LoadAlerts();
+	bool    SaveAlerts(const Alerts& A);
 
 private:
 	KString    m_sDatabase;

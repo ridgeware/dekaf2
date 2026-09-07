@@ -82,6 +82,12 @@ constexpr KStringView CSS =
 	"nav.nav a{color:#fff;text-decoration:none;font-size:.95rem}"
 	"nav.nav a.brand{font-weight:700;margin-right:auto}"
 	"nav.nav .navuser{color:rgba(255,255,255,.8);font-size:.9rem;padding-left:1rem;border-left:1px solid rgba(255,255,255,.25)}"
+	// sign-out is a form button (a POST, see BeginPage) that has to look and sit
+	// like the links next to it: no block margins from <form>, none of the global
+	// button padding/margin, the links' font and colour
+	"nav.nav form.navform{margin:0;display:inline-flex;align-items:center}"
+	"nav.nav button.linklike{margin:0;padding:0;background:transparent;border:0;color:#fff;font:inherit;font-size:.95rem;cursor:pointer;line-height:inherit}"
+	"nav.nav button.linklike:hover,nav.nav a:hover{text-decoration:underline}"
 	"button.themetoggle{margin:0;padding:.3rem;background:transparent;color:#fff;border:0;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center}"
 	"button.themetoggle:hover{background:rgba(255,255,255,.18)}"
 	"button.themetoggle svg{width:1.2rem;height:1.2rem}"
@@ -113,8 +119,8 @@ constexpr KStringView CSS =
 	"a.btn:hover{background:var(--secondary-h)}"
 	// compact button-links inside table cells (e.g. Manage / Edit), sized to match the row Delete button
 	"td a.btn{padding:.3rem .6rem;font-size:.8rem;margin-right:.4rem;white-space:nowrap;vertical-align:middle}"
-	".tiles{display:flex;flex-wrap:wrap;gap:1rem;margin-top:1rem}"
-	".tile{flex:1;min-width:9rem;aspect-ratio:1/.85;display:flex;flex-direction:column;align-items:center;"
+	".tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(9rem,1fr));gap:1rem;margin-top:1rem}"
+	".tile{aspect-ratio:1/.85;display:flex;flex-direction:column;align-items:center;"
 	      "padding:1.2rem;border-radius:12px;background:var(--primary);color:#fff;text-decoration:none;transition:background .15s}"
 	".tile:hover{background:var(--primary-h)}"
 	".tile-icon{flex:1;display:flex;align-items:center;justify-content:center}"
@@ -136,6 +142,19 @@ constexpr KStringView CSS =
 	".warnbox p{margin:.45rem 0}.warnbox strong{font-weight:700}"
 	"button.danger{background:#c0392b}button.danger:hover{background:#a93226}"
 	"a{color:var(--primary)}.err{color:#e06c75}.ok{color:#3fae5a}.muted{color:var(--muted);font-size:.85rem}"
+	// audit page: the filter form lays its fields out in a row, the table stays readable
+	// filter form: every control gets the same explicit height (a <select> ignores
+	// padding for its height in WebKit), so labels and fields line up on one edge;
+	// the buttons sit in a row of their own instead of dangling below the dates
+	".filter{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:flex-end}.filter label{display:flex;flex-direction:column;font-size:.85rem;margin:0}"
+	".filter input,.filter select{min-width:8rem;height:2.4rem;box-sizing:border-box;margin-top:.25rem;font:inherit;font-size:.9rem}"
+	".filter .field{display:flex;flex-direction:column;font-size:.85rem;color:var(--label)}"
+	".filter .fieldhead{display:flex;justify-content:space-between;align-items:center;gap:.6rem}"
+	".filter .neg{display:inline-flex;flex-direction:row;align-items:center;gap:.25rem;margin:0;font-size:.8rem;color:var(--muted)}"
+	".filter .neg input{min-width:0;height:auto;margin:0}"
+	".filter-actions{flex-basis:100%;display:flex;gap:.6rem;align-items:center;margin-top:.2rem}.filter-actions button{margin-top:0}"
+	".pager{display:flex;gap:.6rem;align-items:center;margin-top:.8rem}"
+	"table.audit td{white-space:nowrap;font-size:.85rem}table.audit td:last-child{white-space:normal;max-width:28rem}"
 	".mono{font-family:ui-monospace,monospace;font-size:.82rem;word-break:break-all}"
 	// 2FA: the enrolment key shown big and selectable, and the one-time backup codes grid
 	".keybox{font-family:ui-monospace,monospace;font-size:1.15rem;letter-spacing:.12em;background:var(--secondary-bg);"
@@ -177,6 +196,7 @@ constexpr KStringView SVG_BACK   = R"(<svg viewBox="0 0 24 24" fill="none" strok
 constexpr KStringView SVG_MOON   = R"(<svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>)";
 constexpr KStringView SVG_SUN    = R"(<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>)";
 constexpr KStringView SVG_MAIL   = R"(<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>)";
+constexpr KStringView SVG_AUDIT  = R"(<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>)";
 //-----------------------------------------------------------------------------
 void SendPage(KRESTServer& HTTP, html::Page& Page, uint16_t iStatus = 200)
 //-----------------------------------------------------------------------------
@@ -583,7 +603,8 @@ void RenderInfo(KRESTServer& HTTP, KStringView sTitle, KStringView sMessage,
 }
 
 //-----------------------------------------------------------------------------
-void RenderLogoutConfirm(KRESTServer& HTTP, KStringView sUser, bool bAdmin)
+void RenderLogoutConfirm(KRESTServer& HTTP, KStringView sUser, bool bAdmin,
+                         KStringView sClientID, KStringView sPostLogout, KStringView sState)
 //-----------------------------------------------------------------------------
 {
 	html::Page Page("Sign out", "en");
@@ -593,8 +614,15 @@ void RenderLogoutConfirm(KRESTServer& HTTP, KStringView sUser, bool bAdmin)
 	CB.Add<html::Paragraph>().AddText(kFormat(
 	    "This ends the single sign-on session of {} in this browser. Apps you are already "
 	    "signed in to stay open until they next check with this provider.", sUser));
-	auto F = CB.Add<html::Form>("/logout/local");
+	// a request that came from a relying party (client_id and friends present) posts
+	// back to the end session endpoint, which then returns the user to that app;
+	// the OP's own sign-out ends here and stays here
+	bool bFromClient = !sClientID.empty() || !sPostLogout.empty();
+	auto F = CB.Add<html::Form>(bFromClient ? "/logout" : "/logout/local");
 	F.SetMethod(html::Form::POST);
+	if (!sClientID.empty())   F.Add<html::Input>("client_id",                sClientID,   html::Input::HIDDEN);
+	if (!sPostLogout.empty()) F.Add<html::Input>("post_logout_redirect_uri", sPostLogout, html::Input::HIDDEN);
+	if (!sState.empty())      F.Add<html::Input>("state",                    sState,      html::Input::HIDDEN);
 	F.Add<html::Button>("Sign out", html::Button::SUBMIT, html::Classes{"danger"});
 	BackLink(CB, "/", "Cancel");
 	SendPage(HTTP, Page, 200);
@@ -767,6 +795,143 @@ void RenderAdminHome(KRESTServer& HTTP, KStringView sUser)
 		T.Add<html::Div>(html::Classes{"tile-icon"}).AddRawText(SVG_MAIL);
 		T.Add<html::Div>(html::Classes{"tile-sub"}).AddText("Email");
 	}
+	{
+		auto T = Tiles.Add<html::Link>("/admin/audit");
+		T.SetClass(html::Classes{"tile"});
+		T.Add<html::Div>(html::Classes{"tile-icon"}).AddRawText(SVG_AUDIT);
+		T.Add<html::Div>(html::Classes{"tile-sub"}).AddText("Audit");
+	}
+	SendPage(HTTP, Page);
+}
+
+//-----------------------------------------------------------------------------
+/// admin: the audit trail, newest first, with a filter form that round-trips
+/// through the query string (so a filtered view is a plain bookmarkable GET).
+void RenderAudit(KRESTServer& HTTP, KStringView sAdmin, const KSSOdAuditStore::Filter& F,
+                 const std::vector<KSSOdAuditStore::Entry>& Rows, std::size_t iTotal,
+                 const std::vector<KString>& Events)
+//-----------------------------------------------------------------------------
+{
+	html::Page Page("Audit", "en");
+	auto Body = BeginPage(Page, sAdmin, /*bAdmin=*/true, /*bWide=*/true);
+
+	// -- filter --
+	auto FCard = Body.Add<html::ui::Card>("Audit trail");
+	auto FB    = FCard.Body();
+	auto Form  = FB.Add<html::Form>("/admin/audit");
+	Form.SetMethod(html::Form::GET);
+	Form.SetClass(html::Classes{"filter"});
+
+	// text criteria round-trip with their negation prefix, so the form shows what
+	// is in effect ("!alice") and the pager links reproduce it
+	auto Prefixed = [](bool bNot, const KString& sValue) { return bNot ? "!" + sValue : sValue; };
+	KString sText    = Prefixed(F.bNotText,    F.sText);
+	KString sOutcome = Prefixed(F.bNotOutcome, F.sOutcome);
+	KString sUser    = Prefixed(F.bNotUser,    F.sUser);
+	KString sIP      = Prefixed(F.bNotIP,      F.sIP);
+
+	LabeledInput(Form, "Search",  "q",    html::Input::SEARCH, /*bRequired=*/false)
+		.SetValue(sText).SetPlaceholder("user, client, ip, details …");
+	{
+		// the dropdown cannot carry a '!' - a "not" box in its header line inverts it.
+		// (Not a <label> around the select: a label containing a checkbox would send
+		// clicks on the title to the box. The select gets its name via aria-label.)
+		auto Field = Form.Add<html::Div>(html::Classes{"field"});
+		auto Head  = Field.Add<html::Div>(html::Classes{"fieldhead"});
+		Head.Add<html::Span>().AddText("Event");
+		auto Neg = Head.Add<html::Element>("label", html::Classes{"neg"});
+		Neg.Add<html::Input>("event_not", "1", html::Input::CHECKBOX).SetChecked(F.bNotEvent);
+		Neg.AddText("not");
+		auto Sel = Field.Add<html::Select>("event");
+		Sel.SetAttribute("aria-label", "Event");
+		// an <option> without a value attribute submits its text - "any" must carry
+		// an explicit empty value (SetValue() skips empty strings)
+		Sel.Add<html::Option>("any").SetAttribute("value", "").SetSelected(F.sEvent.empty());
+		for (const auto& sEvent : Events)
+		{
+			Sel.Add<html::Option>(sEvent, sEvent).SetSelected(sEvent == F.sEvent);
+		}
+	}
+	LabeledInput(Form, "Outcome", "outcome", html::Input::TEXT, /*bRequired=*/false)
+		.SetValue(sOutcome).SetPlaceholder("ok, !ok, denied …");
+	LabeledInput(Form, "User",    "user",    html::Input::TEXT, /*bRequired=*/false)
+		.SetValue(sUser).SetPlaceholder("actor or subject, !name");
+	LabeledInput(Form, "IP",      "ip",      html::Input::TEXT, /*bRequired=*/false).SetValue(sIP).SetPlaceholder("!203.0.113.9");
+	LabeledInput(Form, "From",    "since",   html::Input::DATE, /*bRequired=*/false).SetValue(F.sSince.Left(10));
+	LabeledInput(Form, "To",      "until",   html::Input::DATE, /*bRequired=*/false).SetValue(F.sUntil.Left(10));
+	Form.Add<html::Input>("limit", KString::to_string(F.iLimit), html::Input::HIDDEN);
+	auto Actions = Form.Add<html::Div>(html::Classes{"filter-actions"});
+	Actions.Add<html::Button>("Filter");
+	Actions.Add<html::Link>("/admin/audit", "Reset").SetClass(html::Classes{"btn"});
+	FB.Add<html::Paragraph>(html::Classes{"muted"})
+	  .AddText("Prefix a value with ! to exclude it - \"!alice\" lists everything not done by or to alice.");
+
+	// -- results --
+	auto Card = Body.Add<html::ui::Card>(iTotal == 1 ? KString("1 event")
+	                                                   : kFormat("{} events", iTotal));
+	auto CB   = Card.Body();
+
+	if (Rows.empty())
+	{
+		CB.Add<html::Paragraph>(html::Classes{"muted"}).AddText("Nothing matches this filter.");
+	}
+	else
+	{
+		auto Table = CB.Add<html::ui::Table>(html::Classes{"audit"});
+		Table.Headers({ "Time (UTC)", "Event", "Outcome", "Actor", "Subject", "IP", "Details" });
+
+		for (const auto& E : Rows)
+		{
+			auto Row = Table.AddRow();
+			Row.Add<html::TableData>(E.sTime);
+			Row.Add<html::TableData>(E.sEvent);
+			// failures stand out: anything that is not "ok" is shown in the error colour
+			Row.Add<html::TableData>(E.sOutcome)
+			   .SetClass(html::Classes{(E.sOutcome == "ok" || E.sOutcome.empty()) ? "ok" : "err"});
+			Row.Add<html::TableData>(E.sActor.empty()   ? KStringView("—") : KStringView(E.sActor));
+			Row.Add<html::TableData>(E.sSubject.empty() ? KStringView("—") : KStringView(E.sSubject));
+			// the IP cell carries the user agent as a tooltip - useful, but not worth a column
+			Row.Add<html::TableData>(E.sIP.empty() ? KStringView("—") : KStringView(E.sIP))
+			   .SetAttribute("title", E.sUA);
+			// details: "key=value" pairs, readable without being JSON
+			KString sDetails;
+			KJSON   j = kjson::Parse(E.sDetails);
+			if (j.is_object())
+			{
+				for (auto it = j.begin(); it != j.end(); ++it)
+				{
+					if (!sDetails.empty()) sDetails += "  ";
+					sDetails += it.key();
+					sDetails += '=';
+					sDetails += kjson::Print(it.value()); // strings unquoted, everything else as JSON
+				}
+			}
+			Row.Add<html::TableData>(sDetails).SetClass(html::Classes{"muted"});
+		}
+
+		// -- pager: prev/next keep the filter, only the offset moves --
+		auto Pager = CB.Add<html::Paragraph>(html::Classes{"pager"});
+		auto PageLink = [&](std::size_t iOffset, KStringView sLabel)
+		{
+			KString sURL = kFormat("/admin/audit?q={}&event={}&event_not={}&outcome={}&user={}&ip={}&since={}&until={}&limit={}&offset={}",
+			                       KEncode::URL(sText), KEncode::URL(F.sEvent), F.bNotEvent ? "1" : "", KEncode::URL(sOutcome),
+			                       KEncode::URL(sUser), KEncode::URL(sIP), KEncode::URL(F.sSince),
+			                       KEncode::URL(F.sUntil), F.iLimit, iOffset);
+			DataLink(Pager, sURL, sLabel).SetClass(html::Classes{"btn"});
+		};
+		if (F.iOffset > 0)
+		{
+			PageLink(F.iOffset >= F.iLimit ? F.iOffset - F.iLimit : 0, "← Newer");
+		}
+		Pager.Add<html::Span>(html::Classes{"muted"})
+		     .AddText(kFormat(" {}–{} of {} ", F.iOffset + 1, std::min(F.iOffset + Rows.size(), iTotal), iTotal));
+		if (F.iOffset + Rows.size() < iTotal)
+		{
+			PageLink(F.iOffset + F.iLimit, "Older →");
+		}
+	}
+
+	BackLink(Body);
 	SendPage(HTTP, Page);
 }
 
@@ -774,6 +939,7 @@ void RenderAdminHome(KRESTServer& HTTP, KStringView sUser)
 /// admin: the optional outgoing-mail (SMTP) configuration. With no relay set,
 /// every email feature stays off. sTestMsg reports the result of a test send.
 void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsStore::Smtp& Smtp,
+                    const KSSOdSettingsStore::Alerts& Alerts,
                     KStringView sMsg, bool bError, bool bForcePwOnRevert, uint16_t iStatus)
 //-----------------------------------------------------------------------------
 {
@@ -834,6 +1000,32 @@ void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsSto
 		    "address, the attacker may already have reset the password. On (recommended) makes the "
 		    "revert force a fresh password; off is more convenient but less safe.");
 		SF.Add<html::Button>("Save security settings", html::Button::SUBMIT, html::Classes{"secondary"});
+	}
+
+	// the watchdog: alert mails to administrators, fed by the audit trail
+	CB.Add<html::Heading>(3, "Alerts");
+	{
+		auto AF = CB.Add<html::Form>("/admin/settings/alerts");
+		AF.SetMethod(html::Form::POST);
+		{
+			auto Label = AF.Add<html::Element>("label");
+			Label.Add<html::Input>("enabled", "1", html::Input::CHECKBOX).SetChecked(Alerts.bEnabled);
+			Label.AddText("Mail administrators about throttled sign-ins, guessed second factors, failed password re-checks and denied SSO access");
+		}
+		LabeledInput(AF, "Quiet period per signal and account (hours)", "cooldown_h", html::Input::NUMBER)
+		    .SetValue(KString::to_string(Alerts.Cooldown.hours().count())).SetAttribute("min", "1").SetAttribute("max", "168");
+		LabeledInput(AF, "At most this many alert mails per day", "daily_max", html::Input::NUMBER)
+		    .SetValue(KString::to_string(Alerts.iDailyMax)).SetAttribute("min", "1").SetAttribute("max", "100");
+		{
+			auto Label = AF.Add<html::Element>("label");
+			Label.Add<html::Input>("digest", "1", html::Input::CHECKBOX).SetChecked(Alerts.bDigest);
+			Label.AddText("Daily digest of configuration changes (users, apps, roles, 2FA turned off, email changed)");
+		}
+		AF.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+		    "Mails go to every administrator with a verified email address and need the relay above. "
+		    "Repeats within the quiet period are counted and reported with the next mail, never dropped. "
+		    "The watchdog only reports - it never blocks anyone.");
+		AF.Add<html::Button>("Save alert settings", html::Button::SUBMIT, html::Classes{"secondary"});
 	}
 
 	BackLink(CB, "/admin", "Back");

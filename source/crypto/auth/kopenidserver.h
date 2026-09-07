@@ -60,6 +60,7 @@
 #include <dekaf2/crypto/rsa/krsakey.h>
 #include <dekaf2/web/url/kurl.h>          // KURL (built by IssueCodeAndRedirectURL)
 #include <dekaf2/threading/primitives/kthreadsafe.h> // m_PendingAuth
+#include <functional>
 #include <memory>
 #include <vector>
 #include <unordered_map>
@@ -141,6 +142,17 @@ public:
 		/// sends the browser here, where the app offers to sign in as a different
 		/// (authorized) account or to return to the client.
 		KString   sAccessDeniedPath { "/no-access" };
+		/// Optional audit hook, called once per access decision that ends a step of
+		/// the flow, with the request in flight (its client address is the browser's
+		/// at /authorize, the relying party's at /token):
+		///   "sso.code"    an authorization code was issued, or the user was refused
+		///                 for the client at /authorize
+		///   "sso.token"   a code was exchanged for tokens (or refused) at /token
+		///   "sso.refresh" a refresh token was used (or refused) at /token
+		///   "sso.logout"  the session was ended at the end session endpoint
+		///                 (the client, if known, is the one the user came from)
+		std::function<void(KRESTServer& HTTP, KStringView sEvent, KStringView sSubject,
+		                   KStringView sClientID, bool bGranted)> AuditHook;
 		std::vector<KString> Scopes { "openid", "profile", "email" }; ///< scopes the OP advertises/grants
 		/// set the Secure attribute on the transient "authorize" cookie that
 		/// carries a pending request across the login screen. Keep true in
@@ -384,7 +396,7 @@ private:
 	/// @param tAuthTime when the user actually authenticated (the OP session's
 	/// creation time for a silent-SSO resolution, or "now" for a fresh login) —
 	/// becomes the id_token "auth_time", which RPs rely on for max_age / step-up.
-	DEKAF2_PRIVATE KURL        IssueCodeAndRedirectURL(const AuthRequest& Req, KStringView sSubject, KUnixTime tAuthTime);
+	DEKAF2_PRIVATE KURL        IssueCodeAndRedirectURL(KRESTServer& HTTP, const AuthRequest& Req, KStringView sSubject, KUnixTime tAuthTime);
 	DEKAF2_PRIVATE void        SetPendingCookie (KRESTServer& HTTP, const AuthRequest& Req);
 	/// non-destructive, read-only lookup of the parked request (shared lock); used to
 	/// render the access-denied interstitial without consuming the pending entry.

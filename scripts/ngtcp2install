@@ -50,7 +50,7 @@ QuicAbort ()
 #==================
 {
 	cd /
-	rm -rf "${BUILDDIR}"
+	${SUDO} rm -rf "${BUILDDIR}"
 	Die $*
 
 } # QuicAbort
@@ -225,7 +225,8 @@ QuicSetup ()
 	SHARED_LIBS=ON
 	[[ ${STATIC} -eq 1 ]] && SHARED_LIBS=OFF
 
-	rm -rf "${BUILDDIR}" && mkdir -p "${BUILDDIR}" || Die "cannot create ${BUILDDIR}"
+	# cmake --install ran as root and left its install_manifest.txt in the build dir
+	${SUDO} rm -rf "${BUILDDIR}" && mkdir -p "${BUILDDIR}" || Die "cannot create ${BUILDDIR}"
 
 	if [[ ${bNeedNgtcp2} -eq 1 ]]; then
 		BuildLib ngtcp2 "${NGTCP2_VERSION}" "${NGTCP2_SHA256}" \
@@ -256,7 +257,7 @@ QuicSetup ()
 	fi
 
 	cd /
-	rm -rf "${BUILDDIR}"
+	${SUDO} rm -rf "${BUILDDIR}"
 
 	Info "installed${what} into ${PREFIX}"
 

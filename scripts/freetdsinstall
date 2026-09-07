@@ -45,7 +45,7 @@ TDSAbort ()
 #==================
 {
 	cd /
-	rm -rf "${BUILDDIR}"
+	${SUDO} rm -rf "${BUILDDIR}"
 	Die $*
 
 } # TDSAbort
@@ -131,7 +131,8 @@ TDSSetup ()
 	local LIBDIR="${PREFIX}/lib"
 	[[ -n "${MULTIARCH}" ]] && LIBDIR="${PREFIX}/lib/${MULTIARCH}"
 
-	rm -rf "${BUILDDIR}" && mkdir -p "${BUILDDIR}" || Die "cannot create ${BUILDDIR}"
+	# a previous run installed docs and man pages into the build dir as root
+	${SUDO} rm -rf "${BUILDDIR}" && mkdir -p "${BUILDDIR}" || Die "cannot create ${BUILDDIR}"
 
 	local tarball="freetds-${FREETDS_VERSION}.tar.gz"
 	local src="${BUILDDIR}/freetds-${FREETDS_VERSION}"
@@ -163,7 +164,7 @@ TDSSetup ()
 	fi
 
 	cd /
-	rm -rf "${BUILDDIR}"
+	${SUDO} rm -rf "${BUILDDIR}"
 
 	HaveGoodFreeTDS || Die "FreeTDS ${FREETDS_VERSION} installed, but ${PREFIX}/include/cspublic.h has no CS_SERVERADDR?"
 

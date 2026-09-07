@@ -6,9 +6,11 @@
 #%
 #% usage: freetdsinstall -go|-ask|-nosudo
 #%
-#% dekaf2 sets explicit SQL Server ports with DBSETLPORT, which FreeTDS has since 1.5.1.
-#% Does nothing if an installed sybdb.h has it. Needs a C compiler, make, tar, gzip,
-#% wget or curl and the OpenSSL headers. Installs stripped shared libs into /usr/local.
+#% dekaf2 talks to SQL Server through ct-lib and sets explicit ports with the FreeTDS
+#% extension CS_SERVERADDR (FreeTDS >= 1.1). Does nothing if an installed cspublic.h
+#% has it - so only where the distribution has no FreeTDS at all. Needs a C compiler,
+#% make, tar, gzip, wget or curl and the OpenSSL headers. Installs stripped shared
+#% libs into /usr/local.
 #%
 
 
@@ -53,8 +55,8 @@ setx=HaveGoodFreeTDS
 HaveGoodFreeTDS ()
 #==================
 {
-	# the feature dekaf2 needs, not a version number
-	grep -qs DBSETLPORT /usr/include/sybdb.h "${PREFIX}/include/sybdb.h"
+	# the feature dekaf2 needs (ct-lib, ksql.cpp), not a version number
+	grep -qs CS_SERVERADDR /usr/include/cspublic.h "${PREFIX}/include/cspublic.h"
 
 } # HaveGoodFreeTDS
 
@@ -105,11 +107,11 @@ TDSSetup ()
 	fi
 
 	if HaveGoodFreeTDS; then
-		Info "the installed FreeTDS has DBSETLPORT - nothing to do"
+		Info "the installed FreeTDS has CS_SERVERADDR - nothing to do"
 		return 0
 	fi
 
-	Info "no FreeTDS with DBSETLPORT installed - building FreeTDS ${FREETDS_VERSION} into ${PREFIX}"
+	Info "no FreeTDS with CS_SERVERADDR installed - building FreeTDS ${FREETDS_VERSION} into ${PREFIX}"
 
 	if [[ -n "${ask}" ]]; then
 		echo "Build FreeTDS ${FREETDS_VERSION} from source into ${PREFIX}? (Y/n)"
@@ -163,7 +165,7 @@ TDSSetup ()
 	cd /
 	rm -rf "${BUILDDIR}"
 
-	HaveGoodFreeTDS || Die "FreeTDS ${FREETDS_VERSION} installed, but ${PREFIX}/include/sybdb.h has no DBSETLPORT?"
+	HaveGoodFreeTDS || Die "FreeTDS ${FREETDS_VERSION} installed, but ${PREFIX}/include/cspublic.h has no CS_SERVERADDR?"
 
 	Info "installed FreeTDS ${FREETDS_VERSION} into ${PREFIX}"
 

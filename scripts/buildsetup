@@ -129,8 +129,8 @@ BuildSetup ()
 		# has no such packages but OpenSSL >= 3.5, build them into /usr/local
 		${ME_ONLYPATH}/ngtcp2install -ask || Die
 
-		# SQL Server needs FreeTDS >= 1.5 (DBSETLPORT) - where the distribution's package
-		# is older (Debian trixie, Amazon Linux 2023), build it into /usr/local
+		# SQL Server needs FreeTDS with ct-lib's CS_SERVERADDR (any release since 1.1) -
+		# only where the distribution has no FreeTDS at all, build it into /usr/local
 		${ME_ONLYPATH}/freetdsinstall -ask || Die
 
 		echo "${flagversion}" > "${flagfile}"

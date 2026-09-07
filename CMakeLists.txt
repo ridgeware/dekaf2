@@ -2510,6 +2510,8 @@ if (DEKAF2_BUILD_SAMPLES)
 			samples/kssod_store.h
 			samples/kssod_ui.cpp
 			samples/kssod_ui.h
+			samples/kssod_watchdog.cpp
+			samples/kssod_watchdog.h
 		)
 		target_link_libraries(kssod ksqlite${DEKAF2_LINK_SHARED} dekaf2${DEKAF2_LINK_SHARED})
 	else()

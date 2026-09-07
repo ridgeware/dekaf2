@@ -19,7 +19,7 @@ BuildSetup ()
 {
 	# we do not care too much if the flagfile is removed
 	flagfile="/tmp/installflag-dekaf2-build-setup"
-	flagversion="9"
+	flagversion="10"
 
 	if [ ! -f "${flagfile}" ] || [ "$(cat ${flagfile})" != "${flagversion}" ]
 	then
@@ -44,7 +44,7 @@ BuildSetup ()
 
 				# HTTP/3: ngtcp2 with its OpenSSL backend (the brew formula builds it against openssl@3)
 				InstallOptionalSystemPackages libzip xz zstd brotli mariadb libpq sqlite jemalloc ncurses \
-					libnghttp2 libnghttp3 libngtcp2
+					libnghttp2 libnghttp3 libngtcp2 freetds
 				;;
 			debian)
 				# make sure the repo content lists are current
@@ -57,7 +57,8 @@ BuildSetup ()
 				# exists from Debian forky and Ubuntu 26.04 on - older releases ship GnuTLS only)
 				InstallOptionalSystemPackages libmariadb${DEVPKG} mariadb-client libpq${DEVPKG} sqlite3 libsqlite3${DEVPKG} \
 					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} libjemalloc${DEVPKG} \
-					libncurses${DEVPKG} libnghttp2${DEVPKG} libnghttp3${DEVPKG} libngtcp2${DEVPKG} libngtcp2-crypto-ossl${DEVPKG}
+					libncurses${DEVPKG} libnghttp2${DEVPKG} libnghttp3${DEVPKG} libngtcp2${DEVPKG} libngtcp2-crypto-ossl${DEVPKG} \
+					freetds${DEVPKG}
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
@@ -67,7 +68,7 @@ BuildSetup ()
 				# Amazon Linux 2023, and EPEL for Rocky/RHEL 9.8+ and 10)
 				InstallOptionalSystemPackages mariadb-connector-c${DEVPKG} postgresql${DEVPKG} sqlite${DEVPKG} libzip${DEVPKG} \
 					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG} ncurses${DEVPKG} \
-					libnghttp2${DEVPKG} libnghttp3${DEVPKG} ngtcp2${DEVPKG} ngtcp2-crypto-ossl${DEVPKG}
+					libnghttp2${DEVPKG} libnghttp3${DEVPKG} ngtcp2${DEVPKG} ngtcp2-crypto-ossl${DEVPKG} freetds${DEVPKG}
 				;;
 		esac
 
@@ -127,6 +128,10 @@ BuildSetup ()
 		# HTTP/3 needs ngtcp2 with its OpenSSL backend and nghttp3 - where the distribution
 		# has no such packages but OpenSSL >= 3.5, build them into /usr/local
 		${ME_ONLYPATH}/ngtcp2install -ask || Die
+
+		# SQL Server needs FreeTDS >= 1.5 (DBSETLPORT) - where the distribution's package
+		# is older (Debian trixie, Amazon Linux 2023), build it into /usr/local
+		${ME_ONLYPATH}/freetdsinstall -ask || Die
 
 		echo "${flagversion}" > "${flagfile}"
 

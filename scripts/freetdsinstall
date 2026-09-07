@@ -1,0 +1,207 @@
+#! /bin/bash
+
+#%
+#% freetdsinstall - build FreeTDS from source where the distribution's version is too
+#%                  old for dekaf2
+#%
+#% usage: freetdsinstall -go|-ask|-nosudo
+#%
+#% dekaf2 sets explicit SQL Server ports with DBSETLPORT, which FreeTDS has since 1.5.1.
+#% Does nothing if an installed sybdb.h has it. Needs a C compiler, make, tar, gzip,
+#% wget or curl and the OpenSSL headers. Installs stripped shared libs into /usr/local.
+#%
+
+
+# are we in test mode?
+if [ "$1" = "-x" ]; then
+	set -x
+	shift
+fi # end check test mode
+
+# pinned release - https://www.freetds.org/files/stable/ (sha256 of the .tar.gz)
+FREETDS_VERSION="1.5.19"
+FREETDS_SHA256="ff70d0c8ae8dd23e7b1314274d6e9d30b479998415760b3fa656754b737c2bd6"
+
+PREFIX="/usr/local"
+BUILDDIR="/tmp/freetds-install"
+# Debian family: the multiarch triplet, e.g. aarch64-linux-gnu (empty elsewhere)
+MULTIARCH=$( (cc -print-multiarch || gcc -print-multiarch) 2>/dev/null | head -1)
+[[ -n "${MULTIARCH}" ]] && [[ ! -d "/usr/lib/${MULTIARCH}" ]] && MULTIARCH=""
+
+setx=Synopsis
+#==================
+Synopsis ()
+#==================
+{
+	awk '/^#%/ {print substr($0,3)}' "${ME_FULLPATH}"
+
+} # Synopsis
+
+setx=TDSAbort
+#==================
+TDSAbort ()
+#==================
+{
+	cd /
+	rm -rf "${BUILDDIR}"
+	Die $*
+
+} # TDSAbort
+
+setx=HaveGoodFreeTDS
+#==================
+HaveGoodFreeTDS ()
+#==================
+{
+	# the feature dekaf2 needs, not a version number
+	grep -qs DBSETLPORT /usr/include/sybdb.h "${PREFIX}/include/sybdb.h"
+
+} # HaveGoodFreeTDS
+
+setx=CheckTools
+#==================
+CheckTools ()
+#==================
+{
+	local missing=""
+	for t in make tar gzip sha256sum; do
+		command -v "$t" >/dev/null 2>&1 || missing="${missing} $t"
+	done
+	command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1 || command -v clang >/dev/null 2>&1 || missing="${missing} cc"
+	command -v wget >/dev/null 2>&1 || command -v curl >/dev/null 2>&1 || missing="${missing} wget|curl"
+	[[ -f /usr/include/openssl/ssl.h ]] || missing="${missing} openssl-headers"
+	[[ -z "${missing}" ]] || Die "missing tools:${missing} - install a C compiler, make, tar, gzip, wget and the OpenSSL headers first"
+
+} # CheckTools
+
+setx=Download
+#==================
+Download ()
+#==================
+{
+	# $1 = URL, $2 = target file, $3 = sha256
+	Info "downloading $1"
+	if command -v wget >/dev/null 2>&1; then
+		wget -q -O "$2" "$1" || TDSAbort "cannot download $1"
+	else
+		curl -fsSL -o "$2" "$1" || TDSAbort "cannot download $1"
+	fi
+	local sSum
+	sSum=$(sha256sum "$2" | awk '{print $1}')
+	[[ "${sSum}" == "$3" ]] || TDSAbort "checksum mismatch for $2: got ${sSum}, expected $3"
+
+} # Download
+
+setx=TDSSetup
+#==================
+TDSSetup ()
+#==================
+{
+	local ask="$1"
+
+	if [[ "$(uname -s)" == "Darwin" ]]; then
+		Info "macOS gets FreeTDS from brew (freetds)"
+		return 0
+	fi
+
+	if HaveGoodFreeTDS; then
+		Info "the installed FreeTDS has DBSETLPORT - nothing to do"
+		return 0
+	fi
+
+	Info "no FreeTDS with DBSETLPORT installed - building FreeTDS ${FREETDS_VERSION} into ${PREFIX}"
+
+	if [[ -n "${ask}" ]]; then
+		echo "Build FreeTDS ${FREETDS_VERSION} from source into ${PREFIX}? (Y/n)"
+		read -n 1 Ch
+		echo
+		[[ "${Ch}" == "n" ]] && exit 1
+	fi
+
+	CheckTools
+
+	local CORES
+	CORES=$(nproc 2>/dev/null || echo 4)
+
+	# Debian's loader searches /usr/local/lib/<multiarch> before /lib/<multiarch>, but
+	# /usr/local/lib only after it - a distro libsybdb.so.5 would win over ours at run
+	# time. So install where Debian expects local overrides.
+	local LIBDIR="${PREFIX}/lib"
+	[[ -n "${MULTIARCH}" ]] && LIBDIR="${PREFIX}/lib/${MULTIARCH}"
+
+	rm -rf "${BUILDDIR}" && mkdir -p "${BUILDDIR}" || Die "cannot create ${BUILDDIR}"
+
+	local tarball="freetds-${FREETDS_VERSION}.tar.gz"
+	local src="${BUILDDIR}/freetds-${FREETDS_VERSION}"
+
+	Download "https://www.freetds.org/files/stable/${tarball}" "${BUILDDIR}/${tarball}" "${FREETDS_SHA256}"
+	tar -xzf "${BUILDDIR}/${tarball}" -C "${BUILDDIR}" || TDSAbort "cannot untar ${tarball}"
+
+	Info "building FreeTDS ${FREETDS_VERSION}"
+	cd "${src}" || TDSAbort "cannot cd into ${src}"
+	# only what dekaf2 links: the two shared libs, stripped (the debug info of an
+	# autotools default build makes them 3.4 MB, stripped they are 1 MB), headers and
+	# freetds.conf/locales.conf. No tsql and friends (dekaf2 has ksql), no tdspool, no
+	# ODBC driver; the HTML reference (28 MB) and the man pages go into the build dir
+	# and vanish with it.
+	./configure --prefix="${PREFIX}" --libdir="${LIBDIR}" \
+		--docdir="${BUILDDIR}/doc" --mandir="${BUILDDIR}/man" \
+		--disable-static --disable-apps --disable-pool --disable-odbc > "${src}/build-configure.log" 2>&1 \
+		|| { tail -30 "${src}/build-configure.log"; TDSAbort "cannot configure FreeTDS"; }
+	make -j"${CORES}" > "${src}/build-make.log" 2>&1 \
+		|| { tail -50 "${src}/build-make.log"; TDSAbort "cannot build FreeTDS"; }
+	${SUDO} make install-strip > /dev/null \
+		|| TDSAbort "cannot install FreeTDS into ${PREFIX}"
+
+	# make the loader find the libs (Debian's multiarch dir is in its path already)
+	if [[ -d /etc/ld.so.conf.d ]]; then
+		echo "${LIBDIR}" | ${SUDO} tee /etc/ld.so.conf.d/dekaf2-freetds.conf >/dev/null \
+			|| TDSAbort "cannot write /etc/ld.so.conf.d/dekaf2-freetds.conf"
+		${SUDO} ldconfig
+	fi
+
+	cd /
+	rm -rf "${BUILDDIR}"
+
+	HaveGoodFreeTDS || Die "FreeTDS ${FREETDS_VERSION} installed, but ${PREFIX}/include/sybdb.h has no DBSETLPORT?"
+
+	Info "installed FreeTDS ${FREETDS_VERSION} into ${PREFIX}"
+
+} # TDSSetup
+
+
+#==================
+setx=Main_Body
+#==================
+
+ME=$(basename "${BASH_SOURCE}")
+ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
+ME_FULLPATH="$ME_ONLYPATH/$ME"
+ScriptLib="${ME_ONLYPATH}/scriptlib"
+
+[[ ! -f "${ScriptLib}" ]] && { echo "Cannot check OS version, script '${ScriptLib}' not found"; exit 1; }
+
+source ${ScriptLib}
+
+# root (containers) needs no sudo, and often has none
+SUDO="sudo"
+[[ "$(id -u)" == "0" ]] && SUDO=""
+ask=""
+bGo=0
+
+for arg in "$@"; do
+	case "${arg}" in
+		-go)     bGo=1 ;;
+		-ask)    bGo=1; ask="1" ;;
+		-nosudo) bGo=1; SUDO="" ;;
+		*)       Synopsis; exit 1 ;;
+	esac
+done
+
+if [[ ${bGo} -eq 0 ]]; then
+	Synopsis
+	exit 1
+fi
+
+SetupColors
+TDSSetup $ask

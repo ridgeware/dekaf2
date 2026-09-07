@@ -2,7 +2,9 @@
 
 #% boostinstall - install a clean boost under /opt/boost
 #%
-#% usage: boostinstall -go|ask
+#% usage: boostinstall -go|-ask|-nosudo
+#%
+#% -nosudo skips sudo (containers) - running as root skips it anyway
 #%
 
 
@@ -28,7 +30,7 @@ BoostSetupAbort ()
 {
 	cd /
 	# clean up in /tmp
-	[ "${BUILDDIR}" != "" ] && sudo rm -rf "${BUILDDIR}"
+	[ "${BUILDDIR}" != "" ] && ${SUDO} rm -rf "${BUILDDIR}"
 	# and leave
 	Die $*
 
@@ -40,8 +42,8 @@ BoostSetup ()
 #==================
 {
 	ask=$1
-	VERSION="1.79.0"
-	NAME="1_79_0"
+	VERSION="1.92.0"
+	NAME="1_92_0"
 	BUILDDIR="/tmp/boost-build-${NAME}"
 	PREFIX="/opt/boost"
 
@@ -63,38 +65,32 @@ BoostSetup ()
 
 	Info "installing boost-${VERSION}"
 
-	sudo rm -rf ${BUILDDIR}
+	${SUDO} rm -rf ${BUILDDIR}
 	mkdir -p ${BUILDDIR} || Die "cannot create build directory ${BUILDDIR}"
 	cd ${BUILDDIR} || BoostSetupAbort "cannot cd into build directory ${BUILDDIR}"
 
 	Info "downloading boost-${VERSION} (this may take a while)"
 
-	local sBoostURL="https://boostorg.jfrog.io/artifactory/main/release/${VERSION}/source/boost_${NAME}.tar.gz"
+	# boost moved its archives from jfrog to archives.boost.io in 2024 - the old host
+	# still answers 200, but with an error page instead of the tarball
+	local sBoostURL="https://archives.boost.io/release/${VERSION}/source/boost_${NAME}.tar.gz"
 
 	wget --no-verbose ${sBoostURL} || \
-		BoostSetupAbort "cannot download from ${BoostURL}"
+		BoostSetupAbort "cannot download from ${sBoostURL}"
 
 	tar -xzf boost_${NAME}.tar.gz || BoostSetupAbort "cannot not untar source archive boost_${NAME}.tar.gz"
 
 	cd boost_${NAME} || BoostSetupAbort "cannot cd into source directory ${BUILDDIR}/boost_${NAME}"
 
-# we do not need to build with clang anymore - but keep the
-# code as illustration how to switch compilers for boost
-#
-#	if [[ "$BINDIR" == "aarmv2" ]]; then
-#		# we need clang on aws arm linux 2 (and we need g++ as well for bootstrap)
-#		InstallSystemPackages clang gcc-c++
-#		echo "using clang : 11.1 : /usr/bin/clang++ ; " >> tools/build/src/user-config.jam
-#		local SETCC_B2="--toolset=clang-11.1"
-#	fi
-
 	./bootstrap.sh --prefix=${PREFIX} || BoostSetupAbort "cannot execute ${SETCC_BOOTSTRAP} ./bootstrap.sh --prefix=${PREFIX}"
+
+	local CORES=$(nproc 2>/dev/null || echo 4)
 
 	# boost sometimes fails on building some of the hundreds of modules and returns with an error.
 	# However, we postpone the error check into cmake, so we do not evaluate a partial failure here.
-	sudo ./b2 ${SETCC_B2} install -j4 --prefix=${PREFIX} --with=all # || Die "cannot execute sudo ./b2 install -j4 --prefix=${PREFIX} --with=all"
+	${SUDO} ./b2 ${SETCC_B2} install -j${CORES} --prefix=${PREFIX} --with=all # || Die "cannot execute ${SUDO} ./b2 install -j${CORES} --prefix=${PREFIX} --with=all"
 
-	cd && sudo rm -rf "${BUILDDIR}"
+	cd && ${SUDO} rm -rf "${BUILDDIR}"
 
 	Info "boost-${VERSION} installed in ${PREFIX}"
 
@@ -109,12 +105,18 @@ ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
 ME_FULLPATH="$ME_ONLYPATH/$ME"
 ScriptLib="${ME_ONLYPATH}/scriptlib"
 
-[[ ! -f "${ScriptLib}" ]] && Die "Cannot check OS version, script '${ScriptLib}' not found"
+[[ ! -f "${ScriptLib}" ]] && { echo "Cannot check OS version, script '${ScriptLib}' not found"; exit 1; }
 
 source ${ScriptLib}
 
+# root (containers) needs no sudo, and often has none
+SUDO="sudo"
+[[ "$(id -u)" == "0" ]] && SUDO=""
+
 if [ "$1" == "-ask" ]; then
 	ask="1"
+elif [ "$1" == "-nosudo" ]; then
+	SUDO=""
 else
 	if [ "$1" != "-go" ]; then
 		Synopsis
@@ -127,4 +129,3 @@ GetOS
 BoostSetup $ask
 
 exit 0
-

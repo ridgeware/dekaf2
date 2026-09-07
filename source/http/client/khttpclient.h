@@ -628,6 +628,10 @@ private:
 
 	static KTCPEndPoint s_EmptyEndpoint;
 
+	// the connection is declared before the protocol sessions, which refer to it:
+	// members are destroyed in reverse order, the sessions have to go first
+	std::unique_ptr<KIOStreamSocket> m_Connection;
+
 #if DEKAF2_HAS_NGHTTP2
 	//-----------------------------------------------------------------------------
 	// the streambuf reader for HTTP2Session::KInStreamBuf
@@ -678,7 +682,6 @@ private:
 	KURL                            m_RequestURL;
 #endif
 
-	std::unique_ptr<KIOStreamSocket> m_Connection;
 	std::unique_ptr<Authenticator>   m_Authenticator;
 
 	KString            m_sForcedHost;

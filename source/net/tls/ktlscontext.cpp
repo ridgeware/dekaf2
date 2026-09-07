@@ -208,21 +208,22 @@ std::string KTLSContext::PasswordCallback(std::size_t max_length,
 			break;
 
 		case Transport::Quic:
-#if DEKAF2_HAS_OPENSSL_QUIC
+#if DEKAF2_HAS_NGTCP2
+			// the QUIC transport is ngtcp2, OpenSSL only provides the TLS 1.3
+			// handshake through its QUIC TLS API (OpenSSL >= 3.5) - hence a
+			// plain TLS context, KQuicConnection configures the SSL objects
 			if (bIsServer)
 			{
-				// TODO !
+				// QUIC servers are not supported yet
 				return nullptr;
 			}
 			else
 			{
-				return ::SSL_CTX_new(::OSSL_QUIC_client_method());
-				// the following would spawn a thread to deal with the QUIC timing
-				//return ::SSL_CTX_new(::OSSL_QUIC_client_thread_method();
+				return ::SSL_CTX_new(::TLS_client_method());
 			}
-#else // of DEKAF2_HAS_OPENSSL_QUIC
+#else // of DEKAF2_HAS_NGTCP2
 			kDebug(1, "QUIC protocol not supported by this build");
-#endif // of DEKAF2_HAS_OPENSSL_QUIC
+#endif // of DEKAF2_HAS_NGTCP2
 			break;
 
 		case Transport::DTls:

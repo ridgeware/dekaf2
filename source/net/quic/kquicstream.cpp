@@ -39,15 +39,16 @@
 // +-------------------------------------------------------------------------+
 */
 
+
 #include <dekaf2/net/quic/kquicstream.h>
 
-#if DEKAF2_HAS_OPENSSL_QUIC
+#if DEKAF2_HAS_NGTCP2
 
-#include <dekaf2/net/address/kresolve.h>
 #include <dekaf2/core/logging/klog.h>
-#include <dekaf2/core/types/kscopeguard.h>
-#include <openssl/opensslv.h>
-#include <openssl/crypto.h>
+#include <dekaf2/core/format/kformat.h>
+#include <ngtcp2/ngtcp2.h>
+#include <algorithm>
+#include <cstring>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -62,16 +63,194 @@ static KTLSContext& KQuicClientContext()
 	return s_KQuicClientContext;
 }
 
+// ------------------------------------------------------------------------
+// RawDelegate
+// ------------------------------------------------------------------------
+
 //-----------------------------------------------------------------------------
-bool KQuicStream::IsDisconnected()
+void KQuicStream::RawDelegate::Reset()
 //-----------------------------------------------------------------------------
 {
-	if (!is_open())
+	m_sTX.clear();
+	m_sRX.clear();
+	m_iTXBase    = 0;
+	m_iWritten   = 0;
+	m_StreamID   = -1;
+	m_bBlocked   = false;
+	m_bEOF       = false;
+	m_bShutWrite = false;
+
+} // Reset
+
+//-----------------------------------------------------------------------------
+bool KQuicStream::RawDelegate::OpenStream()
+//-----------------------------------------------------------------------------
+{
+	if (m_StreamID >= 0)
 	{
 		return true;
 	}
 
-	return m_SSL && (::SSL_get_shutdown(GetNativeTLSHandle()) & SSL_RECEIVED_SHUTDOWN);
+	if (!m_Stream.GetConnection().OpenBidiStream(m_StreamID))
+	{
+		return m_Stream.SetError(m_Stream.GetConnection().CopyLastError());
+	}
+
+	return true;
+
+} // OpenStream
+
+//-----------------------------------------------------------------------------
+std::ptrdiff_t KQuicStream::RawDelegate::OnQuicStreamData(KQuicConnection::StreamID id, KStringView sData, bool bFin)
+//-----------------------------------------------------------------------------
+{
+	if (id == m_StreamID)
+	{
+		m_sRX += sData;
+
+		if (bFin)
+		{
+			m_bEOF = true;
+		}
+	}
+
+	// data of other streams is dropped (and credited)
+	return static_cast<std::ptrdiff_t>(sData.size());
+
+} // OnQuicStreamData
+
+//-----------------------------------------------------------------------------
+int KQuicStream::RawDelegate::OnQuicAckedStreamData(KQuicConnection::StreamID id, uint64_t iOffset, uint64_t iLen)
+//-----------------------------------------------------------------------------
+{
+	if (id == m_StreamID)
+	{
+		// ngtcp2 reports acknowledged data in order
+		auto iAckedEnd = iOffset + iLen;
+
+		if (iAckedEnd > m_iTXBase)
+		{
+			auto iDrop = std::min(static_cast<std::size_t>(iAckedEnd - m_iTXBase), m_sTX.size());
+			m_sTX.erase(0, iDrop);
+			m_iTXBase += iDrop;
+		}
+	}
+
+	return 0;
+
+} // OnQuicAckedStreamData
+
+//-----------------------------------------------------------------------------
+int KQuicStream::RawDelegate::OnQuicStreamClose(KQuicConnection::StreamID id, bool bHasAppErrorCode, uint64_t iAppErrorCode)
+//-----------------------------------------------------------------------------
+{
+	if (id == m_StreamID)
+	{
+		m_bEOF       = true;
+		m_bShutWrite = true;
+	}
+
+	return 0;
+
+} // OnQuicStreamClose
+
+//-----------------------------------------------------------------------------
+int KQuicStream::RawDelegate::OnQuicStreamReset(KQuicConnection::StreamID id, uint64_t iFinalSize, uint64_t iAppErrorCode)
+//-----------------------------------------------------------------------------
+{
+	if (id == m_StreamID)
+	{
+		m_bEOF = true;
+	}
+
+	return 0;
+
+} // OnQuicStreamReset
+
+//-----------------------------------------------------------------------------
+int KQuicStream::RawDelegate::OnQuicStreamUnblocked(KQuicConnection::StreamID id)
+//-----------------------------------------------------------------------------
+{
+	if (id == m_StreamID)
+	{
+		m_bBlocked = false;
+	}
+
+	return 0;
+
+} // OnQuicStreamUnblocked
+
+//-----------------------------------------------------------------------------
+std::ptrdiff_t KQuicStream::RawDelegate::GetQuicStreamData(KQuicConnection::StreamID& id, bool& bFin, ngtcp2_vec* vecs, std::size_t iMaxVecs)
+//-----------------------------------------------------------------------------
+{
+	id   = -1;
+	bFin = false;
+
+	if (m_StreamID < 0 || m_bBlocked || m_bShutWrite || !iMaxVecs)
+	{
+		return 0;
+	}
+
+	auto iPending = Pending();
+
+	if (!iPending)
+	{
+		return 0;
+	}
+
+	id           = m_StreamID;
+	vecs[0].base = reinterpret_cast<uint8_t*>(m_sTX.data() + (m_iWritten - m_iTXBase));
+	vecs[0].len  = iPending;
+
+	return 1;
+
+} // GetQuicStreamData
+
+//-----------------------------------------------------------------------------
+int KQuicStream::RawDelegate::OnQuicWriteOffset(KQuicConnection::StreamID id, std::size_t iWritten)
+//-----------------------------------------------------------------------------
+{
+	if (id == m_StreamID)
+	{
+		m_iWritten += iWritten;
+	}
+
+	return 0;
+
+} // OnQuicWriteOffset
+
+//-----------------------------------------------------------------------------
+void KQuicStream::RawDelegate::OnQuicStreamBlocked(KQuicConnection::StreamID id)
+//-----------------------------------------------------------------------------
+{
+	if (id == m_StreamID)
+	{
+		m_bBlocked = true;
+	}
+
+} // OnQuicStreamBlocked
+
+//-----------------------------------------------------------------------------
+void KQuicStream::RawDelegate::OnQuicStreamShutWrite(KQuicConnection::StreamID id)
+//-----------------------------------------------------------------------------
+{
+	if (id == m_StreamID)
+	{
+		m_bShutWrite = true;
+	}
+
+} // OnQuicStreamShutWrite
+
+// ------------------------------------------------------------------------
+// KQuicStream
+// ------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+bool KQuicStream::IsDisconnected()
+//-----------------------------------------------------------------------------
+{
+	return !is_open() || m_Connection.IsClosed();
 
 } // IsDisconnected
 
@@ -79,15 +258,15 @@ bool KQuicStream::IsDisconnected()
 bool KQuicStream::StartManualTLSHandshake()
 //-----------------------------------------------------------------------------
 {
-	// QUIC handshakes immediately - we just return if the stream is good (no errors)
-	return Good();
+	// QUIC handshakes in Connect() - we just return if the stream is good (no errors)
+	return Good() && m_Connection.IsConnected();
 }
 
 //-----------------------------------------------------------------------------
 bool KQuicStream::SetTLSHostname(KStringView sHostname)
 //-----------------------------------------------------------------------------
 {
-	if (!m_bNeedHandshake)
+	if (m_Connection.IsConnected())
 	{
 		kDebug(2, "TLS handshake already done, cannot set hostname: {}", sHostname);
 		return false;
@@ -100,105 +279,6 @@ bool KQuicStream::SetTLSHostname(KStringView sHostname)
 } // SetTLSHostname
 
 //-----------------------------------------------------------------------------
-bool KQuicStream::Handshake()
-//-----------------------------------------------------------------------------
-{
-	if (!m_bNeedHandshake)
-	{
-		return true;
-	}
-
-	m_bNeedHandshake = false;
-
-	kDebug(3, "starting TLS Quic handshake");
-
-	// switch to non-blocking mode for the handshake
-
-	auto ssl = GetNativeTLSHandle();
-
-	auto oldBlockingMode = ::SSL_get_blocking_mode(ssl);
-
-	if (oldBlockingMode)
-	{
-		// this sets (temporarily) non-blocking mode to the QUIC stack
-		if (!  ::SSL_set_blocking_mode(ssl, 0)
-			|| ::SSL_get_blocking_mode(ssl))
-		{
-			return SetError("cannot switch to non-blocking mode");
-		}
-	}
-
-	for (;;)
-	{
-		auto ec = ::SSL_connect(ssl);
-
-		if (ec < 1)
-		{
-			auto iError = ::SSL_get_error(ssl, ec);
-
-			if (iError == SSL_ERROR_WANT_WRITE)
-			{
-				if (!IsWriteReady()) return false; // error is already set
-			}
-			else if (iError == SSL_ERROR_WANT_READ)
-			{
-				if (!IsReadReady()) return false; // error is already set
-			}
-			else
-			{
-				KString sWhat;
-
-				if (::SSL_get_verify_result(ssl) != X509_V_OK)
-				{
-					sWhat.Format("Verify error: {}", ::X509_verify_cert_error_string(::SSL_get_verify_result(GetNativeTLSHandle())));
-				}
-
-				return SetError(kFormat("Quic handshake failed: {}", sWhat));
-			}
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	// reinstate the old blocking mode
-	if (oldBlockingMode)
-	{
-		::SSL_set_blocking_mode(ssl, 1);
-		if (!::SSL_get_blocking_mode(ssl))
-		{
-			return SetError("cannot switch back to blocking mode");
-		}
-	}
-
-#ifdef DEKAF2_WITH_KLOG
-	if (kWouldLog(2))
-	{
-		kDebug(2, "Quic handshake successful");
-
-		auto cipher = ::SSL_get_current_cipher(ssl);
-		kDebug(2, "Quic version: {}, cipher: {}",
-			   ::SSL_CIPHER_get_version(cipher),
-			   ::SSL_CIPHER_get_name(cipher));
-
-		auto compress  = ::SSL_get_current_compression(ssl);
-		auto expansion = ::SSL_get_current_expansion(ssl);
-
-		if (compress || expansion)
-		{
-			kDebug(2, "Quic compression: {}, expansion: {}",
-				   compress  ? ::SSL_COMP_get_name(compress ) : "NONE",
-				   expansion ? ::SSL_COMP_get_name(expansion) : "NONE");
-		}
-	}
-#endif
-
-	return true;
-
-} // handshake
-
-//-----------------------------------------------------------------------------
 bool KQuicStream::SetRequestHTTP3()
 //-----------------------------------------------------------------------------
 {
@@ -206,16 +286,15 @@ bool KQuicStream::SetRequestHTTP3()
 	// allow ALPN negotiation for HTTP/3 if this is a client
 	if (GetContext().GetRole() == boost::asio::ssl::stream_base::client)
 	{
-		auto sALPN = "\x02h3";
-		auto iResult = SSL_set_alpn_protos(GetNativeTLSHandle(),
-		                                   reinterpret_cast<const unsigned char*>(sALPN),
-		                                   static_cast<unsigned int>(strlen(sALPN)));
-		if (iResult == 0)
+		if (m_Connection.IsConnected())
 		{
-			kDebug(2, "successfully initialized ALPN to h3");
-			return true;
+			kDebug(1, "cannot request HTTP/3 after the handshake");
+			return false;
 		}
-		return SetError(kFormat("failed to set ALPN protocol: '{}' - error {}", kEscapeForLogging(sALPN), iResult));
+
+		m_sALPN = KStringView("\x02h3", 3);
+		kDebug(2, "requesting ALPN h3");
+		return true;
 	}
 	else
 	{
@@ -233,17 +312,42 @@ bool KQuicStream::SetRequestHTTP3()
 std::streamsize KQuicStream::direct_read_some(void* sBuffer, std::streamsize iCount)
 //-----------------------------------------------------------------------------
 {
-	std::size_t iRead { 0 };
-
-	if (IsReadReady())
+	if (iCount <= 0 || m_Connection.GetDelegate() != &m_Raw)
 	{
-		if (!::SSL_read_ex(GetNativeTLSHandle(), sBuffer, iCount, &iRead))
-		{
-			SetSSLError();
-		}
+		return 0;
 	}
 
-	return static_cast<std::streamsize>(iRead);
+	auto tStart = chrono::steady_clock::now();
+
+	for (;;)
+	{
+		if (!m_Raw.m_sRX.empty())
+		{
+			auto iCopy = std::min(static_cast<std::size_t>(iCount), m_Raw.m_sRX.size());
+			std::memcpy(sBuffer, m_Raw.m_sRX.data(), iCopy);
+			m_Raw.m_sRX.erase(0, iCopy);
+			return static_cast<std::streamsize>(iCopy);
+		}
+
+		if (m_Raw.m_bEOF || m_Connection.IsClosed())
+		{
+			return 0;
+		}
+
+		KDuration Remaining = GetTimeout() - KDuration(chrono::steady_clock::now() - tStart);
+
+		if (Remaining <= KDuration::zero())
+		{
+			SetError("read timed out");
+			return 0;
+		}
+
+		if (m_Connection.Pump(Remaining) == KQuicConnection::PumpResult::Error)
+		{
+			SetError(m_Connection.CopyLastError());
+			return 0;
+		}
+	}
 
 } // direct_read_some
 
@@ -251,14 +355,52 @@ std::streamsize KQuicStream::direct_read_some(void* sBuffer, std::streamsize iCo
 std::streamsize KQuicStream::direct_write_some(const void* sBuffer, std::streamsize iCount)
 //-----------------------------------------------------------------------------
 {
-	std::size_t iWrote { 0 };
-
-	if (!::SSL_write_ex(GetNativeTLSHandle(), sBuffer, iCount, &iWrote))
+	if (iCount <= 0 || m_Connection.GetDelegate() != &m_Raw)
 	{
-		SetSSLError();
+		return 0;
 	}
 
-	return static_cast<std::streamsize>(iWrote);
+	if (!m_Raw.OpenStream())
+	{
+		return 0;
+	}
+
+	m_Raw.m_sTX.append(static_cast<const char*>(sBuffer), static_cast<std::size_t>(iCount));
+
+	// keep the unacknowledged data bounded - pump until the send buffer drained
+	// below a limit, which also gives ngtcp2 the chance to send
+	constexpr std::size_t iMaxBuffered = 4 * 1024 * 1024;
+
+	auto tStart = chrono::steady_clock::now();
+
+	for (;;)
+	{
+		if (m_Raw.m_sTX.size() < iMaxBuffered)
+		{
+			if (!m_Connection.Flush())
+			{
+				SetError(m_Connection.CopyLastError());
+				return 0;
+			}
+			break;
+		}
+
+		KDuration Remaining = GetTimeout() - KDuration(chrono::steady_clock::now() - tStart);
+
+		if (Remaining <= KDuration::zero())
+		{
+			SetError("write timed out");
+			return 0;
+		}
+
+		if (m_Connection.Pump(Remaining) == KQuicConnection::PumpResult::Error)
+		{
+			SetError(m_Connection.CopyLastError());
+			return 0;
+		}
+	}
+
+	return iCount;
 
 } // direct_write_some
 
@@ -286,33 +428,13 @@ std::streamsize KQuicStream::QuicStreamReader(void* sBuffer, std::streamsize iCo
 std::streamsize KQuicStream::QuicStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream_)
 //-----------------------------------------------------------------------------
 {
-	// we need to loop the writer, as write_some() has an upper limit (the buffer size) to which
-	// it can accept blocks - therefore we repeat the write until we have sent all bytes or
-	// an error condition occurs
-
 	std::streamsize iWrote { 0 };
 
 	if (stream_)
 	{
 		auto& Quic = *static_cast<KQuicStream*>(stream_);
 
-		for (;iWrote < iCount;)
-		{
-			std::size_t iWrotePart{0};
-
-			if (!Quic.IsWriteReady())
-			{
-				break;
-			}
-
-			if (!::SSL_write_ex(Quic.GetNativeTLSHandle(), static_cast<const char*>(sBuffer) + iWrote, iCount - iWrote, &iWrotePart))
-			{
-				Quic.SetSSLError();
-				break;
-			}
-
-			iWrote += iWrotePart;
-		}
+		iWrote = Quic.direct_write_some(sBuffer, iCount);
 	}
 
 	return iWrote;
@@ -331,12 +453,15 @@ KQuicStream::KQuicStream(KTLSContext& Context, KDuration Timeout)
 //-----------------------------------------------------------------------------
 : base_type(&m_QuicStreamBuf, Timeout)
 , m_TLSContext(Context)
-, m_SSL(SSL_new(Context.GetContext().native_handle()))
+, m_Connection(Context)
+, m_Raw(*this)
 {
+	m_Connection.SetTimeout(Timeout);
+	m_Connection.SetDelegate(&m_Raw);
 }
 
 //-----------------------------------------------------------------------------
-KQuicStream::KQuicStream(KTLSContext& Context, 
+KQuicStream::KQuicStream(KTLSContext& Context,
                          const KTCPEndPoint& Endpoint,
                          KStreamOptions Options)
 //-----------------------------------------------------------------------------
@@ -353,244 +478,53 @@ KQuicStream::KQuicStream(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 	Connect(Endpoint, Options);
 }
 
-namespace {
-	// OPENSSL_free is a macro (and has thus no type). Create a wrapper that
-	// can be used for the deleter of std::unique_ptr<>
-	void MyOPENSSL_free(char* address)
-	{
-		OPENSSL_free(address);
-	}
-}
-
 //-----------------------------------------------------------------------------
 bool KQuicStream::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
-	if (!GetNativeTLSHandle())
-	{
-		return SetError("no OpenSSL object");
-	}
-
 	// allow re-use of a previously disconnected stream
 	ResetDisconnectingState();
+	m_Raw.Reset();
+
+	if (m_Connection.GetDelegate() == nullptr)
+	{
+		m_Connection.SetDelegate(&m_Raw);
+	}
 
 	SetTimeout(Options.GetTimeout());
-
 	SetUnresolvedEndPoint(Endpoint);
 
-#if DEKAF2_QUIC_DEBUG
-	::SSL_set_msg_callback(GetNativeTLSHandle(), SSL_trace);
-	::SSL_set_msg_callback_arg(GetNativeTLSHandle(), BIO_new_fp(stderr, BIO_NOCLOSE));
-#endif
-
-	m_bNeedHandshake = true;
-
-	if (m_NativeSocket != native_socket_type(-1))
+	if (GetContext().GetRole() != boost::asio::ssl::stream_base::client)
 	{
-		::BIO_closesocket(m_NativeSocket);
-		m_NativeSocket = native_socket_type(-1);
+		return SetError("QUIC is only supported in client mode");
 	}
 
-	auto& sHostname = Endpoint.Domain.get();
-	kDebug (3, "resolving domain {}", sHostname);
-
-	KString sIPAddress;
-
-	if (kIsIPv6Address(sHostname, true))
+	if (Options.IsSet(KStreamOptions::RequestHTTP3))
 	{
-		// this is a ip v6 numerical address
-		sIPAddress = sHostname.ToView(1, sHostname.size() - 2);
+		SetRequestHTTP3();
 	}
 
-	if (sIPAddress.empty())
+	if (!m_Connection.Connect(Endpoint, Options, m_sTLSHostname, m_sALPN))
 	{
-		// check the known hostnames
-		sIPAddress = KResolve::GetKnownHostAddress(sHostname, Options.GetFamily());
-		// sIPAddress now either contains a known IP address, or the original hostname..
+		return SetError(m_Connection.CopyLastError());
 	}
 
-	::BIO_ADDRINFO *res_local;
-	// lookup the ip address
-	if (!::BIO_lookup_ex(sIPAddress.c_str(),
-	                     Endpoint.Port.Serialize().c_str(),
-	                     BIO_LOOKUP_CLIENT,
-	                     Options.GetNativeFamily(),
-	                     SOCK_DGRAM, 0,
-	                     &res_local))
-	{
-		return SetError("error in address lookup");
-	}
-
-	KUniquePtr<::BIO_ADDRINFO, ::BIO_ADDRINFO_free> Hosts(res_local);
-
-	kDebug (3, "trying to connect to {} {}", "endpoint", Endpoint);
-
-	const ::BIO_ADDRINFO *ai;
-
-	for (ai = Hosts.get(); ai != nullptr; ai = ::BIO_ADDRINFO_next(ai))
-	{
-		// create the socket
-		m_NativeSocket = ::BIO_socket(::BIO_ADDRINFO_family(ai), SOCK_DGRAM, 0, 0);
-
-		if (m_NativeSocket == -1)
-		{
-			continue;
-		}
-
-#if OPENSSL_VERSION_NUMBER >= 0x30400000L
-		// this is currently bugged at least with OpenSSL/MacOS 3.2/3 - simply do not
-		// connect here, will happen later at handshake (using the address set
-		// with ::SSL_set1_initial_peer_addr() below
-		// connect to server
-		if (!::BIO_connect(m_NativeSocket, ::BIO_ADDRINFO_address(ai), 0))
-		{
-			::BIO_closesocket(m_NativeSocket);
-			m_NativeSocket = -1;
-			continue;
-		}
-
-#endif
-		// set to non-blocking
-		if (!::BIO_socket_nbio(m_NativeSocket, 1))
-		{
-			kDebug(1, "{}: cannot switch to non-blocking mode", Endpoint);
-			::BIO_closesocket(m_NativeSocket);
-			m_NativeSocket = -1;
-			continue;
-		}
-
-		break;
-	}
-
-	if (m_NativeSocket < 0)
-	{
-		return SetError("cannot connect");
-	}
-
-	{
-		// get a pointer on the peer address - we do not need to wrap this,
-		// it is a pointer into a struct that is already wrapped in a std::unique_ptr
-		auto peer_addr = ::BIO_ADDRINFO_address(ai);
-
-		if (!peer_addr)
-		{
-			return SetError("cannot get peer address");
-		}
-
-		KUniquePtr<char, MyOPENSSL_free> ipaddress(::BIO_ADDR_hostname_string(peer_addr, 1)); // 1 means numeric
-		KUniquePtr<char, MyOPENSSL_free> service  (::BIO_ADDR_service_string (peer_addr, 1)); // 1 means numeric
-
-		if (::BIO_ADDR_family(peer_addr) == AF_INET6)
-		{
-			SetEndPointAddress(kFormat("[{}]:{}", ipaddress.get(), service.get()));
-		}
-		else
-		{
-			SetEndPointAddress(kFormat("{}:{}", ipaddress.get(), service.get()));
-		}
-
-		if (!::SSL_set1_initial_peer_addr(GetNativeTLSHandle(), peer_addr))
-		{
-			return SetError(kFormat("failed to set initial peer address: {}", ipaddress.get()));
-		}
-	}
-
-	kDebug (2, "using endpoint address {}", GetEndPointAddress());
-
-	{
-		// create a BIO to wrap the socket
-		::BIO* bio = ::BIO_new(::BIO_s_datagram());
-
-		if (bio == nullptr)
-		{
-			return SetError("cannot create a BIO context");
-		}
-
-		/*
-		 * Associate the newly created BIO with the underlying socket. By
-		 * passing BIO_NOCLOSE the socket will not be closed when the BIO is
-		 * freed - we manage the socket lifetime ourselves to avoid double-close
-		 * issues on reconnect.
-		 */
-		::BIO_set_fd(bio, m_NativeSocket, BIO_NOCLOSE);
-
-		// and tell OpenSSL to use this BIO - it takes ownership
-		::SSL_set_bio(GetNativeTLSHandle(), bio, bio);
-	}
-
-	// QUIC mandates peer verification, but we still allow to switch it off
-	// for testing
-	if (Options.IsSet(KStreamOptions::VerifyCert))
-	{
-		// returns void
-		::SSL_set_verify(GetNativeTLSHandle(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
-	}
-	else
-	{
-		// returns void
-		::SSL_set_verify(GetNativeTLSHandle(), SSL_VERIFY_NONE, nullptr);
-	}
-
-	{
-		// SNI and the name to verify: the host to talk to, which may differ from the host connected to
-		auto sError = KTLSContext::SetClientIdentity(GetNativeTLSHandle(),
-		                                             m_sTLSHostname.empty() ? sHostname : m_sTLSHostname,
-		                                             Options.IsSet(KStreamOptions::VerifyCert));
-		if (!sError.empty())
-		{
-			return SetError(std::move(sError));
-		}
-	}
-
-	if (!Good() || GetNativeSocket() < 0)
-	{
-		return false;
-	}
-
-	if (GetContext().GetRole() == boost::asio::ssl::stream_base::client)
-	{
-		if (Options.IsSet(KStreamOptions::RequestHTTP3))
-		{
-			SetRequestHTTP3();
-		}
-
-		// start an immediate handshake here
-		if (!Handshake())
-		{
-			// error is already set
-			return false;
-		}
-	}
-
-	Options.ApplySocketOptions(GetNativeSocket(), true);
-
-	kDebug(2, "connected to {} {}", "endpoint", GetEndPointAddress());
+	SetEndPointAddress(m_Connection.GetEndPointAddress());
 
 	return true;
 
-} // connect
+} // Connect
 
 //-----------------------------------------------------------------------------
 bool KQuicStream::Disconnect()
 //-----------------------------------------------------------------------------
 {
 	// Signal disconnecting first - this sets an atomic flag AND wakes any
-	// pending poll() calls in other threads. The flag prevents those
-	// threads from re-entering poll() between Wake() and the actual
-	// socket close below.
+	// pending poll() calls in other threads.
 	SignalDisconnecting();
 
-	if (m_SSL)
-	{
-		::SSL_shutdown(GetNativeTLSHandle());
-		m_SSL.reset();
-	}
-
-	if (m_NativeSocket != native_socket_type(-1))
-	{
-		::BIO_closesocket(m_NativeSocket);
-		m_NativeSocket = native_socket_type(-1);
-	}
+	m_Connection.Close(0);
+	m_Raw.Reset();
 
 	return true;
 
@@ -600,6 +534,7 @@ bool KQuicStream::Disconnect()
 std::unique_ptr<KQuicStream> CreateKQuicServer(KTLSContext& Context, KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
+	kDebug(1, "QUIC servers are not supported");
 	return std::make_unique<KQuicStream>(Context, Timeout);
 }
 
@@ -612,7 +547,7 @@ std::unique_ptr<KQuicClient> CreateKQuicClient()
 
 //-----------------------------------------------------------------------------
 std::unique_ptr<KQuicClient> CreateKQuicClient(const KTCPEndPoint& EndPoint,
-											   KStreamOptions Options)
+                                               KStreamOptions Options)
 //-----------------------------------------------------------------------------
 {
 	auto Client = CreateKQuicClient();
@@ -625,4 +560,4 @@ std::unique_ptr<KQuicClient> CreateKQuicClient(const KTCPEndPoint& EndPoint,
 
 DEKAF2_NAMESPACE_END
 
-#endif // of DEKAF2_HAS_OPENSSL_QUIC
+#endif // of DEKAF2_HAS_NGTCP2

@@ -43,11 +43,11 @@
 #pragma once
 
 /// @file khttp3.h
-/// wraps nghttp3 and openssl C primitives in C++
+/// wraps nghttp3 in C++, on top of KQuicConnection (ngtcp2)
 
 #include <dekaf2/core/init/kdefinitions.h>
 
-#if DEKAF2_HAS_NGHTTP3 && DEKAF2_HAS_OPENSSL_QUIC
+#if DEKAF2_HAS_NGHTTP3 && DEKAF2_HAS_NGTCP2
 
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/http/protocol/khttp_method.h>
@@ -57,18 +57,21 @@
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/net/quic/kquicstream.h>
+#include <dekaf2/net/quic/kquicconnection.h>
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/io/pipes/kdataprovider.h>
 #include <dekaf2/io/pipes/kdataconsumer.h>
 #include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <cstdint>
+#include <cstddef>
 #include <unordered_map>
 #include <iostream>
 
-// forward declarations into nghttp3 types
+// forward declarations into nghttp3 and ngtcp2 types
 struct nghttp3_conn;
 struct nghttp3_rcbuf;
 struct nghttp3_vec;
+struct ngtcp2_vec;
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -79,11 +82,6 @@ namespace khttp3
 {
 
 using nghttp3_ssize = ::ptrdiff_t;
-
-//-----------------------------------------------------------------------------
-/// poll for SSL events, and return them if triggered - this function is currently non-blocking only, no timeouts
-DEKAF2_PUBLIC uint64_t SSL_Poll(uint64_t what, ::SSL* ssl);
-//-----------------------------------------------------------------------------
 
 class Session;
 
@@ -128,10 +126,11 @@ public:
 		const KHTTPRequestHeaders& RequestHeaders,
 		KHTTPResponseHeaders&      ResponseHeaders
 	);
-	/// constuct a naked stream of type type, used for control and header streams
+	/// construct a naked stream of type type - opens the QUIC stream (bidirectional for
+	/// requests, unidirectional otherwise)
 	Stream(Session& session, Type type);
-	/// accept a stream that already exists, used for incoming streams
-	Stream(Session& session, ::SSL* QuicStream, Type type);
+	/// wrap a stream that already exists, used for incoming streams
+	Stream(Session& session, ID StreamID, Type type);
 
 	/// set the data provider for this Stream's request (if any)
 	void          SetDataProvider    (std::unique_ptr<KDataProvider> Data) { m_DataProvider = std::move(Data); }
@@ -171,19 +170,15 @@ public:
 protected:
 //----------
 
-	/// receive data pump for this stream
-	/// @param bOnce if set to true returns after one read attempt on the stream was successful. If false (default), loops
-	/// until stream is exhausted for the moment.
-	/// @return < 0 on error, 0 on no error but (temporarily) empty input or >0 count of read bytes
-	nghttp3_ssize ReceiveFromQuic    (bool bOnce = false);
-	/// send data for this stream coming from nhttp3
-	bool          SendToQuic         (const nghttp3_vec* vecs, std::size_t num_vecs, bool bFin);
 	/// add incoming data to this stream - this is a method normally called by the Session class upon reception
-	/// of a data chunk. It is written into the ReceiveBuffer (if existing), and any overflowing data gets stored in
-	/// a temporary FIFO buffer (which gets later emptied when a new receive buffer is set)
-	int           AddData            (KStringView sData);
-	/// reset this stream - no idea when this is called actually
+	/// of a data chunk. It is written into the DataConsumer or the ReceiveBuffer (if existing), and any overflowing
+	/// data gets stored in a temporary FIFO buffer (which gets later emptied when a new receive buffer is set).
+	/// @return the count of bytes consumed right away (the rest is credited to the flow control once consumed)
+	std::size_t   AddData            (KStringView sData);
+	/// reset this stream (nghttp3 asks us to send RESET_STREAM)
 	int           Reset              (int64_t iAppErrorCode);
+	/// stop reading this stream (nghttp3 asks us to send STOP_SENDING)
+	int           StopSending        (int64_t iAppErrorCode);
 	/// read from data provider (on request by the nghttp3 layer)
 	int           ReadFromDataProvider(KStringView& Buffer, uint32_t* iPFlags);
 	/// nghttp3 tells us that the other side acked iReceived data in this stream - check if we can drop
@@ -202,9 +197,6 @@ protected:
 	/// get the receive buffer (to lookup fill and remaining bytes)
 	const KBuffer& GetReceiveBuffer  () const        { return m_RXBuffer;         }
 
-	/// returns the SSL* for this stream
-	::SSL*        GetQuicStream      ()              { return m_QuicStream.get(); }
-
 	/// returns if the last data pumps for this stream aborted because of missing read or write data, or both
 	WaitFor       GetWaitFor         () const        { return m_WaitFor;          }
 	/// resets the WaitFor state to nothing
@@ -220,8 +212,6 @@ protected:
 	void          Block              ();
 	/// write-unblock the stream (tell nghttp3 to provide more data)
 	void          Unblock            ();
-	/// poll for stream events, and return them if triggered - this function is currently non-blocking only, no timeouts
-	uint64_t      Poll               (uint64_t what) { return SSL_Poll(what, GetQuicStream()); }
 
 //----------
 private:
@@ -237,8 +227,7 @@ private:
 	};
 
 	Session&                       m_Session;
-	KUniquePtr<::SSL, ::SSL_free>  m_QuicStream;
-	ID                             m_StreamID;
+	ID                             m_StreamID          { -1 };
 	std::unique_ptr<KDataProvider> m_DataProvider;
 	std::unique_ptr<KDataConsumer> m_DataConsumer;
 	const KHTTPRequestHeaders*     m_RequestHeaders   { nullptr };
@@ -253,7 +242,6 @@ private:
 	                               m_TXBuffer;
 	std::size_t                    m_iTotalTXData      { 0 };
 	std::size_t                    m_iTotalAckedTXData { 0 };
-	KReservedBuffer<4096>          m_BufferFromQuic;
 	KHTTPMethod                    m_Method;
 	Type                           m_Type;
 	bool                           m_bHeadersComplete {   false };
@@ -272,7 +260,7 @@ inline Stream::WaitFor Stream::DelWaitFor(WaitFor what) { m_WaitFor &= ~what; re
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A Session describes one HTTP/3 session, which is the equivalent of one Quic connection.
 /// It can have many Streams.
-class DEKAF2_PUBLIC Session : public KErrorBase
+class DEKAF2_PUBLIC Session : public KErrorBase, private KQuicConnection::Delegate
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -282,9 +270,10 @@ class DEKAF2_PUBLIC Session : public KErrorBase
 public:
 //----------
 
-	/// construct a HTTP/3 session around a connected Quic stream (after successful ALPN H3 negotiation)
+	/// construct a HTTP/3 session around a connected Quic stream (after successful ALPN H3 negotiation) -
+	/// the session takes over the stream's QUIC connection until it is destroyed
 	              Session(KQuicStream& QuicConnection, bool bIsClient);
-	              ~Session();
+	virtual       ~Session();
 
 	/// Submit a (client) request. Internally, this generates a new Stream object, the handle of which is returned as a Stream::ID.
 	/// This method is _not_ blocking and returns immediately. It can be called multiple times with different requests and
@@ -317,8 +306,6 @@ protected:
 
 	Stream::ID    NewRequest          (std::unique_ptr<Stream> Stream);
 	Stream::ID    NewStream           (std::unique_ptr<Stream> Stream);
-	Stream::ID    CreateStream        (Stream::Type type);
-	Stream::ID    AcceptStream        (::SSL* QuicStream);
 	bool          DeleteStream        (Stream::ID StreamID);
 
 	bool          AddStream           (Stream::ID StreamID, std::unique_ptr<Stream> Stream);
@@ -327,23 +314,20 @@ protected:
 	/// returns true if we still have open request streams
 	bool          HaveOpenRequestStreams(bool bWithResponses = true) const;
 
-	/// the event handler
-	/// @param bWithResponses if true, tries to read response streams as well, if false will read only the control and qpack streams
-	/// @return false on error, else true
-	bool          HandleEvents        (bool bWithResponses = true);
+	/// remove all Stream objects that are closed and drained
+	void          PurgeStreams        ();
+
+	/// one event loop cycle on the QUIC connection - sets the error on failure
+	KQuicConnection::PumpResult Pump  (KDuration MaxWait);
 
 	nghttp3_conn* GetNGHTTP3_Session  ()                 { return m_Session;            }
 	Session&      GetSession          ()                 { return *this;                }
 	KQuicStream&  GetKQuicStream      ()                 { return m_KQuicStream;        }
-	::SSL*        GetQuicConnection   ()                 { return m_SSL;                }
-	::BIO*        GetBio              ()                 { return ::SSL_get_wbio(GetQuicConnection()); }
+	KQuicConnection& GetConnection    ()                 { return m_Connection;         }
 	KDuration     GetTimeout          ()                 { return GetKQuicStream().GetTimeout(); }
 
-	bool          IsReadReady         (KDuration Timeout);
-
-	std::size_t   GetConsumedAppData  () const           { return m_consumed_app_data;  }
-	void          AddConsumedAppData  (std::size_t size) { m_consumed_app_data += size; }
-	void          ClearConsumedAppData()                 { m_consumed_app_data = 0;     }
+	/// credit received stream data back to the peer's flow control window once it is consumed
+	void          CreditReceived      (Stream::ID StreamID, std::size_t iBytes) { m_Connection.CreditReceived(StreamID, iBytes); }
 
 //----------
 private:
@@ -365,11 +349,31 @@ private:
 	nghttp3_ssize OnDataSourceRead    (Stream::ID StreamID, KStringView& sBuffer, std::size_t iMaxBuffers, uint32_t* iPFlags);
 	int           OnAckedStreamData   (Stream::ID StreamID, std::size_t iTotalReceived);
 
-	KQuicStream&  m_KQuicStream;
-	::SSL*        m_SSL               { nullptr };
-	nghttp3_conn* m_Session           { nullptr };
-	std::size_t   m_consumed_app_data { 0 };
-	KString       m_sAuthority; // the common authority for all Streams managed by this Session
+	// -------------------------------------------------------------------
+	// the KQuicConnection::Delegate interface - the QUIC side of nghttp3
+	// -------------------------------------------------------------------
+
+	virtual std::ptrdiff_t OnQuicStreamData     (KQuicConnection::StreamID id, KStringView sData, bool bFin) override final;
+	virtual int            OnQuicAckedStreamData(KQuicConnection::StreamID id, uint64_t iOffset, uint64_t iLen) override final;
+	virtual int            OnQuicStreamClose    (KQuicConnection::StreamID id, bool bHasAppErrorCode, uint64_t iAppErrorCode) override final;
+	virtual int            OnQuicStreamReset    (KQuicConnection::StreamID id, uint64_t iFinalSize, uint64_t iAppErrorCode) override final;
+	virtual int            OnQuicStopSending    (KQuicConnection::StreamID id, uint64_t iAppErrorCode) override final;
+	virtual int            OnQuicStreamUnblocked(KQuicConnection::StreamID id) override final;
+	virtual std::ptrdiff_t GetQuicStreamData    (KQuicConnection::StreamID& id, bool& bFin, ngtcp2_vec* vecs, std::size_t iMaxVecs) override final;
+	virtual int            OnQuicWriteOffset    (KQuicConnection::StreamID id, std::size_t iWritten) override final;
+	virtual void           OnQuicStreamBlocked  (KQuicConnection::StreamID id) override final;
+	virtual void           OnQuicStreamShutWrite(KQuicConnection::StreamID id) override final;
+
+	/// sets the error on both the session and the connection (which fails with it)
+	int           DelegateError       (KString sError);
+
+	KQuicStream&     m_KQuicStream;
+	KQuicConnection& m_Connection;
+	nghttp3_conn*    m_Session           { nullptr };
+	Stream::ID       m_ControlStreamID   { -1 };
+	Stream::ID       m_QPackEncStreamID  { -1 };
+	Stream::ID       m_QPackDecStreamID  { -1 };
+	KString          m_sAuthority; // the common authority for all Streams managed by this Session
 	std::unordered_map<Stream::ID, std::unique_ptr<Stream>> m_Streams;
 
 	// -------------------------------------------------------------------

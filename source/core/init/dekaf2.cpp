@@ -323,7 +323,7 @@ KStringView Dekaf::GetVersionInformation()
 #ifdef DEKAF2_WITH_FCGI
 		" fcgi"
 #endif
-#ifdef DEKAF2_HAS_OPENSSL_QUIC
+#ifdef DEKAF2_HAS_NGTCP2
 		" quic"
 #endif
 #ifdef DEKAF2_HAS_NGHTTP2

@@ -536,11 +536,12 @@ endif()
 
 # always required
 find_package(OpenSSL REQUIRED QUIET)
-if (OPENSSL_VERSION VERSION_GREATER_EQUAL "3.3")
-	# OpenSSL released QUIC first with v3.2.0, but we want at least v3.3,
-	# because SSL_poll() was implemented only then
-	message(STATUS "OpenSSL ${OPENSSL_VERSION} has QUIC")
-	set(DEKAF2_HAS_OPENSSL_QUIC 1)
+if (OPENSSL_VERSION VERSION_GREATER_EQUAL "3.5")
+	# OpenSSL 3.5 added the QUIC TLS API for third party QUIC stacks - we use
+	# it with ngtcp2 (see below). OpenSSL's own QUIC stack is not used anymore:
+	# it has NewReno as the only congestion control and no poll with timeout.
+	message(STATUS "OpenSSL ${OPENSSL_VERSION} has the QUIC TLS API")
+	set(DEKAF2_OPENSSL_HAS_QUIC_TLS_API 1)
 endif()
 
 if (OPENSSL_VERSION VERSION_GREATER_EQUAL "1.1.1")
@@ -729,13 +730,17 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_NGHTTP2)
 		set(DEKAF2_HAS_NGHTTP2 1)
 	endif()
 
-	if (DEKAF2_HAS_OPENSSL_QUIC)
+	if (DEKAF2_OPENSSL_HAS_QUIC_TLS_API)
 		if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_NGHTTP3)
-			# only search for nghttp3 if we have an openssl version supporting QUIC
-			# - this makes some ifdefs shorter..
-			find_package(NGHTTP3 QUIET)
-			if (NGHTTP3_FOUND)
-				set(DEKAF2_HAS_NGHTTP3 1)
+			# QUIC transport through ngtcp2 with OpenSSL >= 3.5 as the TLS backend,
+			# HTTP/3 through nghttp3 on top of it
+			find_package(NGTCP2 QUIET)
+			if (NGTCP2_FOUND)
+				set(DEKAF2_HAS_NGTCP2 1)
+				find_package(NGHTTP3 QUIET)
+				if (NGHTTP3_FOUND)
+					set(DEKAF2_HAS_NGHTTP3 1)
+				endif()
 			endif()
 		endif()
 	endif()
@@ -1034,6 +1039,7 @@ LibState("${DEKAF2_HAS_SQLITE3}"    "SQLITE   :" "${SQLITE3_VERSION}"  "${SQLITE
 LibState("${DEKAF2_HAS_POSTGRESQL}" "POSTGRES :" "${PostgreSQL_VERSION_STRING}" "${PostgreSQL_LIBRARY}")
 LibState("${DEKAF2_HAS_LIBBROTLI}"  "BROTLI   :" "${BROTLI_VERSION}"   "${BROTLI_LIBRARIES}"   )
 LibState("${DEKAF2_HAS_NGHTTP2}"    "NGHTTP2  :" "${NGHTTP2_VERSION}"  "${NGHTTP2_LIBRARIES}"  )
+LibState("${DEKAF2_HAS_NGTCP2}"     "NGTCP2   :" "${NGTCP2_VERSION}"   "${NGTCP2_LIBRARIES}"   )
 LibState("${DEKAF2_HAS_NGHTTP3}"    "NGHTTP3  :" "${NGHTTP3_VERSION}"  "${NGHTTP3_LIBRARIES}"  )
 LibState("${DEKAF2_HAS_FREETDS}"    "FreeTDS  :" "${FREETDS_VERSION}"  "${FREETDS_LIBRARIES}"  )
 LibState("${DEKAF2_HAS_JEMALLOC}"   "JEMALLOC :" "${JEMALLOC_VERSION}" "${JEMalloc_LIBRARIES}" )
@@ -1606,6 +1612,7 @@ set(PUBLIC_HEADERS
 	source/net/geo/kgeoip.h
 	source/net/mqtt/bits/kmqttcodec.h
 	source/net/mqtt/kmqttclient.h
+	source/net/quic/kquicconnection.h
 	source/net/quic/kquicstream.h
 	source/net/udp/kdtlsserver.h
 	source/net/udp/kdtlssocket.h
@@ -1886,6 +1893,7 @@ set (SOURCES
 	source/net/geo/kgeoip.cpp
 	source/net/mqtt/bits/kmqttcodec.cpp
 	source/net/mqtt/kmqttclient.cpp
+	source/net/quic/kquicconnection.cpp
 	source/net/quic/kquicstream.cpp
 	source/net/udp/kdtlsserver.cpp
 	source/net/udp/kdtlssocket.cpp
@@ -2195,10 +2203,16 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/uap-cpp>
 		$<BUILD_INTERFACE:${JEMalloc_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGHTTP2_INCLUDE_DIRS}>
+		$<BUILD_INTERFACE:${NGTCP2_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGHTTP3_INCLUDE_DIRS}>
 )
 
 set(DEKAF2_LINK_LIBRARIES
+	PRIVATE
+		# the QUIC libs call into OpenSSL - a static link resolves archives in the
+		# order given, so they have to precede ${OPENSSL_LIBRARIES} below
+		${NGHTTP3_LIBRARIES}
+		${NGTCP2_LIBRARIES}
 	PUBLIC
 		${DEKAF2_FMT_TARGET}
 		${DEKAF2_NLOHMANN_TARGET}
@@ -2223,7 +2237,6 @@ set(DEKAF2_LINK_LIBRARIES
 		${YAML_CPP_LIBRARIES}
 		${JEMalloc_LIBRARIES}
 		${NGHTTP2_LIBRARIES}
-		${NGHTTP3_LIBRARIES}
 		${LIBUNWIND_LIBRARIES}
 )
 

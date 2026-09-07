@@ -48,6 +48,9 @@
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/core/strings/ksplit.h>
 #include <dekaf2/http/client/kwebclient.h>
+#if DEKAF2_HAS_NGHTTP3
+	#include <dekaf2/net/quic/kquicconnection.h>
+#endif
 #include <dekaf2/data/xml/kxml.h>
 #include <dekaf2/crypto/encoding/kencode.h>
 #include <dekaf2/crypto/auth/kawsauth.h>
@@ -551,6 +554,21 @@ kurl::kurl ()
 			throw KOptions::Error("--http1, --http2 and --http3 options are mutually exclusive");
 		}
 		BuildMRQ.SetFlag(Flags::FORCE_HTTP_3);
+	});
+
+	m_CLI
+		.Option("quic-cc <cubic|bbr|reno>", "congestion control algorithm")
+		.Help("set the QUIC congestion control algorithm for http/3 connections (default: cubic)")
+	([&](KStringViewZ sAlgorithm)
+	{
+		KQuicConnection::CongestionControl cc;
+
+		if (!KQuicConnection::FromString(sAlgorithm, cc))
+		{
+			throw KOptions::Error(kFormat("unknown congestion control algorithm: {}", sAlgorithm));
+		}
+
+		KQuicConnection::SetDefaultCongestionControl(cc);
 	});
 #endif
 

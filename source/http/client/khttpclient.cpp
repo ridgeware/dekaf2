@@ -332,6 +332,14 @@ bool KHTTPClient::Connect(std::unique_ptr<KIOStreamSocket> Connection)
 	// status would prevail if not overwritten by a new connection
 	Response.clear();
 
+	// the protocol sessions refer to the connection - they have to go before it
+#if DEKAF2_HAS_NGHTTP3
+	m_HTTP3.reset();
+#endif
+#if DEKAF2_HAS_NGHTTP2
+	m_HTTP2.reset();
+#endif
+
 	m_Connection = std::move(Connection);
 
 	if (!m_Connection || !m_Connection->Good())

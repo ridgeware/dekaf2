@@ -39,6 +39,7 @@
 // +-------------------------------------------------------------------------+
 */
 
+
 #pragma once
 
 /// @file kquicstream.h
@@ -46,14 +47,14 @@
 
 #include "kconfiguration.h"
 
-#if DEKAF2_HAS_OPENSSL_QUIC
+#if DEKAF2_HAS_NGTCP2
 
+#include <dekaf2/net/quic/kquicconnection.h>
 #include <dekaf2/net/tls/ktlscontext.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/io/streams/kstreambuf.h>
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/net/util/kstreamoptions.h>
-#include <dekaf2/core/types/bits/kunique_deleter.h>
 #include <dekaf2/net/util/kiostreamsocket.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -62,7 +63,9 @@ DEKAF2_NAMESPACE_BEGIN
 /// @{
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// std::iostream QUIC implementation with timeout.
+/// std::iostream QUIC implementation with timeout. Wraps a KQuicConnection
+/// (ngtcp2) and exposes one bidirectional stream as an iostream. HTTP/3
+/// (khttp3::Session) takes the connection over and drives the streams itself.
 class DEKAF2_PUBLIC KQuicStream : public KIOStreamSocket
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -73,18 +76,15 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	/// Constructs an unconnected client stream
-	/// @param iSecondsTimeout
-	/// Timeout for any I/O. Defaults to 15 seconds.
+	/// Constructs an unconnected client stream with the default client context
 	KQuicStream();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Constructs an unconnected stream
 	/// @param Context
-	/// A KTLSContext which defines role (server/client). Custom certs and crypto suites
-	/// will also be defined with the KTLSContext.
-	/// @param iSecondsTimeout
+	/// A KTLSContext for Transport::Quic (client role)
+	/// @param Timeout
 	/// Timeout for any I/O. Defaults to 15 seconds.
 	KQuicStream(KTLSContext& Context, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 	//-----------------------------------------------------------------------------
@@ -92,13 +92,12 @@ public:
 	//-----------------------------------------------------------------------------
 	/// Constructs a connected client stream
 	/// @param Context
-	/// A KTLSContext which defines role (server/client). Custom certs and crypto suites
-	/// will also be defined with the KTLSContext.
+	/// A KTLSContext for Transport::Quic (client role)
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
 	/// @param Options
-	/// set options like certificate verification, manual TLS handshake, HTTP2 request, and the timeout
+	/// set options like certificate verification, HTTP/3 request, and the timeout
 	KQuicStream(KTLSContext& Context, const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
 
@@ -108,7 +107,7 @@ public:
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
 	/// @param Options
-	/// set options like certificate verification, manual TLS handshake, HTTP2 request, and the timeout
+	/// set options like certificate verification, HTTP/3 request, and the timeout
 	KQuicStream(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{});
 	//-----------------------------------------------------------------------------
 
@@ -118,34 +117,34 @@ public:
 	KQuicStream& operator=(KQuicStream&&) = delete;
 
 	//-----------------------------------------------------------------------------
-	/// Connects a given server as a client.
+	/// Connects a given server as a client, and completes the QUIC handshake.
 	/// @param Endpoint
 	/// KTCPEndPoint as the server to connect to - can be constructed from
 	/// a variety of inputs, like strings or KURL
 	/// @param Options
-	/// set options like certificate verification, manual TLS handshake, HTTP2 request, and the timeout
+	/// set options like certificate verification, HTTP/3 request, and the timeout
 	virtual bool Connect(const KTCPEndPoint& Endpoint, KStreamOptions Options = KStreamOptions{}) override final;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Disconnect the stream
 	virtual bool Disconnect() override final;
+	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	virtual bool is_open() const override final
 	//-----------------------------------------------------------------------------
 	{
-		return m_NativeSocket != native_socket_type(-1);
+		return m_Connection.GetNativeSocket() >= 0;
 	}
 
 	//-----------------------------------------------------------------------------
-	/// tests for a closed connection of the remote side by trying to peek one byte
+	/// tests for a closed connection
 	virtual bool IsDisconnected() override final;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Upgrade connection from TCP to TCP over TLS. Returns true on success. Can also
-	/// be used to force a handshake before any IO is triggered.
+	/// QUIC handshakes in Connect() - this only reports the state
 	virtual bool StartManualTLSHandshake() override final;
 	//-----------------------------------------------------------------------------
 
@@ -166,7 +165,7 @@ public:
 	virtual native_socket_type GetNativeSocket() override final
 	//-----------------------------------------------------------------------------
 	{
-		return m_NativeSocket;
+		return m_Connection.GetNativeSocket();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -174,7 +173,7 @@ public:
 	virtual native_tls_handle_type GetNativeTLSHandle() override final
 	//-----------------------------------------------------------------------------
 	{
-		return m_SSL.get();
+		return m_Connection.GetNativeTLSHandle();
 	}
 
 	//-----------------------------------------------------------------------------
@@ -183,6 +182,14 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return m_TLSContext;
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Gets the QUIC connection
+	KQuicConnection& GetConnection()
+	//-----------------------------------------------------------------------------
+	{
+		return m_Connection;
 	}
 
 	//-----------------------------------------------------------------------------
@@ -209,14 +216,58 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// request to switch to HTTP3
+	/// request to switch to HTTP3 - only effective before Connect()
 	/// @returns true if protocol request is permitted
 	bool SetRequestHTTP3();
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// sets the congestion control algorithm - only effective before Connect()
+	void SetCongestionControl(KQuicConnection::CongestionControl cc)
+	//-----------------------------------------------------------------------------
+	{
+		m_Connection.SetCongestionControl(cc);
+	}
+
 //----------
 private:
 //----------
+
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	/// the delegate for raw stream I/O through the iostream interface: one
+	/// bidirectional stream, a send buffer that is kept until acknowledged,
+	/// and a receive buffer
+	class DEKAF2_PRIVATE RawDelegate : public KQuicConnection::Delegate
+	//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	{
+	public:
+		RawDelegate(KQuicStream& Stream) : m_Stream(Stream) {}
+
+		virtual std::ptrdiff_t OnQuicStreamData     (KQuicConnection::StreamID id, KStringView sData, bool bFin) override;
+		virtual int            OnQuicAckedStreamData(KQuicConnection::StreamID id, uint64_t iOffset, uint64_t iLen) override;
+		virtual int            OnQuicStreamClose    (KQuicConnection::StreamID id, bool bHasAppErrorCode, uint64_t iAppErrorCode) override;
+		virtual int            OnQuicStreamReset    (KQuicConnection::StreamID id, uint64_t iFinalSize, uint64_t iAppErrorCode) override;
+		virtual int            OnQuicStreamUnblocked(KQuicConnection::StreamID id) override;
+		virtual std::ptrdiff_t GetQuicStreamData    (KQuicConnection::StreamID& id, bool& bFin, ngtcp2_vec* vecs, std::size_t iMaxVecs) override;
+		virtual int            OnQuicWriteOffset    (KQuicConnection::StreamID id, std::size_t iWritten) override;
+		virtual void           OnQuicStreamBlocked  (KQuicConnection::StreamID id) override;
+		virtual void           OnQuicStreamShutWrite(KQuicConnection::StreamID id) override;
+
+		bool          OpenStream();
+		void          Reset();
+		std::size_t   Pending() const { return m_iTXBase + m_sTX.size() - m_iWritten; }
+
+		KQuicStream&              m_Stream;
+		KString                   m_sTX;                  ///< unacknowledged and unsent data
+		KString                   m_sRX;                  ///< received, not yet read data
+		uint64_t                  m_iTXBase    { 0 };     ///< stream offset of m_sTX[0]
+		uint64_t                  m_iWritten   { 0 };     ///< stream offset of the next unsent byte
+		KQuicConnection::StreamID m_StreamID   { -1 };
+		bool                      m_bBlocked   { false };
+		bool                      m_bEOF       { false };
+		bool                      m_bShutWrite { false };
+
+	}; // RawDelegate
 
 	//-----------------------------------------------------------------------------
 	/// this is the custom streambuf reader
@@ -230,17 +281,11 @@ private:
 	static std::streamsize QuicStreamWriter(const void* sBuffer, std::streamsize iCount, void* stream);
 	//-----------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------
-	DEKAF2_PRIVATE
-	bool Handshake();
-	//-----------------------------------------------------------------------------
-
 	KTLSContext&           m_TLSContext;
-	KUniquePtr<::SSL, ::SSL_free>
-	                       m_SSL;
-	native_socket_type     m_NativeSocket   { native_socket_type(-1) };
-	bool                   m_bNeedHandshake { true };
+	KQuicConnection        m_Connection;
+	RawDelegate            m_Raw;
 	KString                m_sTLSHostname;
+	KString                m_sALPN;
 
 	KBufferedStreamBuf     m_QuicStreamBuf { &QuicStreamReader, &QuicStreamWriter, this, this };
 
@@ -251,6 +296,7 @@ private:
 using KQuicClient = KQuicStream;
 
 //-----------------------------------------------------------------------------
+/// QUIC servers are not supported yet - this returns an unconnected client stream
 DEKAF2_PUBLIC
 std::unique_ptr<KQuicStream> CreateKQuicServer(KTLSContext& Context, KDuration Timeout = KStreamOptions::GetDefaultTimeout());
 //-----------------------------------------------------------------------------
@@ -270,4 +316,4 @@ std::unique_ptr<KQuicClient> CreateKQuicClient(const KTCPEndPoint& EndPoint, KSt
 
 DEKAF2_NAMESPACE_END
 
-#endif // of DEKAF2_HAS_OPENSSL_QUIC
+#endif // of DEKAF2_HAS_NGTCP2

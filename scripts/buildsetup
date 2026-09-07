@@ -19,7 +19,7 @@ BuildSetup ()
 {
 	# we do not care too much if the flagfile is removed
 	flagfile="/tmp/installflag-dekaf2-build-setup"
-	flagversion="8"
+	flagversion="9"
 
 	if [ ! -f "${flagfile}" ] || [ "$(cat ${flagfile})" != "${flagversion}" ]
 	then
@@ -42,8 +42,9 @@ BuildSetup ()
 			darwin)
 				InstallSystemPackages cmake boost openssl wget yaml-cpp
 
+				# HTTP/3: ngtcp2 with its OpenSSL backend (the brew formula builds it against openssl@3)
 				InstallOptionalSystemPackages libzip xz zstd brotli mariadb libpq sqlite jemalloc ncurses \
-					libnghttp2 libnghttp3
+					libnghttp2 libnghttp3 libngtcp2
 				;;
 			debian)
 				# make sure the repo content lists are current
@@ -52,17 +53,21 @@ BuildSetup ()
 				InstallSystemPackages cmake libboost-all${DEVPKG} openssl libssl-dev wget git sed tar gcc \
 					libz${DEVPKG} lbzip2 libbz2${DEVPKG} zlib1g${DEVPKG} libyaml-cpp${DEVPKG}
 
+				# HTTP/3: ngtcp2 with its OpenSSL backend (needs OpenSSL >= 3.5, so the package
+				# exists from Debian forky and Ubuntu 26.04 on - older releases ship GnuTLS only)
 				InstallOptionalSystemPackages libmariadb${DEVPKG} mariadb-client libpq${DEVPKG} sqlite3 libsqlite3${DEVPKG} \
 					libzip${DEVPKG} liblzma${DEVPKG} libzstd${DEVPKG} libbrotli${DEVPKG} libjemalloc${DEVPKG} \
-					libncurses${DEVPKG} libnghttp2${DEVPKG} libnghttp3${DEVPKG}
+					libncurses${DEVPKG} libnghttp2${DEVPKG} libnghttp3${DEVPKG} libngtcp2${DEVPKG} libngtcp2-crypto-ossl${DEVPKG}
 				;;
 			*)
 				InstallSystemPackages cmake boost${DEVPKG} boost-static openssl${DEVPKG} wget git sed tar gcc \
 					zlib${DEVPKG} bzip2${DEVPKG} yaml-cpp${DEVPKG}
 
+				# HTTP/3: ngtcp2 with its OpenSSL backend (needs OpenSSL >= 3.5: Fedora 43+,
+				# Amazon Linux 2023, and EPEL for Rocky/RHEL 9.8+ and 10)
 				InstallOptionalSystemPackages mariadb-connector-c${DEVPKG} postgresql${DEVPKG} sqlite${DEVPKG} libzip${DEVPKG} \
 					xz${DEVPKG} libzstd${DEVPKG} brotli${DEVPKG} jemalloc${DEVPKG} ncurses${DEVPKG} \
-					libnghttp2${DEVPKG} libnghttp3${DEVPKG}
+					libnghttp2${DEVPKG} libnghttp3${DEVPKG} ngtcp2${DEVPKG} ngtcp2-crypto-ossl${DEVPKG}
 				;;
 		esac
 
@@ -118,6 +123,10 @@ BuildSetup ()
 
 		# check if the installed cmake version is fresh enough, else install from source
 		${ME_ONLYPATH}/cmakeinstall -ask || Die
+
+		# HTTP/3 needs ngtcp2 with its OpenSSL backend and nghttp3 - where the distribution
+		# has no such packages but OpenSSL >= 3.5, build them into /usr/local
+		${ME_ONLYPATH}/ngtcp2install -ask || Die
 
 		echo "${flagversion}" > "${flagfile}"
 

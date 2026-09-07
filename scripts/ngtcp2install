@@ -1,0 +1,299 @@
+#! /bin/bash
+
+#%
+#% ngtcp2install - build ngtcp2 (with its OpenSSL backend) and nghttp3 for HTTP/3
+#%                 where the distribution has no usable packages
+#%
+#% usage: ngtcp2install -go|-ask|-nosudo [-static]
+#%
+#% Needs OpenSSL >= 3.5 (the QUIC TLS API), cmake, a C compiler, make and wget or curl.
+#% Installs shared and static libs, headers and .pc files into /usr/local and skips
+#% what pkg-config already finds: libngtcp2_crypto_ossl (ngtcp2), libnghttp3 (nghttp3).
+#% -static builds the .a archives only (no shared libs), also where the distribution
+#% has the shared libs but ships no archives - for DEKAF2_FORCE_STATIC_LIBS builds.
+#%
+
+
+# are we in test mode?
+if [ "$1" = "-x" ]; then
+	set -x
+	shift
+fi # end check test mode
+
+# pinned releases - https://github.com/ngtcp2/ngtcp2/releases and
+# https://github.com/ngtcp2/nghttp3/releases (sha256 of the .tar.gz assets)
+NGTCP2_VERSION="1.25.0"
+NGTCP2_SHA256="1c0843076528a87b65e9a9d455100941f4cb65d44f96c5da6ae56df146043955"
+NGHTTP3_VERSION="1.18.0"
+NGHTTP3_SHA256="2812e9c06583fa24c8dc46bdb5291310a69196352ceaca8fbe98106ff36ae7d8"
+
+PREFIX="/usr/local"
+BUILDDIR="/tmp/ngtcp2-install"
+# Debian family: the multiarch triplet, e.g. aarch64-linux-gnu (empty elsewhere)
+MULTIARCH=$( (cc -print-multiarch || gcc -print-multiarch) 2>/dev/null | head -1)
+[[ -n "${MULTIARCH}" ]] && [[ ! -d "/usr/lib/${MULTIARCH}" ]] && MULTIARCH=""
+# pkg-config does not search /usr/local everywhere (alpine, RHEL lib64)
+export PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig:${PREFIX}/lib64/pkgconfig${MULTIARCH:+:${PREFIX}/lib/${MULTIARCH}/pkgconfig}${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
+
+setx=Synopsis
+#==================
+Synopsis ()
+#==================
+{
+	awk '/^#%/ {print substr($0,3)}' "${ME_FULLPATH}"
+
+} # Synopsis
+
+setx=QuicAbort
+#==================
+QuicAbort ()
+#==================
+{
+	cd /
+	rm -rf "${BUILDDIR}"
+	Die $*
+
+} # QuicAbort
+
+setx=HavePkg
+#==================
+HavePkg ()
+#==================
+{
+	pkg-config --exists "$1" 2>/dev/null
+
+} # HavePkg
+
+setx=HaveArchive
+#==================
+HaveArchive ()
+#==================
+{
+	# a static archive of ours in ${PREFIX} (lib, lib64 or lib/<multiarch>)
+	[[ -n "$(ls "${PREFIX}"/lib*/$1.a "${PREFIX}"/lib/*/$1.a 2>/dev/null)" ]]
+
+} # HaveArchive
+
+setx=OpenSSLIsNewEnough
+#==================
+OpenSSLIsNewEnough ()
+#==================
+{
+	# the QUIC TLS API for third party stacks came with OpenSSL 3.5
+	local sVersion
+	sVersion=$(pkg-config --modversion openssl 2>/dev/null)
+	[[ -z "${sVersion}" ]] && sVersion=$(openssl version 2>/dev/null | awk '{print $2}')
+	OPENSSL_VERSION="${sVersion}"
+	local iMajor iMinor
+	iMajor=$(echo "${sVersion}" | cut -d . -f 1 | tr -cd '0-9')
+	iMinor=$(echo "${sVersion}" | cut -d . -f 2 | tr -cd '0-9')
+	[[ -n "${iMajor}" ]] && [[ -n "${iMinor}" ]] || return 1
+	[[ ${iMajor} -gt 3 ]] || ( [[ ${iMajor} -eq 3 ]] && [[ ${iMinor} -ge 5 ]] )
+
+} # OpenSSLIsNewEnough
+
+setx=CheckTools
+#==================
+CheckTools ()
+#==================
+{
+	local missing=""
+	for t in cmake make tar gzip sha256sum; do
+		command -v "$t" >/dev/null 2>&1 || missing="${missing} $t"
+	done
+	command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1 || command -v clang >/dev/null 2>&1 || missing="${missing} cc"
+	command -v wget >/dev/null 2>&1 || command -v curl >/dev/null 2>&1 || missing="${missing} wget|curl"
+	[[ -f /usr/include/openssl/ssl.h ]] || HavePkg openssl || missing="${missing} openssl-headers"
+	[[ -z "${missing}" ]] || Die "missing tools:${missing} - install cmake, a C compiler, make, tar, gzip, wget and the OpenSSL headers first"
+
+} # CheckTools
+
+setx=Download
+#==================
+Download ()
+#==================
+{
+	# $1 = URL, $2 = target file, $3 = sha256
+	Info "downloading $1"
+	if command -v wget >/dev/null 2>&1; then
+		wget -q -O "$2" "$1" || QuicAbort "cannot download $1"
+	else
+		curl -fsSL -o "$2" "$1" || QuicAbort "cannot download $1"
+	fi
+	local sSum
+	sSum=$(sha256sum "$2" | awk '{print $1}')
+	[[ "${sSum}" == "$3" ]] || QuicAbort "checksum mismatch for $2: got ${sSum}, expected $3"
+
+} # Download
+
+setx=BuildLib
+#==================
+BuildLib ()
+#==================
+{
+	# $1 = name, $2 = version, $3 = sha256, $4.. = extra cmake options
+	local name="$1" version="$2" sha="$3"
+	shift 3
+	local tarball="${name}-${version}.tar.gz"
+	local url="https://github.com/ngtcp2/${name}/releases/download/v${version}/${tarball}"
+	local src="${BUILDDIR}/${name}-${version}"
+
+	Download "${url}" "${BUILDDIR}/${tarball}" "${sha}"
+	tar -xzf "${BUILDDIR}/${tarball}" -C "${BUILDDIR}" || QuicAbort "cannot untar ${tarball}"
+
+	Info "building ${name} ${version}"
+	cmake -S "${src}" -B "${src}/build" \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+		-DENABLE_LIB_ONLY=ON \
+		-DENABLE_SHARED_LIB=${SHARED_LIBS} \
+		-DENABLE_STATIC_LIB=ON \
+		-DBUILD_TESTING=OFF \
+		${LIBDIR_OPTION} \
+		"$@" > "${src}/build-configure.log" 2>&1 \
+			|| { cat "${src}/build-configure.log"; QuicAbort "cannot configure ${name}"; }
+	cmake --build "${src}/build" --parallel "${CORES}" > "${src}/build-build.log" 2>&1 \
+			|| { tail -50 "${src}/build-build.log"; QuicAbort "cannot build ${name}"; }
+	${SUDO} cmake --install "${src}/build" > /dev/null \
+			|| QuicAbort "cannot install ${name} into ${PREFIX}"
+
+} # BuildLib
+
+setx=QuicSetup
+#==================
+QuicSetup ()
+#==================
+{
+	local ask="$1"
+
+	if [[ "$(uname -s)" == "Darwin" ]]; then
+		Info "macOS gets ngtcp2 and nghttp3 from brew (libngtcp2, libnghttp3)"
+		return 0
+	fi
+
+	if ! OpenSSLIsNewEnough; then
+		Info "OpenSSL ${OPENSSL_VERSION:-not found} has no QUIC TLS API (needs 3.5) - no HTTP/3, nothing to do"
+		return 0
+	fi
+
+	local bNeedNgtcp2=0 bNeedNghttp3=0
+	if [[ ${STATIC} -eq 1 ]]; then
+		# archives wanted - the distribution's shared libs do not count
+		HaveArchive libngtcp2_crypto_ossl || bNeedNgtcp2=1
+		HaveArchive libnghttp3            || bNeedNghttp3=1
+	else
+		HavePkg libngtcp2_crypto_ossl || bNeedNgtcp2=1
+		HavePkg libnghttp3            || bNeedNghttp3=1
+	fi
+
+	if [[ ${bNeedNgtcp2} -eq 0 ]] && [[ ${bNeedNghttp3} -eq 0 ]]; then
+		if [[ ${STATIC} -eq 1 ]]; then
+			Info "static archives of ngtcp2 and nghttp3 are in ${PREFIX} - nothing to do"
+		else
+			Info "ngtcp2 $(pkg-config --modversion libngtcp2_crypto_ossl) with OpenSSL backend and nghttp3 $(pkg-config --modversion libnghttp3) are installed - nothing to do"
+		fi
+		return 0
+	fi
+
+	local what=""
+	[[ ${bNeedNgtcp2}  -eq 1 ]] && what="${what} ngtcp2 ${NGTCP2_VERSION}"
+	[[ ${bNeedNghttp3} -eq 1 ]] && what="${what} nghttp3 ${NGHTTP3_VERSION}"
+	if [[ ${STATIC} -eq 1 ]]; then
+		what="${what} (static archives only)"
+		Info "OpenSSL ${OPENSSL_VERSION} has the QUIC TLS API, ${PREFIX} lacks the archives of:${what}"
+	else
+		Info "OpenSSL ${OPENSSL_VERSION} has the QUIC TLS API, but the system lacks:${what}"
+	fi
+
+	if [[ -n "${ask}" ]]; then
+		echo "Build${what} from source into ${PREFIX}? (Y/n)"
+		read -n 1 Ch
+		echo
+		[[ "${Ch}" == "n" ]] && exit 1
+	fi
+
+	CheckTools
+
+	CORES=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+
+	# Debian's loader searches /usr/local/lib/<multiarch> before /lib/<multiarch>, but
+	# /usr/local/lib only after it - a distro libngtcp2.so.16 (curl pulls one in) would
+	# win over ours at run time. So install where Debian expects local overrides.
+	LIBDIR_OPTION=""
+	[[ -n "${MULTIARCH}" ]] && LIBDIR_OPTION="-DCMAKE_INSTALL_LIBDIR=lib/${MULTIARCH}"
+	SHARED_LIBS=ON
+	[[ ${STATIC} -eq 1 ]] && SHARED_LIBS=OFF
+
+	rm -rf "${BUILDDIR}" && mkdir -p "${BUILDDIR}" || Die "cannot create ${BUILDDIR}"
+
+	if [[ ${bNeedNgtcp2} -eq 1 ]]; then
+		BuildLib ngtcp2 "${NGTCP2_VERSION}" "${NGTCP2_SHA256}" \
+			-DENABLE_OPENSSL=ON \
+			-DENABLE_GNUTLS=OFF \
+			-DENABLE_BORINGSSL=OFF \
+			-DENABLE_PICOTLS=OFF \
+			-DENABLE_WOLFSSL=OFF
+		# ngtcp2 silently drops the backend when OpenSSL lacks the API
+		[[ -n "$(ls "${PREFIX}"/lib*/libngtcp2_crypto_ossl.* "${PREFIX}"/lib/*/libngtcp2_crypto_ossl.* 2>/dev/null)" ]] \
+			|| QuicAbort "ngtcp2 built without libngtcp2_crypto_ossl - is the OpenSSL found by cmake >= 3.5?"
+	fi
+
+	if [[ ${bNeedNghttp3} -eq 1 ]]; then
+		BuildLib nghttp3 "${NGHTTP3_VERSION}" "${NGHTTP3_SHA256}"
+	fi
+
+	# make the loader find the libs: ${PREFIX}/lib64 (RHEL family), lib/<multiarch>
+	# (Debian family, already in the loader path) or ${PREFIX}/lib - not needed for
+	# archives
+	if [[ ${STATIC} -eq 0 ]] && [[ -d /etc/ld.so.conf.d ]]; then
+		local libdir="${PREFIX}/lib"
+		[[ -n "$(ls "${PREFIX}"/lib64/libngtcp2*.so* "${PREFIX}"/lib64/libnghttp3*.so* 2>/dev/null)" ]] && libdir="${PREFIX}/lib64"
+		[[ -n "${MULTIARCH}" ]] && libdir="${PREFIX}/lib/${MULTIARCH}"
+		echo "${libdir}" | ${SUDO} tee /etc/ld.so.conf.d/dekaf2-quic.conf >/dev/null \
+			|| QuicAbort "cannot write /etc/ld.so.conf.d/dekaf2-quic.conf"
+		${SUDO} ldconfig
+	fi
+
+	cd /
+	rm -rf "${BUILDDIR}"
+
+	Info "installed${what} into ${PREFIX}"
+
+} # QuicSetup
+
+
+#==================
+setx=Main_Body
+#==================
+
+ME=$(basename "${BASH_SOURCE}")
+ME_ONLYPATH="$(cd $(dirname ${BASH_SOURCE}) && pwd)"
+ME_FULLPATH="$ME_ONLYPATH/$ME"
+ScriptLib="${ME_ONLYPATH}/scriptlib"
+
+[[ ! -f "${ScriptLib}" ]] && { echo "Cannot check OS version, script '${ScriptLib}' not found"; exit 1; }
+
+source ${ScriptLib}
+SUDO="sudo"
+ask=""
+STATIC=0
+bGo=0
+
+for arg in "$@"; do
+	case "${arg}" in
+		-go)     bGo=1 ;;
+		-ask)    bGo=1; ask="1" ;;
+		-nosudo) bGo=1; SUDO="" ;;
+		-static) STATIC=1 ;;
+		*)       Synopsis; exit 1 ;;
+	esac
+done
+
+if [[ ${bGo} -eq 0 ]]; then
+	Synopsis
+	exit 1
+fi
+
+SetupColors
+QuicSetup $ask

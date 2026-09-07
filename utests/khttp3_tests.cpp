@@ -2,7 +2,7 @@
 
 #include <dekaf2/core/init/kdefinitions.h>
 
-#if DEKAF2_HAS_NGHTTP3 && DEKAF2_HAS_OPENSSL_QUIC
+#if DEKAF2_HAS_NGHTTP3 && DEKAF2_HAS_NGTCP2
 
 #include <dekaf2/http/protocol/khttp3.h>
 #include <dekaf2/http/protocol/khttp_version.h>
@@ -47,4 +47,4 @@ TEST_CASE("HTTP3")
 }
 
 #endif // DEKAF2_IS_WINDOWS
-#endif // DEKAF2_HAS_NGHTTP3 && DEKAF2_HAS_OPENSSL_QUIC
+#endif // DEKAF2_HAS_NGHTTP3 && DEKAF2_HAS_NGTCP2

@@ -76,24 +76,7 @@ bool KIOStreamSocket::SetSSLError()
 				 * Some stream fatal error occurred. This could be because of a stream
 				 * reset - or some failure occurred on the underlying connection.
 				 */
-#ifdef DEKAF2_HAS_OPENSSL_QUIC
-				switch (::SSL_get_stream_read_state(SSL))
-				{
-					case SSL_STREAM_STATE_RESET_REMOTE:
-						/* The stream has been reset but the connection is still healthy. */
-						return SetError("Stream reset occurred");
-
-					case SSL_STREAM_STATE_CONN_CLOSED:
-						/* Connection is already closed. Skip SSL_shutdown() */
-						return SetError("Connection closed");
-
-					default:
-						return SetError("Unknown stream failure");
-				}
-#else
 				return SetError("Unknown stream failure");
-#endif
-				break;
 
 			default:
 				/* Some other unexpected error occurred */
@@ -376,7 +359,7 @@ std::unique_ptr<KIOStreamSocket> KIOStreamSocket::Create(const KURL& URL, bool b
 	    (URL.Protocol == url::KProtocol::UNDEFINED && url::KProtocol::WrapInTLS(Port.get())) ||
 	    bForceTLS)
 	{
-#if DEKAF2_HAS_OPENSSL_QUIC
+#if DEKAF2_HAS_NGTCP2
 		if (Options.IsSet(KStreamOptions::RequestHTTP3))
 		{
 			// QUIC handshakes in Connect(), so the identity has to be known before

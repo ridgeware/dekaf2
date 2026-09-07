@@ -67,6 +67,9 @@ struct AcmeEnv
 
 }; // AcmeEnv
 
+// only the TLS-ALPN tests look at the peer - without them the helpers are unused (GCC 6 warns)
+#if DEKAF2_SMOKETEST_HAS_TLS_ALPN
+
 struct PeerInfo
 {
 	/// true if the server presented a CA issued cert (and not a self-signed one)
@@ -137,6 +140,8 @@ PeerInfo GetPeerInfo(uint16_t iPort, KStringView sSNI)
 	return Info;
 
 } // GetPeerInfo
+
+#endif // DEKAF2_SMOKETEST_HAS_TLS_ALPN
 
 } // end of anonymous namespace
 

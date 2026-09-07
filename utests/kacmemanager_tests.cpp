@@ -8,6 +8,9 @@
 
 using namespace dekaf2;
 
+// the helpers only where the tests below exist - else they are unused (GCC 6 warns)
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
+
 namespace {
 
 // an unreachable directory URL, guarding the tests against ever ordering
@@ -41,6 +44,8 @@ KAcmeManager::Options TestOptions(KStringViewZ sDir, KStringView sDomain)
 } // TestOptions
 
 } // end of anonymous namespace
+
+#endif
 
 TEST_CASE("KAcmeManager")
 {

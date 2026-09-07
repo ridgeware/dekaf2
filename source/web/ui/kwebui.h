@@ -59,7 +59,6 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/web/objects/kwebobjects.h>
-#include <optional>
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -449,19 +448,26 @@ public:
 	      const Classes& cls          = Classes{"field"},
 	      KStringView sID             = KStringView{})
 	: KWebObject<Field>(parent, TagName, cls, sID)
+	, m_input(AddLabelAndInput(sLabel, sName, sValue, type))
 	{
-		AddElement("label").AddText(sLabel);
-		m_input.emplace(this->template Add<html::Input>(sName, sValue, type));
 	}
 
 	/// the wrapped input, for SetRequired(), SetPlaceholder(), ...
-	html::Input& Input() { return *m_input; }
+	html::Input& Input() { return m_input; }
 
 //----------
 private:
 //----------
 
-	std::optional<html::Input> m_input;
+	// the label has to precede the input, and the input handle is a value member
+	// (no std::optional before C++17) - so both get added from the initializer
+	html::Input AddLabelAndInput(KStringView sLabel, KStringView sName, KStringView sValue, html::Input::INPUTTYPE type)
+	{
+		AddElement("label").AddText(sLabel);
+		return this->template Add<html::Input>(sName, sValue, type);
+	}
+
+	html::Input m_input;
 
 }; // Field
 

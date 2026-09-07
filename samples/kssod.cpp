@@ -76,7 +76,6 @@
 
 #include <dekaf2/util/cli/koptions.h>
 #include <dekaf2/time/duration/ktimer.h>       // KTimer: the watchdog's heartbeat
-#include <algorithm>                           // std::clamp (audit page size)
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/rest/framework/krestroute.h>
 #include <dekaf2/rest/framework/krestserver.h>
@@ -102,6 +101,7 @@
 #include <dekaf2/core/strings/kcaseless.h>     // kCaselessEqual: Origin vs Host in the CSRF check
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/core/logging/klog.h>
+#include <algorithm>                           // std::min/max (audit page size)
 #include <map>
 #include <memory>
 #include <mutex>
@@ -645,7 +645,7 @@ int main(int argc, char** argv)
 		uint16_t iConnLimit           = Options("connlimit <max>       : per-IP max concurrent connections (default 0 == off)", 0);
 		KString  sTrustedProxies      = Options("trusted-proxies <list>: comma-separated IPs/CIDRs of trusted reverse proxies, for X-Forwarded-For — record the real client IP instead of the proxy's, e.g. 172.31.0.0/16 (default none)", "");
 		KString  sAuditMirror         = Options("auditlog <path>       : mirror the audit trail (see /admin/audit) as JSON lines to this file, '-' for stdout (default: no mirror)", "");
-		KDuration AuditKeep           = std::chrono::days(Options("audit-keep <days>     : delete audit records older than this many days at startup (default 365, 0 = keep forever)", 365));
+		KDuration AuditKeep           = chrono::days(Options("audit-keep <days>     : delete audit records older than this many days at startup (default 365, 0 = keep forever)", 365));
 		KStringViewZ sMaxBody         = Options("maxbody <size>        : max request body size, supports k/M/G suffixes (default 1M, 0 == unlimited)", "1M");
 		Settings.sCert                = Options("cert <file>           : TLS certificate filepath (.pem), defaults to self-signed ephemeral cert", "");
 		Settings.sKey                 = Options("key <file>            : TLS private key filepath (.pem), defaults to ephemeral key", "");
@@ -1545,9 +1545,13 @@ int main(int argc, char** argv)
 			{
 				Log(HTTP, "auth.recovery", "no_smtp", "", sEmail);
 			}
-			else if (KString sUser = pUsers->FindByEmail(sEmail); sUser.empty() || !pUsers->IsEmailVerified(sUser))
+			else
 			{
-				Log(HTTP, "auth.recovery", sUser.empty() ? "unknown_email" : "unverified_email", "", sEmail);
+				KString sUser = pUsers->FindByEmail(sEmail);
+				if (sUser.empty() || !pUsers->IsEmailVerified(sUser))
+				{
+					Log(HTTP, "auth.recovery", sUser.empty() ? "unknown_email" : "unverified_email", "", sEmail);
+				}
 			}
 			if (bAllowed && pSettings->SmtpConfigured())
 			{
@@ -1782,8 +1786,8 @@ int main(int argc, char** argv)
 			KSSOdSettingsStore::Alerts A;
 			A.bEnabled  = !Q["enabled"].empty();
 			A.bDigest   = !Q["digest"].empty();
-			A.Cooldown  = std::chrono::hours(std::clamp<uint32_t>(Q["cooldown_h"].UInt32(), 1, 168));
-			A.iDailyMax = static_cast<uint16_t>(std::clamp<uint32_t>(Q["daily_max"].UInt32(), 1, 100));
+			A.Cooldown  = std::chrono::hours(std::min<uint32_t>(std::max<uint32_t>(Q["cooldown_h"].UInt32(), 1), 168));
+			A.iDailyMax = static_cast<uint16_t>(std::min<uint32_t>(std::max<uint32_t>(Q["daily_max"].UInt32(), 1), 100));
 			pSettings->SaveAlerts(A);
 			Log(HTTP, "admin.settings.alerts", "ok", sUser, "",
 			    {{ "enabled", A.bEnabled }, { "cooldown_h", A.Cooldown.hours().count() }, { "daily_max", A.iDailyMax }, { "digest", A.bDigest }});
@@ -1833,7 +1837,7 @@ int main(int argc, char** argv)
 			F.sIP      = Neg(Q["ip"],      F.bNotIP);
 			F.sSince   = Q["since"];
 			F.sUntil   = Q["until"];
-			F.iLimit   = std::clamp<std::size_t>(Q["limit"].UInt64(), 10, 500);
+			F.iLimit   = std::min<std::size_t>(std::max<std::size_t>(Q["limit"].UInt64(), 10), 500);
 			F.iOffset  = Q["offset"].UInt64();
 			if (Q["limit"].empty()) F.iLimit = 100;
 

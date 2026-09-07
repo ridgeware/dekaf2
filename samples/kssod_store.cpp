@@ -1510,8 +1510,10 @@ KSSOdSettingsStore::Alerts KSSOdSettingsStore::LoadAlerts()
 	Alerts A;
 	A.bEnabled = Get("alerts_enabled") != "0";                    // absent -> on
 	A.bDigest  = Get("alerts_digest")  != "0";
-	if (auto sHours = Get("alerts_cooldown_h"); !sHours.empty())  A.Cooldown  = std::chrono::hours(sHours.UInt32());
-	if (auto sMax   = Get("alerts_daily_max");  !sMax.empty())    A.iDailyMax = sMax.UInt16();
+	auto sHours = Get("alerts_cooldown_h");
+	auto sMax   = Get("alerts_daily_max");
+	if (!sHours.empty()) A.Cooldown  = std::chrono::hours(sHours.UInt32());
+	if (!sMax.empty())   A.iDailyMax = sMax.UInt16();
 	return A;
 
 } // LoadAlerts

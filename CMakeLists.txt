@@ -703,6 +703,24 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_POSTGRESQL)
 		if(DEKAF2_HAS_POSTGRESQL STREQUAL "")
 			set(DEKAF2_HAS_POSTGRESQL 1)
 		endif()
+		set(DEKAF2_POSTGRESQL_LIBRARIES "${PostgreSQL_LIBRARY}")
+		if(PostgreSQL_LIBRARY MATCHES "\\.a$")
+			# the static libpq lacks the libpgcommon and libpgport code it calls - they
+			# come along or nothing does. The _shlib archives are the ones libpq.so is
+			# built from: libpq calls the encoding functions by their nominal names,
+			# which only these carry - libpgcommon.a exports them as *_private (see
+			# pg_wchar.h), so libpq.pc's "-lpgcommon -lpgport" cannot link a libpq.a
+			get_filename_component(_pq_libdir "${PostgreSQL_LIBRARY}" DIRECTORY)
+			find_library(PostgreSQL_PGCOMMON_LIBRARY NAMES pgcommon_shlib pgcommon HINTS "${_pq_libdir}")
+			find_library(PostgreSQL_PGPORT_LIBRARY   NAMES pgport_shlib   pgport   HINTS "${_pq_libdir}")
+			unset(_pq_libdir)
+			if(PostgreSQL_PGCOMMON_LIBRARY AND PostgreSQL_PGPORT_LIBRARY)
+				list(APPEND DEKAF2_POSTGRESQL_LIBRARIES "${PostgreSQL_PGCOMMON_LIBRARY}" "${PostgreSQL_PGPORT_LIBRARY}")
+			else()
+				message(STATUS "static libpq without libpgcommon/libpgport - no PostgreSQL support")
+				unset(DEKAF2_HAS_POSTGRESQL)
+			endif()
+		endif()
 	endif()
 endif()
 
@@ -1036,7 +1054,7 @@ LibState("${DEKAF2_HAS_LIBZSTD}"    "ZSTD     :" "${ZSTD_VERSION}"     "${ZSTD_L
 LibState("${DEKAF2_HAS_LIBYAML}"    "YAML     :" "${YAML_CPP_VERSION}" "${YAML_CPP_LIBRARIES}" )
 LibState("${DEKAF2_HAS_MYSQL}"      "MYSQL    :" "${MYSQL_VERSION}"    "${MYSQL_LIBRARIES}"    )
 LibState("${DEKAF2_HAS_SQLITE3}"    "SQLITE   :" "${SQLITE3_VERSION}"  "${SQLITE3_LIBRARIES}"  )
-LibState("${DEKAF2_HAS_POSTGRESQL}" "POSTGRES :" "${PostgreSQL_VERSION_STRING}" "${PostgreSQL_LIBRARY}")
+LibState("${DEKAF2_HAS_POSTGRESQL}" "POSTGRES :" "${PostgreSQL_VERSION_STRING}" "${DEKAF2_POSTGRESQL_LIBRARIES}")
 LibState("${DEKAF2_HAS_LIBBROTLI}"  "BROTLI   :" "${BROTLI_VERSION}"   "${BROTLI_LIBRARIES}"   )
 LibState("${DEKAF2_HAS_NGHTTP2}"    "NGHTTP2  :" "${NGHTTP2_VERSION}"  "${NGHTTP2_LIBRARIES}"  )
 LibState("${DEKAF2_HAS_NGTCP2}"     "NGTCP2   :" "${NGTCP2_VERSION}"   "${NGTCP2_LIBRARIES}"   )
@@ -2209,10 +2227,12 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 
 set(DEKAF2_LINK_LIBRARIES
 	PRIVATE
-		# the QUIC libs call into OpenSSL - a static link resolves archives in the
-		# order given, so they have to precede ${OPENSSL_LIBRARIES} below
+		# the QUIC libs call into OpenSSL, libzip into the compressors and OpenSSL - a
+		# static link resolves archives in the order given, so they have to precede
+		# ${OPENSSL_LIBRARIES} and ${COMPRESSORS} below
 		${NGHTTP3_LIBRARIES}
 		${NGTCP2_LIBRARIES}
+		${LIBZIP_LIBRARIES}
 	PUBLIC
 		${DEKAF2_FMT_TARGET}
 		${DEKAF2_NLOHMANN_TARGET}
@@ -2227,7 +2247,6 @@ set(DEKAF2_LINK_LIBRARIES
 		${FSLIB}
 		${libproc_LIBRARIES}
 		${COMPRESSORS}
-		${LIBZIP_LIBRARIES}
 		${RT}
 		${MACOS_FRAMEWORKS}
 		${WINDOWS_LIBRARIES}
@@ -2318,7 +2337,7 @@ if (DEKAF2_HAS_POSTGRESQL)
 	)
 	set(KSQL2_LINK_LIBRARIES
 		${KSQL2_LINK_LIBRARIES}
-		${PostgreSQL_LIBRARY}
+		${DEKAF2_POSTGRESQL_LIBRARIES}
 	)
 endif()
 
@@ -2328,6 +2347,18 @@ if (unofficial-libmariadb_FOUND)
 		unofficial::libmariadb
 	)
 endif()
+
+# the DB client archives call into OpenSSL (all of them), zlib (mysqlclient) and
+# zstd (libpgcommon). A consumer's static link resolves archives in the order
+# given, and cmake puts the link interface of ksql2 behind that of dekaf2 - so
+# the libs have to be repeated here, behind the client libs. dekaf2's own
+# executables do not need this: there dekaf2 follows ksql2 on the link line
+set(KSQL2_LINK_LIBRARIES
+	${KSQL2_LINK_LIBRARIES}
+	${OPENSSL_LIBRARIES}
+	${ZLIB_LIBRARIES}
+	${ZSTD_LIBRARIES}
+)
 
 set(KSQL2_COMPILE_DEFINITIONS
 	PRIVATE

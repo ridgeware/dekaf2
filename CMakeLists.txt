@@ -2580,6 +2580,12 @@ if (DEKAF2_BUILD_SAMPLES)
 	add_executable(kmqtt samples/kmqtt.cpp)
 	target_link_libraries(kmqtt dekaf2${DEKAF2_LINK_SHARED})
 
+	# the KWebApp test application: a desktop tool on the system webview
+	if (DEKAF2_HAS_WEBVIEW)
+		add_executable(ktail samples/ktail.cpp samples/ktail.h)
+		target_link_libraries(ktail dekaf2${DEKAF2_LINK_SHARED})
+	endif()
+
 	# an end to end integrity test for KTunnel - not part of the default build,
 	# it needs a minute to run: cmake --build . --target ktunnel_test
 	add_executable(ktunnel_test EXCLUDE_FROM_ALL samples/ktunnel_test.cpp)
@@ -2864,6 +2870,9 @@ if (DEKAF2_BUILD_SAMPLES)
 	install(TARGETS kurl khttp kgrep kreplace ksql krypt kgeoip kmqtt statinfo DESTINATION ${dekaf2_bin_dest})
 	if (SQLITE3_FOUND)
 		install(TARGETS ktunnel kssod DESTINATION ${dekaf2_bin_dest})
+	endif()
+	if (DEKAF2_HAS_WEBVIEW)
+		install(TARGETS ktail DESTINATION ${dekaf2_bin_dest})
 	endif()
 
 endif()

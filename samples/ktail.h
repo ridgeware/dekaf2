@@ -6,7 +6,8 @@
 // class is the whole application, ktail.cpp adds the command line. It touches
 // the four capability categories of the KWebApp design: pure UI (the listing),
 // local files (the notes), OS integration (notifications), and native-only
-// functions (reveal), and shows how one page serves the window and a browser.
+// functions (reveal), and shows how one page serves the window and, with
+// -listen, browsers on the network behind KWebApp's login.
 
 #pragma once
 
@@ -32,10 +33,18 @@ public:
 		KString sRoot;
 		KString sTitle   { "ktail" };
 		KString sVersion { "0.1"   };
-		/// open a window? false runs the server alone
+		/// open a window? false runs the servers alone
 		bool    bWindow  { true  };
 		/// enable the web inspector in the window
 		bool    bDebug   { false };
+		/// serve browsers on the network: "[address:]port", empty for none
+		KString sListen;
+		/// the one account for the network, with the password in a file
+		KString sUser;
+		KString sPasswordFile;
+		/// TLS certificate and key for the network, else a self-signed one is made
+		KString sCert;
+		KString sKey;
 	};
 
 	/// sets up the routes and starts the loopback server - check HasError()

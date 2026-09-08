@@ -5,6 +5,7 @@
 #include "ktail.h"
 
 #include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/crypto/auth/kbcrypt.h>
 #include <dekaf2/util/cli/koptions.h>
 #include <dekaf2/web/objects/kwebobjects.h>
 #include <dekaf2/web/url/kmime.h>
@@ -49,7 +50,8 @@ constexpr KStringView sTexts = R"json({
 	"disconnected"  : "Disconnected",
 	"truncated"     : "File was truncated, starting over",
 	"gone"          : "File is gone",
-	"newLines"      : "New lines"
+	"newLines"      : "New lines",
+	"signOut"       : "Sign out"
 })json";
 
 // colors as tokens, the dark set both for the system preference and for the
@@ -88,6 +90,8 @@ footer { padding: .3em 1em; color: var(--muted); font-size: .9em; border-top: 1p
 .hint { padding: 2em 1em; color: var(--muted); }
 .native-only { display: none; }
 .native .native-only { display: inline-flex; align-items: center; gap: .3em; }
+.browser-only { display: none; margin: 0; }
+:root:not(.native) .browser-only { display: inline; }
 )css";
 
 // the page script: theme toggle, live tail over the websocket, and the native
@@ -267,6 +271,59 @@ KTail::KTail(Config Config)
 	Options.iWidth   = 1100;
 	Options.iHeight  = 700;
 
+	if (!m_Config.sListen.empty())
+	{
+		// browsers on the network: TLS, a login, and the server outlives the window
+		if (m_Config.sUser.empty() || m_Config.sPasswordFile.empty())
+		{
+			SetError("the network needs -user and -password-file");
+			return;
+		}
+
+		KString sPassword;
+		{
+			KInFile File(m_Config.sPasswordFile);
+
+			if (!File.is_open() || !File.ReadLine(sPassword) || sPassword.Trim().empty())
+			{
+				SetError(kFormat("cannot read a password from {}", m_Config.sPasswordFile));
+				return;
+			}
+		}
+
+		// keep only the hash, and let bcrypt take its time on every check
+		auto BCrypt = std::make_shared<KBCrypt>();
+		auto sHash  = std::make_shared<KString>(BCrypt->GenerateHash(sPassword));
+		auto sUser  = m_Config.sUser;
+
+		Options.Authenticate = [BCrypt, sHash, sUser](KStringView sName, KStringView sPassword)
+		{
+			return sName == sUser && BCrypt->ValidatePassword(KString(sPassword), *sHash);
+		};
+
+		KStringView sListen = m_Config.sListen;
+		auto        iColon  = sListen.rfind(':');
+
+		if (iColon != KStringView::npos)
+		{
+			Options.Network.sBindAddress = KString(sListen.substr(0, iColon));
+			sListen.remove_prefix(iColon + 1);
+		}
+
+		Options.Network.iPort = sListen.UInt16();
+
+		if (Options.Network.iPort == 0)
+		{
+			SetError(kFormat("not a port to listen on: {}", m_Config.sListen));
+			return;
+		}
+
+		Options.Network.sCert     = m_Config.sCert;
+		Options.Network.sKey      = m_Config.sKey;
+		Options.bNetwork          = true;
+		Options.bQuitOnWindowClose = false;
+	}
+
 	m_App = std::make_unique<KWebApp>(std::move(Options), m_Routes);
 
 	if (m_App->HasError())
@@ -366,6 +423,11 @@ void KTail::Page(KRESTServer& HTTP)
 	}
 
 	Header.Add<html::Button>(KStringView{}, html::Button::BUTTON, html::Classes{}, "theme");
+
+	// a browser has a session to end, the window has not
+	auto SignOut = Header.Add<html::Form>("/logout", "browser-only");
+	SignOut.SetMethod(html::Form::POST);
+	SignOut.Add<html::Button>(Text("signOut"));
 
 	auto Main = Page.Add<html::Element>("main");
 
@@ -711,16 +773,23 @@ KJSON KTail::Notify(const KJSON& jArg)
 int main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 {
-	KInit(false);
+	// the signal handler thread lets SIGINT and SIGTERM end a headless run
+	KInit(true);
 
 	try
 	{
 		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
-		Options.SetBriefDescription("browse a directory and follow files live, in a desktop window");
+		Options.SetBriefDescription("browse a directory and follow files live, in a desktop window or a browser");
 
 		KTail::Config Config;
-		Config.sRoot  = Options("dir <path>   : the directory to browse, defaults to the current one", "");
-		Config.bDebug = Options("inspector    : enable the web inspector in the window", false);
+		Config.sRoot         = Options("dir <path>            : the directory to browse, defaults to the current one", "");
+		Config.bDebug        = Options("inspector             : enable the web inspector in the window", false);
+		Config.sListen       = Options("listen <[addr:]port>  : also serve browsers on the network, with TLS and a login", "");
+		Config.bWindow       = !Options("headless              : no window, only the network server", false);
+		Config.sUser         = Options("user <name>           : the account for the network", "");
+		Config.sPasswordFile = Options("password-file <path>  : file with the account's password in the first line", "");
+		Config.sCert         = Options("cert <file>           : TLS certificate for the network (PEM), default: self-signed", "");
+		Config.sKey          = Options("key <file>            : TLS private key for the network (PEM)", "");
 
 		if (Options.Terminate())
 		{

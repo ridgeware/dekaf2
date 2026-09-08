@@ -45,16 +45,23 @@
 #if DEKAF2_HAS_WEBVIEW
 
 #include <dekaf2/rest/framework/krestserver.h>
+#include <dekaf2/rest/framework/krestsession.h>
+#include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/http/protocol/khttp_header.h>
 #include <dekaf2/crypto/encoding/khex.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/crypto/random/krandom.h>
+#include <dekaf2/web/objects/kwebobjects.h>
+#include <dekaf2/web/url/kmime.h>
 #include <dekaf2/web/url/kurlencode.h>
 #include <dekaf2/core/format/kformat.h>
+#include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/system/os/ksignals.h>
 
 #include <webview.h>
+#include <csignal>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -62,6 +69,9 @@ namespace {
 
 constexpr KStringView sCookieName = "kwa";
 constexpr KStringView sEnterPath  = "/_kwa/enter";
+constexpr KStringView sLoginPath  = "/login";
+constexpr KStringView sLogoutPath = "/logout";
+constexpr KStringView sHealthPath = "/healthz";
 constexpr KStringView sBindPrefix = "__kwa_";
 
 #if DEKAF2_IS_MACOS
@@ -71,6 +81,22 @@ constexpr KStringView sPlatform   = "windows";
 #else
 constexpr KStringView sPlatform   = "linux";
 #endif
+
+// the login page's look: the same tokens as a page would use, both themes
+constexpr KStringView sLoginStyle = R"css(
+:root { color-scheme: light dark;
+	--bg: #ffffff; --fg: #1d1d1f; --muted: #6e6e73; --panel: #f5f5f7; --border: #d2d2d7; --accent: #0a66c2; --error: #c0392b; }
+@media (prefers-color-scheme: dark) { :root {
+	--bg: #1c1c1e; --fg: #f5f5f7; --muted: #98989d; --panel: #2c2c2e; --border: #3a3a3c; --accent: #4c9aff; --error: #ff6b6b; } }
+body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--fg);
+	font: 15px/1.4 -apple-system, "Segoe UI", Helvetica, sans-serif; }
+form { width: 20em; padding: 2em; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); display: flex; flex-direction: column; gap: .8em; }
+h1 { font-size: 1.2em; margin: 0 0 .5em; }
+label { display: flex; flex-direction: column; gap: .3em; color: var(--muted); font-size: .9em; }
+input { font: inherit; padding: .5em; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }
+button { font: inherit; padding: .6em; border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; margin-top: .5em; }
+.error { color: var(--error); margin: 0; }
+)css";
 
 //-----------------------------------------------------------------------------
 std::string Std(KStringView sView)
@@ -100,15 +126,106 @@ public:
 };
 
 //-----------------------------------------------------------------------------
-KWebApp::KWebApp(Options Options, const KRESTRoutes& Routes)
+KWebApp::KWebApp(Options Options, KRESTRoutes& Routes)
 //-----------------------------------------------------------------------------
 : m_Options(std::move(Options))
 , m_Routes(Routes)
 , m_sToken(kHex(kGetRandom(32)))
 {
-	// the loopback server: the address is not negotiable, and the window cannot
-	// accept a self-signed certificate, so it stays plain HTTP. Port 0 lets the
-	// OS pick one
+	// our routes, in the table both servers serve - the handlers know which side
+	// they answer for
+	m_Routes.AddRoute(KString(sHealthPath)).Get ([this](KRESTServer& HTTP) { Health(HTTP);    });
+	m_Routes.AddRoute(KString(sLoginPath )).Get ([this](KRESTServer& HTTP) { LoginPage(HTTP); });
+	m_Routes.AddRoute(KString(sLoginPath )).Post([this](KRESTServer& HTTP) { Login(HTTP);     }).Parse(KRESTRoute::WWWFORM);
+	m_Routes.AddRoute(KString(sLogoutPath)).Post([this](KRESTServer& HTTP) { Logout(HTTP);    });
+
+	// a shutdown signal ends Run(), which stops the servers in order - so the
+	// servers themselves stay out of the signal handling
+	m_Options.Loopback.RegisterSignalsForShutdown.clear();
+	m_Options.Network.RegisterSignalsForShutdown.clear();
+	CatchShutdownSignals();
+
+	if (!StartLoopback())
+	{
+		return;
+	}
+
+	if (m_Options.bNetwork && !StartNetwork())
+	{
+		return;
+	}
+
+} // ctor
+
+//-----------------------------------------------------------------------------
+KWebApp::~KWebApp()
+//-----------------------------------------------------------------------------
+{
+	Quit();
+
+	// the signal handlers capture this
+	if (auto* Signals = Dekaf::getInstance().Signals())
+	{
+		for (auto& Handler : m_PreviousSignalHandlers)
+		{
+			if (Handler.second)
+			{
+				Signals->SetSignalHandler(Handler.first, Handler.second);
+			}
+			else
+			{
+				Signals->SetDefaultHandler(Handler.first);
+			}
+		}
+	}
+
+} // dtor
+
+//-----------------------------------------------------------------------------
+void KWebApp::CatchShutdownSignals()
+//-----------------------------------------------------------------------------
+{
+	auto* Signals = Dekaf::getInstance().Signals();
+
+	if (!Signals)
+	{
+		kDebug(1, "no signal handler thread, a shutdown signal will not end Run() - start with KInit(true)");
+		return;
+	}
+
+	for (auto iSignal : { SIGINT, SIGTERM })
+	{
+		// chain a handler the application had installed before
+		auto Previous = Signals->GetSignalHandler(iSignal);
+		m_PreviousSignalHandlers[iSignal] = Previous;
+
+		Signals->SetSignalHandler(iSignal, [this, Previous](int iSignal)
+		{
+			kDebug(1, "received {}, ending Run()", kTranslateSignal(iSignal));
+
+			if (auto* Signals = Dekaf::getInstance().Signals())
+			{
+				// the next one terminates the process the default way
+				Signals->SetDefaultHandler(iSignal);
+			}
+
+			Quit();
+
+			if (Previous)
+			{
+				Previous(iSignal);
+			}
+		});
+	}
+
+} // CatchShutdownSignals
+
+//-----------------------------------------------------------------------------
+bool KWebApp::StartLoopback()
+//-----------------------------------------------------------------------------
+{
+	// the address is not negotiable, and the window cannot accept a self-signed
+	// certificate, so it stays plain HTTP. Port 0 lets the OS pick one
 	auto& Loopback = m_Options.Loopback;
 
 	if (!Loopback.sCert.empty() || !Loopback.sKey.empty())
@@ -142,22 +259,102 @@ KWebApp::KWebApp(Options Options, const KRESTRoutes& Routes)
 	{
 		SetError(*m_REST);
 		m_REST.reset();
-		return;
+		return false;
 	}
 
 	m_iPort = m_REST->GetPort();
 
 	kDebug(2, "loopback server listening on 127.0.0.1:{}", m_iPort);
 
-} // ctor
+	return true;
+
+} // StartLoopback
 
 //-----------------------------------------------------------------------------
-KWebApp::~KWebApp()
+bool KWebApp::StartNetwork()
 //-----------------------------------------------------------------------------
 {
-	Quit();
+	auto& Network = m_Options.Network;
 
-} // dtor
+	Network.Type      = KREST::HTTP;
+	Network.bBlocking = false;
+
+	if (Network.sCert.empty() && Network.sKey.empty())
+	{
+		// KREST creates the certificate and keeps it under ~/.config/<program>/tls/
+		Network.bCreateEphemeralCert = true;
+		kDebug(1, "the network server uses a self-signed certificate - browsers will warn, use a real one for production");
+	}
+
+	// the network is not the window: limit what a client may send and open
+	if (Network.iMaxRequestBodySize == KRESTServer::Options{}.iMaxRequestBodySize)
+	{
+		Network.iMaxRequestBodySize = 16 * 1024 * 1024;
+	}
+
+	if (!Network.ConnectionLimiter)
+	{
+		Network.SetConnectionLimit(20);
+	}
+
+	// sessions: in memory unless the application brought a store
+	if (!m_Options.SessionStore)
+	{
+		m_Options.SessionStore = std::make_unique<KSessionMemoryStore>();
+	}
+
+	auto Config      = m_Options.Session;
+	Config.bSecure   = true;
+	Config.bHttpOnly = true;
+
+	m_Session = std::make_unique<KSession>(std::move(m_Options.SessionStore), std::move(Config));
+
+	if (m_Options.Authenticate)
+	{
+		m_Session->SetAuthenticator(m_Options.Authenticate);
+	}
+	else
+	{
+		kDebug(1, "no authenticator set, nobody can log in on the network server");
+	}
+
+	m_UserNetworkPreRoute = std::move(Network.PreRouteCallback);
+
+	Network.PreRouteCallback = [this](KRESTServer& HTTP)
+	{
+		NetworkGuard(HTTP);
+
+		if (m_UserNetworkPreRoute)
+		{
+			m_UserNetworkPreRoute(HTTP);
+		}
+	};
+
+	m_Network = std::make_unique<KREST>();
+
+	if (!m_Network->Execute(Network, m_Routes))
+	{
+		SetError(*m_Network);
+		m_Network.reset();
+		return false;
+	}
+
+	m_iNetworkPort = m_Network->GetPort();
+
+	kDebug(1, "network server listening on {}:{}", Network.sBindAddress.empty() ? "*" : Network.sBindAddress, m_iNetworkPort);
+
+	return true;
+
+} // StartNetwork
+
+//-----------------------------------------------------------------------------
+bool KWebApp::IsFromWindow(const KRESTServer& HTTP) const
+//-----------------------------------------------------------------------------
+{
+	// each server runs with its own options object
+	return &HTTP.GetOptions() == static_cast<const KRESTServer::Options*>(&m_Options.Loopback);
+
+} // IsFromWindow
 
 //-----------------------------------------------------------------------------
 bool KWebApp::IsIdentifier(KStringView sName)
@@ -179,6 +376,29 @@ bool KWebApp::IsIdentifier(KStringView sName)
 	return true;
 
 } // IsIdentifier
+
+//-----------------------------------------------------------------------------
+KString KWebApp::SafePath(KStringView sPath)
+//-----------------------------------------------------------------------------
+{
+	// a path on our own origin, nothing else
+	if (sPath.starts_with('/') && !sPath.starts_with("//"))
+	{
+		return sPath;
+	}
+
+	return "/";
+
+} // SafePath
+
+//-----------------------------------------------------------------------------
+void KWebApp::Redirect(KRESTServer& HTTP, KStringView sLocation)
+//-----------------------------------------------------------------------------
+{
+	HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, sLocation);
+	throw KHTTPError { KHTTPError::H302_MOVED_TEMPORARILY, "" };
+
+} // Redirect
 
 //-----------------------------------------------------------------------------
 KString KWebApp::ShimScript(KStringView sName)
@@ -393,8 +613,8 @@ KString KWebApp::GetEnterURL(KStringView sPath) const
 void KWebApp::Guard(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
-	// runs before routing, for every request - a rejection is a 403, and there
-	// is no path that gets through without the token
+	// runs before routing, for every request of the loopback server - a
+	// rejection is a 403, and there is no path that gets through without the token
 
 	const auto  sSelf = kFormat("127.0.0.1:{}", m_iPort);
 	const auto& sHost = HTTP.Request.Headers.Get(KHTTPHeader::HOST);
@@ -440,17 +660,8 @@ void KWebApp::Guard(KRESTServer& HTTP)
 			throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "wrong token" };
 		}
 
-		auto sNext = HTTP.GetQueryParm("next", "/");
-
-		if (!sNext.starts_with('/') || sNext.starts_with("//"))
-		{
-			// stay on our own origin
-			sNext = "/";
-		}
-
 		HTTP.SetCookie(sCookieName, m_sToken, "Path=/; HttpOnly; SameSite=Strict");
-		HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, sNext);
-		throw KHTTPError { KHTTPError::H302_MOVED_TEMPORARILY, "" };
+		Redirect(HTTP, SafePath(HTTP.GetQueryParm("next", "/")));
 	}
 
 	if (!KDigest::ConstantTimeCompare(HTTP.GetCookie(sCookieName), m_sToken))
@@ -462,10 +673,168 @@ void KWebApp::Guard(KRESTServer& HTTP)
 } // Guard
 
 //-----------------------------------------------------------------------------
+void KWebApp::NetworkGuard(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	// runs before routing, for every request of the network server
+
+	auto& Headers = HTTP.Response.Headers;
+	Headers.Set(KHTTPHeader::STRICT_TRANSPORT_SECURITY, "max-age=31536000");
+	Headers.Set(KHTTPHeader::X_CONTENT_TYPE_OPTIONS,    "nosniff");
+	Headers.Set(KHTTPHeader::X_FRAME_OPTIONS,           "DENY");
+	Headers.Set(KHTTPHeader("Referrer-Policy"),         "same-origin");
+
+	if (!m_Options.sContentSecurityPolicy.empty())
+	{
+		Headers.Set(KHTTPHeader("Content-Security-Policy"), m_Options.sContentSecurityPolicy);
+	}
+
+	const auto& sPath = HTTP.Request.Resource.Path.get();
+
+	if (sPath == sHealthPath || sPath == sLoginPath || sPath == sLogoutPath)
+	{
+		// open, the handlers do the rest
+		return;
+	}
+
+	KRESTSession Session(*m_Session, HTTP);
+
+	if (!Session.IsAuthenticated())
+	{
+		bool bUpgrade = HTTP.Request.Headers.Get(KHTTPHeader::UPGRADE).ToLowerASCII() == "websocket";
+
+		if (HTTP.Request.Method == KHTTPMethod::GET && !bUpgrade)
+		{
+			// a browser: to the login page, and back here afterwards
+			KString sResource;
+			HTTP.Request.Resource.Serialize(sResource);
+			KString sLocation = kFormat("{}?next=", sLoginPath);
+			kUrlEncode(sResource, sLocation, URIPart::Query);
+			Redirect(HTTP, sLocation);
+		}
+
+		throw KHTTPError { KHTTPError::H4xx_NOTAUTH, "login required" };
+	}
+
+	for (const auto& sPrefix : m_Options.WindowOnlyPaths)
+	{
+		if (sPath.starts_with(sPrefix))
+		{
+			kDebug(1, "refusing window-only path {} for network user '{}'", sPath, Session.GetUser());
+			throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "only available in the desktop window" };
+		}
+	}
+
+} // NetworkGuard
+
+//-----------------------------------------------------------------------------
+void KWebApp::Health(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	if (IsFromWindow(HTTP))
+	{
+		// the loopback server has no unauthenticated path
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "" };
+	}
+
+	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+	HTTP.SetRawOutput("ok\n");
+
+} // Health
+
+//-----------------------------------------------------------------------------
+void KWebApp::LoginPage(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	if (IsFromWindow(HTTP))
+	{
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "" };
+	}
+
+	html::Page Page(kFormat("{} - login", m_Options.sTitle), "en");
+	Page.Head().Add<html::Meta>("viewport", "width=device-width, initial-scale=1");
+	Page.AddStyle(sLoginStyle);
+
+	auto Form = Page.Add<html::Form>(sLoginPath);
+	Form.SetMethod(html::Form::POST);
+	Form.Add<html::Heading>(1, m_Options.sTitle);
+
+	if (HTTP.GetQueryParm("error") == "1")
+	{
+		Form.Add<html::Element>("p", "error").AddText("Wrong user name or password.");
+	}
+
+	Form.Add<html::Element>("label").AddText("User name")
+		.Add<html::Input>("user", "", html::Input::TEXT).SetAutofocus(true).SetRequired(true).SetAttribute("autocomplete", "username");
+	Form.Add<html::Element>("label").AddText("Password")
+		.Add<html::Input>("password", "", html::Input::PASSWORD).SetRequired(true).SetAttribute("autocomplete", "current-password");
+	Form.Add<html::Input>("next", SafePath(HTTP.GetQueryParm("next", "/")), html::Input::HIDDEN);
+	Form.Add<html::Button>("Sign in");
+
+	Page.Generate();
+
+	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
+	HTTP.SetRawOutput(Page.Print());
+
+} // LoginPage
+
+//-----------------------------------------------------------------------------
+void KWebApp::Login(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	if (IsFromWindow(HTTP))
+	{
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "" };
+	}
+
+	auto sClient = HTTP.GetRemoteIP();
+
+	// password guessing: a few attempts per address, then a long wait
+	if (!m_LoginLimiter.Check(sClient))
+	{
+		kDebug(1, "too many login attempts from {}", sClient);
+		throw KHTTPError { KHTTPError::H4xx_TOOMANYREQUESTS, "too many login attempts, try again later" };
+	}
+
+	// the form fields arrive as query parms through the WWWFORM parser
+	auto sUser = HTTP.GetQueryParm("user");
+	auto sNext = SafePath(HTTP.GetQueryParm("next", "/"));
+
+	KRESTSession Session(*m_Session, HTTP);
+
+	if (!Session.Login(sUser, HTTP.GetQueryParm("password")))
+	{
+		kDebug(1, "failed login for '{}' from {}", sUser, sClient);
+		KString sLocation = kFormat("{}?error=1&next=", sLoginPath);
+		kUrlEncode(sNext, sLocation, URIPart::Query);
+		Redirect(HTTP, sLocation);
+	}
+
+	kDebug(1, "user '{}' logged in from {}", sUser, sClient);
+	Redirect(HTTP, sNext);
+
+} // Login
+
+//-----------------------------------------------------------------------------
+void KWebApp::Logout(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	if (IsFromWindow(HTTP))
+	{
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "" };
+	}
+
+	KRESTSession Session(*m_Session, HTTP);
+	Session.Logout();
+	Redirect(HTTP, sLoginPath);
+
+} // Logout
+
+//-----------------------------------------------------------------------------
 int KWebApp::Run()
 //-----------------------------------------------------------------------------
 {
-	if (!m_REST)
+	if (!m_REST || (m_Options.bNetwork && !m_Network))
 	{
 		// the constructor has set the error
 		return 1;
@@ -492,16 +861,34 @@ int KWebApp::Run()
 
 		// the UI loop, until the window closes or Quit() is called
 		m_WebView->run();
+
+		if (!m_bQuit && m_Network && !m_Options.bQuitOnWindowClose)
+		{
+			// the window is gone but the network stays: drop what only the window used
+			kDebug(1, "window closed, the network server keeps running");
+			m_REST.reset();
+			m_iPort = 0;
+
+			std::lock_guard<std::mutex> Lock(m_Mutex);
+			m_WebView.reset();
+		}
+		else
+		{
+			m_bQuit = true;
+		}
 	}
-	else
+
+	if (!m_bQuit)
 	{
+		// the servers alone, until Quit() or a shutdown signal
 		std::unique_lock<std::mutex> Lock(m_Mutex);
 		m_Idle.wait(Lock, [this] { return m_bQuit.load(); });
 	}
 
-	// shutdown: first no more calls into the window, then the server, then the window
+	// shutdown: first no more calls into the window, then the servers, then the window
 	m_bQuit = true;
 	m_REST.reset();
+	m_Network.reset();
 
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 	m_WebView.reset();

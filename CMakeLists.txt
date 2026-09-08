@@ -775,7 +775,8 @@ if (DEKAF2_WITH_WEBVIEW)
 	set(WEBVIEW_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/from/webview")
 
 	if (IS_MACOS)
-		set(WEBVIEW_LIBRARIES "-framework WebKit")
+		# WebKit for the view, AppKit for menus and dialogs, UserNotifications for notifications
+		set(WEBVIEW_LIBRARIES "-framework WebKit" "-framework AppKit" "-framework UserNotifications")
 		set(WEBVIEW_VERSION   "WebKit")
 	elseif (IS_WINDOWS)
 		# the WebView2 SDK headers are not part of webview/webview - take them from the
@@ -1768,6 +1769,7 @@ set(PUBLIC_HEADERS
 	source/util/text/kdiff.h
 	source/util/text/kngram.h
 	source/web/app/kwebapp.h
+	source/web/app/bits/kwebapp_platform.h
 	source/web/html/khtmlcontentblocks.h
 	source/web/html/khtmldom.h
 	source/web/html/khtmldom_cursor.h
@@ -2048,6 +2050,9 @@ set (SOURCES
 	source/web/html/khtmlentities.cpp
 	source/web/html/khtmlparser.cpp
 	source/web/app/kwebapp.cpp
+	source/web/app/bits/kwebapp_linux.cpp
+	source/web/app/bits/kwebapp_macos.cpp
+	source/web/app/bits/kwebapp_windows.cpp
 	source/web/objects/kwebobjects.cpp
 	source/web/url/kmime.cpp
 	source/web/acme/kacmeclient.cpp
@@ -2584,6 +2589,25 @@ if (DEKAF2_BUILD_SAMPLES)
 	if (DEKAF2_HAS_WEBVIEW)
 		add_executable(ktail samples/ktail.cpp samples/ktail.h)
 		target_link_libraries(ktail dekaf2${DEKAF2_LINK_SHARED})
+
+		if (IS_MACOS)
+			# ktail.app: the bundle macOS wants for notifications and for permissions
+			# that stick. Signed ad hoc unless an identity is given - permissions granted
+			# to an ad hoc signed binary are lost with the next build:
+			#   cmake --build . --target ktail-app
+			set(KTAIL_CODESIGN_IDENTITY "-" CACHE STRING "code signing identity for ktail.app, '-' signs ad hoc")
+			set(KTAIL_VERSION "0.1")
+			configure_file(samples/ktail-Info.plist.in "${CMAKE_CURRENT_BINARY_DIR}/ktail-Info.plist" @ONLY)
+			add_custom_target(ktail-app
+				COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/ktail.app/Contents/MacOS"
+				COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ktail>" "${CMAKE_CURRENT_BINARY_DIR}/ktail.app/Contents/MacOS/ktail"
+				COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/ktail-Info.plist" "${CMAKE_CURRENT_BINARY_DIR}/ktail.app/Contents/Info.plist"
+				COMMAND codesign --force --sign "${KTAIL_CODESIGN_IDENTITY}" "${CMAKE_CURRENT_BINARY_DIR}/ktail.app"
+				DEPENDS ktail
+				COMMENT "assembling and signing ktail.app"
+				VERBATIM
+			)
+		endif()
 	endif()
 
 	# an end to end integrity test for KTunnel - not part of the default build,

@@ -58,6 +58,7 @@
 #include <dekaf2/rest/framework/krestroute.h>
 #include <dekaf2/rest/limits/kratelimiter.h>
 #include <dekaf2/http/websocket/kwebsocket.h>
+#include <dekaf2/system/filesystem/kfilesystem.h>
 #include <atomic>
 #include <condition_variable>
 #include <functional>
@@ -112,6 +113,18 @@ KStringViewZ kGetWebViewVersion();
 /// OnConnect() sees a page arrive. A Client tells whether it is the window or a
 /// network login. This is the way for "C++ has news, every view shows them",
 /// Bind() stays for what only the desktop can do.
+///
+/// @par Desktop integration
+/// The window comes with the standard application, Edit and Window menus, and
+/// Options.jMenus adds the application's own: an entry's action calls a bound
+/// handler of that name, or reaches the page as a "kwa-menu" event with the
+/// action in detail. The window remembers its position and size between runs,
+/// and one instance runs per user: a second start brings the first window to
+/// the front and reports IsOtherInstanceRunning(). Notify(), OpenExternal() and
+/// the file dialogs are available to C++ and, as window.kNative.notify(),
+/// .openExternal(), .openFile() and .saveFile(), to the page. On macOS the
+/// notification center wants an application bundle - a bare binary falls back
+/// to the scripting bridge.
 ///
 /// @par Usage
 /// @code
@@ -202,6 +215,16 @@ public:
 		bool           bDebug  { false };
 		/// end Run() when the window closes? false keeps a network server running until Quit()
 		bool           bQuitOnWindowClose { true };
+		/// the application's name for ~/.config/<name>/, where the window geometry and the
+		/// instance lock live - empty means the program name
+		KString        sAppName;
+		/// one window per user - a second start brings the first to the front and ends
+		bool           bSingleInstance    { true };
+		/// remember the window's position and size between runs
+		bool           bRememberWindow    { true };
+		/// the application's menus for the window, as a JSON array of
+		/// { "title": "File", "items": [ { "title": "Save", "key": "s", "action": "save" }, { "separator": true } ] }
+		KJSON          jMenus;
 	};
 
 	/// JavaScript to C++ handler: one JSON argument in, one JSON result out.
@@ -261,6 +284,18 @@ public:
 	/// handler that does something only the desktop may do checks this
 	bool IsFromWindow(const KRESTServer& HTTP) const;
 
+	/// another instance of this application runs already - it has been brought to the front
+	bool IsOtherInstanceRunning() const { return m_bOtherInstance; }
+	/// open a URL in the system's browser - http, https and mailto only
+	bool OpenExternal(KStringView sURL);
+	/// post a system notification
+	bool Notify(KStringView sTitle, KStringView sBody);
+	/// native open dialog, from any thread, blocks until answered. Extensions like
+	/// "log" limit the choice, empty allows any file. Empty result when cancelled
+	std::vector<KString> OpenFileDialog(KStringView sTitle, const std::vector<KString>& Extensions = {}, bool bMultiple = false, bool bDirectories = false);
+	/// native save dialog, from any thread, blocks until answered. Empty when cancelled
+	KString SaveFileDialog(KStringView sTitle, KStringView sSuggestedName, const std::vector<KString>& Extensions = {});
+
 	/// set the handler for arriving live connections - runs in the websocket server's thread
 	void OnConnect(ConnectHandler Handler);
 	/// set the handler for messages from live connections - runs in the websocket
@@ -309,6 +344,13 @@ private:
 	bool    StartLoopback();
 	bool    StartNetwork ();
 	void    CatchShutdownSignals();
+	bool    LockInstance ();
+	void    AddBuiltins  ();
+	void    MenuAction   (KStringView sAction);
+	void    LoadWindowFrame();
+	void    SaveWindowFrame();
+	void    RunOnUI      (std::function<void()> Call);
+	void*   WindowHandle ();
 	void    AddBinding   (WebView& View, KStringView sName, const Handler& Handler);
 	KString InitScript   () const;
 
@@ -337,7 +379,11 @@ private:
 	mutable std::mutex                m_Mutex;
 	std::condition_variable           m_Idle;
 	std::map<int, std::function<void(int)>> m_PreviousSignalHandlers;
+	std::unique_ptr<KFileLock>        m_InstanceLock;
+	KString                           m_sConfigDir;
+	KJSON                             m_jWindowFrame;
 	std::atomic<bool>                 m_bQuit { false };
+	bool                              m_bOtherInstance { false };
 	uint16_t                          m_iPort        { 0 };
 	uint16_t                          m_iNetworkPort { 0 };
 

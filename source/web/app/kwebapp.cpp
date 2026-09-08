@@ -44,6 +44,7 @@
 
 #if DEKAF2_HAS_WEBVIEW
 
+#include <dekaf2/web/app/bits/kwebapp_platform.h>
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/rest/framework/krestsession.h>
 #include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
@@ -62,6 +63,7 @@
 
 #include <webview.h>
 #include <csignal>
+#include <future>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -75,6 +77,8 @@ constexpr KStringView sHealthPath = "/healthz";
 constexpr KStringView sLivePath   = "/_kwa/live";
 constexpr KStringView sLiveScript = "/_kwa/live.js";
 constexpr KStringView sBindPrefix = "__kwa_";
+constexpr KStringView sWindowFile = "window.json";
+constexpr KStringView sLockFile   = "instance.lock";
 
 // the page side of the live connection: opens the websocket, reconnects, queues
 // what is sent before the connection is up, hands parsed JSON to one listener
@@ -164,6 +168,20 @@ KWebApp::KWebApp(Options Options, KRESTRoutes& Routes)
 	m_Routes.AddRoute(KString(sLogoutPath)).Post([this](KRESTServer& HTTP) { Logout(HTTP);     });
 	m_Routes.AddRoute(KString(sLiveScript)).Get ([this](KRESTServer& HTTP) { LiveScript(HTTP); });
 	m_Routes.AddRoute(KString(sLivePath  )).Get ([this](KRESTServer& HTTP) { Live(HTTP);       }).Parse(KRESTRoute::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
+
+	// ~/.config/<app>/ keeps the window geometry and the instance lock
+	m_sConfigDir = m_Options.sAppName.empty() ? kGetConfigPath() : kFormat("{}/.config/{}", kGetHome(), m_Options.sAppName);
+	kCreateDir(m_sConfigDir);
+
+	if (m_Options.bWindow && m_Options.bSingleInstance && !LockInstance())
+	{
+		// the other instance's window is in front now, we are done
+		m_bOtherInstance = true;
+		SetError(kFormat("{} is already running", m_Options.sAppName.empty() ? Dekaf::getInstance().GetProgName() : KStringViewZ(m_Options.sAppName)));
+		return;
+	}
+
+	AddBuiltins();
 
 	// a shutdown signal ends Run(), which stops the servers in order - so the
 	// servers themselves stay out of the signal handling
@@ -636,6 +654,278 @@ KString KWebApp::GetEnterURL(KStringView sPath) const
 } // GetEnterURL
 
 //-----------------------------------------------------------------------------
+bool KWebApp::LockInstance()
+//-----------------------------------------------------------------------------
+{
+	// the lock file carries the holder's process id, so that a second start can
+	// bring the first one's window to the front
+	auto sLock = kFormat("{}/{}", m_sConfigDir, sLockFile);
+
+	if (!kFileExists(sLock))
+	{
+		kWriteFile(sLock, "");
+	}
+
+	m_InstanceLock = std::make_unique<KFileLock>(sLock, KFileLock::Exclusive, /*bWait*/false);
+
+	if (*m_InstanceLock)
+	{
+		kWriteFile(sLock, kFormat("{}\n", kGetPid()));
+		return true;
+	}
+
+	m_InstanceLock.reset();
+
+	KString sPID;
+	{
+		KInFile File(sLock);
+		File.ReadLine(sPID);
+	}
+
+	auto iPID = sPID.Trim().Int64();
+	kDebug(1, "another instance runs as process {}", iPID);
+
+	if (iPID > 0 && !kwebapp::ActivateProcess(iPID))
+	{
+		kDebug(1, "cannot bring process {} to the front", iPID);
+	}
+
+	return false;
+
+} // LockInstance
+
+//-----------------------------------------------------------------------------
+void KWebApp::AddBuiltins()
+//-----------------------------------------------------------------------------
+{
+	// what every page may ask the desktop for - the names are taken, Bind() refuses them
+	m_Bindings.emplace("openExternal", [this](const KJSON& jArg) -> KJSON
+	{
+		return OpenExternal(jArg["url"].String());
+	});
+
+	m_Bindings.emplace("notify", [this](const KJSON& jArg) -> KJSON
+	{
+		return Notify(jArg["title"].String(), jArg["body"].String());
+	});
+
+	m_Bindings.emplace("openFile", [this](const KJSON& jArg) -> KJSON
+	{
+		std::vector<KString> Extensions;
+
+		for (const auto& jExtension : jArg["extensions"])
+		{
+			Extensions.push_back(jExtension.String());
+		}
+
+		KJSON jFiles = KJSON::array();
+
+		for (const auto& sFile : OpenFileDialog(jArg["title"].String(), Extensions, jArg["multiple"].Bool(), jArg["directories"].Bool()))
+		{
+			jFiles.push_back(sFile);
+		}
+
+		return jFiles;
+	});
+
+	m_Bindings.emplace("saveFile", [this](const KJSON& jArg) -> KJSON
+	{
+		std::vector<KString> Extensions;
+
+		for (const auto& jExtension : jArg["extensions"])
+		{
+			Extensions.push_back(jExtension.String());
+		}
+
+		auto sFile = SaveFileDialog(jArg["title"].String(), jArg["name"].String(), Extensions);
+		return sFile.empty() ? KJSON{} : KJSON(sFile);
+	});
+
+} // AddBuiltins
+
+//-----------------------------------------------------------------------------
+void* KWebApp::WindowHandle()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	if (!m_WebView || m_bQuit)
+	{
+		return nullptr;
+	}
+
+	auto Window = m_WebView->window();
+	return Window.ok() ? Window.value() : nullptr;
+
+} // WindowHandle
+
+//-----------------------------------------------------------------------------
+void KWebApp::RunOnUI(std::function<void()> Call)
+//-----------------------------------------------------------------------------
+{
+	if (kwebapp::IsMainThread())
+	{
+		Call();
+		return;
+	}
+
+	// hand it to the UI loop and wait for it
+	std::promise<void> Done;
+	auto Waiter = Done.get_future();
+
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		if (!m_WebView || m_bQuit)
+		{
+			kDebug(1, "no window, cannot run on the UI thread");
+			return;
+		}
+
+		m_WebView->dispatch([&Call, &Done]
+		{
+			Call();
+			Done.set_value();
+		});
+	}
+
+	Waiter.wait();
+
+} // RunOnUI
+
+//-----------------------------------------------------------------------------
+bool KWebApp::OpenExternal(KStringView sURL)
+//-----------------------------------------------------------------------------
+{
+	// the browser, not the shell: no file, no javascript, nothing local
+	auto sLower = KString(sURL.Left(8)).ToLowerASCII();
+
+	if (!sLower.starts_with("http://") && !sLower.starts_with("https://") && !sLower.starts_with("mailto:"))
+	{
+		kDebug(1, "refusing to open '{}'", sURL);
+		return false;
+	}
+
+	return kwebapp::OpenExternal(sURL);
+
+} // OpenExternal
+
+//-----------------------------------------------------------------------------
+bool KWebApp::Notify(KStringView sTitle, KStringView sBody)
+//-----------------------------------------------------------------------------
+{
+	return kwebapp::Notify(sTitle, sBody);
+
+} // Notify
+
+//-----------------------------------------------------------------------------
+std::vector<KString> KWebApp::OpenFileDialog(KStringView sTitle, const std::vector<KString>& Extensions, bool bMultiple, bool bDirectories)
+//-----------------------------------------------------------------------------
+{
+	std::vector<KString> Files;
+
+	RunOnUI([&]
+	{
+		Files = kwebapp::OpenFileDialog(WindowHandle(), sTitle, Extensions, bMultiple, bDirectories);
+	});
+
+	return Files;
+
+} // OpenFileDialog
+
+//-----------------------------------------------------------------------------
+KString KWebApp::SaveFileDialog(KStringView sTitle, KStringView sSuggestedName, const std::vector<KString>& Extensions)
+//-----------------------------------------------------------------------------
+{
+	KString sFile;
+
+	RunOnUI([&]
+	{
+		sFile = kwebapp::SaveFileDialog(WindowHandle(), sTitle, sSuggestedName, Extensions);
+	});
+
+	return sFile;
+
+} // SaveFileDialog
+
+//-----------------------------------------------------------------------------
+void KWebApp::MenuAction(KStringView sAction)
+//-----------------------------------------------------------------------------
+{
+	// on the UI thread: a bound handler of that name, else the page
+	Handler Handler;
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		auto it = m_Bindings.find(sAction);
+
+		if (it != m_Bindings.end())
+		{
+			Handler = it->second;
+		}
+	}
+
+	if (Handler)
+	{
+		DEKAF2_TRY
+		{
+			Handler(KJSON{});
+		}
+		DEKAF2_CATCH(const std::exception& ex)
+		{
+			kDebug(1, "menu action '{}' threw: {}", sAction, ex.what());
+		}
+		return;
+	}
+
+	Eval(kFormat("window.dispatchEvent(new CustomEvent('kwa-menu', {{ detail: {} }}));", KJSON(sAction).dump()));
+
+} // MenuAction
+
+//-----------------------------------------------------------------------------
+void KWebApp::LoadWindowFrame()
+//-----------------------------------------------------------------------------
+{
+	KString sJSON;
+	{
+		KInFile File(kFormat("{}/{}", m_sConfigDir, sWindowFile));
+
+		if (!File.is_open() || !File.ReadRemaining(sJSON))
+		{
+			return;
+		}
+	}
+
+	auto jFrame = kjson::Parse(sJSON);
+
+	kwebapp::WindowFrame Frame;
+	Frame.iX      = static_cast<int32_t>(jFrame["x"     ].Int64());
+	Frame.iY      = static_cast<int32_t>(jFrame["y"     ].Int64());
+	Frame.iWidth  = static_cast<int32_t>(jFrame["width" ].Int64());
+	Frame.iHeight = static_cast<int32_t>(jFrame["height"].Int64());
+
+	kwebapp::SetWindowFrame(WindowHandle(), Frame);
+
+} // LoadWindowFrame
+
+//-----------------------------------------------------------------------------
+void KWebApp::SaveWindowFrame()
+//-----------------------------------------------------------------------------
+{
+	// the last frame the window reported - the window itself is gone by now
+	KJSON jFrame;
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		jFrame = m_jWindowFrame;
+	}
+
+	if (!jFrame.is_null())
+	{
+		kWriteFile(kFormat("{}/{}", m_sConfigDir, sWindowFile), jFrame.dump());
+	}
+
+} // SaveWindowFrame
+
+//-----------------------------------------------------------------------------
 void KWebApp::Guard(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
@@ -1032,8 +1322,37 @@ int KWebApp::Run()
 			m_WebView->navigate(GetEnterURL(m_sStartPath).ToStdString());
 		}
 
+		// the desktop side: the remembered geometry, and the menus - installed once
+		// the loop runs, else AppKit adds its own Edit entries more than once
+		if (m_Options.bRememberWindow)
+		{
+			LoadWindowFrame();
+			kwebapp::WatchWindowFrame(WindowHandle(), [this](const kwebapp::WindowFrame& Frame)
+			{
+				std::lock_guard<std::mutex> Lock(m_Mutex);
+				m_jWindowFrame["x"]      = Frame.iX;
+				m_jWindowFrame["y"]      = Frame.iY;
+				m_jWindowFrame["width"]  = Frame.iWidth;
+				m_jWindowFrame["height"] = Frame.iHeight;
+			});
+		}
+
+		auto sAppName = m_Options.sAppName.empty() ? KString(Dekaf::getInstance().GetProgName()) : m_Options.sAppName;
+
+		m_WebView->dispatch([this, sAppName]
+		{
+			kwebapp::SetMenu(sAppName, m_Options.jMenus,
+			                 [this](KStringView sAction) { MenuAction(sAction); },
+			                 [this]                      { Quit();              });
+		});
+
 		// the UI loop, until the window closes or Quit() is called
 		m_WebView->run();
+
+		if (m_Options.bRememberWindow)
+		{
+			SaveWindowFrame();
+		}
 
 		if (!m_bQuit && m_Network && !m_Options.bQuitOnWindowClose)
 		{

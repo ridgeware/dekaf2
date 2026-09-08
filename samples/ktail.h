@@ -71,7 +71,6 @@ private:
 	void  Tail     (KRESTServer& HTTP);
 	void  TailLoop (KWebSocket& WebSocket, KString sPath);
 	KJSON Reveal   (const KJSON& jArg);
-	KJSON Notify   (const KJSON& jArg);
 	bool  Resolve  (KStringView sRelative, KString& sAbsolute) const;
 
 	Config                   m_Config;

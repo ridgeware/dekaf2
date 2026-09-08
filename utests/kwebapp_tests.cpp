@@ -149,6 +149,26 @@ TEST_CASE("KWebApp")
 	auto sOrigin = kFormat("Origin: http://127.0.0.1:{}", iPort);
 	auto sCookie = kFormat("Cookie: kwa={}", sToken);
 
+	SECTION("desktop bindings are reserved")
+	{
+		CHECK ( App.Bind("notify",       [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("openExternal", [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("openFile",     [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("saveFile",     [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("mine",         [](const KJSON&) -> KJSON { return true; }) == true  );
+		CHECK ( App.Bind("mine",         [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("not valid",    [](const KJSON&) -> KJSON { return true; }) == false );
+	}
+
+	SECTION("only web URLs leave the application")
+	{
+		// these never reach the platform, so nothing opens during the test
+		CHECK ( App.OpenExternal("file:///etc/passwd")   == false );
+		CHECK ( App.OpenExternal("javascript:alert(1)")  == false );
+		CHECK ( App.OpenExternal("ftp://example.com/")   == false );
+		CHECK ( App.OpenExternal("")                     == false );
+	}
+
 	SECTION("no token")
 	{
 		CHECK ( Request(iPort, "GET / HTTP/1.1", { sHost }).iStatus == 403 );

@@ -122,6 +122,15 @@ constexpr KStringView sScript = R"js(
 	});
 	apply();
 
+	// the window's menu entries arrive as events
+	window.addEventListener('kwa-menu', (ev) => {
+		switch (ev.detail) {
+			case 'toggleTheme': button.click(); break;
+			case 'saveNote':    { const f = document.querySelector('form.note'); if (f) f.requestSubmit(); break; }
+			case 'revealFile':  if (D.file && native) window.kNative.reveal({ file: D.file }); break;
+		}
+	});
+
 	const status = document.getElementById('status');
 	if (D.saved === '1') status.textContent = T.noteSaved;
 	if (!D.file) return;
@@ -221,30 +230,6 @@ KStringView Parent(KStringView sRelative)
 
 } // Parent
 
-//-----------------------------------------------------------------------------
-// quote for /bin/sh
-KString ShellQuoted(KStringView sArg)
-//-----------------------------------------------------------------------------
-{
-	KString sQuoted = "'";
-
-	for (auto ch : sArg)
-	{
-		if (ch == '\'')
-		{
-			sQuoted += "'\\''";
-		}
-		else
-		{
-			sQuoted += ch;
-		}
-	}
-
-	sQuoted += '\'';
-	return sQuoted;
-
-} // ShellQuoted
-
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -280,6 +265,18 @@ KTail::KTail(Config Config)
 	Options.bDebug   = m_Config.bDebug;
 	Options.iWidth   = 1100;
 	Options.iHeight  = 700;
+	Options.sAppName = "ktail";
+	// the page answers these entries through the "kwa-menu" event
+	Options.jMenus   = kjson::Parse(R"json([
+		{ "title": "File", "items": [
+			{ "title": "Save Note",            "key": "s", "action": "saveNote" },
+			{ "separator": true },
+			{ "title": "Show in File Manager", "key": "r", "action": "revealFile" }
+		] },
+		{ "title": "View", "items": [
+			{ "title": "Toggle Theme",         "key": "t", "action": "toggleTheme" }
+		] }
+	])json");
 
 	if (!m_Config.sListen.empty())
 	{
@@ -342,9 +339,8 @@ KTail::KTail(Config Config)
 		return;
 	}
 
-	// what only the desktop can do
+	// what only the desktop can do - notifications and dialogs are KWebApp's own
 	m_App->Bind("reveal", [this](const KJSON& jArg) { return Reveal(jArg); });
-	m_App->Bind("notify", [this](const KJSON& jArg) { return Notify(jArg); });
 
 } // ctor
 
@@ -739,11 +735,11 @@ KJSON KTail::Reveal(const KJSON& jArg)
 	}
 
 #if DEKAF2_IS_MACOS
-	KString sCommand = kFormat("open -R {}", ShellQuoted(sAbsFile));
+	KString sCommand = kFormat("open -R {}", kEscapeForCommands(sAbsFile));
 #elif DEKAF2_IS_WINDOWS
 	KString sCommand = kFormat("explorer /select,\"{}\"", sAbsFile);
 #else
-	KString sCommand = kFormat("xdg-open {}", ShellQuoted(kDirname(sAbsFile)));
+	KString sCommand = kFormat("xdg-open {}", kEscapeForCommands(kDirname(sAbsFile)));
 #endif
 
 	// not on the UI thread
@@ -752,41 +748,6 @@ KJSON KTail::Reveal(const KJSON& jArg)
 	return true;
 
 } // Reveal
-
-//-----------------------------------------------------------------------------
-KJSON KTail::Notify(const KJSON& jArg)
-//-----------------------------------------------------------------------------
-{
-	// a stand-in until KWebApp has a native notification layer: the system's
-	// scripting tools post the notification
-	auto sTitle = jArg["title"].String();
-	auto sBody  = jArg["body"].String();
-
-#if DEKAF2_IS_MACOS
-	auto Escape = [](KStringView sText)
-	{
-		KString sEscaped;
-		for (auto ch : sText)
-		{
-			if (ch == '"' || ch == '\\') sEscaped += '\\';
-			sEscaped += ch;
-		}
-		return sEscaped;
-	};
-	KString sCommand = kFormat("osascript -e {}", ShellQuoted(kFormat("display notification \"{}\" with title \"{}\"", Escape(sBody), Escape(sTitle))));
-#elif DEKAF2_IS_WINDOWS
-	kDebug(1, "no notifications on this platform yet: {} - {}", sTitle, sBody);
-	return false;
-#else
-	KString sCommand = kFormat("notify-send {} {}", ShellQuoted(sTitle), ShellQuoted(sBody));
-#endif
-
-#if !DEKAF2_IS_WINDOWS
-	std::thread([sCommand] { kSystem(sCommand); }).detach();
-	return true;
-#endif
-
-} // Notify
 
 //-----------------------------------------------------------------------------
 int main(int argc, char** argv)

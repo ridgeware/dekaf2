@@ -177,6 +177,7 @@ set (USOURCES
 	kvariant_tests.cpp
 	kversion_tests.cpp
 	kwebclient_tests.cpp
+	kwebapp_tests.cpp
 	kwebobjects_tests.cpp
 	kwebui_tests.cpp
 	keckey_tests.cpp

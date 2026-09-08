@@ -332,6 +332,9 @@ KStringView Dekaf::GetVersionInformation()
 #ifdef DEKAF2_HAS_NGHTTP3
 		" http/3"
 #endif
+#ifdef DEKAF2_HAS_WEBVIEW
+		" webview"
+#endif
 #ifdef DEKAF2_HAS_LIBZSTD
 		" zstd"
 #endif

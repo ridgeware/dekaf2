@@ -263,6 +263,7 @@
 #include <dekaf2/util/id/kuuid.h>
 #include <dekaf2/core/types/kvariant.h>
 #include <dekaf2/util/misc/kversion.h>
+#include <dekaf2/web/app/kwebapp.h>
 #include <dekaf2/http/client/kwebclient.h>
 #include <dekaf2/rest/serving/kwebdav.h>
 #include <dekaf2/web/objects/kwebobjects.h>

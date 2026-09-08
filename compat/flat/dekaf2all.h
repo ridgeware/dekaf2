@@ -51,6 +51,8 @@
 //   | awk -F/ '$NF !~ /^dekaf2/ { print $NF "\t#include <" $0 ">" }' | sort | cut -f2
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 #include <dekaf2/core/init/dekaf2.h>
+#include <dekaf2/web/acme/kacmeclient.h>
+#include <dekaf2/web/acme/kacmemanager.h>
 #include <dekaf2/core/types/kaddrplus.h>
 #include <dekaf2/crypto/cipher/kaes.h>
 #include <dekaf2/containers/memory/kallocator.h>
@@ -86,6 +88,7 @@
 #include <dekaf2/io/streams/kcountingstreambuf.h>
 #include <dekaf2/core/errors/kcrashexit.h>
 #include <dekaf2/crypto/hash/kcrc.h>
+#include <dekaf2/crypto/rsa/kcsr.h>
 #include <dekaf2/data/csv/kcsv.h>
 #include <dekaf2/core/types/kctype.h>
 #include <dekaf2/io/pipes/kdataconsumer.h>
@@ -162,6 +165,7 @@
 #include <dekaf2/web/url/kmime.h>
 #include <dekaf2/io/streams/kmodifyingstreambuf.h>
 #include <dekaf2/core/strings/kmpsearch.h>
+#include <dekaf2/net/mqtt/kmqttclient.h>
 #include <dekaf2/containers/associative/kmru.h>
 #include <dekaf2/net/address/knetworkinterface.h>
 #include <dekaf2/util/text/kngram.h>
@@ -182,6 +186,7 @@
 #include <dekaf2/containers/associative/kprops.h>
 #include <dekaf2/system/process/kpty.h>
 #include <dekaf2/util/qrcode/kqrcode.h>
+#include <dekaf2/net/quic/kquicconnection.h>
 #include <dekaf2/net/quic/kquicstream.h>
 #include <dekaf2/crypto/encoding/kquotedprintable.h>
 #include <dekaf2/crypto/random/krandom.h>

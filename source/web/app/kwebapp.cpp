@@ -72,7 +72,31 @@ constexpr KStringView sEnterPath  = "/_kwa/enter";
 constexpr KStringView sLoginPath  = "/login";
 constexpr KStringView sLogoutPath = "/logout";
 constexpr KStringView sHealthPath = "/healthz";
+constexpr KStringView sLivePath   = "/_kwa/live";
+constexpr KStringView sLiveScript = "/_kwa/live.js";
 constexpr KStringView sBindPrefix = "__kwa_";
+
+// the page side of the live connection: opens the websocket, reconnects, queues
+// what is sent before the connection is up, hands parsed JSON to one listener
+constexpr KStringView sLiveClient = R"js(
+// kLive: the page's live connection to the application - the same in the window and in a browser
+window.kLive = (() => {
+	const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/_kwa/live';
+	let ws = null, listener = null, opened = null, queue = [];
+	const connect = () => {
+		ws = new WebSocket(url);
+		ws.onopen    = () => { for (const m of queue) ws.send(m); queue = []; if (opened) opened(); };
+		ws.onmessage = (ev) => { if (listener) listener(JSON.parse(ev.data)); };
+		ws.onclose   = () => { ws = null; setTimeout(connect, 2000); };
+	};
+	connect();
+	return {
+		send:   (obj) => { const m = JSON.stringify(obj); if (ws && ws.readyState === 1) ws.send(m); else queue.push(m); },
+		on:     (fn)  => { listener = fn; },
+		onopen: (fn)  => { opened = fn; if (ws && ws.readyState === 1) fn(); }
+	};
+})();
+)js";
 
 #if DEKAF2_IS_MACOS
 constexpr KStringView sPlatform   = "macos";
@@ -134,10 +158,12 @@ KWebApp::KWebApp(Options Options, KRESTRoutes& Routes)
 {
 	// our routes, in the table both servers serve - the handlers know which side
 	// they answer for
-	m_Routes.AddRoute(KString(sHealthPath)).Get ([this](KRESTServer& HTTP) { Health(HTTP);    });
-	m_Routes.AddRoute(KString(sLoginPath )).Get ([this](KRESTServer& HTTP) { LoginPage(HTTP); });
-	m_Routes.AddRoute(KString(sLoginPath )).Post([this](KRESTServer& HTTP) { Login(HTTP);     }).Parse(KRESTRoute::WWWFORM);
-	m_Routes.AddRoute(KString(sLogoutPath)).Post([this](KRESTServer& HTTP) { Logout(HTTP);    });
+	m_Routes.AddRoute(KString(sHealthPath)).Get ([this](KRESTServer& HTTP) { Health(HTTP);     });
+	m_Routes.AddRoute(KString(sLoginPath )).Get ([this](KRESTServer& HTTP) { LoginPage(HTTP);  });
+	m_Routes.AddRoute(KString(sLoginPath )).Post([this](KRESTServer& HTTP) { Login(HTTP);      }).Parse(KRESTRoute::WWWFORM);
+	m_Routes.AddRoute(KString(sLogoutPath)).Post([this](KRESTServer& HTTP) { Logout(HTTP);     });
+	m_Routes.AddRoute(KString(sLiveScript)).Get ([this](KRESTServer& HTTP) { LiveScript(HTTP); });
+	m_Routes.AddRoute(KString(sLivePath  )).Get ([this](KRESTServer& HTTP) { Live(HTTP);       }).Parse(KRESTRoute::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
 
 	// a shutdown signal ends Run(), which stops the servers in order - so the
 	// servers themselves stay out of the signal handling
@@ -728,6 +754,153 @@ void KWebApp::NetworkGuard(KRESTServer& HTTP)
 } // NetworkGuard
 
 //-----------------------------------------------------------------------------
+void KWebApp::LiveScript(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, "text/javascript; charset=UTF-8");
+	HTTP.SetRawOutput(KString(sLiveClient));
+
+} // LiveScript
+
+//-----------------------------------------------------------------------------
+void KWebApp::Live(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	// the guards have let this request through: it is the window, or a login
+	auto pClient = std::make_shared<Client>();
+	pClient->bFromWindow = IsFromWindow(HTTP);
+
+	if (!pClient->bFromWindow && m_Session)
+	{
+		pClient->sUser = KRESTSession(*m_Session, HTTP).GetUser();
+	}
+
+	{
+		std::lock_guard<std::mutex> Lock(m_ClientMutex);
+		pClient->iID = ++m_iNextClient;
+	}
+
+	// the connection lives in the server's websocket server from here on
+	HTTP.SetWebSocketConnectHandler([this, pClient](KWebSocket& WebSocket)
+	{
+		{
+			std::lock_guard<std::mutex> Lock(m_ClientMutex);
+			m_Clients[pClient->iID] = LiveClient { *pClient, WebSocket.GetServer(), WebSocket.GetHandle() };
+		}
+
+		kDebug(2, "live connection {} from {}", pClient->iID, pClient->bFromWindow ? "the window" : pClient->sUser);
+
+		if (m_OnConnect)
+		{
+			m_OnConnect(*pClient);
+		}
+	});
+
+	HTTP.SetWebSocketHandler([this, pClient](KWebSocket& WebSocket)
+	{
+		if (!m_OnMessage)
+		{
+			return;
+		}
+
+		auto jMessage = kjson::Parse(WebSocket.GetFrame().GetPayload());
+
+		if (jMessage.is_null())
+		{
+			kDebug(1, "live connection {} sent no JSON", pClient->iID);
+			return;
+		}
+
+		m_OnMessage(*pClient, jMessage);
+	});
+
+	HTTP.SetWebSocketCloseHandler([this, pClient](std::size_t)
+	{
+		std::lock_guard<std::mutex> Lock(m_ClientMutex);
+		m_Clients.erase(pClient->iID);
+	});
+
+} // Live
+
+//-----------------------------------------------------------------------------
+void KWebApp::OnConnect(ConnectHandler Handler)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_ClientMutex);
+	m_OnConnect = std::move(Handler);
+
+} // OnConnect
+
+//-----------------------------------------------------------------------------
+void KWebApp::OnMessage(MessageHandler Handler)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_ClientMutex);
+	m_OnMessage = std::move(Handler);
+
+} // OnMessage
+
+//-----------------------------------------------------------------------------
+std::size_t KWebApp::Broadcast(const KJSON& jMessage)
+//-----------------------------------------------------------------------------
+{
+	// copy the targets, Send() may take its time
+	std::vector<LiveClient> Targets;
+	{
+		std::lock_guard<std::mutex> Lock(m_ClientMutex);
+		Targets.reserve(m_Clients.size());
+
+		for (const auto& Entry : m_Clients)
+		{
+			Targets.push_back(Entry.second);
+		}
+	}
+
+	std::size_t iSent { 0 };
+
+	for (const auto& Target : Targets)
+	{
+		if (Target.pServer && Target.pServer->Send(Target.iHandle, jMessage))
+		{
+			++iSent;
+		}
+	}
+
+	return iSent;
+
+} // Broadcast
+
+//-----------------------------------------------------------------------------
+bool KWebApp::Send(const Client& Client, const KJSON& jMessage)
+//-----------------------------------------------------------------------------
+{
+	LiveClient Target;
+	{
+		std::lock_guard<std::mutex> Lock(m_ClientMutex);
+		auto it = m_Clients.find(Client.iID);
+
+		if (it == m_Clients.end())
+		{
+			return false;
+		}
+
+		Target = it->second;
+	}
+
+	return Target.pServer && Target.pServer->Send(Target.iHandle, jMessage);
+
+} // Send
+
+//-----------------------------------------------------------------------------
+std::size_t KWebApp::GetClientCount() const
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_ClientMutex);
+	return m_Clients.size();
+
+} // GetClientCount
+
+//-----------------------------------------------------------------------------
 void KWebApp::Health(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
@@ -864,11 +1037,9 @@ int KWebApp::Run()
 
 		if (!m_bQuit && m_Network && !m_Options.bQuitOnWindowClose)
 		{
-			// the window is gone but the network stays: drop what only the window used
-			kDebug(1, "window closed, the network server keeps running");
-			m_REST.reset();
-			m_iPort = 0;
-
+			// the window is gone but the servers stay - the loopback one too, its
+			// long running handlers end with IsQuitting() at the final shutdown
+			kDebug(1, "window closed, the servers keep running");
 			std::lock_guard<std::mutex> Lock(m_Mutex);
 			m_WebView.reset();
 		}

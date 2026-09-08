@@ -14,6 +14,7 @@
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/http/websocket/kwebsocket.h>
 #include <dekaf2/rest/framework/krestserver.h>
+#include <dekaf2/rest/framework/krestsession.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/io/readwrite/kreader.h>
@@ -51,7 +52,8 @@ constexpr KStringView sTexts = R"json({
 	"truncated"     : "File was truncated, starting over",
 	"gone"          : "File is gone",
 	"newLines"      : "New lines",
-	"signOut"       : "Sign out"
+	"signOut"       : "Sign out",
+	"noteUpdated"   : "Note updated"
 })json";
 
 // colors as tokens, the dark set both for the system preference and for the
@@ -123,6 +125,14 @@ constexpr KStringView sScript = R"js(
 	const status = document.getElementById('status');
 	if (D.saved === '1') status.textContent = T.noteSaved;
 	if (!D.file) return;
+
+	// notes saved in any other view arrive over the application's live connection
+	if (window.kLive) kLive.on((m) => {
+		if (m.t === 'note' && m.file === D.file) {
+			document.getElementById('note').value = m.text;
+			status.textContent = T.noteUpdated + (m.by ? ' (' + m.by + ')' : '');
+		}
+	});
 
 	const pre    = document.getElementById('tail');
 	const notify = document.getElementById('notify');
@@ -504,7 +514,7 @@ void KTail::Page(KRESTServer& HTTP)
 			auto Form = Section.Add<html::Form>(sNotesPath, "note");
 			Form.SetMethod(html::Form::POST);
 			Form.Add<html::Input>("file", sFile, html::Input::HIDDEN);
-			Form.Add<html::TextArea>("text", sNote).SetAttribute("rows", "2").SetPlaceholder(Text("note"));
+			Form.Add<html::TextArea>("text", sNote, html::Classes{}, "note").SetAttribute("rows", "2").SetPlaceholder(Text("note"));
 			Form.Add<html::Button>(Text("saveNote"));
 		}
 		else
@@ -515,7 +525,8 @@ void KTail::Page(KRESTServer& HTTP)
 
 	Page.Add<html::Element>("footer", html::Classes{}, "status").AddText(kFormat("{} {}", m_Config.sTitle, m_Config.sVersion));
 
-	// the script gets its parameters as data attributes
+	// the live connection to the application, then the page script with its parameters as data attributes
+	Page.Body().Add<html::Script>().SetAttribute("src", "/_kwa/live.js");
 	Page.Body().Add<html::Script>(sScript)
 		.SetAttribute("data-texts",    sTexts)
 		.SetAttribute("data-tail-path", sTailPath)
@@ -548,6 +559,14 @@ void KTail::SaveNote(KRESTServer& HTTP)
 	{
 		throw KHTTPError { KHTTPError::H5xx_ERROR, "cannot write note" };
 	}
+
+	// every view of this file gets the new note, the window and the browsers alike
+	KJSON jNote;
+	jNote["t"]    = "note";
+	jNote["file"] = sFile;
+	jNote["text"] = sText;
+	jNote["by"]   = m_App->IsFromWindow(HTTP) ? KString("window") : KString(KRESTSession(*m_App->GetSession(), HTTP).GetUser());
+	m_App->Broadcast(jNote);
 
 	// back to the page
 	HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, kFormat("{}&saved=1", PageLink(Parent(sFile), sFile)));

@@ -57,6 +57,7 @@
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/rest/framework/krestroute.h>
 #include <dekaf2/rest/limits/kratelimiter.h>
+#include <dekaf2/http/websocket/kwebsocket.h>
 #include <atomic>
 #include <condition_variable>
 #include <functional>
@@ -103,6 +104,15 @@ KStringViewZ kGetWebViewVersion();
 /// bQuitOnWindowClose decides whether closing it ends Run() or leaves the
 /// network server running.
 ///
+/// @par Live data
+/// Every page can hold one live connection to the application, a websocket at
+/// /_kwa/live that the helper script /_kwa/live.js opens and keeps open: in the
+/// window and in browsers alike. Broadcast() sends a JSON message to all of
+/// them, Send() to one, OnMessage() receives what a page sent with kLive.send(),
+/// OnConnect() sees a page arrive. A Client tells whether it is the window or a
+/// network login. This is the way for "C++ has news, every view shows them",
+/// Bind() stays for what only the desktop can do.
+///
 /// @par Usage
 /// @code
 /// KRESTRoutes Routes;
@@ -130,6 +140,12 @@ KStringViewZ kGetWebViewVersion();
 /// App.Bind("save", [](const KJSON& jArg) -> KJSON
 /// {
 ///     return jArg["name"].String() == "x";
+/// });
+///
+/// // in the page: <script src="/_kwa/live.js"></script> kLive.on(m => ...); kLive.send({ t: "hello" });
+/// App.OnMessage([&](const KWebApp::Client& Client, const KJSON& jMessage)
+/// {
+///     App.Broadcast({ { "t", "news" }, { "from", Client.bFromWindow ? "window" : Client.sUser } });
 /// });
 ///
 /// return App.Run(); // blocks in the UI loop until the window closes or Quit() is called
@@ -192,6 +208,22 @@ public:
 	/// An exception rejects the Promise with { "error": "<what>" }
 	using Handler = std::function<KJSON(const KJSON& jArg)>;
 
+	/// a page's live connection, in the window or in a browser
+	struct Client
+	{
+		/// identifies the connection for Send()
+		std::size_t iID { 0 };
+		/// came in through the window's loopback server?
+		bool        bFromWindow { false };
+		/// the network login, empty for the window
+		KString     sUser;
+	};
+
+	/// called when a page's live connection is up, e.g. to send it the current state
+	using ConnectHandler = std::function<void(const Client& Client)>;
+	/// receives a JSON message a page sent over its live connection
+	using MessageHandler = std::function<void(const Client& Client, const KJSON& jMessage)>;
+
 	/// starts the servers - check HasError() afterwards. Routes must outlive the
 	/// KWebApp, which adds its own routes to the table: /_kwa/enter for the
 	/// window, /login, /logout and /healthz for the network
@@ -229,6 +261,19 @@ public:
 	/// handler that does something only the desktop may do checks this
 	bool IsFromWindow(const KRESTServer& HTTP) const;
 
+	/// set the handler for arriving live connections - runs in the websocket server's thread
+	void OnConnect(ConnectHandler Handler);
+	/// set the handler for messages from live connections - runs in the websocket
+	/// server's thread, so it should return quickly
+	void OnMessage(MessageHandler Handler);
+	/// send a JSON message to every live connection, in the window and in browsers
+	/// @return the number of connections the message was accepted for
+	std::size_t Broadcast(const KJSON& jMessage);
+	/// send a JSON message to one live connection
+	bool Send(const Client& Client, const KJSON& jMessage);
+	/// the number of live connections
+	std::size_t GetClientCount() const;
+
 	/// the loopback server's port
 	uint16_t    GetPort()        const { return m_iPort;        }
 	/// the network server's port, 0 without network server
@@ -246,8 +291,17 @@ private:
 
 	class WebView; // wraps the webview object, keeps its header out of ours
 
+	struct LiveClient
+	{
+		Client            Client;
+		KWebSocketServer* pServer { nullptr };
+		std::size_t       iHandle { 0 };
+	};
+
 	void    Guard        (KRESTServer& HTTP);
 	void    NetworkGuard (KRESTServer& HTTP);
+	void    Live         (KRESTServer& HTTP);
+	void    LiveScript   (KRESTServer& HTTP);
 	void    LoginPage    (KRESTServer& HTTP);
 	void    Login        (KRESTServer& HTTP);
 	void    Logout       (KRESTServer& HTTP);
@@ -272,6 +326,11 @@ private:
 	std::function<void(KRESTServer&)> m_UserPreRoute;
 	std::function<void(KRESTServer&)> m_UserNetworkPreRoute;
 	std::map<KString, Handler>        m_Bindings;
+	std::map<std::size_t, LiveClient> m_Clients;
+	ConnectHandler                    m_OnConnect;
+	MessageHandler                    m_OnMessage;
+	mutable std::mutex                m_ClientMutex;
+	std::size_t                       m_iNextClient  { 0 };
 	KRateLimiter                      m_LoginLimiter { 1.0 / 30, 10 };
 	KString                           m_sToken;
 	KString                           m_sStartPath { "/" };

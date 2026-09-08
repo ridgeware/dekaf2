@@ -8,6 +8,7 @@
 #include <dekaf2/util/misc/kversion.h>
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/net/tls/ktlsstream.h>
+#include <dekaf2/http/websocket/kwebsocketclient.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <thread>
@@ -395,6 +396,166 @@ TEST_CASE("KWebApp network")
 		auto sToken = KString(App.GetToken());
 		CHECK ( Request(App.GetPort(), "GET /native HTTP/1.1", { kFormat("Host: 127.0.0.1:{}", App.GetPort()), kFormat("Cookie: kwa={}", sToken) }).iStatus == 200 );
 		CHECK ( Request(App.GetPort(), "GET /healthz HTTP/1.1", { kFormat("Host: 127.0.0.1:{}", App.GetPort()), kFormat("Cookie: kwa={}", sToken) }).iStatus == 404 );
+	}
+}
+
+TEST_CASE("KWebApp live")
+{
+	KRESTRoutes Routes;
+
+	Routes.AddRoute({ KHTTPMethod::GET, false, "", [](KRESTServer& HTTP)
+	{
+		HTTP.json.tx["page"] = "home";
+	}});
+
+	KWebApp::Options Options;
+	Options.bWindow                     = false;
+	Options.bNetwork                    = true;
+	Options.Network.sBindAddress        = "127.0.0.1";
+	Options.Network.bStoreEphemeralCert = false;
+	Options.Authenticate                = [](KStringView sUser, KStringView sPassword)
+	{
+		return sUser == "alice" && sPassword == "secret";
+	};
+
+	KWebApp App(std::move(Options), Routes);
+	REQUIRE ( App.HasError() == false );
+
+	auto iPort    = App.GetPort();
+	auto iNetPort = App.GetNetworkPort();
+	auto sToken   = KString(App.GetToken());
+	auto sHost    = kFormat("Host: 127.0.0.1:{}", iNetPort);
+
+	// what arrives on the application side
+	std::mutex                    Mutex;
+	std::vector<KWebApp::Client>  Connected;
+	std::vector<KJSON>            Messages;
+	std::vector<KWebApp::Client>  Senders;
+
+	App.OnConnect([&](const KWebApp::Client& Client)
+	{
+		std::lock_guard<std::mutex> Lock(Mutex);
+		Connected.push_back(Client);
+	});
+
+	App.OnMessage([&](const KWebApp::Client& Client, const KJSON& jMessage)
+	{
+		std::lock_guard<std::mutex> Lock(Mutex);
+		Senders.push_back(Client);
+		Messages.push_back(jMessage);
+	});
+
+	auto WaitFor = [&](std::function<bool()> Check)
+	{
+		for (int i = 0; i < 100; ++i)
+		{
+			{
+				std::lock_guard<std::mutex> Lock(Mutex);
+				if (Check()) return true;
+			}
+			kSleep(chrono::milliseconds(20));
+		}
+		std::lock_guard<std::mutex> Lock(Mutex);
+		return Check();
+	};
+
+	SECTION("the helper script is served on both sides")
+	{
+		auto R = Request(iPort, "GET /_kwa/live.js HTTP/1.1", { kFormat("Host: 127.0.0.1:{}", iPort), kFormat("Cookie: kwa={}", sToken) });
+		CHECK ( R.iStatus == 200 );
+		CHECK ( R.Header("content-type").starts_with("text/javascript") );
+		CHECK ( R.sBody.contains("window.kLive") );
+
+		// on the network only with a login
+		CHECK ( TLSRequest(iNetPort, "GET /_kwa/live.js HTTP/1.1", { sHost }).iStatus == 302 );
+	}
+
+	SECTION("window and browser on the same live channel")
+	{
+		// the window: token cookie and origin, as the webview sends them
+		KWebSocketClient Window(KURL(kFormat("ws://127.0.0.1:{}/_kwa/live", iPort)), KHTTPStreamOptions(KStreamOptions::None, chrono::seconds(3)));
+		// the cookie goes as a plain header - the client's own cookie jar would replace it
+		Window.AcceptCookies(false);
+		Window.AddHeader(KHTTPHeader::COOKIE, kFormat("kwa={}", sToken));
+		Window.AddHeader(KHTTPHeader::ORIGIN, kFormat("http://127.0.0.1:{}", iPort));
+		REQUIRE ( Window.Connect() );
+
+		// a browser on the network: logs in first
+		auto R = TLSRequest(iNetPort, "POST /login HTTP/1.1", { sHost }, "user=alice&password=secret");
+		REQUIRE ( R.iStatus == 302 );
+		auto sSession = R.Header("set-cookie");
+		sSession.erase(sSession.find(';'));
+
+		KWebSocketClient Browser(KURL(kFormat("wss://127.0.0.1:{}/_kwa/live", iNetPort)), KHTTPStreamOptions(KStreamOptions::None, chrono::seconds(3)));
+		Browser.AcceptCookies(false);
+		Browser.AddHeader(KHTTPHeader::COOKIE, sSession);
+		REQUIRE ( Browser.Connect() );
+
+		REQUIRE ( WaitFor([&] { return Connected.size() == 2; }) );
+		CHECK ( App.GetClientCount() == 2 );
+
+		// who is who
+		KWebApp::Client WindowClient, BrowserClient;
+		{
+			std::lock_guard<std::mutex> Lock(Mutex);
+			for (const auto& Client : Connected)
+			{
+				if (Client.bFromWindow) WindowClient = Client; else BrowserClient = Client;
+			}
+		}
+		CHECK ( WindowClient.bFromWindow  == true    );
+		CHECK ( WindowClient.sUser        == ""      );
+		CHECK ( BrowserClient.bFromWindow == false   );
+		CHECK ( BrowserClient.sUser       == "alice" );
+		CHECK ( WindowClient.iID          != BrowserClient.iID );
+
+		// a broadcast reaches both
+		CHECK ( App.Broadcast(KJSON { { "t", "news" }, { "n", 1 } }) == 2 );
+
+		KString sFrame;
+		Window.Read(sFrame);
+		CHECK ( sFrame.contains("\"news\"") );
+		Browser.Read(sFrame);
+		CHECK ( sFrame.contains("\"news\"") );
+
+		// a message to one
+		CHECK ( App.Send(BrowserClient, KJSON { { "t", "private" } }) == true );
+		Browser.Read(sFrame);
+		CHECK ( sFrame.contains("\"private\"") );
+
+		// the way back: both sides can talk to the application
+		CHECK ( Window.Write(R"({"t":"hello","from":"window"})") );
+		CHECK ( Browser.Write(R"({"t":"hello","from":"browser"})") );
+		REQUIRE ( WaitFor([&] { return Messages.size() == 2; }) );
+
+		{
+			std::lock_guard<std::mutex> Lock(Mutex);
+			for (std::size_t i = 0; i < 2; ++i)
+			{
+				CHECK ( Messages[i]["t"].String() == "hello" );
+				bool bWindow = Messages[i]["from"].String() == "window";
+				CHECK ( Senders[i].bFromWindow == bWindow );
+				CHECK ( Senders[i].sUser == (bWindow ? "" : "alice") );
+			}
+		}
+
+		// not JSON: dropped, the connection stays
+		CHECK ( Window.Write("not json") );
+		CHECK ( App.Broadcast(KJSON { { "t", "still" } }) == 2 );
+		Window.Read(sFrame);
+		CHECK ( sFrame.contains("\"still\"") );
+
+		// gone clients are forgotten
+		KWebApp::Client Unknown;
+		Unknown.iID = 9999;
+		CHECK ( App.Send(Unknown, KJSON { { "t", "x" } }) == false );
+	}
+
+	SECTION("no live connection without a login")
+	{
+		KWebSocketClient Stranger(KURL(kFormat("wss://127.0.0.1:{}/_kwa/live", iNetPort)), KHTTPStreamOptions(KStreamOptions::None, chrono::seconds(3)));
+		CHECK ( Stranger.Connect() == false );
+		CHECK ( App.GetClientCount() == 0 );
 	}
 }
 

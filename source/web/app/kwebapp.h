@@ -59,6 +59,7 @@
 #include <dekaf2/rest/limits/kratelimiter.h>
 #include <dekaf2/http/websocket/kwebsocket.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/web/app/bits/kwebapp_platform.h>
 #include <atomic>
 #include <condition_variable>
 #include <functional>
@@ -349,6 +350,8 @@ private:
 	void    MenuAction   (KStringView sAction);
 	void    LoadWindowFrame();
 	void    SaveWindowFrame();
+	void    RememberFrame(const kwebapp::WindowFrame& Frame);
+	void    CloseWindow  ();
 	void    RunOnUI      (std::function<void()> Call);
 	void*   WindowHandle ();
 	void    AddBinding   (WebView& View, KStringView sName, const Handler& Handler);

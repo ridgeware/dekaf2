@@ -237,13 +237,26 @@ KTail::KTail(Config Config)
 //-----------------------------------------------------------------------------
 : m_Config(std::move(Config))
 {
-	m_Config.sRoot = kNormalizePath(m_Config.sRoot.empty() ? kGetCWD() : m_Config.sRoot);
+	if (m_Config.sRoot.empty())
+	{
+		// the current directory - an app started from the Finder has "/", take the home then
+		m_Config.sRoot = kGetCWD();
+
+		if (m_Config.sRoot == "/")
+		{
+			m_Config.sRoot = kGetHome();
+		}
+	}
+
+	m_Config.sRoot = kNormalizePath(m_Config.sRoot);
 
 	if (!kDirExists(m_Config.sRoot))
 	{
 		SetError(kFormat("not a directory: {}", m_Config.sRoot));
 		return;
 	}
+
+	kDebug(1, "browsing {}", m_Config.sRoot);
 
 	m_sNotesDir = kFormat("{}/.config/ktail/notes", kGetHome());
 
@@ -758,11 +771,12 @@ int main(int argc, char** argv)
 
 	try
 	{
-		KOptions Options(true, argc, argv, KLog::STDOUT, /*bThrow*/true);
+		// no arguments is a normal start - a double-clicked ktail.app never has any
+		KOptions Options(/*bEmptyParmsIsError*/false, argc, argv, KLog::STDOUT, /*bThrow*/true);
 		Options.SetBriefDescription("browse a directory and follow files live, in a desktop window or a browser");
 
 		KTail::Config Config;
-		Config.sRoot         = Options("dir <path>            : the directory to browse, defaults to the current one", "");
+		Config.sRoot         = Options("dir <path>            : the directory to browse, defaults to the current one, or to the home directory when started from the Finder", "");
 		Config.bDebug        = Options("inspector             : enable the web inspector in the window", false);
 		Config.sListen       = Options("listen <[addr:]port>  : also serve browsers on the network, with TLS and a login", "");
 		Config.bWindow       = !Options("headless              : no window, only the network server", false);

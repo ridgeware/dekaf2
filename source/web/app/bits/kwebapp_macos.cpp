@@ -550,6 +550,20 @@ void WatchWindowFrame(void* pWindow, std::function<void(const WindowFrame&)> OnC
 } // WatchWindowFrame
 
 //-----------------------------------------------------------------------------
+void UnwatchWindowFrame()
+//-----------------------------------------------------------------------------
+{
+	{
+		std::lock_guard<std::mutex> Lock(s_MenuMutex);
+		s_OnFrame = nullptr;
+	}
+
+	// the target observes nothing but the window
+	Msg<void>(Msg<id>(Class("NSNotificationCenter"), "defaultCenter"), "removeObserver:", MenuTarget());
+
+} // UnwatchWindowFrame
+
+//-----------------------------------------------------------------------------
 bool ActivateProcess(int64_t iPID)
 //-----------------------------------------------------------------------------
 {

@@ -93,6 +93,8 @@ void SetWindowFrame(void* pWindow, const WindowFrame& Frame);
 /// report the window's frame whenever it moved, was resized, or is about to close -
 /// the window itself is gone once the UI loop has ended
 void WatchWindowFrame(void* pWindow, std::function<void(const WindowFrame&)> OnChange);
+/// stop watching, before the window goes away
+void UnwatchWindowFrame();
 /// bring the windows of another process to the front
 bool ActivateProcess(int64_t iPID);
 

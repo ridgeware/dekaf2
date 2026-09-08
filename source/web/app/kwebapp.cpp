@@ -1327,14 +1327,15 @@ int KWebApp::Run()
 		if (m_Options.bRememberWindow)
 		{
 			LoadWindowFrame();
-			kwebapp::WatchWindowFrame(WindowHandle(), [this](const kwebapp::WindowFrame& Frame)
+
+			kwebapp::WindowFrame Frame;
+
+			if (kwebapp::GetWindowFrame(WindowHandle(), Frame))
 			{
-				std::lock_guard<std::mutex> Lock(m_Mutex);
-				m_jWindowFrame["x"]      = Frame.iX;
-				m_jWindowFrame["y"]      = Frame.iY;
-				m_jWindowFrame["width"]  = Frame.iWidth;
-				m_jWindowFrame["height"] = Frame.iHeight;
-			});
+				RememberFrame(Frame);
+			}
+
+			kwebapp::WatchWindowFrame(WindowHandle(), [this](const kwebapp::WindowFrame& Frame) { RememberFrame(Frame); });
 		}
 
 		auto sAppName = m_Options.sAppName.empty() ? KString(Dekaf::getInstance().GetProgName()) : m_Options.sAppName;
@@ -1349,23 +1350,18 @@ int KWebApp::Run()
 		// the UI loop, until the window closes or Quit() is called
 		m_WebView->run();
 
-		if (m_Options.bRememberWindow)
-		{
-			SaveWindowFrame();
-		}
-
 		if (!m_bQuit && m_Network && !m_Options.bQuitOnWindowClose)
 		{
 			// the window is gone but the servers stay - the loopback one too, its
 			// long running handlers end with IsQuitting() at the final shutdown
 			kDebug(1, "window closed, the servers keep running");
-			std::lock_guard<std::mutex> Lock(m_Mutex);
-			m_WebView.reset();
 		}
 		else
 		{
 			m_bQuit = true;
 		}
+
+		CloseWindow();
 	}
 
 	if (!m_bQuit)
@@ -1379,13 +1375,54 @@ int KWebApp::Run()
 	m_bQuit = true;
 	m_REST.reset();
 	m_Network.reset();
-
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-	m_WebView.reset();
+	CloseWindow();
 
 	return 0;
 
 } // Run
+
+//-----------------------------------------------------------------------------
+void KWebApp::RememberFrame(const kwebapp::WindowFrame& Frame)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	m_jWindowFrame["x"]      = Frame.iX;
+	m_jWindowFrame["y"]      = Frame.iY;
+	m_jWindowFrame["width"]  = Frame.iWidth;
+	m_jWindowFrame["height"] = Frame.iHeight;
+
+} // RememberFrame
+
+//-----------------------------------------------------------------------------
+void KWebApp::CloseWindow()
+//-----------------------------------------------------------------------------
+{
+	// the window may still be open (a shutdown signal): take its frame now, stop
+	// listening, then destroy it - outside of our lock, as destroying the window
+	// closes it, and AppKit calls back into whoever listens
+	kwebapp::WindowFrame Frame;
+
+	if (m_Options.bRememberWindow && kwebapp::GetWindowFrame(WindowHandle(), Frame))
+	{
+		RememberFrame(Frame);
+	}
+
+	kwebapp::UnwatchWindowFrame();
+
+	std::unique_ptr<WebView> View;
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		View = std::move(m_WebView);
+	}
+
+	View.reset();
+
+	if (m_Options.bRememberWindow)
+	{
+		SaveWindowFrame();
+	}
+
+} // CloseWindow
 
 //-----------------------------------------------------------------------------
 void KWebApp::Quit()

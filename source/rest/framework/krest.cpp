@@ -287,14 +287,10 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					}
 				}
 
+				// port 0 lets the OS pick a free port, see GetPort()
 				uint16_t iPort = Options.iPort;
 
-				if (iPort == 0)
-				{
-					iPort = bUseTLS ? 443 : 80;
-				}
-
-				if (!RESTServer::IsPortAvailable(iPort, Options.sBindAddress))
+				if (iPort != 0 && !RESTServer::IsPortAvailable(iPort, Options.sBindAddress))
 				{
 					return SetError(kFormat("port {} is in use - abort", iPort));
 				}
@@ -699,6 +695,14 @@ KTLSContext* KREST::GetTLSContext()
 	return m_Server ? m_Server->GetTLSContext() : nullptr;
 
 } // GetTLSContext
+
+//-----------------------------------------------------------------------------
+uint16_t KREST::GetPort() const
+//-----------------------------------------------------------------------------
+{
+	return m_Server ? m_Server->GetPort() : 0;
+
+} // GetPort
 
 //-----------------------------------------------------------------------------
 void KREST::RegisterShutdownCallback(KThreadPool::ShutdownCallback callback)

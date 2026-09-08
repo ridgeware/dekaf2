@@ -108,7 +108,8 @@ public:
 	{
 		/// Server type (UNDEFINED, HTTP, CGI, FCGI, LAMBDA, CLI, SIMULATE_HTTP, UNIX)
 		ServerType Type { UNDEFINED };
-		/// listen port (default none)
+		/// listen port - 0 (the default) lets the OS pick a free port, which
+		/// GetPort() reports after Execute()
 		uint16_t iPort { 0 };
 		/// optional address to bind the listening socket to, e.g. "127.0.0.1" or
 		/// "10.0.0.5". Empty (the default) binds to all interfaces. An invalid
@@ -225,6 +226,11 @@ public:
 	/// before Execute(), for non-TLS servers, and for non-server modes.
 	DEKAF2_NODISCARD
 	KTLSContext* GetTLSContext();
+	/// Returns the port a HTTP server started with Execute() is listening on,
+	/// which is the one picked by the OS when Options.iPort was 0. Returns 0
+	/// before Execute(), for unix sockets, and for non-server modes.
+	DEKAF2_NODISCARD
+	uint16_t GetPort() const;
 	/// Shall we log the shutdown in TCP server mode?
 	/// @param callback callback function called at each shutdown thread with some diagnostics
 	void RegisterShutdownCallback(KThreadPool::ShutdownCallback callback);

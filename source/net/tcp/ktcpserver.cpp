@@ -491,6 +491,19 @@ bool KTCPServer::SetupTCPAcceptors()
 	bool bTryIPv6 = m_bStartIPv6;
 	bool bNeedIPv4 = m_bStartIPv4;
 
+	// port 0 asks the OS for a free port - keep the one it picked on the first
+	// bind, so that GetPort() reports it and a second acceptor binds the same port
+	auto AddAcceptor = [this](std::shared_ptr<tcp::acceptor> acceptor)
+	{
+		if (m_iPort == 0)
+		{
+			m_iPort = acceptor->local_endpoint().port();
+			kDebug(1, "OS picked port {} for the listener", m_iPort);
+		}
+
+		m_TCPAcceptors.push_back(std::move(acceptor));
+	};
+
 	if (!m_sBindAddress.empty())
 	{
 		// an explicit bind address determines the address family by itself -
@@ -519,7 +532,7 @@ bool KTCPServer::SetupTCPAcceptors()
 
 			tcp::endpoint local_endpoint(Address, m_iPort);
 			auto acceptor = std::make_shared<tcp::acceptor>(m_asio, local_endpoint, true); // true means reuse_addr
-			m_TCPAcceptors.push_back(std::move(acceptor));
+			AddAcceptor(std::move(acceptor));
 		}
 		DEKAF2_CATCH(const std::exception& e)
 		{
@@ -549,7 +562,7 @@ bool KTCPServer::SetupTCPAcceptors()
 				bNeedIPv4 = false;
 			}
 
-			m_TCPAcceptors.push_back(std::move(acceptor));
+			AddAcceptor(std::move(acceptor));
 		}
 		DEKAF2_CATCH(const std::exception& e)
 		{
@@ -578,7 +591,7 @@ bool KTCPServer::SetupTCPAcceptors()
 
 		tcp::endpoint local_endpoint(tcp::v4(), m_iPort);
 		auto acceptor = std::make_shared<tcp::acceptor>(m_asio, local_endpoint, true); // true means reuse_addr
-		m_TCPAcceptors.push_back(std::move(acceptor));
+		AddAcceptor(std::move(acceptor));
 	}
 
 	if (m_TCPAcceptors.empty())

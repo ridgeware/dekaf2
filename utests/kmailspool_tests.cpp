@@ -23,8 +23,6 @@ public:
 	{
 	}
 
-	using KTCPServer::GetPort;
-
 	std::size_t GetReceivedCount() const
 	{
 		std::lock_guard<std::mutex> Lock(m_Mutex);

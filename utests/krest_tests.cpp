@@ -594,4 +594,49 @@ TEST_CASE("KREST")
 		CHECK ( BadREST.Execute(BadOptions, Routes) == false );
 	}
 
+	SECTION("HTTP ephemeral port")
+	{
+		KRESTRoutes Routes;
+
+		uint16_t iCalledTest { 0 };
+
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			++iCalledTest;
+			http.json.tx["response"] = "hello world";
+		}});
+
+		// port 0 lets the OS pick a free port, GetPort() reports it
+		KREST::Options Options;
+		Options.Type         = KREST::HTTP;
+		Options.iPort        = 0;
+		Options.sBindAddress = "127.0.0.1";
+		Options.bBlocking    = false;
+		Options.bCreateEphemeralCert = false;
+
+		KREST REST;
+		CHECK ( REST.GetPort() == 0 );
+
+		if (!REST.Execute(Options, Routes))
+		{
+			CHECK ( REST.Error() == "" );
+		}
+		else
+		{
+			auto iPort = REST.GetPort();
+			CHECK ( iPort != 0 );
+
+			KHTTPError ec;
+			KJsonRestClient Client(kFormat("http://127.0.0.1:{}", iPort));
+			Client.RequestCompression(false);
+			Client.AllowConnectionRetry(false);
+
+			auto jResult = Client.Get("test").SetError(ec).Request();
+
+			CHECK (ec.value()   == 0  );
+			CHECK (ec.message() == "" );
+			CHECK (iCalledTest  == 1  );
+		}
+	}
+
 }

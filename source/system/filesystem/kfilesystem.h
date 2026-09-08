@@ -660,11 +660,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Acquire an advisory lock on the file at @p sPath.
-	/// Blocks until the lock is available. If the file does not exist or cannot
-	/// be opened, the lock is not acquired (check with `operator bool()`).
+	/// Blocks until the lock is available, unless bWait is false. If the file does
+	/// not exist or cannot be opened, or the lock is taken and bWait is false, the
+	/// lock is not acquired (check with `operator bool()`).
 	/// @param sPath path to the file to lock
 	/// @param mode  Shared for concurrent read access, Exclusive for sole write access
-	KFileLock(KStringViewZ sPath, Mode mode);
+	/// @param bWait wait for the lock (default), or return at once without it
+	KFileLock(KStringViewZ sPath, Mode mode, bool bWait = true);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

@@ -100,7 +100,7 @@ bool kChangeMode(KStringViewZ sPath, int iMode)
 } // kChangeMode
 
 //-----------------------------------------------------------------------------
-KFileLock::KFileLock(KStringViewZ sPath, Mode mode)
+KFileLock::KFileLock(KStringViewZ sPath, Mode mode, bool bWait)
 //-----------------------------------------------------------------------------
 {
 #ifdef DEKAF2_IS_WINDOWS
@@ -126,15 +126,26 @@ KFileLock::KFileLock(KStringViewZ sPath, Mode mode)
 		OVERLAPPED ov{};
 		ov.Offset     = 0xFFFFFFFF;
 		ov.OffsetHigh = 0x7FFFFFFF;   // sentinel offset ~2^63-1, never part of file data
-		DWORD dwFlags = mode == Exclusive ? LOCKFILE_EXCLUSIVE_LOCK : 0;
-		LockFileEx(m_hFile, dwFlags, 0, 1, 0, &ov);
+		DWORD dwFlags = (mode == Exclusive ? LOCKFILE_EXCLUSIVE_LOCK : 0) | (bWait ? 0 : LOCKFILE_FAIL_IMMEDIATELY);
+
+		if (!LockFileEx(m_hFile, dwFlags, 0, 1, 0, &ov))
+		{
+			// taken by another process, or failed - either way not ours
+			CloseHandle(m_hFile);
+			m_hFile = INVALID_HANDLE_VALUE;
+		}
 	}
 #else
 	m_fd = ::open(sPath.c_str(), O_RDONLY);
 
 	if (m_fd >= 0)
 	{
-		::flock(m_fd, mode == Exclusive ? LOCK_EX : LOCK_SH);
+		if (::flock(m_fd, (mode == Exclusive ? LOCK_EX : LOCK_SH) | (bWait ? 0 : LOCK_NB)) != 0)
+		{
+			// taken by another process, or failed - either way not ours
+			::close(m_fd);
+			m_fd = -1;
+		}
 	}
 #endif
 

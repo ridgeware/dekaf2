@@ -1,0 +1,3 @@
+This tree is the amalgamation of webview/webview master @ cbbdee44afff22867de9fd88a9fc8350d9bdd399 (committed 2026-03-09),
+generated 2026-09-08 by update.sh with upstream's scripts/amalgamate/amalgamate.py
+(--base core --search include src, without the clang-format pass).

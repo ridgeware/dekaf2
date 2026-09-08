@@ -5,3 +5,11 @@ CMakeLists.txt.user
 build/*
 .windsurf/
 .idea/
+# the vendoring update scripts (from/simdutf, from/webview, libs/uap-cpp/uap-core) keep
+# the previous version as .last and the change as .diff - never commit those
+from/simdutf/*.last
+from/simdutf/*.diff
+from/webview/*.last
+from/webview/*.diff
+libs/uap-cpp/uap-core/*.last
+libs/uap-cpp/uap-core/*.diff

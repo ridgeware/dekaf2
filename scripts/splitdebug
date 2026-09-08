@@ -1,0 +1,57 @@
+#! /bin/bash
+
+#%
+#% splitdebug - split the symbol tables off the executables a cmake build installed
+#%
+#% usage: splitdebug <builddir> <debugdir>
+#%
+#% For every executable in <builddir>/install_manifest.txt: writes <debugdir>/<name>.debug
+#% from the unstripped original in the build tree (objcopy --only-keep-debug) and points
+#% the installed - typically stripped - binary to it (--add-gnu-debuglink). gdb and
+#% addr2line then find the symbols by themselves when the .debug file lies next to the
+#% binary, in .debug/ below it, or under /usr/lib/debug; dekaf2's stack traces print
+#% link time addresses, so "addr2line -f -e <name>.debug <address>" resolves them later.
+#%
+
+builddir="$1"
+debugdir="$2"
+
+if [[ -z "${builddir}" ]] || [[ -z "${debugdir}" ]]; then
+	awk '/^#%/ {print substr($0,3)}' "${BASH_SOURCE}"
+	exit 1
+fi
+
+manifest="${builddir}/install_manifest.txt"
+[[ -f "${manifest}" ]] || { echo ">> splitdebug: no ${manifest} - run make install first"; exit 1; }
+command -v objcopy >/dev/null 2>&1 || { echo ">> splitdebug: objcopy not found (binutils)"; exit 1; }
+mkdir -p "${debugdir}" || exit 1
+
+iCount=0
+
+while IFS= read -r installed; do
+	[[ -f "${installed}" ]] && [[ -x "${installed}" ]] || continue
+	# executables only (ELF magic) - scripts and data pass
+	[[ "$(head -c 4 "${installed}" | od -An -tx1 | tr -d ' \n')" == "7f454c46" ]] || continue
+
+	name=$(basename "${installed}")
+	# the unstripped original: same name somewhere in the build tree, outside cmake's own dirs
+	original=$(find "${builddir}" -type f -name "${name}" -perm -u+x -not -path '*/CMakeFiles/*' | head -1)
+	if [[ -z "${original}" ]]; then
+		echo ">> splitdebug: no build tree original for ${installed}, skipping"
+		continue
+	fi
+
+	objcopy --only-keep-debug "${original}" "${debugdir}/${name}.debug" || exit 1
+	# DWARF (debug builds) compressed in place - zstd where this objcopy knows it, else
+	# zlib; gdb, addr2line and libunwind read both transparently. Symbol tables cannot
+	# be compressed, so the .debug of a release build stays as it is
+	if ! objcopy --compress-debug-sections=zstd "${debugdir}/${name}.debug" 2>/dev/null; then
+		objcopy --compress-debug-sections=zlib "${debugdir}/${name}.debug" || exit 1
+	fi
+	# the link carries the file name and a CRC of the (final) .debug file
+	( cd "${debugdir}" && objcopy --add-gnu-debuglink="${name}.debug" "${installed}" ) || exit 1
+	let ++iCount
+
+done < <(grep '/bin/' "${manifest}")
+
+echo ":: splitdebug: ${iCount} debug files in ${debugdir}"

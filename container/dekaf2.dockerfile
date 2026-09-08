@@ -14,6 +14,10 @@ ARG to="${from}"
 FROM ${from} AS build-stage
 
 ARG buildtype="release"
+ARG install_strip=""
+
+# the symbol tables of stripped executables go to /usr/local/lib/debug
+COPY --from=dekaf2scripts splitdebug /home/scripts/
 ARG build_options=""
 ARG parallel=""
 
@@ -43,9 +47,12 @@ RUN [ "${parallel}" != "" ] \
 
 # install
 #RUN cmake --install .
-RUN make install && /usr/local/bin/kurl -V
+RUN mkdir -p /usr/local/lib/debug && make install${install_strip} && \
+    { [ -z "${install_strip}" ] || /home/scripts/splitdebug . /usr/local/lib/debug; } && /usr/local/bin/kurl -V
 
 FROM ${to} AS final
+
+COPY --from=build-stage /usr/local/lib/debug /usr/local/lib/debug
 
 COPY --from=build-stage /usr/local/bin/klog          \
                         /usr/local/bin/createdbc     \

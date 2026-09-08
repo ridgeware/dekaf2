@@ -15,6 +15,9 @@ FROM ${from} AS build-stage
 
 FROM runenv AS final
 
+COPY --from=build-stage /usr/local/lib/debug /usr/local/lib/debug
+
+# keep this list in sync with the final stage of dekaf2.dockerfile
 COPY --from=build-stage /usr/local/bin/klog          \
                         /usr/local/bin/createdbc     \
                         /usr/local/bin/kurl          \

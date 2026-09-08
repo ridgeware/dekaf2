@@ -135,7 +135,7 @@ OPTION(DEKAF2_INSTALL_FLAT_HEADERS "install flat backward-compatible header stub
 OPTION(DEKAF2_ALL_LIBS "bind to all found libs (switch off and select single libs for better binary portability)" ON)
 OPTION(DEKAF2_WITH_SIMDUTF "build with simd utf implementations" ON)
 OPTION(DEKAF2_WITH_USER_AGENT_PARSER "build with user agent parser" ON)
-OPTION(DEKAF2_WITH_WEBVIEW "build KWebApp on the system webview (webview/webview) - needs WebKit, WebKitGTK or the WebView2 SDK" OFF)
+OPTION(DEKAF2_WITH_WEBVIEW "build KWebApp on the system webview (webview/webview) - switched off when WebKit, WebKitGTK or the WebView2 SDK are not found" ON)
 
 # ARM only:
 # Needle-length cutoff for dekaf2::memmem(): needles of this length or shorter
@@ -767,17 +767,21 @@ endif()
 
 # =============================== WEBVIEW ====================================
 
+# KWebApp renders into the system webview through the vendored webview/webview
+# amalgamation in from/webview - the header is private to kwebapp.cpp, only the
+# platform libraries it needs get linked. With DEKAF2_WITH_WEBVIEW off nothing is
+# looked for; on, the platform side is looked for, and when it is missing the
+# switch goes off
 if (DEKAF2_WITH_WEBVIEW)
-	# KWebApp renders into the system webview through the vendored webview/webview
-	# amalgamation in from/webview - the header is private to kwebapp.cpp, only the
-	# platform libraries it needs get linked. A missing dependency fails the
-	# configuration: the option was set explicitly, it does not degrade silently
 	set(WEBVIEW_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/from/webview")
+	set(WEBVIEW_FOUND        OFF)
+	set(WEBVIEW_MISSING      "")
 
 	if (IS_MACOS)
 		# WebKit for the view, AppKit for menus and dialogs, UserNotifications for notifications
 		set(WEBVIEW_LIBRARIES "-framework WebKit" "-framework AppKit" "-framework UserNotifications")
 		set(WEBVIEW_VERSION   "WebKit")
+		set(WEBVIEW_FOUND     ON)
 	elseif (IS_WINDOWS)
 		# the WebView2 SDK headers are not part of webview/webview - take them from the
 		# vcpkg port webview2, or from an unpacked Microsoft.Web.WebView2 NuGet package
@@ -787,45 +791,58 @@ if (DEKAF2_WITH_WEBVIEW)
 		if (unofficial-webview2_FOUND)
 			set(WEBVIEW_LIBRARIES unofficial::webview2::webview2)
 			set(WEBVIEW_VERSION   "WebView2 SDK (vcpkg)")
+			set(WEBVIEW_FOUND     ON)
 		else()
 			find_path(WEBVIEW2_INCLUDE_DIR WebView2.h
 				HINTS "$ENV{WEBVIEW2_SDK_DIR}/build/native/include" "${WEBVIEW2_SDK_DIR}/build/native/include")
-			if (NOT WEBVIEW2_INCLUDE_DIR)
-				message(FATAL_ERROR "DEKAF2_WITH_WEBVIEW: WebView2.h not found - install the vcpkg port webview2, or set WEBVIEW2_SDK_DIR to an unpacked Microsoft.Web.WebView2 NuGet package")
+			if (WEBVIEW2_INCLUDE_DIR)
+				list(APPEND WEBVIEW_INCLUDE_DIRS "${WEBVIEW2_INCLUDE_DIR}")
+				set(WEBVIEW_VERSION "WebView2 SDK")
+				set(WEBVIEW_FOUND   ON)
+			else()
+				set(WEBVIEW_MISSING "WebView2.h not found - install the vcpkg port webview2, or set WEBVIEW2_SDK_DIR to an unpacked Microsoft.Web.WebView2 NuGet package")
 			endif()
-			list(APPEND WEBVIEW_INCLUDE_DIRS "${WEBVIEW2_INCLUDE_DIR}")
-			set(WEBVIEW_VERSION "WebView2 SDK")
 		endif()
 		list(APPEND WEBVIEW_LIBRARIES ole32 shell32 shlwapi user32 version)
 	else()
 		# WebKitGTK and GTK through pkg-config, newest API first - the header selects
 		# its code path from GTK_MAJOR_VERSION. The libraries go in as absolute paths
 		# so that they end up unchanged in the exported targets
-		find_package(PkgConfig REQUIRED)
-		pkg_check_modules(dekaf2_webkitgtk60 QUIET webkitgtk-6.0 gtk4)
-		if (dekaf2_webkitgtk60_FOUND)
-			set(WEBVIEW_PKG     dekaf2_webkitgtk60)
-			set(WEBVIEW_VERSION "webkitgtk-6.0")
-		else()
-			pkg_check_modules(dekaf2_webkitgtk41 QUIET webkit2gtk-4.1 gtk+-3.0)
-			if (dekaf2_webkitgtk41_FOUND)
-				set(WEBVIEW_PKG     dekaf2_webkitgtk41)
-				set(WEBVIEW_VERSION "webkit2gtk-4.1")
+		find_package(PkgConfig QUIET)
+		if (PKG_CONFIG_FOUND)
+			pkg_check_modules(dekaf2_webkitgtk60 QUIET webkitgtk-6.0 gtk4)
+			if (dekaf2_webkitgtk60_FOUND)
+				set(WEBVIEW_PKG     dekaf2_webkitgtk60)
+				set(WEBVIEW_VERSION "webkitgtk-6.0")
 			else()
-				pkg_check_modules(dekaf2_webkitgtk40 QUIET webkit2gtk-4.0 gtk+-3.0)
-				if (dekaf2_webkitgtk40_FOUND)
-					set(WEBVIEW_PKG     dekaf2_webkitgtk40)
-					set(WEBVIEW_VERSION "webkit2gtk-4.0")
+				pkg_check_modules(dekaf2_webkitgtk41 QUIET webkit2gtk-4.1 gtk+-3.0)
+				if (dekaf2_webkitgtk41_FOUND)
+					set(WEBVIEW_PKG     dekaf2_webkitgtk41)
+					set(WEBVIEW_VERSION "webkit2gtk-4.1")
 				else()
-					message(FATAL_ERROR "DEKAF2_WITH_WEBVIEW: no WebKitGTK found - install the development packages of webkitgtk-6.0 and gtk4, or of webkit2gtk-4.1 (or -4.0) and gtk+-3.0")
+					pkg_check_modules(dekaf2_webkitgtk40 QUIET webkit2gtk-4.0 gtk+-3.0)
+					if (dekaf2_webkitgtk40_FOUND)
+						set(WEBVIEW_PKG     dekaf2_webkitgtk40)
+						set(WEBVIEW_VERSION "webkit2gtk-4.0")
+					endif()
 				endif()
 			endif()
 		endif()
-		list(APPEND WEBVIEW_INCLUDE_DIRS ${${WEBVIEW_PKG}_INCLUDE_DIRS})
-		set(WEBVIEW_LIBRARIES ${${WEBVIEW_PKG}_LINK_LIBRARIES} ${CMAKE_DL_LIBS})
+		if (WEBVIEW_PKG)
+			list(APPEND WEBVIEW_INCLUDE_DIRS ${${WEBVIEW_PKG}_INCLUDE_DIRS})
+			set(WEBVIEW_LIBRARIES ${${WEBVIEW_PKG}_LINK_LIBRARIES} ${CMAKE_DL_LIBS})
+			set(WEBVIEW_FOUND     ON)
+		else()
+			set(WEBVIEW_MISSING "no WebKitGTK found - install the development packages of webkitgtk-6.0 and gtk4, or of webkit2gtk-4.1 (or -4.0) and gtk+-3.0")
+		endif()
 	endif()
 
-	set(DEKAF2_HAS_WEBVIEW 1)
+	if (WEBVIEW_FOUND)
+		set(DEKAF2_HAS_WEBVIEW 1)
+	else()
+		set(DEKAF2_WITH_WEBVIEW OFF)
+		message(STATUS "no system webview: ${WEBVIEW_MISSING} - KWebApp is not built")
+	endif()
 endif()
 
 # ================================= BOOST ====================================
@@ -1124,9 +1141,7 @@ LibState("${DEKAF2_HAS_NGHTTP2}"    "NGHTTP2  :" "${NGHTTP2_VERSION}"  "${NGHTTP
 LibState("${DEKAF2_HAS_NGTCP2}"     "NGTCP2   :" "${NGTCP2_VERSION}"   "${NGTCP2_LIBRARIES}"   )
 LibState("${DEKAF2_HAS_NGHTTP3}"    "NGHTTP3  :" "${NGHTTP3_VERSION}"  "${NGHTTP3_LIBRARIES}"  )
 LibState("${DEKAF2_HAS_FREETDS}"    "FreeTDS  :" "${FREETDS_VERSION}"  "${FREETDS_LIBRARIES}"  )
-if (DEKAF2_WITH_WEBVIEW)
-	LibState("${DEKAF2_HAS_WEBVIEW}" "WEBVIEW  :" "${WEBVIEW_VERSION}"  "${WEBVIEW_LIBRARIES}"  )
-endif()
+LibState("${DEKAF2_HAS_WEBVIEW}"    "WEBVIEW  :" "${WEBVIEW_VERSION}"  "${WEBVIEW_LIBRARIES}"  )
 LibState("${DEKAF2_HAS_JEMALLOC}"   "JEMALLOC :" "${JEMALLOC_VERSION}" "${JEMalloc_LIBRARIES}" )
 LibState("${DEKAF2_HAS_LIBUNWIND}"  "libunwind:" ""                    "${LIBUNWIND_LIBRARIES}")
 LibState("${DOXYGEN_FOUND}"         "Doxygen  :" "${DOXYGEN_VERSION}"  "${DOXYGEN_EXECUTABLE}" )

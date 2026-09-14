@@ -237,6 +237,13 @@ KWebApp::~KWebApp()
 {
 	Quit();
 
+	// stop the servers while every member is still alive: their websocket
+	// reactor threads call the live connection handlers, which use m_Clients
+	// and m_ClientMutex - both would be destroyed before the servers otherwise,
+	// as the servers are declared first. Run() does the same before returning
+	m_REST.reset();
+	m_Network.reset();
+
 	// the signal handlers capture this
 	if (auto* Signals = Dekaf::getInstance().Signals())
 	{

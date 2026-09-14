@@ -320,6 +320,7 @@ public:
 	/// KWebApp, which adds its own routes to the table: /_kwa/enter for the
 	/// window, /login, /logout and /healthz for the network
 	KWebApp(Options Options, KRESTRoutes& Routes);
+	/// stops the servers and closes the window if Run() has not done so
 	~KWebApp();
 
 	KWebApp(const KWebApp&) = delete;

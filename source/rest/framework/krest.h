@@ -108,6 +108,11 @@ public:
 	{
 		/// Server type (UNDEFINED, HTTP, CGI, FCGI, LAMBDA, CLI, SIMULATE_HTTP, UNIX)
 		ServerType Type { UNDEFINED };
+		/// additional request-header names that, in CGI mode, should be read from
+		/// their HTTP_* environment variables. dekaf2 otherwise reconstructs only a
+		/// well-known subset of headers from the CGI environment, so register any
+		/// custom header your handlers rely on here, e.g. "X-BLC-Session".
+		std::vector<KString> AdditionalCGIHeaders;
 		/// listen port - 0 (the default) lets the OS pick a free port, which
 		/// GetPort() reports after Execute()
 		uint16_t iPort { 0 };

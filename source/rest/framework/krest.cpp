@@ -437,6 +437,14 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 					CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(Options.KLogHeader), Options.KLogHeader);
 				}
 
+				for (const auto& sCGIHeader : Options.AdditionalCGIHeaders)
+				{
+					if (!sCGIHeader.empty())
+					{
+						CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(KStringView(sCGIHeader)), sCGIHeader);
+					}
+				}
+
 				KStream Stream(CGI, KOut);
 				Options.Out = KRESTServer::HTTP;
 				Options.iMaxKeepaliveRounds = 1; // no keepalive in CGI mode..
@@ -518,6 +526,14 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 				if (!Options.KLogHeader.empty())
 				{
 					CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(Options.KLogHeader), Options.KLogHeader);
+				}
+
+				for (const auto& sCGIHeader : Options.AdditionalCGIHeaders)
+				{
+					if (!sCGIHeader.empty())
+					{
+						CGI.AddCGIVar(KCGIInStream::ConvertHTTPHeaderNameToCGIVar(KStringView(sCGIHeader)), sCGIHeader);
+					}
 				}
 				KStream Stream(CGI, OutStream);
 				Options.Out = KRESTServer::HTTP;

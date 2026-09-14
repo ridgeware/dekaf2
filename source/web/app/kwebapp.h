@@ -86,7 +86,7 @@ KStringViewZ kGetWebViewVersion();
 /// an Origin check. A request failing any of these gets a 403, without exception.
 ///
 /// JavaScript reaches C++ through window.kNative: Bind() publishes a handler as
-/// window.kNative.<name>(arg), taking one JSON argument and returning a Promise
+/// window.kNative.\<name\>(arg), taking one JSON argument and returning a Promise
 /// of the handler's JSON result. window.kNative.platform() and .version() are
 /// available synchronously, and `typeof window.kNative !== 'undefined'` tells
 /// a page whether it runs in the window or in a plain browser.
@@ -236,7 +236,7 @@ public:
 		KREST::Options Loopback;
 		/// the server for browsers on the network, started with bNetwork. It always
 		/// speaks TLS: with sCert and sKey, else with an ephemeral certificate that
-		/// KREST persists under ~/.config/<program>/tls/. Port 0 lets the OS pick
+		/// KREST persists under ~/.config/\<program\>/tls/. Port 0 lets the OS pick
 		KREST::Options Network;
 		/// start the network server?
 		bool           bNetwork { false };
@@ -262,7 +262,7 @@ public:
 		bool           bDebug  { false };
 		/// end Run() when the window closes? false keeps a network server running until Quit()
 		bool           bQuitOnWindowClose { true };
-		/// the application's name for ~/.config/<name>/, where the window geometry and the
+		/// the application's name for ~/.config/\<name\>/, where the window geometry and the
 		/// instance lock live - empty means the program name
 		KString        sAppName;
 		/// one window per user - a second start brings the first to the front and ends
@@ -326,9 +326,10 @@ public:
 	KWebApp(const KWebApp&) = delete;
 	KWebApp& operator=(const KWebApp&) = delete;
 
-	/// publish a handler as window.kNative.<name>(arg). Before Run() the binding
+	/// publish a handler as window.kNative.\<name\>(arg). Before Run() the binding
 	/// is queued, afterwards it becomes available at once
 	/// @param sName a JavaScript identifier: letters, digits and underscores
+	/// @param Handler the function called with the page's JSON argument, its JSON result resolves the Promise
 	/// @return false for an invalid or duplicate name
 	bool Bind(KStringView sName, Handler Handler);
 	/// run JavaScript in the window, from any thread. A no-op without window

@@ -75,7 +75,7 @@
 /// | **Archives** | Tar and Zip read/write |
 /// | **Text** | Diff, n-gram analysis, Unicode (full tables), regex |
 /// | **Time** | Rich date/time, durations, profiling timers, time-series containers |
-/// | **Desktop** | KWebApp: Electron-like desktop applications on the system webview, in a few MB, same pages for window and browser |
+/// | **Desktop** | @ref dekaf2::KWebApp "KWebApp": Electron-like desktop applications on the system webview, same pages for window and browser |
 ///
 /// ---
 ///

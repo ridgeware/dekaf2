@@ -220,6 +220,13 @@
 /// @ingroup web
 /// @brief Web Push (RFC 8291) with VAPID authentication.
 
+/// @defgroup web_app Desktop Applications
+/// @ingroup web
+/// @brief KWebApp: a native window on the system webview showing pages from a KREST
+/// server in the same process, with a JavaScript bridge, a network mode for browsers,
+/// a shared live channel, and the desktop integration (menus, notifications, dialogs,
+/// downloads, secrets) on macOS, Linux and Windows. See source/web/app/README.md.
+
 // =============================================================================
 // crypto/ submodules
 // =============================================================================

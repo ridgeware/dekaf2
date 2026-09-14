@@ -105,6 +105,7 @@ example below.
 | **HTTP**       | protocol, client, server, cookies, WebSocket                                                                             |
 | **REST**       | routing framework, file serving, rate limiting                                                                           |
 | **Web**        | URLs and MIME types, HTML parser and DOM, typed HTML generation and UI components, push notifications, ACME certificates |
+| **Desktop**    | KWebApp: desktop applications on the system webview (macOS, Linux, Windows) with a JavaScript bridge, network mode, live channel and desktop integration, see [`source/web/app/`](source/web/app/README.md) |
 | **Crypto**     | hashing, ciphers, RSA, elliptic curves (incl. Ed25519, X25519), key derivation, OpenID Connect and JWT, AWS SigV4        |
 | **Data**       | JSON (DOM and SAX), XML, CSV, SQL, text templates                                                                        |
 | **Time**       | clock and date, durations and timers, time series, cron scheduling                                                       |
@@ -194,6 +195,7 @@ build together with the library (`DEKAF2_BUILD_SAMPLES`, on by default):
 | [`ktunnel`](samples/ktunnel.cpp) | encrypted tunnels through a relay (outlet, relay, inlet roles), with an admin interface                                     |
 | [`kgeoip`](samples/kgeoip.cpp)   | resolves IP addresses to locations                                                                                          |
 | [`kmqtt`](samples/kmqtt.cpp)     | explores an MQTT broker from the command line                                                                               |
+| [`ktail`](samples/ktail.cpp)     | a desktop application on KWebApp: browses a directory and follows log files live, in a native window or in browsers on the network |
 
 ## License
 

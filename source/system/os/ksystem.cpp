@@ -2364,6 +2364,19 @@ bool kStdOutIsTerminal()
 } // kStdOutIsTerminal
 
 //-----------------------------------------------------------------------------
+bool kStdInIsTerminal()
+//-----------------------------------------------------------------------------
+{
+#if !DEKAF2_IS_WINDOWS
+	return KFileStat(STDIN_FILENO).Type() == KFileType::CHARACTER;
+#else
+	// on windows we don't know..
+	return false;
+#endif
+
+} // kStdInIsTerminal
+
+//-----------------------------------------------------------------------------
 KDuration kGetUptime()
 //-----------------------------------------------------------------------------
 {

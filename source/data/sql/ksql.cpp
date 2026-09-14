@@ -11182,6 +11182,17 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 	bool    bHaveFirstWord { false };
 	bool    bIsUse         { false };
 
+	// When stdin is not a terminal (a piped SQL file or dump) we read it plainly
+	// rather than through the interactive line editor: the editor treats tabs as
+	// completion triggers and would split lines like mariadb-dump's
+	// "-- Server version\t...". A non-interactive session is also quiet.
+	const bool bInteractive = kStdInIsTerminal();
+
+	if (!bInteractive)
+	{
+		bQuiet = true;
+	}
+
 	if (!bQuiet)
 	{
 		sPrompt = kFormat("{} > ", ConnectSummary());
@@ -11263,6 +11274,15 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 				}
 			}
 		}
+		else if (!bInteractive)
+		{
+			// piped / redirected stdin: read a plain line (no line editor, so
+			// tabs and other control characters in the input survive intact).
+			if (!kReadLine(KIn, sLine))
+			{
+				return true;
+			}
+		}
 		else
 		{
 			if (!Terminal.EditLine(sPrompt, sLine))
@@ -11280,6 +11300,35 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 			}
 
 			kWriteLine();
+		}
+
+		// At the start of a statement, skip lines that must not be sent to the
+		// server, so the interpreter can consume mariadb-dump / mysqldump output:
+		//
+		//   -- ... / # ...            standalone SQL line comments (the dump's
+		//                             header and inter-table markers).
+		//   /*!NNNNN\- ... */ or      a MariaDB *client* directive: the "\-" after
+		//   /*M!NNNNN\- ... */        the version marks a comment meant for the
+		//                             client only (e.g. mariadb-dump's "enable the
+		//                             sandbox mode" line) and is never sent on.
+		//
+		// Executable conditionals (/*! ... */, /*M! ... */ without the "\-" marker)
+		// are NOT skipped - they fall through and are run by the server.
+		if (sSQL.empty())
+		{
+			KStringView svComment(sLine);
+			svComment.Trim();
+
+			if (svComment.starts_with("--") || svComment.starts_with('#'))
+			{
+				continue;
+			}
+
+			if ((svComment.starts_with("/*!") || svComment.starts_with("/*M!")) &&
+			    svComment.find("\\-") != KStringView::npos)
+			{
+				continue;
+			}
 		}
 
 		if (sSQL.empty() && KFormTable::IsKnownStyle(sLine))

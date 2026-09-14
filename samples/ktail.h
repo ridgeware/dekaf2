@@ -68,6 +68,7 @@ private:
 
 	void  Page     (KRESTServer& HTTP);
 	void  SaveNote (KRESTServer& HTTP);
+	void  Download (KRESTServer& HTTP);
 	void  Tail     (KRESTServer& HTTP);
 	void  TailLoop (KWebSocket& WebSocket, KString sPath);
 	KJSON Reveal   (const KJSON& jArg);

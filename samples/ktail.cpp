@@ -28,8 +28,9 @@
 
 namespace {
 
-constexpr KStringView sTailPath  = "/tail";
-constexpr KStringView sNotesPath = "/notes";
+constexpr KStringView sTailPath     = "/tail";
+constexpr KStringView sNotesPath    = "/notes";
+constexpr KStringView sDownloadPath = "/download";
 
 // the texts of the user interface, in one place - the page script gets them as
 // a JSON object, and a translation would replace this table
@@ -39,6 +40,7 @@ constexpr KStringView sTexts = R"json({
 	"modified"      : "Modified",
 	"pickFile"      : "Select a file on the left to follow it live.",
 	"reveal"        : "Show in file manager",
+	"download"      : "Download",
 	"notifyOnLines" : "Notify on new lines",
 	"note"          : "Note for this file",
 	"saveNote"      : "Save note",
@@ -72,7 +74,7 @@ header { display: flex; align-items: center; gap: 1em; padding: .6em 1em; border
 header h1 { font-size: 1.1em; margin: 0; }
 header .path { flex: 1; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 header .path a { color: var(--accent); text-decoration: none; }
-button { font: inherit; padding: .3em .8em; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--fg); cursor: pointer; }
+button, a.button { font: inherit; padding: .3em .8em; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--fg); cursor: pointer; text-decoration: none; }
 main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(16em, 28%) 1fr; }
 nav { overflow: auto; border-right: 1px solid var(--border); }
 nav table { border-collapse: collapse; width: 100%; }
@@ -127,7 +129,8 @@ constexpr KStringView sScript = R"js(
 		switch (ev.detail) {
 			case 'toggleTheme': button.click(); break;
 			case 'saveNote':    { const f = document.querySelector('form.note'); if (f) f.requestSubmit(); break; }
-			case 'revealFile':  if (D.file && native) window.kNative.reveal({ file: D.file }); break;
+			case 'revealFile':   if (D.file && native) window.kNative.reveal({ file: D.file }); break;
+			case 'downloadFile': { const a = document.getElementById('download'); if (a) a.click(); break; }
 		}
 	});
 
@@ -269,6 +272,7 @@ KTail::KTail(Config Config)
 	// the page, the note form, and the live tail - the root is the empty route
 	m_Routes.AddRoute("").Get([this](KRESTServer& HTTP) { Page(HTTP); });
 	m_Routes.AddRoute(KString(sNotesPath)).Post([this](KRESTServer& HTTP) { SaveNote(HTTP); }).Parse(KRESTRoute::WWWFORM);
+	m_Routes.AddRoute(KString(sDownloadPath)).Get([this](KRESTServer& HTTP) { Download(HTTP); });
 	m_Routes.AddRoute(KString(sTailPath)).Get([this](KRESTServer& HTTP) { Tail(HTTP); }).Parse(KRESTRoute::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
 
 	KWebApp::Options Options;
@@ -283,6 +287,7 @@ KTail::KTail(Config Config)
 	Options.jMenus   = kjson::Parse(R"json([
 		{ "title": "File", "items": [
 			{ "title": "Save Note",            "key": "s", "action": "saveNote" },
+			{ "title": "Download File",        "key": "d", "action": "downloadFile" },
 			{ "separator": true },
 			{ "title": "Show in File Manager", "key": "r", "action": "revealFile" }
 		] },
@@ -338,10 +343,12 @@ KTail::KTail(Config Config)
 			return;
 		}
 
-		Options.Network.sCert     = m_Config.sCert;
-		Options.Network.sKey      = m_Config.sKey;
-		Options.bNetwork          = true;
+		Options.Network.sCert      = m_Config.sCert;
+		Options.Network.sKey       = m_Config.sKey;
+		Options.bNetwork           = true;
 		Options.bQuitOnWindowClose = false;
+		// the window goes into hiding instead - a click on the icon brings it back
+		Options.bHideOnClose       = true;
 	}
 
 	m_App = std::make_unique<KWebApp>(std::move(Options), m_Routes);
@@ -512,6 +519,11 @@ void KTail::Page(KRESTServer& HTTP)
 
 			Bar.Add<html::Button>(Text("reveal"), html::Button::BUTTON, "native-only", "reveal");
 
+			// the file itself, as attachment - the window and a browser save it
+			KString sDownload = kFormat("{}?file=", sDownloadPath);
+			kUrlEncode(sFile, sDownload, URIPart::Query);
+			Bar.Add<html::Link>(sDownload, Text("download"), "button", "download").SetDownload();
+
 			Section.Add<html::Element>("pre", html::Classes{}, "tail");
 
 			KString sNote;
@@ -582,6 +594,30 @@ void KTail::SaveNote(KRESTServer& HTTP)
 	throw KHTTPError { KHTTPError::H302_MOVED_TEMPORARILY, "" };
 
 } // SaveNote
+
+//-----------------------------------------------------------------------------
+void KTail::Download(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	auto    sFile = HTTP.GetQueryParm("file");
+	KString sAbsFile;
+
+	if (!Resolve(sFile, sAbsFile) || !kFileExists(sAbsFile))
+	{
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "no such file" };
+	}
+
+	// as attachment: the window and a browser save it instead of showing it
+	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::CreateByExtension(sAbsFile, KMIME::BINARY).Serialize());
+	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_DISPOSITION,
+	                          kFormat("attachment; filename=\"{}\"", kEscapeChars(kBasename(sAbsFile), "\"\\", '\\')));
+
+	if (!HTTP.SetFileToOutput(sAbsFile))
+	{
+		throw KHTTPError { KHTTPError::H5xx_ERROR, "cannot read file" };
+	}
+
+} // Download
 
 //-----------------------------------------------------------------------------
 void KTail::Tail(KRESTServer& HTTP)

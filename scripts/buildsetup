@@ -81,6 +81,24 @@ BuildSetup ()
 				;;
 		esac
 
+		# KWebApp renders into the system webview: WebKitGTK with GTK 4 (API 6.0) where the
+		# distribution has it, else WebKitGTK with GTK 3 (API 4.1). notify-send and secret-tool
+		# are what KWebApp calls for notifications and the secret service at run time.
+		# Alpine: webkit2gtk-6.0-dev gtk4.0-dev libnotify libsecret
+		case "${DISTRIB}" in
+			debian)
+				# Debian 12+ and Ubuntu 24.04+; older releases: libwebkit2gtk-4.1-dev libgtk-3-dev
+				InstallOptionalSystemPackages libwebkitgtk-6.0${DEVPKG} libgtk-4${DEVPKG} libnotify-bin libsecret-tools
+				;;
+			fedora)
+				InstallOptionalSystemPackages webkitgtk6.0${DEVPKG} gtk4${DEVPKG} libnotify libsecret
+				;;
+			centos|rockylinux|redhat)
+				# RHEL 9 and its rebuilds (Rocky Linux, AlmaLinux) ship the 4.1 API on GTK 3
+				InstallOptionalSystemPackages webkit2gtk3${DEVPKG} gtk3${DEVPKG} libnotify libsecret
+				;;
+		esac
+
 		if [[ "$BINDIR" == "aarmv2" ]]; then
 #			InstallSystemPackages gcc10 gcc10-c++ libstdc++10-devel gcc-c++
 			InstallSystemPackages clang

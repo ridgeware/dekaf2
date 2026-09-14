@@ -133,7 +133,8 @@ TEST_CASE("KWebApp")
 
 	// the server alone, no window
 	KWebApp::Options Options;
-	Options.bWindow = false;
+	Options.bWindow        = false;
+	Options.AllowedOrigins = { "https://Example.com/some/path", "http://intranet:8080" };
 
 	KWebApp App(std::move(Options), Routes);
 	REQUIRE ( App.HasError() == false );
@@ -155,9 +156,101 @@ TEST_CASE("KWebApp")
 		CHECK ( App.Bind("openExternal", [](const KJSON&) -> KJSON { return true; }) == false );
 		CHECK ( App.Bind("openFile",     [](const KJSON&) -> KJSON { return true; }) == false );
 		CHECK ( App.Bind("saveFile",     [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("setBadge",     [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("requestAttention", [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("cancelAttention",  [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("activate",     [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("saveSecret",   [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("loadSecret",   [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("deleteSecret", [](const KJSON&) -> KJSON { return true; }) == false );
 		CHECK ( App.Bind("mine",         [](const KJSON&) -> KJSON { return true; }) == true  );
 		CHECK ( App.Bind("mine",         [](const KJSON&) -> KJSON { return true; }) == false );
 		CHECK ( App.Bind("not valid",    [](const KJSON&) -> KJSON { return true; }) == false );
+	}
+
+	SECTION("desktop calls are no-ops without a window")
+	{
+		// nothing to reach: no badge, no bounce, no window - and no crash
+		App.SetBadge("3");
+		App.RequestAttention(true);
+		App.CancelAttention();
+		App.Activate();
+		App.Show();
+		App.Hide();
+		CHECK ( App.IsWindowVisible() == false );
+		App.Navigate("https://example.com/");
+		App.Navigate("https://not.allowed.example/");
+		App.ClearWebCache();
+		App.OnDownload         ([](KStringView, KStringView) {});
+		App.OnNotificationClick([](KStringView) {});
+	}
+
+	SECTION("the window shows the loopback server and the allowed origins")
+	{
+		CHECK ( App.IsAllowedURL(kFormat("http://127.0.0.1:{}/", iPort))          == true  );
+		CHECK ( App.IsAllowedURL(kFormat("http://127.0.0.1:{}/_kwa/enter", iPort)) == true  );
+		CHECK ( App.IsAllowedURL("about:blank")                                    == true  );
+		// the origin is what counts: scheme, host and port - not the path, not the case
+		CHECK ( App.IsAllowedURL("https://example.com/")                           == true  );
+		CHECK ( App.IsAllowedURL("https://EXAMPLE.com:443/other?x=1")              == true  );
+		CHECK ( App.IsAllowedURL("http://intranet:8080/a/b")                       == true  );
+		CHECK ( App.IsAllowedURL("http://intranet/a/b")                            == false );
+		CHECK ( App.IsAllowedURL("http://intranet:8081/")                          == false );
+		CHECK ( App.IsAllowedURL("http://example.com/")                            == false );
+		CHECK ( App.IsAllowedURL("https://evil.example.com/")                      == false );
+		CHECK ( App.IsAllowedURL("https://example.com.evil/")                      == false );
+		CHECK ( App.IsAllowedURL(kFormat("http://localhost:{}/", iPort))           == false );
+		CHECK ( App.IsAllowedURL(kFormat("http://127.0.0.1:{}/", iPort + 1))       == false );
+		CHECK ( App.IsAllowedURL("file:///etc/passwd")                             == false );
+		CHECK ( App.IsAllowedURL("javascript:alert(1)")                            == false );
+		CHECK ( App.IsAllowedURL("")                                               == false );
+	}
+
+	SECTION("a wildcard allows every web site, and nothing else")
+	{
+		KWebApp::Options Any;
+		Any.bWindow        = false;
+		Any.AllowedOrigins = { "*" };
+
+		KWebApp AnyApp(std::move(Any), Routes);
+		REQUIRE ( AnyApp.HasError() == false );
+
+		CHECK ( AnyApp.IsAllowedURL("https://anything.example/") == true  );
+		CHECK ( AnyApp.IsAllowedURL("http://anything.example/")  == true  );
+		CHECK ( AnyApp.IsAllowedURL("file:///etc/passwd")        == false );
+		CHECK ( AnyApp.IsAllowedURL("ftp://anything.example/")   == false );
+	}
+
+	SECTION("secrets")
+	{
+		// a key of its own, in case a run before left one behind
+		auto sKey = kFormat("utest-{}", kGetPid());
+
+		CHECK ( App.SaveSecret("", "nothing") == false );
+		CHECK ( App.LoadSecret("").empty()    == true  );
+
+		if (App.SaveSecret(sKey, "s3cret"))
+		{
+			// the platform's store is available: the round trip
+			KString sValue;
+			CHECK ( App.LoadSecret(sKey, sValue) == true     );
+			CHECK ( sValue                        == "s3cret" );
+			CHECK ( App.LoadSecret(sKey)          == "s3cret" );
+			// a second save replaces the value
+			CHECK ( App.SaveSecret(sKey, "changed") == true      );
+			CHECK ( App.LoadSecret(sKey)            == "changed" );
+			CHECK ( App.DeleteSecret(sKey)          == true      );
+			CHECK ( App.LoadSecret(sKey, sValue)    == false     );
+			CHECK ( App.LoadSecret(sKey).empty()    == true      );
+			// deleting what is not there is fine
+			CHECK ( App.DeleteSecret(sKey)          == true      );
+		}
+		else
+		{
+			// no credential store here (a headless build machine): nothing to read back
+			KString sValue;
+			CHECK ( App.LoadSecret(sKey, sValue) == false );
+		}
 	}
 
 	SECTION("only web URLs leave the application")

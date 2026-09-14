@@ -50,11 +50,13 @@
 #include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/http/protocol/khttp_header.h>
+#include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/crypto/encoding/khex.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/crypto/random/krandom.h>
 #include <dekaf2/web/objects/kwebobjects.h>
 #include <dekaf2/web/url/kmime.h>
+#include <dekaf2/web/url/kurl.h>
 #include <dekaf2/web/url/kurlencode.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/init/dekaf2.h>
@@ -64,6 +66,30 @@
 #include <webview.h>
 #include <csignal>
 #include <future>
+
+// on Linux webview.h pulls in X11, whose macros shadow common names - e.g.
+// Bool, which turns KJSON::Bool() into a syntax error
+#ifdef Bool
+	#undef Bool
+#endif
+#ifdef True
+	#undef True
+#endif
+#ifdef False
+	#undef False
+#endif
+#ifdef None
+	#undef None
+#endif
+#ifdef Status
+	#undef Status
+#endif
+#ifdef Success
+	#undef Success
+#endif
+#ifdef Always
+	#undef Always
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -79,6 +105,10 @@ constexpr KStringView sLiveScript = "/_kwa/live.js";
 constexpr KStringView sBindPrefix = "__kwa_";
 constexpr KStringView sWindowFile = "window.json";
 constexpr KStringView sLockFile   = "instance.lock";
+constexpr KStringView sAboutBlank = "about:blank";
+
+// the builtins that keep secrets - published only where the navigation rules hold
+constexpr KStringView SecretBindings[] = { "saveSecret", "loadSecret", "deleteSecret" };
 
 // the page side of the live connection: opens the websocket, reconnects, queues
 // what is sent before the connection is up, hands parsed JSON to one listener
@@ -422,6 +452,89 @@ bool KWebApp::IsIdentifier(KStringView sName)
 } // IsIdentifier
 
 //-----------------------------------------------------------------------------
+bool KWebApp::IsWebURL(KStringView sURL)
+//-----------------------------------------------------------------------------
+{
+	auto sLower = KString(sURL.Left(8)).ToLowerASCII();
+	return sLower.starts_with("http://") || sLower.starts_with("https://");
+
+} // IsWebURL
+
+//-----------------------------------------------------------------------------
+KString KWebApp::Origin(KStringView sURL)
+//-----------------------------------------------------------------------------
+{
+	// scheme, host and port - the port only when it is not the scheme's default
+	KURL URL(sURL);
+
+	if (URL.Protocol.empty() || URL.Domain.empty())
+	{
+		return {};
+	}
+
+	KString sOrigin(URL.Protocol.get());
+	sOrigin += KString(URL.Domain.get()).ToLowerASCII();
+
+	auto iPort = URL.Port.get();
+
+	if (iPort != 0 && iPort != URL.Protocol.DefaultPort())
+	{
+		sOrigin += kFormat(":{}", iPort);
+	}
+
+	return sOrigin;
+
+} // Origin
+
+//-----------------------------------------------------------------------------
+bool KWebApp::IsAllowedURL(KStringView sURL) const
+//-----------------------------------------------------------------------------
+{
+	if (sURL == sAboutBlank)
+	{
+		return true;
+	}
+
+	auto sOrigin = Origin(sURL);
+
+	if (sOrigin.empty())
+	{
+		return false;
+	}
+
+	if (sOrigin == kFormat("http://127.0.0.1:{}", m_iPort))
+	{
+		return true;
+	}
+
+	for (const auto& sAllowed : m_Options.AllowedOrigins)
+	{
+		if (sAllowed == "*")
+		{
+			if (IsWebURL(sURL))
+			{
+				return true;
+			}
+		}
+		else if (Origin(sAllowed) == sOrigin)
+		{
+			return true;
+		}
+	}
+
+	return false;
+
+} // IsAllowedURL
+
+//-----------------------------------------------------------------------------
+KString KWebApp::AppName() const
+//-----------------------------------------------------------------------------
+{
+	return m_Options.sAppName.empty() ? KString(Dekaf::getInstance().GetProgName()) : m_Options.sAppName;
+
+} // AppName
+
+//-----------------------------------------------------------------------------
 KString KWebApp::SafePath(KStringView sPath)
 //-----------------------------------------------------------------------------
 {
@@ -474,6 +587,9 @@ KString KWebApp::InitScript() const
 	sScript += "window.kNative.version = () => ";
 	sScript += KJSON(m_Options.sVersion).dump();
 	sScript += ";\n";
+	// the application's own, after the basics it may build on
+	sScript += m_Options.sInitScript;
+	sScript += '\n';
 	return sScript;
 
 } // InitScript
@@ -587,6 +703,13 @@ void KWebApp::Eval(KStringView sJavaScript)
 void KWebApp::Navigate(KStringView sPath)
 //-----------------------------------------------------------------------------
 {
+	if (IsWebURL(sPath) && !IsAllowedURL(sPath))
+	{
+		// the window would refuse it anyway, and open the browser instead
+		kDebug(1, "not in Options.AllowedOrigins, refusing to navigate to {}", sPath);
+		return;
+	}
+
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 
 	if (!m_WebView)
@@ -603,8 +726,9 @@ void KWebApp::Navigate(KStringView sPath)
 
 	auto* pView = m_WebView.get();
 
-	// the token is in the cookie by now
-	m_WebView->dispatch([this, pView, sURL = Std(kFormat("http://127.0.0.1:{}{}", m_iPort, sPath))]
+	// a site of its own, or a loopback path - the latter through the entry, as
+	// the token cookie is not there yet when the window comes from a site
+	m_WebView->dispatch([this, pView, sURL = Std(IsWebURL(sPath) ? KString(sPath) : GetEnterURL(sPath))]
 	{
 		if (!m_bQuit)
 		{
@@ -706,7 +830,7 @@ void KWebApp::AddBuiltins()
 
 	m_Bindings.emplace("notify", [this](const KJSON& jArg) -> KJSON
 	{
-		return Notify(jArg["title"].String(), jArg["body"].String());
+		return Notify(jArg["title"].String(), jArg["body"].String(), jArg["tag"].String(), jArg["image"].String());
 	});
 
 	m_Bindings.emplace("openFile", [this](const KJSON& jArg) -> KJSON
@@ -741,10 +865,74 @@ void KWebApp::AddBuiltins()
 		return sFile.empty() ? KJSON{} : KJSON(sFile);
 	});
 
+	m_Bindings.emplace("setBadge", [this](const KJSON& jArg) -> KJSON
+	{
+		// a text, a count (0 clears), or { "text": "..." }
+		KString sText;
+
+		if (jArg.is_string())
+		{
+			sText = jArg.String();
+		}
+		else if (jArg.is_number())
+		{
+			auto iCount = jArg.Int64();
+
+			if (iCount > 0)
+			{
+				sText = kFormat("{}", iCount);
+			}
+		}
+		else if (jArg.is_object())
+		{
+			sText = jArg["text"].String();
+		}
+
+		SetBadge(sText);
+		return true;
+	});
+
+	m_Bindings.emplace("requestAttention", [this](const KJSON& jArg) -> KJSON
+	{
+		// true, or { "critical": true }
+		RequestAttention(jArg.is_object() ? jArg["critical"].Bool() : jArg.Bool());
+		return true;
+	});
+
+	m_Bindings.emplace("cancelAttention", [this](const KJSON&) -> KJSON
+	{
+		CancelAttention();
+		return true;
+	});
+
+	m_Bindings.emplace("activate", [this](const KJSON&) -> KJSON
+	{
+		Activate();
+		return true;
+	});
+
+	// the secrets: { "key": "...", "value": "..." } - Run() withdraws these three
+	// where the navigation rules cannot be enforced
+	m_Bindings.emplace("saveSecret", [this](const KJSON& jArg) -> KJSON
+	{
+		return SaveSecret(jArg["key"].String(), jArg["value"].String());
+	});
+
+	m_Bindings.emplace("loadSecret", [this](const KJSON& jArg) -> KJSON
+	{
+		KString sValue;
+		return LoadSecret(jArg["key"].String(), sValue) ? KJSON(sValue) : KJSON{};
+	});
+
+	m_Bindings.emplace("deleteSecret", [this](const KJSON& jArg) -> KJSON
+	{
+		return DeleteSecret(jArg["key"].String());
+	});
+
 } // AddBuiltins
 
 //-----------------------------------------------------------------------------
-void* KWebApp::WindowHandle()
+void* KWebApp::WindowHandle() const
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -760,7 +948,7 @@ void* KWebApp::WindowHandle()
 } // WindowHandle
 
 //-----------------------------------------------------------------------------
-void KWebApp::RunOnUI(std::function<void()> Call)
+void KWebApp::RunOnUI(std::function<void()> Call) const
 //-----------------------------------------------------------------------------
 {
 	if (kwebapp::IsMainThread())
@@ -811,12 +999,221 @@ bool KWebApp::OpenExternal(KStringView sURL)
 } // OpenExternal
 
 //-----------------------------------------------------------------------------
-bool KWebApp::Notify(KStringView sTitle, KStringView sBody)
+KString KWebApp::ImageFile(KStringView sDataURL)
 //-----------------------------------------------------------------------------
 {
-	return kwebapp::Notify(sTitle, sBody);
+	// data:image/png;base64,... into a temp file - the platform takes it from there
+	if (!sDataURL.starts_with("data:image/"))
+	{
+		return {};
+	}
+
+	auto iComma = sDataURL.find(',');
+
+	if (iComma == KStringView::npos)
+	{
+		return {};
+	}
+
+	// image/png;base64
+	auto sMeta = sDataURL.substr(5, iComma - 5);
+
+	if (!sMeta.contains(";base64"))
+	{
+		return {};
+	}
+
+	auto sType = sMeta.substr(6, sMeta.find(';') - 6);
+	auto sExt  = sType == "jpeg" ? KStringView("jpg") : sType;
+
+	if (sExt != "png" && sExt != "jpg" && sExt != "gif")
+	{
+		kDebug(1, "not a picture type for a notification: {}", sType);
+		return {};
+	}
+
+	auto sData = KBase64::Decode(sDataURL.substr(iComma + 1));
+
+	if (sData.empty())
+	{
+		return {};
+	}
+
+	static std::atomic<uint64_t> s_iCounter { 0 };
+	auto sFile = kFormat("{}{}kwebapp-{}-{}.{}", kGetTemp(), kDirSep, kGetPid(), ++s_iCounter, sExt);
+
+	return kWriteFile(sFile, sData) ? sFile : KString{};
+
+} // ImageFile
+
+//-----------------------------------------------------------------------------
+bool KWebApp::Notify(KStringView sTitle, KStringView sBody, KStringView sTag, KStringView sImageDataURL)
+//-----------------------------------------------------------------------------
+{
+	auto sImage = ImageFile(sImageDataURL);
+	auto bOK    = kwebapp::Notify(sTitle, sBody, sTag, sImage);
+
+	if (!sImage.empty())
+	{
+		// the platform has taken it over, or does not show pictures
+		kRemoveFile(sImage);
+	}
+
+	return bOK;
 
 } // Notify
+
+//-----------------------------------------------------------------------------
+void KWebApp::OnNotificationClick(NotificationHandler Handler)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	m_OnNotificationClick = std::move(Handler);
+
+} // OnNotificationClick
+
+//-----------------------------------------------------------------------------
+void KWebApp::NotificationClicked(KStringView sTag)
+//-----------------------------------------------------------------------------
+{
+	// on the UI thread: the window first, then the application
+	Show();
+
+	NotificationHandler Handler;
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		Handler = m_OnNotificationClick;
+	}
+
+	if (Handler)
+	{
+		Handler(sTag);
+	}
+
+} // NotificationClicked
+
+//-----------------------------------------------------------------------------
+void KWebApp::OnDownload(DownloadHandler Handler)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	m_OnDownload = std::move(Handler);
+
+} // OnDownload
+
+//-----------------------------------------------------------------------------
+bool KWebApp::OnNavigate(KStringView sURL, bool bNewWindow)
+//-----------------------------------------------------------------------------
+{
+	// on the UI thread, asked by the webview before it navigates
+	if (!bNewWindow && IsAllowedURL(sURL))
+	{
+		return true;
+	}
+
+	if (bNewWindow && Origin(sURL) == kFormat("http://127.0.0.1:{}", m_iPort))
+	{
+		// a new window on our own pages: the browser could not show them, this one can
+		Navigate(sURL);
+		return false;
+	}
+
+	kDebug(2, "opening {} in the system browser", sURL);
+	OpenExternal(sURL);
+	return false;
+
+} // OnNavigate
+
+//-----------------------------------------------------------------------------
+KString KWebApp::DownloadPath(KStringView sSuggestedName)
+//-----------------------------------------------------------------------------
+{
+	// on the UI thread. The folder, created if needed
+	auto sDir = m_Options.sDownloadDir.empty() ? kFormat("{}{}Downloads", kGetHome(), kDirSep) : m_Options.sDownloadDir;
+
+	if (!kDirExists(sDir) && !kCreateDir(sDir))
+	{
+		kDebug(1, "cannot create download folder {}", sDir);
+		return {};
+	}
+
+	// the name: the last path component, without separators
+	KString sName(kBasename(sSuggestedName));
+	sName.Replace('/',  '_');
+	sName.Replace('\\', '_');
+	sName.Trim();
+
+	if (sName.empty() || sName == "." || sName == "..")
+	{
+		sName = "download";
+	}
+
+	// a free name: "name.ext", "name 2.ext", "name 3.ext" ...
+	auto sPath = kFormat("{}{}{}", sDir, kDirSep, sName);
+	auto sStem = kRemoveExtension(sName);
+	auto sExt  = kExtension(sName);
+
+	for (int iCount = 2; kFileExists(sPath) || kDirExists(sPath); ++iCount)
+	{
+		if (iCount > 10000)
+		{
+			kDebug(1, "no free name for {} in {}", sName, sDir);
+			return {};
+		}
+
+		sPath = sExt.empty() ? kFormat("{}{}{} {}",    sDir, kDirSep, sStem, iCount)
+		                     : kFormat("{}{}{} {}.{}", sDir, kDirSep, sStem, iCount, sExt);
+	}
+
+	return sPath;
+
+} // DownloadPath
+
+//-----------------------------------------------------------------------------
+void KWebApp::DownloadDone(KStringView sPath, KStringView sError)
+//-----------------------------------------------------------------------------
+{
+	// on the UI thread. The page never learns the path, so the user is told
+	if (sError.empty())
+	{
+		kDebug(2, "downloaded {}", sPath);
+		Notify(m_Options.sTitle.empty() ? AppName() : m_Options.sTitle, kFormat("Downloaded {}", kBasename(sPath)));
+	}
+	else
+	{
+		kDebug(1, "download of {} failed: {}", sPath, sError);
+	}
+
+	DownloadHandler Handler;
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		Handler = m_OnDownload;
+	}
+
+	if (Handler)
+	{
+		Handler(sPath, sError);
+	}
+
+} // DownloadDone
+
+//-----------------------------------------------------------------------------
+void KWebApp::Activated()
+//-----------------------------------------------------------------------------
+{
+	// on the UI thread: the platform ended the attention request when the
+	// application came to the front, and a hidden window comes back
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		m_iAttention = 0;
+	}
+
+	if (!IsWindowVisible())
+	{
+		Show();
+	}
+
+} // Activated
 
 //-----------------------------------------------------------------------------
 std::vector<KString> KWebApp::OpenFileDialog(KStringView sTitle, const std::vector<KString>& Extensions, bool bMultiple, bool bDirectories)
@@ -847,6 +1244,195 @@ KString KWebApp::SaveFileDialog(KStringView sTitle, KStringView sSuggestedName, 
 	return sFile;
 
 } // SaveFileDialog
+
+//-----------------------------------------------------------------------------
+void KWebApp::SetBadge(KStringView sText)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Options.bWindow)
+	{
+		return;
+	}
+
+	RunOnUI([&]
+	{
+		kwebapp::SetBadge(sText);
+	});
+
+} // SetBadge
+
+//-----------------------------------------------------------------------------
+void KWebApp::RequestAttention(bool bCritical)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Options.bWindow)
+	{
+		return;
+	}
+
+	RunOnUI([&]
+	{
+		// the window handle takes the lock itself
+		auto pWindow = WindowHandle();
+
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		if (m_iAttention != 0)
+		{
+			// the platform ends a request when the user activates the application,
+			// without telling us - a new request replaces the old one
+			kwebapp::CancelAttention(pWindow, m_iAttention);
+		}
+
+		m_iAttention = kwebapp::RequestAttention(pWindow, bCritical);
+	});
+
+} // RequestAttention
+
+//-----------------------------------------------------------------------------
+void KWebApp::CancelAttention()
+//-----------------------------------------------------------------------------
+{
+	if (!m_Options.bWindow)
+	{
+		return;
+	}
+
+	RunOnUI([&]
+	{
+		auto pWindow = WindowHandle();
+
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		if (m_iAttention != 0)
+		{
+			kwebapp::CancelAttention(pWindow, m_iAttention);
+			m_iAttention = 0;
+		}
+	});
+
+} // CancelAttention
+
+//-----------------------------------------------------------------------------
+void KWebApp::Activate()
+//-----------------------------------------------------------------------------
+{
+	if (!m_Options.bWindow)
+	{
+		return;
+	}
+
+	RunOnUI([&]
+	{
+		kwebapp::ActivateWindow(WindowHandle());
+	});
+
+} // Activate
+
+//-----------------------------------------------------------------------------
+void KWebApp::Show()
+//-----------------------------------------------------------------------------
+{
+	Activate();
+
+} // Show
+
+//-----------------------------------------------------------------------------
+void KWebApp::Hide()
+//-----------------------------------------------------------------------------
+{
+	if (!m_Options.bWindow)
+	{
+		return;
+	}
+
+	RunOnUI([&]
+	{
+		kwebapp::HideWindow(WindowHandle());
+	});
+
+} // Hide
+
+//-----------------------------------------------------------------------------
+bool KWebApp::IsWindowVisible() const
+//-----------------------------------------------------------------------------
+{
+	bool bVisible { false };
+
+	if (m_Options.bWindow)
+	{
+		RunOnUI([&]
+		{
+			bVisible = kwebapp::IsWindowVisible(WindowHandle());
+		});
+	}
+
+	return bVisible;
+
+} // IsWindowVisible
+
+//-----------------------------------------------------------------------------
+bool KWebApp::SaveSecret(KStringView sKey, KStringView sValue)
+//-----------------------------------------------------------------------------
+{
+	if (sKey.empty())
+	{
+		kDebug(1, "a secret needs a key");
+		return false;
+	}
+
+	return kwebapp::SaveSecret(AppName(), sKey, sValue);
+
+} // SaveSecret
+
+//-----------------------------------------------------------------------------
+bool KWebApp::LoadSecret(KStringView sKey, KString& sValue)
+//-----------------------------------------------------------------------------
+{
+	return !sKey.empty() && kwebapp::LoadSecret(AppName(), sKey, sValue);
+
+} // LoadSecret
+
+//-----------------------------------------------------------------------------
+KString KWebApp::LoadSecret(KStringView sKey)
+//-----------------------------------------------------------------------------
+{
+	KString sValue;
+	LoadSecret(sKey, sValue);
+	return sValue;
+
+} // LoadSecret
+
+//-----------------------------------------------------------------------------
+bool KWebApp::DeleteSecret(KStringView sKey)
+//-----------------------------------------------------------------------------
+{
+	return !sKey.empty() && kwebapp::DeleteSecret(AppName(), sKey);
+
+} // DeleteSecret
+
+//-----------------------------------------------------------------------------
+void KWebApp::ClearWebCache()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	if (!m_WebView)
+	{
+		// before Run(): the caches go before the first page
+		m_bClearWebCache = true;
+		return;
+	}
+
+	if (!m_bQuit)
+	{
+		m_WebView->dispatch([]
+		{
+			kwebapp::ClearWebCache(nullptr);
+		});
+	}
+
+} // ClearWebCache
 
 //-----------------------------------------------------------------------------
 void KWebApp::MenuAction(KStringView sAction)
@@ -1314,12 +1900,67 @@ int KWebApp::Run()
 			// the bridge has to be complete before the first document loads
 			m_WebView->init(InitScript().ToStdString());
 
+			auto  Controller  = m_WebView->browser_controller();
+			void* pController = Controller.ok() ? Controller.value() : nullptr;
+			auto  Window      = m_WebView->window();
+			void* pWindow     = Window.ok() ? Window.value() : nullptr;
+
+			// the navigation rules: what the window may show, and where downloads go
+			kwebapp::NavigationPolicy Policy;
+			Policy.OnNavigate   = [this](KStringView sURL, bool bNewWindow)     { return OnNavigate(sURL, bNewWindow); };
+			Policy.DownloadPath = [this](KStringView sName)                     { return DownloadPath(sName);          };
+			Policy.OnDownload   = [this](KStringView sPath, KStringView sError) { DownloadDone(sPath, sError);         };
+
+			if (!kwebapp::SetNavigationPolicy(pController, std::move(Policy)))
+			{
+				// a foreign page could reach the bridge here - the secrets stay out of it
+				kDebug(1, "no navigation rules on this platform, the secret bindings are not published");
+
+				for (auto sName : SecretBindings)
+				{
+					m_Bindings.erase(KString(sName));
+				}
+			}
+
 			for (const auto& Binding : m_Bindings)
 			{
 				AddBinding(*m_WebView, Binding.first, Binding.second);
 			}
 
-			m_WebView->navigate(GetEnterURL(m_sStartPath).ToStdString());
+			if (m_Options.bAllowMediaCapture && !kwebapp::AllowMediaCapture(pController))
+			{
+				kDebug(1, "cannot grant media capture on this platform, the webview decides itself");
+			}
+
+			// the window's life: hide instead of close, come back when the
+			// application is activated or a notification is clicked
+			if (m_Options.bHideOnClose && !kwebapp::SetHideOnClose(pWindow, true))
+			{
+				kDebug(1, "cannot hide on close on this platform, the window closes");
+			}
+
+			kwebapp::WatchApplication  (pWindow, [this]          { Activated();               });
+			kwebapp::WatchNotifications([this](KStringView sTag) { NotificationClicked(sTag); });
+
+			// a loopback page enters with the token, a site of its own is shown as
+			// it is - after the caches are gone, when asked to clear them
+			auto* pView = m_WebView.get();
+			auto  sURL  = Std(IsWebURL(m_sStartPath) && IsAllowedURL(m_sStartPath) ? m_sStartPath : GetEnterURL(IsWebURL(m_sStartPath) ? "/" : m_sStartPath));
+
+			if (m_bClearWebCache)
+			{
+				kwebapp::ClearWebCache([this, pView, sURL]
+				{
+					if (!m_bQuit)
+					{
+						pView->navigate(sURL);
+					}
+				});
+			}
+			else
+			{
+				m_WebView->navigate(sURL);
+			}
 		}
 
 		// the desktop side: the remembered geometry, and the menus - installed once
@@ -1338,11 +1979,11 @@ int KWebApp::Run()
 			kwebapp::WatchWindowFrame(WindowHandle(), [this](const kwebapp::WindowFrame& Frame) { RememberFrame(Frame); });
 		}
 
-		auto sAppName = m_Options.sAppName.empty() ? KString(Dekaf::getInstance().GetProgName()) : m_Options.sAppName;
+		auto sAppName = AppName();
 
 		m_WebView->dispatch([this, sAppName]
 		{
-			kwebapp::SetMenu(sAppName, m_Options.jMenus,
+			kwebapp::SetMenu(WindowHandle(), sAppName, m_Options.jMenus,
 			                 [this](KStringView sAction) { MenuAction(sAction); },
 			                 [this]                      { Quit();              });
 		});
@@ -1407,7 +2048,11 @@ void KWebApp::CloseWindow()
 		RememberFrame(Frame);
 	}
 
+	// and no more calls into this object from the platform
 	kwebapp::UnwatchWindowFrame();
+	kwebapp::ClearNavigationPolicy();
+	kwebapp::WatchApplication(nullptr, nullptr);
+	kwebapp::WatchNotifications(nullptr);
 
 	std::unique_ptr<WebView> View;
 	{

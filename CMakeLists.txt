@@ -771,15 +771,28 @@ endif()
 # amalgamation in from/webview - the header is private to kwebapp.cpp, only the
 # platform libraries it needs get linked. With DEKAF2_WITH_WEBVIEW off nothing is
 # looked for; on, the platform side is looked for, and when it is missing the
-# switch goes off
+# switch goes off.
+#
+# What the platforms need (scripts/buildsetup installs the Linux packages):
+#   macOS    the system frameworks, nothing to install
+#   Debian   libwebkitgtk-6.0-dev libgtk-4-dev      (Debian 12+, Ubuntu 24.04+; older: libwebkit2gtk-4.1-dev libgtk-3-dev)
+#   Fedora   webkitgtk6.0-devel gtk4-devel
+#   RHEL 9, Rocky Linux 9, AlmaLinux 9
+#            webkit2gtk3-devel gtk3-devel           (the 4.1 API on GTK 3)
+#   Alpine   webkit2gtk-6.0-dev gtk4.0-dev
+#   Windows  the WebView2 SDK headers: vcpkg install webview2, or unpack the NuGet package
+#            Microsoft.Web.WebView2 (https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/<version>,
+#            a zip) and set WEBVIEW2_SDK_DIR to it. The WebView2 runtime comes with Windows 11
+#            and with Edge, older systems need the Evergreen runtime installer
 if (DEKAF2_WITH_WEBVIEW)
 	set(WEBVIEW_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/from/webview")
 	set(WEBVIEW_FOUND        OFF)
 	set(WEBVIEW_MISSING      "")
 
 	if (IS_MACOS)
-		# WebKit for the view, AppKit for menus and dialogs, UserNotifications for notifications
-		set(WEBVIEW_LIBRARIES "-framework WebKit" "-framework AppKit" "-framework UserNotifications")
+		# WebKit for the view, AppKit for menus and dialogs, UserNotifications for
+		# notifications, Security for the keychain
+		set(WEBVIEW_LIBRARIES "-framework WebKit" "-framework AppKit" "-framework UserNotifications" "-framework Security")
 		set(WEBVIEW_VERSION   "WebKit")
 		set(WEBVIEW_FOUND     ON)
 	elseif (IS_WINDOWS)
@@ -803,7 +816,10 @@ if (DEKAF2_WITH_WEBVIEW)
 				set(WEBVIEW_MISSING "WebView2.h not found - install the vcpkg port webview2, or set WEBVIEW2_SDK_DIR to an unpacked Microsoft.Web.WebView2 NuGet package")
 			endif()
 		endif()
-		list(APPEND WEBVIEW_LIBRARIES ole32 shell32 shlwapi user32 version)
+		# advapi32 for the credential store, comctl32 for the window subclass, uuid for the
+		# COM class ids of the file dialogs (CLSID_FileOpenDialog etc. - the SDK defines these
+		# GUIDs only in uuid.lib; nothing to do with generating UUIDs)
+		list(APPEND WEBVIEW_LIBRARIES ole32 shell32 shlwapi user32 version advapi32 comctl32 uuid)
 	else()
 		# WebKitGTK and GTK through pkg-config, newest API first - the header selects
 		# its code path from GTK_MAJOR_VERSION. The libraries go in as absolute paths
@@ -2293,6 +2309,14 @@ if (DEKAF2_INSTALL_INCLUDE)
 	)
 endif()
 
+# one generator expression per webview include directory - on Linux the list has
+# several (from/webview plus the GTK and WebKit directories), and a list inside
+# one expression falls apart at the semicolons
+set(DEKAF2_WEBVIEW_INCLUDE_GENEX "")
+foreach(dir IN LISTS WEBVIEW_INCLUDE_DIRS)
+	list(APPEND DEKAF2_WEBVIEW_INCLUDE_GENEX "$<BUILD_INTERFACE:${dir}>")
+endforeach()
+
 set(DEKAF2_INCLUDE_DIRECTORIES
 	SYSTEM
 		# include all external headers (and own installed headers) as
@@ -2311,7 +2335,7 @@ set(DEKAF2_INCLUDE_DIRECTORIES
 		$<BUILD_INTERFACE:${NGHTTP2_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGTCP2_INCLUDE_DIRS}>
 		$<BUILD_INTERFACE:${NGHTTP3_INCLUDE_DIRS}>
-		$<BUILD_INTERFACE:${WEBVIEW_INCLUDE_DIRS}>
+		${DEKAF2_WEBVIEW_INCLUDE_GENEX}
 )
 
 set(DEKAF2_LINK_LIBRARIES

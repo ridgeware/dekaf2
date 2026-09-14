@@ -125,7 +125,53 @@ KStringViewZ kGetWebViewVersion();
 /// the file dialogs are available to C++ and, as window.kNative.notify(),
 /// .openExternal(), .openFile() and .saveFile(), to the page. On macOS the
 /// notification center wants an application bundle - a bare binary falls back
-/// to the scripting bridge.
+/// to the scripting bridge. SetBadge(), RequestAttention() and Activate() reach
+/// the user while the window is in the background, and the page has them as
+/// window.kNative.setBadge(), .requestAttention(), .cancelAttention() and .activate().
+///
+/// @par Hosted web applications
+/// Navigate() with an absolute http(s) URL shows that site in the window instead
+/// of a loopback page - a native shell around a web application that a server
+/// hosts. window.kNative and the bindings are there as well, Options.sInitScript
+/// runs before every document, and Options.bAllowMediaCapture lets the site use
+/// camera and microphone. The loopback server keeps serving what the shell adds
+/// itself, e.g. a first-run page; the site's own requests to it are cross-origin
+/// and get 403.
+///
+/// @par Navigation rules and downloads
+/// The window shows the loopback server and the sites in Options.AllowedOrigins,
+/// nothing else: a link elsewhere, window.open() and target="_blank" open the
+/// system browser, and the window stays where it is - window.kNative never
+/// reaches a foreign page. A response the view cannot show, or one the server
+/// sends as attachment, becomes a download into Options.sDownloadDir (default
+/// the user's Downloads folder) under a free name, announced with a notification
+/// and to OnDownload().
+///
+/// @par Staying in the background
+/// With Options.bHideOnClose the close button hides the window, and Run() lasts
+/// until Quit(): an application that has to keep running - calls come in, a
+/// presence stays online - hides and comes back with Show(), a click on its
+/// icon, or a second start. Notify() takes a tag that replaces an earlier
+/// notification and a picture, notifications show while the application is
+/// active, and a click on one brings the window back and reaches
+/// OnNotificationClick(). SaveSecret(), LoadSecret() and DeleteSecret() keep
+/// e.g. a login in the system's credential store, for the page as
+/// window.kNative.saveSecret(), .loadSecret() and .deleteSecret() - published
+/// only where the navigation rules are enforced. ClearWebCache() before Run()
+/// drops cached scripts and styles, e.g. after an update of the shell.
+///
+/// @par Platforms
+/// The platform layer under bits/ has one file per operating system, all plain
+/// C++. macOS has everything above. Linux (GTK 4 with WebKitGTK 6.0, or GTK 3
+/// with WebKitGTK 4.1) puts a menu bar into the window, opens the browser and
+/// posts notifications through xdg-open and notify-send (no click reports),
+/// keeps secrets through secret-tool, has no badge, no window positions on
+/// Wayland, and no way to bring back a hidden window but Show() - a second
+/// start cannot raise the first. Windows (WebView2) puts a menu bar into the
+/// window too, shows notifications as balloons on a tray icon that a plain
+/// executable gets with its first notification or when the close button hides
+/// the window - a click on the icon brings the window back - and keeps secrets
+/// in the credential manager; the badge is missing there as well.
 ///
 /// @par Usage
 /// @code
@@ -226,6 +272,24 @@ public:
 		/// the application's menus for the window, as a JSON array of
 		/// { "title": "File", "items": [ { "title": "Save", "key": "s", "action": "save" }, { "separator": true } ] }
 		KJSON          jMenus;
+		/// let pages use camera and microphone: the webview grants getUserMedia()
+		/// without a prompt of its own, the operating system asks once. On macOS the
+		/// bundle needs NSCameraUsageDescription and NSMicrophoneUsageDescription,
+		/// else the process is terminated on first access
+		bool           bAllowMediaCapture { false };
+		/// JavaScript to run before every document, once window.kNative.platform() and
+		/// .version() exist - e.g. to hand configuration to the page, or to publish
+		/// the bridge under a second name
+		KString        sInitScript;
+		/// the origins the window may show besides the loopback server, e.g.
+		/// "https://example.com" - a navigation elsewhere opens in the system browser
+		/// instead, and so does every new window. "*" allows all http(s) sites
+		std::vector<KString> AllowedOrigins;
+		/// where downloads go, empty for the user's Downloads folder
+		KString        sDownloadDir;
+		/// the close button hides the window instead of closing it - Run() then lasts
+		/// until Quit(), and a click on the application's icon brings the window back
+		bool           bHideOnClose { false };
 	};
 
 	/// JavaScript to C++ handler: one JSON argument in, one JSON result out.
@@ -247,6 +311,10 @@ public:
 	using ConnectHandler = std::function<void(const Client& Client)>;
 	/// receives a JSON message a page sent over its live connection
 	using MessageHandler = std::function<void(const Client& Client, const KJSON& jMessage)>;
+	/// a download has finished, or failed - then sError is set, and sPath may be empty
+	using DownloadHandler = std::function<void(KStringView sPath, KStringView sError)>;
+	/// the user clicked a notification: the tag it was posted with, empty for none
+	using NotificationHandler = std::function<void(KStringView sTag)>;
 
 	/// starts the servers - check HasError() afterwards. Routes must outlive the
 	/// KWebApp, which adds its own routes to the table: /_kwa/enter for the
@@ -264,9 +332,15 @@ public:
 	bool Bind(KStringView sName, Handler Handler);
 	/// run JavaScript in the window, from any thread. A no-op without window
 	void Eval(KStringView sJavaScript);
-	/// navigate the window to a path on the loopback server, e.g. "/settings".
-	/// Before Run() this sets the start page (default "/")
+	/// navigate the window to a path on the loopback server, e.g. "/settings", or
+	/// to an absolute http(s) URL in Options.AllowedOrigins - the window then shows
+	/// that site, with window.kNative in place, while the loopback server keeps
+	/// serving what the application adds itself. Before Run() this sets the start
+	/// page (default "/")
 	void Navigate(KStringView sPath);
+	/// may the window show this URL? True for the loopback server and the origins
+	/// in Options.AllowedOrigins
+	bool IsAllowedURL(KStringView sURL) const;
 	/// set the window title, from any thread
 	void SetTitle(KStringView sTitle);
 	/// run the window until it is closed or Quit() is called, then, or without
@@ -289,13 +363,50 @@ public:
 	bool IsOtherInstanceRunning() const { return m_bOtherInstance; }
 	/// open a URL in the system's browser - http, https and mailto only
 	bool OpenExternal(KStringView sURL);
-	/// post a system notification
-	bool Notify(KStringView sTitle, KStringView sBody);
+	/// post a system notification. A tag replaces an earlier notification with the
+	/// same tag, a picture ("data:image/png;base64,...") is attached where the
+	/// platform shows one
+	bool Notify(KStringView sTitle, KStringView sBody, KStringView sTag = {}, KStringView sImageDataURL = {});
+	/// set the handler for clicks on notifications - the window comes to the front
+	/// first, then the handler gets the tag. Runs on the UI thread
+	void OnNotificationClick(NotificationHandler Handler);
+	/// set the handler for finished downloads - runs on the UI thread
+	void OnDownload(DownloadHandler Handler);
 	/// native open dialog, from any thread, blocks until answered. Extensions like
 	/// "log" limit the choice, empty allows any file. Empty result when cancelled
 	std::vector<KString> OpenFileDialog(KStringView sTitle, const std::vector<KString>& Extensions = {}, bool bMultiple = false, bool bDirectories = false);
 	/// native save dialog, from any thread, blocks until answered. Empty when cancelled
 	KString SaveFileDialog(KStringView sTitle, KStringView sSuggestedName, const std::vector<KString>& Extensions = {});
+	/// show a text on the application's icon, e.g. an unread count - empty clears it
+	void SetBadge(KStringView sText);
+	/// ask for the user's attention while the application is in the background: the
+	/// dock icon bounces, the taskbar button flashes. Critical keeps asking until the
+	/// application is activated, else it asks once. From any thread
+	void RequestAttention(bool bCritical = false);
+	/// stop asking for attention
+	void CancelAttention();
+	/// bring the window to the front and activate the application, from any thread
+	void Activate();
+	/// show the window after Hide() or a close with Options.bHideOnClose, and activate
+	/// the application. From any thread
+	void Show();
+	/// hide the window - the application keeps running, Show() brings it back
+	void Hide();
+	/// is the window on screen?
+	bool IsWindowVisible() const;
+	/// keep a secret in the system's credential store (the keychain, the credential
+	/// manager, the secret service), under the application's name
+	bool    SaveSecret  (KStringView sKey, KStringView sValue);
+	/// read a secret back, false when there is none
+	bool    LoadSecret  (KStringView sKey, KString& sValue);
+	/// read a secret back, empty when there is none
+	KString LoadSecret  (KStringView sKey);
+	/// remove a secret, true also when there was none
+	bool    DeleteSecret(KStringView sKey);
+	/// drop the webview's cached scripts, styles, fetch responses and service worker
+	/// registrations, not local storage and databases - before Run() the first page
+	/// loads after the caches are gone, e.g. after an update of the shell
+	void ClearWebCache();
 
 	/// set the handler for arriving live connections - runs in the websocket server's thread
 	void OnConnect(ConnectHandler Handler);
@@ -329,7 +440,7 @@ private:
 
 	struct LiveClient
 	{
-		Client            Client;
+		Client            Info;
 		KWebSocketServer* pServer { nullptr };
 		std::size_t       iHandle { 0 };
 	};
@@ -352,12 +463,21 @@ private:
 	void    SaveWindowFrame();
 	void    RememberFrame(const kwebapp::WindowFrame& Frame);
 	void    CloseWindow  ();
-	void    RunOnUI      (std::function<void()> Call);
-	void*   WindowHandle ();
+	void    RunOnUI      (std::function<void()> Call) const;
+	void*   WindowHandle () const;
 	void    AddBinding   (WebView& View, KStringView sName, const Handler& Handler);
 	KString InitScript   () const;
+	KString AppName      () const;
+	bool    OnNavigate   (KStringView sURL, bool bNewWindow);
+	KString DownloadPath (KStringView sSuggestedName);
+	void    DownloadDone (KStringView sPath, KStringView sError);
+	void    Activated    ();
+	void    NotificationClicked(KStringView sTag);
 
 	static bool    IsIdentifier(KStringView sName);
+	static bool    IsWebURL    (KStringView sURL);
+	static KString Origin      (KStringView sURL);
+	static KString ImageFile   (KStringView sDataURL);
 	static KString ShimScript  (KStringView sName);
 	static KString SafePath    (KStringView sPath);
 	static void    Redirect    (KRESTServer& HTTP, KStringView sLocation);
@@ -374,21 +494,25 @@ private:
 	std::map<std::size_t, LiveClient> m_Clients;
 	ConnectHandler                    m_OnConnect;
 	MessageHandler                    m_OnMessage;
+	DownloadHandler                   m_OnDownload;
+	NotificationHandler               m_OnNotificationClick;
 	mutable std::mutex                m_ClientMutex;
-	std::size_t                       m_iNextClient  { 0 };
-	KRateLimiter                      m_LoginLimiter { 1.0 / 30, 10 };
+	std::size_t                       m_iNextClient    { 0 };
+	KRateLimiter                      m_LoginLimiter   { 1.0 / 30, 10 };
 	KString                           m_sToken;
-	KString                           m_sStartPath { "/" };
+	KString                           m_sStartPath     { "/" };
 	mutable std::mutex                m_Mutex;
 	std::condition_variable           m_Idle;
 	std::map<int, std::function<void(int)>> m_PreviousSignalHandlers;
 	std::unique_ptr<KFileLock>        m_InstanceLock;
 	KString                           m_sConfigDir;
 	KJSON                             m_jWindowFrame;
-	std::atomic<bool>                 m_bQuit { false };
+	int64_t                           m_iAttention     { 0 };
+	uint16_t                          m_iPort          { 0 };
+	uint16_t                          m_iNetworkPort   { 0 };
+	std::atomic<bool>                 m_bQuit          { false };
 	bool                              m_bOtherInstance { false };
-	uint16_t                          m_iPort        { 0 };
-	uint16_t                          m_iNetworkPort { 0 };
+	bool                              m_bClearWebCache { false };
 
 }; // KWebApp
 

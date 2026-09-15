@@ -61,7 +61,6 @@
 	#include <webkit2/webkit2.h>
 #endif
 #include <atomic>
-#include <map>
 #include <mutex>
 #include <thread>
 

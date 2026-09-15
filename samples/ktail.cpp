@@ -270,10 +270,10 @@ KTail::KTail(Config Config)
 	}
 
 	// the page, the note form, and the live tail - the root is the empty route
-	m_Routes.AddRoute("").Get([this](KRESTServer& HTTP) { Page(HTTP); });
-	m_Routes.AddRoute(KString(sNotesPath)).Post([this](KRESTServer& HTTP) { SaveNote(HTTP); }).Parse(KRESTRoute::WWWFORM);
-	m_Routes.AddRoute(KString(sDownloadPath)).Get([this](KRESTServer& HTTP) { Download(HTTP); });
-	m_Routes.AddRoute(KString(sTailPath)).Get([this](KRESTServer& HTTP) { Tail(HTTP); }).Parse(KRESTRoute::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
+	m_Routes.AddRoute(""           ).Get ([this](KRESTServer& HTTP) { Page    (HTTP); });
+	m_Routes.AddRoute(sNotesPath   ).Post([this](KRESTServer& HTTP) { SaveNote(HTTP); }).Parse(KRESTRoute::WWWFORM);
+	m_Routes.AddRoute(sDownloadPath).Get ([this](KRESTServer& HTTP) { Download(HTTP); });
+	m_Routes.AddRoute(sTailPath    ).Get ([this](KRESTServer& HTTP) { Tail    (HTTP); }).Parse(KRESTRoute::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
 
 	KWebApp::Options Options;
 	Options.sTitle   = m_Config.sTitle;
@@ -331,7 +331,7 @@ KTail::KTail(Config Config)
 
 		if (iColon != KStringView::npos)
 		{
-			Options.Network.sBindAddress = KString(sListen.substr(0, iColon));
+			Options.Network.sBindAddress = sListen.substr(0, iColon);
 			sListen.remove_prefix(iColon + 1);
 		}
 
@@ -430,10 +430,10 @@ void KTail::Page(KRESTServer& HTTP)
 	Page.AddStyle(sStyle);
 
 	// header: title, the path as links, the theme toggle
-	auto Header = Page.Add<html::Element>("header");
-	Header.Add<html::Element>("h1").AddText(m_Config.sTitle);
+	auto Header = Page.Add<html::Header>();
+	Header.Add<html::Heading>(1, m_Config.sTitle);
 
-	auto Path = Header.Add<html::Element>("span", "path");
+	auto Path = Header.Add<html::Span>("path");
 	Path.Add<html::Link>(PageLink(""), m_Config.sRoot);
 
 	{
@@ -455,20 +455,20 @@ void KTail::Page(KRESTServer& HTTP)
 	SignOut.SetMethod(html::Form::POST);
 	SignOut.Add<html::Button>(Text("signOut"));
 
-	auto Main = Page.Add<html::Element>("main");
+	auto Main = Page.Add<html::Main>();
 
 	// left: the directory
 	{
-		auto Nav   = Main.Add<html::Element>("nav");
-		auto Table = Nav.Add<html::Element>("table");
-		auto Head  = Table.Add<html::Element>("tr");
+		auto Nav   = Main.Add<html::Nav>();
+		auto Table = Nav.Add<html::Table>();
+		auto Head  = Table.Add<html::TableRow>();
 		Head.Add<html::TableHeader>(Text("name"));
 		Head.Add<html::TableHeader>(Text("size"));
 		Head.Add<html::TableHeader>(Text("modified"));
 
 		if (!sDir.empty())
 		{
-			auto Row = Table.Add<html::Element>("tr");
+			auto Row = Table.Add<html::TableRow>();
 			Row.Add<html::TableData>().Add<html::Link>(PageLink(Parent(sDir)), "..", "dir");
 			Row.Add<html::TableData>();
 			Row.Add<html::TableData>();
@@ -494,7 +494,7 @@ void KTail::Page(KRESTServer& HTTP)
 				bool bIsDir    = Type == KFileType::DIRECTORY;
 				bool bSelected = bHaveFile && sRelative == sFile;
 
-				auto Row = Table.Add<html::Element>("tr", bSelected ? html::Classes("selected") : html::Classes{});
+				auto Row = Table.Add<html::TableRow>(bSelected ? html::Classes("selected") : html::Classes{});
 				Row.Add<html::TableData>().Add<html::Link>(bIsDir ? PageLink(sRelative) : PageLink(sDir, sRelative),
 				                                           Entry.Filename(),
 				                                           bIsDir ? html::Classes("dir") : html::Classes{});
@@ -506,13 +506,14 @@ void KTail::Page(KRESTServer& HTTP)
 
 	// right: the tail of the selected file, and its note
 	{
-		auto Section = Main.Add<html::Element>("section");
+		auto Section = Main.Add<html::Section>();
 
 		if (bHaveFile)
 		{
-			auto Bar = Section.Add<html::Element>("div", "bar");
-			Bar.Add<html::Element>("h2").AddText(sFile);
+			auto Bar = Section.Add<html::Div>("bar");
+			Bar.Add<html::Heading>(2, sFile);
 
+			// no predefined class for a label without a bound input
 			auto Label = Bar.Add<html::Element>("label", "native-only");
 			Label.Add<html::Input>("notify", "", html::Input::CHECKBOX, html::Classes{}, "notify");
 			Label.AddText(Text("notifyOnLines"));
@@ -524,7 +525,7 @@ void KTail::Page(KRESTServer& HTTP)
 			kUrlEncode(sFile, sDownload, URIPart::Query);
 			Bar.Add<html::Link>(sDownload, Text("download"), "button", "download").SetDownload();
 
-			Section.Add<html::Element>("pre", html::Classes{}, "tail");
+			Section.Add<html::Preformatted>(html::Classes{}, "tail");
 
 			KString sNote;
 			{
@@ -540,11 +541,11 @@ void KTail::Page(KRESTServer& HTTP)
 		}
 		else
 		{
-			Section.Add<html::Element>("p", "hint").AddText(Text("pickFile"));
+			Section.Add<html::Paragraph>("hint").AddText(Text("pickFile"));
 		}
 	}
 
-	Page.Add<html::Element>("footer", html::Classes{}, "status").AddText(kFormat("{} {}", m_Config.sTitle, m_Config.sVersion));
+	Page.Add<html::Footer>(html::Classes{}, "status").AddText(kFormat("{} {}", m_Config.sTitle, m_Config.sVersion));
 
 	// the live connection to the application, then the page script with its parameters as data attributes
 	Page.Body().Add<html::Script>().SetAttribute("src", "/_kwa/live.js");
@@ -586,7 +587,7 @@ void KTail::SaveNote(KRESTServer& HTTP)
 	jNote["t"]    = "note";
 	jNote["file"] = sFile;
 	jNote["text"] = sText;
-	jNote["by"]   = m_App->IsFromWindow(HTTP) ? KString("window") : KString(KRESTSession(*m_App->GetSession(), HTTP).GetUser());
+	jNote["by"]   = m_App->IsFromWindow(HTTP) ? KStringView("window") : KRESTSession(*m_App->GetSession(), HTTP).GetUser();
 	m_App->Broadcast(jNote);
 
 	// back to the page

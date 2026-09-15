@@ -49,6 +49,7 @@
 
 #if DEKAF2_HAS_WEBVIEW
 
+#include <dekaf2/containers/associative/kassociative.h>
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
@@ -63,7 +64,6 @@
 #include <atomic>
 #include <condition_variable>
 #include <functional>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -492,8 +492,8 @@ private:
 	std::unique_ptr<WebView>          m_WebView;
 	std::function<void(KRESTServer&)> m_UserPreRoute;
 	std::function<void(KRESTServer&)> m_UserNetworkPreRoute;
-	std::map<KString, Handler>        m_Bindings;
-	std::map<std::size_t, LiveClient> m_Clients;
+	KUnorderedMap<KString, Handler>        m_Bindings;
+	KUnorderedMap<std::size_t, LiveClient> m_Clients;
 	ConnectHandler                    m_OnConnect;
 	MessageHandler                    m_OnMessage;
 	DownloadHandler                   m_OnDownload;
@@ -505,7 +505,8 @@ private:
 	KString                           m_sStartPath     { "/" };
 	mutable std::mutex                m_Mutex;
 	std::condition_variable           m_Idle;
-	std::map<int, std::function<void(int)>> m_PreviousSignalHandlers;
+	// the two shutdown signals and the handlers they had before - written once, iterated once
+	std::vector<std::pair<int, std::function<void(int)>>> m_PreviousSignalHandlers;
 	std::unique_ptr<KFileLock>        m_InstanceLock;
 	KString                           m_sConfigDir;
 	KJSON                             m_jWindowFrame;

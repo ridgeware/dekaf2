@@ -192,12 +192,12 @@ KWebApp::KWebApp(Options Options, KRESTRoutes& Routes)
 {
 	// our routes, in the table both servers serve - the handlers know which side
 	// they answer for
-	m_Routes.AddRoute(KString(sHealthPath)).Get ([this](KRESTServer& HTTP) { Health(HTTP);     });
-	m_Routes.AddRoute(KString(sLoginPath )).Get ([this](KRESTServer& HTTP) { LoginPage(HTTP);  });
-	m_Routes.AddRoute(KString(sLoginPath )).Post([this](KRESTServer& HTTP) { Login(HTTP);      }).Parse(KRESTRoute::WWWFORM);
-	m_Routes.AddRoute(KString(sLogoutPath)).Post([this](KRESTServer& HTTP) { Logout(HTTP);     });
-	m_Routes.AddRoute(KString(sLiveScript)).Get ([this](KRESTServer& HTTP) { LiveScript(HTTP); });
-	m_Routes.AddRoute(KString(sLivePath  )).Get ([this](KRESTServer& HTTP) { Live(HTTP);       }).Parse(KRESTRoute::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
+	m_Routes.AddRoute(sHealthPath).Get ([this](KRESTServer& HTTP) { Health    (HTTP); });
+	m_Routes.AddRoute(sLoginPath ).Get ([this](KRESTServer& HTTP) { LoginPage (HTTP); });
+	m_Routes.AddRoute(sLoginPath ).Post([this](KRESTServer& HTTP) { Login     (HTTP); }).Parse(KRESTRoute::WWWFORM);
+	m_Routes.AddRoute(sLogoutPath).Post([this](KRESTServer& HTTP) { Logout    (HTTP); });
+	m_Routes.AddRoute(sLiveScript).Get ([this](KRESTServer& HTTP) { LiveScript(HTTP); });
+	m_Routes.AddRoute(sLivePath  ).Get ([this](KRESTServer& HTTP) { Live      (HTTP); }).Parse(KRESTRoute::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
 
 	// ~/.config/<app>/ keeps the window geometry and the instance lock
 	m_sConfigDir = m_Options.sAppName.empty() ? kGetConfigPath() : kFormat("{}/.config/{}", kGetHome(), m_Options.sAppName);
@@ -278,7 +278,7 @@ void KWebApp::CatchShutdownSignals()
 	{
 		// chain a handler the application had installed before
 		auto Previous = Signals->GetSignalHandler(iSignal);
-		m_PreviousSignalHandlers[iSignal] = Previous;
+		m_PreviousSignalHandlers.emplace_back(iSignal, Previous);
 
 		Signals->SetSignalHandler(iSignal, [this, Previous](int iSignal)
 		{
@@ -462,7 +462,7 @@ bool KWebApp::IsIdentifier(KStringView sName)
 bool KWebApp::IsWebURL(KStringView sURL)
 //-----------------------------------------------------------------------------
 {
-	auto sLower = KString(sURL.Left(8)).ToLowerASCII();
+	auto sLower = sURL.Left(8).ToLowerASCII();
 	return sLower.starts_with("http://") || sLower.starts_with("https://");
 
 } // IsWebURL
@@ -480,7 +480,7 @@ KString KWebApp::Origin(KStringView sURL)
 	}
 
 	KString sOrigin(URL.Protocol.get());
-	sOrigin += KString(URL.Domain.get()).ToLowerASCII();
+	sOrigin += URL.Domain.get().ToLowerASCII();
 
 	auto iPort = URL.Port.get();
 
@@ -993,7 +993,7 @@ bool KWebApp::OpenExternal(KStringView sURL)
 //-----------------------------------------------------------------------------
 {
 	// the browser, not the shell: no file, no javascript, nothing local
-	auto sLower = KString(sURL.Left(8)).ToLowerASCII();
+	auto sLower = sURL.Left(8).ToLowerASCII();
 
 	if (!sLower.starts_with("http://") && !sLower.starts_with("https://") && !sLower.starts_with("mailto:"))
 	{
@@ -1641,7 +1641,7 @@ void KWebApp::LiveScript(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
 	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, "text/javascript; charset=UTF-8");
-	HTTP.SetRawOutput(KString(sLiveClient));
+	HTTP.SetRawOutput(sLiveClient);
 
 } // LiveScript
 
@@ -1817,9 +1817,10 @@ void KWebApp::LoginPage(KRESTServer& HTTP)
 
 	if (HTTP.GetQueryParm("error") == "1")
 	{
-		Form.Add<html::Element>("p", "error").AddText("Wrong user name or password.");
+		Form.Add<html::Paragraph>("error").AddText("Wrong user name or password.");
 	}
 
+	// no predefined class for a label without a bound input
 	Form.Add<html::Element>("label").AddText("User name")
 		.Add<html::Input>("user", "", html::Input::TEXT).SetAutofocus(true).SetRequired(true).SetAttribute("autocomplete", "username");
 	Form.Add<html::Element>("label").AddText("Password")
@@ -1925,7 +1926,7 @@ int KWebApp::Run()
 
 				for (auto sName : SecretBindings)
 				{
-					m_Bindings.erase(KString(sName));
+					m_Bindings.erase(sName);
 				}
 			}
 

@@ -58,8 +58,8 @@
 #include <Security/Security.h>
 #include <pthread.h>
 #include <cstring>
+#include <algorithm>
 #include <atomic>
-#include <map>
 #include <mutex>
 #include <thread>
 
@@ -830,7 +830,9 @@ namespace {
 // delegates, and without it downloads are silently dropped
 std::mutex            s_NavigationMutex;
 NavigationPolicy      s_Policy;
-std::map<id, KString> s_Downloads; // the download object and its destination
+// the downloads in progress: the download object and its destination. A few
+// at a time, one lookup when a download ends - a vector is the right size
+std::vector<std::pair<id, KString>> s_Downloads;
 
 //-----------------------------------------------------------------------------
 NavigationPolicy Policy()
@@ -845,7 +847,7 @@ KString TakeDownload(id Download)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(s_NavigationMutex);
-	auto it = s_Downloads.find(Download);
+	auto it = std::find_if(s_Downloads.begin(), s_Downloads.end(), [Download](const auto& Entry) { return Entry.first == Download; });
 
 	if (it == s_Downloads.end())
 	{
@@ -963,7 +965,7 @@ void DecideDownloadDestination(id, SEL, id Download, id, id SuggestedName, void 
 
 	{
 		std::lock_guard<std::mutex> Lock(s_NavigationMutex);
-		s_Downloads[Download] = sPath;
+		s_Downloads.emplace_back(Download, sPath);
 	}
 
 	Completion(Msg<id>(Class("NSURL"), "fileURLWithPath:", NSStr(sPath)));

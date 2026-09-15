@@ -2639,8 +2639,10 @@ if (DEKAF2_BUILD_SAMPLES)
 
 	# the KWebApp test application: a desktop tool on the system webview
 	if (DEKAF2_HAS_WEBVIEW)
-		add_executable(ktail samples/ktail.cpp samples/ktail.h)
+		add_executable(ktail samples/ktail/ktail.cpp samples/ktail/ktail.h)
 		target_link_libraries(ktail dekaf2${DEKAF2_LINK_SHARED})
+		# the texts of its page and menus, en and de, as a generated header
+		dekaf2_embed_strings(ktail samples/ktail/strings NAMESPACE ktail_strings)
 
 		if (IS_MACOS)
 			# ktail.app: the bundle macOS wants for notifications and for permissions
@@ -2649,7 +2651,7 @@ if (DEKAF2_BUILD_SAMPLES)
 			#   cmake --build . --target ktail-app
 			set(KTAIL_CODESIGN_IDENTITY "-" CACHE STRING "code signing identity for ktail.app, '-' signs ad hoc")
 			set(KTAIL_VERSION "0.1")
-			configure_file(samples/ktail-Info.plist.in "${CMAKE_CURRENT_BINARY_DIR}/ktail-Info.plist" @ONLY)
+			configure_file(samples/ktail/ktail-Info.plist.in "${CMAKE_CURRENT_BINARY_DIR}/ktail-Info.plist" @ONLY)
 			add_custom_target(ktail-app
 				COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/ktail.app/Contents/MacOS"
 				COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:ktail>" "${CMAKE_CURRENT_BINARY_DIR}/ktail.app/Contents/MacOS/ktail"

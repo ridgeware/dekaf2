@@ -195,7 +195,7 @@ build together with the library (`DEKAF2_BUILD_SAMPLES`, on by default):
 | [`ktunnel`](samples/ktunnel.cpp) | encrypted tunnels through a relay (outlet, relay, inlet roles), with an admin interface                                     |
 | [`kgeoip`](samples/kgeoip.cpp)   | resolves IP addresses to locations                                                                                          |
 | [`kmqtt`](samples/kmqtt.cpp)     | explores an MQTT broker from the command line                                                                               |
-| [`ktail`](samples/ktail.cpp)     | a desktop application on KWebApp: browses a directory and follows log files live, in a native window or in browsers on the network |
+| [`ktail`](samples/ktail/ktail.cpp)     | a desktop application on KWebApp: browses a directory and follows log files live, in a native window or in browsers on the network |
 
 ## License
 

@@ -11,5 +11,7 @@ from/simdutf/*.last
 from/simdutf/*.diff
 from/webview/*.last
 from/webview/*.diff
+from/cldr/*.last
+from/cldr/*.diff
 libs/uap-cpp/uap-core/*.last
 libs/uap-cpp/uap-core/*.diff

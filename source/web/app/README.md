@@ -11,7 +11,7 @@ Objective-C runtime API, there are no `.mm` files.
 
 The API is documented in [kwebapp.h](kwebapp.h). This file describes the
 architecture, the platform differences, the capability categories for
-application design, and the known pitfalls. [ktail](../../../samples/ktail.cpp)
+application design, and the known pitfalls. [ktail](../../../samples/ktail/ktail.cpp)
 is the reference application.
 
 ## Architecture
@@ -160,6 +160,31 @@ The names of the built-in bridge functions are reserved; `Bind()` rejects them.
 The secret functions are published to the page only on platforms where the
 navigation rules (next section) are enforced.
 
+## Languages
+
+`KWebApp` carries its own texts (login page, standard menus, download
+notification) as a `KStringCatalog` in English, German, French, Italian,
+Spanish, Japanese, Korean, Simplified and Traditional Chinese (`en`, `de`,
+`fr`, `it`, `es`, `ja`, `ko`, `zh-Hans`, `zh-Hant`), embedded from
+`source/web/app/strings/`. `Options.Catalog` adds the application's catalog and
+may override the `kwa.*` identifiers. A request for `zh-TW` or `zh-HK` is
+served by `zh-Hant`, one for `zh` or `zh-CN` by `zh-Hans`: the script a region
+uses comes from the CLDR data in `from/cldr/` (`KStringCatalog::LikelyScript()`).
+
+| What | Language source |
+|---|---|
+| a request (page, login) | cookie `lang`, else `Accept-Language`, else the default language - `GetLanguage(HTTP)`, `Text(HTTP)` |
+| menus, notifications, dialogs | `Options.sLanguage`, else the user's choice from the last run (`settings.json`), else the system languages (`PreferredLanguages()`) - `GetLanguage()` |
+| the user's choice | `POST /_kwa/lang` with `lang` and `next`: sets the cookie, from the window also the setting |
+
+The webviews send `Accept-Language` from the system settings, so the window
+needs no other path than a browser. A page builder uses
+`auto T = App.Text(HTTP)` and `T("list.name")`, `T.Format("tail.lines", { { "count", 3 } })`,
+and `App.AddStrings(Page, HTTP, "tail")` for the script side, which gets
+`window.kText = { lang, messages }` with the raw messages for intl-messageformat.
+A menu title in `Options.jMenus` that starts with `@` is a catalog identifier.
+Catalogs are embedded with `dekaf2_embed_strings(<target> <dir>)` in CMake.
+
 ## Navigation rules
 
 The window loads pages from the loopback server and from the origins listed in
@@ -246,7 +271,7 @@ pages in a browser too, e.g. through the network mode.
 - **macOS.** Notifications and permissions (camera, microphone, local network)
   require an application bundle. The `ktail-app` target shows the minimum:
   copy the binary to `Contents/MacOS`, configure `Info.plist` (see
-  [ktail-Info.plist.in](../../../samples/ktail-Info.plist.in)) with the usage
+  [ktail-Info.plist.in](../../../samples/ktail/ktail-Info.plist.in)) with the usage
   description keys for every capability the program uses
   (`NSLocalNetworkUsageDescription`, `NSCameraUsageDescription`,
   `NSMicrophoneUsageDescription`, ...), sign the bundle. TCC permissions are
@@ -330,20 +355,24 @@ implementation. The first column names who handles it.
 
 ## ktail
 
-[ktail](../../../samples/ktail.cpp) browses a directory, follows a file live
+[ktail](../../../samples/ktail/ktail.cpp) browses a directory, follows a file live
 over a websocket, keeps a note per file, offers the file as a download, reveals
 it in the file manager, and notifies on new lines. It uses menus, the live
 channel (notes saved in one view appear in all), the network mode with a
 bcrypt-hashed password, and hide-on-close when serving the network.
 
 ```
-ktail [-dir <path>] [-inspector]
+ktail [-dir <path>] [-lang <tag>] [-inspector]
 ktail -listen [addr:]port -user <name> -password-file <file> [-cert <pem> -key <pem>] [-headless]
 ```
 
 Without arguments it shows the current directory, or the home directory when
 started from the Finder. `cmake --build . --target ktail-app` builds the macOS
-bundle.
+bundle. Its texts are the catalogs in `samples/ktail/strings/` (`en`, `de`),
+embedded with `dekaf2_embed_strings()`: the page takes the language of the
+request and offers a selector that posts to `KWebApp::LanguagePath`, the
+menus take the language of the window (`-lang`, else the last choice, else
+the system's).
 
 ## Implementation notes
 

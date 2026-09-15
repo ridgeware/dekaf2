@@ -60,6 +60,7 @@
 #include <dekaf2/rest/limits/kratelimiter.h>
 #include <dekaf2/http/websocket/kwebsocket.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/util/i18n/kstringcatalog.h>
 #include <dekaf2/web/app/bits/kwebapp_platform.h>
 #include <atomic>
 #include <condition_variable>
@@ -69,6 +70,8 @@
 #include <vector>
 
 DEKAF2_NAMESPACE_BEGIN
+
+namespace html { class Page; }
 
 /// returns the version of the embedded webview/webview library, e.g. "0.12.0"
 DEKAF2_PUBLIC
@@ -159,6 +162,18 @@ KStringViewZ kGetWebViewVersion();
 /// window.kNative.saveSecret(), .loadSecret() and .deleteSecret() - published
 /// only where the navigation rules are enforced. ClearWebCache() before Run()
 /// drops cached scripts and styles, e.g. after an update of the shell.
+///
+/// @par Languages
+/// The texts of KWebApp itself (login page, menus, notifications) come from a
+/// KStringCatalog in English, German, French, Italian, Spanish, Japanese, Korean,
+/// Simplified and Traditional Chinese. Options.Catalog adds the application's
+/// own catalog, and may override KWebApp's texts (identifiers "kwa.*"). A
+/// request's language is the cookie "lang" (set by a POST to /_kwa/lang with the
+/// fields lang and next), else Accept-Language, else the default language;
+/// Text(HTTP) gives a page builder the catalog bound to it, AddStrings() hands a
+/// namespace of messages to the page script as window.kText. Menus and
+/// notifications use Options.sLanguage, by default the system's language; a menu
+/// title that starts with "@" is a catalog identifier.
 ///
 /// @par Platforms
 /// The platform layer under bits/ has one file per operating system, all plain
@@ -290,6 +305,12 @@ public:
 		/// the close button hides the window instead of closing it - Run() then lasts
 		/// until Quit(), and a click on the application's icon brings the window back
 		bool           bHideOnClose { false };
+		/// the application's texts, merged over KWebApp's own - see @ref KStringCatalog.
+		/// Must outlive the KWebApp constructor, the catalog is copied
+		const KStringCatalog* Catalog { nullptr };
+		/// the language of menus, notifications and dialogs, a BCP 47 tag - empty
+		/// takes the user's setting from the last run, else the system's languages
+		KString        sLanguage;
 	};
 
 	/// JavaScript to C++ handler: one JSON argument in, one JSON result out.
@@ -343,6 +364,24 @@ public:
 	/// may the window show this URL? True for the loopback server and the origins
 	/// in Options.AllowedOrigins
 	bool IsAllowedURL(KStringView sURL) const;
+
+	/// the language of a request: the cookie "lang", else Accept-Language, else
+	/// the default language - always one the catalog has
+	KString GetLanguage(const KRESTServer& HTTP) const;
+	/// the route a page posts the user's language choice to, with the form fields
+	/// lang (a tag) and next (the path to return to)
+	static constexpr KStringView LanguagePath = "/_kwa/lang";
+	/// the language of menus and notifications
+	const KString& GetLanguage() const { return m_sLanguage; }
+	/// the catalog bound to the request's language, for the page builder:
+	/// T("list.name"), T.Format("tail.lines", { { "count", 3 } })
+	KStringCatalog::Language Text(const KRESTServer& HTTP) const;
+	/// the merged catalog: KWebApp's texts and the application's
+	const KStringCatalog& GetCatalog() const { return m_Catalog; }
+	/// adds a script to the page that defines window.kText = { lang, messages }
+	/// with the raw messages of the namespace in the request's language, for
+	/// intl-messageformat in the page. Call it once per page
+	void AddStrings(html::Page& Page, const KRESTServer& HTTP, KStringView sNamespace) const;
 	/// set the window title, from any thread
 	void SetTitle(KStringView sTitle);
 	/// run the window until it is closed or Quit() is called, then, or without
@@ -455,6 +494,10 @@ private:
 	void    Login        (KRESTServer& HTTP);
 	void    Logout       (KRESTServer& HTTP);
 	void    Health       (KRESTServer& HTTP);
+	void    SetLanguage  (KRESTServer& HTTP);
+	void    LoadSettings ();
+	void    SaveSettings ();
+	KJSON   TranslatedMenus() const;
 	bool    StartLoopback();
 	bool    StartNetwork ();
 	void    CatchShutdownSignals();
@@ -486,6 +529,9 @@ private:
 
 	Options                           m_Options;
 	KRESTRoutes&                      m_Routes;
+	KStringCatalog                    m_Catalog;
+	KString                           m_sLanguage;
+	KJSON                             m_jSettings;
 	std::unique_ptr<KREST>            m_REST;
 	std::unique_ptr<KREST>            m_Network;
 	std::unique_ptr<KSession>         m_Session;

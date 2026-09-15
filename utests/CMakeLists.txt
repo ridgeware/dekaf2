@@ -101,6 +101,7 @@ set (USOURCES
 	ksmtp_tests.cpp
 	kmemorymap_tests.cpp
 	kmessagedigest_tests.cpp
+	kmessageformat_tests.cpp
 	kmime_tests.cpp
 	kmodifyingstreambuf_tests.cpp
 	kmpsearch_tests.cpp
@@ -114,6 +115,7 @@ set (USOURCES
 	kparallel_tests.cpp
 	kpersist_tests.cpp
 	kpipe_tests.cpp
+	kpluralrules_tests.cpp
 	kpty_tests.cpp
 	kpool_tests.cpp
 	kprops_tests.cpp
@@ -148,6 +150,7 @@ set (USOURCES
 	kstack_tests.cpp
 	kstreamoptions_tests.cpp
 	kstring_tests.cpp
+	kstringcatalog_tests.cpp
 	kstreambuf_tests.cpp
 	kstringstream_tests.cpp
 	kstringutils_tests.cpp
@@ -203,6 +206,11 @@ set (USOURCES
 )
 
 add_executable(dekaf2-utests EXCLUDE_FROM_ALL ${UHEADERS} ${USOURCES})
+
+# the string catalogs in strings/ as a generated header, for kstringcatalog_tests.cpp -
+# which also compares the embedded bytes with the files
+dekaf2_embed_strings(dekaf2-utests strings NAMESPACE utest_strings)
+target_compile_definitions(dekaf2-utests PRIVATE DEKAF2_UTEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 if (DEKAF2_HAS_SQLITE3)
 	target_link_libraries(dekaf2-utests ${DEKAF2_NAMESPACE}dekaf2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}ksqlite${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}ksql2${DEKAF2_LINK_SHARED} ${DEKAF2_NAMESPACE}re2)

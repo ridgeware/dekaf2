@@ -447,6 +447,10 @@ endif()
 # Add local cmake modules to the module path (used to find libraries which do not have find modules provided by cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 
+# dekaf2_embed_strings(): string catalogs as a generated header, for our samples
+# and tests here, and installed for consumers through the package config
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/dekaf2-embed-strings.cmake")
+
 # ============================== 3rd party libs ===============================
 
 # search for the libs that are always acceptable as dynamic libs first
@@ -1791,6 +1795,9 @@ set(PUBLIC_HEADERS
 	source/util/codec/kgaloisfield.h
 	source/util/codec/kreedsolomon.h
 	source/util/id/kuuid.h
+	source/util/i18n/kmessageformat.h
+	source/util/i18n/kpluralrules.h
+	source/util/i18n/kstringcatalog.h
 	source/util/mail/kmail.h
 	source/util/mail/kmailspool.h
 	source/util/mail/ksmtp.h
@@ -2070,6 +2077,9 @@ set (SOURCES
 	source/util/codec/kgaloisfield.cpp
 	source/util/codec/kreedsolomon.cpp
 	source/util/id/kuuid.cpp
+	source/util/i18n/kmessageformat.cpp
+	source/util/i18n/kpluralrules.cpp
+	source/util/i18n/kstringcatalog.cpp
 	source/util/mail/kmail.cpp
 	source/util/mail/kmailspool.cpp
 	source/util/mail/ksmtp.cpp
@@ -2397,6 +2407,9 @@ add_library                (dekaf2-objects OBJECT ${DEKAF2_SOURCE_FILES})
 target_include_directories (dekaf2-objects ${DEKAF2_INCLUDE_DIRECTORIES})
 # add dekaf2's own headers as non-SYSTEM includes so that Xcode tracks their dependencies
 target_include_directories (dekaf2-objects PUBLIC $<BUILD_INTERFACE:${DEKAF2_GENERATED_FILES_DIR}>)
+# KWebApp's own texts (login page, menus, notifications) in the languages under
+# source/web/app/strings, embedded like an application would embed its catalogs
+dekaf2_embed_strings(dekaf2-objects source/web/app/strings NAMESPACE kwebapp_strings)
 target_link_libraries      (dekaf2-objects ${DEKAF2_LINK_LIBRARIES})
 target_compile_definitions (dekaf2-objects ${DEKAF2_COMPILE_DEFINITIONS})
 if (DEKAF2_HAS_USER_AGENT_PARSER)
@@ -2906,6 +2919,7 @@ if (DEKAF2_INSTALL_LIB)
 	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config.cmake         DESTINATION ${dekaf2_main_lib_dest}/cmake)
 	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest}/cmake)
 	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake          DESTINATION ${dekaf2_lib_dest}/cmake)
+	install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-embed-strings.cmake" DESTINATION ${dekaf2_main_lib_dest}/cmake)
 
 	# although being an include file, kconfiguration.h belongs to the lib install, as it changes
 	# depending on the build type

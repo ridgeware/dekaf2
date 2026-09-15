@@ -95,3 +95,5 @@ endif() # DEKAF2_DUAL_TARGET
 get_filename_component(SELF_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 include("${SELF_DIR}${LIB_BUILD_TYPE_PATH}/dekaf2-targets.cmake")
 include("${SELF_DIR}${LIB_BUILD_TYPE_PATH}/dekaf2-setup.cmake")
+# dekaf2_embed_strings(): string catalogs of KStringCatalog as a generated header
+include("${SELF_DIR}/dekaf2-embed-strings.cmake")

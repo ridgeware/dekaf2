@@ -337,6 +337,10 @@
 /// @ingroup util
 /// @brief Tar and zip archive handling.
 
+/// @defgroup util_i18n Internationalization
+/// @ingroup util
+/// @brief Plural rules of the Unicode CLDR (no ICU), messages in the ICU MessageFormat syntax as intl-messageformat reads them, string catalogs per language.
+
 /// @defgroup util_text Text Processing
 /// @ingroup util
 /// @brief Diff, n-gram, and text analysis.

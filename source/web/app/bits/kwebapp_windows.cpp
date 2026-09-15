@@ -68,6 +68,7 @@
 #include <wincred.h>
 #include <WebView2.h>
 #include <atomic>
+#include <cwchar>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -721,7 +722,8 @@ KString SaveFileDialog(void* pWindow, KStringView sTitle, KStringView sSuggested
 } // SaveFileDialog
 
 //-----------------------------------------------------------------------------
-void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::function<void(KStringView)> OnAction, std::function<void()> OnQuit)
+void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::function<KString(KStringView)> Text,
+             std::function<void(KStringView)> OnAction, std::function<void()> OnQuit)
 //-----------------------------------------------------------------------------
 {
 	if (!Attach(pWindow))
@@ -784,7 +786,7 @@ void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::func
 	// the application's own menu: the quit entry, as the last one
 	{
 		auto hPopup = ::CreatePopupMenu();
-		::AppendMenuW(hPopup, MF_STRING, ID_MENU_QUIT, kutf::Convert<std::wstring>(kFormat("Quit {}\tCtrl+Q", sAppName)).c_str());
+		::AppendMenuW(hPopup, MF_STRING, ID_MENU_QUIT, kutf::Convert<std::wstring>(kFormat("{}\tCtrl+Q", Text("kwa.menu.quit"))).c_str());
 		::AppendMenuW(hBar, MF_POPUP, reinterpret_cast<UINT_PTR>(hPopup), kutf::Convert<std::wstring>(sAppName).c_str());
 
 		std::lock_guard<std::mutex> Lock(s_Shell.Mutex);
@@ -806,6 +808,37 @@ void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::func
 	::DrawMenuBar(hWnd);
 
 } // SetMenu
+
+//-----------------------------------------------------------------------------
+std::vector<KString> PreferredLanguages()
+//-----------------------------------------------------------------------------
+{
+	// the user's display languages, a list of double-null terminated names like "de-DE"
+	std::vector<KString> Languages;
+
+	ULONG iCount  { 0 };
+	ULONG iLength { 0 };
+
+	if (!::GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &iCount, nullptr, &iLength) || iLength == 0)
+	{
+		return Languages;
+	}
+
+	std::wstring sBuffer(iLength, L'\0');
+
+	if (!::GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &iCount, sBuffer.data(), &iLength))
+	{
+		return Languages;
+	}
+
+	for (const wchar_t* p = sBuffer.c_str(); *p; p += std::wcslen(p) + 1)
+	{
+		Languages.push_back(kutf::Convert<KString>(p));
+	}
+
+	return Languages;
+
+} // PreferredLanguages
 
 //-----------------------------------------------------------------------------
 bool GetWindowFrame(void* pWindow, WindowFrame& Frame)

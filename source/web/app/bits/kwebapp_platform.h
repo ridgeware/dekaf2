@@ -93,10 +93,16 @@ std::vector<KString> OpenFileDialog(void* pWindow, KStringView sTitle, const std
 /// modal save dialog, empty result when cancelled
 KString SaveFileDialog(void* pWindow, KStringView sTitle, KStringView sSuggestedName, const std::vector<KString>& Extensions);
 /// install the application menu: the standard application, edit and window menus
-/// plus the menus described in jMenus - an entry's action is reported to OnAction,
-/// the quit entry calls OnQuit. macOS has one menu for the application, the
-/// other platforms put a menu bar into the window
-void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::function<void(KStringView sAction)> OnAction, std::function<void()> OnQuit);
+/// plus the menus described in jMenus (titles already in the user's language) -
+/// an entry's action is reported to OnAction, the quit entry calls OnQuit. Text
+/// gives the titles of the standard entries by their identifier, e.g.
+/// "kwa.menu.quit". macOS has one menu for the application, the other platforms
+/// put a menu bar into the window
+void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::function<KString(KStringView sID)> Text,
+             std::function<void(KStringView sAction)> OnAction, std::function<void()> OnQuit);
+/// the user's languages in the order of preference, as BCP 47 tags - from the
+/// system settings, empty when the platform does not tell
+std::vector<KString> PreferredLanguages();
 /// the window's position and size
 bool GetWindowFrame(void* pWindow, WindowFrame& Frame);
 void SetWindowFrame(void* pWindow, const WindowFrame& Frame);

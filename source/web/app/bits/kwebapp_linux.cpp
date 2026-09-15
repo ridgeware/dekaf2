@@ -60,6 +60,7 @@
 #else
 	#include <webkit2/webkit2.h>
 #endif
+#include <algorithm>
 #include <atomic>
 #include <mutex>
 #include <thread>
@@ -810,7 +811,8 @@ KString SaveFileDialog(void* pWindow, KStringView sTitle, KStringView sSuggested
 #endif // GTK_MAJOR_VERSION
 
 //-----------------------------------------------------------------------------
-void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::function<void(KStringView)> OnAction, std::function<void()> OnQuit)
+void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::function<KString(KStringView)> Text,
+             std::function<void(KStringView)> OnAction, std::function<void()> OnQuit)
 //-----------------------------------------------------------------------------
 {
 	auto Window = kwebapp::Window(pWindow);
@@ -891,7 +893,7 @@ void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::func
 		g_object_unref(Quit);
 
 		auto Menu = g_menu_new();
-		auto Item = g_menu_item_new(kFormat("Quit {}", sAppName).c_str(), "win.quit");
+		auto Item = g_menu_item_new(Text("kwa.menu.quit").c_str(), "win.quit");
 		g_menu_item_set_attribute(Item, "accel", "s", "<Control>q");
 		Accelerators.emplace_back("<Control>q", "win.quit");
 		g_menu_append_item(Menu, Item);
@@ -979,6 +981,47 @@ void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::func
 	g_object_unref(Model);
 
 } // SetMenu
+
+//-----------------------------------------------------------------------------
+std::vector<KString> PreferredLanguages()
+//-----------------------------------------------------------------------------
+{
+	// the POSIX locale variables, in their order of precedence: LANGUAGE is a
+	// colon separated list, the others one locale like "de_DE.UTF-8"
+	std::vector<KString> Languages;
+
+	auto Add = [&Languages](KStringView sLocale)
+	{
+		// "de_DE.UTF-8@euro" -> "de-DE", and the C locales are no language
+		sLocale = sLocale.substr(0, sLocale.find_first_of(".@"));
+
+		if (sLocale.empty() || sLocale == "C" || sLocale == "POSIX")
+		{
+			return;
+		}
+
+		KString sTag(sLocale);
+		sTag.Replace('_', '-');
+
+		if (std::find(Languages.begin(), Languages.end(), sTag) == Languages.end())
+		{
+			Languages.push_back(std::move(sTag));
+		}
+	};
+
+	for (auto sPart : kGetEnv("LANGUAGE").Split(":"))
+	{
+		Add(sPart);
+	}
+
+	for (auto sVar : { "LC_ALL", "LC_MESSAGES", "LANG" })
+	{
+		Add(kGetEnv(sVar));
+	}
+
+	return Languages;
+
+} // PreferredLanguages
 
 //-----------------------------------------------------------------------------
 bool GetWindowFrame(void* pWindow, WindowFrame& Frame)

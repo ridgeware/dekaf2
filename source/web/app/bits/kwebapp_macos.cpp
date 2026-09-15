@@ -565,7 +565,8 @@ KString SaveFileDialog(void* /*pWindow*/, KStringView sTitle, KStringView sSugge
 } // SaveFileDialog
 
 //-----------------------------------------------------------------------------
-void SetMenu(void* /*pWindow*/, KStringView sAppName, const KJSON& jMenus, std::function<void(KStringView)> OnAction, std::function<void()> OnQuit)
+void SetMenu(void* /*pWindow*/, KStringView sAppName, const KJSON& jMenus, std::function<KString(KStringView)> Text,
+             std::function<void(KStringView)> OnAction, std::function<void()> OnQuit)
 //-----------------------------------------------------------------------------
 {
 	{
@@ -593,11 +594,11 @@ void SetMenu(void* /*pWindow*/, KStringView sAppName, const KJSON& jMenus, std::
 
 	// the application menu - Quit ends the run loop through KWebApp, not the process
 	auto AppMenu = NewMenu(sAppName);
-	AddItem(AppMenu, kFormat("About {}", sAppName), "orderFrontStandardAboutPanel:", "");
+	AddItem(AppMenu, Text("kwa.menu.about"), "orderFrontStandardAboutPanel:", "");
 	AddSeparator(AppMenu);
-	AddItem(AppMenu, kFormat("Hide {}", sAppName), "hide:", "h");
+	AddItem(AppMenu, Text("kwa.menu.hide"), "hide:", "h");
 	AddSeparator(AppMenu);
-	AddItem(AppMenu, kFormat("Quit {}", sAppName), "quitAction:", "q", MenuTarget());
+	AddItem(AppMenu, Text("kwa.menu.quit"), "quitAction:", "q", MenuTarget());
 	AddSubmenu(Main, AppMenu);
 
 	// the application's own menus
@@ -628,30 +629,54 @@ void SetMenu(void* /*pWindow*/, KStringView sAppName, const KJSON& jMenus, std::
 
 	// Edit: the first responder answers, and without these items the webview
 	// has no keyboard shortcuts for copy and paste
-	auto Edit = NewMenu("Edit");
-	AddItem(Edit, "Undo",       "undo:",      "z");
-	AddItem(Edit, "Redo",       "redo:",      "Z");
+	auto Edit = NewMenu(Text("kwa.menu.edit"));
+	AddItem(Edit, Text("kwa.menu.edit.undo"),      "undo:",      "z");
+	AddItem(Edit, Text("kwa.menu.edit.redo"),      "redo:",      "Z");
 	AddSeparator(Edit);
-	AddItem(Edit, "Cut",        "cut:",       "x");
-	AddItem(Edit, "Copy",       "copy:",      "c");
-	AddItem(Edit, "Paste",      "paste:",     "v");
-	AddItem(Edit, "Select All", "selectAll:", "a");
+	AddItem(Edit, Text("kwa.menu.edit.cut"),       "cut:",       "x");
+	AddItem(Edit, Text("kwa.menu.edit.copy"),      "copy:",      "c");
+	AddItem(Edit, Text("kwa.menu.edit.paste"),     "paste:",     "v");
+	AddItem(Edit, Text("kwa.menu.edit.selectAll"), "selectAll:", "a");
 	AddSeparator(Edit);
-	AddItem(Edit, "Start Dictation\xE2\x80\xA6", "startDictation:",             "");
-	AddItem(Edit, "Emoji & Symbols",               "orderFrontCharacterPalette:", "");
+	AddItem(Edit, Text("kwa.menu.edit.dictation"), "startDictation:",             "");
+	AddItem(Edit, Text("kwa.menu.edit.emoji"),     "orderFrontCharacterPalette:", "");
 	AddSubmenu(Main, Edit);
 
-	auto Window = NewMenu("Window");
-	AddItem(Window, "Minimize", "performMiniaturize:", "m");
-	AddItem(Window, "Zoom",     "performZoom:",        "");
+	auto Window = NewMenu(Text("kwa.menu.window"));
+	AddItem(Window, Text("kwa.menu.window.minimize"), "performMiniaturize:", "m");
+	AddItem(Window, Text("kwa.menu.window.zoom"),     "performZoom:",        "");
 	AddSeparator(Window);
-	AddItem(Window, "Bring All to Front", "arrangeInFront:", "");
+	AddItem(Window, Text("kwa.menu.window.front"),    "arrangeInFront:", "");
 	AddSubmenu(Main, Window);
 
 	Msg<void>(App, "setMainMenu:",    Main);
 	Msg<void>(App, "setWindowsMenu:", Window);
 
 } // SetMenu
+
+//-----------------------------------------------------------------------------
+std::vector<KString> PreferredLanguages()
+//-----------------------------------------------------------------------------
+{
+	// the languages of the system settings, most preferred first, as "de-DE"
+	std::vector<KString> Languages;
+
+	auto Array  = Msg<id>(Class("NSLocale"), "preferredLanguages");
+	auto iCount = Array ? Msg<unsigned long>(Array, "count") : 0;
+
+	for (unsigned long i = 0; i < iCount; ++i)
+	{
+		auto sTag = Str(Msg<id>(Array, "objectAtIndex:", i));
+
+		if (!sTag.empty())
+		{
+			Languages.push_back(std::move(sTag));
+		}
+	}
+
+	return Languages;
+
+} // PreferredLanguages
 
 //-----------------------------------------------------------------------------
 bool GetWindowFrame(void* pWindow, WindowFrame& Frame)

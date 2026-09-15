@@ -5,6 +5,7 @@
 #if DEKAF2_HAS_WEBVIEW
 
 #include <dekaf2/web/app/kwebapp.h>
+#include <dekaf2/web/objects/kwebobjects.h>
 #include <dekaf2/util/misc/kversion.h>
 #include <dekaf2/net/tcp/ktcpstream.h>
 #include <dekaf2/net/tls/ktlsstream.h>
@@ -221,6 +222,46 @@ TEST_CASE("KWebApp")
 		CHECK ( AnyApp.IsAllowedURL("ftp://anything.example/")   == false );
 	}
 
+	SECTION("the built-in texts are complete in every language")
+	{
+		CHECK ( (App.GetCatalog().GetLanguages() == std::vector<KString>{ "de", "en", "es", "fr", "it", "ja", "ko", "zh-Hans", "zh-Hant" }) );
+		CHECK ( App.GetCatalog().Check().empty() == true );
+		CHECK ( App.GetCatalog().Get("de", "kwa.login.user") == "Benutzername" );
+		CHECK ( (App.GetCatalog().Format("en", "kwa.download.done", { { "file", "a.txt" } }) == "Downloaded a.txt") );
+		// the language of menus and notifications is one the catalog has
+		CHECK ( App.GetCatalog().HasLanguage(App.GetLanguage()) == true );
+	}
+
+	SECTION("the application's catalog merges over the built-in texts")
+	{
+		KStringCatalog Mine("en");
+		Mine.AddLanguage("en", kjson::Parse(R"({ "app.hello": "Hello", "kwa.login.submit": "Let me in" })"));
+		Mine.AddLanguage("nl", kjson::Parse(R"({ "app.hello": "Hallo" })"));
+
+		KWebApp::Options WithCatalog;
+		WithCatalog.bWindow   = false;
+		WithCatalog.Catalog   = &Mine;
+		WithCatalog.sLanguage = "nl-BE";
+
+		KWebApp Localized(std::move(WithCatalog), Routes);
+		REQUIRE ( Localized.HasError() == false );
+
+		CHECK ( (Localized.GetCatalog().GetLanguages() == std::vector<KString>{ "de", "en", "es", "fr", "it", "ja", "ko", "nl", "zh-Hans", "zh-Hant" }) );
+		CHECK ( Localized.GetCatalog().Get("en", "app.hello")        == "Hello"        );
+		CHECK ( Localized.GetCatalog().Get("nl", "app.hello")        == "Hallo"        );
+		CHECK ( Localized.GetCatalog().Get("en", "kwa.login.submit") == "Let me in"    ); // overridden
+		CHECK ( Localized.GetCatalog().Get("de", "kwa.login.submit") == "Anmelden"     ); // ours
+		CHECK ( Localized.GetCatalog().Get("nl", "kwa.login.submit") == "Let me in"    ); // nl has none, the default
+		// the requested nl-BE becomes the available nl
+		CHECK ( Localized.GetLanguage() == "nl" );
+
+		KWebApp::Options Unknown;
+		Unknown.bWindow   = false;
+		Unknown.sLanguage = "xx";
+		KWebApp English(std::move(Unknown), Routes);
+		CHECK ( English.GetLanguage() == "en" );
+	}
+
 	SECTION("secrets")
 	{
 		// a key of its own, in case a run before left one behind
@@ -385,6 +426,24 @@ TEST_CASE("KWebApp network")
 		HTTP.json.tx["page"] = "native";
 	}});
 
+	// a page that hands its texts to the script, in the request's language
+	KWebApp* pApp { nullptr };
+
+	Routes.AddRoute({ KHTTPMethod::GET, false, "/strings", [&pApp](KRESTServer& HTTP)
+	{
+		auto T = pApp->Text(HTTP);
+		html::Page Page("strings", T.GetTag());
+		Page.Add<html::Heading>(1, T("app.title"));
+		pApp->AddStrings(Page, HTTP, "app");
+		Page.Generate();
+		HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::HTML_UTF8);
+		HTTP.SetRawOutput(Page.Print());
+	}});
+
+	KStringCatalog Mine("en");
+	Mine.AddLanguage("en", kjson::Parse(R"({ "app.title": "Files", "app.bye": "Bye </script> {name}" })"));
+	Mine.AddLanguage("de", kjson::Parse(R"({ "app.title": "Dateien", "app.bye": "Tschüss </script> {name}" })"));
+
 	// the servers alone, the network one on a loopback address with a fresh
 	// ephemeral certificate that is not written to disk
 	KWebApp::Options Options;
@@ -393,6 +452,8 @@ TEST_CASE("KWebApp network")
 	Options.Network.sBindAddress        = "127.0.0.1";
 	Options.Network.bStoreEphemeralCert = false;
 	Options.WindowOnlyPaths             = { "/native" };
+	Options.Catalog                     = &Mine;
+	Options.sLanguage                   = "en";
 	Options.Authenticate                = [](KStringView sUser, KStringView sPassword)
 	{
 		return sUser == "alice" && sPassword == "secret";
@@ -400,6 +461,7 @@ TEST_CASE("KWebApp network")
 
 	KWebApp App(std::move(Options), Routes);
 	REQUIRE ( App.HasError() == false );
+	pApp = &App;
 
 	auto iPort = App.GetNetworkPort();
 	CHECK ( iPort        != 0 );
@@ -460,6 +522,87 @@ TEST_CASE("KWebApp network")
 
 		R = TLSRequest(iPort, "GET /login?error=1 HTTP/1.1", { sHost });
 		CHECK ( R.sBody.contains("Wrong user name") );
+	}
+
+	SECTION("the login page speaks the request's language")
+	{
+		// Accept-Language decides, the built-in German texts are there
+		auto R = TLSRequest(iPort, "GET /login HTTP/1.1", { sHost, "Accept-Language: de-CH, de;q=0.9, en;q=0.5" });
+		CHECK ( R.iStatus == 200 );
+		CHECK ( R.sBody.contains("Benutzername")   == true  );
+		CHECK ( R.sBody.contains("<html lang=\"de\"") == true );
+
+		// a language without a catalog falls back to the default
+		R = TLSRequest(iPort, "GET /login?error=1 HTTP/1.1", { sHost, "Accept-Language: nl" });
+		CHECK ( R.sBody.contains("User name")  == true );
+		CHECK ( R.sBody.contains("Wrong user name or password.") == true );
+
+		// the cookie wins over Accept-Language
+		R = TLSRequest(iPort, "GET /login HTTP/1.1", { sHost, "Accept-Language: en", "Cookie: lang=de" });
+		CHECK ( R.sBody.contains("Passwort") == true );
+
+		// a cookie with a language the catalog lacks is ignored
+		R = TLSRequest(iPort, "GET /login HTTP/1.1", { sHost, "Accept-Language: de", "Cookie: lang=nl" });
+		CHECK ( R.sBody.contains("Passwort") == true );
+
+		// no header at all: the language of the menus
+		R = TLSRequest(iPort, "GET /login HTTP/1.1", { sHost });
+		CHECK ( R.sBody.contains("User name") == true );
+
+		// Chinese by region: Taiwan gets the Traditional catalog, the mainland the Simplified one
+		R = TLSRequest(iPort, "GET /login HTTP/1.1", { sHost, "Accept-Language: zh-TW, zh;q=0.9, en;q=0.8" });
+		CHECK ( R.sBody.contains("使用者名稱")                   == true );
+		CHECK ( R.sBody.contains("<html lang=\"zh-Hant\"")     == true );
+
+		R = TLSRequest(iPort, "GET /login HTTP/1.1", { sHost, "Accept-Language: zh-CN" });
+		CHECK ( R.sBody.contains("用户名")                       == true );
+		CHECK ( R.sBody.contains("<html lang=\"zh-Hans\"")     == true );
+
+		R = TLSRequest(iPort, "GET /login HTTP/1.1", { sHost, "Accept-Language: ja-JP" });
+		CHECK ( R.sBody.contains("ユーザー名")                   == true );
+		CHECK ( R.sBody.contains("<html lang=\"ja\"")          == true );
+	}
+
+	SECTION("choosing a language")
+	{
+		// open without login, sets the cookie and goes back
+		auto R = TLSRequest(iPort, "POST /_kwa/lang HTTP/1.1", { sHost }, "lang=de&next=/login");
+		CHECK ( R.iStatus == 302 );
+		CHECK ( R.Header("location") == "/login" );
+		CHECK ( R.Header("set-cookie").starts_with("lang=de;") );
+		CHECK ( R.Header("set-cookie").contains("Secure")   );
+		CHECK ( R.Header("set-cookie").contains("SameSite=Strict") );
+
+		// an unknown language becomes the default, the redirect stays on our origin
+		R = TLSRequest(iPort, "POST /_kwa/lang HTTP/1.1", { sHost }, "lang=xx&next=//evil.example/");
+		CHECK ( R.iStatus == 302 );
+		CHECK ( R.Header("location") == "/" );
+		CHECK ( R.Header("set-cookie").starts_with("lang=en;") );
+
+		// a regional tag becomes the catalog that serves it
+		R = TLSRequest(iPort, "POST /_kwa/lang HTTP/1.1", { sHost }, "lang=zh-TW&next=/login");
+		CHECK ( R.Header("set-cookie").starts_with("lang=zh-Hant;") );
+	}
+
+	SECTION("the page gets its texts for the script")
+	{
+		auto sCookie = LogIn();
+
+		auto R = TLSRequest(iPort, "GET /strings HTTP/1.1", { sHost, sCookie, "Accept-Language: de" });
+		CHECK ( R.iStatus == 200 );
+		CHECK ( R.sBody.contains("<html lang=\"de\"")  == true );
+		CHECK ( R.sBody.contains("<h1>")                == true ); // the page prints the heading over several lines
+		CHECK ( R.sBody.contains("Dateien")             == true );
+		CHECK ( R.sBody.contains("window.kText = {")    == true );
+		CHECK ( R.sBody.contains("\"lang\":\"de\"")     == true );
+		CHECK ( R.sBody.contains("\"title\":\"Dateien\"") == true );
+		// the namespace prefix is stripped, and a message cannot end the script element
+		CHECK ( R.sBody.contains("\"bye\":\"Tschüss <\\/script> {name}\"") == true );
+		CHECK ( R.sBody.contains("</script> {name}") == false );
+
+		R = TLSRequest(iPort, "GET /strings HTTP/1.1", { sHost, sCookie, "Accept-Language: en-GB" });
+		CHECK ( R.sBody.contains("Files")   == true  );
+		CHECK ( R.sBody.contains("Dateien") == false );
 	}
 
 	SECTION("wrong password")

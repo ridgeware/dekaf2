@@ -229,7 +229,7 @@ x-klog: -level 1
 			"{}",
 			sBody.size(), sBody), KRESTServer::CGI);
 
-		CHECK ( sResponse.starts_with("HTTP/1.1 200") );
+		CHECK ( sResponse.starts_with("Status: 200") );
 		CHECK_FALSE ( sResponse.contains("100 Continue") );
 	}
 
@@ -307,7 +307,7 @@ x-klog: -level 1
 
 		// behind a CGI web server it is neither
 		auto sCGI = Serve(KRESTServer::CGI);
-		CHECK ( sCGI.starts_with("http/1.1 200") );
+		CHECK ( sCGI.starts_with("status: 200") );
 		CHECK_FALSE ( sCGI.contains("content-encoding:") );
 		CHECK_FALSE ( sCGI.contains("transfer-encoding:") );
 		CHECK ( sCGI.contains("content-length:") );
@@ -354,6 +354,46 @@ x-klog: -level 1
 		CHECK ( jCookies.size() == 2 );
 		CHECK ( jCookies[0] == "session=abc; Path=/" );
 		CHECK ( jCookies[1] == "theme=dark; Path=/" );
+	}
+
+	SECTION("CGI response head")
+	{
+		// RFC 3875 6.3.3: a CGI response starts with a Status header field, not
+		// with an HTTP status line - the web server builds that itself. This holds
+		// for the regular output and for the error path alike
+		auto Serve = [](KStringView sPath) -> KString
+		{
+			KString sRequest = kFormat(
+				"GET {} HTTP/1.1\r\n"
+				"Host: localhost\r\n"
+				"\r\n", sPath);
+
+			KString sResponse;
+			KInStringStream iss(sRequest);
+			KOutStringStream oss(sResponse);
+			KStream stream(iss, oss);
+			KRESTServer::Options Options;
+			Options.Out = KRESTServer::CGI;
+			KRESTRoutes Routes;
+			Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+			{
+				http.json.tx["response"] = "hello world";
+			}});
+			KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+			Server.Execute();
+			return sResponse;
+		};
+
+		auto sResponse = Serve("/test");
+		CHECK ( sResponse.starts_with("Status: 200 OK\r\n") );
+		CHECK_FALSE ( sResponse.contains("HTTP/1.1") );
+		CHECK_FALSE ( sResponse.ToLowerASCII().contains("connection:") );
+		CHECK ( sResponse.contains("\"response\"") );
+
+		sResponse = Serve("/nowhere");
+		CHECK ( sResponse.starts_with("Status: 404") );
+		CHECK_FALSE ( sResponse.contains("HTTP/1.1") );
+		CHECK_FALSE ( sResponse.ToLowerASCII().contains("connection:") );
 	}
 
 	SECTION("decompression bomb protection")

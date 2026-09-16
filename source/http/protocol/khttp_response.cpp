@@ -153,7 +153,16 @@ bool KHTTPResponseHeaders::Serialize(KOutStream& Stream) const
 		sStatus = KHTTPError::GetStatusString(iStatusCode);
 	}
 
-	if (!Stream.FormatLine("{} {} {}", GetHTTPVersion(), iStatusCode, sStatus))
+	if (m_bCGIResponse)
+	{
+		// RFC 3875 6.3.3: a CGI response carries the status in a header field,
+		// the web server builds the status line for the client itself
+		if (!Stream.FormatLine("Status: {} {}", iStatusCode, sStatus))
+		{
+			return SetError("Cannot write headers");
+		}
+	}
+	else if (!Stream.FormatLine("{} {} {}", GetHTTPVersion(), iStatusCode, sStatus))
 	{
 		return SetError("Cannot write headers");
 	}
@@ -176,7 +185,8 @@ void KHTTPResponseHeaders::clear()
 {
 	KHTTPHeaders::clear();
 	sStatusString.clear();
-	iStatusCode = 0;
+	iStatusCode    = 0;
+	m_bCGIResponse = false;
 
 } // clear
 

@@ -543,6 +543,39 @@ TEST_CASE("KREST")
 		}
 	}
 
+	SECTION("CGI simulation from file keeps HTTP framing")
+	{
+		// "xapis -cgi <file>" runs a request file through the CGI input path. Its
+		// output contract is an HTTP framed response (the smoketest baselines
+		// start with the status line), not the Status: header of a real CGI
+		KTempDir TempDir;
+		auto sFile = kFormat("{}/request.in", TempDir.Name());
+		REQUIRE ( kWriteFile(sFile,
+			"# comment lines are permitted in simulated requests\n"
+			"GET /test HTTP/1.0\r\n"
+			"Host: localhost\r\n"
+			"\r\n") );
+
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
+		{
+			http.json.tx["response"] = "hello world";
+		}});
+
+		KREST::Options Options;
+		Options.Type               = KREST::CGI;
+		Options.Simulate.sFilename = sFile;
+
+		KString sResponse;
+		KOutStringStream oss(sResponse);
+		KREST REST;
+		REQUIRE ( REST.ExecuteFromFile(Options, Routes, oss) );
+
+		CHECK ( sResponse.starts_with("HTTP/1.1 200 OK\r\n") );
+		CHECK_FALSE ( sResponse.contains("Status:") );
+		CHECK ( sResponse.contains("\"response\"") );
+	}
+
 	SECTION("HTTP bind address")
 	{
 		KRESTRoutes Routes;

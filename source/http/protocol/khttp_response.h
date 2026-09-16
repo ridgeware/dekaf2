@@ -114,12 +114,35 @@ public:
 	bool HasChunking() const;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Write the response head in CGI form (RFC 3875 6.3.3): a "Status:" header field
+	/// instead of the HTTP status line, for output that a web server parses and frames
+	/// itself (CGI, FastCGI). Reset by clear()
+	void SetCGIResponse(bool bYesNo = true)
+	//-----------------------------------------------------------------------------
+	{
+		m_bCGIResponse = bYesNo;
+	}
+
+	//-----------------------------------------------------------------------------
+	bool IsCGIResponse() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bCGIResponse;
+	}
+
 //------
 public:
 //------
 
 	KString  sStatusString;
 	uint16_t iStatusCode { 0 };
+
+//------
+private:
+//------
+
+	bool     m_bCGIResponse { false };
 
 }; // KHTTPResponseHeaders
 

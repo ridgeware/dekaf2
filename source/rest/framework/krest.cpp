@@ -536,7 +536,10 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 					}
 				}
 				KStream Stream(CGI, OutStream);
-				Options.Out = KRESTServer::CGI;
+				// the simulation runs the request through the CGI input path, but its
+				// output is an HTTP framed response for a test harness - the xapis
+				// smoketest baselines compare against exactly that
+				Options.Out = KRESTServer::HTTP;
 				RealExecute(Options,
 							Routes,
 							Stream,

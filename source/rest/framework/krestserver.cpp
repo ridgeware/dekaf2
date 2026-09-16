@@ -926,6 +926,7 @@ bool KRESTServer::Execute()
 			}
 
 			Response.SetStatus(200, "OK");
+			Response.SetCGIResponse(m_Options.Out == CGI);
 
 			if ((Request.GetHTTPVersion() & ~KHTTPVersion::http10) == KHTTPVersion::none)
 			{
@@ -1386,7 +1387,16 @@ void KRESTServer::WriteHeaders()
 			m_bKeepAlive = false;
 		}
 
-		Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive ? "keep-alive" : "close");
+		if (m_Options.Out == CGI)
+		{
+			// the connection to the client belongs to the web server - a CGI must
+			// not return connection related header fields (RFC 3875 6.3.4)
+			Response.Headers.Remove(KHTTPHeader::CONNECTION);
+		}
+		else
+		{
+			Response.Headers.Set (KHTTPHeader::CONNECTION, m_bKeepAlive ? "keep-alive" : "close");
+		}
 	}
 
 	{
@@ -1907,6 +1917,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 	// we need to set the HTTP version here explicitly, as we could throw as early
 	// that no version is set - which will corrupt headers and body..
 	Response.SetHTTPVersion(KHTTPVersion::http11);
+	Response.SetCGIResponse(m_Options.Out == CGI);
 
 	// do not compress/chunk error messages on connection close
 	ConfigureCompression(false);
@@ -1959,7 +1970,15 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 				}
 			}
 
-			Response.Headers.Set(KHTTPHeader::CONNECTION, "close");
+			if (m_Options.Out == CGI)
+			{
+				// no connection related header fields from a CGI (RFC 3875 6.3.4)
+				Response.Headers.Remove(KHTTPHeader::CONNECTION);
+			}
+			else
+			{
+				Response.Headers.Set(KHTTPHeader::CONNECTION, "close");
+			}
 
 			{
 				KCountingOutputStreamBuf OutputCounter(Response.UnfilteredStream());

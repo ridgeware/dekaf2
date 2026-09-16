@@ -35,15 +35,19 @@ constexpr KStringView sNotesPath    = "/notes";
 constexpr KStringView sDownloadPath = "/download";
 
 // colors as tokens, the dark set both for the system preference and for the
-// explicit choice, so that the page's toggle wins in both directions
+// explicit choice, so that the page's toggle wins in both directions. The
+// explicit choice also sets color-scheme, which the browser uses for its own
+// controls (scrollbars, checkboxes, select lists); "light dark" alone would
+// follow the system preference there
 constexpr KStringView sStyle = R"css(
 :root { color-scheme: light dark;
 	--bg: #ffffff; --fg: #1d1d1f; --muted: #6e6e73; --panel: #f5f5f7; --border: #d2d2d7; --accent: #0a66c2;
 	--mono: ui-monospace, Menlo, Consolas, monospace; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
 	--bg: #1c1c1e; --fg: #f5f5f7; --muted: #98989d; --panel: #2c2c2e; --border: #3a3a3c; --accent: #4c9aff; } }
-:root[data-theme="dark"] {
+:root[data-theme="dark"] { color-scheme: dark;
 	--bg: #1c1c1e; --fg: #f5f5f7; --muted: #98989d; --panel: #2c2c2e; --border: #3a3a3c; --accent: #4c9aff; }
+:root[data-theme="light"] { color-scheme: light; }
 body { margin: 0; height: 100vh; display: flex; flex-direction: column; background: var(--bg); color: var(--fg);
 	font: 14px/1.4 -apple-system, "Segoe UI", Helvetica, sans-serif; }
 header { display: flex; align-items: center; gap: 1em; padding: .6em 1em; border-bottom: 1px solid var(--border); background: var(--panel); }

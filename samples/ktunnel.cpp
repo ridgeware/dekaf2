@@ -2351,15 +2351,21 @@ void OutletHost::RunRepl(std::shared_ptr<KTunnel::Connection> Connection)
 					"  check <host:port> - test a TCP connect to a target from this host\n"
 					"  version           - build version\n";
 
+#ifdef DEKAF2_HAS_PIPES
 				if (!m_Config.sShellPasswordHash.empty())
 				{
 					sReply += "  shell             - open an interactive shell (asks for a password)\n";
 				}
+#endif
 
 				sReply += "  exit              - close this REPL session\n";
 			}
 			else if (sCmd == "shell")
 			{
+#ifndef DEKAF2_HAS_PIPES
+				// the shell runs on a pseudo-terminal, which this platform does not have
+				sReply = "shell login is not available on this platform\n";
+#else
 				if (m_Config.sShellPasswordHash.empty())
 				{
 					sReply = "shell login is not enabled on this host\n";
@@ -2398,6 +2404,7 @@ void OutletHost::RunRepl(std::shared_ptr<KTunnel::Connection> Connection)
 					Connection->WriteData("[shell closed]\n> ");
 					continue;
 				}
+#endif // DEKAF2_HAS_PIPES
 			}
 			else if (sCmd == "status")
 			{
@@ -2488,6 +2495,8 @@ void OutletHost::RunRepl(std::shared_ptr<KTunnel::Connection> Connection)
 
 } // OutletHost::RunRepl
 
+#ifdef DEKAF2_HAS_PIPES
+
 //-----------------------------------------------------------------------------
 void OutletHost::RunShell(KTunnel::Connection& Connection)
 //-----------------------------------------------------------------------------
@@ -2555,6 +2564,8 @@ void OutletHost::RunShell(KTunnel::Connection& Connection)
 	}
 
 } // RunShell
+
+#endif // DEKAF2_HAS_PIPES
 
 //-----------------------------------------------------------------------------
 void OutletHost::Run()

@@ -828,12 +828,16 @@ private:
 	/// when the remote end disconnects or the user types 'exit'.
 	void RunRepl (std::shared_ptr<KTunnel::Connection> Connection);
 
+#ifdef DEKAF2_HAS_PIPES
 	/// Interactive shell over the REPL channel, entered from RunRepl() on
 	/// the `shell` command after a correct password. Spawns a login shell
 	/// on a pseudo-terminal and pumps bytes between it and the Connection
 	/// until either side closes. Only reachable when a shell password hash
-	/// is configured (see ExtendedConfig::sShellPasswordHash).
+	/// is configured (see ExtendedConfig::sShellPasswordHash). The
+	/// pseudo-terminal (KPTY) exists on POSIX systems only, so Windows has
+	/// no shell command.
 	void RunShell (KTunnel::Connection& Connection);
+#endif
 
 	const ExtendedConfig&           m_Config;
 	std::atomic<bool>               m_bQuit            { false };

@@ -207,11 +207,25 @@ int Stream::AddResponseHeader  (ID id, KStringView sName, KStringView sValue)
 		{
 			if (sName == ":status")
 			{
-				kDebug(2, "[stream {}] setting HTTP response status to {}", id, sValue.UInt16());
-				m_ResponseHeaders->SetStatus(sValue.UInt16());
-				m_ResponseHeaders->SetHTTPVersion(KHTTPVersion::http3);
+				auto iStatus = sValue.UInt16();
+
+				// a 1xx interim response (RFC 9110 15.2, e.g. 103 Early Hints) is not
+				// the response - drop its headers and wait for the final one. HTTP/3
+				// has no 101, so every 1xx is interim.
+				m_bIsInterimResponse = (iStatus / 100 == 1);
+
+				if (m_bIsInterimResponse)
+				{
+					kDebug(2, "[stream {}] skipping interim response {}", id, iStatus);
+				}
+				else
+				{
+					kDebug(2, "[stream {}] setting HTTP response status to {}", id, iStatus);
+					m_ResponseHeaders->SetStatus(iStatus);
+					m_ResponseHeaders->SetHTTPVersion(KHTTPVersion::http3);
+				}
 			}
-			else
+			else if (!m_bIsInterimResponse)
 			{
 				kDebug(2, "[stream {}] {}: {}", id, sName, sValue);
 				m_ResponseHeaders->Headers.Add(sName, sValue);
@@ -227,6 +241,24 @@ int Stream::AddResponseHeader  (ID id, KStringView sName, KStringView sValue)
 	return 0;
 
 } // AddResponseHeader
+
+//-----------------------------------------------------------------------------
+bool Stream::EndResponseHeaders(ID id)
+//-----------------------------------------------------------------------------
+{
+	if (m_bIsInterimResponse)
+	{
+		// the final response headers are still to come
+		m_bIsInterimResponse = false;
+		return false;
+	}
+
+	kDebug(4, "[stream {}] headers complete", id);
+	SetHeadersComplete();
+
+	return true;
+
+} // EndResponseHeaders
 
 //-----------------------------------------------------------------------------
 int Stream::Reset(int64_t iAppErrorCode)
@@ -954,12 +986,13 @@ int Session::OnReceiveHeader(Stream::ID StreamID, KStringView sName, KStringView
 int Session::OnEndHeaders(Stream::ID StreamID, int fin)
 //-----------------------------------------------------------------------------
 {
-	kDebug(4, "[stream {}] headers complete", StreamID);
+	kDebug(4, "[stream {}] header block received", StreamID);
 	auto Stream = GetStream(StreamID);
 
-	if (Stream)
+	// completes the headers, unless this block was a 1xx interim response
+	if (Stream && !Stream->IsHeadersComplete())
 	{
-		Stream->SetHeadersComplete();
+		Stream->EndResponseHeaders(StreamID);
 	}
 
 	return 0;

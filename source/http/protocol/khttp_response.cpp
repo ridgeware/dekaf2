@@ -41,6 +41,7 @@
 
 #include <dekaf2/http/protocol/khttp_response.h>
 #include <dekaf2/http/server/khttperror.h>
+#include <dekaf2/core/logging/klog.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -49,52 +50,86 @@ DEKAF2_NAMESPACE_BEGIN
 bool KHTTPResponseHeaders::Parse(KInStream& Stream)
 //-----------------------------------------------------------------------------
 {
-	KString sLine;
+	// A server may send any number of 1xx interim responses ahead of the final
+	// response (RFC 9110 15.2), e.g. "103 Early Hints" before every response
+	// from an origin behind Cloudflare. They are skipped here. 101 is not
+	// interim, it is the final response to an upgrade request.
+	static constexpr uint16_t iMaxInterimResponses = 16;
 
 	// make sure we detect an empty header
 	Stream.SetReaderRightTrim("\r\n");
 
-	if (!Stream.ReadLine(sLine))
+	for (uint16_t iInterimResponse = 0; ; ++iInterimResponse)
 	{
-		// this is simply a read timeout, probably on a keep-alive
-		// connection. Unset the error string and return false;
-		return SetError("");
+		KString sLine;
+
+		if (!Stream.ReadLine(sLine))
+		{
+			if (iInterimResponse == 0)
+			{
+				// this is simply a read timeout, probably on a keep-alive
+				// connection. Unset the error string and return false;
+				return SetError("");
+			}
+
+			return SetError("read error after interim response");
+		}
+
+		if (sLine.empty())
+		{
+			return SetError("empty status line");
+		}
+
+		// analyze protocol and status
+		// HTTP/1.1 200 Message with arbitrary words
+
+		auto Words = sLine.Split(" ");
+
+		if (Words.size() < 2)
+		{
+			// garbage, bail out
+			return SetError("cannot read HTTP response status");
+		}
+
+		SetHTTPVersion(Words[0]);
+		iStatusCode  = Words[1].UInt16();
+
+		if (Words.size() > 2)
+		{
+			// this actually copies the reminder of the sLine
+			// into m_sMessage. It looks dangerous but is absolutely
+			// clean, as data() returns a pointer into sLine, which
+			// itself is 0-terminated
+			sStatusString.assign(Words[2].data());
+		}
+		else
+		{
+			sStatusString.clear();
+		}
+
+		if (GetHTTPVersion() == KHTTPVersion::none)
+		{
+			return SetError(kFormat("invalid HTTP version: {}", Words[0]));
+		}
+
+		// KHTTPHeaders::Parse() drops the headers of a preceding interim response
+		if (!KHTTPHeaders::Parse(Stream))
+		{
+			return false;
+		}
+
+		if (iStatusCode / 100 != 1 || iStatusCode == KHTTPError::H1xx_SWITCHING_PROTOCOLS)
+		{
+			return true;
+		}
+
+		if (iInterimResponse >= iMaxInterimResponses)
+		{
+			return SetError(kFormat("more than {} interim responses", iMaxInterimResponses));
+		}
+
+		kDebug(2, "skipping interim response: {} {}", iStatusCode, sStatusString);
 	}
-
-	if (sLine.empty())
-	{
-		return SetError("empty status line");
-	}
-
-	// analyze protocol and status
-	// HTTP/1.1 200 Message with arbitrary words
-
-	auto Words = sLine.Split(" ");
-
-	if (Words.size() < 2)
-	{
-		// garbage, bail out
-		return SetError("cannot read HTTP response status");
-	}
-
-	SetHTTPVersion(Words[0]);
-	iStatusCode  = Words[1].UInt16();
-
-	if (Words.size() > 2)
-	{
-		// this actually copies the reminder of the sLine
-		// into m_sMessage. It looks dangerous but is absolutely
-		// clean, as data() returns a pointer into sLine, which
-		// itself is 0-terminated
-		sStatusString.assign(Words[2].data());
-	}
-
-	if (GetHTTPVersion() == KHTTPVersion::none)
-	{
-		return SetError(kFormat("invalid HTTP version: {}", Words[0]));
-	}
-
-	return KHTTPHeaders::Parse(Stream);
 
 } // Parse
 

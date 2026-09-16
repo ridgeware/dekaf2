@@ -148,7 +148,12 @@ public:
 	KStringView   GetMethod          () const         { return m_Method.Serialize(); }
 
 	/// adds an incoming response header. id is only used for logging purposes.
+	/// Headers of a 1xx interim response are dropped.
 	int           AddResponseHeader  (ID id, KStringView sName, KStringView sValue);
+	/// called at the end of a response header block - completes the headers,
+	/// except after a 1xx interim response, whose final response is still to come
+	/// @returns true if the headers are complete now
+	bool          EndResponseHeaders (ID id);
 	/// called once all headers are received
 	void          SetHeadersComplete ()               { m_bHeadersComplete = true; }
 	/// returns state of all headers received
@@ -227,11 +232,11 @@ private:
 	};
 
 	Session&                       m_Session;
-	ID                             m_StreamID          { -1 };
+	ID                             m_StreamID           { -1 };
 	std::unique_ptr<KDataProvider> m_DataProvider;
 	std::unique_ptr<KDataConsumer> m_DataConsumer;
-	const KHTTPRequestHeaders*     m_RequestHeaders   { nullptr };
-	KHTTPResponseHeaders*          m_ResponseHeaders  { nullptr };
+	const KHTTPRequestHeaders*     m_RequestHeaders     { nullptr };
+	KHTTPResponseHeaders*          m_ResponseHeaders    { nullptr };
 	KURL                           m_URI;
 	KString                        m_sAuthority;
 	KString                        m_sPath;
@@ -240,15 +245,16 @@ private:
 	std::unique_ptr<BufferedData>  m_IdleBuffer;
 	std::vector<std::unique_ptr<BufferedData>>
 	                               m_TXBuffer;
-	std::size_t                    m_iTotalTXData      { 0 };
-	std::size_t                    m_iTotalAckedTXData { 0 };
+	std::size_t                    m_iTotalTXData       { 0 };
+	std::size_t                    m_iTotalAckedTXData  { 0 };
 	KHTTPMethod                    m_Method;
 	Type                           m_Type;
-	bool                           m_bHeadersComplete {   false };
-	bool                           m_bDoneReceivedFin {   false };
-	bool                           m_bIsClosed        {   false };
-	bool                           m_bIsBlocked       {   false };
-	WaitFor                        m_WaitFor          { Nothing };
+	bool                           m_bHeadersComplete   {   false };
+	bool                           m_bIsInterimResponse {   false };
+	bool                           m_bDoneReceivedFin   {   false };
+	bool                           m_bIsClosed          {   false };
+	bool                           m_bIsBlocked         {   false };
+	WaitFor                        m_WaitFor            { Nothing };
 
 }; // Stream
 

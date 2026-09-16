@@ -78,6 +78,7 @@ set (USOURCES
 	khttp_header_tests.cpp
 	khttp_method_tests.cpp
 	khttp_request_tests.cpp
+	khttp_response_tests.cpp
 	khttpclient_tests.cpp
 	khttp2_tests.cpp
 	khttp3_tests.cpp

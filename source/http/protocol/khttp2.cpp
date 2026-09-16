@@ -172,11 +172,25 @@ void Stream::AddResponseHeader(ID id, KStringView sName, KStringView sValue)
 	{
 		if (sName == ":status")
 		{
-			kDebug(2, "[stream {}] setting HTTP response status to {}", id, sValue.UInt16());
-			m_ResponseHeaders.SetStatus(sValue.UInt16());
-			m_ResponseHeaders.SetHTTPVersion(KHTTPVersion::http2);
+			auto iStatus = sValue.UInt16();
+
+			// a 1xx interim response (RFC 9110 15.2, e.g. 103 Early Hints) is not
+			// the response - drop its headers and wait for the final one. HTTP/2
+			// has no 101, so every 1xx is interim.
+			m_bIsInterimResponse = (iStatus / 100 == 1);
+
+			if (m_bIsInterimResponse)
+			{
+				kDebug(2, "[stream {}] skipping interim response {}", id, iStatus);
+			}
+			else
+			{
+				kDebug(2, "[stream {}] setting HTTP response status to {}", id, iStatus);
+				m_ResponseHeaders.SetStatus(iStatus);
+				m_ResponseHeaders.SetHTTPVersion(KHTTPVersion::http2);
+			}
 		}
-		else
+		else if (!m_bIsInterimResponse)
 		{
 			kDebug(2, "[stream {}] {}: {}", id, sName, sValue);
 			m_ResponseHeaders.Headers.Add(sName, sValue);
@@ -184,6 +198,24 @@ void Stream::AddResponseHeader(ID id, KStringView sName, KStringView sValue)
 	}
 
 } // AddResponseHeader
+
+//-----------------------------------------------------------------------------
+bool Stream::EndResponseHeaders(ID id)
+//-----------------------------------------------------------------------------
+{
+	if (m_bIsInterimResponse)
+	{
+		// the final response headers are still to come
+		m_bIsInterimResponse = false;
+		return false;
+	}
+
+	kDebug(4, "[stream {}] setting headers complete", id);
+	SetHeadersComplete();
+
+	return true;
+
+} // EndResponseHeaders
 
 //-----------------------------------------------------------------------------
 void Stream::Close ()
@@ -603,7 +635,12 @@ int Session::OnHeader (const void* frame, KStringView sName, KStringView sValue,
 {
 	auto Frame = static_cast<const nghttp2_frame*>(frame);
 
-	if (Frame->hd.type == NGHTTP2_HEADERS && Frame->headers.cat == NGHTTP2_HCAT_RESPONSE)
+	// nghttp2 categorizes the first header block as HCAT_RESPONSE - which may be
+	// a 1xx interim response - and every following one (the final response after
+	// an interim one, or trailers) as HCAT_HEADERS. AddResponseHeader() sorts
+	// them out.
+	if (Frame->hd.type == NGHTTP2_HEADERS &&
+	    (Frame->headers.cat == NGHTTP2_HCAT_RESPONSE || Frame->headers.cat == NGHTTP2_HCAT_HEADERS))
 	{
 		auto Stream = GetStream(Frame->hd.stream_id);
 
@@ -628,7 +665,8 @@ int Session::OnBeginHeaders (const void* frame)
 {
 	auto Frame = static_cast<const nghttp2_frame*>(frame);
 
-	if (Frame->hd.type == NGHTTP2_HEADERS && Frame->headers.cat == NGHTTP2_HCAT_RESPONSE)
+	if (Frame->hd.type == NGHTTP2_HEADERS &&
+	    (Frame->headers.cat == NGHTTP2_HCAT_RESPONSE || Frame->headers.cat == NGHTTP2_HCAT_HEADERS))
 	{
 		kDebug(4, "[stream {}] response header start", Frame->hd.stream_id);
 	}
@@ -652,16 +690,18 @@ int Session::OnFrameRecv (const void* frame)
 		kDebug(4, "[stream {}] frame type: {}", Frame->hd.stream_id, TranslateFrameType(Frame->hd.type));
 	}
 
-	if (Frame->hd.type == NGHTTP2_HEADERS && Frame->headers.cat == NGHTTP2_HCAT_RESPONSE)
+	if (Frame->hd.type == NGHTTP2_HEADERS &&
+	    (Frame->headers.cat == NGHTTP2_HCAT_RESPONSE || Frame->headers.cat == NGHTTP2_HCAT_HEADERS))
 	{
-		kDebug(4, "[stream {}] all headers received", Frame->hd.stream_id);
+		kDebug(4, "[stream {}] header block received", Frame->hd.stream_id);
 
 		auto Stream = GetStream(Frame->hd.stream_id);
 
-		if (Stream)
+		// completes the headers, unless this block was a 1xx interim response -
+		// a block after completion is a trailer and changes nothing
+		if (Stream && !Stream->IsHeadersComplete())
 		{
-			kDebug(4, "[stream {}] setting headers complete", Frame->hd.stream_id);
-			Stream->SetHeadersComplete();
+			Stream->EndResponseHeaders(Frame->hd.stream_id);
 		}
 	}
 	else if (Frame->hd.flags & NGHTTP2_FLAG_END_STREAM)

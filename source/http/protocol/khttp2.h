@@ -109,7 +109,12 @@ public:
 	KStringView   GetMethod          () const         { return m_Method.Serialize(); }
 
 	/// adds an incoming response header. id is only used for logging purposes.
+	/// Headers of a 1xx interim response are dropped.
 	void          AddResponseHeader  (ID id, KStringView sName, KStringView sValue);
+	/// called at the end of a response header block - completes the headers,
+	/// except after a 1xx interim response, whose final response is still to come
+	/// @returns true if the headers are complete now
+	bool          EndResponseHeaders (ID id);
 	/// called once all headers are received
 	void          SetHeadersComplete ()               { m_bHeadersComplete = true; }
 	/// returns state of all headers received
@@ -143,8 +148,9 @@ private:
 	KString                        m_sAuthority;
 	KString                        m_sPath;
 	KHTTPMethod                    m_Method;
-	bool                           m_bHeadersComplete { false };
-	bool                           m_bIsClosed        { false };
+	bool                           m_bHeadersComplete   { false };
+	bool                           m_bIsInterimResponse { false };
+	bool                           m_bIsClosed          { false };
 
 }; // Stream
 

@@ -1205,6 +1205,30 @@ void CancelAttention(void* pWindow, int64_t /*iRequest*/)
 } // CancelAttention
 
 //-----------------------------------------------------------------------------
+bool SetTrayIcon(void* /*pWindow*/, KStringView /*sAppName*/, KStringView /*sIcon*/, const KJSON& /*jMenu*/, std::function<void(KStringView)> /*OnAction*/)
+//-----------------------------------------------------------------------------
+{
+	// GTK 4 has no status icons; the way would be a StatusNotifierItem over D-Bus
+	kDebug(2, "no tray symbol on this platform yet");
+	return false;
+
+} // SetTrayIcon
+
+//-----------------------------------------------------------------------------
+bool UpdateTrayIcon(KStringView /*sIcon*/)
+//-----------------------------------------------------------------------------
+{
+	return false;
+
+} // UpdateTrayIcon
+
+//-----------------------------------------------------------------------------
+void RemoveTrayIcon()
+//-----------------------------------------------------------------------------
+{
+} // RemoveTrayIcon
+
+//-----------------------------------------------------------------------------
 bool SetNavigationPolicy(void* pWebView, NavigationPolicy Policy)
 //-----------------------------------------------------------------------------
 {

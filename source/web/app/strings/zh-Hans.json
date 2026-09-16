@@ -20,5 +20,6 @@
 	"kwa.menu.window":         "窗口",
 	"kwa.menu.window.minimize": "最小化",
 	"kwa.menu.window.zoom":    "缩放",
-	"kwa.menu.window.front":   "前置全部窗口"
+	"kwa.menu.window.front":   "前置全部窗口",
+	"kwa.tray.open":           "打开 {app}"
 }

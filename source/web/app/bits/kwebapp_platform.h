@@ -129,6 +129,19 @@ void SetBadge(KStringView sText);
 int64_t RequestAttention(void* pWindow, bool bCritical);
 /// stop asking for attention
 void CancelAttention(void* pWindow, int64_t iRequest);
+/// a symbol in the menu bar (macOS) or the notification area (Windows) with a
+/// menu. The entries are like a menu's in SetMenu(): titles already in the
+/// user's language, an action per entry, reported to OnAction - "show" and
+/// "quit" are the shell's own. sIcon names an image file, on macOS also an SF
+/// Symbol as "sf:<name>"; empty takes the application's icon. A second call
+/// replaces the menu. False where the platform has no such symbol
+bool SetTrayIcon(void* pWindow, KStringView sAppName, KStringView sIcon, const KJSON& jMenu,
+                 std::function<void(KStringView sAction)> OnAction);
+/// swap the symbol's image, e.g. for an attention state - empty restores the
+/// application's icon
+bool UpdateTrayIcon(KStringView sIcon);
+/// take the symbol away
+void RemoveTrayIcon();
 
 /// what the shell decides for the webview's navigation
 struct NavigationPolicy

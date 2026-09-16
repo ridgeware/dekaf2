@@ -20,5 +20,6 @@
 	"kwa.menu.window":         "Window",
 	"kwa.menu.window.minimize": "Minimize",
 	"kwa.menu.window.zoom":    "Zoom",
-	"kwa.menu.window.front":   "Bring All to Front"
+	"kwa.menu.window.front":   "Bring All to Front",
+	"kwa.tray.open":           "Open {app}"
 }

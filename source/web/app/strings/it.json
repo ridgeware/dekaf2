@@ -20,5 +20,6 @@
 	"kwa.menu.window":         "Finestra",
 	"kwa.menu.window.minimize": "Contrai",
 	"kwa.menu.window.zoom":    "Zoom",
-	"kwa.menu.window.front":   "Porta tutto in primo piano"
+	"kwa.menu.window.front":   "Porta tutto in primo piano",
+	"kwa.tray.open":           "Apri {app}"
 }

@@ -1980,12 +1980,13 @@ void KWebApp::SaveSettings()
 KJSON KWebApp::TranslatedMenus() const
 //-----------------------------------------------------------------------------
 {
-	// a title that starts with "@" is a catalog identifier
+	// a title that starts with "@" is a catalog identifier - formatted, so that
+	// KWebApp's own texts with {app} serve as well
 	auto Translate = [this](KJSON& jTitle)
 	{
 		if (jTitle.is_string() && jTitle.String().starts_with('@'))
 		{
-			jTitle = m_Catalog.Get(m_sLanguage, KStringView(jTitle.String()).substr(1));
+			jTitle = m_Catalog.Format(m_sLanguage, KStringView(jTitle.String()).substr(1), { { "app", AppName() } });
 		}
 	};
 
@@ -2007,6 +2008,72 @@ KJSON KWebApp::TranslatedMenus() const
 	return jMenus;
 
 } // TranslatedMenus
+
+//-----------------------------------------------------------------------------
+KJSON KWebApp::TranslatedTrayMenu() const
+//-----------------------------------------------------------------------------
+{
+	auto jMenu = m_Options.jTrayMenu;
+
+	if (!jMenu.is_array() || jMenu.empty())
+	{
+		// the way back, and the way out
+		jMenu = KJSON::array({
+			{ { "title", "@kwa.tray.open" }, { "action", "show" } },
+			{ { "separator", true } },
+			{ { "title", "@kwa.menu.quit" }, { "action", "quit" } }
+		});
+	}
+
+	for (auto& jItem : jMenu)
+	{
+		auto& jTitle = jItem["title"];
+
+		if (jTitle.is_string() && jTitle.String().starts_with('@'))
+		{
+			jTitle = m_Catalog.Format(m_sLanguage, KStringView(jTitle.String()).substr(1), { { "app", AppName() } });
+		}
+	}
+
+	return jMenu;
+
+} // TranslatedTrayMenu
+
+//-----------------------------------------------------------------------------
+void KWebApp::TrayAction(KStringView sAction)
+//-----------------------------------------------------------------------------
+{
+	// on the UI thread
+	if (sAction == "show")
+	{
+		Show();
+	}
+	else if (sAction == "quit")
+	{
+		Quit();
+	}
+	else
+	{
+		MenuAction(sAction);
+	}
+
+} // TrayAction
+
+//-----------------------------------------------------------------------------
+void KWebApp::SetTrayIcon(KStringView sIcon)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Options.bWindow || !m_Options.bTrayIcon)
+	{
+		return;
+	}
+
+	RunOnUI([&]
+	{
+		kwebapp::UpdateTrayIcon(sIcon.empty() ? KStringView(m_Options.sTrayIcon) : sIcon);
+	});
+
+} // SetTrayIcon
 
 //-----------------------------------------------------------------------------
 void KWebApp::Health(KRESTServer& HTTP)
@@ -2233,6 +2300,18 @@ int KWebApp::Run()
 			                 [this]                             { Quit();              });
 		});
 
+		if (m_Options.bTrayIcon)
+		{
+			m_WebView->dispatch([this, sAppName, jMenu = TranslatedTrayMenu()]
+			{
+				if (!kwebapp::SetTrayIcon(WindowHandle(), sAppName, m_Options.sTrayIcon, jMenu,
+				                          [this](KStringView sAction) { TrayAction(sAction); }))
+				{
+					kDebug(1, "no tray symbol on this platform");
+				}
+			});
+		}
+
 		// the UI loop, until the window closes or Quit() is called
 		m_WebView->run();
 
@@ -2294,6 +2373,7 @@ void KWebApp::CloseWindow()
 	}
 
 	// and no more calls into this object from the platform
+	kwebapp::RemoveTrayIcon();
 	kwebapp::UnwatchWindowFrame();
 	kwebapp::ClearNavigationPolicy();
 	kwebapp::WatchApplication(nullptr, nullptr);

@@ -163,6 +163,10 @@ constexpr KStringView sGeneratedTagPrefix = "kwebapp-";
 // the action by the item's tag
 std::mutex                       s_MenuMutex;
 std::vector<KString>             s_MenuActions;
+// the tray symbol: the status item, its entries' actions, the handler
+id                               s_StatusItem { nullptr };
+std::vector<KString>             s_TrayActions;
+std::function<void(KStringView)> s_OnTrayAction;
 std::function<void(KStringView)> s_OnAction;
 std::function<void()>            s_OnQuit;
 std::function<void(const WindowFrame&)> s_OnFrame;
@@ -216,6 +220,31 @@ void MenuAction(id, SEL, id Sender)
 } // MenuAction
 
 //-----------------------------------------------------------------------------
+void TrayMenuAction(id, SEL, id Sender)
+//-----------------------------------------------------------------------------
+{
+	auto iTag = Msg<long>(Sender, "tag");
+
+	KString                          sAction;
+	std::function<void(KStringView)> OnAction;
+	{
+		std::lock_guard<std::mutex> Lock(s_MenuMutex);
+
+		if (iTag >= 0 && static_cast<std::size_t>(iTag) < s_TrayActions.size())
+		{
+			sAction  = s_TrayActions[static_cast<std::size_t>(iTag)];
+			OnAction = s_OnTrayAction;
+		}
+	}
+
+	if (OnAction && !sAction.empty())
+	{
+		OnAction(sAction);
+	}
+
+} // TrayMenuAction
+
+//-----------------------------------------------------------------------------
 void QuitAction(id, SEL, id)
 //-----------------------------------------------------------------------------
 {
@@ -241,6 +270,7 @@ id MenuTarget()
 		auto Cls = objc_allocateClassPair(objc_getClass("NSObject"), "KWebAppMenuTarget", 0);
 		class_addMethod(Cls, sel_registerName("menuAction:"), reinterpret_cast<IMP>(MenuAction), "v@:@");
 		class_addMethod(Cls, sel_registerName("quitAction:"), reinterpret_cast<IMP>(QuitAction), "v@:@");
+		class_addMethod(Cls, sel_registerName("trayAction:"), reinterpret_cast<IMP>(TrayMenuAction), "v@:@");
 		class_addMethod(Cls, sel_registerName("windowChanged:"), reinterpret_cast<IMP>(WindowChanged), "v@:@");
 		objc_registerClassPair(Cls);
 		return Msg<id>(Msg<id>(reinterpret_cast<id>(Cls), "alloc"), "init");
@@ -655,6 +685,144 @@ void SetMenu(void* /*pWindow*/, KStringView sAppName, const KJSON& jMenus, bool 
 	Msg<void>(App, "setWindowsMenu:", Window);
 
 } // SetMenu
+
+namespace {
+
+//-----------------------------------------------------------------------------
+// the image for the status item: an SF Symbol, a file, or the application's icon
+id TrayImage(KStringView sIcon)
+//-----------------------------------------------------------------------------
+{
+	id Image { nullptr };
+
+	if (sIcon.starts_with("sf:"))
+	{
+		// a template image, so that it follows the menu bar's light and dark looks
+		Image = Msg<id>(Class("NSImage"), "imageWithSystemSymbolName:accessibilityDescription:", NSStr(sIcon.substr(3)), static_cast<id>(nullptr));
+
+		if (Image)
+		{
+			Msg<void>(Image, "setTemplate:", static_cast<ObjCBool>(1));
+		}
+	}
+	else if (!sIcon.empty())
+	{
+		Image = Msg<id>(Msg<id>(Msg<id>(Class("NSImage"), "alloc"), "initWithContentsOfFile:", NSStr(sIcon)), "autorelease");
+
+		if (Image)
+		{
+			// Apple's convention: a file named ...Template is a template image
+			auto sBase = kBasename(sIcon);
+			Msg<void>(Image, "setTemplate:", static_cast<ObjCBool>(sBase.contains("Template") ? 1 : 0));
+			Msg<void>(Image, "setSize:", CGSizeMake(18, 18));
+		}
+	}
+
+	if (!Image)
+	{
+		if (!sIcon.empty())
+		{
+			kDebug(1, "cannot load tray image '{}', using the application's icon", sIcon);
+		}
+
+		auto Icon = Msg<id>(Msg<id>(Class("NSApplication"), "sharedApplication"), "applicationIconImage");
+
+		if (Icon)
+		{
+			Image = Msg<id>(Msg<id>(Icon, "copy"), "autorelease");
+			Msg<void>(Image, "setSize:", CGSizeMake(18, 18));
+		}
+	}
+
+	return Image;
+
+} // TrayImage
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+bool SetTrayIcon(void* /*pWindow*/, KStringView sAppName, KStringView sIcon, const KJSON& jMenu, std::function<void(KStringView)> OnAction)
+//-----------------------------------------------------------------------------
+{
+	{
+		std::lock_guard<std::mutex> Lock(s_MenuMutex);
+		s_TrayActions.clear();
+		s_OnTrayAction = std::move(OnAction);
+	}
+
+	if (!s_StatusItem)
+	{
+		// NSVariableStatusItemLength is -1. The status bar holds the item weakly,
+		// we keep it for the life of the process
+		auto Bar     = Msg<id>(Class("NSStatusBar"), "systemStatusBar");
+		s_StatusItem = Msg<id>(Msg<id>(Bar, "statusItemWithLength:", -1.0), "retain");
+
+		if (!s_StatusItem)
+		{
+			return false;
+		}
+	}
+
+	auto Button = Msg<id>(s_StatusItem, "button");
+	Msg<void>(Button, "setImage:",   TrayImage(sIcon));
+	Msg<void>(Button, "setToolTip:", NSStr(sAppName));
+
+	// the menu: a click on the symbol opens it
+	auto Menu = NewMenu("");
+
+	if (jMenu.is_array())
+	{
+		for (const auto& jItem : jMenu)
+		{
+			if (jItem["separator"].Bool())
+			{
+				AddSeparator(Menu);
+				continue;
+			}
+
+			auto Item = AddItem(Menu, jItem["title"].String(), "trayAction:", "", MenuTarget());
+
+			std::lock_guard<std::mutex> Lock(s_MenuMutex);
+			s_TrayActions.push_back(jItem["action"].String());
+			Msg<void>(Item, "setTag:", static_cast<long>(s_TrayActions.size() - 1));
+		}
+	}
+
+	Msg<void>(s_StatusItem, "setMenu:", Menu);
+	return true;
+
+} // SetTrayIcon
+
+//-----------------------------------------------------------------------------
+bool UpdateTrayIcon(KStringView sIcon)
+//-----------------------------------------------------------------------------
+{
+	if (!s_StatusItem)
+	{
+		return false;
+	}
+
+	Msg<void>(Msg<id>(s_StatusItem, "button"), "setImage:", TrayImage(sIcon));
+	return true;
+
+} // UpdateTrayIcon
+
+//-----------------------------------------------------------------------------
+void RemoveTrayIcon()
+//-----------------------------------------------------------------------------
+{
+	if (s_StatusItem)
+	{
+		Msg<void>(Msg<id>(Class("NSStatusBar"), "systemStatusBar"), "removeStatusItem:", s_StatusItem);
+		Msg<void>(s_StatusItem, "release");
+		s_StatusItem = nullptr;
+	}
+
+	std::lock_guard<std::mutex> Lock(s_MenuMutex);
+	s_TrayActions.clear();
+	s_OnTrayAction = nullptr;
+
+} // RemoveTrayIcon
 
 //-----------------------------------------------------------------------------
 std::vector<KString> PreferredLanguages()

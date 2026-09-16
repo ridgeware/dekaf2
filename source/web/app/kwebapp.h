@@ -158,7 +158,10 @@ KStringViewZ kGetWebViewVersion();
 /// icon, or a second start. Notify() takes a tag that replaces an earlier
 /// notification and a picture, notifications show while the application is
 /// active, and a click on one brings the window back and reaches
-/// OnNotificationClick(). SaveSecret(), LoadSecret() and DeleteSecret() keep
+/// OnNotificationClick(). Options.bTrayIcon puts a symbol into the menu bar or
+/// the notification area, with Options.jTrayMenu or an "Open" and "Quit" of its
+/// own, and SetTrayIcon() swaps its image for an attention state.
+/// SaveSecret(), LoadSecret() and DeleteSecret() keep
 /// e.g. a login in the system's credential store, for the page as
 /// window.kNative.saveSecret(), .loadSecret() and .deleteSecret() - published
 /// only where the navigation rules are enforced. ClearWebCache() before Run()
@@ -317,6 +320,17 @@ public:
 		/// for it - a page that handles Cmd-V itself, e.g. to read a picture from
 		/// the clipboard where the webview would only beep, switches this off
 		bool           bPasteShortcut { true };
+		/// a symbol in the menu bar (macOS) or the notification area (Windows), the
+		/// way back to a hidden window - with the menu in jTrayMenu, or with "Open"
+		/// and "Quit" when that is empty
+		bool           bTrayIcon { false };
+		/// the symbol's menu, entries like in jMenus: { "title": "@menu.open", "action": "show" },
+		/// { "separator": true }. The actions "show" and "quit" are built in, any
+		/// other one calls the bound handler of that name or reaches the page
+		KJSON          jTrayMenu;
+		/// the symbol's image: a file (PNG, on Windows ICO), on macOS also an SF Symbol
+		/// as "sf:<name>" - empty takes the application's icon
+		KString        sTrayIcon;
 	};
 
 	/// JavaScript to C++ handler: one JSON argument in, one JSON result out.
@@ -438,6 +452,9 @@ public:
 	void CancelAttention();
 	/// bring the window to the front and activate the application, from any thread
 	void Activate();
+	/// swap the tray symbol's image, e.g. while a call comes in - empty restores
+	/// Options.sTrayIcon. From any thread, a no-op without tray symbol
+	void SetTrayIcon(KStringView sIcon);
 	/// show the window after Hide() or a close with Options.bHideOnClose, and activate
 	/// the application. From any thread
 	void Show();
@@ -514,6 +531,8 @@ private:
 	bool    LockInstance ();
 	void    AddBuiltins  ();
 	void    MenuAction   (KStringView sAction);
+	void    TrayAction   (KStringView sAction);
+	KJSON   TranslatedTrayMenu() const;
 	void    LoadWindowFrame();
 	void    SaveWindowFrame();
 	void    RememberFrame(const kwebapp::WindowFrame& Frame);

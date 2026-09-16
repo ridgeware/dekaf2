@@ -20,5 +20,6 @@
 	"kwa.menu.window":         "Ventana",
 	"kwa.menu.window.minimize": "Minimizar",
 	"kwa.menu.window.zoom":    "Zoom",
-	"kwa.menu.window.front":   "Traer todo al frente"
+	"kwa.menu.window.front":   "Traer todo al frente",
+	"kwa.tray.open":           "Abrir {app}"
 }

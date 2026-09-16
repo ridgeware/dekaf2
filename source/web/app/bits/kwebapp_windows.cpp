@@ -89,6 +89,7 @@ const std::thread::id s_MainThread = std::this_thread::get_id();
 constexpr UINT     WM_APP_TRAY     = WM_APP + 0x100; // the tray icon's callback message
 constexpr UINT     ID_MENU_BASE    = 0x1000;         // command ids of the menu entries
 constexpr UINT     ID_MENU_QUIT    = 0x0FFF;
+constexpr UINT     ID_TRAY_BASE    = 0x2000;         // command ids of the tray menu's entries
 constexpr UINT_PTR SUBCLASS_ID     = 0x4B57;         // "KW"
 
 //-----------------------------------------------------------------------------
@@ -227,6 +228,11 @@ struct Shell
 	bool                                    bSubclassed  { false };
 	bool                                    bTray        { false };
 	NOTIFYICONDATAW                         Tray {};
+	// the tray symbol's menu, when the application asked for one
+	HMENU                                   hTrayMenu    { nullptr };
+	HICON                                   hTrayIcon    { nullptr };  // loaded from a file, ours to destroy
+	std::vector<KString>                    TrayActions;
+	std::function<void(KStringView)>        OnTrayAction;
 };
 
 Shell s_Shell;
@@ -289,7 +295,8 @@ bool EnsureTray()
 	Tray.uID              = 1;
 	Tray.uFlags           = NIF_ICON | NIF_MESSAGE | NIF_TIP;
 	Tray.uCallbackMessage = WM_APP_TRAY;
-	Tray.hIcon            = reinterpret_cast<HICON>(::SendMessageW(s_Shell.hWindow, WM_GETICON, ICON_SMALL, 0));
+	Tray.hIcon            = s_Shell.hTrayIcon ? s_Shell.hTrayIcon
+	                                          : reinterpret_cast<HICON>(::SendMessageW(s_Shell.hWindow, WM_GETICON, ICON_SMALL, 0));
 
 	if (!Tray.hIcon)
 	{
@@ -326,6 +333,29 @@ LRESULT CALLBACK SubclassProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lP
 				if (auto OnQuit = CopyHandler(s_Shell.OnQuit))
 				{
 					OnQuit();
+				}
+
+				return 0;
+			}
+
+			if (iCommand >= ID_TRAY_BASE)
+			{
+				KString                          sAction;
+				std::function<void(KStringView)> OnAction;
+				{
+					std::lock_guard<std::mutex> Lock(s_Shell.Mutex);
+					auto iIndex = static_cast<std::size_t>(iCommand - ID_TRAY_BASE);
+
+					if (iIndex < s_Shell.TrayActions.size())
+					{
+						sAction  = s_Shell.TrayActions[iIndex];
+						OnAction = s_Shell.OnTrayAction;
+					}
+				}
+
+				if (OnAction && !sAction.empty())
+				{
+					OnAction(sAction);
 				}
 
 				return 0;
@@ -407,6 +437,20 @@ LRESULT CALLBACK SubclassProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lP
 					}
 					break;
 
+				case WM_RBUTTONUP:
+				case WM_CONTEXTMENU:
+					if (s_Shell.hTrayMenu)
+					{
+						// the menu closes when the window loses the foreground, and the
+						// empty message afterwards is what the documentation asks for
+						POINT Point {};
+						::GetCursorPos(&Point);
+						::SetForegroundWindow(hWnd);
+						::TrackPopupMenu(s_Shell.hTrayMenu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN, Point.x, Point.y, 0, hWnd, nullptr);
+						::PostMessageW(hWnd, WM_NULL, 0, 0);
+					}
+					break;
+
 				case NIN_BALLOONUSERCLICK:
 					if (auto OnClick = CopyHandler(s_Shell.OnNotificationClick))
 					{
@@ -418,6 +462,19 @@ LRESULT CALLBACK SubclassProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lP
 
 		case WM_DESTROY:
 			RemoveTray();
+
+			if (s_Shell.hTrayMenu)
+			{
+				::DestroyMenu(s_Shell.hTrayMenu);
+				s_Shell.hTrayMenu = nullptr;
+			}
+
+			if (s_Shell.hTrayIcon)
+			{
+				::DestroyIcon(s_Shell.hTrayIcon);
+				s_Shell.hTrayIcon = nullptr;
+			}
+
 			::RemoveWindowSubclass(hWnd, SubclassProc, SUBCLASS_ID);
 			s_Shell.bSubclassed = false;
 			s_Shell.hWindow     = nullptr;
@@ -1014,6 +1071,155 @@ void CancelAttention(void* pWindow, int64_t /*iRequest*/)
 	::FlashWindowEx(&Info);
 
 } // CancelAttention
+
+namespace {
+
+//-----------------------------------------------------------------------------
+// an icon from a file (ICO), nullptr when it cannot be loaded
+HICON LoadTrayIcon(KStringView sIcon)
+//-----------------------------------------------------------------------------
+{
+	if (sIcon.empty())
+	{
+		return nullptr;
+	}
+
+	auto hIcon = static_cast<HICON>(::LoadImageW(nullptr, kutf::Convert<std::wstring>(sIcon).c_str(), IMAGE_ICON,
+	                                             ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON), LR_LOADFROMFILE));
+
+	if (!hIcon)
+	{
+		kDebug(1, "cannot load tray icon '{}', using the window's", sIcon);
+	}
+
+	return hIcon;
+
+} // LoadTrayIcon
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+bool SetTrayIcon(void* pWindow, KStringView sAppName, KStringView sIcon, const KJSON& jMenu, std::function<void(KStringView)> OnAction)
+//-----------------------------------------------------------------------------
+{
+	if (!pWindow || !s_Shell.bSubclassed)
+	{
+		return false;
+	}
+
+	// the menu, built anew
+	auto hMenu = ::CreatePopupMenu();
+	{
+		std::lock_guard<std::mutex> Lock(s_Shell.Mutex);
+		s_Shell.TrayActions.clear();
+		s_Shell.OnTrayAction = std::move(OnAction);
+
+		if (jMenu.is_array())
+		{
+			for (const auto& jItem : jMenu)
+			{
+				if (jItem["separator"].Bool())
+				{
+					::AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
+					continue;
+				}
+
+				s_Shell.TrayActions.push_back(jItem["action"].String());
+				::AppendMenuW(hMenu, MF_STRING, ID_TRAY_BASE + static_cast<UINT>(s_Shell.TrayActions.size() - 1),
+				              kutf::Convert<std::wstring>(jItem["title"].String()).c_str());
+			}
+		}
+	}
+
+	if (s_Shell.hTrayMenu)
+	{
+		::DestroyMenu(s_Shell.hTrayMenu);
+	}
+
+	s_Shell.hTrayMenu = hMenu;
+
+	// the image, before the symbol is created - EnsureTray() takes ours first
+	if (s_Shell.hTrayIcon)
+	{
+		::DestroyIcon(s_Shell.hTrayIcon);
+	}
+
+	s_Shell.hTrayIcon = LoadTrayIcon(sIcon);
+
+	if (!EnsureTray())
+	{
+		return false;
+	}
+
+	auto& Tray = s_Shell.Tray;
+	Tray.uFlags = NIF_ICON | NIF_TIP;
+
+	if (s_Shell.hTrayIcon)
+	{
+		Tray.hIcon = s_Shell.hTrayIcon;
+	}
+
+	auto sTip = kutf::Convert<std::wstring>(sAppName);
+	::wcsncpy_s(Tray.szTip, sTip.c_str(), _TRUNCATE);
+	::Shell_NotifyIconW(NIM_MODIFY, &Tray);
+	return true;
+
+} // SetTrayIcon
+
+//-----------------------------------------------------------------------------
+bool UpdateTrayIcon(KStringView sIcon)
+//-----------------------------------------------------------------------------
+{
+	if (!s_Shell.bTray)
+	{
+		return false;
+	}
+
+	auto hIcon = LoadTrayIcon(sIcon);
+
+	if (s_Shell.hTrayIcon)
+	{
+		::DestroyIcon(s_Shell.hTrayIcon);
+	}
+
+	s_Shell.hTrayIcon = hIcon;
+
+	auto& Tray = s_Shell.Tray;
+	Tray.uFlags = NIF_ICON;
+	Tray.hIcon  = hIcon ? hIcon : reinterpret_cast<HICON>(::SendMessageW(s_Shell.hWindow, WM_GETICON, ICON_SMALL, 0));
+
+	if (!Tray.hIcon)
+	{
+		Tray.hIcon = ::LoadIconW(nullptr, IDI_APPLICATION);
+	}
+
+	return ::Shell_NotifyIconW(NIM_MODIFY, &Tray) != FALSE;
+
+} // UpdateTrayIcon
+
+//-----------------------------------------------------------------------------
+void RemoveTrayIcon()
+//-----------------------------------------------------------------------------
+{
+	RemoveTray();
+
+	if (s_Shell.hTrayMenu)
+	{
+		::DestroyMenu(s_Shell.hTrayMenu);
+		s_Shell.hTrayMenu = nullptr;
+	}
+
+	if (s_Shell.hTrayIcon)
+	{
+		::DestroyIcon(s_Shell.hTrayIcon);
+		s_Shell.hTrayIcon = nullptr;
+	}
+
+	std::lock_guard<std::mutex> Lock(s_Shell.Mutex);
+	s_Shell.TrayActions.clear();
+	s_Shell.OnTrayAction = nullptr;
+
+} // RemoveTrayIcon
 
 //-----------------------------------------------------------------------------
 bool SetNavigationPolicy(void* pController, NavigationPolicy Policy)

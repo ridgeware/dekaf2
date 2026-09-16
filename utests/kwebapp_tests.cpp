@@ -176,6 +176,7 @@ TEST_CASE("KWebApp")
 		App.RequestAttention(true);
 		App.CancelAttention();
 		App.Activate();
+		App.SetTrayIcon("");
 		App.Show();
 		App.Hide();
 		CHECK ( App.IsWindowVisible() == false );

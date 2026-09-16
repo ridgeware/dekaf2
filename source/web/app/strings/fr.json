@@ -20,5 +20,6 @@
 	"kwa.menu.window":         "Fenêtre",
 	"kwa.menu.window.minimize": "Placer dans le Dock",
 	"kwa.menu.window.zoom":    "Réduire/agrandir",
-	"kwa.menu.window.front":   "Tout ramener au premier plan"
+	"kwa.menu.window.front":   "Tout ramener au premier plan",
+	"kwa.tray.open":           "Ouvrir {app}"
 }

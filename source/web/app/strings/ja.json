@@ -20,5 +20,6 @@
 	"kwa.menu.window":         "ウインドウ",
 	"kwa.menu.window.minimize": "しまう",
 	"kwa.menu.window.zoom":    "拡大/縮小",
-	"kwa.menu.window.front":   "すべてを手前に移動"
+	"kwa.menu.window.front":   "すべてを手前に移動",
+	"kwa.tray.open":           "{app}を開く"
 }

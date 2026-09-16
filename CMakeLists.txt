@@ -1718,7 +1718,7 @@ set(PUBLIC_HEADERS
 	source/io/streams/kcountingstreambuf.h
 	source/io/streams/kfdstream.h
 	source/io/streams/kinstringstream.h
-	source/io/streams/klambdastream.h
+	source/http/server/klambdastream.h
 	source/io/streams/kmodifyingstreambuf.h
 	source/io/streams/koutstringstream.h
 	source/io/streams/kstream.h
@@ -2004,7 +2004,7 @@ set (SOURCES
 	source/io/streams/kcountingstreambuf.cpp
 	source/io/streams/kfdstream.cpp
 	source/io/streams/kinstringstream.cpp
-	source/io/streams/klambdastream.cpp
+	source/http/server/klambdastream.cpp
 	source/io/streams/kmodifyingstreambuf.cpp
 	source/io/streams/koutstringstream.cpp
 	source/io/streams/kstream.cpp

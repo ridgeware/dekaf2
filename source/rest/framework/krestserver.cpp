@@ -1692,11 +1692,21 @@ void KRESTServer::Output()
 				KLog::getInstance().LogThisThreadToKLog(-1);
 			}
 
+			// payload format 1.0: "headers" carries one value per name, "multiValueHeaders"
+			// all values of a name. Only the latter can transport more than one Set-Cookie,
+			// so names with more than one value go there, all others stay in "headers"
 			KJSON& jheaders = tjson["headers"] = KJSON::object();
 
 			for (const auto& header : Response.Headers)
 			{
-				jheaders += { header.first, header.second };
+				if (Response.Headers.count(header.first) == 1)
+				{
+					jheaders += { header.first, header.second };
+				}
+				else
+				{
+					tjson["multiValueHeaders"][header.first.Serialize()].push_back(header.second);
+				}
 			}
 
 			m_iContentLength = kjson::GetStringRef(tjson, "body").size();

@@ -313,6 +313,49 @@ x-klog: -level 1
 		CHECK ( sCGI.contains("content-length:") );
 	}
 
+	SECTION("LAMBDA multiValueHeaders")
+	{
+		// payload format 1.0 transports repeated response headers (Set-Cookie) only
+		// through multiValueHeaders - headers keeps one value per name
+		KString sRequest =
+			"GET /login HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"\r\n";
+
+		KString sResponse;
+		KInStringStream iss(sRequest);
+		KOutStringStream oss(sResponse);
+		KStream stream(iss, oss);
+		KRESTServer::Options Options;
+		Options.Out = KRESTServer::LAMBDA;
+		KRESTRoutes Routes;
+		Routes.AddRoute({ KHTTPMethod::GET, false, "/login", [&](KRESTServer& http)
+		{
+			http.Response.Headers.Add(KHTTPHeader::SET_COOKIE, "session=abc; Path=/");
+			http.Response.Headers.Add(KHTTPHeader::SET_COOKIE, "theme=dark; Path=/");
+			http.json.tx["ok"] = true;
+		}});
+		KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+		Server.Execute();
+
+		KJSON jResponse;
+		kjson::Parse(jResponse, sResponse);
+		REQUIRE ( jResponse.is_object() );
+		CHECK ( jResponse["statusCode"] == 200 );
+		CHECK ( jResponse["headers"].is_object() );
+		// single valued headers stay in headers, and only there
+		CHECK ( jResponse["headers"]["content-type"].is_string() );
+		CHECK ( jResponse["multiValueHeaders"]["content-type"].is_null() );
+		// the repeated header moves to multiValueHeaders, and only there
+		CHECK ( jResponse["headers"]["set-cookie"].is_null() );
+
+		const KJSON& jCookies = jResponse["multiValueHeaders"]["set-cookie"];
+		REQUIRE ( jCookies.is_array() );
+		CHECK ( jCookies.size() == 2 );
+		CHECK ( jCookies[0] == "session=abc; Path=/" );
+		CHECK ( jCookies[1] == "theme=dark; Path=/" );
+	}
+
 	SECTION("decompression bomb protection")
 	{
 		// create a large string that compresses well

@@ -153,7 +153,7 @@
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/data/json/kjson2.h>
 #include <dekaf2/time/clock/kjuliandate.h>
-#include <dekaf2/io/streams/klambdastream.h>
+#include <dekaf2/http/server/klambdastream.h>
 #include <dekaf2/containers/associative/klockmap.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/logging/klogrotate.h>

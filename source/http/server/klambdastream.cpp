@@ -40,7 +40,7 @@
  // +-------------------------------------------------------------------------+
  */
 
-#include <dekaf2/io/streams/klambdastream.h>
+#include <dekaf2/http/server/klambdastream.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/http/protocol/khttp_header.h>

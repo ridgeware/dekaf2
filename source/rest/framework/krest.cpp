@@ -42,7 +42,7 @@
 #include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/http/server/kcgistream.h>
-#include <dekaf2/io/streams/klambdastream.h>
+#include <dekaf2/http/server/klambdastream.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/core/strings/kstringutils.h>
 #include <dekaf2/system/os/ksystem.h>

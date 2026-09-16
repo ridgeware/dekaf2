@@ -42,7 +42,8 @@
 #pragma once
 
 /// @file klambdastream.h
-/// provides an implementation of std::istreams for lambda interface inside a web server
+/// synthesizes an HTTP request stream from an AWS API Gateway Lambda proxy event
+/// (payload format 1.0), like KCGIInStream does for a CGI environment
 
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/io/streams/kstreambuf.h>
@@ -65,7 +66,7 @@ public:
 //----------
 
 	//-----------------------------------------------------------------------------
-	/// Construcs a CGI stream from an istream
+	/// Constructs the request stream from the flattened lambda event read from istream
 	KLambdaInStream(std::istream& stream);
 	//-----------------------------------------------------------------------------
 

@@ -2131,6 +2131,15 @@ int KWebApp::Run()
 
 			m_WebView = std::make_unique<WebView>(m_Options.bDebug, nullptr);
 			m_WebView->set_title(m_Options.sTitle.ToStdString());
+			// a window of size 0 exists but cannot be seen or raised - an application that
+			// reads its geometry from a config gets the defaults instead of a mystery
+			if (m_Options.iWidth < 100 || m_Options.iHeight < 100)
+			{
+				kDebug(1, "window size {}x{} is too small, using the defaults", m_Options.iWidth, m_Options.iHeight);
+				m_Options.iWidth  = Options{}.iWidth;
+				m_Options.iHeight = Options{}.iHeight;
+			}
+
 			m_WebView->set_size(static_cast<int>(m_Options.iWidth), static_cast<int>(m_Options.iHeight), WEBVIEW_HINT_NONE);
 			// the bridge has to be complete before the first document loads
 			m_WebView->init(InitScript().ToStdString());

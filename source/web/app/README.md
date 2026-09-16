@@ -373,7 +373,9 @@ bundle. Its texts are the catalogs in `samples/ktail/strings/` (`en`, `de`),
 embedded with `dekaf2_embed_strings()`: the page takes the language of the
 request and offers a selector that posts to `KWebApp::LanguagePath`, the
 menus take the language of the window (`-lang`, else the last choice, else
-the system's).
+the system's). The password file holds the password in its first line, as
+UTF-8 or as UTF-16/UTF-32 with a byte order mark, which is what PowerShell's
+`>` writes; it is converted to UTF-8, the encoding a browser sends.
 
 ## Implementation notes
 

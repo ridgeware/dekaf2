@@ -22,6 +22,7 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/time/clock/ktime.h>
 // the string catalogs in strings/, embedded by dekaf2_embed_strings() in the CMake file
 #include <ktail_strings.h>
@@ -199,6 +200,68 @@ KStringView Parent(KStringView sRelative)
 
 } // Parent
 
+//-----------------------------------------------------------------------------
+// the code units of a UTF-16 or UTF-32 text from its bytes, in the byte order
+// its byte order mark announced. kutf::Convert() expects the platform's byte
+// order, so the units are assembled here byte by byte; a trailing incomplete
+// unit is dropped
+template<typename Unit>
+std::basic_string<Unit> CodeUnits(KStringView sBytes, bool bBigEndian)
+//-----------------------------------------------------------------------------
+{
+	std::basic_string<Unit> Units;
+	Units.reserve(sBytes.size() / sizeof(Unit));
+
+	for (std::size_t i = 0; i + sizeof(Unit) <= sBytes.size(); i += sizeof(Unit))
+	{
+		Unit ch = 0;
+
+		for (std::size_t k = 0; k < sizeof(Unit); ++k)
+		{
+			auto iByte = static_cast<unsigned char>(sBytes[i + (bBigEndian ? k : sizeof(Unit) - 1 - k)]);
+			ch = static_cast<Unit>((ch << 8) | iByte);
+		}
+
+		Units += ch;
+	}
+
+	return Units;
+
+} // CodeUnits
+
+//-----------------------------------------------------------------------------
+// the text of a file as UTF-8, decoded by its byte order mark. Windows
+// PowerShell writes UTF-16 with a BOM, and a password typed into a browser
+// arrives as UTF-8, so both have to be in one encoding before bcrypt compares
+// them. Text without a BOM is taken as UTF-8
+KString TextAsUTF8(KStringView sBytes)
+//-----------------------------------------------------------------------------
+{
+	// UTF-32 LE first, its BOM starts with the one of UTF-16 LE
+	if (sBytes.starts_with(KStringView("\xFF\xFE\x00\x00", 4)))
+	{
+		return kutf::Convert<KString>(CodeUnits<char32_t>(sBytes.substr(4), false));
+	}
+
+	if (sBytes.starts_with(KStringView("\x00\x00\xFE\xFF", 4)))
+	{
+		return kutf::Convert<KString>(CodeUnits<char32_t>(sBytes.substr(4), true));
+	}
+
+	if (sBytes.starts_with("\xFF\xFE"))
+	{
+		return kutf::Convert<KString>(CodeUnits<char16_t>(sBytes.substr(2), false));
+	}
+
+	if (sBytes.starts_with("\xFE\xFF"))
+	{
+		return kutf::Convert<KString>(CodeUnits<char16_t>(sBytes.substr(2), true));
+	}
+
+	return KString(kSkipUTF8BOM(sBytes));
+
+} // TextAsUTF8
+
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -287,11 +350,28 @@ KTail::KTail(Config Config)
 
 		KString sPassword;
 		{
-			KInFile File(m_Config.sPasswordFile);
+			KString sFile;
 
-			if (!File.is_open() || !File.ReadLine(sPassword) || sPassword.Trim().empty())
+			if (!kReadAll(m_Config.sPasswordFile, sFile))
 			{
-				SetError(kFormat("cannot read a password from {}", m_Config.sPasswordFile));
+				SetError(kFormat("cannot read {}", m_Config.sPasswordFile));
+				return;
+			}
+
+			// the first line, as UTF-8 whatever the encoding of the file
+			sPassword = TextAsUTF8(sFile);
+			kSafeErase(sFile);
+
+			auto iEOL = sPassword.find_first_of("\r\n");
+
+			if (iEOL != KString::npos)
+			{
+				sPassword.erase(iEOL);
+			}
+
+			if (sPassword.Trim().empty())
+			{
+				SetError(kFormat("no password in the first line of {}", m_Config.sPasswordFile));
 				return;
 			}
 		}
@@ -300,6 +380,7 @@ KTail::KTail(Config Config)
 		auto BCrypt = std::make_shared<KBCrypt>();
 		auto sHash  = std::make_shared<KString>(BCrypt->GenerateHash(sPassword));
 		auto sUser  = m_Config.sUser;
+		kSafeErase(sPassword);
 
 		Options.Authenticate = [BCrypt, sHash, sUser](KStringView sName, KStringView sPassword)
 		{
@@ -827,7 +908,7 @@ int main(int argc, char** argv)
 		Config.sListen       = Options("listen <[addr:]port>  : also serve browsers on the network, with TLS and a login", "");
 		Config.bWindow       = !Options("headless              : no window, only the network server", false);
 		Config.sUser         = Options("user <name>           : the account for the network", "");
-		Config.sPasswordFile = Options("password-file <path>  : file with the account's password in the first line", "");
+		Config.sPasswordFile = Options("password-file <path>  : file with the account's password in the first line - UTF-8, or UTF-16/UTF-32 with a byte order mark", "");
 		Config.sCert         = Options("cert <file>           : TLS certificate for the network (PEM), default: self-signed", "");
 		Config.sKey          = Options("key <file>            : TLS private key for the network (PEM)", "");
 

@@ -3,17 +3,26 @@
 #include <dekaf2/net/util/kstreamoptions.h>
 #include <dekaf2/net/tcp/ktcpserver.h>
 #include <dekaf2/net/tcp/ktcpstream.h>
+#include <dekaf2/core/format/kformat.h>
 
 using namespace dekaf2;
 
 TEST_CASE("KStreamOptions")
 {
-	KTCPServer Server(7613, false, 2);
-	Server.Start(chrono::seconds(5), false);
+	// port 0 takes a free port from the OS: every section runs as its own pass
+	// with its own server, and a fixed port may still be closing from the pass
+	// before, or belong to another process
+	KTCPServer Server(0, false, 2);
+	bool bStarted = Server.Start(chrono::seconds(5), false);
+	INFO    ( "server: " << Server.Error() );
+	REQUIRE ( bStarted == true );
+	REQUIRE ( Server.GetPort() != 0 );
+
+	const KTCPEndPoint EndPoint(kFormat("127.0.0.1:{}", Server.GetPort()));
 
 	SECTION("keepalive options set and read back")
 	{
-		KTCPStream Stream(KTCPEndPoint("127.0.0.1:7613"), KStreamOptions(chrono::seconds(5)));
+		KTCPStream Stream(EndPoint, KStreamOptions(chrono::seconds(5)));
 
 		REQUIRE ( Stream.Good() == true );
 
@@ -35,7 +44,7 @@ TEST_CASE("KStreamOptions")
 
 	SECTION("ApplySocketOptions applies the full set")
 	{
-		KTCPStream Stream(KTCPEndPoint("127.0.0.1:7613"), KStreamOptions(chrono::seconds(5)));
+		KTCPStream Stream(EndPoint, KStreamOptions(chrono::seconds(5)));
 
 		REQUIRE ( Stream.Good() == true );
 
@@ -80,7 +89,7 @@ TEST_CASE("KStreamOptions")
 		CHECK ( Options.GetConnectionDropTimeout()  == chrono::seconds(4) );
 
 		// and the set applies to a real socket
-		KTCPStream Stream(KTCPEndPoint("127.0.0.1:7613"), KStreamOptions(chrono::seconds(5)));
+		KTCPStream Stream(EndPoint, KStreamOptions(chrono::seconds(5)));
 
 		REQUIRE ( Stream.Good() == true );
 

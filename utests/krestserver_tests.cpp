@@ -1017,14 +1017,27 @@ x-klog: -level 1
 
 	SECTION("ad hoc index links are percent and entity encoded")
 	{
+		// a space and an ampersand need the percent encoding in the link, the
+		// ampersand also the entity in the text. Quote and angle brackets are the
+		// dangerous characters for the markup, but Windows forbids them in file
+		// names, so only the POSIX systems test them
+		struct Entry { KStringView sFile; KStringView sHref; KStringView sText; };
+
+		std::vector<Entry> Entries
+		{
+			{ "a b.html",   "href=\"a%20b.html\"",       "a b.html"             },
+			{ "x&y.html",   "href=\"x%26y.html\"",       "x&amp;y.html"         },
+#if !DEKAF2_IS_WINDOWS
+			{ "a\"b.html",  "href=\"a%22b.html\"",       {}                     },
+			{ "<x>&y.html", "href=\"%3Cx%3E%26y.html\"", "&lt;x&gt;&amp;y.html" },
+#endif
+		};
+
 		KTempDir WebRoot;
+
+		for (const auto& Entry : Entries)
 		{
-			KOutFile OutFile(kFormat("{}/a\"b.html", WebRoot.Name()));
-			CHECK ( OutFile.is_open() );
-			OutFile.Write("x");
-		}
-		{
-			KOutFile OutFile(kFormat("{}/<x>&y.html", WebRoot.Name()));
+			KOutFile OutFile(kFormat("{}/{}", WebRoot.Name(), Entry.sFile));
 			CHECK ( OutFile.is_open() );
 			OutFile.Write("x");
 		}
@@ -1035,11 +1048,22 @@ x-klog: -level 1
 
 		auto sResponse = RunRequest("GET /web/ HTTP/1.1\r\nHost: localhost\r\n\r\n", Routes, Options);
 		CHECK ( sResponse.contains("HTTP/1.1 200") );
-		CHECK ( sResponse.contains("href=\"a%22b.html\"") );
-		CHECK ( sResponse.contains("href=\"%3Cx%3E%26y.html\"") );
-		CHECK ( sResponse.contains("&lt;x&gt;&amp;y.html") );
-		CHECK ( sResponse.contains("<x>") == false );
-		CHECK ( sResponse.contains("\"a\"b") == false );
+
+		for (const auto& Entry : Entries)
+		{
+			INFO ( "file: " << Entry.sFile );
+			CHECK ( sResponse.contains(Entry.sHref) );
+
+			if (!Entry.sText.empty())
+			{
+				CHECK ( sResponse.contains(Entry.sText) );
+			}
+		}
+
+		// nothing reaches the page unencoded
+		CHECK ( sResponse.contains("<x>")      == false );
+		CHECK ( sResponse.contains("\"a\"b")   == false );
+		CHECK ( sResponse.contains("x&y.html") == false );
 	}
 
 	SECTION("KRESTSession LoginTrusted")

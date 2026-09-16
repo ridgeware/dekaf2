@@ -151,6 +151,168 @@ x-klog: -level 1
 		CHECK ( sResponse.contains("\"status\": \"ok\"") );
 	}
 
+	SECTION("Expect: 100-continue")
+	{
+		// a client that sent "Expect: 100-continue" gets the interim response
+		// before the final one, unless a final status is pending anyway
+		// (e.g. no such route) or the request is HTTP/1.0
+		auto Serve = [](KStringView sRequest, KRESTServer::OutputType Out = KRESTServer::HTTP) -> KString
+		{
+			KString sResponse;
+			KInStringStream iss(sRequest);
+			KOutStringStream oss(sResponse);
+			KStream stream(iss, oss);
+			KRESTServer::Options Options;
+			Options.bPrettyPrint = true;
+			Options.Out = Out;
+			KRESTRoutes Routes;
+			Routes.AddRoute({ KHTTPMethod::POST, false, "/api", [&](KRESTServer& http)
+			{
+				http.json.tx["status"] = "ok";
+			}});
+			KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+			Server.Execute();
+			return sResponse;
+		};
+
+		KString sBody = R"({"input":"hello"})";
+
+		auto sResponse = Serve(kFormat(
+			"POST /api HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Expect: 100-continue\r\n"
+			"Content-Type: application/json\r\n"
+			"Content-Length: {}\r\n"
+			"\r\n"
+			"{}",
+			sBody.size(), sBody));
+
+		CHECK ( sResponse.starts_with("HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200") );
+		CHECK ( sResponse.contains("\"status\": \"ok\"") );
+
+		// no such route: the final status is pending, no interim response
+		sResponse = Serve(kFormat(
+			"POST /nowhere HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Expect: 100-continue\r\n"
+			"Content-Type: application/json\r\n"
+			"Content-Length: {}\r\n"
+			"\r\n"
+			"{}",
+			sBody.size(), sBody));
+
+		CHECK ( sResponse.starts_with("HTTP/1.1 404") );
+		CHECK_FALSE ( sResponse.contains("100 Continue") );
+
+		// HTTP/1.0 has no interim responses
+		sResponse = Serve(kFormat(
+			"POST /api HTTP/1.0\r\n"
+			"Host: localhost\r\n"
+			"Expect: 100-continue\r\n"
+			"Content-Type: application/json\r\n"
+			"Content-Length: {}\r\n"
+			"\r\n"
+			"{}",
+			sBody.size(), sBody));
+
+		CHECK ( sResponse.starts_with("HTTP/1.1 200") );
+		CHECK_FALSE ( sResponse.contains("100 Continue") );
+
+		// CGI: the web server owns the connection and has answered the expectation itself
+		sResponse = Serve(kFormat(
+			"POST /api HTTP/1.1\r\n"
+			"Host: localhost\r\n"
+			"Expect: 100-continue\r\n"
+			"Content-Type: application/json\r\n"
+			"Content-Length: {}\r\n"
+			"\r\n"
+			"{}",
+			sBody.size(), sBody), KRESTServer::CGI);
+
+		CHECK ( sResponse.starts_with("HTTP/1.1 200") );
+		CHECK_FALSE ( sResponse.contains("100 Continue") );
+	}
+
+	SECTION("websocket upgrade behind a web server")
+	{
+		// in CGI mode the web server owns the connection - a protocol upgrade
+		// cannot be honored, whereas the same request on a direct connection
+		// switches protocols
+		auto Serve = [](KRESTServer::OutputType Out) -> KString
+		{
+			KString sRequest =
+				"GET /ws HTTP/1.1\r\n"
+				"Host: localhost\r\n"
+				"Upgrade: websocket\r\n"
+				"Connection: Upgrade\r\n"
+				"Sec-WebSocket-Version: 13\r\n"
+				"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+				"\r\n";
+
+			KString sResponse;
+			KInStringStream iss(sRequest);
+			KOutStringStream oss(sResponse);
+			KStream stream(iss, oss);
+			KRESTServer::Options Options;
+			Options.Out = Out;
+			KRESTRoutes Routes;
+			Routes.AddRoute({ KHTTPMethod::GET, { KRESTRoute::Options::WEBSOCKET }, "/ws", [&](KRESTServer& http)
+			{
+				http.SetWebSocketHandler([](KWebSocket&) {});
+			}});
+			KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+			Server.Execute();
+			return sResponse;
+		};
+
+		CHECK ( Serve(KRESTServer::HTTP).starts_with("HTTP/1.1 101") );
+
+		auto sResponse = Serve(KRESTServer::CGI);
+		CHECK_FALSE ( sResponse.starts_with("HTTP/1.1 101") );
+		CHECK ( sResponse.contains("bad mode") );
+	}
+
+	SECTION("no compression in CGI mode")
+	{
+		// compressed output comes with a chunked framing, which a CGI must not
+		// emit - the web server compresses and frames CGI output itself
+		auto Serve = [](KRESTServer::OutputType Out) -> KString
+		{
+			KString sRequest =
+				"GET /big HTTP/1.1\r\n"
+				"Host: localhost\r\n"
+				"Accept-Encoding: gzip, deflate, br\r\n"
+				"\r\n";
+
+			KString sResponse;
+			KInStringStream iss(sRequest);
+			KOutStringStream oss(sResponse);
+			KStream stream(iss, oss);
+			KRESTServer::Options Options;
+			Options.Out = Out;
+			KRESTRoutes Routes;
+			Routes.AddRoute({ KHTTPMethod::GET, false, "/big", [&](KRESTServer& http)
+			{
+				http.json.tx["data"] = KString(4000, 'x');
+			}});
+			KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+			Server.Execute();
+			return sResponse.ToLowerASCII();
+		};
+
+		// on a connection we own the response is compressed and chunked
+		auto sHTTP = Serve(KRESTServer::HTTP);
+		CHECK ( sHTTP.contains("content-encoding:") );
+		CHECK ( sHTTP.contains("transfer-encoding: chunked") );
+
+		// behind a CGI web server it is neither
+		auto sCGI = Serve(KRESTServer::CGI);
+		CHECK ( sCGI.starts_with("http/1.1 200") );
+		CHECK_FALSE ( sCGI.contains("content-encoding:") );
+		CHECK_FALSE ( sCGI.contains("transfer-encoding:") );
+		CHECK ( sCGI.contains("content-length:") );
+	}
+
 	SECTION("decompression bomb protection")
 	{
 		// create a large string that compresses well

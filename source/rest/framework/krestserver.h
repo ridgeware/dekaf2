@@ -107,7 +107,8 @@ public:
 
 	enum OutputType
 	{
-		HTTP,     ///< speak HTTP
+		HTTP,     ///< speak HTTP on a connection we own
+		CGI,      ///< speak HTTP to a CGI web server, which owns the client connection
 		LAMBDA,   ///< AWS specific
 		CLI       ///< console type output for testing
 	};

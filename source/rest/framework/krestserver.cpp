@@ -1078,11 +1078,24 @@ bool KRESTServer::Execute()
 			{
 				m_Timers->StoreInterval(Timer::ROUTE);
 			}
-/*
-			if (Request.Headers.Get(KHTTPHeader::EXPECT) == "100-continue")
+			
+			// RFC 9110 10.1.1: a client that sent "Expect: 100-continue" waits for
+			// our go-ahead before sending the body (curl does this for uploads of
+			// 1 MB and more and for chunked uploads, and falls back to sending after
+			// one second). Route lookup and authentication are done at this point,
+			// so no final status is pending that would make the body unnecessary.
+			// Only HTTP/1.1 carries interim responses on this stream, and only in HTTP
+			// mode - in CGI mode the web server has answered the expectation before
+			// handing us the body.
+			if (m_Options.Out == HTTP &&
+			    Request.GetHTTPVersion() == KHTTPVersion::http11 &&
+			    Request.HasContent(Request.Method) &&
+			    Request.Headers.Get(KHTTPHeader::EXPECT).ToLowerASCII() == "100-continue")
 			{
+				kDebug(2, "sending 100 Continue");
+				Response.UnfilteredStream().Write("HTTP/1.1 100 Continue\r\n\r\n").Flush();
 			}
-*/
+
 			if (Request.HasContent(Request.Method))
 			{
 				Parse();
@@ -1407,9 +1420,9 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
 
 	ThrowIfDisconnected();
 
-	if (m_Options.Out != HTTP)
+	if (m_Options.Out != HTTP && m_Options.Out != CGI)
 	{
-		throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "streaming mode only allowed in HTTP output mode" };
+		throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "streaming mode only allowed in HTTP or CGI output modes" };
 	}
 
 	m_bIsStreaming = true;
@@ -1477,7 +1490,9 @@ void KRESTServer::Output()
 		}
 	}
 
-	// only allow output compression if this is HTTP mode and if we allow compression and have content
+	// only allow output compression in HTTP mode, and if we allow compression and have
+	// content. In CGI mode compression is the web server's job: our compressed output
+	// would come with a chunked framing, which a CGI must not emit (RFC 3875 6.3)
 	ConfigureCompression(m_Options.Out == HTTP && m_Options.bAllowCompression && m_bResponseCompression && bOutputContent);
 
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
@@ -1485,6 +1500,7 @@ void KRESTServer::Output()
 	switch (m_Options.Out)
 	{
 		case HTTP:
+		case CGI:
 		{
 			KString sContent;
 
@@ -1895,6 +1911,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 	switch (m_Options.Out)
 	{
 		case HTTP:
+		case CGI:
 		{
 			KString sContent;
 

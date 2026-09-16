@@ -446,7 +446,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				}
 
 				KStream Stream(CGI, KOut);
-				Options.Out = KRESTServer::HTTP;
+				Options.Out = KRESTServer::CGI;
 				Options.iMaxKeepaliveRounds = 1; // no keepalive in CGI mode..
 
 				RealExecute(Options,
@@ -536,7 +536,7 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 					}
 				}
 				KStream Stream(CGI, OutStream);
-				Options.Out = KRESTServer::HTTP;
+				Options.Out = KRESTServer::CGI;
 				RealExecute(Options,
 							Routes,
 							Stream,

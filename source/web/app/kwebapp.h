@@ -145,7 +145,8 @@ KStringViewZ kGetWebViewVersion();
 /// The window shows the loopback server and the sites in Options.AllowedOrigins,
 /// nothing else: a link elsewhere, window.open() and target="_blank" open the
 /// system browser, and the window stays where it is - window.kNative never
-/// reaches a foreign page. A response the view cannot show, or one the server
+/// reaches a foreign page; AddAllowedOrigin() widens the list at run time. A
+/// response the view cannot show, or one the server
 /// sends as attachment, becomes a download into Options.sDownloadDir (default
 /// the user's Downloads folder) under a free name, announced with a notification
 /// and to OnDownload().
@@ -311,6 +312,11 @@ public:
 		/// the language of menus, notifications and dialogs, a BCP 47 tag - empty
 		/// takes the user's setting from the last run, else the system's languages
 		KString        sLanguage;
+		/// give the Edit menu's Paste entry its keyboard shortcut (Cmd-V on macOS)?
+		/// With the shortcut the menu takes the key before the page sees a keydown
+		/// for it - a page that handles Cmd-V itself, e.g. to read a picture from
+		/// the clipboard where the webview would only beep, switches this off
+		bool           bPasteShortcut { true };
 	};
 
 	/// JavaScript to C++ handler: one JSON argument in, one JSON result out.
@@ -364,6 +370,10 @@ public:
 	/// may the window show this URL? True for the loopback server and the origins
 	/// in Options.AllowedOrigins
 	bool IsAllowedURL(KStringView sURL) const;
+	/// allow one more origin at run time, e.g. "https://example.com" - for a shell
+	/// whose site the user picks in a first-run page. From any thread
+	/// @return false when the text is no http(s) origin
+	bool AddAllowedOrigin(KStringView sOrigin);
 
 	/// the language of a request: the cookie "lang", else Accept-Language, else
 	/// the default language - always one the catalog has
@@ -550,6 +560,7 @@ private:
 	KString                           m_sToken;
 	KString                           m_sStartPath     { "/" };
 	mutable std::mutex                m_Mutex;
+	mutable std::mutex                m_OriginMutex;
 	std::condition_variable           m_Idle;
 	// the two shutdown signals and the handlers they had before - written once, iterated once
 	std::vector<std::pair<int, std::function<void(int)>>> m_PreviousSignalHandlers;

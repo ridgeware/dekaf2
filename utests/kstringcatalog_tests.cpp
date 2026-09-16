@@ -293,6 +293,22 @@ TEST_CASE("KStringCatalog")
 		CHECK ( Empty.Check().contains("error") == true );
 	}
 
+	SECTION("metadata is ignored")
+	{
+		// an identifier with a leading underscore is a note, not a message: it is
+		// neither parsed (braces in prose) nor missing in the other languages
+		KStringCatalog Notes("en");
+		CHECK ( Notes.AddLanguage("en", kjson::Parse(R"json({
+			"_meta.notes":     "identifiers are stable; values are ICU messages like {name} or {count, plural, ..}",
+			"_section.errors": "returned by the server as {message: \"..\"}",
+			"a":               "one"
+		})json")) == true );
+		CHECK ( Notes.AddLanguage("de", kjson::Parse(R"({ "a": "eins" })")) == true );
+		CHECK ( Notes.Check().empty()        == true );
+		CHECK ( Notes.Get("en", "_meta.notes") == "_meta.notes" );
+		CHECK ( Notes.GetNamespace("en", "_meta").empty() == true );
+	}
+
 	SECTION("adding twice overrides")
 	{
 		KStringCatalog Twice("en");

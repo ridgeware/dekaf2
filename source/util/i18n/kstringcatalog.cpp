@@ -331,6 +331,14 @@ bool KStringCatalog::AddLanguage(KStringView sLanguage, const KJSON& jStrings)
 		const auto& sID    = it.key();
 		const auto& jValue = it.value();
 
+		if (sID.starts_with('_'))
+		{
+			// metadata by convention: notes for translators, section markers -
+			// not a message, and not missing in the other languages
+			kDebug(2, "{}: '{}' is metadata, skipped", sTag, sID);
+			continue;
+		}
+
 		if (!jValue.is_string())
 		{
 			// a catalog holds messages only - no objects between them

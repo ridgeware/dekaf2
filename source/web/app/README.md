@@ -155,6 +155,7 @@ message, `KWebApp` is not built, and `DEKAF2_HAS_WEBVIEW` is 0 in
 | Secrets   | `SaveSecret()`, `LoadSecret()`, `DeleteSecret()`                                                                                                                                        | `kNative.saveSecret({key, value})`, `.loadSecret({key})` (string or `null`), `.deleteSecret({key})`                                                                                                                                                     |
 | Network   | `Options.bNetwork`, `Network`, `Authenticate`, `SessionStore`, `Session`, `WindowOnlyPaths`, `sContentSecurityPolicy`; `IsFromWindow(HTTP)`, `GetSession()`                             | login page at `/login`                                                                                                                                                                                                                                  |
 | Caches    | `ClearWebCache()` before `Run()`                                                                                                                                                        |                                                                                                                                                                                                                                                         |
+| Origins   | `Options.AllowedOrigins`, `AddAllowedOrigin(origin)` at run time, `IsAllowedURL(url)`                                                                                                   |                                                                                                                                                                                                                                                         |
 
 The names of the built-in bridge functions are reserved; `Bind()` rejects them.
 The secret functions are published to the page only on platforms where the
@@ -351,7 +352,7 @@ implementation. The first column names who handles it.
 | you     | CSP and the bridge on Windows                                                                   | verify before a strict `script-src` (see Security)                                    |
 | you     | GTK 4 before 4.10 has no file dialogs; `secret-tool` and `notify-send` need daemons             | check the target systems; fall back to category 2                                     |
 | you     | on Linux a hidden window can only be shown again with `Show()`                                  | leave `bHideOnClose` off unless the application provides a way to call `Show()`       |
-| you     | with Cmd-V bound in the Edit menu the page gets no `keydown` for it                             | handle the DOM `paste` event and `clipboardData`                                      |
+| you     | with Cmd-V bound in the Edit menu the page gets no `keydown` for it                             | handle the DOM `paste` event and `clipboardData`; or `Options.bPasteShortcut = false` when the page must see the key |
 
 ## ktail
 

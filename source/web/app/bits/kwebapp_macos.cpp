@@ -565,7 +565,7 @@ KString SaveFileDialog(void* /*pWindow*/, KStringView sTitle, KStringView sSugge
 } // SaveFileDialog
 
 //-----------------------------------------------------------------------------
-void SetMenu(void* /*pWindow*/, KStringView sAppName, const KJSON& jMenus, std::function<KString(KStringView)> Text,
+void SetMenu(void* /*pWindow*/, KStringView sAppName, const KJSON& jMenus, bool bPasteShortcut, std::function<KString(KStringView)> Text,
              std::function<void(KStringView)> OnAction, std::function<void()> OnQuit)
 //-----------------------------------------------------------------------------
 {
@@ -635,7 +635,9 @@ void SetMenu(void* /*pWindow*/, KStringView sAppName, const KJSON& jMenus, std::
 	AddSeparator(Edit);
 	AddItem(Edit, Text("kwa.menu.edit.cut"),       "cut:",       "x");
 	AddItem(Edit, Text("kwa.menu.edit.copy"),      "copy:",      "c");
-	AddItem(Edit, Text("kwa.menu.edit.paste"),     "paste:",     "v");
+	// with the key equivalent the menu answers Cmd-V before the page gets a
+	// keydown - an application that reads the clipboard itself leaves it out
+	AddItem(Edit, Text("kwa.menu.edit.paste"),     "paste:",     bPasteShortcut ? "v" : "");
 	AddItem(Edit, Text("kwa.menu.edit.selectAll"), "selectAll:", "a");
 	AddSeparator(Edit);
 	AddItem(Edit, Text("kwa.menu.edit.dictation"), "startDictation:",             "");

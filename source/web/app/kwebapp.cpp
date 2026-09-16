@@ -565,6 +565,9 @@ bool KWebApp::IsAllowedURL(KStringView sURL) const
 		return true;
 	}
 
+	// the list may grow at run time, see AddAllowedOrigin()
+	std::lock_guard<std::mutex> Lock(m_OriginMutex);
+
 	for (const auto& sAllowed : m_Options.AllowedOrigins)
 	{
 		if (sAllowed == "*")
@@ -583,6 +586,33 @@ bool KWebApp::IsAllowedURL(KStringView sURL) const
 	return false;
 
 } // IsAllowedURL
+
+//-----------------------------------------------------------------------------
+bool KWebApp::AddAllowedOrigin(KStringView sOrigin)
+//-----------------------------------------------------------------------------
+{
+	auto sCanonical = Origin(sOrigin);
+
+	if (sCanonical.empty() || !IsWebURL(sCanonical))
+	{
+		kDebug(1, "not an http(s) origin: '{}'", sOrigin);
+		return false;
+	}
+
+	std::lock_guard<std::mutex> Lock(m_OriginMutex);
+
+	for (const auto& sAllowed : m_Options.AllowedOrigins)
+	{
+		if (sAllowed == "*" || Origin(sAllowed) == sCanonical)
+		{
+			return true;
+		}
+	}
+
+	m_Options.AllowedOrigins.push_back(std::move(sCanonical));
+	return true;
+
+} // AddAllowedOrigin
 
 //-----------------------------------------------------------------------------
 KString KWebApp::AppName() const
@@ -2188,7 +2218,7 @@ int KWebApp::Run()
 
 		m_WebView->dispatch([this, sAppName, jMenus = TranslatedMenus()]
 		{
-			kwebapp::SetMenu(WindowHandle(), sAppName, jMenus,
+			kwebapp::SetMenu(WindowHandle(), sAppName, jMenus, m_Options.bPasteShortcut,
 			                 [this, sAppName](KStringView sID) { return m_Catalog.Format(m_sLanguage, sID, { { "app", sAppName } }); },
 			                 [this](KStringView sAction)        { MenuAction(sAction); },
 			                 [this]                             { Quit();              });

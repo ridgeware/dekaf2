@@ -811,7 +811,7 @@ KString SaveFileDialog(void* pWindow, KStringView sTitle, KStringView sSuggested
 #endif // GTK_MAJOR_VERSION
 
 //-----------------------------------------------------------------------------
-void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, std::function<KString(KStringView)> Text,
+void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, bool /*bPasteShortcut*/, std::function<KString(KStringView)> Text,
              std::function<void(KStringView)> OnAction, std::function<void()> OnQuit)
 //-----------------------------------------------------------------------------
 {

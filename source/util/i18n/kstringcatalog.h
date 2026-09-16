@@ -116,8 +116,10 @@ public:
 
 	/// add the messages of one language: a JSON object of identifier to message
 	/// (a string). A second call for the same language overrides existing
-	/// identifiers. Values that are not strings and messages that do not parse
-	/// are reported and skipped
+	/// identifiers. Identifiers that start with an underscore are metadata
+	/// (notes for translators, section markers) and are ignored without a
+	/// report; other values that are not strings and messages that do not
+	/// parse are reported and skipped
 	/// @return false when a value was skipped
 	bool AddLanguage(KStringView sLanguage, const KJSON& jStrings);
 	/// the same, from the JSON text of a catalog file - e.g. one embedded by

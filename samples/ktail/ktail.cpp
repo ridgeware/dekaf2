@@ -352,12 +352,19 @@ int KTail::Run()
 bool KTail::Resolve(KStringView sRelative, KString& sAbsolute) const
 //-----------------------------------------------------------------------------
 {
-	// relative to the root, and never above it
+	// relative to the root, and never above it. The page builds its paths with
+	// forward slashes on every platform
 	if (sRelative.starts_with('/')
 		|| sRelative == ".."
 		|| sRelative.starts_with("../")
 		|| sRelative.ends_with("/..")
-		|| sRelative.contains("/../"))
+		|| sRelative.contains("/../")
+#if DEKAF2_IS_WINDOWS
+		// no backslashes and no drive letters from the request, kNormalizePath()
+		// would honor them
+		|| sRelative.find_first_of("\\:") != KStringView::npos
+#endif
+		)
 	{
 		return false;
 	}
@@ -370,9 +377,11 @@ bool KTail::Resolve(KStringView sRelative, KString& sAbsolute) const
 		sAbsolute += sRelative;
 	}
 
+	// resolves any "..", and writes the separators of the platform - the root
+	// went through the same function
 	sAbsolute = kNormalizePath(sAbsolute);
 
-	return sAbsolute == m_Config.sRoot || sAbsolute.starts_with(kFormat("{}/", m_Config.sRoot));
+	return sAbsolute == m_Config.sRoot || sAbsolute.starts_with(kFormat("{}{}", m_Config.sRoot, kDirSep));
 
 } // Resolve
 

@@ -362,7 +362,8 @@ implementation. The first column names who handles it.
 over a websocket, keeps a note per file, offers the file as a download, reveals
 it in the file manager, and notifies on new lines. It uses menus, the live
 channel (notes saved in one view appear in all), the network mode with a
-bcrypt-hashed password, and hide-on-close when serving the network.
+bcrypt-hashed password, a tray symbol with the built-in menu, and hide-on-close
+when serving the network.
 
 ```
 ktail [-dir <path>] [-lang <tag>] [-inspector]

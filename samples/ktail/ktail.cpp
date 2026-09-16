@@ -323,6 +323,9 @@ KTail::KTail(Config Config)
 	Options.iWidth    = 1100;
 	Options.iHeight   = 700;
 	Options.sAppName  = "ktail";
+	// the symbol in the menu bar or the notification area, with "Open" and
+	// "Quit" from KWebApp's own texts - the way back to a hidden window
+	Options.bTrayIcon = true;
 	Options.Catalog   = &m_Strings;
 	Options.sLanguage = m_Config.sLanguage;
 	// the page answers these entries through the "kwa-menu" event. A title that

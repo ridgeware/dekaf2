@@ -40,11 +40,6 @@
  */
 
 
-// the tray icon's version 4 messages and the item dialogs need Windows 7 or newer
-#if defined(_WIN32) && !defined(_WIN32_WINNT)
-	#define _WIN32_WINNT 0x0601
-#endif
-
 #include <dekaf2/web/app/bits/kwebapp_platform.h>
 
 #if DEKAF2_HAS_WEBVIEW && DEKAF2_IS_WINDOWS
@@ -74,6 +69,13 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+// dekaf2 builds with _WIN32_WINNT 0x0600 (Vista), and the SDK declares this
+// Windows 7 flag only from 0x0601 on. The value is fixed, and the machine that
+// runs a KWebApp has Windows 10 or later anyway, because WebView2 needs it
+#ifndef NIIF_RESPECT_QUIET_TIME
+	#define NIIF_RESPECT_QUIET_TIME 0x00000080
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 

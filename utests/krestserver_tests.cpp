@@ -218,19 +218,23 @@ x-klog: -level 1
 		CHECK ( sResponse.starts_with("HTTP/1.1 200") );
 		CHECK_FALSE ( sResponse.contains("100 Continue") );
 
-		// CGI: the web server owns the connection and has answered the expectation itself
-		sResponse = Serve(kFormat(
-			"POST /api HTTP/1.1\r\n"
-			"Host: localhost\r\n"
-			"Expect: 100-continue\r\n"
-			"Content-Type: application/json\r\n"
-			"Content-Length: {}\r\n"
-			"\r\n"
-			"{}",
-			sBody.size(), sBody), KRESTServer::CGI);
+		// CGI, parsed or NPH: the web server owns the connection and has answered
+		// the expectation itself
+		for (auto Out : { KRESTServer::CGI, KRESTServer::NPH })
+		{
+			sResponse = Serve(kFormat(
+				"POST /api HTTP/1.1\r\n"
+				"Host: localhost\r\n"
+				"Expect: 100-continue\r\n"
+				"Content-Type: application/json\r\n"
+				"Content-Length: {}\r\n"
+				"\r\n"
+				"{}",
+				sBody.size(), sBody), Out);
 
-		CHECK ( sResponse.starts_with("Status: 200") );
-		CHECK_FALSE ( sResponse.contains("100 Continue") );
+			CHECK ( sResponse.contains(" 200") );
+			CHECK_FALSE ( sResponse.contains("100 Continue") );
+		}
 	}
 
 	SECTION("websocket upgrade behind a web server")
@@ -267,15 +271,19 @@ x-klog: -level 1
 
 		CHECK ( Serve(KRESTServer::HTTP).starts_with("HTTP/1.1 101") );
 
-		auto sResponse = Serve(KRESTServer::CGI);
-		CHECK_FALSE ( sResponse.starts_with("HTTP/1.1 101") );
-		CHECK ( sResponse.contains("bad mode") );
+		for (auto Out : { KRESTServer::CGI, KRESTServer::NPH })
+		{
+			auto sResponse = Serve(Out);
+			CHECK_FALSE ( sResponse.contains(" 101") );
+			CHECK ( sResponse.contains("bad mode") );
+		}
 	}
 
-	SECTION("no compression in CGI mode")
+	SECTION("compression: HTTP and NPH compress, parsed CGI does not")
 	{
-		// compressed output comes with a chunked framing, which a CGI must not
-		// emit - the web server compresses and frames CGI output itself
+		// an NPH response goes to the client unparsed, so it is framed exactly like
+		// on a connection we own - compression and chunking included. With parsed
+		// headers the web server frames and compresses, a chunked body would break
 		auto Serve = [](KRESTServer::OutputType Out) -> KString
 		{
 			KString sRequest =
@@ -305,7 +313,13 @@ x-klog: -level 1
 		CHECK ( sHTTP.contains("content-encoding:") );
 		CHECK ( sHTTP.contains("transfer-encoding: chunked") );
 
-		// behind a CGI web server it is neither
+		// and so is the NPH response
+		auto sNPH = Serve(KRESTServer::NPH);
+		CHECK ( sNPH.starts_with("http/1.1 200") );
+		CHECK ( sNPH.contains("content-encoding:") );
+		CHECK ( sNPH.contains("transfer-encoding: chunked") );
+
+		// parsed headers: neither, the body has a length
 		auto sCGI = Serve(KRESTServer::CGI);
 		CHECK ( sCGI.starts_with("status: 200") );
 		CHECK_FALSE ( sCGI.contains("content-encoding:") );
@@ -356,12 +370,13 @@ x-klog: -level 1
 		CHECK ( jCookies[1] == "theme=dark; Path=/" );
 	}
 
-	SECTION("CGI response head")
+	SECTION("CGI response head: parsed vs NPH")
 	{
-		// RFC 3875 6.3.3: a CGI response starts with a Status header field, not
-		// with an HTTP status line - the web server builds that itself. This holds
-		// for the regular output and for the error path alike
-		auto Serve = [](KStringView sPath) -> KString
+		// NPH (xapis installs as nph-xapis.cgi): the web server passes the response
+		// through unparsed, so it carries the HTTP status line and the Connection
+		// header. Parsed headers (RFC 3875 6.3.3): a Status: field, no status line,
+		// no connection fields. Both on the regular and on the error path
+		auto Serve = [](KStringView sPath, KRESTServer::OutputType Out) -> KString
 		{
 			KString sRequest = kFormat(
 				"GET {} HTTP/1.1\r\n"
@@ -373,7 +388,7 @@ x-klog: -level 1
 			KOutStringStream oss(sResponse);
 			KStream stream(iss, oss);
 			KRESTServer::Options Options;
-			Options.Out = KRESTServer::CGI;
+			Options.Out = Out;
 			KRESTRoutes Routes;
 			Routes.AddRoute({ KHTTPMethod::GET, false, "/test", [&](KRESTServer& http)
 			{
@@ -384,13 +399,22 @@ x-klog: -level 1
 			return sResponse;
 		};
 
-		auto sResponse = Serve("/test");
+		auto sResponse = Serve("/test", KRESTServer::NPH);
+		CHECK ( sResponse.starts_with("HTTP/1.1 200 OK\r\n") );
+		CHECK ( sResponse.ToLowerASCII().contains("connection: close") );
+		CHECK ( sResponse.contains("\"response\"") );
+
+		sResponse = Serve("/nowhere", KRESTServer::NPH);
+		CHECK ( sResponse.starts_with("HTTP/1.1 404") );
+		CHECK ( sResponse.ToLowerASCII().contains("connection: close") );
+
+		sResponse = Serve("/test", KRESTServer::CGI);
 		CHECK ( sResponse.starts_with("Status: 200 OK\r\n") );
 		CHECK_FALSE ( sResponse.contains("HTTP/1.1") );
 		CHECK_FALSE ( sResponse.ToLowerASCII().contains("connection:") );
 		CHECK ( sResponse.contains("\"response\"") );
 
-		sResponse = Serve("/nowhere");
+		sResponse = Serve("/nowhere", KRESTServer::CGI);
 		CHECK ( sResponse.starts_with("Status: 404") );
 		CHECK_FALSE ( sResponse.contains("HTTP/1.1") );
 		CHECK_FALSE ( sResponse.ToLowerASCII().contains("connection:") );

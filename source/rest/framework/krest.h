@@ -113,6 +113,13 @@ public:
 		/// well-known subset of headers from the CGI environment, so register any
 		/// custom header your handlers rely on here, e.g. "X-BLC-Session".
 		std::vector<KString> AdditionalCGIHeaders;
+		/// how a CGI returns its response head. Parsed: a Status: header field, the web
+		/// server builds the status line and frames the body (RFC 3875, the only form
+		/// nginx and lighttpd know). NPH: a complete HTTP response the web server passes
+		/// through unparsed. Auto (the default) follows the web server's own rule, see
+		/// IsNPHScript()
+		enum class CGIHeaders : uint8_t { Auto, Parsed, NPH };
+		CGIHeaders CGIStyle { CGIHeaders::Auto };
 		/// listen port - 0 (the default) lets the OS pick a free port, which
 		/// GetPort() reports after Execute()
 		uint16_t iPort { 0 };
@@ -218,6 +225,11 @@ public:
 	bool ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, KOutStream& OutStream = KOut);
 	/// simulate one REST request in HTTP/CGI mode, call API, output to OutStream
 	bool Simulate(const Options& Options, const KRESTRoutes& Routes, const KResource& API, KOutStream& OutStream = KOut);
+	/// returns true if the web server runs this CGI as NPH (non-parsed headers). Apache
+	/// decides that by the script path alone: a basename starting with "nph-" - the
+	/// path as configured, so a symlink named nph-xyz.cgi to some other binary counts
+	/// (SCRIPT_FILENAME, or SCRIPT_NAME if that is not set)
+	static bool IsNPHScript();
 	/// call either of the three other execution methods depending on Options.Type and sFilenameOrSimulation
 	bool Execute(const Options& Options, const KRESTRoutes& Routes);
 	/// returns true if no error

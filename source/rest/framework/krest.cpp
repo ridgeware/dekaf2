@@ -446,7 +446,18 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				}
 
 				KStream Stream(CGI, KOut);
-				Options.Out = KRESTServer::CGI;
+				switch (Options.CGIStyle)
+				{
+					case Options::CGIHeaders::Auto:
+						Options.Out = IsNPHScript() ? KRESTServer::NPH : KRESTServer::CGI;
+						break;
+					case Options::CGIHeaders::Parsed:
+						Options.Out = KRESTServer::CGI;
+						break;
+					case Options::CGIHeaders::NPH:
+						Options.Out = KRESTServer::NPH;
+						break;
+				}
 				Options.iMaxKeepaliveRounds = 1; // no keepalive in CGI mode..
 
 				RealExecute(Options,
@@ -587,6 +598,21 @@ bool KREST::ExecuteFromFile(const Options& Options, const KRESTRoutes& Routes, K
 	return true;
 
 } // ExecuteFromFile
+
+//-----------------------------------------------------------------------------
+bool KREST::IsNPHScript()
+//-----------------------------------------------------------------------------
+{
+	auto sScript = kGetEnv(KCGIInStream::SCRIPT_FILENAME);
+
+	if (sScript.empty())
+	{
+		sScript = kGetEnv(KCGIInStream::SCRIPT_NAME);
+	}
+
+	return kBasename(sScript).starts_with("nph-");
+
+} // IsNPHScript
 
 //-----------------------------------------------------------------------------
 bool KREST::Simulate(const Options& Options, const KRESTRoutes& Routes, const KResource& API, KOutStream& OutStream)

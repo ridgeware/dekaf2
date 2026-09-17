@@ -157,6 +157,7 @@ public:
 	static constexpr KStringViewZ REMOTE_USER             = "REMOTE_USER";
 	static constexpr KStringViewZ REQUEST_METHOD          = "REQUEST_METHOD";
 	static constexpr KStringViewZ REQUEST_URI             = "REQUEST_URI";
+	static constexpr KStringViewZ SCRIPT_FILENAME         = "SCRIPT_FILENAME";
 	static constexpr KStringViewZ SCRIPT_NAME             = "SCRIPT_NAME";
 	static constexpr KStringViewZ SERVER_NAME             = "SERVER_NAME";
 	static constexpr KStringViewZ SERVER_PORT             = "SERVER_PORT";

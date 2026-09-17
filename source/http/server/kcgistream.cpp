@@ -362,6 +362,7 @@ constexpr KStringViewZ KCGIInStream::REMOTE_HOST;
 constexpr KStringViewZ KCGIInStream::REMOTE_USER;
 constexpr KStringViewZ KCGIInStream::REQUEST_METHOD;
 constexpr KStringViewZ KCGIInStream::REQUEST_URI;
+constexpr KStringViewZ KCGIInStream::SCRIPT_FILENAME;
 constexpr KStringViewZ KCGIInStream::SCRIPT_NAME;
 constexpr KStringViewZ KCGIInStream::SERVER_NAME;
 constexpr KStringViewZ KCGIInStream::SERVER_PORT;

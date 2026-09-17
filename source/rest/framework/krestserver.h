@@ -108,7 +108,8 @@ public:
 	enum OutputType
 	{
 		HTTP,     ///< speak HTTP on a connection we own
-		CGI,      ///< speak HTTP to a CGI web server, which owns the client connection
+		CGI,      ///< CGI with parsed headers (RFC 3875): a Status: header field instead of the status line, no connection headers, no chunking or compression - the web server builds the status line and frames the body. It owns the client connection, so no interim responses and no protocol upgrades
+		NPH,      ///< NPH CGI (non-parsed headers): a complete HTTP response, which the web server passes through unparsed. It still owns the client connection, so no interim responses and no protocol upgrades
 		LAMBDA,   ///< AWS specific
 		CLI       ///< console type output for testing
 	};

@@ -3,6 +3,8 @@
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/rest/framework/krestclient.h>
+#include <dekaf2/http/server/kcgistream.h>
+#include <dekaf2/system/os/ksystem.h>
 
 using namespace dekaf2;
 
@@ -574,6 +576,28 @@ TEST_CASE("KREST")
 		CHECK ( sResponse.starts_with("HTTP/1.1 200 OK\r\n") );
 		CHECK_FALSE ( sResponse.contains("Status:") );
 		CHECK ( sResponse.contains("\"response\"") );
+	}
+
+	SECTION("IsNPHScript follows the web server's rule")
+	{
+		// Apache runs a CGI as NPH when the configured script path has a basename
+		// starting with "nph-" - the path as configured, so a symlink named
+		// nph-xapis.cgi to the plain xapis binary counts. SCRIPT_NAME is the fallback
+		kSetEnv(KCGIInStream::SCRIPT_FILENAME, "/usr/local/bin/nph-abcxyz.cgi");
+		CHECK ( KREST::IsNPHScript() );
+
+		kSetEnv(KCGIInStream::SCRIPT_FILENAME, "/usr/local/bin/abcxyz");
+		CHECK_FALSE ( KREST::IsNPHScript() );
+
+		kUnsetEnv(KCGIInStream::SCRIPT_FILENAME);
+		kSetEnv(KCGIInStream::SCRIPT_NAME, "/cgi-bin/nph-report.cgi");
+		CHECK ( KREST::IsNPHScript() );
+
+		kSetEnv(KCGIInStream::SCRIPT_NAME, "/cgi-bin/report.cgi");
+		CHECK_FALSE ( KREST::IsNPHScript() );
+
+		kUnsetEnv(KCGIInStream::SCRIPT_NAME);
+		CHECK_FALSE ( KREST::IsNPHScript() );
 	}
 
 	SECTION("HTTP bind address")

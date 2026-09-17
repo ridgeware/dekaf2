@@ -1086,8 +1086,8 @@ bool KRESTServer::Execute()
 			// one second). Route lookup and authentication are done at this point,
 			// so no final status is pending that would make the body unnecessary.
 			// Only HTTP/1.1 carries interim responses on this stream, and only in HTTP
-			// mode - in CGI mode the web server has answered the expectation before
-			// handing us the body.
+			// mode - as CGI (parsed or NPH) the web server has answered the expectation
+			// itself before handing us the body.
 			if (m_Options.Out == HTTP &&
 			    Request.GetHTTPVersion() == KHTTPVersion::http11 &&
 			    Request.HasContent(Request.Method) &&
@@ -1389,8 +1389,8 @@ void KRESTServer::WriteHeaders()
 
 		if (m_Options.Out == CGI)
 		{
-			// the connection to the client belongs to the web server - a CGI must
-			// not return connection related header fields (RFC 3875 6.3.4)
+			// with parsed headers the connection to the client belongs to the web
+			// server - a CGI must not return connection related fields (RFC 3875 6.3.4)
 			Response.Headers.Remove(KHTTPHeader::CONNECTION);
 		}
 		else
@@ -1430,9 +1430,9 @@ void KRESTServer::Stream(bool bAllowCompressionIfPossible, bool bWriteHeaders)
 
 	ThrowIfDisconnected();
 
-	if (m_Options.Out != HTTP && m_Options.Out != CGI)
+	if (m_Options.Out != HTTP && m_Options.Out != CGI && m_Options.Out != NPH)
 	{
-		throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "streaming mode only allowed in HTTP or CGI output modes" };
+		throw KHTTPError { KHTTPError::H5xx_NOTIMPL, "streaming mode only allowed in HTTP, CGI or NPH output modes" };
 	}
 
 	m_bIsStreaming = true;
@@ -1500,10 +1500,10 @@ void KRESTServer::Output()
 		}
 	}
 
-	// only allow output compression in HTTP mode, and if we allow compression and have
-	// content. In CGI mode compression is the web server's job: our compressed output
-	// would come with a chunked framing, which a CGI must not emit (RFC 3875 6.3)
-	ConfigureCompression(m_Options.Out == HTTP && m_Options.bAllowCompression && m_bResponseCompression && bOutputContent);
+	// only allow output compression if this is HTTP or NPH output (a complete HTTP
+	// response either way, chunked framing included), and if we allow compression and
+	// have content. With parsed headers the web server frames and compresses itself.
+	ConfigureCompression((m_Options.Out == HTTP || m_Options.Out == NPH) && m_Options.bAllowCompression && m_bResponseCompression && bOutputContent);
 
 	kDebug (1, "HTTP-{}: {}", Response.iStatusCode, Response.sStatusString);
 
@@ -1511,6 +1511,7 @@ void KRESTServer::Output()
 	{
 		case HTTP:
 		case CGI:
+		case NPH:
 		{
 			KString sContent;
 
@@ -1933,6 +1934,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 	{
 		case HTTP:
 		case CGI:
+		case NPH:
 		{
 			KString sContent;
 
@@ -1972,7 +1974,7 @@ void KRESTServer::ErrorHandler(const std::exception& ex, bool bKeepAlive)
 
 			if (m_Options.Out == CGI)
 			{
-				// no connection related header fields from a CGI (RFC 3875 6.3.4)
+				// no connection related fields from a parsed headers CGI (RFC 3875 6.3.4)
 				Response.Headers.Remove(KHTTPHeader::CONNECTION);
 			}
 			else

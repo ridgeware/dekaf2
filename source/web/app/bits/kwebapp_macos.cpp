@@ -999,8 +999,10 @@ bool SetBackgroundActivity(void* pWebView, bool bKeepRunning)
 
 	// WebKit suppresses the web content process of a page whose view is not
 	// visible - occluded, minimized, on another space - and the page stops
-	// answering its connections. The switch is a private preference, reached
-	// through key-value coding: _pageVisibilityBasedProcessSuppressionEnabled
+	// answering its connections. The switch is a private preference with its
+	// own setter, _setPageVisibilityBasedProcessSuppressionEnabled: - not
+	// reachable through key-value coding, which would look for set_page...:
+	// and raise NSUnknownKeyException. Called only if WebKit still has it.
 	auto Preferences = Msg<id>(Msg<id>(static_cast<id>(pWebView), "configuration"), "preferences");
 
 	if (!Preferences)
@@ -1008,8 +1010,16 @@ bool SetBackgroundActivity(void* pWebView, bool bKeepRunning)
 		return false;
 	}
 
-	auto Value = Msg<id>(Class("NSNumber"), "numberWithBool:", static_cast<ObjCBool>(bKeepRunning ? 0 : 1));
-	Msg<void>(Preferences, "setValue:forKey:", Value, NSStr("_pageVisibilityBasedProcessSuppressionEnabled"));
+	auto Setter = sel_registerName("_setPageVisibilityBasedProcessSuppressionEnabled:");
+
+	if (class_respondsToSelector(object_getClass(Preferences), Setter))
+	{
+		reinterpret_cast<void(*)(id, SEL, ObjCBool)>(objc_msgSend)(Preferences, Setter, static_cast<ObjCBool>(bKeepRunning ? 0 : 1));
+	}
+	else
+	{
+		kDebug(1, "WebKit has no process suppression switch, the page may go silent in the background");
+	}
 
 	// and the application itself must not be napped: an activity that lasts
 	// until the process ends, or until the option is taken back

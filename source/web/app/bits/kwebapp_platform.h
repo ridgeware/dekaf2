@@ -120,6 +120,11 @@ bool ActivateWindow(void* pWindow);
 /// getUserMedia() without a prompt of its own - the operating system has asked
 /// already, with the bundle's usage descriptions. False when not supported
 bool AllowMediaCapture(void* pWebView);
+/// keep the page fully running while the window is hidden, minimized or on
+/// another desktop: the webview must not suspend the web content process for
+/// an invisible page, and the application must not be napped by the system.
+/// False when the platform has no such switch
+bool SetBackgroundActivity(void* pWebView, bool bKeepRunning);
 /// show a text on the application's icon (the dock badge), empty clears it
 void SetBadge(KStringView sText);
 /// ask for the user's attention while the application is in the background:

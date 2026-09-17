@@ -70,7 +70,9 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
 	cmake_policy(SET CMP0144 NEW)
 endif()
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
-	# use boosts own BoostConfig.cmake
+	# keep CMake's FindBoost module (OLD) instead of Boost's own BoostConfig.cmake (NEW)
+	# we should consider to change to the NEW behaviour once we are no more interested in
+	# building on systems that do not ship boost v1.70 or later.
 	cmake_policy(SET CMP0167 OLD)
 endif()
 
@@ -302,6 +304,11 @@ if (DEKAF2_STATIC_EXECUTABLES)
 	set (DEKAF2_FORCE_STATIC_LIBS ON)
 endif()
 
+# the MSVC runtime dekaf2 links against, decided in the Windows block and exported
+# to consumers through dekaf2-setup.cmake: every target linking dekaf2 has to use
+# the same one. Defined here so that the other platforms carry a value as well
+set (DEKAF2_MSVC_STATIC_RUNTIME OFF)
+
 if (IS_WINDOWS)
 	# on Windows, disable asan/ubsan
 	set (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS OFF)
@@ -312,6 +319,8 @@ if (IS_WINDOWS)
 	endif()
 	if (DEKAF2_PREFER_STATIC_LIBS OR DEKAF2_FORCE_STATIC_LIBS)
 		message (STATUS "linking against static runtime for windows")
+		# consumers have to pick the same runtime, dekaf2-setup.cmake tells them
+		set (DEKAF2_MSVC_STATIC_RUNTIME ON)
 		if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.15.0)
 			# link against static runtime for windows
 			set (CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -322,6 +331,7 @@ if (IS_WINDOWS)
 		endif()
 	else()
 		message (STATUS "linking against dynamic runtime for windows")
+		set (DEKAF2_MSVC_STATIC_RUNTIME OFF)
 	endif()
 else ()
 	# on Unixes, enable unix sockets and pipes
@@ -788,6 +798,9 @@ endif()
 #            Microsoft.Web.WebView2 (https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/<version>,
 #            a zip) and set WEBVIEW2_SDK_DIR to it. The WebView2 runtime comes with Windows 11
 #            and with Edge, older systems need the Evergreen runtime installer
+# the WebView2 SDK as vcpkg port is an imported target in dekaf2's link interface -
+# a consumer has to find it as well, see cmake/dekaf2-config.cmake.in
+set(DEKAF2_WEBVIEW2_VCPKG OFF)
 if (DEKAF2_WITH_WEBVIEW)
 	set(WEBVIEW_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/from/webview")
 	set(WEBVIEW_FOUND        OFF)
@@ -809,6 +822,7 @@ if (DEKAF2_WITH_WEBVIEW)
 			set(WEBVIEW_LIBRARIES unofficial::webview2::webview2)
 			set(WEBVIEW_VERSION   "WebView2 SDK (vcpkg)")
 			set(WEBVIEW_FOUND     ON)
+			set(DEKAF2_WEBVIEW2_VCPKG ON)
 		else()
 			find_path(WEBVIEW2_INCLUDE_DIR WebView2.h
 				HINTS "$ENV{WEBVIEW2_SDK_DIR}/build/native/include" "${WEBVIEW2_SDK_DIR}/build/native/include")

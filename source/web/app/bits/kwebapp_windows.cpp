@@ -233,6 +233,12 @@ struct Shell
 	HICON                                   hTrayIcon    { nullptr };  // loaded from a file, ours to destroy
 	std::vector<KString>                    TrayActions;
 	std::function<void(KStringView)>        OnTrayAction;
+	// the page's full screen element: the window drops frame, menu bar and
+	// taskbar for it, and gets them back from here
+	bool                                    bFullScreen  { false };
+	HMENU                                   hMenuBar     { nullptr };
+	LONG_PTR                                iStyle       { 0 };
+	WINDOWPLACEMENT                         Placement    {};
 };
 
 Shell s_Shell;
@@ -854,6 +860,7 @@ void SetMenu(void* pWindow, KStringView sAppName, const KJSON& jMenus, bool /*bP
 
 	auto hOld = ::GetMenu(hWnd);
 	::SetMenu(hWnd, hBar);
+	s_Shell.hMenuBar = hBar;
 
 	if (hOld)
 	{
@@ -1024,6 +1031,16 @@ bool AllowMediaCapture(void* pController)
 	return true;
 
 } // AllowMediaCapture
+
+//-----------------------------------------------------------------------------
+bool SetBackgroundActivity(void* /*pWebView*/, bool /*bKeepRunning*/)
+//-----------------------------------------------------------------------------
+{
+	// the engine here throttles timers of a hidden page but keeps its
+	// connections and event handlers running - nothing to switch
+	return true;
+
+} // SetBackgroundActivity
 
 //-----------------------------------------------------------------------------
 void SetBadge(KStringView sText)
@@ -1253,6 +1270,50 @@ bool SetNavigationPolicy(void* pController, NavigationPolicy Policy)
 		std::lock_guard<std::mutex> Lock(s_Shell.Mutex);
 		return s_Shell.Policy;
 	};
+
+	// a page's full screen element: WebView2 only fills its own bounds with it.
+	// The window takes the whole monitor - no frame, no menu bar, and the
+	// taskbar yields to a popup window of monitor size - and comes back to
+	// where it was when the element leaves full screen
+	AddHandler<ICoreWebView2ContainsFullScreenElementChangedEventHandler, ICoreWebView2, IUnknown>(
+		pWebView, &ICoreWebView2::add_ContainsFullScreenElementChanged,
+		[](ICoreWebView2* pView, IUnknown*)
+		{
+			BOOL bFull = FALSE;
+			pView->get_ContainsFullScreenElement(&bFull);
+			auto hWnd = s_Shell.hWindow;
+
+			if (!hWnd || (bFull != FALSE) == s_Shell.bFullScreen)
+			{
+				return;
+			}
+
+			if (bFull)
+			{
+				s_Shell.Placement.length = sizeof(WINDOWPLACEMENT);
+				::GetWindowPlacement(hWnd, &s_Shell.Placement);
+				s_Shell.iStyle = ::GetWindowLongPtrW(hWnd, GWL_STYLE);
+
+				MONITORINFO Monitor {};
+				Monitor.cbSize = sizeof(Monitor);
+				::GetMonitorInfoW(::MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST), &Monitor);
+
+				::SetMenu(hWnd, nullptr);
+				::SetWindowLongPtrW(hWnd, GWL_STYLE, (s_Shell.iStyle & ~static_cast<LONG_PTR>(WS_OVERLAPPEDWINDOW)) | WS_POPUP | WS_VISIBLE);
+				::SetWindowPos(hWnd, HWND_TOP, Monitor.rcMonitor.left, Monitor.rcMonitor.top,
+				               Monitor.rcMonitor.right - Monitor.rcMonitor.left, Monitor.rcMonitor.bottom - Monitor.rcMonitor.top,
+				               SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+			}
+			else
+			{
+				::SetWindowLongPtrW(hWnd, GWL_STYLE, s_Shell.iStyle);
+				::SetMenu(hWnd, s_Shell.hMenuBar);
+				::SetWindowPlacement(hWnd, &s_Shell.Placement);
+				::SetWindowPos(hWnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+			}
+
+			s_Shell.bFullScreen = bFull != FALSE;
+		});
 
 	// top level navigations
 	AddHandler<ICoreWebView2NavigationStartingEventHandler, ICoreWebView2, ICoreWebView2NavigationStartingEventArgs>(

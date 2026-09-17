@@ -161,7 +161,10 @@ KStringViewZ kGetWebViewVersion();
 /// OnNotificationClick(). Options.bTrayIcon puts a symbol into the menu bar or
 /// the notification area, with Options.jTrayMenu or an "Open" and "Quit" of its
 /// own, and SetTrayIcon() swaps its image for an attention state.
-/// SaveSecret(), LoadSecret() and DeleteSecret() keep
+/// Options.bBackgroundActivity keeps the page running while the window is
+/// hidden or on another desktop, for a page that must answer while nobody
+/// looks. Options.SitePaths opens single paths of the loopback server to the
+/// hosted site, token in the query. SaveSecret(), LoadSecret() and DeleteSecret() keep
 /// e.g. a login in the system's credential store, for the page as
 /// window.kNative.saveSecret(), .loadSecret() and .deleteSecret() - published
 /// only where the navigation rules are enforced. ClearWebCache() before Run()
@@ -331,6 +334,13 @@ public:
 		/// the symbol's image: a file (PNG, on Windows ICO), on macOS also an SF Symbol
 		/// as "sf:<name>" - empty takes the application's icon
 		KString        sTrayIcon;
+		/// keep the page fully running while the window is hidden, minimized or on
+		/// another desktop. Without it macOS suspends the web content of an invisible
+		/// window after a while. On for a communication application, off for a tool
+		bool           bBackgroundActivity { false };
+		/// paths of the loopback server that the hosted site (Options.AllowedOrigins)
+		/// may call
+		std::vector<KString> SitePaths;
 	};
 
 	/// JavaScript to C++ handler: one JSON argument in, one JSON result out.

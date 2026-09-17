@@ -51,6 +51,9 @@ endif()
 if (@DEKAF2_WITH_SIMDUTF@ AND NOT @DEKAF2_USE_VENDORED_SIMDUTF@) # simdutf via find_package
 	find_dependency(simdutf CONFIG)
 endif()
+if (@DEKAF2_WEBVIEW2_VCPKG@) # KWebApp on Windows links the WebView2 SDK's imported target from the vcpkg port
+	find_dependency(unofficial-webview2 CONFIG)
+endif()
 
 # in package/vcpkg mode the system libraries are linked through their imported targets (see the
 # matching block in CMakeLists.txt), so the consumer has to recreate those targets here. In the

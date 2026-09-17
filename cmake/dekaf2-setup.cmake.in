@@ -3,7 +3,8 @@
 if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 
 	if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.30.0)
-		# use boosts own BoostConfig.cmake
+		# keep CMake's FindBoost module (OLD) instead of Boost's own BoostConfig.cmake
+		# (NEW), the same choice as in dekaf2-config.cmake and dekaf2's CMakeLists.txt
 		cmake_policy(SET CMP0167 OLD)
 	endif()
 
@@ -41,6 +42,15 @@ if (NOT DEKAF2_HAVE_INCLUDED_SETUP)
 		set (DEKAF2_OUTPUT_TARGET "@DEKAF2_OUTPUT_TARGET@")
 		set (DEKAF2_DUAL_TARGET "@DEKAF2_DUAL_TARGET@")
 		set (DEKAF2_VERSION_IN_TARGET "@DEKAF2_VERSION_IN_TARGET@")
+
+		if (IS_WINDOWS AND @DEKAF2_MSVC_STATIC_RUNTIME@)
+			# dekaf2 was linked against the static runtime (/MT), and every target
+			# that links it has to use the same, else the linker stops with LNK2038
+			# (MT_StaticRelease against MD_DynamicRelease). This takes effect when
+			# policy CMP0091 is NEW in the consumer: cmake_minimum_required 3.15 or
+			# later, or cmake_policy(SET CMP0091 NEW) before its project() call
+			set (CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+		endif()
 
 		if (@DEKAF2_BUILD_SHARED_DEKAF2@)
 			set (DEKAF2_LINK_SHARED "-shared")

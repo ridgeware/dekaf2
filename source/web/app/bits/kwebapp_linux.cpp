@@ -1160,6 +1160,16 @@ bool AllowMediaCapture(void* pWebView)
 } // AllowMediaCapture
 
 //-----------------------------------------------------------------------------
+bool SetBackgroundActivity(void* /*pWebView*/, bool /*bKeepRunning*/)
+//-----------------------------------------------------------------------------
+{
+	// the engine here throttles timers of a hidden page but keeps its
+	// connections and event handlers running - nothing to switch
+	return true;
+
+} // SetBackgroundActivity
+
+//-----------------------------------------------------------------------------
 void SetBadge(KStringView sText)
 //-----------------------------------------------------------------------------
 {

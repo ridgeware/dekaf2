@@ -132,10 +132,17 @@ TEST_CASE("KWebApp")
 		HTTP.json.tx["page"] = "data";
 	}});
 
+	// what the hosted site may call itself (Options.SitePaths)
+	Routes.AddRoute({ KHTTPMethod::GET, false, "/site", [](KRESTServer& HTTP)
+	{
+		HTTP.json.tx["page"] = "site";
+	}});
+
 	// the server alone, no window
 	KWebApp::Options Options;
 	Options.bWindow        = false;
 	Options.AllowedOrigins = { "https://Example.com/some/path", "http://intranet:8080" };
+	Options.SitePaths      = { "/site" };
 
 	KWebApp App(std::move(Options), Routes);
 	REQUIRE ( App.HasError() == false );
@@ -167,6 +174,30 @@ TEST_CASE("KWebApp")
 		CHECK ( App.Bind("mine",         [](const KJSON&) -> KJSON { return true; }) == true  );
 		CHECK ( App.Bind("mine",         [](const KJSON&) -> KJSON { return true; }) == false );
 		CHECK ( App.Bind("not valid",    [](const KJSON&) -> KJSON { return true; }) == false );
+	}
+
+	SECTION("paths for the hosted site")
+	{
+		auto sSite     = kFormat("GET /site?token={} HTTP/1.1", sToken);
+		auto sSiteData = kFormat("GET /data?token={} HTTP/1.1", sToken);
+
+		// the site calls with its origin and the token: allowed
+		auto R = Request(iPort, sSite, { sHost, "Origin: https://example.com" });
+		CHECK ( R.iStatus == 200 );
+		CHECK ( R.sBody.contains("\"site\"") );
+		// the origin counts as everywhere else: not the path, not the case
+		CHECK ( Request(iPort, sSite, { sHost, "Origin: https://EXAMPLE.com" }).iStatus == 200 );
+		CHECK ( Request(iPort, sSite, { sHost, "Origin: http://intranet:8080" }).iStatus == 200 );
+		// a foreign origin: refused
+		CHECK ( Request(iPort, sSite, { sHost, "Origin: https://evil.example" }).iStatus == 403 );
+		// no origin at all: refused, a browser always sends one
+		CHECK ( Request(iPort, sSite, { sHost }).iStatus == 403 );
+		// the right origin, no token: refused
+		CHECK ( Request(iPort, "GET /site HTTP/1.1", { sHost, "Origin: https://example.com" }).iStatus == 403 );
+		// a path that is not a site path stays closed to the site
+		CHECK ( Request(iPort, sSiteData, { sHost, "Origin: https://example.com" }).iStatus == 403 );
+		// and the shell itself still reaches the site path with its cookie
+		CHECK ( Request(iPort, "GET /site HTTP/1.1", { sHost, sCookie }).iStatus == 200 );
 	}
 
 	SECTION("desktop calls are no-ops without a window")

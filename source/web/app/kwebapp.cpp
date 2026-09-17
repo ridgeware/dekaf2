@@ -1617,6 +1617,24 @@ void KWebApp::Guard(KRESTServer& HTTP)
 	}
 
 	const auto& sOrigin = HTTP.Request.Headers.Get(KHTTPHeader::ORIGIN);
+	const auto& sPath   = HTTP.Request.Resource.Path.get();
+
+	for (const auto& sSitePath : m_Options.SitePaths)
+	{
+		if (sPath == sSitePath)
+		{
+			// a path for the hosted site: the request is cross-origin by nature,
+			// so it is the site's origin and the token in the query that let it
+			// in - anything else falls through to the shell's own rules below
+			if (!sOrigin.empty() && IsAllowedURL(sOrigin)
+			 && KDigest::ConstantTimeCompare(HTTP.GetQueryParm("token"), m_sToken))
+			{
+				return;
+			}
+
+			break;
+		}
+	}
 
 	if (!sOrigin.empty())
 	{
@@ -2241,6 +2259,11 @@ int KWebApp::Run()
 			if (m_Options.bAllowMediaCapture && !kwebapp::AllowMediaCapture(pController))
 			{
 				kDebug(1, "cannot grant media capture on this platform, the webview decides itself");
+			}
+
+			if (m_Options.bBackgroundActivity && !kwebapp::SetBackgroundActivity(pController, true))
+			{
+				kDebug(1, "cannot keep the page running in the background on this platform");
 			}
 
 			// the window's life: hide instead of close, come back when the

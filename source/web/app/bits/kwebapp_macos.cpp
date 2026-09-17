@@ -989,6 +989,52 @@ bool AllowMediaCapture(void* pWebView)
 } // AllowMediaCapture
 
 //-----------------------------------------------------------------------------
+bool SetBackgroundActivity(void* pWebView, bool bKeepRunning)
+//-----------------------------------------------------------------------------
+{
+	if (!pWebView)
+	{
+		return false;
+	}
+
+	// WebKit suppresses the web content process of a page whose view is not
+	// visible - occluded, minimized, on another space - and the page stops
+	// answering its connections. The switch is a private preference, reached
+	// through key-value coding: _pageVisibilityBasedProcessSuppressionEnabled
+	auto Preferences = Msg<id>(Msg<id>(static_cast<id>(pWebView), "configuration"), "preferences");
+
+	if (!Preferences)
+	{
+		return false;
+	}
+
+	auto Value = Msg<id>(Class("NSNumber"), "numberWithBool:", static_cast<ObjCBool>(bKeepRunning ? 0 : 1));
+	Msg<void>(Preferences, "setValue:forKey:", Value, NSStr("_pageVisibilityBasedProcessSuppressionEnabled"));
+
+	// and the application itself must not be napped: an activity that lasts
+	// until the process ends, or until the option is taken back
+	static id s_Activity { nullptr };
+	auto ProcessInfo = Msg<id>(Class("NSProcessInfo"), "processInfo");
+
+	if (bKeepRunning && !s_Activity)
+	{
+		// NSActivityUserInitiatedAllowingIdleSystemSleep: no App Nap, no automatic
+		// termination, the display and the system may still sleep
+		constexpr unsigned long long iOptions = 0x00FFFFFFULL & ~(1ULL << 20);
+		s_Activity = Msg<id>(Msg<id>(ProcessInfo, "beginActivityWithOptions:reason:", iOptions, NSStr("keeps a live connection")), "retain");
+	}
+	else if (!bKeepRunning && s_Activity)
+	{
+		Msg<void>(ProcessInfo, "endActivity:", s_Activity);
+		Msg<void>(s_Activity, "release");
+		s_Activity = nullptr;
+	}
+
+	return true;
+
+} // SetBackgroundActivity
+
+//-----------------------------------------------------------------------------
 void SetBadge(KStringView sText)
 //-----------------------------------------------------------------------------
 {

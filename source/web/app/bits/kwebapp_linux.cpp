@@ -1164,6 +1164,38 @@ bool Confirm(void* /*pWindow*/, KStringView sTitle, KStringView sText, KStringVi
 //-----------------------------------------------------------------------------
 {
 	// no parent: the dialog opens on the current workspace, and modal on its own
+#if GTK_CHECK_VERSION(4, 10, 0)
+	// GtkMessageDialog is deprecated from 4.10 on. GtkAlertDialog answers through
+	// a callback, the nested loop waits for it. Buttons by index: 0 cancel, 1 OK
+	struct Answer { NestedLoop Loop; int iButton { 0 }; };
+	Answer A;
+
+	auto Dialog = gtk_alert_dialog_new("%s", KString(sTitle).c_str());
+
+	if (!sText.empty())
+	{
+		gtk_alert_dialog_set_detail(Dialog, KString(sText).c_str());
+	}
+
+	KString sCancelLabel(sCancel);
+	KString sOKLabel(sOK);
+	const char* Labels[] { sCancelLabel.c_str(), sOKLabel.c_str(), nullptr };
+	gtk_alert_dialog_set_buttons(Dialog, Labels);
+	gtk_alert_dialog_set_cancel_button(Dialog, 0);
+	gtk_alert_dialog_set_default_button(Dialog, 1);
+	gtk_alert_dialog_set_modal(Dialog, TRUE);
+
+	gtk_alert_dialog_choose(Dialog, nullptr, nullptr, +[](GObject* Source, GAsyncResult* Result, gpointer pData)
+	{
+		auto* pA = static_cast<Answer*>(pData);
+		pA->iButton = gtk_alert_dialog_choose_finish(GTK_ALERT_DIALOG(Source), Result, nullptr);
+		pA->Loop.Quit();
+	}, &A);
+
+	A.Loop.Run();
+	g_object_unref(Dialog);
+	return A.iButton == 1;
+#else
 	auto Dialog = gtk_message_dialog_new(nullptr, GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE,
 	                                     "%s", KString(sTitle).c_str());
 
@@ -1196,6 +1228,7 @@ bool Confirm(void* /*pWindow*/, KStringView sTitle, KStringView sText, KStringVi
 	gtk_widget_destroy(Dialog);
 	return iResponse == GTK_RESPONSE_OK;
 #endif
+#endif // GTK_CHECK_VERSION(4, 10, 0)
 
 } // Confirm
 

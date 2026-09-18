@@ -52,6 +52,7 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <objc/objc-runtime.h>
 #include <objc/message.h>
+#include <unistd.h>
 #include <objc/runtime.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreFoundation/CoreFoundation.h>
@@ -1075,9 +1076,23 @@ void CancelAttention(void* /*pWindow*/, int64_t iRequest)
 } // CancelAttention
 
 //-----------------------------------------------------------------------------
-bool Confirm(void* /*pWindow*/, KStringView sTitle, KStringView sText, KStringView sOK, KStringView sCancel)
+bool Confirm(void* pWindow, KStringView sTitle, KStringView sText, KStringView sOK, KStringView sCancel)
 //-----------------------------------------------------------------------------
 {
+	// Record who is in front now, and get our own window out of the way: when the
+	// panel closes, AppKit makes the next window key, and a key window on another
+	// space takes the user there. With the window ordered out there is no such
+	// candidate; afterwards the previous application gets the focus back, and
+	// the window returns to its space without becoming key
+	auto Window   = static_cast<id>(pWindow);
+	auto Previous = Msg<id>(Msg<id>(Class("NSWorkspace"), "sharedWorkspace"), "frontmostApplication");
+	bool bWasVisible = Window && Msg<ObjCBool>(Window, "isVisible");
+
+	if (bWasVisible)
+	{
+		Msg<void>(Window, "orderOut:", static_cast<id>(nullptr));
+	}
+
 	auto Alert = Msg<id>(Msg<id>(Class("NSAlert"), "alloc"), "init");
 	Msg<void>(Alert, "setMessageText:", NSStr(sTitle));
 
@@ -1100,6 +1115,17 @@ bool Confirm(void* /*pWindow*/, KStringView sTitle, KStringView sText, KStringVi
 
 	auto iResponse = Msg<long>(Alert, "runModal");
 	Msg<void>(Alert, "release");
+
+	if (Previous && Msg<int>(Previous, "processIdentifier") != getpid())
+	{
+		constexpr unsigned long iIgnoringOtherApps = 1UL << 1;   // NSApplicationActivateIgnoringOtherApps
+		Msg<ObjCBool>(Previous, "activateWithOptions:", iIgnoringOtherApps);
+	}
+
+	if (bWasVisible)
+	{
+		Msg<void>(Window, "orderFront:", static_cast<id>(nullptr));
+	}
 
 	return iResponse == 1000;   // NSAlertFirstButtonReturn
 

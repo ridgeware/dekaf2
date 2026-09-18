@@ -125,6 +125,12 @@ bool AllowMediaCapture(void* pWebView);
 /// an invisible page, and the application must not be napped by the system.
 /// False when the platform has no such switch
 bool SetBackgroundActivity(void* pWebView, bool bKeepRunning);
+
+/// ask the user a yes-or-no question with the system's own dialog, on the UI
+/// thread. The dialog opens where the user is - on macOS the active space, on
+/// Windows the current virtual desktop - which the window itself may not be.
+/// @return true for the first button (sOK)
+bool Confirm(void* pWindow, KStringView sTitle, KStringView sText, KStringView sOK, KStringView sCancel);
 /// show a text on the application's icon (the dock badge), empty clears it
 void SetBadge(KStringView sText);
 /// ask for the user's attention while the application is in the background:

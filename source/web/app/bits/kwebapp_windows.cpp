@@ -1033,6 +1033,50 @@ bool AllowMediaCapture(void* pController)
 } // AllowMediaCapture
 
 //-----------------------------------------------------------------------------
+bool Confirm(void* /*pWindow*/, KStringView sTitle, KStringView sText, KStringView sOK, KStringView sCancel)
+//-----------------------------------------------------------------------------
+{
+	// no owner window: the dialog opens on the current virtual desktop, which
+	// the window may not be on. TaskDialogIndirect shows our button titles;
+	// it lives in the common controls v6 and is looked up at runtime, so an
+	// application without their manifest still starts - and gets MessageBox
+	auto wTitle  = kutf::Convert<std::wstring>(sTitle);
+	auto wText   = kutf::Convert<std::wstring>(sText);
+	auto wOK     = kutf::Convert<std::wstring>(sOK);
+	auto wCancel = kutf::Convert<std::wstring>(sCancel);
+
+	using TaskDialogIndirectFn = HRESULT (WINAPI*)(const TASKDIALOGCONFIG*, int*, int*, BOOL*);
+	static auto pTaskDialogIndirect = reinterpret_cast<TaskDialogIndirectFn>(
+		reinterpret_cast<void*>(::GetProcAddress(::LoadLibraryW(L"comctl32.dll"), "TaskDialogIndirect")));
+
+	if (pTaskDialogIndirect)
+	{
+		TASKDIALOG_BUTTON Buttons[2] = { { 100, wOK.c_str() }, { 101, wCancel.c_str() } };
+		TASKDIALOGCONFIG Config {};
+		Config.cbSize             = sizeof(Config);
+		Config.dwFlags            = TDF_SIZE_TO_CONTENT;
+		Config.pszWindowTitle     = wTitle.c_str();
+		Config.pszMainInstruction = wTitle.c_str();
+		Config.pszContent         = wText.empty() ? nullptr : wText.c_str();
+		Config.pButtons           = Buttons;
+		Config.cButtons           = 2;
+		Config.nDefaultButton     = 100;
+		Config.pszMainIcon        = TD_INFORMATION_ICON;
+
+		int iButton = 0;
+
+		if (SUCCEEDED(pTaskDialogIndirect(&Config, &iButton, nullptr, nullptr)))
+		{
+			return iButton == 100;
+		}
+	}
+
+	return ::MessageBoxW(nullptr, wText.empty() ? wTitle.c_str() : wText.c_str(), wTitle.c_str(),
+	                     MB_OKCANCEL | MB_ICONQUESTION | MB_SETFOREGROUND | MB_TOPMOST) == IDOK;
+
+} // Confirm
+
+//-----------------------------------------------------------------------------
 bool SetBackgroundActivity(void* /*pWebView*/, bool /*bKeepRunning*/)
 //-----------------------------------------------------------------------------
 {

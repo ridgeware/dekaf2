@@ -1160,6 +1160,46 @@ bool AllowMediaCapture(void* pWebView)
 } // AllowMediaCapture
 
 //-----------------------------------------------------------------------------
+bool Confirm(void* /*pWindow*/, KStringView sTitle, KStringView sText, KStringView sOK, KStringView sCancel)
+//-----------------------------------------------------------------------------
+{
+	// no parent: the dialog opens on the current workspace, and modal on its own
+	auto Dialog = gtk_message_dialog_new(nullptr, GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE,
+	                                     "%s", KString(sTitle).c_str());
+
+	if (!sText.empty())
+	{
+		gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(Dialog), "%s", KString(sText).c_str());
+	}
+
+	gtk_dialog_add_button(GTK_DIALOG(Dialog), KString(sCancel).c_str(), GTK_RESPONSE_CANCEL);
+	gtk_dialog_add_button(GTK_DIALOG(Dialog), KString(sOK).c_str(),     GTK_RESPONSE_OK);
+	gtk_dialog_set_default_response(GTK_DIALOG(Dialog), GTK_RESPONSE_OK);
+
+#if GTK_CHECK_VERSION(4, 0, 0)
+	// GTK 4 has no gtk_dialog_run(): a nested main loop waits for the answer
+	struct Answer { GMainLoop* pLoop; int iResponse; };
+	Answer A { g_main_loop_new(nullptr, FALSE), GTK_RESPONSE_CANCEL };
+	g_signal_connect(Dialog, "response", G_CALLBACK(+[](GtkDialog*, int iResponse, gpointer pData)
+	{
+		auto* pA = static_cast<Answer*>(pData);
+		pA->iResponse = iResponse;
+		g_main_loop_quit(pA->pLoop);
+	}), &A);
+	gtk_window_present(GTK_WINDOW(Dialog));
+	g_main_loop_run(A.pLoop);
+	g_main_loop_unref(A.pLoop);
+	gtk_window_destroy(GTK_WINDOW(Dialog));
+	return A.iResponse == GTK_RESPONSE_OK;
+#else
+	auto iResponse = gtk_dialog_run(GTK_DIALOG(Dialog));
+	gtk_widget_destroy(Dialog);
+	return iResponse == GTK_RESPONSE_OK;
+#endif
+
+} // Confirm
+
+//-----------------------------------------------------------------------------
 bool SetBackgroundActivity(void* /*pWebView*/, bool /*bKeepRunning*/)
 //-----------------------------------------------------------------------------
 {

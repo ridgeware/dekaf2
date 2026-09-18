@@ -999,6 +999,12 @@ void KWebApp::AddBuiltins()
 		return true;
 	});
 
+	// a yes-or-no question in the system's dialog: { "title", "text", "ok", "cancel" }
+	m_Bindings.emplace("confirm", [this](const KJSON& jArg) -> KJSON
+	{
+		return Confirm(jArg("title").String(), jArg("text").String(), jArg("ok").String(), jArg("cancel").String());
+	});
+
 	// the secrets: { "key": "...", "value": "..." } - Run() withdraws these three
 	// where the navigation rules cannot be enforced
 	m_Bindings.emplace("saveSecret", [this](const KJSON& jArg) -> KJSON
@@ -1401,6 +1407,32 @@ void KWebApp::CancelAttention()
 	});
 
 } // CancelAttention
+
+//-----------------------------------------------------------------------------
+bool KWebApp::Confirm(KStringView sTitle, KStringView sText, KStringView sOK, KStringView sCancel)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Options.bWindow)
+	{
+		return false;
+	}
+
+	auto pWindow = WindowHandle();
+
+	if (!pWindow)
+	{
+		return false;
+	}
+
+	KString sOKTitle     (sOK);
+	KString sCancelTitle (sCancel);
+
+	if (sOKTitle.empty())     sOKTitle     = GetCatalog().Get(GetLanguage(), "kwa.dialog.ok");
+	if (sCancelTitle.empty()) sCancelTitle = GetCatalog().Get(GetLanguage(), "kwa.dialog.cancel");
+
+	return kwebapp::Confirm(pWindow, sTitle, sText, sOKTitle, sCancelTitle);
+
+} // Confirm
 
 //-----------------------------------------------------------------------------
 void KWebApp::Activate()

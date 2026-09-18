@@ -21,5 +21,7 @@
 	"kwa.menu.window.minimize": "최소화",
 	"kwa.menu.window.zoom":    "확대/축소",
 	"kwa.menu.window.front":   "모두 앞으로 가져오기",
-	"kwa.tray.open":           "{app} 열기"
+	"kwa.tray.open":           "{app} 열기",
+	"kwa.dialog.ok":           "OK",
+	"kwa.dialog.cancel":       "취소"
 }

@@ -168,6 +168,7 @@ TEST_CASE("KWebApp")
 		CHECK ( App.Bind("requestAttention", [](const KJSON&) -> KJSON { return true; }) == false );
 		CHECK ( App.Bind("cancelAttention",  [](const KJSON&) -> KJSON { return true; }) == false );
 		CHECK ( App.Bind("activate",     [](const KJSON&) -> KJSON { return true; }) == false );
+		CHECK ( App.Bind("confirm",      [](const KJSON&) -> KJSON { return true; }) == false );
 		CHECK ( App.Bind("saveSecret",   [](const KJSON&) -> KJSON { return true; }) == false );
 		CHECK ( App.Bind("loadSecret",   [](const KJSON&) -> KJSON { return true; }) == false );
 		CHECK ( App.Bind("deleteSecret", [](const KJSON&) -> KJSON { return true; }) == false );
@@ -207,6 +208,7 @@ TEST_CASE("KWebApp")
 		App.RequestAttention(true);
 		App.CancelAttention();
 		App.Activate();
+		CHECK ( App.Confirm("a question", "and its explanation") == false );
 		App.SetTrayIcon("");
 		App.Show();
 		App.Hide();

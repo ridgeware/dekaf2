@@ -21,5 +21,7 @@
 	"kwa.menu.window.minimize": "Im Dock ablegen",
 	"kwa.menu.window.zoom":    "Zoomen",
 	"kwa.menu.window.front":   "Alle nach vorne bringen",
-	"kwa.tray.open":           "{app} öffnen"
+	"kwa.tray.open":           "{app} öffnen",
+	"kwa.dialog.ok":           "OK",
+	"kwa.dialog.cancel":       "Abbrechen"
 }

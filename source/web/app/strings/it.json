@@ -21,5 +21,7 @@
 	"kwa.menu.window.minimize": "Contrai",
 	"kwa.menu.window.zoom":    "Zoom",
 	"kwa.menu.window.front":   "Porta tutto in primo piano",
-	"kwa.tray.open":           "Apri {app}"
+	"kwa.tray.open":           "Apri {app}",
+	"kwa.dialog.ok":           "OK",
+	"kwa.dialog.cancel":       "Annulla"
 }

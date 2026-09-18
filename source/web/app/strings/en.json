@@ -21,5 +21,7 @@
 	"kwa.menu.window.minimize": "Minimize",
 	"kwa.menu.window.zoom":    "Zoom",
 	"kwa.menu.window.front":   "Bring All to Front",
-	"kwa.tray.open":           "Open {app}"
+	"kwa.tray.open":           "Open {app}",
+	"kwa.dialog.ok":           "OK",
+	"kwa.dialog.cancel":       "Cancel"
 }

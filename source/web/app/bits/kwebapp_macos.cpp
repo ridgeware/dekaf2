@@ -1074,6 +1074,37 @@ void CancelAttention(void* /*pWindow*/, int64_t iRequest)
 
 } // CancelAttention
 
+//-----------------------------------------------------------------------------
+bool Confirm(void* /*pWindow*/, KStringView sTitle, KStringView sText, KStringView sOK, KStringView sCancel)
+//-----------------------------------------------------------------------------
+{
+	auto Alert = Msg<id>(Msg<id>(Class("NSAlert"), "alloc"), "init");
+	Msg<void>(Alert, "setMessageText:", NSStr(sTitle));
+
+	if (!sText.empty())
+	{
+		Msg<void>(Alert, "setInformativeText:", NSStr(sText));
+	}
+
+	Msg<id>(Alert, "addButtonWithTitle:", NSStr(sOK));
+	Msg<id>(Alert, "addButtonWithTitle:", NSStr(sCancel));
+
+	// the panel joins the active space - where the user is, which the window
+	// may not be - before the application comes to the front with it; with a
+	// window on the active space, macOS does not switch spaces on activation
+	auto Panel = Msg<id>(Alert, "window");
+	constexpr unsigned long iMoveToActiveSpace = 1UL << 1;   // NSWindowCollectionBehaviorMoveToActiveSpace
+	Msg<void>(Panel, "setCollectionBehavior:", iMoveToActiveSpace);
+	Msg<void>(Panel, "orderFrontRegardless");
+	Msg<void>(Msg<id>(Class("NSApplication"), "sharedApplication"), "activateIgnoringOtherApps:", static_cast<ObjCBool>(1));
+
+	auto iResponse = Msg<long>(Alert, "runModal");
+	Msg<void>(Alert, "release");
+
+	return iResponse == 1000;   // NSAlertFirstButtonReturn
+
+} // Confirm
+
 namespace {
 
 // the navigation policy: one delegate object of a class made at run time. It

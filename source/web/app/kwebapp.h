@@ -164,7 +164,9 @@ KStringViewZ kGetWebViewVersion();
 /// Options.bBackgroundActivity keeps the page running while the window is
 /// hidden or on another desktop, for a page that must answer while nobody
 /// looks. Options.SitePaths opens single paths of the loopback server to the
-/// hosted site, token in the query. SaveSecret(), LoadSecret() and DeleteSecret() keep
+/// hosted site, token in the query. Confirm() asks a yes-or-no question in the
+/// system's own dialog, where the user is, for the page as
+/// window.kNative.confirm({title, text, ok, cancel}). SaveSecret(), LoadSecret() and DeleteSecret() keep
 /// e.g. a login in the system's credential store, for the page as
 /// window.kNative.saveSecret(), .loadSecret() and .deleteSecret() - published
 /// only where the navigation rules are enforced. ClearWebCache() before Run()
@@ -462,6 +464,17 @@ public:
 	void CancelAttention();
 	/// bring the window to the front and activate the application, from any thread
 	void Activate();
+	/// ask the user a yes-or-no question with the system's own dialog. It opens
+	/// where the user is - on macOS the active space, on Windows the current
+	/// virtual desktop - which the window itself may not be. Empty button
+	/// titles take "OK" and "Cancel" from the catalog. On the UI thread only,
+	/// which a bound handler is; for the page as window.kNative.confirm()
+	/// @param sTitle the question, in bold
+	/// @param sText the explanation below it, may be empty
+	/// @param sOK the title of the first button, the answer "yes"
+	/// @param sCancel the title of the second button, the answer "no"
+	/// @return true for the first button, false for the second or without a window
+	bool Confirm(KStringView sTitle, KStringView sText = KStringView{}, KStringView sOK = KStringView{}, KStringView sCancel = KStringView{});
 	/// swap the tray symbol's image, e.g. while a call comes in - empty restores
 	/// Options.sTrayIcon. From any thread, a no-op without tray symbol
 	void SetTrayIcon(KStringView sIcon);

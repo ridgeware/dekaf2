@@ -248,10 +248,14 @@ TEST_CASE("KCSV")
 		KStringView sPlain = "a,b\n";
 		CHECK ( CSV.SkipBOM(sPlain).data() == sPlain.data() );
 
-		// input in UTF16 LE with BOM, as Excel writes "Unicode Text", is decoded
+		// with a buffer, input in UTF16 LE with BOM, as Excel writes "Unicode Text", is decoded
+		KString sBuffer;
+		CHECK ( CSV.SkipBOM(sPlain, sBuffer).data() == sPlain.data() ); // UTF8 stays a view into the input
+		CHECK ( sBuffer.empty() );
 		KString sUTF16 = kutf::Encode<KString>(KString("Product,Type\nCoffee,Ground\n"), kutf::Encoding::UTF16LE);
-		auto sDecoded = CSV.SkipBOM(KStringView(sUTF16));
+		auto sDecoded = CSV.SkipBOM(KStringView(sUTF16), sBuffer);
 		CHECK ( sDecoded == "Product,Type\nCoffee,Ground\n" );
+		CHECK ( sDecoded.data() == sBuffer.data() );
 		json = KInCSV<>(sDecoded);
 		CHECK ( json.dump() == R"([{"Product":"Coffee","Type":"Ground"}])" );
 	}

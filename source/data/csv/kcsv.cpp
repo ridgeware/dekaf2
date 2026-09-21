@@ -145,8 +145,16 @@ KInStream& KCSV::SkipBOM(KInStream& In)
 KStringView KCSV::SkipBOM(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
-	// a view into the input for UTF8, the decoded text in m_sDecoded for UTF16 and UTF32
-	return kutf::Decode(sInput, m_sDecoded);
+	return kSkipUTF8BOM(sInput);
+
+} // SkipBOM
+
+//-----------------------------------------------------------------------------
+KStringView KCSV::SkipBOM(KStringView sInput, KString& sBuffer)
+//-----------------------------------------------------------------------------
+{
+	// a view into the input for UTF8, the decoded text in sBuffer for UTF16 and UTF32
+	return kutf::Decode(sInput, sBuffer);
 
 } // SkipBOM
 

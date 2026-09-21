@@ -156,12 +156,19 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// the input as UTF8 without BOM: a view into the input when it is UTF8 (behind a BOM, if
-	/// there is one), else the input decoded from the UTF16 or UTF32 its byte order mark
-	/// announces (Excel's "Unicode Text" is UTF16 LE) - that text lives in this object until
-	/// the next call
+	/// skip a UTF8 BOM at the start of the input - Microsoft applications write one at the
+	/// start of files. For input in UTF16 or UTF32 use the overload with a buffer
 	DEKAF2_NODISCARD
 	KStringView SkipBOM(KStringView sIn);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// the input as UTF8 without BOM: a view into the input when it is UTF8 (behind a BOM, if
+	/// there is one, and sBuffer stays untouched), else the input decoded from the UTF16 or
+	/// UTF32 its byte order mark announces (Excel's "Unicode Text" is UTF16 LE) into sBuffer,
+	/// and a view on that
+	DEKAF2_NODISCARD
+	KStringView SkipBOM(KStringView sIn, KString& sBuffer);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -228,8 +235,6 @@ private:
 	char                m_Limiters[3];
 	bool                m_bFirst { true };
 	KFindSetOfChars     m_LimiterSet;
-	// the UTF8 text of a UTF16 or UTF32 input, see SkipBOM(KStringView)
-	KString             m_sDecoded;
 
 }; // KCSV
 

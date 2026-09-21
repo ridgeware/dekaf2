@@ -221,6 +221,23 @@ void KSQLite::detail::DBConnector::ApplyOptions()
 	if (m_Options.bWAL && m_Options.iMode != READONLY)
 	{
 		sqlite3_exec(m_DB, "PRAGMA journal_mode=WAL", nullptr, nullptr, nullptr);
+		sqlite3_wal_autocheckpoint(m_DB, static_cast<int>(m_Options.iWALAutoCheckpoint));
+	}
+
+	switch (m_Options.iSynchronous)
+	{
+		case Synchronous::Off:
+			sqlite3_exec(m_DB, "PRAGMA synchronous=OFF", nullptr, nullptr, nullptr);
+			break;
+
+		case Synchronous::Normal:
+			sqlite3_exec(m_DB, "PRAGMA synchronous=NORMAL", nullptr, nullptr, nullptr);
+			break;
+
+		case Synchronous::Full:
+			// the sqlite default, but a build may have changed it - set it anyway
+			sqlite3_exec(m_DB, "PRAGMA synchronous=FULL", nullptr, nullptr, nullptr);
+			break;
 	}
 
 	m_Probation.assign(m_Options.iStatementCache ? m_Options.iStatementCache * std::size_t(2) : 0, 0);
@@ -241,6 +258,37 @@ bool KSQLite::detail::DBConnector::SetBusyTimeout(std::chrono::milliseconds Time
 	return Success(sqlite3_busy_timeout(m_DB, static_cast<int>(Timeout.count())));
 
 } // SetBusyTimeout
+
+//--------------------------------------------------------------------------------
+bool KSQLite::detail::DBConnector::Checkpoint(bool bTruncate)
+//--------------------------------------------------------------------------------
+{
+	if (!m_DB)
+	{
+		return false;
+	}
+
+	int iLogFrames    { 0 };
+	int iCheckpointed { 0 };
+
+	auto ec = sqlite3_wal_checkpoint_v2(m_DB, nullptr,
+	                                    bTruncate ? SQLITE_CHECKPOINT_TRUNCATE : SQLITE_CHECKPOINT_PASSIVE,
+	                                    &iLogFrames, &iCheckpointed);
+
+	if (!Success(ec))
+	{
+#ifdef DEKAF2
+		kDebug(1, "checkpoint: {}", sqlite3_errstr(ec));
+#endif
+		return false;
+	}
+
+	// both counts are -1 without WAL. A passive checkpoint stops at the frames
+	// a reader still needs and reports SQLITE_OK nonetheless - that is not
+	// completion
+	return iLogFrames < 0 || iCheckpointed >= iLogFrames;
+
+} // Checkpoint
 
 //--------------------------------------------------------------------------------
 sqlite3_stmt* KSQLite::detail::DBConnector::Compile(StringView sSQL)
@@ -1027,6 +1075,21 @@ bool KSQLite::SetBusyTimeout(std::chrono::milliseconds BusyTimeout)
 {
 	return m_Connector ? m_Connector->SetBusyTimeout(BusyTimeout) : false;
 }
+
+//--------------------------------------------------------------------------------
+bool KSQLite::Checkpoint(bool bTruncate)
+//--------------------------------------------------------------------------------
+{
+	if (!m_Connector)
+	{
+		return false;
+	}
+
+	detail::Claim Claim(*m_Connector);
+
+	return m_Connector->Checkpoint(bTruncate);
+
+} // KSQLite::Checkpoint
 
 //--------------------------------------------------------------------------------
 sqlite3* KSQLite::NativeHandle() noexcept

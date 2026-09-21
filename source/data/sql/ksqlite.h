@@ -211,6 +211,20 @@ public:
 		READWRITECREATE
 	};
 
+	//----------
+	/// PRAGMA synchronous levels, see Options::iSynchronous
+	enum class Synchronous : uint8_t
+	//----------
+	{
+		/// no fsync at all - the OS decides when data reaches the disk
+		Off,
+		/// fsync at checkpoints (WAL) or before the critical journal steps -
+		/// safe against application crashes, not against power loss
+		Normal,
+		/// fsync at every commit - the sqlite default
+		Full
+	};
+
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	/// connection options, given at construction of a KSQLite instance
 	///
@@ -232,6 +246,17 @@ public:
 		/// the file, creates -wal/-shm side files, and is unsuitable for network
 		/// mounts. Not applied to READONLY connections.
 		bool                      bWAL            { false };
+		/// PRAGMA synchronous: how much the engine waits for the disk. Full
+		/// (the sqlite default) syncs at every commit. Normal is the right
+		/// choice together with bWAL - durable against application crashes,
+		/// may lose the last transactions on power loss, and a small commit
+		/// becomes an append to the -wal file without an fsync. Off leaves
+		/// everything to the OS.
+		Synchronous               iSynchronous    { Synchronous::Full };
+		/// PRAGMA wal_autocheckpoint: after how many pages in the -wal file a
+		/// checkpoint folds them back into the database file, 0 disables the
+		/// automatic checkpoint (see Checkpoint()). Only with bWAL.
+		uint32_t                  iWALAutoCheckpoint { 1000 };
 		/// enforce foreign key constraints (sqlite default is off)
 		bool                      bForeignKeys    { true  };
 		/// allow URI filenames like 'file::memory:?cache=shared'
@@ -420,6 +445,8 @@ private:
 		const String& Filename()     const noexcept { return m_sFilename;     }
 		/// set a busy timeout (to change the one given at creation)
 		bool          SetBusyTimeout(std::chrono::milliseconds Timeout);
+		/// write the -wal file back into the database file, see KSQLite::Checkpoint()
+		bool          Checkpoint(bool bTruncate);
 
 		/// compiled statement for this SQL, from the cache when it has earned
 		/// admission (second sight) - call under a Claim only
@@ -1019,6 +1046,13 @@ public:
 	const String& Filename() const noexcept;
 	/// set a busy timeout (to change the one given at creation)
 	bool SetBusyTimeout(std::chrono::milliseconds BusyTimeout);
+	/// write the content of the -wal file back into the database file - a
+	/// no-op without WAL. With bTruncate the -wal file is also reset to zero
+	/// length, which waits (up to the busy timeout) for running readers to
+	/// finish: the right call for a periodic housekeeping step, e.g. before
+	/// a file based backup. Returns false when the checkpoint could not run
+	/// to completion.
+	bool Checkpoint(bool bTruncate = false);
 	/// set de/encryption key for the current database
 	bool Key(StringView sKey);
 	/// set a new key, a valid Key() must have been set before

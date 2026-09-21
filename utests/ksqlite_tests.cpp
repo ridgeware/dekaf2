@@ -419,6 +419,46 @@ TEST_CASE("KSQLite")
 		CHECK ( db.SingleIntQuery("select count(*) from t") == 2 );
 	}
 
+	SECTION("WAL options and checkpoint")
+	{
+		auto sFilename = kFormat("{}/sqlite_wal.db", TempDir.Name());
+
+		KSQLite::Options Opts;
+		Opts.iMode              = KSQLite::Mode::READWRITECREATE;
+		Opts.bWAL               = true;
+		Opts.iSynchronous       = KSQLite::Synchronous::Normal;
+		Opts.iWALAutoCheckpoint = 0;
+
+		KSQLite db(sFilename, Opts);
+		REQUIRE ( db.IsOpen() );
+
+		CHECK ( db.SingleStringQuery("pragma journal_mode")       == "wal" );
+		CHECK ( db.SingleIntQuery   ("pragma synchronous")        == 1     );
+		CHECK ( db.SingleIntQuery   ("pragma wal_autocheckpoint") == 0     );
+
+		REQUIRE ( db.ExecSQL("create table walt (n integer)") );
+
+		for (int n = 0; n < 200; ++n)
+		{
+			REQUIRE ( db.ExecSQL("insert into walt (n) values (?1)", n) );
+		}
+
+		// with the automatic checkpoint off, every commit is still in the log
+		auto sWAL = sFilename + "-wal";
+		CHECK ( kFileSize(sWAL) > 0 );
+
+		CHECK ( db.Checkpoint(true) );
+		CHECK ( kFileSize(sWAL) == 0 );
+		CHECK ( db.SingleIntQuery("select count(*) from walt") == 200 );
+
+		// the default synchronous level is Full, and the journal mode is a
+		// property of the file
+		KSQLite db2(sFilename, KSQLite::Mode::READWRITE);
+		REQUIRE ( db2.IsOpen() );
+		CHECK ( db2.SingleIntQuery   ("pragma synchronous")  == 2     );
+		CHECK ( db2.SingleStringQuery("pragma journal_mode") == "wal" );
+	}
+
 	SECTION("one connection per thread")
 	{
 		auto sFilename = kFormat("{}/sqlite_threads.db", TempDir.Name());

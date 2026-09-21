@@ -132,7 +132,12 @@ bool KCSV::WriteEndOfRecord(KOutStream &Out)
 KInStream& KCSV::SkipBOM(KInStream& In)
 //-----------------------------------------------------------------------------
 {
-	return kSkipUTF8BOM(In);
+	if (kGetBOM(In, /*bSkip*/true) != kutf::Encoding::UTF8)
+	{
+		kDebug(1, "the CSV input is UTF16 or UTF32, which cannot be read record by record - read it into a string and use SkipBOM(KStringView)");
+	}
+
+	return In;
 
 } // SkipBOM
 
@@ -140,7 +145,8 @@ KInStream& KCSV::SkipBOM(KInStream& In)
 KStringView KCSV::SkipBOM(KStringView sInput)
 //-----------------------------------------------------------------------------
 {
-	return kSkipUTF8BOM(sInput);
+	// a view into the input for UTF8, the decoded text in m_sDecoded for UTF16 and UTF32
+	return kutf::Decode(sInput, m_sDecoded);
 
 } // SkipBOM
 

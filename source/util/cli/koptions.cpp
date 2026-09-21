@@ -1252,6 +1252,13 @@ int KOptions::ParseFile(KStringViewZ sFileName, KOutStream& out)
 		return SetError(kFormat("cannot open input file: {}", sFileName), out);
 	}
 
+	// a UTF-8 byte order mark, as Windows editors write it, is skipped. The file is
+	// read line by line, so UTF-16 and UTF-32 cannot be decoded here
+	if (kGetBOM(InFile, /*bSkip*/true) != kutf::Encoding::UTF8)
+	{
+		return SetError(kFormat("input file is not UTF-8, save it as UTF-8: {}", sFileName), out);
+	}
+
 	return Parse(InFile, out);
 
 } // ParseFile

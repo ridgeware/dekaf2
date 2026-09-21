@@ -22,7 +22,6 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstringutils.h>
-#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/time/clock/ktime.h>
 // the string catalogs in strings/, embedded by dekaf2_embed_strings() in the CMake file
 #include <ktail_strings.h>
@@ -200,68 +199,6 @@ KStringView Parent(KStringView sRelative)
 
 } // Parent
 
-//-----------------------------------------------------------------------------
-// the code units of a UTF-16 or UTF-32 text from its bytes, in the byte order
-// its byte order mark announced. kutf::Convert() expects the platform's byte
-// order, so the units are assembled here byte by byte; a trailing incomplete
-// unit is dropped
-template<typename Unit>
-std::basic_string<Unit> CodeUnits(KStringView sBytes, bool bBigEndian)
-//-----------------------------------------------------------------------------
-{
-	std::basic_string<Unit> Units;
-	Units.reserve(sBytes.size() / sizeof(Unit));
-
-	for (std::size_t i = 0; i + sizeof(Unit) <= sBytes.size(); i += sizeof(Unit))
-	{
-		Unit ch = 0;
-
-		for (std::size_t k = 0; k < sizeof(Unit); ++k)
-		{
-			auto iByte = static_cast<unsigned char>(sBytes[i + (bBigEndian ? k : sizeof(Unit) - 1 - k)]);
-			ch = static_cast<Unit>((ch << 8) | iByte);
-		}
-
-		Units += ch;
-	}
-
-	return Units;
-
-} // CodeUnits
-
-//-----------------------------------------------------------------------------
-// the text of a file as UTF-8, decoded by its byte order mark. Windows
-// PowerShell writes UTF-16 with a BOM, and a password typed into a browser
-// arrives as UTF-8, so both have to be in one encoding before bcrypt compares
-// them. Text without a BOM is taken as UTF-8
-KString TextAsUTF8(KStringView sBytes)
-//-----------------------------------------------------------------------------
-{
-	// UTF-32 LE first, its BOM starts with the one of UTF-16 LE
-	if (sBytes.starts_with(KStringView("\xFF\xFE\x00\x00", 4)))
-	{
-		return kutf::Convert<KString>(CodeUnits<char32_t>(sBytes.substr(4), false));
-	}
-
-	if (sBytes.starts_with(KStringView("\x00\x00\xFE\xFF", 4)))
-	{
-		return kutf::Convert<KString>(CodeUnits<char32_t>(sBytes.substr(4), true));
-	}
-
-	if (sBytes.starts_with("\xFF\xFE"))
-	{
-		return kutf::Convert<KString>(CodeUnits<char16_t>(sBytes.substr(2), false));
-	}
-
-	if (sBytes.starts_with("\xFE\xFF"))
-	{
-		return kutf::Convert<KString>(CodeUnits<char16_t>(sBytes.substr(2), true));
-	}
-
-	return KString(kSkipUTF8BOM(sBytes));
-
-} // TextAsUTF8
-
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -353,18 +290,14 @@ KTail::KTail(Config Config)
 
 		KString sPassword;
 		{
-			KString sFile;
-
-			if (!kReadAll(m_Config.sPasswordFile, sFile))
+			// the file as UTF-8, whatever encoding its byte order mark announces
+			if (!kReadText(m_Config.sPasswordFile, sPassword))
 			{
-				SetError(kFormat("cannot read {}", m_Config.sPasswordFile));
+				SetError(kFormat("cannot read {} as text", m_Config.sPasswordFile));
 				return;
 			}
 
-			// the first line, as UTF-8 whatever the encoding of the file
-			sPassword = TextAsUTF8(sFile);
-			kSafeErase(sFile);
-
+			// the first line
 			auto iEOL = sPassword.find_first_of("\r\n");
 
 			if (iEOL != KString::npos)

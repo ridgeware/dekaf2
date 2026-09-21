@@ -1,5 +1,8 @@
 #include "catch.hpp"
+
 #include <dekaf2/util/cli/koptions.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/http/server/kcgistream.h>
@@ -378,6 +381,54 @@ TEST_CASE("KOptions")
 		CHECK( a.iInteger1 ==     0 );
 		CHECK( a.iInteger2 ==     0 );
 		CHECK( a.sSingleArg == "first" );
+	}
+
+	SECTION("IniFile with a byte order mark")
+	{
+		KTempDir Temp;
+		CHECK ( Temp == true );
+
+		// a UTF-8 BOM, as Windows editors write it, is skipped
+		auto sIniFile = kFormat("{}/bom.ini", Temp.Name());
+		{
+			KOutFile Out(sIniFile);
+			CHECK ( Out.is_open() == true );
+
+			Out.Write(kWriteUTF8BOM());
+			Out.WriteLine("-empty2");
+			Out.WriteLine("-single first");
+		}
+
+		const char* CLI[] {
+			"MyProgramName",
+			"-ini", sIniFile.c_str()
+		};
+
+		int iResult = Options.Parse(sizeof(CLI)/sizeof(char*), CLI);
+		CHECK ( iResult == 0 );
+		CHECK ( a.bEmpty2    == true    );
+		CHECK ( a.bSingle    == true    );
+		CHECK ( a.sSingleArg == "first" );
+
+	}
+
+	SECTION("IniFile in UTF-16")
+	{
+		KTempDir Temp;
+		CHECK ( Temp == true );
+
+		// a UTF-16 file cannot be read line by line: the error is reported, and parsing
+		// stops without applying anything (KOptions returns 0 after a reported file error)
+		auto sUTF16File = kFormat("{}/utf16.ini", Temp.Name());
+		kWriteFile(sUTF16File, kutf::Encode<KString>(KString("-empty2\n"), kutf::Encoding::UTF16LE));
+
+		const char* CLI16[] {
+			"MyProgramName",
+			"-ini", sUTF16File.c_str()
+		};
+
+		Options.Parse(sizeof(CLI16)/sizeof(char*), CLI16);
+		CHECK ( a.bEmpty2 == false );
 	}
 
 	SECTION("IniFile reverse")

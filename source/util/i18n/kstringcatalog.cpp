@@ -367,10 +367,15 @@ bool KStringCatalog::AddLanguage(KStringView sLanguage, const KJSON& jStrings)
 bool KStringCatalog::AddLanguage(KStringView sLanguage, KStringView sJSON)
 //-----------------------------------------------------------------------------
 {
+	// the text as UTF-8, whatever encoding a byte order mark announces - an
+	// embedded file comes as it was saved, and stays untouched when it is UTF-8
+	KString sBuffer;
+	auto    sText = kutf::Decode(sJSON, sBuffer);
+
 	KJSON   jStrings;
 	KString sError;
 
-	if (!kjson::Parse(jStrings, sJSON, sError))
+	if (!kjson::Parse(jStrings, sText, sError))
 	{
 		kDebug(1, "{}: {}", sLanguage, sError);
 		return false;
@@ -427,7 +432,7 @@ bool KStringCatalog::LoadDirectory(KStringViewZ sDirectory)
 		{
 			KInFile In(File.Path());
 
-			if (!In.is_open() || !In.ReadRemaining(sJSON))
+			if (!In.is_open() || !In.ReadText(sJSON))
 			{
 				kDebug(1, "cannot read {}", File.Path());
 				continue;

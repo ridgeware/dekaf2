@@ -1,5 +1,6 @@
 #include "catch.hpp"
 #include <dekaf2/data/csv/kcsv.h>
+#include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/containers/sequential/kstack.h>
 #include <vector>
 
@@ -240,6 +241,19 @@ TEST_CASE("KCSV")
 		// we need the <> for C++ < 17
 		KJSON json = KInCSV<>(sCSV).SkipBOM();
 		CHECK ( json.dump() == R"([{"Kind":"Arabica","Product":"Coffee","Specifics":"Strong","Type":"Ground"},{"Kind":"Darjeeling","Product":"Tea","Production":"Equitable","Specifics":"First Flush","Type":"Leaves"}])" );
+
+		// UTF8 input comes back as a view into the input, behind a BOM if there is one
+		KCSV CSV;
+		CHECK ( CSV.SkipBOM(sCSV).data() == sCSV.data() + 3 );
+		KStringView sPlain = "a,b\n";
+		CHECK ( CSV.SkipBOM(sPlain).data() == sPlain.data() );
+
+		// input in UTF16 LE with BOM, as Excel writes "Unicode Text", is decoded
+		KString sUTF16 = kutf::Encode<KString>(KString("Product,Type\nCoffee,Ground\n"), kutf::Encoding::UTF16LE);
+		auto sDecoded = CSV.SkipBOM(KStringView(sUTF16));
+		CHECK ( sDecoded == "Product,Type\nCoffee,Ground\n" );
+		json = KInCSV<>(sDecoded);
+		CHECK ( json.dump() == R"([{"Product":"Coffee","Type":"Ground"}])" );
 	}
 
 	SECTION("Write with BOM")

@@ -4,6 +4,7 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/core/strings/kutf.h>
 // the catalogs in utests/strings/, embedded by dekaf2_embed_strings() in the CMake file
 #include <utest_strings.h>
 
@@ -320,6 +321,20 @@ TEST_CASE("KStringCatalog")
 		CHECK ( Twice.AddLanguage("not a tag", kjson::Parse(R"({ "a": "x" })"))       == false );
 	}
 
+	SECTION("catalog text with a byte order mark")
+	{
+		// the text of a catalog file in UTF-8 with BOM, UTF-16 and UTF-32 - as an
+		// embedded file arrives when it was saved that way
+		KStringCatalog Marked("en");
+		CHECK ( Marked.AddLanguage("en", KStringView(kutf::Encode<KString>(sEnglish, kutf::Encoding::UTF8)))    == true );
+		CHECK ( Marked.AddLanguage("de", KStringView(kutf::Encode<KString>(sGerman,  kutf::Encoding::UTF16BE))) == true );
+		CHECK ( Marked.AddLanguage("fr", KStringView(kutf::Encode<KString>(sFrench,  kutf::Encoding::UTF32LE))) == true );
+		CHECK ( Marked.Get("en", "login.title") == "Sign in"   );
+		CHECK ( Marked.Get("de", "login.title") == "Anmeldung" );
+		CHECK ( Marked.Get("fr", "login.title") == "Connexion" );
+		CHECK ( Marked.Check().empty() == false ); // fr lacks nothing but de lacks only.english - as in the fixture
+	}
+
 	SECTION("embedded by CMake")
 	{
 		// two files in utests/strings/, byte for byte
@@ -354,10 +369,13 @@ TEST_CASE("KStringCatalog")
 		kWriteFile(kFormat("{}/locales.json", Dir.Name()), R"({ "default": "en-US", "available": ["en-US", "de-DE"] })");
 		kWriteFile(kFormat("{}/readme.txt", Dir.Name()), "not a catalog");
 		kWriteFile(kFormat("{}/it-IT.json", Dir.Name()), "{ this is not json");
+		// a file saved as UTF-16 LE with BOM, as Windows editors do it
+		kWriteFile(kFormat("{}/fr-FR.json", Dir.Name()), kutf::Encode<KString>(sFrench, kutf::Encoding::UTF16LE));
 
 		KStringCatalog Loaded("en");
 		CHECK ( Loaded.LoadDirectory(Dir.Name()) == true );
-		CHECK ( (Loaded.GetLanguages() == std::vector<KString>{ "de-DE", "en-US" }) );
+		CHECK ( (Loaded.GetLanguages() == std::vector<KString>{ "de-DE", "en-US", "fr-FR" }) );
+		CHECK ( Loaded.Get("fr-FR", "login.title") == "Connexion" );
 
 		// the default "en" is not there, but en-US is: negotiation and lookup find it
 		CHECK ( Loaded.Negotiate("en")                    == "en-US" );

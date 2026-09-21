@@ -3522,7 +3522,8 @@ bool TryReadPassFile (int argc, char** argv, KString& sPasswordOut)
 	auto sPath = GetBootstrapFlagValue(argc, argv, "pass-file");
 	if (sPath.empty()) return false;
 
-	if (!kReadAll(sPath, sPasswordOut))
+	// as UTF-8, whatever encoding a byte order mark announces - PowerShell writes UTF-16
+	if (!kReadText(sPath, sPasswordOut))
 	{
 		KErr.FormatLine(">> ktunnel: cannot read password file '{}'", sPath);
 		sPasswordOut.clear();

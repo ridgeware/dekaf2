@@ -123,13 +123,14 @@ public:
 	/// @return false when a value was skipped
 	bool AddLanguage(KStringView sLanguage, const KJSON& jStrings);
 	/// the same, from the JSON text of a catalog file - e.g. one embedded by
-	/// dekaf2_embed_strings()
+	/// dekaf2_embed_strings(). UTF-8, or UTF-16/UTF-32 with a byte order mark
 	bool AddLanguage(KStringView sLanguage, KStringView sJSON);
 	/// take over every language and message of another catalog - its messages
 	/// override ours, its languages are added
 	void Merge(const KStringCatalog& Other);
-	/// add every <tag>.json in the directory, e.g. en.json, de-DE.json. Files whose
-	/// name is not a language tag are ignored
+	/// add every <tag>.json in the directory, e.g. en.json, de-DE.json, in UTF-8 or in
+	/// UTF-16/UTF-32 with a byte order mark. Files whose name is not a language tag are
+	/// ignored
 	/// @return true when at least one language was added
 	bool LoadDirectory(KStringViewZ sDirectory);
 

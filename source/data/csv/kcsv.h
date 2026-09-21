@@ -149,12 +149,17 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// skip UTF8 BOM if existing at start of stream - Microsoft applications use to write this at the start of files
+	/// skip a UTF8 BOM at the start of the stream - Microsoft applications write one at the
+	/// start of files. A stream in UTF16 or UTF32 cannot be read record by record: read it
+	/// into a string and use SkipBOM(KStringView), which decodes it
 	KInStream& SkipBOM(KInStream& In);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// skip UTF8 BOM if existing at start of input - Microsoft applications use to write this at the start of files
+	/// the input as UTF8 without BOM: a view into the input when it is UTF8 (behind a BOM, if
+	/// there is one), else the input decoded from the UTF16 or UTF32 its byte order mark
+	/// announces (Excel's "Unicode Text" is UTF16 LE) - that text lives in this object until
+	/// the next call
 	DEKAF2_NODISCARD
 	KStringView SkipBOM(KStringView sIn);
 	//-----------------------------------------------------------------------------
@@ -223,6 +228,8 @@ private:
 	char                m_Limiters[3];
 	bool                m_bFirst { true };
 	KFindSetOfChars     m_LimiterSet;
+	// the UTF8 text of a UTF16 or UTF32 input, see SkipBOM(KStringView)
+	KString             m_sDecoded;
 
 }; // KCSV
 

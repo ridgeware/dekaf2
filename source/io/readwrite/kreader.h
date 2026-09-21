@@ -133,6 +133,48 @@ bool kReadAll(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead = npos);
 
+class KInStream;
+
+/// Read the rest of a stream as text into a pure UTF-8 string without BOM. The encoding comes
+/// from the byte order mark at the start of the stream (kGetBOM(): a stream that is
+/// further on is examined at its start and read from where it was), or from Enc when that
+/// is not Unknown - then nothing is probed and no BOM is skipped. UTF-8 is read directly
+/// into sContent, UTF-16 and UTF-32 are read into a buffer and decoded. Input without BOM
+/// is UTF-8
+/// @param InStream the input stream
+/// @param sContent the string to fill with the text
+/// @param iMaxRead the maximum number of bytes read from the stream, default unlimited
+/// @param Enc the encoding of the stream, Unknown to take it from the byte order mark
+/// @return false when the stream cannot be read, or the bytes are not valid in their encoding
+DEKAF2_PUBLIC
+bool kReadText(KInStream& InStream, KStringRef& sContent, std::size_t iMaxRead = npos, kutf::Encoding Enc = kutf::Encoding::Unknown);
+
+/// Read the rest of a stream as text into a pure UTF-8 string without BOM - see
+/// kReadText(KInStream&, KStringRef&, std::size_t, kutf::Encoding)
+/// @param InStream the input stream
+/// @param iMaxRead the maximum number of bytes read from the stream, default unlimited
+/// @param Enc the encoding of the stream, Unknown to take it from the byte order mark
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kReadText(KInStream& InStream, std::size_t iMaxRead = npos, kutf::Encoding Enc = kutf::Encoding::Unknown);
+
+/// Read a text file into a pure UTF-8 string without BOM, whatever encoding the file announces
+/// with a byte order mark, or Enc says - see kReadText(KInStream&, KStringRef&, std::size_t, kutf::Encoding)
+/// @param sFileName the input file's name
+/// @param sContent the string to fill with the text
+/// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+/// @param Enc the encoding of the file, Unknown to take it from the byte order mark
+/// @return false when the file cannot be read, or the bytes are not valid in their encoding
+DEKAF2_PUBLIC
+bool kReadText(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead = npos, kutf::Encoding Enc = kutf::Encoding::Unknown);
+
+/// Read a text file into a pure UTF-8 string without BOM, whatever encoding the file announces
+/// with a byte order mark, or Enc says - see kReadText(KInStream&, KStringRef&, std::size_t, kutf::Encoding)
+/// @param sFileName the input file's name
+/// @param iMaxRead the maximum number of bytes read from the file, default unlimited
+/// @param Enc the encoding of the file, Unknown to take it from the byte order mark
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KString kReadText(KStringViewZ sFileName, std::size_t iMaxRead = npos, kutf::Encoding Enc = kutf::Encoding::Unknown);
+
 /// Get the total size of a file with name sFileName. Returns -1 on Failure.
 DEKAF2_PUBLIC
 ssize_t kGetSize(KStringViewZ sFileName);
@@ -434,6 +476,25 @@ public:
 	//-----------------------------------------------------------------------------
 	{
 		return kReadAll(istream(), false);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns the rest of the stream as pure UTF-8 text without BOM, the encoding taken from
+	/// the byte order mark at the start of the stream, or from Enc - see kReadText()
+	bool ReadText(KStringRef& sBuffer, kutf::Encoding Enc = kutf::Encoding::Unknown)
+	//-----------------------------------------------------------------------------
+	{
+		return kReadText(*this, sBuffer, npos, Enc);
+	}
+
+	//-----------------------------------------------------------------------------
+	/// Returns the rest of the stream as pure UTF-8 text without BOM, the encoding taken from
+	/// the byte order mark at the start of the stream, or from Enc - see kReadText()
+	DEKAF2_NODISCARD
+	KString ReadText(kutf::Encoding Enc = kutf::Encoding::Unknown)
+	//-----------------------------------------------------------------------------
+	{
+		return kReadText(*this, npos, Enc);
 	}
 
 	//-----------------------------------------------------------------------------

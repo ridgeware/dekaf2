@@ -3,6 +3,7 @@
 #include <dekaf2/core/strings/kutf.h>
 #include <dekaf2/core/strings/kcesu8.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/core/strings/kstringview.h>
 #include <vector>
 #ifdef DEKAF2_HAS_STD_STRING_VIEW
 	#include <string_view>
@@ -1196,6 +1197,249 @@ TEST_CASE("UTF") {
 		CHECK ( kutf::Left(s32, 3)    == sLeft  );
 		CHECK ( kutf::Right(s32, 2)   == sRight );
 		CHECK ( kutf::Mid(s32, 1, 3)  == sMid   );
+	}
+
+	SECTION("DetectBOM")
+	{
+		struct Test { std::string sBytes; kutf::Encoding Enc; std::size_t iBOMSize; };
+
+		std::vector<Test> Tests
+		{
+			{ std::string(),                                      kutf::Encoding::UTF8,    0 },
+			{ std::string("a"),                                   kutf::Encoding::UTF8,    0 },
+			{ std::string("abc"),                                 kutf::Encoding::UTF8,    0 },
+			{ std::string("\xEF\xBB\xBF" "abc"),                  kutf::Encoding::UTF8,    3 },
+			{ std::string("\xEF\xBB\xBF"),                        kutf::Encoding::UTF8,    3 },
+			{ std::string("\xEF\xBB"),                            kutf::Encoding::UTF8,    0 }, // too short for a BOM
+			{ std::string("\xEF\xBF\xBD" "x"),                    kutf::Encoding::UTF8,    0 }, // U+FFFD starts with EF as well
+			{ std::string("\xFF\xFE" "t\x00", 4),                 kutf::Encoding::UTF16LE, 2 },
+			{ std::string("\xFF\xFE"),                            kutf::Encoding::UTF16LE, 2 },
+			{ std::string("\xFE\xFF\x00" "t", 4),                 kutf::Encoding::UTF16BE, 2 },
+			{ std::string("\xFF\xFE\x00\x00", 4),                 kutf::Encoding::UTF32LE, 4 },
+			{ std::string("\xFF\xFE\x00\x00" "t\x00\x00\x00", 8), kutf::Encoding::UTF32LE, 4 },
+			{ std::string("\x00\x00\xFE\xFF", 4),                 kutf::Encoding::UTF32BE, 4 },
+			{ std::string("\x00\x00\xFE\xFE", 4),                 kutf::Encoding::UTF8,    0 },
+			{ std::string("\x00" "abc", 4),                       kutf::Encoding::UTF8,    0 },
+			{ std::string("\xFF" "A"),                            kutf::Encoding::UTF8,    0 },
+		};
+
+		std::size_t iTest = 0;
+
+		for (auto& Test : Tests)
+		{
+			INFO ( "test " << iTest++ );
+			std::size_t iBOMSize = 99;
+			CHECK ( kutf::DetectBOM(Test.sBytes, iBOMSize) == Test.Enc );
+			CHECK ( iBOMSize == Test.iBOMSize );
+			// the iterator version sees the same
+			iBOMSize = 99;
+			CHECK ( kutf::DetectBOM(Test.sBytes.begin(), Test.sBytes.end(), iBOMSize) == Test.Enc );
+			CHECK ( iBOMSize == Test.iBOMSize );
+		}
+	}
+
+	SECTION("ByteOrderMark")
+	{
+		CHECK ( kutf::ByteOrderMark<std::string>(kutf::Encoding::UTF8)    == std::string("\xEF\xBB\xBF")         );
+		CHECK ( kutf::ByteOrderMark<std::string>(kutf::Encoding::UTF16LE) == std::string("\xFF\xFE")             );
+		CHECK ( kutf::ByteOrderMark<std::string>(kutf::Encoding::UTF16BE) == std::string("\xFE\xFF")             );
+		CHECK ( kutf::ByteOrderMark<std::string>(kutf::Encoding::UTF32LE) == std::string("\xFF\xFE\x00\x00", 4)  );
+		CHECK ( kutf::ByteOrderMark<std::string>(kutf::Encoding::UTF32BE) == std::string("\x00\x00\xFE\xFF", 4)  );
+		CHECK ( kutf::ByteOrderMark<KString>(kutf::Encoding::UTF16LE)     == KString("\xFF\xFE")                 );
+	}
+
+	// "A é € 😀" - one, two, three and four bytes in UTF8, a surrogate pair in UTF16
+	const std::string sUTF8   ("A\xC3\xA9\xE2\x82\xAC\xF0\x9F\x98\x80");
+	const std::string sUTF16LE("A\x00\xE9\x00\xAC\x20\x3D\xD8\x00\xDE", 10);
+	const std::string sUTF16BE("\x00" "A\x00\xE9\x20\xAC\xD8\x3D\xDE\x00", 10);
+	const std::string sUTF32LE("A\x00\x00\x00\xE9\x00\x00\x00\xAC\x20\x00\x00\x00\xF6\x01\x00", 16);
+	const std::string sUTF32BE("\x00\x00\x00" "A\x00\x00\x00\xE9\x00\x00\x20\xAC\x00\x01\xF6\x00", 16);
+	const std::u16string sU16 = u"Aé€\U0001F600";
+	const std::u32string sU32 = U"Aé€\U0001F600";
+
+	SECTION("Decode with a known encoding")
+	{
+		struct Test { std::string sBytes; kutf::Encoding Enc; };
+
+		std::vector<Test> Tests
+		{
+			{ sUTF8,    kutf::Encoding::UTF8    },
+			{ sUTF16LE, kutf::Encoding::UTF16LE },
+			{ sUTF16BE, kutf::Encoding::UTF16BE },
+			{ sUTF32LE, kutf::Encoding::UTF32LE },
+			{ sUTF32BE, kutf::Encoding::UTF32BE },
+		};
+
+		std::size_t iTest = 0;
+
+		for (auto& Test : Tests)
+		{
+			INFO ( "test " << iTest++ );
+
+			std::string s8;
+			CHECK ( kutf::Decode(Test.sBytes, Test.Enc, s8) == true );
+			CHECK ( s8 == sUTF8 );
+
+			KString k8;
+			CHECK ( kutf::Decode(Test.sBytes.begin(), Test.sBytes.end(), Test.Enc, k8) == true );
+			CHECK ( k8 == sUTF8 );
+
+			std::u16string s16;
+			CHECK ( kutf::Decode(Test.sBytes, Test.Enc, s16) == true );
+			CHECK ( s16 == sU16 );
+
+			std::u32string s32;
+			CHECK ( kutf::Decode(Test.sBytes, Test.Enc, s32) == true );
+			CHECK ( s32 == sU32 );
+		}
+
+		// output is appended
+		std::string sOut = "x";
+		CHECK ( kutf::Decode(sUTF16LE, kutf::Encoding::UTF16LE, sOut) == true );
+		CHECK ( sOut == "x" + sUTF8 );
+
+		// a truncated last unit is no text in this encoding
+		std::string sOdd(sUTF16LE);
+		sOdd.pop_back();
+		sOut.clear();
+		CHECK ( kutf::Decode(sOdd, kutf::Encoding::UTF16LE, sOut) == false );
+		CHECK ( sOut.empty() );
+		sOut.clear();
+		CHECK ( kutf::Decode(std::string("A\x00\x00", 3), kutf::Encoding::UTF32LE, sOut) == false );
+		CHECK ( sOut.empty() );
+
+		// empty input is an empty text
+		CHECK ( kutf::Decode(std::string(), kutf::Encoding::UTF16BE, sOut) == true );
+		CHECK ( sOut.empty() );
+
+		// Encoding::Unknown: the bytes tell their encoding with a BOM, or are UTF8
+		for (auto Enc : { kutf::Encoding::UTF8, kutf::Encoding::UTF16LE, kutf::Encoding::UTF16BE, kutf::Encoding::UTF32LE, kutf::Encoding::UTF32BE })
+		{
+			auto sBytes = kutf::Encode<std::string>(sUTF8, Enc);
+			std::string sDecoded;
+			CHECK ( kutf::Decode(sBytes, kutf::Encoding::Unknown, sDecoded) == true );
+			CHECK ( sDecoded == sUTF8 );
+		}
+
+		std::string sNoBOM;
+		CHECK ( kutf::Decode(sUTF8, kutf::Encoding::Unknown, sNoBOM) == true );
+		CHECK ( sNoBOM == sUTF8 );
+
+		// Unknown is no encoding to write
+		CHECK ( kutf::Encode<std::string>(sUTF8, kutf::Encoding::Unknown).empty() );
+		CHECK ( kutf::ByteOrderMark<std::string>(kutf::Encoding::Unknown).empty() );
+	}
+
+	SECTION("Decode by BOM into a view")
+	{
+		std::string sBuffer;
+
+		// UTF8 without BOM: the input itself, nothing copied
+		KStringView sPlain = "plain utf8";
+		auto sView = kutf::Decode(sPlain, sBuffer);
+		CHECK ( sView.data() == sPlain.data() );
+		CHECK ( sView.size() == sPlain.size() );
+		CHECK ( sBuffer.empty() );
+
+		// UTF8 with BOM: the input behind the BOM, nothing copied
+		KStringView sWithBOM("\xEF\xBB\xBF" "plain", 8);
+		sView = kutf::Decode(sWithBOM, sBuffer);
+		CHECK ( sView.data() == sWithBOM.data() + 3 );
+		CHECK ( sView == "plain" );
+		CHECK ( sBuffer.empty() );
+
+		// UTF16 and UTF32: converted into the buffer
+		for (auto& Test : std::vector<std::pair<std::string, kutf::Encoding>>
+		     {
+		         { sUTF16LE, kutf::Encoding::UTF16LE },
+		         { sUTF16BE, kutf::Encoding::UTF16BE },
+		         { sUTF32LE, kutf::Encoding::UTF32LE },
+		         { sUTF32BE, kutf::Encoding::UTF32BE },
+		     })
+		{
+			auto sBytes = kutf::ByteOrderMark<std::string>(Test.second) + Test.first;
+			sBuffer     = "stale";
+			sView       = kutf::Decode(KStringView(sBytes), sBuffer);
+			CHECK ( sView   == sUTF8 );
+			CHECK ( sBuffer == sUTF8 );
+			CHECK ( sView.data() == sBuffer.data() );
+		}
+
+		// not a text in its encoding: an empty view
+		std::string sOdd = kutf::ByteOrderMark<std::string>(kutf::Encoding::UTF16LE) + sUTF16LE;
+		sOdd.pop_back();
+		sView = kutf::Decode(KStringView(sOdd), sBuffer);
+		CHECK ( sView.empty()   );
+		CHECK ( sBuffer.empty() );
+
+		// a BOM alone is an empty text
+		sView = kutf::Decode(KStringView("\xFF\xFE", 2), sBuffer);
+		CHECK ( sView.empty() );
+	}
+
+	SECTION("DecodeInPlace")
+	{
+		// UTF8 without BOM: untouched, not even reallocated
+		KString sPlain = "plain utf8, long enough not to live in the small buffer";
+		auto pData     = sPlain.data();
+		auto iCapacity = sPlain.capacity();
+		CHECK ( kutf::DecodeInPlace(sPlain) == true );
+		CHECK ( sPlain == "plain utf8, long enough not to live in the small buffer" );
+		CHECK ( sPlain.data()     == pData     );
+		CHECK ( sPlain.capacity() == iCapacity );
+
+		KString sWithBOM("\xEF\xBB\xBF" "plain");
+		CHECK ( kutf::DecodeInPlace(sWithBOM) == true );
+		CHECK ( sWithBOM == "plain" );
+
+		KString s16 = kutf::ByteOrderMark<KString>(kutf::Encoding::UTF16BE) + KString(sUTF16BE);
+		CHECK ( kutf::DecodeInPlace(s16) == true );
+		CHECK ( s16 == sUTF8 );
+
+		std::string s32 = kutf::ByteOrderMark<std::string>(kutf::Encoding::UTF32LE) + sUTF32LE;
+		CHECK ( kutf::DecodeInPlace(s32) == true );
+		CHECK ( s32 == sUTF8 );
+
+		std::string sOdd = kutf::ByteOrderMark<std::string>(kutf::Encoding::UTF16LE) + sUTF16LE;
+		sOdd.pop_back();
+		CHECK ( kutf::DecodeInPlace(sOdd) == false );
+		CHECK ( sOdd.empty() );
+
+		std::string sEmpty;
+		CHECK ( kutf::DecodeInPlace(sEmpty) == true );
+		CHECK ( sEmpty.empty() );
+	}
+
+	SECTION("Encode")
+	{
+		CHECK ( kutf::Encode<std::string>(sUTF8, kutf::Encoding::UTF16LE)        == "\xFF\xFE" + sUTF16LE                    );
+		CHECK ( kutf::Encode<std::string>(sUTF8, kutf::Encoding::UTF16LE, false) == sUTF16LE                                 );
+		CHECK ( kutf::Encode<std::string>(sUTF8, kutf::Encoding::UTF16BE)        == "\xFE\xFF" + sUTF16BE                    );
+		CHECK ( kutf::Encode<std::string>(sUTF8, kutf::Encoding::UTF32LE)        == std::string("\xFF\xFE\x00\x00", 4) + sUTF32LE );
+		CHECK ( kutf::Encode<std::string>(sUTF8, kutf::Encoding::UTF32BE)        == std::string("\x00\x00\xFE\xFF", 4) + sUTF32BE );
+		CHECK ( kutf::Encode<std::string>(sUTF8, kutf::Encoding::UTF8)           == "\xEF\xBB\xBF" + sUTF8                   );
+		CHECK ( kutf::Encode<std::string>(sUTF8, kutf::Encoding::UTF8, false)    == sUTF8                                    );
+
+		// from UTF16 and UTF32 input
+		CHECK ( kutf::Encode<std::string>(sU16, kutf::Encoding::UTF32BE, false)  == sUTF32BE );
+		CHECK ( kutf::Encode<std::string>(sU32, kutf::Encoding::UTF16LE, false)  == sUTF16LE );
+		CHECK ( kutf::Encode<KString>(sU16, kutf::Encoding::UTF8, false)         == KString(sUTF8) );
+
+		// appending form
+		std::string sOut = "x";
+		CHECK ( kutf::Encode(sUTF8, sOut, kutf::Encoding::UTF16BE) == true );
+		CHECK ( sOut == "x\xFE\xFF" + sUTF16BE );
+
+		// round trips through every encoding
+		for (auto Enc : { kutf::Encoding::UTF8, kutf::Encoding::UTF16LE, kutf::Encoding::UTF16BE, kutf::Encoding::UTF32LE, kutf::Encoding::UTF32BE })
+		{
+			auto sBytes = kutf::Encode<std::string>(sUTF8, Enc);
+			std::string sBuffer;
+			CHECK ( kutf::Decode(KStringView(sBytes), sBuffer) == sUTF8 );
+			std::size_t iBOMSize = 0;
+			CHECK ( kutf::DetectBOM(sBytes, iBOMSize) == Enc );
+			CHECK ( iBOMSize == kutf::ByteOrderMark<std::string>(Enc).size() );
+		}
 	}
 }
 

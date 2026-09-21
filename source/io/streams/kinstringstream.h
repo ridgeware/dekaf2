@@ -103,6 +103,13 @@ protected:
 							 std::ios_base::openmode which = std::ios_base::in | std::ios_base::out ) override;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// positions the read pointer at an absolute offset. The default of std::streambuf
+	/// does nothing, and pubseekpos() is what kGetSize() uses to restore the position
+	virtual pos_type seekpos(pos_type pos,
+	                         std::ios_base::openmode which = std::ios_base::in | std::ios_base::out ) override;
+	//-----------------------------------------------------------------------------
+
 }; // KInStringStreamBuf
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

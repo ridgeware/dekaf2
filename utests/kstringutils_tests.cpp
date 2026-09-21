@@ -1718,6 +1718,68 @@ TEST_CASE("KStringUtils") {
 		}
 	}
 
+	SECTION("kGetBOM Stream")
+	{
+		struct Test { KString sInput; kutf::Encoding Enc; KString sRest; };
+
+		std::vector<Test> tests
+		{
+			{ ""                                   , kutf::Encoding::UTF8   , ""                              },
+			{ "abcdefg"                            , kutf::Encoding::UTF8   , "abcdefg"                       },
+			{ "\xef\xbb\xbf"                       , kutf::Encoding::UTF8   , ""                              },
+			{ "\xef\xbb\xbf abc"                   , kutf::Encoding::UTF8   , " abc"                          },
+			{ "\xef \xbb\xbf"                      , kutf::Encoding::UTF8   , "\xef \xbb\xbf"                 },
+			{ "\xef\xbb"                           , kutf::Encoding::UTF8   , "\xef\xbb"                      },
+			{ KString("\xff\xfe" "ab")             , kutf::Encoding::UTF16LE, "ab"                            },
+			{ KString("\xff\xfe")                  , kutf::Encoding::UTF16LE, ""                              },
+			{ KString("\xfe\xff" "ab")             , kutf::Encoding::UTF16BE, "ab"                            },
+			{ KString("\xff\xfe\x00\x00" "ab", 6)  , kutf::Encoding::UTF32LE, "ab"                            },
+			{ KString("\x00\x00\xfe\xff" "ab", 6)  , kutf::Encoding::UTF32BE, "ab"                            },
+			{ KString("\x00\x00\xfe" "ab", 5)      , kutf::Encoding::UTF8   , KString("\x00\x00\xfe" "ab", 5) },
+			{ "\xff" "A"                           , kutf::Encoding::UTF8   , "\xff" "A"                      },
+		};
+
+		std::size_t iTest = 0;
+
+		for (auto& test : tests)
+		{
+			INFO ( "test " << iTest++ );
+
+			// the BOM is consumed, the text follows
+			KInStringStream iss(test.sInput);
+			CHECK ( kGetBOM(iss, true) == test.Enc );
+			CHECK ( kReadAll(iss) == test.sRest );
+
+			// without skipping every byte stays in the stream
+			KInStringStream iss2(test.sInput);
+			CHECK ( kGetBOM(iss2, false) == test.Enc );
+			CHECK ( kReadAll(iss2) == test.sInput );
+		}
+
+		// a seekable stream that is further on: the BOM at the start tells, the position stays
+		{
+			KString sBytes("\xff\xfe" "abcd");
+			KSeekableIStringStream StringStream(sBytes);
+			KInStream siss(StringStream);
+			CHECK ( siss.Read() == 0xff );
+			CHECK ( siss.Read() == 0xfe );
+			CHECK ( siss.Read() == 'a'  );
+			CHECK ( siss.GetReadPosition() == 3 );
+			CHECK ( kGetBOM(siss, true) == kutf::Encoding::UTF16LE );
+			CHECK ( siss.GetReadPosition() == 3 );
+			CHECK ( siss.ReadRemaining() == "bcd" );
+		}
+
+		// a stream that cannot seek is examined where it is
+		{
+			KInStringStream iss("ab\xff\xfe" "cd");
+			CHECK ( iss.Read() == 'a' );
+			CHECK ( iss.Read() == 'b' );
+			CHECK ( kGetBOM(iss, true) == kutf::Encoding::UTF16LE );
+			CHECK ( kReadAll(iss) == "cd" );
+		}
+	}
+
 	SECTION("kSkipUTF8BOMInPlace")
 	{
 		std::vector<std::pair<KStringView, KStringView>> tests

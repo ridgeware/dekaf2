@@ -2019,6 +2019,13 @@ KInStream& kSkipUTF8BOM(KInStream& InStream);
 /// removes the UTF8 BOM in sInput in place, returning true if removed
 DEKAF2_PUBLIC
 bool kSkipUTF8BOMInPlace(KStringRef& sInput);
+/// returns the encoding announced by a byte order mark at the start of InStream, UTF8 when there
+/// is none. A stream that is further on is examined at its start and then put back to where it
+/// was; a stream that cannot seek is examined where it is. A stream at its start moves behind the
+/// BOM when bSkip is set, so that the text follows, else all bytes stay in the stream.
+/// kutf::DetectBOM() is the version for strings
+DEKAF2_PUBLIC
+kutf::Encoding kGetBOM(KInStream& InStream, bool bSkip = true);
 
 /// Explicitly write the ByteOrderMark in UTF8 encoding. This is deprecated, but some Microsoft applications
 /// require this to display non-ASCII characters correctly. Write the BOM only as the first output, before

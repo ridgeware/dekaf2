@@ -4,6 +4,9 @@
 #include <dekaf2/io/streams/kfdstream.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/strings/kutf.h>
+#include <dekaf2/core/strings/kstringutils.h>
+#include <dekaf2/io/streams/kinstringstream.h>
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -902,5 +905,128 @@ TEST_CASE("KReader") {
 		KInFile File(sPath);
 		kAppendAll(File.istream(), sContent, true);
 		CHECK ( sContent == "the quick brown fox jumps over the lazy dog" );
+	}
+
+	SECTION("kReadText")
+	{
+		// "A é € 😀 text" in every encoding a byte order mark can announce
+		const KString sText("A\xC3\xA9\xE2\x82\xAC\xF0\x9F\x98\x80 text\n");
+
+		struct Test { KStringView sName; KString sBytes; };
+
+		std::vector<Test> Tests
+		{
+			{ "utf8",     sText                                                   },
+			{ "utf8-bom", KString("\xEF\xBB\xBF") + sText                         },
+			{ "utf16le",  kutf::Encode<KString>(sText, kutf::Encoding::UTF16LE)   },
+			{ "utf16be",  kutf::Encode<KString>(sText, kutf::Encoding::UTF16BE)   },
+			{ "utf32le",  kutf::Encode<KString>(sText, kutf::Encoding::UTF32LE)   },
+			{ "utf32be",  kutf::Encode<KString>(sText, kutf::Encoding::UTF32BE)   },
+		};
+
+		for (auto& Test : Tests)
+		{
+			INFO ( Test.sName );
+
+			KString sPath = kFormat("{}{}readtext-{}", TempDir.Name(), kDirSep, Test.sName);
+			CHECK ( kWriteFile(sPath, Test.sBytes) == true );
+
+			KString sContent = "stale";
+			CHECK ( kReadText(sPath, sContent) == true );
+			CHECK ( sContent == sText );
+			CHECK ( kReadText(sPath) == sText );
+
+			KInFile File(sPath);
+			CHECK ( File.ReadText() == sText );
+		}
+
+		// the encoding comes from the byte order mark at the start of the stream, the text from its position
+		{
+			// the UTF-16 LE file, positioned behind the BOM and the first character
+			KInFile File(kFormat("{}{}readtext-utf16le", TempDir.Name(), kDirSep));
+			for (int i = 0; i < 4; ++i) CHECK ( File.Read() != EOF );
+			CHECK ( File.GetReadPosition() == 4 );
+			CHECK ( File.ReadText() == sText.substr(1) );
+
+			// at the start the BOM is skipped, also after a first look at it that left it in place
+			KInFile File2(kFormat("{}{}readtext-utf8-bom", TempDir.Name(), kDirSep));
+			CHECK ( kGetBOM(File2, false) == kutf::Encoding::UTF8 );
+			CHECK ( File2.GetReadPosition() == 0 );
+			CHECK ( File2.ReadText() == sText );
+
+			// read to the end: nothing is left
+			KInFile File3(kFormat("{}{}readtext-utf16be", TempDir.Name(), kDirSep));
+			CHECK ( File3.ReadText() == sText );
+			CHECK ( File3.ReadText().empty() );
+
+			// a seekable string stream, wrapped into a KInStream, behaves like the file
+			KSeekableIStringStream StringStream(Tests[2].sBytes);
+			KInStream siss(StringStream);
+			for (int i = 0; i < 4; ++i) CHECK ( siss.Read() != EOF );
+			CHECK ( siss.ReadText() == sText.substr(1) );
+
+			// the seekable string stream keeps its position across the size query of ReadRemaining()
+			KSeekableIStringStream StringStream2(Tests[0].sBytes);
+			KInStream siss2(StringStream2);
+			CHECK ( siss2.Read() == 'A' );
+			CHECK ( siss2.ReadRemaining() == sText.substr(1) );
+		}
+
+		// a stream that cannot seek is examined where it is: at its start when nothing was read before
+		{
+			KInStringStream iss(Tests[2].sBytes);
+			CHECK ( iss.GetReadPosition() == -1 );
+			CHECK ( iss.ReadText() == sText );
+		}
+
+		// a given encoding is taken as it is, nothing is probed or skipped
+		{
+			KString sPath = kFormat("{}{}readtext-utf16le-nobom", TempDir.Name(), kDirSep);
+			kWriteFile(sPath, kutf::Encode<KString>(sText, kutf::Encoding::UTF16LE, /*bWithBOM*/false));
+			CHECK ( kReadText(sPath) != sText ); // without a BOM the bytes count as UTF-8, which they are not
+			CHECK ( kReadText(sPath, KString::npos, kutf::Encoding::UTF16LE) == sText );
+
+			KString sContent;
+			CHECK ( kReadText(sPath, sContent, KString::npos, kutf::Encoding::UTF16LE) == true );
+			CHECK ( sContent == sText );
+
+			KInFile File(sPath);
+			CHECK ( File.ReadText(kutf::Encoding::UTF16LE) == sText );
+
+			// with the BOM in the file and the encoding given, the BOM stays in the text as U+FEFF
+			KInFile File2(kFormat("{}{}readtext-utf16le", TempDir.Name(), kDirSep));
+			CHECK ( File2.ReadText(kutf::Encoding::UTF16LE) == KString("\xEF\xBB\xBF") + sText );
+		}
+
+		// UTF-8 without BOM: the same as kReadAll()
+		{
+			KString sPath = kFormat("{}{}readtext-utf8", TempDir.Name(), kDirSep);
+			CHECK ( kReadText(sPath) == kReadAll(sPath) );
+		}
+
+		// a BOM alone is an empty text
+		{
+			KString sPath = kFormat("{}{}readtext-bom-only", TempDir.Name(), kDirSep);
+			kWriteFile(sPath, KString("\xFF\xFE"));
+			KString sContent = "stale";
+			CHECK ( kReadText(sPath, sContent) == true );
+			CHECK ( sContent.empty() );
+		}
+
+		// a truncated UTF-16 file is no text
+		{
+			KString sPath = kFormat("{}{}readtext-truncated", TempDir.Name(), kDirSep);
+			kWriteFile(sPath, KString("\xFF\xFE" "A\x00" "B", 5));
+			KString sContent = "stale";
+			CHECK ( kReadText(sPath, sContent) == false );
+			CHECK ( sContent.empty() );
+		}
+
+		// a missing file
+		{
+			KString sContent = "stale";
+			CHECK ( kReadText(TempDir.Name() + "/readtext-missing", sContent) == false );
+			CHECK ( sContent.empty() );
+		}
 	}
 }

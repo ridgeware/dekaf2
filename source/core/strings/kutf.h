@@ -76,6 +76,9 @@
 ///
 /// UTF16 and UTF32 strings are assumed to have the endianess of the platform, so, in most cases low endian.
 ///
+/// External byte streams that announce their encoding with a byte order mark (UTF8, UTF16 LE/BE, UTF32 LE/BE)
+/// are decoded with Decode() and produced with Encode(), see the section on byte order marks below.
+///
 /// This header can also be used standalone, in which case it falls back to the C library functions for case
 /// changing instead of the at least 5 times faster dekaf2 kctype.h functions. It still provides a really fast
 /// access to UTF conversions and validations, particularly if the simdutf library is linked in.
@@ -103,6 +106,30 @@
 
  /// Convert a wchar_t string (UTF16 or UTF32) into a UTF8/16/32 string
  OutType Convert(const wchar_t* it)
+
+ --- byte order marks
+
+ /// the encoding announced by a byte order mark at the start of the bytes, defaulting to UTF8 when there is none
+ Encoding DetectBOM(Iterator it, Iterator ie, std::size_t& iBOMSize)
+ Encoding DetectBOM(const ByteString& sBytes, std::size_t& iBOMSize)
+
+ /// the byte order mark of an encoding
+ ByteString ByteOrderMark(Encoding Enc)
+
+ /// decodes bytes of a known encoding, without BOM, or with Encoding::Unknown of the encoding their
+ /// BOM announces, into a UTF8, UTF16 or UTF32 string
+ bool Decode(Iterator it, Iterator ie, Encoding Enc, OutType& Output)
+ bool Decode(const ByteString& sBytes, Encoding Enc, OutType& Output)
+
+ /// decodes bytes that announce their encoding with a BOM into UTF8 without BOM, and returns a view on the result
+ StringView Decode(StringView sBytes, ByteString& sBuffer)
+
+ /// the same in place
+ bool DecodeInPlace(ByteString& sBytes)
+
+ /// encodes a UTF8, UTF16 or UTF32 string into the bytes of an encoding, with or without BOM
+ bool Encode(const InpType& sInput, ByteString& sBytes, Encoding Enc, bool bWithBOM = true)
+ ByteString Encode(const InpType& sInput, Encoding Enc, bool bWithBOM = true)
 
  --- transformation
 
@@ -1937,6 +1964,431 @@ OutType Convert(const wchar_t* pWChar)
 	OutType Out{};
 	Convert(pWChar, Out);
 	return Out;
+}
+
+//-----------------------------------------------------------------------------
+/// the encodings a byte order mark can announce, and Unknown for an encoding that is
+/// not determined yet: Decode() then looks for a byte order mark in the bytes.
+/// DetectBOM() never returns Unknown, bytes without a BOM are UTF8
+enum class Encoding : uint8_t { UTF8, UTF16LE, UTF16BE, UTF32LE, UTF32BE, Unknown };
+//-----------------------------------------------------------------------------
+
+namespace KUTF_detail {
+
+//-----------------------------------------------------------------------------
+/// the code unit assembled from the bytes at pBytes, in the given byte order
+template<typename Unit>
+KUTF_CONSTEXPR_14
+Unit ReadUnit(const unsigned char* pBytes, bool bBigEndian)
+//-----------------------------------------------------------------------------
+{
+	Unit ch = 0;
+
+	for (std::size_t i = 0; i < sizeof(Unit); ++i)
+	{
+		ch = static_cast<Unit>((ch << 8) | pBytes[bBigEndian ? i : sizeof(Unit) - 1 - i]);
+	}
+
+	return ch;
+}
+
+//-----------------------------------------------------------------------------
+/// appends the bytes of a code unit in the given byte order
+template<typename Unit, typename ByteString>
+KUTF_CONSTEXPR_14
+void WriteUnit(Unit ch, bool bBigEndian, ByteString& sBytes)
+//-----------------------------------------------------------------------------
+{
+	for (std::size_t i = 0; i < sizeof(Unit); ++i)
+	{
+		auto iShift = 8 * (bBigEndian ? sizeof(Unit) - 1 - i : i);
+		sBytes += static_cast<typename ByteString::value_type>((ch >> iShift) & 0xFF);
+	}
+}
+
+//-----------------------------------------------------------------------------
+/// decodes the bytes of a UTF16 or UTF32 text (the width of Unit) in the given byte
+/// order into Output. Convert() wants the code units contiguous, aligned and in the
+/// byte order of the platform, so they are assembled in a temporary string first
+template<typename Unit, typename OutType, typename Iterator>
+KUTF_CONSTEXPR_14
+bool DecodeUnits(Iterator it, Iterator ie, bool bBigEndian, OutType& Output)
+//-----------------------------------------------------------------------------
+{
+	auto iBytes = static_cast<std::size_t>(std::distance(it, ie));
+
+	if (iBytes % sizeof(Unit))
+	{
+		// a truncated last unit - this is no text in this encoding
+		return false;
+	}
+
+	std::basic_string<Unit> Units;
+	Units.reserve(iBytes / sizeof(Unit));
+
+	while (it != ie)
+	{
+		unsigned char Bytes[sizeof(Unit)];
+
+		for (std::size_t i = 0; i < sizeof(Unit); ++i, ++it)
+		{
+			Bytes[i] = static_cast<unsigned char>(*it);
+		}
+
+		Units += ReadUnit<Unit>(Bytes, bBigEndian);
+	}
+
+	return Convert(Units.begin(), Units.end(), Output);
+}
+
+} // end of namespace KUTF_detail
+
+//-----------------------------------------------------------------------------
+/// the encoding announced by a byte order mark at the start of the bytes, UTF8 when
+/// there is none. Reads four bytes at most; without a BOM the test ends after one
+/// compare of the first byte
+/// @param it input iterator
+/// @param ie end iterator
+/// @param iBOMSize receives the length of the BOM in bytes: 0, 2, 3 or 4
+template<typename Iterator,
+         typename std::enable_if<!KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
+inline
+Encoding DetectBOM(Iterator it, Iterator ie, std::size_t& iBOMSize)
+//-----------------------------------------------------------------------------
+{
+	iBOMSize = 0;
+
+	// the first byte decides which sequence to look for, and only the bytes of
+	// that sequence are fetched
+	unsigned char Bytes[4] = { 0, 0, 0, 0 };
+	std::size_t   iCount   = 0;
+
+	auto Fetch = [&](std::size_t iWant) -> bool
+	{
+		for (; iCount < iWant; ++iCount, ++it)
+		{
+			if (it == ie)
+			{
+				return false;
+			}
+
+			Bytes[iCount] = static_cast<unsigned char>(*it);
+		}
+
+		return true;
+	};
+
+	if (!Fetch(1))
+	{
+		return Encoding::UTF8;
+	}
+
+	switch (Bytes[0])
+	{
+		case 0xEF:
+			// the UTF8 BOM, or the start byte of a character in U+F000..U+FFFF
+			if (Fetch(3) && Bytes[1] == 0xBB && Bytes[2] == 0xBF)
+			{
+				iBOMSize = 3;
+			}
+			return Encoding::UTF8;
+
+		case 0xFF:
+			if (Fetch(2) && Bytes[1] == 0xFE)
+			{
+				// the UTF32 LE BOM starts with the UTF16 LE BOM
+				if (Fetch(4) && Bytes[2] == 0x00 && Bytes[3] == 0x00)
+				{
+					iBOMSize = 4;
+					return Encoding::UTF32LE;
+				}
+
+				iBOMSize = 2;
+				return Encoding::UTF16LE;
+			}
+			return Encoding::UTF8;
+
+		case 0xFE:
+			if (Fetch(2) && Bytes[1] == 0xFF)
+			{
+				iBOMSize = 2;
+				return Encoding::UTF16BE;
+			}
+			return Encoding::UTF8;
+
+		case 0x00:
+			if (Fetch(4) && Bytes[1] == 0x00 && Bytes[2] == 0xFE && Bytes[3] == 0xFF)
+			{
+				iBOMSize = 4;
+				return Encoding::UTF32BE;
+			}
+			return Encoding::UTF8;
+
+		default:
+			return Encoding::UTF8;
+	}
+}
+
+//-----------------------------------------------------------------------------
+/// the encoding announced by a byte order mark at the start of the bytes, UTF8 when
+/// there is none. Reads four bytes at most; without a BOM the test ends after one
+/// compare of the first byte
+/// @param sBytes the input bytes (typically an 8 bit string type)
+/// @param iBOMSize receives the length of the BOM in bytes: 0, 2, 3 or 4
+template<typename ByteString,
+         typename std::enable_if<KUTF_detail::HasSize<ByteString>::value, int>::type = 0>
+inline
+Encoding DetectBOM(const ByteString& sBytes, std::size_t& iBOMSize)
+//-----------------------------------------------------------------------------
+{
+	return DetectBOM(sBytes.begin(), sBytes.end(), iBOMSize);
+}
+
+//-----------------------------------------------------------------------------
+/// the byte order mark of an encoding, e.g. "\xEF\xBB\xBF" for UTF8 - for writers
+template<typename ByteString>
+inline
+ByteString ByteOrderMark(Encoding Enc)
+//-----------------------------------------------------------------------------
+{
+	switch (Enc)
+	{
+		case Encoding::UTF8:    return ByteString("\xEF\xBB\xBF",     3);
+		case Encoding::UTF16LE: return ByteString("\xFF\xFE",         2);
+		case Encoding::UTF16BE: return ByteString("\xFE\xFF",         2);
+		case Encoding::UTF32LE: return ByteString("\xFF\xFE\x00\x00", 4);
+		case Encoding::UTF32BE: return ByteString("\x00\x00\xFE\xFF", 4);
+		case Encoding::Unknown: return ByteString{};
+	}
+
+	return ByteString{};
+}
+
+//-----------------------------------------------------------------------------
+/// decodes bytes of a known encoding, without BOM, into a UTF8, UTF16 or UTF32
+/// string (the width of OutType). With Encoding::Unknown the bytes announce their
+/// encoding with a byte order mark, which is skipped; without one they are UTF8.
+/// UTF8 input for an 8 bit output is appended as it is.
+/// @param it input iterator
+/// @param ie end iterator
+/// @param Enc the encoding of the bytes
+/// @param Output the UTF output container (typically a string type), will be appended to
+/// @return false when the bytes are not valid in their encoding, or when their count
+/// is not a multiple of the code unit size - the output is then empty
+template<typename OutType, typename Iterator,
+         typename std::enable_if<!KUTF_detail::HasSize<Iterator>::value, int>::type = 0>
+inline
+bool Decode(Iterator it, Iterator ie, Encoding Enc, OutType& Output)
+//-----------------------------------------------------------------------------
+{
+	switch (Enc)
+	{
+		case Encoding::UTF8:
+			if KUTF_CONSTEXPR_IF (sizeof(typename OutType::value_type) == 1)
+			{
+				for (; it != ie; ++it)
+				{
+					Output += static_cast<typename OutType::value_type>(*it);
+				}
+
+				return true;
+			}
+			else
+			{
+				return Convert(it, ie, Output);
+			}
+
+		case Encoding::UTF16LE: return KUTF_detail::DecodeUnits<char16_t>(it, ie, false, Output);
+		case Encoding::UTF16BE: return KUTF_detail::DecodeUnits<char16_t>(it, ie, true,  Output);
+		case Encoding::UTF32LE: return KUTF_detail::DecodeUnits<char32_t>(it, ie, false, Output);
+		case Encoding::UTF32BE: return KUTF_detail::DecodeUnits<char32_t>(it, ie, true,  Output);
+
+		case Encoding::Unknown:
+		{
+			// the bytes announce their encoding themselves
+			std::size_t iBOMSize = 0;
+			Enc = DetectBOM(it, ie, iBOMSize);
+			std::advance(it, iBOMSize);
+			return Decode(it, ie, Enc, Output);
+		}
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+/// decodes bytes of a known encoding, without BOM, into a UTF8, UTF16 or UTF32
+/// string (the width of OutType). With Encoding::Unknown the bytes announce their
+/// encoding with a byte order mark, which is skipped; without one they are UTF8.
+/// UTF8 input for an 8 bit output is appended as it is.
+/// @param sBytes the input bytes (typically an 8 bit string type)
+/// @param Enc the encoding of the bytes
+/// @param Output the UTF output container (typically a string type), will be appended to
+/// @return false when the bytes are not valid in their encoding, or when their count
+/// is not a multiple of the code unit size - the output is then empty
+template<typename OutType, typename ByteString,
+         typename std::enable_if<KUTF_detail::HasSize<ByteString>::value, int>::type = 0>
+inline
+bool Decode(const ByteString& sBytes, Encoding Enc, OutType& Output)
+//-----------------------------------------------------------------------------
+{
+	return Decode(sBytes.begin(), sBytes.end(), Enc, Output);
+}
+
+//-----------------------------------------------------------------------------
+/// decodes bytes that announce their encoding with a byte order mark into UTF8
+/// without BOM, and returns a view on the result: into sBytes when nothing has to
+/// change (UTF8, with a BOM skipped), else into sBuffer, which receives the converted
+/// text. Bytes without a BOM are UTF8. Bytes that are not valid in their encoding
+/// give an empty view
+/// @param sBytes a view on the input bytes
+/// @param sBuffer an 8 bit string that receives the text when it has to be converted
+/// @return a view on the UTF8 text
+template<typename StringView, typename ByteString>
+inline
+StringView Decode(StringView sBytes, ByteString& sBuffer)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iBOMSize = 0;
+	auto Enc = DetectBOM(sBytes, iBOMSize);
+
+	if (Enc == Encoding::UTF8)
+	{
+		return sBytes.substr(iBOMSize);
+	}
+
+	sBuffer.clear();
+
+	if (!Decode(sBytes.begin() + iBOMSize, sBytes.end(), Enc, sBuffer))
+	{
+		sBuffer.clear();
+		return StringView{};
+	}
+
+	return StringView(sBuffer.data(), sBuffer.size());
+}
+
+//-----------------------------------------------------------------------------
+/// decodes an 8 bit string that announces its encoding with a byte order mark into
+/// UTF8 without BOM, in place. A string without BOM is not touched, one with a UTF8
+/// BOM loses its first three bytes, UTF16 and UTF32 are converted
+/// @param sBytes the string to decode
+/// @return false when the bytes are not valid in their encoding - the string is then empty
+template<typename ByteString>
+inline
+bool DecodeInPlace(ByteString& sBytes)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iBOMSize = 0;
+	auto Enc = DetectBOM(sBytes, iBOMSize);
+
+	if (Enc == Encoding::UTF8)
+	{
+		if (iBOMSize)
+		{
+			sBytes.erase(0, iBOMSize);
+		}
+
+		return true;
+	}
+
+	ByteString sDecoded;
+
+	if (!Decode(sBytes.begin() + iBOMSize, sBytes.end(), Enc, sDecoded))
+	{
+		sBytes.clear();
+		return false;
+	}
+
+	sBytes.swap(sDecoded);
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+/// encodes a UTF8, UTF16 or UTF32 string into the bytes of an encoding, with or
+/// without byte order mark - e.g. Encode(sText, sBytes, Encoding::UTF16LE) for a
+/// consumer on Windows
+/// @param sInput the UTF input container (typically a string type)
+/// @param sBytes the 8 bit output string, will be appended to
+/// @param Enc the encoding of the output, not Unknown
+/// @param bWithBOM start the output with the byte order mark of the encoding
+/// @return false in case of decoding errors or with Encoding::Unknown, else true
+template<typename ByteString, typename InpType,
+         typename std::enable_if<KUTF_detail::HasSize<InpType>::value, int>::type = 0>
+inline
+bool Encode(const InpType& sInput, ByteString& sBytes, Encoding Enc, bool bWithBOM = true)
+//-----------------------------------------------------------------------------
+{
+	if (bWithBOM)
+	{
+		sBytes += ByteOrderMark<ByteString>(Enc);
+	}
+
+	switch (Enc)
+	{
+		case Encoding::UTF8:
+			return Convert(sInput, sBytes);
+
+		case Encoding::UTF16LE:
+		case Encoding::UTF16BE:
+		{
+			std::basic_string<char16_t> Units;
+
+			if (!Convert(sInput, Units))
+			{
+				return false;
+			}
+
+			for (auto ch : Units)
+			{
+				KUTF_detail::WriteUnit(ch, Enc == Encoding::UTF16BE, sBytes);
+			}
+
+			return true;
+		}
+
+		case Encoding::UTF32LE:
+		case Encoding::UTF32BE:
+		{
+			std::basic_string<char32_t> Units;
+
+			if (!Convert(sInput, Units))
+			{
+				return false;
+			}
+
+			for (auto ch : Units)
+			{
+				KUTF_detail::WriteUnit(ch, Enc == Encoding::UTF32BE, sBytes);
+			}
+
+			return true;
+		}
+
+		case Encoding::Unknown:
+			// no encoding to write
+			return false;
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+/// encodes a UTF8, UTF16 or UTF32 string into the bytes of an encoding, with or
+/// without byte order mark
+/// @param sInput the UTF input container (typically a string type)
+/// @param Enc the encoding of the output
+/// @param bWithBOM start the output with the byte order mark of the encoding
+/// @return the 8 bit output string
+template<typename ByteString, typename InpType,
+         typename std::enable_if<KUTF_detail::HasSize<InpType>::value, int>::type = 0>
+inline
+ByteString Encode(const InpType& sInput, Encoding Enc, bool bWithBOM = true)
+//-----------------------------------------------------------------------------
+{
+	ByteString sBytes{};
+	Encode(sInput, sBytes, Enc, bWithBOM);
+	return sBytes;
 }
 
 //-----------------------------------------------------------------------------

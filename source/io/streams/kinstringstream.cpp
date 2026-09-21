@@ -157,4 +157,13 @@ std::streambuf::pos_type KInStringStreamBuf::seekoff(off_type off,
 
 } // seekoff
 
+//-----------------------------------------------------------------------------
+std::streambuf::pos_type KInStringStreamBuf::seekpos(pos_type pos,
+                                                     std::ios_base::openmode which)
+//-----------------------------------------------------------------------------
+{
+	return seekoff(off_type(pos), std::ios_base::beg, which);
+
+} // seekpos
+
 DEKAF2_NAMESPACE_END

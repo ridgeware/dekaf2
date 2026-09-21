@@ -972,6 +972,103 @@ bool kSkipUTF8BOMInPlace(KStringRef& sInput)
 
 } // kSkipUTF8BOMInPlace
 
+namespace {
+
+//-----------------------------------------------------------------------------
+// the encoding announced by a byte order mark at the current position of the
+// stream, UTF8 when there is none. The first byte tells how many bytes the BOM
+// it could start would have, only those are read. Bytes that turn out to be text
+// are put back, and so is the BOM unless bSkip is set
+kutf::Encoding DetectBOMHere(KInStream& InStream, bool bSkip)
+//-----------------------------------------------------------------------------
+{
+	unsigned char Bytes[4];
+	std::size_t   iRead = 0;
+
+	auto ch = InStream.Read();
+
+	if (std::istream::traits_type::eq_int_type(ch, std::istream::traits_type::eof()))
+	{
+		return kutf::Encoding::UTF8;
+	}
+
+	Bytes[iRead++] = static_cast<unsigned char>(ch);
+
+	std::size_t iWant = 1;
+
+	switch (Bytes[0])
+	{
+		case 0xEF: iWant = 3; break; // UTF8
+		case 0xFF: iWant = 4; break; // UTF16 LE, or UTF32 LE
+		case 0xFE: iWant = 2; break; // UTF16 BE
+		case 0x00: iWant = 4; break; // UTF32 BE
+		default:   break;
+	}
+
+	while (iRead < iWant)
+	{
+		ch = InStream.Read();
+
+		if (std::istream::traits_type::eq_int_type(ch, std::istream::traits_type::eof()))
+		{
+			break;
+		}
+
+		Bytes[iRead++] = static_cast<unsigned char>(ch);
+	}
+
+	std::size_t iBOMSize = 0;
+	auto Enc = kutf::DetectBOM(Bytes, Bytes + iRead, iBOMSize);
+
+	auto iUnread = bSkip ? iRead - iBOMSize : iRead;
+
+	if (iUnread)
+	{
+		auto iCouldNotUnread = InStream.UnRead(iUnread);
+
+		if (iCouldNotUnread)
+		{
+			kDebug(1, "could not unread {} of {} characters", iCouldNotUnread, iUnread);
+		}
+	}
+
+	return Enc;
+
+} // DetectBOMHere
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+kutf::Encoding kGetBOM(KInStream& InStream, bool bSkip)
+//-----------------------------------------------------------------------------
+{
+	auto iPosition = InStream.GetReadPosition();
+
+	if (iPosition <= 0)
+	{
+		// at the start, or a stream that cannot seek (its position reads as -1),
+		// whose current position counts as its start
+		return DetectBOMHere(InStream, bSkip);
+	}
+
+	// further on: look at the start, then come back
+	if (!InStream.Rewind())
+	{
+		kDebug(1, "cannot rewind stream, assuming UTF8");
+		return kutf::Encoding::UTF8;
+	}
+
+	auto Enc = DetectBOMHere(InStream, /*bSkip*/false);
+
+	if (!InStream.SetReadPosition(static_cast<std::size_t>(iPosition)))
+	{
+		kDebug(1, "cannot restore the read position {}", iPosition);
+	}
+
+	return Enc;
+
+} // kGetBOM
+
 //-----------------------------------------------------------------------------
 KOutStream& kWriteUTF8BOM(KOutStream& Out)
 //-----------------------------------------------------------------------------
@@ -983,7 +1080,8 @@ KOutStream& kWriteUTF8BOM(KOutStream& Out)
 KStringView kWriteUTF8BOM()
 //-----------------------------------------------------------------------------
 {
-	return KStringView { "\xef\xbb\xbf" };
+	// a view on the string literal in kutf.h
+	return kutf::ByteOrderMark<KStringView>(kutf::Encoding::UTF8);
 }
 
 //-----------------------------------------------------------------------------

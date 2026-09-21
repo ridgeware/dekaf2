@@ -392,6 +392,72 @@ KString kReadAll(KStringViewZ sFileName, std::size_t iMaxRead)
 } // kReadAll
 
 //-----------------------------------------------------------------------------
+bool kReadText(KInStream& InStream, KStringRef& sContent, std::size_t iMaxRead, kutf::Encoding Enc)
+//-----------------------------------------------------------------------------
+{
+	sContent.clear();
+
+	if (Enc == kutf::Encoding::Unknown)
+	{
+		// the byte order mark at the start of the stream tells the encoding. A stream
+		// at its start moves behind the BOM, one further on is read from where it is
+		Enc = kGetBOM(InStream, /*bSkip*/true);
+	}
+
+	if (Enc == kutf::Encoding::UTF8)
+	{
+		// the text as it is - the one copy is the one of reading
+		return kAppendAll(InStream.istream(), sContent, /*bFromStart*/false, iMaxRead);
+	}
+
+	KString sBytes;
+
+	if (!kAppendAll(InStream.istream(), sBytes, /*bFromStart*/false, iMaxRead))
+	{
+		return false;
+	}
+
+	return kutf::Decode(sBytes, Enc, sContent);
+
+} // kReadText
+
+//-----------------------------------------------------------------------------
+KString kReadText(KInStream& InStream, std::size_t iMaxRead, kutf::Encoding Enc)
+//-----------------------------------------------------------------------------
+{
+	KString sContent;
+	kReadText(InStream, sContent, iMaxRead, Enc);
+	return sContent;
+
+} // kReadText
+
+//-----------------------------------------------------------------------------
+bool kReadText(KStringViewZ sFileName, KStringRef& sContent, std::size_t iMaxRead, kutf::Encoding Enc)
+//-----------------------------------------------------------------------------
+{
+	KInFile File(sFileName);
+
+	if (!File.is_open())
+	{
+		sContent.clear();
+		return false;
+	}
+
+	return kReadText(File, sContent, iMaxRead, Enc);
+
+} // kReadText
+
+//-----------------------------------------------------------------------------
+KString kReadText(KStringViewZ sFileName, std::size_t iMaxRead, kutf::Encoding Enc)
+//-----------------------------------------------------------------------------
+{
+	KString sContent;
+	kReadText(sFileName, sContent, iMaxRead, Enc);
+	return sContent;
+
+} // kReadText
+
+//-----------------------------------------------------------------------------
 // own implementation, reads iMaxRead characters, returns true if delimiter was found
 bool myLocalGetline(std::istream&       Stream,
 					KStringRef&         sLine,

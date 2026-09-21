@@ -525,9 +525,14 @@ KString KStringCatalog::Negotiate(KStringView sAcceptLanguage) const
 		{
 			Wants.push_back({ m_sDefaultLanguage, dQuality });
 		}
-		else if (auto sCanonical = CanonicalTag(sTag); !sCanonical.empty())
+		else
 		{
-			Wants.push_back({ std::move(sCanonical), dQuality });
+			auto sCanonical = CanonicalTag(sTag);
+
+			if (!sCanonical.empty())
+			{
+				Wants.push_back({ std::move(sCanonical), dQuality });
+			}
 		}
 	}
 

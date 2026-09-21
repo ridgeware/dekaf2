@@ -83,6 +83,9 @@ namespace kwebapp {
 
 namespace {
 
+// defined further down, used by the tray and the window setup above it
+HICON ApplicationIcon(bool bSmall);
+
 // static initialization runs on the thread that later runs the UI loop
 const std::thread::id s_MainThread = std::this_thread::get_id();
 
@@ -301,13 +304,7 @@ bool EnsureTray()
 	Tray.uID              = 1;
 	Tray.uFlags           = NIF_ICON | NIF_MESSAGE | NIF_TIP;
 	Tray.uCallbackMessage = WM_APP_TRAY;
-	Tray.hIcon            = s_Shell.hTrayIcon ? s_Shell.hTrayIcon
-	                                          : reinterpret_cast<HICON>(::SendMessageW(s_Shell.hWindow, WM_GETICON, ICON_SMALL, 0));
-
-	if (!Tray.hIcon)
-	{
-		Tray.hIcon = ::LoadIconW(nullptr, IDI_APPLICATION);
-	}
+	Tray.hIcon            = s_Shell.hTrayIcon ? s_Shell.hTrayIcon : ApplicationIcon(true);
 
 	::GetWindowTextW(s_Shell.hWindow, Tray.szTip, static_cast<int>(sizeof(Tray.szTip) / sizeof(Tray.szTip[0])));
 
@@ -503,6 +500,9 @@ bool Attach(void* pWindow)
 
 	auto hWnd = static_cast<HWND>(pWindow);
 	s_Shell.hWindow = hWnd;
+	// title bar and Alt-Tab show the application's icon, not the generic one
+	::SendMessageW(hWnd, WM_SETICON, ICON_BIG,   reinterpret_cast<LPARAM>(ApplicationIcon(false)));
+	::SendMessageW(hWnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(ApplicationIcon(true)));
 
 	if (!s_Shell.bSubclassed)
 	{
@@ -1247,12 +1247,7 @@ bool UpdateTrayIcon(KStringView sIcon)
 
 	auto& Tray = s_Shell.Tray;
 	Tray.uFlags = NIF_ICON;
-	Tray.hIcon  = hIcon ? hIcon : reinterpret_cast<HICON>(::SendMessageW(s_Shell.hWindow, WM_GETICON, ICON_SMALL, 0));
-
-	if (!Tray.hIcon)
-	{
-		Tray.hIcon = ::LoadIconW(nullptr, IDI_APPLICATION);
-	}
+	Tray.hIcon  = hIcon ? hIcon : ApplicationIcon(true);
 
 	return ::Shell_NotifyIconW(NIM_MODIFY, &Tray) != FALSE;
 
@@ -1607,6 +1602,34 @@ namespace {
 
 //-----------------------------------------------------------------------------
 // the credential's name: the application and the key
+// The application's own icon: the first icon resource of the executable,
+// the one Explorer and the taskbar show. The window comes from the webview
+// library without one, so the tray, the title bar and Alt-Tab would fall
+// back to the generic application icon without this.
+HICON ApplicationIcon(bool bSmall)
+//-----------------------------------------------------------------------------
+{
+	static HICON s_hLarge = nullptr;
+	static HICON s_hSmall = nullptr;
+	static bool  s_bTried = false;
+
+	if (!s_bTried)
+	{
+		s_bTried = true;
+		wchar_t szPath[MAX_PATH] {};
+		if (::GetModuleFileNameW(nullptr, szPath, MAX_PATH))
+		{
+			::ExtractIconExW(szPath, 0, &s_hLarge, &s_hSmall, 1);
+		}
+	}
+
+	HICON hIcon = bSmall ? (s_hSmall ? s_hSmall : s_hLarge) : (s_hLarge ? s_hLarge : s_hSmall);
+
+	return hIcon ? hIcon : ::LoadIconW(nullptr, IDI_APPLICATION);
+
+} // ApplicationIcon
+
+//-----------------------------------------------------------------------------
 std::wstring TargetName(KStringView sService, KStringView sKey)
 //-----------------------------------------------------------------------------
 {

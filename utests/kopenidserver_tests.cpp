@@ -194,6 +194,18 @@ struct TestGrantStore : KOpenIDServer::GrantStore
 			it = (it->second.sFamily == sFamily) ? Refreshes.erase(it) : std::next(it);
 		}
 	}
+	void RevokeSubject(KStringView sSubject) override
+	{
+		std::lock_guard<std::mutex> L(Mutex);
+		for (auto it = Codes.begin(); it != Codes.end(); )
+		{
+			it = (it->second.sSubject == sSubject) ? Codes.erase(it) : std::next(it);
+		}
+		for (auto it = Refreshes.begin(); it != Refreshes.end(); )
+		{
+			it = (it->second.sSubject == sSubject) ? Refreshes.erase(it) : std::next(it);
+		}
+	}
 };
 
 // a browser-ish cookie jar
@@ -781,6 +793,34 @@ TEST_CASE("KOpenIDServer")
 		KString sOwner = kFormat("grant_type=refresh_token&refresh_token={}&client_id=test-client&client_secret=test-secret", sRT);
 		CHECK ( TokenError(Drive("POST", "/token", "", sOther)) == "invalid_grant" );
 		CHECK ( TokenError(Drive("POST", "/token", "", sOwner)) == "invalid_grant" );
+	}
+
+	SECTION("RevokeSubject ends the login sessions, codes and refresh tokens of a user")
+	{
+		CookieJar Cookies;
+		Cookies.Apply(Drive("GET", sAuthorizeQuery, Cookies.Header()));
+		KString sLogin = Drive("POST", "/login", Cookies.Header(), "username=alice&password=secret");
+		Cookies.Apply(sLogin);
+
+		KString sCode = URLParam(FirstHeader(sLogin, "Location"), "code");
+		REQUIRE_FALSE ( sCode.empty() );
+		KJSON   jTok = kjson::Parse(ResponseBody(Drive("POST", "/token", "", CodeBody(sCode))));
+		KString sRT  = kjson::GetStringRef(jTok, "refresh_token");
+		REQUIRE_FALSE ( sRT.empty() );
+
+		// a second code from the live session, not yet redeemed
+		KString sSilent = URLParam(FirstHeader(Drive("GET", sAuthorizeQuery, Cookies.Header()), "Location"), "code");
+		REQUIRE_FALSE ( sSilent.empty() );
+
+		CHECK ( Server.RevokeSubject("bob")   == 0 );
+		CHECK ( Server.RevokeSubject("alice") == 1 );
+
+		KString sRefreshBody = kFormat("grant_type=refresh_token&refresh_token={}&client_id=test-client&client_secret=test-secret", sRT);
+		CHECK ( TokenError(Drive("POST", "/token", "", sRefreshBody))      == "invalid_grant" );
+		CHECK ( TokenError(Drive("POST", "/token", "", CodeBody(sSilent))) == "invalid_grant" );
+
+		// without the session the browser goes back to the login page, without a code
+		CHECK ( FirstHeader(Drive("GET", sAuthorizeQuery, Cookies.Header()), "Location") == "/login" );
 	}
 
 	SECTION("PKCE mismatch is rejected at the token endpoint")

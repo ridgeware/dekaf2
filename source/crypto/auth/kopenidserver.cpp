@@ -659,6 +659,16 @@ KString KOpenIDServer::DeclineAccess(KRESTServer& HTTP)
 } // DeclineAccess
 
 //-----------------------------------------------------------------------------
+std::size_t KOpenIDServer::RevokeSubject(KStringView sSubject)
+//-----------------------------------------------------------------------------
+{
+	m_Grants->RevokeSubject(sSubject);
+
+	return m_LoginSession->LogoutAllFor(sSubject);
+
+} // RevokeSubject
+
+//-----------------------------------------------------------------------------
 KString KOpenIDServer::SignJWT(const KJSON& Payload) const
 //-----------------------------------------------------------------------------
 {

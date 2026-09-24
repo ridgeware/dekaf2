@@ -269,6 +269,13 @@ public:
 		virtual bool TakeRefresh (KStringView sToken, Refresh& Out) = 0;
 		/// drop expired codes/refresh tokens (call periodically)
 		virtual void PurgeExpired(KUnixTime tNow)                   = 0;
+		/// drop every live code and refresh token issued to sSubject, e.g. after a
+		/// password reset or when the account is deleted. The default keeps them,
+		/// so they stay valid until they expire.
+		virtual void RevokeSubject(KStringView sSubject)
+		{
+			(void)sSubject;
+		}
 
 		// --- refresh token reuse detection (OAuth 2.0 Security BCP 4.14.2) ---
 		// A rotated token that is presented again means the token was stolen (or the
@@ -348,6 +355,13 @@ public:
 	/// state). For the "back to the app" choice on the access-denied page.
 	/// @returns the redirect URL, or empty if no request is pending.
 	KString DeclineAccess (KRESTServer& HTTP);
+
+	/// End everything the provider holds for sSubject: its login sessions, and its
+	/// codes and refresh tokens in the GrantStore. Access and id tokens that were
+	/// already issued stay valid until they expire. For a password reset, a deleted
+	/// account and similar events.
+	/// @returns the number of ended login sessions
+	std::size_t RevokeSubject(KStringView sSubject);
 
 //----------
 private:

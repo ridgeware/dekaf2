@@ -380,7 +380,7 @@ KJSON2::StringT KJSON2::Print(StringViewT sDefault, bool bSerializeAll) const
 			return config::ToString(base::get<uint64_t>());
 
 		case value_t::number_float:
-			return config::ToString(base::get<float>());
+			return config::ToString(base::get<double>());
 
 		case value_t::boolean:
 			return config::ToString(base::get<bool>());

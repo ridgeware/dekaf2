@@ -391,7 +391,7 @@ endif()
 
 if (CMAKE_COMPILER_IS_GNUCXX AND (CMAKE_CXX_STANDARD LESS 17 OR CMAKE_CXX_COMPILER_VERSION LESS 6))
 	if (DEKAF2_WRAPPED_KJSON)
-		message(STATUS "cannot use wrapped KJSON type with GCC and C++ < 17 or GCC < 7 - switching off")
+		message(STATUS "cannot use wrapped KJSON type with GCC and C++ < 17 or GCC < 6 - switching off")
 		set(DEKAF2_WRAPPED_KJSON OFF)
 	endif()
 endif()

@@ -549,6 +549,13 @@ TEST_CASE("KJSON2")
 		static constexpr KStringView sExpected4 = "3.141529";
 		CHECK ( sString == sExpected4 );
 
+		// floating point values keep their double precision
+		KJSON2 jDouble = 123456789.0;
+		CHECK ( Print(jDouble)          == "123456789" );
+		CHECK ( jDouble.CopyString()    == "123456789" );
+		jDouble = 3.14159265358979;
+		CHECK ( Print(jDouble)          == "3.14159265358979" );
+
 		sString = Print(json["wrong"]);
 		static constexpr KStringView sExpected5 = "NULL";
 		CHECK ( sString == sExpected5 );

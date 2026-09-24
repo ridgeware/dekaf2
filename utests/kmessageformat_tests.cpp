@@ -4,6 +4,7 @@
 #include <dekaf2/util/i18n/kpluralrules.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/core/format/kformat.h>
+#include <limits>
 
 using namespace dekaf2;
 
@@ -139,6 +140,19 @@ TEST_CASE("KMessageFormat")
 		REQUIRE ( Message.HasError() == false );
 		CHECK ( (Message.Format({ { "n", 1234 } })   == "1234 items")   );
 		CHECK ( (Message.Format({ { "n", 1234.5 } }) == "1234.5 items") );
+	}
+
+	SECTION("argument values of all json types")
+	{
+		KMessageFormat Message("{v}");
+		REQUIRE ( Message.HasError() == false );
+		CHECK ( (Message.Format({ { "v", "text" } })                               == "text")                 );
+		CHECK ( (Message.Format({ { "v", -42 } })                                  == "-42")                  );
+		CHECK ( (Message.Format({ { "v", std::numeric_limits<uint64_t>::max() } }) == "18446744073709551615") );
+		CHECK ( (Message.Format({ { "v", 3.0 } })                                  == "3")                    );
+		CHECK ( (Message.Format({ { "v", true } })                                 == "true")                 );
+		CHECK ( (Message.Format({ { "v", nullptr } })                              == "")                     );
+		CHECK ( (Message.Format({ { "v", KJSON::array({ 1, 2 }) } })               == "[1,2]")                );
 	}
 
 	SECTION("plural with a value that is no number")

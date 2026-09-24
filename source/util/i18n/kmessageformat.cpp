@@ -559,37 +559,34 @@ KString KMessageFormat::NumberText(double dNumber)
 KString KMessageFormat::ValueText(const KJSON& jValue)
 //-----------------------------------------------------------------------------
 {
-	if (jValue.is_string())
+	switch (jValue.type())
 	{
-		return jValue.String();
+		case KJSON::value_t::string:
+			return jValue.String();
+
+		case KJSON::value_t::number_integer:
+			return kFormat("{}", jValue.Int64());
+
+		case KJSON::value_t::number_unsigned:
+			return kFormat("{}", jValue.UInt64());
+
+		case KJSON::value_t::number_float:
+			return NumberText(jValue.Float());
+
+		case KJSON::value_t::boolean:
+			return jValue.Bool() ? "true" : "false";
+
+		case KJSON::value_t::null:
+			return {};
+
+		case KJSON::value_t::object:
+		case KJSON::value_t::array:
+		case KJSON::value_t::binary:
+		case KJSON::value_t::discarded:
+			return jValue.dump();
 	}
 
-	if (jValue.is_number_integer())
-	{
-		return kFormat("{}", jValue.Int64());
-	}
-
-	if (jValue.is_number_unsigned())
-	{
-		return kFormat("{}", jValue.UInt64());
-	}
-
-	if (jValue.is_number_float())
-	{
-		return NumberText(jValue.Float());
-	}
-
-	if (jValue.is_boolean())
-	{
-		return jValue.Bool() ? "true" : "false";
-	}
-
-	if (jValue.is_null())
-	{
-		return {};
-	}
-
-	return jValue.dump();
+	return {};
 
 } // ValueText
 

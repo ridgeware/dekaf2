@@ -247,6 +247,14 @@ KHTMLNode BeginPage(html::Page& Page, KStringView sUser, bool bAdmin, bool bWide
 }
 
 //-----------------------------------------------------------------------------
+/// a point in time as the pages show it
+KString FormatUTC(KUnixTime tTime)
+//-----------------------------------------------------------------------------
+{
+	return kFormTimestamp(KUTCTime(tTime), "{:%Y-%m-%d %H:%M} UTC");
+}
+
+//-----------------------------------------------------------------------------
 void Msg(KHTMLNode Parent, KStringView sText, bool bError)
 //-----------------------------------------------------------------------------
 {
@@ -403,6 +411,14 @@ void RenderTwoFactor(KRESTServer& HTTP, KStringView sPending, KStringView sMetho
 		Resend.Add<html::Input>("pending", sPending, html::Input::HIDDEN);
 		Resend.Add<html::Button>("Resend the code", html::Button::SUBMIT, html::Classes{"secondary"});
 	}
+	else
+	{
+		// without the device and without backup codes: a link by mail, or the administrator
+		auto Lost = CB.Add<html::Form>("/login/2fa/lost");
+		Lost.SetMethod(html::Form::POST);
+		Lost.Add<html::Input>("pending", sPending, html::Input::HIDDEN);
+		Lost.Add<html::Button>("No device and no backup codes", html::Button::SUBMIT, html::Classes{"secondary"});
+	}
 	SendPage(HTTP, Page, iStatus);
 }
 
@@ -434,6 +450,21 @@ void RenderAccount(KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSO
 		if (St.bEmailVerified) P.Add<html::Span>(html::Classes{"badge on"}).AddText("verified");
 		else                   P.Add<html::Span>(html::Classes{"badge off"}).AddText("unverified");
 
+		if (St.Scheduled.bSet)
+		{
+			auto Warn = CB.Add<html::Div>(html::Classes{"warnbox"});
+			Warn.Add<html::Paragraph>().AddText(St.Scheduled.sEmail.empty()
+			    ? kFormat("An administrator removes this address on {}.", FormatUTC(St.Scheduled.tWhen))
+			    : kFormat("An administrator changes this address to {} on {}.", St.Scheduled.sEmail,
+			              FormatUTC(St.Scheduled.tWhen)));
+			Warn.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+			    "Password recovery mails would then go to the new address. If you did not ask for this, "
+			    "cancel it and talk to your administrators.");
+			auto CF = Warn.Add<html::Form>("/account/email/scheduled/cancel");
+			CF.SetMethod(html::Form::POST);
+			CF.Add<html::Button>("Cancel the change", html::Button::SUBMIT, html::Classes{"danger"});
+		}
+
 		if (!St.bEmailVerified && St.bSmtp)
 		{
 			auto F = CB.Add<html::Form>("/account/email/verify-send");
@@ -443,7 +474,7 @@ void RenderAccount(KRESTServer& HTTP, KStringView sUser, bool bAdmin, const KJSO
 		else if (!St.bSmtp)
 		{
 			CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(
-			    "Email features are off until an administrator configures an outgoing mail server.");
+			    "Email features are off until the operator of this server configures an outgoing mail server.");
 		}
 	}
 
@@ -698,6 +729,152 @@ void RenderReset(KRESTServer& HTTP, KStringView sToken, KStringView sError, uint
 }
 
 //-----------------------------------------------------------------------------
+void RenderSetup(KRESTServer& HTTP, KStringView sToken, KStringView sUsername, KStringView sEmail,
+                 bool bConfirmEmail, KStringView sError, uint16_t iStatus)
+//-----------------------------------------------------------------------------
+{
+	html::Page Page("Set up your account", "en");
+	auto Body = BeginPage(Page, /*sUser=*/{}, /*bAdmin=*/false);
+	auto Card = Body.Add<html::ui::Card>("Set up your account");
+	auto CB   = Card.Body();
+	CB.Add<html::Paragraph>().AddText(kFormat("Choose the password for your account {}.", sUsername));
+	Msg(CB, sError, true);
+
+	auto Form = CB.Add<html::Form>("/setup");
+	Form.SetMethod(html::Form::POST);
+	Form.Add<html::Input>("token", sToken, html::Input::HIDDEN);
+
+	if (!sEmail.empty())
+	{
+		if (bConfirmEmail)
+		{
+			// the administrator entered the address, nobody has proven it yet
+			auto Label = Form.Add<html::Element>("label");
+			Label.Add<html::Input>("email_ok", "1", html::Input::CHECKBOX);
+			Label.AddText(kFormat("{} is my email address", sEmail));
+			Form.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+			    "Password recovery mails go to this address. If it is not yours, leave the box "
+			    "unchecked and tell your administrator.");
+		}
+		else
+		{
+			Form.Add<html::Paragraph>().AddText(kFormat("Your email address: {}", sEmail));
+		}
+	}
+
+	LabeledInput(Form, "New password",         "new",     html::Input::PASSWORD).SetAutofocus(true);
+	LabeledInput(Form, "Confirm new password", "confirm", html::Input::PASSWORD);
+	Form.Add<html::Button>("Set password");
+	SendPage(HTTP, Page, iStatus);
+}
+
+//-----------------------------------------------------------------------------
+void RenderEmailVerify(KRESTServer& HTTP, KStringView sToken, KStringView sUsername,
+                       KStringView sAddress, bool bNewAddress)
+//-----------------------------------------------------------------------------
+{
+	html::Page Page("Confirm your email address", "en");
+	auto Body = BeginPage(Page, /*sUser=*/{}, /*bAdmin=*/false);
+	auto Card = Body.Add<html::ui::Card>("Confirm your email address");
+	auto CB   = Card.Body();
+	CB.Add<html::Paragraph>().AddText(bNewAddress
+	    ? kFormat("Confirm {} as the new email address of the account {}. Until you do, the account "
+	              "keeps its current address.", sAddress, sUsername)
+	    : kFormat("Confirm {} as the email address of the account {}.", sAddress, sUsername));
+
+	// a form and not the link itself: mail scanners open links, they do not submit forms
+	auto Form = CB.Add<html::Form>("/verify-email");
+	Form.SetMethod(html::Form::POST);
+	Form.Add<html::Input>("token", sToken, html::Input::HIDDEN);
+	Form.Add<html::Button>("Confirm the address");
+	SendPage(HTTP, Page);
+}
+
+//-----------------------------------------------------------------------------
+void RenderEmailUndo(KRESTServer& HTTP, KStringView sToken, KStringView sUsername, KStringView sOldEmail,
+                     KStringView sCurrentEmail, KStringView sPendingEmail, bool bForcePassword)
+//-----------------------------------------------------------------------------
+{
+	html::Page Page("Undo the address change", "en");
+	auto Body = BeginPage(Page, /*sUser=*/{}, /*bAdmin=*/false);
+	auto Card = Body.Add<html::ui::Card>("Undo the address change");
+	auto CB   = Card.Body();
+
+	if (sCurrentEmail == sOldEmail)
+	{
+		CB.Add<html::Paragraph>().AddText(sPendingEmail.empty()
+		    ? kFormat("A change of the email address of the account {} was requested.", sUsername)
+		    : kFormat("A change of the email address of the account {} to {} was requested.", sUsername, sPendingEmail));
+		CB.Add<html::Paragraph>().AddText(
+		    "Undoing it cancels the change and signs the account out everywhere.");
+	}
+	else
+	{
+		CB.Add<html::Paragraph>().AddText(kFormat(
+		    "The email address of the account {} was changed from {} to {}.", sUsername, sOldEmail, sCurrentEmail));
+		CB.Add<html::Paragraph>().AddText(bForcePassword
+		    ? kFormat("Undoing it restores {}, signs the account out everywhere and asks you for a new password.", sOldEmail)
+		    : kFormat("Undoing it restores {} and signs the account out everywhere.", sOldEmail));
+	}
+
+	// a form and not the link itself: mail scanners open links, they do not submit forms
+	auto Form = CB.Add<html::Form>("/undo-email-change");
+	Form.SetMethod(html::Form::POST);
+	Form.Add<html::Input>("token", sToken, html::Input::HIDDEN);
+	Form.Add<html::Button>("Undo the change", html::Button::SUBMIT, html::Classes{"danger"});
+	SendPage(HTTP, Page);
+}
+
+//-----------------------------------------------------------------------------
+void RenderEmailCancel(KRESTServer& HTTP, KStringView sToken, KStringView sUsername,
+                       const KSSOdUserStore::ScheduledEmail& Scheduled)
+//-----------------------------------------------------------------------------
+{
+	html::Page Page("Cancel the address change", "en");
+	auto Body = BeginPage(Page, /*sUser=*/{}, /*bAdmin=*/false);
+	auto Card = Body.Add<html::ui::Card>("Cancel the address change");
+	auto CB   = Card.Body();
+	CB.Add<html::Paragraph>().AddText(Scheduled.sEmail.empty()
+	    ? kFormat("An administrator removes the email address of the account {} on {}.",
+	              sUsername, FormatUTC(Scheduled.tWhen))
+	    : kFormat("An administrator changes the email address of the account {} to {} on {}.",
+	              sUsername, Scheduled.sEmail, FormatUTC(Scheduled.tWhen)));
+	CB.Add<html::Paragraph>().AddText(
+	    "From then on, password recovery mails would go to the new address. If you did not ask for "
+	    "this, cancel it and talk to your administrators.");
+
+	// a form and not the link itself: mail scanners open links, they do not submit forms
+	auto Form = CB.Add<html::Form>("/email/cancel");
+	Form.SetMethod(html::Form::POST);
+	Form.Add<html::Input>("token", sToken, html::Input::HIDDEN);
+	Form.Add<html::Button>("Cancel the change", html::Button::SUBMIT, html::Classes{"danger"});
+	SendPage(HTTP, Page);
+}
+
+//-----------------------------------------------------------------------------
+void RenderTotpReset(KRESTServer& HTTP, KStringView sToken, KStringView sUsername,
+                     KStringView sError, uint16_t iStatus)
+//-----------------------------------------------------------------------------
+{
+	html::Page Page("Remove two-step verification", "en");
+	auto Body = BeginPage(Page, /*sUser=*/{}, /*bAdmin=*/false);
+	auto Card = Body.Add<html::ui::Card>("Remove two-step verification");
+	auto CB   = Card.Body();
+	CB.Add<html::Paragraph>().AddText(kFormat(
+	    "This removes the authenticator app and the backup codes of the account {}. Afterwards "
+	    "the password alone signs in, until you set up two-step verification again.", sUsername));
+	Msg(CB, sError, true);
+
+	// a form and not the link itself: mail scanners open links, they do not submit forms
+	auto Form = CB.Add<html::Form>("/totp-reset");
+	Form.SetMethod(html::Form::POST);
+	Form.Add<html::Input>("token", sToken, html::Input::HIDDEN);
+	LabeledInput(Form, "Your password", "password", html::Input::PASSWORD).SetAutofocus(true);
+	Form.Add<html::Button>("Remove two-step verification", html::Button::SUBMIT, html::Classes{"danger"});
+	SendPage(HTTP, Page, iStatus);
+}
+
+//-----------------------------------------------------------------------------
 /// the enrolment page: show the new secret (otpauth link + bare key) and ask the
 /// user to type a code to confirm their app is set up before we enable 2FA.
 /// sSecret is only displayed - the /account/2fa/enable handler uses the copy it
@@ -936,10 +1113,11 @@ void RenderAudit(KRESTServer& HTTP, KStringView sAdmin, const KSSOdAuditStore::F
 }
 
 //-----------------------------------------------------------------------------
-/// admin: the optional outgoing-mail (SMTP) configuration. With no relay set,
-/// every email feature stays off. sTestMsg reports the result of a test send.
+/// admin: the outgoing-mail relay, read-only because the operator sets it in the
+/// settings file, then the security policy and the alert settings. With no relay
+/// set, every email feature stays off. sMsg reports the result of an action.
 void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsStore::Smtp& Smtp,
-                    const KSSOdSettingsStore::Alerts& Alerts,
+                    KStringView sSettingsFile, const KSSOdSettingsStore::Alerts& Alerts,
                     KStringView sMsg, bool bError, bool bForcePwOnRevert, uint16_t iStatus)
 //-----------------------------------------------------------------------------
 {
@@ -951,33 +1129,48 @@ void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsSto
 	auto Status = CB.Add<html::Paragraph>();
 	if (Smtp.IsConfigured()) Status.Add<html::Span>(html::Classes{"badge on"}).AddText("Configured");
 	else                     Status.Add<html::Span>(html::Classes{"badge off"}).AddText("Not configured");
-	CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(
-	    "Outgoing mail is optional. Set a relay here to enable address verification, "
-	    "password recovery and email sign-in codes. Without it those features stay off.");
+	CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(kFormat(
+	    "Outgoing mail enables address verification, password recovery and email sign-in codes. "
+	    "The operator of this server sets the relay in the settings file {}, and a change takes "
+	    "effect when kssod restarts. These pages only show it, because whoever controls the relay "
+	    "can read every password recovery mail.", sSettingsFile));
 
 	Msg(CB, sMsg, bError);
 
-	auto Form = CB.Add<html::Form>("/admin/settings");
-	Form.SetMethod(html::Form::POST);
-	LabeledInput(Form, "Relay URL", "smtp_url", html::Input::TEXT, /*bRequired=*/false)
-	    .SetValue(Smtp.sURL).SetAttribute("placeholder", "smtp://mail.example.com:587");
-	// keep this hint with the field it explains (added to the form, not the card)
-	Form.Add<html::Paragraph>(html::Classes{"help"}).AddText(
-	    "Use smtp:// for STARTTLS (often port 587) or smtps:// for implicit TLS (port 465).");
-	LabeledInput(Form, "Username", "smtp_user", html::Input::TEXT, /*bRequired=*/false).SetValue(Smtp.sUser);
-	// the stored password is never sent back to the browser; blank keeps it
-	LabeledInput(Form, "Password", "smtp_pass", html::Input::PASSWORD, /*bRequired=*/false)
-	    .SetAttribute("placeholder", Smtp.sPass.empty() ? "" : "(unchanged - enter a new one to replace it)")
-	    .SetAttribute("autocomplete", "new-password");
-	LabeledInput(Form, "From address", "smtp_from", html::Input::EMAIL, /*bRequired=*/false)
-	    .SetValue(Smtp.sFrom).SetAttribute("placeholder", "kssod@example.com");
-	LabeledInput(Form, "From name (optional)", "smtp_fromname", html::Input::TEXT, /*bRequired=*/false)
-	    .SetValue(Smtp.sFromName).SetAttribute("placeholder", "kssod");
-	Form.Add<html::Button>("Save");
-
-	// a test send, available once a relay is configured
-	if (Smtp.IsConfigured())
+	if (!Smtp.IsConfigured())
 	{
+		CB.Add<html::Paragraph>().AddText("To turn mail on, the operator writes the settings file like this "
+		                                  "and restarts kssod:");
+		CB.Add<html::Preformatted>(html::Classes{"mono"}).AddText(
+		    "{\n"
+		    "\t\"smtp\": {\n"
+		    "\t\t\"url\":       \"smtps://mail.example.com:465\",\n"
+		    "\t\t\"user\":      \"kssod\",\n"
+		    "\t\t\"password\":  \"the relay password\",\n"
+		    "\t\t\"from\":      \"kssod@example.com\",\n"
+		    "\t\t\"from_name\": \"kssod\"\n"
+		    "\t}\n"
+		    "}");
+		CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+		    "Use smtp:// for STARTTLS (often port 587) or smtps:// for implicit TLS (port 465).");
+	}
+	else
+	{
+		// the password stays with the operator, the page only says whether there is one
+		auto Table = CB.Add<html::ui::Table>(html::Classes{});
+		Table.Headers({ "Setting", "Value" });
+		auto Row = [&Table](KStringView sName, KStringView sValue)
+		{
+			auto R = Table.AddRow();
+			R.Add<html::TableData>(sName);
+			R.Add<html::TableData>(sValue.empty() ? KStringView("-") : sValue, html::Classes{"mono"});
+		};
+		Row("Relay URL",    Smtp.sURL);
+		Row("Username",     Smtp.sUser);
+		Row("Password",     Smtp.sPass.empty() ? "not set" : "set");
+		Row("From address", Smtp.sFrom);
+		Row("From name",    Smtp.sFromName);
+
 		CB.Add<html::Heading>(3, "Send a test email");
 		auto TF = CB.Add<html::Form>("/admin/settings/test");
 		TF.SetMethod(html::Form::POST);
@@ -1024,12 +1217,32 @@ void RenderSettings(KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsSto
 		AF.Add<html::Paragraph>(html::Classes{"help"}).AddText(
 		    "Mails go to every administrator with a verified email address and need the relay above. "
 		    "Repeats within the quiet period are counted and reported with the next mail, never dropped. "
-		    "The watchdog only reports - it never blocks anyone.");
+		    "The watchdog only reports - it never blocks anyone. Actions that rely on trust in an "
+		    "administrator, such as a reset link shown to them or two-step verification they removed, "
+		    "are always mailed to the other administrators, whatever is set here.");
 		AF.Add<html::Button>("Save alert settings", html::Button::SUBMIT, html::Classes{"secondary"});
 	}
 
 	BackLink(CB, "/admin", "Back");
 	SendPage(HTTP, Page, iStatus);
+}
+
+//-----------------------------------------------------------------------------
+void RenderOneTimeLink(KRESTServer& HTTP, KStringView sAdmin, KStringView sTitle,
+                       KStringView sText, KStringView sLink, KStringView sHelp)
+//-----------------------------------------------------------------------------
+{
+	html::Page Page(sTitle, "en");
+	auto Body = BeginPage(Page, sAdmin, /*bAdmin=*/true);
+	auto Card = Body.Add<html::ui::Card>(sTitle);
+	auto CB   = Card.Body();
+
+	CB.Add<html::Paragraph>().AddText(sText);
+	CB.Add<html::Preformatted>(html::Classes{"mono"}).AddText(sLink);
+	CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(sHelp);
+
+	BackLink(Body, "/admin/users", "Back to users");
+	SendPage(HTTP, Page);
 }
 
 //-----------------------------------------------------------------------------
@@ -1045,13 +1258,26 @@ void RenderUsers(KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
 	auto ListCard = Body.Add<html::ui::Card>("Users");
 	auto LB       = ListCard.Body();
 
+	// a confirmation shows above the list; an error stays with the add form below
+	if (!bError) Msg(LB, sMsg, false);
+
 	auto Table = LB.Add<html::ui::Table>(html::Classes{});
 	Table.Headers({ "Username", "Name", "Email", "Admin", "Access", "" });
 
 	for (const auto& User : Users.List())
 	{
 		auto Row = Table.AddRow();
-		Row.Add<html::TableData>(User.sUsername);
+		{
+			auto NameCell = Row.Add<html::TableData>();
+			NameCell.AddText(User.sUsername);
+			if (User.bInvited)
+			{
+				NameCell.AddText(" ");
+				auto Badge = NameCell.Add<html::Span>(html::Classes{"badge off"});
+				Badge.SetAttribute("title", "No password yet - the user has not used the setup link");
+				Badge.AddText("invited");
+			}
+		}
 		Row.Add<html::TableData>(User.sName);
 		Row.Add<html::TableData>(User.sEmail.empty() ? KStringView("—") : KStringView(User.sEmail));
 		// admin status as a checkbox — scannable at a glance in a long list; toggling
@@ -1084,6 +1310,14 @@ void RenderUsers(KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
 		// edit name/email — allowed for any user (including yourself; no lockout risk)
 		DataLink(Actions, QueryLink("/admin/users/edit", "username", User.sUsername), "Edit")
 		       .SetClass(html::Classes{"btn"});
+		if (User.bInvited)
+		{
+			// a new setup link: by mail when possible, else shown to you once
+			auto Form = Actions.Add<html::Form>("/admin/users/invite");
+			Form.SetMethod(html::Form::POST);
+			Form.Add<html::Input>("username", User.sUsername, html::Input::HIDDEN);
+			Form.Add<html::Button>("Invite again", html::Button::SUBMIT, html::Classes{"secondary"});
+		}
 		if (User.sUsername != sUser) // can't delete yourself (admin toggle lives in the Admin column)
 		{
 			auto Form = Actions.Add<html::Form>("/admin/users/delete");
@@ -1097,13 +1331,16 @@ void RenderUsers(KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
 	auto Det = LB.Add<html::Element>("details", html::Classes{"add"});
 	if (bError) Det.SetAttribute("open", true);
 	Det.Add<html::Element>("summary").AddText("+ Add new user");
-	Msg(Det, sMsg, bError);
+	if (bError) Msg(Det, sMsg, true);
 	auto Form = Det.Add<html::Form>("/admin/users/add");
 	Form.SetMethod(html::Form::POST);
+	Form.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+	    "The new user chooses their own password with a setup link. With email configured and an "
+	    "address given, kssod mails the link to that address. Otherwise it shows you the link once, "
+	    "to pass on.");
 	LabeledInput(Form, "Username", "username", html::Input::TEXT).SetValue(PrefillVal(Prefill, "username"));
 	LabeledInput(Form, "Full name", "name",    html::Input::TEXT, /*bRequired=*/false).SetValue(PrefillVal(Prefill, "name"));
 	LabeledInput(Form, "Email",     "email",   html::Input::EMAIL, /*bRequired=*/false).SetValue(PrefillVal(Prefill, "email"));
-	LabeledInput(Form, "Password",  "password",html::Input::PASSWORD); // never echo a password back
 	{
 		auto Label = Form.Add<html::Element>("label");
 		Label.Add<html::Input>("is_admin", "1", html::Input::CHECKBOX).SetChecked(PrefillChecked(Prefill, "is_admin"));
@@ -1119,7 +1356,9 @@ void RenderUsers(KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
 /// edit a user's profile (name + email). The username is the account key and is
 /// not editable. Changing the email runs through the reset-and-notify path.
 void RenderUserEdit(KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser,
-                    KStringView sName, KStringView sEmail, KStringView sMsg, bool bError, uint16_t iStatus)
+                    KStringView sName, KStringView sEmail, const SignInHelp& Help,
+                    const KSSOdUserStore::ScheduledEmail& Scheduled,
+                    KStringView sMsg, bool bError, uint16_t iStatus)
 //-----------------------------------------------------------------------------
 {
 	html::Page Page("Edit user", "en");
@@ -1135,13 +1374,71 @@ void RenderUserEdit(KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUs
 	LabeledInput(Form, "Full name", "name",  html::Input::TEXT,  /*bRequired=*/false).SetValue(sName);
 	LabeledInput(Form, "Email",     "email", html::Input::EMAIL, /*bRequired=*/false).SetValue(sEmail);
 	Form.Add<html::Paragraph>(html::Classes{"help"}).AddText(
-	    "Changing the email clears its verified status and turns off email-based two-step "
-	    "verification; a heads-up is sent to the previous address.");
+	    Help.bInvited ? "Changing the email makes the open setup link invalid. With email configured, a new "
+	                    "one goes to the new address."
+	  : Help.bByMail  ? "The address is confirmed, and password recovery goes to it. A change takes effect only "
+	                    "after 72 hours, and the old address can cancel it until then. The other administrators "
+	                    "are told about it."
+	  :                 "A changed address takes effect at once. It stays unconfirmed until the user confirms "
+	                    "it, and email-based two-step verification turns off.");
 
 	// Cancel left of Save, matching the app-edit page
 	auto Actions = Form.Add<html::Div>(html::Classes{"actions"});
 	Actions.Add<html::Link>("/admin/users", "Cancel").SetClass(html::Classes{"btn"});
 	Actions.Add<html::Button>("Save changes");
+
+	if (Scheduled.bSet)
+	{
+		auto Warn = CB.Add<html::Div>(html::Classes{"warnbox"});
+		Warn.Add<html::Paragraph>().AddText(Scheduled.sEmail.empty()
+		    ? kFormat("{} scheduled the removal of the address. It takes effect on {}, unless the old "
+		              "address cancels it before.", Scheduled.sBy, FormatUTC(Scheduled.tWhen))
+		    : kFormat("{} scheduled a change of the address to {}. It takes effect on {}, unless the old "
+		              "address cancels it before.", Scheduled.sBy, Scheduled.sEmail, FormatUTC(Scheduled.tWhen)));
+		auto WF = Warn.Add<html::Form>("/admin/users/email/withdraw");
+		WF.SetMethod(html::Form::POST);
+		WF.Add<html::Input>("username", sTargetUser, html::Input::HIDDEN);
+		WF.Add<html::Button>("Withdraw the change", html::Button::SUBMIT, html::Classes{"secondary"});
+	}
+
+	// help for a user who cannot sign in. With a relay and a verified address the
+	// links go to the user's mailbox only; without, the administrator is trusted
+	// and every such action is reported to the other administrators.
+	CB.Add<html::Heading>(3, "Sign-in help");
+
+	if (Help.bInvited)
+	{
+		CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(
+		    "The account is not set up yet. Use \"Invite again\" in the user list for a new setup link.");
+	}
+	else
+	{
+		CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(Help.bByMail
+		    ? kFormat("Links go by mail to {}, you do not see them.", sEmail)
+		    : KString("kssod cannot mail this user, so you see each link once and pass it on. Every such "
+		              "action is reported to the other administrators."));
+
+		auto Reset = CB.Add<html::Form>("/admin/users/reset");
+		Reset.SetMethod(html::Form::POST);
+		Reset.Add<html::Input>("username", sTargetUser, html::Input::HIDDEN);
+		Reset.Add<html::Button>(Help.bByMail ? "Send a password reset link" : "Create a password reset link",
+		                        html::Button::SUBMIT, html::Classes{"secondary"});
+
+		if (Help.bTotp || (Help.bEmailOtp && !Help.bByMail))
+		{
+			auto TwoFA = CB.Add<html::Form>("/admin/users/2fa");
+			TwoFA.SetMethod(html::Form::POST);
+			TwoFA.Add<html::Input>("username", sTargetUser, html::Input::HIDDEN);
+			TwoFA.Add<html::Button>(Help.bByMail ? "Send a link to remove the authenticator app"
+			                                     : "Remove two-step verification",
+			                        html::Button::SUBMIT, html::Classes{"secondary"});
+			CB.Add<html::Paragraph>(html::Classes{"help"}).AddText(Help.bByMail
+			    ? "The user confirms the removal with the password. Within 7 days after a password "
+			      "reset by link it is refused, so that the mailbox alone cannot remove both factors."
+			    : "A reset link sets only the password, two-step verification stays on. Remove it "
+			      "only when the user lost the device and the backup codes.");
+		}
+	}
 
 	SendPage(HTTP, Page, iStatus);
 }
@@ -1166,6 +1463,19 @@ void RenderUserDeleteConfirm(KRESTServer& HTTP, KStringView sAdmin, KStringView 
 		"Deleting \"{}\" also removes their {} app assignment(s) and the roles granted there. "
 		"They lose access to every app immediately, and the data is gone for good.",
 		sTargetUser, nAssign));
+	if (Users.IsInvited(sTargetUser))
+	{
+		Warn.Add<html::Paragraph>().AddText(kFormat(
+			"The account was never set up, so no app knows it, and the name \"{}\" can be used again.",
+			sTargetUser));
+	}
+	else
+	{
+		Warn.Add<html::Paragraph>().AddText(kFormat(
+			"The name \"{}\" stays reserved afterwards. Apps know the account by its name, so a new "
+			"account under it would be the same user for them.",
+			sTargetUser));
+	}
 
 	auto Actions = CB.Add<html::Div>(html::Classes{"actions"});
 	Actions.Add<html::Link>("/admin/users", "Cancel").SetClass(html::Classes{"btn"});

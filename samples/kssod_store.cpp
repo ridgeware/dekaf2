@@ -91,6 +91,12 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 	db.ExecSQL("pragma journal_mode=WAL");
 	db.ExecSQL("pragma synchronous=NORMAL");
 
+	// the table of retired usernames came after the first release. When it is new
+	// in an existing database, the names of accounts deleted before are taken from
+	// the audit trail (see below).
+	const bool bNewRetiredTable = db.SingleIntQuery("select count(*) from sqlite_master "
+	                                                "where type='table' and name='kssod_retired_usernames'") == 0;
+
 	static constexpr KStringView s_sDDL[] =
 	{
 		"create table if not exists kssod_users ("
@@ -104,6 +110,10 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"  email_verified integer not null default 0,"    // address confirmed via emailed link
 		"  email_otp      integer not null default 0,"    // email used as the second factor
 		"  pending_email  text    not null default '',"   // requested-but-unconfirmed new address (pending-change model)
+		"  pw_reset_utc   integer not null default 0,"    // when a reset link last set the password
+		"  scheduled_email     text    not null default '',"  // an administrator's change of a confirmed address ...
+		"  scheduled_email_utc integer not null default 0,"   // ... that takes effect then (0 = none scheduled)
+		"  scheduled_email_by  text    not null default '',"  // ... by this administrator
 		"  created_utc    integer not null default 0"
 		")",
 
@@ -118,13 +128,21 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"create table if not exists kssod_email_tokens ("
 		"  token_hash  text    not null,"
 		"  username    text    not null,"
-		"  purpose     text    not null,"   // 'verify' | 'recovery' | 'revert'
+		"  purpose     text    not null,"   // 'verify' | 'recovery' | 'revert' | 'setup' | 'totp-reset' | 'email-cancel'
 		"  data        text    not null default '',"   // purpose payload (e.g. the prior email for a 'revert' token)
 		"  expires_utc integer not null default 0,"
 		"  primary key (token_hash)"
 		")",
 
-		// generic key/value settings (currently just the optional SMTP relay)
+		// the names of deleted accounts. The OIDC subject is the username, so a new
+		// account under a deleted name would be the same user for every app that
+		// knew the old one - these names stay blocked.
+		"create table if not exists kssod_retired_usernames ("
+		"  username    text    primary key,"
+		"  retired_utc integer not null default 0"
+		")",
+
+		// generic key/value settings of the administrators (security policy, alerts)
 		"create table if not exists kssod_settings ("
 		"  key   text primary key,"
 		"  value text not null default ''"
@@ -197,6 +215,10 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 		"alter table kssod_users add column pending_email text not null default ''",
 		"alter table kssod_email_tokens add column data text not null default ''",
 		"alter table kssod_users add column totp_last_step integer not null default 0",
+		"alter table kssod_users add column pw_reset_utc integer not null default 0",
+		"alter table kssod_users add column scheduled_email text not null default ''",
+		"alter table kssod_users add column scheduled_email_utc integer not null default 0",
+		"alter table kssod_users add column scheduled_email_by text not null default ''",
 	};
 
 	for (const auto sSQL : s_sDDL)
@@ -212,6 +234,23 @@ bool KSSOdInitDatabase(KString sDatabase, KString& sError)
 				continue;
 			}
 			sError = kFormat("schema init failed: {}: {}", sSQL, Result.Error());
+			return false;
+		}
+	}
+
+	if (bNewRetiredTable)
+	{
+		// every account deletion the audit trail still knows retires its name, unless
+		// the name was given to a new account since - that account keeps it
+		auto Result = db.ExecSQL(
+			"insert or ignore into kssod_retired_usernames (username, retired_utc) "
+			"select subject, coalesce(cast(strftime('%s', ts) as integer), 0) from kssod_audit "
+			"where event='admin.user.delete' and outcome='ok' and subject<>'' "
+			"and subject not in (select username from kssod_users)");
+
+		if (!Result)
+		{
+			sError = kFormat("cannot retire the names of deleted accounts: {}", Result.Error());
 			return false;
 		}
 	}
@@ -269,8 +308,8 @@ bool KSSOdUserStore::GetClaims(KStringView sUsername, KJSON& Claims)
 } // GetClaims
 
 //-----------------------------------------------------------------------------
-bool KSSOdUserStore::AddUser(KStringView sUsername, KStringView sPassword,
-                             KStringView sName, KStringView sEmail, bool bAdmin)
+bool KSSOdUserStore::AddUser(KStringView sUsername, KStringView sName, KStringView sEmail,
+                             bool bAdmin, bool bEmailVerified)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -278,16 +317,35 @@ bool KSSOdUserStore::AddUser(KStringView sUsername, KStringView sPassword,
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
-	KString sHash = PasswordHasher().GenerateHash(KString(sPassword));
+	// the name of a deleted account stays blocked, see kssod_retired_usernames
+	if (db.SingleIntQuery("select count(*) from kssod_retired_usernames where username=?1", sUsername) != 0)
+	{
+		return false;
+	}
 
+	// an empty password hash is the invited state: no password matches it
 	return static_cast<bool>(db.ExecSQL(
-		"insert into kssod_users (username, pw_hash, name, email, is_admin, created_utc) "
-		"values (?1, ?2, ?3, ?4, ?5, ?6)",
-		sUsername, sHash, sName, sEmail,
+		"insert into kssod_users (username, pw_hash, name, email, is_admin, email_verified, created_utc) "
+		"values (?1, '', ?2, ?3, ?4, ?5, ?6)",
+		sUsername, sName, sEmail,
 		static_cast<int64_t>(bAdmin ? 1 : 0),
+		static_cast<int64_t>(bEmailVerified && !sEmail.empty() ? 1 : 0),
 		static_cast<int64_t>(KUnixTime::now().to_time_t())));
 
 } // AddUser
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::IsInvited(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return false;
+
+	return db.SingleIntQuery("select count(*) from kssod_users where username=?1 and pw_hash=''", sUsername) != 0;
+
+} // IsInvited
 
 //-----------------------------------------------------------------------------
 bool KSSOdUserStore::ChangePassword(KStringView sUsername, KStringView sNewPassword)
@@ -303,6 +361,33 @@ bool KSSOdUserStore::ChangePassword(KStringView sUsername, KStringView sNewPassw
 	return static_cast<bool>(db.ExecSQL("update kssod_users set pw_hash=?1 where username=?2", sHash, sUsername));
 
 } // ChangePassword
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::NotePasswordReset(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	return static_cast<bool>(db.ExecSQL("update kssod_users set pw_reset_utc=?1 where username=?2",
+	                                    static_cast<int64_t>(KUnixTime::now().to_time_t()), sUsername));
+
+} // NotePasswordReset
+
+//-----------------------------------------------------------------------------
+KUnixTime KSSOdUserStore::PasswordResetTime(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return KUnixTime{};
+
+	return KUnixTime::from_time_t(db.SingleIntQuery("select pw_reset_utc from kssod_users where username=?1", sUsername));
+
+} // PasswordResetTime
 
 //-----------------------------------------------------------------------------
 bool KSSOdUserStore::SetName(KStringView sUsername, KStringView sName)
@@ -326,6 +411,16 @@ bool KSSOdUserStore::DeleteUser(KStringView sUsername)
 	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
 	if (!db.IsOpen()) return false;
 
+	// the name is retired before the account goes, so that there is never a deleted
+	// account whose name a new account could take. An invited account never signed
+	// in, no app knows its name, and the name stays free.
+	if (!db.ExecSQL("insert or ignore into kssod_retired_usernames (username, retired_utc) "
+	                "select username, ?2 from kssod_users where username=?1 and pw_hash<>''",
+	                sUsername, static_cast<int64_t>(KUnixTime::now().to_time_t())))
+	{
+		return false;
+	}
+
 	// cascade: deleting a user also removes their per-client assignments (and the
 	// roles granted there), 2FA backup codes and any pending email tokens
 	for (KStringView sSQL : { "delete from kssod_assignments  where username=?1",
@@ -338,6 +433,32 @@ bool KSSOdUserStore::DeleteUser(KStringView sUsername)
 	return true;
 
 } // DeleteUser
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::IsRetired(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return false;
+
+	return db.SingleIntQuery("select count(*) from kssod_retired_usernames where username=?1", sUsername) != 0;
+
+} // IsRetired
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::ReleaseUsername(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	return db.ExecSQL("delete from kssod_retired_usernames where username=?1", sUsername).AffectedRows() > 0;
+
+} // ReleaseUsername
 
 //-----------------------------------------------------------------------------
 bool KSSOdUserStore::IsAdmin(KStringView sUsername)
@@ -416,13 +537,14 @@ std::vector<KSSOdUserStore::User> KSSOdUserStore::List()
 	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return Out;
 
-	for (auto& Row : db.ExecQuery("select username, name, email, is_admin from kssod_users order by username asc"))
+	for (auto& Row : db.ExecQuery("select username, name, email, is_admin, pw_hash='' from kssod_users order by username asc"))
 	{
 		User u;
 		u.sUsername = Row.Col(1).String();
 		u.sName     = Row.Col(2).String();
 		u.sEmail    = Row.Col(3).String();
 		u.bAdmin    = Row.Col(4).Int64() != 0;
+		u.bInvited  = Row.Col(5).Int64() != 0;
 		Out.push_back(std::move(u));
 	}
 	return Out;
@@ -578,9 +700,11 @@ bool KSSOdUserStore::SetEmail(KStringView sUsername, KStringView sEmail)
 	if (!db.IsOpen()) return false;
 
 	// a changed address is unconfirmed, and email-as-2FA depended on the old one —
-	// reset both so the new address must be re-verified before email features apply
-	return static_cast<bool>(db.ExecSQL("update kssod_users set email=?1, email_verified=0, email_otp=0 where username=?2",
-	                                    sEmail, sUsername));
+	// reset both so the new address must be re-verified before email features apply.
+	// A change set this way supersedes a scheduled one.
+	return static_cast<bool>(db.ExecSQL("update kssod_users set email=?1, email_verified=0, email_otp=0, "
+	                                    "scheduled_email='', scheduled_email_utc=0, scheduled_email_by='' "
+	                                    "where username=?2", sEmail, sUsername));
 
 } // SetEmail
 
@@ -623,7 +747,9 @@ bool KSSOdUserStore::ApplyPendingEmail(KStringView sUsername)
 	// swap the pending address in and mark it verified. email_otp survives: the very
 	// link that triggers this proves control of the new address, so email-2FA may
 	// keep targeting it. No-op if there is no pending change.
-	return static_cast<bool>(db.ExecSQL("update kssod_users set email=pending_email, pending_email='', email_verified=1 "
+	// The user's own confirmed change supersedes a change an administrator scheduled.
+	return static_cast<bool>(db.ExecSQL("update kssod_users set email=pending_email, pending_email='', email_verified=1, "
+	                                    "scheduled_email='', scheduled_email_utc=0, scheduled_email_by='' "
 	                                    "where username=?1 and pending_email<>''", sUsername));
 
 } // ApplyPendingEmail
@@ -639,10 +765,108 @@ bool KSSOdUserStore::RestoreEmail(KStringView sUsername, KStringView sEmail)
 
 	// revert: restore the prior (verified) address, drop any pending change, and turn
 	// email-2FA off — the attacker controlled the new mailbox in the interim
-	return static_cast<bool>(db.ExecSQL("update kssod_users set email=?1, email_verified=1, pending_email='', email_otp=0 "
+	// A scheduled change by an administrator goes as well, it may be part of the attack.
+	return static_cast<bool>(db.ExecSQL("update kssod_users set email=?1, email_verified=1, pending_email='', email_otp=0, "
+	                                    "scheduled_email='', scheduled_email_utc=0, scheduled_email_by='' "
 	                                    "where username=?2", sEmail, sUsername));
 
 } // RestoreEmail
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::ScheduleEmail(KStringView sUsername, KStringView sEmail, KStringView sBy, KUnixTime tWhen)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	return static_cast<bool>(db.ExecSQL("update kssod_users set scheduled_email=?1, scheduled_email_utc=?2, "
+	                                    "scheduled_email_by=?3 where username=?4",
+	                                    sEmail, static_cast<int64_t>(tWhen.to_time_t()), sBy, sUsername));
+
+} // ScheduleEmail
+
+//-----------------------------------------------------------------------------
+KSSOdUserStore::ScheduledEmail KSSOdUserStore::GetScheduledEmail(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	ScheduledEmail Out;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return Out;
+
+	auto Query = db.ExecQuery("select scheduled_email, scheduled_email_utc, scheduled_email_by from kssod_users "
+	                          "where username=?1 and scheduled_email_utc>0", sUsername);
+	if (Query.Next())
+	{
+		auto& Row  = Query.GetRow();
+		Out.bSet   = true;
+		Out.sEmail = Row.Col(1).String();
+		Out.tWhen  = KUnixTime::from_time_t(Row.Col(2).Int64());
+		Out.sBy    = Row.Col(3).String();
+	}
+	return Out;
+
+} // GetScheduledEmail
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::CancelScheduledEmail(KStringView sUsername)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	db.ExecSQL("delete from kssod_email_tokens where username=?1 and purpose='email-cancel'", sUsername);
+
+	return db.ExecSQL("update kssod_users set scheduled_email='', scheduled_email_utc=0, scheduled_email_by='' "
+	                  "where username=?1 and scheduled_email_utc>0", sUsername).AffectedRows() > 0;
+
+} // CancelScheduledEmail
+
+//-----------------------------------------------------------------------------
+std::vector<KSSOdUserStore::AppliedEmail> KSSOdUserStore::ApplyDueEmailChanges(KUnixTime tNow)
+//-----------------------------------------------------------------------------
+{
+	std::vector<AppliedEmail> Applied;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return Applied;
+
+	const auto iNow = static_cast<int64_t>(tNow.to_time_t());
+
+	for (auto& Row : db.ExecQuery("select username, email, scheduled_email, scheduled_email_by from kssod_users "
+	                              "where scheduled_email_utc>0 and scheduled_email_utc<=?1", iNow))
+	{
+		AppliedEmail A;
+		A.sUsername = Row.Col(1).String();
+		A.sFrom     = Row.Col(2).String();
+		A.sTo       = Row.Col(3).String();
+		A.sBy       = Row.Col(4).String();
+		Applied.push_back(std::move(A));
+	}
+
+	for (const auto& A : Applied)
+	{
+		// Nobody cancelled from the old address during the waiting period, so the new
+		// address counts as confirmed, and email codes keep going to it. A removed
+		// address leaves no second factor by email.
+		db.ExecSQL("update kssod_users set email=scheduled_email, email_verified=(scheduled_email<>''), "
+		           "email_otp=(email_otp<>0 and scheduled_email<>''), pending_email='', "
+		           "scheduled_email='', scheduled_email_utc=0, scheduled_email_by='' "
+		           "where username=?1 and scheduled_email_utc>0 and scheduled_email_utc<=?2", A.sUsername, iNow);
+		db.ExecSQL("delete from kssod_email_tokens where username=?1 and purpose='email-cancel'", A.sUsername);
+	}
+
+	return Applied;
+
+} // ApplyDueEmailChanges
 
 //-----------------------------------------------------------------------------
 KString KSSOdUserStore::FindByEmail(KStringView sEmail)
@@ -715,16 +939,19 @@ bool KSSOdUserStore::SetEmailOtp(KStringView sUsername, bool bEnabled)
 } // SetEmailOtp
 
 //-----------------------------------------------------------------------------
-KString KSSOdUserStore::CreateEmailToken(KStringView sUsername, KStringView sPurpose, KStringView sData)
+KString KSSOdUserStore::CreateEmailToken(KStringView sUsername, KStringView sPurpose, KStringView sData, KDuration TTL)
 //-----------------------------------------------------------------------------
 {
 	// recovery links are short-lived; verification links may sit in an inbox longer;
 	// a revert link (the security net) gets the longest window.
 	// we do not use the std::chrono namespace here because pre-C++17 did not
 	// know std::chrono::days() - but dekaf2::chrono does.
-	KDuration iTTL = (sPurpose == "recovery") ? chrono::hours(1)
-	               : (sPurpose == "revert")   ? chrono::days(7)
-	               :                            chrono::days(1);
+	KDuration iTTL = !TTL.IsZero()              ? TTL
+	               : (sPurpose == "recovery")   ? chrono::hours(1)
+	               : (sPurpose == "totp-reset") ? chrono::hours(1)
+	               : (sPurpose == "revert")     ? chrono::days(7)
+	               : (sPurpose == "setup")      ? chrono::days(7)
+	               :                              chrono::days(1);
 
 	// the plaintext goes only into the emailed link; we keep just its hash
 	KString sToken = KSHA256(kGetRandom(32)).HexDigest();
@@ -781,6 +1008,44 @@ KString KSSOdUserStore::ConsumeEmailToken(KStringView sToken, KStringView sPurpo
 } // ConsumeEmailToken
 
 //-----------------------------------------------------------------------------
+KString KSSOdUserStore::LookupEmailToken(KStringView sToken, KStringView sPurpose, KString* pData)
+//-----------------------------------------------------------------------------
+{
+	if (sToken.empty()) return KString{};
+
+	KString sHash = KSHA256(sToken).HexDigest();
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
+	if (!db.IsOpen()) return KString{};
+
+	auto Query = db.ExecQuery("select username, data from kssod_email_tokens "
+	                          "where token_hash=?1 and purpose=?2 and expires_utc>=?3",
+	                          sHash, sPurpose, static_cast<int64_t>(KUnixTime::now().to_time_t()));
+	if (!Query.Next()) return KString{};
+
+	auto& Row = Query.GetRow();
+	if (pData) *pData = Row.Col(2).String();
+	return Row.Col(1).String();
+
+} // LookupEmailToken
+
+//-----------------------------------------------------------------------------
+bool KSSOdUserStore::DropEmailTokens(KStringView sUsername, KStringView sPurpose)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	return static_cast<bool>(db.ExecSQL("delete from kssod_email_tokens where username=?1 and purpose=?2",
+	                                    sUsername, sPurpose));
+
+} // DropEmailTokens
+
+//-----------------------------------------------------------------------------
 bool KSSOdUserStore::AuthorizeClientAccess(KStringView sUsername, KStringView sClientID, KJSON& jClientClaims)
 //-----------------------------------------------------------------------------
 {
@@ -788,6 +1053,13 @@ bool KSSOdUserStore::AuthorizeClientAccess(KStringView sUsername, KStringView sC
 
 	KSQLite db(m_sDatabase, KSQLite::Mode::READONLY);
 	if (!db.IsOpen()) return false;
+
+	// a deleted account has no access, also where one of its login sessions or
+	// refresh tokens outlived the deletion
+	if (db.SingleIntQuery("select count(*) from kssod_users where username=?1", sUsername) == 0)
+	{
+		return false;
+	}
 
 	// does this client require explicit assignment?
 	bool bRequireAssignment = db.SingleIntQuery("select require_assignment from kssod_clients where client_id=?1",
@@ -1288,7 +1560,25 @@ bool KSSOdSettingsStore::Set(KStringView sKey, KStringView sValue)
 } // Set
 
 //-----------------------------------------------------------------------------
-KSSOdSettingsStore::Smtp KSSOdSettingsStore::LoadSmtp()
+void KSSOdSettingsStore::SetSmtp(Smtp Config)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	m_Smtp = std::move(Config);
+
+} // SetSmtp
+
+//-----------------------------------------------------------------------------
+KSSOdSettingsStore::Smtp KSSOdSettingsStore::GetSmtp()
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	return m_Smtp;
+
+} // GetSmtp
+
+//-----------------------------------------------------------------------------
+KSSOdSettingsStore::Smtp KSSOdSettingsStore::StoredSmtp()
 //-----------------------------------------------------------------------------
 {
 	Smtp Config;
@@ -1299,19 +1589,21 @@ KSSOdSettingsStore::Smtp KSSOdSettingsStore::LoadSmtp()
 	Config.sFromName = Get("smtp_fromname");
 	return Config;
 
-} // LoadSmtp
+} // StoredSmtp
 
 //-----------------------------------------------------------------------------
-bool KSSOdSettingsStore::SaveSmtp(const Smtp& Config)
+bool KSSOdSettingsStore::ForgetStoredSmtp()
 //-----------------------------------------------------------------------------
 {
-	return Set("smtp_url",      Config.sURL)
-	    && Set("smtp_user",     Config.sUser)
-	    && Set("smtp_pass",     Config.sPass)
-	    && Set("smtp_from",     Config.sFrom)
-	    && Set("smtp_fromname", Config.sFromName);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-} // SaveSmtp
+	KSQLite db(m_sDatabase, KSQLite::Mode::READWRITECREATE);
+	if (!db.IsOpen()) return false;
+
+	return static_cast<bool>(db.ExecSQL("delete from kssod_settings where key in "
+	                                    "('smtp_url', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_fromname')"));
+
+} // ForgetStoredSmtp
 
 //=============================================================================
 //  KSSOdAuditStore

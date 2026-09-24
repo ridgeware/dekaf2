@@ -2718,6 +2718,8 @@ if (DEKAF2_BUILD_SAMPLES)
 	if (SQLITE3_FOUND)
 		add_executable(kssod
 			samples/kssod.cpp
+			samples/kssod_config.cpp
+			samples/kssod_config.h
 			samples/kssod_store.cpp
 			samples/kssod_store.h
 			samples/kssod_ui.cpp

@@ -80,7 +80,8 @@ public:
 		KString sUsername;
 		KString sName;
 		KString sEmail;
-		bool    bAdmin { false };
+		bool    bAdmin   { false };
+		bool    bInvited { false }; ///< no password set yet, see IsInvited()
 	};
 
 	/// a user's per-client role assignment
@@ -102,11 +103,32 @@ public:
 	bool AuthorizeClientAccess(KStringView sUsername, KStringView sClientID, KJSON& jClientClaims) override;
 
 	// --- user management ---
-	bool        AddUser       (KStringView sUsername, KStringView sPassword,
-	                           KStringView sName, KStringView sEmail, bool bAdmin);
+	/// create an invited account, i.e. one without a password: its user sets the
+	/// password with a setup link. Fails for an existing or a retired name.
+	/// @param bEmailVerified the setup link goes to sEmail, which proves the address
+	bool        AddUser       (KStringView sUsername, KStringView sName, KStringView sEmail,
+	                           bool bAdmin, bool bEmailVerified);
+	/// has the account no password yet? Such an account cannot sign in, and no app
+	/// has seen it. Setting a password makes it active.
+	bool        IsInvited     (KStringView sUsername);
 	bool        ChangePassword(KStringView sUsername, KStringView sNewPassword);
+	/// record that a reset link just set the password. Whoever controls the mailbox
+	/// can reset the password, so for a while after this the mailbox must not also
+	/// remove the second factor.
+	bool        NotePasswordReset(KStringView sUsername);
+	/// when a reset link last set the password, the epoch if never
+	KUnixTime   PasswordResetTime(KStringView sUsername);
 	bool        SetName       (KStringView sUsername, KStringView sName); ///< update the display name
+	/// delete the account and retire its name: the OIDC subject is the username,
+	/// so the name is never given to a new account. The name of an invited account
+	/// stays free, no app has seen it.
 	bool        DeleteUser    (KStringView sUsername);
+	/// is sUsername the name of a deleted account?
+	bool        IsRetired     (KStringView sUsername);
+	/// allow the name of a deleted account again - an operator decision, because a
+	/// new account under this name is the old user for every app that knew it
+	/// @returns false if the name was not retired
+	bool        ReleaseUsername(KStringView sUsername);
 	bool        IsAdmin       (KStringView sUsername);
 	/// promote/demote: set the administrator flag on an existing user. The caller
 	/// is responsible for the policy guards (don't demote yourself / the last admin).
@@ -142,20 +164,51 @@ public:
 	bool        SetPendingEmail (KStringView sUsername, KStringView sEmail); ///< stage a change; pass '' to cancel
 	bool        ApplyPendingEmail(KStringView sUsername);               ///< swap pending in: email=pending, pending='', verified=1
 	bool        RestoreEmail    (KStringView sUsername, KStringView sEmail); ///< revert: email=sEmail, verified=1, pending='' (resets email_otp)
+	// --- an administrator's change of a confirmed address: it takes effect only after a
+	//     waiting period, during which the old address can cancel it ---
+	struct ScheduledEmail
+	{
+		bool      bSet { false };
+		KString   sEmail;   ///< the new address, empty to remove the address
+		KUnixTime tWhen;    ///< when the change takes effect
+		KString   sBy;      ///< the administrator who scheduled it
+	};
+	struct AppliedEmail
+	{
+		KString   sUsername;
+		KString   sFrom;
+		KString   sTo;
+		KString   sBy;
+	};
+	/// schedule the change, replacing an earlier scheduled one
+	bool        ScheduleEmail   (KStringView sUsername, KStringView sEmail, KStringView sBy, KUnixTime tWhen);
+	ScheduledEmail GetScheduledEmail(KStringView sUsername);
+	/// drop the scheduled change and its cancel links; false if there was none
+	bool        CancelScheduledEmail(KStringView sUsername);
+	/// apply every scheduled change that is due at tNow: the new address counts as
+	/// confirmed, and email codes as second factor stay on unless the address is gone
+	std::vector<AppliedEmail> ApplyDueEmailChanges(KUnixTime tNow);
 	KString     FindByEmail     (KStringView sEmail);                   ///< username for an address, or '' (for recovery)
 	bool        IsEmailVerified (KStringView sUsername);
 	bool        SetEmailVerified(KStringView sUsername, bool bVerified);
 	bool        HasEmailOtp     (KStringView sUsername);                ///< email used as the second factor?
 	bool        SetEmailOtp     (KStringView sUsername, bool bEnabled);
-	/// mint a single-use email token (verify/recovery/revert), store its hash with a
+	/// mint a single-use email token (verify/recovery/revert/setup/totp-reset), store its hash with a
 	/// purpose-dependent expiry plus an optional payload, and return the plaintext
 	/// for the emailed link. The payload carries purpose data (e.g. the prior email
 	/// address for a 'revert' token, so a completed change can be undone).
-	KString     CreateEmailToken (KStringView sUsername, KStringView sPurpose, KStringView sData = {});
+	/// @param TTL how long the token is valid, zero for the default of the purpose
+	KString     CreateEmailToken (KStringView sUsername, KStringView sPurpose, KStringView sData = {},
+	                              KDuration TTL = KDuration{});
 	/// validate+consume a token: returns the username on success (and deletes the
 	/// row), or '' if unknown/expired/wrong purpose. If pData is non-null it receives
 	/// the stored payload.
 	KString     ConsumeEmailToken(KStringView sToken, KStringView sPurpose, KString* pData = nullptr);
+	/// the username of a valid token, without consuming it (to show a form first).
+	/// If pData is non-null it receives the stored payload.
+	KString     LookupEmailToken (KStringView sToken, KStringView sPurpose, KString* pData = nullptr);
+	/// invalidate every open token of the user for sPurpose
+	bool        DropEmailTokens  (KStringView sUsername, KStringView sPurpose);
 
 	// --- role catalog (the set of roles defined for a client) ---
 	std::vector<KString> ListRoles (KStringView sClientID);
@@ -304,9 +357,11 @@ private:
 }; // KSSOdClientStore
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// A tiny key/value settings store (one shared table). kssod uses it to hold the
-/// optional outgoing-mail configuration: if no relay is set, every email feature
-/// (verification, password recovery, email OTP) is simply unavailable.
+/// A tiny key/value settings store (one shared table) for the settings that the
+/// administrators change in the web UI. It also holds the outgoing-mail relay,
+/// which the operator sets in the settings file (see kssod_config.h): if no relay
+/// is set, every email feature (verification, password recovery, email OTP) is
+/// simply unavailable.
 class KSSOdSettingsStore
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -327,9 +382,16 @@ public:
 	KString Get(KStringView sKey);
 	bool    Set(KStringView sKey, KStringView sValue);
 
-	Smtp    LoadSmtp();
-	bool    SaveSmtp(const Smtp& Config);
-	bool    SmtpConfigured() { return LoadSmtp().IsConfigured(); }
+	/// the outgoing-mail relay. It comes from the operator's settings file and is
+	/// only kept in memory - the admin UI cannot change it.
+	void    SetSmtp(Smtp Config);
+	Smtp    GetSmtp();
+	bool    SmtpConfigured() { return GetSmtp().IsConfigured(); }
+	/// the relay that an older kssod kept in the database, where the admin UI could
+	/// change it; empty if there is none
+	Smtp    StoredSmtp();
+	/// remove the relay of an older kssod from the database
+	bool    ForgetStoredSmtp();
 
 	/// security policy: when an email-change takeover is reverted and the change had
 	/// already completed, force the user to set a new password (the attacker may have
@@ -352,5 +414,6 @@ public:
 private:
 	KString    m_sDatabase;
 	std::mutex m_Mutex;
+	Smtp       m_Smtp;
 
 }; // KSSOdSettingsStore

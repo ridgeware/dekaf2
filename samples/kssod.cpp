@@ -46,6 +46,9 @@
 // authorization-code + PKCE flow and signs in any standards-compliant relying
 // party (e.g. an app written with KOpenIDClient, see koidc_bff.cpp).
 //
+// Operator settings (a JSON file, --settings, see kssod_config.h): the mail
+// relay. The admin UI shows it but cannot change it.
+//
 // Persistence (all in one SQLite file, --db):
 //   * users    : KSSOdUserStore   (table kssod_users)
 //   * clients  : KSSOdClientStore (table kssod_clients)
@@ -62,14 +65,21 @@
 // Keeping the two apart lets each read as its own lesson: OIDC vs. KWebObjects.
 //
 // Try it:
-//   kssod --http 8080
+//   kssod --http 8080 --demo
 //   open http://localhost:8080/   then sign in as  admin / admin123  (admin)
 //                                                or alice / alice123
 //   discovery: http://localhost:8080/.well-known/openid-configuration
 //
-// Pre-seeded relying party:  demo-app / demo-secret
+// Pre-seeded relying party with --demo:  demo-app / demo-secret
 //   -> http://localhost:3000/auth/callback   (post-logout http://localhost:3000/)
+//
+// Without --demo, an empty database gets an administrator 'admin' without a
+// password, and every start prints a setup link for it until it has one. New
+// users choose their own password with a setup link as well: kssod mails it when
+// the account has an address and a relay is set, else the administrator sees it
+// once and passes it on.
 
+#include "kssod_config.h"
 #include "kssod_store.h"
 #include "kssod_ui.h"  // the HTML rendering layer (this file stays OIDC-focused)
 #include "kssod_watchdog.h"
@@ -93,6 +103,7 @@
 #include <dekaf2/web/url/kurl.h>
 #include <dekaf2/crypto/encoding/kencode.h>    // KEncode::URL for query values in redirects
 #include <dekaf2/web/url/kuseragent.h>         // KHTTPUserAgent: browser/OS/device for the session list
+#include <dekaf2/system/filesystem/kfilesystem.h> // the operator's settings file
 #include <dekaf2/util/mail/kmail.h>
 #include <dekaf2/util/mail/kmailspool.h>       // KMailSpool: asynchronous, disk-backed delivery
 #include <dekaf2/data/json/kjson.h>
@@ -164,6 +175,12 @@ public:
 	{
 		std::lock_guard<std::mutex> L(m_Mutex);
 		for (auto it = m_Refresh.begin(); it != m_Refresh.end(); ) { it = (it->second.sFamily == sFamily) ? m_Refresh.erase(it) : std::next(it); }
+	}
+	void RevokeSubject(KStringView sSubject) override
+	{
+		std::lock_guard<std::mutex> L(m_Mutex);
+		for (auto it = m_Codes.begin();   it != m_Codes.end();   ) { it = (it->second.sSubject == sSubject) ? m_Codes.erase(it)   : std::next(it); }
+		for (auto it = m_Refresh.begin(); it != m_Refresh.end(); ) { it = (it->second.sSubject == sSubject) ? m_Refresh.erase(it) : std::next(it); }
 	}
 private:
 	struct Consumed { KString sFamily; KUnixTime tUntil; };
@@ -416,8 +433,8 @@ bool VerifyTotpOnce(KSSOdUserStore& Users, KStringView sUsername, KStringView sC
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// The outgoing mail path: a KMailSpool, which delivers at once when the relay
 /// answers, spools to disk when it does not, retries with growing delays and
-/// picks spooled mail up again after a restart. Rebuilt whenever the relay
-/// settings change; without a relay there is no spool and mail is refused.
+/// picks spooled mail up again after a restart. Configured once at startup from
+/// the operator's relay; without a relay there is no spool and mail is refused.
 /// One per process (a spool directory has exactly one owner), hence the accessor.
 class Mailer
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -659,11 +676,17 @@ int main(int argc, char** argv)
 		Settings.bACMEVerifyTLS       =!Options("acmenoverify          : do not verify the ACME directory's CA (test servers like Pebble)", false);
 		KString  sSessionIdle         = Options("session-idle <dur>    : sign-in session idle timeout, suffixes s/m/h/d/w (default 30m)", "30m");
 		KString  sSessionMax          = Options("session-max <dur>     : sign-in session absolute lifetime, suffixes s/m/h/d/w (default 8h)", "8h");
+		KString  sSettingsFile        = Options("settings <file>       : operator settings (JSON) with the mail relay, which the admin UI cannot change (default kssod.json in the config directory)", "");
+		bool     bDemo                = Options("demo                  : on an empty database, create demo users with known passwords (admin/admin123, alice/alice123) and the demo app - for local tests only", false);
+		KString  sReleaseName         = Options("release <username>    : allow the name of a deleted account for a new account again, then exit - apps that knew the deleted account take the new one for the same user", "");
 
 		if (Options.Terminate())
 		{
 			return 0;
 		}
+
+		const bool bSettingsFileGiven = !sSettingsFile.empty();
+		if (!bSettingsFileGiven) sSettingsFile = kFormat("{}/kssod.json", sConfigDir);
 
 		// TLS is the default, like every other dekaf2 HTTP server: an ephemeral
 		// self-signed cert is created when none is given; --cert/--key supply a
@@ -785,6 +808,20 @@ int main(int argc, char** argv)
 			return 1;
 		}
 
+		// --- operator action instead of the server ---------------------------
+		if (!sReleaseName.empty())
+		{
+			KSSOdUserStore Users(sDB);
+			if (!Users.ReleaseUsername(sReleaseName))
+			{
+				KErr.FormatLine("kssod: '{}' is not the name of a deleted account", sReleaseName);
+				return 1;
+			}
+			KSSOdAuditStore(sDB, sAuditMirror).Write("operator.username.release", "ok", "", sReleaseName, "", "");
+			KOut.FormatLine(":: '{}' may be used for a new account again", sReleaseName);
+			return 0;
+		}
+
 		// --- persistent RS256 signing key ------------------------------------
 		KRSAKey SigningKey;
 		if (!SigningKey.Load(sKeyFile))
@@ -812,14 +849,82 @@ int main(int argc, char** argv)
 		auto pGrants   = std::make_shared<MemoryGrantStore>();
 		auto pSettings = std::make_shared<KSSOdSettingsStore>(sDB);
 
-		// seed an empty database with demo data
+		// --- operator settings -----------------------------------------------
+		// the mail relay comes from the operator's settings file: an administrator
+		// who controlled it could read every password recovery mail
+		{
+			KSSOdOperatorConfig Operator;
+			const bool bHaveFile = kFileExists(sSettingsFile);
+
+			if (bHaveFile)
+			{
+				if (!Operator.Load(sSettingsFile, sError))
+				{
+					KErr.FormatLine("kssod: {}", sError);
+					return 1;
+				}
+#ifdef DEKAF2_IS_UNIX
+				if (kGetMode(sSettingsFile) & 0077)
+				{
+					KErr.FormatLine("kssod: warning: {} may hold the relay password and can be read by others - chmod 600 it", sSettingsFile);
+				}
+#endif
+			}
+			else if (bSettingsFileGiven)
+			{
+				KErr.FormatLine("kssod: the settings file {} does not exist", sSettingsFile);
+				return 1;
+			}
+
+			// an older kssod kept the relay in the database, where the admin UI could change it
+			auto Stored = pSettings->StoredSmtp();
+
+			if (!bHaveFile && Stored.IsConfigured())
+			{
+				// the first start after the update: the relay moves into the file
+				Operator.Smtp = Stored;
+
+				if (Operator.Save(sSettingsFile, sError))
+				{
+					pSettings->ForgetStoredSmtp();
+					KOut.FormatLine(":: mail: moved the relay {} from the database to {} - please check it, the admin UI can no longer change it",
+					                Stored.sURL, sSettingsFile);
+				}
+				else
+				{
+					KErr.FormatLine("kssod: warning: {} - the relay from the database stays in use for this run", sError);
+				}
+			}
+			else if (!Stored.sURL.empty() || !Stored.sUser.empty() || !Stored.sPass.empty()
+			         || !Stored.sFrom.empty() || !Stored.sFromName.empty())
+			{
+				pSettings->ForgetStoredSmtp();
+				KOut.FormatLine(":: mail: removed the relay '{}' of an older kssod from the database - the relay is set in {}",
+				                Stored.sURL, sSettingsFile);
+			}
+
+			pSettings->SetSmtp(std::move(Operator.Smtp));
+		}
+
+		// an empty database gets its first administrator without a password - the
+		// setup link for it is printed further down. Demo data with known passwords
+		// comes only with --demo.
 		if (pUsers->Count() == 0)
 		{
-			pUsers->AddUser("admin", "admin123", "Site Admin",    "admin@example.com", /*bAdmin=*/true);
-			pUsers->AddUser("alice", "alice123", "Alice Example", "alice@example.com", /*bAdmin=*/false);
-			KOut.FormatLine(":: seeded users:   admin/admin123 (admin)   alice/alice123");
+			if (bDemo)
+			{
+				pUsers->AddUser("admin", "Site Admin",    "admin@example.com", /*bAdmin=*/true,  /*bEmailVerified=*/false);
+				pUsers->AddUser("alice", "Alice Example", "alice@example.com", /*bAdmin=*/false, /*bEmailVerified=*/false);
+				pUsers->ChangePassword("admin", "admin123");
+				pUsers->ChangePassword("alice", "alice123");
+				KOut.FormatLine(":: seeded users:   admin/admin123 (admin)   alice/alice123");
+			}
+			else
+			{
+				pUsers->AddUser("admin", "Administrator", "", /*bAdmin=*/true, /*bEmailVerified=*/false);
+			}
 		}
-		if (pClients->Count() == 0)
+		if (bDemo && pClients->Count() == 0)
 		{
 			KOpenIDServer::ClientStore::Client Demo;
 			Demo.sClientID              = "demo-app";
@@ -893,8 +998,30 @@ int main(int argc, char** argv)
 			Audit.Write(sEvent, sOutcome, sActor, sSubject, HTTP.GetRemoteIP(),
 			            HTTP.Request.Headers.Get(KHTTPHeader::USER_AGENT), Details);
 		};
-		// outgoing mail goes through the spool (see Mailer); rebuilt on relay changes
-		OutgoingMail().Configure(sSpoolDir, pSettings->LoadSmtp());
+		// as long as no administrator has a password, every start prints a new setup
+		// link for the first invited one. Only the operator sees this output.
+		{
+			KString sInvitedAdmin;
+			bool    bActiveAdmin = false;
+
+			for (const auto& U : pUsers->List())
+			{
+				if (!U.bAdmin) continue;
+				if (!U.bInvited) { bActiveAdmin = true; break; }
+				if (sInvitedAdmin.empty()) sInvitedAdmin = U.sUsername;
+			}
+
+			if (!bActiveAdmin && !sInvitedAdmin.empty())
+			{
+				KString sToken = pUsers->CreateEmailToken(sInvitedAdmin, "setup");
+				KOut.FormatLine(":: setup: no administrator has a password yet - to choose one for '{}', open within 7 days:", sInvitedAdmin);
+				KOut.FormatLine("::   {}/setup?token={}", sIssuer, sToken);
+				Audit.Write("operator.setup_link", "ok", "", sInvitedAdmin, "", "");
+			}
+		}
+
+		// outgoing mail goes through the spool (see Mailer)
+		OutgoingMail().Configure(sSpoolDir, pSettings->GetSmtp());
 		if (auto iPending = OutgoingMail().Pending())
 		{
 			KOut.FormatLine(":: mail: {} spooled message(s) from a previous run await delivery", iPending);
@@ -905,11 +1032,24 @@ int main(int argc, char** argv)
 		// timing is the spool's business
 		KSSOdWatchdog Watchdog(*pUsers, *pSettings, Audit, sIssuer);
 		Audit.SetObserver([&Watchdog](const KSSOdAuditStore::Entry& E) { Watchdog.Observe(E); });
+		// address changes by administrators take effect once their waiting period is over
+		auto ApplyDueEmailChanges = [&pUsers, &Audit](KUnixTime tNow)
+		{
+			for (const auto& A : pUsers->ApplyDueEmailChanges(tNow))
+			{
+				Audit.Write("admin.user.email", "applied", A.sBy, A.sUsername, "", "", {{ "from", A.sFrom }, { "to", A.sTo }});
+			}
+		};
+		ApplyDueEmailChanges(KUnixTime::now());
 		KTimer Heartbeat;
-		Heartbeat.CallEvery(std::chrono::minutes(1), [&Watchdog](KUnixTime tNow) { Watchdog.Tick(tNow); });
+		Heartbeat.CallEvery(std::chrono::minutes(1), [&Watchdog, &ApplyDueEmailChanges](KUnixTime tNow)
+		{
+			Watchdog.Tick(tNow);
+			ApplyDueEmailChanges(tNow);
+		});
 		if (!pSettings->SmtpConfigured())
 		{
-			KOut.FormatLine(":: watchdog: no mail relay configured - alerts stay off until one is set (/admin/settings)");
+			KOut.FormatLine(":: watchdog: no mail relay configured - alerts stay off until the operator sets one in {}", sSettingsFile);
 		}
 
 		// every SSO access decision (code issued or refused, code exchanged, refresh)
@@ -924,6 +1064,102 @@ int main(int argc, char** argv)
 		{
 			HTTP.Response.Headers.Set(KHTTPHeader::LOCATION, sURL);
 			throw KHTTPError(KHTTPError::H302_MOVED_TEMPORARILY, "");
+		};
+
+		// a new setup link for an invited account, and the page that answers the
+		// administrator. With a relay and an address on the account the link goes by
+		// mail, and the administrator never sees it. Otherwise the administrator
+		// sees it this once and passes it on - a new account in their hands harms
+		// nobody, no app knows it yet.
+		auto InviteUser = [&Log, &pUsers, &pSettings, &sIssuer](KRESTServer& HTTP, KStringView sAdmin, KStringView sTarget)
+		{
+			KString sEmail = pUsers->GetEmail(sTarget);
+			KString sToken = pUsers->CreateEmailToken(sTarget, "setup");
+
+			if (sToken.empty())
+			{
+				RenderUsers(HTTP, sAdmin, *pUsers, "Could not create a setup link.", true, KHTTPError::H5xx_ERROR);
+				return;
+			}
+
+			KString sLink = kFormat("{}/setup?token={}", sIssuer, sToken);
+
+			if (pSettings->SmtpConfigured() && !sEmail.empty())
+			{
+				KJSON Claims;
+				pUsers->GetClaims(sTarget, Claims);
+				KStringView sDisplayName = kjson::GetStringRef(Claims, "name");
+				if (sDisplayName.empty()) sDisplayName = sTarget;
+
+				KString sErr;
+				if (!SendMail(pSettings->GetSmtp(), sEmail, "Your kssod account",
+				              kFormat("Hello {},\r\n\r\nan administrator created the account {} for you at {}.\r\n"
+				                      "To choose your password, open this link within 7 days:\r\n{}"
+				                      "\r\n\r\nIf you did not expect this mail, you can ignore it.",
+				                      sDisplayName, sTarget, sIssuer, sLink), sErr))
+				{
+					pUsers->DropEmailTokens(sTarget, "setup");
+					Log(HTTP, "admin.user.invite", "failed", sAdmin, sTarget, {{ "by", "mail" }, { "email", sEmail }, { "error", sErr }});
+					RenderUsers(HTTP, sAdmin, *pUsers, kFormat("Could not send the invitation to {}: {}", sEmail, sErr),
+					            true, KHTTPError::H5xx_ERROR);
+					return;
+				}
+
+				Log(HTTP, "admin.user.invite", "ok", sAdmin, sTarget, {{ "by", "mail" }, { "email", sEmail }});
+				RenderUsers(HTTP, sAdmin, *pUsers, kFormat("The invitation for {} is on its way to {}.", sTarget, sEmail), false);
+				return;
+			}
+
+			Log(HTTP, "admin.user.invite", "ok", sAdmin, sTarget, {{ "by", "link" }});
+			RenderOneTimeLink(HTTP, sAdmin, kFormat("Setup link for {}", sTarget),
+			    kFormat("kssod cannot mail the setup link, because {}. Give it to {} in a way only they can read. "
+			            "With it they choose their password, and nobody else learns it.",
+			            pSettings->SmtpConfigured() ? "the account has no email address" : "no mail relay is configured",
+			            sTarget),
+			    sLink,
+			    "This page shows the link only this once, and the link is valid for 7 days. If it gets lost "
+			    "or expires, use \"Invite again\" in the user list for a new one. When somebody else uses "
+			    "the link first, the user finds it already used and can tell you.");
+		};
+
+		// Can kssod reach the user by mail? That takes a relay and an address the
+		// user has proven. Then links go to the mailbox only, and the administrator
+		// never sees them. Otherwise the administrator is trusted, and the answer
+		// says why.
+		auto NoMailReason = [&pUsers, &pSettings](KStringView sTarget) -> KStringView
+		{
+			if (!pSettings->SmtpConfigured())       return "no mail relay is configured";
+			if (pUsers->GetEmail(sTarget).empty())  return "the account has no email address";
+			if (!pUsers->IsEmailVerified(sTarget))  return "the email address of the account is not confirmed";
+			return {};
+		};
+
+		// An administrator's change of a confirmed address takes effect only after
+		// this long, and the old address can cancel it meanwhile: it is the one way
+		// for an administrator to take over an account that kssod reaches by mail.
+		const KDuration EmailChangeHold = chrono::hours(72);
+
+		// Whoever controls the mailbox can reset the password by mail. For a while
+		// afterwards the mailbox must not also remove the authenticator app, or the
+		// mailbox alone would give the whole account.
+		const KDuration TotpResetHold = chrono::days(7);
+
+		// a mailed link that removes the authenticator app, see /totp-reset
+		auto MailTotpReset = [&pUsers, &pSettings, &sIssuer](KStringView sTarget, KString& sError) -> bool
+		{
+			KString sToken = pUsers->CreateEmailToken(sTarget, "totp-reset");
+			if (sToken.empty()) { sError = "could not create the link"; return false; }
+
+			KJSON Claims;
+			pUsers->GetClaims(sTarget, Claims);
+			KStringView sDisplayName = kjson::GetStringRef(Claims, "name");
+			if (sDisplayName.empty()) sDisplayName = sTarget;
+
+			return SendMail(pSettings->GetSmtp(), pUsers->GetEmail(sTarget), "Remove your kssod authenticator app",
+			                kFormat("Hello {},\r\n\r\nto remove the authenticator app from your account {}, open this "
+			                        "link and confirm with your password:\r\n{}/totp-reset?token={}\r\n\r\n"
+			                        "The link is valid for one hour. If you did not ask for this, ignore this "
+			                        "email and tell your administrator.", sDisplayName, sTarget, sIssuer, sToken), sError);
 		};
 
 		// half-finished logins (password ok, second factor still owed)
@@ -949,6 +1185,7 @@ int main(int argc, char** argv)
 			St.bEmailOtp      = pUsers->HasEmailOtp(sUser);
 			St.bSmtp          = pSettings->SmtpConfigured();
 			St.Sessions       = SessionViewsFor(HTTP, *pSession, sUser);
+			St.Scheduled      = pUsers->GetScheduledEmail(sUser);
 			return St;
 		};
 
@@ -1029,7 +1266,7 @@ int main(int argc, char** argv)
 			KString sCode  = KTOTP::GenerateNumericCode(6);
 			KString sToken = Pending2FA.BeginEmail(sUser, KTOTP::HashCode(sCode));
 			KString sErr;
-			SendMail(pSettings->LoadSmtp(), pUsers->GetEmail(sUser), "Your kssod sign-in code",
+			SendMail(pSettings->GetSmtp(), pUsers->GetEmail(sUser), "Your kssod sign-in code",
 			         kFormat("Your sign-in code is {}\r\n\r\nIt expires in 5 minutes. "
 			                 "If you did not try to sign in, you can ignore this email.", sCode), sErr);
 			return sToken;
@@ -1071,8 +1308,18 @@ int main(int argc, char** argv)
 				RenderTwoFactor(HTTP, Pending2FA.BeginTotp(sUser), "totp", "", false);
 				return;
 			}
-			if (pUsers->HasEmailOtp(sUser) && pSettings->SmtpConfigured())
+			if (pUsers->HasEmailOtp(sUser))
 			{
+				// without a mail relay the code cannot be sent. The sign-in fails then,
+				// it does not go ahead with the password alone.
+				if (!pSettings->SmtpConfigured())
+				{
+					Log(HTTP, "auth.2fa", "unavailable", "", sUser, {{ "method", "email" }});
+					RenderLogin(HTTP, "Your account signs in with a code by email, and email is not available "
+					                  "right now. Please try again later or contact your administrator.",
+					            false, KHTTPError::H5xx_UNAVAILABLE);
+					return;
+				}
 				Log(HTTP, "auth.password", "ok", "", sUser, {{ "next", "email" }});
 				RenderTwoFactor(HTTP, BeginEmailOtp(sUser), "email", "", false);
 				return;
@@ -1126,6 +1373,186 @@ int main(int argc, char** argv)
 			throw KHTTPError(KHTTPError::H302_MOVED_TEMPORARILY, "");
 		}).Parse(KRESTRoute::WWWFORM);
 
+		// the second login step without the device and without backup codes: a link to
+		// the user's mailbox, confirmed with the password (see /totp-reset), or the
+		// administrator has to help
+		Routes.AddRoute("/login/2fa/lost").Post(
+			[&Log, &pUsers, &pSettings, &Pending2FA, &NoMailReason, &MailTotpReset, TotpResetHold](KRESTServer& HTTP)
+		{
+			auto P = Pending2FA.Peek(HTTP.GetQueryParms()["pending"]);
+			if (!P.bValid || P.sMethod != "totp")
+			{
+				RenderLogin(HTTP, "Your sign-in timed out. Please sign in again.",
+				            pSettings->SmtpConfigured(), KHTTPError::H4xx_NOTAUTH);
+				return;
+			}
+
+			if (!NoMailReason(P.sUsername).empty())
+			{
+				Log(HTTP, "account.2fa.totp", "lost_no_mail", "", P.sUsername);
+				RenderInfo(HTTP, "Ask your administrator",
+				           "kssod cannot mail you, so your administrator has to remove two-step verification for you. "
+				           "Afterwards you sign in with your password and can set it up again.",
+				           "/login", "Back to sign in");
+				return;
+			}
+
+			KUnixTime tAllowed = pUsers->PasswordResetTime(P.sUsername) + TotpResetHold;
+			if (KUnixTime::now() < tAllowed)
+			{
+				Log(HTTP, "account.2fa.totp", "held", "", P.sUsername);
+				RenderInfo(HTTP, "Not yet possible",
+				           kFormat("Your password was reset by email recently. So that the mailbox alone cannot remove "
+				                   "both factors, the authenticator app can be removed by email only from {} on. "
+				                   "Until then, sign in with a backup code.",
+				                   kFormTimestamp(KUTCTime(tAllowed), "{:%Y-%m-%d %H:%M} UTC")),
+				           "/login", "Back to sign in");
+				return;
+			}
+
+			KString sErr;
+			if (!MailTotpReset(P.sUsername, sErr))
+			{
+				RenderInfo(HTTP, "Could not send the link", sErr, "/login", "Back to sign in", KHTTPError::H5xx_ERROR);
+				return;
+			}
+			Log(HTTP, "account.2fa.totp", "reset_sent", "", P.sUsername);
+			RenderInfo(HTTP, "Check your email",
+			           "We sent a link to remove the authenticator app to the email address of your account. "
+			           "It is valid for one hour.",
+			           "/login", "Back to sign in");
+		}).Parse(KRESTRoute::WWWFORM);
+
+		// the old address cancels an address change by an administrator (the link in
+		// the mail), or the signed-in user does on the account page
+		Routes.AddRoute("/email/cancel").Get(
+			[&pUsers](KRESTServer& HTTP)
+		{
+			// the token is only looked at here, it is used up on submit
+			KStringView sToken    = HTTP.GetQueryParms()["token"];
+			KString     sTarget   = pUsers->LookupEmailToken(sToken, "email-cancel");
+			auto        Scheduled = pUsers->GetScheduledEmail(sTarget);
+			if (sTarget.empty() || !Scheduled.bSet)
+			{
+				RenderInfo(HTTP, "Nothing to cancel",
+				           "This link is invalid or has expired, or the change was already cancelled or applied.",
+				           "/login", "Sign in");
+				return;
+			}
+			RenderEmailCancel(HTTP, sToken, sTarget, Scheduled);
+		});
+
+		Routes.AddRoute("/email/cancel").Post(
+			[&Log, &pUsers](KRESTServer& HTTP)
+		{
+			KStringView sToken    = HTTP.GetQueryParms()["token"];
+			KString     sTarget   = pUsers->ConsumeEmailToken(sToken, "email-cancel");
+			auto        Scheduled = pUsers->GetScheduledEmail(sTarget);
+			if (sTarget.empty() || !pUsers->CancelScheduledEmail(sTarget))
+			{
+				RenderInfo(HTTP, "Nothing to cancel",
+				           "This link is invalid or has expired, or the change was already cancelled or applied.",
+				           "/login", "Sign in");
+				return;
+			}
+			Log(HTTP, "account.email.scheduled_cancelled", "ok", "", sTarget, {{ "to", Scheduled.sEmail }, { "by", Scheduled.sBy }});
+			RenderInfo(HTTP, "Change cancelled",
+			           kFormat("The email address of {} stays {}. Your administrators are told about it.",
+			                   sTarget, pUsers->GetEmail(sTarget)),
+			           "/login", "Sign in");
+		}).Parse(KRESTRoute::WWWFORM);
+
+		Routes.AddRoute("/account/email/scheduled/cancel").Post(
+			[&Log, &pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser = CurrentUser(HTTP, *pSession);
+			if (sUser.empty()) Redirect(HTTP, "/login");
+
+			auto Scheduled = pUsers->GetScheduledEmail(sUser);
+			if (pUsers->CancelScheduledEmail(sUser))
+			{
+				Log(HTTP, "account.email.scheduled_cancelled", "ok", sUser, sUser, {{ "to", Scheduled.sEmail }, { "by", Scheduled.sBy }});
+			}
+			Redirect(HTTP, "/account");
+		}).Parse(KRESTRoute::WWWFORM);
+
+		Routes.AddRoute("/totp-reset").Get(
+			[&pUsers](KRESTServer& HTTP)
+		{
+			// the token is only looked at here, it is used up on submit
+			KStringView sToken  = HTTP.GetQueryParms()["token"];
+			KString     sTarget = pUsers->LookupEmailToken(sToken, "totp-reset");
+			if (sTarget.empty())
+			{
+				RenderInfo(HTTP, "Link not valid", "This link is invalid, has expired or was already used.",
+				           "/login", "Sign in");
+				return;
+			}
+			RenderTotpReset(HTTP, sToken, sTarget, {});
+		});
+
+		Routes.AddRoute("/totp-reset").Post(
+			[&Log, &pUsers, &LoginThrottle, TotpResetHold](KRESTServer& HTTP)
+		{
+			const auto& Q       = HTTP.GetQueryParms();
+			KStringView sToken  = Q["token"];
+			KString     sTarget = pUsers->LookupEmailToken(sToken, "totp-reset");
+			KString     sIP     = HTTP.GetRemoteIP();
+
+			if (sTarget.empty())
+			{
+				RenderInfo(HTTP, "Link not valid", "This link is invalid, has expired or was already used.",
+				           "/login", "Sign in");
+				return;
+			}
+
+			if (!LoginThrottle.Allowed(sTarget) || !LoginThrottle.Allowed(sIP))
+			{
+				Log(HTTP, "account.2fa.totp", "throttled", "", sTarget);
+				RenderTotpReset(HTTP, sToken, sTarget, "Too many wrong passwords. Please wait a few minutes and try again.",
+				                KHTTPError::H4xx_TOOMANYREQUESTS);
+				return;
+			}
+
+			// the mailbox proves one factor, the password the other - unless the
+			// password itself came from the mailbox a short while ago
+			KUnixTime tAllowed = pUsers->PasswordResetTime(sTarget) + TotpResetHold;
+			if (KUnixTime::now() < tAllowed)
+			{
+				Log(HTTP, "account.2fa.totp", "held", "", sTarget);
+				RenderTotpReset(HTTP, sToken, sTarget,
+				                kFormat("Your password was reset by email recently. So that the mailbox alone cannot "
+				                        "remove both factors, this is possible only from {} on. Until then, sign in "
+				                        "with a backup code.", kFormTimestamp(KUTCTime(tAllowed), "{:%Y-%m-%d %H:%M} UTC")),
+				                KHTTPError::H4xx_FORBIDDEN);
+				return;
+			}
+
+			if (!pUsers->VerifyPassword(sTarget, Q["password"]))
+			{
+				LoginThrottle.Failure(sTarget);
+				LoginThrottle.Failure(sIP);
+				Log(HTTP, "account.2fa.totp", "wrong_password", "", sTarget);
+				RenderTotpReset(HTTP, sToken, sTarget, "The password is not correct.", KHTTPError::H4xx_NOTAUTH);
+				return;
+			}
+
+			if (pUsers->ConsumeEmailToken(sToken, "totp-reset") != sTarget)
+			{
+				RenderInfo(HTTP, "Link not valid", "This link is invalid, has expired or was already used.",
+				           "/login", "Sign in");
+				return;
+			}
+
+			LoginThrottle.Reset(sTarget);
+			pUsers->ClearTotp(sTarget); // drops the backup codes as well
+			Log(HTTP, "account.2fa.totp", "reset", sTarget, sTarget);
+			RenderInfo(HTTP, "Two-step verification is off",
+			           "The authenticator app and the backup codes are removed. Sign in with your password, then "
+			           "set up two-step verification again on your account page.",
+			           "/login", "Sign in");
+		}).Parse(KRESTRoute::WWWFORM);
+
 		// resend the email sign-in code (email method only)
 		Routes.AddRoute("/login/2fa/resend").Post(
 			[&pUsers, &pSettings, &Pending2FA](KRESTServer& HTTP)
@@ -1149,7 +1576,7 @@ int main(int argc, char** argv)
 				return;
 			}
 			KString sErr;
-			SendMail(pSettings->LoadSmtp(), pUsers->GetEmail(P.sUsername), "Your kssod sign-in code",
+			SendMail(pSettings->GetSmtp(), pUsers->GetEmail(P.sUsername), "Your kssod sign-in code",
 			         kFormat("Your sign-in code is {}\r\n\r\nIt expires in 5 minutes.", sCode), sErr);
 			RenderTwoFactor(HTTP, sPending, "email", "A new code is on its way.", false);
 		}).Parse(KRESTRoute::WWWFORM);
@@ -1303,7 +1730,7 @@ int main(int argc, char** argv)
 			KString sToken = pUsers->CreateEmailToken(sUser, "verify", sEmail); // payload: the address being confirmed
 			Log(HTTP, "account.email.verify_sent", "ok", sUser, sUser, {{ "email", sEmail }});
 			KString sErr;
-			SendMail(pSettings->LoadSmtp(), sEmail, "Confirm your kssod email",
+			SendMail(pSettings->GetSmtp(), sEmail, "Confirm your kssod email",
 			         kFormat("Hello {},\r\n\r\nplease confirm this address by opening:\r\n{}/verify-email?token={}"
 			                 "\r\n\r\nThe link is valid for 24 hours.", sUser, sIssuer, sToken), sErr);
 
@@ -1368,7 +1795,7 @@ int main(int argc, char** argv)
 			// token carries the target address so /verify-email can tell a pending-change
 			// confirmation apart from a plain "verify my current address" link.
 			KString sVerify = pUsers->CreateEmailToken(sUser, "verify", sNewEmail);
-			SendMail(pSettings->LoadSmtp(), sNewEmail, "Confirm your new kssod email",
+			SendMail(pSettings->GetSmtp(), sNewEmail, "Confirm your new kssod email",
 			         kFormat("Hello {},\r\n\r\nconfirm this as your new address by opening:\r\n{}/verify-email?token={}"
 			                 "\r\n\r\nUntil you do, your account keeps its current address. The link is valid for 24 hours.",
 			                 sUser, sIssuer, sVerify), sErr);
@@ -1378,7 +1805,7 @@ int main(int argc, char** argv)
 			if (!sOldEmail.empty())
 			{
 				KString sRevert = pUsers->CreateEmailToken(sUser, "revert", sOldEmail);
-				SendMail(pSettings->LoadSmtp(), sOldEmail, "Your kssod email is being changed",
+				SendMail(pSettings->GetSmtp(), sOldEmail, "Your kssod email is being changed",
 				         kFormat("Hello {},\r\n\r\na change of your address to {} was requested. If this was you, "
 				                 "confirm via the link sent to the new address.\r\n\r\nIf this was NOT you, cancel it and "
 				                 "secure your account here:\r\n{}/undo-email-change?token={}\r\n\r\nThis link is valid for 7 days.",
@@ -1391,58 +1818,107 @@ int main(int argc, char** argv)
 			              false, AccountStateFor(HTTP, sUser));
 		}).Parse(KRESTRoute::WWWFORM);
 
-		// public: follow the verification link from the email
+		// public: the verification link from the email. The token carries the address
+		// it was issued for: a pending change to that address, or the current address.
+		// A link for any other address is stale - the address changed since it was sent.
+		auto VerifyExpired = [](KRESTServer& HTTP)
+		{
+			// the link itself was well-formed; the token is just stale - a 200
+			// outcome page reads better here than a 4xx for an emailed link
+			RenderInfo(HTTP, "Link expired",
+			           "This verification link is invalid or has expired. You can request a new one from your account.",
+			           "/account", "Go to your account");
+		};
+
 		Routes.AddRoute("/verify-email").Get(
-			[&Log, &pUsers](KRESTServer& HTTP)
+			[&pUsers, &VerifyExpired](KRESTServer& HTTP)
+		{
+			// the token is only looked at here, it is used up on submit
+			KStringView sToken = HTTP.GetQueryParms()["token"];
+			KString     sTarget;
+			KString     sUser  = pUsers->LookupEmailToken(sToken, "verify", &sTarget);
+			bool        bNew   = !sTarget.empty() && sTarget == pUsers->GetPendingEmail(sUser);
+
+			if (sUser.empty() || sTarget.empty() || (!bNew && sTarget != pUsers->GetEmail(sUser)))
+			{
+				VerifyExpired(HTTP);
+				return;
+			}
+			RenderEmailVerify(HTTP, sToken, sUser, sTarget, bNew);
+		});
+
+		Routes.AddRoute("/verify-email").Post(
+			[&Log, &pUsers, &VerifyExpired](KRESTServer& HTTP)
 		{
 			KString sTarget;
 			KString sUser = pUsers->ConsumeEmailToken(HTTP.GetQueryParms()["token"], "verify", &sTarget);
-			if (sUser.empty())
+			if (sUser.empty() || sTarget.empty())
 			{
-				// the link itself was well-formed; the token is just stale - a 200
-				// outcome page reads better here than a 4xx for an emailed link
-				RenderInfo(HTTP, "Link expired",
-				           "This verification link is invalid or has expired. You can request a new one from your account.",
-				           "/account", "Go to your account");
+				VerifyExpired(HTTP);
 				return;
 			}
-			// the token carries the address it was issued for: if that matches a pending
-			// change, this link confirms the NEW address — swap it in. Otherwise it just
-			// confirms the (current) address it was issued for (the plain verify flow).
-			if (!sTarget.empty() && sTarget == pUsers->GetPendingEmail(sUser))
+			// if the address matches a pending change, this link confirms the NEW
+			// address - swap it in. Otherwise it confirms the current address.
+			if (sTarget == pUsers->GetPendingEmail(sUser))
 			{
 				pUsers->ApplyPendingEmail(sUser);
 				Log(HTTP, "account.email.changed", "ok", sUser, sUser, {{ "email", sTarget }});
 				RenderInfo(HTTP, "Email confirmed", "Thanks - your new email address is now active and verified.",
 				           "/account", "Go to your account");
 			}
-			else
+			else if (sTarget == pUsers->GetEmail(sUser))
 			{
 				pUsers->SetEmailVerified(sUser, true);
 				Log(HTTP, "account.email.verified", "ok", sUser, sUser);
 				RenderInfo(HTTP, "Email confirmed", "Thanks - your email address is now verified.",
 				           "/account", "Go to your account");
 			}
-		});
+			else
+			{
+				VerifyExpired(HTTP);
+			}
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// public: the revert/cancel link from the security notice sent to the OLD
 		// address when an email change was requested (see /account/email). Undoes an
 		// email-change takeover; the token carries the prior address.
+		auto UndoExpired = [](KRESTServer& HTTP)
+		{
+			RenderInfo(HTTP, "Link expired",
+			           "This link is invalid or has expired. If you still need to secure your account, "
+			           "contact your administrator.", "/login", "Back to sign in");
+		};
+
 		Routes.AddRoute("/undo-email-change").Get(
-			[&Log, &pSession, &pUsers, &pSettings, &Redirect](KRESTServer& HTTP)
+			[&pUsers, &pSettings, &UndoExpired](KRESTServer& HTTP)
+		{
+			// the token is only looked at here, it is used up on submit
+			KStringView sToken = HTTP.GetQueryParms()["token"];
+			KString     sOldEmail;
+			KString     sUser  = pUsers->LookupEmailToken(sToken, "revert", &sOldEmail);
+			if (sUser.empty())
+			{
+				UndoExpired(HTTP);
+				return;
+			}
+			RenderEmailUndo(HTTP, sToken, sUser, sOldEmail, pUsers->GetEmail(sUser), pUsers->GetPendingEmail(sUser),
+			                pSettings->ForcePwOnRevert());
+		});
+
+		Routes.AddRoute("/undo-email-change").Post(
+			[&Log, &pUsers, &pSettings, &Server, &UndoExpired, &Redirect](KRESTServer& HTTP)
 		{
 			KString sOldEmail;
 			KString sUser = pUsers->ConsumeEmailToken(HTTP.GetQueryParms()["token"], "revert", &sOldEmail);
 			if (sUser.empty())
 			{
-				RenderInfo(HTTP, "Link expired",
-				           "This link is invalid or has expired. If you still need to secure your account, "
-				           "contact your administrator.", "/login", "Back to sign in");
+				UndoExpired(HTTP);
 				return;
 			}
 
-			// always sign the user out everywhere — this kicks the attacker's session
-			pSession->LogoutAllFor(sUser);
+			// always sign the user out everywhere, and take the refresh tokens at the
+			// apps as well - this kicks the attacker's sessions
+			Server.RevokeSubject(sUser);
 
 			// Fall 1 — the change never completed (current address still equals the old
 			// one): nothing was compromised, just cancel the staged change. A stale verify
@@ -1476,7 +1952,7 @@ int main(int argc, char** argv)
 			           "Your previous email address was restored and all sessions were signed out. "
 			           "We strongly recommend you reset your password now.",
 			           "/forgot", "Reset password");
-		});
+		}).Parse(KRESTRoute::WWWFORM);
 
 		// turn email codes on/off as the second factor (verified address required)
 		Routes.AddRoute("/account/2fa/email/on").Post(
@@ -1561,7 +2037,7 @@ int main(int argc, char** argv)
 					Log(HTTP, "auth.recovery", "sent", "", sUser, {{ "email", sEmail }});
 					KString sToken = pUsers->CreateEmailToken(sUser, "recovery");
 					KString sErr;
-					SendMail(pSettings->LoadSmtp(), sEmail, "Reset your kssod password",
+					SendMail(pSettings->GetSmtp(), sEmail, "Reset your kssod password",
 					         kFormat("Hello {},\r\n\r\nto choose a new password, open:\r\n{}/reset?token={}"
 					                 "\r\n\r\nThe link is valid for one hour. If you did not request this, "
 					                 "you can ignore this email.", sUser, sIssuer, sToken), sErr);
@@ -1572,6 +2048,82 @@ int main(int argc, char** argv)
 			           "/login", "Back to sign in");
 		}).Parse(KRESTRoute::WWWFORM);
 
+		// ----- account setup (public): an invited user chooses the first password -----
+
+		auto SetupInvalid = [](KRESTServer& HTTP)
+		{
+			RenderInfo(HTTP, "Link not valid",
+			           "This setup link is invalid, has expired or was already used. If you did not "
+			           "use it yourself, tell your administrator, who can send you a new one.",
+			           "/login", "Sign in");
+		};
+
+		Routes.AddRoute("/setup").Get(
+			[&pUsers, &SetupInvalid](KRESTServer& HTTP)
+		{
+			// the token is only looked at here, it is used up on submit
+			KStringView sToken  = HTTP.GetQueryParms()["token"];
+			KString     sTarget = pUsers->LookupEmailToken(sToken, "setup");
+
+			if (sTarget.empty() || !pUsers->IsInvited(sTarget))
+			{
+				SetupInvalid(HTTP);
+				return;
+			}
+
+			KString sEmail = pUsers->GetEmail(sTarget);
+			RenderSetup(HTTP, sToken, sTarget, sEmail, !sEmail.empty() && !pUsers->IsEmailVerified(sTarget), {});
+		});
+
+		Routes.AddRoute("/setup").Post(
+			[&Log, &pUsers, &SetupInvalid](KRESTServer& HTTP)
+		{
+			const auto& Q        = HTTP.GetQueryParms();
+			KStringView sToken   = Q["token"];
+			KStringView sNew     = Q["new"];
+			KStringView sConfirm = Q["confirm"];
+			KString     sTarget  = pUsers->LookupEmailToken(sToken, "setup");
+
+			if (sTarget.empty() || !pUsers->IsInvited(sTarget))
+			{
+				SetupInvalid(HTTP);
+				return;
+			}
+
+			KString sEmail        = pUsers->GetEmail(sTarget);
+			bool    bConfirmEmail = !sEmail.empty() && !pUsers->IsEmailVerified(sTarget);
+
+			KStringView sError;
+			if      (sNew.size() < 8)  sError = "The password must be at least 8 characters.";
+			else if (sNew != sConfirm) sError = "The passwords do not match.";
+
+			if (!sError.empty())
+			{
+				RenderSetup(HTTP, sToken, sTarget, sEmail, bConfirmEmail, sError, KHTTPError::H4xx_BADREQUEST);
+				return;
+			}
+
+			// consume the token only now that the input is valid (a typo does not burn
+			// the link) - of two concurrent submits only one gets it
+			if (pUsers->ConsumeEmailToken(sToken, "setup") != sTarget || !pUsers->IsInvited(sTarget))
+			{
+				SetupInvalid(HTTP);
+				return;
+			}
+
+			pUsers->ChangePassword(sTarget, sNew);
+
+			// the user confirms an address that the administrator entered
+			bool bConfirmed = bConfirmEmail && !Q["email_ok"].empty();
+			if (bConfirmed) pUsers->SetEmailVerified(sTarget, true);
+
+			Log(HTTP, "account.setup", "ok", sTarget, sTarget, {{ "email_confirmed", bConfirmed }});
+			RenderInfo(HTTP, "Your account is ready",
+			           kFormat("You can sign in now as {}. On your account page you can turn on "
+			                   "two-step verification.", sTarget),
+			           "/login", "Sign in");
+		}).Parse(KRESTRoute::WWWFORM);
+
 		Routes.AddRoute("/reset").Get(
 			[](KRESTServer& HTTP)
 		{
@@ -1580,7 +2132,7 @@ int main(int argc, char** argv)
 		});
 
 		Routes.AddRoute("/reset").Post(
-			[&Log, &pUsers](KRESTServer& HTTP)
+			[&Log, &pUsers, &Server](KRESTServer& HTTP)
 		{
 			const auto& Q       = HTTP.GetQueryParms();
 			KStringView sToken  = Q["token"];
@@ -1608,8 +2160,13 @@ int main(int argc, char** argv)
 				return;
 			}
 			pUsers->ChangePassword(sUser, sNew);
-			Log(HTTP, "auth.recovery", "password_reset", "", sUser);
-			RenderInfo(HTTP, "Password updated", "Your password has been changed. You can sign in now.",
+			pUsers->NotePasswordReset(sUser);
+			// a reset can follow a compromise: whoever holds a session or a refresh
+			// token of the account loses it
+			std::size_t iSessions = Server.RevokeSubject(sUser);
+			Log(HTTP, "auth.recovery", "password_reset", "", sUser, {{ "sessions", iSessions }});
+			RenderInfo(HTTP, "Password updated", "Your password has been changed, and every session of your "
+			           "account was signed out. You can sign in now.",
 			           "/login", "Sign in");
 		}).Parse(KRESTRoute::WWWFORM);
 
@@ -1722,48 +2279,19 @@ int main(int argc, char** argv)
 			RenderAdminHome(HTTP, sUser);
 		});
 
-		// ----- email (SMTP) settings -----
+		// ----- settings: the mail relay (read-only, set by the operator), security, alerts -----
 		Routes.AddRoute("/admin/settings").Get(
-			[&pSession, &pUsers, &pSettings](KRESTServer& HTTP)
+			[&pSession, &pUsers, &pSettings, &sSettingsFile](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
-			RenderSettings(HTTP, sUser, pSettings->LoadSmtp(), pSettings->LoadAlerts(), {}, false, pSettings->ForcePwOnRevert());
+			RenderSettings(HTTP, sUser, pSettings->GetSmtp(), sSettingsFile, pSettings->LoadAlerts(), {}, false, pSettings->ForcePwOnRevert());
 		});
-
-		Routes.AddRoute("/admin/settings").Post(
-			[&sSpoolDir, &Log, &pSession, &pUsers, &pSettings](KRESTServer& HTTP)
-		{
-			KString sUser;
-			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
-
-			const auto& Q = HTTP.GetQueryParms();
-			KSSOdSettingsStore::Smtp Smtp;
-			Smtp.sURL      = Q["smtp_url"];
-			Smtp.sUser     = Q["smtp_user"];
-			Smtp.sPass     = Q["smtp_pass"];
-			Smtp.sFrom     = Q["smtp_from"];
-			Smtp.sFromName = Q["smtp_fromname"];
-			// the form never shows the stored password - a blank field keeps it, as
-			// long as there still is a user name for it
-			if (Smtp.sPass.empty() && !Smtp.sUser.empty())
-			{
-				Smtp.sPass = pSettings->LoadSmtp().sPass;
-			}
-			pSettings->SaveSmtp(Smtp);
-			OutgoingMail().Configure(sSpoolDir, Smtp);
-			Log(HTTP, "admin.settings.smtp", "ok", sUser, "", {{ "url", Smtp.sURL }, { "from", Smtp.sFrom }});
-
-			RenderSettings(HTTP, sUser, Smtp, pSettings->LoadAlerts(),
-			               Smtp.IsConfigured() ? "Saved. Email features are now available."
-			                                   : "Saved. Set a relay URL and From address to enable email features.",
-			               false, pSettings->ForcePwOnRevert());
-		}).Parse(KRESTRoute::WWWFORM);
 
 		// security policy toggle: force a password reset when an email-change takeover
 		// is reverted after it had already completed (default on)
 		Routes.AddRoute("/admin/settings/security").Post(
-			[&Log, &pSession, &pUsers, &pSettings](KRESTServer& HTTP)
+			[&Log, &pSession, &pUsers, &pSettings, &sSettingsFile](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
@@ -1771,13 +2299,13 @@ int main(int argc, char** argv)
 			bool bForce = !HTTP.GetQueryParms()["force_pw_on_revert"].empty();
 			pSettings->SetForcePwOnRevert(bForce);
 			Log(HTTP, "admin.settings.security", "ok", sUser, "", {{ "force_pw_on_revert", bForce }});
-			RenderSettings(HTTP, sUser, pSettings->LoadSmtp(), pSettings->LoadAlerts(), "Security settings saved.", false,
+			RenderSettings(HTTP, sUser, pSettings->GetSmtp(), sSettingsFile, pSettings->LoadAlerts(), "Security settings saved.", false,
 			               pSettings->ForcePwOnRevert());
 		}).Parse(KRESTRoute::WWWFORM);
 
 		// fire a one-off test message to confirm the relay actually works
 		Routes.AddRoute("/admin/settings/alerts").Post(
-			[&Log, &pSession, &pUsers, &pSettings](KRESTServer& HTTP)
+			[&Log, &pSession, &pUsers, &pSettings, &sSettingsFile](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
@@ -1791,24 +2319,24 @@ int main(int argc, char** argv)
 			pSettings->SaveAlerts(A);
 			Log(HTTP, "admin.settings.alerts", "ok", sUser, "",
 			    {{ "enabled", A.bEnabled }, { "cooldown_h", A.Cooldown.hours().count() }, { "daily_max", A.iDailyMax }, { "digest", A.bDigest }});
-			RenderSettings(HTTP, sUser, pSettings->LoadSmtp(), A, "Alert settings saved.", false,
+			RenderSettings(HTTP, sUser, pSettings->GetSmtp(), sSettingsFile, A, "Alert settings saved.", false,
 			               pSettings->ForcePwOnRevert());
 		}).Parse(KRESTRoute::WWWFORM);
 
 		Routes.AddRoute("/admin/settings/test").Post(
-			[&Log, &pSession, &pUsers, &pSettings](KRESTServer& HTTP)
+			[&Log, &pSession, &pUsers, &pSettings, &sSettingsFile](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
 
-			auto    Smtp = pSettings->LoadSmtp();
+			auto    Smtp = pSettings->GetSmtp();
 			KString sTo  = HTTP.GetQueryParms()["to"];
 			KString sErr;
 			bool    bOK  = SendMailNow(Smtp, sTo, "kssod test email",
 			                        "This is a test message from kssod. If you can read it, outgoing mail works.", sErr);
 			Log(HTTP, "admin.settings.test_mail", bOK ? "ok" : "failed", sUser, sTo, bOK ? KJSON::object() : KJSON{{ "error", sErr }});
 
-			RenderSettings(HTTP, sUser, Smtp, pSettings->LoadAlerts(),
+			RenderSettings(HTTP, sUser, Smtp, sSettingsFile, pSettings->LoadAlerts(),
 			               bOK ? kFormat("Test email sent to {}.", sTo)
 			                   : kFormat("Could not send: {}", sErr),
 			               !bOK, pSettings->ForcePwOnRevert(), bOK ? 200 : KHTTPError::H4xx_BADREQUEST);
@@ -1854,32 +2382,27 @@ int main(int argc, char** argv)
 		});
 
 		Routes.AddRoute("/admin/users/add").Post(
-			[&Log, &pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+			[&Log, &pSession, &pUsers, &pSettings, &InviteUser](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
 
 			const auto& Q = HTTP.GetQueryParms();
-			KStringView sName     = Q["username"];
-			KStringView sPassword = Q["password"];
-			bool        bAdmin    = !Q["is_admin"].empty();
+			KStringView sName  = Q["username"];
+			KStringView sEmail = Q["email"];
+			bool        bAdmin = !Q["is_admin"].empty();
 
-			// echo the submitted values back on error (never the password)
+			// echo the submitted values back on error
 			KJSON Prefill = {
 				{ "username", sName         },
 				{ "name",     Q["name"]     },
-				{ "email",    Q["email"]    },
+				{ "email",    sEmail        },
 				{ "is_admin", Q["is_admin"] }
 			};
 
-			if (sName.empty() || sPassword.empty())
+			if (sName.empty())
 			{
-				RenderUsers(HTTP, sUser, *pUsers, "Username and password are required.", true, KHTTPError::H4xx_BADREQUEST, Prefill);
-				return;
-			}
-			if (sPassword.size() < 8)
-			{
-				RenderUsers(HTTP, sUser, *pUsers, "The password must be at least 8 characters.", true, KHTTPError::H4xx_BADREQUEST, Prefill);
+				RenderUsers(HTTP, sUser, *pUsers, "A username is required.", true, KHTTPError::H4xx_BADREQUEST, Prefill);
 				return;
 			}
 			if (pUsers->Exists(sName))
@@ -1887,17 +2410,45 @@ int main(int argc, char** argv)
 				RenderUsers(HTTP, sUser, *pUsers, kFormat("User '{}' already exists.", sName), true, KHTTPError::H4xx_BADREQUEST, Prefill);
 				return;
 			}
-			if (!pUsers->AddUser(sName, sPassword, Q["name"], Q["email"], bAdmin))
+			if (pUsers->IsRetired(sName))
+			{
+				RenderUsers(HTTP, sUser, *pUsers, kFormat("The name '{}' belonged to a deleted account. Apps know that "
+				            "account by its name, so the name cannot be given to a new one.", sName),
+				            true, KHTTPError::H4xx_BADREQUEST, Prefill);
+				return;
+			}
+			// with a relay the setup link goes to the address, and using it proves the address
+			if (!pUsers->AddUser(sName, Q["name"], sEmail, bAdmin, /*bEmailVerified=*/pSettings->SmtpConfigured()))
 			{
 				RenderUsers(HTTP, sUser, *pUsers, "Could not create the user.", true, KHTTPError::H5xx_ERROR, Prefill);
 				return;
 			}
-			Log(HTTP, "admin.user.add", "ok", sUser, sName, {{ "admin", bAdmin }, { "email", Q["email"] }});
-			Redirect(HTTP, "/admin/users");
+			Log(HTTP, "admin.user.add", "ok", sUser, sName, {{ "admin", bAdmin }, { "email", sEmail }});
+			InviteUser(HTTP, sUser, sName);
+		}).Parse(KRESTRoute::WWWFORM);
+
+		// a new setup link for an account that was not set up yet
+		Routes.AddRoute("/admin/users/invite").Post(
+			[&pSession, &pUsers, &InviteUser, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser;
+			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
+
+			KStringView sTarget = HTTP.GetQueryParms()["username"];
+			if (sTarget.empty() || !pUsers->Exists(sTarget)) { Redirect(HTTP, "/admin/users"); }
+
+			if (!pUsers->IsInvited(sTarget))
+			{
+				// the password of an active account is its user's alone
+				RenderUsers(HTTP, sUser, *pUsers, kFormat("{} has already set up the account.", sTarget),
+				            true, KHTTPError::H4xx_BADREQUEST);
+				return;
+			}
+			InviteUser(HTTP, sUser, sTarget);
 		}).Parse(KRESTRoute::WWWFORM);
 
 		Routes.AddRoute("/admin/users/delete").Post(
-			[&Log, &pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+			[&Log, &pSession, &pUsers, &Server, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
@@ -1913,8 +2464,14 @@ int main(int argc, char** argv)
 				RenderUserDeleteConfirm(HTTP, sUser, sTarget, *pUsers);
 				return;
 			}
-			pUsers->DeleteUser(sTarget); // cascades the user's assignments
-			Log(HTTP, "admin.user.delete", "ok", sUser, sTarget);
+			if (!pUsers->DeleteUser(sTarget)) // cascades the user's assignments
+			{
+				Log(HTTP, "admin.user.delete", "failed", sUser, sTarget);
+				RenderUsers(HTTP, sUser, *pUsers, kFormat("Could not delete the user '{}'.", sTarget), true, KHTTPError::H5xx_ERROR);
+				return;
+			}
+			std::size_t iSessions = Server.RevokeSubject(sTarget);
+			Log(HTTP, "admin.user.delete", "ok", sUser, sTarget, {{ "sessions", iSessions }});
 			Redirect(HTTP, "/admin/users");
 		}).Parse(KRESTRoute::WWWFORM);
 
@@ -1962,7 +2519,7 @@ int main(int argc, char** argv)
 		// time). Resets the verified flag + email-2FA for the new address.
 		// show the edit form for a user (name + email; the username is the key)
 		Routes.AddRoute("/admin/users/edit").Get(
-			[&pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+			[&pSession, &pUsers, &NoMailReason, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
@@ -1975,15 +2532,151 @@ int main(int argc, char** argv)
 
 			KJSON Claims;
 			pUsers->GetClaims(sTarget, Claims);
+
+			SignInHelp Help;
+			Help.bInvited  = pUsers->IsInvited(sTarget);
+			Help.bByMail   = NoMailReason(sTarget).empty();
+			Help.bTotp     = pUsers->HasTotp(sTarget);
+			Help.bEmailOtp = pUsers->HasEmailOtp(sTarget);
+
 			RenderUserEdit(HTTP, sUser, sTarget,
-			               kjson::GetStringRef(Claims, "name"), kjson::GetStringRef(Claims, "email"));
+			               kjson::GetStringRef(Claims, "name"), kjson::GetStringRef(Claims, "email"), Help,
+			               pUsers->GetScheduledEmail(sTarget));
 		});
 
-		// save name / email edits. The admin is trusted, so an email change is an
-		// immediate swap (no pending/revert dance), but it still clears the verified
-		// flag + email-2FA and sends a courtesy heads-up to the OLD address.
+		// the administrator takes back a scheduled address change
+		Routes.AddRoute("/admin/users/email/withdraw").Post(
+			[&Log, &pSession, &pUsers, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser;
+			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
+
+			KStringView sTarget = HTTP.GetQueryParms()["username"];
+			if (sTarget.empty() || !pUsers->Exists(sTarget)) { Redirect(HTTP, "/admin/users"); }
+
+			auto Scheduled = pUsers->GetScheduledEmail(sTarget);
+			if (pUsers->CancelScheduledEmail(sTarget))
+			{
+				Log(HTTP, "admin.user.email", "withdrawn", sUser, sTarget, {{ "to", Scheduled.sEmail }});
+			}
+			RenderUsers(HTTP, sUser, *pUsers, kFormat("The address of {} stays as it is.", sTarget), false);
+		}).Parse(KRESTRoute::WWWFORM);
+
+		// a password reset link for a user who cannot sign in: by mail to the
+		// user's proven address, else shown to the administrator this once
+		Routes.AddRoute("/admin/users/reset").Post(
+			[&Log, &pSession, &pUsers, &pSettings, &sIssuer, &NoMailReason, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser;
+			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
+
+			KStringView sTarget = HTTP.GetQueryParms()["username"];
+			if (sTarget.empty() || !pUsers->Exists(sTarget)) { Redirect(HTTP, "/admin/users"); }
+
+			if (pUsers->IsInvited(sTarget))
+			{
+				RenderUsers(HTTP, sUser, *pUsers, kFormat("{} has no password yet - use \"Invite again\" instead.", sTarget),
+				            true, KHTTPError::H4xx_BADREQUEST);
+				return;
+			}
+
+			KStringView sReason = NoMailReason(sTarget);
+
+			if (sReason.empty())
+			{
+				KString sEmail = pUsers->GetEmail(sTarget);
+				KString sToken = pUsers->CreateEmailToken(sTarget, "recovery");
+				KString sErr;
+				if (sToken.empty() || !SendMail(pSettings->GetSmtp(), sEmail, "Reset your kssod password",
+				        kFormat("Hello {},\r\n\r\nan administrator asked kssod to send you a link to choose a new "
+				                "password:\r\n{}/reset?token={}\r\n\r\nThe link is valid for one hour. If you did "
+				                "not ask for it, you can ignore this email, and your password stays as it is.",
+				                sTarget, sIssuer, sToken), sErr))
+				{
+					Log(HTTP, "admin.user.reset_link", "failed", sUser, sTarget, {{ "error", sErr }});
+					RenderUsers(HTTP, sUser, *pUsers, kFormat("Could not send the reset link to {}: {}", sEmail, sErr),
+					            true, KHTTPError::H5xx_ERROR);
+					return;
+				}
+				Log(HTTP, "admin.user.reset_link", "sent", sUser, sTarget, {{ "email", sEmail }});
+				RenderUsers(HTTP, sUser, *pUsers, kFormat("A password reset link for {} is on its way to {}.", sTarget, sEmail), false);
+				return;
+			}
+
+			// the administrator is trusted here, and the other administrators hear of it
+			KString sToken = pUsers->CreateEmailToken(sTarget, "recovery", {}, chrono::hours(24));
+			if (sToken.empty())
+			{
+				RenderUsers(HTTP, sUser, *pUsers, "Could not create a reset link.", true, KHTTPError::H5xx_ERROR);
+				return;
+			}
+			Log(HTTP, "admin.user.reset_link", "shown", sUser, sTarget, {{ "reason", sReason }});
+			RenderOneTimeLink(HTTP, sUser, kFormat("Password reset link for {}", sTarget),
+			    kFormat("kssod cannot mail {}, because {}. Give them this link in a way only they can read. "
+			            "With it they choose a new password, which also ends every session of the account. "
+			            "Two-step verification stays on.", sTarget, sReason),
+			    kFormat("{}/reset?token={}", sIssuer, sToken),
+			    "This page shows the link only this once, and the link is valid for 24 hours. "
+			    "The other administrators get a mail about it.");
+		}).Parse(KRESTRoute::WWWFORM);
+
+		// two-step verification for a user who lost the device: a mailed link that
+		// the user confirms with the password, else the administrator removes it
+		Routes.AddRoute("/admin/users/2fa").Post(
+			[&Log, &pSession, &pUsers, &NoMailReason, &MailTotpReset, &Redirect](KRESTServer& HTTP)
+		{
+			KString sUser;
+			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
+
+			KStringView sTarget = HTTP.GetQueryParms()["username"];
+			if (sTarget.empty() || !pUsers->Exists(sTarget)) { Redirect(HTTP, "/admin/users"); }
+
+			const bool bTotp     = pUsers->HasTotp(sTarget);
+			const bool bEmailOtp = pUsers->HasEmailOtp(sTarget);
+			KStringView sReason  = NoMailReason(sTarget);
+
+			if (sReason.empty())
+			{
+				if (!bTotp)
+				{
+					RenderUsers(HTTP, sUser, *pUsers, kFormat("{} has no authenticator app. Email codes reach their "
+					            "mailbox, there is nothing to remove.", sTarget), false);
+					return;
+				}
+				KString sErr;
+				if (!MailTotpReset(sTarget, sErr))
+				{
+					Log(HTTP, "admin.user.2fa", "failed", sUser, sTarget, {{ "error", sErr }});
+					RenderUsers(HTTP, sUser, *pUsers, kFormat("Could not send the link: {}", sErr), true, KHTTPError::H5xx_ERROR);
+					return;
+				}
+				Log(HTTP, "admin.user.2fa", "sent", sUser, sTarget);
+				RenderUsers(HTTP, sUser, *pUsers, kFormat("A link to remove the authenticator app of {} is on its way "
+				            "to {}.", sTarget, pUsers->GetEmail(sTarget)), false);
+				return;
+			}
+
+			if (!bTotp && !bEmailOtp)
+			{
+				RenderUsers(HTTP, sUser, *pUsers, kFormat("{} has no two-step verification.", sTarget), false);
+				return;
+			}
+
+			// the administrator is trusted here, and the other administrators hear of it.
+			// ClearTotp() drops the backup codes as well.
+			pUsers->ClearTotp(sTarget);
+			pUsers->SetEmailOtp(sTarget, false);
+			Log(HTTP, "admin.user.2fa", "removed", sUser, sTarget, {{ "totp", bTotp }, { "email_otp", bEmailOtp }, { "reason", sReason }});
+			RenderUsers(HTTP, sUser, *pUsers, kFormat("Two-step verification of {} is off. The password alone signs "
+			            "in until they set it up again.", sTarget), false);
+		}).Parse(KRESTRoute::WWWFORM);
+
+		// save name / email edits. An address change depends on the account: for an
+		// invited one it replaces the setup link, for one that kssod reaches at a
+		// confirmed address it waits for EmailChangeHold and the old address can
+		// cancel it, otherwise it takes effect at once and stays unconfirmed.
 		Routes.AddRoute("/admin/users/edit").Post(
-			[&Log, &pSession, &pUsers, &pSettings, &Redirect](KRESTServer& HTTP)
+			[&Log, &pSession, &pUsers, &pSettings, &sIssuer, &InviteUser, &NoMailReason, EmailChangeHold, &Redirect](KRESTServer& HTTP)
 		{
 			KString sUser;
 			if (!GateAdmin(HTTP, *pSession, *pUsers, sUser)) return;
@@ -1999,14 +2692,73 @@ int main(int argc, char** argv)
 			Log(HTTP, "admin.user.edit", "ok", sUser, sTarget, {{ "name", sName }});
 
 			KString sOld = pUsers->GetEmail(sTarget);
+			if (sEmail != sOld && !pUsers->IsInvited(sTarget) && NoMailReason(sTarget).empty())
+			{
+				// the address is how kssod reaches the user, so the change waits
+				auto Scheduled = pUsers->GetScheduledEmail(sTarget);
+				if (Scheduled.bSet && Scheduled.sEmail == sEmail)
+				{
+					// already scheduled, the waiting period does not start again
+					Redirect(HTTP, "/admin/users");
+				}
+
+				KUnixTime tWhen  = KUnixTime::now() + EmailChangeHold;
+				KString   sToken = pUsers->CreateEmailToken(sTarget, "email-cancel", {}, EmailChangeHold);
+				KString   sWhen  = kFormTimestamp(KUTCTime(tWhen), "{:%Y-%m-%d %H:%M} UTC");
+				KString   sErr;
+
+				if (sToken.empty() || !pUsers->ScheduleEmail(sTarget, sEmail, sUser, tWhen)
+				    || !SendMail(pSettings->GetSmtp(), sOld, "Your kssod email address is about to change",
+				                 kFormat("Hello {},\r\n\r\nan administrator {} of your account {} on {}. From then "
+				                         "on, password recovery mails go to the new address.\r\n\r\nIf you did not "
+				                         "ask for this, cancel it here before then, and talk to your administrators:"
+				                         "\r\n{}/email/cancel?token={}",
+				                         sTarget,
+				                         sEmail.empty() ? KString("removes the email address")
+				                                        : kFormat("changes the email address to {}", sEmail),
+				                         sTarget, sWhen, sIssuer, sToken), sErr))
+				{
+					pUsers->CancelScheduledEmail(sTarget);
+					Log(HTTP, "admin.user.email", "failed", sUser, sTarget, {{ "from", sOld }, { "to", sEmail }, { "error", sErr }});
+					RenderUsers(HTTP, sUser, *pUsers, kFormat("Could not schedule the address change of {}: {}", sTarget, sErr),
+					            true, KHTTPError::H5xx_ERROR);
+					return;
+				}
+
+				Log(HTTP, "admin.user.email", "scheduled", sUser, sTarget, {{ "from", sOld }, { "to", sEmail }, { "effective", sWhen }});
+				RenderUsers(HTTP, sUser, *pUsers, sEmail.empty()
+				    ? kFormat("The address of {} is removed on {}, unless {} cancels it before.", sTarget, sWhen, sOld)
+				    : kFormat("The address of {} changes to {} on {}, unless {} cancels it before.", sTarget, sEmail, sWhen, sOld),
+				    false);
+				return;
+			}
+
 			if (sEmail != sOld)
 			{
 				pUsers->SetEmail(sTarget, sEmail);
 				Log(HTTP, "admin.user.email", "ok", sUser, sTarget, {{ "from", sOld }, { "to", sEmail }});
+
+				if (pUsers->IsInvited(sTarget))
+				{
+					// the open setup link may have gone to the old address
+					pUsers->DropEmailTokens(sTarget, "setup");
+
+					if (pSettings->SmtpConfigured() && !sEmail.empty())
+					{
+						// the new link goes to the new address, and using it proves the address
+						pUsers->SetEmailVerified(sTarget, true);
+						InviteUser(HTTP, sUser, sTarget);
+						return;
+					}
+					RenderUsers(HTTP, sUser, *pUsers, kFormat("The setup link of {} is no longer valid - use "
+					            "\"Invite again\" for a new one.", sTarget), false);
+					return;
+				}
+
 				if (pSettings->SmtpConfigured() && !sOld.empty())
 				{
 					KString sErr;
-					SendMail(pSettings->LoadSmtp(), sOld, "Your kssod email was changed",
+					SendMail(pSettings->GetSmtp(), sOld, "Your kssod email was changed",
 					         kFormat("Hello {},\r\n\r\nan administrator changed your account's email address to {}. "
 					                 "If you did not expect this, contact your administrator.", sTarget, sEmail), sErr);
 				}

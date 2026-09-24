@@ -61,6 +61,12 @@ constexpr KSSOdWatchdog::Rule s_Rules[] =
 	{ "sso.token",      "denied",         KSSOdWatchdog::Kind::Alert,  "SSO token refused"                                   , false },
 	{ "sso.refresh",    "denied",         KSSOdWatchdog::Kind::Alert,  "SSO refresh refused"                                 , false },
 	{ "auth.recovery",  "throttled",      KSSOdWatchdog::Kind::Alert,  "password recovery throttled"                         , true  },
+	{ "account.2fa.totp", "wrong_password", KSSOdWatchdog::Kind::Alert, "wrong password on a mailed link that removes the authenticator app", false },
+	// --- oversight: an administrator used the trust placed in them -------------
+	{ "admin.user.reset_link", "shown",   KSSOdWatchdog::Kind::Oversight, "an administrator created a password reset link for an account", false },
+	{ "admin.user.2fa",        "removed", KSSOdWatchdog::Kind::Oversight, "an administrator removed the two-step verification of an account", false },
+	{ "admin.user.email",      "scheduled", KSSOdWatchdog::Kind::Oversight, "an administrator scheduled a change of a confirmed email address", false },
+	{ "account.email.scheduled_cancelled", "", KSSOdWatchdog::Kind::Oversight, "an address change by an administrator was cancelled", false },
 	// --- digest: the configuration moved ---------------------------------------
 	{ "admin.",         "",               KSSOdWatchdog::Kind::Digest, "", false },
 	{ "account.2fa.totp",  "disabled",    KSSOdWatchdog::Kind::Digest, "", false },
@@ -68,6 +74,8 @@ constexpr KSSOdWatchdog::Rule s_Rules[] =
 	{ "account.2fa.backup_codes", "",     KSSOdWatchdog::Kind::Digest, "", false },
 	{ "account.email.changed",  "",       KSSOdWatchdog::Kind::Digest, "", false },
 	{ "account.password", "ok",           KSSOdWatchdog::Kind::Digest, "", false },
+	{ "account.setup",  "ok",             KSSOdWatchdog::Kind::Digest, "", false },
+	{ "account.2fa.totp", "reset",        KSSOdWatchdog::Kind::Digest, "", false },
 	{ "auth.recovery",  "password_reset", KSSOdWatchdog::Kind::Digest, "", false },
 };
 
@@ -120,7 +128,11 @@ void KSSOdWatchdog::Observe(const KSSOdAuditStore::Entry& E)
 
 	KUnixTime tNow = KUnixTime::now();
 
-	if (R->eKind == Kind::Alert)
+	if (R->eKind == Kind::Oversight)
+	{
+		SendOversight(*R, E, tNow);
+	}
+	else if (R->eKind == Kind::Alert)
 	{
 		QueueAlert(*R, E, tNow);
 	}
@@ -211,6 +223,30 @@ void KSSOdWatchdog::QueueAlert(const Rule& R, const KSSOdAuditStore::Entry& E, K
 } // QueueAlert
 
 //-----------------------------------------------------------------------------
+void KSSOdWatchdog::SendOversight(const Rule& R, const KSSOdAuditStore::Entry& E, KUnixTime tNow)
+//-----------------------------------------------------------------------------
+{
+	// no alert switch, no cooldown, no daily cap: each of these goes out
+	KString sSubject = kFormat("[kssod] {}: {}", R.sTitle, E.sSubject);
+	KString sBody    = kFormat("kssod watchdog\n\n{}\n\n{}\n", R.sTitle, Line(E));
+	if (!E.sUA.empty()) sBody += kFormat("user agent: {}\n", E.sUA);
+	if (E.sEvent.starts_with("admin."))
+	{
+		sBody += kFormat("\nThis action works only because administrators are trusted. If {} did not "
+		                 "agree it with you, ask them about it.\n", E.sActor);
+	}
+	KUnixTime tSince = tNow - std::chrono::hours(24);
+	sBody += kFormat("\nAudit trail:\n  {}\n", AuditLink("user", E.sSubject, tSince));
+	if (!E.sActor.empty() && E.sActor != E.sSubject)
+	{
+		sBody += kFormat("  {}\n", AuditLink("user", E.sActor, tSince));
+	}
+
+	Send(kFormat("oversight|{}|{}", R.sTitle, E.sSubject), sSubject, sBody, E.sActor);
+
+} // SendOversight
+
+//-----------------------------------------------------------------------------
 void KSSOdWatchdog::SendDigest()
 //-----------------------------------------------------------------------------
 {
@@ -248,29 +284,32 @@ void KSSOdWatchdog::Tick(KUnixTime tNow)
 } // Tick
 
 //-----------------------------------------------------------------------------
-std::vector<KString> KSSOdWatchdog::Recipients()
+std::vector<KString> KSSOdWatchdog::Recipients(KStringView sExcept)
 //-----------------------------------------------------------------------------
 {
 	std::vector<KString> Out;
 	for (const auto& U : m_Users.List())
 	{
-		if (U.bAdmin && !U.sEmail.empty() && m_Users.IsEmailVerified(U.sUsername)) Out.push_back(U.sEmail);
+		if (U.bAdmin && U.sUsername != sExcept && !U.sEmail.empty() && m_Users.IsEmailVerified(U.sUsername))
+		{
+			Out.push_back(U.sEmail);
+		}
 	}
 	return Out;
 
 } // Recipients
 
 //-----------------------------------------------------------------------------
-void KSSOdWatchdog::Send(KStringView sKey, KStringView sSubject, KStringView sBody)
+void KSSOdWatchdog::Send(KStringView sKey, KStringView sSubject, KStringView sBody, KStringView sExcept)
 //-----------------------------------------------------------------------------
 {
-	auto Smtp = m_Settings.LoadSmtp();
+	auto Smtp = m_Settings.GetSmtp();
 	if (!Smtp.IsConfigured())
 	{
 		kDebug(1, "watchdog: no mail relay, dropping '{}'", sSubject);
 		return;
 	}
-	auto To = Recipients();
+	auto To = Recipients(sExcept);
 	if (To.empty())
 	{
 		m_Audit.Write("watchdog.mail", "no_recipient", "", sKey, "", "", {{ "subject", sSubject }});

@@ -85,6 +85,7 @@ struct AccountState
 	bool        bEmailOtp      { false }; ///< email used as the second factor
 	bool        bSmtp          { false }; ///< an email relay is configured
 	std::vector<SessionView> Sessions;    ///< this user's live SSO sessions
+	KSSOdUserStore::ScheduledEmail Scheduled; ///< an address change by an administrator that is still waiting
 };
 
 // --- end-user pages ---
@@ -108,16 +109,50 @@ void RenderLogoutConfirm(KRESTServer& HTTP, KStringView sUser, bool bAdmin,
                          KStringView sClientID = {}, KStringView sPostLogout = {}, KStringView sState = {});
 void RenderForgot    (KRESTServer& HTTP, KStringView sMsg, bool bError, uint16_t iStatus = 200);
 void RenderReset     (KRESTServer& HTTP, KStringView sToken, KStringView sError, uint16_t iStatus = 200);
+/// the setup page of an invited account: the user chooses the first password. With
+/// bConfirmEmail the page asks the user to confirm sEmail as their address.
+void RenderSetup     (KRESTServer& HTTP, KStringView sToken, KStringView sUsername, KStringView sEmail,
+                      bool bConfirmEmail, KStringView sError, uint16_t iStatus = 200);
+/// the page behind the verification link: the user confirms sAddress for the
+/// account, as its new address with bNewAddress
+void RenderEmailVerify(KRESTServer& HTTP, KStringView sToken, KStringView sUsername,
+                       KStringView sAddress, bool bNewAddress);
+/// the page behind the undo link in the security notice to the old address. The
+/// change completed when sCurrentEmail differs from sOldEmail, else sPendingEmail
+/// is still waiting for its confirmation.
+void RenderEmailUndo (KRESTServer& HTTP, KStringView sToken, KStringView sUsername, KStringView sOldEmail,
+                      KStringView sCurrentEmail, KStringView sPendingEmail, bool bForcePassword);
+/// the page behind the link to the old address that cancels an address change by
+/// an administrator
+void RenderEmailCancel(KRESTServer& HTTP, KStringView sToken, KStringView sUsername,
+                       const KSSOdUserStore::ScheduledEmail& Scheduled);
+/// the page behind a mailed link that removes the authenticator app: the user
+/// confirms with the password
+void RenderTotpReset (KRESTServer& HTTP, KStringView sToken, KStringView sUsername,
+                      KStringView sError, uint16_t iStatus = 200);
 
 // --- admin pages ---
+/// a link that kssod cannot mail, shown to the administrator this once to pass on:
+/// sText explains it above the link, sHelp below
+void RenderOneTimeLink(KRESTServer& HTTP, KStringView sAdmin, KStringView sTitle,
+                       KStringView sText, KStringView sLink, KStringView sHelp);
 void RenderForbidden (KRESTServer& HTTP, KStringView sUser);
 void RenderAdminHome (KRESTServer& HTTP, KStringView sUser);
 void RenderSettings  (KRESTServer& HTTP, KStringView sUser, const KSSOdSettingsStore::Smtp& Smtp,
-                      const KSSOdSettingsStore::Alerts& Alerts,
+                      KStringView sSettingsFile, const KSSOdSettingsStore::Alerts& Alerts,
                       KStringView sMsg, bool bError, bool bForcePwOnRevert = true, uint16_t iStatus = 200);
+/// what the administrator can do for a user who cannot sign in (see RenderUserEdit)
+struct SignInHelp
+{
+	bool bInvited  { false }; ///< no password yet: the setup link is the way in
+	bool bByMail   { false }; ///< a relay and a verified address: links reach the user by mail only
+	bool bTotp     { false }; ///< an authenticator app is the second factor
+	bool bEmailOtp { false }; ///< email codes are the second factor
+};
 void RenderUserEdit  (KRESTServer& HTTP, KStringView sAdmin, KStringView sTargetUser,
-                      KStringView sName, KStringView sEmail, KStringView sMsg = {}, bool bError = false,
-                      uint16_t iStatus = 200);
+                      KStringView sName, KStringView sEmail, const SignInHelp& Help,
+                      const KSSOdUserStore::ScheduledEmail& Scheduled,
+                      KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200);
 void RenderUsers     (KRESTServer& HTTP, KStringView sUser, KSSOdUserStore& Users,
                       KStringView sMsg = {}, bool bError = false, uint16_t iStatus = 200,
                       const KJSON& Prefill = KJSON::object());

@@ -48,6 +48,14 @@
 //               counted and reported in the next mail, never dropped silently.
 //   * digest  - configuration changes (users, clients, roles, settings, 2FA off,
 //               email changed) summarised once a day.
+//   * oversight - an administrator did something that works only because
+//               administrators are trusted: a password reset link shown to them,
+//               two-step verification removed by them, a confirmed address
+//               scheduled to change - or the user cancelled such a change. Mailed
+//               at once to every administrator except the one who acted, whatever
+//               the alert settings say, without cooldown or daily cap: it is the
+//               four-eyes principle, and the acting administrator must not be able
+//               to switch it off.
 // Mails go to every administrator with a verified address, through the mail
 // spool (SendMail): queued at once, delivered by the spool when the relay
 // answers. Without a relay the watchdog stays asleep. It only reports; it never
@@ -84,7 +92,7 @@ public:
 	void Tick(KUnixTime tNow);
 
 	// the rule table (kssod_watchdog.cpp) is spelled in these terms
-	enum class Kind { Alert, Digest };
+	enum class Kind { Alert, Digest, Oversight };
 
 	struct Rule
 	{
@@ -105,10 +113,11 @@ private:
 	};
 
 	void QueueAlert(const Rule& R, const KSSOdAuditStore::Entry& E, KUnixTime tNow);
+	void SendOversight(const Rule& R, const KSSOdAuditStore::Entry& E, KUnixTime tNow);
 	void SendDigest();
-	/// hand a mail to every administrator over to the spool, and audit that
-	void Send(KStringView sKey, KStringView sSubject, KStringView sBody);
-	std::vector<KString> Recipients();
+	/// hand a mail to every administrator except sExcept over to the spool, and audit that
+	void Send(KStringView sKey, KStringView sSubject, KStringView sBody, KStringView sExcept = {});
+	std::vector<KString> Recipients(KStringView sExcept = {});
 	KString AuditLink(KStringView sKey, KStringView sValue, KUnixTime tSince) const;
 
 	KSSOdUserStore&     m_Users;

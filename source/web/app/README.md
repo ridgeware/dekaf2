@@ -114,7 +114,7 @@ Routes.AddRoute({ KHTTPMethod::GET, false, "", [](KRESTServer& HTTP)
 
 KWebApp::Options Options;
 Options.sTitle   = "Hello";
-Options.sAppName = "hello";              // ~/.config/hello/ holds the window geometry and the instance lock
+Options.sAppName = "hello";              // ~/.config/hello/ holds kwa_settings.json (language, window geometry) and the instance lock
 Options.jMenus   = kjson::Parse(R"([ { "title": "File", "items": [ { "title": "Save", "key": "s", "action": "save" } ] } ])");
 
 KWebApp App(std::move(Options), Routes); // KREST::Options is move-only
@@ -179,7 +179,7 @@ uses comes from the CLDR data in `from/cldr/` (`KStringCatalog::LikelyScript()`)
 | What | Language source |
 |---|---|
 | a request (page, login) | cookie `lang`, else `Accept-Language`, else the default language - `GetLanguage(HTTP)`, `Text(HTTP)` |
-| menus, notifications, dialogs | `Options.sLanguage`, else the user's choice from the last run (`settings.json`), else the system languages (`PreferredLanguages()`) - `GetLanguage()` |
+| menus, notifications, dialogs | `Options.sLanguage`, else the user's choice from the last run (`kwa_settings.json`), else the system languages (`PreferredLanguages()`) - `GetLanguage()` |
 | the user's choice | `POST /_kwa/lang` with `lang` and `next`: sets the cookie, from the window also the setting |
 
 The webviews send `Accept-Language` from the system settings, so the window

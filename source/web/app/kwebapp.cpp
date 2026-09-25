@@ -116,11 +116,10 @@ constexpr KStringView sHealthPath = "/healthz";
 constexpr KStringView sLivePath   = "/_kwa/live";
 constexpr KStringView sLiveScript = "/_kwa/live.js";
 constexpr KStringView sBindPrefix = "__kwa_";
-constexpr KStringView sWindowFile = "window.json";
 constexpr KStringView sLockFile   = "instance.lock";
 constexpr KStringView sAboutBlank = "about:blank";
 constexpr KStringView sLangCookie = "lang";
-constexpr KStringView sSettingsFile = "settings.json";
+constexpr KStringView sSettingsFile = "kwa_settings.json";
 
 // the builtins that keep secrets - published only where the navigation rules hold
 constexpr KStringView SecretBindings[] = { "saveSecret", "loadSecret", "deleteSecret" };
@@ -204,6 +203,8 @@ KWebApp::KWebApp(Options Options, KRESTRoutes& Routes)
 : m_Options(std::move(Options))
 , m_Routes(Routes)
 , m_Catalog(m_Options.Catalog ? KStringView(m_Options.Catalog->GetDefaultLanguage()) : KStringView("en"))
+, m_sConfigDir(ConfigDir(m_Options))
+, m_Settings(kFormat("{}/{}", m_sConfigDir, sSettingsFile))
 , m_sToken(kHex(kGetRandom(32)))
 {
 	// our texts first, the application's over them
@@ -224,10 +225,23 @@ KWebApp::KWebApp(Options Options, KRESTRoutes& Routes)
 	m_Routes.AddRoute(sLiveScript ).Get ([this](KRESTServer& HTTP) { LiveScript (HTTP); });
 	m_Routes.AddRoute(sLivePath   ).Get ([this](KRESTServer& HTTP) { Live       (HTTP); }).Parse(KRESTRoute::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
 
-	// ~/.config/<app>/ keeps the window geometry and the instance lock
-	m_sConfigDir = m_Options.sAppName.empty() ? kGetConfigPath() : kFormat("{}/.config/{}", kGetHome(), m_Options.sAppName);
+	// the config directory keeps the settings and the instance lock
 	kCreateDir(m_sConfigDir);
-	LoadSettings();
+
+	// KWebApp kept its settings in these two files until 2026-09, they are not
+	// read any more. Remove these two lines in 12/2026.
+	kRemoveFile(kFormat("{}/settings.json", m_sConfigDir));
+	kRemoveFile(kFormat("{}/window.json",   m_sConfigDir));
+
+	// KConfig loaded the settings already, and reported a file it cannot read
+	if (!m_Settings.Get().is_object())
+	{
+		if (m_Settings.Loaded())
+		{
+			kDebug(1, "{} holds no JSON object, ignored", m_Settings.Path());
+		}
+		m_Settings.Get() = KJSON::object();
+	}
 
 	// the language of menus and notifications: the option, the user's setting
 	// from the last run, else the system's languages - always one the catalog has
@@ -235,7 +249,7 @@ KWebApp::KWebApp(Options Options, KRESTRoutes& Routes)
 
 	if (sWanted.empty())
 	{
-		sWanted = m_jSettings["language"].String();
+		sWanted = m_Settings("language").String();
 	}
 
 	if (sWanted.empty())
@@ -1592,23 +1606,26 @@ void KWebApp::MenuAction(KStringView sAction)
 void KWebApp::LoadWindowFrame()
 //-----------------------------------------------------------------------------
 {
-	KString sJSON;
+	kwebapp::WindowFrame Frame;
 	{
-		KInFile File(kFormat("{}/{}", m_sConfigDir, sWindowFile));
+		std::lock_guard<std::mutex> Lock(m_Mutex);
 
-		if (!File.is_open() || !File.ReadRemaining(sJSON))
+		if (!m_Settings("window").is_object())
 		{
 			return;
 		}
+
+		Frame.iX      = static_cast<int32_t>(m_Settings("/window/x"     ).Int64());
+		Frame.iY      = static_cast<int32_t>(m_Settings("/window/y"     ).Int64());
+		Frame.iWidth  = static_cast<int32_t>(m_Settings("/window/width" ).Int64());
+		Frame.iHeight = static_cast<int32_t>(m_Settings("/window/height").Int64());
 	}
 
-	auto jFrame = kjson::Parse(sJSON);
-
-	kwebapp::WindowFrame Frame;
-	Frame.iX      = static_cast<int32_t>(jFrame["x"     ].Int64());
-	Frame.iY      = static_cast<int32_t>(jFrame["y"     ].Int64());
-	Frame.iWidth  = static_cast<int32_t>(jFrame["width" ].Int64());
-	Frame.iHeight = static_cast<int32_t>(jFrame["height"].Int64());
+	// a frame without a size is none
+	if (Frame.iWidth <= 0 || Frame.iHeight <= 0)
+	{
+		return;
+	}
 
 	kwebapp::SetWindowFrame(WindowHandle(), Frame);
 
@@ -1619,15 +1636,11 @@ void KWebApp::SaveWindowFrame()
 //-----------------------------------------------------------------------------
 {
 	// the last frame the window reported - the window itself is gone by now
-	KJSON jFrame;
-	{
-		std::lock_guard<std::mutex> Lock(m_Mutex);
-		jFrame = m_jWindowFrame;
-	}
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 
-	if (!jFrame.is_null())
+	if (m_Settings("window").is_object())
 	{
-		kWriteFile(kFormat("{}/{}", m_sConfigDir, sWindowFile), jFrame.dump());
+		m_Settings.Save();
 	}
 
 } // SaveWindowFrame
@@ -1983,8 +1996,9 @@ void KWebApp::SetLanguage(KRESTServer& HTTP)
 	}
 	else
 	{
-		m_jSettings["language"] = sLanguage;
-		SaveSettings();
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		m_Settings["language"] = sLanguage;
+		m_Settings.Save();
 	}
 
 	kDebug(2, "language set to {} for {}", sLanguage, IsFromWindow(HTTP) ? "the window" : "a browser");
@@ -1994,37 +2008,12 @@ void KWebApp::SetLanguage(KRESTServer& HTTP)
 } // SetLanguage
 
 //-----------------------------------------------------------------------------
-void KWebApp::LoadSettings()
+KString KWebApp::ConfigDir(const Options& Options)
 //-----------------------------------------------------------------------------
 {
-	m_jSettings = KJSON::object();
+	return Options.sAppName.empty() ? KString(kGetConfigPath()) : kFormat("{}/.config/{}", kGetHome(), Options.sAppName);
 
-	KString sJSON;
-	{
-		KInFile File(kFormat("{}/{}", m_sConfigDir, sSettingsFile));
-
-		if (!File.is_open() || !File.ReadRemaining(sJSON))
-		{
-			return;
-		}
-	}
-
-	auto jSettings = kjson::Parse(sJSON);
-
-	if (jSettings.is_object())
-	{
-		m_jSettings = std::move(jSettings);
-	}
-
-} // LoadSettings
-
-//-----------------------------------------------------------------------------
-void KWebApp::SaveSettings()
-//-----------------------------------------------------------------------------
-{
-	kWriteFile(kFormat("{}/{}", m_sConfigDir, sSettingsFile), m_jSettings.dump(1, '\t'));
-
-} // SaveSettings
+} // ConfigDir
 
 //-----------------------------------------------------------------------------
 KJSON KWebApp::TranslatedMenus() const
@@ -2406,10 +2395,11 @@ void KWebApp::RememberFrame(const kwebapp::WindowFrame& Frame)
 //-----------------------------------------------------------------------------
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
-	m_jWindowFrame["x"]      = Frame.iX;
-	m_jWindowFrame["y"]      = Frame.iY;
-	m_jWindowFrame["width"]  = Frame.iWidth;
-	m_jWindowFrame["height"] = Frame.iHeight;
+	auto& jWindow = m_Settings["window"];
+	jWindow["x"]      = Frame.iX;
+	jWindow["y"]      = Frame.iY;
+	jWindow["width"]  = Frame.iWidth;
+	jWindow["height"] = Frame.iHeight;
 
 } // RememberFrame
 

@@ -296,6 +296,51 @@ TEST_CASE("KWebApp")
 		CHECK ( English.GetLanguage() == "en" );
 	}
 
+	SECTION("the settings of the last run")
+	{
+		// the config directory of the app lives in a temporary home
+		KTempDir Home;
+#ifdef DEKAF2_IS_WINDOWS
+		constexpr KStringViewZ sHomeVar = "USERPROFILE";
+#else
+		constexpr KStringViewZ sHomeVar = "HOME";
+#endif
+		struct HomeGuard
+		{
+			KString sName;
+			KString sOld;
+			HomeGuard(KStringViewZ sVar, KStringViewZ sNew) : sName(sVar), sOld(kGetEnv(sVar)) { kSetEnv(sVar, sNew); }
+			~HomeGuard() { kSetEnv(sName, sOld); }
+		} Guard(sHomeVar, Home.Name());
+
+		auto sDir      = kFormat("{}/.config/kwebapp-settings-test", Home.Name());
+		auto sSettings = kFormat("{}/kwa_settings.json", sDir);
+		REQUIRE ( kCreateDir(sDir) );
+		REQUIRE ( kWriteFile(sSettings, R"({ "language": "ko", "window": { "width": 800, "height": 600 } })") );
+
+		auto MakeOptions = []()
+		{
+			KWebApp::Options Opts;
+			Opts.bWindow  = false;
+			Opts.sAppName = "kwebapp-settings-test";
+			return Opts;
+		};
+
+		{
+			KWebApp Settled(MakeOptions(), Routes);
+			REQUIRE ( Settled.HasError() == false );
+			CHECK ( Settled.GetLanguage() == "ko" );
+		}
+
+		// a broken settings file is reported and ignored
+		REQUIRE ( kWriteFile(sSettings, "{ \"language\": ") );
+		{
+			KWebApp Fresh(MakeOptions(), Routes);
+			CHECK ( Fresh.HasError() == false );
+			CHECK ( Fresh.GetCatalog().HasLanguage(Fresh.GetLanguage()) == true );
+		}
+	}
+
 	SECTION("secrets")
 	{
 		// a key of its own, in case a run before left one behind

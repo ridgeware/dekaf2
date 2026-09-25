@@ -54,6 +54,7 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/strings/kstringview.h>
 #include <dekaf2/crypto/auth/ksession.h>
+#include <dekaf2/data/json/kconfig.h>
 #include <dekaf2/data/json/kjson.h>
 #include <dekaf2/rest/framework/krest.h>
 #include <dekaf2/rest/framework/krestroute.h>
@@ -286,8 +287,9 @@ public:
 		bool           bDebug  { false };
 		/// end Run() when the window closes? false keeps a network server running until Quit()
 		bool           bQuitOnWindowClose { true };
-		/// the application's name for ~/.config/\<name\>/, where the window geometry and the
-		/// instance lock live - empty means the program name
+		/// the application's name for ~/.config/\<name\>/, where kwa_settings.json (the language
+		/// and the window geometry of the last run) and the instance lock live - empty means
+		/// the config directory of the program
 		KString        sAppName;
 		/// one window per user - a second start brings the first to the front and ends
 		bool           bSingleInstance    { true };
@@ -545,8 +547,6 @@ private:
 	void    Logout       (KRESTServer& HTTP);
 	void    Health       (KRESTServer& HTTP);
 	void    SetLanguage  (KRESTServer& HTTP);
-	void    LoadSettings ();
-	void    SaveSettings ();
 	KJSON   TranslatedMenus() const;
 	bool    StartLoopback();
 	bool    StartNetwork ();
@@ -571,6 +571,8 @@ private:
 	void    Activated    ();
 	void    NotificationClicked(KStringView sTag);
 
+	/// ~/.config/<app>/, or the config directory of the program without an app name
+	static KString ConfigDir   (const Options& Options);
 	static bool    IsIdentifier(KStringView sName);
 	static bool    IsWebURL    (KStringView sURL);
 	static KString Origin      (KStringView sURL);
@@ -583,7 +585,10 @@ private:
 	KRESTRoutes&                      m_Routes;
 	KStringCatalog                    m_Catalog;
 	KString                           m_sLanguage;
-	KJSON                             m_jSettings;
+	KString                           m_sConfigDir;
+	/// the user's settings from the last run, kwa_settings.json in m_sConfigDir: the
+	/// language, and the window frame under "window" - guarded by m_Mutex
+	KConfig                           m_Settings;
 	std::unique_ptr<KREST>            m_REST;
 	std::unique_ptr<KREST>            m_Network;
 	std::unique_ptr<KSession>         m_Session;
@@ -607,8 +612,6 @@ private:
 	// the two shutdown signals and the handlers they had before - written once, iterated once
 	std::vector<std::pair<int, std::function<void(int)>>> m_PreviousSignalHandlers;
 	std::unique_ptr<KFileLock>        m_InstanceLock;
-	KString                           m_sConfigDir;
-	KJSON                             m_jWindowFrame;
 	int64_t                           m_iAttention     { 0 };
 	uint16_t                          m_iPort          { 0 };
 	uint16_t                          m_iNetworkPort   { 0 };

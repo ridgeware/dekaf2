@@ -44,7 +44,6 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/io/readwrite/kreader.h>
-#include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/core/format/kformat.h>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -88,22 +87,32 @@ bool KConfig::Load (KStringViewZ sPath/*=""*/)
 	}
 
 	m_bLoaded = false;
+	ClearError();
 
 	if (m_sPath.empty() || !kFileExists(m_sPath))
 	{
+		// no config yet - not an error
 		return false;
 	}
 
-	KInFile fin(m_sPath);
-	if (!fin.is_open())
+	// The whole file as UTF-8, whatever encoding its byte order mark announces.
+	// A config file is small, and the string parser is faster than the stream
+	// parser and strict: it refuses content after the JSON value, which the
+	// stream parser leaves unread.
+	KString sText;
+
+	if (!kReadText(m_sPath, sText))
 	{
-		return false;
+		m_JSON = KJSON{};
+		return SetError(kFormat("cannot read {}", m_sPath));
 	}
 
-	// Parse without throwing - we return false on parse errors
-	if (!m_JSON.Parse(fin, /*bThrow=*/false))
+	KString sError;
+
+	if (!kjson::Parse(m_JSON, sText, sError))
 	{
-		return false;
+		m_JSON = KJSON{};
+		return SetError(kFormat("{}: {}", m_sPath, sError));
 	}
 
 	m_bLoaded = true;
@@ -113,7 +122,7 @@ bool KConfig::Load (KStringViewZ sPath/*=""*/)
 } // Load
 
 //-----------------------------------------------------------------------------
-bool KConfig::Save (KStringViewZ sPath/*=""*/)
+bool KConfig::Save (KStringViewZ sPath/*=""*/, int iMode/*=DEKAF2_MODE_CREATE_FILE*/)
 //-----------------------------------------------------------------------------
 {
 	if (!sPath.empty())
@@ -121,9 +130,11 @@ bool KConfig::Save (KStringViewZ sPath/*=""*/)
 		m_sPath = sPath;
 	}
 
+	ClearError();
+
 	if (m_sPath.empty())
 	{
-		return false;
+		return SetError("no path to save the configuration to");
 	}
 
 	// If the target path is inside the standard config directory, let
@@ -154,29 +165,27 @@ bool KConfig::Save (KStringViewZ sPath/*=""*/)
 		{
 			if (!kCreateDir(sDir, DEKAF2_MODE_CREATE_DIR, /*bCreateIntermediates=*/true))
 			{
-				return false;
+				return SetError(kFormat("cannot create the directory {}", sDir));
 			}
 		}
-	}
-
-	KOutFile fout(m_sPath);
-
-	if (!fout.is_open())
-	{
-		return false;
 	}
 
 	// An untouched KConfig holds a null JSON. For a hand-editable config
 	// file, an empty object "{}" is friendlier than a literal "null".
 	if (m_JSON.is_null())
 	{
-		m_JSON = KJSON2::object();
+		m_JSON = KJSON::object();
 	}
 
-	// Pretty-printed for hand-editability
-	m_JSON.Serialize(fout, /*bPretty=*/true);
+	// Pretty-printed for hand-editability. kWriteFile() applies a mode other
+	// than the default when it creates the file, so a file with credentials is
+	// never readable by others, not even for a moment.
+	if (!kWriteFile(m_sPath, kFormat("{}\n", m_JSON.Serialize(/*bPretty=*/true)), iMode))
+	{
+		return SetError(kFormat("cannot write {}", m_sPath));
+	}
 
-	return fout.Good();
+	return true;
 
 } // Save
 

@@ -43,7 +43,7 @@ TEST_CASE("KConfig")
 		CHECK ( !writer.Loaded() );
 		writer["display"]["format"] = "ascii";
 		writer["display"]["width"]  = 120;
-		writer["features"]          = KJSON2::array();
+		writer["features"]          = KJSON::array();
 		writer["features"]         += "alpha";
 		writer["features"]         += "beta";
 		CHECK ( writer.Save() );
@@ -150,4 +150,110 @@ TEST_CASE("KConfig")
 		CHECK ( reader.Load() );
 		CHECK ( reader.Get().is_object() );
 	}
+
+	SECTION("a missing file is no error")
+	{
+		KTempDir Tmp;
+		KConfig cfg(kFormat("{}{}missing.json", Tmp.Name(), kDirSep));
+		CHECK ( !cfg.Loaded() );
+		CHECK ( !cfg.HasError() );
+	}
+
+	SECTION("a parse error names the file and the position")
+	{
+		KTempDir Tmp;
+		auto sFile = kFormat("{}{}broken.json", Tmp.Name(), kDirSep);
+		REQUIRE ( kWriteFile(sFile, "{\n\t\"a\": \n}\n") );
+
+		KConfig cfg(sFile);
+		CHECK ( !cfg.Loaded() );
+		CHECK ( cfg.HasError() );
+		CHECK ( cfg.Error().contains(sFile) );
+		CHECK ( cfg.Error().contains("line 3") );
+		CHECK ( cfg.Get().is_null() );
+	}
+
+	SECTION("content after the JSON value is an error")
+	{
+		KTempDir Tmp;
+		auto sFile = kFormat("{}{}trailing.json", Tmp.Name(), kDirSep);
+
+		// a second object, and the leftover of a merge conflict
+		for (KStringView sTrailer : { "{\"b\": 2}\n", "<<<<<<< HEAD\n" })
+		{
+			REQUIRE ( kWriteFile(sFile, kFormat("{{\"a\": 1}}\n{}", sTrailer)) );
+			KConfig cfg(sFile);
+			CHECK ( !cfg.Loaded() );
+			CHECK ( cfg.HasError() );
+		}
+
+		// white space after the value is fine
+		REQUIRE ( kWriteFile(sFile, "{\"a\": 1}\n\n  \t\n") );
+		KConfig cfg(sFile);
+		CHECK ( cfg.Loaded() );
+		CHECK ( cfg("a").UInt64() == 1 );
+	}
+
+	SECTION("UTF-8 with byte order mark, and UTF-16 with byte order mark")
+	{
+		KTempDir Tmp;
+		auto sFile = kFormat("{}{}encoded.json", Tmp.Name(), kDirSep);
+
+		REQUIRE ( kWriteFile(sFile, "\xEF\xBB\xBF{\"name\": \"Gr\xC3\xBC\xC3\x9F\"}\n") );
+		{
+			KConfig cfg(sFile);
+			CHECK ( cfg.Loaded() );
+			CHECK ( cfg("name").String() == "Gr\xC3\xBC\xC3\x9F" );
+		}
+
+		// what Windows PowerShell 5.1 writes with > or Out-File: UTF-16 LE with BOM
+		KString sUTF16 { "\xFF\xFE" };
+		for (auto ch : KStringView("{\"name\": \"Gr")) { sUTF16 += ch; sUTF16 += '\0'; }
+		sUTF16 += "\xFC"; sUTF16 += '\0'; // u umlaut
+		sUTF16 += "\xDF"; sUTF16 += '\0'; // sharp s
+		for (auto ch : KStringView("\"}\r\n"))   { sUTF16 += ch; sUTF16 += '\0'; }
+		REQUIRE ( kWriteFile(sFile, sUTF16) );
+		{
+			KConfig cfg(sFile);
+			CHECK ( cfg.Loaded() );
+			CHECK ( cfg("name").String() == "Gr\xC3\xBC\xC3\x9F" );
+
+			// saving writes UTF-8 without byte order mark
+			CHECK ( cfg.Save() );
+			CHECK ( kReadAll(sFile).starts_with("{") );
+		}
+	}
+
+	SECTION("Save reports a failure")
+	{
+		KTempDir Tmp;
+		auto sBlocker = kFormat("{}{}file", Tmp.Name(), kDirSep);
+		REQUIRE ( kWriteFile(sBlocker, "x") );
+
+		// the parent of the target is a regular file
+		KConfig cfg(kFormat("{}{}config.json", sBlocker, kDirSep));
+		cfg["a"] = 1;
+		CHECK ( !cfg.Save() );
+		CHECK ( cfg.HasError() );
+		CHECK ( !cfg.Error().empty() );
+	}
+
+#ifdef DEKAF2_IS_UNIX
+	SECTION("Save with a file mode")
+	{
+		KTempDir Tmp;
+		auto sFile = kFormat("{}{}secret.json", Tmp.Name(), kDirSep);
+
+		KConfig cfg(sFile);
+		cfg["password"] = "not for others";
+		CHECK ( cfg.Save({}, 0600) );
+		CHECK ( (kGetMode(sFile) & 0777) == 0600 );
+
+		// an existing, wider file is narrowed
+		REQUIRE ( kChangeMode(sFile, 0644) );
+		CHECK ( cfg.Save({}, 0600) );
+		CHECK ( (kGetMode(sFile) & 0777) == 0600 );
+		CHECK ( !cfg.HasError() );
+	}
+#endif
 }

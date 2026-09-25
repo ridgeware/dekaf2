@@ -109,6 +109,13 @@ public:
 	/// clear the error, if any
 	void ClearError();
 
+	/// KError converts implicitly to bool. Through the non-public base that
+	/// conversion is inaccessible, but overload resolution still considers it:
+	/// in a derived class with an operator[] for strings, a subscript with a
+	/// string literal would be ambiguous with the built-in subscript of a
+	/// pointer. This declaration hides the conversion of the base. Use HasError().
+	explicit operator bool() const = delete;
+
 //----------
 protected:
 //----------

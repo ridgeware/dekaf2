@@ -42,9 +42,7 @@
 // kssod_config.cpp — see kssod_config.h
 
 #include "kssod_config.h"
-#include <dekaf2/data/json/kjson.h>
-#include <dekaf2/io/readwrite/kreader.h>
-#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/data/json/kconfig.h>
 #include <dekaf2/core/format/kformat.h>
 
 namespace {
@@ -91,27 +89,29 @@ bool ReadStrings(const KJSON& jObject, KStringView sPath,
 } // anonymous namespace
 
 //-----------------------------------------------------------------------------
+KString KSSOdOperatorConfig::DefaultPath()
+//-----------------------------------------------------------------------------
+{
+	return KConfig::DefaultPath();
+
+} // DefaultPath
+
+//-----------------------------------------------------------------------------
 bool KSSOdOperatorConfig::Load(KStringViewZ sFileName, KString& sError)
 //-----------------------------------------------------------------------------
 {
 	*this = KSSOdOperatorConfig{};
 
-	KString sText;
+	KConfig Config(sFileName);
 
-	if (!kReadText(sFileName, sText))
+	if (!Config.Loaded())
 	{
-		sError = kFormat("cannot read the settings file {}", sFileName);
+		sError = Config.HasError() ? KString(Config.Error())
+		                           : kFormat("the settings file {} does not exist", sFileName);
 		return false;
 	}
 
-	KJSON   jConfig;
-	KString sParseError;
-
-	if (!kjson::Parse(jConfig, sText, sParseError))
-	{
-		sError = kFormat("{}: {}", sFileName, sParseError);
-		return false;
-	}
+	const auto& jConfig = Config.Get();
 
 	if (!jConfig.is_object())
 	{
@@ -162,25 +162,26 @@ bool KSSOdOperatorConfig::Load(KStringViewZ sFileName, KString& sError)
 bool KSSOdOperatorConfig::Save(KStringViewZ sFileName, KString& sError) const
 //-----------------------------------------------------------------------------
 {
-	KJSON jConfig = KJSON::object();
+	KConfig Config(sFileName);
+
+	// the file is written from these settings alone, not from what it held before
+	Config.Get() = KJSON::object();
 
 	if (Smtp.IsConfigured())
 	{
-		KJSON jSmtp = KJSON::object();
+		auto& jSmtp = Config["smtp"];
 
 		jSmtp["url"]  = Smtp.sURL;
 		if (!Smtp.sUser.empty())     jSmtp["user"]      = Smtp.sUser;
 		if (!Smtp.sPass.empty())     jSmtp["password"]  = Smtp.sPass;
 		jSmtp["from"] = Smtp.sFrom;
 		if (!Smtp.sFromName.empty()) jSmtp["from_name"] = Smtp.sFromName;
-
-		jConfig["smtp"] = std::move(jSmtp);
 	}
 
 	// the file holds the relay password
-	if (!kWriteFile(sFileName, kFormat("{}\n", jConfig.dump(1, '\t')), 0600))
+	if (!Config.Save({}, 0600))
 	{
-		sError = kFormat("cannot write the settings file {}", sFileName);
+		sError = Config.Error();
 		return false;
 	}
 

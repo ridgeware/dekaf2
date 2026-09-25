@@ -676,7 +676,7 @@ int main(int argc, char** argv)
 		Settings.bACMEVerifyTLS       =!Options("acmenoverify          : do not verify the ACME directory's CA (test servers like Pebble)", false);
 		KString  sSessionIdle         = Options("session-idle <dur>    : sign-in session idle timeout, suffixes s/m/h/d/w (default 30m)", "30m");
 		KString  sSessionMax          = Options("session-max <dur>     : sign-in session absolute lifetime, suffixes s/m/h/d/w (default 8h)", "8h");
-		KString  sSettingsFile        = Options("settings <file>       : operator settings (JSON) with the mail relay, which the admin UI cannot change (default kssod.json in the config directory)", "");
+		KString  sSettingsFile        = Options("settings <file>       : operator settings (JSON) with the mail relay, which the admin UI cannot change (default config.json in the config directory)", "");
 		bool     bDemo                = Options("demo                  : on an empty database, create demo users with known passwords (admin/admin123, alice/alice123) and the demo app - for local tests only", false);
 		KString  sReleaseName         = Options("release <username>    : allow the name of a deleted account for a new account again, then exit - apps that knew the deleted account take the new one for the same user", "");
 
@@ -686,7 +686,7 @@ int main(int argc, char** argv)
 		}
 
 		const bool bSettingsFileGiven = !sSettingsFile.empty();
-		if (!bSettingsFileGiven) sSettingsFile = kFormat("{}/kssod.json", sConfigDir);
+		if (!bSettingsFileGiven) sSettingsFile = KSSOdOperatorConfig::DefaultPath();
 
 		// TLS is the default, like every other dekaf2 HTTP server: an ephemeral
 		// self-signed cert is created when none is given; --cert/--key supply a

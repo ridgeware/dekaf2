@@ -46,7 +46,8 @@
 // server of their own would read every password recovery mail, and could take
 // over any account that way. These settings come from a JSON file that only the
 // operator edits; the admin UI shows them but cannot change them. The file is
-// read at startup, so a change needs a restart.
+// read at startup, so a change needs a restart. By default it is config.json in
+// the config directory of kssod, see KConfig.
 //
 //   {
 //       "smtp": {
@@ -60,7 +61,9 @@
 //
 // Every key is optional, except that an "smtp" object needs "url" and "from".
 // An unknown key or a value of the wrong type is an error, so that a typo cannot
-// silently switch a setting off.
+// silently switch a setting off. KConfig reads and writes the file: it accepts
+// UTF-8, and UTF-16 or UTF-32 with a byte order mark, and it refuses anything
+// after the JSON value.
 
 #pragma once
 
@@ -77,6 +80,9 @@ struct KSSOdOperatorConfig
 {
 	/// the outgoing mail relay, empty if the file has no "smtp" object
 	KSSOdSettingsStore::Smtp Smtp;
+
+	/// the default settings file, config.json in the config directory
+	static KString DefaultPath();
 
 	/// read and check the file
 	/// @returns false and fills sError if the file cannot be read or is invalid

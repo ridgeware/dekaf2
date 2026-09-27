@@ -492,7 +492,7 @@ bool KChildProcess::Join(KDuration Timeout)
 			}
 
 		} while (!success
-				 && Timeout < Timer.elapsed());
+				 && Timer.elapsed() < Timeout);
 	}
 
 	if (success)

@@ -49,6 +49,7 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/time/duration/ktimer.h>
 #include <condition_variable>
 #include <functional>
 #include <mutex>
@@ -116,7 +117,7 @@ public:
 	{
 		State    Status { State::Miss };
 		KString  sPath;        ///< the file system path of the entry, with State::Hit
-		uint64_t iSize  { 0 }; ///< the size of the entry, with State::Hit
+		uint64_t iSize  { 0 }; ///< the size of the entry, with State::Hit and State::Transmitted
 	};
 
 	/// Get() calls the transmitter once when the deadline has passed. It sends the response
@@ -128,6 +129,14 @@ public:
 	/// @param sCacheDirectory the directory for the cache entries, created when needed
 	KCompressionCache(KString sCacheDirectory);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// stops the regular sweeps
+	~KCompressionCache();
+	//-----------------------------------------------------------------------------
+
+	KCompressionCache(const KCompressionCache&) = delete;
+	KCompressionCache& operator=(const KCompressionCache&) = delete;
 
 	//-----------------------------------------------------------------------------
 	/// returns the compressions that an entry can have: zstd, br and gzip, if built in
@@ -176,6 +185,14 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// calls Sweep() for a document root in regular intervals, in a thread of the global timer -
+	/// a second call for the same document root does nothing
+	/// @param sDocumentRoot the document root whose entries are checked
+	/// @param Interval the time between two sweeps, the first sweep runs after one interval
+	void SweepRegularly(KString sDocumentRoot, KDuration Interval);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// returns the cache directory
 	const KString& GetCacheDirectory() const { return m_sCacheDirectory; }
 	//-----------------------------------------------------------------------------
@@ -202,6 +219,8 @@ private:
 	std::condition_variable m_Finished;
 	// the paths of the entries that are compressed right now
 	KUnorderedSet<KString>  m_Running;
+	// the timers of the regular sweeps, by document root
+	KUnorderedMap<KString, KTimer::ID_t> m_SweepTimers;
 
 }; // KCompressionCache
 

@@ -67,6 +67,8 @@ DEKAF2_NAMESPACE_BEGIN
 /// @{
 
 class KRESTServer;
+class KWebServer;
+class KCompressionCache;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// A route (request path) without resource handler. Typically used for the
@@ -726,11 +728,39 @@ private:
 	static std::size_t RegexMatchPath(KStringRef& sPath, const Rewrites& Rewrites);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// creates the compression cache of a web server route if its configuration names one
+	DEKAF2_PRIVATE
+	void AddCompressionCache(const KJSON& jConfig, const KString& sDocumentRoot);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns the compression cache of a web server route, or nullptr if the route has none
+	DEKAF2_PRIVATE
+	KCompressionCache* GetCompressionCache(const KJSON& jConfig) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// sends a static file from the compression cache, or compresses it into the cache
+	/// @return false if the file is not sent through the cache
+	DEKAF2_PRIVATE
+	bool ServeFromCompressionCache(KRESTServer& HTTP, KWebServer& WebServer, bool bHeadersOnly) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// returns true if the 200 response for the requested file would be compressed
+	DEKAF2_PRIVATE
+	bool WouldBeCompressed(KRESTServer& HTTP, KWebServer& WebServer) const;
+	//-----------------------------------------------------------------------------
+
 	Routes     m_Routes;
 	Rewrites   m_Rewrites;
 	Redirects  m_Redirects;
 	KRESTRoute m_DefaultRoute;
 	KWebServerPermissions m_WebServerPermissions;
+	// the compression caches of the web server routes with their cache directories -
+	// there are only a few, and copies of this object share them
+	std::vector<std::pair<KString, std::shared_ptr<KCompressionCache>>> m_CompressionCaches;
 
 }; // KRESTRoutes
 

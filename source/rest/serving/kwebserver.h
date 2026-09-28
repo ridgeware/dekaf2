@@ -139,6 +139,8 @@ public:
 	using KFileServer::GetMIMEType;
 	using KFileServer::IsAdHocIndex;
 	using KFileServer::GetAdHocIndex;
+	using KFileServer::GetFileSystemPath;
+	using KFileServer::GetFileStat;
 
 //------
 private:

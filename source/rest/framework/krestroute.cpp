@@ -43,6 +43,7 @@
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/rest/serving/kwebserver.h>
+#include <dekaf2/rest/serving/kcompressioncache.h>
 #include <dekaf2/rest/serving/kwebdav.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/data/json/kjson.h>
@@ -58,6 +59,199 @@
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+namespace {
+
+// the defaults for the compression settings of a web server route
+constexpr KDuration DefaultCompressionDeadline { chrono::seconds(3) };
+constexpr uint64_t  DefaultCompressionMinSize  { 1024 }; // bytes
+
+// the interval of the sweeps of a compression cache
+constexpr KDuration CompressionSweepInterval { chrono::hours(6) };
+
+//-----------------------------------------------------------------------------
+uint64_t GetConfigValue(const KJSON& jConfig, KStringViewZ sKey, uint64_t iDefault)
+//-----------------------------------------------------------------------------
+{
+	return jConfig.contains(sKey.c_str()) ? kjson::GetUInt(jConfig, sKey) : iDefault;
+
+} // GetConfigValue
+
+//-----------------------------------------------------------------------------
+/// reads a duration from the configuration, which gives it in seconds
+KDuration GetConfigDuration(const KJSON& jConfig, KStringViewZ sKey, KDuration Default)
+//-----------------------------------------------------------------------------
+{
+	return jConfig.contains(sKey.c_str()) ? KDuration(chrono::seconds(kjson::GetUInt(jConfig, sKey))) : Default;
+
+} // GetConfigDuration
+
+//-----------------------------------------------------------------------------
+/// returns the path of a file relative to the document root, with / as separator, or an
+/// empty string if the file is not below the document root
+KString GetRelativePath(KStringView sFileSystemPath, KStringView sDocumentRoot)
+//-----------------------------------------------------------------------------
+{
+	if (!sFileSystemPath.remove_prefix(sDocumentRoot))
+	{
+		return {};
+	}
+
+	KString sRelPath = sFileSystemPath;
+
+#ifdef DEKAF2_IS_WINDOWS
+	// KFileServer joins the document root and the request path with the native separator
+	sRelPath.Replace('\\', '/');
+#endif
+
+	sRelPath.remove_prefix('/');
+
+	return sRelPath;
+
+} // GetRelativePath
+
+//-----------------------------------------------------------------------------
+/// the cache entry for a request, or the compression for a new entry
+struct CacheSelection
+//-----------------------------------------------------------------------------
+{
+	KCompressionCache::Entry Entry;
+	/// the compression of the entry - with State::Miss the compression for a new entry,
+	/// NONE if the response could not be sent without a Content-Length
+	KHTTPCompression::COMP   Compression { KHTTPCompression::NONE };
+	KString                  sRelPath;
+};
+
+//-----------------------------------------------------------------------------
+/// selects the cache entry for a request
+/// @return false if the file is not compressed from the cache
+bool SelectFromCache(KCompressionCache& Cache, KRESTServer& HTTP, KWebServer& WebServer, CacheSelection& Selection)
+//-----------------------------------------------------------------------------
+{
+	const auto& jConfig = HTTP.Route->Config;
+	const auto& Stat    = WebServer.GetFileStat();
+
+	auto iMinSize = GetConfigValue(jConfig, "compression_min_size", DefaultCompressionMinSize);
+	auto iMaxSize = GetConfigValue(jConfig, "compression_max_size", 0);
+
+	if (!Stat.IsFile() || Stat.Size() < iMinSize || (iMaxSize && Stat.Size() > iMaxSize))
+	{
+		return false;
+	}
+
+	// GetMIMEType() returns a const reference, and IsCompressible() is not const
+	KMIME MIME = WebServer.GetMIMEType(true);
+
+	if (!MIME.IsCompressible())
+	{
+		return false;
+	}
+
+	auto Supported = KCompressionCache::GetSupportedCompressors();
+	// with a Content-Length every accepted compression can be sent
+	auto Accepted  = HTTP.Request.AcceptedCompressors(false) & Supported;
+	// a new entry is streamed chunked after the deadline, which only a complete HTTP
+	// response on a connection we own permits
+	auto Streamable = (HTTP.GetOptions().Out == KRESTServer::HTTP || HTTP.GetOptions().Out == KRESTServer::NPH)
+	                ? HTTP.Request.AcceptedCompressors(true) & Supported
+	                : KHTTPCompression::COMP{};
+
+	if (!Accepted)
+	{
+		return false;
+	}
+
+	Selection.sRelPath = GetRelativePath(WebServer.GetFileSystemPath(), HTTP.Route->sDocumentRoot);
+
+	if (Selection.sRelPath.empty())
+	{
+		return false;
+	}
+
+	const auto& sDocumentRoot = HTTP.Route->sDocumentRoot;
+
+	auto Target = KHTTPCompression::GetBestCompressor(Streamable);
+	auto Best   = KHTTPCompression::GetBestCompressor(Accepted);
+
+	if (Target != KHTTPCompression::NONE)
+	{
+		Selection.Entry       = Cache.Lookup(sDocumentRoot, Selection.sRelPath, Stat, Target);
+		Selection.Compression = Target;
+	}
+
+	if (Selection.Entry.Status == KCompressionCache::State::Miss && Best != Target)
+	{
+		// an existing entry with a compression that must not be sent chunked (like zstd
+		// for Safari below version 27), or any entry for a client without chunked
+		// transfer - both are fine with a Content-Length
+		auto Entry = Cache.Lookup(sDocumentRoot, Selection.sRelPath, Stat, Best);
+
+		if (Entry.Status == KCompressionCache::State::Hit)
+		{
+			Selection.Entry       = std::move(Entry);
+			Selection.Compression = Best;
+		}
+	}
+
+	return Selection.Entry.Status != KCompressionCache::State::Failed;
+
+} // SelectFromCache
+
+//-----------------------------------------------------------------------------
+/// sends a cache entry
+/// @return false if the entry cannot be opened
+bool SendCacheEntry(KRESTServer& HTTP, const KCompressionCache::Entry& Entry, KHTTPCompression::COMP Compression, bool bHeadersOnly)
+//-----------------------------------------------------------------------------
+{
+	std::unique_ptr<KInFile> File;
+
+	if (!bHeadersOnly)
+	{
+		File = std::make_unique<KInFile>(Entry.sPath);
+
+		if (!File->is_open())
+		{
+			// a sweep or Forget() removed the entry after the lookup
+			kDebug(2, "cannot open cache entry: {}", Entry.sPath);
+			return false;
+		}
+	}
+
+	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_ENCODING, KHTTPCompression::ToString(Compression));
+	HTTP.Response.AddVary(KHTTPHeader::ACCEPT_ENCODING);
+	// the entry is compressed already, the output filter must not compress it again
+	HTTP.AllowCompression(false);
+
+	if (bHeadersOnly)
+	{
+		HTTP.SetContentLengthToOutput(Entry.iSize);
+	}
+	else
+	{
+		HTTP.SetStreamToOutput(std::move(File), Entry.iSize, /*bAllowCompression=*/false);
+	}
+
+	return true;
+
+} // SendCacheEntry
+
+//-----------------------------------------------------------------------------
+/// sends a file uncompressed, without compression on the fly
+void SendUncompressed(KRESTServer& HTTP, KWebServer& WebServer, bool bHeadersOnly)
+//-----------------------------------------------------------------------------
+{
+	if (bHeadersOnly)
+	{
+		HTTP.SetContentLengthToOutput(WebServer.GetFileSize());
+	}
+	else
+	{
+		HTTP.SetStreamToOutput(WebServer.GetStreamForReading(), WebServer.GetFileSize(), /*bAllowCompression=*/false);
+	}
+
+} // SendUncompressed
+
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 KRESTPath::KRESTPath(KHTTPMethod _Method, KString _sRoute)
@@ -391,6 +585,8 @@ void KRESTRoutes::AddWebServer(KString sWWWDir, KString sRoute, KWebServerPermis
 
 	kDebug(2, "route : {}\nwww   : {}\nconfig: {}", sRoute, sWWWDir, jConfig.dump());
 
+	AddCompressionCache(jConfig, sWWWDir);
+
 	// register a single catch-all route (empty method matches any) - the permission check happens at request time
 	m_Routes.push_back(KRESTRoute(KHTTPMethod{KHTTPMethod::INVALID}, false, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebServer, std::move(jConfig)));
 
@@ -417,6 +613,9 @@ void KRESTRoutes::AddWebDAV(KString sWWWDir, KString sRoute, KWebServerPermissio
 	jConfig["use_permissions"] = true;
 
 	kDebug(2, "WebDAV route : {}\nwww          : {}\nconfig       : {}", sRoute, sWWWDir, jConfig.dump());
+
+	// GET and HEAD of a WebDAV route go through WebServer()
+	AddCompressionCache(jConfig, sWWWDir);
 
 	// register a single catch-all route (empty method matches any) - the permission check happens at request time
 	m_Routes.push_back(KRESTRoute(KHTTPMethod{KHTTPMethod::INVALID}, KRESTRoute::Options{KRESTRoute::Options::WEBDAV}, std::move(sRoute), std::move(sWWWDir), *this, &KRESTRoutes::WebDAVHandler, std::move(jConfig)));
@@ -620,6 +819,181 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Par
 } // FindRoute
 
 //-----------------------------------------------------------------------------
+void KRESTRoutes::AddCompressionCache(const KJSON& jConfig, const KString& sDocumentRoot)
+//-----------------------------------------------------------------------------
+{
+	const auto& sCacheDirectory = kjson::GetStringRef(jConfig, "compression_cache");
+
+	if (sCacheDirectory.empty())
+	{
+		return;
+	}
+
+	auto* pCache = GetCompressionCache(jConfig);
+
+	if (!pCache)
+	{
+		m_CompressionCaches.emplace_back(sCacheDirectory, std::make_shared<KCompressionCache>(sCacheDirectory));
+		pCache = m_CompressionCaches.back().second.get();
+	}
+
+	// changes of files that bypass the server leave stale entries behind
+	pCache->SweepRegularly(sDocumentRoot, CompressionSweepInterval);
+
+} // AddCompressionCache
+
+//-----------------------------------------------------------------------------
+KCompressionCache* KRESTRoutes::GetCompressionCache(const KJSON& jConfig) const
+//-----------------------------------------------------------------------------
+{
+	const auto& sCacheDirectory = kjson::GetStringRef(jConfig, "compression_cache");
+
+	if (sCacheDirectory.empty())
+	{
+		return nullptr;
+	}
+
+	for (const auto& Cache : m_CompressionCaches)
+	{
+		if (Cache.first == sCacheDirectory)
+		{
+			return Cache.second.get();
+		}
+	}
+
+	return nullptr;
+
+} // GetCompressionCache
+
+//-----------------------------------------------------------------------------
+bool KRESTRoutes::ServeFromCompressionCache(KRESTServer& HTTP, KWebServer& WebServer, bool bHeadersOnly) const
+//-----------------------------------------------------------------------------
+{
+	auto* pCache = GetCompressionCache(HTTP.Route->Config);
+
+	if (!pCache || !HTTP.GetOptions().bAllowCompression)
+	{
+		return false;
+	}
+
+	// with a compression cache a static file is sent from the cache or uncompressed,
+	// but never compressed on the fly
+	CacheSelection Selection;
+
+	if (!SelectFromCache(*pCache, HTTP, WebServer, Selection))
+	{
+		SendUncompressed(HTTP, WebServer, bHeadersOnly);
+		return true;
+	}
+
+	if (Selection.Entry.Status == KCompressionCache::State::Miss &&
+	    Selection.Compression  != KHTTPCompression::NONE &&
+	    !bHeadersOnly)
+	{
+		auto Compression = Selection.Compression;
+		auto Deadline    = GetConfigDuration(HTTP.Route->Config, "compression_deadline", DefaultCompressionDeadline);
+
+		// compress the file into the cache - when this takes longer than the deadline, the
+		// compressed data is sent at the same time, chunked
+		Selection.Entry = pCache->Get(HTTP.Route->sDocumentRoot,
+		                              Selection.sRelPath,
+		                              WebServer.GetFileStat(),
+		                              Compression,
+		                              Deadline,
+		                              [&HTTP, Compression]() -> KOutStream*
+		{
+			HTTP.Response.Headers.Set   (KHTTPHeader::CONTENT_ENCODING , KHTTPCompression::ToString(Compression));
+			HTTP.Response.Headers.Set   (KHTTPHeader::TRANSFER_ENCODING, "chunked");
+			HTTP.Response.Headers.Remove(KHTTPHeader::CONTENT_LENGTH);
+			HTTP.Response.AddVary(KHTTPHeader::ACCEPT_ENCODING);
+			// the data is compressed already, the output filter only adds the chunked framing
+			HTTP.AllowCompression(false);
+			HTTP.Stream(/*bAllowCompressionIfPossible=*/false);
+			return &HTTP.OutStream();
+		});
+	}
+
+	switch (Selection.Entry.Status)
+	{
+		case KCompressionCache::State::Hit:
+			if (!SendCacheEntry(HTTP, Selection.Entry, Selection.Compression, bHeadersOnly))
+			{
+				SendUncompressed(HTTP, WebServer, bHeadersOnly);
+			}
+			return true;
+
+		case KCompressionCache::State::Transmitted:
+			// writes the end of the chunked transfer
+			HTTP.Response.Flush();
+			// the headers are sent already, the length is for the statistics and the log
+			HTTP.SetContentLengthToOutput(Selection.Entry.iSize);
+			return true;
+
+		case KCompressionCache::State::Aborted:
+			// the response is incomplete - closing the connection without the end of the
+			// chunked transfer tells the client
+			HTTP.Response.Headers.Set(KHTTPHeader::CONNECTION, "close");
+			return true;
+
+		case KCompressionCache::State::Miss:
+			// a HEAD request, or a client without chunked transfer: no new entry
+		case KCompressionCache::State::Negative:
+		case KCompressionCache::State::Busy:
+		case KCompressionCache::State::Failed:
+			SendUncompressed(HTTP, WebServer, bHeadersOnly);
+			return true;
+	}
+
+	return false;
+
+} // ServeFromCompressionCache
+
+//-----------------------------------------------------------------------------
+bool KRESTRoutes::WouldBeCompressed(KRESTServer& HTTP, KWebServer& WebServer) const
+//-----------------------------------------------------------------------------
+{
+	if (!HTTP.GetOptions().bAllowCompression || !WebServer.GetFileStat().IsFile())
+	{
+		return false;
+	}
+
+	if (auto* pCache = GetCompressionCache(HTTP.Route->Config))
+	{
+		CacheSelection Selection;
+
+		if (!SelectFromCache(*pCache, HTTP, WebServer, Selection))
+		{
+			return false;
+		}
+
+		switch (Selection.Entry.Status)
+		{
+			case KCompressionCache::State::Hit:
+				return true;
+
+			case KCompressionCache::State::Miss:
+				// a GET compresses the file and streams it
+				return Selection.Compression != KHTTPCompression::NONE;
+
+			case KCompressionCache::State::Negative:
+			case KCompressionCache::State::Busy:
+			case KCompressionCache::State::Failed:
+			case KCompressionCache::State::Transmitted:
+			case KCompressionCache::State::Aborted:
+				return false;
+		}
+
+		return false;
+	}
+
+	// compression on the fly, see KHTTPServer::EnableCompressionIfPossible()
+	KMIME MIME = WebServer.GetMIMEType(true);
+
+	return MIME.IsCompressible() && !HTTP.Request.SupportedCompression().empty();
+
+} // WouldBeCompressed
+
+//-----------------------------------------------------------------------------
 void KRESTRoutes::WebServer(KRESTServer& HTTP)
 //-----------------------------------------------------------------------------
 {
@@ -687,22 +1061,37 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 
 	bool bHadTrailingSlash = HTTP.Request.Resource.Path.get().back() == '/';
 
-	auto ResultMethod = WebServer.Serve
-	(
-		HTTP.Route->sDocumentRoot,
-		HTTP.RequestPath.sRoute,
-		bHadTrailingSlash,
-		bWithAutoIndex,
-		bWithUpload,
-		HTTP.Route->sRoute,
-		HTTP.RequestPath.Method,
-		HTTP.Request,
-		HTTP.Response,
-		[this](KHTTPMethod Method, KStringView sPath)
+	KHTTPMethod ResultMethod;
+
+	try
+	{
+		ResultMethod = WebServer.Serve
+		(
+			HTTP.Route->sDocumentRoot,
+			HTTP.RequestPath.sRoute,
+			bHadTrailingSlash,
+			bWithAutoIndex,
+			bWithUpload,
+			HTTP.Route->sRoute,
+			HTTP.RequestPath.Method,
+			HTTP.Request,
+			HTTP.Response,
+			[this](KHTTPMethod Method, KStringView sPath)
+			{
+				return CheckForWrongMethod(KRESTPath(Method, sPath));
+			}
+		);
+	}
+	catch (const KHTTPError& ex)
+	{
+		// a 304 carries the Vary header of the 200 response it replaces (RFC 9110 15.4.5)
+		if (ex.GetHTTPStatusCode() == KHTTPError::H304_NOT_MODIFIED && WouldBeCompressed(HTTP, WebServer))
 		{
-			return CheckForWrongMethod(KRESTPath(Method, sPath));
+			HTTP.Response.AddVary(KHTTPHeader::ACCEPT_ENCODING);
 		}
-	);
+
+		throw;
+	}
 
 	if (!WebServer.IsValid())
 	{
@@ -716,7 +1105,12 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 	switch (ResultMethod)
 	{
 		case KHTTPMethod::HEAD:
-			HTTP.SetContentLengthToOutput(WebServer.GetFileSize());
+			if (WebServer.IsAdHocIndex() ||
+			    WebServer.GetStatus() != KHTTPError::H2xx_OK ||
+			    !ServeFromCompressionCache(HTTP, WebServer, /*bHeadersOnly=*/true))
+			{
+				HTTP.SetContentLengthToOutput(WebServer.GetFileSize());
+			}
 			break;
 
 		case KHTTPMethod::GET:
@@ -724,6 +1118,11 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 			if (WebServer.IsAdHocIndex())
 			{
 				HTTP.SetRawOutput(WebServer.GetAdHocIndex());
+			}
+			else if (WebServer.GetStatus() == KHTTPError::H2xx_OK &&
+			         ServeFromCompressionCache(HTTP, WebServer, /*bHeadersOnly=*/false))
+			{
+				// sent from the compression cache, or uncompressed
 			}
 			else
 			{

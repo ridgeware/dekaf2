@@ -44,6 +44,7 @@
 #include <dekaf2/io/readwrite/kreader.h>
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/web/url/kurl.h>
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
@@ -279,6 +280,18 @@ KCompressionCache::KCompressionCache(KString sCacheDirectory)
 	m_sCacheDirectory.remove_suffix('/');
 
 } // ctor
+
+//-----------------------------------------------------------------------------
+KCompressionCache::~KCompressionCache()
+//-----------------------------------------------------------------------------
+{
+	// Cancel() waits for a sweep that is running right now
+	for (const auto& Timer : m_SweepTimers)
+	{
+		Dekaf::getInstance().GetTimer().Cancel(Timer.second);
+	}
+
+} // dtor
 
 //-----------------------------------------------------------------------------
 KHTTPCompression::COMP KCompressionCache::GetSupportedCompressors()
@@ -626,6 +639,7 @@ KCompressionCache::Entry KCompressionCache::Compress(const KString&          sSo
 	if (bTransmitting)
 	{
 		Result.Status = State::Transmitted;
+		Result.iSize  = Dest.iWritten;
 	}
 	else if (bNegative)
 	{
@@ -742,5 +756,25 @@ std::size_t KCompressionCache::Sweep(KStringView sDocumentRoot)
 	return iRemoved;
 
 } // Sweep
+
+//-----------------------------------------------------------------------------
+void KCompressionCache::SweepRegularly(KString sDocumentRoot, KDuration Interval)
+//-----------------------------------------------------------------------------
+{
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+
+	if (m_SweepTimers.contains(sDocumentRoot))
+	{
+		return;
+	}
+
+	auto ID = Dekaf::getInstance().GetTimer().CallEvery(Interval, [this, sDocumentRoot](KUnixTime)
+	{
+		Sweep(sDocumentRoot);
+	});
+
+	m_SweepTimers.emplace(std::move(sDocumentRoot), ID);
+
+} // SweepRegularly
 
 DEKAF2_NAMESPACE_END

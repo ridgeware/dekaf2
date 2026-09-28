@@ -1,4 +1,5 @@
 #include "catch.hpp"
+#include <random>
 
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/net/tcp/ktcpserver.h>
@@ -11,6 +12,8 @@
 #include <dekaf2/io/readwrite/kwriter.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/io/compression/kcompression.h>
+#include <dekaf2/http/protocol/khttp_response.h>
+#include <dekaf2/io/streams/kinstringstream.h>
 #include <dekaf2/crypto/auth/ksession.h>
 #include <dekaf2/crypto/auth/bits/ksessionmemorystore.h>
 
@@ -1217,6 +1220,208 @@ x-klog: -level 1
 		CHECK ( sResponse.starts_with("http/1.1 200") );
 		CHECK ( sResponse.contains("content-encoding: gzip\r\n") );
 		CHECK ( sResponse.contains("vary: accept-encoding\r\n") );
+	}
+
+	SECTION("web server: compression cache")
+	{
+		KTempDir WebRoot;
+		KTempDir CacheRoot;
+
+		KString sText;
+
+		for (int i = 0; i < 2000; ++i)
+		{
+			sText += kFormat("line {} of a file that compresses well\n", i);
+		}
+
+		KString sRandom;
+		std::mt19937 Random(42);
+
+		for (int i = 0; i < 16 * 1024; ++i)
+		{
+			sRandom += static_cast<char>(Random() & 0xff);
+		}
+
+		for (auto sFile : { "app.js", "other.js", "stream.js", "keepalive.js", "safari.js", "safari2.js" })
+		{
+			REQUIRE ( kWriteFile(kFormat("{}/{}", WebRoot.Name(), sFile), sText) );
+		}
+
+		REQUIRE ( kWriteFile(kFormat("{}/small.js",   WebRoot.Name()), "var x = 1;\n") );
+		REQUIRE ( kWriteFile(kFormat("{}/random.txt", WebRoot.Name()), sRandom) );
+
+		auto AddWebServer = [&](KRESTRoutes& Routes, uint64_t iDeadline)
+		{
+			Routes.AddWebServer(WebRoot.Name(), "/web/*", KWebServerPermissions(KJSON{{ "permissions", "read|browse" }}),
+			                    KJSON{{ "compression_cache", CacheRoot.Name() }, { "compression_deadline", iDeadline }});
+		};
+
+		// a pass that ends before the deadline, and one that streams at once
+		KRESTRoutes Routes;
+		KRESTRoutes StreamRoutes;
+		AddWebServer(Routes, 60);
+		AddWebServer(StreamRoutes, 0);
+
+		auto Request = [&](KRESTRoutes& Routes, KStringView sPath, KStringView sHeaders, KStringView sMethod = "GET", KStringView sVersion = "HTTP/1.1")
+		{
+			KRESTServer::Options Options;
+			return RunRequest(kFormat("{} /web/{} {}\r\nHost: localhost\r\n{}\r\n", sMethod, sPath, sVersion, sHeaders), Routes, Options);
+		};
+
+		struct Parsed
+		{
+			uint16_t                 iStatus { 0 };
+			KHTTPHeaders::KHeaderMap Headers;
+			KString                  sBody;
+		};
+
+		// parses a response, and reads its body without the transfer and content encoding
+		auto Parse = [](KStringView sResponse, bool bReadBody = true)
+		{
+			Parsed Result;
+			KInStringStream iss(sResponse);
+			KInHTTPResponse Response(iss);
+
+			if (Response.Parse())
+			{
+				Result.iStatus = Response.GetStatusCode();
+				Result.Headers = Response.Headers;
+
+				if (bReadBody)
+				{
+					Response.Read(Result.sBody);
+				}
+			}
+
+			return Result;
+		};
+
+		// the first request compresses into the cache, the entry is sent with a Content-Length
+		auto sResponse = Request(Routes, "app.js", "Accept-Encoding: gzip\r\n");
+		auto First     = Parse(sResponse);
+		CHECK ( First.iStatus == 200 );
+		CHECK ( First.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "gzip" );
+		CHECK ( First.Headers.Get(KHTTPHeader::VARY) == "accept-encoding" );
+		CHECK ( First.Headers.Get(KHTTPHeader::TRANSFER_ENCODING).empty() );
+		CHECK ( First.Headers.Get(KHTTPHeader::CONTENT_LENGTH).UInt64() < sText.size() );
+		CHECK ( First.sBody == sText );
+
+		// the second request finds the entry
+		auto Second = Parse(Request(Routes, "app.js", "Accept-Encoding: gzip\r\n"));
+		CHECK ( Second.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "gzip" );
+		CHECK ( Second.Headers.Get(KHTTPHeader::CONTENT_LENGTH) == First.Headers.Get(KHTTPHeader::CONTENT_LENGTH) );
+		CHECK ( Second.sBody == sText );
+
+		// HEAD sends the headers of the entry
+		sResponse = Request(Routes, "app.js", "Accept-Encoding: gzip\r\n", "HEAD");
+		auto Head = Parse(sResponse, false);
+		CHECK ( Head.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "gzip" );
+		CHECK ( Head.Headers.Get(KHTTPHeader::CONTENT_LENGTH) == First.Headers.Get(KHTTPHeader::CONTENT_LENGTH) );
+		CHECK ( sResponse.ends_with("\r\n\r\n") );
+
+		// HEAD without an entry sends the headers of the uncompressed file, and does not compress
+		Head = Parse(Request(Routes, "other.js", "Accept-Encoding: gzip\r\n", "HEAD"), false);
+		CHECK ( Head.Headers.Get(KHTTPHeader::CONTENT_ENCODING).empty() );
+		CHECK ( Head.Headers.Get(KHTTPHeader::VARY).empty() );
+		CHECK ( Head.Headers.Get(KHTTPHeader::CONTENT_LENGTH).UInt64() == sText.size() );
+
+		// an HTTP/1.0 client cannot receive a streamed pass: no new entry, and no compression
+		auto Old = Parse(Request(Routes, "other.js", "Accept-Encoding: gzip\r\n", "GET", "HTTP/1.0"));
+		CHECK ( Old.Headers.Get(KHTTPHeader::CONTENT_ENCODING).empty() );
+		CHECK ( Old.sBody == sText );
+
+		// but it gets an existing entry, with a Content-Length
+		Old = Parse(Request(Routes, "app.js", "Accept-Encoding: gzip\r\n", "GET", "HTTP/1.0"));
+		CHECK ( Old.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "gzip" );
+		CHECK ( Old.sBody == sText );
+
+		// without Accept-Encoding the file is sent uncompressed, without Vary
+		auto Plain = Parse(Request(Routes, "app.js", ""));
+		CHECK ( Plain.Headers.Get(KHTTPHeader::CONTENT_ENCODING).empty() );
+		CHECK ( Plain.Headers.Get(KHTTPHeader::VARY).empty() );
+		CHECK ( Plain.sBody == sText );
+
+		// a compression the cache does not have is not applied on the fly either
+		Plain = Parse(Request(Routes, "app.js", "Accept-Encoding: deflate\r\n"));
+		CHECK ( Plain.Headers.Get(KHTTPHeader::CONTENT_ENCODING).empty() );
+		CHECK ( Plain.sBody == sText );
+
+		// a range request gets the uncompressed file
+		auto Range = Parse(Request(Routes, "app.js", "Range: bytes=0-9\r\nAccept-Encoding: gzip\r\n"));
+		CHECK ( Range.iStatus == 206 );
+		CHECK ( Range.Headers.Get(KHTTPHeader::CONTENT_ENCODING).empty() );
+		CHECK ( Range.sBody == sText.ToView(0, 10) );
+
+		// a small file, and a file that does not get smaller, are sent uncompressed
+		auto Small = Parse(Request(Routes, "small.js", "Accept-Encoding: gzip\r\n"));
+		CHECK ( Small.Headers.Get(KHTTPHeader::CONTENT_ENCODING).empty() );
+		CHECK ( Small.sBody == "var x = 1;\n" );
+		auto Incompressible = Parse(Request(Routes, "random.txt", "Accept-Encoding: gzip\r\n"));
+		CHECK ( Incompressible.Headers.Get(KHTTPHeader::CONTENT_ENCODING).empty() );
+		CHECK ( Incompressible.sBody == sRandom );
+
+		// a 304 carries Vary when the 200 would be compressed
+		sResponse = Request(Routes, "app.js", "Accept-Encoding: gzip\r\nIf-Modified-Since: Fri, 01 Jan 2100 00:00:00 GMT\r\n");
+		CHECK ( sResponse.starts_with("HTTP/1.1 304") );
+		CHECK ( sResponse.contains("vary: accept-encoding\r\n") );
+		sResponse = Request(Routes, "app.js", "If-Modified-Since: Fri, 01 Jan 2100 00:00:00 GMT\r\n");
+		CHECK ( sResponse.starts_with("HTTP/1.1 304") );
+		CHECK_FALSE ( sResponse.contains("vary:") );
+
+		// with the deadline passed the pass streams the compressed data, chunked
+		auto Streamed = Parse(Request(StreamRoutes, "stream.js", "Accept-Encoding: gzip\r\n"));
+		CHECK ( Streamed.iStatus == 200 );
+		CHECK ( Streamed.Headers.Get(KHTTPHeader::CONTENT_ENCODING)  == "gzip" );
+		CHECK ( Streamed.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked" );
+		CHECK ( Streamed.Headers.Get(KHTTPHeader::CONTENT_LENGTH).empty() );
+		CHECK ( Streamed.Headers.Get(KHTTPHeader::VARY) == "accept-encoding" );
+		CHECK ( Streamed.sBody == sText );
+
+		// and completed the entry at the same time
+		auto Stored = Parse(Request(StreamRoutes, "stream.js", "Accept-Encoding: gzip\r\n"));
+		CHECK ( Stored.Headers.Get(KHTTPHeader::TRANSFER_ENCODING).empty() );
+		CHECK ( Stored.Headers.Get(KHTTPHeader::CONTENT_LENGTH).UInt64() > 0 );
+		CHECK ( Stored.sBody == sText );
+
+		// the streamed response ends properly, the next request on the connection gets its answer
+		{
+			KRESTServer::Options Options;
+			sResponse = RunRequest("GET /web/keepalive.js HTTP/1.1\r\nHost: localhost\r\nAccept-Encoding: gzip\r\n\r\n"
+			                       "GET /web/keepalive.js HTTP/1.1\r\nHost: localhost\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n",
+			                       StreamRoutes, Options);
+
+			auto iSecond = sResponse.find("\r\n0\r\n\r\nHTTP/1.1 200");
+			REQUIRE ( iSecond != KString::npos );
+			iSecond += 7;
+
+			auto KeepAliveFirst  = Parse(sResponse.ToView(0, iSecond));
+			auto KeepAliveSecond = Parse(sResponse.ToView(iSecond));
+			CHECK ( KeepAliveFirst.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked" );
+			CHECK ( KeepAliveFirst.sBody  == sText );
+			CHECK ( KeepAliveSecond.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "gzip" );
+			CHECK ( KeepAliveSecond.sBody == sText );
+		}
+
+#if defined(DEKAF2_HAS_LIBZSTD) && defined(DEKAF2_HAS_LIBBROTLI)
+		constexpr KStringView sSafari26 = "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.3.1 Safari/605.1.15\r\n";
+
+		// a zstd entry, created for a client without the Safari bug
+		auto Zstd = Parse(Request(Routes, "safari.js", "Accept-Encoding: zstd, br, gzip\r\n"));
+		CHECK ( Zstd.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "zstd" );
+		CHECK ( Zstd.sBody == sText );
+
+		// Safari 26 gets the existing zstd entry, because it has a Content-Length
+		auto Safari = Parse(Request(Routes, "safari.js", kFormat("Accept-Encoding: zstd, br, gzip\r\n{}", sSafari26)));
+		CHECK ( Safari.Headers.Get(KHTTPHeader::CONTENT_ENCODING) == "zstd" );
+		CHECK ( Safari.Headers.Get(KHTTPHeader::TRANSFER_ENCODING).empty() );
+		CHECK ( Safari.sBody == sText );
+
+		// but a streamed pass for Safari 26 uses brotli
+		Safari = Parse(Request(StreamRoutes, "safari2.js", kFormat("Accept-Encoding: zstd, br, gzip\r\n{}", sSafari26)));
+		CHECK ( Safari.Headers.Get(KHTTPHeader::CONTENT_ENCODING)  == "br" );
+		CHECK ( Safari.Headers.Get(KHTTPHeader::TRANSFER_ENCODING) == "chunked" );
+		CHECK ( Safari.sBody == sText );
+#endif
 	}
 
 	SECTION("KRESTSession LoginTrusted")

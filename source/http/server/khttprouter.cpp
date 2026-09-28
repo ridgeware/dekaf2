@@ -152,6 +152,13 @@ void KHTTPRoute::WebServer(KHTTPRouter& HTTP)
 
 	HTTP.Response.SetStatus(WebServer.GetStatus());
 
+	if (WebServer.GetStatus() == KHTTPError::H2xx_PARTIAL_CONTENT)
+	{
+		// a partial response is not compressed: its Content-Range counts the
+		// bytes of the uncompressed file
+		HTTP.ConfigureCompression(false);
+	}
+
 	HTTP.Serialize();
 
 	if (HTTP.Request.Method != KHTTPMethod::HEAD)

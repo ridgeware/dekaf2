@@ -327,6 +327,82 @@ x-klog: -level 1
 		CHECK ( sCGI.contains("content-length:") );
 	}
 
+	SECTION("compression: Vary, quality values, and already encoded content")
+	{
+		auto Serve = [](KStringView sRequestHeaders, const KRESTRoute::RESTCallback& Handler) -> KString
+		{
+			KString sRequest = "GET /data HTTP/1.1\r\nHost: localhost\r\n";
+			sRequest += sRequestHeaders;
+			sRequest += "\r\n";
+
+			KString sResponse;
+			KInStringStream iss(sRequest);
+			KOutStringStream oss(sResponse);
+			KStream stream(iss, oss);
+			KRESTServer::Options Options;
+			KRESTRoutes Routes;
+			Routes.AddRoute({ KHTTPMethod::GET, false, "/data", Handler });
+			KRESTServer Server(stream, "127.0.0.1:1234", url::KProtocol::HTTP, 80, Routes, Options);
+			Server.Execute();
+			return sResponse;
+		};
+
+		auto JsonHandler = [](KRESTServer& http)
+		{
+			http.json.tx["data"] = KString(4000, 'x');
+		};
+
+		// q=0 excludes gzip, the response depends on Accept-Encoding
+		auto sResponse = Serve("Accept-Encoding: gzip;q=0, deflate\r\n", JsonHandler).ToLowerASCII();
+		CHECK ( sResponse.contains("content-encoding: deflate\r\n") );
+		CHECK ( sResponse.contains("vary: accept-encoding\r\n") );
+
+		// without Accept-Encoding the response is not compressed, and its headers
+		// stay as they were without compression support
+		sResponse = Serve("", JsonHandler).ToLowerASCII();
+		CHECK_FALSE ( sResponse.contains("content-encoding:") );
+		CHECK_FALSE ( sResponse.contains("vary:") );
+
+		// a handler that sends already encoded content switches compression off -
+		// the Content-Encoding, the Content-Length and the body stay as they are
+		sResponse = Serve("Accept-Encoding: gzip, deflate\r\n", [](KRESTServer& http)
+		{
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE, KMIME::TEXT_UTF8);
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_ENCODING, "gzip");
+			http.AllowCompression(false);
+			http.SetRawOutput("encoded bytes");
+		});
+		CHECK ( sResponse.ToLowerASCII().contains("content-encoding: gzip\r\n") );
+		CHECK ( sResponse.ToLowerASCII().contains("content-length: 13\r\n") );
+		CHECK_FALSE ( sResponse.ToLowerASCII().contains("transfer-encoding:") );
+		CHECK ( sResponse.ends_with("\r\n\r\nencoded bytes") );
+
+		// a Content-Encoding without AllowCompression(false), like one copied from a
+		// proxied response whose body the client has already uncompressed, is replaced
+		// by the negotiated compression
+		sResponse = Serve("Accept-Encoding: deflate\r\n", [](KRESTServer& http)
+		{
+			http.Response.Headers.Set(KHTTPHeader::CONTENT_ENCODING, "gzip");
+			http.json.tx["data"] = KString(4000, 'x');
+		}).ToLowerASCII();
+		CHECK ( sResponse.contains("content-encoding: deflate\r\n") );
+		CHECK_FALSE ( sResponse.contains("content-encoding: gzip") );
+		CHECK ( sResponse.contains("transfer-encoding: chunked\r\n") );
+		CHECK ( sResponse.contains("vary: accept-encoding\r\n") );
+
+		// AllowCompression(false) without a Content-Encoding sends the content as it is
+		sResponse = Serve("Accept-Encoding: gzip, deflate\r\n", [](KRESTServer& http)
+		{
+			http.AllowCompression(false);
+			http.json.tx["data"] = KString(4000, 'x');
+		}).ToLowerASCII();
+		CHECK_FALSE ( sResponse.contains("content-encoding:") );
+		CHECK_FALSE ( sResponse.contains("transfer-encoding:") );
+		CHECK_FALSE ( sResponse.contains("vary:") );
+		CHECK ( sResponse.contains("content-length:") );
+		CHECK ( sResponse.contains(KString(4000, 'x')) );
+	}
+
 	SECTION("LAMBDA multiValueHeaders")
 	{
 		// payload format 1.0 transports repeated response headers (Set-Cookie) only
@@ -1088,6 +1164,59 @@ x-klog: -level 1
 		CHECK ( sResponse.contains("<x>")      == false );
 		CHECK ( sResponse.contains("\"a\"b")   == false );
 		CHECK ( sResponse.contains("x&y.html") == false );
+	}
+
+	SECTION("web server: HEAD, ranges and compression")
+	{
+		KTempDir WebRoot;
+		{
+			KOutFile OutFile(kFormat("{}/data.txt", WebRoot.Name()));
+			CHECK ( OutFile.is_open() );
+			OutFile.Write(KString(3000, 'x'));
+		}
+
+		KRESTServer::Options Options;
+		KRESTRoutes Routes;
+		Routes.AddWebServer(WebRoot.Name(), "/web/*", KWebServerPermissions(KJSON{{ "permissions", "read|browse" }}), KJSON{});
+
+		auto Request = [&](KStringView sMethod, KStringView sHeaders)
+		{
+			return RunRequest(kFormat("{} /web/data.txt HTTP/1.1\r\nHost: localhost\r\n{}\r\n", sMethod, sHeaders), Routes, Options);
+		};
+
+		// HEAD sends the headers of a GET, without a body
+		auto sResponse = Request("HEAD", "Accept-Encoding: gzip\r\n").ToLowerASCII();
+		CHECK ( sResponse.starts_with("http/1.1 200") );
+		CHECK ( sResponse.contains("content-length: 3000\r\n") );
+		CHECK ( sResponse.contains("content-type: text/plain") );
+		CHECK ( sResponse.contains("last-modified: ") );
+		CHECK ( sResponse.contains("accept-ranges: bytes\r\n") );
+		CHECK ( sResponse.ends_with("\r\n\r\n") );
+
+		// HEAD ignores a Range header
+		sResponse = Request("HEAD", "Range: bytes=0-9\r\n").ToLowerASCII();
+		CHECK ( sResponse.starts_with("http/1.1 200") );
+		CHECK ( sResponse.contains("content-length: 3000\r\n") );
+		CHECK_FALSE ( sResponse.contains("content-range:") );
+
+		// HEAD evaluates conditional requests like GET
+		sResponse = Request("HEAD", "If-Modified-Since: Fri, 01 Jan 2100 00:00:00 GMT\r\n").ToLowerASCII();
+		CHECK ( sResponse.starts_with("http/1.1 304") );
+
+		// a partial response is not compressed
+		sResponse = Request("GET", "Range: bytes=0-9\r\nAccept-Encoding: gzip, deflate\r\n");
+		CHECK ( sResponse.starts_with("HTTP/1.1 206") );
+		CHECK ( sResponse.ToLowerASCII().contains("content-range: bytes 0-9/3000\r\n") );
+		CHECK ( sResponse.ToLowerASCII().contains("content-length: 10\r\n") );
+		CHECK_FALSE ( sResponse.ToLowerASCII().contains("content-encoding:") );
+		CHECK_FALSE ( sResponse.ToLowerASCII().contains("transfer-encoding:") );
+		CHECK ( sResponse.ends_with("\r\n\r\nxxxxxxxxxx") );
+
+		// the complete file is compressed
+		sResponse = Request("GET", "Accept-Encoding: gzip\r\n").ToLowerASCII();
+		CHECK ( sResponse.starts_with("http/1.1 200") );
+		CHECK ( sResponse.contains("content-encoding: gzip\r\n") );
+		CHECK ( sResponse.contains("vary: accept-encoding\r\n") );
 	}
 
 	SECTION("KRESTSession LoginTrusted")

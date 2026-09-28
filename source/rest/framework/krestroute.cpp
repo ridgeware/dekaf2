@@ -727,7 +727,11 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 			}
 			else
 			{
-				HTTP.SetStreamToOutput(WebServer.GetStreamForReading(), WebServer.GetFileSize());
+				// a partial response is not compressed: its Content-Range counts the
+				// bytes of the uncompressed file
+				HTTP.SetStreamToOutput(WebServer.GetStreamForReading(),
+				                       WebServer.GetFileSize(),
+				                       /*bAllowCompression=*/WebServer.GetStatus() != KHTTPError::H2xx_PARTIAL_CONTENT);
 			}
 			break;
 		}

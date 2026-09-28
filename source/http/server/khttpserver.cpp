@@ -328,10 +328,14 @@ void KHTTPServer::SetAuthenticatedUser(KString sAuthenticatedUser)
 void KHTTPServer::EnableCompressionIfPossible()
 //-----------------------------------------------------------------------------
 {
-	auto sCompression = Request.SupportedCompression();
-
-	if (sCompression.empty())
+	if (!Response.IsCompressionAllowed())
 	{
+		// the handler has switched compression off with AllowCompression(false), e.g.
+		// because it sends already encoded content - keep its Content-Encoding and
+		// Content-Length, and do not switch to chunked transfer. A Content-Encoding that
+		// is set without this call is replaced below by the negotiated compression:
+		// handlers that copy the headers of a proxied response, whose body the client
+		// has already uncompressed, rely on that.
 		return;
 	}
 
@@ -343,34 +347,19 @@ void KHTTPServer::EnableCompressionIfPossible()
 		return;
 	}
 
-#ifdef DEKAF2_HAS_LIBZSTD
-	// Safari has a bug with zstd + chunked transfer encoding over TLS in HTTP/1.1
-	// (HTTP/2 and plain HTTP work fine). Detect Safari and exclude zstd, falling
-	// back to brotli or gzip. Remove this workaround when Apple fixes the bug.
-	if (sCompression == "zstd" && Request.GetHTTPVersion() < KHTTPVersion::http2)
+	auto sCompression = Request.SupportedCompression();
+
+	if (sCompression.empty())
 	{
-		auto sUserAgent = Request.Headers.Get(KHTTPHeader::USER_AGENT);
-
-		if (sUserAgent.contains("Safari/") && !sUserAgent.contains("Chrome/") && !sUserAgent.contains("Chromium/"))
-		{
-			auto Compression = KHTTPCompression::GetBestSupportedCompressor(
-				Request.Headers.Get(KHTTPHeader::ACCEPT_ENCODING),
-				KHTTPCompression::ZSTD
-			);
-
-			sCompression = KHTTPCompression::ToString(Compression);
-
-			if (sCompression.empty())
-			{
-				return;
-			}
-
-			kDebug(2, "Safari detected, excluding zstd, using {}", sCompression);
-		}
+		return;
 	}
-#endif
 
 	Response.Headers.Set (KHTTPHeader::CONTENT_ENCODING, sCompression);
+
+	// a cache must not send this response to clients with another Accept-Encoding.
+	// Uncompressed responses do not get a Vary header: a cache that sends them to all
+	// clients only loses the compression, and their headers stay unchanged.
+	Response.AddVary(KHTTPHeader::ACCEPT_ENCODING);
 
 	// for compression, we need to switch to chunked transfer, as we do not know
 	// the size of the compressed content in advance

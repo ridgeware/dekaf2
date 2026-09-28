@@ -145,7 +145,8 @@ void KWebServer::Check
 	}
 	else if (this->Exists())
 	{
-		if (RequestMethod == KHTTPMethod::GET)
+		// HEAD sends the same headers as GET would
+		if (bIsGetOrHead)
 		{
 			ResponseHeaders.Headers.Set(KHTTPHeader::CONTENT_TYPE, this->GetMIMEType(true).Serialize());
 
@@ -167,8 +168,14 @@ void KWebServer::Check
 				m_iFileStart = 0;
 
 				// check for ranges - a malformed or unsatisfiable Range header is a 416,
-				// not a one byte partial response
-				auto Ranges = KHTTPHeader::GetRanges(RequestHeaders.Headers.Get(KHTTPHeader::RANGE), m_iFileSize, true);
+				// not a one byte partial response. Range requests are only defined for
+				// GET (RFC 9110 14.2), a HEAD request ignores the Range header.
+				std::vector<KHTTPHeader::Range> Ranges;
+
+				if (RequestMethod == KHTTPMethod::GET)
+				{
+					Ranges = KHTTPHeader::GetRanges(RequestHeaders.Headers.Get(KHTTPHeader::RANGE), m_iFileSize, true);
+				}
 
 				if (!Ranges.empty())
 				{

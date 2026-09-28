@@ -49,6 +49,7 @@ set (USOURCES
 	kchildprocess_tests.cpp
 	kcompatibility_tests.cpp
 	kcompression_tests.cpp
+	kcompressioncache_tests.cpp
 	kconfig_tests.cpp
 	kcookie_tests.cpp
 	kcountingstreambuf_tests.cpp

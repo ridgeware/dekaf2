@@ -1771,6 +1771,7 @@ set(PUBLIC_HEADERS
 	source/rest/framework/krestsession.h
 	source/rest/limits/kconnectionlimiter.h
 	source/rest/limits/kratelimiter.h
+	source/rest/serving/kcompressioncache.h
 	source/rest/serving/kfileserver.h
 	source/rest/serving/kwebdav.h
 	source/rest/serving/kwebserver.h
@@ -2056,6 +2057,7 @@ set (SOURCES
 	source/rest/framework/krestsession.cpp
 	source/rest/limits/kconnectionlimiter.cpp
 	source/rest/limits/kratelimiter.cpp
+	source/rest/serving/kcompressioncache.cpp
 	source/rest/serving/kfileserver.cpp
 	source/rest/serving/kwebdav.cpp
 	source/rest/serving/kwebserver.cpp

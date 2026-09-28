@@ -111,6 +111,12 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "xml"_ksv  , XML        },
 		{ "swf"_ksv  , SWF        },
 		{ "bz2"_ksv  , BZ2        },
+		{ "tbz"_ksv  , BZ2        },
+		{ "tbz2"_ksv , BZ2        },
+		{ "gz"_ksv   , GZIP       },
+		{ "tgz"_ksv  , GZIP       },
+		{ "xz"_ksv   , XZ         },
+		{ "txz"_ksv  , XZ         },
 		{ "dmg"_ksv  , DMG        },
 		{ "csh"_ksv  , CSH        },
 		{ "doc"_ksv  , DOC        },
@@ -141,6 +147,7 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "xlsx"_ksv , XLSX       },
 		{ "zip"_ksv  , ZIP        },
 		{ "zst"_ksv  , ZSTD       },
+		{ "tzst"_ksv , ZSTD       },
 		{ "zstd"_ksv , ZSTD       },
 
 		{ "eot"_ksv  , EOT        },
@@ -174,6 +181,7 @@ bool KMIME::ByExtension(KStringView sFilename, KStringView Default)
 		{ "po"_ksv   , PO         },
 		{ "md"_ksv   , MD         },
 		{ "js"_ksv   , JAVASCRIPT },
+		{ "mjs"_ksv  , JAVASCRIPT },
 		{ "java"_ksv , JAVA       },
 		{ "cs"_ksv   , CSHARP     },
 		{ "go"_ksv   , GOLANG     },
@@ -313,6 +321,9 @@ bool KMIME::IsCompressible()
 		case OGA.Hash():
 		case SWF.Hash():
 		case BZ2.Hash():
+		case BR.Hash():
+		case GZIP.Hash():
+		case XZ.Hash():
 		case DMG.Hash():
 		case DOCX.Hash():
 		case JAR.Hash():

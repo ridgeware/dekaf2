@@ -221,6 +221,7 @@ public:
 	static constexpr KStringViewZ DOC                    = "application/msword";
 	static constexpr KStringViewZ DOCX                   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 	static constexpr KStringViewZ EPUB                   = "application/epub+zip";
+	static constexpr KStringViewZ GZIP                   = "application/gzip";
 	static constexpr KStringViewZ JAR                    = "application/java-archive";
 	static constexpr KStringViewZ ODP                    = "application/vnd.oasis.opendocument.presentation";
 	static constexpr KStringViewZ ODS                    = "application/vnd.oasis.opendocument.spreadsheet";
@@ -242,6 +243,7 @@ public:
 	static constexpr KStringViewZ XLIFF2                 = "application/xliff+xml";
 	static constexpr KStringViewZ XLS                    = "application/vnd.ms-excel";
 	static constexpr KStringViewZ XLSX                   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+	static constexpr KStringViewZ XZ                     = "application/x-xz";
 	static constexpr KStringViewZ ZIP                    = "application/zip";
 	static constexpr KStringViewZ ZSTD                   = "application/zstd";
 

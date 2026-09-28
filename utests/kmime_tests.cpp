@@ -69,6 +69,37 @@ TEST_CASE("KMIME")
 		CHECK( a == KMIME::CSS );
 	}
 
+	SECTION("compressors")
+	{
+		KMIME a;
+
+		CHECK ( a.ByExtension("archive.tar.gz") );
+		CHECK ( a == KMIME::GZIP );
+		CHECK ( a.ByExtension("archive.tgz") );
+		CHECK ( a == KMIME::GZIP );
+		CHECK ( a.ByExtension("archive.tar.xz") );
+		CHECK ( a == KMIME::XZ );
+		CHECK ( a.ByExtension("archive.txz") );
+		CHECK ( a == KMIME::XZ );
+		CHECK ( a.ByExtension("archive.tbz2") );
+		CHECK ( a == KMIME::BZ2 );
+		CHECK ( a.ByExtension("archive.tzst") );
+		CHECK ( a == KMIME::ZSTD );
+		CHECK ( a.ByExtension("data.file.br") );
+		CHECK ( a == KMIME::BR );
+
+		// already compressed - never compressed again on the fly
+		for (auto sType : { KMIME::GZIP, KMIME::XZ, KMIME::BR, KMIME::BZ2, KMIME::ZSTD })
+		{
+			KMIME m(sType);
+			CHECK ( m.IsCompressible() == false );
+		}
+
+		// a plain tar is not compressed
+		KMIME t(KMIME::TAR);
+		CHECK ( t.IsCompressible() );
+	}
+
 #ifndef DEKAF2_IS_WINDOWS
 	SECTION("by inspection")
 	{

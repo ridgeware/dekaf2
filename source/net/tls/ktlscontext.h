@@ -130,14 +130,67 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Set the key exchange groups (elliptic curves, finite field groups and KEMs) this
+	/// context offers or accepts, in preference order, separated by colons, commas or spaces.
+	/// The names are those of the TLS library, e.g. "X25519:X448" for a key exchange without
+	/// NIST curves and without ML-KEM. With OpenSSL >= 3.5 its extended syntax works as well:
+	/// "?" ignores an unknown group, "*" marks a group to send a key share for, "/" separates
+	/// preference tuples. A client sends a key share for its first group only (unless
+	/// marked otherwise), and a server rejects clients without a common group. For a server
+	/// with SNI dispatch the groups of this (the default) context apply, whichever context
+	/// serves the connection.
+	/// @param sGroups the group list - an empty list keeps the current setting
+	/// @returns false if the TLS library rejects the list, e.g. for an unknown group name
+	bool SetGroups(KStringView sGroups);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set the key exchange groups that every KTLSContext constructed after this call starts
+	/// with, including the internal client contexts that KTLSStream and KQuicStream use when
+	/// no context is given. Those are constructed at their first use, so call this before the
+	/// first connection. The syntax is the same as for SetGroups().
+	/// @param sGroups the group list - an empty list restores the defaults of the TLS library
+	/// for contexts constructed afterwards
+	/// @returns false if the TLS library rejects the list - the previous setting stays active
+	static bool SetDefaultGroups(KStringView sGroups);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Get the key exchange groups set with SetDefaultGroups(), empty for the library defaults
+	static KString GetDefaultGroups();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Set an additional verify path (the system defaults have been set at construction)
 	bool SetAdditionalTLSVerifyPath(KStringView sVerifyPath);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Replace the trusted certificates - the system defaults set at construction and any
+	/// verify path added before - with the certificates in a PEM file, like curl's --cacert.
+	/// Any certificate in the file is a trust anchor, also one that is not self-signed:
+	/// pinning an intermediate or the server certificate itself works as well
+	/// (the latter breaks with every renewal). Other PEM blocks in the file are skipped.
+	/// Peer verification itself is switched on per connection, as before.
+	/// @param sFile the PEM file with one or more certificates
+	/// @returns false if the file cannot be read or holds no valid certificate - the
+	/// previous trusted certificates stay active
+	bool LoadTLSVerifyCertificates(KStringViewZ sFile);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Replace the trusted certificates with the certificates in a PEM buffer, see
+	/// LoadTLSVerifyCertificates()
+	/// @param sCertificates one or more certificates in PEM format
+	/// @returns false if the buffer holds no valid certificate - the previous trusted
+	/// certificates stay active
+	bool SetTLSVerifyCertificates(KStringView sCertificates);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// When using this context object for a server, add a context that serves connections
 	/// requesting sHostname via SNI. The selected context contributes certificate, key and
-	/// ALPN - protocol versions and ciphers remain those of this context.
+	/// ALPN - protocol versions, ciphers and key exchange groups remain those of this context.
 	/// @param sHostname the SNI hostname, matched case insensitively. May be a wildcard
 	/// like "*.example.com", matching exactly one label. Replaces an existing entry.
 	/// @param Context a server mode context

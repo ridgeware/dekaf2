@@ -44,8 +44,13 @@
 #include <dekaf2/core/types/kfrozen.h>
 #include <openssl/opensslv.h>
 #include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/pem.h>
 #include <openssl/x509_vfy.h>
 #include <dekaf2/net/address/kipaddress.h>
+#include <dekaf2/io/readwrite/kreader.h>
+#include <dekaf2/crypto/hash/bits/kdigest.h>
+#include <limits>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10101000L && !defined(LIBRESSL_VERSION_NUMBER)
 	#define DEKAF2_HAS_TLS_CLIENT_HELLO_CB 1
@@ -174,6 +179,78 @@ std::vector<KStringView> ParseALPNProtocols(const unsigned char* pData, std::siz
 } // ParseALPNProtocols
 
 #endif // of DEKAF2_HAS_TLS_CLIENT_HELLO_CB
+
+//-----------------------------------------------------------------------------
+/// the group list in the syntax of the TLS library: commas become colons, white space goes
+KString NormalizeGroups(KStringView sGroups)
+//-----------------------------------------------------------------------------
+{
+	KString sNormalized;
+	sNormalized.reserve(sGroups.size());
+
+	for (auto ch : sGroups)
+	{
+		if (ch == ',')
+		{
+			sNormalized += ':';
+		}
+		else if (!KASCII::kIsSpace(ch))
+		{
+			sNormalized += ch;
+		}
+	}
+
+	return sNormalized;
+
+} // NormalizeGroups
+
+//-----------------------------------------------------------------------------
+/// set the key exchange groups on a native context
+/// @returns the error description, empty on success
+KString ApplyGroups(::SSL_CTX* ctx, const KString& sGroups)
+//-----------------------------------------------------------------------------
+{
+	if (!ctx)
+	{
+		return "no TLS context";
+	}
+
+	::ERR_clear_error();
+
+#if defined(SSL_CTX_set1_groups_list) || OPENSSL_VERSION_NUMBER >= 0x10101000L
+	// a macro with OpenSSL, a function with LibreSSL
+	auto iResult = SSL_CTX_set1_groups_list(ctx, sGroups.c_str());
+#elif defined(SSL_CTX_set1_curves_list)
+	auto iResult = SSL_CTX_set1_curves_list(ctx, sGroups.c_str());
+#else
+	int iResult = 0;
+	(void)sGroups;
+#endif
+
+	if (iResult == 1)
+	{
+		return {};
+	}
+
+	auto sError = KDigest::GetOpenSSLError();
+
+	if (sError.empty())
+	{
+		sError = "unknown group name or invalid list syntax";
+	}
+
+	return sError;
+
+} // ApplyGroups
+
+//-----------------------------------------------------------------------------
+KThreadSafe<KString>& DefaultGroups()
+//-----------------------------------------------------------------------------
+{
+	static KThreadSafe<KString> s_DefaultGroups;
+	return s_DefaultGroups;
+
+} // DefaultGroups
 
 } // end of anonymous namespace
 
@@ -307,12 +384,21 @@ bool KTLSContext::SetDefaults()
 
 	if (!sVerifyPath.empty())
 	{
-		return SetAdditionalTLSVerifyPath(sVerifyPath);
+		if (!SetAdditionalTLSVerifyPath(sVerifyPath))
+		{
+			return false;
+		}
 	}
 
 #endif
-	// when adding more code after the endif here,
-	// modify the return condition above to only return on false
+
+	auto sGroups = GetDefaultGroups();
+
+	if (!sGroups.empty())
+	{
+		return SetGroups(sGroups);
+	}
+
 	return true;
 
 } // SetDefaults
@@ -338,6 +424,111 @@ bool KTLSContext::SetAdditionalTLSVerifyPath(KStringView sVerifyPath)
 	return true;
 
 } // SetAdditionalTLSVerifyPath
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::LoadTLSVerifyCertificates(KStringViewZ sFile)
+//-----------------------------------------------------------------------------
+{
+	KString sCertificates;
+
+	if (!kReadAll(sFile, sCertificates))
+	{
+		return SetError(kFormat("cannot read trusted certificates from {}", sFile));
+	}
+
+	if (!SetTLSVerifyCertificates(sCertificates))
+	{
+		return SetError(kFormat("{}: {}", sFile, GetLastError()));
+	}
+
+	return true;
+
+} // LoadTLSVerifyCertificates
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::SetTLSVerifyCertificates(KStringView sCertificates)
+//-----------------------------------------------------------------------------
+{
+	if (sCertificates.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+	{
+		return SetError("trusted certificates buffer too large");
+	}
+
+	std::unique_ptr<::BIO, decltype(&::BIO_free)> Bio
+	(
+		::BIO_new_mem_buf(sCertificates.data(), static_cast<int>(sCertificates.size())),
+		&::BIO_free
+	);
+
+	std::unique_ptr<::X509_STORE, decltype(&::X509_STORE_free)> Store(::X509_STORE_new(), &::X509_STORE_free);
+
+	if (!Bio || !Store)
+	{
+		return SetError("cannot allocate a certificate store");
+	}
+
+	::ERR_clear_error();
+
+	std::size_t iCount { 0 };
+
+	for (;;)
+	{
+		// reads CERTIFICATE and TRUSTED CERTIFICATE blocks, skips all others
+		std::unique_ptr<::X509, decltype(&::X509_free)> Cert
+		(
+			::PEM_read_bio_X509_AUX(Bio.get(), nullptr, nullptr, nullptr),
+			&::X509_free
+		);
+
+		if (!Cert)
+		{
+			break;
+		}
+
+		// the store takes its own reference - a duplicate is no error
+		if (!::X509_STORE_add_cert(Store.get(), Cert.get()))
+		{
+			auto iError = ::ERR_peek_last_error();
+
+			if (ERR_GET_REASON(iError) != X509_R_CERT_ALREADY_IN_HASH_TABLE)
+			{
+				return SetError(KDigest::GetOpenSSLError("cannot add a trusted certificate"));
+			}
+
+			::ERR_clear_error();
+		}
+
+		++iCount;
+	}
+
+	// the loop ends with "no start line" at the end of the buffer, anything else is a real error
+	auto iError = ::ERR_peek_last_error();
+
+	if (iError && !(ERR_GET_LIB(iError) == ERR_LIB_PEM && ERR_GET_REASON(iError) == PEM_R_NO_START_LINE))
+	{
+		return SetError(KDigest::GetOpenSSLError("invalid trusted certificate"));
+	}
+
+	::ERR_clear_error();
+
+	if (!iCount)
+	{
+		return SetError("no trusted certificate found");
+	}
+
+#ifdef X509_V_FLAG_PARTIAL_CHAIN
+	// every certificate in the store is a trust anchor, not only self-signed roots
+	::X509_STORE_set_flags(Store.get(), X509_V_FLAG_PARTIAL_CHAIN);
+#endif
+
+	// the context takes ownership of the store and frees the previous one
+	::SSL_CTX_set_cert_store(m_Context.native_handle(), Store.release());
+
+	kDebug(2, "replaced the trusted certificates with {} certificate{}", iCount, iCount == 1 ? "" : "s");
+
+	return true;
+
+} // SetTLSVerifyCertificates
 
 //-----------------------------------------------------------------------------
 bool KTLSContext::ClientHello::HasALPN(KStringView sProtocol) const
@@ -817,6 +1008,75 @@ bool KTLSContext::SetAllowedCipherSuites(KStringView sCipherSuites)
 	return bSuccess;
 
 } // SetAllowedCipherSuites
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::SetGroups(KStringView sGroups)
+//-----------------------------------------------------------------------------
+{
+	auto sNormalized = NormalizeGroups(sGroups);
+
+	if (sNormalized.empty())
+	{
+		return true;
+	}
+
+	kDebug(2, "set TLS key exchange groups {}", sNormalized);
+
+	auto sError = ApplyGroups(m_Context.native_handle(), sNormalized);
+
+	if (!sError.empty())
+	{
+		return SetError(kFormat("setting TLS key exchange groups {} failed: {}", sNormalized, sError));
+	}
+
+	return true;
+
+} // SetGroups
+
+//-----------------------------------------------------------------------------
+bool KTLSContext::SetDefaultGroups(KStringView sGroups)
+//-----------------------------------------------------------------------------
+{
+	auto sNormalized = NormalizeGroups(sGroups);
+
+	if (!sNormalized.empty())
+	{
+		// check the list on a scratch context, so that a typo shows here
+		// and not later in the constructor of every context
+		std::unique_ptr<::SSL_CTX, decltype(&::SSL_CTX_free)> Probe
+		(
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+			::SSL_CTX_new(::TLS_method()),
+#else
+			::SSL_CTX_new(::SSLv23_method()),
+#endif
+			&::SSL_CTX_free
+		);
+
+		auto sError = ApplyGroups(Probe.get(), sNormalized);
+
+		if (!sError.empty())
+		{
+			kDebug(1, "cannot set default TLS key exchange groups {}: {}", sNormalized, sError);
+			return false;
+		}
+	}
+
+	kDebug(2, "set default TLS key exchange groups: {}", sNormalized.empty() ? KStringView("library defaults") : KStringView(sNormalized));
+
+	DefaultGroups().unique().get() = std::move(sNormalized);
+
+	return true;
+
+} // SetDefaultGroups
+
+//-----------------------------------------------------------------------------
+KString KTLSContext::GetDefaultGroups()
+//-----------------------------------------------------------------------------
+{
+	return DefaultGroups().shared().get();
+
+} // GetDefaultGroups
 
 #if DEKAF2_HAS_NGHTTP2
 

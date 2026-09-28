@@ -1024,6 +1024,13 @@ public:
 	std::vector<KHTTPHeader::Range> GetRanges(uint64_t iResourceSize) const;
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// adds a request header name to the Vary header of a response, unless it is
+	/// already listed or Vary is *
+	/// @param Header the request header that the response depends on
+	void AddVary(const KHTTPHeader& Header);
+	//-----------------------------------------------------------------------------
+
 	struct BasicAuthParms
 	{
 		KString sUsername;

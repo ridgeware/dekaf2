@@ -596,6 +596,28 @@ std::vector<KHTTPHeader::Range> KHTTPHeaders::GetRanges(uint64_t iResourceSize) 
 } // GetRanges
 
 //-----------------------------------------------------------------------------
+void KHTTPHeaders::AddVary(const KHTTPHeader& Header)
+//-----------------------------------------------------------------------------
+{
+	auto Varies = Headers.equal_range(KHTTPHeader::VARY);
+
+	// Vary is a list, which may be spread over multiple header lines
+	for (auto it = Varies.first; it != Varies.second; ++it)
+	{
+		for (auto sField : it->second.Split(","))
+		{
+			if (sField == "*" || Header == sField)
+			{
+				return;
+			}
+		}
+	}
+
+	Headers.Add(KHTTPHeader::VARY, Header.Serialize());
+
+} // AddVary
+
+//-----------------------------------------------------------------------------
 KHTTPHeaders::BasicAuthParms KHTTPHeaders::GetBasicAuthParms() const
 //-----------------------------------------------------------------------------
 {

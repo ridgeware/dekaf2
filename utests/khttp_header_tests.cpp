@@ -2,6 +2,8 @@
 #include <dekaf2/http/protocol/khttp_header.h>
 #include <dekaf2/http/client/khttpclient.h>
 #include <dekaf2/io/streams/kstringstream.h>
+#include <dekaf2/core/strings/kjoin.h>
+#include <algorithm>
 #include <vector>
 
 using namespace dekaf2;
@@ -281,5 +283,61 @@ TEST_CASE("KHTTPHeaders::Parse")
 		CHECK ( Headers.Parse(iss, true) == true );
 		CHECK ( Headers.Headers.Get(KHTTPHeader::CONTENT_LENGTH) == "5" );
 		CHECK ( Headers.Headers.Get(KHTTPHeader::HOST) == "localhost" );
+	}
+}
+
+TEST_CASE("KHTTPHeaders::AddVary")
+{
+	// returns all Vary header lines, sorted and joined by '|' - the order of
+	// multiple header lines with the same name is not defined
+	auto VaryValues = [](const KHTTPHeaders& Headers)
+	{
+		std::vector<KString> Values;
+		auto Range = Headers.Headers.equal_range(KHTTPHeader::VARY);
+
+		for (auto it = Range.first; it != Range.second; ++it)
+		{
+			Values.push_back(it->second);
+		}
+
+		std::sort(Values.begin(), Values.end());
+
+		return kJoined(Values, "|");
+	};
+
+	SECTION("adds the header name once")
+	{
+		KHTTPHeaders Headers;
+		Headers.AddVary(KHTTPHeader::ACCEPT_ENCODING);
+		CHECK ( VaryValues(Headers) == "accept-encoding" );
+		Headers.AddVary(KHTTPHeader::ACCEPT_ENCODING);
+		CHECK ( VaryValues(Headers) == "accept-encoding" );
+		Headers.AddVary(KHTTPHeader("Origin"));
+		CHECK ( VaryValues(Headers) == "accept-encoding|origin" );
+	}
+
+	SECTION("keeps an existing Vary header")
+	{
+		KHTTPHeaders Headers;
+		Headers.Headers.Set(KHTTPHeader::VARY, "Origin, Accept-Language");
+		Headers.AddVary(KHTTPHeader::ACCEPT_ENCODING);
+		CHECK ( VaryValues(Headers) == "Origin, Accept-Language|accept-encoding" );
+	}
+
+	SECTION("finds the name case insensitively in any Vary line")
+	{
+		KHTTPHeaders Headers;
+		Headers.Headers.Add(KHTTPHeader::VARY, "Origin");
+		Headers.Headers.Add(KHTTPHeader::VARY, "Cookie, Accept-Encoding");
+		Headers.AddVary(KHTTPHeader::ACCEPT_ENCODING);
+		CHECK ( VaryValues(Headers) == "Cookie, Accept-Encoding|Origin" );
+	}
+
+	SECTION("a Vary of * covers all header names")
+	{
+		KHTTPHeaders Headers;
+		Headers.Headers.Set(KHTTPHeader::VARY, "*");
+		Headers.AddVary(KHTTPHeader::ACCEPT_ENCODING);
+		CHECK ( VaryValues(Headers) == "*" );
 	}
 }

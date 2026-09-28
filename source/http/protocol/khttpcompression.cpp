@@ -88,7 +88,8 @@ void KHTTPCompression::Parse(KStringView sCompression, bool bSingleValue)
 {
 	m_Compression = FromString(sCompression);
 
-	if (m_Compression == NONE && !bSingleValue && sCompression.contains(','))
+	// a list, or a single name with a quality value
+	if (m_Compression == NONE && !bSingleValue)
 	{
 		m_Compression = GetBestSupportedCompressor(sCompression);
 	}
@@ -108,29 +109,57 @@ void KHTTPCompression::Parse(const KHTTPHeaders& Headers)
 } // Parse
 
 //-----------------------------------------------------------------------------
-KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompressor(KStringView sCompressors, COMP Excluded)
+KHTTPCompression::COMP KHTTPCompression::GetAcceptedCompressors(KStringView sCompressors)
 //-----------------------------------------------------------------------------
 {
-	COMP Compression = NONE;
+	COMP Accepted {};
 
-	// check the client's request headers for accepted compression encodings
-	const auto Compressors = sCompressors.Split(",");
-
-	for (auto sCompressor : Compressors)
+	for (auto sCompressor : sCompressors.Split(","))
 	{
-		// we want to remove the quality value, but are not interested in
-		// the actual quality .. we have our own ranking
-		KHTTPHeader::GetQualityValue(sCompressor, true);
-
-		auto NewComp = FromString(sCompressor);
-
-		if (NewComp < Compression && (NewComp & s_PermittedCompressors) == NewComp && (NewComp & Excluded) == 0)
+		// a quality value of 0 means "not acceptable" (RFC 9110 12.5.3) - all other
+		// quality values are ignored, as we rank the compressors ourselves
+		if (KHTTPHeader::GetQualityValue(sCompressor, true) == 0)
 		{
-			Compression = NewComp;
+			continue;
+		}
+
+		auto Compressor = FromString(sCompressor);
+
+		// only compressors of the ALL set are accepted, which excludes NONE and LZMA
+		if (Compressor != NONE && (Compressor & ALL & s_PermittedCompressors) == Compressor)
+		{
+			Accepted |= Compressor;
 		}
 	}
 
-	return Compression;
+	return Accepted;
+
+} // GetAcceptedCompressors
+
+//-----------------------------------------------------------------------------
+KHTTPCompression::COMP KHTTPCompression::GetBestCompressor(COMP Compressors)
+//-----------------------------------------------------------------------------
+{
+	using inttype = std::underlying_type<COMP>::type;
+
+	// the compressors are ranked by their bit value, the lowest bit is the best
+	for (inttype iMask = 1; iMask < NONE; iMask <<= 1)
+	{
+		if (Compressors & iMask)
+		{
+			return static_cast<COMP>(iMask);
+		}
+	}
+
+	return NONE;
+
+} // GetBestCompressor
+
+//-----------------------------------------------------------------------------
+KHTTPCompression::COMP KHTTPCompression::GetBestSupportedCompressor(KStringView sCompressors, COMP Excluded)
+//-----------------------------------------------------------------------------
+{
+	return GetBestCompressor(GetAcceptedCompressors(sCompressors) & ~Excluded);
 
 } // GetBestSupportedCompressor
 

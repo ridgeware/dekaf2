@@ -460,22 +460,74 @@ bool KHTTPRequestHeaders::HasChunking() const
 
 } // HasChunking
 
+#ifdef DEKAF2_HAS_LIBZSTD
+namespace {
+
+//-----------------------------------------------------------------------------
+/// Safari hangs on HTTP/1.1 responses over TLS with zstd content encoding and chunked
+/// transfer encoding until the server closes the connection. Safari 26.3.1 has the bug,
+/// Safari 27.0 has not, the version that fixed it is not known. Browsers on Apple's
+/// network stack without a Version/ token in the user agent (like CriOS or FxiOS) are
+/// treated as affected, because their Safari version is not known.
+bool HasChunkedZstdBug(KStringView sUserAgent)
+//-----------------------------------------------------------------------------
+{
+	if (!sUserAgent.contains("Safari/") || sUserAgent.contains("Chrome/") || sUserAgent.contains("Chromium/"))
+	{
+		return false;
+	}
+
+	constexpr KStringView sVersionToken      = "Version/";
+	constexpr uint16_t    iFirstFixedVersion = 27;
+
+	auto iPos = sUserAgent.find(sVersionToken);
+
+	if (iPos == KStringView::npos)
+	{
+		return true;
+	}
+
+	sUserAgent.remove_prefix(iPos + sVersionToken.size());
+
+	return sUserAgent.UInt16() < iFirstFixedVersion;
+
+} // HasChunkedZstdBug
+
+} // end of anonymous namespace
+#endif
+
+//-----------------------------------------------------------------------------
+KHTTPCompression::COMP KHTTPRequestHeaders::AcceptedCompressors(bool bChunked) const
+//-----------------------------------------------------------------------------
+{
+	if (bChunked && !HasChunking())
+	{
+		// chunked transfer is only supported since HTTP/1.1
+		return {};
+	}
+
+	auto Compressors = KHTTPCompression::GetAcceptedCompressors(Headers.Get(KHTTPHeader::ACCEPT_ENCODING));
+
+#ifdef DEKAF2_HAS_LIBZSTD
+	if (bChunked
+	    && (Compressors & KHTTPCompression::ZSTD)
+	    && GetHTTPVersion() < KHTTPVersion::http2
+	    && HasChunkedZstdBug(Headers.Get(KHTTPHeader::USER_AGENT)))
+	{
+		kDebug(2, "Safari with chunked zstd bug detected, excluding zstd");
+		Compressors &= ~KHTTPCompression::ZSTD;
+	}
+#endif
+
+	return Compressors;
+
+} // AcceptedCompressors
+
 //-----------------------------------------------------------------------------
 KStringView KHTTPRequestHeaders::SupportedCompression() const
 //-----------------------------------------------------------------------------
 {
-	KHTTPCompression Compression;
-
-	// for compression we need to switch to chunked transfer, as we do not know
-	// the size of the compressed content - however, chunking is only supported
-	// since HTTP/1.1
-	if (HasChunking())
-	{
-		// check the client's request headers for accepted compression encodings
-		Compression = Headers.Get(KHTTPHeader::ACCEPT_ENCODING);
-	}
-
-	return Compression.Serialize();
+	return KHTTPCompression::ToString(KHTTPCompression::GetBestCompressor(AcceptedCompressors(true)));
 
 } // SupportedCompression
 

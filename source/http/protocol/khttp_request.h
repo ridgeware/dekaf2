@@ -155,8 +155,16 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Returns either zstd, xz, lzma, gzip, deflate or bzip2 if either compression is supported by
-	/// the client and the HTTP protocol is at least 1.1
+	/// Returns the set of permitted compressions that the client accepts for the response
+	/// @param bChunked true if the response is sent without a Content-Length. This returns an
+	/// empty set for HTTP/1.0 clients, and excludes compressions that the client cannot decode
+	/// in chunked HTTP/1.1 responses.
+	KHTTPCompression::COMP AcceptedCompressors(bool bChunked) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Returns the name of the best compression that the client accepts for a response without
+	/// a Content-Length, or an empty string if there is none (always for HTTP/1.0)
 	KStringView SupportedCompression() const;
 	//-----------------------------------------------------------------------------
 

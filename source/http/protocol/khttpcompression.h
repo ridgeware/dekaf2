@@ -63,7 +63,8 @@ class DEKAF2_PUBLIC KHTTPCompression
 public:
 //------
 
-	enum COMP
+	// the fixed underlying type makes the complement of a set (~) a valid value
+	enum COMP : uint16_t
 	{
 #ifdef DEKAF2_HAS_LIBZSTD
 		ZSTD   = 1 << 0,
@@ -138,6 +139,14 @@ public:
 	/// @param Headers HTTP headers. ACCEPT-ENCODING header will be read for a comma separated list of compressor names
 	/// @param Excluded set of compressors to exclude from selection (default NONE = no exclusion)
 	static COMP         GetBestSupportedCompressor(const KHTTPHeaders& Headers, COMP Excluded = NONE);
+	/// return the set of permitted compressors that a comma separated list of compressor names accepts -
+	/// names with a quality value of 0 are not accepted
+	/// @param sCompressors comma separated list of compressor names
+	/// @return the set of accepted compressors, 0 if none
+	static COMP         GetAcceptedCompressors(KStringView sCompressors);
+	/// return the best compressor of a set of compressors, NONE if the set is empty
+	/// @param Compressors set of compressors
+	static COMP         GetBestCompressor(COMP Compressors);
 	/// return compression algorithm from name
 	static COMP         FromString(KStringView);
 	/// return compression name from algorithm

@@ -73,6 +73,60 @@ TEST_CASE("KHTTPCompression")
 #endif
 	}
 
+	SECTION("quality values")
+	{
+		// q=0 means "not acceptable", other quality values do not change our ranking
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("gzip;q=0, deflate") == KHTTPCompression::ZLIB );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("deflate;q=0, gzip") == KHTTPCompression::GZIP );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("deflate;q=0.0, gzip;q=0") == KHTTPCompression::NONE );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("gzip;q=1.0, deflate;q=0.1") == KHTTPCompression::ZLIB );
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("gzip ;q=0.5") == KHTTPCompression::GZIP );
+#ifdef DEKAF2_HAS_LIBZSTD
+		CHECK ( KHTTPCompression::GetBestSupportedCompressor("zstd;q=0, gzip") == KHTTPCompression::GZIP );
+#endif
+
+		// the single value constructor uses the same rules
+		KHTTPCompression HTTPComp;
+		HTTPComp = "gzip;q=0.8";
+		CHECK ( HTTPComp == KHTTPCompression::GZIP );
+		HTTPComp = "gzip;q=0";
+		CHECK ( HTTPComp == KHTTPCompression::NONE );
+	}
+
+	SECTION("GetAcceptedCompressors")
+	{
+		CHECK ( KHTTPCompression::GetAcceptedCompressors("") == 0 );
+		CHECK ( KHTTPCompression::GetAcceptedCompressors("*") == 0 );
+		CHECK ( KHTTPCompression::GetAcceptedCompressors("identity, superflat") == 0 );
+		CHECK ( KHTTPCompression::GetAcceptedCompressors("gzip, deflate;q=0, bzip2") == (KHTTPCompression::GZIP | KHTTPCompression::BZIP2) );
+		CHECK ( KHTTPCompression::GetAcceptedCompressors("x-gzip") == KHTTPCompression::GZIP );
+#ifdef DEKAF2_HAS_LIBLZMA
+		// lzma is never accepted from an accept-encoding list
+		CHECK ( KHTTPCompression::GetAcceptedCompressors("lzma, xz") == KHTTPCompression::XZ );
+#endif
+#if defined(DEKAF2_HAS_LIBZSTD) && defined(DEKAF2_HAS_LIBBROTLI)
+		CHECK ( KHTTPCompression::GetAcceptedCompressors("gzip, deflate, br, zstd") ==
+		        (KHTTPCompression::ZSTD | KHTTPCompression::BROTLI | KHTTPCompression::ZLIB | KHTTPCompression::GZIP) );
+#endif
+
+		auto comp = KHTTPCompression::GetPermittedCompressors();
+		KHTTPCompression::SetPermittedCompressors("gzip");
+		CHECK ( KHTTPCompression::GetAcceptedCompressors("gzip, deflate, br, zstd") == KHTTPCompression::GZIP );
+		KHTTPCompression::SetPermittedCompressors(comp);
+	}
+
+	SECTION("GetBestCompressor")
+	{
+		CHECK ( KHTTPCompression::GetBestCompressor(KHTTPCompression::COMP{}) == KHTTPCompression::NONE );
+		CHECK ( KHTTPCompression::GetBestCompressor(KHTTPCompression::NONE) == KHTTPCompression::NONE );
+		CHECK ( KHTTPCompression::GetBestCompressor(KHTTPCompression::GZIP | KHTTPCompression::BZIP2) == KHTTPCompression::GZIP );
+		CHECK ( KHTTPCompression::GetBestCompressor(KHTTPCompression::GZIP | KHTTPCompression::ZLIB) == KHTTPCompression::ZLIB );
+#if defined(DEKAF2_HAS_LIBZSTD) && defined(DEKAF2_HAS_LIBBROTLI)
+		CHECK ( KHTTPCompression::GetBestCompressor(KHTTPCompression::BROTLI | KHTTPCompression::ZSTD | KHTTPCompression::GZIP) == KHTTPCompression::ZSTD );
+		CHECK ( KHTTPCompression::GetBestCompressor(KHTTPCompression::BROTLI | KHTTPCompression::GZIP) == KHTTPCompression::BROTLI );
+#endif
+	}
+
 	SECTION("GetBestSupportedCompression2")
 	{
 		auto comp = KHTTPCompression::GetPermittedCompressors();

@@ -135,6 +135,14 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
+	/// returns false if compression was switched off with AllowCompression(false)
+	bool IsCompressionAllowed() const
+	//-----------------------------------------------------------------------------
+	{
+		return m_bAllowCompression;
+	}
+
+	//-----------------------------------------------------------------------------
 	/// flushes all content in the output pipelines
 	void Flush();
 	//-----------------------------------------------------------------------------

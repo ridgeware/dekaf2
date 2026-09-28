@@ -925,3 +925,64 @@ TEST_CASE("kIsCaseInsensitiveFileSystem")
 	CHECK ( kIsCaseInsensitiveFileSystem(kFormat("{}/does-not-exist", Dir.Name())) == false );
 	CHECK ( kIsCaseInsensitiveFileSystem("") == false );
 }
+
+TEST_CASE("KFileStat identity")
+{
+	KTempDir Dir;
+	auto sFile  = kFormat("{}/file.txt",  Dir.Name());
+	auto sOther = kFormat("{}/other.txt", Dir.Name());
+
+	SECTION("inode and links")
+	{
+		CHECK ( kWriteFile(sFile, "content") );
+
+		KFileStat Stat(sFile);
+		CHECK ( Stat.IsFile() );
+		CHECK ( Stat.Size()  == 7 );
+		CHECK ( Stat.Inode() != 0 );
+		CHECK ( Stat.Links() >= 1 );
+		// the same file keeps its inode
+		CHECK ( KFileStat(sFile).Inode() == Stat.Inode() );
+
+		KFileStat DirStat(Dir.Name());
+		CHECK ( DirStat.IsDirectory() );
+		CHECK ( DirStat.Inode() != 0 );
+		CHECK ( DirStat.Inode() != Stat.Inode() );
+	}
+
+	SECTION("a file that is replaced by a rename gets another inode")
+	{
+		CHECK ( kWriteFile(sFile,  "first") );
+		CHECK ( kWriteFile(sOther, "other") );
+
+		auto iInode      = KFileStat(sFile ).Inode();
+		auto iOtherInode = KFileStat(sOther).Inode();
+		CHECK ( iInode != iOtherInode );
+
+		CHECK ( kRename(sOther, sFile) );
+		CHECK ( KFileStat(sFile).Inode() == iOtherInode );
+	}
+
+	SECTION("setting back the modification time does not set back the change time")
+	{
+		auto tBefore = KUnixTime::now() - chrono::seconds(2);
+
+		CHECK ( kWriteFile(sFile, "content") );
+
+		KUnixTime tPast = KUnixTime::from_time_t(946684800); // 2000-01-01
+		CHECK ( kSetLastMod(sFile, tPast) );
+
+		KFileStat Stat(sFile);
+		auto Difference = Stat.ModificationTime() - tPast;
+		CHECK ( Difference <  chrono::seconds(2) );
+		CHECK ( Difference > -chrono::seconds(2) );
+		CHECK ( Stat.ChangeTime() > tBefore );
+	}
+
+	SECTION("a missing file")
+	{
+		KFileStat Stat(kFormat("{}/missing.txt", Dir.Name()));
+		CHECK_FALSE ( Stat.Exists() );
+		CHECK_FALSE ( Stat.HasError() );
+	}
+}

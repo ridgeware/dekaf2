@@ -1721,6 +1721,179 @@ KFileStat::KFileStat(int iFileDescriptor)
 } // ctor
 #endif
 
+#ifdef DEKAF2_IS_WINDOWS
+namespace {
+
+//-----------------------------------------------------------------------------
+// a handle for reading the attributes of a file or directory, closed when the scope ends
+class AttributeHandle
+//-----------------------------------------------------------------------------
+{
+public:
+	// with bOpenReparsePoint a symbolic link or junction is opened itself, not its target
+	AttributeHandle(const std::wstring& wsPath, bool bOpenReparsePoint)
+	: m_hFile(::CreateFileW(wsPath.c_str(),
+	                        // an access for the attributes only is not checked against the
+	                        // share modes of other handles on the file
+	                        FILE_READ_ATTRIBUTES,
+	                        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+	                        nullptr,
+	                        OPEN_EXISTING,
+	                        // FILE_FLAG_BACKUP_SEMANTICS is needed to open a directory
+	                        FILE_FLAG_BACKUP_SEMANTICS | (bOpenReparsePoint ? FILE_FLAG_OPEN_REPARSE_POINT : 0),
+	                        nullptr))
+	{
+	}
+	~AttributeHandle() { if (IsOpen()) ::CloseHandle(m_hFile); }
+	AttributeHandle(const AttributeHandle&) = delete;
+	AttributeHandle& operator=(const AttributeHandle&) = delete;
+	bool   IsOpen() const { return m_hFile != INVALID_HANDLE_VALUE; }
+	HANDLE Get()    const { return m_hFile; }
+
+private:
+	HANDLE m_hFile;
+
+}; // AttributeHandle
+
+//-----------------------------------------------------------------------------
+/// converts a Windows file time (100 ns ticks since 1601-01-01) into a KUnixTime
+KUnixTime FromWindowsTicks(int64_t iTicks)
+//-----------------------------------------------------------------------------
+{
+	// the count of 100 ns ticks from 1601-01-01 to 1970-01-01
+	constexpr int64_t iUnixEpochTicks = 116444736000000000LL;
+
+	using WindowsTicks = chrono::duration<int64_t, std::ratio<1, 10000000>>;
+
+	return KUnixTime(chrono::system_clock::time_point(
+		chrono::duration_cast<chrono::system_clock::duration>(WindowsTicks(iTicks - iUnixEpochTicks))));
+
+} // FromWindowsTicks
+
+//-----------------------------------------------------------------------------
+int64_t FromFileTime(const FILETIME& FileTime)
+//-----------------------------------------------------------------------------
+{
+	return static_cast<int64_t>((static_cast<uint64_t>(FileTime.dwHighDateTime) << 32) | FileTime.dwLowDateTime);
+
+} // FromFileTime
+
+//-----------------------------------------------------------------------------
+/// sets type, size and access mode from the file attributes - a read-only file has no
+/// write permissions, all others have all permissions, as with std::filesystem
+void SetFromAttributes(KFileStat& Stat, DWORD dwAttributes, uint64_t iSize)
+//-----------------------------------------------------------------------------
+{
+	bool bIsDirectory = (dwAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+
+	Stat.SetType(bIsDirectory ? KFileType::DIRECTORY : KFileType::FILE);
+	Stat.SetSize(bIsDirectory ? 0 : static_cast<std::size_t>(iSize));
+	Stat.SetAccessMode((dwAttributes & FILE_ATTRIBUTE_READONLY) ? 0555 : 0777);
+
+} // SetFromAttributes
+
+//-----------------------------------------------------------------------------
+/// sets the times - file systems that do not keep a time report it as 0, which is
+/// replaced by the modification time
+void SetTimes(KFileStat& Stat, int64_t iAccessTime, int64_t iWriteTime, int64_t iChangeTime)
+//-----------------------------------------------------------------------------
+{
+	Stat.SetModificationTime(FromWindowsTicks(iWriteTime));
+	Stat.SetAccessTime      (FromWindowsTicks(iAccessTime ? iAccessTime : iWriteTime));
+	Stat.SetChangeTime      (FromWindowsTicks(iChangeTime ? iChangeTime : iWriteTime));
+
+} // SetTimes
+
+//-----------------------------------------------------------------------------
+/// reads the status of an open file into Stat
+/// @return 0, or the Win32 error code
+DWORD ReadFileStat(HANDLE hFile, KFileStat& Stat)
+//-----------------------------------------------------------------------------
+{
+	BY_HANDLE_FILE_INFORMATION Info;
+	FILE_BASIC_INFO            Basic;
+
+	if (!::GetFileInformationByHandle(hFile, &Info) ||
+	    !::GetFileInformationByHandleEx(hFile, FileBasicInfo, &Basic, static_cast<DWORD>(sizeof(Basic))))
+	{
+		return ::GetLastError();
+	}
+
+	SetFromAttributes(Stat, Info.dwFileAttributes, (static_cast<uint64_t>(Info.nFileSizeHigh) << 32) | Info.nFileSizeLow);
+
+	// on ReFS the file index is only the lower half of the 128 bit file ID - FILE_ID_INFO
+	// with the full ID needs a Windows 8 target, and dekaf2 builds for Vista
+	Stat.SetInode((static_cast<uint64_t>(Info.nFileIndexHigh) << 32) | Info.nFileIndexLow);
+	Stat.SetLinks(static_cast<uint16_t>(Info.nNumberOfLinks));
+
+	// the ChangeTime changes with every change of the data or the metadata, like the POSIX
+	// ctime. The CreationTime is no replacement: file tunneling restores the creation time
+	// of a file that is deleted and created again under the same name within 15 seconds.
+	SetTimes(Stat, Basic.LastAccessTime.QuadPart, Basic.LastWriteTime.QuadPart, Basic.ChangeTime.QuadPart);
+
+	return 0;
+
+} // ReadFileStat
+
+//-----------------------------------------------------------------------------
+/// reads the status of a file that cannot be opened even for its attributes (like
+/// pagefile.sys) - without a file index, a link count, and a change time, and for a
+/// symbolic link with the values of the link itself
+/// @return 0, or the Win32 error code
+DWORD ReadFileStatWithoutHandle(const std::wstring& wsPath, KFileStat& Stat)
+//-----------------------------------------------------------------------------
+{
+	WIN32_FILE_ATTRIBUTE_DATA Data;
+
+	if (!::GetFileAttributesExW(wsPath.c_str(), GetFileExInfoStandard, &Data))
+	{
+		return ::GetLastError();
+	}
+
+	SetFromAttributes(Stat, Data.dwFileAttributes, (static_cast<uint64_t>(Data.nFileSizeHigh) << 32) | Data.nFileSizeLow);
+	SetTimes(Stat, FromFileTime(Data.ftLastAccessTime), FromFileTime(Data.ftLastWriteTime), 0);
+
+	return 0;
+
+} // ReadFileStatWithoutHandle
+
+//-----------------------------------------------------------------------------
+/// returns true if hFile, opened with FILE_FLAG_OPEN_REPARSE_POINT, is a symbolic link or a junction
+bool IsLink(HANDLE hFile)
+//-----------------------------------------------------------------------------
+{
+	FILE_ATTRIBUTE_TAG_INFO Tag;
+
+	return ::GetFileInformationByHandleEx(hFile, FileAttributeTagInfo, &Tag, static_cast<DWORD>(sizeof(Tag)))
+	    && (Tag.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+	    && (Tag.ReparseTag == IO_REPARSE_TAG_SYMLINK || Tag.ReparseTag == IO_REPARSE_TAG_MOUNT_POINT);
+
+} // IsLink
+
+//-----------------------------------------------------------------------------
+/// returns true if the Win32 error code means that the file does not exist
+bool IsNotFound(DWORD dwError)
+//-----------------------------------------------------------------------------
+{
+	switch (dwError)
+	{
+		case ERROR_FILE_NOT_FOUND:
+		case ERROR_PATH_NOT_FOUND:
+		case ERROR_INVALID_NAME:
+		case ERROR_INVALID_DRIVE:
+		case ERROR_BAD_NETPATH:
+		case ERROR_BAD_NET_NAME:
+			return true;
+
+		default:
+			return false;
+	}
+
+} // IsNotFound
+
+} // end of anonymous namespace
+#endif
+
 //-----------------------------------------------------------------------------
 KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 //-----------------------------------------------------------------------------
@@ -1762,74 +1935,42 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 
 	FromStat(StatStruct, bDetectSymlinks);
 
-#elif defined(DEKAF2_FILESTAT_USE_STD_FILESYSTEM)
+#elif defined(DEKAF2_IS_WINDOWS)
 
-	// windows would have issues with utf8 file names, therefore use the
-	// std::filesystem interface (which however needs multiple calls)
+	auto  wsFilename = kutf::Convert<std::wstring>(sFilename);
+	DWORD dwError;
 
-	std::error_code ec;
-	auto fsPath = kToFilesystemPath(sFilename);
-
-	fs::file_status status;
-
-	if (bDetectSymlinks)
 	{
-		status = fs::symlink_status(fsPath, ec);
-	}
-	else
-	{
-		status = fs::status(fsPath, ec);
-	}
+		// with bDetectSymlinks the link itself is opened (like lstat()), otherwise its target (like stat())
+		AttributeHandle File(wsFilename, bDetectSymlinks);
 
-	if (ec)
-	{
-		// see https://en.cppreference.com/w/cpp/error/errc
-		if (ec != std::errc::no_such_file_or_directory)
+		dwError = File.IsOpen() ? ReadFileStat(File.Get(), *this) : ::GetLastError();
+
+		if (dwError == 0 && bDetectSymlinks && IsLink(File.Get()))
 		{
-			SetError(kFormat("{}: {}", sFilename, ec.message()));
-		}
-		m_mode = 0;
-		return;
-	}
-	else
-	{
-		m_ftype = KFileTypeFromStdFilesystem(status.type());
-		m_mode  = static_cast<int>(status.permissions());
-	}
+			// like stat() after lstat(): the type stays the link, all other values are
+			// those of the target - a link to a missing target keeps its own values
+			AttributeHandle Target(wsFilename, false);
 
-	if (!IsDirectory())
-	{
-		m_size = fs::file_size(fsPath, ec);
+			if (Target.IsOpen())
+			{
+				ReadFileStat(Target.Get(), *this);
+			}
 
-		if (ec)
-		{
-			SetError(kFormat("{}: {}", sFilename, ec.message()));
-			m_size = 0;
+			SetType(KFileType::SYMLINK);
 		}
 	}
 
-	auto ftime = fs::last_write_time(fsPath, ec);
-
-	if (ec)
+	if (dwError != 0 && !IsNotFound(dwError))
 	{
-		SetError(kFormat("{}: {}", sFilename, ec.message()));
+		// some files cannot be opened even for their attributes, like pagefile.sys
+		dwError = ReadFileStatWithoutHandle(wsFilename, *this);
 	}
-	else
+
+	if (dwError != 0 && !IsNotFound(dwError))
 	{
-#if defined(DEKAF2_IS_WINDOWS) && !defined(DEKAF2_IS_CPP_20)
-
-		// unfortunately windows uses its own filetime ticks (100 nanoseconds since 1.1.1601)
-		// this will change with C++20!
-		static constexpr uint64_t WINDOWS_TICK = 10000000;
-		static constexpr uint64_t SEC_TO_UNIX_EPOCH = 11644473600LL;
-		std::time_t stime = (ftime.time_since_epoch().count() / WINDOWS_TICK - SEC_TO_UNIX_EPOCH);
-
-#else
-		std::time_t stime = decltype(ftime)::clock::to_time_t(ftime);
-#endif
-		m_atime = stime;
-		m_mtime = stime;
-		m_ctime = stime;
+		// only log errors other than not existing (that is expected)
+		SetError(kFormat("{}: {}", sFilename, std::system_category().message(static_cast<int>(dwError))));
 	}
 
 	// we have no means to query user or group ID..

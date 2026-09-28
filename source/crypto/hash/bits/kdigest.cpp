@@ -96,24 +96,22 @@ KString KDigest::GetOpenSSLError(KStringView sMessage)
 //---------------------------------------------------------------------------
 {
 	KString sError(sMessage);
-	auto iPos = sMessage.size();
+	bool    bFirst { true };
 
-	auto ec = ::ERR_get_error();
-
-	if (ec)
+	// drain the queue: entries left behind would be attributed to later, unrelated
+	// calls in this thread - SSL_get_error() for one reads the queue
+	for (auto ec = ::ERR_get_error(); ec; ec = ::ERR_get_error())
 	{
-		if (iPos)
+		char szBuffer[256];
+		::ERR_error_string_n(ec, szBuffer, sizeof(szBuffer));
+
+		if (!sError.empty())
 		{
-			sError += ": ";
-			iPos += 2;
+			sError += bFirst ? ": " : "; ";
 		}
 
-		constexpr uint16_t iMaxError = 256;
-
-		sError.resize(iPos + iMaxError);
-		::ERR_error_string_n(ec, &sError[iPos], iMaxError);
-		auto iErrorSize = ::strnlen(&sError[iPos], iMaxError);
-		sError.resize(iPos + iErrorSize);
+		bFirst = false;
+		sError += szBuffer;
 	}
 
 	return sError;

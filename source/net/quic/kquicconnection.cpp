@@ -48,11 +48,11 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/net/address/kresolve.h>
+#include <dekaf2/crypto/hash/bits/kdigest.h>
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
 #include <openssl/ssl.h>
-#include <openssl/err.h>
 #include <openssl/rand.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -122,29 +122,6 @@ KDuration FromNS(ngtcp2_duration ns)
 {
 	return KDuration(chrono::nanoseconds(ns));
 }
-
-//-----------------------------------------------------------------------------
-KString OpenSSLErrors()
-//-----------------------------------------------------------------------------
-{
-	KString sErrors;
-
-	for (auto iError = ::ERR_get_error(); iError; iError = ::ERR_get_error())
-	{
-		char szBuffer[256];
-		::ERR_error_string_n(iError, szBuffer, sizeof(szBuffer));
-
-		if (!sErrors.empty())
-		{
-			sErrors += "; ";
-		}
-
-		sErrors += szBuffer;
-	}
-
-	return sErrors;
-
-} // OpenSSLErrors
 
 } // end of anonymous namespace
 
@@ -480,7 +457,7 @@ bool KQuicConnection::SetupTLS(KStringView sHostname, KStringView sALPN, bool bV
 
 	if (!m_SSL)
 	{
-		return SetError(kFormat("cannot create SSL object: {}", OpenSSLErrors()));
+		return SetError(KDigest::GetOpenSSLError("cannot create SSL object"));
 	}
 
 	auto ssl = m_SSL.get();
@@ -1053,13 +1030,7 @@ bool KQuicConnection::Fail(int iError)
 			}
 		}
 
-		auto sOpenSSL = OpenSSLErrors();
-
-		if (!sOpenSSL.empty())
-		{
-			sError += ": ";
-			sError += sOpenSSL;
-		}
+		sError = KDigest::GetOpenSSLError(sError);
 	}
 	else if (iError != 0)
 	{

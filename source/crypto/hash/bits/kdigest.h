@@ -91,7 +91,9 @@ public:
 	/// returns a string that can be used in the method interfaces of OpenSSL for the digest
 	static const KStringViewZ ToString(Digest digest);
 
-	/// returns an error message for the last OpenSSL error
+	/// returns sMessage with all queued OpenSSL errors of this thread appended, oldest first,
+	/// and empties the queue
+	/// @param sMessage the message to prefix the OpenSSL errors with, separated by ": "
 	static KString GetOpenSSLError(KStringView sMessage = KStringView{});
 
 	/// constant-time comparison of two strings (to prevent timing attacks on digest/HMAC verification)

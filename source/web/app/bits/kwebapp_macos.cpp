@@ -1079,16 +1079,19 @@ void CancelAttention(void* /*pWindow*/, int64_t iRequest)
 bool Confirm(void* pWindow, KStringView sTitle, KStringView sText, KStringView sOK, KStringView sCancel)
 //-----------------------------------------------------------------------------
 {
-	// Record who is in front now, and get our own window out of the way: when the
-	// panel closes, AppKit makes the next window key, and a key window on another
-	// space takes the user there. With the window ordered out there is no such
-	// candidate; afterwards the previous application gets the focus back, and
-	// the window returns to its space without becoming key
+	// Record who is in front now, and get our own window out of the way if it
+	// sits on another space: when the panel closes, AppKit makes the next window
+	// key, and a key window on another space takes the user there. With the
+	// window ordered out there is no such candidate; afterwards the previous
+	// application gets the focus back, and the window returns to its space
+	// without becoming key. A window on the active space stays where it is -
+	// becoming key there switches nothing, and hiding it would only disturb
 	auto Window   = static_cast<id>(pWindow);
 	auto Previous = Msg<id>(Msg<id>(Class("NSWorkspace"), "sharedWorkspace"), "frontmostApplication");
-	bool bWasVisible = Window && Msg<ObjCBool>(Window, "isVisible");
+	bool bOrderOut = Window &&  Msg<ObjCBool>(Window, "isVisible")
+	                        && !Msg<ObjCBool>(Window, "isOnActiveSpace");
 
-	if (bWasVisible)
+	if (bOrderOut)
 	{
 		Msg<void>(Window, "orderOut:", static_cast<id>(nullptr));
 	}
@@ -1122,7 +1125,7 @@ bool Confirm(void* pWindow, KStringView sTitle, KStringView sText, KStringView s
 		Msg<ObjCBool>(Previous, "activateWithOptions:", iIgnoringOtherApps);
 	}
 
-	if (bWasVisible)
+	if (bOrderOut)
 	{
 		Msg<void>(Window, "orderFront:", static_cast<id>(nullptr));
 	}

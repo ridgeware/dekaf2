@@ -40,6 +40,7 @@
 */
 
 #include <dekaf2/rest/serving/kwebdav.h>
+#include <dekaf2/rest/serving/kcompressioncache.h>
 #include <dekaf2/rest/framework/krestserver.h>
 #include <dekaf2/rest/serving/kwebserverpermissions.h>
 #include <dekaf2/http/server/khttperror.h>
@@ -840,7 +841,8 @@ void KWebDAV::CopyOrMove(KRESTServer& HTTP,
                           KStringView sRoute,
                           const KWebServerPermissions& Permissions,
                           KStringView sUser,
-                          bool bIsMove)
+                          bool bIsMove,
+                          KCompressionCache* pCache)
 //-----------------------------------------------------------------------------
 {
 	auto sSourcePath = ResolveFilesystemPath(sDocumentRoot, sRequestPath, sRoute);
@@ -892,12 +894,28 @@ void KWebDAV::CopyOrMove(KRESTServer& HTTP,
 		throw KHTTPError { KHTTPError::H5xx_ERROR, kFormat("cannot {} '{}' to '{}'", bIsMove ? "move" : "copy", sRequestPath, sDestRequestPath) };
 	}
 
+	if (pCache)
+	{
+		// the destination has new content, and a moved source is gone -
+		// ResolveFilesystemPath() has checked that both paths start with the route
+		KStringView sDestRelPath = sDestRequestPath;
+		sDestRelPath.remove_prefix(sRoute);
+		pCache->Forget(sDocumentRoot, sDestRelPath);
+
+		if (bIsMove)
+		{
+			KStringView sSourceRelPath = sRequestPath;
+			sSourceRelPath.remove_prefix(sRoute);
+			pCache->Forget(sDocumentRoot, sSourceRelPath);
+		}
+	}
+
 	HTTP.SetStatus(bDestExists ? 204 : 201);
 
 } // CopyOrMove
 
 //-----------------------------------------------------------------------------
-void KWebDAV::Delete(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute)
+void KWebDAV::Delete(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute, KCompressionCache* pCache)
 //-----------------------------------------------------------------------------
 {
 	auto sFilePath = ResolveFilesystemPath(sDocumentRoot, sRequestPath, sRoute);
@@ -921,6 +939,14 @@ void KWebDAV::Delete(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView s
 	else
 	{
 		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, kFormat("not found: {}", sRequestPath) };
+	}
+
+	if (pCache)
+	{
+		// ResolveFilesystemPath() has checked that the path starts with the route
+		KStringView sRelPath = sRequestPath;
+		sRelPath.remove_prefix(sRoute);
+		pCache->Forget(sDocumentRoot, sRelPath);
 	}
 
 	HTTP.SetStatus(204);
@@ -1063,7 +1089,8 @@ void KWebDAV::Serve(KRESTServer& HTTP,
                     KStringView  sRequestPath,
                     KStringView  sRoute,
                     const KWebServerPermissions& Permissions,
-                    KStringView  sUser)
+                    KStringView  sUser,
+                    KCompressionCache* pCache)
 //-----------------------------------------------------------------------------
 {
 	// advertise DAV Class 2 compliance on all WebDAV responses
@@ -1084,15 +1111,15 @@ void KWebDAV::Serve(KRESTServer& HTTP,
 			break;
 
 		case KHTTPMethod::COPY:
-			CopyOrMove(HTTP, sDocumentRoot, sRequestPath, sRoute, Permissions, sUser, false);
+			CopyOrMove(HTTP, sDocumentRoot, sRequestPath, sRoute, Permissions, sUser, false, pCache);
 			break;
 
 		case KHTTPMethod::MOVE:
-			CopyOrMove(HTTP, sDocumentRoot, sRequestPath, sRoute, Permissions, sUser, true);
+			CopyOrMove(HTTP, sDocumentRoot, sRequestPath, sRoute, Permissions, sUser, true, pCache);
 			break;
 
 		case KHTTPMethod::DELETE:
-			Delete(HTTP, sDocumentRoot, sRequestPath, sRoute);
+			Delete(HTTP, sDocumentRoot, sRequestPath, sRoute, pCache);
 			break;
 
 		case KHTTPMethod::OPTIONS:

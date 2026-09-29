@@ -40,6 +40,7 @@
 */
 
 #include <dekaf2/rest/serving/kwebserver.h>
+#include <dekaf2/rest/serving/kcompressioncache.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/time/clock/ktime.h>
 
@@ -352,6 +353,8 @@ KHTTPMethod KWebServer::Serve
 					{
 						auto sTo   = kFormat("{}{}{}{}", sDocumentRoot, sResource, kDirSep, File.GetFilename());
 						kMove(sFrom, sTo);
+						// the compression cache uses / as separator, also on Windows
+						ForgetCompressed(sDocumentRoot, kFormat("{}/{}", sResource, File.GetFilename()));
 					}
 					else
 					{
@@ -413,15 +416,17 @@ KHTTPMethod KWebServer::Serve
 						throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing file name" };
 					}
 
+					auto sFilename   = kMakeSafeFilename(sBody, false);
 					auto sRemoveFile = kFormat("{}{}{}",
 					                           sResource,
 					                           kDirSep,
-					                           kMakeSafeFilename(sBody, false)
+					                           sFilename
 					                           );
 
 					if (kRemoveFile(kFormat("{}{}", sDocumentRoot, sRemoveFile)))
 					{
 						kDebug(2, "removed file: {}", sRemoveFile);
+						ForgetCompressed(sDocumentRoot, kFormat("{}/{}", sResource, sFilename));
 					}
 
 					bShowFileIndexAgain = true;
@@ -433,15 +438,17 @@ KHTTPMethod KWebServer::Serve
 						throw KHTTPError { KHTTPError::H4xx_BADREQUEST, "missing directory name" };
 					}
 
+					auto sDirname   = kMakeSafePathname(sBody, false);
 					auto sRemoveDir = kFormat("{}{}{}",
 					                          sResource,
 					                          kDirSep,
-					                          kMakeSafePathname(sBody, false)
+					                          sDirname
 					                          );
 
 					if (kRemoveDir(kFormat("{}{}", sDocumentRoot, sRemoveDir)))
 					{
 						kDebug(2, "removed directory: {}", sRemoveDir);
+						ForgetCompressed(sDocumentRoot, kFormat("{}/{}", sResource, sDirname));
 					}
 
 					bShowFileIndexAgain = true;
@@ -517,6 +524,8 @@ KHTTPMethod KWebServer::Serve
 					throw KHTTPError { KHTTPError::H5xx_ERROR, "cannot write file" };
 				}
 
+				ForgetCompressed(sDocumentRoot, sResource);
+
 				kDebug(2, "stored at {}", sTo.ToView(sDocumentRoot.size()));
 			}
 			else
@@ -537,6 +546,7 @@ KHTTPMethod KWebServer::Serve
 				throw KHTTPError { KHTTPError::H5xx_ERROR, "cannot remove file" };
 			}
 
+			ForgetCompressed(sDocumentRoot, sResource);
 			break;
 		}
 
@@ -547,5 +557,16 @@ KHTTPMethod KWebServer::Serve
 	return RequestMethod;
 
 } // Serve
+
+//-----------------------------------------------------------------------------
+void KWebServer::ForgetCompressed(KStringView sDocumentRoot, KStringView sRelPath) const
+//-----------------------------------------------------------------------------
+{
+	if (m_pCompressionCache)
+	{
+		m_pCompressionCache->Forget(sDocumentRoot, sRelPath);
+	}
+
+} // ForgetCompressed
 
 DEKAF2_NAMESPACE_END

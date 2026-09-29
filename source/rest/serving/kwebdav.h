@@ -54,6 +54,8 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+class KCompressionCache;
+
 /// @addtogroup rest_serving
 /// @{
 
@@ -79,12 +81,14 @@ public:
 	/// @param sRoute the route prefix to strip from request path
 	/// @param Permissions the permission set for access control
 	/// @param sUser the authenticated user name (may be empty)
+	/// @param pCache the compression cache whose entries are removed for changed or removed files, may be nullptr
 	static void Serve(KRESTServer& HTTP,
 	                  KStringView  sDocumentRoot,
 	                  KStringView  sRequestPath,
 	                  KStringView  sRoute,
 	                  const KWebServerPermissions& Permissions,
-	                  KStringView  sUser);
+	                  KStringView  sUser,
+	                  KCompressionCache* pCache = nullptr);
 
 	/// generate an ETag string from file stat info
 	DEKAF2_NODISCARD
@@ -106,8 +110,8 @@ private:
 	static void Proppatch (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
 	static void Mkcol     (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
 	static void CopyOrMove(KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute,
-	                       const KWebServerPermissions& Permissions, KStringView sUser, bool bIsMove);
-	static void Delete    (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
+	                       const KWebServerPermissions& Permissions, KStringView sUser, bool bIsMove, KCompressionCache* pCache);
+	static void Delete    (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute, KCompressionCache* pCache);
 	static void Options   (KRESTServer& HTTP);
 	static void Lock      (KRESTServer& HTTP, KStringView sDocumentRoot, KStringView sRequestPath, KStringView sRoute);
 	static void Unlock    (KRESTServer& HTTP);

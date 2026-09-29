@@ -663,7 +663,8 @@ void KRESTRoutes::WebDAVHandler(KRESTServer& HTTP)
 			               HTTP.RequestPath.sRoute,
 			               HTTP.Route->sRoute,
 			               m_WebServerPermissions,
-			               sUser);
+			               sUser,
+			               GetCompressionCache(HTTP.Route->Config));
 			break;
 		}
 
@@ -1052,6 +1053,9 @@ void KRESTRoutes::WebServer(KRESTServer& HTTP)
 	kDebug(2, "upload: {}", bWithUpload);
 
 	KWebServer WebServer(HTTP.GetTempDirReference(), HTTP.Route->Config);
+
+	// uploads and deletions remove the cache entries of the changed files
+	WebServer.SetCompressionCache(GetCompressionCache(HTTP.Route->Config));
 
 	if (bWithUpload && (HTTP.RequestPath.Method == KHTTPMethod::POST ||
 	                    HTTP.RequestPath.Method == KHTTPMethod::PUT) )

@@ -1424,6 +1424,108 @@ x-klog: -level 1
 #endif
 	}
 
+	SECTION("web server: uploads and deletions remove cache entries")
+	{
+		KTempDir WebRoot;
+		KTempDir CacheRoot;
+
+		KString sText;
+
+		for (int i = 0; i < 2000; ++i)
+		{
+			sText += kFormat("line {} of a file that compresses well\n", i);
+		}
+
+		KString sChanged = sText + "one more line\n";
+
+		REQUIRE ( kCreateDir(kFormat("{}/lib", WebRoot.Name())) );
+
+		KJSON jConfig {{ "compression_cache", CacheRoot.Name() }, { "compression_deadline", 60 }};
+		KWebServerPermissions Permissions(KJSON{{ "permissions", "read|browse|write|erase" }});
+
+		KRESTRoutes Routes;
+		Routes.AddWebServer(WebRoot.Name(), "/web/*", Permissions, jConfig);
+		Routes.AddWebDAV   (WebRoot.Name(), "/dav/*", Permissions, jConfig);
+
+		auto Run = [&](KStringView sRequest)
+		{
+			KRESTServer::Options Options;
+			return RunRequest(sRequest, Routes, Options);
+		};
+
+		auto CountEntries = [&]()
+		{
+			return KDirectory(CacheRoot.Name(), KFileType::FILE, /*bRecursive=*/true).size();
+		};
+
+		// requests a file compressed, which creates its cache entry
+		auto CreateEntry = [&](KStringView sPath)
+		{
+			return Run(kFormat("GET {} HTTP/1.1\r\nHost: localhost\r\nAccept-Encoding: gzip\r\n\r\n", sPath)).contains("content-encoding: gzip\r\n");
+		};
+
+		auto Form = [&](KStringView sBody)
+		{
+			return Run(kFormat("POST /web/ HTTP/1.1\r\nHost: localhost\r\n"
+			                   "Content-Type: application/x-www-form-urlencoded\r\nContent-Length: {}\r\n\r\n{}", sBody.size(), sBody));
+		};
+
+		// PUT replaces the file
+		REQUIRE ( kWriteFile(kFormat("{}/app.js", WebRoot.Name()), sText) );
+		CHECK ( CreateEntry("/web/app.js") );
+		CHECK ( CountEntries() == 1 );
+		CHECK ( Run(kFormat("PUT /web/app.js HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n{}", sChanged.size(), sChanged)).starts_with("HTTP/1.1 200") );
+		CHECK ( CountEntries() == 0 );
+
+		// DELETE removes the file
+		CHECK ( CreateEntry("/web/app.js") );
+		CHECK ( CountEntries() == 1 );
+		CHECK ( Run("DELETE /web/app.js HTTP/1.1\r\nHost: localhost\r\n\r\n").starts_with("HTTP/1.1 200") );
+		CHECK ( CountEntries() == 0 );
+
+		// the delete forms of the ad hoc index
+		REQUIRE ( kWriteFile(kFormat("{}/app.js", WebRoot.Name()), sText) );
+		CHECK ( CreateEntry("/web/app.js") );
+		CHECK ( Form("deleteFile=app.js").starts_with("HTTP/1.1 200") );
+		CHECK ( CountEntries() == 0 );
+
+		REQUIRE ( kWriteFile(kFormat("{}/lib/x.js", WebRoot.Name()), sText) );
+		CHECK ( CreateEntry("/web/lib/x.js") );
+		CHECK ( Form("deleteDir=lib").starts_with("HTTP/1.1 200") );
+		CHECK ( CountEntries() == 0 );
+
+		// a multipart upload replaces the file
+		REQUIRE ( kWriteFile(kFormat("{}/app.js", WebRoot.Name()), sText) );
+		CHECK ( CreateEntry("/web/app.js") );
+		{
+			auto sMultipart = kFormat("--XyZ\r\nContent-Disposition: form-data; name=\"upload1\"; filename=\"app.js\"\r\n"
+			                          "Content-Type: application/javascript\r\n\r\n{}\r\n--XyZ--\r\n", sChanged);
+			CHECK ( Run(kFormat("POST /web/ HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data; boundary=XyZ\r\n"
+			                    "Content-Length: {}\r\n\r\n{}", sMultipart.size(), sMultipart)).starts_with("HTTP/1.1 200") );
+		}
+		CHECK ( kReadAll(kFormat("{}/app.js", WebRoot.Name())) == sChanged );
+		CHECK ( CountEntries() == 0 );
+
+		// WebDAV MOVE removes the entries of the source
+		REQUIRE ( kWriteFile(kFormat("{}/a.js", WebRoot.Name()), sText) );
+		CHECK ( CreateEntry("/dav/a.js") );
+		CHECK ( CountEntries() == 1 );
+		CHECK ( Run("MOVE /dav/a.js HTTP/1.1\r\nHost: localhost\r\nDestination: http://localhost/dav/b.js\r\n\r\n").starts_with("HTTP/1.1 201") );
+		CHECK ( CountEntries() == 0 );
+
+		// WebDAV COPY removes the entries of the overwritten destination only
+		REQUIRE ( kWriteFile(kFormat("{}/c.js", WebRoot.Name()), sChanged) );
+		CHECK ( CreateEntry("/dav/b.js") );
+		CHECK ( CreateEntry("/dav/c.js") );
+		CHECK ( CountEntries() == 2 );
+		CHECK ( Run("COPY /dav/b.js HTTP/1.1\r\nHost: localhost\r\nDestination: http://localhost/dav/c.js\r\nOverwrite: T\r\n\r\n").starts_with("HTTP/1.1 204") );
+		CHECK ( CountEntries() == 1 );
+
+		// WebDAV DELETE
+		CHECK ( Run("DELETE /dav/b.js HTTP/1.1\r\nHost: localhost\r\n\r\n").starts_with("HTTP/1.1 204") );
+		CHECK ( CountEntries() == 0 );
+	}
+
 	SECTION("KRESTSession LoginTrusted")
 	{
 		KSession::Config Config;

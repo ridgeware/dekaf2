@@ -54,6 +54,8 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+class KCompressionCache;
+
 /// @addtogroup rest_serving
 /// @{
 
@@ -90,6 +92,10 @@ public:
 	}
 
 	void SetInputStream(KInStream& InStream) { m_InputStream = &InStream; }
+
+	/// sets the compression cache whose entries are removed when a request changes or removes files
+	/// @param pCache the compression cache of the route, nullptr if the route has none
+	void SetCompressionCache(KCompressionCache* pCache) { m_pCompressionCache = pCache; }
 
 	/// serve static pages - throws a KHTTPError on various conditions, or returns either a 200 or 206
 	/// state for success. Subsequently call GetStreamForReading() to read the selected file.
@@ -160,12 +166,16 @@ private:
 		const CheckMethod&  RouteCheck = nullptr
 	);
 
-	KTempDir&  m_TempDir;
-	KInStream* m_InputStream { nullptr };
-	uint64_t   m_iFileStart     { 0 };
-	uint64_t   m_iFileSize      { 0 };
-	uint16_t   m_iStatus        { 0 };
-	bool       m_bIsValid   { false };
+	/// removes the compression cache entries of a changed or removed file or directory
+	void ForgetCompressed(KStringView sDocumentRoot, KStringView sRelPath) const;
+
+	KTempDir&          m_TempDir;
+	KInStream*         m_InputStream       { nullptr };
+	KCompressionCache* m_pCompressionCache { nullptr };
+	uint64_t           m_iFileStart        { 0 };
+	uint64_t           m_iFileSize         { 0 };
+	uint16_t           m_iStatus           { 0 };
+	bool               m_bIsValid          { false };
 
 }; // KWebServer
 

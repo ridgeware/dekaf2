@@ -820,13 +820,22 @@ const KRESTRoute& KRESTRoutes::FindRoute(const KRESTPath& Path, url::KQuery& Par
 } // FindRoute
 
 //-----------------------------------------------------------------------------
-void KRESTRoutes::AddCompressionCache(const KJSON& jConfig, const KString& sDocumentRoot)
+void KRESTRoutes::AddCompressionCache(KJSON& jConfig, const KString& sDocumentRoot)
 //-----------------------------------------------------------------------------
 {
 	const auto& sCacheDirectory = kjson::GetStringRef(jConfig, "compression_cache");
 
 	if (sCacheDirectory.empty())
 	{
+		return;
+	}
+
+	if (!KCompressionCache::IsValidLocation(sCacheDirectory, sDocumentRoot))
+	{
+		// the entries would be reachable through URLs, and with write permission replaceable -
+		// the route must not find the cache of another route with the same directory either
+		kDebug(1, "not using the compression cache {} inside of the document root {}", sCacheDirectory, sDocumentRoot);
+		jConfig.erase("compression_cache");
 		return;
 	}
 

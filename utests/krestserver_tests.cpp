@@ -1424,6 +1424,34 @@ x-klog: -level 1
 #endif
 	}
 
+	SECTION("web server: a compression cache inside of the document root is not used")
+	{
+		KTempDir WebRoot;
+
+		KString sText;
+
+		for (int i = 0; i < 2000; ++i)
+		{
+			sText += kFormat("line {} of a file that compresses well\n", i);
+		}
+
+		REQUIRE ( kWriteFile(kFormat("{}/app.js", WebRoot.Name()), sText) );
+
+		auto sCacheDirectory = kFormat("{}/cache", WebRoot.Name());
+
+		KRESTRoutes Routes;
+		Routes.AddWebServer(WebRoot.Name(), "/web/*", KWebServerPermissions(KJSON{{ "permissions", "read|browse" }}),
+		                    KJSON{{ "compression_cache", sCacheDirectory }});
+
+		KRESTServer::Options Options;
+		auto sResponse = RunRequest("GET /web/app.js HTTP/1.1\r\nHost: localhost\r\nAccept-Encoding: gzip\r\n\r\n", Routes, Options);
+
+		// the route has no cache: the file is compressed on the fly, and no entry is written
+		CHECK ( sResponse.starts_with("HTTP/1.1 200") );
+		CHECK ( sResponse.contains("transfer-encoding: chunked\r\n") );
+		CHECK_FALSE ( kDirExists(sCacheDirectory) );
+	}
+
 	SECTION("web server: uploads and deletions remove cache entries")
 	{
 		KTempDir WebRoot;

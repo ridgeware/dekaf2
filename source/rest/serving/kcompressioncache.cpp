@@ -309,6 +309,32 @@ KHTTPCompression::COMP KCompressionCache::GetSupportedCompressors()
 } // GetSupportedCompressors
 
 //-----------------------------------------------------------------------------
+bool KCompressionCache::IsValidLocation(KStringView sCacheDirectory, KStringView sDocumentRoot)
+//-----------------------------------------------------------------------------
+{
+	auto sCache = kNormalizePath(sCacheDirectory);
+	auto sRoot  = kNormalizePath(sDocumentRoot);
+
+#ifdef DEKAF2_IS_WINDOWS
+	sCache.Replace('\\', '/');
+	sRoot .Replace('\\', '/');
+#endif
+
+	if (kIsCaseInsensitiveFileSystem(sRoot))
+	{
+		sCache.MakeLower();
+		sRoot .MakeLower();
+	}
+
+	sRoot.remove_suffix('/');
+
+	KStringView sInside = sCache;
+
+	return !sInside.remove_prefix(sRoot) || (!sInside.empty() && sInside.front() != '/');
+
+} // IsValidLocation
+
+//-----------------------------------------------------------------------------
 KString KCompressionCache::GetDocumentRootDirectory(KStringView sDocumentRoot) const
 //-----------------------------------------------------------------------------
 {

@@ -107,6 +107,19 @@ TEST_CASE("KCompressionCache")
 	REQUIRE ( kCreateDir(kFormat("{}/js/lib", sRoot)) );
 	REQUIRE ( kWriteFile(sSource, sText) );
 
+	SECTION("the cache directory must be outside of the document root")
+	{
+		CHECK ( KCompressionCache::IsValidLocation("/var/cache/www",    "/var/www"  ) == true  );
+		CHECK ( KCompressionCache::IsValidLocation("/var/www2",         "/var/www"  ) == true  );
+		CHECK ( KCompressionCache::IsValidLocation("/var/www/../cache", "/var/www"  ) == true  );
+		CHECK ( KCompressionCache::IsValidLocation("/var/www",          "/var/www"  ) == false );
+		CHECK ( KCompressionCache::IsValidLocation("/var/www/cache",    "/var/www/" ) == false );
+		CHECK ( KCompressionCache::IsValidLocation("/var/www/./cache",  "/var/www"  ) == false );
+		CHECK ( KCompressionCache::IsValidLocation("/tmp/cache",        "/"         ) == false );
+		CHECK ( KCompressionCache::IsValidLocation(CacheDirectory.Name(), sRoot     ) == true  );
+		CHECK ( KCompressionCache::IsValidLocation(kFormat("{}/cache", sRoot), sRoot) == false );
+	}
+
 	SECTION("supported compressors")
 	{
 		auto Supported = KCompressionCache::GetSupportedCompressors();

@@ -497,7 +497,13 @@ public:
 	/// @param Permissions the permissions configuration for directory and user access control
 	/// @param jConfig json configuration for styles, indexfile etc. (autoindex/upload are derived from permissions).
 	/// "case_insensitive" (bool) overrides the file system probe that decides whether the permission
-	/// lookup ignores case in paths
+	/// lookup ignores case in paths.
+	/// "compression_cache" (string) is a directory outside of sWWWDir for compressed variants of the static
+	/// files, see KCompressionCache. With it, a static file is sent from the cache or uncompressed, and no
+	/// longer compressed on the fly. It has no default - without it no cache is used.
+	/// "compression_deadline" (seconds, default 3) is the time after which a compression into the cache
+	/// starts to send the compressed data, chunked. "compression_min_size" (bytes, default 1024) and
+	/// "compression_max_size" (bytes, default 0 for no limit) select the file sizes that the cache compresses.
 	void AddWebServer(KString sWWWDir, KString sRoute, KWebServerPermissions Permissions, KJSON jConfig = {});
 	//-----------------------------------------------------------------------------
 
@@ -509,7 +515,7 @@ public:
 	/// @param Permissions the permissions configuration for directory and user access control
 	/// @param jConfig json configuration for styles, indexfile etc. (autoindex/upload are derived from permissions).
 	/// "case_insensitive" (bool) overrides the file system probe that decides whether the permission
-	/// lookup ignores case in paths
+	/// lookup ignores case in paths. The compression keys of AddWebServer() apply to GET and HEAD.
 	void AddWebDAV(KString sWWWDir, KString sRoute, KWebServerPermissions Permissions, KJSON jConfig = {});
 	//-----------------------------------------------------------------------------
 
@@ -729,9 +735,10 @@ private:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// creates the compression cache of a web server route if its configuration names one
+	/// creates the compression cache of a web server route if its configuration names one - removes
+	/// the name from the configuration if the cache directory is inside of the document root
 	DEKAF2_PRIVATE
-	void AddCompressionCache(const KJSON& jConfig, const KString& sDocumentRoot);
+	void AddCompressionCache(KJSON& jConfig, const KString& sDocumentRoot);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

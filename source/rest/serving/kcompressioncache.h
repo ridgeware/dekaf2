@@ -144,6 +144,15 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// returns false if the cache directory is the document root or inside of it - the entries
+	/// would then be reachable through URLs
+	/// @param sCacheDirectory the cache directory
+	/// @param sDocumentRoot the document root
+	DEKAF2_NODISCARD
+	static bool IsValidLocation(KStringView sCacheDirectory, KStringView sDocumentRoot);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// returns the entry of a source file for a compression, without compressing the file
 	/// @param sDocumentRoot the document root of the source file
 	/// @param sRelPath the path of the source file relative to the document root, with / as separator

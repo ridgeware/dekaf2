@@ -533,8 +533,10 @@ KCompressionCache::Entry KCompressionCache::Compress(const KString&          sSo
 
 	auto sEntry    = kFormat("{}/{}.{}", sEntryDirectory, sKey, GetExtension(Compression));
 	auto sTemp     = sEntry + ".tmp";
-	// without a transmitter the deadline is not used
-	auto tDeadline = StartTransmission ? chrono::steady_clock::now() + chrono::nanoseconds(Deadline) : chrono::steady_clock::time_point::max();
+	// without a transmitter the deadline is not used - note that chrono::nanoseconds(Deadline)
+	// would be wrong with libstdc++: it selects the count constructor with the implicit
+	// conversion of KDuration to seconds, and turns 60 seconds into 60 nanoseconds
+	auto tDeadline = StartTransmission ? KSteadyTime::now() + Deadline : KSteadyTime::max();
 
 	KInFile  Source(sSourcePath);
 	KOutFile TempFile(sTemp, std::ios::trunc);
@@ -556,7 +558,7 @@ KCompressionCache::Entry KCompressionCache::Compress(const KString&          sSo
 
 	auto StartTransmissionWhenDue = [&]()
 	{
-		if (bTransmitterCalled || !StartTransmission || chrono::steady_clock::now() < tDeadline)
+		if (bTransmitterCalled || !StartTransmission || KSteadyTime::now() < tDeadline)
 		{
 			return;
 		}

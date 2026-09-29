@@ -21,7 +21,7 @@
     { "name": "vcpkg-cmake-config", "host": true }
   ],
   "default-features": [ "sqlite", "yaml", "useragent", "http2", "http3", "compression", "zip", "webview",
-                        "mysql", "postgres", { "name": "freetds", "platform": "windows & !uwp & !xbox" } ],
+                        "mysql", "postgres", "freetds" ],
   "features": {
     "mysql":       { "description": "MySQL/MariaDB KSQL backend",                    "dependencies": [ "libmariadb" ] },
     "postgres":    { "description": "PostgreSQL KSQL backend",                       "dependencies": [ "libpq"      ] },
@@ -32,7 +32,7 @@
     "http3":       { "description": "HTTP/3 support (QUIC through ngtcp2, OpenSSL >= 3.5)", "dependencies": [ { "name": "ngtcp2", "features": [ "openssl" ] }, "nghttp3" ] },
     "compression": { "description": "LZMA, Zstd and Brotli (de)compression",         "dependencies": [ "liblzma", "zstd", "brotli" ] },
     "zip":         { "description": "ZIP archive support",                           "dependencies": [ "libzip"     ] },
-    "freetds":     { "description": "MS SQL Server via FreeTDS (vcpkg: Windows only)", "dependencies": [ "freetds"    ] },
+    "freetds":     { "description": "MS SQL Server via FreeTDS (needs the freetds port next to this one)", "dependencies": [ "freetds"    ] },
     "webview":     { "description": "KWebApp on the system webview (Linux: WebKitGTK from the system)", "dependencies": [ { "name": "webview2", "platform": "windows" } ] }
   }
 }

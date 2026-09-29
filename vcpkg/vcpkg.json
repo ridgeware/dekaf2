@@ -35,6 +35,10 @@
     "nlohmann-json",
     "libmariadb",
     {
+      "$comment": "from ports/freetds (vcpkg-configuration.json), not vcpkg's own",
+      "name": "freetds"
+    },
+    {
       "name": "webview2",
       "platform": "windows"
     }

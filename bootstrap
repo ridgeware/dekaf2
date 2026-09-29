@@ -8,7 +8,8 @@
 #% with <options>:
 #%
 #%   -with-debug : will install both debug and release versions
-#%   -scratch    : clear build directory before building
+#%   -scratch    : clear the build directories of this run before building
+#%                 (the vcpkg checkout in build/vcpkg stays)
 #%   -no-pull    : do not pull the latest sources before building
 #%   -no-setup   : do not install helper packages/libs
 #%   -no-klog    : configure release build without klog
@@ -17,9 +18,17 @@
 #%   -fresh      : recreate cmake build with fresh cache
 #%   -j N        : build with N processes in parallel
 #%                 (default is number of cpu cores)
+#%   -vcpkg      : instead of the builds above, build dekaf2 for distribution:
+#%                 static, with every library from vcpkg and none from the
+#%                 system. On macOS for Apple silicon from macOS 14 on (triplet
+#%                 arm64-osx-14), installed into build/arm64-osx-14/install -
+#%                 no sudo. vcpkg itself is checked out in build/vcpkg, at the
+#%                 builtin-baseline of vcpkg/vcpkg.json. On Windows the same
+#%                 comes from bootstrap.cmd
 #%
-#% The build directory will be a subdirectory 'build/Release|Debug|Xcode'
-#% of the directory in which this script is located.
+#% The build directories will be subdirectories 'build/Release|Debug|Xcode'
+#% (with -vcpkg 'build/<triplet>') of the directory in which this script is
+#% located.
 #%
 
 # are we in test mode?
@@ -93,6 +102,73 @@ Configure ()
 
 } # Configure
 
+setx=VcpkgCheckout
+#==================
+VcpkgCheckout ()
+#==================
+{
+	# vcpkg at the builtin-baseline of the manifest: the package hashes include vcpkg's
+	# own scripts, so only this state finds the packages again in the binary cache
+	# (~/.cache/vcpkg) - any other one builds them all anew
+
+	local sBaseline
+	sBaseline=$(sed -n 's/.*"builtin-baseline" *: *"\([0-9a-f]*\)".*/\1/p' "${ME_ONLYPATH}/vcpkg/vcpkg.json")
+	[[ -n "${sBaseline}" ]] || Die "no builtin-baseline in ${ME_ONLYPATH}/vcpkg/vcpkg.json"
+
+	if [[ ! -d "${VcpkgDir}/.git" ]]; then
+		Info "cloning vcpkg into ${VcpkgDir}"
+		git clone https://github.com/microsoft/vcpkg.git "${VcpkgDir}" || Die "Cannot clone vcpkg"
+	fi
+
+	if [[ "$(git -C "${VcpkgDir}" rev-parse HEAD)" != "${sBaseline}" ]]; then
+		git -C "${VcpkgDir}" cat-file -e "${sBaseline}^{commit}" 2>/dev/null \
+			|| git -C "${VcpkgDir}" fetch origin \
+			|| Die "Cannot fetch vcpkg"
+		Info "checking out vcpkg at ${sBaseline}"
+		git -C "${VcpkgDir}" checkout -q "${sBaseline}" || Die "Cannot check out vcpkg at ${sBaseline}"
+		# the tool belongs to the checkout
+		rm -f "${VcpkgDir}/vcpkg"
+	fi
+
+	if [[ ! -x "${VcpkgDir}/vcpkg" ]]; then
+		Info "bootstrapping vcpkg"
+		"${VcpkgDir}/bootstrap-vcpkg.sh" -disableMetrics || Die "Cannot bootstrap vcpkg"
+	fi
+
+} # VcpkgCheckout
+
+setx=VcpkgBuild
+#==================
+VcpkgBuild ()
+#==================
+{
+	local sDir="${BuildDir}/${VcpkgTriplet}"
+	local sGenerator=""
+	command -v ninja >/dev/null 2>&1 && sGenerator="-G Ninja"
+
+	VcpkgCheckout
+
+	# the packages go into the build directory (manifest mode), and are restored
+	# from the binary cache as long as vcpkg and the triplet are unchanged
+	Info "configuring the vcpkg build in ${sDir}"
+	${SETMODERNCC} cmake -S "${ME_ONLYPATH}" -B "${sDir}" ${sGenerator} \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DDEKAF2_VCPKG_BUILD=ON \
+		-DCMAKE_TOOLCHAIN_FILE="${VcpkgDir}/scripts/buildsystems/vcpkg.cmake" \
+		-DVCPKG_MANIFEST_DIR="${ME_ONLYPATH}/vcpkg" \
+		-DVCPKG_TARGET_TRIPLET="${VcpkgTriplet}" \
+		-DCMAKE_INSTALL_PREFIX="${sDir}/install" \
+		${sVcpkgOptions} ${sAdditionalOptions} \
+		|| Die "Cannot configure the vcpkg build"
+
+	Info "now building the dekaf2 vcpkg build with ${CPUCORES} processes"
+	cmake --build "${sDir}" --parallel ${CPUCORES} || Die "Cannot build the vcpkg build"
+
+	cmake --install "${sDir}" > /dev/null || Die "Cannot install the vcpkg build"
+	Info "dekaf2 vcpkg build installed into ${sDir}/install"
+
+} # VcpkgBuild
+
 setx=Setup
 #==================
 Setup ()
@@ -102,15 +178,21 @@ Setup ()
 	cd "${ME_ONLYPATH}"  || Die "Cannot cd into source directory ${ME_ONLYPATH}"
 
 	if [[ ! -z "${bScratch}" ]]; then
-		rm -rf "${BuildDir}" \
-			&& Info "removed build directory ${BuildDir}" \
-			|| Die "failed to remove build directory ${BuildDir}"
+		# only the directories of this run - not the vcpkg checkout
+		local sDir
+		for sDir in ${RunDirs}; do
+			rm -rf "${BuildDir}/${sDir}" \
+				&& Info "removed build directory ${BuildDir}/${sDir}" \
+				|| Die "failed to remove build directory ${BuildDir}/${sDir}"
+		done
 	fi
 
 	if [[ -d "${BuildDir}" ]]; then
 
-		Info "Build directory ${BuildDir} already setup."
-		Info "Remove it before calling ${ME} to have a fresh build from scratch."
+		if [[ -z "${bScratch}" ]]; then
+			Info "Build directory ${BuildDir} already setup."
+			Info "Call ${ME} with -scratch to have a fresh build from scratch."
+		fi
 
 	else
 
@@ -123,6 +205,11 @@ Setup ()
 	if [[ -z "${bNoPull}" ]]; then
 		Info "Checking for updates.."
 		git pull         || Die "Cannot pull source code changes"
+	fi
+
+	if [[ ! -z "${bVcpkg}" ]]; then
+		VcpkgBuild
+		return
 	fi
 
 	cd "${BuildDir}"     || Die "Cannot cd into build directory ${BuildDir}"
@@ -158,6 +245,7 @@ ME_FULLPATH="$ME_ONLYPATH/$ME"
 ScriptLib="${ME_ONLYPATH}/scripts/scriptlib"
 BuildSetup="${ME_ONLYPATH}/scripts/buildsetup"
 BuildDir="${ME_ONLYPATH}/build"
+VcpkgDir="${BuildDir}/vcpkg"
 
 [[ ! -f "${ScriptLib}" ]] && Die "Cannot check OS version, script '${ScriptLib}' not found"
 
@@ -211,6 +299,9 @@ do
 		shift
 		CPUCORES=$1
 		;;
+	-vcpkg|--vcpkg)
+		bVcpkg="1"
+		;;
 	-go|--go|go)
 		bGo="1"
 		;;
@@ -225,6 +316,25 @@ done
 [[ -z "${bGo}" ]] && Synopsis
 
 [[ $CPUCORES -eq 0 ]] && CPUCORES=4
+
+# the build directories of this run, cleared by -scratch
+RunDirs="Debug Release Xcode"
+
+if [[ ! -z "${bVcpkg}" ]]; then
+	case "${OS}-${ARCH}" in
+	Darwin-arm64)
+		VcpkgTriplet="arm64-osx-14"
+		# the minimum macOS of the triplet, for dekaf2 itself
+		sMinMacOS=$(sed -n 's/^set(VCPKG_OSX_DEPLOYMENT_TARGET \([0-9.]*\))/\1/p' "${ME_ONLYPATH}/vcpkg/triplets/${VcpkgTriplet}.cmake")
+		[[ -n "${sMinMacOS}" ]] || Die "no VCPKG_OSX_DEPLOYMENT_TARGET in vcpkg/triplets/${VcpkgTriplet}.cmake"
+		sVcpkgOptions="-DCMAKE_OSX_DEPLOYMENT_TARGET=${sMinMacOS}"
+		;;
+	*)
+		Die "the vcpkg build is only set up for macOS on Apple silicon (and with bootstrap.cmd for Windows), not for ${OS} ${ARCH}"
+		;;
+	esac
+	RunDirs="${VcpkgTriplet}"
+fi
 
 if [[ -z "${bNoSetup}" ]]; then
 	[[ ! -f "${BuildSetup}" ]] && Die "Cannot setup build, script '${BuildSetup}' not found"

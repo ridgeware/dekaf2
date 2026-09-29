@@ -27,7 +27,7 @@ only leave a dependency out of the build:
                  WebKitGTK development packages of the system)
     mysql        MySQL / MariaDB for KSQL
     postgres     PostgreSQL for KSQL
-    freetds      MS SQL Server for KSQL (FreeTDS, Windows only)
+    freetds      MS SQL Server for KSQL (FreeTDS)
 
 Leaving dependencies out, in classic mode:
 

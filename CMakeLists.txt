@@ -456,9 +456,7 @@ elseif (APPLE AND DEKAF2_VCPKG_BUILD)
 	# part of CMAKE_SYSTEM_PREFIX_PATH) and found MySQL and FreeTDS there -
 	# Homebrew dylibs, built for the macOS of the build machine, which then went
 	# into every app linking dekaf2 and kept it from starting on older Macs.
-	# pkg-config is only a tool: found first, it may stay Homebrew's.
 	# (CMAKE_IGNORE_PREFIX_PATH needs CMake 3.23.)
-	find_package(PkgConfig QUIET)
 	list(APPEND CMAKE_IGNORE_PREFIX_PATH "/opt/homebrew" "/usr/local")
 endif()
 
@@ -2277,8 +2275,19 @@ if (DEKAF2_VCPKG_BUILD)
 	# the *_LIBRARIES variables untouched. The targets also carry their own include directories,
 	# so the manually added *_INCLUDE_DIR entries become redundant (and must not leak into export).
 	#
-	# First the packages with CMake configs of their own: ngtcp2's looks for OpenSSL again,
-	# which needs OPENSSL_INCLUDE_DIR - cleared below.
+	# First the packages that look for OpenSSL again (ngtcp2's config, and FreeTDS), which
+	# needs OPENSSL_INCLUDE_DIR - cleared below. nghttp2 and FreeTDS come without a CMake
+	# config: their targets come from dekaf2-vcpkg-targets.cmake, which is installed and
+	# used by dekaf2-config.cmake as well.
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/dekaf2-vcpkg-targets.cmake")
+	if (DEKAF2_HAS_NGHTTP2)
+		dekaf2_vcpkg_import_nghttp2()
+		set(NGHTTP2_LIBRARIES dekaf2-ext::nghttp2)
+	endif()
+	if (DEKAF2_HAS_FREETDS)
+		dekaf2_vcpkg_import_freetds()
+		set(FREETDS_LIBRARIES dekaf2-ext::freetds)
+	endif()
 	if (DEKAF2_HAS_NGTCP2)
 		# ngtcp2 and nghttp3 name their targets after the linkage the triplet chose
 		find_package(ngtcp2 CONFIG REQUIRED)
@@ -2325,13 +2334,6 @@ if (DEKAF2_VCPKG_BUILD)
 		find_package(unofficial-brotli CONFIG REQUIRED)
 		set(BROTLI_LIBRARIES        unofficial::brotli::brotlidec unofficial::brotli::brotlienc unofficial::brotli::brotlicommon)
 		set(BROTLI_STATIC_LIBRARIES ${BROTLI_LIBRARIES})
-	endif()
-	if (DEKAF2_HAS_NGHTTP2)
-		# the package manager ships nghttp2 with a pkg-config file but no CMake config,
-		# so wrap it in an imported target (PkgConfig::dekaf2_nghttp2)
-		find_package(PkgConfig REQUIRED)
-		pkg_check_modules(dekaf2_nghttp2 REQUIRED IMPORTED_TARGET libnghttp2)
-		set(NGHTTP2_LIBRARIES PkgConfig::dekaf2_nghttp2)
 	endif()
 endif()
 
@@ -2992,6 +2994,7 @@ if (DEKAF2_INSTALL_LIB)
 	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-config-version.cmake DESTINATION ${dekaf2_main_lib_dest}/cmake)
 	install(FILES ${DEKAF2_GENERATED_FILES_DIR}/${PROJECT_NAME}-setup.cmake          DESTINATION ${dekaf2_lib_dest}/cmake)
 	install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-embed-strings.cmake" DESTINATION ${dekaf2_main_lib_dest}/cmake)
+	install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-vcpkg-targets.cmake" DESTINATION ${dekaf2_main_lib_dest}/cmake)
 
 	# although being an include file, kconfiguration.h belongs to the lib install, as it changes
 	# depending on the build type

@@ -1,0 +1,36 @@
+{
+  "name": "freetds",
+  "version": "1.5.19",
+  "description": "Implementation of the Tabular Data Stream protocol (MS SQL Server, Sybase)",
+  "homepage": "https://www.freetds.org",
+  "license": "LGPL-2.0-or-later",
+  "supports": "!uwp & !xbox",
+  "dependencies": [
+    {
+      "name": "gperf",
+      "host": true,
+      "platform": "windows"
+    },
+    {
+      "name": "vcpkg-cmake",
+      "host": true,
+      "platform": "windows"
+    },
+    {
+      "name": "vcpkg-make",
+      "host": true,
+      "platform": "!windows"
+    }
+  ],
+  "default-features": [
+    "openssl"
+  ],
+  "features": {
+    "openssl": {
+      "description": "OpenSSL support",
+      "dependencies": [
+        "openssl"
+      ]
+    }
+  }
+}

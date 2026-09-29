@@ -41,12 +41,12 @@ TEST_CASE("KDuration")
 
 	SECTION("time_t")
 	{
-		// the conversions from and to time_t are explicit
+		// the conversion to time_t is explicit, the construction from time_t is deleted
 		static_assert(!std::is_convertible<KDuration, std::time_t>::value, "KDuration must not convert implicitly to time_t");
 		static_assert(!std::is_convertible<std::time_t, KDuration>::value, "time_t must not convert implicitly to KDuration");
+		static_assert(!std::is_constructible<KDuration, std::time_t>::value, "KDuration must not construct from time_t");
 
-		KDuration Duration(std::time_t(90));
-		CHECK ( Duration == chrono::seconds(90) );
+		KDuration Duration(chrono::seconds(90));
 		CHECK ( static_cast<std::time_t>(Duration) == 90 );
 
 		// with an implicit conversion to time_t, the count constructor of a chrono

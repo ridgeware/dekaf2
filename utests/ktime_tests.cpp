@@ -916,9 +916,9 @@ TEST_CASE("KTime") {
 		Tp2 = Tp - D;
 		CHECK ( Tp2.time_since_epoch() == chrono::milliseconds(2445823473950) );
 		Tp2 = Tp;
-		Tp2 += 50;
+		Tp2 += chrono::seconds(50);
 		CHECK ( Tp2.time_since_epoch() == chrono::milliseconds(2445823524000) );
-		Tp2 -= 50;
+		Tp2 -= chrono::seconds(50);
 		CHECK ( Tp2.time_since_epoch() == chrono::milliseconds(2445823474000) );
 	}
 
@@ -996,7 +996,7 @@ TEST_CASE("KTime") {
 			CHECK ( d.days().count() == 366 );
 			auto diff = static_cast<time_t>(Date2 - Date1);
 			CHECK ( diff == 367 * 86400 - 3600 );
-			KDuration duration(diff);
+			KDuration duration = chrono::seconds(diff);
 			CHECK ( duration.days() == chrono::days(366) );
 		}
 		{

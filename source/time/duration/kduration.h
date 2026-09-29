@@ -64,7 +64,7 @@ DEKAF2_NAMESPACE_BEGIN
 /// @{
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// a duration type that constructs always initialized, converts properly from and to time_t,
+/// a duration type that constructs always initialized, converts explicitly to time_t,
 /// and offers quick accessors to various duration casts
 class DEKAF2_PUBLIC KDuration : public chrono::nanoseconds
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -90,10 +90,13 @@ public:
 	/// static longest positive duration
 	static constexpr KDuration max()  { return KDuration(Duration::max() ); }
 
-	/// construct from a time_t, considering the duration counted as seconds
+	/// construction from a time_t is deleted, construct from chrono::seconds(tSeconds) instead:
+	/// time_t is long or long long, and where it is the rep type of chrono::nanoseconds, a
+	/// constructor from time_t is ambiguous with the inherited count constructor, which takes
+	/// the value as nanoseconds
 	template<typename T, typename std::enable_if<std::is_same<time_t, T>::value, int>::type = 0>
 	explicit
-	constexpr KDuration(T tSeconds) : Duration(chrono::seconds(tSeconds)) {}
+	KDuration(T tSeconds) = delete;
 
 	/// construct from a struct timespec
 	explicit

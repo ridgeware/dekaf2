@@ -20,9 +20,12 @@
 #%                 (default is number of cpu cores)
 #%   -vcpkg      : instead of the builds above, build dekaf2 for distribution:
 #%                 static, with every library from vcpkg and none from the
-#%                 system. On macOS for Apple silicon from macOS 14 on (triplet
-#%                 arm64-osx-14), installed into build/arm64-osx-14/install -
-#%                 no sudo. vcpkg itself is checked out in build/vcpkg, at the
+#%                 system, installed into build/<triplet>/install - no sudo.
+#%                 On macOS for Apple silicon from macOS 14 on (arm64-osx-14),
+#%                 on Linux with vcpkg's triplet for the machine (x64-linux,
+#%                 arm64-linux) - glibc stays the one of the build machine, so
+#%                 the oldest distribution to run on is the one to build on.
+#%                 vcpkg itself is checked out in build/vcpkg, at the
 #%                 builtin-baseline of vcpkg/vcpkg.json. On Windows the same
 #%                 comes from bootstrap.cmd
 #%
@@ -329,8 +332,14 @@ if [[ ! -z "${bVcpkg}" ]]; then
 		[[ -n "${sMinMacOS}" ]] || Die "no VCPKG_OSX_DEPLOYMENT_TARGET in vcpkg/triplets/${VcpkgTriplet}.cmake"
 		sVcpkgOptions="-DCMAKE_OSX_DEPLOYMENT_TARGET=${sMinMacOS}"
 		;;
+	Linux-x86_64)
+		VcpkgTriplet="x64-linux"
+		;;
+	Linux-aarch64|Linux-arm64)
+		VcpkgTriplet="arm64-linux"
+		;;
 	*)
-		Die "the vcpkg build is only set up for macOS on Apple silicon (and with bootstrap.cmd for Windows), not for ${OS} ${ARCH}"
+		Die "the vcpkg build is set up for macOS on Apple silicon, Linux on x86_64 and arm64 (and with bootstrap.cmd for Windows), not for ${OS} ${ARCH}"
 		;;
 	esac
 	RunDirs="${VcpkgTriplet}"
@@ -338,7 +347,7 @@ fi
 
 if [[ -z "${bNoSetup}" ]]; then
 	[[ ! -f "${BuildSetup}" ]] && Die "Cannot setup build, script '${BuildSetup}' not found"
-	"${BuildSetup}" -go || Die "could not configure target machine"
+	"${BuildSetup}" ${bVcpkg:+-vcpkg} -go || Die "could not configure target machine"
 fi
 
 Setup

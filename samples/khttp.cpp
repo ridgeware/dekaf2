@@ -46,6 +46,7 @@
 #include <dekaf2/rest/framework/krestroute.h>
 #include <dekaf2/http/server/khttperror.h>
 #include <dekaf2/rest/serving/kwebserverpermissions.h>
+#include <dekaf2/rest/serving/kcompressioncache.h>
 #include <dekaf2/core/init/dekaf2.h> // KInit()
 #include <dekaf2/net/address/knetworkinterface.h>
 #include <dekaf2/crypto/rsa/krsacert.h>
@@ -88,6 +89,7 @@ public:
 		bool bCreateAdHocIndex        = Options("autoindex             : enable directory browsing and auto-generated index listings, default false", false);
 		bool bAllowUpload             = Options("upload                : allow upload into directory, default false", false);
 		bool bWebDAV                  = Options("webdav                : enable WebDAV Class 1 support (PROPFIND, MKCOL, COPY, MOVE)", false);
+		KStringViewZ sCompressionCache= Options("compcache <directory> : cache directory for compressed variants of the served files, outside of the www directory - default off", "");
 		KStringViewZ sDefaultPerms    = Options("permissions <flags>   : default permissions (read|write|erase|browse|all|none), default 'read|browse'", "");
 		KStringViewZ sUserParms       = Options("user <user:pass:/path:flags> : set user with permissions per path (flags: read|write|erase|browse|all|none)", "");
 		KStringViewZ sUsersFile       = Options("users <pathname>      : set pathname for file with list of lines of user:pass:/path:flags", "");
@@ -266,16 +268,30 @@ public:
 		{
 			if (!kDirExists(sWWWDir)) SetError(kFormat("www directory does not exist: {}", sWWWDir));
 
+			KJSON jConfig;
+
+			if (!sCompressionCache.empty())
+			{
+				if (!KCompressionCache::IsValidLocation(sCompressionCache, sWWWDir))
+				{
+					SetError(kFormat("the compression cache directory must be outside of the www directory: {}", sCompressionCache));
+				}
+
+				jConfig["compression_cache"] = sCompressionCache;
+			}
+
 			if (bWebDAV)
 			{
-				Routes.AddWebDAV(sWWWDir, sRoute, std::move(Permissions));
+				Routes.AddWebDAV(sWWWDir, sRoute, std::move(Permissions), std::move(jConfig));
 				if (!bQuiet) kPrintLine(":: serving WebDAV from: {}", sWWWDir);
 			}
 			else
 			{
-				Routes.AddWebServer(sWWWDir, sRoute, std::move(Permissions));
+				Routes.AddWebServer(sWWWDir, sRoute, std::move(Permissions), std::move(jConfig));
 				if (!bQuiet) kPrintLine(":: serving files from: {}", sWWWDir);
 			}
+
+			if (!bQuiet && !sCompressionCache.empty()) kPrintLine(":: caching compressed files in: {}", sCompressionCache);
 		}
 
 		if (!sServer.empty())

@@ -1,5 +1,6 @@
 dekaf2 provides CMake targets:
 
+    set(DEKAF2_INHERIT_BUILD_FLAGS ON)
     find_package(dekaf2 CONFIG REQUIRED)
     target_link_libraries(main PRIVATE dekaf2::dekaf2)
 
@@ -7,23 +8,35 @@ dekaf2 provides CMake targets:
     target_link_libraries(main PRIVATE dekaf2::ksql2)     # mysql / postgres / freetds
     target_link_libraries(main PRIVATE dekaf2::ksqlite)   # sqlite
 
-dekaf2 is a framework - most capabilities are optional features.
+DEKAF2_INHERIT_BUILD_FLAGS, set before find_package, gives your targets the
+C++ standard and build flags dekaf2 was built with. The dekaf2 headers need
+that C++ standard, and the targets do not carry it.
 
-  Enabled by default: sqlite, yaml, useragent, http2, http3, compression, zip
-  Opt-in database backends (pick the one(s) you need):
-      mysql      MySQL / MariaDB
-      postgres   PostgreSQL
-      freetds    MS SQL Server (FreeTDS)
+dekaf2 is a static framework library: by default it comes with everything it
+offers, and the link of your program takes what the program uses. Features
+only leave a dependency out of the build:
 
-Select features in classic mode:
+    sqlite       KSQLite
+    yaml         YAML support
+    useragent    User-Agent parser (needs yaml)
+    http2        HTTP/2
+    http3        HTTP/3 (QUIC through ngtcp2)
+    compression  LZMA, Zstd and Brotli
+    zip          ZIP archives
+    webview      KWebApp on the system webview (on Linux only with the
+                 WebKitGTK development packages of the system)
+    mysql        MySQL / MariaDB for KSQL
+    postgres     PostgreSQL for KSQL
+    freetds      MS SQL Server for KSQL (FreeTDS, Windows only)
 
-    vcpkg install dekaf2[core,mysql,postgres]
-    vcpkg install dekaf2[*]            # build everything dekaf2 offers
+Leaving dependencies out, in classic mode:
+
+    vcpkg install dekaf2[core,sqlite,http2]
 
 or in manifest mode (vcpkg.json):
 
     "dependencies": [
-        { "name": "dekaf2", "features": [ "mysql", "postgres" ] }
+        { "name": "dekaf2", "default-features": false, "features": [ "sqlite", "http2" ] }
     ]
 
 List every feature with its description any time:

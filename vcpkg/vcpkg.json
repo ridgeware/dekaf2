@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "dekaf2",
+  "version": "2.1.32",
+  "description": "C++14/17/20/23 rapid application development framework",
+  "homepage": "https://github.com/ridgeware/dekaf2",
+  "license": "MIT",
+  "dependencies": [
+    "openssl",
+    "zlib",
+    "bzip2",
+    "liblzma",
+    "zstd",
+    "brotli",
+    "libzip",
+    "yaml-cpp",
+    "sqlite3",
+    "libpq",
+    "nghttp2",
+    {
+      "name": "ngtcp2",
+      "features": [
+        "openssl"
+      ]
+    },
+    "nghttp3",
+    "boost-asio",
+    "boost-foreach",
+    "boost-iostreams",
+    "boost-multi-index",
+    "boost-serialization",
+    "boost-system",
+    "fmt",
+    "simdutf",
+    "nlohmann-json",
+    "libmariadb",
+    {
+      "name": "webview2",
+      "platform": "windows"
+    }
+  ],
+  "overrides": [
+    {
+      "$comment": "the version dekaf2 vendors and is tested with (libs/, from/simdutf)",
+      "name": "simdutf",
+      "version": "8.0.0"
+    }
+  ],
+  "builtin-baseline": "58845ed63eb19aff55e896ea1f5d51f2a0df5b66"
+}

@@ -54,6 +54,9 @@ endif()
 if (@DEKAF2_WEBVIEW2_VCPKG@) # KWebApp on Windows links the WebView2 SDK's imported target from the vcpkg port
 	find_dependency(unofficial-webview2 CONFIG)
 endif()
+if (@DEKAF2_MARIADB_VCPKG@) # KSQL links MariaDB's connector through the imported target of the vcpkg port
+	find_dependency(unofficial-libmariadb CONFIG)
+endif()
 
 # in package/vcpkg mode the system libraries are linked through their imported targets (see the
 # matching block in CMakeLists.txt), so the consumer has to recreate those targets here. In the
@@ -73,6 +76,22 @@ if (@DEKAF2_VCPKG_BUILD@) # DEKAF2_VCPKG_BUILD
 	if (@DEKAF2_HAS_NGHTTP2@)
 		find_dependency(PkgConfig)
 		pkg_check_modules(dekaf2_nghttp2 REQUIRED IMPORTED_TARGET libnghttp2)
+	endif()
+	if (@DEKAF2_HAS_NGTCP2@)
+		find_dependency(ngtcp2 CONFIG)
+	endif()
+	if (@DEKAF2_HAS_NGHTTP3@)
+		find_dependency(nghttp3 CONFIG)
+	endif()
+	if (@DEKAF2_HAS_LIBZIP@)
+		find_dependency(libzip CONFIG)
+	endif()
+	if (@DEKAF2_HAS_SQLITE3@)
+		find_dependency(unofficial-sqlite3 CONFIG)
+	endif()
+	# DEKAF2_HAS_POSTGRESQL holds the version
+	if (NOT "@DEKAF2_HAS_POSTGRESQL@" STREQUAL "")
+		find_dependency(PostgreSQL)
 	endif()
 endif()
 

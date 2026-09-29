@@ -15,11 +15,13 @@
     { "name": "boost-serialization", "version>=": "1.72.0" },
     "boost-system",
     "boost-asio",
+    "boost-foreach",
     "boost-multi-index",
     { "name": "vcpkg-cmake",        "host": true },
     { "name": "vcpkg-cmake-config", "host": true }
   ],
-  "default-features": [ "sqlite", "yaml", "useragent", "http2", "http3", "compression", "zip" ],
+  "default-features": [ "sqlite", "yaml", "useragent", "http2", "http3", "compression", "zip", "webview",
+                        "mysql", "postgres", { "name": "freetds", "platform": "windows & !uwp & !xbox" } ],
   "features": {
     "mysql":       { "description": "MySQL/MariaDB KSQL backend",                    "dependencies": [ "libmariadb" ] },
     "postgres":    { "description": "PostgreSQL KSQL backend",                       "dependencies": [ "libpq"      ] },
@@ -27,9 +29,10 @@
     "yaml":        { "description": "YAML support",                                  "dependencies": [ "yaml-cpp"   ] },
     "useragent":   { "description": "User-Agent parser (uap-cpp, requires YAML)",    "dependencies": [ { "name": "dekaf2", "default-features": false, "features": [ "yaml" ] } ] },
     "http2":       { "description": "HTTP/2 client and server support",              "dependencies": [ "nghttp2"    ] },
-    "http3":       { "description": "HTTP/3 support (needs OpenSSL >= 3.3)",         "dependencies": [ "nghttp3"    ] },
+    "http3":       { "description": "HTTP/3 support (QUIC through ngtcp2, OpenSSL >= 3.5)", "dependencies": [ { "name": "ngtcp2", "features": [ "openssl" ] }, "nghttp3" ] },
     "compression": { "description": "LZMA, Zstd and Brotli (de)compression",         "dependencies": [ "liblzma", "zstd", "brotli" ] },
     "zip":         { "description": "ZIP archive support",                           "dependencies": [ "libzip"     ] },
-    "freetds":     { "description": "MS SQL Server via FreeTDS",                     "dependencies": [ "freetds"    ] }
+    "freetds":     { "description": "MS SQL Server via FreeTDS (vcpkg: Windows only)", "dependencies": [ "freetds"    ] },
+    "webview":     { "description": "KWebApp on the system webview (Linux: WebKitGTK from the system)", "dependencies": [ { "name": "webview2", "platform": "windows" } ] }
   }
 }

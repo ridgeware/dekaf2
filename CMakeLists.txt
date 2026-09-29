@@ -450,6 +450,16 @@ if (APPLE AND NOT DEKAF2_VCPKG_BUILD)
 		endforeach()
 		unset(_pkg_prefix)
 	endif()
+elseif (APPLE AND DEKAF2_VCPKG_BUILD)
+	# In vcpkg mode every library has to come from the package manager. CMake,
+	# when installed by Homebrew, searches its own prefix nevertheless (it is
+	# part of CMAKE_SYSTEM_PREFIX_PATH) and found MySQL and FreeTDS there -
+	# Homebrew dylibs, built for the macOS of the build machine, which then went
+	# into every app linking dekaf2 and kept it from starting on older Macs.
+	# pkg-config is only a tool: found first, it may stay Homebrew's.
+	# (CMAKE_IGNORE_PREFIX_PATH needs CMake 3.23.)
+	find_package(PkgConfig QUIET)
+	list(APPEND CMAKE_IGNORE_PREFIX_PATH "/opt/homebrew" "/usr/local")
 endif()
 
 # ================================ CMAKE INTERNALS =================================
@@ -680,9 +690,15 @@ endif ()
 
 # ================================= MYSQL ====================================
 
+set(DEKAF2_MARIADB_VCPKG OFF)
 if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_MYSQL)
-	# MySQL (for KSQL) - if not available, KSQL will not build something meaningful
-	find_package(MYSQL QUIET)
+	# MySQL (for KSQL) - if not available, KSQL will not build something meaningful.
+	# Not in vcpkg mode: FindMYSQL searches Homebrew's and /usr/local's paths by
+	# name, which no ignore list reaches, and found Homebrew's client there; the
+	# package manager's client is MariaDB's connector (unofficial-libmariadb) below.
+	if (NOT DEKAF2_VCPKG_BUILD)
+		find_package(MYSQL QUIET)
+	endif()
 
 	if(MYSQL_FOUND)
 		set(DEKAF2_HAS_MYSQL "${MYSQL_VERSION_STRING}")
@@ -696,6 +712,9 @@ if (DEKAF2_ALL_LIBS OR DEKAF2_FIND_MYSQL)
 		if (unofficial-libmariadb_FOUND)
 			set(DEKAF2_MYSQL_IS_MARIADB 1)
 			set(DEKAF2_HAS_MYSQL 1)
+			# an imported target in ksql2's link interface - a consumer has to find
+			# it as well, see cmake/dekaf2-config.cmake.in
+			set(DEKAF2_MARIADB_VCPKG ON)
 		endif()
 	endif()
 endif()
@@ -926,7 +945,7 @@ endif ()
 # successful build
 #
 # "boost-asio"
-# "boost-crc"
+# "boost-foreach"   (only without C++20 ranges, see khttp_header.cpp)
 # "boost-iostreams"
 # "boost-multi-index"
 # "boost-serialization"
@@ -2257,6 +2276,39 @@ if (DEKAF2_VCPKG_BUILD)
 	# guarantees a current CMake, where all of these targets exist; the normal build path keeps
 	# the *_LIBRARIES variables untouched. The targets also carry their own include directories,
 	# so the manually added *_INCLUDE_DIR entries become redundant (and must not leak into export).
+	#
+	# First the packages with CMake configs of their own: ngtcp2's looks for OpenSSL again,
+	# which needs OPENSSL_INCLUDE_DIR - cleared below.
+	if (DEKAF2_HAS_NGTCP2)
+		# ngtcp2 and nghttp3 name their targets after the linkage the triplet chose
+		find_package(ngtcp2 CONFIG REQUIRED)
+		if (TARGET ngtcp2::ngtcp2)
+			set(NGTCP2_LIBRARIES ngtcp2::ngtcp2_crypto_ossl ngtcp2::ngtcp2)
+		else()
+			set(NGTCP2_LIBRARIES ngtcp2::ngtcp2_crypto_ossl_static ngtcp2::ngtcp2_static)
+		endif()
+	endif()
+	if (DEKAF2_HAS_NGHTTP3)
+		find_package(nghttp3 CONFIG REQUIRED)
+		if (TARGET nghttp3::nghttp3)
+			set(NGHTTP3_LIBRARIES nghttp3::nghttp3)
+		else()
+			set(NGHTTP3_LIBRARIES nghttp3::nghttp3_static)
+		endif()
+	endif()
+	if (DEKAF2_HAS_LIBZIP)
+		find_package(libzip CONFIG REQUIRED)
+		set(LIBZIP_LIBRARIES libzip::zip)
+	endif()
+	if (DEKAF2_HAS_SQLITE3)
+		find_package(unofficial-sqlite3 CONFIG REQUIRED)
+		set(SQLITE3_LIBRARIES unofficial::sqlite3::sqlite3)
+	endif()
+	if (DEKAF2_HAS_POSTGRESQL)
+		# with a static libpq the target also carries libpgcommon and libpgport
+		# (the package manager's wrapper around FindPostgreSQL)
+		set(DEKAF2_POSTGRESQL_LIBRARIES PostgreSQL::PostgreSQL)
+	endif()
 	set(OPENSSL_LIBRARIES   OpenSSL::SSL OpenSSL::Crypto)
 	set(OPENSSL_INCLUDE_DIR "")
 	set(Boost_INCLUDE_DIR   "")   # already pulled in via the Boost:: targets
@@ -2977,7 +3029,8 @@ endif()
 if (DEKAF2_INSTALL_INCLUDE)
 
 	# install hierarchical headers (preserves source/ directory structure under dekaf2/)
-	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/source/" DESTINATION "${dekaf2_include_dest}/dekaf2" FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+	# web/app/strings holds only string catalogs, which are compiled in - it would stay empty
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/source/" DESTINATION "${dekaf2_include_dest}/dekaf2" FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" REGEX "/web/app/strings$" EXCLUDE)
 
 	# install flat backward-compatible header stubs
 	if (DEKAF2_INSTALL_FLAT_HEADERS)

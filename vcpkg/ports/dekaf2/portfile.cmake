@@ -7,7 +7,9 @@
 #       set the DEKAF2_SOURCE_DIR environment variable to a working copy, e.g.
 #         DEKAF2_SOURCE_DIR=/home/.../src/dekaf2 \
 #           vcpkg install dekaf2 --overlay-ports=<repo>/vcpkg/ports
-#       to build it without needing a release tag / SHA.
+#       to build it without needing a release tag / SHA. Add --editable dekaf2:
+#       the package hash does not cover a local tree, and without it the binary
+#       cache hands out the build of an earlier state of the tree.
 
 if(DEFINED ENV{DEKAF2_SOURCE_DIR} AND NOT "$ENV{DEKAF2_SOURCE_DIR}" STREQUAL "")
     set(SOURCE_PATH "$ENV{DEKAF2_SOURCE_DIR}")
@@ -37,6 +39,7 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         compression DEKAF2_FIND_LZMA
         compression DEKAF2_FIND_ZSTD
         compression DEKAF2_FIND_BROTLI
+        webview     DEKAF2_WITH_WEBVIEW
 )
 
 vcpkg_cmake_configure(
@@ -53,6 +56,9 @@ vcpkg_cmake_configure(
         # vcpkg drives static vs shared through the triplet; build static here
         -DDEKAF2_BUILD_STATIC_DEKAF2=ON
         -DDEKAF2_BUILD_SHARED_DEKAF2=OFF
+        # no sanitizers in the debug library: vcpkg installs share/ of the release build
+        # only, where they are off, so a consumer's debug link would lack their runtime
+        -DDEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS=OFF
         ${FEATURE_OPTIONS}
 )
 

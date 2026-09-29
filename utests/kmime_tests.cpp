@@ -98,6 +98,14 @@ TEST_CASE("KMIME")
 		// a plain tar is not compressed
 		KMIME t(KMIME::TAR);
 		CHECK ( t.IsCompressible() );
+
+		// media and fonts with a compression of their own
+		for (auto sFile : { "movie.webm", "image.webp", "font.woff", "font.woff2" })
+		{
+			KMIME m;
+			CHECK ( m.ByExtension(sFile) );
+			CHECK ( m.IsCompressible() == false );
+		}
 	}
 
 #ifndef DEKAF2_IS_WINDOWS

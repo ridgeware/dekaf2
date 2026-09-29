@@ -344,6 +344,11 @@ bool KMIME::IsCompressible()
 		case MP3.Hash():
 		case MP4.Hash():
 		case OGV.Hash():
+		case WEBM.Hash():
+		case WEBP.Hash():
+		// WOFF compresses with zlib, WOFF2 with Brotli
+		case WOFF.Hash():
+		case WOFF2.Hash():
 			return false;
 
 		default:

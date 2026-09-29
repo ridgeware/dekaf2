@@ -45,6 +45,7 @@
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/io/readwrite/kreader.h>
 
 using namespace dekaf2;
 
@@ -56,6 +57,51 @@ KSql::KSql ()
 	SetThrowOnError(true);
 
 } // ctor
+
+//-----------------------------------------------------------------------------
+/// Where does the real SQL end, if its last statement is UNTERMINATED?
+/// Returns the offset to truncate at before appending a ';', or npos when the
+/// SQL is already terminated (or is empty / all comments) and needs nothing.
+/// Trailing whitespace and trailing whole-line "--" comments are not content:
+/// a script ending in a comment still needs the ';' on the statement above it,
+/// and the terminator has to land on THAT line -- RunInterpreter is line
+/// oriented, so a ';' sitting on a line of its own does not terminate anything.
+//-----------------------------------------------------------------------------
+std::size_t SQLUnterminatedEnd (KStringView sSQL)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iEnd = sSQL.size();
+
+	for (;;)
+	{
+		while (iEnd > 0 && KASCII::kIsSpace (sSQL[iEnd - 1]))
+		{
+			--iEnd;
+		}
+
+		if (iEnd == 0)                { return KStringView::npos; }  // nothing to terminate
+		if (sSQL[iEnd - 1] == ';')    { return KStringView::npos; }  // already terminated
+
+		// is the last line a comment? if so ignore it and look at what precedes
+		auto iNL = sSQL.substr (0, iEnd).rfind ('\n');
+		std::size_t iLineStart = (iNL == KStringView::npos) ? 0 : iNL + 1;
+
+		while (iLineStart < iEnd && KASCII::kIsSpace (sSQL[iLineStart]))
+		{
+			++iLineStart;
+		}
+
+		if (!sSQL.substr (iLineStart, iEnd - iLineStart).starts_with ("--"))
+		{
+			return iEnd;   // real SQL, unterminated -- truncate here and add ';'
+		}
+
+		if (iNL == KStringView::npos) { return KStringView::npos; }  // all comment
+
+		iEnd = iNL;
+	}
+
+} // SQLUnterminatedEnd
 
 //-----------------------------------------------------------------------------
 int KSql::Main(int argc, char** argv)
@@ -207,28 +253,60 @@ int KSql::Main(int argc, char** argv)
 
 	auto Format = KSQL::CreateOutputFormat(sFormat.empty() ? "ascii" : sFormat);
 
-	// If -e was given but the value is not an existing file, treat it as a
-	// literal SQL string by writing it to a temp file and passing that instead.
+	// -e takes either a literal SQL string or the name of a file. BOTH need the
+	// final statement to be terminated: the interpreter silently DISCARDS a
+	// trailing statement that has no ';' -- no rows, no error, exit 0. The
+	// literal path always appended one; the file path did not, so
+	//     ksql -dbc x.dbc -e query.sql
+	// produced nothing at all when query.sql lacked a final semicolon, which
+	// reads exactly like "the query returned no rows" (Joe, 2026-09-25).
+	// Normalize both the same way.
 	std::unique_ptr<KTempFile<>> pTempSQL;
 	KString sEffectiveInfile { sInSQL };
 	KString sTempFile;
 
-	if (sInSQL && !kFileExists(sInSQL))
+	if (sInSQL)
 	{
-		KString sSQL { sInSQL };
-		sSQL.Trim();
-		if (!sSQL.empty() && sSQL.back() != ';')
+		bool    bIsFile = kFileExists (sInSQL);
+		KString sSQL;
+
+		if (bIsFile)
 		{
+			if (!kReadAll (sInSQL, sSQL))
+			{
+				return SetError (kFormat ("could not read sql file: {}", sInSQL));
+			}
+		}
+		else
+		{
+			sSQL = sInSQL;
+		}
+
+		auto iEnd = SQLUnterminatedEnd (sSQL);
+
+		if (iEnd != KStringView::npos)
+		{
+			// drop trailing blank lines / comments so the ';' lands on the end of
+			// the statement itself, then terminate it.
+			sSQL.erase (iEnd);
 			sSQL += ';';
 		}
-
-		sTempFile = kFormat ("{}/ksql-{}.sql", "/tmp", getpid());
-		if (!kWriteFile (sTempFile, sSQL))
+		else if (bIsFile)
 		{
-			return SetError(kFormat ("could not write to temp file: {}",sTempFile));
+			// already terminated and already on disk -- hand it over untouched.
+			sSQL.clear();
 		}
 
-		sEffectiveInfile = sTempFile;
+		if (!sSQL.empty())
+		{
+			sTempFile = kFormat ("{}/ksql-{}.sql", "/tmp", getpid());
+			if (!kWriteFile (sTempFile, sSQL))
+			{
+				return SetError(kFormat ("could not write to temp file: {}",sTempFile));
+			}
+
+			sEffectiveInfile = sTempFile;
+		}
 	}
 
 	auto bOK = SQL.RunInterpreter (Format, bQuiet, sEffectiveInfile, /*bSavedFormatAllowed=*/ sFormat.empty());

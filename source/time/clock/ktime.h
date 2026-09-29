@@ -180,7 +180,7 @@ public:
 	DEKAF2_CONSTEXPR_14          KUnixTime(base&& other)      noexcept : base(std::move(other)) {}
 
 	/// construct from time_t timepoint (constexpr)
-	DEKAF2_CONSTEXPR_14          KUnixTime(time_t time)       noexcept : KUnixTime(from_time_t(time)) {}
+	DEKAF2_CONSTEXPR_14 explicit KUnixTime(time_t time)       noexcept : KUnixTime(from_time_t(time)) {}
 	/// construct from struct timespec timepoint (constexpr)
 	DEKAF2_CONSTEXPR_14 explicit KUnixTime(const struct timespec& ts)
 	                                                          noexcept : KUnixTime(from_timespec(ts)) {}
@@ -206,11 +206,8 @@ public:
 
 	using base::base;
 
-	/// converts implicitly to time_t timepoint, although it loses precision..
+	/// converts to a time_t timepoint, although it loses precision
 	DEKAF2_CONSTEXPR_14 explicit operator std::time_t()       const noexcept { return to_time_t(*this);                                      }
-
-	DEKAF2_FULL_CONSTEXPR_17 self& operator+=(std::time_t seconds)  noexcept { base::operator += (chrono::seconds(seconds)); return *this;   }
-	DEKAF2_FULL_CONSTEXPR_17 self& operator-=(std::time_t seconds)  noexcept { base::operator -= (chrono::seconds(seconds)); return *this;   }
 
 	template<typename T, typename std::enable_if<std::is_same<T, KDuration>::value, int>::type = 0>
 	DEKAF2_FULL_CONSTEXPR_17 self& operator+=(const T& Duration) noexcept { base::operator += (Duration.template duration<duration>()); return *this; }
@@ -803,12 +800,6 @@ public:
 
 	template<typename T, typename std::enable_if<detail::is_duration<T>::value, int>::type = 0>
 	DEKAF2_CONSTEXPR_17 self& operator-=(T Duration)      { return operator+=(-Duration);              }
-
-	template<typename T, typename std::enable_if<std::is_same<T, time_t>::value, int>::type = 0>
-	DEKAF2_CONSTEXPR_17 self& operator+=(T Duration)      { return *this += chrono::seconds(Duration); }
-
-	template<typename T, typename std::enable_if<std::is_same<T, time_t>::value, int>::type = 0>
-	DEKAF2_CONSTEXPR_17 self& operator-=(T Duration)      { return *this -= chrono::seconds(Duration); }
 
 	// prefer the chrono::days/months/years += from KDate
 	using KDate::operator+=;

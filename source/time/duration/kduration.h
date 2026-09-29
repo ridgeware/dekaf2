@@ -92,6 +92,7 @@ public:
 
 	/// construct from a time_t, considering the duration counted as seconds
 	template<typename T, typename std::enable_if<std::is_same<time_t, T>::value, int>::type = 0>
+	explicit
 	constexpr KDuration(T tSeconds) : Duration(chrono::seconds(tSeconds)) {}
 
 	/// construct from a struct timespec
@@ -125,9 +126,10 @@ public:
 		}
 	}
 
-	/// we convert automatically into time_t durations, which are counted in seconds..
+	/// converts into a time_t duration, which is counted in seconds
 	template<typename TimeT,
 			 typename std::enable_if<std::is_same<std::time_t, TimeT>::value, int>::type = 0>
+	explicit
 	constexpr operator                  TimeT        () const { return seconds().count();                 }
 
 	/// returns true if duration is zero

@@ -533,9 +533,7 @@ KCompressionCache::Entry KCompressionCache::Compress(const KString&          sSo
 
 	auto sEntry    = kFormat("{}/{}.{}", sEntryDirectory, sKey, GetExtension(Compression));
 	auto sTemp     = sEntry + ".tmp";
-	// without a transmitter the deadline is not used - note that chrono::nanoseconds(Deadline)
-	// would be wrong with libstdc++: it selects the count constructor with the implicit
-	// conversion of KDuration to seconds, and turns 60 seconds into 60 nanoseconds
+	// without a transmitter the deadline is not used
 	auto tDeadline = StartTransmission ? KSteadyTime::now() + Deadline : KSteadyTime::max();
 
 	KInFile  Source(sSourcePath);

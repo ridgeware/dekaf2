@@ -23,6 +23,10 @@ template<class T, class D, class = void> struct can_add : std::false_type {};
 template<class T, class D> struct can_add<T, D, std::void_t<decltype(std::declval<T>() + std::declval<D>())>> : std::true_type {};
 template<class T, class D, class = void> struct can_sub : std::false_type {};
 template<class T, class D> struct can_sub<T, D, std::void_t<decltype(std::declval<T>() - std::declval<D>())>> : std::true_type {};
+template<class T, class D, class = void> struct can_add_assign : std::false_type {};
+template<class T, class D> struct can_add_assign<T, D, std::void_t<decltype(std::declval<T&>() += std::declval<D>())>> : std::true_type {};
+template<class T, class D, class = void> struct can_sub_assign : std::false_type {};
+template<class T, class D> struct can_sub_assign<T, D, std::void_t<decltype(std::declval<T&>() -= std::declval<D>())>> : std::true_type {};
 } // end of anonymous namespace
 
 TEST_CASE("KTime") {
@@ -140,6 +144,29 @@ TEST_CASE("KTime") {
 								   +nanoseconds(1)     , true) == "-292 yrs, 24 wks, 3 days, 23 hrs, 47 mins, 16 secs, 854 msecs, 775 µsecs, 807 nsecs" );
 	}
 
+	SECTION("KUnixTime, KUTCTime and time_t")
+	{
+		// the conversions from and to time_t are explicit
+		static_assert(!std::is_convertible<std::time_t, KUnixTime>::value, "time_t must not convert implicitly to KUnixTime");
+		static_assert(!std::is_convertible<KUnixTime, std::time_t>::value, "KUnixTime must not convert implicitly to time_t");
+
+		// seconds are added as a chrono duration - a number of any type is rejected
+		static_assert(!can_add_assign<KUnixTime, std::time_t    >::value, "KUnixTime += time_t must be rejected");
+		static_assert(!can_sub_assign<KUnixTime, std::time_t    >::value, "KUnixTime -= time_t must be rejected");
+		static_assert(!can_add_assign<KUnixTime, int            >::value, "KUnixTime += int must be rejected");
+		static_assert(!can_add_assign<KUnixTime, bool           >::value, "KUnixTime += bool must be rejected");
+		static_assert(!can_add_assign<KUnixTime, double         >::value, "KUnixTime += double must be rejected");
+		static_assert(!can_add_assign<KUTCTime,  std::time_t    >::value, "KUTCTime += time_t must be rejected");
+		static_assert(!can_sub_assign<KUTCTime,  std::time_t    >::value, "KUTCTime -= time_t must be rejected");
+		static_assert( can_add_assign<KUnixTime, chrono::seconds>::value, "KUnixTime += seconds must stay allowed");
+		static_assert( can_sub_assign<KUnixTime, KDuration      >::value, "KUnixTime -= KDuration must stay allowed");
+		static_assert( can_add_assign<KUTCTime,  chrono::seconds>::value, "KUTCTime += seconds must stay allowed");
+
+		KUnixTime Time(std::time_t(123545656));
+		CHECK ( Time == KUnixTime::from_time_t(123545656) );
+		CHECK ( static_cast<std::time_t>(Time) == 123545656 );
+	}
+
 	SECTION("KBrokenDownTime")
 	{
 		CHECK ( sizeof(std::time_t) <=  8 );
@@ -217,7 +244,7 @@ TEST_CASE("KTime") {
 		CHECK ( UTC2.to_string()       == "2045-12-14 00:33:59" );
 		UTC2 -= chrono::days(70 * 365);
 		CHECK ( UTC2.to_string()       == "1976-01-01 00:33:59" );
-		UTC2 += time_t(1 * 60 * 60 * 24 * 365UL);
+		UTC2 += chrono::seconds(1 * 60 * 60 * 24 * 365UL);
 		CHECK ( UTC2.to_string()       == "1976-12-31 00:33:59" );
 		UTC2 += KDuration(std::chrono::seconds(2));
 		CHECK ( UTC2.to_string()       == "1976-12-31 00:34:01" );
@@ -967,10 +994,9 @@ TEST_CASE("KTime") {
 			KUTCTime Date2("3.5.2007 11:00");
 			auto d = Date2 - Date1;
 			CHECK ( d.days().count() == 366 );
-			time_t t = d;
-			time_t diff = Date2 - Date1;
+			auto diff = static_cast<time_t>(Date2 - Date1);
 			CHECK ( diff == 367 * 86400 - 3600 );
-			KDuration duration = diff;
+			KDuration duration(diff);
 			CHECK ( duration.days() == chrono::days(366) );
 		}
 		{

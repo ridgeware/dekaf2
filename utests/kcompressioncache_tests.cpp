@@ -120,6 +120,23 @@ TEST_CASE("KCompressionCache")
 		CHECK ( KCompressionCache::IsValidLocation(kFormat("{}/cache", sRoot), sRoot) == false );
 	}
 
+	SECTION("the cache directory is tagged for backups")
+	{
+		auto sTag = kFormat("{}/CACHEDIR.TAG", CacheDirectory.Name());
+		CHECK ( kFileExists(sTag) == false );
+
+		auto Entry = Cache.Get(sRoot, "js/app.js", KFileStat(sSource), KHTTPCompression::GZIP, chrono::seconds(10), nullptr);
+		REQUIRE ( Entry.Status == KCompressionCache::State::Hit );
+		REQUIRE ( kFileExists(sTag) );
+		CHECK ( kReadAll(sTag).starts_with("Signature: 8a477f597d28d172789f06886806bc55") );
+
+		// a sweep leaves the tag alone
+		CHECK ( kRemoveFile(sSource) );
+		Cache.Sweep(sRoot);
+		CHECK ( kFileExists(Entry.sPath) == false );
+		CHECK ( kFileExists(sTag) );
+	}
+
 	SECTION("supported compressors")
 	{
 		auto Supported = KCompressionCache::GetSupportedCompressors();
@@ -307,8 +324,10 @@ TEST_CASE("KCompressionCache")
 
 		CHECK ( Cache.Sweep(sRoot) == 2 );
 
-		// the cache directory has no files and no directories left
-		CHECK ( KDirectory(CacheDirectory.Name(), KFileTypes::ALL, true).empty() );
+		// the cache directory has no entries and no directories left, only its tag
+		KDirectory Left(CacheDirectory.Name(), KFileTypes::ALL, true);
+		REQUIRE ( Left.size() == 1 );
+		CHECK ( Left.begin()->Filename() == "CACHEDIR.TAG" );
 	}
 
 	SECTION("a second thread waits for the running pass")

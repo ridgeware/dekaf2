@@ -102,6 +102,24 @@ const Tier& GetTier(uint64_t iSize)
 } // GetTier
 
 //-----------------------------------------------------------------------------
+/// marks the cache directory by the Cache Directory Tagging Specification
+/// (https://bford.info/cachedir/), so that backups skip it: restic and tar with
+/// --exclude-caches, borg with --exclude-caches or --keep-exclude-tags
+void TagCacheDirectory(KStringView sCacheDirectory)
+//-----------------------------------------------------------------------------
+{
+	auto sTag = kFormat("{}/CACHEDIR.TAG", sCacheDirectory);
+
+	if (!kFileExists(sTag))
+	{
+		kWriteFile(sTag, "Signature: 8a477f597d28d172789f06886806bc55\n"
+		                 "# This file is a cache directory tag created by dekaf2's KCompressionCache.\n"
+		                 "# For information about cache directory tags see https://bford.info/cachedir/\n");
+	}
+
+} // TagCacheDirectory
+
+//-----------------------------------------------------------------------------
 /// returns the file extension of an entry, or an empty string if the cache does not support the compression
 KStringView GetExtension(KHTTPCompression::COMP Compression)
 //-----------------------------------------------------------------------------
@@ -480,6 +498,8 @@ KCompressionCache::Entry KCompressionCache::Get(KStringView               sDocum
 		Result.Status = State::Failed;
 		return Result;
 	}
+
+	TagCacheDirectory(m_sCacheDirectory);
 
 	// several processes can share the cache directory: an advisory lock on a lock file
 	// excludes a second pass - the operating system releases the lock when a process ends

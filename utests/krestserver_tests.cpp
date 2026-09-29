@@ -1483,7 +1483,9 @@ x-klog: -level 1
 
 		auto CountEntries = [&]()
 		{
-			return KDirectory(CacheRoot.Name(), KFileType::FILE, /*bRecursive=*/true).size();
+			// the cache entries, without the CACHEDIR.TAG of the cache directory
+			KDirectory Files(CacheRoot.Name(), KFileType::FILE, /*bRecursive=*/true);
+			return Files.size() - (Files.Contains("CACHEDIR.TAG") ? 1 : 0);
 		};
 
 		// requests a file compressed, which creates its cache entry

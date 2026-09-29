@@ -91,7 +91,8 @@ DEKAF2_NAMESPACE_BEGIN
 /// The cache directory has the layout <cache>/<document root id>/<relative path>/<key>.<ext>,
 /// with the key built from inode, size, modification time and change time of the source
 /// file, and ext one of zst, br and gz. An entry of size 0 marks a file that does not get
-/// smaller by the compression.
+/// smaller by the compression. A CACHEDIR.TAG marks the cache directory for backups that
+/// skip caches, like restic or tar with --exclude-caches.
 class DEKAF2_PUBLIC KCompressionCache
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {

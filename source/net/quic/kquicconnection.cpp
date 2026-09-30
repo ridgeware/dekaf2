@@ -1197,7 +1197,7 @@ bool KQuicConnection::Fail(int iError)
 		                                                   &ccerr, Now());
 		if (iWrite > 0)
 		{
-			::send(m_Socket, m_Impl->TXBuffer.data(), static_cast<std::size_t>(iWrite), 0);
+			::send(m_Socket, reinterpret_cast<const char*>(m_Impl->TXBuffer.data()), static_cast<SockSize>(iWrite), 0);
 		}
 	}
 
@@ -1230,7 +1230,7 @@ void KQuicConnection::Close(uint64_t iAppErrorCode)
 		                                                   &ccerr, Now());
 		if (iWrite > 0)
 		{
-			::send(m_Socket, m_Impl->TXBuffer.data(), static_cast<std::size_t>(iWrite), 0);
+			::send(m_Socket, reinterpret_cast<const char*>(m_Impl->TXBuffer.data()), static_cast<SockSize>(iWrite), 0);
 		}
 	}
 

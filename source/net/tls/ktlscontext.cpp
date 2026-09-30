@@ -378,6 +378,16 @@ bool KTLSContext::SetDefaults()
 		return SetError(kFormat("error setting TLS verify path: {}", ec.message()));
 	}
 
+#if DEKAF2_IS_WINDOWS && OPENSSL_VERSION_NUMBER >= 0x30000000L
+	// OpenSSL does not look into the certificate store of Windows by itself - from
+	// version 3.2 on its default provider offers the ROOT store under this URI
+	if (!::SSL_CTX_load_verify_store(m_Context.native_handle(), "org.openssl.winstore:"))
+	{
+		kDebug(1, "{}", KDigest::GetOpenSSLError("cannot load the certificate store of Windows"));
+		::ERR_clear_error();
+	}
+#endif
+
 #ifdef DEKAF2_SYSTEM_CERTIFICATE_PATH
 
 	KString sVerifyPath = DEKAF2_SYSTEM_CERTIFICATE_PATH;

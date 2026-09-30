@@ -48,6 +48,7 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/net/util/kpoll.h>
 #include <dekaf2/net/address/kresolve.h>
+#include <dekaf2/net/util/ksocketerror.h>
 #include <dekaf2/crypto/hash/bits/kdigest.h>
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -125,7 +126,7 @@ void InitSocketAPI()
 } // InitSocketAPI
 
 //-----------------------------------------------------------------------------
-SocketError GetSocketError()
+SocketError GetSocketErrorKind()
 //-----------------------------------------------------------------------------
 {
 #if DEKAF2_IS_WINDOWS
@@ -163,19 +164,7 @@ SocketError GetSocketError()
 	}
 #endif
 
-} // GetSocketError
-
-//-----------------------------------------------------------------------------
-KString GetSocketErrorString()
-//-----------------------------------------------------------------------------
-{
-#if DEKAF2_IS_WINDOWS
-	return kFormat("Winsock error {}", ::WSAGetLastError());
-#else
-	return ::strerror(errno);
-#endif
-
-} // GetSocketErrorString
+} // GetSocketErrorKind
 
 //-----------------------------------------------------------------------------
 const char* GetResolveErrorString(int iResult)
@@ -225,7 +214,8 @@ constexpr uint64_t iMaxStreamWindow  = 8 * 1024 * 1024;
 constexpr uint64_t iMaxWindow        = 32 * 1024 * 1024;
 constexpr uint64_t iMaxStreams       = 100;
 // the idle timeout is a floor - a connection that is neither sending nor
-// receiving for this long is dropped by ngtcp2 regardless of our I/O timeout
+// receiving for this long is dropped by ngtcp2 regardless of our I/O timeout -
+// unless the dead peer detection of the stream options asks for a shorter one
 constexpr KDuration MinIdleTimeout   = chrono::seconds(30);
 
 //-----------------------------------------------------------------------------
@@ -447,7 +437,7 @@ bool KQuicConnection::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Optio
 		return false;
 	}
 
-	if (!SetupQuic())
+	if (!SetupQuic(Options))
 	{
 		Teardown();
 		return false;
@@ -458,8 +448,6 @@ bool KQuicConnection::Connect(const KTCPEndPoint& Endpoint, KStreamOptions Optio
 		// the error is set, and the connection is closed
 		return false;
 	}
-
-	Options.ApplySocketOptions(m_Socket, true);
 
 	kDebug(2, "connected to {} {}", "endpoint", GetEndPointAddress());
 
@@ -646,7 +634,7 @@ bool KQuicConnection::SetupTLS(KStringView sHostname, KStringView sALPN, bool bV
 } // SetupTLS
 
 //-----------------------------------------------------------------------------
-bool KQuicConnection::SetupQuic()
+bool KQuicConnection::SetupQuic(const KStreamOptions& Options)
 //-----------------------------------------------------------------------------
 {
 	ngtcp2_cid dcid;
@@ -718,7 +706,11 @@ bool KQuicConnection::SetupQuic()
 	params.initial_max_data                    = iConnectionWindow;
 	params.initial_max_streams_bidi            = iMaxStreams;
 	params.initial_max_streams_uni             = iMaxStreams;
-	params.max_idle_timeout                    = ToNS(std::max(MinIdleTimeout, KDuration(m_Timeout * 2)));
+	// the dead peer detection of the stream options: its connection drop timeout
+	// becomes QUIC's idle timeout, after which a silent peer counts as gone
+	params.max_idle_timeout                    = ToNS(Options.GetConnectionDropTimeout() > KDuration::zero()
+	                                                  ? Options.GetConnectionDropTimeout()
+	                                                  : std::max(MinIdleTimeout, KDuration(m_Timeout * 2)));
 	params.active_connection_id_limit          = 7;
 
 	auto iResult = ::ngtcp2_conn_client_new(&m_Conn, &dcid, &scid, &m_Impl->Path.path,
@@ -732,6 +724,15 @@ bool KQuicConnection::SetupQuic()
 
 	// for the OpenSSL backend the native handle is the crypto context, not the SSL object
 	::ngtcp2_conn_set_tls_native_handle(m_Conn, m_CryptoCtx);
+
+	// and its keep-alive interval: after this much silence ngtcp2 sends a PING, which
+	// the peer has to acknowledge - the TCP keep-alive options would not work on the
+	// UDP socket, and the probe interval and count have no counterpart, QUIC repeats
+	// a lost PING by its own loss detection
+	if (Options.GetKeepAliveInterval() > KDuration::zero())
+	{
+		::ngtcp2_conn_set_keep_alive_timeout(m_Conn, ToNS(Options.GetKeepAliveInterval()));
+	}
 
 	kDebug(3, "QUIC connection created, congestion control {}", ToString(m_CongestionControl));
 
@@ -820,7 +821,7 @@ KQuicConnection::PumpResult KQuicConnection::Pump(KDuration MaxWait)
 	if (iPoll < 0)
 	{
 		Fail(0);
-		SetError(kFormat("poll failed: {}", GetSocketErrorString()));
+		SetError(kFormat("poll failed: {}", kGetSocketError()));
 		return PumpResult::Error;
 	}
 
@@ -883,7 +884,7 @@ bool KQuicConnection::Read()
 
 		if (iRead < 0)
 		{
-			auto Error = GetSocketError();
+			auto Error = GetSocketErrorKind();
 
 			if (Error == SocketError::WouldBlock)
 			{
@@ -900,7 +901,7 @@ bool KQuicConnection::Read()
 				return SetError(kFormat("{}: connection refused", GetEndPointAddress()));
 			}
 
-			return SetError(kFormat("recv failed: {}", GetSocketErrorString()));
+			return SetError(kFormat("recv failed: {}", kGetSocketError()));
 		}
 
 		if (iRead == 0)
@@ -1102,7 +1103,7 @@ bool KQuicConnection::Send(const uint8_t* data, std::size_t iSize)
 			return true;
 		}
 
-		auto Error = GetSocketError();
+		auto Error = GetSocketErrorKind();
 
 		if (Error == SocketError::Interrupted)
 		{
@@ -1134,7 +1135,7 @@ bool KQuicConnection::Send(const uint8_t* data, std::size_t iSize)
 			return SetError(kFormat("{}: connection refused", GetEndPointAddress()));
 		}
 
-		return SetError(kFormat("send failed: {}", GetSocketErrorString()));
+		return SetError(kFormat("send failed: {}", kGetSocketError()));
 	}
 
 } // Send

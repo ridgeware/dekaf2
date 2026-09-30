@@ -39,6 +39,7 @@
 */
 
 #include <dekaf2/net/util/kpoll.h>
+#include <dekaf2/net/util/ksocketerror.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/core/init/kcompatibility.h>
@@ -52,50 +53,6 @@
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
-
-namespace
-{
-
-//-----------------------------------------------------------------------------
-KStringView GetPollError()
-//-----------------------------------------------------------------------------
-{
-	KStringView sWhat;
-
-#if !DEKAF2_IS_WINDOWS
-
-	sWhat = strerror(errno);
-
-#else
-
-	auto iExtendedError = WSAGetLastError();
-
-	switch (iExtendedError)
-	{
-		case WSAENETDOWN:
-			sWhat = "WSAENETDOWN";
-			break;
-		case WSAEFAULT:
-			sWhat = "WSAEFAULT";
-			break;
-		case WSAEINVAL:
-			sWhat = "WSAEINVAL";
-			break;
-		case WSAENOBUFS:
-			sWhat = "WSAENOBUFS";
-			break;
-		default:
-			sWhat = "unknown error";
-			break;
-	}
-
-#endif
-
-	return sWhat;
-
-} // GetPollError
-
-} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 int kPoll(KSpan<pollfd> fds, KDuration Timeout)
@@ -144,13 +101,13 @@ int kPoll(KSpan<pollfd> fds, KDuration Timeout)
 				continue;
 			}
 
-			kDebug(3, GetPollError());
+			kDebug(3, kGetSocketError());
 			return -errno;
 		}
 #else
 		if (iResult == SOCKET_ERROR)
 		{
-			kDebug(3, GetPollError());
+			kDebug(3, kGetSocketError());
 			return -1;
 		}
 #endif
@@ -541,7 +498,7 @@ void KPoll::Watch()
 
 		if (iEvents < 0)
 		{
-			kDebug(1, "stopping watcher: poll returned with error: {}", GetPollError());
+			kDebug(1, "stopping watcher: poll returned with error: {}", kGetSocketError());
 			return;
 		}
 
@@ -727,7 +684,7 @@ KPollInterruptor::KPollInterruptor()
 #if DEKAF2_IS_WINDOWS
 	if (!kCreateLoopbackPair(m_fd, m_write_fd))
 	{
-		kDebug(2, "failed to create loopback socket pair: {}", GetPollError());
+		kDebug(2, "failed to create loopback socket pair: {}", kGetSocketError());
 		m_fd       = -1;
 		m_write_fd = -1;
 	}

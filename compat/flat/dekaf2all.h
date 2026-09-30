@@ -218,6 +218,7 @@
 #include <dekaf2/system/os/ksignals.h>
 #include <dekaf2/util/mail/ksmtp.h>
 #include <dekaf2/data/template/ksnippets.h>
+#include <dekaf2/net/util/ksocketerror.h>
 #include <dekaf2/core/errors/ksourcelocation.h>
 #include <dekaf2/containers/sequential/kspan.h>
 #include <dekaf2/core/strings/ksplit.h>

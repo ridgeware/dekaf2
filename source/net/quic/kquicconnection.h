@@ -352,7 +352,7 @@ private:
 
 	DEKAF2_PRIVATE bool SetupSocket  (const KTCPEndPoint& Endpoint, const KStreamOptions& Options);
 	DEKAF2_PRIVATE bool SetupTLS     (KStringView sHostname, KStringView sALPN, bool bVerifyCert);
-	DEKAF2_PRIVATE bool SetupQuic    ();
+	DEKAF2_PRIVATE bool SetupQuic    (const KStreamOptions& Options);
 	DEKAF2_PRIVATE bool Handshake    ();
 	DEKAF2_PRIVATE bool Read         ();
 	DEKAF2_PRIVATE bool Write        ();

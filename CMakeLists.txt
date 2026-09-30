@@ -1783,6 +1783,7 @@ set(PUBLIC_HEADERS
 	source/net/tls/ktlsstream.h
 	source/net/util/kiostreamsocket.h
 	source/net/util/kpoll.h
+	source/net/util/ksocketerror.h
 	source/net/util/kstreamoptions.h
 	source/net/util/ktunnel.h
 	source/rest/framework/krest.h
@@ -2069,6 +2070,7 @@ set (SOURCES
 	source/net/tls/ktlsstream.cpp
 	source/net/util/kiostreamsocket.cpp
 	source/net/util/kpoll.cpp
+	source/net/util/ksocketerror.cpp
 	source/net/util/kstreamoptions.cpp
 	source/net/util/ktunnel.cpp
 	source/rest/framework/krest.cpp

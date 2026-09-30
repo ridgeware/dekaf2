@@ -40,6 +40,7 @@
  */
 
 #include <dekaf2/net/util/kstreamoptions.h>
+#include <dekaf2/net/util/ksocketerror.h>
 #include <dekaf2/core/logging/klog.h>
 
 #include <algorithm>
@@ -271,7 +272,7 @@ KDuration kGetTCPKeepAliveInterval(int socket)
 	if (-1 == ::getsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &iInt, &iSize) || !iSize)
 #endif
 	{
-		kDebug(1, "cannot get SO_KEEPALIVE from fd {}: {}", socket, strerror(errno));
+		kDebug(1, "cannot get SO_KEEPALIVE from fd {}: {}", socket, kGetSocketError());
 		return KDuration::zero();
 	}
 
@@ -295,7 +296,7 @@ KDuration kGetTCPKeepAliveInterval(int socket)
 	if (-1 == ::getsockopt(socket, IPPROTO_TCP, iOption, &iInt, &iSize) || !iSize)
 #endif
 	{
-		kDebug(1, "cannot get TCP_KEEPIDLE from fd {}: {}", socket, strerror(errno));
+		kDebug(1, "cannot get TCP_KEEPIDLE from fd {}: {}", socket, kGetSocketError());
 		return KDuration::zero();
 	}
 
@@ -322,7 +323,7 @@ KDuration kGetLingerTimeout(int socket)
 	if (-1 == ::getsockopt(socket, SOL_SOCKET, iOption, &linger, &iSize) || !iSize)
 #endif
 	{
-		kDebug(1, "cannot get SO_LINGER from fd {}: {}", socket, strerror(errno));
+		kDebug(1, "cannot get SO_LINGER from fd {}: {}", socket, kGetSocketError());
 		return KDuration::zero();
 	}
 
@@ -348,7 +349,7 @@ bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepaliveInterval)
 	if (-1 == ::setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &iOnOff, sizeof(iOnOff)))
 #endif
 	{
-		kDebug(1, "cannot set SO_KEEPALIVE to {} on fd {}: {}", iOnOff, socket, strerror(errno));
+		kDebug(1, "cannot set SO_KEEPALIVE to {} on fd {}: {}", iOnOff, socket, kGetSocketError());
 		return false;
 	}
 
@@ -367,7 +368,7 @@ bool kSetTCPKeepAliveInterval(int socket, KDuration tKeepaliveInterval)
 		if (-1 == ::setsockopt(socket, IPPROTO_TCP, iOption, &iSeconds, sizeof(iSeconds)))
 #endif
 		{
-			kDebug(1, "cannot set TCP_KEEPIDLE to {} on fd {}: {}", iSeconds, socket, strerror(errno));
+			kDebug(1, "cannot set TCP_KEEPIDLE to {} on fd {}: {}", iSeconds, socket, kGetSocketError());
 			return false;
 		}
 	}
@@ -392,7 +393,7 @@ KDuration kGetTCPKeepAliveProbeInterval(int socket)
 	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_KEEPINTVL, &iInt, &iSize) || !iSize)
 #endif
 	{
-		kDebug(1, "cannot get TCP_KEEPINTVL from fd {}: {}", socket, strerror(errno));
+		kDebug(1, "cannot get TCP_KEEPINTVL from fd {}: {}", socket, kGetSocketError());
 		return KDuration::zero();
 	}
 
@@ -418,7 +419,7 @@ uint16_t kGetTCPKeepAliveProbeCount(int socket)
 	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, &iInt, &iSize) || !iSize)
 #endif
 	{
-		kDebug(1, "cannot get TCP_KEEPCNT from fd {}: {}", socket, strerror(errno));
+		kDebug(1, "cannot get TCP_KEEPCNT from fd {}: {}", socket, kGetSocketError());
 		return 0;
 	}
 
@@ -447,7 +448,7 @@ bool kSetTCPKeepAliveProbes(int socket, KDuration tProbeInterval, uint16_t iProb
 		if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_KEEPINTVL, &iSeconds, sizeof(iSeconds)))
 #endif
 		{
-			kDebug(1, "cannot set TCP_KEEPINTVL to {} on fd {}: {}", iSeconds, socket, strerror(errno));
+			kDebug(1, "cannot set TCP_KEEPINTVL to {} on fd {}: {}", iSeconds, socket, kGetSocketError());
 			bReturn = false;
 		}
 		else
@@ -470,7 +471,7 @@ bool kSetTCPKeepAliveProbes(int socket, KDuration tProbeInterval, uint16_t iProb
 		if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, &iCount, sizeof(iCount)))
 #endif
 		{
-			kDebug(1, "cannot set TCP_KEEPCNT to {} on fd {}: {}", iCount, socket, strerror(errno));
+			kDebug(1, "cannot set TCP_KEEPCNT to {} on fd {}: {}", iCount, socket, kGetSocketError());
 			bReturn = false;
 		}
 		else
@@ -497,7 +498,7 @@ KDuration kGetTCPConnectionDropTimeout(int socket)
 
 	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_USER_TIMEOUT, &iValue, &iSize) || !iSize)
 	{
-		kDebug(1, "cannot get TCP_USER_TIMEOUT from fd {}: {}", socket, strerror(errno));
+		kDebug(1, "cannot get TCP_USER_TIMEOUT from fd {}: {}", socket, kGetSocketError());
 		return KDuration::zero();
 	}
 
@@ -509,7 +510,7 @@ KDuration kGetTCPConnectionDropTimeout(int socket)
 
 	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_RXT_CONNDROPTIME, &iValue, &iSize) || !iSize)
 	{
-		kDebug(1, "cannot get TCP_RXT_CONNDROPTIME from fd {}: {}", socket, strerror(errno));
+		kDebug(1, "cannot get TCP_RXT_CONNDROPTIME from fd {}: {}", socket, kGetSocketError());
 		return KDuration::zero();
 	}
 
@@ -533,7 +534,7 @@ bool kSetTCPConnectionDropTimeout(int socket, KDuration tDrop)
 
 	if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_USER_TIMEOUT, &iValue, sizeof(iValue)))
 	{
-		kDebug(1, "cannot set TCP_USER_TIMEOUT to {} on fd {}: {}", iValue, socket, strerror(errno));
+		kDebug(1, "cannot set TCP_USER_TIMEOUT to {} on fd {}: {}", iValue, socket, kGetSocketError());
 		return false;
 	}
 
@@ -544,7 +545,7 @@ bool kSetTCPConnectionDropTimeout(int socket, KDuration tDrop)
 
 	if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_RXT_CONNDROPTIME, &iValue, sizeof(iValue)))
 	{
-		kDebug(1, "cannot set TCP_RXT_CONNDROPTIME to {} on fd {}: {}", iValue, socket, strerror(errno));
+		kDebug(1, "cannot set TCP_RXT_CONNDROPTIME to {} on fd {}: {}", iValue, socket, kGetSocketError());
 		return false;
 	}
 
@@ -581,7 +582,7 @@ bool kSetLingerTimeout(int socket, KDuration tLingerTimeout)
 	if (-1 == ::setsockopt(socket, SOL_SOCKET, iOption, &linger, sizeof(linger)))
 #endif
 	{
-		kDebug(1, "cannot set SO_LINGER to {} with {}s on fd {}: {}", iOnOff, iSeconds, socket, strerror(errno));
+		kDebug(1, "cannot set SO_LINGER to {} with {}s on fd {}: {}", iOnOff, iSeconds, socket, kGetSocketError());
 		return false;
 	}
 
@@ -604,7 +605,7 @@ bool kGetTCPNoDelay(int socket)
 	if (-1 == ::getsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &iInt, &iSize) || !iSize)
 #endif
 	{
-		kDebug(1, "cannot get TCP_NODELAY from fd {}: {}", socket, strerror(errno));
+		kDebug(1, "cannot get TCP_NODELAY from fd {}: {}", socket, kGetSocketError());
 		return false;
 	}
 
@@ -624,7 +625,7 @@ bool kSetTCPNoDelay(int socket, bool bYesNo)
 	if (-1 == ::setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, &iOnOff, sizeof(iOnOff)))
 #endif
 	{
-		kDebug(1, "cannot set TCP_NODELAY to {} on fd {}: {}", iOnOff, socket, strerror(errno));
+		kDebug(1, "cannot set TCP_NODELAY to {} on fd {}: {}", iOnOff, socket, kGetSocketError());
 		return false;
 	}
 

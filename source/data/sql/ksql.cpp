@@ -11186,7 +11186,13 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 	// rather than through the interactive line editor: the editor treats tabs as
 	// completion triggers and would split lines like mariadb-dump's
 	// "-- Server version\t...". A non-interactive session is also quiet.
-	const bool bInteractive = kStdInIsTerminal();
+	// A one-shot run -- ksql -e "<sql>" or -e <file> -- is NOT interactive however
+	// stdin happens to be attached. Joe, 2026-09-30: invoked that way, ksql is being
+	// driven by a script that parses its stdout, so nothing decorative may go there.
+	// Testing stdin alone got this wrong in the common case: a developer typing
+	// `ksql -e "select ..." | jq` at a prompt has a terminal on stdin, so ksql
+	// believed it was interactive and emitted terminal control codes into the pipe.
+	const bool bInteractive = sSQLFile.empty() && kStdInIsTerminal();
 
 	if (!bInteractive)
 	{
@@ -11244,7 +11250,12 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 	for (;;)
 	{
 		// set a window title (will be reset at exit)
-		Terminal.SetWindowTitle(ConnectSummary());
+		// only decorate a session a human is actually watching -- SetWindowTitle
+		// emits OSC escapes, which is exactly the noise a -e caller must not receive
+		if (bInteractive)
+		{
+			Terminal.SetWindowTitle(ConnectSummary());
+		}
 
 		KString sLine;
 

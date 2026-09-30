@@ -354,6 +354,25 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 			// this is not a real terminal
 			m_eIsTerminal = TerminalState::No;
 		}
+
+		// The probes and control codes are WRITTEN to the output device, but every
+		// test above interrogates the INPUT device. When stdin is a terminal and
+		// stdout is a pipe -- an interactive shell running `ksql -e ... | jq`, or any
+		// script capturing our stdout -- we would write "\033[6n" into that pipe, the
+		// terminal would never see the query, no answer would come back, and we would
+		// then conclude (correctly) that this is not a terminal. Too late: the three
+		// bytes are already sitting in front of the caller's payload, which is how
+		// they end up parsing "\033[6n[{...}]" as JSON.
+		//
+		// So the output device has to be a terminal too. IsTerminal() gates Command()
+		// as well, so this suppresses the cursor probe, the window title and every
+		// other escape sequence in one place, for every dekaf2 CLI rather than just
+		// the one that happened to report it.
+		if (!::isatty(m_iOutputDevice))
+		{
+			kDebug(1, "output device {} is not a terminal - no terminal control codes will be written", m_iOutputDevice);
+			m_eIsTerminal = TerminalState::No;
+		}
 	}
 
 #endif

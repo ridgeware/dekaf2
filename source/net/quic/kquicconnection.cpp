@@ -54,13 +54,18 @@
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <poll.h>
+#if DEKAF2_IS_WINDOWS
+	#include <winsock2.h>
+	#include <ws2tcpip.h>
+#else
+	#include <sys/types.h>
+	#include <sys/socket.h>
+	#include <netinet/in.h>
+	#include <netdb.h>
+	#include <fcntl.h>
+	#include <unistd.h>
+	#include <poll.h>
+#endif
 #include <cerrno>
 #include <cstring>
 #include <cstdarg>
@@ -85,6 +90,131 @@ struct KQuicConnection::Impl
 }; // Impl
 
 namespace {
+
+// POSIX sockets and Winsock differ in their length types, in closing a socket,
+// in the non-blocking mode and in the error reporting
+#if DEKAF2_IS_WINDOWS
+using SockLen  = int;
+using SockSize = int;
+#else
+using SockLen  = socklen_t;
+using SockSize = std::size_t;
+#endif
+
+enum class SocketError { WouldBlock, Interrupted, Refused, MessageSize, Other };
+
+//-----------------------------------------------------------------------------
+/// Winsock has to be started before the first socket call - asio does that for
+/// its own sockets, but this connection calls the socket API directly
+void InitSocketAPI()
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_WINDOWS
+	static const bool bStarted = []()
+	{
+		WSADATA Data;
+		return ::WSAStartup(MAKEWORD(2, 2), &Data) == 0;
+	}();
+
+	if (!bStarted)
+	{
+		kDebug(1, "cannot start Winsock");
+	}
+#endif
+
+} // InitSocketAPI
+
+//-----------------------------------------------------------------------------
+SocketError GetSocketError()
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_WINDOWS
+	switch (::WSAGetLastError())
+	{
+		case WSAEWOULDBLOCK:
+			return SocketError::WouldBlock;
+		case WSAEINTR:
+			return SocketError::Interrupted;
+		// Windows reports an ICMP port unreachable on a connected UDP socket as a reset
+		case WSAECONNRESET:
+		case WSAECONNREFUSED:
+			return SocketError::Refused;
+		case WSAEMSGSIZE:
+			return SocketError::MessageSize;
+		default:
+			return SocketError::Other;
+	}
+#else
+	switch (errno)
+	{
+		case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+		case EWOULDBLOCK:
+#endif
+			return SocketError::WouldBlock;
+		case EINTR:
+			return SocketError::Interrupted;
+		case ECONNREFUSED:
+			return SocketError::Refused;
+		case EMSGSIZE:
+			return SocketError::MessageSize;
+		default:
+			return SocketError::Other;
+	}
+#endif
+
+} // GetSocketError
+
+//-----------------------------------------------------------------------------
+KString GetSocketErrorString()
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_WINDOWS
+	return kFormat("Winsock error {}", ::WSAGetLastError());
+#else
+	return ::strerror(errno);
+#endif
+
+} // GetSocketErrorString
+
+//-----------------------------------------------------------------------------
+const char* GetResolveErrorString(int iResult)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_WINDOWS
+	// the build defines UNICODE, and with it gai_strerror() returns a wide string
+	return ::gai_strerrorA(iResult);
+#else
+	return ::gai_strerror(iResult);
+#endif
+
+} // GetResolveErrorString
+
+//-----------------------------------------------------------------------------
+void CloseSocket(int iSocket)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_WINDOWS
+	::closesocket(iSocket);
+#else
+	::close(iSocket);
+#endif
+
+} // CloseSocket
+
+//-----------------------------------------------------------------------------
+bool SetNonBlocking(int iSocket)
+//-----------------------------------------------------------------------------
+{
+#if DEKAF2_IS_WINDOWS
+	u_long iMode = 1;
+	return ::ioctlsocket(iSocket, FIONBIO, &iMode) == 0;
+#else
+	auto iFlags = ::fcntl(iSocket, F_GETFL, 0);
+	return iFlags >= 0 && ::fcntl(iSocket, F_SETFL, iFlags | O_NONBLOCK) >= 0;
+#endif
+
+} // SetNonBlocking
 
 // flow control windows - the stream windows are above the bandwidth-delay
 // product of a 200 Mbit/s link with 100 ms RTT (2.5 MB), the connection
@@ -357,6 +487,8 @@ bool KQuicConnection::SetupSocket(const KTCPEndPoint& Endpoint, const KStreamOpt
 
 	kDebug(3, "resolving domain {}", sHostname);
 
+	InitSocketAPI();
+
 	struct addrinfo hints;
 	std::memset(&hints, 0, sizeof(hints));
 	hints.ai_family   = Options.GetNativeFamily();
@@ -370,7 +502,7 @@ bool KQuicConnection::SetupSocket(const KTCPEndPoint& Endpoint, const KStreamOpt
 
 	if (iResult != 0 || !pAddresses)
 	{
-		return SetError(kFormat("cannot resolve {}: {}", sHostname, ::gai_strerror(iResult)));
+		return SetError(kFormat("cannot resolve {}: {}", sHostname, GetResolveErrorString(iResult)));
 	}
 
 	std::unique_ptr<struct addrinfo, decltype(&::freeaddrinfo)> Addresses(pAddresses, &::freeaddrinfo);
@@ -381,7 +513,8 @@ bool KQuicConnection::SetupSocket(const KTCPEndPoint& Endpoint, const KStreamOpt
 
 	for (ai = Addresses.get(); ai != nullptr; ai = ai->ai_next)
 	{
-		m_Socket = ::socket(ai->ai_family, SOCK_DGRAM, IPPROTO_UDP);
+		// Winsock's SOCKET fits into an int, and INVALID_SOCKET becomes -1
+		m_Socket = static_cast<int>(::socket(ai->ai_family, SOCK_DGRAM, IPPROTO_UDP));
 
 		if (m_Socket < 0)
 		{
@@ -390,12 +523,12 @@ bool KQuicConnection::SetupSocket(const KTCPEndPoint& Endpoint, const KStreamOpt
 
 		// a connected UDP socket filters incoming datagrams by peer, and reports
 		// ICMP unreachable errors through recv()
-		if (::connect(m_Socket, ai->ai_addr, ai->ai_addrlen) == 0)
+		if (::connect(m_Socket, ai->ai_addr, static_cast<SockLen>(ai->ai_addrlen)) == 0)
 		{
 			break;
 		}
 
-		::close(m_Socket);
+		CloseSocket(m_Socket);
 		m_Socket = -1;
 	}
 
@@ -404,17 +537,13 @@ bool KQuicConnection::SetupSocket(const KTCPEndPoint& Endpoint, const KStreamOpt
 		return SetError(kFormat("cannot connect to {}", Endpoint));
 	}
 
+	if (!SetNonBlocking(m_Socket))
 	{
-		auto iFlags = ::fcntl(m_Socket, F_GETFL, 0);
-
-		if (iFlags < 0 || ::fcntl(m_Socket, F_SETFL, iFlags | O_NONBLOCK) < 0)
-		{
-			return SetError("cannot switch socket to non-blocking mode");
-		}
+		return SetError("cannot switch socket to non-blocking mode");
 	}
 
 	struct sockaddr_storage LocalAddress;
-	socklen_t iLocalLen = sizeof(LocalAddress);
+	SockLen iLocalLen = sizeof(LocalAddress);
 
 	if (::getsockname(m_Socket, reinterpret_cast<struct sockaddr*>(&LocalAddress), &iLocalLen) != 0)
 	{
@@ -423,14 +552,14 @@ bool KQuicConnection::SetupSocket(const KTCPEndPoint& Endpoint, const KStreamOpt
 
 	::ngtcp2_path_storage_init(&m_Impl->Path,
 	                           reinterpret_cast<const struct sockaddr*>(&LocalAddress), iLocalLen,
-	                           ai->ai_addr, ai->ai_addrlen,
+	                           ai->ai_addr, static_cast<ngtcp2_socklen>(ai->ai_addrlen),
 	                           nullptr);
 
 	{
 		char szHost[NI_MAXHOST];
 		char szPort[NI_MAXSERV];
 
-		if (::getnameinfo(ai->ai_addr, ai->ai_addrlen, szHost, sizeof(szHost), szPort, sizeof(szPort), NI_NUMERICHOST | NI_NUMERICSERV) == 0)
+		if (::getnameinfo(ai->ai_addr, static_cast<SockLen>(ai->ai_addrlen), szHost, sizeof(szHost), szPort, sizeof(szPort), NI_NUMERICHOST | NI_NUMERICSERV) == 0)
 		{
 			if (ai->ai_family == AF_INET6)
 			{
@@ -691,7 +820,7 @@ KQuicConnection::PumpResult KQuicConnection::Pump(KDuration MaxWait)
 	if (iPoll < 0)
 	{
 		Fail(0);
-		SetError(kFormat("poll failed: {}", ::strerror(errno)));
+		SetError(kFormat("poll failed: {}", GetSocketErrorString()));
 		return PumpResult::Error;
 	}
 
@@ -750,26 +879,28 @@ bool KQuicConnection::Read()
 {
 	for (;;)
 	{
-		auto iRead = ::recv(m_Socket, m_Impl->RXBuffer.data(), m_Impl->RXBuffer.size(), 0);
+		auto iRead = ::recv(m_Socket, reinterpret_cast<char*>(m_Impl->RXBuffer.data()), static_cast<SockSize>(m_Impl->RXBuffer.size()), 0);
 
 		if (iRead < 0)
 		{
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
+			auto Error = GetSocketError();
+
+			if (Error == SocketError::WouldBlock)
 			{
 				return true;
 			}
-			else if (errno == EINTR)
+			else if (Error == SocketError::Interrupted)
 			{
 				continue;
 			}
-			else if (errno == ECONNREFUSED)
+			else if (Error == SocketError::Refused)
 			{
 				// ICMP port unreachable on the connected socket
 				m_bClosed = true;
 				return SetError(kFormat("{}: connection refused", GetEndPointAddress()));
 			}
 
-			return SetError(kFormat("recv failed: {}", ::strerror(errno)));
+			return SetError(kFormat("recv failed: {}", GetSocketErrorString()));
 		}
 
 		if (iRead == 0)
@@ -964,18 +1095,20 @@ bool KQuicConnection::Send(const uint8_t* data, std::size_t iSize)
 {
 	for (;;)
 	{
-		auto iSent = ::send(m_Socket, data, iSize, 0);
+		auto iSent = ::send(m_Socket, reinterpret_cast<const char*>(data), static_cast<SockSize>(iSize), 0);
 
 		if (iSent >= 0)
 		{
 			return true;
 		}
 
-		if (errno == EINTR)
+		auto Error = GetSocketError();
+
+		if (Error == SocketError::Interrupted)
 		{
 			continue;
 		}
-		else if (errno == EAGAIN || errno == EWOULDBLOCK)
+		else if (Error == SocketError::WouldBlock)
 		{
 			// the socket buffer is full - wait until it drains. The packet
 			// counts as sent for ngtcp2, we cannot drop it.
@@ -988,20 +1121,20 @@ bool KQuicConnection::Send(const uint8_t* data, std::size_t iSize)
 
 			continue;
 		}
-		else if (errno == EMSGSIZE)
+		else if (Error == SocketError::MessageSize)
 		{
 			// a path MTU probe that the local stack refuses - ngtcp2 treats
 			// the lost probe as a negative answer
 			kDebug(3, "EMSGSIZE for {} bytes", iSize);
 			return true;
 		}
-		else if (errno == ECONNREFUSED)
+		else if (Error == SocketError::Refused)
 		{
 			m_bClosed = true;
 			return SetError(kFormat("{}: connection refused", GetEndPointAddress()));
 		}
 
-		return SetError(kFormat("send failed: {}", ::strerror(errno)));
+		return SetError(kFormat("send failed: {}", GetSocketErrorString()));
 	}
 
 } // Send
@@ -1145,7 +1278,7 @@ void KQuicConnection::Teardown()
 
 	if (m_Socket >= 0)
 	{
-		::close(m_Socket);
+		CloseSocket(m_Socket);
 		m_Socket = -1;
 	}
 

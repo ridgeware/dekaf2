@@ -20,8 +20,8 @@
 ::# library from vcpkg (triplet x64-windows-static, static runtime), built with
 ::# the compiler, CMake and Ninja of Visual Studio into
 ::# build\x64-windows-static-Release (and -Debug) and installed into their
-::# install subdirectories, where Vocito's desktop\build-windows.cmd takes it
-::# from. vcpkg itself is checked out in build\vcpkg, at the builtin-baseline
+::# install subdirectories, where another project takes it from.
+::# vcpkg itself is checked out in build\vcpkg, at the builtin-baseline
 ::# of vcpkg\vcpkg.json.
 ::#
 ::# Needs Visual Studio 2022 or later with the C++ workload, and git.

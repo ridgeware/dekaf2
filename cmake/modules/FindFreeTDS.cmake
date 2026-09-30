@@ -1,6 +1,7 @@
 find_path(FREETDS_INCLUDE_DIR NAMES ctpublic.h)
-# libct is the name of the static library of FreeTDS' CMake build on Windows
-find_library(FREETDS_LIBRARIES_CT NAMES ct libct)
+# libct is the name of the static library of FreeTDS' CMake build on Windows, and
+# comes first there: ct.lib would be the import library of the DLL
+find_library(FREETDS_LIBRARIES_CT NAMES libct ct NAMES_PER_DIR)
 set(FREETDS_LIBRARIES ${FREETDS_LIBRARIES_CT})
 # we only need libct, but if you'd like to use libdb or libodbc, include them like below
 # find_library(FREETDS_LIBRARIES_SYBDB NAMES sybdb)

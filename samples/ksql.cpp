@@ -263,7 +263,6 @@ int KSql::Main(int argc, char** argv)
 	// Normalize both the same way.
 	std::unique_ptr<KTempFile<>> pTempSQL;
 	KString sEffectiveInfile { sInSQL };
-	KString sTempFile;
 
 	if (sInSQL)
 	{
@@ -299,22 +298,21 @@ int KSql::Main(int argc, char** argv)
 
 		if (!sSQL.empty())
 		{
-			sTempFile = kFormat ("{}/ksql-{}.sql", "/tmp", getpid());
-			if (!kWriteFile (sTempFile, sSQL))
+			// the temp file lives in the system's temp directory and is removed by its destructor
+			pTempSQL = std::make_unique<KTempFile<>>("sql");
+
+			if (pTempSQL->Name().empty() || !pTempSQL->Stream().Write(sSQL).Flush().Good())
 			{
-				return SetError(kFormat ("could not write to temp file: {}",sTempFile));
+				return SetError(kFormat ("could not write to temp file: {}", pTempSQL->Name()));
 			}
 
-			sEffectiveInfile = sTempFile;
+			// the interpreter opens the file by its name
+			pTempSQL->Close();
+			sEffectiveInfile = pTempSQL->Name();
 		}
 	}
 
 	auto bOK = SQL.RunInterpreter (Format, bQuiet, sEffectiveInfile, /*bSavedFormatAllowed=*/ sFormat.empty());
-
-	if (sTempFile)
-	{
-		kRemoveFile (sTempFile);
-	}
 
 	return !bOK;
 

@@ -681,6 +681,7 @@ KSQL::KSQL (const KSQL& other)
 , m_QueryTimeout(other.m_QueryTimeout)
 , m_QueryTypeForTimeout(other.m_QueryTypeForTimeout)
 , m_iWarnIfOverMilliseconds(other.m_iWarnIfOverMilliseconds)
+, m_sTempDir(other.m_sTempDir)
 , m_TimingCallback(other.m_TimingCallback)
 {
 	kDebug (4, "...");

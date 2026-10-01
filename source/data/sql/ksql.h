@@ -798,7 +798,7 @@ public:
 	/// returns status text after insert/update statements (only for MySQL)
 	KString     GetLastInfo ();
 
-	/// set temp directory
+	/// set temp directory (default: the system's temp directory)
 	void        SetTempDir (KString sTempDir) { m_sTempDir = std::move(sTempDir); }
 
 	/// enable or disable the KROW reuse optimization in NextRow(KROW&).
@@ -1753,7 +1753,7 @@ private:
 	QueryType  m_QueryTypeForTimeout { QueryType::None };
 	KDuration  m_iWarnIfOverMilliseconds { 0 };
 	FILE*      m_fpPerformanceLog { nullptr };
-	KString    m_sTempDir { "/tmp" };
+	KString    m_sTempDir { kGetTemp() };
 	KSQLStatementStats m_SQLStmtStats;
 	std::function<void(const KSQL&, KDuration, const KString&)> m_TimingCallback;
 

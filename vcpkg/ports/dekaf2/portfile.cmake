@@ -24,6 +24,9 @@ else()
     )
 endif()
 
+# dekaf2 is built as a static library only, also on dynamic triplets
+vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
+
 # feature -> dekaf2 cmake option. sqlite has no toggle (auto-detected via find_package(SQLite3));
 # providing the sqlite3 dependency through the feature is enough to enable KSQLite.
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
@@ -42,18 +45,35 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         webview     DEKAF2_WITH_WEBVIEW
 )
 
+# the triplet decides the MSVC runtime, dekaf2 has to follow it
+if(VCPKG_CRT_LINKAGE STREQUAL "static")
+    set(DEKAF2_STATIC_RUNTIME ON)
+else()
+    set(DEKAF2_STATIC_RUNTIME OFF)
+endif()
+
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
-        # the package-mode switch; it already forces NO_BUILDSETUP, DUAL_TARGET=OFF,
-        # VERSION_IN_TARGET=OFF, USE_SYSTEM_FMTLIB=ON and USE_VENDORED_*=OFF
+        # the package-mode switch: no self-setup (NO_BUILDSETUP), relocatable export, and
+        # the defaults of the layout and dependency options below
         -DDEKAF2_VCPKG_BUILD=ON
+        # one configuration per triplet, in the unversioned layout
+        -DDEKAF2_DUAL_TARGET=OFF
+        -DDEKAF2_VERSION_IN_TARGET=OFF
+        # fmt, simdutf and nlohmann-json from their ports (date stays vendored, it carries
+        # dekaf2's std::chrono interop patches)
+        -DDEKAF2_USE_SYSTEM_FMTLIB=ON
+        -DDEKAF2_USE_VENDORED_SIMDUTF=OFF
+        -DDEKAF2_USE_VENDORED_NLOHMANN=OFF
+        # the MSVC runtime of the triplet (the option has no effect outside Windows)
+        -DDEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS=${DEKAF2_STATIC_RUNTIME}
         # only search for the libs the requested features pulled in
         -DDEKAF2_ALL_LIBS=OFF
         # a library port: no tools / samples
         -DDEKAF2_INSTALL_BIN=OFF
         -DDEKAF2_BUILD_SAMPLES=OFF
-        # vcpkg drives static vs shared through the triplet; build static here
+        # static only, see vcpkg_check_linkage() above
         -DDEKAF2_BUILD_STATIC_DEKAF2=ON
         -DDEKAF2_BUILD_SHARED_DEKAF2=OFF
         # no sanitizers in the debug library: vcpkg installs share/ of the release build

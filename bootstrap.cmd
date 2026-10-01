@@ -17,10 +17,12 @@
 ::#                 (default is number of cpu cores)
 ::#
 ::# The Windows counterpart of "bootstrap -vcpkg": dekaf2 static, with every
-::# library from vcpkg (triplet x64-windows-static, static runtime), built with
-::# the compiler, CMake and Ninja of Visual Studio into
-::# build\x64-windows-static-Release (and -Debug) and installed into their
-::# install subdirectories, where another project takes it from.
+::# library from vcpkg (triplet x64-windows-static or arm64-windows-static,
+::# static runtime), built with the compiler, CMake and Ninja of Visual Studio
+::# into build\<triplet>-Release (and -Debug) and installed into their install
+::# subdirectories, where another project takes it from. The architecture is
+::# that of an active Visual Studio developer environment, else that of this
+::# machine.
 ::# vcpkg itself is checked out in build\vcpkg, at the builtin-baseline
 ::# of vcpkg\vcpkg.json.
 ::#
@@ -33,7 +35,6 @@ set "DEKAF2=%~dp0"
 set "DEKAF2=%DEKAF2:~0,-1%"
 set "BUILDDIR=%DEKAF2%\build"
 set "VCPKGDIR=%BUILDDIR%\vcpkg"
-set "TRIPLET=x64-windows-static"
 set "CONFIGS=Release"
 set "SCRATCH="
 set "NOPULL="
@@ -61,24 +62,49 @@ goto usage
 :argsdone
 if not defined GO goto usage
 
+rem ---- the target architecture -------------------------------------------------
+rem that of an active developer environment, else that of this machine - when this
+rem cmd runs emulated, PROCESSOR_ARCHITEW6432 holds the machine's architecture
+set "ARCH="
+set "INVSENV="
+where cl >nul 2>&1
+if not errorlevel 1 (
+	set "INVSENV=1"
+	set "ARCH=%VSCMD_ARG_TGT_ARCH%"
+)
+if not defined ARCH set "ARCH=%PROCESSOR_ARCHITEW6432%"
+if not defined ARCH set "ARCH=%PROCESSOR_ARCHITECTURE%"
+if /i "%ARCH%"=="amd64" set "ARCH=x64"
+if /i "%ARCH%"=="arm64" set "ARCH=arm64"
+if /i not "%ARCH%"=="x64" if /i not "%ARCH%"=="arm64" (
+	echo error: unsupported architecture %ARCH%, only x64 and arm64 are supported
+	exit /b 1
+)
+set "TRIPLET=%ARCH%-windows-static"
+if "%ARCH%"=="arm64" (
+	set "VSTOOLS=Microsoft.VisualStudio.Component.VC.Tools.ARM64"
+) else (
+	set "VSTOOLS=Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
+)
+echo triplet:  %TRIPLET%
+
 rem ---- the Visual Studio developer environment, unless we already are in one --
 rem (the variable is set outside the block: its ")" would end the block)
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-where cl >nul 2>&1
-if errorlevel 1 (
+if not defined INVSENV (
 	if not exist "!VSWHERE!" (
 		echo error: vswhere.exe not found - is Visual Studio installed?
 		exit /b 1
 	)
-	for /f "usebackq delims=" %%I in (`"!VSWHERE!" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSDIR=%%I"
+	for /f "usebackq delims=" %%I in (`"!VSWHERE!" -latest -products * -requires !VSTOOLS! -property installationPath`) do set "VSDIR=%%I"
 	if "!VSDIR!"=="" (
-		echo error: no Visual Studio with the C++ workload found
+		echo error: no Visual Studio with the C++ build tools for !ARCH! found
 		exit /b 1
 	)
 	echo VS:       !VSDIR!
-	call "!VSDIR!\VC\Auxiliary\Build\vcvars64.bat" >nul
+	call "!VSDIR!\VC\Auxiliary\Build\vcvarsall.bat" !ARCH! >nul
 	if errorlevel 1 (
-		echo error: vcvars64.bat failed
+		echo error: vcvarsall.bat !ARCH! failed
 		exit /b 1
 	)
 )

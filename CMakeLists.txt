@@ -78,8 +78,31 @@ endif()
 
 if (WIN32)
 	if (NOT VCPKG_TARGET_TRIPLET)
-		# make sure vcpkg picks static libs
-		set(VCPKG_TARGET_TRIPLET "x64-windows-static")
+		# make sure vcpkg picks static libs, built for the MSVC runtime that dekaf2 selects
+		# further down: the static runtime (-static), or the dynamic one (-static-md) when
+		# DEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS is switched off and neither DEKAF2_FORCE_STATIC_LIBS
+		# nor DEKAF2_PREFER_STATIC_LIBS is on. These options are declared only further down, so
+		# here they carry a value only when given with -D (or from the cache of an earlier run),
+		# and DEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS defaults to ON.
+		# The architecture is that of the Visual Studio generator, or else of the developer
+		# environment (Ninja), and x64 if neither names one.
+		if (CMAKE_GENERATOR_PLATFORM)
+			string(TOLOWER "${CMAKE_GENERATOR_PLATFORM}" DEKAF2_TRIPLET_ARCH)
+		else()
+			string(TOLOWER "$ENV{VSCMD_ARG_TGT_ARCH}" DEKAF2_TRIPLET_ARCH)
+		endif()
+		if (NOT DEKAF2_TRIPLET_ARCH STREQUAL "arm64")
+			set(DEKAF2_TRIPLET_ARCH "x64")
+		endif()
+		if (DEFINED DEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS AND NOT DEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS
+		    AND NOT DEKAF2_FORCE_STATIC_LIBS AND NOT DEKAF2_PREFER_STATIC_LIBS)
+			set(VCPKG_TARGET_TRIPLET "${DEKAF2_TRIPLET_ARCH}-windows-static-md")
+		else()
+			set(VCPKG_TARGET_TRIPLET "${DEKAF2_TRIPLET_ARCH}-windows-static")
+		endif()
+		unset(DEKAF2_TRIPLET_ARCH)
+		# reported after project(), once it is known whether the vcpkg toolchain is in use
+		set(DEKAF2_TRIPLET_DEFAULTED ON)
 	endif()
 endif()
 
@@ -97,6 +120,22 @@ include(ExternalProject)
 set(CMAKE_REQUIRED_QUIET TRUE)
 
 # ================================= CONFIG OPTIONS =================================
+
+# In package mode (DEKAF2_VCPKG_BUILD) the package manager owns the Debug/Release split (via
+# triplets) and the install layout, and provides fmt, simdutf and nlohmann-json. These cache
+# entries have to be set before the options below are declared: without FORCE, set(CACHE)
+# changes nothing once option() has created the entry. Like this they become the defaults
+# of those options, and an explicit -D still overrides them.
+# date stays vendored even in package mode: our hhinnant/date copy is patched with
+# DEKAF2_STD_CHRONO_* interop switches (plus old-compiler fixes) that the stock package lacks.
+# Without them, when std::chrono provides the calendar but not the timezone db (e.g. AppleClang),
+# date's local_t does not match the std::chrono calendar types dekaf2 builds against.
+if (DEKAF2_VCPKG_BUILD)
+	set(DEKAF2_USE_SYSTEM_FMTLIB     ON  CACHE BOOL "use a system installed fmtlib instead of our own copy")
+	set(DEKAF2_DUAL_TARGET           OFF CACHE BOOL "install Release and Debug versions of dekaf2 side by side")
+	set(DEKAF2_USE_VENDORED_SIMDUTF  OFF CACHE BOOL "use the vendored simdutf instead of find_package(simdutf)")
+	set(DEKAF2_USE_VENDORED_NLOHMANN OFF CACHE BOOL "use the vendored nlohmann-json instead of find_package(nlohmann_json) (needs >= 3.11.2)")
+endif()
 
 # these are all configurable project options
 OPTION(DEKAF2_USE_EXCEPTIONS "Use exceptions for error handling" OFF)
@@ -200,22 +239,6 @@ if (CMAKE_GENERATOR MATCHES "Makefile" OR CMAKE_GENERATOR MATCHES "Ninja")
 endif()
 
 message(STATUS "CMake build type: ${CMAKE_BUILD_TYPE}")
-
-# in package/vcpkg mode the package manager owns the Debug/Release split (via triplets) and the
-# install layout - force the dual-target / versioned-target layouts off (and pick the package
-# manager's libraries) here, BEFORE the install destinations below are computed from these switches.
-if (DEKAF2_VCPKG_BUILD)
-	set(DEKAF2_DUAL_TARGET       OFF CACHE BOOL "install Release and Debug versions of dekaf2 side by side" FORCE)
-	set(DEKAF2_VERSION_IN_TARGET OFF CACHE BOOL "include version number in target" FORCE)
-	# use the package manager's libraries instead of the vendored copies
-	set(DEKAF2_USE_SYSTEM_FMTLIB ON CACHE BOOL "use a system installed fmtlib instead of our own copy" FORCE)
-	set(DEKAF2_USE_VENDORED_SIMDUTF OFF CACHE BOOL "use the vendored simdutf" FORCE)
-	set(DEKAF2_USE_VENDORED_NLOHMANN OFF CACHE BOOL "use the vendored nlohmann-json" FORCE)
-	# date stays vendored even in package mode: our hhinnant/date copy is patched with
-	# DEKAF2_STD_CHRONO_* interop switches (plus old-compiler fixes) that the stock package lacks.
-	# Without them, when std::chrono provides the calendar but not the timezone db (e.g. AppleClang),
-	# date's local_t does not match the std::chrono calendar types dekaf2 builds against.
-endif()
 
 if (DEKAF2_DUAL_TARGET)
 	# we only support the Release and Debug output locations - other
@@ -333,6 +356,37 @@ if (IS_WINDOWS)
 		message (STATUS "linking against dynamic runtime for windows")
 		set (DEKAF2_MSVC_STATIC_RUNTIME OFF)
 	endif()
+	if (VCPKG_TOOLCHAIN)
+		if (DEKAF2_TRIPLET_DEFAULTED)
+			message (STATUS "no vcpkg triplet given, defaulting to ${VCPKG_TARGET_TRIPLET}")
+		endif()
+		# the libraries from vcpkg have to be built for the same MSVC runtime, or the link
+		# fails with LNK2038. This check goes by the names of vcpkg's own triplets (-static
+		# and -static-release for the static runtime), so it only warns.
+		if (MSVC AND VCPKG_TARGET_TRIPLET)
+			if (VCPKG_TARGET_TRIPLET MATCHES "-static(-release)?$")
+				set (DEKAF2_TRIPLET_STATIC_RUNTIME ON)
+			else()
+				set (DEKAF2_TRIPLET_STATIC_RUNTIME OFF)
+			endif()
+			if (DEKAF2_MSVC_STATIC_RUNTIME AND NOT DEKAF2_TRIPLET_STATIC_RUNTIME)
+				message (WARNING "dekaf2 links the static MSVC runtime (/MT), but the vcpkg triplet "
+				                 "'${VCPKG_TARGET_TRIPLET}' is named like one for the dynamic runtime (/MD). "
+				                 "If it is one, the link fails with LNK2038. Use a -static triplet, or switch "
+				                 "DEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS, DEKAF2_FORCE_STATIC_LIBS and "
+				                 "DEKAF2_PREFER_STATIC_LIBS off. vcpkg keeps the triplet of the first "
+				                 "configure run, a different one needs --fresh.")
+			elseif (NOT DEKAF2_MSVC_STATIC_RUNTIME AND DEKAF2_TRIPLET_STATIC_RUNTIME)
+				message (WARNING "dekaf2 links the dynamic MSVC runtime (/MD), but the vcpkg triplet "
+				                 "'${VCPKG_TARGET_TRIPLET}' is named like one for the static runtime (/MT). "
+				                 "If it is one, the link fails with LNK2038. Use a -static-md triplet, or "
+				                 "switch DEKAF2_FORCE_STATIC_BUILD_ON_WINDOWS on. vcpkg keeps the triplet "
+				                 "of the first configure run, a different one needs --fresh.")
+			endif()
+			unset (DEKAF2_TRIPLET_STATIC_RUNTIME)
+		endif()
+	endif()
+	unset (DEKAF2_TRIPLET_DEFAULTED)
 else ()
 	# on Unixes, enable unix sockets and pipes
 	set(DEKAF2_HAS_UNIX_SOCKETS ON)

@@ -3,6 +3,7 @@ CMakeLists.txt.user
 *~
 *.dbc
 build/*
+notes/*
 .windsurf/
 .idea/
 # the vendoring update scripts (from/simdutf, from/webview, libs/uap-cpp/uap-core) keep

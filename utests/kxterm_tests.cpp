@@ -1,4 +1,5 @@
 #include "catch.hpp"
+#include <dekaf2/core/init/kdefinitions.h> // for DEKAF2_IS_WINDOWS
 #ifdef DEKAF2_IS_WINDOWS
 	// before kxterm.h, which removes the RGB macro of the Windows headers
 	#include <windows.h> // for SetStdHandle(), CreatePipe(), PeekNamedPipe()

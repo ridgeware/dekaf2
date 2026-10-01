@@ -1059,6 +1059,8 @@ public:
 	bool Rekey(StringView sKey);
 	/// does the database in the given file need a Key()?
 	static bool IsEncrypted(StringViewZ sFilename);
+	/// does sSQL end with a complete statement, its semicolon outside of strings, comments and trigger bodies? (sqlite3_complete())
+	static bool IsCompleteStatement(StringViewZ sSQL);
 	/// does the current database need a Key()?
 	bool IsEncrypted() const { return IsEncrypted(StringViewZ(Filename())); }
 	/// allow SQL errors to throw Exception. Returns previous throw status

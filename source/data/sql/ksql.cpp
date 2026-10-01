@@ -8343,6 +8343,279 @@ KSQL::OutputFormat KSQL::CreateOutputFormat(KStringView sFormat)
 
 } // CreateOutputFormat
 
+namespace {
+
+//-----------------------------------------------------------------------------
+/// is this a character of an unquoted identifier? (ASCII letters and digits, the
+/// underscore, and the bytes of UTF-8 sequences)
+bool IsIdentifierChar(char ch)
+//-----------------------------------------------------------------------------
+{
+	return KASCII::kIsAlNum(static_cast<unsigned char>(ch))
+	    || ch == '_'
+	    || static_cast<unsigned char>(ch) >= 0x80;
+}
+
+//-----------------------------------------------------------------------------
+/// returns the position after the closing quote of the quoted part that starts at iPos,
+/// or npos if it is not closed: a doubled quote stands for itself, and with
+/// bBackslashEscapes a backslash escapes the following character
+std::size_t SkipQuoted(KStringView sSQL, std::size_t iPos, bool bBackslashEscapes)
+//-----------------------------------------------------------------------------
+{
+	const auto chQuote = sSQL[iPos++];
+
+	while (iPos < sSQL.size())
+	{
+		auto ch = sSQL[iPos];
+
+		if (ch == '\\' && bBackslashEscapes)
+		{
+			iPos += 2;
+		}
+		else if (ch == chQuote)
+		{
+			if (iPos + 1 < sSQL.size() && sSQL[iPos + 1] == chQuote)
+			{
+				iPos += 2;
+			}
+			else
+			{
+				return iPos + 1;
+			}
+		}
+		else
+		{
+			++iPos;
+		}
+	}
+
+	return KStringView::npos;
+
+} // SkipQuoted
+
+//-----------------------------------------------------------------------------
+/// returns the position after the end of the line of the comment that starts at iPos,
+/// or npos if the line does not end
+std::size_t SkipLineComment(KStringView sSQL, std::size_t iPos)
+//-----------------------------------------------------------------------------
+{
+	auto iEnd = sSQL.find('\n', iPos);
+
+	return (iEnd == KStringView::npos) ? iEnd : iEnd + 1;
+
+} // SkipLineComment
+
+#ifdef DEKAF2_HAS_SQLITE3
+//-----------------------------------------------------------------------------
+std::size_t FindEndOfSQLiteStatement(KStringView sSQL)
+//-----------------------------------------------------------------------------
+{
+	// sqlite3_complete() tells whether a text ends with a complete statement - so the first
+	// statement ends at the first semicolon up to which the text is complete. It knows the
+	// strings, the quoted identifiers, the comments and the trigger bodies of SQLite.
+	KString sPart;
+
+	for (auto iPos = sSQL.find(';'); iPos != KStringView::npos; iPos = sSQL.find(';', iPos + 1))
+	{
+		sPart.assign(sSQL.data(), iPos + 1);
+
+		if (KSQLite::IsCompleteStatement(sPart))
+		{
+			return iPos;
+		}
+	}
+
+	return KStringView::npos;
+
+} // FindEndOfSQLiteStatement
+#endif
+
+//-----------------------------------------------------------------------------
+std::size_t FindEndOfMySQLStatement(KStringView sSQL, KStringView sDelimiter)
+//-----------------------------------------------------------------------------
+{
+	// as the mysql client does it: '...' and "..." are strings with backslash escapes,
+	// `...` are identifiers, -- (followed by a blank or a control character), # and
+	// /* */ are comments
+	std::size_t iPos = 0;
+
+	while (iPos < sSQL.size())
+	{
+		auto ch   = sSQL[iPos];
+		auto next = (iPos + 1 < sSQL.size()) ? sSQL[iPos + 1] : '\0';
+
+		if (ch == '\'' || ch == '"')
+		{
+			iPos = SkipQuoted(sSQL, iPos, true);
+		}
+		else if (ch == '`')
+		{
+			iPos = SkipQuoted(sSQL, iPos, false);
+		}
+		else if (ch == '#')
+		{
+			iPos = SkipLineComment(sSQL, iPos);
+		}
+		else if (ch == '-' && next == '-'
+		         && (iPos + 2 == sSQL.size()
+		             || KASCII::kIsSpace(static_cast<unsigned char>(sSQL[iPos + 2]))
+		             || KASCII::kIsCntrl(static_cast<unsigned char>(sSQL[iPos + 2]))))
+		{
+			iPos = SkipLineComment(sSQL, iPos);
+		}
+		else if (ch == '/' && next == '*')
+		{
+			auto iEnd = sSQL.find("*/", iPos + 2);
+			iPos = (iEnd == KStringView::npos) ? iEnd : iEnd + 2;
+		}
+		else if (sSQL.substr(iPos).starts_with(sDelimiter))
+		{
+			return iPos;
+		}
+		else
+		{
+			++iPos;
+		}
+	}
+
+	return KStringView::npos;
+
+} // FindEndOfMySQLStatement
+
+//-----------------------------------------------------------------------------
+std::size_t FindEndOfPostgreSQLStatement(KStringView sSQL)
+//-----------------------------------------------------------------------------
+{
+	// as psql does it: '...' are strings (E'...' with backslash escapes), "..." are
+	// identifiers, $tag$...$tag$ are dollar quoted strings, -- and the nesting /* */
+	// are comments
+	std::size_t iPos = 0;
+
+	while (iPos < sSQL.size())
+	{
+		auto ch   = sSQL[iPos];
+		auto next = (iPos + 1 < sSQL.size()) ? sSQL[iPos + 1] : '\0';
+
+		if (ch == '\'')
+		{
+			bool bEscapes = iPos > 0
+			             && (sSQL[iPos - 1] == 'E' || sSQL[iPos - 1] == 'e')
+			             && (iPos < 2 || !IsIdentifierChar(sSQL[iPos - 2]));
+
+			iPos = SkipQuoted(sSQL, iPos, bEscapes);
+		}
+		else if (ch == '"')
+		{
+			iPos = SkipQuoted(sSQL, iPos, false);
+		}
+		else if (ch == '-' && next == '-')
+		{
+			iPos = SkipLineComment(sSQL, iPos);
+		}
+		else if (ch == '/' && next == '*')
+		{
+			std::size_t iDepth { 1 };
+			iPos += 2;
+
+			while (iDepth && iPos + 1 < sSQL.size())
+			{
+				if (sSQL[iPos] == '/' && sSQL[iPos + 1] == '*')
+				{
+					++iDepth;
+					iPos += 2;
+				}
+				else if (sSQL[iPos] == '*' && sSQL[iPos + 1] == '/')
+				{
+					--iDepth;
+					iPos += 2;
+				}
+				else
+				{
+					++iPos;
+				}
+			}
+
+			if (iDepth)
+			{
+				return KStringView::npos;
+			}
+		}
+		else if (ch == '$' && (iPos == 0 || !(IsIdentifierChar(sSQL[iPos - 1]) || sSQL[iPos - 1] == '$')))
+		{
+			// a dollar quote starts with $$ or $tag$, the tag being an identifier that does
+			// not start with a digit - $1 is a parameter
+			auto iTagEnd = iPos + 1;
+
+			while (iTagEnd < sSQL.size() && IsIdentifierChar(sSQL[iTagEnd]))
+			{
+				++iTagEnd;
+			}
+
+			if (iTagEnd < sSQL.size() && sSQL[iTagEnd] == '$' && !KASCII::kIsDigit(static_cast<unsigned char>(next)))
+			{
+				auto sTag = sSQL.substr(iPos, iTagEnd + 1 - iPos);
+				auto iEnd = sSQL.find(sTag, iTagEnd + 1);
+				iPos = (iEnd == KStringView::npos) ? iEnd : iEnd + sTag.size();
+			}
+			else
+			{
+				++iPos;
+			}
+		}
+		else if (ch == ';')
+		{
+			return iPos;
+		}
+		else
+		{
+			++iPos;
+		}
+	}
+
+	return KStringView::npos;
+
+} // FindEndOfPostgreSQLStatement
+
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+std::size_t KSQL::FindEndOfStatement(DBT iDBType, KStringView sSQL, KStringView sDelimiter)
+//-----------------------------------------------------------------------------
+{
+	switch (iDBType)
+	{
+		case DBT::SQLITE3:
+#ifdef DEKAF2_HAS_SQLITE3
+			return FindEndOfSQLiteStatement(sSQL);
+#else
+			return KStringView::npos;
+#endif
+
+		case DBT::MYSQL:
+			return FindEndOfMySQLStatement(sSQL, sDelimiter.empty() ? KStringView(";") : sDelimiter);
+
+		case DBT::POSTGRESQL:
+			return FindEndOfPostgreSQLStatement(sSQL);
+
+		case DBT::NONE:
+		case DBT::ORACLE6:
+		case DBT::ORACLE7:
+		case DBT::ORACLE8:
+		case DBT::ORACLE:
+		case DBT::SQLSERVER:
+		case DBT::SQLSERVER_UTF8:
+		case DBT::SYBASE:
+		case DBT::INFORMIX:
+			// not split: T-SQL blocks hold semicolons (sqlcmd separates batches with GO
+			// instead), and the other types have no client rules implemented here
+			return KStringView::npos;
+	}
+
+	return KStringView::npos;
+
+} // FindEndOfStatement
+
 //-----------------------------------------------------------------------------
 std::size_t KSQL::OutputQuery (KStringView sSQL, OutputFormat iFormat/*=FORM_ASCII*/, FILE* fpout/*=stdout*/)
 //-----------------------------------------------------------------------------
@@ -11233,6 +11506,119 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 	// write history into default location (~/.config/{PROGRAM_NAME}/terminal-history.txt)
 	Terminal.SetHistory(1000, true);
 
+	// SQLite, MySQL and PostgreSQL statements are split at their delimiter wherever it
+	// stands, as their command line clients do it - the other types end a statement only
+	// with a delimiter at the end of a line
+	const bool bSplitStatements = GetDBType() == DBT::SQLITE3
+	                           || GetDBType() == DBT::MYSQL
+	                           || GetDBType() == DBT::POSTGRESQL;
+	// the statement delimiter, changed for MySQL with the delimiter command of the mysql client
+	KString sDelimiter { ";" };
+
+	// a comment on a line of its own, or after the last statement of a line
+	auto IsComment = [this](KStringView sText)
+	{
+		return sText.find('\n') == KStringView::npos
+		    && (sText.starts_with("--")
+		        || (GetDBType() == DBT::MYSQL && sText.starts_with('#'))
+		        || (sText.starts_with("/*") && sText.ends_with("*/")));
+	};
+
+	// executes one statement and prints its results, returns false for quit and exit
+	auto ExecuteStatement = [&](KString sStatement) -> bool
+	{
+		EndQuery();
+
+		sStatement.Trim();
+
+		if (sStatement.empty())
+		{
+			return true;
+		}
+
+		KStringView sWords(sStatement);
+		KStringView sNewDbName;
+		bool        bIsUseStatement { false };
+
+		switch (kGetWord(sWords).CaseHash())
+		{
+			case "quit"_casehash:
+			case "exit"_casehash:
+				if (!bQuiet)
+				{
+					kWriteLine(":: bye");
+				}
+				return false;
+
+			case "use"_casehash:
+				bIsUseStatement = true;
+				sNewDbName      = kGetWord(sWords);
+				break;
+		}
+
+		bool bSuccess = false;
+
+		if (bIsUseStatement)
+		{
+			KSQLString sSafeSQL;
+			sSafeSQL.ref() = sStatement;
+			bSuccess = ExecRawSQL(sSafeSQL);
+		}
+		else
+		{
+			KStopTime Timer;
+			auto iResults = OutputQuery (sStatement, Format);
+			Terminal.FGColor(KXTerm::ColorCode::Blue);
+			if (iResults)
+			{
+				if (!bQuiet)
+				{
+					kPrintLine(":: {} {} in set ({})", iResults, (iResults == 1) ? "row" : "rows", Timer.elapsed());
+				}
+				bSuccess = true;
+			}
+			else if (GetLastError().empty())
+			{
+				if (!bQuiet)
+				{
+					kPrintLine(":: Empty set ({})", Timer.elapsed());
+				}
+				bSuccess = true;
+			}
+			Terminal.ResetCharModes();
+		}
+
+		if (!bSuccess)
+		{
+			if (!GetLastError().empty())
+			{
+				Terminal.FGColor(KXTerm::ColorCode::BrightRed);
+				kPrintLine (">> {}", GetLastError());
+				Terminal.ResetCharModes();
+			}
+		}
+		else if (sNewDbName)
+		{
+			SetDBName(sNewDbName.ToLowerASCII());
+		}
+
+		if (!bQuiet && !GetLastInfo().empty())
+		{
+			Terminal.FGColor(KXTerm::ColorCode::Green);
+			kPrintLine(":: {}", GetLastInfo());
+			Terminal.ResetCharModes();
+		}
+
+		if (!bQuiet && GetNumRowsAffected())
+		{
+			Terminal.FGColor(KXTerm::ColorCode::Green);
+			kPrintLine (":: {} rows affected.", kFormNumber(GetNumRowsAffected()));
+			Terminal.ResetCharModes();
+		}
+
+		return true;
+	};
+
 	KInFile SQLFile;
 	bool    bReturnAtClose { false };
 
@@ -11370,6 +11756,24 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 			sLine.Trim();
 			KOutShell Shell(sLine);
 		}
+		else if (sSQL.empty() && GetDBType() == DBT::MYSQL
+		         && KStringView(sLine).substr(0, 9).ToLowerASCII() == "delimiter"
+		         && (sLine.size() == 9 || KASCII::kIsSpace(static_cast<unsigned char>(sLine[9]))))
+		{
+			// the delimiter command of the mysql client, it is not sent to the server
+			sDelimiter = KStringView(sLine).substr(9);
+			sDelimiter.Trim();
+
+			if (sDelimiter.empty())
+			{
+				sDelimiter = ";";
+			}
+
+			if (!bQuiet)
+			{
+				kPrintLine(":: delimiter set to {}", sDelimiter);
+			}
+		}
 		else if (sSQL.empty() && sLine.starts_with("klog"))
 		{
 			kGetWord(sLine);
@@ -11400,6 +11804,10 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 			kWriteLine ("::   system <cmd>   : execute a shell command");
 			kWriteLine ("::   source <file>  : read and execute SQL commands");
 			kWriteLine ("::   klog <n>       : set klog level 0..4");
+			if (GetDBType() == DBT::MYSQL)
+			{
+				kWriteLine ("::   delimiter <d>  : set the statement delimiter, default ;");
+			}
 			kWriteLine ("::");
 			kWriteLine (":: SQLite-style dot commands (work for all supported db types) - try .help");
 			kWriteLine ("::");
@@ -11603,21 +12011,44 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 			sSQL += sLine;
 			sSQL += '\n';
 
-			KStringView sNewDbName;
-
-			KStringView sTrimmed(sLine);
-			sTrimmed.Trim();
-			bool bExecute = sTrimmed.remove_suffix(';');
-
-			if (!bHaveFirstWord)
+			if (bSplitStatements)
 			{
-				auto sWord = kGetWord(sTrimmed);
+				// execute every complete statement of the buffer - a line may hold several,
+				// and the rest of a line may start the next one
+				const auto iDelimiterSize = (GetDBType() == DBT::MYSQL) ? sDelimiter.size() : 1;
 
-				if (!sWord.empty())
+				for (;;)
 				{
-					bHaveFirstWord = true;
+					auto iEnd = FindEndOfStatement(GetDBType(), sSQL, sDelimiter);
 
-					switch (sWord.CaseHash())
+					if (iEnd == KString::npos)
+					{
+						break;
+					}
+
+					KString sStatement = sSQL.substr(0, iEnd);
+					sSQL.erase(0, iEnd + iDelimiterSize);
+
+					if (!ExecuteStatement(std::move(sStatement)))
+					{
+						return true; // quit or exit
+					}
+				}
+
+				KStringView sRest(sSQL);
+				sRest.Trim();
+
+				if (sRest.empty() || IsComment(sRest))
+				{
+					// nothing but blanks or a comment after the last statement of the line
+					sSQL.clear();
+				}
+				else if (sRest.find('\n') == KStringView::npos)
+				{
+					// quit, exit and use also end at the end of their line, without a delimiter
+					KStringView sWords(sRest);
+
+					switch (kGetWord(sWords).CaseHash())
 					{
 						case "quit"_casehash:
 						case "exit"_casehash:
@@ -11628,100 +12059,71 @@ bool KSQL::RunInterpreter (OutputFormat Format, bool bQuiet, KStringViewZ sSQLFi
 							return true;
 
 						case "use"_casehash:
-							bIsUse = true;
-							sWord = kGetWord(sTrimmed);
-							if (!sWord.empty())
+							if (!kGetWord(sWords).empty())
 							{
-								sNewDbName = sWord;
-								bExecute   = true;
+								ExecuteStatement(sRest);
+								sSQL.clear();
 							}
 							break;
 					}
 				}
 			}
-			else if (bIsUse)
+			else
 			{
-				auto sNewDbName = kGetWord(sTrimmed);
-				bExecute        = !sNewDbName.empty();
-			}
+				KStringView sTrimmed(sLine);
+				sTrimmed.Trim();
+				bool bExecute = sTrimmed.remove_suffix(';');
 
-			if (bExecute)
-			{
-				// flush command:
-				EndQuery();
-				sSQL.TrimRight();
-				sSQL.remove_suffix(';');
-				sSQL.Trim();
-
-				if (!sSQL.empty())
+				if (!bHaveFirstWord)
 				{
-					bool bSuccess = false;
+					auto sWord = kGetWord(sTrimmed);
 
-					if (bIsUse)
+					if (!sWord.empty())
 					{
-						KSQLString sSafeSQL;
-						sSafeSQL.ref() = sSQL;
-						bSuccess = ExecRawSQL(sSafeSQL);
-					}
-					else
-					{
-						KStopTime Timer;
-						auto iResults = OutputQuery (sSQL, Format);
-						Terminal.FGColor(KXTerm::ColorCode::Blue);
-						if (iResults)
-						{
-							if (!bQuiet)
-							{
-								kPrintLine(":: {} {} in set ({})", iResults, (iResults == 1) ? "row" : "rows", Timer.elapsed());
-							}
-							bSuccess = true;
-						}
-						else if (GetLastError().empty())
-						{
-							if (!bQuiet)
-							{
-								kPrintLine(":: Empty set ({})", Timer.elapsed());
-							}
-							bSuccess = true;
-						}
-						Terminal.ResetCharModes();
-					}
+						bHaveFirstWord = true;
 
-					if (!bSuccess)
-					{
-						if (!GetLastError().empty())
+						switch (sWord.CaseHash())
 						{
-							Terminal.FGColor(KXTerm::ColorCode::BrightRed);
-							kPrintLine (">> {}", GetLastError());
-							Terminal.ResetCharModes();
+							case "quit"_casehash:
+							case "exit"_casehash:
+								if (!bQuiet)
+								{
+									kWriteLine(":: bye");
+								}
+								return true;
+
+							case "use"_casehash:
+								bIsUse = true;
+								if (!kGetWord(sTrimmed).empty())
+								{
+									bExecute = true;
+								}
+								break;
 						}
 					}
-					else if (sNewDbName)
-					{
-						SetDBName(sNewDbName.ToLowerASCII());
-						sNewDbName.clear();
-					}
-
-					if (!bQuiet && !GetLastInfo().empty())
-					{
-						Terminal.FGColor(KXTerm::ColorCode::Green);
-						kPrintLine(":: {}", GetLastInfo());
-						Terminal.ResetCharModes();
-					}
-
-					if (!bQuiet && GetNumRowsAffected())
-					{
-						Terminal.FGColor(KXTerm::ColorCode::Green);
-						kPrintLine (":: {} rows affected.", kFormNumber(GetNumRowsAffected()));
-						Terminal.ResetCharModes();
-					}
-
-					sSQL.clear();
+				}
+				else if (bIsUse)
+				{
+					bExecute = !kGetWord(sTrimmed).empty();
 				}
 
-				bExecute       = false;
-				bIsUse         = false;
-				bHaveFirstWord = false;
+				if (bExecute)
+				{
+					// flush command:
+					sSQL.TrimRight();
+					sSQL.remove_suffix(';');
+
+					auto bContinue = ExecuteStatement(std::move(sSQL));
+
+					sSQL.clear();
+					bIsUse         = false;
+					bHaveFirstWord = false;
+
+					if (!bContinue)
+					{
+						return true; // quit or exit
+					}
+				}
 			}
 		}
 

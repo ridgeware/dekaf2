@@ -869,3 +869,74 @@ TEST_CASE("KSQL-SQLite3")
 }
 
 #endif
+
+//-----------------------------------------------------------------------------
+TEST_CASE("KSQL FindEndOfStatement")
+//-----------------------------------------------------------------------------
+{
+	constexpr auto npos = KStringView::npos;
+
+	// the position of the delimiter is found as the start of a distinctive tail
+	auto End = [](KSQL::DBT DBType, KStringView sSQL, KStringView sTail, KStringView sDelimiter = ";")
+	{
+		return std::make_pair(KSQL::FindEndOfStatement(DBType, sSQL, sDelimiter), sSQL.find(sTail));
+	};
+
+#ifdef DEKAF2_HAS_SQLITE3
+	SECTION("SQLite3")
+	{
+		constexpr auto DBT = KSQL::DBT::SQLITE3;
+		{ auto r = End(DBT, "select 1; select 2;"            , "; select 2"); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select 'a;b'; x"                , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select \"a;b\"; x"              , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select 1 -- a;b\n; x"           , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select /* a;b */ 1; x"          , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "create trigger t after insert on a begin insert into b values (1); update b set c = case when 1 then 2 end; end; x", "; x"); CHECK ( r.first == r.second ); }
+		CHECK ( KSQL::FindEndOfStatement(DBT, "create trigger t after insert on a begin insert into b values (1);") == npos );
+		CHECK ( KSQL::FindEndOfStatement(DBT, "select 'abc;") == npos );
+		CHECK ( KSQL::FindEndOfStatement(DBT, "select 1")     == npos );
+	}
+#endif
+
+	SECTION("MySQL")
+	{
+		constexpr auto DBT = KSQL::DBT::MYSQL;
+		{ auto r = End(DBT, "select 1; select 2;"            , "; select 2"); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select 'it\\'s; ok'; x"         , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select 'a'';b'; x"              , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select \"a;b\"; x"              , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select `a;b` from t; x"         , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select 1 # a;b\n; x"            , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select 1 -- a;b\n; x"           , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select 1--2; x"                 , "; x"       ); CHECK ( r.first == r.second ); }  // no comment without a blank after --
+		{ auto r = End(DBT, "select /* ; */ 1; x"            , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "create procedure p() begin select 1; end// x", "// x", "//"); CHECK ( r.first == r.second ); }
+		CHECK ( KSQL::FindEndOfStatement(DBT, "select 'abc;") == npos );
+		CHECK ( KSQL::FindEndOfStatement(DBT, "create procedure p() begin select 1; end", "//") == npos );
+	}
+
+	SECTION("PostgreSQL")
+	{
+		constexpr auto DBT = KSQL::DBT::POSTGRESQL;
+		{ auto r = End(DBT, "select 1; select 2;"            , "; select 2"); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select 'a'';b'; x"              , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select E'it\\'s; ok'; x"        , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select \"a;b\"; x"              , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select 1 -- a;b\n; x"           , "; x"       ); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select /* a /* b; */ c; */ 1; x", "; x"       ); CHECK ( r.first == r.second ); }  // comments nest
+		{ auto r = End(DBT, "create function f() returns int as $$ select 1; $$ language sql; x", "; x"); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "do $body$ begin perform 1; end $body$; x", "; x"); CHECK ( r.first == r.second ); }
+		{ auto r = End(DBT, "select $1; x"                   , "; x"       ); CHECK ( r.first == r.second ); }  // a parameter, no dollar quote
+		{ auto r = End(DBT, "select a$b; x"                  , "; x"       ); CHECK ( r.first == r.second ); }  // a dollar in an identifier
+		// without the E prefix a backslash is no escape: the string ends at the second quote,
+		// with it the string is not closed
+		{ auto r = End(DBT, "select 'it\\'s; x"            , "; x"       ); CHECK ( r.first == r.second ); }
+		CHECK ( KSQL::FindEndOfStatement(DBT, "select E'it\\'s; x") == npos );
+		CHECK ( KSQL::FindEndOfStatement(DBT, "do $body$ begin perform 1;") == npos );
+	}
+
+	SECTION("other types")
+	{
+		CHECK ( KSQL::FindEndOfStatement(KSQL::DBT::SQLSERVER, "select 1; select 2;") == npos );
+	}
+}

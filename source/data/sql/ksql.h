@@ -852,6 +852,14 @@ public:
 
 	/// create output format from input string
 	static OutputFormat CreateOutputFormat(KStringView sFormat);
+
+	/// returns the position of the delimiter that ends the first complete statement in sSQL, or
+	/// npos if no statement is complete yet. Strings, quoted identifiers and comments are skipped
+	/// like the command line client of the database type does it: for SQLite3 also trigger bodies,
+	/// for PostgreSQL also dollar quoted bodies. sDelimiter is used for MySQL only (the DELIMITER
+	/// of the mysql client), the others always end statements with a semicolon. Other database
+	/// types are not supported and return npos.
+	static std::size_t FindEndOfStatement(DBT iDBType, KStringView sSQL, KStringView sDelimiter = ";");
 	std::size_t OutputQuery  (KStringView sSQL, KStringView sFormat, FILE* fpout = stdout)
 		{ return OutputQuery (sSQL, CreateOutputFormat(sFormat), fpout); }
 	std::size_t OutputQuery  (KStringView sSQL, OutputFormat iFormat=OutputFormat::ASCII, FILE* fpout = stdout);

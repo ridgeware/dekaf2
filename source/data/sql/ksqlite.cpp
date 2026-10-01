@@ -1166,6 +1166,14 @@ bool KSQLite::IsEncrypted(StringViewZ sFilename)
 
 } // KSQLite::IsEncrypted
 
+//--------------------------------------------------------------------------------
+bool KSQLite::IsCompleteStatement(StringViewZ sSQL)
+//--------------------------------------------------------------------------------
+{
+	return sqlite3_complete(sSQL.c_str()) != 0;
+
+} // KSQLite::IsCompleteStatement
+
 //================================== Transaction =================================
 
 //--------------------------------------------------------------------------------

@@ -119,7 +119,7 @@ IsSystemPackageInstalled ()
 	[[ $# -eq 1 ]] || Die "script error: expected one argument, $# provided: $@"
 	case "${DISTRIB}" in
 		darwin)
-			[[ "$(brew list --formula | grep ${1})" != "" ]]
+			brew list --formula "${1}" &> /dev/null
 			;;
 		debian)
 			[[ "$(dpkg -l $1 | grep '^ii')" != "" ]]

@@ -25,7 +25,8 @@
 ::# that of an active Visual Studio developer environment, else that of this
 ::# machine.
 ::# vcpkg itself is checked out in build\vcpkg, at the builtin-baseline
-::# of vcpkg\vcpkg.json.
+::# of vcpkg\vcpkg.json. The build is configured with the preset
+::# <triplet>-Release (or -Debug) of CMakePresets.json.
 ::#
 ::# Needs Visual Studio 2022 or later with the C++ workload, and git.
 ::#
@@ -191,25 +192,26 @@ rem the packages go into the build directory (manifest mode), and are restored
 rem from the binary cache as long as vcpkg and the triplet are unchanged
 :build
 set "CFG=%~1"
-set "BUILD=%BUILDDIR%\%TRIPLET%-%CFG%"
+rem the configuration of the build is this preset of CMakePresets.json, and its
+rem binary directory is build\<preset>
+set "PRESET=%TRIPLET%-%CFG%"
+set "BUILD=%BUILDDIR%\%PRESET%"
 if defined SCRATCH if exist "%BUILD%" (
 	rmdir /s /q "%BUILD%"
 	echo removed build directory %BUILD%
 )
+rem the presets are found in the source directory (setlocal restores the directory at the end)
+cd /d "%DEKAF2%"
 echo.
-echo configuring %BUILD% ...
-cmake -S "%DEKAF2:\=/%" -B "%BUILD:\=/%" -G Ninja -DCMAKE_BUILD_TYPE=%CFG% -DDEKAF2_VCPKG_BUILD=ON ^
-      -DCMAKE_TOOLCHAIN_FILE="%VCPKGDIR:\=/%/scripts/buildsystems/vcpkg.cmake" ^
-      -DVCPKG_MANIFEST_DIR="%DEKAF2:\=/%/vcpkg" ^
-      -DVCPKG_TARGET_TRIPLET=%TRIPLET% ^
-      -DCMAKE_INSTALL_PREFIX="%BUILD:\=/%/install" %EXTRA%
+echo configuring %BUILD% with preset %PRESET% ...
+cmake --preset %PRESET% %EXTRA%
 if errorlevel 1 (
 	echo error: cannot configure %BUILD%
 	exit /b 1
 )
 echo.
 echo now building %BUILD% with %JOBS% processes
-cmake --build "%BUILD%" --parallel %JOBS%
+cmake --build --preset %PRESET% --parallel %JOBS%
 if errorlevel 1 (
 	echo error: cannot build %BUILD%
 	exit /b 1

@@ -26,8 +26,9 @@
 #%                 arm64-linux) - glibc stays the one of the build machine, so
 #%                 the oldest distribution to run on is the one to build on.
 #%                 vcpkg itself is checked out in build/vcpkg, at the
-#%                 builtin-baseline of vcpkg/vcpkg.json. On Windows the same
-#%                 comes from bootstrap.cmd
+#%                 builtin-baseline of vcpkg/vcpkg.json. The build is configured
+#%                 with the preset of the triplet in CMakePresets.json, which
+#%                 needs CMake 3.21. On Windows the same comes from bootstrap.cmd
 #%
 #% The build directories will be subdirectories 'build/Release|Debug|Xcode'
 #% (with -vcpkg 'build/<triplet>') of the directory in which this script is
@@ -149,23 +150,28 @@ VcpkgBuild ()
 	local sGenerator=""
 	command -v ninja >/dev/null 2>&1 && sGenerator="-G Ninja"
 
+	# the presets of CMakePresets.json need CMake 3.21
+	local sCMakeVersion=$(cmake --version 2>/dev/null | sed -n 's/^cmake version \([0-9]*\)\.\([0-9]*\).*/\1 \2/p')
+	local iMajor=$(echo ${sCMakeVersion} | cut -d ' ' -f 1)
+	local iMinor=$(echo ${sCMakeVersion} | cut -d ' ' -f 2)
+	if [[ -z "${iMajor}" ]] || [[ ${iMajor} -lt 3 ]] || ( [[ ${iMajor} -eq 3 ]] && [[ ${iMinor} -lt 21 ]] ); then
+		Die "the vcpkg build is configured with CMakePresets.json, which needs CMake 3.21 or later - found ${iMajor}.${iMinor}"
+	fi
+
 	VcpkgCheckout
 
-	# the packages go into the build directory (manifest mode), and are restored
-	# from the binary cache as long as vcpkg and the triplet are unchanged
-	Info "configuring the vcpkg build in ${sDir}"
-	${SETMODERNCC} cmake -S "${ME_ONLYPATH}" -B "${sDir}" ${sGenerator} \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DDEKAF2_VCPKG_BUILD=ON \
-		-DCMAKE_TOOLCHAIN_FILE="${VcpkgDir}/scripts/buildsystems/vcpkg.cmake" \
-		-DVCPKG_MANIFEST_DIR="${ME_ONLYPATH}/vcpkg" \
-		-DVCPKG_TARGET_TRIPLET="${VcpkgTriplet}" \
-		-DCMAKE_INSTALL_PREFIX="${sDir}/install" \
-		${sVcpkgOptions} ${sAdditionalOptions} \
+	# the presets are found in the source directory
+	cd "${ME_ONLYPATH}" || Die "Cannot cd into source directory ${ME_ONLYPATH}"
+
+	# the configuration of the build is the preset of the triplet in CMakePresets.json -
+	# the packages go into the build directory (manifest mode), and are restored from
+	# the binary cache as long as vcpkg and the triplet are unchanged
+	Info "configuring the vcpkg build with preset ${VcpkgTriplet} in ${sDir}"
+	${SETMODERNCC} cmake --preset "${VcpkgTriplet}" ${sGenerator} ${sAdditionalOptions} \
 		|| Die "Cannot configure the vcpkg build"
 
 	Info "now building the dekaf2 vcpkg build with ${CPUCORES} processes"
-	cmake --build "${sDir}" --parallel ${CPUCORES} || Die "Cannot build the vcpkg build"
+	cmake --build --preset "${VcpkgTriplet}" --parallel ${CPUCORES} || Die "Cannot build the vcpkg build"
 
 	cmake --install "${sDir}" > /dev/null || Die "Cannot install the vcpkg build"
 	Info "dekaf2 vcpkg build installed into ${sDir}/install"
@@ -326,11 +332,8 @@ RunDirs="Debug Release Xcode"
 if [[ ! -z "${bVcpkg}" ]]; then
 	case "${OS}-${ARCH}" in
 	Darwin-arm64)
+		# the preset sets the minimum macOS of the triplet for dekaf2 itself as well
 		VcpkgTriplet="arm64-osx-14"
-		# the minimum macOS of the triplet, for dekaf2 itself
-		sMinMacOS=$(sed -n 's/^set(VCPKG_OSX_DEPLOYMENT_TARGET \([0-9.]*\))/\1/p' "${ME_ONLYPATH}/vcpkg/triplets/${VcpkgTriplet}.cmake")
-		[[ -n "${sMinMacOS}" ]] || Die "no VCPKG_OSX_DEPLOYMENT_TARGET in vcpkg/triplets/${VcpkgTriplet}.cmake"
-		sVcpkgOptions="-DCMAKE_OSX_DEPLOYMENT_TARGET=${sMinMacOS}"
 		;;
 	Linux-x86_64)
 		VcpkgTriplet="x64-linux"

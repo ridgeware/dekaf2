@@ -1,0 +1,121 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "system",
+      "hidden": true,
+      "description": "dekaf2 with the libraries of the system, Release and Debug installed side by side - as bootstrap builds it without -vcpkg"
+    },
+    {
+      "name": "Release",
+      "inherits": "system",
+      "displayName": "Release (system libraries)",
+      "binaryDir": "${sourceDir}/build/Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" },
+      "condition": { "type": "notEquals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
+      "name": "Debug",
+      "inherits": "system",
+      "displayName": "Debug (system libraries)",
+      "binaryDir": "${sourceDir}/build/Debug",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" },
+      "condition": { "type": "notEquals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
+      "name": "Xcode",
+      "inherits": "system",
+      "displayName": "Xcode (system libraries)",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/Xcode",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
+    },
+    {
+      "name": "vcpkg",
+      "hidden": true,
+      "description": "dekaf2 static for distribution, with every library from vcpkg in manifest mode - as bootstrap -vcpkg and bootstrap.cmd build it. The toolchain is the vcpkg checkout of bootstrap in build/vcpkg, at the builtin-baseline of vcpkg/vcpkg.json",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "installDir": "${sourceDir}/build/${presetName}/install",
+      "toolchainFile": "${sourceDir}/build/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "DEKAF2_VCPKG_BUILD": "ON",
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/vcpkg",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "arm64-osx-14",
+      "inherits": "vcpkg",
+      "displayName": "vcpkg arm64-osx-14 (Apple silicon, from macOS 14 on)",
+      "description": "the deployment target is the one of vcpkg/triplets/arm64-osx-14.cmake",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "arm64-osx-14",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "14.0"
+      },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
+    },
+    {
+      "name": "x64-linux",
+      "inherits": "vcpkg",
+      "displayName": "vcpkg x64-linux",
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-linux" },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+    },
+    {
+      "name": "arm64-linux",
+      "inherits": "vcpkg",
+      "displayName": "vcpkg arm64-linux",
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "arm64-linux" },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+    },
+    {
+      "name": "vcpkg-windows",
+      "hidden": true,
+      "inherits": "vcpkg",
+      "description": "built with the compiler, CMake and Ninja of Visual Studio, static runtime",
+      "generator": "Ninja",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
+      "name": "x64-windows-static-Release",
+      "inherits": "vcpkg-windows",
+      "displayName": "vcpkg x64-windows-static Release",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-windows-static", "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "x64-windows-static-Debug",
+      "inherits": "vcpkg-windows",
+      "displayName": "vcpkg x64-windows-static Debug",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-windows-static", "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "arm64-windows-static-Release",
+      "inherits": "vcpkg-windows",
+      "displayName": "vcpkg arm64-windows-static Release",
+      "architecture": { "value": "arm64", "strategy": "external" },
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "arm64-windows-static", "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "arm64-windows-static-Debug",
+      "inherits": "vcpkg-windows",
+      "displayName": "vcpkg arm64-windows-static Debug",
+      "architecture": { "value": "arm64", "strategy": "external" },
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "arm64-windows-static", "CMAKE_BUILD_TYPE": "Debug" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "Release",                      "configurePreset": "Release",                      "condition": { "type": "notEquals", "lhs": "${hostSystemName}", "rhs": "Windows" } },
+    { "name": "Debug",                        "configurePreset": "Debug",                        "condition": { "type": "notEquals", "lhs": "${hostSystemName}", "rhs": "Windows" } },
+    { "name": "Xcode",                        "configurePreset": "Xcode", "configuration": "Release", "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" } },
+    { "name": "arm64-osx-14",                 "configurePreset": "arm64-osx-14",                 "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin"  } },
+    { "name": "x64-linux",                    "configurePreset": "x64-linux",                    "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"   } },
+    { "name": "arm64-linux",                  "configurePreset": "arm64-linux",                  "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"   } },
+    { "name": "x64-windows-static-Release",   "configurePreset": "x64-windows-static-Release",   "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" } },
+    { "name": "x64-windows-static-Debug",     "configurePreset": "x64-windows-static-Debug",     "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" } },
+    { "name": "arm64-windows-static-Release", "configurePreset": "arm64-windows-static-Release", "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" } },
+    { "name": "arm64-windows-static-Debug",   "configurePreset": "arm64-windows-static-Debug",   "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" } }
+  ]
+}

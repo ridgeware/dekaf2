@@ -116,7 +116,8 @@ BuildSetup ()
 
 		case "${DISTRIB}" in
 			darwin)
-				InstallSystemPackages cmake boost openssl wget yaml-cpp
+				# openssl@3, not the alias openssl, which Homebrew has moved on to openssl@4
+				InstallSystemPackages cmake boost openssl@3 wget yaml-cpp
 
 				# HTTP/3: ngtcp2 with its OpenSSL backend (the brew formula builds it against openssl@3)
 				InstallOptionalSystemPackages libzip xz zstd brotli mariadb libpq sqlite jemalloc ncurses \

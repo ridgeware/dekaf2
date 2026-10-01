@@ -1,4 +1,6 @@
 CMakeLists.txt.user
+# local presets of a developer, next to the shared CMakePresets.json
+CMakeUserPresets.json
 **/.DS_Store
 *~
 *.dbc

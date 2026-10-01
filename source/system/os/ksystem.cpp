@@ -333,57 +333,72 @@ KString kGetHome()
 KString kGetTemp()
 //-----------------------------------------------------------------------------
 {
+	KString sTemp;
+
 #ifdef DEKAF2_HAS_STD_FILESYSTEM
-	KString sTemp = fs::temp_directory_path().string();
+	// the overload without error_code throws when the directory named by the
+	// environment does not exist
+	std::error_code ec;
+	sTemp = fs::temp_directory_path(ec).string();
+
+	if (ec)
+	{
+		kDebug(1, "cannot get temp directory: {}", ec.message());
+		sTemp.clear();
+	}
 #else
-	KString sTemp = kGetEnv("TMPDIR");
+	// the first of these environment variables that names an existing directory
+	for (KStringViewZ sVariable : { "TMPDIR", "TEMP", "TMP" })
+	{
+		auto sDirectory = kGetEnv(sVariable);
+
+		if (!sDirectory.empty())
+		{
+			if (kDirExists(sDirectory))
+			{
+				sTemp = sDirectory;
+				break;
+			}
+
+			kDebug(1, "{} names no existing directory: {}", sVariable, sDirectory);
+		}
+	}
+#endif
 
 	if (sTemp.empty())
 	{
-		sTemp = kGetEnv("TEMP");
-
-		if (sTemp.empty())
-		{
-			sTemp = kGetEnv("TMP");
-
-			if (sTemp.empty())
-			{
 #ifdef DEKAF2_IS_WINDOWS
-				if (kDirExists("C:\\TEMP"))
-				{
-					sTemp = "C:\\TEMP";
-				}
-				else if (kDirExists("C:\\TMP"))
-				{
-					sTemp = "C:\\TMP";
-				}
-				else if (kDirExists("\\TEMP"))
-				{
-					sTemp = "\\TEMP";
-				}
-				else if (kDirExists("\\TMP"))
-				{
-					sTemp = "\\TMP";
-				}
-#else
-				if (kDirExists("/tmp"))
-				{
-					sTemp = "/tmp";
-				}
-				else if (kDirExists("/var/tmp"))
-				{
-					sTemp = "/var/tmp";
-				}
-				else if (kDirExists("/usr/tmp"))
-				{
-					sTemp = "/usr/tmp";
-				}
-#endif
-			}
+		if (kDirExists("C:\\TEMP"))
+		{
+			sTemp = "C:\\TEMP";
 		}
-
-	}
+		else if (kDirExists("C:\\TMP"))
+		{
+			sTemp = "C:\\TMP";
+		}
+		else if (kDirExists("\\TEMP"))
+		{
+			sTemp = "\\TEMP";
+		}
+		else if (kDirExists("\\TMP"))
+		{
+			sTemp = "\\TMP";
+		}
+#else
+		if (kDirExists("/tmp"))
+		{
+			sTemp = "/tmp";
+		}
+		else if (kDirExists("/var/tmp"))
+		{
+			sTemp = "/var/tmp";
+		}
+		else if (kDirExists("/usr/tmp"))
+		{
+			sTemp = "/usr/tmp";
+		}
 #endif
+	}
 
 	if (sTemp.empty())
 	{
@@ -400,7 +415,7 @@ KString kGetTemp()
 
 	return sTemp;
 
-} // kGetHome
+} // kGetTemp
 
 //-----------------------------------------------------------------------------
 KString kGetWhoAmI ()

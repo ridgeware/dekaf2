@@ -55,6 +55,30 @@ TEST_CASE("KSystem")
 		CHECK ( kGetCWD() == sDir );
 	}
 
+	SECTION("GetTemp")
+	{
+		// environment variables that name no existing directory are skipped
+		std::vector<std::pair<KString, KString>> Original;
+
+		for (KStringViewZ sVariable : { "TMPDIR", "TEMP", "TMP" })
+		{
+			Original.emplace_back(sVariable, kGetEnv(sVariable));
+			kSetEnv(sVariable, "/dekaf2/does/not/exist");
+		}
+
+		KAtScopeEnd(
+			for (const auto& Variable : Original)
+			{
+				if (Variable.second.empty()) kUnsetEnv(Variable.first);
+				else                         kSetEnv  (Variable.first, Variable.second);
+			}
+		);
+
+		auto sTemp = kGetTemp();
+		CHECK ( sTemp != "/dekaf2/does/not/exist" );
+		CHECK ( kDirExists(sTemp) );
+	}
+
 	SECTION("Home")
 	{
 		auto sHome = kGetHome();

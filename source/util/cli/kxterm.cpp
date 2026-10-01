@@ -48,12 +48,20 @@
 #include <dekaf2/core/types/kscopeguard.h>
 #include <dekaf2/core/init/kcompatibility.h>
 #include <string>
+#include <cstdio>                           // getchar()
 
 #ifndef DEKAF2_IS_WINDOWS
 	#include <termios.h>
 	#include <unistd.h>                     // ::isatty for kPromptForPassword
 #else
 	#include <windows.h>
+	// for Windows SDKs older than Windows 10
+	#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+		#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+	#endif
+	#ifndef ENABLE_VIRTUAL_TERMINAL_INPUT
+		#define ENABLE_VIRTUAL_TERMINAL_INPUT 0x0200
+	#endif
 #endif
 
 #include <dekaf2/util/cli/kxterm.h> // keep this at the end of includes, it removes a freak RGB definition in windows headers
@@ -298,11 +306,58 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 
 #ifdef DEKAF2_IS_WINDOWS
 
-	kSetTerminal(m_iInputDevice, true, 1, 0);
+	// A console of Windows 10 or later processes the escape sequences of an xterm once the
+	// virtual terminal modes are switched on for its output and its input. If one of the
+	// devices is no console, or the console refuses a mode, both devices stay as they are:
+	// the console then echoes and edits the typed lines itself.
+	HANDLE hInput       = ::GetStdHandle(static_cast<DWORD>(m_iInputDevice));
+	HANDLE hOutput      = ::GetStdHandle(static_cast<DWORD>(m_iOutputDevice));
+	DWORD  dwInputMode  = 0;
+	DWORD  dwOutputMode = 0;
+
+	if (::GetConsoleMode(hInput,  &dwInputMode) &&
+	    ::GetConsoleMode(hOutput, &dwOutputMode))
+	{
+		if (::SetConsoleMode(hOutput, dwOutputMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING))
+		{
+			// raw input as on the other platforms: no echo and no line editing by the console,
+			// but ENABLE_PROCESSED_INPUT stays on, so that Ctrl-C still raises the signal
+			if (::SetConsoleMode(hInput, (dwInputMode | ENABLE_VIRTUAL_TERMINAL_INPUT) & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT)))
+			{
+				m_iSavedInputMode    = dwInputMode;
+				m_iSavedOutputMode   = dwOutputMode;
+				m_bConsoleModesSaved = true;
+				m_eIsTerminal        = TerminalState::Yes;
+			}
+			else
+			{
+				::SetConsoleMode(hOutput, dwOutputMode);
+			}
+		}
+	}
+
+	if (m_eIsTerminal != TerminalState::Yes)
+	{
+		kDebug(1, "input device {} and output device {} are no console with virtual terminal modes - no terminal control codes will be written",
+		       m_iInputDevice, m_iOutputDevice);
+		m_eIsTerminal = TerminalState::No;
+	}
 
 #else
 
-	m_Termios = std::make_unique<termios>();
+	// the probes and control codes are written to the output device, so it has to be a
+	// terminal as well. If it is not, the input device is left untouched: the terminal
+	// driver then keeps echoing and editing the typed lines, which a raw input device
+	// without a terminal on the output side would not do.
+	if (!kIsTerminal(m_iOutputDevice))
+	{
+		kDebug(1, "output device {} is not a terminal - no terminal control codes will be written", m_iOutputDevice);
+		m_eIsTerminal = TerminalState::No;
+	}
+	else
+	{
+		m_Termios = std::make_unique<termios>();
+	}
 
 	if (m_Termios)
 	{
@@ -354,25 +409,6 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 			// this is not a real terminal
 			m_eIsTerminal = TerminalState::No;
 		}
-
-		// The probes and control codes are WRITTEN to the output device, but every
-		// test above interrogates the INPUT device. When stdin is a terminal and
-		// stdout is a pipe -- an interactive shell running `ksql -e ... | jq`, or any
-		// script capturing our stdout -- we would write "\033[6n" into that pipe, the
-		// terminal would never see the query, no answer would come back, and we would
-		// then conclude (correctly) that this is not a terminal. Too late: the three
-		// bytes are already sitting in front of the caller's payload, which is how
-		// they end up parsing "\033[6n[{...}]" as JSON.
-		//
-		// So the output device has to be a terminal too. IsTerminal() gates Command()
-		// as well, so this suppresses the cursor probe, the window title and every
-		// other escape sequence in one place, for every dekaf2 CLI rather than just
-		// the one that happened to report it.
-		if (!::isatty(m_iOutputDevice))
-		{
-			kDebug(1, "output device {} is not a terminal - no terminal control codes will be written", m_iOutputDevice);
-			m_eIsTerminal = TerminalState::No;
-		}
 	}
 
 #endif
@@ -395,7 +431,11 @@ KXTerm::~KXTerm()
 
 #ifdef DEKAF2_IS_WINDOWS
 
-	kSetTerminal(m_iInputDevice, false, 1, 0);
+	if (m_bConsoleModesSaved)
+	{
+		::SetConsoleMode(::GetStdHandle(static_cast<DWORD>(m_iInputDevice )), m_iSavedInputMode );
+		::SetConsoleMode(::GetStdHandle(static_cast<DWORD>(m_iOutputDevice)), m_iSavedOutputMode);
+	}
 
 #else
 
@@ -412,6 +452,16 @@ KXTerm::~KXTerm()
 void KXTerm::QueryTermSize()
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_IS_WINDOWS
+
+	// the console answers the cursor query only into the input stream, which cannot be read
+	// with a timeout here - but it tells its size directly
+	auto TTY   = kGetTerminalSize(m_iOutputDevice, 80, 25);
+	m_iRows    = TTY.lines;
+	m_iColumns = TTY.columns;
+
+#else
+
 	uint16_t iRow, iCol;
 
 	if (GetCursor(iRow, iCol))
@@ -427,6 +477,8 @@ void KXTerm::QueryTermSize()
 		m_iRows    = 25;
 		m_iColumns = 80;
 	}
+
+#endif
 
 	kDebug(2, "Rows: {}, Columns: {}", m_iRows, m_iColumns);
 
@@ -784,6 +836,7 @@ bool KXTerm::EditLine(
 				Beep();
 				break;
 
+			case '\r':   // the Enter key of a raw Windows console
 			case '\n':   // done ..
 				sLine.clear();
 				kutf::Convert(sUnicode, sLine);
@@ -791,6 +844,7 @@ bool KXTerm::EditLine(
 				m_bCursorLimits = bCursorLimits;
 				return true;
 
+			case '\b':   // Ctrl-H
 			case '\177': // BS
 				if (iPos)
 				{
@@ -1076,9 +1130,101 @@ bool KXTerm::EditLine(
 void KXTerm::RawWrite(KStringView sRaw) const
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_IS_WINDOWS
+
+	if (sRaw.empty())
+	{
+		return;
+	}
+
+	// on Windows the devices are GetStdHandle() identifiers, which kWrite() does not take.
+	// A console is written in UTF-16, whatever its output code page is, other devices
+	// (pipes and files) get the bytes as they are.
+	HANDLE hOutput   = ::GetStdHandle(static_cast<DWORD>(m_iOutputDevice));
+	DWORD  dwMode    = 0;
+	DWORD  dwWritten = 0;
+
+	if (::GetConsoleMode(hOutput, &dwMode))
+	{
+		auto sWide = kutf::Convert<std::wstring>(sRaw);
+		::WriteConsoleW(hOutput, sWide.data(), static_cast<DWORD>(sWide.size()), &dwWritten, nullptr);
+	}
+	else
+	{
+		::WriteFile(hOutput, sRaw.data(), static_cast<DWORD>(sRaw.size()), &dwWritten, nullptr);
+	}
+
+#else
+
 	kWrite(m_iOutputDevice, sRaw.data(), sRaw.size());
 
+#endif
+
 } // RawWrite
+
+//-----------------------------------------------------------------------------
+int KXTerm::RawRead()
+//-----------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_WINDOWS
+
+	// A console is read in UTF-16 and handed out as UTF-8, whatever its input code page is
+	// (the C runtime would translate the bytes of that code page in its text mode). Other
+	// input devices (pipes and files) are read through the C runtime.
+	static thread_local KString     s_sPending;
+	static thread_local std::size_t s_iPending { 0 };
+
+	if (s_iPending < s_sPending.size())
+	{
+		return static_cast<unsigned char>(s_sPending[s_iPending++]);
+	}
+
+	HANDLE hInput = ::GetStdHandle(STD_INPUT_HANDLE);
+	DWORD  dwMode = 0;
+
+	if (::GetConsoleMode(hInput, &dwMode))
+	{
+		wchar_t Chars[2];
+		DWORD   dwRead = 0;
+
+		if (!::ReadConsoleW(hInput, &Chars[0], 1, &dwRead, nullptr) || dwRead != 1)
+		{
+			return EOF;
+		}
+
+		DWORD dwCount = 1;
+
+		if (IS_HIGH_SURROGATE(Chars[0]))
+		{
+			// the second half of the surrogate pair follows
+			if (::ReadConsoleW(hInput, &Chars[1], 1, &dwRead, nullptr) && dwRead == 1)
+			{
+				dwCount = 2;
+			}
+		}
+
+		if (dwCount == 1 && Chars[0] == 0x1A)
+		{
+			// Ctrl-Z is the end of input on Windows
+			return EOF;
+		}
+
+		s_sPending = kutf::Convert<KString>(std::wstring(&Chars[0], dwCount));
+		s_iPending = 0;
+
+		if (s_sPending.empty())
+		{
+			return EOF;
+		}
+
+		return static_cast<unsigned char>(s_sPending[s_iPending++]);
+	}
+
+#endif
+
+	return getchar();
+
+} // RawRead
 
 //-----------------------------------------------------------------------------
 void KXTerm::Write(KStringView sText)
@@ -1153,7 +1299,7 @@ void KXTerm::WriteCodepoint (KCodePoint chRaw)
 void KXTerm::Beep() const
 //-----------------------------------------------------------------------------
 {
-	if (m_bBeep)
+	if (m_bBeep && IsTerminal())
 	{
 		RawWrite("\007"); // bell
 	}

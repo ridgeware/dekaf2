@@ -352,7 +352,8 @@ public:
 	using ColorCode = KXTermCodes::ColorCode;
 	using RGB       = KXTermCodes::RGB;
 
-	/// Construct a terminal manager and switch the input device to raw mode.
+	/// Construct a terminal manager and switch the input device to raw mode - unless the output
+	/// device is no terminal: then no control codes are written and the input device stays untouched.
 	/// If iRows or iColumns are 0, the terminal size is queried automatically via ioctl.
 	/// The original terminal settings are saved and will be restored by the destructor.
 	/// @param iInputDevice  file descriptor for terminal input (default: STDIN_FILENO)
@@ -546,9 +547,9 @@ private:
 		Pri  ///< Private (\033[?) — private mode sequence
 	};
 
-	/// blocking read of a single raw byte from stdin
+	/// blocking read of a single raw byte from stdin (on Windows from the console as UTF-8, whatever its code page is)
 	DEKAF2_NODISCARD
-	static int RawRead        ()                          { return getchar();                    }
+	static int RawRead        ();
 	/// write raw bytes to the output device, bypassing cursor tracking
 	void     RawWrite         (KStringView sRaw)  const;
 	/// write a single Unicode codepoint to the output device as UTF-8
@@ -608,6 +609,10 @@ private:
 
 #ifndef DEKAF2_IS_WINDOWS
 	std::unique_ptr<termios> m_Termios;                   ///< saved original terminal settings, restored in destructor
+#else
+	uint32_t m_iSavedInputMode    { 0 };                  ///< console mode of the input device before the switch to virtual terminal input
+	uint32_t m_iSavedOutputMode   { 0 };                  ///< console mode of the output device before the switch to virtual terminal processing
+	bool     m_bConsoleModesSaved { false };              ///< the destructor restores the saved console modes
 #endif
 
 	uint16_t m_iCursorRow         { 0 };                  ///< tracked cursor row (0-based)
@@ -622,7 +627,7 @@ private:
 	enum class TerminalState : uint8_t
 	{
 		No      = 0, ///< device is not a terminal (pipe, file, or no response)
-		Yes     = 1, ///< device is a real terminal (responded to cursor query)
+		Yes     = 1, ///< device is a real terminal (responded to cursor query, on Windows a console with virtual terminal modes)
 		Unknown = 2  ///< not yet tested (initial state)
 	};
 	TerminalState m_eIsTerminal   { TerminalState::Unknown }; ///< current terminal detection state

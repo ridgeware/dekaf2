@@ -1,7 +1,64 @@
 #include "catch.hpp"
+#ifdef DEKAF2_IS_WINDOWS
+	// before kxterm.h, which removes the RGB macro of the Windows headers
+	#include <windows.h> // for SetStdHandle(), CreatePipe(), PeekNamedPipe()
+#endif
 #include <dekaf2/util/cli/kxterm.h>
+#include <dekaf2/core/types/kscopeguard.h>
+#ifndef DEKAF2_IS_WINDOWS
+	#include <fcntl.h>  // for fcntl()
+	#include <unistd.h> // for pipe(), read(), close()
+#endif
 
 using namespace dekaf2;
+
+TEST_CASE("KXTerm")
+{
+	SECTION("no control codes into a pipe")
+	{
+		// a terminal on the input side does not make a pipe on the output side a terminal:
+		// neither the cursor probe of the size query nor the window title may go into it
+#ifndef DEKAF2_IS_WINDOWS
+		int Pipe[2];
+		REQUIRE ( pipe(Pipe) == 0 );
+
+		{
+			KXTerm Terminal(STDIN_FILENO, Pipe[1]);
+			CHECK ( Terminal.IsTerminal() == false );
+			Terminal.SetWindowTitle("dekaf2 utests");
+		}
+
+		REQUIRE ( fcntl(Pipe[0], F_SETFL, O_NONBLOCK) == 0 );
+		char Buffer[64];
+		CHECK ( read(Pipe[0], Buffer, sizeof(Buffer)) <= 0 );
+
+		close(Pipe[0]);
+		close(Pipe[1]);
+#else
+		// the devices of KXTerm are GetStdHandle() identifiers on Windows, so the standard
+		// output is pointed to the pipe for the test - the C runtime keeps its own handle
+		// for the output of the tests
+		HANDLE hRead  = nullptr;
+		HANDLE hWrite = nullptr;
+		REQUIRE ( ::CreatePipe(&hRead, &hWrite, nullptr, 0) );
+		KAtScopeEnd( ::CloseHandle(hRead); ::CloseHandle(hWrite); );
+
+		HANDLE hStdOut = ::GetStdHandle(STD_OUTPUT_HANDLE);
+		REQUIRE ( ::SetStdHandle(STD_OUTPUT_HANDLE, hWrite) );
+
+		{
+			KAtScopeEnd( ::SetStdHandle(STD_OUTPUT_HANDLE, hStdOut) );
+			KXTerm Terminal(STDIN_FILENO, STDOUT_FILENO);
+			CHECK ( Terminal.IsTerminal() == false );
+			Terminal.SetWindowTitle("dekaf2 utests");
+		}
+
+		DWORD dwAvailable = 0;
+		REQUIRE ( ::PeekNamedPipe(hRead, nullptr, 0, nullptr, &dwAvailable, nullptr) );
+		CHECK   ( dwAvailable == 0 );
+#endif
+	}
+}
 
 TEST_CASE("KXTermCodes")
 {

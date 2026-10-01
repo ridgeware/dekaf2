@@ -4,9 +4,11 @@
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/core/logging/klog.h>
+#include <dekaf2/core/types/kscopeguard.h>
 #include <fcntl.h> // for open()
 #ifdef DEKAF2_IS_WINDOWS
 	#include <io.h>
+	#include <windows.h> // for SetStdHandle(), CreatePipe()
 #endif
 
 using namespace dekaf2;
@@ -298,6 +300,46 @@ TEST_CASE("KSystem")
 		auto TTY = kGetTerminalSize();
 		CHECK ( TTY.lines   > 0 );
 		CHECK ( TTY.columns > 0 );
+	}
+
+	SECTION("IsTerminal")
+	{
+#ifndef DEKAF2_IS_WINDOWS
+		// /dev/null is a character device, but no terminal
+		int fd = open("/dev/null", O_RDWR);
+		REQUIRE ( fd >= 0 );
+		CHECK   ( kIsTerminal(fd) == false );
+		close(fd);
+
+		int Pipe[2];
+		REQUIRE ( pipe(Pipe) == 0 );
+		CHECK   ( kIsTerminal(Pipe[0]) == false );
+		CHECK   ( kIsTerminal(Pipe[1]) == false );
+		close(Pipe[0]);
+		close(Pipe[1]);
+#else
+		// kIsTerminal() takes GetStdHandle() identifiers on Windows, so the standard output
+		// is pointed to NUL and to a pipe for the test - the C runtime keeps its own handle
+		// for the output of the tests
+		HANDLE hStdOut = ::GetStdHandle(STD_OUTPUT_HANDLE);
+		KAtScopeEnd( ::SetStdHandle(STD_OUTPUT_HANDLE, hStdOut) );
+
+		HANDLE hNul = ::CreateFileW(L"NUL", GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+		REQUIRE ( hNul != INVALID_HANDLE_VALUE );
+		REQUIRE ( ::SetStdHandle(STD_OUTPUT_HANDLE, hNul) );
+		CHECK   ( kIsTerminal(STDOUT_FILENO) == false );
+		::SetStdHandle(STD_OUTPUT_HANDLE, hStdOut);
+		::CloseHandle(hNul);
+
+		HANDLE hRead  = nullptr;
+		HANDLE hWrite = nullptr;
+		REQUIRE ( ::CreatePipe(&hRead, &hWrite, nullptr, 0) );
+		REQUIRE ( ::SetStdHandle(STD_OUTPUT_HANDLE, hWrite) );
+		CHECK   ( kIsTerminal(STDOUT_FILENO) == false );
+		::SetStdHandle(STD_OUTPUT_HANDLE, hStdOut);
+		::CloseHandle(hRead);
+		::CloseHandle(hWrite);
+#endif
 	}
 
 	SECTION("GetCPU")

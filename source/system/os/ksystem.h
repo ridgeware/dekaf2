@@ -512,12 +512,18 @@ public:
 DEKAF2_PUBLIC
 KDuration kPing(KStringView sHostname, KDuration Timeout = chrono::seconds(5));
 
-/// is the current stdout a terminal or not
+/// is the device with file descriptor @p fd a terminal or not (false for a pipe, a file or /dev/null)
+/// @param fd the file descriptor, on Windows a GetStdHandle() identifier like STDOUT_FILENO
+/// @returns true if terminal, false otherwise
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool kIsTerminal(int fd);
+
+/// is the current stdout a terminal or not (false when stdout is a pipe, a file or /dev/null)
 /// @returns true if terminal, false otherwise
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kStdOutIsTerminal();
 
-/// is the current stdin a terminal or not (false when stdin is a pipe or file)
+/// is the current stdin a terminal or not (false when stdin is a pipe, a file or /dev/null)
 /// @returns true if terminal, false otherwise
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kStdInIsTerminal();

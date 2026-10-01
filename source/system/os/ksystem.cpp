@@ -2351,15 +2351,25 @@ KDuration kPing(KStringView sHostname, KDuration Timeout)
 } // kPing
 
 //-----------------------------------------------------------------------------
+bool kIsTerminal(int fd)
+//-----------------------------------------------------------------------------
+{
+#ifndef DEKAF2_IS_WINDOWS
+	// a character device is not necessarily a terminal - /dev/null is one, too
+	return ::isatty(fd) == 1;
+#else
+	// only a console answers GetConsoleMode() - a pipe, a file or NUL do not
+	DWORD dwMode = 0;
+	return ::GetConsoleMode(::GetStdHandle(static_cast<DWORD>(fd)), &dwMode) != 0;
+#endif
+
+} // kIsTerminal
+
+//-----------------------------------------------------------------------------
 bool kStdOutIsTerminal()
 //-----------------------------------------------------------------------------
 {
-#if !DEKAF2_IS_WINDOWS
-	return KFileStat(STDOUT_FILENO).Type() == KFileType::CHARACTER;
-#else
-	// on windows we don't know..
-	return false;
-#endif
+	return kIsTerminal(STDOUT_FILENO);
 
 } // kStdOutIsTerminal
 
@@ -2367,12 +2377,7 @@ bool kStdOutIsTerminal()
 bool kStdInIsTerminal()
 //-----------------------------------------------------------------------------
 {
-#if !DEKAF2_IS_WINDOWS
-	return KFileStat(STDIN_FILENO).Type() == KFileType::CHARACTER;
-#else
-	// on windows we don't know..
-	return false;
-#endif
+	return kIsTerminal(STDIN_FILENO);
 
 } // kStdInIsTerminal
 

@@ -68,6 +68,33 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
+#ifdef DEKAF2_IS_WINDOWS
+// the console of the KXTerm that switched it into the virtual terminal modes, for the
+// restore on Ctrl-C
+static HANDLE s_hModesInput  { nullptr };
+static HANDLE s_hModesOutput { nullptr };
+static DWORD  s_dwInputMode  { 0 };
+static DWORD  s_dwOutputMode { 0 };
+
+//-----------------------------------------------------------------------------
+DEKAF2_PRIVATE
+BOOL WINAPI RestoreConsoleModesOnCtrl(DWORD /* dwCtrlType */)
+//-----------------------------------------------------------------------------
+{
+	// Ctrl-C, Ctrl-Break and closing the console end the process with ExitProcess()
+	// when no other handler takes the event, and the destructor of KXTerm does not run
+	// then - so restore the console modes here, and pass the event on to the next handler
+	if (s_hModesInput)
+	{
+		::SetConsoleMode(s_hModesInput,  s_dwInputMode );
+		::SetConsoleMode(s_hModesOutput, s_dwOutputMode);
+	}
+
+	return FALSE;
+
+} // RestoreConsoleModesOnCtrl
+#endif
+
 //-----------------------------------------------------------------------------
 void kSetTerminal(int iInputDevice, bool bRaw, uint8_t iMinAvail, uint8_t iMaxWait100ms)
 //-----------------------------------------------------------------------------
@@ -328,6 +355,12 @@ KXTerm::KXTerm(int iInputDevice, int iOutputDevice, uint16_t iRows, uint16_t iCo
 				m_iSavedOutputMode   = dwOutputMode;
 				m_bConsoleModesSaved = true;
 				m_eIsTerminal        = TerminalState::Yes;
+
+				s_hModesInput        = hInput;
+				s_hModesOutput       = hOutput;
+				s_dwInputMode        = dwInputMode;
+				s_dwOutputMode       = dwOutputMode;
+				::SetConsoleCtrlHandler(RestoreConsoleModesOnCtrl, TRUE);
 			}
 			else
 			{
@@ -433,6 +466,9 @@ KXTerm::~KXTerm()
 
 	if (m_bConsoleModesSaved)
 	{
+		::SetConsoleCtrlHandler(RestoreConsoleModesOnCtrl, FALSE);
+		s_hModesInput = nullptr;
+
 		::SetConsoleMode(::GetStdHandle(static_cast<DWORD>(m_iInputDevice )), m_iSavedInputMode );
 		::SetConsoleMode(::GetStdHandle(static_cast<DWORD>(m_iOutputDevice)), m_iSavedOutputMode);
 	}

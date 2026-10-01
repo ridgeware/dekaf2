@@ -148,6 +148,20 @@ void RestoreConsoleOutputCP()
 
 //---------------------------------------------------------------------------
 DEKAF2_PRIVATE
+BOOL WINAPI RestoreConsoleOutputCPOnCtrl(DWORD /* dwCtrlType */)
+//---------------------------------------------------------------------------
+{
+	// Ctrl-C, Ctrl-Break and closing the console end the process with ExitProcess()
+	// when no other handler takes the event, and ExitProcess() does not run the
+	// atexit() handlers - so restore the code page here as well, and pass the event
+	// on to the next handler
+	RestoreConsoleOutputCP();
+	return FALSE;
+
+} // RestoreConsoleOutputCPOnCtrl
+
+//---------------------------------------------------------------------------
+DEKAF2_PRIVATE
 void SetConsoleOutputToUTF8()
 //---------------------------------------------------------------------------
 {
@@ -167,6 +181,7 @@ void SetConsoleOutputToUTF8()
 		{
 			s_iSavedConsoleOutputCP = iCodePage;
 			std::atexit(RestoreConsoleOutputCP);
+			::SetConsoleCtrlHandler(RestoreConsoleOutputCPOnCtrl, TRUE);
 		}
 	}
 

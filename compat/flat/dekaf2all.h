@@ -82,6 +82,7 @@
 #include <dekaf2/http/protocol/kchunkedtransfer.h>
 #include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/io/compression/kcompression.h>
+#include <dekaf2/rest/serving/kcompressioncache.h>
 #include <dekaf2/data/json/kconfig.h>
 #include <dekaf2/rest/limits/kconnectionlimiter.h>
 #include <dekaf2/http/cookie/kcookie.h>

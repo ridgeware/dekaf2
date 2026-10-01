@@ -1297,7 +1297,9 @@ KString KTLSContext::SetClientIdentity(ssl_st* ssl, KStringView sHostname, bool 
 		{
 			::X509_VERIFY_PARAM_set1_ip(Param, nullptr, 0);
 
-			if (!::SSL_set1_host(ssl, sHost.c_str()))
+			// this is what SSL_set1_host() does for a hostname - which is deprecated
+			// with OpenSSL 4, and its successor SSL_set1_dnsname() is new in OpenSSL 4
+			if (!::X509_VERIFY_PARAM_set1_host(Param, sHost.c_str(), 0))
 			{
 				return kFormat("failed to set the certificate verification hostname: {}", sHost);
 			}

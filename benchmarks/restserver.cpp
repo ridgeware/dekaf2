@@ -142,7 +142,7 @@ int main(int argc, char** argv)
 		KOut.FormatLine("starting SIMPLE server on port {}", Options.iPort);
 
 		SimpleServer Server(Options);
-		return Server.Start(Options.iTimeout);
+		return Server.Start(chrono::seconds(Options.iTimeout));
 	}
 	else
 	{

@@ -28,6 +28,23 @@ if ("@DEKAF2_STATIC_EXECUTABLES@" STREQUAL "ON")
 	set(Boost_USE_STATIC_LIBS ON)
 endif()
 
+if (NOT "@DEKAF2_HOMEBREW_OPENSSL@" STREQUAL "" AND NOT OPENSSL_ROOT_DIR AND "$ENV{OPENSSL_ROOT_DIR}" STREQUAL "")
+	# this dekaf2 was built against an OpenSSL keg of Homebrew (the one its ngtcp2
+	# uses) - the consumer gets the same one, and not another OpenSSL Homebrew
+	# linked into its prefix. A result of an earlier run from another OpenSSL
+	# would be kept from the cache, so it is dropped.
+	set(OPENSSL_ROOT_DIR "@DEKAF2_HOMEBREW_OPENSSL@")
+	if (OPENSSL_INCLUDE_DIR)
+		string(FIND "${OPENSSL_INCLUDE_DIR}" "${OPENSSL_ROOT_DIR}/" _DEKAF2_OPENSSL_ROOT_POS)
+		if (NOT _DEKAF2_OPENSSL_ROOT_POS EQUAL 0)
+			unset(OPENSSL_INCLUDE_DIR    CACHE)
+			unset(OPENSSL_SSL_LIBRARY    CACHE)
+			unset(OPENSSL_CRYPTO_LIBRARY CACHE)
+		endif()
+		unset(_DEKAF2_OPENSSL_ROOT_POS)
+	endif()
+endif()
+
 # the required dependencies
 find_dependency(Threads)
 find_dependency(OpenSSL)

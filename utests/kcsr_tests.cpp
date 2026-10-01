@@ -27,6 +27,25 @@ KStringView Asn1View(const ASN1_STRING* String)
 #endif
 }
 
+//-----------------------------------------------------------------------------
+// the first entry of a name with the given NID - X509_NAME_get_text_by_NID()
+// is deprecated with OpenSSL 4
+KStringView NameEntry(const X509_NAME* Name, int iNID)
+//-----------------------------------------------------------------------------
+{
+	for (int i = 0; i < ::X509_NAME_entry_count(Name); ++i)
+	{
+		auto* Entry = ::X509_NAME_get_entry(Name, i);
+
+		if (::OBJ_obj2nid(::X509_NAME_ENTRY_get_object(Entry)) == iNID)
+		{
+			return Asn1View(::X509_NAME_ENTRY_get_data(Entry));
+		}
+	}
+
+	return {};
+}
+
 } // end of anonymous namespace
 
 TEST_CASE("KCSR")
@@ -57,9 +76,7 @@ TEST_CASE("KCSR")
 		::EVP_PKEY_free(PubKey);
 
 		// CN is the first domain
-		char szCN[256];
-		REQUIRE ( ::X509_NAME_get_text_by_NID(::X509_REQ_get_subject_name(Req), NID_commonName, szCN, sizeof(szCN)) > 0 );
-		CHECK   ( KStringView(szCN) == "www.example.com" );
+		CHECK ( NameEntry(::X509_REQ_get_subject_name(Req), NID_commonName) == "www.example.com" );
 
 		// both domains are SAN entries
 		auto* Exts = ::X509_REQ_get_extensions(Req);

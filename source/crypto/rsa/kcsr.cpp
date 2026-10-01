@@ -124,24 +124,35 @@ bool KCSR::Create
 		return SetError(KDigest::GetOpenSSLError("cannot set version"));
 	}
 
-	// subject name
-	auto* name = ::X509_REQ_get_subject_name(m_Request);
+	// subject name - built as a separate name and copied into the request, as
+	// OpenSSL >= 4 returns the subject name of a request only as const
+	KUniquePtr<X509_NAME, ::X509_NAME_free> name(::X509_NAME_new());
+
+	if (!name)
+	{
+		return SetError(KDigest::GetOpenSSLError("cannot create name"));
+	}
 
 	auto sUpperCountryCode = sCountryCode.ToUpperASCII();
-	if (!sUpperCountryCode.empty() && !::X509_NAME_add_entry_by_txt(name, "C",  MBSTRING_UTF8, reinterpret_cast<const unsigned char*>(sUpperCountryCode.data()), static_cast<int>(sUpperCountryCode.size()), -1, 0))
+	if (!sUpperCountryCode.empty() && !::X509_NAME_add_entry_by_txt(name.get(), "C", MBSTRING_UTF8, reinterpret_cast<const unsigned char*>(sUpperCountryCode.data()), static_cast<int>(sUpperCountryCode.size()), -1, 0))
 	{
 		return SetError(KDigest::GetOpenSSLError("error setting country code"));
 	}
 
-	if (!sOrganization.empty() && !::X509_NAME_add_entry_by_txt(name, "O",  MBSTRING_UTF8, reinterpret_cast<const unsigned char*>(sOrganization.data()), static_cast<int>(sOrganization.size()), -1, 0))
+	if (!sOrganization.empty() && !::X509_NAME_add_entry_by_txt(name.get(), "O", MBSTRING_UTF8, reinterpret_cast<const unsigned char*>(sOrganization.data()), static_cast<int>(sOrganization.size()), -1, 0))
 	{
 		return SetError(KDigest::GetOpenSSLError("error setting organization"));
 	}
 
 	const auto& sCN = Domains.front();
-	if (!::X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_UTF8, reinterpret_cast<const unsigned char*>(sCN.data()), static_cast<int>(sCN.size()), -1, 0))
+	if (!::X509_NAME_add_entry_by_txt(name.get(), "CN", MBSTRING_UTF8, reinterpret_cast<const unsigned char*>(sCN.data()), static_cast<int>(sCN.size()), -1, 0))
 	{
 		return SetError(KDigest::GetOpenSSLError("error setting common name"));
+	}
+
+	if (!::X509_REQ_set_subject_name(m_Request, name.get()))
+	{
+		return SetError(KDigest::GetOpenSSLError("error setting subject name"));
 	}
 
 	// all domains as Subject Alternative Names, IP: for IP addresses, DNS: for hostnames

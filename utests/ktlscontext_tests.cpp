@@ -16,6 +16,39 @@ using namespace dekaf2;
 namespace {
 
 //-----------------------------------------------------------------------------
+// ASN1_STRING_get0_data() only exists from OpenSSL 1.1.0 on
+KStringView Asn1View(const ASN1_STRING* String)
+//-----------------------------------------------------------------------------
+{
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	return { reinterpret_cast<const char*>(::ASN1_STRING_get0_data(String)),
+	         static_cast<std::size_t>(::ASN1_STRING_length(String)) };
+#else
+	return { reinterpret_cast<const char*>(String->data),
+	         static_cast<std::size_t>(String->length) };
+#endif
+}
+
+//-----------------------------------------------------------------------------
+// the first entry of a name with the given NID - X509_NAME_get_text_by_NID()
+// is deprecated with OpenSSL 4
+KStringView NameEntry(const X509_NAME* Name, int iNID)
+//-----------------------------------------------------------------------------
+{
+	for (int i = 0; i < ::X509_NAME_entry_count(Name); ++i)
+	{
+		auto* Entry = ::X509_NAME_get_entry(Name, i);
+
+		if (::OBJ_obj2nid(::X509_NAME_ENTRY_get_object(Entry)) == iNID)
+		{
+			return Asn1View(::X509_NAME_ENTRY_get_data(Entry));
+		}
+	}
+
+	return {};
+}
+
+//-----------------------------------------------------------------------------
 std::shared_ptr<KTLSContext> CreateServerContext(KRSAKey& Key, KStringView sDomain)
 //-----------------------------------------------------------------------------
 {
@@ -94,13 +127,8 @@ struct TLSPair
 
 		if (Cert)
 		{
-			char szBuffer[256];
-
-			if (::X509_NAME_get_text_by_NID(::X509_get_subject_name(Cert), NID_commonName,
-			                                szBuffer, sizeof(szBuffer)) > 0)
-			{
-				sCN = szBuffer;
-			}
+			// copy the name before the cert is freed
+			sCN = NameEntry(::X509_get_subject_name(Cert), NID_commonName);
 
 			::X509_free(Cert);
 		}

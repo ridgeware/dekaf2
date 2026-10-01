@@ -503,6 +503,58 @@ if (APPLE AND NOT DEKAF2_VCPKG_BUILD)
 			endif()
 		endforeach()
 		unset(_pkg_prefix)
+
+		# OpenSSL: the keg libngtcp2 is built against. dekaf2 hands its SSL objects to the
+		# OpenSSL backend of ngtcp2, so both have to use the same OpenSSL - and Homebrew does
+		# not move all formulae to a new OpenSSL at once: openssl@4 came as the linked
+		# OpenSSL while libngtcp2 stayed on the keg-only openssl@3. Without libngtcp2 the
+		# linked OpenSSL is used, and when none is linked the newest openssl@N keg.
+		# An OPENSSL_ROOT_DIR from the command line or the environment wins.
+		if (NOT OPENSSL_ROOT_DIR AND "$ENV{OPENSSL_ROOT_DIR}" STREQUAL "")
+			set(_NGTCP2_CRYPTO_OSSL "${HOMEBREW_PREFIX}/opt/libngtcp2/lib/libngtcp2_crypto_ossl.dylib")
+			if (EXISTS "${_NGTCP2_CRYPTO_OSSL}")
+				execute_process(
+					COMMAND otool -L "${_NGTCP2_CRYPTO_OSSL}"
+					OUTPUT_VARIABLE _OTOOL_OUTPUT
+					ERROR_QUIET
+				)
+				# CMAKE_MATCH_1 is only set by the match, so it is tested in a second if()
+				if (_OTOOL_OUTPUT MATCHES "([^ \t\n]*/opt/openssl[^/]*)/lib/libssl\\.")
+					if (EXISTS "${CMAKE_MATCH_1}/include/openssl/ssl.h")
+						set(DEKAF2_HOMEBREW_OPENSSL "${CMAKE_MATCH_1}")
+						message(STATUS "using the OpenSSL of libngtcp2: ${DEKAF2_HOMEBREW_OPENSSL}")
+					endif()
+				endif()
+				unset(_OTOOL_OUTPUT)
+			endif()
+			unset(_NGTCP2_CRYPTO_OSSL)
+
+			if (NOT DEKAF2_HOMEBREW_OPENSSL AND NOT EXISTS "${HOMEBREW_PREFIX}/include/openssl/ssl.h")
+				file(GLOB _OPENSSL_KEGS LIST_DIRECTORIES true "${HOMEBREW_PREFIX}/opt/openssl@*")
+				if (_OPENSSL_KEGS)
+					list(SORT _OPENSSL_KEGS COMPARE NATURAL)
+					list(GET _OPENSSL_KEGS -1 DEKAF2_HOMEBREW_OPENSSL)
+					message(STATUS "no linked OpenSSL, using the newest keg: ${DEKAF2_HOMEBREW_OPENSSL}")
+				endif()
+				unset(_OPENSSL_KEGS)
+			endif()
+
+			if (DEKAF2_HOMEBREW_OPENSSL)
+				# FindOpenSSL searches only below OPENSSL_ROOT_DIR (and the dekaf2 config hands
+				# it on to consumers). A result of an earlier run from another OpenSSL would
+				# be kept from the cache, so it is dropped.
+				set(OPENSSL_ROOT_DIR "${DEKAF2_HOMEBREW_OPENSSL}")
+				if (OPENSSL_INCLUDE_DIR)
+					string(FIND "${OPENSSL_INCLUDE_DIR}" "${OPENSSL_ROOT_DIR}/" _OPENSSL_ROOT_POS)
+					if (NOT _OPENSSL_ROOT_POS EQUAL 0)
+						unset(OPENSSL_INCLUDE_DIR    CACHE)
+						unset(OPENSSL_SSL_LIBRARY    CACHE)
+						unset(OPENSSL_CRYPTO_LIBRARY CACHE)
+					endif()
+					unset(_OPENSSL_ROOT_POS)
+				endif()
+			endif()
+		endif()
 	endif()
 elseif (APPLE AND DEKAF2_VCPKG_BUILD)
 	# In vcpkg mode every library has to come from the package manager. CMake,
@@ -2444,8 +2496,10 @@ if (DEKAF2_INSTALL_INCLUDE)
 	set (DEKAF2_PUBLIC_INCLUDE_DIRECTORIES
 		$<INSTALL_INTERFACE:${dekaf2_include_dest}>
 		$<INSTALL_INTERFACE:${dekaf2_lib_dest}/include>
-		${Boost_INCLUDE_DIR}
+		# OpenSSL first: Boost's directory can hold the headers of another OpenSSL
+		# (Homebrew's prefix, when the OpenSSL comes from a keg - see above)
 		${OPENSSL_INCLUDE_DIR}
+		${Boost_INCLUDE_DIR}
 	)
 endif()
 

@@ -263,28 +263,40 @@ bool KRSACert::Create
 		return SetError(KDigest::GetOpenSSLError("error setting public key"));
 	}
 
-	// subject name = issuer name
-	::X509_NAME* name = ::X509_get_subject_name(m_X509Cert);
+	// subject name = issuer name - built as a separate name and copied into the
+	// cert, as OpenSSL >= 4 returns the subject name of a cert only as const
+	KUniquePtr<X509_NAME, ::X509_NAME_free> name(::X509_NAME_new());
 
-	if (!sOrganization.empty() && !::X509_NAME_add_entry_by_txt(name, "O",  MBSTRING_UTF8, reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sOrganization[0]))    , static_cast<int>(sOrganization.size())    , -1, 0))
+	if (!name)
+	{
+		return SetError(KDigest::GetOpenSSLError("cannot create name"));
+	}
+
+	if (!sOrganization.empty() && !::X509_NAME_add_entry_by_txt(name.get(), "O", MBSTRING_UTF8, reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sOrganization[0]))    , static_cast<int>(sOrganization.size())    , -1, 0))
 	{
 		return SetError(KDigest::GetOpenSSLError("error setting organization"));
 	}
 
 	// country code and common name (domain)
 	auto sUpperCountryCode = sCountryCode.ToUpperASCII();
-	if (!sUpperCountryCode.empty() && !::X509_NAME_add_entry_by_txt(name, "C",  MBSTRING_UTF8, reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sUpperCountryCode[0])), static_cast<int>(sUpperCountryCode.size()), -1, 0))
+	if (!sUpperCountryCode.empty() && !::X509_NAME_add_entry_by_txt(name.get(), "C", MBSTRING_UTF8, reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sUpperCountryCode[0])), static_cast<int>(sUpperCountryCode.size()), -1, 0))
 	{
 		return SetError(KDigest::GetOpenSSLError("error setting country code"));
 	}
 
-	if (!::X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_UTF8, reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sDomain[0])), static_cast<int>(sDomain.size()), -1, 0))
+	if (!::X509_NAME_add_entry_by_txt(name.get(), "CN", MBSTRING_UTF8, reinterpret_cast<unsigned char*>(const_cast<KStringView::value_type*>(&sDomain[0])), static_cast<int>(sDomain.size()), -1, 0))
 	{
 		return SetError(KDigest::GetOpenSSLError("error creating name"));
 	}
 
+	// subject name
+	if (!::X509_set_subject_name(m_X509Cert, name.get()))
+	{
+		return SetError(KDigest::GetOpenSSLError("error setting subject name"));
+	}
+
 	// issuer name
-	if (!::X509_set_issuer_name(m_X509Cert, name))
+	if (!::X509_set_issuer_name(m_X509Cert, name.get()))
 	{
 		return SetError(KDigest::GetOpenSSLError("error setting name"));
 	}

@@ -13,6 +13,7 @@
 ::#   -no-klog    : configure without klog
 ::#   -lto        : force link time optimization for release builds
 ::#   -fresh      : recreate cmake build with fresh cache
+::#   -utests     : build and run the unit tests after each build
 ::#   -j N        : build with N processes in parallel
 ::#                 (default is number of cpu cores)
 ::#
@@ -40,6 +41,7 @@ set "SCRATCH="
 set "NOPULL="
 set "EXTRA="
 set "JOBS=%NUMBER_OF_PROCESSORS%"
+set "UTESTS="
 set "GO="
 
 rem ---- arguments ---------------------------------------------------------------
@@ -53,6 +55,7 @@ if /i "%~1"=="-no-klog"    (set "EXTRA=!EXTRA! -DDEKAF2_WITH_KLOG=OFF" & shift &
 if /i "%~1"=="-lto"        (set "EXTRA=!EXTRA! -DDEKAF2_LINK_TIME_OPTIMIZATION=ON" & shift & goto args)
 if /i "%~1"=="-fresh"      (set "EXTRA=!EXTRA! --fresh" & shift & goto args)
 if /i "%~1"=="-j"          (set "JOBS=%~2" & shift & shift & goto args)
+if /i "%~1"=="-utests"     (set "UTESTS=1" & shift & goto args)
 if /i "%~1"=="go"          (set "GO=1" & shift & goto args)
 if /i "%~1"=="-go"         (set "GO=1" & shift & goto args)
 if /i "%~1"=="-help"       goto usage
@@ -217,6 +220,22 @@ if errorlevel 1 (
 	exit /b 1
 )
 echo installed into %BUILD%\install
+
+rem the unit tests are no part of the default build target
+if not defined UTESTS exit /b 0
+echo.
+echo building the unit tests in %BUILD% ...
+cmake --build "%BUILD%" --parallel %JOBS% --target dekaf2-utests
+if errorlevel 1 (
+	echo error: cannot build the unit tests in %BUILD%
+	exit /b 1
+)
+echo running the unit tests in %BUILD% ...
+"%BUILD%\utests\dekaf2-utests.exe"
+if errorlevel 1 (
+	echo error: the unit tests failed in %BUILD%
+	exit /b 1
+)
 exit /b 0
 
 rem ---- the usage, from the lines on top ----------------------------------------------

@@ -833,8 +833,24 @@ bool KXTerm::EditLine(
 		return SetError(kFormat("input is not UTF8: {}", sLine));
 	}
 
+	// the number of terminal columns of a range of the edited line (CJK characters take two)
+	auto TextColumns = [&sUnicode](std::size_t iFrom, std::size_t iTo) -> std::size_t
+	{
+		std::size_t iColumns { 0 };
+
+		for (; iFrom < iTo; ++iFrom)
+		{
+			iColumns += KCodePoint(sUnicode[iFrom]).GetColumnWidth();
+		}
+
+		return iColumns;
+	};
+
 	auto iPos  = sUnicode.size();
 	auto iLast = iPos;
+	// the column of the cursor on the screen, counted from the start of the edited text -
+	// m_iCursorColumn is not tracked while the cursor limits are switched off
+	auto iCursorColumn = TextColumns(0, iPos);
 	std::size_t iStoredPos = 0;
 	bool bCurLineHasEdits = true;
 	auto bCursorLimits = m_bCursorLimits;
@@ -924,8 +940,17 @@ bool KXTerm::EditLine(
 				if (iPos)
 				{
 					--iPos;
+
+					// a combining mark moves together with the character it belongs to
+					while (iPos && KCodePoint(sUnicode[iPos]).GetColumnWidth() == 0)
+					{
+						--iPos;
+					}
+
+					auto iColumns = TextColumns(iPos, iLast);
+					CurLeft(iColumns);
+					iCursorColumn -= iColumns;
 					iLast = iPos;
-					CurLeft(1);
 				}
 				else
 				{
@@ -937,8 +962,17 @@ bool KXTerm::EditLine(
 				if (iPos < sUnicode.size())
 				{
 					++iPos;
+
+					// a combining mark moves together with the character it belongs to
+					while (iPos < sUnicode.size() && KCodePoint(sUnicode[iPos]).GetColumnWidth() == 0)
+					{
+						++iPos;
+					}
+
+					auto iColumns = TextColumns(iLast, iPos);
+					CurRight(iColumns);
+					iCursorColumn += iColumns;
 					iLast = iPos;
-					CurRight(1);
 				}
 				else
 				{
@@ -994,8 +1028,9 @@ bool KXTerm::EditLine(
 					Command(sPromptFormatEnd);
 				}
 				Write(kutf::Convert<KString>(sUnicode.begin(), sUnicode.end()));
-				CurLeft(sUnicode.size() - iPos);
+				CurLeft(TextColumns(iPos, sUnicode.size()));
 				iLast = iPos;
+				iCursorColumn = TextColumns(0, iPos);
 				continue;
 
 			case Control('t'): // transpose chars (readline semantics)
@@ -1115,6 +1150,7 @@ bool KXTerm::EditLine(
 						// and advance pos and last
 						++iPos;
 						++iLast;
+						iCursorColumn += ch.GetColumnWidth();
 						// and continue reading
 						continue;
 					}
@@ -1131,16 +1167,11 @@ bool KXTerm::EditLine(
 		{
 			if (bRefreshWholeLine)
 			{
-				CurLeft(iLast);
+				// back to the start of the line - the new line may have other widths
+				CurLeft(iCursorColumn);
+				iCursorColumn = 0;
 				iLast = 0;
 			}
-			else
-			{
-				// refresh line right of pos
-				if (iLast > iPos) CurLeft(iLast - iPos);
-			}
-
-			ClearToEndOfLine();
 
 			auto iStart = std::min(iLast, iPos);
 
@@ -1151,10 +1182,21 @@ bool KXTerm::EditLine(
 				return SetError(" *** input error ***");
 			}
 
+			// the text before iStart is unchanged on the screen - refresh the line right of it
+			auto iStartColumn = TextColumns(0, iStart);
+
+			if (iCursorColumn > iStartColumn)
+			{
+				CurLeft(iCursorColumn - iStartColumn);
+			}
+
+			ClearToEndOfLine();
+
 			auto sOut   = kutf::Convert<KString>(sUnicode.begin() + iStart, sUnicode.end());
 			Write(sOut);
 
-			CurLeft(sUnicode.size() - iPos);
+			CurLeft(TextColumns(iPos, sUnicode.size()));
+			iCursorColumn = TextColumns(0, iPos);
 		}
 
 		iLast = iPos;
@@ -1268,8 +1310,8 @@ void KXTerm::Write(KStringView sText)
 {
 	if (CursorLimits())
 	{
-		// get the unicode codepoint count for the text
-		auto iCount = sText.SizeUTF8();
+		// get the terminal columns of the text (CJK characters take two)
+		auto iCount = sText.ColumnWidth();
 
 		if (iCount + m_iCursorColumn > Columns())
 		{
@@ -1286,8 +1328,8 @@ void KXTerm::Write(KStringView sText)
 			else
 			{
 				// just clip the text ..
-				iCount = Columns() - m_iCursorColumn;
-				sText  = sText.LeftUTF8(iCount);
+				sText  = sText.LeftColumns(Columns() - m_iCursorColumn);
+				iCount = sText.ColumnWidth();
 			}
 		}
 
@@ -1327,7 +1369,7 @@ void KXTerm::WriteCodepoint (KCodePoint chRaw)
 //-----------------------------------------------------------------------------
 {
 	RawWrite(KStringView(kutf::ToUTF<KString>(chRaw.value())));
-	m_iCursorColumn += 1;
+	m_iCursorColumn += chRaw.GetColumnWidth();
 
 } // WriteCodepoint
 

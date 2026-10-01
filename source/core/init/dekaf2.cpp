@@ -64,6 +64,9 @@
 #ifdef DEKAF2_IS_OSX
 	#include <CoreFoundation/CoreFoundation.h> // for locale retrieval
 #endif
+#ifdef DEKAF2_IS_WINDOWS
+	#include <windows.h> // for SetConsoleOutputCP()
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -126,12 +129,60 @@ static void kNoOpenSSLConfigAutoload()
 }
 #endif
 
+#ifdef DEKAF2_IS_WINDOWS
+// the output code page of the console before it was switched to UTF-8, 0 if unchanged
+static UINT s_iSavedConsoleOutputCP { 0 };
+
+//---------------------------------------------------------------------------
+DEKAF2_PRIVATE
+void RestoreConsoleOutputCP()
+//---------------------------------------------------------------------------
+{
+	if (s_iSavedConsoleOutputCP)
+	{
+		::SetConsoleOutputCP(s_iSavedConsoleOutputCP);
+		s_iSavedConsoleOutputCP = 0;
+	}
+
+} // RestoreConsoleOutputCP
+
+//---------------------------------------------------------------------------
+DEKAF2_PRIVATE
+void SetConsoleOutputToUTF8()
+//---------------------------------------------------------------------------
+{
+	// dekaf2 writes UTF-8 everywhere. The C runtime translates narrow output to a
+	// console from the code page of its LC_CTYPE (set to UTF-8 by kSetGlobalLocale())
+	// into the output code page of the console - so that has to be UTF-8 as well, or
+	// every character outside of it becomes a '?'. The console outlives the program,
+	// therefore the previous code page is restored at exit.
+	DWORD dwMode = 0;
+
+	if (::GetConsoleMode(::GetStdHandle(STD_OUTPUT_HANDLE), &dwMode) ||
+	    ::GetConsoleMode(::GetStdHandle(STD_ERROR_HANDLE ), &dwMode))
+	{
+		auto iCodePage = ::GetConsoleOutputCP();
+
+		if (iCodePage != CP_UTF8 && ::SetConsoleOutputCP(CP_UTF8))
+		{
+			s_iSavedConsoleOutputCP = iCodePage;
+			std::atexit(RestoreConsoleOutputCP);
+		}
+	}
+
+} // SetConsoleOutputToUTF8
+#endif
+
 //---------------------------------------------------------------------------
 Dekaf::Dekaf()
 //---------------------------------------------------------------------------
 {
 	// do not sync std i/o (cout, cerr, ...)
 	std::ios::sync_with_stdio(false);
+
+#ifdef DEKAF2_IS_WINDOWS
+	SetConsoleOutputToUTF8();
+#endif
 
 	SetUnicodeLocale();
 	detail::kSetRandomSeed();

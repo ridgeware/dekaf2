@@ -1362,7 +1362,8 @@ bool kSetGlobalLocale(const std::locale& locale)
 		// dekaf2's narrow strings are UTF-8. The C runtime of Windows translates narrow
 		// output to a console from the code page of its LC_CTYPE, which the call above
 		// has just set to the code page of the locale - so it is set back to UTF-8
-		// (supported since Windows 10 1803)
+		// (supported since Windows 10 1803). The output code page of the console is
+		// switched to UTF-8 by the Dekaf constructor.
 		if (!std::setlocale(LC_CTYPE, ".utf8"))
 		{
 			kDebug(1, "cannot set LC_CTYPE of the C runtime to UTF-8");

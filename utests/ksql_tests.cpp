@@ -819,6 +819,36 @@ TEST_CASE("KSQL-SQLite3")
 		CHECK ( sSQL == "select CURRENT_TIMESTAMP, timestamp, text" );
 	}
 
+	SECTION("QueryAllRows with a statement without result columns")
+	{
+		// the interpreter of ksql runs every statement through QueryAllRows(): a statement
+		// without result columns runs once, and reports no error, also with a format
+		// that measures the column widths in a first pass
+		KSQL db;
+		db.SetDBType(KSQL::DBT::SQLITE3);
+		db.SetDBName(sDBFile);
+		REQUIRE ( db.OpenConnection() );
+		REQUIRE ( db.ExecSQL("drop table if exists TEST_NO_COLUMNS") );
+
+		db.SetFlags(KSQL::F_IgnoreSelectKeyword);
+		auto Format = KSQL::CreateOutputFormat("ascii");
+
+		KSQLString sCreate("create table TEST_NO_COLUMNS (anum integer primary key, astring text)");
+		std::size_t iRows = 99;
+		db.QueryAllRows(sCreate, Format, &iRows);
+		CHECK ( db.GetLastError() == "" );
+		CHECK ( iRows == 0 );
+
+		KSQLString sInsert("insert into TEST_NO_COLUMNS (astring) values ('once')");
+		iRows = 99;
+		db.QueryAllRows(sInsert, Format, &iRows);
+		CHECK ( db.GetLastError() == "" );
+		CHECK ( iRows == 0 );
+
+		db.SetFlags(KSQL::F_None);
+		CHECK ( db.SingleIntQuery("select count(*) from TEST_NO_COLUMNS") == 1 );
+	}
+
 	SECTION("Empty result set then reuse connection")
 	{
 		KSQL db;

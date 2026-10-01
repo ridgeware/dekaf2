@@ -8402,7 +8402,9 @@ KString KSQL::QueryOpenRows (OutputFormat iFormat/*=ASCII*/, std::size_t* piNumR
 	Table.SetMaxColWidth(800);
 	KROW Row;
 
-	if (Table.WantDryMode())
+	// a statement without result columns (DDL, or DML without RETURNING) has no column
+	// widths to measure, and the second run below would execute it a second time
+	if (Table.WantDryMode() && GetNumCols() > 0)
 	{
 		Table.DryMode(true);
 

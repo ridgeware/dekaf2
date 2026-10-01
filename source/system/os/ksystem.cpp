@@ -52,7 +52,6 @@
 #include <dekaf2/core/errors/kexception.h>
 #include <dekaf2/core/types/kctype.h>
 #include <thread>
-#include <clocale>         // for std::setlocale()
 #include <cstdlib>
 #include <cstring>         // for std::memcpy() - kSetThreadName()
 #include <ctime>
@@ -1357,18 +1356,6 @@ bool kSetGlobalLocale(const std::locale& locale)
 	DEKAF2_TRY
 	{
 		std::locale::global(locale);
-
-#ifdef DEKAF2_IS_WINDOWS
-		// dekaf2's narrow strings are UTF-8. The C runtime of Windows translates narrow
-		// output to a console from the code page of its LC_CTYPE, which the call above
-		// has just set to the code page of the locale - so it is set back to UTF-8
-		// (supported since Windows 10 1803). The output code page of the console is
-		// switched to UTF-8 by the Dekaf constructor.
-		if (!std::setlocale(LC_CTYPE, ".utf8"))
-		{
-			kDebug(1, "cannot set LC_CTYPE of the C runtime to UTF-8");
-		}
-#endif
 
 		kDebug(1, "changed global locale to {}", locale.name());
 	}

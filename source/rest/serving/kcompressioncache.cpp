@@ -735,6 +735,13 @@ std::size_t KCompressionCache::Sweep(KStringView sDocumentRoot)
 		return iRemoved;
 	}
 
+	// the paths are compared with forward slashes only
+	KString sRootPrefix = sRootDirectory;
+#ifdef DEKAF2_IS_WINDOWS
+	// the cache directory may contain the native separator
+	sRootPrefix.Replace('\\', '/');
+#endif
+
 	for (const auto& File : KDirectory(sRootDirectory, KFileType::FILE, /*bRecursive=*/true))
 	{
 		KString sFile = File.Path();
@@ -746,7 +753,7 @@ std::size_t KCompressionCache::Sweep(KStringView sDocumentRoot)
 		KStringView sName    = File.Filename();
 
 		// the directory of an entry is the path of its source file
-		if (!sRelPath.remove_prefix(sRootDirectory) ||
+		if (!sRelPath.remove_prefix(sRootPrefix) ||
 		    !sRelPath.remove_prefix('/') ||
 		    !sRelPath.remove_suffix(sName) ||
 		    !sRelPath.remove_suffix('/'))

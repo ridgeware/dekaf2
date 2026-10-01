@@ -50,6 +50,7 @@
 #include <dekaf2/system/process/kchildprocess.h>
 #include <dekaf2/core/types/kctype.h>
 #include <dekaf2/crypto/random/krandom.h>
+#include <dekaf2/core/types/kscopeguard.h>
 
 #include <cstdlib>
 #include <cwctype>
@@ -58,6 +59,7 @@
 #include <fstream>
 #include <random>
 #include <locale>
+#include <clocale>         // for std::setlocale()
 #ifdef DEKAF2_STATIC_EXECUTABLES
 	#include <openssl/crypto.h>
 #endif
@@ -166,7 +168,7 @@ void SetConsoleOutputToUTF8()
 //---------------------------------------------------------------------------
 {
 	// dekaf2 writes UTF-8 everywhere. The C runtime translates narrow output to a
-	// console from the code page of its LC_CTYPE (set to UTF-8 by kSetGlobalLocale())
+	// console from the code page of its LC_CTYPE (set to UTF-8 by SetUnicodeLocale())
 	// into the output code page of the console - so that has to be UTF-8 as well, or
 	// every character outside of it becomes a '?'. The console outlives the program,
 	// therefore the previous code page is restored at exit.
@@ -272,6 +274,20 @@ bool CTypeIsUnicodeAware()
 bool Dekaf::SetUnicodeLocale(KStringViewZ sName)
 //---------------------------------------------------------------------------
 {
+#ifdef DEKAF2_IS_WINDOWS
+	// dekaf2's narrow strings are UTF-8. The C runtime of Windows translates narrow
+	// output to a console from the code page of its LC_CTYPE, which setting the locale
+	// below sets to the code page of that locale - so once it is set, LC_CTYPE is set
+	// to UTF-8 (supported since Windows 10 1803). The output code page of the console
+	// is switched to UTF-8 by the Dekaf constructor.
+	KAtScopeEnd(
+		if (!std::setlocale(LC_CTYPE, ".utf8"))
+		{
+			kDebug(1, "cannot set LC_CTYPE of the C runtime to UTF-8");
+		}
+	);
+#endif
+
 	if (!sName.empty())
 	{
 		// set to a specific locale, return false if unknown or not unicode

@@ -267,6 +267,69 @@ R"(
 		CHECK ( sOut == sExpected );
 	}
 
+	SECTION("CJK takes two columns")
+	{
+		std::vector<std::vector<KStringView>> Data
+		{
+			{ "id", "name", "city" },
+			{ "1" , "Anna", "Köln" },
+			{ "3" , "李"  , "北京" },
+		};
+
+		static constexpr KStringView sExpected =
+R"(
++----+------+------+
+| id | name | city |
+| 1  | Anna | Köln |
+| 3  | 李   | 北京 |
++----+------+------+
+)";
+
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		KFormTable Table(sOut);
+
+		Table.DryMode(true);
+
+		for (auto& row : Data)
+		{
+			Table.PrintRow(row);
+		}
+
+		Table.DryMode(false);
+
+		for (auto& row : Data)
+		{
+			Table.PrintRow(row);
+		}
+
+		Table.Close();
+
+		CHECK ( sOut == sExpected );
+	}
+
+	SECTION("CJK cut at a column limit")
+	{
+		// a wide character that does not fit any more is left out, its column is filled
+		static constexpr KStringView sExpected =
+R"(
++-----+
+| 北 >|
++-----+
+)";
+
+		KString sOut;
+		sOut += '\n'; // compensate for the leading newline in the sExpected string
+
+		KFormTable Table(sOut, { 3 });
+
+		Table.PrintColumn("北京");
+		Table.Close();
+
+		CHECK ( sOut == sExpected );
+	}
+
 	SECTION("DryMode")
 	{
 		std::vector<std::vector<KStringView>> Data

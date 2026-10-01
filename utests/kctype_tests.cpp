@@ -177,6 +177,37 @@ TEST_CASE("KCType")
 		CHECK ( (std::iscntrl('\t') != 0) == true  );  // libc: HT is control
 	}
 
+	SECTION("GetColumnWidth")
+	{
+		CHECK ( KCodePoint(     'a').GetColumnWidth() == 1 );
+		CHECK ( KCodePoint(     ' ').GetColumnWidth() == 1 );
+		CHECK ( KCodePoint(    '\t').GetColumnWidth() == 0 ); // control character
+		CHECK ( KCodePoint(  0x007F).GetColumnWidth() == 0 ); // DEL
+		CHECK ( KCodePoint(  0x0085).GetColumnWidth() == 0 ); // C1 control character
+		CHECK ( KCodePoint(  0x00E4).GetColumnWidth() == 1 ); // ä
+		CHECK ( KCodePoint(  0x00AD).GetColumnWidth() == 1 ); // soft hyphen
+		CHECK ( KCodePoint(  0x0301).GetColumnWidth() == 0 ); // combining acute accent
+		CHECK ( KCodePoint(  0x20DD).GetColumnWidth() == 0 ); // combining enclosing circle
+		CHECK ( KCodePoint(  0x200B).GetColumnWidth() == 0 ); // zero width space
+		CHECK ( KCodePoint(  0xFE0F).GetColumnWidth() == 0 ); // variation selector 16
+		CHECK ( KCodePoint(  0x1100).GetColumnWidth() == 2 ); // Hangul choseong kiyeok
+		CHECK ( KCodePoint(  0x1160).GetColumnWidth() == 0 ); // Hangul jungseong filler
+		CHECK ( KCodePoint(  0x11FF).GetColumnWidth() == 0 ); // Hangul jongseong (end)
+		CHECK ( KCodePoint(  0x3000).GetColumnWidth() == 2 ); // ideographic space
+		CHECK ( KCodePoint(  0x3042).GetColumnWidth() == 2 ); // Hiragana A
+		CHECK ( KCodePoint(  0x674E).GetColumnWidth() == 2 ); // 李
+		CHECK ( KCodePoint(  0xAC00).GetColumnWidth() == 2 ); // Hangul syllable GA
+		CHECK ( KCodePoint(  0xFF21).GetColumnWidth() == 2 ); // fullwidth A
+		CHECK ( KCodePoint(  0xFF76).GetColumnWidth() == 1 ); // halfwidth Katakana KA
+		CHECK ( KCodePoint(  0x2603).GetColumnWidth() == 1 ); // snowman (no emoji presentation)
+		CHECK ( KCodePoint( 0x1F600).GetColumnWidth() == 2 ); // grinning face
+		CHECK ( KCodePoint( 0x20000).GetColumnWidth() == 2 ); // CJK extension B (plane 2)
+		CHECK ( KCodePoint( 0x3FFFD).GetColumnWidth() == 2 ); // end of plane 3
+		CHECK ( KCodePoint( 0xE0001).GetColumnWidth() == 0 ); // language tag
+		CHECK ( KCodePoint( 0xE0100).GetColumnWidth() == 0 ); // variation selector 17
+		CHECK ( KCodePoint(0x10FFFD).GetColumnWidth() == 1 ); // private use
+	}
+
 	SECTION("IsIdeographic")
 	{
 		// positives - one representative codepoint per covered script/block

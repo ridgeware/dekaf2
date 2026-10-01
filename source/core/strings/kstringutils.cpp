@@ -284,6 +284,71 @@ void kMakeLowerLocale(const char* it, const char* ie, char* out)
 
 } // end of namespace detail
 
+//-----------------------------------------------------------------------------
+std::size_t kColumnWidth(KStringView sInput)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iWidth { 0 };
+
+	for (auto it = sInput.begin(), ie = sInput.end(); it != ie; )
+	{
+		auto ch = static_cast<unsigned char>(*it);
+
+		if (ch < 0x80)
+		{
+			// ASCII: the control characters take no column
+			iWidth += (ch >= 0x20 && ch != 0x7F) ? 1 : 0;
+			++it;
+		}
+		else
+		{
+			iWidth += KCodePoint(kutf::CodepointFromUTF8(it, ie)).GetColumnWidth();
+		}
+	}
+
+	return iWidth;
+
+} // kColumnWidth
+
+//-----------------------------------------------------------------------------
+KStringView kLeftColumns(KStringView sInput, std::size_t iColumns)
+//-----------------------------------------------------------------------------
+{
+	std::size_t iWidth { 0 };
+	auto        it     = sInput.begin();
+	auto        ie     = sInput.end();
+
+	while (it != ie)
+	{
+		auto next = it;
+		auto ch   = static_cast<unsigned char>(*next);
+		std::size_t iCharWidth;
+
+		if (ch < 0x80)
+		{
+			iCharWidth = (ch >= 0x20 && ch != 0x7F) ? 1 : 0;
+			++next;
+		}
+		else
+		{
+			iCharWidth = KCodePoint(kutf::CodepointFromUTF8(next, ie)).GetColumnWidth();
+		}
+
+		// a wide character that does not fit any more is left out entirely, a
+		// combining mark after the last character that fits is kept with it
+		if (iWidth + iCharWidth > iColumns)
+		{
+			break;
+		}
+
+		iWidth += iCharWidth;
+		it      = next;
+	}
+
+	return sInput.substr(0, static_cast<KStringView::size_type>(it - sInput.begin()));
+
+} // kLeftColumns
+
 //----------------------------------------------------------------------
 KString kToUpper(KStringView sInput)
 //----------------------------------------------------------------------

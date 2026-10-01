@@ -1136,6 +1136,13 @@ public:
 
 	//-----------------------------------------------------------------------------
 	// nonstandard
+	/// returns the longest start of the string that fits into iColumns columns of a terminal
+	DEKAF2_NODISCARD
+	KStringView LeftColumns(size_type iColumns) const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
 	/// returns KCcodePoint at UTF8 position iCount
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	KCodePoint AtUTF8(size_type iCount) const;
@@ -1153,6 +1160,13 @@ public:
 	/// returns the count of unicode codepoints (or, UTF8 sequences)
 	DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14
 	size_type SizeUTF8() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	// nonstandard
+	/// returns the number of columns the string takes in a terminal (CJK characters take two)
+	DEKAF2_NODISCARD
+	size_type ColumnWidth() const;
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -2252,6 +2266,20 @@ KStringView::size_type KStringView::SizeUTF8() const
 //-----------------------------------------------------------------------------
 {
 	return kSizeUTF(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView::size_type KStringView::ColumnWidth() const
+//-----------------------------------------------------------------------------
+{
+	return kColumnWidth(*this);
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView KStringView::LeftColumns(size_type iColumns) const
+//-----------------------------------------------------------------------------
+{
+	return kLeftColumns(*this, iColumns);
 }
 
 //-----------------------------------------------------------------------------

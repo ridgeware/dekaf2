@@ -744,6 +744,14 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// returns the number of columns this codepoint takes in a terminal, counted like
+	/// wcwidth() does: 2 for the East Asian Width classes W and F, 0 for control
+	/// characters, combining marks and format characters, 1 for all others
+	DEKAF2_NODISCARD
+	uint8_t GetColumnWidth() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	DEKAF2_NODISCARD
 	KCodePoint ToUpper() const
 	//-----------------------------------------------------------------------------
@@ -1101,6 +1109,19 @@ inline bool kIsIdeographic(CP ch)
 //-----------------------------------------------------------------------------
 {
 	return KCodePoint(ch).IsIdeographic();
+}
+
+//-----------------------------------------------------------------------------
+/// returns the number of columns the codepoint takes in a terminal, see KCodePoint::GetColumnWidth() -
+/// restricted to integral types, as kColumnWidth(KStringView) in kstringutils.h measures strings
+template<class CP,
+         typename std::enable_if<std::is_integral<CP>::value, int>::type = 0
+>
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+inline uint8_t kColumnWidth(CP ch)
+//-----------------------------------------------------------------------------
+{
+	return KCodePoint(ch).GetColumnWidth();
 }
 
 //-----------------------------------------------------------------------------

@@ -387,7 +387,8 @@ KFormTable::size_type KFormTable::FitWidth(size_type iColumn, KStringView sText)
 		m_ColDefs.push_back({});
 	}
 
-	auto iWidth = sText.SizeUTF8();
+	// the columns the text takes in a terminal - CJK characters take two
+	auto iWidth = sText.ColumnWidth();
 
 	if (iWidth > m_iMaxColWidth)
 	{
@@ -506,7 +507,8 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 	// remove the Alignment::Wrap bit
 	iAlign     = static_cast<Alignment>((static_cast<std::underlying_type<Alignment>::type>(iAlign)
 	                                  & ~static_cast<std::underlying_type<Alignment>::type>(Alignment::Wrap)));
-	auto iSize = sText.SizeUTF8();
+	// widths and sizes count terminal columns, in which CJK characters take two
+	auto iSize = sText.ColumnWidth();
 	size_type iFill {     0 };
 	bool bOverflow  { false };
 
@@ -521,18 +523,30 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 				{
 					m_WrapOverflow.resize(m_iColumn + 1);
 				}
-				auto sTruncated = sText.LeftUTF8(iWidth);
+				auto sTruncated = sText.LeftColumns(iWidth);
+
+				if (sTruncated.empty())
+				{
+					// a wide character in a column of width 1 - take it anyway, or
+					// the continuation lines would never make progress
+					sTruncated = sText.LeftUTF8(1);
+				}
+
 				m_WrapOverflow[m_iColumn] = sText.substr(sTruncated.size());
 				sText = sTruncated;
 			}
 			else
 			{
 				// cut to maximum length
-				sText     = sText.LeftUTF8(iWidth);
+				sText     = sText.LeftColumns(iWidth);
 				bOverflow = true;
 			}
+
+			// a wide character that did not fit any more leaves one column free
+			iSize = sText.ColumnWidth();
 		}
-		else if (iSize < iWidth)
+
+		if (iSize < iWidth)
 		{
 			iFill = iWidth - iSize;
 		}
@@ -732,7 +746,7 @@ void KFormTable::PrintColumnInt(bool bIsNumber, KStringView sText, ColumnRendere
 				if (m_iColumn < ColCount())
 				{
 					auto& sName = m_ColDefs[m_iColumn].GetDispName();
-					auto iNameWidth = sName.SizeUTF8();
+					auto iNameWidth = sName.ColumnWidth();
 					iFill = (iNameWidth < iFill) ? iFill - iNameWidth : 0;
 					Print(sName);
 				}

@@ -304,9 +304,11 @@ public:
 	using base_type::AtUTF8;
 	using base_type::HasUTF8;
 	using base_type::SizeUTF8;
+	using base_type::ColumnWidth;
 	using base_type::Codepoints;
 	using base_type::Left;
 	using base_type::LeftUTF8;
+	using base_type::LeftColumns;
 	using base_type::FindCaselessASCII;
 	using base_type::ContainsCaselessASCII;
 	using base_type::operator bool;

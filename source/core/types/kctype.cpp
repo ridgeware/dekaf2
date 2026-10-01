@@ -40,6 +40,8 @@
 */
 
 #include <dekaf2/core/types/kctype.h>
+#include <algorithm>
+#include <iterator>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -50,6 +52,20 @@ DEKAF2_NAMESPACE_BEGIN
 // IsBlank() is incorrect
 
 #include "unicodetables.cpp"
+
+namespace {
+
+// a range of codepoints, the first and the last one included
+struct CodePointRange
+{
+	kutf::codepoint_t iFirst;
+	kutf::codepoint_t iLast;
+};
+
+// constexpr CodePointRange WideCodePoints[]
+#include "unicodewidths.cpp"
+
+} // end of anonymous namespace
 
 // const std::array<int32_t , MAX_CASEFOLDS + 1> CaseFolds;
 // const std::array<Property, MAX_TABLE     + 1> CodePoints;
@@ -114,6 +130,48 @@ bool KCodePoint::IsIdeographic() const
 	return (cp >= 0x20000 && cp <= 0x3FFFF);   // CJK extensions B and up (planes 2 and 3)
 
 } // IsIdeographic
+
+//-----------------------------------------------------------------------------
+uint8_t KCodePoint::GetColumnWidth() const
+//-----------------------------------------------------------------------------
+{
+	const auto cp = m_CodePoint;
+
+	// the control characters take no column, the others below the combining
+	// diacritical marks one (U+00AD SOFT HYPHEN is shown, as with wcwidth())
+	if (cp <  0x007F) return (cp >= 0x0020) ? 1 : 0;
+	if (cp <  0x00A0) return 0;
+	if (cp <  0x0300) return 1;
+
+	// combining marks and format characters (like the zero width space) take no column
+	auto Category = GetCategory();
+
+	if (Category == MarkNonspacing || Category == MarkEnclosing || Category == OtherFormat)
+	{
+		return 0;
+	}
+
+	// the Hangul jamo vowels and final consonants combine with the leading consonant
+	if ((cp >= 0x1160 && cp <= 0x11FF) || (cp >= 0xD7B0 && cp <= 0xD7FF))
+	{
+		return 0;
+	}
+
+	if (cp < WideCodePoints[0].iFirst)
+	{
+		return 1;
+	}
+
+	// the first range that starts after the codepoint - the range before may contain it
+	auto it = std::upper_bound(std::begin(WideCodePoints), std::end(WideCodePoints), cp,
+	                           [](kutf::codepoint_t iCodePoint, const CodePointRange& Range)
+	{
+		return iCodePoint < Range.iFirst;
+	});
+
+	return (cp <= std::prev(it)->iLast) ? 2 : 1;
+
+} // GetColumnWidth
 
 #ifdef DEKAF2_REPEAT_CONSTEXPR_VARIABLE
 

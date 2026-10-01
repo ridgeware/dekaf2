@@ -953,6 +953,14 @@ public:
 	DEKAF2_NODISCARD
 	self&& RightUTF8(size_type iCount) &&;
 
+	/// returns the longest start of the string that fits into iColumns columns of a terminal
+	DEKAF2_NODISCARD
+	KStringView LeftColumns(size_type iColumns) const &;
+
+	/// returns the longest start of the string that fits into iColumns columns of a terminal
+	DEKAF2_NODISCARD
+	self&& LeftColumns(size_type iColumns) &&;
+
 	/// returns KCcodePoint at UTF8 position iCount
 	DEKAF2_NODISCARD
 	KCodePoint AtUTF8(size_type iCount) const;
@@ -964,6 +972,10 @@ public:
 	/// returns the count of unicode codepoints (or, UTF8 sequences)
 	DEKAF2_NODISCARD
 	size_type SizeUTF8() const;
+
+	/// returns the number of columns the string takes in a terminal (CJK characters take two)
+	DEKAF2_NODISCARD
+	size_type ColumnWidth() const;
 
 	/// returns a range for forward iteration over Unicode codepoints (UTF8 decoding)
 	DEKAF2_NODISCARD
@@ -2386,6 +2398,28 @@ inline KString::size_type KString::SizeUTF8() const
 //-----------------------------------------------------------------------------
 {
 	return ToView().SizeUTF8();
+}
+
+//-----------------------------------------------------------------------------
+inline KString::size_type KString::ColumnWidth() const
+//-----------------------------------------------------------------------------
+{
+	return ToView().ColumnWidth();
+}
+
+//-----------------------------------------------------------------------------
+inline KStringView KString::LeftColumns(size_type iColumns) const &
+//-----------------------------------------------------------------------------
+{
+	return ToView().LeftColumns(iColumns);
+}
+
+//-----------------------------------------------------------------------------
+inline KString&& KString::LeftColumns(size_type iColumns) &&
+//-----------------------------------------------------------------------------
+{
+	erase(ToView().LeftColumns(iColumns).size());
+	return std::move(*this);
 }
 
 //-----------------------------------------------------------------------------

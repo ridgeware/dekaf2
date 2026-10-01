@@ -402,6 +402,18 @@ String& kMakeLeftUTF(String& sInput, std::size_t iCount)
 }
 
 //-----------------------------------------------------------------------------
+/// returns the number of columns a UTF-8 string takes in a terminal, see KCodePoint::GetColumnWidth()
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+std::size_t kColumnWidth(KStringView sInput);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// returns the longest start of a UTF-8 string that fits into iColumns columns of a terminal
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+KStringView kLeftColumns(KStringView sInput, std::size_t iColumns);
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
 /// returns substring starting at UTF codepoint iStart for iCount UTF codepoints
 template<class String, class StringView = KStringView>
 DEKAF2_NODISCARD DEKAF2_CONSTEXPR_14 DEKAF2_PUBLIC

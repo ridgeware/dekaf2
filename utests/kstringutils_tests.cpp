@@ -3013,3 +3013,54 @@ TEST_CASE("KStringUtils") {
 		CHECK ( kStripComments("a // cpp\nb # shell", CommentStyle::None) == "a // cpp\nb # shell" );
 	}
 }
+
+TEST_CASE("kColumnWidth")
+{
+	SECTION("kColumnWidth")
+	{
+		CHECK ( kColumnWidth(""        ) == 0 );
+		CHECK ( kColumnWidth("Anna"    ) == 4 );
+		CHECK ( kColumnWidth("Köln"    ) == 4 );
+		CHECK ( kColumnWidth("李"      ) == 2 );
+		CHECK ( kColumnWidth("北京"    ) == 4 );
+		CHECK ( kColumnWidth("a\tb"    ) == 2 );  // control characters take no column
+		CHECK ( kColumnWidth("e\xCC\x81") == 1 );  // e + combining acute accent
+		CHECK ( kColumnWidth("ＡＢ"    ) == 4 );  // fullwidth letters
+	}
+
+	SECTION("kLeftColumns")
+	{
+		CHECK ( kLeftColumns("Köln"    , 2) == "Kö"     );
+		CHECK ( kLeftColumns("北京"    , 4) == "北京"   );
+		CHECK ( kLeftColumns("北京"    , 3) == "北"     );  // the second character does not fit
+		CHECK ( kLeftColumns("北京"    , 1) == ""       );
+		CHECK ( kLeftColumns("北京"    , 0) == ""       );
+		CHECK ( kLeftColumns("e\xCC\x81x", 1) == "e\xCC\x81" );  // the combining mark stays with its base
+		CHECK ( kLeftColumns("abc"     , 9) == "abc"    );
+	}
+
+	SECTION("codepoint overload")
+	{
+		// integral types go to the codepoint version, strings to the string version
+		CHECK ( kColumnWidth('a'      ) == 1 );
+		CHECK ( kColumnWidth(U'李'    ) == 2 );
+		CHECK ( kColumnWidth(0x1F600  ) == 2 );
+		CHECK ( kColumnWidth("李"     ) == 2 );
+		CHECK ( kColumnWidth("ab"     ) == 2 );
+	}
+
+	SECTION("string members")
+	{
+		KStringView  sv("北京x");
+		KStringViewZ svz("北京x");
+		KString      s("北京x");
+
+		CHECK ( sv .ColumnWidth()   == 5    );
+		CHECK ( svz.ColumnWidth()   == 5    );
+		CHECK ( s  .ColumnWidth()   == 5    );
+		CHECK ( sv .LeftColumns(3)  == "北" );
+		CHECK ( svz.LeftColumns(4)  == "北京" );
+		CHECK ( s  .LeftColumns(5)  == "北京x" );
+		CHECK ( KString("北京x").LeftColumns(3) == "北" );
+	}
+}

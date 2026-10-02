@@ -59,9 +59,46 @@
  #include <unistd.h>            // for ::write()
 #elif defined(DEKAF2_IS_WINDOWS)
  #include <io.h>                // for ::_write()
+ #include <windows.h>           // for EXCEPTION_POINTERS
 #endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+#ifdef DEKAF2_IS_WINDOWS
+namespace {
+
+//-----------------------------------------------------------------------------
+KStringView ExceptionName(DWORD iCode)
+//-----------------------------------------------------------------------------
+{
+	switch (iCode)
+	{
+		case EXCEPTION_ACCESS_VIOLATION:         return "access violation";
+		case EXCEPTION_IN_PAGE_ERROR:            return "in page error";
+		case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:    return "array bounds exceeded";
+		case EXCEPTION_DATATYPE_MISALIGNMENT:    return "datatype misalignment";
+		case EXCEPTION_ILLEGAL_INSTRUCTION:      return "illegal instruction";
+		case EXCEPTION_PRIV_INSTRUCTION:         return "privileged instruction";
+		case EXCEPTION_INT_DIVIDE_BY_ZERO:       return "integer divide by zero";
+		case EXCEPTION_INT_OVERFLOW:             return "integer overflow";
+		case EXCEPTION_FLT_DIVIDE_BY_ZERO:       return "float divide by zero";
+		case EXCEPTION_FLT_INVALID_OPERATION:    return "float invalid operation";
+		case EXCEPTION_FLT_OVERFLOW:             return "float overflow";
+		case EXCEPTION_FLT_UNDERFLOW:            return "float underflow";
+		case EXCEPTION_FLT_INEXACT_RESULT:       return "float inexact result";
+		case EXCEPTION_FLT_DENORMAL_OPERAND:     return "float denormal operand";
+		case EXCEPTION_FLT_STACK_CHECK:          return "float stack check";
+		case EXCEPTION_BREAKPOINT:               return "breakpoint";
+		case EXCEPTION_NONCONTINUABLE_EXCEPTION: return "noncontinuable exception";
+		case EXCEPTION_INVALID_DISPOSITION:      return "invalid disposition";
+		case 0xE06D7363:                         return "C++ exception";
+		default:                                 return "unknown exception";
+	}
+
+} // ExceptionName
+
+} // end of anonymous namespace
+#endif
 
 static KCrashCallback       g_pCrashCallback{nullptr};
 thread_local static KString g_tl_sCrashContext;
@@ -210,12 +247,32 @@ void kCrashExitExt (int iSignalNum, siginfo_t* siginfo, void* context)
 		}
 	}
 
+	#else
+	if (context != nullptr)
+	{
+		// from the exception filter: the exception, and the code that raised it
+		const auto* pRecord = static_cast<const EXCEPTION_POINTERS*>(context)->ExceptionRecord;
+
+		sWarning += kFormat("\nexception {:#x} ({}) at address {}: {}",
+		                    pRecord->ExceptionCode, ExceptionName(pRecord->ExceptionCode),
+		                    pRecord->ExceptionAddress, kGetAddress2Line(pRecord->ExceptionAddress));
+
+		if (pRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && pRecord->NumberParameters >= 2)
+		{
+			auto iAccess = pRecord->ExceptionInformation[0];
+
+			sWarning += kFormat("\n{} of address {:#x}",
+			                    iAccess == 0 ? "read" : iAccess == 1 ? "write" : "execution",
+			                    pRecord->ExceptionInformation[1]);
+		}
+	}
+	#endif
+
 	if (iSignalNum != SIGINT)
 	{
 		sWarning += kFormat ("\nattempting to print a backtrace:\n");
 		sWarning += kGetRuntimeStack(1);
 	}
-	#endif
 
 	sWarning += kFormat ("exiting program.");
 

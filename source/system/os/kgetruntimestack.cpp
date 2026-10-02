@@ -58,6 +58,14 @@
 	#include <cxxabi.h>            // for demangling
 	#include <unistd.h>
 #endif
+#ifdef DEKAF2_IS_WINDOWS
+	#include <dekaf2/core/strings/kutf.h>               // UTF-16 -> UTF-8 of symbol and file names
+	#include <dekaf2/system/filesystem/kfilesystem.h>   // for kBasename()
+	#include <windows.h>
+	#include <dbghelp.h>                                // for SymFromAddrW(), SymGetLineFromAddrW64()
+	#include <cstdlib>                                  // for std::strtoull()
+	#include <mutex>
+#endif
 #if DEKAF2_HAS_LIBUNWIND
 	#define UNW_LOCAL_ONLY
 	#include <libunwind.h>
@@ -77,6 +85,106 @@ using FrameVec  = std::vector<KStackFrame>;
 
 namespace detail {
 namespace bt {
+
+#ifdef DEKAF2_IS_WINDOWS
+
+//-----------------------------------------------------------------------------
+// DbgHelp is not thread safe - all calls into it are serialized with this mutex
+std::mutex& DbgHelpMutex()
+//-----------------------------------------------------------------------------
+{
+	static std::mutex s_Mutex;
+	return s_Mutex;
+
+} // DbgHelpMutex
+
+//-----------------------------------------------------------------------------
+// loads the symbols of the process at the first call - to be called with the
+// mutex held
+bool DbgHelpInitialized()
+//-----------------------------------------------------------------------------
+{
+	static bool s_bInitialized = []()
+	{
+		::SymSetOptions(::SymGetOptions() | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
+		// no search path: the symbol files (PDB) are searched next to the modules
+		// and in the current directory
+		return ::SymInitializeW(::GetCurrentProcess(), nullptr, TRUE) != FALSE;
+	}();
+
+	return s_bInitialized;
+
+} // DbgHelpInitialized
+
+//-----------------------------------------------------------------------------
+// resolves an address of code to its function, file and line. Without a symbol
+// file (PDB) it names the module and the offset in it, which can be resolved
+// later with the symbol file of the build.
+KStackFrame ResolveAddress(const void* pAddress, bool bReturnAddress)
+//-----------------------------------------------------------------------------
+{
+	KStackFrame Frame;
+
+	auto iAddress = reinterpret_cast<DWORD64>(pAddress);
+	// a return address points behind the call - step back into the call instruction
+	auto iLookup  = (bReturnAddress && iAddress) ? iAddress - 1 : iAddress;
+
+	{
+		std::lock_guard<std::mutex> Lock(DbgHelpMutex());
+
+		if (DbgHelpInitialized())
+		{
+			// SYMBOL_INFOW with room for the name behind it
+			alignas(SYMBOL_INFOW) char Buffer[sizeof(SYMBOL_INFOW) + MAX_SYM_NAME * sizeof(wchar_t)] {};
+			auto* pSymbol         = reinterpret_cast<SYMBOL_INFOW*>(Buffer);
+			pSymbol->SizeOfStruct = sizeof(SYMBOL_INFOW);
+			pSymbol->MaxNameLen   = MAX_SYM_NAME;
+
+			DWORD64 iDisplacement { 0 };
+
+			if (::SymFromAddrW(::GetCurrentProcess(), iLookup, &iDisplacement, pSymbol))
+			{
+				Frame.sFunction = kutf::Convert<KString>(std::wstring(pSymbol->Name, pSymbol->NameLen));
+			}
+
+			IMAGEHLP_LINEW64 Line {};
+			Line.SizeOfStruct = sizeof(Line);
+			DWORD iLineDisplacement { 0 };
+
+			if (::SymGetLineFromAddrW64(::GetCurrentProcess(), iLookup, &iLineDisplacement, &Line) && Line.FileName)
+			{
+				// the file name only, as with addr2line - kFilterTrace() compares file names
+				Frame.sFile       = kBasename(kutf::Convert<KString>(std::wstring(Line.FileName)));
+				Frame.sLineNumber = kFormat("{}", Line.LineNumber);
+			}
+		}
+	}
+
+	if (Frame.sFunction.empty())
+	{
+		HMODULE hModule { nullptr };
+
+		if (::GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		                         reinterpret_cast<LPCWSTR>(pAddress), &hModule))
+		{
+			wchar_t szModule[MAX_PATH];
+			auto iLen = ::GetModuleFileNameW(hModule, szModule, MAX_PATH);
+
+			Frame.sFunction = kFormat("{}+{:#x}",
+			                          kBasename(kutf::Convert<KString>(std::wstring(szModule, iLen))),
+			                          iAddress - reinterpret_cast<DWORD64>(hModule));
+		}
+		else
+		{
+			Frame.sFunction = kFormat("{:#x}", iAddress);
+		}
+	}
+
+	return Frame;
+
+} // ResolveAddress
+
+#endif // DEKAF2_IS_WINDOWS
 
 //-----------------------------------------------------------------------------
 // This function will try and invoke the external addr2line code to map a vector
@@ -167,6 +275,17 @@ StringVec Addr2Line (const std::vector<KStringView>& vsAddress)
 
 				}
 			}
+
+#elif defined(DEKAF2_IS_WINDOWS)
+
+			for (const auto& sAddress : vsAddress)
+			{
+				// an address like "0x7ff6a1b21234" - the address itself, no return address
+				auto iAddress = std::strtoull(KString(sAddress).c_str(), nullptr, 16);
+
+				vsResult.push_back(ResolveAddress(reinterpret_cast<const void*>(static_cast<uintptr_t>(iAddress)), false).Serialize(false));
+			}
+
 #endif
 		}
 	}
@@ -277,6 +396,7 @@ KStringView GetStackAddress (KStringView sBacktraceLine)
 	#define SUPPORT_GDBATTACH_PRINTCALLSTACK 0
 	#define SUPPORT_LIBUNWIND_PRINTCALLSTACK 0
 	#define SUPPORT_BACKTRACE_PRINTCALLSTACK 0
+	#define SUPPORT_DBGHELP_PRINTCALLSTACK   1
 #else
 	#ifndef DEKAF2_IS_OSX
 		#ifndef SUPPORT_GDBATTACH_PRINTCALLSTACK
@@ -295,6 +415,10 @@ KStringView GetStackAddress (KStringView sBacktraceLine)
 
 #ifndef SUPPORT_LIBUNWIND_PRINTCALLSTACK
 	#define SUPPORT_LIBUNWIND_PRINTCALLSTACK 0
+#endif
+
+#ifndef SUPPORT_DBGHELP_PRINTCALLSTACK
+	#define SUPPORT_DBGHELP_PRINTCALLSTACK 0
 #endif
 
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
@@ -665,6 +789,33 @@ FrameVec GetLibunwindCallstack (int iSkipStackLines)
 
 #endif // SUPPORT_LIBUNWIND_PRINTCALLSTACK
 
+#if SUPPORT_DBGHELP_PRINTCALLSTACK
+
+//-----------------------------------------------------------------------------
+FrameVec GetDbgHelpCallstack (int iSkipStackLines)
+//-----------------------------------------------------------------------------
+{
+	FrameVec Frames;
+
+	enum   { MAXSTACK = 500 };
+	void*  Stack[MAXSTACK];
+
+	// +1 to skip this function itself
+	auto iFrames = ::CaptureStackBackTrace(static_cast<DWORD>(iSkipStackLines + 1), MAXSTACK, Stack, nullptr);
+
+	Frames.reserve(iFrames);
+
+	for (USHORT i = 0; i < iFrames; ++i)
+	{
+		Frames.push_back(ResolveAddress(Stack[i], true));
+	}
+
+	return Frames;
+
+} // GetDbgHelpCallstack
+
+#endif // SUPPORT_DBGHELP_PRINTCALLSTACK
+
 //-----------------------------------------------------------------------------
 KStringView RemoveFunctionParms(KStringView sFunction)
 //-----------------------------------------------------------------------------
@@ -781,6 +932,11 @@ KString kGetBacktrace (int iSkipStackLines, bool bNormalize)
 
 	sStack = detail::bt::PrintFrameVector(detail::bt::GetBacktraceCallstack(iSkipStackLines), bNormalize);
 
+#elif SUPPORT_DBGHELP_PRINTCALLSTACK
+
+	// +1 for the own stack frame
+	sStack = detail::bt::PrintFrameVector(detail::bt::GetDbgHelpCallstack(iSkipStackLines + 1), bNormalize);
+
 #endif
 
 	return sStack;
@@ -798,6 +954,10 @@ KString kGetRuntimeStack (int iSkipStackLines)
 
 #if SUPPORT_GDBATTACH_PRINTCALLSTACK
 	sStack = detail::bt::PrintStackVector(detail::bt::GetGDBCallstack(iSkipStackLines));
+#endif
+
+#if SUPPORT_DBGHELP_PRINTCALLSTACK
+	sStack = detail::bt::PrintFrameVector(detail::bt::GetDbgHelpCallstack(iSkipStackLines), false);
 #endif
 
 #if SUPPORT_LIBUNWIND_PRINTCALLSTACK
@@ -836,6 +996,14 @@ KJSON kGetRuntimeStackJSON (int iSkipStackLines)
 	{
 		jStack += item.Serialize();
 	}
+#elif SUPPORT_DBGHELP_PRINTCALLSTACK
+	// account for own stack frame
+	++iSkipStackLines;
+
+	for (auto& item : detail::bt::GetDbgHelpCallstack(iSkipStackLines))
+	{
+		jStack += item.Serialize();
+	}
 #endif
 
 	return jStack;
@@ -853,6 +1021,8 @@ KStackFrame kFilterTrace (int iSkipStackLines, KStringView sSkipFiles)
 	auto Stack = detail::bt::GetBacktraceCallstack(iSkipStackLines);
 #elif SUPPORT_LIBUNWIND_PRINTCALLSTACK
 	auto Stack = detail::bt::GetLibunwindCallstack(iSkipStackLines);
+#elif SUPPORT_DBGHELP_PRINTCALLSTACK
+	auto Stack = detail::bt::GetDbgHelpCallstack(iSkipStackLines);
 #else
 	// no stack walker on this platform
 	(void)iSkipStackLines;

@@ -194,7 +194,11 @@ TEST_CASE("KWebClient") {
 		sRet = HTTP.Post("http://localhost:7653/test1", "some body", KMIME::HTML_UTF8);
 		CHECK( sRet.empty() );
 		CHECK( HTTP.GetStatusCode() == 598 );
+#ifndef DEKAF2_IS_WINDOWS
+		// on Windows the error is the system text of ERROR_OPERATION_ABORTED, in the
+		// language of the system
 		CHECK( HTTP.Error().contains("Operation canceled") );
+#endif
 //		HTTP.Disconnect();
 		// leave connection untouched to test reconnect feature
 		// it is difficult to know when the TCP server is done

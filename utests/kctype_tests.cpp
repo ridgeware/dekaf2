@@ -171,7 +171,10 @@ TEST_CASE("KCType")
 
 		// verify the known KASCII divergence for HT explicitly
 		CHECK ( KASCII::kIsPrint('\t') == true  );  // KASCII: blank is printable
+#ifndef DEKAF2_IS_WINDOWS
+		// the C runtime of Windows counts HT as printable
 		CHECK ( (std::isprint('\t') != 0) == false );  // libc: HT is not printable
+#endif
 		CHECK ( KASCII::kIsCntrl('\t') == false );  // KASCII: blank is not control
 		CHECK ( (std::iscntrl('\t') != 0) == true  );  // libc: HT is control
 	}

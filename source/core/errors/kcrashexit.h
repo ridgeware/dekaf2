@@ -79,6 +79,9 @@ extern "C" {
 /// display signal that led to crash (if any) and force a stackdump
 /// @param iSignalNum The caught signal or one of the special signal
 /// numbers to indicate library internal failures.
+/// @param siginfo on Unix the signal information of a signal handler
+/// @param context on Windows the EXCEPTION_POINTERS of an exception filter,
+/// for the code and the address of the exception
 DEKAF2_PUBLIC
 void kCrashExitExt (int iSignalNum, siginfo_t* siginfo = nullptr, void* context = nullptr);
 

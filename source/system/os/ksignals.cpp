@@ -51,6 +51,9 @@
 #ifndef DEKAF2_IS_WINDOWS
 	#include <pthread.h>
 	#include <sys/mman.h>
+#else
+	#include <windows.h>        // for SetUnhandledExceptionFilter()
+	#include <io.h>             // for ::_write()
 #endif
 #include <algorithm>
 #include <cstdlib>
@@ -117,7 +120,66 @@ struct AltStackHolder
 
 thread_local AltStackHolder s_AltStack;
 
-#endif
+#else // DEKAF2_IS_WINDOWS
+
+//-----------------------------------------------------------------------------
+/// the crash handler of Windows: it gets every exception no code has handled, also
+/// in threads the C runtime did not start, together with its code and address
+LONG WINAPI CrashExceptionFilter(EXCEPTION_POINTERS* pException)
+//-----------------------------------------------------------------------------
+{
+	int iSignal;
+
+	switch (pException->ExceptionRecord->ExceptionCode)
+	{
+		case EXCEPTION_STACK_OVERFLOW:
+		{
+			// there is no stack left for a crash report with a stack trace - only a
+			// message, without allocations, and Windows ends the process
+			const char sMsg[] = "\n*** CRASHED: stack overflow ***\n";
+			auto iWritten = ::_write(2, sMsg, sizeof(sMsg) - 1);
+			(void)iWritten;
+			return EXCEPTION_CONTINUE_SEARCH;
+		}
+
+		case EXCEPTION_ACCESS_VIOLATION:
+		case EXCEPTION_IN_PAGE_ERROR:
+		case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+		case EXCEPTION_DATATYPE_MISALIGNMENT:
+			iSignal = SIGSEGV;
+			break;
+
+		case EXCEPTION_ILLEGAL_INSTRUCTION:
+		case EXCEPTION_PRIV_INSTRUCTION:
+			iSignal = SIGILL;
+			break;
+
+		case EXCEPTION_INT_DIVIDE_BY_ZERO:
+		case EXCEPTION_INT_OVERFLOW:
+		case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+		case EXCEPTION_FLT_INVALID_OPERATION:
+		case EXCEPTION_FLT_OVERFLOW:
+		case EXCEPTION_FLT_UNDERFLOW:
+		case EXCEPTION_FLT_INEXACT_RESULT:
+		case EXCEPTION_FLT_DENORMAL_OPERAND:
+		case EXCEPTION_FLT_STACK_CHECK:
+			iSignal = SIGFPE;
+			break;
+
+		default:
+			// like an unhandled C++ exception - the report names the exception code
+			iSignal = SIGABRT;
+			break;
+	}
+
+	// prints the crash report with the exception and a stack trace, and aborts
+	kCrashExitExt(iSignal, nullptr, pException);
+
+	return EXCEPTION_CONTINUE_SEARCH;
+
+} // CrashExceptionFilter
+
+#endif // DEKAF2_IS_WINDOWS
 
 } // anonymous namespace
 
@@ -128,10 +190,10 @@ void kInstallCrashHandlers()
 	std::call_once(s_CrashHandlersOnce, []()
 	{
 #ifdef DEKAF2_IS_WINDOWS
-		signal(SIGSEGV, kCrashExit);
-		signal(SIGFPE,  kCrashExit);
-		signal(SIGILL,  kCrashExit);
-		// SIGTRAP is explicitly left alone - debugger uses it for breakpoints
+		// not signal(SIGSEGV) etc.: the C runtime raises those only in the threads it
+		// started, and without the exception code and address. Breakpoints of a debugger
+		// are handled by the debugger before this filter.
+		::SetUnhandledExceptionFilter(CrashExceptionFilter);
 #else
 		struct sigaction sa;
 		// SA_RESETHAND = one-shot (reset to default after first call)

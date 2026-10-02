@@ -33,6 +33,8 @@
 
 setlocal EnableDelayedExpansion
 
+rem the path of this script, saved before shift changes the batch parameters
+set "BOOTSTRAP=%~f0"
 set "DEKAF2=%~dp0"
 set "DEKAF2=%DEKAF2:~0,-1%"
 set "BUILDDIR=%DEKAF2%\build"
@@ -123,12 +125,26 @@ rem our checkout, not the one of Visual Studio
 set "VCPKG_ROOT=%VCPKGDIR%"
 
 rem ---- the sources ---------------------------------------------------------------
+rem cmd.exe does not keep a batch file open: for every further line it opens it anew
+rem and continues at the byte position where it stopped. Once git pull has changed
+rem this script, that position lies elsewhere in the new version, and cmd.exe would
+rem run whatever stands there. A block is read completely before it runs, so the
+rem pull, the check for a change of this script and the start of the new version
+rem all happen in this one block, and exit /b ends this instance before it reads on.
 if not defined NOPULL (
 	echo checking for updates..
+	set "OLDHEAD="
+	for /f "usebackq delims=" %%H in (`git -C "%DEKAF2%" rev-parse HEAD`) do set "OLDHEAD=%%H"
 	git -C "%DEKAF2%" pull
 	if errorlevel 1 (
 		echo error: cannot pull source code changes
 		exit /b 1
+	)
+	git -C "%DEKAF2%" diff --quiet !OLDHEAD! HEAD -- bootstrap.cmd
+	if errorlevel 1 (
+		echo bootstrap.cmd was updated, starting the new version..
+		call "%BOOTSTRAP%" -no-pull %*
+		exit /b !errorlevel!
 	)
 )
 

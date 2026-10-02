@@ -467,28 +467,16 @@ bool KBaseShell::IntOpen (KString sCommand, bool bWrite, bool bUseShell,
 	m_hProcess = Process.hProcess;
 	m_hJob     = hJob;
 
-	// _fdopen() mode without 't' or 'b' follows _fmode, as _popen() does
-	int iFD = ::_open_osfhandle(reinterpret_cast<intptr_t>(hOurs), bWrite ? 0 : _O_RDONLY);
+	// a file descriptor for KFDReader and KFDWriter, which read what is available - a
+	// FILE* would wait in fread() until its buffer is full. Text mode, like the default
+	// of _popen().
+	m_iPipe = ::_open_osfhandle(reinterpret_cast<intptr_t>(hOurs), (bWrite ? 0 : _O_RDONLY) | _O_TEXT);
 
-	if (iFD != -1)
-	{
-		m_pipe = ::_fdopen(iFD, bWrite ? "w" : "r");
-
-		if (!m_pipe)
-		{
-			// closes hOurs as well
-			::_close(iFD);
-		}
-	}
-	else
-	{
-		::CloseHandle(hOurs);
-	}
-
-	if (!m_pipe)
+	if (m_iPipe == -1)
 	{
 		auto iErrno = errno;
-		kDebug(1, "cannot open a stream on the pipe: {}", ::strerror(iErrno));
+		kDebug(1, "cannot get a file descriptor for the pipe: {}", ::strerror(iErrno));
+		::CloseHandle(hOurs);
 		// terminates the child
 		Close(chrono::milliseconds(0));
 		m_iExitCode = iErrno;
@@ -503,11 +491,11 @@ bool KBaseShell::IntOpen (KString sCommand, bool bWrite, bool bUseShell,
 int KBaseShell::Close(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
-	if (m_pipe)
+	if (m_iPipe >= 0)
 	{
 		// the child now gets the end of its input, or a broken pipe for its output
-		std::fclose(m_pipe);
-		m_pipe = nullptr;
+		::_close(m_iPipe);
+		m_iPipe = -1;
 	}
 
 	if (m_hProcess)

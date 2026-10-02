@@ -67,7 +67,7 @@ DEKAF2_NAMESPACE_BEGIN
 #ifdef DEKAF2_IS_UNIX
 class DEKAF2_PUBLIC KOutShell : public KOutPipe
 #else
-class DEKAF2_PUBLIC KOutShell : public KBaseShell, public KFPWriter
+class DEKAF2_PUBLIC KOutShell : public KBaseShell, public KFDWriter
 #endif
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
@@ -102,6 +102,13 @@ public:
 	bool Open(KString sCommand, KStringViewZ sShell = "/bin/sh",
 			  const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
+
+#ifndef DEKAF2_IS_UNIX
+	//-----------------------------------------------------------------------------
+	/// Closes the pipe, waits up to Timeout for the child to end and returns its exit code
+	int Close(KDuration Timeout = KDuration::max());
+	//-----------------------------------------------------------------------------
+#endif
 
 }; // END KOutShell
 

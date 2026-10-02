@@ -77,11 +77,22 @@ bool KOutShell::Open(KString sCommand, KStringViewZ sShell,
 		return false;
 	}
 
-	KFPWriter::open(m_pipe);
-	
-	return KFPWriter::good();
+	KFDWriter::open(m_iPipe);
+
+	return KFDWriter::good();
 
 } // Open
+
+//-----------------------------------------------------------------------------
+int KOutShell::Close(KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	// invalidate Stream - we close it in KBaseShell::Close
+	KFDWriter::Cancel();
+
+	return KBaseShell::Close(Timeout);
+
+} // Close
 
 #endif
 

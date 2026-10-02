@@ -144,6 +144,26 @@ TEST_CASE("KInShell")
 
 }
 
+TEST_CASE("KInShell line by line")
+{
+	// a line arrives as soon as the child writes it - not only once the child has
+	// filled the buffer of the reader, or has ended
+	KInShell Shell("echo before; sleep 2; echo after");
+	REQUIRE ( Shell.is_open() );
+
+	KStopTime Timer;
+	KString sLine;
+	CHECK ( Shell.ReadLine(sLine) );
+	sLine.TrimRight();
+	CHECK ( sLine == "before" );
+	CHECK ( Timer.elapsed().milliseconds().count() < 1500 );
+
+	CHECK ( Shell.ReadLine(sLine) );
+	sLine.TrimRight();
+	CHECK ( sLine == "after" );
+	CHECK ( Shell.Close() == 0 );
+}
+
 #endif // DEKAF2_IS_WINDOWS
 
 #ifdef DEKAF2_IS_WINDOWS
@@ -222,21 +242,41 @@ TEST_CASE("KInShell Windows")
 		CHECK ( Shell.GetProcessID() == 0 );
 	}
 
+	SECTION("line by line")
+	{
+		// a line arrives as soon as the child writes it - not only once the child
+		// has filled the buffer of the reader, or has ended
+		KInShell Shell("echo before & ping -n 3 127.0.0.1 > nul & echo after");
+		REQUIRE ( Shell.is_open() );
+
+		KStopTime Timer;
+		KString sLine;
+		CHECK ( Shell.ReadLine(sLine) );
+		sLine.TrimRight();
+		CHECK ( sLine == "before" );
+		CHECK ( Timer.elapsed().milliseconds().count() < 1500 );
+
+		CHECK ( Shell.ReadLine(sLine) );
+		sLine.TrimRight();
+		CHECK ( sLine == "after" );
+		CHECK ( Shell.Close() == 0 );
+	}
+
 	SECTION("Terminate() leaves the pipe open")
 	{
 		KInShell Shell("echo before & ping -n 30 127.0.0.1 > nul");
 		REQUIRE ( Shell.is_open() );
 
-		// a read returns only with a full buffer or at the end of the input, so
-		// instead of reading the first line, give cmd.exe the time to write it
-		// and to start ping
-		kSleep(chrono::milliseconds(500));
+		// once the first line is there, ping runs
+		KString sLine;
+		CHECK ( Shell.ReadLine(sLine) );
+		sLine.TrimRight();
+		CHECK ( sLine == "before" );
 
 		KStopTime Timer;
 		CHECK ( Shell.Terminate() );
-		// the output written before is still in the pipe, and its end comes
-		// once the job with all its processes is gone
-		CHECK ( ReadOutput(Shell) == "before" );
+		// the end of the output comes once the job with all its processes is gone
+		CHECK ( ReadOutput(Shell).empty() );
 		CHECK ( Shell.Close() == -1 );
 		CHECK ( Timer.elapsed().milliseconds().count() < 5000 );
 	}

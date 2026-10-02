@@ -126,6 +126,44 @@ std::size_t kRead(int fd, void* sBuffer, std::size_t iCount)
 } // kRead
 
 //-----------------------------------------------------------------------------
+std::size_t kReadSome(int fd, void* sBuffer, std::size_t iCount)
+//-----------------------------------------------------------------------------
+{
+	if (fd < 0)
+	{
+		kDebug(1, "no file descriptor");
+		return 0;
+	}
+
+	for(;;)
+	{
+		// one read returns what is available - on a pipe or a terminal possibly
+		// less than requested, without waiting for more
+#ifndef DEKAF2_IS_WINDOWS
+		auto iRead = ::read(fd, sBuffer, iCount);
+#else
+		auto iRead = _read(fd, sBuffer,
+		                   static_cast<uint32_t>((iCount > std::numeric_limits<int32_t>::max())
+		                                          ? std::numeric_limits<int32_t>::max()
+		                                          : iCount));
+#endif
+		if (DEKAF2_LIKELY(iRead >= 0))
+		{
+			// 0 == EOF
+			return static_cast<std::size_t>(iRead);
+		}
+
+		// repeat if we got interrupted, e.g. by the SIGCHLD of a pipe's child
+		if (errno != EINTR)
+		{
+			kDebug(1, "cannot read from file: {}", strerror(errno));
+			return 0;
+		}
+	}
+
+} // kReadSome
+
+//-----------------------------------------------------------------------------
 std::size_t kRead(FILE* fp, void* sBuffer, std::size_t iCount)
 //-----------------------------------------------------------------------------
 {

@@ -47,7 +47,6 @@
 #include <dekaf2/core/init/kcompatibility.h> // pid_t on Windows
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/core/strings/kstring.h>
-#include <cstdio>
 
 #ifdef DEKAF2_IS_WINDOWS
 
@@ -114,7 +113,7 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// Executes given command with a pipe to its stdin (bWrite) or from its stdout,
-	/// saving the FILE* of the pipe in m_pipe
+	/// saving the file descriptor of our end of the pipe in m_iPipe
 	/// @param sCommand the command to execute
 	/// @param bWrite true to write to the stdin of the command, false to read its stdout
 	/// @param bUseShell true to execute the command with the command interpreter
@@ -125,7 +124,7 @@ protected:
 	             const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
 
-	FILE* m_pipe      { nullptr };
+	int   m_iPipe     { -1 };      // file descriptor of our end of the pipe
 	void* m_hProcess  { nullptr }; // HANDLE of the child process
 	void* m_hJob      { nullptr }; // HANDLE of the job with the child and the processes it starts
 	int   m_iExitCode { 0 };

@@ -76,11 +76,22 @@ bool KInShell::Open(KString sCommand, KStringViewZ sShell,
 		return false;
 	}
 	
-	KFPReader::open(m_pipe);
-	
-	return KFPReader::good();
+	KFDReader::open(m_iPipe);
+
+	return KFDReader::good();
 
 } // Open
+
+//-----------------------------------------------------------------------------
+int KInShell::Close(KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	// invalidate Stream - we close it in KBaseShell::Close
+	KFDReader::Cancel();
+
+	return KBaseShell::Close(Timeout);
+
+} // Close
 
 #endif
 

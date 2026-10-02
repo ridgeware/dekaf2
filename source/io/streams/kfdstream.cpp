@@ -65,7 +65,10 @@ std::streamsize FileDescReader(void* sBuffer, std::streamsize iCount, void* file
 
 	int fd = *static_cast<int*>(filedesc);
 
-	return static_cast<std::streamsize>(kRead(fd, sBuffer, static_cast<size_t>(iCount)));
+	// we do not need to wait until iCount chars are read, as the streambuf calls the
+	// reader again when it needs more - with kRead() a pipe would deliver a line only
+	// once the child has written a full buffer, or has ended
+	return static_cast<std::streamsize>(kReadSome(fd, sBuffer, static_cast<size_t>(iCount)));
 
 } // FileDescReader
 

@@ -59,6 +59,11 @@ DEKAF2_NAMESPACE_BEGIN
 DEKAF2_PUBLIC
 std::size_t kRead(int fd, void* sBuffer, std::size_t iCount);
 
+/// Reads up to iCount chars from file descriptor into sBuffer - waits only for the first
+/// chars, and returns what is available then. Returns 0 at the end of the input or on error
+DEKAF2_PUBLIC
+std::size_t kReadSome(int fd, void* sBuffer, std::size_t iCount);
+
 /// Reads iCount chars from FILE* into sBuffer, even on growing pipes or other unseekable inputs
 DEKAF2_PUBLIC
 std::size_t kRead(FILE* fp, void* sBuffer, std::size_t iCount);

@@ -112,8 +112,10 @@ public:
 	//-----------------------------------------------------------------------------
 	/// the Reader's function's signature:
 	/// std::streamsize Reader(void* sBuffer, std::streamsize iCount, void* CustomPointer)
-	///  - returns read bytes. CustomPointer can be used for anything, to the discretion of the
-	/// Reader.
+	///  - returns read bytes, 0 at the end of the input. It may return fewer than iCount bytes,
+	/// and on pipes and sockets it should return what is available instead of waiting for
+	/// iCount bytes - the streambuf calls it again when it needs more. CustomPointer can be
+	/// used for anything, to the discretion of the Reader.
 	using Reader = std::streamsize (*)(void*, std::streamsize, void*);
 	//-----------------------------------------------------------------------------
 

@@ -78,7 +78,7 @@ public:
 		  const std::vector<std::pair<KString, KString>>& Environment = {})
 	//-----------------------------------------------------------------------------
 	{
-		Open(std::move(sCommand), sShell);
+		Open(std::move(sCommand), sShell, Environment);
 	}
 
 	//-----------------------------------------------------------------------------

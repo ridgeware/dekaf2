@@ -86,7 +86,7 @@ public:
 			const std::vector<std::pair<KString, KString>>& Environment = {})
 	//-----------------------------------------------------------------------------
 	{
-		Open(std::move(sCommand), sShell);
+		Open(std::move(sCommand), sShell, Environment);
 	}
 
 	//-----------------------------------------------------------------------------
@@ -97,7 +97,7 @@ public:
 			const std::vector<std::pair<KString, KString>>& Environment = {})
 	//-----------------------------------------------------------------------------
 	{
-		Open(std::move(sCommand), bAsShellCommand);
+		Open(std::move(sCommand), bAsShellCommand, Environment);
 	}
 
 	//-----------------------------------------------------------------------------

@@ -227,15 +227,16 @@ TEST_CASE("KInShell Windows")
 		KInShell Shell("echo before & ping -n 30 127.0.0.1 > nul");
 		REQUIRE ( Shell.is_open() );
 
-		KString sLine;
-		CHECK ( Shell.ReadLine(sLine) );
-		sLine.TrimRight();
-		CHECK ( sLine == "before" );
+		// a read returns only with a full buffer or at the end of the input, so
+		// instead of reading the first line, give cmd.exe the time to write it
+		// and to start ping
+		kSleep(chrono::milliseconds(500));
 
 		KStopTime Timer;
 		CHECK ( Shell.Terminate() );
-		// the end of the output comes once the job with all its processes is gone
-		CHECK ( ReadOutput(Shell).empty() );
+		// the output written before is still in the pipe, and its end comes
+		// once the job with all its processes is gone
+		CHECK ( ReadOutput(Shell) == "before" );
 		CHECK ( Shell.Close() == -1 );
 		CHECK ( Timer.elapsed().milliseconds().count() < 5000 );
 	}

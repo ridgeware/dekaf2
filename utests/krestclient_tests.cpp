@@ -5,7 +5,6 @@
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 #include <dekaf2/system/os/ksystem.h>
 
-#ifndef DEKAF2_IS_WINDOWS
 
 using namespace dekaf2;
 
@@ -251,4 +250,3 @@ TEST_CASE("KRESTCLIENT")
 	}
 }
 
-#endif // of DEKAF2_IS_WINDOWS

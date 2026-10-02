@@ -9,7 +9,6 @@
 #include <dekaf2/net/quic/kquicstream.h>
 #include <dekaf2/net/util/kstreamoptions.h>
 
-#ifndef DEKAF2_IS_WINDOWS
 
 using namespace dekaf2;
 
@@ -46,5 +45,4 @@ TEST_CASE("HTTP3")
 	}
 }
 
-#endif // DEKAF2_IS_WINDOWS
 #endif // DEKAF2_HAS_NGHTTP3 && DEKAF2_HAS_NGTCP2

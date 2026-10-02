@@ -14,7 +14,6 @@
 
 using namespace dekaf2;
 
-#ifndef DEKAF2_IS_WINDOWS
 
 namespace {
 
@@ -666,4 +665,3 @@ TEST_CASE("KDTLSStream")
 #endif // DEKAF2_HAS_RELIABLE_DTLS
 }
 
-#endif // DEKAF2_IS_WINDOWS

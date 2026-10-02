@@ -10,7 +10,6 @@
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/http/client/kwebclient.h>
 
-#ifndef DEKAF2_IS_WINDOWS
 
 using namespace dekaf2;
 
@@ -922,4 +921,3 @@ TEST_CASE("KNetwork")
 
 }
 
-#endif // of DEKAF2_IS_WINDOWS

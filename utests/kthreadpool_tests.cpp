@@ -69,10 +69,6 @@ TEST_CASE("KThreadPool")
 
 		CHECK ( Queue.resize(5) );
 
-#ifndef DEKAF2_IS_WINDOWS
-		// VS 2017 has issues compiling this - it is clearly
-		// not an implementation problem of dekaf2, therefore
-		// we simply drop the test for windows..
 		auto future2 = Queue.push([&i2]() -> KString
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -91,7 +87,6 @@ TEST_CASE("KThreadPool")
 		CHECK ( future5.valid() );
 		CHECK ( future2.get() == "done" );
 		CHECK ( future5.get() == 17 );
-#endif
 	}
 
 	SECTION("forced stop")

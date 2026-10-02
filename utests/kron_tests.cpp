@@ -495,14 +495,13 @@ TEST_CASE("KRON")
 		CHECK ( Next.to_string() == kFormTimestamp(next) );
 	}
 
-#ifndef DEKAF2_IS_WINDOWS
 
 	SECTION("KRON 1")
 	{
 		Kron Cron(true, std::chrono::milliseconds(10));
 		KUnixTime tNow = KUnixTime::now();
 		KString sFilename = kFormat("{}{}test.txt", TempDir.Name(), kDirSep);
-		Cron.Scheduler().AddJob(Kron::Job::Create("JobName", tNow-chrono::seconds(1), kFormat("echo hello world > {}", sFilename)));
+		Cron.Scheduler().AddJob(Kron::Job::Create("JobName", tNow-chrono::seconds(1), kFormat("echo hello world>{}", sFilename)));
 		KString sContent;
 		for (int i = 0; i < 20; ++i)
 		{
@@ -694,7 +693,6 @@ R"({
 		}
 	}
 
-#endif
 
 }
 

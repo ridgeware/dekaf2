@@ -4,7 +4,6 @@
 #include <cwctype>
 #include <dekaf2/core/types/kctype.h>
 
-#ifndef DEKAF2_IS_WINDOWS
 
 using namespace dekaf2;
 
@@ -338,4 +337,3 @@ TEST_CASE("KCType")
 
 }
 
-#endif // Windows

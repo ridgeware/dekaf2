@@ -8,7 +8,6 @@
 #include <dekaf2/http/protocol/khttp_version.h>
 #include <dekaf2/net/util/kstreamoptions.h>
 
-#ifndef DEKAF2_IS_WINDOWS
 
 using namespace dekaf2;
 
@@ -54,5 +53,4 @@ TEST_CASE("HTTP2")
 	}
 }
 
-#endif // DEKAF2_IS_WINDOWS
 #endif // DEKAF2_HAS_NGHTTP2

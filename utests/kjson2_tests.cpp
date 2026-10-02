@@ -4,7 +4,6 @@
 #include <dekaf2/io/streams/kstringstream.h>
 #include <vector>
 
-#ifndef DEKAF2_IS_WINDOWS
 #if defined(DEKAF2_WRAPPED_KJSON) || !defined(DEKAF2_IS_GCC)
 
 using namespace dekaf2;
@@ -1494,5 +1493,4 @@ TEST_CASE("KJSON2")
 		}
 	}
 }
-#endif
 #endif

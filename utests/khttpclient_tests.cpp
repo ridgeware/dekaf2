@@ -12,7 +12,6 @@
 #include <dekaf2/io/streams/koutstringstream.h>
 #include <dekaf2/crypto/hash/kmessagedigest.h>
 
-#ifndef DEKAF2_IS_WINDOWS
 
 using namespace dekaf2;
 
@@ -399,4 +398,3 @@ TEST_CASE("KHTTPClient") {
 
 }
 
-#endif // !Windows

@@ -159,7 +159,6 @@ TEST_CASE("KWriter") {
 		CHECK ( kFileSize(sFile) == sLarge.size() );
 	}
 
-#ifndef DEKAF2_IS_WINDOWS
 
 	SECTION("Short write to TCP socket")
 	{
@@ -208,9 +207,8 @@ TEST_CASE("KWriter") {
 			CHECK ( sRx == sLarge );
 		}
 	}
-#endif
 
-#ifndef DEKAF2_IS_WINDOWS
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 	SECTION("Short write to Unix socket")
 	{
 		KString sLarge;
@@ -279,7 +277,6 @@ TEST_CASE("KWriter") {
 	}
 #endif
 
-#ifndef DEKAF2_IS_WINDOWS
 	SECTION("short write to TLS socket")
 	{
 		KString sLarge;
@@ -332,7 +329,6 @@ TEST_CASE("KWriter") {
 			CHECK ( sRx == sLarge );
 		}
 	}
-#endif
 
 	SECTION("move")
 	{

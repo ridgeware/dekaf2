@@ -4,7 +4,6 @@
 #include <dekaf2/io/streams/kstringstream.h>
 #include <vector>
 
-#ifndef DEKAF2_IS_WINDOWS
 // we use implicit conversions in the tests, which we switch off in LJSON when we wrap it
 // therefore these tests only complete without wrapped JSON
 #ifndef DEKAF2_WRAPPED_KJSON
@@ -676,7 +675,6 @@ TEST_CASE("LJSON")
 		CHECK ( kFormat("{}", j1) == R"([1,2,3,4,{"object":{"currency":"USD","value":42.99}}])" );
 	}
 }
-#endif
 #endif
 
 // LOrderedJSON is independent of the KJSON wrapping - test it unconditionally

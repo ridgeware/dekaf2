@@ -140,7 +140,6 @@ TEST_CASE("KSystem")
 #endif
 		}).join();
 
-#ifndef DEKAF2_IS_WINDOWS
 		std::thread([]()
 		{
 			// a scoped rename on an unnamed thread restores the unnamed state
@@ -151,7 +150,6 @@ TEST_CASE("KSystem")
 			}
 			CHECK ( kGetThreadName().empty() );
 		}).join();
-#endif
 	}
 
 	SECTION("kSystem")

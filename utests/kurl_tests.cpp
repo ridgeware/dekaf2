@@ -1146,9 +1146,6 @@ TEST_CASE ("KURL2") // formerly missing
         CHECK ( URL.IsHttpURL() == false );
         CHECK ( URL.Domain == "log.server.my.domain" );
 		CHECK ( URL.Port == 35 );
-#ifndef DEKAF2_IS_WINDOWS
-		CHECK ( URL.Port == 35 );
-#endif
         CHECK ( URL.Path == "" );
 		CHECK ( URL.Serialize() == "log.server.my.domain:35" );
 

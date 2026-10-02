@@ -15,7 +15,6 @@
 #include <openssl/opensslv.h>
 #include <mutex>
 
-#ifndef DEKAF2_IS_WINDOWS
 
 using namespace dekaf2;
 
@@ -358,6 +357,7 @@ TEST_CASE("KWebClient") {
 		}
 	}
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
 	SECTION("timeout Unix")
 	{
 		constexpr KRESTRoutes::FunctionTable RTable[]
@@ -438,7 +438,7 @@ TEST_CASE("KWebClient") {
 		HTTP.Disconnect();
 		sRet.clear();
 	}
+#endif // DEKAF2_HAS_UNIX_SOCKETS
 
 }
 
-#endif // !Windows

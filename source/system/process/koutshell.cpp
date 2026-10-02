@@ -49,7 +49,7 @@ DEKAF2_NAMESPACE_BEGIN
 
 //-----------------------------------------------------------------------------
 bool KOutShell::Open(KString sCommand, KStringViewZ sShell,
-					 const std::vector<std::pair<KString, KString>>& Environment)
+                     const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
 	return KOutPipe::Open(std::move(sCommand), sShell, Environment);
@@ -61,15 +61,18 @@ bool KOutShell::Open(KString sCommand, KStringViewZ sShell,
 //-----------------------------------------------------------------------------
 /// Executes given command via a shell pipe which input can be written to
 bool KOutShell::Open(KString sCommand, KStringViewZ sShell,
-					 const std::vector<std::pair<KString, KString>>& Environment)
+                     const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
 	if (!sShell.empty() && sShell != "/bin/sh")
 	{
-		kDebug(1, "shell '{}' will be ignored and '/bin/sh' be used", sShell);
+		// Windows has only its command interpreter, a shell cannot be chosen
+		kDebug(1, "shell '{}' will be ignored and the command interpreter be used", sShell);
 	}
 
-	if (!IntOpen(std::move(sCommand), true))
+	// with a shell name, the command interpreter executes the command - without
+	// one, the command is executed directly
+	if (!IntOpen(std::move(sCommand), true, !sShell.empty(), Environment))
 	{
 		return false;
 	}

@@ -65,10 +65,13 @@ bool KInShell::Open(KString sCommand, KStringViewZ sShell,
 {
 	if (!sShell.empty() && sShell != "/bin/sh")
 	{
-		kDebug(1, "shell '{}' will be ignored and '/bin/sh' be used", sShell);
+		// Windows has only its command interpreter, a shell cannot be chosen
+		kDebug(1, "shell '{}' will be ignored and the command interpreter be used", sShell);
 	}
 
-	if (!IntOpen(std::move(sCommand), false))
+	// with a shell name, the command interpreter executes the command - without
+	// one, the command is executed directly
+	if (!IntOpen(std::move(sCommand), false, !sShell.empty(), Environment))
 	{
 		return false;
 	}

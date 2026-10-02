@@ -44,11 +44,12 @@
 /// basic shell I/O class
 
 #include <dekaf2/core/init/kdefinitions.h>
+#include <dekaf2/core/init/kcompatibility.h> // pid_t on Windows
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <cstdio>
 
-#ifndef DEKAF2_IS_UNIX
+#ifdef DEKAF2_IS_WINDOWS
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -67,9 +68,17 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Get process ID of the running child, > 0 if running, else not running
+	pid_t GetProcessID() const;
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Default Constructor
 	KBaseShell() = default;
 	//-----------------------------------------------------------------------------
+
+	KBaseShell(const KBaseShell&) = delete;
+	KBaseShell& operator=(const KBaseShell&) = delete;
 
 	//-----------------------------------------------------------------------------
 	/// Destructor
@@ -77,8 +86,18 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
-	/// Closes pipe saving exit code. The wait timeout is not used
+	/// Closes the pipe, waits up to Timeout for the child to end and returns its
+	/// exit code. If the child did not end within Timeout, it is terminated together
+	/// with all processes it started, and the exit code is -1
 	int Close(KDuration Timeout = KDuration::max());
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Terminates the child together with all processes it started, but leaves the
+	/// pipe open: the output written so far can still be read, and Close() returns
+	/// the exit code -1. The termination completes asynchronously.
+	/// @return false if the child could not be terminated
+	bool Terminate();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
@@ -94,17 +113,26 @@ protected:
 //--------
 
 	//-----------------------------------------------------------------------------
-	/// Executes given command via a shell pipe saving FILE* pipe in class member
-	bool IntOpen(KString sCommand, bool bWrite,
-				 const std::vector<std::pair<KString, KString>>& Environment = {});
+	/// Executes given command with a pipe to its stdin (bWrite) or from its stdout,
+	/// saving the FILE* of the pipe in m_pipe
+	/// @param sCommand the command to execute
+	/// @param bWrite true to write to the stdin of the command, false to read its stdout
+	/// @param bUseShell true to execute the command with the command interpreter
+	/// (%COMSPEC%, cmd.exe), false to execute it directly
+	/// @param Environment pairs of names and values that will be added to the
+	/// environment of the child, an empty value removes a variable
+	bool IntOpen(KString sCommand, bool bWrite, bool bUseShell = true,
+	             const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
 
 	FILE* m_pipe      { nullptr };
+	void* m_hProcess  { nullptr }; // HANDLE of the child process
+	void* m_hJob      { nullptr }; // HANDLE of the job with the child and the processes it starts
 	int   m_iExitCode { 0 };
 
 
-}; // class KPIPE
+}; // KBaseShell
 
 DEKAF2_NAMESPACE_END
 
-#endif // !DEKAF2_IS_UNIX
+#endif // DEKAF2_IS_WINDOWS

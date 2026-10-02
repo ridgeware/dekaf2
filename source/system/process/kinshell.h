@@ -59,8 +59,8 @@ DEKAF2_NAMESPACE_BEGIN
 
 // For unixes we will use KPipe (with internal fork and exec) instead of popen,
 // as this permits us to close all open file descriptors before executing the
-// new process. It is only for Windows that we will use popen (as fork and exec
-// are not supported).
+// new process. On Windows, KBaseShell starts the new process with CreateProcessW(),
+// which equally passes only the pipe and the standard handles to the new process.
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Read on a shell instance
@@ -87,7 +87,7 @@ public:
 	/// @param sShell path to a shell to use for execution of the command (e.g. "/bin/sh"). If empty will execute child directly
 	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
 	KInShell(KString sCommand, KStringViewZ sShell = "/bin/sh",
-			 const std::vector<std::pair<KString, KString>>& Environment = {})
+	         const std::vector<std::pair<KString, KString>>& Environment = {})
 	//-----------------------------------------------------------------------------
 	{
 		Open(std::move(sCommand), sShell, Environment);
@@ -100,7 +100,7 @@ public:
 	/// @param Environment a vector of a pair of KString name and values that will be added to the child's environment
 	/// @return true on success
 	bool Open(KString sCommand, KStringViewZ sShell = "/bin/sh",
-			  const std::vector<std::pair<KString, KString>>& Environment = {});
+	          const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
 
 }; // END KInShell

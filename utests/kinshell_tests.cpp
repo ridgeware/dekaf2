@@ -145,3 +145,100 @@ TEST_CASE("KInShell")
 }
 
 #endif // DEKAF2_IS_WINDOWS
+
+#ifdef DEKAF2_IS_WINDOWS
+
+using namespace dekaf2;
+
+namespace {
+
+KString ReadOutput(KInShell& Shell)
+{
+	KString sOutput;
+	Shell.ReadRemaining(sOutput);
+	sOutput.TrimRight();
+	return sOutput;
+}
+
+} // end of anonymous namespace
+
+TEST_CASE("KInShell Windows")
+{
+	SECTION("environment for the child")
+	{
+		KInShell Shell("echo [%DEKAF2_SHELL_TEST%]", "/bin/sh", {{ "DEKAF2_SHELL_TEST", "set for the child" }});
+		REQUIRE ( Shell.is_open() );
+		CHECK   ( ReadOutput(Shell) == "[set for the child]" );
+		CHECK   ( Shell.Close() == 0 );
+	}
+
+	SECTION("environment variable removed for the child")
+	{
+		kSetEnv("DEKAF2_SHELL_TEST_REMOVE", "visible");
+		KInShell Shell("echo [%DEKAF2_SHELL_TEST_REMOVE%]", "/bin/sh", {{ "DEKAF2_SHELL_TEST_REMOVE", "" }});
+		REQUIRE ( Shell.is_open() );
+		// cmd.exe leaves the reference to an undefined variable as it is
+		CHECK   ( ReadOutput(Shell) == "[%DEKAF2_SHELL_TEST_REMOVE%]" );
+		CHECK   ( Shell.Close() == 0 );
+		kUnsetEnv("DEKAF2_SHELL_TEST_REMOVE");
+	}
+
+	SECTION("command starting with a quote")
+	{
+		// cmd.exe /c alone would remove the first and the last quote of this command
+		KInShell Shell(R"("%COMSPEC%" /d /c echo "quoted")");
+		REQUIRE ( Shell.is_open() );
+		CHECK   ( ReadOutput(Shell) == R"("quoted")" );
+		CHECK   ( Shell.Close() == 0 );
+	}
+
+	SECTION("direct execution without the command interpreter")
+	{
+		KInShell Shell("cmd.exe /d /c echo direct", "");
+		REQUIRE ( Shell.is_open() );
+		CHECK   ( ReadOutput(Shell) == "direct" );
+		CHECK   ( Shell.Close() == 0 );
+	}
+
+	SECTION("direct execution of a missing program")
+	{
+		KInShell Shell;
+		CHECK ( Shell.Open("dekaf2_this_program_does_not_exist.exe", "") == false );
+		CHECK ( Shell.GetErrno() == DEKAF2_POPEN_COMMAND_NOT_FOUND );
+	}
+
+	SECTION("Close() terminates a child that does not end within the timeout")
+	{
+		// ping waits about one second between its echo requests
+		KInShell Shell("ping -n 30 127.0.0.1 > nul");
+		REQUIRE ( Shell.is_open() );
+		CHECK   ( Shell.IsRunning() );
+		CHECK   ( Shell.GetProcessID() > 0 );
+
+		KStopTime Timer;
+		CHECK ( Shell.Close(chrono::milliseconds(200)) == -1 );
+		CHECK ( Timer.elapsed().milliseconds().count() < 5000 );
+		CHECK ( Shell.IsRunning() == false );
+		CHECK ( Shell.GetProcessID() == 0 );
+	}
+
+	SECTION("Terminate() leaves the pipe open")
+	{
+		KInShell Shell("echo before & ping -n 30 127.0.0.1 > nul");
+		REQUIRE ( Shell.is_open() );
+
+		KString sLine;
+		CHECK ( Shell.ReadLine(sLine) );
+		sLine.TrimRight();
+		CHECK ( sLine == "before" );
+
+		KStopTime Timer;
+		CHECK ( Shell.Terminate() );
+		// the end of the output comes once the job with all its processes is gone
+		CHECK ( ReadOutput(Shell).empty() );
+		CHECK ( Shell.Close() == -1 );
+		CHECK ( Timer.elapsed().milliseconds().count() < 5000 );
+	}
+}
+
+#endif // DEKAF2_IS_WINDOWS

@@ -71,6 +71,7 @@ void KBaseProcess::wait(bool bNoHang)
 		{
 			m_iExitCode = -1;
 			kDebug(1, "waitpid failed: {}", ::strerror(errno));
+			ReleaseProcessGroup();
 			m_pid = 0;
 		}
 		else if (iPid == m_pid)
@@ -95,6 +96,7 @@ void KBaseProcess::wait(bool bNoHang)
 				kDebug(1, "exited with invalid status {}", iStatus);
 			}
 
+			ReleaseProcessGroup();
 			m_pid = 0;
 		}
 		// if iPid == 0 the process is still running
@@ -160,15 +162,49 @@ void KBaseProcess::WaitOrKill(KDuration Timeout)
 		if (IsRunning())
 		{
 			// no
-			::kill(m_pid, SIGKILL);
+			KProcessGroup::SignalChild(m_pid, m_bOwnProcessGroup, SIGKILL);
 			wait(false);
 			m_iExitCode = -1;
 		}
 	}
 
+	ReleaseProcessGroup();
 	m_pid = 0;
 
 } // WaitOrKill
+
+//-----------------------------------------------------------------------------
+bool KBaseProcess::SendSignal(int iSignal)
+//-----------------------------------------------------------------------------
+{
+	if (m_pid <= 0)
+	{
+		return true;
+	}
+
+	if (KProcessGroup::SignalChild(m_pid, m_bOwnProcessGroup, iSignal) == 0 || errno == ESRCH)
+	{
+		// ESRCH: the child has ended meanwhile
+		return true;
+	}
+
+	kDebug(1, "cannot send {} to pid {}: {}", kTranslateSignal(iSignal), m_pid, ::strerror(errno));
+
+	return false;
+
+} // SendSignal
+
+//-----------------------------------------------------------------------------
+void KBaseProcess::ReleaseProcessGroup()
+//-----------------------------------------------------------------------------
+{
+	if (m_bOwnProcessGroup)
+	{
+		KProcessGroup::ReleaseChild(m_pid);
+		m_bOwnProcessGroup = false;
+	}
+
+} // ReleaseProcessGroup
 
 //-----------------------------------------------------------------------------
 void KBaseProcess::CloseAndResetFileDescriptor(int& iFileDescriptor)

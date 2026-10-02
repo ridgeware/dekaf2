@@ -47,6 +47,7 @@
 #include <dekaf2/core/init/kcompatibility.h> // pid_t on Windows
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/core/strings/kstring.h>
+#include <dekaf2/system/process/kprocessgroup.h>
 
 #ifdef DEKAF2_IS_WINDOWS
 
@@ -97,6 +98,13 @@ public:
 	/// the exit code -1. The termination completes asynchronously.
 	/// @return false if the child could not be terminated
 	bool Terminate();
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Without effect on Windows, see KProcessGroup: here the child and all processes
+	/// it starts are always in a job, which Close() with a timeout and Terminate() end
+	/// as a whole, and Ctrl-C of the console reaches all of them
+	void SetProcessGroup(KProcessGroup::Mode) {}
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

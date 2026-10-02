@@ -6,10 +6,13 @@
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/os/ksignals.h>
+#include <dekaf2/system/process/kinshell.h>
 
 #ifndef DEKAF2_IS_WINDOWS
 
 #include <signal.h>
+#include <unistd.h>
 
 using namespace dekaf2;
 
@@ -131,6 +134,99 @@ TEST_CASE("KChildProcess Stop and Kill")
 		CHECK ( Child.GetExitSignal() == SIGKILL );
 		CHECK ( iMilliseconds >= 100 );
 		CHECK ( iMilliseconds <  2000 );
+	}
+}
+
+namespace {
+
+// waits for the end of all processes of a process group - a process whose parent
+// ended is reaped by init, and is a member of the group until then
+bool ProcessGroupEnds(pid_t pgid, KDuration Timeout)
+{
+	KStopTime Timer;
+
+	for (;;)
+	{
+		if (::kill(-pgid, 0) != 0 && errno == ESRCH)
+		{
+			return true;
+		}
+
+		if (Timer.elapsed() > Timeout)
+		{
+			// clean up after a failed test
+			::kill(-pgid, SIGKILL);
+			return false;
+		}
+
+		kSleep(chrono::milliseconds(10));
+	}
+}
+
+} // end of anonymous namespace
+
+TEST_CASE("KChildProcess process groups")
+{
+	SECTION("choice of the group")
+	{
+		// an own group only without a controlling terminal, like for a service
+		CHECK ( KProcessGroup::UseOwn(KProcessGroup::Auto)   == !kHasControllingTerminal() );
+		CHECK ( KProcessGroup::UseOwn(KProcessGroup::Own)    == true  );
+		CHECK ( KProcessGroup::UseOwn(KProcessGroup::Shared) == false );
+		// the utests run with KInit(true), which forwards the signals of the terminal
+		CHECK ( KSignals::HasHandlerThread() );
+	}
+
+	SECTION("Stop() reaches the children of a shell")
+	{
+		KChildProcess Child;
+		Child.SetProcessGroup(KProcessGroup::Own);
+		// the shell runs sleep as its child, and waits for it
+		REQUIRE ( Child.Start("sh -c 'sleep 30; true'") );
+
+		auto pgid = Child.GetChildPID();
+		CHECK ( ::getpgid(pgid) == pgid );
+
+		// give the shell the time to start sleep
+		kSleep(chrono::milliseconds(200));
+
+		CHECK ( Child.Stop(chrono::seconds(2)) );
+		CHECK ( ProcessGroupEnds(pgid, chrono::seconds(2)) );
+	}
+
+	SECTION("KInShell with an own process group")
+	{
+		KInShell Shell;
+		Shell.SetProcessGroup(KProcessGroup::Own);
+		REQUIRE ( Shell.Open("sleep 30; true") );
+
+		auto pgid = Shell.GetProcessID();
+		CHECK ( ::getpgid(pgid) == pgid );
+
+		kSleep(chrono::milliseconds(200));
+
+		CHECK ( Shell.Kill(chrono::milliseconds(500)) );
+		CHECK ( ProcessGroupEnds(pgid, chrono::seconds(2)) );
+	}
+
+	SECTION("forwarded signals of the terminal")
+	{
+		KChildProcess Child;
+		Child.SetProcessGroup(KProcessGroup::Own);
+		REQUIRE ( Child.Start("sleep 30") );
+
+		auto pgid = Child.GetChildPID();
+
+		// with a controlling terminal Start() has registered the group already
+		KSignals::AddForwardedProcessGroup(pgid);
+
+		// SIGTERM is no signal of the terminal, it is not forwarded
+		KSignals::ForwardToProcessGroups(SIGTERM);
+		CHECK ( Child.Join(chrono::milliseconds(300)) == false );
+
+		KSignals::ForwardToProcessGroups(SIGINT);
+		CHECK ( Child.Join(chrono::seconds(2)) );
+		CHECK ( Child.GetExitSignal() == SIGINT );
 	}
 }
 

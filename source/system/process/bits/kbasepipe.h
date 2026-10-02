@@ -73,15 +73,26 @@ public:
 	}
 
 	//-----------------------------------------------------------------------------
-	/// Terminate the running process. Initially with signal SIGINT, after Timeout with SIGKILL
+	/// Terminate the running process. Initially with signal SIGINT, after Timeout with SIGKILL.
+	/// In an own process group, the signals reach all processes of the group.
 	bool Kill(KDuration Timeout);
 	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Set the process group for the next Open(), see KProcessGroup. Default is
+	/// KProcessGroup::Auto.
+	void SetProcessGroup(KProcessGroup::Mode Group)
+	//-----------------------------------------------------------------------------
+	{
+		m_ProcessGroup = Group;
+	}
 
 //--------
 protected:
 //--------
 
-	OpenMode m_Mode        { OpenMode::None };
+	OpenMode            m_Mode         { OpenMode::None };
+	KProcessGroup::Mode m_ProcessGroup { KProcessGroup::Auto };
 
 	// we use this nested arrangement to ensure we have all descriptors in one single array
 	int      m_readPdes[4] { -1, -1, -1, -1 };

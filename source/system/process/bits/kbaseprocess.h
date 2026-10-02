@@ -46,6 +46,7 @@
 
 #include <dekaf2/core/init/kcompatibility.h>
 #include <dekaf2/time/duration/kduration.h>
+#include <dekaf2/system/process/kprocessgroup.h>
 
 #ifdef DEKAF2_HAS_PIPES
 
@@ -76,6 +77,12 @@ public:
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
+	/// Sends iSignal to the child - in an own process group to all processes of the group
+	/// @return true if the signal was sent, or the child has ended already
+	bool SendSignal(int iSignal);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
 	/// Get exit code, 0 indicates no errors
 	int GetExitCode()
 	//-----------------------------------------------------------------------------
@@ -95,11 +102,17 @@ public:
 protected:
 //--------
 
-	pid_t m_pid       { 0 };
-	int   m_iExitCode { 0 };
+	pid_t m_pid              { 0 };
+	int   m_iExitCode        { 0 };
+	bool  m_bOwnProcessGroup { false }; // the child leads an own process group
 
 	//-----------------------------------------------------------------------------
 	void wait(bool bNoHang = true);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// the child was reaped - signals are not forwarded to its process group anymore
+	void ReleaseProcessGroup();
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------

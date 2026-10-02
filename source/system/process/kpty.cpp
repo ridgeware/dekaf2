@@ -281,6 +281,7 @@ bool KPTY::Open(LoginMode Mode,
 
 			// enable SIGPIPE
 			::signal(SIGPIPE, SIG_DFL);
+			kResetSignalHandlers();
 			kUnblockAllSignals();
 
 			// set additional environment variables

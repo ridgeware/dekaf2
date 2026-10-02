@@ -53,6 +53,7 @@
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/errors/kerror.h>
+#include <dekaf2/system/process/kprocessgroup.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -128,12 +129,18 @@ public:
 	/// Join a started child, wait max for Timeout, 0 = forever (default)
 	bool Join(KDuration Timeout = chrono::nanoseconds(0));
 
-	/// Stop a started child with SIGTERM, wait max for Timeout, 0 = forever (default)
+	/// Stop a started child with SIGTERM, wait max for Timeout, 0 = forever (default).
+	/// In an own process group, the signal reaches all processes of the group.
 	bool Stop(KDuration Timeout = chrono::nanoseconds(0));
 
 	/// Kill a started child: first with SIGTERM, and with SIGKILL if it did not end
-	/// within GracePeriod (or right away with SIGKILL if GracePeriod is 0)
+	/// within GracePeriod (or right away with SIGKILL if GracePeriod is 0). In an own
+	/// process group, the signals reach all processes of the group.
 	bool Kill(KDuration GracePeriod = chrono::milliseconds(100));
+
+	/// Set the process group for the next Start() or Fork(), see KProcessGroup.
+	/// Default is KProcessGroup::Auto.
+	void SetProcessGroup(KProcessGroup::Mode Group) { m_ProcessGroup = Group; }
 
 	/// Check if a child is started
 	bool IsStarted() const { return m_child != 0; }
@@ -156,10 +163,12 @@ protected:
 
 	void Clear();
 
-	pid_t   m_child         { 0 };
-	int     m_iExitStatus   { 0 };
-	int     m_iExitSignal   { 0 };
-	bool    m_bIsDaemonized { false };
+	pid_t               m_child            { 0 };
+	int                 m_iExitStatus      { 0 };
+	int                 m_iExitSignal      { 0 };
+	KProcessGroup::Mode m_ProcessGroup     { KProcessGroup::Auto };
+	bool                m_bIsDaemonized    { false };
+	bool                m_bOwnProcessGroup { false }; // the child leads an own process group
 
 }; // KChildProcess
 

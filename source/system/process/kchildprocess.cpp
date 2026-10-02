@@ -241,6 +241,12 @@ void kDaemonize(bool bChangeDir)
 void KChildProcess::Clear()
 //-----------------------------------------------------------------------------
 {
+	if (m_bOwnProcessGroup)
+	{
+		// the child is not ours anymore (Detach())
+		KProcessGroup::ReleaseChild(m_child);
+		m_bOwnProcessGroup = false;
+	}
 
 	m_child = 0;
 	m_iExitStatus = 0;
@@ -260,6 +266,8 @@ bool KChildProcess::Fork(int(*func)(int, char**), int argc, char* argv[])
 	}
 
 	Clear();
+
+	auto bOwnProcessGroup = KProcessGroup::UseOwn(m_ProcessGroup);
 
 	pid_t pid;
 
@@ -289,10 +297,21 @@ bool KChildProcess::Fork(int(*func)(int, char**), int argc, char* argv[])
 
 		m_child = pid;
 
+		if (bOwnProcessGroup)
+		{
+			KProcessGroup::AdoptChild(pid);
+			m_bOwnProcessGroup = true;
+		}
+
 		return true;
 	}
 
 	// child
+
+	if (bOwnProcessGroup)
+	{
+		KProcessGroup::EnterOwn();
+	}
 
 	kDebug(2, "child process started");
 
@@ -332,6 +351,9 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 	// execvp() needs a final nullptr in the array
 	cArgs.push_back(nullptr);
 
+	// a daemonized child gets an own session, and with it an own process group
+	auto bOwnProcessGroup = !bDaemonized && KProcessGroup::UseOwn(m_ProcessGroup);
+
 	pid_t pid;
 
 	if ((pid = fork()))
@@ -346,6 +368,12 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 		kDebug(2, "new pid: {}", pid);
 
 		m_child = pid;
+
+		if (bOwnProcessGroup)
+		{
+			KProcessGroup::AdoptChild(pid);
+			m_bOwnProcessGroup = true;
+		}
 
 		if (bDaemonized)
 		{
@@ -429,9 +457,15 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 	} // of bDaemonized
 	else
 	{
+		if (bOwnProcessGroup)
+		{
+			KProcessGroup::EnterOwn();
+		}
+
 		detail::kCloseOwnFilesForExec(false);
 	}
 
+	kResetSignalHandlers();
 	kUnblockAllSignals();
 
 	if (!sChangeDirectory.empty())
@@ -551,6 +585,12 @@ bool KChildProcess::Join(KDuration Timeout)
 			kDebug(1, "pid {} stopped by signal {} ({})", success, WSTOPSIG(status), kTranslateSignal(WSTOPSIG(status)));
 		}
 
+		if (m_bOwnProcessGroup)
+		{
+			KProcessGroup::ReleaseChild(m_child);
+			m_bOwnProcessGroup = false;
+		}
+
 		m_child = 0;
 		m_bIsDaemonized = false;
 	}
@@ -569,7 +609,7 @@ bool KChildProcess::Stop(KDuration Timeout)
 	}
 
 	// send a SIGTERM
-	if (::kill(m_child, SIGTERM))
+	if (KProcessGroup::SignalChild(m_child, m_bOwnProcessGroup, SIGTERM))
 	{
 		return SetErrnoError("kill(): ");
 	}
@@ -593,7 +633,7 @@ bool KChildProcess::Kill(KDuration GracePeriod)
 	if (GracePeriod.count() > 0)
 	{
 		// give the child the chance to end gracefully
-		if (::kill(m_child, SIGTERM))
+		if (KProcessGroup::SignalChild(m_child, m_bOwnProcessGroup, SIGTERM))
 		{
 			return SetErrnoError("kill(): ");
 		}
@@ -612,7 +652,7 @@ bool KChildProcess::Kill(KDuration GracePeriod)
 	}
 
 	// SIGKILL cannot be caught, blocked or ignored
-	if (::kill(m_child, SIGKILL))
+	if (KProcessGroup::SignalChild(m_child, m_bOwnProcessGroup, SIGKILL))
 	{
 		return SetErrnoError("kill(): ");
 	}

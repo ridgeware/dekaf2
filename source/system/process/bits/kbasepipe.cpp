@@ -165,36 +165,48 @@ bool KBasePipe::Open(std::vector<KString> Args, OpenMode Mode, const std::vector
 	// terminate with nullptr
 	argV.push_back(nullptr);
 
+	auto bOwnProcessGroup = KProcessGroup::UseOwn(m_ProcessGroup);
+
 	// create a child
 	switch (m_pid = ::fork())
 	{
 		case -1: /* error */
 		{
-			kWarning("cannot fork '{}': {}", sCommand, ::strerror(errno));
+			auto iErrno = errno;
 
-			// could not create the child
+			kWarning("cannot fork '{}': {}", sCommand, ::strerror(iErrno));
+
+			// could not create the child - close both ends of the pipes
 			if (m_Mode & PipeRead)
 			{
 				CloseAndResetFileDescriptor(m_readPdes[0]);
-				// the other side gets closed anyway in the regular parent code
+				CloseAndResetFileDescriptor(m_readPdes[1]);
 			}
 
 			if (m_Mode & PipeWrite)
 			{
+				CloseAndResetFileDescriptor(m_writePdes[0]);
 				CloseAndResetFileDescriptor(m_writePdes[1]);
-				// the other side gets closed anyway in the regular parent code
 			}
 
-			m_pid = 0;
-			break;
+			m_pid       = 0;
+			m_iExitCode = iErrno;
+
+			return false;
 		}
 
 		case 0: /* child */
 		{
+			if (bOwnProcessGroup)
+			{
+				KProcessGroup::EnterOwn();
+			}
+
 			detail::kCloseOwnFilesForExec(false, m_readPdes, 4);
 
 			// enable SIGPIPE!
 			::signal(SIGPIPE, SIG_DFL);
+			kResetSignalHandlers();
 			kUnblockAllSignals();
 
 			if (m_Mode & PipeWrite)
@@ -234,6 +246,12 @@ bool KBasePipe::Open(std::vector<KString> Args, OpenMode Mode, const std::vector
 	}
 
 	// only parent gets here
+
+	if (bOwnProcessGroup)
+	{
+		KProcessGroup::AdoptChild(m_pid);
+		m_bOwnProcessGroup = true;
+	}
 
 	if (m_Mode & PipeRead)
 	{
@@ -287,7 +305,7 @@ bool KBasePipe::Kill(KDuration Timeout)
 	}
 
 	// send a SIGINT
-	::kill(m_pid, SIGINT);
+	KProcessGroup::SignalChild(m_pid, m_bOwnProcessGroup, SIGINT);
 
 	// call Close() which will send a SIGKILL after waiting
 	Close(Timeout);

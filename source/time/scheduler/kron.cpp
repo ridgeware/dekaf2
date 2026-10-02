@@ -376,14 +376,14 @@ bool Kron::Job::Kill()
 #ifdef DEKAF2_IS_UNIX
 	std::shared_lock<std::shared_mutex> Lock(m_ExecMutex);
 
-	if (m_Control.ProcessID > 0)
+	if (m_Shell)
 	{
-		auto iFailed = kill(m_Control.ProcessID, SIGKILL);
-
-		// ESRCH == no process found, that means the process was killed in between
-		if (iFailed && iFailed != ESRCH)
+		// in an own process group (the default without a controlling terminal, like
+		// for a service) the signal reaches the shell of the job and all processes it
+		// started - Wait() reads the remaining output and the exit code
+		if (!m_Shell->SendSignal(SIGKILL))
 		{
-			kDebug(1, "cannot kill job '{}': {}", Name(), strerror(errno));
+			kDebug(1, "cannot kill job '{}'", Name());
 			return false;
 		}
 	}

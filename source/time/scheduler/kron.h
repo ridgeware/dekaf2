@@ -165,7 +165,7 @@ public:
 		DEKAF2_NODISCARD
 		const KString& Name() const { return m_sName; }
 
-		/// kill the job, will return false on Windows (and hence not work there)
+		/// kill the job - on Windows together with all processes it started
 		bool Kill();
 
 		/// returns true if the job is running longer than permitted, and will terminate it in that case

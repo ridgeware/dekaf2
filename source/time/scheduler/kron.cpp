@@ -312,10 +312,8 @@ bool Kron::Job::Start()
 		return false;
 	}
 
-#ifdef DEKAF2_IS_UNIX
-	// record the process ID, but not on Windows, as there we use popen and not fork ..
+	// record the process ID
 	m_Control.ProcessID = m_Shell->GetProcessID();
-#endif
 
 	// unlock during execution
 	Lock.unlock();
@@ -391,7 +389,19 @@ bool Kron::Job::Kill()
 	}
 	return true;
 #else
-	return false;
+	std::shared_lock<std::shared_mutex> Lock(m_ExecMutex);
+
+	if (m_Shell)
+	{
+		// terminates the command interpreter of the job and all processes it started,
+		// but leaves the pipe open - Wait() reads the remaining output and the exit code
+		if (!m_Shell->Terminate())
+		{
+			kDebug(1, "cannot kill job '{}'", Name());
+			return false;
+		}
+	}
+	return true;
 #endif
 
 } // Kill

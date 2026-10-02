@@ -793,10 +793,14 @@ bool KTCPServer::SetupUnixAcceptor()
 	}
 
 	boost::asio::local::stream_protocol::endpoint local_endpoint(m_sSocketFile.c_str());
-	m_UnixAcceptor = std::make_shared<boost::asio::local::stream_protocol::acceptor>(m_asio, local_endpoint, true); // true == reuse addr
+	// no SO_REUSEADDR: it has no meaning for unix domain sockets, whose file was removed above
+	m_UnixAcceptor = std::make_shared<boost::asio::local::stream_protocol::acceptor>(m_asio, local_endpoint, false);
 
-	// make socket read/writeable for world
+#ifndef DEKAF2_IS_WINDOWS
+	// make socket read/writeable for world - on Windows the ACL of the socket file
+	// controls the access, which the mode bits do not reach
 	kChangeMode(m_sSocketFile, 0777);
+#endif
 
 	if (!m_UnixAcceptor->is_open())
 	{

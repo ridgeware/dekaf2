@@ -1519,6 +1519,44 @@ TEST_CASE("KTCPEndPoint")
 		KTCPEndPoint EP("[ac42::1234:5678]:8080");
 		CHECK ( EP.Serialize() == "[ac42::1234:5678]:8080" );
 	}
+
+	SECTION("unix domain socket")
+	{
+		KTCPEndPoint EP("/var/run/app.sock");
+		CHECK ( EP.bIsUnixDomain );
+		CHECK ( EP.Serialize() == "/var/run/app.sock" );
+
+		KTCPEndPoint EP2(KURL("unix:///var/run/app.sock"));
+		CHECK ( EP2.bIsUnixDomain );
+		CHECK ( EP2.Domain.get() == "/var/run/app.sock" );
+	}
+
+#ifdef DEKAF2_IS_WINDOWS
+	SECTION("unix domain socket on Windows")
+	{
+		KTCPEndPoint EP("C:\\dir\\app.sock");
+		CHECK ( EP.bIsUnixDomain );
+		CHECK ( EP.Domain.get() == "C:\\dir\\app.sock" );
+
+		KTCPEndPoint EP2("C:/dir/app.sock");
+		CHECK ( EP2.bIsUnixDomain );
+		CHECK ( EP2.Domain.get() == "C:/dir/app.sock" );
+
+		// as with file URLs, the path of the URL has a slash before the drive letter
+		KTCPEndPoint EP3(KURL("unix:///C:/dir/app.sock"));
+		CHECK ( EP3.bIsUnixDomain );
+		CHECK ( EP3.Domain.get() == "C:/dir/app.sock" );
+
+		KTCPEndPoint EP4("unix:///C:/dir/app.sock");
+		CHECK ( EP4.bIsUnixDomain );
+		CHECK ( EP4.Domain.get() == "C:/dir/app.sock" );
+
+		// a host with a port stays one
+		KTCPEndPoint EP5("c:80");
+		CHECK ( EP5.bIsUnixDomain == false );
+		CHECK ( EP5.Port.get() == 80 );
+	}
+#endif
 }
 
 TEST_CASE("URIComponent")

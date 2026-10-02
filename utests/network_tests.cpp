@@ -49,6 +49,15 @@ void plain_echo_handler(KRESTServer& REST)
 uint16_t g_iHTTPPort  = 18710;
 uint16_t g_iHTTPSPort = 18750;
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+// the URL of a unix domain socket - on Windows, the path starts with a drive letter,
+// which needs a slash before it, as in file:///C:/dir
+KURL UnixSocketURL(KStringView sSocketFile)
+{
+	return KURL(kFormat("unix://{}{}", (!sSocketFile.empty() && sSocketFile.front() == '/') ? "" : "/", sSocketFile));
+}
+#endif
+
 } // end of anonymous namespace
 
 // ============================================================================
@@ -423,10 +432,14 @@ TEST_CASE("KNetwork")
 		KREST Server;
 		REQUIRE ( Server.Execute(Options, Routes) );
 
+		// on Windows the socket file is a reparse point
+		CHECK ( KFileStat(sSocketFile).IsSocket() );
+		CHECK ( KFileStat(sSocketFile, true).IsSocket() );
+
 		{
 			KWebClient HTTP;
 			HTTP.SetTimeout(chrono::seconds(3));
-			KURL ConnectURL = kFormat("unix://{}", sSocketFile);
+			KURL ConnectURL = UnixSocketURL(sSocketFile);
 
 			auto sResult = HTTP.HttpRequest2Host(ConnectURL, "localhost/ping", KHTTPMethod::GET);
 			CHECK ( HTTP.GetStatusCode() == 200 );
@@ -445,7 +458,7 @@ TEST_CASE("KNetwork")
 		{
 			KWebClient HTTP;
 			HTTP.SetTimeout(chrono::seconds(3));
-			KURL ConnectURL = kFormat("unix://{}", sSocketFile);
+			KURL ConnectURL = UnixSocketURL(sSocketFile);
 
 			auto sResult = HTTP.HttpRequest2Host(ConnectURL, "localhost/echo", KHTTPMethod::POST, "hello unix", KMIME::TEXT_PLAIN);
 			CHECK ( HTTP.GetStatusCode() == 200 );
@@ -481,7 +494,7 @@ TEST_CASE("KNetwork")
 		{
 			KWebClient HTTP;
 			HTTP.SetTimeout(chrono::seconds(3));
-			KURL ConnectURL = kFormat("unix://{}", sSocketFile);
+			KURL ConnectURL = UnixSocketURL(sSocketFile);
 
 			auto sResult = HTTP.HttpRequest2Host(ConnectURL, "localhost/ok", KHTTPMethod::GET);
 			CHECK ( HTTP.GetStatusCode() == 200 );

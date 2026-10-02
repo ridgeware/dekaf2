@@ -1476,7 +1476,8 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// construct from a KURL object
+	/// construct from a KURL object - a unix domain socket has a URL like
+	/// unix:///var/run/app.sock, on Windows like unix:///C:/dir/app.sock
 	KTCPEndPoint(const KURL& URL);
 	//-------------------------------------------------------------------------
 
@@ -1516,7 +1517,8 @@ public:
 	}
 
 	//-------------------------------------------------------------------------
-	/// parse from a string view
+	/// parse from a string view - a path that starts with a slash (on Windows also
+	/// one with a drive letter) or a unix URL is a unix domain socket
 	KStringView Parse(KStringView svSource);
 	//-------------------------------------------------------------------------
 

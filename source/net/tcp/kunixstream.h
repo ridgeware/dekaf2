@@ -155,7 +155,9 @@ public:
 	virtual native_socket_type GetNativeSocket() override final
 	//-----------------------------------------------------------------------------
 	{
-		return GetUnixSocket().native_handle();
+		// on Windows, the native handle types of Asio differ by protocol, but all
+		// hold the same SOCKET
+		return static_cast<boost::asio::detail::socket_type>(GetUnixSocket().native_handle());
 	}
 
 	//-----------------------------------------------------------------------------

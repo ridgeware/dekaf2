@@ -24,6 +24,15 @@ std::atomic<bool> g_bDone { false };
 
 KTempDir MySocketDir(true, 95);
 
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+// the URL of a unix domain socket - on Windows, the path starts with a drive letter,
+// which needs a slash before it, as in file:///C:/dir
+KURL UnixSocketURL(KStringView sSocketFile)
+{
+	return KURL(kFormat("unix://{}{}", (!sSocketFile.empty() && sSocketFile.front() == '/') ? "" : "/", sSocketFile));
+}
+#endif
+
 void rest_test_no_timeout(KRESTServer& REST)
 {
 	REST.SetRawOutput(REST.GetRequestBody());
@@ -392,7 +401,7 @@ TEST_CASE("KWebClient") {
 
 		KOutStringStream oss(sRet);
 
-		KURL ConnectURL = kFormat("unix://{}", Options.sSocketFile);
+		KURL ConnectURL = UnixSocketURL(Options.sSocketFile);
 
 		HTTP.HttpRequest2Host(oss, ConnectURL, "localhost/test0", KHTTPMethod::GET);
 		CHECK( sRet == "" );

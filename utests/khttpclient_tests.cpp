@@ -16,8 +16,19 @@
 using namespace dekaf2;
 
 namespace {
+
 KTempDir TempDir(true, 95);
+
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+// the URL of a unix domain socket - on Windows, the path starts with a drive letter,
+// which needs a slash before it, as in file:///C:/dir
+KURL UnixSocketURL(KStringView sSocketFile)
+{
+	return KURL(kFormat("unix://{}{}", (!sSocketFile.empty() && sSocketFile.front() == '/') ? "" : "/", sSocketFile));
 }
+#endif
+
+} // end of anonymous namespace
 
 class KTinyHTTPServer : public KTCPServer
 {
@@ -166,7 +177,7 @@ TEST_CASE("KHTTPClient") {
 		KURL URL("http://127.0.0.1:7654/path?query=val&another=here#fragment");
 
 		KHTTPClient cHTTP;
-		KURL ConnectURL(kFormat("unix://{}", sSocketFile));
+		KURL ConnectURL = UnixSocketURL(sSocketFile);
 		cHTTP.Connect(ConnectURL); // the file system path
 		cHTTP.Resource(URL); // the request path (protocol and domain parts are not used)
 		CHECK( cHTTP.Serialize() == true );

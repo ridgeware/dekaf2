@@ -865,6 +865,39 @@ bool KURL::operator<(const KURL& other) const
 	return false;
 }
 
+namespace {
+
+#ifdef DEKAF2_IS_WINDOWS
+//-------------------------------------------------------------------------
+/// returns true if sPath starts with a drive letter and a colon, like C: of C:\dir
+bool StartsWithDrive(KStringView sPath)
+//-------------------------------------------------------------------------
+{
+	return sPath.size() >= 2 && KASCII::kIsAlpha(sPath[0]) && sPath[1] == ':';
+
+} // StartsWithDrive
+#endif
+
+//-------------------------------------------------------------------------
+/// returns the file system path of a unix domain socket from the path of a URL
+KStringView SocketPath(KStringView sPath)
+//-------------------------------------------------------------------------
+{
+#ifdef DEKAF2_IS_WINDOWS
+	// the path of a URL like unix:///C:/dir/socket has a slash before the drive letter,
+	// as the path of a file URL
+	if (sPath.size() >= 3 && sPath.front() == '/' && StartsWithDrive(sPath.substr(1)))
+	{
+		sPath.remove_prefix(1);
+	}
+#endif
+
+	return sPath;
+
+} // SocketPath
+
+} // end of anonymous namespace
+
 //-------------------------------------------------------------------------
 KTCPEndPoint::KTCPEndPoint(const KURL& URL)
 //-------------------------------------------------------------------------
@@ -873,7 +906,7 @@ KTCPEndPoint::KTCPEndPoint(const KURL& URL)
 	if (URL.Protocol == url::KProtocol::UNIX && Domain.empty())
 	{
 		bIsUnixDomain = true;
-		Domain.get()  = URL.Path;
+		Domain.get()  = SocketPath(URL.Path.get());
 	}
 	else if (Port.empty())
 	{
@@ -895,11 +928,16 @@ KStringView KTCPEndPoint::Parse(KStringView svSource)
 	url::KProtocol Protocol;
 	svSource = Protocol.Parse  (svSource);
 
-	if (Protocol == url::KProtocol::UNIX || svSource.front() == '/')
+	if (Protocol == url::KProtocol::UNIX || svSource.front() == '/'
+#ifdef DEKAF2_IS_WINDOWS
+		// an absolute path on Windows starts with a drive letter
+		|| (svSource.size() >= 3 && StartsWithDrive(svSource) && (svSource[2] == '\\' || svSource[2] == '/'))
+#endif
+		)
 	{
 		// this is a unix domain endpoint ..
 		bIsUnixDomain = true;
-		Domain.get() = svSource;
+		Domain.get() = SocketPath(svSource);
 		svSource.clear();
 	}
 	else

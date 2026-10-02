@@ -1857,16 +1857,33 @@ DWORD ReadFileStatWithoutHandle(const std::wstring& wsPath, KFileStat& Stat)
 
 } // ReadFileStatWithoutHandle
 
+// the reparse tag of a unix domain socket, IO_REPARSE_TAG_AF_UNIX - older SDKs miss it
+constexpr DWORD ReparseTagAFUnix = 0x80000023;
+
 //-----------------------------------------------------------------------------
-/// returns true if hFile, opened with FILE_FLAG_OPEN_REPARSE_POINT, is a symbolic link or a junction
-bool IsLink(HANDLE hFile)
+/// returns the reparse tag of hFile, opened with FILE_FLAG_OPEN_REPARSE_POINT, or 0
+/// if it is no reparse point
+DWORD ReparseTag(HANDLE hFile)
 //-----------------------------------------------------------------------------
 {
 	FILE_ATTRIBUTE_TAG_INFO Tag;
 
-	return ::GetFileInformationByHandleEx(hFile, FileAttributeTagInfo, &Tag, static_cast<DWORD>(sizeof(Tag)))
-	    && (Tag.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
-	    && (Tag.ReparseTag == IO_REPARSE_TAG_SYMLINK || Tag.ReparseTag == IO_REPARSE_TAG_MOUNT_POINT);
+	if (::GetFileInformationByHandleEx(hFile, FileAttributeTagInfo, &Tag, static_cast<DWORD>(sizeof(Tag)))
+	    && (Tag.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT))
+	{
+		return Tag.ReparseTag;
+	}
+
+	return 0;
+
+} // ReparseTag
+
+//-----------------------------------------------------------------------------
+/// returns true if the reparse tag is the one of a symbolic link or a junction
+bool IsLink(DWORD dwReparseTag)
+//-----------------------------------------------------------------------------
+{
+	return dwReparseTag == IO_REPARSE_TAG_SYMLINK || dwReparseTag == IO_REPARSE_TAG_MOUNT_POINT;
 
 } // IsLink
 
@@ -1946,7 +1963,13 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 
 		dwError = File.IsOpen() ? ReadFileStat(File.Get(), *this) : ::GetLastError();
 
-		if (dwError == 0 && bDetectSymlinks && IsLink(File.Get()))
+		DWORD dwReparseTag = (dwError == 0 && bDetectSymlinks) ? ReparseTag(File.Get()) : 0;
+
+		if (dwReparseTag == ReparseTagAFUnix)
+		{
+			SetType(KFileType::SOCKET);
+		}
+		else if (IsLink(dwReparseTag))
 		{
 			// like stat() after lstat(): the type stays the link, all other values are
 			// those of the target - a link to a missing target keeps its own values
@@ -1958,6 +1981,19 @@ KFileStat::KFileStat(const KStringViewZ sFilename, bool bDetectSymlinks)
 			}
 
 			SetType(KFileType::SYMLINK);
+		}
+	}
+
+	if (dwError != 0 && !IsNotFound(dwError))
+	{
+		// a unix domain socket cannot be opened as a file, only the reparse point
+		// that represents it
+		AttributeHandle Socket(wsFilename, true);
+
+		if (Socket.IsOpen() && ReparseTag(Socket.Get()) == ReparseTagAFUnix && ReadFileStat(Socket.Get(), *this) == 0)
+		{
+			SetType(KFileType::SOCKET);
+			dwError = 0;
 		}
 	}
 

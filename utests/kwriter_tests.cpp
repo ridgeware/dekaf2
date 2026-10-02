@@ -13,6 +13,10 @@ using namespace dekaf2;
 
 namespace {
 KTempDir TempDir;
+#ifdef DEKAF2_HAS_UNIX_SOCKETS
+// the path of a unix domain socket has at most 108 characters
+KTempDir SocketDir(true, 95);
+#endif
 }
 
 class KMyServer : public KTCPServer
@@ -222,7 +226,7 @@ TEST_CASE("KWriter") {
 		kSystem("rm -f /tmp/short.socket");
 		sSocket = "/tmp/short.socket";
 #else
-		sSocket = kFormat("{}/short.socket", TempDir.Name());
+		sSocket = kFormat("{}/short.socket", SocketDir.Name());
 #endif
 		KMyServer Server(sSocket, 5);
 		Server.Start(chrono::seconds(5), false);
@@ -257,7 +261,7 @@ TEST_CASE("KWriter") {
 		kSystem("rm -f /tmp/large.socket");
 		sSocket = "/tmp/large.socket";
 #else
-		sSocket = kFormat("{}/large.socket", TempDir.Name());
+		sSocket = kFormat("{}/large.socket", SocketDir.Name());
 #endif
 		KMyServer Server(sSocket, 5);
 		Server.Start(chrono::seconds(5), false);

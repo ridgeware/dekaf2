@@ -1088,15 +1088,11 @@ if (false)
 	message(STATUS "boost-libs: ${Boost_LIBRARIES}")
 endif()
 
-if (IS_WINDOWS_NONONO)
-	# windows local sockets require more changes than simply
-	# swapping them in for tcp sockets - currently disabled
-	#
-	# enable unix sockets if Windows >= 10 and Boost >= 1.75
-	if (WINDOWS_VERSION GREATER_EQUAL 10)
-		if (Boost_VERSION_MACRO GREATER_EQUAL 107500)
-			SET(DEKAF2_HAS_UNIX_SOCKETS ON)
-		endif()
+if (IS_WINDOWS)
+	# unix domain sockets exist since Windows 10 (1803), and Boost.Asio supports
+	# them on Windows since Boost 1.75
+	if (WINDOWS_VERSION GREATER_EQUAL 10 AND Boost_VERSION_MACRO GREATER_EQUAL 107500)
+		set(DEKAF2_HAS_UNIX_SOCKETS ON)
 	endif()
 endif()
 

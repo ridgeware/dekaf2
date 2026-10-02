@@ -4,6 +4,7 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
+#include <dekaf2/io/readwrite/kreader.h>
 #include <iostream>
 
 using namespace dekaf2;
@@ -11,6 +12,8 @@ using namespace dekaf2;
 namespace {
 KTempDir TempDir;
 }
+
+#ifdef DEKAF2_IS_UNIX
 
 TEST_CASE("KOutPipe")
 {
@@ -64,5 +67,38 @@ TEST_CASE("KOutPipe")
 		CHECK_FALSE(readPipe.IsRunning());
 	}
 }
+
+#endif // DEKAF2_IS_UNIX
+
+#ifdef DEKAF2_IS_WINDOWS
+
+TEST_CASE("KOutPipe Windows")
+{
+	SECTION("write to a program")
+	{
+		auto sFile = kFormat("{}\\koutpipe.txt", TempDir.Name());
+
+		// sort writes its input only once it has read all of it - Close() ends the input
+		KOutPipe pipe(kFormat("sort > \"{}\"", sFile), "/bin/sh");
+		REQUIRE ( pipe.is_open() );
+		CHECK   ( pipe.IsRunning() );
+		pipe.Write("b\na\n");
+		CHECK   ( pipe.Close() == 0 );
+		CHECK   ( pipe.IsRunning() == false );
+
+		auto sContent = kReadAll(sFile);
+		sContent.Replace("\r", "");
+		CHECK ( sContent == "a\nb\n" );
+	}
+
+	SECTION("empty command")
+	{
+		KOutPipe pipe;
+		CHECK ( pipe.Open("") == false );
+		CHECK ( pipe.Close() == EINVAL );
+	}
+}
+
+#endif // DEKAF2_IS_WINDOWS
 
 #endif

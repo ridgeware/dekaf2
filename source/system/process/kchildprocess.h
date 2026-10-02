@@ -47,18 +47,20 @@
 /// processes
 
 #include <dekaf2/core/init/kcompatibility.h>
-
-#ifndef DEKAF2_IS_WINDOWS
-
 #include <dekaf2/time/duration/kduration.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/errors/kerror.h>
 #include <dekaf2/system/process/kprocessgroup.h>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <dekaf2/system/process/bits/kwindowsprocess.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
 
 /// @addtogroup system_process
 /// @{
+
+#ifndef DEKAF2_IS_WINDOWS
 
 namespace detail {
 
@@ -85,6 +87,8 @@ void kCloseOwnFilesForExec(bool bIncludeStandardIO, int Exempt[] = nullptr, size
 //-----------------------------------------------------------------------------
 
 } // end of namespace detail
+
+#endif // of !DEKAF2_IS_WINDOWS
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 /// Start and control a child process
@@ -116,12 +120,17 @@ public:
 	/// Start a child with sCommand, change to sChangeDirectory, and detach
 	/// from terminal if bDaemonized is true. A daemonized child is no child of
 	/// this process: it cannot be joined, stopped or killed through this class.
+	/// On Windows, sCommand is the command line for the child, which splits it into
+	/// its arguments itself, and a daemonized child runs without a console and
+	/// outside the job of this process.
 	bool Start(KString sCommand,
 			   KStringViewZ sChangeDirectory = KStringViewZ{},
 			   bool bDaemonized = false);
 
+#ifndef DEKAF2_IS_WINDOWS
 	/// Fork the current process image, tell an entry function and pass (or leave default empty) argc, argv values
 	bool Fork(int(*func)(int, char**), int argc = 0, char* argv[] = nullptr);
+#endif
 
 	/// Detach child so that it will not be killed when this class is destructed
 	bool Detach();
@@ -130,16 +139,20 @@ public:
 	bool Join(KDuration Timeout = chrono::nanoseconds(0));
 
 	/// Stop a started child with SIGTERM, wait max for Timeout, 0 = forever (default).
-	/// In an own process group, the signal reaches all processes of the group.
+	/// In an own process group, the signal reaches all processes of the group. Windows has
+	/// no SIGTERM: there the child is terminated right away, together with all processes
+	/// it started, and its exit status is -1.
 	bool Stop(KDuration Timeout = chrono::nanoseconds(0));
 
 	/// Kill a started child: first with SIGTERM, and with SIGKILL if it did not end
 	/// within GracePeriod (or right away with SIGKILL if GracePeriod is 0). In an own
-	/// process group, the signals reach all processes of the group.
+	/// process group, the signals reach all processes of the group. On Windows the child
+	/// is terminated right away, together with all processes it started, and its exit
+	/// status is -1.
 	bool Kill(KDuration GracePeriod = chrono::milliseconds(100));
 
 	/// Set the process group for the next Start() or Fork(), see KProcessGroup.
-	/// Default is KProcessGroup::Auto.
+	/// Default is KProcessGroup::Auto. Without effect on Windows.
 	void SetProcessGroup(KProcessGroup::Mode Group) { m_ProcessGroup = Group; }
 
 	/// Check if a child is started
@@ -154,7 +167,7 @@ public:
 	/// Returns the exit status of a terminated child (or 0)
 	int GetExitStatus() const { return m_iExitStatus; }
 
-	/// Returns the exit signal of a terminated child (or 0)
+	/// Returns the exit signal of a terminated child (or 0) - always 0 on Windows
 	int GetExitSignal() const { return m_iExitSignal; }
 
 //------
@@ -169,6 +182,9 @@ protected:
 	KProcessGroup::Mode m_ProcessGroup     { KProcessGroup::Auto };
 	bool                m_bIsDaemonized    { false };
 	bool                m_bOwnProcessGroup { false }; // the child leads an own process group
+#ifdef DEKAF2_IS_WINDOWS
+	KWindowsProcess     m_Process;
+#endif
 
 }; // KChildProcess
 
@@ -176,5 +192,3 @@ protected:
 /// @}
 
 DEKAF2_NAMESPACE_END
-
-#endif // of !DEKAF2_IS_WINDOWS

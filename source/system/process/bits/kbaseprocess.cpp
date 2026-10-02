@@ -47,9 +47,103 @@
 #include <dekaf2/core/logging/klog.h>
 #include <csignal>
 #include <thread>
-#include <unistd.h>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+#ifdef DEKAF2_IS_WINDOWS
+
+//-----------------------------------------------------------------------------
+bool KBaseProcess::IsRunning()
+//-----------------------------------------------------------------------------
+{
+	if (!m_Process.IsStarted())
+	{
+		return false;
+	}
+
+	if (!m_Process.Wait(chrono::milliseconds(0)))
+	{
+		return true;
+	}
+
+	m_iExitCode = m_Process.GetExitCode();
+	kDebug(2, "exited with return value {}", m_iExitCode);
+
+	return false;
+
+} // IsRunning
+
+//-----------------------------------------------------------------------------
+bool KBaseProcess::Wait(KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Process.IsStarted())
+	{
+		return true;
+	}
+
+	if (!m_Process.Wait(Timeout))
+	{
+		return false;
+	}
+
+	m_iExitCode = m_Process.GetExitCode();
+	kDebug(2, "exited with return value {}", m_iExitCode);
+
+	return true;
+
+} // Wait
+
+//-----------------------------------------------------------------------------
+void KBaseProcess::WaitOrKill(KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	if (!Wait(Timeout))
+	{
+		kDebug(1, "child did not end within {}, terminating it", Timeout);
+
+		m_Process.Terminate();
+
+		// the termination is asynchronous
+		m_Process.Wait(chrono::milliseconds(100));
+
+		m_iExitCode = -1;
+	}
+
+	// also the job, which still held processes the child started
+	m_Process.Release();
+
+} // WaitOrKill
+
+//-----------------------------------------------------------------------------
+bool KBaseProcess::Terminate()
+//-----------------------------------------------------------------------------
+{
+	return m_Process.Terminate();
+
+} // Terminate
+
+//-----------------------------------------------------------------------------
+void KBaseProcess::CloseAndResetFileDescriptor(int& iFileDescriptor)
+//-----------------------------------------------------------------------------
+{
+	if (iFileDescriptor >= 0)
+	{
+		if (::_close(iFileDescriptor))
+		{
+			kDebug(2, "error closing file descriptor {}: {}", iFileDescriptor, ::strerror(errno));
+		}
+		iFileDescriptor = -1;
+	}
+
+} // CloseAndResetFileDescriptor
+
+#else // DEKAF2_IS_WINDOWS
 
 //-----------------------------------------------------------------------------
 void KBaseProcess::wait(bool bNoHang)
@@ -195,6 +289,15 @@ bool KBaseProcess::SendSignal(int iSignal)
 } // SendSignal
 
 //-----------------------------------------------------------------------------
+bool KBaseProcess::Terminate()
+//-----------------------------------------------------------------------------
+{
+	// SIGKILL cannot be caught, blocked or ignored
+	return SendSignal(SIGKILL);
+
+} // Terminate
+
+//-----------------------------------------------------------------------------
 void KBaseProcess::ReleaseProcessGroup()
 //-----------------------------------------------------------------------------
 {
@@ -220,6 +323,8 @@ void KBaseProcess::CloseAndResetFileDescriptor(int& iFileDescriptor)
 	}
 
 } // CloseAndResetFileDescriptor
+
+#endif // DEKAF2_IS_WINDOWS
 
 DEKAF2_NAMESPACE_END
 

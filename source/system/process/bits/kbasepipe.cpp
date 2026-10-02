@@ -51,8 +51,179 @@
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/format/kformat.h>
 #include <csignal>
+#ifdef DEKAF2_IS_WINDOWS
+	#include <windows.h>
+	#include <io.h>
+	#include <fcntl.h>
+#endif
 
 DEKAF2_NAMESPACE_BEGIN
+
+#ifdef DEKAF2_IS_WINDOWS
+
+//-----------------------------------------------------------------------------
+bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const std::vector<std::pair<KString, KString>>& Environment)
+//-----------------------------------------------------------------------------
+{
+	sCommand.TrimLeft();
+
+	if (sCommand.empty())
+	{
+		// an empty command is invalid also with a shell
+		Close(); // ensure a previous pipe is closed
+		m_iExitCode = EINVAL;
+		return false;
+	}
+
+	if (sShell.empty())
+	{
+		// the child splits its command line into arguments itself
+		return OpenCommandLine(sCommand, Mode, Environment);
+	}
+
+	if (sShell != "/bin/sh")
+	{
+		// Windows has only its command interpreter, a shell cannot be chosen
+		kDebug(1, "shell '{}' will be ignored and the command interpreter be used", sShell);
+	}
+
+	return OpenCommandLine(KWindowsProcess::ShellCommandLine(sCommand), Mode, Environment);
+
+} // Open
+
+//-----------------------------------------------------------------------------
+bool KBasePipe::Open(std::vector<KString> Args, OpenMode Mode, const std::vector<std::pair<KString, KString>>& Environment)
+//-----------------------------------------------------------------------------
+{
+	if (Args.empty() || Args.front().empty())
+	{
+		Close(); // ensure a previous pipe is closed
+		m_iExitCode = EINVAL;
+		return false;
+	}
+
+	return OpenCommandLine(KWindowsProcess::CommandLine(Args), Mode, Environment);
+
+} // Open
+
+//-----------------------------------------------------------------------------
+bool KBasePipe::OpenCommandLine(KStringView sCommandLine, OpenMode Mode, const std::vector<std::pair<KString, KString>>& Environment)
+//-----------------------------------------------------------------------------
+{
+	Close(); // ensure a previous pipe is closed
+
+	m_Mode      = Mode;
+	m_iExitCode = 0;
+
+	kDebug(2, "executing: {}", sCommandLine);
+
+	// our ends of the pipes, and those of the child
+	HANDLE hRead       { nullptr };
+	HANDLE hWrite      { nullptr };
+	HANDLE hChildStdIn { nullptr };
+	HANDLE hChildStdOut{ nullptr };
+
+	// the pipes are not inheritable: KWindowsProcess::Start() makes the ends of the
+	// child inheritable only while it starts the child
+	if ((Mode & PipeRead) && !::CreatePipe(&hRead, &hChildStdOut, nullptr, 0))
+	{
+		auto iError = ::GetLastError();
+		kDebug(1, "cannot open input pipe '{}': {}", sCommandLine, KWindowsProcess::ErrorText(iError));
+		m_iExitCode = static_cast<int>(iError);
+		return false;
+	}
+
+	if ((Mode & PipeWrite) && !::CreatePipe(&hChildStdIn, &hWrite, nullptr, 0))
+	{
+		auto iError = ::GetLastError();
+		kDebug(1, "cannot open output pipe '{}': {}", sCommandLine, KWindowsProcess::ErrorText(iError));
+
+		if (hRead)
+		{
+			::CloseHandle(hRead);
+			::CloseHandle(hChildStdOut);
+		}
+
+		m_iExitCode = static_cast<int>(iError);
+		return false;
+	}
+
+	// as on Unix, the pipes replace stdin and stdout of the child, and the other
+	// standard handles are those of this process - Start() closes the ends of the child
+	auto iError = m_Process.Start(sCommandLine, hChildStdIn, hChildStdOut, nullptr, Environment);
+
+	if (iError)
+	{
+		if (hRead)  ::CloseHandle(hRead);
+		if (hWrite) ::CloseHandle(hWrite);
+
+		m_iExitCode = (iError == ERROR_FILE_NOT_FOUND || iError == ERROR_PATH_NOT_FOUND)
+		            ? DEKAF2_POPEN_COMMAND_NOT_FOUND
+		            : static_cast<int>(iError);
+		return false;
+	}
+
+	// file descriptors for KFDReader and KFDWriter, which read what is available - binary
+	// as the pipes on Unix, or in text mode as the pipes of _popen()
+	int iTextMode = (Mode & Text) ? _O_TEXT : _O_BINARY;
+	int iErrno    = 0;
+
+	if (hRead)
+	{
+		m_readPdes[0] = ::_open_osfhandle(reinterpret_cast<intptr_t>(hRead), _O_RDONLY | iTextMode);
+
+		if (m_readPdes[0] == -1)
+		{
+			iErrno = errno;
+			::CloseHandle(hRead);
+		}
+	}
+
+	if (hWrite)
+	{
+		m_writePdes[1] = ::_open_osfhandle(reinterpret_cast<intptr_t>(hWrite), iTextMode);
+
+		if (m_writePdes[1] == -1)
+		{
+			iErrno = errno;
+			::CloseHandle(hWrite);
+		}
+	}
+
+	if (iErrno)
+	{
+		kDebug(1, "cannot get a file descriptor for the pipe: {}", ::strerror(iErrno));
+		// terminates the child
+		Close(chrono::milliseconds(0));
+		m_iExitCode = iErrno;
+		return false;
+	}
+
+	return true;
+
+} // OpenCommandLine
+
+//-----------------------------------------------------------------------------
+bool KBasePipe::Kill(KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	if (!m_Process.IsStarted())
+	{
+		return true;
+	}
+
+	// there is no SIGINT for a single child - terminate it right away, together with
+	// all processes it started
+	m_Process.Terminate();
+
+	// call Close() which waits for the termination
+	Close(Timeout);
+
+	return true;
+
+} // Kill
+
+#else // DEKAF2_IS_WINDOWS
 
 //-----------------------------------------------------------------------------
 bool KBasePipe::Open(KString sCommand, KStringViewZ sShell, OpenMode Mode, const std::vector<std::pair<KString, KString>>& Environment)
@@ -270,32 +441,6 @@ bool KBasePipe::Open(std::vector<KString> Args, OpenMode Mode, const std::vector
 } // Open
 
 //-----------------------------------------------------------------------------
-int KBasePipe::Close(KDuration Timeout)
-//-----------------------------------------------------------------------------
-{
-	if (m_pid > 0)
-	{
-		if (m_Mode & PipeRead)
-		{
-			// Close read on stdout pipe
-			CloseAndResetFileDescriptor(m_readPdes[0]);
-		}
-
-		if (m_Mode & PipeWrite)
-		{
-			// send EOF by closing write end of pipe
-			CloseAndResetFileDescriptor(m_writePdes[1]);
-		}
-
-		// child has been cut off from parent, let it terminate
-		WaitOrKill(Timeout);
-	}
-
-	return m_iExitCode;
-
-} // Close
-
-//-----------------------------------------------------------------------------
 bool KBasePipe::Kill(KDuration Timeout)
 //-----------------------------------------------------------------------------
 {
@@ -313,6 +458,27 @@ bool KBasePipe::Kill(KDuration Timeout)
 	return true;
 
 } // Kill
+
+#endif // DEKAF2_IS_WINDOWS
+
+//-----------------------------------------------------------------------------
+int KBasePipe::Close(KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	// also after IsRunning() found the child ended, or after a failed Open(): the
+	// descriptors are still open. The child gets the end of its input, or a broken
+	// pipe for its output.
+	for (auto& iFileDescriptor : m_readPdes)
+	{
+		CloseAndResetFileDescriptor(iFileDescriptor);
+	}
+
+	// child has been cut off from parent, let it terminate
+	WaitOrKill(Timeout);
+
+	return m_iExitCode;
+
+} // Close
 
 DEKAF2_NAMESPACE_END
 

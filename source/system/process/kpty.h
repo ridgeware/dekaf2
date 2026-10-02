@@ -47,7 +47,7 @@
 
 #include <dekaf2/system/process/bits/kbaseprocess.h>
 
-#ifdef DEKAF2_HAS_PIPES
+#if defined(DEKAF2_HAS_PIPES) && defined(DEKAF2_IS_UNIX)
 
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/time/duration/kduration.h>

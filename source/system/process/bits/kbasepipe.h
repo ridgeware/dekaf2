@@ -61,7 +61,8 @@ public:
 	{
 		None      = 0,
 		PipeRead  = 1 << 0,
-		PipeWrite = 1 << 1
+		PipeWrite = 1 << 1,
+		Text      = 1 << 2  ///< on Windows, the pipes translate between CRLF and LF, as with _popen()
 	};
 
 	//-----------------------------------------------------------------------------
@@ -74,13 +75,15 @@ public:
 
 	//-----------------------------------------------------------------------------
 	/// Terminate the running process. Initially with signal SIGINT, after Timeout with SIGKILL.
-	/// In an own process group, the signals reach all processes of the group.
+	/// In an own process group, the signals reach all processes of the group. Windows has no
+	/// SIGINT for a single child: there the child is terminated right away, together with all
+	/// processes it started.
 	bool Kill(KDuration Timeout);
 	//-----------------------------------------------------------------------------
 
 	//-----------------------------------------------------------------------------
 	/// Set the process group for the next Open(), see KProcessGroup. Default is
-	/// KProcessGroup::Auto.
+	/// KProcessGroup::Auto. Without effect on Windows.
 	void SetProcessGroup(KProcessGroup::Mode Group)
 	//-----------------------------------------------------------------------------
 	{
@@ -100,7 +103,10 @@ protected:
 
 	//-----------------------------------------------------------------------------
 	/// opens the pipe(s) and executes sCommand - split at whitespace into arguments
-	/// when sShell is empty, else passed as one argument to `sShell -c`
+	/// when sShell is empty, else passed as one argument to `sShell -c`. On Windows,
+	/// sCommand is the command line for the child, which splits it into its arguments
+	/// itself, and with any sShell the command interpreter (%COMSPEC%, cmd.exe) executes
+	/// sCommand.
 	bool Open(KString sCommand, KStringViewZ sShell, OpenMode Mode,
 			  const std::vector<std::pair<KString, KString>>& Environment);
 	//-----------------------------------------------------------------------------
@@ -116,6 +122,18 @@ protected:
 	//-----------------------------------------------------------------------------
 	int Close(KDuration Timeout = KDuration::max());
 	//-----------------------------------------------------------------------------
+
+//--------
+private:
+//--------
+
+#ifdef DEKAF2_IS_WINDOWS
+	//-----------------------------------------------------------------------------
+	/// opens the pipe(s) and starts the child with a Windows command line
+	bool OpenCommandLine(KStringView sCommandLine, OpenMode Mode,
+	                     const std::vector<std::pair<KString, KString>>& Environment);
+	//-----------------------------------------------------------------------------
+#endif
 
 }; // KBasePipe
 

@@ -373,28 +373,14 @@ int Kron::Job::Wait(KDuration Timeout)
 bool Kron::Job::Kill()
 //-----------------------------------------------------------------------------
 {
-#ifdef DEKAF2_IS_UNIX
 	std::shared_lock<std::shared_mutex> Lock(m_ExecMutex);
 
 	if (m_Shell)
 	{
 		// in an own process group (the default without a controlling terminal, like
-		// for a service) the signal reaches the shell of the job and all processes it
-		// started - Wait() reads the remaining output and the exit code
-		if (!m_Shell->SendSignal(SIGKILL))
-		{
-			kDebug(1, "cannot kill job '{}'", Name());
-			return false;
-		}
-	}
-	return true;
-#else
-	std::shared_lock<std::shared_mutex> Lock(m_ExecMutex);
-
-	if (m_Shell)
-	{
-		// terminates the command interpreter of the job and all processes it started,
-		// but leaves the pipe open - Wait() reads the remaining output and the exit code
+		// for a service), and on Windows always, this terminates the shell of the job
+		// together with all processes it started, but leaves the pipe open - Wait()
+		// reads the remaining output and the exit code
 		if (!m_Shell->Terminate())
 		{
 			kDebug(1, "cannot kill job '{}'", Name());
@@ -402,7 +388,6 @@ bool Kron::Job::Kill()
 		}
 	}
 	return true;
-#endif
 
 } // Kill
 

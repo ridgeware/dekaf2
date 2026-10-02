@@ -66,6 +66,10 @@ DEKAF2_NAMESPACE_BEGIN
 /// In the group of this process, the terminal treats the child as part of this process,
 /// but Stop(), Kill() and Close() reach only the child itself.
 ///
+/// On Windows the mode has no effect: there a child always runs in a job together with
+/// all processes it starts. Stop(), Kill(), Terminate() and Close() with a timeout end
+/// all of them, and Ctrl-C of the console reaches all of them.
+///
 /// The static methods are the steps of the process classes around fork().
 class DEKAF2_PUBLIC KProcessGroup
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -76,3 +76,35 @@ TEST_CASE("KOutShell")
 }
 
 #endif // DEKAF2_IS_WINDOWS
+
+#ifdef DEKAF2_IS_WINDOWS
+
+#include <dekaf2/io/readwrite/kreader.h>
+
+using namespace dekaf2;
+
+TEST_CASE("KOutShell Windows")
+{
+	KTempDir TempDir;
+
+	SECTION("write to a command")
+	{
+		auto sFile = kFormat("{}\\koutshell.txt", TempDir.Name());
+
+		// sort writes its input only once it has read all of it - Close() ends the input
+		KOutShell Shell(kFormat("sort > \"{}\"", sFile));
+		REQUIRE ( Shell.is_open() );
+		Shell.Write("b\na\n");
+		CHECK   ( Shell.Close() == 0 );
+		CHECK   ( kReadAll(sFile) == "a\r\nb\r\n" );
+	}
+
+	SECTION("empty command")
+	{
+		KOutShell Shell;
+		CHECK ( Shell.Open("") == false );
+		CHECK ( Shell.Close() == EINVAL );
+	}
+}
+
+#endif // DEKAF2_IS_WINDOWS

@@ -388,10 +388,12 @@ if (IS_WINDOWS)
 	endif()
 	unset (DEKAF2_TRIPLET_DEFAULTED)
 else ()
-	# on Unixes, enable unix sockets and pipes
+	# on Unixes, enable unix sockets
 	set(DEKAF2_HAS_UNIX_SOCKETS ON)
-	set(DEKAF2_HAS_PIPES ON)
 endif()
+
+# pipes to child processes exist on all platforms
+set(DEKAF2_HAS_PIPES ON)
 
 if (DEKAF2_ENABLE_DEBUG_RUNTIME_CHECKS)
 	if (DEKAF2_USE_JEMALLOC)
@@ -1705,7 +1707,7 @@ set (BITS_HEADERS
 	source/system/filesystem/bits/kfilesystem.h
 	source/system/process/bits/kbasepipe.h
 	source/system/process/bits/kbaseprocess.h
-	source/system/process/bits/kbaseshell.h
+	source/system/process/bits/kwindowsprocess.h
 	source/util/archive/bits/ktarheader.h
 	source/web/html/bits/khtmldom_node.h
 	source/web/url/bits/kurldualencode.h
@@ -2201,7 +2203,7 @@ set (SOURCES
 	source/system/os/ksystemstats.cpp
 	source/system/process/bits/kbasepipe.cpp
 	source/system/process/bits/kbaseprocess.cpp
-	source/system/process/bits/kbaseshell.cpp
+	source/system/process/bits/kwindowsprocess.cpp
 	source/system/process/kchildprocess.cpp
 	source/system/process/kprocessgroup.cpp
 	source/system/process/kinshell.cpp

@@ -42,7 +42,7 @@
 
 #include <dekaf2/system/process/kpty.h>
 
-#ifdef DEKAF2_HAS_PIPES
+#if defined(DEKAF2_HAS_PIPES) && defined(DEKAF2_IS_UNIX)
 
 #include <dekaf2/system/os/ksystem.h>
 #include <dekaf2/system/os/ksignals.h>

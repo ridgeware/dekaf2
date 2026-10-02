@@ -3,6 +3,7 @@
 
 #ifdef DEKAF2_HAS_PIPES
 
+#include <dekaf2/io/readwrite/kreader.h>
 #include <iostream>
 
 #define KPipeCleanup 1
@@ -12,6 +13,8 @@ using namespace dekaf2;
 namespace {
 KTempDir TempDir;
 }
+
+#ifdef DEKAF2_IS_UNIX
 
 TEST_CASE("KPipe")
 {
@@ -89,5 +92,46 @@ TEST_CASE("KPipe")
 #endif
 
 }
+
+#endif // DEKAF2_IS_UNIX
+
+#ifdef DEKAF2_IS_WINDOWS
+
+TEST_CASE("KPipe Windows")
+{
+	SECTION("read from a program")
+	{
+		KPipe pipe("cmd.exe /d /c echo from the child");
+		REQUIRE ( pipe.is_open() );
+		pipe.SetReaderTrim("");
+		KString sLine;
+		CHECK ( pipe.ReadLine(sLine) );
+		CHECK ( sLine == "from the child\r\n" );
+		CHECK ( pipe.Close() == 0 );
+	}
+
+	SECTION("write to a program")
+	{
+		auto sFile = kFormat("{}\\kpipe.txt", TempDir.Name());
+
+		KPipe pipe(kFormat("sort > \"{}\"", sFile), "/bin/sh");
+		REQUIRE ( pipe.is_open() );
+		pipe.Write("b\na\n");
+		CHECK ( pipe.Close() == 0 );
+
+		auto sContent = kReadAll(sFile);
+		sContent.Replace("\r", "");
+		CHECK ( sContent == "a\nb\n" );
+	}
+
+	SECTION("empty command")
+	{
+		KPipe pipe;
+		CHECK ( pipe.Open("") == false );
+		CHECK ( pipe.Close() == EINVAL );
+	}
+}
+
+#endif // DEKAF2_IS_WINDOWS
 
 #endif

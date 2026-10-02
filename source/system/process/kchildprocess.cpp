@@ -41,9 +41,6 @@
 */
 
 #include <dekaf2/system/process/kchildprocess.h>
-
-#ifndef DEKAF2_IS_WINDOWS
-
 #include <dekaf2/core/init/dekaf2.h>
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/core/logging/klog.h>
@@ -52,16 +49,20 @@
 #include <dekaf2/system/os/ksignals.h>
 #include <dekaf2/core/init/kcompatibility.h>
 #include <thread>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <dirent.h>
+#ifndef DEKAF2_IS_WINDOWS
+	#include <sys/wait.h>
+	#include <sys/stat.h>
+	#include <fcntl.h>
+	#include <signal.h>
+	#include <dirent.h>
+#endif
 #include <cstdlib>
 #include <cstdio>
 #include <iostream>
 
 DEKAF2_NAMESPACE_BEGIN
+
+#ifndef DEKAF2_IS_WINDOWS
 
 namespace detail {
 
@@ -237,16 +238,23 @@ void kDaemonize(bool bChangeDir)
 
 } // end of namespace detail
 
+#endif // of !DEKAF2_IS_WINDOWS
+
 //-----------------------------------------------------------------------------
 void KChildProcess::Clear()
 //-----------------------------------------------------------------------------
 {
+#ifdef DEKAF2_IS_WINDOWS
+	// the child is not ours anymore (Detach()) - its handles are closed, but it runs on
+	m_Process.Release();
+#else
 	if (m_bOwnProcessGroup)
 	{
 		// the child is not ours anymore (Detach())
 		KProcessGroup::ReleaseChild(m_child);
 		m_bOwnProcessGroup = false;
 	}
+#endif
 
 	m_child = 0;
 	m_iExitStatus = 0;
@@ -255,6 +263,8 @@ void KChildProcess::Clear()
 	ClearError();
 
 } // Clear
+
+#ifndef DEKAF2_IS_WINDOWS
 
 //-----------------------------------------------------------------------------
 bool KChildProcess::Fork(int(*func)(int, char**), int argc, char* argv[])
@@ -485,6 +495,8 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 
 } // Start
 
+#endif // of !DEKAF2_IS_WINDOWS
+
 //-----------------------------------------------------------------------------
 bool KChildProcess::Detach()
 //-----------------------------------------------------------------------------
@@ -501,6 +513,121 @@ bool KChildProcess::Detach()
 	}
 
 } // Detach
+
+#ifdef DEKAF2_IS_WINDOWS
+
+//-----------------------------------------------------------------------------
+bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool bDaemonized)
+//-----------------------------------------------------------------------------
+{
+	if (m_child)
+	{
+		return SetError("child already started!");
+	}
+
+	Clear();
+
+	sCommand.Trim();
+
+	if (sCommand.empty())
+	{
+		return SetError("no command to execute");
+	}
+
+	// the child splits its command line into arguments itself, and inherits the
+	// standard handles of this process
+	auto iError = m_Process.Start(sCommand, nullptr, nullptr, nullptr, {}, sChangeDirectory, bDaemonized);
+
+	if (iError)
+	{
+		return SetError(kFormat("cannot start '{}': {}", sCommand, KWindowsProcess::ErrorText(iError)));
+	}
+
+	if (bDaemonized)
+	{
+		// the daemon is no child of ours - not to join, stop or kill
+		m_Process.Release();
+		return true;
+	}
+
+	m_child = m_Process.GetProcessID();
+
+	kDebug(2, "new pid: {}", m_child);
+
+	return true;
+
+} // Start
+
+//-----------------------------------------------------------------------------
+bool KChildProcess::Join(KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	if (!m_child)
+	{
+		return SetError("no child started");
+	}
+
+	if (!m_Process.Wait(Timeout.count() == 0 ? KDuration::max() : Timeout))
+	{
+		return false;
+	}
+
+	m_iExitStatus = m_Process.GetExitCode();
+	kDebug(1, "pid {} exited with value {}", m_child, m_iExitStatus);
+
+	// also the job, which still held processes the child started
+	m_Process.Release();
+
+	m_child = 0;
+
+	return true;
+
+} // Join
+
+//-----------------------------------------------------------------------------
+bool KChildProcess::Stop(KDuration Timeout)
+//-----------------------------------------------------------------------------
+{
+	if (!m_child)
+	{
+		return SetError("no child started");
+	}
+
+	// there is no SIGTERM for a single process - terminate the child right away,
+	// together with all processes it started
+	if (!m_Process.Terminate())
+	{
+		return SetError("cannot terminate the child");
+	}
+
+	return Join(Timeout);
+
+} // Stop
+
+//-----------------------------------------------------------------------------
+bool KChildProcess::Kill(KDuration /* GracePeriod */)
+//-----------------------------------------------------------------------------
+{
+	if (!m_child)
+	{
+		return SetError("no child started");
+	}
+
+	ClearError();
+
+	// there is no SIGTERM for a single process, which could end gracefully -
+	// terminate the child right away, together with all processes it started
+	if (!m_Process.Terminate())
+	{
+		return SetError("cannot terminate the child");
+	}
+
+	// the termination is asynchronous - do not wait forever for it
+	return Join(chrono::milliseconds(100));
+
+} // Kill
+
+#else // DEKAF2_IS_WINDOWS
 
 //-----------------------------------------------------------------------------
 bool KChildProcess::Join(KDuration Timeout)
@@ -663,6 +790,8 @@ bool KChildProcess::Kill(KDuration GracePeriod)
 
 } // Kill
 
+#endif // DEKAF2_IS_WINDOWS
+
 //-----------------------------------------------------------------------------
 KChildProcess::~KChildProcess()
 //-----------------------------------------------------------------------------
@@ -675,5 +804,3 @@ KChildProcess::~KChildProcess()
 } // dtor
 
 DEKAF2_NAMESPACE_END
-
-#endif // of !DEKAF2_IS_WINDOWS

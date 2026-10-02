@@ -292,3 +292,164 @@ TEST_CASE("KChildProcess process groups")
 }
 
 #endif
+
+#ifdef DEKAF2_IS_WINDOWS
+
+#include <dekaf2/system/filesystem/kfilesystem.h>
+#include <dekaf2/core/strings/kutf.h>
+#include <windows.h>
+#include <shellapi.h>
+#ifdef _MSC_VER
+	#pragma comment(lib, "shell32.lib")
+#endif
+
+using namespace dekaf2;
+
+namespace {
+
+// splits a command line into arguments, as the C runtime of a program does
+std::vector<KString> SplitCommandLine(KStringView sCommandLine)
+{
+	std::vector<KString> Args;
+
+	int  iCount { 0 };
+	auto wsCommandLine = kutf::Convert<std::wstring>(sCommandLine);
+
+	if (auto** pArgs = ::CommandLineToArgvW(wsCommandLine.c_str(), &iCount))
+	{
+		for (int i = 0; i < iCount; ++i)
+		{
+			Args.push_back(kutf::Convert<KString>(std::wstring(pArgs[i])));
+		}
+
+		::LocalFree(pArgs);
+	}
+
+	return Args;
+}
+
+// waits up to five seconds for a file
+bool FileAppears(KStringViewZ sFile)
+{
+	for (int i = 0; i < 500; ++i)
+	{
+		if (kFileExists(sFile))
+		{
+			return true;
+		}
+
+		kSleep(chrono::milliseconds(10));
+	}
+
+	return false;
+}
+
+} // end of anonymous namespace
+
+TEST_CASE("KChildProcess Windows")
+{
+	SECTION("command line for an argument vector")
+	{
+		std::vector<std::vector<KString>> Tests
+		{
+			{ "prog.exe", "simple" },
+			{ "C:\\Program Files\\prog.exe", "with blank", "" },
+			{ "prog.exe", "quote\"inside", "\"", "\\\"" },
+			{ "prog.exe", "C:\\dir\\", "C:\\dir with blank\\", "back\\\\slashes" },
+			{ "prog.exe", "tab\there", "new\nline" }
+		};
+
+		for (const auto& Args : Tests)
+		{
+			CHECK ( SplitCommandLine(KWindowsProcess::CommandLine(Args)) == Args );
+		}
+	}
+
+	SECTION("exit status")
+	{
+		KChildProcess Child;
+		REQUIRE ( Child.Start("cmd.exe /d /c exit 7") );
+		CHECK   ( Child.IsStarted() );
+		CHECK   ( Child.GetChildPID() > 0 );
+		CHECK   ( Child.Join() );
+		CHECK   ( Child.GetExitStatus() == 7 );
+		CHECK   ( Child.GetExitSignal() == 0 );
+		CHECK   ( Child.IsStarted() == false );
+	}
+
+	SECTION("Join with timeout, and Stop()")
+	{
+		KChildProcess Child;
+		// ping waits about one second between its echo requests
+		REQUIRE ( Child.Start("cmd.exe /d /c ping -n 30 127.0.0.1 > nul") );
+
+		KStopTime Timer;
+		CHECK ( Child.Join(chrono::milliseconds(100)) == false );
+		CHECK ( Timer.elapsed().milliseconds().count() >= 90 );
+		CHECK ( Child.IsStarted() );
+
+		// terminates cmd.exe together with ping
+		CHECK ( Child.Stop(chrono::seconds(5)) );
+		CHECK ( Child.GetExitStatus() == -1 );
+		CHECK ( Child.IsStarted() == false );
+		CHECK ( Timer.elapsed().milliseconds().count() < 5000 );
+	}
+
+	SECTION("Kill()")
+	{
+		KChildProcess Child;
+		REQUIRE ( Child.Start("cmd.exe /d /c ping -n 30 127.0.0.1 > nul") );
+		CHECK   ( Child.Kill() );
+		CHECK   ( Child.IsStarted() == false );
+		CHECK   ( Child.GetExitStatus() == -1 );
+	}
+
+	SECTION("working directory")
+	{
+		KTempDir TempDir;
+		KChildProcess Child;
+		REQUIRE ( Child.Start("cmd.exe /d /c echo x> kchildprocess.txt", TempDir.Name()) );
+		CHECK   ( Child.Join() );
+		CHECK   ( Child.GetExitStatus() == 0 );
+		CHECK   ( kFileExists(kFormat("{}\\kchildprocess.txt", TempDir.Name())) );
+	}
+
+	SECTION("missing program")
+	{
+		KChildProcess Child;
+		CHECK ( Child.Start("dekaf2_this_program_does_not_exist.exe") == false );
+		CHECK ( Child.HasError() );
+		CHECK ( Child.IsStarted() == false );
+	}
+
+	SECTION("a daemonized child is no child of this process")
+	{
+		KTempDir TempDir;
+		KChildProcess Child;
+		REQUIRE ( Child.Start("cmd.exe /d /c echo x> daemon.txt", TempDir.Name(), true) );
+		CHECK   ( Child.IsStarted() == false );
+		CHECK   ( Child.Join() == false );
+		// the daemon runs on its own
+		CHECK   ( FileAppears(kFormat("{}\\daemon.txt", TempDir.Name())) );
+		// give it the time to end before its directory is removed
+		kSleep(chrono::milliseconds(200));
+	}
+
+	SECTION("Detach()")
+	{
+		KChildProcess Child;
+		REQUIRE ( Child.Start("cmd.exe /d /c ping -n 3 127.0.0.1 > nul") );
+		auto pid = Child.GetChildPID();
+		CHECK ( Child.Detach() );
+		CHECK ( Child.IsStarted() == false );
+
+		// the child runs on, and ends on its own
+		auto hProcess = ::OpenProcess(SYNCHRONIZE, FALSE, static_cast<DWORD>(pid));
+		REQUIRE ( hProcess != nullptr );
+		CHECK ( ::WaitForSingleObject(hProcess, 0) == WAIT_TIMEOUT );
+		CHECK ( ::WaitForSingleObject(hProcess, 10000) == WAIT_OBJECT_0 );
+		::CloseHandle(hProcess);
+	}
+}
+
+#endif // DEKAF2_IS_WINDOWS

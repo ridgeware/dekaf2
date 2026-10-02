@@ -184,6 +184,17 @@ KString ReadOutput(KInShell& Shell)
 
 TEST_CASE("KInShell Windows")
 {
+	SECTION("text mode")
+	{
+		// unlike KInPipe, the pipe translates the CRLF of cmd.exe into LF
+		KInShell Shell("echo one& echo two");
+		REQUIRE ( Shell.is_open() );
+		KString sOutput;
+		CHECK   ( Shell.ReadRemaining(sOutput) );
+		CHECK   ( sOutput == "one\ntwo\n" );
+		CHECK   ( Shell.Close() == 0 );
+	}
+
 	SECTION("environment for the child")
 	{
 		KInShell Shell("echo [%DEKAF2_SHELL_TEST%]", "/bin/sh", {{ "DEKAF2_SHELL_TEST", "set for the child" }});

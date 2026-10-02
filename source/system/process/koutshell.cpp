@@ -45,55 +45,21 @@
 
 DEKAF2_NAMESPACE_BEGIN
 
-#ifdef DEKAF2_IS_UNIX
-
 //-----------------------------------------------------------------------------
 bool KOutShell::Open(KString sCommand, KStringViewZ sShell,
                      const std::vector<std::pair<KString, KString>>& Environment)
 //-----------------------------------------------------------------------------
 {
-	return KOutPipe::Open(std::move(sCommand), sShell, Environment);
-
-} // Open
-
-#else
-
-//-----------------------------------------------------------------------------
-/// Executes given command via a shell pipe which input can be written to
-bool KOutShell::Open(KString sCommand, KStringViewZ sShell,
-                     const std::vector<std::pair<KString, KString>>& Environment)
-//-----------------------------------------------------------------------------
-{
-	if (!sShell.empty() && sShell != "/bin/sh")
-	{
-		// Windows has only its command interpreter, a shell cannot be chosen
-		kDebug(1, "shell '{}' will be ignored and the command interpreter be used", sShell);
-	}
-
-	// with a shell name, the command interpreter executes the command - without
-	// one, the command is executed directly
-	if (!IntOpen(std::move(sCommand), true, !sShell.empty(), Environment))
+	// the input of a shell command is text
+	if (!KBasePipe::Open(std::move(sCommand), sShell, PipeWrite | Text, Environment))
 	{
 		return false;
 	}
 
-	KFDWriter::open(m_iPipe);
+	KFDWriter::open(m_writePdes[1]);
 
 	return KFDWriter::good();
 
 } // Open
-
-//-----------------------------------------------------------------------------
-int KOutShell::Close(KDuration Timeout)
-//-----------------------------------------------------------------------------
-{
-	// invalidate Stream - we close it in KBaseShell::Close
-	KFDWriter::Cancel();
-
-	return KBaseShell::Close(Timeout);
-
-} // Close
-
-#endif
 
 DEKAF2_NAMESPACE_END

@@ -45,30 +45,18 @@
 /// provides writing pipe access to a shell instance.
 
 
-#include <dekaf2/system/process/bits/kbaseshell.h>
-#include <dekaf2/io/streams/kfdstream.h>
-
-#ifdef DEKAF2_IS_UNIX
-	#include <dekaf2/io/pipes/koutpipe.h>
-#endif
+#include <dekaf2/io/pipes/koutpipe.h>
 
 DEKAF2_NAMESPACE_BEGIN
 
 /// @addtogroup system_process
 /// @{
 
-// For unixes we will use KPipe (with internal fork and exec) instead of popen,
-// as this permits us to close all open file descriptors before executing the
-// new process. On Windows, KBaseShell starts the new process with CreateProcessW(),
-// which equally passes only the pipe and the standard handles to the new process.
-
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-/// Write to a shell instance
-#ifdef DEKAF2_IS_UNIX
+/// Write to a shell instance. Unlike KOutPipe, the pipe is in text mode on Windows: it
+/// translates LF into CRLF, as with _popen(). On Windows, the command interpreter
+/// (%COMSPEC%, cmd.exe) executes the command for any shell name.
 class DEKAF2_PUBLIC KOutShell : public KOutPipe
-#else
-class DEKAF2_PUBLIC KOutShell : public KBaseShell, public KFDWriter
-#endif
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 {
 
@@ -102,13 +90,6 @@ public:
 	bool Open(KString sCommand, KStringViewZ sShell = "/bin/sh",
 			  const std::vector<std::pair<KString, KString>>& Environment = {});
 	//-----------------------------------------------------------------------------
-
-#ifndef DEKAF2_IS_UNIX
-	//-----------------------------------------------------------------------------
-	/// Closes the pipe, waits up to Timeout for the child to end and returns its exit code
-	int Close(KDuration Timeout = KDuration::max());
-	//-----------------------------------------------------------------------------
-#endif
 
 }; // END KOutShell
 

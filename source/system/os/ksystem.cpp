@@ -75,6 +75,7 @@
 	#include <charconv>        // for std::to_chars()
 #else
 	#include <unistd.h>        // for sysconf()
+	#include <fcntl.h>         // for open() - kHasControllingTerminal()
 	#include <sys/types.h>     // for getpwuid(), sysctl()
 	#include <pwd.h>           // for getpwuid()
 	#include <arpa/inet.h>
@@ -2395,6 +2396,29 @@ bool kStdInIsTerminal()
 	return kIsTerminal(STDIN_FILENO);
 
 } // kStdInIsTerminal
+
+//-----------------------------------------------------------------------------
+bool kHasControllingTerminal()
+//-----------------------------------------------------------------------------
+{
+#ifndef DEKAF2_IS_WINDOWS
+	// /dev/tty is the controlling terminal of the process that opens it, and
+	// cannot be opened by a process without one
+	auto fd = ::open("/dev/tty", O_RDONLY | O_NOCTTY | DEKAF2_CLOSE_ON_EXEC_FLAG);
+
+	if (fd < 0)
+	{
+		return false;
+	}
+
+	::close(fd);
+
+	return true;
+#else
+	return ::GetConsoleWindow() != nullptr;
+#endif
+
+} // kHasControllingTerminal
 
 //-----------------------------------------------------------------------------
 KDuration kGetUptime()

@@ -528,6 +528,13 @@ bool kStdOutIsTerminal();
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 bool kStdInIsTerminal();
 
+/// does this process have a controlling terminal - the terminal of its session, which sends
+/// Ctrl-C and a hangup to it, also when stdin and stdout are redirected. False for a service,
+/// a cron job or a daemon. On Windows: is this process attached to a console
+/// @returns true if there is a controlling terminal, false otherwise
+DEKAF2_NODISCARD DEKAF2_PUBLIC
+bool kHasControllingTerminal();
+
 /// returns the system uptime
 DEKAF2_NODISCARD DEKAF2_PUBLIC
 KDuration kGetUptime();

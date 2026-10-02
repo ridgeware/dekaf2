@@ -47,7 +47,7 @@
 
 #include <dekaf2/system/process/bits/kbaseprocess.h>
 
-#if defined(DEKAF2_HAS_PIPES) && defined(DEKAF2_IS_UNIX)
+#ifdef DEKAF2_HAS_PTY
 
 #include <dekaf2/core/strings/kstring.h>
 #include <dekaf2/time/duration/kduration.h>
@@ -292,4 +292,4 @@ protected:
 
 DEKAF2_NAMESPACE_END
 
-#endif // DEKAF2_HAS_PIPES
+#endif // DEKAF2_HAS_PTY

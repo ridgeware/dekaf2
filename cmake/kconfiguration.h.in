@@ -127,6 +127,7 @@
 #cmakedefine DEKAF2_KLOG_WITH_TCP 1
 #cmakedefine DEKAF2_HAS_UNIX_SOCKETS 1
 #cmakedefine DEKAF2_HAS_PIPES 1
+#cmakedefine DEKAF2_HAS_PTY 1
 #cmakedefine DEKAF2_IS_APPLE_CLANG 1
 #cmakedefine DEKAF2_LINK_TIME_OPTIMIZATION 1
 #cmakedefine DEKAF2_WITH_SIMDUTF 1

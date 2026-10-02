@@ -388,8 +388,9 @@ if (IS_WINDOWS)
 	endif()
 	unset (DEKAF2_TRIPLET_DEFAULTED)
 else ()
-	# on Unixes, enable unix sockets
+	# on Unixes, enable unix sockets and pseudo-terminals
 	set(DEKAF2_HAS_UNIX_SOCKETS ON)
+	set(DEKAF2_HAS_PTY ON)
 endif()
 
 # pipes to child processes exist on all platforms

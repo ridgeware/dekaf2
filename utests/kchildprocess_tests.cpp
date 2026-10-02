@@ -13,6 +13,13 @@
 
 #include <signal.h>
 #include <unistd.h>
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <string>
+#ifdef DEKAF2_IS_LINUX
+	#include <dirent.h>
+#endif
 
 using namespace dekaf2;
 
@@ -139,15 +146,69 @@ TEST_CASE("KChildProcess Stop and Kill")
 
 namespace {
 
-// waits for the end of all processes of a process group - a process whose parent
-// ended is reaped by init, and is a member of the group until then
+// returns true while a process of the group runs. A zombie does not count: it has
+// ended, and waits for its parent to reap it. A grandchild whose parent ended gets
+// the PID 1 of its namespace as parent - and in a container that runs the tests
+// as PID 1, without an init, nobody reaps it, and it stays a member of the group.
+bool ProcessGroupRuns(pid_t pgid)
+{
+	if (::kill(-pgid, 0) != 0 && errno == ESRCH)
+	{
+		return false;
+	}
+
+#ifdef DEKAF2_IS_LINUX
+	if (auto* pDir = ::opendir("/proc"))
+	{
+		bool bRuns { false };
+
+		while (auto* pEntry = ::readdir(pDir))
+		{
+			if (pEntry->d_name[0] < '1' || pEntry->d_name[0] > '9')
+			{
+				continue;
+			}
+
+			std::ifstream File(std::string("/proc/") + pEntry->d_name + "/stat");
+			std::string sStat;
+			std::getline(File, sStat);
+
+			// "pid (comm) state ppid pgrp ..." - comm may contain blanks and parentheses
+			auto iPos = sStat.rfind(')');
+
+			if (iPos == std::string::npos || iPos + 2 > sStat.size())
+			{
+				continue;
+			}
+
+			std::istringstream Fields(sStat.substr(iPos + 2));
+			std::string sState, sParent, sGroup;
+			Fields >> sState >> sParent >> sGroup;
+
+			if (std::atoi(sGroup.c_str()) == pgid && sState != "Z" && sState != "X")
+			{
+				bRuns = true;
+				break;
+			}
+		}
+
+		::closedir(pDir);
+
+		return bRuns;
+	}
+#endif
+
+	return true;
+}
+
+// waits for the end of all processes of a process group
 bool ProcessGroupEnds(pid_t pgid, KDuration Timeout)
 {
 	KStopTime Timer;
 
 	for (;;)
 	{
-		if (::kill(-pgid, 0) != 0 && errno == ESRCH)
+		if (!ProcessGroupRuns(pgid))
 		{
 			return true;
 		}

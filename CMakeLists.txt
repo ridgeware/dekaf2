@@ -1912,6 +1912,7 @@ set(PUBLIC_HEADERS
 	source/system/os/ksystem.h
 	source/system/os/ksystemstats.h
 	source/system/process/kchildprocess.h
+	source/system/process/kprocessgroup.h
 	source/system/process/kinshell.h
 	source/system/process/koutshell.h
 	source/system/process/kpty.h
@@ -2202,6 +2203,7 @@ set (SOURCES
 	source/system/process/bits/kbaseprocess.cpp
 	source/system/process/bits/kbaseshell.cpp
 	source/system/process/kchildprocess.cpp
+	source/system/process/kprocessgroup.cpp
 	source/system/process/kinshell.cpp
 	source/system/process/koutshell.cpp
 	source/system/process/kpty.cpp

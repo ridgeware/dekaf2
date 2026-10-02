@@ -488,8 +488,8 @@ void Dekaf::Daemonize()
 
 	if (bRestartTimer)
 	{
-		// we need to stop the thread with the default timer, otherwise
-		// parent will not return
+		// we need to stop the thread with the default timer before the fork:
+		// fork() does not copy threads, so the daemon starts it anew
 		StopDefaultTimer();
 	}
 

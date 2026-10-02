@@ -58,6 +58,8 @@
 #include <signal.h>
 #include <dirent.h>
 #include <cstdlib>
+#include <cstdio>
+#include <iostream>
 
 DEKAF2_NAMESPACE_BEGIN
 
@@ -144,6 +146,13 @@ void kCloseOwnFilesForExec(bool bIncludeStandardIO, int Exempt[], size_t iExempt
 void kDaemonize(bool bChangeDir)
 //-----------------------------------------------------------------------------
 {
+	// write out what is buffered for stdout and stderr before the fork: the parent
+	// ends with _exit() and flushes nothing anymore, and the daemon runs with
+	// stdin, stdout and stderr on /dev/null
+	std::cout.flush();
+	std::clog.flush();
+	std::fflush(nullptr);
+
 	pid_t pid;
 
 	if ((pid = fork()))
@@ -156,7 +165,10 @@ void kDaemonize(bool bChangeDir)
 			exit(1);
 		}
 
-		exit(0);
+		// _exit(): the daemon continues as this program, so the parent must not
+		// run the atexit handlers and static destructors, which could remove
+		// resources the daemon still uses
+		_exit(0);
 	}
 
 	// child
@@ -171,17 +183,23 @@ void kDaemonize(bool bChangeDir)
 		}
 	}
 
-	if (!(pid = fork()))
+	if ((pid = fork()))
 	{
-		// parent
-		exit(0);
+		// parent 2, the session leader - it ends, so that the daemon is no session
+		// leader and cannot acquire a controlling terminal
+
+		if (pid < 0)
+		{
+			kWarning("cannot fork again: {}", strerror(errno));
+			exit(1);
+		}
+
+		// _exit(): a copy of the process must not run the atexit handlers and
+		// static destructors, which could remove resources the daemon still uses
+		_exit(0);
 	}
 
-	if (pid < 0)
-	{
-		kWarning("cannot fork again: {}", strerror(errno));
-		exit(1);
-	}
+	// child 2, the daemon
 
 	if (bChangeDir)
 	{
@@ -329,10 +347,27 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 
 		m_child = pid;
 
+		if (bDaemonized)
+		{
+			// the child only forks the daemon and ends right away - the daemon is
+			// then a child of init, and not ours to join, stop or kill
+			if (!Join())
+			{
+				return false;
+			}
+
+			if (m_iExitStatus != 0 || m_iExitSignal != 0)
+			{
+				return SetError("cannot start the daemon");
+			}
+		}
+
 		return true;
 	}
 
-	// child
+	// child - it is a copy of the caller's process, so it ends with _exit(): it must
+	// neither run the atexit handlers and static destructors of the caller, nor
+	// flush the stdio buffers the caller flushes as well
 
 	if (bDaemonized)
 	{
@@ -343,7 +378,7 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 			if (errno != EPERM)
 			{
 				SetErrnoError("setsid failed: ");
-				exit(1);
+				_exit(1);
 			}
 		}
 
@@ -351,15 +386,17 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 
 		if ((pid = fork()))
 		{
-			// parent 2
+			// parent 2, the session leader - it ends, so that the daemon is no session
+			// leader and cannot acquire a controlling terminal
 
 			if (pid < 0)
 			{
 				SetErrnoError("cannot fork again: ");
-				exit(1);
+				_exit(1);
 			}
 
-			return true;
+			// it must not return into the code of the caller
+			_exit(0);
 		}
 
 		m_child = pid;
@@ -402,7 +439,7 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 		if (chdir(sChangeDirectory.c_str()))
 		{
 			SetErrnoError(kFormat("chdir to {} failed: ", sChangeDirectory));
-			exit(1);
+			_exit(1);
 		}
 	}
 
@@ -410,7 +447,7 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 
 	kDebug(1, "execvp(): {}", strerror(errno));
 
-	exit(DEKAF2_POPEN_COMMAND_NOT_FOUND);
+	_exit(DEKAF2_POPEN_COMMAND_NOT_FOUND);
 
 } // Start
 

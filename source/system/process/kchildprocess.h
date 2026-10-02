@@ -113,7 +113,8 @@ public:
 	~KChildProcess();
 
 	/// Start a child with sCommand, change to sChangeDirectory, and detach
-	/// from terminal if bDaemonized is true
+	/// from terminal if bDaemonized is true. A daemonized child is no child of
+	/// this process: it cannot be joined, stopped or killed through this class.
 	bool Start(KString sCommand,
 			   KStringViewZ sChangeDirectory = KStringViewZ{},
 			   bool bDaemonized = false);

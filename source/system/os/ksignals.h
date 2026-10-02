@@ -46,8 +46,11 @@
 /// Provides a threaded signal handler framework. Other threads will not receive signals.
 
 #include <dekaf2/threading/primitives/kthreadsafe.h>
+#include <dekaf2/core/init/kcompatibility.h> // pid_t on Windows
 #include <map>
 #include <array>
+#include <vector>
+#include <atomic>
 #include <csignal>
 
 DEKAF2_NAMESPACE_BEGIN
@@ -83,7 +86,9 @@ public:
 	/// thread (as far as possible), and does nothing else.
 	/// If true, in addition to blocking signals on the calling
 	/// thread it starts a separate signal handler thread which then
-	/// will receive signals and call installed callbacks.
+	/// will receive signals and call installed callbacks. Only the first
+	/// instance in a process does so (the one of KInit) - further instances
+	/// give access to the same handlers, but do not set them to the defaults again.
 	KSignals(bool bStartHandlerThread = true);
 	//-----------------------------------------------------------------------------
 
@@ -161,6 +166,34 @@ public:
 	void SetDefaultHandler(int iSignal);
 	//-----------------------------------------------------------------------------
 
+	//-----------------------------------------------------------------------------
+	/// Forward the signals a terminal sends to its foreground process group - SIGINT
+	/// for Ctrl-C, SIGQUIT for Ctrl-\ and SIGHUP for a hangup - also to the process
+	/// group pgid: a child in an own process group does not get them from the terminal.
+	/// The signal handler thread forwards them before it calls the handlers.
+	/// @param pgid the process group, which is the process ID of its leader
+	static void AddForwardedProcessGroup(pid_t pgid);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Stop forwarding signals to the process group pgid
+	static void RemoveForwardedProcessGroup(pid_t pgid);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Forward iSignal to the process groups of AddForwardedProcessGroup(), if it is
+	/// one of the forwarded signals - called by the signal handler thread
+	static void ForwardToProcessGroups(int iSignal);
+	//-----------------------------------------------------------------------------
+
+	//-----------------------------------------------------------------------------
+	/// Returns true if the signal handling was set up in this process (by KInit) - on
+	/// Unix it runs in the signal handler thread, which also forwards signals to process
+	/// groups. A child after fork() has no handler thread, until it starts its own.
+	DEKAF2_NODISCARD
+	static bool HasHandlerThread();
+	//-----------------------------------------------------------------------------
+
 //----------
 private:
 //----------
@@ -201,6 +234,8 @@ private:
 #endif
 
 	static KThreadSafe<std::map<int, sigmap_t> > s_SigFuncs;
+	static KThreadSafe<std::vector<pid_t> >       s_ForwardedProcessGroups;
+	static std::atomic<pid_t>                     s_HandlerPid; // the process that set up the handling
 
 };
 
@@ -266,6 +301,15 @@ void kBlockAllSignals(bool bExceptSEGVandFPE = true);
 /// No-op on Windows.
 DEKAF2_PUBLIC
 void kUnblockAllSignals();
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+/// Reset all signal handlers of this process to the default action, for a child after
+/// fork() and before kUnblockAllSignals() and exec(): exec() resets them as well, but a
+/// signal that arrives before would run a handler of the parent in the child. Ignored
+/// signals stay ignored, as with exec(). No-op on Windows.
+DEKAF2_PUBLIC
+void kResetSignalHandlers();
 //-----------------------------------------------------------------------------
 
 

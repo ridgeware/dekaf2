@@ -144,6 +144,7 @@ set (USOURCES
 	ksessioncachingstore_tests.cpp
 	ksharedptr_tests.cpp
 	ksharedref_tests.cpp
+	ksignals_tests.cpp
 	ksnippets_tests.cpp
 	ksourcelocation_tests.cpp
 	ksplit_tests.cpp

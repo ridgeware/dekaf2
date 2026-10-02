@@ -52,6 +52,7 @@
 	#include <pthread.h>
 	#include <sys/mman.h>
 #endif
+#include <algorithm>
 #include <cstdlib>
 #include <memory>
 #include <mutex>
@@ -257,6 +258,33 @@ void kUnblockAllSignals()
 } // kUnblockAllSignals
 
 //-----------------------------------------------------------------------------
+void kResetSignalHandlers()
+//-----------------------------------------------------------------------------
+{
+#ifndef DEKAF2_IS_WINDOWS
+	for (int iSignal = 1; iSignal < NSIG; ++iSignal)
+	{
+		struct sigaction Action;
+
+		if (sigaction(iSignal, nullptr, &Action) != 0)
+		{
+			continue;
+		}
+
+		// sa_handler and sa_sigaction share their storage - with SA_SIGINFO it is a handler
+		if ((Action.sa_flags & SA_SIGINFO) || (Action.sa_handler != SIG_DFL && Action.sa_handler != SIG_IGN))
+		{
+			struct sigaction Default {};
+			Default.sa_handler = SIG_DFL;
+			sigemptyset(&Default.sa_mask);
+			sigaction(iSignal, &Default, nullptr);
+		}
+	}
+#endif
+
+} // kResetSignalHandlers
+
+//-----------------------------------------------------------------------------
 void KSignals::BlockAllSignals(bool bExceptSEGVandFPE)
 //-----------------------------------------------------------------------------
 {
@@ -301,6 +329,11 @@ void KSignals::WaitForSignals()
 
 		if (sig > 0)
 		{
+			// if we have children in own process groups then
+			// first pass on what the terminal sent to us
+			// as the terminal would have done in our group
+			ForwardToProcessGroups(sig);
+
 			// check that we are neither in init or exit
 			if (KLog::getInstance().Available())
 			{
@@ -453,6 +486,17 @@ KSignals::KSignals(bool bStartHandlerThread)
 {
 	if (bStartHandlerThread)
 	{
+		// once per process: a second instance would set the default handlers for SIGINT
+		// and SIGTERM again, over the handlers the program has set meanwhile. A child after
+		// fork() has another process ID, and sets up its own handling (see Dekaf::Fork()).
+		auto iPid = kGetPid();
+
+		if (s_HandlerPid.exchange(iPid) == iPid)
+		{
+			kWarning("the signal handling of this process is set up already - this instance only gives access to it");
+			return;
+		}
+
 		BlockAllSignals();
 
 		// terminate gracefully on SIGINT and SIGTERM
@@ -475,6 +519,63 @@ KSignals::KSignals(bool bStartHandlerThread)
 } // ctor
 
 KThreadSafe<std::map<int, KSignals::sigmap_t> > KSignals::s_SigFuncs;
+KThreadSafe<std::vector<pid_t> >                KSignals::s_ForwardedProcessGroups;
+std::atomic<pid_t>                              KSignals::s_HandlerPid { 0 };
+
+//-----------------------------------------------------------------------------
+bool KSignals::HasHandlerThread()
+//-----------------------------------------------------------------------------
+{
+	return s_HandlerPid == kGetPid();
+
+} // HasHandlerThread
+
+//-----------------------------------------------------------------------------
+void KSignals::AddForwardedProcessGroup(pid_t pgid)
+//-----------------------------------------------------------------------------
+{
+	auto Groups = s_ForwardedProcessGroups.unique();
+
+	if (std::find(Groups->begin(), Groups->end(), pgid) == Groups->end())
+	{
+		Groups->push_back(pgid);
+	}
+
+} // AddForwardedProcessGroup
+
+//-----------------------------------------------------------------------------
+void KSignals::RemoveForwardedProcessGroup(pid_t pgid)
+//-----------------------------------------------------------------------------
+{
+	auto Groups = s_ForwardedProcessGroups.unique();
+
+	Groups->erase(std::remove(Groups->begin(), Groups->end(), pgid), Groups->end());
+
+} // RemoveForwardedProcessGroup
+
+//-----------------------------------------------------------------------------
+void KSignals::ForwardToProcessGroups(int iSignal)
+//-----------------------------------------------------------------------------
+{
+#ifndef DEKAF2_IS_WINDOWS
+	// the signals a terminal sends to its foreground process group
+	if (iSignal != SIGINT && iSignal != SIGQUIT && iSignal != SIGHUP)
+	{
+		return;
+	}
+
+	auto Groups = s_ForwardedProcessGroups.shared();
+
+	for (auto pgid : *Groups)
+	{
+		// the negative ID addresses the whole process group
+		::kill(-pgid, iSignal);
+	}
+#else
+	(void)iSignal;
+#endif
+
+} // ForwardToProcessGroups
 
 constexpr std::array<int,
 #ifdef DEKAF2_IS_WINDOWS

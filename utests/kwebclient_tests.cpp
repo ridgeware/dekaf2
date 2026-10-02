@@ -434,7 +434,11 @@ TEST_CASE("KWebClient") {
 		HTTP.HttpRequest2Host(oss, ConnectURL, "localhost/test1", KHTTPMethod::POST, "some body", KMIME::HTML_UTF8);
 		CHECK( sRet.empty() );
 		CHECK( HTTP.GetStatusCode() == 598 );
+#ifndef DEKAF2_IS_WINDOWS
+		// on Windows the error is the system text of ERROR_OPERATION_ABORTED, in the
+		// language of the system
 		CHECK( HTTP.Error().contains("Operation canceled") );
+#endif
 		sRet.clear();
 		// leave connection untouched to test reconnect feature
 		// it is difficult to know when the TCP server is done

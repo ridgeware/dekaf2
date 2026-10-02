@@ -94,9 +94,11 @@ TEST_CASE("KOutShell Windows")
 		// sort writes its input only once it has read all of it - Close() ends the input
 		KOutShell Shell(kFormat("sort > \"{}\"", sFile));
 		REQUIRE ( Shell.is_open() );
-		Shell.Write("b\na\n");
+		// sort.exe guesses from its input whether it is UTF-16: the four bytes of
+		// "b\na\n" pass for two UTF-16 characters, an odd count of bytes cannot
+		Shell.Write("beta\nalpha\n");
 		CHECK   ( Shell.Close() == 0 );
-		CHECK   ( kReadAll(sFile) == "a\r\nb\r\n" );
+		CHECK   ( kReadAll(sFile) == "alpha\r\nbeta\r\n" );
 	}
 
 	SECTION("empty command")

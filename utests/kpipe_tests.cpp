@@ -116,12 +116,14 @@ TEST_CASE("KPipe Windows")
 
 		KPipe pipe(kFormat("sort > \"{}\"", sFile), "/bin/sh");
 		REQUIRE ( pipe.is_open() );
-		pipe.Write("b\na\n");
+		// sort.exe guesses from its input whether it is UTF-16: the four bytes of
+		// "b\na\n" pass for two UTF-16 characters, an odd count of bytes cannot
+		pipe.Write("beta\nalpha\n");
 		CHECK ( pipe.Close() == 0 );
 
 		auto sContent = kReadAll(sFile);
 		sContent.Replace("\r", "");
-		CHECK ( sContent == "a\nb\n" );
+		CHECK ( sContent == "alpha\nbeta\n" );
 	}
 
 	SECTION("empty command")

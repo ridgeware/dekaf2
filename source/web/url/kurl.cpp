@@ -876,6 +876,15 @@ bool StartsWithDrive(KStringView sPath)
 	return sPath.size() >= 2 && KASCII::kIsAlpha(sPath[0]) && sPath[1] == ':';
 
 } // StartsWithDrive
+
+//-------------------------------------------------------------------------
+/// returns true if sPath is an absolute path with a drive letter, like C:\dir or C:/dir
+bool IsAbsoluteWindowsPath(KStringView sPath)
+//-------------------------------------------------------------------------
+{
+	return sPath.size() >= 3 && StartsWithDrive(sPath) && (sPath[2] == '\\' || sPath[2] == '/');
+
+} // IsAbsoluteWindowsPath
 #endif
 
 //-------------------------------------------------------------------------
@@ -923,17 +932,25 @@ KStringView KTCPEndPoint::Parse(KStringView svSource)
 {
 	// identify a TCPEndPoint from a larger URL string
 
-	// extract the protocol / scheme if existing, we use it later to set a port
-	// if omitted
 	url::KProtocol Protocol;
-	svSource = Protocol.Parse  (svSource);
 
-	if (Protocol == url::KProtocol::UNIX || svSource.front() == '/'
 #ifdef DEKAF2_IS_WINDOWS
-		// an absolute path on Windows starts with a drive letter
-		|| (svSource.size() >= 3 && StartsWithDrive(svSource) && (svSource[2] == '\\' || svSource[2] == '/'))
+	// an absolute path on Windows starts with a drive letter - check it before the
+	// protocol, which would take the C:/ of a path for a scheme
+	bool bIsSocketPath = IsAbsoluteWindowsPath(svSource);
+#else
+	bool bIsSocketPath = false;
 #endif
-		)
+
+	if (!bIsSocketPath)
+	{
+		// extract the protocol / scheme if existing, we use it later to set a port
+		// if omitted
+		svSource      = Protocol.Parse(svSource);
+		bIsSocketPath = Protocol == url::KProtocol::UNIX || svSource.front() == '/';
+	}
+
+	if (bIsSocketPath)
 	{
 		// this is a unix domain endpoint ..
 		bIsUnixDomain = true;

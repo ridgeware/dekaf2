@@ -245,6 +245,18 @@ void kBlockAllSignals(bool bExceptSEGVandFPE)
 } // kBlockAllSignals
 
 //-----------------------------------------------------------------------------
+void kUnblockAllSignals()
+//-----------------------------------------------------------------------------
+{
+#ifndef DEKAF2_IS_WINDOWS
+	sigset_t signal_set;
+	sigemptyset(&signal_set);
+	pthread_sigmask(SIG_SETMASK, &signal_set, nullptr);
+#endif
+
+} // kUnblockAllSignals
+
+//-----------------------------------------------------------------------------
 void KSignals::BlockAllSignals(bool bExceptSEGVandFPE)
 //-----------------------------------------------------------------------------
 {

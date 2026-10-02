@@ -45,6 +45,7 @@
 
 #include <dekaf2/core/strings/ksplit.h>
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/os/ksignals.h>
 #include <dekaf2/system/process/kchildprocess.h>
 #include <dekaf2/core/logging/klog.h>
 #include <dekaf2/core/strings/kstring.h>
@@ -194,6 +195,7 @@ bool KBasePipe::Open(std::vector<KString> Args, OpenMode Mode, const std::vector
 
 			// enable SIGPIPE!
 			::signal(SIGPIPE, SIG_DFL);
+			kUnblockAllSignals();
 
 			if (m_Mode & PipeWrite)
 			{

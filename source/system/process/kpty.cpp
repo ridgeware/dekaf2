@@ -45,6 +45,7 @@
 #ifdef DEKAF2_HAS_PIPES
 
 #include <dekaf2/system/os/ksystem.h>
+#include <dekaf2/system/os/ksignals.h>
 #include <dekaf2/system/process/kchildprocess.h>
 #include <dekaf2/core/logging/klog.h>
 #include <csignal>
@@ -280,6 +281,7 @@ bool KPTY::Open(LoginMode Mode,
 
 			// enable SIGPIPE
 			::signal(SIGPIPE, SIG_DFL);
+			kUnblockAllSignals();
 
 			// set additional environment variables
 			kSetEnv(Environment);

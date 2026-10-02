@@ -395,6 +395,8 @@ bool KChildProcess::Start(KString sCommand, KStringViewZ sChangeDirectory, bool 
 		detail::kCloseOwnFilesForExec(false);
 	}
 
+	kUnblockAllSignals();
+
 	if (!sChangeDirectory.empty())
 	{
 		if (chdir(sChangeDirectory.c_str()))
@@ -435,7 +437,7 @@ bool KChildProcess::Join(KDuration Timeout)
 {
 	if (!m_child)
 	{
-		SetError("no child started");
+		return SetError("no child started");
 	}
 
 	pid_t success { 0 };
@@ -526,7 +528,7 @@ bool KChildProcess::Stop(KDuration Timeout)
 {
 	if (!m_child)
 	{
-		SetError("no child started");
+		return SetError("no child started");
 	}
 
 	// send a SIGTERM
@@ -540,21 +542,47 @@ bool KChildProcess::Stop(KDuration Timeout)
 } // Stop
 
 //-----------------------------------------------------------------------------
-bool KChildProcess::Kill()
+bool KChildProcess::Kill(KDuration GracePeriod)
 //-----------------------------------------------------------------------------
 {
 	if (!m_child)
 	{
-		SetError("no child started");
+		return SetError("no child started");
 	}
 
-	// send a SIGHUP
-	if (::kill(m_child, SIGHUP))
+	// an error of an earlier call must not count for the check after Join() below
+	ClearError();
+
+	if (GracePeriod.count() > 0)
+	{
+		// give the child the chance to end gracefully
+		if (::kill(m_child, SIGTERM))
+		{
+			return SetErrnoError("kill(): ");
+		}
+
+		if (Join(GracePeriod))
+		{
+			return true;
+		}
+
+		if (HasError())
+		{
+			// waitpid() failed: the child is not ours anymore, and its pid may
+			// already belong to another process
+			return false;
+		}
+	}
+
+	// SIGKILL cannot be caught, blocked or ignored
+	if (::kill(m_child, SIGKILL))
 	{
 		return SetErrnoError("kill(): ");
 	}
 
-	return Join(std::chrono::milliseconds(20));
+	// the child ends now, unless it waits in the kernel (e.g. for a hung NFS
+	// server) - do not wait forever for it
+	return Join(chrono::milliseconds(100));
 
 } // Kill
 

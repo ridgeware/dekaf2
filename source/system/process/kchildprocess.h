@@ -130,8 +130,9 @@ public:
 	/// Stop a started child with SIGTERM, wait max for Timeout, 0 = forever (default)
 	bool Stop(KDuration Timeout = chrono::nanoseconds(0));
 
-	/// Kill a started child with SIGHUP
-	bool Kill();
+	/// Kill a started child: first with SIGTERM, and with SIGKILL if it did not end
+	/// within GracePeriod (or right away with SIGKILL if GracePeriod is 0)
+	bool Kill(KDuration GracePeriod = chrono::milliseconds(100));
 
 	/// Check if a child is started
 	bool IsStarted() const { return m_child != 0; }

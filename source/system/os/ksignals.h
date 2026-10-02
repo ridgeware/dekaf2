@@ -255,6 +255,19 @@ DEKAF2_PUBLIC
 void kBlockAllSignals(bool bExceptSEGVandFPE = true);
 //-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
+/// Unblock all signals for this thread - the counterpart of kBlockAllSignals(),
+/// for a child after fork() and before exec(). dekaf2 blocks the signals in all
+/// its threads and handles them in its signal thread, and the signal mask survives
+/// exec(): the new process could otherwise not be stopped with SIGTERM, SIGINT or
+/// SIGHUP, and would not get a SIGPIPE when writing to a closed pipe. Do not call
+/// it in a thread of a dekaf2 process - a signal could then reach this thread
+/// instead of the signal thread, and e.g. SIGTERM would end the process at once.
+/// No-op on Windows.
+DEKAF2_PUBLIC
+void kUnblockAllSignals();
+//-----------------------------------------------------------------------------
+
 
 /// @}
 

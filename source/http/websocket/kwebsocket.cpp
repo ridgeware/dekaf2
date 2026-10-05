@@ -1766,6 +1766,25 @@ bool KWebSocket::AutoPing(KDuration PingInterval)
 		return true;
 	}
 
+	if (m_pServer)
+	{
+		// owned by a KWebSocketServer: ping through the server like any other message - it
+		// lines up behind the queued messages, the current owner of the connection writes
+		// it, and a failed write drops the connection. Writing directly would bypass the
+		// ownership, block the timer thread on a slow peer, and ignore a dead one. Server
+		// and handle outlive this instance's pings (its destructor cancels them), and no
+		// pointer to this instance is captured, so a move does not matter either.
+		auto pServer = m_pServer;
+		auto iHandle = m_iHandle;
+
+		m_TimerID = Timer.CallEvery(m_PingInterval, [pServer, iHandle](KUnixTime)
+		{
+			pServer->Ping(iHandle);
+		});
+
+		return m_TimerID != KTimer::InvalidID;
+	}
+
 	auto WeakSelf = m_WeakSelf;
 
 	if (!WeakSelf.expired())
@@ -1795,6 +1814,24 @@ bool KWebSocket::AutoPing(KDuration PingInterval)
 	return m_TimerID != KTimer::InvalidID;
 
 } // AutoPing
+
+//-----------------------------------------------------------------------------
+void KWebSocket::SetServerContext(KWebSocketServer* pServer, std::size_t iHandle)
+//-----------------------------------------------------------------------------
+{
+	m_pServer = pServer;
+	m_iHandle = iHandle;
+
+	if (!m_PingInterval.IsZero())
+	{
+		// pings started before a server took over write directly - restart them through
+		// the server
+		auto PingInterval = m_PingInterval;
+		AutoPing(KDuration::zero());
+		AutoPing(PingInterval);
+	}
+
+} // SetServerContext
 
 //-----------------------------------------------------------------------------
 void KWebSocket::CallHandler(class Frame Frame)

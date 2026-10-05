@@ -552,8 +552,10 @@ public:
 	bool Close(uint16_t iStatusCode = 1000, KString sReason = KString{});
 
 	/// force automatic pings being sent to the counterpart to keep the connection alive.
-	/// The ping timer is bound to this instance - do not move the instance after
-	/// enabling AutoPing. Pings stop reliably at destruction.
+	/// On a connection owned by a KWebSocketServer the pings are sent through the server
+	/// (see KWebSocketServer::Ping()): queued like any other message, and a failed write
+	/// drops the connection. Otherwise the ping timer is bound to this instance - do not
+	/// move the instance after enabling AutoPing. Pings stop reliably at destruction.
 	/// @param PingInterval the time interval at which to send pings, defaults to five minutes, 0 switches AutoPing off
 	/// @returns true if automatic pings could be setup, false otherwise
 	bool AutoPing(KDuration PingInterval = chrono::minutes(5));
@@ -574,8 +576,9 @@ public:
 	void               CallConnectHandler           ()                             { if (m_ConnectHandler) m_ConnectHandler(*this); }
 	/// call the close handler (called by KWebSocketServer on removal)
 	void               CallCloseHandler             (std::size_t iHandle)          { if (m_CloseHandler) m_CloseHandler(iHandle); }
-	/// set the owning server and the handle for this connection (called by KWebSocketServer::AddWebSocket)
-	void               SetServerContext             (KWebSocketServer* pServer, std::size_t iHandle) { m_pServer = pServer; m_iHandle = iHandle; }
+	/// set the owning server and the handle for this connection (called by KWebSocketServer::AddWebSocket) -
+	/// running automatic pings are switched over to the server
+	void               SetServerContext             (KWebSocketServer* pServer, std::size_t iHandle);
 	/// returns the handle of this connection within its KWebSocketServer (0 if not added to one)
 	DEKAF2_NODISCARD
 	std::size_t        GetHandle                    ()                       const { return m_iHandle;             }

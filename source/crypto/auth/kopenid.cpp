@@ -231,9 +231,21 @@ const KRSAKey& KOpenIDKeys::GetRSAKey(KStringView sKeyID, KStringView sAlgorithm
 
 //-----------------------------------------------------------------------------
 bool KOpenIDKeys::VerifySignature(KStringView sKeyID, KStringView sAlgorithm, KStringView sKeyDigest,
-                                  KStringView sData,  KStringView sSignature, KStringView sUseType) const
+                                  KStringView sData,  KStringView sSignature, KStringView sUseType,
+                                  KString* psError) const
 //-----------------------------------------------------------------------------
 {
+	// the reason of a failure goes to the caller only: the request threads of a
+	// server verify with the same key set at the same time
+	auto Fail = [psError](KStringView sReason)
+	{
+		if (psError)
+		{
+			*psError = sReason;
+		}
+		return false;
+	};
+
 	auto it = WebKeys.find(sKeyID);
 
 	if (it == WebKeys.end()                 ||
@@ -241,43 +253,54 @@ bool KOpenIDKeys::VerifySignature(KStringView sKeyID, KStringView sAlgorithm, KS
 		it->second.Digest    != sKeyDigest  ||
 		it->second.UseType   != sUseType)
 	{
-		return SetError("no matching key");
+		return Fail("no matching key");
 	}
 
 	const auto& wk = it->second;
+
+	bool bVerified { false };
 
 	// RSA algorithms
 	if (sAlgorithm == "RS256")
 	{
 		KRSAVerify V(KRSAVerify::SHA256, sData);
-		return V.Verify(wk.RSAKey, sSignature);
+		bVerified = V.Verify(wk.RSAKey, sSignature);
 	}
 	else if (sAlgorithm == "RS384")
 	{
 		KRSAVerify V(KRSAVerify::SHA384, sData);
-		return V.Verify(wk.RSAKey, sSignature);
+		bVerified = V.Verify(wk.RSAKey, sSignature);
 	}
 	else if (sAlgorithm == "RS512")
 	{
 		KRSAVerify V(KRSAVerify::SHA512, sData);
-		return V.Verify(wk.RSAKey, sSignature);
+		bVerified = V.Verify(wk.RSAKey, sSignature);
 	}
 	// ECDSA P-256
 	else if (sAlgorithm == "ES256")
 	{
 		KECVerify V;
-		return V.Verify(wk.ECKey, sData, sSignature);
+		bVerified = V.Verify(wk.ECKey, sData, sSignature);
 	}
 #if DEKAF2_HAS_ED25519
 	// Ed25519
 	else if (sAlgorithm == "EdDSA")
 	{
 		KEd25519Verify V;
-		return V.Verify(wk.Ed25519Key, sData, sSignature);
+		bVerified = V.Verify(wk.Ed25519Key, sData, sSignature);
 	}
 #endif
+	else
+	{
+		return Fail(kFormat("signature algorithm not supported: {}", sAlgorithm));
+	}
 
-	return SetError(kFormat("signature algorithm not supported: {}", sAlgorithm));
+	if (!bVerified)
+	{
+		return Fail("signature does not verify");
+	}
+
+	return true;
 
 } // VerifySignature
 
@@ -348,6 +371,12 @@ void KOpenIDProvider::Refresh(KUnixTime Now)
 	// keys we use the long interval, which also preserves the lockless
 	// decaying-keys invariant (refreshes spaced >= one interval apart, and
 	// there are never live keys to decay while we are in the short-retry state).
+	if (m_URL.empty())
+	{
+		// a provider with a fixed set of keys, or a default constructed one
+		return;
+	}
+
 	const auto*     pCurrent  = m_CurrentKeys ? m_CurrentKeys->load(std::memory_order_relaxed) : nullptr;
 	const bool      bHaveKeys = pCurrent && !pCurrent->Keys.empty();
 	const KDuration Interval  = bHaveKeys ? m_RefreshInterval : m_RetryInterval;
@@ -440,8 +469,9 @@ void KOpenIDProvider::Refresh(KUnixTime Now)
 	}
 	else
 	{
-		// atomically switch to new keys
-		m_CurrentKeys->store(m_Keys.get(), std::memory_order_relaxed);
+		// atomically switch to new keys - release makes the keys visible to a thread
+		// that loads the pointer with acquire in Get()
+		m_CurrentKeys->store(m_Keys.get(), std::memory_order_release);
 	}
 
 } // Refresh
@@ -472,6 +502,26 @@ KOpenIDProvider::KOpenIDProvider (KURL URL, KStringView sScope, KDuration Refres
 } // ctor
 
 //-----------------------------------------------------------------------------
+KOpenIDProvider::KOpenIDProvider (KOpenIDKeys Keys, KString sIssuer)
+//-----------------------------------------------------------------------------
+{
+	if (!Keys.IsValid())
+	{
+		SetError(kFormat("invalid keys for issuer {}: {}", sIssuer, Keys.Error()));
+	}
+	else if (Keys.empty())
+	{
+		SetError(kFormat("no keys for issuer {}", sIssuer));
+	}
+
+	m_Keys        = std::make_unique<KeysAndIssuer>(KeysAndIssuer { std::move(Keys), std::move(sIssuer) });
+	m_CurrentKeys = std::make_unique<std::atomic<KeysAndIssuer*>>(m_Keys.get());
+
+} // ctor
+
+const KOpenIDProvider::KeysAndIssuer KOpenIDProvider::s_EmptyKeys {};
+
+//-----------------------------------------------------------------------------
 void KJWT::ClearJSON()
 //-----------------------------------------------------------------------------
 {
@@ -484,13 +534,12 @@ void KJWT::ClearJSON()
 bool KJWT::SetError(KStringView sError)
 //-----------------------------------------------------------------------------
 {
-	if (!sError.empty())
-	{
-		ClearJSON();
-		return KErrorBase::SetError(kFormat("{}sub {}: {}", m_bSignatureIsValid ? "" : "bad sig for ", GetUser(), sError));
-	}
+	// the user from the payload is part of the message - read it before the payload is cleared
+	auto sMessage = kFormat("{}sub {}: {}", m_bSignatureIsValid ? "" : "bad sig for ", GetUser(), sError);
 
-	return true;
+	ClearJSON();
+
+	return KErrorBase::SetError(sMessage);
 
 } // SetError
 
@@ -641,6 +690,8 @@ bool KJWT::TokenUseMatches(const KJSON& Payload, KStringView sExpectedTokenUse)
 bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers, KStringView sScope, KStringView sExpectedAudience, KStringView sExpectedTokenUse, KDuration tClockLeeway)
 //-----------------------------------------------------------------------------
 {
+	// a KJWT may check one token after the other - nothing of an earlier verdict may stay
+	ClearError();
 	m_bSignatureIsValid = false;
 
 	sBase64Token.TrimLeft();
@@ -651,6 +702,11 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 	if (Part.size() != 3)
 	{
 		return SetError(kFormat("wrong part count in token string, expected 3 parts, got {}: {}", Part.size(), sBase64Token));
+	}
+
+	if (Providers.empty())
+	{
+		return SetError("no providers");
 	}
 
 	DEKAF2_TRY
@@ -677,29 +733,34 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 		const KString& sKeyID     = Header["kid"].get_ref<const KString&>();
 		const KString& sKeyDigest = Header["x5t"].get_ref<const KString&>();
 #endif
+		// Per JWS (RFC 7515) the signature covers the base64url-encoded
+		// header and payload joined by '.'.  Part[0] and Part[1] are
+		// contiguous views into the original token, so we can span
+		// from the start of Part[0] to the end of Part[1] to get
+		// "base64url(header).base64url(payload)" without copying.
+		KStringView sSignedData(Part[0].data(), static_cast<std::size_t>(Part[1].data() + Part[1].size() - Part[0].data()));
+		KString     sSignature = KBase64Url::Decode(Part[2]);
+
+		// The loop only notes why a provider rejected the token: SetError() clears
+		// Header and Payload, and sAlgorithm, sKeyID and sKeyDigest point into Header
+		KString sReason;
+
 		for (auto& Provider : Providers)
 		{
-			if (!Provider.IsValid())
+			// the published keys - not the error state of the provider, which a
+			// Refresh() on another thread may change at this moment
+			auto& KeysAndIssuer = Provider.Get();
+
+			if (KeysAndIssuer.Keys.empty())
 			{
-				SetError(kFormat("invalid provider: {}", Provider.Error()));
+				sReason = "provider has no keys";
 				// try the next provider ..
 				continue;
 			}
 
-			// get access on the atomic storage
-			auto& KeysAndIssuer = Provider.Get();
-
-			// Per JWS (RFC 7515) the signature covers the base64url-encoded
-			// header and payload joined by '.'.  Part[0] and Part[1] are
-			// contiguous views into the original token, so we can span
-			// from the start of Part[0] to the end of Part[1] to get
-			// "base64url(header).base64url(payload)" without copying.
-			KStringView sSignedData(Part[0].data(), static_cast<std::size_t>(Part[1].data() + Part[1].size() - Part[0].data()));
-
 			if (!KeysAndIssuer.Keys.VerifySignature(sKeyID, sAlgorithm, sKeyDigest,
-			                                        sSignedData, KBase64Url::Decode(Part[2])))
+			                                        sSignedData, sSignature, "sig", &sReason))
 			{
-				SetError(KeysAndIssuer.Keys.Error());
 				// try the next provider ..
 				continue;
 			}
@@ -708,12 +769,11 @@ bool KJWT::Check(KStringView sBase64Token, const KOpenIDProviderList& Providers,
 			// e.g. read the sub-field or any other)
 			m_bSignatureIsValid = true;
 
-			// clear error
-			SetError("");
-
 			// exit here if we cannot validate
 			return Validate(KeysAndIssuer.sIssuer, sScope, sExpectedAudience, sExpectedTokenUse, tClockLeeway);
 		}
+
+		return SetError(sReason);
 	}
 	DEKAF2_CATCH (const KJSON::exception& exc)
 	{

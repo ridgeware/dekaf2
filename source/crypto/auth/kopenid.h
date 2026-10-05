@@ -83,15 +83,18 @@ public:
 
 	/// verify a JWT signature using the key identified by sKeyID/sAlgorithm.
 	/// Supports RS256/RS384/RS512 (RSA), ES256 (ECDSA P-256), and EdDSA (Ed25519).
+	/// Does not change this object, so several threads may verify with one key set.
 	/// @param sKeyID     the "kid" from the JWT header
 	/// @param sAlgorithm the "alg" from the JWT header
 	/// @param sKeyDigest the "x5t" from the JWT header (may be empty)
 	/// @param sData      the signed data (header.payload, base64url-encoded)
 	/// @param sSignature the raw decoded signature bytes
 	/// @param sUseType   the expected key use (default "sig")
+	/// @param psError    if not null, receives the reason of a failure
 	/// @return true if the signature is valid
 	bool VerifySignature(KStringView sKeyID, KStringView sAlgorithm, KStringView sKeyDigest,
-	                     KStringView sData,  KStringView sSignature, KStringView sUseType = "sig") const;
+	                     KStringView sData,  KStringView sSignature, KStringView sUseType = "sig",
+	                     KString* psError = nullptr) const;
 
 	/// are all info valid?
 	bool IsValid() const { return !HasError(); }
@@ -143,8 +146,15 @@ public:
 	                 KStringView sScope = KStringView{},
 	                 KDuration RefreshInterval = std::chrono::hours(24),
 	                 bool bMustSupportScope = true);
+	/// a provider with a fixed set of keys, e.g. from a local source or for tests -
+	/// Refresh() leaves it unchanged
+	/// @param Keys the keys that sign the tokens of the issuer
+	/// @param sIssuer the issuer as the tokens name it in their "iss" claim
+	KOpenIDProvider (KOpenIDKeys Keys, KString sIssuer);
 
-	/// are all info valid?
+	/// are all info valid? This is the state after the last Refresh(), which is not
+	/// synchronized with a Refresh() on another thread - KJWT::Check() therefore only
+	/// looks at the keys that Get() returns
 	bool IsValid() const { return !HasError(); }
 
 	struct KeysAndIssuer
@@ -153,8 +163,19 @@ public:
 		KString     sIssuer;
 	};
 
-	const KeysAndIssuer& Get() const { return *m_CurrentKeys->load(std::memory_order_relaxed); }
+	/// the current keys and issuer - safe to call while another thread runs Refresh().
+	/// After a key change the previous set stays valid for one refresh interval, at
+	/// least an hour, so use the reference right away and do not keep it. Without
+	/// keys, e.g. for a default constructed provider, the set is empty
+	const KeysAndIssuer& Get() const
+	{
+		// acquire pairs with the release in Refresh(): a thread that sees the new
+		// pointer also sees the keys it points to
+		return m_CurrentKeys ? *m_CurrentKeys->load(std::memory_order_acquire) : s_EmptyKeys;
+	}
 
+	/// load the keys again once the refresh interval has passed - call it from one
+	/// thread at a time, the readers of Get() need no lock
 	void Refresh(KUnixTime Now = KUnixTime::now());
 
 //----------
@@ -163,6 +184,8 @@ private:
 
 	DEKAF2_PRIVATE
 	bool Validate(const KJSON& Configuration, const KURL& URL, KStringView sScope) const;
+
+	static const KeysAndIssuer s_EmptyKeys;
 
 	std::unique_ptr<KeysAndIssuer>               m_Keys;
 	std::unique_ptr<KeysAndIssuer>               m_DecayingKeys;

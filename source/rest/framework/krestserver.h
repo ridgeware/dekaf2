@@ -181,6 +181,9 @@ public:
 		/// (the resource server's expected audience, e.g. its client_id). Empty (the
 		/// default) imposes no audience check.
 		KString sAuthAudience;
+		/// tolerated difference between the clocks of this server and of the token issuer
+		/// when checking the validity period ("nbf" and "exp") of a bearer token
+		KDuration AuthClockLeeway { chrono::seconds(5) };
 		/// Allow KLog profiling triggered by a KLOG header? Any client that knows the header
 		/// name can then switch on debug output for its own requests and receive it in the
 		/// response - choose an unguessable name and use it only in trusted networks

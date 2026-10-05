@@ -6,8 +6,63 @@
 #include <dekaf2/crypto/encoding/kbase64.h>
 #include <dekaf2/crypto/encoding/khex.h>
 #include <dekaf2/data/json/kjson.h>
+#include <dekaf2/core/format/kformat.h>
+#include <ctime>
 
 using namespace dekaf2;
+
+namespace {
+
+//-----------------------------------------------------------------------------
+/// an issuer with its own EC key, which hands out a provider for its key and signs tokens
+struct TestIssuer
+//-----------------------------------------------------------------------------
+{
+	TestIssuer(KStringView sIssuer, KStringView sKeyID)
+	: sIssuer(sIssuer)
+	, sKeyID(sKeyID)
+	, Key(true)
+	{
+		auto sPubRaw = Key.GetPublicKeyRaw();
+
+		JWKS = { {"keys", {
+			{
+				{"kty", "EC"},
+				{"crv", "P-256"},
+				{"x",   KBase64Url::Encode(KStringView(sPubRaw.data() + 1,  32))},
+				{"y",   KBase64Url::Encode(KStringView(sPubRaw.data() + 33, 32))},
+				{"kid", this->sKeyID},
+				{"alg", "ES256"},
+				{"use", "sig"}
+			}
+		}} };
+	}
+
+	KOpenIDProvider Provider() const
+	{
+		return KOpenIDProvider(KOpenIDKeys(JWKS), sIssuer);
+	}
+
+	/// a token of this issuer, valid from tNotBefore to tExpires (seconds since the epoch)
+	KString Token(KStringView sSubject, std::time_t tNotBefore, std::time_t tExpires, KStringView sOtherKeyID = KStringView{}) const
+	{
+		KJSON jHeader  = { {"alg", "ES256"}, {"kid", sOtherKeyID.empty() ? sKeyID : KString(sOtherKeyID)}, {"typ", "JWT"} };
+		KJSON jPayload = { {"iss", sIssuer}, {"sub", KString(sSubject)}, {"nbf", tNotBefore}, {"exp", tExpires} };
+
+		auto sData = kFormat("{}.{}", KBase64Url::Encode(jHeader.dump()), KBase64Url::Encode(jPayload.dump()));
+
+		KECSign Signer;
+		return kFormat("{}.{}", sData, KBase64Url::Encode(Signer.Sign(Key, sData)));
+	}
+
+	KString sIssuer;
+	KString sKeyID;
+	KECKey  Key;
+	KJSON   JWKS;
+
+}; // TestIssuer
+
+} // end of anonymous namespace
 
 TEST_CASE("KJWT audience matching")
 {
@@ -385,5 +440,138 @@ EBrURx/EsHSk
 		KOpenIDKeys Keys(jwks);
 		// key is loaded (kty=EC is accepted), but alg=ES384 won't match ES256 dispatch
 		CHECK_FALSE ( Keys.VerifySignature("test-ec", "ES384", "", "data", "sig") );
+	}
+}
+
+TEST_CASE("KJWT Check")
+{
+	TestIssuer Issuer("https://sso.example", "key-1");
+	TestIssuer Other ("https://other.example", "key-2");
+
+	auto tNow  = std::time(nullptr);
+	auto sGood = Issuer.Token("alice", tNow - 10, tNow + 600);
+
+	SECTION("a valid token")
+	{
+		KOpenIDProviderList Providers;
+		Providers.push_back(Issuer.Provider());
+		REQUIRE ( Providers.front().IsValid() );
+
+		KJWT JWT;
+		CHECK ( JWT.Check(sGood, Providers) );
+		CHECK ( JWT.IsValid() );
+		CHECK ( JWT.GetUser() == "alice" );
+	}
+
+	SECTION("the second provider verifies a token the first one has no key for")
+	{
+		// the first provider's failure must neither clear the parsed token nor leave
+		// its error behind
+		KOpenIDProviderList Providers;
+		Providers.push_back(Other.Provider());
+		Providers.push_back(Issuer.Provider());
+
+		KJWT JWT;
+		CHECK ( JWT.Check(sGood, Providers) );
+		CHECK ( JWT.IsValid() );
+		CHECK ( JWT.GetUser() == "alice" );
+		CHECK ( kjson::GetStringRef(JWT.Payload, "iss") == "https://sso.example" );
+	}
+
+	SECTION("a reused KJWT keeps no error of an earlier token")
+	{
+		KOpenIDProviderList Providers;
+		Providers.push_back(Issuer.Provider());
+
+		KJWT JWT;
+		CHECK_FALSE ( JWT.Check(Other.Token("mallory", tNow - 10, tNow + 600), Providers) );
+		CHECK_FALSE ( JWT.IsValid() );
+
+		CHECK ( JWT.Check(sGood, Providers) );
+		CHECK ( JWT.IsValid() );
+	}
+
+	SECTION("the reasons for a rejection")
+	{
+		KOpenIDProviderList Providers;
+		Providers.push_back(Issuer.Provider());
+
+		KJWT JWT;
+
+		// after the signature check the message names the user
+		CHECK_FALSE ( JWT.Check(Issuer.Token("alice", tNow - 1200, tNow - 600), Providers) );
+		CHECK ( JWT.Error().contains("sub alice: token has expired") );
+
+		CHECK_FALSE ( JWT.Check(Issuer.Token("alice", tNow - 10, tNow + 600, "key-unknown"), Providers) );
+		CHECK ( JWT.Error().contains("bad sig for sub alice: no matching key") );
+
+		// the issuer's token with the signature of another key
+		auto sToken   = Issuer.Token("alice", tNow - 10, tNow + 600);
+		auto sOther   = Other .Token("alice", tNow - 10, tNow + 600);
+		auto iSig     = sToken.rfind('.');
+		auto iOther   = sOther.rfind('.');
+		REQUIRE ( iSig   != KString::npos );
+		REQUIRE ( iOther != KString::npos );
+		auto sForged  = kFormat("{}{}", sToken.substr(0, iSig), sOther.substr(iOther));
+		CHECK_FALSE ( JWT.Check(sForged, Providers) );
+		CHECK ( JWT.Error().contains("signature does not verify") );
+	}
+
+	SECTION("no providers, and a provider without keys")
+	{
+		KOpenIDProviderList Providers;
+
+		KJWT JWT;
+		CHECK_FALSE ( JWT.Check(sGood, Providers) );
+		CHECK ( JWT.Error().contains("no providers") );
+
+		Providers.push_back(KOpenIDProvider());
+		CHECK_FALSE ( JWT.Check(sGood, Providers) );
+		CHECK ( JWT.Error().contains("provider has no keys") );
+
+		// the list is searched on
+		Providers.push_back(Issuer.Provider());
+		CHECK ( JWT.Check(sGood, Providers) );
+	}
+
+	SECTION("clock leeway")
+	{
+		KOpenIDProviderList Providers;
+		Providers.push_back(Issuer.Provider());
+
+		// the issuer's clock runs 20 seconds ahead of ours
+		auto sEarly = Issuer.Token("alice", tNow + 20, tNow + 600);
+
+		KJWT JWT;
+		CHECK_FALSE ( JWT.Check(sEarly, Providers) );
+		CHECK ( JWT.Error().contains("token will be valid in") );
+
+		CHECK ( JWT.Check(sEarly, Providers, KStringView{}, KStringView{}, KStringView{}, chrono::seconds(30)) );
+	}
+
+	SECTION("verifying leaves a shared key set unchanged")
+	{
+		KOpenIDKeys Keys(Issuer.JWKS);
+		REQUIRE ( Keys.IsValid() );
+
+		KString sError;
+		CHECK_FALSE ( Keys.VerifySignature("key-unknown", "ES256", "", "data", "sig", "sig", &sError) );
+		CHECK ( sError == "no matching key" );
+		CHECK ( Keys.IsValid() );
+		CHECK ( Keys.Error().empty() );
+	}
+
+	SECTION("a provider with fixed keys")
+	{
+		CHECK_FALSE ( KOpenIDProvider(KOpenIDKeys(), "https://sso.example").IsValid() );
+
+		auto Provider = Issuer.Provider();
+		CHECK ( Provider.IsValid() );
+		CHECK ( Provider.Get().sIssuer == "https://sso.example" );
+
+		// Refresh() leaves it as it is
+		Provider.Refresh(KUnixTime::now() + chrono::hours(48));
+		CHECK ( Provider.IsValid() );
+		CHECK ( Provider.Get().Keys.size() == 1 );
 	}
 }

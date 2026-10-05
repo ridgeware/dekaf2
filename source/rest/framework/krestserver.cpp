@@ -290,7 +290,7 @@ void KRESTServer::VerifyAuthentication(KStringView sAuthorization)
 						// which our OP binds to the same aud=client_id as the access token) cannot
 						// be replayed here as a bearer. Tokens that omit token_use are still accepted
 						// - see KJWT::Check.
-						if (m_AuthToken.Check(sAuthorization, m_Options.Authenticators, sScope, m_Options.sAuthAudience, "access"))
+						if (m_AuthToken.Check(sAuthorization, m_Options.Authenticators, sScope, m_Options.sAuthAudience, "access", m_Options.AuthClockLeeway))
 						{
 							// success
 							SetAuthenticatedUser(kjson::GetString(GetAuthToken(), "sub"));

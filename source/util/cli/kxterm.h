@@ -558,11 +558,14 @@ private:
 	void     Command          (CGroup Group, KStringView sCommand) const;
 	/// send a pre-formatted escape sequence string directly
 	void     Command          (KStringView sCommand) const;
-	/// send a query to the terminal and read the response (used for cursor position and terminal detection)
+#ifndef DEKAF2_IS_WINDOWS
+	/// send a query to the terminal and read the response (used for cursor position and terminal detection) -
+	/// not on Windows, where the console answers only into its input stream, and tells the cursor position directly
 	/// @param sRequest the escape sequence to send (e.g. cursor position report)
 	/// @return the terminal's response string, or empty if no response (not a terminal)
 	DEKAF2_NODISCARD
 	KString  QueryTerminal    (KStringView sRequest);
+#endif
 	/// internal cursor positioning with optional bounds checking
 	void     IntSetCursor     (uint16_t iRow, uint16_t iColumn, bool bCheck);
 

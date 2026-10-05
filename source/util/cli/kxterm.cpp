@@ -490,11 +490,14 @@ void KXTerm::QueryTermSize()
 {
 #ifdef DEKAF2_IS_WINDOWS
 
-	// the console answers the cursor query only into the input stream, which cannot be read
-	// with a timeout here - but it tells its size directly
+	// the console tells its size and the cursor position directly
 	auto TTY   = kGetTerminalSize(m_iOutputDevice, 80, 25);
 	m_iRows    = TTY.lines;
 	m_iColumns = TTY.columns;
+
+	// the start of the cursor tracking, as on Unix
+	uint16_t iRow, iCol;
+	GetCursor(iRow, iCol);
 
 #else
 
@@ -529,6 +532,28 @@ bool KXTerm::GetCursor(uint16_t& iRow, uint16_t& iColumn)
 		return false;
 	}
 
+#ifdef DEKAF2_IS_WINDOWS
+
+	// the console tells the position directly - it would answer a query only into its
+	// input stream, mixed with the typed keys
+	CONSOLE_SCREEN_BUFFER_INFO Info;
+
+	if (::GetConsoleScreenBufferInfo(::GetStdHandle(static_cast<DWORD>(m_iOutputDevice)), &Info))
+	{
+		// relative to the visible window, and starting at 1, as the answer of a terminal
+		auto iWindowRows    = Info.srWindow.Bottom - Info.srWindow.Top  + 1;
+		auto iWindowColumns = Info.srWindow.Right  - Info.srWindow.Left + 1;
+		auto iCursorRow     = Info.dwCursorPosition.Y - Info.srWindow.Top  + 1;
+		auto iCursorColumn  = Info.dwCursorPosition.X - Info.srWindow.Left + 1;
+
+		m_iCursorRow    = iRow    = static_cast<uint16_t>(std::max(1, std::min(iCursorRow,    iWindowRows   )));
+		m_iCursorColumn = iColumn = static_cast<uint16_t>(std::max(1, std::min(iCursorColumn, iWindowColumns)));
+		kDebug(3, "row {} col {}", iRow, iColumn);
+		return true;
+	}
+
+#else
+
 	auto sResponse = QueryTerminal("\033[6n");
 
 	if (sResponse.remove_prefix('['))
@@ -543,6 +568,8 @@ bool KXTerm::GetCursor(uint16_t& iRow, uint16_t& iColumn)
 			return true;
 		}
 	}
+
+#endif
 
 	kDebug(1, "could not get cursor position");
 	return false;
@@ -1425,13 +1452,13 @@ void KXTerm::Command(KStringView sCommand) const
 
 } // Command
 
+#ifndef DEKAF2_IS_WINDOWS
+
 //-----------------------------------------------------------------------------
 KString KXTerm::QueryTerminal(KStringView sRequest)
 //-----------------------------------------------------------------------------
 {
 	KString sResponse;
-
-#ifndef DEKAF2_IS_WINDOWS
 
 	if (sRequest.empty())
 	{
@@ -1492,11 +1519,11 @@ KString KXTerm::QueryTerminal(KStringView sRequest)
 		kSetTerminal(m_iInputDevice, true, 1, 0);
 	}
 
-#endif
-
 	return sResponse;
 
 } // QueryTerminal
+
+#endif // DEKAF2_IS_WINDOWS
 
 //-----------------------------------------------------------------------------
 uint16_t KXTerm::CheckColumn       (uint16_t iColumns) const

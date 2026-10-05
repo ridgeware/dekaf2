@@ -182,6 +182,8 @@ void KPoll::Stop()
 
 	if (Thread)
 	{
+		// wake the watcher from its poll - else it notices the stop only at the next timeout
+		m_Interruptor.Wake();
 		Thread->join();
 		kDebug(1, "watcher stopped");
 	}

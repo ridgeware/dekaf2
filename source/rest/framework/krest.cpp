@@ -234,6 +234,34 @@ bool KREST::RealExecute(const Options& Options, const KRESTRoutes& Routes, KStre
 
 } // Execute
 
+namespace {
+
+//-----------------------------------------------------------------------------
+/// the options of the websocket server of a standalone REST server
+KWebSocketServer::Options GetWebSocketOptions(const KREST::Options& Options)
+//-----------------------------------------------------------------------------
+{
+	KWebSocketServer::Options WebSocketOptions;
+
+	WebSocketOptions.iWorkerThreads       = Options.iWebSocketWorkerThreads;
+	WebSocketOptions.iMaxConcurrentWrites = Options.iWebSocketMaxConcurrentWrites;
+	WebSocketOptions.Growth               = Options.Growth;
+	WebSocketOptions.Shrink               = Options.Shrink;
+
+	if (Options.iTimeout)
+	{
+		// a flush to a peer whose buffers are full waits no longer than any other write
+		// of this server - with the default of 30 seconds a slow consumer would block a
+		// worker that long, and with a single worker all connections
+		WebSocketOptions.WriteTimeout = chrono::seconds(Options.iTimeout);
+	}
+
+	return WebSocketOptions;
+
+} // GetWebSocketOptions
+
+} // end of anonymous namespace
+
 //-----------------------------------------------------------------------------
 int KREST::GetResult()
 //-----------------------------------------------------------------------------
@@ -299,12 +327,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				Options.Out = KRESTServer::HTTP;
 
 				m_SocketWatch     = std::make_unique<KSocketWatch>(chrono::milliseconds(250));
-				KWebSocketServer::Options WebSocketOptions;
-				WebSocketOptions.iWorkerThreads = Options.iWebSocketWorkerThreads;
-				WebSocketOptions.iMaxConcurrentWrites = Options.iWebSocketMaxConcurrentWrites;
-				WebSocketOptions.Growth         = Options.Growth;
-				WebSocketOptions.Shrink         = Options.Shrink;
-				m_WebSocketServer = std::make_unique<KWebSocketServer>(std::move(WebSocketOptions));
+				m_WebSocketServer = std::make_unique<KWebSocketServer>(GetWebSocketOptions(Options));
 				m_Server          = std::make_unique<RESTServer>(Options,
 																 Routes,
 																 *m_SocketWatch,
@@ -398,12 +421,7 @@ bool KREST::ExecuteRequest(const Options& Options, const KRESTRoutes& Routes)
 				kDebug(1, "starting standalone HTTP server on socket file {}...", Options.sSocketFile);
 				Options.Out       = KRESTServer::HTTP;
 				m_SocketWatch     = std::make_unique<KSocketWatch>(chrono::milliseconds(250));
-				KWebSocketServer::Options WebSocketOptions;
-				WebSocketOptions.iWorkerThreads = Options.iWebSocketWorkerThreads;
-				WebSocketOptions.iMaxConcurrentWrites = Options.iWebSocketMaxConcurrentWrites;
-				WebSocketOptions.Growth         = Options.Growth;
-				WebSocketOptions.Shrink         = Options.Shrink;
-				m_WebSocketServer = std::make_unique<KWebSocketServer>(std::move(WebSocketOptions));
+				m_WebSocketServer = std::make_unique<KWebSocketServer>(GetWebSocketOptions(Options));
 				m_Server          = std::make_unique<RESTServer>(Options,
 																 Routes,
 																 *m_SocketWatch,

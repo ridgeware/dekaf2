@@ -223,6 +223,7 @@ KWebApp::KWebApp(Options Options, KRESTRoutes& Routes)
 	m_Routes.AddRoute(sLogoutPath ).Post([this](KRESTServer& HTTP) { Logout     (HTTP); });
 	m_Routes.AddRoute(LanguagePath).Post([this](KRESTServer& HTTP) { SetLanguage(HTTP); }).Parse(KRESTRoute::WWWFORM);
 	m_Routes.AddRoute(sLiveScript ).Get ([this](KRESTServer& HTTP) { LiveScript (HTTP); });
+	m_Routes.AddRoute(sEnterPath  ).Get ([this](KRESTServer& HTTP) { EnterPage  (HTTP); });
 	m_Routes.AddRoute(sLivePath   ).Get ([this](KRESTServer& HTTP) { Live       (HTTP); }).Parse(KRESTRoute::NOREAD).Options(KRESTRoute::Options::WEBSOCKET);
 
 	// the config directory keeps the settings and the instance lock
@@ -1714,6 +1715,18 @@ void KWebApp::Guard(KRESTServer& HTTP)
 			throw KHTTPError { KHTTPError::H4xx_FORBIDDEN, "wrong token" };
 		}
 
+		// In two steps: when the window shows a web site and the application
+		// navigates to one of its own pages, the navigation starts on another
+		// site, and WebKit neither keeps nor sends a SameSite cookie set in its
+		// course (https://bugs.webkit.org/show_bug.cgi?id=233128) - the page
+		// behind the redirect answered "missing token". So the first request
+		// gets a page that loads the entry anew from our own origin
+		// (EnterPage()), and only that second request sets the cookie.
+		if (HTTP.GetQueryParm("step") != "2")
+		{
+			return;
+		}
+
 		HTTP.SetCookie(sCookieName, m_sToken, "Path=/; HttpOnly; SameSite=Strict");
 		Redirect(HTTP, SafePath(HTTP.GetQueryParm("next", "/")));
 	}
@@ -1780,6 +1793,28 @@ void KWebApp::NetworkGuard(KRESTServer& HTTP)
 	}
 
 } // NetworkGuard
+
+//-----------------------------------------------------------------------------
+void KWebApp::EnterPage(KRESTServer& HTTP)
+//-----------------------------------------------------------------------------
+{
+	// the first step of the entry (Guard() checked the token): the entry again,
+	// now as a navigation that starts on our own origin
+	if (!IsFromWindow(HTTP))
+	{
+		throw KHTTPError { KHTTPError::H4xx_NOTFOUND, "" };
+	}
+
+	// an HTML attribute: the separators as &amp;, the path encoded
+	KString sURL = kFormat("{}?token={}&amp;step=2&amp;next=", sEnterPath, m_sToken);
+	kUrlEncode(SafePath(HTTP.GetQueryParm("next", "/")), sURL, URIPart::Query);
+
+	HTTP.Response.Headers.Set(KHTTPHeader::CONTENT_TYPE,  KMIME::HTML_UTF8);
+	HTTP.Response.Headers.Set(KHTTPHeader::CACHE_CONTROL, "no-store");
+	HTTP.SetRawOutput(kFormat("<!DOCTYPE html>\n<html><head><meta charset=\"utf-8\">"
+	                          "<meta http-equiv=\"refresh\" content=\"0;url={}\"></head><body></body></html>\n", sURL));
+
+} // EnterPage
 
 //-----------------------------------------------------------------------------
 void KWebApp::LiveScript(KRESTServer& HTTP)

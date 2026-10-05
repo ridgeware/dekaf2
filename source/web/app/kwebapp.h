@@ -540,6 +540,7 @@ private:
 
 	void    Guard        (KRESTServer& HTTP);
 	void    NetworkGuard (KRESTServer& HTTP);
+	void    EnterPage    (KRESTServer& HTTP);
 	void    Live         (KRESTServer& HTTP);
 	void    LiveScript   (KRESTServer& HTTP);
 	void    LoginPage    (KRESTServer& HTTP);

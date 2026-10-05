@@ -440,26 +440,52 @@ TEST_CASE("KWebApp")
 
 	SECTION("enter")
 	{
+		// first step: no cookie yet, a page that loads the entry again from our
+		// own origin - a cookie set in a navigation that started on a web site
+		// would not arrive (WebKit)
 		auto R = Request(iPort, kFormat("GET /_kwa/enter?token={}&next=/data HTTP/1.1", sToken), { sHost });
+		CHECK ( R.iStatus == 200 );
+		CHECK ( R.Header("content-type").starts_with("text/html") );
+		CHECK ( R.Header("cache-control") == "no-store" );
+		CHECK ( R.Header("set-cookie").empty() );
+		CHECK ( R.sBody.contains(kFormat("http-equiv=\"refresh\" content=\"0;url=/_kwa/enter?token={}&amp;step=2&amp;next=/data\"", sToken)) );
+
+		// second step, from our own origin: the cookie, and on
+		R = Request(iPort, kFormat("GET /_kwa/enter?token={}&step=2&next=/data HTTP/1.1", sToken), { sHost, "Sec-Fetch-Site: same-origin" });
 		CHECK ( R.iStatus == 302 );
 		CHECK ( R.Header("location") == "/data" );
 		CHECK ( R.Header("set-cookie").starts_with(kFormat("kwa={}", sToken)) );
 		CHECK ( R.Header("set-cookie").contains("HttpOnly") );
 		CHECK ( R.Header("set-cookie").contains("SameSite=Strict") );
 
-		// a wrong token gets no cookie
+		// a wrong token gets neither page nor cookie
 		R = Request(iPort, "GET /_kwa/enter?token=0123456789abcdef&next=/data HTTP/1.1", { sHost });
 		CHECK ( R.iStatus == 403 );
 		CHECK ( R.Header("set-cookie").empty() );
+		CHECK ( R.sBody.contains("refresh") == false );
 
-		// next stays on our origin
+		R = Request(iPort, "GET /_kwa/enter?token=0123456789abcdef&step=2&next=/data HTTP/1.1", { sHost });
+		CHECK ( R.iStatus == 403 );
+		CHECK ( R.Header("set-cookie").empty() );
+
+		// next stays on our origin, in both steps
 		R = Request(iPort, kFormat("GET /_kwa/enter?token={}&next=//evil.example/ HTTP/1.1", sToken), { sHost });
+		CHECK ( R.iStatus == 200 );
+		CHECK ( R.sBody.contains("evil") == false );
+		CHECK ( R.sBody.contains("&amp;next=/\"") );
+
+		R = Request(iPort, kFormat("GET /_kwa/enter?token={}&step=2&next=//evil.example/ HTTP/1.1", sToken), { sHost });
 		CHECK ( R.iStatus == 302 );
 		CHECK ( R.Header("location") == "/" );
 
-		R = Request(iPort, kFormat("GET /_kwa/enter?token={}&next=http://evil.example/ HTTP/1.1", sToken), { sHost });
+		R = Request(iPort, kFormat("GET /_kwa/enter?token={}&step=2&next=http://evil.example/ HTTP/1.1", sToken), { sHost });
 		CHECK ( R.iStatus == 302 );
 		CHECK ( R.Header("location") == "/" );
+
+		// the separators of next cannot reach the attribute
+		R = Request(iPort, kFormat("GET /_kwa/enter?token={}&next=/a%22b%26step=1 HTTP/1.1", sToken), { sHost });
+		CHECK ( R.iStatus == 200 );
+		CHECK ( R.sBody.contains("next=/a%22b%26step%3D1\"") );
 	}
 
 	SECTION("enter URL")
@@ -467,10 +493,10 @@ TEST_CASE("KWebApp")
 		auto sURL = App.GetEnterURL("/data");
 		CHECK ( sURL.starts_with(kFormat("http://127.0.0.1:{}/_kwa/enter?token={}&next=", iPort, sToken)) );
 
-		// and it works as the first request
+		// and it works as the first request: the page for the second step
 		auto R = Request(iPort, kFormat("GET {} HTTP/1.1", KStringView(sURL).Mid(sURL.find('/', 7))), { sHost });
-		CHECK ( R.iStatus == 302 );
-		CHECK ( R.Header("location") == "/data" );
+		CHECK ( R.iStatus == 200 );
+		CHECK ( R.sBody.contains("step=2&amp;next=/data") );
 	}
 
 	SECTION("run without window until quit")
@@ -703,6 +729,10 @@ TEST_CASE("KWebApp network")
 		// the window-only path is refused, although logged in
 		R = TLSRequest(iPort, "GET /native HTTP/1.1", { sHost, sCookie });
 		CHECK ( R.iStatus == 403 );
+
+		// the window's entry page is not on the network side
+		R = TLSRequest(iPort, "GET /_kwa/enter?next=/ HTTP/1.1", { sHost, sCookie });
+		CHECK ( R.iStatus == 404 );
 
 		// logout ends the session
 		R = TLSRequest(iPort, "POST /logout HTTP/1.1", { sHost, sCookie });

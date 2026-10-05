@@ -43,10 +43,14 @@ received the request.
 start, passed to the window in its first navigation
 (`/_kwa/enter?token=...&next=...`), returned as an `HttpOnly; SameSite=Strict`
 cookie, and required on every request. Without it the answer is 403, also for
-static files. The `Host` header must be `127.0.0.1:<port>`, `Origin` (if
-present) must be `http://127.0.0.1:<port>`, `Sec-Fetch-Site` (if present) must
-be `same-origin` or `none`, and a websocket upgrade without `Origin` is
-refused.
+static files. The entry takes two steps: the first request gets a page that
+loads the entry again from the loopback origin, and only this second request
+sets the cookie. WebKit drops a `SameSite` cookie set during a navigation that
+started on another site, which is the case when the window shows a web site and
+the application navigates to one of its own pages. The `Host` header must be
+`127.0.0.1:<port>`, `Origin` (if present) must be `http://127.0.0.1:<port>`,
+`Sec-Fetch-Site` (if present) must be `same-origin` or `none`, and a websocket
+upgrade without `Origin` is refused.
 
 **Bridge.** `Bind(name, handler)` publishes `window.kNative.<name>(arg)`. The
 handler receives one `KJSON` argument and returns `KJSON`; the page receives a

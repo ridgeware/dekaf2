@@ -46,8 +46,6 @@
 #include <dekaf2/core/format/kformat.h>
 #include <dekaf2/system/filesystem/kfilesystem.h>
 #include <dekaf2/io/readwrite/kreader.h>
-#include <dekaf2/core/strings/kcaseless.h>
-#include <dekaf2/core/strings/ksplit.h>
 
 using namespace dekaf2;
 
@@ -59,31 +57,6 @@ KSql::KSql ()
 	SetThrowOnError(true);
 
 } // ctor
-
-/// Marks the end of a literal -e statement. Wrapping the literal between two of
-/// these tells RunInterpreter that nothing INSIDE ends the statement, which is
-/// the whole point: a multi-line literal is one statement, not one per line.
-constexpr KStringView s_sLiteralGuard = "~~KSQL~END~OF~LITERAL~~";
-
-//-----------------------------------------------------------------------------
-/// Does this SQL set its own statement terminator with a "delimiter" line? If it
-/// does, the caller is managing termination and we must not wrap it in ours.
-//-----------------------------------------------------------------------------
-bool SQLHasDelimiterDirective (KStringView sSQL)
-//-----------------------------------------------------------------------------
-{
-	for (auto sLine : kSplits<std::vector<KStringView>>(sSQL, "\n"))
-	{
-		if (kCaselessBeginsWith (sLine, "delimiter")
-		 && (sLine.size() == 9 || KASCII::kIsSpace (sLine[9])))
-		{
-			return true;
-		}
-	}
-
-	return false;
-
-} // SQLHasDelimiterDirective
 
 //-----------------------------------------------------------------------------
 /// Where does the real SQL end, if its last statement is UNTERMINATED?
@@ -308,65 +281,19 @@ int KSql::Main(int argc, char** argv)
 			sSQL = sInSQL;
 		}
 
-		// A literal -e is ONE statement, however many lines it spans. RunInterpreter
-		// is line oriented and ends a statement at any line closing with the active
-		// delimiter, so
-		//     ksql -e "if (schema() not like 'p\_%')
-		//              then
-		//                  alter table X add column Y int;
-		//              end if"
-		// was chopped at the inner ';' and the guard thrown away. A single-line -e
-		// never had this problem, because the whole literal sat on one line; this
-		// only makes the multi-line case behave the way the one-line case always
-		// did (Joe, 2026-10-03). Wrapping the literal in a delimiter that cannot
-		// occur in SQL says exactly that: nothing inside it ends the statement.
-		// Three cases stay on the old path. A caller who writes their own "delimiter"
-		// line is managing termination already; -e <file> keeps statement splitting,
-		// because a schema file holds many statements by design; and only MySQL has
-		// a "delimiter" command, so for the other db types the guard would be sent
-		// to the server as SQL. SQLite and PostgreSQL do not need it anyway, their
-		// splitters already understand BEGIN..END and $$ quoted bodies.
-		const bool bWrapAsOneStatement = !bIsFile
-		                              && !sSQL.empty()
-		                              && SQL.GetDBType() == KSQL::DBT::MYSQL
-		                              && !SQLHasDelimiterDirective (sSQL)
-		                              && !sSQL.contains (s_sLiteralGuard);
+		auto iEnd = SQLUnterminatedEnd (sSQL);
 
-		if (bWrapAsOneStatement)
+		if (iEnd != KStringView::npos)
 		{
-			// the guard terminates the statement, so a ';' the caller typed at the
-			// very end is surplus -- drop it exactly as RunInterpreter would have.
-			std::size_t iEnd = sSQL.size();
-
-			while (iEnd > 0 && KASCII::kIsSpace (sSQL[iEnd - 1]))
-			{
-				--iEnd;
-			}
-
-			if (iEnd > 0 && sSQL[iEnd - 1] == ';')
-			{
-				sSQL.erase (iEnd - 1);
-			}
-
-			sSQL = kFormat ("delimiter {}\n{}\n{}\ndelimiter ;\n",
-			                s_sLiteralGuard, sSQL, s_sLiteralGuard);
+			// drop trailing blank lines / comments so the ';' lands on the end of
+			// the statement itself, then terminate it.
+			sSQL.erase (iEnd);
+			sSQL += ';';
 		}
-		else
+		else if (bIsFile)
 		{
-			auto iEnd = SQLUnterminatedEnd (sSQL);
-
-			if (iEnd != KStringView::npos)
-			{
-				// drop trailing blank lines / comments so the ';' lands on the end of
-				// the statement itself, then terminate it.
-				sSQL.erase (iEnd);
-				sSQL += ';';
-			}
-			else if (bIsFile)
-			{
-				// already terminated and already on disk -- hand it over untouched.
-				sSQL.clear();
-			}
+			// already terminated and already on disk -- hand it over untouched.
+			sSQL.clear();
 		}
 
 		if (!sSQL.empty())
